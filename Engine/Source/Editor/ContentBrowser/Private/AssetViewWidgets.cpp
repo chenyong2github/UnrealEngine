@@ -4,6 +4,7 @@
 #include "AssetViewWidgets.h"
 #include "UObject/UnrealType.h"
 #include "Widgets/SOverlay.h"
+#include "Widgets/Layout/SWrapBox.h"
 #include "Engine/GameViewportClient.h"
 #include "SlateOptMacros.h"
 #include "Framework/Application/SlateApplication.h"
@@ -24,6 +25,7 @@
 #include "AssetViewTypes.h"
 #include "SThumbnailEditModeTools.h"
 #include "AutoReimport/AssetSourceFilenameCache.h"
+#include "SAssetTagItem.h"
 #include "CollectionViewUtils.h"
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "DragDropHandler.h"
@@ -801,16 +803,6 @@ TSharedRef<SWidget> SAssetViewItem::CreateToolTipWidget() const
 				UE_LOG(LogContentBrowser, Error, TEXT("AssetData for '%s' is invalid"), *AssetData.PackagePath.ToString());
 			}
 
-			// Add Collections
-			{
-				FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
-				const FString CollectionNames = CollectionManagerModule.Get().GetCollectionsStringForObject(AssetData.ObjectPath, ECollectionShareType::CST_All, ECollectionRecursionFlags::Self, GetDefault<UContentBrowserSettings>()->bShowFullCollectionNameInToolTip);
-				if (!CollectionNames.IsEmpty())
-				{
-					AddToToolTipInfoBox(InfoBox, LOCTEXT("AssetToolTipKey_Collections", "Collections"), FText::FromString(CollectionNames), false);
-				}
-			}
-
 			// Add tags
 			for (const auto& DisplayTagItem : CachedDisplayTags)
 			{
@@ -864,7 +856,8 @@ TSharedRef<SWidget> SAssetViewItem::CreateToolTipWidget() const
 							.AutoWidth()
 							.VAlign(VAlign_Center)
 							[
-								SNew(STextBlock).Text(ClassText)
+								SNew(STextBlock)
+								.Text(ClassText)
 								.HighlightText(HighlightText)
 							]
 						]
@@ -877,6 +870,7 @@ TSharedRef<SWidget> SAssetViewItem::CreateToolTipWidget() const
 							.Text(this, &SAssetViewItem::GetCheckedOutByOtherText)
 							.ColorAndOpacity(FLinearColor(0.1f, 0.5f, 1.f, 1.f))
 						]
+
 						+ SVerticalBox::Slot()
 						.AutoHeight()
 						[
@@ -917,6 +911,49 @@ TSharedRef<SWidget> SAssetViewItem::CreateToolTipWidget() const
 					]
 				];
 
+			// Final section (collection pips)
+			{
+				ICollectionManager& CollectionManager = FCollectionManagerModule::GetModule().Get();
+
+				TArray<FCollectionNameType> CollectionsContainingObject;
+				CollectionManager.GetCollectionsContainingObject(AssetData.ObjectPath, CollectionsContainingObject);
+
+				if (CollectionsContainingObject.Num() > 0)
+				{
+					TSharedRef<SWrapBox> CollectionPipsWrapBox = SNew(SWrapBox)
+						.PreferredWidth(700.0f);
+
+					for (const FCollectionNameType& CollectionContainingObject : CollectionsContainingObject)
+					{
+						FCollectionStatusInfo CollectionStatusInfo;
+						if (CollectionManager.GetCollectionStatusInfo(CollectionContainingObject.Name, CollectionContainingObject.Type, CollectionStatusInfo))
+						{
+							CollectionPipsWrapBox->AddSlot()
+							.Padding(0, 4, 4, 0)
+							[
+								// TODO: Honor or remove GetDefault<UContentBrowserSettings>()->bShowFullCollectionNameInToolTip
+								SNew(SAssetTagItem)
+								.ViewMode(EAssetTagItemViewMode::Compact)
+								.BaseColor(CollectionViewUtils::ResolveColor(CollectionContainingObject.Name, CollectionContainingObject.Type))
+								.DisplayName(FText::FromName(CollectionContainingObject.Name))
+								.CountText(FText::AsNumber(CollectionStatusInfo.NumObjects))
+							];
+						}
+					}
+
+					OverallTooltipVBox->AddSlot()
+						.AutoHeight()
+						.Padding(0, 4, 0, 0)
+						[
+							SNew(SBorder)
+							.Padding(FMargin(6, 2, 6, 6))
+							.BorderImage(FEditorStyle::GetBrush("ContentBrowser.TileViewTooltip.ContentBorder"))
+							[
+								CollectionPipsWrapBox
+							]
+						];
+				}
+			}
 
 			return SNew(SBorder)
 				.Padding(6)
@@ -1458,23 +1495,23 @@ FSlateColor SAssetViewItem::GetAssetColor() const
 		{
 			TSharedPtr<FAssetViewFolder> AssetFolderItem = StaticCastSharedPtr<FAssetViewFolder>(AssetItem);
 
-			TSharedPtr<FLinearColor> Color;
 			if (AssetFolderItem->bCollectionFolder)
 			{
 				FName CollectionName;
 				ECollectionShareType::Type CollectionFolderShareType = ECollectionShareType::CST_All;
 				ContentBrowserUtils::IsCollectionPath(AssetFolderItem->FolderPath, &CollectionName, &CollectionFolderShareType);
 
-				Color = CollectionViewUtils::LoadColor( CollectionName.ToString(), CollectionFolderShareType );
+				if (TOptional<FLinearColor> Color = CollectionViewUtils::GetCustomColor(CollectionName, CollectionFolderShareType))
+				{
+					return Color.GetValue();
+				}
 			}
 			else
 			{
-				Color = ContentBrowserUtils::LoadColor( AssetFolderItem->FolderPath );
-			}
-
-			if ( Color.IsValid() )
-			{
-				return *Color.Get();
+				if (TSharedPtr<FLinearColor> Color = ContentBrowserUtils::LoadColor(AssetFolderItem->FolderPath))
+				{
+					return *Color;
+				}
 			}
 		}
 		else if(AssetTypeActions.IsValid())

@@ -19,6 +19,9 @@ public:
 	/** Returns the list of collections */
 	virtual void GetCollections(TArray<FCollectionNameType>& OutCollections) const = 0;
 
+	/** Returns the list of collections with the given name */
+	virtual void GetCollections(FName CollectionName, TArray<FCollectionNameType>& OutCollections) const = 0;
+
 	/** Returns the list of collection names of the specified share type */
 	virtual void GetCollectionNames(ECollectionShareType::Type ShareType, TArray<FName>& CollectionNames) const = 0;
 
@@ -205,6 +208,34 @@ public:
 	  * @return true if the status info was filled in. If false, GetLastError will return a human readable string description of the error.
 	  */
 	virtual bool GetCollectionStatusInfo(FName CollectionName, ECollectionShareType::Type ShareType, FCollectionStatusInfo& OutStatusInfo) const = 0;
+
+	/**
+	 * Checks whether any collections have a custom color set, optionally retrieving the list of in-use colors
+	 *
+	 * @param OutColors The optional color array to populate.
+	 * @return true if there are any custom colors in use, false otherwise.
+	 */
+	virtual bool HasCollectionColors(TArray<FLinearColor>* OutColors = nullptr) const = 0;
+
+	/**
+	 * Gets the optional color for the specified collection
+	 *
+	 * @param CollectionName The collection to get the color for
+	 * @param ShareType The way the collection is shared.
+	 * @param OutColor The optional color to populate.
+	 * @return true if the collection was found, and the color was optionally filled in. If false, GetLastError will return a human readable string description of the error.
+	 */
+	virtual bool GetCollectionColor(FName CollectionName, ECollectionShareType::Type ShareType, TOptional<FLinearColor>& OutColor) const = 0;
+
+	/**
+	 * Sets the optional color for the specified collection
+	 *
+	 * @param CollectionName The collection to set the color for
+	 * @param ShareType The way the collection is shared.
+	 * @param NewColor The optional color to set.
+	 * @return true if the collection was found, and the color was set. If false, GetLastError will return a human readable string description of the error.
+	 */
+	virtual bool SetCollectionColor(FName CollectionName, ECollectionShareType::Type ShareType, const TOptional<FLinearColor>& NewColor) = 0;
 
 	/**
 	 * Gets the method by which the specified collection stores its objects (static or dynamic)

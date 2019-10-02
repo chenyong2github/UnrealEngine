@@ -228,6 +228,8 @@ void SCurveEditorPanel::Construct(const FArguments& InArgs, TSharedRef<FCurveEdi
 		[
 			SNew(SSplitter)
 			.Orientation(Orient_Horizontal)
+			.Style(FEditorStyle::Get(), "SplitterDark")
+			.PhysicalSplitterHandleSize(2.0f)
 
 			+ SSplitter::Slot()
 			.Value(0.30f)

@@ -101,23 +101,42 @@ bool FExtrudeMesh::Apply()
 		// for each polygon we created in stitch, set UVs and normals
 		if (Mesh->HasAttributes())
 		{
+			float AccumUVTranslation = 0;
+
+			FFrame3d FirstProjectFrame;
+			FVector3d FrameUp;
+
 			int NumNewQuads = StitchResult.NewQuads.Num();
 			for (int k = 0; k < NumNewQuads; k++)
 			{
 				FVector3f Normal = Editor.ComputeAndSetQuadNormal(StitchResult.NewQuads[k], true);
 
-				// @todo is there a simpler way to construct rotation from 3 known axes (third id Normal.Cross(UnitY))
-				//  (converting from matrix might end up being more efficient due to trig in ConstrainedAlignAxis?)
-				FFrame3d ProjectFrame(FVector3d::Zero(), (FVector3d)Normal);
-				if (FMathd::Abs(ProjectFrame.Y().Dot(FVector3d::UnitY())) < 0.01)
+				// align axis 0 of projection frame to first edge, then for further edges,
+				// rotate around 'up' axis to keep normal aligned and frame horizontal
+				FFrame3d ProjectFrame;
+				if (k == 0)
 				{
-					ProjectFrame.ConstrainedAlignAxis(0, FVector3d::UnitX(), ProjectFrame.Z());
+					FVector3d FirstEdge = Mesh->GetVertex(BaseLoop.Vertices[1]) - Mesh->GetVertex(BaseLoop.Vertices[0]);
+					FirstEdge.Normalize();
+					FirstProjectFrame = FFrame3d(FVector3d::Zero(), (FVector3d)Normal);
+					FirstProjectFrame.ConstrainedAlignAxis(0, FirstEdge, (FVector3d)Normal);
+					FrameUp = FirstProjectFrame.GetAxis(1);
+					ProjectFrame = FirstProjectFrame;
 				}
 				else
 				{
-					ProjectFrame.ConstrainedAlignAxis(1, FVector3d::UnitY(), ProjectFrame.Z());
+					ProjectFrame = FirstProjectFrame;
+					ProjectFrame.ConstrainedAlignAxis(2, (FVector3d)Normal, FrameUp);
 				}
-				Editor.SetQuadUVsFromProjection(StitchResult.NewQuads[k], ProjectFrame, UVScaleFactor);
+
+				if (k > 0)
+				{
+					AccumUVTranslation += Mesh->GetVertex(BaseLoop.Vertices[k]).Distance(Mesh->GetVertex(BaseLoop.Vertices[k-1]));
+				}
+
+				// translate horizontally such that vertical spans are adjacent in UV space (so textures tile/wrap properly)
+				float TranslateU = UVScaleFactor*AccumUVTranslation;
+				Editor.SetQuadUVsFromProjection(StitchResult.NewQuads[k], ProjectFrame, UVScaleFactor, FVector2f(TranslateU, 0) );
 			}
 		}
 

@@ -88,15 +88,36 @@ bool UMultiClickSequenceInputBehavior::WantsHoverEvents()
 	return true;
 }
 
-void UMultiClickSequenceInputBehavior::UpdateHover(const FInputDeviceState& Input)
+
+FInputCaptureRequest UMultiClickSequenceInputBehavior::WantsHoverCapture(const FInputDeviceState& InputState)
+{
+	return FInputCaptureRequest::Begin(this, EInputCaptureSide::Any);
+}
+
+FInputCaptureUpdate UMultiClickSequenceInputBehavior::BeginHoverCapture(const FInputDeviceState& InputState, EInputCaptureSide eSide) 
 {
 	if (Target != nullptr)
 	{
-		Modifiers.UpdateModifiers(Input, Target);
-		Target->OnBeginSequencePreview(FInputDeviceRay(Input.Mouse.WorldRay, Input.Mouse.Position2D));
+		Modifiers.UpdateModifiers(InputState, Target);
+		Target->OnBeginSequencePreview(FInputDeviceRay(InputState.Mouse.WorldRay, InputState.Mouse.Position2D));
+		return FInputCaptureUpdate::Begin(this, EInputCaptureSide::Any);
 	}
+	return FInputCaptureUpdate::Ignore();
 }
 
-void UMultiClickSequenceInputBehavior::EndHover(const FInputDeviceState& input)
+FInputCaptureUpdate UMultiClickSequenceInputBehavior::UpdateHoverCapture(const FInputDeviceState& InputState)
 {
+	if (Target != nullptr)
+	{
+		Modifiers.UpdateModifiers(InputState, Target);
+		Target->OnBeginSequencePreview(FInputDeviceRay(InputState.Mouse.WorldRay, InputState.Mouse.Position2D));
+		return FInputCaptureUpdate::Continue();
+	}
+	return FInputCaptureUpdate::End();
+}
+
+
+void UMultiClickSequenceInputBehavior::EndHoverCapture()
+{
+	// end
 }

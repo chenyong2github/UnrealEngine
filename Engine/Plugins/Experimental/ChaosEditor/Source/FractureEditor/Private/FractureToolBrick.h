@@ -111,6 +111,8 @@ public:
 	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) override;
 
 	virtual void ExecuteFracture(const FFractureContext& FractureContext) override;
+	virtual bool CanExecuteFracture() const override;
+
 private:
 	UPROPERTY()
 	UFractureBrickSettings* BrickSettings;

@@ -4,9 +4,7 @@
 #include "MaterialBakingStructures.h"
 
 #include "EngineModule.h"
-#include "MeshDescription.h"
-#include "MeshAttributes.h"
-#include "MeshAttributeArray.h"
+#include "StaticMeshAttributes.h"
 #include "DynamicMeshBuilder.h"
 #include "MeshPassProcessor.h"
 

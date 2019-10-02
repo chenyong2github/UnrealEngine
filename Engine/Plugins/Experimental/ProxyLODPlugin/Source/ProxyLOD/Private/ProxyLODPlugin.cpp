@@ -37,9 +37,7 @@ THIRD_PARTY_INCLUDES_END
 #include "ProxyLODkDOPInterface.h"
 #include "ProxyLODThreadedWrappers.h"
 
-#include "MeshDescription.h"
-#include "MeshAttributes.h"
-#include "MeshAttributeArray.h"
+#include "StaticMeshAttributes.h"
 #include "MeshDescriptionOperations.h"
 
 
@@ -601,7 +599,7 @@ void FVoxelizeMeshMerging::ProxyLOD(const FMeshMergeDataArray& InData, const FMe
 	//     will be captured by the CompleteDelegate. 
 
 	FMeshDescription OutRawMesh;
-	UStaticMesh::RegisterMeshAttributes(OutRawMesh);
+	FStaticMeshAttributes(OutRawMesh).Register();
 
 	FFlattenMaterial OutMaterial         = FMaterialUtilities::CreateFlattenMaterialWithSettings(InProxySettings.MaterialSettings);
 	const FColor UnresolvedGeometryColor = InProxySettings.UnresolvedGeometryColor;

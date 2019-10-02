@@ -107,7 +107,7 @@ struct FTransformToolOptions
 	float ScaleCenterY;
 
 	/** specifies the falloff type applied to curve selection */
-	UPROPERTY(Transient, EditAnywhere, Category = ToolOptions)
+	UPROPERTY(Transient, EditAnywhere, Category = ToolOptions, Meta = (ToolTip = "Interpolation type for soft selection (activate by holding ctrl)"))
 	EToolTransformInterpType FalloffInterpType;
 };
 
@@ -188,15 +188,14 @@ private:
 	FTransformToolOptions ToolOptions;
 	TSharedPtr<FStructOnScope> ToolOptionsOnScope;
 
-	/** helper struct for checking if tool has changed outside of own operations, i.e. middle click */
-	struct ToolBounds { FVector2D Positon, Size; };
-	ToolBounds PrevState;
-
 private:
 	/** Soft Selection Height, if 0.0 as we go up to 1.0 we go up to the top edge */
 	float FalloffHeight;
 	/** Soft Selection Width, if 0.0 we peak directly at the midpoint gradually scaling out till we reach 1.0fff */
 	float FalloffWidth;
+
+	/** Whether or not the selections have the same view transforms */
+	bool bCurvesHaveSameScales;
 
 	/** point to scale from, relative to current bounds */
 	FVector2D RelativeScaleCenter;

@@ -3,6 +3,9 @@
 #include "BaseTools/SingleClickTool.h"
 #include "InteractiveToolManager.h"
 
+#define LOCTEXT_NAMESPACE "USingleClickTool"
+
+
 
 /*
  * ToolBuilder
@@ -46,11 +49,13 @@ bool USingleClickTool::IsHitByClick(const FInputDeviceRay& ClickPos)
 void USingleClickTool::OnClicked(const FInputDeviceRay& ClickPos)
 {
 	// print debug message
-	GetToolManager()->PostMessage( 
-		FString::Printf( TEXT("USingleClickTool::OnClicked at (%f,%f)"), ClickPos.ScreenPosition.X, ClickPos.ScreenPosition.Y), 
+	GetToolManager()->DisplayMessage(
+		FText::Format(LOCTEXT("OnClickedMessage", "USingleClickTool::OnClicked at ({0},{1})"),
+			FText::AsNumber(ClickPos.ScreenPosition.X), FText::AsNumber(ClickPos.ScreenPosition.Y)),
 		EToolMessageLevel::Internal );
 }
 
 
 
 
+#undef LOCTEXT_NAMESPACE

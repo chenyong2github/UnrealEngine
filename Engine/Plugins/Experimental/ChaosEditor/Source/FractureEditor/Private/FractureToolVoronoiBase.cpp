@@ -110,3 +110,8 @@ void UFractureToolVoronoiBase::ExecuteFracture(const FFractureContext& FractureC
 		}
 	}
 }
+
+bool UFractureToolVoronoiBase::CanExecuteFracture() const
+{
+	return FFractureEditorModeToolkit::IsLeafBoneSelected();
+}

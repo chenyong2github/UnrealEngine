@@ -67,7 +67,7 @@ struct FMovieSceneEventTriggerTemplate : public FMovieSceneEventTemplateBase
 	TArray<FFrameNumber> EventTimes;
 
 	UPROPERTY()
-	TArray<FName> EventFunctions;
+	TArray<FMovieSceneEventPtrs> Events;
 
 private:
 
@@ -84,7 +84,7 @@ struct FMovieSceneEventRepeaterTemplate : public FMovieSceneEventTemplateBase
 	FMovieSceneEventRepeaterTemplate(const UMovieSceneEventRepeaterSection& Section, const UMovieSceneEventTrack& Track);
 
 	UPROPERTY()
-	FName EventToTrigger;
+	FMovieSceneEventPtrs EventToTrigger;
 
 private:
 

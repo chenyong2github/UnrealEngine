@@ -1567,14 +1567,9 @@ bool UUnrealEdEngine::Exec_Edit( UWorld* InWorld, const TCHAR* Str, FOutputDevic
 
 	if( FParse::Command(&Str,TEXT("CUT")) )
 	{
-		TArray<FEdMode*> ActiveModes;
-		GLevelEditorModeTools().GetActiveModes(ActiveModes);
-		for (int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex)
+		if (GLevelEditorModeTools().ProcessEditCut())
 		{
-			if (ActiveModes[ModeIndex]->ProcessEditCut())
-			{
-				return true;
-			}
+			return true;
 		}
 
 		if (bComponentsSelected)
@@ -1595,14 +1590,9 @@ bool UUnrealEdEngine::Exec_Edit( UWorld* InWorld, const TCHAR* Str, FOutputDevic
 	}
 	else if( FParse::Command(&Str,TEXT("COPY")) )
 	{
-		TArray<FEdMode*> ActiveModes;
-		GLevelEditorModeTools().GetActiveModes(ActiveModes);
-		for (int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex)
+		if (GLevelEditorModeTools().ProcessEditCopy())
 		{
-			if (ActiveModes[ModeIndex]->ProcessEditCopy())
-			{
-				return true;
-			}
+			return true;
 		}
 
 		if (bComponentsSelected)
@@ -1618,14 +1608,9 @@ bool UUnrealEdEngine::Exec_Edit( UWorld* InWorld, const TCHAR* Str, FOutputDevic
 	}
 	else if( FParse::Command(&Str,TEXT("PASTE")) )
 	{
-		TArray<FEdMode*> ActiveModes;
-		GLevelEditorModeTools().GetActiveModes(ActiveModes);
-		for (int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex)
+		if (GLevelEditorModeTools().ProcessEditPaste())
 		{
-			if (ActiveModes[ModeIndex]->ProcessEditPaste())
-			{
-				return true;
-			}
+			return true;
 		}
 
 		if (bComponentsSelected)
@@ -2558,13 +2543,9 @@ bool UUnrealEdEngine::Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevi
 	}
 	else if( FParse::Command(&Str,TEXT("DELETE")) )		// ACTOR SELECT DELETE
 	{
+	
 		bool bHandled = false;
-		TArray<FEdMode*> ActiveModes; 
-		GLevelEditorModeTools().GetActiveModes( ActiveModes );
-		for( int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex )
-		{
-			bHandled |= ActiveModes[ModeIndex]->ProcessEditDelete();
-		}
+		bHandled |= GLevelEditorModeTools().ProcessEditDelete();
 
 		// if not specially handled by the current editing mode,
 		if (!bHandled)
@@ -2743,12 +2724,7 @@ bool UUnrealEdEngine::Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevi
 	else if( FParse::Command(&Str,TEXT("DUPLICATE")) )
 	{
 		bool bHandled = false;
-		TArray<FEdMode*> ActiveModes; 
-		GLevelEditorModeTools().GetActiveModes( ActiveModes );
-		for( int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex )
-		{
-			bHandled |= ActiveModes[ModeIndex]->ProcessEditDuplicate();
-		}
+		bHandled |= GLevelEditorModeTools().ProcessEditDuplicate();
 
 		// if not specially handled by the current editing mode,
 		if (!bHandled)
@@ -3032,7 +3008,7 @@ bool UUnrealEdEngine::Exec_Mode( const TCHAR* Str, FOutputDevice& Ar )
 	if ( EditorMode == FBuiltinEditorModes::EM_None )
 	{
 		FString CommandToken = FParse::Token(Str, false);
-		FEdMode* FoundMode = GLevelEditorModeTools().FindMode( FName( *CommandToken ) );
+		FEdMode* FoundMode = GLevelEditorModeTools().GetActiveMode( FName( *CommandToken ) );
 
 		if ( FoundMode != NULL )
 		{

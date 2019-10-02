@@ -1057,3 +1057,37 @@ FDebugSkelMeshDynamicData::FDebugSkelMeshDynamicData(UDebugSkelMeshComponent* In
 	}
 }
 
+FScopedSuspendAlternateSkinWeightPreview::FScopedSuspendAlternateSkinWeightPreview(USkeletalMesh* SkeletalMesh)
+{
+	SuspendedComponentArray.Empty(2);
+	if (SkeletalMesh != nullptr)
+	{
+		// Now iterate over all skeletal mesh components and unregister them from the world, we will reregister them in the destructor
+		for (TObjectIterator<UDebugSkelMeshComponent> It; It; ++It)
+		{
+			UDebugSkelMeshComponent* DebugSKComp = *It;
+			if (DebugSKComp->SkeletalMesh == SkeletalMesh)
+			{
+				const FName ProfileName = DebugSKComp->GetCurrentSkinWeightProfileName();
+				if (ProfileName != NAME_None)
+				{
+					DebugSKComp->ClearSkinWeightProfile();
+					TTuple<UDebugSkelMeshComponent*, FName> ComponentTupple;
+					ComponentTupple.Key = DebugSKComp;
+					ComponentTupple.Value = ProfileName;
+					SuspendedComponentArray.Add(ComponentTupple);
+				}
+			}
+		}
+	}
+}
+
+FScopedSuspendAlternateSkinWeightPreview::~FScopedSuspendAlternateSkinWeightPreview()
+{
+	//Put back the skin weight profile for all editor debug component
+	for (const TTuple<UDebugSkelMeshComponent*, FName>& ComponentTupple : SuspendedComponentArray)
+	{
+		ComponentTupple.Key->SetSkinWeightProfile(ComponentTupple.Value);
+	}
+	SuspendedComponentArray.Empty();
+}

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "MeshTypes.h"
 #include "MeshElementRemappings.h"
+#include "Misc/TVariant.h"
 #include "UObject/ReleaseObjectVersion.h"
 
 
@@ -54,6 +55,13 @@ template <uint32 Index, typename Tuple> struct TTupleElement;
 template <uint32 Index, typename T, typename... Ts> struct TTupleElement<Index, TTuple<T, Ts...>> : TTupleElement<Index - 1, TTuple<Ts...>> {};
 template <typename T, typename... Ts> struct TTupleElement<0, TTuple<T, Ts...>> { using Type = T; };
 template <typename... Ts> struct TTupleElement<0, TTuple<Ts...>> { static_assert( sizeof...( Ts ) > 0, "TTuple element index out of range" ); };
+
+
+/**
+ * Helper template which generates a TVariant of all supported attribute types.
+ */
+template <typename Tuple> struct TVariantFromTuple;
+template <typename... Ts> struct TVariantFromTuple<TTuple<Ts...>> { using Type = TVariant<FEmptyVariantState, Ts...>; };
 
 
 /**

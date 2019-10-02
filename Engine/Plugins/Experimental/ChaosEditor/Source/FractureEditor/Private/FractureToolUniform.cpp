@@ -57,6 +57,7 @@ void UFractureToolUniform::RegisterUICommand( FFractureEditorCommands* BindingCo
 TArray<UObject*> UFractureToolUniform::GetSettingsObjects() const 
 { 
 	TArray<UObject*> AllSettings; 
+	AllSettings.Add(GetMutableDefault<UFractureCommonSettings>());
 	AllSettings.Add(Settings);
 	return AllSettings;
 }

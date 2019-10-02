@@ -5,9 +5,7 @@
 #include "ProxyLODMeshTypes.h"
 #include "ProxyLODThreadedWrappers.h"
 
-#include "MeshAttributes.h"
-#include "MeshAttributeArray.h"
-#include "MeshDescription.h"
+#include "StaticMeshAttributes.h"
 
 // Utils for building a kdop tree from different mesh types.
 

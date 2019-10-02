@@ -1727,7 +1727,7 @@ EVisibility SLevelViewport::GetCloseImmersiveButtonVisibility() const
 EVisibility SLevelViewport::GetTransformToolbarVisibility() const
 {
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>( LevelEditorName );
-	TSharedPtr<ILevelViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
+	TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
 
 	// Am I the ActiveLevelViewport? 
 	if( ActiveLevelViewport.Get() == this )
@@ -3752,7 +3752,7 @@ FName SLevelViewport::GetViewportTypeWithinLayout() const
 	TSharedPtr<FLevelViewportLayout> LayoutPinned = ParentLayout.Pin();
 	if (LayoutPinned.IsValid() && !ConfigKey.IsNone())
 	{
-		TSharedPtr<IViewportLayoutEntity> Entity = LayoutPinned->GetViewports().FindRef(ConfigKey);
+		TSharedPtr<ILevelViewportLayoutEntity> Entity = StaticCastSharedPtr<ILevelViewportLayoutEntity>(LayoutPinned->GetViewports().FindRef(ConfigKey));
 		if (Entity.IsValid())
 		{
 			return Entity->GetType();
@@ -4270,7 +4270,7 @@ bool SLevelViewport::CanProduceActionForCommand(const TSharedRef<const FUIComman
 {
 
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>( LevelEditorName );
-	TSharedPtr<ILevelViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
+	TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
 	if ( ActiveLevelViewport.IsValid() )
 	{
 		return ActiveLevelViewport == SharedThis(this);

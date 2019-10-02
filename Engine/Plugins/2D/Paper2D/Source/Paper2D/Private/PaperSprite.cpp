@@ -1905,6 +1905,8 @@ void UPaperSprite::PostLoad()
 	if (AtlasGroup == nullptr)
 	{
 		BakedSourceTexture = GetSourceTexture();
+		BakedSourceUV = SourceUV;
+		BakedSourceDimension = SourceDimension;
 	}
 #endif
 }

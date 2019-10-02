@@ -4,12 +4,15 @@
 #pragma once
 
 #include "DynamicMeshOverlay.h"
+#include "DynamicMeshTriangleAttribute.h"
 
 /** Standard UV overlay type - 2-element float */
 typedef TDynamicMeshVectorOverlay<float, 2, FVector2f> FDynamicMeshUVOverlay;
 /** Standard Normal overlay type - 3-element float */
 typedef TDynamicMeshVectorOverlay<float, 3, FVector3f> FDynamicMeshNormalOverlay;
 
+/** Standard per-triangle integer material ID */
+typedef TDynamicMeshTriangleAttribute<int32, 1> FDynamicMeshMaterialAttribute;
 
 /**
  * FDynamicMeshAttributeSet manages a set of extended attributes for a FDynamicMesh3.
@@ -24,9 +27,9 @@ class DYNAMICMESH_API FDynamicMeshAttributeSet
 public:
 
 	FDynamicMeshAttributeSet(FDynamicMesh3* Mesh) 
-		: ParentMesh(Mesh), UV0(Mesh), Normals0(Mesh)
+		: ParentMesh(Mesh), Normals0(Mesh)
 	{
-		UVLayers.Add(&UV0);
+		SetNumUVLayers(1);
 		NormalLayers.Add(&Normals0);
 	}
 
@@ -36,8 +39,19 @@ public:
 
 	void Copy(const FDynamicMeshAttributeSet& Copy)
 	{
-		UV0.Copy(Copy.UV0);
+		SetNumUVLayers(Copy.NumUVLayers());
+		for (int UVIdx = 0; UVIdx < NumUVLayers(); UVIdx++)
+		{
+			UVLayers[UVIdx].Copy(Copy.UVLayers[UVIdx]);
+		}
 		Normals0.Copy(Copy.Normals0);
+
+		if (Copy.MaterialIDAttrib)
+		{
+			EnableMaterialID();
+			MaterialIDAttrib->Copy( *(Copy.MaterialIDAttrib) );
+		}
+
 		// parent mesh is *not* copied!
 	}
 
@@ -50,68 +64,74 @@ public:
 	/** @return number of UV layers */
 	virtual int NumUVLayers() const 
 	{
-		return 1;
+		return UVLayers.Num();
+	}
+
+	virtual void SetNumUVLayers(int Num)
+	{
+		if (UVLayers.Num() == Num)
+		{
+			return;
+		}
+		if (Num >= UVLayers.Num())
+		{
+			for (int i = (int)UVLayers.Num(); i < Num; ++i)
+			{
+				UVLayers.Add(new FDynamicMeshUVOverlay(ParentMesh));
+			}
+		}
+		else
+		{
+			UVLayers.RemoveAt(Num, UVLayers.Num() - Num);
+		}
+		check(UVLayers.Num() == Num);
 	}
 
 	/** @return number of Normals layers */
 	virtual int NumNormalLayers() const
 	{
+		checkSlow(NormalLayers.Num() == 1);
 		return 1;
 	}
 
 	/** @return true if the given edge is a seam edge in any overlay */
 	virtual bool IsSeamEdge(int EdgeID) const;
 
+	/** @return true if the given vertex is a seam vertex in any overlay */
+	virtual bool IsSeamVertex(int VertexID, bool bBoundaryIsSeam = true) const;
+
 	
 	//
 	// UV Layers 
 	//
 
-	/** @return The number of UV layers in this attribute set */
-	int GetNumUVLayers() const
-	{
-		return UVLayers.Num();
-	}
-
 	/** @return the UV layer at the given Index */
 	FDynamicMeshUVOverlay* GetUVLayer(int Index)
 	{
-		return (Index == 0) ? &UV0 : nullptr;
+		return &UVLayers[Index];
 	}
 
 	/** @return the UV layer at the given Index */
 	const FDynamicMeshUVOverlay* GetUVLayer(int Index) const
 	{
-		return (Index == 0) ? &UV0 : nullptr;
-	}
-
-	/** @return list of all UV layers */
-	const TArray<FDynamicMeshUVOverlay*>& GetAllUVLayers() const
-	{
-		return UVLayers;
+		return &UVLayers[Index];
 	}
 
 	/** @return the primary UV layer (layer 0) */
 	FDynamicMeshUVOverlay* PrimaryUV() 
 	{
-		return &UV0;
+		return &UVLayers[0];
 	}
 	/** @return the primary UV layer (layer 0) */
 	const FDynamicMeshUVOverlay* PrimaryUV() const
 	{
-		return &UV0;
+		return &UVLayers[0];
 	}
 
 
 	//
 	// Normal Layers 
 	//
-
-	/** @return The number of normal layers in this attribute set */
-	int GetNumNormalLayers() const
-	{
-		return NormalLayers.Num();
-	}
 
 	/** @return the Normal layer at the given Index */
 	FDynamicMeshNormalOverlay* GetNormalLayer(int Index)
@@ -143,18 +163,41 @@ public:
 	}
 
 
+
+	//
+	// Per-Triangle Material ID
+	//
+
+	bool HasMaterialID() const
+	{
+		return !!MaterialIDAttrib;
+	}
+
+
+	void EnableMaterialID();
+
+	FDynamicMeshMaterialAttribute* GetMaterialID()
+	{
+		return MaterialIDAttrib.Get();
+	}
+
+	const FDynamicMeshMaterialAttribute* GetMaterialID() const
+	{
+		return MaterialIDAttrib.Get();
+	}
+
 protected:
 	/** Parent mesh of this attribute set */
 	FDynamicMesh3* ParentMesh;
 
-	/** Default UV layer */
-	FDynamicMeshUVOverlay UV0;
 	/** Default Normals layer */
 	FDynamicMeshNormalOverlay Normals0;
 
-	TArray<FDynamicMeshUVOverlay*> UVLayers;
+	TIndirectArray<FDynamicMeshUVOverlay> UVLayers;
 	TArray<FDynamicMeshNormalOverlay*> NormalLayers;
 
+	TUniquePtr<FDynamicMeshMaterialAttribute> MaterialIDAttrib;
+	
 
 protected:
 	friend class FDynamicMesh3;
@@ -164,14 +207,17 @@ protected:
 	 */
 	void Initialize(int MaxVertexID, int MaxTriangleID)
 	{
-		UV0.InitializeTriangles(MaxTriangleID);
+		for (FDynamicMeshUVOverlay& UVLayer : UVLayers)
+		{
+			UVLayer.InitializeTriangles(MaxTriangleID);
+		}
 		Normals0.InitializeTriangles(MaxTriangleID);
 	}
 
 	// These functions are called by the FDynamicMesh3 to update the various
 	// attributes when the parent mesh topology has been modified.
 	virtual void OnNewTriangle(int TriangleID, bool bInserted);
-	virtual void OnRemoveTriangle(int TriangleID, bool bRemoveIsolatedVertices);
+	virtual void OnRemoveTriangle(int TriangleID);
 	virtual void OnReverseTriOrientation(int TriangleID);
 	virtual void OnSplitEdge(const FDynamicMesh3::FEdgeSplitInfo & splitInfo);
 	virtual void OnFlipEdge(const FDynamicMesh3::FEdgeFlipInfo & flipInfo);

@@ -2,6 +2,7 @@
 
 #include "ExtensionLibraries/MovieScenePropertyTrackExtensions.h"
 #include "Tracks/MovieScenePropertyTrack.h"
+#include "Tracks/MovieSceneObjectPropertyTrack.h"
 
 void UMovieScenePropertyTrackExtensions::SetPropertyNameAndPath(UMovieScenePropertyTrack* Track, const FName& InPropertyName, const FString& InPropertyPath)
 {
@@ -26,3 +27,15 @@ FName UMovieScenePropertyTrackExtensions::GetUniqueTrackName(UMovieSceneProperty
 	return NAME_None;
 #endif
 }
+
+void UMovieScenePropertyTrackExtensions::SetObjectPropertyClass(UMovieSceneObjectPropertyTrack* Track, UClass* PropertyClass)
+{
+	Track->PropertyClass = PropertyClass;
+}
+
+UClass* UMovieScenePropertyTrackExtensions::GetObjectPropertyClass(UMovieSceneObjectPropertyTrack* Track)
+{
+	return Track->PropertyClass;
+}
+
+

@@ -67,18 +67,18 @@ TSharedRef<SWidget> FLevelViewportLayoutThreePanes::MakeViewportLayout(const FSt
 	Args.bRealtime = !FPlatformMisc::IsRemoteSession();
 	Args.ConfigKey = *ViewportKey0;
 	Args.ViewportType = LVT_Perspective;
-	TSharedRef<IViewportLayoutEntity> Viewport0 = LevelEditor.FactoryViewport(*ViewportType0, Args);
+	TSharedRef<ILevelViewportLayoutEntity> Viewport0 = LevelEditor.FactoryViewport(*ViewportType0, Args);
 
 	Args.bRealtime = false;
 	Args.ConfigKey = *ViewportKey1;
 	Args.ViewportType = LVT_OrthoXY;
-	TSharedRef<IViewportLayoutEntity> Viewport1 = LevelEditor.FactoryViewport(*ViewportType1, Args);
+	TSharedRef<ILevelViewportLayoutEntity> Viewport1 = LevelEditor.FactoryViewport(*ViewportType1, Args);
 
 	// Front viewport
 	Args.bRealtime = false;
 	Args.ConfigKey = *ViewportKey2;
 	Args.ViewportType = LVT_OrthoXZ;
-	TSharedRef<IViewportLayoutEntity> Viewport2 = LevelEditor.FactoryViewport(*ViewportType2, Args);
+	TSharedRef<ILevelViewportLayoutEntity> Viewport2 = LevelEditor.FactoryViewport(*ViewportType2, Args);
 
 	Viewports.Add( *ViewportKey0, Viewport0 );
 	Viewports.Add( *ViewportKey1, Viewport1 );
@@ -152,7 +152,7 @@ void FLevelViewportLayoutThreePanes::ReplaceWidget( TSharedRef< SWidget > Source
 // FLevelViewportLayoutThreePanesLeft /////////////////////////////
 
 TSharedRef<SWidget> FLevelViewportLayoutThreePanesLeft::MakeThreePanelWidget(
-	TMap< FName, TSharedPtr< IViewportLayoutEntity >>& ViewportWidgets,
+	TMap< FName, TSharedPtr< IAssetViewportLayoutEntity >>& ViewportWidgets,
 	const TSharedRef<SWidget>& Viewport0, const TSharedRef<SWidget>& Viewport1, const TSharedRef<SWidget>& Viewport2,
 	float PrimarySplitterPercentage, float SecondarySplitterPercentage)
 {
@@ -188,7 +188,7 @@ TSharedRef<SWidget> FLevelViewportLayoutThreePanesLeft::MakeThreePanelWidget(
 // FLevelViewportLayoutThreePanesRight /////////////////////////////
 
 TSharedRef<SWidget> FLevelViewportLayoutThreePanesRight::MakeThreePanelWidget(
-	TMap< FName, TSharedPtr< IViewportLayoutEntity >>& ViewportWidgets,
+	TMap< FName, TSharedPtr< IAssetViewportLayoutEntity >>& ViewportWidgets,
 	const TSharedRef<SWidget>& Viewport0, const TSharedRef<SWidget>& Viewport1, const TSharedRef<SWidget>& Viewport2,
 	float PrimarySplitterPercentage, float SecondarySplitterPercentage)
 {
@@ -224,7 +224,7 @@ TSharedRef<SWidget> FLevelViewportLayoutThreePanesRight::MakeThreePanelWidget(
 // FLevelViewportLayoutThreePanesTop /////////////////////////////
 
 TSharedRef<SWidget> FLevelViewportLayoutThreePanesTop::MakeThreePanelWidget(
-	TMap< FName, TSharedPtr< IViewportLayoutEntity >>& ViewportWidgets,
+	TMap< FName, TSharedPtr< IAssetViewportLayoutEntity >>& ViewportWidgets,
 	const TSharedRef<SWidget>& Viewport0, const TSharedRef<SWidget>& Viewport1, const TSharedRef<SWidget>& Viewport2,
 	float PrimarySplitterPercentage, float SecondarySplitterPercentage)
 {
@@ -260,7 +260,7 @@ TSharedRef<SWidget> FLevelViewportLayoutThreePanesTop::MakeThreePanelWidget(
 // FLevelViewportLayoutThreePanesBottom /////////////////////////////
 
 TSharedRef<SWidget> FLevelViewportLayoutThreePanesBottom::MakeThreePanelWidget(
-	TMap< FName, TSharedPtr< IViewportLayoutEntity >>& ViewportWidgets,
+	TMap< FName, TSharedPtr< IAssetViewportLayoutEntity >>& ViewportWidgets,
 	const TSharedRef<SWidget>& Viewport0, const TSharedRef<SWidget>& Viewport1, const TSharedRef<SWidget>& Viewport2,
 	float PrimarySplitterPercentage, float SecondarySplitterPercentage)
 {

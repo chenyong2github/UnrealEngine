@@ -9,9 +9,7 @@
 #include "ProxyLODMeshConvertUtils.h"
 #include "Math/Matrix.h" // used in chirality..
 
-#include "MeshDescription.h"
-#include "MeshAttributes.h"
-#include "MeshAttributeArray.h"
+#include "StaticMeshAttributes.h"
 
 
 namespace ProxyLOD

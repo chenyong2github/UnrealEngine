@@ -886,12 +886,21 @@ void FTextLocalizationManager::LoadLocalizationResourcesForPrioritizedCultures(T
 		return;
 	}
 
+	// Leet-ify always needs the native text to operate on, so force native data if we're loading for LEET
+	ELocalizationLoadFlags FinalLocLoadFlags = LocLoadFlags;
+#if ENABLE_LOC_TESTING
+	if (PrioritizedCultureNames[0] == FLeetCulture::StaticGetName())
+	{
+		FinalLocLoadFlags |= ELocalizationLoadFlags::Native;
+	}
+#endif
+
 	// Load the resources from each text source
 	FTextLocalizationResource NativeResource;
 	FTextLocalizationResource LocalizedResource;
 	for (const TSharedPtr<ILocalizedTextSource>& LocalizedTextSource : LocalizedTextSources)
 	{
-		LocalizedTextSource->LoadLocalizedResources(LocLoadFlags, PrioritizedCultureNames, NativeResource, LocalizedResource);
+		LocalizedTextSource->LoadLocalizedResources(FinalLocLoadFlags, PrioritizedCultureNames, NativeResource, LocalizedResource);
 	}
 
 	// When loc testing is enabled, UpdateFromNative also takes care of restoring non-localized text which is why the condition below is gated

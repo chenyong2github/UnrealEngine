@@ -104,18 +104,6 @@ public:
 		return ( ( bExcludeOverride ? false : OverrideDisplayPluginFolders ) || DisplayPluginFolders );
 	}
 
-	/** Sets whether we are allowed to display collection folders or not */
-	void SetDisplayCollections(bool bInDisplayCollections)
-	{
-		DisplayCollections = bInDisplayCollections;
-	}
-
-	/** Gets whether we are allowed to display the collection folders or not*/
-	bool GetDisplayCollections() const
-	{
-		return DisplayCollections;
-	}
-
 	/** Sets whether we are allowed to display favorite folders or not */
 	void SetDisplayFavorites(bool bInDisplayFavorites)
 	{
@@ -215,9 +203,6 @@ private:
 
 	/** Temporary override for the DisplayPluginFolders setting */
 	bool OverrideDisplayPluginFolders;
-
-	UPROPERTY(config)
-	bool DisplayCollections;
 
 	UPROPERTY(config)
 	bool DisplayFavorites;

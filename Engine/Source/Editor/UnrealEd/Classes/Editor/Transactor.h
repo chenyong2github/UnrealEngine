@@ -270,6 +270,9 @@ protected:
 		/** @return true if the record has a delta change or a custom change */
 		bool HasChanges() const;
 
+		/** @return true if the record has a custom change and the change has expired */
+		bool HasExpired() const;
+
 		/** Transfers data from an array. */
 		class FReader : public FArchiveUObject
 		{
@@ -597,6 +600,9 @@ public:
 
 	/** @return True if this record contains a reference to a pie object */
 	virtual bool ContainsPieObjects() const override;
+
+	/** @return true if the transaction contains custom changes and all the changes have expired */
+	virtual bool HasExpired() const;
 
 
 	/** Returns a unique string to serve as a type ID for the FTranscationBase-derived type. */

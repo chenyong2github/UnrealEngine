@@ -71,14 +71,14 @@ bool FMeshRefinerBase::CheckIfFlipInvertsNormals(int a, int b, int c, int d, int
 	int oa = a, ob = b;
 	IndexUtil::OrientTriEdge(oa, ob, tri_v);
 	FVector3d vOA = Mesh->GetVertex(oa), vOB = Mesh->GetVertex(ob);
-	FVector3d n0 = VectorUtil::FastNormalDirection(vOA, vOB, vC);
-	FVector3d n1 = VectorUtil::FastNormalDirection(vOB, vOA, vD);
-	FVector3d f0 = VectorUtil::FastNormalDirection(vC, vD, vOB);
+	FVector3d n0 = VectorUtil::NormalDirection(vOA, vOB, vC);
+	FVector3d n1 = VectorUtil::NormalDirection(vOB, vOA, vD);
+	FVector3d f0 = VectorUtil::NormalDirection(vC, vD, vOB);
 	if (ComputeEdgeFlipMetric(n0, f0) <= EdgeFlipTolerance || ComputeEdgeFlipMetric(n1, f0) <= EdgeFlipTolerance)
 	{
 		return true;
 	}
-	FVector3d f1 = VectorUtil::FastNormalDirection(vD, vC, vOA);
+	FVector3d f1 = VectorUtil::NormalDirection(vD, vC, vOA);
 	if (ComputeEdgeFlipMetric(n0, f1) <= EdgeFlipTolerance || ComputeEdgeFlipMetric(n1, f1) <= EdgeFlipTolerance)
 	{
 		return true;

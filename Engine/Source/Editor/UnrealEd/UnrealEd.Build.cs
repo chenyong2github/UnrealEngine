@@ -102,11 +102,14 @@ public class UnrealEd : ModuleRules
 				"NetworkFileSystem",
 				"UMG",
 				"NavigationSystem",
-                "MeshDescription",
+				"MeshDescription",
+                "StaticMeshDescription",
                 "MeshDescriptionOperations",
                 "MeshBuilder",
                 "MaterialShaderQualitySettings",
                 "EditorSubsystem",
+                "InteractiveToolsFramework",
+				"ToolMenusEditor",
             }
 		);
 
@@ -114,6 +117,7 @@ public class UnrealEd : ModuleRules
 			new string[]
 			{
 				"AssetRegistry",
+				"AssetTagsEditor",
 				"LevelSequence",
 				"AnimGraph",
 				"AppFramework",
@@ -178,7 +182,7 @@ public class UnrealEd : ModuleRules
                 "LandscapeEditorUtilities",
                 "DerivedDataCache",
 				"ScriptDisassembler",
-				"ToolMenus",
+				"ToolMenus"
 			}
 		);
 
@@ -283,6 +287,7 @@ public class UnrealEd : ModuleRules
 		PublicIncludePathModuleNames.AddRange(
 			new string[] {
 				"AssetRegistry",
+				"AssetTagsEditor",
 				"CollectionManager",
 				"BlueprintGraph",
 				"AddContentDialog",

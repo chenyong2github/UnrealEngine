@@ -25,6 +25,7 @@ namespace UnrealBuildTool.Rules
 					"PropertyEditor",
 					"Slate",
 					"SlateCore",
+					"StaticMeshDescription",
 					"UnrealEd",
 				}
 			);

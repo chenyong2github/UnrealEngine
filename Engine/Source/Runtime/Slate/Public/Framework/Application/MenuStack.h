@@ -175,12 +175,23 @@ public:
 	TSharedPtr<IMenu> FindMenuInWidgetPath(const FWidgetPath& PathToQuery) const;
 
 	/**
+	 * Called by the application when showing tooltips. It prevents tooltips from drawing over menu items. If the resulting bool is false, the resulting OutSlateRect will be [0,0,0,0] and should not be used.
+	 *
+	 * @param InMenu				A menu in the stack, used to generate the force field rect
+	 * @param InPathContainingMenu	A widget path containing InMenu. This could be generated but the application has the path so it helps performance to pass it in here.
+	 * @param OutSlateRect			The output rectangle enclosing the menu's children (created from the clipping rects in the geometry in PathContainingMenu)
+	 * @return						A bool indicating whether a solution was found. If false, the resulting OutSlateRect will be [0,0,0,0] and should not be used.
+	 */
+	bool GetToolTipForceFieldRect(const TSharedRef<IMenu>& InMenu, const FWidgetPath& InPathContainingMenu, FSlateRect& OutSlateRect) const;
+
+	/**
 	 * Called by the application when showing tooltips. It prevents tooltips from drawing over menu items.
 	 *
 	 * @param InMenu				A menu in the stack, used to generate the force field rect
 	 * @param PathContainingMenu	A widget path containing InMenu. This could be generated but the application has the path so it helps performance to pass it in here. 
 	 * @return						A rectangle enclosing the menu's children (created from the clipping rects in the geometry in PathContainingMenu)
 	 */
+	UE_DEPRECATED(4.24, "FSlateRect GetToolTipForceFieldRect(TSharedRef<IMenu>, const FWidgetPath&) has been deprecated to avoid bugs when no solution is found. Instead, use bool GetToolTipForceFieldRect(const TSharedRef<IMenu>&, const FWidgetPath&, FSlateRect&).")
 	FSlateRect GetToolTipForceFieldRect(TSharedRef<IMenu> InMenu, const FWidgetPath& PathContainingMenu) const;
 
 	/**

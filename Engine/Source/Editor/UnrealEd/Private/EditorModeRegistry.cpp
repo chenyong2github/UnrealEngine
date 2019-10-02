@@ -17,6 +17,7 @@
 #include "Editor/TextureAlignMode/Public/TextureAlignEdMode.h"
 #include "Editor/FoliageEdit/Public/FoliageEditModule.h"
 #include "Editor/VirtualTexturingEditor/Public/VirtualTexturingEditorModule.h"
+#include "Tools/UEdMode.h"
 
 FEditorModeInfo::FEditorModeInfo()
 	: ID(NAME_None)
@@ -133,6 +134,29 @@ TSharedPtr<FEdMode> FEditorModeRegistry::CreateMode(FEditorModeID ModeID, FEdito
 
 	return nullptr;
 }
+
+UEdMode* FEditorModeRegistry::CreateScriptableMode(FEditorModeID ModeID, FEditorModeTools& Owner)
+{
+	const TSharedRef<IEditorModeFactory>* ModeFactory = ModeFactories.Find(ModeID);
+	if (ModeFactory)
+	{
+		UEdMode* Instance = (*ModeFactory)->CreateScriptableMode();
+
+		// Assign the mode info from the factory before we initialize
+		Instance->Info = (*ModeFactory)->GetModeInfo();
+		Instance->Owner = &Owner;
+
+		// This binding ensures the mode is destroyed if the type is unregistered
+		OnModeUnregistered().AddUObject(Instance, &UEdMode::OnModeUnregistered);
+
+		Instance->Initialize();
+
+		return Instance;
+	}
+
+	return nullptr;
+}
+
 
 void FEditorModeRegistry::RegisterMode(FEditorModeID ModeID, TSharedRef<IEditorModeFactory> Factory)
 {
