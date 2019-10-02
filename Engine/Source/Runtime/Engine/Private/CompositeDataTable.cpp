@@ -258,6 +258,12 @@ void UCompositeDataTable::PostEditChangeProperty(FPropertyChangedEvent& Property
 }
 #endif // WITH_EDITOR
 
+void UCompositeDataTable::AppendParentTables(const TArray<UDataTable*>& NewTables)
+{
+	ParentTables.Append(NewTables);
+	OnParentTablesUpdated(EPropertyChangeType::ValueSet);
+}
+
 void UCompositeDataTable::OnParentTablesUpdated(EPropertyChangeType::Type ChangeType)
 {
 	for (UDataTable* Table : OldParentTables)
