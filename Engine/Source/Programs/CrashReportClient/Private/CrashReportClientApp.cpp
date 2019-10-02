@@ -718,6 +718,8 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 		}
 #endif
 
+		FPlatformProcess::CloseProc(MonitoredProcess);
+
 		FCrashReportAnalytics::Shutdown();
 	}
 
