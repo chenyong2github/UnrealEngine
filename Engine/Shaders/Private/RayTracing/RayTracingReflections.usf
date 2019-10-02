@@ -167,7 +167,7 @@ void RayTracingReflectionsRGS()
 
 	uint2 PixelCoord = GetPixelCoord(DispatchThreadId, UpscaleFactor); // GBuffer pixel coordinates (full resolution)
 
-	uint LinearIndex = PixelCoord.y * View.BufferSizeAndInvSize.x + PixelCoord.x; // TODO: PixelCoord or DispatchThreadId
+	uint LinearIndex = PixelCoord.y * View.BufferSizeAndInvSize.x + PixelCoord.x; // TODO(Denoiser): PixelCoord or DispatchThreadId
 	
 	RandomSequence RandSequence;
 	RandomSequence_Initialize(RandSequence, LinearIndex, View.StateFrameIndex);
@@ -737,7 +737,7 @@ void RayTracingReflectionsRGS()
 		RayHitDistanceOutput[DispatchThreadId] = HitDistance;
 
 		// Imaginary depth computation for Nvidia's denoiser.
-		// TODO: shader permutation?
+		// TODO(Denoiser): shader permutation?
 		{
 			float3 OriginalWorldPos;
 			float3 CameraToPixel;

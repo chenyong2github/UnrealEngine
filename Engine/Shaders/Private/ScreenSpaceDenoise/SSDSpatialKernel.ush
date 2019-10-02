@@ -393,7 +393,7 @@ float2 ComputeRefBufferUV(FSSDKernelConfig KernelConfig)
 		#endif
 
 		// Matches first line of kStackowiakSampleSet0
-		// TODO: could be optimised further by just setting sign bit on 0.5.
+		// TODO(Denoiser): could be optimised further by just setting sign bit on 0.5.
 		float2 SampleOffset = float2(
 			SampleTrackId & 0x1 ? 0.5 : -0.5,
 			SampleTrackId & 0x2 ? 0.5 : -0.5);
@@ -479,7 +479,7 @@ FSSDSignalSample TransformSignalSampleForAccumulation(
 	uint2 SamplePixelCoord)
 {
 	// Transform the color space.
-	// TODO: could pass down information that this sample may be normalized.
+	// TODO(Denoiser): could pass down information that this sample may be normalized.
 	Sample = TransformSignal(
 		Sample, 
 		/* SrcBasis  = */ KernelConfig.BufferColorSpace[MultiplexId], 
@@ -543,7 +543,7 @@ FSSDSignalArray UncompressMultiplexedSignals(
 	float2 SampleBufferUV,
 	FSSDCompressedMultiplexedSample CompressedMultiplexedSamples)
 {
-	// TODO: offer multiplier to apply to each signal during Decode, to save mul VALU.
+	// TODO(Denoiser): offer multiplier to apply to each signal during Decode, to save mul VALU.
 	FSSDSignalArray MultiplexedSamples = DecodeMultiplexedSignals(
 		KernelConfig.BufferLayout,
 		/* MultiplexedSampleId = */ 0,
@@ -632,7 +632,7 @@ void AccumulateSampledMultiplexedSignals(
 		// Compute at compile time the id of the signal being processed.
 		const uint BatchedSignalId = ComputeSignalBatchIdFromSignalMultiplexId(KernelConfig, SignalMultiplexId);
 		
-		// TODO: direction of the ray should be cached by injest or output by RGS, otherwise ends up with VGPR pressure because of SampleBufferUV.
+		// TODO(Denoiser): direction of the ray should be cached by injest or output by RGS, otherwise ends up with VGPR pressure because of SampleBufferUV.
 		uint2 NeighborPixelCoord = floor(SampleBufferUV * KernelConfig.BufferSizeAndInvSize.xy);
 
 		// Fetch and pre process the sample for accumulation.
@@ -648,7 +648,7 @@ void AccumulateSampledMultiplexedSignals(
 		// But the signal's bluring radius might already be pre computed.
 		if (KernelConfig.BilateralDistanceComputation == SIGNAL_WORLD_FREQUENCY_PRECOMPUTED_BLURING_RADIUS)
 		{
-			// TODO: this is ineficient, could fetch the normalised WorldBluringRadius instead of SafeRcp().
+			// TODO(Denoiser): this is ineficient, could fetch the normalised WorldBluringRadius instead of SafeRcp().
 			SignalConvolutionBluringRadius = Sample.WorldBluringRadius * SafeRcp(Sample.SampleCount);
 		}
 
@@ -709,7 +709,7 @@ void AccumulateSampledMultiplexedSignals(
 			SampleInfos.FinalWeight = 1;
 		}
 
-		// TODO: bIsOutsideFrustum could afect number of samples for DRB.
+		// TODO(Denoiser): bIsOutsideFrustum could afect number of samples for DRB.
 		FLATTEN
 		if (SampleInfos.Sample.SampleCount != 0 && !bIsOutsideFrustum)
 		{
@@ -846,7 +846,7 @@ void SampleAndAccumulateMultiplexedSignalsPair(
 		}
 
 		// Take the min inverse frequency per signal if desired.
-		// TODO: this should be normalized in theory...
+		// TODO(Denoiser): this should be normalized in theory...
 		if (KernelConfig.bMinSamplePairInvFrequency)
 		{
 			UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
@@ -1023,8 +1023,8 @@ void AccumulateBilinear(
 	{
 		float2 SampleOffset = BilinearSamplingOffsets2x2[i];
 		
-		// TODO: could be more ALU efficient for this.
-		// TODO: -0.5 full res pixel to ensure always select the mip, regardless of mantissa precision?
+		// TODO(Denoiser): could be more ALU efficient for this.
+		// TODO(Denoiser): -0.5 full res pixel to ensure always select the mip, regardless of mantissa precision?
 		float2 SampleBufferUV = (BilinearInfos.TopLeftPixelCoord + (SampleOffset + 0.5)) * MipLevelPow2 * KernelConfig.BufferSizeAndInvSize.zw;
 		
 		float BilinearWeight = GetSampleWeight(BilinearInfos, i);
@@ -1074,8 +1074,8 @@ void AccumulateStocasticBilinear(
 			break;
 	}
 	
-	// TODO: could be more ALU efficient for this.
-	// TODO: -0.5 full res pixel to ensure always select the mip, regardless of mantissa precision?
+	// TODO(Denoiser): could be more ALU efficient for this.
+	// TODO(Denoiser): -0.5 full res pixel to ensure always select the mip, regardless of mantissa precision?
 	float2 SampleBufferUV = (BilinearInfos.TopLeftPixelCoord + (SampleOffset + 0.5)) * MipLevelPow2 * KernelConfig.BufferSizeAndInvSize.zw;
 		
 	SampleAndAccumulateMultiplexedSignals(
@@ -1153,7 +1153,7 @@ void AccumulateSquareKernel(
 	}
 	else
 	{
-		// TODO: lattency hiding of this is terrible.
+		// TODO(Denoiser): lattency hiding of this is terrible.
 		LOOP for (int x = -KernelRadius; x <= KernelRadius; x++)
 		LOOP for (int y = -KernelRadius; y <= KernelRadius; y++)
 		{
@@ -1285,7 +1285,7 @@ void AccumulateSquare3x3Kernel(
 	{
 		float2 SampleBufferUV = KernelConfig.BufferUV;
 			
-		// TODO:
+		// TODO(Denoiser):
 		const bool bIsOutsideFrustum = false;
 
 		FSSDCompressedSceneInfos CompressedSampleSceneMetadata;
@@ -1609,7 +1609,7 @@ void ConvolveStackowiakKernel(
 		}
 		else
 		{
-			// TODO
+			// TODO(Denoiser)
 		}
 		
 		FSSDSampleClusterInfo ClusterInfo;
@@ -1753,7 +1753,7 @@ void ConvolveStackowiakKernel(
 		const uint BatchCountCount = (KernelConfig.SampleCount - 1) / kSamplingBatchSize;
 
 		// Processes the samples in batches so that the compiler can do lattency hidding.
-		// TODO: kSamplingBatchSize for lattency hidding
+		// TODO(Denoiser): kSamplingBatchSize for lattency hidding
 		LOOP
 		for (uint BatchId = 0; BatchId < BatchCountCount; BatchId++)
 		{
@@ -1802,7 +1802,7 @@ void ConvolveStackowiakKernel(
 // Returns the position of the sample on the unit circle (radius = 1) for a given ring.
 float2 GetDiskSampleOnUnitCirle(uint RingId, uint RingSampleIteration, uint RingSampleId)
 {
-	RingId -= 1; // TODO.
+	RingId -= 1; // TODO(Denoiser).
 
 	float SampleRingPos = RingSampleId;
 
@@ -1893,7 +1893,7 @@ void GatherRingSamples(
 	const uint RingSamplePairCount = GetRingSamplingPairCount(KernelConfig.SampleSet, RingId);
 
 	// Number of sample pair to process per batch.
-	// TODO: Could potentially do 4 using symetries? Might be unpracticable because of VGPR pressure. 
+	// TODO(Denoiser): Could potentially do 4 using symetries? Might be unpracticable because of VGPR pressure. 
 	const uint SamplePairBatchSize = (KernelConfig.SampleSet == SAMPLE_SET_HEXAWEB) ? 1 : 2;
 
 	// Number of batch to process.
@@ -2154,7 +2154,7 @@ void ConvolveDirectionalRect(
 	const uint kSamplingBatchSize = 2;
 
 	// Number of batch of samples to perform. It's not round up because also sampling the center of kernel anyway.
-	// TODO: store in a SGPR array instead to save 1 VGPR.
+	// TODO(Denoiser): store in a SGPR array instead to save 1 VGPR.
 	const uint BatchCountCount = KernelConfig.SampleCount / kSamplingBatchSize;
 
 	// Processes the samples in batches so that the compiler can do lattency hidding.

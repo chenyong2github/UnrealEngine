@@ -333,7 +333,7 @@ void OcclusionRGS()
 			AvgHitDistance = 1.0e27;
 		}
 
-		// TODO: the denoiser would much prefer a single RG texture.
+		// TODO(Denoiser): the denoiser would much prefer a single RG texture.
 		RWOcclusionMaskUAV[PixelCoord] = Shadow;
 		RWRayDistanceUAV[PixelCoord] = AvgHitDistance;
 	}

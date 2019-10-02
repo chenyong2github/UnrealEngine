@@ -113,7 +113,7 @@ uint2 GetPixelCoord(uint2 DispatchThreadId, uint UpscaleFactor)
 {
 	uint UpscaleFactorPow2 = UpscaleFactor * UpscaleFactor;
 
-	// TODO: find a way to not interfer with TAA's jittering.
+	// TODO(Denoiser): find a way to not interfer with TAA's jittering.
 	uint SubPixelId = View.StateFrameIndex & (UpscaleFactorPow2 - 1);
 
 	return DispatchThreadId * UpscaleFactor + uint2(SubPixelId & (UpscaleFactor - 1), SubPixelId / UpscaleFactor);
