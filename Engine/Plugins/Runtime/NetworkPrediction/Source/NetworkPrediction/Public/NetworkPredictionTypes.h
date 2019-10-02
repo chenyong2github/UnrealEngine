@@ -11,6 +11,11 @@
 // -------------------------------------------------------------------------------------------------------------------------------
 
 #define NETSIM_MODEL_DEBUG !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if NETSIM_MODEL_DEBUG
+#define DO_NETSIM_MODEL_DEBUG(X) X
+#else
+#define DO_NETSIM_MODEL_DEBUG(X)
+#endif
 
 NETWORKPREDICTION_API DECLARE_LOG_CATEGORY_EXTERN(LogNetworkSim, Log, All);
 
@@ -162,11 +167,25 @@ inline FString LexToString(ESimulatedUpdateMode A)
 // Ticking parameters use to drive the simulation
 // -------------------------------------------------------------------------------------------------------------------------------
 
-class FNetworkSimulationTickingParameters
+struct NETWORKPREDICTION_API FNetSimTickParameters
 {
-	float LocalFrameDeltaTimeSeconds;
-};
+	FNetSimTickParameters(float InLocalDeltaTimeSeconds) : LocalDeltaTimeSeconds(InLocalDeltaTimeSeconds) { }
+	FNetSimTickParameters(float InLocalDeltaTimeSeconds, AActor* Actor);
 
+	/** Initializes Role and bGenerateLocalInputCmds from an Actor's state. */
+	void InitFromActor(AActor* Actor);
+
+	// Owner's role. Necessary to know which proxy we should be forwarding functions in tick to
+	ENetRole Role = ROLE_None;
+
+	// Are we creating input cmds locally. Note this is distinct from Role/Authority:
+	//		-[On Server] Autonomous Proxy client = false
+	//		-[On Server] Non player controlled actor = true
+	//		-[On Client] Simulated proxies (everyone but client) = true, if you want extrapolation. Note clients can just not tick the netsim to disable extrapolation as well.
+	bool bGenerateLocalInputCmds = false;
+
+	float LocalDeltaTimeSeconds = 0.f;
+};
 
 // -------------------------------------------------------------------------------------------------------------------------------
 // Interface that the proxy talks to. This is what will implement the replication.
@@ -179,6 +198,38 @@ public:
 	
 	virtual void NetSerializeProxy(EReplicationProxyTarget Target, const FNetSerializeParams& Params) = 0;
 	virtual int32 GetProxyDirtyCount(EReplicationProxyTarget Target) = 0;
+};
+
+class INetworkSimulationModel : public IReplicationProxy
+{
+public:
+
+	virtual FName GetSimulationGroupName() const = 0;
+
+	virtual void Reconcile(const ENetRole Role) = 0;
+	virtual void Tick(const FNetSimTickParameters&) = 0;
+	virtual void InitializeForNetworkRole(const ENetRole Role, const FNetworkSimulationModelInitParameters& Parameters) = 0;
+
+	virtual bool ShouldSendServerRPC(float DeltaSeconds) = 0;
+	virtual void SetDesiredServerRPCSendFrequency(float DesiredHz) = 0;
+
+	// ----------------------------------------------------------------------
+	// Functions for depedent simulation (forward predicting a simulated proxy sim along with an auto proxy sim)
+	// ----------------------------------------------------------------------
+	
+	// Main function to call on simulated proxy sim
+	virtual void SetParentSimulation(INetworkSimulationModel* Simulation) = 0;
+	virtual INetworkSimulationModel* GetParentSimulation() const = 0;
+	
+	virtual void AddDepdentSimulation(INetworkSimulationModel* Simulation) = 0;
+	virtual void RemoveDependentSimulation(INetworkSimulationModel* Simulation) = 0;
+	
+	// Tell parent sim that a dependent sim needs to reconcile (parent sim drives this)
+	virtual void NotifyDependentSimNeedsReconcile() = 0;
+	
+	// Called by parent sim on the dependent sim as it reconciles
+	virtual void BeginRollback(const struct FNetworkSimTime& RollbackDeltaTime, const int32 ParentKeyframe) = 0;
+	virtual void StepRollback(const struct FNetworkSimTime& Step, const int32 ParentKeyframe, const bool FinalStep) = 0;
 };
 
 // -------------------------------------------------------------------------------------------------------------------------------
@@ -263,17 +314,3 @@ private:
 	class UNetConnection* CachedNetConnection = nullptr;
 };
 
-struct NETWORKPREDICTION_API FNetSimTickParametersBase
-{
-	FNetSimTickParametersBase();
-	FNetSimTickParametersBase(AActor* Actor);
-
-	// Owner's role. Necessary to know which proxy we should be forwarding functions in tick to
-	ENetRole Role = ROLE_None;
-
-	// Are we creating input cmds locally. Note this is distinct from Role/Authority:
-	//		-[On Server] Autonomous Proxy client = false
-	//		-[On Server] Non player controlled actor = true
-	//		-[On Client] Simulated proxies (everyone but client) = true, if you want extrapolation. Note clients can just not tick the netsim to disable extrapolation as well.
-	bool bGenerateLocalInputCmds = false;
-};

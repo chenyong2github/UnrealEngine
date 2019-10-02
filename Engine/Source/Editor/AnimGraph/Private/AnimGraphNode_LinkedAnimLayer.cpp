@@ -17,36 +17,105 @@
 #include "UObject/CoreRedirects.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "AnimationStateGraph.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 
 #define LOCTEXT_NAMESPACE "LinkedAnimLayerNode"
+
+void UAnimGraphNode_LinkedAnimLayer::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+
+	if (Ar.IsLoading())
+	{
+		if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::AnimLayerGuidConformation)
+		{
+			if (!InterfaceGuid.IsValid())
+			{
+				InterfaceGuid = GetGuidForLayer();
+			}
+		}
+	}
+}
+
+void UAnimGraphNode_LinkedAnimLayer::ReconstructNode()
+{
+	if(SetObjectBeingDebuggedHandle.IsValid())
+	{
+		GetBlueprint()->OnSetObjectBeingDebugged().Remove(SetObjectBeingDebuggedHandle);
+	}
+
+	SetObjectBeingDebuggedHandle = GetBlueprint()->OnSetObjectBeingDebugged().AddUObject(this, &UAnimGraphNode_LinkedAnimLayer::HandleSetObjectBeingDebugged);
+
+	Super::ReconstructNode();
+}
 
 FText UAnimGraphNode_LinkedAnimLayer::GetTooltipText() const
 {
 	return LOCTEXT("ToolTip", "Runs another linked animation layer graph to process animation");
 }
 
+FAnimNode_LinkedAnimLayer* UAnimGraphNode_LinkedAnimLayer::GetPreviewNode() const
+{
+	FAnimNode_LinkedAnimLayer* PreviewNode = nullptr;
+	USkeletalMeshComponent* Component = nullptr;
+
+	// look for a valid component in the object being debugged,
+	// we might be set to something other than the preview.
+	UObject* ObjectBeingDebugged = GetAnimBlueprint()->GetObjectBeingDebugged();
+	if (ObjectBeingDebugged)
+	{
+		UAnimInstance* InstanceBeingDebugged = Cast<UAnimInstance>(ObjectBeingDebugged);
+		if (InstanceBeingDebugged)
+		{
+			Component = InstanceBeingDebugged->GetSkelMeshComponent();
+		}
+	}
+
+	if (Component != nullptr && Component->GetAnimInstance() != nullptr)
+	{
+		PreviewNode = static_cast<FAnimNode_LinkedAnimLayer*>(FindDebugAnimNode(Component));
+	}
+
+	return PreviewNode;
+}
+
 FText UAnimGraphNode_LinkedAnimLayer::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
 	UClass* TargetClass = *Node.Interface;
-	UAnimBlueprint* TargetAnimBlueprint = TargetClass ? CastChecked<UAnimBlueprint>(TargetClass->ClassGeneratedBy) : nullptr;
-
-	FFormatNamedArguments Args;
-	Args.Add(TEXT("NodeTitle"), LOCTEXT("Title", "Linked Anim Layer"));
-	Args.Add(TEXT("TargetClass"), TargetAnimBlueprint ? FText::FromString(TargetAnimBlueprint->GetName()) : LOCTEXT("ClassSelf", "Self"));
+	UAnimBlueprint* TargetAnimBlueprintInterface = TargetClass ? CastChecked<UAnimBlueprint>(TargetClass->ClassGeneratedBy) : nullptr;
 
 	if(TitleType == ENodeTitleType::MenuTitle)
 	{
-		return LOCTEXT("NodeTitle", "Layer");
-	}
-	else if(TitleType == ENodeTitleType::ListView)
-	{
-		Args.Add(TEXT("Layer"), Node.Layer == NAME_None ? LOCTEXT("LayerNone", "None") : FText::FromName(Node.Layer));
-		return FText::Format(LOCTEXT("TitleListFormatOutputPose", "{NodeTitle}: {Layer} - {TargetClass}"), Args);
+		return LOCTEXT("NodeTitle", "Linked Anim Layer");
 	}
 	else
 	{
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("NodeTitle"), LOCTEXT("NodeTitle", "Linked Anim Layer"));
+		Args.Add(TEXT("TargetClass"), TargetAnimBlueprintInterface ? FText::FromString(TargetAnimBlueprintInterface->GetName()) : LOCTEXT("InterfaceNone", "None"));
 		Args.Add(TEXT("Layer"), Node.Layer == NAME_None ? LOCTEXT("LayerNone", "None") : FText::FromName(Node.Layer));
-		return FText::Format(LOCTEXT("TitleFormatOutputPose", "{NodeTitle}: {Layer}\n{TargetClass}"), Args);
+
+		if (FAnimNode_LinkedAnimLayer* PreviewNode = GetPreviewNode())
+		{
+			if (UAnimInstance* PreviewAnimInstance = PreviewNode->GetTargetInstance<UAnimInstance>())
+			{
+				if (UClass* PreviewTargetClass = PreviewAnimInstance->GetClass())
+				{
+					Args.Add(TEXT("TargetClass"), PreviewTargetClass == GetAnimBlueprint()->GeneratedClass ? LOCTEXT("ClassSelf", "Self") : FText::FromName(PreviewTargetClass->GetFName()));
+				}
+			}
+		}
+
+		if (TitleType == ENodeTitleType::ListView)
+		{
+			return FText::Format(LOCTEXT("TitleListFormatOutputPose", "{NodeTitle}: {Layer} - {TargetClass}"), Args);
+		}
+		else
+		{
+			return FText::Format(LOCTEXT("TitleFormatOutputPose", "{NodeTitle}: {Layer}\n{TargetClass}"), Args);
+		}
 	}
 }
 
@@ -509,18 +578,14 @@ TSubclassOf<UInterface> UAnimGraphNode_LinkedAnimLayer::GetInterfaceForLayer() c
 {
 	if (UAnimBlueprint* CurrentBlueprint = Cast<UAnimBlueprint>(GetBlueprint()))
 	{
-		UClass* TargetClass = *CurrentBlueprint->SkeletonGeneratedClass;
-		if(TargetClass)
+		// Find layer with this name in interfaces
+		for(FBPInterfaceDescription& InterfaceDesc : CurrentBlueprint->ImplementedInterfaces)
 		{
-			// Find layer with this name in interfaces
-			for(FBPInterfaceDescription& InterfaceDesc : CurrentBlueprint->ImplementedInterfaces)
+			for(UEdGraph* InterfaceGraph : InterfaceDesc.Graphs)
 			{
-				for(UEdGraph* InterfaceGraph : InterfaceDesc.Graphs)
+				if(InterfaceGraph->GetFName() == Node.Layer)
 				{
-					if(InterfaceGraph->GetFName() == Node.Layer)
-					{
-						return InterfaceDesc.Interface;
-					}
+					return InterfaceDesc.Interface;
 				}
 			}
 		}
@@ -529,12 +594,43 @@ TSubclassOf<UInterface> UAnimGraphNode_LinkedAnimLayer::GetInterfaceForLayer() c
 	return nullptr;
 }
 
+void UAnimGraphNode_LinkedAnimLayer::UpdateGuidForLayer()
+{
+	if (!InterfaceGuid.IsValid())
+	{
+		InterfaceGuid = GetGuidForLayer();
+	}
+}
+
+FGuid UAnimGraphNode_LinkedAnimLayer::GetGuidForLayer() const
+{
+	if (UAnimBlueprint* CurrentBlueprint = Cast<UAnimBlueprint>(GetBlueprint()))
+	{
+		// Find layer with this name in interfaces
+		for (FBPInterfaceDescription& InterfaceDesc : CurrentBlueprint->ImplementedInterfaces)
+		{
+			for (UEdGraph* InterfaceGraph : InterfaceDesc.Graphs)
+			{
+				if (InterfaceGraph->GetFName() == Node.Layer)
+				{
+					return InterfaceGraph->InterfaceGuid;
+				}
+			}
+		}
+	}
+
+	return FGuid();
+}
+
 void UAnimGraphNode_LinkedAnimLayer::OnLayerChanged(IDetailLayoutBuilder* DetailBuilder)
 {
 	OnStructuralPropertyChanged(DetailBuilder);
 
 	// Get the interface for this layer. If null, then we are using a 'self' layer.
 	Node.Interface = GetInterfaceForLayer();
+
+	// Update the Guid for conforming
+	InterfaceGuid = GetGuidForLayer();
 
 	if(Node.Interface.Get() == nullptr)
 	{
@@ -584,6 +680,22 @@ bool UAnimGraphNode_LinkedAnimLayer::HasValidNonSelfLayer() const
 	}
 
 	return false;
+}
+
+void UAnimGraphNode_LinkedAnimLayer::HandleSetObjectBeingDebugged(UObject* InDebugObj)
+{
+	NodeTitleChangedEvent.Broadcast();
+
+	FAnimNode_LinkedAnimLayer* PreviewNode = GetPreviewNode();
+	if(PreviewNode)
+	{
+		PreviewNode->OnInstanceChanged().AddUObject(this, &UAnimGraphNode_LinkedAnimLayer::HandleInstanceChanged);
+	}
+}
+
+void UAnimGraphNode_LinkedAnimLayer::HandleInstanceChanged()
+{
+	NodeTitleChangedEvent.Broadcast();
 }
 
 #undef LOCTEXT_NAMESPACE

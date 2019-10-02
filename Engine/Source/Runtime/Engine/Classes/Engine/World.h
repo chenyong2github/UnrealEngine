@@ -58,6 +58,7 @@ class UNetDriver;
 class UPrimitiveComponent;
 class UTexture2D;
 class FPhysScene_Chaos;
+class FSceneView;
 struct FUniqueNetIdRepl;
 struct FEncryptionKeyResponse;
 
@@ -1467,11 +1468,18 @@ public:
 	}
 #endif
 
+	/** Called when the world computes how post process volumes contribute to the scene. */
+	DECLARE_EVENT_OneParam(UWorld, FOnBeginPostProcessSettings, FVector);
+	FOnBeginPostProcessSettings OnBeginPostProcessSettings;
+
 	/** Inserts a post process volume into the world in priority order */
 	void InsertPostProcessVolume(IInterface_PostProcessVolume* InVolume);
 
 	/** Removes a post process volume from the world */
 	void RemovePostProcessVolume(IInterface_PostProcessVolume* InVolume);
+
+	/** Called when a scene view for this world needs the worlds post process settings computed */
+	void AddPostProcessingSettings(FVector ViewLocation, FSceneView* SceneView);
 
 	/** An array of post processing volumes, sorted in ascending order of priority.					*/
 	TArray< IInterface_PostProcessVolume * > PostProcessVolumes;
@@ -2122,6 +2130,7 @@ public:
 	FConstControllerIterator GetControllerIterator() const;
 
 	/** @return Returns an iterator for the pawn list. */
+	UE_DEPRECATED(4.24, "The PawnIterator is an inefficient mechanism for iterating pawns. Please use TActorIterator<PawnType> instead.")
 	FConstPawnIterator GetPawnIterator() const;
 	
 	/** @return Returns the number of Pawns. */
@@ -3621,7 +3630,7 @@ public:
 	// delegate for generating world asset registry tags so project/game scope can add additional tags for filtering levels in their UI, etc
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FWorldGetAssetTags, const UWorld*, TArray<UObject::FAssetRegistryTag>&);
 
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnWorldTickStart, ELevelTick, float);
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnWorldTickStart, UWorld*, ELevelTick, float);
 	static FOnWorldTickStart OnWorldTickStart;
 
 	// Delegate called before actors are ticked for each world. Delta seconds is already dilated and clamped.

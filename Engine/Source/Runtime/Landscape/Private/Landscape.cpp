@@ -701,8 +701,9 @@ void ULandscapeComponent::PostLoad()
 		UpdatedSharedPropertiesFromActor();	
 
 		// check SectionBaseX/Y are correct
-		int32 CheckSectionBaseX = FMath::RoundToInt(RelativeLocation.X) + LandscapeProxy->LandscapeSectionOffset.X;
-		int32 CheckSectionBaseY = FMath::RoundToInt(RelativeLocation.Y) + LandscapeProxy->LandscapeSectionOffset.Y;
+		const FVector LocalRelativeLocation = GetRelativeLocation();
+		int32 CheckSectionBaseX = FMath::RoundToInt(LocalRelativeLocation.X) + LandscapeProxy->LandscapeSectionOffset.X;
+		int32 CheckSectionBaseY = FMath::RoundToInt(LocalRelativeLocation.Y) + LandscapeProxy->LandscapeSectionOffset.Y;
 		if (CheckSectionBaseX != SectionBaseX ||
 			CheckSectionBaseY != SectionBaseY)
 		{
@@ -717,15 +718,18 @@ void ULandscapeComponent::PostLoad()
 	if (GIsEditor && !HasAnyFlags(RF_ClassDefaultObject))
 	{
 		// This is to ensure that component relative location is exact section base offset value
+		FVector LocalRelativeLocation = GetRelativeLocation();
 		float CheckRelativeLocationX = float(SectionBaseX - LandscapeProxy->LandscapeSectionOffset.X);
 		float CheckRelativeLocationY = float(SectionBaseY - LandscapeProxy->LandscapeSectionOffset.Y);
-		if (CheckRelativeLocationX != RelativeLocation.X || 
-			CheckRelativeLocationY != RelativeLocation.Y)
+		if (CheckRelativeLocationX != LocalRelativeLocation.X ||
+			CheckRelativeLocationY != LocalRelativeLocation.Y)
 		{
 			UE_LOG(LogLandscape, Warning, TEXT("LandscapeComponent RelativeLocation disagrees with its section base, attempted automated fix: '%s', %f,%f vs %f,%f."),
-				*GetFullName(), RelativeLocation.X, RelativeLocation.Y, CheckRelativeLocationX, CheckRelativeLocationY);
-			RelativeLocation.X = CheckRelativeLocationX;
-			RelativeLocation.Y = CheckRelativeLocationY;
+				*GetFullName(), LocalRelativeLocation.X, LocalRelativeLocation.Y, CheckRelativeLocationX, CheckRelativeLocationY);
+			LocalRelativeLocation.X = CheckRelativeLocationX;
+			LocalRelativeLocation.Y = CheckRelativeLocationY;
+
+			SetRelativeLocation_Direct(LocalRelativeLocation);
 		}
 
 		// Remove standalone flags from data textures to ensure data is unloaded in the editor when reverting an unsaved level.
@@ -992,6 +996,10 @@ void ULandscapeComponent::PostLoad()
 
 #endif // WITH_EDITOR
 
+#if WITH_EDITORONLY_DATA
+TArray<ALandscapeProxy*> ALandscapeProxy::LandscapeProxies;
+#endif
+
 ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
@@ -1007,16 +1015,16 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 
 	bReplicates = false;
 	NetUpdateFrequency = 10.0f;
-	bHidden = false;
-	bReplicateMovement = false;
-	bCanBeDamaged = false;
+	SetHidden(false);
+	SetReplicatingMovement(false);
+	SetCanBeDamaged(false);
 	// by default we want to see the Landscape shadows even in the far shadow cascades
 	bCastFarShadow = true;
 	bAffectDistanceFieldLighting = true;
 
 	USceneComponent* SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent0"));
 	RootComponent = SceneComponent;
-	RootComponent->RelativeScale3D = FVector(128.0f, 128.0f, 256.0f); // Old default scale, preserved for compatibility. See ULandscapeEditorObject::NewLandscape_Scale
+	RootComponent->SetRelativeScale3D(FVector(128.0f, 128.0f, 256.0f)); // Old default scale, preserved for compatibility. See ULandscapeEditorObject::NewLandscape_Scale
 	RootComponent->Mobility = EComponentMobility::Static;
 	LandscapeSectionOffset = FIntPoint::ZeroValue;
 
@@ -1080,6 +1088,10 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 
 	static uint32 FrameOffsetForTickIntervalInc = 0;
 	FrameOffsetForTickInterval = FrameOffsetForTickIntervalInc++;
+
+#if WITH_EDITORONLY_DATA
+	LandscapeProxies.Add(this);
+#endif
 }
 
 #if WITH_EDITORONLY_DATA
@@ -2921,7 +2933,7 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 			ComponentSizeQuads = Proxy->ComponentSizeQuads;
 			ComponentNumSubsections = Proxy->NumSubsections;
 			SubsectionSizeQuads = Proxy->SubsectionSizeQuads;
-			DrawScale = Proxy->GetRootComponent() != nullptr ? Proxy->GetRootComponent()->RelativeScale3D : FVector(100.0f);
+			DrawScale = Proxy->GetRootComponent() != nullptr ? Proxy->GetRootComponent()->GetRelativeScale3D() : FVector(100.0f);
 		}
 
 		// check that passed actor matches all shared parameters
@@ -2930,10 +2942,10 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 		check(ComponentNumSubsections == Proxy->NumSubsections);
 		check(SubsectionSizeQuads == Proxy->SubsectionSizeQuads);
 
-		if (Proxy->GetRootComponent() != nullptr && !DrawScale.Equals(Proxy->GetRootComponent()->RelativeScale3D))
+		if (Proxy->GetRootComponent() != nullptr && !DrawScale.Equals(Proxy->GetRootComponent()->GetRelativeScale3D()))
 		{
 			UE_LOG(LogLandscape, Warning, TEXT("Landscape proxy (%s) scale (%s) does not match to main actor scale (%s)."),
-				*Proxy->GetName(), *Proxy->GetRootComponent()->RelativeScale3D.ToCompactString(), *DrawScale.ToCompactString());
+				*Proxy->GetName(), *Proxy->GetRootComponent()->GetRelativeScale3D().ToCompactString(), *DrawScale.ToCompactString());
 		}
 
 		// register
@@ -3303,6 +3315,10 @@ ALandscapeProxy::~ALandscapeProxy()
 	TotalTexturesToStreamForVisibleGrassMapRender -= NumTexturesToStreamForVisibleGrassMapRender;
 	NumTexturesToStreamForVisibleGrassMapRender = 0;
 #endif
+
+#if WITH_EDITORONLY_DATA
+	LandscapeProxies.Remove(this);
+#endif
 }
 
 //
@@ -3311,7 +3327,7 @@ ALandscapeProxy::~ALandscapeProxy()
 ALandscapeMeshProxyActor::ALandscapeMeshProxyActor(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 {
-	bCanBeDamaged = false;
+	SetCanBeDamaged(false);
 
 	LandscapeMeshProxyComponent = CreateDefaultSubobject<ULandscapeMeshProxyComponent>(TEXT("LandscapeMeshProxyComponent0"));
 	LandscapeMeshProxyComponent->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);

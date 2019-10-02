@@ -18,6 +18,12 @@
 DECLARE_CYCLE_STAT(TEXT("Transform Track Evaluate"), MovieSceneEval_TransformTrack_Evaluate, STATGROUP_MovieSceneEval);
 DECLARE_CYCLE_STAT(TEXT("Transform Track Token Execute"), MovieSceneEval_TransformTrack_TokenExecute, STATGROUP_MovieSceneEval);
 
+FSharedPersistentDataKey FGlobalTransformPersistentData::GetDataKey()
+{
+	static FSharedPersistentDataKey Key(FMovieSceneSharedDataId::Allocate(), FMovieSceneEvaluationOperand());
+	return Key;
+}
+
 namespace MovieScene
 {
 	/** Convert a transform track token to a 9 channel float */
@@ -68,7 +74,7 @@ struct FComponentTransformActuator : TMovieSceneBlendingActuator<F3DTransformTra
 	{
 		if (USceneComponent* SceneComponent = MovieSceneHelpers::SceneComponentFromRuntimeObject(InObject))
 		{
-			return F3DTransformTrackToken(SceneComponent->RelativeLocation, SceneComponent->RelativeRotation, SceneComponent->RelativeScale3D);
+			return F3DTransformTrackToken(SceneComponent->GetRelativeLocation(), SceneComponent->GetRelativeRotation(), SceneComponent->GetRelativeScale3D());
 		}
 
 		return F3DTransformTrackToken();
@@ -123,7 +129,7 @@ struct FSimulatedComponentTransformActuator : TMovieSceneBlendingActuator<F3DTra
 	{
 		if (USceneComponent* SceneComponent = MovieSceneHelpers::SceneComponentFromRuntimeObject(InObject))
 		{
-			return F3DTransformTrackToken(SceneComponent->RelativeLocation, SceneComponent->RelativeRotation, SceneComponent->RelativeScale3D);
+			return F3DTransformTrackToken(SceneComponent->GetRelativeLocation(), SceneComponent->GetRelativeRotation(), SceneComponent->GetRelativeScale3D());
 		}
 
 		return F3DTransformTrackToken();
@@ -149,31 +155,7 @@ FMovieSceneComponentTransformSectionTemplate::FMovieSceneComponentTransformSecti
 {
 }
 
-struct FComponentTransformPersistentData : IPersistentEvaluationData
-{
-	FTransform Origin;
-};
-
-void FMovieSceneComponentTransformSectionTemplate::Initialize(const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) const
-{
-	// If the global instance data implements a transform origin interface, use its transform as an origin for this transform
-	IMovieScenePlaybackClient*        PlaybackClient = Player.GetPlaybackClient();
-	UObject*                          InstanceData   = PlaybackClient ? PlaybackClient->GetInstanceData() : nullptr;
-	const IMovieSceneTransformOrigin* RawInterface   = Cast<IMovieSceneTransformOrigin>(InstanceData);
-
-	const bool bHasInterface = RawInterface || (InstanceData && InstanceData->GetClass()->ImplementsInterface(UMovieSceneTransformOrigin::StaticClass()));
-
-	if (bHasInterface && TemplateData.BlendType == EMovieSceneBlendType::Absolute)
-	{
-		// Retrieve the current origin
-		FTransform TransformOrigin = RawInterface ? RawInterface->GetTransformOrigin() : IMovieSceneTransformOrigin::Execute_BP_GetTransformOrigin(InstanceData);
-
-		// Assign the transform origin to the peristent data so it can be queried in Evaluate
-		PersistentData.GetOrAddSectionData<FComponentTransformPersistentData>().Origin = TransformOrigin;
-	}
-}
-
-MovieScene::TMultiChannelValue<float, 9> FMovieSceneComponentTransformSectionTemplate::EvaluateTransform(FFrameTime Time, const FComponentTransformPersistentData* SectionData) const
+MovieScene::TMultiChannelValue<float, 9> FMovieSceneComponentTransformSectionTemplate::EvaluateTransform(FFrameTime Time, const FGlobalTransformPersistentData* GlobalTransformData) const
 {
 	MovieScene::TMultiChannelValue<float, 9> TransformValue = TemplateData.Evaluate(Time);
 	if (TransformValue.IsEmpty())
@@ -182,8 +164,7 @@ MovieScene::TMultiChannelValue<float, 9> FMovieSceneComponentTransformSectionTem
 	}
 
 	// Apply origin transformation if necessary 
-	
-	if (TemplateData.BlendType == EMovieSceneBlendType::Absolute && SectionData)
+	if (TemplateData.BlendType == EMovieSceneBlendType::Absolute && GlobalTransformData)
 	{
 		float Components[6] = {
 			TransformValue.Get(0, 0.f), TransformValue.Get(1, 0.f), TransformValue.Get(2, 0.f),
@@ -191,7 +172,7 @@ MovieScene::TMultiChannelValue<float, 9> FMovieSceneComponentTransformSectionTem
 		};
 
 		FTransform AnimatedTransform(FRotator(Components[4], Components[5], Components[3]), FVector(Components[0], Components[1], Components[2]));
-		AnimatedTransform = AnimatedTransform * SectionData->Origin;
+		AnimatedTransform = AnimatedTransform * GlobalTransformData->Origin;
 
 		FVector Location = AnimatedTransform.GetTranslation();
 		Components[0] = Location.X;
@@ -203,7 +184,7 @@ MovieScene::TMultiChannelValue<float, 9> FMovieSceneComponentTransformSectionTem
 		Components[4] = Rotation.Y;
 		Components[5] = Rotation.Z;
 
-		for (int32 Index = 0; Index < ARRAY_COUNT(Components); ++Index)
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(Components); ++Index)
 		{
 			if (TransformValue.IsSet(Index))
 			{
@@ -219,9 +200,10 @@ void FMovieSceneComponentTransformSectionTemplate::Evaluate(const FMovieSceneEva
 {
 	using namespace MovieScene;
 
-	const FComponentTransformPersistentData* SectionData = PersistentData.FindSectionData<FComponentTransformPersistentData>();
+	static FSharedPersistentDataKey GlobalTransformDataKey = FGlobalTransformPersistentData::GetDataKey();
+	const FGlobalTransformPersistentData* GlobalTransformData = PersistentData.Find<FGlobalTransformPersistentData>(GlobalTransformDataKey);
 
-	TMultiChannelValue<float, 9> TransformValue = EvaluateTransform(Context.GetTime(), SectionData);
+	TMultiChannelValue<float, 9> TransformValue = EvaluateTransform(Context.GetTime(), GlobalTransformData);
 	if (!TransformValue.IsEmpty())
 	{
 		// Ensure the accumulator knows how to actually apply component transforms
@@ -246,7 +228,7 @@ void FMovieSceneComponentTransformSectionTemplate::Evaluate(const FMovieSceneEva
 	if (IMovieSceneMotionVectorSimulation::IsEnabled(PersistentData, Context))
 	{
 		FFrameTime SimulationTime = IMovieSceneMotionVectorSimulation::GetSimulationTime(Context);
-		TMultiChannelValue<float, 9> SimulatedValue = EvaluateTransform(SimulationTime, SectionData);
+		TMultiChannelValue<float, 9> SimulatedValue = EvaluateTransform(SimulationTime, GlobalTransformData);
 
 		if (!SimulatedValue.IsEmpty())
 		{

@@ -30,9 +30,9 @@ struct MOVIESCENE_API FTransformData
 	* @param InComponent	The component to build from
 	*/
 	FTransformData(const USceneComponent* InComponent)
-		: Translation(InComponent->RelativeLocation)
-		, Rotation(InComponent->RelativeRotation)
-		, Scale(InComponent->RelativeScale3D)
+		: Translation(InComponent->GetRelativeLocation())
+		, Rotation(InComponent->GetRelativeRotation())
+		, Scale(InComponent->GetRelativeScale3D())
 	{}
 
 };

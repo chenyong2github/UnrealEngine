@@ -24,7 +24,7 @@ APhysicsConstraintActor::APhysicsConstraintActor(const FObjectInitializer& Objec
 
 	ConstraintComp = CreateDefaultSubobject<UPhysicsConstraintComponent>(TEXT("MyConstraintComp"));
 	RootComponent = ConstraintComp;
-	bHidden = true;
+	SetHidden(true);
 }
 
 void APhysicsConstraintActor::PostLoad()

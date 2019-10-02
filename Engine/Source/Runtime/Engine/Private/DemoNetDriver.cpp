@@ -4366,14 +4366,14 @@ void UDemoNetDriver::RespawnNecessaryNetStartupActors(TArray<AActor*>& SpawnedAc
 
 			if (RepLayout.IsValid() && ReceivingRepState && bSanityCheckReferences)
 			{
-				const ENetRole SavedRole = Actor->Role;
+				const ENetRole SavedRole = Actor->GetLocalRole();
 
 				FRepObjectDataBuffer ActorData(Actor);
 				FConstRepShadowDataBuffer ShadowData(ReceivingRepState->StaticBuffer.GetData());
 
 				RepLayout->DiffStableProperties(&ReceivingRepState->RepNotifies, nullptr, ActorData, ShadowData);
 
-				Actor->Role = SavedRole;
+				Actor->SetRole(SavedRole);
 			}
 
 			check(Actor->GetRemoteRole() != ROLE_Authority);
@@ -4382,7 +4382,7 @@ void UDemoNetDriver::RespawnNecessaryNetStartupActors(TArray<AActor*>& SpawnedAc
 
 			UGameplayStatics::FinishSpawningActor(Actor, SpawnTransform);
 
-			if (Actor->Role == ROLE_Authority)
+			if (Actor->GetLocalRole() == ROLE_Authority)
 			{
 				Actor->SwapRoles();
 			}
@@ -5648,7 +5648,7 @@ void UDemoNetDriver::RestoreConnectionPostScrub(APlayerController* PC, UNetConne
 	check(NetConnection != nullptr);
 	check(PC != nullptr);
 
-	PC->Role = ROLE_AutonomousProxy;
+	PC->SetRole(ROLE_AutonomousProxy);
 	PC->NetConnection = NetConnection;
 	NetConnection->LastReceiveTime = Time;
 	NetConnection->LastReceiveRealtime = FPlatformTime::Seconds();
@@ -5954,7 +5954,7 @@ TSharedPtr<FObjectReplicator> UDemoNetConnection::CreateReplicatorForNewActorCha
 
 		// Need to swap roles for the startup actor since in the CDO they aren't swapped, and the CDO just
 		// overwrote the actor state.
-		if (Actor && (Actor->Role == ROLE_Authority))
+		if (Actor && (Actor->GetLocalRole() == ROLE_Authority))
 		{
 			Actor->SwapRoles();
 		}

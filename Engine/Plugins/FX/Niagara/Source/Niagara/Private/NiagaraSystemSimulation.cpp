@@ -1017,6 +1017,10 @@ void FNiagaraSystemSimulation::Tick_Concurrent(FNiagaraSystemSimulationTickConte
 
 		FScopeCycleCounter SystemStatCounter(Context.System->GetStatID(true, true));
 
+		for (FNiagaraSystemInstance* SystemInstance : Context.Instances)
+		{
+			SystemInstance->TickInstanceParameters_Concurrent();
+		}
 
 		if (Context.Owner->GetSystem()->FastPathMode != ENiagaraFastPathMode::ScriptVMOnly)
 		{
@@ -1317,8 +1321,6 @@ void FNiagaraSystemSimulation::PrepareForSystemSimulate(FNiagaraSystemSimulation
 	auto TransferInstanceParameters = [&](int32 SystemIndex)
 	{
 		FNiagaraSystemInstance* Inst = Context.Instances[SystemIndex];
-
-		//Inst->TickInstanceParameters(Context.DeltaSeconds);
 
 		if (Inst->GetParameters().GetParametersDirty() && bCanExecute)
 		{
@@ -1648,7 +1650,10 @@ void FNiagaraSystemSimulation::RemoveInstance(FNiagaraSystemInstance* Instance)
 			MainDataSet.GetCurrentDataChecked().Dump(Instance->SystemInstanceIndex, 1, TEXT("System data being removed."));
 		}
 
-		WaitForInstancesTickComplete();
+		// Wait for the system simulation & the system instances tick to complete as we are touching both the SystemInstances & DataSet
+		// Note: We do not need to wait for all instances to complete as the system simulation concurrent tick will have transfered data from the DataSet out to ParameterStores
+		WaitForSystemTickComplete();
+		Instance->WaitForAsyncTick();
 
 		int32 NumInstances = MainDataSet.GetCurrentDataChecked().GetNumInstances();
 		check(SystemInstances.Num() == NumInstances);

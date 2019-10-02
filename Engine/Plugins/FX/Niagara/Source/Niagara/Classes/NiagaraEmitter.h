@@ -355,6 +355,7 @@ public:
 	bool NIAGARA_API SetUniqueEmitterName(const FString& InName);
 
 	const TArray<UNiagaraRendererProperties*>& GetRenderers() const { return RendererProperties; }
+	TArray<UNiagaraRendererProperties*> GetEnabledRenderers() const;
 
 	void NIAGARA_API AddRenderer(UNiagaraRendererProperties* Renderer);
 
@@ -375,9 +376,11 @@ public:
 
 	TStatId GetStatID(bool bGameThread, bool bConcurrent)const;
 
+#if WITH_EDITORONLY_DATA
 	NIAGARA_API UNiagaraEmitter* GetParent() const;
 
 	NIAGARA_API void RemoveParent();
+#endif
 
 	void InitFastPathAttributeNames();
 
@@ -443,22 +446,24 @@ private:
 	UPROPERTY()
 	TArray<FName> SharedEventGeneratorIds;
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	UNiagaraEmitter* Parent;
 
 	UPROPERTY()
 	UNiagaraEmitter* ParentAtLastMerge;
+#endif
 
 #if WITH_EDITOR
 	FOnPropertiesChanged OnPropertiesChangedDelegate;
 #endif
 
-	void GenerateStatID();
+	void GenerateStatID()const;
 #if STATS
-	TStatId StatID_GT;
-	TStatId StatID_GT_CNC;
-	TStatId StatID_RT;
-	TStatId StatID_RT_CNC;
+	mutable TStatId StatID_GT;
+	mutable TStatId StatID_GT_CNC;
+	mutable TStatId StatID_RT;
+	mutable TStatId StatID_RT_CNC;
 #endif
 };
 

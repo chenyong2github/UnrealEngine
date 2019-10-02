@@ -22,7 +22,7 @@ ANavLinkProxy::ANavLinkProxy(const FObjectInitializer& ObjectInitializer) : Supe
 	USceneComponent* SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("PositionComponent"));
 	RootComponent = SceneComponent;
 
-	bHidden = true;
+	SetHidden(true);
 
 #if WITH_EDITORONLY_DATA
 	EdRenderComp = CreateDefaultSubobject<UNavLinkRenderingComponent>(TEXT("EdRenderComp"));
@@ -48,9 +48,9 @@ ANavLinkProxy::ANavLinkProxy(const FObjectInitializer& ObjectInitializer) : Supe
 		static FConstructorStatics ConstructorStatics;
 
 		SpriteComponent->Sprite = ConstructorStatics.SpriteTexture.Get();
-		SpriteComponent->RelativeScale3D = FVector(0.5f, 0.5f, 0.5f);
+		SpriteComponent->SetRelativeScale3D(FVector(0.5f, 0.5f, 0.5f));
 		SpriteComponent->bHiddenInGame = true;
-		SpriteComponent->bVisible = true;
+		SpriteComponent->SetVisibleFlag(true);
 		SpriteComponent->SpriteInfo.Category = ConstructorStatics.ID_Decals;
 		SpriteComponent->SpriteInfo.DisplayName = ConstructorStatics.NAME_Decals;
 		SpriteComponent->SetupAttachment(RootComponent);
@@ -70,7 +70,7 @@ ANavLinkProxy::ANavLinkProxy(const FObjectInitializer& ObjectInitializer) : Supe
 	PointLinks.Add(DefLink);
 
 	SetActorEnableCollision(false);
-	bCanBeDamaged = false;
+	SetCanBeDamaged(false);
 }
 
 #if WITH_EDITOR

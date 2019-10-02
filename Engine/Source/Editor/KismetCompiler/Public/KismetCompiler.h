@@ -104,6 +104,7 @@ protected:
 public:
 	UBlueprint* Blueprint;
 	UBlueprintGeneratedClass* NewClass;
+	UBlueprintGeneratedClass* OldClass;
 
 	// The ubergraph; valid from roughly the start of CreateAndProcessEventGraph
 	UEdGraph* ConsolidatedEventGraph;
@@ -129,7 +130,6 @@ public:
 	FNetNameMapping ClassScopeNetNameMap;
 
 	// Data that persists across CompileClassLayout/CompileFunctions calls:
-	bool bIsSkeletonOnly;
 	UObject* OldCDO;
 	int32 OldGenLinkerIdx;
 	FLinkerLoad* OldLinker;

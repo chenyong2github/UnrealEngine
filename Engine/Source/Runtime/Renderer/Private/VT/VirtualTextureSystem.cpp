@@ -1415,8 +1415,8 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 				const uint32 ProducerMipHeightInTiles = FMath::Max(Producer->GetHeightInTiles() >> Local_vLevel, 1u);
 				uint32 Local_vTileX = FMath::ReverseMortonCode2(Local_vAddress);
 				uint32 Local_vTileY = FMath::ReverseMortonCode2(Local_vAddress >> 1);
-				Local_vTileX &= (ProducerMipWidthInTiles - 1u);
-				Local_vTileY &= (ProducerMipHeightInTiles - 1u);
+				Local_vTileX %= ProducerMipWidthInTiles;
+				Local_vTileY %= ProducerMipHeightInTiles;
 				Local_vAddress = FMath::MortonCode2(Local_vTileX) | (FMath::MortonCode2(Local_vTileY) << 1);
 			}
 
@@ -1669,10 +1669,7 @@ void FVirtualTextureSystem::SubmitRequestsFromLocalTileList(const TSet<FVirtualT
 					if (Producer.GetPhysicalGroupIndexForTextureLayer(ProducerLayerIndex) == ProducerPhysicalGroupIndex)
 					{
 						ProduceTarget[ProducerLayerIndex].TextureRHI = PhysicalSpace->GetPhysicalTexture(PhysicalLocalTextureIndex);
-						if (PhysicalSpace->GetDescription().bCreateRenderTarget)
-						{
-							ProduceTarget[ProducerLayerIndex].PooledRenderTarget = PhysicalSpace->GetPhysicalTexturePooledRenderTarget(PhysicalLocalTextureIndex);
-						}
+						ProduceTarget[ProducerLayerIndex].UnorderedAccessViewRHI = PhysicalSpace->GetPhysicalTextureUAV(PhysicalLocalTextureIndex);
 						ProduceTarget[ProducerLayerIndex].pPageLocation = PhysicalSpace->GetPhysicalLocation(pAddress);
 						LayerMask |= 1 << ProducerLayerIndex;
 						PhysicalLocalTextureIndex++;
@@ -1790,17 +1787,13 @@ void FVirtualTextureSystem::SubmitRequests(FRHICommandListImmediate& RHICmdList,
 							const uint32 pAddress = PagePool.Alloc(this, Frame, ProducerHandle, ProducerPhysicalGroupIndex, TileToLoad.Local_vAddress, TileToLoad.Local_vLevel, bLockTile);
 							check(pAddress != ~0u);
 
-							//JM Loop for textures
 							int32 PhysicalLocalTextureIndex = 0;
 							for (uint32 ProducerLayerIndex = 0u; ProducerLayerIndex < Producer.GetNumTextureLayers(); ++ProducerLayerIndex)
 							{
 								if (Producer.GetPhysicalGroupIndexForTextureLayer(ProducerLayerIndex) == ProducerPhysicalGroupIndex)
 								{
 									ProduceTarget[ProducerLayerIndex].TextureRHI = PhysicalSpace->GetPhysicalTexture(PhysicalLocalTextureIndex);
-									if (PhysicalSpace->GetDescription().bCreateRenderTarget)
-									{
-										ProduceTarget[ProducerLayerIndex].PooledRenderTarget = PhysicalSpace->GetPhysicalTexturePooledRenderTarget(PhysicalLocalTextureIndex);
-									}
+									ProduceTarget[ProducerLayerIndex].UnorderedAccessViewRHI = PhysicalSpace->GetPhysicalTextureUAV(PhysicalLocalTextureIndex);
 									ProduceTarget[ProducerLayerIndex].pPageLocation = PhysicalSpace->GetPhysicalLocation(pAddress);
 									
 									PhysicalLocalTextureIndex++;
@@ -1845,13 +1838,13 @@ void FVirtualTextureSystem::SubmitRequests(FRHICommandListImmediate& RHICmdList,
 								TEXT("%s missing tile: LayerMask: %X, Layer %d, vAddress %06X, vLevel %d"),
 								*Producer.GetName().ToString(), ProducerPhysicalGroupMask, ProducerPhysicalGroupIndex, TileToLoad.Local_vAddress, TileToLoad.Local_vLevel);
 							
-							// JM for all layers
 							int32 PhysicalLocalTextureIndex = 0;
 							for (uint32 ProducerLayerIndex = 0u; ProducerLayerIndex < Producer.GetNumTextureLayers(); ++ProducerLayerIndex)
 							{
 								if (Producer.GetPhysicalGroupIndexForTextureLayer(ProducerLayerIndex) == ProducerPhysicalGroupIndex)
 								{
 									ProduceTarget[ProducerLayerIndex].TextureRHI = PhysicalSpace->GetPhysicalTexture(PhysicalLocalTextureIndex);
+									ProduceTarget[ProducerLayerIndex].UnorderedAccessViewRHI = PhysicalSpace->GetPhysicalTextureUAV(PhysicalLocalTextureIndex);
 									ProduceTarget[ProducerLayerIndex].pPageLocation = PhysicalSpace->GetPhysicalLocation(pAddress);
 									PhysicalLocalTextureIndex++;
 								}

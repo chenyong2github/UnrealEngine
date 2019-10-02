@@ -2,7 +2,7 @@
 	"FileVersion": 3,
 	"Version": 1,
 	"VersionName": "0.1",
-	"FriendlyName": "Blast Plugin (Experimental)",
+	"FriendlyName": "Blast Plugin",
 	"Description": "A Plugin to expose Blast authoring functionality.",
 	"Category": "Editor",
 	"CreatedBy": "Epic Games, Inc.",
@@ -12,7 +12,7 @@
 	"SupportURL": "",
 	"EnabledByDefault": false,
 	"CanContainContent": false,
-	"IsBetaVersion": true,
+	"IsExperimentalVersion": true,
 	"Installed": false,
 	"Modules": [
 		{

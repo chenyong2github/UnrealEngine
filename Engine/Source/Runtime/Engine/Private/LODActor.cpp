@@ -174,7 +174,7 @@ ALODActor::ALODActor(const FObjectInitializer& ObjectInitializer)
 	, LODDrawDistance(5000)
 	, bHasActorTriedToRegisterComponents(false)
 {
-	bCanBeDamaged = false;
+	SetCanBeDamaged(false);
 
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.bStartWithTickEnabled = false;

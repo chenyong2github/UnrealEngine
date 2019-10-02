@@ -6,24 +6,34 @@
 #include "RHI.h"
 #include "RHICommandList.h"
 
+
 class FOutputRemapMesh
 {
 public:
 	struct FMeshData
 	{
-		TArray<FVector> Vertex; 
-		TArray<FVector> UV;
-		TArray<int>     Index;
+		struct FVertexData
+		{
+			FVector Pos;
+			FVector UV;
+			FVertexData(const FVector &InPos, const FVector &InUV)
+				: Pos(InPos), UV(InUV)
+			{ }
+		};
+
+		TArray<FVertexData> Vertices;
+		TArray<int>         Indices;
 
 		bool CreateFromFile(const FString& FullPathFileName);
 		bool CreatePassthrough();
 
 		void Normalize();
 		void RemoveInvisibleFaces();
+
 	private:
 		// Mesh post-op's
-		bool IsVisibleFace(int Face);
-		bool IsVisibleUV(int UVIndex);
+		bool IsFaceVisible(int Face);
+		bool IsUVVisible(int UVIndex);
 
 		// Obj file parser:
 		bool ParseLine(const FString& Line);
@@ -40,35 +50,23 @@ public:
 	FOutputRemapMesh(const FString& ExtFileName);
 	~FOutputRemapMesh();
 	
+public:
 	void DrawMesh(FRHICommandList& RHICmdList);
 
-	const FString& GetFileName() const 
-	{ 
-		return FileName; 
-	}
-	bool IsValid() const 
-	{ 
-		return bIsValid; 
-	}
+	const FString& GetFileName() const
+	{ return FileName; }
+
+	bool IsValid() const
+	{ return bIsValid; }
 
 	void ReloadChangedExtFiles()
-	{
-		bForceExtFilesReload = true;
-	}
+	{ bForceExtFilesReload = true; }
 
 private:
 	void BuildMesh(const FMeshData* Mesh);
-
 	void CreateMesh();
 	void ReleaseMesh();
 	void ReloadMesh();
-private:
-	bool       bIsValid;
-
-	FString    FileName;
-	FDateTime  FileLastAccessDateTime;
-	bool       bIsExtFilesReloadEnabled;
-	bool       bForceExtFilesReload;
 
 public:
 	FVertexBufferRHIRef VertexBufferRHI;
@@ -77,6 +75,12 @@ public:
 	uint32  NumVertices;
 	uint32  NumIndices;
 	uint32  NumTriangles;
+
+private:
+	bool       bIsValid;
+
+	FString    FileName;
+	FDateTime  FileLastAccessDateTime;
+	bool       bIsExtFilesReloadEnabled;
+	bool       bForceExtFilesReload;
 };
-
-

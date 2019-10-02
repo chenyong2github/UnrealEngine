@@ -16,6 +16,9 @@
 #include "IEditableSkeleton.h"
 #include "TabSpawners.h"
 #include "Editor.h"
+#include "IAnimationEditor.h"
+#include "IAnimationBlueprintEditor.h"
+#include "IAnimationSequenceBrowser.h"
 
 #define LOCTEXT_NAMESPACE "SkeletonAnimNotifies"
 
@@ -44,14 +47,14 @@ FSkeletonAnimNotifiesSummoner::FSkeletonAnimNotifiesSummoner(TSharedPtr<class FA
 
 TSharedRef<SWidget> FSkeletonAnimNotifiesSummoner::CreateTabBody(const FWorkflowTabSpawnInfo& Info) const
 {
-	return SNew(SSkeletonAnimNotifies, EditableSkeleton.Pin().ToSharedRef())
+	return SNew(SSkeletonAnimNotifies, EditableSkeleton.Pin().ToSharedRef(), HostingApp.Pin())
 		.OnObjectsSelected(OnObjectsSelected);
 }
 
 /////////////////////////////////////////////////////
 // SSkeletonAnimNotifies
 
-void SSkeletonAnimNotifies::Construct(const FArguments& InArgs, const TSharedRef<IEditableSkeleton>& InEditableSkeleton)
+void SSkeletonAnimNotifies::Construct(const FArguments& InArgs, const TSharedRef<IEditableSkeleton>& InEditableSkeleton, const TSharedPtr<class FAssetEditorToolkit>& InHostingApp)
 {
 	OnObjectsSelected = InArgs._OnObjectsSelected;
 	OnItemSelected = InArgs._OnItemSelected;
@@ -59,6 +62,7 @@ void SSkeletonAnimNotifies::Construct(const FArguments& InArgs, const TSharedRef
 	bIsSyncMarker = InArgs._IsSyncMarker;
 
 	EditableSkeleton = InEditableSkeleton;
+	WeakHostingApp = InHostingApp;
 
 	if (bIsSyncMarker)
 	{
@@ -202,7 +206,14 @@ TSharedPtr<SWidget> SSkeletonAnimNotifies::OnGetContextMenuContent() const
 				MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
 			}
 
-
+			if(WeakHostingApp.IsValid() && NotifiesListView->GetNumItemsSelected() == 1)
+			{
+				FUIAction Action = FUIAction(FExecuteAction::CreateSP(const_cast<SSkeletonAnimNotifies*>(this), &SSkeletonAnimNotifies::OnFindReferences),
+					FCanExecuteAction::CreateSP(this, &SSkeletonAnimNotifies::CanPerformDelete));
+				const FText Label = LOCTEXT("FindNotifyReferences", "Find References");
+				const FText ToolTipText = LOCTEXT("FindNotifyReferencesTooltip", "Find all references to this skeleton notify in the asset browser");
+				MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
+			}
 		}
 		MenuBuilder.EndSection();
 	}
@@ -462,4 +473,30 @@ void SSkeletonAnimNotifies::NotifyUser( FNotificationInfo& NotificationInfo )
 		Notification->SetCompletionState( SNotificationItem::CS_Fail );
 	}
 }
+
+void SSkeletonAnimNotifies::OnFindReferences()
+{
+	TSharedPtr<FAssetEditorToolkit> HostingApp = WeakHostingApp.Pin();
+	if (HostingApp.IsValid())
+	{
+		check(NotifiesListView->GetNumItemsSelected() == 1);
+		TArray<TSharedPtr<FDisplayedAnimNotifyInfo>> SelectedItems;
+		NotifiesListView->GetSelectedItems(SelectedItems);
+		FName Name = SelectedItems[0]->Name;
+
+		HostingApp->InvokeTab(FPersonaTabs::AssetBrowserID);
+
+		if (HostingApp->GetEditorName() == TEXT("AnimationEditor"))
+		{
+			TSharedPtr<IAnimationEditor> AnimationEditor = StaticCastSharedPtr<IAnimationEditor>(HostingApp);
+			AnimationEditor->GetAssetBrowser()->FilterBySkeletonNotify(Name);
+		}
+		else if (HostingApp->GetEditorName() == TEXT("AnimationBlueprintEditor"))
+		{
+			TSharedPtr<IAnimationBlueprintEditor> AnimationBlueprintEditor = StaticCastSharedPtr<IAnimationBlueprintEditor>(HostingApp);
+			AnimationBlueprintEditor->GetAssetBrowser()->FilterBySkeletonNotify(Name);
+		}
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

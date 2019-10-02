@@ -177,7 +177,7 @@ UCameraComponent* MovieSceneHelpers::CameraComponentFromActor(const AActor* InAc
 	// If there's a camera component that's active, return that one
 	for (UCameraComponent* CameraComponent : CameraComponents)
 	{
-		if (CameraComponent->bIsActive)
+		if (CameraComponent->IsActive())
 		{
 			return CameraComponent;
 		}

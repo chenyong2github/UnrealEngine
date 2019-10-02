@@ -1387,9 +1387,9 @@ namespace EditorUtilities
 					const bool bIsIdentical = Property->Identical_InContainer( SourceComponent, TargetComponent );
 					const bool bIsComponent = !!( Property->PropertyFlags & ( CPF_InstancedReference | CPF_ContainsInstancedReference ) );
 					const bool bIsTransform =
-						Property->GetFName() == GET_MEMBER_NAME_CHECKED(USceneComponent, RelativeScale3D) ||
-						Property->GetFName() == GET_MEMBER_NAME_CHECKED(USceneComponent, RelativeLocation) ||
-						Property->GetFName() == GET_MEMBER_NAME_CHECKED(USceneComponent, RelativeRotation);
+						Property->GetFName() == USceneComponent::GetRelativeScale3DPropertyName() ||
+						Property->GetFName() == USceneComponent::GetRelativeLocationPropertyName() ||
+						Property->GetFName() == USceneComponent::GetRelativeRotationPropertyName();
 
 					if( !bIsTransient && !bIsIdentical && !bIsComponent && !SourceUCSModifiedProperties.Contains(Property)
 						&& ( !bIsTransform || SourceComponent != SourceActor->GetRootComponent() || ( !SourceActor->HasAnyFlags( RF_ClassDefaultObject | RF_ArchetypeObject ) && !TargetActor->HasAnyFlags( RF_ClassDefaultObject | RF_ArchetypeObject ) ) ) )

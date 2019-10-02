@@ -780,7 +780,7 @@ bool ResolveName(UObject*& InPackage, FString& InOutName, bool Create, bool Thro
 bool ParseObject( const TCHAR* Stream, const TCHAR* Match, UClass* Class, UObject*& DestRes, UObject* InParent, bool* bInvalidObject )
 {
 	TCHAR TempStr[1024];
-	if( !FParse::Value( Stream, Match, TempStr, ARRAY_COUNT(TempStr) ) )
+	if( !FParse::Value( Stream, Match, TempStr, UE_ARRAY_COUNT(TempStr) ) )
 	{
 		// Match not found
 		return 0;
@@ -4582,6 +4582,8 @@ namespace UE4CodeGen_Private
 #endif
 
 		NewClass->StaticLink();
+
+		NewClass->SetSparseClassDataStruct(NewClass->GetSparseClassDataArchetypeStruct());
 	}
 }
 

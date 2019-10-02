@@ -2501,7 +2501,7 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 				const int32 MAX_STREAMLVL_SIZE = 16384;  // max cmd line size (16kb)
 				TCHAR StreamLvlBuf[MAX_STREAMLVL_SIZE]; //There can be a lot of streaming levels with very large path names
 
-				if(FParse::Value(Str, TEXT("STREAMLVL="), StreamLvlBuf, ARRAY_COUNT(StreamLvlBuf)))
+				if(FParse::Value(Str, TEXT("STREAMLVL="), StreamLvlBuf, UE_ARRAY_COUNT(StreamLvlBuf)))
 				{
 					TCHAR *ContextStr = NULL;
 					
@@ -4058,7 +4058,7 @@ bool UEditorEngine::Map_Scale( UWorld* InWorld, const TCHAR* Str, FOutputDevice&
 			}
 			else if( Actor->GetRootComponent() != NULL )
 			{
-				Actor->GetRootComponent()->SetRelativeScale3D( Actor->GetRootComponent()->RelativeScale3D * Factor );
+				Actor->GetRootComponent()->SetRelativeScale3D(Actor->GetRootComponent()->GetRelativeScale3D() * Factor);
 			}
 
 			if( bScaleLocations )

@@ -25,6 +25,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = Settings)
 	FAnimNode_LinkedAnimLayer Node;
 
+	/** Guid of the named layer graph we refer to */
+	UPROPERTY()
+	FGuid InterfaceGuid;
+
+	// Begin UObject interface
+	virtual void Serialize(FArchive& Ar) override;
+
 	//~ Begin UEdGraphNode Interface.
 	virtual FText GetTooltipText() const override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
@@ -32,10 +39,14 @@ public:
 	virtual UObject* GetJumpTargetForDoubleClick() const override;
 	virtual void JumpToDefinition() const override;
 	virtual bool HasExternalDependencies(TArray<class UStruct*>* OptionalOutput /*= NULL*/) const override;
+	virtual void ReconstructNode() override;
 	//~ End UEdGraphNode Interface.
 
 	// UAnimGraphNode_Base interface
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+
+	// Optionally updates layer GUID if it is invalid
+	void UpdateGuidForLayer();
 
 protected:
 	// ----- UI CALLBACKS ----- //
@@ -45,6 +56,8 @@ protected:
 	void OnLayerChanged(IDetailLayoutBuilder* DetailBuilder);
 	bool HasAvailableLayers() const;
 	bool HasValidNonSelfLayer() const;
+	void HandleSetObjectBeingDebugged(UObject* InDebugObj);
+	void HandleInstanceChanged();
 	// ----- END UI CALLBACKS ----- //
 
 	// Begin UAnimGraphNode_CustomProperty
@@ -63,6 +76,15 @@ protected:
 
 	// Helper function to get the interface currently in use by the selected layer
 	TSubclassOf<UInterface> GetInterfaceForLayer() const;
+
+	// Helper function to get the interface graph GUID currently in use by the selected layer
+	FGuid GetGuidForLayer() const;
+
+	// Get the preview node, if any, when instanced in an animation blueprint and debugged
+	FAnimNode_LinkedAnimLayer* GetPreviewNode() const;
+
+	// Handle used to hook into object being debugged changing
+	FDelegateHandle SetObjectBeingDebuggedHandle;
 };
 
 UE_DEPRECATED(4.24, "UAnimGraphNode_Layer has been renamed to UAnimGraphNode_LinkedAnimLayer")

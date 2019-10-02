@@ -224,7 +224,7 @@ void AVREditorFloatingUI::CleanupWidgetReferences()
 
 void AVREditorFloatingUI::SetTransform(const FTransform& Transform)
 {
-	if (!bHidden)
+	if (!IsHidden())
 	{
 		const FVector AnimatedScale = CalculateAnimatedScale();
 		FTransform AnimatedTransform = Transform;
@@ -266,9 +266,9 @@ void AVREditorFloatingUI::UpdateFadingState(const float DeltaTime)
 		if (FadeAlpha > 0.0f + KINDA_SMALL_NUMBER)
 		{
 			// At least a little bit visible
-			if (bHidden)
+			if (IsHidden())
 			{
-				bHidden = false;
+				SetHidden(false);
 
 				// Iterate as floating UI children may have other mesh components
 				TInlineComponentArray<USceneComponent*> ComponentArray;
@@ -288,9 +288,9 @@ void AVREditorFloatingUI::UpdateFadingState(const float DeltaTime)
 		else if (FadeAlpha <= 0.0f + KINDA_SMALL_NUMBER)
 		{
 			// Fully invisible
-			if (!bHidden)
+			if (!IsHidden())
 			{
-				bHidden = true;
+				SetHidden(true);
 				// Iterate as floating UI children may have other mesh components
 				TInlineComponentArray<USceneComponent*> ComponentArray;
 				GetComponents(ComponentArray);
@@ -364,7 +364,7 @@ void AVREditorFloatingUI::ShowUI( const bool bShow, const bool bAllowFading, con
 
 		if (!bAllowFading)
 		{
-			bHidden = !bShow;
+			SetHidden(!bShow);
 			// Iterate as floating UI children may have other components
 			TInlineComponentArray<USceneComponent*> ComponentArray;
 			GetComponents(ComponentArray);

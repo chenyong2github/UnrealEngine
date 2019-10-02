@@ -32,7 +32,7 @@ namespace
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFrameTimeComparisonTest, "System.Core.Time.Comparison", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter | EAutomationTestFlags::HighPriority)
 bool FFrameTimeComparisonTest::RunTest(const FString& Parameters)
 {
-	const int32 NumFrames = ARRAY_COUNT(TestTimes);
+	const int32 NumFrames = UE_ARRAY_COUNT(TestTimes);
 
 	for (int32 Index = 0; Index < NumFrames; ++Index)
 	{
@@ -83,7 +83,7 @@ bool FFrameTimeComparisonTest::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFrameTimeToSecondsTest, "System.Core.Time.ToSeconds", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter | EAutomationTestFlags::HighPriority)
 bool FFrameTimeToSecondsTest::RunTest(const FString& Parameters)
 {
-	const int32 NumFrames = ARRAY_COUNT(TestTimes);
+	const int32 NumFrames = UE_ARRAY_COUNT(TestTimes);
 
 	FFrameRate TestRate = FCommonFrameRates::FPS_60();
 	double ExpectedSeconds[] = {
@@ -116,7 +116,7 @@ bool FFrameTimeToSecondsTest::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFrameTimeAdditionTest, "System.Core.Time.Addition", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter | EAutomationTestFlags::HighPriority)
 bool FFrameTimeAdditionTest::RunTest(const FString& Parameters)
 {
-	const int32 NumFrames = ARRAY_COUNT(TestTimes);
+	const int32 NumFrames = UE_ARRAY_COUNT(TestTimes);
 
 	// Test adding a positive FrameTime with a small sub frame
 	{
@@ -239,7 +239,7 @@ bool FFrameTimeAdditionTest::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFrameTimeSubtractionTest, "System.Core.Time.Subtraction", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter | EAutomationTestFlags::HighPriority)
 bool FFrameTimeSubtractionTest::RunTest(const FString& Parameters)
 {
-	const int32 NumFrames = ARRAY_COUNT(TestTimes);
+	const int32 NumFrames = UE_ARRAY_COUNT(TestTimes);
 
 	// Test subtracting a positive FrameTime with a small sub frame
 	{
@@ -363,7 +363,7 @@ bool FFrameTimeSubtractionTest::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFrameTimeConversionTest, "System.Core.Time.Conversion", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter | EAutomationTestFlags::HighPriority)
 bool FFrameTimeConversionTest::RunTest(const FString& Parameters)
 {
-	const int32 NumFrames = ARRAY_COUNT(TestTimes);
+	const int32 NumFrames = UE_ARRAY_COUNT(TestTimes);
 
 	{
 		FFrameRate SrcRate = FCommonFrameRates::FPS_60();
@@ -469,7 +469,7 @@ bool FFrameRateMultiplesTest::RunTest(const FString& Parameters)
 		FFrameRate(24000,1)
 	};
 
-	const int32 NumRates = ARRAY_COUNT(TestRates);
+	const int32 NumRates = UE_ARRAY_COUNT(TestRates);
 
 	{
 		bool IsMultipleOf[] = {

@@ -359,7 +359,7 @@ void FOculusInput::SendControllerEvents()
 
 				for (FOculusTouchControllerPair& ControllerPair : ControllerPairs)
 				{
-					for( int32 HandIndex = 0; HandIndex < ARRAY_COUNT( ControllerPair.ControllerStates ); ++HandIndex )
+					for( int32 HandIndex = 0; HandIndex < UE_ARRAY_COUNT( ControllerPair.ControllerStates ); ++HandIndex )
 					{
 						FOculusTouchControllerState& State = ControllerPair.ControllerStates[ HandIndex ];
 

@@ -308,7 +308,7 @@ static void InitCommandLine()
 	if(CommandLineFile)
 	{
 		char CommandLine[CMD_LINE_MAX];
-		fgets(CommandLine, ARRAY_COUNT(CommandLine) - 1, CommandLineFile);
+		fgets(CommandLine, UE_ARRAY_COUNT(CommandLine) - 1, CommandLineFile);
 
 		fclose(CommandLineFile);
 

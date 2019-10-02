@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "VirtualTexturing.h"
+#include "VT/RuntimeVirtualTextureEnum.h"
 
 enum class ERuntimeVirtualTextureMaterialType : uint8;
 class FRHITexture2D;
@@ -20,15 +21,7 @@ public:
 	/** A description for a single tile to render. */
 	struct FTileEntry
 	{
-		FRHITexture2D* Texture0 = nullptr;
-		FRHITexture2D* Texture1 = nullptr;
-		FRHITexture2D* Texture2 = nullptr;
-		int32 DestX0 = 0;
-		int32 DestY0 = 0;
-		int32 DestX1 = 0;
-		int32 DestY1 = 0;
-		int32 DestX2 = 0;
-		int32 DestY2 = 0;
+		FVTProduceTargetLayer Targets[RuntimeVirtualTexture::MaxTextureLayers];
 		uint32 vAddress = 0;
 		uint8 vLevel = 0;
 	};

@@ -62,7 +62,7 @@ class FIOSCommandLineHelper
 			{
 				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Checking for command line in %s... FOUND!") LINE_TERMINATOR, *CommandLineFilePath);
 				char CommandLine[CMD_LINE_MAX] = {0};
-				char* DataExists = fgets(CommandLine, ARRAY_COUNT(CommandLine) - 1, CommandLineFile);
+				char* DataExists = fgets(CommandLine, UE_ARRAY_COUNT(CommandLine) - 1, CommandLineFile);
 				if (DataExists)
 				{
 					// chop off trailing spaces

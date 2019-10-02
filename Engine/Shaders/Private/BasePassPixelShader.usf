@@ -16,7 +16,11 @@
 
 #if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 #define PreIntegratedGF			OpaqueBasePass.PreIntegratedGFTexture
+#if SUPPORTS_INDEPENDENT_SAMPLERS
+#define PreIntegratedGFSampler	View.SharedBilinearClampedSampler
+#else
 #define PreIntegratedGFSampler	OpaqueBasePass.PreIntegratedGFSampler
+#endif
 #endif
 
 #include "SHCommon.ush"
@@ -321,9 +325,15 @@ void GetSkyLighting(FMaterialPixelParameters MaterialParameters, VTPageTableResu
 #if SUPPORTS_INDEPENDENT_SAMPLERS
 	#define ILCSharedSampler1 View.SharedBilinearClampedSampler
 	#define ILCSharedSampler2 View.SharedBilinearClampedSampler
+
+	#define SingleLayerWaterSceneColorSampler View.SharedBilinearClampedSampler
+	#define SingleLayerWaterSceneDepthSampler View.SharedPointClampedSampler
 #else
 	#define ILCSharedSampler1 IndirectLightingCache.IndirectLightingCacheTextureSampler1
 	#define ILCSharedSampler2 IndirectLightingCache.IndirectLightingCacheTextureSampler2
+
+	#define SingleLayerWaterSceneColorSampler OpaqueBasePass.SceneColorWithoutSingleLayerWaterSampler
+	#define SingleLayerWaterSceneDepthSampler OpaqueBasePass.SceneDepthWithoutSingleLayerWaterSampler
 #endif
 
 /** Calculates indirect lighting contribution on this object from precomputed data. */
@@ -862,7 +872,7 @@ void FPixelShaderInOut_MainPS(
 #endif
 
 	float DBufferOpacity = 1.0f;
-#if USE_DBUFFER && MATERIALDECALRESPONSEMASK && !MATERIALBLENDING_ANY_TRANSLUCENT
+#if USE_DBUFFER && MATERIALDECALRESPONSEMASK && !MATERIALBLENDING_ANY_TRANSLUCENT && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 	// apply decals from the DBuffer
 #if SM5_PROFILE
 	//Temporary workaround to avoid crashes on AMD, revert back to BRANCH
@@ -1226,10 +1236,9 @@ ShadingModel);
 
 		Color += EvaluateWaterVolumeLighting(
 			MaterialParameters, PixelMaterialInputs, ResolvedView,
-			OpaqueBasePass.SceneColorWithoutSingleLayerWaterTexture, OpaqueBasePass.SceneColorWithoutSingleLayerWaterSampler,
-			OpaqueBasePass.SceneDepthWithoutSingleLayerWaterTexture, OpaqueBasePass.SceneDepthWithoutSingleLayerWaterSampler,
-			OpaqueBasePass.SceneCustomDepthTexture, OpaqueBasePass.SceneCustomDepthSampler,
-			OpaqueBasePass.SceneWithoutSingleLayerWaterValidUVRect,
+			OpaqueBasePass.SceneColorWithoutSingleLayerWaterTexture, SingleLayerWaterSceneColorSampler,
+			OpaqueBasePass.SceneDepthWithoutSingleLayerWaterTexture, SingleLayerWaterSceneDepthSampler,
+			OpaqueBasePass.SceneWithoutSingleLayerWaterMaxUV,
 			Specular, OpaqueBasePass.DistortionParams,
 			SunIlluminance, WaterDiffuseIndirectIlluminance, EnvBrdf,
 			CameraIsUnderWater, WaterVisibility).Luminance;
@@ -1374,7 +1383,7 @@ ShadingModel);
 // the following needs to match to the code in FSceneRenderTargets::GetGBufferRenderTargets()
 #define PIXELSHADEROUTPUT_BASEPASS 1
 #if USES_GBUFFER
-#define PIXELSHADEROUTPUT_MRT0 (!SELECTIVE_BASEPASS_OUTPUTS || NEEDS_BASEPASS_VERTEX_FOGGING || USES_EMISSIVE_COLOR || ALLOW_STATIC_LIGHTING)
+#define PIXELSHADEROUTPUT_MRT0 (!SELECTIVE_BASEPASS_OUTPUTS || NEEDS_BASEPASS_VERTEX_FOGGING || USES_EMISSIVE_COLOR || ALLOW_STATIC_LIGHTING || MATERIAL_SHADINGMODEL_SINGLELAYERWATER)
 #define PIXELSHADEROUTPUT_MRT1 ((!SELECTIVE_BASEPASS_OUTPUTS || !MATERIAL_SHADINGMODEL_UNLIT))
 #define PIXELSHADEROUTPUT_MRT2 ((!SELECTIVE_BASEPASS_OUTPUTS || !MATERIAL_SHADINGMODEL_UNLIT))
 #define PIXELSHADEROUTPUT_MRT3 ((!SELECTIVE_BASEPASS_OUTPUTS || !MATERIAL_SHADINGMODEL_UNLIT))

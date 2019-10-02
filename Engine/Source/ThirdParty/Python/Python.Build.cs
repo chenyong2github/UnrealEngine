@@ -22,6 +22,10 @@ public class Python : ModuleRules
 			if (PythonRoot != null)
 			{
 				PythonSDK = DiscoverPythonSDK(PythonRoot);
+				if (!PythonSDK.IsValid())
+				{
+					PythonSDK = null;
+				}
 			}
 		}
 

@@ -1311,7 +1311,7 @@ FVector2D FWorldTileCollectionModel::SnapTranslationDeltaLandscape(const TShared
 																	float SnappingDistance)
 {
 	ALandscapeProxy* Landscape = LandscapeTile->GetLandscape();
-	FVector ComponentScale = Landscape->GetRootComponent()->RelativeScale3D*Landscape->ComponentSizeQuads;
+	FVector ComponentScale = Landscape->GetRootComponent()->GetRelativeScale3D()*Landscape->ComponentSizeQuads;
 	
 	return FVector2D(	FMath::GridSnap(InAbsoluteDelta.X, ComponentScale.X),
 						FMath::GridSnap(InAbsoluteDelta.Y, ComponentScale.Y));

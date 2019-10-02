@@ -64,6 +64,12 @@ public:
 	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
 	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 
+	// Initializes only the sub-graph that this node is linked to
+	void InitializeSubGraph_AnyThread(const FAnimationInitializeContext& Context);
+
+	// Caches bones only for the sub graph that this node is linked to
+	void CacheBonesSubGraph_AnyThread(const FAnimationCacheBonesContext& Context);
+
 protected:
 	virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;
 	virtual bool NeedsOnInitializeAnimInstance() const override { return true; }

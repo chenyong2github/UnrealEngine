@@ -119,8 +119,14 @@ TOptional<bool> FEditConditionContext::GetBoolValue(const FString& PropertyName)
 			return TOptional<bool>();
 		}
 
-		uint8* ParentPtr = ParentNode->GetValueAddress(BasePtr);
-		uint8* ValuePtr = BoolProperty->ContainerPtrToValuePtr<uint8>(ParentPtr);
+		uint8* ParentPtr = ParentNode->GetValueAddress(BasePtr, PinnedNode->HasNodeFlags(EPropertyNodeFlags::IsSparseClassData) != 0);
+
+		uint8* ValuePtr = ComplexParentNode->GetValuePtrOfInstance(Index, BoolProperty, ParentNode);
+
+		// SPARSEDATA_TODO: remove the next three lines once we're sure the pointer math is correct
+		uint8* OldValuePtr = BoolProperty->ContainerPtrToValuePtr<uint8>(ParentPtr);
+		check(OldValuePtr == ValuePtr || PinnedNode->HasNodeFlags(EPropertyNodeFlags::IsSparseClassData));
+		ensure(ValuePtr != nullptr);
 
 		bool bValue = BoolProperty->GetPropertyValue(ValuePtr);
 		if (!Result.IsSet())
@@ -159,8 +165,14 @@ TOptional<double> FEditConditionContext::GetNumericValue(const FString& Property
 			return TOptional<double>();
 		}
 
-		uint8* ParentPtr = ParentNode->GetValueAddress(BasePtr);
-		uint8* ValuePtr = NumericProperty->ContainerPtrToValuePtr<uint8>(ParentPtr);
+		uint8* ParentPtr = ParentNode->GetValueAddress(BasePtr, PinnedNode->HasNodeFlags(EPropertyNodeFlags::IsSparseClassData) != 0);
+
+		uint8* ValuePtr = ComplexParentNode->GetValuePtrOfInstance(Index, NumericProperty, ParentNode);
+
+		// SPARSEDATA_TODO: remove the next three lines once we're sure the pointer math is correct
+		uint8* OldValuePtr = NumericProperty->ContainerPtrToValuePtr<uint8>(ParentPtr);
+		check(OldValuePtr == ValuePtr || PinnedNode->HasNodeFlags(EPropertyNodeFlags::IsSparseClassData));
+		ensure(ValuePtr != nullptr);
 
 		double Value = 0;
 
@@ -226,8 +238,14 @@ TOptional<FString> FEditConditionContext::GetEnumValue(const FString& PropertyNa
 			return TOptional<FString>();
 		}
 
-		uint8* ParentPtr = ParentNode->GetValueAddress(BasePtr);
-		uint8* ValuePtr = Property->ContainerPtrToValuePtr<uint8>(ParentPtr);
+		uint8* ParentPtr = ParentNode->GetValueAddress(BasePtr, PinnedNode->HasNodeFlags(EPropertyNodeFlags::IsSparseClassData) != 0);
+
+		uint8* ValuePtr = ComplexParentNode->GetValuePtrOfInstance(Index, Property, ParentNode);
+
+		// SPARSEDATA_TODO: remove the next three lines once we're sure the pointer math is correct
+		uint8* OldValuePtr = Property->ContainerPtrToValuePtr<uint8>(ParentPtr);
+		check(OldValuePtr == ValuePtr || PinnedNode->HasNodeFlags(EPropertyNodeFlags::IsSparseClassData));
+		ensure(ValuePtr != nullptr);
 
 		int64 Value = NumericProperty->GetSignedIntPropertyValue(ValuePtr);
 		if (!Result.IsSet())

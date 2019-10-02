@@ -38,7 +38,7 @@ ANUTActor::ANUTActor(const FObjectInitializer& ObjectInitializer)
 
 	bReplicates = true;
 	bAlwaysRelevant = true;
-	bReplicateMovement = false;
+	SetReplicatingMovement(false);
 	NetUpdateFrequency = 1;
 }
 

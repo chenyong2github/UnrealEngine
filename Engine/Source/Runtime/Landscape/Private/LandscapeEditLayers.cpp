@@ -1939,12 +1939,12 @@ void ALandscape::CopyTexturePS(const FString& InSourceDebugName, FTextureResourc
 {
 	check(InSourceResource != nullptr);
 	check(InDestResource != nullptr);
-	check(InSourceResource->GetSizeX() == InDestResource->GetSizeX());
-	check(InSourceResource->GetSizeY() == InDestResource->GetSizeY());
-
+	
 	ENQUEUE_RENDER_COMMAND(CopyPSCommand)(
 		[InSourceResource, InDestResource](FRHICommandListImmediate& RHICmdList)
 	{
+		check(InSourceResource->GetSizeX() == InDestResource->GetSizeX());
+		check(InSourceResource->GetSizeY() == InDestResource->GetSizeY());
 		FRHIRenderPassInfo RPInfo(InDestResource->TextureRHI, ERenderTargetActions::DontLoad_Store);
 		RHICmdList.BeginRenderPass(RPInfo, TEXT("CopyTexture"));
 
@@ -2992,7 +2992,7 @@ int32 ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>&
 		}
 
 		ShaderParams.GenerateNormals = true;
-		ShaderParams.GridSize = GetRootComponent()->RelativeScale3D;
+		ShaderParams.GridSize = GetRootComponent()->GetRelativeScale3D();
 
 		// Broadcast Event of the Full Render
 		if ((HeightmapUpdateModes & Update_Heightmap_All) == Update_Heightmap_All)
@@ -4764,7 +4764,8 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 		return;
 	}
 
-	if (GetLandscapeInfo() == nullptr || !CanHaveLayersContent())
+	ULandscapeInfo* LandscapeInfo = GetLandscapeInfo();
+	if (LandscapeInfo == nullptr || !CanHaveLayersContent() || !LandscapeInfo->AreAllComponentsRegistered())
 	{
 		return;
 	}
@@ -5840,6 +5841,12 @@ void ALandscape::UpdateLandscapeSplines(const FGuid& InTargetLayer, bool bInUpda
 		TSet<ULandscapeComponent*>* ModifiedComponent = nullptr;
 		if (LandscapeSplinesTargetLayerGuid.IsValid())
 		{
+			// Check that we can modify data
+			if (!LandscapeInfo->AreAllComponentsRegistered())
+			{
+				return;
+			}
+						
 			TMap<ULandscapeComponent*, uint32> PreviousHashes;
 			{
 				FLandscapeEditDataInterface LandscapeEdit(LandscapeInfo);

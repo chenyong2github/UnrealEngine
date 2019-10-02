@@ -524,7 +524,7 @@ void UVREditorUISystem::OnPreviewInputAction(FEditorViewportClient& ViewportClie
 									// If we are clicking on an editable text field and the radial menu is not a numpad, show the numpad
 									if (WidgetPathUnderFinger.Widgets.Last().Widget->GetTypeAsString() == TEXT("SEditableText") && (bRadialMenuIsNumpad == false))
 									{
-										if (!QuickRadialMenu->bHidden)
+										if (!QuickRadialMenu->IsHidden())
 										{
 											bRadialMenuVisibleAtSwap = true;
 										}
@@ -1326,7 +1326,7 @@ bool UVREditorUISystem::IsShowingRadialMenu(const UVREditorInteractor* Interacto
 	{
 		const EControllerHand DockedToHand = QuickRadialMenu->GetDockedTo() == AVREditorFloatingUI::EDockedTo::LeftArm ? EControllerHand::Left : EControllerHand::Right;
 		const UVREditorInteractor* DockedToInteractor = GetOwner().GetHandInteractor(DockedToHand);
-		return DockedToInteractor == Interactor && !QuickRadialMenu->bHidden;
+		return DockedToInteractor == Interactor && !QuickRadialMenu->IsHidden();
 	}
 	else
 	{

@@ -605,7 +605,7 @@ COREUOBJECT_API uint8 GRegisterNative( int32 NativeBytecodeIndex, const FNativeF
 	if (!bInitialized)
 	{
 		bInitialized = true;
-		for (uint32 i = 0; i < ARRAY_COUNT(GNatives); i++)
+		for (uint32 i = 0; i < UE_ARRAY_COUNT(GNatives); i++)
 		{
 			GNatives[i] = &UObject::execUndefined;
 		}
@@ -613,7 +613,7 @@ COREUOBJECT_API uint8 GRegisterNative( int32 NativeBytecodeIndex, const FNativeF
 
 	if( NativeBytecodeIndex != INDEX_NONE )
 	{
-		if( NativeBytecodeIndex<0 || (uint32)NativeBytecodeIndex>ARRAY_COUNT(GNatives) || GNatives[NativeBytecodeIndex]!=&UObject::execUndefined) 
+		if( NativeBytecodeIndex<0 || (uint32)NativeBytecodeIndex>UE_ARRAY_COUNT(GNatives) || GNatives[NativeBytecodeIndex]!=&UObject::execUndefined) 
 		{
 #if WITH_HOT_RELOAD
 			if (GIsHotReload)
@@ -641,7 +641,7 @@ COREUOBJECT_API uint8 GRegisterCast( int32 CastCode, const FNativeFuncPtr& Func 
 	if (!bInitialized)
 	{
 		bInitialized = true;
-		for (uint32 i = 0; i < ARRAY_COUNT(GCasts); i++)
+		for (uint32 i = 0; i < UE_ARRAY_COUNT(GCasts); i++)
 		{
 			GCasts[i] = &UObject::execUndefined;
 		}
@@ -656,7 +656,7 @@ COREUOBJECT_API uint8 GRegisterCast( int32 CastCode, const FNativeFuncPtr& Func 
 #if WITH_HOT_RELOAD
 			!GIsHotReload && 
 #endif
-			(CastCode<0 || (uint32)CastCode>ARRAY_COUNT(GCasts) || GCasts[CastCode]!=&UObject::execUndefined) ) 
+			(CastCode<0 || (uint32)CastCode>UE_ARRAY_COUNT(GCasts) || GCasts[CastCode]!=&UObject::execUndefined) ) 
 		{
 			GCastDuplicate = CastCode;
 		}
@@ -1993,6 +1993,35 @@ DEFINE_FUNCTION(UObject::execInstanceVariable)
 	
 }
 IMPLEMENT_VM_FUNCTION( EX_InstanceVariable, execInstanceVariable );
+
+DEFINE_FUNCTION(UObject::execClassSparseDataVariable)
+{
+	UProperty* VarProperty = (UProperty*)Stack.ReadObject();
+	Stack.MostRecentProperty = VarProperty;
+
+	if (VarProperty == nullptr || P_THIS->GetSparseClassDataStruct() == nullptr)
+	{
+		FBlueprintExceptionInfo ExceptionInfo(EBlueprintExceptionType::AccessViolation, FText::Format(LOCTEXT("MissingProperty", "Attempted to access missing sparse property '{0}' {1}, {2}. If this is a packaged/cooked build, are you attempting to use an editor-only property?"), FText::FromString(GetNameSafe(VarProperty)), FText::FromString(GetNameSafe(P_THIS->GetSparseClassDataStruct())), FText::FromString(GetNameSafe(VarProperty ? (UClass*)VarProperty->GetOuter() : nullptr))));
+		FBlueprintCoreDelegates::ThrowScriptException(P_THIS, Stack, ExceptionInfo);
+
+		Stack.MostRecentPropertyAddress = nullptr;
+	}
+	else
+	{
+		void* SparseDataBaseAddress = P_THIS->GetClass()->GetOrCreateSparseClassData();
+		Stack.MostRecentPropertyAddress = VarProperty->ContainerPtrToValuePtr<uint8>(SparseDataBaseAddress);
+
+		// SPARSEDATA_TODO: remove these two lines once we're sure the math is right
+		int32 Offset = VarProperty->GetOffset_ForInternal();
+		check((uint8*)SparseDataBaseAddress + Offset == Stack.MostRecentPropertyAddress);
+
+		if (RESULT_PARAM)
+		{
+			VarProperty->CopyCompleteValueToScriptVM(RESULT_PARAM, Stack.MostRecentPropertyAddress);
+		}
+	}
+}
+IMPLEMENT_VM_FUNCTION(EX_ClassSparseDataVariable, execClassSparseDataVariable);
 
 DEFINE_FUNCTION(UObject::execDefaultVariable)
 {

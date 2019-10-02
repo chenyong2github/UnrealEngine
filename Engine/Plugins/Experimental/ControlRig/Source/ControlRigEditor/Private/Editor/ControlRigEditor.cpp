@@ -999,6 +999,12 @@ void FControlRigEditor::HandleModelModified(const UControlRigModel* InModel, ECo
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
+	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj());
+	if (RigBlueprint == nullptr)
+	{
+		return;
+	}
+
 	switch (InType)
 	{
 		case EControlRigModelNotifType::NodeSelected:
@@ -1007,26 +1013,79 @@ void FControlRigEditor::HandleModelModified(const UControlRigModel* InModel, ECo
 			const FControlRigModelNode* Node = (const FControlRigModelNode*)InPayload;
 			if (Node != nullptr)
 			{
-				if (!bIsSelecting)
+				if (FocusedGraphEdPtr.IsValid())
 				{
-					TGuardValue<bool> SelectingGuard(bIsSelecting, true);
-					if (FocusedGraphEdPtr.IsValid())
+					TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
+					if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(FocusedGraphEd->GetCurrentGraph()))
 					{
-						TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
-						if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(FocusedGraphEd->GetCurrentGraph()))
+						TArray<FControlRigModelNode> Selection;
+						bool bSelect = InType == EControlRigModelNotifType::NodeSelected;
+						if (bSelect)
 						{
+							Selection = InModel->SelectedNodes();
+						}
+						else
+						{
+							Selection.Add(*Node);
+						}
+
+						TArray<FRigElementKey> RigElementsToSelect;
+						for (const FControlRigModelNode& SelectedNode : Selection)
+						{
+							if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(RigGraph->FindNodeFromPropertyName(SelectedNode.Name)))
+							{
+								for (const FControlRigModelPin& Pin : Node->Pins)
+								{
+									if (Pin.Type.PinCategory == UEdGraphSchema_K2::PC_Name)
+									{
+										if (Pin.CustomWidgetName == TEXT("BoneName"))
+										{
+											RigElementsToSelect.Add(FRigElementKey(*Pin.DefaultValue, ERigElementType::Bone));
+										}
+										else if (Pin.CustomWidgetName == TEXT("ControlName"))
+										{
+											RigElementsToSelect.Add(FRigElementKey(*Pin.DefaultValue, ERigElementType::Control));
+										}
+										else if (Pin.CustomWidgetName == TEXT("SpaceName"))
+										{
+											RigElementsToSelect.Add(FRigElementKey(*Pin.DefaultValue, ERigElementType::Space));
+										}
+										else if (Pin.CustomWidgetName == TEXT("CurveName"))
+										{
+											RigElementsToSelect.Add(FRigElementKey(*Pin.DefaultValue, ERigElementType::Curve));
+										}
+									}
+								}
+							}
+						}
+
+						if (RigElementsToSelect.Num() > 0)
+						{
+							if (bSelect)
+							{
+								RigBlueprint->HierarchyContainer.ClearSelection();
+							}
+							for (const FRigElementKey& RigElementToSelect : RigElementsToSelect)
+							{
+								RigBlueprint->HierarchyContainer.Select(RigElementToSelect, bSelect);
+							}
+						}
+
+						if (!bIsSelecting)
+						{
+							TGuardValue<bool> SelectingGuard(bIsSelecting, true);
 							if (UEdGraphNode* EdNode = RigGraph->FindNodeFromPropertyName(Node->Name))
 							{
 								FocusedGraphEd->SetNodeSelection(EdNode, InType == EControlRigModelNotifType::NodeSelected);
 							}
+							break;
 						}
 					}
-					break;
 				}
 
 				if (InType == EControlRigModelNotifType::NodeSelected)
 				{
-					UClass* Class = GetBlueprintObj()->GeneratedClass.Get();
+					UClass* Class = RigBlueprint->GeneratedClass.Get();
 					if (Class)
 					{
 						if (UProperty* Property = Class->FindPropertyByName(Node->Name))
@@ -1650,6 +1709,12 @@ void FControlRigEditor::OnFinishedChangingProperties(const FPropertyChangedEvent
 	if (ControlRig && ControlRigBP && RigElementInDetailPanel)
 	{
 		UControlRig* DebuggedControlRig = Cast<UControlRig>(GetBlueprintObj()->GetObjectBeingDebugged());
+
+		if (DebuggedControlRig && DebuggedControlRig->GetHierarchy()->GetIndex(RigElementInDetailPanel) == INDEX_NONE)
+		{
+			return;
+		}
+
 		UScriptStruct* ScriptStruct = Cast< UScriptStruct>(PropertyChangedEvent.Property->GetOuter());
 		if (ScriptStruct)
 		{

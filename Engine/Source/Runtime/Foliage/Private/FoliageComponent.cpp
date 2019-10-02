@@ -127,7 +127,7 @@ void AInteractiveFoliageActor::SetupCollisionCylinder()
 	if (GetStaticMeshComponent()->GetStaticMesh())
 	{
 		const FBoxSphereBounds MeshBounds = GetStaticMeshComponent()->GetStaticMesh()->GetBounds();
-		const FVector Scale3D = GetStaticMeshComponent()->RelativeScale3D;
+		const FVector Scale3D = GetStaticMeshComponent()->GetRelativeScale3D();
 		// Set the cylinder's radius based off of the static mesh's bounds radius
 		// CollisionRadius is in world space so apply the actor's scale
 		CapsuleComponent->SetCapsuleSize(MeshBounds.SphereRadius * .7f * FMath::Max(Scale3D.X, Scale3D.Y), MeshBounds.BoxExtent.Z * Scale3D.Z);

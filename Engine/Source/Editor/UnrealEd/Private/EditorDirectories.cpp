@@ -14,7 +14,7 @@ FEditorDirectories& FEditorDirectories::Get()
 
 void FEditorDirectories::LoadLastDirectories()
 {
-	for( int32 CurDirectoryIndex = 0; CurDirectoryIndex < ARRAY_COUNT( LastDir ); ++CurDirectoryIndex )
+	for( int32 CurDirectoryIndex = 0; CurDirectoryIndex < UE_ARRAY_COUNT( LastDir ); ++CurDirectoryIndex )
 	{
 		LastDir[CurDirectoryIndex].Reset();
 	}
@@ -35,7 +35,7 @@ void FEditorDirectories::LoadLastDirectories()
 
 	// Set up some defaults if they're note defined in the ini
 	const FString DefaultDir = FPaths::ProjectContentDir();
-	for( int32 CurDirectoryIndex = 0; CurDirectoryIndex < ARRAY_COUNT( LastDir ); ++CurDirectoryIndex )
+	for( int32 CurDirectoryIndex = 0; CurDirectoryIndex < UE_ARRAY_COUNT( LastDir ); ++CurDirectoryIndex )
 	{
 		if (LastDir[ CurDirectoryIndex ].IsEmpty())
 		{
@@ -81,7 +81,7 @@ void FEditorDirectories::SaveLastDirectories()
 
 FString FEditorDirectories::GetLastDirectory( const ELastDirectory::Type InLastDir ) const
 {
-	if ( InLastDir >= 0 && InLastDir < ARRAY_COUNT( LastDir ) )
+	if ( InLastDir >= 0 && InLastDir < UE_ARRAY_COUNT( LastDir ) )
 	{
 		return LastDir[InLastDir];
 	}
@@ -90,7 +90,7 @@ FString FEditorDirectories::GetLastDirectory( const ELastDirectory::Type InLastD
 
 void FEditorDirectories::SetLastDirectory( const ELastDirectory::Type InLastDir, const FString& InLastStr )
 {
-	if ( InLastDir >= 0 && InLastDir < ARRAY_COUNT( LastDir ) )
+	if ( InLastDir >= 0 && InLastDir < UE_ARRAY_COUNT( LastDir ) )
 	{
 		LastDir[InLastDir] = InLastStr;
 	}

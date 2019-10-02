@@ -53,6 +53,29 @@ protected:
 
 //////////////////////////////////////////////////////////////////////////
 
+extern int32 GbEnableMinimalGPUBuffers;
+
+/** Mapping between a variable in the source dataset and the location we place it in the GPU buffer passed to the VF. */
+struct FNiagaraRendererVariableInfo
+{
+	FNiagaraRendererVariableInfo()
+		: DatasetOffset(INDEX_NONE), GPUBufferOffset(INDEX_NONE), NumComponents(0), bUpload(true)
+	{
+	}
+	
+	FNiagaraRendererVariableInfo(int32 InDatasetOffset, int32 InGPUBufferOffset, int32 InNumComponents, bool InbUpload)
+		: DatasetOffset(InDatasetOffset), GPUBufferOffset(InGPUBufferOffset), NumComponents(InNumComponents), bUpload(InbUpload)
+	{
+	}
+
+	FORCEINLINE int32 GetGPUOffset()const { return GbEnableMinimalGPUBuffers ? GPUBufferOffset : DatasetOffset; }
+
+	int32 DatasetOffset;
+	int32 GPUBufferOffset;
+	int32 NumComponents;
+	bool bUpload;
+};
+
 /**
 * Base class for Niagara System renderers.
 */
@@ -66,7 +89,7 @@ public:
 	FNiagaraRenderer(const FNiagaraRenderer& Other) = delete;
 	FNiagaraRenderer& operator=(const FNiagaraRenderer& Other) = delete;
 
-	virtual void Initialize(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter);
+	virtual void Initialize(const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter);
 	virtual void CreateRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher);
 	virtual void ReleaseRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher);
 
@@ -78,7 +101,7 @@ public:
 	virtual int32 GetDynamicDataSize()const { return 0; }
 	virtual bool IsMaterialValid(UMaterialInterface* Mat)const { return Mat != nullptr; }
 
-	void SortIndices(const struct FNiagaraGPUSortInfo& SortInfo, const FNiagaraDataBuffer& Buffer, FGlobalDynamicReadBuffer::FAllocation& OutIndices)const;
+	void SortIndices(const struct FNiagaraGPUSortInfo& SortInfo, int32 SortVarIdx, const FNiagaraDataBuffer& Buffer, FGlobalDynamicReadBuffer::FAllocation& OutIndices)const;
 
 	void SetDynamicData_RenderThread(FNiagaraDynamicDataBase* NewDynamicData);
 	FORCEINLINE FNiagaraDynamicDataBase *GetDynamicData()const { return DynamicDataRender; }
@@ -110,9 +133,17 @@ protected:
 	ENiagaraSimTarget SimTarget;
 	uint32 NumIndicesPerInstance;
 
+	ERHIFeatureLevel::Type FeatureLevel;
+
 #if STATS
 	TStatId EmitterStatID;
 #endif
+
+	bool SetVertexFactoryVariable(const FNiagaraDataSet& DataSet, const FNiagaraVariable& Var, int32 VFVarOffset);
+	FGlobalDynamicReadBuffer::FAllocation TransferDataToGPU(FGlobalDynamicReadBuffer& DynamicReadBuffer, FNiagaraDataBuffer* SrcData)const;
+	
+	mutable TArray<FNiagaraRendererVariableInfo, TInlineAllocator<16>> VFVariables;
+	int32 TotalVFComponents;
 
 	/** Cached array of materials used from the properties data. Validated with usage flags etc. */
 	TArray<UMaterialInterface*> BaseMaterials_GT;

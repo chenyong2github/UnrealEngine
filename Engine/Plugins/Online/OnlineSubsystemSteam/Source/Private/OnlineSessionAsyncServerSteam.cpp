@@ -959,7 +959,7 @@ void FOnlineAsyncTaskSteamFindServerBase::ParseSearchResult(class gameserveritem
 		GameTags.ParseIntoArray(TagArray, TEXT(","), true);
 		if (TagArray.Num() > 0 && TagArray[0].StartsWith(STEAMKEY_BUILDUNIQUEID))
 		{
-			ServerBuildId = FCString::Atoi(*TagArray[0].Mid(ARRAY_COUNT(STEAMKEY_BUILDUNIQUEID)));
+			ServerBuildId = FCString::Atoi(*TagArray[0].Mid(UE_ARRAY_COUNT(STEAMKEY_BUILDUNIQUEID)));
 		}
 
 		if (ServerBuildId == BuildUniqueId)
@@ -1258,7 +1258,7 @@ void FOnlineAsyncEventSteamInviteAccepted::Finalize()
 		SessionInt->CurrentSessionSearch->SearchState = EOnlineAsyncTaskState::InProgress;
 
 		TCHAR ParsedURL[1024];
-		if (!FParse::Value(*ConnectionURL, TEXT("SteamConnectIP="), ParsedURL, ARRAY_COUNT(ParsedURL)))
+		if (!FParse::Value(*ConnectionURL, TEXT("SteamConnectIP="), ParsedURL, UE_ARRAY_COUNT(ParsedURL)))
 		{
 			UE_LOG_ONLINE_SESSION(Warning, TEXT("FOnlineAsyncEventSteamInviteAccepted: Failed to parse connection URL"));
 			return;

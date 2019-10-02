@@ -14,6 +14,7 @@
 #pragma warning(disable:4996)
 #endif
 
+// These can be removed when the deprecated ARRAY_COUNT is removed.
 #pragma push_macro("ARRAY_COUNT")
 #undef ARRAY_COUNT
 

@@ -4,6 +4,7 @@
 
 #include "Net/UnrealNetwork.h" // For MakeRelative
 #include "NetworkSimulationModelCVars.h"
+#include "NetworkSimulationModelInterpolator.h"
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //	CVars and compile time constants
@@ -15,6 +16,7 @@ namespace NetworkSimulationModelCVars
 	NETSIM_DEVCVAR_SHIPCONST_INT(EnableSimulatedReconcile, 1, "ns.EnableSimulatedReconcile", "Toggle simulated proxy reconciliation.");
 	NETSIM_DEVCVAR_SHIPCONST_INT(EnableSimulatedExtrapolation, 1, "ns.EnableSimulatedExtrapolation", "Toggle simulated proxy extrapolation.");
 	NETSIM_DEVCVAR_SHIPCONST_INT(ForceReconcile, 0, "ns.ForceReconcile", "Forces reconcile even if state does not differ. E.g, force resimulation after every netupdate.");
+	NETSIM_DEVCVAR_SHIPCONST_INT(ForceReconcileSingle, 0, "ns.ForceReconcileSingle", "Forces a since reconcile to happen on the next frame");
 }
 
 #ifndef NETSIM_NETCONSTANT_NUM_BITS_KEYFRAME
@@ -67,8 +69,13 @@ struct TReplicatorEmpty
 	template<typename T, typename TDriver>
 	void Reconcile(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, TSimulationTickState<TTickSettings>& TickInfo) { }
 
-	template<typename T, typename TDriver, typename TTickParameters>
-	void PreSimTick(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, TSimulationTickState<TTickSettings>& TickInfo, const TTickParameters& TickParameters) { }
+	// Called prior to input processing. This function must updated TickInfo to allow simulation time (from TickParameters) and to possibly get new input.
+	template<typename T, typename TDriver>
+	void PreSimTick(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, TSimulationTickState<TTickSettings>& TickInfo, const FNetSimTickParameters& TickParameters) { }
+
+	// Called after input processing. Should finalize the frame and do any smoothing/interpolation. This function is not allowed to modify the buffers or tick state, or even call the simulation/Update function.
+	template<typename TDriver>
+	void PostSimTick(TDriver* Driver, const TNetworkSimBufferContainer<TBufferTypes>& Buffers, const TSimulationTickState<TTickSettings>& TickInfo, const FNetSimTickParameters& TickParameters) { }
 };
 
 // This is the "templated base class" for replicators but is not required (i.e., this not an official interface used by TNetworkedSimulation model. Just a base implementation you can start with)
@@ -88,11 +95,22 @@ struct TReplicatorBase
 	void Reconcile(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, TSimulationTickState<TTickSettings>& TickInfo) { }
 
 	// Called prior to input processing. This function must updated TickInfo to allow simulation time (from TickParameters) and to possibly get new input.
-	template<typename T, typename TDriver, typename TTickParameters>
-	void PreSimTick(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, TSimulationTickState<TTickSettings>& TickInfo, const TTickParameters& TickParameters)
+	template<typename T, typename TDriver>
+	void PreSimTick(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, TSimulationTickState<TTickSettings>& TickInfo, const FNetSimTickParameters& TickParameters)
 	{
 		// Accumulate local delta time into TickInfo
 		TickInfo.GiveSimulationTime(TickParameters.LocalDeltaTimeSeconds);
+	}
+
+	// Called after input processing. Should finalize the frame and do any smoothing/interpolation. This function is not allowed to modify the buffers or tick state, or even call the simulation/Update function.
+	template<typename TDriver>
+	void PostSimTick(TDriver* Driver, const TNetworkSimBufferContainer<TBufferTypes>& Buffers, const TSimulationTickState<TTickSettings>& TickInfo, const FNetSimTickParameters& TickParameters)
+	{
+		// Sync to latest frame if there is any
+		if (Buffers.Sync.GetNumValidElements() > 0)
+		{
+			Driver->FinalizeFrame(*Buffers.Sync.GetElementFromHead(0));
+		}
 	}
 };
 
@@ -111,7 +129,7 @@ struct TReplicator_SimTime : public TBase
 		SerializedTime.NetSerialize(P.Ar);
 	}
 
-	TNetworkSimTime<TTickSettings> SerializedTime;
+	FNetworkSimTime SerializedTime;
 };
 
 // Enabled=false specialization: do nothing
@@ -237,14 +255,14 @@ struct TReplicator_Server : public TBase
 		}
 	}
 
-	template<typename T, typename TDriver, typename TTickParameters>
-	void PreSimTick(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, TSimulationTickState<TTickSettings>& TickInfo, const TTickParameters& TickParameters)
+	template<typename T, typename TDriver>
+	void PreSimTick(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, TSimulationTickState<TTickSettings>& TickInfo, const FNetSimTickParameters& TickParameters)
 	{
 		TickInfo.GiveSimulationTime(TickParameters.LocalDeltaTimeSeconds);
 
 		if (TickParameters.bGenerateLocalInputCmds)
 		{
-			TNetworkSimTime<TTickSettings> DeltaSimTime = TickInfo.GetRemainingAllowedSimulationTime();
+			FNetworkSimTime DeltaSimTime = TickInfo.GetRemainingAllowedSimulationTime();
 			if (DeltaSimTime.IsPositive())
 			{
 				if (TInputCmd* InputCmd = Buffers.Input.GetWriteNext())
@@ -267,10 +285,32 @@ struct TReplicator_Simulated : public TBase
 	using TSyncState = typename TBufferTypes::TSyncState;
 	using TAuxState = typename TBufferTypes::TAuxState;
 
+	// Parent Simulation. If this is set, this simulation will forward predict in sync with this parent sim. The parent sim should be an autonomous proxy driven simulation
+	INetworkSimulationModel* ParentSimulation = nullptr;
+
 	// Instance flag for enabling simulated extrapolation
 	bool bAllowSimulatedExtrapolation = true;
 
-	TNetworkSimTime<TTickSettings> GetLastSerializedSimulationTime() const { return LastSerializedSimulationTime; }
+	// Interpolated that will be used if bAllowSimulatedExtrapolation == false && ParentSimulation == nullptr
+	TInterpolator<TBufferTypes, TTickSettings> Interpolator;
+
+	// Last Serialized time and state
+	FNetworkSimTime GetLastSerializedSimulationTime() const { return LastSerializedSimulationTime; }
+	const TSyncState& GetLastSerializedSyncState() const { return LastSerializedSyncState; }
+	
+	ESimulatedUpdateMode GetSimulatedUpdateMode() const
+	{
+		if (ParentSimulation)
+		{
+			return ESimulatedUpdateMode::ForwardPredict;
+		}
+		if (bAllowSimulatedExtrapolation && NetworkSimulationModelCVars::EnableSimulatedExtrapolation())
+		{
+			return ESimulatedUpdateMode::Extrapolate;
+		}
+
+		return ESimulatedUpdateMode::Interpolate;
+	}
 	
 	int32 GetProxyDirtyCount(TNetworkSimBufferContainer<TBufferTypes>& Buffers) const
 	{
@@ -281,7 +321,7 @@ struct TReplicator_Simulated : public TBase
 	{
 		FArchive& Ar = P.Ar;
 
-		TNetworkSimTime<TTickSettings> PrevLastSerializedSimulationTime = LastSerializedSimulationTime;
+		FNetworkSimTime PrevLastSerializedSimulationTime = LastSerializedSimulationTime;
 
 		// Serialize latest simulation time
 		LastSerializedSimulationTime = TickInfo.GetTotalProcessedSimulationTime();
@@ -312,8 +352,6 @@ struct TReplicator_Simulated : public TBase
 			{
 				// We are getting new state that is ahead of what we have locally, so it can safety go right to head
 				DestinationKeyframe = TickInfo.SimulationTimeBuffer.GetHeadKeyframe()+1;
-
-				//UE_LOG(LogNetworkSim, Warning, TEXT("@@@"));
 			}
 			else
 			{
@@ -322,7 +360,6 @@ struct TReplicator_Simulated : public TBase
 				{
 					if (LastSerializedSimulationTime > *TickInfo.SimulationTimeBuffer.FindElementByKeyframe(Keyframe))
 					{
-						//UE_LOG(LogNetworkSim, Warning, TEXT("..."));
 						DestinationKeyframe = Keyframe+1;
 						break;
 					}
@@ -330,8 +367,8 @@ struct TReplicator_Simulated : public TBase
 
 				if (DestinationKeyframe == INDEX_NONE)
 				{
-					TNetworkSimTime<TTickSettings> TotalTimeAhead = *TickInfo.SimulationTimeBuffer.GetElementFromHead(0) - LastSerializedSimulationTime;
-					TNetworkSimTime<TTickSettings> SerializeDelta = LastSerializedSimulationTime - PrevLastSerializedSimulationTime;
+					FNetworkSimTime TotalTimeAhead = *TickInfo.SimulationTimeBuffer.GetElementFromHead(0) - LastSerializedSimulationTime;
+					FNetworkSimTime SerializeDelta = LastSerializedSimulationTime - PrevLastSerializedSimulationTime;
 
 					// We are way far ahead of the server... we will need to clear out sync buffers, take what they gave us, and catch up in reconcile
 					//UE_LOG(LogNetworkSim, Warning, TEXT("!!! TReplicator_Simulated. Large gap detected. SerializedTime: %s. Buffer time: [%s-%s]. %d Elements. DeltaFromHead: %s. DeltaSerialize: %s"), *LastSerializedSimulationTime.ToString(), 
@@ -363,6 +400,11 @@ struct TReplicator_Simulated : public TBase
 
 		check(State);
 		State->NetSerialize(Ar);
+
+		if (Ar.IsLoading())
+		{
+			LastSerializedSyncState = *State;
+		}
 	}
 
 	template<typename T, typename TDriver>
@@ -375,7 +417,7 @@ struct TReplicator_Simulated : public TBase
 
 		check(TickInfo.GetTotalProcessedSimulationTime() <= TickInfo.GetTotalAllowedSimulationTime());
 
-		if (bAllowSimulatedExtrapolation && NetworkSimulationModelCVars::EnableSimulatedExtrapolation() && NetworkSimulationModelCVars::EnableSimulatedReconcile())
+		if (bAllowSimulatedExtrapolation && ParentSimulation == nullptr && NetworkSimulationModelCVars::EnableSimulatedExtrapolation() && NetworkSimulationModelCVars::EnableSimulatedReconcile())
 		{
 			TInputCmd* LastCmd = Buffers.Input.GetElementFromHead(0);
 
@@ -388,33 +430,10 @@ struct TReplicator_Simulated : public TBase
 			}
 
 			// Do we have time to make up? We may have extrapolated ahead of the server (totally fine - can happen with small amount of latency variance)
-			TNetworkSimTime<TTickSettings> DeltaSimTime = ReconcileSimulationTime - TickInfo.GetTotalProcessedSimulationTime();
+			FNetworkSimTime DeltaSimTime = ReconcileSimulationTime - TickInfo.GetTotalProcessedSimulationTime();
 			if (DeltaSimTime.IsPositive() && NetworkSimulationModelCVars::EnableSimulatedReconcile())
 			{
-				// We have extrapolated ahead of the server. The latest network update is now "in the past" from what we rendered last frame.
-				// We will insert a new keyframe to make up the difference from the last known state to where we want to be in the now.
-				
-				TInputCmd* NewCmd = Buffers.Input.GetWriteNext();
-				*NewCmd = LastCmd ? *LastCmd : TInputCmd();
-				NewCmd->SetFrameDeltaTime(DeltaSimTime);
-
-				TSyncState* PrevSyncState = Buffers.Sync.GetElementFromHead(0);
-				TSyncState* NextSyncState = Buffers.Sync.GetWriteNext();
-
-				TAuxState Junk;
-
-				// TODO: log this guy
-				//NextMotionState->VisualLog( FVisualLoggingParameters(Keyframe == LastKeyframeToProcess ? EVisualLoggingContext::LastMispredicted : EVisualLoggingContext::OtherMispredicted, Keyframe, EVisualLoggingLifetime::Persistent), Driver, Driver);
-
-				//UE_LOG(LogNetworkSim, Warning, TEXT("   >>> Reconcile Update: %s"), *DeltaSimTime.ToString());
-
-				// Do the actual update
-				T::Update(Driver, NewCmd->GetFrameDeltaTime(), *NewCmd, *PrevSyncState, *NextSyncState, Junk);
-				TickInfo.IncrementTotalProcessedSimulationTime(NewCmd->GetFrameDeltaTime(), Buffers.Sync.GetHeadKeyframe());
-
-				// Set our LastProcessedInputKeyframe to fake that we handled it
-				TickInfo.LastProcessedInputKeyframe = Buffers.Input.GetHeadKeyframe();
-				TickInfo.MaxAllowedInputKeyframe = Buffers.Input.GetHeadKeyframe();
+				SimulationExtrapolation<T, TDriver>(Driver, Buffers, TickInfo, DeltaSimTime);
 			}
 		}
 		
@@ -422,10 +441,11 @@ struct TReplicator_Simulated : public TBase
 		ReconcileSimulationTime.Reset();
 	}
 
-	template<typename T, typename TDriver, typename TTickParameters>
-	void PreSimTick(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, TSimulationTickState<TTickSettings>& TickInfo, const TTickParameters& TickParameters)
+	template<typename T, typename TDriver>
+	void PreSimTick(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, TSimulationTickState<TTickSettings>& TickInfo, const FNetSimTickParameters& TickParameters)
 	{
-		if (bAllowSimulatedExtrapolation && NetworkSimulationModelCVars::EnableSimulatedExtrapolation())
+		// Tick if we are dependent simulation or extrapolation is enabled
+		if (ParentSimulation || (bAllowSimulatedExtrapolation && NetworkSimulationModelCVars::EnableSimulatedExtrapolation()))
 		{
 			// Don't start this simulation until you've gotten at least one update from the server
 			if (TickInfo.GetTotalProcessedSimulationTime().IsPositive())
@@ -435,7 +455,7 @@ struct TReplicator_Simulated : public TBase
 
 			if (TickParameters.bGenerateLocalInputCmds)
 			{
-				TNetworkSimTime<TTickSettings> DeltaSimTime = TickInfo.GetRemainingAllowedSimulationTime();
+				FNetworkSimTime DeltaSimTime = TickInfo.GetRemainingAllowedSimulationTime();
 				if (DeltaSimTime.IsPositive())
 				{
 					if (TInputCmd* InputCmd = Buffers.Input.GetWriteNext())
@@ -452,13 +472,89 @@ struct TReplicator_Simulated : public TBase
 		}
 	}
 
+	template<typename TDriver>
+	void PostSimTick(TDriver* Driver, const TNetworkSimBufferContainer<TBufferTypes>& Buffers, const TSimulationTickState<TTickSettings>& TickInfo, const FNetSimTickParameters& TickParameters)
+	{
+		if (bAllowSimulatedExtrapolation || ParentSimulation)
+		{
+			// Sync to latest frame if there is any
+			if (Buffers.Sync.GetNumValidElements() > 0)
+			{
+				Driver->FinalizeFrame(*Buffers.Sync.GetElementFromHead(0));
+			}
+			
+		}
+		else
+		{
+			Interpolator.template PostSimTick<TDriver>(Driver, Buffers, TickInfo, TickParameters);
+		}
+	}
 
+	template<typename T, typename TDriver>
+	void DependentRollbackBegin(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, TSimulationTickState<TTickSettings>& TickInfo, const FNetworkSimTime& RollbackDeltaTime, const int32 ParentKeyframe)
+	{
+		// For now, we make the assumption that our last serialized state and time match the parent simulation.
+		// This would not always be the case with low frequency simulated proxies. But could be handled by replicating the simulations together (at the replication level)
+		int32 NewHeadKeyframe = Buffers.Sync.GetHeadKeyframe()+1;
+		Buffers.Sync.ResetNextHeadKeyframe(NewHeadKeyframe);
+		Buffers.Input.ResetNextHeadKeyframe(NewHeadKeyframe);
+		TickInfo.SetTotalProcessedSimulationTime(LastSerializedSimulationTime, NewHeadKeyframe);
+		TickInfo.SetTotalAllowedSimulationTime(LastSerializedSimulationTime);
+
+		*Buffers.Sync.GetWriteNext() = LastSerializedSyncState;
+		*Buffers.Input.GetWriteNext() = TInputCmd();
+
+		TickInfo.LastProcessedInputKeyframe = Buffers.Input.GetHeadKeyframe();
+		TickInfo.MaxAllowedInputKeyframe = Buffers.Input.GetHeadKeyframe();
+
+		Driver->FinalizeFrame(LastSerializedSyncState);
+
+		LastSerializedSyncState.VisualLog( FVisualLoggingParameters(EVisualLoggingContext::FirstMispredicted, ParentKeyframe, EVisualLoggingLifetime::Persistent), Driver, Driver );
+	}
+
+	template<typename T, typename TDriver>
+	void DependentRollbackStep(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, TSimulationTickState<TTickSettings>& TickInfo, const FNetworkSimTime& StepTime, const int32 ParentKeyframe, const bool bFinalStep)
+	{
+		TickInfo.SetTotalAllowedSimulationTime( TickInfo.GetTotalAllowedSimulationTime() + StepTime );
+
+		SimulationExtrapolation<T, TDriver>(Driver, Buffers, TickInfo, StepTime);
+
+		TSyncState* SyncState = Buffers.Sync.GetElementFromHead(0);
+		check(SyncState);
+		SyncState->VisualLog( FVisualLoggingParameters(bFinalStep ? EVisualLoggingContext::LastMispredicted : EVisualLoggingContext::OtherMispredicted, ParentKeyframe, EVisualLoggingLifetime::Persistent), Driver, Driver );
+	}
 
 private:
+
+	template<typename T, typename TDriver>
+	void SimulationExtrapolation(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, TSimulationTickState<TTickSettings>& TickInfo, const FNetworkSimTime DeltaSimTime)
+	{
+		TInputCmd* LastCmd = Buffers.Input.GetElementFromHead(0);
+
+		// We have extrapolated ahead of the server. The latest network update is now "in the past" from what we rendered last frame.
+		// We will insert a new keyframe to make up the difference from the last known state to where we want to be in the now.
+				
+		TInputCmd* NewCmd = Buffers.Input.GetWriteNext();
+		*NewCmd = LastCmd ? *LastCmd : TInputCmd();
+		NewCmd->SetFrameDeltaTime(DeltaSimTime);
+
+		TSyncState* PrevSyncState = Buffers.Sync.GetElementFromHead(0);
+		TSyncState* NextSyncState = Buffers.Sync.GetWriteNext();
+
+		TAuxState Junk;
+
+		// Do the actual update
+		T::Update(Driver, NewCmd->GetFrameDeltaTime().ToRealTimeSeconds(), *NewCmd, *PrevSyncState, *NextSyncState, Junk);
+		TickInfo.IncrementTotalProcessedSimulationTime(NewCmd->GetFrameDeltaTime(), Buffers.Sync.GetHeadKeyframe());
+
+		// Set our LastProcessedInputKeyframe to fake that we handled it
+		TickInfo.LastProcessedInputKeyframe = Buffers.Input.GetHeadKeyframe();
+		TickInfo.MaxAllowedInputKeyframe = Buffers.Input.GetHeadKeyframe();
+	}
 	
-	TNetworkSimTime<TTickSettings> ReconcileSimulationTime;
-	TNetworkSimTime<TTickSettings> LastSerializedSimulationTime;
-	
+	FNetworkSimTime ReconcileSimulationTime;
+	FNetworkSimTime LastSerializedSimulationTime;
+	TSyncState LastSerializedSyncState;
 };
 
 
@@ -472,7 +568,10 @@ struct TReplicator_Autonomous : public TBase
 
 	int32 GetLastSerializedKeyframe() const { return LastSerializedKeyframe; }
 	bool IsReconcileFaultDetected() const { return bReconcileFaultDetected; }
-	const TNetworkSimTime<TTickSettings>& GetLastSerializedSimTime() const { return SerializedTime; }
+	const FNetworkSimTime& GetLastSerializedSimTime() const { return SerializedTime; }
+
+	TArray<INetworkSimulationModel*> DependentSimulations;
+	bool bDependentSimulationNeedsReconcile = false;
 
 	int32 GetProxyDirtyCount(TNetworkSimBufferContainer<TBufferTypes>& Buffers) const
 	{
@@ -521,8 +620,9 @@ struct TReplicator_Autonomous : public TBase
 			// The state the client predicted that corresponds to the state the server just serialized to us
 			if (TSyncState* ClientExistingState = Buffers.Sync.FindElementByKeyframe(SerializedHeadKeyframe))
 			{
-				if (ClientExistingState->ShouldReconcile(*SerializedState) || (NetworkSimulationModelCVars::ForceReconcile() > 0))
+				if (ClientExistingState->ShouldReconcile(*SerializedState) || (NetworkSimulationModelCVars::ForceReconcile() > 0) || (NetworkSimulationModelCVars::ForceReconcileSingle() > 0))
 				{
+					NetworkSimulationModelCVars::SetForceReconcileSingle(0);
 					UE_CLOG(!Buffers.Input.IsValidKeyframe(SerializedHeadKeyframe), LogNetworkSim, Error, TEXT("::NetSerialize: Client InputBuffer does not contain data for frame %d. {%s} {%s}"), SerializedHeadKeyframe, *Buffers.Input.GetBasicDebugStr(), *Buffers.Sync.GetBasicDebugStr());
 					bPendingReconciliation =  true;
 				}
@@ -552,11 +652,12 @@ struct TReplicator_Autonomous : public TBase
 	template<typename T, typename TDriver>
 	void Reconcile(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, TSimulationTickState<TTickSettings>& TickInfo)
 	{
-		if (bPendingReconciliation == false)
+		if (bPendingReconciliation == false && bDependentSimulationNeedsReconcile == false)
 		{
 			return;
 		}
 		bPendingReconciliation = false;
+		bDependentSimulationNeedsReconcile = false;
 		check(ReconciliationBuffer.GetNumValidElements() == 1); // this function assumes only 1 element
 
 		const int32 ReconciliationKeyframe = ReconciliationBuffer.GetHeadKeyframe();
@@ -602,6 +703,8 @@ struct TReplicator_Autonomous : public TBase
 		check(ClientSyncState);
 		*ClientSyncState = *ServerState;
 
+		const FNetworkSimTime RollbackDeltaTime = SerializedTime - TickInfo.GetTotalProcessedSimulationTime();
+
 		// Set the canonical simulation time to what we received (we will advance it as we resimulate)
 		TickInfo.SetTotalProcessedSimulationTime(SerializedTime, ReconciliationKeyframe);
 		TickInfo.LastProcessedInputKeyframe = ReconciliationKeyframe;
@@ -611,6 +714,12 @@ struct TReplicator_Autonomous : public TBase
 		{
 			// If we aren't predicting at all, then we advanced the allowed sim time here, (since we aren't doing it in PreSimTick). This just keeps us constantly falling behind and not being able to toggle prediction on/off for debugging.
 			TickInfo.SetTotalAllowedSimulationTime(SerializedTime);
+		}
+
+		// Tell dependent simulations to rollback
+		for (INetworkSimulationModel* DependentSim : DependentSimulations)
+		{
+			DependentSim->BeginRollback(RollbackDeltaTime, ReconciliationKeyframe);
 		}
 		
 		// Resimulate all user commands 
@@ -645,7 +754,7 @@ struct TReplicator_Autonomous : public TBase
 			NextMotionState->VisualLog( FVisualLoggingParameters(Keyframe == LastKeyframeToProcess ? EVisualLoggingContext::LastMispredicted : EVisualLoggingContext::OtherMispredicted, Keyframe, EVisualLoggingLifetime::Persistent), Driver, Driver);
 
 			// Do the actual update
-			T::Update(Driver, ResimulateCmd->GetFrameDeltaTime(), *ResimulateCmd, *PrevMotionState, *NextMotionState, *AuxState);
+			T::Update(Driver, ResimulateCmd->GetFrameDeltaTime().ToRealTimeSeconds(), *ResimulateCmd, *PrevMotionState, *NextMotionState, *AuxState);
 			
 			// Update TickInfo
 			TickInfo.IncrementTotalProcessedSimulationTime(ResimulateCmd->GetFrameDeltaTime(), Keyframe);
@@ -653,14 +762,20 @@ struct TReplicator_Autonomous : public TBase
 
 			// Log out the newly predicted state that we got.
 			NextMotionState->VisualLog( FVisualLoggingParameters(Keyframe == LastKeyframeToProcess ? EVisualLoggingContext::LastPredicted : EVisualLoggingContext::OtherPredicted, Keyframe, EVisualLoggingLifetime::Persistent), Driver, Driver);
+
+			// Tell dependent simulations to advance
+			for (INetworkSimulationModel* DependentSim : DependentSimulations)
+			{
+				DependentSim->StepRollback(ResimulateCmd->GetFrameDeltaTime(), Keyframe, (Keyframe == LastKeyframeToProcess));
+			}
 		}
 	}
 
 	// --------------------------------------------------------------------
 	//	PreSimTick
 	// --------------------------------------------------------------------
-	template<typename T, typename TDriver, typename TTickParameters>
-	void PreSimTick(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, TSimulationTickState<TTickSettings>& TickInfo, const TTickParameters& TickParameters)
+	template<typename T, typename TDriver>
+	void PreSimTick(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, TSimulationTickState<TTickSettings>& TickInfo, const FNetSimTickParameters& TickParameters)
 	{
 		// If we have a reconcile fault, we cannot continue on with the simulation until it clears itself out. This effectively drops the input time and does not sample new inputs
 		if (bReconcileFaultDetected)
@@ -674,7 +789,7 @@ struct TReplicator_Autonomous : public TBase
 			{
 				// Prediction: add simulation time and generate new commands
 				TickInfo.GiveSimulationTime(TickParameters.LocalDeltaTimeSeconds);
-				const TNetworkSimTime<TTickSettings> DeltaSimTime = TickInfo.GetRemainingAllowedSimulationTime();
+				const FNetworkSimTime DeltaSimTime = TickInfo.GetRemainingAllowedSimulationTime();
 				if (DeltaSimTime.IsPositive())
 				{
 					if (TInputCmd* InputCmd = Buffers.Input.GetWriteNext())
@@ -692,7 +807,7 @@ struct TReplicator_Autonomous : public TBase
 				// Since we aren't processing the simulation locally, our core simulation time will only advance from network updates.
 				// (still, we need *something* to tell us when to generate a new command and what the delta time should be)
 
-				TNetworkSimTime<TTickSettings> NonPredictedInputTime;
+				FNetworkSimTime NonPredictedInputTime;
 				NonPredictedInputTimeAccumulator.Accumulate(NonPredictedInputTime, TickParameters.LocalDeltaTimeSeconds);
 				if (NonPredictedInputTime.IsPositive())
 				{
@@ -708,11 +823,9 @@ struct TReplicator_Autonomous : public TBase
 	}
 
 private:
-
-
 	
 	TReplicationBuffer<TSyncState> ReconciliationBuffer;
-	TNetworkSimTime<TTickSettings> SerializedTime; // last serialized time keeper
+	FNetworkSimTime SerializedTime; // last serialized time keeper
 	TRealTimeAccumulator<TTickSettings> NonPredictedInputTimeAccumulator; // for tracking input time in the non predictive case
 
 	int32 LastSerializedKeyframe = -1;

@@ -60,6 +60,9 @@ public:
 	/** Get the size of this title the last time it was drawn */
 	FVector2D GetTitleSize() const;
 
+	/** Mark the cached title dirty */
+	void MarkDirty();
+
 protected:
 	TWeakObjectPtr<UEdGraphNode> GraphNode;
 	FNodeTextCache NodeTitleCache;

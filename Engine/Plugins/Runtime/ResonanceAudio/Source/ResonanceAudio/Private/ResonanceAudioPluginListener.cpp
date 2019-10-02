@@ -43,7 +43,7 @@ namespace ResonanceAudio
 		ResonanceAudioApi = CreateResonanceAudioApi(ResonanceAudioModule->GetResonanceAudioDynamicLibraryHandle(), 2 /* num channels */, FramesPerBuffer, SampleRate);
 		if (ResonanceAudioApi == nullptr)
 		{
-			UE_LOG(LogResonanceAudio, Log, TEXT("Failed to initialize Resonance Audio API"));
+			UE_LOG(LogResonanceAudio, Error, TEXT("Failed to initialize Resonance Audio API"));
 			return;
 		}
 
@@ -69,6 +69,8 @@ namespace ResonanceAudio
 		{
 			AmbisonicsPtr->SetResonanceAudioApi(ResonanceAudioApi);
 		}
+
+		UE_LOG(LogResonanceAudio, Display, TEXT("Resonance Audio Listener is initialized"));
 	}
 
 	void FResonanceAudioPluginListener::OnListenerUpdated(FAudioDevice* AudioDevice, const int32 ViewportIndex, const FTransform& ListenerTransform, const float InDeltaSeconds)
@@ -92,6 +94,8 @@ namespace ResonanceAudio
 		{
 			ResonanceAudioModule->UnregisterAudioDevice(AudioDevice);
 		}
+
+		UE_LOG(LogResonanceAudio, Display, TEXT("Resonance Audio Listener is shutdown"));
 	}
 
 	void FResonanceAudioPluginListener::OnTick(UWorld* InWorld, const int32 ViewportIndex, const FTransform& ListenerTransform, const float InDeltaSeconds)
@@ -121,6 +125,7 @@ namespace ResonanceAudio
 			else
 			{
 				ReverbPtr->SetPreset(nullptr);
+				UE_LOG(LogResonanceAudio, Display, TEXT("Set reverb preset to nullptr"));
 			}
 		}
 	}

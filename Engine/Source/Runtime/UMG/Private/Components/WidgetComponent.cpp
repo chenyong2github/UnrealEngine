@@ -604,7 +604,7 @@ UWidgetComponent::UWidgetComponent( const FObjectInitializer& PCIP )
 	PrimaryComponentTick.bCanEverTick = true;
 	bTickInEditor = true;
 
-	RelativeRotation = FRotator::ZeroRotator;
+	SetRelativeRotation(FRotator::ZeroRotator);
 
 	BodyInstance.SetCollisionProfileName(FName(TEXT("UI")));
 
@@ -1089,7 +1089,7 @@ void UWidgetComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, 
 				ULocalPlayer* TargetPlayer = GetOwnerPlayer();
 				APlayerController* PlayerController = TargetPlayer ? TargetPlayer->PlayerController : nullptr;
 
-				if ( TargetPlayer && PlayerController && IsVisible() && !(GetOwner()->bHidden))
+				if ( TargetPlayer && PlayerController && IsVisible() && !(GetOwner()->IsHidden()))
 				{
 					if ( !bAddedToScreen )
 					{

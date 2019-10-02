@@ -333,6 +333,7 @@ void FSkeletalMeshObjectGPUSkin::UpdateDynamicData_RenderThread(FGPUSkinCache* G
 
 #if RHI_RAYTRACING
 	bRequireRecreatingRayTracingGeometry = (DynamicData == nullptr || // Newly created
+		RayTracingGeometry.Initializer.PositionVertexBuffer == nullptr ||
 		(DynamicData != nullptr && DynamicData->LODIndex != InDynamicData->LODIndex)); // LOD level changed
 #endif
 

@@ -1133,6 +1133,10 @@ namespace AutomationTool
 			{
 				return true;
 			}
+			if (FileName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+			{
+				return true;
+			}
 			return false;
 		}
 	}

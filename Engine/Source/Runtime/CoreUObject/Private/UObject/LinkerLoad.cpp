@@ -1936,7 +1936,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::CreateExportHash()
 	// Zero initialize hash on first iteration.
 	if( ExportHashIndex == 0 )
 	{
-		for( int32 i=0; i<ARRAY_COUNT(ExportHash); i++ )
+		for( int32 i=0; i<UE_ARRAY_COUNT(ExportHash); i++ )
 		{
 			ExportHash[i] = INDEX_NONE;
 		}
@@ -1947,7 +1947,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::CreateExportHash()
 	{
 		FObjectExport& Export = ExportMap[ExportHashIndex];
 
-		const int32 iHash = HashNames( Export.ObjectName, GetExportClassName(ExportHashIndex), GetExportClassPackage(ExportHashIndex) ) & (ARRAY_COUNT(ExportHash)-1);
+		const int32 iHash = HashNames( Export.ObjectName, GetExportClassName(ExportHashIndex), GetExportClassPackage(ExportHashIndex) ) & (UE_ARRAY_COUNT(ExportHash)-1);
 		Export.HashNext = ExportHash[iHash];
 		ExportHash[iHash] = ExportHashIndex;
 
@@ -2810,7 +2810,7 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 			Pkg = CreatePackage(NULL, *Top->ObjectName.ToString() );
 
 			// Find this import within its existing linker.
-			int32 iHash = HashNames( Import.ObjectName, Import.ClassName, Import.ClassPackage) & (ARRAY_COUNT(ExportHash)-1);
+			int32 iHash = HashNames( Import.ObjectName, Import.ClassName, Import.ClassPackage) & (UE_ARRAY_COUNT(ExportHash)-1);
 
 			//@Package name transition, if we can match without shortening the names, then we must not take a shortened match
 			bool bMatchesWithoutShortening = false;
@@ -3275,7 +3275,7 @@ FName FLinkerLoad::ResolveResourceName( FPackageIndex ResourceIndex )
 // Find the index of a specified object without regard to specific package.
 int32 FLinkerLoad::FindExportIndex( FName ClassName, FName ClassPackage, FName ObjectName, FPackageIndex ExportOuterIndex )
 {
-	int32 iHash = HashNames( ObjectName, ClassName, ClassPackage ) & (ARRAY_COUNT(ExportHash)-1);
+	int32 iHash = HashNames( ObjectName, ClassName, ClassPackage ) & (UE_ARRAY_COUNT(ExportHash)-1);
 
 	for( int32 i=ExportHash[iHash]; i!=INDEX_NONE; i=ExportMap[i].HashNext )
 	{

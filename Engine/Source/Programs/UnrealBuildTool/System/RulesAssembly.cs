@@ -469,9 +469,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="TypeName">Type name of the target rules</param>
 		/// <param name="TargetInfo">Target configuration information to pass to the constructor</param>
-		/// <param name="Arguments">Command line arguments for this target</param>
 		/// <returns>Instance of the corresponding TargetRules</returns>
-		protected TargetRules CreateTargetRulesInstance(string TypeName, TargetInfo TargetInfo, CommandLineArguments Arguments)
+		protected TargetRules CreateTargetRulesInstance(string TypeName, TargetInfo TargetInfo)
 		{
 			// The build module must define a type named '<TargetName>Target' that derives from our 'TargetRules' type.  
 			Type RulesType = CompiledAssembly.GetType(TypeName);
@@ -509,15 +508,6 @@ namespace UnrealBuildTool
 
 			// Set the default overriddes for the configured target type
 			Rules.SetOverridesForTargetType();
-
-			// Parse any additional command-line arguments. These override default settings specified in config files or the .target.cs files.
-			if(Arguments != null)
-			{
-				foreach(object ConfigurableObject in Rules.GetConfigurableObjects())
-				{
-					Arguments.ApplyTo(ConfigurableObject);
-				}
-			}
 
 			// Set the final value for the link type in the target rules
 			if(Rules.LinkType == TargetLinkType.Default)
@@ -630,7 +620,7 @@ namespace UnrealBuildTool
 			string TargetTypeName = TargetName + "Target";
 
 			// The build module must define a type named '<TargetName>Target' that derives from our 'TargetRules' type.  
-			return CreateTargetRulesInstance(TargetTypeName, new TargetInfo(TargetName, Platform, Configuration, Architecture, ProjectFile), Arguments);
+			return CreateTargetRulesInstance(TargetTypeName, new TargetInfo(TargetName, Platform, Configuration, Architecture, ProjectFile, Arguments));
 		}
 
 		/// <summary>
@@ -648,7 +638,7 @@ namespace UnrealBuildTool
 			List<string> Matches = new List<string>();
 			foreach(KeyValuePair<string, FileReference> TargetPair in TargetNameToTargetFile)
 			{
-				TargetRules Rules = CreateTargetRulesInstance(TargetPair.Key + "Target", new TargetInfo(TargetPair.Key, Platform, Configuration, Architecture, ProjectFile), null);
+				TargetRules Rules = CreateTargetRulesInstance(TargetPair.Key + "Target", new TargetInfo(TargetPair.Key, Platform, Configuration, Architecture, ProjectFile, null));
 				if(Rules.Type == Type)
 				{
 					Matches.Add(TargetPair.Key);

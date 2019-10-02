@@ -196,7 +196,7 @@ public:
 	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
 
 	template <uint32 ShaderQuality, uint32 UseNormals>
-	void DispatchCS(const FRenderingCompositePassContext& Context, FIntPoint DestSize, FIntPoint TexSize);
+	void DispatchCS(const FRenderingCompositePassContext& Context, FIntRect ViewRect, FIntPoint DestSize, FIntPoint TexSize);
 
 	template <uint32 ShaderQuality, uint32 UseNormals>
 	FShader* SetShaderPS(const FRenderingCompositePassContext& Context, FGraphicsPipelineStateInitializer& GraphicsPSOInit, FIntPoint DestSize);
@@ -234,7 +234,7 @@ class FRCPassPostProcessAmbientOcclusion_GTAO_SpatialFilter : public TRenderingC
 {
 public:
 
-	FRCPassPostProcessAmbientOcclusion_GTAO_SpatialFilter(const FSceneView& View);
+	FRCPassPostProcessAmbientOcclusion_GTAO_SpatialFilter(const FSceneView& View, uint32 DownScaleFactor);
 
 	// interface FRenderingCompositePass ---------
 	virtual void Process(FRenderingCompositePassContext& Context) override;
@@ -242,6 +242,7 @@ public:
 	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
 
 private:
+	uint32		DownScaleFactor;
 
 };
 
@@ -249,7 +250,7 @@ class FRCPassPostProcessAmbientOcclusion_GTAO_Upsample : public TRenderingCompos
 {
 public:
 
-	FRCPassPostProcessAmbientOcclusion_GTAO_Upsample();
+	FRCPassPostProcessAmbientOcclusion_GTAO_Upsample(const FSceneView& View, uint32 DownScaleFactor);
 
 	// interface FRenderingCompositePass ---------
 	virtual void Process(FRenderingCompositePassContext& Context) override;
@@ -257,5 +258,6 @@ public:
 	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
 
 private:
+	uint32		DownScaleFactor;
 
 };

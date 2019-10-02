@@ -145,7 +145,7 @@ TSharedRef<FInternetAddr> FSocketSubsystemAndroid::GetLocalHostAddr(FOutputDevic
 			FMemory::Memzero(&CellularAddress, sizeof(sockaddr_storage));
 			FMemory::Memzero(&OtherAddress, sizeof(sockaddr_storage));
 
-			for (int32 IdxReq = 0; IdxReq < ARRAY_COUNT(IfReqs); ++IdxReq)
+			for (int32 IdxReq = 0; IdxReq < UE_ARRAY_COUNT(IfReqs); ++IdxReq)
 			{
 				// Cache the address information, as the following flag lookup will 
 				// write into the ifr_addr field.

@@ -455,7 +455,7 @@ bool ULevel::IsNetActor(const AActor* Actor)
 
 	// If this is a server, use RemoteRole.
 	// If this is a client, use Role.
-	const ENetRole NetRole = (!Actor->IsNetMode(NM_Client)) ? Actor->GetRemoteRole() : (ENetRole)Actor->Role;
+	const ENetRole NetRole = (!Actor->IsNetMode(NM_Client)) ? Actor->GetRemoteRole() : (ENetRole)Actor->GetLocalRole();
 
 	// This test will return true on clients for actors with ROLE_Authority, which might be counterintuitive,
 	// but clients will need to consider these actors in some cases, such as if their bTearOff flag is true.
@@ -596,7 +596,7 @@ void ULevel::PostLoad()
 	}
 
 	// Fixup deprecated stuff in levels simplification settings
-	for (int32 Index = 0; Index < ARRAY_COUNT(LevelSimplification); ++Index)
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(LevelSimplification); ++Index)
 	{
 		LevelSimplification[Index].PostLoadDeprecated();
 	}

@@ -9,13 +9,15 @@
 #if WITH_SSL
 #include "Ssl.h"
 #endif
+#include "HttpModule.h"
 #include "WebSocketsLog.h"
+#include "Containers/BackgroundableTicker.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/CoreDelegates.h"
 #include "Stats/Stats.h"
-#include "HttpModule.h"
 
 namespace {
 	static const struct lws_extension LwsExtensions[] = {
@@ -158,17 +160,15 @@ void FLwsWebSocketsManager::InitWebSockets(TArrayView<const FString> Protocols)
 	}
 
 	// Setup our game thread tick
-	FTicker& Ticker = FTicker::GetCoreTicker();
 	FTickerDelegate TickDelegate = FTickerDelegate::CreateRaw(this, &FLwsWebSocketsManager::GameThreadTick);
-	TickHandle = Ticker.AddTicker(TickDelegate, 0.0f);
+	TickHandle = FBackgroundableTicker::GetCoreTicker().AddTicker(TickDelegate, 0.0f);
 }
 
 void FLwsWebSocketsManager::ShutdownWebSockets()
 {
 	if (TickHandle.IsValid())
 	{
-		FTicker& Ticker = FTicker::GetCoreTicker();
-		Ticker.RemoveTicker(TickHandle);
+		FBackgroundableTicker::GetCoreTicker().RemoveTicker(TickHandle);
 		TickHandle.Reset();
 	}
 

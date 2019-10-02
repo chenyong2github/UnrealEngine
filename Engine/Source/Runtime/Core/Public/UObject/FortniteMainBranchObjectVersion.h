@@ -99,6 +99,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Replaced lake collision component
 		ReplaceLakeCollision,
 
+		// Anim layer node names are now conformed by Guid
+		AnimLayerGuidConformation,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

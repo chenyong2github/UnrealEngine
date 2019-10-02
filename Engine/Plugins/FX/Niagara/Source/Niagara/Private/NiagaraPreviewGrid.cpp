@@ -80,7 +80,7 @@ ANiagaraPreviewGrid::ANiagaraPreviewGrid(const FObjectInitializer& ObjectInitial
 		if (SpriteComponent)
 		{
 			SpriteComponent->Sprite = ConstructorStatics.SpriteTextureObject.Get();
-			SpriteComponent->RelativeScale3D = FVector(0.5f, 0.5f, 0.5f);
+			SpriteComponent->SetRelativeScale3D_Direct(FVector(0.5f, 0.5f, 0.5f));
 			SpriteComponent->bHiddenInGame = false;
 			SpriteComponent->bIsScreenSizeScaled = true;
 			SpriteComponent->SpriteInfo.Category = ConstructorStatics.ID_Effects;
@@ -100,7 +100,7 @@ ANiagaraPreviewGrid::ANiagaraPreviewGrid(const FObjectInitializer& ObjectInitial
 			ArrowComponent->SpriteInfo.Category = ConstructorStatics.ID_Effects;
 			ArrowComponent->SpriteInfo.DisplayName = ConstructorStatics.NAME_Effects;
 			ArrowComponent->SetupAttachment(RootComponent);
-			ArrowComponent->bAbsoluteScale = true;
+			ArrowComponent->SetUsingAbsoluteScale(true);
 		}
 	}
 #endif // WITH_EDITORONLY_DATA

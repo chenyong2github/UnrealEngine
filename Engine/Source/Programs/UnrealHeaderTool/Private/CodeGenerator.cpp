@@ -543,7 +543,7 @@ static FString OutputMetaDataCodeForObject(FOutputDevice& OutDeclaration, FOutpu
 		Out.Logf(TEXT("%s};\r\n"), Spaces);
 		Out.Log (TEXT("#endif\r\n"));
 
-		Result = FString::Printf(TEXT("METADATA_PARAMS(%s, ARRAY_COUNT(%s))"), MetaDataBlockName, MetaDataBlockName);
+		Result = FString::Printf(TEXT("METADATA_PARAMS(%s, UE_ARRAY_COUNT(%s))"), MetaDataBlockName, MetaDataBlockName);
 	}
 	else
 	{
@@ -1612,14 +1612,14 @@ TTuple<FString, FString> FNativeClassHeaderGenerator::OutputProperties(FOutputDe
 	{
 		return TTuple<FString, FString>(
 			FString::Printf(TEXT("IF_WITH_EDITORONLY_DATA(%sPropPointers, nullptr)"), Scope),
-			FString::Printf(TEXT("IF_WITH_EDITORONLY_DATA(ARRAY_COUNT(%sPropPointers), 0)"), Scope)
+			FString::Printf(TEXT("IF_WITH_EDITORONLY_DATA(UE_ARRAY_COUNT(%sPropPointers), 0)"), Scope)
 		);
 	}
 	else
 	{
 		return TTuple<FString, FString>(
 			FString::Printf(TEXT("%sPropPointers"), Scope),
-			FString::Printf(TEXT("ARRAY_COUNT(%sPropPointers)"), Scope)
+			FString::Printf(TEXT("UE_ARRAY_COUNT(%sPropPointers)"), Scope)
 		);
 	}
 }
@@ -1875,7 +1875,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedPackageInitCode(FOutputDevice& 
 		Out.Logf(TEXT("\t\t\t};\r\n"));
 
 		SingletonArray = TEXT("SingletonFuncArray");
-		SingletonCount = TEXT("ARRAY_COUNT(SingletonFuncArray)");
+		SingletonCount = TEXT("UE_ARRAY_COUNT(SingletonFuncArray)");
 	}
 	else
 	{
@@ -1991,7 +1991,7 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 			StaticDefinitions.Logf(TEXT("\t};\r\n"));
 
 			SingletonsArray = TEXT("DependentSingletons");
-			SingletonsCount = TEXT("ARRAY_COUNT(DependentSingletons)");
+			SingletonsCount = TEXT("UE_ARRAY_COUNT(DependentSingletons)");
 		}
 		else
 		{
@@ -2041,12 +2041,12 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 			if (bAllEditorOnlyFunctions)
 			{
 				FunctionsArray = TEXT("IF_WITH_EDITOR(FuncInfo, nullptr)");
-				FunctionsCount = TEXT("IF_WITH_EDITOR(ARRAY_COUNT(FuncInfo), 0)");
+				FunctionsCount = TEXT("IF_WITH_EDITOR(UE_ARRAY_COUNT(FuncInfo), 0)");
 			}
 			else
 			{
 				FunctionsArray = TEXT("FuncInfo");
-				FunctionsCount = TEXT("ARRAY_COUNT(FuncInfo)");
+				FunctionsCount = TEXT("UE_ARRAY_COUNT(FuncInfo)");
 			}
 		}
 		else
@@ -2101,7 +2101,7 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 			StaticDefinitions.Log(TEXT("\t\t};\r\n"));
 
 			InterfaceArray = TEXT("InterfaceParams");
-			InterfaceCount = TEXT("ARRAY_COUNT(InterfaceParams)");
+			InterfaceCount = TEXT("UE_ARRAY_COUNT(InterfaceParams)");
 		}
 		else
 		{
@@ -2160,6 +2160,14 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 
 		GeneratedClassRegisterFunctionText.Logf(TEXT("\t\t{\r\n"));
 		GeneratedClassRegisterFunctionText.Logf(TEXT("\t\t\tUE4CodeGen_Private::ConstructUClass(OuterClass, %s::ClassParams);\r\n"), *StaticsStructName);
+
+		TArray<FString> SparseClassDataTypes;
+		((FClass*)Class)->GetSparseClassDataTypes(SparseClassDataTypes);
+		ensureMsgf(SparseClassDataTypes.Num() <= 1, TEXT("We don't currently support multiple sparse class data structures on a single object."));
+		for (const FString& SparseClassDataString : SparseClassDataTypes)
+		{
+			GeneratedClassRegisterFunctionText.Logf(TEXT("\t\t\tOuterClass->SetSparseClassDataStruct(F%s::StaticStruct());\r\n"), *SparseClassDataString);
+		}
 
 		if (bIsDynamic)
 		{
@@ -2424,7 +2432,7 @@ void FNativeClassHeaderGenerator::ExportNatives(FOutputDevice& Out, FClass* Clas
 			EditorOnly(bAllEditorOnly);
 
 			Out.Log(TEXT("\t\t};\r\n"));
-			Out.Logf(TEXT("\t\tFNativeFunctionRegistrar::RegisterFunctions(Class, Funcs, ARRAY_COUNT(Funcs));\r\n"));
+			Out.Logf(TEXT("\t\tFNativeFunctionRegistrar::RegisterFunctions(Class, Funcs, UE_ARRAY_COUNT(Funcs));\r\n"));
 		}
 	}
 
@@ -3792,7 +3800,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedEnumInitCode(FOutputDevice& Out
 	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\t%s,\r\n"), *CreateUTF8LiteralString(OverriddenEnumNameCpp));
 	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\t%s,\r\n"), *CreateUTF8LiteralString(Enum->CppType));
 	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\tEnumerators,\r\n"));
-	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\tARRAY_COUNT(Enumerators),\r\n"));
+	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\tUE_ARRAY_COUNT(Enumerators),\r\n"));
 	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\t%s,\r\n"), UEnumObjectFlags);
 	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\tUE4CodeGen_Private::EDynamicType::%s,\r\n"), bIsDynamic ? TEXT("Dynamic") : TEXT("NotDynamic"));
 	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\t(uint8)%s,\r\n"), *EnumFormStr);
@@ -3916,7 +3924,7 @@ void FNativeClassHeaderGenerator::ExportDelegateDeclaration(FOutputDevice& Out, 
 
 	// Add class name to beginning of function, to avoid collisions with other classes with the same delegate name in this scope
 	check(FunctionData.MarshallAndCallName.StartsWith(DelegateStr));
-	FString ShortName = *FunctionData.MarshallAndCallName + ARRAY_COUNT(DelegateStr) - 1;
+	FString ShortName = *FunctionData.MarshallAndCallName + UE_ARRAY_COUNT(DelegateStr) - 1;
 	FunctionData.MarshallAndCallName = FString::Printf( TEXT( "F%s_DelegateWrapper" ), *ShortName );
 
 	// Setup delegate parameter
@@ -3962,7 +3970,7 @@ void FNativeClassHeaderGenerator::ExportDelegateDefinition(FOutputDevice& Out, c
 
 	// Add class name to beginning of function, to avoid collisions with other classes with the same delegate name in this scope
 	check(FunctionData.MarshallAndCallName.StartsWith(DelegateStr));
-	FString ShortName = *FunctionData.MarshallAndCallName + ARRAY_COUNT(DelegateStr) - 1;
+	FString ShortName = *FunctionData.MarshallAndCallName + UE_ARRAY_COUNT(DelegateStr) - 1;
 	FunctionData.MarshallAndCallName = FString::Printf( TEXT( "F%s_DelegateWrapper" ), *ShortName );
 
 	// Setup delegate parameter
@@ -4768,6 +4776,8 @@ struct FNativeFunctionStringBuilder
 	FUHTStringBuilder RPCWrappers;
 	FUHTStringBuilder AutogeneratedBlueprintFunctionDeclarations;
 	FUHTStringBuilder AutogeneratedBlueprintFunctionDeclarationsOnlyNotDeclared;
+	FUHTStringBuilder AutogeneratedStaticData;
+	FUHTStringBuilder AutogeneratedStaticDataFuncs;
 };
 
 void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGeneratedHeaderText, FOutputDevice& OutMacroCalls, FOutputDevice& OutNoPureDeclsMacroCalls, const FUnrealSourceFile& SourceFile, UClass* Class, FClassMetaData* ClassData)
@@ -4782,6 +4792,81 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 	{
 		ClassRange = ClassDefinitionRanges[Class];
 		ClassRange.Validate();
+	}
+
+	// gather static class data
+	TArray<FString> SparseClassDataTypes;
+	((FClass*)Class)->GetSparseClassDataTypes(SparseClassDataTypes);
+	FString FullClassName = ((FClass*)Class)->GetNameWithPrefix();
+	for (const FString& SparseClassDataString : SparseClassDataTypes)
+	{
+		RuntimeStringBuilders.AutogeneratedStaticData += TEXT("virtual void* CreateSparseClassData() override\r\n");
+		RuntimeStringBuilders.AutogeneratedStaticData += TEXT("{\r\n");
+		RuntimeStringBuilders.AutogeneratedStaticData.Logf(TEXT("\tvoid* SparseClassDataObj = new F%s;\r\n"), *SparseClassDataString);
+		RuntimeStringBuilders.AutogeneratedStaticData.Logf(TEXT("\treturn SparseClassDataObj;\r\n"), *SparseClassDataString);
+		RuntimeStringBuilders.AutogeneratedStaticData += TEXT("}\r\n");
+
+		RuntimeStringBuilders.AutogeneratedStaticData.Logf(TEXT("F%s* Get%s()\r\n"), *SparseClassDataString, *SparseClassDataString);
+		RuntimeStringBuilders.AutogeneratedStaticData += TEXT("{\r\n");
+		RuntimeStringBuilders.AutogeneratedStaticData.Logf(TEXT("\treturn (F%s*)(GetClass()->GetOrCreateSparseClassData());\r\n"), *SparseClassDataString);
+		RuntimeStringBuilders.AutogeneratedStaticData += TEXT("}\r\n");
+
+		RuntimeStringBuilders.AutogeneratedStaticData.Logf(TEXT("F%s* Get%s() const\r\n"), *SparseClassDataString, *SparseClassDataString);
+		RuntimeStringBuilders.AutogeneratedStaticData += TEXT("{\r\n");
+		RuntimeStringBuilders.AutogeneratedStaticData.Logf(TEXT("\treturn (F%s*)(GetClass()->GetOrCreateSparseClassData());\r\n"), *SparseClassDataString);
+		RuntimeStringBuilders.AutogeneratedStaticData += TEXT("}\r\n");
+
+		UScriptStruct* SparseClassDataStruct = FindObjectSafe<UScriptStruct>(ANY_PACKAGE, *SparseClassDataString);
+		while (SparseClassDataStruct != nullptr)
+		{
+			const UProperty* Child = Cast<UProperty>(SparseClassDataStruct->Children);
+			while (Child)
+			{
+				FString ReturnExtendedType;
+				FString VarType = Child->GetCPPType(&ReturnExtendedType, EPropertyExportCPPFlags::CPPF_ArgumentOrReturnValue | EPropertyExportCPPFlags::CPPF_Implementation);
+				if (!ReturnExtendedType.IsEmpty())
+				{
+					VarType.Append(ReturnExtendedType);
+				}
+				FString VarName = Child->GetName();
+				FString CleanVarName = VarName;
+				if (Cast<UBoolProperty>(Child) && VarName.StartsWith(TEXT("b"), ESearchCase::CaseSensitive))
+				{
+					CleanVarName = VarName.RightChop(1);
+				}
+
+				if (!Child->HasMetaData("NoGetter"))
+				{
+					if (Child->HasMetaData("GetByRef"))
+					{
+						RuntimeStringBuilders.AutogeneratedStaticDataFuncs.Logf(TEXT("const %s& Get%s()\r\n"), *VarType, *CleanVarName);
+					}
+					else
+					{
+						RuntimeStringBuilders.AutogeneratedStaticDataFuncs.Logf(TEXT("%s Get%s()\r\n"), *VarType, *CleanVarName);
+					}
+					RuntimeStringBuilders.AutogeneratedStaticDataFuncs.Logf(TEXT("{\r\n"));
+					RuntimeStringBuilders.AutogeneratedStaticDataFuncs.Logf(TEXT("\treturn Get%s()->%s;\r\n"), *SparseClassDataString, *VarName);
+					RuntimeStringBuilders.AutogeneratedStaticDataFuncs.Logf(TEXT("}\r\n"));
+
+					if (Child->HasMetaData("GetByRef"))
+					{
+						RuntimeStringBuilders.AutogeneratedStaticDataFuncs.Logf(TEXT("const %s& Get%s() const\r\n"), *VarType, *CleanVarName);
+					}
+					else
+					{
+						RuntimeStringBuilders.AutogeneratedStaticDataFuncs.Logf(TEXT("%s Get%s() const\r\n"), *VarType, *CleanVarName);
+					}
+					RuntimeStringBuilders.AutogeneratedStaticDataFuncs.Logf(TEXT("{\r\n"));
+					RuntimeStringBuilders.AutogeneratedStaticDataFuncs.Logf(TEXT("\treturn Get%s()->%s;\r\n"), *SparseClassDataString, *VarName);
+					RuntimeStringBuilders.AutogeneratedStaticDataFuncs.Logf(TEXT("}\r\n"));
+				}
+
+				Child = Cast<UProperty>(Child->Next);
+			}
+
+			SparseClassDataStruct = Cast<UScriptStruct>(SparseClassDataStruct->GetSuperStruct());
+		}
 	}
 
 	// export the C++ stubs
@@ -4883,6 +4968,15 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 		ExportFunctionThunk(FuncStringBuilders.RPCWrappers, Function, FunctionData, Parameters.Parms, Parameters.Return);
 
 		FuncStringBuilders.RPCWrappers += TEXT("\t}") LINE_TERMINATOR;
+	}
+
+	// static class data
+	{
+		FString MacroName = SourceFile.GetGeneratedMacroName(ClassData, TEXT("_SPARSE_DATA"));
+
+		WriteMacro(OutGeneratedHeaderText, MacroName, RuntimeStringBuilders.AutogeneratedStaticData + RuntimeStringBuilders.AutogeneratedStaticDataFuncs);
+		OutMacroCalls.Logf(TEXT("\t%s\r\n"), *MacroName);
+		OutNoPureDeclsMacroCalls.Logf(TEXT("\t%s\r\n"), *MacroName);
 	}
 
 	// Write runtime wrappers
@@ -5963,17 +6057,17 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 						static const TCHAR PublicFolderName[]  = TEXT("Public/");
 						static const TCHAR PrivateFolderName[] = TEXT("Private/");
 						static const TCHAR ClassesFolderName[] = TEXT("Classes/");
-						if (FCString::Strnicmp(IncludePath, PublicFolderName, ARRAY_COUNT(PublicFolderName) - 1) == 0)
+						if (FCString::Strnicmp(IncludePath, PublicFolderName, UE_ARRAY_COUNT(PublicFolderName) - 1) == 0)
 						{
-							IncludePath += (ARRAY_COUNT(PublicFolderName) - 1);
+							IncludePath += (UE_ARRAY_COUNT(PublicFolderName) - 1);
 						}
-						else if (FCString::Strnicmp(IncludePath, PrivateFolderName, ARRAY_COUNT(PrivateFolderName) - 1) == 0)
+						else if (FCString::Strnicmp(IncludePath, PrivateFolderName, UE_ARRAY_COUNT(PrivateFolderName) - 1) == 0)
 						{
-							IncludePath += (ARRAY_COUNT(PrivateFolderName) - 1);
+							IncludePath += (UE_ARRAY_COUNT(PrivateFolderName) - 1);
 						}
-						else if (FCString::Strnicmp(IncludePath, ClassesFolderName, ARRAY_COUNT(ClassesFolderName) - 1) == 0)
+						else if (FCString::Strnicmp(IncludePath, ClassesFolderName, UE_ARRAY_COUNT(ClassesFolderName) - 1) == 0)
 						{
-							IncludePath += (ARRAY_COUNT(ClassesFolderName) - 1);
+							IncludePath += (UE_ARRAY_COUNT(ClassesFolderName) - 1);
 						}
 
 						// Add the include path

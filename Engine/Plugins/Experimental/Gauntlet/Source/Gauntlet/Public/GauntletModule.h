@@ -83,6 +83,11 @@ public:
 	virtual void			SetScreenshotPeriod(float Period) = 0;
 
 	/**
+	 * Mark the next heartbeat as active. If a status message is given, immediately log an active heartbeat with that message.
+	 */
+	virtual void			MarkHeartbeatActive(const FString& OptionalStatusMessage = FString()) = 0;
+
+	/**
 	 * Returns the first controller (if any) matching the provided name
 	 */
 	virtual UGauntletTestController*	GetTestController(UClass* ControllerClass) = 0;

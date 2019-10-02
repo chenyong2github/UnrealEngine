@@ -425,7 +425,7 @@ void FAutomationWorkerModule::HandleScreenShotCapturedWithName(const TArray<FCol
 	{
 		FAutomationWorkerScreenImage* Message = new FAutomationWorkerScreenImage();
 
-		Message->ScreenShotName = FPaths::RootDir() / Data.Path;
+		Message->ScreenShotName = FPaths::ProjectDir() / Data.Path;
 		FPaths::MakePathRelativeTo(Message->ScreenShotName, *FPaths::AutomationDir());
 		Message->ScreenImage = CompressedBitmap;
 		Message->Metadata = Metadata;

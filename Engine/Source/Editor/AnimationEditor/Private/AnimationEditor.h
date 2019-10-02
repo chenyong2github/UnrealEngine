@@ -56,6 +56,7 @@ public:
 
 	/** IAnimationEditor interface */
 	virtual void SetAnimationAsset(UAnimationAsset* AnimAsset) override;
+	virtual IAnimationSequenceBrowser* GetAssetBrowser() const override;
 
 	/** IHasPersonaToolkit interface */
 	virtual TSharedRef<class IPersonaToolkit> GetPersonaToolkit() const override { return PersonaToolkit.ToSharedRef(); }

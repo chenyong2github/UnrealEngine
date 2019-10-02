@@ -110,8 +110,6 @@ void UNiagaraSystem::PostInitProperties()
 		EditorData = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultEditorData(this);
 #endif
 	}
-
-	GenerateStatID();
 }
 
 bool UNiagaraSystem::IsLooping() const
@@ -1178,33 +1176,38 @@ void UNiagaraSystem::InitSystemCompiledData()
 TStatId UNiagaraSystem::GetStatID(bool bGameThread, bool bConcurrent)const
 {
 #if STATS
+	if (!StatID_GT.IsValidStat())
+	{
+		GenerateStatID();
+	}
+
 	if (bGameThread)
 	{
 		if (bConcurrent)
 		{
-			return StatID_GT;
+			return StatID_GT_CNC;
 		}
 		else
 		{
-			return StatID_GT_CNC;
+			return StatID_GT;
 		}
 	}
 	else
 	{
 		if(bConcurrent)
 		{
-			return StatID_RT;
+			return StatID_RT_CNC;
 		}
 		else
 		{
-			return StatID_RT_CNC;
+			return StatID_RT;
 		}
 	}
 #endif
 	return TStatId();
 }
 
-void UNiagaraSystem::GenerateStatID()
+void UNiagaraSystem::GenerateStatID()const
 {
 #if STATS
 	StatID_GT = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraSystems>(GetPathName() + TEXT("[GT]"));

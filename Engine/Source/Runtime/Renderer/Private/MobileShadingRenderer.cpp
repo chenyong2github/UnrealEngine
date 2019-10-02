@@ -80,6 +80,7 @@ DECLARE_CYCLE_STAT(TEXT("Occlusion"), STAT_CLMM_Occlusion, STATGROUP_CommandList
 DECLARE_CYCLE_STAT(TEXT("Post"), STAT_CLMM_Post, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("Translucency"), STAT_CLMM_Translucency, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("Shadows"), STAT_CLMM_Shadows, STATGROUP_CommandListMarkers);
+DECLARE_CYCLE_STAT(TEXT("SceneSimulation"), STAT_CLMM_SceneSim, STATGROUP_CommandListMarkers);
 
 FGlobalDynamicIndexBuffer FMobileSceneRenderer::DynamicIndexBuffer;
 FGlobalDynamicVertexBuffer FMobileSceneRenderer::DynamicVertexBuffer;
@@ -400,6 +401,8 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	DynamicVertexBuffer.Commit();
 	DynamicReadBuffer.Commit();
 	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+
+	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_SceneSim));
 
 	// Generate the Sky/Atmosphere look up tables
 	// Do compute work first, before any graphics work
@@ -964,7 +967,7 @@ void FMobileSceneRenderer::UpdateDirectionalLightUniformBuffers(FRHICommandListI
 {
 	bool bDynamicShadows = ViewFamily.EngineShowFlags.DynamicShadows;
 	// Fill in the other entries based on the lights
-	for (int32 ChannelIdx = 0; ChannelIdx < ARRAY_COUNT(Scene->MobileDirectionalLights); ChannelIdx++)
+	for (int32 ChannelIdx = 0; ChannelIdx < UE_ARRAY_COUNT(Scene->MobileDirectionalLights); ChannelIdx++)
 	{
 		FMobileDirectionalLightShaderParameters Params;
 		SetupMobileDirectionalLightUniformParameters(*Scene, View, VisibleLightInfos, ChannelIdx, bDynamicShadows, Params);
@@ -993,7 +996,7 @@ void FMobileSceneRenderer::CreateDirectionalLightUniformBuffers(FViewInfo& View)
 	// First array entry is used for primitives with no lighting channel set
 	View.MobileDirectionalLightUniformBuffers[0] = TUniformBufferRef<FMobileDirectionalLightShaderParameters>::CreateUniformBufferImmediate(FMobileDirectionalLightShaderParameters(), UniformBuffer_SingleFrame);
 	// Fill in the other entries based on the lights
-	for (int32 ChannelIdx = 0; ChannelIdx < ARRAY_COUNT(Scene->MobileDirectionalLights); ChannelIdx++)
+	for (int32 ChannelIdx = 0; ChannelIdx < UE_ARRAY_COUNT(Scene->MobileDirectionalLights); ChannelIdx++)
 	{
 		FMobileDirectionalLightShaderParameters Params;
 		SetupMobileDirectionalLightUniformParameters(*Scene, View, VisibleLightInfos, ChannelIdx, bDynamicShadows, Params);

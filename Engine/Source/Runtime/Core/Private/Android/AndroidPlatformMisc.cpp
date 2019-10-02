@@ -664,7 +664,7 @@ int32 FAndroidMisc::NumberOfCores()
 					char LineBuffer[256] = { 0 };
 					do
 					{
-						char *Line = fgets(LineBuffer, ARRAY_COUNT(LineBuffer), FileGlobalCpuStats);
+						char *Line = fgets(LineBuffer, UE_ARRAY_COUNT(LineBuffer), FileGlobalCpuStats);
 						if (Line == nullptr)
 						{
 							break;	// eof or an error
@@ -897,7 +897,7 @@ const int32 TargetSignals[] =
 	SIGSYS
 };
 
-const int32 NumTargetSignals = ARRAY_COUNT(TargetSignals);
+const int32 NumTargetSignals = UE_ARRAY_COUNT(TargetSignals);
 
 struct sigaction PrevActions[NumTargetSignals];
 static bool PreviousSignalHandlersValid = false;
@@ -2287,7 +2287,7 @@ uint32 FAndroidMisc::GetCoreFrequency(int32 CoreIndex, ECoreFrequencyProperty Co
 	if (FILE* CoreFreqStateFile = fopen(QueryFile, "r"))
 	{
 		char curr_corefreq[32] = { 0 };
-		if( fgets(curr_corefreq, ARRAY_COUNT(curr_corefreq), CoreFreqStateFile) != nullptr)
+		if( fgets(curr_corefreq, UE_ARRAY_COUNT(curr_corefreq), CoreFreqStateFile) != nullptr)
 		{
 			ReturnFrequency = atol(curr_corefreq);
 		}

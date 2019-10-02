@@ -3,6 +3,28 @@
 #include "HAL/DiskUtilizationTracker.h"
 
 #if TRACK_DISK_UTILIZATION
+#include "ProfilingDebugging/CsvProfiler.h"
+
+CSV_DEFINE_CATEGORY(DiskIO, true); 
+
+DEFINE_LOG_CATEGORY_STATIC(LogDiskIO, Log, All);
+
+static FAutoConsoleCommand GDumpShortTermIOStats(
+	TEXT("disk.DumpShortTermStats"),
+	TEXT("Dumps short term disk I/O stats."),
+	FConsoleCommandDelegate::CreateLambda([]
+	{
+		UE_LOG(LogDiskIO, Display, TEXT("Disk I/O short term stats:"));
+		GDiskUtilizationTracker.GetShortTermStats().Dump();
+	})
+);
+
+void FDiskUtilizationTracker::UtilizationStats::Dump() const
+{
+	UE_LOG(LogDiskIO, Display, TEXT("Total Reads: %llu Total Bytes Read: %llu"), TotalReads, TotalBytesRead);
+	UE_LOG(LogDiskIO, Display, TEXT("Total IO Time: %fs Total Idle Time: %fs"), TotalIOTime, TotalIdleTime);
+	UE_LOG(LogDiskIO, Display, TEXT("Read Throughput: %fMB/s Pct Time Idle: %f%%"), GetReadThrougputMBS(), GetPercentTimeIdle());
+}
 
 void FDiskUtilizationTracker::MaybePrint()
 {

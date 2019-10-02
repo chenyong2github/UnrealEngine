@@ -46,7 +46,9 @@ static FAutoConsoleVariableRef CVarDrawDebugDefaultLifeTime(TEXT("fp.Debug.UseDr
 
 namespace FlyingMovement
 {
-	bool FMovementSystem::ForceMispredict = false;
+	const FName FMovementSimulation::GroupName(TEXT("FlyingMovement"));
+
+	bool FMovementSimulation::ForceMispredict = false;
 	static FVector ForceMispredictVelocityMagnitude = FVector(2000.f, 0.f, 0.f);
 
 	bool IsExceedingMaxSpeed(const FVector& Velocity, float InMaxSpeed)
@@ -99,7 +101,7 @@ namespace FlyingMovement
 		OutDelta = Delta;
 	}
 
-	float SlideAlongSurface(FMovementSystem::IMovementDriver* Driver, const FVector& Delta, float Time, const FQuat Rotation, const FVector& Normal, FHitResult& Hit, bool bHandleImpact)
+	float SlideAlongSurface(IMovementDriver* Driver, const FVector& Delta, float Time, const FQuat Rotation, const FVector& Normal, FHitResult& Hit, bool bHandleImpact)
 	{
 		if (!Hit.bBlockingHit)
 		{
@@ -152,7 +154,8 @@ namespace FlyingMovement
 		return 0.f;
 	}
 
-	void FMovementSystem::Update(IMovementDriver* Driver, const TSimTime& DeltaTimeMS, const FInputCmd& InputCmd, const FMoveState& InputState, FMoveState& OutputState, const FAuxState& AuxState)
+
+	void FMovementSimulation::Update(IMovementDriver* Driver, const float DeltaSeconds, const FInputCmd& InputCmd, const FMoveState& InputState, FMoveState& OutputState, const FAuxState& AuxState)
 	{
 		// ----------------------------------
 		// AuxState todo
@@ -162,8 +165,7 @@ namespace FlyingMovement
 		float Acceleration = 4000.f;
 
 		// ----------------------------------------------------------------
-
-		const float DeltaSeconds = DeltaTimeMS.ToRealTimeSeconds();
+		
 		OutputState = InputState;
 
 		IBaseMovementDriver& BaseMovementDriver = Driver->GetBaseMovementDriver();
@@ -232,7 +234,7 @@ namespace FlyingMovement
 			// Finally, output velocity that we calculated
 			OutputState.Velocity = Velocity;
 		
-			if (ForceMispredict)
+			if (FMovementSimulation::ForceMispredict)
 			{
 				OutputState.Velocity += ForceMispredictVelocityMagnitude;
 				ForceMispredict = false;
@@ -275,7 +277,7 @@ namespace FlyingMovement
 		// here in the simulation layer. This may not be the best choice for all movement simulations, but is ok for this one.
 	}
 
-	void FMoveState::VisualLog(const FVisualLoggingParameters& Parameters, IFlyingMovementDriver* Driver, IFlyingMovementDriver* LogDriver)
+	void FMoveState::VisualLog(const FVisualLoggingParameters& Parameters, IMovementDriver* Driver, IMovementDriver* LogDriver) const
 	{
 		IBaseMovementDriver& BaseMovementDriver = Driver->GetBaseMovementDriver();		
 		FTransform Transform(Rotation, Location);		

@@ -163,7 +163,7 @@ struct F3DTransformChannelEditorData
 		{
 			if (USceneComponent* RootComponent = Actor->GetRootComponent())
 			{
-				return RootComponent->RelativeRotation;
+				return RootComponent->GetRelativeRotation();
 			}
 		}
 

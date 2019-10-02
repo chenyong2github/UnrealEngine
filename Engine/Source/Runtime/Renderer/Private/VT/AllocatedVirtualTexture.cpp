@@ -231,12 +231,12 @@ FRHITexture* FAllocatedVirtualTexture::GetPhysicalTexture(uint32 InLayerIndex) c
 	return nullptr;
 }
 
-FRHIShaderResourceView* FAllocatedVirtualTexture::GetPhysicalTextureView(uint32 InLayerIndex, bool bSRGB) const
+FRHIShaderResourceView* FAllocatedVirtualTexture::GetPhysicalTextureSRV(uint32 InLayerIndex, bool bSRGB) const
 {
 	if (InLayerIndex < Description.NumTextureLayers)
 	{
 		const FVirtualTexturePhysicalSpace* PhysicalSpace = UniquePageTableLayers[TextureLayers[InLayerIndex].UniquePageTableLayerIndex].PhysicalSpace;
-		return PhysicalSpace ? PhysicalSpace->GetPhysicalTextureView(TextureLayers[InLayerIndex].PhysicalTextureIndex, bSRGB) : nullptr;
+		return PhysicalSpace ? PhysicalSpace->GetPhysicalTextureSRV(TextureLayers[InLayerIndex].PhysicalTextureIndex, bSRGB) : nullptr;
 	}
 	return nullptr;
 }

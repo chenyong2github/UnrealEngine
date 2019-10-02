@@ -40,6 +40,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category = Layout, meta = (DisplayName = "Enable private page table"))
 	bool bPrivateSpace = true;
 
+	/** Enable device scalability settings to modify the TileCount of the virtual texture. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category = Layout)
+	bool bEnableScalability = false;
+
 	/** Size of virtual texture along the largest axis. (Actual values increase in powers of 2) */
 	UPROPERTY()
 	int32 Size_DEPRECATED = -1;
@@ -82,7 +86,8 @@ public:
 	/** Public getter for virtual texture size */
 	int32 GetSize() const { return GetTileCount() * GetTileSize(); }
 	/** Public getter for virtual texture tile count */
-	int32 GetTileCount() const { return 1 << FMath::Clamp(TileCount, 0, 12); }
+	int32 GetTileCount() const { return GetTileCount(TileCount); }
+	static int32 GetTileCount(int32 InTileCount) { return 1 << FMath::Clamp(InTileCount, 0, 12); }
 	/** Public getter for virtual texture tile size */
 	int32 GetTileSize() const { return 1 << FMath::Clamp(TileSize + 6, 6, 10); }
 	/** Public getter for virtual texture tile border size */

@@ -67,12 +67,12 @@ void UStereoLayerComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 	}
 	
 	// If the transform changed dirty the layer and push the new transform
-	if (!bIsDirty && (bLastVisible != bVisible || FMemory::Memcmp(&LastTransform, &Transform, sizeof(Transform)) != 0))
+	if (!bIsDirty && (bLastVisible != GetVisibleFlag() || FMemory::Memcmp(&LastTransform, &Transform, sizeof(Transform)) != 0))
 	{
 		bIsDirty = true;
 	}
 
-	bool bCurrVisible = bVisible;
+	bool bCurrVisible = GetVisibleFlag();
 	if (!Texture || !Texture->Resource)
 	{
 		bCurrVisible = false;

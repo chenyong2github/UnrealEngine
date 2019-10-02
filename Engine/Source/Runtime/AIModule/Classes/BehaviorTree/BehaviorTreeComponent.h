@@ -380,6 +380,7 @@ protected:
 	/** check if debugger is currently running and can gather data */
 	static bool IsDebuggerActive();
 
+	/** Return NodeA's relative priority in regards to NodeB */
 	EBTNodeRelativePriority CalculateRelativePriority(const UBTNode* NodeA, const UBTNode* NodeB) const;
 
 	friend UBTNode;

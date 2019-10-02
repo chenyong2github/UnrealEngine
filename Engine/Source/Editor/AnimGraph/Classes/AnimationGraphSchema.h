@@ -12,6 +12,9 @@
 
 class FMenuBuilder;
 class UAnimationAsset;
+class UAnimBlueprint;
+class UPhysicsAsset;
+struct FBPInterfaceDescription;
 
 UCLASS(MinimalAPI)
 class UAnimationGraphSchema : public UEdGraphSchema_K2
@@ -75,6 +78,9 @@ class UAnimationGraphSchema : public UEdGraphSchema_K2
 	/** Spawn the correct node in the Animation Graph using the given AnimationAsset at the supplied location */
 	static void SpawnNodeFromAsset(UAnimationAsset* Asset, const FVector2D& GraphPosition, UEdGraph* Graph, UEdGraphPin* PinIfAvailable);
 
+	/** Spawn a rigid body node if we drop a physics asset on the graph */
+	static void SpawnRigidBodyNodeFromAsset(UPhysicsAsset* Asset, const FVector2D& GraphPosition, UEdGraph* Graph);
+
 	/** Update the specified node to a new asset */
 	static void UpdateNodeWithAsset(class UK2Node* K2Node, UAnimationAsset* Asset);
 
@@ -98,6 +104,9 @@ class UAnimationGraphSchema : public UEdGraphSchema_K2
 
 	/** Conforms an anim graph to an interface function */
 	ANIMGRAPH_API static void ConformAnimGraphToInterface(UBlueprint* InBlueprint, UEdGraph& InGraph, UFunction* InFunction);
+
+	/** Conforms anim layer nodes to an interface desc by GUID */
+	ANIMGRAPH_API static void ConformAnimLayersByGuid(const UAnimBlueprint* InAnimBlueprint, const FBPInterfaceDescription& CurrentInterfaceDesc);
 
 	UE_DEPRECATED(4.24, "Function renamed, please use GetPositionForNewLinkedInputPoseNode")
 	ANIMGRAPH_API static FVector2D GetPositionForNewSubInputNode(UEdGraph& InGraph) { return GetPositionForNewLinkedInputPoseNode(InGraph); }

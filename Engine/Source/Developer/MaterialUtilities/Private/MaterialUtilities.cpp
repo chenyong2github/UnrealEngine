@@ -1623,7 +1623,7 @@ void FMaterialUtilities::AnalyzeMaterial(UMaterialInterface* InMaterial, const s
 	PropertyBeingBaked[MP_Metallic] = InMaterialSettings.bOpacityMap;
 	PropertyBeingBaked[MP_EmissiveColor] = InMaterialSettings.bEmissiveMap;
 
-	for (int32 PropertyIndex = 0; PropertyIndex < ARRAY_COUNT(PropertyBeingBaked); ++PropertyIndex)
+	for (int32 PropertyIndex = 0; PropertyIndex < UE_ARRAY_COUNT(PropertyBeingBaked); ++PropertyIndex)
 	{
 		if (PropertyBeingBaked[PropertyIndex])
 		{
@@ -2625,7 +2625,7 @@ bool FMaterialUtilities::RenderMaterialPropertyToTexture(struct FMaterialMergeDa
 
 	FMaterialRenderProxy* MaterialProxy = nullptr;
 
-	check(InMaterialProperty >= 0 && InMaterialProperty < ARRAY_COUNT(InMaterialData.ProxyCache->Proxies));
+	check(InMaterialProperty >= 0 && InMaterialProperty < UE_ARRAY_COUNT(InMaterialData.ProxyCache->Proxies));
 	if (InMaterialData.ProxyCache->Proxies[InMaterialProperty])
 	{
 		MaterialProxy = InMaterialData.ProxyCache->Proxies[InMaterialProperty];
@@ -2819,7 +2819,7 @@ FExportMaterialProxyCache::~FExportMaterialProxyCache()
 
 void FExportMaterialProxyCache::Release()
 {
-	for (int32 PropertyIndex = 0; PropertyIndex < ARRAY_COUNT(Proxies); PropertyIndex++)
+	for (int32 PropertyIndex = 0; PropertyIndex < UE_ARRAY_COUNT(Proxies); PropertyIndex++)
 	{
 		FMaterialRenderProxy* Proxy = Proxies[PropertyIndex];
 		if (Proxy)

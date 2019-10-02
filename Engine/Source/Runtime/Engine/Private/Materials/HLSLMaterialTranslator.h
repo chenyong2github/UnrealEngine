@@ -1167,11 +1167,6 @@ ResourcesString = TEXT("");
 				}
 			}
 
-			if (IsTranslucentBlendMode(BlendMode) && Material->IsTranslucencyUnderWaterEnabled() && (Material->IsMobileSeparateTranslucencyEnabled() || Material->IsTranslucencyAfterDOFEnabled()))
-			{
-				Errorf(TEXT("A material cannot be sent to a separate translucent pass and under water at the same time."));
-			}
-
 			bool bDBufferAllowed = IsUsingDBuffers(Platform);
 			bool bDBufferBlendMode = IsDBufferDecalBlendMode((EDecalBlendMode)Material->GetDecalBlendMode());
 
@@ -1526,6 +1521,11 @@ ResourcesString = TEXT("");
 			{
 				OutEnvironment.SetDefine(TEXT("MATERIAL_SHADINGMODEL_SINGLELAYERWATER"), TEXT("1"));
 				NumSetMaterials++;
+			}
+
+			if(ShadingModels.HasShadingModel(MSM_SingleLayerWater) && (IsSwitchPlatform(Platform) || IsPS4Platform(Platform) || Platform == SP_XBOXONE_D3D12))
+			{
+				OutEnvironment.SetDefine(TEXT("DISABLE_FORWARD_LOCAL_LIGHTS"), TEXT("1"));
 			}
 
 			if (NumSetMaterials == 1)
@@ -5365,6 +5365,11 @@ protected:
 
 	virtual int32 StaticTerrainLayerWeight(FName ParameterName,int32 Default) override
 	{
+		if (GetFeatureLevel() <= ERHIFeatureLevel::ES3_1 && ShaderFrequency != SF_Pixel)
+		{
+			return Errorf(TEXT("Landscape layer weights are only available in the pixel shader."));
+		}
+		
 		// Look up the weight-map index for this static parameter.
 		int32 WeightmapIndex = INDEX_NONE;
 		bool bFoundParameter = false;

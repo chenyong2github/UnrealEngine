@@ -44,8 +44,10 @@ struct ENGINE_API FAnimNode_LinkedInputPose : public FAnimNode_Base
 	FBlendedHeapCurve CachedInputCurve;
 
 	// FAnimNode_Base interface
+#if ENABLE_ANIMGRAPH_TRAVERSAL_DEBUG
 	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
 	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
+#endif
 	virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
 	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
 	virtual void GatherDebugData(FNodeDebugData& DebugData) override;

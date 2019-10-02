@@ -77,6 +77,7 @@ static uint32 GetConstantAllocatorSize(bool bIsAsyncComputeContext, bool bIsDefa
 FD3D12CommandContextBase::FD3D12CommandContextBase(class FD3D12Adapter* InParentAdapter, FRHIGPUMask InGPUMask, bool InIsDefaultContext, bool InIsAsyncComputeContext)
 	: FD3D12AdapterChild(InParentAdapter)
 	, GPUMask(InGPUMask)
+	, bTrackingEvents(false)
 	, bIsDefaultContext(InIsDefaultContext)
 	, bIsAsyncComputeContext(InIsAsyncComputeContext)
 {
@@ -115,9 +116,9 @@ FD3D12CommandContext::FD3D12CommandContext(FD3D12Device* InParent, FD3D12SubAllo
 {
 	FMemory::Memzero(DirtyUniformBuffers);
 	FMemory::Memzero(BoundUniformBuffers);
-	for (int i = 0; i < ARRAY_COUNT(BoundUniformBufferRefs); i++)
+	for (int i = 0; i < UE_ARRAY_COUNT(BoundUniformBufferRefs); i++)
 	{
-		for (int j = 0; j < ARRAY_COUNT(BoundUniformBufferRefs[i]); j++)
+		for (int j = 0; j < UE_ARRAY_COUNT(BoundUniformBufferRefs[i]); j++)
 		{
 			BoundUniformBufferRefs[i][j] = NULL;
 		}
@@ -232,6 +233,7 @@ void FD3D12CommandContext::OpenCommandList()
 	// Mark state as dirty so next time ApplyState is called, it will set all state on this new command list
 	StateCache.DirtyStateForNewCommandList();
 
+	numPrimitives = 0;
 	numDraws = 0;
 	numDispatches = 0;
 	numClears = 0;
@@ -243,6 +245,10 @@ void FD3D12CommandContext::OpenCommandList()
 void FD3D12CommandContext::CloseCommandList()
 {
 	CommandListHandle.Close();
+
+	INC_DWORD_STAT_BY(STAT_RHIDrawPrimitiveCalls, numDraws);
+	FPlatformAtomics::InterlockedAdd(&GCurrentNumDrawCallsRHI, numDraws);
+	FPlatformAtomics::InterlockedAdd(&GCurrentNumPrimitivesDrawnRHI, numPrimitives);
 }
 
 FD3D12CommandListHandle FD3D12CommandContext::FlushCommands(bool WaitForCompletion, EFlushCommandsExtraAction ExtraAction)
@@ -319,6 +325,8 @@ void FD3D12CommandContext::Finish(TArray<FD3D12CommandListHandle>& CommandLists)
 
 void FD3D12CommandContextBase::RHIBeginFrame()
 {
+	bTrackingEvents = bIsDefaultContext && ParentAdapter->GetGPUProfiler().bTrackingEvents;
+
 	RHIPrivateBeginFrame();
 	for (uint32 GPUIndex : GPUMask)
 	{
@@ -366,9 +374,9 @@ void FD3D12CommandContext::ClearState()
 	FMemory::Memzero(BoundUniformBuffers, sizeof(BoundUniformBuffers));
 	FMemory::Memzero(DirtyUniformBuffers, sizeof(DirtyUniformBuffers));
 
-	for (int i = 0; i < ARRAY_COUNT(BoundUniformBufferRefs); i++)
+	for (int i = 0; i < UE_ARRAY_COUNT(BoundUniformBufferRefs); i++)
 	{
-		for (int j = 0; j < ARRAY_COUNT(BoundUniformBufferRefs[i]); j++)
+		for (int j = 0; j < UE_ARRAY_COUNT(BoundUniformBufferRefs[i]); j++)
 		{
 			BoundUniformBufferRefs[i][j] = NULL;
 		}
@@ -458,12 +466,6 @@ void FD3D12CommandContextBase::RHIEndFrame()
 	// Stop Timing at the very last moment
     
 	ParentAdapter->GetGPUProfiler().EndFrame(ParentAdapter->GetOwningRHI());
-    
-    
-	// Advance frame fence
-    
-	FD3D12ManualFence& FrameFence = ParentAdapter->GetFrameFence();
-	FrameFence.Signal(ED3D12CommandQueueType::Default, FrameFence.IncrementCurrentFence());
 }
 
 void FD3D12CommandContextBase::UpdateMemoryStats()

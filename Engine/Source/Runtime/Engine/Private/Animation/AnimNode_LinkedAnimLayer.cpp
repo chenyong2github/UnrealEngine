@@ -59,11 +59,17 @@ void FAnimNode_LinkedAnimLayer::InitializeSelfLayer(const UAnimInstance* SelfAni
 
 void FAnimNode_LinkedAnimLayer::SetLinkedLayerInstance(const UAnimInstance* InOwningAnimInstance, UAnimInstance* InNewLinkedInstance)
 {
-	ReinitializeLinkedAnimInstance(InOwningAnimInstance, InNewLinkedInstance);
-
 	// Reseting to running as a self-layer, in case it is applicable
 	if ((Interface.Get() == nullptr || InstanceClass.Get() == nullptr) && (InNewLinkedInstance == nullptr))
 	{
 		InitializeSelfLayer(InOwningAnimInstance);
 	}
+	else
+	{
+		ReinitializeLinkedAnimInstance(InOwningAnimInstance, InNewLinkedInstance);
+	}
+
+#if WITH_EDITOR
+	OnInstanceChangedEvent.Broadcast();
+#endif
 }

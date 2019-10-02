@@ -577,8 +577,7 @@ void FMobileBasePassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshB
 		bool bShouldDraw = (bIsTranslucent || bUsesWaterMaterial) &&
 		(TranslucencyPassType == ETranslucencyPass::TPT_AllTranslucency
 		|| (TranslucencyPassType == ETranslucencyPass::TPT_StandardTranslucency && !Material.IsMobileSeparateTranslucencyEnabled())
-		|| (TranslucencyPassType == ETranslucencyPass::TPT_TranslucencyAfterDOF && Material.IsMobileSeparateTranslucencyEnabled())
-		|| (TranslucencyPassType == ETranslucencyPass::TPT_TranslucencyUnderWater && Material.IsTranslucencyUnderWaterEnabled()));
+		|| (TranslucencyPassType == ETranslucencyPass::TPT_TranslucencyAfterDOF && Material.IsMobileSeparateTranslucencyEnabled()));
 							
 		if (bShouldDraw)
 		{
@@ -644,6 +643,8 @@ void FMobileBasePassMeshProcessor::Process(
 	if (bTranslucentBasePass)
 	{
 		SortKey = CalculateTranslucentMeshStaticSortKey(PrimitiveSceneProxy, MeshBatch.MeshIdInPrimitive);
+		// We always want water to be rendered first on mobile in order to mimic other renderers where it is opaque. We shift the other priorities by 1.
+		SortKey.Translucent.Priority = ShadingModels.HasShadingModel(MSM_SingleLayerWater) ? uint16(0) : uint16(FMath::Clamp(uint32(SortKey.Translucent.Priority) + 1, 0u, uint32(USHRT_MAX)));
 	}
 	else
 	{

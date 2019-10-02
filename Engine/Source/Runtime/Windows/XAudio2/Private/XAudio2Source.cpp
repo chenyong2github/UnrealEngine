@@ -1729,14 +1729,14 @@ void FSpatializationHelper::Init()
 	VolumeCurvePoint[0].DSPSetting = 1.0f;
 	VolumeCurvePoint[1].Distance = 1.0f;
 	VolumeCurvePoint[1].DSPSetting = 1.0f;
-	VolumeCurve.PointCount = ARRAY_COUNT( VolumeCurvePoint );
+	VolumeCurve.PointCount = UE_ARRAY_COUNT( VolumeCurvePoint );
 	VolumeCurve.pPoints = VolumeCurvePoint;
 
 	ReverbVolumeCurvePoint[0].Distance = 0.0f;
 	ReverbVolumeCurvePoint[0].DSPSetting = 0.5f;
 	ReverbVolumeCurvePoint[1].Distance = 1.0f;
 	ReverbVolumeCurvePoint[1].DSPSetting = 0.5f;
-	ReverbVolumeCurve.PointCount = ARRAY_COUNT( ReverbVolumeCurvePoint );
+	ReverbVolumeCurve.PointCount = UE_ARRAY_COUNT( ReverbVolumeCurvePoint );
 	ReverbVolumeCurve.pPoints = ReverbVolumeCurvePoint;
 
 	Emitter.pVolumeCurve = &VolumeCurve;
@@ -1748,7 +1748,7 @@ void FSpatializationHelper::Init()
 	Emitter.DopplerScaler = 1.0f;
 
 	// Zero the matrix coefficients
-	FMemory::Memzero(MatrixCoefficients, sizeof(float)*ARRAY_COUNT(MatrixCoefficients));
+	FMemory::Memzero(MatrixCoefficients, sizeof(float)*UE_ARRAY_COUNT(MatrixCoefficients));
 
 	DSPSettings.SrcChannelCount = UE4_XAUDIO3D_INPUTCHANNELS;
 	DSPSettings.DstChannelCount = SPEAKER_COUNT;
@@ -1835,7 +1835,7 @@ void FSpatializationHelper::DumpSpatializationState() const
 
 	// DSPSettings
 	UE_LOG(LogXAudio2, Log, TEXT("  DSPSettings"));
-	FLocal::DumpChannelArray(TEXT("    "), TEXT("pMatrixCoefficients"), ARRAY_COUNT(MatrixCoefficients), DSPSettings.pMatrixCoefficients);
+	FLocal::DumpChannelArray(TEXT("    "), TEXT("pMatrixCoefficients"), UE_ARRAY_COUNT(MatrixCoefficients), DSPSettings.pMatrixCoefficients);
 	UE_LOG(LogXAudio2, Log, TEXT("    SrcChannelCount: %u"), DSPSettings.SrcChannelCount);
 	UE_LOG(LogXAudio2, Log, TEXT("    DstChannelCount: %u"), DSPSettings.DstChannelCount);
 	UE_LOG(LogXAudio2, Log, TEXT("    LPFDirectCoefficient: %f"), DSPSettings.LPFDirectCoefficient);
@@ -1906,7 +1906,7 @@ void FSpatializationHelper::DumpSpatializationState() const
 	FLocal::DumpChannelArray(TEXT("  "), TEXT("EmitterAzimuths"), UE4_XAUDIO3D_INPUTCHANNELS, EmitterAzimuths);
 
 	// MatrixCoefficients
-	FLocal::DumpChannelArray(TEXT("  "), TEXT("MatrixCoefficients"), ARRAY_COUNT(MatrixCoefficients), MatrixCoefficients);
+	FLocal::DumpChannelArray(TEXT("  "), TEXT("MatrixCoefficients"), UE_ARRAY_COUNT(MatrixCoefficients), MatrixCoefficients);
 }
 
 void FSpatializationHelper::CalculateDolbySurroundRate( const FVector& OrientFront, const FVector& ListenerPosition, const FVector& EmitterPosition, float OmniRadius, float* OutVolumes  )
@@ -1961,7 +1961,7 @@ void FSpatializationHelper::CalculateDolbySurroundRate( const FVector& OrientFro
 			//	*NaNorINF, SpeakerIndex, OmniRadius, DSPSettings.pMatrixCoefficients[SpeakerIndex]);
 #endif
 			// Zero the coefficients so we don't continue getting bad values
-			FMemory::Memzero(MatrixCoefficients, sizeof(float)*ARRAY_COUNT(MatrixCoefficients));
+			FMemory::Memzero(MatrixCoefficients, sizeof(float)*UE_ARRAY_COUNT(MatrixCoefficients));
 		}
 #endif
 	}

@@ -118,14 +118,14 @@ struct FVertexDeclarationCache
 		return Cache.Add(InKey, InValue);
 	}
 
-	FORCEINLINE FVertexDeclarationRHIRef* FindOrAdd(const FD3D12VertexDeclarationKey& InKey, const FVertexDeclarationRHIRef& InValue)
+	FORCEINLINE FVertexDeclarationRHIRef* FindOrAdd(const FD3D12VertexDeclarationKey& InKey)
 	{
 		FScopeLock RWGuard(&LockGuard);
 
 		FVertexDeclarationRHIRef* VertexDeclarationRefPtr = Cache.Find(InKey);
 		if (VertexDeclarationRefPtr == nullptr)
 		{
-			VertexDeclarationRefPtr = &Cache.Add(InKey, InValue);
+			VertexDeclarationRefPtr = &Cache.Add(InKey, new FD3D12VertexDeclaration(InKey.VertexElements, InKey.StreamStrides, InKey.Hash));
 		}
 
 		return VertexDeclarationRefPtr;
@@ -143,7 +143,7 @@ FVertexDeclarationRHIRef FD3D12DynamicRHI::RHICreateVertexDeclaration(const FVer
 	FD3D12VertexDeclarationKey Key(Elements);
 
 	// Check for a cached vertex declaration. Add to the cache if it doesn't exist.
-	FVertexDeclarationRHIRef* VertexDeclarationRefPtr = GVertexDeclarationCache.FindOrAdd(Key, new FD3D12VertexDeclaration(Key.VertexElements, Key.StreamStrides));
+	FVertexDeclarationRHIRef* VertexDeclarationRefPtr = GVertexDeclarationCache.FindOrAdd(Key);
 
 	// The cached declaration must match the input declaration!
 	check(VertexDeclarationRefPtr);

@@ -202,6 +202,41 @@ void UK2Node_Knot::GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegis
 	}
 }
 
+UEdGraphNode* UK2Node_Knot::GetExecTerminal() const
+{
+	// if we're not an exec wire, just bail:
+	const UK2Node_Knot* Knot = this;
+	UEdGraphPin* OutputPin = Knot->GetOutputPin();
+	if(!OutputPin)
+	{
+		return nullptr;
+	}
+
+	if(OutputPin->PinType.PinCategory != UEdGraphSchema_K2::PC_Exec)
+	{
+		return nullptr;
+	}
+
+	UEdGraphNode* Result = nullptr;
+	while(Knot)
+	{
+		UEdGraphPin* Next = Knot->GetOutputPin();
+		if(Next && Next->LinkedTo.Num() > 0)
+		{
+			// knots for exec pins can have only one connection:
+			Result = Next->LinkedTo[0]->GetOwningNode();
+			Knot = Cast<const UK2Node_Knot>(Result);
+		}
+		else
+		{
+			// dead end knot:
+			Knot = nullptr;
+			Result = nullptr;
+		}
+	}
+	return Result;
+}
+
 bool UK2Node_Knot::ShouldOverridePinNames() const
 {
 	return true;

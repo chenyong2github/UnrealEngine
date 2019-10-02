@@ -77,8 +77,6 @@ High level focus:
 -We intend to support RootMotion (Animation) / RootMotionSources (non anim) in the new movement system.
 
 Road Map:
--Interpolation/smoothing layer
--Dependent simulations
 -Aux Buffer
 -Event System
 -Ability System integration
@@ -108,6 +106,17 @@ Smoothing: Taking the output of the simulation and applying an additional layer 
 // Release notes
 // ----------------------------------------------------------------------------------------------------------
 
+Update (10-1-19)
+-Forward Predict / Dependent simulation initial check in. This has some limitations and is not final
+	-Dependent Sim can't trigger reconcile yet
+	-Assumptions made about replication frequency. Dependents must replicate as same frequency as parent sim right now.
+	-General lack of precision here when running in variable tick simulation. (Sims tick at different rates on server, so hard to correlate client side).
+
+
+Update (9-26-19)
+-More refactors on general system architecture. UNetworkSimulationGlobalManager is solidifying and most boiler plate is out of the actor components (Not an exciting update but this was overdue!).
+-PostSimTick added and Interpolator refactored to be part of this step, dependent on network role (Eg., simulated proxy only when enabled).
+-Continuing to investigate dependent actor simulations. A few early prototypes did not work out but am going to try a slightly different approach.
 
 Update (8-14-19)
 -Some more cleanup. Cvar fixes and other consolidation. Now time for vacation (2 weeks). 

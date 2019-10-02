@@ -245,6 +245,9 @@ public:
 		return !MemberScope.IsEmpty();
 	}
 
+	/** Returns true if this is in the sparse data struct for OwningClass */
+	ENGINE_API bool IsSparseClassData(const UClass* OwningClass) const;
+
 #if WITH_EDITOR
 	/**
 	 * Returns a search string to submit to Find-in-Blueprints to find references to this reference
@@ -383,8 +386,16 @@ public:
 #if WITH_EDITOR
 				TargetScope = GetClassToUse(TargetScope, bUseUpToDateClass);
 #endif
-				// Find in target scope
-				ReturnField = FindField<TFieldType>(TargetScope, MemberName);
+				// Find in target scope or in the sparse class data
+				UScriptStruct* SparseClassDataStruct = TargetScope->GetSparseClassDataStruct();
+				if (SparseClassDataStruct)
+				{
+					ReturnField = FindField<TFieldType>(SparseClassDataStruct, MemberName);
+				}
+				if (ReturnField == nullptr)
+				{
+					ReturnField = FindField<TFieldType>(TargetScope, MemberName);
+				}
 
 #if WITH_EDITOR
 

@@ -516,7 +516,7 @@ void CreateOpaqueBasePassUniformBuffer(
 	FRHICommandListImmediate& RHICmdList, 
 	const FViewInfo& View,
 	IPooledRenderTarget* ForwardScreenSpaceShadowMask,
-	FVector4* SceneWithoutSingleLayerWaterValidUVRect,
+	FVector2D* SceneWithoutSingleLayerWaterMaxUV,
 	IPooledRenderTarget* SceneColorWithoutSingleLayerWater,
 	IPooledRenderTarget* SceneDepthWithoutSingleLayerWater,
 	TUniformBufferRef<FOpaqueBasePassUniformParameters>& BasePassUniformBuffer)
@@ -583,15 +583,13 @@ void CreateOpaqueBasePassUniformBuffer(
 	}
 
 	// Single Layer Water
-	BasePassParameters.SceneWithoutSingleLayerWaterValidUVRect = SceneWithoutSingleLayerWaterValidUVRect ? *SceneWithoutSingleLayerWaterValidUVRect : FVector4(0.0f, 0.0f, 1.0f, 1.0f);
+	BasePassParameters.SceneWithoutSingleLayerWaterMaxUV = SceneWithoutSingleLayerWaterMaxUV ? *SceneWithoutSingleLayerWaterMaxUV : FVector2D(1.0f, 1.0f);
 	BasePassParameters.SceneColorWithoutSingleLayerWaterTexture = (SceneColorWithoutSingleLayerWater ? SceneColorWithoutSingleLayerWater->GetRenderTargetItem().TargetableTexture : GSystemTextures.BlackDummy->GetRenderTargetItem().TargetableTexture);
 	BasePassParameters.SceneColorWithoutSingleLayerWaterSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 	BasePassParameters.SceneDepthWithoutSingleLayerWaterTexture = (SceneDepthWithoutSingleLayerWater ? SceneDepthWithoutSingleLayerWater->GetRenderTargetItem().TargetableTexture : GSystemTextures.BlackDummy->GetRenderTargetItem().TargetableTexture);
 	BasePassParameters.SceneDepthWithoutSingleLayerWaterSampler = TStaticSamplerState<SF_Point>::GetRHI();
 	BasePassParameters.PreIntegratedGFTexture = GSystemTextures.PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture;
 	BasePassParameters.PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	BasePassParameters.SceneCustomDepthTexture = (SceneRenderTargets.CustomDepth.IsValid() ? SceneRenderTargets.CustomDepth : GSystemTextures.BlackDummy)->GetRenderTargetItem().ShaderResourceTexture;
-	BasePassParameters.SceneCustomDepthSampler = TStaticSamplerState<SF_Point>::GetRHI();
 	SetupDistortionParams(BasePassParameters.DistortionParams, View);
 
 	// Misc
@@ -1219,15 +1217,11 @@ void FBasePassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, 
 				switch (TranslucencyPassType)
 				{
 				case ETranslucencyPass::TPT_StandardTranslucency:
-					bShouldDraw = !Material.IsTranslucencyAfterDOFEnabled() && !Material.IsTranslucencyUnderWaterEnabled();
+					bShouldDraw = !Material.IsTranslucencyAfterDOFEnabled();
 					break;
 
 				case ETranslucencyPass::TPT_TranslucencyAfterDOF:
-					bShouldDraw = Material.IsTranslucencyAfterDOFEnabled() && !Material.IsTranslucencyUnderWaterEnabled();
-					break;
-
-				case ETranslucencyPass::TPT_TranslucencyUnderWater:
-					bShouldDraw = Material.IsTranslucencyUnderWaterEnabled();
+					bShouldDraw = Material.IsTranslucencyAfterDOFEnabled();
 					break;
 
 				case ETranslucencyPass::TPT_AllTranslucency:
@@ -1609,17 +1603,6 @@ FMeshPassProcessor* CreateTranslucencyAfterDOFProcessor(const FScene* Scene, con
 	return new(FMemStack::Get()) FBasePassMeshProcessor(Scene, Scene->GetFeatureLevel(), InViewIfDynamicMeshCommand, PassDrawRenderState, InDrawListContext, Flags, ETranslucencyPass::TPT_TranslucencyAfterDOF);
 }
 
-FMeshPassProcessor* CreateTranslucencyUnderWaterProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
-{
-	FMeshPassProcessorRenderState PassDrawRenderState(Scene->UniformBuffers.ViewUniformBuffer, Scene->UniformBuffers.TranslucentBasePassUniformBuffer);
-	PassDrawRenderState.SetInstancedViewUniformBuffer(Scene->UniformBuffers.InstancedViewUniformBuffer);
-	PassDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI());
-
-	const FBasePassMeshProcessor::EFlags Flags = FBasePassMeshProcessor::EFlags::CanUseDepthStencil;
-
-	return new(FMemStack::Get()) FBasePassMeshProcessor(Scene, Scene->GetFeatureLevel(), InViewIfDynamicMeshCommand, PassDrawRenderState, InDrawListContext, Flags, ETranslucencyPass::TPT_TranslucencyUnderWater);
-}
-
 FMeshPassProcessor* CreateTranslucencyAllPassProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
 {
 	FMeshPassProcessorRenderState PassDrawRenderState(Scene->UniformBuffers.ViewUniformBuffer, Scene->UniformBuffers.TranslucentBasePassUniformBuffer);
@@ -1634,5 +1617,4 @@ FMeshPassProcessor* CreateTranslucencyAllPassProcessor(const FScene* Scene, cons
 FRegisterPassProcessorCreateFunction RegisterBasePass(&CreateBasePassProcessor, EShadingPath::Deferred, EMeshPass::BasePass, EMeshPassFlags::CachedMeshCommands | EMeshPassFlags::MainView);
 FRegisterPassProcessorCreateFunction RegisterTranslucencyStandardPass(&CreateTranslucencyStandardPassProcessor, EShadingPath::Deferred, EMeshPass::TranslucencyStandard, EMeshPassFlags::MainView);
 FRegisterPassProcessorCreateFunction RegisterTranslucencyAfterDOFPass(&CreateTranslucencyAfterDOFProcessor, EShadingPath::Deferred, EMeshPass::TranslucencyAfterDOF, EMeshPassFlags::MainView);
-FRegisterPassProcessorCreateFunction RegisterTranslucencyUnderWaterPass(&CreateTranslucencyUnderWaterProcessor, EShadingPath::Deferred, EMeshPass::TranslucencyUnderWater, EMeshPassFlags::MainView);
 FRegisterPassProcessorCreateFunction RegisterTranslucencyAllPass(&CreateTranslucencyAllPassProcessor, EShadingPath::Deferred, EMeshPass::TranslucencyAll, EMeshPassFlags::MainView);

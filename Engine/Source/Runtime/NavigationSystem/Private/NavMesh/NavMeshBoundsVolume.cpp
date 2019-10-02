@@ -31,9 +31,9 @@ void ANavMeshBoundsVolume::PostEditChangeProperty( struct FPropertyChangedEvent&
 
 		if (PropName == GET_MEMBER_NAME_CHECKED(ABrush, BrushBuilder)
 			|| MemberName == GET_MEMBER_NAME_CHECKED(ANavMeshBoundsVolume, SupportedAgents)
-			|| MemberName == GET_MEMBER_NAME_CHECKED(USceneComponent, RelativeLocation)
-			|| MemberName == GET_MEMBER_NAME_CHECKED(USceneComponent, RelativeRotation)
-			|| MemberName == GET_MEMBER_NAME_CHECKED(USceneComponent, RelativeScale3D))
+			|| MemberName == USceneComponent::GetRelativeLocationPropertyName()
+			|| MemberName == USceneComponent::GetRelativeRotationPropertyName()
+			|| MemberName == USceneComponent::GetRelativeScale3DPropertyName())
 		{
 			NavSys->OnNavigationBoundsUpdated(this);
 		}
@@ -57,7 +57,7 @@ void ANavMeshBoundsVolume::PostRegisterAllComponents()
 	Super::PostRegisterAllComponents();
 	
 	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
-	if (NavSys && Role == ROLE_Authority)
+	if (NavSys && GetLocalRole() == ROLE_Authority)
 	{
 		NavSys->OnNavigationBoundsAdded(this);
 	}
@@ -68,7 +68,7 @@ void ANavMeshBoundsVolume::PostUnregisterAllComponents()
 	Super::PostUnregisterAllComponents();
 	
 	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
-	if (NavSys && Role == ROLE_Authority)
+	if (NavSys && GetLocalRole() == ROLE_Authority)
 	{
 		NavSys->OnNavigationBoundsRemoved(this);
 	}

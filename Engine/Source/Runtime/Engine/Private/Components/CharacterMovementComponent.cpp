@@ -1281,7 +1281,7 @@ void UCharacterMovementComponent::TickComponent(float DeltaTime, enum ELevelTick
 
 	// See if we fell out of the world.
 	const bool bIsSimulatingPhysics = UpdatedComponent->IsSimulatingPhysics();
-	if (CharacterOwner->Role == ROLE_Authority && (!bCheatFlying || bIsSimulatingPhysics) && !CharacterOwner->CheckStillInWorld())
+	if (CharacterOwner->GetLocalRole() == ROLE_Authority && (!bCheatFlying || bIsSimulatingPhysics) && !CharacterOwner->CheckStillInWorld())
 	{
 		return;
 	}
@@ -1290,7 +1290,7 @@ void UCharacterMovementComponent::TickComponent(float DeltaTime, enum ELevelTick
 	if (bIsSimulatingPhysics)
 	{
 		// Update camera to ensure client gets updates even when physics move him far away from point where simulation started
-		if (CharacterOwner->Role == ROLE_AutonomousProxy && IsNetMode(NM_Client))
+		if (CharacterOwner->GetLocalRole() == ROLE_AutonomousProxy && IsNetMode(NM_Client))
 		{
 			MarkForClientCameraUpdate();
 		}
@@ -1301,12 +1301,12 @@ void UCharacterMovementComponent::TickComponent(float DeltaTime, enum ELevelTick
 
 	AvoidanceLockTimer -= DeltaTime;
 
-	if (CharacterOwner->Role > ROLE_SimulatedProxy)
+	if (CharacterOwner->GetLocalRole() > ROLE_SimulatedProxy)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_CharacterMovementNonSimulated);
 
 		// If we are a client we might have received an update from the server.
-		const bool bIsClient = (CharacterOwner->Role == ROLE_AutonomousProxy && IsNetMode(NM_Client));
+		const bool bIsClient = (CharacterOwner->GetLocalRole() == ROLE_AutonomousProxy && IsNetMode(NM_Client));
 		if (bIsClient)
 		{
 			FNetworkPredictionData_Client_Character* ClientData = GetPredictionData_Client_Character();
@@ -1331,7 +1331,7 @@ void UCharacterMovementComponent::TickComponent(float DeltaTime, enum ELevelTick
 				AnalogInputModifier = ComputeAnalogInputModifier();
 			}
 
-			if (CharacterOwner->Role == ROLE_Authority)
+			if (CharacterOwner->GetLocalRole() == ROLE_Authority)
 			{
 				PerformMovement(DeltaTime);
 			}
@@ -1355,7 +1355,7 @@ void UCharacterMovementComponent::TickComponent(float DeltaTime, enum ELevelTick
 			}
 		}
 	}
-	else if (CharacterOwner->Role == ROLE_SimulatedProxy)
+	else if (CharacterOwner->GetLocalRole() == ROLE_SimulatedProxy)
 	{
 		if (bShrinkProxyCapsule)
 		{
@@ -1399,7 +1399,7 @@ void UCharacterMovementComponent::PostPhysicsTickComponent(float DeltaTime, FCha
 
 void UCharacterMovementComponent::AdjustProxyCapsuleSize()
 {
-	if (bShrinkProxyCapsule && CharacterOwner && CharacterOwner->Role == ROLE_SimulatedProxy)
+	if (bShrinkProxyCapsule && CharacterOwner && CharacterOwner->GetLocalRole() == ROLE_SimulatedProxy)
 	{
 		bShrinkProxyCapsule = false;
 
@@ -1583,10 +1583,10 @@ void UCharacterMovementComponent::SimulatedTick(float DeltaSeconds)
 			ApplyNetworkMovementMode(GetCharacterOwner()->GetReplicatedMovementMode());
 		}
 
-		if (CharacterOwner->bReplicateMovement && UpdatedComponent)
+		if (CharacterOwner->IsReplicatingMovement() && UpdatedComponent)
 		{
 			USkeletalMeshComponent* Mesh = CharacterOwner->GetMesh();
-			const FVector SavedMeshRelativeLocation = Mesh ? Mesh->RelativeLocation : FVector::ZeroVector; 
+			const FVector SavedMeshRelativeLocation = Mesh ? Mesh->GetRelativeLocation() : FVector::ZeroVector; 
 			const FQuat SavedCapsuleRotation = UpdatedComponent->GetComponentQuat();
 			const bool bPreventMeshMovement = !bNetworkSmoothingComplete;
 
@@ -1721,13 +1721,15 @@ void UCharacterMovementComponent::SimulateMovement(float DeltaSeconds)
 		return;
 	}
 
-	const bool bIsSimulatedProxy = (CharacterOwner->Role == ROLE_SimulatedProxy);
+	const bool bIsSimulatedProxy = (CharacterOwner->GetLocalRole() == ROLE_SimulatedProxy);
+
+	const FRepMovement& ConstRepMovement = CharacterOwner->GetReplicatedMovement();
 
 	// Workaround for replication not being updated initially
 	if (bIsSimulatedProxy &&
-		CharacterOwner->ReplicatedMovement.Location.IsZero() &&
-		CharacterOwner->ReplicatedMovement.Rotation.IsZero() &&
-		CharacterOwner->ReplicatedMovement.LinearVelocity.IsZero())
+		ConstRepMovement.Location.IsZero() &&
+		ConstRepMovement.Rotation.IsZero() &&
+		ConstRepMovement.LinearVelocity.IsZero())
 	{
 		return;
 	}
@@ -1786,7 +1788,7 @@ void UCharacterMovementComponent::SimulateMovement(float DeltaSeconds)
 		}
 
 		const bool bSimGravityDisabled = (bIsSimulatedProxy && CharacterOwner->bSimGravityDisabled);
-		const bool bZeroReplicatedGroundVelocity = (bIsSimulatedProxy && IsMovingOnGround() && CharacterOwner->ReplicatedMovement.LinearVelocity.IsZero());
+		const bool bZeroReplicatedGroundVelocity = (bIsSimulatedProxy && IsMovingOnGround() && ConstRepMovement.LinearVelocity.IsZero());
 		
 		// bSimGravityDisabled means velocity was zero when replicated and we were stuck in something. Avoid external changes in velocity as well.
 		// Being in ground movement with zero velocity, we cannot simulate proxy velocities safely because we might not get any further updates from the server.
@@ -2300,7 +2302,7 @@ void UCharacterMovementComponent::PerformMovement(float DeltaSeconds)
 				}
 
 				// For local human clients, save off root motion data so it can be used by movement networking code.
-				if( CharacterOwner->IsLocallyControlled() && (CharacterOwner->Role == ROLE_AutonomousProxy) && CharacterOwner->IsPlayingNetworkedRootMotionMontage() )
+				if( CharacterOwner->IsLocallyControlled() && (CharacterOwner->GetLocalRole() == ROLE_AutonomousProxy) && CharacterOwner->IsPlayingNetworkedRootMotionMontage() )
 				{
 					CharacterOwner->ClientRootMotionParams = RootMotionParams;
 				}
@@ -2313,7 +2315,7 @@ void UCharacterMovementComponent::PerformMovement(float DeltaSeconds)
 			}
 
 			// For local human clients, save off root motion data so it can be used by movement networking code.
-			if( CharacterOwner->IsLocallyControlled() && (CharacterOwner->Role == ROLE_AutonomousProxy) )
+			if( CharacterOwner->IsLocallyControlled() && (CharacterOwner->GetLocalRole() == ROLE_AutonomousProxy) )
 			{
 				CharacterOwner->SavedRootMotion = CurrentRootMotion;
 			}
@@ -2606,7 +2608,7 @@ void UCharacterMovementComponent::Crouch(bool bClientSimulation)
 		return;
 	}
 
-	if (bClientSimulation && CharacterOwner->Role == ROLE_SimulatedProxy)
+	if (bClientSimulation && CharacterOwner->GetLocalRole() == ROLE_SimulatedProxy)
 	{
 		// restore collision size before crouching
 		ACharacter* DefaultCharacter = CharacterOwner->GetClass()->GetDefaultObject<ACharacter>();
@@ -2664,7 +2666,7 @@ void UCharacterMovementComponent::Crouch(bool bClientSimulation)
 	CharacterOwner->OnStartCrouch( HalfHeightAdjust, ScaledHalfHeightAdjust );
 
 	// Don't smooth this change in mesh position
-	if (bClientSimulation && CharacterOwner->Role == ROLE_SimulatedProxy)
+	if (bClientSimulation && CharacterOwner->GetLocalRole() == ROLE_SimulatedProxy)
 	{
 		FNetworkPredictionData_Client_Character* ClientData = GetPredictionData_Client_Character();
 		if (ClientData && ClientData->MeshTranslationOffset.Z != 0.f)
@@ -2809,7 +2811,7 @@ void UCharacterMovementComponent::UnCrouch(bool bClientSimulation)
 	CharacterOwner->OnEndCrouch( HalfHeightAdjust, ScaledHalfHeightAdjust );
 
 	// Don't smooth this change in mesh position
-	if (bClientSimulation && CharacterOwner->Role == ROLE_SimulatedProxy)
+	if (bClientSimulation && CharacterOwner->GetLocalRole() == ROLE_SimulatedProxy)
 	{
 		FNetworkPredictionData_Client_Character* ClientData = GetPredictionData_Client_Character();
 		if (ClientData && ClientData->MeshTranslationOffset.Z != 0.f)
@@ -2939,7 +2941,7 @@ FVector UCharacterMovementComponent::GetPenetrationAdjustment(const FHitResult& 
 
 	if (CharacterOwner)
 	{
-		const bool bIsProxy = (CharacterOwner->Role == ROLE_SimulatedProxy);
+		const bool bIsProxy = (CharacterOwner->GetLocalRole() == ROLE_SimulatedProxy);
 		float MaxDistance = bIsProxy ? MaxDepenetrationWithGeometryAsProxy : MaxDepenetrationWithGeometry;
 		const AActor* HitActor = Hit.GetActor();
 		if (Cast<APawn>(HitActor))
@@ -3174,7 +3176,7 @@ bool UCharacterMovementComponent::IsCrouching() const
 void UCharacterMovementComponent::CalcVelocity(float DeltaTime, float Friction, bool bFluid, float BrakingDeceleration)
 {
 	// Do not update velocity when using root motion or when SimulatedProxy and not simulating root motion - SimulatedProxy are repped their Velocity
-	if (!HasValidData() || HasAnimRootMotion() || DeltaTime < MIN_TICK_TIME || (CharacterOwner && CharacterOwner->Role == ROLE_SimulatedProxy && !bWasSimulatingRootMotion))
+	if (!HasValidData() || HasAnimRootMotion() || DeltaTime < MIN_TICK_TIME || (CharacterOwner && CharacterOwner->GetLocalRole() == ROLE_SimulatedProxy && !bWasSimulatingRootMotion))
 	{
 		return;
 	}
@@ -3410,7 +3412,7 @@ void UCharacterMovementComponent::CalcAvoidanceVelocity(float DeltaTime)
 		return;
 	}
 
-	if (GetCharacterOwner()->Role != ROLE_Authority)
+	if (GetCharacterOwner()->GetLocalRole() != ROLE_Authority)
 	{
 		return;
 	}
@@ -4783,7 +4785,7 @@ void UCharacterMovementComponent::PhysWalking(float deltaTime, int32 Iterations)
 		return;
 	}
 
-	if (!CharacterOwner || (!CharacterOwner->Controller && !bRunPhysicsWithNoController && !HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity() && (CharacterOwner->Role != ROLE_SimulatedProxy)))
+	if (!CharacterOwner || (!CharacterOwner->Controller && !bRunPhysicsWithNoController && !HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity() && (CharacterOwner->GetLocalRole() != ROLE_SimulatedProxy)))
 	{
 		Acceleration = FVector::ZeroVector;
 		Velocity = FVector::ZeroVector;
@@ -4804,7 +4806,7 @@ void UCharacterMovementComponent::PhysWalking(float deltaTime, int32 Iterations)
 	float remainingTime = deltaTime;
 
 	// Perform the move
-	while ( (remainingTime >= MIN_TICK_TIME) && (Iterations < MaxSimulationIterations) && CharacterOwner && (CharacterOwner->Controller || bRunPhysicsWithNoController || HasAnimRootMotion() || CurrentRootMotion.HasOverrideVelocity() || (CharacterOwner->Role == ROLE_SimulatedProxy)) )
+	while ( (remainingTime >= MIN_TICK_TIME) && (Iterations < MaxSimulationIterations) && CharacterOwner && (CharacterOwner->Controller || bRunPhysicsWithNoController || HasAnimRootMotion() || CurrentRootMotion.HasOverrideVelocity() || (CharacterOwner->GetLocalRole() == ROLE_SimulatedProxy)) )
 	{
 		Iterations++;
 		bJustTeleported = false;
@@ -6002,7 +6004,7 @@ bool UCharacterMovementComponent::IsWithinEdgeTolerance(const FVector& CapsuleLo
 
 void UCharacterMovementComponent::ComputeFloorDist(const FVector& CapsuleLocation, float LineDistance, float SweepDistance, FFindFloorResult& OutFloorResult, float SweepRadius, const FHitResult* DownwardSweepResult) const
 {
-	UE_LOG(LogCharacterMovement, VeryVerbose, TEXT("[Role:%d] ComputeFloorDist: %s at location %s"), (int32)CharacterOwner->Role, *GetNameSafe(CharacterOwner), *CapsuleLocation.ToString());
+	UE_LOG(LogCharacterMovement, VeryVerbose, TEXT("[Role:%d] ComputeFloorDist: %s at location %s"), (int32)CharacterOwner->GetLocalRole(), *GetNameSafe(CharacterOwner), *CapsuleLocation.ToString());
 	OutFloorResult.Clear();
 
 	float PawnRadius, PawnHalfHeight;
@@ -6155,7 +6157,7 @@ void UCharacterMovementComponent::FindFloor(const FVector& CapsuleLocation, FFin
 		return;
 	}
 
-	UE_LOG(LogCharacterMovement, VeryVerbose, TEXT("[Role:%d] FindFloor: %s at location %s"), (int32)CharacterOwner->Role, *GetNameSafe(CharacterOwner), *CapsuleLocation.ToString());
+	UE_LOG(LogCharacterMovement, VeryVerbose, TEXT("[Role:%d] FindFloor: %s at location %s"), (int32)CharacterOwner->GetLocalRole(), *GetNameSafe(CharacterOwner), *CapsuleLocation.ToString());
 	check(CharacterOwner->GetCapsuleComponent());
 
 	// Increase height check slightly if walking, to prevent floor height adjustment from later invalidating the floor result.
@@ -7070,7 +7072,7 @@ void UCharacterMovementComponent::SmoothCorrection(const FVector& OldLocation, c
 	checkSlow(GetNetMode() != NM_Standalone);
 
 	// Only client proxies or remote clients on a listen server should run this code.
-	const bool bIsSimulatedProxy = (CharacterOwner->Role == ROLE_SimulatedProxy);
+	const bool bIsSimulatedProxy = (CharacterOwner->GetLocalRole() == ROLE_SimulatedProxy);
 	const bool bIsRemoteAutoProxy = (CharacterOwner->GetRemoteRole() == ROLE_AutonomousProxy);
 	ensure(bIsSimulatedProxy || bIsRemoteAutoProxy);
 
@@ -7267,7 +7269,7 @@ void UCharacterMovementComponent::SmoothClientPosition(float DeltaSeconds)
 	checkSlow(GetNetMode() != NM_Standalone);
 
 	// Only client proxies or remote clients on a listen server should run this code.
-	const bool bIsSimulatedProxy = (CharacterOwner->Role == ROLE_SimulatedProxy);
+	const bool bIsSimulatedProxy = (CharacterOwner->GetLocalRole() == ROLE_SimulatedProxy);
 	const bool bIsRemoteAutoProxy = (CharacterOwner->GetRemoteRole() == ROLE_AutonomousProxy);
 	if (!ensure(bIsSimulatedProxy || bIsRemoteAutoProxy))
 	{
@@ -7484,8 +7486,8 @@ void UCharacterMovementComponent::SmoothClientPosition_Interpolate(float DeltaSe
 
 					if ( Mesh )
 					{
-						Mesh->RelativeLocation = CharacterOwner->GetBaseTranslationOffset();
-						Mesh->RelativeRotation = CharacterOwner->GetBaseRotationOffset().Rotator();
+						Mesh->SetRelativeLocation_Direct(CharacterOwner->GetBaseTranslationOffset());
+						Mesh->SetRelativeRotation_Direct(CharacterOwner->GetBaseRotationOffset().Rotator());
 					}
 
 					ClientData->MeshTranslationOffset = Location;
@@ -7540,8 +7542,8 @@ void UCharacterMovementComponent::SmoothClientPosition_Interpolate(float DeltaSe
 
 				if ( Mesh )
 				{
-					Mesh->RelativeLocation = CharacterOwner->GetBaseTranslationOffset();
-					Mesh->RelativeRotation = CharacterOwner->GetBaseRotationOffset().Rotator();
+					Mesh->SetRelativeLocation_Direct(CharacterOwner->GetBaseTranslationOffset());
+					Mesh->SetRelativeRotation_Direct(CharacterOwner->GetBaseRotationOffset().Rotator());
 				}
 
 				ClientData->MeshTranslationOffset	= ReplaySample.Location;
@@ -7666,15 +7668,15 @@ void UCharacterMovementComponent::SmoothClientPosition_UpdateVisuals()
 			const FVector NewRelLocation = ClientData->MeshRotationOffset.UnrotateVector(ClientData->MeshTranslationOffset) + CharacterOwner->GetBaseTranslationOffset();
 			if (!UpdatedComponent->GetComponentQuat().Equals(ClientData->MeshRotationOffset, 1e-6f))
 			{
-				const FVector OldLocation = Mesh->RelativeLocation;
-				const FRotator OldRotation = UpdatedComponent->RelativeRotation;
-				Mesh->RelativeLocation = NewRelLocation;
+				const FVector OldLocation = Mesh->GetRelativeLocation();
+				const FRotator OldRotation = UpdatedComponent->GetRelativeRotation();
+				Mesh->SetRelativeLocation_Direct(NewRelLocation);
 				UpdatedComponent->SetWorldRotation(ClientData->MeshRotationOffset);
 
 				// If we did not move from SetWorldRotation, we need to at least call SetRelativeLocation since we were relying on the UpdatedComponent to update the transform of the mesh
-				if (UpdatedComponent->RelativeRotation == OldRotation)
+				if (UpdatedComponent->GetRelativeRotation() == OldRotation)
 				{
-					Mesh->RelativeLocation = OldLocation;
+					Mesh->SetRelativeLocation_Direct(OldLocation);
 					Mesh->SetRelativeLocation(NewRelLocation, false, nullptr, GetTeleportType());
 				}
 			}
@@ -7806,7 +7808,7 @@ bool UCharacterMovementComponent::ForcePositionUpdate(float DeltaTime)
 		return false;
 	}
 
-	check(CharacterOwner->Role == ROLE_Authority);
+	check(CharacterOwner->GetLocalRole() == ROLE_Authority);
 	check(CharacterOwner->GetRemoteRole() == ROLE_AutonomousProxy);
 
 	// TODO: this is basically copied from MoveAutonmous, should consolidate. Or consider moving CheckJumpInput inside PerformMovement().
@@ -7869,7 +7871,7 @@ FNetworkPredictionData_Client_Character* UCharacterMovementComponent::GetPredict
 {
 	// Should only be called on client or listen server (for remote clients) in network games
 	checkSlow(CharacterOwner != NULL);
-	checkSlow(CharacterOwner->Role < ROLE_Authority || (CharacterOwner->GetRemoteRole() == ROLE_AutonomousProxy && GetNetMode() == NM_ListenServer));
+	checkSlow(CharacterOwner->GetLocalRole() < ROLE_Authority || (CharacterOwner->GetRemoteRole() == ROLE_AutonomousProxy && GetNetMode() == NM_ListenServer));
 	checkSlow(GetNetMode() == NM_Client || GetNetMode() == NM_ListenServer);
 
 	if (ClientPredictionData == nullptr)
@@ -7886,7 +7888,7 @@ FNetworkPredictionData_Server_Character* UCharacterMovementComponent::GetPredict
 {
 	// Should only be called on server in network games
 	checkSlow(CharacterOwner != NULL);
-	checkSlow(CharacterOwner->Role == ROLE_Authority);
+	checkSlow(CharacterOwner->GetLocalRole() == ROLE_Authority);
 	checkSlow(GetNetMode() < NM_Client);
 
 	if (ServerPredictionData == nullptr)
@@ -8098,7 +8100,7 @@ void UCharacterMovementComponent::ReplicateMoveToServer(float DeltaTime, const F
 	NewMove->PostUpdate(CharacterOwner, FSavedMove_Character::PostUpdate_Record);
 
 	// Add NewMove to the list
-	if (CharacterOwner->bReplicateMovement)
+	if (CharacterOwner->IsReplicatingMovement())
 	{
 		check(NewMove == NewMovePtr.Get());
 		ClientData->SavedMoves.Push(NewMovePtr);
@@ -8376,7 +8378,7 @@ void UCharacterMovementComponent::ProcessClientTimeStampForTimeDiscrepancy(float
 {
 	// Should only be called on server in network games
 	check(CharacterOwner != NULL);
-	check(CharacterOwner->Role == ROLE_Authority);
+	check(CharacterOwner->GetLocalRole() == ROLE_Authority);
 	checkSlow(GetNetMode() < NM_Client);
 
 	// Movement time discrepancy detection and resolution (potentially caused by client speed hacks, time manipulation)
@@ -9846,7 +9848,7 @@ void UCharacterMovementComponent::ApplyWorldOffset(const FVector& InOffset, bool
 	OldBaseLocation += InOffset;
 	LastUpdateLocation += InOffset;
 
-	if (CharacterOwner != nullptr && CharacterOwner->Role == ROLE_AutonomousProxy)
+	if (CharacterOwner != nullptr && CharacterOwner->GetLocalRole() == ROLE_AutonomousProxy)
 	{
 		FNetworkPredictionData_Client_Character* ClientData = GetPredictionData_Client_Character();
 		if (ClientData != nullptr)
@@ -9909,7 +9911,7 @@ void UCharacterMovementComponent::TickCharacterPose(float DeltaTime)
 			{
 				FAnimMontageInstance* RootMotionMontageInstance = CharacterOwner->GetRootMotionAnimMontageInstance();
 				UE_LOG(LogRootMotion, Log, TEXT("UCharacterMovementComponent::TickCharacterPose Role: %s, RootMotionMontage: %s, MontagePos: %f, DeltaTime: %f, ExtractedRootMotion: %s, AccumulatedRootMotion: %s")
-					, *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), CharacterOwner->Role)
+					, *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), CharacterOwner->GetLocalRole())
 					, *GetNameSafe(RootMotionMontageInstance ? RootMotionMontageInstance->Montage : NULL)
 					, RootMotionMontageInstance ? RootMotionMontageInstance->GetPosition() : -1.f
 					, DeltaTime
@@ -9942,7 +9944,7 @@ uint16 UCharacterMovementComponent::ApplyRootMotionSource(FRootMotionSource* Sou
 		{
 			if (CharacterOwner)
 			{
-				if (CharacterOwner->Role == ROLE_AutonomousProxy)
+				if (CharacterOwner->GetLocalRole() == ROLE_AutonomousProxy)
 				{
 					// Autonomous defaults to local timestamp
 					FNetworkPredictionData_Client_Character* ClientData = GetPredictionData_Client_Character();
@@ -9951,7 +9953,7 @@ uint16 UCharacterMovementComponent::ApplyRootMotionSource(FRootMotionSource* Sou
 						SourcePtr->StartTime = ClientData->CurrentTimeStamp;
 					}
 				}
-				else if (CharacterOwner->Role == ROLE_Authority && !IsNetMode(NM_Client))
+				else if (CharacterOwner->GetLocalRole() == ROLE_Authority && !IsNetMode(NM_Client))
 				{
 					// Authority defaults to current client time stamp, meaning it'll start next tick if not corrected
 					FNetworkPredictionData_Server_Character* ServerData = GetPredictionData_Server_Character();
@@ -10589,8 +10591,8 @@ void FSavedMove_Character::SetInitialPosition(ACharacter* Character)
 	{
 		StartAttachParent = UpdatedComponent->GetAttachParent();
 		StartAttachSocketName = UpdatedComponent->GetAttachSocketName();
-		StartAttachRelativeLocation = UpdatedComponent->RelativeLocation;
-		StartAttachRelativeRotation = UpdatedComponent->RelativeRotation;
+		StartAttachRelativeLocation = UpdatedComponent->GetRelativeLocation();
+		StartAttachRelativeRotation = UpdatedComponent->GetRelativeRotation();
 	}
 
 	StartControlRotation = Character->GetControlRotation().Clamp();
@@ -10640,8 +10642,8 @@ void FSavedMove_Character::PostUpdate(ACharacter* Character, FSavedMove_Characte
 		{
 			EndAttachParent = UpdatedComponent->GetAttachParent();
 			EndAttachSocketName = UpdatedComponent->GetAttachSocketName();
-			EndAttachRelativeLocation = UpdatedComponent->RelativeLocation;
-			EndAttachRelativeRotation = UpdatedComponent->RelativeRotation;
+			EndAttachRelativeLocation = UpdatedComponent->GetRelativeLocation();
+			EndAttachRelativeRotation = UpdatedComponent->GetRelativeRotation();
 		}
 
 		SavedControlRotation = Character->GetControlRotation().Clamp();
@@ -10674,6 +10676,18 @@ void FSavedMove_Character::PostUpdate(ACharacter* Character, FSavedMove_Characte
 
 		// Don't combine or delay moves where velocity changes to/from zero.
 		if (StartVelocity.IsZero() != SavedVelocity.IsZero())
+		{
+			bForceNoCombine = true;
+		}
+
+		// Don't combine if this move caused us to change movement modes during the move.
+		if (StartPackedMovementMode != EndPackedMovementMode)
+		{
+			bForceNoCombine = true;
+		}
+
+		// Don't combine when jump input just began or ended during the move.
+		if (bPressedJump != CharacterOwner->bPressedJump)
 		{
 			bForceNoCombine = true;
 		}
@@ -10907,6 +10921,11 @@ bool FSavedMove_Character::CanCombineWith(const FSavedMovePtr& NewMovePtr, AChar
 		}
 	}
 
+	if (StartPackedMovementMode != NewMove->StartPackedMovementMode)
+	{
+		return false;
+	}
+
 	if (EndPackedMovementMode != NewMove->StartPackedMovementMode)
 	{
 		return false;
@@ -11091,7 +11110,7 @@ void UCharacterMovementComponent::UpdateFromCompressedFlags(uint8 Flags)
 	bWantsToCrouch = ((Flags & FSavedMove_Character::FLAG_WantsToCrouch) != 0);
 
 	// Detect change in jump press on the server
-	if (CharacterOwner->Role == ROLE_Authority) 
+	if (CharacterOwner->GetLocalRole() == ROLE_Authority) 
 	{
 		const bool bIsPressingJump = CharacterOwner->bPressedJump;
 		if (bIsPressingJump && !bWasPressingJump)
@@ -11108,7 +11127,7 @@ void UCharacterMovementComponent::UpdateFromCompressedFlags(uint8 Flags)
 void UCharacterMovementComponent::FlushServerMoves()
 {
 	// Send pendingMove to server if this character is replicating movement
-	if (CharacterOwner && CharacterOwner->bReplicateMovement && (CharacterOwner->Role == ROLE_AutonomousProxy))
+	if (CharacterOwner && CharacterOwner->IsReplicatingMovement() && (CharacterOwner->GetLocalRole() == ROLE_AutonomousProxy))
 	{
 		FNetworkPredictionData_Client_Character* ClientData = GetPredictionData_Client_Character();
 		if (!ClientData)

@@ -101,7 +101,7 @@ void FUnixCrashContext::InitFromSignal(int32 InSignal, siginfo_t* InInfo, void* 
 	Info = InInfo;
 	Context = reinterpret_cast< ucontext_t* >( InContext );
 
-	FCString::Strcat(SignalDescription, ARRAY_COUNT( SignalDescription ) - 1, *DescribeSignal(Signal, Info, Context));
+	FCString::Strcat(SignalDescription, UE_ARRAY_COUNT( SignalDescription ) - 1, *DescribeSignal(Signal, Info, Context));
 }
 
 void FUnixCrashContext::InitFromEnsureHandler(const TCHAR* EnsureMessage, const void* CrashAddress)
@@ -116,10 +116,10 @@ void FUnixCrashContext::InitFromEnsureHandler(const TCHAR* EnsureMessage, const 
 	Context = nullptr;
 
 	// set signal description to a more human-readable one for ensures
-	FCString::Strcpy(SignalDescription, ARRAY_COUNT(SignalDescription) - 1, EnsureMessage);
+	FCString::Strcpy(SignalDescription, UE_ARRAY_COUNT(SignalDescription) - 1, EnsureMessage);
 
 	// only need the first string
-	for (int Idx = 0; Idx < ARRAY_COUNT(SignalDescription); ++Idx)
+	for (int Idx = 0; Idx < UE_ARRAY_COUNT(SignalDescription); ++Idx)
 	{
 		if (SignalDescription[Idx] == TEXT('\n'))
 		{
@@ -155,7 +155,7 @@ void CreateExceptionInfoString(int32 Signal, siginfo_t* Info, ucontext_t *Contex
 {
 	FString ErrorString = TEXT("Unhandled Exception: ");
 	ErrorString += DescribeSignal(Signal, Info, Context);
-	FCString::Strncpy(GErrorExceptionDescription, *ErrorString, FMath::Min(ErrorString.Len() + 1, (int32)ARRAY_COUNT(GErrorExceptionDescription)));
+	FCString::Strncpy(GErrorExceptionDescription, *ErrorString, FMath::Min(ErrorString.Len() + 1, (int32)UE_ARRAY_COUNT(GErrorExceptionDescription)));
 }
 
 namespace
@@ -303,7 +303,7 @@ void FUnixCrashContext::CaptureStackTrace()
 		printf("StackTrace:\n%s\n", StackTrace);
 #endif
 
-		FCString::Strncat( GErrorHist, UTF8_TO_TCHAR(StackTrace), ARRAY_COUNT(GErrorHist) - 1 );
+		FCString::Strncat( GErrorHist, UTF8_TO_TCHAR(StackTrace), UE_ARRAY_COUNT(GErrorHist) - 1 );
 		CreateExceptionInfoString(Signal, Info, Context);
 
 		FMemory::Free( StackTrace );
