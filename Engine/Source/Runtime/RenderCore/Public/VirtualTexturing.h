@@ -97,7 +97,6 @@ struct FVTProducerDescription
 	
 	bool bPersistentHighestMip = true;
 	bool bContinuousUpdate = false;
-	bool bCreateRenderTarget = false;
 	
 	uint32 TileSize = 0u;
 	uint32 TileBorderSize = 0u;
@@ -188,10 +187,10 @@ struct FVTRequestPageResult
 /** Describes a location to write a single layer of a VT tile */
 struct FVTProduceTargetLayer
 {
-	/** The texture to write to */
+	/** The texture to write to. */
 	FRHITexture* TextureRHI = nullptr;
-
-	TRefCountPtr<struct IPooledRenderTarget> PooledRenderTarget;
+	/** The UAV to write to. This may be nullptr if no suitable UAV can be created for the texture format.  */
+	FRHIUnorderedAccessView* UnorderedAccessViewRHI = nullptr;
 
 	/** Location within the texture to write */
 	FIntVector pPageLocation;
@@ -298,7 +297,7 @@ public:
 
 	virtual FRHITexture* GetPageTableTexture(uint32 InPageTableIndex) const = 0;
 	virtual FRHITexture* GetPhysicalTexture(uint32 InLayerIndex) const = 0;
-	virtual FRHIShaderResourceView* GetPhysicalTextureView(uint32 InLayerIndex, bool bSRGB) const = 0;
+	virtual FRHIShaderResourceView* GetPhysicalTextureSRV(uint32 InLayerIndex, bool bSRGB) const = 0;
 	virtual uint32 GetPhysicalTextureSize(uint32 InLayerIndex) const = 0;
 	virtual uint32 GetNumPageTableTextures() const = 0;
 

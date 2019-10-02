@@ -21,8 +21,7 @@ public:
 	/** A description for a single tile to render. */
 	struct FTileEntry
 	{
-		FRHITexture2D* Textures[RuntimeVirtualTexture::MaxTextureLayers] = { nullptr };
-		FIntPoint DestPos[RuntimeVirtualTexture::MaxTextureLayers];
+		FVTProduceTargetLayer Targets[RuntimeVirtualTexture::MaxTextureLayers];
 		uint32 vAddress = 0;
 		uint8 vLevel = 0;
 	};

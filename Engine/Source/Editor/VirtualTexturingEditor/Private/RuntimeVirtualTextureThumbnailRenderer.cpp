@@ -84,9 +84,7 @@ void URuntimeVirtualTextureThumbnailRenderer::Draw(UObject* Object, int32 X, int
 		Desc.bClearTextures = true;
 		Desc.DebugType = ERuntimeVirtualTextureDebugType::None;
 		Desc.NumPageDescs = 1;
-		Desc.Textures[0] = RenderTarget->GetRenderTargetTexture();
-		Desc.Textures[1] = nullptr;
-		Desc.Textures[2] = nullptr;
+		Desc.Targets[0].Texture = RenderTarget->GetRenderTargetTexture();
 		Desc.PageDescs[0].DestBox[0] = DestBox;
 		Desc.PageDescs[0].UVRange = FBox2D(FVector2D(0, 0), FVector2D(1, 1));
 		Desc.PageDescs[0].vLevel = MaxLevel;
