@@ -241,7 +241,7 @@ protected:
 	int32 OnGeneratePCMAudio(float* GeneratedPCMData, int32 NumSamples);
 
 	// Gets the audio device associated with this synth component
-	FAudioDevice* GetAudioDevice() { return AudioComponent ? AudioComponent->GetAudioDevice() : nullptr; }
+	FAudioDevice* GetAudioDevice();
 
 	// Can be set by the derived class, defaults to 2
 	int32 NumChannels;
