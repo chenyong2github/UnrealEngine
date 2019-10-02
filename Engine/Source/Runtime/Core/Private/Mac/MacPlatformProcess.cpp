@@ -675,7 +675,10 @@ bool FMacPlatformProcess::GetProcReturnCode( FProcHandle& ProcessHandle, int32* 
 		return false;
 	}
 
-	*ReturnCode = [(NSTask*)ProcessHandle.Get() terminationStatus];
+	if (ReturnCode)
+	{
+		*ReturnCode = [(NSTask*)ProcessHandle.Get() terminationStatus];
+	}
 	return true;
 }
 

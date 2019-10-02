@@ -312,6 +312,10 @@ SubmitCrashReportResult RunWithUI(FPlatformErrorReport ErrorReport)
 		FModuleManager::LoadModuleChecked<ISlateReflectorModule>("SlateReflector").DisplayWidgetReflector();
 	}
 
+	// Bring the window to the foreground as it may be behind the crashed process
+	Window->HACK_ForceToFront();
+	Window->BringToFront();
+
 	// loop until the app is ready to quit
 	while (!(IsEngineExitRequested() || CrashReportClient->IsUploadComplete()))
 	{
@@ -621,19 +625,31 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 		TUniquePtr<FEditorSessionSummarySender> EditorSessionSummarySender;
 		if (FCrashReportCoreConfig::Get().GetAllowToBeContacted())
 		{
-			EditorSessionSummarySender = MakeUnique<FEditorSessionSummarySender>(FCrashReportAnalytics::GetProvider(), TEXT("CrashReportClient"));
+			EditorSessionSummarySender = MakeUnique<FEditorSessionSummarySender>(FCrashReportAnalytics::GetProvider(), TEXT("CrashReportClient"), MonitorPid);
 
-			FTicker::GetCoreTicker().AddTicker(TEXT("EditorSessionSummarySender"), 0, 
-				[&EditorSessionSummarySender](float DeltaTime)
-				{
-					EditorSessionSummarySender->Tick(DeltaTime);
-					return true;
-				});
+			FTicker::GetCoreTicker().AddTicker(TEXT("EditorSessionSummarySender"), 0, [&EditorSessionSummarySender](float DeltaTime)
+			{
+				EditorSessionSummarySender->Tick(DeltaTime);
+				return true;
+			});
 		}
 #endif
 
+		FProcHandle MonitoredProcess = FPlatformProcess::OpenProcess(MonitorPid);
+		if (!MonitoredProcess.IsValid())
+		{
+			UE_LOG(CrashReportClientLog, Error, TEXT("Failed to open monitor process handle!"));
+		}
+
+		auto IsMonitoredProcessAlive = [&MonitoredProcess](int32& OutReturnCode) -> bool
+		{
+			// The monitored process is considered "alive" if the process is running, and no return code has been set
+			return MonitoredProcess.IsValid() && FPlatformProcess::IsProcRunning(MonitoredProcess) && !FPlatformProcess::GetProcReturnCode(MonitoredProcess, &OutReturnCode);
+		};
+
 		// This IsApplicationAlive() call is quite expensive, perform it at low frequency.
-		bool bApplicationAlive = FPlatformProcess::IsApplicationAlive(MonitorPid);
+		int32 ApplicationReturnCode = 0;
+		bool bApplicationAlive = IsMonitoredProcessAlive(ApplicationReturnCode);
 		while (bApplicationAlive && !IsEngineExitRequested())
 		{
 			const double CurrentTime = FPlatformTime::Seconds();
@@ -683,7 +699,7 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 			// Check if the application is alive about every second. (This is an expensive call)
 			if (GFrameCounter % IdealFramerate == 0)
 			{
-				bApplicationAlive = FPlatformProcess::IsApplicationAlive(MonitorPid);
+				bApplicationAlive = IsMonitoredProcessAlive(ApplicationReturnCode);
 			}
 
 			LastTime = CurrentTime;
@@ -692,6 +708,12 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 #if CRASH_REPORT_WITH_MTBF
 		if (EditorSessionSummarySender.IsValid())
 		{
+			// Query this again, as the crash reporting loop above may have exited before setting this information (via IsEngineExitRequested)
+			bApplicationAlive = IsMonitoredProcessAlive(ApplicationReturnCode);
+			if (!bApplicationAlive)
+			{
+				EditorSessionSummarySender->SetCurrentSessionExitCode(MonitorPid, ApplicationReturnCode);
+			}
 			EditorSessionSummarySender->Shutdown();
 		}
 #endif

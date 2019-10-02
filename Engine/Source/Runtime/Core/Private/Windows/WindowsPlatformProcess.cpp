@@ -31,15 +31,6 @@
 	#include <LM.h>
 	#include <Psapi.h>
 	#include <TlHelp32.h>
-
-	namespace ProcessConstants
-	{
-		uint32 WIN_STD_INPUT_HANDLE = STD_INPUT_HANDLE;
-		uint32 WIN_STD_OUTPUT_HANDLE = STD_OUTPUT_HANDLE;
-		uint32 WIN_ATTACH_PARENT_PROCESS = ATTACH_PARENT_PROCESS;		
-		uint32 WIN_STILL_ACTIVE = STILL_ACTIVE;
-	}
-
 #include "Windows/HideWindowsPlatformTypes.h"
 #include "Windows/WindowsPlatformMisc.h"
 
@@ -471,7 +462,16 @@ void FWindowsPlatformProcess::SetThreadAffinityMask( uint64 AffinityMask )
 
 bool FWindowsPlatformProcess::GetProcReturnCode( FProcHandle & ProcHandle, int32* ReturnCode )
 {
-	return ::GetExitCodeProcess( ProcHandle.Get(), (::DWORD *)ReturnCode ) && *((uint32*)ReturnCode) != ProcessConstants::WIN_STILL_ACTIVE;
+	DWORD ExitCode = 0;
+	if (::GetExitCodeProcess(ProcHandle.Get(), &ExitCode) && ExitCode != STILL_ACTIVE)
+	{
+		if (ReturnCode)
+		{
+			*ReturnCode = (int32)ExitCode;
+		}
+		return true;
+	}
+	return false;
 }
 
 bool FWindowsPlatformProcess::GetApplicationMemoryUsage(uint32 ProcessId, SIZE_T* OutMemoryUsage)
@@ -640,15 +640,6 @@ bool FWindowsPlatformProcess::IsApplicationRunning( const TCHAR* ProcName )
 
 	::CloseHandle( SnapShot );
 	return false;
-}
-
-bool FWindowsPlatformProcess::IsApplicationAlive(uint32 ProcessId)
-{
-	DWORD ExitCode;
-	HANDLE ProcessHandle = ::OpenProcess(PROCESS_QUERY_INFORMATION, false, ProcessId);
-	const BOOL result = GetExitCodeProcess(ProcessHandle, &ExitCode);
-	CloseHandle(ProcessHandle);
-	return result && ExitCode == STILL_ACTIVE;
 }
 
 FString FWindowsPlatformProcess::GetApplicationName( uint32 ProcessId )

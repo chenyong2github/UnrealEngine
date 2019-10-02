@@ -412,10 +412,6 @@ struct CORE_API FGenericPlatformProcess
 	/** Returns true if the specified application is running */
 	static bool IsApplicationRunning( const TCHAR* ProcName );
 
-	/** Returns true if the specified application has alive, false if it has exited. This is slightly different that IsApplicationRunning,
-	as we are able to query applications that has crashed but not yet exited. */
-	static bool IsApplicationAlive(uint32 ProcessId);
-
 	/** Returns the Name of process given by the PID.  Returns Empty string "" if PID not found. */
 	static FString GetApplicationName( uint32 ProcessId );
 

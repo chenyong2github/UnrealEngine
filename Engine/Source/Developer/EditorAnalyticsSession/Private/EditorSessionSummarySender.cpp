@@ -26,10 +26,11 @@ namespace EditorSessionSenderDefs
 	static const FString AbnormalSessionToken(TEXT("AbnormalShutdown"));
 }
 
-FEditorSessionSummarySender::FEditorSessionSummarySender(IAnalyticsProvider& InAnalyticsProvider, const FString& InSenderName) :
-	HeartbeatTimeElapsed(0.0f)
+FEditorSessionSummarySender::FEditorSessionSummarySender(IAnalyticsProvider& InAnalyticsProvider, const FString& InSenderName, const int32 InCurrentSessionProcessId)
+	: HeartbeatTimeElapsed(0.0f)
 	, AnalyticsProvider(InAnalyticsProvider)
 	, Sender(InSenderName)
+	, CurrentSessionProcessId(InCurrentSessionProcessId)
 {
 	SendStoredSessions();
 }
@@ -48,10 +49,16 @@ void FEditorSessionSummarySender::Tick(float DeltaTime)
 
 void FEditorSessionSummarySender::Shutdown()
 {
-	SendStoredSessions();
+	SendStoredSessions(/*bForceSendCurrentSession*/true);
 }
 
-void FEditorSessionSummarySender::SendStoredSessions() const
+void FEditorSessionSummarySender::SetCurrentSessionExitCode(const int32 InCurrentSessionProcessId, const int32 InExitCode)
+{
+	check(CurrentSessionProcessId == InCurrentSessionProcessId);
+	CurrentSessionExitCode = InExitCode;
+}
+
+void FEditorSessionSummarySender::SendStoredSessions(const bool bForceSendCurrentSession) const
 {
 	TArray<FEditorAnalyticsSession> SessionsToReport;
 
@@ -66,7 +73,8 @@ void FEditorSessionSummarySender::SendStoredSessions() const
 		// Check each stored session to see if they should be sent or not 
 		for (FEditorAnalyticsSession& Session : ExistingSessions)
 		{
-			if (FPlatformProcess::IsApplicationRunning(Session.PlatformProcessID))
+			const bool bForceSendSession = bForceSendCurrentSession && (Session.PlatformProcessID == CurrentSessionProcessId);
+			if (!bForceSendSession && FPlatformProcess::IsApplicationRunning(Session.PlatformProcessID))
 			{
 				// Skip processes that are still running
 				continue;
@@ -168,6 +176,11 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 	AnalyticsAttributes.Emplace(TEXT("SentFrom"), Sender);
 
 	AnalyticsProvider.RecordEvent(TEXT("SessionSummary"), AnalyticsAttributes);
+
+	if (Session.PlatformProcessID == CurrentSessionProcessId && CurrentSessionExitCode.IsSet())
+	{
+		AnalyticsAttributes.Emplace(TEXT("ExitCode"), CurrentSessionExitCode.GetValue());
+	}
 
 	UE_LOG(LogEditorSessionSummary, Log, TEXT("EditorSessionSummary sent report. Type=%s, SessionId=%s"), *ShutdownTypeString, *SessionIdString);
 }

@@ -176,7 +176,7 @@ void FEngineAnalytics::Initialize()
 			// if we're using out-of-process crash reporting, then we don't need to create a sender in this process.
 			if (!FGenericCrashContext::IsOutOfProcessCrashReporter())
 			{
-				SessionSummarySender = MakeShareable(new FEditorSessionSummarySender(FEngineAnalytics::GetProvider(), TEXT("Editor")));
+				SessionSummarySender = MakeShared<FEditorSessionSummarySender>(FEngineAnalytics::GetProvider(), TEXT("Editor"), FPlatformProcess::GetCurrentProcessId());
 			}
 		}
 #endif
