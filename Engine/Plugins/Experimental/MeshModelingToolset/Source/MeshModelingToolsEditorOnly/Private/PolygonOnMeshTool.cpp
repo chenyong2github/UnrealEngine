@@ -179,7 +179,7 @@ void UPolygonOnMeshTool::Shutdown(EToolShutdownType ShutdownType)
 	// Restore (unhide) the source meshes
 	ComponentTarget->SetOwnerVisibility(true);
 
-	TArray<TUniquePtr<FDynamicMeshOpResult>> Results;
+	TArray<FDynamicMeshOpResult> Results;
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
 	{
 		Results.Emplace(Preview->Shutdown());
@@ -305,7 +305,7 @@ bool UPolygonOnMeshTool::CanAccept() const
 }
 
 
-void UPolygonOnMeshTool::GenerateAsset(const TArray<TUniquePtr<FDynamicMeshOpResult>>& Results)
+void UPolygonOnMeshTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 {
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("PolygonOnMeshToolTransactionName", "Polygon On Mesh Tool"));
 	
@@ -313,11 +313,11 @@ void UPolygonOnMeshTool::GenerateAsset(const TArray<TUniquePtr<FDynamicMeshOpRes
 	// first preview always replaces, and any subsequent previews can add new actors
 	// TODO: options to support other choices re what should be a new actor
 	check(Results.Num() > 0);
-	check(Results[0]->Mesh.Get() != nullptr);
+	check(Results[0].Mesh.Get() != nullptr);
 	ComponentTarget->CommitMesh([&Results](FMeshDescription* MeshDescription)
 	{
 		FDynamicMeshToMeshDescription Converter;
-		Converter.Convert(Results[0]->Mesh.Get(), *MeshDescription);
+		Converter.Convert(Results[0].Mesh.Get(), *MeshDescription);
 	});
 
 	// currently nothing generates more than the single result for this tool

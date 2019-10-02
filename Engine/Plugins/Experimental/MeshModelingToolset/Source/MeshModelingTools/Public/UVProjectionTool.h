@@ -190,7 +190,7 @@ protected:
 
 	void UpdateNumPreviews();
 
-	void GenerateAsset(const TArray<TUniquePtr<FDynamicMeshOpResult>>& Results);
+	void GenerateAsset(const TArray<FDynamicMeshOpResult>& Results);
 
 	void TransformChanged(UTransformProxy* Proxy, FTransform Transform);
 };

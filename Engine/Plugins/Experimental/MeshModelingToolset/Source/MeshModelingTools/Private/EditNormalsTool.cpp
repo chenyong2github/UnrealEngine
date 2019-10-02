@@ -162,10 +162,10 @@ void UEditNormalsTool::Shutdown(EToolShutdownType ShutdownType)
 		ComponentTarget->SetOwnerVisibility(true);
 	}
 
-	TArray<TUniquePtr<FDynamicMeshOpResult>> Results;
+	TArray<FDynamicMeshOpResult> Results;
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
 	{
-		Results.Emplace(Preview->Shutdown());
+		Results.Add(Preview->Shutdown());
 	}
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
@@ -253,7 +253,7 @@ bool UEditNormalsTool::CanAccept() const
 }
 
 
-void UEditNormalsTool::GenerateAsset(const TArray<TUniquePtr<FDynamicMeshOpResult>>& Results)
+void UEditNormalsTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 {
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("EditNormalsToolTransactionName", "Edit Normals Tool"));
 
@@ -261,7 +261,7 @@ void UEditNormalsTool::GenerateAsset(const TArray<TUniquePtr<FDynamicMeshOpResul
 	
 	for (int32 ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
 	{
-		check(Results[ComponentIdx]->Mesh.Get() != nullptr);
+		check(Results[ComponentIdx].Mesh.Get() != nullptr);
 		ComponentTargets[ComponentIdx]->CommitMesh([&Results, &ComponentIdx, this](FMeshDescription* MeshDescription)
 		{
 			FDynamicMeshToMeshDescription Converter;
@@ -269,12 +269,12 @@ void UEditNormalsTool::GenerateAsset(const TArray<TUniquePtr<FDynamicMeshOpResul
 			if (BasicProperties->WillTopologyChange())
 			{
 				// full conversion if normal topology changed or faces were inverted
-				Converter.Convert(Results[ComponentIdx]->Mesh.Get(), *MeshDescription);
+				Converter.Convert(Results[ComponentIdx].Mesh.Get(), *MeshDescription);
 			}
 			else
 			{
 				// otherwise just copy attributes
-				Converter.UpdateAttributes(Results[ComponentIdx]->Mesh.Get(), *MeshDescription, true, false);
+				Converter.UpdateAttributes(Results[ComponentIdx].Mesh.Get(), *MeshDescription, true, false);
 			}
 		});
 	}

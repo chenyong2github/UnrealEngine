@@ -12,14 +12,14 @@ void UMeshOpPreviewWithBackgroundCompute::Setup(UWorld* InWorld, IDynamicMeshOpe
 	bResultValid = false;
 }
 
-TUniquePtr<FDynamicMeshOpResult> UMeshOpPreviewWithBackgroundCompute::Shutdown()
+FDynamicMeshOpResult UMeshOpPreviewWithBackgroundCompute::Shutdown()
 {
 	BackgroundCompute->CancelActiveCompute();
 
 
-	TUniquePtr<FDynamicMeshOpResult> Result = MakeUnique<FDynamicMeshOpResult>();
-	Result->Mesh = PreviewMesh->ExtractPreviewMesh();
-	Result->Transform = FTransform3d(PreviewMesh->GetTransform());
+	FDynamicMeshOpResult Result{};
+	Result.Mesh = PreviewMesh->ExtractPreviewMesh();
+	Result.Transform = FTransform3d(PreviewMesh->GetTransform());
 
 	PreviewMesh->SetVisible(false);
 	PreviewMesh->Disconnect();

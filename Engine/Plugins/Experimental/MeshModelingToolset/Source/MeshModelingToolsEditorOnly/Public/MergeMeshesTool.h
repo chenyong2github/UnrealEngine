@@ -114,5 +114,5 @@ protected:
 	/** quickly generate a low-quality result for display while the actual result is being computed. */
 	void CreateLowQualityPreview();
 
-	void GenerateAsset(const TUniquePtr<FDynamicMeshOpResult>& Result);
+	void GenerateAsset(const FDynamicMeshOpResult& Result);
 };

@@ -134,10 +134,10 @@ void UParameterizeMeshTool::OnPropertyModified(UObject* PropertySet, UProperty* 
 void UParameterizeMeshTool::Shutdown(EToolShutdownType ShutdownType)
 {
 
-	TUniquePtr<FDynamicMeshOpResult> Result = Preview->Shutdown();
+	FDynamicMeshOpResult Result = Preview->Shutdown();
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
-		FDynamicMesh3* DynamicMeshResult = Result->Mesh.Get();
+		FDynamicMesh3* DynamicMeshResult = Result.Mesh.Get();
 		check(DynamicMeshResult != nullptr);
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("ParameterizeMesh", "Parameterize Mesh"));
 

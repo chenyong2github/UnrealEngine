@@ -192,7 +192,7 @@ void UUVProjectionTool::Shutdown(EToolShutdownType ShutdownType)
 		ComponentTarget->SetOwnerVisibility(true);
 	}
 
-	TArray<TUniquePtr<FDynamicMeshOpResult>> Results;
+	TArray<FDynamicMeshOpResult> Results;
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
 	{
 		Results.Emplace(Preview->Shutdown());
@@ -332,7 +332,7 @@ bool UUVProjectionTool::CanAccept() const
 }
 
 
-void UUVProjectionTool::GenerateAsset(const TArray<TUniquePtr<FDynamicMeshOpResult>>& Results)
+void UUVProjectionTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 {
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("UVProjectionToolTransactionName", "UV Projection Tool"));
 
@@ -340,14 +340,14 @@ void UUVProjectionTool::GenerateAsset(const TArray<TUniquePtr<FDynamicMeshOpResu
 	
 	for (int32 ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
 	{
-		check(Results[ComponentIdx]->Mesh.Get() != nullptr);
+		check(Results[ComponentIdx].Mesh.Get() != nullptr);
 		ComponentTargets[ComponentIdx]->CommitMesh([&Results, &ComponentIdx, this](FMeshDescription* MeshDescription)
 		{
 			FDynamicMeshToMeshDescription Converter;
 			//if (??) // TODO check if UV topology changed?  or remove all traces of this if statement (may be safe to assume it almost always changes w/ a uv projection op)
 			{
 				// full conversion if topology changed
-				Converter.Convert(Results[ComponentIdx]->Mesh.Get(), *MeshDescription);
+				Converter.Convert(Results[ComponentIdx].Mesh.Get(), *MeshDescription);
 			}
 			//else
 			//{

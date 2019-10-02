@@ -14,18 +14,7 @@
  * FBackgroundDynamicMeshComputeSource is an instantiation of the TBackgroundModelingComputeSource
  * template for FDynamicMeshOperator / IDynamicMeshOperatorFactory
  */
-class MODELINGCOMPONENTS_API FBackgroundDynamicMeshComputeSource
-	: public TBackgroundModelingComputeSource<FDynamicMeshOperator, IDynamicMeshOperatorFactory>
-{
-public:
-	using BaseType = TBackgroundModelingComputeSource<FDynamicMeshOperator, IDynamicMeshOperatorFactory>;
-
-	FBackgroundDynamicMeshComputeSource(IDynamicMeshOperatorFactory* OperatorSourceIn)
-		: BaseType(OperatorSourceIn)
-	{
-	}
-};
-
+using FBackgroundDynamicMeshComputeSource = TBackgroundModelingComputeSource<FDynamicMeshOperator, IDynamicMeshOperatorFactory>;
 
 
 /**
@@ -74,7 +63,7 @@ public:
 	/**
 	 * Terminate any active computation and return the current Preview Mesh/Transform
 	 */
-	TUniquePtr<FDynamicMeshOpResult> Shutdown();
+	FDynamicMeshOpResult Shutdown();
 
 	/**
 	* Terminate any active computation without returning anything

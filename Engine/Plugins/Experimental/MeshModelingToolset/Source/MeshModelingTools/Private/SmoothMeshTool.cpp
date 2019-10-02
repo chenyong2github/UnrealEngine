@@ -114,13 +114,13 @@ void USmoothMeshTool::Shutdown(EToolShutdownType ShutdownType)
 
 	if (Preview != nullptr)
 	{
-		TUniquePtr<FDynamicMeshOpResult> Result = Preview->Shutdown();
+		FDynamicMeshOpResult Result = Preview->Shutdown();
 		if (ShutdownType == EToolShutdownType::Accept)
 		{
 			
 			GetToolManager()->BeginUndoTransaction(LOCTEXT("SmoothMeshToolTransactionName", "Smooth Mesh"));
 
-			FDynamicMesh3* DynamicMeshResult = Result->Mesh.Get();
+			FDynamicMesh3* DynamicMeshResult = Result.Mesh.Get();
 			check(DynamicMeshResult != nullptr);
 
 			ComponentTarget->CommitMesh([DynamicMeshResult](FMeshDescription* MeshDescription)

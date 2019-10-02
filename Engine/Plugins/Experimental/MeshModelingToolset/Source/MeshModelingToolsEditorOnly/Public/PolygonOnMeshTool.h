@@ -179,5 +179,5 @@ protected:
 
 	virtual void SetPlaneFromWorldPos(const FVector& Position, const FVector& Normal);
 
-	void GenerateAsset(const TArray<TUniquePtr<FDynamicMeshOpResult>>& Results);
+	void GenerateAsset(const TArray<FDynamicMeshOpResult>& Results);
 };
