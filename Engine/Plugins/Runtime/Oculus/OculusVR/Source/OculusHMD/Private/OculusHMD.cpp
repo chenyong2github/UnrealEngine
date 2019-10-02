@@ -2074,6 +2074,8 @@ namespace OculusHMD
 		{
 			Splash->Shutdown();
 			Splash = nullptr;
+			// The base implementation stores a raw pointer to the Splash object and tries to deallocate it in its destructor
+			LoadingScreen = nullptr;
 		}
 
 		if (CustomPresent.IsValid())
