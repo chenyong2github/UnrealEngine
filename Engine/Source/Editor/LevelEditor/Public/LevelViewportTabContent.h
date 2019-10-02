@@ -22,7 +22,7 @@ public:
 	bool IsVisible() const;
 
 	/** Returns an array of viewports inside this tab */
-	const TMap< FName, TSharedPtr< IAssetViewportLayoutEntity > >* GetViewports() const;
+	const TMap< FName, TSharedPtr< IEditorViewportLayoutEntity > >* GetViewports() const;
 
 	/**
 	 * Sets the current layout by changing the contained layout object

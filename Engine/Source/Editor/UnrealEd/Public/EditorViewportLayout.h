@@ -5,11 +5,11 @@
 #include "CoreMinimal.h"
 
 
-class IAssetViewportLayoutEntity : public TSharedFromThis<IAssetViewportLayoutEntity>
+class IEditorViewportLayoutEntity : public TSharedFromThis<IEditorViewportLayoutEntity>
 {
 public:
 	/** Virtual destruction */
-	virtual ~IAssetViewportLayoutEntity() {};
+	virtual ~IEditorViewportLayoutEntity() {};
 
 	/** Return a widget that is represents this entity */
 	virtual TSharedRef<SWidget> AsWidget() const = 0;
@@ -30,16 +30,16 @@ public:
 	virtual void TakeHighResScreenShot() const = 0;
 };
 
-class FAssetViewportLayout 
+class FEditorViewportLayout 
 {
 public:
 	/** Virtual destruction */
-	virtual ~FAssetViewportLayout() {};
+	virtual ~FEditorViewportLayout() {};
 
 	/**
 	* @return All the viewports in this configuration
 	*/
-	const TMap< FName, TSharedPtr<IAssetViewportLayoutEntity> >& GetViewports() const { return Viewports; }
+	const TMap< FName, TSharedPtr<IEditorViewportLayoutEntity> >& GetViewports() const { return Viewports; }
 
 	/**
 	* Saves viewport layout information between editor sessions
@@ -50,7 +50,7 @@ public:
 
 protected:
 	/** List of all of the viewports in this layout, keyed on their config key */
-	TMap< FName, TSharedPtr< IAssetViewportLayoutEntity > > Viewports;
+	TMap< FName, TSharedPtr< IEditorViewportLayoutEntity > > Viewports;
 
 
 };

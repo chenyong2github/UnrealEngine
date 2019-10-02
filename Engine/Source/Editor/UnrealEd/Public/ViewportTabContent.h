@@ -28,7 +28,7 @@ protected:
 	FString LayoutString;
 
 	/** Current layout */
-	TSharedPtr< class FAssetViewportLayout > ActiveViewportLayout;
+	TSharedPtr< class FEditorViewportLayout > ActiveViewportLayout;
 
 	TOptional<FName> PreviouslyFocusedViewport;
 };

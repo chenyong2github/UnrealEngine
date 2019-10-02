@@ -73,7 +73,7 @@ bool FLevelViewportTabContent::IsVisible() const
 	return false;
 }
 
-const TMap< FName, TSharedPtr< IAssetViewportLayoutEntity > >* FLevelViewportTabContent::GetViewports() const
+const TMap< FName, TSharedPtr< IEditorViewportLayoutEntity > >* FLevelViewportTabContent::GetViewports() const
 {
 	if (ActiveViewportLayout.IsValid())
 	{
@@ -164,7 +164,7 @@ void FLevelViewportTabContent::UpdateViewportTabWidget()
 
 		if (PreviouslyFocusedViewport.IsSet())
 		{
-			TSharedPtr<IAssetViewportLayoutEntity> ViewportToFocus = ActiveViewportLayout->GetViewports().FindRef(PreviouslyFocusedViewport.GetValue());
+			TSharedPtr<IEditorViewportLayoutEntity> ViewportToFocus = ActiveViewportLayout->GetViewports().FindRef(PreviouslyFocusedViewport.GetValue());
 			if (ViewportToFocus.IsValid())
 			{
 				ViewportToFocus->SetKeyboardFocus();
