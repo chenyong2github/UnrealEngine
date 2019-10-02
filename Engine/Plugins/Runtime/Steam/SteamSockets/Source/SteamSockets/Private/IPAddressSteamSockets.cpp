@@ -33,7 +33,7 @@ TArray<uint8> FInternetAddrSteamSockets::GetRawIp() const
 	{
 		const SteamNetworkingIPAddr* RawSteamIP = Addr.GetIPAddr();
 		RawAddressArray.Add(k_ESteamNetworkingIdentityType_IPAddress);
-		for (int32 i = 0; i < ARRAY_COUNT(RawSteamIP->m_ipv6); ++i)
+		for (int32 i = 0; i < UE_ARRAY_COUNT(RawSteamIP->m_ipv6); ++i)
 		{
 			RawAddressArray.Add(RawSteamIP->m_ipv6[i]);
 		}
