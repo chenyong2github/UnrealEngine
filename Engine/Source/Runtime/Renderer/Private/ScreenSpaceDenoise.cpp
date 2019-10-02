@@ -1221,7 +1221,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 		check(Union == View.ViewRect);
 	}
 
-	ensure(Settings.InputResolutionFraction == 1.0f || Settings.InputResolutionFraction == 0.5f);
+	ensure(Settings.InputResolutionFraction == 1.0f || Settings.InputResolutionFraction == 0.5f || Settings.InputResolutionFraction == 0.25f);
 	
 	auto GetResourceNames = [&](const TCHAR* const ResourceNames[])
 	{
