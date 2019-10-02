@@ -222,9 +222,6 @@ public:
 		FRHIResourceCreateInfo& CreateInfo,
 		FRHIGPUMask GPUMask = FRHIGPUMask::All());
 
-	// Queue up a command to signal the frame fence on the command list. This should only be called from the rendering thread.
-	void SignalFrameFence_RenderThread(FRHICommandListImmediate& RHICmdList);
-
 	template<typename ObjectType, typename CreationCoreFunction>
 	inline ObjectType* CreateLinkedObject(FRHIGPUMask GPUMask, const CreationCoreFunction& pfnCreationCore)
 	{
