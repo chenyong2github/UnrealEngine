@@ -25,15 +25,25 @@ FRigUnit_AddBoneTransform_Execute()
 			{
 				if (CachedBoneIndex != INDEX_NONE)
 				{
-					FTransform PreviousTransform = Hierarchy->GetGlobalTransform(CachedBoneIndex);
+					FTransform TargetTransform;
+					const FTransform PreviousTransform = Hierarchy->GetGlobalTransform(CachedBoneIndex);
+
 					if (bPostMultiply)
 					{
-						Hierarchy->SetGlobalTransform(CachedBoneIndex, PreviousTransform * Transform, bPropagateToChildren);
+						TargetTransform = PreviousTransform * Transform;
 					}
 					else
 					{
-						Hierarchy->SetGlobalTransform(CachedBoneIndex, Transform * PreviousTransform, bPropagateToChildren);
+						TargetTransform = Transform * PreviousTransform;
 					}
+
+					if (!FMath::IsNearlyEqual(Weight, 1.f))
+					{
+						float T = FMath::Clamp<float>(Weight, 0.f, 1.f);
+						TargetTransform = FControlRigMathLibrary::LerpTransform(PreviousTransform, TargetTransform, T);
+					}
+
+					Hierarchy->SetGlobalTransform(CachedBoneIndex, TargetTransform, bPropagateToChildren);
 				}
 			}
 			default:
@@ -49,8 +59,8 @@ FRigUnit_AddBoneTransform_Execute()
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_AddBoneTransform)
 {
-	BoneHierarchy.Add(TEXT("Root"), NAME_None, FTransform(FVector(1.f, 0.f, 0.f)));
-	BoneHierarchy.Add(TEXT("BoneA"), TEXT("Root"), FTransform(FVector(1.f, 2.f, 0.f)));
+	BoneHierarchy.Add(TEXT("Root"), NAME_None, ERigBoneType::User, FTransform(FVector(1.f, 0.f, 0.f)));
+	BoneHierarchy.Add(TEXT("BoneA"), TEXT("Root"), ERigBoneType::User, FTransform(FVector(1.f, 2.f, 0.f)));
 	BoneHierarchy.Initialize();
 	Unit.ExecuteContext.Hierarchy = &HierarchyContainer;
 

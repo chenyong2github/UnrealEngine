@@ -726,7 +726,7 @@ void FSectionContextMenu::SetSectionToKey()
 	{
 		if (UMovieSceneSection* Section = WeakSection.Get())
 		{
-			UMovieScenePropertyTrack* Track = Section->GetTypedOuter<UMovieScenePropertyTrack>();
+			UMovieSceneTrack* Track = Section->GetTypedOuter<UMovieSceneTrack>();
 			if (Track)
 			{
 				FScopedTransaction Transaction(LOCTEXT("SetSectionToKey", "Set Section To Key"));
@@ -749,7 +749,7 @@ bool FSectionContextMenu::CanSetSectionToKey() const
 	{
 		if (UMovieSceneSection* Section = WeakSection.Get())
 		{
-			UMovieScenePropertyTrack* Track = Section->GetTypedOuter<UMovieScenePropertyTrack>();
+			UMovieSceneTrack* Track = Section->GetTypedOuter<UMovieSceneTrack>();
 			if (Track && Section->GetBlendType().IsValid() && (Section->GetBlendType().Get() == EMovieSceneBlendType::Absolute || Section->GetBlendType().Get() == EMovieSceneBlendType::Additive))
 			{
 				return true;

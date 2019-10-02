@@ -92,7 +92,6 @@ void FAnimSequencerInstanceProxy::InitAnimTrack(UAnimSequenceBase* InAnimSequenc
 			}
 
 			const int32 PoseIndex = BlendNode.AddPose() - 1;
-			BlendNode.UpdateCachedAlphas();
 
 			// add the new entry to map
 			FSequencerPlayerAnimSequence* NewPlayerState = new FSequencerPlayerAnimSequence();

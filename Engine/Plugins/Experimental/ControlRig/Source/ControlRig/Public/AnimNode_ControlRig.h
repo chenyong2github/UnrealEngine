@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ControlRig.h"
+#include "Animation/InputScaleBias.h"
 #include "AnimNode_ControlRigBase.h"
 #include "AnimNode_ControlRig.generated.h"
 
@@ -33,15 +34,34 @@ struct CONTROLRIG_API FAnimNode_ControlRig : public FAnimNode_ControlRigBase
 	FName GetIOMapping(bool bInput, const FName& SourceProperty) const;
 private:
 
-	UPROPERTY(EditAnywhere, Category = Links)
-	FPoseLink Source;
-
 	/** Cached ControlRig */
 	UPROPERTY(EditAnywhere, Category = ControlRig)
 	TSubclassOf<UControlRig> ControlRigClass;
 
 	UPROPERTY(transient)
 	UControlRig* ControlRig;
+
+	// alpha value handler
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinShownByDefault))
+	float Alpha;
+
+	UPROPERTY(EditAnywhere, Category = Settings)
+	EAnimAlphaInputType AlphaInputType;
+
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinShownByDefault, DisplayName = "bEnabled", DisplayAfter = "AlphaScaleBias"))
+	uint8 bAlphaBoolEnabled : 1;
+
+	UPROPERTY(EditAnywhere, Category=Settings)
+	FInputScaleBias AlphaScaleBias;
+
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (DisplayName = "Blend Settings"))
+	FInputAlphaBoolBlend AlphaBoolBlend;
+
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinShownByDefault))
+	FName AlphaCurveName;
+
+	UPROPERTY(EditAnywhere, Category = Settings)
+	FInputScaleBiasClamp AlphaScaleBiasClamp;
 
 	// we only save mapping, 
 	// we have to query control rig when runtime 

@@ -1457,6 +1457,11 @@ void USkinnedMeshComponent::SetSkeletalMesh(USkeletalMesh* InSkelMesh, bool bRei
 
 		SkeletalMesh = InSkelMesh;
 
+		for (TWeakObjectPtr<USkinnedMeshComponent>& SlavePoseComponent : SlavePoseComponents)
+		{
+			SlavePoseComponent->UpdateMasterBoneMap();
+		}
+
 		// Don't init anim state if not registered
 		if (IsRegistered())
 		{

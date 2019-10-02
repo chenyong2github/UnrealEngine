@@ -6920,7 +6920,11 @@ void FBlueprintEditorUtils::UpdateOutOfDateCompositeWithOuter(UBlueprint* Bluepr
 		}
 		else if (UAnimStateTransitionNode* TransitionNode = Cast<UAnimStateTransitionNode>(Node))
 		{
-			BoundGraph = TransitionNode->BoundGraph;
+			// Shared rule graphs are not necessarily outered to their node, so skip them here
+			if(!TransitionNode->bSharedRules)
+			{
+				BoundGraph = TransitionNode->BoundGraph;
+			}
 		}
 		else if (UAnimGraphNode_StateMachineBase* StateMachineNode = Cast<UAnimGraphNode_StateMachineBase>(Node))
 		{

@@ -80,38 +80,12 @@ FControlRigEditMode::FControlRigEditMode()
 }
 
 FControlRigEditMode::~FControlRigEditMode()
-{
+{	
 	CommandBindings = nullptr;
 
 #if WITH_EDITOR
 	GEditor->OnObjectsReplaced().RemoveAll(this);
 #endif
-}
-
-void FControlRigEditMode::SetSequencer(TSharedPtr<ISequencer> InSequencer)
-{
-	static bool bRecursionGuard = false;
-	if (!bRecursionGuard)
-	{
-		TGuardValue<bool> ScopeGuard(bRecursionGuard, true);
-
-		Settings->Sequence = nullptr;
-
-		WeakSequencer = InSequencer;
-		if(UsesToolkits())
-		{
-			StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetSequencer(InSequencer);
-		}
-
-		if (InSequencer.IsValid())
-		{
-			if (UControlRigSequence* Sequence = ExactCast<UControlRigSequence>(InSequencer->GetFocusedMovieSceneSequence()))
-			{
-				Settings->Sequence = Sequence;
-				ReBindToActor();
-			}
-		}
-	}
 }
 
 void FControlRigEditMode::SetObjects(const TWeakObjectPtr<>& InSelectedObject, const FGuid& InObjectBinding, UObject* BindingObject)
@@ -146,93 +120,24 @@ void FControlRigEditMode::SetObjects_Internal()
 		SelectedObjects.Add(Settings);
 	}
 
-	if(WeakControlRigEditing.IsValid())
+	if (WeakControlRigEditing.IsValid())
 	{
-		SelectedObjects.Add(WeakControlRigEditing);
+		//Don't add the WeakControlRig Editing...SelectedObjects.Add(WeakControlRigEditing);
 		WeakControlRigEditing.Get()->DrawInterface = &DrawInterface;
-	}
-
-	if(UsesToolkits())
-	{
-		StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetDetailsObjects(SelectedObjects);
-	}
-
-	// create default manipulation layer
-	RecreateManipulationLayer();
-	HandleSelectionChanged();
-}
-
-void FControlRigEditMode::HandleBindToActor(AActor* InActor, bool bFocus)
-{
-	static bool bRecursionGuard = false;
-	if (!bRecursionGuard)
-	{
-		TGuardValue<bool> ScopeGuard(bRecursionGuard, true);
-
-		if(IsInLevelEditor())
+		if (IsInLevelEditor())
 		{
-			FControlRigBindingTemplate::SetObjectBinding(InActor);
+			WeakControlRigEditing->Hierarchy.OnElementSelected.AddSP(this, &FControlRigEditMode::OnRigElementSelected);
 		}
 
-		if (WeakSequencer.IsValid())
+
+		if (UsesToolkits())
 		{
-			TSharedRef<ISequencer> Sequencer = WeakSequencer.Pin().ToSharedRef();
-
-			// Modify the sequence
-			if (UControlRigSequence* Sequence = ExactCast<UControlRigSequence>(Sequencer->GetFocusedMovieSceneSequence()))
-			{
-				Sequence->Modify(false);
-
-				// Also modify the binding tracks in the sequence, so bindings get regenerated to this actor
-				UMovieScene* MovieScene = Sequence->GetMovieScene();
-				for (UMovieSceneSection* Section : MovieScene->GetAllSections())
-				{
-					if (UMovieSceneSpawnSection* SpawnSection = Cast<UMovieSceneSpawnSection>(Section))
-					{
-						SpawnSection->TryModify(false);
-					}
-				}
-
-				// now notify the sequence (will rebind when it re-evaluates
-				Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChangedRefreshImmediately);
-
-				// we tick first
-				ManipulationLayer->TickManipulatableObjects(0.f);
-
-				// Now re-display our objects in the details panel (they may have changed)
-				if (MovieScene->GetSpawnableCount() > 0)
-				{
-					FGuid SpawnableGuid = MovieScene->GetSpawnable(0).GetGuid();
-					TWeakObjectPtr<> BoundObject = Sequencer->FindSpawnedObjectOrTemplate(SpawnableGuid);
-					SetObjects(BoundObject, SpawnableGuid, nullptr);
-				}
-			}
-
-			if (bFocus && InActor && IsInLevelEditor())
-			{
-				const bool bNotifySelectionChanged = false;
-				const bool bDeselectBSP = true;
-				const bool bWarnAboutTooManyActors = false;
-				const bool bSelectEvenIfHidden = true;
-
-				// Select & focus the actor
-				GEditor->GetSelectedActors()->Modify();
-				GEditor->GetSelectedActors()->BeginBatchSelectOperation();
-				GEditor->SelectNone(bNotifySelectionChanged, bDeselectBSP, bWarnAboutTooManyActors);
-				GEditor->SelectActor(InActor, true, bNotifySelectionChanged, bSelectEvenIfHidden);
-				GEditor->Exec(InActor->GetWorld(), TEXT("CAMERA ALIGN ACTIVEVIEWPORTONLY"));
-				GEditor->SelectNone(bNotifySelectionChanged, bDeselectBSP, bWarnAboutTooManyActors);
-				GEditor->GetSelectedActors()->EndBatchSelectOperation();
-			}
+			StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetDetailsObjects(SelectedObjects);
 		}
-	}
-}
 
-void FControlRigEditMode::ReBindToActor()
-{
-	if (Settings->Actor.IsValid())
-	{
-		HandleBindToActor(Settings->Actor.Get(), false);
+		// create default manipulation layer
+		RecreateManipulationLayer();
+		HandleSelectionChanged();
 	}
 }
 
@@ -284,10 +189,12 @@ void FControlRigEditMode::Exit()
 
 	if (ManipulationLayer)
 	{
+		SelectNone();
 		ManipulationLayer->DestroyLayer();
 		ManipulationLayer = nullptr;
 	}
-
+	//clear actors
+	GizmoActors.SetNum(0);
 	// Call parent implementation
 	FEdMode::Exit();
 }
@@ -298,7 +205,10 @@ void FControlRigEditMode::Tick(FEditorViewportClient* ViewportClient, float Delt
 
 	ViewportClient->Invalidate();
 
-	RecalcPivotTransform();
+	if (ManipulationLayer)
+	{
+		RecalcPivotTransform();
+	}
 
 	if (bRecreateManipulationLayerRequired)
 	{
@@ -319,37 +229,35 @@ void FControlRigEditMode::Tick(FEditorViewportClient* ViewportClient, float Delt
 		bRecreateManipulationLayerRequired = false;
 	}
 
-	// If we have detached from sequencer, unbind the settings UI
-	if (!WeakSequencer.IsValid() && Settings->Sequence != nullptr)
+	// We need to tick here since changing a bone for example
+	// might have changed the transform of the Control
+	if (ManipulationLayer)
 	{
-		Settings->Sequence = nullptr;
-		RefreshObjects();
+		ManipulationLayer->TickManipulatableObjects(DeltaTime);
 	}
 }
 
 void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
-{
-	bool bRender = true;
-	if (WeakSequencer.IsValid())
-	{
-		bRender = WeakSequencer.Pin()->GetPlaybackStatus() != EMovieScenePlayerStatus::Playing || Settings->bShowManipulatorsDuringPlayback;
-	}
-
-	if (!WeakControlRigEditing.IsValid())
+{	
+	if (!WeakControlRigEditing.IsValid() || ManipulationLayer == nullptr)
 	{
 		DrawInterface.DrawInstructions.Reset();
 		return;
 	}
 
-	// Force off manipulators if hide flag is set
-	if (Settings->bHideManipulators)
-	{
-		bRender = false;
-	}
+	bool bRender = !Settings->bHideManipulators;
 
 	FTransform ComponentTransform = (ManipulationLayer)? ManipulationLayer->GetSkeletalMeshComponentTransform() : FTransform::Identity;
 	if (bRender)
 	{
+		for (AControlRigGizmoActor* Actor : GizmoActors)
+		{
+			//Actor->SetActorHiddenInGame(bIsHidden);
+			if (GIsEditor && Actor->GetWorld() != nullptr && !Actor->GetWorld()->IsPlayInEditor())
+			{
+				Actor->SetIsTemporarilyHiddenInEditor(false);
+			}
+		}
 		if (Settings->bDisplayHierarchy)
 		{
 			UControlRig* ControlRig = WeakControlRigEditing.Get();
@@ -387,17 +295,14 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 				PDI->DrawLine(ElementTransform.GetTranslation(), ElementTransform.TransformPosition(FVector(0.f, 0.f, Scale)), FLinearColor::Blue, SDPG_Foreground);
 			}
 		}
-	}
-
-
-	for (const FControlRigDrawInterface::FDrawIntruction& Instruction : DrawInterface.DrawInstructions)
-	{
-		if (Instruction.Positions.Num() == 0)
+		for (const FControlRigDrawInterface::FDrawIntruction& Instruction : DrawInterface.DrawInstructions)
 		{
-			continue;
-		}
-		switch (Instruction.DrawType)
-		{
+			if (Instruction.Positions.Num() == 0)
+			{
+				continue;
+			}
+			switch (Instruction.DrawType)
+			{
 			case FControlRigDrawInterface::EDrawType_Point:
 			{
 				for (const FVector& Point : Instruction.Positions)
@@ -411,7 +316,7 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 				const TArray<FVector>& Points = Instruction.Positions;
 				for (int32 PointIndex = 0; PointIndex < Points.Num() - 1; PointIndex += 2)
 				{
-					PDI->DrawLine(ComponentTransform.TransformPosition(Points[PointIndex]), ComponentTransform.TransformPosition(Points[PointIndex+1]), Instruction.Color, SDPG_Foreground, Instruction.Thickness);
+					PDI->DrawLine(ComponentTransform.TransformPosition(Points[PointIndex]), ComponentTransform.TransformPosition(Points[PointIndex + 1]), Instruction.Color, SDPG_Foreground, Instruction.Thickness);
 				}
 				break;
 			}
@@ -424,8 +329,23 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 				}
 				break;
 			}
+			}
 		}
 	}
+	else
+	{
+		for (AControlRigGizmoActor* Actor : GizmoActors)
+		{
+			//Actor->SetActorHiddenInGame(bIsHidden);
+			if (GIsEditor && Actor->GetWorld() != nullptr && !Actor->GetWorld()->IsPlayInEditor())
+			{
+				Actor->SetIsTemporarilyHiddenInEditor(true);
+			}
+		}
+	}
+
+	//draw debug info
+	
 	DrawInterface.DrawInstructions.Reset();
 }
 
@@ -479,7 +399,10 @@ bool FControlRigEditMode::StartTracking(FEditorViewportClient* InViewportClient,
 	{
 		GEditor->BeginTransaction(LOCTEXT("MoveControlTransaction", "Move Control"));
 
-		ManipulationLayer->BeginTransaction();
+		if (ManipulationLayer != nullptr)
+		{
+			ManipulationLayer->BeginTransaction();
+		}
 		for (AControlRigGizmoActor* GizmoActor : GizmoActors)
 		{
 			GizmoActor->SetManipulating(true);
@@ -516,7 +439,7 @@ bool FControlRigEditMode::UsesTransformWidget(FWidget::EWidgetMode CheckMode) co
 {
 	for (const AControlRigGizmoActor* GizmoActor : GizmoActors)
 	{
-		if (GizmoActor->IsSelected())
+		if (GizmoActor->IsSelected() && ManipulationLayer != nullptr)
 		{
 			return ManipulationLayer->ModeSupportedByGizmoActor(GizmoActor, CheckMode);
 		}
@@ -532,7 +455,7 @@ bool FControlRigEditMode::UsesTransformWidget(FWidget::EWidgetMode CheckMode) co
 
 FVector FControlRigEditMode::GetWidgetLocation() const
 {
-	if (AreRigElementSelectedAndMovable())
+	if (AreRigElementSelectedAndMovable() && ManipulationLayer != nullptr)
 	{
 		FTransform ComponentTransform = ManipulationLayer->GetSkeletalMeshComponentTransform();
 		return ComponentTransform.TransformPosition(PivotTransform.GetLocation());
@@ -566,7 +489,7 @@ bool FControlRigEditMode::HandleClick(FEditorViewportClient* InViewportClient, H
 			if (ActorHitProxy->Actor->IsA<AControlRigGizmoActor>())
 			{
 				AControlRigGizmoActor* GizmoActor = CastChecked<AControlRigGizmoActor>(ActorHitProxy->Actor);
-				const FControlData* ControlData = ManipulationLayer->GetControlDataFromGizmo(GizmoActor);
+				const FControlData* ControlData = ManipulationLayer != nullptr ? ManipulationLayer->GetControlDataFromGizmo(GizmoActor) :  nullptr;
 
 				if (ControlData)
 				{
@@ -580,18 +503,18 @@ bool FControlRigEditMode::HandleClick(FEditorViewportClient* InViewportClient, H
 						ClearRigElementSelection(FRigElementTypeHelper::ToMask(ERigElementType::Control));
 						SetRigElementSelection(ERigElementType::Control, ControlName, true);
 					}
+
 				}
+				// for now we show this menu all the time if body is selected
+				// if we want some global menu, we'll have to move this
+				if (Click.GetKey() == EKeys::RightMouseButton)
+				{
+					OpenContextMenu(InViewportClient);
+				}
+
+				return true;
 			}
 		}
-
-		// for now we show this menu all the time if body is selected
-		// if we want some global menu, we'll have to move this
-		if (Click.GetKey() == EKeys::RightMouseButton)
-		{
-			OpenContextMenu(InViewportClient);
-		}
-
-		return true;
 	}
 
 	// for now we show this menu all the time if body is selected
@@ -604,12 +527,6 @@ bool FControlRigEditMode::HandleClick(FEditorViewportClient* InViewportClient, H
 
 	// clear selected controls
 	ClearRigElementSelection(FRigElementTypeHelper::ToMask(ERigElementType::All));
-
-	// If we are animating then swallow clicks so we dont select things other than controls
-	if(WeakSequencer.IsValid() && WeakSequencer.Pin()->GetFocusedMovieSceneSequence()->IsA<UControlRigSequence>())
-	{
-		return true;
-	}
 
 	return FEdMode::HandleClick(InViewportClient, HitProxy, Click);
 }
@@ -647,24 +564,28 @@ void FControlRigEditMode::OpenContextMenu(FEditorViewportClient* InViewportClien
 
 bool FControlRigEditMode::IntersectSelect(bool InSelect, const TFunctionRef<bool(const AControlRigGizmoActor*, const FTransform&)>& Intersects)
 {
-	FTransform ComponentTransform = ManipulationLayer->GetSkeletalMeshComponentTransform();
-
-	bool bSelected = false;
-	for (AControlRigGizmoActor* GizmoActor: GizmoActors)
+	if (ManipulationLayer != nullptr)
 	{
-		const FTransform ControlTransform = GizmoActor->GetGlobalTransform() * ComponentTransform;
-		if (Intersects(GizmoActor, ControlTransform))
+		FTransform ComponentTransform = ManipulationLayer->GetSkeletalMeshComponentTransform();
+
+		bool bSelected = false;
+		for (AControlRigGizmoActor* GizmoActor : GizmoActors)
 		{
-			const FControlData* ControlData = ManipulationLayer->GetControlDataFromGizmo(GizmoActor);
-			if (ControlData)
+			const FTransform ControlTransform = GizmoActor->GetGlobalTransform() * ComponentTransform;
+			if (Intersects(GizmoActor, ControlTransform))
 			{
-				SetRigElementSelection(ERigElementType::Control, ControlData->ControlName, InSelect);
-				bSelected = true;
+				const FControlData* ControlData = ManipulationLayer->GetControlDataFromGizmo(GizmoActor);
+				if (ControlData)
+				{
+					SetRigElementSelection(ERigElementType::Control, ControlData->ControlName, InSelect);
+					bSelected = true;
+				}
 			}
 		}
-	}
 
-	return bSelected;
+		return bSelected;
+	}
+	return false;
 }
 
 bool FControlRigEditMode::BoxSelect(FBox& InBox, bool InSelect)
@@ -737,9 +658,9 @@ bool FControlRigEditMode::InputDelta(FEditorViewportClient* InViewportClient, FV
 		const bool bDoTranslation = !Drag.IsZero() && (WidgetMode == FWidget::WM_Translate || WidgetMode == FWidget::WM_TranslateRotateZ);
 		const bool bDoScale = !Scale.IsZero() && WidgetMode == FWidget::WM_Scale;
 
-		FTransform ComponentTransform = ManipulationLayer->GetSkeletalMeshComponentTransform();
-		if (AreRigElementsSelected(FRigElementTypeHelper::ToMask(ERigElementType::Control)))
+		if (ManipulationLayer != nullptr && AreRigElementsSelected(FRigElementTypeHelper::ToMask(ERigElementType::Control)))
 		{
+			FTransform ComponentTransform = ManipulationLayer->GetSkeletalMeshComponentTransform();
 			for (AControlRigGizmoActor* GizmoActor : GizmoActors)
 			{
 				if (GizmoActor->IsSelected())
@@ -758,8 +679,10 @@ bool FControlRigEditMode::InputDelta(FEditorViewportClient* InViewportClient, FV
 			}
 			return true;
 		}
-		else if (AreRigElementSelectedAndMovable())
+		else if (ManipulationLayer != nullptr && AreRigElementSelectedAndMovable())
 		{
+			FTransform ComponentTransform = ManipulationLayer->GetSkeletalMeshComponentTransform();
+
 			// set Bone transform
 			// that will set initial Bone transform
 			for (int32 Index = 0; Index < SelectedRigElements.Num(); ++Index)
@@ -831,12 +754,20 @@ bool FControlRigEditMode::IsCompatibleWith(FEditorModeID OtherModeID) const
 
 void FControlRigEditMode::AddReferencedObjects( FReferenceCollector& Collector )
 {
-	Collector.AddReferencedObject(Settings);
-	Collector.AddReferencedObject(ManipulationLayer);
-
-	for (AControlRigGizmoActor* GizmoActor : GizmoActors)
+	if (Settings)
 	{
-		Collector.AddReferencedObject(GizmoActor);
+		Collector.AddReferencedObject(Settings);
+	}
+	if (ManipulationLayer)
+	{
+		Collector.AddReferencedObject(ManipulationLayer);
+	}
+	if (GizmoActors.Num() > 0)
+	{
+		for (AControlRigGizmoActor* GizmoActor : GizmoActors)
+		{
+			Collector.AddReferencedObject(GizmoActor);
+		}
 	}
 }
 
@@ -853,6 +784,10 @@ void FControlRigEditMode::ClearRigElementSelection(uint32 InTypes)
 	{
 		Blueprint->HierarchyContainer.ClearSelection();
 	}
+	if(IsInLevelEditor())
+	{
+		WeakControlRigEditing->Hierarchy.ClearSelection();
+	}
 }
 
 // internal private function that doesn't use guarding.
@@ -867,6 +802,10 @@ void FControlRigEditMode::SetRigElementSelectionInternal(ERigElementType Type, c
 	if (Blueprint)
 	{
 		Blueprint->HierarchyContainer.Select(FRigElementKey(InRigElementName, Type), bSelected);
+	}
+	if(IsInLevelEditor())
+	{
+		WeakControlRigEditing->Hierarchy.Select(FRigElementKey(InRigElementName, Type), bSelected);
 	}
 }
 
@@ -933,72 +872,13 @@ int32 FControlRigEditMode::GetNumSelectedRigElements(uint32 InTypes) const
 	return 0;
 }
 
-void FControlRigEditMode::HandleObjectSpawned(FGuid InObjectBinding, UObject* SpawnedObject, IMovieScenePlayer& Player)
-{
-	if (WeakSequencer.IsValid())
-	{
-		// check whether this spawned object is from our sequence
-		TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
-		if (Sequencer.Get() == &Player)
-		{
-			RefreshObjects();
-
-			// check if the object is being displayed currently
-			if (ControlRigGuid == InObjectBinding)
-			{
-				if (WeakControlRigEditing != Cast<UControlRig>(SpawnedObject))
-				{
-					WeakControlRigEditing = Cast<UControlRig>(SpawnedObject);
-					SetObjects_Internal();
-				}
-				return;
-			}
-
-			// We didnt find an existing Guid, so set up our internal cache
-			if (!ControlRigGuid.IsValid())
-			{
-				SetObjects(SpawnedObject, InObjectBinding, nullptr);
-				if (UControlRig* ControlRig = Cast<UControlRig>(SpawnedObject))
-				{
-					if (TSharedPtr<IControlRigObjectBinding> ObjectBinding = ControlRig->GetObjectBinding())
-					{
-						if (Settings->Actor.IsValid() && ObjectBinding->GetBoundObject() == nullptr)
-						{
-							ObjectBinding->BindToObject(Settings->Actor.Get());
-						}
-					}
-				}
-				ReBindToActor();
-			}
-		}
-	}
-}
 
 void FControlRigEditMode::RefreshObjects()
 {
-	if (WeakSequencer.IsValid())
-	{
-		TSharedRef<ISequencer> Sequencer = WeakSequencer.Pin().ToSharedRef();
-		UMovieScene* MovieScene = Sequencer->GetFocusedMovieSceneSequence() ? Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene() : nullptr;
-		if (MovieScene)
-		{
-			// check if we have an invalid Guid & invalidate Guid if so
-			if (ControlRigGuid.IsValid() && MovieScene->FindSpawnable(ControlRigGuid) == nullptr)
-			{
-				ControlRigGuid.Invalidate();
-				WeakControlRigEditing = nullptr;
-			}
+	WeakControlRigEditing = nullptr;
+	ControlRigGuid.Invalidate();
 
-			SetObjects_Internal();
-		}
-	}
-	else
-	{
-		WeakControlRigEditing = nullptr;
-		ControlRigGuid.Invalidate();
-
-		SetObjects_Internal();
-	}
+	SetObjects_Internal();
 }
 
 void FControlRigEditMode::EnableRigElementEditing(bool bEnabled)
@@ -1086,23 +966,6 @@ void FControlRigEditMode::RecalcPivotTransform()
 
 void FControlRigEditMode::HandleSelectionChanged()
 {
-	if (WeakSequencer.IsValid())
-	{
-		TArray<FString> SelectedNames;
-		for (int32 Index=0; Index<SelectedRigElements.Num(); ++Index)
-		{
-			// if it's control, make sure it's selected
-			if (SelectedRigElements[Index].Type == ERigElementType::Control)
-			{
-				SelectedNames.Add(SelectedRigElements[Index].Name.ToString());
-			}
-		}
-
-		if (SelectedNames.Num() > 0)
-		{
-			WeakSequencer.Pin()->SelectByPropertyPaths(SelectedNames);
-		}
-	}
 
 	for (AControlRigGizmoActor* GizmoActor : GizmoActors)
 	{
@@ -1114,14 +977,7 @@ void FControlRigEditMode::HandleSelectionChanged()
 		}
 	}
 
-	if (WeakSequencer.IsValid())
-	{
-		if (WeakSequencer.Pin()->GetSequencerSettings()->GetShowSelectedNodesOnly())
-		{
-			WeakSequencer.Pin()->RefreshTree();
-		}
-	}
-
+	
 	// update the pivot transform of our selected objects (they could be animating)
 	RecalcPivotTransform();
 }
@@ -1129,10 +985,6 @@ void FControlRigEditMode::HandleSelectionChanged()
 void FControlRigEditMode::BindCommands()
 {
 	const FControlRigEditModeCommands& Commands = FControlRigEditModeCommands::Get();
-
-	CommandBindings->MapAction(
-		Commands.SetKey,
-		FExecuteAction::CreateRaw(this, &FControlRigEditMode::SetKeysForSelectedManipulators));
 
 	CommandBindings->MapAction(
 		Commands.ToggleManipulators,
@@ -1161,7 +1013,7 @@ bool FControlRigEditMode::GetRigElementGlobalTransform(const FRigElementKey& InE
 		AControlRigGizmoActor* GizmoActor = GetGizmoFromControlName(InElement.Name);
 		if (GizmoActor && ensure(GizmoActor->IsSelected()))
 		{
-			if (ManipulationLayer->GetGlobalTransform(GizmoActor, InElement.Name, OutGlobalTransform))
+			if (ManipulationLayer != nullptr && ManipulationLayer->GetGlobalTransform(GizmoActor, InElement.Name, OutGlobalTransform))
 			{
 				return true;
 			}
@@ -1184,21 +1036,6 @@ bool FControlRigEditMode::GetRigElementGlobalTransform(const FRigElementKey& InE
 	return false;
 }
 
-void FControlRigEditMode::SetKeysForSelectedManipulators()
-{
-	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
-
-	if (Sequencer)
-	{
-		for (const AControlRigGizmoActor* GizmoActor : GizmoActors)
-		{
-			if (GizmoActor->IsSelected())
-			{
-				ManipulationLayer->AddKey(GizmoActor, Sequencer);
-			}
-		}
-	}
-}
 
 void FControlRigEditMode::ToggleManipulators()
 {
@@ -1322,19 +1159,20 @@ bool FControlRigEditMode::IsTransformDelegateAvailable() const
 
 bool FControlRigEditMode::AreRigElementSelectedAndMovable() const
 {
+	if (AreRigElementsSelected(FRigElementTypeHelper::ToMask(ERigElementType::Control)))
+	{
+		return true;
+	}
+
+	// if bone, we want to make sure execution is stopped
+	if (bEnableRigElementDefaultPoseEditing && AreRigElementsSelected(FRigElementTypeHelper::ToMask(ERigElementType::Bone)))
+	{
+		return true;
+	}
+
 	if (IsTransformDelegateAvailable())
 	{
-		// you can move control anytime
-		if (AreRigElementsSelected(FRigElementTypeHelper::ToMask(ERigElementType::Control)))
-		{
-			return true;
-		}
-
-		// if bone, we want to make sure execution is stopped
-		if (bEnableRigElementDefaultPoseEditing && AreRigElementsSelected(FRigElementTypeHelper::ToMask(ERigElementType::Bone)))
-		{
-			return true;
-		}
+		return true;
 	}
 
 	return false;
@@ -1419,7 +1257,7 @@ void FControlRigEditMode::OnControlUISettingChanged(FRigHierarchyContainer* Cont
 
 AControlRigGizmoActor* FControlRigEditMode::GetGizmoFromControlName(const FName& InControlName) const
 {
-	return ManipulationLayer->GetGizmoFromControlName(InControlName);
+	return ManipulationLayer ? ManipulationLayer->GetGizmoFromControlName(InControlName) : nullptr;
 }
 
 #undef LOCTEXT_NAMESPACE
