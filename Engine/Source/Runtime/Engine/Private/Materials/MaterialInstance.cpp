@@ -1339,7 +1339,7 @@ void UMaterialInstance::ValidateTextureOverrides(ERHIFeatureLevel::Type InFeatur
 	FString MaterialName;
 	GetName(MaterialName);
 
-	for (int32 TypeIndex = 0; TypeIndex < ARRAY_COUNT(TextureExpressions); ++TypeIndex)
+	for (int32 TypeIndex = 0; TypeIndex < UE_ARRAY_COUNT(TextureExpressions); ++TypeIndex)
 	{
 		for (FMaterialUniformExpressionTexture* TextureExpression : *TextureExpressions[TypeIndex])
 		{
