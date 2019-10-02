@@ -164,7 +164,7 @@ float3 GetForwardDirectLighting(uint GridIndex, float3 WorldPosition, float3 Cam
 		}
 	}
 
-#if !(MATERIAL_SHADINGMODEL_SINGLELAYERWATER && FORWARD_SIMPLE_SINGLE_LAYER_WATER)
+#if !DISABLE_FORWARD_LOCAL_LIGHTS
 
 	const FCulledLightsGridData CulledLightsGrid = GetCulledLightsGrid(GridIndex, EyeIndex);
 
