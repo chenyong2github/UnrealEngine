@@ -6,7 +6,7 @@
 //	Include Files
 //-----------------------------------------------------------------------------
 #include "D3D12RHIPrivate.h"
-
+#include "Hash/CityHash.h"
 
 static TAutoConsoleVariable<float> CVarPSOStallWarningThresholdInMs(
 	TEXT("D3D12.PSO.StallWarningThresholdInMs"),
@@ -58,6 +58,7 @@ FD3D12LowLevelGraphicsPipelineStateDesc GetLowLevelGraphicsPipelineStateDesc(con
 	{
 		Desc.Desc.InputLayout.NumElements        = InputLayout->VertexElements.Num();
 		Desc.Desc.InputLayout.pInputElementDescs = InputLayout->VertexElements.GetData();
+		Desc.InputLayoutHash = InputLayout->Hash;
 	}
 
 #define COPY_SHADER(Initial, Name) \
@@ -132,119 +133,115 @@ FD3D12PipelineStateWorker::FD3D12PipelineStateWorker(FD3D12Adapter* Adapter, con
 	CreationArgs.GraphicsArgs.Init(InArgs.Args);
 };
 
-
 /// @endcond
-#if defined(_WIN64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
-#ifndef __clang__
 
-FORCEINLINE uint32 SSE4_CRC32(const void* Data, SIZE_T NumBytes)
+uint64 FD3D12PipelineStateCacheBase::HashData(const void* Data, int32 NumBytes)
 {
-	check(GCPUSupportsSSE4);
-	uint32 Hash = 0;
-#if defined(_WIN64)
-	static const SIZE_T Alignment = 8;//64 Bit
-#elif defined(_WIN32)
-	static const SIZE_T Alignment = 4;//32 Bit
-#else
-	check(0);
-	return 0;
-#endif
-
-	const SIZE_T RoundingIterations = (NumBytes & (Alignment - 1));
-	uint8* UnalignedData = (uint8*)Data;
-	for (SIZE_T i = 0; i < RoundingIterations; i++)
-	{
-		Hash = _mm_crc32_u8(Hash, UnalignedData[i]);
-	}
-	UnalignedData += RoundingIterations;
-	NumBytes -= RoundingIterations;
-
-	SIZE_T* AlignedData = (SIZE_T*)UnalignedData;
-	check((NumBytes % Alignment) == 0);
-	const SIZE_T NumIterations = (NumBytes / Alignment);
-	for (SIZE_T i = 0; i < NumIterations; i++)
-	{
-#ifdef _WIN64
-		Hash = _mm_crc32_u64(Hash, AlignedData[i]);
-#else
-		Hash = _mm_crc32_u32(Hash, AlignedData[i]);
-#endif
-	}
-
-	return Hash;
-}
-#endif
-#endif
-
-uint32 FD3D12PipelineStateCacheBase::HashData(const void* Data, SIZE_T NumBytes)
-{
-#ifdef __clang__
-	return FCrc::MemCrc32(Data, NumBytes);
-#else
-#if defined(_WIN64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
-	if (GCPUSupportsSSE4)
-	{
-		return SSE4_CRC32(Data, NumBytes);
-	}
-	else
-#endif
-	{
-		return FCrc::MemCrc32(Data, NumBytes);
-	}
-#endif
+	return CityHash64((const char*) Data, NumBytes);
 }
 
-SIZE_T FD3D12PipelineStateCacheBase::HashPSODesc(const FD3D12LowLevelGraphicsPipelineStateDesc& Desc)
+uint64 FD3D12PipelineStateCacheBase::HashPSODesc(const FD3D12LowLevelGraphicsPipelineStateDesc& Desc)
 {
-	__declspec(align(32)) FD3D12LowLevelGraphicsPipelineStateDesc Hash;
-	FMemory::Memcpy(&Hash, &Desc, sizeof(Hash)); // Memcpy to avoid introducing garbage due to alignment
-
-	Hash.Desc.VS.pShaderBytecode = nullptr; // null out pointers so stale ones don't ruin the hash
-	Hash.Desc.PS.pShaderBytecode = nullptr;
-	Hash.Desc.HS.pShaderBytecode = nullptr;
-	Hash.Desc.DS.pShaderBytecode = nullptr;
-	Hash.Desc.GS.pShaderBytecode = nullptr;
-	Hash.Desc.InputLayout.pInputElementDescs = nullptr;
-	Hash.Desc.CachedPSO.pCachedBlob = nullptr;
-	Hash.Desc.CachedPSO.CachedBlobSizeInBytes = 0;
-	Hash.CombinedHash = 0;
-	Hash.Desc.pRootSignature = nullptr;
-	Hash.pRootSignature = nullptr;
-
-	return SIZE_T(HashData(&Hash, sizeof(Hash)));
-}
-
-SIZE_T FD3D12PipelineStateCacheBase::HashPSODesc(const FD3D12ComputePipelineStateDesc& Desc)
-{
-	__declspec(align(32)) FD3D12ComputePipelineStateDesc Hash;
-	FMemory::Memcpy(&Hash, &Desc, sizeof(Hash)); // Memcpy to avoid introducing garbage due to alignment
-
-	Hash.Desc.CS.pShaderBytecode = nullptr;  // null out pointers so stale ones don't ruin the hash
-	Hash.Desc.CachedPSO.pCachedBlob = nullptr;
-	Hash.Desc.CachedPSO.CachedBlobSizeInBytes = 0;
-	Hash.CombinedHash = 0;
-	Hash.Desc.pRootSignature = nullptr;
-	Hash.pRootSignature = nullptr;
-
-	return SIZE_T(HashData(&Hash, sizeof(Hash)));
-}
-
-#define SSE4_2     0x100000 
-#define SSE4_CPUID_ARRAY_INDEX 2
-
-FD3D12PipelineStateCacheBase::FD3D12PipelineStateCacheBase(FD3D12Adapter* InParent) :
-	FD3D12AdapterChild(InParent)
-{
-#if defined(_WIN64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
-	// Check for SSE4 support see: https://msdn.microsoft.com/en-us/library/vstudio/hskdteyh(v=vs.100).aspx
+	struct GraphicsPSOData
 	{
-		int32 cpui[4];
-		__cpuidex(cpui, 1, 0);
-		GCPUSupportsSSE4 = !!(cpui[SSE4_CPUID_ARRAY_INDEX] & SSE4_2);
-	}
-#else
-	GCPUSupportsSSE4 = false;
+		ShaderBytecodeHash VSHash;
+		ShaderBytecodeHash HSHash;
+		ShaderBytecodeHash DSHash;
+		ShaderBytecodeHash GSHash;
+		ShaderBytecodeHash PSHash;
+		uint32 InputLayoutHash;
+
+#if !D3D12_USE_DERIVED_PSO
+		uint8 AlphaToCoverageEnable;
+		uint8 IndependentBlendEnable;
+
+		uint32 SampleMask;
+		D3D12_RASTERIZER_DESC RasterizerState;
+		D3D12_DEPTH_STENCIL_DESC1 DepthStencilState;
+#endif // !D3D12_USE_DERIVED_PSO
+
+		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE IBStripCutValue;
+		D3D12_PRIMITIVE_TOPOLOGY_TYPE PrimitiveTopologyType;
+		DXGI_FORMAT DSVFormat;
+		DXGI_SAMPLE_DESC SampleDesc;
+		uint32 NodeMask;
+
+		D3D12_PIPELINE_STATE_FLAGS Flags;
+	};
+
+	struct RenderTargetData
+	{
+		DXGI_FORMAT Format;
+#if !D3D12_USE_DERIVED_PSO
+		D3D12_RENDER_TARGET_BLEND_DESC BlendDesc;
 #endif
+	};
+
+
+	const int32 NumRenderTargets = Desc.Desc.RTFormatArray.NumRenderTargets;
+
+	const size_t GraphicsPSODataSize = sizeof(GraphicsPSOData);
+	const size_t RenderTargetDataSize = NumRenderTargets * sizeof(RenderTargetData);
+	const size_t TotalDataSize = GraphicsPSODataSize + RenderTargetDataSize;
+
+	char Data[GraphicsPSODataSize + 8 * sizeof(RenderTargetData)];
+	FMemory::Memzero(Data, TotalDataSize);
+
+	GraphicsPSOData* PSOData = (GraphicsPSOData*) Data;
+	RenderTargetData* RTData = (RenderTargetData*) (Data + GraphicsPSODataSize);
+
+	PSOData->VSHash          = Desc.VSHash;
+	PSOData->HSHash          = Desc.HSHash;
+	PSOData->DSHash          = Desc.DSHash;
+	PSOData->GSHash          = Desc.GSHash;
+	PSOData->PSHash          = Desc.PSHash;
+	PSOData->InputLayoutHash = Desc.InputLayoutHash;
+
+#if !D3D12_USE_DERIVED_PSO
+	PSOData->AlphaToCoverageEnable  = Desc.Desc.BlendState.AlphaToCoverageEnable;
+	PSOData->IndependentBlendEnable = Desc.Desc.BlendState.IndependentBlendEnable;
+	PSOData->SampleMask             = Desc.Desc.SampleMask;
+	PSOData->RasterizerState        = Desc.Desc.RasterizerState;
+	PSOData->DepthStencilState      = Desc.Desc.DepthStencilState;
+#endif
+	PSOData->IBStripCutValue        = Desc.Desc.IBStripCutValue;
+	PSOData->PrimitiveTopologyType  = Desc.Desc.PrimitiveTopologyType;
+	PSOData->DSVFormat              = Desc.Desc.DSVFormat;
+	PSOData->SampleDesc             = Desc.Desc.SampleDesc;
+	PSOData->NodeMask               = Desc.Desc.NodeMask;
+	PSOData->Flags                  = Desc.Desc.Flags;
+
+	for (int32 RT = 0; RT < NumRenderTargets; RT++)
+	{
+		RTData[RT].Format    = Desc.Desc.RTFormatArray.RTFormats[RT];
+#if !D3D12_USE_DERIVED_PSO
+		RTData[RT].BlendDesc = Desc.Desc.BlendState.RenderTarget[RT];
+#endif
+	}
+
+	return HashData(Data, TotalDataSize);
+}
+
+uint64 FD3D12PipelineStateCacheBase::HashPSODesc(const FD3D12ComputePipelineStateDesc& Desc)
+{
+	struct ComputePSOData
+	{
+		ShaderBytecodeHash CSHash;
+		UINT NodeMask;
+		D3D12_PIPELINE_STATE_FLAGS Flags;
+	};
+	ComputePSOData Data;
+	FMemory::Memzero(Data);
+	Data.CSHash   = Desc.CSHash;
+	Data.NodeMask = Desc.Desc.NodeMask;
+	Data.Flags    = Desc.Desc.Flags;
+
+	return HashData(&Data, sizeof(Data));
+}
+
+FD3D12PipelineStateCacheBase::FD3D12PipelineStateCacheBase(FD3D12Adapter* InParent)
+	: FD3D12AdapterChild(InParent)
+{
 }
 
 FD3D12PipelineStateCacheBase::~FD3D12PipelineStateCacheBase()
