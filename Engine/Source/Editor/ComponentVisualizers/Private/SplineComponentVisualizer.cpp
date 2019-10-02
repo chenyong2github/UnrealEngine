@@ -2590,7 +2590,9 @@ void FSplineComponentVisualizer::CreateSplineGeneratorPanel()
 			.ScreenPosition(FSlateApplication::Get().GetCursorPos())
 			.Title(FText::FromString("Spline Generation"))
 			.SizingRule(ESizingRule::Autosized)
-			.AutoCenter(EAutoCenter::None);
+			.AutoCenter(EAutoCenter::None)
+			.SupportsMaximize(false)
+			.SupportsMinimize(false);
 
 		ExistingWindow->SetOnWindowClosed(FOnWindowClosed::CreateSP(SplineGeneratorPanel.ToSharedRef(), &SSplineGeneratorPanel::OnWindowClosed));
 
