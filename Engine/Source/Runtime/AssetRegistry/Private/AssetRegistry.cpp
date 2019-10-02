@@ -2367,11 +2367,42 @@ void UAssetRegistryImpl::RemovePackageData(const FName PackageName)
 	TArray<FAssetData*>* PackageAssetsPtr = State.CachedAssetsByPackageName.Find(PackageName);
 	if (PackageAssetsPtr && PackageAssetsPtr->Num() > 0)
 	{
+		// If there were any referencers, re-add them to a new empty dependency node, as it would be when the referencers are loaded from disk
+		TArray<FName> SoftReferencers;
+		TArray<FName> HardReferencers;
+		GetReferencers(PackageName, SoftReferencers, EAssetRegistryDependencyType::Soft);
+		GetReferencers(PackageName, HardReferencers, EAssetRegistryDependencyType::Hard);
+
 		// Copy the array since RemoveAssetData may re-allocate it!
 		TArray<FAssetData*> PackageAssets = *PackageAssetsPtr;
 		for (FAssetData* PackageAsset : PackageAssets)
 		{
 			RemoveAssetData(PackageAsset);
+		}
+
+		// See if we have to readd the dependency now
+		if (SoftReferencers.Num() > 0 || HardReferencers.Num() > 0)
+		{
+			FDependsNode* NewNode = State.CreateOrFindDependsNode(PackageName);
+
+			auto ReAddDependency = [this, NewNode](const FName& Referencer, EAssetRegistryDependencyType::Type RefType) {
+				FDependsNode* ReferencerNode = State.CreateOrFindDependsNode(Referencer);
+				if (ReferencerNode != nullptr)
+				{
+					ReferencerNode->AddDependency(NewNode, RefType);
+					NewNode->AddReferencer(ReferencerNode);
+				}
+			};
+
+			for (const FName& SoftRef : SoftReferencers)
+			{
+				ReAddDependency(SoftRef, EAssetRegistryDependencyType::Soft);
+			}
+
+			for (const FName& HardRef : HardReferencers)
+			{
+				ReAddDependency(HardRef, EAssetRegistryDependencyType::Hard);
+			}
 		}
 	}
 }
