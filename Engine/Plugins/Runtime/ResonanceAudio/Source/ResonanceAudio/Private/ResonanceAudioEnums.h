@@ -7,7 +7,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogResonanceAudio, Warning, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogResonanceAudio, Display, All);
 
 UENUM(BlueprintType)
 enum class ERaQualityMode : uint8
