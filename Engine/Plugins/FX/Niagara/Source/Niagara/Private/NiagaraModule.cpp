@@ -187,7 +187,7 @@ void INiagaraModule::StartupModule()
 #endif
 
 	CVarDetailLevel.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateRaw(this, &INiagaraModule::OnChangeDetailLevel));
-	OnChangeDetailLevel(CVarDetailLevel.AsVariable());
+	EngineDetailLevel = CVarDetailLevel.GetValueOnGameThread();
 
 	//Init commonly used FNiagaraVariables
 
