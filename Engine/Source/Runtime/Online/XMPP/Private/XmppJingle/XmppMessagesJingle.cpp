@@ -6,6 +6,7 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "Policies/CondensedJsonPrintPolicy.h"
+#include "Containers/BackgroundableTicker.h"
 
 #if WITH_XMPP_JINGLE
 
