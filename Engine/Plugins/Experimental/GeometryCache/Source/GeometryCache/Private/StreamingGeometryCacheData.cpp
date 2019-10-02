@@ -328,8 +328,10 @@ void FStreamingGeometryCacheData::ProcessCompletedChunks()
 			return;
 		}
 
-		// Chunks can be queued up multiple times when scrubbing, either the request has already been fulfilled (nullptr) or it could be waiting for a different IO request
-		if (*Chunk->IORequest == CompletedChunk.ReadRequest || Chunk->IORequest != nullptr)
+		// Chunks can be queued up multiple times when scrubbing but we can trust the LoadedChunkIndex of the completed chunk
+		// so all we need to check is if the FResidentChunk  has a valid IORequest pointer or not.
+		// If it is nullptr then we already processed a request for the chunk and it can be ignored.
+		if (Chunk->IORequest != nullptr)
 		{
 			// Check to see if we successfully managed to load anything
 			uint8* Mem = CompletedChunk.ReadRequest->GetReadResults();
