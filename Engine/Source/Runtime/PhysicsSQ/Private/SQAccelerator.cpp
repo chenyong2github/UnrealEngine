@@ -12,15 +12,15 @@
 #include "Experimental/SceneQueryChaosImp.h"
 #endif
 
-#if INCLUDE_CHAOS
 #include "ChaosInterfaceWrapperCore.h"
-
-#include "Chaos/Particles.h"
-#include "Chaos/Sphere.h"
-#include "Chaos/Capsule.h"
-#include "Chaos/PBDRigidsEvolutionGBF.h"
+#include "Chaos/ISpatialAcceleration.h"
 #include "Chaos/PBDCollisionConstraint.h"
 #include "Chaos/GeometryQueries.h"
+#include "Chaos/DebugDrawQueue.h"
+
+#if CHAOS_DEBUG_DRAW
+int32 ChaosSQDrawDebugVisitorQueries = 0;
+FAutoConsoleVariableRef CVarChaosSQDrawDebugQueries(TEXT("p.Chaos.SQ.DrawDebugVisitorQueries"), ChaosSQDrawDebugVisitorQueries, TEXT("Draw bounds of objects visited by visitors in scene queries."));
 #endif
 
 void FSQAcceleratorUnion::Raycast(const FVector& Start, const FVector& Dir, const float DeltaMagnitude, FPhysicsHitCallback<FHitRaycast>& HitBuffer, EHitFlags OutputFlags, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback) const
@@ -57,7 +57,6 @@ void FSQAcceleratorUnion::RemoveSQAccelerator(ISQAccelerator* AcceleratorToRemov
 	Accelerators.RemoveSingleSwap(AcceleratorToRemove);	//todo(ocohen): probably want to order these in some optimal way
 }
 
-#if INCLUDE_CHAOS
 FChaosSQAccelerator::FChaosSQAccelerator(const Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>& InSpatialAcceleration)
 	: SpatialAcceleration(InSpatialAcceleration)
 {}
@@ -85,7 +84,7 @@ template <typename TPayload, typename THitType>
 struct TSQVisitor : public Chaos::ISpatialVisitor<TPayload, float>
 {
 	TSQVisitor(const FVector& InStartPoint, const FVector& InDir, ChaosInterface::FSQHitBuffer<ChaosInterface::FRaycastHit>& InHitBuffer, EHitFlags InOutputFlags,
-		const FQueryFilterData& InQueryFilterData, ICollisionQueryFilterCallbackBase& InQueryCallback)
+		const FQueryFilterData& InQueryFilterData, ICollisionQueryFilterCallbackBase& InQueryCallback, const FQueryDebugParams& InDebugParams)
 		: StartPoint(InStartPoint)
 		, Dir(InDir)
 		, HitBuffer(InHitBuffer)
@@ -93,6 +92,7 @@ struct TSQVisitor : public Chaos::ISpatialVisitor<TPayload, float>
 		, QueryFilterData(InQueryFilterData)
 		, QueryCallback(InQueryCallback)
 		, bAnyHit(false)
+		, DebugParams(InDebugParams)
 	{
 #if WITH_PHYSX
 		//#TODO - reimplement query flags alternative for Chaos
@@ -101,7 +101,7 @@ struct TSQVisitor : public Chaos::ISpatialVisitor<TPayload, float>
 	}
 
 	TSQVisitor(const FTransform& InStartTM, const FVector& InDir, ChaosInterface::FSQHitBuffer<ChaosInterface::FSweepHit>& InHitBuffer, EHitFlags InOutputFlags,
-		const FQueryFilterData& InQueryFilterData, ICollisionQueryFilterCallbackBase& InQueryCallback, const Chaos::TImplicitObject<float,3>& InQueryGeom)
+		const FQueryFilterData& InQueryFilterData, ICollisionQueryFilterCallbackBase& InQueryCallback, const Chaos::TImplicitObject<float,3>& InQueryGeom, const FQueryDebugParams& InDebugParams)
 		: StartTM(InStartTM)
 		, Dir(InDir)
 		, HitBuffer(InHitBuffer)
@@ -110,6 +110,7 @@ struct TSQVisitor : public Chaos::ISpatialVisitor<TPayload, float>
 		, QueryCallback(InQueryCallback)
 		, bAnyHit(false)
 		, QueryGeom(&InQueryGeom)
+		, DebugParams(InDebugParams)
 	{
 #if WITH_PHYSX
 		//#TODO - reimplement query flags alternative for Chaos
@@ -119,13 +120,14 @@ struct TSQVisitor : public Chaos::ISpatialVisitor<TPayload, float>
 	}
 
 	TSQVisitor(const FTransform& InWorldTM, ChaosInterface::FSQHitBuffer<ChaosInterface::FOverlapHit>& InHitBuffer,
-		const FQueryFilterData& InQueryFilterData, ICollisionQueryFilterCallbackBase& InQueryCallback, const Chaos::TImplicitObject<float, 3>& InQueryGeom)
+		const FQueryFilterData& InQueryFilterData, ICollisionQueryFilterCallbackBase& InQueryCallback, const Chaos::TImplicitObject<float, 3>& InQueryGeom, const FQueryDebugParams& InDebugParams)
 		: StartTM(InWorldTM)
 		, HitBuffer(InHitBuffer)
 		, QueryFilterData(InQueryFilterData)
 		, QueryCallback(InQueryCallback)
 		, bAnyHit(false)
 		, QueryGeom(&InQueryGeom)
+		, DebugParams(InDebugParams)
 	{
 #if WITH_PHYSX
 		//#TODO - reimplement query flags alternative for Chaos
@@ -134,20 +136,20 @@ struct TSQVisitor : public Chaos::ISpatialVisitor<TPayload, float>
 		//todo: check THitType is overlap
 	}
 
-	virtual bool Raycast(const TPayload Payload, float& CurLength) override
+	virtual bool Raycast(const Chaos::TSpatialVisitorData<TPayload>& Instance, float& CurLength) override
 	{
-		return Visit<ESQType::Raycast>(Payload, CurLength);
+		return Visit<ESQType::Raycast>(Instance, CurLength);
 	}
 
-	virtual bool Sweep(const TPayload Payload, float& CurLength) override
+	virtual bool Sweep(const Chaos::TSpatialVisitorData<TPayload>& Instance, float& CurLength) override
 	{
-		return Visit<ESQType::Sweep>(Payload, CurLength);
+		return Visit<ESQType::Sweep>(Instance, CurLength);
 	}
 
-	virtual bool Overlap(const TPayload Payload) override
+	virtual bool Overlap(const Chaos::TSpatialVisitorData<TPayload>& Instance) override
 	{
 		float DummyLength;
-		return Visit<ESQType::Overlap>(Payload, DummyLength);
+		return Visit<ESQType::Overlap>(Instance, DummyLength);
 	}
 
 private:
@@ -160,8 +162,17 @@ private:
 	};
 
 	template <ESQType SQ>
-	bool Visit(const TPayload Payload, float& CurLength)
+	bool Visit(const Chaos::TSpatialVisitorData<TPayload>& Instance, float& CurLength)
 	{
+#if CHAOS_DEBUG_DRAW && WITH_CHAOS
+		if (DebugParams.IsDebugQuery() && ChaosSQDrawDebugVisitorQueries)
+		{
+			DebugDraw<SQ>(Instance, CurLength);
+		}
+#endif
+
+		TPayload Payload = Instance.Payload;
+
 		//todo: add a check to ensure hitbuffer matches SQ type
 		using namespace Chaos;
 		TGeometryParticle<float, 3>* GeometryParticle = Payload.GetExternalGeometryParticle_ExternalThread();
@@ -169,7 +180,7 @@ private:
 
 		for (const auto& Shape : Shapes)
 		{
-			const TImplicitObject<float, 3>* Geom = Shape->Geometry;
+			const TImplicitObject<float, 3>* Geom = Shape->Geometry.Get();
 			//TODO: use gt particles directly
 			//#TODO alternative to px flags
 #if WITH_PHYSX
@@ -253,6 +264,23 @@ private:
 		return true;
 	}
 
+#if CHAOS_DEBUG_DRAW && !(UE_BUILD_TEST || UE_BUILD_SHIPPING)
+	template <ESQType SQ>
+	void DebugDraw(const Chaos::TSpatialVisitorData<TPayload>& Instance, const float CurLength)
+	{
+		if (SQ == ESQType::Raycast)
+		{
+			const FVector EndPoint = StartPoint + (Dir * CurLength);
+			Chaos::FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(StartPoint, EndPoint, 5.f, FColor::Green, false, -1.f, 0, 1.f);
+		}
+
+		if (Instance.bHasBounds)
+		{
+			Chaos::FDebugDrawQueue::GetInstance().DrawDebugBox(Instance.Bounds.Center(), Instance.Bounds.Extents(), FQuat::Identity, FColor::Red, false, -1.f, 0, 2.f);
+		}
+	}
+#endif
+
 	const FTransform StartTM;
 	const FVector StartPoint;
 	const FVector Dir;
@@ -262,47 +290,46 @@ private:
 	ICollisionQueryFilterCallbackBase& QueryCallback;
 	bool bAnyHit;
 	const Chaos::TImplicitObject<float, 3>* QueryGeom;
+	const FQueryDebugParams DebugParams;
 };
 
-void FChaosSQAccelerator::Raycast(const FVector& Start, const FVector& Dir, const float DeltaMagnitude, ChaosInterface::FSQHitBuffer<ChaosInterface::FRaycastHit>& HitBuffer, EHitFlags OutputFlags, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback) const
+void FChaosSQAccelerator::Raycast(const FVector& Start, const FVector& Dir, const float DeltaMagnitude, ChaosInterface::FSQHitBuffer<ChaosInterface::FRaycastHit>& HitBuffer, EHitFlags OutputFlags, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback, const FQueryDebugParams& DebugParams) const
 {
 	using namespace Chaos;
 	using namespace ChaosInterface;
 
-	TSQVisitor<TAccelerationStructureHandle<float, 3>, FRaycastHit> RaycastVisitor(Start, Dir, HitBuffer, OutputFlags, QueryFilterData, QueryCallback);
+	TSQVisitor<TAccelerationStructureHandle<float, 3>, FRaycastHit> RaycastVisitor(Start, Dir, HitBuffer, OutputFlags, QueryFilterData, QueryCallback, DebugParams);
 	HitBuffer.IncFlushCount();
 	SpatialAcceleration.Raycast(Start, Dir, DeltaMagnitude, RaycastVisitor);
 	HitBuffer.DecFlushCount();
 }
 
-void FChaosSQAccelerator::Sweep(const Chaos::TImplicitObject<float, 3>& QueryGeom, const FTransform& StartTM, const FVector& Dir, const float DeltaMagnitude, ChaosInterface::FSQHitBuffer<ChaosInterface::FSweepHit>& HitBuffer, EHitFlags OutputFlags, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback) const
+void FChaosSQAccelerator::Sweep(const Chaos::TImplicitObject<float, 3>& QueryGeom, const FTransform& StartTM, const FVector& Dir, const float DeltaMagnitude, ChaosInterface::FSQHitBuffer<ChaosInterface::FSweepHit>& HitBuffer, EHitFlags OutputFlags, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback, const FQueryDebugParams& DebugParams) const
 {
 	using namespace Chaos;
 	using namespace ChaosInterface;
 
 	const TBox<float, 3> Bounds = QueryGeom.BoundingBox().TransformedBox(StartTM);
 	const FVector HalfExtents = Bounds.Extents() * 0.5f;
-	TSQVisitor<TAccelerationStructureHandle<float, 3>, FSweepHit> SweepVisitor(StartTM, Dir, HitBuffer, OutputFlags, QueryFilterData, QueryCallback, QueryGeom);
+	TSQVisitor<TAccelerationStructureHandle<float, 3>, FSweepHit> SweepVisitor(StartTM, Dir, HitBuffer, OutputFlags, QueryFilterData, QueryCallback, QueryGeom, DebugParams);
 	HitBuffer.IncFlushCount();
 	SpatialAcceleration.Sweep(Bounds.GetCenter(), Dir, DeltaMagnitude, HalfExtents, SweepVisitor);
 	HitBuffer.DecFlushCount();
 }
 
-void FChaosSQAccelerator::Overlap(const Chaos::TImplicitObject<float, 3>& QueryGeom, const FTransform& GeomPose, ChaosInterface::FSQHitBuffer<ChaosInterface::FOverlapHit>& HitBuffer, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback) const
+void FChaosSQAccelerator::Overlap(const Chaos::TImplicitObject<float, 3>& QueryGeom, const FTransform& GeomPose, ChaosInterface::FSQHitBuffer<ChaosInterface::FOverlapHit>& HitBuffer, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback, const FQueryDebugParams& DebugParams) const
 {
 	using namespace Chaos;
 	using namespace ChaosInterface;
 
 	const TBox<float, 3> Bounds = QueryGeom.BoundingBox().TransformedBox(GeomPose);
-	TSQVisitor<TAccelerationStructureHandle<float, 3>, FOverlapHit> OverlapVisitor(GeomPose, HitBuffer, QueryFilterData, QueryCallback, QueryGeom);
+	TSQVisitor<TAccelerationStructureHandle<float, 3>, FOverlapHit> OverlapVisitor(GeomPose, HitBuffer, QueryFilterData, QueryCallback, QueryGeom, DebugParams);
 	HitBuffer.IncFlushCount();
 	SpatialAcceleration.Overlap(Bounds, OverlapVisitor);
 	HitBuffer.DecFlushCount();
 }
 
-#endif
-
-#if WITH_PHYSX && INCLUDE_CHAOS
+#if WITH_PHYSX
 FChaosSQAcceleratorAdapter::FChaosSQAcceleratorAdapter(const Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>& InSpatialAcceleration)
 	: ChaosSQAccelerator(InSpatialAcceleration)
 {

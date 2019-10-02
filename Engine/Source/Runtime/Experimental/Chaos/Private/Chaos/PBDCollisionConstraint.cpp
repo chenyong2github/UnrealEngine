@@ -2,14 +2,14 @@
 
 #include "Chaos/PBDCollisionConstraint.h"
 
-#include "Chaos/BoundingVolume.h"
-#include "Chaos/BoundingVolumeHierarchy.h"
 #include "Chaos/ChaosPerfTest.h"
 #include "Chaos/Defines.h"
+#include "Chaos/GeometryQueries.h"
 #include "Chaos/ImplicitObjectUnion.h"
+#include "Chaos/ImplicitObjectScaled.h"
 #include "Chaos/Levelset.h"
 #include "Chaos/Pair.h"
-#include "Chaos/PBDConstraintGraph.h"
+#include "Chaos/Capsule.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/Transform.h"
 #include "ChaosLog.h"
@@ -17,21 +17,11 @@
 #include "Containers/Queue.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "Chaos/PBDRigidsSOAs.h"
+#include "Chaos/ChaosDebugDraw.h"
 
 #if INTEL_ISPC
-
-#if USING_CODE_ANALYSIS
-MSVC_PRAGMA(warning(push))
-MSVC_PRAGMA(warning(disable : ALL_CODE_ANALYSIS_WARNINGS))
-#endif    // USING_CODE_ANALYSIS
-
 #include "PBDCollisionConstraint.ispc.generated.h"
-
-#if USING_CODE_ANALYSIS
-MSVC_PRAGMA(warning(pop))
-#endif    // USING_CODE_ANALYSIS
-
-#endif    // INTEL_ISPC
+#endif
 
 int32 CollisionParticlesBVHDepth = 4;
 FAutoConsoleVariableRef CVarCollisionParticlesBVHDepth(TEXT("p.CollisionParticlesBVHDepth"), CollisionParticlesBVHDepth, TEXT("The maximum depth for collision particles bvh"));
@@ -44,6 +34,7 @@ FAutoConsoleVariableRef CVarConstraintBPBVHDepth(TEXT("p.ConstraintBPBVHDepth"),
 
 int32 BPTreeOfGrids = 1;
 FAutoConsoleVariableRef CVarBPTreeOfGrids(TEXT("p.BPTreeOfGrids"), BPTreeOfGrids, TEXT("Whether to use a seperate tree of grids for bp"));
+
 
 extern int32 UseLevelsetCollision;
 
@@ -60,30 +51,98 @@ namespace Chaos
 template<ECollisionUpdateType, typename T, int d>
 void UpdateConstraintImp2(const TRigidTransform<T, d>& ParticleTM, const TImplicitObject<T, d>& LevelsetObject, const TRigidTransform<T, d>& LevelsetTM, const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint);
 
+//
+// Collision Constraint Handle
+//
+
+template<typename T, int d>
+TPBDCollisionConstraintHandle<T, d>::TPBDCollisionConstraintHandle()
+{
+}
+
+template<typename T, int d>
+TPBDCollisionConstraintHandle<T, d>::TPBDCollisionConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex)
+	: TContainerConstraintHandle<TPBDCollisionConstraint<T, d>>(InConstraintContainer, InConstraintIndex)
+{
+}
+
+template<typename T, int d>
+const TRigidBodyContactConstraint<T, d>& TPBDCollisionConstraintHandle<T, d>::GetContact() const
+{
+	return ConstraintContainer->Constraints[ConstraintIndex];
+}
+
+
+//
+// Collision Constraint Container
+//
+
 template<typename T, int d>
 TPBDCollisionConstraint<T, d>::TPBDCollisionConstraint(const TPBDRigidsSOAs<T,d>& InParticles, TArrayCollectionArray<bool>& Collided, const TArrayCollectionArray<TSerializablePtr<TChaosPhysicsMaterial<T>>>& InPerParticleMaterials, const int32 PairIterations /*= 1*/, const T Thickness /*= (T)0*/)
-#if CHAOS_PARTICLEHANDLE_TODO
-	: SpatialAccelerationResource(InPlace, InParticles)
-	, SpatialAccelerationResource2(InPlace, InParticles, ConstraintBPBVHDepth)
-#endif
 	: Particles(InParticles)
-	, SpatialAccelerationResource(InPlace, Particles.GetNonDisabledView())
+	, SpatialAcceleration(nullptr)
 	, MCollided(Collided)
 	, MPhysicsMaterials(InPerParticleMaterials)
+	, bEnableVelocitySolve(true)
 	, MPairIterations(PairIterations)
 	, MThickness(Thickness)
 	, MAngularFriction(0)
 	, bUseCCD(false)
+	, PostComputeCallback(nullptr)
+	, PostApplyCallback(nullptr)
+	, PostApplyPushOutCallback(nullptr)
 {
 }
 
 template<typename T, int d>
 void TPBDCollisionConstraint<T, d>::Reset(/*const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices*/)
 {
-	Constraints.Empty();
+	for (FConstraintHandle* Handle : Handles)
+	{
+		HandleAllocator.FreeHandle(Handle);
+	}
 	Handles.Empty();
+
+	Constraints.Empty();
+
 	MAngularFriction = 0;
 	bUseCCD = false;
+}
+
+template<typename T, int d>
+void TPBDCollisionConstraint<T, d>::SetPostComputeCallback(const TRigidBodyContactConstraintsPostComputeCallback<T, d>& Callback)
+{
+	PostComputeCallback = Callback;
+}
+
+template<typename T, int d>
+void TPBDCollisionConstraint<T, d>::ClearPostComputeCallback()
+{
+	PostComputeCallback = nullptr;
+}
+
+template<typename T, int d>
+void TPBDCollisionConstraint<T, d>::SetPostApplyCallback(const TRigidBodyContactConstraintsPostApplyCallback<T, d>& Callback)
+{
+	PostApplyCallback = Callback;
+}
+
+template<typename T, int d>
+void TPBDCollisionConstraint<T, d>::ClearPostApplyCallback()
+{
+	PostApplyCallback = nullptr;
+}
+
+template<typename T, int d>
+void TPBDCollisionConstraint<T, d>::SetPostApplyPushOutCallback(const TRigidBodyContactConstraintsPostApplyPushOutCallback<T, d>& Callback)
+{
+	PostApplyPushOutCallback = Callback;
+}
+
+template<typename T, int d>
+void TPBDCollisionConstraint<T, d>::ClearPostApplyPushOutCallback()
+{
+	PostApplyPushOutCallback = nullptr;
 }
 
 template<typename T, int d>
@@ -94,70 +153,13 @@ void TPBDCollisionConstraint<T, d>::UpdatePositionBasedState(/*const TPBDRigidPa
 #if !UE_BUILD_SHIPPING
 	if (PendingHierarchyDump)
 	{
-		ComputeConstraints<true>(Dt);
+		ComputeConstraints<true>(*SpatialAcceleration, Dt);
 	}
 	else
 #endif
 	{
-		ComputeConstraints(Dt);
+		ComputeConstraints(*SpatialAcceleration, Dt);
 	}
-}
-
-template <typename T, int d>
-TUniquePtr<ISpatialAcceleration<TAccelerationStructureHandle<T, d>, T, d>> TPBDCollisionConstraint<T, d>::CreateExternalAccelerationStructure()
-{
-	auto Copy = SpatialAccelerationResource.GetWritable().Copy();
-	Copy->Reinitialize(Particles.GetNonDisabledView(), true, 0); //todo(ocohen): bounds are wrong - also no need to recreate, just remove deleted items
-	return Copy;
-}
-
-
-
-#if CHAOS_PARTICLEHANDLE_TODO
-template <typename T, int d>
-const ISpatialAcceleration<T, d>& TPBDCollisionConstraint<T, d>::GetSpatialAcceleration() const
-{
-	if (BPTreeOfGrids)
-	{
-		return SpatialAccelerationResource2.GetRead();
-	}
-	else
-	{
-		return SpatialAccelerationResource.GetRead();
-	}
-}
-#endif
-
-template <typename T, int d>
-void TPBDCollisionConstraint<T, d>::ReleaseSpatialAcceleration() const
-{
-#if CHAOS_PARTICLEHANDLE_TODO
-	if (BPTreeOfGrids)
-	{
-		SpatialAccelerationResource2.ReleaseRead();
-	}
-	else
-	{
-		SpatialAccelerationResource.ReleaseRead();
-	}
-#endif
-	SpatialAccelerationResource.ReleaseRead();
-}
-
-template <typename T, int d>
-void TPBDCollisionConstraint<T, d>::SwapSpatialAcceleration()
-{
-#if CHAOS_PARTICLEHANDLE_TODO
-	if (BPTreeOfGrids)
-	{
-		SpatialAccelerationResource2.Swap();
-	}
-	else
-	{
-		SpatialAccelerationResource.Swap();
-	}
-#endif
-	SpatialAccelerationResource.Swap();
 }
 
 #if !UE_BUILD_SHIPPING
@@ -240,21 +242,50 @@ struct FStatHelper2<true>
 
 #endif
 
-DECLARE_CYCLE_STAT(TEXT("ComputeConstraints2"), STAT_ComputeConstraints2, STATGROUP_Chaos);
-DECLARE_CYCLE_STAT(TEXT("ComputeConstraintsNP2"), STAT_ComputeConstraintsNP2, STATGROUP_Chaos);
-//DECLARE_CYCLE_STAT(TEXT("ComputeConstraintsNP2"), STAT_ComputeConstraintsNP2, STATGROUP_Chaos);
-//DECLARE_CYCLE_STAT(TEXT("ComputeConstraintsNP3"), STAT_ComputeConstraintsNP3, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("ComputeConstraints"), STAT_ComputeConstraints, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("ComputeConstraintsNP"), STAT_ComputeConstraintsNP, STATGROUP_Chaos);
+
 
 int32 ComputeConstraintsUseAny2 = 1;
 FAutoConsoleVariableRef CVarComputeConstraintsUseAny2(TEXT("p.ComputeConstraintsUseAny2"), ComputeConstraintsUseAny2, TEXT(""));
 
+int32 CollisionConstraintsForceSingleThreaded = 0;
+FAutoConsoleVariableRef CVarCollisionConstraintsForceSingleThreaded(TEXT("p.Chaos.Collision.ForceSingleThreaded"), CollisionConstraintsForceSingleThreaded, TEXT("CollisionConstraintsForceSingleThreaded"));
+
+template <typename T, int d>
+struct TSimOverlapVisitor
+{
+	TArray<TAccelerationStructureHandle<T, d>>& Intersections;
+	TSimOverlapVisitor(TArray<TAccelerationStructureHandle<T, d>>& InIntersections)
+		: Intersections(InIntersections)
+	{
+	}
+
+	bool VisitOverlap(const TSpatialVisitorData<TAccelerationStructureHandle<T, d>>& Instance)
+	{
+		Intersections.Add(Instance.Payload);
+		return true;
+	}
+
+	bool VisitSweep(TSpatialVisitorData<TAccelerationStructureHandle<T,d>>, T Length)
+	{
+		check(false);
+		return false;
+	}
+
+	bool VisitRaycast(TSpatialVisitorData<TAccelerationStructureHandle<T, d>>, T Length)
+	{
+		check(false);
+		return false;
+	}
+};
 
 template <typename T, int d>
 template <typename SPATIAL_ACCELERATION, bool bGatherStats>
-void TPBDCollisionConstraint<T, d>::ComputeConstraintsHelper(T Dt, const SPATIAL_ACCELERATION& SpatialAcceleration)
+void TPBDCollisionConstraint<T, d>::ComputeConstraintsHelper(T Dt, const SPATIAL_ACCELERATION& InSpatialAcceleration)
 {
-	SCOPE_CYCLE_COUNTER(STAT_ComputeConstraints2);
-	CHAOS_SCOPED_TIMER(ComputeConstraints2);
+	SCOPE_CYCLE_COUNTER(STAT_ComputeConstraints);
+	CHAOS_SCOPED_TIMER(ComputeConstraints);
 	if (!EnableCollisions) return;
 	// Broad phase
 
@@ -266,17 +297,12 @@ void TPBDCollisionConstraint<T, d>::ComputeConstraintsHelper(T Dt, const SPATIAL
 	FStatHelper2<bGatherStats> BoundsDistribution;
 	int32 SimulatedParticles = 0;
 #endif
-
 	{
-		CHAOS_SCOPED_TIMER(ComputeConstraintsBP2);
-		SpatialAcceleration.Reinitialize(Particles.GetNonDisabledView(), true, Dt * BoundsThicknessMultiplier); //todo(ocohen): should we pass MThickness into this structure?
-	}
-	{
-		SCOPE_CYCLE_COUNTER(STAT_ComputeConstraintsNP2);
+		SCOPE_CYCLE_COUNTER(STAT_ComputeConstraintsNP);
 
 
 		// Narrow phase
-		CHAOS_SCOPED_TIMER(ComputeConstraints_NP2);
+		CHAOS_SCOPED_TIMER(ComputeConstraints_NP);
 
 		TQueue<TRigidBodyContactConstraint<T, d>, EQueueMode::Mpsc> Queue;	//todo(ocohen): use per thread buffer instead, need better support than ParallelFor for this
 		Particles.GetNonDisabledDynamicView().ParallelFor([&](auto& Particle1, int32 ActiveIdxIdx)
@@ -288,8 +314,6 @@ void TPBDCollisionConstraint<T, d>::ComputeConstraintsHelper(T Dt, const SPATIAL
 			}
 #endif
 
-			//SCOPE_CYCLE_COUNTER(STAT_ComputeConstraintsNP2);
-
 			TArray<TAccelerationStructureHandle<T,d>> PotentialIntersections;
 
 			const bool bBody1Bounded = HasBoundingBox(Particle1);
@@ -298,7 +322,7 @@ void TPBDCollisionConstraint<T, d>::ComputeConstraintsHelper(T Dt, const SPATIAL
 			if (bBody1Bounded)
 			{
 #if CHAOS_PARTICLEHANDLE_TODO
-				const TBox <T, d> Box1 = SpatialAcceleration.GetWorldSpaceBoundingBox(Particle1);
+				const TBox <T, d> Box1 = InSpatialAcceleration.GetWorldSpaceBoundingBox(Particle1);
 #else
 				const TBox <T, d> Box1 = ComputeWorldSpaceBoundingBox(Particle1);	//NOTE: this ignores the velocity expansion which is wrong
 #endif
@@ -311,11 +335,18 @@ void TPBDCollisionConstraint<T, d>::ComputeConstraintsHelper(T Dt, const SPATIAL
 					BoundsDistribution.Record(Box1.Extents().GetMax());
 				}
 #endif
-				PotentialIntersections = SpatialAcceleration.FindAllIntersections(Box1);
+				TSimOverlapVisitor<T,d> OverlapVisitor(PotentialIntersections);
+				InSpatialAcceleration.Overlap(Box1, OverlapVisitor);
 			}
 			else
 			{
-				PotentialIntersections = SpatialAcceleration.GlobalObjects();
+				const auto& GlobalElems = InSpatialAcceleration.GlobalObjects();
+				PotentialIntersections.Reserve(GlobalElems.Num());
+
+				for (auto& Elem : GlobalElems)
+				{
+					PotentialIntersections.Add(Elem.Payload);
+				}
 			}
 
 #if !UE_BUILD_SHIPPING
@@ -415,7 +446,7 @@ void TPBDCollisionConstraint<T, d>::ComputeConstraintsHelper(T Dt, const SPATIAL
 			NarrowPhaseSkipped.Record(NPSkipped);
 			NarrowPhaseRejected.Record(RejectedNP);
 #endif
-		}, bGatherStats);
+		}, bGatherStats || CollisionConstraintsForceSingleThreaded);
 		
 		while(!Queue.IsEmpty())
 		{				
@@ -481,20 +512,29 @@ void TPBDCollisionConstraint<T, d>::ComputeConstraintsHelper(T Dt, const SPATIAL
 
 template<typename T, int d>
 template <bool bGatherStats>
-void TPBDCollisionConstraint<T, d>::ComputeConstraints(/*const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices,*/ T Dt)
+void TPBDCollisionConstraint<T, d>::ComputeConstraints(const FAccelerationStructure& AccelerationStructure, T Dt)
 {
-#if CHAOS_PARTICLEHANDLE_TODO
-	if (BPTreeOfGrids)
+	if (const auto AABBTree = AccelerationStructure.template As<TAABBTree<TAccelerationStructureHandle<T, d>, TAABBTreeLeafArray<TAccelerationStructureHandle<T, d>, T>, T>>())
 	{
-		ComputeConstraintsHelper<decltype(SpatialAccelerationResource2.GetWritable()), bGatherStats>(InParticles, InIndices, Dt, SpatialAccelerationResource2.GetWritable());
+		ComputeConstraintsHelper<decltype(*AABBTree), bGatherStats>(Dt, *AABBTree);
+	}
+	else if(const auto BV = AccelerationStructure.template As<TBoundingVolume<TAccelerationStructureHandle<T, d>, T, d>>())
+	{
+		ComputeConstraintsHelper<decltype(*BV), bGatherStats>(Dt, *BV);
+	}
+	else if (const auto AABBTreeBV = AccelerationStructure.template As<TAABBTree<TAccelerationStructureHandle<T, d>, TBoundingVolume<TAccelerationStructureHandle<T, d>, T, d>, T>>())
+	{
+		ComputeConstraintsHelper<decltype(*AABBTreeBV), bGatherStats>(Dt, *AABBTreeBV);
 	}
 	else
 	{
-		ComputeConstraintsHelper<decltype(SpatialAccelerationResource.GetWritable()), bGatherStats>(InParticles, InIndices, Dt, SpatialAccelerationResource.GetWritable());
+		check(false); //question: do we want to support a dynamic dispatch version?
 	}
-#endif
-
-	ComputeConstraintsHelper<decltype(SpatialAccelerationResource.GetWritable()), bGatherStats>(Dt, SpatialAccelerationResource.GetWritable());
+	
+	if (PostComputeCallback != nullptr)
+	{
+		PostComputeCallback(Constraints);
+	}
 }
 
 template<typename T, int d>
@@ -508,6 +548,7 @@ void TPBDCollisionConstraint<T, d>::RemoveConstraints(const TSet<TGeometryPartic
 		if (RemovedParticles.Contains(Constraint.ParticleIndex) || RemovedParticles.Contains(Constraint.LevelsetIndex))
 		{
 			Constraints.RemoveAtSwap(i);
+			HandleAllocator.FreeHandle(Handles[i]);
 			Handles.RemoveAtSwap(i);
 			if (i < Handles.Num())
 			{
@@ -519,14 +560,14 @@ void TPBDCollisionConstraint<T, d>::RemoveConstraints(const TSet<TGeometryPartic
 #endif
 }
 
-DECLARE_CYCLE_STAT(TEXT("UpdateConstraints2"), STAT_UpdateConstraints2, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("UpdateConstraints"), STAT_UpdateConstraints, STATGROUP_Chaos);
 
 template <typename T, int d>
 template<typename SPATIAL_ACCELERATION>
-void TPBDCollisionConstraint<T, d>::UpdateConstraintsHelper(/*const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices,*/ T Dt, const TSet<TGeometryParticleHandle<T, d>*>& AddedParticles, SPATIAL_ACCELERATION& SpatialAcceleration)
+void TPBDCollisionConstraint<T, d>::UpdateConstraintsHelper(/*const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices,*/ T Dt, const TSet<TGeometryParticleHandle<T, d>*>& AddedParticles, SPATIAL_ACCELERATION& InSpatialAcceleration)
 {
 #if CHAOS_PARTICLEHANDLE_TODO
-	SCOPE_CYCLE_COUNTER(STAT_UpdateConstraints2);
+	SCOPE_CYCLE_COUNTER(STAT_UpdateConstraints);
 	double Time = 0;
 	FDurationTimer Timer(Time);
 
@@ -680,7 +721,8 @@ void TPBDCollisionConstraint<T, d>::UpdateConstraints(/*const TPBDRigidParticles
 			if(InParticles.Disabled(Constraint.ParticleIndex) || InParticles.Disabled(Constraint.LevelsetIndex))
 			{
 				Constraints.RemoveAtSwap(i);
-				Handles.RemoveAt(i);
+				HandleAllocator.FreeHandle(Handles[i]);
+				Handles.RemoveAtSwap(i);
 				if (i < Handles.Num())
 				{
 					SetConstraintIndex(Handles[i], i);
@@ -698,11 +740,11 @@ void TPBDCollisionConstraint<T, d>::UpdateConstraints(/*const TPBDRigidParticles
 
 	if (BPTreeOfGrids)
 	{
-		UpdateConstraintsHelper(InParticles, InIndices, Dt, AddedParticles, ActiveParticles, SpatialAccelerationResource2.GetWritable());
+		UpdateConstraintsHelper(InParticles, InIndices, Dt, AddedParticles, ActiveParticles, SpatialAccelerationResource2);
 	}
 	else
 	{
-		UpdateConstraintsHelper(InParticles, InIndices, Dt, AddedParticles, ActiveParticles, SpatialAccelerationResource.GetWritable());
+		UpdateConstraintsHelper(InParticles, InIndices, Dt, AddedParticles, ActiveParticles, SpatialAccelerationResource);
 	}
 #endif
 }
@@ -944,7 +986,7 @@ void TPBDCollisionConstraint<T, d>::Apply(const T Dt, FRigidBodyContactConstrain
 			PBDRigid0->W() += WorldSpaceInvI1 * AngularImpulse1;
 			// Position update as part of pbd
 			PBDRigid0->P() += (PBDRigid0->InvM() * Impulse) * Dt;
-			PBDRigid0->Q() += TRotation<T, d>(WorldSpaceInvI1 * AngularImpulse1, 0.f) * Q0 * Dt * T(0.5);
+			PBDRigid0->Q() += TRotation<T, d>::FromElements(WorldSpaceInvI1 * AngularImpulse1, 0.f) * Q0 * Dt * T(0.5);
 			PBDRigid0->Q().Normalize();
 		}
 		if (PBDRigid1)
@@ -954,7 +996,7 @@ void TPBDCollisionConstraint<T, d>::Apply(const T Dt, FRigidBodyContactConstrain
 			PBDRigid1->W() += WorldSpaceInvI2 * AngularImpulse2;
 			// Position update as part of pbd
 			PBDRigid1->P() -= (PBDRigid1->InvM() * Impulse) * Dt;
-			PBDRigid1->Q() += TRotation<T, d>(WorldSpaceInvI2 * AngularImpulse2, 0.f) * Q0 * Dt * T(0.5);
+			PBDRigid1->Q() += TRotation<T, d>::FromElements(WorldSpaceInvI2 * AngularImpulse2, 0.f) * Q0 * Dt * T(0.5);
 			PBDRigid1->Q().Normalize();
 		}
 	}
@@ -962,13 +1004,21 @@ void TPBDCollisionConstraint<T, d>::Apply(const T Dt, FRigidBodyContactConstrain
 
 DECLARE_CYCLE_STAT(TEXT("Apply"), STAT_Apply2, STATGROUP_ChaosWide);
 template<typename T, int d>
-void TPBDCollisionConstraint<T, d>::Apply(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles)
+void TPBDCollisionConstraint<T, d>::Apply(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles, const int32 It, const int32 NumIts)
 {
-	PhysicsParallelFor(InConstraintHandles.Num(), [&](int32 ConstraintHandleIndex) {
-		FConstraintHandle* ConstraintHandle = InConstraintHandles[ConstraintHandleIndex];
-		check(ConstraintHandle != nullptr);
-		Apply(Dt, Constraints[ConstraintHandle->GetConstraintIndex()]);
-	});
+	if (bEnableVelocitySolve)
+	{
+		PhysicsParallelFor(InConstraintHandles.Num(), [&](int32 ConstraintHandleIndex) {
+			FConstraintHandle* ConstraintHandle = InConstraintHandles[ConstraintHandleIndex];
+			check(ConstraintHandle != nullptr);
+			Apply(Dt, Constraints[ConstraintHandle->GetConstraintIndex()]);
+			});
+	}
+
+	if (PostApplyCallback != nullptr)
+	{
+		PostApplyCallback(Dt, InConstraintHandles);
+	}
 }
 
 DECLARE_CYCLE_STAT(TEXT("ApplyPushOut"), STAT_ApplyPushOut2, STATGROUP_ChaosWide);
@@ -1096,191 +1146,23 @@ bool TPBDCollisionConstraint<T, d>::ApplyPushOut(const T Dt, const TArray<FConst
 
 	bool NeedsAnotherIteration = false;
 
-	PhysicsParallelFor(InConstraintHandles.Num(), [&](int32 ConstraintHandleIndex) {
-		FConstraintHandle* ConstraintHandle = InConstraintHandles[ConstraintHandleIndex];
-		check(ConstraintHandle != nullptr);
-		ApplyPushOut(Dt, Constraints[ConstraintHandle->GetConstraintIndex()], IsTemporarilyStatic, Iteration, NumIterations, NeedsAnotherIteration);
-		});
+	if (MPairIterations > 0)
+	{
+		PhysicsParallelFor(InConstraintHandles.Num(), [&](int32 ConstraintHandleIndex) {
+			FConstraintHandle* ConstraintHandle = InConstraintHandles[ConstraintHandleIndex];
+			check(ConstraintHandle != nullptr);
+			ApplyPushOut(Dt, Constraints[ConstraintHandle->GetConstraintIndex()], IsTemporarilyStatic, Iteration, NumIterations, NeedsAnotherIteration);
+			});
+	}
+
+	if (PostApplyPushOutCallback != nullptr)
+	{
+		PostApplyPushOutCallback(Dt, InConstraintHandles, NeedsAnotherIteration);
+	}
 
 	return NeedsAnotherIteration;
 }
 
-
-template<typename T, int d>
-bool TPBDCollisionConstraint<T, d>::NearestPoint(TArray<Pair<TVector<T, d>, TVector<T, d>>>& Points, TVector<T, d>& Direction, TVector<T, d>& ClosestPoint)
-{
-	check(Points.Num() > 1 && Points.Num() <= 4);
-	if (Points.Num() == 2)
-	{
-		TPlane<T, d> LocalPlane(Points[1].First, Points[0].First - Points[1].First);
-		TVector<T, d> Normal;
-		const auto& Phi = LocalPlane.PhiWithNormal(TVector<T, d>(0), Normal);
-		if ((TVector<T, d>::DotProduct(-Points[1].First, Normal.GetSafeNormal()) - Points[1].First.Size()) < SMALL_NUMBER)
-		{
-			T Alpha = Points[0].First.Size() / (Points[1].First - Points[0].First).Size();
-			ClosestPoint = (1 - Alpha) * Points[0].Second + Alpha * Points[1].Second;
-			return true;
-		}
-		if (Phi > 0)
-		{
-			check(Points.Num() == 2);
-			Direction = TVector<T, d>::CrossProduct(TVector<T, d>::CrossProduct(Normal, -Points[1].First), Normal);
-		}
-		else
-		{
-			Direction = -Points[1].First;
-			Points.RemoveAtSwap(0);
-			check(Points.Num() == 1);
-		}
-		check(Points.Num() > 1 && Points.Num() < 4);
-		return false;
-	}
-	if (Points.Num() == 3)
-	{
-		TVector<T, d> TriangleNormal = TVector<T, d>::CrossProduct(Points[0].First - Points[2].First, Points[0].First - Points[1].First);
-		TPlane<T, d> LocalPlane1(Points[2].First, TVector<T, d>::CrossProduct(Points[0].First - Points[2].First, TriangleNormal));
-		TPlane<T, d> LocalPlane2(Points[2].First, TVector<T, d>::CrossProduct(Points[1].First - Points[2].First, TriangleNormal));
-		TVector<T, d> Normal;
-		T Phi = LocalPlane1.PhiWithNormal(TVector<T, d>(0), Normal);
-		if (Phi > 0)
-		{
-			TVector<T, d> Delta = Points[0].First - Points[2].First;
-			if (TVector<T, d>::DotProduct(-Points[2].First, Delta) > 0)
-			{
-				Direction = TVector<T, d>::CrossProduct(TVector<T, d>::CrossProduct(Delta, -Points[2].First), Delta);
-				Points.RemoveAtSwap(1);
-				check(Points.Num() == 2);
-			}
-			else
-			{
-				Delta = Points[1].First - Points[2].First;
-				if (TVector<T, d>::DotProduct(-Points[2].First, Delta) > 0)
-				{
-					Direction = TVector<T, d>::CrossProduct(TVector<T, d>::CrossProduct(Delta, -Points[2].First), Delta);
-					Points.RemoveAtSwap(0);
-					check(Points.Num() == 2);
-				}
-				else
-				{
-					Direction = -Points[2].First;
-					Points = {Points[2]};
-					check(Points.Num() == 1);
-				}
-			}
-		}
-		else
-		{
-			Phi = LocalPlane2.PhiWithNormal(TVector<T, d>(0), Normal);
-			if (Phi > 0)
-			{
-				TVector<T, d> Delta = Points[1].First - Points[2].First;
-				if (TVector<T, d>::DotProduct(-Points[2].First, Delta) > 0)
-				{
-					Direction = TVector<T, d>::CrossProduct(TVector<T, d>::CrossProduct(Delta, -Points[2].First), Delta);
-					Points.RemoveAtSwap(0);
-					check(Points.Num() == 2);
-				}
-				else
-				{
-					Direction = -Points[2].First;
-					Points = {Points[2]};
-					check(Points.Num() == 1);
-				}
-			}
-			else
-			{
-				const auto DotResult = TVector<T, d>::DotProduct(TriangleNormal, -Points[2].First);
-				// We are inside the triangle
-				if (DotResult < SMALL_NUMBER)
-				{
-					TVector<T, 3> Bary;
-					TVector<T, d> P10 = Points[1].First - Points[0].First;
-					TVector<T, d> P20 = Points[2].First - Points[0].First;
-					TVector<T, d> PP0 = -Points[0].First;
-					T Size10 = P10.SizeSquared();
-					T Size20 = P20.SizeSquared();
-					T ProjSides = TVector<T, d>::DotProduct(P10, P20);
-					T ProjP1 = TVector<T, d>::DotProduct(PP0, P10);
-					T ProjP2 = TVector<T, d>::DotProduct(PP0, P20);
-					T Denom = Size10 * Size20 - ProjSides * ProjSides;
-					Bary.Y = (Size20 * ProjP1 - ProjSides * ProjP2) / Denom;
-					Bary.Z = (Size10 * ProjP2 - ProjSides * ProjP1) / Denom;
-					Bary.X = 1.0f - Bary.Z - Bary.Y;
-					ClosestPoint = Points[0].Second * Bary.X + Points[1].Second * Bary.Y + Points[2].Second * Bary.Z;
-					return true;
-				}
-				if (DotResult > 0)
-				{
-					Direction = TriangleNormal;
-				}
-				else
-				{
-					Direction = -TriangleNormal;
-					Points.Swap(0, 1);
-					check(Points.Num() == 3);
-				}
-			}
-		}
-		check(Points.Num() > 0 && Points.Num() < 4);
-		return false;
-	}
-	if (Points.Num() == 4)
-	{
-		TVector<T, d> TriangleNormal = TVector<T, d>::CrossProduct(Points[1].First - Points[3].First, Points[1].First - Points[2].First);
-		if (TVector<T, d>::DotProduct(TriangleNormal, Points[0].First - Points[3].First) > 0)
-		{
-			TriangleNormal *= -1;
-		}
-		T DotResult = TVector<T, d>::DotProduct(TriangleNormal, -Points[3].First);
-		if (DotResult > 0)
-		{
-			Points = {Points[1], Points[2], Points[3]};
-			check(Points.Num() == 3);
-			return NearestPoint(Points, Direction, ClosestPoint);
-		}
-		TriangleNormal = TVector<T, d>::CrossProduct(Points[2].First - Points[0].First, Points[2].First - Points[3].First);
-		if (TVector<T, d>::DotProduct(TriangleNormal, Points[1].First - Points[3].First) > 0)
-		{
-			TriangleNormal *= -1;
-		}
-		DotResult = TVector<T, d>::DotProduct(TriangleNormal, -Points[3].First);
-		if (DotResult > 0)
-		{
-			Points = {Points[0], Points[2], Points[3]};
-			check(Points.Num() == 3);
-			return NearestPoint(Points, Direction, ClosestPoint);
-		}
-		TriangleNormal = TVector<T, d>::CrossProduct(Points[3].First - Points[1].First, Points[3].First - Points[0].First);
-		if (TVector<T, d>::DotProduct(TriangleNormal, Points[2].First - Points[3].First) > 0)
-		{
-			TriangleNormal *= -1;
-		}
-		DotResult = TVector<T, d>::DotProduct(TriangleNormal, -Points[3].First);
-		if (DotResult > 0)
-		{
-			Points = {Points[0], Points[1], Points[3]};
-			check(Points.Num() == 3);
-			return NearestPoint(Points, Direction, ClosestPoint);
-		}
-		TVector<T, 4> Bary;
-		TVector<T, d> PP0 = -Points[0].First;
-		TVector<T, d> PP1 = -Points[1].First;
-		TVector<T, d> P10 = Points[1].First - Points[0].First;
-		TVector<T, d> P20 = Points[2].First - Points[0].First;
-		TVector<T, d> P30 = Points[3].First - Points[0].First;
-		TVector<T, d> P21 = Points[2].First - Points[1].First;
-		TVector<T, d> P31 = Points[3].First - Points[1].First;
-		Bary[0] = TVector<T, d>::DotProduct(PP1, TVector<T, d>::CrossProduct(P31, P21));
-		Bary[1] = TVector<T, d>::DotProduct(PP0, TVector<T, d>::CrossProduct(P20, P30));
-		Bary[2] = TVector<T, d>::DotProduct(PP0, TVector<T, d>::CrossProduct(P30, P10));
-		Bary[3] = TVector<T, d>::DotProduct(PP0, TVector<T, d>::CrossProduct(P10, P20));
-		T Denom = TVector<T, d>::DotProduct(P10, TVector<T, d>::CrossProduct(P20, P30));
-		ClosestPoint = (Bary[0] * Points[0].Second + Bary[1] * Points[1].Second + Bary[2] * Points[2].Second + Bary[3] * Points[3].Second) / Denom;
-		return true;
-	}
-	check(Points.Num() > 1 && Points.Num() < 4);
-	return false;
-}
 
 template<typename T, int d>
 TRigidTransform<T, d> GetTransform(const TGeometryParticleHandle<T, d>* Particle)
@@ -1879,7 +1761,7 @@ void UpdateSpherePlaneConstraint(const TSphere<T, d>& Sphere, const TRigidTransf
 }
 
 template <typename T, int d>
-bool UpdateSphereBoxConstraint(const TSphere<T, d>& Sphere, const TRigidTransform<T, d>& SphereTransform, const TBox<T, d>& Box, const TRigidTransform<T, d>& BoxTransform, T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
+void UpdateSphereBoxConstraint(const TSphere<T, d>& Sphere, const TRigidTransform<T, d>& SphereTransform, const TBox<T, d>& Box, const TRigidTransform<T, d>& BoxTransform, T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
 {
 	const TRigidTransform<T, d> SphereToBoxTransform(SphereTransform * BoxTransform.Inverse());
 	const TVector<T, d> SphereCenterInBox = SphereToBoxTransform.TransformPosition(Sphere.GetCenter());
@@ -1893,10 +1775,70 @@ bool UpdateSphereBoxConstraint(const TSphere<T, d>& Sphere, const TRigidTransfor
 		Constraint.Phi = NewPhi;
 		Constraint.Normal = BoxTransform.TransformVectorNoScale(NewNormal);
 		Constraint.Location = SphereTransform.TransformPosition(Sphere.GetCenter()) - Constraint.Normal * Sphere.GetRadius();
-		return true;
+	}
+}
+
+template <typename T, int d>
+void UpdateCapsuleCapsuleConstraint(const TCapsule<T>& A, const TRigidTransform<T, d>& ATransform, const TCapsule<T>& B, const TRigidTransform<T, d>& BTransform, T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
+{
+	FVector A1 = ATransform.TransformPosition(A.GetX1());
+	FVector A2 = ATransform.TransformPosition(A.GetX2());
+	FVector B1 = BTransform.TransformPosition(B.GetX1());
+	FVector B2 = BTransform.TransformPosition(B.GetX2());
+	FVector P1, P2;
+	FMath::SegmentDistToSegmentSafe(A1, A2, B1, B2, P1, P2);
+
+	TVector<T, d> Delta = P2 - P1;
+	T DeltaLen = Delta.Size();
+	if (DeltaLen > KINDA_SMALL_NUMBER)
+	{
+		TVector<T, d> Dir = Delta / DeltaLen;
+		Constraint.Phi = DeltaLen - (A.GetRadius() + B.GetRadius());
+		Constraint.Normal = -Dir;
+		Constraint.Location = P1 + Dir * A.GetRadius();
+	}
+}
+
+template <typename T, int d>
+void UpdateCapsuleBoxConstraint(const TCapsule<T>& A, const TRigidTransform<T, d>& ATransform, const TBox<T, d>& B, const TRigidTransform<T, d>& BTransform, T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
+{
+	// @todo(ccaulfield): Add custom capsule-box collision
+
+	TRigidTransform<T, d> BToATransform = BTransform.GetRelativeTransform(ATransform);
+
+	// USe GJK to track closest points (not strictly necessary yet)
+	//TVector<T, d> NearPointALocal, NearPointBLocal;
+	//T NearPointDistance;
+	//if (GJKDistance<T>(A, B, BToATransform, NearPointDistance, NearPointALocal, NearPointBLocal))
+	//{
+	//	TVector<T, d> NearPointAWorld = ATransform.TransformPosition(NearPointALocal);
+	//	TVector<T, d> NearPointBWorld = BTransform.TransformPosition(NearPointBLocal);
+	//	TVector<T, d> NearPointBtoAWorld = NearPointAWorld - NearPointBWorld;
+	//	Constraint.Phi = NearPointDistance;
+	//	Constraint.Normal = NearPointBtoAWorld.GetSafeNormal();
+	//	Constraint.Location = NearPointAWorld;
+	//}
+	//else
+	{
+		// Use box particle samples against the implicit capsule
+		const TArray<TVector<T, d>> BParticles = B.ComputeLocalSamplePoints();
+		const int32 NumParticles = BParticles.Num();
+		bool bFoundContact = false;
+		for (int32 ParticleIndex = 0; ParticleIndex < NumParticles; ++ParticleIndex)
+		{
+			if (SampleObjectHelper2(A, ATransform, BToATransform, BParticles[ParticleIndex], Thickness, Constraint))
+			{
+				bFoundContact = true;
+			}
+		}
+
+		// SampleObjectHelper2 expects A to be the box, so reverse the results
+		if (bFoundContact)
+		{
+			Constraint.Normal = -Constraint.Normal;
+		}
 	}
 
-	return false;
 }
 
 DECLARE_CYCLE_STAT(TEXT("FindRelevantShapes2"), STAT_FindRelevantShapes2, STATGROUP_ChaosWide);
@@ -2017,6 +1959,15 @@ void TPBDCollisionConstraint<T, d>::UpdateLevelsetConstraint(const T Thickness, 
 	{
 		SampleObject2<UpdateType>(*Particle1->Geometry(), LevelsetTM, *SampleParticles, ParticlesTM, Thickness, Constraint);
 	}
+}
+
+DECLARE_CYCLE_STAT(TEXT("UpdateConvexConstraintsUsingCoreShapes"), UpdateConvexConstraintsUsingCoreShapes, STATGROUP_ChaosWide);
+template<ECollisionUpdateType UpdateType, typename T, int d>
+void UpdateConvexConstraintsUsingCoreShapes(const TImplicitObject<T, d> & AObj, const TRigidTransform<T, d>& ATM, const TImplicitObject<T, d> & BObj, const TRigidTransform<T, d>& BTM, const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
+{
+	SCOPE_CYCLE_COUNTER(UpdateConvexConstraintsUsingCoreShapes);
+
+	GJKCoreShapeIntersection<T, 3>(AObj, ATM, BObj, BTM, Constraint.Location, Constraint.Phi, Constraint.Normal, Thickness);
 }
 
 DECLARE_CYCLE_STAT(TEXT("UpdateUnionLevelsetConstraint"), STAT_UpdateUnionLevelsetConstraint2, STATGROUP_ChaosWide);
@@ -2143,52 +2094,6 @@ void UpdateLevelsetUnionConstraint(const T Thickness, TRigidBodyContactConstrain
 #endif
 }
 
-template<typename T, int d>
-template<ECollisionUpdateType UpdateType>
-void TPBDCollisionConstraint<T, d>::UpdateLevelsetConstraintGJK(const T Thickness, FRigidBodyContactConstraint& Constraint)
-{
-	static int32 MaxIterations = 100;
-
-	TGenericParticleHandle<T, d> Particle0 = Constraint.Particle;
-	TGenericParticleHandle<T, d> Particle1 = Constraint.Levelset;
-
-	const TRigidTransform<T, d> LocalToWorld1 = TRigidTransform<T, d>(Particle0->P(), Particle0->Q());
-	const TRigidTransform<T, d> LocalToWorld2 = TRigidTransform<T, d>(Particle1->P(), Particle1->Q());
-
-	const TSerializablePtr<TImplicitObject<T, d>> Particle0Obj = Particle0->Geometry();
-	const TSerializablePtr<TImplicitObject<T, d>> Particle1Obj = Particle1->Geometry();
-
-	TVector<T, d> Direction = LocalToWorld1.GetTranslation() - LocalToWorld2.GetTranslation();
-	TVector<T, d> SupportA = LocalToWorld1.TransformPosition(Particle0Obj->Support(LocalToWorld1.InverseTransformVector(-Direction), Thickness));
-	TVector<T, d> SupportB = LocalToWorld2.TransformPosition(Particle1Obj->Support(LocalToWorld2.InverseTransformVector(Direction), Thickness));
-	TVector<T, d> Point = SupportB - SupportA;
-	TArray<Pair<TVector<T, d>, TVector<T, d>>> Points = {MakePair(Point, SupportA)};
-	Direction = -Point;
-	for (int32 i = 0; i < MaxIterations; ++i)
-	{
-		SupportA = LocalToWorld1.TransformPosition(Particle0Obj->Support(LocalToWorld1.InverseTransformVector(-Direction), Thickness));
-		SupportB = LocalToWorld2.TransformPosition(Particle1Obj->Support(LocalToWorld2.InverseTransformVector(Direction), Thickness));
-		Point = SupportB - SupportA;
-		if (TVector<T, d>::DotProduct(Point, Direction) < 0)
-		{
-			break;
-		}
-		Points.Add(MakePair(Point, SupportA));
-		TVector<T, d> ClosestPoint;
-		if (NearestPoint(Points, Direction, ClosestPoint))
-		{
-			TVector<T, d> Body1Location = LocalToWorld1.InverseTransformPosition(ClosestPoint);
-			TVector<T, d> Normal;
-			T Phi = Particle0Obj->PhiWithNormal(Body1Location, Normal);
-			Normal = LocalToWorld1.TransformVector(Normal);
-			Constraint.Location = ClosestPoint - Phi * Normal;
-			TVector<T, d> Body2Location = LocalToWorld2.InverseTransformPosition(Constraint.Location);
-			Constraint.Phi = Particle1Obj->PhiWithNormal(Body2Location, Constraint.Normal);
-			Constraint.Normal = LocalToWorld2.TransformVector(Constraint.Normal);
-			break;
-		}
-	}
-}
 
 template <typename T, int d>
 void UpdateBoxConstraint(const TBox<T, d>& Box1, const TRigidTransform<T, d>& Box1Transform, const TBox<T, d>& Box2, const TRigidTransform<T, d>& Box2Transform, T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
@@ -2314,6 +2219,24 @@ TRigidBodyContactConstraint<T, d> ComputeSphereBoxConstraint(TGeometryParticleHa
 	return Constraint;
 }
 
+template<typename T, int d>
+TRigidBodyContactConstraint<T, d> ComputeCapsuleCapsuleConstraint(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const T Thickness)
+{
+	TRigidBodyContactConstraint<T, d> Constraint;
+	Constraint.Particle = Particle0;
+	Constraint.Levelset = Particle1;
+	return Constraint;
+}
+
+template<typename T, int d>
+TRigidBodyContactConstraint<T, d> ComputeCapsuleBoxConstraint(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const T Thickness)
+{
+	TRigidBodyContactConstraint<T, d> Constraint;
+	Constraint.Particle = Particle0;
+	Constraint.Levelset = Particle1;
+	return Constraint;
+}
+
 template <typename T, int d>
 TRigidBodyContactConstraint<T, d> ComputeSingleUnionConstraint(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const T Thickness)
 {
@@ -2352,7 +2275,7 @@ typename TPBDCollisionConstraint<T, d>::FRigidBodyContactConstraint TPBDCollisio
 	{
 		return ComputeBoxPlaneConstraint(Particle0, Particle1, Thickness);
 	}
-	else if (Particle1->Geometry()->GetType() == TPlane<T, d>::GetType() && Particle0->Geometry()->GetType() == TBox<T, d>::GetType())
+	else if (Particle1->Geometry()->GetType() == TBox<T, d>::GetType() && Particle0->Geometry()->GetType() == TPlane<T, d>::GetType())
 	{
 		return ComputeBoxPlaneConstraint(Particle1, Particle0, Thickness);
 	}
@@ -2360,13 +2283,29 @@ typename TPBDCollisionConstraint<T, d>::FRigidBodyContactConstraint TPBDCollisio
 	{
 		return ComputeSpherePlaneConstraint(Particle0, Particle1, Thickness);
 	}
-	else if (Particle1->Geometry()->GetType() == TPlane<T, d>::GetType() && Particle0->Geometry()->GetType() == TSphere<T, d>::GetType())
+	else if (Particle1->Geometry()->GetType() == TSphere<T, d>::GetType() && Particle0->Geometry()->GetType() == TPlane<T, d>::GetType())
 	{
 		return ComputeSpherePlaneConstraint(Particle1, Particle0, Thickness);
 	}
 	else if (Particle0->Geometry()->GetType() == TSphere<T, d>::GetType() && Particle1->Geometry()->GetType() == TBox<T, d>::GetType())
 	{
 		return ComputeSphereBoxConstraint(Particle0, Particle1, Thickness);
+	}
+	else if (Particle1->Geometry()->GetType() == TSphere<T, d>::GetType() && Particle0->Geometry()->GetType() == TBox<T, d>::GetType())
+	{
+		return ComputeSphereBoxConstraint(Particle1, Particle0, Thickness);
+	}
+	else if (Particle0->Geometry()->GetType() == TCapsule<T>::GetType() && Particle1->Geometry()->GetType() == TCapsule<T>::GetType())
+	{
+		return ComputeCapsuleCapsuleConstraint(Particle0, Particle1, Thickness);
+	}
+	else if (Particle0->Geometry()->GetType() == TCapsule<T>::GetType() && Particle1->Geometry()->GetType() == TBox<T, d>::GetType())
+	{
+		return ComputeCapsuleBoxConstraint(Particle0, Particle1, Thickness);
+	}
+	else if (Particle1->Geometry()->GetType() == TCapsule<T>::GetType() && Particle0->Geometry()->GetType() == TBox<T, d>::GetType())
+	{
+		return ComputeCapsuleBoxConstraint(Particle1, Particle0, Thickness);
 	}
 	else if (Particle0->Geometry()->GetType() < TImplicitObjectUnion<T, d>::GetType() && Particle1->Geometry()->GetType() == TImplicitObjectUnion<T, d>::GetType())
 	{
@@ -2426,6 +2365,14 @@ void UpdateConstraintImp2(const TImplicitObject<T, d>& ParticleObject, const TRi
 	{
 		UpdateSphereBoxConstraint(*ParticleObject.template GetObject<TSphere<T, d>>(), ParticleTM, *LevelsetObject.template GetObject<TBox<T, d>>(), LevelsetTM, Thickness, Constraint);
 	}
+	else if (ParticleObject.GetType() == TCapsule<T>::GetType() && LevelsetObject.GetType() == TCapsule<T>::GetType())
+	{
+		UpdateCapsuleCapsuleConstraint(*ParticleObject.template GetObject<TCapsule<T>>(), ParticleTM, *LevelsetObject.template GetObject<TCapsule<T>>(), LevelsetTM, Thickness, Constraint);
+	}
+	else if (ParticleObject.GetType() == TCapsule<T>::GetType() && LevelsetObject.GetType() == TBox<T, d>::GetType())
+	{
+		UpdateCapsuleBoxConstraint(*ParticleObject.template GetObject<TCapsule<T>>(), ParticleTM, *LevelsetObject.template GetObject<TBox<T, d>>(), LevelsetTM, Thickness, Constraint);
+	}
 	else if (ParticleObject.GetType() == TPlane<T, d>::GetType() && LevelsetObject.GetType() == TBox<T, d>::GetType())
 	{
 		TRigidBodyContactConstraint<T, d> TmpConstraint = Constraint;
@@ -2456,6 +2403,16 @@ void UpdateConstraintImp2(const TImplicitObject<T, d>& ParticleObject, const TRi
 			Constraint.Normal = -Constraint.Normal;
 		}
 	}
+	else if (ParticleObject.GetType() == TBox<T, d>::GetType() && LevelsetObject.GetType() == TCapsule<T>::GetType())
+	{
+		TRigidBodyContactConstraint<T, d> TmpConstraint = Constraint;
+		UpdateCapsuleBoxConstraint(*LevelsetObject.template GetObject<TCapsule<T>>(), LevelsetTM, *ParticleObject.template GetObject<TBox<T, d>>(), ParticleTM, Thickness, TmpConstraint);
+		if (TmpConstraint.Phi < Constraint.Phi)
+		{
+			Constraint = TmpConstraint;
+			Constraint.Normal = -Constraint.Normal;
+		}
+	}
 	else if (ParticleObject.GetType() < TImplicitObjectUnion<T, d>::GetType() && LevelsetObject.GetType() == TImplicitObjectUnion<T, d>::GetType())
 	{
 		return UpdateSingleUnionConstraint<UpdateType>(Thickness, Constraint);
@@ -2468,12 +2425,10 @@ void UpdateConstraintImp2(const TImplicitObject<T, d>& ParticleObject, const TRi
 	{
 		return UpdateUnionUnionConstraint<UpdateType>(Thickness, Constraint);
 	}
-#if 0
 	else if (ParticleObject.IsConvex() && LevelsetObject.IsConvex())
 	{
-		UpdateLevelsetConstraintGJK<UpdateType>(Thickness, Constraint);
+		UpdateConvexConstraintsUsingCoreShapes<UpdateType>(ParticleObject, ParticleTM, LevelsetObject, LevelsetTM, Thickness, Constraint);
 	}
-#endif
 	else if (LevelsetObject.IsUnderlyingUnion())
 	{
 		UpdateUnionLevelsetConstraint<UpdateType>(Thickness, Constraint);
@@ -2495,7 +2450,9 @@ template<ECollisionUpdateType UpdateType>
 void TPBDCollisionConstraint<T, d>::UpdateConstraint(const T Thickness, FRigidBodyContactConstraint& Constraint)
 {
 	SCOPE_CYCLE_COUNTER(STAT_UpdateConstraint2);
+
 	Constraint.Phi = Thickness;
+	
 	const TRigidTransform<T, d> ParticleTM = GetTransform(Constraint.Particle);
 	const TRigidTransform<T, d> LevelsetTM = GetTransform(Constraint.Levelset);
 
@@ -2519,16 +2476,15 @@ void TPBDCollisionConstraint<T, d>::UpdateConstraint(const T Thickness, FRigidBo
 	}
 }
 
+template class TPBDCollisionConstraintHandle<float, 3>;
 template class TAccelerationStructureHandle<float, 3>;
-template class TPBDCollisionConstraint<float, 3>;
+template class CHAOS_API TPBDCollisionConstraint<float, 3>;
 template void TPBDCollisionConstraint<float, 3>::UpdateConstraint<ECollisionUpdateType::Any>(const float Thickness, FRigidBodyContactConstraint& Constraint);
 template void TPBDCollisionConstraint<float, 3>::UpdateConstraint<ECollisionUpdateType::Deepest>(const float Thickness, FRigidBodyContactConstraint& Constraint);
 template void TPBDCollisionConstraint<float, 3>::UpdateLevelsetConstraint<ECollisionUpdateType::Any>(const float Thickness, FRigidBodyContactConstraint& Constraint);
 template void TPBDCollisionConstraint<float, 3>::UpdateLevelsetConstraint<ECollisionUpdateType::Deepest>(const float Thickness, FRigidBodyContactConstraint& Constraint);
-template void TPBDCollisionConstraint<float, 3>::UpdateLevelsetConstraintGJK<ECollisionUpdateType::Any>(const float Thickness, FRigidBodyContactConstraint& Constraint);
-template void TPBDCollisionConstraint<float, 3>::UpdateLevelsetConstraintGJK<ECollisionUpdateType::Deepest>(const float Thickness, FRigidBodyContactConstraint& Constraint);
-template void TPBDCollisionConstraint<float, 3>::ComputeConstraints<false>(/*const TPBDRigidParticles<float, 3>& InParticles, const TArray<int32>& InIndices,*/ float Dt);
-template void TPBDCollisionConstraint<float, 3>::ComputeConstraints<true>(/*const TPBDRigidParticles<float, 3>& InParticles, const TArray<int32>& InIndices,*/ float Dt);
+template void TPBDCollisionConstraint<float, 3>::ComputeConstraints<false>(const TPBDCollisionConstraint<float,3>::FAccelerationStructure&, float Dt);
+template void TPBDCollisionConstraint<float, 3>::ComputeConstraints<true>(const TPBDCollisionConstraint<float, 3>::FAccelerationStructure&, float Dt);
 
 template void UpdateConstraintImp2<ECollisionUpdateType::Any, float, 3>(const TImplicitObject<float, 3>& ParticleObject, const TRigidTransform<float, 3>& ParticleTM, const TImplicitObject<float, 3>& LevelsetObject, const TRigidTransform<float, 3>& LevelsetTM, const float Thickness, TRigidBodyContactConstraint<float, 3>& Constraint);
 template void UpdateConstraintImp2<ECollisionUpdateType::Deepest, float, 3>(const TImplicitObject<float, 3>& ParticleObject, const TRigidTransform<float, 3>& ParticleTM, const TImplicitObject<float, 3>& LevelsetObject, const TRigidTransform<float, 3>& LevelsetTM, const float Thickness, TRigidBodyContactConstraint<float, 3>& Constraint);

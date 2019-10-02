@@ -10,19 +10,19 @@
 
 #include "GeometryCollectionDebugDrawComponent.generated.h"
 
-#if INCLUDE_CHAOS && GEOMETRYCOLLECTION_DEBUG_DRAW
+#if GEOMETRYCOLLECTION_DEBUG_DRAW
 #include "GeometryCollection/GeometryCollectionParticlesData.h"
-#endif  // #if INCLUDE_CHAOS && GEOMETRYCOLLECTION_DEBUG_DRAW
+#endif  // #if GEOMETRYCOLLECTION_DEBUG_DRAW
 
 class AGeometryCollectionRenderLevelSetActor;
 class UGeometryCollectionComponent;
 class AGeometryCollectionDebugDrawActor;
 class AChaosSolverActor;
 
-#if INCLUDE_CHAOS && GEOMETRYCOLLECTION_DEBUG_DRAW
+#if GEOMETRYCOLLECTION_DEBUG_DRAW
 namespace Chaos { template<class T, int d> class TImplicitObject; }
 namespace Chaos { template<class T, int d> class TPBDRigidParticles; }
-#endif  // #if INCLUDE_CHAOS && GEOMETRYCOLLECTION_DEBUG_DRAW
+#endif  // #if GEOMETRYCOLLECTION_DEBUG_DRAW
 
 /**
 * UGeometryCollectionDebugDrawComponent
@@ -88,13 +88,11 @@ private:
 	/** Update ticking status. */
 	void UpdateTickStatus();
 
-#if INCLUDE_CHAOS
 	/** Chaos dependent debug draw. */
 	void DebugDrawChaosTick();
 
 	/** Update level set visibility. */
 	void UpdateLevelSetVisibility();
-#endif  // #if INCLUDE_CHAOS
 #endif  // #if GEOMETRYCOLLECTION_DEBUG_DRAW
 
 private:
@@ -102,9 +100,7 @@ private:
 	static int32 LastRenderedId;
 
 #if GEOMETRYCOLLECTION_DEBUG_DRAW
-#if INCLUDE_CHAOS
 	FGeometryCollectionParticlesData ParticlesData;
-#endif  // #if INCLUDE_CHAOS
 	int32 ParentCheckSum;
 	int32 SelectedRigidBodyId;
 	int32 SelectedTransformIndex;

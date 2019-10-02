@@ -40,7 +40,8 @@ class TImplicitObjectTransformed final : public TImplicitObject<T, d>
 using ObjectType = typename TChooseClass<bSerializable, TSerializablePtr<TImplicitObject<T, d>>, const TImplicitObject<T, d>*>::Result;
 
 public:
-	IMPLICIT_OBJECT_SERIALIZER(TImplicitObjectTransformed)
+	using TImplicitObject<T, d>::GetTypeName;
+
 	TImplicitObjectTransformed(ObjectType Object, const TRigidTransform<T, d>& InTransform)
 	    : TImplicitObject<T, d>(EImplicitObject::HasBoundingBox, ImplicitObjectType::Transformed)
 	    , MObject(Object)
@@ -181,9 +182,11 @@ public:
 	virtual void Serialize(FChaosArchive& Ar) override
 	{
 		check(bSerializable);
+		FChaosArchiveScopedMemory ScopedMemory(Ar, GetTypeName(), false);
 		TImplicitObject<T, d>::SerializeImp(Ar);
 		TImplicitObjectTransformSerializeHelper(Ar, MObject);
-		Ar << MTransform << MLocalBoundingBox;
+		Ar << MTransform;
+		Ar << MLocalBoundingBox;
 	}
 
 	virtual uint32 GetTypeHash() const override

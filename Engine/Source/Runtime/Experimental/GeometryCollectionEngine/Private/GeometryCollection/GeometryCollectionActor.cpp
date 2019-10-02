@@ -6,8 +6,6 @@ GeometryCollectionActor.cpp: AGeometryCollectionActor methods.
 
 #include "GeometryCollection/GeometryCollectionActor.h"
 
-#if INCLUDE_CHAOS
-
 #include "Chaos/Utilities.h"
 #include "Chaos/Plane.h"
 #include "Chaos/Box.h"
@@ -57,7 +55,11 @@ void AGeometryCollectionActor::Tick(float DeltaTime)
 
 const Chaos::FPhysicsSolver* GetSolver(const AGeometryCollectionActor& GeomCollectionActor)
 {
+#if INCLUDE_CHAOS
 	return GeomCollectionActor.GetGeometryCollectionComponent()->ChaosSolverActor != nullptr ? GeomCollectionActor.GetGeometryCollectionComponent()->ChaosSolverActor->GetSolver() : GeomCollectionActor.GetWorld()->PhysicsScene_Chaos->GetSolver();
+#else
+	return nullptr;
+#endif
 }
 
 
@@ -130,12 +132,9 @@ bool AGeometryCollectionActor::RaycastSingle(FVector Start, FVector End, FHitRes
 	return false;
 }
 
-#endif
-
 #if WITH_EDITOR
 bool AGeometryCollectionActor::GetReferencedContentObjects(TArray<UObject*>& Objects) const
 {
-#if INCLUDE_CHAOS
 	Super::GetReferencedContentObjects(Objects);
 
 	if (GeometryCollectionComponent)
@@ -146,7 +145,6 @@ bool AGeometryCollectionActor::GetReferencedContentObjects(TArray<UObject*>& Obj
 			Objects.Add(GeometryCollection);
 		}
 	}
-#endif
 	return true;
 }
 #endif

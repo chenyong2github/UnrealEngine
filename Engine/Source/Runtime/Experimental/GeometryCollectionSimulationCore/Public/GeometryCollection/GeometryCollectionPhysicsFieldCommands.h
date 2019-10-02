@@ -2,7 +2,6 @@
 
 #pragma once
 
-#if INCLUDE_CHAOS
 
 #include "GeometryCollection/ManagedArray.h"
 #include "Field/FieldSystemTypes.h"
@@ -14,5 +13,3 @@
 namespace PhysicsFieldCommand
 {
 }
-
-#endif

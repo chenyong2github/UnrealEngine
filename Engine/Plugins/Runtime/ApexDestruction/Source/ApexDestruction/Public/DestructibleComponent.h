@@ -7,7 +7,6 @@
 #include "EngineDefines.h"
 #include "PhysxUserData.h"
 #include "ApexDestructionCustomPayload.h"
-#include "PhysicsEngine/BodyInstance.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "DestructibleInterface.h"
 #include "DestructibleComponent.generated.h"
@@ -15,6 +14,7 @@
 class AController;
 class UDestructibleComponent;
 class USkeletalMesh;
+struct FBodyInstance;
 struct FCollisionShape;
 struct FNavigableGeometryExport;
 

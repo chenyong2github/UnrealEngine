@@ -6,6 +6,8 @@
 
 #if CHAOS_CHECKED
 #define CHAOS_CHECK(Condition) check(Condition)
+#define CHAOS_ENSURE(Condition) ensure(Condition)
 #else
 #define CHAOS_CHECK(Condition)
+#define CHAOS_ENSURE(Condition)
 #endif

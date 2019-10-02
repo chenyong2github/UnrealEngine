@@ -1,7 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/PBDCollisionTypes.h"
 #include "ParticleHandle.h"
 
 
@@ -153,9 +152,16 @@ namespace Chaos
 		 */
 		void DisableParticle(TGeometryParticleHandle<T, d>* Particle);
 
+		void AddParticle(TGeometryParticleHandle<T, d>* AddedParticle)
+		{
+			ParticleAdd(AddedParticle);
+		}
+
 		//Remove particle from constraint, maybe rethink some of these names
 		void RemoveParticle(TGeometryParticleHandle<T, d>* Particle)
 		{
+			ParticleRemove(Particle);
+
 			//we know it just removes, probably rename later
 			DisableParticle(Particle);
 		}
@@ -203,10 +209,14 @@ namespace Chaos
 			bool bIsIslandPersistant;
 		};
 
-		void ComputeIslands(TPBDRigidsSOAs<T,d>& Particles);
+		void ComputeIslands(const TParticleView<TPBDRigidParticles<T,d>>& PBDRigids, TPBDRigidsSOAs<T,d>& Particles);
 		void ComputeIsland(const int32 Node, const int32 Island,
 			TSet<TGeometryParticleHandle<T, d>*>& DynamicParticlesInIsland, TSet<TGeometryParticleHandle<T, d>*>& StaticParticlesInIsland);
 		bool CheckIslands(const TArray<TGeometryParticleHandle<T, d>*>& Particles);
+		
+		void ParticleAdd(TGeometryParticleHandle<T, d>* AddedParticle);
+		void ParticleRemove(TGeometryParticleHandle<T, d>* RemovedParticle);
+		int32 GetNextNodeIndex();
 
 		TArray<FGraphNode> Nodes;
 		TArray<FGraphEdge> Edges;
@@ -216,6 +226,11 @@ namespace Chaos
 		TArray<TArray<TGeometryParticleHandle<T,d>*>> IslandToParticles;
 		TArray<TArray<int32>> IslandToConstraints;
 		TArray<int32> IslandToSleepCount;
+
+		TArray<int32> FreeIndexList;
+		TArray<int32> UpdatedNodes;
+		TArray<int32> Visited;
+		uint8 VisitToken;
 	};
 
 }

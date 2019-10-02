@@ -9,6 +9,11 @@ namespace Chaos
 	class FPBDRigidsSolver;
 
 	typedef FPBDRigidsSolver FPhysicsSolver;
+
+	template <typename T, int d> class TImplicitObject;
+	template <typename T, int d> class TPerShapeData;
+	template <typename TSOA> class TParticleView;
+	template<class T, int d> class TPBDRigidParticles;
 }
 
 #define TODO_REIMPLEMENT_EVENTS_DATA_ARRAYS (CHAOS_PARTICLEHANDLE_TODO && 1)

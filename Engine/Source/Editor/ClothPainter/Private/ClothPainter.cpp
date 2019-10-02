@@ -6,7 +6,7 @@
 #include "MeshPaintAdapterFactory.h"
 #include "MeshPaintHelpers.h"
 
-#include "Assets/ClothingAsset.h"
+#include "ClothingAsset.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "ClothPaintSettings.h"
 #include "ClothMeshAdapter.h"
@@ -179,7 +179,7 @@ void FClothPainter::RefreshClothingAssets()
 	{
 		for(UClothingAssetBase* BaseClothingAsset : Mesh->MeshClothingAssets)
 		{
-			if(UClothingAsset* ActualAsset = Cast<UClothingAsset>(BaseClothingAsset))
+			if(UClothingAssetCommon* ActualAsset = Cast<UClothingAssetCommon>(BaseClothingAsset))
 			{
 				PaintSettings->ClothingAssets.AddUnique(ActualAsset);
 			}
@@ -213,7 +213,7 @@ void FClothPainter::RecalculateAutoViewRange()
 	}
 
 	TSharedPtr<FClothMeshPaintAdapter> ClothAdapter = StaticCastSharedPtr<FClothMeshPaintAdapter>(Adapter);
-	FClothParameterMask_PhysMesh* CurrentMask = ClothAdapter->GetCurrentMask();
+	FPointWeightMap* CurrentMask = ClothAdapter->GetCurrentMask();
 
 	if(UClothPainterSettings* PainterSettings = Cast<UClothPainterSettings>(GetPainterSettings()))
 	{
@@ -264,7 +264,7 @@ void FClothPainter::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
 		if(bShouldSimulate)
 		{
 			// Need to re-apply our masks here, as they have likely been edited
-			for(UClothingAsset* Asset : PaintSettings->ClothingAssets)
+			for(UClothingAssetCommon* Asset : PaintSettings->ClothingAssets)
 			{
 				if(Asset)
 				{
@@ -417,7 +417,7 @@ void FClothPainter::Render(const FSceneView* View, FViewport* Viewport, FPrimiti
 				TArray<TPair<int32, FVector>> VertexData;
 				ClothAdapter->GetInfluencedVertexData(ComponentSpaceSquaredBrushRadius, ComponentSpaceBrushPosition, ComponentSpaceCameraPosition, BrushSettings->bOnlyFrontFacingTriangles, VertexData);
 				
-				FClothParameterMask_PhysMesh* CurrentMask = ClothAdapter->GetCurrentMask();
+				FPointWeightMap* CurrentMask = ClothAdapter->GetCurrentMask();
 
 				if(CurrentMask && VertexData.Num() > 0)
 				{
@@ -539,7 +539,7 @@ float FClothPainter::GetPropertyValue(int32 VertexIndex)
 {
 	FClothMeshPaintAdapter* ClothAdapter = (FClothMeshPaintAdapter*)Adapter.Get();
 
-	if(FClothParameterMask_PhysMesh* Mask = ClothAdapter->GetCurrentMask())
+	if(FPointWeightMap* Mask = ClothAdapter->GetCurrentMask())
 	{
 		return Mask->GetValue(VertexIndex);
 	}
@@ -551,21 +551,21 @@ void FClothPainter::SetPropertyValue(int32 VertexIndex, const float Value)
 {
 	FClothMeshPaintAdapter* ClothAdapter = (FClothMeshPaintAdapter*)Adapter.Get();
 
-	if(FClothParameterMask_PhysMesh* Mask = ClothAdapter->GetCurrentMask())
+	if(FPointWeightMap* Mask = ClothAdapter->GetCurrentMask())
 	{
 		Mask->SetValue(VertexIndex, Value);
 	}
 }
 
-void FClothPainter::OnAssetSelectionChanged(UClothingAsset* InNewSelectedAsset, int32 InAssetLod, int32 InMaskIndex)
+void FClothPainter::OnAssetSelectionChanged(UClothingAssetCommon* InNewSelectedAsset, int32 InAssetLod, int32 InMaskIndex)
 {
 	TSharedPtr<FClothMeshPaintAdapter> ClothAdapter = StaticCastSharedPtr<FClothMeshPaintAdapter>(Adapter);
 	if(ClothAdapter.IsValid() && InNewSelectedAsset && InNewSelectedAsset->IsValidLod(InAssetLod))
 	{
 		// Validate the incoming parameters, to make sure we only set a selection if we're going
 		// to get a valid paintable surface
-		if(InNewSelectedAsset->LodData.IsValidIndex(InAssetLod) &&
-			 InNewSelectedAsset->LodData[InAssetLod].ParameterMasks.IsValidIndex(InMaskIndex))
+		if(InNewSelectedAsset->ClothLodData.IsValidIndex(InAssetLod) &&
+			 InNewSelectedAsset->ClothLodData[InAssetLod]->ParameterMasks.IsValidIndex(InMaskIndex))
 		{
 			const FGuid NewGuid = InNewSelectedAsset->GetAssetGuid();
 			SkeletalMeshComponent->SetMeshSectionVisibilityForCloth(SkeletalMeshComponent->SelectedClothingGuidForPainting, true);

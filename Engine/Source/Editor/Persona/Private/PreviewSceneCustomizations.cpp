@@ -298,6 +298,38 @@ void FPreviewSceneDescriptionCustomization::CustomizeDetails(IDetailLayoutBuilde
 			LinkedAnimGraphTagProperty->MarkHiddenByCustomization();
 		}
 
+#if CHAOS_SIMULATION_DETAIL_VIEW_FACTORY_SELECTOR
+		// Physics settings
+		ClothSimulationFactoryList.Reset();
+		const TArray<IClothingSimulationFactoryClassProvider*> ClassProviders = IModularFeatures::Get().GetModularFeatureImplementations<IClothingSimulationFactoryClassProvider>(IClothingSimulationFactoryClassProvider::FeatureName);
+		for (const auto& ClassProvider : ClassProviders)
+		{
+			// Populate cloth factory list
+			ClothSimulationFactoryList.Add(MakeShared<TSubclassOf<class UClothingSimulationFactory>>(ClassProvider->GetDefaultSimulationFactoryClass()));
+		}
+
+		DetailBuilder.EditCategory("Physics")
+		.AddCustomRow(LOCTEXT("PhysicsClothingSimulationFactory", "Clothing Simulation Factory Option"))
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Text(LOCTEXT("PhysicsClothingSimulationFactory_Text", "Clothing Simulation Factory"))
+			.ToolTipText(LOCTEXT("PhysicsClothingSimulationFactory_ToolTip", "Select the cloth simulation used to preview the scene."))
+		]
+		.ValueContent()
+		.MinDesiredWidth(200.0f)
+		[
+			SNew(SComboBox<TSharedPtr<TSubclassOf<class UClothingSimulationFactory>>>)
+			.OptionsSource(&ClothSimulationFactoryList)
+			.OnGenerateWidget(this, &FPreviewSceneDescriptionCustomization::MakeClothingSimulationFactoryWidget)
+			.OnSelectionChanged(this, &FPreviewSceneDescriptionCustomization::OnClothingSimulationFactorySelectionChanged)
+			[
+				SNew(STextBlock)
+				.Text(this, &FPreviewSceneDescriptionCustomization::GetCurrentClothingSimulationFactoryText)
+			]
+		];
+#endif  // #if CHAOS_SIMULATION_DETAIL_VIEW_FACTORY_SELECTOR
 		// set the skeleton to use in our factory as we shouldn't be picking one here
 		FactoryToUse->CurrentSkeleton = EditableSkeleton.IsValid() ? MakeWeakObjectPtr(const_cast<USkeleton*>(&EditableSkeleton.Pin()->GetSkeleton())) : nullptr;
 		TArray<UFactory*> FactoriesToUse({ FactoryToUse });
@@ -671,4 +703,39 @@ void FPreviewMeshCollectionEntryCustomization::HandleMeshesArrayChanged(TSharedP
 	}
 }
 
+#if CHAOS_SIMULATION_DETAIL_VIEW_FACTORY_SELECTOR
+TSharedRef<SWidget> FPreviewSceneDescriptionCustomization::MakeClothingSimulationFactoryWidget(TSharedPtr<TSubclassOf<class UClothingSimulationFactory>> Item) const
+{
+	return SNew(STextBlock)
+		.Text(*Item ? FText::FromName((*Item)->GetFName()) : LOCTEXT("PhysicsClothingSimulationFactory_NoneSelected", "None"))
+		.Font(IDetailLayoutBuilder::GetDetailFont());
+}
+
+void FPreviewSceneDescriptionCustomization::OnClothingSimulationFactorySelectionChanged(TSharedPtr<TSubclassOf<class UClothingSimulationFactory>> Item, ESelectInfo::Type SelectInfo) const
+{
+	// Set new factory to the preview mesh component:
+	if (const TSharedPtr<IPersonaToolkit> PersonaToolkitPin = PersonaToolkit.Pin())
+	{
+		if (UDebugSkelMeshComponent* const DebugSkelMeshComponent = PersonaToolkitPin->GetPreviewMeshComponent())
+		{
+			DebugSkelMeshComponent->UnregisterComponent();
+			DebugSkelMeshComponent->ClothingSimulationFactory = *Item;
+			DebugSkelMeshComponent->RegisterComponent();
+		}
+	}
+}
+
+FText FPreviewSceneDescriptionCustomization::GetCurrentClothingSimulationFactoryText() const
+{
+	TSubclassOf<class UClothingSimulationFactory> Item;
+	if (const TSharedPtr<IPersonaToolkit> PersonaToolkitPin = PersonaToolkit.Pin())
+	{
+		if (const UDebugSkelMeshComponent* const DebugSkelMeshComponent = PersonaToolkitPin->GetPreviewMeshComponent())
+		{
+			Item = DebugSkelMeshComponent->ClothingSimulationFactory;
+		}
+	}
+	return *Item ? FText::FromName((*Item)->GetFName()) : LOCTEXT("PhysicsClothingSimulationFactory_NoneSelected", "None");
+}
+#endif  // #if CHAOS_SIMULATION_DETAIL_VIEW_FACTORY_SELECTOR
 #undef LOCTEXT_NAMESPACE

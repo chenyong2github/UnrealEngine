@@ -10,8 +10,12 @@ class TSerializablePtr
 {
 public:
 	TSerializablePtr() : Ptr(nullptr) {}
-	explicit TSerializablePtr(const TUniquePtr<T>& Unique) : Ptr(Unique.Get()) {}
+	template <typename R>
+	explicit TSerializablePtr(const TUniquePtr<R>& Unique) : Ptr(Unique.Get()) {}
 	explicit TSerializablePtr(TUniquePtr<T>&& Unique) = delete;
+
+	//template <typename R>
+	//TSerializablePtr(const TSerializablePtr<R>& Other) : Ptr(Other.Get()) {}
 	
 	template<ESPMode TESPMode>
 	explicit TSerializablePtr(const TSharedPtr<T, TESPMode>& Shared) : Ptr(Shared.Get()) {}
@@ -53,13 +57,36 @@ TSerializablePtr<T> MakeSerializable(const TUniquePtr<T>& Unique)
 	return TSerializablePtr<T>(Unique);
 }
 
+template <typename Ret, typename T>
+TSerializablePtr<Ret> MakeSerializable(const TUniquePtr<T>& Unique)
+{
+	return TSerializablePtr<Ret>(Unique);
+}
+
 template <typename T>
+TSerializablePtr<T> MakeSerializable(const TUniquePtr<T>&& Unique) = delete;
+
+template <typename Ret, typename T>
 TSerializablePtr<T> MakeSerializable(const TUniquePtr<T>&& Unique) = delete;
 
 template<typename T, ESPMode TESPMode>
 TSerializablePtr<T> MakeSerializable(const TSharedPtr<T, TESPMode>& Shared)
 {
 	return TSerializablePtr<T>(Shared);
+}
+
+//This is only available for types that are guaranteed to be serializable. This is done by having a factory that returns unique pointers for example
+template <typename T>
+typename TEnableIf<T::AlwaysSerializable, TSerializablePtr<T>>::Type& AsAlwaysSerializable(T*& Ptr)
+{
+	return reinterpret_cast<TSerializablePtr<T>&>(Ptr);
+}
+
+
+template <typename T>
+typename TEnableIf<T::AlwaysSerializable, TArray<TSerializablePtr<T>>>::Type& AsAlwaysSerializableArray(TArray<T*>& Ptrs)
+{
+	return reinterpret_cast<TArray<TSerializablePtr<T>>&>(Ptrs);
 }
 
 class FChaosArchive;

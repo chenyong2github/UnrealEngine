@@ -8,7 +8,7 @@
 #include "Widgets/Views/SListView.h"
 
 class FClothPainter;
-class UClothingAsset;
+class UClothingAssetCommon;
 class UClothPainterSettings;
 class FClothPaintToolBase;
 

@@ -43,6 +43,12 @@ DEFINE_STAT(STAT_EvolutionAndKinematicUpdate);
 DEFINE_STAT(STAT_AdvanceEventWaits);
 DEFINE_STAT(STAT_ResetCollisionRule);
 DEFINE_STAT(STAT_EventDataGathering)
+DEFINE_STAT(STAT_FillProducerData)
+DEFINE_STAT(STAT_FlipBuffersIfRequired)
+DEFINE_STAT(STAT_GatherCollisionEvent)
+DEFINE_STAT(STAT_GatherBreakingEvent)
+DEFINE_STAT(STAT_GatherTrailingEvent)
+DEFINE_STAT(STAT_GatherSleepingEvent)
 
 DEFINE_STAT(STAT_ParamUpdateObject);
 DEFINE_STAT(STAT_ParamUpdateField);

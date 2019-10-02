@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#if INCLUDE_CHAOS
+#include "ChaosArchive.h"
 
 struct FCollisionFilterData
 {
@@ -16,4 +16,8 @@ struct FCollisionFilterData
 	}
 };
 
-#endif
+inline Chaos::FChaosArchive& operator<<(Chaos::FChaosArchive& Ar, FCollisionFilterData& Filter)
+{
+	Ar << Filter.Word0 << Filter.Word1 << Filter.Word2 << Filter.Word3;
+	return Ar;
+}

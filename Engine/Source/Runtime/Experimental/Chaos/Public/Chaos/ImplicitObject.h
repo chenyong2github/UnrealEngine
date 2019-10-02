@@ -27,7 +27,7 @@ class TBVHParticles;
 enum class ImplicitObjectType : int8
 {
 	//Note: add entries at the bottom for serialization
-	Sphere,
+	Sphere = 0,
 	Box,
 	Plane,
 	Capsule,
@@ -59,9 +59,7 @@ template<class T, int d>
 class CHAOS_API TImplicitObject
 {
 public:
-	static constexpr bool IsSerializablePtr = true;
-
-	static void StaticSerialize(FChaosArchive& Ar, TSerializablePtr<TImplicitObject<T, d>>& Obj);
+	static TImplicitObject<T,d>* SerializationFactory(FChaosArchive& Ar, TImplicitObject<T, d>* Obj);
 
 	TImplicitObject(int32 Flags, ImplicitObjectType InType = ImplicitObjectType::Unknown);
 	TImplicitObject(const TImplicitObject<T, d>&) = delete;
@@ -111,17 +109,29 @@ public:
 		return Type;
 	}
 
+	virtual bool IsValidGeometry() const
+	{
+		return true;
+	}
+
+	virtual TUniquePtr<TImplicitObject<T, d>> Copy() const
+	{
+		check(false);
+		return nullptr;
+	}
+
 	//This is strictly used for optimization purposes
 	bool IsUnderlyingUnion() const
 	{
 		return Type == ImplicitObjectType::Union;
 	}
-
-	/*virtual*/ T SignedDistance(const TVector<T, d>& x) const
+	// Explicitly non-virtual.  Must cast to derived types to target their implementation.
+	T SignedDistance(const TVector<T, d>& x) const
 	{
 		TVector<T, d> Normal;
 		return PhiWithNormal(x, Normal);
 	}
+	// Explicitly non-virtual.  Must cast to derived types to target their implementation.
 	TVector<T, d> Normal(const TVector<T, d>& x) const
 	{
 		TVector<T, d> Normal;
@@ -218,6 +228,10 @@ public:
 
 	virtual uint32 GetTypeHash() const = 0;
 
+	virtual FName GetTypeName() const { return GetTypeName(GetType()); }
+
+	static const FName GetTypeName(const ImplicitObjectType InType);
+
 protected:
 	ImplicitObjectType Type;
 	bool bIsConvex;
@@ -240,18 +254,6 @@ FORCEINLINE FArchive& operator<<(FArchive& Ar, TImplicitObject<T, d>& Value)
 {
 	Value.Serialize(Ar);
 	return Ar;
-}
-
-#define IMPLICIT_OBJECT_SERIALIZER(Type)\
-static void StaticSerialize(FChaosArchive& Ar, TSerializablePtr<Type>& Obj)\
-{\
-	TImplicitObject<T, d>::StaticSerialize(Ar, (TSerializablePtr<TImplicitObject<T, d>>&)Obj);\
-}
-
-#define IMPLICIT_OBJECT_SERIALIZER_DIM(Type, Dim)\
-static void StaticSerialize(FChaosArchive& Ar, TSerializablePtr<Type>& Obj)\
-{\
-	TImplicitObject<T, Dim>::StaticSerialize(Ar, (TSerializablePtr<TImplicitObject<T, Dim>>&)Obj);\
 }
 
 typedef TImplicitObject<float, 3> FImplicitObject3;

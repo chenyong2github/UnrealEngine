@@ -6,11 +6,9 @@
 #include "DrawDebugHelpers.h"
 #include "PhysXPublic.h"
 
-#if INCLUDE_CHAOS
 #include "Chaos/Sphere.h"
 #include "Chaos/Box.h"
 #include "Chaos/Capsule.h"
-#endif
 
 
 #if ENABLE_DRAW_DEBUG
@@ -252,7 +250,6 @@ void DrawGeomSweeps(const UWorld* InWorld, const FVector& Start, const FVector& 
 
 #endif // WITH_PHYSX
 
-#if INCLUDE_CHAOS
 void DrawGeomOverlaps(const UWorld* InWorld, const Chaos::TImplicitObject<float, 3>& Geom, const FTransform& GeomPose, TArray<struct FOverlapResult>& Overlaps, float Lifetime)
 {
 	using namespace Chaos;
@@ -291,6 +288,5 @@ void DrawGeomSweeps(const UWorld* InWorld, const FVector& Start, const FVector& 
 		DrawCapsuleSweeps(InWorld, Start, End, Capsule->GetHeight() * 0.5f + Capsule->GetRadius(), Capsule->GetRadius(), Rotation, Hits, Lifetime);
 	}
 }
-#endif
 
 #endif // ENABLE_DRAW_DEBUG

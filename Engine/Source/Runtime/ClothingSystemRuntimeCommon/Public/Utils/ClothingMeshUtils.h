@@ -6,11 +6,11 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogClothingMeshUtils, Log, All);
 
-struct FClothPhysicalMeshData;
+class UClothPhysicalMeshDataBase;
 
 namespace ClothingMeshUtils
 {
-	struct CLOTHINGSYSTEMRUNTIMENV_API ClothMeshDesc
+	struct CLOTHINGSYSTEMRUNTIMECOMMON_API ClothMeshDesc
 	{
 		ClothMeshDesc(TArrayView<const FVector> InPositions, TArrayView<const FVector> InNormals,  TArrayView<const uint32> InIndices)
 			: Positions(InPositions)
@@ -29,10 +29,10 @@ namespace ClothingMeshUtils
 	};
 
 	// Static method for calculating a skinned mesh result from source data
-	void CLOTHINGSYSTEMRUNTIMENV_API
+	void CLOTHINGSYSTEMRUNTIMECOMMON_API
 	SkinPhysicsMesh(
-		const TArray<int32>& BoneMap, // UClothingAsset::UsedBoneIndices
-		const FClothPhysicalMeshData& InMesh, 
+		const TArray<int32>& BoneMap, // UClothingAssetCommon::UsedBoneIndices
+		const UClothPhysicalMeshDataBase& InMesh, 
 		const FTransform& RootBoneTransform, 
 		const FMatrix* InBoneMatrices, 
 		const int32 InNumBoneMatrices, 
@@ -47,7 +47,7 @@ namespace ClothingMeshUtils
 	* @param Mesh1Normals		- Vertex normals for Mesh1
 	* @param Mesh1Indices		- Triangle indices for Mesh1
 	*/
-	void CLOTHINGSYSTEMRUNTIMENV_API GenerateMeshToMeshSkinningData(
+	void CLOTHINGSYSTEMRUNTIMECOMMON_API GenerateMeshToMeshSkinningData(
 		TArray<FMeshToMeshVertData>& OutSkinningData,
 		const ClothMeshDesc& TargetMesh,
 		const TArray<FVector>* TargetTangents,
@@ -60,7 +60,7 @@ namespace ClothingMeshUtils
 	 * @param OutEmbeddedPositions Embedded version of the original positions, a barycentric coordinate and distance along the normal of the triangle
 	 * @param OutSourceIndices Source index list for the embedded positions, 3 per position to denote the source triangle
 	 */
-	void CLOTHINGSYSTEMRUNTIMENV_API GenerateEmbeddedPositions(
+	void CLOTHINGSYSTEMRUNTIMECOMMON_API GenerateEmbeddedPositions(
 		const ClothMeshDesc& SourceMesh, 
 		TArrayView<const FVector> Positions, 
 		TArray<FVector4>& OutEmbeddedPositions, 
@@ -91,7 +91,7 @@ namespace ClothingMeshUtils
 	 * Object used to map vertex parameters between two meshes using the
 	 * same barycentric mesh to mesh mapping data we use for clothing
 	 */
-	class CLOTHINGSYSTEMRUNTIMENV_API FVertexParameterMapper
+	class CLOTHINGSYSTEMRUNTIMECOMMON_API FVertexParameterMapper
 	{
 	public:
 		FVertexParameterMapper() = delete;

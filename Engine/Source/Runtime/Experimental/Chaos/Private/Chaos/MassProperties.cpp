@@ -2,6 +2,8 @@
 #include "Chaos/MassProperties.h"
 #include "Chaos/Rotation.h"
 #include "Chaos/Matrix.h"
+#include "Chaos/Particles.h"
+#include "Chaos/TriangleMesh.h"
 
 namespace Chaos
 {
@@ -17,13 +19,13 @@ namespace Chaos
 		if (!ensure(Trace > SMALL_NUMBER))
 		{
 			// Tiny inertia - numerical instability would follow. We should not get this unless we have bad input.
-			return TRotation<T, d>(TVector<T, d>(0), 1);
+			return TRotation<T, d>::FromElements(TVector<T, d>(0), 1);
 		}
 
 		if ((OffDiagSize / Trace) < SMALL_NUMBER)
 		{
 			// Almost diagonal matrix - we are already in local space.
-			return TRotation<T, d>(TVector<T, d>(0), 1);
+			return TRotation<T, d>::FromElements(TVector<T, d>(0), 1);
 		}
 
 		T Size = FMath::Sqrt((FMath::Square(Inertia.M[0][0] - Trace) + FMath::Square(Inertia.M[1][1] - Trace) + FMath::Square(Inertia.M[2][2] - Trace) + 2 * OffDiagSize) / 6);
@@ -52,7 +54,7 @@ namespace Chaos
 		if (!ensure((SqrtIM1Scale0 > KINDA_SMALL_NUMBER) || (SqrtIM1Scale1 > KINDA_SMALL_NUMBER)))
 		{
 			// We hit numerical accuracy, despite the early off-diagonal check. We should not see this any more.
-			return TRotation<T, d>(TVector<T, d>(0), 1);
+			return TRotation<T, d>::FromElements(TVector<T, d>(0), 1);
 		}
 
 		TVector<T, d - 1> SmallEigenvector2 = IM1Scale0 > IM1Scale1 ? (TVector<T, d - 1>(IM1.M[3], -IM1.M[1]) / SqrtIM1Scale0) : (IM1Scale1 > 0 ? (TVector<T, d - 1>(-IM1.M[1], IM1.M[0]) / SqrtIM1Scale1) : TVector<T, d - 1>(1, 0));

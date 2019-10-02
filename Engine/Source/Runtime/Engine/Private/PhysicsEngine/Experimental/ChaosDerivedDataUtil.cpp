@@ -3,7 +3,6 @@
 #include "ChaosDerivedDataUtil.h"
 #include "CoreMinimal.h"
 
-#if INCLUDE_CHAOS
 #include "ChaosLog.h"
 
 namespace Chaos
@@ -164,5 +163,3 @@ namespace Chaos
 	}
 
 }
-
-#endif // INCLUDE_CHAOS
