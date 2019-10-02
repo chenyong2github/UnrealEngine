@@ -2265,12 +2265,11 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 	}
 	
 	// Compile the texture object references
-	enum { MAX_RVT_LAYERS = 3 };
 	const int32 TextureLayerCount = URuntimeVirtualTexture::GetLayerCount(MaterialType);
-	check(TextureLayerCount <= MAX_RVT_LAYERS);
+	check(TextureLayerCount <= RuntimeVirtualTexture::MaxTextureLayers);
 
-	int32 TextureCodeIndex[MAX_RVT_LAYERS] = { INDEX_NONE };
-	int32 TextureReferenceIndex[MAX_RVT_LAYERS] = { INDEX_NONE };
+	int32 TextureCodeIndex[RuntimeVirtualTexture::MaxTextureLayers] = { INDEX_NONE };
+	int32 TextureReferenceIndex[RuntimeVirtualTexture::MaxTextureLayers] = { INDEX_NONE };
 	for (int32 TexureLayerIndex = 0; TexureLayerIndex < TextureLayerCount; TexureLayerIndex++)
 	{
 		const int32 PageTableLayerIndex = bSinglePhysicalSpace ? 0 : TexureLayerIndex;
@@ -2328,7 +2327,7 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 	}
 
 	// Compile the texture sample code
-	int32 SampleCodeIndex[MAX_RVT_LAYERS] = { INDEX_NONE };
+	int32 SampleCodeIndex[RuntimeVirtualTexture::MaxTextureLayers] = { INDEX_NONE };
 	for (int32 TexureLayerIndex = 0; TexureLayerIndex < TextureLayerCount; TexureLayerIndex++)
 	{
 		SampleCodeIndex[TexureLayerIndex] = Compiler->TextureSample(

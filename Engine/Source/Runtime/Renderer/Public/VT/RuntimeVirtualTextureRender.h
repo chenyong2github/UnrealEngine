@@ -3,9 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "VT/RuntimeVirtualTextureEnum.h"
 
-enum class ERuntimeVirtualTextureDebugType;
-enum class ERuntimeVirtualTextureMaterialType : uint8;
 class FRHICommandListImmediate;
 class FRHITexture2D;
 class FScene;
@@ -22,25 +21,36 @@ namespace RuntimeVirtualTexture
 	RENDERER_API uint32 GetRuntimeVirtualTextureSceneIndex_GameThread(URuntimeVirtualTextureComponent* InComponent);
 #endif
 
+	/** Enum for our maximum RenderPages() batch size. */
+	enum { EMaxRenderPageBatch = 8 };
+
+	/** A single page description. Multiple of these can be placed in a single FRenderPageBatchDesc batch description. */
+	struct FRenderPageDesc
+	{
+		uint8 vLevel;
+		FBox2D UVRange;
+		FBox2D DestBox[RuntimeVirtualTexture::MaxTextureLayers];
+	};
+
+	/** A description of a batch of pages to be rendered with a single call to RenderPages(). */
+	struct FRenderPageBatchDesc
+	{
+		FScene* Scene;
+		uint32 RuntimeVirtualTextureMask;
+		FTransform UVToWorld;
+		ERuntimeVirtualTextureMaterialType MaterialType;
+		uint8 MaxLevel;
+		bool bClearTextures;
+		ERuntimeVirtualTextureDebugType DebugType;
+
+		int32 NumPageDescs;
+		FRHITexture2D* Textures[RuntimeVirtualTexture::MaxTextureLayers];
+		FRenderPageDesc PageDescs[EMaxRenderPageBatch];
+	};
+
 	/** Returns true if the FScene is initialized for rendering to runtime virtual textures. */
 	RENDERER_API bool IsSceneReadyToRender(FScene* Scene);
 
-	/**
-	 * Render a single page of a virtual texture with a given material.
-	 * todo[vt]: Likely to be more optimal to batch several pages at a time and share setup/visibility/render targets.
-	 */
-	RENDERER_API void RenderPage(
-		FRHICommandListImmediate& RHICmdList,
-		FScene* Scene,
-		uint32 RuntimeVirtualTextureMask,
-		ERuntimeVirtualTextureMaterialType MaterialType,
-		bool bClearTextures,
-		FRHITexture2D* Texture0, FBox2D const& DestBox0,
-		FRHITexture2D* Texture1, FBox2D const& DestBox1,
-		FRHITexture2D* Texture2, FBox2D const& DestBox2,
-		FTransform const& UVToWorld,
-		FBox2D const& UVRange,
-		uint8 vLevel,
-		uint8 MaxLevel,
-		ERuntimeVirtualTextureDebugType DebugType);
+	/** Render a batch of pages for a runtime virtual texture. */
+	RENDERER_API void RenderPages(FRHICommandListImmediate& RHICmdList, FRenderPageBatchDesc const& InDesc);
 }

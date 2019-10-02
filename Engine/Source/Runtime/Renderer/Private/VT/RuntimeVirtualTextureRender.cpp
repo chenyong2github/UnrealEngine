@@ -573,7 +573,7 @@ namespace RuntimeVirtualTexture
 	struct FRenderGraphSetup
 	{
 		//todo[vt]: Add flag to disable the clear render target behavior and win some performance when we can. This could be driven a UI on the VT or the VT Plane?
-		FRenderGraphSetup(FRDGBuilder& GraphBuilder, ERuntimeVirtualTextureMaterialType MaterialType, FRHITexture2D* OutputTexture0, FRHITexture2D* OutputTexture1, FIntPoint TextureSize)
+		FRenderGraphSetup(FRDGBuilder& GraphBuilder, ERuntimeVirtualTextureMaterialType MaterialType, FRHITexture2D* OutputTexture0, FIntPoint TextureSize)
 		{
 			bRenderPass = OutputTexture0 != nullptr;
 			bCompressPass = bRenderPass && (OutputTexture0->GetFormat() == PF_DXT1 || OutputTexture0->GetFormat() == PF_DXT5 || OutputTexture0->GetFormat() == PF_BC5);
@@ -782,7 +782,7 @@ namespace RuntimeVirtualTexture
 		// Build graph
 		FMemMark Mark(FMemStack::Get());
 		FRDGBuilder GraphBuilder(RHICmdList);
-		FRenderGraphSetup GraphSetup(GraphBuilder, MaterialType, OutputTexture0, OutputTexture1, TextureSize);
+		FRenderGraphSetup GraphSetup(GraphBuilder, MaterialType, OutputTexture0, TextureSize);
 
 		// Draw Pass
 		if (GraphSetup.bRenderPass)
@@ -894,6 +894,33 @@ namespace RuntimeVirtualTexture
 			Info.DestPosition = FIntVector(DestBox2.Min.X, DestBox2.Min.Y, 0);
 
 			RHICmdList.CopyTexture(GraphOutputTexture2->GetRenderTargetItem().ShaderResourceTexture->GetTexture2D(), OutputTexture2->GetTexture2D(), Info);
+		}
+	}
+
+	void RenderPages(FRHICommandListImmediate& RHICmdList, FRenderPageBatchDesc const& InDesc)
+	{
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(STAT_VirtualTextureSystem_RVT_RenderPages);
+		SCOPED_DRAW_EVENT(RHICmdList, RuntimeVirtualTextureRenderPages);
+		check(InDesc.NumPageDescs <= EMaxRenderPageBatch);
+
+		for (int32 PageIndex = 0; PageIndex < InDesc.NumPageDescs; ++PageIndex)
+		{
+			FRenderPageDesc const& PageDesc = InDesc.PageDescs[PageIndex];
+
+			RenderPage(
+				RHICmdList,
+				InDesc.Scene,
+				InDesc.RuntimeVirtualTextureMask,
+				InDesc.MaterialType,
+				InDesc.bClearTextures,
+				InDesc.Textures[0], PageDesc.DestBox[0],
+				InDesc.Textures[1], PageDesc.DestBox[1],
+				InDesc.Textures[2], PageDesc.DestBox[2],
+				InDesc.UVToWorld,
+				PageDesc.UVRange,
+				PageDesc.vLevel,
+				InDesc.MaxLevel,
+				InDesc.DebugType);
 		}
 	}
 
