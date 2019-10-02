@@ -772,7 +772,7 @@ void ExportRigidBodyBoxElements(const FKAggregateGeom& AggGeom, TNavStatArray<fl
 			ElemTM.TransformPosition(FVector( Extent.X,  Extent.Y, -Extent.Z))
 		};
 
-		for (int32 iv = 0; iv < ARRAY_COUNT(UnrealVerts); iv++)
+		for (int32 iv = 0; iv < UE_ARRAY_COUNT(UnrealVerts); iv++)
 		{
 			UnrealBounds += UnrealVerts[iv];
 

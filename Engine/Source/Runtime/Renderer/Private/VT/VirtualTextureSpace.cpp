@@ -272,7 +272,7 @@ void FVirtualTextureSpace::AllocateTextures(FRHICommandList& RHICmdList)
 	if (bNeedToAllocatePageTable)
 	{
 		const TCHAR* TextureNames[] = { TEXT("PageTable_0"), TEXT("PageTable_1") };
-		static_assert(ARRAY_COUNT(TextureNames) == TextureCapacity, "");
+		static_assert(UE_ARRAY_COUNT(TextureNames) == TextureCapacity, "");
 
 		for (uint32 TextureIndex = 0u; TextureIndex < GetNumPageTableTextures(); ++TextureIndex)
 		{

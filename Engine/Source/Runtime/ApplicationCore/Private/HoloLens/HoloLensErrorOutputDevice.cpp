@@ -71,7 +71,7 @@ void FHoloLensErrorOutputDevice::HandleError()
 	GIsRunning = 0;
 	GIsCriticalError = 1;
 	GLogConsole = NULL;
-	GErrorHist[ARRAY_COUNT(GErrorHist) - 1] = 0;
+	GErrorHist[UE_ARRAY_COUNT(GErrorHist) - 1] = 0;
 
 	// Trigger the OnSystemFailure hook if it exists
 	// make sure it happens after GIsGuarded is set to 0 in case this hook crashes

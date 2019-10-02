@@ -2393,7 +2393,7 @@ FLinearColor FStaticLightingSystem::CalculatePhotonIrradiance(
 
 				// Try to determine visibility to the photon before letting it contribute
 				// This helps to prevent leaking through thin walls
-				for (int32 SearchIndex = 0; SearchIndex < ARRAY_COUNT(SearchNormalScales) && !bPhotonVisible; SearchIndex++)
+				for (int32 SearchIndex = 0; SearchIndex < UE_ARRAY_COUNT(SearchNormalScales) && !bPhotonVisible; SearchIndex++)
 				{
 					const float NormalOffset = SearchDistance * SearchNormalScales[SearchIndex];
 

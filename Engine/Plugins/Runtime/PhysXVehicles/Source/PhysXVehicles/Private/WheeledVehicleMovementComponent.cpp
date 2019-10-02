@@ -1738,7 +1738,7 @@ void UWheeledVehicleMovementComponent::DrawDebug(UCanvas* Canvas, float& YL, flo
 		for (uint32 w = 0; w < PVehicle->mWheelsSimData.getNbWheels(); ++w)
 		{
 			float CurX = 4;
-			for (uint32 i = 0; i < ARRAY_COUNT(GraphChannels); ++i)
+			for (uint32 i = 0; i < UE_ARRAY_COUNT(GraphChannels); ++i)
 			{
 				float OutX = GraphWidth;
 				DrawTelemetryGraph(GraphChannels[i], TelemetryData->getWheelGraph(w), Canvas, CurX, YPos, GraphWidth, GraphHeight, OutX);

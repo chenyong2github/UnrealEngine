@@ -428,7 +428,7 @@ public:
 		};
 
 		// look for the next highest valid rate
-		for (int32 Index = ARRAY_COUNT(ValidSampleRates) - 2; Index >= 0; Index--)
+		for (int32 Index = UE_ARRAY_COUNT(ValidSampleRates) - 2; Index >= 0; Index--)
 		{
 			if (SampleRate > ValidSampleRates[Index])
 			{

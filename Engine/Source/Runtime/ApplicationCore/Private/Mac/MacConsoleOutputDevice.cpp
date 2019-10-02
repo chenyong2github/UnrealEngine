@@ -180,8 +180,8 @@ void FMacConsoleOutputDevice::Serialize( const TCHAR* Data, ELogVerbosity::Type 
 					
 					// turn the string into a bunch of 0's and 1's
 					TCHAR String[9];
-					FMemory::Memset(String, 0, sizeof(TCHAR) * ARRAY_COUNT(String));
-					FCString::Strncpy(String, Data, ARRAY_COUNT(String));
+					FMemory::Memset(String, 0, sizeof(TCHAR) * UE_ARRAY_COUNT(String));
+					FCString::Strncpy(String, Data, UE_ARRAY_COUNT(String));
 					for (TCHAR* S = String; *S; S++)
 					{
 						*S -= '0';

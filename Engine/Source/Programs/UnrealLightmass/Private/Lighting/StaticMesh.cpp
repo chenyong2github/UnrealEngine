@@ -196,7 +196,7 @@ static void GetStaticLightingVertex(
 		OutVertex.WorldTangentZ = (OutVertex.WorldTangentX ^ OutVertex.WorldTangentY).GetSafeNormal();
 	}
 
-	for(uint32 LightmapTextureCoordinateIndex = 0; LightmapTextureCoordinateIndex < ARRAY_COUNT(InVertex.UVs); LightmapTextureCoordinateIndex++)
+	for(uint32 LightmapTextureCoordinateIndex = 0; LightmapTextureCoordinateIndex < UE_ARRAY_COUNT(InVertex.UVs); LightmapTextureCoordinateIndex++)
 	{
 		OutVertex.TextureCoordinates[LightmapTextureCoordinateIndex] = InVertex.UVs[LightmapTextureCoordinateIndex];
 	}

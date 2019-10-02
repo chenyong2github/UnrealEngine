@@ -789,7 +789,7 @@ void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress)
 				// If this file has a .lc.obj suffix, temporarily replace the original .obj file while generating the patch.
 				// It'd be nice to track this explicitly inside Live++ and just load the new file, but it requires a lot of changes and would make upgrades difficult.
 				static const TCHAR Suffix[] = TEXT(".lc.obj");
-				static const size_t SuffixLen = ARRAY_COUNT(Suffix) - 1;
+				static const size_t SuffixLen = UE_ARRAY_COUNT(Suffix) - 1;
 				if (NormalizedObjectFile.length() >= SuffixLen && _wcsicmp(NormalizedObjectFile.c_str() + NormalizedObjectFile.length() - SuffixLen, Suffix) == 0)
 				{
 					// Get the original filename

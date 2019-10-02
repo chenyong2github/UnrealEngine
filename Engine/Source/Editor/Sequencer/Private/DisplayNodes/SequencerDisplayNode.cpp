@@ -62,8 +62,8 @@ namespace SequencerNodeConstants
 		5, // Anything else
 	};
 
-	static_assert(ARRAY_COUNT(DefaultSortBias) == (__underlying_type(EDisplayNodeSortType))EDisplayNodeSortType::NUM, "Mismatched type/bias count");
-	static_assert(ARRAY_COUNT(ObjectBindingSortBias) == (__underlying_type(EDisplayNodeSortType))EDisplayNodeSortType::NUM, "Mismatched type/bias count");
+	static_assert(UE_ARRAY_COUNT(DefaultSortBias) == (__underlying_type(EDisplayNodeSortType))EDisplayNodeSortType::NUM, "Mismatched type/bias count");
+	static_assert(UE_ARRAY_COUNT(ObjectBindingSortBias) == (__underlying_type(EDisplayNodeSortType))EDisplayNodeSortType::NUM, "Mismatched type/bias count");
 
 	inline bool SortChildrenWithBias(const TSharedRef<FSequencerDisplayNode>& A, const TSharedRef<FSequencerDisplayNode>& B, const uint8* SortBias)
 	{
