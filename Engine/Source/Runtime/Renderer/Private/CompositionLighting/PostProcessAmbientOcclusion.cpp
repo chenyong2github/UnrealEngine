@@ -2054,6 +2054,7 @@ void FRCPassPostProcessAmbientOcclusion_HorizonSearch::Process(FRenderingComposi
 	const FPooledRenderTargetDesc* InputDesc0 = GetInputDesc(ePId_Input0);
 
 	FIntPoint InputTexSize = InputDesc0->Extent;
+
 	FIntPoint OutputTexSize = PassOutputs[0].RenderTargetDesc.Extent;
 	FIntRect OutputFullRect(FIntPoint(0, 0), OutputTexSize);
 
