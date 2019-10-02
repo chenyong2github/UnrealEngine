@@ -92,6 +92,7 @@ namespace AutomationTool
 
 		public static CommandLineArg CompileOnly = new CommandLineArg("-CompileOnly");
 		public static CommandLineArg Verbose = new CommandLineArg("-Verbose");
+		public static CommandLineArg TimeStamps = new CommandLineArg("-TimeStamps");
 		public static CommandLineArg Submit = new CommandLineArg("-Submit");
 		public static CommandLineArg NoSubmit = new CommandLineArg("-NoSubmit");
 		public static CommandLineArg NoP4 = new CommandLineArg("-NoP4");
