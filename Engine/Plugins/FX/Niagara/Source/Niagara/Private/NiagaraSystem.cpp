@@ -369,12 +369,12 @@ void UNiagaraSystem::PostLoad()
 			UE_LOG(LogNiagara, Log, TEXT("System %s being compiled because there were changes to an emitter script Change ID."), *GetPathName());
 		}
 
-	if (EmitterCompiledData.Num() == 0 || EmitterCompiledData[0].DataSetCompiledData.Variables.Num() == 0)
-	{
-		InitEmitterCompiledData();
-	}
+		if (EmitterCompiledData.Num() == 0 || EmitterCompiledData[0].DataSetCompiledData.Variables.Num() == 0)
+		{
+			InitEmitterCompiledData();
+		}
 
-		if (SystemCompiledData.InstanceParamStore.GetNumParameters() == 0)
+		if (SystemCompiledData.InstanceParamStore.GetNumParameters() == 0 ||SystemCompiledData.DataSetCompiledData.Variables.Num() == 0)
 		{
 			InitSystemCompiledData();
 		}
@@ -1130,10 +1130,16 @@ void UNiagaraSystem::InitEmitterCompiledData()
 			const FNiagaraEmitterHandle& EmitterHandle = EmitterHandles[EmitterIdx];
 			const UNiagaraEmitter* Emitter = EmitterHandle.GetInstance();
 			FNiagaraDataSetCompiledData& EmitterDataSetCompiledData = EmitterCompiledData[EmitterIdx].DataSetCompiledData;
+			FNiagaraDataSetCompiledData& GPUCaptureCompiledData = EmitterCompiledData[EmitterIdx].GPUCaptureDataSetCompiledData;
 			if ensureMsgf(Emitter != nullptr, TEXT("Failed to get Emitter Instance from Emitter Handle in post compile, please investigate."))
 			{
+				static FName GPUCaptureDataSetName = TEXT("GPU Capture Dataset");
 				InitEmitterVariableAliasNames(EmitterCompiledData[EmitterIdx], Emitter);
 				InitEmitterDataSetCompiledData(EmitterDataSetCompiledData, Emitter, EmitterHandle);
+				GPUCaptureCompiledData.ID = FNiagaraDataSetID(GPUCaptureDataSetName, ENiagaraDataSetType::ParticleData);
+				GPUCaptureCompiledData.Variables = EmitterDataSetCompiledData.Variables;
+				GPUCaptureCompiledData.SimTarget = ENiagaraSimTarget::CPUSim;
+				GPUCaptureCompiledData.BuildLayout();				
 			}
 		}
 	}
@@ -1170,6 +1176,30 @@ void UNiagaraSystem::InitSystemCompiledData()
 			}
 		}
 	}
+
+	auto CreateDataSetCompiledData = [&](FNiagaraDataSetCompiledData& CompiledData, TArrayView<FNiagaraVariable> Vars)
+	{
+		CompiledData.Empty();
+
+		CompiledData.Variables.Reset(Vars.Num());
+		for (const FNiagaraVariable& Var : Vars)
+		{
+			CompiledData.Variables.AddUnique(Var);
+		}
+
+		CompiledData.bNeedsPersistentIDs = false;
+		CompiledData.ID = FNiagaraDataSetID();
+		CompiledData.SimTarget = ENiagaraSimTarget::CPUSim;
+
+		CompiledData.BuildLayout();
+	};
+
+	CreateDataSetCompiledData(SystemCompiledData.DataSetCompiledData, GetSystemUpdateScript()->GetVMExecutableData().Attributes);
+
+	FNiagaraParameters* EngineParamsSpawn = GetSystemSpawnScript()->GetVMExecutableData().DataSetToParameters.Find(TEXT("Engine"));
+	CreateDataSetCompiledData(SystemCompiledData.SpawnInstanceParamsDataSetCompiledData, EngineParamsSpawn ? EngineParamsSpawn->Parameters : TArrayView<FNiagaraVariable>());
+	FNiagaraParameters* EngineParamsUpdate = GetSystemUpdateScript()->GetVMExecutableData().DataSetToParameters.Find(TEXT("Engine"));
+	CreateDataSetCompiledData(SystemCompiledData.UpdateInstanceParamsDataSetCompiledData, EngineParamsUpdate ? EngineParamsUpdate->Parameters : TArrayView<FNiagaraVariable>());
 }
 #endif
 

@@ -49,6 +49,11 @@ struct FNiagaraEmitterCompiledData
 	/** Per-Emitter DataSet Data. */
 	UPROPERTY()
 	FNiagaraDataSetCompiledData DataSetCompiledData;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	FNiagaraDataSetCompiledData GPUCaptureDataSetCompiledData;
+#endif
 };
 
 USTRUCT()
@@ -64,6 +69,15 @@ struct FNiagaraSystemCompiledData
 
 	UPROPERTY()
 	FNiagaraParameterStore InstanceParamStore;
+
+	UPROPERTY()
+	FNiagaraDataSetCompiledData DataSetCompiledData;
+
+	UPROPERTY()
+	FNiagaraDataSetCompiledData SpawnInstanceParamsDataSetCompiledData;
+
+	UPROPERTY()
+	FNiagaraDataSetCompiledData UpdateInstanceParamsDataSetCompiledData;
 };
 
 USTRUCT()

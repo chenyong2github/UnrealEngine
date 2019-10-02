@@ -697,6 +697,13 @@ void FHoloLensARSystem::AddOrUpdateMesh(FMeshUpdate* CurrentMesh)
 		{
 			// Attach this component to our single origin actor
 			AAROriginActor* OriginActor = AAROriginActor::GetOriginActor();
+
+			// During shutdown we can get a mesh update after the OriginActor has been destroyed, just return in that case.
+			if (OriginActor == nullptr)
+			{
+				return;
+			}
+
 			UMRMeshComponent* MRMesh = NewObject<UMRMeshComponent>(OriginActor);
 
 			// Set the occlusion and wireframe defaults
