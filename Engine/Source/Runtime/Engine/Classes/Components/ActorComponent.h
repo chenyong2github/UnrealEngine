@@ -915,6 +915,48 @@ private:
 	friend class FComponentReregisterContextBase;
 	friend class FComponentRecreateRenderStateContext;
 	friend struct FActorComponentTickFunction;
+
+	//~ Begin Methods for Replicated Members.
+protected:
+
+	/**
+	 * Sets the value of bReplicates without causing other side effects to this instance.
+	 * This should only be called during component construction.
+	 *
+	 * This method exists only to allow code to directly modify bReplicates to maintain existing
+	 * behavior.
+	 */
+	void SetIsReplicatedByDefault(const bool bNewReplicates);
+
+	/**
+	 * Gets the property name for bReplicates.
+	 *
+	 * This exists so subclasses don't need to have direct access to the bReplicates property so it
+	 * can be made private later.
+	 */
+	static const FName GetReplicatesPropertyName()
+	{
+		return GET_MEMBER_NAME_CHECKED(UActorComponent, bReplicates);
+	}
+
+public:
+
+	/**
+	 * Sets the value of bIsActive without causing other side effects to this instance.
+	 *
+	 * Activate, Deactivate, and SetActive are preferred in most cases because they respect virtual behavior.
+	 */
+	void SetActiveFlag(const bool bNewIsActive);
+
+	//~ End Methods for Replicated Members.
+
+protected:
+
+	/** Convenience method for testing whether or not our owner is still being constructed / initialized. */
+	bool OwnerNeedsInitialization() const;
+
+	/** Convenience method for testing whether or not we are still be constructed / initialized. */
+	bool NeedsInitialization() const;
 };
 
 //////////////////////////////////////////////////////////////////////////
