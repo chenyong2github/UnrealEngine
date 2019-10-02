@@ -342,6 +342,7 @@ void MeshUpdateObserver::StopMeshObserver()
 		// Stop our callback from doing any processing first
 		bIsRunning = false;
 		SurfaceObserver->ObservedSurfacesChanged -= OnChangeEventToken;
+		OnChangeEventToken = Windows::Foundation::EventRegistrationToken();
 
 		SurfaceObserver = nullptr;
 		LastGuidToLastUpdateMap.erase(LastGuidToLastUpdateMap.begin(), LastGuidToLastUpdateMap.end());
