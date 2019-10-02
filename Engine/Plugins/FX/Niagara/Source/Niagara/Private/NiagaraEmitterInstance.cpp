@@ -25,6 +25,12 @@ DECLARE_CYCLE_STAT(TEXT("Emitter Event Handling [CNC]"), STAT_NiagaraEventHandle
 DECLARE_CYCLE_STAT(TEXT("Emitter Error Check [CNC]"), STAT_NiagaraEmitterErrorCheck, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Init Emitters [GT]"), STAT_NiagaraEmitterInit, STATGROUP_Niagara);
 
+DECLARE_CYCLE_STAT(TEXT("Init Emitters (DataSets) [GT]"), STAT_NiagaraEmitterInit_Datasets, STATGROUP_Niagara);
+DECLARE_CYCLE_STAT(TEXT("Init Emitters (ExecContexts) [GT]"), STAT_NiagaraEmitterInit_ExecContexts, STATGROUP_Niagara);
+DECLARE_CYCLE_STAT(TEXT("Init Emitters (DirectBindings) [GT]"), STAT_NiagaraEmitterInit_DirectBindings, STATGROUP_Niagara);
+DECLARE_CYCLE_STAT(TEXT("Init Emitters (DIDefaultsAndBoundCalcs) [GT]"), STAT_NiagaraEmitterInit_DIDefaultsAndBoundsCalcs, STATGROUP_Niagara);
+
+
 static int32 GbDumpParticleData = 0;
 static FAutoConsoleVariableRef CVarNiagaraDumpParticleData(
 	TEXT("fx.DumpParticleData"),
@@ -118,7 +124,7 @@ FNiagaraEmitterInstance::~FNiagaraEmitterInstance()
 
 	//UE_LOG(LogNiagara, Warning, TEXT("~Simulator %p"), this);
 	CachedBounds.Init();
-	UnbindParameters();
+	UnbindParameters(false);
 
 	if (GPUExecContext != nullptr)
 	{
@@ -260,166 +266,191 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 		SpawnInfos.SetNum(EmitterCompiledData[EmitterIdx].SpawnAttributes.Num());
 	}
 
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST 
-	Data.InitFromCompiledData(EmitterCompiledData[EmitterIdx].DataSetCompiledData, ParentSystemInstance->GetSystem()->GetName() + TEXT("/") + CachedEmitter->GetName());
-#else
-	Data.InitFromCompiledData(EmitterCompiledData[EmitterIdx].DataSetCompiledData);
-#endif
-
-	ResetSimulation();
-
-	DataSetMap.Empty();
-
-	//Add the particle data to the data set map.
-	//Currently just used for the tick loop but will also allow access directly to the particle data from other emitters.
-	DataSetMap.Add(Data.GetID(), &Data);
-	//Warn the user if there are any attributes used in the update script that are not initialized in the spawn script.
-	//TODO: We need some window in the System editor and possibly the graph editor for warnings and errors.
-
-	const bool bVerboseAttributeLogging = false;
-
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST 
-	if (bVerboseAttributeLogging)
 	{
-		for (FNiagaraVariable& Attr : CachedEmitter->UpdateScriptProps.Script->GetVMExecutableData().Attributes)
+		SCOPE_CYCLE_COUNTER(STAT_NiagaraEmitterInit_Datasets);
+		Data.Init(&EmitterCompiledData[EmitterIdx].DataSetCompiledData);
+
+		ResetSimulation();
+
+		DataSetMap.Empty();
+
+		//Add the particle data to the data set map.
+		//Currently just used for the tick loop but will also allow access directly to the particle data from other emitters.
+		DataSetMap.Add(Data.GetID(), &Data);
+		//Warn the user if there are any attributes used in the update script that are not initialized in the spawn script.
+		//TODO: We need some window in the System editor and possibly the graph editor for warnings and errors.
+
+		const bool bVerboseAttributeLogging = false;
+
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST 
+		if (bVerboseAttributeLogging)
 		{
-			int32 FoundIdx;
-			if (!CachedEmitter->SpawnScriptProps.Script->GetVMExecutableData().Attributes.Find(Attr, FoundIdx))
+			for (FNiagaraVariable& Attr : CachedEmitter->UpdateScriptProps.Script->GetVMExecutableData().Attributes)
 			{
-				UE_LOG(LogNiagara, Warning, TEXT("Attribute %s is used in the Update script for %s but it is not initialised in the Spawn script!"), *Attr.GetName().ToString(), *EmitterHandle.GetName().ToString());
-			}
-			for (int32 i = 0; i < CachedEmitter->GetEventHandlers().Num(); i++)
-			{
-				if (CachedEmitter->GetEventHandlers()[i].Script && !CachedEmitter->GetEventHandlers()[i].Script->GetVMExecutableData().Attributes.Find(Attr, FoundIdx))
+				int32 FoundIdx;
+				if (!CachedEmitter->SpawnScriptProps.Script->GetVMExecutableData().Attributes.Find(Attr, FoundIdx))
 				{
-					UE_LOG(LogNiagara, Warning, TEXT("Attribute %s is used in the event handler script for %s but it is not initialised in the Spawn script!"), *Attr.GetName().ToString(), *EmitterHandle.GetName().ToString());
+					UE_LOG(LogNiagara, Warning, TEXT("Attribute %s is used in the Update script for %s but it is not initialised in the Spawn script!"), *Attr.GetName().ToString(), *EmitterHandle.GetName().ToString());
+				}
+				for (int32 i = 0; i < CachedEmitter->GetEventHandlers().Num(); i++)
+				{
+					if (CachedEmitter->GetEventHandlers()[i].Script && !CachedEmitter->GetEventHandlers()[i].Script->GetVMExecutableData().Attributes.Find(Attr, FoundIdx))
+					{
+						UE_LOG(LogNiagara, Warning, TEXT("Attribute %s is used in the event handler script for %s but it is not initialised in the Spawn script!"), *Attr.GetName().ToString(), *EmitterHandle.GetName().ToString());
+					}
 				}
 			}
 		}
-	}
 #endif
 
-	ensure(CachedEmitter->UpdateScriptProps.DataSetAccessSynchronized());
-	UpdateScriptEventDataSets.Empty();
-	UpdateEventGeneratorIsSharedByIndex.SetNumZeroed(CachedEmitter->UpdateScriptProps.EventGenerators.Num());
-	int32 UpdateEventGeneratorIndex = 0;
-	for (const FNiagaraEventGeneratorProperties &GeneratorProps : CachedEmitter->UpdateScriptProps.EventGenerators)
-	{
-		FNiagaraDataSet *Set = FNiagaraEventDataSetMgr::CreateEventDataSet(ParentSystemInstance->GetId(), EmitterHandle.GetIdName(), GeneratorProps.SetProps.ID.Name);
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST 
-		Set->Init(FNiagaraDataSetID(), ENiagaraSimTarget::CPUSim, CachedEmitter->GetFullName() + TEXT("/") + GeneratorProps.SetProps.ID.Name.ToString());
-#else
-		Set->Init(FNiagaraDataSetID(), ENiagaraSimTarget::CPUSim);
-#endif
-		Set->AddVariables(GeneratorProps.SetProps.Variables);
-		Set->Finalize();
-		UpdateScriptEventDataSets.Add(Set);
-		UpdateEventGeneratorIsSharedByIndex[UpdateEventGeneratorIndex] = CachedEmitter->IsEventGeneratorShared(GeneratorProps.ID);
-		UpdateEventGeneratorIndex++;
-	}
-
-	ensure(CachedEmitter->SpawnScriptProps.DataSetAccessSynchronized());
-	SpawnScriptEventDataSets.Empty();
-	SpawnEventGeneratorIsSharedByIndex.SetNumZeroed(CachedEmitter->SpawnScriptProps.EventGenerators.Num());
-	int32 SpawnEventGeneratorIndex = 0;
-	for (const FNiagaraEventGeneratorProperties &GeneratorProps : CachedEmitter->SpawnScriptProps.EventGenerators)
-	{
-		FNiagaraDataSet *Set = FNiagaraEventDataSetMgr::CreateEventDataSet(ParentSystemInstance->GetId(), EmitterHandle.GetIdName(), GeneratorProps.SetProps.ID.Name);
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST 
-		Set->Init(FNiagaraDataSetID(), ENiagaraSimTarget::CPUSim, CachedEmitter->GetFullName() + TEXT("/") + GeneratorProps.SetProps.ID.Name.ToString());
-#else
-		Set->Init(FNiagaraDataSetID(), ENiagaraSimTarget::CPUSim);
-#endif
-		Set->AddVariables(GeneratorProps.SetProps.Variables);
-		Set->Finalize();
-		SpawnScriptEventDataSets.Add(Set);
-		SpawnEventGeneratorIsSharedByIndex[SpawnEventGeneratorIndex] = CachedEmitter->IsEventGeneratorShared(GeneratorProps.ID);
-		SpawnEventGeneratorIndex++;
-	}
-
-	SpawnExecContext.Init(CachedEmitter->SpawnScriptProps.Script, CachedEmitter->SimTarget);
-	UpdateExecContext.Init(CachedEmitter->UpdateScriptProps.Script, CachedEmitter->SimTarget);
-
-	// setup the parameer store for the GPU execution context; since spawn and update are combined here, we build one with params from both script props
-	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
-	{
-		GPUExecContext = new FNiagaraComputeExecutionContext();
-		GPUExecContext->InitParams(CachedEmitter->GetGPUComputeScript(), CachedEmitter->SimTarget, CachedEmitter->GetUniqueEmitterName(), CachedEmitter->MaxUpdateIterations, CachedEmitter->SpawnStages);
-		GPUExecContext->MainDataSet = &Data;
-		GPUExecContext->GPUScript_RT = CachedEmitter->GetGPUComputeScript()->GetRenderThreadScript();
-
-		SpawnExecContext.Parameters.Bind(&GPUExecContext->CombinedParamStore);
-		UpdateExecContext.Parameters.Bind(&GPUExecContext->CombinedParamStore);
-	}
-
-	EventExecContexts.SetNum(CachedEmitter->GetEventHandlers().Num());
-	for (int32 i = 0; i < NumEvents; i++)
-	{
-		ensure(CachedEmitter->GetEventHandlers()[i].DataSetAccessSynchronized());
-
-		UNiagaraScript* EventScript = CachedEmitter->GetEventHandlers()[i].Script;
-
-		//This is cpu explicitly? Are we doing event handlers on GPU?
-		EventExecContexts[i].Init(EventScript, ENiagaraSimTarget::CPUSim);
-	}
-
-	//Setup direct bindings for setting parameter values.
-	SpawnIntervalBinding.Init(SpawnExecContext.Parameters, EmitterCompiledData[EmitterIdx].EmitterSpawnIntervalVar);
-	InterpSpawnStartBinding.Init(SpawnExecContext.Parameters, EmitterCompiledData[EmitterIdx].EmitterInterpSpawnStartDTVar);
-	SpawnGroupBinding.Init(SpawnExecContext.Parameters, EmitterCompiledData[EmitterIdx].EmitterSpawnGroupVar);
-
-	SpawnEmitterAgeBinding.Init(SpawnExecContext.Parameters, EmitterCompiledData[EmitterIdx].EmitterAgeVar);
-	UpdateEmitterAgeBinding.Init(UpdateExecContext.Parameters, EmitterCompiledData[EmitterIdx].EmitterAgeVar);
-	EventEmitterAgeBindings.SetNum(NumEvents);
-	for (int32 i = 0; i < NumEvents; i++)
-	{
-		EventEmitterAgeBindings[i].Init(EventExecContexts[i].Parameters, EmitterCompiledData[EmitterIdx].EmitterAgeVar);
-	}
-
-	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && GPUExecContext != nullptr)
-	{
-		EmitterAgeBindingGPU.Init(GPUExecContext->CombinedParamStore, EmitterCompiledData[EmitterIdx].EmitterAgeVar);
-	}
-
-	SpawnRandomSeedBinding.Init(SpawnExecContext.Parameters, EmitterCompiledData[EmitterIdx].EmitterRandomSeedVar);
-	UpdateRandomSeedBinding.Init(UpdateExecContext.Parameters, EmitterCompiledData[EmitterIdx].EmitterRandomSeedVar);
-	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && GPUExecContext != nullptr)
-	{
-		GPURandomSeedBinding.Init(GPUExecContext->CombinedParamStore, EmitterCompiledData[EmitterIdx].EmitterRandomSeedVar);
-	}
-
-	// Initialize the exec count
-	SpawnExecCountBinding.Init(SpawnExecContext.Parameters, SYS_PARAM_ENGINE_EXEC_COUNT);
-	UpdateExecCountBinding.Init(UpdateExecContext.Parameters, SYS_PARAM_ENGINE_EXEC_COUNT);
-	EventExecCountBindings.SetNum(NumEvents);
-	for (int32 i = 0; i < NumEvents; i++)
-	{
-		EventExecCountBindings[i].Init(EventExecContexts[i].Parameters, SYS_PARAM_ENGINE_EXEC_COUNT);
-	}
-
-	// Collect script defined data interface parameters.
-	TArray<UNiagaraScript*, TInlineAllocator<4>> Scripts;
-	Scripts.Add(CachedEmitter->SpawnScriptProps.Script);
-	Scripts.Add(CachedEmitter->UpdateScriptProps.Script);
-	for (const FNiagaraEventScriptProperties& EventHandler : CachedEmitter->GetEventHandlers())
-	{
-		Scripts.Add(EventHandler.Script);
-	}
-	FNiagaraUtilities::CollectScriptDataInterfaceParameters(*CachedEmitter, MakeArrayView(Scripts), ScriptDefinedDataInterfaceParameters);
-
-	// Initialize bounds calculators
-	//-OPT: Could skip creating this if we won't ever use it
-	const TArray<UNiagaraRendererProperties*>& Renderers = CachedEmitter->GetEnabledRenderers();
-	BoundsCalculators.Reserve(Renderers.Num());
-	for (UNiagaraRendererProperties* RendererProperties : Renderers)
-	{
-		FNiagaraBoundsCalculator* BoundsCalculator = RendererProperties->CreateBoundsCalculator();
-		if (BoundsCalculator != nullptr)
+		ensure(CachedEmitter->UpdateScriptProps.DataSetAccessSynchronized());
+		UpdateScriptEventDataSets.Empty();
+		UpdateEventGeneratorIsSharedByIndex.SetNumZeroed(CachedEmitter->UpdateScriptProps.EventGenerators.Num());
+		int32 UpdateEventGeneratorIndex = 0;
+		for (const FNiagaraEventGeneratorProperties &GeneratorProps : CachedEmitter->UpdateScriptProps.EventGenerators)
 		{
-			BoundsCalculator->InitAccessors(*ParticleDataSet);
-			BoundsCalculators.Emplace(BoundsCalculator);
+			FNiagaraDataSet *Set = FNiagaraEventDataSetMgr::CreateEventDataSet(ParentSystemInstance->GetId(), EmitterHandle.GetIdName(), GeneratorProps.ID);
+			Set->Init(&GeneratorProps.DataSetCompiledData);
+
+			UpdateScriptEventDataSets.Add(Set);
+			UpdateEventGeneratorIsSharedByIndex[UpdateEventGeneratorIndex] = CachedEmitter->IsEventGeneratorShared(GeneratorProps.ID);
+			UpdateEventGeneratorIndex++;
+		}
+
+		ensure(CachedEmitter->SpawnScriptProps.DataSetAccessSynchronized());
+		SpawnScriptEventDataSets.Empty();
+		SpawnEventGeneratorIsSharedByIndex.SetNumZeroed(CachedEmitter->SpawnScriptProps.EventGenerators.Num());
+		int32 SpawnEventGeneratorIndex = 0;
+		for (const FNiagaraEventGeneratorProperties &GeneratorProps : CachedEmitter->SpawnScriptProps.EventGenerators)
+		{
+			FNiagaraDataSet *Set = FNiagaraEventDataSetMgr::CreateEventDataSet(ParentSystemInstance->GetId(), EmitterHandle.GetIdName(), GeneratorProps.ID);
+
+			Set->Init(&GeneratorProps.DataSetCompiledData);
+
+			SpawnScriptEventDataSets.Add(Set);
+			SpawnEventGeneratorIsSharedByIndex[SpawnEventGeneratorIndex] = CachedEmitter->IsEventGeneratorShared(GeneratorProps.ID);
+			SpawnEventGeneratorIndex++;
 		}
 	}
+
+	{
+		SCOPE_CYCLE_COUNTER(STAT_NiagaraEmitterInit_ExecContexts);
+
+		SpawnExecContext.Init(CachedEmitter->SpawnScriptProps.Script, CachedEmitter->SimTarget);
+		UpdateExecContext.Init(CachedEmitter->UpdateScriptProps.Script, CachedEmitter->SimTarget);
+
+		// setup the parameer store for the GPU execution context; since spawn and update are combined here, we build one with params from both script props
+		if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+		{
+			GPUExecContext = new FNiagaraComputeExecutionContext();
+			GPUExecContext->InitParams(CachedEmitter->GetGPUComputeScript(), CachedEmitter->SimTarget, CachedEmitter->GetUniqueEmitterName(), CachedEmitter->MaxUpdateIterations, CachedEmitter->SpawnStages);
+			GPUExecContext->MainDataSet = &Data;
+			GPUExecContext->GPUScript_RT = CachedEmitter->GetGPUComputeScript()->GetRenderThreadScript();
+
+			SpawnExecContext.Parameters.Bind(&GPUExecContext->CombinedParamStore);
+			UpdateExecContext.Parameters.Bind(&GPUExecContext->CombinedParamStore);
+		}
+	
+		EventExecContexts.SetNum(CachedEmitter->GetEventHandlers().Num());
+		for (int32 i = 0; i < NumEvents; i++)
+		{
+			ensure(CachedEmitter->GetEventHandlers()[i].DataSetAccessSynchronized());
+
+			UNiagaraScript* EventScript = CachedEmitter->GetEventHandlers()[i].Script;
+
+			//This is cpu explicitly? Are we doing event handlers on GPU?
+			EventExecContexts[i].Init(EventScript, ENiagaraSimTarget::CPUSim);
+		}
+	}
+
+
+	{
+		SCOPE_CYCLE_COUNTER(STAT_NiagaraEmitterInit_DirectBindings);
+		//Setup direct bindings for setting parameter values.
+		SpawnIntervalBinding.Init(SpawnExecContext.Parameters, EmitterCompiledData[EmitterIdx].EmitterSpawnIntervalVar);
+		InterpSpawnStartBinding.Init(SpawnExecContext.Parameters, EmitterCompiledData[EmitterIdx].EmitterInterpSpawnStartDTVar);
+		SpawnGroupBinding.Init(SpawnExecContext.Parameters, EmitterCompiledData[EmitterIdx].EmitterSpawnGroupVar);
+
+		SpawnEmitterAgeBinding.Init(SpawnExecContext.Parameters, EmitterCompiledData[EmitterIdx].EmitterAgeVar);
+		UpdateEmitterAgeBinding.Init(UpdateExecContext.Parameters, EmitterCompiledData[EmitterIdx].EmitterAgeVar);
+		EventEmitterAgeBindings.SetNum(NumEvents);
+		for (int32 i = 0; i < NumEvents; i++)
+		{
+			EventEmitterAgeBindings[i].Init(EventExecContexts[i].Parameters, EmitterCompiledData[EmitterIdx].EmitterAgeVar);
+		}
+
+		if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && GPUExecContext != nullptr)
+		{
+			EmitterAgeBindingGPU.Init(GPUExecContext->CombinedParamStore, EmitterCompiledData[EmitterIdx].EmitterAgeVar);
+		}
+
+		SpawnRandomSeedBinding.Init(SpawnExecContext.Parameters, EmitterCompiledData[EmitterIdx].EmitterRandomSeedVar);
+		UpdateRandomSeedBinding.Init(UpdateExecContext.Parameters, EmitterCompiledData[EmitterIdx].EmitterRandomSeedVar);
+		if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && GPUExecContext != nullptr)
+		{
+			GPURandomSeedBinding.Init(GPUExecContext->CombinedParamStore, EmitterCompiledData[EmitterIdx].EmitterRandomSeedVar);
+		}
+
+		// Initialize the exec count
+		SpawnExecCountBinding.Init(SpawnExecContext.Parameters, SYS_PARAM_ENGINE_EXEC_COUNT);
+		UpdateExecCountBinding.Init(UpdateExecContext.Parameters, SYS_PARAM_ENGINE_EXEC_COUNT);
+		EventExecCountBindings.SetNum(NumEvents);
+		for (int32 i = 0; i < NumEvents; i++)
+		{
+			EventExecCountBindings[i].Init(EventExecContexts[i].Parameters, SYS_PARAM_ENGINE_EXEC_COUNT);
+		}
+	}
+
+	{
+		SCOPE_CYCLE_COUNTER(STAT_NiagaraEmitterInit_DIDefaultsAndBoundsCalcs);
+		// Collect script defined data interface parameters.
+		TArray<UNiagaraScript*, TInlineAllocator<8>> Scripts;
+		Scripts.Add(CachedEmitter->SpawnScriptProps.Script);
+		Scripts.Add(CachedEmitter->UpdateScriptProps.Script);
+		for (const FNiagaraEventScriptProperties& EventHandler : CachedEmitter->GetEventHandlers())
+		{
+			Scripts.Add(EventHandler.Script);
+		}
+		FNiagaraUtilities::CollectScriptDataInterfaceParameters(*CachedEmitter, MakeArrayView(Scripts), ScriptDefinedDataInterfaceParameters);
+
+		// Initialize bounds calculators
+		//-OPT: Could skip creating this if we won't ever use it
+		bool bUseDynamicBounds = !CachedSystemFixedBounds.IsSet() && !CachedEmitter->bFixedBounds && CachedEmitter->SimTarget == ENiagaraSimTarget::CPUSim;
+		if (bUseDynamicBounds)
+		{
+			BoundsCalculators.Reserve(CachedEmitter->GetRenderers().Num());
+			for (UNiagaraRendererProperties* RendererProperties : CachedEmitter->GetRenderers())
+			{
+				if ((RendererProperties != nullptr) && RendererProperties->GetIsEnabled())
+				{
+					FNiagaraBoundsCalculator* BoundsCalculator = RendererProperties->CreateBoundsCalculator();
+					if (BoundsCalculator != nullptr)
+					{
+						BoundsCalculator->InitAccessors(*ParticleDataSet);
+						BoundsCalculators.Emplace(BoundsCalculator);
+					}
+				}
+			}
+		}
+
+		//Bind some stores and unbind immediately just to prime some data from those stores.
+		FNiagaraParameterStore& SystemScriptDefinedDataInterfaceParameters = ParentSystemInstance->GetSystemSimulation()->GetScriptDefinedDataInterfaceParameters();
+		
+		SystemScriptDefinedDataInterfaceParameters.Bind(&SpawnExecContext.Parameters);
+		ScriptDefinedDataInterfaceParameters.Bind(&SpawnExecContext.Parameters);
+		SpawnExecContext.Parameters.UnbindFromSourceStores();
+
+		SystemScriptDefinedDataInterfaceParameters.Bind(&UpdateExecContext.Parameters);
+		ScriptDefinedDataInterfaceParameters.Bind(&UpdateExecContext.Parameters);
+		UpdateExecContext.Parameters.UnbindFromSourceStores();
+
+		for (FNiagaraScriptExecutionContext& EventContext : EventExecContexts)
+		{
+			SystemScriptDefinedDataInterfaceParameters.Bind(&EventContext.Parameters);
+			ScriptDefinedDataInterfaceParameters.Bind(&EventContext.Parameters);
+			EventContext.Parameters.UnbindFromSourceStores();
+		}
+	}	
 }
 
 void FNiagaraEmitterInstance::ResetSimulation(bool bKillExisting /*= true*/)
@@ -428,6 +459,12 @@ void FNiagaraEmitterInstance::ResetSimulation(bool bKillExisting /*= true*/)
 	Loops = 0;
 	TickCount = 0;
 	CachedBounds.Init();
+
+	if (IsDisabled())
+	{
+		return;
+	}
+
 	SetExecutionState(ENiagaraExecutionState::Active);
 
 	if (bKillExisting)
@@ -576,30 +613,58 @@ void FNiagaraEmitterInstance::DirtyDataInterfaces()
 // 	}
 // }
 
-void FNiagaraEmitterInstance::UnbindParameters()
+void FNiagaraEmitterInstance::UnbindParameters(bool bExternalOnly)
 {
-	SpawnExecContext.Parameters.UnbindFromSourceStores();
-	UpdateExecContext.Parameters.UnbindFromSourceStores();
-	if (GPUExecContext != nullptr)
+	if (bExternalOnly && !IsDisabled())
 	{
-		GPUExecContext->CombinedParamStore.UnbindFromSourceStores();
-	}
+		for (UNiagaraParameterCollection* Collection : SpawnExecContext.Script->GetCachedParameterCollectionReferences())
+		{
+			if (UNiagaraParameterCollectionInstance* NPCInst = ParentSystemInstance->GetParameterCollectionInstance(Collection))
+			{
+				NPCInst->GetParameterStore().Unbind(&SpawnExecContext.Parameters);
+			}
+		}
+		for (UNiagaraParameterCollection* Collection : UpdateExecContext.Script->GetCachedParameterCollectionReferences())
+		{
+			if (UNiagaraParameterCollectionInstance* NPCInst = ParentSystemInstance->GetParameterCollectionInstance(Collection))
+			{
+				NPCInst->GetParameterStore().Unbind(&UpdateExecContext.Parameters);
+			}
+		}
 
-	for (int32 EventIdx = 0; EventIdx < EventExecContexts.Num(); ++EventIdx)
+		for (int32 EventIdx = 0; EventIdx < EventExecContexts.Num(); ++EventIdx)
+		{
+			for (UNiagaraParameterCollection* Collection : EventExecContexts[EventIdx].Script->GetCachedParameterCollectionReferences())
+			{
+				if (UNiagaraParameterCollectionInstance* NPCInst = ParentSystemInstance->GetParameterCollectionInstance(Collection))
+				{
+					NPCInst->GetParameterStore().Unbind(&EventExecContexts[EventIdx].Parameters);
+				}
+			}
+		}
+	}
+	else
 	{
-		EventExecContexts[EventIdx].Parameters.UnbindFromSourceStores();
+		SpawnExecContext.Parameters.UnbindFromSourceStores();
+		UpdateExecContext.Parameters.UnbindFromSourceStores();
+		if (GPUExecContext != nullptr)
+		{
+			GPUExecContext->CombinedParamStore.UnbindFromSourceStores();
+		}
+
+		for (int32 EventIdx = 0; EventIdx < EventExecContexts.Num(); ++EventIdx)
+		{
+			EventExecContexts[EventIdx].Parameters.UnbindFromSourceStores();
+		}
 	}
 }
 
-void FNiagaraEmitterInstance::BindParameters()
+void FNiagaraEmitterInstance::BindParameters(bool bExternalOnly)
 {
 	if (IsDisabled())
 	{
 		return;
 	}
-
-	FNiagaraWorldManager* WorldMan = ParentSystemInstance->GetWorldManager();
-	check(WorldMan);
 
 	for (UNiagaraParameterCollection* Collection : SpawnExecContext.Script->GetCachedParameterCollectionReferences())
 	{
@@ -618,39 +683,34 @@ void FNiagaraEmitterInstance::BindParameters()
 		}
 	}
 
-	//Now bind parameters from the component and system.
-	FNiagaraParameterStore& InstanceParams = ParentSystemInstance->GetParameters();
-	FNiagaraParameterStore& SystemScriptDefinedDataInterfaceParameters = ParentSystemInstance->GetSystemSimulation()->GetScriptDefinedDataInterfaceParameters();
+	if (!bExternalOnly)
+	{
+		//Now bind parameters from the component and system.
+		FNiagaraParameterStore& InstanceParams = ParentSystemInstance->GetParameters();		
 	
-	InstanceParams.Bind(&SpawnExecContext.Parameters);
-	SystemScriptDefinedDataInterfaceParameters.Bind(&SpawnExecContext.Parameters);
-	ScriptDefinedDataInterfaceParameters.Bind(&SpawnExecContext.Parameters);
+		InstanceParams.Bind(&SpawnExecContext.Parameters);
+		InstanceParams.Bind(&UpdateExecContext.Parameters);
 
-	InstanceParams.Bind(&UpdateExecContext.Parameters);
-	SystemScriptDefinedDataInterfaceParameters.Bind(&UpdateExecContext.Parameters);
-	ScriptDefinedDataInterfaceParameters.Bind(&UpdateExecContext.Parameters);
+		for (FNiagaraScriptExecutionContext& EventContext : EventExecContexts)
+		{
+			InstanceParams.Bind(&EventContext.Parameters);
+		}
 
-	for (FNiagaraScriptExecutionContext& EventContext : EventExecContexts)
-	{
-		InstanceParams.Bind(&EventContext.Parameters);
-		SystemScriptDefinedDataInterfaceParameters.Bind(&EventContext.Parameters);
-		ScriptDefinedDataInterfaceParameters.Bind(&EventContext.Parameters);
-	}
+	#if WITH_EDITORONLY_DATA
+		CachedEmitter->SpawnScriptProps.Script->RapidIterationParameters.Bind(&SpawnExecContext.Parameters);
+		CachedEmitter->UpdateScriptProps.Script->RapidIterationParameters.Bind(&UpdateExecContext.Parameters);
+		ensure(CachedEmitter->GetEventHandlers().Num() == EventExecContexts.Num());
+		for (int32 i = 0; i < CachedEmitter->GetEventHandlers().Num(); i++)
+		{
+			CachedEmitter->GetEventHandlers()[i].Script->RapidIterationParameters.Bind(&EventExecContexts[i].Parameters);
+		}
+	#endif
 
-#if WITH_EDITORONLY_DATA
-	CachedEmitter->SpawnScriptProps.Script->RapidIterationParameters.Bind(&SpawnExecContext.Parameters);
-	CachedEmitter->UpdateScriptProps.Script->RapidIterationParameters.Bind(&UpdateExecContext.Parameters);
-	ensure(CachedEmitter->GetEventHandlers().Num() == EventExecContexts.Num());
-	for (int32 i = 0; i < CachedEmitter->GetEventHandlers().Num(); i++)
-	{
-		CachedEmitter->GetEventHandlers()[i].Script->RapidIterationParameters.Bind(&EventExecContexts[i].Parameters);
-	}
-#endif
-
-	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
-	{
-		SpawnExecContext.Parameters.Bind(&GPUExecContext->CombinedParamStore);
-		UpdateExecContext.Parameters.Bind(&GPUExecContext->CombinedParamStore);
+		if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+		{
+			SpawnExecContext.Parameters.Bind(&GPUExecContext->CombinedParamStore);
+			UpdateExecContext.Parameters.Bind(&GPUExecContext->CombinedParamStore);
+		}
 	}
 }
 
@@ -1097,14 +1157,14 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 			TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> DebugInfo = ParentSystemInstance->GetActiveCaptureWrite(CachedIDName, ENiagaraScriptUsage::ParticleGPUComputeScript, FGuid());
 			if (DebugInfo)
 			{
+				const TArray<FNiagaraEmitterCompiledData>& EmitterCompiledData = ParentSystemInstance->GetSystem()->GetEmitterCompiledData();
+
 				//Data.Dump(DebugInfo->Frame, true, 0, OrigNumParticles);
 				//DebugInfo->Frame.Dump(true, 0, OrigNumParticles);
 				DebugInfo->Parameters = GPUExecContext->CombinedParamStore;
 				
 				//TODO: This layout info can be pulled into the emitter/systems etc and all sets just refer to them. They are becoming an annoyance here.
-				DebugInfo->Frame.Init(FNiagaraDataSetID(TEXT("GPU Capture Data"), ENiagaraDataSetType::ParticleData), ENiagaraSimTarget::CPUSim, TEXT("GPU Capture Data"));
-				DebugInfo->Frame.AddVariables(Data.GetVariables());
-				DebugInfo->Frame.Finalize();
+				DebugInfo->Frame.Init(&EmitterCompiledData[EmitterIdx].GPUCaptureDataSetCompiledData);
 
 				GPUExecContext->DebugInfo = DebugInfo;
 			}
@@ -1202,7 +1262,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 
 	int32 OrigNumParticles = Data.GetCurrentDataChecked().GetNumInstances();
 
-	int32 AllocationSize = OrigNumParticles + SpawnTotal + EventSpawnTotal;
+	int32 AllocationSize = FMath::Max<int32>(CachedEmitter->PreAllocationCount, OrigNumParticles + SpawnTotal + EventSpawnTotal);
 	//Ensure we don't blow our current hard limits on cpu particle count.
 	//TODO: These current limits can be improved relatively easily. Though perf in at these counts will obviously be an issue anyway.
 	if (CachedEmitter->SimTarget == ENiagaraSimTarget::CPUSim && AllocationSize > GMaxNiagaraCPUParticlesPerEmitter)
