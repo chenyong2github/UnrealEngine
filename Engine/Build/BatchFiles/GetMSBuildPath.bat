@@ -8,13 +8,6 @@ rem ## The discovered path is set to the MSBUILD_EXE environment variable on suc
 
 set MSBUILD_EXE=
 
-rem ## Check to see if we've got a copy of MSBuild in AutoSDKs
-if "%UE_SDKS_ROOT%"=="" goto no_autosdk
-if not exist "%UE_SDKS_ROOT%\HostWin64\Win64\MSBuild\VS2019\MSBuild\Current\Bin\MSBuild.exe" goto no_autosdk
-set MSBUILD_EXE="%UE_SDKS_ROOT%\HostWin64\Win64\MSBuild\VS2019\MSBuild\Current\Bin\MSBuild.exe"
-goto Succeeded
-:no_autosdk
-
 rem ## Try to get the MSBuild 15 path using vswhere (see https://github.com/Microsoft/vswhere). VS2019 preview puts the executable in a "Current" subfolder.
 if not exist "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" goto no_vswhere
 for /f "delims=" %%i in ('"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere" -prerelease -latest -products * -requires Microsoft.Component.MSBuild -property installationPath') do (
