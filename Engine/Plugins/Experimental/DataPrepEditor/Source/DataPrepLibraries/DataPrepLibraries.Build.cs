@@ -24,6 +24,7 @@ namespace UnrealBuildTool.Rules
 					"MeshDescriptionOperations",
 					"Slate",
 					"SlateCore",
+					"StaticMeshDescription",
 					"UnrealEd",
 				}
 			);

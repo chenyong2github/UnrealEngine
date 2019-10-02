@@ -16,7 +16,7 @@
 #if WITH_EDITOR
 	#include "Editor.h"
 	#include "Editor/EditorEngine.h"
-	#include "ILevelViewport.h"
+	#include "IAssetViewport.h"
 #endif
 
 namespace RemoteSessionEd
@@ -114,7 +114,7 @@ void FRemoteSessionHost::OnCreateChannels()
 				{
 					if (SlatePlayInEditorSession->DestinationSlateViewport.IsValid())
 					{
-						TSharedPtr<ILevelViewport> DestinationLevelViewport = SlatePlayInEditorSession->DestinationSlateViewport.Pin();
+						TSharedPtr<IAssetViewport> DestinationLevelViewport = SlatePlayInEditorSession->DestinationSlateViewport.Pin();
 						SceneViewport = DestinationLevelViewport->GetSharedActiveViewport();
 						InputWindow = FSlateApplication::Get().FindWidgetWindow(DestinationLevelViewport->AsWidget());
 					}

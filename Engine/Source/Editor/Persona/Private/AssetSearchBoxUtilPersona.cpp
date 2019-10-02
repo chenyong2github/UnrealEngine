@@ -4,7 +4,6 @@
 #include "ReferenceSkeleton.h"
 #include "Animation/Skeleton.h"
 #include "Engine/SkeletalMesh.h"
-#include "SAssetSearchBox.h"
 #include "Engine/SkeletalMeshSocket.h"
 
 void SAssetSearchBoxForBones::Construct( const FArguments& InArgs, const class UObject* Outer, TSharedPtr<class IPropertyHandle> BoneNameProperty )
@@ -18,14 +17,14 @@ void SAssetSearchBoxForBones::Construct( const FArguments& InArgs, const class U
 
 	const USkeleton* Skeleton = NULL;
 
-	TArray<FString> PossibleSuggestions;
+	TArray<FAssetSearchBoxSuggestion> PossibleSuggestions;
 	if( const USkeletalMesh* SkeletalMesh = Cast<const USkeletalMesh>(Outer) )
 	{
 		if( InArgs._IncludeSocketsForSuggestions.Get() )
 		{
 			for( auto SocketIt=const_cast<USkeletalMesh*>(SkeletalMesh)->GetMeshOnlySocketList().CreateConstIterator(); SocketIt; ++SocketIt )
 			{
-				PossibleSuggestions.Add((*SocketIt)->SocketName.ToString());
+				PossibleSuggestions.Add(FAssetSearchBoxSuggestion::MakeSimpleSuggestion((*SocketIt)->SocketName.ToString()));
 			}
 		}
 		Skeleton = SkeletalMesh->Skeleton;
@@ -38,7 +37,7 @@ void SAssetSearchBoxForBones::Construct( const FArguments& InArgs, const class U
 	{
 		for( auto SocketIt=Skeleton->Sockets.CreateConstIterator(); SocketIt; ++SocketIt )
 		{
-			PossibleSuggestions.Add((*SocketIt)->SocketName.ToString());
+			PossibleSuggestions.Add(FAssetSearchBoxSuggestion::MakeSimpleSuggestion((*SocketIt)->SocketName.ToString()));
 		}
 	}
 	check(Skeleton);
@@ -46,7 +45,7 @@ void SAssetSearchBoxForBones::Construct( const FArguments& InArgs, const class U
 	const TArray<FMeshBoneInfo>& Bones = Skeleton->GetReferenceSkeleton().GetRefBoneInfo();
 	for( auto BoneIt=Bones.CreateConstIterator(); BoneIt; ++BoneIt )
 	{
-		PossibleSuggestions.Add(BoneIt->Name.ToString());
+		PossibleSuggestions.Add(FAssetSearchBoxSuggestion::MakeSimpleSuggestion(BoneIt->Name.ToString()));
 	}
 
 	// create the asset search box
@@ -108,9 +107,9 @@ void SAssetSearchBoxForCurves::Construct(const FArguments& InArgs, const class U
 		];
 }
 
-TArray<FString> SAssetSearchBoxForCurves::GetCurveSearchSuggestions() const
+TArray<FAssetSearchBoxSuggestion> SAssetSearchBoxForCurves::GetCurveSearchSuggestions() const
 {
-	TArray<FString> PossibleSuggestions;
+	TArray<FAssetSearchBoxSuggestion> PossibleSuggestions;
 	if (USkeleton* Skel = Skeleton.Get())
 	{
 		if (const FSmartNameMapping* Mapping = Skel->GetSmartNameContainer(USkeleton::AnimCurveMappingName))
@@ -119,7 +118,7 @@ TArray<FString> SAssetSearchBoxForCurves::GetCurveSearchSuggestions() const
 			Mapping->FillNameArray(Names);
 			for (const FName& Name : Names)
 			{
-				PossibleSuggestions.Add(Name.ToString());
+				PossibleSuggestions.Add(FAssetSearchBoxSuggestion::MakeSimpleSuggestion(Name.ToString()));
 			}
 		}
 	}

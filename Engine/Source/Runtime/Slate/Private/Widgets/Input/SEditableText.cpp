@@ -12,7 +12,8 @@
 SEditableText::SEditableText()
 {
 #if WITH_ACCESSIBILITY
-	AccessibleData = FAccessibleWidgetData(EAccessibleBehavior::Auto, EAccessibleBehavior::Auto, false);
+	AccessibleBehavior = EAccessibleBehavior::Auto;
+	bCanChildrenBeAccessible = false;
 #endif
 }
 
@@ -617,9 +618,8 @@ TSharedRef<FSlateAccessibleWidget> SEditableText::CreateAccessibleWidget()
 	return MakeShareable<FSlateAccessibleWidget>(new FSlateAccessibleEditableText(SharedThis(this)));
 }
 
-void SEditableText::SetDefaultAccessibleText(EAccessibleType AccessibleType)
+TOptional<FText> SEditableText::GetDefaultAccessibleText(EAccessibleType AccessibleType) const
 {
-	TAttribute<FText>& Text = (AccessibleType == EAccessibleType::Main) ? AccessibleData.AccessibleText : AccessibleData.AccessibleSummaryText;
-	Text.Bind(this, &SEditableText::GetHintText);
+	return GetHintText();
 }
 #endif

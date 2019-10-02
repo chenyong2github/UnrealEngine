@@ -11,8 +11,7 @@
 #include "UObject/Package.h"
 #include "USDAssetImportData.h"
 #include "Factories/Factory.h"
-#include "MeshDescription.h"
-#include "MeshAttributes.h"
+#include "StaticMeshAttributes.h"
 #include "IMeshBuilderModule.h"
 #include "PackageTools.h"
 
@@ -23,40 +22,6 @@
 
 #define LOCTEXT_NAMESPACE "USDImportPlugin"
 
-struct FMeshDescriptionWrapper
-{
-	struct FVertexAttributes
-	{
-		FVertexAttributes(FMeshDescription* MeshDescription) :
-			Positions(MeshDescription->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position)),
-			Normals(MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal)),
-			Tangents(MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent)),
-			BinormalSigns(MeshDescription->VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign)),
-			Colors(MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color)),
-			UVs(MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate))
-		{
-		}
-		TVertexAttributesRef<FVector> Positions;
-		TVertexInstanceAttributesRef<FVector> Normals;
-		TVertexInstanceAttributesRef<FVector> Tangents;
-		TVertexInstanceAttributesRef<float> BinormalSigns;
-		TVertexInstanceAttributesRef<FVector4> Colors;
-		TVertexInstanceAttributesRef<FVector2D> UVs;
-	};
-
-	FMeshDescriptionWrapper(FMeshDescription* MeshDescription) :
-		Vertex(MeshDescription),
-		EdgeHardnesses(MeshDescription->EdgeAttributes().GetAttributesRef<bool>(MeshAttribute::Edge::IsHard)),
-		EdgeCreaseSharpnesses(MeshDescription->EdgeAttributes().GetAttributesRef<float>(MeshAttribute::Edge::CreaseSharpness)),
-		PolygonGroupImportedMaterialSlotNames(MeshDescription->PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::ImportedMaterialSlotName))
-	{
-	}
-
-	FVertexAttributes Vertex;
-	TEdgeAttributesRef<bool> EdgeHardnesses;
-	TEdgeAttributesRef<float> EdgeCreaseSharpnesses;
-	TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames;
-};
 
 struct FUSDImportMaterialInfo
 {
@@ -99,8 +64,8 @@ public:
 	void ProcessMaterials(int32 LODIndex);
 
 private:
-	void AddVertexPositions( FMeshDescriptionWrapper& DestMeshWrapper, const pxr::UsdGeomMesh& Mesh );
-	bool AddPolygons( FMeshDescriptionWrapper& DestMeshWrapper, const pxr::UsdGeomMesh& Mesh, const TArray< FString >& MaterialNames, const TArray< int32 >& FaceMaterialIndices );
+	void AddVertexPositions( const pxr::UsdGeomMesh& Mesh );
+	bool AddPolygons( const pxr::UsdGeomMesh& Mesh, const TArray< FString >& MaterialNames, const TArray< int32 >& FaceMaterialIndices );
 };
 
 void FUSDStaticMeshImportState::ProcessStaticUSDGeometry(const pxr::UsdPrim& GeomPrim, int32 LODIndex)
@@ -111,7 +76,6 @@ void FUSDStaticMeshImportState::ProcessStaticUSDGeometry(const pxr::UsdPrim& Geo
 		return;
 	}
 
-	FMeshDescriptionWrapper DestMeshWrapper(MeshDescription);
 	VertexOffset = MeshDescription->Vertices().Num();
 	VertexInstanceOffset = MeshDescription->VertexInstances().Num();
 	PolygonOffset = MeshDescription->Polygons().Num();
@@ -121,14 +85,15 @@ void FUSDStaticMeshImportState::ProcessStaticUSDGeometry(const pxr::UsdPrim& Geo
 
 	Materials.AddDefaulted( GeometryMaterials.Key.Num() );
 
-	AddVertexPositions( DestMeshWrapper, Mesh );
-	AddPolygons( DestMeshWrapper, Mesh, GeometryMaterials.Key, GeometryMaterials.Value );
+	AddVertexPositions( Mesh );
+	AddPolygons( Mesh, GeometryMaterials.Key, GeometryMaterials.Value );
 }
 
-void FUSDStaticMeshImportState::AddVertexPositions( FMeshDescriptionWrapper& DestMeshWrapper, const pxr::UsdGeomMesh& Mesh )
+void FUSDStaticMeshImportState::AddVertexPositions( const pxr::UsdGeomMesh& Mesh )
 {
 	using namespace pxr;
 
+	FStaticMeshAttributes Attributes(*MeshDescription);
 	pxr::UsdAttribute Points = Mesh.GetPointsAttr();
 	if ( Points )
 	{
@@ -143,15 +108,16 @@ void FUSDStaticMeshImportState::AddVertexPositions( FMeshDescriptionWrapper& Des
 			Pos = FinalTransform.TransformPosition(Pos);
 
 			FVertexID AddedVertexId = MeshDescription->CreateVertex();
-			DestMeshWrapper.Vertex.Positions[AddedVertexId] = Pos;
+			Attributes.GetVertexPositions()[AddedVertexId] = Pos;
 		}
 	}
 }
 
-bool FUSDStaticMeshImportState::AddPolygons( FMeshDescriptionWrapper& DestMeshWrapper, const pxr::UsdGeomMesh& Mesh, const TArray< FString >& MaterialNames, const TArray< int32 >& FaceMaterialIndices )
+bool FUSDStaticMeshImportState::AddPolygons( const pxr::UsdGeomMesh& Mesh, const TArray< FString >& MaterialNames, const TArray< int32 >& FaceMaterialIndices )
 {
 	using namespace pxr;
 
+	FStaticMeshAttributes Attributes(*MeshDescription);
 	TMap<int32, FPolygonGroupID> PolygonGroupMapping;
 	TArray<FVertexInstanceID> CornerInstanceIDs;
 	TArray<FVertexID> CornerVerticesIDs;
@@ -232,14 +198,14 @@ bool FUSDStaticMeshImportState::AddPolygons( FMeshDescriptionWrapper& DestMeshWr
 
 	// When importing multiple mesh pieces to the same static mesh.  Ensure each mesh piece has the same number of Uv's
 	{
-		int32 ExistingUVCount = DestMeshWrapper.Vertex.UVs.GetNumIndices();
+		int32 ExistingUVCount = Attributes.GetVertexInstanceUVs().GetNumIndices();
 		int32 NumUVs = FMath::Max(UVSets.Num(), ExistingUVCount);
 		NumUVs = FMath::Min<int32>(MAX_MESH_TEXTURE_COORDS_MD, NumUVs);
 		// At least one UV set must exist.  
 		NumUVs = FMath::Max<int32>(1, NumUVs);
 
 		//Make sure all Vertex instance have the correct number of UVs
-		DestMeshWrapper.Vertex.UVs.SetNumIndices(NumUVs);
+		Attributes.GetVertexInstanceUVs().SetNumIndices(NumUVs);
 	}
 
 	for ( int32 PolygonIndex = 0; PolygonIndex < FaceCounts.size(); ++PolygonIndex )
@@ -257,7 +223,7 @@ bool FUSDStaticMeshImportState::AddPolygons( FMeshDescriptionWrapper& DestMeshWr
 			CornerInstanceIDs[CornerIndex] = VertexInstanceID;
 			const int32 ControlPointIndex = FaceIndices[CurrentVertexInstanceIndex];
 			const FVertexID VertexID(VertexOffset + ControlPointIndex);
-			const FVector VertexPosition = DestMeshWrapper.Vertex.Positions[VertexID];
+			const FVector VertexPosition = Attributes.GetVertexPositions()[VertexID];
 			CornerVerticesIDs[CornerIndex] = VertexID;
 
 			FVertexInstanceID AddedVertexInstanceId = MeshDescription->CreateVertexInstance(VertexID);
@@ -269,7 +235,7 @@ bool FUSDStaticMeshImportState::AddPolygons( FMeshDescriptionWrapper& DestMeshWr
 				const GfVec3f& Normal = Normals[NormalIndex];
 				FVector TransformedNormal = FinalTransformIT.TransformVector( USDToUnreal::ConvertVector( *ImportContext.Stage, Normal ) );
 
-				DestMeshWrapper.Vertex.Normals[AddedVertexInstanceId] = TransformedNormal.GetSafeNormal();
+				Attributes.GetVertexInstanceNormals()[AddedVertexInstanceId] = TransformedNormal.GetSafeNormal();
 			}
 
 			int32 UVLayerIndex = 0;
@@ -296,7 +262,7 @@ bool FUSDStaticMeshImportState::AddPolygons( FMeshDescriptionWrapper& DestMeshWr
 
 				// Flip V for Unreal uv's which match directx
 				FVector2D FinalUVVector(UV[0], 1.f - UV[1]);
-				DestMeshWrapper.Vertex.UVs.Set(AddedVertexInstanceId, UVLayerIndex, FinalUVVector);
+				Attributes.GetVertexInstanceUVs().Set(AddedVertexInstanceId, UVLayerIndex, FinalUVVector);
 
 				++UVLayerIndex;
 			}
@@ -326,7 +292,7 @@ bool FUSDStaticMeshImportState::AddPolygons( FMeshDescriptionWrapper& DestMeshWr
 			FPolygonGroupID ExistingPolygonGroup = FPolygonGroupID::Invalid;
 			for (const FPolygonGroupID PolygonGroupID : MeshDescription->PolygonGroups().GetElementIDs())
 			{
-				if (DestMeshWrapper.PolygonGroupImportedMaterialSlotNames[PolygonGroupID] == ImportedMaterialSlotName)
+				if (Attributes.GetPolygonGroupMaterialSlotNames()[PolygonGroupID] == ImportedMaterialSlotName)
 				{
 					ExistingPolygonGroup = PolygonGroupID;
 					break;
@@ -335,7 +301,7 @@ bool FUSDStaticMeshImportState::AddPolygons( FMeshDescriptionWrapper& DestMeshWr
 			if (ExistingPolygonGroup == FPolygonGroupID::Invalid)
 			{
 				ExistingPolygonGroup = MeshDescription->CreatePolygonGroup();
-				DestMeshWrapper.PolygonGroupImportedMaterialSlotNames[ExistingPolygonGroup] = ImportedMaterialSlotName;
+				Attributes.GetPolygonGroupMaterialSlotNames()[ExistingPolygonGroup] = ImportedMaterialSlotName;
 			}
 			PolygonGroupMapping.Add(RealMaterialIndex, ExistingPolygonGroup);
 		}
@@ -356,7 +322,7 @@ bool FUSDStaticMeshImportState::AddPolygons( FMeshDescriptionWrapper& DestMeshWr
 		pxr::VtArray<pxr::GfVec3f> USDColors;
 		ColorPrimvar.ComputeFlattened(&USDColors);
 
-		TVertexInstanceAttributesRef<FVector4> Colors = MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color);
+		TVertexInstanceAttributesRef<FVector4> Colors = Attributes.GetVertexInstanceColors();
 
 		int32 NumColors = USDColors.size();
 
@@ -397,11 +363,11 @@ void FUSDStaticMeshImportState::ProcessMaterials(int32 LODIndex)
 {
 	const FString BasePackageName = FPackageName::GetLongPackagePath(NewMesh->GetOutermost()->GetName());
 
-	FMeshDescriptionWrapper DestMeshWrapper(MeshDescription);
+	FStaticMeshAttributes Attributes(*MeshDescription);
 	TArray<FStaticMaterial> MaterialToAdd;
 	for (const FPolygonGroupID PolygonGroupID : MeshDescription->PolygonGroups().GetElementIDs())
 	{
-		const FName& ImportedMaterialSlotName = DestMeshWrapper.PolygonGroupImportedMaterialSlotNames[PolygonGroupID];
+		const FName& ImportedMaterialSlotName = Attributes.GetPolygonGroupMaterialSlotNames()[PolygonGroupID];
 		const FString ImportedMaterialSlotNameString = ImportedMaterialSlotName.ToString();
 		const FName MaterialSlotName = ImportedMaterialSlotName;
 		int32 MaterialIndex = INDEX_NONE;
@@ -550,7 +516,6 @@ UStaticMesh* FUSDStaticMeshImporter::ImportStaticMesh(FUsdImportContext& ImportC
 		//Create private asset in the same package as the StaticMesh, and make sure reference are set to avoid GC
 		State.MeshDescription = NewMesh->CreateMeshDescription(LODIndex);
 		check(State.MeshDescription != nullptr);
-		NewMesh->RegisterMeshAttributes(*State.MeshDescription);
 
 		bool bRecomputeNormals = false;
 

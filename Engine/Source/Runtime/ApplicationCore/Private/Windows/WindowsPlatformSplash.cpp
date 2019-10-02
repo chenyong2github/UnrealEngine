@@ -700,7 +700,7 @@ void FWindowsPlatformSplash::Hide()
 		if(GSplashScreenWnd)
 		{
 			// Send message to splash screen window to destroy itself
-			PostMessage(GSplashScreenWnd, WM_DESTROY, 0, 0);
+			PostMessageW(GSplashScreenWnd, WM_DESTROY, 0, 0);
 		}
 
 		// Wait for splash screen thread to finish
@@ -714,7 +714,7 @@ void FWindowsPlatformSplash::Hide()
 		// Close the Z-Order guard window
 		if ( GSplashScreenGuard )
 		{
-			PostMessage(GSplashScreenGuard, WM_DESTROY, 0, 0);
+			PostMessageW(GSplashScreenGuard, WM_DESTROY, 0, 0);
 			GSplashScreenGuard = NULL;
 		}
 	}

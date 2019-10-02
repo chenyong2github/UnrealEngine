@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
+#include "Engine/EngineTypes.h"
 #include "SkeletalMeshReductionSettings.h"
 #include "DataAsset.h"
 #include "PerPlatformProperties.h"
@@ -63,6 +64,9 @@ struct FSkeletalMeshLODGroupSettings
 	/** Get Skeletal mesh optimizations setting structure for the given LOD level */
 	ENGINE_API FSkeletalMeshOptimizationSettings GetReductionSettings() const;
 
+	/** Get Skeletal mesh build setting structure for the given LOD level */
+	ENGINE_API FSkeletalMeshBuildSettings GetBuildSettings() const;
+
 	/** Get Skeletal mesh optimizations setting structure for the given LOD level */
 	UE_DEPRECATED(4.20, "Please use GetReductionSettings instead")
 	FSkeletalMeshOptimizationSettings GetSettings() const
@@ -107,6 +111,10 @@ struct FSkeletalMeshLODGroupSettings
 	/** The optimization settings to use for the respective LOD level */
 	UPROPERTY(EditAnywhere, Category = Reduction)
 	FSkeletalMeshOptimizationSettings ReductionSettings;
+
+	/** The build settings to use for the respective LOD level */
+	UPROPERTY(EditAnywhere, Category = Build)
+	FSkeletalMeshBuildSettings BuildSettings;
 };
 
 UCLASS(config = Engine, defaultconfig, BlueprintType, MinimalAPI)

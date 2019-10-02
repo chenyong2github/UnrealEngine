@@ -44,6 +44,8 @@
 #include "Engine/SkeletalMeshSocket.h"
 #include "Styling/CoreStyle.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "LODInfoUILayout.h"
+#include "IPersonaToolkit.h"
 
 #define LOCTEXT_NAMESPACE "KismetNodeWithOptionalPinsDetails"
 
@@ -516,6 +518,7 @@ void FBoneReferenceCustomization::SetEditableSkeleton(TSharedRef<IPropertyHandle
 	UAnimGraphNode_Base* AnimGraphNode = nullptr;
 	USkeletalMesh* SkeletalMesh = nullptr;
 	UAnimationAsset * AnimationAsset = nullptr;
+	ULODInfoUILayout* LODInfoUILayout = nullptr;
 
 	USkeleton* TargetSkeleton = nullptr;
 	TSharedPtr<IEditableSkeleton> EditableSkeleton;
@@ -534,6 +537,16 @@ void FBoneReferenceCustomization::SetEditableSkeleton(TSharedRef<IPropertyHandle
 			TargetSkeleton = SkeletalMesh->Skeleton;
 			break;
 		}
+
+		LODInfoUILayout = Cast<ULODInfoUILayout>(*OuterIter);
+		if (LODInfoUILayout)
+		{
+			SkeletalMesh = LODInfoUILayout->GetPersonaToolkit()->GetPreviewMesh();
+			check(SkeletalMesh);
+			TargetSkeleton = SkeletalMesh->Skeleton;
+			break;
+		}
+
 		AnimationAsset = Cast<UAnimationAsset>(*OuterIter);
 		if (AnimationAsset)
 		{

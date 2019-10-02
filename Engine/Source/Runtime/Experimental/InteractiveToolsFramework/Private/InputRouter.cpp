@@ -4,6 +4,8 @@
 #include "InputRouter.h"
 
 
+#define LOCTEXT_NAMESPACE "UInputRouter"
+
 UInputRouter::UInputRouter()
 {
 	ActiveLeftCapture = nullptr;
@@ -65,7 +67,7 @@ void UInputRouter::PostInputEvent(const FInputDeviceState& Input)
 	else
 	{
 		unimplemented();
-		TransactionsAPI->PostMessage(TEXT("UInteractiveToolManager::PostInputEvent - input device is not currently supported."), EToolMessageLevel::Internal);
+		TransactionsAPI->DisplayMessage(LOCTEXT("PostInputEventMessage", "UInteractiveToolManager::PostInputEvent - input device is not currently supported."), EToolMessageLevel::Internal);
 		return;
 	}
 }
@@ -136,7 +138,7 @@ void UInputRouter::HandleCapturedKeyboardInput(const FInputDeviceState& Input)
 	}
 	else if (Result.State != EInputCaptureState::Continue)
 	{
-		TransactionsAPI->PostMessage(TEXT("UInteractiveToolManager::HandleCapturedKeyboardInput - unexpected capture state!"), EToolMessageLevel::Internal);
+		TransactionsAPI->DisplayMessage(LOCTEXT("HandleCapturedKeyboardInputMessage", "UInteractiveToolManager::HandleCapturedKeyboardInput - unexpected capture state!"), EToolMessageLevel::Internal);
 	}
 
 	if (bAutoInvalidateOnCapture)
@@ -166,10 +168,10 @@ void UInputRouter::PostInputEvent_Mouse(const FInputDeviceState& Input)
 	}
 
 	// update hover if nobody is capturing
-	if (ActiveLeftCapture == nullptr && ActiveRightCapture == nullptr)
+	if (ActiveLeftCapture == nullptr)
 	{
-		bool bProcessed = ActiveInputBehaviors->UpdateHover(Input);
-		if (bProcessed && bAutoInvalidateOnHover)
+		bool bHoverStateUpdated = ProcessMouseHover(Input);
+		if (bHoverStateUpdated && bAutoInvalidateOnHover)
 		{
 			TransactionsAPI->PostInvalidation();
 		}
@@ -180,9 +182,8 @@ void UInputRouter::PostInputEvent_Mouse(const FInputDeviceState& Input)
 
 void UInputRouter::PostHoverInputEvent(const FInputDeviceState& Input)
 {
-	LastHoverInput = Input;
-	bool bProcessed = ActiveInputBehaviors->UpdateHover(Input);
-	if (bProcessed && bAutoInvalidateOnHover)
+	bool bHoverStateUpdated = ProcessMouseHover(Input);
+	if (bHoverStateUpdated && bAutoInvalidateOnHover)
 	{
 		TransactionsAPI->PostInvalidation();
 	}
@@ -215,8 +216,8 @@ void UInputRouter::CheckForMouseCaptures(const FInputDeviceState& Input)
 			CaptureRequests[i].Source->BeginCapture(Input, EInputCaptureSide::Left);
 		if (Result.State == EInputCaptureState::Begin)
 		{
-			// end outstanding hovers
-			ActiveInputBehaviors->EndHover(Input);
+			// end outstanding hover
+			TerminateHover(EInputCaptureSide::Left);
 
 			ActiveLeftCapture = Result.Source;
 			ActiveLeftCaptureOwner = CaptureRequests[i].Owner;
@@ -248,7 +249,7 @@ void UInputRouter::HandleCapturedMouseInput(const FInputDeviceState& Input)
 	}
 	else if (Result.State != EInputCaptureState::Continue)
 	{
-		TransactionsAPI->PostMessage(TEXT("UInteractiveToolManager::HandleCapturedMouseInput - unexpected capture state!"), EToolMessageLevel::Internal);
+		TransactionsAPI->DisplayMessage(LOCTEXT("HandleCapturedMouseInputMessage", "UInteractiveToolManager::HandleCapturedMouseInput - unexpected capture state!"), EToolMessageLevel::Internal);
 	}
 
 	if (bAutoInvalidateOnCapture)
@@ -256,6 +257,85 @@ void UInputRouter::HandleCapturedMouseInput(const FInputDeviceState& Input)
 		TransactionsAPI->PostInvalidation();
 	}
 }
+
+
+
+
+void UInputRouter::TerminateHover(EInputCaptureSide Side)
+{
+	if (Side == EInputCaptureSide::Left && ActiveLeftHoverCapture != nullptr)
+	{
+		ActiveLeftHoverCapture->EndHoverCapture();
+		ActiveLeftHoverCapture = nullptr;
+		ActiveLeftCaptureOwner = nullptr;
+	}
+}
+
+
+bool UInputRouter::ProcessMouseHover(const FInputDeviceState& Input)
+{
+	TArray<FInputCaptureRequest> CaptureRequests;
+	ActiveInputBehaviors->CollectWantsHoverCapture(Input, CaptureRequests);
+
+	if (CaptureRequests.Num() == 0 )
+	{
+		if (ActiveLeftHoverCapture != nullptr)
+		{
+			TerminateHover(EInputCaptureSide::Left);
+			return true;
+		}
+		return false;
+	}
+
+	CaptureRequests.StableSort();
+
+	// if we have an active hover, either update it, or terminate if we got a new best hit
+	bool bHoverStateModified = false;
+	if (ActiveLeftHoverCapture != nullptr)
+	{
+		bool bTerminateActiveHover = false;
+		if (CaptureRequests[0].Source == ActiveLeftHoverCapture)
+		{
+			FInputCaptureUpdate Result =
+				ActiveLeftHoverCapture->UpdateHoverCapture(Input);
+			bTerminateActiveHover = (Result.State == EInputCaptureState::End);
+		}
+		else
+		{
+			bTerminateActiveHover = true;
+		}
+
+		if (bTerminateActiveHover)
+		{
+			TerminateHover(EInputCaptureSide::Left);
+			bHoverStateModified = true;
+		}
+		else
+		{
+			return true;		// hover has been consumed
+		}
+	}
+
+	// if we get here, we have a new hover
+	bool bAccepted = false;
+	for (int i = 0; i < CaptureRequests.Num() && bAccepted == false; ++i)
+	{
+		FInputCaptureUpdate Result =
+			CaptureRequests[i].Source->BeginHoverCapture(Input, EInputCaptureSide::Left);
+		if (Result.State == EInputCaptureState::Begin)
+		{
+			ActiveLeftHoverCapture = Result.Source;
+			ActiveLeftCaptureOwner = CaptureRequests[i].Owner;
+			bAccepted = true;
+			return true;
+		}
+	}
+	
+	// no hover! but we might have terminated an active hover
+	return bHoverStateModified;
+}
+
+
 
 
 
@@ -285,7 +365,10 @@ void UInputRouter::ForceTerminateAll()
 		ActiveRightCaptureData = FInputCaptureData();
 	}
 
-	ActiveInputBehaviors->EndHover(LastHoverInput);
+	if (ActiveLeftHoverCapture != nullptr)
+	{
+		TerminateHover(EInputCaptureSide::Left);
+	}
 }
 
 
@@ -314,5 +397,13 @@ void UInputRouter::ForceTerminateSource(IInputBehaviorSource* Source)
 		ActiveRightCaptureOwner = nullptr;
 		ActiveRightCaptureData = FInputCaptureData();
 	}
+
+	if (ActiveLeftHoverCapture != nullptr && ActiveLeftHoverCaptureOwner == Source)
+	{
+		TerminateHover(EInputCaptureSide::Left);
+	}
 }
 
+
+
+#undef LOCTEXT_NAMESPACE

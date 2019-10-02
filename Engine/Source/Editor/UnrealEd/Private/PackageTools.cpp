@@ -833,16 +833,12 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 		{
 			GEngine->NotifyToolsOfObjectReplacement(InPackageReloadedEvent->GetRepointedObjects());
 
-			// Notify any Blueprint assets that are about to be unloaded.
+			// Notify any Blueprints that are about to be unloaded.
 			ForEachObjectWithOuter(InPackageReloadedEvent->GetOldPackage(), [&](UObject* InObject)
 			{
-				if (InObject->IsAsset())
+				if (UBlueprint* BP = Cast<UBlueprint>(InObject))
 				{
-					// Notify about any BP assets that are about to be unloaded
-					if (UBlueprint* BP = Cast<UBlueprint>(InObject))
-					{
-						BP->ClearEditorReferences();
-					}
+					BP->ClearEditorReferences();
 				}
 			}, false, RF_Transient, EInternalObjectFlags::PendingKill);
 		}

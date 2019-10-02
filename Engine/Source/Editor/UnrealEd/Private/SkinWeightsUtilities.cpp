@@ -34,7 +34,7 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogSkinWeightsUtilities, Log, All);
 
-bool FSkinWeightsUtilities::ImportAlternateSkinWeight(USkeletalMesh* SkeletalMesh, FString Path, int32 TargetLODIndex, const FName& ProfileName, bool bReregisterComponent)
+bool FSkinWeightsUtilities::ImportAlternateSkinWeight(USkeletalMesh* SkeletalMesh, FString Path, int32 TargetLODIndex, const FName& ProfileName)
 {
 	check(SkeletalMesh);
 	check(SkeletalMesh->GetLODInfo(TargetLODIndex));
@@ -53,6 +53,8 @@ bool FSkinWeightsUtilities::ImportAlternateSkinWeight(USkeletalMesh* SkeletalMes
 		UE_LOG(LogSkinWeightsUtilities, Error, TEXT("Path containing Skin Weight Profile data does not exist (%s)."), *Path);
 		return false;
 	}
+	FScopedSkeletalMeshPostEditChange ScopePostEditChange(SkeletalMesh);
+
 	UnFbx::FBXImportOptions ImportOptions;
 	//Import the alternate fbx into a temporary skeletal mesh using the same import options
 	UFbxFactory* FbxFactory = NewObject<UFbxFactory>(UFbxFactory::StaticClass());
@@ -200,21 +202,7 @@ bool FSkinWeightsUtilities::ImportAlternateSkinWeight(USkeletalMesh* SkeletalMes
 				bool bUseMikkTSpace = ImportOptions.NormalGenerationMethod == EFBXNormalGenerationMethod::MikkTSpace;
 
 				TArray<FRawSkinWeight>& SkinWeights = ProfileData.SkinWeights;
-				if (bReregisterComponent)
-				{
-					TComponentReregisterContext<USkinnedMeshComponent> ReregisterContext;
-					SkeletalMesh->ReleaseResources();
-					SkeletalMesh->ReleaseResourcesFence.Wait();
-
-					bResult = FLODUtilities::UpdateAlternateSkinWeights(SkeletalMesh, ProfileName, TmpSkeletalMesh, TargetLODIndex, SrcLodIndex, OverlappingThresholds, ShouldImportNormals, ShouldImportTangents, bUseMikkTSpace, ImportOptions.bComputeWeightedNormals);
-
-					SkeletalMesh->PostEditChange();
-					SkeletalMesh->InitResources();
-				}
-				else
-				{
-					bResult = FLODUtilities::UpdateAlternateSkinWeights(SkeletalMesh, ProfileName, TmpSkeletalMesh, TargetLODIndex, SrcLodIndex, OverlappingThresholds, ShouldImportNormals, ShouldImportTangents, bUseMikkTSpace, ImportOptions.bComputeWeightedNormals);
-				}
+				bResult = FLODUtilities::UpdateAlternateSkinWeights(SkeletalMesh, ProfileName, TmpSkeletalMesh, TargetLODIndex, SrcLodIndex, OverlappingThresholds, ShouldImportNormals, ShouldImportTangents, bUseMikkTSpace, ImportOptions.bComputeWeightedNormals);
 				
 				if (!bResult)
 				{
@@ -252,57 +240,45 @@ bool FSkinWeightsUtilities::ImportAlternateSkinWeight(USkeletalMesh* SkeletalMes
 	return bResult;
 }
 
-bool FSkinWeightsUtilities::ReimportAlternateSkinWeight(USkeletalMesh* SkeletalMesh, int32 TargetLODIndex, bool bReregisterComponent)
+bool FSkinWeightsUtilities::ReimportAlternateSkinWeight(USkeletalMesh* SkeletalMesh, int32 TargetLODIndex)
 {
 	bool bResult = false;
 
-	//Bulk work of the function, we use a lambda because of the re-register component option.
-	auto DoWork = [&SkeletalMesh, &TargetLODIndex, &bResult]()
+	const TArray<FSkinWeightProfileInfo>& SkinWeightProfiles = SkeletalMesh->GetSkinWeightProfiles();
+	if (SkinWeightProfiles.Num() <= 0)
 	{
-		const TArray<FSkinWeightProfileInfo>& SkinWeightProfiles = SkeletalMesh->GetSkinWeightProfiles();
-		for (int32 ProfileIndex = 0; ProfileIndex < SkinWeightProfiles.Num(); ++ProfileIndex)
+		return bResult;
+	}
+
+	FScopedSkeletalMeshPostEditChange ScopePostEditChange(SkeletalMesh);
+
+	for (int32 ProfileIndex = 0; ProfileIndex < SkinWeightProfiles.Num(); ++ProfileIndex)
+	{
+		const FSkinWeightProfileInfo& ProfileInfo = SkinWeightProfiles[ProfileIndex];
+
+		const FString* PathNamePtr = ProfileInfo.PerLODSourceFiles.Find(TargetLODIndex);
+		//Skip profile that do not have data for TargetLODIndex
+		if (!PathNamePtr)
 		{
-			const FSkinWeightProfileInfo& ProfileInfo = SkinWeightProfiles[ProfileIndex];
+			continue;
+		}
 
-			const FString* PathNamePtr = ProfileInfo.PerLODSourceFiles.Find(TargetLODIndex);
-			//Skip profile that do not have data for TargetLODIndex
-			if (!PathNamePtr)
-			{
-				continue;
-			}
+		const FString& PathName = *PathNamePtr;
 
-			const FString& PathName = *PathNamePtr;
-
-			if (FPaths::FileExists(PathName))
+		if (FPaths::FileExists(PathName))
+		{
+			bResult |= FSkinWeightsUtilities::ImportAlternateSkinWeight(SkeletalMesh, PathName, TargetLODIndex, ProfileInfo.Name);
+		}
+		else
+		{
+			const FString PickedFileName = FSkinWeightsUtilities::PickSkinWeightFBXPath(TargetLODIndex);
+			if (!PickedFileName.IsEmpty() && FPaths::FileExists(PickedFileName))
 			{
-				bResult |= FSkinWeightsUtilities::ImportAlternateSkinWeight(SkeletalMesh, PathName, TargetLODIndex, ProfileInfo.Name, false);
-			}
-			else
-			{
-				const FString PickedFileName = FSkinWeightsUtilities::PickSkinWeightFBXPath(TargetLODIndex);
-				if (!PickedFileName.IsEmpty() && FPaths::FileExists(PickedFileName))
-				{
-					bResult |= FSkinWeightsUtilities::ImportAlternateSkinWeight(SkeletalMesh, PickedFileName, TargetLODIndex, ProfileInfo.Name, false);
-				}
+				bResult |= FSkinWeightsUtilities::ImportAlternateSkinWeight(SkeletalMesh, PickedFileName, TargetLODIndex, ProfileInfo.Name);
 			}
 		}
-	};
-
-	if (bReregisterComponent)
-	{
-		TComponentReregisterContext<USkinnedMeshComponent> ReregisterContext;
-		SkeletalMesh->ReleaseResources();
-		SkeletalMesh->ReleaseResourcesFence.Wait();
-
-		DoWork();
-
-		SkeletalMesh->PostEditChange();
-		SkeletalMesh->InitResources();
 	}
-	else
-	{
-		DoWork();
-	}
+
 	
 	if (bResult)
 	{

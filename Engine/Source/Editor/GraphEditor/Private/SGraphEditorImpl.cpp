@@ -500,7 +500,7 @@ void SGraphEditorImpl::OnClosedActionMenu()
 	GraphPanel->OnStopMakingConnection(/*bForceStop=*/ true);
 }
 
-void SGraphEditorImpl::RegisterContextMenuFor_EdGraphSchema()
+void SGraphEditorImpl::RegisterContextMenuFor_EdGraphSchema(const FName ParentMenuName)
 {
 	static const FName MenuName = UEdGraphSchema::GetContextMenuName(UEdGraphSchema::StaticClass());
 	UToolMenus* ToolMenus = UToolMenus::Get();
@@ -509,7 +509,7 @@ void SGraphEditorImpl::RegisterContextMenuFor_EdGraphSchema()
 		return;
 	}
 
-	UToolMenu* Menu = ToolMenus->RegisterMenu(MenuName);
+	UToolMenu* Menu = ToolMenus->RegisterMenu(MenuName, ParentMenuName);
 
 	Menu->AddDynamicSection("GetNodeContextMenuActions", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
 	{
@@ -520,132 +520,134 @@ void SGraphEditorImpl::RegisterContextMenuFor_EdGraphSchema()
 		}
 	}));
 
-	Menu->AddDynamicSection("EdGraphSchema", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
+	Menu->AddDynamicSection("EdGraphSchema", FNewToolMenuDelegate::CreateStatic(&SGraphEditorImpl::AddContextMenuCommentSection));
+}
+
+void SGraphEditorImpl::AddContextMenuCommentSection(UToolMenu* InMenu)
+{
+	UGraphNodeContextMenuContext* Context = InMenu->FindContext<UGraphNodeContextMenuContext>();
+	if (!Context)
 	{
-		UGraphNodeContextMenuContext* Context = InMenu->FindContext<UGraphNodeContextMenuContext>();
-		if (!Context)
+		return;
+	}
+
+	const UEdGraphSchema* GraphSchema = Context->Graph->GetSchema();
+	if (!GraphSchema)
+	{
+		return;
+	}
+
+	// Helper to do the node comment editing
+	struct Local
+	{
+		// Called by the EditableText widget to get the current comment for the node
+		static FString GetNodeComment(TWeakObjectPtr<UEdGraphNode> NodeWeakPtr)
 		{
-			return;
+			if (UEdGraphNode* SelectedNode = NodeWeakPtr.Get())
+			{
+				return SelectedNode->NodeComment;
+			}
+			return FString();
 		}
 
-		const UEdGraphSchema* GraphSchema = Context->Graph->GetSchema();
-		if (!GraphSchema)
+		// Called by the EditableText widget when the user types a new comment for the selected node
+		static void OnNodeCommentTextCommitted(const FText& NewText, ETextCommit::Type CommitInfo, TWeakObjectPtr<UEdGraphNode> NodeWeakPtr)
 		{
-			return;
+			// Apply the change to the selected actor
+			UEdGraphNode* SelectedNode = NodeWeakPtr.Get();
+			FString NewString = NewText.ToString();
+			if (SelectedNode && !SelectedNode->NodeComment.Equals(NewString, ESearchCase::CaseSensitive))
+			{
+				// send property changed events
+				const FScopedTransaction Transaction(LOCTEXT("EditNodeComment", "Change Node Comment"));
+				SelectedNode->Modify();
+				UProperty* NodeCommentProperty = FindField<UProperty>(SelectedNode->GetClass(), "NodeComment");
+				if (NodeCommentProperty != nullptr)
+				{
+					SelectedNode->PreEditChange(NodeCommentProperty);
+
+					SelectedNode->NodeComment = NewString;
+					SelectedNode->SetMakeCommentBubbleVisible(true);
+
+					FPropertyChangedEvent NodeCommentPropertyChangedEvent(NodeCommentProperty);
+					SelectedNode->PostEditChangeProperty(NodeCommentPropertyChangedEvent);
+				}
+			}
+
+			// Only dismiss all menus if the text was committed via some user action.
+			// ETextCommit::Default implies that focus was switched by some other means. If this is because a submenu was opened, we don't want to close all the menus as a consequence.
+			if (CommitInfo != ETextCommit::Default)
+			{
+				FSlateApplication::Get().DismissAllMenus();
+			}
 		}
+	};
 
-		// Helper to do the node comment editing
-		struct Local
+	if (!Context->Pin)
+	{
+		int32 SelectionCount = GraphSchema->GetNodeSelectionCount(Context->Graph);
+
+		if (SelectionCount == 1)
 		{
-			// Called by the EditableText widget to get the current comment for the node
-			static FString GetNodeComment(TWeakObjectPtr<UEdGraphNode> NodeWeakPtr)
+			// Node comment area
+			TSharedRef<SHorizontalBox> NodeCommentBox = SNew(SHorizontalBox);
+
 			{
-				if (UEdGraphNode* SelectedNode = NodeWeakPtr.Get())
-				{
-					return SelectedNode->NodeComment;
-				}
-				return FString();
+				FToolMenuSection& Section = InMenu->AddSection("GraphNodeComment", LOCTEXT("NodeCommentMenuHeader", "Node Comment"));
+				Section.AddEntry(FToolMenuEntry::InitWidget("NodeCommentBox", NodeCommentBox, FText::GetEmpty()));
+			}
+			TWeakObjectPtr<UEdGraphNode> SelectedNodeWeakPtr = MakeWeakObjectPtr(const_cast<UEdGraphNode*>(Context->Node));
+
+			FText NodeCommentText;
+			if (UEdGraphNode* SelectedNode = SelectedNodeWeakPtr.Get())
+			{
+				NodeCommentText = FText::FromString(SelectedNode->NodeComment);
 			}
 
-			// Called by the EditableText widget when the user types a new comment for the selected node
-			static void OnNodeCommentTextCommitted(const FText& NewText, ETextCommit::Type CommitInfo, TWeakObjectPtr<UEdGraphNode> NodeWeakPtr)
-			{
-				// Apply the change to the selected actor
-				UEdGraphNode* SelectedNode = NodeWeakPtr.Get();
-				FString NewString = NewText.ToString();
-				if (SelectedNode && !SelectedNode->NodeComment.Equals(NewString, ESearchCase::CaseSensitive))
-				{
-					// send property changed events
-					const FScopedTransaction Transaction(LOCTEXT("EditNodeComment", "Change Node Comment"));
-					SelectedNode->Modify();
-					UProperty* NodeCommentProperty = FindField<UProperty>(SelectedNode->GetClass(), "NodeComment");
-					if (NodeCommentProperty != nullptr)
-					{
-						SelectedNode->PreEditChange(NodeCommentProperty);
+			const FSlateBrush* NodeIcon = FCoreStyle::Get().GetDefaultBrush();//@TODO: FActorIconFinder::FindIconForActor(SelectedActors(0).Get());
 
-						SelectedNode->NodeComment = NewString;
-						SelectedNode->SetMakeCommentBubbleVisible(true);
-
-						FPropertyChangedEvent NodeCommentPropertyChangedEvent(NodeCommentProperty);
-						SelectedNode->PostEditChangeProperty(NodeCommentPropertyChangedEvent);
-					}
-				}
-
-				// Only dismiss all menus if the text was committed via some user action.
-				// ETextCommit::Default implies that focus was switched by some other means. If this is because a submenu was opened, we don't want to close all the menus as a consequence.
-				if (CommitInfo != ETextCommit::Default)
-				{
-					FSlateApplication::Get().DismissAllMenus();
-				}
-			}
-		};
-
-		if (!Context->Pin)
+			// Comment label
+			NodeCommentBox->AddSlot()
+				.VAlign(VAlign_Center)
+				.FillWidth(1.0f)
+				[
+					SNew(SMultiLineEditableTextBox)
+					.Text(NodeCommentText)
+					.ToolTipText(LOCTEXT("NodeComment_ToolTip", "Comment for this node"))
+					.OnTextCommitted_Static(&Local::OnNodeCommentTextCommitted, SelectedNodeWeakPtr)
+					.SelectAllTextWhenFocused(true)
+					.RevertTextOnEscape(true)
+					.ModiferKeyForNewLine(EModifierKey::Control)
+				];
+		}
+		else if (SelectionCount > 1)
 		{
-			int32 SelectionCount = GraphSchema->GetNodeSelectionCount(Context->Graph);
-
-			if (SelectionCount == 1)
+			struct SCommentUtility
 			{
-				// Node comment area
-				TSharedRef<SHorizontalBox> NodeCommentBox = SNew(SHorizontalBox);
-
+				static void CreateComment(const UEdGraphSchema* Schema, UEdGraph* Graph)
 				{
-					FToolMenuSection& Section = InMenu->AddSection("GraphNodeComment", LOCTEXT("NodeCommentMenuHeader", "Node Comment"));
-					Section.AddEntry(FToolMenuEntry::InitWidget("NodeCommentBox", NodeCommentBox, FText::GetEmpty()));
-				}
-				TWeakObjectPtr<UEdGraphNode> SelectedNodeWeakPtr = MakeWeakObjectPtr(const_cast<UEdGraphNode*>(Context->Node));
-
-				FText NodeCommentText;
-				if (UEdGraphNode* SelectedNode = SelectedNodeWeakPtr.Get())
-				{
-					NodeCommentText = FText::FromString(SelectedNode->NodeComment);
-				}
-
-				const FSlateBrush* NodeIcon = FCoreStyle::Get().GetDefaultBrush();//@TODO: FActorIconFinder::FindIconForActor(SelectedActors(0).Get());
-
-				// Comment label
-				NodeCommentBox->AddSlot()
-					.VAlign(VAlign_Center)
-					.FillWidth(1.0f)
-					[
-						SNew(SMultiLineEditableTextBox)
-						.Text(NodeCommentText)
-						.ToolTipText(LOCTEXT("NodeComment_ToolTip", "Comment for this node"))
-						.OnTextCommitted_Static(&Local::OnNodeCommentTextCommitted, SelectedNodeWeakPtr)
-						.SelectAllTextWhenFocused(true)
-						.RevertTextOnEscape(true)
-						.ModiferKeyForNewLine(EModifierKey::Control)
-					];
-			}
-			else if (SelectionCount > 1)
-			{
-				struct SCommentUtility
-				{
-					static void CreateComment(const UEdGraphSchema* Schema, UEdGraph* Graph)
+					if (Schema && Graph)
 					{
-						if (Schema && Graph)
+						TSharedPtr<FEdGraphSchemaAction> Action = Schema->GetCreateCommentAction();
+
+						if (Action.IsValid())
 						{
-							TSharedPtr<FEdGraphSchemaAction> Action = Schema->GetCreateCommentAction();
-
-							if (Action.IsValid())
-							{
-								Action->PerformAction(Graph, nullptr, FVector2D());
-							}
+							Action->PerformAction(Graph, nullptr, FVector2D());
 						}
 					}
-				};
+				}
+			};
 
-				FToolMenuSection& Section = InMenu->AddSection("SchemaActionComment", LOCTEXT("MultiCommentHeader", "Comment Group"));
-				Section.AddMenuEntry(
-					"MultiCommentDesc",
-					LOCTEXT("MultiCommentDesc", "Create Comment from Selection"),
-					LOCTEXT("CommentToolTip", "Create a resizable comment box around selection."),
-					FSlateIcon(),
-					FExecuteAction::CreateStatic(SCommentUtility::CreateComment, GraphSchema, const_cast<UEdGraph*>(Context->Graph)
-				));
-			}
+			FToolMenuSection& Section = InMenu->AddSection("SchemaActionComment", LOCTEXT("MultiCommentHeader", "Comment Group"));
+			Section.AddMenuEntry(
+				"MultiCommentDesc",
+				LOCTEXT("MultiCommentDesc", "Create Comment from Selection"),
+				LOCTEXT("CommentToolTip", "Create a resizable comment box around selection."),
+				FSlateIcon(),
+				FExecuteAction::CreateStatic(SCommentUtility::CreateComment, GraphSchema, const_cast<UEdGraph*>(Context->Graph)
+			));
 		}
-	}));
+	}
 }
 
 FName SGraphEditorImpl::GetNodeParentContextMenuName(UClass* InClass)
@@ -669,60 +671,15 @@ FName SGraphEditorImpl::GetNodeContextMenuName(UClass* InClass)
 	return FName(*(FString(TEXT("GraphEditor.GraphNodeContextMenu.")) + InClass->GetName()));
 }
 
-UToolMenu* SGraphEditorImpl::GenerateContextMenu(const UEdGraphSchema* Schema, FToolMenuContext& MenuContext) const
+void SGraphEditorImpl::RegisterContextMenu(const UEdGraphSchema* Schema, FToolMenuContext& MenuContext) const
 {
+	UToolMenus* ToolMenus = UToolMenus::Get();
+	const FName SchemaMenuName = Schema->GetContextMenuName();
 	UGraphNodeContextMenuContext* Context = MenuContext.Find<UGraphNodeContextMenuContext>();
 
-	// Register UEdGraphSchema's menu here to reduce amount of editor code in engine module
-	RegisterContextMenuFor_EdGraphSchema();
-
-	// Register any missing menus otherwise there is a break in the hierarchy chain
-	UToolMenus* ToolMenus = UToolMenus::Get();
-	for (UClass* CurrentClass = Schema->GetClass(); CurrentClass && CurrentClass->IsChildOf(UEdGraphSchema::StaticClass()); CurrentClass = CurrentClass->GetSuperClass())
-	{
-		const UEdGraphSchema* CurrentSchema = CurrentClass->GetDefaultObject<UEdGraphSchema>();
-		const FName CheckMenuName = CurrentSchema->GetContextMenuName();
-		if (!ToolMenus->IsMenuRegistered(CheckMenuName))
-		{
-			ToolMenus->RegisterMenu(CheckMenuName, CurrentSchema->GetParentContextMenuName());
-		}
-	}
-
-	const FName MenuName = Schema->GetContextMenuName();
-	TArray<UToolMenu*> Hierarchy = ToolMenus->CollectHierarchy(MenuName);
-
-	// Insert list of node specific menus
-	if (Context->Node)
-	{
-		// Only insert list if graph schema includes actions for nodes
-		static const FName EdGraphSchemaMenuName = UEdGraphSchema::GetContextMenuName(UEdGraphSchema::StaticClass());
-		if (Hierarchy.ContainsByPredicate([=](UToolMenu* OtherMenu) { return OtherMenu->MenuName == EdGraphSchemaMenuName; }))
-		{
-			// Walk class hierarchy
-			for (UClass* CurrentClass = Context->Node->GetClass(); CurrentClass && CurrentClass->IsChildOf(UEdGraphNode::StaticClass()); CurrentClass = CurrentClass->GetSuperClass())
-			{
-				const FName CheckMenuName = GetNodeContextMenuName(CurrentClass);
-				const FName CheckParentName = GetNodeParentContextMenuName(CurrentClass);
-
-				// Register if not already registered
-				if (!ToolMenus->IsMenuRegistered(CheckMenuName))
-				{
-					ToolMenus->RegisterMenu(CheckMenuName, CheckParentName);
-				}
-
-				// Parent rest of hierarchy to this menu
-				Hierarchy.Insert(ToolMenus->FindMenu(CheckMenuName), 0);
-
-				// Stop walking class hierarchy if IncludeParentNodeContextMenu() returns false for current class
-				if (CheckParentName == NAME_None)
-				{
-					break;
-				}
-			}
-		}
-	}
-
-	// Add extra menu into hierarchy for calling GetContextMenuActions()
+	// Root menu
+	// "GraphEditor.GraphContextMenu.Common"
+	// contains: GraphSchema->GetContextMenuActions(Menu, Context)
 	const FName CommonRootMenuName = "GraphEditor.GraphContextMenu.Common";
 	if (!ToolMenus->IsMenuRegistered(CommonRootMenuName))
 	{
@@ -738,9 +695,95 @@ UToolMenu* SGraphEditorImpl::GenerateContextMenu(const UEdGraphSchema* Schema, F
 			}
 		}));
 	}
-	Hierarchy.Insert(ToolMenus->FindMenu(CommonRootMenuName), 0);
 
-	return ToolMenus->GenerateMenu(Hierarchy, MenuContext);
+	// Menu for EdGraphSchema, used most but not all schema subclasses
+	// contains: Node->GetNodeContextMenuActions()
+	// contains: Comment for node
+	RegisterContextMenuFor_EdGraphSchema(CommonRootMenuName);
+
+	// Menus for subclasses of EdGraphSchema
+	for (UClass* CurrentClass = Schema->GetClass(); CurrentClass && CurrentClass->IsChildOf(UEdGraphSchema::StaticClass()); CurrentClass = CurrentClass->GetSuperClass())
+	{
+		// EdGraphSchema class is registered instead by RegisterContextMenuFor_EdGraphSchema()
+		if (CurrentClass == UEdGraphSchema::StaticClass())
+		{
+			break;
+		}
+
+		const UEdGraphSchema* CurrentSchema = CurrentClass->GetDefaultObject<UEdGraphSchema>();
+		const FName CheckMenuName = CurrentSchema->GetContextMenuName();
+
+		// Some subclasses of UEdGraphSchema chose not to include UEdGraphSchema's menu
+		// Note: menu "GraphEditor.GraphContextMenu.Common" calls GraphSchema->GetContextMenuActions() and adds entry for node comment
+		const FName CheckParentName = CurrentSchema->GetParentContextMenuName();
+
+		if (!ToolMenus->IsMenuRegistered(CheckMenuName))
+		{
+			FName ParentNameToUse = CheckParentName;
+			
+			// Connect final menu in chain to the common root
+			if (ParentNameToUse == NAME_None)
+			{
+				ParentNameToUse = CommonRootMenuName;
+			}
+
+			ToolMenus->RegisterMenu(CheckMenuName, ParentNameToUse);
+		}
+
+		if (CheckParentName == NAME_None)
+		{
+			break;
+		}
+	}
+
+	// Node menus
+	if (Context->Node)
+	{
+		for (UClass* CurrentClass = Context->Node->GetClass(); CurrentClass && CurrentClass->IsChildOf(UEdGraphNode::StaticClass()); CurrentClass = CurrentClass->GetSuperClass())
+		{
+			const FName CheckMenuName = GetNodeContextMenuName(CurrentClass);
+			const FName CheckParentName = GetNodeParentContextMenuName(CurrentClass);
+
+			if (!ToolMenus->IsMenuRegistered(CheckMenuName))
+			{
+				FName ParentNameToUse = CheckParentName;
+
+				// Connect final menu in chain to schema's chain of menus
+				if (CheckParentName == NAME_None)
+				{
+					ParentNameToUse = SchemaMenuName;
+				}
+
+				ToolMenus->RegisterMenu(CheckMenuName, ParentNameToUse);
+			}
+
+			if (CheckParentName == NAME_None)
+			{
+				break;
+			}
+		}
+	}
+}
+
+UToolMenu* SGraphEditorImpl::GenerateContextMenu(const UEdGraphSchema* Schema, FToolMenuContext& MenuContext) const
+{
+	// Register all the menu's needed
+	RegisterContextMenu(Schema, MenuContext);
+
+	UToolMenus* ToolMenus = UToolMenus::Get();
+	UGraphNodeContextMenuContext* Context = MenuContext.Find<UGraphNodeContextMenuContext>();
+
+	FName MenuName = NAME_None;
+	if (Context->Node)
+	{
+		MenuName = GetNodeContextMenuName(Context->Node->GetClass());
+	}
+	else
+	{
+		MenuName = Schema->GetContextMenuName();
+	}
+
+	return ToolMenus->GenerateMenu(MenuName, MenuContext);
 }
 
 FActionMenuContent SGraphEditorImpl::GraphEd_OnGetContextMenuFor(const FGraphContextMenuArguments& SpawnInfo)

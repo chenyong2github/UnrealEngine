@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "LevelViewportLayout.h"
+#include "ViewportTabContent.h"
 
 class ILevelEditor;
 
@@ -11,7 +12,7 @@ class ILevelEditor;
  * Represents the content in a viewport tab in the level editor.
  * Each SDockTab holding viewports in the level editor contains and owns one of these.
  */
-class LEVELEDITOR_API FLevelViewportTabContent : public TSharedFromThis<FLevelViewportTabContent>
+class LEVELEDITOR_API FLevelViewportTabContent : public FViewportTabContent
 {
 public:
 	/** Starts the tab content object and creates the initial layout based on the layout string */
@@ -21,7 +22,7 @@ public:
 	bool IsVisible() const;
 
 	/** Returns an array of viewports inside this tab */
-	const TMap< FName, TSharedPtr< IViewportLayoutEntity > >* GetViewports() const;
+	const TMap< FName, TSharedPtr< IAssetViewportLayoutEntity > >* GetViewports() const;
 
 	/**
 	 * Sets the current layout by changing the contained layout object
@@ -72,12 +73,6 @@ private:
 	static TSharedPtr< class FLevelViewportLayout > ConstructViewportLayoutByTypeName(const FName& TypeName, bool bSwitchingLayouts);
 
 private:
-	TWeakPtr<class SDockTab> ParentTab;
 	TWeakPtr<ILevelEditor> ParentLevelEditor;
-	FString LayoutString;
 
-	TOptional<FName> PreviouslyFocusedViewport;
-
-	/** Current layout */
-	TSharedPtr< class FLevelViewportLayout > ActiveLevelViewportLayout;
 };

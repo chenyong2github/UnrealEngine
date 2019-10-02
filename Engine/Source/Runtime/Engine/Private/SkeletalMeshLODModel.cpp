@@ -442,12 +442,43 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshSection& S)
 		{
 			S.GenerateUpToLodIndex = -1;
 		}
+
+		if (Ar.CustomVer(FEditorObjectVersion::GUID) >= FEditorObjectVersion::SkeletalMeshBuildRefactor)
+		{
+			Ar << S.OriginalDataSectionIndex;
+			Ar << S.ChunkedParentSectionIndex;
+		}
+		else if (Ar.IsLoading())
+		{
+			S.OriginalDataSectionIndex = INDEX_NONE;
+			S.ChunkedParentSectionIndex = INDEX_NONE;
+		}
 		return Ar;
 	}
 
 	return Ar;
 }
 
+// Serialization.
+FArchive& operator<<(FArchive& Ar, FSkelMeshSourceSectionUserData& S)
+{
+	FStripDataFlags StripFlags(Ar);
+	// When data is cooked we do not serialize anything
+	//This is for editor only editing
+	if (StripFlags.IsEditorDataStripped())
+	{
+		return Ar;
+	}
+
+	Ar << S.bRecomputeTangent;
+	Ar << S.bCastShadow;
+	Ar << S.bDisabled;
+	Ar << S.GenerateUpToLodIndex;
+	Ar << S.CorrespondClothAssetIndex;
+	Ar << S.ClothingData;
+
+	return Ar;
+}
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -555,11 +586,18 @@ void FSkeletalMeshLODModel::Serialize(FArchive& Ar, UObject* Owner, int32 Idx)
 
 	Ar.UsingCustomVersion(FSkeletalMeshCustomVersion::GUID);
 	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
 
 	if (StripFlags.IsDataStrippedForServer())
 	{
 		TArray<FSkelMeshSection> TempSections;
 		Ar << TempSections;
+
+		if (Ar.CustomVer(FEditorObjectVersion::GUID) >= FEditorObjectVersion::SkeletalMeshBuildRefactor)
+		{
+			TMap<int32, FSkelMeshSourceSectionUserData> TempUserSectionsData;
+			Ar << TempUserSectionsData;
+		}
 
 		// For old content, load as a multi-size container
 		if (Ar.IsLoading() && Ar.CustomVer(FSkeletalMeshCustomVersion::GUID) < FSkeletalMeshCustomVersion::SplitModelAndRenderData)
@@ -579,6 +617,12 @@ void FSkeletalMeshLODModel::Serialize(FArchive& Ar, UObject* Owner, int32 Idx)
 	else
 	{
 		Ar << Sections;
+		
+		if (!StripFlags.IsEditorDataStripped() && Ar.CustomVer(FEditorObjectVersion::GUID) >= FEditorObjectVersion::SkeletalMeshBuildRefactor)
+		{
+			//Editor builds only
+			Ar << UserSectionsData;
+		}
 
 		// For old content, load as a multi-size container, but convert into regular array
 		if (Ar.IsLoading() && Ar.CustomVer(FSkeletalMeshCustomVersion::GUID) < FSkeletalMeshCustomVersion::SplitModelAndRenderData)
@@ -887,7 +931,7 @@ void FSkeletalMeshLODModel::GetNonClothVertices(TArray<FSoftSkinVertex>& OutVert
 	for (int32 SectionIndex = 0; SectionIndex < NumSections; SectionIndex++)
 	{
 		const FSkelMeshSection& Section = Sections[SectionIndex];
-		if (Section.HasClothingData())
+		if (Section.ClothingData.AssetGuid.IsValid())
 		{
 			continue;
 		}
@@ -907,6 +951,76 @@ bool FSkeletalMeshLODModel::DoSectionsNeedExtraBoneInfluences() const
 	}
 
 	return false;
+}
+
+void FSkeletalMeshLODModel::SyncronizeUserSectionsDataArray(bool bResetNonUsedSection /*= false*/)
+{
+	int32 SectionNum = Sections.Num();
+	for (int32 SectionIndex = 0; SectionIndex < SectionNum; ++SectionIndex)
+	{
+		FSkelMeshSection& Section = Sections[SectionIndex];
+		FSkelMeshSourceSectionUserData& SectionUserData = UserSectionsData.FindOrAdd(Section.OriginalDataSectionIndex);
+		Section.bCastShadow					= SectionUserData.bCastShadow;
+		Section.bRecomputeTangent			= SectionUserData.bRecomputeTangent;
+		Section.bDisabled					= SectionUserData.bDisabled;
+		Section.GenerateUpToLodIndex		= SectionUserData.GenerateUpToLodIndex;
+		Section.CorrespondClothAssetIndex	= SectionUserData.CorrespondClothAssetIndex;
+		Section.ClothingData.AssetGuid		= SectionUserData.ClothingData.AssetGuid;
+		Section.ClothingData.AssetLodIndex	= SectionUserData.ClothingData.AssetLodIndex;
+	}
+
+	//Reset normally happen when we re-import a skeletalmesh, we never want to reset this when we build the skeletalmesh (reduce can remove section, but we need to keep the original section data)
+	if (bResetNonUsedSection)
+	{
+		//Make sure we have the correct amount of UserSectionData we delete all the entries and recreate them with the previously sync Sections
+		UserSectionsData.Reset();
+		for (int32 SectionIndex = 0; SectionIndex < SectionNum; ++SectionIndex)
+		{
+			FSkelMeshSection& Section = Sections[SectionIndex];
+			//We only need parent section, no need to iterate bone chunked sections
+			if (Section.ChunkedParentSectionIndex != INDEX_NONE)
+			{
+				continue;
+			}
+			FSkelMeshSourceSectionUserData& SectionUserData = UserSectionsData.FindOrAdd(Section.OriginalDataSectionIndex);
+			SectionUserData.bCastShadow = Section.bCastShadow;
+			SectionUserData.bRecomputeTangent = Section.bRecomputeTangent;
+			SectionUserData.bDisabled = Section.bDisabled;
+			SectionUserData.GenerateUpToLodIndex = Section.GenerateUpToLodIndex;
+			SectionUserData.CorrespondClothAssetIndex = Section.CorrespondClothAssetIndex;
+			SectionUserData.ClothingData.AssetGuid = Section.ClothingData.AssetGuid;
+			SectionUserData.ClothingData.AssetLodIndex = Section.ClothingData.AssetLodIndex;
+		}
+	}
+}
+
+FString FSkeletalMeshLODModel::GetLODModelDeriveDataKey() const
+{
+	FString KeySuffix = TEXT("LODMODEL");
+
+	TArray<uint8> ByteData;
+	FMemoryWriter Ar(ByteData, true);
+
+	//Add the bulk data ID (if someone modify the original imported data, this ID will change)
+	FString BulkDatIDString = RawSkeletalMeshBulkData.GetIdString();
+	Ar << BulkDatIDString;
+	int32 UserSectionCount = UserSectionsData.Num();
+	Ar << UserSectionCount;
+	for (auto Kvp : UserSectionsData)
+	{
+		Ar << Kvp.Key;
+		Ar << Kvp.Value;
+	}
+
+	FSHA1 Sha;
+	Sha.Update(ByteData.GetData(), ByteData.Num() * ByteData.GetTypeSize());
+	Sha.Final();
+	// Retrieve the hash and use it to construct a pseudo-GUID.
+	uint32 Hash[5];
+	Sha.GetHash((uint8*)Hash);
+	KeySuffix += FGuid(Hash[0] ^ Hash[4], Hash[1], Hash[2], Hash[3]).ToString(EGuidFormats::Digits);
+
+	return KeySuffix;
 }
 
 #endif // WITH_EDITOR

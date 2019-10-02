@@ -56,6 +56,7 @@ void UFractureToolRadial::RegisterUICommand( FFractureEditorCommands* BindingCon
 TArray<UObject*> UFractureToolRadial::GetSettingsObjects() const 
 { 
 	TArray<UObject*> Settings; 
+	Settings.Add(GetMutableDefault<UFractureCommonSettings>());
 	Settings.Add(GetMutableDefault<UFractureRadialSettings>());
 	return Settings;
 }

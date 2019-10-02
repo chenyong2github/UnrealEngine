@@ -10,17 +10,14 @@
 
 /**
  * Sets the maximum font fallback level, for when a character can't be found in the selected font set.
- *
- * UI code that renders strings from a third party (e.g. player chat in a multiplayer game), should restrict font fallback to localized,
- * (or to no fallback, if international font isn't important), to prevent potential performance problems.
+ * UI code that renders strings from a third party (e.g. player chat in a multiplayer game) may want to restrict font fallback to prevent potential performance problems.
  */
-UENUM()
 enum class EFontFallback : uint8
 {
 	/** No fallback font */
 	FF_NoFallback,
 	/** Fallback to localized font set */
-	FF_LocalizedFallback,
+	FF_LocalizedFallback UE_DEPRECATED(4.24, "Legacy localized fallback fonts have been removed. FF_LocalizedFallback no longer has any meaning, so use FF_NoFallback instead."),
 	/** Fallback to last resort font set */
 	FF_LastResortFallback,
 	/** Tries all fallbacks */

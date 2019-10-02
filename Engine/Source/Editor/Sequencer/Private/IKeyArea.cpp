@@ -139,10 +139,11 @@ void IKeyArea::DrawKeys(TArrayView<const FKeyHandle> InKeyHandles, TArrayView<FK
 
 	ISequencerChannelInterface* EditorInterface = FindChannelEditorInterface();
 	FMovieSceneChannel* Channel = ChannelHandle.Get();
+	UMovieSceneSection* OwningSection = GetOwningSection();
 
-	if (EditorInterface && Channel)
+	if (EditorInterface && Channel && OwningSection)
 	{
-		return EditorInterface->DrawKeys_Raw(Channel, InKeyHandles, OutKeyDrawParams);
+		return EditorInterface->DrawKeys_Raw(Channel, InKeyHandles, OwningSection, OutKeyDrawParams);
 	}
 }
 

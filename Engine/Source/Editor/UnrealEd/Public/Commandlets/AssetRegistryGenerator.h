@@ -236,6 +236,12 @@ private:
 	void UpdateKeptPackagesAssetData();
 
 	/**
+	 * Updates AssetData with TagsAndValues corresponding to any collections 
+	 * flagged for inclusion as asset registry tags.
+	 */
+	void UpdateCollectionAssetData();
+
+	/**
 	 * Adds a package to chunk manifest
 	 * 
 	 * @param The sandbox filepath of the package

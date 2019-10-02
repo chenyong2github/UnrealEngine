@@ -115,14 +115,7 @@ bool FEditorViewportSnapping::IsSnapToGridEnabled()
 bool FEditorViewportSnapping::IsSnapRotationEnabled()
 {	
 	// Ask Current Editor Mode if Rotation Snap is enabled
-	bool bSnapEnabled = false;
-	TArray<FEdMode*> ActiveModes; 
-	GLevelEditorModeTools().GetActiveModes( ActiveModes );
-	for( int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex )
-	{
-		bSnapEnabled |= ActiveModes[ModeIndex]->IsSnapRotationEnabled();
-	}
-	return bSnapEnabled;
+	return GLevelEditorModeTools().IsSnapRotationEnabled();
 }
 
 bool FEditorViewportSnapping::IsSnapScaleEnabled()
@@ -303,14 +296,9 @@ void FEditorViewportSnapping::SnapRotatorToGrid(FRotator& Rotation)
 {
 	if( IsSnapRotationEnabled() )
 	{		
-		TArray<FEdMode*> ActiveModes; 
-		GLevelEditorModeTools().GetActiveModes( ActiveModes );
-		for( int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex )
+		if (GLevelEditorModeTools().SnapRotatorToGridOverride(Rotation))
 		{
-			if( ActiveModes[ModeIndex]->SnapRotatorToGridOverride( Rotation ) == true )
-			{
-				return;
-			}
+			return;
 		}
 
 		Rotation = Rotation.GridSnap( GEditor->GetRotGridSize() );		

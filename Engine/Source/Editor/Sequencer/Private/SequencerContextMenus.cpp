@@ -253,6 +253,13 @@ void FSectionContextMenu::PopulateMenu(FMenuBuilder& MenuBuilder)
 	// Copy a reference to the context menu by value into each lambda handler to ensure the type stays alive until the menu is closed
 	TSharedRef<FSectionContextMenu> Shared = AsShared();
 
+	// Clean SectionGroups to prevent any potential stale references from affecting the context menu entries
+	Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene()->CleanSectionGroups();
+	
+	// These are potentially expensive checks in large sequences, and won't change while context menu is open
+	const bool bCanGroup = Sequencer->CanGroupSelectedSections();
+	const bool bCanUngroup = Sequencer->CanUngroupSelectedSections();
+
 	ISequencerModule& SequencerModule = FModuleManager::LoadModuleChecked<ISequencerModule>("Sequencer");
 
 	for (auto& Pair : ChannelsByType)
@@ -384,6 +391,30 @@ void FSectionContextMenu::PopulateMenu(FMenuBuilder& MenuBuilder)
 				FIsActionChecked::CreateLambda([=] { return Shared->IsSectionLocked(); })),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("GroupSections", "Group"),
+			LOCTEXT("GroupSectionsTooltip", "Group selected sections together so that when any section is moved, all sections in that group move together."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(Sequencer, &FSequencer::GroupSelectedSections),
+				FCanExecuteAction::CreateLambda([bCanGroup] { return bCanGroup; })
+			),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("UngroupSections", "Ungroup"),
+			LOCTEXT("UngroupSectionsTooltip", "Ungroup selected sections"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(Sequencer, &FSequencer::UngroupSelectedSections),
+				FCanExecuteAction::CreateLambda([bCanUngroup] { return bCanUngroup; })
+			),
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 
 		// @todo Sequencer this should delete all selected sections

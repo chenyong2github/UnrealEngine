@@ -45,7 +45,6 @@ void SToolBarSeparatorBlock::Construct( const FArguments& InArgs )
 }
 
 
-
 /**
  * Builds this MultiBlock widget up from the MultiBlock associated with it
  */
@@ -56,10 +55,11 @@ void SToolBarSeparatorBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, 
 		SNew( SHorizontalBox )
 		+SHorizontalBox::Slot()
 		.AutoWidth()
-		.Padding( 0.0f, 0.0f, 0.0f, 0.0f )
+		.Padding( 8.0f, 0.0f, 8.0f, 0.0f )
 		[
 			SNew(SSeparator)
 				.Orientation(Orient_Vertical)
+				.Thickness(2.0f)
 				.SeparatorImage( StyleSet->GetBrush( ISlateStyle::Join( StyleName, ".Separator" ) ) )
 		]
 	];

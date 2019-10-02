@@ -1988,7 +1988,7 @@ SWindow::SWindow()
 	SetInvalidationRootHittestGrid(*HittestGrid);
 
 #if WITH_ACCESSIBILITY
-	AccessibleData = FAccessibleWidgetData(EAccessibleBehavior::Auto);
+	AccessibleBehavior = EAccessibleBehavior::Auto;
 #endif
 }
 
@@ -2249,9 +2249,8 @@ TSharedRef<FSlateAccessibleWidget> SWindow::CreateAccessibleWidget()
 	return MakeShareable<FSlateAccessibleWidget>(new FSlateAccessibleWindow(SharedThis(this)));
 }
 
-void SWindow::SetDefaultAccessibleText(EAccessibleType AccessibleType)
+TOptional<FText> SWindow::GetDefaultAccessibleText(EAccessibleType AccessibleType) const
 {
-	TAttribute<FText>& Text = (AccessibleType == EAccessibleType::Main) ? AccessibleData.AccessibleText : AccessibleData.AccessibleSummaryText;
-	Text.Bind(this, &SWindow::GetTitle);
+	return GetTitle();
 }
 #endif

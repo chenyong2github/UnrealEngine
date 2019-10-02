@@ -213,28 +213,26 @@ void FEditorSessionSummaryWriter::InitializeRecords(bool bFirstAttempt)
 		return;
 	}
 
+	// Scoped lock
+	FSystemWideCriticalSection StoredValuesLock(SessionSummaryDefs::GlobalLockName, bFirstAttempt ? SessionSummaryDefs::GlobalLockWaitTimeout : FTimespan::Zero());
+
+	if (StoredValuesLock.IsValid())
 	{
-		// Scoped lock
-		FSystemWideCriticalSection StoredValuesLock(SessionSummaryDefs::GlobalLockName, bFirstAttempt ? SessionSummaryDefs::GlobalLockWaitTimeout : FTimespan::Zero());
+		UE_LOG(LogEditorSessionSummary, Verbose, TEXT("Initializing EditorSessionSummaryWriter for editor session tracking"));
 
-		if (StoredValuesLock.IsValid())
-		{
-			UE_LOG(LogEditorSessionSummary, Verbose, TEXT("Initializing EditorSessionSummaryWriter for editor session tracking"));
+		// Create a session record for this session
+		CurrentSession = CreateRecordForCurrentSession();
+		CurrentSessionSectionName = EditorSessionSummaryUtils::GetSessionStorageLocation(*CurrentSession);
+		WriteStoredRecord(*CurrentSession);
 
-			// Create a session record for this session
-			CurrentSession = CreateRecordForCurrentSession();
-			CurrentSessionSectionName = EditorSessionSummaryUtils::GetSessionStorageLocation(*CurrentSession);
-			WriteStoredRecord(*CurrentSession);
+		bInitializedRecords = true;
 
-			bInitializedRecords = true;
-
-			UE_LOG(LogEditorSessionSummary, Log, TEXT("EditorSessionSummaryWriter initialized"));
-		}
+		UE_LOG(LogEditorSessionSummary, Log, TEXT("EditorSessionSummaryWriter initialized"));
 
 		// update session list string
 		FString SessionListString;
 		FPlatformMisc::GetStoredValue(SessionSummaryDefs::StoreId, SessionSummaryDefs::SessionSummarySection, SessionSummaryDefs::SessionListStoreKey, SessionListString);
-		
+
 		if (!SessionListString.IsEmpty())
 		{
 			SessionListString.Append(TEXT(","));
@@ -247,6 +245,11 @@ void FEditorSessionSummaryWriter::InitializeRecords(bool bFirstAttempt)
 
 void FEditorSessionSummaryWriter::UpdateTimestamps()
 {
+	if (!ensure(bInitializedRecords))
+	{
+		return;
+	}
+
 	CurrentSession->Timestamp = FDateTime::UtcNow();
 	FPlatformMisc::SetStoredValue(SessionSummaryDefs::StoreId, CurrentSessionSectionName, SessionSummaryDefs::TimestampStoreKey, EditorSessionSummaryUtils::TimestampToString(CurrentSession->Timestamp));
 
@@ -344,12 +347,6 @@ void FEditorSessionSummaryWriter::Shutdown()
 	FCoreDelegates::ApplicationHasEnteredForegroundDelegate.RemoveAll(this);
 	FCoreDelegates::ApplicationWillTerminateDelegate.RemoveAll(this);
 	FCoreDelegates::IsVanillaProductChanged.RemoveAll(this);
-
-	// Skip Slate if terminating, since we can't guarantee which thread called us.
-	if (!CurrentSession->bIsTerminating) 
-	{
-		FSlateApplication::Get().GetOnModalLoopTickEvent().RemoveAll(this);
-	}
 
 	// Clear the session record for this session
 	if (bInitializedRecords)

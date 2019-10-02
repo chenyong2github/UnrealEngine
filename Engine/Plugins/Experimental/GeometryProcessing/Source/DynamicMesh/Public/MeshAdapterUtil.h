@@ -5,13 +5,24 @@
 #include "CoreTypes.h"
 #include "DynamicMesh3.h"
 #include "PointSetAdapter.h"
+#include "MeshAdapter.h"
 
 /**
- * Utility functions for constructing PointSetAdapter instances from various 
- * point sets on a mesh
+ * Utility functions for constructing various PointSetAdapter and MeshAdapter instances from dynamic meshes
  */
 namespace MeshAdapterUtil
 {
+
+	/**
+	 * @return Transformed adapter of a FDynamicMesh
+	 */
+	FTriangleMeshAdapterd DYNAMICMESH_API MakeTransformedDynamicMeshAdapter(const FDynamicMesh3* Mesh, FTransform Transform);
+
+	/**
+	 * @return 1:1 adapter of a FDynamicMesh; can be used as a starting point to create other adapters
+	 */
+	FTriangleMeshAdapterd DYNAMICMESH_API MakeDynamicMeshAdapter(const FDynamicMesh3* Mesh);
+
 	/**
 	 * @return Mesh vertices as a point set
 	 */

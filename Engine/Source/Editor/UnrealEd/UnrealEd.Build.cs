@@ -103,17 +103,21 @@ public class UnrealEd : ModuleRules
 				"UMG",
 				"NavigationSystem",
 				"MeshDescription",
-				"MeshDescriptionOperations",
-				"MeshBuilder",
-				"MaterialShaderQualitySettings",
-				"EditorSubsystem",
-			}
+                "StaticMeshDescription",
+                "MeshDescriptionOperations",
+                "MeshBuilder",
+                "MaterialShaderQualitySettings",
+                "EditorSubsystem",
+                "InteractiveToolsFramework",
+				"ToolMenusEditor",
+            }
 		);
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
 				"AssetRegistry",
+				"AssetTagsEditor",
 				"LevelSequence",
 				"AnimGraph",
 				"AppFramework",
@@ -178,7 +182,7 @@ public class UnrealEd : ModuleRules
                 "LandscapeEditorUtilities",
                 "DerivedDataCache",
 				"ScriptDisassembler",
-				"ToolMenus",
+				"ToolMenus"
 			}
 		);
 
@@ -282,6 +286,7 @@ public class UnrealEd : ModuleRules
 		PublicIncludePathModuleNames.AddRange(
 			new string[] {
 				"AssetRegistry",
+				"AssetTagsEditor",
 				"CollectionManager",
 				"BlueprintGraph",
 				"AddContentDialog",

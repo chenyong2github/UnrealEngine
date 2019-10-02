@@ -48,7 +48,7 @@ class FSequencerObjectBindingNode;
 class FSequencerTrackNode;
 class FViewportClient;
 class IDetailKeyframeHandler;
-class ILevelViewport;
+class IAssetViewport;
 class IMenu;
 class FCurveEditor;
 class ISequencerEditTool;
@@ -161,28 +161,6 @@ public:
 	 */
 	void SetPlaybackRange(TRange<FFrameNumber> Range);
 	
-	/**
-	 * Set the playback range's end position to the current global time.
-	 *
-	 * @see GetPlaybackRange, SetPlaybackRange, SetPlaybackRangeStart
-	 */
-	void SetPlaybackRangeEnd()
-	{
-		TRange<FFrameNumber> PlayRange = GetPlaybackRange();
-		SetPlaybackRange(TRange<FFrameNumber>(PlayRange.GetLowerBound(), TRangeBound<FFrameNumber>::Exclusive(GetLocalTime().Time.FrameNumber)));
-	}
-
-	/**
-	 * Set the playback range's start position to the current global time.
-	 *
-	 * @see GetPlaybackRange, SetPlaybackRange, SetPlaybackRangeStart
-	 */
-	void SetPlaybackRangeStart()
-	{
-		TRange<FFrameNumber> PlayRange = GetPlaybackRange();
-		SetPlaybackRange(TRange<FFrameNumber>(TRangeBound<FFrameNumber>::Inclusive(GetLocalTime().Time.FrameNumber), PlayRange.GetUpperBound()));
-	}
-
 	/**
 	 * Set the selection range to the next or previous shot's range.
 	 *
@@ -475,9 +453,6 @@ public:
 	/** Called to save the current movie scene */
 	void SaveCurrentMovieScene();
 
-	/** Called to save the current movie scene under a new name */
-	void SaveCurrentMovieSceneAs();
-
 	/** Called when a user executes the assign actor to track menu item */
 	void AssignActor(FMenuBuilder& MenuBuilder, FGuid ObjectBinding);
 	FGuid DoAssignActor(AActor*const* InActors, int32 NumActors, FGuid ObjectBinding);
@@ -507,7 +482,11 @@ public:
 
 	/** Called when a user executes the paste track menu item */
 	bool CanPaste(const FString& TextToImport);
-	void DoPaste();
+	/**
+	 * Attempts to paste from the clipboard
+	 * @return Whether the paste event was handled
+	 */
+	bool DoPaste();
 	bool PasteTracks(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors);
 	bool PasteSections(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors);
 	bool PasteObjectBindings(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors);
@@ -523,6 +502,14 @@ public:
 	/** Called when a user executes the locked node menu item */
 	void ToggleNodeLocked();
 	bool IsNodeLocked() const;
+
+	/** Called when a user executes the Group menu item */
+	void GroupSelectedSections();
+	bool CanGroupSelectedSections() const;
+
+	/** Called when a user executes the Ungroup menu item */
+	void UngroupSelectedSections();
+	bool CanUngroupSelectedSections() const;
 
 	/** Called when a user executes the set key time for selected keys */
 	bool CanSetKeyTime() const;
@@ -590,9 +577,6 @@ public:
 
 	/** Promote a clipboard to the top of the clipboard stack, and update its timestamp */
 	void OnClipboardUsed(TSharedPtr<FMovieSceneClipboard> Clipboard);
-
-	/** Discard all changes to the current movie scene. */
-	void DiscardChanges();
 
 	/** Create camera and set it as the current camera cut. */
 	void CreateCamera();
@@ -1230,7 +1214,7 @@ private:
 	bool bUpdatingExternalSelection;
 
 	/** The maximum tick rate prior to playing (used for overriding delta time during playback). */
-	double OldMaxTickRate;
+	TOptional<double> OldMaxTickRate;
 
 	/** Timing manager that can adjust playback times */
 	TSharedPtr<FMovieSceneTimeController> TimeController;

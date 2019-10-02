@@ -37,7 +37,7 @@
 #include "Misc/ScopeExit.h"
 
 //Slate dependencies
-#include "ILevelViewport.h"
+#include "IAssetViewport.h"
 #include "Dialogs/DlgPickAssetPath.h"
 
 // Classes
@@ -3840,10 +3840,10 @@ void FEdModeFoliage::ActorSelectionChangeNotify()
 void FEdModeFoliage::ForceRealTimeViewports(const bool bEnable, const bool bStoreCurrentState)
 {
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
-	TSharedPtr< ILevelViewport > ViewportWindow = LevelEditorModule.GetFirstActiveViewport();
+	TSharedPtr< IAssetViewport > ViewportWindow = LevelEditorModule.GetFirstActiveViewport();
 	if (ViewportWindow.IsValid())
 	{
-		FEditorViewportClient &Viewport = ViewportWindow->GetLevelViewportClient();
+		FEditorViewportClient &Viewport = ViewportWindow->GetAssetViewportClient();
 		if (Viewport.IsPerspective())
 		{
 			if (bEnable)

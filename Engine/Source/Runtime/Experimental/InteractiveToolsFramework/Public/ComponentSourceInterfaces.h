@@ -39,6 +39,9 @@ public:
 	/** @return the Component this is a Source for */
 	UPrimitiveComponent* GetOwnerComponent() const;
 
+	/** @return number of material indices in use by this Component */
+	int32 GetNumMaterials() const;
+
 	/**
 	 * Get pointer to a Material provided by this Source
 	 * @param MaterialIndex index of the material

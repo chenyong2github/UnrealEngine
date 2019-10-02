@@ -82,9 +82,14 @@ FText FLevelVisibilitySection::GetVisibilityText() const
 		LevelsText.Append( FString::Format(TEXT(" (+{0} more)"), { FString::FormatAsNumber(NumRemaining) } ) );
 	}
 
-	FText VisibilityText = SectionObject.GetVisibility() == ELevelVisibility::Visible ? VisibleText : HiddenText;
-	
-	return FText::Format( NSLOCTEXT( "LevelVisibilitySection", "SectionTextFormat", "{0}: {1}" ), VisibilityText, FText::FromString( LevelsText ) );
+	if (LevelsText.IsEmpty())
+	{
+		FText VisibilityText = SectionObject.GetVisibility() == ELevelVisibility::Visible ? VisibleText : HiddenText;
+
+		return VisibilityText;
+	}
+
+	return FText::Format( NSLOCTEXT( "LevelVisibilitySection", "SectionTextFormat", "{0}" ), FText::FromString( LevelsText ) );
 }
 
 FText FLevelVisibilitySection::GetVisibilityToolTip() const

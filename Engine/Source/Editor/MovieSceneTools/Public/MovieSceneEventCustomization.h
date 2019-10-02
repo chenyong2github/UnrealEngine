@@ -4,11 +4,18 @@
 
 #include "CoreMinimal.h"
 #include "IPropertyTypeCustomization.h"
-#include "IStructureDetailsView.h"
+#include "Types/SlateEnums.h"
 
 struct FAssetData;
+struct FEdGraphSchemaAction;
+struct FMovieSceneEventEndpointParameters;
 
+class UK2Node;
+class UBlueprint;
+class UEdGraphPin;
+class UEdGraphNode;
 class FMenuBuilder;
+class FStructOnScope;
 class IPropertyHandle;
 class FDetailWidgetRow;
 class UMovieSceneSection;
@@ -16,6 +23,18 @@ class UMovieSceneSequence;
 class UMovieSceneEventTrack;
 class UK2Node_FunctionEntry;
 class IDetailChildrenBuilder;
+
+enum class ECheckBoxState : uint8;
+
+template <typename KeyType, typename ValueType, typename ArrayAllocator, typename SortPredicate> class TSortedMap;
+
+enum class EAutoCreatePayload : uint8
+{
+	None      = 0,
+	Pins      = 1 << 0,
+	Variables = 1 << 1,
+};
+ENUM_CLASS_FLAGS(EAutoCreatePayload)
 
 /**
  * Customization for FMovieSceneEvent structs.
@@ -46,20 +65,9 @@ private:
 
 
 	/**
-	 * Creates a single new endpoint for the event(s) represented by this property handle using the specified function as a quick binding.
-	 */
-	void CreateEventEndpointFromFunction(UFunction* QuickBindFunction, UClass* PinClassType);
-
-
-	/**
 	 * Assigns the specified function entry to the event(s) represented by this property handle.
 	 */
-	void SetEventEndpoint(UK2Node_FunctionEntry* NewEndpoint);
-
-	/**
-	 * Compare the currently assigned endpoint with the specified entry. Used as the check-state for the radio buttons on the menu.
-	 */
-	bool CompareCurrentEventEndpoint(UK2Node_FunctionEntry* NewEndpoint);
+	void SetEventEndpoint(UK2Node* NewEndpoint, UEdGraphPin* BoundObjectPin, UK2Node* PayloadTemplate, EAutoCreatePayload AutoCreatePayload);
 
 
 	/**
@@ -75,9 +83,19 @@ private:
 
 
 	/**
-	 * Generate the content of the creation shortcut sub-menu dropdown
+	 * Generate the content of the quick bind sub-menu dropdown (shown if the event is not already bound)
 	 */
-	void PopulateQuickBindSubMenu(FMenuBuilder& MenuBuilder, UClass* TemplateClass);
+	void PopulateQuickBindSubMenu(FMenuBuilder& MenuBuilder, UMovieSceneSequence* Sequence);
+
+	/**
+	 * Generate the content of the rebind sub-menu dropdown (shown if the event is already bound)
+	 */
+	void PopulateRebindSubMenu(FMenuBuilder& MenuBuilder, UMovieSceneSequence* Sequence);
+
+	/**
+	 * Called when a payload variable property value is changed on the details panel
+	 */
+	void OnPayloadVariableChanged(TSharedRef<FStructOnScope> InStructData, TSharedPtr<IPropertyHandle> LocalVariableProperty);
 
 private:
 
@@ -96,8 +114,11 @@ private:
 	/**
 	 * Get the endpoint that is common to all the events represented by this property handle, or nullptr if they are not all the same.
 	 */
-	UK2Node_FunctionEntry* GetCommonEndpoint() const;
+	UK2Node* GetCommonEndpoint() const;
 
+	TArray<UK2Node*> GetAllValidEndpoints() const;
+
+	void IterateEndpoints(TFunctionRef<bool(UK2Node*)> Callback) const;
 
 	/**
 	 * Get all the objects that the events reside within.
@@ -111,12 +132,19 @@ private:
 	/** Get the icon of the event to display on the main combo button */
 	const FSlateBrush* GetEventIcon() const;
 
-	/** Get the visibility of the error icon */
-	EVisibility GetErrorVisibility() const;
-	/** Get the tooltip text for the error icon */
-	FText GetErrorTooltip() const;
+	void HandleRebindActionSelected(const TArray<TSharedPtr<FEdGraphSchemaAction>>& SelectedAction, ESelectInfo::Type InSelectionType, UBlueprint* Blueprint, UClass* BoundObjectPinClass);
+	void HandleQuickBindActionSelected(const TArray<TSharedPtr<FEdGraphSchemaAction>>& SelectedAction, ESelectInfo::Type InSelectionType, UBlueprint* Blueprint, FMovieSceneEventEndpointParameters Params);
 
-	UClass* FindObjectBindingClass();
+	void OnBlueprintCompiled(UBlueprint*);
+
+	ECheckBoxState GetCallInEditorCheckState() const;
+	void OnSetCallInEditorCheckState(ECheckBoxState NewCheckBoxState);
+
+	TSharedRef<SWidget> GetBoundObjectPinMenuContent();
+	bool CompareBoundObjectPinName(FName InPinName) const;
+	const FSlateBrush* GetBoundObjectPinIcon() const;
+	FText GetBoundObjectPinText() const;
+	void SetBoundObjectPinName(FName InNewBoundObjectPinName);
 
 private:
 
@@ -128,4 +156,9 @@ private:
 
 	/** The property handle we're reflecting */
 	TSharedPtr<IPropertyHandle> PropertyHandle;
+
+	TSharedPtr<IPropertyUtilities> PropertyUtilities;
+
+	template<typename KeyType, typename ValueType>
+	using TInlineMap = TSortedMap<KeyType, ValueType, TInlineAllocator<1>>;
 };
