@@ -51,15 +51,6 @@ class IKismetCompilerInterface : public IModuleInterface
 {
 public:
 	/**
-	 * Compiles a blueprint.
-	 *
-	 * @param	Blueprint	The blueprint to compile.
-	 * @param	Results  	The results log for warnings and errors.
-	 * @param	Options		Compiler options.
-	 */
-	virtual void CompileBlueprint(class UBlueprint* Blueprint, const FKismetCompilerOptions& CompileOptions, FCompilerResultsLog& Results, TSharedPtr<class FBlueprintCompileReinstancer> ParentReinstancer = NULL)=0;
-
-	/**
 	 * Synchronizes Blueprint's GeneratedClass's properties with the NewVariable declarations in the blueprint
 	 * Used on load to ensure that all properties are present for instances.
 	 * 

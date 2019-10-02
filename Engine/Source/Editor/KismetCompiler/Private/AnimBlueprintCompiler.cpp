@@ -770,12 +770,6 @@ void FAnimBlueprintCompilerContext::ProcessUseCachedPose(UAnimGraphNode_UseCache
 {
 	bool bSuccessful = false;
 
-	// if compiling only skeleton, we don't have to worry about linking save node
-	if (CompileOptions.CompileType == EKismetCompileType::SkeletonOnly)
-	{
-		return;
-	}
-
 	// Link to the saved cached pose
 	if(UseCachedPose->SaveCachedPoseNode.IsValid())
 	{
@@ -1313,11 +1307,8 @@ void FAnimBlueprintCompilerContext::ProcessAllAnimationNodes()
 		MessageLog.Error(*LOCTEXT("ExpectedAFunctionEntry_Error", "Expected at least one animation root, but did not find any").ToString());
 	}
 
-	if(CompileOptions.CompileType != EKismetCompileType::SkeletonOnly)
-	{
-		// Build cached pose map
-		BuildCachedPoseNodeUpdateOrder();
-	}
+	// Build cached pose map
+	BuildCachedPoseNodeUpdateOrder();
 }
 
 int32 FAnimBlueprintCompilerContext::ExpandGraphAndProcessNodes(UEdGraph* SourceGraph, UAnimGraphNode_Base* SourceRootNode, UAnimStateTransitionNode* TransitionNode, TArray<UEdGraphNode*>* ClonedNodes)

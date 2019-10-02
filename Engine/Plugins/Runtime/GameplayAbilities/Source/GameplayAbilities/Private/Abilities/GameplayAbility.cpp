@@ -1157,7 +1157,7 @@ void UGameplayAbility::MontageStop(float OverrideBlendOutTime)
 		// We should only stop the current montage if we are the animating ability
 		if (AbilitySystemComponent->IsAnimatingAbility(this))
 		{
-			AbilitySystemComponent->CurrentMontageStop();
+			AbilitySystemComponent->CurrentMontageStop(OverrideBlendOutTime);
 		}
 	}
 }
