@@ -226,8 +226,8 @@ TSharedRef<SWidget> SGameProjectDialog::CreateLandingPage()
 					SNew(STextBlock)
 					.TextStyle(FEditorStyle::Get(), "GameProjectDialog.ProjectNamePathLabels")
 					.Text(LOCTEXT("ProjectDialog_Categories", "Categories"))
+					.Visibility(DialogMode == EMode::Both ? EVisibility::Visible : EVisibility::Collapsed)
 				]
-
 				+ SVerticalBox::Slot()
 				.AutoHeight()
 				.Padding(8, 8, 8, 0)
