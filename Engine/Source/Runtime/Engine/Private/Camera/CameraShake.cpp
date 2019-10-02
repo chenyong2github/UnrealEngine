@@ -412,7 +412,7 @@ void UCameraShake::SetCurrentTimeAndApplyShake(float NewTime, FMinimalViewInfo& 
 
 	if (OscillationDuration > 0.f)
 	{
-		if ((OscillationBlendOutTime > 0.f) && (NewTime > OscillationBlendOutTime))
+		if ((OscillationBlendOutTime > 0.f) && (NewTime > (OscillationDuration - OscillationBlendOutTime)))
 		{
 			bBlendingOut = true;
 			CurrentBlendOutTime = OscillationBlendOutTime - (OscillationDuration - NewTime);
