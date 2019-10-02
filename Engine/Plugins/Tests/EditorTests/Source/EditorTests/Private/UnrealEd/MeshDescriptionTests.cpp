@@ -8,10 +8,10 @@
 #include "Modules/ModuleManager.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/Material.h"
-#include "MeshDescription.h"
+#include "StaticMeshAttributes.h"
+#include "StaticMeshOperations.h"
 #include "MeshDescriptionOperations.h"
 #include "MeshBuilder.h"
-#include "MeshAttributes.h"
 #include "RawMesh.h"
 #include "MeshUtilities.h"
 
@@ -513,7 +513,7 @@ bool FMeshDescriptionTest::ConversionTest(FAutomationTestExecutionInfo& Executio
 				AssetMesh->GetSourceModel(LodIndex).LoadRawMesh(ResultRawMesh);
 				//Create a temporary Mesh Description
 				FMeshDescription MeshDescription;
-				UStaticMesh::RegisterMeshAttributes(MeshDescription);
+				FStaticMeshAttributes(MeshDescription).Register();
 				FMeshDescriptionOperations::ConvertFromRawMesh(ResultRawMesh, MeshDescription, MaterialMapInverse);
 				//Convert back the FRawmesh
 				FMeshDescriptionOperations::ConvertToRawMesh(MeshDescription, ResultRawMesh, MaterialMap);
@@ -575,9 +575,9 @@ bool FMeshDescriptionTest::NTBTest(FAutomationTestExecutionInfo& ExecutionInfo)
 		const TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
 		int32 ExistingUVCount = VertexInstanceUVs.GetNumIndices();
 		//Build the normals and tangent and compare the result
-		MeshDescription.ComputePolygonTangentsAndNormals(SMALL_NUMBER);
-		EComputeNTBsOptions ComputeNTBsOptions = EComputeNTBsOptions::Normals | EComputeNTBsOptions::Tangents;
-		MeshDescription.ComputeTangentsAndNormals(ComputeNTBsOptions);
+		FStaticMeshOperations::ComputePolygonTangentsAndNormals(MeshDescription, SMALL_NUMBER);
+		EComputeNTBsFlags ComputeNTBsFlags = EComputeNTBsFlags::Normals | EComputeNTBsFlags::Tangents;
+		FStaticMeshOperations::ComputeTangentsAndNormals(MeshDescription, ComputeNTBsFlags);
 		//FMeshDescriptionOperations::CreatePolygonNTB(MeshDescription, SMALL_NUMBER);
 		//FMeshDescriptionOperations::CreateNormals(MeshDescription, FMeshDescriptionOperations::ETangentOptions::BlendOverlappingNormals, true);
 

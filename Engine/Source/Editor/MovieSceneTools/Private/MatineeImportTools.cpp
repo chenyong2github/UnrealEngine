@@ -10,8 +10,10 @@
 #include "MovieScene.h"
 #include "MovieSceneSequenceEditor.h"
 #include "Channels/MovieSceneEvent.h"
-#include "K2Node_FunctionEntry.h"
+#include "K2Node_CustomEvent.h"
+#include "MovieSceneSequenceEditor.h"
 #include "Kismet2/KismetEditorUtilities.h"
+#include "MovieSceneEventUtils.h"
 #include "Animation/SkeletalMeshActor.h"
 #include "EngineUtils.h"
 
@@ -882,57 +884,52 @@ bool FMatineeImportTools::CopyInterpEventTrack( UInterpTrackEvent* MatineeEventT
 		if ( Section == nullptr )
 		{
 			Section = Cast<UMovieSceneEventTriggerSection>( EventTrack->CreateNewSection() );
+			Section->SetRange(TRange<FFrameNumber>::All());
 			EventTrack->AddSection(*Section);
 			bSectionCreated = true;
-			
 		}
+
+		UMovieSceneSequence* Sequence = Section->GetTypedOuter<UMovieSceneSequence>();
 		if (Section->TryModify())
 		{
+			FMovieSceneSequenceEditor* SequenceEditor = FMovieSceneSequenceEditor::Find(Sequence);
+			UBlueprint* SequenceDirectorBP = SequenceEditor  ? SequenceEditor->GetOrCreateDirectorBlueprint(Sequence) : nullptr;
+			if (SequenceDirectorBP)
+			{
+				SequenceDirectorBP->Modify();
+				SequenceDirectorBP->GenerateFunctionGraphsEvent.AddUniqueDynamic(Section, &UMovieSceneEventSectionBase::HandleGenerateEntryPoints);
+			}
+
 			TRange<FFrameNumber> KeyRange = TRange<FFrameNumber>::Empty();
 
 			FMovieSceneEventChannel* EventChannel = Section->GetChannelProxy().GetChannel<FMovieSceneEventChannel>(0);
 			check(EventChannel);
 			TMovieSceneChannelData<FMovieSceneEvent> ChannelData = EventChannel->GetData();
-			TMap<FName, FMovieSceneEvent> EventMap;
+			TMap<FName, UK2Node_CustomEvent*> EventMap;
 
-			for (FEventTrackKey EventTrackKey : MatineeEventTrack->EventTrack)
+			for (const FEventTrackKey& EventTrackKey : MatineeEventTrack->EventTrack)
 			{
 				FFrameNumber KeyTime = (EventTrackKey.Time * FrameRate).RoundToFrame();
-				
+
 				FMovieSceneEvent Event;
 
-				if (FMovieSceneEvent* FoundEvent = EventMap.Find(EventTrackKey.EventName))
+				UK2Node_CustomEvent* ExistingEndpoint = EventMap.FindRef(EventTrackKey.EventName);
+				if (ExistingEndpoint)
 				{
-					Event = *FoundEvent;
+					FMovieSceneEventUtils::SetEndpoint(&Event, Section, ExistingEndpoint, nullptr);
 				}
-				else
+				else if (SequenceDirectorBP)
 				{
-					FMovieSceneSequenceEditor* SequenceEditor = FMovieSceneSequenceEditor::Find(Section->GetTypedOuter<UMovieSceneSequence>());
-					if (ensure(SequenceEditor))
-					{
-						// Create and bind event endpoint for this event
-						UK2Node_FunctionEntry* NewEndpoint = SequenceEditor->CreateEventEndpoint(Section->GetTypedOuter<UMovieSceneSequence>(), EventTrackKey.EventName.ToString());
-						if (NewEndpoint)
-						{
-							SequenceEditor->InitializeEndpointForTrack(Section->GetTypedOuter<UMovieSceneEventTrack>(), NewEndpoint);
-							FMovieSceneSequenceEditor::BindEventToEndpoint(Section, &Event, NewEndpoint);
-						}
-					}
+					FMovieSceneEventEndpointParameters Params;
+					Params.SanitizedEventName = TEXT("MatineeEvent");
 
-					if (UK2Node_FunctionEntry* FunctionEntry = Event.GetFunctionEntry())
-					{
-						FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(FunctionEntry, false);
-					}
-					EventMap.Add(EventTrackKey.EventName, Event);
+					UK2Node_CustomEvent* NewEndpoint = FMovieSceneEventUtils::CreateUserFacingEvent(SequenceDirectorBP, Params);
+					EventMap.Add(EventTrackKey.EventName, NewEndpoint);
+
+					FMovieSceneEventUtils::SetEndpoint(&Event, Section, NewEndpoint, nullptr);
 				}
 
-				ChannelData.UpdateOrAddKey(KeyTime, Event);
-				KeyRange = TRange<FFrameNumber>::Hull(KeyRange, TRange<FFrameNumber>(KeyTime));
-			}
-
-			if (!KeyRange.IsEmpty())
-			{
-				Section->SetRange( KeyRange );
+				ChannelData.AddKey(KeyTime, Event);
 			}
 		}
 	}	

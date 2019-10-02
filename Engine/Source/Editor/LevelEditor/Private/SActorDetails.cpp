@@ -153,6 +153,8 @@ void SActorDetails::Construct(const FArguments& InArgs, const FName TabIdentifie
 		[
 			SAssignNew(DetailsSplitter, SSplitter)
 			.Orientation(Orient_Vertical)
+			.Style(FEditorStyle::Get(), "SplitterDark")
+			.PhysicalSplitterHandleSize(2.0f)
 			+ SSplitter::Slot()
 			[
 				SNew( SVerticalBox )

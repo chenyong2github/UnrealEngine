@@ -3,17 +3,20 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/Interface.h"
 #include "ComponentSourceInterfaces.h"
 
 
 // predeclarations so we don't have to include these in all tools
 class AActor;
 class UActorComponent;
-class FChange;
+class FToolCommandChange;
 class UPackage;
 class FPrimitiveDrawInterface;
 class UInteractiveToolManager;
 class UInteractiveGizmoManager;
+
+
 
 /**
  * FToolBuilderState is a bucket of state information that a ToolBuilder might need
@@ -142,6 +145,14 @@ enum class EStandardToolContextMaterials
 };
 
 
+/** Types of coordinate systems that a Tool/Gizmo might use */
+UENUM()
+enum class EToolContextCoordinateSystem
+{
+	World = 0,
+	Local = 1
+};
+
 
 /**
  * Users of the Tools Framework need to implement IToolsContextQueriesAPI to provide
@@ -164,6 +175,12 @@ public:
 	 * @param StateOut this structure is populated with available state information
 	 */
 	virtual void GetCurrentViewState(FViewCameraState& StateOut) const = 0;
+
+
+	/**
+	 * Request current external coordinate-system setting
+	 */
+	virtual EToolContextCoordinateSystem GetCurrentCoordinateSystem() const = 0;	
 
 
 	/**
@@ -197,9 +214,12 @@ enum class EToolMessageLevel
 	UserMessage = 1,
 	/** Notification message should be shown in a non-modal notification window */
 	UserNotification = 2,
+	/** Warning message should be shown in a non-modal notification window with panache */
+	UserWarning = 3,
 	/** Error message should be shown in a modal notification window */
-	UserError = 3
+	UserError = 4
 };
+
 
 /** Type of change we want to apply to a selection */
 UENUM()
@@ -239,7 +259,7 @@ public:
 	 * @param Message text of message
 	 * @param Level severity level of message
 	 */
-	virtual void PostMessage(const TCHAR* Message, EToolMessageLevel Level) = 0;
+	virtual void DisplayMessage(const FText& Message, EToolMessageLevel Level) = 0;
 
 	/** 
 	 * Forward an invalidation request from Tools framework, to cause repaint/etc. 
@@ -269,7 +289,7 @@ public:
 	 * @param Change The Change implementation
 	 * @param Description text description of the transaction that could be shown to user
 	 */
-	virtual void AppendChange(UObject* TargetObject, TUniquePtr<FChange> Change, const FText& Description) = 0;
+	virtual void AppendChange(UObject* TargetObject, TUniquePtr<FToolCommandChange> Change, const FText& Description) = 0;
 
 
 
@@ -311,14 +331,14 @@ public:
 	/** Get default path to save assets in. For example the currently-visible path in the Editor. */
 	virtual FString GetActiveAssetFolderPath() = 0;
 
-	/** Combines folder and asset names */
-	virtual FString MakePackageName(const FString& AssetName, const FString& FolderPath) = 0;
-
-	/** return "unique" version of AssetName, created by appending _1, _2, ... if AssetName already exists */
-	virtual FString MakeUniqueAssetName(const FString& AssetName, const FString& FolderPath) = 0;
-
-	/** create a new package at the given path (calls MakePackageName) */
-	virtual UPackage* CreateNewPackage(const FString& AssetName, const FString& FolderPath) = 0;
+	/**
+	 * Creates a new package for an asset
+	 * @param FolderPath path for new package
+	 * @param AssetBaseName base name for asset
+	 * @param UniqueAssetNameOut unique name in form of AssetBaseName##, where ## is a unqiue index
+	 * @return new package
+	 */
+	virtual UPackage* MakeNewAssetPackage(const FString& FolderPath, const FString& AssetBaseName, FString& UniqueAssetNameOut) = 0;
 
 	/** Request saving of asset to persistent storage via something like an interactive popup dialog */
 	virtual void InteractiveSaveGeneratedAsset(UObject* Asset, UPackage* AssetPackage) = 0;

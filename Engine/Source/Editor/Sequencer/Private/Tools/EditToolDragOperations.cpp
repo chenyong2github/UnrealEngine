@@ -3,6 +3,7 @@
 #include "Tools/EditToolDragOperations.h"
 #include "ISequencer.h"
 #include "MovieSceneTrack.h"
+#include "MovieSceneSequence.h"
 #include "Sequencer.h"
 #include "SequencerSettings.h"
 #include "SequencerCommonHelpers.h"
@@ -563,10 +564,28 @@ FMoveKeysAndSections::FMoveKeysAndSections(FSequencer& InSequencer, const TSet<F
 	// We support partially infinite (infinite on one side) sections however.
 	for (const TWeakObjectPtr<UMovieSceneSection>& WeakSection : InSelectedSections)
 	{
-		const UMovieSceneSection* Section = WeakSection.Get();
-		if (Section->HasStartFrame() || Section->HasEndFrame())
+		const UMovieSceneSection* SelectedSection = WeakSection.Get();
+		if (SelectedSection->HasStartFrame() || SelectedSection->HasEndFrame())
 		{
-			Sections.Add(WeakSection);
+			Sections.AddUnique(WeakSection);
+
+			UMovieScene* MovieScene = InSequencer.GetFocusedMovieSceneSequence()->GetMovieScene();
+			if (MovieScene)
+			{
+				// If the section is in a group, we also want to add the sections it is grouped with
+				const FMovieSceneSectionGroup* SectionGroup = MovieScene->GetSectionGroup(*SelectedSection);
+				if (SectionGroup)
+				{
+					for (TWeakObjectPtr<UMovieSceneSection> WeakGroupedSection : *SectionGroup)
+					{
+						// Verify sections are still valid, and are not infinite.
+						if (WeakGroupedSection.IsValid() && (WeakGroupedSection->HasStartFrame() || WeakGroupedSection->HasEndFrame()))
+						{
+							Sections.AddUnique(WeakGroupedSection);
+						}
+					}
+				}
+			}
 		}
 	}
 }
@@ -1081,6 +1100,25 @@ bool FMoveKeysAndSections::HandleSectionMovement(FFrameTime MouseTime, FVector2D
 							TargetRowIndex = ChildIndex + 1;
 						}
 					}
+				
+					if (TargetRowIndex > 0)
+					{
+						if (!ParentTrack->IsExpanded() && ParentTrack != ExpandedParentTrack)
+						{
+							if (ExpandedParentTrack.IsValid())
+							{
+								ExpandedParentTrack->SetExpansionState(false);
+								ExpandedParentTrack = nullptr;
+							}
+							ExpandedParentTrack = ParentTrack;
+							ParentTrack->SetExpansionState(true);
+						}
+					}
+					else if (ExpandedParentTrack.IsValid())
+					{
+						ExpandedParentTrack->SetExpansionState(false);
+						ExpandedParentTrack = nullptr;
+					}				
 				}
 			}
 		}

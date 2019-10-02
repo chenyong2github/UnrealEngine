@@ -772,20 +772,30 @@ void FStaticMeshEditorViewportClient::DrawCanvas( FViewport& InViewport, FSceneV
 
 	TArray<SStaticMeshEditorViewport::FOverlayTextItem> TextItems;
 
-	int32 CurrentLODLevel = StaticMeshEditor->GetCurrentLODLevel();
-	if (CurrentLODLevel == 0)
+	const int32 CurrentLODLevel = [this, &StaticMeshEditor, &View]()
 	{
-		CurrentLODLevel = ComputeStaticMeshLOD(StaticMesh->RenderData.Get(), StaticMeshComponent->Bounds.Origin, StaticMeshComponent->Bounds.SphereRadius, View, StaticMesh->MinLOD.Default);
-	}
-	else
-	{
-		CurrentLODLevel -= 1;
-	}
+		int32 LOD = StaticMeshEditor->GetCurrentLODLevel();
+		return (LOD == 0) ?
+			ComputeStaticMeshLOD(StaticMesh->RenderData.Get(), StaticMeshComponent->Bounds.Origin, StaticMeshComponent->Bounds.SphereRadius, View, StaticMesh->MinLOD.Default)
+			:
+			LOD - 1;
+	}();
 
+	const ERHIFeatureLevel::Type FeatureLevel = GEditor->PreviewPlatform.GetEffectivePreviewFeatureLevel();
+	const int32 CurrentMinLODLevel = StaticMesh->MinLOD.GetValueForFeatureLevel(FeatureLevel);
+	const bool bBelowMinLOD = CurrentLODLevel < CurrentMinLODLevel;
 	TextItems.Add(SStaticMeshEditorViewport::FOverlayTextItem(
-		FText::Format(NSLOCTEXT("UnrealEd", "LOD_F", "LOD:  {0}"), FText::AsNumber(CurrentLODLevel))));
+		FText::Format(NSLOCTEXT("UnrealEd", "LOD_F", "LOD:  {0}"), FText::AsNumber(CurrentLODLevel)),
+		bBelowMinLOD ? "TextBlock.ShadowedTextWarning" : "TextBlock.ShadowedText"));
+	
+	if ( bBelowMinLOD )
+	{
+		TextItems.Add(SStaticMeshEditorViewport::FOverlayTextItem(
+			FText::Format(NSLOCTEXT("UnrealEd", "BelowMinLODWarning_F", "Selected LOD is below the minimum of {0}"),
+				FText::AsNumber(CurrentMinLODLevel)), "TextBlock.ShadowedTextWarning"));
+	}
 
-	float CurrentScreenSize = ComputeBoundsScreenSize(StaticMeshComponent->Bounds.Origin, StaticMeshComponent->Bounds.SphereRadius, View);
+	const float CurrentScreenSize = ComputeBoundsScreenSize(StaticMeshComponent->Bounds.Origin, StaticMeshComponent->Bounds.SphereRadius, View);
 	FNumberFormattingOptions FormatOptions;
 	FormatOptions.MinimumFractionalDigits = 3;
 	FormatOptions.MaximumFractionalDigits = 6;

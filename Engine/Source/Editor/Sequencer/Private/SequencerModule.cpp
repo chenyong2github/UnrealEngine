@@ -210,6 +210,8 @@ public:
 	{
 		if (GIsEditor)
 		{
+			// EditorStyle must be initialized by now
+			FModuleManager::Get().LoadModule("EditorStyle");
 			FSequencerCommands::Register();
 
 			FEditorModeRegistry::Get().RegisterMode<FSequencerEdMode>(

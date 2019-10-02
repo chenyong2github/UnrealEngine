@@ -7,6 +7,7 @@
 #include "GraphEditAction.h"
 #include "SNiagaraGraphNode.h"
 #include "Misc/SecureHash.h"
+#include "Serialization/PropertyLocalizationDataGathering.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNode"
 
@@ -611,5 +612,12 @@ void UNiagaraNode::UpdateCompileHashForNode(FSHA1& HashState) const
 	HashState.Update((const uint8*)&ChangeId, sizeof(FGuid));
 }
 
+#if WITH_EDITORONLY_DATA
+void UNiagaraNode::GatherForLocalization(FPropertyLocalizationDataGatherer& PropertyLocalizationDataGatherer, const EPropertyLocalizationGathererTextFlags GatherTextFlags) const
+{
+	// Niagara nodes only contain editor-only text data
+	Super::GatherForLocalization(PropertyLocalizationDataGatherer, GatherTextFlags | EPropertyLocalizationGathererTextFlags::ForceEditorOnly);
+}
+#endif
 
 #undef LOCTEXT_NAMESPACE

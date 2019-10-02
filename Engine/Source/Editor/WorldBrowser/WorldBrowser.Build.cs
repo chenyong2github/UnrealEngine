@@ -44,6 +44,7 @@ public class WorldBrowser : ModuleRules
                 "SourceControl",
 				"SourceControlWindows",
                 "MeshDescription",
+				"StaticMeshDescription",
 				"NewLevelDialog",
 				"LandscapeEditor",
                 "FoliageEdit",

@@ -433,6 +433,18 @@ public:
 	 */
 	void AddComboButton( const FUIAction& InAction, const FOnGetContent& InMenuContentGenerator, const TAttribute<FText>& InLabelOverride = TAttribute<FText>(), const TAttribute<FText>& InToolTipOverride = TAttribute<FText>(), const TAttribute<FSlateIcon>& InIconOverride = TAttribute<FSlateIcon>(), bool bInSimpleComboBox = false, FName InTutorialHighlightName = NAME_None );
 
+
+	/**
+	 * Adds any widget to the toolbar
+	 * 
+	 * @param	InWidget				The widget that should be shown in the toolbar
+	 * @param	InLabel                 Optional Label.  
+	 * @param	InTutorialHighlightName	Name to identify this widget and highlight during tutorials
+	 * @param	bSearchable			If true, widget will be searchable (default == true)
+	 */
+	void AddToolBarWidget(TSharedRef<SWidget> InWidget, const TAttribute<FText>& InLabel = TAttribute<FText>(), FName InTutorialHighlightName = NAME_None, bool bSearchable = true);
+
+
 	/**
 	 * Adds any widget to the toolbar
 	 * 

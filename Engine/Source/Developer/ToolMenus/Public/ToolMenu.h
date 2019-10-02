@@ -56,12 +56,24 @@ public:
 
 	bool IsRegistered() const { return bRegistered; }
 
+	/** returns array [Menu, Menu.SubMenuA, Menu.SubMenuB] for Menu.SubMenuB.SubMenuB */
+	TArray<const UToolMenu*> GetSubMenuChain() const;
+
+	/** returns "SubMenuC.SubMenuD" for menu "ModuleA.MenuB.SubMenuC.SubMenuD" */
+	FString GetSubMenuNamePath() const;
+
 	//~ Begin UToolMenuBase Interface
 	virtual bool IsEditing() const override;
 	virtual FName GetSectionName(const FName InEntryName) const override;
+	virtual bool ContainsSection(const FName InName) const override;
+	virtual bool ContainsEntry(const FName InName) const override;
 	virtual FCustomizedToolMenu* FindMenuCustomization() const override;
 	virtual FCustomizedToolMenu* AddMenuCustomization() const override;
+	virtual FCustomizedToolMenuHierarchy GetMenuCustomizationHierarchy() const override;
+	virtual void UpdateMenuCustomizationFromMultibox(const TSharedRef<const FMultiBox>& InMultiBox) override;
 	//~ End UToolMenuBase Interface
+
+	TArray<FName> GetMenuHierarchyNames(bool bIncludeSubMenuRoot) const;
 
 	template <typename TContextType>
 	TContextType* FindContext() const
@@ -80,6 +92,10 @@ private:
 	void InitGeneratedCopy(const UToolMenu* Source, const FName InMenuName, const FToolMenuContext* InContext = nullptr);
 
 	bool FindEntry(const FName EntryName, int32& SectionIndex, int32& EntryIndex) const;
+
+	FToolMenuEntry* FindEntry(const FName EntryName);
+
+	const FToolMenuEntry* FindEntry(const FName EntryName) const;
 
 	int32 IndexOfSection(const FName SectionName) const;
 
@@ -117,6 +133,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ToolBar")
 	bool bToolBarForceSmallIcons;
 
+	/** Prevent menu from being customized */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ToolBar")
+	bool bPreventCustomization;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tool Menus")
 	FToolMenuOwner MenuOwner;
 	
@@ -125,6 +145,14 @@ public:
 
 	UPROPERTY()
 	TArray<FToolMenuSection> Sections;
+
+	UPROPERTY()
+	const UToolMenu* SubMenuParent;
+
+	UPROPERTY()
+	FName SubMenuSourceEntryName;
+
+	FMultiBox::FOnModifyBlockWidgetAfterMake ModifyBlockWidgetAfterMake;
 
 private:
 

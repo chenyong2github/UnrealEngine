@@ -163,20 +163,18 @@ public:
 	{
 		return BoundText.Get();
 	}
-private:
-	FText GetTextCopy() const
-	{
-		return BoundText.Get();
-	}
 	
 public:
+	UE_DEPRECATED(4.24, "SetText taking FString is deprecated. Use the FText version instead")
+	void SetText( const TAttribute< FString >& InText );
+	UE_DEPRECATED(4.24, "SetText taking FString is deprecated. Use the FText version instead")
+	void SetText( const FString& InText );
+
 	/**
 	 * Sets the text for this text block
 	 *
 	 * @param	InText	The new text to display
 	 */
-	void SetText( const TAttribute< FString >& InText );
-	void SetText( const FString& InText );
 	void SetText( const TAttribute< FText >& InText );
 	void SetText( const FText& InText );
 
@@ -241,7 +239,7 @@ public:
 	virtual FVector2D ComputeDesiredSize(float) const override;
 #if WITH_ACCESSIBILITY
 	virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override;
-	virtual void SetDefaultAccessibleText(EAccessibleType AccessibleType = EAccessibleType::Main) override;
+	virtual TOptional<FText> GetDefaultAccessibleText(EAccessibleType AccessibleType = EAccessibleType::Main) const override;
 #endif
 	// End of SWidget interface
 

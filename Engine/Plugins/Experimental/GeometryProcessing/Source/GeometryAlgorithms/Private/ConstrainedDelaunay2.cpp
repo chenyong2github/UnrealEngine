@@ -224,7 +224,7 @@ bool TConstrainedDelaunay2<RealType>::Triangulate()
 		int BaseIdx = TriIdx * 3;
 		for (int SubIdx = 0, NextIdx = 2; SubIdx < 3; NextIdx = SubIdx++)
 		{
-			if (Adj[BaseIdx + NextIdx] == -1) // on hull
+			if (Adj[BaseIdx + NextIdx] < 0) // on hull
 			{
 				int VertA = Indices[BaseIdx + SubIdx], VertB = Indices[BaseIdx + NextIdx];
 				if (HasUnorderedEdge(HoleMap, VertA, VertB))
@@ -256,7 +256,7 @@ bool TConstrainedDelaunay2<RealType>::Triangulate()
 				continue; // cannot cross hole edges
 			}
 			int AdjTri = Adj[BaseIdx + NextIdx];
-			if (AdjTri != -1 && Keep[AdjTri] == 0)
+			if (AdjTri >= 0 && Keep[AdjTri] == 0)
 			{
 				int WindingChange = WindingAcross(BoundaryMap, VertA, VertB);
 				int Winding = LastWinding + WindingChange;

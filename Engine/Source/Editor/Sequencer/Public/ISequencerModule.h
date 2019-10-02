@@ -19,6 +19,9 @@ class ISequencerTrackEditor;
 class ISequencerEditorObjectBinding;
 class IToolkitHost;
 class UMovieSceneSequence;
+class FAssetDragDropOp;
+class FClassDragDropOp;
+class FActorDragDropGraphEdOp;
 struct FSequencerInitParams;
 
 enum class ECurveEditorTreeFilterType : uint32;
@@ -59,6 +62,18 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnSequencerCreated, TSharedRef<ISequencer>)
 /** A delegate that gets executed a sequencer is initialize and allow modification the initialization params. */
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnPreSequencerInit, TSharedRef<ISequencer>, TSharedRef<ISequencerObjectChangeListener>, const FSequencerInitParams&);
 
+/** A delegate that gets executed when a drag/drop event happens on the sequencer. The return value determines if the event was handled by the bound delegate. */
+DECLARE_DELEGATE_RetVal_ThreeParams(bool, FOptionalOnDragDrop, const FGeometry&, const FDragDropEvent&, FReply&);
+
+/** A delegate that gets executed when an asset is dropped on the sequencer. The return value determines if the operation was handled by the bound delegate. */
+DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnAssetsDrop, const TArray<UObject*>&, const FAssetDragDropOp&);
+
+/** A delegate that gets executed when a class is dropped on the sequencer. The return value determines if the operation was handled by the bound delegate. */
+DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnClassesDrop, const TArray<TWeakObjectPtr<UClass>>&, const FClassDragDropOp&);
+
+/** A delegate that gets executed when an actor is dropped on the sequencer. The return value determines if the operation was handled by the bound delegate. */
+DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnActorsDrop, const TArray<TWeakObjectPtr<AActor>>&, const FActorDragDropGraphEdOp&);
+
 /**
  * Sequencer view parameters.
  */
@@ -86,6 +101,18 @@ struct FSequencerViewParams
 	/** Style of scrubber to use */
 	ESequencerScrubberStyle ScrubberStyle;
 
+	/** Called when something is dragged over the sequencer. */
+	FOptionalOnDragDrop OnReceivedDragOver;
+
+	/** Called when an asset is dropped on the sequencer. */
+	FOnAssetsDrop OnAssetsDrop;
+
+	/** Called when a class is dropped on the sequencer. */
+	FOnClassesDrop OnClassesDrop;
+
+	/** Called when an actor is dropped on the sequencer. */
+	FOnActorsDrop OnActorsDrop;
+
 	FSequencerViewParams(FString InName = FString())
 		: UniqueName(MoveTemp(InName))
 		, bReadOnly(false)
@@ -103,15 +130,11 @@ struct FSequencerHostCapabilities
 	/** Should we show the Save-As button in the toolbar? */
 	bool bSupportsSaveMovieSceneAsset;
 
-	/** Do we support discarding the changes */
-	bool bSupportsDiscardChanges;
-
 	/** Do we support the curve editor */
 	bool bSupportsCurveEditor;
 
 	FSequencerHostCapabilities()
 		: bSupportsSaveMovieSceneAsset(false)
-		, bSupportsDiscardChanges(false)
 		, bSupportsCurveEditor(false)
 	{}
 };

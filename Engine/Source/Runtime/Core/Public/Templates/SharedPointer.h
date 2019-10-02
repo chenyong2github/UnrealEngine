@@ -51,7 +51,7 @@
  *
  *
  *	Examples:
- *		- Please see 'SharedPointerTesting.h' for various examples of shared pointers and references!
+ *		- Please see 'SharedPointerTesting.inl' for various examples of shared pointers and references!
  *
  *
  *	Tips:

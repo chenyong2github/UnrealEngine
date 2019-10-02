@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Framework/MultiBox/SMenuEntryBlock.h"
+#include "Framework/MultiBox/ToolMenuBase.h"
 #include "Widgets/SBoxPanel.h"
 #include "Layout/WidgetPath.h"
 #include "Framework/Application/SlateApplication.h"
@@ -484,6 +485,11 @@ TSharedRef< SWidget > SMenuEntryBlock::BuildMenuEntryWidget( const FMenuEntryBui
 	{
 		CheckBoxVisibility = EVisibility::Collapsed;
 	}
+	else if (MultiBox->IsInEditMode())
+	{
+		// Hide but keep spacing to avoid confusing user during editing
+		CheckBoxVisibility = EVisibility::Hidden;
+	}
 
 	TAttribute<FSlateColor> CheckBoxForegroundColor = FSlateColor::UseForeground();
 	FName CheckBoxStyle = ISlateStyle::Join( StyleName, ".CheckBox" );
@@ -868,6 +874,16 @@ void SMenuEntryBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, const F
 		BuildParams.Label = BuildParams.UICommand.IsValid() ? BuildParams.UICommand->GetLabel() : FText::GetEmpty();
 	}
 
+	const bool bIsEditing = MultiBox->IsInEditMode();
+	if (bIsEditing)
+	{
+		// No dynamic labels while editing
+		if (BuildParams.Label.IsBound())
+		{
+			BuildParams.Label = BuildParams.Label.Get();
+		}
+	}
+
 	// Add this widget to the search list of the multibox
 	// If there is a widget already assigned (created early) ensure that it's STextBlock is set up for searching
 	TSharedPtr< SWidget > ButtonContent = MenuEntryBlock->EntryWidget;
@@ -906,6 +922,15 @@ void SMenuEntryBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, const F
 		BuildParams.ToolTip = BuildParams.UICommand.IsValid() ? BuildParams.UICommand->GetDescription() : FText::GetEmpty();
 	}	
 
+	if (bIsEditing)
+	{
+		// No dynamic tooltips while editing
+		if (BuildParams.ToolTip.IsBound())
+		{
+			BuildParams.ToolTip = BuildParams.ToolTip.Get();
+		}
+	}
+
 	if( MultiBox->GetType() == EMultiBoxType::Menu )
 	{
 		if( MenuEntryBlock->bIsSubMenu )
@@ -927,19 +952,32 @@ void SMenuEntryBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, const F
 		ChildSlot[ BuildMenuBarWidget( BuildParams ) ];
 	}
 
-	// Insert named widget if desired
-	FName TutorialName = MenuEntryBlock->GetTutorialHighlightName();
-	if(TutorialName != NAME_None)
+	if (!bIsEditing)
 	{
-		TSharedRef<SWidget> ChildWidget = ChildSlot.GetWidget();
-		ChildWidget->AddMetadata<FTagMetaData>(MakeShared<FTagMetaData>(TutorialName));
+		// Insert named widget if desired
+		FName TutorialName = MenuEntryBlock->GetTutorialHighlightName();
+		if (TutorialName != NAME_None)
+		{
+			TSharedRef<SWidget> ChildWidget = ChildSlot.GetWidget();
+			ChildWidget->AddMetadata<FTagMetaData>(MakeShared<FTagMetaData>(TutorialName));
+		}
 	}
 
-	// Bind our widget's enabled state to whether or not our action can execute
-	SetEnabled( TAttribute<bool>( this, &SMenuEntryBlock::IsEnabled ) );
+	if (bIsEditing)
+	{
+		SetEnabled(TAttribute<bool>(this, &SMenuEntryBlock::IsEnabledDuringEditMode));
+	}
+	else
+	{
+		// Bind our widget's enabled state to whether or not our action can execute
+		SetEnabled(TAttribute<bool>(this, &SMenuEntryBlock::IsEnabled));
+	}
 
-	// Bind our widget's visible state to whether or not the action should be visible
-	SetVisibility( TAttribute<EVisibility>(this, &SMenuEntryBlock::GetVisibility) );
+	if (!bIsEditing)
+	{
+		// Bind our widget's visible state to whether or not the action should be visible
+		SetVisibility(TAttribute<EVisibility>(this, &SMenuEntryBlock::GetVisibility));
+	}
 }
 
 void SMenuEntryBlock::RequestSubMenuToggle( bool bOpenMenu, const bool bClobber )
@@ -1084,6 +1122,57 @@ bool SMenuEntryBlock::IsEnabled() const
 	return bEnabled;
 }
 
+bool SMenuEntryBlock::IsEnabledDuringEditMode() const
+{
+	const FName EntryName = MultiBlock->GetExtensionHook();
+	if (EntryName != NAME_None && OwnerMultiBoxWidget.IsValid())
+	{
+		TSharedRef< const FMultiBox > MultiBox = OwnerMultiBoxWidget.Pin()->GetMultiBox();
+		if (UToolMenuBase* ToolMenu = MultiBox->GetToolMenu())
+		{
+			FCustomizedToolMenuHierarchy CustomizationHierarchy = ToolMenu->GetMenuCustomizationHierarchy();
+			if (CustomizationHierarchy.Hierarchy.Num() > 0)
+			{
+				FCustomizedToolMenu FlattenedCustomization = CustomizationHierarchy.GenerateFlattened();
+
+				if (MultiBlock->GetType() == EMultiBlockType::Heading)
+				{
+					if (FlattenedCustomization.GetSectionVisiblity(EntryName) == ECustomizedToolMenuVisibility::Hidden)
+					{
+						return false;
+					}
+				}
+				else
+				{
+					if (FlattenedCustomization.GetEntryVisiblity(EntryName) == ECustomizedToolMenuVisibility::Hidden)
+					{
+						return false;
+					}
+
+					FName SectionName = FlattenedCustomization.GetEntrySectionName(EntryName);
+					if (SectionName == NAME_None)
+					{
+						SectionName = ToolMenu->GetSectionName(EntryName);
+					}
+
+					if (SectionName != NAME_None)
+					{
+						if (FlattenedCustomization.GetSectionVisiblity(SectionName) == ECustomizedToolMenuVisibility::Hidden)
+						{
+							return false;
+						}
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		return false;
+	}
+
+	return true;
+}
 
 /**
  * Called by Slate when this menu entry check box button is toggled
@@ -1341,7 +1430,18 @@ TSharedRef< SWidget > SMenuEntryBlock::MakeNewMenuWidget() const
 	if (MenuEntryBlock->EntryBuilder.IsBound())
 	{
 		const bool bCloseSelfOnly = false;
-		FMenuBuilder MenuBuilder(MenuEntryBlock->bShouldCloseWindowAfterMenuSelection, MultiBlock->GetActionList(), MenuEntryBlock->Extender, bCloseSelfOnly, StyleSet );
+
+		FName SubMenuCustomizationName;
+		if (MenuEntryBlock->GetExtensionHook() != NAME_None)
+		{
+			FName CustomizationName = MultiBoxWidget->GetMultiBox()->GetCustomizationName();
+			if (CustomizationName != NAME_None)
+			{
+				SubMenuCustomizationName = *(CustomizationName.ToString() + TEXT(".") + MenuEntryBlock->GetExtensionHook().ToString());
+			}
+		}
+
+		FMenuBuilder MenuBuilder(MenuEntryBlock->bShouldCloseWindowAfterMenuSelection, MultiBlock->GetActionList(), MenuEntryBlock->Extender, bCloseSelfOnly, StyleSet, /* searchable */ true, SubMenuCustomizationName );
 		{
 			MenuEntryBlock->EntryBuilder.Execute( MenuBuilder );
 		}

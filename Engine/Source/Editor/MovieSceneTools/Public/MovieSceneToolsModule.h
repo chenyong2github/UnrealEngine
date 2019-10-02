@@ -7,8 +7,14 @@
 #include "Modules/ModuleManager.h"
 #include "IMovieSceneTools.h"
 
-class UMovieSceneSection;
 struct FAssetData;
+
+class UK2Node;
+class UBlueprint;
+class UMovieSceneSection;
+class UMovieSceneEventSectionBase;
+
+struct FGenerateBlueprintFunctionParams;
 
 class IMovieSceneToolsTakeData
 {
@@ -46,6 +52,10 @@ private:
 
 	void RegisterClipboardConversions();
 
+	static void HandleGenerateEventEntryPoints(UMovieSceneEventSectionBase* EventSection, const FGenerateBlueprintFunctionParams& Params);
+	static void FixupPayloadParameterNameForSection(UMovieSceneEventSectionBase* Section, UK2Node* InNode, FName OldPinName, FName NewPinName);
+	static void UpgradeLegacyEventEndpointForSection(UMovieSceneEventSectionBase* Section, UBlueprint* Blueprint);
+
 private:
 
 	/** Registered delegate handles */
@@ -82,6 +92,10 @@ private:
 	FDelegateHandle CameraShakeTrackCreateEditorHandle;
 	FDelegateHandle MPCTrackCreateEditorHandle;
 	FDelegateHandle PrimitiveMaterialCreateEditorHandle;
+
+	FDelegateHandle GenerateEventEntryPointsHandle;
+	FDelegateHandle FixupPayloadParameterNameHandle;
+	FDelegateHandle UpgradeLegacyEventEndpointHandle;
 
 	TArray<IMovieSceneToolsTakeData*> TakeDatas;
 };

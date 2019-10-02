@@ -23,17 +23,46 @@ bool UMouseHoverBehavior::WantsHoverEvents()
 	return true;
 }
 
-void UMouseHoverBehavior::UpdateHover(const FInputDeviceState& input)
+
+FInputCaptureRequest UMouseHoverBehavior::WantsHoverCapture(const FInputDeviceState& InputState)
 {
 	if (Target != nullptr)
 	{
-		Modifiers.UpdateModifiers(input, Target);
+		Modifiers.UpdateModifiers(InputState, Target);
 
-		Target->OnUpdateHover( FInputDeviceRay(input.Mouse.WorldRay, input.Mouse.Position2D) );
+		FInputRayHit Hit = Target->BeginHoverSequenceHitTest(InputState.Mouse.WorldRay);
+		if (Hit.bHit)
+		{
+			return FInputCaptureRequest::Begin(this, EInputCaptureSide::Any, Hit.HitDepth);
+		}
 	}
+	return FInputCaptureRequest::Ignore();
 }
 
-void UMouseHoverBehavior::EndHover(const FInputDeviceState& input)
+FInputCaptureUpdate UMouseHoverBehavior::BeginHoverCapture(const FInputDeviceState& InputState, EInputCaptureSide eSide)
 {
+	check(Target != nullptr);
+	Modifiers.UpdateModifiers(InputState, Target);
+	Target->OnBeginHover(InputState.Mouse.WorldRay);
+	return FInputCaptureUpdate::Begin(this, eSide);
 }
+
+FInputCaptureUpdate UMouseHoverBehavior::UpdateHoverCapture(const FInputDeviceState& InputState)
+{
+	check(Target != nullptr);
+	Modifiers.UpdateModifiers(InputState, Target);
+	if (Target->OnUpdateHover(InputState.Mouse.WorldRay))
+	{
+		return FInputCaptureUpdate::Continue();
+	}
+	return FInputCaptureUpdate::End();
+}
+
+void UMouseHoverBehavior::EndHoverCapture()
+{
+	check(Target != nullptr);
+	Target->OnEndHover();
+}
+
+
 

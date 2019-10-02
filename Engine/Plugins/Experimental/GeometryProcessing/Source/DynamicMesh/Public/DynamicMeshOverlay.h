@@ -102,6 +102,8 @@ public:
 	/** Set the triangle to the given Element index tuple, and increment element reference counts */
 	EMeshResult SetTriangle(int TriangleID, const FIndex3i& TriElements);
 
+	/** @return true if this triangle was set */
+	bool IsSetTriangle(int TID) const { return ElementTriangles[3 * TID] >= 0; }
 
 
 	/**
@@ -220,7 +222,7 @@ public:
 	/** Returns true if the parent-mesh edge is a "Seam" in this overlay */
 	bool IsSeamEdge(int EdgeID) const;
 	/** Returns true if the parent-mesh vertex is connected to any seam edges */
-	bool IsSeamVertex(int VertexID) const;
+	bool IsSeamVertex(int VertexID, bool bBoundaryIsSeam = true) const;
 
 	/** find the elements associated with a given parent-mesh vertex */
 	void GetVertexElements(int VertexID, TArray<int>& OutElements) const;
@@ -229,6 +231,9 @@ public:
 
 	/** find the triangles connected to an element */
 	void GetElementTriangles(int ElementID, TArray<int>& OutTriangles) const;
+
+	/** Currently an iteration every time */
+	bool HasInteriorSeamEdges() const;
 
 	/**
 	 * Checks that the overlay mesh is well-formed, ie all internal data structures are consistent
@@ -240,7 +245,7 @@ public:
 	/** Set a triangle's element indices to InvalidID */
 	void InitializeNewTriangle(int TriangleID);
 	/** Remove a triangle from the overlay */
-	void OnRemoveTriangle(int TriangleID, bool bRemoveIsolatedVertices);
+	void OnRemoveTriangle(int TriangleID);
 	/** Reverse the orientation of a triangle's elements */
 	void OnReverseTriOrientation(int TriangleID);
 	/** Update the overlay to reflect an edge split in the parent mesh */

@@ -224,7 +224,11 @@ namespace ETabState
 	enum Type
 	{
 		OpenedTab = 0x1 << 0,
-		ClosedTab = 0x1 << 1
+		ClosedTab = 0x1 << 1,
+		/**
+		 * InvalidTab refers to tabs that were not recognized by the Editor (e.g., LiveLink when its plugin its disabled).
+		 */
+		InvalidTab = 0x1 << 2
 	};
 }
 
@@ -803,14 +807,34 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 
 		FTabManager( const TSharedPtr<SDockTab>& InOwnerTab, const TSharedRef<FTabManager::FTabSpawner> & InNomadTabSpawner );
 
-		TSharedRef<SDockingArea> RestoreArea( const TSharedRef<FArea>& AreaToRestore, const TSharedPtr<SWindow>& InParentWindow, const bool bEmbedTitleAreaContent = false );
+		TSharedPtr<SDockingArea> RestoreArea(
+			const TSharedRef<FArea>& AreaToRestore, const TSharedPtr<SWindow>& InParentWindow, const bool bEmbedTitleAreaContent = false, const bool bCanOutputBeNullptr = false);
 
-		TSharedRef<class SDockingNode> RestoreArea_Helper( const TSharedRef<FLayoutNode>& LayoutNode, const TSharedPtr<SWindow>& ParentWindow, const bool bEmbedTitleAreaContent );
+		TSharedPtr<class SDockingNode> RestoreArea_Helper(
+			const TSharedRef<FLayoutNode>& LayoutNode, const TSharedPtr<SWindow>& ParentWindow, const bool bEmbedTitleAreaContent, const bool bCanOutputBeNullptr = false);
 
-		void RestoreSplitterContent( const TSharedRef<FSplitter>& SplitterNode, const TSharedRef<class SDockingSplitter>& SplitterWidget, const TSharedPtr<SWindow>& ParentWindow );
+		/**
+		 * Use CanRestoreSplitterContent + RestoreSplitterContent when the output of its internal RestoreArea_Helper can be a nullptr.
+		 * Usage example:
+		 *		TArray<TSharedRef<SDockingNode>> DockingNodes;
+		 *		if (CanRestoreSplitterContent(DockingNodes, SplitterNode, ParentWindow))
+		 *		{
+		 *			// Create SplitterWidget only if it will be filled with at least 1 DockingNodes
+		 *			TSharedRef<SDockingSplitter> SplitterWidget = SNew(SDockingSplitter, SplitterNode);
+		 *			// Restore content
+		 *			RestoreSplitterContent(DockingNodes, SplitterWidget);
+		 *		}
+		 */
+		bool CanRestoreSplitterContent(TArray<TSharedRef<class SDockingNode>>& DockingNodes, const TSharedRef<FSplitter>& SplitterNode, const TSharedPtr<SWindow>& ParentWindow);
+		void RestoreSplitterContent(const TArray<TSharedRef<class SDockingNode>>& DockingNodes, const TSharedRef<class SDockingSplitter>& SplitterWidget);
+
+		/**
+		 * Use this standalone RestoreSplitterContent when the output of its internal RestoreArea_Helper cannot be a nullptr.
+		 */
+		void RestoreSplitterContent(const TSharedRef<FSplitter>& SplitterNode, const TSharedRef<class SDockingSplitter>& SplitterWidget, const TSharedPtr<SWindow>& ParentWindow);
 		
 		bool IsValidTabForSpawning( const FTab& SomeTab ) const;
-		TSharedPtr<SDockTab> SpawnTab( const FTabId& TabId, const TSharedPtr<SWindow>& ParentWindow );
+		TSharedPtr<SDockTab> SpawnTab(const FTabId& TabId, const TSharedPtr<SWindow>& ParentWindow, const bool bCanOutputBeNullptr = false);
 
 		TSharedPtr<class SDockingTabStack> FindTabInLiveAreas( const FTabMatcher& TabMatcher ) const;
 		static TSharedPtr<class SDockingTabStack> FindTabInLiveArea( const FTabMatcher& TabMatcher, const TSharedRef<SDockingArea>& InArea );
@@ -818,6 +842,13 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		template<typename MatchFunctorType> static bool HasAnyMatchingTabs( const TSharedRef<FTabManager::FLayoutNode>& SomeNode, const MatchFunctorType& Matcher );
 		bool HasOpenTabs( const TSharedRef<FTabManager::FLayoutNode>& SomeNode ) const;
 		bool HasValidTabs( const TSharedRef<FTabManager::FLayoutNode>& SomeNode ) const;
+		/**
+		 * It sets the desired (or all) tabs in the FTabManager::FLayoutNode to the desired value.
+		 * @param SomeNode The area whose tabs will be modified.
+		 * @param NewTabState The new TabState value.
+		 * @param OriginalTabState Only the tabs with this value will be modified. Use ETabState::AnyTab to modify them all.
+		 */
+		void SetTabsTo(const TSharedRef<FTabManager::FLayoutNode>& SomeNode, const ETabState::Type NewTabState, const ETabState::Type OriginalTabState) const;
 
 		/**
 		 * Notify the tab manager that the NewForegroundTab was brought to front and the BackgroundedTab was send to the background as a result.
@@ -852,7 +883,16 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		bool HasTabSpawnerFor(FName TabId) const;
 
 		TArray< TWeakPtr<SDockingArea> > DockAreas;
+		/**
+		 * CollapsedDockAreas refers to areas that were closed (e.g., by the user).
+		 * We save its location so they can be re-opened in the same location if the user opens thems again.
+		 */
 		TArray< TSharedRef<FTabManager::FArea> > CollapsedDockAreas;
+		/**
+		 * InvalidDockAreas refers to areas that were not recognized by the Editor (e.g., LiveLink when its plugin its disabled).
+		 * We save its location so they can be re-opened whenever they are recognized again (e.g., if its related plugin is re-enabled).
+		 */
+		TArray< TSharedRef<FTabManager::FArea> > InvalidDockAreas;
 
 		/** The root for the local editor's tab spawner workspace menu */
 		TSharedPtr<FWorkspaceItem> LocalWorkspaceMenuRoot;

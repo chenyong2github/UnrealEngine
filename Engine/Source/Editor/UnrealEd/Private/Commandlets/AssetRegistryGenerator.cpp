@@ -706,6 +706,79 @@ void FAssetRegistryGenerator::UpdateKeptPackagesAssetData()
 	}
 }
 
+void FAssetRegistryGenerator::UpdateCollectionAssetData()
+{
+	// Read out the per-platform settings use to build the list of collections to tag
+	bool bTagAllCollections = false;
+	TArray<FString> CollectionsToIncludeOrExclude;
+	{
+		const FString PlatformIniName = TargetPlatform->IniPlatformName();
+
+		FConfigFile PlatformEngineIni;
+		FConfigCacheIni::LoadLocalIniFile(PlatformEngineIni, TEXT("Engine"), true, (!PlatformIniName.IsEmpty() ? *PlatformIniName : ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName())));
+
+		// The list of collections will either be a inclusive or a exclusive depending on the value of bTagAllCollections
+		PlatformEngineIni.GetBool(TEXT("AssetRegistry"), TEXT("bTagAllCollections"), bTagAllCollections);
+		PlatformEngineIni.GetArray(TEXT("AssetRegistry"), bTagAllCollections ? TEXT("CollectionsToExcludeAsTags") : TEXT("CollectionsToIncludeAsTags"), CollectionsToIncludeOrExclude);
+	}
+
+	// Build the list of collections we should tag for each asset
+	TMap<FName, TArray<FName>> AssetPathNamesToCollectionTags;
+	{
+		ICollectionManager& CollectionManager = FCollectionManagerModule::GetModule().Get();
+
+		TArray<FCollectionNameType> CollectionNamesToTag;
+		CollectionManager.GetCollections(CollectionNamesToTag);
+		if (bTagAllCollections)
+		{
+			CollectionNamesToTag.RemoveAll([&CollectionsToIncludeOrExclude](const FCollectionNameType& CollectionNameAndType)
+			{
+				return CollectionsToIncludeOrExclude.Contains(CollectionNameAndType.Name.ToString());
+			});
+		}
+		else
+		{
+			CollectionNamesToTag.RemoveAll([&CollectionsToIncludeOrExclude](const FCollectionNameType& CollectionNameAndType)
+			{
+				return !CollectionsToIncludeOrExclude.Contains(CollectionNameAndType.Name.ToString());
+			});
+		}
+		
+		TArray<FName> TmpAssetPathNames;
+		for (const FCollectionNameType& CollectionNameToTag : CollectionNamesToTag)
+		{
+			const FName CollectionTagName = *FString::Printf(TEXT("%s%s"), FAssetData::GetCollectionTagPrefix(), *CollectionNameToTag.Name.ToString());
+
+			TmpAssetPathNames.Reset();
+			CollectionManager.GetAssetsInCollection(CollectionNameToTag.Name, CollectionNameToTag.Type, TmpAssetPathNames);
+
+			for (const FName AssetPathName : TmpAssetPathNames)
+			{
+				TArray<FName>& CollectionTagsForAsset = AssetPathNamesToCollectionTags.FindOrAdd(AssetPathName);
+				CollectionTagsForAsset.AddUnique(CollectionTagName);
+			}
+		}
+	}
+
+	// Apply the collection tags to the asset registry state
+	for (const auto& AssetPathNameToCollectionTagsPair : AssetPathNamesToCollectionTags)
+	{
+		const FName AssetPathName = AssetPathNameToCollectionTagsPair.Key;
+		const TArray<FName>& CollectionTagsForAsset = AssetPathNameToCollectionTagsPair.Value;
+
+		const FAssetData* AssetData = State.GetAssetByObjectPath(AssetPathName);
+		if (AssetData)
+		{
+			FAssetDataTagMap TagsAndValues = AssetData->TagsAndValues.GetMap();
+			for (const FName CollectionTagName : CollectionTagsForAsset)
+			{
+				TagsAndValues.Add(CollectionTagName, FString()); // TODO: Does this need a value to avoid being trimmed?
+			}
+			State.UpdateAssetData(FAssetData(AssetData->PackageName, AssetData->PackagePath, AssetData->AssetName, AssetData->AssetClass, TagsAndValues, AssetData->ChunkIDs, AssetData->PackageFlags));
+		}
+	}
+}
+
 void FAssetRegistryGenerator::Initialize(const TArray<FName> &InStartupPackages)
 {
 	StartupPackages.Append(InStartupPackages);
@@ -1045,6 +1118,7 @@ bool FAssetRegistryGenerator::SaveAssetRegistry(const FString& SandboxPath, bool
 	AssetRegistry.InitializeTemporaryAssetRegistryState(State, SaveOptions, true);
 	// Then possibly apply AssetData with TagsAndValues from a previous AssetRegistry for packages kept from a previous cook
 	UpdateKeptPackagesAssetData();
+	UpdateCollectionAssetData();
 
 	if (DevelopmentSaveOptions.bSerializeAssetRegistry && bSerializeDevelopmentAssetRegistry)
 	{

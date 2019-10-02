@@ -71,6 +71,7 @@ DECLARE_CYCLE_STAT(TEXT("Create Function List"), EKismetCompilerStats_CreateFunc
 DECLARE_CYCLE_STAT(TEXT("Expansion"), EKismetCompilerStats_Expansion, STATGROUP_KismetCompiler )
 DECLARE_CYCLE_STAT(TEXT("Process uber"), EKismetCompilerStats_ProcessUbergraph, STATGROUP_KismetCompiler );
 DECLARE_CYCLE_STAT(TEXT("Process func"), EKismetCompilerStats_ProcessFunctionGraph, STATGROUP_KismetCompiler );
+DECLARE_CYCLE_STAT(TEXT("Generate Function Graph"), EKismetCompilerStats_GenerateFunctionGraphs, STATGROUP_KismetCompiler );
 DECLARE_CYCLE_STAT(TEXT("Precompile Function"), EKismetCompilerStats_PrecompileFunction, STATGROUP_KismetCompiler );
 DECLARE_CYCLE_STAT(TEXT("Compile Function"), EKismetCompilerStats_CompileFunction, STATGROUP_KismetCompiler );
 DECLARE_CYCLE_STAT(TEXT("Postcompile Function"), EKismetCompilerStats_PostcompileFunction, STATGROUP_KismetCompiler );
@@ -3798,9 +3799,11 @@ void FKismetCompilerContext::ValidateFunctionGraphNames()
 
 	if(ParentBPNameValidator.IsValid())
 	{
-		for (int32 FunctionIndex=0; FunctionIndex < Blueprint->FunctionGraphs.Num(); ++FunctionIndex)
+		TArray<UEdGraph*> AllFunctionGraphs(Blueprint->FunctionGraphs);
+		AllFunctionGraphs += GeneratedFunctionGraphs;
+
+		for (UEdGraph* FunctionGraph : AllFunctionGraphs)
 		{
-			UEdGraph* FunctionGraph = Blueprint->FunctionGraphs[FunctionIndex];
 			if(FunctionGraph->GetFName() != UEdGraphSchema_K2::FN_UserConstructionScript)
 			{
 				if( ParentBPNameValidator->IsValid(FunctionGraph->GetName()) != EValidatorResult::Ok )
@@ -3825,6 +3828,15 @@ void FKismetCompilerContext::ValidateFunctionGraphNames()
 // Creates a copy of the graph to allow further transformations to occur
 void FKismetCompilerContext::CreateFunctionList()
 {
+	{
+		BP_SCOPED_COMPILER_EVENT_STAT(EKismetCompilerStats_GenerateFunctionGraphs);
+
+		// Broadcast the blueprint's function generation event to ensure that any function generators are run right before we create the function list for the class layout
+		FGenerateBlueprintFunctionParams Params;
+		Params.CompilerContext = this;
+		Blueprint->GenerateFunctionGraphsEvent.Broadcast(Params);
+	}
+
 	BP_SCOPED_COMPILER_EVENT_STAT(EKismetCompilerStats_CreateFunctionList);
 
 	// Process the ubergraph if one should be present
@@ -3842,6 +3854,11 @@ void FKismetCompilerContext::CreateFunctionList()
 		for (int32 i = 0; i < Blueprint->FunctionGraphs.Num(); ++i)
 		{
 			ProcessOneFunctionGraph(Blueprint->FunctionGraphs[i]);
+		}
+
+		for (UEdGraph* FunctionGraph : GeneratedFunctionGraphs)
+		{
+			ProcessOneFunctionGraph(FunctionGraph);
 		}
 
 		for (int32 i = 0; i < Blueprint->DelegateSignatureGraphs.Num(); ++i)
@@ -4141,6 +4158,8 @@ void FKismetCompilerContext::CompileFunctions(EInternalCompilerFlags InternalFla
 			}
 		}
 	}
+
+	FunctionListCompiledEvent.Broadcast(this);
 
 	// Save off intermediate build products if requested
 	if (bIsFullCompile && CompileOptions.bSaveIntermediateProducts && !Blueprint->bIsRegeneratingOnLoad)
@@ -4564,6 +4583,21 @@ void FKismetCompilerContext::SetNewClass(UBlueprintGeneratedClass* ClassToUse)
 bool FKismetCompilerContext::ValidateGeneratedClass(UBlueprintGeneratedClass* Class)
 {
 	return UBlueprint::ValidateGeneratedClass(Class);
+}
+
+UEdGraph* FKismetCompilerContext::SpawnIntermediateFunctionGraph(const FString& InDesiredFunctionName)
+{
+	FName UniqueGraphName = FBlueprintEditorUtils::FindUniqueKismetName(Blueprint, InDesiredFunctionName);
+
+	UEdGraph* GeneratedFunctionGraph = FBlueprintEditorUtils::CreateNewGraph(Blueprint, UniqueGraphName, UEdGraph::StaticClass(), UEdGraphSchema_K2::StaticClass());
+	GeneratedFunctionGraph->SetFlags(RF_Transient);
+	GeneratedFunctionGraph->bEditable = false;
+
+	FBlueprintEditorUtils::CreateFunctionGraph(Blueprint, GeneratedFunctionGraph, false, (UClass*)nullptr);
+
+	// Add the function graph to the list of generated graphs for this compile
+	GeneratedFunctionGraphs.Add(GeneratedFunctionGraph);
+	return GeneratedFunctionGraph;
 }
 
 const UK2Node_FunctionEntry* FKismetCompilerContext::FindLocalEntryPoint(const UFunction* Function) const

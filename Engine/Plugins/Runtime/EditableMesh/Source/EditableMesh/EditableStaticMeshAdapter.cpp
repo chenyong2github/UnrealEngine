@@ -9,7 +9,8 @@
 #include "PhysicsEngine/BodySetup.h"	// For collision generation
 #include "ProfilingDebugging/ScopedTimers.h"	// For FAutoScopedDurationTimer
 #include "EditableMeshFactory.h"
-#include "MeshAttributes.h"
+#include "StaticMeshAttributes.h"
+#include "StaticMeshOperations.h"
 
 
 UEditableStaticMeshAdapter::UEditableStaticMeshAdapter()
@@ -334,13 +335,7 @@ void UEditableStaticMeshAdapter::InitEditableStaticMesh( UEditableMesh* Editable
 				}
 
 				// Determine edge hardnesses
-				MeshDescription->DetermineEdgeHardnessesFromVertexInstanceNormals();
-
-				// Determine UV seams
-				if( NumUVs > 0 )
-				{
-					MeshDescription->DetermineUVSeamsFromUVs( 0 );
-				}
+				FStaticMeshOperations::DetermineEdgeHardnessesFromVertexInstanceNormals(*MeshDescription);
 
 				// Cache polygon tangent bases
 				static TArray<FPolygonID> PolygonIDs;

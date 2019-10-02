@@ -713,7 +713,7 @@ void UUnrealEdEngine::OnPostWindowsMessage(FViewport* Viewport, uint32 Message)
 void UUnrealEdEngine::OnOpenMatinee()
 {
 	// Register a delegate to pickup when Matinee is closed.
-	OnMatineeEditorClosedDelegateHandle = GLevelEditorModeTools().OnEditorModeChanged().AddUObject( this, &UUnrealEdEngine::OnMatineeEditorClosed );
+	UpdateEdModeOnMatineeCloseDelegateHandle = GLevelEditorModeTools().OnEditorModeIDChanged().AddUObject( this, &UUnrealEdEngine::UpdateEdModeOnMatineeClose );
 }
 
 bool UUnrealEdEngine::IsAutosaving() const
@@ -1437,7 +1437,7 @@ EWriteDisallowedWarningState UUnrealEdEngine::GetWarningStateForWritePermission(
 	return WarningState;
 }
 
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void UUnrealEdEngine::OnMatineeEditorClosed( FEdMode* Mode, bool IsEntering )
 {
 	// if we are closing the Matinee editor
@@ -1452,4 +1452,21 @@ void UUnrealEdEngine::OnMatineeEditorClosed( FEdMode* Mode, bool IsEntering )
 		// Remove this delegate. 
 		GLevelEditorModeTools().OnEditorModeChanged().Remove( OnMatineeEditorClosedDelegateHandle );
 	}	
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+void UUnrealEdEngine::UpdateEdModeOnMatineeClose(const FEditorModeID& EditorModeID, bool IsEntering)
+{
+	// if we are closing the Matinee editor
+	if (!IsEntering && EditorModeID == FBuiltinEditorModes::EM_InterpEdit)
+	{
+		// set the autosave timer to save soon
+		if (PackageAutoSaver)
+		{
+			PackageAutoSaver->ForceMinimumTimeTillAutoSave();
+		}
+
+		// Remove this delegate. 
+		GLevelEditorModeTools().OnEditorModeIDChanged().Remove(UpdateEdModeOnMatineeCloseDelegateHandle);
+	}
 }

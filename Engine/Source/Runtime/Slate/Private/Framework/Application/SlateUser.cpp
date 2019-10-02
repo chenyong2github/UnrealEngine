@@ -1153,7 +1153,12 @@ void FSlateUser::UpdateTooltip(const FMenuStack& MenuStack, bool bCanSpawnNewToo
 	{
 		if (TSharedPtr<IMenu> MenuInPath = MenuStack.FindMenuInWidgetPath(WidgetsToQueryForTooltip))
 		{
-			ForceFieldRect = ForceFieldRect->Expand(MenuStack.GetToolTipForceFieldRect(MenuInPath.ToSharedRef(), WidgetsToQueryForTooltip));
+			FSlateRect MenuStackRectangle;
+			const bool bWasSolutionFound = MenuStack.GetToolTipForceFieldRect(MenuInPath.ToSharedRef(), WidgetsToQueryForTooltip, MenuStackRectangle);
+			if (bWasSolutionFound)
+			{
+				ForceFieldRect = ForceFieldRect->Expand(MenuStackRectangle);
+			}
 		}
 	}
 
@@ -1178,11 +1183,11 @@ void FSlateUser::UpdateTooltip(const FMenuStack& MenuStack, bool bCanSpawnNewToo
 		TooltipShift.Y = (ForceFieldRect->Bottom + SlateDefs::TooltipOffsetFromForceField.Y) - DesiredLocation.Y;
 
 		// Make sure the tooltip needs to be offset
-		if (TooltipShift.X > 0.0f && TooltipShift.Y > 0.0f)
+		if (TooltipShift.X != 0.0f && TooltipShift.Y != 0.0f)
 		{
 			// Find the best edge to move the tooltip towards
 			if (ActiveTooltipInfo.OffsetDirection == ETooltipOffsetDirection::Right ||
-				(ActiveTooltipInfo.OffsetDirection == ETooltipOffsetDirection::Undetermined && TooltipShift.X < TooltipShift.Y))
+				(ActiveTooltipInfo.OffsetDirection == ETooltipOffsetDirection::Undetermined && FMath::Abs(TooltipShift.X) < FMath::Abs(TooltipShift.Y)))
 			{
 				// Move right
 				DesiredLocation.X += TooltipShift.X;
