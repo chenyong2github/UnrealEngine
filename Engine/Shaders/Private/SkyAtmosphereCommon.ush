@@ -129,12 +129,12 @@ void SkyViewLutParamsToUv(
 {
 	float Vhorizon = sqrt(ViewHeight * ViewHeight - BottomRadius * BottomRadius);
 	float CosBeta = Vhorizon / ViewHeight;				// GroundToHorizonCos
-	float Beta = acos(CosBeta);
+	float Beta = acosFast(CosBeta);
 	float ZenithHorizonAngle = PI - Beta;
 
 	if (!IntersectGround)
 	{
-		float Coord = acos(ViewZenithCosAngle) / ZenithHorizonAngle;
+		float Coord = acosFast(ViewZenithCosAngle) / ZenithHorizonAngle;
 		Coord = 1.0f - Coord;
 		Coord = sqrt(Coord);
 		Coord = 1.0f - Coord;
@@ -142,13 +142,13 @@ void SkyViewLutParamsToUv(
 	}
 	else
 	{
-		float Coord = (acos(ViewZenithCosAngle) - ZenithHorizonAngle) / Beta;
+		float Coord = (acosFast(ViewZenithCosAngle) - ZenithHorizonAngle) / Beta;
 		Coord = sqrt(Coord);
 		UV.y = Coord * 0.5f + 0.5f;
 	}
 
 	{
-		UV.x = (atan2(-ViewDir.y, -ViewDir.x) + PI) / (2.0f * PI);
+		UV.x = (atan2Fast(-ViewDir.y, -ViewDir.x) + PI) / (2.0f * PI);
 	}
 
 	// Constrain uvs to valid sub texel range (avoid zenith derivative issue making LUT usage visible)
