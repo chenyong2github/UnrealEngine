@@ -5,6 +5,7 @@
 #include "AudioAnalyzerModule.h"
 #include "IAudioAnalyzerNRTInterface.h"
 #include "Features/IModularFeatures.h"
+#include "SampleBuffer.h"
 
 namespace Audio
 {
