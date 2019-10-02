@@ -16,7 +16,7 @@
 	"Modules": [
 		{
 			"Name": "Landmass",
-			"Type": "Editor",
+			"Type": "Runtime",
 			"LoadingPhase": "PreDefault"
 		}
 	]
