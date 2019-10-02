@@ -1714,6 +1714,8 @@ void ULandscapeComponent::RemoveLayerData(const FGuid& InLayerGuid)
 	Modify();
 	check(!LandscapeEditingLayer.IsValid());
 	LayersData.Remove(InLayerGuid);
+	CachedEditingLayer.Invalidate();
+	CachedEditingLayerData = nullptr;
 }
 
 void ULandscapeComponent::SetHeightmap(UTexture2D* NewHeightmap)
