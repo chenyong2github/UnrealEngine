@@ -191,6 +191,9 @@ protected:
 	float MaxTime = 1.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ParametricMovementNetworking)
+	bool bEnableDependentSimulation = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ParametricMovementNetworking)
 	bool bEnableInterpolation = true;
 
 	/** Calls ForceNetUpdate every frame. Has slightly different behavior than a very high NetUpdateFrequency */
