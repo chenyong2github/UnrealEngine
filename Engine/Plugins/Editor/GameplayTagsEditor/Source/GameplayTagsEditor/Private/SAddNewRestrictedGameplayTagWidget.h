@@ -43,7 +43,7 @@ public:
 	void AddSubtagFromParent(const FString& ParentTagName, const FName& ParentTagSource, bool bAllowNonRestrictedChildren);
 
 	/** Resets all input fields */
-	void Reset();
+	void Reset(FName TagSource = NAME_None);
 
 private:
 

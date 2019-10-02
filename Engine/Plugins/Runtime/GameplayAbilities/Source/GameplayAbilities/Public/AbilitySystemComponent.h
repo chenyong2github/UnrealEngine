@@ -249,39 +249,8 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 		{}
 	};
 
-	/**
-	 * This is a list of GameplayAbilities that are predicted by the client and were triggered by abilities that were also predicted by the client
-	 * When the server version of the predicted ability executes it should trigger copies of these and the copies will be associated with the correct prediction keys
-	 */
-	TArray<FPendingAbilityInfo> PendingClientActivatedAbilities;
-
 	/** This is a list of GameplayAbilities that were activated on the server and can't yet execute on the client. It will try to execute these at a later point */
 	TArray<FPendingAbilityInfo> PendingServerActivatedAbilities;
-
-	/** State of execution for an ability, used to track on the server */
-	enum class EAbilityExecutionState : uint8
-	{
-		Executing,
-		Succeeded,
-		Failed,
-	};
-
-	struct FExecutingAbilityInfo
-	{
-		FExecutingAbilityInfo() : State(EAbilityExecutionState::Executing) {};
-
-		bool operator==(const FExecutingAbilityInfo& Other) const
-		{
-			return PredictionKey == Other.PredictionKey	&& State == Other.State;
-		}
-
-		FPredictionKey PredictionKey;
-		EAbilityExecutionState State;
-		FGameplayAbilitySpecHandle Handle;
-	};
-
-	/** List of all executing abilities the server knows about */
-	TArray<FExecutingAbilityInfo> ExecutingServerAbilities;
 
 	// ----------------------------------------------------------------------------------------------------------------
 	//	GameplayEffects: Primary outward facing API for other systems

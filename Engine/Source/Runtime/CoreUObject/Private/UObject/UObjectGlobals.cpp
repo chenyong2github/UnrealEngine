@@ -4582,6 +4582,8 @@ namespace UE4CodeGen_Private
 #endif
 
 		NewClass->StaticLink();
+
+		NewClass->SetSparseClassDataStruct(NewClass->GetSparseClassDataArchetypeStruct());
 	}
 }
 

@@ -90,7 +90,7 @@ void FHoloLensARSystem::Shutdown()
 	SessionConfig = nullptr;
 }
 
-void FHoloLensARSystem::OnWorldTickStart(ELevelTick TickType, float DeltaTime)
+void FHoloLensARSystem::OnWorldTickStart(UWorld* World, ELevelTick TickType, float DeltaTime)
 {
 	UpdateWMRAnchors();
 }

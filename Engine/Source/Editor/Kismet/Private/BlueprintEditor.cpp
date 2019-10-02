@@ -5213,6 +5213,12 @@ void FBlueprintEditor::OnExpandNodes()
 
 	// Expand selected nodes into the focused graph context.
 	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+	
+	if(FocusedGraphEd)
+	{
+		FocusedGraphEd->ClearSelectionSet();
+	}
+
 	for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
 	{
 		ExpandedNodes.Empty();
@@ -5332,14 +5338,19 @@ void FBlueprintEditor::MoveNodesToAveragePos(TSet<UEdGraphNode*>& AverageNodes, 
 
 bool FBlueprintEditor::CanConvertFunctionToEvent() const
 {
-	UEdGraphNode* const SelectedNode = GetSingleSelectedNode();
-	if (SelectedNode)
+	if (UBlueprint* Blueprint = GetBlueprintObj())
 	{
-		if (UK2Node_FunctionEntry* const SelectedCallFunctionNode = Cast<UK2Node_FunctionEntry>(SelectedNode))
+		if (BPTYPE_FunctionLibrary != Blueprint->BlueprintType)
 		{
-			if (SelectedCallFunctionNode->FindSignatureFunction())
+			if (UEdGraphNode* const SelectedNode = GetSingleSelectedNode())
 			{
-				return true;
+				if (UK2Node_FunctionEntry* const SelectedCallFunctionNode = Cast<UK2Node_FunctionEntry>(SelectedNode))
+				{
+					if (SelectedCallFunctionNode->FindSignatureFunction())
+					{
+						return true;
+					}
+				}
 			}
 		}
 	}
@@ -5442,7 +5453,7 @@ void FBlueprintEditor::ConvertFunctionToEvent(UK2Node_FunctionEntry* SelectedCal
 
 		// Keep track of the old connections from the entry node
 		TMap<FString, TSet<UEdGraphPin*>> PinConnections;
-		GetPinConnectionMap(SelectedCallFunctionNode, PinConnections);
+		FEdGraphUtilities::GetPinConnectionMap(SelectedCallFunctionNode, PinConnections);
 
 		FName EventName = Func->GetFName();
 		UClass* const OverrideFuncClass = CastChecked<UClass>(Func->GetOuter())->GetAuthoritativeClass();
@@ -5490,7 +5501,7 @@ void FBlueprintEditor::ConvertFunctionToEvent(UK2Node_FunctionEntry* SelectedCal
 			NewEventNode->CustomFunctionName = EventName;
 			NewEventNode->bOverrideFunction = false;
 
-			// Add every type of user pin that we need tot he new event node
+			// Add every type of user pin that we need to the new event node
 			for (TSharedPtr<FUserPinInfo> Pin : SelectedCallFunctionNode->UserDefinedPins)
 			{
 				NewEventNode->CreateUserDefinedPin(Pin->PinName, Pin->PinType, Pin->DesiredPinDirection);
@@ -5522,7 +5533,8 @@ void FBlueprintEditor::ConvertFunctionToEvent(UK2Node_FunctionEntry* SelectedCal
 		if (NewEventNode)
 		{
 			// Link the nodes from the original function entry node to the new event node
-			ReconnectPinMap(NewEventNode, PinConnections);
+			FEdGraphUtilities::ReconnectPinMap(NewEventNode, PinConnections);
+			FEdGraphUtilities::CopyPinDefaults(SelectedCallFunctionNode, NewEventNode);
 			FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(NewEventNode, false);
 		}
 
@@ -5530,39 +5542,6 @@ void FBlueprintEditor::ConvertFunctionToEvent(UK2Node_FunctionEntry* SelectedCal
 		FBlueprintEditorUtils::RemoveGraph(NodeBP, FunctionGraph, EGraphRemoveFlags::Recompile);
 		FunctionGraph->MarkPendingKill();
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(NodeBP);
-	}
-}
-
-void FBlueprintEditor::GetPinConnectionMap(UEdGraphNode* Node, TMap<FString, TSet<UEdGraphPin*>>& OutPinConnections) const
-{
-	check(Node);
-	
-	for (UEdGraphPin* Pin : Node->Pins)
-	{
-		if (Pin != nullptr)
-		{
-			FString PinName = Pin->GetName();
-
-			// If this is the first time seeing this pin name, add a new set
-			if (!OutPinConnections.Contains(PinName))
-			{
-				OutPinConnections.Add(PinName, TSet<UEdGraphPin*>());
-			}
-			else
-			{
-				// There are no pins connected to this
-				continue;
-			}
-
-			for (UEdGraphPin* ConnectedPin : Pin->LinkedTo)
-			{
-				if (ConnectedPin != nullptr)
-				{
-					// Add to the array of nodes at this pin name
-					OutPinConnections[PinName].Add(ConnectedPin);
-				}
-			}
-		}
 	}
 }
 
@@ -5638,20 +5617,12 @@ void FBlueprintEditor::ConvertEventToFunction(UK2Node_Event* SelectedEventNode)
 
 		const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
 
-		// Break any connections to the delegate pin, because that won't exist 
-		{
-			UEdGraphPin* DelegatePin = SelectedEventNode->FindPin(UK2Node_Event::DelegateOutputName);
-			if (DelegatePin)
-			{
-				DelegatePin->BreakAllPinLinks();
-			}
-		}
 		// Refresh this node before getting the pin names to ensure that we get the most up to date ones
 		Schema->ReconstructNode(*SelectedEventNode);
 
 		// Keep track of the old connections from the event node
 		TMap<FString, TSet<UEdGraphPin*>> PinConnections;
-		GetPinConnectionMap(SelectedEventNode, PinConnections);
+		FEdGraphUtilities::GetPinConnectionMap(SelectedEventNode, PinConnections);
 
 		TArray<UEdGraphNode*> CollapsableNodes = GetAllConnectedNodes(SelectedEventNode);
 
@@ -5682,17 +5653,6 @@ void FBlueprintEditor::ConvertEventToFunction(UK2Node_Event* SelectedEventNode)
 			else
 			{
 				FBlueprintEditorUtils::AddFunctionGraph<UFunction>(NodeBP, NewGraph, /*bIsUserCreated=*/ true, FunctionSig);
-			}
-
-			// Remove any return nodes that may have been added @see UE-78785
-			TArray<UK2Node_FunctionResult*> FunctionReturnNodes;
-			NewGraph->GetNodesOfClass(FunctionReturnNodes);
-			for (UK2Node_FunctionResult* Node : FunctionReturnNodes)
-			{
-				if (Node)
-				{
-					Node->DestroyNode();
-				}
 			}
 			
 			// Get the new entry node
@@ -5743,7 +5703,27 @@ void FBlueprintEditor::ConvertEventToFunction(UK2Node_Event* SelectedEventNode)
 				NewGraph->MarkPendingKill();
 				return;
 			}
+
+			// Remove any return nodes that may have been added @see UE-78785
+			TArray<UK2Node_FunctionResult*> FunctionReturnNodes;
+			NewGraph->GetNodesOfClass(FunctionReturnNodes);
+			for (UK2Node_FunctionResult* Node : FunctionReturnNodes)
+			{
+				if (Node)
+				{
+					Node->DestroyNode();
+				}
+			}
 			
+			// Break any connections to the delegate pin, because that won't exist 
+			{
+				UEdGraphPin* DelegatePin = SelectedEventNode->FindPin(UK2Node_Event::DelegateOutputName);
+				if (DelegatePin)
+				{
+					DelegatePin->BreakAllPinLinks();
+				}
+			}
+
 			// Move the nodes to the new graph
 			UEdGraphNode* Entry = nullptr;
 			UEdGraphNode* Result = nullptr;
@@ -5751,9 +5731,11 @@ void FBlueprintEditor::ConvertEventToFunction(UK2Node_Event* SelectedEventNode)
 			MoveNodesToGraph(CollapsableNodes, NewGraph, ExpandedNodes, &Entry, &Result);
 			
 			// Link the new nodes accordingly
-			ReconnectPinMap(NewEntryNode, PinConnections);
 			if (NewEntryNode)
 			{
+				FEdGraphUtilities::ReconnectPinMap(NewEntryNode, PinConnections);
+				FEdGraphUtilities::CopyPinDefaults(SelectedEventNode, NewEntryNode);
+
 				MoveNodesToAveragePos(ExpandedNodes, FVector2D(NewEntryNode->NodePosX + 500.0f, NewEntryNode->NodePosY));
 			}
 			else
@@ -5788,28 +5770,19 @@ void FBlueprintEditor::ConvertEventToFunction(UK2Node_Event* SelectedEventNode)
 			{
 				IBlueprintNodeBinder::FBindingSet Bindings;
 				UEdGraphNode* OutFunctionNode = UBlueprintFunctionNodeSpawner::Create(NewFunction)->Invoke(SourceGraph, Bindings, NewFuncCallSpawn);
+				if (NewEntryNode)
+				{
+					FEdGraphUtilities::CopyPinDefaults(NewEntryNode, OutFunctionNode);
+				}
+				FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(OutFunctionNode, false);
+			}
+			else if(NewEntryNode)
+			{
+				FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(NewEntryNode, false);
 			}
 		}
 
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(NodeBP);
-	}
-}
-
-void FBlueprintEditor::ReconnectPinMap(UEdGraphNode* Node, const TMap<FString, TSet<UEdGraphPin*>>& PinConnections)
-{
-	check(Node);
-
-	for (UEdGraphPin* const NewPin : Node->Pins)
-	{
-		const FString& NewPinName = NewPin->GetName();
-		if (PinConnections.Contains(NewPinName))
-		{
-			// Connect the new pins here
-			for (UEdGraphPin* OldPin : PinConnections[NewPinName])
-			{
-				NewPin->MakeLinkTo(OldPin);
-			}
-		}
 	}
 }
 
@@ -5977,6 +5950,11 @@ void FBlueprintEditor::DeleteSelectedNodes()
 	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
 
 	SetUISelectionState(NAME_None);
+
+	if(FocusedGraphEd)
+	{
+		FocusedGraphEd->ClearSelectionSet();
+	}
 
 	// this closes all the document that is outered by this node
 	// this is used by AnimBP statemachines/states that can create subgraph
@@ -7848,6 +7826,12 @@ void FBlueprintEditor::MoveNodesToGraph(TArray<UEdGraphNode*>& SourceNodes, UEdG
 		
 		DestinationGraph->AddNode(Node, /* bFromUI */ false, /* bSelectNewNode */ false);
 		
+		if(UK2Node_Composite* Composite = Cast<UK2Node_Composite>(Node))
+		{
+			OriginalGraph->SubGraphs.Remove(Composite->BoundGraph);
+			DestinationGraph->SubGraphs.Add(Composite->BoundGraph);
+		}
+
 		// Want to test exactly against tunnel, we shouldn't collapse embedded collapsed
 		// nodes or macros, only the tunnels in/out of the collapsed graph
 		if (Node->GetClass() == UK2Node_Tunnel::StaticClass())
@@ -9094,9 +9078,15 @@ bool FBlueprintEditor::IsEditingAnimGraph() const
 
 UEdGraph* FBlueprintEditor::GetFocusedGraph() const
 {
-	if(FocusedGraphEdPtr.IsValid())
+	if (FocusedGraphEdPtr.IsValid())
 	{
-		return FocusedGraphEdPtr.Pin()->GetCurrentGraph();
+		if (UEdGraph* Graph = FocusedGraphEdPtr.Pin()->GetCurrentGraph())
+		{
+			if (!Graph->IsPendingKill())
+			{
+				return Graph;
+			}
+		}
 	}
 	return nullptr;
 }

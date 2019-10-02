@@ -52,6 +52,8 @@ public:
 		return Pins[1];
 	}
 
+	BLUEPRINTGRAPH_API UEdGraphNode* GetExecTerminal() const;
+
 private:
 	void PropagatePinType();
 	void PropagatePinTypeFromDirection(bool bFromInput);

@@ -29,6 +29,7 @@ public:
 	TArray<FString> AutoCollapseCategories;
 	TArray<FString> DependsOn;
 	TArray<FString> ClassGroupNames;
+	TArray<FString> SparseClassDataTypes;
 	
 	/**
 	* Parse Class's properties to generate its declaration data.

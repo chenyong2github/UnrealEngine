@@ -165,14 +165,6 @@ class UNREALED_API UBlueprintEditorProjectSettings : public UDeveloperSettings
 
 public:
 	/**
-	 * Flag to disable the compilation manager for blueprints - requires editor restart.
-	 * This flag is deprecated! In 4.21 the compilation manager will be the only way to compile
-	 * blueprints. Report any compilation manager issues immediately.
-	 */
-	UPROPERTY(EditAnywhere, config, Category = Blueprints, DisplayName = "Disable Compilation Manager (DEPRECATED)")
-	uint32 bDisableCompilationManager:1;
-	
-	/**
 	 * Flag to disable faster compiles for individual blueprints if they have no function signature
 	 * changes. This flag is deprecated! In 4.21 there will be no way to force all dependencies to 
 	 * compile when no changes are detected. Report any issues immediately.
