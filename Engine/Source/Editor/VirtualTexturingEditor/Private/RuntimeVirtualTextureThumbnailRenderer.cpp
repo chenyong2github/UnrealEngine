@@ -61,7 +61,7 @@ void URuntimeVirtualTextureThumbnailRenderer::Draw(UObject* Object, int32 X, int
 	FSceneInterface* Scene = RuntimeVirtualTextureComponent != nullptr ? RuntimeVirtualTextureComponent->GetScene() : nullptr;
 	check(Scene != nullptr);
 
-	const FBox2D DestRect = FBox2D(FVector2D(X, Y), FVector2D(Width, Height));
+	const FBox2D DestBox = FBox2D(FVector2D(X, Y), FVector2D(Width, Height));
 	const FTransform Transform = RuntimeVirtualTextureComponent->GetVirtualTextureTransform();
 	const uint32 VirtualTextureSceneIndex = RuntimeVirtualTexture::GetRuntimeVirtualTextureSceneIndex_GameThread(RuntimeVirtualTextureComponent);
 	const ERuntimeVirtualTextureMaterialType MaterialType = RuntimeVirtualTexture->GetMaterialType();
@@ -71,23 +71,26 @@ void URuntimeVirtualTextureThumbnailRenderer::Draw(UObject* Object, int32 X, int
 	const int32 MaxLevel = (int32)FMath::CeilLogTwo(FMath::Max(VTDesc.BlockWidthInTiles, VTDesc.BlockHeightInTiles));
 
 	ENQUEUE_RENDER_COMMAND(BakeStreamingTextureTileCommand)(
-		[Scene, VirtualTextureSceneIndex, MaterialType, RenderTarget, DestRect, Transform, MaxLevel](FRHICommandListImmediate& RHICmdList)
+		[Scene, VirtualTextureSceneIndex, MaterialType, RenderTarget, DestBox, Transform, MaxLevel](FRHICommandListImmediate& RHICmdList)
 	{
 		FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
 
-		RuntimeVirtualTexture::RenderPage(
-			RHICmdList,
-			Scene->GetRenderScene(),
-			1 << VirtualTextureSceneIndex,
-			MaterialType,
-			true,
-			RenderTarget->GetRenderTargetTexture(), DestRect,
-			nullptr, DestRect,
-			nullptr, DestRect,
-			Transform,
-			FBox2D(FVector2D(0, 0), FVector2D(1, 1)),
-			MaxLevel,
-			MaxLevel,
-			ERuntimeVirtualTextureDebugType::None);
+		RuntimeVirtualTexture::FRenderPageBatchDesc Desc;
+		Desc.Scene = Scene->GetRenderScene();
+		Desc.RuntimeVirtualTextureMask = 1 << VirtualTextureSceneIndex;
+		Desc.UVToWorld = Transform;
+		Desc.MaterialType = MaterialType;
+		Desc.MaxLevel = MaxLevel;
+		Desc.bClearTextures = true;
+		Desc.DebugType = ERuntimeVirtualTextureDebugType::None;
+		Desc.NumPageDescs = 1;
+		Desc.Textures[0] = RenderTarget->GetRenderTargetTexture();
+		Desc.Textures[1] = nullptr;
+		Desc.Textures[2] = nullptr;
+		Desc.PageDescs[0].DestBox[0] = DestBox;
+		Desc.PageDescs[0].UVRange = FBox2D(FVector2D(0, 0), FVector2D(1, 1));
+		Desc.PageDescs[0].vLevel = MaxLevel;
+
+		RuntimeVirtualTexture::RenderPages(RHICmdList, Desc);
 	});
 }

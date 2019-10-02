@@ -504,10 +504,9 @@ void URuntimeVirtualTexture::InitializeStreamingTexture(uint32 InSizeX, uint32 I
 
 	StreamingTexture->BuildHash = GetStreamingTextureBuildHash();
 
-	enum { MAX_RVT_LAYERS = 3 };
 	const int32 LayerCount = GetLayerCount();
-	check(LayerCount <= MAX_RVT_LAYERS);
-	ETextureSourceFormat LayerFormats[MAX_RVT_LAYERS];
+	check(LayerCount <= RuntimeVirtualTexture::MaxTextureLayers);
+	ETextureSourceFormat LayerFormats[RuntimeVirtualTexture::MaxTextureLayers];
 
 	for (int32 Layer = 0; Layer < LayerCount; Layer++)
 	{
