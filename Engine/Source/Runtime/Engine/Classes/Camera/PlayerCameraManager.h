@@ -78,10 +78,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=TViewTarget)
 	class APlayerState* PlayerState;
 
-	//@TODO: All for GetNextViewablePlayer
-	friend class APlayerController;
-
 public:
+	class APlayerState* GetPlayerState() const { return PlayerState; }
+	
 	void SetNewTarget(AActor* NewTarget);
 
 	class APawn* GetTargetPawn() const;

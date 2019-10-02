@@ -640,6 +640,12 @@ public:
 	UPROPERTY()
 	uint8 bHasCookedComponentInstancingData:1;
 
+#if WITH_EDITORONLY_DATA
+	/** Used to check if this class has sparse data that can be serialized. This will be false when loading the data if it hasn't already been saved out. */
+	UPROPERTY()
+	uint32 bIsSparseClassDataSerializable : 1;
+#endif // WITH_EDITORONLY_DATA
+
 private:
 	/** Flag to make sure the custom property list has been initialized */
 	uint8 bCustomPropertyListForPostConstructionInitialized:1;
@@ -693,6 +699,9 @@ public:
 	/** Property guid map */
 	UPROPERTY()
 	TMap<FName,FGuid> PropertyGuids;
+
+	UPROPERTY(Transient)
+	TArray<UFunction*> CalledFunctions;
 #endif //WITH_EDITORONLY_DATA
 
 	// Mapping of changed properties & data to apply when instancing components in a cooked build (one entry per named AddComponent node template for fast lookup at runtime).

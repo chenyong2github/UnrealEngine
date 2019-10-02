@@ -1036,6 +1036,10 @@ public:
 			{
 				Writer << (Term->AssociatedVarProperty->HasAnyPropertyFlags(CPF_OutParm) ? EX_LocalOutVariable : EX_LocalVariable);
 			}
+			else if (Term->IsSparseClassDataVarTerm())
+			{
+				Writer << EX_ClassSparseDataVariable;
+			}
 			else
 			{
 				Writer << EX_InstanceVariable;
@@ -1119,6 +1123,8 @@ public:
 	{
 		UFunction* FunctionToCall = Statement.FunctionToCall;
 		check(FunctionToCall);
+
+		ClassBeingBuilt->CalledFunctions.Emplace(FunctionToCall);
 
 		if (FunctionToCall->HasAllFunctionFlags(FUNC_Native))
 		{
@@ -1290,6 +1296,8 @@ public:
 		check(NULL != FunctionToCall);
 		check(NULL != Statement.FunctionContext);
 		check(FunctionToCall->HasAnyFunctionFlags(FUNC_Delegate));
+
+		ClassBeingBuilt->CalledFunctions.Emplace(FunctionToCall);
 
 		// The function to call doesn't have a native index
 		Writer << EX_CallMulticastDelegate;
@@ -2125,6 +2133,11 @@ void FKismetCompilerVMBackend::GenerateCodeFromClass(UClass* SourceClass, TIndir
 			ConstructFunction(Function, bIsUbergraph, bGenerateStubsOnly);
 		}
 	}
+
+	// Remove duplicates from CalledFunctions:
+	UBlueprintGeneratedClass* ClassBeingBuilt = CastChecked<UBlueprintGeneratedClass>(SourceClass);
+	TSet<UFunction*> Unique(ClassBeingBuilt->CalledFunctions);
+	ClassBeingBuilt->CalledFunctions = Unique.Array();
 }
 
 void FKismetCompilerVMBackend::ConstructFunction(FKismetFunctionContext& FunctionContext, bool bIsUbergraph, bool bGenerateStubOnly)

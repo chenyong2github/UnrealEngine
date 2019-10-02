@@ -775,7 +775,7 @@ protected:
 	/**
 	 * Stops the current animation montage.
 	 *
-	 * @param OverrideBlendTime If < 0, will override the BlendOutTime parameter on the AnimMontage instance
+	 * @param OverrideBlendTime If >= 0, will override the BlendOutTime parameter on the AnimMontage instance
 	 */
 	UFUNCTION(BlueprintCallable, Category="Ability|Animation", Meta = (AdvancedDisplay = "OverrideBlendOutTime"))
 	void MontageStop(float OverrideBlendOutTime = -1.0f);

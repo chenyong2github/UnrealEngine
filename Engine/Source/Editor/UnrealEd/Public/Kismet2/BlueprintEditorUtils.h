@@ -647,6 +647,9 @@ public:
 	/** return find first native class in the hierarchy */
 	static UClass* FindFirstNativeClass(UClass* Class);
 
+	/** returns true if this blueprints signature (inc. visibility) was determined by UHT, rather than the blueprint compiler */
+	static bool IsNativeSignature(const UFunction* Fn);
+
 	/**
 	 * Gets the names of all graphs in the Blueprint
 	 *

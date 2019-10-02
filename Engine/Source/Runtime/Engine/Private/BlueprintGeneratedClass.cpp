@@ -57,6 +57,9 @@ UBlueprintGeneratedClass::UBlueprintGeneratedClass(const FObjectInitializer& Obj
 	bHasNativizedParent = false;
 	bHasCookedComponentInstancingData = false;
 	bCustomPropertyListForPostConstructionInitialized = false;
+#if WITH_EDITORONLY_DATA
+	bIsSparseClassDataSerializable = false;
+#endif
 }
 
 void UBlueprintGeneratedClass::PostInitProperties()
@@ -242,71 +245,17 @@ struct FConditionalRecompileClassHepler
 };
 
 extern UNREALED_API FSecondsCounterData BlueprintCompileAndLoadTimerData;
-extern COREUOBJECT_API bool GBlueprintUseCompilationManager;
 
 void UBlueprintGeneratedClass::ConditionalRecompileClass(FUObjectSerializeContext* InLoadContext)
 {
-	if(GBlueprintUseCompilationManager)
-	{
-		FBlueprintCompilationManager::FlushCompilationQueue(InLoadContext);
-		return;
-	}
-	
-	FSecondsCounterScope Timer(BlueprintCompileAndLoadTimerData);
-
-	UBlueprint* GeneratingBP = Cast<UBlueprint>(ClassGeneratedBy);
-	if (GeneratingBP && (GeneratingBP->SkeletonGeneratedClass != this))
-	{
-		const FConditionalRecompileClassHepler::ENeededAction NecessaryAction = FConditionalRecompileClassHepler::IsConditionalRecompilationNecessary(GeneratingBP);
-		if (FConditionalRecompileClassHepler::Recompile == NecessaryAction)
-		{
-			const bool bWasRegenerating = GeneratingBP->bIsRegeneratingOnLoad;
-			GeneratingBP->bIsRegeneratingOnLoad = true;
-
-			{
-				UPackage* const Package = GeneratingBP->GetOutermost();
-				const bool bStartedWithUnsavedChanges = Package != nullptr ? Package->IsDirty() : true;
-
-				// Make sure that nodes are up to date, so that we get any updated blueprint signatures
-				FBlueprintEditorUtils::RefreshExternalBlueprintDependencyNodes(GeneratingBP);
-
-				// Normal blueprints get their status reset by RecompileBlueprintBytecode, but macros will not:
-				if ((GeneratingBP->Status != BS_Error) && (GeneratingBP->BlueprintType == EBlueprintType::BPTYPE_MacroLibrary))
-				{
-					GeneratingBP->Status = BS_UpToDate;
-				}
-
-				if (Package != nullptr && Package->IsDirty() && !bStartedWithUnsavedChanges)
-				{
-					Package->SetDirtyFlag(false);
-				}
-			}
-			if ((GeneratingBP->Status != BS_Error) && (GeneratingBP->BlueprintType != EBlueprintType::BPTYPE_MacroLibrary))
-			{
-				FKismetEditorUtilities::RecompileBlueprintBytecode(GeneratingBP);
-			}
-
-			GeneratingBP->bIsRegeneratingOnLoad = bWasRegenerating;
-		}
-		else if (FConditionalRecompileClassHepler::StaticLink == NecessaryAction)
-		{
-			StaticLink(true);
-			if (*GeneratingBP->SkeletonGeneratedClass)
-			{
-				GeneratingBP->SkeletonGeneratedClass->StaticLink(true);
-			}
-		}
-	}
+	FBlueprintCompilationManager::FlushCompilationQueue(InLoadContext);
 }
 
 void UBlueprintGeneratedClass::FlushCompilationQueueForLevel()
 {
-	if(GBlueprintUseCompilationManager)
+	if(Cast<ULevelScriptBlueprint>(ClassGeneratedBy))
 	{
-		if(Cast<ULevelScriptBlueprint>(ClassGeneratedBy))
-		{
-			FBlueprintCompilationManager::FlushCompilationQueue(nullptr);
-		}
+		FBlueprintCompilationManager::FlushCompilationQueue(nullptr);
 	}
 }
 
@@ -409,6 +358,16 @@ void UBlueprintGeneratedClass::SerializeDefaultObject(UObject* Object, FStructur
 			CheckAndApplyComponentTemplateOverrides(ClassDefaultObject);
 		}
 	}
+
+#if WITH_EDITORONLY_DATA
+	if (bIsSparseClassDataSerializable)
+#endif
+	{
+		if (Object->GetSparseClassDataStruct())
+		{
+			SerializeSparseClassData(Object, FStructuredArchiveFromArchive(UnderlyingArchive).GetSlot());
+		}
+	}
 }
 
 void UBlueprintGeneratedClass::PostLoadDefaultObject(UObject* Object)
@@ -428,6 +387,18 @@ void UBlueprintGeneratedClass::PostLoadDefaultObject(UObject* Object)
 			ClassDefaultObject->LoadConfig();
 		}
 	}
+
+#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
+	Object->MoveDataToSparseClassDataStruct();
+
+	if (Object->GetSparseClassDataStruct())
+	{
+		// now that any data has been moved into the sparse data structure we can safely serialize it
+		bIsSparseClassDataSerializable = true;
+	}
+#endif
+#endif
 }
 
 bool UBlueprintGeneratedClass::BuildCustomPropertyListForPostConstruction(FCustomPropertyListNode*& InPropertyList, UStruct* InStruct, const uint8* DataPtr, const uint8* DefaultDataPtr)
@@ -1572,6 +1543,7 @@ void UBlueprintGeneratedClass::PurgeClass(bool bRecompilingOnLoad)
 #if UE_BLUEPRINT_EVENTGRAPH_FASTCALLS
 	FastCallPairs_DEPRECATED.Empty();
 #endif
+	CalledFunctions.Empty();
 #endif //WITH_EDITOR
 }
 
