@@ -214,7 +214,8 @@ private:
 };
 
 FXmppMultiUserChatJingle::FXmppMultiUserChatJingle(class FXmppConnectionJingle& InConnection)
-	: Connection(InConnection)
+	: FTickerObjectBase(0.0f, FBackgroundableTicker::GetCoreTicker())
+	, Connection(InConnection)
 	, NumOpRequests(0)
 	, NumMucResponses(0)
 	, VerbosityIncreasedCount(0)
