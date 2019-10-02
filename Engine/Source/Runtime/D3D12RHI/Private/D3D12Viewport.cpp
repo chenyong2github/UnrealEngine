@@ -913,6 +913,46 @@ void FD3D12CommandContextBase::RHIEndDrawingViewport(FRHIViewport* ViewportRHI, 
 	}
 }
 
+struct FRHICommandSignalFrameFence final : public FRHICommand<FRHICommandSignalFrameFence>
+{
+	ED3D12CommandQueueType QueueType;
+	FD3D12ManualFence* const Fence;
+	const uint64 Value;
+	FORCEINLINE_DEBUGGABLE FRHICommandSignalFrameFence(ED3D12CommandQueueType InQueueType, FD3D12ManualFence* InFence, uint64 InValue)
+		: QueueType(InQueueType)
+		, Fence(InFence)
+		, Value(InValue)
+	{ 
+	}
+
+	void Execute(FRHICommandListBase& CmdList)
+	{
+		Fence->Signal(QueueType, Value);
+		check(Fence->GetLastSignaledFence() == Value);
+	}
+};
+
+void FD3D12DynamicRHI::RHIAdvanceFrameFence()
+{
+	check(IsInRenderingThread());
+
+	// Increment the current fence (on render thread timeline).
+	FD3D12ManualFence* FrameFence = &GetAdapter().GetFrameFence();
+	const uint64 PreviousFence = FrameFence->IncrementCurrentFence();
+
+	// Queue a command to signal on RHI thread that the current frame is a complete on the GPU.
+	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+	if (RHICmdList.Bypass() || !IsRunningRHIInSeparateThread())
+	{
+		FRHICommandSignalFrameFence Cmd(ED3D12CommandQueueType::Default, FrameFence, PreviousFence);
+		Cmd.Execute(RHICmdList);
+	}
+	else
+	{
+		ALLOC_COMMAND_CL(RHICmdList, FRHICommandSignalFrameFence)(ED3D12CommandQueueType::Default, FrameFence, PreviousFence);
+	}
+}
+
 void FD3D12DynamicRHI::RHIAdvanceFrameForGetViewportBackBuffer(FRHIViewport* ViewportRHI)
 {
 	check(IsInRenderingThread());

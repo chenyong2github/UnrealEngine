@@ -9,7 +9,7 @@
 class FLevelEditorViewportClient;
 class SLevelViewport;
 
-class LEVELEDITOR_API FLevelViewportLayoutEntity : public IViewportLayoutEntity
+class LEVELEDITOR_API FLevelViewportLayoutEntity : public ILevelViewportLayoutEntity
 {
 public:
 

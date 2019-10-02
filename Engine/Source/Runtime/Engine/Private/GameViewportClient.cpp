@@ -3008,12 +3008,14 @@ bool UGameViewportClient::HandleShowLayerCommand( const TCHAR* Cmd, FOutputDevic
 
 			if (Actor->Layers.Contains(LayerFName))
 			{
+				const bool bHiddenLocal = Actor->IsHidden();
+
 				// look for always toggle, or a set when it's unset, etc
-				if ((SetMode == -1) || (SetMode == 0 && !Actor->bHidden) || (SetMode != 0 && Actor->bHidden))
+				if ((SetMode == -1) || (SetMode == 0 && !bHiddenLocal) || (SetMode != 0 && bHiddenLocal))
 				{
 					NumActorsToggled++;
 					// Note: overriding existing hidden property, ideally this would be something orthogonal
-					Actor->bHidden = !Actor->bHidden;
+					Actor->SetHidden(!bHiddenLocal);
 
 					Actor->MarkComponentsRenderStateDirty();
 				}

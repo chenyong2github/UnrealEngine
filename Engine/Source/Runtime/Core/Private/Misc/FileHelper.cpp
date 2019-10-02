@@ -121,11 +121,11 @@ void FFileHelper::BufferToString( FString& Result, const uint8* Buffer, int32 Si
  * @param Filename name of the file to load
  * @param VerifyFlags flags controlling the hash verification behavior ( see EHashOptions )
  */
-bool FFileHelper::LoadFileToString( FString& Result, const TCHAR* Filename, EHashOptions VerifyFlags )
+bool FFileHelper::LoadFileToString( FString& Result, const TCHAR* Filename, EHashOptions VerifyFlags, uint32 ReadFlags)
 {
 	FScopedLoadingState ScopedLoadingState(Filename);
 
-	TUniquePtr<FArchive> Reader( IFileManager::Get().CreateFileReader( Filename ) );
+	TUniquePtr<FArchive> Reader( IFileManager::Get().CreateFileReader( Filename, ReadFlags) );
 	if( !Reader )
 	{
 		return false;

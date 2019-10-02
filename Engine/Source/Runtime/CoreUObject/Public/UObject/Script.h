@@ -270,6 +270,7 @@ enum EExprToken
 	EX_SwitchValue			= 0x69,
 	EX_InstrumentationEvent	= 0x6A, // Instrumentation event
 	EX_ArrayGetByRef		= 0x6B,
+	EX_ClassSparseDataVariable = 0x6C, // Sparse data variable
 	EX_Max					= 0x100,
 };
 

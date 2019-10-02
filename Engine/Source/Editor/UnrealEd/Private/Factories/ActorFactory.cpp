@@ -769,7 +769,7 @@ void UActorFactoryPhysicsAsset::PostSpawnActor(UObject* Asset, AActor* NewActor)
 	NewSkelActor->GetSkeletalMeshComponent()->bBlendPhysics = true;
 
 	NewSkelActor->bAlwaysRelevant = true;
-	NewSkelActor->bReplicateMovement = true;
+	NewSkelActor->SetReplicatingMovement(true);
 	NewSkelActor->SetReplicates(true);
 
 	// Init Component
@@ -798,7 +798,7 @@ void UActorFactoryPhysicsAsset::PostCreateBlueprint( UObject* Asset, AActor* CDO
 		SkeletalPhysicsActor->GetSkeletalMeshComponent()->bBlendPhysics = true;
 
 		SkeletalPhysicsActor->bAlwaysRelevant = true;
-		SkeletalPhysicsActor->bReplicateMovement = true;
+		SkeletalPhysicsActor->SetReplicatingMovement(true);
 		SkeletalPhysicsActor->SetReplicates(true);
 	}
 }

@@ -81,10 +81,15 @@ public:
 	 */
 	virtual void OnEndDrag(const FRay& Ray);
 
-	/**
-	 * This function is called each frame while the tool is active, to support hover updates
-	 */
-	virtual void OnUpdateHover(const FInputDeviceRay& DevicePos) {}
+
+
+	// IHoverBehaviorTarget implementation
+	
+	virtual FInputRayHit BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos) override;
+	virtual void OnBeginHover(const FInputDeviceRay& DevicePos) override {}
+	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override { return true; }
+	virtual void OnEndHover() override {}
+
 
 
 
@@ -92,12 +97,21 @@ public:
 	virtual void SetShiftToggle(bool bShiftDown);
 
 	/** @return current state of the shift toggle */
-	virtual bool GetShiftToggle() { return bShiftToggle; }
+	virtual bool GetShiftToggle() const { return bShiftToggle; }
+
+	/** Called by registered InputBehaviors to set the state of the "shift" button (or device equivalent) */
+	virtual void SetCtrlToggle(bool bCtrlDown);
+
+	/** @return current state of the shift toggle */
+	virtual bool GetCtrlToggle() const { return bCtrlToggle; }
 
 
 protected:
 	/** Current state of the shift modifier toggle */
-	bool bShiftToggle;
+	bool bShiftToggle = false;
+
+	/** Current state of the ctrl modifier toggle */
+	bool bCtrlToggle = false;
 };
 
 

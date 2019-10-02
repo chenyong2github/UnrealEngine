@@ -64,20 +64,12 @@ void FEventChannelCurveModel::AddKeys(TArrayView<const FKeyPosition> InKeyPositi
 			Section->ExpandToFrame(Time);
 
 			FMovieSceneEvent Value;
-// 
-// 			if (Attributes.HasInterpMode())    { Value.InterpMode            = Attributes.GetInterpMode();    }
-// 			if (Attributes.HasTangentMode())   { Value.TangentMode           = Attributes.GetTangentMode();   }
-// 			if (Attributes.HasArriveTangent()) { Value.Tangent.ArriveTangent = Attributes.GetArriveTangent(); }
-// 			if (Attributes.HasLeaveTangent())  { Value.Tangent.LeaveTangent  = Attributes.GetLeaveTangent();  }
-
 			int32 KeyIndex = ChannelData.AddKey(Time, Value);
 			if (OutKeyHandles)
 			{
 				(*OutKeyHandles)[Index] = ChannelData.GetHandle(KeyIndex);
 			}
 		}
-
-		// Channel->AutoSetTangents();
 	}
 }
 
@@ -200,189 +192,10 @@ void FEventChannelCurveModel::SetKeyPositions(TArrayView<const FKeyHandle> InKey
 
 void FEventChannelCurveModel::GetKeyAttributes(TArrayView<const FKeyHandle> InKeys, TArrayView<FKeyAttributes> OutAttributes) const
 {
-// 	FMovieSceneEventChannel* Channel = ChannelHandle.Get();
-// 	UMovieSceneSection*      Section = WeakSection.Get();
-// 	if (Channel && Section)
-// 	{
-// 		TMovieSceneChannelData<FMovieSceneEvent> ChannelData = Channel->GetData();
-// 		TArrayView<const FFrameNumber>    Times  = ChannelData.GetTimes();
-// 		TArrayView<FMovieSceneEvent> Values = ChannelData.GetValues();
-// 
-// 		float TimeInterval = Section->GetTypedOuter<UMovieScene>()->GetTickResolution().AsInterval();
-// 
-// 		for (int32 Index = 0; Index < InKeys.Num(); ++Index)
-// 		{
-// 			const int32 KeyIndex = ChannelData.GetIndex(InKeys[Index]);
-// 			if (KeyIndex != INDEX_NONE)
-// 			{
-// 				const FMovieSceneEvent& KeyValue    = Values[KeyIndex];
-// 				FKeyAttributes&              Attributes  = OutAttributes[Index];
-// 
-// 				Attributes.SetInterpMode(KeyValue.InterpMode);
-// 
-// 				if (KeyValue.InterpMode != RCIM_Constant && KeyValue.InterpMode != RCIM_Linear)
-// 				{
-// 					Attributes.SetTangentMode(KeyValue.TangentMode);
-// 					if (KeyIndex != 0)
-// 					{
-// 						Attributes.SetArriveTangent(KeyValue.Tangent.ArriveTangent / TimeInterval);
-// 					}
-// 
-// 					if (KeyIndex != Times.Num()-1)
-// 					{
-// 						Attributes.SetLeaveTangent(KeyValue.Tangent.LeaveTangent / TimeInterval);
-// 					}
-// 					if (KeyValue.InterpMode == RCIM_Cubic)
-// 					{
-// 						Attributes.SetTangentWeightMode(KeyValue.Tangent.TangentWeightMode);
-// 						if (KeyValue.Tangent.TangentWeightMode != RCTWM_WeightedNone)
-// 						{
-// 							Attributes.SetArriveTangentWeight(KeyValue.Tangent.ArriveTangentWeight);
-// 							Attributes.SetLeaveTangentWeight(KeyValue.Tangent.LeaveTangentWeight);
-// 						}
-// 					}
-// 				}
-// 			}
-// 		}
-// 	}
 }
 
 void FEventChannelCurveModel::SetKeyAttributes(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyAttributes> InAttributes)
 {
-// 	FMovieSceneEventChannel* Channel = ChannelHandle.Get();
-// 	UMovieSceneSection*      Section = WeakSection.Get();
-// 	if (Channel && Section)
-// 	{
-// 		bool bAutoSetTangents = false;
-// 		Section->MarkAsChanged();
-// 
-// 		TMovieSceneChannelData<FMovieSceneEvent> ChannelData = Channel->GetData();
-// 		TArrayView<FMovieSceneEvent> Values = ChannelData.GetValues();
-// 
-// 		FFrameRate TickResolution = Section->GetTypedOuter<UMovieScene>()->GetTickResolution();
-// 		float TimeInterval = TickResolution.AsInterval();
-// 
-// 		for (int32 Index = 0; Index < InKeys.Num(); ++Index)
-// 		{
-// 			const int32 KeyIndex = ChannelData.GetIndex(InKeys[Index]);
-// 			if (KeyIndex != INDEX_NONE)
-// 			{
-// 				const FKeyAttributes&  Attributes = InAttributes[Index];
-// 				FMovieSceneEvent& KeyValue   = Values[KeyIndex];
-// 				if (Attributes.HasInterpMode())    { KeyValue.InterpMode  = Attributes.GetInterpMode();  bAutoSetTangents = true; }
-// 				if (Attributes.HasTangentMode())
-// 				{
-// 					KeyValue.TangentMode = Attributes.GetTangentMode();
-// 					if (KeyValue.TangentMode == RCTM_Auto)
-// 					{
-// 						KeyValue.Tangent.TangentWeightMode = RCTWM_WeightedNone;
-// 					}
-// 					bAutoSetTangents = true;
-// 				}
-// 				if (Attributes.HasTangentWeightMode()) 
-// 				{ 
-// 					if (KeyValue.Tangent.TangentWeightMode == RCTWM_WeightedNone) //set tangent weights to default use
-// 					{
-// 						TArrayView<const FFrameNumber> Times = Channel->GetTimes();
-// 						const float OneThird = 1.0f / 3.0f;
-// 
-// 						//calculate a tangent weight based upon tangent and time difference
-// 						//calculate arrive tangent weight
-// 						if (KeyIndex > 0 )
-// 						{
-// 							const float X = TickResolution.AsSeconds(Times[KeyIndex].Value - Times[KeyIndex - 1].Value);
-// 							const float ArriveTangentNormal = KeyValue.Tangent.ArriveTangent / (TimeInterval);
-// 							const float Y = ArriveTangentNormal * X;
-// 							KeyValue.Tangent.ArriveTangentWeight = FMath::Sqrt(X*X + Y * Y) * OneThird;
-// 						}
-// 						//calculate leave weight
-// 						if(KeyIndex < ( Times.Num() - 1))
-// 						{
-// 							const float X = TickResolution.AsSeconds(Times[KeyIndex].Value - Times[KeyIndex + 1].Value);
-// 							const float LeaveTangentNormal = KeyValue.Tangent.LeaveTangent / (TimeInterval);
-// 							const float Y = LeaveTangentNormal * X;
-// 							KeyValue.Tangent.LeaveTangentWeight = FMath::Sqrt(X*X + Y*Y) * OneThird;
-// 						}
-// 					}
-// 					KeyValue.Tangent.TangentWeightMode = Attributes.GetTangentWeightMode();
-// 
-// 					if( KeyValue.Tangent.TangentWeightMode != RCTWM_WeightedNone )
-// 					{
-// 						if (KeyValue.TangentMode != RCTM_User && KeyValue.TangentMode != RCTM_Break)
-// 						{
-// 							KeyValue.TangentMode = RCTM_User;
-// 						}
-// 					}
-// 				}
-// 
-// 				if (Attributes.HasArriveTangent())
-// 				{
-// 					if (KeyValue.TangentMode == RCTM_Auto)
-// 					{
-// 						KeyValue.TangentMode = RCTM_User;
-// 						KeyValue.Tangent.TangentWeightMode = RCTWM_WeightedNone;
-// 					}
-// 
-// 					KeyValue.Tangent.ArriveTangent = Attributes.GetArriveTangent() * TimeInterval;
-// 					if (KeyValue.InterpMode == RCIM_Cubic && KeyValue.TangentMode != RCTM_Break)
-// 					{
-// 						KeyValue.Tangent.LeaveTangent = KeyValue.Tangent.ArriveTangent;
-// 					}
-// 				}
-// 
-// 				if (Attributes.HasLeaveTangent())
-// 				{
-// 					if (KeyValue.TangentMode == RCTM_Auto)
-// 					{
-// 						KeyValue.TangentMode = RCTM_User;
-// 						KeyValue.Tangent.TangentWeightMode = RCTWM_WeightedNone;
-// 					}
-// 
-// 					KeyValue.Tangent.LeaveTangent = Attributes.GetLeaveTangent() * TimeInterval;
-// 					if (KeyValue.InterpMode == RCIM_Cubic && KeyValue.TangentMode != RCTM_Break)
-// 					{
-// 						KeyValue.Tangent.ArriveTangent = KeyValue.Tangent.LeaveTangent;
-// 					}
-// 				}
-// 
-// 				if (Attributes.HasArriveTangentWeight())
-// 				{
-// 					if (KeyValue.TangentMode == RCTM_Auto)
-// 					{
-// 						KeyValue.TangentMode = RCTM_User;
-// 						KeyValue.Tangent.TangentWeightMode = RCTWM_WeightedNone;
-// 					}
-// 
-// 					KeyValue.Tangent.ArriveTangentWeight = Attributes.GetArriveTangentWeight(); 
-// 					if (KeyValue.InterpMode == RCIM_Cubic && KeyValue.TangentMode != RCTM_Break)
-// 					{
-// 						KeyValue.Tangent.LeaveTangentWeight = KeyValue.Tangent.ArriveTangentWeight;
-// 					}
-// 				}
-// 
-// 				if (Attributes.HasLeaveTangentWeight())
-// 				{
-// 				
-// 					if (KeyValue.TangentMode == RCTM_Auto)
-// 					{
-// 						KeyValue.TangentMode = RCTM_User;
-// 						KeyValue.Tangent.TangentWeightMode = RCTWM_WeightedNone;
-// 					}
-// 
-// 					KeyValue.Tangent.LeaveTangentWeight = Attributes.GetLeaveTangentWeight();
-// 					if (KeyValue.InterpMode == RCIM_Cubic && KeyValue.TangentMode != RCTM_Break)
-// 					{
-// 						KeyValue.Tangent.ArriveTangentWeight = KeyValue.Tangent.LeaveTangentWeight;
-// 					}
-// 				}
-// 			}
-// 		}
-// 
-// 		if (bAutoSetTangents)
-// 		{
-// 			Channel->AutoSetTangents();
-// 		}
-// 	}
 }
 
 void FEventChannelCurveModel::GetCurveAttributes(FCurveAttributes& OutCurveAttributes) const
@@ -394,18 +207,10 @@ void FEventChannelCurveModel::GetCurveAttributes(FCurveAttributes& OutCurveAttri
 
 void FEventChannelCurveModel::SetCurveAttributes(const FCurveAttributes& InCurveAttributes)
 {
-	// Event Channels have no Pre/Post Extrapolation
 }
 
 void FEventChannelCurveModel::CreateKeyProxies(TArrayView<const FKeyHandle> InKeyHandles, TArrayView<UObject*> OutObjects)
 {
-	// for (int32 Index = 0; Index < InKeyHandles.Num(); ++Index)
-	// {
-	// 	UFloatChannelKeyProxy* NewProxy = NewObject<UFloatChannelKeyProxy>(GetTransientPackage(), NAME_None);
-	// 
-	// 	NewProxy->Initialize(InKeyHandles[Index], ChannelHandle, WeakSection);
-	// 	OutObjects[Index] = NewProxy;
-	// }
 }
 
 void FEventChannelCurveModel::GetTimeRange(double& MinTime, double& MaxTime) const
@@ -431,42 +236,6 @@ void FEventChannelCurveModel::GetTimeRange(double& MinTime, double& MaxTime) con
 	}
 }
 
-/*	 Finds min/max for cubic curves:
-Looks for feature points in the signal(determined by change in direction of local tangent), these locations are then re-examined in closer detail recursively
-Similar to function in RichCurve but usees the Channel::Evaluate function, instead of CurveModel::Eval*/
-
-void FEventChannelCurveModel::FeaturePointMethod(double StartTime, double EndTime, double StartValue, double Mu, int Depth, int MaxDepth, double& MaxV, double& MinVal) const
-{
-	if (Depth >= MaxDepth)
-	{
-		return;
-	}
-	double PrevValue = StartValue;
-	double EvalValue;
-	Evaluate(StartTime - Mu, EvalValue);
-	double PrevTangent = StartValue - EvalValue;
-	EndTime += Mu;
-	for (double f = StartTime + Mu; f < EndTime; f += Mu)
-	{
-		double Value;
-		Evaluate(f, Value);
-
-		MaxV = FMath::Max(Value, MaxV);
-		MinVal = FMath::Min(Value, MinVal);
-		double CurTangent = Value - PrevValue;
-		if (FMath::Sign(CurTangent) != FMath::Sign(PrevTangent))
-		{
-			//feature point centered around the previous tangent
-			double FeaturePointTime = f - Mu * 2.0f;
-			double NewVal;
-			Evaluate(FeaturePointTime, NewVal);
-			FeaturePointMethod(FeaturePointTime, f,NewVal, Mu*0.4f, Depth + 1, MaxDepth, MaxV, MinVal);
-		}
-		PrevTangent = CurTangent;
-		PrevValue = Value;
-	}
-}
-
 void FEventChannelCurveModel::GetValueRange(double& MinValue, double& MaxValue) const
 {
 	// Event Tracks have no value, thus their value range is just zero.
@@ -479,8 +248,7 @@ int32 FEventChannelCurveModel::GetNumKeys() const
 
 	if (Channel)
 	{
-		TArrayView<const FFrameNumber> Times = Channel->GetData().GetTimes();
-		return Times.Num();
+		return Channel->GetData().GetTimes().Num();
 	}
 
 	return 0;

@@ -56,7 +56,7 @@ void FGameplayDebuggerExtension_Spectator::ToggleSpectatorMode()
 		FActorSpawnParameters SpawnInfo;
 		SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 		SpawnInfo.Owner = OwnerPC->GetWorldSettings();
-		SpawnInfo.Instigator = OwnerPC->Instigator;
+		SpawnInfo.Instigator = OwnerPC->GetInstigator();
 		SpectatorControllerOb = OwnerPC->GetWorld()->SpawnActor<ADebugCameraController>(SpawnInfo);
 
 		if (SpectatorControllerOb)

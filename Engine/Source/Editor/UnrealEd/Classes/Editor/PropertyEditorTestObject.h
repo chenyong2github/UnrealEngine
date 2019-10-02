@@ -542,6 +542,15 @@ class UPropertyEditorTestObject : public UObject
 	UPROPERTY(EditAnywhere, Category = EditCondition, meta = (EditCondition = "FloatEditCondition < 10"))
 	bool bEnabledWhenFloatLessThan10;
 
+	UPROPERTY(EditAnywhere, Category = EditCondition)
+	bool bEditConditionForArrays;
+
+	UPROPERTY(EditAnywhere, Category = EditCondition, meta = (EditCondition = "bEditConditionForArrays"))
+	TArray<UTexture2D*> ArrayWithEditCondition;
+
+	UPROPERTY(EditAnywhere, Category = EditCondition, meta = (EditCondition = "bEditConditionForArrays"))
+	TArray<FPropertyEditorTestBasicStruct> ArrayOfStructsWithEditCondition;
+
 	UPROPERTY(EditAnywhere, Category = OnlyInlineProperty, meta = (InlineCategoryProperty))
 	TEnumAsByte<EComponentMobility::Type> InlineProperty;
 

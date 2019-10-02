@@ -10,10 +10,12 @@ void FGeometrySet3::Reset(bool bPoints, bool bCurves)
 	if (bPoints)
 	{
 		Points.Reset();
+		PointIDToIndex.Reset();
 	}
 	if (bCurves)
 	{
 		Curves.Reset();
+		CurveIDToIndex.Reset();
 	}
 }
 

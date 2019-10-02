@@ -585,7 +585,7 @@ FTimeSynthClipHandle UTimeSynthComponent::PlayClip(UTimeSynthClip* InClip, UTime
 		return FTimeSynthClipHandle();
 	}
 
-	if (!bIsActive)
+	if (!IsActive())
 	{
 		SetActive(true);
 	}

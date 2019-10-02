@@ -155,4 +155,3 @@ FTickerObjectBase::~FTickerObjectBase()
 		TickHandle = FDelegateHandle();
 	}
 }
-

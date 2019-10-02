@@ -18,8 +18,6 @@
 #endif
 #define D3D12_USE_DERIVED_PSO PLATFORM_XBOXONE
 
-static bool GCPUSupportsSSE4;
-
 #if D3D12RHI_USE_HIGH_LEVEL_PSO_CACHE
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Graphics: Num high-level cache entries"), STAT_PSOGraphicsNumHighlevelCacheEntries, STATGROUP_D3D12PipelineState);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Graphics: High-level cache hit"), STAT_PSOGraphicsHighlevelCacheHit, STATGROUP_D3D12PipelineState);
@@ -79,6 +77,7 @@ struct FD3D12LowLevelGraphicsPipelineStateDesc
 	ShaderBytecodeHash DSHash;
 	ShaderBytecodeHash GSHash;
 	ShaderBytecodeHash PSHash;
+	uint32 InputLayoutHash;
 
 	SIZE_T CombinedHash;
 
@@ -493,10 +492,10 @@ public:
 	FD3D12ComputePipelineState* FindInLoadedCache(FD3D12ComputeShader* ComputeShader, FD3D12ComputePipelineStateDesc& OutLowLevelDesc);
 	FD3D12ComputePipelineState* CreateAndAdd(FD3D12ComputeShader* ComputeShader, const FD3D12ComputePipelineStateDesc& LowLevelDesc);
 
-	static SIZE_T HashPSODesc(const FD3D12LowLevelGraphicsPipelineStateDesc& Desc);
-	static SIZE_T HashPSODesc(const FD3D12ComputePipelineStateDesc& Desc);
+	static uint64 HashPSODesc(const FD3D12LowLevelGraphicsPipelineStateDesc& Desc);
+	static uint64 HashPSODesc(const FD3D12ComputePipelineStateDesc& Desc);
 
-	static uint32 HashData(const void* Data, SIZE_T NumBytes);
+	static uint64 HashData(const void* Data, int32 NumBytes);
 
 	FD3D12PipelineStateCacheBase(FD3D12Adapter* InParent);
 	virtual ~FD3D12PipelineStateCacheBase();

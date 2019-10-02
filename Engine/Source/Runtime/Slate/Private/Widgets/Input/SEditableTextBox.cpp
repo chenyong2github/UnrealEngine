@@ -12,7 +12,8 @@
 SEditableTextBox::SEditableTextBox()
 {
 #if WITH_ACCESSIBILITY
-	AccessibleData = FAccessibleWidgetData(EAccessibleBehavior::Auto, EAccessibleBehavior::Auto, false);
+	AccessibleBehavior = EAccessibleBehavior::Auto;
+	bCanChildrenBeAccessible = false;
 #endif
 }
 
@@ -90,18 +91,6 @@ void SEditableTextBox::Construct( const FArguments& InArgs )
 			ErrorReporting->AsWidget()
 		];
 	}
-
-#if WITH_ACCESSIBILITY
-	// These functions need to be called again because SWidget::Construct is called before SEditableText is created.
-	if (AccessibleData.AccessibleBehavior != EAccessibleBehavior::Custom)
-	{
-		SetDefaultAccessibleText(EAccessibleType::Main);
-	}
-	if (AccessibleData.AccessibleSummaryBehavior != EAccessibleBehavior::Custom)
-	{
-		SetDefaultAccessibleText(EAccessibleType::Summary);
-	}
-#endif
 }
 
 void SEditableTextBox::SetStyle(const FEditableTextBoxStyle* InStyle)
@@ -425,14 +414,14 @@ TSharedRef<FSlateAccessibleWidget> SEditableTextBox::CreateAccessibleWidget()
 	return MakeShareable<FSlateAccessibleWidget>(new FSlateAccessibleEditableTextBox(SharedThis(this)));
 }
 
-void SEditableTextBox::SetDefaultAccessibleText(EAccessibleType AccessibleType)
+TOptional<FText> SEditableTextBox::GetDefaultAccessibleText(EAccessibleType AccessibleType) const
 {
 	// The parent Construct() function will call this before EditableText exists,
 	// so we need a guard here to ignore that function call.
 	if (EditableText.IsValid())
 	{
-		TAttribute<FText>& Text = (AccessibleType == EAccessibleType::Main) ? AccessibleData.AccessibleText : AccessibleData.AccessibleSummaryText;
-		Text.Bind(EditableText.Get(), &SEditableText::GetHintText);
+		return EditableText->GetHintText();
 	}
+	return TOptional<FText>();
 }
 #endif

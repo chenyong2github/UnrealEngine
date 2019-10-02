@@ -511,6 +511,12 @@ void FKismetBytecodeDisassembler::ProcessCommon(int32& ScriptIndex, EExprToken O
 			Ar.Logf(TEXT("%s $%X: Local out variable named %s"), *Indents, (int32)Opcode, PropertyPtr ? *PropertyPtr->GetName() : TEXT("(null)"));
 			break;
 		}
+	case EX_ClassSparseDataVariable:
+		{
+			UProperty* PropertyPtr = ReadPointer<UProperty>(ScriptIndex);
+			Ar.Logf(TEXT("%s $%X: Class sparse data variable named %s"), *Indents, (int32)Opcode, PropertyPtr ? *PropertyPtr->GetName() : TEXT("(null)"));
+			break;
+		}
 	case EX_InterfaceContext:
 		{
 			Ar.Logf(TEXT("%s $%X: EX_InterfaceContext:"), *Indents, (int32)Opcode);

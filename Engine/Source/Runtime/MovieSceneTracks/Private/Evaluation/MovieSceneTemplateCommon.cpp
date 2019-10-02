@@ -50,8 +50,8 @@ void F3DTransformTrackToken::Apply(USceneComponent& SceneComponent, float DeltaT
 	SceneComponent.SetRelativeScale3D(Scale);
 
 	// Force the location and rotation values to avoid Rot->Quat->Rot conversions
-	SceneComponent.RelativeLocation = Translation;
-	SceneComponent.RelativeRotation = Rotation;
+	SceneComponent.SetRelativeLocation_Direct(Translation);
+	SceneComponent.SetRelativeRotation_Direct(Rotation);
 
 	if (DeltaTime > 0.f)
 	{

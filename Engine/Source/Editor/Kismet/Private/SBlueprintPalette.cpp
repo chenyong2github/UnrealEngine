@@ -1320,25 +1320,6 @@ void SBlueprintPaletteItem::OnNameTextCommitted(const FText& NewText, ETextCommi
 			if (ExistingGraph == nullptr || ExistingGraph == Graph)
 			{
 				const FScopedTransaction Transaction( LOCTEXT( "Rename Function", "Rename Function" ) );
-
-				// Search through all function entry nodes for local variables to update their scope name
-				TArray<UK2Node_Variable*> VariableNodes;
-				Graph->GetNodesOfClass<UK2Node_Variable>(VariableNodes);
-				for (const UEdGraph* SubGraph : Graph->SubGraphs)
-				{
-					check(SubGraph != nullptr);
-					SubGraph->GetNodesOfClass<UK2Node_Variable>(VariableNodes);
-				}
-
-				for (UK2Node_Variable* const VariableNode : VariableNodes)
-				{
-					if(VariableNode->VariableReference.IsLocalScope())
-					{
-						// Update the variable's scope to be the graph's name (which mirrors the UFunction)
-						VariableNode->VariableReference.SetLocalMember(VariableNode->VariableReference.GetMemberName(), NewNameString, VariableNode->VariableReference.GetMemberGuid());
-					}
-				}
-
 				FBlueprintEditorUtils::RenameGraph(Graph, NewNameString );
 			}
 		}

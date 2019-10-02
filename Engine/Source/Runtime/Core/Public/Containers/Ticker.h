@@ -72,7 +72,7 @@ public:
 	CORE_API void Tick(float DeltaTime);
 
 
-private:
+protected:
 	/**
 	 * Element of the priority queue
 	 */

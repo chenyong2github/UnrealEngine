@@ -3111,7 +3111,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 			}
 
 			// Compute the new sample index in the temporal sequence.
-			int32 TemporalSampleIndex = ViewState->TemporalAASampleIndex + 1;
+			int32 TemporalSampleIndex			= ViewState->TemporalAASampleIndex + 1;
 			if(TemporalSampleIndex >= TemporalAASamples || View.bCameraCut)
 			{
 				TemporalSampleIndex = 0;
@@ -3120,7 +3120,8 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 			// Updates view state.
 			if (!View.bStatePrevViewInfoIsReadOnly && !bFreezeTemporalSequences)
 			{
-				ViewState->TemporalAASampleIndex = TemporalSampleIndex;
+				ViewState->TemporalAASampleIndex		  = TemporalSampleIndex;
+				ViewState->TemporalAASampleIndexUnclamped = ViewState->TemporalAASampleIndexUnclamped+1;
 			}
 
 			// Choose sub pixel sample coordinate in the temporal sequence.

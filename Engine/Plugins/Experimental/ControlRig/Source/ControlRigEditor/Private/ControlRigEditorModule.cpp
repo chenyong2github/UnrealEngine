@@ -12,9 +12,7 @@
 #include "GraphEditorActions.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "ISequencerModule.h"
-#include "ControlRigTrackEditor.h"
 #include "IAssetTools.h"
-#include "ControlRigSequenceActions.h"
 #include "ControlRigEditorStyle.h"
 #include "Framework/Docking/LayoutExtender.h"
 #include "Framework/Application/SlateApplication.h"
@@ -25,16 +23,12 @@
 #include "WorkflowOrientedApp/WorkflowTabManager.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "Sequencer/ControlRigSequence.h"
 #include "EditorModeRegistry.h"
 #include "ControlRigEditMode.h"
-#include "ControlRigEditorObjectBinding.h"
-#include "ControlRigEditorObjectSpawner.h"
 #include "ILevelSequenceModule.h"
-#include "ControlRigBindingTrackEditor.h"
 #include "EditorModeManager.h"
 #include "ControlRigEditMode.h"
-#include "Sequencer/MovieSceneControlRigSection.h"
+#include "Sequencer/MovieSceneControlRigParameterSection.h"
 #include "MovieSceneControlRigSectionDetailsCustomization.h"
 #include "ControlRigEditModeCommands.h"
 #include "Materials/Material.h"
@@ -77,6 +71,7 @@
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "ControlRigParameterTrackEditor.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditorModule"
 
@@ -101,10 +96,6 @@ void FControlRigEditorModule::StartupModule()
 	FControlRigStackCommands::Register();
 	FControlRigEditorStyle::Get();
 
-	CommandBindings = MakeShareable(new FUICommandList());
-
-	BindCommands();
-
 	MenuExtensibilityManager = MakeShareable(new FExtensibilityManager);
 	ToolBarExtensibilityManager = MakeShareable(new FExtensibilityManager);
 
@@ -119,7 +110,7 @@ void FControlRigEditorModule::StartupModule()
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	ClassesToUnregisterOnShutdown.Reset();
 
-	ClassesToUnregisterOnShutdown.Add(UMovieSceneControlRigSection::StaticClass()->GetFName());
+	ClassesToUnregisterOnShutdown.Add(UMovieSceneControlRigParameterSection::StaticClass()->GetFName());
 	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FMovieSceneControlRigSectionDetailsCustomization::MakeInstance));
 
 	ClassesToUnregisterOnShutdown.Add(UControlRigSequenceExporterSettings::StaticClass()->GetFName());
@@ -140,7 +131,6 @@ void FControlRigEditorModule::StartupModule()
 	// same as ClassesToUnregisterOnShutdown but for properties, there is none right now
 	PropertiesToUnregisterOnShutdown.Reset();
 
-
 	// Register asset tools
 	auto RegisterAssetTypeAction = [this](const TSharedRef<IAssetTypeActions>& InAssetTypeAction)
 	{
@@ -149,41 +139,12 @@ void FControlRigEditorModule::StartupModule()
 		AssetTools.RegisterAssetTypeActions(InAssetTypeAction);
 	};
 
-	RegisterAssetTypeAction(MakeShareable(new FControlRigSequenceActions()));
 	RegisterAssetTypeAction(MakeShareable(new FControlRigBlueprintActions()));
 	RegisterAssetTypeAction(MakeShareable(new FControlRigGizmoLibraryActions()));
 	
 	// Register sequencer track editor
 	ISequencerModule& SequencerModule = FModuleManager::Get().LoadModuleChecked<ISequencerModule>("Sequencer");
-	SequencerCreatedHandle = SequencerModule.RegisterOnSequencerCreated(FOnSequencerCreated::FDelegate::CreateRaw(this, &FControlRigEditorModule::HandleSequencerCreated));
-	ControlRigTrackCreateEditorHandle = SequencerModule.RegisterTrackEditor(FOnCreateTrackEditor::CreateStatic(&FControlRigTrackEditor::CreateTrackEditor));
-	ControlRigBindingTrackCreateEditorHandle = SequencerModule.RegisterTrackEditor(FOnCreateTrackEditor::CreateStatic(&FControlRigBindingTrackEditor::CreateTrackEditor));
-	ControlRigEditorObjectBindingHandle = SequencerModule.RegisterEditorObjectBinding(FOnCreateEditorObjectBinding::CreateStatic(&FControlRigEditorObjectBinding::CreateEditorObjectBinding));
-
-	SequencerToolbarExtender = MakeShareable(new FExtender());
-	SequencerToolbarExtender->AddToolBarExtension(
-		"Level Sequence Separator",
-		EExtensionHook::Before,
-		CommandBindings,
-		FToolBarExtensionDelegate::CreateLambda([](FToolBarBuilder& ToolBarBuilder)
-		{
-			ToolBarBuilder.AddToolBarButton(FControlRigEditModeCommands::Get().ExportAnimSequence);
-		}));
-
-	SequencerModule.GetToolBarExtensibilityManager()->AddExtender(SequencerToolbarExtender);
-
-	// Register for assets being opened
-	AssetEditorOpenedHandle = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnAssetEditorOpened().AddRaw(this, &FControlRigEditorModule::HandleAssetEditorOpened);
-
-	// Register level sequence spawner
-	ILevelSequenceModule& LevelSequenceModule = FModuleManager::LoadModuleChecked<ILevelSequenceModule>("LevelSequence");
-	LevelSequenceSpawnerDelegateHandle = LevelSequenceModule.RegisterObjectSpawner(FOnCreateMovieSceneObjectSpawner::CreateStatic(&FControlRigEditorObjectSpawner::CreateObjectSpawner));
-
-	TrajectoryMaterial = LoadObject<UMaterial>(nullptr, TEXT("/ControlRig/M_Traj.M_Traj"));
-	if (TrajectoryMaterial.IsValid())
-	{
-		TrajectoryMaterial->AddToRoot();
-	}
+	ControlRigParameterTrackCreateEditorHandle = SequencerModule.RegisterTrackEditor(FOnCreateTrackEditor::CreateStatic(&FControlRigParameterTrackEditor::CreateTrackEditor));
 
 	FEditorModeRegistry::Get().RegisterMode<FControlRigEditMode>(
 		FControlRigEditMode::ModeName,
@@ -197,126 +158,6 @@ void FControlRigEditorModule::StartupModule()
 		FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRigEditMode", "ControlRigEditMode.Small"),
 		false);
 
-	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
-	ContentBrowserModule.GetAllAssetViewContextMenuExtenders().Add(FContentBrowserMenuExtender_SelectedAssets::CreateLambda([this](const TArray<FAssetData>& SelectedAssets)
-	{
-		TSharedRef<FExtender> Extender = MakeShared<FExtender>();
-
-		if (SelectedAssets.ContainsByPredicate([](const FAssetData& AssetData) { return AssetData.GetClass() == UAnimSequence::StaticClass(); }))
-		{
-			Extender->AddMenuExtension(
-				"GetAssetActions",
-				EExtensionHook::After,
-				CommandBindings,
-				FMenuExtensionDelegate::CreateLambda([this, SelectedAssets](FMenuBuilder& MenuBuilder)
-				{
-					const TSharedPtr<FUICommandInfo>& ImportFromRigSequence = FControlRigEditModeCommands::Get().ImportFromRigSequence;
-					MenuBuilder.AddMenuEntry(
-						ImportFromRigSequence->GetLabel(),
-						ImportFromRigSequence->GetDescription(),
-						ImportFromRigSequence->GetIcon(),
-						FUIAction(FExecuteAction::CreateRaw(this, &FControlRigEditorModule::ImportFromRigSequence, SelectedAssets)));
-				}));
-
-			// only add this if we find a control rig sequence targeting this anim sequence in the asset registry
-			FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-			
-			bool bCanReimport = false;
-			if (SelectedAssets.Num() > 0)
-			{
-				// It's faster to find all assets with this tag and then query them against the selection then it is to 
-				// query the asset registry each time for a tag with a particular value
-				const FName LastExportedToAnimationSequenceTagName = GET_MEMBER_NAME_CHECKED(UControlRigSequence, LastExportedToAnimationSequence);
-				TArray<FAssetData> FoundAssets;
-				{
-					TArray<FName> Tags;
-					Tags.Add(LastExportedToAnimationSequenceTagName);
-					AssetRegistryModule.Get().GetAssetsByTags(Tags, FoundAssets);
-				}
-
-				if (FoundAssets.Num() > 0)
-				{
-					for(const FAssetData& AssetData : SelectedAssets)
-					{
-						const bool bFoundAsset = FoundAssets.ContainsByPredicate([&AssetData, LastExportedToAnimationSequenceTagName](const FAssetData& FoundAsset)
-						{
-							const FName TagValue = FoundAsset.GetTagValueRef<FName>(LastExportedToAnimationSequenceTagName);
-							return TagValue == AssetData.ObjectPath;
-						});
-
-						if (bFoundAsset)
-						{
-							bCanReimport = true;
-							break;
-						}
-					}
-				}
-			}
-
-			if (bCanReimport)
-			{
-				Extender->AddMenuExtension(
-					"GetAssetActions",
-					EExtensionHook::After,
-					CommandBindings,
-					FMenuExtensionDelegate::CreateLambda([this, SelectedAssets](FMenuBuilder& MenuBuilder)
-					{
-						const TSharedPtr<FUICommandInfo>& ReImportFromRigSequence = FControlRigEditModeCommands::Get().ReImportFromRigSequence;
-						MenuBuilder.AddMenuEntry(
-							ReImportFromRigSequence->GetLabel(),
-							ReImportFromRigSequence->GetDescription(),
-							ReImportFromRigSequence->GetIcon(),
-							FUIAction(FExecuteAction::CreateRaw(this, &FControlRigEditorModule::ReImportFromRigSequence, SelectedAssets)));
-					}));
-			}
-		}
-		else if (SelectedAssets.ContainsByPredicate([](const FAssetData& AssetData) { return AssetData.GetClass() == UControlRigSequence::StaticClass(); }))
-		{
-			Extender->AddMenuExtension(
-				"CommonAssetActions",
-				EExtensionHook::Before,
-				CommandBindings,
-				FMenuExtensionDelegate::CreateLambda([this, SelectedAssets](FMenuBuilder& MenuBuilder)
-				{
-					MenuBuilder.BeginSection("ControlRigActions", LOCTEXT("ControlRigActions", "Control Rig Sequence Actions"));
-					{
-						const TSharedPtr<FUICommandInfo>& ExportAnimSequence = FControlRigEditModeCommands::Get().ExportAnimSequence;
-						MenuBuilder.AddMenuEntry(
-							ExportAnimSequence->GetLabel(),
-							ExportAnimSequence->GetDescription(),
-							ExportAnimSequence->GetIcon(),
-							FUIAction(FExecuteAction::CreateRaw(this, &FControlRigEditorModule::ExportToAnimSequence, SelectedAssets)));
-
-						bool bCanReExport = false;
-						for (const FAssetData& AssetData : SelectedAssets)
-						{
-							if(UControlRigSequence* ControlRigSequence = Cast<UControlRigSequence>(AssetData.GetAsset()))
-							{
-								if (ControlRigSequence->LastExportedToAnimationSequence.IsValid())
-								{
-									bCanReExport = true;
-									break;
-								}
-							}
-						}
-
-						if (bCanReExport)
-						{
-							const TSharedPtr<FUICommandInfo>& ReExportAnimSequence = FControlRigEditModeCommands::Get().ReExportAnimSequence;
-							MenuBuilder.AddMenuEntry(
-								ReExportAnimSequence->GetLabel(),
-								ReExportAnimSequence->GetDescription(),
-								ReExportAnimSequence->GetIcon(),
-								FUIAction(FExecuteAction::CreateRaw(this, &FControlRigEditorModule::ReExportToAnimSequence, SelectedAssets)));
-						}
-					}
-					MenuBuilder.EndSection();
-				}));
-		}
-	
-		return Extender;
-	}));
-	ContentBrowserMenuExtenderHandle = ContentBrowserModule.GetAllAssetViewContextMenuExtenders().Last().GetHandle();
 
 	ControlRigGraphPanelNodeFactory = MakeShared<FControlRigGraphPanelNodeFactory>();
 	FEdGraphUtilities::RegisterVisualNodeFactory(ControlRigGraphPanelNodeFactory);
@@ -359,44 +200,14 @@ void FControlRigEditorModule::ShutdownModule()
 	FEdGraphUtilities::UnregisterVisualPinFactory(ControlRigGraphPanelPinFactory);
 	FEdGraphUtilities::UnregisterVisualNodeFactory(ControlRigGraphPanelNodeFactory);
 
-	FContentBrowserModule* ContentBrowserModule = FModuleManager::GetModulePtr<FContentBrowserModule>(TEXT("ContentBrowser"));
-	if (ContentBrowserModule)
-	{
-		ContentBrowserModule->GetAllAssetViewContextMenuExtenders().RemoveAll([=](const FContentBrowserMenuExtender_SelectedAssets& InDelegate) { return ContentBrowserMenuExtenderHandle == InDelegate.GetHandle(); });
-	}
-
-	if (TrajectoryMaterial.IsValid())
-	{
-		TrajectoryMaterial->RemoveFromRoot();
-	}
-
-	if (GEditor)
-	{
-		if (UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
-		{
-			AssetEditorSubsystem->OnAssetEditorOpened().Remove(AssetEditorOpenedHandle);
-		}
-	}
-
 	FEditorModeRegistry::Get().UnregisterMode(FControlRigEditorEditMode::ModeName);
 	FEditorModeRegistry::Get().UnregisterMode(FControlRigEditMode::ModeName);
 
-	ILevelSequenceModule* LevelSequenceModule = FModuleManager::GetModulePtr<ILevelSequenceModule>("LevelSequence");
-	if (LevelSequenceModule)
-	{
-		LevelSequenceModule->UnregisterObjectSpawner(LevelSequenceSpawnerDelegateHandle);
-	}
 
 	ISequencerModule* SequencerModule = FModuleManager::GetModulePtr<ISequencerModule>("Sequencer");
 	if (SequencerModule)
 	{
-		SequencerModule->UnregisterOnSequencerCreated(SequencerCreatedHandle);
-		SequencerModule->UnRegisterTrackEditor(ControlRigTrackCreateEditorHandle);
-		SequencerModule->UnRegisterTrackEditor(ControlRigBindingTrackCreateEditorHandle);
-		SequencerModule->UnRegisterEditorObjectBinding(ControlRigEditorObjectBindingHandle);
-
-		SequencerModule->GetToolBarExtensibilityManager()->RemoveExtender(SequencerToolbarExtender);
-		SequencerToolbarExtender = nullptr;
+		SequencerModule->UnRegisterTrackEditor(ControlRigParameterTrackCreateEditorHandle);
 	}
 
 	FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools");
@@ -429,8 +240,6 @@ void FControlRigEditorModule::ShutdownModule()
 			PropertyEditorModule->UnregisterCustomPropertyTypeLayout(PropertiesToUnregisterOnShutdown[Index]);
 		}
 	}
-
-	CommandBindings = nullptr;
 }
 
 void FControlRigEditorModule::HandleNewBlueprintCreated(UBlueprint* InBlueprint)
@@ -444,310 +253,6 @@ void FControlRigEditorModule::HandleNewBlueprintCreated(UBlueprint* InBlueprint)
 	InBlueprint->LastEditedDocuments.AddUnique(ControlRigGraph);
 }
 
-void FControlRigEditorModule::HandleSequencerCreated(TSharedRef<ISequencer> InSequencer)
-{
-	TWeakPtr<ISequencer> LocalSequencer = InSequencer;
-
-	// Record the last sequencer we opened that was editing a control rig sequence
-	UMovieSceneSequence* FocusedSequence = InSequencer->GetFocusedMovieSceneSequence();
-	if (UControlRigSequence* FocusedControlRigSequence = ExactCast<UControlRigSequence>(FocusedSequence))
-	{
-		WeakSequencer = InSequencer;
-	}
-
-	// We want to be informed of sequence activations (subsequences or not)
-	auto HandleActivateSequence = [this, LocalSequencer](FMovieSceneSequenceIDRef Ref)
-	{
-		if (LocalSequencer.IsValid())
-		{
-			TSharedRef<ISequencer> Sequencer = LocalSequencer.Pin().ToSharedRef();
-			UMovieSceneSequence* Sequence = Sequencer->GetFocusedMovieSceneSequence();
-			if (UControlRigSequence* ControlRigSequence = ExactCast<UControlRigSequence>(Sequence))
-			{
-				WeakSequencer = LocalSequencer;
-
-				GLevelEditorModeTools().ActivateMode(FControlRigEditMode::ModeName);
-
-				if (FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName)))
-				{
-					ControlRigEditMode->SetSequencer(Sequencer);
-				}
-			}
-			else
-			{
-				if (FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName)))
-				{
-					ControlRigEditMode->SetSequencer(nullptr);
-					ControlRigEditMode->SetObjects(TWeakObjectPtr<>(), FGuid(), nullptr);
-				}
-			}
-		}
-	};
-
-	InSequencer->OnActivateSequence().AddLambda(HandleActivateSequence);
-
-	// Call into activation callback to handle initial activation
-	FMovieSceneSequenceID SequenceID = MovieSceneSequenceID::Root;
-	HandleActivateSequence(SequenceID);
-
-	InSequencer->GetSelectionChangedObjectGuids().AddLambda([LocalSequencer](TArray<FGuid> InObjectBindings)
-	{
-		if (LocalSequencer.IsValid())
-		{
-			TSharedRef<ISequencer> Sequencer = LocalSequencer.Pin().ToSharedRef();
-			UMovieSceneSequence* Sequence = Sequencer->GetFocusedMovieSceneSequence();
-			if (UControlRigSequence* ControlRigSequence = ExactCast<UControlRigSequence>(Sequence))
-			{
-				TWeakObjectPtr<> SelectedObject;
-				FGuid ObjectBinding;
-				if(InObjectBindings.Num() > 0)
-				{
-					ObjectBinding = InObjectBindings[0];
-					TArrayView<TWeakObjectPtr<>> BoundObjects = Sequencer->FindBoundObjects(ObjectBinding, Sequencer->GetFocusedTemplateID());
-					if(BoundObjects.Num() > 0)
-					{
-						SelectedObject = BoundObjects[0];
-					}
-				}
-
-				if (SelectedObject.IsValid())
-				{
-					GLevelEditorModeTools().ActivateMode(FControlRigEditMode::ModeName);
-					if (FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName)))
-					{
-						ControlRigEditMode->SetObjects(SelectedObject, ObjectBinding, nullptr);
-					}
-				}
-			}
-		}
-	});
-
-	InSequencer->OnMovieSceneDataChanged().AddLambda([LocalSequencer](EMovieSceneDataChangeType DataChangeType)
-	{
-		if (LocalSequencer.IsValid())
-		{
-			TSharedRef<ISequencer> Sequencer = LocalSequencer.Pin().ToSharedRef();
-			UMovieSceneSequence* Sequence = Sequencer->GetFocusedMovieSceneSequence();
-			if (UControlRigSequence* ControlRigSequence = ExactCast<UControlRigSequence>(Sequence))
-			{
-				if (FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName)))
-				{
-					ControlRigEditMode->RefreshObjects();
-				}
-			}
-		}
-	});
-
-	InSequencer->GetSelectionChangedTracks().AddLambda([LocalSequencer](TArray<UMovieSceneTrack*> InTracks)
-	{
-		if (LocalSequencer.IsValid())
-		{
-			TSharedRef<ISequencer> Sequencer = LocalSequencer.Pin().ToSharedRef();
-			UMovieSceneSequence* Sequence = Sequencer->GetFocusedMovieSceneSequence();
-			if (UControlRigSequence* ControlRigSequence = ExactCast<UControlRigSequence>(Sequence))
-			{
-				TArray<FString> PropertyPaths;
-
-				// Look for any property tracks that might drive our rig manipulators
-				for (UMovieSceneTrack* Track : InTracks)
-				{
-					if (UMovieScenePropertyTrack* PropertyTrack = Cast<UMovieScenePropertyTrack>(Track))
-					{
-						PropertyPaths.Add(PropertyTrack->GetPropertyPath());
-					}
-				}
-
-				if (FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName)))
-				{
-					ControlRigEditMode->ClearRigElementSelection(FRigElementTypeHelper::ToMask(ERigElementType::All));
-					for (int32 Index = 0; Index < PropertyPaths.Num(); ++Index)
-					{
-						ControlRigEditMode->SetRigElementSelection(ERigElementType::Control, FName(*PropertyPaths[Index], FNAME_Find), true);
-					}
-					
-				}
-			}
-		}
-	});
-
-	InSequencer->OnPostSave().AddLambda([](ISequencer& InSequencerThatSaved)
-	{
-		UMovieSceneSequence* Sequence = InSequencerThatSaved.GetFocusedMovieSceneSequence();
-		if (UControlRigSequence* ControlRigSequence = ExactCast<UControlRigSequence>(Sequence))
-		{
-			if (FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName)))
-			{
-				ControlRigEditMode->ReBindToActor();
-			}
-		}
-	});
-
-	InSequencer->OnGetIsTrackVisible().BindRaw(this, &FControlRigEditorModule::IsTrackVisible);
-}
-
-void FControlRigEditorModule::HandleAssetEditorOpened(UObject* InAsset)
-{
-	if (UControlRigSequence* ControlRigSequence = ExactCast<UControlRigSequence>(InAsset))
-	{
-		GLevelEditorModeTools().ActivateMode(FControlRigEditMode::ModeName);
-
-		if (FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName)))
-		{
-			ControlRigEditMode->ReBindToActor();
-		}
-	}
-}
-
-void FControlRigEditorModule::OnInitializeSequence(UControlRigSequence* Sequence)
-{
-	auto* ProjectSettings = GetDefault<UMovieSceneToolsProjectSettings>();
-	UMovieScene* MovieScene = Sequence->GetMovieScene();
-	
-	FFrameNumber StartFrame = (ProjectSettings->DefaultStartTime * MovieScene->GetTickResolution()).RoundToFrame();
-	int32        Duration   = (ProjectSettings->DefaultDuration  * MovieScene->GetTickResolution()).RoundToFrame().Value;
-
-	MovieScene->SetPlaybackRange(StartFrame, Duration);
-}
-
-void FControlRigEditorModule::BindCommands()
-{
-	const FControlRigEditModeCommands& Commands = FControlRigEditModeCommands::Get();
-
-	CommandBindings->MapAction(
-		Commands.ExportAnimSequence,
-		FExecuteAction::CreateRaw(this, &FControlRigEditorModule::ExportAnimSequenceFromSequencer),
-		FCanExecuteAction(),
-		FGetActionCheckState(), 
-		FIsActionButtonVisible::CreateRaw(this, &FControlRigEditorModule::CanExportAnimSequenceFromSequencer));
-}
-
-bool FControlRigEditorModule::CanExportAnimSequenceFromSequencer() const
-{
-	if (WeakSequencer.IsValid())
-	{
-		TSharedRef<ISequencer> Sequencer = WeakSequencer.Pin().ToSharedRef();
-		return ExactCast<UControlRigSequence>(Sequencer->GetFocusedMovieSceneSequence()) != nullptr;
-	}
-
-	return false;
-}
-
-void FControlRigEditorModule::ExportAnimSequenceFromSequencer()
-{
-	// if we have an active sequencer, get the sequence
-	UControlRigSequence* ControlRigSequence = nullptr;
-	if (WeakSequencer.IsValid())
-	{
-		TSharedRef<ISequencer> Sequencer = WeakSequencer.Pin().ToSharedRef();
-		ControlRigSequence = ExactCast<UControlRigSequence>(Sequencer->GetFocusedMovieSceneSequence());
-	}
-
-	// If we are bound to an actor in the edit mode, auto pick skeletal mesh to use for binding
-	USkeletalMesh* SkeletalMesh = nullptr;
-	if (FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName)))
-	{
-		TLazyObjectPtr<AActor> ActorPtr = ControlRigEditMode->GetSettings()->Actor;
-		if (ActorPtr.IsValid())
-		{
-			if (USkeletalMeshComponent* SkeletalMeshComponent = ActorPtr->FindComponentByClass<USkeletalMeshComponent>())
-			{
-				SkeletalMesh = SkeletalMeshComponent->SkeletalMesh;
-			}
-		}
-	}
-
-	if (ControlRigSequence)
-	{
-		ControlRigSequenceConverter::Convert(ControlRigSequence, nullptr, SkeletalMesh);
-	}
-}
-
-void FControlRigEditorModule::ExportToAnimSequence(TArray<FAssetData> InAssetData)
-{
-	for (const FAssetData& AssetData : InAssetData)
-	{
-		UControlRigSequence* ControlRigSequence = Cast<UControlRigSequence>(AssetData.GetAsset());
-		if (ControlRigSequence)
-		{
-			ControlRigSequenceConverter::Convert(ControlRigSequence, nullptr, nullptr);
-		}
-	}
-}
-
-void FControlRigEditorModule::ReExportToAnimSequence(TArray<FAssetData> InAssetData)
-{
-	for (const FAssetData& AssetData : InAssetData)
-	{
-		UControlRigSequence* ControlRigSequence = Cast<UControlRigSequence>(AssetData.GetAsset());
-		if (ControlRigSequence)
-		{
-			UAnimSequence* AnimSequence = ControlRigSequence->LastExportedToAnimationSequence.LoadSynchronous();
-			USkeletalMesh* SkeletalMesh = ControlRigSequence->LastExportedUsingSkeletalMesh.LoadSynchronous();
-			bool bShowDialog = AnimSequence == nullptr || SkeletalMesh == nullptr;
-
-			ControlRigSequenceConverter::Convert(ControlRigSequence, AnimSequence, SkeletalMesh, bShowDialog);
-		}
-	}
-}
-
-void FControlRigEditorModule::ImportFromRigSequence(TArray<FAssetData> InAssetData)
-{
-	for (const FAssetData& AssetData : InAssetData)
-	{
-		UAnimSequence* AnimSequence = Cast<UAnimSequence>(AssetData.GetAsset());
-		if (AnimSequence)
-		{
-			ControlRigSequenceConverter::Convert(nullptr, AnimSequence, nullptr);
-		}
-	}
-}
-
-void FControlRigEditorModule::ReImportFromRigSequence(TArray<FAssetData> InAssetData)
-{
-	for (const FAssetData& AssetData : InAssetData)
-	{
-		UAnimSequence* AnimSequence = Cast<UAnimSequence>(AssetData.GetAsset());
-		USkeletalMesh* SkeletalMesh = nullptr;
-		UControlRigSequence* ControlRigSequence = nullptr;
-
-		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-
-		TMultiMap<FName, FString> TagsAndValues;
-		TagsAndValues.Add(GET_MEMBER_NAME_CHECKED(UControlRigSequence, LastExportedToAnimationSequence), AssetData.ObjectPath.ToString());
-
-		TArray<FAssetData> FoundAssets;
-		AssetRegistryModule.Get().GetAssetsByTagValues(TagsAndValues, FoundAssets);
-
-		if (FoundAssets.Num() > 0)
-		{
-			ControlRigSequence = Cast<UControlRigSequence>(FoundAssets[0].GetAsset());
-			if (ControlRigSequence)
-			{
-				SkeletalMesh = ControlRigSequence->LastExportedUsingSkeletalMesh.LoadSynchronous();
-			}
-		}
-
-		bool bShowDialog = ControlRigSequence == nullptr || AnimSequence == nullptr || SkeletalMesh == nullptr;
-
-		ControlRigSequenceConverter::Convert(ControlRigSequence, AnimSequence, SkeletalMesh, bShowDialog);
-	}
-}
-
-bool FControlRigEditorModule::IsTrackVisible(const UMovieSceneTrack* InTrack)
-{
-	if (FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName)))
-	{		
-		// If nothing selected, show all nodes
-		if (ControlRigEditMode->AreRigElementsSelected(FRigElementTypeHelper::ToMask(ERigElementType::Control)) == 0)
-		{
-			return true;
-		}
-
-		return ControlRigEditMode->SelectedRigElements.Contains(FRigElementKey(InTrack->GetTrackName(), ERigElementType::Control));
-	}
-
-	return true;
-}
 
 TSharedRef<IControlRigEditor> FControlRigEditorModule::CreateControlRigEditor(const EToolkitMode::Type Mode, const TSharedPtr< IToolkitHost >& InitToolkitHost, class UControlRigBlueprint* InBlueprint)
 {

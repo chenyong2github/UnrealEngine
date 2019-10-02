@@ -51,7 +51,7 @@ UGameplayTasksComponent::UGameplayTasksComponent(const FObjectInitializer& Objec
 	PrimaryComponentTick.bStartWithTickEnabled = false;
 	PrimaryComponentTick.bCanEverTick = true;
 
-	bReplicates = true;
+	SetIsReplicatedByDefault(true);
 	bInEventProcessingInProgress = false;
 	TopActivePriority = 0;
 }
@@ -250,7 +250,7 @@ bool UGameplayTasksComponent::GetShouldTick() const
 
 void UGameplayTasksComponent::RequestTicking()
 {
-	if (bIsActive == false)
+	if (IsActive() == false)
 	{
 		SetActive(true);
 	}
@@ -259,7 +259,7 @@ void UGameplayTasksComponent::RequestTicking()
 void UGameplayTasksComponent::UpdateShouldTick()
 {
 	const bool bShouldTick = GetShouldTick();	
-	if (bIsActive != bShouldTick)
+	if (IsActive() != bShouldTick)
 	{
 		SetActive(bShouldTick);
 	}

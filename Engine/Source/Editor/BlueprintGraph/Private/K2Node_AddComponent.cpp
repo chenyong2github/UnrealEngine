@@ -446,7 +446,7 @@ void UK2Node_AddComponent::ExpandNode(class FKismetCompilerContext& CompilerCont
 		USceneComponent* SceneCompTemplate = Cast<USceneComponent>(CompilerContext.Blueprint->FindTemplateByName(FName(*TemplateName)));
 		if (SceneCompTemplate)
 		{
-			FTransform TemplateTransform = FTransform(SceneCompTemplate->RelativeRotation, SceneCompTemplate->RelativeLocation, SceneCompTemplate->RelativeScale3D);
+			FTransform TemplateTransform = FTransform(SceneCompTemplate->GetRelativeRotation(), SceneCompTemplate->GetRelativeLocation(), SceneCompTemplate->GetRelativeScale3D());
 			DefaultValue = TemplateTransform.ToString();
 		}
 

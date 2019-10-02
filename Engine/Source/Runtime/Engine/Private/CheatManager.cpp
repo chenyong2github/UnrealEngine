@@ -38,6 +38,7 @@
 #include "GameFramework/InputSettings.h"
 #include "Misc/CoreDelegates.h"
 #include "Engine/NetConnection.h"
+#include "HAL/PlatformApplicationMisc.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogCheatManager, Log, All);
 
@@ -181,16 +182,16 @@ void UCheatManager::Ghost()
 void UCheatManager::God()
 {
 	APawn* Pawn = GetOuterAPlayerController()->GetPawn();
-	if ( Pawn != NULL )
+	if (Pawn != nullptr)
 	{
-		if ( Pawn->bCanBeDamaged )
+		if (Pawn->CanBeDamaged())
 		{
-			Pawn->bCanBeDamaged = false;
+			Pawn->SetCanBeDamaged(false);
 			GetOuterAPlayerController()->ClientMessage(TEXT("God mode on"));
 		}
 		else
 		{
-			Pawn->bCanBeDamaged = true;
+			Pawn->SetCanBeDamaged(true);
 			GetOuterAPlayerController()->ClientMessage(TEXT("God Mode off"));
 		}
 	}
@@ -369,7 +370,7 @@ void UCheatManager::Summon( const FString& ClassName )
 
 					SpawnLoc += 72.f * SpawnRot.Vector() + FVector(0.f, 0.f, 1.f) * 15.f;
 					FActorSpawnParameters SpawnInfo;
-					SpawnInfo.Instigator = MyPlayerController->Instigator;
+					SpawnInfo.Instigator = MyPlayerController->GetInstigator();
 					AActor* Actor = GetWorld()->SpawnActor(NewClass, &SpawnLoc, &SpawnRot, SpawnInfo );
 					if ( Actor )
 					{
@@ -576,7 +577,7 @@ void UCheatManager::EnableDebugCamera()
 		{
 			// spawn if necessary
 			FActorSpawnParameters SpawnInfo;
-			SpawnInfo.Instigator = PC->Instigator;
+			SpawnInfo.Instigator = PC->GetInstigator();
 			DebugCameraControllerRef = GetWorld()->SpawnActor<ADebugCameraController>(DebugCameraControllerClass, SpawnInfo );
 		}
 		if (DebugCameraControllerRef)
@@ -1188,6 +1189,10 @@ void UCheatManager::LogOutBugItGoToLogFile( const FString& InScreenShotDesc, con
 	// Flush, close and delete.
 	//delete OutputFile;
 	OutputFile.TearDown();
+
+#if PLATFORM_DESKTOP
+	FPlatformApplicationMisc::ClipboardCopy(*InGoString);
+#endif
 
 	// so here we want to send this bad boy back to the PC
 	SendDataToPCViaUnrealConsole( TEXT("UE_PROFILER!BUGIT:"), *(FullFileName) );

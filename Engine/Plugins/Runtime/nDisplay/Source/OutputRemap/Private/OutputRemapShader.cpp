@@ -17,7 +17,6 @@
 
 #define OutputRemapShaderFileName TEXT("/Plugin/nDisplay/Private/OutputRemapShaders.usf")
 
-
 // Select output remap shader
 enum class EVarOutputRemapShaderType : uint8
 {
@@ -41,16 +40,15 @@ class FOutputRemapVS : public FGlobalShader
 {
 	DECLARE_SHADER_TYPE(FOutputRemapVS, Global);
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return true;
-	}
-
-	/** Default constructor. */
-	FOutputRemapVS() 
-	{
-	}
 public:
+	/** Default constructor. */
+	FOutputRemapVS()
+	{ }
+
+public:
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{ return true; }
+
 	/** Initialization constructor. */
 	FOutputRemapVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
@@ -64,8 +62,7 @@ class FOutputRemapPS : public FGlobalShader
 
 public:
 	FOutputRemapPS()
-	{ 
-	}
+	{ }
 
 	FOutputRemapPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
@@ -113,75 +110,76 @@ private:
 IMPLEMENT_SHADER_TYPE(, FOutputRemapVS, OutputRemapShaderFileName, TEXT("OutputRemap_VS"), SF_Vertex);
 IMPLEMENT_SHADER_TYPE(, FOutputRemapPS, OutputRemapShaderFileName, TEXT("OutputRemap_PS"), SF_Pixel);
 
+DECLARE_GPU_STAT_NAMED(DisplayClusterOutputRemap, TEXT("DisplayCluster PP OutputRemap"));
+
 bool FOutputRemapShader::ApplyOutputRemap_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* ShaderResourceTexture, FRHITexture2D* TargetableTexture, FOutputRemapMesh* MeshData)
 {
 	check(IsInRenderingThread());
 
 	if (MeshData == nullptr)
 	{
-		//Handle error
 		return false;
 	}
-
 
 	const EVarOutputRemapShaderType ShaderType = (EVarOutputRemapShaderType)CVarOutputRemapShaderType.GetValueOnAnyThread();
 	switch (ShaderType)
 	{
-	case EVarOutputRemapShaderType::Passthrough:
-	{
-		// Use simple 1:1 test mesh for shader forwarding
-		static FOutputRemapMesh TestMesh("Passthrough");
-		MeshData = &TestMesh;
-	}
-	case EVarOutputRemapShaderType::Default:
-		break;
-	case EVarOutputRemapShaderType::Disable:
-		return false;
+		case EVarOutputRemapShaderType::Passthrough:
+		{
+			// Use simple 1:1 test mesh for shader forwarding
+			static FOutputRemapMesh TestMesh("Passthrough");
+			MeshData = &TestMesh;
+			break;
+		}
 
-	default:
-		return false;
+		case EVarOutputRemapShaderType::Default:
+			break;
+
+		case EVarOutputRemapShaderType::Disable:
+			return false;
+
+		default:
+			return false;
 	};
 
+	RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
 
-	{// Do remap single render pass		
-		FRHIRenderPassInfo RPInfo(TargetableTexture, ERenderTargetActions::Load_Store);
-		RHICmdList.BeginRenderPass(RPInfo, TEXT("DisplayClusterOutputRemapShader"));
-		{
-			{
-				FIntRect DstRect(FIntPoint(0,0), TargetableTexture->GetSizeXY());
-				//Clear viewport before render
-				RHICmdList.SetViewport(DstRect.Min.X, DstRect.Min.Y, 0.0f, DstRect.Max.X, DstRect.Max.Y, 1.0f);
-				//DrawClearQuad(RHICmdList, FLinearColor::Black);
-			}
+	FIntRect DstRect(FIntPoint(0, 0), TargetableTexture->GetSizeXY());
 
-			// Set the graphic pipeline state.
-			FGraphicsPipelineStateInitializer GraphicsPSOInit;
-			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+	SCOPED_GPU_STAT(RHICmdList, DisplayClusterOutputRemap);
+	SCOPED_DRAW_EVENTF(RHICmdList, DisplayClusterOutputRemap, TEXT("DisplayClusterOutputRemap"));
 
-			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Never>::GetRHI();
-			GraphicsPSOInit.BlendState = TStaticBlendState <>::GetRHI();
-			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+	// Single render pass remap
+	FRHIRenderPassInfo RPInfo(TargetableTexture, ERenderTargetActions::Clear_Store);
+	RHICmdList.BeginRenderPass(RPInfo, TEXT("DisplayClusterOutputRemap"));
+	{
+		// Set the graphic pipeline state.
+		FGraphicsPipelineStateInitializer GraphicsPSOInit;
+		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
-			TShaderMap<FGlobalShaderType>* ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
-			TShaderMapRef<FOutputRemapVS> VertexShader(ShaderMap);
-			TShaderMapRef<FOutputRemapPS> PixelShader(ShaderMap);
+		RHICmdList.SetViewport(0, 0, 0.0f, DstRect.Max.X, DstRect.Max.Y, 1.0f);
 
-			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;// GetVertexDeclarationFVector4();
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
-			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Never>::GetRHI();
+		GraphicsPSOInit.BlendState = TStaticBlendState <>::GetRHI();
+		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
 
+		// Grab shaders
+		TShaderMap<FGlobalShaderType>* ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+		TShaderMapRef<FOutputRemapVS> VertexShader(ShaderMap);
+		TShaderMapRef<FOutputRemapPS> PixelShader(ShaderMap);
 
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
-			PixelShader->SetParameters(RHICmdList, PixelShader->GetPixelShader(), ShaderResourceTexture);
-			MeshData->DrawMesh(RHICmdList);
-		}
-		RHICmdList.EndRenderPass();
+		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+
+		PixelShader->SetParameters(RHICmdList, PixelShader->GetPixelShader(), ShaderResourceTexture);
+		MeshData->DrawMesh(RHICmdList);
 	}
 
-	// Render pass failed, handle error
+	RHICmdList.EndRenderPass();
+
 	return true;
 }
-
-

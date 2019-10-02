@@ -1206,6 +1206,12 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 					HalfResolutionSceneColorViewRect = Outputs.Viewport;
 				}
 
+				if (!View.bStatePrevViewInfoIsReadOnly && HalfResolutionSceneColorTexture)
+				{
+					FSceneViewState* ViewState = (FSceneViewState*)View.State;
+					GraphBuilder.QueueTextureExtraction(HalfResolutionSceneColorTexture, &ViewState->PrevFrameViewInfo.HalfResTemporalAAHistory);
+				}
+
 				FEyeAdaptationParameters EyeAdaptationParameters = GetEyeAdaptationParameters(View, ERHIFeatureLevel::SM5);
 
 				// Default the new eye adaptation to the last one in case it's not generated this frame.

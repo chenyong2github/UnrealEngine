@@ -303,25 +303,16 @@ private:
 //==================================================================================================================================
 struct ShaderBytecodeHash
 {
-	// 160 bit strong SHA1 hash
-	uint32 SHA1Hash[5];
+	uint64 Hash[2];
 
 	bool operator ==(const ShaderBytecodeHash &b) const
 	{
-		return (SHA1Hash[0] == b.SHA1Hash[0] &&
-			SHA1Hash[1] == b.SHA1Hash[1] &&
-			SHA1Hash[2] == b.SHA1Hash[2] &&
-			SHA1Hash[3] == b.SHA1Hash[3] &&
-			SHA1Hash[4] == b.SHA1Hash[4]);
+		return (Hash[0] == b.Hash[0] && Hash[1] == b.Hash[1]);
 	}
 
 	bool operator !=(const ShaderBytecodeHash &b) const
 	{
-		return (SHA1Hash[0] != b.SHA1Hash[0] ||
-			SHA1Hash[1] != b.SHA1Hash[1] ||
-			SHA1Hash[2] != b.SHA1Hash[2] ||
-			SHA1Hash[3] != b.SHA1Hash[3] ||
-			SHA1Hash[4] != b.SHA1Hash[4]);
+		return (Hash[0] != b.Hash[0] || Hash[1] != b.Hash[1]);
 	}
 };
 
@@ -330,12 +321,12 @@ class FD3D12ShaderBytecode
 public:
 	FD3D12ShaderBytecode()
 	{
-		FMemory::Memzero(&Shader, sizeof(Shader));
-		FMemory::Memset(&Hash, 0, sizeof(Hash));
+		FMemory::Memzero(Shader);
+		FMemory::Memzero(Hash);
 	}
 
-	FD3D12ShaderBytecode(const D3D12_SHADER_BYTECODE &InShader) :
-		Shader(InShader)
+	FD3D12ShaderBytecode(const D3D12_SHADER_BYTECODE &InShader)
+		: Shader(InShader)
 	{
 		HashShader();
 	}
@@ -352,10 +343,15 @@ public:
 private:
 	void HashShader()
 	{
-		FMemory::Memset(&Hash, 0, sizeof(Hash));
 		if (Shader.pShaderBytecode && Shader.BytecodeLength > 0)
 		{
-			FSHA1::HashBuffer(Shader.pShaderBytecode, Shader.BytecodeLength, (uint8*)Hash.SHA1Hash);
+			// D3D shader bytecode contains a 128bit checksum in DWORD 1-4. We can just use that directly instead of hashing the whole shader bytecode ourselves.
+			check(Shader.BytecodeLength >= sizeof(uint32) + sizeof(Hash));
+			FMemory::Memcpy(&Hash, ((uint32*) Shader.pShaderBytecode) + 1, sizeof(Hash));
+		}
+		else
+		{
+			FMemory::Memzero(Hash);
 		}
 	}
 

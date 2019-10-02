@@ -122,7 +122,7 @@ static openvdb::FloatGrid::Ptr OffsetSDF(const openvdb::FloatGrid::Ptr InSDFVolu
 
 	// convert the mesh to FMeshDescription
 	FMeshDescription RawMesh;
-	UStaticMesh::RegisterMeshAttributes(RawMesh);
+	FStaticMeshAttributes(RawMesh).Register();
 	ProxyLOD::MixedPolyMeshToRawMesh(MixedPolyMesh, RawMesh);
 
 	// Create a new empty grid with the same transform and metadata

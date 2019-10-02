@@ -355,6 +355,15 @@ namespace BlueprintActionDatabaseImpl
 	static void AddClassPropertyActions(UClass const* const Class, FActionList& ActionListOut);
 
 	/**
+	 * Loops over all of the class's data object's properties and creates node-spawners for
+	 * any that are viable for blueprint use.
+	 *
+	 * @param  Class			The class whose properties you want node-spawners for.
+	 * @param  ActionListOut	The list you want populated with the new spawners.
+	 */
+	static void AddClassDataObjectActions(UClass const* const Class, FActionList& ActionListOut);
+
+	/**
 	 * Evolved from FClassDynamicCastHelper::GetClassDynamicCastNodes(). If the
 	 * specified class is a viable blueprint variable type, then two cast nodes
 	 * are added for it (UK2Node_DynamicCast, and UK2Node_ClassDynamicCast).
@@ -599,6 +608,7 @@ static void BlueprintActionDatabaseImpl::GetClassMemberActions(UClass* const Cla
 	{
 		AddClassFunctionActions(Class, ActionListOut);
 		AddClassPropertyActions(Class, ActionListOut);
+		AddClassDataObjectActions(Class, ActionListOut);
 		// class UEnum actions are added by individual nodes via GetNodeSpecificActions()
 		// class UScriptStruct actions are added by individual nodes via GetNodeSpecificActions()
 	}
@@ -664,7 +674,7 @@ static void BlueprintActionDatabaseImpl::AddClassPropertyActions(UClass const* c
 	bool const bIsActorClass = Class->IsChildOf<AActor>();
 	
 	// loop over all the properties in the specified class; exclude-super because 
-	// we can always get the super properties by looking up that class separateHavely 
+	// we can always get the super properties by looking up that class separately 
 	for (TFieldIterator<UProperty> PropertyIt(Class, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
 	{
 		UProperty* Property = *PropertyIt;
@@ -712,6 +722,33 @@ static void BlueprintActionDatabaseImpl::AddClassPropertyActions(UClass const* c
 			ActionListOut.Add(GetterSpawner);
 			UBlueprintVariableNodeSpawner* SetterSpawner = UBlueprintVariableNodeSpawner::CreateFromMemberOrParam(UK2Node_VariableSet::StaticClass(), Property);
 			ActionListOut.Add(SetterSpawner);
+		}
+	}
+}
+
+//------------------------------------------------------------------------------
+static void BlueprintActionDatabaseImpl::AddClassDataObjectActions(UClass const* const Class, FActionList& ActionListOut)
+{
+	using namespace FBlueprintNodeSpawnerFactory; // for MakeDelegateNodeSpawner()
+
+	// loop over all the properties in the specified class; exclude-super because 
+	// we can always get the super properties by looking up that class separately 
+	const UStruct* SparseDataStruct = Class->GetSparseClassDataStruct();
+	const UStruct* ParentSparseDataStruct = Class->GetSuperClass() ? Class->GetSuperClass()->GetSparseClassDataStruct() : nullptr;
+	if (ParentSparseDataStruct != SparseDataStruct)
+	{
+		for (TFieldIterator<UProperty> PropertyIt(SparseDataStruct, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
+		{
+			UProperty* Property = *PropertyIt;
+			if (!IsPropertyBlueprintVisible(Property))
+			{
+				continue;
+			}
+
+			UBlueprintVariableNodeSpawner* GetterSpawner = UBlueprintVariableNodeSpawner::CreateFromMemberOrParam(UK2Node_VariableGet::StaticClass(), Property);
+			ActionListOut.Add(GetterSpawner);
+//			UBlueprintVariableNodeSpawner* SetterSpawner = UBlueprintVariableNodeSpawner::CreateFromMemberOrParam(UK2Node_VariableSet::StaticClass(), Property);
+//			ActionListOut.Add(SetterSpawner);
 		}
 	}
 }
@@ -1035,10 +1072,19 @@ static bool BlueprintActionDatabaseImpl::IsObjectValidForDatabase(UObject const*
 	{
 		bReturn = true;
 	}
-	else if(UBlueprint const* Blueprint = Cast<UBlueprint>(Object))
+	else if(Object->IsA<UBlueprint>())
 	{
-		// Level scripts are sometimes not assets because they have not been saved yet, but they are still valid for the database.
-		bReturn = FBlueprintEditorUtils::IsLevelScriptBlueprint(Blueprint);
+		// If this is a blueprint contained within an asset, we can include it in the action database
+		UObject* PotentialAsset = Object->GetOuter();
+		while (PotentialAsset)
+		{
+			if (PotentialAsset->IsAsset())
+			{
+				bReturn = true;
+				break;
+			}
+			PotentialAsset = PotentialAsset->GetOuter();
+		}
 	}
 	else if(UWorld const* World = Cast<UWorld>(Object))
 	{

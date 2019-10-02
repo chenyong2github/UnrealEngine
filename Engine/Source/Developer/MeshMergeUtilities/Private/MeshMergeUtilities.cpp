@@ -68,9 +68,7 @@
 #include "IMeshMergeExtension.h"
 
 #include "RawMesh.h"
-#include "MeshDescription.h"
-#include "MeshAttributes.h"
-#include "MeshAttributeArray.h"
+#include "StaticMeshAttributes.h"
 #include "MeshDescriptionOperations.h"
 
 #if WITH_EDITOR
@@ -139,7 +137,7 @@ void FMeshMergeUtilities::BakeMaterialsForComponent(TArray<TWeakObjectPtr<UObjec
 		if (bProcessedLOD)
 		{
 			FMeshDescription& RawMesh = RawMeshLODs.Add(LODIndex);
-			UStaticMesh::RegisterMeshAttributes(RawMesh);
+			FStaticMeshAttributes(RawMesh).Register();
 			Adapter->RetrieveRawMeshData(LODIndex, RawMesh, MaterialOptions->bUseMeshData);
 		}
 
@@ -1194,7 +1192,7 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 			// Retrieve mesh data in FMeshDescription form
 			const int32 MeshIndex = MeshDescriptionData.Add(new FMeshDescription());
 			FMeshDescription& MeshDescription = *MeshDescriptionData[MeshIndex];
-			UStaticMesh::RegisterMeshAttributes(MeshDescription);
+			FStaticMeshAttributes(MeshDescription).Register();
 			FMeshMergeHelpers::RetrieveMesh(StaticMeshComponent, LODIndex, MeshDescription, bPropagateVertexColours);
 
 			// Reset section array for reuse
@@ -2510,8 +2508,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 					}
 				}
 
-				FMeshDescription* MeshDescription = StaticMesh->CreateMeshDescription(LODIndex);
-				*MeshDescription = MergedMeshLOD;
+				FMeshDescription* MeshDescription = StaticMesh->CreateMeshDescription(LODIndex, MergedMeshLOD);
 				StaticMesh->CommitMeshDescription(LODIndex);
 			}
 		}
@@ -2645,7 +2642,7 @@ void FMeshMergeUtilities::CreateMergedRawMeshes(FMeshMergeDataTracker& InDataTra
 			// Find meshes for each lod
 			const int32 LODIndex = *Iterator;
 			FMeshDescription& MergedMesh = OutMergedRawMeshes[LODIndex];
-			UStaticMesh::RegisterMeshAttributes(MergedMesh);
+			FStaticMeshAttributes(MergedMesh).Register();
 
 			for (int32 ComponentIndex = 0; ComponentIndex < InStaticMeshComponentsToMerge.Num(); ++ComponentIndex)
 			{
@@ -2744,9 +2741,8 @@ void FMeshMergeUtilities::CreateMergedRawMeshes(FMeshMergeDataTracker& InDataTra
 	}
 	else
 	{	
-		OutMergedRawMeshes.AddZeroed(1);
-		FMeshDescription& MergedMesh = OutMergedRawMeshes.Last();
-		UStaticMesh::RegisterMeshAttributes(MergedMesh);
+		FMeshDescription& MergedMesh = OutMergedRawMeshes.AddDefaulted_GetRef();
+		FStaticMeshAttributes(MergedMesh).Register();
 
 		for (int32 ComponentIndex = 0; ComponentIndex < InStaticMeshComponentsToMerge.Num(); ++ComponentIndex)
 		{
@@ -3083,7 +3079,7 @@ void FMeshMergeUtilities::MergeComponentsToInstances(const TArray<UPrimitiveComp
 					{
 						ActorToCleanUp->Modify();
 						ActorToCleanUp->bIsEditorOnlyActor = true;
-						ActorToCleanUp->bHidden = true;
+						ActorToCleanUp->SetHidden(true);
 						ActorToCleanUp->bHiddenEd = true;
 						ActorToCleanUp->SetIsTemporarilyHiddenInEditor(true);
 					}

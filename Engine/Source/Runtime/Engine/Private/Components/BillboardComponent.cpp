@@ -284,7 +284,7 @@ UBillboardComponent::UBillboardComponent(const FObjectInitializer& ObjectInitial
 #endif
 
 	SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
-	bAbsoluteScale = true;
+	SetUsingAbsoluteScale(true);
 
 	bIsScreenSizeScaled = false;
 	ScreenSize = BillboardConstants::DefaultScreenSize;

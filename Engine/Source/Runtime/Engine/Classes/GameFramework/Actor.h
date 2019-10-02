@@ -195,14 +195,18 @@ public:
 	UFUNCTION()
 	virtual void OnRep_ReplicateMovement();
 
-	UE_DEPRECATED(4.20, "Use GetTearOff() or TearOff() functions. This property will become private.")
+private:
+
 	UPROPERTY(Replicated)
 	uint8 bTearOff:1; 
 
+public:
+
 	/** If true, this actor is no longer replicated to new clients, and is "torn off" (becomes a ROLE_Authority) on clients to which it was being replicated. */
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	bool GetTearOff() const { return bTearOff; }
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	bool GetTearOff() const
+	{
+		return bTearOff;
+	}
 
 	/** Networking - Server - TearOff this actor to stop replication to clients. Will set bTearOff to true. */
 	UFUNCTION(BlueprintCallable, Category=Replication)
@@ -1992,9 +1996,6 @@ public:
 	/** Swaps Role and RemoteRole if client */
 	void ExchangeNetRoles(bool bRemoteOwner);
 
-	UE_DEPRECATED(4.22, "Renamed to SwapRoles")
-	void SwapRolesForReplay() { SwapRoles(); }
-
 	/** Calls this to swap the Role and RemoteRole.  Only call this if you know what you're doing! */
 	void SwapRoles();
 
@@ -2814,6 +2815,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Actor", meta = (ComponentClass = "ActorComponent"), meta = (DeterminesOutputType = "ComponentClass"))
 	TArray<UActorComponent*> GetComponentsByTag(TSubclassOf<UActorComponent> ComponentClass, FName Tag) const;
 
+	/** Gets all the components that implements the given interface. */
+	UFUNCTION(BlueprintCallable, Category = "Actor")
+	TArray<UActorComponent*> GetComponentsByInterface(TSubclassOf<UInterface> Interface) const;
+
 	/** Templatized version of FindComponentByClass that handles casting for you */
 	template<class T>
 	T* FindComponentByClass() const
@@ -3160,6 +3165,137 @@ private:
 	{
 		return (RootComponent != nullptr) ? RootComponent->GetRightVector() : FVector::RightVector;
 	}
+	
+	//~ Begin Methods for Replicated Members.
+public:
+
+	/**
+	 * Gets the property name for bHidden.
+	 * This exists so subclasses don't need to have direct access to the bHidden property so it
+	 * can be made private later.
+	 */
+	static const FName GetHiddenPropertyName()
+	{
+		return GET_MEMBER_NAME_CHECKED(AActor, bHidden);
+	}
+
+	/**
+	 * Gets the literal value of bHidden.
+	 *
+	 * This exists so subclasses don't need to have direct access to the bHidden property so it
+	 * can be made private later.
+	 */
+	bool IsHidden() const
+	{
+		return bHidden;
+	}
+
+	/**
+	 * Sets the value of bHidden without causing other side effects to this instance.
+	 *
+	 * SetActorHiddenInGame is preferred preferred in most cases because it respects virtual behavior.
+	 */
+	void SetHidden(const bool bInHidden);
+
+	/**
+	 * Gets the property name for bReplicateMovement.
+	 * This exists so subclasses don't need to have direct access to the bReplicateMovement property so it
+	 * can be made private later.
+	 */
+	static const FName GetReplicateMovementPropertyName()
+	{
+		return GET_MEMBER_NAME_CHECKED(AActor, bReplicateMovement);
+	}
+
+	/**
+	 * Gets the literal value of bReplicateMovement.
+	 *
+	 * This exists so subclasses don't need to have direct access to the bReplicateMovement property so it
+	 * can be made private later.
+	 */
+	bool IsReplicatingMovement() const
+	{
+		return bReplicateMovement;
+	}
+
+	/** Sets the value of bReplicateMovement without causing other side effects to this instance. */
+	void SetReplicatingMovement(bool bInReplicateMovement);
+
+	/**
+	 * Gets the property name for bCanBeDamaged.
+	 * This exists so subclasses don't need to have direct access to the bCanBeDamaged property so it
+	 * can be made private later.
+	 */
+	static const FName GetCanBeDamagedPropertyName()
+	{
+		return GET_MEMBER_NAME_CHECKED(AActor, bCanBeDamaged);
+	}
+
+	/**
+	 * Gets the literal value of bCanBeDamaged.
+	 *
+	 * This exists so subclasses don't need to have direct access to the bCanBeDamaged property so it
+	 * can be made private later.
+	 */
+	bool CanBeDamaged() const
+	{
+		return bCanBeDamaged;
+	}
+
+	/** Sets the value of bCanBeDamaged without causing other side effects to this instance. */
+	void SetCanBeDamaged(bool bInCanBeDamaged);
+
+	/**
+	 * Gets the property name for Role.
+	 * This exists so subclasses don't need to have direct access to the Role property so it
+	 * can be made private later.
+	 */
+	static const FName GetRolePropertyName()
+	{
+		return GET_MEMBER_NAME_CHECKED(AActor, Role);
+	}
+
+	/**
+	 * Sets the value of Role without causing other side effects to this instance.
+	 */
+	void SetRole(ENetRole InRole);
+	
+	/**
+	 * Gets the literal value of ReplicatedMovement.
+	 *
+	 * This exists so subclasses don't need to have direct access to the Role property so it
+	 * can be made private later.
+	 */
+	const FRepMovement& GetReplicatedMovement() const
+	{
+		return ReplicatedMovement;
+	}
+
+	/**
+	 * Gets a reference to ReplicatedMovement with the expectation that it will be modified.
+	 *
+	 * This exists so subclasses don't need to have direct access to the ReplicatedMovement property
+	 * so it can be made private later.
+	 */
+	FRepMovement& GetReplicatedMovement_Mutable();
+
+	/** Sets the value of ReplicatedMovement without causing other side effects to this instance. */
+	void SetReplicatedMovement(const FRepMovement& InReplicatedMovement);
+
+	/**
+	 * Gets the property name for Instigator.
+	 * This exists so subclasses don't need to have direct access to the Instigator property so it
+	 * can be made private later.
+	 */
+	static const FName GetInstigatorPropertyName()
+	{
+		return GET_MEMBER_NAME_CHECKED(AActor, Instigator);
+	}
+
+	/** Sets the value of Instigator without causing other side effects to this instance. */
+	void SetInstigator(APawn* InInstigator);
+
+	//~ End Methods for Replicated Members.
 };
 
 /** Internal struct used by level code to mark actors as destroyed */
@@ -3316,7 +3452,7 @@ FORCEINLINE_DEBUGGABLE bool AActor::GetActorEnableCollision() const
 
 FORCEINLINE_DEBUGGABLE bool AActor::HasAuthority() const
 {
-	return (Role == ROLE_Authority);
+	return (GetLocalRole() == ROLE_Authority);
 }
 
 FORCEINLINE_DEBUGGABLE AActor* AActor::GetOwner() const

@@ -12,6 +12,7 @@ public class MeshConversion : ModuleRules
 			new string[] {
                 "Core",
                 "MeshDescription",
+				"StaticMeshDescription",
 				"GeometricObjects",
 				"DynamicMesh"
             }

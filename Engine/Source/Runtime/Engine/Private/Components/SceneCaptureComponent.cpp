@@ -7,6 +7,7 @@
 #include "Components/SceneCaptureComponent.h"
 #include "Misc/ScopeLock.h"
 #include "UObject/RenderingObjectVersion.h"
+#include "UObject/EditorObjectVersion.h"
 #include "UObject/ConstructorHelpers.h"
 #include "GameFramework/Actor.h"
 #include "RenderingThread.h"
@@ -732,9 +733,9 @@ APlanarReflection::APlanarReflection(const FObjectInitializer& ObjectInitializer
 		static FConstructorStatics ConstructorStatics;
 
 		SpriteComponent->Sprite = ConstructorStatics.DecalTexture.Get();
-		SpriteComponent->RelativeScale3D = FVector(0.5f, 0.5f, 0.5f);
+		SpriteComponent->SetRelativeScale3D_Direct(FVector(0.5f, 0.5f, 0.5f));
 		SpriteComponent->bHiddenInGame = true;
-		SpriteComponent->bAbsoluteScale = true;
+		SpriteComponent->SetUsingAbsoluteScale(true);
 		SpriteComponent->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 		SpriteComponent->bIsScreenSizeScaled = true;
 	}
@@ -746,15 +747,15 @@ void APlanarReflection::PostLoad()
 	Super::PostLoad();
 
 	if (GetLinkerCustomVersion(FEditorObjectVersion::GUID) < FEditorObjectVersion::ChangeSceneCaptureRootComponent)
-{
-		if (PlanarReflectionComponent)
 	{
+		if (PlanarReflectionComponent)
+		{
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			PlanarReflectionComponent->bShowPreviewPlane = bShowPreviewPlane_DEPRECATED;
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
-			}
-		}
+	}
+}
 
 void APlanarReflection::OnInterpToggle(bool bEnable)
 {
@@ -833,7 +834,7 @@ void UPlanarReflectionComponent::OnRegister()
 	if (ProxyMeshComponent)
 	{
 		ProxyMeshComponent->SetMaterial(0, CaptureMaterial);
-		ProxyMeshComponent->bVisible = bShowPreviewPlane;
+		ProxyMeshComponent->SetVisibleFlag(bShowPreviewPlane);
 		ProxyMeshComponent->SetRelativeScale3D(FVector(4, 4, 1));
 	}
 #endif
@@ -911,7 +912,7 @@ void UPlanarReflectionComponent::PostEditChangeProperty(FPropertyChangedEvent& P
 
 	if (ProxyMeshComponent)
 	{
-		ProxyMeshComponent->bVisible = bShowPreviewPlane;
+		ProxyMeshComponent->SetVisibleFlag(bShowPreviewPlane);
 		ProxyMeshComponent->MarkRenderStateDirty();
 	}
 }

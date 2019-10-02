@@ -177,9 +177,7 @@ namespace Gauntlet
 
 				if (!SkipDeploy)
 				{
-					Log.Info("Installing {0} to {1}", AppConfig.Name, ToString());
-					Log.Verbose("\tCopying {0} to {1}", BuildPath, DestPath);
-					Gauntlet.Utils.SystemHelpers.CopyDirectory(BuildPath, DestPath, Utils.SystemHelpers.CopyOptions.Mirror);
+					StagedBuild.InstallBuildParallel(AppConfig, InBuild, BuildPath, DestPath, ToString());
 				}
 				else
 				{

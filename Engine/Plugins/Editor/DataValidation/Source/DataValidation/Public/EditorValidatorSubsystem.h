@@ -12,10 +12,13 @@
 #include "EditorValidatorBase.h"
 #include "Engine/EngineTypes.h"
 #include "AssetData.h"
+#include "Logging/LogMacros.h"
 
 #include "EditorValidatorSubsystem.generated.h"
 
 struct FAssetData;
+
+DECLARE_LOG_CATEGORY_EXTERN(LogContentValidation, Log, All);
 
 /**
  * UEditorValidatorSubsystem manages all the asset validation in the engine. 

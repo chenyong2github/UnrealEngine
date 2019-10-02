@@ -418,16 +418,29 @@ void FAppEntry::Init()
 #endif // UE_BUILD_SHIPPING
 }
 
+#if BUILD_EMBEDDED_APP
+static bool GWasTickSuspended = false;
+static double GPreviousSuspendTime = FPlatformTime::Seconds();
+#else
 static FSuspendRenderingThread* SuspendThread = NULL;
+#endif
 
 void FAppEntry::Tick()
 {
-    if (SuspendThread != NULL)
-    {
-        delete SuspendThread;
-        SuspendThread = NULL;
-        FPlatformProcess::SetRealTimeMode();
-    }
+#if BUILD_EMBEDDED_APP
+	if (GWasTickSuspended)
+	{
+		FPlatformProcess::SetRealTimeMode();
+		GWasTickSuspended = false;
+	}
+#else
+	if (SuspendThread != NULL)
+	{
+		delete SuspendThread;
+		SuspendThread = NULL;
+		FPlatformProcess::SetRealTimeMode();
+	}
+#endif
     
 	if (AudioContextResumeTime != 0)
 	{
@@ -444,12 +457,29 @@ void FAppEntry::Tick()
 
 void FAppEntry::SuspendTick()
 {
-    if (!SuspendThread)
+#if BUILD_EMBEDDED_APP
+	static double PreviousTime = FPlatformTime::Seconds();
+    if (!GWasTickSuspended)
     {
-        SuspendThread = new FSuspendRenderingThread(true);
+		GWasTickSuspended = true;
+		// reset it each time we background
+		PreviousTime = FPlatformTime::Seconds();
     }
-    
-    FPlatformProcess::Sleep(0.1f);
+
+	float DeltaTime = FPlatformTime::Seconds() - PreviousTime;
+	PreviousTime = FPlatformTime::Seconds();
+
+	// allow for some background processing
+	FEmbeddedCommunication::TickGameThread(DeltaTime);
+	FCoreDelegates::MobileBackgroundTickDelegate.Broadcast(DeltaTime);
+#else
+	if (!SuspendThread)
+	{
+		SuspendThread = new FSuspendRenderingThread(true);
+	}
+#endif
+
+	FPlatformProcess::Sleep(0.1f);
 }
 
 void FAppEntry::Shutdown()

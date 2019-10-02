@@ -14,11 +14,13 @@ class FDisplayClusterDeviceBase_PostProcess
 	: public IDisplayClusterPostProcess
 {
 public:
-	FDisplayClusterDeviceBase_PostProcess(TArray<FDisplayClusterRenderViewport>& InRenderViewports, int InViewsPerViewport)
+	FDisplayClusterDeviceBase_PostProcess(TArray<FDisplayClusterRenderViewport>& InRenderViewports, int InViewsPerViewport, const FIntRect* const InEyeRegions)
 		: RenderViewportsRef(InRenderViewports)
 		, ViewsPerViewport(InViewsPerViewport)
+		, EyeRegions(InEyeRegions)
 	{
 		check(ViewsPerViewport > 0);
+		check(EyeRegions);
 	}
 
 	virtual ~FDisplayClusterDeviceBase_PostProcess() = default;
@@ -37,6 +39,7 @@ protected:
 private:
 	TArray<FDisplayClusterRenderViewport>& RenderViewportsRef;
 	const int ViewsPerViewport;
+	const FIntRect* EyeRegions;
 
 private:
 	virtual bool IsPostProcessViewBeforeWarpBlendRequired() override final

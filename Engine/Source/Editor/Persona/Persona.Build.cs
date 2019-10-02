@@ -30,6 +30,7 @@ public class Persona : ModuleRules
                 "AnimationEditor",
                 "MeshReductionInterface",
                 "SequenceRecorder",
+                "AnimationBlueprintEditor",
             }
         );
 

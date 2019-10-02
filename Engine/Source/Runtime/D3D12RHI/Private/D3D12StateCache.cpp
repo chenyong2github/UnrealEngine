@@ -187,6 +187,7 @@ void FD3D12StateCacheBase::ClearState()
 	PipelineState.Graphics.CurrentNumberOfRenderTargets = 0;
 
 	PipelineState.Graphics.CurrentPrimitiveTopology = D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
+	PipelineState.Graphics.CurrentPrimitiveType = PT_Num;
 
 	PipelineState.Graphics.MinDepth = 0.0f;
 	PipelineState.Graphics.MaxDepth = 1.0f;
@@ -202,6 +203,7 @@ void FD3D12StateCacheBase::DirtyStateForNewCommandList()
 	PipelineState.Common.bNeedSetPSO = true;
 	PipelineState.Compute.bNeedSetRootSignature = true;
 	PipelineState.Graphics.bNeedSetRootSignature = true;
+	bNeedSetPrimitiveTopology = true;
 
 	if (PipelineState.Graphics.VBCache.BoundVBMask) { bNeedSetVB = true; }
 	if (PipelineState.Graphics.IBCache.CurrentIndexBufferLocation) { bNeedSetIB = true; }
@@ -209,7 +211,6 @@ void FD3D12StateCacheBase::DirtyStateForNewCommandList()
 	if (PipelineState.Graphics.CurrentNumberOfRenderTargets || PipelineState.Graphics.CurrentDepthStencilTarget) { bNeedSetRTs = true; }
 	if (PipelineState.Graphics.CurrentNumberOfViewports) { bNeedSetViewports = true; }
 	if (PipelineState.Graphics.CurrentNumberOfScissorRects) { bNeedSetScissorRects = true; }
-	if (PipelineState.Graphics.CurrentPrimitiveTopology != D3D12_IA_DEFAULT_PRIMITIVE_TOPOLOGY) { bNeedSetPrimitiveTopology = true; }
 
 	if (PipelineState.Graphics.CurrentBlendFactor[0] != D3D12_DEFAULT_BLEND_FACTOR_RED ||
 		PipelineState.Graphics.CurrentBlendFactor[1] != D3D12_DEFAULT_BLEND_FACTOR_GREEN ||
@@ -1025,15 +1026,6 @@ void FD3D12StateCacheBase::SetUAVs(uint32 UAVStartSlot, uint32 NumSimultaneousUA
 		{
 			Cache.ResidencyHandles[ShaderStage][i] = nullptr;
 		}
-	}
-}
-
-void FD3D12StateCacheBase::SetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY PrimitiveTopology)
-{
-	if ((PipelineState.Graphics.CurrentPrimitiveTopology != PrimitiveTopology) || GD3D12SkipStateCaching)
-	{
-		PipelineState.Graphics.CurrentPrimitiveTopology = PrimitiveTopology;
-		bNeedSetPrimitiveTopology = true;
 	}
 }
 

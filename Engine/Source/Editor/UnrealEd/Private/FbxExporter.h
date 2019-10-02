@@ -8,9 +8,11 @@
 #include "Engine/StaticMesh.h"
 #include "MatineeExporter.h"
 #include "MovieSceneSequenceID.h"
+#include "Evaluation/MovieSceneSequenceTransform.h"
 #include "MovieSceneFwd.h"
 #include "FbxImporter.h"
 #include "UObject/GCObject.h"
+#include "Animation/AnimTypes.h"
 
 class ABrush;
 class ACameraActor;
@@ -42,6 +44,7 @@ class UFbxExportOption;
 struct FAnimControlTrackKey;
 struct FExpressionInput;
 struct FMovieSceneFloatChannel;
+struct FMovieSceneSequenceTransform;
 
 namespace UnFbx
 {
@@ -131,14 +134,14 @@ public:
 	 *
 	 * @return	true, if successful
 	 */
-	bool ExportLevelSequence(UMovieScene* MovieScene, const TArray<FGuid>& InBindings, IMovieScenePlayer* MovieScenePlayer, FMovieSceneSequenceIDRef SequenceID);
+	bool ExportLevelSequence(UMovieScene* MovieScene, const TArray<FGuid>& InBindings, IMovieScenePlayer* MovieScenePlayer, INodeNameAdapter& NodeNameAdapter, FMovieSceneSequenceIDRef SequenceID, const FMovieSceneSequenceTransform& RootToLocalTransform);
 
 	/**
 	 * Exports the given level sequence track information into a FBX document.
 	 *
 	 * @return	true, if successful
 	 */
-	bool ExportLevelSequenceTracks(UMovieScene* MovieScene, IMovieScenePlayer* MovieScenePlayer, FbxNode* FbxActor, AActor* Actor, const TArray<UMovieSceneTrack*>& Tracks);
+	bool ExportLevelSequenceTracks(UMovieScene* MovieScene, IMovieScenePlayer* MovieScenePlayer, FbxNode* FbxActor, AActor* Actor, const TArray<UMovieSceneTrack*>& Tracks, const FMovieSceneSequenceTransform& RootToLocalTransform);
 
 	/**
 	 * Exports all the animation sequences part of a single Group in a Matinee sequence
@@ -216,10 +219,13 @@ public:
 	public:
 		FLevelSequenceNodeNameAdapter( UMovieScene* InMovieScene, IMovieScenePlayer* InMovieScenePlayer, FMovieSceneSequenceIDRef InSequenceID);
 		virtual FString GetActorNodeName(const AActor* InActor) override;
+		virtual void AddFbxNode(UObject* InObject, FbxNode* InFbxNode) override;
+		virtual FbxNode* GetFbxNode(UObject* InObject) override;
 	private:
 		UMovieScene* MovieScene;
 		IMovieScenePlayer* MovieScenePlayer;
 		FMovieSceneSequenceID SequenceID;
+		TMap<FGuid, FbxNode*> GuidToFbxNodeMap;
 	};
 
 	/* Get a valid unique name from a name */
@@ -264,11 +270,12 @@ private:
 	class IAnimTrackAdapter
 	{
 	public:
-		/** Gets the length of the animation track. */
-		virtual float GetAnimationStart() const = 0;
-		virtual float GetAnimationLength() const = 0;
-		/** Updates the runtime state of the animation track to the specified time. */
-		virtual void UpdateAnimation( float Time ) = 0;
+		virtual int32 GetLocalStartFrame() const = 0;
+		virtual int32 GetStartFrame() const { return GetLocalStartFrame(); }
+		virtual int32 GetLength() const = 0;
+		/** Updates the runtime state of the animation track to the specified frame. */
+		virtual void UpdateAnimation( int32 LocalFrame) = 0;
+		virtual float GetFrameRate() const { return 1.f / DEFAULT_SAMPLERATE; }
 	};
 
 	/** An anim track adapter for matinee. */
@@ -276,9 +283,9 @@ private:
 	{
 	public:
 		FMatineeAnimTrackAdapter( AMatineeActor* InMatineeActor );
-		virtual float GetAnimationStart() const override;
-		virtual float GetAnimationLength() const override;
-		virtual void UpdateAnimation( float Time ) override;
+		virtual int32 GetLocalStartFrame() const override;
+		virtual int32 GetLength() const override;
+		virtual void UpdateAnimation(int32 LocalFrame) override;
 
 	private:
 		AMatineeActor* MatineeActor;
@@ -288,20 +295,23 @@ private:
 	class FLevelSequenceAnimTrackAdapter : public FFbxExporter::IAnimTrackAdapter
 	{
 	public:
-		FLevelSequenceAnimTrackAdapter( IMovieScenePlayer* InMovieScenePlayer, UMovieScene* InMovieScene );
-		virtual float GetAnimationStart() const override;
-		virtual float GetAnimationLength() const override;
-		virtual void UpdateAnimation( float Time ) override;
+		FLevelSequenceAnimTrackAdapter( IMovieScenePlayer* InMovieScenePlayer, UMovieScene* InMovieScene, const FMovieSceneSequenceTransform& InRootToLocalTransform );
+		virtual int32 GetLocalStartFrame() const override;
+		virtual int32 GetStartFrame() const override;
+		virtual int32 GetLength() const override;
+		virtual void UpdateAnimation(int32 LocalFrame) override;
+		virtual float GetFrameRate() const override;
 
 	private:
 		IMovieScenePlayer* MovieScenePlayer;
 		UMovieScene* MovieScene;
+		FMovieSceneSequenceTransform RootToLocalTransform;
 	};
 
 	/**
 	* Export Anim Track of the given SkeletalMeshComponent
 	*/
-	void ExportAnimTrack( IAnimTrackAdapter& AnimTrackAdapter, AActor* Actor, USkeletalMeshComponent* SkeletalMeshComponent );
+	void ExportAnimTrack( IAnimTrackAdapter& AnimTrackAdapter, AActor* Actor, USkeletalMeshComponent* SkeletalMeshComponent, float SamplingRate );
 
 	void ExportModel(UModel* Model, FbxNode* Node, const char* Name);
 	
@@ -392,7 +402,7 @@ private:
 	FbxNode* ExportSkeletalMeshToFbx(const USkeletalMesh* SkelMesh, const UAnimSequence* AnimSeq, const TCHAR* MeshName, FbxNode* ActorRootNode);
 
 	/** Export SkeletalMeshComponent */
-	void ExportSkeletalMeshComponent(USkeletalMeshComponent* SkelMeshComp, const TCHAR* MeshName, FbxNode* ActorRootNode, bool bSaveAnimSeq = true);
+	void ExportSkeletalMeshComponent(USkeletalMeshComponent* SkelMeshComp, const TCHAR* MeshName, FbxNode* ActorRootNode, INodeNameAdapter& NodeNameAdapter, bool bSaveAnimSeq = true);
 
 	/** Initializing the AnimStack playrate from the AnimSequence */
 	bool SetupAnimStack(const UAnimSequence* AnimSeq);
@@ -446,12 +456,12 @@ private:
 	/**
 	 * Exports a level sequence 3D transform track into the FBX animation stack.
 	 */
-	void ExportLevelSequence3DTransformTrack( FbxNode* FbxActor, UMovieScene3DTransformTrack& TransformTrack, AActor* Actor, const TRange<FFrameNumber>& InPlaybackRange );
+	void ExportLevelSequence3DTransformTrack( FbxNode* FbxActor, UMovieScene3DTransformTrack& TransformTrack, AActor* Actor, const TRange<FFrameNumber>& InPlaybackRange, const FMovieSceneSequenceTransform& RootToLocalTransform );
 
 	/** 
 	 * Exports a level sequence property track into the FBX animation stack. 
 	 */
-	void ExportLevelSequencePropertyTrack( FbxNode* FbxActor, UMovieScenePropertyTrack& PropertyTrack );
+	void ExportLevelSequencePropertyTrack( FbxNode* FbxActor, UMovieScenePropertyTrack& PropertyTrack, const TRange<FFrameNumber>& InPlaybackRange, const FMovieSceneSequenceTransform& RootToLocalTransform);
 
 	/** Defines value export modes for the EportRichCurveToFbxCurve method. */
 	enum class ERichCurveValueMode
@@ -463,13 +473,13 @@ private:
 	};
 
 	/** Exports a movie scene channel to an fbx animation curve. */
-	void ExportChannelToFbxCurve(FbxAnimCurve& InFbxCurve, const FMovieSceneFloatChannel& InChannel, FFrameRate TickResolution, ERichCurveValueMode ValueMode = ERichCurveValueMode::Default, bool bNegative = false);
+	void ExportChannelToFbxCurve(FbxAnimCurve& InFbxCurve, const FMovieSceneFloatChannel& InChannel, FFrameRate TickResolution, ERichCurveValueMode ValueMode = ERichCurveValueMode::Default, bool bNegative = false, const FMovieSceneSequenceTransform& RootToLocalTransform = FMovieSceneSequenceTransform());
 
 	/**
 	 * Finds the given actor in the already-exported list of structures
 	 * @return FbxNode* the FBX node created from the UE4 actor
 	 */
-	FbxNode* FindActor(AActor* Actor);
+	FbxNode* FindActor(AActor* Actor, INodeNameAdapter* NodeNameAdapter = nullptr);
 
 	/** Create fbx node with the given name */
 	FbxNode* CreateNode(const FString& NodeName);
@@ -477,7 +487,7 @@ private:
 	/**
 	 * Find bone array of FbxNOdes of the given skeletalmeshcomponent  
 	 */
-	bool FindSkeleton(const USkeletalMeshComponent* SkelComp, TArray<FbxNode*>& BoneNodes);
+	bool FindSkeleton(USkeletalMeshComponent* SkelComp, TArray<FbxNode*>& BoneNodes, INodeNameAdapter* NodeNameAdapter = nullptr);
 
 	/** recursively get skeleton */
 	void GetSkeleton(FbxNode* RootNode, TArray<FbxNode*>& BoneNodes);

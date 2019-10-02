@@ -549,6 +549,10 @@ UObject* UFbxFactory::FactoryCreateFile
 						int32 LODIndex;
 						int32 SuccessfulLodIndex = 0;
 						bool bImportSkeletalMeshLODs = ImportUI->SkeletalMeshImportData->bImportMeshLODs;
+						
+						//The skeletalmesh will be set after we import the LOD 0 since it is not created yet.
+						FScopedSkeletalMeshPostEditChange ScopedPostEditChange(nullptr);
+
 						for (LODIndex = 0; LODIndex < MaxLODLevel; LODIndex++)
 						{
 							//We need to know what is the imported lod index when importing the morph targets
@@ -605,7 +609,7 @@ UObject* UFbxFactory::FactoryCreateFile
 
 								USkeletalMesh* NewMesh = FbxImporter->ImportSkeletalMesh( ImportSkeletalMeshArgs );
 								CreatedObject = NewMesh;
-
+								
 								if(bOperationCanceled)
 								{
 									// User cancelled, clean up and return
@@ -617,6 +621,9 @@ UObject* UFbxFactory::FactoryCreateFile
 
 								if ( NewMesh )
 								{
+									//Set the base skeletalmesh to the scoped post edit change variable
+									ScopedPostEditChange.SetSkeletalMesh(NewMesh);
+
 									if (ImportOptions->bImportAnimations)
 									{
 										// We need to remove all scaling from the root node before we set up animation data.
@@ -643,7 +650,7 @@ UObject* UFbxFactory::FactoryCreateFile
 								LODInfo.ReductionSettings.BaseLOD = 0;
 								LODInfo.bImportWithBaseMesh = true;
 								LODInfo.SourceImportFilename = FString(TEXT(""));
-								FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, SuccessfulLodIndex, false);
+								FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, SuccessfulLodIndex);
 								ImportedSuccessfulLodIndex = SuccessfulLodIndex;
 								SuccessfulLodIndex++;
 							}
@@ -662,7 +669,7 @@ UObject* UFbxFactory::FactoryCreateFile
 								ImportSkeletalMeshArgs.OutData = &OutData;
 
 								USkeletalMesh *LODObject = FbxImporter->ImportSkeletalMesh( ImportSkeletalMeshArgs );
-								bool bImportSucceeded = !bOperationCanceled && FbxImporter->ImportSkeletalMeshLOD(LODObject, BaseSkeletalMesh, SuccessfulLodIndex, false);
+								bool bImportSucceeded = !bOperationCanceled && FbxImporter->ImportSkeletalMeshLOD(LODObject, BaseSkeletalMesh, SuccessfulLodIndex);
 
 								if (bImportSucceeded)
 								{
@@ -704,15 +711,6 @@ UObject* UFbxFactory::FactoryCreateFile
 							
 							USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(CreatedObject);
 							UnFbx::FFbxImporter::UpdateSkeletalMeshImportData(SkeletalMesh, ImportUI->SkeletalMeshImportData, INDEX_NONE, nullptr, nullptr);
-							
-							//If we have import some morph target we have to rebuild the render resources since morph target are now using GPU
-							if (SkeletalMesh)// && SkeletalMesh->MorphTargets.Num() > 0)
-							{
-								SkeletalMesh->ReleaseResources();
-								//Rebuild the resources with a post edit change since we have added some morph targets
-								SkeletalMesh->PostEditChange();
-							}
-
 						}
 					}
 				
@@ -1391,7 +1389,7 @@ namespace ImportCompareHelper
 		}
 		else if (!bCombineMeshes && !bCombineMeshesLOD)
 		{
-			Node = FFbxImporter->GetMeshNodesFromName(StaticMesh, FbxMeshArray);
+			Node = FFbxImporter->GetMeshNodesFromName(StaticMesh->GetName(), FbxMeshArray);
 		}
 
 		// If there is no match it may be because an LOD group was imported where
@@ -1481,7 +1479,38 @@ namespace ImportCompareHelper
 			return;
 		}
 
-		const TArray<FbxNode*>& SkeletalMeshNodes = *(SkeletalMeshArray[0]);
+		TArray<FbxNode*>* FbxNodes = nullptr;
+		// if there is only one mesh, use it without name checking 
+		// (because the "Used As Full Name" option enables users name the Unreal mesh by themselves
+		if (SkeletalMeshArray.Num() == 1)
+		{
+			FbxNodes = SkeletalMeshArray[0];
+		}
+		else if(SkeletalMeshArray.Num() > 1)
+		{
+			FbxNodes = nullptr;
+			//Search a set corresponding
+			for (TArray<FbxNode*>*SkeletalMeshNodes : SkeletalMeshArray)
+			{
+				FbxNode* Node = FFbxImporter->GetMeshNodesFromName(SkeletalMesh->GetName(), *SkeletalMeshNodes);
+				if (Node != nullptr)
+				{
+					FbxNodes = SkeletalMeshNodes;
+					break;
+				}
+			}
+			if (FbxNodes == nullptr)
+			{
+				//Re import the first skeletalmesh found in the fbx file
+				FbxNodes = SkeletalMeshArray[0];
+			}
+		}
+		if (FbxNodes == nullptr)
+		{
+			return;
+		}
+
+		const TArray<FbxNode*>& SkeletalMeshNodes = *(FbxNodes);
 		if (SkeletalMeshNodes.Num() == 0)
 		{
 			return;

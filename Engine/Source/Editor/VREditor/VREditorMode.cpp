@@ -250,7 +250,7 @@ void UVREditorMode::Enter()
 		// Do we have an active perspective viewport that is valid for VR?  If so, go ahead and use that.
 		TSharedPtr<SLevelViewport> ExistingActiveLevelViewport;
 		{
-			TSharedPtr<ILevelViewport> ActiveLevelViewport = LevelEditor->GetActiveViewportInterface();
+			TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditor->GetActiveViewportInterface();
 			if(ActiveLevelViewport.IsValid())
 			{
 				ExistingActiveLevelViewport = StaticCastSharedRef< SLevelViewport >(ActiveLevelViewport->AsWidget());

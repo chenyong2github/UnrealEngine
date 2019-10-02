@@ -1672,25 +1672,13 @@ void UAnimSequence::GetBonePose_Additive(FCompactPose& OutPose, FBlendedCurve& O
 
 void UAnimSequence::GetAdditiveBasePose(FCompactPose& OutPose, FBlendedCurve& OutCurve, const FAnimExtractContext& ExtractionContext) const
 {
-	const bool bGetAdditiveBasePoseValid = (RefPoseType == ABPT_RefPose || !RefPoseSeq->IsValidAdditive() || RefPoseSeq->RawAnimationData.Num() > 0);
-	if (!bGetAdditiveBasePoseValid) //If this fails there is not enough information to get the base pose
-	{
-		FString Name = GetName();
-		FString SkelName = GetSkeleton() ? GetSkeleton()->GetName() : TEXT("NoSkeleton");
-		FString RefName = RefPoseSeq->GetName();
-		FString RefSkelName = RefPoseSeq->GetSkeleton() ? RefPoseSeq->GetSkeleton()->GetName() : TEXT("NoRefSeqSkeleton");
-		const TCHAR* NeedsLoad = RefPoseSeq->HasAnyFlags(RF_NeedLoad) ? TEXT("Yes") : TEXT("No");
-
-		checkf(false, TEXT("Cannot get valid base pose for Anim: ['%s' (Skel:%s)] RefSeq: ['%s' (Skel:%s)] RawAnimDataNum: %i NeedsLoad: %s"), *Name, *SkelName, *RefName, *RefSkelName, RefPoseSeq->RawAnimationData.Num(), NeedsLoad);
-	}
-
 	switch (RefPoseType)
 	{
 		// use whole animation as a base pose. Need BasePoseSeq.
 		case ABPT_AnimScaled:
 		{
 			// normalize time to fit base seq
-			const float Fraction = FMath::Clamp<float>(ExtractionContext.CurrentTime / SequenceLength, 0.f, 1.f);
+			const float Fraction = (SequenceLength > 0.f)? FMath::Clamp<float>(ExtractionContext.CurrentTime / SequenceLength, 0.f, 1.f) : 0.f;
 			const float BasePoseTime = RefPoseSeq->SequenceLength * Fraction;
 
 			FAnimExtractContext BasePoseExtractionContext(ExtractionContext);

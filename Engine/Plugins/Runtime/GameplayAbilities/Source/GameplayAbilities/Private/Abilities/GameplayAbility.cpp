@@ -289,7 +289,7 @@ bool UGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Handl
 
 	// A valid AvatarActor is required. Simulated proxy check means only authority or autonomous proxies should be executing abilities.
 	AActor* const AvatarActor = ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr;
-	if (AvatarActor == nullptr || !ShouldActivateAbility(AvatarActor->Role))
+	if (AvatarActor == nullptr || !ShouldActivateAbility(AvatarActor->GetLocalRole()))
 	{
 		return false;
 	}
@@ -1157,7 +1157,7 @@ void UGameplayAbility::MontageStop(float OverrideBlendOutTime)
 		// We should only stop the current montage if we are the animating ability
 		if (AbilitySystemComponent->IsAnimatingAbility(this))
 		{
-			AbilitySystemComponent->CurrentMontageStop();
+			AbilitySystemComponent->CurrentMontageStop(OverrideBlendOutTime);
 		}
 	}
 }

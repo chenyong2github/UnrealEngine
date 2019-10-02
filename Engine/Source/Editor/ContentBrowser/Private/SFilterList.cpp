@@ -26,6 +26,16 @@
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
+/** Helper struct to avoid friending the whole of SFilterList */
+struct FFrontendFilterExternalActivationHelper
+{
+	static void BindToFilter(TSharedRef<SFilterList> InFilterList, TSharedRef<FFrontendFilter> InFrontendFilter)
+	{
+		TWeakPtr<FFrontendFilter> WeakFilter = InFrontendFilter;
+		InFrontendFilter->SetActiveEvent.AddSP(&InFilterList.Get(), &SFilterList::OnSetFilterActive, WeakFilter);
+	}
+};
+
 /** A class for check boxes in the filter list. If you double click a filter checkbox, you will enable it and disable all others */
 class SFilterCheckBox : public SCheckBox
 {
@@ -516,10 +526,15 @@ void SFilterList::Construct( const FArguments& InArgs )
 
 	AllFrontendFilterCategories.AddUnique(DefaultCategory);
 
-	// Auto add all inverse filters
+	
 	for (auto FilterIt = AllFrontendFilters.CreateConstIterator(); FilterIt; ++FilterIt)
 	{
-		SetFrontendFilterActive(*FilterIt, false);
+		// Bind external activation event
+		TSharedRef<FFrontendFilter> Filter = *FilterIt;
+		FFrontendFilterExternalActivationHelper::BindToFilter(SharedThis(this), Filter);
+
+		// Auto add all inverse filters
+		SetFrontendFilterActive(Filter, false);
 	}
 
 	FilterBox = SNew(SWrapBox)
@@ -1481,6 +1496,19 @@ bool SFilterList::IsFrontendFilterCategoryInUse(TSharedPtr<FFrontendFilterCatego
 void SFilterList::OnResetFilters()
 {
 	RemoveAllFilters();
+}
+
+void SFilterList::OnSetFilterActive(bool bInActive, TWeakPtr<FFrontendFilter> InWeakFilter)
+{
+	TSharedPtr<FFrontendFilter> Filter = InWeakFilter.Pin();
+	if (Filter.IsValid())
+	{
+		if (!IsFrontendFilterInUse(Filter.ToSharedRef()))
+		{
+			TSharedRef<SFilter> NewFilter = AddFilter(Filter.ToSharedRef());
+			NewFilter->SetEnabled(bInActive);
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

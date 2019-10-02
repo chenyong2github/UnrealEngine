@@ -517,7 +517,7 @@ void FWorldTileModel::UpdateLandscapeSectionsOffset(FIntPoint LevelOffset)
 	if (LandscapeProxy)
 	{
 		// Calculate new section coordinates for landscape
-		FVector	DrawScale = LandscapeProxy->GetRootComponent()->RelativeScale3D;
+		FVector DrawScale = LandscapeProxy->GetRootComponent()->GetRelativeScale3D();
 		FIntPoint QuadsSpaceOffset;
 		QuadsSpaceOffset.X = FMath::RoundToInt(LevelOffset.X / DrawScale.X);
 		QuadsSpaceOffset.Y = FMath::RoundToInt(LevelOffset.Y / DrawScale.Y);

@@ -71,7 +71,7 @@ public:
 
 	virtual void FractureContextChanged() override;
 	virtual void ExecuteFracture(const FFractureContext& Context) override;
-	// virtual bool CanExecuteFracture() { return true; }
+	virtual bool CanExecuteFracture() const override;
 
 	void GenerateSliceTransforms(const FFractureContext& Context, TArray<FTransform>& CuttingPlaneTransforms);
 

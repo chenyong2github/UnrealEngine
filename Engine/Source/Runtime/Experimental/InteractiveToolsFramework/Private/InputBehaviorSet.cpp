@@ -116,38 +116,21 @@ void UInputBehaviorSet::CollectWantsCapture(const FInputDeviceState& input, TArr
 
 
 
-bool UInputBehaviorSet::UpdateHover(const FInputDeviceState& input)
+void UInputBehaviorSet::CollectWantsHoverCapture(const FInputDeviceState& input, TArray<FInputCaptureRequest>& result)
 {
-	bool bAnyWantedHover = false;
-	for (auto b : Behaviors) 
-	{
-		if (SupportsInputType(b.Behavior, input)) 
-		{
-			if (b.Behavior->WantsHoverEvents()) 
-			{
-				b.Behavior->UpdateHover(input);
-				bAnyWantedHover = true;
-			}
-		}
-	}
-	return bAnyWantedHover;
-}
-
-bool UInputBehaviorSet::EndHover(const FInputDeviceState& input)
-{
-	bool bAnyWantedHover = false;
 	for (auto b : Behaviors)
 	{
-		if (SupportsInputType(b.Behavior, input)) 
+		// only call WantsCapture if the Behavior supports the current input device
+		if (b.Behavior->WantsHoverEvents() && SupportsInputType(b.Behavior, input))
 		{
-			if (b.Behavior->WantsHoverEvents()) 
+			FInputCaptureRequest request = b.Behavior->WantsHoverCapture(input);
+			if (request.Type != EInputCaptureRequestType::Ignore)
 			{
-				b.Behavior->EndHover(input);
-				bAnyWantedHover = true;
+				request.Owner = b.Source;
+				result.Add(request);
 			}
 		}
 	}
-	return bAnyWantedHover;
 }
 
 

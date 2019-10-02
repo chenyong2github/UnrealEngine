@@ -4058,7 +4058,7 @@ bool UEditorEngine::Map_Scale( UWorld* InWorld, const TCHAR* Str, FOutputDevice&
 			}
 			else if( Actor->GetRootComponent() != NULL )
 			{
-				Actor->GetRootComponent()->SetRelativeScale3D( Actor->GetRootComponent()->RelativeScale3D * Factor );
+				Actor->GetRootComponent()->SetRelativeScale3D(Actor->GetRootComponent()->GetRelativeScale3D() * Factor);
 			}
 
 			if( bScaleLocations )
@@ -4995,13 +4995,7 @@ bool UEditorEngine::SnapObjectTo( FActorOrComponent Object, const bool InAlign, 
 			RebuildAlteredBSP();
 		}
 
-		TArray<FEdMode*> ActiveModes; 
-		GCurrentLevelEditingViewportClient->GetModeTools()->GetActiveModes(ActiveModes);
-		for( int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex )
-		{
-			// Notify active modes
-			ActiveModes[ModeIndex]->ActorMoveNotify();
-		}
+		GCurrentLevelEditingViewportClient->GetModeTools()->ActorMoveNotify();
 
 		return true;
 	}

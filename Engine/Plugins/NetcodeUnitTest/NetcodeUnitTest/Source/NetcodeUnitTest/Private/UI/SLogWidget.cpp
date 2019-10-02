@@ -1156,11 +1156,11 @@ void SLogWidget::OnSuspendStateChanged(ESuspendState InSuspendState)
 	{
 		if (InSuspendState == ESuspendState::Active)
 		{
-			SuspendButtonText->SetText(FString(TEXT("SUSPEND")));
+			SuspendButtonText->SetText(NSLOCTEXT("SLogWidget", "SUSPEND", "SUSPEND"));
 		}
 		else if (InSuspendState == ESuspendState::Suspended)
 		{
-			SuspendButtonText->SetText(FString(TEXT("RESUME")));
+			SuspendButtonText->SetText(NSLOCTEXT("SLogWidget", "RESUME", "RESUME"));
 		}
 	}
 }

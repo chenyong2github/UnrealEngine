@@ -11,7 +11,7 @@ ASpectatorPawn::ASpectatorPawn(const FObjectInitializer& ObjectInitializer)
 	.DoNotCreateDefaultSubobject(Super::MeshComponentName)
 	)
 {
-	bCanBeDamaged = false;
+	SetCanBeDamaged(false);
 	//SetRemoteRoleForBackwardsCompat(ROLE_SimulatedProxy);
 	//bReplicates = true;
 

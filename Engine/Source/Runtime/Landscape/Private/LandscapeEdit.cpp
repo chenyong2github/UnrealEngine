@@ -40,9 +40,7 @@ LandscapeEdit.cpp: Landscape editing
 #include "LandscapeSplinesComponent.h"
 #include "Serialization/MemoryWriter.h"
 #if WITH_EDITOR
-#include "MeshDescription.h"
-#include "MeshAttributes.h"
-#include "MeshAttributeArray.h"
+#include "StaticMeshAttributes.h"
 #include "MeshUtilitiesCommon.h"
 
 #include "EngineModule.h"
@@ -1084,7 +1082,7 @@ void ULandscapeComponent::RecreateCollisionComponent(bool bUseSimpleCollision)
 		CollisionComp = NewObject<ULandscapeHeightfieldCollisionComponent>(Proxy, NAME_None, RF_Transactional);
 	}
 
-	CollisionComp->SetRelativeLocation(RelativeLocation);
+	CollisionComp->SetRelativeLocation(GetRelativeLocation());
 	CollisionComp->SetupAttachment(Proxy->GetRootComponent(), NAME_None);
 	Proxy->CollisionComponents.Add(CollisionComp);
 
@@ -1995,7 +1993,7 @@ float ULandscapeComponent::GetLayerWeightAtLocation(const FVector& InLocation, U
 	// TODO: Root landscape isn't always loaded, would Proxy suffice?
 	if (ALandscape* Landscape = GetLandscapeActor())
 	{
-		const FVector DrawScale = Landscape->GetRootComponent()->RelativeScale3D;
+		const FVector DrawScale = Landscape->GetRootComponent()->GetRelativeScale3D();
 		float TestX = (InLocation.X - Landscape->GetActorLocation().X) / DrawScale.X - (float)GetSectionBase().X;
 		float TestY = (InLocation.Y - Landscape->GetActorLocation().Y) / DrawScale.Y - (float)GetSectionBase().Y;
 
@@ -2326,7 +2324,7 @@ LANDSCAPE_API void ALandscapeProxy::Import(const FGuid& InGuid, int32 InMinX, in
 		}
 	}
 
-	const FVector DrawScale3D = GetRootComponent()->RelativeScale3D;
+	const FVector DrawScale3D = GetRootComponent()->GetRelativeScale3D();
 
 	// layer to import data (Final or 1st layer)
 	const FGuid FinalLayerGuid = FGuid();
@@ -3602,7 +3600,7 @@ void ALandscapeProxy::EditorApplyScale(const FVector& DeltaScale, const FVector*
 	ModifiedScale.X = ModifiedScale.Y = (FMath::Abs(DeltaScale.X) > FMath::Abs(DeltaScale.Y)) ? DeltaScale.X : DeltaScale.Y;
 
 	// Correct for attempts to scale to 0 on any axis
-	FVector CurrentScale = GetRootComponent()->RelativeScale3D;
+	FVector CurrentScale = GetRootComponent()->GetRelativeScale3D();
 	if (AActor::bUsePercentageBasedScaling)
 	{
 		if (ModifiedScale.X == -1)
@@ -4023,17 +4021,18 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		// RelativeScale3D isn't even a property of ALandscapeProxy, it's a property of the root component
 		if (RootComponent)
 		{
-			FVector ModifiedScale = RootComponent->RelativeScale3D;
+			const FVector OriginalScale = RootComponent->GetRelativeScale3D();
+			FVector ModifiedScale = OriginalScale;
 
 			// Lock X and Y scaling to the same value
 			if (SubPropertyName == FName("Y"))
 			{
-				ModifiedScale.X = FMath::Abs(RootComponent->RelativeScale3D.Y)*FMath::Sign(ModifiedScale.X);
+				ModifiedScale.X = FMath::Abs(OriginalScale.Y)*FMath::Sign(ModifiedScale.X);
 			}
 			else
 			{
 				// There's no "if name == X" here so that if we can't tell which has changed out of X and Y, we just use X
-				ModifiedScale.Y = FMath::Abs(RootComponent->RelativeScale3D.X)*FMath::Sign(ModifiedScale.Y);
+				ModifiedScale.Y = FMath::Abs(OriginalScale.X)*FMath::Sign(ModifiedScale.Y);
 			}
 
 			ULandscapeInfo* Info = GetLandscapeInfo();
@@ -5716,10 +5715,12 @@ void ULandscapeComponent::GeneratePlatformPixelData()
 		}
 	}
 
+	GDisableAutomaticTextureMaterialUpdateDependencies = true;
 	for (int TextureIdx = 0; TextureIdx < MobileWeightmapTextures.Num(); TextureIdx++)
 	{
 		MobileWeightmapTextures[TextureIdx]->PostEditChange();
 	}
+	GDisableAutomaticTextureMaterialUpdateDependencies = false;
 
 	FLinearColor Masks[4];
 	Masks[0] = FLinearColor(1, 0, 0, 0);

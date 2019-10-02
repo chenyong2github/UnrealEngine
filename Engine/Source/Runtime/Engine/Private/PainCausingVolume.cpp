@@ -38,7 +38,7 @@ void APainCausingVolume::Reset()
 void APainCausingVolume::ActorEnteredVolume(AActor* Other)
 {
 	Super::ActorEnteredVolume(Other);
-	if ( bPainCausing && bEntryPain && Other->bCanBeDamaged )
+	if ( bPainCausing && bEntryPain && Other->CanBeDamaged() )
 	{
 		CausePainTo(Other);
 	}
@@ -59,7 +59,7 @@ void APainCausingVolume::PainTimer()
 
 		for (AActor* const A : TouchingActors)
 		{
-			if (A && A->bCanBeDamaged && !A->IsPendingKill())
+			if (A && A->CanBeDamaged() && !A->IsPendingKill())
 			{
 				// @todo physicsVolume This won't work for other actor. Need to fix it properly
 				APawn* PawnA = Cast<APawn>(A);

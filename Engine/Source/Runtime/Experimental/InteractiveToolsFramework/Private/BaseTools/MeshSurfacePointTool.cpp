@@ -6,6 +6,8 @@
 #include "ToolBuilderUtil.h"
 #include "Components/PrimitiveComponent.h"
 
+#define LOCTEXT_NAMESPACE "UMeshSurfacePointTool"
+
 
 /*
  * ToolBuilder
@@ -45,6 +47,7 @@ void UMeshSurfacePointTool::Setup()
 	UInteractiveTool::Setup();
 
 	bShiftToggle = false;
+	bCtrlToggle = false;
 
 	// add input behaviors
 	UMeshSurfacePointToolMouseBehavior* mouseBehavior = NewObject<UMeshSurfacePointToolMouseBehavior>();
@@ -74,14 +77,16 @@ void UMeshSurfacePointTool::OnUpdateDrag(const FRay& Ray)
 	FHitResult OutHit;
 	if ( HitTest(Ray, OutHit) ) 
 	{
-		GetToolManager()->PostMessage( 
-			FString::Printf(TEXT("[UMeshSurfacePointTool::OnUpdateDrag] Hit triangle index %d at ray distance %f"), OutHit.FaceIndex, OutHit.Distance), EToolMessageLevel::Internal);
+		GetToolManager()->DisplayMessage( 
+			FText::Format(LOCTEXT("OnUpdateDragMessage", "UMeshSurfacePointTool::OnUpdateDrag: Hit triangle index {0} at ray distance {1}"),
+				FText::AsNumber(OutHit.FaceIndex), FText::AsNumber(OutHit.Distance)),
+			EToolMessageLevel::Internal);
 	}
 }
 
 void UMeshSurfacePointTool::OnEndDrag(const FRay& Ray)
 {
-	//GetToolManager()->PostMessage(TEXT("UMeshSurfacePointTool::OnEndDrag!"), EToolMessageLevel::Internal);
+	//GetToolManager()->DisplayMessage(TEXT("UMeshSurfacePointTool::OnEndDrag!"), EToolMessageLevel::Internal);
 }
 
 
@@ -89,6 +94,24 @@ void UMeshSurfacePointTool::SetShiftToggle(bool bShiftDown)
 {
 	bShiftToggle = bShiftDown;
 }
+
+void UMeshSurfacePointTool::SetCtrlToggle(bool bCtrlDown)
+{
+	bCtrlToggle = bCtrlDown;
+}
+
+
+FInputRayHit UMeshSurfacePointTool::BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos)
+{
+	FHitResult OutHit;
+	if (HitTest(PressPos.WorldRay, OutHit))
+	{
+		return FInputRayHit(OutHit.Distance);
+	}
+	return FInputRayHit();
+}
+
+
 
 
 
@@ -121,6 +144,7 @@ FInputCaptureRequest UMeshSurfacePointToolMouseBehavior::WantsCapture(const FInp
 FInputCaptureUpdate UMeshSurfacePointToolMouseBehavior::BeginCapture(const FInputDeviceState& input, EInputCaptureSide eSide)
 {
 	Tool->SetShiftToggle(input.bShiftKeyDown);
+	Tool->SetCtrlToggle(input.bCtrlKeyDown);
 	Tool->OnBeginDrag(input.Mouse.WorldRay);
 	LastWorldRay = input.Mouse.WorldRay;
 	bInDragCapture = true;
@@ -156,5 +180,4 @@ void UMeshSurfacePointToolMouseBehavior::ForceEndCapture(const FInputCaptureData
 
 
 
-
-
+#undef LOCTEXT_NAMESPACE

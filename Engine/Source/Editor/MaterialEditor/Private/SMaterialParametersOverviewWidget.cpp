@@ -39,6 +39,8 @@
 #include "Curves/CurveLinearColorAtlas.h"
 #include "Widgets/Views/SExpanderArrow.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
+#include "MaterialEditor/DEditorRuntimeVirtualTextureParameterValue.h"
+
 
 
 #define LOCTEXT_NAMESPACE "MaterialLayerCustomization"
@@ -175,129 +177,157 @@ void SMaterialParametersOverviewTreeItem::Construct(const FArguments& InArgs, co
 		}
 		else if (TextureParam)
 		{
-
-			TSharedPtr<SWidget> NameWidget;
-			TSharedPtr<SWidget> ValueWidget;
-			FDetailWidgetRow DefaultRow;
-			Row.GetDefaultWidgets(NameWidget, ValueWidget, DefaultRow);
-
-			FDetailWidgetRow &DetailWidgetRow = Row.CustomWidget();
-			TSharedPtr<SVerticalBox> NameVerticalBox;
-			DetailWidgetRow.NameContent()
-				[
-					SAssignNew(NameVerticalBox, SVerticalBox)
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					[
-						SNew(STextBlock)
-						.Text(FText::FromName(StackParameterData->Parameter->ParameterInfo.Name))
-						.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-					]
-				];
-
-			DetailWidgetRow.ValueContent()
-				.MinDesiredWidth(DefaultRow.ValueWidget.MinWidth)
-				.MaxDesiredWidth(DefaultRow.ValueWidget.MaxWidth)
-				[
-					ValueWidget.ToSharedRef()
-				];
-
-			static const FName Red("R");
-			static const FName Green("G");
-			static const FName Blue("B");
-			static const FName Alpha("A");
-
-			if (!TextureParam->ChannelNames.R.IsEmpty())
+			UMaterial *Material = MaterialEditorInstance->PreviewMaterial;
+			if (Material != nullptr)
 			{
-				NameVerticalBox->AddSlot()
-					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						.Padding(20.0, 2.0, 4.0, 2.0)
+				UMaterialExpressionTextureSampleParameter* Expression = Material->FindExpressionByGUID<UMaterialExpressionTextureSampleParameter>(TextureParam->ExpressionId);
+				if (Expression != nullptr)
+				{
+					TWeakObjectPtr<UMaterialExpressionTextureSampleParameter> SamplerExpression = Expression;
+					TSharedPtr<SWidget> NameWidget;
+					TSharedPtr<SWidget> ValueWidget;
+					FDetailWidgetRow DefaultRow;
+					Row.GetDefaultWidgets(NameWidget, ValueWidget, DefaultRow);
+
+					FDetailWidgetRow &DetailWidgetRow = Row.CustomWidget();
+					TSharedPtr<SVerticalBox> NameVerticalBox;
+					DetailWidgetRow.NameContent()
 						[
-							SNew(STextBlock)
-							.Text(FText::FromName(Red))
+							SAssignNew(NameVerticalBox, SVerticalBox)
+							+ SVerticalBox::Slot()
+							.AutoHeight()
+							[
+								SNew(STextBlock)
+								.Text(FText::FromName(StackParameterData->Parameter->ParameterInfo.Name))
+								.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+							]
+						];
+
+					DetailWidgetRow.ValueContent()
+						.MinDesiredWidth(DefaultRow.ValueWidget.MinWidth)
+						.MaxDesiredWidth(DefaultRow.ValueWidget.MaxWidth)
+						[
+							SNew(SObjectPropertyEntryBox)
+							.PropertyHandle(StackParameterData->ParameterNode->CreatePropertyHandle())
+							.AllowedClass(UTexture::StaticClass())
+							.ThumbnailPool(Tree.Pin()->GetTreeThumbnailPool())
+							.OnShouldFilterAsset_Lambda([SamplerExpression](const FAssetData& AssetData)
+							{
+								if (SamplerExpression.Get())
+								{
+									bool VirtualTextured = false;
+									AssetData.GetTagValue<bool>("VirtualTextureStreaming", VirtualTextured);
+
+									bool ExpressionIsVirtualTextured = IsVirtualSamplerType(SamplerExpression->SamplerType);
+
+									return VirtualTextured != ExpressionIsVirtualTextured;
+								}
+								else
+								{
+									return false;
+								}
+							})
+						];
+
+					static const FName Red("R");
+					static const FName Green("G");
+					static const FName Blue("B");
+					static const FName Alpha("A");
+
+					if (!TextureParam->ChannelNames.R.IsEmpty())
+					{
+						NameVerticalBox->AddSlot()
+							[
+								SNew(SHorizontalBox)
+								+ SHorizontalBox::Slot()
+							.AutoWidth()
+							.Padding(20.0, 2.0, 4.0, 2.0)
+							[
+								SNew(STextBlock)
+								.Text(FText::FromName(Red))
 							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
-						]
+							]
 						+ SHorizontalBox::Slot()
-						.HAlign(HAlign_Left)
-						.Padding(4.0, 2.0)
-						[
-							SNew(STextBlock)
-							.Text(TextureParam->ChannelNames.R)
+							.HAlign(HAlign_Left)
+							.Padding(4.0, 2.0)
+							[
+								SNew(STextBlock)
+								.Text(TextureParam->ChannelNames.R)
 							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-						]
-					];
-			}
-			if (!TextureParam->ChannelNames.G.IsEmpty())
-			{
-				NameVerticalBox->AddSlot()
-					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.Padding(20.0, 2.0, 4.0, 2.0)
-						.AutoWidth()
-						[
-							SNew(STextBlock)
-							.Text(FText::FromName(Green))
-							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
-						]
-						+ SHorizontalBox::Slot()
-						.HAlign(HAlign_Left)
-						.Padding(4.0, 2.0)
-						[
-							SNew(STextBlock)
-							.Text(TextureParam->ChannelNames.G)
-							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-						]
-					];
-			}
-			if (!TextureParam->ChannelNames.B.IsEmpty())
-			{
-				NameVerticalBox->AddSlot()
-					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.Padding(20.0, 2.0, 4.0, 2.0)
-						.AutoWidth()
-						[
-							SNew(STextBlock)
-							.Text(FText::FromName(Blue))
-							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
-						]
-						+ SHorizontalBox::Slot()
-						.HAlign(HAlign_Left)
-						.Padding(4.0, 2.0)
-						[
-							SNew(STextBlock)
-							.Text(TextureParam->ChannelNames.B)
-						.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-						]
-					];
-			}
-			if (!TextureParam->ChannelNames.A.IsEmpty())
-			{
-				NameVerticalBox->AddSlot()
-					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.Padding(20.0, 2.0, 4.0, 2.0)
-						.AutoWidth()
-						[
-							SNew(STextBlock)
-							.Text(FText::FromName(Alpha))
-							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
-						]
-						+ SHorizontalBox::Slot()
-						.HAlign(HAlign_Left)
-						.Padding(4.0, 2.0)
-						[
-							SNew(STextBlock)
-							.Text(TextureParam->ChannelNames.A)
-							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-						]
-					];
+							]
+							];
+					}
+					if (!TextureParam->ChannelNames.G.IsEmpty())
+					{
+						NameVerticalBox->AddSlot()
+							[
+								SNew(SHorizontalBox)
+								+ SHorizontalBox::Slot()
+								.Padding(20.0, 2.0, 4.0, 2.0)
+								.AutoWidth()
+								[
+									SNew(STextBlock)
+									.Text(FText::FromName(Green))
+									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+								]
+								+ SHorizontalBox::Slot()
+								.HAlign(HAlign_Left)
+								.Padding(4.0, 2.0)
+								[
+									SNew(STextBlock)
+									.Text(TextureParam->ChannelNames.G)
+									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+								]
+							];
+					}
+					if (!TextureParam->ChannelNames.B.IsEmpty())
+					{
+						NameVerticalBox->AddSlot()
+							[
+								SNew(SHorizontalBox)
+								+ SHorizontalBox::Slot()
+								.Padding(20.0, 2.0, 4.0, 2.0)
+								.AutoWidth()
+								[
+									SNew(STextBlock)
+									.Text(FText::FromName(Blue))
+									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+								]
+								+ SHorizontalBox::Slot()
+								.HAlign(HAlign_Left)
+								.Padding(4.0, 2.0)
+								[
+									SNew(STextBlock)
+									.Text(TextureParam->ChannelNames.B)
+									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+								]
+							];
+					}
+					if (!TextureParam->ChannelNames.A.IsEmpty())
+					{
+						NameVerticalBox->AddSlot()
+							[
+								SNew(SHorizontalBox)
+								+ SHorizontalBox::Slot()
+								.Padding(20.0, 2.0, 4.0, 2.0)
+								.AutoWidth()
+								[
+									SNew(STextBlock)
+									.Text(FText::FromName(Alpha))
+									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+								]
+								+ SHorizontalBox::Slot()
+								.HAlign(HAlign_Left)
+								.Padding(4.0, 2.0)
+								[
+									SNew(STextBlock)
+									.Text(TextureParam->ChannelNames.A)
+									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+								]
+							];
+					}
+
+				}
 			}
 		}
 		else if (!CompMaskParam)
@@ -716,6 +746,7 @@ void SMaterialParametersOverviewTree::ShowSubParameters()
 
 
 			UDEditorStaticComponentMaskParameterValue* CompMaskParam = Cast<UDEditorStaticComponentMaskParameterValue>(Parameter);
+			// No children for masks
 			if (!CompMaskParam)
 			{
 				TArray<TSharedRef<IDetailTreeNode>> ParamChildren;
@@ -732,16 +763,21 @@ void SMaterialParametersOverviewTree::ShowSubParameters()
 					ChildProperty->Children.Add(ParamChildProperty);
 				}
 			}
-			for (TSharedPtr<struct FSortedParamData> GroupChild : SortedParameters)
+
+			UDEditorRuntimeVirtualTextureParameterValue* VTParameter = Cast<UDEditorRuntimeVirtualTextureParameterValue>(Parameter);
+			//Don't show VT samples here
+			if (!VTParameter)
 			{
-				if (GroupChild->Group.GroupName == Property.ParameterGroup.GroupName
-					&& GroupChild->ParameterInfo.Association == ChildProperty->ParameterInfo.Association
-					&&  GroupChild->ParameterInfo.Index == ChildProperty->ParameterInfo.Index)
+				for (TSharedPtr<struct FSortedParamData> GroupChild : SortedParameters)
 				{
-					GroupChild->Children.Add(ChildProperty);
+					if (GroupChild->Group.GroupName == Property.ParameterGroup.GroupName
+						&& GroupChild->ParameterInfo.Association == ChildProperty->ParameterInfo.Association
+						&&  GroupChild->ParameterInfo.Index == ChildProperty->ParameterInfo.Index)
+					{
+						GroupChild->Children.Add(ChildProperty);
+					}
 				}
 			}
-
 		}
 	}
 }

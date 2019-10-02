@@ -358,7 +358,8 @@ namespace RuntimeVirtualTexture
 			const float AreaRatio = 2.f * SphereBounds.W * RcpWorldSize;
 			const int32 CurFirstLODIdx = PrimitiveSceneInfo->Proxy->GetCurrentFirstLODIdx_RenderThread();
 			const int32 MinLODIdx = FMath::Max((int32)LodInfo.MinLod, CurFirstLODIdx);
-			const int32 LodIndex = FMath::Clamp<int32>((int32)LodInfo.LodBias - FMath::FloorToInt(FMath::Log2(AreaRatio)), MinLODIdx, LodInfo.MaxLod);
+			const int32 LodBias = (int32)LodInfo.LodBias - FPrimitiveVirtualTextureLodInfo::LodBiasOffset;
+			const int32 LodIndex = FMath::Clamp<int32>(LodBias - FMath::FloorToInt(FMath::Log2(AreaRatio)), MinLODIdx, LodInfo.MaxLod);
 
 			// Process meshes
 			for (int32 MeshIndex = 0; MeshIndex < PrimitiveSceneInfo->StaticMeshes.Num(); ++MeshIndex)
@@ -573,7 +574,7 @@ namespace RuntimeVirtualTexture
 	struct FRenderGraphSetup
 	{
 		//todo[vt]: Add flag to disable the clear render target behavior and win some performance when we can. This could be driven a UI on the VT or the VT Plane?
-		FRenderGraphSetup(FRDGBuilder& GraphBuilder, ERuntimeVirtualTextureMaterialType MaterialType, FRHITexture2D* OutputTexture0, FRHITexture2D* OutputTexture1, FIntPoint TextureSize)
+		FRenderGraphSetup(FRDGBuilder& GraphBuilder, ERuntimeVirtualTextureMaterialType MaterialType, FRHITexture2D* OutputTexture0, FIntPoint TextureSize)
 		{
 			bRenderPass = OutputTexture0 != nullptr;
 			bCompressPass = bRenderPass && (OutputTexture0->GetFormat() == PF_DXT1 || OutputTexture0->GetFormat() == PF_DXT5 || OutputTexture0->GetFormat() == PF_BC5);
@@ -715,10 +716,13 @@ namespace RuntimeVirtualTexture
 		ERuntimeVirtualTextureMaterialType MaterialType,
 		bool bClearTextures,
 		FRHITexture2D* OutputTexture0,
+		FRHIUnorderedAccessView* OutputUAV0,
 		FBox2D const& DestBox0,
 		FRHITexture2D* OutputTexture1,
+		FRHIUnorderedAccessView* OutputUAV1,
 		FBox2D const& DestBox1,
 		FRHITexture2D* OutputTexture2, 
+		FRHIUnorderedAccessView* OutputUAV2,
 		FBox2D const& DestBox2,
 		FTransform const& UVToWorld,
 		FBox2D const& UVRange,
@@ -782,7 +786,7 @@ namespace RuntimeVirtualTexture
 		// Build graph
 		FMemMark Mark(FMemStack::Get());
 		FRDGBuilder GraphBuilder(RHICmdList);
-		FRenderGraphSetup GraphSetup(GraphBuilder, MaterialType, OutputTexture0, OutputTexture1, TextureSize);
+		FRenderGraphSetup GraphSetup(GraphBuilder, MaterialType, OutputTexture0, TextureSize);
 
 		// Draw Pass
 		if (GraphSetup.bRenderPass)
@@ -894,6 +898,33 @@ namespace RuntimeVirtualTexture
 			Info.DestPosition = FIntVector(DestBox2.Min.X, DestBox2.Min.Y, 0);
 
 			RHICmdList.CopyTexture(GraphOutputTexture2->GetRenderTargetItem().ShaderResourceTexture->GetTexture2D(), OutputTexture2->GetTexture2D(), Info);
+		}
+	}
+
+	void RenderPages(FRHICommandListImmediate& RHICmdList, FRenderPageBatchDesc const& InDesc)
+	{
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(STAT_VirtualTextureSystem_RVT_RenderPages);
+		SCOPED_DRAW_EVENT(RHICmdList, RuntimeVirtualTextureRenderPages);
+		check(InDesc.NumPageDescs <= EMaxRenderPageBatch);
+
+		for (int32 PageIndex = 0; PageIndex < InDesc.NumPageDescs; ++PageIndex)
+		{
+			FRenderPageDesc const& PageDesc = InDesc.PageDescs[PageIndex];
+
+			RenderPage(
+				RHICmdList,
+				InDesc.Scene,
+				InDesc.RuntimeVirtualTextureMask,
+				InDesc.MaterialType,
+				InDesc.bClearTextures,
+				InDesc.Targets[0].Texture, InDesc.Targets[0].UAV, PageDesc.DestBox[0],
+				InDesc.Targets[1].Texture, InDesc.Targets[1].UAV, PageDesc.DestBox[1],
+				InDesc.Targets[2].Texture, InDesc.Targets[2].UAV, PageDesc.DestBox[2],
+				InDesc.UVToWorld,
+				PageDesc.UVRange,
+				PageDesc.vLevel,
+				InDesc.MaxLevel,
+				InDesc.DebugType);
 		}
 	}
 

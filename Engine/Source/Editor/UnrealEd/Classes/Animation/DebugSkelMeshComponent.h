@@ -520,3 +520,28 @@ public:
 	}
 
 };
+
+
+/*
+ * This class is use to remove the alternate skinning preview from the multiple editor that can show it.
+ * Important it should be destroy after the PostEditChange of the skeletalmesh is done and the renderdata have been recreate
+ * i.e. FScopedSkeletalMeshPostEditChange should be create after FScopedSuspendAlternateSkinWeightPreview and delete before FScopedSuspendAlternateSkinWeightPreview
+ */
+class UNREALED_API FScopedSuspendAlternateSkinWeightPreview
+{
+public:
+	/*
+	 * This constructor suspend the alternate skinning preview for all editor component that use the specified skeletalmesh
+	 * Parameters:
+	 * @param InSkeletalMesh - SkeletalMesh use to know which preview component we have to suspend the alternate skinning preview.
+	 */
+	FScopedSuspendAlternateSkinWeightPreview(class USkeletalMesh* InSkeletalMesh);
+
+	/*
+	 * This destructor put back the preview alternate skinning
+	 */
+	~FScopedSuspendAlternateSkinWeightPreview();
+
+private:
+	TArray< TTuple<UDebugSkelMeshComponent*, FName> > SuspendedComponentArray;
+};

@@ -34,9 +34,9 @@ void FFoliageInstanceBaseInfo::UpdateLocationFromComponent(UActorComponent* InCo
 			const USceneComponent* RootComponent = Owner->GetRootComponent();
 			if (RootComponent)
 			{
-				CachedLocation = RootComponent->RelativeLocation;
-				CachedRotation = RootComponent->RelativeRotation;
-				CachedDrawScale = RootComponent->RelativeScale3D;
+				CachedLocation = RootComponent->GetRelativeLocation();
+				CachedRotation = RootComponent->GetRelativeRotation();
+				CachedDrawScale = RootComponent->GetRelativeScale3D();
 			}
 		}
 	}

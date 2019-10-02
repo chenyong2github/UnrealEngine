@@ -344,7 +344,7 @@ void UGoogleVRMotionControllerComponent::TickComponent( float DeltaTime, ELevelT
 
 			if (PlayerController->IsInputKeyDown(EKeys::Steam_Touch_0))
 			{
-				ControllerTouchPointMeshComponent->SetRelativeScale3D(ControllerTouchPointMeshComponent->RelativeScale3D * TOUCHPAD_POINT_FILTER_STRENGTH +
+				ControllerTouchPointMeshComponent->SetRelativeScale3D(ControllerTouchPointMeshComponent->GetRelativeScale3D() * TOUCHPAD_POINT_FILTER_STRENGTH +
 																	  TouchMeshScale * (1.0f - TOUCHPAD_POINT_FILTER_STRENGTH));
 
 				float TouchPadX = PlayerController->GetInputAnalogKeyState(FGamepadKeyNames::MotionController_Left_Thumbstick_X);
@@ -357,7 +357,7 @@ void UGoogleVRMotionControllerComponent::TickComponent( float DeltaTime, ELevelT
 			}
 			else
 			{
-				ControllerTouchPointMeshComponent->SetRelativeScale3D(ControllerTouchPointMeshComponent->RelativeScale3D * TOUCHPAD_POINT_FILTER_STRENGTH);
+				ControllerTouchPointMeshComponent->SetRelativeScale3D(ControllerTouchPointMeshComponent->GetRelativeScale3D() * TOUCHPAD_POINT_FILTER_STRENGTH);
 			}
 		}
 	}

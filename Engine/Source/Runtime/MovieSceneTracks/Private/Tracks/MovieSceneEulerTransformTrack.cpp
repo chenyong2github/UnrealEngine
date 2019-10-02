@@ -35,8 +35,3 @@ FMovieSceneEvalTemplatePtr UMovieSceneEulerTransformTrack::CreateTemplateForSect
 	return FMovieSceneEulerTransformPropertySectionTemplate(*CastChecked<UMovieScene3DTransformSection>(&InSection), *this);
 }
 
-FMovieSceneInterrogationKey UMovieSceneEulerTransformTrack::GetInterrogationKey()
-{
-	static FMovieSceneAnimTypeID TypeID = FMovieSceneAnimTypeID::Unique();
-	return TypeID;
-}

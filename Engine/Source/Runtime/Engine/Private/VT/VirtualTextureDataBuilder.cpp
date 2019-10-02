@@ -860,6 +860,7 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 			TBSettings.TextureFormatName = LayerData.FormatName;
 			TBSettings.bSRGB = BuildSettingsForLayer.bSRGB;
 			TBSettings.bUseLegacyGamma = BuildSettingsForLayer.bUseLegacyGamma;
+			TBSettings.bApplyYCoCgBlockScale = BuildSettingsForLayer.bApplyYCoCgBlockScale;
 
 			// Make sure the output of the texture builder is in the same gamma space as we expect it.
 			check(TBSettings.GetGammaSpace() == BuildSettingsForLayer.GetGammaSpace());

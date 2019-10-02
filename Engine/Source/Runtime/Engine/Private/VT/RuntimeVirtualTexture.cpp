@@ -10,6 +10,16 @@
 #include "VT/UploadingVirtualTexture.h"
 #include "VT/VirtualTextureLevelRedirector.h"
 
+
+/** Device scalability option for runtime virtual texture size. */
+static TAutoConsoleVariable<int32> CVarVTTileCountBias(
+	TEXT("r.VT.RVT.TileCountBias"),
+	0,
+	TEXT("Bias to apply to Runtime Virtual Texture size."),
+	ECVF_RenderThreadSafe
+);
+
+
 namespace
 {
 	/** Null producer to use as placeholder when no producer has been set on a URuntimeVirtualTexture */
@@ -218,23 +228,30 @@ void URuntimeVirtualTexture::GetProducerDescription(FVTProducerDescription& OutD
 	OutDesc.WidthInBlocks = 1;
 	OutDesc.HeightInBlocks = 1;
 
-	// Set width and height to best match the aspect ratio
+	// Apply TileCount modifier here to allow size scalability option
+	const int32 TileCountBias = CVarVTTileCountBias.GetValueOnAnyThread();
+	const int32 MaxSizeInTiles = GetTileCount(TileCount + TileCountBias);
+
+	// Set width and height to best match the runtime virtual texture volume's aspect ratio
 	const FVector VolumeSize = VolumeToWorld.GetScale3D();
-	const float AspectRatio = VolumeSize.X / VolumeSize.Y;
-	int32 Width, Height;
-	if (AspectRatio >= 1.f)
+	const float VolumeSizeX = FMath::Max(FMath::Abs(VolumeSize.X), 0.0001f);
+	const float VolumeSizeY = FMath::Max(FMath::Abs(VolumeSize.Y), 0.0001f);
+	const float AspectRatioLog2 = FMath::Log2(VolumeSizeX / VolumeSizeY);
+
+	uint32 WidthInTiles, HeightInTiles;
+	if (AspectRatioLog2 >= 0.f)
 	{
-		Width = GetSize();
-		Height = FMath::Max((int32)FMath::RoundUpToPowerOfTwo(Width / AspectRatio), GetTileSize());
+		WidthInTiles = MaxSizeInTiles;
+		HeightInTiles = FMath::Max(WidthInTiles >> FMath::RoundToInt(AspectRatioLog2), 1u);
 	}
 	else
 	{
-		Height = GetSize();
-		Width = FMath::Max((int32)FMath::RoundUpToPowerOfTwo(Height * AspectRatio), GetTileSize());
+		HeightInTiles = MaxSizeInTiles;
+		WidthInTiles = FMath::Max(HeightInTiles >> FMath::RoundToInt(-AspectRatioLog2), 1u);
 	}
 
-	OutDesc.BlockWidthInTiles = Width / GetTileSize();
-	OutDesc.BlockHeightInTiles = Height / GetTileSize();
+	OutDesc.BlockWidthInTiles = WidthInTiles;
+	OutDesc.BlockHeightInTiles = HeightInTiles;
 	OutDesc.MaxLevel = FMath::Max((int32)FMath::CeilLogTwo(FMath::Max(OutDesc.BlockWidthInTiles, OutDesc.BlockHeightInTiles)) - GetRemoveLowMips(), 0);
 
 	OutDesc.NumTextureLayers = GetLayerCount();
@@ -343,6 +360,11 @@ bool URuntimeVirtualTexture::IsLayerSRGB(int32 LayerIndex) const
 	// Implement logic for any missing material types
 	check(false);
 	return false;
+}
+
+bool URuntimeVirtualTexture::IsLayerYCoCg(int32 LayerIndex) const
+{
+	return MaterialType == ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg && LayerIndex == 0;
 }
 
 int32 URuntimeVirtualTexture::GetEstimatedPageTableTextureMemoryKb() const
@@ -504,10 +526,9 @@ void URuntimeVirtualTexture::InitializeStreamingTexture(uint32 InSizeX, uint32 I
 
 	StreamingTexture->BuildHash = GetStreamingTextureBuildHash();
 
-	enum { MAX_RVT_LAYERS = 3 };
 	const int32 LayerCount = GetLayerCount();
-	check(LayerCount <= MAX_RVT_LAYERS);
-	ETextureSourceFormat LayerFormats[MAX_RVT_LAYERS];
+	check(LayerCount <= RuntimeVirtualTexture::MaxTextureLayers);
+	ETextureSourceFormat LayerFormats[RuntimeVirtualTexture::MaxTextureLayers];
 
 	for (int32 Layer = 0; Layer < LayerCount; Layer++)
 	{
@@ -515,10 +536,12 @@ void URuntimeVirtualTexture::InitializeStreamingTexture(uint32 InSizeX, uint32 I
 		LayerFormats[Layer] = LayerFormat == PF_G16 ? TSF_G16 : TSF_BGRA8;
 
 		FTextureFormatSettings FormatSettings;
-		FormatSettings.SRGB = IsLayerSRGB(Layer);
-		FormatSettings.CompressionNone = LayerFormat == PF_B8G8R8A8 ||LayerFormat == PF_G16;
-		FormatSettings.CompressionNoAlpha = LayerFormat == PF_DXT1 || LayerFormat == PF_BC5;
 		FormatSettings.CompressionSettings = LayerFormat == PF_BC5 ? TC_Normalmap : TC_Default;
+		FormatSettings.CompressionNone = LayerFormat == PF_B8G8R8A8 || LayerFormat == PF_G16;
+		FormatSettings.CompressionNoAlpha = LayerFormat == PF_DXT1 || LayerFormat == PF_BC5;
+		FormatSettings.CompressionYCoCg = IsLayerYCoCg(Layer);
+		FormatSettings.SRGB = IsLayerSRGB(Layer);
+		
 		StreamingTexture->SetLayerFormatSettings(Layer, FormatSettings);
 	}
 

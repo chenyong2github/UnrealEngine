@@ -57,7 +57,6 @@ public:
 		, _FilterRecursivelyWithBackendFilter(true)
 		, _CanShowRealTimeThumbnails(false)
 		, _CanShowDevelopersFolder(false)
-		, _CanShowCollections(false)
 		, _CanShowFavorites(false)
 		, _PreloadAssetsForContextMenu(true)
 		, _SelectionMode( ESelectionMode::Multi )
@@ -161,9 +160,6 @@ public:
 
 		/** Indicates if the 'Show Developers' option should be enabled or disabled */
 		SLATE_ARGUMENT( bool, CanShowDevelopersFolder )
-
-		/** Indicates if the 'Show Collections' option should be enabled or disabled */
-		SLATE_ARGUMENT( bool, CanShowCollections )
 
 		/** Indicates if the 'Show Favorites' option should be enabled or disabled */
 		SLATE_ARGUMENT(bool, CanShowFavorites)
@@ -511,15 +507,6 @@ private:
 
 	/** @return true when we are showing the developers content */
 	bool IsShowingDevelopersContent() const;
-
-	/** Toggle whether collections should be shown or not */
-	void ToggleShowCollections();
-
-	/** Whether or not it's possible to toggle collections */
-	bool IsToggleShowCollectionsAllowed() const;
-
-	/** @return true when we are showing collections */
-	bool IsShowingCollections() const;
 
 	/** Toggle whether favorites should be shown or not */
 	void ToggleShowFavorites();
@@ -982,9 +969,6 @@ private:
 
 	/** Indicates if the 'Show Developers' option should be enabled or disabled */
 	bool bCanShowDevelopersFolder;
-
-	/** Indicates if the 'Show Collections' option should be enabled or disabled */
-	bool bCanShowCollections;
 
 	/** Indicates if the 'Show Favorites' option should be enabled or disabled */
 	bool bCanShowFavorites;

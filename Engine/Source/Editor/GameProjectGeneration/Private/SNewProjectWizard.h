@@ -156,8 +156,11 @@ private:
 	/** Returns the tooltip text (actual warning) of the starter content warning */
 	FText GetStarterContentWarningTooltip() const;
 
-	int32 OnGetVREnabled() const { return bEnableVR ? 1 : 0; }
-	void OnSetVREnabled(int32 InVREnabledIndex) { bEnableVR = InVREnabledIndex == 1; }
+	int32 OnGetXREnabled() const { return bEnableXR ? 1 : 0; }
+	void OnSetXREnabled(int32 InEnumIndex) { bEnableXR = InEnumIndex == 1; }
+
+	int32 OnGetRaytracingEnabled() const { return bEnableRaytracing ? 1 : 0; }
+	void OnSetRaytracingEnabled(int32 InEnumIndex) { bEnableRaytracing = InEnumIndex == 1; }
 
 	int32 OnGetBlueprintOrCppIndex() const;
 	void OnSetBlueprintOrCppIndex(int32 Index);
@@ -244,8 +247,11 @@ private:
 	/** True if user has selected to copy starter content. */
 	bool bCopyStarterContent;
 
-	/** Whether or not to enable VR in the created project. */
-	bool bEnableVR;
+	/** Whether or not to enable XR in the created project. */
+	bool bEnableXR;
+
+	/** Whether or not to enable Raytracing in the created project. */
+	bool bEnableRaytracing;
 
 	/** Whether or not we should use the blueprint or C++ version of this template. */
 	bool bShouldGenerateCode;

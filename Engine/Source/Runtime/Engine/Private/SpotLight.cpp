@@ -22,7 +22,7 @@ ASpotLight::ASpotLight(const FObjectInitializer& ObjectInitializer)
 
 	SpotLightComponent = CastChecked<USpotLightComponent>(GetLightComponent());
 	SpotLightComponent->Mobility = EComponentMobility::Stationary;
-	SpotLightComponent->RelativeRotation = FRotator(-90, 0, 0);
+	SpotLightComponent->SetRelativeRotation(FRotator(-90, 0, 0));
 
 	RootComponent = SpotLightComponent;
 

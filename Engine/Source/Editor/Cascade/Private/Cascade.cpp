@@ -170,9 +170,9 @@ FCascade::~FCascade()
 		UStaticMeshComponent* FloorComponent = PreviewViewport->GetViewportClient()->GetFloorComponent();
 		if (FloorComponent)
 		{
-			EditorOptions->FloorPosition = FloorComponent->RelativeLocation;
-			EditorOptions->FloorRotation = FloorComponent->RelativeRotation;
-			EditorOptions->FloorScale3D = FloorComponent->RelativeScale3D;
+			EditorOptions->FloorPosition = FloorComponent->GetRelativeLocation();
+			EditorOptions->FloorRotation = FloorComponent->GetRelativeRotation();
+			EditorOptions->FloorScale3D = FloorComponent->GetRelativeScale3D();
 
 			if (FloorComponent->GetStaticMesh())
 			{
@@ -1635,17 +1635,17 @@ void FCascade::Tick(float DeltaTime)
 	{
 		UParticleModuleVectorFieldLocal* VectorFieldModule = (UParticleModuleVectorFieldLocal*)SelectedModule;
 		LocalVectorFieldPreviewComponent->VectorField = VectorFieldModule->VectorField;
-		LocalVectorFieldPreviewComponent->RelativeLocation = VectorFieldModule->RelativeTranslation;
-		LocalVectorFieldPreviewComponent->RelativeRotation = VectorFieldModule->RelativeRotation;
-		LocalVectorFieldPreviewComponent->RelativeScale3D = VectorFieldModule->RelativeScale3D;
+		LocalVectorFieldPreviewComponent->SetRelativeLocation_Direct(VectorFieldModule->RelativeTranslation);
+		LocalVectorFieldPreviewComponent->SetRelativeRotation_Direct(VectorFieldModule->RelativeRotation);
+		LocalVectorFieldPreviewComponent->SetRelativeScale3D_Direct(VectorFieldModule->RelativeScale3D);
 		LocalVectorFieldPreviewComponent->Intensity = VectorFieldModule->Intensity;
-		LocalVectorFieldPreviewComponent->bVisible = true;
+		LocalVectorFieldPreviewComponent->SetVisibleFlag(true);
 		LocalVectorFieldPreviewComponent->bHiddenInGame = false;
 		LocalVectorFieldPreviewComponent->ReregisterComponent();
 	}
-	else if(LocalVectorFieldPreviewComponent->bVisible)
+	else if(LocalVectorFieldPreviewComponent->GetVisibleFlag())
 	{
-		LocalVectorFieldPreviewComponent->bVisible = false;
+		LocalVectorFieldPreviewComponent->SetVisibleFlag(false);
 		LocalVectorFieldPreviewComponent->ReregisterComponent();
 	}
 
@@ -3327,7 +3327,7 @@ void FCascade::ExportSelectedEmitter()
 					{
 						// Force a recache of the view relevance
 						PSysComp->bIsViewRelevanceDirty = true;
-						bool bIsActive = PSysComp->bIsActive;
+						bool bIsActive = PSysComp->IsActive();
 						PSysComp->DeactivateSystem();
 						PSysComp->ResetParticles();
 						if (bIsActive)

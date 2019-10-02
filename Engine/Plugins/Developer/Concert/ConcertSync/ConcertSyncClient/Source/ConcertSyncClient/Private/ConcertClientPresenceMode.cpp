@@ -24,7 +24,7 @@
 #include "Editor.h"
 #include "EditorWorldExtension.h"
 #include "LevelEditor.h"
-#include "ILevelViewport.h"
+#include "IAssetViewport.h"
 #include "SLevelViewport.h"
 #include "IVREditorModule.h"
 #include "VREditorMode.h"

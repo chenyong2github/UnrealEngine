@@ -39,8 +39,7 @@ public:
 	*/
 	virtual bool ReduceSkeletalMesh(
 		class USkeletalMesh* SkeletalMesh,
-		int32 LODIndex,
-		bool bReregisterComponent = true
+		int32 LODIndex
 	) = 0;
 	/**
 	* Returns a unique string identifying both the reduction plugin itself and the version of the plugin.

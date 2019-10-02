@@ -386,7 +386,7 @@ AMatineeActor::AMatineeActor(const FObjectInitializer& ObjectInitializer)
 		static FConstructorStatics ConstructorStatics;
 
 		SpriteComponent->Sprite = ConstructorStatics.SceneManagerObject.Get();
-		SpriteComponent->RelativeScale3D = FVector(0.5f, 0.5f, 0.5f);
+		SpriteComponent->SetRelativeScale3D(FVector(0.5f, 0.5f, 0.5f));
 		SpriteComponent->SpriteInfo.Category = ConstructorStatics.ID_Matinee;
 		SpriteComponent->SpriteInfo.DisplayName = ConstructorStatics.NAME_Matinee;
 		SpriteComponent->SetupAttachment(RootComponent);
@@ -1577,7 +1577,7 @@ void AMatineeActor::SaveActorVisibility( AActor* Actor )
 			if ( !SavedVisibility )
 			{
 				// Save both bHidden and bHiddenEdTemporary to make it work properly in the editor
-				uint8 bSaveHidden = (Actor->bHidden ? 1 : 0) | (Actor->IsTemporarilyHiddenInEditor() ? 2 : 0);
+				uint8 bSaveHidden = (Actor->IsHidden() ? 1 : 0) | (Actor->IsTemporarilyHiddenInEditor() ? 2 : 0);
 				SavedActorVisibilities.Add( Actor, bSaveHidden );
 			}
 		}
@@ -1645,8 +1645,8 @@ void AMatineeActor::SaveActorTransforms( AActor* Actor )
 		if ( !SavedTransform && Actor->GetRootComponent() )
 		{
 			FSavedTransform NewSavedTransform;
-			NewSavedTransform.Translation = Actor->GetRootComponent()->RelativeLocation;
-			NewSavedTransform.Rotation = Actor->GetRootComponent()->RelativeRotation;
+			NewSavedTransform.Translation = Actor->GetRootComponent()->GetRelativeLocation();
+			NewSavedTransform.Rotation = Actor->GetRootComponent()->GetRelativeRotation();
 
 			SavedActorTransforms.Add( Actor, NewSavedTransform );
 		}
@@ -1667,7 +1667,7 @@ void AMatineeActor::RestoreActorTransforms()
 			FSavedTransform& SavedTransform = It.Value();
 
 			// only update actor position/rotation if the track changed its position/rotation
-			if( SavedActor->GetRootComponent() && (SavedActor->GetRootComponent()->RelativeLocation != SavedTransform.Translation || SavedActor->GetRootComponent()->RelativeRotation != SavedTransform.Rotation) )
+			if( SavedActor->GetRootComponent() && (SavedActor->GetRootComponent()->GetRelativeLocation() != SavedTransform.Translation || SavedActor->GetRootComponent()->GetRelativeRotation() != SavedTransform.Rotation) )
 			{
 				SavedActor->GetRootComponent()->SetRelativeLocationAndRotation(SavedTransform.Translation, SavedTransform.Rotation);
 			}
@@ -1692,7 +1692,7 @@ void AMatineeActor::RestoreActorVisibilities()
 			bool bSavedHiddenEditor = ( It.Value() & 2 ) ? true : false;
 
 			// only update actor if something has actually changed
-			if( SavedActor->bHidden != bSavedHidden )
+			if( SavedActor->IsHidden() != bSavedHidden )
 			{
 				SavedActor->SetActorHiddenInGame( bSavedHidden );
 			}
@@ -3740,9 +3740,9 @@ void UInterpTrackMove::UpdateKeyframe(int32 KeyIndex, UInterpTrackInst* TrInst)
 	}
 	*/
 
-	FVector RelativeSpaceEuler = Actor->GetRootComponent()->RelativeRotation.Euler();
+	FVector RelativeSpaceEuler = Actor->GetRootComponent()->GetRelativeRotation().Euler();
 
-	PosTrack.Points[KeyIndex].OutVal = Actor->GetRootComponent()->RelativeLocation;
+	PosTrack.Points[KeyIndex].OutVal = Actor->GetRootComponent()->GetRelativeLocation();
 	
 	// peek at an adjacent key frame to attempt to keep rotation continuous
 	if( EulerTrack.Points.Num() > 1 )
@@ -3838,9 +3838,9 @@ void UInterpTrackMove::UpdateChildKeyframe( UInterpTrack* ChildTrack, int32 KeyI
 	}
 
 	// New position of the actor
-	FVector NewPos = Actor->GetRootComponent()->RelativeLocation;
+	FVector NewPos = Actor->GetRootComponent()->GetRelativeLocation();
 	// New rotation of the actor
-	FVector NewRot =  Actor->GetRootComponent()->RelativeRotation.Euler();
+	FVector NewRot =  Actor->GetRootComponent()->GetRelativeRotation().Euler();
 
 	// Now determine what value should be updated in the float track.
 	switch( MoveAxis )
@@ -6728,7 +6728,7 @@ void UInterpTrackDirector::UpdateTrack(float NewPosition, UInterpTrackInst* TrIn
 	{
 		AMatineeActor* MatineeActor = CastChecked<AMatineeActor>( GrInst->GetOuter() );
 		// server is authoritative on viewtarget changes
-		if (PC->Role == ROLE_Authority || MatineeActor->bClientSideOnly || bSimulateCameraCutsOnClients)
+		if (PC->GetLocalRole() == ROLE_Authority || MatineeActor->bClientSideOnly || bSimulateCameraCutsOnClients)
 		{
 			float CutTime, CutTransitionTime;
 			FName ViewGroupName = GetViewedGroupName(NewPosition, CutTime, CutTransitionTime);
@@ -8252,7 +8252,7 @@ void UInterpTrackInstSound::TermTrackInst(UInterpTrack* Track)
 	{
 		// If we are currently playing, and want to keep the sound playing, 
 		// just flag it as 'auto destroy', and it will destroy itself when it finishes.
-		if(PlayAudioComp->bIsActive && SoundTrack->bContinueSoundOnMatineeEnd)
+		if(PlayAudioComp->IsActive() && SoundTrack->bContinueSoundOnMatineeEnd)
 		{
 			PlayAudioComp->bAutoDestroy = true;
 		}
@@ -9017,7 +9017,7 @@ void UInterpTrackInstToggle::SaveActorState(UInterpTrack* Track)
 	}
 	else if( LightActor != NULL )
 	{
-		bSavedActiveState = LightActor->GetLightComponent()->bVisible;
+		bSavedActiveState = LightActor->GetLightComponent()->GetVisibleFlag();
 	}
 }
 
@@ -9418,7 +9418,7 @@ void UInterpTrackVisibility::UpdateTrack(float NewPosition, UInterpTrackInst* Tr
 						else if( VisibilityKey.Action == EVTA_Toggle )
 						{
 							// Toggle the actor's visibility
-							HideActor( Actor, !Actor->bHidden );
+							HideActor( Actor, !Actor->IsHidden() );
 						}
 						if (!MatineeActor->bClientSideOnly && VisibilityKey.ActiveCondition == EVTC_Always)
 						{

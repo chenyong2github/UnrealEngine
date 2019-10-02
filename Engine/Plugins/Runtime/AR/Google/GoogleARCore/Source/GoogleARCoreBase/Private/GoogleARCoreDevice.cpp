@@ -296,9 +296,9 @@ bool FGoogleARCoreDevice::GetStartSessionRequestFinished()
 }
 
 // Note that this function will only be registered when ARCore is supported.
-void FGoogleARCoreDevice::OnWorldTickStart(ELevelTick TickType, float DeltaTime)
+void FGoogleARCoreDevice::OnWorldTickStart(UWorld* World, ELevelTick TickType, float DeltaTime)
 {
-	WorldToMeterScale = GWorld->GetWorldSettings()->WorldToMeters;
+	WorldToMeterScale = World->GetWorldSettings()->WorldToMeters;
 	TFunction<void()> Func;
 	while (RunOnGameThreadQueue.Dequeue(Func))
 	{

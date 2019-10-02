@@ -41,6 +41,10 @@ typedef TFunction<TSharedPtr<FKismetCompilerContext>(UBlueprint*, FCompilerResul
 
 class KISMETCOMPILER_API FKismetCompilerContext : public FGraphCompilerContext
 {
+public:
+
+	DECLARE_EVENT_OneParam(FKismetCompilerContext, FOnFunctionListCompiled, FKismetCompilerContext*);
+
 protected:
 	typedef FGraphCompilerContext Super;
 
@@ -61,6 +65,13 @@ protected:
 
 	// List of functions currently allocated
 	TIndirectArray<FKismetFunctionContext> FunctionList;
+
+	/** Set of function graphs generated for the class layout at compile time  */
+	TArray<UEdGraph*> GeneratedFunctionGraphs;
+
+	/** Event that is broadcast immediately after the function list for this context has been compiled. */
+	FOnFunctionListCompiled FunctionListCompiledEvent;
+
 protected:
 	// This struct holds the various compilation options, such as which passes to perform, whether to save intermediate results, etc
 	FKismetCompilerOptions CompileOptions;
@@ -93,6 +104,7 @@ protected:
 public:
 	UBlueprint* Blueprint;
 	UBlueprintGeneratedClass* NewClass;
+	UBlueprintGeneratedClass* OldClass;
 
 	// The ubergraph; valid from roughly the start of CreateAndProcessEventGraph
 	UEdGraph* ConsolidatedEventGraph;
@@ -118,7 +130,6 @@ public:
 	FNetNameMapping ClassScopeNetNameMap;
 
 	// Data that persists across CompileClassLayout/CompileFunctions calls:
-	bool bIsSkeletonOnly;
 	UObject* OldCDO;
 	int32 OldGenLinkerIdx;
 	FLinkerLoad* OldLinker;
@@ -133,6 +144,9 @@ public:
 
 	static FSimpleMulticastDelegate OnPreCompile;
 	static FSimpleMulticastDelegate OnPostCompile;
+
+	/** Broadcasts a notification immediately after the function list for this context has been compiled. */
+	FOnFunctionListCompiled& OnFunctionListCompiled() { return FunctionListCompiledEvent; }
 
 public:
 	FKismetCompilerContext(UBlueprint* SourceSketch, FCompilerResultsLog& InMessageLog, const FKismetCompilerOptions& InCompilerOptions);
@@ -154,6 +168,9 @@ public:
 	void SetNewClass(UBlueprintGeneratedClass* ClassToUse);
 
 	const UEdGraphSchema_K2* GetSchema() const { return Schema; }
+
+	/** Spawn an intermediate function graph for this compilation using the specified desired name (which may be modified to make it unique */
+	UEdGraph* SpawnIntermediateFunctionGraph(const FString& InDesiredFunctionName);
 
 	// Spawns an intermediate node associated with the source node (for error purposes)
 	template <typename NodeType>

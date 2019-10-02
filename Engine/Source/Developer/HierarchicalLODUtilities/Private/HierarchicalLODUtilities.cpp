@@ -3,6 +3,7 @@
 #include "HierarchicalLODUtilities.h"
 #include "GameFramework/Actor.h"
 #include "Components/StaticMeshComponent.h"
+#include "StaticMeshAttributes.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/PackageName.h"
 #include "GameFramework/WorldSettings.h"
@@ -573,7 +574,7 @@ EClusterGenerationError FHierarchicalLODUtilities::ShouldGenerateCluster(AActor*
 		return EClusterGenerationError::InvalidActor;
 	}
 
-	if (Actor->bHidden)
+	if (Actor->IsHidden())
 	{
 		return EClusterGenerationError::ActorHiddenInGame;
 	}

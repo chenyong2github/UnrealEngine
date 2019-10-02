@@ -384,9 +384,17 @@ AActor* UWorld::SpawnActor( UClass* Class, FTransform const* UserTransformPtr, c
 		// Use class's default actor as a template.
 		Template = Class->GetDefaultObject<AActor>();
 	}
-	else if (NewActorName.IsNone() && !Template->HasAnyFlags(RF_ClassDefaultObject))
+	else if (!Template->HasAnyFlags(RF_ClassDefaultObject))
 	{
-		NewActorName = MakeUniqueObjectName(LevelToSpawnIn, Template->GetClass(), *Template->GetFName().GetPlainNameString());
+		if (NewActorName.IsNone())
+		{
+			NewActorName = MakeUniqueObjectName(LevelToSpawnIn, Template->GetClass(), *Template->GetFName().GetPlainNameString());
+		}
+		else if (StaticFindObjectFast(nullptr, LevelToSpawnIn, NewActorName))
+		{
+			UE_LOG(LogSpawn, Fatal, TEXT("An actor of name '%s' already exists in level '%s'."), *NewActorName.ToString(), *LevelToSpawnIn->GetFullName());
+			return nullptr;
+		}
 	}
 	check(Template);
 
@@ -428,7 +436,7 @@ AActor* UWorld::SpawnActor( UClass* Class, FTransform const* UserTransformPtr, c
 		// might necessarily be exactly the passed-in UserTransform.
 		FTransform const FinalRootComponentTransform =
 			TemplateRootComponent
-			? FTransform(TemplateRootComponent->RelativeRotation, TemplateRootComponent->RelativeLocation, TemplateRootComponent->RelativeScale3D) * UserTransform
+			? FTransform(TemplateRootComponent->GetRelativeRotation(), TemplateRootComponent->GetRelativeLocation(), TemplateRootComponent->GetRelativeScale3D()) * UserTransform
 			: UserTransform;
 
 		FVector const FinalRootLocation = FinalRootComponentTransform.GetLocation();
@@ -576,10 +584,10 @@ bool UWorld::DestroyActor( AActor* ThisActor, bool bNetForce, bool bShouldModify
 	{
 		// Note, for Standalone games, Actors should have Authority == ROLE_Authority.
 		// In that sense, they'll be treated as Network Actors here.
-		const bool bIsNetworkedActor = ThisActor->Role != ROLE_None;
+		const bool bIsNetworkedActor = ThisActor->GetLocalRole() != ROLE_None;
 
 		// Can't kill if wrong role.
-		const bool bCanDestroyNetworkActor = ThisActor->Role == ROLE_Authority || bNetForce || ThisActor->bNetTemporary;
+		const bool bCanDestroyNetworkActor = ThisActor->GetLocalRole() == ROLE_Authority || bNetForce || ThisActor->bNetTemporary;
 		if (bIsNetworkedActor && !bCanDestroyNetworkActor)
 		{
 			return false;
@@ -767,7 +775,7 @@ APlayerController* UWorld::SpawnPlayActor(UPlayer* NewPlayer, ENetRole RemoteRol
 
 		// Possess the newly-spawned player.
 		NewPlayerController->NetPlayerIndex = InNetPlayerIndex;
-		NewPlayerController->Role = ROLE_Authority;
+		NewPlayerController->SetRole(ROLE_Authority);
 		NewPlayerController->SetReplicates(RemoteRole != ROLE_None);
 		if (RemoteRole == ROLE_AutonomousProxy)
 		{

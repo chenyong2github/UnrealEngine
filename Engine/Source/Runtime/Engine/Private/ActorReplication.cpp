@@ -42,12 +42,12 @@ float AActor::GetNetPriority(const FVector& ViewPos, const FVector& ViewDir, AAc
 		return Owner->GetNetPriority(ViewPos, ViewDir, Viewer, ViewTarget, InChannel, Time, bLowBandwidth);
 	}
 
-	if (ViewTarget && (this == ViewTarget || Instigator == ViewTarget))
+	if (ViewTarget && (this == ViewTarget || GetInstigator() == ViewTarget))
 	{
 		// If we're the view target or owned by the view target, use a high priority
 		Time *= 4.f;
 	}
-	else if (!bHidden && GetRootComponent() != NULL)
+	else if (!IsHidden() && GetRootComponent() != NULL)
 	{
 		// If this actor has a location, adjust priority based on location
 		FVector Dir = GetActorLocation() - ViewPos;
@@ -82,12 +82,12 @@ float AActor::GetNetPriority(const FVector& ViewPos, const FVector& ViewDir, AAc
 
 float AActor::GetReplayPriority(const FVector& ViewPos, const FVector& ViewDir, class AActor* Viewer, AActor* ViewTarget, UActorChannel* const InChannel, float Time)
 {
-	if (ViewTarget && (this == ViewTarget || Instigator == ViewTarget))
+	if (ViewTarget && (this == ViewTarget || GetInstigator() == ViewTarget))
 	{
 		// If we're the view target or owned by the view target, use a high priority
 		Time *= 10.0f;
 	}
-	else if (!bHidden && GetRootComponent() != NULL)
+	else if (!IsHidden() && GetRootComponent() != NULL)
 	{
 		// If this actor has a location, adjust priority based on location
 		FVector Dir = GetActorLocation() - ViewPos;
@@ -128,10 +128,10 @@ bool AActor::GetNetDormancy(const FVector& ViewPos, const FVector& ViewDir, AAct
 
 void AActor::PreNetReceive()
 {
-	ActorReplication::SavedbHidden = bHidden;
+	ActorReplication::SavedbHidden = IsHidden();
 	ActorReplication::SavedOwner = Owner;
-	ActorReplication::SavedbRepPhysics = ReplicatedMovement.bRepPhysics;
-	ActorReplication::SavedRole = Role;
+	ActorReplication::SavedbRepPhysics = GetReplicatedMovement().bRepPhysics;
+	ActorReplication::SavedRole = GetLocalRole();
 }
 
 void AActor::PostNetReceive()
@@ -140,12 +140,12 @@ void AActor::PostNetReceive()
 	{
 		// Initially we need to sync the state regardless of whether bRepPhysics has "changed" since it may not currently match IsSimulatingPhysics().
 		SyncReplicatedPhysicsSimulation();
-		ActorReplication::SavedbRepPhysics = ReplicatedMovement.bRepPhysics;
+		ActorReplication::SavedbRepPhysics = GetReplicatedMovement().bRepPhysics;
 		bNetCheckedInitialPhysicsState = true;
 	}
 
-	ExchangeB( bHidden, ActorReplication::SavedbHidden );
-	Exchange ( Owner, ActorReplication::SavedOwner );
+	ExchangeB(bHidden, ActorReplication::SavedbHidden);
+	Exchange(Owner, ActorReplication::SavedOwner);
 
 	if (bHidden != ActorReplication::SavedbHidden)
 	{
@@ -173,27 +173,29 @@ void AActor::OnRep_ReplicatedMovement()
 	// Since ReplicatedMovement and AttachmentReplication are REPNOTIFY_Always (and OnRep_AttachmentReplication may call OnRep_ReplicatedMovement directly),
 	// this check is needed since this can still be called on actors for which bReplicateMovement is false - for example, during fast-forward in replay playback.
 	// When this happens, the values in ReplicatedMovement aren't valid, and must be ignored.
-	if (!bReplicateMovement)
+	if (!IsReplicatingMovement())
 	{
 		return;
 	}
 
+	const FRepMovement& LocalRepMovement = GetReplicatedMovement();
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		if (CVarDrawDebugRepMovement->GetInt() > 0)
 		{
-			DrawDebugCapsule(GetWorld(), ReplicatedMovement.Location, GetSimpleCollisionHalfHeight(), GetSimpleCollisionRadius(), ReplicatedMovement.Rotation.Quaternion(), FColor(100, 255, 100), true, 1.f);
+			DrawDebugCapsule(GetWorld(), LocalRepMovement.Location, GetSimpleCollisionHalfHeight(), GetSimpleCollisionRadius(), LocalRepMovement.Rotation.Quaternion(), FColor(100, 255, 100), true, 1.f);
 		}
 #endif
 
 	if (RootComponent)
 	{
-		if (ActorReplication::SavedbRepPhysics != ReplicatedMovement.bRepPhysics)
+		if (ActorReplication::SavedbRepPhysics != LocalRepMovement.bRepPhysics)
 		{
 			// Turn on/off physics sim to match server.
 			SyncReplicatedPhysicsSimulation();
 		}
 
-		if (ReplicatedMovement.bRepPhysics)
+		if (LocalRepMovement.bRepPhysics)
 		{
 			// Sync physics state
 			checkSlow(RootComponent->IsSimulatingPhysics());
@@ -209,20 +211,20 @@ void AActor::OnRep_ReplicatedMovement()
 			// Attachment trumps global position updates, see GatherCurrentMovement().
 			if (!RootComponent->GetAttachParent())
 			{
-				if (Role == ROLE_SimulatedProxy)
+				if (GetLocalRole() == ROLE_SimulatedProxy)
 				{
 #if ENABLE_NAN_DIAGNOSTIC
-					if (ReplicatedMovement.Location.ContainsNaN())
+					if (LocalRepMovement.Location.ContainsNaN())
 					{
 						logOrEnsureNanError(TEXT("AActor::OnRep_ReplicatedMovement found NaN in ReplicatedMovement.Location"));
 					}
-					if (ReplicatedMovement.Rotation.ContainsNaN())
+					if (LocalRepMovement.Rotation.ContainsNaN())
 					{
 						logOrEnsureNanError(TEXT("AActor::OnRep_ReplicatedMovement found NaN in ReplicatedMovement.Rotation"));
 					}
 #endif
 
-					PostNetReceiveVelocity(ReplicatedMovement.LinearVelocity);
+					PostNetReceiveVelocity(LocalRepMovement.LinearVelocity);
 					PostNetReceiveLocationAndRotation();
 				}
 			}
@@ -232,11 +234,12 @@ void AActor::OnRep_ReplicatedMovement()
 
 void AActor::PostNetReceiveLocationAndRotation()
 {
-	FVector NewLocation = FRepMovement::RebaseOntoLocalOrigin(ReplicatedMovement.Location, this);
+	const FRepMovement& LocalRepMovement = GetReplicatedMovement();
+	FVector NewLocation = FRepMovement::RebaseOntoLocalOrigin(LocalRepMovement.Location, this);
 
-	if( RootComponent && RootComponent->IsRegistered() && (NewLocation != GetActorLocation() || ReplicatedMovement.Rotation != GetActorRotation()) )
+	if( RootComponent && RootComponent->IsRegistered() && (NewLocation != GetActorLocation() || LocalRepMovement.Rotation != GetActorRotation()) )
 	{
-		SetActorLocationAndRotation(NewLocation, ReplicatedMovement.Rotation, /*bSweep=*/ false);
+		SetActorLocationAndRotation(NewLocation, LocalRepMovement.Rotation, /*bSweep=*/ false);
 	}
 }
 
@@ -250,7 +253,7 @@ void AActor::PostNetReceivePhysicState()
 	if (RootPrimComp)
 	{
 		FRigidBodyState NewState;
-		ReplicatedMovement.CopyTo(NewState, this);
+		GetReplicatedMovement().CopyTo(NewState, this);
 
 		FVector DeltaPos(FVector::ZeroVector);
 		RootPrimComp->SetRigidBodyReplicatedTarget(NewState);
@@ -259,14 +262,16 @@ void AActor::PostNetReceivePhysicState()
 
 void AActor::SyncReplicatedPhysicsSimulation()
 {
-	if (bReplicateMovement && RootComponent && (RootComponent->IsSimulatingPhysics() != ReplicatedMovement.bRepPhysics))
+	const FRepMovement& LocalRepMovement = GetReplicatedMovement();
+
+	if (IsReplicatingMovement() && RootComponent && (RootComponent->IsSimulatingPhysics() != LocalRepMovement.bRepPhysics))
 	{
 		UPrimitiveComponent* RootPrimComp = Cast<UPrimitiveComponent>(RootComponent);
 		if (RootPrimComp)
 		{
-			RootPrimComp->SetSimulatePhysics(ReplicatedMovement.bRepPhysics);
+			RootPrimComp->SetSimulatePhysics(LocalRepMovement.bRepPhysics);
 
-			if(!ReplicatedMovement.bRepPhysics)
+			if(!LocalRepMovement.bRepPhysics)
 			{
 				if (UWorld* World = GetWorld())
 				{
@@ -290,23 +295,23 @@ bool AActor::IsWithinNetRelevancyDistance(const FVector& SrcLocation) const
 
 bool AActor::IsNetRelevantFor(const AActor* RealViewer, const AActor* ViewTarget, const FVector& SrcLocation) const
 {
-	if (bAlwaysRelevant || IsOwnedBy(ViewTarget) || IsOwnedBy(RealViewer) || this == ViewTarget || ViewTarget == Instigator)
+	if (bAlwaysRelevant || IsOwnedBy(ViewTarget) || IsOwnedBy(RealViewer) || this == ViewTarget || ViewTarget == GetInstigator())
 	{
 		return true;
 	}
-	else if ( bNetUseOwnerRelevancy && Owner)
+	else if (bNetUseOwnerRelevancy && Owner)
 	{
 		return Owner->IsNetRelevantFor(RealViewer, ViewTarget, SrcLocation);
 	}
-	else if ( bOnlyRelevantToOwner )
+	else if (bOnlyRelevantToOwner)
 	{
 		return false;
 	}
-	else if ( RootComponent && RootComponent->GetAttachParent() && RootComponent->GetAttachParent()->GetOwner() && (Cast<USkeletalMeshComponent>(RootComponent->GetAttachParent()) || (RootComponent->GetAttachParent()->GetOwner() == Owner)) )
+	else if (RootComponent && RootComponent->GetAttachParent() && RootComponent->GetAttachParent()->GetOwner() && (Cast<USkeletalMeshComponent>(RootComponent->GetAttachParent()) || (RootComponent->GetAttachParent()->GetOwner() == Owner)))
 	{
 		return RootComponent->GetAttachParent()->GetOwner()->IsNetRelevantFor(RealViewer, ViewTarget, SrcLocation);
 	}
-	else if( bHidden && (!RootComponent || !RootComponent->IsCollisionEnabled()) )
+	else if(IsHidden() && (!RootComponent || !RootComponent->IsCollisionEnabled()))
 	{
 		return false;
 	}
@@ -328,8 +333,14 @@ bool AActor::IsReplayRelevantFor(const AActor* RealViewer, const AActor* ViewTar
 
 void AActor::GatherCurrentMovement()
 {
-	if (bReplicateMovement || (RootComponent && RootComponent->GetAttachParent()))
+	if (IsReplicatingMovement() || (RootComponent && RootComponent->GetAttachParent()))
 	{
+		bool bWasAttachmentModified = false;
+		bool bWasRepMovementModified = false;
+
+		AActor* OldAttachParent = AttachmentReplication.AttachParent;
+		USceneComponent* OldAttachComponent = AttachmentReplication.AttachComponent; 
+	
 		AttachmentReplication.AttachParent = nullptr;
 		AttachmentReplication.AttachComponent = nullptr;
 
@@ -343,6 +354,8 @@ void AActor::GatherCurrentMovement()
 			// Don't replicate movement if we're welded to another parent actor.
 			// Their replication will affect our position indirectly since we are attached.
 			ReplicatedMovement.bRepPhysics = !RootPrimComp->IsWelded();
+			
+			bWasRepMovementModified = true;
 		}
 		else if (RootComponent != nullptr)
 		{
@@ -354,11 +367,14 @@ void AActor::GatherCurrentMovement()
 				AttachmentReplication.AttachParent = RootComponent->GetAttachParent()->GetAttachmentRootActor();
 				if (AttachmentReplication.AttachParent != nullptr)
 				{
-					AttachmentReplication.LocationOffset = RootComponent->RelativeLocation;
-					AttachmentReplication.RotationOffset = RootComponent->RelativeRotation;
-					AttachmentReplication.RelativeScale3D = RootComponent->RelativeScale3D;
+					AttachmentReplication.LocationOffset = RootComponent->GetRelativeLocation();
+					AttachmentReplication.RotationOffset = RootComponent->GetRelativeRotation();
+					AttachmentReplication.RelativeScale3D = RootComponent->GetRelativeScale3D();
 					AttachmentReplication.AttachComponent = RootComponent->GetAttachParent();
 					AttachmentReplication.AttachSocket = RootComponent->GetAttachSocketName();
+
+					// Technically, the values might have stayed the same, but we'll just assume they've changed.
+					bWasAttachmentModified = true;
 				}
 			}
 			else
@@ -367,6 +383,22 @@ void AActor::GatherCurrentMovement()
 				ReplicatedMovement.Rotation = RootComponent->GetComponentRotation();
 				ReplicatedMovement.LinearVelocity = GetVelocity();
 				ReplicatedMovement.AngularVelocity = FVector::ZeroVector;
+
+				// Technically, the values might have stayed the same, but we'll just assume they've changed.
+				bWasRepMovementModified = true;
+			}
+
+			if (bWasRepMovementModified ||
+				ReplicatedMovement.bRepPhysics != false)
+			{
+				// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, ReplicatedMovement, this);
+			}
+
+			if (bWasAttachmentModified ||
+				OldAttachParent != AttachmentReplication.AttachParent ||
+				OldAttachComponent != AttachmentReplication.AttachComponent)
+			{
+				// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, AttachmentReplication, this);
 			}
 
 			ReplicatedMovement.bRepPhysics = false;

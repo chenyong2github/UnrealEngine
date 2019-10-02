@@ -213,7 +213,7 @@ void UVREditorUISystem::Init(UVREditorMode* InVRMode)
 	FVREditorActionCallbacks::UpdateSelectingCandidateActorsText(VRMode);
 	FVREditorActionCallbacks::SelectingCandidateActorsText = FVREditorActionCallbacks::GetSelectingCandidateActorsText();
 
-	GLevelEditorModeTools().OnEditorModeChanged().AddUObject(this, &UVREditorUISystem::HandleEditorModeChanged);
+	GLevelEditorModeTools().OnEditorModeIDChanged().AddUObject(this, &UVREditorUISystem::HandleEditorModeChanged);
 }
 
 void UVREditorUISystem::UpdateInteractors( )
@@ -247,7 +247,7 @@ void UVREditorUISystem::Shutdown()
 		VRMode->OnToggleDebugMode().RemoveAll(this);
 	}
 
-	GLevelEditorModeTools().OnEditorModeChanged().RemoveAll(this);
+	GLevelEditorModeTools().OnEditorModeIDChanged().RemoveAll(this);
 
 	// Unbind the color picker creation & destruction overrides
 	SColorPicker::OnColorPickerNonModalCreateOverride.Unbind();
@@ -524,7 +524,7 @@ void UVREditorUISystem::OnPreviewInputAction(FEditorViewportClient& ViewportClie
 									// If we are clicking on an editable text field and the radial menu is not a numpad, show the numpad
 									if (WidgetPathUnderFinger.Widgets.Last().Widget->GetTypeAsString() == TEXT("SEditableText") && (bRadialMenuIsNumpad == false))
 									{
-										if (!QuickRadialMenu->bHidden)
+										if (!QuickRadialMenu->IsHidden())
 										{
 											bRadialMenuVisibleAtSwap = true;
 										}
@@ -953,16 +953,11 @@ void UVREditorUISystem::CreateUIs()
 			Config.ThumbnailScale = 0.4f;
 			Config.bCanShowFilters = true;
 			Config.bUsePathPicker = true;
-			Config.bShowAssetPathTree = true;
-			Config.bAlwaysShowCollections = false;
 			Config.bShowBottomToolbar = true;
 			Config.bCanShowLockButton = false;
 
 			if( GIsDemoMode )
 			{
-				Config.bShowAssetPathTree = false;
-				Config.bAlwaysShowCollections = true;
-
 				Config.SelectedCollectionName.Name = TEXT( "Demo" );
 				Config.SelectedCollectionName.Type = ECollectionShareType::CST_Shared;
 			}
@@ -1331,7 +1326,7 @@ bool UVREditorUISystem::IsShowingRadialMenu(const UVREditorInteractor* Interacto
 	{
 		const EControllerHand DockedToHand = QuickRadialMenu->GetDockedTo() == AVREditorFloatingUI::EDockedTo::LeftArm ? EControllerHand::Left : EControllerHand::Right;
 		const UVREditorInteractor* DockedToInteractor = GetOwner().GetHandInteractor(DockedToHand);
-		return DockedToInteractor == Interactor && !QuickRadialMenu->bHidden;
+		return DockedToInteractor == Interactor && !QuickRadialMenu->IsHidden();
 	}
 	else
 	{
@@ -2260,19 +2255,20 @@ void UVREditorUISystem::SequencerRadialMenuGenerator(FMenuBuilder& MenuBuilder, 
 	);
 }
 
-void UVREditorUISystem::HandleEditorModeChanged(FEdMode* Mode, bool IsEnabled)
+void UVREditorUISystem::HandleEditorModeChanged(const FEditorModeID& EditorModeID, bool IsEnabled)
 {
 	if (IsEnabled == true &&
-		(Mode->GetID() == FBuiltinEditorModes::EM_Foliage ||
-		 Mode->GetID() == FBuiltinEditorModes::EM_Landscape ||
-		 Mode->GetID() == FBuiltinEditorModes::EM_MeshPaint))
+		(EditorModeID == FBuiltinEditorModes::EM_Foliage ||
+		 EditorModeID == FBuiltinEditorModes::EM_Landscape ||
+		 EditorModeID == FBuiltinEditorModes::EM_MeshPaint))
 	{
 		AVREditorFloatingUI* Panel = GetPanel(ModesPanelID);
 		if (Panel != nullptr && UIInteractor != nullptr && !Panel->IsUIVisible())
 		{
 			const bool bShouldShow = true;
 			const bool bSpawnInFront = true;
-			const bool bDragFromOpen = ShouldPreviewPanel();
+			bool bDragFromOpen = false;
+			bDragFromOpen = ShouldPreviewPanel();
 			ShowEditorUIPanel(Panel, UIInteractor, bShouldShow, bSpawnInFront, bDragFromOpen);
 		}
 	}

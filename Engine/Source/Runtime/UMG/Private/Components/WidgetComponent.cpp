@@ -604,7 +604,7 @@ UWidgetComponent::UWidgetComponent( const FObjectInitializer& PCIP )
 	PrimaryComponentTick.bCanEverTick = true;
 	bTickInEditor = true;
 
-	RelativeRotation = FRotator::ZeroRotator;
+	SetRelativeRotation(FRotator::ZeroRotator);
 
 	BodyInstance.SetCollisionProfileName(FName(TEXT("UI")));
 
@@ -1019,13 +1019,16 @@ void UWidgetComponent::RegisterWindow()
 		{
 			if (UWorld* LocalWorld = GetWorld())
 			{
-				UGameInstance* GameInstance = LocalWorld->GetGameInstance();
-				check(GameInstance);
-
-				UGameViewportClient* GameViewportClient = GameInstance->GetGameViewportClient();
-				if (GameViewportClient)
+				if (LocalWorld->IsGameWorld())
 				{
-					SlateWindow->AssignParentWidget(GameViewportClient->GetGameViewportWidget());
+					UGameInstance* GameInstance = LocalWorld->GetGameInstance();
+					check(GameInstance);
+
+					UGameViewportClient* GameViewportClient = GameInstance->GetGameViewportClient();
+					if (GameViewportClient)
+					{
+						SlateWindow->AssignParentWidget(GameViewportClient->GetGameViewportWidget());
+					}
 				}
 			}
 		}
@@ -1086,7 +1089,7 @@ void UWidgetComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, 
 				ULocalPlayer* TargetPlayer = GetOwnerPlayer();
 				APlayerController* PlayerController = TargetPlayer ? TargetPlayer->PlayerController : nullptr;
 
-				if ( TargetPlayer && PlayerController && IsVisible() && !(GetOwner()->bHidden))
+				if ( TargetPlayer && PlayerController && IsVisible() && !(GetOwner()->IsHidden()))
 				{
 					if ( !bAddedToScreen )
 					{
@@ -1283,7 +1286,7 @@ void UWidgetComponent::ApplyComponentInstanceData(FWidgetComponentInstanceData* 
 	// Note: ApplyComponentInstanceData is called while the component is registered so the rendering thread is already using this component
 	// That means all component state that is modified here must be mirrored on the scene proxy, which will be recreated to receive the changes later due to MarkRenderStateDirty.
 
-	if (GetWidgetClass() != WidgetClass)
+	if (GetWidgetClass() != WidgetInstanceData->WidgetClass)
 	{
 		return;
 	}

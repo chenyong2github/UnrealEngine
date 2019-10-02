@@ -110,8 +110,8 @@ UObject* FLevelSequenceActorSpawner::SpawnObject(FMovieSceneSpawnable& Spawnable
 
 	if (USceneComponent* RootComponent = ObjectTemplate->GetRootComponent())
 	{
-		SpawnTransform.SetTranslation(RootComponent->RelativeLocation);
-		SpawnTransform.SetRotation(RootComponent->RelativeRotation.Quaternion());
+		SpawnTransform.SetTranslation(RootComponent->GetRelativeLocation());
+		SpawnTransform.SetRotation(RootComponent->GetRelativeRotation().Quaternion());
 	}
 	else
 	{

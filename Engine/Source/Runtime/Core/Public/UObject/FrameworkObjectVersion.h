@@ -122,6 +122,9 @@ struct CORE_API FFrameworkObjectVersion
 		// No longer serialize the legacy flag that indicates this state, as it is now implied since we don't serialize the skeleton CDO
 		BlueprintGeneratedClassIsAlwaysAuthoritative,
 
+		// Enforce visibility of blueprint functions - e.g. raise an error if calling a private function from another blueprint:
+		EnforceBlueprintFunctionVisibility,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

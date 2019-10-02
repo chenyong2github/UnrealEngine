@@ -8,16 +8,19 @@
 #include "AnimationRuntime.h"
 
 FAnimNode_ControlRigBase::FAnimNode_ControlRigBase()
+	: FAnimNode_CustomProperty()
+	, bUpdateInput(true)
+	, bExecute(true)
+	, InternalBlendAlpha (1.f)
 {
-	bUpdateInput = true;
-	bExecute = true;
+
 }
 
 void FAnimNode_ControlRigBase::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	FAnimNode_Base::OnInitializeAnimInstance(InProxy, InAnimInstance);
+	FAnimNode_CustomProperty::OnInitializeAnimInstance(InProxy, InAnimInstance);
 
 	USkeletalMeshComponent* Component = InAnimInstance->GetOwningComponent();
 	UControlRig* ControlRig = GetControlRig();
@@ -37,7 +40,8 @@ void FAnimNode_ControlRigBase::Initialize_AnyThread(const FAnimationInitializeCo
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	FAnimNode_Base::Initialize_AnyThread(Context);
+	FAnimNode_CustomProperty::Initialize_AnyThread(Context);
+	Source.Initialize(Context);
 
 	if (UControlRig* ControlRig = GetControlRig())
 	{
@@ -49,14 +53,15 @@ void FAnimNode_ControlRigBase::Initialize_AnyThread(const FAnimationInitializeCo
 
 void FAnimNode_ControlRigBase::GatherDebugData(FNodeDebugData& DebugData)
 {
-
+	Source.GatherDebugData(DebugData.BranchFlow(1.f));
 }
 
 void FAnimNode_ControlRigBase::Update_AnyThread(const FAnimationUpdateContext& Context)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	FAnimNode_Base::Update_AnyThread(Context);
+	FAnimNode_CustomProperty::Update_AnyThread(Context);
+	Source.Update(Context);
 
 	if (bExecute)
 	{
@@ -150,12 +155,55 @@ void FAnimNode_ControlRigBase::Evaluate_AnyThread(FPoseContext& Output)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
+	FPoseContext SourcePose(Output);
+
+	if (Source.GetLinkNode())
+	{
+		Source.Evaluate(SourcePose);
+	}
+	else
+	{
+		// apply refpose
+		SourcePose.ResetToRefPose();
+	}
+
+	if (FAnimWeight::IsRelevant(InternalBlendAlpha))
+	{
+		if (FAnimWeight::IsFullWeight(InternalBlendAlpha))
+		{
+			ExecuteControlRig(SourcePose);
+			Output = SourcePose;
+		}
+		else 
+		{
+			// this blends additively - by weight
+			FPoseContext ControlRigPose(SourcePose);
+			ControlRigPose = SourcePose;
+			ExecuteControlRig(ControlRigPose);
+
+			FPoseContext AdditivePose(ControlRigPose);
+			AdditivePose = ControlRigPose;
+			FAnimationRuntime::ConvertPoseToAdditive(AdditivePose.Pose, SourcePose.Pose);
+			AdditivePose.Curve.ConvertToAdditive(SourcePose.Curve);
+			Output = SourcePose;
+			FAnimationRuntime::AccumulateAdditivePose(Output.Pose, AdditivePose.Pose, Output.Curve, AdditivePose.Curve, InternalBlendAlpha, AAT_LocalSpaceBase);
+		}
+	}
+	else // if not relevant, skip to run control rig
+		// this may cause issue if we have simulation node in the control rig that accumulates time
+	{
+		Output = SourcePose;
+	}
+}
+
+void FAnimNode_ControlRigBase::ExecuteControlRig(FPoseContext& InOutput)
+{
 	if (UControlRig* ControlRig = GetControlRig())
 	{
 		if (bUpdateInput)
 		{
 			// first update input to the system
-			UpdateInput(ControlRig, Output);
+			UpdateInput(ControlRig, InOutput);
 		}
 
 		if (bExecute)
@@ -165,18 +213,16 @@ void FAnimNode_ControlRigBase::Evaluate_AnyThread(FPoseContext& Output)
 		}
 
 		// now update output
-		UpdateOutput(ControlRig, Output);
-	}
-	else
-	{
-		// apply refpose
-		Output.ResetToRefPose();
+		UpdateOutput(ControlRig, InOutput);
 	}
 }
 
 void FAnimNode_ControlRigBase::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
+	FAnimNode_CustomProperty::CacheBones_AnyThread(Context);
+	Source.CacheBones(Context);
 
 	if (UControlRig* ControlRig = GetControlRig())
 	{
@@ -248,3 +294,4 @@ UClass* FAnimNode_ControlRigBase::GetTargetClass() const
 
 	return nullptr;
 }
+

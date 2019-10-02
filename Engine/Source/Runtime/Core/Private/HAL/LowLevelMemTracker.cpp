@@ -886,10 +886,11 @@ static bool IsAssetTagForAssets(ELLMTagSet Set)
 
 void FLowLevelMemTracker::RegisterCustomTagInternal(int32 Tag, const TCHAR* Name, FName StatName, FName SummaryStatName, int32 ParentTag)
 {
-	LLMCheck(Tag >= LLM_CUSTOM_TAG_START && Tag <= LLM_CUSTOM_TAG_END);
+	LLMCheckf(Tag >= LLM_CUSTOM_TAG_START && Tag <= LLM_CUSTOM_TAG_END, TEXT("Tag %d out of range"), Tag);
+	LLMCheckf(Name != nullptr, TEXT("Tag %d has no name"), Tag);
 	FLLMCustomTag& PlatformTag = CustomTags[Tag - LLM_CUSTOM_TAG_START];
 	PlatformTag.Tag = Tag;
-	PlatformTag.Name = Name;
+	PlatformTag.Name = Name ? Name : InvalidLLMTagName;
 	PlatformTag.StatName = StatName;
 	PlatformTag.SummaryStatName = SummaryStatName;
 	ParentTags[Tag] = ParentTag;

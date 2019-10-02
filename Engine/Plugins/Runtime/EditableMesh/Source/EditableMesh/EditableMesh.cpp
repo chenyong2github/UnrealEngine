@@ -10,7 +10,7 @@
 #include "ProfilingDebugging/ScopedTimers.h"	// For FAutoScopedDurationTimer
 #include "GeomTools.h"
 #include "mikktspace.h"	// For tangent computations
-#include "MeshAttributes.h"
+#include "StaticMeshAttributes.h"
 
 // =========================================================
 // OpenSubdiv support

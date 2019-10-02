@@ -20,7 +20,7 @@ FOSCServerProxy::FOSCServerProxy(UOSCServer& InServer)
 {
 }
 
-void FOSCServerProxy::OnMessageReceived(const FArrayReaderPtr& Data, const FIPv4Endpoint& Endpoint)
+void FOSCServerProxy::OnPacketReceived(const FArrayReaderPtr& Data, const FIPv4Endpoint& Endpoint)
 {
 	TSharedPtr<IOSCPacket> Packet = IOSCPacket::CreatePacket(Data->GetData());
 	if (!Packet.IsValid())
@@ -33,7 +33,7 @@ void FOSCServerProxy::OnMessageReceived(const FArrayReaderPtr& Data, const FIPv4
 	Packet->ReadData(Stream);
 	Server->EnqueuePacket(Packet);
 
-	DECLARE_CYCLE_STAT(TEXT("OSCServer.OnMessageReceived"), STAT_OSCServerOnMessageReceived, STATGROUP_OSCNetworkCommands);
+	DECLARE_CYCLE_STAT(TEXT("OSCServer.OnPacketReceived"), STAT_OSCServerOnPacketReceived, STATGROUP_OSCNetworkCommands);
 	FFunctionGraphTask::CreateAndDispatchWhenReady([this, Endpoint]()
 	{
 		// Throw request on the ground if endpoint address not whitelisted.
@@ -43,8 +43,8 @@ void FOSCServerProxy::OnMessageReceived(const FArrayReaderPtr& Data, const FIPv4
 			return;
 		}
 
-		Server->OnMessageReceived(Endpoint.Address.ToString());
-	}, GET_STATID(STAT_OSCServerOnMessageReceived), nullptr, ENamedThreads::GameThread);
+		Server->OnPacketReceived(Endpoint.Address.ToString());
+	}, GET_STATID(STAT_OSCServerOnPacketReceived), nullptr, ENamedThreads::GameThread);
 }
 
 bool FOSCServerProxy::GetMulticastLoopback() const
@@ -90,7 +90,7 @@ void FOSCServerProxy::Listen(const FString& ServerName)
 	if (Socket)
 	{
 		SocketReceiver = new FUdpSocketReceiver(Socket, FTimespan::FromMilliseconds(100), *(ServerName + TEXT("_ListenerThread")));
-		SocketReceiver->OnDataReceived().BindRaw(this, &FOSCServerProxy::OnMessageReceived);
+		SocketReceiver->OnDataReceived().BindRaw(this, &FOSCServerProxy::OnPacketReceived);
 		SocketReceiver->Start();
 
 		UE_LOG(LogOSC, Display, TEXT("OSCServer '%s' Listening: %s:%d."), *ServerName, *ReceiveIPAddress.ToString(), Port);

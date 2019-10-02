@@ -612,7 +612,7 @@ bool ULandscapeHeightfieldCollisionComponent::CookCollisionData(const FName& For
 	UPhysicalMaterial* DefMaterial = Proxy->DefaultPhysMaterial ? Proxy->DefaultPhysMaterial : GEngine->DefaultPhysMaterial;
 
 	// GetComponentTransform() might not be initialized at this point, so use landscape transform
-	const FVector LandscapeScale = Proxy->GetRootComponent()->RelativeScale3D;
+	const FVector LandscapeScale = Proxy->GetRootComponent()->GetRelativeScale3D();
 	const bool bIsMirrored = (LandscapeScale.X*LandscapeScale.Y*LandscapeScale.Z) < 0.f;
 
 	const bool bGenerateSimpleCollision = SimpleCollisionSizeQuads > 0 && !bUseDefMaterial;
@@ -1692,15 +1692,17 @@ void ULandscapeHeightfieldCollisionComponent::PostLoad()
 		if (ensure(LandscapeProxy) && GIsEditor)
 		{
 			// This is to ensure that component relative location is exact section base offset value
+			FVector LocalRelativeLocation = GetRelativeLocation();
 			float CheckRelativeLocationX = float(SectionBaseX - LandscapeProxy->LandscapeSectionOffset.X);
 			float CheckRelativeLocationY = float(SectionBaseY - LandscapeProxy->LandscapeSectionOffset.Y);
-			if (CheckRelativeLocationX != RelativeLocation.X || 
-				CheckRelativeLocationY != RelativeLocation.Y)
+			if (CheckRelativeLocationX != LocalRelativeLocation.X ||
+				CheckRelativeLocationY != LocalRelativeLocation.Y)
 			{
 				UE_LOG(LogLandscape, Warning, TEXT("ULandscapeHeightfieldCollisionComponent RelativeLocation disagrees with its section base, attempted automated fix: '%s', %f,%f vs %f,%f."),
-					*GetFullName(), RelativeLocation.X, RelativeLocation.Y, CheckRelativeLocationX, CheckRelativeLocationY);
-				RelativeLocation.X = CheckRelativeLocationX;
-				RelativeLocation.Y = CheckRelativeLocationY;
+					*GetFullName(), LocalRelativeLocation.X, LocalRelativeLocation.Y, CheckRelativeLocationX, CheckRelativeLocationY);
+				LocalRelativeLocation.X = CheckRelativeLocationX;
+				LocalRelativeLocation.Y = CheckRelativeLocationY;
+				SetRelativeLocation_Direct(LocalRelativeLocation);
 			}
 		}
 

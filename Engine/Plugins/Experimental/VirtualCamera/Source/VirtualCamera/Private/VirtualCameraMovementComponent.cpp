@@ -252,15 +252,17 @@ FVector UVirtualCameraMovementComponent::GetStabilizedDeltaLocation() const
 
 	FVector TargetLocationWithOffsets = TargetLocation - GetLocationOffset();
 
+	const FVector UpdatedComponentRelativeLocation = UpdatedComponent->GetRelativeLocation();
+
 	// Calculate each component by getting the needed vector component and doing a lerp with the stabilization scale for that axis
-	FMath::PointDistToLine(TargetLocationWithOffsets, UpdatedComponent->GetForwardVector(), UpdatedComponent->RelativeLocation, ClosestPoint);
-	ReturnVector += (ClosestPoint - UpdatedComponent->RelativeLocation) * (1 - ClampStabilizationScale(AxisSettings[EVirtualCameraAxis::LocationX].StabilizationScale));
+	FMath::PointDistToLine(TargetLocationWithOffsets, UpdatedComponent->GetForwardVector(), UpdatedComponentRelativeLocation, ClosestPoint);
+	ReturnVector += (ClosestPoint - UpdatedComponentRelativeLocation) * (1 - ClampStabilizationScale(AxisSettings[EVirtualCameraAxis::LocationX].StabilizationScale));
 
-	FMath::PointDistToLine(TargetLocationWithOffsets, UpdatedComponent->GetRightVector(), UpdatedComponent->RelativeLocation, ClosestPoint);
-	ReturnVector += (ClosestPoint - UpdatedComponent->RelativeLocation) * (1 - ClampStabilizationScale(AxisSettings[EVirtualCameraAxis::LocationY].StabilizationScale));
+	FMath::PointDistToLine(TargetLocationWithOffsets, UpdatedComponent->GetRightVector(), UpdatedComponentRelativeLocation, ClosestPoint);
+	ReturnVector += (ClosestPoint - UpdatedComponentRelativeLocation) * (1 - ClampStabilizationScale(AxisSettings[EVirtualCameraAxis::LocationY].StabilizationScale));
 
-	FMath::PointDistToLine(TargetLocationWithOffsets, UpdatedComponent->GetUpVector(), UpdatedComponent->RelativeLocation, ClosestPoint);
-	ReturnVector += (ClosestPoint - UpdatedComponent->RelativeLocation) * (1 - ClampStabilizationScale(AxisSettings[EVirtualCameraAxis::LocationZ].StabilizationScale));
+	FMath::PointDistToLine(TargetLocationWithOffsets, UpdatedComponent->GetUpVector(), UpdatedComponentRelativeLocation, ClosestPoint);
+	ReturnVector += (ClosestPoint - UpdatedComponentRelativeLocation) * (1 - ClampStabilizationScale(AxisSettings[EVirtualCameraAxis::LocationZ].StabilizationScale));
 
 	ReturnVector = GetOwner()->GetActorRotation().RotateVector(ReturnVector);
 	return ReturnVector;

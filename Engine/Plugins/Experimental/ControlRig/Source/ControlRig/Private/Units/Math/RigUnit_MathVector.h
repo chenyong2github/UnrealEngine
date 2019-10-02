@@ -666,6 +666,65 @@ struct FRigUnit_MathVectorUnit : public FRigUnit_MathVectorUnaryOp
 };
 
 /**
+ * Sets the length of a given vector
+ */
+USTRUCT(meta = (DisplayName = "SetLength", PrototypeName = "SetLength", Keywords = "Unit,Normalize,Scale"))
+struct FRigUnit_MathVectorSetLength: public FRigUnit_MathVectorBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathVectorSetLength()
+	{
+		Value = Result = FVector(1.f, 0.f, 0.f);
+		Length = 1.f;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	FVector Value;
+
+	UPROPERTY(meta = (Input))
+	float Length;
+
+	UPROPERTY(meta = (Output))
+	FVector Result;
+};
+
+/**
+ * Clamps the length of a given vector between a minimum and maximum
+ */
+USTRUCT(meta = (DisplayName = "ClampLength", PrototypeName = "ClampLength", Keywords = "Unit,Normalize,Scale"))
+struct FRigUnit_MathVectorClampLength: public FRigUnit_MathVectorBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathVectorClampLength()
+	{
+		Value = Result = FVector(1.f, 0.f, 0.f);
+		MinimumLength = 0.f;
+		MaximumLength = 1.f;
+	}
+
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	FVector Value;
+
+	UPROPERTY(meta = (Input))
+	float MinimumLength;
+
+	UPROPERTY(meta = (Input))
+	float MaximumLength;
+
+	UPROPERTY(meta = (Output))
+	FVector Result;
+};
+
+/**
  * Mirror a vector about a normal vector.
  */
 USTRUCT(meta=(DisplayName="Mirror", PrototypeName="Mirror"))
@@ -818,6 +877,66 @@ struct FRigUnit_MathVectorMakeBezierFourPoint : public FRigUnit_MathVectorBase
 		Bezier = FCRFourPointBezier();
 	}
 
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
 	UPROPERTY(meta = (Input, Output))
 	FCRFourPointBezier Bezier;
+};
+
+/**
+ * Clamps a position using a plane collision, cylindric collision or spherical collision.
+ */
+USTRUCT(meta = (DisplayName = "Clamp Spatially", PrototypeName = "ClampSpatially", Keywords="Collide,Collision"))
+struct FRigUnit_MathVectorClampSpatially: public FRigUnit_MathVectorBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathVectorClampSpatially()
+	{
+		Value = Result = FVector::ZeroVector;
+		Axis = EAxis::X;
+		Type = EControlRigClampSpatialMode::Plane;
+		Minimum = 0.f;
+		Maximum = 100.f;
+		Space = FTransform::Identity;
+		bDrawDebug = false;
+		DebugColor = FLinearColor::Red;
+		DebugThickness = 1.f;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	FVector Value;
+
+	UPROPERTY(meta = (Input))
+	TEnumAsByte<EAxis::Type> Axis;
+
+	UPROPERTY(meta = (Input))
+	TEnumAsByte<EControlRigClampSpatialMode::Type> Type;
+
+	UPROPERTY(meta = (Input))
+	float Minimum;
+
+	UPROPERTY(meta = (Input))
+	float Maximum;
+
+	// The space this spatial clamp happens within.
+	// The input position will be projected into this space.
+	UPROPERTY(meta = (Input))
+	FTransform Space;
+
+	UPROPERTY(meta = (Input))
+	bool bDrawDebug;
+
+	UPROPERTY(meta = (Input))
+	FLinearColor DebugColor;
+
+	UPROPERTY(meta = (Input))
+	float DebugThickness;
+
+	UPROPERTY(meta = (Output))
+	FVector Result;
 };

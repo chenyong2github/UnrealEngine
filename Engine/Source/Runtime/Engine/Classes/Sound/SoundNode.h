@@ -198,6 +198,6 @@ public:
 	 *
 	 * @param bRecurse when true, this will cause all children of child nodes to be primed as well.
 	 */
-	void PrimeChildWavePlayers(bool bRecurse);
+	virtual void PrimeChildWavePlayers(bool bRecurse);
 };
 

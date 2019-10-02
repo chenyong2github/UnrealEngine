@@ -576,7 +576,7 @@ public:
 	* @param Section		The Section being used
 	* @param bCanBeReplced	Whether or not the Section can be replaced by a user
 	*/
-	virtual void AddSection(int32 LodIndex, int32 SectionIndex, FName InMaterialSlotName, int32 InMaterialSlotIndex, FName InOriginalMaterialSlotName, const TMap<int32, FName> &InAvailableMaterialSlotName, const UMaterialInterface* Material, bool IsSectionUsingCloth) = 0;
+	virtual void AddSection(int32 LodIndex, int32 SectionIndex, FName InMaterialSlotName, int32 InMaterialSlotIndex, FName InOriginalMaterialSlotName, const TMap<int32, FName> &InAvailableMaterialSlotName, const UMaterialInterface* Material, bool IsSectionUsingCloth, bool bIsChunkSection, int32 DefaultMaterialIndex) = 0;
 };
 
 
@@ -607,8 +607,11 @@ struct FSectionListItem
 	/* Available material slot name*/
 	TMap<int32, FName> AvailableMaterialSlotName;
 
+	bool bIsChunkSection;
+	int32 DefaultMaterialIndex;
 
-	FSectionListItem(int32 InLodIndex, int32 InSectionIndex, FName InMaterialSlotName, int32 InMaterialSlotIndex, FName InOriginalMaterialSlotName, const TMap<int32, FName> &InAvailableMaterialSlotName, const UMaterialInterface* InMaterial, bool InIsSectionUsingCloth, int32 InThumbnailSize)
+
+	FSectionListItem(int32 InLodIndex, int32 InSectionIndex, FName InMaterialSlotName, int32 InMaterialSlotIndex, FName InOriginalMaterialSlotName, const TMap<int32, FName> &InAvailableMaterialSlotName, const UMaterialInterface* InMaterial, bool InIsSectionUsingCloth, int32 InThumbnailSize, bool InIsChunkSection, int32 InDefaultMaterialIndex)
 		: LodIndex(InLodIndex)
 		, SectionIndex(InSectionIndex)
 		, IsSectionUsingCloth(InIsSectionUsingCloth)
@@ -618,11 +621,21 @@ struct FSectionListItem
 		, MaterialSlotIndex(InMaterialSlotIndex)
 		, OriginalMaterialSlotName(InOriginalMaterialSlotName)
 		, AvailableMaterialSlotName(InAvailableMaterialSlotName)
+		, bIsChunkSection(InIsChunkSection)
+		, DefaultMaterialIndex(InDefaultMaterialIndex)
 	{}
 
 	bool operator==(const FSectionListItem& Other) const
 	{
-		bool IsSectionItemEqual = LodIndex == Other.LodIndex && SectionIndex == Other.SectionIndex && MaterialSlotIndex == Other.MaterialSlotIndex && MaterialSlotName == Other.MaterialSlotName && Material == Other.Material && AvailableMaterialSlotName.Num() == Other.AvailableMaterialSlotName.Num() && IsSectionUsingCloth == Other.IsSectionUsingCloth;
+		bool IsSectionItemEqual = LodIndex == Other.LodIndex
+			&& SectionIndex == Other.SectionIndex
+			&& MaterialSlotIndex == Other.MaterialSlotIndex
+			&& MaterialSlotName == Other.MaterialSlotName
+			&& Material == Other.Material
+			&& AvailableMaterialSlotName.Num() == Other.AvailableMaterialSlotName.Num()
+			&& IsSectionUsingCloth == Other.IsSectionUsingCloth
+			&& bIsChunkSection == Other.bIsChunkSection
+			&& DefaultMaterialIndex == Other.DefaultMaterialIndex;
 		if (IsSectionItemEqual)
 		{
 			for (auto Kvp : AvailableMaterialSlotName)
