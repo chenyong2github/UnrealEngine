@@ -73,13 +73,10 @@ void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessFrameBeforeWarpBle
 		{
 			if (CurPP.Operation->IsPostProcessFrameBeforeWarpBlendRequired((uint32)ViewsPerViewport))
 			{
-				for (int ViewportIdx = 0; ViewportIdx < RenderViewportsRef.Num(); ++ViewportIdx)
+				for (int ViewIdx = 0; ViewIdx < ViewsPerViewport; ++ViewIdx)
 				{
-					for (int ViewIdx = 0; ViewIdx < ViewsPerViewport; ++ViewIdx)
-					{
-						UE_LOG(LogDisplayClusterRender, VeryVerbose, TEXT("Postprocess FRAME before WarpBlend - Viewport %s, ViewportIdx %d, ViewIdx"), *RenderViewportsRef[ViewportIdx].GetId(), ViewportIdx, ViewIdx);
-						CurPP.Operation->PerformPostProcessFrameBeforeWarpBlend_RenderThread(RHICmdList, SrcTexture, RenderViewportsRef[ViewportIdx].GetContext(ViewIdx).RenderTargetRect);
-					}
+					UE_LOG(LogDisplayClusterRender, VeryVerbose, TEXT("Postprocess FRAME before WarpBlend - ViewIdx %d"), ViewIdx);
+					CurPP.Operation->PerformPostProcessFrameBeforeWarpBlend_RenderThread(RHICmdList, SrcTexture, EyeRegions[ViewIdx]);
 				}
 			}
 		}
@@ -112,14 +109,8 @@ void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessRenderTargetBefore
 		{
 			if (CurPP.Operation->IsPostProcessRenderTargetBeforeWarpBlendRequired())
 			{
-				for (int ViewportIdx = 0; ViewportIdx < RenderViewportsRef.Num(); ++ViewportIdx)
-				{
-					for (int ViewIdx = 0; ViewIdx < ViewsPerViewport; ++ViewIdx)
-					{
-						UE_LOG(LogDisplayClusterRender, VeryVerbose, TEXT("Postprocess TARGET before WarpBlend - Viewport %s, ViewportIdx %d, ViewIdx"), *RenderViewportsRef[ViewportIdx].GetId(), ViewportIdx, ViewIdx);
-						CurPP.Operation->PerformPostProcessRenderTargetBeforeWarpBlend_RenderThread(RHICmdList, SrcTexture);
-					}
-				}
+				UE_LOG(LogDisplayClusterRender, VeryVerbose, TEXT("Postprocess TARGET before WarpBlend"));
+				CurPP.Operation->PerformPostProcessRenderTargetBeforeWarpBlend_RenderThread(RHICmdList, SrcTexture);
 			}
 		}
 	}
@@ -190,13 +181,10 @@ void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessFrameAfterWarpBlen
 		{
 			if (CurPP.Operation->IsPostProcessFrameAfterWarpBlendRequired((uint32)ViewsPerViewport))
 			{
-				for (int ViewportIdx = 0; ViewportIdx < RenderViewportsRef.Num(); ++ViewportIdx)
+				for (int ViewIdx = 0; ViewIdx < ViewsPerViewport; ++ViewIdx)
 				{
-					for (int ViewIdx = 0; ViewIdx < ViewsPerViewport; ++ViewIdx)
-					{
-						UE_LOG(LogDisplayClusterRender, VeryVerbose, TEXT("Postprocess FRAME after WarpBlend - Viewport %s, ViewportIdx %d, ViewIdx"), *RenderViewportsRef[ViewportIdx].GetId(), ViewportIdx, ViewIdx);
-						CurPP.Operation->PerformPostProcessFrameAfterWarpBlend_RenderThread(RHICmdList, SrcTexture, RenderViewportsRef[ViewportIdx].GetContext(ViewIdx).RenderTargetRect);
-					}
+					UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Postprocess FRAME after WarpBlend - ViewIdx %d"), ViewIdx);
+					CurPP.Operation->PerformPostProcessFrameAfterWarpBlend_RenderThread(RHICmdList, SrcTexture, EyeRegions[ViewIdx]);
 				}
 			}
 		}
@@ -229,14 +217,8 @@ void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessRenderTargetAfterW
 		{
 			if (CurPP.Operation->IsPostProcessRenderTargetAfterWarpBlendRequired())
 			{
-				for (int ViewportIdx = 0; ViewportIdx < RenderViewportsRef.Num(); ++ViewportIdx)
-				{
-					for (int ViewIdx = 0; ViewIdx < ViewsPerViewport; ++ViewIdx)
-					{
-						UE_LOG(LogDisplayClusterRender, VeryVerbose, TEXT("Postprocess TARGET after WarpBlend - Viewport %s, ViewportIdx %d, ViewIdx"), *RenderViewportsRef[ViewportIdx].GetId(), ViewportIdx, ViewIdx);
-						CurPP.Operation->PerformPostProcessRenderTargetAfterWarpBlend_RenderThread(RHICmdList, SrcTexture);
-					}
-				}
+				UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Postprocess TARGET after WarpBlend"));
+				CurPP.Operation->PerformPostProcessRenderTargetAfterWarpBlend_RenderThread(RHICmdList, SrcTexture);
 			}
 		}
 	}
