@@ -11,21 +11,27 @@
 		},
 		{
 			"Name": "DataPrepEditor",
-			"Enabled": true
+			"Enabled": true,
+			"SupportedTargetPlatforms": [
+				"Win64"
+			]
 		},
 		{
 			"Name": "DatasmithImporter",
-			"Enabled": true
+			"Enabled": true,
+			"SupportedTargetPlatforms": [
+				"Win64"
+			]
 		},
 		{
 			"Name": "VariantManager",
-			"Enabled": True
+			"Enabled": true
 		},
 		{
 			"Name": "PythonScriptPlugin",
 			"Enabled": true
 		},
-				{
+		{
 			"Name": "HDRIBackdrop",
 			"Enabled": true
 		},
