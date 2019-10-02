@@ -85,6 +85,9 @@ struct PROJECTS_API FPluginDescriptor
 	/** Marks the plugin as beta in the UI */
 	bool bIsBetaVersion;
 
+	/** Marks the plugin as experimental in the UI */
+	bool bIsExperimentalVersion;
+
 	/** Signifies that the plugin was installed on top of the engine */
 	bool bInstalled;
 
