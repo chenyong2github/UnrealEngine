@@ -4,8 +4,6 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 
-#if INCLUDE_CHAOS
-
 #include "ChaosStats.h"
 #include "ChaosLog.h"
 #include "HAL/PlatformProcess.h"
@@ -20,6 +18,7 @@
 #include "UObject/Class.h"
 #include "Framework/Dispatcher.h"
 #include "Framework/DispatcherImpl.h"
+#include "Misc/App.h"
 
 TAutoConsoleVariable<int32> CVarChaosThreadEnabled(
 	TEXT("p.Chaos.DedicatedThreadEnabled"),
@@ -52,9 +51,7 @@ namespace Chaos
 	{
 		FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
 
-		EThreadingMode ThreadingMode = ChaosModule->GetDispatcher()->GetMode();
-
-		EMultiBufferMode MultiBufferMode = ChaosModule->GetBufferModeFromThreadingModel(ThreadingMode);
+		EMultiBufferMode MultiBufferMode = ChaosModule->GetDesiredBufferingMode();
 
 		ChaosModule->ChangeBufferMode(MultiBufferMode);
 	}
@@ -205,7 +202,7 @@ void FChaosSolversModule::Initialize()
 {
 	if(!bModuleInitialized)
 	{
-		const Chaos::EThreadingMode DefaultThreadingMode = GetSettingsProvider().GetDefaultThreadingMode();
+		const Chaos::EThreadingMode DefaultThreadingMode = GetDesiredThreadingMode();
 
 		switch(DefaultThreadingMode)
 		{
@@ -241,7 +238,7 @@ void FChaosSolversModule::Shutdown()
 
 void FChaosSolversModule::OnSettingsChanged()
 {
-	Chaos::EThreadingMode CurrentThreadMode = GetSettingsProvider().GetDefaultThreadingMode();
+	Chaos::EThreadingMode CurrentThreadMode = GetDesiredThreadingMode();
 
 	if(Dispatcher && CurrentThreadMode != Dispatcher->GetMode())
 	{
@@ -451,7 +448,7 @@ Chaos::FPhysicsSolver* FChaosSolversModule::CreateSolver(bool bStandalone /*= fa
 	Chaos::EMultiBufferMode SolverBufferMode = Chaos::EMultiBufferMode::Single;
 	if (GetDispatcher())
 	{
-		SolverBufferMode = GetBufferModeFromThreadingModel(GetDispatcher()->GetMode());
+		SolverBufferMode = GetDesiredBufferingMode();
 	}
 
 	Solvers.Add(new Chaos::FPhysicsSolver(SolverBufferMode));
@@ -753,15 +750,15 @@ void FChaosSolversModule::UpdateStats()
 	const float AvgUpdateMs = AverageUpdateTime * 1000.f;
 	const float AvgEffectiveUpdateMs = TotalAverageUpdateTime * 1000.0f;
 
-	FRAMEPRO_CUSTOM_STAT("Chaos_Thread_Fps", Fps, "ChaosThread", "FPS");
-	FRAMEPRO_CUSTOM_STAT("Chaos_Thread_EffectiveFps", EffectiveFps, "ChaosThread", "FPS");
-	FRAMEPRO_CUSTOM_STAT("Chaos_Thread_Time", AvgUpdateMs, "ChaosThread", "ms");
-	FRAMEPRO_CUSTOM_STAT("Chaos_Thread_EffectiveTime", AvgEffectiveUpdateMs, "ChaosThread", "ms");
+	FRAMEPRO_CUSTOM_STAT("Chaos_Thread_Fps", Fps, "ChaosThread", "FPS", FRAMEPRO_COLOUR(255,255,255));
+	FRAMEPRO_CUSTOM_STAT("Chaos_Thread_EffectiveFps", EffectiveFps, "ChaosThread", "FPS", FRAMEPRO_COLOUR(255,255,255));
+	FRAMEPRO_CUSTOM_STAT("Chaos_Thread_Time", AvgUpdateMs, "ChaosThread", "ms", FRAMEPRO_COLOUR(255,255,255));
+	FRAMEPRO_CUSTOM_STAT("Chaos_Thread_EffectiveTime", AvgEffectiveUpdateMs, "ChaosThread", "ms", FRAMEPRO_COLOUR(255,255,255));
 
-	FRAMEPRO_CUSTOM_STAT("Chaos_Thread_NumActiveParticles", PerSolverStats.NumActiveParticles, "ChaosThread", "Particles");
-	FRAMEPRO_CUSTOM_STAT("Chaos_Thread_NumConstraints", PerSolverStats.NumActiveConstraints, "ChaosThread", "Constraints");
-	FRAMEPRO_CUSTOM_STAT("Chaos_Thread_NumAllocatedParticles", PerSolverStats.NumAllocatedParticles, "ChaosThread", "Particles");
-	FRAMEPRO_CUSTOM_STAT("Chaos_Thread_NumPaticleIslands", PerSolverStats.NumParticleIslands, "ChaosThread", "Islands");
+	FRAMEPRO_CUSTOM_STAT("Chaos_Thread_NumActiveParticles", PerSolverStats.NumActiveParticles, "ChaosThread", "Particles", FRAMEPRO_COLOUR(255,255,255));
+	FRAMEPRO_CUSTOM_STAT("Chaos_Thread_NumConstraints", PerSolverStats.NumActiveConstraints, "ChaosThread", "Constraints", FRAMEPRO_COLOUR(255,255,255));
+	FRAMEPRO_CUSTOM_STAT("Chaos_Thread_NumAllocatedParticles", PerSolverStats.NumAllocatedParticles, "ChaosThread", "Particles", FRAMEPRO_COLOUR(255,255,255));
+	FRAMEPRO_CUSTOM_STAT("Chaos_Thread_NumPaticleIslands", PerSolverStats.NumParticleIslands, "ChaosThread", "Islands", FRAMEPRO_COLOUR(255,255,255));
 
 	const int32 NumSolvers = Solvers.Num();
 #if 0
@@ -843,7 +840,26 @@ void FChaosSolversModule::ChangeBufferMode(Chaos::EMultiBufferMode BufferMode)
 
 }
 
-const IChaosSettingsProvider& FChaosSolversModule::GetSettingsProvider()
+Chaos::EThreadingMode FChaosSolversModule::GetDesiredThreadingMode() const
+{
+	const bool bForceSingleThread = !FApp::ShouldUseThreadingForPerformance();
+
+	// If the platform isn't using threads for perf - force Chaos to
+	// run single threaded no matter the selected mode.
+	if(bForceSingleThread)
+	{
+		return Chaos::EThreadingMode::SingleThread;
+	}
+
+	return GetSettingsProvider().GetDefaultThreadingMode();
+}
+
+Chaos::EMultiBufferMode FChaosSolversModule::GetDesiredBufferingMode() const
+{
+	return GetBufferModeFromThreadingModel(GetDesiredThreadingMode());
+}
+
+const IChaosSettingsProvider& FChaosSolversModule::GetSettingsProvider() const
 {
 	return SettingsProvider ? *SettingsProvider : Chaos::GDefaultChaosSettings;
 }
@@ -918,12 +934,3 @@ bool FChaosScopedPhysicsThreadLock::DidGetLock() const
 }
 
 IMPLEMENT_MODULE(FChaosSolversModule, ChaosSolvers);
-
-#else
-
-// Workaround for module not having any exported symbols
-CHAOSSOLVERS_API int ChaosSolversExportedSymbol = 0;
-
-IMPLEMENT_MODULE(FDefaultModuleImpl, ChaosSolvers);
-
-#endif

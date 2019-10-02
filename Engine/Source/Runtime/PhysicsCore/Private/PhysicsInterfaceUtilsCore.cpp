@@ -4,10 +4,7 @@
 #include "PhysXPublicCore.h"
 #include "PhysicsInterfaceTypesCore.h"
 
-#if INCLUDE_CHAOS
-#include "Chaos/GeometryParticles.h"
 #include "Chaos/ParticleHandle.h"
-#endif
 
 #if WITH_PHYSX
 

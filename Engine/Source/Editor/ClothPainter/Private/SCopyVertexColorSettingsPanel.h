@@ -6,8 +6,8 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
-class UClothingAsset;
-struct FClothParameterMask_PhysMesh;
+class UClothingAssetCommon;
+struct FPointWeightMap;
 
 /** Widget used for copying vertex colors from sim mesh to a selected mask. */
 class SCopyVertexColorSettingsPanel : public SCompoundWidget
@@ -17,7 +17,7 @@ public:
 	{}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, UClothingAsset* InAsset, int32 InLOD, FClothParameterMask_PhysMesh* InMask);
+	void Construct(const FArguments& InArgs, UClothingAssetCommon* InAsset, int32 InLOD, FPointWeightMap* InMask);
 
 private:
 
@@ -28,9 +28,9 @@ private:
 	FReply OnCopyClicked();
 
 	// Pointer to currently selected ClothingAsset
-	TWeakObjectPtr<UClothingAsset> SelectedAssetPtr;
+	TWeakObjectPtr<UClothingAssetCommon> SelectedAssetPtr;
 	// Pointer to selected mask
-	FClothParameterMask_PhysMesh* SelectedMask;
+	FPointWeightMap* SelectedMask;
 	// Currently selected LOD
 	int32 SelectedLOD;
 };

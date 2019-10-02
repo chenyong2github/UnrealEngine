@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "ClothingSimulationFactoryNv.h"
-#include "Assets/ClothingAsset.h"
+#include "Assets/ClothingAssetNv.h"
 
 #if WITH_NVCLOTH
 #include "ClothingSimulationNv.h"

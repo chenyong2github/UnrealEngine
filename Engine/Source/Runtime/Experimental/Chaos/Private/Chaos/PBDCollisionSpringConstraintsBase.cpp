@@ -2,7 +2,7 @@
 #include "Chaos/PBDCollisionSpringConstraintsBase.h"
 
 #if !COMPILE_WITHOUT_UNREAL_SUPPORT
-#include "Chaos/ParallelFor.h"
+#include "Chaos/Framework/Parallel.h"
 #if PLATFORM_DESKTOP && PLATFORM_64BITS
 #include "kDOP.h"
 #endif

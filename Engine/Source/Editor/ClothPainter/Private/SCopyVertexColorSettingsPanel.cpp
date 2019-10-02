@@ -8,12 +8,12 @@
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
-#include "Assets/ClothingAsset.h"
+#include "ClothingAsset.h"
 #include "Framework/Application/SlateApplication.h"
 
 #define LOCTEXT_NAMESPACE "CopyVertexColorSettings"
 
-void SCopyVertexColorSettingsPanel::Construct(const FArguments& InArgs, UClothingAsset* InAsset, int32 InLOD, FClothParameterMask_PhysMesh* InMask)
+void SCopyVertexColorSettingsPanel::Construct(const FArguments& InArgs, UClothingAssetCommon* InAsset, int32 InLOD, FPointWeightMap* InMask)
 {
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
@@ -109,18 +109,18 @@ float GetColorChannelAsFloat(const FColor& Color, ESourceColorChannel Channel, f
 /** Copy channel of vertex colors into a particular mask entry */
 FReply SCopyVertexColorSettingsPanel::OnCopyClicked()
 {
-	UClothingAsset* Asset = SelectedAssetPtr.Get();
+	UClothingAssetCommon* Asset = SelectedAssetPtr.Get();
 	if (Asset && SelectedMask)
 	{
-		FClothLODData& ClothLODData = Asset->LodData[SelectedLOD];
+		UClothLODDataBase* ClothLODData = Asset->ClothLodData[SelectedLOD];
 
-		check(ClothLODData.PhysicalMeshData.Vertices.Num() == ClothLODData.PhysicalMeshData.VertexColors.Num());
-		int32 NumVerts = ClothLODData.PhysicalMeshData.Vertices.Num();
+		check(ClothLODData->PhysicalMeshData->Vertices.Num() == ClothLODData->PhysicalMeshData->VertexColors.Num());
+		int32 NumVerts = ClothLODData->PhysicalMeshData->Vertices.Num();
 		check(SelectedMask->Values.Num() == NumVerts);
 
 		for (int32 VertIdx = 0; VertIdx < NumVerts; VertIdx++)
 		{
-			const FColor VertColor = ClothLODData.PhysicalMeshData.VertexColors[VertIdx];
+			const FColor VertColor = ClothLODData->PhysicalMeshData->VertexColors[VertIdx];
 			SelectedMask->Values[VertIdx] = GetColorChannelAsFloat(VertColor, CopyParams.ColorChannel, CopyParams.ScalingFactor);
 		}
 	}

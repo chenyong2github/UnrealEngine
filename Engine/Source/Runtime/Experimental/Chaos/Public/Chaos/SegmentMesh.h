@@ -3,11 +3,13 @@
 
 #include "Chaos/Array.h"
 #include "Chaos/Map.h"
-#include "Chaos/Particles.h"
 #include "Chaos/Vector.h"
 
 namespace Chaos
 {
+	template<class T, int d>
+	class TParticles;
+
 	/**
 	* Mesh structure of connected particles via edges.
 	*/

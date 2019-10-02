@@ -4,13 +4,13 @@
 
 #include "Misc/Build.h"
 
-#if INCLUDE_CHAOS && !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 #include "Containers/StaticBitArray.h"
 #include "Chaos/ArrayCollectionArray.h"
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/Matrix.h"
+#include "Chaos/PBDRigidClusteredParticles.h"
 #include "Chaos/UniformGrid.h"
-#include "Chaos/PBDRigidClustering.h"
 #include "Chaos/Framework/BufferedData.h"
 #include "Chaos/Declares.h"
 
@@ -184,5 +184,4 @@ extern template class TGeometryCollectionParticlesData<float, 3>;
 /** Current Chaos particles syncer type. */
 typedef TGeometryCollectionParticlesData<float, 3> FGeometryCollectionParticlesData;
 
-#endif  // #if INCLUDE_CHAOS && !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-
+#endif  // #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

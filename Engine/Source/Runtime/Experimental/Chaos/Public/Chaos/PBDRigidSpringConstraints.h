@@ -168,7 +168,7 @@ namespace Chaos
 		{
 		}
 
-		void Apply(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles)
+		void Apply(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles, const int32 It, const int32 NumIts)
 		{
 			for (FConstraintHandle* ConstraintHandle : InConstraintHandles)
 			{

@@ -28,6 +28,15 @@ namespace UnrealBuildTool.Rules
             {
                 PublicDefinitions.Add("INCLUDE_CHAOS=0");
             }
+
+			if (Target.bUseChaosMemoryTracking == true)
+			{
+				PublicDefinitions.Add("CHAOS_MEMORY_TRACKING=1");
+			}
+			else
+			{
+				PublicDefinitions.Add("CHAOS_MEMORY_TRACKING=0");
+			}
         }
     }
 }

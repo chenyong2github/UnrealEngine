@@ -3,7 +3,6 @@
 
 #include "Chaos/PBDCollisionTypes.h"
 #include "Chaos/PBDConstraintGraph.h"
-#include "Chaos/PerParticleRule.h"
 
 #include <memory>
 #include <queue>

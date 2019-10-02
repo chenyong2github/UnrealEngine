@@ -1,8 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "GeometryCollection/GeometryCollectionPhysicsFieldCommands.h"
 
-#if INCLUDE_CHAOS
-
 #include "Containers/ArrayView.h"
 #include "GeometryCollection/ManagedArray.h"
 #include "Field/FieldSystemTypes.h"
@@ -16,4 +14,3 @@ DEFINE_LOG_CATEGORY_STATIC(FSCA_Log, Log, All);
 namespace PhysicsFieldCommand
 {
 }
-#endif

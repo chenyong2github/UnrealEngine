@@ -15,7 +15,7 @@ namespace Chaos
 }
 
 template <typename T>
-class CHAOSSOLVERS_API FSingleParticlePhysicsProxy;
+class FSingleParticlePhysicsProxy;
 
 typedef FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>> FGeometryParticlePhysicsProxy;
 typedef FSingleParticlePhysicsProxy< Chaos::TKinematicGeometryParticle<float, 3> > FKinematicGeometryParticlePhysicsProxy;

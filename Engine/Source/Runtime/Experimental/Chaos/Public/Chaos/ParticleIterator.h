@@ -1,17 +1,103 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/ParallelFor.h"
+#include "Chaos/Particles.h"
+#include "ChaosStats.h"
+
+DECLARE_CYCLE_STAT(TEXT("ParticlesSequentialFor"), STAT_ParticlesSequentialFor, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("ParticlesParallelFor"), STAT_ParticlesParallelFor, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("ParticleViewParallelForImp"), STAT_ParticleViewParallelForImp, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("HandleViewParallelForImp"), STAT_HandleViewParallelForImp, STATGROUP_Chaos);
+
 namespace Chaos
 {
+CHAOS_API extern int32 ChaosParticleParallelFor;
 
-template <typename ParticleView, typename Lambda>
-void ParticlesParallelFor(const ParticleView& Particles, const Lambda& Func, bool bForceSingleThreaded = false)
+template <typename TSOA>
+class TConstParticleView;
+
+template <typename TSOA>
+class TParticleView;
+
+template <typename TSOA>
+class TConstHandleView;
+
+template <typename TSOA>
+class THandleView;
+
+// The function ParticlesParallelFor may be called on ParticleViews, HandleViews,
+// or plain old manually curated arrays of either. In each case, the implementation
+// can differ. The following set of templates will select for the right case.
+
+template <typename TParticleView, typename Lambda>
+void ParticleViewParallelForImp(const TParticleView& Particles, const Lambda& Func);
+
+template <typename THandleView, typename Lambda>
+void HandleViewParallelForImp(const THandleView& HandleView, const Lambda& Func);
+
+template <typename TSOA, typename Lambda>
+void ParticlesParallelForImp(const TConstHandleView<TSOA>& Particles, const Lambda& Func)
 {
-	//todo: make it actually parallel
+	Chaos::HandleViewParallelForImp(Particles, Func);
+}
+
+template <typename TSOA, typename Lambda>
+void ParticlesParallelForImp(const THandleView<TSOA>& Particles, const Lambda& Func)
+{
+	Chaos::HandleViewParallelForImp(Particles, Func);
+}
+
+template <typename TSOA, typename Lambda>
+void ParticlesParallelForImp(const TConstParticleView<TSOA>& Particles, const Lambda& Func)
+{
+	Chaos::ParticleViewParallelForImp(Particles, Func);
+}
+
+template <typename TSOA, typename Lambda>
+void ParticlesParallelForImp(const TParticleView<TSOA>& Particles, const Lambda& Func)
+{
+	Chaos::ParticleViewParallelForImp(Particles, Func);
+}
+
+template <typename TParticle, typename Lambda>
+void ParticlesParallelForImp(const TArray<TParticle>& Particles, const Lambda& Func)
+{
+	// When ParticlesParallelFor is called with a plain old TArray,
+	// just do normal parallelization.
+	const int32 Num = Particles.Num();
+	::ParallelFor(Num, [&Func, &Particles](const int32 Index)
+	{
+		Func(Particles[Index], Index);
+	});
+}
+
+template <typename TView, typename Lambda>
+void ParticlesSequentialFor(const TView& Particles, const Lambda& Func)
+{
+	SCOPE_CYCLE_COUNTER(STAT_ParticlesSequentialFor);
+
 	int32 Index = 0;
 	for (auto& Particle : Particles)
 	{
 		Func(Particle, Index++);
+	}
+}
+
+template <typename TView, typename Lambda>
+void ParticlesParallelFor(const TView& Particles, const Lambda& Func, bool bForceSingleThreaded = false)
+{
+	SCOPE_CYCLE_COUNTER(STAT_ParticlesParallelFor);
+
+	switch (ChaosParticleParallelFor)
+	{
+		case 0:
+			Chaos::ParticlesSequentialFor(Particles, Func);
+			break;
+
+		case 1:
+			Chaos::ParticlesParallelForImp(Particles, Func);
+			break;
 	}
 }
 
@@ -55,12 +141,6 @@ public:
 		return Handles.Num();
 	}
 
-	template <typename Lambda>
-	void ParallelFor(const Lambda& Func) const
-	{
-		ParticlesParallelFor(*this, Func);
-	}
-
 protected:
 	template <typename TSOA2>
 	friend class TConstHandleView;
@@ -91,12 +171,6 @@ public:
 	THandle* operator->() const
 	{
 		return static_cast<THandle*>(Handles[CurIdx]);
-	}
-
-	template <typename Lambda>
-	void ParallelFor(const Lambda& Func) const
-	{
-		ParticlesParallelFor(*this, Func);
 	}
 
 	template <typename TSOA2>
@@ -139,6 +213,9 @@ public:
 
 	TConstHandleIterator<TSOA> End() const { return TConstHandleIterator<TSOA>(Handles, Num()); }
 	TConstHandleIterator<TSOA> end() const { return End(); }
+
+	template <typename TParticleView, typename Lambda>
+	friend void HandleViewParallelForImp(const TParticleView& Particles, const Lambda& Func);
 
 	template <typename Lambda>
 	void ParallelFor(const Lambda& Func) const
@@ -446,19 +523,24 @@ public:
 		ParticlesParallelFor(*this, Func, bForceSingleThreaded);
 	}
 
+	template <typename TParticleView, typename Lambda>
+	friend void ParticleViewParallelForImp(const TParticleView& Particles, const Lambda& Func);
+
 protected:
 
 	TArray<TSOAView<TSOA>> SOAViews;
 	int32 Size;
 };
 
-template <typename TSOA>
-class TParticleView : public TConstParticleView<TSOA>
+template <typename TSOAIn>
+class TParticleView : public TConstParticleView<TSOAIn>
 {
 public:
+	using TSOA = TSOAIn;
 	using Base = TConstParticleView<TSOA>;
 	using Base::SOAViews;
 	using Base::Num;
+	using TIterator = TParticleIterator<TSOA>;
 
 	TParticleView()
 		: Base()
@@ -509,6 +591,66 @@ TParticleView<TSOA> MakeParticleView(TSOA* SOA)
 	TArray<TSOAView<TSOA>> SOAs;
 	SOAs.Add({ SOA });
 	return TParticleView<TSOA>(MoveTemp(SOAs));
+}
+
+template <typename TParticleView, typename Lambda>
+void ParticleViewParallelForImp(const TParticleView& Particles, const Lambda& Func)
+{
+	SCOPE_CYCLE_COUNTER(STAT_ParticleViewParallelForImp);
+
+	using TSOA = typename TParticleView::TSOA;
+	using THandle = typename TSOA::THandleType;
+	using THandleBase = typename THandle::THandleBase;
+	using TTransientHandle = typename THandle::TTransientHandle;
+
+	// Loop over every SOA in this view, skipping empty ones
+	int32 ParticleIdxOff = 0;
+	for (int32 ViewIndex = 0; ViewIndex < Particles.SOAViews.Num(); ++ViewIndex)
+	{
+		const TSOAView<TSOA>& SOAView = Particles.SOAViews[ViewIndex];
+		const int32 ParticleCount = SOAView.Size();
+		if (ParticleCount == 0)
+		{
+			continue;
+		}
+
+		// Iterate over each element using normal parallel for
+		if (const TArray<THandle*>* CurHandlesArray = SOAView.HandlesArray)
+		{
+			// Do a regular parallel for over the handles in this SOA view
+			const int32 HandleCount = CurHandlesArray->Num();
+			::ParallelFor(HandleCount, [&Func, CurHandlesArray, ParticleIdxOff](const int32 HandleIdx)
+			{
+				THandle* HandlePtr = (*CurHandlesArray)[HandleIdx];
+				THandleBase Handle = THandleBase(HandlePtr->GeometryParticles, HandlePtr->ParticleIdx);
+				Func(static_cast<TTransientHandle&>(Handle), ParticleIdxOff + HandleIdx);
+			});
+			ParticleIdxOff += HandleCount;
+		}
+		else
+		{
+			// Do a regular parallel for over the particles in this SOA view
+			::ParallelFor(ParticleCount, [&Func, &SOAView, ParticleIdxOff](const int32 ParticleIdx)
+			{
+				THandleBase Handle = THandleBase(SOAView.SOA, ParticleIdx);
+				Func(static_cast<TTransientHandle&>(Handle), ParticleIdxOff + ParticleIdx);
+			});
+			ParticleIdxOff += ParticleCount;
+		}
+	}
+}
+
+template <typename THandleView, typename Lambda>
+void HandleViewParallelForImp(const THandleView& HandleView, const Lambda& Func)
+{
+	SCOPE_CYCLE_COUNTER(STAT_HandleViewParallelForImp);
+
+	using THandle = typename THandleView::THandle;
+	const int32 HandleCount = HandleView.Handles.Num();
+	::ParallelFor(HandleCount, [&HandleView, &Func](const int32 Index)
+	{
+		Func(static_cast<THandle&>(*HandleView.Handles[Index]), Index);
+	});
 }
 
 }

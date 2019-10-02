@@ -11,7 +11,10 @@ struct CORE_API FPhysicsObjectVersion
 	{
 		// Before any version changes were made
 		BeforeCustomVersionWasAdded = 0,
-
+		// Adding PerShapeData to serialization
+		PerShapeData,
+		// Add serialization from handle back to particle
+		SerializeGTGeometryParticles,
 		// Temporary versioning to serialize hair guide data in addition to hair render data
 		HairAssetSerialization,
 		HairAssetSerialization_V2,

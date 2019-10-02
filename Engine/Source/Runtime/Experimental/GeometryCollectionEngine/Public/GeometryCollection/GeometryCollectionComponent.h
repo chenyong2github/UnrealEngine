@@ -488,11 +488,9 @@ public:
 	FORCEINLINE const TArray<int32>& GetHighlightedBones() const { return HighlightedBones; }
 #endif
 
-#if INCLUDE_CHAOS
 	const TSharedPtr<FPhysScene_Chaos> GetPhysicsScene() const;
 	AChaosSolverActor* GetPhysicsSolverActor() const;
 	const FGeometryCollectionPhysicsProxy* GetPhysicsProxy() const { return PhysicsProxy; }
-#endif  // #if INCLUDE_CHAOS
 
 #if GEOMETRYCOLLECTION_EDITOR_SELECTION
 	/** Enable/disable the scene proxy per transform selection mode. When disabled the per material id default selection is used instead. */

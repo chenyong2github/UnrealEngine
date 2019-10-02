@@ -10,8 +10,6 @@
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 #include "Templates/SharedPointer.h"
 
-#if INCLUDE_CHAOS
-
 class FGeometryCollection;
 class FGeometryDynamicCollection;
 
@@ -104,4 +102,3 @@ namespace GeometryCollectionExample {
 	};
 
 }
-#endif

@@ -2,58 +2,18 @@
 
 #pragma once
 
-#if INCLUDE_CHAOS
-
-#include "Chaos/PBDRigidParticles.h"
-#include "Chaos/PBDCollisionConstraint.h"
-#include "Chaos/ArrayCollection.h"
 #include "Chaos/ArrayCollectionArray.h"
 #include "Chaos/Declares.h"
+#include "Chaos/Framework/PhysicsSolverBase.h"
+#include "Chaos/Framework/PhysicsProxyBase.h"
+#include "Chaos/PBDCollisionConstraint.h"
+#include "Chaos/PBDRigidParticles.h"
 #include "UObject/GCObject.h"
 
 struct FKinematicProxy;
 class FFieldSystemCommand;
 struct FBodyInstance;
 
-enum class EPhysicsProxyType
-{
-	NoneType = 0,
-	StaticMeshType = 1,
-	GeometryCollectionType = 2,
-	FieldType = 3,
-	SkeletalMeshType = 4,
-	FloatGeometryParticleType = 5
-};
-
-class IPhysicsProxyBase
-{
-public:
-	IPhysicsProxyBase()
-		: Solver(nullptr)
-	{}
-
-	virtual UObject* GetOwner() const = 0;
-
-	Chaos::FPhysicsSolver* GetSolver() const { return Solver; }
-
-	//Should this be in the public API? probably not
-	void SetSolver(Chaos::FPhysicsSolver* InSolver) { Solver = InSolver; }
-
-
-protected:
-	// Intended to be non-virtual and protected. This ensures that derived classes can successfully call this destructor
-	// but no one can delete using a IPhysicsProxyBase*
-	~IPhysicsProxyBase() = default;
-	
-	/** The solver that owns the solver object */
-	Chaos::FPhysicsSolver* Solver;
-};
-
-struct PhysicsProxyWrapper
-{
-	IPhysicsProxyBase* PhysicsProxy;
-	EPhysicsProxyType Type;
-};
 
 /**
  * Base object interface for solver objects. Defines the expected API for objects
@@ -85,13 +45,13 @@ public:
 	using FIntArray = Chaos::TArrayCollectionArray<int32>;
 
 	TPhysicsProxy()
-		: IPhysicsProxyBase()
+		: IPhysicsProxyBase(ConcreteType())
 		, Owner(nullptr)
 	{
 	}
 
 	explicit TPhysicsProxy(UObject* InOwner)
-		: IPhysicsProxyBase()
+		: IPhysicsProxyBase(ConcreteType())
 		, Owner(InOwner)
 	{
 	}
@@ -139,6 +99,16 @@ public:
 	void PushToPhysicsState(const Chaos::FParticleData* InData) { static_cast<Concrete*>(this)->PushToPhysicsState(InData); }
 
 	/**
+	* CONTEXT: GAMETHREAD
+	* Called on game thread after NewData has been called to buffer the particle data
+	* for physics. The purpose of this method is to clear data, such as external force
+	* and torque, which have been accumulated over a game tick. Buffering these values
+	* once means they'll be accounted for in physics. If they are not cleared, then
+	* they may "overaccumulate".
+	*/
+	void ClearAccumulatedData() { static_cast<Concrete*>(this)->ClearAccumulatedData(); }
+
+	/**
 	 * CONTEXT: PHYSICSTHREAD
 	 * Called per-tick after the simulation has completed. The proxy should cache the results of their
 	 * simulation into the local buffer. 
@@ -181,15 +151,9 @@ public:
 	 */
 	void OnRemoveFromScene() { static_cast<Concrete*>(this)->OnRemoveFromScene(); }
 
+	bool IsDirty() { return static_cast<Concrete*>(this)->IsDirty(); }
 
 
-	/**
-	 * End PhysicsProxy Common interface
-	 */
-
-	/** Get/Set the solver this object belongs to */
-	void SetSolver(Chaos::FPhysicsSolver* InSolver) { Solver = InSolver; }
-	Chaos::FPhysicsSolver* GetSolver() const { return Solver; }
 
 	/** Gets the owning external object for this solver object, never used internally */
 	virtual UObject* GetOwner() const override { return Owner; }
@@ -207,5 +171,3 @@ private:
 	 */
 	UObject* Owner;
 };
-
-#endif

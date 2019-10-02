@@ -178,6 +178,10 @@ FCollisionQueryParams::FCollisionQueryParams(FName InTraceTag, const TStatId& In
 	{
 		OwnerTag = InIgnoreActor->GetFName();
 	}
+
+#if !(UE_BUILD_TEST || UE_BUILD_SHIPPING)
+		bDebugQuery = false;
+#endif
 }
 
 
