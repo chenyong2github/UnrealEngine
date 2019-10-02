@@ -120,7 +120,7 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 		extern FForwardLightingViewResources* GetMinimalDummyForwardLightingResources();
 		View.ForwardLightingResources = GetMinimalDummyForwardLightingResources();
 
-		FSinglePrimitiveStructuredBuffer SinglePrimitiveStructuredBuffer;
+		FSinglePrimitiveStructuredBuffer& SinglePrimitiveStructuredBuffer = GTilePrimitiveBuffer;
 
 		if (Mesh.VertexFactory->GetPrimitiveIdStreamIndex(EVertexInputStreamType::PositionOnly) >= 0)
 		{
@@ -147,7 +147,7 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 				GetPrecomputedLightingParameters(FeatureLevel, LightmapParams, Mesh.LCI);
 				SinglePrimitiveStructuredBuffer.LightmapSceneData = FLightmapSceneShaderData(LightmapParams);
 
-				SinglePrimitiveStructuredBuffer.InitResource();
+				SinglePrimitiveStructuredBuffer.UploadToGPU();
 				View.PrimitiveSceneDataOverrideSRV = SinglePrimitiveStructuredBuffer.PrimitiveSceneDataBufferSRV;
 				View.LightmapSceneDataOverrideSRV = SinglePrimitiveStructuredBuffer.LightmapSceneDataBufferSRV;
 			}
@@ -341,8 +341,6 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 				}
 			}
 		}
-
-		SinglePrimitiveStructuredBuffer.ReleaseResource();
 	}
 }
 
