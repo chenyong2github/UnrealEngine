@@ -10,6 +10,7 @@
 class FRHICommandListImmediate;
 class FRHIShaderResourceView;
 class FRHITexture;
+class FRHIUnorderedAccessView;
 
 union FVirtualTextureProducerHandle
 {
