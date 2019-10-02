@@ -188,6 +188,9 @@ FChaosArchive& operator<<(FChaosArchive& Ar, TRigidParticles<T, d>& Particles)
 	return Ar;
 }
 
+#ifdef __clang__
+extern template class CHAOS_API TRigidParticles<float, 3>;
+#else
 extern template class TRigidParticles<float, 3>;
-
+#endif
 }
