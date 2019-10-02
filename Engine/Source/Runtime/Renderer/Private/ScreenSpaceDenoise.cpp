@@ -102,7 +102,7 @@ static TAutoConsoleVariable<float> CVarGIHistoryConvolutionKernelSpreadFactor(
 
 
 /** The maximum number of mip level supported in the denoiser. */
-// TODO: jump to 3 because bufefr size already have a size multiple of 4.
+// TODO(Denoiser): jump to 3 because bufefr size already have a size multiple of 4.
 static const int32 kMaxMipLevel = 2;
 
 /** Maximum number of sample per pixel supported in the stackowiak sample set. */
@@ -1097,7 +1097,7 @@ class FSSDSpatialAccumulationCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT(FSSDSignalSRVs, SignalInputUint)
 		SHADER_PARAMETER_STRUCT(FSSDSignalUAVs, SignalOutput)
 
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput) // TODO: remove
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput) // TODO(Denoiser): remove
 	END_SHADER_PARAMETER_STRUCT()
 };
 
@@ -1147,7 +1147,7 @@ class FSSDTemporalAccumulationCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PrevGBufferB)
 		SHADER_PARAMETER_RDG_TEXTURE_ARRAY(Texture2D<uint>, PrevCompressedMetadata, [kCompressedMetadataTextures])
 
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput) // TODO: remove
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput) // TODO(Denoiser): remove
 	END_SHADER_PARAMETER_STRUCT()
 };
 
@@ -1352,7 +1352,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 			HistoryDescs[3].Format = PF_R32_FLOAT;
 
 			ReconstructionTextureCount = IScreenSpaceDenoiser::kSphericalHarmonicTextureCount;
-			HistoryTextureCountPerSignal = IScreenSpaceDenoiser::kSphericalHarmonicTextureCount; // TODO: only 3 textures for history
+			HistoryTextureCountPerSignal = IScreenSpaceDenoiser::kSphericalHarmonicTextureCount; // TODO(Denoiser): only 3 textures for history
 			bHasReconstructionLayoutDifferentFromHistory = false;
 
 			InjestTextureCount = 4;
@@ -1409,7 +1409,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 		}
 
 		float PixelPositionToFullResPixel = 1.0f / Settings.DenoisingResolutionFraction;
-		FVector2D FullResPixelOffset = FVector2D(0.5f, 0.5f); // TODO.
+		FVector2D FullResPixelOffset = FVector2D(0.5f, 0.5f); // TODO(Denoiser).
 
 		CommonParameters.ThreadIdToBufferUV.X = PixelPositionToFullResPixel / float(FullResBufferExtent.X);
 		CommonParameters.ThreadIdToBufferUV.Y = PixelPositionToFullResPixel / float(FullResBufferExtent.Y);
@@ -2180,7 +2180,7 @@ public:
 			Settings.FullResViewport = View.ViewRect;
 			Settings.SignalProcessing = ESignalProcessing::PolychromaticPenumbraHarmonic;
 			Settings.HarmonicPeriode = Periode;
-			Settings.ReconstructionSamples = Periode * Periode; // TODO: should use preconvolution instead for harmonic 3
+			Settings.ReconstructionSamples = Periode * Periode; // TODO(Denoiser): should use preconvolution instead for harmonic 3
 			Settings.bUseTemporalAccumulation = false;
 
 			TStaticArray<FScreenSpaceDenoiserHistory*, IScreenSpaceDenoiser::kMaxBatchSize> PrevHistories;
@@ -2216,7 +2216,7 @@ public:
 			Settings.FullResViewport = View.ViewRect;
 			Settings.SignalProcessing = ESignalProcessing::PolychromaticPenumbraHarmonic;
 			Settings.HarmonicPeriode = Periode;
-			Settings.ReconstructionSamples = Periode * Periode; // TODO: should use preconvolution instead for harmonic 3
+			Settings.ReconstructionSamples = Periode * Periode; // TODO(Denoiser): should use preconvolution instead for harmonic 3
 			Settings.bUseTemporalAccumulation = false;
 
 			TStaticArray<FScreenSpaceDenoiserHistory*, IScreenSpaceDenoiser::kMaxBatchSize> PrevHistories;
@@ -2334,7 +2334,7 @@ public:
 		RDG_GPU_STAT_SCOPE(GraphBuilder, ReflectionsDenoiser);
 
 		// Imaginary depth is only used for Nvidia denoiser.
-		// TODO: permutation to not generate it?
+		// TODO(Denoiser): permutation to not generate it?
 		GraphBuilder.RemoveUnusedTextureWarning(ReflectionInputs.RayImaginaryDepth);
 
 		FSSDSignalTextures InputSignal;

@@ -32,7 +32,7 @@
 	#define CONFIG_SIGNAL_OUTPUT_TEXTURE_TYPE   SIGNAL_TEXTURE_TYPE_UINT2
 
 	// Spherical harmonics are a lot of data, need to shrink VGPR pressure to improve lattency hidding when fetching the buffer.
-	// TODO: some shader compiler completly falls apparts with the current implementation of
+	// TODO(Denoiser): some shader compiler completly falls apparts with the current implementation of
 	//       CONFIG_SIGNAL_VGPR_COMPRESSION and actually drops in occupency.
 	//#define CONFIG_SIGNAL_VGPR_COMPRESSION SIGNAL_COMPRESSION_DIFFUSE_INDIRECT_HARMONIC
 	//#define CONFIG_NEIGHBOR_TO_REF_COMPUTATION NEIGHBOR_TO_REF_LOWEST_VGPR_PRESSURE
@@ -171,7 +171,7 @@ void MainCS(
 			OutputSamples.Array[MultiplexId] = RefSamples.Array[MultiplexId];
 		}
 
-		// TODO: TODO: reduce VGPR pressure here
+		// TODO(Denoiser): reduce VGPR pressure here
 		uint2 OutputPixelPostion = ViewportMax + DispatchThreadId;
 
 		OutputMultiplexedSignal(

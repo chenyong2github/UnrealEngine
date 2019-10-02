@@ -177,7 +177,7 @@
 		//#define CONFIG_SAMPLE_COUNT_POLICY  SAMPLE_COUNT_POLICY_DISABLED
 
 		// Do color accumulation with karis weighting to avoid flickering specular highlight to show up the kernel pattern.
-		// TODO: This is a bit agressive.
+		// TODO(Denoiser): This is a bit agressive.
 		#define CONFIG_ACCUMULATION_COLOR_SPACE (COLOR_SPACE_RGB | COLOR_SPACE_KARIS_WEIGHTING)
 
 		#define CONFIG_INPUT_TEXTURE_COUNT 2
@@ -316,7 +316,7 @@
 	#define CONFIG_SIGNAL_OUTPUT_TEXTURE_TYPE   SIGNAL_TEXTURE_TYPE_UINT2
 
 	// Spherical harmonics are a lot of data, need to shrink VGPR pressure to improve lattency hidding when fetching the buffer.
-	// TODO: some shader compiler completly falls apparts with the current implementation of
+	// TODO(Denoiser): some shader compiler completly falls apparts with the current implementation of
 	//       CONFIG_SIGNAL_VGPR_COMPRESSION and actually drops in occupency.
 	#define CONFIG_SIGNAL_VGPR_COMPRESSION SIGNAL_COMPRESSION_DIFFUSE_INDIRECT_HARMONIC
 
@@ -585,12 +585,12 @@ FSSDRWTexture2D	SignalOutput_UAVs_3;
 
 //------------------------------------------------------- FUNCTIONS
 
-// TODO: duplicated with reflection code.
+// TODO(Denoiser): duplicated with reflection code.
 uint2 GetPixelCoord(uint2 DispatchThreadId)
 {
 	uint UpscaleFactorPow2 = UpscaleFactor * UpscaleFactor;
 
-	// TODO: find a way to not interfer with TAA's jittering.
+	// TODO(Denoiser): find a way to not interfer with TAA's jittering.
 	uint SubPixelId = View.StateFrameIndex & (UpscaleFactorPow2 - 1);
 
 	return DispatchThreadId * UpscaleFactor + uint2(SubPixelId & (UpscaleFactor - 1), SubPixelId / UpscaleFactor);
@@ -826,7 +826,7 @@ void MainCS(
 		{
 			KernelConfig.RingCount = 1;
 
-			// TODO: could be improved.
+			// TODO(Denoiser): could be improved.
 			//KernelConfig.bMinSamplePairInvFrequency = true;
 
 			float2 E = float2(
@@ -864,7 +864,7 @@ void MainCS(
 				
 				if (KernelConfig.BilateralDistanceComputation == SIGNAL_WORLD_FREQUENCY_PRECOMPUTED_BLURING_RADIUS)
 				{
-					// TODO: this is ineficient, could fetch the normalised WorldBluringRadius instead of SafeRcp().
+					// TODO(Denoiser): this is ineficient, could fetch the normalised WorldBluringRadius instead of SafeRcp().
 					SampleInfos.InvFrequency = CenterSample.WorldBluringRadius * SafeRcp(CenterSample.SampleCount);
 				}
 
@@ -880,7 +880,7 @@ void MainCS(
 
 			#if CONFIG_UPSCALE
 			{
-				// TODO: could be optimised, but currently reusing same peace of code as reflection for maintainability.
+				// TODO(Denoiser): could be optimised, but currently reusing same peace of code as reflection for maintainability.
 				uint2 RayDispatchThreadId = (DispatchThreadId - UpscaleFactor / 2) / UpscaleFactor;
 				uint2 ClosestRayPixelCoord = GetPixelCoord(RayDispatchThreadId);
 			
@@ -910,7 +910,7 @@ void MainCS(
 			#if CONFIG_VGPR_OPTIMIZATION
 				// Keek sample SampleTrackId & SceneBufferUV arround for computation of pixel output coordinate.
 				// Should be VGPR free given it's curernt is being used in accumulation has well that is highest VGPR pressure of the shader.
-				// TODO: could save 1 VGPR by using 2 SGPR instead of SampleTrackId.
+				// TODO(Denoiser): could save 1 VGPR by using 2 SGPR instead of SampleTrackId.
 				SampleTrackId = KernelConfig.SampleTrackId;
 				KernelBufferUV = KernelConfig.BufferUV;
 			#endif
@@ -930,7 +930,7 @@ void MainCS(
 			#if CONFIG_VGPR_OPTIMIZATION
 				// Keek sample SampleTrackId & SceneBufferUV arround for computation of pixel output coordinate.
 				// Should be VGPR free given it's curernt is being used in accumulation has well that is highest VGPR pressure of the shader.
-				// TODO: could save 1 VGPR by using 2 SGPR instead of SampleTrackId.
+				// TODO(Denoiser): could save 1 VGPR by using 2 SGPR instead of SampleTrackId.
 				SampleTrackId = KernelConfig.SampleTrackId;
 				KernelBufferUV = KernelConfig.BufferUV;
 			#endif
@@ -1007,7 +1007,7 @@ void MainCS(
 		if (!KernelConfig.bSampleKernelCenter && KernelConfig.bDescOrder)
 		{
 			// Remove any jitter the kernel may have. Won't have ant VGPR cost when no jittering, because KernelConfig.BufferUV == SceneBufferUV.
-			// TODO: This is costly for VGPR pressure if using KernelConfig.BufferUV was != SceneBufferUV.
+			// TODO(Denoiser): This is costly for VGPR pressure if using KernelConfig.BufferUV was != SceneBufferUV.
 			KernelConfig.BufferUV = SceneBufferUV;
 
 			SampleAndAccumulateCenterSampleAsItsOwnCluster(
@@ -1069,7 +1069,7 @@ void MainCS(
 			}
 			#endif // CONFIG_ACCUMULATION_COLOR_SPACE != CONFIG_OUTPUT_COLOR_SPACE
 
-			// TODO: it might be better to just uncompress before this for loop and remain uncompressed,
+			// TODO(Denoiser): it might be better to just uncompress before this for loop and remain uncompressed,
 			// so the color operation get done in practice during the output sample transcoding.
 			CompressSignalAccumulator(/* inout */ SignalAccumulators.Array[MultiplexId]);
 		}
@@ -1092,7 +1092,7 @@ void MainCS(
 				OutputSamples.Array[MultiplexId] = SignalAccumulators.Array[MultiplexId].Moment1;
 				
 				// Output the minimal inverse frequency as new world bluring radius for subsequent passes.
-				// TODO: store this in its own signal to avoid *= N; *= rcp(N);
+				// TODO(Denoiser): store this in its own signal to avoid *= N; *= rcp(N);
 				OutputSamples.Array[MultiplexId].WorldBluringRadius = 
 					OutputSamples.Array[MultiplexId].SampleCount * SignalAccumulators.Array[MultiplexId].MinInvFrequency;
 			}
@@ -1122,7 +1122,7 @@ void MainCS(
 				OutputSamples.Array[MultiplexId] = SignalAccumulators.Array[MultiplexId].Previous;
 
 				// Output the minimal inverse frequency as new world bluring radius for subsequent passes.
-				// TODO: store this in its own signal to avoid *= N; *= rcp(N);
+				// TODO(Denoiser): store this in its own signal to avoid *= N; *= rcp(N);
 				OutputSamples.Array[MultiplexId].WorldBluringRadius = 
 					OutputSamples.Array[MultiplexId].SampleCount * SignalAccumulators.Array[MultiplexId].MinInvFrequency;
 			
@@ -1152,9 +1152,9 @@ void MainCS(
 	}
 	#endif // DIM_STAGE == STAGE_POST_FILTERING
 
-	// TODO:  LeaveRayCount = (LeaveRayCount - 1) * 9 / (9 - 2) post processing to reject when for history rejection
+	// TODO(Denoiser):  LeaveRayCount = (LeaveRayCount - 1) * 9 / (9 - 2) post processing to reject when for history rejection
 	uint2 OutputPixelPostion;
-	#if CONFIG_VGPR_OPTIMIZATION && 1 // TODO
+	#if CONFIG_VGPR_OPTIMIZATION && 1 // TODO(Denoiser)
 	{
 		// No need to keep DispatchThreadId, can recompute the output pixel position based on information stored in VGPRs for spatial kernel.
 		#if CONFIG_SAMPLE_SET == SAMPLE_SET_STACKOWIAK_4_SETS || CONFIG_SAMPLE_SET == SAMPLE_SET_STOCASTIC_HIERARCHY

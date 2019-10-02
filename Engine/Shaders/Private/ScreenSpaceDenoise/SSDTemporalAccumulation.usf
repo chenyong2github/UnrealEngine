@@ -46,8 +46,8 @@
 	#define CONFIG_HISTORY_REJECTION HISTORY_REJECTION_VAR_BOUNDARIES
 
 	// Uses nearest to not leak informations on geometric edges by bilateral. This is OK because just blury greyscale details.
-	// TODO: a bit hacky, need find better solution.
-	// TODO: cause a regression on spot light for some reasons.
+	// TODO(Denoiser): a bit hacky, need find better solution.
+	// TODO(Denoiser): cause a regression on spot light for some reasons.
 	//#define CONFIG_USE_NEAREST_HISTORY 1
 
 	// Use pre transformed rejection buffer that contains pre transformed momment 1 & 2.
@@ -488,7 +488,7 @@ void TemporallyAccumulate(
 
 			TargetedSampleCount = PI * SignalPixelBluringRadius * SignalPixelBluringRadius;
 
-			// TODO: try to make this better? * 0.125 to avoid banding caused by floating point precision.
+			// TODO(Denoiser): try to make this better? * 0.125 to avoid banding caused by floating point precision.
 			TargetedSampleCount = clamp(TargetedSampleCount, 1, TARGETED_SAMPLE_COUNT);
 		}
 		#else
@@ -505,7 +505,7 @@ void TemporallyAccumulate(
 		float2 ClampedHistoryBufferUV = clamp(HistoryBufferUV, BufferBilinearUVMinMax.xy, BufferBilinearUVMinMax.zw);
 		bool bIsPreviousFrameOffscreen = any(HistoryBufferUV != ClampedHistoryBufferUV);
 
-		// TODO: global camera cut to save perf that is going to be required for panic post filtering.
+		// TODO(Denoiser): global camera cut to save perf that is going to be required for panic post filtering.
 		BRANCH
 		if (!bIsPreviousFrameOffscreen)
 		{
@@ -638,8 +638,8 @@ void TemporallyAccumulate(
 			KernelConfig.BilateralDistanceComputation = SIGNAL_WORLD_FREQUENCY_REF_METADATA_ONLY;
 			KernelConfig.NeighborToRefComputation = NEIGHBOR_TO_REF_LOWEST_VGPR_PRESSURE;
 
-			// TODO: Should be done for all signals.
-			// TODO: Should also take into account the world bluring radius du to size of the pixel.
+			// TODO(Denoiser): Should be done for all signals.
+			// TODO(Denoiser): Should also take into account the world bluring radius du to size of the pixel.
 			if (CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK)
 				KernelConfig.BilateralDistanceComputation = SIGNAL_WORLD_FREQUENCY_PRECOMPUTED_BLURING_RADIUS;
 			KernelConfig.WorldBluringDistanceMultiplier = CONFIG_BILATERAL_DISTANCE_MULTIPLIER;
@@ -694,7 +694,7 @@ void TemporallyAccumulate(
 			
 				if (MAX_SIGNAL_BATCH_SIZE == 1)
 				{
-					// TODO: missing && abs(PixelOffset.x) <= 1 && abs(PixelOffset.y) <= 1;
+					// TODO(Denoiser): missing && abs(PixelOffset.x) <= 1 && abs(PixelOffset.y) <= 1;
 					KernelConfig.bForceAllAccumulation = CurrentFrameSamples.Array[0].SampleCount == 0;
 				}
 			}
@@ -925,7 +925,7 @@ void TemporallyAccumulate(
 		FSSDSignalArray CurrentTemporalAnalysis = CreateSignalArrayFromScalarValue(0.0);
 		{
 			float Luma = GetSignalLuma4(CurrentFrameSample, STANDARD_BUFFER_COLOR_SPACE);
-			float SampleCount = CurrentFrameSample.SampleCount; // TODO: 1 instead?
+			float SampleCount = CurrentFrameSample.SampleCount; // TODO(Denoiser): 1 instead?
 
 			CurrentTemporalAnalysis.Array[1].SampleCount = SampleCount;
 			CurrentTemporalAnalysis.Array[1].SceneColor.x = Luma * SampleCount;
@@ -936,7 +936,7 @@ void TemporallyAccumulate(
 		// Update the temporal analysis.
 		FSSDSignalArray TemporalAnalysis;
 		{
-			const float MinimumAnalasisHisteresis = 0.3; // TODO: expose cvar
+			const float MinimumAnalasisHisteresis = 0.3; // TODO(Denoiser): expose cvar
 
 			float PreviousFrameWeight = min(HistorySample.SampleCount, HistorySamples.Array[1].SampleCount * rcp(MinimumAnalasisHisteresis) - CurrentFrameSample.SampleCount);
 			float PreviousFrameMultiplier = HistorySample.SampleCount > 0 ? PreviousFrameWeight / HistorySample.SampleCount : 0;
@@ -990,7 +990,7 @@ void TemporallyAccumulate(
 			float PreviousFrameWeight = min(HistorySample.SampleCount, TargetedSampleCount - CurrentFrameSample.SampleCount);
 			float PreviousFrameMultiplier = HistorySample.SampleCount > 0 ? PreviousFrameWeight / HistorySample.SampleCount : 0;
 
-			// TODO: use WeightedLerp instead for VALU perf.
+			// TODO(Denoiser): use WeightedLerp instead for VALU perf.
 			// Pre transformation of the signal.
 			HistorySample = TransformSignal(
 				HistorySample,
