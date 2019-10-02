@@ -409,17 +409,15 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 
 	// Initialize bounds calculators
 	//-OPT: Could skip creating this if we won't ever use it
-	BoundsCalculators.Reserve(CachedEmitter->GetRenderers().Num());
-	for (UNiagaraRendererProperties* RendererProperties : CachedEmitter->GetRenderers())
+	const TArray<UNiagaraRendererProperties*>& Renderers = CachedEmitter->GetEnabledRenderers();
+	BoundsCalculators.Reserve(Renderers.Num());
+	for (UNiagaraRendererProperties* RendererProperties : Renderers)
 	{
-		if ((RendererProperties != nullptr) && RendererProperties->GetIsEnabled())
+		FNiagaraBoundsCalculator* BoundsCalculator = RendererProperties->CreateBoundsCalculator();
+		if (BoundsCalculator != nullptr)
 		{
-			FNiagaraBoundsCalculator* BoundsCalculator = RendererProperties->CreateBoundsCalculator();
-			if (BoundsCalculator != nullptr)
-			{
-				BoundsCalculator->InitAccessors(*ParticleDataSet);
-				BoundsCalculators.Emplace(BoundsCalculator);
-			}
+			BoundsCalculator->InitAccessors(*ParticleDataSet);
+			BoundsCalculators.Emplace(BoundsCalculator);
 		}
 	}
 }
