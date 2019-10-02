@@ -2,7 +2,7 @@
 
 #if WITH_EDITOR
 
-#include "SkeletalMeshLODImporterData.h"
+#include "Rendering/SkeletalMeshLODImporterData.h"
 #include "Serialization/BulkDataWriter.h"
 #include "Serialization/BulkDataReader.h"
 #include "Rendering/SkeletalMeshModel.h"
