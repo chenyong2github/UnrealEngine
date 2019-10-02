@@ -807,7 +807,7 @@ static bool IsPureAnsi(const WIDECHAR* Str, const int32 Len)
 
 FNameEntryId FNamePool::Find(EName Ename) const
 {
-	check(Ename < NAME_MaxHardcodedNameIndex);
+	checkSlow(Ename < NAME_MaxHardcodedNameIndex);
 	return ENameToEntry[Ename];
 }
 
