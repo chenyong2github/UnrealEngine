@@ -35,6 +35,7 @@
 #include "Animation/AnimMontage.h"
 #include "AnimGraphNode_LinkedInputPose.h"
 #include "AnimGraphNode_LinkedAnimLayer.h"
+#include "AnimGraphNode_RigidBody.h"
 
 #define LOCTEXT_NAMESPACE "AnimationGraphSchema"
 
@@ -410,6 +411,20 @@ void UAnimationGraphSchema::SpawnNodeFromAsset(UAnimationAsset* Asset, const FVe
 	}
 }
 
+void UAnimationGraphSchema::SpawnRigidBodyNodeFromAsset(UPhysicsAsset* Asset, const FVector2D& GraphPosition, UEdGraph* Graph)
+{
+	check(Graph);
+	check(Graph->GetSchema()->IsA(UAnimationGraphSchema::StaticClass()));
+	check(Asset);
+
+	FEdGraphSchemaAction_K2NewNode Action;
+
+	UAnimGraphNode_RigidBody* NewNode = NewObject<UAnimGraphNode_RigidBody>(GetTransientPackage());
+	NewNode->Node.OverridePhysicsAsset = Asset;
+	Action.NodeTemplate = NewNode;
+
+	Action.PerformAction(Graph, nullptr, GraphPosition);
+}
 
 void UAnimationGraphSchema::UpdateNodeWithAsset(UK2Node* K2Node, UAnimationAsset* Asset)
 {
@@ -431,17 +446,20 @@ void UAnimationGraphSchema::UpdateNodeWithAsset(UK2Node* K2Node, UAnimationAsset
 	}
 }
 
-
 void UAnimationGraphSchema::DroppedAssetsOnGraph( const TArray<FAssetData>& Assets, const FVector2D& GraphPosition, UEdGraph* Graph ) const 
 {
-	UAnimationAsset* Asset = FAssetData::GetFirstAsset<UAnimationAsset>(Assets);
-	if ((Asset != NULL) && (Graph != NULL))
+	if (Graph != NULL)
 	{
-		SpawnNodeFromAsset(Asset, GraphPosition, Graph, NULL);
+		if (UAnimationAsset* AnimationAsset = FAssetData::GetFirstAsset<UAnimationAsset>(Assets))
+		{
+			SpawnNodeFromAsset(AnimationAsset, GraphPosition, Graph, NULL);
+		}
+		else if (UPhysicsAsset* PhysicsAsset = FAssetData::GetFirstAsset<UPhysicsAsset>(Assets))
+		{
+			SpawnRigidBodyNodeFromAsset(PhysicsAsset, GraphPosition, Graph);
+		}
 	}
 }
-
-
 
 void UAnimationGraphSchema::DroppedAssetsOnNode(const TArray<FAssetData>& Assets, const FVector2D& GraphPosition, UEdGraphNode* Node) const
 {
@@ -528,11 +546,10 @@ void UAnimationGraphSchema::GetAssetsPinHoverMessage(const TArray<FAssetData>& A
 
 void UAnimationGraphSchema::GetAssetsGraphHoverMessage(const TArray<FAssetData>& Assets, const UEdGraph* HoverGraph, FString& OutTooltipText, bool& OutOkIcon) const
 {
-	UAnimationAsset* Asset = FAssetData::GetFirstAsset<UAnimationAsset>(Assets);
-	if (Asset)
+	if (UAnimationAsset* AnimationAsset = FAssetData::GetFirstAsset<UAnimationAsset>(Assets))
 	{
 		UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(HoverGraph));
-		const bool bSkelMatch = (AnimBlueprint != NULL) && (AnimBlueprint->TargetSkeleton == Asset->GetSkeleton());
+		const bool bSkelMatch = (AnimBlueprint != NULL) && (AnimBlueprint->TargetSkeleton == AnimationAsset->GetSkeleton());
 		if (!bSkelMatch)
 		{
 			OutOkIcon = false;
@@ -548,6 +565,11 @@ void UAnimationGraphSchema::GetAssetsGraphHoverMessage(const TArray<FAssetData>&
 			OutOkIcon = true;
 			OutTooltipText = TEXT("");
 		}
+	}
+	else if(UPhysicsAsset* PhysicsAsset = FAssetData::GetFirstAsset<UPhysicsAsset>(Assets))
+	{
+		OutOkIcon = true;
+		OutTooltipText = TEXT("");
 	}
 }
 

@@ -2555,6 +2555,14 @@ void UControlRigModel::ConfigurePinFromField(FControlRigModelPin& Pin, UProperty
 	{
 		Pin.CustomWidgetName = UControlRig::BoneNameMetaName;
 	}
+	else if (Property->HasMetaData(UControlRig::ControlNameMetaName))
+	{
+		Pin.CustomWidgetName = UControlRig::ControlNameMetaName;
+	}
+	else if (Property->HasMetaData(UControlRig::SpaceNameMetaName))
+	{
+		Pin.CustomWidgetName = UControlRig::SpaceNameMetaName;
+	}
 	else if (Property->HasMetaData(UControlRig::CurveNameMetaName))
 	{
 		Pin.CustomWidgetName = UControlRig::CurveNameMetaName;

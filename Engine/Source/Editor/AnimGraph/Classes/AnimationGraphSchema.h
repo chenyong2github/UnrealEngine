@@ -13,6 +13,7 @@
 class FMenuBuilder;
 class UAnimationAsset;
 class UAnimBlueprint;
+class UPhysicsAsset;
 struct FBPInterfaceDescription;
 
 UCLASS(MinimalAPI)
@@ -76,6 +77,9 @@ class UAnimationGraphSchema : public UEdGraphSchema_K2
 
 	/** Spawn the correct node in the Animation Graph using the given AnimationAsset at the supplied location */
 	static void SpawnNodeFromAsset(UAnimationAsset* Asset, const FVector2D& GraphPosition, UEdGraph* Graph, UEdGraphPin* PinIfAvailable);
+
+	/** Spawn a rigid body node if we drop a physics asset on the graph */
+	static void SpawnRigidBodyNodeFromAsset(UPhysicsAsset* Asset, const FVector2D& GraphPosition, UEdGraph* Graph);
 
 	/** Update the specified node to a new asset */
 	static void UpdateNodeWithAsset(class UK2Node* K2Node, UAnimationAsset* Asset);

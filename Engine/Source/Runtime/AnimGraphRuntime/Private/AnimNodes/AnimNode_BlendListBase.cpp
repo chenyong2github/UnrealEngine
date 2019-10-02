@@ -113,10 +113,6 @@ void FAnimNode_BlendListBase::Update_AnyThread(const FAnimationUpdateContext& Co
 				{
 					InertializationNode->Request(BlendTime[ChildIndex]);
 				}
-				else
-				{
-					UE_LOG(LogAnimation, Error, TEXT("FAnimNode_BlendListBase: No inertialization context found for transition"));
-				}
 				
 				RemainingBlendTime = 0.0f;
 			}

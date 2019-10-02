@@ -9938,7 +9938,7 @@ void FHeaderParser::CheckDocumentationPolicyForStruct(UStruct* Struct, const TMa
 		for (UProperty* Property : TFieldRange<UProperty>(Struct, EFieldIteratorFlags::ExcludeSuper))
 		{
 			FString ToolTip = Property->GetToolTipText().ToString();
-			if (ToolTip.IsEmpty() || ToolTip.Equals(Property->GetName()))
+			if (ToolTip.IsEmpty() || ToolTip.Equals(Property->GetDisplayNameText().ToString()))
 			{
 				UE_LOG_ERROR_UHT(TEXT("Property '%s::%s' does not provide a tooltip / comment (DocumentationPolicy)."), *Struct->GetName(), *Property->GetName());
 				continue;

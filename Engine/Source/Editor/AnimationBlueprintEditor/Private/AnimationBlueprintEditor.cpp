@@ -310,7 +310,7 @@ void FAnimationBlueprintEditor::InitAnimationBlueprintEditor(const EToolkitMode:
 
 	// register customization of Slot node for this Animation Blueprint Editor
 	// this is so that you can open the manage window per Animation Blueprint Editor
-	PersonaModule.CustomizeSlotNodeDetails(Inspector->GetPropertyView().ToSharedRef(), FOnInvokeTab::CreateSP(this, &FAssetEditorToolkit::InvokeTab));
+	PersonaModule.CustomizeBlueprintEditorDetails(Inspector->GetPropertyView().ToSharedRef(), FOnInvokeTab::CreateSP(this, &FAssetEditorToolkit::InvokeTab));
 
 	if(bNewlyCreated && InAnimBlueprint->BlueprintType == BPTYPE_Interface)
 	{
@@ -396,7 +396,7 @@ void FAnimationBlueprintEditor::ExtendToolbar()
 		}
 	};
 
-    ToolbarExtender->AddToolBarExtension(
+	ToolbarExtender->AddToolBarExtension(
 		"Asset",
 		EExtensionHook::After,
 		GetToolkitCommands(),
@@ -1211,6 +1211,11 @@ FLinearColor FAnimationBlueprintEditor::GetWorldCentricTabColorScale() const
 	return FLinearColor( 0.5f, 0.25f, 0.35f, 0.5f );
 }
 
+IAnimationSequenceBrowser* FAnimationBlueprintEditor::GetAssetBrowser() const
+{
+	return SequenceBrowser.Pin().Get();
+}
+
 void FAnimationBlueprintEditor::OnActiveTabChanged( TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated )
 {
 	if (!NewlyActivated.IsValid())
@@ -1483,7 +1488,7 @@ void FAnimationBlueprintEditor::HandleOpenNewAsset(UObject* InNewAsset)
 
 void FAnimationBlueprintEditor::AddReferencedObjects( FReferenceCollector& Collector )
 {
-    Collector.AddReferencedObject( EditorOptions );
+	Collector.AddReferencedObject( EditorOptions );
 }
 
 FAnimNode_Base* FAnimationBlueprintEditor::FindAnimNode(UAnimGraphNode_Base* AnimGraphNode) const
@@ -1535,7 +1540,7 @@ void FAnimationBlueprintEditor::OnSelectedNodesChangedImpl(const TSet<class UObj
 		}
 	}
 
-    bSelectRegularNode = false;
+	bSelectRegularNode = false;
 	for (FGraphPanelSelectionSet::TConstIterator It(NewSelection); It; ++It)
 	{
 		UEdGraphNode_Comment* SeqNode = Cast<UEdGraphNode_Comment>(*It);
@@ -1548,7 +1553,7 @@ void FAnimationBlueprintEditor::OnSelectedNodesChangedImpl(const TSet<class UObj
 		}
 	}
 
-    if (bHideUnrelatedNodes && !bLockNodeFadeState)
+	if (bHideUnrelatedNodes && !bLockNodeFadeState)
 	{
 		ResetAllNodesUnrelatedStates();
 
@@ -1811,6 +1816,11 @@ void FAnimationBlueprintEditor::HandlePreviewAnimBlueprintCompiled(UBlueprint* I
 	{
 		GetPreviewScene()->SetPreviewAnimationBlueprint(PreviewAnimBlueprint, AnimBlueprint);
 	}
+}
+
+void FAnimationBlueprintEditor::HandleAnimationSequenceBrowserCreated(const TSharedRef<IAnimationSequenceBrowser>& InSequenceBrowser)
+{
+	SequenceBrowser = InSequenceBrowser;
 }
 
 #undef LOCTEXT_NAMESPACE

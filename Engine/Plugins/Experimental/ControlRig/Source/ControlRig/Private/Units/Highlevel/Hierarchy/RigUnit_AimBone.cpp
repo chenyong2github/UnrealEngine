@@ -26,7 +26,6 @@ FRigUnit_AimBone_Execute()
 
 	if (Primary.Weight <= SMALL_NUMBER && Secondary.Weight <= SMALL_NUMBER)
 	{
-		UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Weights are zero."));
 		return;
 	}
 	FTransform Transform = Hierarchy->GetGlobalTransform(BoneIndex);
