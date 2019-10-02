@@ -123,6 +123,7 @@ FNiagaraSceneProxy::FNiagaraSceneProxy(const UNiagaraComponent* InComponent)
 		CreateRenderers(InComponent);
 		bAlwaysHasVelocity = true;
 		Batcher = SystemInst->GetBatcher();
+		SystemStatID = InComponent->GetAsset()->GetStatID(false, false);
 	}
 }
 
@@ -183,7 +184,12 @@ void FNiagaraSceneProxy::CreateRenderers(const UNiagaraComponent* Component)
 			for (UNiagaraRendererProperties* Properties : Emitter->GetEnabledRenderers())
 			{
 				RendererSortInfo.Emplace(Properties->SortOrderHint, EmitterRenderers.Num());
-				EmitterRenderers.Add(Properties->CreateEmitterRenderer(FeatureLevel, &EmitterInst.Get()));
+				FNiagaraRenderer* NewRenderer = nullptr;
+				if (Properties->GetIsEnabled() && EmitterInst->GetData().IsInitialized() && !EmitterInst->IsDisabled())
+				{
+					NewRenderer = Properties->CreateEmitterRenderer(FeatureLevel, &EmitterInst.Get());
+				}
+				EmitterRenderers.Add(NewRenderer);
 			}
 		}
 	}
@@ -304,6 +310,9 @@ void FNiagaraSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>&
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_RT);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentGetDynamicMeshElements);
+
+	FScopeCycleCounter SystemStatCounter(SystemStatID);
+
 	for (int32 RendererIdx : RendererDrawOrder)
 	{
 		FNiagaraRenderer* Renderer = EmitterRenderers[RendererIdx];
