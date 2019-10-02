@@ -87,7 +87,7 @@ public:
 	{
 		AmbientVector.Texture.SafeRelease();
 
-		for (int32 i = 0; i < ARRAY_COUNT(SHCoefficients); i++)
+		for (int32 i = 0; i < UE_ARRAY_COUNT(SHCoefficients); i++)
 		{
 			SHCoefficients[i].Texture.SafeRelease();
 		}
@@ -97,7 +97,7 @@ public:
 
 		AmbientVector.UAV.SafeRelease();
 
-		for (int32 i = 0; i < ARRAY_COUNT(SHCoefficients); i++)
+		for (int32 i = 0; i < UE_ARRAY_COUNT(SHCoefficients); i++)
 		{
 			SHCoefficients[i].UAV.SafeRelease();
 		}
@@ -123,7 +123,7 @@ public:
 	{
 		AmbientVector.bNeedsCPUAccess = InAccess;
 
-		for (int32 i = 0; i < ARRAY_COUNT(SHCoefficients); i++)
+		for (int32 i = 0; i < UE_ARRAY_COUNT(SHCoefficients); i++)
 		{
 			SHCoefficients[i].bNeedsCPUAccess = InAccess;
 		}
