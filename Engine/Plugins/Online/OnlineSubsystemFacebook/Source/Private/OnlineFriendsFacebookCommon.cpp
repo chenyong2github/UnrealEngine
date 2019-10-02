@@ -7,6 +7,7 @@
 #else // USES_RESTFUL_FACEBOOK
 #include "OnlineIdentityFacebook.h"
 #endif // USES_RESTFUL_FACEBOOK
+#include "OnlineError.h"
 #include "HttpModule.h"
 #include "Interfaces/IHttpResponse.h"
 #include "Misc/ConfigCacheIni.h"
@@ -186,6 +187,16 @@ bool FOnlineFriendsFacebookCommon::RejectInvite(int32 LocalUserNum, const FUniqu
 {
 	TriggerOnRejectInviteCompleteDelegates(LocalUserNum, false, FriendId, ListName, FString(TEXT("RejectInvite() is not supported")));
 	return false;
+}
+
+void FOnlineFriendsFacebookCommon::SetFriendAlias(int32 LocalUserNum, const FUniqueNetId& FriendId, const FString& ListName, const FString& Alias, const FOnSetFriendAliasComplete& Delegate /*= FOnSetFriendAliasComplete()*/)
+{
+	TSharedRef<const FUniqueNetId> FriendIdRef = FriendId.AsShared();
+	FacebookSubsystem->ExecuteNextTick([LocalUserNum, FriendIdRef, ListName, Delegate]()
+	{
+		UE_LOG_ONLINE_FRIEND(Warning, TEXT("FOnlineFriendsFacebookCommon::SetFriendAlias is not supported"));
+		Delegate.ExecuteIfBound(LocalUserNum, *FriendIdRef, ListName, FOnlineError(EOnlineErrorResult::NotImplemented));
+	});
 }
 
 bool FOnlineFriendsFacebookCommon::DeleteFriend(int32 LocalUserNum, const FUniqueNetId& FriendId, const FString& ListName)
