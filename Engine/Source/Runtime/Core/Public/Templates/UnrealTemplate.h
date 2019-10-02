@@ -299,9 +299,9 @@ private:
  * Macro variant on TGuardValue<bool> that can deal with bitfields which cannot be passed by reference in to TGuardValue
  */
 #define FGuardValue_Bitfield(ReferenceValue, NewValue) \
-	const bool TempBitfield##__LINE__ = ReferenceValue; \
+	const bool PREPROCESSOR_JOIN(TempBitfield, __LINE__) = ReferenceValue; \
 	ReferenceValue = NewValue; \
-	const TGuardValue_Bitfield_Cleanup<TFunction<void()>> TempBitfieldCleanup##__LINE__([&](){ ReferenceValue = TempBitfield##__LINE__; });
+	const TGuardValue_Bitfield_Cleanup<TFunction<void()>> PREPROCESSOR_JOIN(TempBitfieldCleanup, __LINE__)([&](){ ReferenceValue = PREPROCESSOR_JOIN(TempBitfield, __LINE__); });
 
 /** 
  * Commonly used to make sure a value is incremented, and then decremented anyway the function can terminate.

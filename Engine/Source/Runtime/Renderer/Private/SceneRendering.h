@@ -797,6 +797,9 @@ struct FPreviousViewInfo
 	// Temporal AA result of last frame
 	FTemporalAAHistory TemporalAAHistory;
 
+	// Half resolution version temporal AA result of last frame
+	TRefCountPtr<IPooledRenderTarget> HalfResTemporalAAHistory;
+
 	// Temporal AA history for diaphragm DOF.
 	FTemporalAAHistory DOFSetupHistory;
 	

@@ -129,7 +129,7 @@
 #include "DirectoryWatcherModule.h"
 
 #include "Slate/SceneViewport.h"
-#include "ILevelViewport.h"
+#include "IAssetViewport.h"
 
 #include "ContentStreaming.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -214,6 +214,7 @@
 #include "RenderTargetPool.h"
 #include "RenderGraphBuilder.h"
 #include "ToolMenus.h"
+#include "IToolMenusEditorModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
 
@@ -784,7 +785,10 @@ void UEditorEngine::InitEditor(IEngineLoop* InEngineLoop)
 
 	if (FSlateApplication::IsInitialized() && UToolMenus::IsToolMenuUIEnabled())
 	{
-		TWeakPtr<FTimerManager> WeakTimerManager;
+		UToolMenus::Get()->EditMenuIcon = FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "MultiBox.GenericToolBarIcon.Small");
+		UToolMenus::Get()->EditToolbarIcon = FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "MultiBox.GenericToolBarIcon");
+
+		TWeakPtr<FTimerManager> WeakTimerManager = TimerManager;
 		UToolMenus::Get()->AssignSetTimerForNextTickDelegate(FSimpleDelegate::CreateLambda([WeakTimerManager]()
 		{
 			if (WeakTimerManager.IsValid())
@@ -792,6 +796,18 @@ void UEditorEngine::InitEditor(IEngineLoop* InEngineLoop)
 				WeakTimerManager.Pin()->SetTimerForNextTick(UToolMenus::Get(), &UToolMenus::HandleNextTick);
 			}
 		}));
+
+		bool bEnableEditToolMenusUI = false;
+		GConfig->GetBool(TEXT("/Script/UnrealEd.EditorExperimentalSettings"), TEXT("bEnableEditToolMenusUI"), bEnableEditToolMenusUI, GEditorPerProjectIni);
+		if (bEnableEditToolMenusUI)
+		{
+			IToolMenusEditorModule::Get().RegisterShowEditMenusModeCheckbox();
+
+			UToolMenus::Get()->EditMenuDelegate.BindLambda([](UToolMenu* InMenu)
+			{
+				IToolMenusEditorModule::Get().OpenEditToolMenuDialog(InMenu);
+			});
+		}
 
 		UToolMenus::Get()->ShouldDisplayExtensionPoints.BindStatic(&GetDisplayMultiboxHooks);
 
@@ -2769,7 +2785,7 @@ void UEditorEngine::ApplyDeltaToComponent(USceneComponent* InComponent,
 		{
 			if ( bDelta )
 			{
-				const FRotator Rot = InComponent->RelativeRotation;
+				const FRotator Rot = InComponent->GetRelativeRotation();
 				FRotator ActorRotWind, ActorRotRem;
 				Rot.GetWindingAndRemainder(ActorRotWind, ActorRotRem);
 				const FQuat ActorQ = ActorRotRem.Quaternion();
@@ -2789,7 +2805,7 @@ void UEditorEngine::ApplyDeltaToComponent(USceneComponent* InComponent,
 
 			if ( bDelta )
 			{
-				FVector NewCompLocation = InComponent->RelativeLocation;
+				FVector NewCompLocation = InComponent->GetRelativeLocation();
 				NewCompLocation -= PivotLocation;
 				NewCompLocation = FRotationMatrix( InDeltaRot ).TransformPosition( NewCompLocation );
 				NewCompLocation += PivotLocation;
@@ -2804,7 +2820,7 @@ void UEditorEngine::ApplyDeltaToComponent(USceneComponent* InComponent,
 	{
 		if ( bDelta )
 		{
-			InComponent->SetRelativeLocation(InComponent->RelativeLocation + *InTrans);
+			InComponent->SetRelativeLocation(InComponent->GetRelativeLocation() + *InTrans);
 		}
 		else
 		{
@@ -2822,9 +2838,9 @@ void UEditorEngine::ApplyDeltaToComponent(USceneComponent* InComponent,
 		{
 			if ( bDelta )
 			{
-				InComponent->SetRelativeScale3D(InComponent->RelativeScale3D + InDeltaScale);
+				InComponent->SetRelativeScale3D(InComponent->GetRelativeScale3D() + InDeltaScale);
 
-				FVector NewCompLocation = InComponent->RelativeLocation;
+				FVector NewCompLocation = InComponent->GetRelativeLocation();
 				NewCompLocation -= PivotLocation;
 				NewCompLocation += FScaleMatrix( InDeltaScale ).TransformPosition( NewCompLocation );
 				NewCompLocation += PivotLocation;
@@ -3606,8 +3622,8 @@ private:
 		// Copy over actor properties.
 		Location				= Actor->GetActorLocation();
 		Rotation				= Actor->GetActorRotation();
-		DrawScale3D				= Actor->GetRootComponent() ? Actor->GetRootComponent()->RelativeScale3D : FVector(1.f,1.f,1.f);
-		bHidden					= Actor->bHidden;
+		DrawScale3D				= Actor->GetRootComponent() ? Actor->GetRootComponent()->GetRelativeScale3D() : FVector(1.f,1.f,1.f);
+		bHidden					= Actor->IsHidden();
 
 		// Record which actor properties differ from their defaults.
 		// we don't have properties for location, rotation, scale3D, so copy all the time. 
@@ -3629,16 +3645,25 @@ private:
 		}
 
 		// Set actor properties.
-		if ( bActorPropsDifferFromDefaults[0] ) Actor->SetActorLocation(Location, false);
-		if ( bActorPropsDifferFromDefaults[1] ) Actor->SetActorRotation(Rotation);
-		if ( bActorPropsDifferFromDefaults[4] )
+		if (bActorPropsDifferFromDefaults[0])
+		{
+			Actor->SetActorLocation(Location, false);
+		}
+		if (bActorPropsDifferFromDefaults[1])
+		{
+			Actor->SetActorRotation(Rotation);
+		}
+		if (bActorPropsDifferFromDefaults[4])
 		{
 			if( Actor->GetRootComponent() != NULL )
 			{
 				Actor->GetRootComponent()->SetRelativeScale3D( DrawScale3D );
 			}
 		}
-		if ( bActorPropsDifferFromDefaults[5] ) Actor->bHidden				= bHidden;
+		if (bActorPropsDifferFromDefaults[5])
+		{
+			Actor->SetHidden(bHidden);
+		}
 	}
 
 
@@ -4690,7 +4715,7 @@ TSharedPtr<SViewport> UEditorEngine::GetGameViewportWidget() const
 			return It.Value().SlatePlayInEditorWindowViewport->GetViewportWidget().Pin();
 		}
 
-		TSharedPtr<ILevelViewport> DestinationLevelViewport = It.Value().DestinationSlateViewport.Pin();
+		TSharedPtr<IAssetViewport> DestinationLevelViewport = It.Value().DestinationSlateViewport.Pin();
 		if (DestinationLevelViewport.IsValid())
 		{
 			return DestinationLevelViewport->GetViewportWidget().Pin();
@@ -5157,7 +5182,7 @@ void UEditorEngine::ReplaceActors(UActorFactory* Factory, const FAssetData& Asse
 				}
 				else
 				{
-					NewActorRootComponent->SetRelativeScale3D( OldActor->GetRootComponent()->RelativeScale3D );
+					NewActorRootComponent->SetRelativeScale3D( OldActor->GetRootComponent()->GetRelativeScale3D() );
 				}
 			}
 
@@ -5241,23 +5266,31 @@ void UEditorEngine::ReplaceActors(UActorFactory* Factory, const FAssetData& Asse
 	ReattachActorsHelper::ReattachActors(ConvertedMap, AttachmentInfo);
 
 	// Perform reference replacement on all Actors referenced by World
-	UWorld* CurrentEditorWorld = GetEditorWorldContext().World();
-	FArchiveReplaceObjectRef<AActor> Ar(CurrentEditorWorld, ConvertedMap, false, true, false);
+	TArray<UObject*> ReferencedLevels;
 
-	// Go through modified objects, marking their packages as dirty and informing them of property changes
-	for (const auto& MapItem : Ar.GetReplacedReferences())
+	for (const TPair<AActor*, AActor*>& ReplacedObj : ConvertedMap)
 	{
-		UObject* ModifiedObject = MapItem.Key;
+		ReferencedLevels.AddUnique(ReplacedObj.Value->GetLevel());
+	}
 
-		if (!ModifiedObject->HasAnyFlags(RF_Transient) && ModifiedObject->GetOutermost() != GetTransientPackage() && !ModifiedObject->RootPackageHasAnyFlags(PKG_CompiledIn))
-		{
-			ModifiedObject->MarkPackageDirty();
-		}
+	for (UObject* Referencer : ReferencedLevels)
+	{
+		FArchiveReplaceObjectRef<AActor> Ar(Referencer, ConvertedMap, false, true, false);
 
-		for (UProperty* Property : MapItem.Value)
+		for (const auto& MapItem : Ar.GetReplacedReferences())
 		{
-			FPropertyChangedEvent PropertyEvent(Property);
-			ModifiedObject->PostEditChangeProperty(PropertyEvent);
+			UObject* ModifiedObject = MapItem.Key;
+
+			if (!ModifiedObject->HasAnyFlags(RF_Transient) && ModifiedObject->GetOutermost() != GetTransientPackage() && !ModifiedObject->RootPackageHasAnyFlags(PKG_CompiledIn))
+			{
+				ModifiedObject->MarkPackageDirty();
+			}
+
+			for (UProperty* Property : MapItem.Value)
+			{
+				FPropertyChangedEvent PropertyEvent(Property);
+				ModifiedObject->PostEditChangeProperty(PropertyEvent);
+			}
 		}
 	}
 

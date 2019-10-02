@@ -47,6 +47,14 @@ FAutoConsoleVariableRef CVarLoadIntoCacheOnPostLoad(
 	TEXT("0: Honor the Play When Silent flag, 1: stop all silent non-procedural sources."),
 	ECVF_Default);
 
+static int32 ForceNonStreamingInEditorCVar = 0;
+FAutoConsoleVariableRef CVarForceNonStreamingInEditor(
+	TEXT("au.editor.ForceAudioNonStreaming"),
+	LoadIntoCacheOnPostLoadCVar,
+	TEXT("When set to 1, forces any audio played to be non-streaming May force a DDC miss.\n")
+	TEXT("0: Honor the Play When Silent flag, 1: stop all silent non-procedural sources."),
+	ECVF_Default);
+
 #if !UE_BUILD_SHIPPING
 static void DumpBakedAnalysisData(const TArray<FString>& Args)
 {
@@ -1744,7 +1752,7 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 	// When the BypassVirtualizeWhenSilent cvar is enabled, we should only honor bVirtualizeWhenSilent for procedural sounds:
 	const bool bHasSubtitles = ActiveSound.bHandleSubtitles && (ActiveSound.bHasExternalSubtitles || (Subtitles.Num() > 0));
 	const bool bStarted = WaveInstanceVolume > KINDA_SMALL_NUMBER || ActiveSound.ComponentVolumeFader.IsFadingIn();
-	const bool bCanPlayWhenSilent = IsPlayWhenSilent() && (!BypassPlayWhenSilentCVar || bProcedural);
+	const bool bCanPlayWhenSilent = ActiveSound.IsPlayWhenSilent() && (!BypassPlayWhenSilentCVar || bProcedural);
 	if (bStarted || bCanPlayWhenSilent || bHasSubtitles)
 	{
 		WaveInstances.Add(WaveInstance);
@@ -1823,6 +1831,11 @@ bool USoundWave::IsStreaming(const FPlatformAudioCookOverrides* Overrides /* = n
 	// TODO: add in check on whether it's part of a streaming SoundGroup.
 	if (!Overrides)
 	{
+		if (GIsEditor && ForceNonStreamingInEditorCVar != 0)
+		{
+			return false;
+		}
+
 		Overrides = GetPlatformCompressionOverridesForCurrentPlatform();
 	}
 
@@ -1940,6 +1953,11 @@ void USoundWave::UpdatePlatformData()
 
 float USoundWave::GetSampleRateForCurrentPlatform()
 {
+	if (bProcedural)
+	{
+		return SampleRate;
+	}
+
 #if WITH_EDITOR
 	float SampleRateOverride = FPlatformCompressionUtilities::GetTargetSampleRateForPlatform(SampleRateQuality);
 	return (SampleRateOverride > 0) ? FMath::Min(SampleRateOverride, (float) SampleRate) : SampleRate;
@@ -1993,7 +2011,7 @@ bool USoundWave::GetChunkData(int32 ChunkIndex, uint8** OutChunkData, bool bMake
 		ForceRebuildPlatformData();
 		if (RunningPlatformData->GetChunkFromDDC(ChunkIndex, OutChunkData, bMakeSureChunkIsLoaded) == 0)
 		{
-			UE_LOG(LogAudio, Display, TEXT("Failed to build sound %s."), *GetPathName());
+			UE_LOG(LogAudio, Warning, TEXT("Failed to build sound %s."), *GetPathName());
 		}
 		else
 		{

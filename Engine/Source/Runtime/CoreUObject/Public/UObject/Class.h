@@ -2430,6 +2430,7 @@ class COREUOBJECT_API UClass : public UStruct
 
 public:
 	friend class FRestoreClassInfo;
+	friend class FBlueprintEditorUtils;
 
 	typedef void		(*ClassConstructorType)				(const FObjectInitializer&);
 	typedef UObject*	(*ClassVTableHelperCtorCallerType)	(FVTableHelper& Helper);
@@ -2506,6 +2507,28 @@ public:
 	/** The class default object; used for delta serialization and object initialization */
 	UObject* ClassDefaultObject;
 
+protected:
+	/** This is where we store the data that is only changed per class instead of per instance */
+	UPROPERTY()
+	void* SparseClassData;
+
+	/** The struct used to store sparse class data. */
+	UPROPERTY()
+	UScriptStruct* SparseClassDataStruct;
+
+public:
+	/**
+	 * Returns a pointer to the sidecar data structure. This function will create an instance of the data structure if one has been specified and it has not yet been created.
+	 */
+	void* GetOrCreateSparseClassData() { return SparseClassData ? SparseClassData : CreateSparseClassData(); }
+
+	/**
+	 * Returns a pointer to the type of the sidecar data structure if one is specified.
+	 */
+	virtual UScriptStruct* GetSparseClassDataStruct() const;
+
+	void SetSparseClassDataStruct(UScriptStruct* InSparseClassDataStruct);
+
 	/** Assemble reference token streams for all classes if they haven't had it assembled already */
 	static void AssembleReferenceTokenStreams();
 
@@ -2517,6 +2540,8 @@ public:
 #endif // WITH_EDITOR
 
 private:
+	void* CreateSparseClassData();
+
 #if WITH_EDITOR
 	/** Provides access to attributes of the underlying C++ class. Should never be unset. */
 	TOptional<FCppClassTypeInfo> CppTypeInfo;
@@ -2928,7 +2953,7 @@ public:
 	 */
 	bool ImplementsInterface(const class UClass* SomeInterface) const;
 
-	/** serializes the passed in object as this class's default object using the given archive
+	/** serializes the passed in object as this class's default object using the given archive slot
 	 * @param Object the object to serialize as default
 	 * @param Slot the structured archive slot to serialize from
 	 */
@@ -2942,6 +2967,12 @@ public:
 	{
 		SerializeDefaultObject(Object, FStructuredArchiveFromArchive(Ar).GetSlot());
 	}
+
+	/** serializes the associated sparse class data for the passed in object using the given archive slot. This should only be called if the class has an associated sparse data structure.
+	 * @param Object the object to serialize as default
+	 * @param Slot the structured archive slot to serialize from
+	 */
+	void SerializeSparseClassData(UObject* Object, FStructuredArchive::FSlot Slot);
 
 	/** Wraps the PostLoad() call for the class default object.
 	 * @param Object the default object to call PostLoad() on
@@ -2994,6 +3025,12 @@ public:
 
 	/** Returns archetype object for CDO */
 	virtual UObject* GetArchetypeForCDO() const;
+
+	/** Returns archetype for sparse class data */
+	virtual void* GetArchetypeForSparseClassData() const;
+
+	/** Returns the struct used by the sparse class data archetype */
+	UScriptStruct* GetSparseClassDataArchetypeStruct() const;
 
 	/**
 	* Returns all objects that should be preloaded before the class default object is serialized at load time. Only used by the EDL.

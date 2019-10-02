@@ -213,6 +213,21 @@ void UGameMapsSettings::SetGlobalDefaultGameMode( const FString& NewGameMode )
 	GameMapsSettings->GlobalDefaultGameMode = NewGameMode;
 }
 
+UGameMapsSettings* UGameMapsSettings::GetGameMapsSettings()
+{
+	return GetMutableDefault<UGameMapsSettings>();
+}
+
+void UGameMapsSettings::SetSkipAssigningGamepadToPlayer1(bool bSkipFirstPlayer)
+{
+	bOffsetPlayerGamepadIds = bSkipFirstPlayer;
+}
+
+bool UGameMapsSettings::GetSkipAssigningGamepadToPlayer1() const
+{
+	return bOffsetPlayerGamepadIds;
+}
+
 // Backwards compat for map strings
 void FixMapAssetRef(FSoftObjectPath& MapAssetReference)
 {

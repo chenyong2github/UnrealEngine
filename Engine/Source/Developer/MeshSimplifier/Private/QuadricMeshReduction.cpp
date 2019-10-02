@@ -9,8 +9,7 @@
 #include "Templates/UniquePtr.h"
 #include "Features/IModularFeatures.h"
 #include "IMeshReductionInterfaces.h"
-#include "MeshDescription.h"
-#include "MeshAttributes.h"
+#include "StaticMeshAttributes.h"
 #include "RenderUtils.h"
 #include "Engine/StaticMesh.h"
 #include "MeshDescriptionOperations.h"
@@ -212,14 +211,14 @@ public:
 
 		int32 NumFaces = InMesh.Triangles().Num();
 		int32 NumWedges = NumFaces * 3;
-		FStaticMeshDescriptionConstAttributeGetter InMeshAttribute(&InMesh);
-		TVertexAttributesConstRef<FVector> InVertexPositions = InMeshAttribute.GetPositions();
-		TVertexInstanceAttributesConstRef<FVector> InVertexNormals = InMeshAttribute.GetNormals();
-		TVertexInstanceAttributesConstRef<FVector> InVertexTangents = InMeshAttribute.GetTangents();
-		TVertexInstanceAttributesConstRef<float> InVertexBinormalSigns = InMeshAttribute.GetBinormalSigns();
-		TVertexInstanceAttributesConstRef<FVector4> InVertexColors = InMeshAttribute.GetColors();
-		TVertexInstanceAttributesConstRef<FVector2D> InVertexUVs = InMeshAttribute.GetUVs();
-		TPolygonGroupAttributesConstRef<FName> InPolygonGroupMaterialNames = InMeshAttribute.GetPolygonGroupImportedMaterialSlotNames();
+		const FStaticMeshConstAttributes InMeshAttribute(InMesh);
+		TVertexAttributesConstRef<FVector> InVertexPositions = InMeshAttribute.GetVertexPositions();
+		TVertexInstanceAttributesConstRef<FVector> InVertexNormals = InMeshAttribute.GetVertexInstanceNormals();
+		TVertexInstanceAttributesConstRef<FVector> InVertexTangents = InMeshAttribute.GetVertexInstanceTangents();
+		TVertexInstanceAttributesConstRef<float> InVertexBinormalSigns = InMeshAttribute.GetVertexInstanceBinormalSigns();
+		TVertexInstanceAttributesConstRef<FVector4> InVertexColors = InMeshAttribute.GetVertexInstanceColors();
+		TVertexInstanceAttributesConstRef<FVector2D> InVertexUVs = InMeshAttribute.GetVertexInstanceUVs();
+		TPolygonGroupAttributesConstRef<FName> InPolygonGroupMaterialNames = InMeshAttribute.GetPolygonGroupMaterialSlotNames();
 
 		TPolygonGroupAttributesRef<FName> OutPolygonGroupMaterialNames = OutReducedMesh.PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::ImportedMaterialSlotName);
 
@@ -369,6 +368,47 @@ public:
 		};
 		float* ColorWeights = AttributeWeights + 3 + 3 + 3;
 		float* TexCoordWeights = ColorWeights + 4;
+
+		// Re-scale the weights for UV channels that exceed the expected 0-1 range.
+		// Otherwise garbage on the UVs will dominate the simplification quadric.
+		{
+			float XLength[MAX_STATIC_TEXCOORDS] = { 0 };
+			float YLength[MAX_STATIC_TEXCOORDS] = { 0 };
+			{
+				for (int32 TexCoordId = 0; TexCoordId < NumTexCoords; ++TexCoordId)
+				{
+					float XMax = -FLT_MAX;
+					float YMax = -FLT_MAX;
+					float XMin = FLT_MAX;
+					float YMin = FLT_MAX;
+					for (const TVertSimp< NumTexCoords >& SimpVert : Verts)
+					{
+						const FVector2D& UVs = SimpVert.TexCoords[TexCoordId];
+						XMax = FMath::Max(XMax, UVs.X);
+						XMin = FMath::Min(XMin, UVs.X);
+
+						YMax = FMath::Max(YMax, UVs.Y);
+						YMin = FMath::Min(YMin, UVs.Y);
+					}
+
+					XLength[TexCoordId] =  ( XMax > XMin ) ? XMax - XMin : 0.f;
+					YLength[TexCoordId] =  ( YMax > YMin ) ? YMax - YMin : 0.f;
+				}
+			}
+
+			for (int32 TexCoordId = 0; TexCoordId < NumTexCoords; ++TexCoordId)
+			{
+
+				if (XLength[TexCoordId] > 1.f)
+				{
+					TexCoordWeights[2 * TexCoordId + 0] /= XLength[TexCoordId];
+				}
+				if (YLength[TexCoordId] > 1.f)
+				{
+					TexCoordWeights[2 * TexCoordId + 1] /= YLength[TexCoordId];
+				}
+			}
+		}
 
 		// Zero out weights that aren't used
 		{
@@ -538,8 +578,7 @@ public:
 
 	virtual bool ReduceSkeletalMesh(
 		USkeletalMesh* SkeletalMesh,
-		int32 LODIndex,
-		bool bReregisterComponent = true
+		int32 LODIndex
 		) override
 	{
 		return false;

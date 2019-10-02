@@ -1611,10 +1611,11 @@ public:
 	 * @param	Expression	The expression dynamic parameter to check for duplicates.
 	 */
 	ENGINE_API virtual bool HasDuplicateDynamicParameters(const UMaterialExpression* Expression);
-#endif // WITH_EDITOR
 
 	/** Collect all material expressions fomr this material and all its functions and figure out which possible shading models exist in this material */
 	ENGINE_API void RebuildShadingModelField();
+
+#endif // WITH_EDITOR
 
 	/**
 	 * Iterate through all of the expression nodes and fix up changed properties on

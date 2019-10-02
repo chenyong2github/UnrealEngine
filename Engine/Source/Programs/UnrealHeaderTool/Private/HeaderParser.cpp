@@ -5942,6 +5942,7 @@ UClass* FHeaderParser::CompileClassDeclaration(FClasses& AllClasses)
 	if (ClassDeclarationData->AutoCollapseCategories.Num()) { MetaData.Add("AutoCollapseCategories", FString::Join(ClassDeclarationData->AutoCollapseCategories, TEXT(" "))); }
 	if (ClassDeclarationData->HideCategories.Num()) { MetaData.Add("HideCategories", FString::Join(ClassDeclarationData->HideCategories, TEXT(" "))); }
 	if (ClassDeclarationData->ShowSubCatgories.Num()) { MetaData.Add("ShowCategories", FString::Join(ClassDeclarationData->ShowSubCatgories, TEXT(" "))); }
+	if (ClassDeclarationData->SparseClassDataTypes.Num()) { MetaData.Add("SparseClassDataTypes", FString::Join(ClassDeclarationData->SparseClassDataTypes, TEXT(" "))); }
 	if (ClassDeclarationData->HideFunctions.Num()) { MetaData.Add("HideFunctions", FString::Join(ClassDeclarationData->HideFunctions, TEXT(" "))); }
 	if (ClassDeclarationData->AutoExpandCategories.Num()) { MetaData.Add("AutoExpandCategories", FString::Join(ClassDeclarationData->AutoExpandCategories, TEXT(" "))); }
 
@@ -9709,6 +9710,10 @@ void FHeaderParser::ResetClassData()
 		{
 			CurrentClass->SetMetaData(TEXT("ShowCategories"), *SuperClass->GetMetaData("ShowCategories"));
 		}
+		if (SuperClass->HasMetaData(TEXT("SparseClassDataTypes")))
+		{
+			CurrentClass->SetMetaData(TEXT("SparseClassDataTypes"), *SuperClass->GetMetaData("SparseClassDataTypes"));
+		}
 		if (SuperClass->HasMetaData(TEXT("HideFunctions")))
 		{
 			CurrentClass->SetMetaData(TEXT("HideFunctions"), *SuperClass->GetMetaData("HideFunctions"));
@@ -9943,7 +9948,7 @@ void FHeaderParser::CheckDocumentationPolicyForStruct(UStruct* Struct, const TMa
 		for (UProperty* Property : TFieldRange<UProperty>(Struct, EFieldIteratorFlags::ExcludeSuper))
 		{
 			FString ToolTip = Property->GetToolTipText().ToString();
-			if (ToolTip.IsEmpty() || ToolTip.Equals(Property->GetName()))
+			if (ToolTip.IsEmpty() || ToolTip.Equals(Property->GetDisplayNameText().ToString()))
 			{
 				UE_LOG_ERROR_UHT(TEXT("Property '%s::%s' does not provide a tooltip / comment (DocumentationPolicy)."), *Struct->GetName(), *Property->GetName());
 				continue;

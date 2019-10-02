@@ -44,7 +44,7 @@ class FViewport;
 class IEngineLoop;
 class ILauncherWorker;
 class ILayers;
-class ILevelViewport;
+class IAssetViewport;
 class ITargetPlatform;
 class SViewport;
 class UActorFactory;
@@ -103,7 +103,7 @@ struct FSlatePlayInEditorInfo
 	TSharedPtr<class FSceneViewport>	SlatePlayInEditorWindowViewport;
 	
 	/** The slate viewport that should be used for play in viewport */
-	TWeakPtr<class ILevelViewport>		DestinationSlateViewport;
+	TWeakPtr<class IAssetViewport>		DestinationSlateViewport;
 
 	FSlatePlayInEditorInfo()
 	: SlatePlayInEditorWindow(NULL), DestinationSlateViewport(NULL)
@@ -619,7 +619,7 @@ public:
 	TMap<FName, FSlatePlayInEditorInfo>	SlatePlayInEditorMap;
 
 	/** Viewport the next PlaySession was requested to happen on */
-	TWeakPtr<class ILevelViewport>		RequestedDestinationSlateViewport;
+	TWeakPtr<class IAssetViewport>		RequestedDestinationSlateViewport;
 
 	/** When set to anything other than -1, indicates a specific In-Editor viewport index that PIE should use */
 	UPROPERTY()
@@ -1814,7 +1814,7 @@ public:
 	 * @param	bUseMobilePreview		True to enable mobile preview mode (PC platform only)
 	 * @param	bUseVRPreview			True to enable VR preview mode (PC platform only)
 	 */
-	void RequestPlaySession( bool bAtPlayerStart, TSharedPtr<class ILevelViewport> DestinationViewport, bool bInSimulateInEditor, const FVector* StartLocation = NULL, const FRotator* StartRotation = NULL, int32 DestinationConsole = -1, bool bUseMobilePreview = false, bool bUseVRPreview = false, bool bUseVulkanPreview = false);
+	void RequestPlaySession( bool bAtPlayerStart, TSharedPtr<class IAssetViewport> DestinationViewport, bool bInSimulateInEditor, const FVector* StartLocation = NULL, const FRotator* StartRotation = NULL, int32 DestinationConsole = -1, bool bUseMobilePreview = false, bool bUseVRPreview = false, bool bUseVulkanPreview = false);
 
 	// @todo gmp: temp hack for Rocket demo
 	void RequestPlaySession(const FVector* StartLocation, const FRotator* StartRotation, bool MobilePreview, bool VulkanPreview, const FString& MobilePreviewTargetDevice, FString AdditionalStandaloneLaunchParameters = TEXT(""));
