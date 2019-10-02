@@ -369,6 +369,9 @@ extern RHI_API bool GSupportsTransientResourceAliasing;
 /** true if the RHI requires a valid RT bound during UAV scatter operation inside the pixel shader */
 extern RHI_API bool GRHIRequiresRenderTargetForPixelShaderUAVs;
 
+/** true if the RHI supports unordered access view format aliasing */
+extern RHI_API bool GRHISupportsUAVFormatAliasing;
+
 /** The minimum Z value in clip space for the RHI. */
 extern RHI_API float GMinClipZ;
 
