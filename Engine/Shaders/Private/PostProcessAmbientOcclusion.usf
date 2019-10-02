@@ -1581,8 +1581,9 @@ void HorizonSearchCS(
 #endif
 
 
-
-
+Texture2D SceneVelocityTexture;
+SamplerState SceneVelocityTextureSampler;
+float4 BlendParams;
 float2 ReprojectPos(float2 UV, float Depth)
 {
 	// Given a UV reproject where this was in the previous frame
@@ -1591,18 +1592,16 @@ float2 ReprojectPos(float2 UV, float Depth)
 	float4 ThisClip = float4( ThisScreen, Depth, 1 );
 	float4 PrevClip = mul( ThisClip, View.ClipToPrevClip );
 	float2 PrevScreen = PrevClip.xy / PrevClip.w;
-	float2 PrevUV = PrevScreen.xy * PrevScreenPositionScaleBias.xy + PrevScreenPositionScaleBias.zw;
 
-	PrevUV += PostprocessInput0Size.zw*0.25;
 
-	float2 Velocity		= GetGBufferData(UV, false).Velocity.xy;
-
-	// TODO - Take into account velocity
+	float2 Velocity	=  Texture2DSampleLevel(SceneVelocityTexture, SceneVelocityTextureSampler, UV,0).rg;
 	if( Velocity.x > 0.0 )
 	{
 		PrevScreen = ThisClip.xy - DecodeVelocityFromTexture( Velocity );
 	}
 	
+	float2 PrevUV = PrevScreen.xy * PrevScreenPositionScaleBias.xy + PrevScreenPositionScaleBias.zw;
+	PrevUV += PostprocessInput0Size.zw*0.25;
 
 	return PrevUV;
 }
@@ -1631,7 +1630,7 @@ void GTAOTemporalFilterPSAndCS(float2 UV, out float OutAO, out float OutDepth)
 	}
 
 	// Do a neighbourhood clamp 
-	float2 dUV = PostprocessInput0Size.zw*2;
+	float2 dUV = PostprocessInput0Size.zw*3;
 	float AONeighbour1 = Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, UV + float2(-dUV.x,-dUV.y) ).r;
 	float AONeighbour2 = Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, UV + float2(-dUV.x, dUV.y) ).r;
 	float AONeighbour3 = Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, UV + float2( dUV.x,-dUV.y) ).r;
@@ -1639,12 +1638,21 @@ void GTAOTemporalFilterPSAndCS(float2 UV, out float OutAO, out float OutDepth)
 
 	float MinAO = min(NewAO, min(min(AONeighbour1, AONeighbour2), min(AONeighbour3, AONeighbour4)));
 	float MaxAO = max(NewAO, max(max(AONeighbour1, AONeighbour2), max(AONeighbour3, AONeighbour4)));
+	float HalfAO = (MaxAO - MinAO) *0.5;
+	float MidAO  = (MinAO + HalfAO);
+	const float ExpandNeighbour = 1.0;
+	MinAO = saturate(MidAO - (HalfAO * ExpandNeighbour));
+	MaxAO = saturate(MidAO + (HalfAO * ExpandNeighbour));
 
 	float BlurredAO = 0.2 * (NewAO + AONeighbour1 + AONeighbour2 + AONeighbour3 + AONeighbour4);
 
 	OutAO = (NewAO*Blend) + (HistoryAO* (1-Blend));
 	OutAO = clamp(OutAO, MinAO, MaxAO);
 
+	if(BlendParams.x > 0.5 )
+	{
+		OutAO = NewAO;
+	}
 
 	OutDepth = CurrDepth;
 }
