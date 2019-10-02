@@ -90,7 +90,8 @@ public:
 	enum class BatchMode
 	{
 		Background, // The maximum batch size is defined by r.ShaderPipelineCache.BackgroundBatchSize
-		Fast // The maximum batch size is defined by r.ShaderPipelineCache.BatchSize
+		Fast, // The maximum batch size is defined by r.ShaderPipelineCache.BatchSize
+		Precompile // The maximum batch size is defined by r.ShaderPipelineCache.PrecompileBatchSize
 	};
 	
 	/** Sets the precompilation batching mode. */
