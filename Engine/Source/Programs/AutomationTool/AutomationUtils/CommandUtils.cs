@@ -2365,6 +2365,7 @@ namespace AutomationTool
 		Minutes,
 		Bytes,
 		Megabytes,
+		Percentage,
 	}
 
 	/// <summary>
