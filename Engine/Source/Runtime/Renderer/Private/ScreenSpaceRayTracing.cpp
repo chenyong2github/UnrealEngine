@@ -21,6 +21,14 @@ static TAutoConsoleVariable<int32> CVarSSRQuality(
 	TEXT(" 4: very high (likely too slow for real-time)"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
+int32 GSSRHalfResSceneColor = 0;
+FAutoConsoleVariableRef CVarSSRHalfResSceneColor(
+	TEXT("r.SSR.HalfResSceneColor"),
+	GSSRHalfResSceneColor,
+	TEXT("Use half res scene color as input for SSR. Improves performance without much of a visual quality loss."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 static TAutoConsoleVariable<int32> CVarSSRTemporal(
 	TEXT("r.SSR.Temporal"),
 	0,
@@ -551,6 +559,10 @@ void RenderScreenSpaceReflections(
 		{
 			InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.CustomSSRInput);
 		}
+		else if (GSSRHalfResSceneColor && View.PrevViewInfo.HalfResTemporalAAHistory.IsValid())
+		{
+			InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.HalfResTemporalAAHistory);
+		}
 		else if (View.PrevViewInfo.TemporalAAHistory.IsValid())
 		{
 			InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.TemporalAAHistory.RT[0]);
@@ -682,7 +694,7 @@ void RenderScreenSpaceReflections(
 		PassParameters->PrevSceneColorPreExposureCorrection = InputColor != CurrentSceneColor ? View.PreExposure / View.PrevViewInfo.SceneColorPreExposure : 1.0f;
 
 		PassParameters->SceneColor = InputColor;
-		PassParameters->SceneColorSampler = TStaticSamplerState<SF_Point>::GetRHI();
+		PassParameters->SceneColorSampler = GSSRHalfResSceneColor ? TStaticSamplerState<SF_Bilinear>::GetRHI() : TStaticSamplerState<SF_Point>::GetRHI();
 
 		PassParameters->HZB = GraphBuilder.RegisterExternalTexture(View.HZB);
 		PassParameters->HZBSampler = TStaticSamplerState<SF_Point>::GetRHI();
