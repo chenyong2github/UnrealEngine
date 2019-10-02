@@ -151,6 +151,7 @@
     <Compile Include="Cluster\Config\Entity\EntityWindow.cs" />
     <Compile Include="Cluster\Config\Entity\EntityClusterNode.cs" />
     <Compile Include="Cluster\Config\Parser.cs" />
+    <Compile Include="Helpers\StringHelper.cs" />
     <Compile Include="UIControl\AutoScroller.cs" />
     <Compile Include="Settings\RegistrySaver.cs" />
     <Compile Include="UIControl\UnselectableListBox.cs" />
