@@ -1218,17 +1218,14 @@ public:
 		const FFinalPostProcessSettings& Settings = View.FinalPostProcessSettings;
 
 		uint32 TemporalFrame = 0;
-		uint32 Frame = 0;
 		
 		const FSceneViewState* ViewState = static_cast<const FSceneViewState*>(View.State);
 
 		if (ViewState)
 		{
-			TemporalFrame	= ViewState->GetCurrentTemporalAASampleIndex();
-			Frame			= ViewState->GetFrameIndex();
+			TemporalFrame	= ViewState->GetCurrentUnclampedTemporalAASampleIndex();
 		}
 			
-		TemporalFrame = Frame;
 		const int ArraySize = 3;
 		FVector4 GTAOParam[ArraySize];
 
@@ -2200,8 +2197,11 @@ public:
 	FShaderResourceParameter		DepthHistoryTexture;
 	FShaderResourceParameter		DepthHistoryTextureSampler;
 
+	FShaderResourceParameter		SceneVelocityTexture;
+	FShaderResourceParameter		SceneVelocityTextureSampler;
 
 	FShaderParameter				PrevScreenPositionScaleBias;
+	FShaderParameter				BlendParams;
 	FScreenSpaceAOParameters		ScreenSpaceAOParams;
 	FShaderParameter OutTexture;
 
@@ -2219,14 +2219,18 @@ public:
 		DepthHistoryTexture.Bind(Initializer.ParameterMap,			TEXT("DepthHistoryTexture"));
 		DepthHistoryTextureSampler.Bind(Initializer.ParameterMap,	TEXT("DepthHistoryTextureSampler"));
 
-		PrevScreenPositionScaleBias.Bind(Initializer.ParameterMap, TEXT("PrevScreenPositionScaleBias"));
+		SceneVelocityTexture.Bind(Initializer.ParameterMap,			TEXT("SceneVelocityTexture"));
+		SceneVelocityTextureSampler.Bind(Initializer.ParameterMap,	TEXT("SceneVelocityTextureSampler"));
+
+		PrevScreenPositionScaleBias.Bind(Initializer.ParameterMap,  TEXT("PrevScreenPositionScaleBias"));
+		BlendParams.Bind(Initializer.ParameterMap,					TEXT("BlendParams"));
 		OutTexture.Bind(Initializer.ParameterMap, TEXT("OutTexture"));
 
 		ScreenSpaceAOParams.Bind(Initializer.ParameterMap);
 	}
 
 
-	void SetParametersPS(const FRenderingCompositePassContext& Context, FIntPoint DestSize, FIntPoint InputTextureSize, const FGTAOTAAHistory& InputHistory)
+	void SetParametersPS(const FRenderingCompositePassContext& Context, FIntPoint DestSize, FIntPoint InputTextureSize, bool bCameraCut, const FGTAOTAAHistory& InputHistory, TRefCountPtr<IPooledRenderTarget>& VelocityRT)
 	{
 		const FFinalPostProcessSettings& Settings = Context.View.FinalPostProcessSettings;
 		FRHIPixelShader* ShaderRHI = GetPixelShader();
@@ -2248,6 +2252,10 @@ public:
 
 		SetShaderValue(Context.RHICmdList, ShaderRHI, PrevScreenPositionScaleBias, PrevScreenPositionScaleBiasValue);
 
+		FVector4 BlendParamsValue = FVector4(bCameraCut ? 1.0f : 0.0f, 0.0f, 0.0f, 0.0f);
+		SetShaderValue(Context.RHICmdList, ShaderRHI, BlendParams, BlendParamsValue);
+
+
 		if (InputHistory.IsValid())
 		{
 			SetTextureParameter(Context.RHICmdList, ShaderRHI, HistoryTexture, HistoryTextureSampler,
@@ -2267,6 +2275,10 @@ public:
 				GSystemTextures.WhiteDummy->GetRenderTargetItem().ShaderResourceTexture);
 
 		}
+
+		SetTextureParameter(Context.RHICmdList, ShaderRHI, SceneVelocityTexture, SceneVelocityTextureSampler,
+				TStaticSamplerState<SF_Point>::GetRHI(), VelocityRT->GetRenderTargetItem().ShaderResourceTexture);
+
 	}
 
 	template <typename TRHICmdList>
@@ -2282,6 +2294,7 @@ public:
 	{
 		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
 		Ar << DepthHistoryTexture << DepthHistoryTextureSampler << HistoryTexture << HistoryTextureSampler << PostprocessParameter << SceneTextureParameters << PrevScreenPositionScaleBias << OutTexture;
+		Ar << SceneVelocityTexture << SceneVelocityTextureSampler << BlendParams;
 		return bShaderHasOutdatedParameters;
 	}
 
@@ -2397,7 +2410,8 @@ void FRCPassPostProcessAmbientOcclusion_GTAO_TemporalFilter::Process(FRenderingC
 			SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
 
 			VertexShader->SetParameters(Context);
-			PixelShader->SetParametersPS(Context, OutputTexSize, InputTexSize, InputHistory);
+			PixelShader->SetParametersPS(Context, OutputTexSize, InputTexSize, bCameraCut, InputHistory,
+											bCameraCut ? GSystemTextures.BlackDummy : SceneContext.SceneVelocity);
 
 			DrawRectangle(
 				Context.RHICmdList,
