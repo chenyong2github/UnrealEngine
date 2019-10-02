@@ -199,7 +199,7 @@ void UOSCServer::DispatchMessage(const FString& InIPAddress, const FOSCMessage& 
 	}
 }
 
-void UOSCServer::OnMessageReceived(const FString& InIPAddress)
+void UOSCServer::OnPacketReceived(const FString& InIPAddress)
 {
 	TSharedPtr<IOSCPacket> Packet;
 	while (OSCPackets.Dequeue(Packet))
