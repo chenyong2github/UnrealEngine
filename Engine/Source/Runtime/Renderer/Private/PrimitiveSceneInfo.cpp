@@ -651,11 +651,11 @@ void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, bool 
 	{
 		int8 MinLod, MaxLod;
 		GetRuntimeVirtualTextureLODRange(StaticMeshRelevances, MinLod, MaxLod);
-
+		
 		FPrimitiveVirtualTextureLodInfo& LodInfo = Scene->PrimitiveVirtualTextureLod[PackedIndex];
-		LodInfo.MinLod = MinLod;
-		LodInfo.MaxLod = MaxLod;
-		LodInfo.LodBias = Proxy->GetVirtualTextureLodBias();
+		LodInfo.MinLod = FMath::Clamp((int32)MinLod, 0, 15);
+		LodInfo.MaxLod = FMath::Clamp((int32)MaxLod, 0, 15);
+		LodInfo.LodBias = FMath::Clamp(Proxy->GetVirtualTextureLodBias() + FPrimitiveVirtualTextureLodInfo::LodBiasOffset, 0, 15);
 		LodInfo.CullMethod = Proxy->GetVirtualTextureMinCoverage() == 0 ? 0 : 1;
 		LodInfo.CullValue = LodInfo.CullMethod == 0 ? Proxy->GetVirtualTextureCullMips() : Proxy->GetVirtualTextureMinCoverage();
 	}
