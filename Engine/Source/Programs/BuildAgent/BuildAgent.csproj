@@ -22,6 +22,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <NoWarn>CS0649</NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Development|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -50,6 +51,22 @@
     <Compile Include="..\..\..\Source\Programs\DotNETCommon\MetaData.cs">
       <Link>Properties\MetaData.cs</Link>
     </Compile>
+    <Compile Include="Issues\Issue.cs" />
+    <Compile Include="Issues\IssueDiagnostic.cs" />
+    <Compile Include="Issues\IssueBuild.cs" />
+    <Compile Include="Issues\IssueHistory.cs" />
+    <Compile Include="Issues\PersistentState.cs" />
+    <Compile Include="Issues\ChangeInfo.cs" />
+    <Compile Include="Issues\InputData.cs" />
+    <Compile Include="Issues\Matchers\CompileIssueMatcher.cs" />
+    <Compile Include="Issues\Matchers\ContentIssueMatcher.cs" />
+    <Compile Include="Issues\Matchers\CopyrightNoticeMatcher.cs" />
+    <Compile Include="Issues\Matchers\DefaultIssueMatcher.cs" />
+    <Compile Include="Issues\Matchers\GenericCodeIssueMatcher.cs" />
+    <Compile Include="Issues\Matchers\GenericContentIssueMatcher.cs" />
+    <Compile Include="Issues\Matchers\UndefinedSymbolMatcher.cs" />
+    <Compile Include="Issues\Matcher.cs" />
+    <Compile Include="Issues\UpdateIssuesMode.cs" />
     <Compile Include="Server\ApiTypes.cs" />
     <Compile Include="Server\ServerMode.cs" />
     <Compile Include="Run\RunMode.cs" />
