@@ -140,7 +140,7 @@ ANavigationData::ANavigationData(const FObjectInitializer& ObjectInitializer)
 {
 	PrimaryActorTick.bCanEverTick = true;
 	bNetLoadOnClient = false;
-	bCanBeDamaged = false;
+	SetCanBeDamaged(false);
 	DefaultQueryFilter = MakeShareable(new FNavigationQueryFilter());
 	ObservedPathsTickInterval = 0.5;
 

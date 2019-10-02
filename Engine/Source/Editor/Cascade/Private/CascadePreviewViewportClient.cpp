@@ -163,14 +163,14 @@ FCascadeEdPreviewViewportClient::FCascadeEdPreviewViewportClient(TWeakPtr<FCasca
 		FloorComponent->SetVisibility(EditorOptions->bShowFloor);
 		if (ParticleSystem)
 		{
-			FloorComponent->RelativeLocation = ParticleSystem->FloorPosition;
-			FloorComponent->RelativeRotation = ParticleSystem->FloorRotation;
+			FloorComponent->SetRelativeLocation_Direct(ParticleSystem->FloorPosition);
+			FloorComponent->SetRelativeRotation_Direct(ParticleSystem->FloorRotation);
 			FloorComponent->SetRelativeScale3D(ParticleSystem->FloorScale3D);
 		}
 		else
 		{
-			FloorComponent->RelativeLocation = EditorOptions->FloorPosition;
-			FloorComponent->RelativeRotation = EditorOptions->FloorRotation;
+			FloorComponent->SetRelativeLocation_Direct(EditorOptions->FloorPosition);
+			FloorComponent->SetRelativeRotation_Direct(EditorOptions->FloorRotation);
 			FloorComponent->SetRelativeScale3D(EditorOptions->FloorScale3D);
 		}
 

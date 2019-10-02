@@ -145,9 +145,9 @@ AReflectionCapture::AReflectionCapture(const FObjectInitializer& ObjectInitializ
 		static FConstructorStatics ConstructorStatics;
 
 		SpriteComponent->Sprite = ConstructorStatics.DecalTexture.Get();
-		SpriteComponent->RelativeScale3D = FVector(0.5f, 0.5f, 0.5f);
+		SpriteComponent->SetRelativeScale3D_Direct(FVector(0.5f, 0.5f, 0.5f));
 		SpriteComponent->bHiddenInGame = true;
-		SpriteComponent->bAbsoluteScale = true;
+		SpriteComponent->SetUsingAbsoluteScale(true);
 		SpriteComponent->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 		SpriteComponent->bIsScreenSizeScaled = true;
 	}
@@ -169,9 +169,9 @@ AReflectionCapture::AReflectionCapture(const FObjectInitializer& ObjectInitializ
 		static FConstructorStatics ConstructorStatics;
 
 		CaptureOffsetComponent->Sprite = ConstructorStatics.DecalTexture.Get();
-		CaptureOffsetComponent->RelativeScale3D = FVector(0.2f, 0.2f, 0.2f);
+		CaptureOffsetComponent->SetRelativeScale3D_Direct(FVector(0.2f, 0.2f, 0.2f));
 		CaptureOffsetComponent->bHiddenInGame = true;
-		CaptureOffsetComponent->bAbsoluteScale = true;
+		CaptureOffsetComponent->SetUsingAbsoluteScale(true);
 		CaptureOffsetComponent->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 		CaptureOffsetComponent->bIsScreenSizeScaled = true;
 	}
@@ -241,7 +241,7 @@ ABoxReflectionCapture::ABoxReflectionCapture(const FObjectInitializer& ObjectIni
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UBoxReflectionCaptureComponent>(TEXT("NewReflectionComponent")))
 {
 	UBoxReflectionCaptureComponent* BoxComponent = CastChecked<UBoxReflectionCaptureComponent>(GetCaptureComponent());
-	BoxComponent->RelativeScale3D = FVector(1000, 1000, 400);
+	BoxComponent->SetRelativeScale3D_Direct(FVector(1000, 1000, 400));
 	RootComponent = BoxComponent;
 #if WITH_EDITORONLY_DATA
 	if (GetSpriteComponent())
@@ -275,7 +275,7 @@ APlaneReflectionCapture::APlaneReflectionCapture(const FObjectInitializer& Objec
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UPlaneReflectionCaptureComponent>(TEXT("NewReflectionComponent")))
 {
 	UPlaneReflectionCaptureComponent* PlaneComponent = CastChecked<UPlaneReflectionCaptureComponent>(GetCaptureComponent());
-	PlaneComponent->RelativeScale3D = FVector(1, 1000, 1000);
+	PlaneComponent->SetRelativeScale3D_Direct(FVector(1, 1000, 1000));
 	RootComponent = PlaneComponent;
 #if WITH_EDITORONLY_DATA
 	if (GetSpriteComponent())
@@ -290,7 +290,7 @@ APlaneReflectionCapture::APlaneReflectionCapture(const FObjectInitializer& Objec
 	UDrawSphereComponent* DrawInfluenceRadius = CreateDefaultSubobject<UDrawSphereComponent>(TEXT("DrawRadius0"));
 	DrawInfluenceRadius->SetupAttachment(GetCaptureComponent());
 	DrawInfluenceRadius->bDrawOnlyIfSelected = true;
-	DrawInfluenceRadius->bAbsoluteScale = true;
+	DrawInfluenceRadius->SetUsingAbsoluteScale(true);
 	DrawInfluenceRadius->bUseEditorCompositing = true;
 	DrawInfluenceRadius->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 	PlaneComponent->PreviewInfluenceRadius = DrawInfluenceRadius;
@@ -948,7 +948,7 @@ void UReflectionCaptureComponent::UpdatePreviewShape()
 {
 	if (CaptureOffsetComponent)
 	{
-		CaptureOffsetComponent->RelativeLocation = CaptureOffset / GetComponentTransform().GetScale3D();
+		CaptureOffsetComponent->SetRelativeLocation_Direct(CaptureOffset / GetComponentTransform().GetScale3D());
 	}
 }
 
@@ -1027,7 +1027,7 @@ void UReflectionCaptureComponent::FinishDestroy()
 
 void UReflectionCaptureComponent::MarkDirtyForRecaptureOrUpload() 
 { 
-	if (bVisible)
+	if (GetVisibleFlag())
 	{
 		ReflectionCapturesToUpdate.AddUnique(this);
 		bNeedsRecaptureOrUpload = true; 
@@ -1036,7 +1036,7 @@ void UReflectionCaptureComponent::MarkDirtyForRecaptureOrUpload()
 
 void UReflectionCaptureComponent::MarkDirtyForRecapture() 
 { 
-	if (bVisible)
+	if (GetVisibleFlag())
 	{
 		MarkPackageDirty();
 		MapBuildDataId = FGuid::NewGuid();

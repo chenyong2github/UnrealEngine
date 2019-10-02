@@ -101,7 +101,7 @@ void UPhysicsSpringComponent::TickComponent(float DeltaTime, enum ELevelTick Tic
 
 	if (UPrimitiveComponent* BasePrimComp = Cast<UPrimitiveComponent>(GetAttachParent()))
 	{
-		if (bIsActive)
+		if (IsActive())
 		{
 			const FVector SpringStart = GetComponentTransform().GetLocation();
 			const FVector SpringDesiredEnd = SpringPositionFromLength(SpringLengthAtRest);

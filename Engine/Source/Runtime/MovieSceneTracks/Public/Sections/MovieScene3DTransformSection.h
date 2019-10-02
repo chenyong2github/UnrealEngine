@@ -37,9 +37,9 @@ struct FTransformData
 	FVector Scale;
 
 	FTransformData()
-		: Translation( ForceInitToZero )
-		, Rotation( ForceInitToZero )
-		, Scale( ForceInitToZero )
+		: Translation(ForceInitToZero)
+		, Rotation(ForceInitToZero)
+		, Scale(ForceInitToZero)
 	{}
 
 	/**
@@ -48,10 +48,10 @@ struct FTransformData
 	*
 	* @param InComponent	The component to build from
 	*/
-	FTransformData( const USceneComponent* InComponent )
-		: Translation( InComponent->RelativeLocation )
-		, Rotation( InComponent->RelativeRotation )
-		, Scale( InComponent->RelativeScale3D )
+	FTransformData(const USceneComponent* InComponent)
+		: Translation(InComponent->GetRelativeLocation())
+		, Rotation(InComponent->GetRelativeRotation())
+		, Scale(InComponent->GetRelativeScale3D())
 	{}
 };
 

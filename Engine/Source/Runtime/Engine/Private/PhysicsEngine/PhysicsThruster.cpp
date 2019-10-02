@@ -43,7 +43,7 @@ void UPhysicsThrusterComponent::TickComponent(float DeltaTime, enum ELevelTick T
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
 	// Applied force to the base, so if we don't have one, do nothing.
-	if( bIsActive && GetAttachParent())
+	if(IsActive() && GetAttachParent())
 	{
 		FVector WorldForce = ThrustStrength * GetComponentTransform().TransformVectorNoScale( FVector(-1.f,0.f,0.f) );
 

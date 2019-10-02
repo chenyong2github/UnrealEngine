@@ -494,7 +494,7 @@ void AVirtualCameraPlayerControllerBase::PilotTargetedCamera(AVirtualCameraPawnB
 		TargetCameraComponent->LensSettings = CameraToFollow->LensSettings;
 		TargetCameraComponent->FilmbackSettings = CameraToFollow->FilmbackSettings;
 	}
-	TargetCameraComponent->SetRelativeLocationAndRotation(CameraToFollow->RelativeLocation, CameraToFollow->RelativeRotation);
+	TargetCameraComponent->SetRelativeLocationAndRotation(CameraToFollow->GetRelativeLocation(), CameraToFollow->GetRelativeRotation());
 }
 
 bool AVirtualCameraPlayerControllerBase::InputTouch(uint32 Handle, ETouchType::Type Type, const FVector2D & TouchLocation, float Force, FDateTime DeviceTimestamp, uint32 TouchpadIndex)

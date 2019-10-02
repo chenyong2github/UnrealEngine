@@ -97,7 +97,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	MatineeTimeDilation = 1.0f;
 	DemoPlayTimeDilation = 1.0f;
 	PackedLightAndShadowMapTextureSize = 1024;
-	bHidden = false;
+	SetHidden(false);
 
 	DefaultColorScale = FVector(1.0f, 1.0f, 1.0f);
 	DefaultMaxDistanceFieldOcclusionDistance = 600;
@@ -180,7 +180,7 @@ void AWorldSettings::PreInitializeComponents()
 				{
 					FActorSpawnParameters SpawnParameters;
 					SpawnParameters.Owner = this;
-					SpawnParameters.Instigator = Instigator;
+					SpawnParameters.Instigator = GetInstigator();
 					SpawnParameters.ObjectFlags |= RF_Transient;	// We never want to save particle event managers into a map
 					World->MyParticleEventManager = World->SpawnActor<AParticleEventManager>(ParticleEventManagerClass, SpawnParameters);
 				}

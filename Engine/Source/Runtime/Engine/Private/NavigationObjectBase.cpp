@@ -55,12 +55,12 @@ ANavigationObjectBase::ANavigationObjectBase(const FObjectInitializer& ObjectIni
 		if (GoodSprite)
 		{
 			GoodSprite->Sprite = ConstructorStatics.NavigationTextureObject.Get();
-			GoodSprite->RelativeScale3D = FVector(0.5f, 0.5f, 0.5f);
+			GoodSprite->SetRelativeScale3D(FVector(0.5f, 0.5f, 0.5f));
 			GoodSprite->bHiddenInGame = true;
 			GoodSprite->SpriteInfo.Category = ConstructorStatics.ID_Navigation;
 			GoodSprite->SpriteInfo.DisplayName = ConstructorStatics.NAME_Navigation;
 			GoodSprite->SetupAttachment(CapsuleComponent);
-			GoodSprite->bAbsoluteScale = true;
+			GoodSprite->SetUsingAbsoluteScale(true);
 			GoodSprite->bIsScreenSizeScaled = true;
 		}
 
@@ -70,7 +70,7 @@ ANavigationObjectBase::ANavigationObjectBase(const FObjectInitializer& ObjectIni
 			BadSprite->bHiddenInGame = true;
 			BadSprite->SpriteInfo.Category = ConstructorStatics.ID_Navigation;
 			BadSprite->SpriteInfo.DisplayName = ConstructorStatics.NAME_Navigation;
-			BadSprite->bAbsoluteScale = true;
+			BadSprite->SetUsingAbsoluteScale(true);
 			BadSprite->SetupAttachment(CapsuleComponent);
 			BadSprite->bIsScreenSizeScaled = true;
 		}

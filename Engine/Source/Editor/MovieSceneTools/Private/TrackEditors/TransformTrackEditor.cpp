@@ -365,9 +365,9 @@ void F3DTransformTrackEditor::OnPrePropertyChanged(UObject* InObject, const FEdi
 	UProperty* PropertyAboutToChange = InPropertyChain.GetActiveMemberNode()->GetValue();
 	const FName MemberPropertyName = PropertyAboutToChange != nullptr ? PropertyAboutToChange->GetFName() : NAME_None;
 	const bool bTransformationToChange =
-		(MemberPropertyName == GET_MEMBER_NAME_CHECKED(USceneComponent, RelativeLocation) ||
-		 MemberPropertyName == GET_MEMBER_NAME_CHECKED(USceneComponent, RelativeRotation) ||
-		 MemberPropertyName == GET_MEMBER_NAME_CHECKED(USceneComponent, RelativeScale3D));
+		(MemberPropertyName == USceneComponent::GetRelativeLocationPropertyName() ||
+		 MemberPropertyName == USceneComponent::GetRelativeRotationPropertyName() ||
+		 MemberPropertyName == USceneComponent::GetRelativeScale3DPropertyName());
 
 	if (InObject && bTransformationToChange)
 	{
@@ -379,9 +379,9 @@ void F3DTransformTrackEditor::OnPostPropertyChanged(UObject* InObject, FProperty
 {
 	const FName MemberPropertyName = InPropertyChangedEvent.MemberProperty != nullptr ? InPropertyChangedEvent.MemberProperty->GetFName() : NAME_None;
 	const bool bTransformationChanged =
-		(MemberPropertyName == GET_MEMBER_NAME_CHECKED(USceneComponent, RelativeLocation) ||
-			MemberPropertyName == GET_MEMBER_NAME_CHECKED(USceneComponent, RelativeRotation) ||
-			MemberPropertyName == GET_MEMBER_NAME_CHECKED(USceneComponent, RelativeScale3D));
+		(MemberPropertyName == USceneComponent::GetRelativeLocationPropertyName() ||
+			MemberPropertyName == USceneComponent::GetRelativeRotationPropertyName() ||
+			MemberPropertyName == USceneComponent::GetRelativeScale3DPropertyName());
 
 	if (InObject && bTransformationChanged)
 	{

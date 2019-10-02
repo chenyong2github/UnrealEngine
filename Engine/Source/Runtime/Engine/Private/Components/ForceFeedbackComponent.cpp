@@ -195,7 +195,7 @@ void UForceFeedbackComponent::OnRegister()
 
 bool UForceFeedbackComponent::IsReadyForOwnerToAutoDestroy() const
 {
-	return !bIsActive;
+	return !IsActive();
 }
 
 const UObject* UForceFeedbackComponent::AdditionalStatObject() const
@@ -234,7 +234,7 @@ void UForceFeedbackComponent::Deactivate()
 	{
 		Stop();
 
-		if (!bIsActive)
+		if (!IsActive())
 		{
 			OnComponentDeactivated.Broadcast(this);
 		}
@@ -263,7 +263,7 @@ void UForceFeedbackComponent::Play(const float StartTime)
 {
 	UWorld* World = GetWorld();
 
-	if (bIsActive)
+	if (IsActive())
 	{
 		// If this is an auto destroy component we need to prevent it from being auto-destroyed since we're really just restarting it
 		const bool bCurrentAutoDestroy = bAutoDestroy;
@@ -274,7 +274,7 @@ void UForceFeedbackComponent::Play(const float StartTime)
 
 	if (ForceFeedbackEffect && World)
 	{
-		bIsActive = true;
+		SetActiveFlag(true);
 		PlayTime = StartTime;
 		FForceFeedbackManager::Get(World, true)->AddActiveComponent(this);
 	}
@@ -282,7 +282,7 @@ void UForceFeedbackComponent::Play(const float StartTime)
 
 void UForceFeedbackComponent::Stop()
 {
-	if (bIsActive)
+	if (IsActive())
 	{
 		StopInternal(true);
 	}
@@ -291,7 +291,7 @@ void UForceFeedbackComponent::Stop()
 void UForceFeedbackComponent::StopInternal(const bool bRemoveFromManager)
 {
 	// Set this to immediately be inactive
-	bIsActive = false;
+	SetActiveFlag(false);
 	PlayTime = 0.f;
 
 	if (bRemoveFromManager)

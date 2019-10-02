@@ -233,12 +233,12 @@ void FSceneComponentDetails::MakeTransformDetails( IDetailLayoutBuilder& DetailB
 
 
 	// Hide the transform properties so they don't show up
-	DetailBuilder.HideProperty( DetailBuilder.GetProperty( GET_MEMBER_NAME_CHECKED(USceneComponent, bAbsoluteLocation) ) );
-	DetailBuilder.HideProperty( DetailBuilder.GetProperty( GET_MEMBER_NAME_CHECKED(USceneComponent, bAbsoluteRotation) ) );
-	DetailBuilder.HideProperty( DetailBuilder.GetProperty( GET_MEMBER_NAME_CHECKED(USceneComponent, bAbsoluteScale) ) );
-	DetailBuilder.HideProperty( DetailBuilder.GetProperty( GET_MEMBER_NAME_CHECKED(USceneComponent, RelativeLocation) ) );
-	DetailBuilder.HideProperty( DetailBuilder.GetProperty( GET_MEMBER_NAME_CHECKED(USceneComponent, RelativeRotation) ) );
-	DetailBuilder.HideProperty( DetailBuilder.GetProperty( GET_MEMBER_NAME_CHECKED(USceneComponent, RelativeScale3D) ) );
+	DetailBuilder.HideProperty(DetailBuilder.GetProperty(USceneComponent::GetAbsoluteLocationPropertyName()));
+	DetailBuilder.HideProperty(DetailBuilder.GetProperty(USceneComponent::GetAbsoluteRotationPropertyName()));
+	DetailBuilder.HideProperty(DetailBuilder.GetProperty(USceneComponent::GetAbsoluteScalePropertyName()));
+	DetailBuilder.HideProperty(DetailBuilder.GetProperty(USceneComponent::GetRelativeLocationPropertyName()));
+	DetailBuilder.HideProperty(DetailBuilder.GetProperty(USceneComponent::GetRelativeRotationPropertyName()));
+	DetailBuilder.HideProperty(DetailBuilder.GetProperty(USceneComponent::GetRelativeScale3DPropertyName()));
 
 	// Determine whether or not we are editing Class Defaults through the CDO
 	bool bIsEditingBlueprintDefaults = false;

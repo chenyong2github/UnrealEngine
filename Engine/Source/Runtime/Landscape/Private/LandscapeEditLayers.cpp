@@ -2992,7 +2992,7 @@ int32 ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>&
 		}
 
 		ShaderParams.GenerateNormals = true;
-		ShaderParams.GridSize = GetRootComponent()->RelativeScale3D;
+		ShaderParams.GridSize = GetRootComponent()->GetRelativeScale3D();
 
 		// Broadcast Event of the Full Render
 		if ((HeightmapUpdateModes & Update_Heightmap_All) == Update_Heightmap_All)

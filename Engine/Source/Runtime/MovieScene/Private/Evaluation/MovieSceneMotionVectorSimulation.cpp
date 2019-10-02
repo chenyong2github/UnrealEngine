@@ -95,15 +95,15 @@ void FMovieSceneMotionVectorSimulation::Apply(IMovieScenePlayer& Player)
 		if (ParentComp)
 		{
 			FTransform ParentTransform = ParentComp->GetSocketTransform(AttachSocket, RTS_World);
-			if (!Component->bAbsoluteLocation)
+			if (!Component->IsUsingAbsoluteLocation())
 			{
 				ParentToWorld.SetTranslation(ParentTransform.GetTranslation());
 			}
-			if (!Component->bAbsoluteRotation)
+			if (!Component->IsUsingAbsoluteRotation())
 			{
 				ParentToWorld.SetRotation(ParentTransform.GetRotation());
 			}
-			if (!Component->bAbsoluteScale)
+			if (!Component->IsUsingAbsoluteScale())
 			{
 				ParentToWorld.SetScale3D(ParentTransform.GetScale3D());
 			}
@@ -167,15 +167,15 @@ void FMovieSceneMotionVectorSimulation::ApplySimulatedTransforms(USceneComponent
 		FTransform SocketTransform = AttachSocketName == NAME_None ? FTransform::Identity : GetSocketTransform(InComponent, AttachSocketName);
 		FTransform ParentToWorld = SocketTransform * InPreviousTransform;
 
-		if (Child->bAbsoluteLocation)
+		if (Child->IsUsingAbsoluteLocation())
 		{
 			ParentToWorld.SetTranslation(FVector::ZeroVector);
 		}
-		if (Child->bAbsoluteRotation)
+		if (Child->IsUsingAbsoluteRotation())
 		{
 			ParentToWorld.SetRotation(FQuat::Identity);
 		}
-		if (Child->bAbsoluteScale)
+		if (Child->IsUsingAbsoluteScale())
 		{
 			ParentToWorld.SetScale3D(FVector(1.f, 1.f, 1.f));
 		}

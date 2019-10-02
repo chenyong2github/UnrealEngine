@@ -4058,7 +4058,7 @@ bool UEditorEngine::Map_Scale( UWorld* InWorld, const TCHAR* Str, FOutputDevice&
 			}
 			else if( Actor->GetRootComponent() != NULL )
 			{
-				Actor->GetRootComponent()->SetRelativeScale3D( Actor->GetRootComponent()->RelativeScale3D * Factor );
+				Actor->GetRootComponent()->SetRelativeScale3D(Actor->GetRootComponent()->GetRelativeScale3D() * Factor);
 			}
 
 			if( bScaleLocations )

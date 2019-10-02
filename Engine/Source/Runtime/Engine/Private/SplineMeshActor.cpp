@@ -18,7 +18,7 @@
 ASplineMeshActor::ASplineMeshActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	bCanBeDamaged = false;
+	SetCanBeDamaged(false);
 
 	SplineMeshComponent = ObjectInitializer.CreateDefaultSubobject<USplineMeshComponent>(this, TEXT("SplineMeshComponent0"));
 	SplineMeshComponent->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);

@@ -347,12 +347,12 @@ void UImagePlateComponent::UpdateTransformScale()
 		FVector HorizontalScale		= UImagePlateComponent::TransfromFromProjection(ScreenToLocalSpace, FVector4(Plate.FillScreenAmount.X/100.f, 0.f, ScreenSpaceLocalPosition.Z, 1.0f));
 		FVector VerticalScale		= UImagePlateComponent::TransfromFromProjection(ScreenToLocalSpace, FVector4(0.f, Plate.FillScreenAmount.Y/100.f, ScreenSpaceLocalPosition.Z, 1.0f));
 
-		SetRelativeScale3D(FVector(RelativeScale3D.X, HorizontalScale.Size(), VerticalScale.Size()));
-		SetRelativeLocation(FVector(RelativeLocation.X, 0.f, 0.f));
+		SetRelativeScale3D(FVector(GetRelativeScale3D().X, HorizontalScale.Size(), VerticalScale.Size()));
+		SetRelativeLocation(FVector(GetRelativeLocation().X, 0.f, 0.f));
 	}
 	else
 	{
-		SetRelativeScale3D(FVector(RelativeScale3D.X, Plate.FixedSize.X*.5f, Plate.FixedSize.Y*.5f));
+		SetRelativeScale3D(FVector(GetRelativeScale3D().X, Plate.FixedSize.X*.5f, Plate.FixedSize.Y*.5f));
 	}
 }
 

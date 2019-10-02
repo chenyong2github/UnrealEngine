@@ -1477,7 +1477,7 @@ struct FGrassBuilderBase
 		const float DensityScale = bEnableDensityScaling ? CVarGrassDensityScale.GetValueOnAnyThread() : 1.0f;
 		GrassDensity = GrassVariety.GrassDensity.GetValueForFeatureLevel(FeatureLevel) * DensityScale;
 
-		DrawScale = Landscape->GetRootComponent()->RelativeScale3D;
+		DrawScale = Landscape->GetRootComponent()->GetRelativeScale3D();
 		DrawLoc = Landscape->GetActorLocation();
 		LandscapeSectionOffset = Landscape->LandscapeSectionOffset;
 

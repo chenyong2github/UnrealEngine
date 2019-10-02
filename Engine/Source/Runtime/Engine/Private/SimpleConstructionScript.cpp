@@ -253,12 +253,14 @@ void USimpleConstructionScript::PostLoad()
 						if(Node->ParentComponentOrVariableName == NAME_None)
 						{
 							// Note that we have to check for nullptr here, because it may be an ActorComponent type
-							USceneComponent* SceneComponentTemplate = Cast<USceneComponent>(Node->ComponentTemplate);
-							if(SceneComponentTemplate != nullptr
-								&& SceneComponentTemplate->RelativeScale3D != FVector(1.0f, 1.0f, 1.0f))
+							if (USceneComponent* SceneComponentTemplate = Cast<USceneComponent>(Node->ComponentTemplate))
 							{
-								UE_LOG(LogBlueprint, Warning, TEXT("%s: Found non-native root component custom scale for %s (%s) saved prior to being usable; reverting to default scale."), *BPGeneratedClass->GetName(), *Node->GetVariableName().ToString(), *SceneComponentTemplate->RelativeScale3D.ToString());
-								SceneComponentTemplate->RelativeScale3D = FVector(1.0f, 1.0f, 1.0f);
+								const FVector ComponentRelativeScale3D = SceneComponentTemplate->GetRelativeScale3D();
+								if (ComponentRelativeScale3D != FVector(1.0f, 1.0f, 1.0f))
+								{
+									UE_LOG(LogBlueprint, Warning, TEXT("%s: Found non-native root component custom scale for %s (%s) saved prior to being usable; reverting to default scale."), *BPGeneratedClass->GetName(), *Node->GetVariableName().ToString(), *ComponentRelativeScale3D.ToString());
+									SceneComponentTemplate->SetRelativeScale3D_Direct(FVector(1.0f, 1.0f, 1.0f));
+								}
 							}
 
 							// Done - no need to fix up any other nodes.

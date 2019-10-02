@@ -53,12 +53,12 @@ ADisplayClusterPawn::ADisplayClusterPawn(const FObjectInitializer& ObjectInitial
 	CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("DisplayCluster_camera"));
 	CameraComponent->AttachToComponent(CollisionOffsetComponent, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
 	CameraComponent->bUsePawnControlRotation = false;
-	CameraComponent->bAbsoluteLocation = false;
-	CameraComponent->bAbsoluteRotation = false;
+	CameraComponent->SetUsingAbsoluteLocation(false);
+	CameraComponent->SetUsingAbsoluteRotation(false);
 
 	PrimaryActorTick.bCanEverTick = true;
 	bFindCameraComponentWhenViewTarget = true;
-	bCanBeDamaged = false;
+	SetCanBeDamaged(false);
 	bReplicates = false;
 	SpawnCollisionHandlingMethod = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 }

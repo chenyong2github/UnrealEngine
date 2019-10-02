@@ -1992,7 +1992,7 @@ bool UActorChannel::CleanUp(const bool bForDestroy, EChannelCloseReason CloseRea
 			{
 				if (!bTornOff)
 				{
-					Actor->Role = ROLE_Authority;
+					Actor->SetRole(ROLE_Authority);
 					Actor->SetReplicates(false);
 					bTornOff = true;
 					if (Actor->GetWorld() != NULL && !IsEngineExitRequested())
@@ -2937,7 +2937,7 @@ int64 UActorChannel::ReplicateActor()
 	FScopedRoleDowngrade ScopedRoleDowngrade( Actor, RepFlags );
 
 	RepFlags.bNetSimulated	= (Actor->GetRemoteRole() == ROLE_SimulatedProxy);
-	RepFlags.bRepPhysics	= Actor->ReplicatedMovement.bRepPhysics;
+	RepFlags.bRepPhysics	= Actor->GetReplicatedMovement().bRepPhysics;
 	RepFlags.bReplay		= bReplay;
 	//RepFlags.bNetInitial	= RepFlags.bNetInitial;
 
@@ -3090,7 +3090,7 @@ FString UActorChannel::Describe()
 	}
 	else
 	{
-		return FString::Printf(TEXT("[UActorChannel] Actor: %s, Role: %i, RemoteRole: %i %s"), *Actor->GetFullName(), ( int32 )Actor->Role, ( int32 )Actor->GetRemoteRole(), *UChannel::Describe());
+		return FString::Printf(TEXT("[UActorChannel] Actor: %s, Role: %i, RemoteRole: %i %s"), *Actor->GetFullName(), ( int32 )Actor->GetLocalRole(), ( int32 )Actor->GetRemoteRole(), *UChannel::Describe());
 	}
 }
 

@@ -408,8 +408,8 @@ void FLevelUtils::ApplyLevelTransform(const FLevelUtils::FApplyLevelTransformPar
 					// Don't want to transform children they should stay relative to their parents.
 					if (RootComponent && RootComponent->GetAttachParent() == nullptr)
 					{
-						RootComponent->RelativeLocation = TransformParams.LevelTransform.TransformPosition(RootComponent->RelativeLocation);
-						RootComponent->RelativeRotation = TransformParams.LevelTransform.TransformRotation(RootComponent->RelativeRotation.Quaternion()).Rotator();
+						RootComponent->SetRelativeLocation_Direct(TransformParams.LevelTransform.TransformPosition(RootComponent->GetRelativeLocation()));
+						RootComponent->SetRelativeRotation_Direct(TransformParams.LevelTransform.TransformRotation(RootComponent->GetRelativeRotation().Quaternion()).Rotator());
 					}
 				}
 			}
@@ -426,7 +426,7 @@ void FLevelUtils::ApplyLevelTransform(const FLevelUtils::FApplyLevelTransformPar
 					// Don't want to transform children they should stay relative to their parents.
 					if (RootComponent && RootComponent->GetAttachParent() == nullptr)
 					{
-						RootComponent->SetRelativeLocationAndRotation(TransformParams.LevelTransform.TransformPosition(RootComponent->RelativeLocation), TransformParams.LevelTransform.TransformRotation(RootComponent->RelativeRotation.Quaternion()));
+						RootComponent->SetRelativeLocationAndRotation(TransformParams.LevelTransform.TransformPosition(RootComponent->GetRelativeLocation()), TransformParams.LevelTransform.TransformRotation(RootComponent->GetRelativeRotation().Quaternion()));
 					}
 				}
 			}

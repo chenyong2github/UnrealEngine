@@ -48,7 +48,7 @@ AAtmosphericFog::AAtmosphericFog(const FObjectInitializer& ObjectInitializer)
 		if (GetSpriteComponent())
 		{
 			GetSpriteComponent()->Sprite = ConstructorStatics.FogTextureObject.Get();
-			GetSpriteComponent()->RelativeScale3D = FVector(0.5f, 0.5f, 0.5f);
+			GetSpriteComponent()->SetRelativeScale3D(FVector(0.5f, 0.5f, 0.5f));
 			GetSpriteComponent()->SpriteInfo.Category = ConstructorStatics.ID_Fog;
 			GetSpriteComponent()->SpriteInfo.DisplayName = ConstructorStatics.NAME_Fog;
 			GetSpriteComponent()->SetupAttachment(AtmosphericFogComponent);
@@ -70,7 +70,7 @@ AAtmosphericFog::AAtmosphericFog(const FObjectInitializer& ObjectInitializer)
 
 
 	PrimaryActorTick.bCanEverTick = true;
-	bHidden = false;
+	SetHidden(false);
 }
 
 #if WITH_EDITOR
