@@ -76,8 +76,6 @@ void CacheCurrentPlatformAudioCookOverrides(FPlatformAudioCookOverrides& OutOver
 {
 #if PLATFORM_ANDROID && !PLATFORM_LUMIN
 	const TCHAR* CategoryName = TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings");
-#elif PLATFORM_MAC
-	const TCHAR* CategoryName = TEXT("/Script/MacTargetPlatform.MacTargetSettings");
 #elif PLATFORM_IOS
 	const TCHAR* CategoryName = TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings");
 #elif PLATFORM_SWITCH
