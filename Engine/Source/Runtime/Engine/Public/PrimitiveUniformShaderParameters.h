@@ -240,6 +240,8 @@ public:
 		LightmapSceneDataBufferSRV.SafeRelease();
 	}
 
+	ENGINE_API void UploadToGPU();
+
 	FPrimitiveSceneShaderData PrimitiveSceneData;
 	FLightmapSceneShaderData LightmapSceneData;
 
@@ -255,3 +257,4 @@ public:
 * This is used when the VF is used for rendering outside normal mesh passes, where there is no valid scene.
 */
 extern ENGINE_API TGlobalResource<FSinglePrimitiveStructuredBuffer> GIdentityPrimitiveBuffer;
+extern ENGINE_API TGlobalResource<FSinglePrimitiveStructuredBuffer> GTilePrimitiveBuffer;
