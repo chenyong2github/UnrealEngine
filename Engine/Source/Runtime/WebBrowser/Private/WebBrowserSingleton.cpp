@@ -109,7 +109,7 @@ namespace {
 			uint32 dwFlags;		// Reserved for future use, must be zero.
 		};
 
-		THREADNAME_INFO ThreadNameInfo = {0x1000, ThreadName, -1, 0};
+		THREADNAME_INFO ThreadNameInfo = {0x1000, ThreadName, (uint32)-1, 0};
 
 		__try
 		{
