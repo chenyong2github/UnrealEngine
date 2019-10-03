@@ -16,6 +16,7 @@ class EDITORANALYTICSSESSION_API FEditorSessionSummarySender
 {
 public:
 	FEditorSessionSummarySender(IAnalyticsProvider& InAnalyticsProvider, const FString& InSenderName, const int32 InCurrentSessionProcessId);
+	~FEditorSessionSummarySender();
 
 	void Tick(float DeltaTime);
 	void Shutdown();

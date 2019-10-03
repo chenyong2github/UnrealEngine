@@ -185,10 +185,6 @@ void FEngineAnalytics::Initialize()
 
 void FEngineAnalytics::Shutdown(bool bIsEngineShutdown)
 {
-	ensure(!Analytics.IsValid() || Analytics.IsUnique());
-	Analytics.Reset();
-	bIsInitialized = false;
-
 	// Destroy the session manager singleton if it exists
 	if (SessionManager.IsValid() && bIsEngineShutdown)
 	{
@@ -209,6 +205,11 @@ void FEngineAnalytics::Shutdown(bool bIsEngineShutdown)
 		SessionSummarySender.Reset();
 	}
 #endif
+
+	bIsInitialized = false;
+
+	ensure(!Analytics.IsValid() || Analytics.IsUnique());
+	Analytics.Reset();
 }
 
 void FEngineAnalytics::Tick(float DeltaTime)

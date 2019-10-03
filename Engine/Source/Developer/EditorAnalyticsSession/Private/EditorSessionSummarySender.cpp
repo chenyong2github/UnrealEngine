@@ -35,6 +35,10 @@ FEditorSessionSummarySender::FEditorSessionSummarySender(IAnalyticsProvider& InA
 	SendStoredSessions();
 }
 
+FEditorSessionSummarySender::~FEditorSessionSummarySender()
+{
+}
+
 void FEditorSessionSummarySender::Tick(float DeltaTime)
 {
 	HeartbeatTimeElapsed += DeltaTime;
