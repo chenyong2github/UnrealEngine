@@ -11,7 +11,43 @@
 class FEngineService;
 class FPendingCleanupObjects;
 class ISessionService;
+class FSlateRenderer;
 
+
+struct FPreInitContext
+{
+	bool bDumpEarlyConfigReads;
+	bool bDumpEarlyPakFileReads;
+	bool bForceQuitAfterEarlyReads;
+	bool bWithConfigPatching;
+	bool bDisableDisregardForGC;
+	bool bHasEditorToken;
+	bool bIsRegularClient;
+	bool bTokenDoesNotHaveDash;
+
+	FString Token;
+	const TCHAR* CommandletCommandLine;
+	TCHAR* CommandLineCopy;
+
+	FPreInitContext() :
+		CommandletCommandLine(nullptr),
+		CommandLineCopy(nullptr)
+	{
+	}
+
+	void Cleanup()
+	{
+#if WITH_ENGINE && !UE_SERVER
+		SlateRenderer = nullptr;
+#endif // WITH_ENGINE && !UE_SERVER
+		CommandletCommandLine = nullptr;
+		CommandLineCopy = nullptr;
+	}
+
+#if WITH_ENGINE && !UE_SERVER
+	TSharedPtr<FSlateRenderer> SlateRenderer;
+#endif // WITH_ENGINE && !UE_SERVER
+};
 
 /**
  * Implements the main engine loop.	
@@ -47,6 +83,12 @@ public:
 	 * @return The error level; 0 if successful, > 0 if there were errors.
 	 */ 
 	int32 PreInit(const TCHAR* CmdLine);
+	
+	/** First part of PreInit. */
+	int32 PreInitPreStartupScreen(const TCHAR* CmdLine);
+
+	/** Second part of PreInit. */
+	int32 PreInitPostStartupScreen(const TCHAR* CmdLine);
 
 	/** Load all modules needed before Init. */ 
 	void LoadPreInitModules();
@@ -151,6 +193,7 @@ private:
 	TSharedPtr<ISessionService> SessionService;
 
 #endif // WITH_ENGINE
+	FPreInitContext PreInitContext;
 };
 
 
