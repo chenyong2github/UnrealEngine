@@ -720,13 +720,13 @@ struct FLandscapeRenderSystem
 	{
 		if (FetchHeightmapLODBiasesEventRef.IsValid())
 		{
-			FTaskGraphInterface::Get().WaitUntilTaskCompletes(FetchHeightmapLODBiasesEventRef, ENamedThreads::GetRenderThread());
+			FTaskGraphInterface::Get().WaitUntilTaskCompletes(FetchHeightmapLODBiasesEventRef, ENamedThreads::GetRenderThread_Local());
 			FetchHeightmapLODBiasesEventRef.SafeRelease();
 		}
 
 		if (TaskEventRef.Contains(View))
 		{
-			FTaskGraphInterface::Get().WaitUntilTaskCompletes(TaskEventRef[View], ENamedThreads::GetRenderThread());
+			FTaskGraphInterface::Get().WaitUntilTaskCompletes(TaskEventRef[View], ENamedThreads::GetRenderThread_Local());
 			TaskEventRef.Remove(View);
 		}
 		else
