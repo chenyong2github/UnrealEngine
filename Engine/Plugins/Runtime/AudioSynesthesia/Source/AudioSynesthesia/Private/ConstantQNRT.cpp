@@ -219,7 +219,7 @@ void UConstantQNRT::GetNormalizedChannelConstantQAtTime(const float InSeconds, c
 	}
 }
 
-TUniquePtr<Audio::IAnalyzerNRTSettings> UConstantQNRT::GetSettings() const
+TUniquePtr<Audio::IAnalyzerNRTSettings> UConstantQNRT::GetSettings()
 {
 	TUniquePtr<Audio::IAnalyzerNRTSettings> AnalyzerSettings;
 

@@ -146,12 +146,12 @@ class AUDIOSYNESTHESIA_API UConstantQNRT : public UAudioSynesthesiaNRT
 		void GetNormalizedChannelConstantQAtTime(const float InSeconds, const int32 InChannel, TArray<float>& OutConstantQ) const;
 
 		/** Convert ULoudnessNRTSettings to FLoudnessNRTSettings */
- 		TUniquePtr<Audio::IAnalyzerNRTSettings> GetSettings() const override;
+ 		virtual TUniquePtr<Audio::IAnalyzerNRTSettings> GetSettings() override;
 
 	protected:
 
 		/** Return the name of the IAudioAnalyzerNRTFactory associated with this UAudioAnalyzerNRT */
-		FName GetAnalyzerNRTFactoryName() const override;
+		virtual FName GetAnalyzerNRTFactoryName() const override;
 
 };
 
