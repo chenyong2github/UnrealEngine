@@ -15,16 +15,6 @@ class FMallocTBB
 	: public FMalloc
 {
 public:
-	
-	/**
-	 * Default constructor.
-	 */
-	FMallocTBB() :
-		MemTime(0.0)
-	{ }
-
-public:
-
 	// FMalloc interface.
 	
 	virtual void* Malloc( SIZE_T Size, uint32 Alignment ) override;
@@ -49,10 +39,6 @@ protected:
 		// this is expected not to return
 		FPlatformMemory::OnOutOfMemory(Size, Alignment);
 	}
-
-private:
-
-	double MemTime;
 };
 
 #endif // PLATFORM_SUPPORTS_TBB && TBB_ALLOCATOR_ALLOWED

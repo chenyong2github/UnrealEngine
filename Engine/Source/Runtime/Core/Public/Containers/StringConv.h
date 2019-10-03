@@ -1005,9 +1005,14 @@ public:
 	 * Move constructor
 	 */
 	TStringConversion(TStringConversion&& Other)
-		: Converter(MoveTemp((Converter&)Other))
+		: Converter(MoveTemp(ImplicitConv<Converter&>(Other)))
+		, Ptr(Other.Ptr)
+		, StringLength(Other.StringLength)
 	{
 		AllocatorType::MoveToEmpty(Other);
+
+		Other.Ptr          = nullptr;
+		Other.StringLength = 0;
 	}
 
 	/**

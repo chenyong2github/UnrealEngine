@@ -178,10 +178,9 @@ struct GAMEPLAYTAGS_API FGameplayTag
 		return TagName;
 	}
 
-	friend FArchive& operator<<(FArchive& Ar, FGameplayTag& GameplayTag)
+	friend void operator<<(FStructuredArchive::FSlot Slot, FGameplayTag& GameplayTag)
 	{
-		Ar << GameplayTag.TagName;
-		return Ar;
+		Slot << GameplayTag.TagName;
 	}
 
 	/** Overridden for fast serialize */
@@ -561,7 +560,7 @@ struct GAMEPLAYTAGS_API FGameplayTagContainer
 	void Reset(int32 Slack = 0);
 	
 	/** Serialize the tag container */
-	bool Serialize(FArchive& Ar);
+	bool Serialize(FStructuredArchive::FSlot Slot);
 
 	/** Efficient network serialize, takes advantage of the dictionary */
 	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
@@ -870,7 +869,7 @@ struct TStructOpsTypeTraits<FGameplayTagContainer> : public TStructOpsTypeTraits
 {
 	enum
 	{
-		WithSerializer = true,
+		WithStructuredSerializer = true,
 		WithIdenticalViaEquality = true,
 		WithNetSerializer = true,
 		WithNetSharedSerialization = true,

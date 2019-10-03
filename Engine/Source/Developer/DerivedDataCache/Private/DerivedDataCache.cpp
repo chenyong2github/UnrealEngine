@@ -30,13 +30,19 @@ DEFINE_STAT(STAT_DDC_SyncBuildTime);
 DEFINE_STAT(STAT_DDC_ExistTime);
 
 //#define DDC_SCOPE_CYCLE_COUNTER(x) QUICK_SCOPE_CYCLE_COUNTER(STAT_ ## x)
-#define DDC_SCOPE_CYCLE_COUNTER(x) TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT(#x));
+#define DDC_SCOPE_CYCLE_COUNTER(x) TRACE_CPUPROFILER_EVENT_SCOPE(x);
 
 
 #if ENABLE_COOK_STATS
 #include "DerivedDataCacheUsageStats.h"
 namespace DerivedDataCacheCookStats
 {
+	// Use to prevent potential divide by zero issues
+	inline double SafeDivide(const int64 Numerator, const int64 Denominator)
+	{
+		return Denominator != 0 ? (double)Numerator / (double)Denominator : 0.0;
+	}
+
 	FCookStatsManager::FAutoRegisterCallback RegisterCookStats([](FCookStatsManager::AddStatFuncRef AddStat)
 	{
 		TMap<FString, FDerivedDataCacheUsageStats> DDCStats;
@@ -102,15 +108,15 @@ namespace DerivedDataCacheCookStats
 				AddStat(TEXT("DDC.Summary"), FCookStatsManager::CreateKeyValueArray(
 					TEXT("TotalGetHits"), TotalGetHits,
 					TEXT("TotalGets"), TotalGets,
-					TEXT("TotalGetHitPct"), (double)TotalGetHits / TotalGets,
-					TEXT("LocalGetHitPct"), (double)LocalHits / TotalGets,
-					TEXT("SharedGetHitPct"), (double)SharedHits / TotalGets,
-					TEXT("OtherGetHitPct"), double(TotalGetHits - LocalHits - SharedHits) / TotalGets,
-					TEXT("GetMissPct"), (double)TotalGetMisses / TotalGets,
+					TEXT("TotalGetHitPct"), SafeDivide(TotalGetHits, TotalGets),
+					TEXT("LocalGetHitPct"), SafeDivide(LocalHits, TotalGets),
+					TEXT("SharedGetHitPct"), SafeDivide(SharedHits, TotalGets),
+					TEXT("OtherGetHitPct"), SafeDivide((TotalGetHits - LocalHits - SharedHits), TotalGets),
+					TEXT("GetMissPct"), SafeDivide(TotalGetMisses, TotalGets),
 					TEXT("TotalPutHits"), TotalPutHits,
 					TEXT("TotalPuts"), TotalPuts,
-					TEXT("TotalPutHitPct"), (double)TotalPutHits / TotalPuts,
-					TEXT("PutMissPct"), (double)TotalPutMisses / TotalPuts
+					TEXT("TotalPutHitPct"), SafeDivide(TotalPutHits, TotalPuts),
+					TEXT("PutMissPct"), SafeDivide(TotalPutMisses, TotalPuts)
 					));
 			}
 		}
@@ -152,12 +158,12 @@ class FDerivedDataCache : public FDerivedDataCacheInterface
 		/** Async worker that checks the cache backend and if that fails, calls the deriver to build the data and then puts the results to the cache **/
 		void DoWork()
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("DDC_DoWork"));
+			TRACE_CPUPROFILER_EVENT_SCOPE(DDC_DoWork);
 
 			const int32 NumBeforeDDC = Data.Num();
 			bool bGetResult;
 			{
-				TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("DDC_Get"));
+				TRACE_CPUPROFILER_EVENT_SCOPE(DDC_Get);
 
 				INC_DWORD_STAT(STAT_DDC_NumGets);
 				STAT(double ThisTime = 0);
@@ -211,7 +217,7 @@ class FDerivedDataCache : public FDerivedDataCacheInterface
 			else if (DataDeriver)
 			{
 				{
-					TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("DDC_Build"));
+					TRACE_CPUPROFILER_EVENT_SCOPE(DDC_Build);
 
 					INC_DWORD_STAT(STAT_DDC_NumBuilds);
 					STAT(double ThisTime = 0);
@@ -228,7 +234,7 @@ class FDerivedDataCache : public FDerivedDataCacheInterface
 				{
 					check(Data.Num());
 
-					TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("DDC_Put"));
+					TRACE_CPUPROFILER_EVENT_SCOPE(DDC_Put);
 
 					INC_DWORD_STAT(STAT_DDC_NumPuts);
 					STAT(double ThisTime = 0);

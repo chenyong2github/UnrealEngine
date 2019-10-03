@@ -12,7 +12,6 @@
 #include "Stats/Stats.h"
 #include "RHI.h"
 #include "RenderResource.h"
-#include "Templates/ScopedPointer.h"
 #include "UniformBuffer.h"
 #include "GlobalDistanceFieldParameters.h"
 #include "SceneView.h"

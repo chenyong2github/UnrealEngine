@@ -20,7 +20,7 @@ void FGpuProfilerAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_Frame, "GpuProfiler", "Frame");
 }
 
-void FGpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
+bool FGpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 {
 	Trace::FAnalysisSessionEditScope _(Session);
 
@@ -30,8 +30,8 @@ void FGpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 	{
 	case RouteId_EventSpec:
 	{
-		uint64 EventType = EventData.GetValue("EventType").As<uint64>();
-		FString EventName(reinterpret_cast<const TCHAR*>(EventData.GetAttachment()), EventData.GetValue("NameLength").As<uint16>());
+		uint64 EventType = EventData.GetValue<uint64>("EventType");
+		FString EventName(reinterpret_cast<const TCHAR*>(EventData.GetAttachment()), EventData.GetValue<uint16>("NameLength"));
 		EventTypeMap.Add(EventType, TimingProfilerProvider.AddGpuTimer(*EventName));
 		break;
 	}
@@ -43,7 +43,7 @@ void FGpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 
 		uint32 CurrentDepth = 0;
 
-		uint64 LastTimestamp = EventData.GetValue("TimestampBase").As<uint64>();
+		uint64 LastTimestamp = EventData.GetValue<uint64>("TimestampBase");
 		double LastTime = 0.0;
 		while (BufferPtr < BufferEnd)
 		{
@@ -75,6 +75,8 @@ void FGpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 	}
 		
 	}
+
+	return true;
 }
 
 double FGpuProfilerAnalyzer::GpuTimestampToSessionTime(uint64 GpuMicroseconds)

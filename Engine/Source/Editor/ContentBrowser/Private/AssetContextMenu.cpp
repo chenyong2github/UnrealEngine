@@ -79,6 +79,9 @@
 #include "EngineUtils.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
+#include "Commandlets/TextAssetCommandlet.h"
+#include "Misc/FileHelper.h"
+
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
 FAssetContextMenu::FAssetContextMenu(const TWeakPtr<SAssetView>& InAssetView)
@@ -789,6 +792,23 @@ void FAssetContextMenu::MakeAssetActionsSubMenu(UToolMenu* Menu)
 				FSlateIcon(),
 				FUIAction(FExecuteAction::CreateSP(this, &FAssetContextMenu::ExportSelectedAssetsToText))
 			);
+
+			FormatActionsSection.AddMenuEntry(
+				"ViewSelectedAssetAsText",
+				LOCTEXT("ViewSelectedAssetAsText", "View as text"),
+				LOCTEXT("ViewSelectedAssetAsTextTooltip", "Opens a window showing the selected asset in text format"),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateSP(this, &FAssetContextMenu::ViewSelectedAssetAsText),
+					FCanExecuteAction::CreateSP(this, &FAssetContextMenu::CanViewSelectedAssetAsText))
+			);
+
+			FormatActionsSection.AddMenuEntry(
+				"ViewSelectedAssetAsText",
+				LOCTEXT("TextFormatRountrip", "Run Text Asset Roundtrip"),
+				LOCTEXT("TextFormatRountripTooltip", "Save the select asset backwards or forwards between text and binary formats and check for determinism"),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateSP(this, &FAssetContextMenu::DoTextFormatRoundtrip))
+			);
 		}
 	}
 }
@@ -821,9 +841,55 @@ void FAssetContextMenu::ExportSelectedAssetsToText()
 	}
 }
 
-bool FAssetContextMenu::CanExportSelectedAssetsToText() const
+void FAssetContextMenu::ViewSelectedAssetAsText()
 {
-	return true;
+	if (SelectedAssets.Num() == 1)
+	{
+		UPackage* Package = SelectedAssets[0].GetPackage();
+		FString TargetFilename = FPaths::CreateTempFilename(*FPaths::ProjectSavedDir(), nullptr, *FPackageName::GetTextAssetPackageExtension());
+		if (SavePackageHelper(Package, TargetFilename))
+		{
+			FString TextFormat;
+			if (FFileHelper::LoadFileToString(TextFormat, *TargetFilename))
+			{
+				SGenericDialogWidget::OpenDialog(LOCTEXT("TextAssetViewerTitle", "Viewing AS Text Asset..."), SNew(STextBlock).Text(FText::FromString(TextFormat)));
+			}
+			IFileManager::Get().Delete(*TargetFilename);
+		}
+	}
+}
+
+bool FAssetContextMenu::CanViewSelectedAssetAsText() const
+{
+	return SelectedAssets.Num() == 1;
+}
+
+void FAssetContextMenu::DoTextFormatRoundtrip()
+{
+	UTextAssetCommandlet::FProcessingArgs Args;
+	Args.NumSaveIterations = 1;
+	Args.bIncludeEngineContent = true;
+	Args.bVerifyJson = true;
+	Args.CSVFilename = TEXT("");
+	Args.ProcessingMode = UTextAssetCommandlet::EProcessingMode::RoundTrip;
+	Args.bFilenameIsFilter = false;
+
+	for (const FAssetData& Asset : SelectedAssets)
+	{
+		UPackage* Package = Asset.GetPackage();
+		Args.Filename = FPackageName::LongPackageNameToFilename(Package->GetPathName());
+		if (!UTextAssetCommandlet::DoTextAssetProcessing(Args))
+		{
+			FNotificationInfo Info(LOCTEXT("RountripTextAssetFailed", "Roundtripping of selected asset(s) failed"));
+			Info.ExpireDuration = 3.0f;
+			FSlateNotificationManager::Get().AddNotification(Info);
+			return;
+		}
+	}
+
+	FNotificationInfo Info(LOCTEXT("RoundtripTextAssetsSuccessfully", "Roundtripped selected asset(s) successfully"));
+	Info.ExpireDuration = 3.0f;
+	FSlateNotificationManager::Get().AddNotification(Info);
 }
 
 bool FAssetContextMenu::CanExecuteAssetActions() const

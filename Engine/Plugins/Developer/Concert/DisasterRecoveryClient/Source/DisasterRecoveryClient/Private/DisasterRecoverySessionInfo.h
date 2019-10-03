@@ -6,7 +6,7 @@
 #include "DisasterRecoverySessionInfo.generated.h"
 
 USTRUCT()
-struct FDisasterRecoverySessionInfo
+struct FDisasterRecoverySession
 {
 	GENERATED_BODY()
 
@@ -14,5 +14,20 @@ struct FDisasterRecoverySessionInfo
 	FString LastSessionName;
 
 	UPROPERTY()
+	int32 ProcessId = 0;
+
+	UPROPERTY()
 	bool bAutoRestoreLastSession = false;
+};
+
+/**
+ * Hold the information for multiple disaster recovery sessions.
+ */
+USTRUCT()
+struct FDisasterRecoverySessionInfo
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<FDisasterRecoverySession> Sessions;
 };

@@ -301,9 +301,9 @@ public:
 	friend void operator<<(FStructuredArchive::FSlot Slot, FIntVector& Vector)
 	{
 		FStructuredArchive::FRecord Record = Slot.EnterRecord();
-		Record << NAMED_ITEM("X", Vector.X);
-		Record << NAMED_ITEM("Y", Vector.Y);
-		Record << NAMED_ITEM("Z", Vector.Z);
+		Record << SA_VALUE(TEXT("X"), Vector.X);
+		Record << SA_VALUE(TEXT("Y"), Vector.Y);
+		Record << SA_VALUE(TEXT("Z"), Vector.Z);
 	}
 
 	bool Serialize( FArchive& Ar )

@@ -28,13 +28,6 @@ public:
 	FORCEINLINE FPlane();
 
 	/**
-	 * Copy Constructor.
-	 *
-	 * @param P Plane to copy from.
-	 */
-	FORCEINLINE FPlane(const FPlane& P);
-
-	/**
 	 * Constructor.
 	 *
 	 * @param V 4D vector to set up plane.
@@ -382,12 +375,6 @@ inline FVector FVector::PointPlaneProject(const FVector& Point, const FVector& A
  *****************************************************************************/
 
 FORCEINLINE FPlane::FPlane()
-{}
-
-
-FORCEINLINE FPlane::FPlane(const FPlane& P)
-	:	FVector(P)
-	,	W(P.W)
 {}
 
 

@@ -183,7 +183,7 @@ private:
 /*-----------------------------------------------------------------------------
 	FTexture2DMipMap
 -----------------------------------------------------------------------------*/
-
+#if TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA
 FTexture2DMipMap::FCompactByteBulkData::FCompactByteBulkData()
 {
 	Reset();
@@ -239,14 +239,14 @@ typename FTexture2DMipMap::FCompactByteBulkData& FTexture2DMipMap::FCompactByteB
 	return *this;
 }
 
-void FTexture2DMipMap::FCompactByteBulkData::Serialize(FArchive& Ar, UObject* Owner, int32 MipIdx)
+void FTexture2DMipMap::FCompactByteBulkData::Serialize(FArchive& Ar, UObject* Owner, int32 MipIdx, bool /*bAttemptFileMapping*/)
 {
 	check(Ar.IsLoading());
 	FMemory::Free(TexelData);
 	TexelData = nullptr;
 
 	FByteBulkData TmpBulkData;
-	TmpBulkData.Serialize(Ar, Owner, MipIdx);
+	TmpBulkData.Serialize(Ar, Owner, MipIdx, false);
 
 	const int64 Tmp = TmpBulkData.GetBulkDataOffsetInFile();
 	check(Tmp >= 0 && Tmp <= 0xffffffffll);
@@ -256,7 +256,7 @@ void FTexture2DMipMap::FCompactByteBulkData::Serialize(FArchive& Ar, UObject* Ow
 
 	if (IsInlined())
 	{
-		TmpBulkData.GetCopy((void**)&TexelData);
+		TmpBulkData.GetCopy((void**)&TexelData, true);
 	}
 
 	if (!MipIdx && !IsInlined())
@@ -348,12 +348,43 @@ void FTexture2DMipMap::FCompactByteBulkData::GetCopy(void** Dest, bool bDiscardI
 	}
 }
 
+FBulkDataIORequest* FTexture2DMipMap::FCompactByteBulkData::CreateStreamingRequest(const FString& Filename, int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback, uint8* UserSuppliedMemory) const
+{
+	check(Filename.IsEmpty() == false);
+
+	UE_CLOG(IsStoredCompressedOnDisk(), LogSerialization, Fatal, TEXT("Package level compression is no longer supported (%s)."), *Filename);
+	UE_CLOG(GetBulkDataSize() <= 0, LogSerialization, Error, TEXT("(%s) has invalid bulk data size."), *Filename);
+
+	IAsyncReadFileHandle* IORequestHandle = FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*Filename);
+	check(IORequestHandle); // this generally cannot fail because it is async
+
+	if (IORequestHandle == nullptr)
+	{
+		return nullptr;
+	}
+
+	const int64 FinalOffsetInFile = GetBulkDataOffsetInFile() + OffsetInBulkData;
+
+	IAsyncReadRequest* ReadRequest = IORequestHandle->ReadRequest(FinalOffsetInFile, BytesToRead, Priority, CompleteCallback, UserSuppliedMemory);
+	if (ReadRequest != nullptr)
+	{
+		return new FBulkDataIORequest(IORequestHandle, ReadRequest, BytesToRead);
+	}
+	else
+	{
+		delete IORequestHandle;
+		return nullptr;
+	}
+}
+
+#endif // #if TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA
+
 void FTexture2DMipMap::Serialize(FArchive& Ar, UObject* Owner, int32 MipIdx)
 {
 	bool bCooked = Ar.IsCooking();
 	Ar << bCooked;
 
-	BulkData.Serialize(Ar, Owner, MipIdx);
+	BulkData.Serialize(Ar, Owner, MipIdx, false);
 	Ar << SizeX;
 	Ar << SizeY;
 	Ar << SizeZ;
@@ -453,7 +484,7 @@ int32 UTexture2D::CalcNumOptionalMips() const
 		int32 NumOptionalMips = 0;
 		for (int32 MipIndex = 0; MipIndex < PlatformData->Mips.Num(); ++MipIndex)
 		{
-			if (PlatformData->Mips[MipIndex].BulkData.GetBulkDataFlags() & BULKDATA_OptionalPayload)
+			if (PlatformData->Mips[MipIndex].BulkData.IsOptional())
 			{
 				++NumOptionalMips;
 			}
@@ -478,7 +509,7 @@ bool UTexture2D::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFi
 			OutBulkDataFilename = PlatformData->Mips[MipIndex].BulkData.GetFilename();
 #else
 			OutBulkDataFilename = PlatformData->CachedPackageFileName;
-			bool UseOptionalBulkDataFileName = PlatformData->Mips[MipIndex].BulkData.GetBulkDataFlags() & BULKDATA_OptionalPayload;
+			const bool UseOptionalBulkDataFileName = PlatformData->Mips[MipIndex].BulkData.IsOptional();
 			OutBulkDataFilename = FPaths::ChangeExtension(OutBulkDataFilename, UseOptionalBulkDataFileName ? TEXT(".uptnl") : TEXT(".ubulk"));
 #endif
 			return true;
@@ -2328,7 +2359,7 @@ FIncomingTextureArrayDataEntry::FIncomingTextureArrayDataEntry(UTexture2D* InTex
 			MipData[MipIndex].SizeX = Mip.SizeX;
 			MipData[MipIndex].SizeY = Mip.SizeY;
 			
-			const int32 MipDataSize = Mip.BulkData.GetElementCount() * Mip.BulkData.GetElementSize();
+			const int32 MipDataSize = Mip.BulkData.GetBulkDataSize();
 			MipData[MipIndex].Data.Empty(MipDataSize);
 			MipData[MipIndex].Data.AddUninitialized(MipDataSize);
 			// Get copy of data, potentially loading array or using already loaded version.

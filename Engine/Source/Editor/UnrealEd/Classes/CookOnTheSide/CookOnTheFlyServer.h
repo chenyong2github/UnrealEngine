@@ -23,6 +23,7 @@ class IAssetRegistry;
 
 struct FPackageNameCache;
 struct FPackageTracker;
+class FSavePackageContext;
 
 enum class ECookInitializationFlags
 {
@@ -65,6 +66,7 @@ enum class ECookByTheBookOptions
 	NoInputPackages =					0x00000800, // don't include slate content (this cook will probably be missing content unless you know what you are doing)
 	DisableUnsolicitedPackages =		0x00001000, // don't cook any packages which aren't in the files to cook list (this is really dangerious as if you request a file it will not cook all it's dependencies automatically)
 	FullLoadAndSave =					0x00002000, // Load all packages into memory and save them all at once in one tick for speed reasons. This requires a lot of RAM for large games.
+	PackageStore =						0x00004000, // Cook package header information into a global package store
 };
 ENUM_CLASS_FLAGS(ECookByTheBookOptions);
 
@@ -445,6 +447,8 @@ public:
 	*/
 	bool IsCookByTheBookMode() const;
 
+	bool IsUsingPackageStore() const;
+
 	/**
 	* Helper function returns if we are in any cook on the fly mode
 	*
@@ -681,6 +685,11 @@ private:
 	void InitializeSandbox();
 
 	/**
+	* Initialize the package store
+	*/
+	void InitializePackageStore(const TArray<FName>& TargetPlatformNames);
+
+	/**
 	* Initialize all target platforms
 	*/
 	void InitializeTargetPlatforms();
@@ -851,9 +860,6 @@ private:
 		return (CookFlags & InCookFlags) != ECookInitializationFlags::None;
 	}
 
-	/** If true, the maximum file length of a package being saved will be reduced by 32 to compensate for compressed package intermediate files */
-	bool ShouldConsiderCompressedPackageFileLengthRequirements() const;
-
 	/**
 	*	Cook (save) the given package
 	*
@@ -927,6 +933,8 @@ private:
 
 	FPackageTracker*	PackageTracker;
 	FPackageNameCache*	PackageNameCache;
+
+	TArray<FSavePackageContext*> SavePackageContexts;
 
 	// temporary -- should eliminate the need for this. Only required right now because FullLoadAndSave 
 	// accesses maps directly

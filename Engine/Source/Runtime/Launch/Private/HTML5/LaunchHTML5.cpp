@@ -4,7 +4,6 @@
 #include "Misc/App.h"
 #include "Misc/OutputDeviceError.h"
 #include "HTML5/HTML5PlatformMisc.h"
-#include "Templates/ScopedPointer.h"
 #include "LaunchEngineLoop.h"
 #include "EngineAnalytics.h"
 #include "Interfaces/IAnalyticsProvider.h"
@@ -122,7 +121,7 @@ int main(int argc, char** argv)
 {
 	// Specify the application wide locale to be UTF-8 aware. Without this,
 	// wprintf family of functions will fail on not being able to handle
-	// non-ASCII characters such as Scandinavian å, ä and ö. Even more,
+	// non-ASCII characters such as Scandinavian Ã¥, Ã¤ and Ã¶. Even more,
 	// current UE_LOG() handling is not able to cope with these kind of
 	// failures, and would crash.
 	setlocale(LC_ALL, "C.UTF-8");

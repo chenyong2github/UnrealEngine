@@ -15,6 +15,7 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "Misc/EnumClassFlags.h"
 #include "ProfilingDebugging/MiscTrace.h"
+#include "ProfilingDebugging/CsvProfilerTrace.h"
 
 // Whether to allow the CSV profiler in shipping builds.
 // Enable in a .Target.cs file if required.
@@ -46,22 +47,32 @@
 
 // Inline stats (no up front definition)
 #define CSV_SCOPED_TIMING_STAT(Category,StatName) \
-	FScopedCsvStat _ScopedCsvStat_ ## StatName (#StatName, CSV_CATEGORY_INDEX(Category)); \
-	TRACE_CPUPROFILER_EVENT_SCOPE_GROUP(StatName, CpuProfilerGroup_CsvProfiler)
+	TRACE_CSV_PROFILER_INLINE_STAT(#StatName, CSV_CATEGORY_INDEX(Category)); \
+	FScopedCsvStat _ScopedCsvStat_ ## StatName (#StatName, CSV_CATEGORY_INDEX(Category));
 #define CSV_SCOPED_TIMING_STAT_GLOBAL(StatName) \
-	FScopedCsvStat _ScopedCsvStat_ ## StatName (#StatName, CSV_CATEGORY_INDEX_GLOBAL); \
-	TRACE_CPUPROFILER_EVENT_SCOPE_GROUP(StatName, CpuProfilerGroup_CsvProfiler)
+	TRACE_CSV_PROFILER_INLINE_STAT(#StatName, CSV_CATEGORY_INDEX_GLOBAL); \
+	FScopedCsvStat _ScopedCsvStat_ ## StatName (#StatName, CSV_CATEGORY_INDEX_GLOBAL);
 #define CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StatName) \
-	FScopedCsvStatExclusive _ScopedCsvStatExclusive_ ## StatName (#StatName); \
-	TRACE_CPUPROFILER_EVENT_SCOPE_GROUP(StatName, CpuProfilerGroup_CsvProfiler)
-#define CSV_SCOPED_TIMING_STAT_EXCLUSIVE_CONDITIONAL(StatName,Condition) FScopedCsvStatExclusiveConditional _ScopedCsvStatExclusive_ ## StatName (#StatName,Condition);
+	TRACE_CSV_PROFILER_INLINE_STAT_EXCLUSIVE(#StatName); \
+	FScopedCsvStatExclusive _ScopedCsvStatExclusive_ ## StatName (#StatName);
+#define CSV_SCOPED_TIMING_STAT_EXCLUSIVE_CONDITIONAL(StatName,Condition) \
+	TRACE_CSV_PROFILER_INLINE_STAT_EXCLUSIVE(#StatName); \
+	FScopedCsvStatExclusiveConditional _ScopedCsvStatExclusive_ ## StatName (#StatName,Condition);
 
 #define CSV_SCOPED_WAIT_CONDITIONAL(Condition)					FScopedCsvWaitConditional _ScopedCsvWait(Condition);
-#define CSV_SCOPED_SET_WAIT_STAT(StatName)						FScopedCsvSetWaitStat _ScopedCsvSetWaitStat ## StatName("EventWait/"#StatName);
+
+#define CSV_SCOPED_SET_WAIT_STAT(StatName) \
+	TRACE_CSV_PROFILER_INLINE_STAT_EXCLUSIVE("EventWait/"#StatName); \
+	FScopedCsvSetWaitStat _ScopedCsvSetWaitStat ## StatName("EventWait/"#StatName);
+
 #define CSV_SCOPED_SET_WAIT_STAT_IGNORE()						FScopedCsvSetWaitStat _ScopedCsvSetWaitStat ## StatName();
 
-#define CSV_CUSTOM_STAT(Category,StatName,Value,Op)				FCsvProfiler::RecordCustomStat(#StatName, CSV_CATEGORY_INDEX(Category), Value, Op)
-#define CSV_CUSTOM_STAT_GLOBAL(StatName,Value,Op) 				FCsvProfiler::RecordCustomStat(#StatName, CSV_CATEGORY_INDEX_GLOBAL, Value, Op)
+#define CSV_CUSTOM_STAT(Category,StatName,Value,Op) \
+	TRACE_CSV_PROFILER_INLINE_STAT(#StatName, CSV_CATEGORY_INDEX(Category)); \
+	FCsvProfiler::RecordCustomStat(#StatName, CSV_CATEGORY_INDEX(Category), Value, Op);
+#define CSV_CUSTOM_STAT_GLOBAL(StatName,Value,Op) \
+	TRACE_CSV_PROFILER_INLINE_STAT(#StatName, CSV_CATEGORY_INDEX_GLOBAL); \
+	FCsvProfiler::RecordCustomStat(#StatName, CSV_CATEGORY_INDEX_GLOBAL, Value, Op); 
 
 // Stats declared up front
 #define CSV_DEFINE_STAT(Category,StatName)						FCsvDeclaredStat _GCsvStat_##StatName((TCHAR*)TEXT(#StatName), CSV_CATEGORY_INDEX(Category));
@@ -143,7 +154,9 @@ struct FCsvDeclaredStat
 	FCsvDeclaredStat(TCHAR* InNameString, uint32 InCategoryIndex) 
 		: Name(InNameString)
 		, CategoryIndex(InCategoryIndex) 
-	{}
+	{
+		TRACE_CSV_PROFILER_DECLARED_STAT(Name, InCategoryIndex);
+	}
 
 	FName Name;
 	uint32 CategoryIndex;

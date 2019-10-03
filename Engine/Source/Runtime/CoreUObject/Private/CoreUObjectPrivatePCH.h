@@ -180,7 +180,6 @@
 #include "Math/RandomStream.h"
 #include "Containers/List.h"
 #include "Serialization/CustomVersion.h"
-#include "Templates/ScopedPointer.h"
 #include "Misc/OutputDeviceError.h"
 #include "Misc/ObjectThumbnail.h"
 #include "Internationalization/GatherableTextData.h"

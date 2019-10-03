@@ -158,4 +158,12 @@ public:
 	 * @param[in] OtherClientsWithModifMaxFetchNum The maximum number of client info to store in OutOtherClientsWithModifInfo if the latter is not null.
 	 */
 	virtual bool IsAssetModifiedByOtherClients(const FName& AssetName, int32* OutOtherClientsWithModifNum = nullptr, TArray<FConcertClientInfo>* OutOtherClientsWithModifInfo = nullptr, int32 OtherClientsWithModifMaxFetchNum = 0) const = 0;
+
+	/**
+	 * Controls whether the activities emitted to the server through this workspace are marked as 'ignored on restore'. By default, all activities are marked as 'restorable'. When
+	 * the workspace 'ignore' state is true, the events emitted are recorded by the server, but are marked as 'should not restore'. Non-restorable activities are used for inspection.
+	 * @note This was implemented to prevent multi-users transactions from being restored by disaster recovery in case of a crash during as multi-user session.
+	 * @param bIgnore Whether all further events emitted are marked as 'ignored on restore'.
+	 */
+	virtual void SetIgnoreOnRestoreFlagForEmittedActivities(bool bIgnore) = 0;
 };

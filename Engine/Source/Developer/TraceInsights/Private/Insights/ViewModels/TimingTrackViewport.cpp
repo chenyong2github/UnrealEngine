@@ -2,7 +2,23 @@
 
 #include "TimingTrackViewport.h"
 
+#include "Widgets/Layout/SScrollBar.h"
+
 #include <limits>
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FTimingTrackViewport::UpdateSize(const float InWidth, const float InHeight)
+{
+	if (Width != InWidth || Height != InHeight)
+	{
+		Width = InWidth;
+		Height = InHeight;
+		EndTime = SlateUnitsToTime(Width);
+		return true;
+	}
+	return false;
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -51,6 +67,25 @@ bool FTimingTrackViewport::ZoomOnTimeInterval(const double Time, const double Du
 		return true;
 	}
 	return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FTimingTrackViewport::RelativeZoomWithFixedX(const float Delta, const float X)
+{
+	constexpr double ZoomStep = 0.25; // as percent
+	double NewScaleX;
+
+	if (Delta > 0)
+	{
+		NewScaleX = ScaleX * FMath::Pow(1.0 + ZoomStep, Delta);
+	}
+	else
+	{
+		NewScaleX = ScaleX * FMath::Pow(1.0 / (1.0 + ZoomStep), -Delta);
+	}
+
+	return ZoomWithFixedX(NewScaleX, X);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -129,18 +164,92 @@ bool FTimingTrackViewport::EnforceHorizontalScrollLimits(const double U)
 	{
 		NewStartTime = (1.0 - U) * NewStartTime + U * MinT;
 		if (FMath::IsNearlyEqual(NewStartTime, MinT, 1.0 / ScaleX))
+		{
 			NewStartTime = MinT;
+		}
 	}
 	else if (NewStartTime > MaxT)
 	{
 		NewStartTime = (1.0 - U) * NewStartTime + U * MaxT;
 		if (FMath::IsNearlyEqual(NewStartTime, MaxT, 1.0 / ScaleX))
+		{
 			NewStartTime = MaxT;
+		}
 		if (NewStartTime < MinT)
+		{
 			NewStartTime = MinT;
+		}
 	}
 
 	return ScrollAtTime(NewStartTime);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FTimingTrackViewport::OnUserScrolled(TSharedPtr<SScrollBar> ScrollBar, float ScrollOffset)
+{
+	const double S = 1.0 / (MaxValidTime - MinValidTime);
+	const double D = EndTime - StartTime;
+	const float ThumbSizeFraction = FMath::Clamp<float>(D * S, 0.0f, 1.0f);
+	const float OffsetFraction = FMath::Clamp<float>(ScrollOffset, 0.0f, 1.0f - ThumbSizeFraction);
+
+	ScrollBar->SetState(OffsetFraction, ThumbSizeFraction);
+
+	const double NewStartTime = MinValidTime + static_cast<double>(OffsetFraction) * (MaxValidTime - MinValidTime);
+	if (NewStartTime != StartTime)
+	{
+		ScrollAtTime(NewStartTime);
+		return true;
+	}
+
+	return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingTrackViewport::UpdateScrollBar(TSharedPtr<SScrollBar> ScrollBar) const
+{
+	const double S = 1.0 / (MaxValidTime - MinValidTime);
+	const double D = EndTime - StartTime;
+	const float ThumbSizeFraction = FMath::Clamp<float>(D * S, 0.0f, 1.0f);
+	const float ScrollOffset = static_cast<float>((StartTime - MinValidTime) * S);
+	const float OffsetFraction = FMath::Clamp<float>(ScrollOffset, 0.0f, 1.0f - ThumbSizeFraction);
+
+	ScrollBar->SetState(OffsetFraction, ThumbSizeFraction);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FTimingTrackViewport::OnUserScrolledY(TSharedPtr<SScrollBar> ScrollBar, float ScrollOffset)
+{
+	const float S = 1.0 / ScrollHeight;
+	const float D = Height - TopOffset;
+	const float ThumbSizeFraction = FMath::Clamp<float>(D * S, 0.0f, 1.0f);
+	const float OffsetFraction = FMath::Clamp<float>(ScrollOffset, 0.0f, 1.0f - ThumbSizeFraction);
+
+	ScrollBar->SetState(OffsetFraction, ThumbSizeFraction);
+
+	const float NewScrollPosY = OffsetFraction * ScrollHeight;
+	if (NewScrollPosY != ScrollPosY)
+	{
+		ScrollPosY = NewScrollPosY;
+		return true;
+	}
+
+	return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingTrackViewport::UpdateScrollBarY(TSharedPtr<SScrollBar> ScrollBar) const
+{
+	const float S = 1.0 / ScrollHeight;
+	const float D = Height - TopOffset;
+	const float ThumbSizeFraction = FMath::Clamp<float>(D * S, 0.0f, 1.0f);
+	const float ScrollOffset = ScrollPosY * S;
+	const float OffsetFraction = FMath::Clamp<float>(ScrollOffset, 0.0f, 1.0f - ThumbSizeFraction);
+
+	ScrollBar->SetState(OffsetFraction, ThumbSizeFraction);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

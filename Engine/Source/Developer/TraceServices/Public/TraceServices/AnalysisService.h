@@ -14,7 +14,7 @@
 #include "TraceServices/Model/Threads.h"
 #include "TraceServices/Model/TimingProfiler.h"
 #include "TraceServices/Model/LoadTimeProfiler.h"
-#include "TraceServices/Model/Stats.h"
+#include "TraceServices/Model/Counters.h"
 
 namespace Trace
 {

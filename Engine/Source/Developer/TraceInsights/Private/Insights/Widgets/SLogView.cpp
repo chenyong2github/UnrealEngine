@@ -4,6 +4,7 @@
 
 #include "Algo/BinarySearch.h"
 #include "Async/AsyncWork.h"
+#include "EditorFontGlyphs.h"
 #include "EditorStyleSet.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -16,6 +17,7 @@
 // Insights
 #include "Insights/Common/TimeUtils.h"
 #include "Insights/InsightsManager.h"
+#include "Insights/InsightsStyle.h"
 #include "Insights/TimingProfilerCommon.h"
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/ViewModels/TimingViewDrawHelper.h"
@@ -25,7 +27,6 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #define LOCTEXT_NAMESPACE "SLogView"
-
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // SLogMessageRow
@@ -56,7 +57,7 @@ public:
 		ChildSlot
 		[
 			SNew(SBorder)
-				.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+				.BorderImage(FInsightsStyle::Get().GetBrush("WhiteBrush"))
 				.BorderBackgroundColor(this, &SLogMessageRow::GetBackgroundColor)
 				[
 					Row
@@ -153,11 +154,15 @@ public:
 				const double Time = CacheEntry.Time;
 
 				TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
-				if (Window && Window->TimingView)
+				if (Window)
 				{
-					if (Window->TimingView->IsTimeSelectedInclusive(Time))
+					TSharedPtr<STimingView> TimingView = Window->GetTimingView();
+					if (TimingView)
 					{
-						return FSlateColor(FLinearColor(0.25f, 0.5f, 1.0f, 0.25f));
+						if (TimingView->IsTimeSelectedInclusive(Time))
+						{
+							return FSlateColor(FLinearColor(0.25f, 0.5f, 1.0f, 0.25f));
+						}
 					}
 				}
 			}
@@ -184,19 +189,23 @@ public:
 			const double Time = CacheEntry.Time;
 
 			TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
-			if (Window && Window->TimingView)
+			if (Window)
 			{
-				if (Window->TimingView->IsTimeSelectedInclusive(Time))
+				TSharedPtr<STimingView> TimingView = Window->GetTimingView();
+				if (TimingView)
 				{
-					if (IsSelected)
+					if (TimingView->IsTimeSelectedInclusive(Time))
 					{
-						//return FSlateColor(FLinearColor(0.0f, 0.1f, 0.5f, 1.0f));
-						return FSlateColor(FLinearColor(0.0f, 0.05f, 0.2f, 1.0f));
-					}
-					else
-					{
-						//return FSlateColor(FLinearColor(0.2f, 0.4f, 0.8f, 1.0f));
-						return FSlateColor(FLinearColor(0.4f, 0.8f, 1.6f, 1.0f));
+						if (IsSelected)
+						{
+							//return FSlateColor(FLinearColor(0.0f, 0.1f, 0.5f, 1.0f));
+							return FSlateColor(FLinearColor(0.0f, 0.05f, 0.2f, 1.0f));
+						}
+						else
+						{
+							//return FSlateColor(FLinearColor(0.2f, 0.4f, 0.8f, 1.0f));
+							return FSlateColor(FLinearColor(0.4f, 0.8f, 1.6f, 1.0f));
+						}
 					}
 				}
 			}
@@ -624,6 +633,7 @@ void SLogView::Construct(const FArguments& InArgs)
 							.ExternalScrollbar(ExternalScrollbar)
 							.ItemHeight(20.0f)
 							.SelectionMode(ESelectionMode::Single)
+							.OnMouseButtonClick(this, &SLogView::OnMouseButtonClick)
 							.OnSelectionChanged(this, &SLogView::OnSelectionChanged)
 							.ListItemsSource(&Messages)
 							.OnGenerateRow(this, &SLogView::OnGenerateRow)
@@ -810,6 +820,7 @@ void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTim
 				ListView->RebuildList();
 				if (SelectedLogMessage.IsValid())
 				{
+					// Restore selection.
 					SelectedLogMessageByLogIndex(SelectedLogMessage->GetIndex());
 				}
 				bIsDirty = false;
@@ -845,6 +856,12 @@ void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTim
 			UpdateStatsText();
 		}
 	}
+	else if (bIsDirty && !FilteringAsyncTask.IsValid())
+	{
+		bIsDirty = false;
+		DirtyStopwatch.Reset();
+		UpdateStatsText();
+	}
 
 	if (FilteringAsyncTask.IsValid() &&
 		FilteringAsyncTask->IsDone())
@@ -871,6 +888,7 @@ void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTim
 			ListView->RebuildList();
 			if (SelectedLogMessage.IsValid())
 			{
+				// Restore selection.
 				SelectedLogMessageByLogIndex(SelectedLogMessage->GetIndex());
 			}
 			bIsDirty = false;
@@ -917,25 +935,46 @@ void SLogView::SelectedLogMessageByLogIndex(int32 LogIndex)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SLogView::OnSelectionChanged(TSharedPtr<FLogMessage> LogMessage, ESelectInfo::Type SelectInfo)
+void SLogView::SelectLogMessage(TSharedPtr<FLogMessage> LogMessage)
 {
-	TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
-	if (Window && Window->TimingView)
+	if (LogMessage.IsValid())
 	{
-		// Single item selection.
-		if (LogMessage.IsValid())
+		TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
+		if (Window)
 		{
-			const double Time = Cache.Get(LogMessage->GetIndex()).Time;
+			TSharedPtr<STimingView> TimingView = Window->GetTimingView();
+			if (TimingView)
+			{
+				const double Time = Cache.Get(LogMessage->GetIndex()).Time;
 
-			if (FSlateApplication::Get().GetModifierKeys().IsShiftDown())
-			{
-				Window->TimingView->SelectToTimeMarker(Time);
-			}
-			else
-			{
-				Window->TimingView->SetAndCenterOnTimeMarker(Time);
+				if (FSlateApplication::Get().GetModifierKeys().IsShiftDown())
+				{
+					TimingView->SelectToTimeMarker(Time);
+				}
+				else
+				{
+					TimingView->SetAndCenterOnTimeMarker(Time);
+				}
 			}
 		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SLogView::OnMouseButtonClick(TSharedPtr<FLogMessage> LogMessage)
+{
+	SelectLogMessage(LogMessage);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SLogView::OnSelectionChanged(TSharedPtr<FLogMessage> LogMessage, ESelectInfo::Type SelectInfo)
+{
+	if (SelectInfo != ESelectInfo::Direct &&
+		SelectInfo != ESelectInfo::OnMouseClick)
+	{
+		SelectLogMessage(LogMessage);
 	}
 }
 
@@ -1104,33 +1143,34 @@ void  SLogView::CreateVerbosityThresholdMenuSection(FMenuBuilder& MenuBuilder)
 	{
 		const FVerbosityThresholdInfo& Threshold = VerbosityThresholds[Index];
 
-		/*
-		MenuBuilder.AddMenuEntry(
-			Threshold.Label,
-			Threshold.ToolTip,
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &SLogView::VerbosityThreshold_Execute, Threshold.Verbosity),
-				FCanExecuteAction::CreateLambda([] { return true; }),
-				FIsActionChecked::CreateSP(this, &SLogView::VerbosityThreshold_IsChecked, Threshold.Verbosity)),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
-		*/
+		const TSharedRef<SWidget> TextBlock = SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(STextBlock)
+				.Text(Threshold.Label)
+				.ShadowColorAndOpacity(FLinearColor(0.05f, 0.05f, 0.05f, 1.0f))
+				.ShadowOffset(FVector2D(1.0f, 1.0f))
+				.ColorAndOpacity(FSlateColor(FTimeMarkerTrackBuilder::GetColorByVerbosity(Threshold.Verbosity)))
+			]
+			+ SHorizontalBox::Slot()
+			.Padding(2.0f, 0.0f)
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+				.Text(this, &SLogView::VerbosityThreshold_GetSuffixGlyph, Threshold.Verbosity)
+				.ColorAndOpacity(this, &SLogView::VerbosityThreshold_GetSuffixColor, Threshold.Verbosity)
+			];
 
-		const TSharedRef<SWidget> TextBlock = SNew(STextBlock)
-			.Text(Threshold.Label)
-			.ShadowColorAndOpacity(FLinearColor(0.05f, 0.05f, 0.05f, 1.0f))
-			.ShadowOffset(FVector2D(1.0f, 1.0f))
-			.ColorAndOpacity(FSlateColor(FTimeMarkerTrackBuilder::GetColorByVerbosity(Threshold.Verbosity)));
-
 		MenuBuilder.AddMenuEntry(
 			FUIAction(FExecuteAction::CreateSP(this, &SLogView::VerbosityThreshold_Execute, Threshold.Verbosity),
-				FCanExecuteAction::CreateLambda([] { return true; }),
+				FCanExecuteAction(),
 				FIsActionChecked::CreateSP(this, &SLogView::VerbosityThreshold_IsChecked, Threshold.Verbosity)),
 			TextBlock,
 			NAME_None,
 			Threshold.ToolTip,
-			EUserInterfaceActionType::ToggleButton
+			EUserInterfaceActionType::RadioButton
 		);
 	}
 }
@@ -1148,7 +1188,7 @@ TSharedRef<SWidget> SLogView::MakeCategoryFilterMenu()
 			LOCTEXT("ShowAllCategories_Tooltip", "Change filtering to show/hide all categories"),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &SLogView::ShowHideAllCategories_Execute),
-				FCanExecuteAction::CreateLambda([] { return true; }),
+				FCanExecuteAction(),
 				FIsActionChecked::CreateSP(this, &SLogView::ShowHideAllCategories_IsChecked)),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
@@ -1172,17 +1212,6 @@ void SLogView::CreateCategoriesFilterMenuSection(FMenuBuilder& MenuBuilder)
 		const FString CategoryString = CategoryName.ToString();
 		const FText CategoryText(FText::AsCultureInvariant(CategoryString));
 
-		//MenuBuilder.AddMenuEntry(
-		//	FText::AsCultureInvariant(CategoryString),
-		//	FText::Format(LOCTEXT("Category_Tooltip", "Filter the Log View to show/hide category: {0}"), CategoryText),
-		//	FSlateIcon(),
-		//	FUIAction(FExecuteAction::CreateSP(this, &SLogView::ToggleCategory_Execute, CategoryName),
-		//		FCanExecuteAction::CreateLambda([] { return true; }),
-		//		FIsActionChecked::CreateSP(this, &SLogView::ToggleCategory_IsChecked, CategoryName)),
-		//	NAME_None,
-		//	EUserInterfaceActionType::ToggleButton
-		//);
-
 		const TSharedRef<SWidget> TextBlock = SNew(STextBlock)
 			.Text(FText::AsCultureInvariant(CategoryString))
 			.ShadowColorAndOpacity(FLinearColor(0.05f, 0.05f, 0.05f, 1.0f))
@@ -1191,7 +1220,7 @@ void SLogView::CreateCategoriesFilterMenuSection(FMenuBuilder& MenuBuilder)
 
 		MenuBuilder.AddMenuEntry(
 			FUIAction(FExecuteAction::CreateSP(this, &SLogView::ToggleCategory_Execute, CategoryName),
-				FCanExecuteAction::CreateLambda([] { return true; }),
+				FCanExecuteAction(),
 				FIsActionChecked::CreateSP(this, &SLogView::ToggleCategory_IsChecked, CategoryName)),
 			TextBlock,
 			NAME_None,
@@ -1205,7 +1234,7 @@ void SLogView::CreateCategoriesFilterMenuSection(FMenuBuilder& MenuBuilder)
 
 bool SLogView::VerbosityThreshold_IsChecked(ELogVerbosity::Type Verbosity) const
 {
-	return Verbosity <= Filter.GetVerbosityThreshold();
+	return Verbosity == Filter.GetVerbosityThreshold();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1214,6 +1243,22 @@ void SLogView::VerbosityThreshold_Execute(ELogVerbosity::Type Verbosity)
 {
 	Filter.SetVerbosityThreshold(Verbosity);
 	OnFilterChanged();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText SLogView::VerbosityThreshold_GetSuffixGlyph(ELogVerbosity::Type Verbosity) const
+{
+	return Verbosity <= Filter.GetVerbosityThreshold() ? FEditorFontGlyphs::Check : FEditorFontGlyphs::Times;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FSlateColor SLogView::VerbosityThreshold_GetSuffixColor(ELogVerbosity::Type Verbosity) const
+{
+	return Verbosity <= Filter.GetVerbosityThreshold() ?
+		FSlateColor(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f)) :
+		FSlateColor(FLinearColor(1.0f, 0.0f, 0.0f, 1.0f));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

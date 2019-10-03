@@ -185,10 +185,28 @@ bool FFormatArgsHelper::AdvanceArgumentStream(FFormatArgsStreamContext& Context)
 	}
 	if (Context.ArgumentTypeCategory == FFormatArgsTrace::FormatArgTypeCode_CategoryString)
 	{
-		check(Context.ArgumentTypeSize == 2);
-		const TCHAR* StringPtr = reinterpret_cast<const TCHAR*>(Context.PayloadPtr);
-		while (*StringPtr++);
-		Context.PayloadPtr = reinterpret_cast<const uint8*>(StringPtr);
+		if (Context.ArgumentTypeSize == 1)
+		{
+			const uint8* StringPtr = reinterpret_cast<const uint8*>(Context.PayloadPtr);
+			while (*StringPtr++);
+			Context.PayloadPtr = StringPtr;
+		}
+		else if (Context.ArgumentTypeSize == 2)
+		{
+			const uint16* StringPtr = reinterpret_cast<const uint16*>(Context.PayloadPtr);
+			while (*StringPtr++);
+			Context.PayloadPtr = reinterpret_cast<const uint8*>(StringPtr);
+		}
+		else if (Context.ArgumentTypeSize == 4)
+		{
+			const uint32* StringPtr = reinterpret_cast<const uint32*>(Context.PayloadPtr);
+			while (*StringPtr++);
+			Context.PayloadPtr = reinterpret_cast<const uint8*>(StringPtr);
+		}
+		else
+		{
+			check(false);
+		}
 	}
 	else
 	{
@@ -231,20 +249,34 @@ double FFormatArgsHelper::ExtractFloatingPointArgument(FFormatArgsStreamContext&
 	return Result;
 }
 
-const TCHAR* FFormatArgsHelper::ExtractStringArgument(FFormatArgsStreamContext& ArgStream)
+const TCHAR* FFormatArgsHelper::ExtractStringArgument(FFormatArgsStreamContext& ArgStream, TCHAR* Temp, uint64 MaxTemp)
 {
 	static TCHAR Empty[] = TEXT("");
 	const TCHAR* Result = Empty;
 	if (ArgStream.ArgumentTypeCategory == FFormatArgsTrace::FormatArgTypeCode_CategoryString)
 	{
-		check(ArgStream.ArgumentTypeSize == 2);
-		Result = reinterpret_cast<const TCHAR*>(ArgStream.PayloadPtr);
+		if (ArgStream.ArgumentTypeSize == sizeof(TCHAR))
+		{
+			Result = reinterpret_cast<const TCHAR*>(ArgStream.PayloadPtr);
+		}
+		else if (ArgStream.ArgumentTypeSize == sizeof(ANSICHAR))
+		{
+			const ANSICHAR* AnsiString = reinterpret_cast<const ANSICHAR*>(ArgStream.PayloadPtr);
+			int32 SourceLength = TCString<ANSICHAR>::Strlen(AnsiString) + 1;
+			TStringConvert<ANSICHAR, TCHAR> StringConvert;
+			int32 ConvertedLength = StringConvert.ConvertedLength(AnsiString, SourceLength);
+			if (ConvertedLength < MaxTemp)
+			{
+				StringConvert.Convert(Temp, MaxTemp, AnsiString, SourceLength);
+				Result = Temp;
+			}
+		}
 	}
 	AdvanceArgumentStream(ArgStream);
 	return Result;
 }
 
-int32 FFormatArgsHelper::FormatArgument(TCHAR* Out, uint64 MaxOut, const FFormatArgSpec& ArgSpec, FFormatArgsStreamContext& ArgStream)
+int32 FFormatArgsHelper::FormatArgument(TCHAR* Out, uint64 MaxOut, TCHAR* Temp, uint64 MaxTemp, const FFormatArgSpec& ArgSpec, FFormatArgsStreamContext& ArgStream)
 {
 	check(ArgSpec.AdditionalIntegerArgumentCount <= 2);
 	switch (ArgSpec.ExpectedTypeCategory)
@@ -291,15 +323,15 @@ int32 FFormatArgsHelper::FormatArgument(TCHAR* Out, uint64 MaxOut, const FFormat
 	case FFormatArgsTrace::FormatArgTypeCode_CategoryString:
 		if (ArgSpec.AdditionalIntegerArgumentCount == 2)
 		{
-			return FCString::Snprintf(Out, MaxOut, ArgSpec.FormatString, ExtractIntegerArgument(ArgStream), ExtractIntegerArgument(ArgStream), ExtractStringArgument(ArgStream));
+			return FCString::Snprintf(Out, MaxOut, ArgSpec.FormatString, ExtractIntegerArgument(ArgStream), ExtractIntegerArgument(ArgStream), ExtractStringArgument(ArgStream, Temp, MaxTemp));
 		}
 		else if (ArgSpec.AdditionalIntegerArgumentCount == 1)
 		{
-			return FCString::Snprintf(Out, MaxOut, ArgSpec.FormatString, ExtractIntegerArgument(ArgStream), ExtractStringArgument(ArgStream));
+			return FCString::Snprintf(Out, MaxOut, ArgSpec.FormatString, ExtractIntegerArgument(ArgStream), ExtractStringArgument(ArgStream, Temp, MaxTemp));
 		}
 		else
 		{
-			return FCString::Snprintf(Out, MaxOut, ArgSpec.FormatString, ExtractStringArgument(ArgStream));
+			return FCString::Snprintf(Out, MaxOut, ArgSpec.FormatString, ExtractStringArgument(ArgStream, Temp, MaxTemp));
 		}
 		break;
 	default:
@@ -308,7 +340,7 @@ int32 FFormatArgsHelper::FormatArgument(TCHAR* Out, uint64 MaxOut, const FFormat
 	}
 }
 
-void FFormatArgsHelper::Format(TCHAR* Out, uint64 MaxOut, const TCHAR* FormatString, const uint8* FormatArgs)
+void FFormatArgsHelper::Format(TCHAR* Out, uint64 MaxOut, TCHAR* Temp, uint64 MaxTemp, const TCHAR* FormatString, const uint8* FormatArgs)
 {
 	FFormatArgsStreamContext ArgumentStream;
 	InitArgumentStream(ArgumentStream, FormatArgs);
@@ -333,7 +365,7 @@ void FFormatArgsHelper::Format(TCHAR* Out, uint64 MaxOut, const TCHAR* FormatStr
 		}
 		if (Spec.Valid)
 		{
-			int32 Length = FormatArgument(Dst, DstEnd - Dst, Spec, ArgumentStream);
+			int32 Length = FormatArgument(Dst, DstEnd - Dst, Temp, MaxTemp, Spec, ArgumentStream);
 			if (Length < 0)
 			{
 				break;

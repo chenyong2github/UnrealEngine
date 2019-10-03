@@ -23,6 +23,7 @@ public:
 	void SetThreadGroup(uint32 Id, const TCHAR* GroupName);
 	virtual uint64 GetModCount() const override { return ModCount; }
 	virtual void EnumerateThreads(TFunctionRef<void(const FThreadInfo&)> Callback) const override;
+	virtual const TCHAR* GetThreadName(uint32 ThreadId) const override;
 
 private:
 	struct FThreadInfoInternal

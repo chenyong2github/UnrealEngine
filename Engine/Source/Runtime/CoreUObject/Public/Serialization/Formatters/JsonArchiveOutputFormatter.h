@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Serialization/StructuredArchiveFormatter.h"
+#include "UObject/ObjectResource.h"
 
 #if WITH_TEXT_ARCHIVE_SUPPORT
 
@@ -44,6 +45,15 @@ public:
 	virtual void EnterMapElement_TextOnly(FString& Name, EArchiveValueType& OutType) override;
 	virtual void LeaveMapElement() override;
 
+	virtual void EnterAttributedValue() override;
+	virtual void EnterAttribute(FArchiveFieldName AttributeName) override;
+	virtual void EnterAttributedValueValue() override;
+	virtual void LeaveAttribute() override;
+	virtual void LeaveAttributedValue() override;
+	virtual bool TryEnterAttribute(FArchiveFieldName AttributeName, bool bEnterWhenSaving) override;
+
+	virtual bool TryEnterAttributedValueValue() override;
+
 	virtual void Serialize(uint8& Value) override;
 	virtual void Serialize(uint16& Value) override;
 	virtual void Serialize(uint32& Value) override;
@@ -66,12 +76,22 @@ public:
 	virtual void Serialize(TArray<uint8>& Value) override;
 	virtual void Serialize(void* Data, uint64 DataSize) override;
 
+	void SetObjectIndicesMap(const TMap<UObject*, FPackageIndex>* InObjectIndicesMap)
+	{
+		ObjectIndicesMap = InObjectIndicesMap;
+	}
+
 private:
 	FArchive& Inner;
 
+	const TMap<UObject*, FPackageIndex>* ObjectIndicesMap = nullptr;
+
 	TArray<ANSICHAR> Newline;
-	bool bNeedsComma;
-	bool bNeedsNewline;
+	bool bNeedsComma   = false;
+	bool bNeedsNewline = false;
+
+	TArray<int32> NumAttributesStack;
+	TArray<int64> TextStartPosStack;
 
 	void Write(ANSICHAR Character);
 
@@ -83,8 +103,13 @@ private:
 
 	void WriteOptionalComma();
 	void WriteOptionalNewline();
+	void WriteOptionalAttributedBlockOpening();
+	void WriteOptionalAttributedBlockValue();
+	void WriteOptionalAttributedBlockClosing();
 
 	void SerializeStringInternal(const FString& String);
+
+	bool IsObjectAllowed(UObject* InObject) const;
 };
 
 #endif

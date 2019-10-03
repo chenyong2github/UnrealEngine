@@ -162,6 +162,10 @@ public:
 						NewFormat[NewIndex++] = LITERAL(WIDECHAR, 'l');
 						NewFormat[NewIndex] = *NextChar;
 					}
+					else if (*NextChar == LITERAL(WIDECHAR, 'S'))
+					{
+						NewFormat[NewIndex] = LITERAL(WIDECHAR, 's');
+					}
 					else
 					{
 						NewFormat[NewIndex] = *NextChar;

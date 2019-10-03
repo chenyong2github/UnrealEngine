@@ -1464,6 +1464,23 @@ public:
 		}
 		else
 		{
+			if (!FPlatformProcess::SupportsMultithreading())
+			{
+				bool bAnyPending = false;
+				for (int32 Index = 0; Index < Tasks.Num(); Index++)
+				{
+					if (!Tasks[Index]->IsComplete())
+					{
+						bAnyPending = true;
+						break;
+					}
+				}
+				if (!bAnyPending)
+				{
+					return;
+				}
+				UE_LOG(LogTaskGraph, Fatal, TEXT("Recursive waits are not allowed in single threaded mode."));
+			}
 			// We will just stall this thread on an event while we wait
 			FScopedEvent Event;
 			TriggerEventWhenTasksComplete(Event.Get(), Tasks, CurrentThreadIfKnown);

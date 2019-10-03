@@ -7,7 +7,7 @@ The following will help explain what kinds of files these are.
 Development Build
 =================
 
-Packaging "Dewelopment" builds:
+Packaging "Development" builds:
 	* Only uncompressed files are built
 	* Jump down to "Local Testing" to test your project
 

@@ -337,6 +337,6 @@ void operator<<(FStructuredArchive::FSlot Slot, FGuid& G)
 	else
 	{
 		FStructuredArchive::FRecord Record = Slot.EnterRecord();
-		Record << NAMED_ITEM("A", G.A) << NAMED_ITEM("B", G.B) << NAMED_ITEM("C", G.C) << NAMED_ITEM("D", G.D);
+		Record << SA_VALUE(TEXT("A"), G.A) << SA_VALUE(TEXT("B"), G.B) << SA_VALUE(TEXT("C"), G.C) << SA_VALUE(TEXT("D"), G.D);
 	}
 }

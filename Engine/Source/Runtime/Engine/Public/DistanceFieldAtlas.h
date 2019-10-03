@@ -10,7 +10,6 @@
 #include "Containers/LockFreeList.h"
 #include "ProfilingDebugging/ResourceSize.h"
 #include "Engine/EngineTypes.h"
-#include "Templates/ScopedPointer.h"
 #include "UObject/GCObject.h"
 #include "RenderResource.h"
 #include "RenderingThread.h"

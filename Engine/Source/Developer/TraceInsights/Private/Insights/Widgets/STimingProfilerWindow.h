@@ -18,13 +18,16 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FActiveTimerHandle;
-class SVerticalBox;
+class FMenuBuilder;
+
 class SFrameTrack;
 class SGraphTrack;
+class SLogView;
 class SStatsView;
 class STimersView;
+class STimerTreeView;
 class STimingView;
-class SLogView;
+class SVerticalBox;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -36,6 +39,8 @@ struct FTimingProfilerTabs
 	static const FName GraphTrackID;
 	static const FName TimingViewID;
 	static const FName TimersID;
+	static const FName CallersID;
+	static const FName CalleesID;
 	static const FName StatsCountersID;
 	static const FName LogViewID;
 };
@@ -52,8 +57,10 @@ public:
 	/** Virtual destructor. */
 	virtual ~STimingProfilerWindow();
 
-	SLATE_BEGIN_ARGS(STimingProfilerWindow){}
+	SLATE_BEGIN_ARGS(STimingProfilerWindow) {}
 	SLATE_END_ARGS()
+
+	void Reset();
 
 	/** Constructs this widget. */
 	void Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& ConstructUnderMajorTab, const TSharedPtr<SWindow>& ConstructUnderWindow);
@@ -64,22 +71,35 @@ public:
 
 	TSharedPtr<FTabManager> GetTabManager() const { return TabManager; }
 
+	TSharedPtr<STimingView> GetTimingView() const { return TimingView; }
+	TSharedPtr<STimersView> GetTimersView() const { return TimersView; }
+	TSharedPtr<STimerTreeView> GetCallersTreeView() const { return CallersTreeView; }
+	TSharedPtr<STimerTreeView> GetCalleesTreeView() const { return CalleesTreeView; }
+	TSharedPtr<SStatsView> GetStatsView() const { return StatsView; }
+	TSharedPtr<SLogView> GetLogView() const { return LogView; }
+
 private:
 	TSharedRef<SDockTab> SpawnTab_Toolbar(const FSpawnTabArgs& Args);
 	void OnToolbarTabClosed(TSharedRef<SDockTab> TabBeingClosed);
-	
+
 	TSharedRef<SDockTab> SpawnTab_FramesTrack(const FSpawnTabArgs& Args);
 	void OnFramesTrackTabClosed(TSharedRef<SDockTab> TabBeingClosed);
-	
+
 	TSharedRef<SDockTab> SpawnTab_GraphTrack(const FSpawnTabArgs& Args);
 	void OnGraphTrackTabClosed(TSharedRef<SDockTab> TabBeingClosed);
-	
+
 	TSharedRef<SDockTab> SpawnTab_TimingView(const FSpawnTabArgs& Args);
 	void OnTimingViewTabClosed(TSharedRef<SDockTab> TabBeingClosed);
-	
+
 	TSharedRef<SDockTab> SpawnTab_Timers(const FSpawnTabArgs& Args);
 	void OnTimersTabClosed(TSharedRef<SDockTab> TabBeingClosed);
-	
+
+	TSharedRef<SDockTab> SpawnTab_Callers(const FSpawnTabArgs& Args);
+	void OnCallersTabClosed(TSharedRef<SDockTab> TabBeingClosed);
+
+	TSharedRef<SDockTab> SpawnTab_Callees(const FSpawnTabArgs& Args);
+	void OnCalleesTabClosed(TSharedRef<SDockTab> TabBeingClosed);
+
 	TSharedRef<SDockTab> SpawnTab_StatsCounters(const FSpawnTabArgs& Args);
 	void OnStatsCountersTabClosed(TSharedRef<SDockTab> TabBeingClosed);
 
@@ -157,32 +177,37 @@ private:
 	 */
 	virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)  override;
 
-public:
-	/** Widget for the frame track */
+private:
+	/** The Frame track widget */
 	TSharedPtr<SFrameTrack> FrameTrack;
 
-	/** Widget for the graph track */
+	/** The graph track widget */
 	TSharedPtr<SGraphTrack> GraphTrack;
 
-	/** Widget for the timing track */
+	/** The Timing view (multi-track) widget */
 	TSharedPtr<STimingView> TimingView;
 
-	/** Holds the Timers view widget. */
+	/** The Timers view widget */
 	TSharedPtr<STimersView> TimersView;
 
-	/** Holds the Stats (Counters) view widget. */
+	/** The Callers tree view widget */
+	TSharedPtr<STimerTreeView> CallersTreeView;
+
+	/** The Callees tree view widget */
+	TSharedPtr<STimerTreeView> CalleesTreeView;
+
+	/** The Stats (Counters) view widget */
 	TSharedPtr<SStatsView> StatsView;
 
-	/** Widget for the log view */
+	/** The Log view widget */
 	TSharedPtr<SLogView> LogView;
 
-	/** The number of seconds the profiler has been active */
-	float DurationActive;
-
-private:
 	/** Holds the tab manager that manages the front-end's tabs. */
 	TSharedPtr<FTabManager> TabManager;
 
 	/** The handle to the active update duration tick */
 	TWeakPtr<FActiveTimerHandle> ActiveTimerHandle;
+
+	/** The number of seconds the profiler has been active */
+	float DurationActive;
 };

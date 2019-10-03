@@ -8,7 +8,6 @@
 #include "UObject/Object.h"
 #include "Misc/Guid.h"
 #include "Misc/WorldCompositionUtility.h"
-#include "Templates/ScopedPointer.h"
 #include "Misc/OutputDeviceError.h"
 #include "Misc/ObjectThumbnail.h"
 #include "Serialization/CustomVersion.h"
@@ -16,6 +15,11 @@
 #include "Misc/SecureHash.h"
 
 class Error;
+
+// This is a dummy type which is not implemented anywhere. It's only 
+// used to flag a deprecated Conform argument to package save functions.
+class FLinkerNull;
+class FSavePackageContext;
 
 /**
 * Represents the result of saving a package
@@ -144,7 +148,7 @@ public:
 
 private:
 	/** Time in seconds it took to fully load this package. 0 if package is either in process of being loaded or has never been fully loaded.					*/
-	float LoadTime;
+	float LoadTime;		// TODO: strip from runtime?
 
 #if WITH_EDITORONLY_DATA
 	/** Indicates which folder to display this package under in the Generic Browser's list of packages. If not specified, package is added to the root level.	*/
@@ -186,10 +190,10 @@ private:
 public:
 
 	/** Editor only: PIE instance ID this package belongs to, INDEX_NONE otherwise */
-	int32 PIEInstanceID;
+	int32 PIEInstanceID;		// TODO: strip from runtime?
 
 	/** The name of the file that this package was loaded from */
-	FName	FileName;
+	FName	FileName;			// TODO: strip from runtime?
 
 	/** Linker load associated with this package */
 	class FLinkerLoad* LinkerLoad;
@@ -204,7 +208,7 @@ public:
 	FCustomVersionContainer LinkerCustomVersion;
 
 	/** size of the file for this package; if the package was not loaded from a file or was a forced export in another package, this will be zero */
-	uint64 FileSize;
+	uint64 FileSize;			// TODO: strip from runtime?
 
 #if WITH_EDITORONLY_DATA
 	/** Editor only: Thumbnails stored in this package */
@@ -541,9 +545,10 @@ public:
 	* @return	FSavePackageResultStruct enum value with the result of saving a package as well as extra data
 	*/
 	static FSavePackageResultStruct Save(UPackage* InOuter, UObject* Base, EObjectFlags TopLevelFlags, const TCHAR* Filename,
-		FOutputDevice* Error=GError, FLinkerLoad* Conform=NULL, bool bForceByteSwapping=false, bool bWarnOfLongFilename=true, 
+		FOutputDevice* Error=GError, FLinkerNull* Conform=NULL, bool bForceByteSwapping=false, bool bWarnOfLongFilename=true, 
 		uint32 SaveFlags=SAVE_None, const class ITargetPlatform* TargetPlatform = NULL, const FDateTime& FinalTimeStamp = FDateTime::MinValue(), 
-		bool bSlowTask = true, class FArchiveDiffMap* InOutDiffMap = nullptr);
+		bool bSlowTask = true, class FArchiveDiffMap* InOutDiffMap = nullptr,
+		FSavePackageContext* SavePackageContext = nullptr);
 
 	/**
 	* Save one specific object (along with any objects it references contained within the same Outer) into an Unreal package.
@@ -566,35 +571,11 @@ public:
 	* @return	true if the package was saved successfully.
 	*/
 	static bool SavePackage(UPackage* InOuter, UObject* Base, EObjectFlags TopLevelFlags, const TCHAR* Filename,
-		FOutputDevice* Error = GError, FLinkerLoad* Conform = NULL, bool bForceByteSwapping = false, bool bWarnOfLongFilename = true,
+		FOutputDevice* Error = GError, FLinkerNull* Conform = NULL, bool bForceByteSwapping = false, bool bWarnOfLongFilename = true,
 		uint32 SaveFlags = SAVE_None, const class ITargetPlatform* TargetPlatform = NULL, const FDateTime& FinalTimeStamp = FDateTime::MinValue(), bool bSlowTask = true);
 
 	/** Wait for any SAVE_Async file writes to complete **/
 	static void WaitForAsyncFileWrites();
-
-	/**
-	* Static: Saves thumbnail data for the specified package outer and linker
-	*
-	* @param	InOuter							the outer to use for the new package
-	* @param	Linker							linker we're currently saving with
-	*/
-	static void SaveThumbnails(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::FSlot Slot);
-
-	/**
-	* Static: Saves asset registry data for the specified package outer and linker
-	*
-	* @param	InOuter							the outer to use for the new package
-	* @param	Linker							linker we're currently saving with
-	*/
-	static void SaveAssetRegistryData(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::FSlot Slot);
-
-	/**
-	* Static: Saves the level information used by the World browser
-	*
-	* @param	InOuter							the outer to use for the new package
-	* @param	Linker							linker we're currently saving with
-	*/
-	static void SaveWorldLevelInfo(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::FSlot Slot);
 
 	/**
 	* Determines if a package contains no more assets.
@@ -604,16 +585,5 @@ public:
 	* @return true if Package contains no more assets.
 	*/
 	static bool IsEmptyPackage(UPackage* Package, const UObject* LastReferencer = NULL);
-
-	/**
-	* Determines the set of object marks that should be excluded for the target platform
-	*
-	* @param TargetPlatform	The platform being saved for
-	* @param bIsCooking		Whether we are cooking or not
-	*
-	* @return Excluded object marks specific for the particular target platform, objects with any of these marks will be rejected from the cook
-	*/
-	static EObjectMark GetExcludedObjectMarksForTargetPlatform( const class ITargetPlatform* TargetPlatform, const bool bIsCooking );
-
 };
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

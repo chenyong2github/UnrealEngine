@@ -5,7 +5,6 @@
 #include "Lumin/LuminOutputDeviceDebug.h"
 #include "CoreGlobals.h"
 #include "Misc/Parse.h"
-#include "Templates/ScopedPointer.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
 #include "Misc/OutputDeviceMemory.h"

@@ -24,12 +24,13 @@
 #include "Misc/App.h"
 #include "Misc/OutputDeviceConsole.h"
 #include "HAL/PlatformFilemanager.h"
-#include "Templates/ScopedPointer.h"
 #include "HAL/FileManagerGeneric.h"
 #include "HAL/ExceptionHandling.h"
 #include "Stats/StatsMallocProfilerProxy.h"
 #include "Trace/Trace.h"
 #include "ProfilingDebugging/MiscTrace.h"
+#include "ProfilingDebugging/PlatformFileTrace.h"
+#include "ProfilingDebugging/CountersTrace.h"
 #if WITH_ENGINE
 #include "HAL/PlatformSplash.h"
 #endif
@@ -1203,11 +1204,47 @@ DECLARE_CYCLE_STAT(TEXT("FEngineLoop::PreInitPostStartupScreen.AfterStats"), STA
 int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 {
 	TRACE_REGISTER_GAME_THREAD(FPlatformTLS::GetCurrentThreadId());
-#if CPUPROFILERTRACE_ENABLED
-	FCpuProfilerTrace::Init(FParse::Param(CmdLine, TEXT("cpuprofilertrace")));
-#endif
+	TRACE_CPUPROFILER_INIT(CmdLine);
+	TRACE_PLATFORMFILE_INIT(CmdLine);
+	TRACE_COUNTERS_INIT(CmdLine);
 
 	SCOPED_BOOT_TIMING("FEngineLoop::PreInit");
+
+	// Trace out information about this session
+	{
+		uint8 Payload[1024];
+		int32 PayloadSize = 0;
+
+		auto AddToPayload = [&] (const TCHAR* String) -> uint8
+		{
+			int32 Length = FCString::Strlen(String);
+			Length = FMath::Min<int32>(Length, sizeof(Payload) - PayloadSize - 1);
+			for (int32 i = 0, n = Length; i < n; ++i)
+			{
+				Payload[PayloadSize] = uint8(String[i] & 0x7f);
+				++PayloadSize;
+			}
+			return uint8(PayloadSize - Length);
+		};
+
+		AddToPayload(FGenericPlatformMisc::GetUBTPlatform());
+		uint8 AppNameOffset = AddToPayload(TEXT(UE_APP_NAME));
+		uint8 CommandLineOffset = AddToPayload(CmdLine);
+
+		UE_TRACE_EVENT_BEGIN(Diagnostics, Session, Important|Always)
+			UE_TRACE_EVENT_FIELD(uint8, AppNameOffset)
+			UE_TRACE_EVENT_FIELD(uint8, CommandLineOffset)
+			UE_TRACE_EVENT_FIELD(uint8, ConfigurationType)
+			UE_TRACE_EVENT_FIELD(uint8, TargetType)
+		UE_TRACE_EVENT_END()
+
+		UE_TRACE_LOG(Diagnostics, Session, PayloadSize)
+			<< Session.AppNameOffset(AppNameOffset)
+			<< Session.CommandLineOffset(CommandLineOffset)
+			<< Session.ConfigurationType(uint8(FApp::GetBuildConfiguration()))
+			<< Session.TargetType(uint8(FApp::GetBuildTargetType()))
+			<< Session.Attachment(Payload, PayloadSize);
+	}
 
 #if PLATFORM_WINDOWS
 	// Register a handler for Ctrl-C so we've effective signal handling from the outset.
@@ -1259,10 +1296,15 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	}
 
 	{
-		FString TraceHost;
-		if (FParse::Value(CmdLine, TEXT("-tracehost="), TraceHost))
+		FString Parameter;
+		if (FParse::Value(CmdLine, TEXT("-tracehost="), Parameter))
 		{
-			Trace::Connect(*TraceHost);
+			Trace::SendTo(*Parameter);
+		}
+
+		else if (FParse::Value(CmdLine, TEXT("-tracefile="), Parameter))
+		{
+			Trace::WriteTo(*Parameter);
 		}
 
 #if PLATFORM_WINDOWS && !UE_BUILD_SHIPPING
@@ -1272,7 +1314,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 			HANDLE KnownEvent = ::OpenEvent(EVENT_ALL_ACCESS, false, TEXT("Local\\UnrealInsightsRecorder"));
 			if (KnownEvent != nullptr)
 			{
-				Trace::Connect(TEXT("127.0.0.1"));
+				Trace::SendTo(TEXT("127.0.0.1"));
 				::CloseHandle(KnownEvent);
 			}
 		}
@@ -3798,7 +3840,22 @@ void FEngineLoop::Exit()
 
 
 	// Make sure we're not in the middle of loading something.
-	FlushAsyncLoading();
+	{
+		bool bFlushOnExit = true;
+		if (GConfig)
+		{
+			FBoolConfigValueHelper FlushStreamingOnExitHelper(TEXT("/Script/Engine.StreamingSettings"), TEXT("s.FlushStreamingOnExit"), GEngineIni);
+			bFlushOnExit = FlushStreamingOnExitHelper;			
+		}
+		if (bFlushOnExit)
+		{
+			FlushAsyncLoading();
+		}
+		else
+		{
+			CancelAsyncLoading();
+		}
+	}
 
 	// Block till all outstanding resource streaming requests are fulfilled.
 	if (!IStreamingManager::HasShutdown())
@@ -3902,6 +3959,8 @@ void FEngineLoop::Exit()
 	IStreamingManager::Shutdown();
 
 	FPlatformMisc::ShutdownTaggedStorage();
+
+	TRACE_CPUPROFILER_SHUTDOWN();
 }
 
 
@@ -5369,8 +5428,6 @@ void FEngineLoop::AppPreExit( )
 		GShaderCompilingManager = nullptr;
 	}
 #endif
-
-	Trace::Flush();
 }
 
 

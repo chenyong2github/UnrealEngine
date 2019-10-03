@@ -22,7 +22,6 @@
 #include "Misc/OutputDeviceRedirector.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/LowLevelMemTracker.h"
-#include "Serialization/ArchiveFromStructuredArchive.h"
 #include "Hash/CityHash.h"
 
 // Page protection to catch FNameEntry stomps
@@ -306,13 +305,13 @@ public:
 		return FNameEntryHandle(CurrentBlock, ByteOffset / Stride);
 	}
 
-	FNameEntryHandle Create(FNameStringView Name, FNameEntryId ComparisonId, FNameEntryHeader Header)
+	FNameEntryHandle Create(FNameStringView Name, TOptional<FNameEntryId> ComparisonId, FNameEntryHeader Header)
 	{
 		FNameEntryHandle Handle = Allocate(FNameEntry::GetDataOffset() + Name.BytesWithoutTerminator());
 		FNameEntry& Entry = Resolve(Handle);
 
 #if WITH_CASE_PRESERVING_NAME
-		Entry.ComparisonId = ComparisonId ? ComparisonId : FNameEntryId(Handle);
+		Entry.ComparisonId = ComparisonId.IsSet() ? ComparisonId.GetValue() : FNameEntryId(Handle);
 #endif
 
 		Entry.Header = Header;
@@ -536,7 +535,7 @@ struct FNameValue
 
 	FNameStringView Name;
 	FNameHash Hash;
-	FNameEntryId ComparisonId;
+	TOptional<FNameEntryId> ComparisonId;
 };
 
 using FNameComparisonValue = FNameValue<ENameCase::IgnoreCase>;
@@ -1432,7 +1431,7 @@ static bool StringAndNumberEqualsString(const CharType1* Name, uint32 NameLen, i
 	return Str[NameLen] == '_' && NumberEqualsString(Number, Str + NameLen + 1);
 }
 
-struct FAnsiStringView
+struct FNameAnsiStringView
 {
 	using CharType = ANSICHAR;
 
@@ -1449,12 +1448,12 @@ struct FWideStringViewWithWidth
 	bool bIsWide;
 };
 
-static FAnsiStringView MakeUnconvertedView(const ANSICHAR* Str, int32 Len)
+static FNameAnsiStringView MakeUnconvertedView(const ANSICHAR* Str, int32 Len)
 {
 	return { Str, Len };
 }
 
-static FAnsiStringView MakeUnconvertedView(const ANSICHAR* Str)
+static FNameAnsiStringView MakeUnconvertedView(const ANSICHAR* Str)
 {
 	return { Str, Str ? FCStringAnsi::Strlen(Str) : 0 };
 }
@@ -1543,7 +1542,7 @@ struct FNameHelper
 		return MakeWithNumber(View, FindType, NAME_NO_NUMBER_INTERNAL);
 	}
 
-	static FName MakeWithNumber(FAnsiStringView View, EFindName FindType, int32 InternalNumber)
+	static FName MakeWithNumber(FNameAnsiStringView	 View, EFindName FindType, int32 InternalNumber)
 	{
 		// Ignore the supplied number if the name string is empty
 		// to keep the semantics of the old FName implementation
@@ -1717,20 +1716,6 @@ FName::FName(const TCHAR* Name, int32 InNumber, EFindName FindType, bool bSplitN
 
 FName::FName(const FNameEntrySerialized& LoadedEntry)
 	: FName(FNameHelper::MakeFromLoaded(LoadedEntry))
-{}
-
-FName::FName(EName Ename, int32 InNumber)
-	: ComparisonIndex(GetNamePool().Find(Ename))
-#if WITH_CASE_PRESERVING_NAME
-	, DisplayIndex(ComparisonIndex)
-#endif
-	, Number(InNumber)
-{
-	check(Ename < NAME_MaxHardcodedNameIndex);
-}
-
-FName::FName(EName Ename)
-	: FName(Ename, NAME_NO_NUMBER_INTERNAL)
 {}
 
 bool FName::operator==(const ANSICHAR* Str) const
@@ -1978,6 +1963,8 @@ void FName::AutoTest()
 	check(NullName == FName(""));
 	check(NullName == FName(TEXT("")));
 	check(NullName == FName("None"));
+	check(NullName == FName("none"));
+	check(NullName == FName("NONE"));
 	check(NullName == FName(TEXT("None")));
 	check(FName().ToEName());
 	check(*FName().ToEName() == NAME_None);
@@ -2126,16 +2113,6 @@ void FNameEntry::Write( FArchive& Ar ) const
 	Ar << EntrySerialized;
 }
 
-void FNameEntry::Write(FStructuredArchive::FSlot Slot) const
-{
-	// This path should be unused - since FNameEntry structs are allocated with a dynamic size, we can only save them. Use FNameEntrySerialized to read them back into an intermediate buffer.
-	checkf(!Slot.GetUnderlyingArchive().IsLoading(), TEXT("FNameEntry does not support reading from an archive. Serialize into a FNameEntrySerialized and construct a FNameEntry from that."));
-
-	// Convert to our serialized type
-	FNameEntrySerialized EntrySerialized(*this);
-	Slot << EntrySerialized;
-}
-
 static_assert(PLATFORM_LITTLE_ENDIAN, "FNameEntrySerialized serialization needs updating to support big-endian platforms!");
 
 FArchive& operator<<(FArchive& Ar, FNameEntrySerialized& E)
@@ -2224,29 +2201,11 @@ FArchive& operator<<(FArchive& Ar, FNameEntrySerialized& E)
 	return Ar;
 }
 
-void operator<<(FStructuredArchive::FSlot Slot, FNameEntrySerialized& E)
+FNameEntryId FNameEntryId::FromValidEName(EName Ename)
 {
-	if (Slot.GetUnderlyingArchive().IsTextFormat())
-	{
-		FString Str = E.GetPlainNameString();
-		Slot << Str;
-
-		if (Slot.GetUnderlyingArchive().IsLoading())
-		{
-			// mark the name will be wide
-			E.bIsWide = true;
-
-			// get the pointer to the wide array 
-			WIDECHAR* WideName = const_cast<WIDECHAR*>(E.GetWideName());
-			FCString::Strcpy(WideName, 1024, *Str);
-		}
-	}
-	else
-	{
-		FArchiveFromStructuredArchive Ar(Slot);
-		Ar << E;
-	}
+	return GetNamePool().Find(Ename);
 }
+
 
 void FName::TearDown()
 {

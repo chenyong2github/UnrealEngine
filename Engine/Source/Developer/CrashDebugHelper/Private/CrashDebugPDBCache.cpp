@@ -4,7 +4,6 @@
 #include "HAL/PlatformTime.h"
 #include "HAL/FileManager.h"
 #include "Misc/Parse.h"
-#include "Templates/ScopedPointer.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
 #include "Misc/ConfigCacheIni.h"
