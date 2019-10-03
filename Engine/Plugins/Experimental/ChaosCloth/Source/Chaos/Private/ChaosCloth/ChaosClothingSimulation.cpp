@@ -7,6 +7,7 @@
 #include "ClothingSimulation.h" // ClothingSystemRuntimeInterface
 #include "Utils/ClothingMeshUtils.h" // ClothingSystemRuntimeCommon
 #include "Components/SkeletalMeshComponent.h"
+#include "Materials/Material.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "Chaos/Box.h"
 #include "Chaos/Capsule.h"
