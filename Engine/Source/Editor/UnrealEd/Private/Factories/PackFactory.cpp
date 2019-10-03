@@ -697,10 +697,7 @@ UObject* UPackFactory::FactoryCreateBinary
 					}
 					else
 					{
-						const bool bReloadAfterCompiling = true;
-						const bool bForceCodeProject = true;
-						const bool bFailIfGeneratedCodeChanges = false;
-						if (!HotReloadSupport.RecompileModule(FApp::GetProjectName(), bReloadAfterCompiling, *GWarn, bFailIfGeneratedCodeChanges, bForceCodeProject))
+						if (!HotReloadSupport.RecompileModule(FApp::GetProjectName(), *GWarn, ERecompileModuleFlags::ReloadAfterRecompile | ERecompileModuleFlags::ForceCodeProject))
 						{
 							FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("PackFactory", "FailedToCompileNewGameModule", "Failed to compile newly created game module."));
 						}

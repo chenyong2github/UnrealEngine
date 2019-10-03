@@ -13,8 +13,10 @@ class IConcertClientPresenceManager;
 class IConcertClientSequencerManager;
 struct FConcertSessionClientInfo;
 
+class IConcertSyncClient;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnConcertClientWorkspaceStartupOrShutdown, const TSharedPtr<IConcertClientWorkspace>& /** InClientWorkspace */ );
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnConcertClientSyncSessionStartupOrShutdown, const IConcertSyncClient* /* InSyncClient */ );
 
 /** Defines the supported editor play modes. */
 enum class EEditorPlayMode : uint8
@@ -66,6 +68,12 @@ public:
 
 	/** Get the delegate called on every workspace shutdown. */
 	virtual FOnConcertClientWorkspaceStartupOrShutdown& OnWorkspaceShutdown() = 0;
+
+	/** Get the delegate called just before the workspace gets created. */
+	virtual FOnConcertClientSyncSessionStartupOrShutdown& OnSyncSessionStartup() = 0;
+
+	/** Get the delegate called just after the workspace gets deleted. */
+	virtual FOnConcertClientSyncSessionStartupOrShutdown& OnSyncSessionShutdown() = 0;
 
 	/** Persist all session changes and prepare the files for source control submission. */
 	virtual void PersistAllSessionChanges() = 0;

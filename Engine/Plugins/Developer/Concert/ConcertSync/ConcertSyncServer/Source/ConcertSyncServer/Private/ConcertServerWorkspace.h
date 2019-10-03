@@ -59,6 +59,9 @@ private:
 	/** */
 	EConcertSessionResponseCode HandleResourceLockRequest(const FConcertSessionContext& Context, const FConcertResourceLockRequest& Request, FConcertResourceLockResponse& Response);
 
+	/** */
+	void HandleIgnoredActivityStateChanged(const FConcertSessionContext& Context, const FConcertIgnoreActivityStateChangedEvent& Event);
+
 	/** Invoked when the client corresponding to the specified endpoint begins to "Play" in a mode such as PIE or SIE. */
 	void HandleBeginPlaySession(const FName InPlayPackageName, const FGuid& InEndpointId, bool bIsSimulating);
 
@@ -215,6 +218,13 @@ private:
 	 */
 	void PostActivityAdded(const int64 InActivityId);
 
+	/**
+	 * Check if a given client was configured to prevent restoring the activities being recorded.
+	 * @param ClientEndpoint The client for which the check must be done.
+	 * @return True if the activity should be flagged as 'ignored on restore'.
+	 */
+	bool ShouldIgnoreClientActivityOnRestore(const FGuid ClientEndpoint) const { return IgnoredActivityClients.Contains(ClientEndpoint); }
+
 	/** Live session tracked by this workspace */
 	TSharedPtr<FConcertSyncServerLiveSession> LiveSession;
 
@@ -250,4 +260,7 @@ private:
 
 	/** The data store shared by all clients connected to the server tracked by this workspace. */
 	TUniquePtr<FConcertServerDataStore> DataStore;
+
+	/** Contains the list of clients for which activities should be marked as 'ignore on restore'. @see FConcertIgnoreActivityStateChangedEvent. */
+	TSet<FGuid> IgnoredActivityClients;
 };

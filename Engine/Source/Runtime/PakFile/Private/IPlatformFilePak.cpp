@@ -5880,11 +5880,14 @@ void FPakPlatformFile::FindPakFilesInDirectory(IPlatformFile* LowLevelFile, cons
 		TArray<FString>& FoundPakFiles;
 		IPlatformChunkInstall* ChunkInstall = nullptr;
 		FString WildCard;
+		bool bSkipOptionalPakFiles;
+
 	public:
-		FPakSearchVisitor(TArray<FString>& InFoundPakFiles, const FString& InWildCard, IPlatformChunkInstall* InChunkInstall)
+		FPakSearchVisitor(TArray<FString>& InFoundPakFiles, const FString& InWildCard, IPlatformChunkInstall* InChunkInstall, bool bInSkipOptionalPakFiles)
 			: FoundPakFiles(InFoundPakFiles)
 			, ChunkInstall(InChunkInstall)
 			, WildCard(InWildCard)
+			, bSkipOptionalPakFiles(bInSkipOptionalPakFiles)
 		{}
 		virtual bool Visit(const TCHAR* FilenameOrDirectory, bool bIsDirectory)
 		{
@@ -5905,14 +5908,23 @@ void FPakPlatformFile::FindPakFilesInDirectory(IPlatformFile* LowLevelFile, cons
 							}
 						}
 					}
-					FoundPakFiles.Add(Filename);
+
+#if !UE_BUILD_SHIPPING
+					if (bSkipOptionalPakFiles == false || Filename.Find("optional") == INDEX_NONE)
+#endif
+					{
+						FoundPakFiles.Add(Filename);
+					}
 				}
 			}
 			return true;
 		}
 	};
+
+	bool bSkipOptionalPakFiles = FParse::Param(FCommandLine::Get(), TEXT("SkipOptionalPakFiles"));
+
 	// Find all pak files.
-	FPakSearchVisitor Visitor(OutPakFiles, WildCard, FPlatformMisc::GetPlatformChunkInstall());
+	FPakSearchVisitor Visitor(OutPakFiles, WildCard, FPlatformMisc::GetPlatformChunkInstall(), bSkipOptionalPakFiles);
 	LowLevelFile->IterateDirectoryRecursively(Directory, Visitor);
 }
 

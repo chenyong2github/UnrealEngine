@@ -10,6 +10,7 @@
 #include "Templates/RefCounting.h"
 
 struct FUntypedBulkData;
+class FPackageHeaderSaver;
 
 /*----------------------------------------------------------------------------
 	FLinkerSave.
@@ -42,8 +43,7 @@ public:
 	/** List of Searchable Names, by object containing them. This gets turned into package indices later */
 	TMap<const UObject *, TArray<FName> > SearchableNamesObjectMap;
 
-	/** Index array - location of the name in the NameMap array for each FName is stored in the NameIndices array using the FName's Index */
-	TMap<FNameEntryId, int32> NameIndices;
+	FPackageHeaderSaver& HeaderSaver;
 
 	/** Save context associated with this linker */
 	TRefCountPtr<FUObjectSerializeContext> SaveContext;
@@ -68,14 +68,11 @@ public:
 	COREUOBJECT_API static TMap<FString, TArray<uint8> > PackagesToScriptSHAMap;
 
 	/** Constructor for file writer */
-	FLinkerSave(UPackage* InParent, const TCHAR* InFilename, bool bForceByteSwapping, bool bInSaveUnversioned = false );
+	FLinkerSave(FPackageHeaderSaver& InHeaderSaver, UPackage* InParent, const TCHAR* InFilename, bool bForceByteSwapping, bool bInSaveUnversioned = false );
 	/** Constructor for memory writer */
-	FLinkerSave(UPackage* InParent, bool bForceByteSwapping, bool bInSaveUnversioned = false );
+	FLinkerSave(FPackageHeaderSaver& InHeaderSaver, UPackage* InParent, bool bForceByteSwapping, bool bInSaveUnversioned = false );
 	/** Constructor for custom savers. The linker assumes ownership of the custom saver. */
-	FLinkerSave(UPackage* InParent, FArchive *InSaver, bool bForceByteSwapping, bool bInSaveUnversioned = false);
-
-	/** Returns the appropriate name index for the source name, or 0 if not found in NameIndices */
-	int32 MapName( FNameEntryId Name) const;
+	FLinkerSave(FPackageHeaderSaver& InHeaderSaver, UPackage* InParent, FArchive *InSaver, bool bForceByteSwapping, bool bInSaveUnversioned = false);
 
 	/** Returns the appropriate package index for the source object, or default value if not found in ObjectIndicesMap */
 	FPackageIndex MapObject(const UObject* Object) const;
@@ -94,7 +91,6 @@ public:
 	virtual void PushDebugDataString(const FName& DebugData) override { Saver->PushDebugDataString(DebugData); }
 	virtual void PopDebugDataString() override { Saver->PopDebugDataString(); }
 #endif
-
 
 	virtual FString GetArchiveName() const override;
 

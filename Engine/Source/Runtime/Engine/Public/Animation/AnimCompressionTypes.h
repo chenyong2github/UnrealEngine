@@ -654,6 +654,12 @@ struct TAllocatorTraits<TMaybeMappedAllocator<Alignment>> : TAllocatorTraitsBase
 	enum { SupportsMove = true };
 };
 
+template<typename T, uint32 Alignment>
+struct TIsContiguousContainer<TMaybeMappedArray<T, Alignment>>
+{
+	static constexpr bool Value = TIsContiguousContainer<TArray<T, TMaybeMappedAllocator<Alignment>>>::Value;
+};
+
 struct ENGINE_API FCompressedAnimSequence
 {
 public:

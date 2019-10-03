@@ -831,7 +831,7 @@ int32 FStreamedAudioPlatformData::GetChunkFromDDC(int32 ChunkIndex, uint8** OutC
 		if (OutChunkData)
 		{
 			ChunkDataSize = Chunk.BulkData.GetBulkDataSize();
-			Chunk.BulkData.GetCopy((void**)OutChunkData);
+			Chunk.BulkData.GetCopy((void**)OutChunkData, true);
 		}
 	}
 #endif // #if WITH_EDITORONLY_DATA

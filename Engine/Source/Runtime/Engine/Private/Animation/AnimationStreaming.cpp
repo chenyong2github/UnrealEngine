@@ -35,7 +35,6 @@ void FLoadedAnimationChunk::CleanUpIORequest()
 
 FStreamingAnimationData::FStreamingAnimationData()
 	: StreamableAnim(NULL)
-	, IORequestHandle(nullptr)
 	, AnimationStreamingManager(nullptr)
 {
 	ResetRequestedChunks();
@@ -43,7 +42,7 @@ FStreamingAnimationData::FStreamingAnimationData()
 
 FStreamingAnimationData::~FStreamingAnimationData()
 {
-	check(IORequestHandle == nullptr);
+
 }
 
 void FStreamingAnimationData::FreeResources()
@@ -63,18 +62,10 @@ void FStreamingAnimationData::FreeResources()
 	{
 		FreeLoadedChunk(LoadedChunk);
 	}
-
-	if (IORequestHandle)
-	{
-		delete IORequestHandle;
-		IORequestHandle = nullptr;
-	}
 }
 
 bool FStreamingAnimationData::Initialize(UAnimStreamable* InStreamableAnim, FAnimationStreamingManager* InAnimationStreamingManager)
 {
-	check(!IORequestHandle);
-
 	check(InStreamableAnim && InStreamableAnim->HasRunningPlatformData());
 
 	FStreamableAnimPlatformData& RunningAnimPlatformData = InStreamableAnim->GetRunningPlatformData();
@@ -219,16 +210,8 @@ void FStreamingAnimationData::BeginPendingRequests(const TArray<uint32>& Indices
 		if(!ExistingCompressedData)
 		{
 			UE_CLOG(ChunkStorage.CompressedAnimData != nullptr, LogAnimation, Fatal, TEXT("Existing compressed data for streaming animation chunk."));
-			UE_CLOG(Chunk.BulkData.GetFilename().Len()==0, LogAnimation, Fatal, TEXT("Streaming animation chunk has no file name."));
-			UE_CLOG(Chunk.BulkData.IsStoredCompressedOnDisk(), LogAnimation, Fatal, TEXT("Package level compression is not supported for streaming animation."));
 			UE_CLOG(ChunkStorage.IORequest, LogAnimation, Fatal, TEXT("Streaming animation chunk already has IORequest."));
 			
-			if (!IORequestHandle)
-			{
-				IORequestHandle = FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*Chunk.BulkData.GetFilename());
-				UE_CLOG(!IORequestHandle, LogAnimation, Fatal, TEXT("Failed to get IORequest Handle for streaming animation.")); // this generally cannot fail because it is async
-			}
-
 			int64 ChunkSize = Chunk.BulkData.GetBulkDataSize();
 			ChunkStorage.RequestStart = FPlatformTime::Seconds();
 			UE_LOG(LogAnimation, Warning, TEXT("Anim Streaming Request Started %s Chunk:%i At:%.3f\n"), *StreamableAnim->GetName(), ChunkIndex, ChunkStorage.RequestStart);
@@ -239,7 +222,7 @@ void FStreamingAnimationData::BeginPendingRequests(const TArray<uint32>& Indices
 			};
 
 			UE_LOG(LogAnimation, Warning, TEXT("Loading Stream Anim %s Chunk:%i Length: %.3f Offset:%i Size:%i File:%s\n"), *StreamableAnim->GetName(), ChunkIndex, Chunk.SequenceLength, Chunk.BulkData.GetBulkDataOffsetInFile(), Chunk.BulkData.GetBulkDataSize(), *Chunk.BulkData.GetFilename());
-			ChunkStorage.IORequest = IORequestHandle->ReadRequest(Chunk.BulkData.GetBulkDataOffsetInFile(), Chunk.BulkData.GetBulkDataSize(), AsyncIOPriority, &AsyncFileCallBack);
+			ChunkStorage.IORequest = Chunk.BulkData.CreateStreamingRequest(AsyncIOPriority, &AsyncFileCallBack, nullptr);
 			if (!ChunkStorage.IORequest)
 			{
 				UE_LOG(LogAnimation, Error, TEXT("Animation streaming read request failed."));

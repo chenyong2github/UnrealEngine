@@ -9,6 +9,8 @@ Texture2DStreamIn.h: Stream in helper for 2D textures using texture streaming fi
 #include "CoreMinimal.h"
 #include "Texture2DStreamIn.h"
 
+struct FBulkDataIORequest;
+
 // Base StreamIn framework exposing MipData
 class FTexture2DStreamIn_IO : public FTexture2DStreamIn
 {
@@ -40,6 +42,9 @@ protected:
 
 private:
 
+	// Poll if any of the mips currently have an active IO request
+	bool HasPendingIORequests();
+
 	class FCancelIORequestsTask : public FNonAbandonableTask
 	{
 	public:
@@ -58,15 +63,16 @@ private:
 
 
 	// Request for loading into each mip.
-	IAsyncReadRequest* IORequests[MAX_TEXTURE_MIP_COUNT];
+	FBulkDataIORequest* IORequests[MAX_TEXTURE_MIP_COUNT];
 
 	bool bPrioritizedIORequest;
 
 	// Async handle.
+#if TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA
 	FString IOFilename;
-	int64 IOFileOffset;
+#endif
 
-	IAsyncReadFileHandle* IOFileHandle;
+	int64 IOFileOffset;
 	FAsyncFileCallBack AsyncFileCallBack;
 };
 

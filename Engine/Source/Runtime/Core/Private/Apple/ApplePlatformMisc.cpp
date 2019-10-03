@@ -91,7 +91,7 @@ int32 FApplePlatformMisc::NumberOfCores()
 	if (NumberOfCores == -1)
 	{
 		SIZE_T Size = sizeof(int32);
-		if (sysctlbyname("hw.ncpu", &NumberOfCores, &Size, NULL, 0) != 0)
+		if (sysctlbyname("hw.ncpu", &NumberOfCores, &Size, nullptr, 0) != 0)
 		{
 			NumberOfCores = 1;
 		}

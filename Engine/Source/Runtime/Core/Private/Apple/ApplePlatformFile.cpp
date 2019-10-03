@@ -88,7 +88,7 @@ public:
 				{
 					UE_LOG(LogInit, Warning, TEXT("Failed to properly close readable file: %s with errno: %d"), *Filename, errno);
 				}
-				ActiveHandles[ HandleSlot ] = NULL;
+				ActiveHandles[ HandleSlot ] = nullptr;
 			}
 		}
 		else
@@ -276,7 +276,7 @@ private:
 		// Look for non-reserved slot
 		for( int32 i = 0; i < ACTIVE_HANDLE_COUNT; ++i )
 		{
-			if( ActiveHandles[ i ] == NULL )
+			if( ActiveHandles[ i ] == nullptr )
 			{
 				HandleSlot = i;
 				break;
@@ -300,7 +300,7 @@ private:
 			HandleSlot = Oldest;
 		}
 
-		ActiveHandles[ HandleSlot ] = NULL;
+		ActiveHandles[ HandleSlot ] = nullptr;
 		AccessTimes[ HandleSlot ] = FPlatformTime::Seconds();
 	}
 #endif
@@ -523,7 +523,7 @@ IFileHandle* FApplePlatformFile::OpenRead(const TCHAR* Filename, bool bAllowWrit
 		if(!bAllowWrite && flock(Handle, LOCK_NB | LOCK_SH) == -1)
 		{
 			close(Handle);
-			return NULL;
+			return nullptr;
 		}
 #endif
 		
@@ -533,7 +533,7 @@ IFileHandle* FApplePlatformFile::OpenRead(const TCHAR* Filename, bool bAllowWrit
 		return new FFileHandleApple(Handle, Filename, true);
 #endif
 	}
-	return NULL;
+	return nullptr;
 }
 
 IFileHandle* FApplePlatformFile::OpenWrite(const TCHAR* Filename, bool bAppend, bool bAllowRead)
@@ -553,12 +553,12 @@ IFileHandle* FApplePlatformFile::OpenWrite(const TCHAR* Filename, bool bAppend, 
 	
 	if (Handle != -1)
 	{
-#if PLATFORM_MAC && !UE_BUILD_SHIPPING
+#if PLATFORM_MAC && UE_EDITOR && !UE_BUILD_SHIPPING
 		// No blocking attempt exclusive lock, failure means we should not have opened the file for writing, protect against multiple instances and client/server versions
 		if(!bAllowRead && flock(Handle, LOCK_NB | LOCK_EX) == -1)
 		{
 			close(Handle);
-			return NULL;
+			return nullptr;
 		}
 #endif
 		
@@ -579,7 +579,7 @@ IFileHandle* FApplePlatformFile::OpenWrite(const TCHAR* Filename, bool bAppend, 
 		}
 		return FileHandleApple;
 	}
-	return NULL;
+	return nullptr;
 }
 
 bool FApplePlatformFile::DirectoryExists(const TCHAR* Directory)

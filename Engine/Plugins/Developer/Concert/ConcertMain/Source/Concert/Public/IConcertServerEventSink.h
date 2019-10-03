@@ -57,6 +57,12 @@ public:
 	virtual bool ArchiveSession(const IConcertServer& InServer, const FString& InLiveSessionWorkingDir, const FString& InArchivedSessionRoot, const FConcertSessionInfo& InArchivedSessionInfo, const FConcertSessionFilter& InSessionFilter) = 0;
 
 	/**
+	 * Called to migrate and gather the data of a live or archived session to a directory for external usage.
+	 * @note As opposed to archiving a session, once exported, the session is not tracked anymore by the server and the exported files can be copied/modified while the server is running.
+	 */
+	virtual bool ExportSession(const IConcertServer& InServer, const FGuid& InSessionId, const FString& DestDir, const FConcertSessionFilter& InSessionFilter, bool bAnonymizeData) = 0;
+
+	/**
 	 * Called to migrate the data for an archived session into a live session.
 	 * @note OnLiveSessionCreated will be called if this restoration was successful.
 	 */

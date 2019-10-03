@@ -11,7 +11,6 @@
 #include "Containers/IndirectArray.h"
 #include "Stats/Stats.h"
 #include "Containers/List.h"
-#include "Templates/ScopedPointer.h"
 #include "Async/AsyncWork.h"
 #include "Async/AsyncFileHandle.h"
 #include "RHI.h"
@@ -33,13 +32,16 @@ class IVirtualTexture;
 #ifndef FORCE_ENABLE_TEXTURE_STREAMING
 #define FORCE_ENABLE_TEXTURE_STREAMING 0
 #endif
-#define TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA (!(WITH_EDITORONLY_DATA) && !(UE_SERVER) && FORCE_ENABLE_TEXTURE_STREAMING && PLATFORM_SUPPORTS_TEXTURE_STREAMING)
+
+#define TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA (!(WITH_EDITORONLY_DATA) && !(UE_SERVER) && FORCE_ENABLE_TEXTURE_STREAMING && PLATFORM_SUPPORTS_TEXTURE_STREAMING && !USE_NEW_BULKDATA)
+
 
 /**
  * A 2D texture mip-map.
  */
 struct FTexture2DMipMap
 {
+#if TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA
 	class FCompactByteBulkData
 	{
 	public:
@@ -53,7 +55,7 @@ struct FTexture2DMipMap
 		FCompactByteBulkData& operator=(const FCompactByteBulkData& Other);
 		FCompactByteBulkData& operator=(FCompactByteBulkData&& Other);
 
-		void Serialize(FArchive& Ar, UObject* Owner, int32 MipIdx);
+		void Serialize(FArchive& Ar, UObject* Owner, int32 MipIdx, bool bAttemptFileMapping);
 
 		uint32 GetBulkDataOffsetInFile() const { return OffsetInFile; }
 		uint32 GetBulkDataSize() const { return BulkDataSize; }
@@ -61,9 +63,13 @@ struct FTexture2DMipMap
 		uint32 GetElementCount() const { return BulkDataSize; }
 		uint32 GetElementSize() const { return sizeof(uint8); }
 		void SetBulkDataFlags(uint32 Flags) { BulkDataFlags |= Flags; }
+		void ResetBulkDataFlags(uint32 Flags) { BulkDataFlags = Flags; }
 		void ClearBulkDataFlags(uint32 FlagsToClear) { BulkDataFlags &= ~FlagsToClear; }
 		bool CanLoadFromDisk() const { return !IsInlined(); }
 		bool IsAvailableForUse() const { return !(BulkDataFlags & BULKDATA_Unused); }
+		bool IsOptional() const { return (BulkDataFlags & BULKDATA_OptionalPayload) != 0; }
+		bool IsInlined() const { return (GetBulkDataFlags() & BULKDATA_PayloadInSeperateFile) == 0 && (GetBulkDataFlags() & BULKDATA_PayloadAtEndOfFile) == 0; }
+		bool InSeperateFile() const { return (GetBulkDataFlags() & BULKDATA_PayloadInSeperateFile) != 0; }
 		bool IsBulkDataLoaded() const { return IsInlined(); }
 		bool IsAsyncLoadingComplete() const { return true; }
 		bool IsStoredCompressedOnDisk() const { return !!(BulkDataFlags & BULKDATA_SerializeCompressed); }
@@ -72,6 +78,8 @@ struct FTexture2DMipMap
 		void Unlock() const;
 		void* Realloc(int32 NumBytes);
 		void GetCopy(void** Dest, bool bDiscardInternalCopy = true);
+
+		FBulkDataIORequest* CreateStreamingRequest(const FString& Filename, int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback, uint8* UserSuppliedMemory) const;
 
 		/**
 		 * FCompactByteBulkData doesn't support GetFilename. Use FTexturePlatformData::CachedPackageFileName
@@ -90,8 +98,11 @@ struct FTexture2DMipMap
 		uint8* TexelData;
 
 		void Reset();
-		bool IsInlined() const { return !(BulkDataFlags & BULKDATA_Force_NOT_InlinePayload); }
+		
 	};
+#else
+	struct FCompactByteBulkData {};
+#endif
 
 	/** Width of the mip-map. */
 	int32 SizeX;
@@ -100,6 +111,7 @@ struct FTexture2DMipMap
 	/** Depth of the mip-map. */
 	int32 SizeZ;
 	/** Bulk data if stored in the package. */
+
 	typename TChooseClass<TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA, FCompactByteBulkData, FByteBulkData>::Result BulkData;
 
 	/** Default constructor. */

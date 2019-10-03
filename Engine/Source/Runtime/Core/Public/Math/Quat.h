@@ -69,13 +69,6 @@ public:
 	FORCEINLINE FQuat(float InX, float InY, float InZ, float InW);
 
 	/**
-	 * Copy constructor.
-	 *
-	 * @param Q A FQuat object to use to create new quaternion from.
-	 */
-	FORCEINLINE FQuat(const FQuat& Q);
-	
-	/**
 	 * Creates and initializes a new quaternion from the given matrix.
 	 *
 	 * @param M The rotation matrix to initialize from.
@@ -714,14 +707,6 @@ FORCEINLINE FQuat::FQuat(float InX, float InY, float InZ, float InW)
 {
 	DiagnosticCheckNaN();
 }
-
-
-FORCEINLINE FQuat::FQuat(const FQuat& Q)
-	: X(Q.X)
-	, Y(Q.Y)
-	, Z(Q.Z)
-	, W(Q.W)
-{ }
 
 
 FORCEINLINE FString FQuat::ToString() const

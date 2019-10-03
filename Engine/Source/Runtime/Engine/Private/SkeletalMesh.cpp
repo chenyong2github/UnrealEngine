@@ -1624,22 +1624,6 @@ void USkeletalMesh::Serialize( FArchive& Ar )
 	}
 }
 
-void USkeletalMesh::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
-{	
-	USkeletalMesh* This = CastChecked<USkeletalMesh>(InThis);
-#if WITH_EDITOR
-	if( GIsEditor )
-	{
-		// Required by the unified GC when running in the editor
-		for( int32 Index = 0; Index < This->Materials.Num(); Index++ )
-		{
-			Collector.AddReferencedObject( This->Materials[ Index ].MaterialInterface, This );
-		}
-	}
-#endif
-	Super::AddReferencedObjects( This, Collector );
-}
-
 void USkeletalMesh::GetPreloadDependencies(TArray<UObject*>& OutDeps)
 {
 	Super::GetPreloadDependencies(OutDeps);

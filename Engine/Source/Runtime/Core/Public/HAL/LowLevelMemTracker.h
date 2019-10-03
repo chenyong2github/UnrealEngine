@@ -362,10 +362,13 @@ public:
 
 	void Free(void* Ptr, size_t Size)
 	{
-		Size = Align(Size, Alignment);
-		FScopeLock Lock(&CriticalSection);
-		PlatformFree(Ptr, Size);
-		Total -= Size;
+		if (Ptr != nullptr)
+		{
+			Size = Align(Size, Alignment);
+			FScopeLock Lock(&CriticalSection);
+			PlatformFree(Ptr, Size);
+			Total -= Size;
+		}
 	}
 
 	int64 GetTotal() const

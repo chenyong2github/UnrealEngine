@@ -49,6 +49,7 @@ public:
 	virtual FOnWorkspaceSynchronized& OnWorkspaceSynchronized() override;
 	virtual IConcertClientDataStore& GetDataStore() override;
 	virtual bool IsAssetModifiedByOtherClients(const FName& AssetName, int32* OutOtherClientsWithModifNum, TArray<FConcertClientInfo>* OutOtherClientsWithModifInfo, int32 OtherClientsWithModifMaxFetchNum) const override;
+	virtual void SetIgnoreOnRestoreFlagForEmittedActivities(bool bIgnore) override;
 
 private:
 	/** Bind the workspace to this session. */
@@ -192,4 +193,7 @@ private:
 	
 	/** The session key/value store proxy. The real store is held by the server and shared across all clients. */
 	TUniquePtr<FConcertClientDataStore> DataStore;
+
+	/** True if the client has marked the further transaction as 'non-ignored'. This is sent at the end of the frame. */
+	bool bPendingStopIgnoringActivityOnRestore = false;
 };

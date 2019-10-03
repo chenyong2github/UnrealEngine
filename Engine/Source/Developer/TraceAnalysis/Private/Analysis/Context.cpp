@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "Engine.h"
+#include "Processor.h"
 #include "Trace/Analysis.h"
 
 namespace Trace
@@ -13,15 +13,13 @@ void FAnalysisContext::AddAnalyzer(IAnalyzer& Analyzer)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-FAnalysisProcessor FAnalysisContext::Process()
+FAnalysisProcessor FAnalysisContext::Process(IInDataStream& DataStream)
 {
 	FAnalysisProcessor Processor;
-
-	if (Analyzers.Num())
+	if (Analyzers.Num() > 0)
 	{
-		Processor.Impl = new FAnalysisEngine(MoveTemp(Analyzers));
+		Processor.Impl = new FAnalysisProcessor::FImpl(DataStream, MoveTemp(Analyzers));
 	}
-
 	return MoveTemp(Processor);
 }
 

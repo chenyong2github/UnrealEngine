@@ -35,8 +35,6 @@ FArchive::FArchive()
 #if DEVIRTUALIZE_FLinkerLoad_Serialize
 	ActiveFPLB = &InlineFPLB;
 #endif
-	CustomVersionContainer = nullptr;
-
 	SerializedPropertyChain = nullptr;
 
 #if USE_STABLE_LOCALIZATION_KEYS

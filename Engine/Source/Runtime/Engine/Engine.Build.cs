@@ -41,13 +41,9 @@ public class Engine : ModuleRules
 
 		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
 		{
-			PrivateIncludePathModuleNames.AddRange(new string[] { "TaskGraph" });
-		}
-
-		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
-		{
 			PrivateIncludePathModuleNames.AddRange(
 				new string[] {
+					"TaskGraph",
 					"SlateReflector",
 				}
 			);
@@ -55,6 +51,13 @@ public class Engine : ModuleRules
 			DynamicallyLoadedModuleNames.AddRange(
 				new string[] {
 					"SlateReflector",
+				}
+			);
+
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"EditorAnalyticsSession",
 				}
 			);
 		}
@@ -103,8 +106,8 @@ public class Engine : ModuleRules
 				"AudioMixer",
 				"AudioMixerCore",
 				"SignalProcessing",
-                "CrunchCompression"
-            }
+				"CrunchCompression",
+			}
 		);
 
 		if(Target.Platform != UnrealTargetPlatform.HTML5)
