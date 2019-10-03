@@ -114,13 +114,11 @@ EAppReturnType::Type FMessageDialog::Open(EAppMsgType::Type MessageType, EAppRet
 {
 	EAppReturnType::Type Result = DefaultValue;
 	const FText Title = OptTitle ? *OptTitle : GetDefaultMessageTitle();
-	bool bAlreadyLogged = false;
 
 	if (!FApp::IsUnattended() && !GIsRunningUnattendedScript)
 	{
 		if ( GIsEditor && !IsRunningCommandlet() && FCoreDelegates::ModalErrorMessage.IsBound() )
 		{
-			bAlreadyLogged = true;
 			Result = FCoreDelegates::ModalErrorMessage.Execute( MessageType, Message, Title );
 		}
 		else
@@ -129,7 +127,7 @@ EAppReturnType::Type FMessageDialog::Open(EAppMsgType::Type MessageType, EAppRet
 		}
 	}
 
-	if (GWarn && !bAlreadyLogged)
+	if (GWarn)
 	{
 		GWarn->Logf(TEXT("Message dialog closed, result: %s, title: %s, text: %s"), LexToString(Result), *Title.ToString(), *Message.ToString());
 	}

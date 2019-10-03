@@ -12,7 +12,7 @@
 #include "Engine/StaticMeshActor.h"
 #include "Engine/Selection.h"
 #include "Editor.h"
-#include "Dialogs/Dialogs.h"
+#include "Misc/MessageDialog.h"
 #include "MeshUtilities.h"
 #include "MeshMergingTool/SMeshMergingDialog.h"
 #include "IContentBrowserSingleton.h"
@@ -96,7 +96,8 @@ bool FMeshMergingTool::RunMerge(const FString& PackageName)
 	if (UniqueLevels.Num() > 1 && bReplaceSourceActors)
 	{
 		FText Message = NSLOCTEXT("UnrealEd", "FailedToMergeActorsSublevels_Msg", "The selected actors should be in the same level");
-		OpenMsgDlgInt(EAppMsgType::Ok, Message, NSLOCTEXT("UnrealEd", "FailedToMergeActors_Title", "Unable to merge actors"));
+		const FText Title = NSLOCTEXT("UnrealEd", "FailedToMergeActors_Title", "Unable to merge actors");
+		FMessageDialog::Open(EAppMsgType::Ok, Message, &Title);
 		return false;
 	}
 

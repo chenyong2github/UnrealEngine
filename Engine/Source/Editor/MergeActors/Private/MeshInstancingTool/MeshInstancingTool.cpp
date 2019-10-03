@@ -12,7 +12,7 @@
 #include "Engine/StaticMeshActor.h"
 #include "Engine/Selection.h"
 #include "Editor.h"
-#include "Dialogs/Dialogs.h"
+#include "Misc/MessageDialog.h"
 #include "MeshUtilities.h"
 #include "MeshInstancingTool/SMeshInstancingDialog.h"
 #include "IContentBrowserSingleton.h"
@@ -73,7 +73,8 @@ bool FMeshInstancingTool::RunMerge(const FString& PackageName)
 	if (UniqueLevels.Num() > 1)
 	{
 		FText Message = NSLOCTEXT("UnrealEd", "FailedToInstanceActorsSublevels_Msg", "The selected actors should be in the same level");
-		OpenMsgDlgInt(EAppMsgType::Ok, Message, NSLOCTEXT("UnrealEd", "FailedToInstanceActors_Title", "Unable to replace actors with instanced meshes"));
+		FText Title = NSLOCTEXT("UnrealEd", "FailedToInstanceActors_Title", "Unable to replace actors with instanced meshes");
+		FMessageDialog::Open(EAppMsgType::Ok, Message, &Title);
 		return false;
 	}
 

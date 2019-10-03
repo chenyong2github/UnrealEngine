@@ -2,7 +2,7 @@
 
 #include "AssetTypeActions/AssetTypeActions_AnimCurveCompressionSettings.h"
 #include "Animation/AnimSequence.h"
-#include "Dialogs/Dialogs.h"
+#include "Misc/MessageDialog.h"
 #include "EditorStyleSet.h"
 #include "ToolMenus.h"
 #include "Misc/ScopedSlowTask.h"
@@ -93,7 +93,8 @@ void FAssetTypeActions_AnimCurveCompressionSettings::ExecuteCompression(TWeakObj
 	FFormatNamedArguments Arguments;
 	Arguments.Add(TEXT("NumAnimSequences"), FText::AsNumber(AnimSeqsToRecompress.Num()));
 	FText DialogText = FText::Format(LOCTEXT("AnimCurveCompressionSettings_CompressWarningText", "{NumAnimSequences} animation sequences are about to compress."), Arguments);
-	const EAppReturnType::Type DlgResult = OpenMsgDlgInt(EAppMsgType::OkCancel, DialogText, LOCTEXT("AnimCurveCompressionSettings_CompressWarning", "Warning"));
+	FText DialogTitle = LOCTEXT("AnimCurveCompressionSettings_CompressWarning", "Warning");
+	const EAppReturnType::Type DlgResult = FMessageDialog::Open(EAppMsgType::OkCancel, DialogText, &DialogTitle);
 	if (DlgResult != EAppReturnType::Ok)
 	{
 		return;

@@ -24,7 +24,7 @@
 #include "ToolMenus.h"
 // Editor
 #include "Classes/EditorStyleSettings.h"
-#include "Dialogs/Dialogs.h"
+#include "Misc/MessageDialog.h"
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "Frame/MainFrameActions.h"
 #include "LevelViewportActions.h"
@@ -109,7 +109,7 @@ bool TrySaveLayoutOrWarnInternal(const FString& InSourceFilePath, const FString&
 							"If you are not sure, select \"Yes\" if you are exporting the layout configuration without making any changes, or \"No\" if you have made or plan to make changes to the layout.\n\n"
 						),
 						LayoutNameSource, LayoutDescriptionSource);
-					const int AppReturnType = OpenMsgDlgInt(EAppMsgType::YesNoCancel, TextBody, TextTitle);
+					const int AppReturnType = FMessageDialog::Open(EAppMsgType::YesNoCancel, TextBody, &TextTitle);
 					// Handle user answers
 					if (AppReturnType == EAppReturnType::Yes)
 					{
@@ -171,7 +171,7 @@ bool TrySaveLayoutOrWarnInternal(const FString& InSourceFilePath, const FString&
 		EditorErrors.Notify(LOCTEXT("LoadUnsuccessful_Title", "Load Unsuccessful!"));
 		// Show reason
 		const FText TextTitle = LOCTEXT("UnsuccessfulCopyHeader", "Unsuccessful copy!");
-		OpenMsgDlgInt(EAppMsgType::Ok, TextBody, TextTitle);
+		FMessageDialog::Open(EAppMsgType::Ok, TextBody, &TextTitle);
 		// Return
 		return false;
 	}
@@ -571,7 +571,7 @@ void FLayoutsMenuLoad::ImportLayout()
 					Arguments.Add(TEXT("FileName"), FText::FromString(FPaths::ConvertRelativePathToFull(LayoutFilePath)));
 					const FText TextBody = FText::Format(LOCTEXT("UnsuccessfulImportBody", "Unsuccessful import, {FileName} is not a layout configuration file!"), Arguments);
 					const FText TextTitle = LOCTEXT("UnsuccessfulImportHeader", "Unsuccessful Import!");
-					OpenMsgDlgInt(EAppMsgType::Ok, TextBody, TextTitle);
+					FMessageDialog::Open(EAppMsgType::Ok, TextBody, &TextTitle);
 				}
 			}
 			// If PIE running, do not reload current layout
@@ -580,7 +580,7 @@ void FLayoutsMenuLoad::ImportLayout()
 				const FText TextBody = LOCTEXT("SuccessfulImportBody",
 					"The layout(s) were successfully imported into the \"User Layouts\" section. However, no layout has been loaded into your current Unreal Editor UI because PIE is currently running. In order to do so, you must stop PIE and then load the layout from the \"User Layouts\" section.");
 				const FText TextTitle = LOCTEXT("UnsuccessfulImportHeader", "Successful Import!");
-				OpenMsgDlgInt(EAppMsgType::Ok, TextBody, TextTitle);
+				FMessageDialog::Open(EAppMsgType::Ok, TextBody, &TextTitle);
 				return;
 			}
 			// Replace current layout with first one
@@ -644,7 +644,8 @@ void SaveExportLayoutCommon(const FString& InDefaultDirectory, const bool bMustB
 				else
 				{
 					// Warn the user that the file will not be copied in there
-					OpenMsgDlgInt(
+					const FText Title = LOCTEXT("SaveAsFailedMsg_Title", "Save As Failed");
+					FMessageDialog::Open(
 						EAppMsgType::Ok,
 						FText::Format(
 							LOCTEXT("SaveAsFailedMsg",
@@ -652,7 +653,7 @@ void SaveExportLayoutCommon(const FString& InDefaultDirectory, const bool bMustB
 								"If you simply wish to export a copy of the current configuration in {1} (e.g., to later copy it into a different machine), you could use the \"Export Layout...\""
 								" functionality. However, Unreal would not be able to load it until you import it with \"Import Layout...\"."),
 							FText::FromString(DefaultDirectoryAbsolute), FText::FromString(LayoutFilePathAbsolute)),
-						LOCTEXT("SaveAsFailedMsg_Title", "Save As Failed"));
+						&Title);
 				}
 			}
 		}
@@ -716,7 +717,7 @@ void FLayoutsMenuSave::OverrideUserLayout(const int32 InLayoutIndex)
 	const FText TextFileNameToRemove = FText::FromString(FPaths::GetBaseFilename(UserLayoutIniFileNames[InLayoutIndex]));
 	const FText TextBody = FText::Format(LOCTEXT("ActionOverrideLayoutMsg", "Are you sure you want to permanently override the layout profile \"{0}\" with the current layout profile? This action cannot be undone."), TextFileNameToRemove);
 	const FText TextTitle = FText::Format(LOCTEXT("OverrideUILayout_Title", "Override UI Layout \"{0}\""), TextFileNameToRemove);
-	if (EAppReturnType::Ok != OpenMsgDlgInt(EAppMsgType::OkCancel, TextBody, TextTitle))
+	if (EAppReturnType::Ok != FMessageDialog::Open(EAppMsgType::OkCancel, TextBody, &TextTitle))
 	{
 		return;
 	}
@@ -818,7 +819,7 @@ void FLayoutsMenuRemove::RemoveUserLayout(const int32 InLayoutIndex)
 	const FText TextFileNameToRemove = FText::FromString(FPaths::GetBaseFilename(UserLayoutIniFileNames[InLayoutIndex]));
 	const FText TextBody = FText::Format(LOCTEXT("ActionRemoveMsg", "Are you sure you want to permanently delete the layout profile \"{0}\"? This action cannot be undone."), TextFileNameToRemove);
 	const FText TextTitle = FText::Format(LOCTEXT("RemoveUILayout_Title", "Remove UI Layout \"{0}\""), TextFileNameToRemove);
-	if (EAppReturnType::Ok != OpenMsgDlgInt(EAppMsgType::OkCancel, TextBody, TextTitle))
+	if (EAppReturnType::Ok != FMessageDialog::Open(EAppMsgType::OkCancel, TextBody, &TextTitle))
 	{
 		return;
 	}
@@ -857,7 +858,7 @@ void FLayoutsMenuRemove::RemoveUserLayouts()
 		// Are you sure you want to do this?
 		const FText TextBody = FText::Format(LOCTEXT("ActionRemoveAllUserLayoutMsg", "Are you sure you want to permanently remove {0} layout {0}|plural(one=profile,other=profiles)? This action cannot be undone."), NumberUserLayoutFiles);
 		const FText TextTitle = LOCTEXT("RemoveAllUserLayouts_Title", "Remove All User-Created Layouts");
-		if (EAppReturnType::Ok != OpenMsgDlgInt(EAppMsgType::OkCancel, TextBody, TextTitle))
+		if (EAppReturnType::Ok != FMessageDialog::Open(EAppMsgType::OkCancel, TextBody, &TextTitle))
 		{
 			return;
 		}
@@ -881,7 +882,7 @@ void FLayoutsMenuRemove::RemoveUserLayouts()
 		// Show reason
 		const FText TextBody = LOCTEXT("UnsuccessfulRemoveLayoutBody", "There are no layout profile files created by the user, so none could be removed.");
 		const FText TextTitle = LOCTEXT("UnsuccessfulRemoveLayoutHeader", "Unsuccessful Remove All User Layouts!");
-		OpenMsgDlgInt(EAppMsgType::Ok, TextBody, TextTitle);
+		FMessageDialog::Open(EAppMsgType::Ok, TextBody, &TextTitle);
 	}
 }
 

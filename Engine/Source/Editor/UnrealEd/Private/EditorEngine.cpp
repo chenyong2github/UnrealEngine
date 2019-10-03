@@ -75,6 +75,7 @@
 #include "FileHelpers.h"
 #include "EditorModeInterpolation.h"
 #include "Dialogs/Dialogs.h"
+#include "Dialogs/DialogsPrivate.h"
 #include "UnrealEdGlobals.h"
 #include "Matinee/MatineeActor.h"
 #include "InteractiveFoliageActor.h"
@@ -4692,7 +4693,7 @@ EAppReturnType::Type UEditorEngine::OnModalMessageDialog(EAppMsgType::Type InMes
 {
 	if( IsInGameThread() && FSlateApplication::IsInitialized() && FSlateApplication::Get().CanAddModalWindow() )
 	{
-		return OpenMsgDlgInt(InMessage, InText, InTitle);
+		return OpenMessageDialog_Internal(InMessage, InText, InTitle);
 	}
 	else
 	{

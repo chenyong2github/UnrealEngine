@@ -24,7 +24,7 @@
 #include "BlueprintNodeSpawner.h"
 #include "DesktopPlatformModule.h"
 #include "Dialogs/DlgPickPath.h"
-#include "Dialogs/Dialogs.h"
+#include "Misc/MessageDialog.h"
 #include "Editor.h"
 #include "EditorDirectories.h"
 #include "EditorStyleSet.h"
@@ -902,7 +902,7 @@ void FDataprepEditor::OnCommitWorld()
 			const FText Title( LOCTEXT( "DataprepEditor_ProceedWithCommit", "Proceed with commit" ) );
 			const FText Message( LOCTEXT( "DataprepEditor_ConfirmCommitPipelineNotExecuted", "The action pipeline has not been executed.\nDo you want to proceeed with the commit anyway?" ) );
 
-			if( OpenMsgDlgInt( EAppMsgType::YesNo, Message, Title ) == EAppReturnType::No )
+			if( FMessageDialog::Open( EAppMsgType::YesNo, Message, &Title ) == EAppReturnType::No )
 			{
 				return;
 			}
@@ -914,7 +914,7 @@ void FDataprepEditor::OnCommitWorld()
 		const FText Title( LOCTEXT( "DataprepEditor_ProceedWithCommit", "Proceed with commit" ) );
 		const FText Message( LOCTEXT( "DataprepEditor_ConfirmCommitPipelineChanged", "The action pipeline has changed since last execution.\nDo you want to proceeed with the commit anyway?" ) );
 
-		if( OpenMsgDlgInt( EAppMsgType::YesNo, Message, Title ) == EAppReturnType::No )
+		if( FMessageDialog::Open( EAppMsgType::YesNo, Message, &Title ) == EAppReturnType::No )
 		{
 			return;
 		}
