@@ -517,7 +517,7 @@ bool UNiagaraSystem::IsReadyToRun() const
 	/* Check that our post compile data is in sync with the current emitter handles count. If we have just added a new emitter handle, we will not have any outstanding compilation requests as the new compile
 	 * will not be added to the outstanding compilation requests until the next tick.
 	 */
-	if (EmitterHandles.Num() != EmitterCompiledData.Num() || EmitterHandles.Num() != SystemCompiledData.NumParticleVars.Num() || EmitterHandles.Num() != SystemCompiledData.TotalSpawnedParticlesVars.Num())
+	if (EmitterHandles.Num() != EmitterCompiledData.Num() || EmitterHandles.Num() != SystemCompiledData.NumParticleVars.Num() || EmitterHandles.Num() != SystemCompiledData.TotalSpawnedParticlesVars.Num() || EmitterHandles.Num() != SystemCompiledData.SpawnCountScaleVars.Num())
 	{
 		return false;
 	}
@@ -1149,6 +1149,7 @@ void UNiagaraSystem::InitSystemCompiledData()
 {
 	SystemCompiledData.NumParticleVars.Empty();
 	SystemCompiledData.TotalSpawnedParticlesVars.Empty();
+	SystemCompiledData.SpawnCountScaleVars.Empty();
 	SystemCompiledData.InstanceParamStore.Empty();
 
 	SystemCompiledData.InstanceParamStore = INiagaraModule::GetFixedSystemInstanceParameterStore();
@@ -1173,6 +1174,13 @@ void UNiagaraSystem::InitSystemCompiledData()
 				Var.SetName(*ParamName);
 				SystemCompiledData.InstanceParamStore.AddParameter(Var, true, false);
 				SystemCompiledData.TotalSpawnedParticlesVars.Add(Var);
+			}
+			{
+				FNiagaraVariable Var = SYS_PARAM_ENGINE_EMITTER_SPAWN_COUNT_SCALE;
+				const FString ParamName = Var.GetName().ToString().Replace(TEXT("Emitter"), *EmitterName);
+				Var.SetName(*ParamName);
+				SystemCompiledData.InstanceParamStore.AddParameter(Var, true, false);
+				SystemCompiledData.SpawnCountScaleVars.Add(Var);
 			}
 		}
 	}
