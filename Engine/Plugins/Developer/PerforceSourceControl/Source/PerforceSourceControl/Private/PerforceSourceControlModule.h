@@ -38,6 +38,9 @@ public:
 		return FModuleManager::LoadModuleChecked< FPerforceSourceControlModule >("PerforceSourceControl");
 	}
 
+	/** Set list of error messages that occurred after last perforce command */
+	static void SetLastErrors(const TArray<FText>& InErrors);
+
 private:
 	/** The one and only Perforce source control provider */
 	FPerforceSourceControlProvider PerforceSourceControlProvider;

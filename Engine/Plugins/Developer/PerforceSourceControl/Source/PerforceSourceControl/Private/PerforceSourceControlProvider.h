@@ -19,6 +19,7 @@ public:
 	/** Constructor */
 	FPerforceSourceControlProvider()
 		: bServerAvailable(false)
+		, bLoginError(false)
 		, PersistentConnection(NULL)
 	{
 	}
@@ -66,6 +67,18 @@ public:
 
 	/** Get the P4 ticket we will use for connections */
 	const FString& GetTicket() const;
+
+	/** Set list of error messages that occurred after last perforce command */
+	void SetLastErrors(const TArray<FText>& InErrors);
+
+	/** Did most recent command generate a login error */
+	bool IsLoginError() const;
+
+	/** Get list of error messages that occurred after last perforce command */
+	TArray<FText> GetLastErrors() const;
+
+	/** Get number of error messages seen after running last perforce command */
+	int32 GetNumLastErrors() const;
 
 	/** Helper function used to update state cache */
 	TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> GetStateInternal(const FString& InFilename);
@@ -123,6 +136,15 @@ private:
 
 	/** Indicates if source control integration is available or not. */
 	bool bServerAvailable;
+
+	/** Saw login error when running last command. */
+	TAtomic<bool> bLoginError;
+
+	/** Critical section for thread safety of error messages that occurred after last perforce command */
+	mutable FCriticalSection LastErrorsCriticalSection;
+
+	/** List of error messages that occurred after last perforce command */
+	TArray<FText> LastErrors;
 
 	/** A pointer to the persistent P4 connection for synchronous operations */
 	class FPerforceConnection* PersistentConnection;
