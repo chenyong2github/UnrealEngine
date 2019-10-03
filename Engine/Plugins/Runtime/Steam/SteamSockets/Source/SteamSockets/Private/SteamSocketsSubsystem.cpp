@@ -140,6 +140,9 @@ bool FSteamSocketsSubsystem::Init(FString& Error)
 		}
 	}
 
+	// These functions cause access violations on application exit due to how they spin up.
+	// When fixed in a new version of the Steam client application, this block can be removed.
+#if !PLATFORM_LINUX
 	// Clients and servers using the relay network will want to set this up
 	if (IsUsingRelayNetwork())
 	{
@@ -162,6 +165,7 @@ bool FSteamSocketsSubsystem::Init(FString& Error)
 	{
 		GetSteamSocketsInterface()->InitAuthentication();
 	}
+#endif
 	
 	// Set up the API Logging
 	ESteamNetworkingSocketsDebugOutputType DebugLevel = k_ESteamNetworkingSocketsDebugOutputType_Msg;
