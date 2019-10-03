@@ -871,6 +871,9 @@ public:
 	LANDSCAPE_API ULandscapeInfo* CreateLandscapeInfo();
 	LANDSCAPE_API ULandscapeInfo* GetLandscapeInfo() const;
 
+	/** Get the LandcapeActor-to-world transform with respect to landscape section offset*/
+	LANDSCAPE_API FTransform LandscapeActorToWorld() const;
+
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditImport() override;
@@ -903,10 +906,7 @@ public:
 
 	// Assign only mismatching data and mark proxy package dirty
 	LANDSCAPE_API void FixupSharedData(ALandscape* Landscape);
-	
-	/** Get the LandcapeActor-to-world transform with respect to landscape section offset*/
-	LANDSCAPE_API FTransform LandscapeActorToWorld() const;
-	
+
 	/** Set landscape absolute location in section space */
 	LANDSCAPE_API void SetAbsoluteSectionBase(FIntPoint SectionOffset);
 	
