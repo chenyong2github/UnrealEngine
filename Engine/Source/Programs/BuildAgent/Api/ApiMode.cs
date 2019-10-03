@@ -12,8 +12,8 @@ using Tools.DotNETCommon;
 
 namespace BuildAgent.WebApi
 {
-	[ProgramMode("Server", "Issues direct API commands to the UGS web service")]
-	class ServerMode : ProgramMode
+	[ProgramMode("Api", "Issues direct API commands to the metadata service")]
+	class ApiMode : ProgramMode
 	{
 		class CommandInfo
 		{
@@ -151,13 +151,13 @@ namespace BuildAgent.WebApi
 
 				foreach (string ArgumentName in ParseArgumentNamesFromResource(Command.Resource))
 				{
-					Parameters.Add(new KeyValuePair<string, string>(String.Format("-{0}", ArgumentName), "Required"));
+					Parameters.Add(new KeyValuePair<string, string>(String.Format("-{0}=...", ArgumentName), "Required"));
 				}
 				if (Command.OptionalParams != null)
 				{
 					foreach (string ArgumentName in Command.OptionalParams)
 					{
-						Parameters.Add(new KeyValuePair<string, string>(String.Format("-{0}", ArgumentName), "Optional"));
+						Parameters.Add(new KeyValuePair<string, string>(String.Format("-{0}=...", ArgumentName), "Optional"));
 					}
 				}
 				if (Command.BodyType != null)
@@ -166,11 +166,11 @@ namespace BuildAgent.WebApi
 					{
 						if (IsOptionalObjectField(Field))
 						{
-							Parameters.Add(new KeyValuePair<string, string>(String.Format("-{0}", Field.Name), String.Format("{0} (optional)", GetFieldValueDescription(Field.FieldType))));
+							Parameters.Add(new KeyValuePair<string, string>(String.Format("-{0}=...", Field.Name), String.Format("{0} (optional)", GetFieldValueDescription(Field.FieldType))));
 						}
 						else
 						{
-							Parameters.Add(new KeyValuePair<string, string>(String.Format("-{0}", Field.Name), GetFieldValueDescription(Field.FieldType)));
+							Parameters.Add(new KeyValuePair<string, string>(String.Format("-{0}=...", Field.Name), GetFieldValueDescription(Field.FieldType)));
 						}
 					}
 				}
@@ -180,6 +180,7 @@ namespace BuildAgent.WebApi
 				Parameters.Insert(0, new KeyValuePair<string, string>("Command", "Name of the command to execute"));
 			}
 
+			Parameters.Add(new KeyValuePair<string, string>("-Server=...", "Url of the server to use (may also be set via the METADATA_SERVER_URL environment variable)."));
 			return Parameters;
 		}
 

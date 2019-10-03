@@ -52,6 +52,8 @@
     <Compile Include="..\..\..\Source\Programs\DotNETCommon\MetaData.cs">
       <Link>Properties\MetaData.cs</Link>
     </Compile>
+    <Compile Include="Api\ApiMode.cs" />
+    <Compile Include="Api\ApiTypes.cs" />
     <Compile Include="Issues\Issue.cs" />
     <Compile Include="Issues\IssueDiagnostic.cs" />
     <Compile Include="Issues\IssueBuild.cs" />
@@ -68,8 +70,6 @@
     <Compile Include="Issues\Matchers\UndefinedSymbolMatcher.cs" />
     <Compile Include="Issues\Matcher.cs" />
     <Compile Include="Issues\UpdateIssuesMode.cs" />
-    <Compile Include="Server\ApiTypes.cs" />
-    <Compile Include="Server\ServerMode.cs" />
     <Compile Include="Run\RunMode.cs" />
     <Compile Include="ProgramMode.cs" />
     <Compile Include="Run\AutoRegisterAttribute.cs" />
@@ -113,6 +113,8 @@
       <Name>DotNETUtilities</Name>
     </ProjectReference>
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <Folder Include="Server\" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
