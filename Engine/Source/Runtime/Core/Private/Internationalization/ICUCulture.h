@@ -193,6 +193,11 @@ public:
 
 	static FString GetCanonicalName(const FString& Name);
 
+	const icu::Locale& GetLocale() const
+	{
+		return ICULocale;
+	}
+
 	TSharedRef<const icu::BreakIterator> GetBreakIterator(const EBreakIteratorType Type);
 	TSharedRef<const icu::Collator, ESPMode::ThreadSafe> GetCollator(const ETextComparisonLevel::Type ComparisonLevel);
 	TSharedRef<const icu::DateFormat, ESPMode::ThreadSafe> GetDateFormatter(const EDateTimeStyle::Type DateStyle, const FString& TimeZone);
