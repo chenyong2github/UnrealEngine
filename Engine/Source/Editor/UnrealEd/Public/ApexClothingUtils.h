@@ -20,7 +20,7 @@ namespace ApexClothingUtils
 {
 	UNREALED_API FString PromptForClothingFile();
 
-	// Prompt the user to select an APEX file that will be imported to the new UClothingAsset format
+	// Prompt the user to select an APEX file that will be imported to the new UClothingAssetCommon format
 	UNREALED_API void PromptAndImportClothing(USkeletalMesh* SkelMesh);
 
 	// Given a buffer, build an apex clothing asset

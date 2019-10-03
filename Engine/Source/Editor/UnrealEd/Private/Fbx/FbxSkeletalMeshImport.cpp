@@ -55,7 +55,7 @@
 #include "Misc/FbxErrors.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "Engine/SkeletalMeshSocket.h"
-#include "Assets/ClothingAsset.h"
+#include "ClothingAsset.h"
 #include "LODUtilities.h"
 #include "IMeshBuilderModule.h"
 

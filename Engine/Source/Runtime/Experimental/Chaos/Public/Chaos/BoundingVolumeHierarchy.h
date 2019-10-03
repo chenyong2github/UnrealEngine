@@ -5,7 +5,6 @@
 #include "Chaos/Box.h"
 #include "Chaos/Defines.h"
 #include "Chaos/GeometryParticles.h"
-#include "Chaos/ImplicitObject.h"
 #include "Chaos/Transform.h"
 #include "ChaosLog.h"
 #include "Chaos/ISpatialAcceleration.h"
@@ -115,10 +114,10 @@ class CHAOS_API TBoundingVolumeHierarchy final : public ISpatialAcceleration<int
 	}
 
 	// Begin ISpatialAcceleration interface
-	virtual TArray<int32> FindAllIntersections(const TBox<T, d>& Box) const override { return FindAllIntersectionsImp(Box); }
-	virtual TArray<int32> FindAllIntersections(const TSpatialRay<T,d>& Ray) const override { return FindAllIntersectionsImp(Ray); }
-	virtual TArray<int32> FindAllIntersections(const TVector<T, d>& Point) const override { return FindAllIntersectionsImp(Point); }
-	virtual TArray<int32> FindAllIntersections(const TGeometryParticles<T, d>& InParticles, const int32 i) const override;
+	TArray<int32> FindAllIntersections(const TBox<T, d>& Box) const { return FindAllIntersectionsImp(Box); }
+	TArray<int32> FindAllIntersections(const TSpatialRay<T,d>& Ray) const { return FindAllIntersectionsImp(Ray); }
+	TArray<int32> FindAllIntersections(const TVector<T, d>& Point) const { return FindAllIntersectionsImp(Point); }
+	TArray<int32> FindAllIntersections(const TGeometryParticles<T, d>& InParticles, const int32 i) const;
 	// End ISpatialAcceleration interface
 
 	const TArray<int32>& GlobalObjects() const
@@ -134,6 +133,11 @@ class CHAOS_API TBoundingVolumeHierarchy final : public ISpatialAcceleration<int
 #endif
 
 	void Serialize(FArchive& Ar);
+
+	virtual void Serialize(FChaosArchive& Ar) override
+	{
+		check(false);
+	}
 
   private:
 	void PrintTree(FString Prefix, const TBVHNode<T,d>* MyNode) const

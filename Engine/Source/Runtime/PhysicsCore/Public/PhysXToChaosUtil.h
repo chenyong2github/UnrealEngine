@@ -4,12 +4,11 @@
 
 #include "CoreMinimal.h"
 
-#if INCLUDE_CHAOS && WITH_PHYSX
+#if WITH_PHYSX
 #include "PhysXIncludes.h"
 #include "PhysXSupportCore.h"
 
-#include "Chaos/PBDRigidsEvolution.h"
-#include "Chaos/PBDRigidParticles.h"
+#include "Chaos/Particles.h"
 #include "Chaos/Box.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/Capsule.h"

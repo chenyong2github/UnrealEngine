@@ -51,7 +51,7 @@
 	#include "ApexClothingOptionWindow.h"
 #endif // #if WITH_APEX_CLOTHING
 
-#include "Assets/ClothingAsset.h"
+#include "ClothingAsset.h"
 
 #include "LODUtilities.h"
 #include "MeshUtilities.h"
@@ -2082,7 +2082,7 @@ void FPersonaMeshDetails::AddLODLevelCategories(IDetailLayoutBuilder& DetailLayo
 		const int32 SkelMeshLODCount = SkelMesh->GetLODNum();
 
 
-#if WITH_APEX_CLOTHING
+#if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 		ClothComboBoxes.Reset();
 #endif
 
@@ -4060,8 +4060,8 @@ TSharedRef<SWidget> FPersonaMeshDetails::OnGenerateCustomSectionWidgetsForSectio
 		}
 	}
 
+#if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 
-#if WITH_APEX_CLOTHING
 	UpdateClothingEntries();
 
 	ClothComboBoxes.AddDefaulted();
@@ -4101,7 +4101,7 @@ TSharedRef<SWidget> FPersonaMeshDetails::OnGenerateCustomSectionWidgetsForSectio
 			]
 		]
 	];
-#endif// #if WITH_APEX_CLOTHING
+#endif// #if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 	SectionWidget->AddSlot()
 	.AutoHeight()
 	.Padding(0, 2, 0, 0)
@@ -5091,7 +5091,7 @@ void FPersonaMeshDetails::OnGenerateElementForClothingAsset( TSharedRef<IPropert
 		MakeClothingDetailsWidget(ElementIndex)
 	];	
 	
-	// Properties are now inside UClothingAsset, so we just add a new inspector and handle everything through that
+	// Properties are now inside UClothingAssetCommon, so we just add a new inspector and handle everything through that
 	FDetailWidgetRow& ClothPropRow = ChildrenBuilder.AddCustomRow(LOCTEXT("ClothingAsset_Search_Properties", "Properties"));
 
 	TSharedPtr<SKismetInspector> Inspector = nullptr;
@@ -5153,11 +5153,12 @@ TSharedRef<SUniformGridPanel> FPersonaMeshDetails::MakeClothingDetailsWidget(int
 
 		RowNumber++;
 
-		if (UClothingAsset* Asset = Cast<UClothingAsset>(ClothingAsset))
+		if (UClothingAssetCommon* Asset = Cast<UClothingAssetCommon>(ClothingAsset))
 		{
-			FClothLODData& LodData = Asset->LodData[LODIndex];
-			FClothPhysicalMeshData& PhysMeshData = LodData.PhysicalMeshData;
-			FClothCollisionData& CollisionData = LodData.CollisionData;
+			UClothLODDataBase* LodData = Asset->ClothLodData[LODIndex];
+			check(LodData->PhysicalMeshData);
+			UClothPhysicalMeshDataBase& PhysMeshData = *LodData->PhysicalMeshData;
+			FClothCollisionData& CollisionData = LodData->CollisionData;
 
 			Grid->AddSlot(0, RowNumber)
 				.HAlign(HAlign_Center)
@@ -5432,7 +5433,7 @@ void FPersonaMeshDetails::OnClothingComboBoxOpening()
 
 TSharedRef<SWidget> FPersonaMeshDetails::OnGenerateWidgetForClothingEntry(TSharedPtr<FClothingEntry> InEntry)
 {
-	UClothingAsset* Asset = Cast<UClothingAsset>(InEntry->Asset.Get());
+	UClothingAssetCommon* Asset = Cast<UClothingAssetCommon>(InEntry->Asset.Get());
 
 	FText EntryText;
 	if(Asset)
@@ -5454,7 +5455,7 @@ FText FPersonaMeshDetails::OnGetClothingComboText(int32 InLodIdx, int32 InSectio
 
 	if(Mesh)
 	{
-		UClothingAsset* ClothingAsset = Cast<UClothingAsset>(Mesh->GetSectionClothingAsset(InLodIdx, InSectionIdx));
+		UClothingAssetCommon* ClothingAsset = Cast<UClothingAssetCommon>(Mesh->GetSectionClothingAsset(InLodIdx, InSectionIdx));
 
 		if(ClothingAsset && ClothingAsset->LodMap.IsValidIndex(InLodIdx))
 		{
@@ -5494,7 +5495,7 @@ void FPersonaMeshDetails::OnClothingSelectionChanged(TSharedPtr<FClothingEntry> 
 			OriginalSectionData.ClothingData.AssetGuid = FGuid();
 			OriginalSectionData.ClothingData.AssetLodIndex = INDEX_NONE;
 		};
-		if (UClothingAsset* ClothingAsset = Cast<UClothingAsset>(InNewEntry->Asset.Get()))
+		if (UClothingAssetCommon* ClothingAsset = Cast<UClothingAssetCommon>(InNewEntry->Asset.Get()))
 		{
 			// Look for a currently bound asset an unbind it if necessary first
 			if (UClothingAssetBase* CurrentAsset = Mesh->GetSectionClothingAsset(InLodIdx, InSectionIdx))
@@ -5541,20 +5542,15 @@ bool FPersonaMeshDetails::IsClothingPanelEnabled() const
 
 void FPersonaMeshDetails::OnFinishedChangingClothingProperties(const FPropertyChangedEvent& Event, int32 InAssetIndex)
 {
-	if(Event.ChangeType != EPropertyChangeType::Interactive)
+	USkeletalMesh* CurrentMesh = GetPersonaToolkit()->GetMesh();
+	if(CurrentMesh->MeshClothingAssets.IsValidIndex(InAssetIndex))
 	{
-		if(Event.Property->GetFName() == GET_MEMBER_NAME_CHECKED(FClothConfig, SelfCollisionRadius) ||
-			Event.Property->GetFName() == GET_MEMBER_NAME_CHECKED(FClothConfig, SelfCollisionCullScale))
+		UClothingAssetBase* Asset = CurrentMesh->MeshClothingAssets[InAssetIndex];
+		if (Asset)
 		{
-			USkeletalMesh* CurrentMesh = GetPersonaToolkit()->GetMesh();
-			if(CurrentMesh->MeshClothingAssets.IsValidIndex(InAssetIndex))
-			{
-				if(UClothingAssetBase* Asset = CurrentMesh->MeshClothingAssets[InAssetIndex])
-					Asset->BuildSelfCollisionData();
-			}
+			Asset->PostPropertyChangeCb(Event);
 		}
 	}
-
 	if(UDebugSkelMeshComponent* PreviewComponent = GetPersonaToolkit()->GetPreviewMeshComponent())
 	{
 		// Reregister our preview component to apply the change

@@ -10,7 +10,7 @@
 class SClothPaintWidget;
 class UClothPainterSettings;
 class UPaintBrushSettings;
-class UClothingAsset;
+class UClothingAssetCommon;
 class UDebugSkelMeshComponent;
 enum class EPaintableClothProperty;
 class FClothPaintToolBase;
@@ -78,7 +78,7 @@ public:
 	TSharedPtr<IMeshPaintGeometryAdapter> GetAdapter() const { return Adapter; }
 
 	/** When a different clothing asset is selected in the UI the painter should refresh the adapter */
-	void OnAssetSelectionChanged(UClothingAsset* InNewSelectedAsset, int32 InAssetLod, int32 MaskIndex);
+	void OnAssetSelectionChanged(UClothingAssetCommon* InNewSelectedAsset, int32 InAssetLod, int32 MaskIndex);
 	void OnAssetMaskSelectionChanged()
 	{};
 

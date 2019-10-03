@@ -21,7 +21,6 @@ const AChaosSolverActor* UChaosEventListenerComponent::GetSolverActor() const
 	return GetTypedOuter<AChaosSolverActor>();
 }
 
-#if INCLUDE_CHAOS
 const Chaos::FPhysicsSolver* UChaosEventListenerComponent::GetSolver() const
 {
 	const AChaosSolverActor* A = GetSolverActor();
@@ -33,4 +32,3 @@ const TSharedPtr<FPhysScene_Chaos> UChaosEventListenerComponent::GetPhysicsScene
 	const AChaosSolverActor* A = GetSolverActor();
 	return A ? A->GetPhysicsScene() : nullptr;
 }
-#endif

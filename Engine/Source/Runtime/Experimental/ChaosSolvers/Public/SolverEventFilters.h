@@ -3,8 +3,10 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
-#include "Chaos/PBDCollisionTypes.h"
 #include "SolverEventFilters.generated.h"
+
+
+
 
 	USTRUCT(Blueprintable)
 	struct CHAOSSOLVERS_API FSolverTrailingFilterSettings
@@ -97,6 +99,17 @@
 
 namespace Chaos
 {
+
+	template<class T, int d>
+	struct TCollisionData;
+
+	template<class T, int d>
+	struct TTrailingData;
+
+	template<class T, int d>
+	struct TBreakingData;
+
+
 
 	class CHAOSSOLVERS_API FSolverCollisionEventFilter
 	{

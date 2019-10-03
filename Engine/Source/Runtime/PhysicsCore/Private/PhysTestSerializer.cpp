@@ -9,7 +9,6 @@
 #include "PhysXSupportCore.h"
 #endif
 
-#if INCLUDE_CHAOS
 #include "Chaos/PBDRigidsEvolution.h"
 #include "Chaos/PBDRigidParticles.h"
 #include "Chaos/Box.h"
@@ -17,14 +16,14 @@
 #include "Chaos/Capsule.h"
 
 using namespace Chaos;
-#endif
 
-#if WITH_PHYSX && INCLUDE_CHAOS
+#if WITH_PHYSX
 #include "PhysXToChaosUtil.h"
 #endif
 
 #include "PhysicsPublicCore.h"
 #include "HAL/FileManager.h"
+#include "Misc/Paths.h"
 
 FPhysTestSerializer::FPhysTestSerializer()
 	: bDiskDataIsChaos(false)
@@ -37,17 +36,19 @@ void FPhysTestSerializer::Serialize(const TCHAR* FilePrefix)
 	check(IsInGameThread());
 	int32 Tries = 0;
 	FString UseFileName;
+	const FString FullPathPrefix = FPaths::ProfilingDir() / FilePrefix;
 	do
 	{
-		UseFileName = FString::Printf(TEXT("%s_%d.bin"), FilePrefix, Tries++);
+		UseFileName = FString::Printf(TEXT("%s_%d.bin"), *FullPathPrefix, Tries++);
 	} while (IFileManager::Get().FileExists(*UseFileName));
 
 	//this is not actually file safe but oh well, very unlikely someone else is trying to create this file at the same time
 	TUniquePtr<FArchive> File(IFileManager::Get().CreateFileWriter(*UseFileName));
 	if (File)
 	{
+		FChaosArchive Ar(*File);
 		UE_LOG(LogPhysicsCore, Log, TEXT("PhysTestSerialize File: %s"), *UseFileName);
-		Serialize(*File);
+		Serialize(Ar);
 	}
 	else
 	{
@@ -55,21 +56,51 @@ void FPhysTestSerializer::Serialize(const TCHAR* FilePrefix)
 	}
 }
 
-void FPhysTestSerializer::Serialize(FArchive& Ar)
+void FPhysTestSerializer::Serialize(Chaos::FChaosArchive& Ar)
 {
-	int Version = 0;
-	Ar << Version;
-	Ar << bDiskDataIsChaos;
-	Ar << Data;
+	if (!Ar.IsLoading())
+	{
+		//make sure any context we had set is restored before writing out sqcapture
+		Ar.SetContext(MoveTemp(ChaosContext));
+	}
+
+	static const FName TestSerializerName = TEXT("PhysTestSerializer");
+
+	{
+		FChaosArchiveScopedMemory ScopedMemory(Ar, TestSerializerName, false);
+		int Version = 1;
+		Ar << Version;
+		Ar << bDiskDataIsChaos;
+
+		if (Version >= 1)
+		{
+			//use version recorded
+			ArchiveVersion.Serialize(Ar);
+		}
+		else
+		{
+			//no version recorded so use the latest versions in GUIDs we rely on before making serialization version change
+			ArchiveVersion.SetVersion(FPhysicsObjectVersion::GUID, FPhysicsObjectVersion::SerializeGTGeometryParticles, TEXT("SerializeGTGeometryParticles"));
+			ArchiveVersion.SetVersion(FDestructionObjectVersion::GUID, FDestructionObjectVersion::GroupAndAttributeNameRemapping, TEXT("GroupAndAttributeNameRemapping"));
+			ArchiveVersion.SetVersion(FExternalPhysicsCustomObjectVersion::GUID, FExternalPhysicsCustomObjectVersion::BeforeCustomVersionWasAdded, TEXT("BeforeCustomVersionWasAdded"));
+		}
+		
+		Ar.SetCustomVersions(ArchiveVersion);
+		Ar << Data;
+	}
 
 	if (Ar.IsLoading())
 	{
 		CreatePhysXData();
 		CreateChaosData();
+		Ar.SetContext(MoveTemp(ChaosContext));	//make sure any context we created during load is used for sqcapture
 	}
 
 	bool bHasSQCapture = !!SQCapture;
-	Ar << bHasSQCapture;
+	{
+		FChaosArchiveScopedMemory ScopedMemory(Ar, TestSerializerName, false);
+		Ar << bHasSQCapture;
+	}
 	if(bHasSQCapture)
 	{
 		if (Ar.IsLoading())
@@ -78,6 +109,7 @@ void FPhysTestSerializer::Serialize(FArchive& Ar)
 		}
 		SQCapture->Serialize(Ar);
 	}
+	ChaosContext = Ar.StealContext();
 }
 
 void FPhysTestSerializer::SetPhysicsData(physx::PxScene& Scene)
@@ -112,9 +144,13 @@ void FPhysTestSerializer::SetPhysicsData(physx::PxScene& Scene)
 
 void FPhysTestSerializer::SetPhysicsData(Chaos::TPBDRigidsEvolutionGBF<float,3>& Evolution)
 {
-#if INCLUDE_CHAOS
 	bDiskDataIsChaos = true;
-#endif
+	Data.Empty();
+	FMemoryWriter Ar(Data);
+	FChaosArchive ChaosAr(Ar);
+	Evolution.Serialize(ChaosAr);
+	ChaosContext = ChaosAr.StealContext();
+	ArchiveVersion = Ar.GetCustomVersions();
 }
 
 #if WITH_PHYSX
@@ -146,20 +182,21 @@ FPhysTestSerializer::FPhysXSerializerData::~FPhysXSerializerData()
 void FPhysTestSerializer::CreatePhysXData()
 {
 #if WITH_PHYSX
-	check(bDiskDataIsChaos == false);	//For the moment we don't support chaos to physx direction
-
+	if (bDiskDataIsChaos == false)	//For the moment we don't support chaos to physx direction
 	{
-		check(Data.Num());	//no data, was the physx scene set?
-		AlignedDataHelper = MakeUnique<FPhysXSerializerData>(Data.Num());
-		FMemory::Memcpy(AlignedDataHelper->Data, Data.GetData(), Data.Num());
-	}
-	
-	PxSceneDesc Desc = CreateDummyPhysXSceneDescriptor();	//question: does it matter that this is default and not the one set by user settings?
-	AlignedDataHelper->PhysXScene = GPhysXSDK->createScene(Desc);
+		{
+			check(Data.Num());	//no data, was the physx scene set?
+			AlignedDataHelper = MakeUnique<FPhysXSerializerData>(Data.Num());
+			FMemory::Memcpy(AlignedDataHelper->Data, Data.GetData(), Data.Num());
+		}
 
-	AlignedDataHelper->Registry = PxSerialization::createSerializationRegistry(*GPhysXSDK);
-	AlignedDataHelper->Collection = PxSerialization::createCollectionFromBinary(AlignedDataHelper->Data, *AlignedDataHelper->Registry);
-	AlignedDataHelper->PhysXScene->addCollection(*AlignedDataHelper->Collection);
+		PxSceneDesc Desc = CreateDummyPhysXSceneDescriptor();	//question: does it matter that this is default and not the one set by user settings?
+		AlignedDataHelper->PhysXScene = GPhysXSDK->createScene(Desc);
+
+		AlignedDataHelper->Registry = PxSerialization::createSerializationRegistry(*GPhysXSDK);
+		AlignedDataHelper->Collection = PxSerialization::createCollectionFromBinary(AlignedDataHelper->Data, *AlignedDataHelper->Registry);
+		AlignedDataHelper->PhysXScene->addCollection(*AlignedDataHelper->Collection);
+	}
 #endif
 }
 
@@ -179,108 +216,122 @@ physx::PxBase* FPhysTestSerializer::FindObject(uint64 Id)
 
 void FPhysTestSerializer::CreateChaosData()
 {
-	check(bDiskDataIsChaos == false);	//For the moment we assume data is written as physx
-#if INCLUDE_CHAOS && WITH_PHYSX
-	if (bChaosDataReady)
+#if WITH_PHYSX
+	if (bDiskDataIsChaos == false)
 	{
-		return;
-	}
-
-	PxScene* Scene = GetPhysXData();
-	check(Scene);
-
-	const uint32 NumStatic = Scene->getNbActors(PxActorTypeFlag::eRIGID_STATIC);
-	const uint32 NumDynamic = Scene->getNbActors(PxActorTypeFlag::eRIGID_DYNAMIC);
-	const uint32 NumActors = NumStatic + NumDynamic;
-
-	TArray<PxActor*> Actors;
-	Actors.AddUninitialized(NumActors);
-	if (NumStatic)
-	{
-		Scene->getActors(PxActorTypeFlag::eRIGID_STATIC, Actors.GetData(), NumStatic);
-		auto NewParticles = Particles.CreateStaticParticles(NumStatic);	//question: do we want to distinguish query only and sim only actors?
-		for (uint32 Idx = 0; Idx < NumStatic; ++Idx)
+		if (bChaosDataReady)
 		{
-			GTParticles.Emplace(MakeUnique<TGeometryParticle<float, 3>>());
-			NewParticles[Idx]->GTGeometryParticle() = GTParticles.Last().Get();
-		}
-	}
-
-	if (NumDynamic)
-	{
-		Scene->getActors(PxActorTypeFlag::eRIGID_DYNAMIC, &Actors[NumStatic], NumDynamic);
-		auto NewParticles = Particles.CreateDynamicParticles(NumDynamic);	//question: do we want to distinguish query only and sim only actors?
-
-		for (uint32 Idx = 0; Idx < NumDynamic; ++Idx)
-		{
-			GTParticles.Emplace(MakeUnique<TPBDRigidParticle<float, 3>>());
-			NewParticles[Idx]->GTGeometryParticle() = GTParticles.Last().Get();
-		}
-	}
-
-	auto& Handles = Particles.GetParticleHandles();
-	int32 Idx = 0;
-	for (PxActor* Act : Actors)
-	{
-		//transform
-		PxRigidActor* Actor = static_cast<PxRigidActor*>(Act);
-		auto& Particle = Handles.Handle(Idx);
-		auto& GTParticle = Particle->GTGeometryParticle();
-		Particle->X() = P2UVector(Actor->getGlobalPose().p);
-		Particle->R() = P2UQuat(Actor->getGlobalPose().q);
-		Particle->GTGeometryParticle()->SetX(Particle->X());
-		Particle->GTGeometryParticle()->SetR(Particle->R());
-
-		if (auto PBDRigid = Particle->AsDynamic())
-		{
-			PBDRigid->P() = Particle->X();
-			PBDRigid->Q() = Particle->R();
-
-			PBDRigid->GTGeometryParticle()->AsDynamic()->SetP(PBDRigid->P());
-			PBDRigid->GTGeometryParticle()->AsDynamic()->SetQ(PBDRigid->R());
+			return;
 		}
 
-		PxActorToChaosHandle.Add(Act, Particle.Get());
+		PxScene* Scene = GetPhysXData();
+		check(Scene);
 
-		//geometry
-		TArray<TUniquePtr<TImplicitObject<float, 3>>> Geoms;
-		const int32 NumShapes = Actor->getNbShapes();
-		TArray<PxShape*> Shapes;
-		Shapes.AddUninitialized(NumShapes);
-		Actor->getShapes(Shapes.GetData(), NumShapes);
-		for (PxShape* Shape : Shapes)
+		const uint32 NumStatic = Scene->getNbActors(PxActorTypeFlag::eRIGID_STATIC);
+		const uint32 NumDynamic = Scene->getNbActors(PxActorTypeFlag::eRIGID_DYNAMIC);
+		const uint32 NumActors = NumStatic + NumDynamic;
+
+		TArray<PxActor*> Actors;
+		Actors.AddUninitialized(NumActors);
+		if (NumStatic)
 		{
-			if (TUniquePtr<TImplicitObjectTransformed<float, 3>> Geom = PxShapeToChaosGeom(Shape))
+			Scene->getActors(PxActorTypeFlag::eRIGID_STATIC, Actors.GetData(), NumStatic);
+			auto NewParticles = Particles.CreateStaticParticles(NumStatic);	//question: do we want to distinguish query only and sim only actors?
+			for (uint32 Idx = 0; Idx < NumStatic; ++Idx)
 			{
-				Geoms.Add(MoveTemp(Geom));
+				GTParticles.Emplace(TGeometryParticle<float, 3>::CreateParticle());
+				NewParticles[Idx]->GTGeometryParticle() = GTParticles.Last().Get();
 			}
 		}
 
-		if(Geoms.Num())
+		if (NumDynamic)
 		{
-			if (Geoms.Num() == 1)
+			Scene->getActors(PxActorTypeFlag::eRIGID_DYNAMIC, &Actors[NumStatic], NumDynamic);
+			auto NewParticles = Particles.CreateDynamicParticles(NumDynamic);	//question: do we want to distinguish query only and sim only actors?
+
+			for (uint32 Idx = 0; Idx < NumDynamic; ++Idx)
 			{
-				auto SharedGeom = TSharedPtr<TImplicitObject<float, 3>, ESPMode::ThreadSafe>(Geoms[0].Release());
-				GTParticle->SetGeometry(SharedGeom);
-				Particle->SetSharedGeometry(SharedGeom);
-			}
-			else
-			{
-				GTParticle->SetGeometry(MakeUnique<TImplicitObjectUnion<float, 3>>(MoveTemp(Geoms)));
-				Particle->SetGeometry(GTParticle->Geometry());
+				GTParticles.Emplace(TPBDRigidParticle<float, 3>::CreateParticle());
+				NewParticles[Idx]->GTGeometryParticle() = GTParticles.Last().Get();
 			}
 		}
 
-		int32 ShapeIdx = 0;
-		for (PxShape* Shape : Shapes)
+		auto& Handles = Particles.GetParticleHandles();
+		int32 Idx = 0;
+		for (PxActor* Act : Actors)
 		{
-			PxShapeToChaosShapes.Add(Shape, GTParticle->ShapesArray()[ShapeIdx++].Get());
+			//transform
+			PxRigidActor* Actor = static_cast<PxRigidActor*>(Act);
+			auto& Particle = Handles.Handle(Idx);
+			auto& GTParticle = Particle->GTGeometryParticle();
+			Particle->X() = P2UVector(Actor->getGlobalPose().p);
+			Particle->R() = P2UQuat(Actor->getGlobalPose().q);
+			Particle->GTGeometryParticle()->SetX(Particle->X());
+			Particle->GTGeometryParticle()->SetR(Particle->R());
+
+			if (auto PBDRigid = Particle->AsDynamic())
+			{
+				PBDRigid->P() = Particle->X();
+				PBDRigid->Q() = Particle->R();
+
+				PBDRigid->GTGeometryParticle()->AsDynamic()->SetP(PBDRigid->P());
+				PBDRigid->GTGeometryParticle()->AsDynamic()->SetQ(PBDRigid->R());
+			}
+
+			PxActorToChaosHandle.Add(Act, Particle.Get());
+
+			//geometry
+			TArray<TUniquePtr<TImplicitObject<float, 3>>> Geoms;
+			const int32 NumShapes = Actor->getNbShapes();
+			TArray<PxShape*> Shapes;
+			Shapes.AddUninitialized(NumShapes);
+			Actor->getShapes(Shapes.GetData(), NumShapes);
+			for (PxShape* Shape : Shapes)
+			{
+				if (TUniquePtr<TImplicitObjectTransformed<float, 3>> Geom = PxShapeToChaosGeom(Shape))
+				{
+					Geoms.Add(MoveTemp(Geom));
+				}
+			}
+
+			if (Geoms.Num())
+			{
+				if (Geoms.Num() == 1)
+				{
+					auto SharedGeom = TSharedPtr<TImplicitObject<float, 3>, ESPMode::ThreadSafe>(Geoms[0].Release());
+					GTParticle->SetGeometry(SharedGeom);
+					Particle->SetSharedGeometry(SharedGeom);
+				}
+				else
+				{
+					GTParticle->SetGeometry(MakeUnique<TImplicitObjectUnion<float, 3>>(MoveTemp(Geoms)));
+					Particle->SetGeometry(GTParticle->Geometry());
+				}
+			}
+
+			int32 ShapeIdx = 0;
+			for (PxShape* Shape : Shapes)
+			{
+				PxShapeToChaosShapes.Add(Shape, GTParticle->ShapesArray()[ShapeIdx++].Get());
+			}
+
+			++Idx;
 		}
 
-		++Idx;
+		ChaosEvolution = MakeUnique<TPBDRigidsEvolutionGBF<float, 3>>(Particles);
 	}
+	else
+	{
+		ChaosEvolution = MakeUnique<TPBDRigidsEvolutionGBF<float, 3>>(Particles);
 
-	ChaosEvolution = MakeUnique<TPBDRigidsEvolutionGBF<float, 3>>(Particles);
+		FMemoryReader Ar(Data);
+		FChaosArchive ChaosAr(Ar);
+
+		Ar.SetCustomVersions(ArchiveVersion);
+
+		ChaosEvolution->Serialize(ChaosAr);
+		ChaosContext = ChaosAr.StealContext();
+	}
 	bChaosDataReady = true;
 #endif
 }

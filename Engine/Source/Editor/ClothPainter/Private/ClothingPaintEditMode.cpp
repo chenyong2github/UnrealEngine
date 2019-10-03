@@ -12,7 +12,7 @@
 #include "ClothingAssetBase.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "IPersonaToolkit.h"
-#include "Assets/ClothingAsset.h"
+#include "ClothingAsset.h"
 #include "EditorViewportClient.h"
 #include "AssetViewerSettings.h"
 #include "Editor/EditorPerProjectUserSettings.h"
@@ -92,7 +92,7 @@ void FClothingPaintEditMode::Exit()
 			{
 				for(UClothingAssetBase* AssetBase : SkelMesh->MeshClothingAssets)
 				{
-					UClothingAsset* ConcreteAsset = CastChecked<UClothingAsset>(AssetBase);
+					UClothingAssetCommon* ConcreteAsset = CastChecked<UClothingAssetCommon>(AssetBase);
 					ConcreteAsset->ApplyParameterMasks();
 				}
 			}

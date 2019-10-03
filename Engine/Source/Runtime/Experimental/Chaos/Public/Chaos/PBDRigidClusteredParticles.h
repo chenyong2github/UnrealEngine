@@ -56,7 +56,6 @@ template<class T, int d>
 class TPBDRigidClusteredParticles : public TPBDRigidParticles<T, d>
 {
   public:
-
 	TPBDRigidClusteredParticles()
 	: TPBDRigidParticles<T, d>()
 	{

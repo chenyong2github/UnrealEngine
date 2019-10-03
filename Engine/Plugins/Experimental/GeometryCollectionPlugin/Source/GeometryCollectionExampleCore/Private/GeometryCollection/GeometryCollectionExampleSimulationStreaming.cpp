@@ -26,7 +26,6 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_Streaming_StartSolverEmpty()
 	{
-#if INCLUDE_CHAOS
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
 		Solver->SetHasFloor(false);
 		Solver->SetEnabled(true);
@@ -57,7 +56,6 @@ namespace GeometryCollectionExample
 			delete Obj;
 #endif
 		delete Solver;
-#endif
 	}
 	template void RigidBodies_Streaming_StartSolverEmpty<float>();
 
@@ -65,7 +63,6 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_Streaming_BulkInitialization()
 	{
-#if INCLUDE_CHAOS
 		typename SimulationObjects<T>::FParameters P;
 		P.CollisionGroup = -1;
 
@@ -105,7 +102,6 @@ namespace GeometryCollectionExample
 			delete Obj;
 #endif
 		delete Solver;
-#endif
 	}
 	template void RigidBodies_Streaming_BulkInitialization<float>(); 
 
@@ -114,7 +110,6 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_Streaming_DeferedClusteringInitialization()
 	{
-#if INCLUDE_CHAOS
 		typename SimulationObjects<T>::FParameters P;
 		P.CollisionGroup = -1;
 		P.EnableClustering = true;
@@ -175,7 +170,6 @@ namespace GeometryCollectionExample
 			delete Obj;
 #endif
 		delete Solver;
-#endif
 	}
 	template void RigidBodies_Streaming_DeferedClusteringInitialization<float>();
 

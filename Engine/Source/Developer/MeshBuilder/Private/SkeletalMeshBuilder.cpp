@@ -17,7 +17,7 @@
 #include "ThirdPartyBuildOptimizationHelper.h"
 #include "Misc/ScopedSlowTask.h"
 #include "LODUtilities.h"
-#include "Assets/ClothingAsset.h"
+#include "ClothingAsset.h"
 #include "MeshUtilities.h"
 #include "EditorFramework/AssetImportData.h"
 

@@ -14,7 +14,7 @@ public:
 	virtual ~IClothingSimulationContext();
 };
 
-/** Base simlation data that just about every simulation would need. */
+/** Base simulation data that just about every simulation would need. */
 class CLOTHINGSYSTEMRUNTIMEINTERFACE_API FClothingSimulationContextBase : public IClothingSimulationContext
 {
 public:

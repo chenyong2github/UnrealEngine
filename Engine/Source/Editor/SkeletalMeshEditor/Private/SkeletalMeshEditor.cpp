@@ -23,7 +23,7 @@
 #include "Rendering/SkeletalMeshModel.h"
 
 #include "Animation/DebugSkelMeshComponent.h"
-#include "Assets/ClothingAsset.h"
+#include "ClothingAsset.h"
 #include "SCreateClothingSettingsPanel.h"
 #include "ClothingSystemEditorInterfaceModule.h"
 #include "Preferences/PersonaOptions.h"
@@ -676,12 +676,12 @@ void FSkeletalMeshEditor::FillApplyClothingAssetMenu(FMenuBuilder& MenuBuilder, 
 	{
 		for(UClothingAssetBase* BaseAsset : Mesh->MeshClothingAssets)
 		{
-			UClothingAsset* ClothAsset = CastChecked<UClothingAsset>(BaseAsset);
+			UClothingAssetCommon* ClothAsset = CastChecked<UClothingAssetCommon>(BaseAsset);
 
 			FUIAction Action;
 			Action.CanExecuteAction = FCanExecuteAction::CreateSP(this, &FSkeletalMeshEditor::CanApplyClothing, InLodIndex, InSectionIndex);
 
-			const int32 NumClothLods = ClothAsset->LodData.Num();
+			const int32 NumClothLods = ClothAsset->GetNumLods();
 			for(int32 ClothLodIndex = 0; ClothLodIndex < NumClothLods; ++ClothLodIndex)
 			{
 				Action.ExecuteAction = FExecuteAction::CreateSP(this, &FSkeletalMeshEditor::OnApplyClothingAssetClicked, BaseAsset, InLodIndex, InSectionIndex, ClothLodIndex);
@@ -913,7 +913,7 @@ void FSkeletalMeshEditor::ApplyClothing(UClothingAssetBase* InAsset, int32 InLod
 			OriginalSectionData.ClothingData.AssetGuid = FGuid();
 			OriginalSectionData.ClothingData.AssetLodIndex = INDEX_NONE;
 		};
-		if (UClothingAsset* ClothingAsset = Cast<UClothingAsset>(InAsset))
+		if (UClothingAssetCommon* ClothingAsset = Cast<UClothingAssetCommon>(InAsset))
 		{
 			// Look for a currently bound asset an unbind it if necessary first
 			if (UClothingAssetBase* CurrentAsset = Mesh->GetSectionClothingAsset(InLodIndex, InSectionIndex))

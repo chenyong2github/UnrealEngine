@@ -1,7 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Utils/ClothingMeshUtils.h"
-#include "Assets/ClothingAsset.h" // for FClothPhysicalMeshData
+
+#include "ClothPhysicalMeshData.h"
 
 #include "Math/UnrealMathUtility.h"
 #include "Logging/LogMacros.h"
@@ -20,7 +21,7 @@ namespace ClothingMeshUtils
 {
 	void SkinPhysicsMesh(
 		const TArray<int32>& BoneMap,
-		const FClothPhysicalMeshData& InMesh,
+		const UClothPhysicalMeshDataBase& InMesh,
 		const FTransform& RootBoneTransform,
 		const FMatrix* InBoneMatrices,
 		const int32 InNumBoneMatrices,

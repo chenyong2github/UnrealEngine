@@ -2,9 +2,7 @@
 #pragma once
 
 #include "Chaos/Array.h"
-#include "Chaos/Map.h"
 #include "Chaos/PBDParticles.h"
-#include "Chaos/PerParticleRule.h"
 
 #include <functional>
 

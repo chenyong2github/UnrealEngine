@@ -6,6 +6,7 @@
 #include "Chaos/Transform.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
 #include "Chaos/HeightField.h"
+#include "Chaos/Convex.h"
 #include "ImplicitObjectScaled.h"
 
 #include "ChaosArchive.h"
@@ -70,7 +71,7 @@ namespace Chaos
 				const TImplicitObject<T, d>& UnscaledObj = *AScaled.GetUnscaledObject();
 				check(UnscaledObj.GetType(true) == ImplicitObjectType::TriangleMesh);
 				const TTriangleMeshImplicitObject<T>& ATriangleMesh = static_cast<const TTriangleMeshImplicitObject<T>&>(UnscaledObj);
-				return ATriangleMesh.OverlapGeom(B, BToATM, Thickness, AScaled.GetScale());
+				return TImplicitObjectScaled<T,d>::LowLevelOverlapGeom(AScaled, ATriangleMesh, B, BToATM, Thickness);
 			}
 			default:
 				check(false);	//unsupported query type
@@ -106,8 +107,8 @@ namespace Chaos
 		check(B.IsConvex());	//Object being swept must be convex
 		OutFaceIndex = INDEX_NONE;
 		
-		TVector<T, d> LocalPosition;
-		TVector<T, d> LocalNormal;
+		TVector<T, d> LocalPosition(-TNumericLimits<float>::Max()); // Make it obvious when things go wrong
+		TVector<T, d> LocalNormal(0);
 
 		const TRigidTransform<T, d> BToATM = BTM.GetRelativeTransform(ATM);
 		const TVector<T, d> LocalDir = ATM.InverseTransformVectorNoScale(Dir);
@@ -129,7 +130,31 @@ namespace Chaos
 		//todo: handle case where A is a sphere
 		else if (A.IsConvex())
 		{
+			auto IsValidConvex = [](const TImplicitObject<T, 3>& InObject) -> bool
+			{
+				//todo: move this out of here
+				const TImplicitObject<T, 3>* Obj = &InObject;
+				if (const TImplicitObjectScaled<T, 3>* Scaled = InObject.template GetObject<TImplicitObjectScaled<T, 3>>())
+				{
+					Obj = Scaled->GetUnscaledObject();
+				}
+				if (const TConvex<T, 3>* Convex = Obj->template GetObject<TConvex<T, 3>>())
+				{
+					return Convex->GetSurfaceParticles().Size() > 0;
+				}
+
+				return true;
+			};
+
+			// Validate that the convexes we are about to test are actually valid geometries
+			if(!ensureMsgf(IsValidConvex(A), TEXT("GJKRaycast - Convex A has no particles")) ||
+				!ensureMsgf(IsValidConvex(B), TEXT("GJKRaycast - Convex B has no particles")))
+			{
+				return false;
+			}
+
 			const TVector<T, d> Offset = ATM.GetLocation() - BTM.GetLocation();
+
 			bResult = GJKRaycast<T>(A, B, BToATM, LocalDir, Length, OutTime, LocalPosition, LocalNormal, Thickness, Offset);
 
 			if (AType == ImplicitObjectType::Convex)
@@ -163,7 +188,7 @@ namespace Chaos
 				const TImplicitObject<T, d>& UnscaledObj = *AScaled.GetUnscaledObject();
 				check(UnscaledObj.GetType(true) == ImplicitObjectType::TriangleMesh);
 				const TTriangleMeshImplicitObject<T>& ATriangleMesh = static_cast<const TTriangleMeshImplicitObject<T>&>(UnscaledObj);
-				bResult = ATriangleMesh.SweepGeom(B, BToATM, LocalDir, Length, OutTime, LocalPosition, LocalNormal, OutFaceIndex, Thickness, AScaled.GetScale());
+				bResult = TImplicitObjectScaled<T,d>::LowLevelSweepGeom(AScaled, ATriangleMesh, B, BToATM, LocalDir, Length, OutTime, LocalPosition, LocalNormal, OutFaceIndex, Thickness);
 				break;
 			}
 			default:

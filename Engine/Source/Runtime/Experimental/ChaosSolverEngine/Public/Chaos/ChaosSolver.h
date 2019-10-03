@@ -3,9 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Containers/Array.h"
-#include "Math/Vector.h"
-#include "Chaos/PBDCollisionTypes.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
 
 #include "ChaosSolver.generated.h"

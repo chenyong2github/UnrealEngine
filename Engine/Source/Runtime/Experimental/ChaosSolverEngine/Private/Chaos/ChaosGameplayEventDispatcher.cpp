@@ -5,30 +5,28 @@
 #include "PhysicsEngine/BodyInstance.h"
 #include "Chaos/Framework/PhysicsProxy.h"
 #include "PhysicsSolver.h"
-#include "Chaos/PBDCollisionTypes.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
 #include "Engine/World.h"
 #include "PhysicsEngine/PhysicsCollisionHandler.h"
 #include "ChaosStats.h"
 #include "Chaos/ChaosNotifyHandlerInterface.h"
+#include "EventsData.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "EventManager.h"
 
 // PRAGMA_DISABLE_OPTIMIZATION
 
-void UChaosGameplayEventDispatcher::BeginPlay()
+void UChaosGameplayEventDispatcher::OnRegister()
 {
-	Super::BeginPlay();
-#if INCLUDE_CHAOS
+	Super::OnRegister();
 	RegisterChaosEvents();
-#endif
 }
 
-void UChaosGameplayEventDispatcher::EndPlay(const EEndPlayReason::Type EndPlayReason)
+
+void UChaosGameplayEventDispatcher::OnUnregister()
 {
-#if INCLUDE_CHAOS
 	UnregisterChaosEvents();
-#endif
-	Super::EndPlay(EndPlayReason);
+	Super::OnUnregister();
 }
 
 // internal
@@ -197,14 +195,34 @@ void UChaosGameplayEventDispatcher::UnRegisterForBreakEvents(UPrimitiveComponent
 	}
 }
 
-#if INCLUDE_CHAOS
+void UChaosGameplayEventDispatcher::DispatchPendingWakeNotifies()
+{
+	for (auto MapItr = PendingSleepNotifies.CreateIterator(); MapItr; ++MapItr)
+	{
+		FBodyInstance* BodyInstance = MapItr.Key();
+		if (UPrimitiveComponent* PrimitiveComponent = BodyInstance->OwnerComponent.Get())
+		{
+			PrimitiveComponent->DispatchWakeEvents(MapItr.Value(), BodyInstance->BodySetup->BoneName);
+		}
+	}
+
+	PendingSleepNotifies.Empty();
+}
 
 void UChaosGameplayEventDispatcher::RegisterChaosEvents()
 {
 #if WITH_CHAOS
-	FPhysScene* Scene = GetWorld()->GetPhysicsScene();
-	Scene->RegisterEventHandler<Chaos::FCollisionEventData>(Chaos::EEventType::Collision, this, &UChaosGameplayEventDispatcher::HandleCollisionEvents);
-	//Scene->RegisterEventHandler<Chaos::FBreakingEventData>(Chaos::EEventType::Breaking, this, &UChaosGameplayEventDispatcher::HandleBreakingEvents);
+	if (FPhysScene* Scene = GetWorld()->GetPhysicsScene())
+	{
+		if (Chaos::FPhysicsSolver* Solver = Scene->GetScene().GetSolver())
+		{
+			Chaos::FEventManager* EventManager = Solver->GetEventManager();
+			EventManager->RegisterHandler<Chaos::FCollisionEventData>(Chaos::EEventType::Collision, this, &UChaosGameplayEventDispatcher::HandleCollisionEvents);
+			//EventManager->RegisterHandler<Chaos::FBreakingEventData>(Chaos::EEventType::Breaking, this, &UChaosGameplayEventDispatcher::HandleBreakingEvents);
+			EventManager->RegisterHandler<Chaos::FSleepingEventData>(Chaos::EEventType::Sleeping, this, &UChaosGameplayEventDispatcher::HandleSleepingEvents);
+		}
+	}
+
 #endif
 }
 
@@ -213,9 +231,16 @@ void UChaosGameplayEventDispatcher::UnregisterChaosEvents()
 #if WITH_CHAOS
 	if (GetWorld())
 	{
-		FPhysScene* Scene = GetWorld()->GetPhysicsScene();
-		Scene->UnregisterEventHandler(Chaos::EEventType::Collision, this);
-		//Scene->UnregisterEventHandler(Chaos::EEventType::Breaking, this);
+		if (FPhysScene* Scene = GetWorld()->GetPhysicsScene())
+		{
+			if (Chaos::FPhysicsSolver* Solver = Scene->GetScene().GetSolver())
+			{
+				Chaos::FEventManager* EventManager = Solver->GetEventManager();
+				EventManager->UnregisterHandler(Chaos::EEventType::Collision, this);
+				//EventManager->UnregisterHandler(Chaos::EEventType::Breaking, this);
+				EventManager->UnregisterHandler(Chaos::EEventType::Sleeping, this);
+			}
+		}
 	}
 #endif
 }
@@ -387,7 +412,34 @@ void UChaosGameplayEventDispatcher::HandleBreakingEvents(const Chaos::FBreakingE
 
 }
 
-#endif // INCLUDE_CHAOS
 
+void UChaosGameplayEventDispatcher::HandleSleepingEvents(const Chaos::FSleepingEventData& SleepingData)
+{
+	const Chaos::FSleepingDataArray& SleepingArray = SleepingData.SleepingData;
+
+	for (const Chaos::TSleepingData<float, 3>& SleepData : SleepingArray)
+	{
+		if (SleepData.Particle->Proxy != nullptr)
+		{
+			UPrimitiveComponent* Component = Cast<UPrimitiveComponent>(SleepData.Particle->Proxy->GetOwner());
+			if (Component)
+			{
+				if (FBodyInstance* BodyInstance = Component->GetBodyInstance())
+				{
+					ESleepEvent WakeSleepEvent = SleepData.Sleeping ? ESleepEvent::SET_Sleep : ESleepEvent::SET_Wakeup;
+					AddPendingSleepingNotify(BodyInstance, WakeSleepEvent);
+				}
+			}
+		}
+	}
+
+	DispatchPendingWakeNotifies();
+}
+
+
+void UChaosGameplayEventDispatcher::AddPendingSleepingNotify(FBodyInstance* BodyInstance, ESleepEvent SleepEventType)
+{
+	PendingSleepNotifies.FindOrAdd(BodyInstance) = SleepEventType;
+}
 
 // PRAGMA_ENABLE_OPTIMIZATION

@@ -20,16 +20,13 @@ UChaosDestructionListener::UChaosDestructionListener(FObjectInitializer const& O
 	PrimaryComponentTick.bCanEverTick = true;
 #endif
 
-#if INCLUDE_CHAOS
 	SetCollisionFilter(MakeShareable(new FChaosCollisionEventFilter(&CollisionEventRequestSettings)));
 	SetBreakingFilter(MakeShareable(new FChaosBreakingEventFilter(&BreakingEventRequestSettings)));
 	SetTrailingFilter(MakeShareable(new FChaosTrailingEventFilter(&TrailingEventRequestSettings)));
-#endif
 }
 
 void UChaosDestructionListener::ClearEvents()
 {
-#if INCLUDE_CHAOS
 #if 0 // solver actors no longer functional, using GetWorld()->GetPhysicsScene() instead
 	for (AChaosSolverActor* ChaosSolverActorObject : ChaosSolverActors)
 	{
@@ -38,13 +35,10 @@ void UChaosDestructionListener::ClearEvents()
 #else
 	UnregisterChaosEvents(GetWorld()->GetPhysicsScene());
 #endif
-#endif
 }
 
 void UChaosDestructionListener::UpdateEvents()
 {
-#if INCLUDE_CHAOS
-
 	if (!ChaosSolverActors.Num() && !GeometryCollectionActors.Num())
 	{
 		if (FPhysScene* PhysScene = GetWorld()->GetPhysicsScene())
@@ -84,13 +78,11 @@ void UChaosDestructionListener::UpdateEvents()
 			}
 		}
 	}
-#endif
 }
 
 #if 0 // #todo: No longer required?
 void UChaosDestructionListener::UpdateGeometryCollectionPhysicsProxies()
 {
-#if INCLUDE_CHAOS
 	GeometryCollectionPhysicsProxies.Reset();
 
 	if (GeometryCollectionActors.Num() > 0)
@@ -117,7 +109,6 @@ void UChaosDestructionListener::UpdateGeometryCollectionPhysicsProxies()
 			}
 		}
 	}
-#endif
 }
 #endif
 
@@ -189,7 +180,6 @@ void UChaosDestructionListener::TickComponent(float DeltaTime, enum ELevelTick T
 		// If the data was changed during the task, then bChanged will be true and we will avoid broadcasting this frame since it won't be valid.
 		if (bIsListening && !bChanged)
 		{
-#if INCLUDE_CHAOS
 			if (ChaosCollisionFilter.IsValid())
 			{
 				if (bIsCollisionEventListeningEnabled && ChaosCollisionFilter->GetNumEvents() > 0 && OnCollisionEvents.IsBound())
@@ -213,7 +203,6 @@ void UChaosDestructionListener::TickComponent(float DeltaTime, enum ELevelTick T
 					OnTrailingEvents.Broadcast(ChaosTrailingFilter->GetFilteredResults());
 				}
 			}
-#endif
 		}
 		else
 		{
@@ -230,7 +219,6 @@ void UChaosDestructionListener::TickComponent(float DeltaTime, enum ELevelTick T
 		return;
 	}
 
-#if INCLUDE_CHAOS
 	// If we don't have solvers, call update to make sure we have built our solver array
 	if (!Solvers.Num())
 	{
@@ -246,7 +234,6 @@ void UChaosDestructionListener::TickComponent(float DeltaTime, enum ELevelTick T
 	RawCollisionDataArray.Reset();
 	RawBreakingDataArray.Reset();
 	RawTrailingDataArray.Reset();
-#endif
 
 	// Retrieve the raw data arrays from the solvers
 	GetDataFromSolvers();
@@ -263,7 +250,6 @@ void UChaosDestructionListener::TickComponent(float DeltaTime, enum ELevelTick T
 
 		[this]()
 		{
-#if INCLUDE_CHAOS
 			if (bIsCollisionEventListeningEnabled)
 			{
 				if (ChaosCollisionFilter.IsValid())
@@ -287,7 +273,6 @@ void UChaosDestructionListener::TickComponent(float DeltaTime, enum ELevelTick T
 					ChaosTrailingFilter->FilterEvents(ChaosComponentTransform, RawTrailingDataArray);
 				}
 			}
-#endif
 			TaskState.Set((int32)ETaskState::Finished);
 		});
 #endif // if 0
@@ -318,7 +303,6 @@ void UChaosDestructionListener::RemoveChaosSolverActor(AChaosSolverActor* ChaosS
 
 void UChaosDestructionListener::AddGeometryCollectionActor(AGeometryCollectionActor* GeometryCollectionActor)
 {
-#if INCLUDE_CHAOS
 	if (GeometryCollectionActor && !GeometryCollectionActors.Contains(GeometryCollectionActor))
 	{
 		GeometryCollectionActors.Add(GeometryCollectionActor);
@@ -330,7 +314,6 @@ void UChaosDestructionListener::AddGeometryCollectionActor(AGeometryCollectionAc
 			}
 		}
 	}
-#endif
 }
 
 void UChaosDestructionListener::RemoveGeometryCollectionActor(AGeometryCollectionActor* GeometryCollectionActor)
@@ -381,69 +364,69 @@ void UChaosDestructionListener::SetTrailingEventEnabled(bool bIsEnabled)
 
 void UChaosDestructionListener::SortCollisionEvents(TArray<FChaosCollisionEventData>& CollisionEvents, EChaosCollisionSortMethod SortMethod)
 {
-#if INCLUDE_CHAOS
 	if (ChaosCollisionFilter.IsValid())
 	{
 		ChaosCollisionFilter->SortEvents(CollisionEvents, SortMethod, GetComponentTransform());
 	}
-#endif
 }
 
 void UChaosDestructionListener::SortBreakingEvents(TArray<FChaosBreakingEventData>& BreakingEvents, EChaosBreakingSortMethod SortMethod)
 {
-#if INCLUDE_CHAOS
 	if (ChaosBreakingFilter.IsValid())
 	{
 		ChaosBreakingFilter->SortEvents(BreakingEvents, SortMethod, GetComponentTransform());
 	}
-#endif
 }
 
 void UChaosDestructionListener::SortTrailingEvents(TArray<FChaosTrailingEventData>& TrailingEvents, EChaosTrailingSortMethod SortMethod)
 {
-#if INCLUDE_CHAOS
 	if (ChaosTrailingFilter.IsValid())
 	{
 		ChaosTrailingFilter->SortEvents(TrailingEvents, SortMethod, GetComponentTransform());
 	}
-#endif
 }
-
-#if INCLUDE_CHAOS
 
 void UChaosDestructionListener::RegisterChaosEvents(FPhysScene* Scene)
 {
 #if WITH_CHAOS
-	Scene->RegisterEventHandler<Chaos::FCollisionEventData>(Chaos::EEventType::Collision, this, &UChaosDestructionListener::HandleCollisionEvents);
-	Scene->RegisterEventHandler<Chaos::FBreakingEventData>(Chaos::EEventType::Breaking, this, &UChaosDestructionListener::HandleBreakingEvents);
-	Scene->RegisterEventHandler<Chaos::FTrailingEventData>(Chaos::EEventType::Trailing, this, &UChaosDestructionListener::HandleTrailingEvents);
+	Chaos::FPhysicsSolver* Solver = Scene->GetScene().GetSolver();
+	Chaos::FEventManager* EventManager = Solver->GetEventManager();
+	EventManager->RegisterHandler<Chaos::FCollisionEventData>(Chaos::EEventType::Collision, this, &UChaosDestructionListener::HandleCollisionEvents);
+	EventManager->RegisterHandler<Chaos::FBreakingEventData>(Chaos::EEventType::Breaking, this, &UChaosDestructionListener::HandleBreakingEvents);
+	EventManager->RegisterHandler<Chaos::FTrailingEventData>(Chaos::EEventType::Trailing, this, &UChaosDestructionListener::HandleTrailingEvents);
 #endif
 }
 
 void UChaosDestructionListener::UnregisterChaosEvents(FPhysScene* Scene)
 {
 #if WITH_CHAOS
-	Scene->UnregisterEventHandler(Chaos::EEventType::Collision, this);
-	Scene->UnregisterEventHandler(Chaos::EEventType::Breaking, this);
-	Scene->UnregisterEventHandler(Chaos::EEventType::Trailing, this);
+	Chaos::FPhysicsSolver* Solver = Scene->GetScene().GetSolver();
+	Chaos::FEventManager* EventManager = Solver->GetEventManager();
+	EventManager->UnregisterHandler(Chaos::EEventType::Collision, this);
+	EventManager->UnregisterHandler(Chaos::EEventType::Breaking, this);
+	EventManager->UnregisterHandler(Chaos::EEventType::Trailing, this);
 #endif
 }
 
 void UChaosDestructionListener::RegisterChaosEvents(TSharedPtr<FPhysScene_Chaos> Scene)
 {
 #if WITH_CHAOS
-	Scene->RegisterEventHandler<Chaos::FCollisionEventData>(Chaos::EEventType::Collision, this, &UChaosDestructionListener::HandleCollisionEvents);
-	Scene->RegisterEventHandler<Chaos::FBreakingEventData>(Chaos::EEventType::Breaking, this, &UChaosDestructionListener::HandleBreakingEvents);
-	Scene->RegisterEventHandler<Chaos::FTrailingEventData>(Chaos::EEventType::Trailing, this, &UChaosDestructionListener::HandleTrailingEvents);
+	Chaos::FPhysicsSolver* Solver = Scene->GetSolver();
+	Chaos::FEventManager* EventManager = Solver->GetEventManager();
+	EventManager->RegisterHandler<Chaos::FCollisionEventData>(Chaos::EEventType::Collision, this, &UChaosDestructionListener::HandleCollisionEvents);
+	EventManager->RegisterHandler<Chaos::FBreakingEventData>(Chaos::EEventType::Breaking, this, &UChaosDestructionListener::HandleBreakingEvents);
+	EventManager->RegisterHandler<Chaos::FTrailingEventData>(Chaos::EEventType::Trailing, this, &UChaosDestructionListener::HandleTrailingEvents);
 #endif
 }
 
 void UChaosDestructionListener::UnregisterChaosEvents(TSharedPtr<FPhysScene_Chaos> Scene)
 {
 #if WITH_CHAOS
-	Scene->UnregisterEventHandler(Chaos::EEventType::Collision, this);
-	Scene->UnregisterEventHandler(Chaos::EEventType::Breaking, this);
-	Scene->UnregisterEventHandler(Chaos::EEventType::Trailing, this);
+	Chaos::FPhysicsSolver* Solver = Scene->GetSolver();
+	Chaos::FEventManager* EventManager = Solver->GetEventManager();
+	EventManager->UnregisterHandler(Chaos::EEventType::Collision, this);
+	EventManager->UnregisterHandler(Chaos::EEventType::Breaking, this);
+	EventManager->UnregisterHandler(Chaos::EEventType::Trailing, this);
 #endif
 }
 
@@ -514,7 +497,3 @@ void UChaosDestructionListener::HandleTrailingEvents(const Chaos::FTrailingEvent
 #endif
 	}
 }
-
-#endif // INCLUDE_CHAOS
-
-
