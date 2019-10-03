@@ -206,6 +206,10 @@ public:
 	 * Get the particles that are affected by the specified constraint.
 	 */
 	TVector<TGeometryParticleHandle<T, d>*, 2> ConstraintParticles(int32 ContactIndex) const { return { Constraints[ContactIndex].Particle, Constraints[ContactIndex].Levelset }; }
+
+	//NOTE: this should not be called by anyone other than ISpatialAccelerationCollection and CollisionConstraints - todo: make private with friends?
+	template <bool bGatherStats, typename SPATIAL_ACCELERATION>
+	void ComputeConstraintsHelperLowLevel(const SPATIAL_ACCELERATION& SpatialAcceleration, T Dt);
 	
 protected:
 	using Base::GetConstraintIndex;
@@ -225,8 +229,6 @@ private:
 
 	FRigidBodyContactConstraint ComputeConstraint(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const T Thickness);
 
-	template <typename SPATIAL_ACCELERATION, bool bGatherStats>
-	void ComputeConstraintsHelper(T Dt, const SPATIAL_ACCELERATION& SpatialAcceleration);
 
 	template<typename SPATIAL_ACCELERATION>
 	void UpdateConstraintsHelper(/*const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices,*/ T Dt, const TSet<TGeometryParticleHandle<T, d>*>& AddedParticles, SPATIAL_ACCELERATION& SpatialAcceleration);
