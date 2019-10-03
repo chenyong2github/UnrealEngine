@@ -63,7 +63,8 @@ void SGameProjectDialog::Construct(const FArguments& InArgs, EMode InMode)
 
 	NewProjectWizard = SNew(SNewProjectWizard)
 		.OnTemplateDoubleClick(this, &SGameProjectDialog::OnTemplateDoubleClick);
-	ProjectBrowserPage = SNew(SProjectBrowser);
+	ProjectBrowserPage = SNew(SProjectBrowser)
+		.HideOpenButton(true);
 
 	const float UniformPadding = 16.0f;
 
