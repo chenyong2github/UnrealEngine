@@ -1089,6 +1089,16 @@ void FProjectedShadowInfo::SetupShadowUniformBuffers(FRHICommandListImmediate& R
 		ShadowDepthPassUniformBuffer.UpdateUniformBufferImmediate(ShadowDepthPassParameters);
 
 		UploadDynamicPrimitiveShaderDataForView(RHICmdList, *Scene, *ShadowDepthView);
+
+		if (DependentView)
+		{
+			extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
+
+			for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
+			{
+				Extension->BeginRenderView(DependentView);
+			}
+		}
 	}
 }
 
@@ -1116,6 +1126,16 @@ void FProjectedShadowInfo::RenderDepthInner(FRHICommandListImmediate& RHICmdList
 	{
 		// CSM shadow depth cached mesh draw commands are all referencing the same view uniform buffer.  We need to update it before rendering each cascade.
 		ShadowDepthView->ViewUniformBuffer.UpdateUniformBufferImmediate(*ShadowDepthView->CachedViewUniformShaderParameters);
+		
+		if (DependentView)
+		{
+			extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
+
+			for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
+			{
+				Extension->BeginRenderView(DependentView);
+			}
+		}
 	}
 
 	if (FSceneInterface::GetShadingPath(FeatureLevel) == EShadingPath::Mobile)

@@ -920,6 +920,13 @@ void FPersistentUniformBuffers::Initialize()
 #endif
 }
 
+TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
+
+void FRendererModule::RegisterPersistentViewUniformBufferExtension(IPersistentViewUniformBufferExtension* Extension)
+{
+	PersistentViewUniformBufferExtensions.Add(Extension);
+}
+
 bool FPersistentUniformBuffers::UpdateViewUniformBuffer(const FViewInfo& View)
 {
 	// ViewUniformBuffer can be cached by mesh commands, so we need to update it every time we change current view.
@@ -941,6 +948,12 @@ bool FPersistentUniformBuffers::UpdateViewUniformBuffer(const FViewInfo& View)
 		}
 
 		CachedView = &View;
+
+		for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
+		{
+			Extension->BeginRenderView(&View);
+		}
+
 		return true;
 	}
 	return false;
@@ -3341,7 +3354,10 @@ void FScene::OnLevelAddedToWorld_RenderThread(FName InLevelName)
 			Proxy->bIsComponentLevelVisible = true;
 			if (Proxy->NeedsLevelAddedToWorldNotification())
 			{
+				// The only type of SceneProxy using this is landscape
+				(*It)->RemoveStaticMeshes();
 				Proxy->OnLevelAddedToWorld();
+				(*It)->AddStaticMeshes(FRHICommandListExecutor::GetImmediateCommandList());
 			}
 		}
 	}
