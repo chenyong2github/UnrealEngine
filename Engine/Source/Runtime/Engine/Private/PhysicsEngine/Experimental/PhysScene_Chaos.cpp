@@ -580,8 +580,7 @@ void FPhysScene_Chaos::RemoveActorFromAccelerationStructure(FPhysicsActorHandle&
 	{
 		ExternalDataLock.WriteLock();
 		Chaos::TAccelerationStructureHandle<float, 3> AccelerationHandle(Actor);
-		Chaos::FSpatialAccelerationIdx Idx = { 0,0 };	//todo: use real idx;
-		GetSpacialAcceleration()->RemoveElementFrom(AccelerationHandle, Idx);
+		GetSpacialAcceleration()->RemoveElementFrom(AccelerationHandle, Actor->SpatialIdx());
 		ExternalDataLock.WriteUnlock();
 	}
 #endif
