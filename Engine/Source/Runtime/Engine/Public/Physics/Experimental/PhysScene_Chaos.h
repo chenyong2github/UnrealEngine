@@ -54,6 +54,9 @@ namespace Chaos
 	template <typename TPayload, typename T, int d>
 	class ISpatialAcceleration;
 
+	template <typename TPayload, typename T, int d>
+	class ISpatialAccelerationCollection;
+
 	class IDispatcher;
 }
 
@@ -161,7 +164,7 @@ public:
 	void CopySolverAccelerationStructure();
 
 private:
-	TUniquePtr<Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>> SolverAccelerationStructure;
+	TUniquePtr<Chaos::ISpatialAccelerationCollection<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>> SolverAccelerationStructure;
 
 #if CHAOS_WITH_PAUSABLE_SOLVER
 	/** Callback that checks the status of the world settings for this scene before pausing/unpausing its solver. */

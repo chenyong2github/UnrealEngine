@@ -33,6 +33,8 @@
 #include "Chaos/PBDSpringConstraints.h"
 #include "Chaos/PerParticleGravity.h"
 #include "PBDRigidActiveParticlesBuffer.h"
+#include "Chaos/GeometryParticlesfwd.h"
+
 
 #if !UE_BUILD_SHIPPING
 #include "Engine/World.h"
@@ -578,7 +580,8 @@ void FPhysScene_Chaos::RemoveActorFromAccelerationStructure(FPhysicsActorHandle&
 	{
 		ExternalDataLock.WriteLock();
 		Chaos::TAccelerationStructureHandle<float, 3> AccelerationHandle(Actor);
-		GetSpacialAcceleration()->RemoveElement(AccelerationHandle);
+		Chaos::FSpatialAccelerationIdx Idx = { 0,0 };	//todo: use real idx;
+		GetSpacialAcceleration()->RemoveElementFrom(AccelerationHandle, Idx);
 		ExternalDataLock.WriteUnlock();
 	}
 #endif
