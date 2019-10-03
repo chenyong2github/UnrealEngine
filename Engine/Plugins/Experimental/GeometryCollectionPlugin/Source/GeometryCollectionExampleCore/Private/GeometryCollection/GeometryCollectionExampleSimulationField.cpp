@@ -646,7 +646,6 @@ namespace GeometryCollectionExample
 
 		delete PhysObject;
 		delete RadialMask;
-#endif
 	}
 	template void RigidBodies_Field_CollisionGroup<float>();
 
