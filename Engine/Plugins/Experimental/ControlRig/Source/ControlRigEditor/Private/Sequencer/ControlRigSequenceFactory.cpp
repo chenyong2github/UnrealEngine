@@ -31,7 +31,7 @@ UObject* UControlRigSequenceFactory::FactoryCreateNew(UClass* Class, UObject* In
 
 bool UControlRigSequenceFactory::ShouldShowInNewMenu() const
 {
-	return true;
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE
