@@ -89,11 +89,13 @@ typedef TDynamicMeshAttributeChange<float,3> FDynamicMeshNormalChange;
 /**
  * FDynamicMeshAttributeChangeSet stores a set of UV and Normal changes for a FDynamicMesh3
  */
-class DYNAMICMESH_API FDynamicMeshAttributeChangeSet
+class DYNAMICMESH_API FDynamicMeshAttributeChangeSet : FNoncopyable
 {
 public:
 	TArray<FDynamicMeshUVChange> UVChanges;
 	TArray<FDynamicMeshNormalChange> NormalChanges;
+	TOptional<FDynamicMeshTriangleAttributeChange<int32, 1>> MaterialIDAttribChange;
+	TArray<TUniquePtr<FDynamicAttributeChangeBase>> RegisteredAttributeChanges;
 
 	/** call ::Apply() on all the UV and Normal changes */
 	bool Apply(FDynamicMeshAttributeSet* Attributes, bool bRevert) const;
@@ -123,7 +125,7 @@ public:
 	/** Store the final state of a triangle */
 	void StoreFinalTriangle(const FDynamicMesh3* Mesh, int TriangleID);
 
-	/** Attach an attribute change set to this mesh change, which will the be applied/reverted autoamtically */
+	/** Attach an attribute change set to this mesh change, which will the be applied/reverted automatically */
 	void AttachAttributeChanges(TUniquePtr<FDynamicMeshAttributeChangeSet> AttribChanges)
 	{
 		this->AttributeChanges = MoveTemp(AttribChanges);
@@ -201,6 +203,12 @@ public:
 
 	/** store the final state of a set of triangles */
 	void StoreAllFinalTriangles(const TArray<int>& TriangleIDs);
+
+	/** Store the initial state of a vertex */
+	void SaveInitialVertex(int VertexID);
+
+	/** store the final state of a set of vertices */
+	void StoreAllFinalVertices(const TArray<int>& VertexIDs);
 
 
 protected:

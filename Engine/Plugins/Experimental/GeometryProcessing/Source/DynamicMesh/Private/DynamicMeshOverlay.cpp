@@ -560,6 +560,13 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnFlipEdge(const FDynamicMesh3:
 {
 	int orig_t0 = FlipInfo.Triangles.A;
 	int orig_t1 = FlipInfo.Triangles.B;
+	bool bT0Set = IsSetTriangle(orig_t0), bT1Set = IsSetTriangle(orig_t1);
+	if (!bT0Set)
+	{
+		check(!bT1Set); // flipping across a set/unset boundary is not allowed?
+		return; // nothing to do on the overlay if both triangles are unset
+	}
+
 	int base_a = FlipInfo.OriginalVerts.A;
 	int base_b = FlipInfo.OriginalVerts.B;
 	int base_c = FlipInfo.OpposingVerts.A;
@@ -613,6 +620,8 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnFlipEdge(const FDynamicMesh3:
 template<typename RealType, int ElementSize>
 void TDynamicMeshOverlay<RealType, ElementSize>::OnCollapseEdge(const FDynamicMesh3::FEdgeCollapseInfo& collapseInfo)
 {
+	// TODO: support case where (either or both) triangles were unset in overlay
+
 	int vid_base_kept = collapseInfo.KeptVertex;
 	int vid_base_removed = collapseInfo.RemovedVertex;
 	int tid_removed0 = collapseInfo.RemovedTris.A;
@@ -701,6 +710,13 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnCollapseEdge(const FDynamicMe
 template<typename RealType, int ElementSize>
 void TDynamicMeshOverlay<RealType, ElementSize>::OnPokeTriangle(const FDynamicMesh3::FPokeTriangleInfo& PokeInfo)
 {
+	if (!IsSetTriangle(PokeInfo.OriginalTriangle))
+	{
+		InitializeNewTriangle(PokeInfo.NewTriangles.A);
+		InitializeNewTriangle(PokeInfo.NewTriangles.B);
+		return;
+	}
+
 	FIndex3i Triangle = GetTriangle(PokeInfo.OriginalTriangle);
 
 	// create new element at barycentric position
@@ -709,9 +725,9 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnPokeTriangle(const FDynamicMe
 	SetElementFromBary(CenterElemID, Triangle[0], Triangle[1], Triangle[2], BaryCoords);
 
 	// update orig triangle and two new ones. Winding orders here mirror FDynamicMesh3::PokeTriangle
-	SetTriangle(PokeInfo.OriginalTriangle, FIndex3i(Triangle[0], Triangle[1], CenterElemID) );
-	SetTriangle(PokeInfo.NewTriangles.A, FIndex3i(Triangle[1], Triangle[2], CenterElemID));
-	SetTriangle(PokeInfo.NewTriangles.B, FIndex3i(Triangle[2], Triangle[0], CenterElemID));
+	InternalSetTriangle(PokeInfo.OriginalTriangle, FIndex3i(Triangle[0], Triangle[1], CenterElemID), false );
+	InternalSetTriangle(PokeInfo.NewTriangles.A, FIndex3i(Triangle[1], Triangle[2], CenterElemID), false);
+	InternalSetTriangle(PokeInfo.NewTriangles.B, FIndex3i(Triangle[2], Triangle[0], CenterElemID), false);
 
 	ElementsRefCounts.Increment(Triangle[0]);
 	ElementsRefCounts.Increment(Triangle[1]);

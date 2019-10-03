@@ -5,6 +5,7 @@
 
 #include "DynamicMeshOverlay.h"
 #include "DynamicMeshTriangleAttribute.h"
+#include "DynamicAttribute.h"
 
 /** Standard UV overlay type - 2-element float */
 typedef TDynamicMeshVectorOverlay<float, 2, FVector2f> FDynamicMeshUVOverlay;
@@ -22,7 +23,7 @@ typedef TDynamicMeshTriangleAttribute<int32, 1> FDynamicMeshMaterialAttribute;
  * 
  * @todo current internal structure is a work-in-progress
  */
-class DYNAMICMESH_API FDynamicMeshAttributeSet
+class DYNAMICMESH_API FDynamicMeshAttributeSet : public FDynamicAttributeSetBase
 {
 public:
 
@@ -50,6 +51,14 @@ public:
 		{
 			EnableMaterialID();
 			MaterialIDAttrib->Copy( *(Copy.MaterialIDAttrib) );
+		}
+
+		GenericAttributes.Reset();
+		ResetRegisteredAttributes();
+		for (int Idx = 0; Idx < Copy.GenericAttributes.Num(); Idx++)
+		{
+			const FDynamicAttributeBase* SourceAttrib = Copy.GenericAttributes[Idx].Get();
+			AttachAttribute(SourceAttrib->MakeCopy(ParentMesh));
 		}
 
 		// parent mesh is *not* copied!
@@ -186,6 +195,24 @@ public:
 		return MaterialIDAttrib.Get();
 	}
 
+	// Attach a new attribute (and transfer ownership of it to the attribute set)
+	int AttachAttribute(FDynamicAttributeBase* Attribute)
+	{
+		int AttributeID = GenericAttributes.Add(TUniquePtr<FDynamicAttributeBase>(Attribute));
+		RegisterExternalAttribute(Attribute);
+		return AttributeID;
+	}
+
+	FDynamicAttributeBase* GetAttachedAttribute(int AttributeID)
+	{
+		return GenericAttributes[AttributeID].Get();
+	}
+
+	int NumAttachedAttributes()
+	{
+		return GenericAttributes.Num();
+	}
+
 protected:
 	/** Parent mesh of this attribute set */
 	FDynamicMesh3* ParentMesh;
@@ -198,6 +225,7 @@ protected:
 
 	TUniquePtr<FDynamicMeshMaterialAttribute> MaterialIDAttrib;
 	
+	TArray<TUniquePtr<FDynamicAttributeBase>> GenericAttributes;
 
 protected:
 	friend class FDynamicMesh3;
@@ -216,8 +244,11 @@ protected:
 
 	// These functions are called by the FDynamicMesh3 to update the various
 	// attributes when the parent mesh topology has been modified.
+	// TODO: would it be better to register all the overlays and attributes with the base set and not overload these?  maybe!
 	virtual void OnNewTriangle(int TriangleID, bool bInserted);
+	virtual void OnNewVertex(int VertexID, bool bInserted);
 	virtual void OnRemoveTriangle(int TriangleID);
+	virtual void OnRemoveVertex(int VertexID);
 	virtual void OnReverseTriOrientation(int TriangleID);
 	virtual void OnSplitEdge(const FDynamicMesh3::FEdgeSplitInfo & splitInfo);
 	virtual void OnFlipEdge(const FDynamicMesh3::FEdgeFlipInfo & flipInfo);

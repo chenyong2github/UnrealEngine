@@ -3,6 +3,40 @@
 #pragma once
 
 #include "DynamicMesh3.h"
+#include "DynamicAttribute.h"
+
+
+template<typename AttribValueType, int AttribDimension>
+class TDynamicMeshTriangleAttribute;
+
+
+template<typename AttribValueType, int AttribDimension>
+class DYNAMICMESH_API FDynamicMeshTriangleAttributeChange : public FDynamicAttributeChangeBase
+{
+private:
+	struct FChangeTriangleAttribute
+	{
+		AttribValueType Data[AttribDimension];
+		int TriangleID;
+	};
+
+	TArray<FChangeTriangleAttribute> OldTriangleAttributes, NewTriangleAttributes;
+
+public:
+	FDynamicMeshTriangleAttributeChange()
+	{}
+
+	virtual ~FDynamicMeshTriangleAttributeChange()
+	{}
+
+	inline virtual void SaveInitialTriangle(const FDynamicAttributeBase* Attribute, int TriangleID) override;
+
+	inline virtual void StoreAllFinalTriangles(const FDynamicAttributeBase* Attribute, const TArray<int>& TriangleIDs) override;
+
+	inline virtual bool Apply(FDynamicAttributeBase* Attribute, bool bRevert) const override;
+};
+
+
 
 /**
  * TDynamicMeshTriangleAttribute is an add-on to a FDynamicMesh3 that allows for 
@@ -12,7 +46,7 @@
  * can be mirrored to the overlay via OnSplitEdge(), etc.
  */
 template<typename AttribValueType, int AttribDimension>
-class TDynamicMeshTriangleAttribute
+class TDynamicMeshTriangleAttribute : public FDynamicAttributeBase
 {
 
 protected:
@@ -43,6 +77,13 @@ public:
 	/** @return the parent mesh for this overlay */
 	FDynamicMesh3* GetParentMesh() { return ParentMesh; }
 
+	virtual FDynamicAttributeBase* MakeCopy(FDynamicMesh3* ParentMeshIn) const override
+	{
+		TDynamicMeshTriangleAttribute<AttribValueType, AttribDimension>* ToFill = new TDynamicMeshTriangleAttribute<AttribValueType, AttribDimension>(ParentMeshIn);
+		ToFill->Copy(*this);
+		return ToFill;
+	}
+
 	/** Set this overlay to contain the same arrays as the copy overlay */
 	void Copy(const TDynamicMeshTriangleAttribute<AttribValueType, AttribDimension>& Copy)
 	{
@@ -54,7 +95,7 @@ public:
 	{
 		check(ParentMesh != nullptr);
 		AttribValues.Resize(0);
-		AttribValues.Resize( ParentMesh->MaxTriangleID() * AttribDimension );
+		AttribValues.Resize( ParentMesh->MaxTriangleID() * AttribDimension, InitialValue );
 	}
 
 	void SetNewValue(int NewTriangleID, const AttribValueType* Data)
@@ -149,6 +190,11 @@ public:
 	}
 
 
+	virtual TUniquePtr<FDynamicAttributeChangeBase> NewBlankChange() override
+	{
+		return MakeUnique<FDynamicMeshTriangleAttributeChange<AttribValueType, AttribDimension>>();
+	}
+
 
 public:
 
@@ -188,4 +234,41 @@ public:
 	}
 
 };
+
+
+
+template<typename AttribValueType, int AttribDimension>
+void FDynamicMeshTriangleAttributeChange<AttribValueType, AttribDimension>::SaveInitialTriangle(const FDynamicAttributeBase* Attribute, int TriangleID)
+{
+	FChangeTriangleAttribute& Change = OldTriangleAttributes.Emplace_GetRef();
+	Change.TriangleID = TriangleID;
+	const TDynamicMeshTriangleAttribute<AttribValueType, AttribDimension>* AttribCast = static_cast<const TDynamicMeshTriangleAttribute<AttribValueType, AttribDimension>*>(Attribute);
+	AttribCast->GetValue(TriangleID, Change.Data);
+}
+
+template<typename AttribValueType, int AttribDimension>
+void FDynamicMeshTriangleAttributeChange<AttribValueType, AttribDimension>::StoreAllFinalTriangles(const FDynamicAttributeBase* Attribute, const TArray<int>& TriangleIDs)
+{
+	const TDynamicMeshTriangleAttribute<AttribValueType, AttribDimension>* AttribCast = static_cast<const TDynamicMeshTriangleAttribute<AttribValueType, AttribDimension>*>(Attribute);
+	NewTriangleAttributes.Reserve(NewTriangleAttributes.Num() + TriangleIDs.Num());
+	for (int TriangleID : TriangleIDs)
+	{
+		FChangeTriangleAttribute& Change = NewTriangleAttributes.Emplace_GetRef();
+		Change.TriangleID = TriangleID;
+		AttribCast->GetValue(TriangleID, Change.Data);
+	}
+}
+
+template<typename AttribValueType, int AttribDimension>
+bool FDynamicMeshTriangleAttributeChange<AttribValueType, AttribDimension>::Apply(FDynamicAttributeBase* Attribute, bool bRevert) const
+{
+	TDynamicMeshTriangleAttribute<AttribValueType, AttribDimension>* AttribCast = static_cast<TDynamicMeshTriangleAttribute<AttribValueType, AttribDimension>*>(Attribute);
+	const TArray<FChangeTriangleAttribute> *Changes = bRevert ? &OldTriangleAttributes : &NewTriangleAttributes;
+	for (const FChangeTriangleAttribute& Change : *Changes)
+	{
+		check(AttribCast->GetParentMesh()->IsTriangle(Change.TriangleID));
+		AttribCast->SetValue(Change.TriangleID, Change.Data);
+	}
+	return true;
+}
 
