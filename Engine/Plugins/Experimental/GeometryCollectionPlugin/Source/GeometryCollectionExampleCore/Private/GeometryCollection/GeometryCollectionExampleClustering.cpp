@@ -1677,11 +1677,10 @@ namespace GeometryCollectionExample
 
 		delete PhysObject;
 		delete PhysObject2;
-#endif
-		
+	
 	}
 	template void RigidBodies_ClusterTest_ReleaseClusterParticle_ClusteredKinematicNode<float>();
-
+#endif
 
 	template<class T>
 	void RigidBodies_ClusterTest_ReleaseClusterParticles_AllLeafNodes()
