@@ -7244,6 +7244,7 @@ bool FSequencer::PasteTracks(const FString& TextToImport, TArray<FNotificationIn
 	CalculateSelectedFolderAndPath(SelectedParentFolders, NewNodePath);
 
 	UMovieSceneSequence* OwnerSequence = GetFocusedMovieSceneSequence();
+	UMovieScene* OwnerMovieScene = OwnerSequence->GetMovieScene();
 	UObject* BindingContext = GetPlaybackContext();
 
 	TSet<TSharedRef<FSequencerDisplayNode>> SelectedNodes = Selection.GetSelectedOutlinerNodes();
@@ -7300,6 +7301,24 @@ bool FSequencer::PasteTracks(const FString& TextToImport, TArray<FNotificationIn
 					for (UObject* Subobject : Subobjects)
 					{
 						Subobject->ClearFlags(RF_Transient);
+					}
+
+					// Remove tracks with the same name before adding
+					for (const FMovieSceneBinding& Binding : OwnerMovieScene->GetBindings())
+					{
+						if (Binding.GetObjectGuid() == ObjectGuid)
+						{
+							// Tracks of the same class should be unique per name.
+							for (UMovieSceneTrack* Track : Binding.GetTracks())
+							{
+								if (Track->GetClass() == NewTrack->GetClass() && Track->GetTrackName() == NewTrack->GetTrackName())
+								{
+									// If a track of the same class and name exists, remove it so the new track replaces it
+									OwnerMovieScene->RemoveTrack(*Track);
+									break;
+								}
+							}
+						}
 					}
 
 					if (!GetFocusedMovieSceneSequence()->GetMovieScene()->AddGivenTrack(NewTrack, ObjectGuid))
