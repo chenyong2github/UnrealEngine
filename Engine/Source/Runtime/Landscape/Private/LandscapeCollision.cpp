@@ -2209,8 +2209,8 @@ LANDSCAPE_API TOptional<float> ALandscapeProxy::GetHeightAtLocation(FVector Loca
 {
 	TOptional<float> Height;
 	ULandscapeInfo* Info = GetLandscapeInfo();
-	const FVector ActorSpaceLocation = GetActorTransform().InverseTransformPosition(Location);
-	const FIntPoint Key = FIntPoint(ActorSpaceLocation.X, ActorSpaceLocation.Y) / ComponentSizeQuads;
+	const FVector ActorSpaceLocation = LandscapeActorToWorld().InverseTransformPosition(Location);
+	const FIntPoint Key = FIntPoint(FMath::FloorToInt(ActorSpaceLocation.X / ComponentSizeQuads), FMath::FloorToInt(ActorSpaceLocation.Y / ComponentSizeQuads));
 	ULandscapeComponent* Component = Info->XYtoComponentMap.FindRef(Key);
 	if (Component)
 	{
