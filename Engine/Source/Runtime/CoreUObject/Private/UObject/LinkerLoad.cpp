@@ -1332,7 +1332,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::UpdateFromPackageFileSummary()
 	SetUE4Ver(Summary.GetFileVersionUE4());
 	SetLicenseeUE4Ver(Summary.GetFileVersionLicenseeUE4());
 	SetEngineVer(Summary.SavedByEngineVersion);
-	SetSharedCustomVersionContainerForOptimizedLoading(&SummaryVersions);
+	SetCustomVersions(SummaryVersions);
 
 	if (Summary.PackageFlags & PKG_FilterEditorOnly)
 	{
@@ -1355,7 +1355,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::UpdateFromPackageFileSummary()
 		Loader->SetUE4Ver(Summary.GetFileVersionUE4());
 		Loader->SetLicenseeUE4Ver(Summary.GetFileVersionLicenseeUE4());
 		Loader->SetEngineVer(Summary.SavedByEngineVersion);
-		Loader->SetSharedCustomVersionContainerForOptimizedLoading(&SummaryVersions);
+		Loader->SetCustomVersions(SummaryVersions);
 	}
 
 	if (UPackage* LinkerRootPackage = LinkerRoot)

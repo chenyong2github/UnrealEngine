@@ -1068,13 +1068,6 @@ public:
 	 */
 	virtual void SetCustomVersions(const FCustomVersionContainer& CustomVersionContainer);
 
-	/**
-	 * Sets the shared custom version container for this archive when loading (to avoid allocations).
-	 *
-	 * @param SharedCustomVersionContainer - The shared container of custom versions to use in this archive.
-	 */
-	void SetSharedCustomVersionContainerForOptimizedLoading(const FCustomVersionContainer* SharedCustomVersionContainer);
-
 	/** Resets the custom version numbers for this archive. */
 	virtual void ResetCustomVersions();
 
@@ -1574,7 +1567,6 @@ private:
 	* Keeping it as a heap-allocated object also helps with performance in some cases as we don't need to construct it for archives that don't care about custom versions.
 	*/
 	mutable FCustomVersionContainer* CustomVersionContainer = nullptr;
-	const FCustomVersionContainer* SharedCustomVersionContainerForOptimizedLoading = nullptr;
 
 public:
 	/** Custom property list attribute. If the flag below is set, only these properties will be iterated during serialization. If NULL, then no properties will be iterated. */

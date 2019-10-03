@@ -3035,7 +3035,7 @@ void FAsyncPackage2::EventDrivenSerializeExport(int32 LocalExportIndex)
 		Ar.SetUE4Ver(Linker->Summary.GetFileVersionUE4());
 		Ar.SetLicenseeUE4Ver(Linker->Summary.GetFileVersionLicenseeUE4());
 		Ar.SetEngineVer(Linker->Summary.SavedByEngineVersion);
-		Ar.SetSharedCustomVersionContainerForOptimizedLoading(&SummaryVersions);
+		Ar.SetCustomVersions(SummaryVersions);
 
 		FArchive* OldLoader = Linker->Loader;
 		Linker->Loader = &Ar;
