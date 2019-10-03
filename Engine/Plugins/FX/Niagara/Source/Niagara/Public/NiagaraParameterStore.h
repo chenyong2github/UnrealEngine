@@ -36,6 +36,22 @@ struct FNiagaraVariableSearch
 
 struct FNiagaraParameterStore;
 
+USTRUCT()
+struct FNiagaraBoundParameter
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY()
+	FNiagaraVariable Parameter;
+	UPROPERTY()
+	int32 SrcOffset;
+	UPROPERTY()
+	int32 DestOffset;
+
+};
+
+typedef TArray<FNiagaraBoundParameter> FNiagaraBoundParameterArray;
+
 //Binding from one parameter store to another.
 //This does no tracking of lifetimes etc so the owner must ensure safe use and rebinding when needed etc.
 struct FNiagaraParameterStoreBinding
@@ -104,15 +120,21 @@ struct FNiagaraParameterStoreBinding
 	}
 	
 	FORCEINLINE_DEBUGGABLE void Empty(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore);
-	FORCEINLINE_DEBUGGABLE bool Initialize(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore);
+	FORCEINLINE_DEBUGGABLE bool Initialize(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore, const FNiagaraBoundParameterArray* BoundParameters = nullptr);
 	FORCEINLINE_DEBUGGABLE bool VerifyBinding(const FNiagaraParameterStore* DestStore, const FNiagaraParameterStore* SrcStore)const;
 	FORCEINLINE_DEBUGGABLE void Tick(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore, bool bForce = false);
 	FORCEINLINE_DEBUGGABLE void Dump(const FNiagaraParameterStore* DestStore, const FNiagaraParameterStore* SrcStore)const;
 	/** TODO: Merge contiguous ranges into a single binding? */
 	//FORCEINLINE_DEBUGGABLE void Optimize();
 
+	static void GetBindingData(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore, FNiagaraBoundParameterArray& OutBoundParameters);
+
 private:
-	bool BindParameters(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore);
+	
+	template <typename TVisitor>
+	FORCEINLINE_DEBUGGABLE static void MatchParameters(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore, TVisitor Visitor);
+
+	bool BindParameters(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore, const FNiagaraBoundParameterArray* BoundParameters = nullptr);
 };
 
 
@@ -215,7 +237,7 @@ public:
 	FORCEINLINE uint32 GetLayoutVersion() const { return LayoutVersion; }
 
 	/** Binds this parameter store to another, by default if we find no matching parameters we will not maintain a pointer to the store. */
-	void Bind(FNiagaraParameterStore* DestStore);
+	void Bind(FNiagaraParameterStore* DestStore, const FNiagaraBoundParameterArray* BoundParameters = nullptr);
 	/** Unbinds this store form one it's bound to. */
 	void Unbind(FNiagaraParameterStore* DestStore);
 	/** Recreates any bindings to reflect a layout change etc. */
@@ -625,12 +647,12 @@ FORCEINLINE_DEBUGGABLE void FNiagaraParameterStoreBinding::Empty(FNiagaraParamet
 	UObjectBindings.Reset();
 }
 
-FORCEINLINE_DEBUGGABLE bool FNiagaraParameterStoreBinding::Initialize(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore)
+FORCEINLINE_DEBUGGABLE bool FNiagaraParameterStoreBinding::Initialize(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore, const FNiagaraBoundParameterArray* BoundParameters)
 {
 	checkSlow(DestStore);
 	checkSlow(SrcStore);
 
-	if (BindParameters(DestStore, SrcStore))
+	if (BindParameters(DestStore, SrcStore, BoundParameters))
 	{
 		DestStore->GetSourceParameterStores().AddUnique(SrcStore);
 		return true;
