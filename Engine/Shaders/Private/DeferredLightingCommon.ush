@@ -287,8 +287,6 @@ float4 GetDynamicLighting(
 	FDeferredLightData LightData, float4 LightAttenuation, float Dither, uint2 SVPos, FRectTexture SourceTexture,
 	inout float SurfaceShadow)
 {
-	GBuffer.Roughness = max(View.MinRoughness, GBuffer.Roughness);
-
 	FLightAccumulator LightAccumulator = (FLightAccumulator)0;
 
 	float3 V = -CameraVector;
