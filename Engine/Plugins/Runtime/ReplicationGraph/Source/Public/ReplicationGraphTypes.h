@@ -1369,14 +1369,20 @@ struct FReplicationGraphCSVTracker
 	/** Tracks an explicitly set class. This does NOT include child classes! This is the fastest stat and should be fine to enable in shipping/test builds.  */
 	void SetExplicitClassTracking(UClass* ExactActorClass, const FString& StatNamePrefix)
 	{
-		ExplicitClassTracker.Emplace(ExactActorClass, StatNamePrefix);
+		if (!ExplicitClassTracker.Contains(ExactActorClass))
+		{
+			ExplicitClassTracker.Emplace(ExactActorClass, StatNamePrefix);
+		}
 	}
 
 	/** Sets explicit class tracking for fast/shared path replication. Does not include base classes */
 	void SetExplicitClassTracking_FastPath(UClass* ExactActorClass, const FString& StatNamePrefix)
 	{
-		FString FinalStrPrefix = TEXT("FastPath_") + StatNamePrefix;
-		ExplicitClassTracker_FastPath.Emplace(ExactActorClass, FinalStrPrefix);
+		if (!ExplicitClassTracker_FastPath.Contains(ExactActorClass))
+		{
+			FString FinalStrPrefix = TEXT("FastPath_") + StatNamePrefix;
+			ExplicitClassTracker_FastPath.Emplace(ExactActorClass, FinalStrPrefix);
+		}
 	}
 
 	/** Tracks a class and all of its children (under a single stat set). This will be a little slower (TMap lookup) but still probably ok if used in moderation (only track your top 3 or so classes) */

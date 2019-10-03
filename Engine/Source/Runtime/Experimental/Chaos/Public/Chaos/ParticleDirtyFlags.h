@@ -30,6 +30,7 @@ namespace Chaos
 		ExternalForce =  1 << 18,
 		ExternalTorque = 1 << 19,
 		GravityEnabled = 1 << 20,
+		SpatialIdx     = 1 << 21
 	};
 
 	class FParticleDirtyFlags

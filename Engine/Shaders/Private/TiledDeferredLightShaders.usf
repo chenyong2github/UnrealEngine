@@ -88,7 +88,8 @@ void ExecuteShadingLoops(inout float4 CompositedLighting, FScreenSpaceData Scree
 		// Lights requiring light attenuation are not supported tiled for now
 		// WARNING: DeferredLightUniforms.SourceTexture is not set here, but compiles out because of bRectLight being false and USE_SOURCE_TEXTURE == 0.
 		FRectTexture RectTexture = InitRectTexture(DeferredLightUniforms.SourceTexture);
-		CompositedLighting += GetDynamicLighting(WorldPosition, CameraVector, ScreenSpaceData.GBuffer, ScreenSpaceData.AmbientOcclusion, ScreenSpaceData.GBuffer.ShadingModelID, LightData, float4(1, 1, 1, 1), 0.5, uint2(0,0), RectTexture);
+		float SurfaceShadow = 1.0f;
+		CompositedLighting += GetDynamicLighting(WorldPosition, CameraVector, ScreenSpaceData.GBuffer, ScreenSpaceData.AmbientOcclusion, ScreenSpaceData.GBuffer.ShadingModelID, LightData, float4(1, 1, 1, 1), 0.5, uint2(0,0), RectTexture, SurfaceShadow);
 	}
 
 	// The simple shading model does not depend on ShadingModelID, so use it anytime the material is lit

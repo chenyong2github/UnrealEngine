@@ -1198,9 +1198,10 @@ namespace AppLifetimeEventCapture
 #endif //WITH_ENGINE
 
 
-DECLARE_CYCLE_STAT( TEXT( "FEngineLoop::PreInit.AfterStats" ), STAT_FEngineLoop_PreInit_AfterStats, STATGROUP_LoadTime );
+DECLARE_CYCLE_STAT(TEXT("FEngineLoop::PreInitPreStartupScreen.AfterStats"), STAT_FEngineLoop_PreInitPreStartupScreen_AfterStats, STATGROUP_LoadTime);
+DECLARE_CYCLE_STAT(TEXT("FEngineLoop::PreInitPostStartupScreen.AfterStats"), STAT_FEngineLoop_PreInitPostStartupScreen_AfterStats, STATGROUP_LoadTime);
 
-int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
+int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 {
 	TRACE_REGISTER_GAME_THREAD(FPlatformTLS::GetCurrentThreadId());
 	TRACE_CPUPROFILER_INIT(CmdLine);
@@ -1797,7 +1798,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 	FThreadStats::StartThread();
 #endif
 
-	FScopeCycleCounter CycleCount_AfterStats(GET_STATID(STAT_FEngineLoop_PreInit_AfterStats));
+	FScopeCycleCounter CycleCount_AfterStats(GET_STATID(STAT_FEngineLoop_PreInitPreStartupScreen_AfterStats));
 
 	// Load Core modules required for everything else to work (needs to be loaded before InitializeRenderingCVarsCaching)
 	{
@@ -2284,7 +2285,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 
 	FEmbeddedCommunication::ForceTick(3);
 
-	FScopedSlowTask SlowTask(100, NSLOCTEXT("EngineLoop", "EngineLoop_Initializing", "Initializing..."));
+	FScopedSlowTask SlowTask(50, NSLOCTEXT("EngineLoop", "EngineLoop_Initializing", "PreInitPreStartupScreen..."));
 
 	SlowTask.EnterProgressFrame(10);
 
@@ -2376,10 +2377,10 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 		// if (!IsRunningCommandlet())
 		// hack: don't load global shaders if we are cooking we will load the shaders for the correct platform later
 		if (bEnableShaderCompile &&
-				!IsRunningDedicatedServer() &&
-				Commandline.Contains(TEXT("cookcommandlet")) == false &&
-				Commandline.Contains(TEXT("run=cook")) == false )
-		// if (FParse::Param(FCommandLine::Get(), TEXT("Multiprocess")) == false)
+			!IsRunningDedicatedServer() &&
+			Commandline.Contains(TEXT("cookcommandlet")) == false &&
+			Commandline.Contains(TEXT("run=cook")) == false)
+			// if (FParse::Param(FCommandLine::Get(), TEXT("Multiprocess")) == false)
 		{
 			LLM_SCOPE(ELLMTag::Shaders);
 			SCOPED_BOOT_TIMING("CompileGlobalShaderMap");
@@ -2400,12 +2401,12 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 			CreateMoviePlayer();
 		}
 
-        if (FPreLoadScreenManager::ArePreLoadScreensEnabled())
-        {
+		if (FPreLoadScreenManager::ArePreLoadScreensEnabled())
+		{
 			SCOPED_BOOT_TIMING("FPreLoadScreenManager::Create");
 			FPreLoadScreenManager::Create();
-            ensure(FPreLoadScreenManager::Get());
-        }
+			ensure(FPreLoadScreenManager::Get());
+		}
 
 		// If platforms support early movie playback we have to start the rendering thread much earlier
 #if PLATFORM_SUPPORTS_EARLY_MOVIE_PLAYBACK
@@ -2414,17 +2415,17 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 			PostInitRHI();
 		}
 
-		if(GUseThreadedRendering)
+		if (GUseThreadedRendering)
 		{
-			if(GRHISupportsRHIThread)
+			if (GRHISupportsRHIThread)
 			{
 				const bool DefaultUseRHIThread = true;
 				GUseRHIThread_InternalUseOnly = DefaultUseRHIThread;
-				if(FParse::Param(FCommandLine::Get(), TEXT("rhithread")))
+				if (FParse::Param(FCommandLine::Get(), TEXT("rhithread")))
 				{
 					GUseRHIThread_InternalUseOnly = true;
 				}
-				else if(FParse::Param(FCommandLine::Get(), TEXT("norhithread")))
+				else if (FParse::Param(FCommandLine::Get(), TEXT("norhithread")))
 				{
 					GUseRHIThread_InternalUseOnly = false;
 				}
@@ -2437,26 +2438,115 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 
 		FEmbeddedCommunication::ForceTick(4);
 
-#if !UE_SERVER// && !UE_EDITOR
-		if(!IsRunningDedicatedServer() && !IsRunningCommandlet())
 		{
-			TSharedRef<FSlateRenderer> SlateRenderer = GUsingNullRHI ?
-				FModuleManager::Get().LoadModuleChecked<ISlateNullRendererModule>("SlateNullRenderer").CreateSlateNullRenderer() :
-				FModuleManager::Get().GetModuleChecked<ISlateRHIRendererModule>("SlateRHIRenderer").CreateSlateRHIRenderer();
-
+#if !UE_SERVER// && !UE_EDITOR
+			if (!IsRunningDedicatedServer() && !IsRunningCommandlet())
 			{
-				SCOPED_BOOT_TIMING("CurrentSlateApp.InitializeRenderer");
-				// If Slate is being used, initialize the renderer after RHIInit
-				FSlateApplication& CurrentSlateApp = FSlateApplication::Get();
-				CurrentSlateApp.InitializeRenderer(SlateRenderer);
-			}
+				TSharedPtr<FSlateRenderer> SlateRenderer = GUsingNullRHI ?
+					FModuleManager::Get().LoadModuleChecked<ISlateNullRendererModule>("SlateNullRenderer").CreateSlateNullRenderer() :
+					FModuleManager::Get().GetModuleChecked<ISlateRHIRendererModule>("SlateRHIRenderer").CreateSlateRHIRenderer();
+				TSharedRef<FSlateRenderer> SlateRendererSharedRef = SlateRenderer.ToSharedRef();
 
-			{
-				SCOPED_BOOT_TIMING("FEngineFontServices::Create");
-				// Create the engine font services now that the Slate renderer is ready
-				FEngineFontServices::Create();
-			}
+				{
+					SCOPED_BOOT_TIMING("CurrentSlateApp.InitializeRenderer");
+					// If Slate is being used, initialize the renderer after RHIInit
+					FSlateApplication& CurrentSlateApp = FSlateApplication::Get();
+					CurrentSlateApp.InitializeRenderer(SlateRendererSharedRef);
+				}
 
+				{
+					SCOPED_BOOT_TIMING("FEngineFontServices::Create");
+					// Create the engine font services now that the Slate renderer is ready
+					FEngineFontServices::Create();
+				}
+
+				{
+					SCOPED_BOOT_TIMING("LoadModulesForProject(ELoadingPhase::PostSplashScreen)");
+					// Load up all modules that need to hook into the custom splash screen
+					if (!IProjectManager::Get().LoadModulesForProject(ELoadingPhase::PostSplashScreen) || !IPluginManager::Get().LoadModulesForEnabledPlugins(ELoadingPhase::PostSplashScreen))
+					{
+						return 1;
+					}
+				}
+
+				{
+					SCOPED_BOOT_TIMING("PlayFirstPreLoadScreen");
+
+					if (FPreLoadScreenManager::Get())
+					{
+						SCOPED_BOOT_TIMING("PlayFirstPreLoadScreen - FPreLoadScreenManager::Get()->Initialize");
+						// initialize and present custom splash screen
+						FPreLoadScreenManager::Get()->Initialize(SlateRendererSharedRef.Get());
+
+						if (FPreLoadScreenManager::Get()->HasRegisteredPreLoadScreenType(EPreLoadScreenTypes::CustomSplashScreen))
+						{
+							FPreLoadScreenManager::Get()->PlayFirstPreLoadScreen(EPreLoadScreenTypes::CustomSplashScreen);
+						}
+#if PLATFORM_XBOXONE && ENABLE_XBOXONE_FAST_ACTIVATION
+						else
+						{
+							UE_LOG(LogInit, Warning, TEXT("Enable fast activation without enabling a custom splash screen may cause garbage frame buffer being presented"));
+						}
+#endif
+					}
+				}
+
+				PreInitContext.SlateRenderer = SlateRenderer;
+			}
+#endif // !UE_SERVER
+		}
+	}
+#endif // WITH_ENGINE
+
+	// Save PreInitContext
+	PreInitContext.bDumpEarlyConfigReads = bDumpEarlyConfigReads;
+	PreInitContext.bDumpEarlyPakFileReads = bDumpEarlyPakFileReads;
+	PreInitContext.bForceQuitAfterEarlyReads = bForceQuitAfterEarlyReads;
+	PreInitContext.bWithConfigPatching = bWithConfigPatching;
+	PreInitContext.bHasEditorToken = bHasEditorToken;
+#if WITH_ENGINE
+	PreInitContext.bDisableDisregardForGC = bDisableDisregardForGC;
+	PreInitContext.bIsRegularClient = bIsRegularClient;
+#endif // WITH_ENGINE
+	PreInitContext.bTokenDoesNotHaveDash = bTokenDoesNotHaveDash;
+	PreInitContext.Token = Token;
+#if UE_EDITOR || WITH_ENGINE
+	PreInitContext.CommandletCommandLine = CommandletCommandLine;
+#endif // UE_EDITOR || WITH_ENGINE
+	PreInitContext.CommandLineCopy = CommandLineCopy;
+	
+	return 0;
+}
+
+int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
+{
+	FScopedSlowTask SlowTask(50, NSLOCTEXT("EngineLoop", "EngineLoop_Initializing", "PreInitPostStartupScreen..."));
+	FScopeCycleCounter CycleCount_AfterStats(GET_STATID(STAT_FEngineLoop_PreInitPostStartupScreen_AfterStats));
+
+	// Restore PreInitContext
+	bool bDumpEarlyConfigReads = PreInitContext.bDumpEarlyConfigReads;
+	bool bDumpEarlyPakFileReads = PreInitContext.bDumpEarlyPakFileReads;
+	bool bForceQuitAfterEarlyReads = PreInitContext.bForceQuitAfterEarlyReads;
+	bool bWithConfigPatching = PreInitContext.bWithConfigPatching;
+	bool bHasEditorToken = PreInitContext.bHasEditorToken;
+#if WITH_ENGINE
+	bool bDisableDisregardForGC = PreInitContext.bDisableDisregardForGC;
+	bool bIsRegularClient = PreInitContext.bIsRegularClient;
+#endif // WITH_ENGINE
+	bool bTokenDoesNotHaveDash = PreInitContext.bTokenDoesNotHaveDash;
+	FString Token = PreInitContext.Token;
+#if UE_EDITOR || WITH_ENGINE
+	const TCHAR* CommandletCommandLine = PreInitContext.CommandletCommandLine;
+#endif // UE_EDITOR || WITH_ENGINE
+	TCHAR* CommandLineCopy = PreInitContext.CommandLineCopy;
+
+#if WITH_ENGINE
+	{
+#if !UE_SERVER// && !UE_EDITOR
+		if (!IsRunningDedicatedServer() && !IsRunningCommandlet())
+		{
+			TSharedPtr<FSlateRenderer> SlateRenderer = PreInitContext.SlateRenderer;
+			TSharedRef<FSlateRenderer> SlateRendererSharedRef = SlateRenderer.ToSharedRef();
 			{
 				SCOPED_BOOT_TIMING("GetMoviePlayer()->SetupLoadingScreenFromIni");
 				// allow the movie player to load a sequence from the .inis (a PreLoadingScreen module could have already initialized a sequence, in which case
@@ -2472,7 +2562,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 					return 1;
 				}
 			}
-			
+
 			IInstallBundleManager* BundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
 			if (BundleManager != nullptr && !BundleManager->IsNullInterface())
 			{
@@ -2484,16 +2574,16 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 			if (GetMoviePlayer()->HasEarlyStartupMovie())
 			{
 				SCOPED_BOOT_TIMING("EarlyStartupMovie");
-				GetMoviePlayer()->Initialize(SlateRenderer.Get());
+				GetMoviePlayer()->Initialize(SlateRendererSharedRef.Get());
 
-                // hide splash screen now before playing any movies
+				// hide splash screen now before playing any movies
 				FPlatformMisc::PlatformHandleSplashScreen(false);
 
 				// only allowed to play any movies marked as early startup.  These movies or widgets can have no interaction whatsoever with uobjects or engine features
 				GetMoviePlayer()->PlayEarlyStartupMovies();
 
-                // display the splash screen again now that early startup movies have played
-                FPlatformMisc::PlatformHandleSplashScreen(true);
+				// display the splash screen again now that early startup movies have played
+				FPlatformMisc::PlatformHandleSplashScreen(true);
 
 #if 0 && PAK_TRACKER// dump the files which have been accessed inside the pak file
 				FPakPlatformFile* PakPlatformFile = (FPakPlatformFile*)(FPlatformFileManager::Get().FindPlatformFile(FPakPlatformFile::GetTypeName()));
@@ -2550,51 +2640,46 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 				}
 #endif
 			}
-            else
-            {
+			else
+			{
 				SCOPED_BOOT_TIMING("PlayFirstPreLoadScreen");
 
-                if (FPreLoadScreenManager::Get())
-                {
+				if (FPreLoadScreenManager::Get())
+				{
 					SCOPED_BOOT_TIMING("PlayFirstPreLoadScreen - FPreLoadScreenManager::Get()->Initialize");
-                    // initialize and play our first Early PreLoad Screen if one is setup
-                    FPreLoadScreenManager::Get()->Initialize(SlateRenderer.Get());
+					// initialize and play our first Early PreLoad Screen if one is setup
+					FPreLoadScreenManager::Get()->Initialize(SlateRendererSharedRef.Get());
 
 					if (FPreLoadScreenManager::Get()->HasRegisteredPreLoadScreenType(EPreLoadScreenTypes::EarlyStartupScreen))
 					{
 						// disable the splash before playing the early startup screen
 						FPreLoadScreenManager::IsResponsibleForRenderingDelegate.AddLambda(
-							[](bool bIsPreloadScreenManResponsibleForRendering) 
-							{
-								FPlatformMisc::PlatformHandleSplashScreen(!bIsPreloadScreenManResponsibleForRendering);
-							}
+							[](bool bIsPreloadScreenManResponsibleForRendering)
+						{
+							FPlatformMisc::PlatformHandleSplashScreen(!bIsPreloadScreenManResponsibleForRendering);
+						}
 						);
-	                    FPreLoadScreenManager::Get()->PlayFirstPreLoadScreen(EPreLoadScreenTypes::EarlyStartupScreen);
-	                }
+						FPreLoadScreenManager::Get()->PlayFirstPreLoadScreen(EPreLoadScreenTypes::EarlyStartupScreen);
+					}
 					else
 					{
 						// no early startup screen, show the splash screen
 						FPlatformMisc::PlatformHandleSplashScreen(true);
 					}
-                }
+				}
 				else
 				{
 					// no preload manager, show the splash screen
 					FPlatformMisc::PlatformHandleSplashScreen(true);
 				}
-            }
-		
-			if (FCoreDelegates::OnInitialLoadingScreenShown.IsBound())
-			{
-				FCoreDelegates::OnInitialLoadingScreenShown.Broadcast();
 			}
 		}
-		else if ( IsRunningCommandlet() )
+		else if (IsRunningCommandlet())
 		{
 			// Create the engine font services now that the Slate renderer is ready
 			FEngineFontServices::Create();
 		}
-#endif
+#endif //!UE_SERVER
 
 		//Now that our EarlyStartupScreen is finished, lets take the necessary steps to mount paks, apply .ini cvars, and open the shader libraries if we installed content we expect to handle
 		//If using a bundle manager, assume its handling all this stuff and that we don't have to do it.
@@ -3218,7 +3303,24 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 
 	FEmbeddedCommunication::ForceTick(9);
 
+	PreInitContext.Cleanup();
+
 	// Note we still have 20% remaining on the slow task: this will be used by the Editor/Engine initialization next
+	return 0;
+}
+
+int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
+{
+	if (int rv1 = PreInitPreStartupScreen(CmdLine) != 0)
+	{
+		return rv1;
+	}
+
+	if (int rv2 = PreInitPostStartupScreen(CmdLine) != 0)
+	{
+		return rv2;
+	}
+
 	return 0;
 }
 

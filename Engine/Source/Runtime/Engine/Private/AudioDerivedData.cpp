@@ -468,7 +468,7 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 		}
 		else
 		{
-			UE_LOG(LogAudio, Warning, TEXT("Failed to build %s derived data for %s"),
+			UE_LOG(LogAudio, Display, TEXT("Failed to build %s derived data for %s"),
 				*AudioFormatName.GetPlainNameString(),
 				*SoundWave.GetPathName()
 				);

@@ -985,6 +985,7 @@ public:
 	bool	HandleDumpPublicCommand( const TCHAR* Str, FOutputDevice& Ar );
 	bool	HandleJumpToCommand( const TCHAR* Str, FOutputDevice& Ar );
 	bool	HandleBugItGoCommand( const TCHAR* Str, FOutputDevice& Ar );
+	bool	HandleBugItCommand(const TCHAR* Str, FOutputDevice& Ar);
 	bool	HandleTagSoundsCommand( const TCHAR* Str, FOutputDevice& Ar );
 	bool	HandlecheckSoundsCommand( const TCHAR* Str, FOutputDevice& Ar );
 	bool	HandleFixupBadAnimNotifiersCommand( const TCHAR* Str, FOutputDevice& Ar );

@@ -1,12 +1,12 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-#include "Chaos/Box.h"
+#include "Chaos/AABB.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/Capsule.h"
 
 namespace Chaos
 {
 template <typename T, int d>
-bool TBox<T, d>::Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, d>& OutPosition, TVector<T, d>& OutNormal, int32& OutFaceIndex) const
+bool TAABB<T, d>::Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, d>& OutPosition, TVector<T, d>& OutNormal, int32& OutFaceIndex) const
 {
 	ensure(Length > 0);
 	ensure(FMath::IsNearlyEqual(Dir.SizeSquared(), 1, KINDA_SMALL_NUMBER));
@@ -176,4 +176,4 @@ bool TBox<T, d>::Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& D
 }
 }
 
-template class Chaos::TBox<float,3>;
+template class Chaos::TAABB<float, 3>;

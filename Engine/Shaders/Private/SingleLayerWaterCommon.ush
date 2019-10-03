@@ -42,9 +42,8 @@ bool WaterRefract(float3 V, float3 N, float Eta, out float3 R)
 // Returns as luminance, the result of lighting scattering in water and the under water scene color contribution.
 WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 	FMaterialPixelParameters MaterialParameters, FPixelMaterialInputs PixelMaterialInputs, ViewState ResolvedView,
-#if SIMPLE_SINGLE_LAYER_WATER
 	float DirectionalLightShadow,
-#else
+#if !SIMPLE_SINGLE_LAYER_WATER
 	Texture2D SceneColorWithoutSingleLayerWaterTexture, SamplerState SceneColorWithoutSingleLayerWaterSampler,
 	Texture2D SceneDepthWithoutSingleLayerWaterTexture, SamplerState SceneDepthWithoutSingleLayerWaterSampler,
 	float2 SceneWithoutSingleLayerWaterMaxUV,
@@ -61,9 +60,9 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 	float2 WaterNDC = MaterialParameters.ScreenPosition.xy / MaterialParameters.ScreenPosition.w;
 	float2 ViewportUV = WaterNDC * ResolvedView.ScreenPositionScaleBias.xy + ResolvedView.ScreenPositionScaleBias.wz;
 
-	float WaterDepth = ConvertFromDeviceZ(MaterialParameters.SvPosition.z);
 	if (WaterVisibility > 0.0f)
 	{
+		float WaterDepth = ConvertFromDeviceZ(MaterialParameters.SvPosition.z);
 #if SIMPLE_SINGLE_LAYER_WATER
 		float PixelSceneDeviceZ = LookupDeviceZ(ViewportUV);
 		float PixelSceneDepth = ConvertFromDeviceZ(PixelSceneDeviceZ);
@@ -122,7 +121,9 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 		const float3 ScatteringCoeff = max(0.0f, GetSingleLayerWaterMaterialOutput0(MaterialParameters));
 		const float3 AbsorptionCoeff = max(0.0f, GetSingleLayerWaterMaterialOutput1(MaterialParameters));
 		const float PhaseG = clamp(GetSingleLayerWaterMaterialOutput2(MaterialParameters), -1.0f, 1.0f);
-		const float3 ExtinctionCoeff = max(ScatteringCoeff + AbsorptionCoeff, 1e-20); // Max to avoid division by 0 with the analytical integral below.
+		// Max to avoid division by 0 with the analytical integral below.
+		// 1e-5 is high enough to avoid denorms on mobile
+		const float3 ExtinctionCoeff = max(ScatteringCoeff + AbsorptionCoeff, 1e-5); 
 		
 		float DirLightPhaseValue = 0.0f; // Default when Total Internal Reflection happens.
 		{
@@ -159,9 +160,6 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 		float3 AmbScattLuminance = IsotropicPhase()   * AmbiantIlluminance;
 
 #if 1 || SIMPLE_SINGLE_LAYER_WATER
-#if SIMPLE_SINGLE_LAYER_WATER==0
-		float DirectionalLightShadow = ComputeDirectionalLightDynamicShadowing(MaterialParameters.AbsoluteWorldPosition, /*GBuffer.Depth*/ MaterialParameters.ScreenPosition.w);
-#endif
 		const float3 OpticalDepth = ExtinctionCoeff * BehindWaterDeltaDepth;
 		float3 Transmittance = exp(-OpticalDepth);
 		float3 ScatteredLuminance = ScatteringCoeff * (AmbScattLuminance + SunScattLuminance * DirectionalLightShadow);

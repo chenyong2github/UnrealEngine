@@ -168,7 +168,7 @@ UConstantQNRT::UConstantQNRT()
 }
 
 
-void UConstantQNRT::GetChannelConstantQAtTime(const float InSeconds, const int32 InChannel, TArray<float>& OutConstantQ) const
+void UConstantQNRT::GetChannelConstantQAtTime(const float InSeconds, const int32 InChannel, TArray<float>& OutConstantQ)
 {
 	OutConstantQ.Reset();
 
@@ -187,7 +187,7 @@ void UConstantQNRT::GetChannelConstantQAtTime(const float InSeconds, const int32
 	}
 }
 
-void UConstantQNRT::GetNormalizedChannelConstantQAtTime(const float InSeconds, const int32 InChannelIdx, TArray<float>& OutConstantQ) const
+void UConstantQNRT::GetNormalizedChannelConstantQAtTime(const float InSeconds, const int32 InChannelIdx, TArray<float>& OutConstantQ)
 {
 	OutConstantQ.Reset();
 
@@ -219,7 +219,7 @@ void UConstantQNRT::GetNormalizedChannelConstantQAtTime(const float InSeconds, c
 	}
 }
 
-TUniquePtr<Audio::IAnalyzerNRTSettings> UConstantQNRT::GetSettings() const
+TUniquePtr<Audio::IAnalyzerNRTSettings> UConstantQNRT::GetSettings()
 {
 	TUniquePtr<Audio::IAnalyzerNRTSettings> AnalyzerSettings;
 

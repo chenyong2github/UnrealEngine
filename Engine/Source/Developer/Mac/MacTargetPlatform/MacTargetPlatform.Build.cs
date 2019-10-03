@@ -12,7 +12,8 @@ public class MacTargetPlatform : ModuleRules
 				"CoreUObject",
 				"TargetPlatform",
 				"DesktopPlatform",
-			}
+                "AudioPlatformConfiguration",
+            }
 		);
 
 		PrivateIncludePathModuleNames.AddRange(

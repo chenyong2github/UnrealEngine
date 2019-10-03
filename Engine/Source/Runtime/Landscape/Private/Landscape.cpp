@@ -1188,6 +1188,14 @@ ULandscapeInfo* ALandscapeProxy::GetLandscapeInfo() const
 	return LandscapeInfo;
 }
 
+FTransform ALandscapeProxy::LandscapeActorToWorld() const
+{
+	FTransform TM = ActorToWorld();
+	// Add this proxy landscape section offset to obtain landscape actor transform
+	TM.AddToTranslation(TM.TransformVector(-FVector(LandscapeSectionOffset)));
+	return TM;
+}
+
 ALandscape* ULandscapeComponent::GetLandscapeActor() const
 {
 	ALandscapeProxy* Landscape = GetLandscapeProxy();
@@ -2530,13 +2538,6 @@ void ALandscapeProxy::FixupSharedData(ALandscape* Landscape)
 	}
 }
 
-FTransform ALandscapeProxy::LandscapeActorToWorld() const
-{
-	FTransform TM = ActorToWorld();
-	// Add this proxy landscape section offset to obtain landscape actor transform
-	TM.AddToTranslation(TM.TransformVector(-FVector(LandscapeSectionOffset)));
-	return TM;
-}
 
 void ALandscapeProxy::SetAbsoluteSectionBase(FIntPoint InSectionBase)
 {
