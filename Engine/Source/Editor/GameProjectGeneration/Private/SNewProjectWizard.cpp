@@ -318,13 +318,13 @@ void SNewProjectWizard::Construct( const FArguments& InArgs )
 	FindTemplateProjects();
 	SetDefaultProjectLocation();
 
-	TemplateListView = SNew(STileView< TSharedPtr<FTemplateItem> >)
+	TemplateListView = SNew(STileView<TSharedPtr<FTemplateItem>>)
 	.ListItemsSource(&FilteredTemplateList)
 	.SelectionMode(ESelectionMode::Single)
 	.ClearSelectionOnClick(false)
 	.OnGenerateTile_Static(&STemplateTile::BuildTile)
-	.ItemHeight( NewProjectWizardDefs::ItemHeight )
-	.ItemWidth( NewProjectWizardDefs::ItemWidth )
+	.ItemHeight(NewProjectWizardDefs::ItemHeight)
+	.ItemWidth(NewProjectWizardDefs::ItemWidth)
 	.OnMouseButtonDoubleClick(this, &SNewProjectWizard::HandleTemplateListViewDoubleClick)
 	.OnSelectionChanged(this, &SNewProjectWizard::HandleTemplateListViewSelectionChanged);
 
@@ -848,6 +848,7 @@ TMap<FName, TArray<TSharedPtr<FTemplateItem>> >& SNewProjectWizard::FindTemplate
 					Template->AssetTypes = TemplateDefs->AssetTypes;
 					Template->HiddenSettings = TemplateDefs->HiddenSettings;
 					Template->bIsEnterprise = TemplateDefs->bIsEnterprise;
+					Template->bIsBlankTemplate = TemplateDefs->bIsBlank;
 
 					Template->Name = TemplateDefs->GetDisplayNameText();
 					if (Template->Name.IsEmpty())
@@ -931,6 +932,7 @@ TMap<FName, TArray<TSharedPtr<FTemplateItem>> >& SNewProjectWizard::FindTemplate
 		BlankTemplate->BlueprintProjectFile = TEXT("");
 		BlankTemplate->CodeProjectFile = TEXT("");
 		BlankTemplate->bIsEnterprise = false;
+		BlankTemplate->bIsBlankTemplate = true;
 
 		TArray<TSharedPtr<FTemplateCategory>> AllTemplateCategories;
 		FGameProjectGenerationModule::Get().GetAllTemplateCategories(AllTemplateCategories);
@@ -1089,7 +1091,7 @@ bool SNewProjectWizard::IsCompilerRequired() const
 	return false;
 }
 
-bool SNewProjectWizard::CreateProject( const FString& ProjectFile )
+bool SNewProjectWizard::CreateProject(const FString& ProjectFile)
 {
 	// Get the selected template
 	TSharedPtr<FTemplateItem> SelectedTemplate = GetSelectedTemplateItem();
@@ -1114,6 +1116,7 @@ bool SNewProjectWizard::CreateProject( const FString& ProjectFile )
 	ProjectInfo.bEnableXR = bEnableXR;
 	ProjectInfo.bEnableRaytracing = bEnableRaytracing;
 	ProjectInfo.bIsEnterpriseProject = SelectedTemplate->bIsEnterprise;
+	ProjectInfo.bIsBlankTemplate = SelectedTemplate->bIsBlankTemplate;
 
 	if (!GameProjectUtils::CreateProject(ProjectInfo, FailReason, FailLog))
 	{
@@ -1139,15 +1142,15 @@ bool SNewProjectWizard::CreateProject( const FString& ProjectFile )
 	return true;
 }
 
-void SNewProjectWizard::CreateAndOpenProject( )
+void SNewProjectWizard::CreateAndOpenProject()
 {
-	if( !CanCreateProject() )
+	if (!CanCreateProject())
 	{
 		return;
 	}
 
 	FString ProjectFile = GetProjectFilenameWithPath();
-	if ( !CreateProject(ProjectFile) )
+	if (!CreateProject(ProjectFile))
 	{
 		return;
 	}
@@ -1160,8 +1163,8 @@ void SNewProjectWizard::CreateAndOpenProject( )
 		{
 			if (GameProjectUtils::BuildCodeProject(ProjectFile))
 			{
-				OpenCodeIDE( ProjectFile );
-				OpenProject( ProjectFile );
+				OpenCodeIDE(ProjectFile);
+				OpenProject(ProjectFile);
 			}
 			else
 			{
@@ -1170,19 +1173,19 @@ void SNewProjectWizard::CreateAndOpenProject( )
 		}
 		else
 		{
-			OpenCodeIDE( ProjectFile );
+			OpenCodeIDE(ProjectFile);
 		}
 	}
 	else
 	{
-		OpenProject( ProjectFile );
+		OpenProject(ProjectFile );
 	}
 }
 
-bool SNewProjectWizard::OpenProject( const FString& ProjectFile )
+bool SNewProjectWizard::OpenProject(const FString& ProjectFile)
 {
 	FText FailReason;
-	if ( GameProjectUtils::OpenProject( ProjectFile, FailReason ) )
+	if (GameProjectUtils::OpenProject(ProjectFile, FailReason))
 	{
 		// Successfully opened the project, the editor is closing.
 		// Close this window in case something prevents the editor from closing (save dialog, quit confirmation, etc)
@@ -1194,11 +1197,11 @@ bool SNewProjectWizard::OpenProject( const FString& ProjectFile )
 	return false;
 }
 
-bool SNewProjectWizard::OpenCodeIDE( const FString& ProjectFile )
+bool SNewProjectWizard::OpenCodeIDE(const FString& ProjectFile)
 {
 	FText FailReason;
 
-	if ( GameProjectUtils::OpenCodeIDE( ProjectFile, FailReason ) )
+	if (GameProjectUtils::OpenCodeIDE(ProjectFile, FailReason))
 	{
 		// Successfully opened code editing IDE, the editor is closing
 		// Close this window in case something prevents the editor from closing (save dialog, quit confirmation, etc)
@@ -1206,7 +1209,7 @@ bool SNewProjectWizard::OpenCodeIDE( const FString& ProjectFile )
 		return true;
 	}
 
-	DisplayError( FailReason );
+	DisplayError(FailReason);
 	return false;
 }
 
