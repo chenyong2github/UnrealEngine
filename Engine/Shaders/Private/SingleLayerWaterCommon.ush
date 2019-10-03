@@ -121,7 +121,9 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 		const float3 ScatteringCoeff = max(0.0f, GetSingleLayerWaterMaterialOutput0(MaterialParameters));
 		const float3 AbsorptionCoeff = max(0.0f, GetSingleLayerWaterMaterialOutput1(MaterialParameters));
 		const float PhaseG = clamp(GetSingleLayerWaterMaterialOutput2(MaterialParameters), -1.0f, 1.0f);
-		const float3 ExtinctionCoeff = max(ScatteringCoeff + AbsorptionCoeff, 1e-20); // Max to avoid division by 0 with the analytical integral below.
+		// Max to avoid division by 0 with the analytical integral below.
+		// 1e-5 is high enough to avoid denorms on mobile
+		const float3 ExtinctionCoeff = max(ScatteringCoeff + AbsorptionCoeff, 1e-5); 
 		
 		float DirLightPhaseValue = 0.0f; // Default when Total Internal Reflection happens.
 		{
