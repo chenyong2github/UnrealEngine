@@ -562,6 +562,8 @@ FVirtualTextureProducer* FVirtualTextureSystem::FindProducer(const FVirtualTextu
 
 FVirtualTextureSpace* FVirtualTextureSystem::AcquireSpace(const FVTSpaceDescription& InDesc, uint32 InSizeNeeded)
 {
+	LLM_SCOPE(ELLMTag::VirtualTextureSystem);
+
 	// If InDesc requests a private space, don't reuse any existing spaces
 	if (!InDesc.bPrivateSpace)
 	{
@@ -610,6 +612,8 @@ void FVirtualTextureSystem::ReleaseSpace(FVirtualTextureSpace* Space)
 
 FVirtualTexturePhysicalSpace* FVirtualTextureSystem::AcquirePhysicalSpace(const FVTPhysicalSpaceDescription& InDesc)
 {
+	LLM_SCOPE(ELLMTag::VirtualTextureSystem);
+
 	for (int i = 0; i < PhysicalSpaces.Num(); ++i)
 	{
 		FVirtualTexturePhysicalSpace* PhysicalSpace = PhysicalSpaces[i];
@@ -1646,6 +1650,8 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 
 void FVirtualTextureSystem::SubmitRequestsFromLocalTileList(const TSet<FVirtualTextureLocalTile>& LocalTileList, EVTProducePageFlags Flags, FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel)
 {
+	LLM_SCOPE(ELLMTag::VirtualTextureSystem);
+
 	for (const FVirtualTextureLocalTile& Tile : LocalTileList)
 	{
 		const FVirtualTextureProducerHandle ProducerHandle = Tile.GetProducerHandle();
@@ -1724,6 +1730,8 @@ void FVirtualTextureSystem::SubmitPreMappedRequests(FRHICommandListImmediate& RH
 
 void FVirtualTextureSystem::SubmitRequests(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FMemStack& MemStack, FUniqueRequestList* RequestList, bool bAsync)
 {
+	LLM_SCOPE(ELLMTag::VirtualTextureSystem);
+
 	FMemMark Mark(MemStack);
 
 	// Allocate space to hold the physical address we allocate for each page load (1 page per layer per request)
@@ -2040,6 +2048,8 @@ void FVirtualTextureSystem::SubmitRequests(FRHICommandListImmediate& RHICmdList,
 
 void FVirtualTextureSystem::AllocateResources(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel)
 {
+	LLM_SCOPE(ELLMTag::VirtualTextureSystem);
+
 	for (uint32 ID = 0; ID < MaxSpaces; ID++)
 	{
 		if (Spaces[ID])
