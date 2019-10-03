@@ -86,10 +86,11 @@ namespace BuildAgent.WebApi
 			// Parse the server argument
 			if (String.IsNullOrEmpty(Server))
 			{
-				Server = Environment.GetEnvironmentVariable("UGS_METADATA_SERVER_URL");
+				const string ServerEnvVarName = "METADATA_SERVER_URL";
+				Server = Environment.GetEnvironmentVariable(ServerEnvVarName);
 				if (String.IsNullOrEmpty(Server))
 				{
-					throw new CommandLineArgumentException("Missing -Server=... argument.");
+					throw new CommandLineArgumentException(String.Format("Missing -Server=... argument or {0} environment variable.", ServerEnvVarName));
 				}
 			}
 
