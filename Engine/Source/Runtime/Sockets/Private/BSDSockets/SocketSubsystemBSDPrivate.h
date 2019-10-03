@@ -29,6 +29,9 @@
 #if PLATFORM_HAS_BSD_SOCKET_FEATURE_GETHOSTNAME
 	#include <netdb.h>
 #endif
+#if PLATFORM_HAS_BSD_SOCKET_FEATURE_NODELAY
+	#include <netinet/tcp.h>
+#endif
 
 	#define ioctlsocket ioctl
 #endif
