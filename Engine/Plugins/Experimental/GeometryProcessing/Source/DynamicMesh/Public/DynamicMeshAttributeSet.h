@@ -6,6 +6,7 @@
 #include "DynamicMeshOverlay.h"
 #include "DynamicMeshTriangleAttribute.h"
 #include "DynamicAttribute.h"
+#include "GeometryTypes.h"
 
 /** Standard UV overlay type - 2-element float */
 typedef TDynamicMeshVectorOverlay<float, 2, FVector2f> FDynamicMeshUVOverlay;
@@ -27,7 +28,7 @@ class DYNAMICMESH_API FDynamicMeshAttributeSet : public FDynamicAttributeSetBase
 {
 public:
 
-	FDynamicMeshAttributeSet(FDynamicMesh3* Mesh) 
+	FDynamicMeshAttributeSet(FDynamicMesh3* Mesh)
 		: ParentMesh(Mesh), Normals0(Mesh)
 	{
 		SetNumUVLayers(1);
@@ -50,7 +51,7 @@ public:
 		if (Copy.MaterialIDAttrib)
 		{
 			EnableMaterialID();
-			MaterialIDAttrib->Copy( *(Copy.MaterialIDAttrib) );
+			MaterialIDAttrib->Copy(*(Copy.MaterialIDAttrib));
 		}
 
 		GenericAttributes.Reset();
@@ -71,7 +72,7 @@ public:
 
 
 	/** @return number of UV layers */
-	virtual int NumUVLayers() const 
+	virtual int NumUVLayers() const
 	{
 		return UVLayers.Num();
 	}
@@ -109,7 +110,7 @@ public:
 	/** @return true if the given vertex is a seam vertex in any overlay */
 	virtual bool IsSeamVertex(int VertexID, bool bBoundaryIsSeam = true) const;
 
-	
+
 	//
 	// UV Layers 
 	//
@@ -127,7 +128,7 @@ public:
 	}
 
 	/** @return the primary UV layer (layer 0) */
-	FDynamicMeshUVOverlay* PrimaryUV() 
+	FDynamicMeshUVOverlay* PrimaryUV()
 	{
 		return &UVLayers[0];
 	}
@@ -224,7 +225,7 @@ protected:
 	TArray<FDynamicMeshNormalOverlay*> NormalLayers;
 
 	TUniquePtr<FDynamicMeshMaterialAttribute> MaterialIDAttrib;
-	
+
 	TArray<TUniquePtr<FDynamicAttributeBase>> GenericAttributes;
 
 protected:
@@ -255,5 +256,22 @@ protected:
 	virtual void OnCollapseEdge(const FDynamicMesh3::FEdgeCollapseInfo & collapseInfo);
 	virtual void OnPokeTriangle(const FDynamicMesh3::FPokeTriangleInfo & pokeInfo);
 	virtual void OnMergeEdges(const FDynamicMesh3::FMergeEdgesInfo & mergeInfo);
+
+	/**
+	 * Check validity of attributes
+	 * 
+	 * @param bAllowNonmanifold Accept non-manifold topology as valid. Note that this should almost always be true for attributes; non-manifold overlays are generally valid.
+	 * @param FailMode Desired behavior if mesh is found invalid
+	 */
+	virtual bool CheckValidity(bool bAllowNonmanifold, EValidityCheckFailMode FailMode) const
+	{
+		bool bValid = FDynamicAttributeSetBase::CheckValidity(bAllowNonmanifold, FailMode);
+		for (int UVLayerIndex = 0; UVLayerIndex < NumUVLayers(); UVLayerIndex++)
+		{
+			bValid = GetUVLayer(UVLayerIndex)->CheckValidity(bAllowNonmanifold, FailMode) && bValid;
+		}
+		bValid = PrimaryNormals()->CheckValidity(bAllowNonmanifold, FailMode) && bValid;
+		return bValid;
+	}
 };
 

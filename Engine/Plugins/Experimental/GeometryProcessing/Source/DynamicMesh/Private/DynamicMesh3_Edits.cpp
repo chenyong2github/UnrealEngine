@@ -40,6 +40,11 @@ int FDynamicMesh3::AppendVertex(const FVertexInfo& VtxInfo)
 
 	AllocateEdgesList(vid);
 
+	if (HasAttributes())
+	{
+		Attributes()->OnNewVertex(vid, false);
+	}
+
 	UpdateTimeStamp(true, true);
 	return vid;
 }
@@ -105,6 +110,11 @@ int FDynamicMesh3::AppendVertex(const FDynamicMesh3& from, int fromVID)
 
 	AllocateEdgesList(vid);
 
+	if (HasAttributes())
+	{
+		Attributes()->OnNewVertex(vid, false);
+	}
+
 	UpdateTimeStamp(true, true);
 	return vid;
 }
@@ -155,6 +165,11 @@ EMeshResult FDynamicMesh3::InsertVertex(int vid, const FVertexInfo& info, bool b
 	}
 
 	AllocateEdgesList(vid);
+
+	if (HasAttributes())
+	{
+		Attributes()->OnNewVertex(vid, true);
+	}
 
 	UpdateTimeStamp(true, true);
 	return EMeshResult::Ok;

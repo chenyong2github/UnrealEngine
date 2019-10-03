@@ -905,11 +905,7 @@ bool FDynamicMesh3::CheckValidity(bool bAllowNonManifoldVertices, EValidityCheck
 
 	if (HasAttributes())
 	{
-		for (int UVLayerIndex = 0; UVLayerIndex < Attributes()->NumUVLayers(); UVLayerIndex++)
-		{
-			Attributes()->GetUVLayer(UVLayerIndex)->CheckValidity(true, FailMode);
-		}
-		Attributes()->PrimaryNormals()->CheckValidity(true, FailMode);
+		CheckOrFailF(Attributes()->CheckValidity(true, FailMode));
 	}
 
 	return is_ok;

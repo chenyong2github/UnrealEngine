@@ -104,6 +104,18 @@ public:
 	{
 	}
 
+	/**
+	* Check validity of attribute
+	* 
+	* @param bAllowNonmanifold Accept non-manifold topology as valid. Note that this should almost always be true for attributes; non-manifold overlays are generally valid.
+	* @param FailMode Desired behavior if mesh is found invalid
+	*/
+	virtual bool CheckValidity(bool bAllowNonmanifold, EValidityCheckFailMode FailMode) const
+	{
+		// default impl just doesn't check anything; override with any useful sanity checks
+		return true;
+	}
+
 
 	virtual TUniquePtr<FDynamicAttributeChangeBase> NewBlankChange() = 0;
 
@@ -218,5 +230,21 @@ public:
 		{
 			A->OnMergeEdges(MergeInfo);
 		}
+	}
+
+	/**
+	* Check validity of attributes
+	* 
+	* @param bAllowNonmanifold Accept non-manifold topology as valid. Note that this should almost always be true for attributes; non-manifold overlays are generally valid.
+	* @param FailMode Desired behavior if mesh is found invalid
+	*/
+	virtual bool CheckValidity(bool bAllowNonmanifold, EValidityCheckFailMode FailMode) const
+	{
+		bool bValid = true;
+		for (FDynamicAttributeBase* A : RegisteredAttributes)
+		{
+			bValid = A->CheckValidity(bAllowNonmanifold, FailMode) && bValid;
+		}
+		return bValid;
 	}
 };

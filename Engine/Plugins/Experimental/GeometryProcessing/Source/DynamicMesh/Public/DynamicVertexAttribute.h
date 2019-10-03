@@ -6,12 +6,12 @@
 #include "DynamicAttribute.h"
 
 
-template<typename AttribValueType, int AttribDimension>
-class TDynamicMeshVertexAttribute;
+template<typename AttribValueType, int AttribDimension, typename ParentType>
+class TDynamicVertexAttribute;
 
 
-template<typename AttribValueType, int AttribDimension>
-class DYNAMICMESH_API FDynamicMeshVertexAttributeChange : public FDynamicAttributeChangeBase
+template<typename AttribValueType, int AttribDimension, typename ParentType>
+class DYNAMICMESH_API FDynamicVertexAttributeChange : public FDynamicAttributeChangeBase
 {
 private:
 	struct FChangeVertexAttribute
@@ -23,10 +23,10 @@ private:
 	TArray<FChangeVertexAttribute> OldVertexAttributes, NewVertexAttributes;
 
 public:
-	FDynamicMeshVertexAttributeChange()
+	FDynamicVertexAttributeChange()
 	{}
 
-	virtual ~FDynamicMeshVertexAttributeChange()
+	virtual ~FDynamicVertexAttributeChange()
 	{}
 
 	inline virtual void SaveInitialVertex(const FDynamicAttributeBase* Attribute, int VertexID) override;
@@ -38,57 +38,52 @@ public:
 
 
 /**
- * TDynamicMeshVertexAttribute is an add-on to a FDynamicMesh3 that allows for 
- * per-triangle storage of an attribute value.
- *
- * The FDynamicMesh3 mesh topology operations (eg split/flip/collapse edge, poke face, etc)
- * can be mirrored to the overlay via OnSplitEdge(), etc.
+ * TDynamicVertexAttribute provides per-vertex storage of an attribute value
  */
-template<typename AttribValueType, int AttribDimension>
-class DYNAMICMESH_API TDynamicMeshVertexAttribute : public FDynamicAttributeBase
+template<typename AttribValueType, int AttribDimension, typename ParentType>
+class DYNAMICMESH_API TDynamicVertexAttribute : public FDynamicAttributeBase
 {
 
 protected:
-	/** The parent mesh this overlay belongs to */
-	FDynamicMesh3* ParentMesh;
+	/** The parent object (e.g. mesh, point set) this attribute belongs to */
+	ParentType* Parent;
 
 	/** List of per-triangle attribute values */
 	TDynamicVector<AttribValueType> AttribValues;
 
-	friend class FDynamicMesh3;
-	friend class FDynamicMeshAttributeSet;
-
 public:
 	/** Create an empty overlay */
-	TDynamicMeshVertexAttribute()
-	{
-		ParentMesh = nullptr;
-	}
-
-	/** Create an overlay for the given parent mesh */
-	TDynamicMeshVertexAttribute(FDynamicMesh3* ParentMeshIn)
-	{
-		ParentMesh = ParentMeshIn;
-	}
-
-	virtual ~TDynamicMeshVertexAttribute()
+	TDynamicVertexAttribute() : Parent(nullptr)
 	{
 	}
 
-	/** @return the parent mesh for this overlay */
-	const FDynamicMesh3* GetParentMesh() const { return ParentMesh; }
-	/** @return the parent mesh for this overlay */
-	FDynamicMesh3* GetParentMesh() { return ParentMesh; }
-
-	virtual FDynamicAttributeBase* MakeCopy(FDynamicMesh3* ParentMeshIn) const override
+	/** Create an attribute for the given parent */
+	TDynamicVertexAttribute(ParentType* ParentIn, bool bAutoInit = true) : Parent(ParentIn)
 	{
-		TDynamicMeshVertexAttribute<AttribValueType, AttribDimension>* ToFill = new TDynamicMeshVertexAttribute<AttribValueType, AttribDimension>(ParentMeshIn);
+		if (bAutoInit)
+		{
+			Initialize();
+		}
+	}
+
+	virtual ~TDynamicVertexAttribute()
+	{
+	}
+
+	/** @return the parent for this attribute */
+	const ParentType* GetParent() const { return Parent; }
+	/** @return the parent for this attribute */
+	ParentType* GetParent() { return Parent; }
+
+	virtual FDynamicAttributeBase* MakeCopy(ParentType* ParentIn) const override
+	{
+		TDynamicVertexAttribute<AttribValueType, AttribDimension, ParentType>* ToFill = new TDynamicVertexAttribute<AttribValueType, AttribDimension, ParentType>(ParentIn);
 		ToFill->Copy(*this);
 		return ToFill;
 	}
 
 	/** Set this overlay to contain the same arrays as the copy overlay */
-	void Copy(const TDynamicMeshVertexAttribute<AttribValueType, AttribDimension>& Copy)
+	void Copy(const TDynamicVertexAttribute<AttribValueType, AttribDimension, ParentType>& Copy)
 	{
 		AttribValues = Copy.AttribValues;
 	}
@@ -96,9 +91,9 @@ public:
 	/** Initialize the attribute values to the given max triangle ID */
 	void Initialize(AttribValueType InitialValue = (AttribValueType)0)
 	{
-		check(ParentMesh != nullptr);
+		check(Parent != nullptr);
 		AttribValues.Resize(0);
-		AttribValues.Resize( ParentMesh->MaxVertexID() * AttribDimension, InitialValue );
+		AttribValues.Resize( Parent->MaxVertexID() * AttribDimension, InitialValue );
 	}
 
 	void SetNewValue(int NewVertexID, const AttribValueType* Data)
@@ -175,19 +170,20 @@ public:
 
 public:
 
-	/** Update the overlay to reflect an edge split in the parent mesh */
+	/** Update the overlay to reflect an edge split in the parent */
 	void OnSplitEdge(const FDynamicMesh3::FEdgeSplitInfo& SplitInfo) override
 	{
+		ResizeAttribStoreIfNeeded(SplitInfo.NewVertex);
 		SetAttributeFromLerp(SplitInfo.NewVertex, SplitInfo.OriginalVertices.A, SplitInfo.OriginalVertices.B, SplitInfo.SplitT);
 	}
 
-	/** Update the overlay to reflect an edge flip in the parent mesh */
+	/** Update the overlay to reflect an edge flip in the parent */
 	void OnFlipEdge(const FDynamicMesh3::FEdgeFlipInfo& FlipInfo) override
 	{
 		// vertices unchanged
 	}
 
-	/** Update the overlay to reflect an edge collapse in the parent mesh */
+	/** Update the overlay to reflect an edge collapse in the parent */
 	void OnCollapseEdge(const FDynamicMesh3::FEdgeCollapseInfo& CollapseInfo) override
 	{
 		SetAttributeFromLerp(CollapseInfo.KeptVertex, CollapseInfo.KeptVertex, CollapseInfo.RemovedVertex, CollapseInfo.CollapseT);
@@ -198,22 +194,29 @@ public:
 		return (AttribValueType)0;
 	}
 
+	inline void ResizeAttribStoreIfNeeded(int VertexID)
+	{
+		int k = VertexID * AttribDimension;
+		if (k+AttribDimension > AttribValues.Num())
+		{
+			AttribValues.Resize(k + AttribDimension, GetDefaultAttributeValue());
+		}
+	}
+
 	virtual void OnNewVertex(int VertexID, bool bInserted) override
 	{
-		if (ParentMesh->MaxVertexID() >= AttribValues.Num() * AttribDimension)
-		{
-			AttribValues.Resize((ParentMesh->MaxVertexID()+1) * AttribDimension, GetDefaultAttributeValue());
-		}
-	} 
+		ResizeAttribStoreIfNeeded(VertexID);
+	}
 
-	/** Update the overlay to reflect a face poke in the parent mesh */
+	/** Update the overlay to reflect a face poke in the parent */
 	void OnPokeTriangle(const FDynamicMesh3::FPokeTriangleInfo& PokeInfo) override
 	{
 		FIndex3i Tri = PokeInfo.TriVertices;
+		ResizeAttribStoreIfNeeded(PokeInfo.NewVertex);
 		SetAttributeFromBary(PokeInfo.NewVertex, Tri.A, Tri.B, Tri.C, PokeInfo.BaryCoords);
 	}
 
-	/** Update the overlay to reflect an edge merge in the parent mesh */
+	/** Update the overlay to reflect an edge merge in the parent */
 	void OnMergeEdges(const FDynamicMesh3::FMergeEdgesInfo& MergeInfo) override
 	{
 		// just blend the attributes?
@@ -223,8 +226,34 @@ public:
 
 	virtual TUniquePtr<FDynamicAttributeChangeBase> NewBlankChange() override
 	{
-		return MakeUnique<FDynamicMeshVertexAttributeChange<AttribValueType, AttribDimension>>();
+		return MakeUnique<FDynamicVertexAttributeChange<AttribValueType, AttribDimension, ParentType>>();
 	}
+
+	/**
+	* Check validity of attribute
+	* 
+	* @param bAllowNonmanifold Accept non-manifold topology as valid. Note that this should almost always be true for attributes; non-manifold overlays are generally valid.
+	* @param FailMode Desired behavior if mesh is found invalid
+	*/
+	virtual bool CheckValidity(bool bAllowNonmanifold, EValidityCheckFailMode FailMode) const override
+	{
+		// just check that the values buffer is big enough
+		if (Parent->MaxVertexID()*AttribDimension > AttribValues.Num())
+		{
+			switch (FailMode)
+			{
+			case EValidityCheckFailMode::Check:
+				check(false);
+			case EValidityCheckFailMode::Ensure:
+				ensure(false);
+			default:
+				return false;
+			}
+		}
+
+		return true;
+	}
+
 
 protected:
 
@@ -261,19 +290,23 @@ protected:
 
 
 template<typename AttribValueType, int AttribDimension>
-void FDynamicMeshVertexAttributeChange<AttribValueType, AttribDimension>::SaveInitialVertex(const FDynamicAttributeBase* Attribute, int VertexID)
+using TDynamicMeshVertexAttribute = TDynamicVertexAttribute<AttribValueType, AttribDimension, FDynamicMesh3>;
+
+
+template<typename AttribValueType, int AttribDimension, typename ParentType>
+void FDynamicVertexAttributeChange<AttribValueType, AttribDimension, ParentType>::SaveInitialVertex(const FDynamicAttributeBase* Attribute, int VertexID)
 {
 	FChangeVertexAttribute& Change = OldVertexAttributes.Emplace_GetRef();
 	Change.VertexID = VertexID;
-	const TDynamicMeshVertexAttribute<AttribValueType, AttribDimension>* AttribCast = static_cast<const TDynamicMeshVertexAttribute<AttribValueType, AttribDimension>*>(Attribute);
+	const TDynamicVertexAttribute<AttribValueType, AttribDimension, ParentType>* AttribCast = static_cast<const TDynamicVertexAttribute<AttribValueType, AttribDimension, ParentType>*>(Attribute);
 	AttribCast->GetValue(VertexID, Change.Data);
 }
 
-template<typename AttribValueType, int AttribDimension>
-void FDynamicMeshVertexAttributeChange<AttribValueType, AttribDimension>::StoreAllFinalVertices(const FDynamicAttributeBase* Attribute, const TArray<int>& VertexIDs)
+template<typename AttribValueType, int AttribDimension, typename ParentType>
+void FDynamicVertexAttributeChange<AttribValueType, AttribDimension, ParentType>::StoreAllFinalVertices(const FDynamicAttributeBase* Attribute, const TArray<int>& VertexIDs)
 {
 	NewVertexAttributes.Reserve(NewVertexAttributes.Num() + VertexIDs.Num());
-	const TDynamicMeshVertexAttribute<AttribValueType, AttribDimension>* AttribCast = static_cast<const TDynamicMeshVertexAttribute<AttribValueType, AttribDimension>*>(Attribute);
+	const TDynamicVertexAttribute<AttribValueType, AttribDimension, ParentType>* AttribCast = static_cast<const TDynamicVertexAttribute<AttribValueType, AttribDimension, ParentType>*>(Attribute);
 	for (int VertexID : VertexIDs)
 	{
 		FChangeVertexAttribute& Change = NewVertexAttributes.Emplace_GetRef();
@@ -282,15 +315,23 @@ void FDynamicMeshVertexAttributeChange<AttribValueType, AttribDimension>::StoreA
 	}
 }
 
-template<typename AttribValueType, int AttribDimension>
-bool FDynamicMeshVertexAttributeChange<AttribValueType, AttribDimension>::Apply(FDynamicAttributeBase* Attribute, bool bRevert) const
+template<typename AttribValueType, int AttribDimension, typename ParentType>
+bool FDynamicVertexAttributeChange<AttribValueType, AttribDimension, ParentType>::Apply(FDynamicAttributeBase* Attribute, bool bRevert) const
 {
 	const TArray<FChangeVertexAttribute> *Changes = bRevert ? &OldVertexAttributes : &NewVertexAttributes;
-	TDynamicMeshVertexAttribute<AttribValueType, AttribDimension>* AttribCast = static_cast<TDynamicMeshVertexAttribute<AttribValueType, AttribDimension>*>(Attribute);
+	TDynamicVertexAttribute<AttribValueType, AttribDimension, ParentType>* AttribCast = static_cast<TDynamicVertexAttribute<AttribValueType, AttribDimension, ParentType>*>(Attribute);
 	for (const FChangeVertexAttribute& Change : *Changes)
 	{
-		check(AttribCast->GetParentMesh()->IsVertex(Change.VertexID));
+		check(AttribCast->GetParent()->IsVertex(Change.VertexID));
 		AttribCast->SetValue(Change.VertexID, Change.Data);
 	}
 	return true;
 }
+
+
+template<typename AttribValueType, int AttribDimension>
+using TDynamicMeshVertexAttribute = TDynamicVertexAttribute<AttribValueType, AttribDimension, FDynamicMesh3>;
+
+template<typename AttribValueType, int AttribDimension>
+using FDynamicMeshVertexAttributeChange = FDynamicVertexAttributeChange<AttribValueType, AttribDimension, FDynamicMesh3>;
+
