@@ -39,7 +39,7 @@ namespace Audio
 
 		if (!SoundWave || !MixerBuffer)
 		{
-			return nullptr;
+			return false;
 		}
 
 		const ELoopingMode LoopingMode = SoundWave->bLooping ? ELoopingMode::LOOP_Forever : ELoopingMode::LOOP_Never;
