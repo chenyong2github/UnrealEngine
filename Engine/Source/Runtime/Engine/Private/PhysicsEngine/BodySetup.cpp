@@ -42,9 +42,7 @@
 #include "ProfilingDebugging/CookStats.h"
 #include "UObject/AnimPhysObjectVersion.h"
 
-#if INCLUDE_CHAOS
 #include "Chaos/TriangleMeshImplicitObject.h"
-#endif
 
 #if WITH_CHAOS
 	#include "Experimental/ChaosDerivedData.h"

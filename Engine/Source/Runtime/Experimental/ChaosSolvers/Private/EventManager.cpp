@@ -6,31 +6,38 @@ namespace Chaos
 {
 	void FEventManager::Reset()
 	{
+		ContainerLock.WriteLock();
 		for (FEventContainerPtr Container : EventContainers)
 		{
 			delete Container;
 			Container = nullptr;
 		}
 		EventContainers.Reset();
+		ContainerLock.WriteUnlock();
 	}
 
 	void FEventManager::UnregisterEvent(const FEventID& EventID)
 	{
+		ContainerLock.WriteLock();
 		if (EventID < EventContainers.Num())
 		{
 			delete EventContainers[EventID];
 			EventContainers.RemoveAt(EventID);
 		}
+		ContainerLock.WriteUnlock();
 	}
 
 	void FEventManager::UnregisterHandler(const FEventID& EventID, const void* InHandler)
 	{
+		ContainerLock.WriteLock();
 		checkf(EventID < EventContainers.Num(), TEXT("Unregistering event Handler for an event ID that does not exist"));
 		EventContainers[EventID]->UnregisterHandler(InHandler);
+		ContainerLock.WriteUnlock();
 	}
 
 	void FEventManager::FillProducerData(const Chaos::FPBDRigidsSolver* Solver)
 	{
+		ContainerLock.ReadLock();
 		for (FEventContainerPtr EventContainer : EventContainers)
 		{
 			if (EventContainer)
@@ -38,6 +45,7 @@ namespace Chaos
 				EventContainer->InjectProducerData(Solver);
 			}
 		}
+		ContainerLock.ReadUnlock();
 	}
 
 	void FEventManager::FlipBuffersIfRequired()
@@ -47,6 +55,7 @@ namespace Chaos
 			ResourceLock.WriteLock();
 		}
 
+		ContainerLock.ReadLock();
 		for (FEventContainerPtr EventContainer : EventContainers)
 		{
 			if (EventContainer)
@@ -54,6 +63,7 @@ namespace Chaos
 				EventContainer->FlipBufferIfRequired();
 			}
 		}
+		ContainerLock.ReadUnlock();
 
 		if (BufferMode == EMultiBufferMode::Double)
 		{
@@ -68,6 +78,7 @@ namespace Chaos
 			ResourceLock.ReadLock();
 		}
 
+		ContainerLock.ReadLock();
 		for (FEventContainerPtr EventContainer : EventContainers)
 		{
 			if (EventContainer)
@@ -75,6 +86,7 @@ namespace Chaos
 				EventContainer->DispatchConsumerData();
 			}
 		}
+		ContainerLock.ReadUnlock();
 
 		if (BufferMode == EMultiBufferMode::Double)
 		{

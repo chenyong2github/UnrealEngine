@@ -143,8 +143,6 @@ private:
 	bool bComponentSpaceSimulation_DEPRECATED;	//use SimulationSpace
 #endif
 
-#if INCLUDE_CHAOS
-
 	// FAnimNode_SkeletalControlBase interface
 	virtual void InitializeBoneReferences(const FBoneContainer& RequiredBones) override;
 	// End of FAnimNode_SkeletalControlBase interface
@@ -252,45 +250,7 @@ private:
 	FBlendedHeapCurve CapturedFrozenCurves;
 
 	FVector PreviousComponentLinearVelocity;
-#endif
 };
-
-#if !INCLUDE_CHAOS
-// Stub out public API and safe-initialize all public properties if Chaos is not compiled.
-inline FAnimNode_RigidBody_Chaos::FAnimNode_RigidBody_Chaos()
-	: OverridePhysicsAsset(nullptr)
-	, OverrideWorldGravity(FVector::ZeroVector)
-	, ExternalForce(FVector::ZeroVector)
-	, ComponentLinearAccScale(FVector::ZeroVector)
-	, ComponentLinearVelScale(FVector::ZeroVector)
-	, ComponentAppliedLinearAccClamp(FVector::ZeroVector)
-	, CachedBoundsScale(false)
-	, BaseBoneRef()
-	, OverlapChannel(ECollisionChannel::ECC_WorldStatic)
-	, SimulationSpace(ESimulationSpace::ComponentSpace)
-	, bForceDisableCollisionBetweenConstraintBodies(false)
-	, bEnableWorldGeometry(false)
-	, bOverrideWorldGravity(false)
-	, bTransferBoneVelocities(0)
-	, bFreezeIncomingPoseOnStart(0)
-	, bClampLinearTranslationLimitToRefPose(0)
-#if WITH_EDITORONLY_DATA
-	, bComponentSpaceSimulation_DEPRECATED(false)
-#endif
-{}
-inline FAnimNode_RigidBody_Chaos::~FAnimNode_RigidBody_Chaos() {}
-inline void FAnimNode_RigidBody_Chaos::FAnimNode_RigidBody_Chaos::GatherDebugData(FNodeDebugData& DebugData) { Super::GatherDebugData(DebugData); }
-inline void FAnimNode_RigidBody_Chaos::UpdateComponentPose_AnyThread(const FAnimationUpdateContext& Context) { Super::UpdateComponentPose_AnyThread(Context); }
-inline void FAnimNode_RigidBody_Chaos::EvaluateComponentPose_AnyThread(FComponentSpacePoseContext& Output) { Super::EvaluateComponentPose_AnyThread(Output); }
-inline void FAnimNode_RigidBody_Chaos::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms) { Super::EvaluateSkeletalControl_AnyThread(Output, OutBoneTransforms); }
-inline void FAnimNode_RigidBody_Chaos::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) { Super::OnInitializeAnimInstance(InProxy, InAnimInstance); }
-inline void FAnimNode_RigidBody_Chaos::PreUpdate(const UAnimInstance* InAnimInstance) { Super::PreUpdate(InAnimInstance); }
-inline void FAnimNode_RigidBody_Chaos::UpdateInternal(const FAnimationUpdateContext& Context) { Super::UpdateInternal(Context); }
-inline bool FAnimNode_RigidBody_Chaos::IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones) { return true; }
-inline bool FAnimNode_RigidBody_Chaos::NeedsDynamicReset() const { return false; }
-inline void FAnimNode_RigidBody_Chaos::ResetDynamics(ETeleportType InTeleportType) {}
-inline int32 FAnimNode_RigidBody_Chaos::GetLODThreshold() const { return 0; }
-#endif
 
 #if WITH_EDITORONLY_DATA
 template<>

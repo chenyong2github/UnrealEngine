@@ -32,8 +32,6 @@ public:
 	virtual EChaosBufferMode GetDedicatedThreadBufferMode() const = 0;
 }; 
 
-#if INCLUDE_CHAOS
-
 #include "Framework/Dispatcher.h"
 #include "Framework/PersistentTask.h"
 
@@ -155,7 +153,7 @@ public:
 	 */
 	Chaos::FPhysicsSolver* CreateSolver(bool bStandalone = false);
 
-	Chaos::EMultiBufferMode GetBufferModeFromThreadingModel(Chaos::EThreadingMode ThreadingMode)
+	Chaos::EMultiBufferMode GetBufferModeFromThreadingModel(Chaos::EThreadingMode ThreadingMode) const
 	{
 		Chaos::EMultiBufferMode SolverBufferMode = Chaos::EMultiBufferMode::Single;
 		switch (ThreadingMode)
@@ -284,10 +282,13 @@ public:
 
 	void ChangeBufferMode(Chaos::EMultiBufferMode InBufferMode);
 
+	Chaos::EThreadingMode GetDesiredThreadingMode() const;
+	Chaos::EMultiBufferMode GetDesiredBufferingMode() const;
+
 private:
 
 	/** Safe method for always getting a settings provider (from the external caller or an internal default) */
-	const IChaosSettingsProvider& GetSettingsProvider();
+	const IChaosSettingsProvider& GetSettingsProvider() const;
 
 	/** Object that contains implementation of GetSolverActorClass() */
 	IChaosSolverActorClassProvider* SolverActorClassProvider;
@@ -397,5 +398,3 @@ struct CHAOSSOLVERS_API FChaosScopeSolverLock
 		FChaosSolversModule::GetModule()->UnlockSolvers();
 	}
 };
-
-#endif

@@ -458,9 +458,11 @@ class NIAGARA_API UNiagaraDataInterfaceSkeletalMesh : public UNiagaraDataInterfa
 
 public:
 	
-	/** Mesh used to sample from when not overridden by a source actor from the scene. Also useful for previewing in the editor. */
+#if WITH_EDITORONLY_DATA
+	/** Mesh used to sample from when not overridden by a source actor from the scene. Only available in editor for previewing. This is removed in cooked builds. */
 	UPROPERTY(EditAnywhere, Category = "Mesh")
 	USkeletalMesh* DefaultMesh;
+#endif
 
 	/** The source actor from which to sample. Takes precedence over the direct mesh. */
 	UPROPERTY(EditAnywhere, Category = "Mesh")

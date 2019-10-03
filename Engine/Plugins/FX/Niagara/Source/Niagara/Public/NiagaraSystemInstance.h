@@ -74,7 +74,7 @@ public:
 
 	//void RebindParameterCollection(UNiagaraParameterCollectionInstance* OldInstance, UNiagaraParameterCollectionInstance* NewInstance);
 	void BindParameters();
-	void UnbindParameters();
+	void UnbindParameters(bool bFromComplete = false);
 
 	FORCEINLINE FNiagaraParameterStore& GetInstanceParameters() { return InstanceParameters; }
 	
@@ -376,6 +376,8 @@ private:
 	uint32 bNeedsFinalize : 1;
 
 	uint32 bDataInterfacesInitialized : 1;
+
+	uint32 bAlreadyBound : 1;
 
 	/** True if we have async work in flight. */
 	volatile bool bAsyncWorkInProgress;

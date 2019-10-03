@@ -345,6 +345,7 @@ bool CreateFromSkeletalMesh(UPhysicsAsset* PhysicsAsset, USkeletalMesh* SkelMesh
 	PhysicsAsset->PreviewSkeletalMesh = SkelMesh;
 
 	check(SkelMesh);
+	check(SkelMesh->GetResourceForRendering());
 
 	FSkinnedBoneTriangleCache TriangleCache(*SkelMesh, Params);
 

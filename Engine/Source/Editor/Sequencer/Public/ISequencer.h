@@ -28,6 +28,7 @@ class FSequencerKeyCollection;
 class UMovieSceneSequence;
 class UMovieSceneSubSection;
 class IDetailsView;
+class IKeyArea;
 enum class EMapChangeType : uint8;
 
 /**
@@ -474,6 +475,12 @@ public:
 	/** Gets the currently selected folders. */
 	virtual void GetSelectedFolders(TArray<UMovieSceneFolder*>& OutSelectedFolders) = 0;
 
+	/** Gets the currently selected key areas */
+	virtual void GetSelectedKeyAreas(TArray<const IKeyArea*>& OutSelectedKeyAreas) = 0;
+
+	/** Gets the currently selected Object Guids*/
+	virtual void GetSelectedObjects(TArray<FGuid>& OutSelectedObjects) = 0;
+
 	/** Selects an object by GUID */
 	virtual void SelectObject(FGuid ObjectBinding) = 0;
 
@@ -485,6 +492,9 @@ public:
 
 	/** Selects property tracks by property path */
 	virtual void SelectByPropertyPaths(const TArray<FString>& InPropertyPaths) = 0;
+
+	/** Selects nodes by key areas */
+	virtual void SelectByKeyAreas(const TArray<IKeyArea>& InKeyAreas, bool bSelectParentInstead, bool bSelect) = 0;
 
 	/** Empties the current selection. */
 	virtual void EmptySelection() = 0;

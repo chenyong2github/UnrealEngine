@@ -1,7 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#if INCLUDE_CHAOS
-
 #include "Framework/DebugSolverTasks.h"
 
 #if CHAOS_DEBUG_SUBSTEP
@@ -140,5 +138,3 @@ namespace Chaos
 }  // namespace Chaos
 
 #endif  // #if CHAOS_DEBUG_SUBSTEP
-
-#endif  // #if INCLUDE_CHAOS

@@ -45,7 +45,7 @@ public:
 	 * @param	DesriedLOD	: The data to reduce comes from Skeleton 
 	 *
 	 */
-	virtual bool ReduceBoneCounts(USkeletalMesh * SkeletalMesh, int32 DesiredLOD, const TArray<FName>* BoneNamesToRemove) = 0;
+	virtual bool ReduceBoneCounts(USkeletalMesh * SkeletalMesh, int32 DesiredLOD, const TArray<FName>* BoneNamesToRemove, bool bCallPostEditChange = true) = 0;
 };
 
 /**

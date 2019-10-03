@@ -18,6 +18,7 @@ enum class EStandardToolActions
 {
 	IncreaseBrushSize = 100,
 	DecreaseBrushSize = 101,
+	ToggleWireframe = 102,
 
 
 	BaseClientDefinedActionID = 10000

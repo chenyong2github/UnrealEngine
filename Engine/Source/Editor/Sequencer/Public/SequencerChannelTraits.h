@@ -246,9 +246,10 @@ namespace Sequencer
 	 *
 	 * @param InChannel          The channel to duplicate keys in
 	 * @param InHandles          Array of key handles that should be deleted
+	 * @param InOwner            The owning movie scene section for this channel
 	 * @param OutKeyDrawParams   Array to receive key draw information. Must be exactly the size of InHandles.
 	 */
-	SEQUENCER_API void DrawKeys(FMovieSceneChannel* Channel, TArrayView<const FKeyHandle> InHandles, TArrayView<FKeyDrawParams> OutKeyDrawParams);
+	SEQUENCER_API void DrawKeys(FMovieSceneChannel* Channel, TArrayView<const FKeyHandle> InHandles, const UMovieSceneSection* InOwner, TArrayView<FKeyDrawParams> OutKeyDrawParams);
 
 
 	/**

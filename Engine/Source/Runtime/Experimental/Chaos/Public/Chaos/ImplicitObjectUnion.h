@@ -7,6 +7,7 @@
 #include <memory>
 #include "BoundingVolumeHierarchy.h"
 #include "ImplicitObjectTransformed.h"
+#include "ChaosArchive.h"
 
 namespace Chaos
 {
@@ -14,7 +15,9 @@ template<class T, int d>
 class TImplicitObjectUnion : public TImplicitObject<T, d>
 {
   public:
-	IMPLICIT_OBJECT_SERIALIZER(TImplicitObjectUnion)
+
+	using TImplicitObject<T, d>::GetTypeName;
+
 	TImplicitObjectUnion(TArray<TUniquePtr<TImplicitObject<T, d>>>&& Objects, const TArray<int32>& OriginalParticleLookupHack = TArray<int32>())
 	    : TImplicitObject<T, d>(EImplicitObject::HasBoundingBox, ImplicitObjectType::Union)
 	    , MObjects(MoveTemp(Objects))
@@ -23,6 +26,7 @@ class TImplicitObjectUnion : public TImplicitObject<T, d>
 		, bHierarchyBuilt(false)
 		, MOriginalParticleLookupHack(OriginalParticleLookupHack)
 	{
+		ensure(MObjects.Num());
 		for (int32 i = 0; i < MObjects.Num(); ++i)
 		{
 			if (i > 0)
@@ -276,9 +280,16 @@ class TImplicitObjectUnion : public TImplicitObject<T, d>
 
 	virtual void Serialize(FChaosArchive& Ar) override
 	{
+		FChaosArchiveScopedMemory ScopedMemory(Ar, GetTypeName(), false);
 		TImplicitObject<T, d>::SerializeImp(Ar);
-		Ar << MObjects << MLocalBoundingBox;
-		Ar << GeomParticles << Hierarchy << bHierarchyBuilt;
+		Ar << MObjects << MLocalBoundingBox << GeomParticles << Hierarchy << bHierarchyBuilt;
+	}
+
+	virtual bool IsValidGeometry() const
+	{
+		bool bValid = TImplicitObject<T, d>::IsValidGeometry();
+		bValid = bValid && MObjects.Num();
+		return bValid;
 	}
 
 	const TArray<TUniquePtr<TImplicitObject<T, d>>>& GetObjects() const { return MObjects; }

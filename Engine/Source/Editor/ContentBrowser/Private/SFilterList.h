@@ -131,6 +131,9 @@ private:
 	/** Called when reset filters option is pressed */
 	void OnResetFilters();
 
+	/** Called to set a filter active externally */
+	void OnSetFilterActive(bool bInActive, TWeakPtr<FFrontendFilter> InWeakFilter);
+
 private:
 	/** The horizontal box which contains all the filters */
 	TSharedPtr<SWrapBox> FilterBox;
@@ -155,4 +158,6 @@ private:
 
 	/** Delegate for when filters have changed */
 	FOnFilterChanged OnFilterChanged;
+
+	friend struct FFrontendFilterExternalActivationHelper;
 };

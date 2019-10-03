@@ -2,8 +2,7 @@
 
 #include "MeshDescriptionOperations.h"
 #include "UObject/Package.h"
-#include "MeshDescription.h"
-#include "MeshAttributes.h"
+#include "StaticMeshAttributes.h"
 #include "RawMesh.h"
 #include "LayoutUV.h"
 #include "OverlappingCorners.h"

@@ -14,6 +14,7 @@ public class QuadricMeshReduction : ModuleRules
         PrivateDependencyModuleNames.Add("MeshDescription");
         PrivateDependencyModuleNames.Add("MeshDescriptionOperations");
         PrivateDependencyModuleNames.Add("MeshUtilitiesCommon");
+        PrivateDependencyModuleNames.Add("StaticMeshDescription");
 
         PrivateIncludePathModuleNames.AddRange(
         new string[] {

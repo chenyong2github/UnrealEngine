@@ -1,37 +1,13 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved. 
 
 #include "DynamicMeshToMeshDescription.h"
-#include "MeshAttributes.h"
+#include "StaticMeshAttributes.h"
 #include "DynamicMeshAttributeSet.h"
 #include "DynamicMeshOverlay.h"
 #include "MeshDescriptionBuilder.h"
-#include "MeshNormals.h"
 
 
 
-void FDynamicMeshToMeshDescription::Update(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut, bool bRecomputeNormals)
-{
-	FMeshDescriptionBuilder Builder;
-	Builder.SetMeshDescription(&MeshOut);
-
-	check(MeshIn->IsCompactV());
-	check(MeshIn->VertexCount() == MeshOut.Vertices().Num());
-
-	// update positions
-	for (int VertID : MeshIn->VertexIndicesItr())
-	{
-		Builder.SetPosition(FVertexID(VertID), MeshIn->GetVertex(VertID));
-	}
-
-	if (bRecomputeNormals)
-	{
-		Builder.RecalculateInstanceNormals();
-	}
-	else
-	{
-		UpdateAttributes(MeshIn, MeshOut, true, false);
-	}
-}
 
 
 namespace DynamicMeshToMeshDescriptionConversionHelper
@@ -41,7 +17,7 @@ namespace DynamicMeshToMeshDescriptionConversionHelper
 	template <typename OutAttributeType, int VecLen, typename InAttributeType>
 	void SetAttributesFromOverlay(
 		const FDynamicMesh3* MeshInArg, const FMeshDescription& MeshOutArg,
-		TVertexInstanceAttributesRef<OutAttributeType>& InstanceAttrib, const TDynamicMeshVectorOverlay<float, VecLen, InAttributeType>* Overlay)
+		TVertexInstanceAttributesRef<OutAttributeType>& InstanceAttrib, const TDynamicMeshVectorOverlay<float, VecLen, InAttributeType>* Overlay, int AttribIndex=0)
 	{
 		const FPolygonArray& Polygons = MeshOutArg.Polygons();
 		int MeshInTriIdx = 0;
@@ -57,13 +33,32 @@ namespace DynamicMeshToMeshDescriptionConversionHelper
 				TArrayView<const FVertexInstanceID> InstanceTri = MeshOutArg.GetTriangleVertexInstances(TriangleID);
 
 				FIndex3i OverlayVertIndices = Overlay->GetTriangle(MeshInTriIdx);
-				InstanceAttrib.Set(InstanceTri[0], OutAttributeType(Overlay->GetElement(OverlayVertIndices.A)));
-				InstanceAttrib.Set(InstanceTri[1], OutAttributeType(Overlay->GetElement(OverlayVertIndices.B)));
-				InstanceAttrib.Set(InstanceTri[2], OutAttributeType(Overlay->GetElement(OverlayVertIndices.C)));
+				InstanceAttrib.Set(InstanceTri[0], AttribIndex, OutAttributeType(Overlay->GetElement(OverlayVertIndices.A)));
+				InstanceAttrib.Set(InstanceTri[1], AttribIndex, OutAttributeType(Overlay->GetElement(OverlayVertIndices.B)));
+				InstanceAttrib.Set(InstanceTri[2], AttribIndex, OutAttributeType(Overlay->GetElement(OverlayVertIndices.C)));
 			}
 		}
 	}
 }
+
+
+void FDynamicMeshToMeshDescription::Update(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut)
+{
+	FMeshDescriptionBuilder Builder;
+	Builder.SetMeshDescription(&MeshOut);
+
+	check(MeshIn->IsCompactV());
+	check(MeshIn->VertexCount() == MeshOut.Vertices().Num());
+
+	// update positions
+	for (int VertID : MeshIn->VertexIndicesItr())
+	{
+		Builder.SetPosition(FVertexID(VertID), MeshIn->GetVertex(VertID));
+	}
+
+	UpdateAttributes(MeshIn, MeshOut, true, false);
+}
+
 
 
 void FDynamicMeshToMeshDescription::UpdateAttributes(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut, bool bUpdateNormals, bool bUpdateUVs)
@@ -100,16 +95,17 @@ void FDynamicMeshToMeshDescription::UpdateAttributes(const FDynamicMesh3* MeshIn
 
 	if (bUpdateUVs)
 	{
-		const FDynamicMeshUVOverlay* Overlay = MeshIn->HasAttributes() ? MeshIn->Attributes()->PrimaryUV() : nullptr;
-
 		TVertexInstanceAttributesRef<FVector2D> InstanceAttrib =
 			MeshOut.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
 		ensureMsgf(InstanceAttrib.IsValid(), TEXT("Trying to update UVs on a MeshDescription that has no texture coordinate attributes"));
 		if (InstanceAttrib.IsValid())
 		{
-			if (Overlay)
+			if (MeshIn->HasAttributes())
 			{
-				DynamicMeshToMeshDescriptionConversionHelper::SetAttributesFromOverlay(MeshIn, MeshOut, InstanceAttrib, Overlay);
+				for (int UVLayerIndex = 0, NumLayers = MeshIn->Attributes()->NumUVLayers(); UVLayerIndex < NumLayers; UVLayerIndex++)
+				{
+					DynamicMeshToMeshDescriptionConversionHelper::SetAttributesFromOverlay(MeshIn, MeshOut, InstanceAttrib, MeshIn->Attributes()->GetUVLayer(UVLayerIndex), UVLayerIndex);
+				}
 			}
 			else
 			{
@@ -150,7 +146,7 @@ void FDynamicMeshToMeshDescription::Convert_NoAttributes(const FDynamicMesh3* Me
 	Builder.SetMeshDescription(&MeshOut);
 
 	bool bCopyGroupToPolyGroup = false;
-	if (bSetPolyGroups && MeshIn->HasTriangleGroups())
+	if (ConversionOptions.bSetPolyGroups && MeshIn->HasTriangleGroups())
 	{
 		Builder.EnablePolyGroups();
 		bCopyGroupToPolyGroup = true;
@@ -163,9 +159,6 @@ void FDynamicMeshToMeshDescription::Convert_NoAttributes(const FDynamicMesh3* Me
 	{
 		MapV[VertID] = Builder.AppendVertex(MeshIn->GetVertex(VertID));
 	}
-
-	FMeshNormals VertexNormals(MeshIn);
-	VertexNormals.ComputeVertexNormals();
 
 	FPolygonGroupID AllGroupID = Builder.AppendPolygonGroup();
 
@@ -184,7 +177,9 @@ void FDynamicMeshToMeshDescription::Convert_NoAttributes(const FDynamicMesh3* Me
 			{
 				FVertexInstanceID NewInstanceID = Builder.AppendInstance(MapV[Triangle[j]]);
 				InstanceList.Add(InstanceElem, NewInstanceID);
-				Builder.SetInstance(NewInstanceID, FVector2f::Zero(), VertexNormals[Triangle[j]]);
+				FVector2D UV = MeshIn->HasVertexUVs() ? FVector2D(MeshIn->GetVertexUV(Triangle[j])) : FVector2D::ZeroVector;
+				FVector Normal = MeshIn->HasVertexNormals() ? FVector(MeshIn->GetVertexNormal(Triangle[j])) : FVector::UpVector;
+				Builder.SetInstance(NewInstanceID, UV, Normal);
 			}
 			InstanceTri[j] = InstanceList[InstanceElem];
 		}
@@ -195,8 +190,6 @@ void FDynamicMeshToMeshDescription::Convert_NoAttributes(const FDynamicMesh3* Me
 			Builder.SetPolyGroupID(NewPolygonID, MeshIn->GetTriangleGroup(TriID));
 		}
 	}
-
-	Builder.RecalculateInstanceNormals();
 }
 
 
@@ -207,7 +200,6 @@ void FDynamicMeshToMeshDescription::Convert_NoAttributes(const FDynamicMesh3* Me
 
 void FDynamicMeshToMeshDescription::Convert_SharedInstances(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut)
 {
-	const FDynamicMeshUVOverlay* UVOverlay = MeshIn->HasAttributes() ? MeshIn->Attributes()->PrimaryUV() : nullptr;
 	const FDynamicMeshNormalOverlay* NormalOverlay = MeshIn->HasAttributes() ? MeshIn->Attributes()->PrimaryNormals() : nullptr;
 
 	MeshOut.Empty();
@@ -216,7 +208,7 @@ void FDynamicMeshToMeshDescription::Convert_SharedInstances(const FDynamicMesh3*
 	Builder.SetMeshDescription(&MeshOut);
 
 	bool bCopyGroupToPolyGroup = false;
-	if (bSetPolyGroups && MeshIn->HasTriangleGroups())
+	if (ConversionOptions.bSetPolyGroups && MeshIn->HasTriangleGroups())
 	{
 		Builder.EnablePolyGroups();
 		bCopyGroupToPolyGroup = true;
@@ -230,33 +222,129 @@ void FDynamicMeshToMeshDescription::Convert_SharedInstances(const FDynamicMesh3*
 	}
 
 
-	FPolygonGroupID AllGroupID = Builder.AppendPolygonGroup();
+	FPolygonGroupID ZeroPolygonGroupID = Builder.AppendPolygonGroup();
 
+	// check if we have per-triangle material ID
+	const FDynamicMeshMaterialAttribute* MaterialIDAttrib =
+		(MeshIn->HasAttributes() && MeshIn->Attributes()->HasMaterialID()) ?
+		MeshIn->Attributes()->GetMaterialID() : nullptr;
 
-	// create new instances when seen
-	TMap<FIndex3i, FVertexInstanceID> InstanceList;
+	// need to know max material index value so we can reserve groups in MeshDescription
+	int32 MaxPolygonGroupID = 0;
+	if (MaterialIDAttrib)
+	{
+		for (int TriID : MeshIn->TriangleIndicesItr())
+		{
+			int32 MaterialID;
+			MaterialIDAttrib->GetValue(TriID, &MaterialID);
+			MaxPolygonGroupID = FMath::Max(MaterialID, MaxPolygonGroupID);
+		}
+		if (MaxPolygonGroupID == 0)
+		{
+			MaterialIDAttrib = nullptr;
+		}
+		else
+		{
+			for (int k = 0; k < MaxPolygonGroupID; ++k)
+			{
+				Builder.AppendPolygonGroup();
+			}
+		}
+	}
+
+	// build all vertex instances (splitting as needed)
+	// store per-triangle instance ids
+	struct Tri
+	{
+		FVertexInstanceID V[3];
+
+		Tri() : V{ FVertexInstanceID::Invalid,FVertexInstanceID::Invalid,FVertexInstanceID::Invalid }
+		{}
+	};
+	TArray<Tri> TriVertInstances;
+	TriVertInstances.SetNum(MeshIn->MaxTriangleID());
+	TArray<int32> KnownInstanceIDs;
+	int NumUVLayers = MeshIn->HasAttributes() ? MeshIn->Attributes()->NumUVLayers() : 0;
+	Builder.SetNumUVLayers(NumUVLayers);
+	int KIItemLen = 1 + (NormalOverlay ? 1 : 0) + NumUVLayers;
+	for (int VertID : MeshIn->VertexIndicesItr())
+	{
+		KnownInstanceIDs.Reset();
+		for (int TriID : MeshIn->VtxTrianglesItr(VertID))
+		{
+			FIndex3i Tri = MeshIn->GetTriangle(TriID);
+			int SubIdx = IndexUtil::FindTriIndex(VertID, Tri);
+
+			int32 FoundInstance = FVertexInstanceID::Invalid.GetValue();
+			for (int KIItemIdx = 0; KIItemIdx < KnownInstanceIDs.Num(); KIItemIdx += KIItemLen)
+			{
+				int KIItemInternalIdx = KIItemIdx;
+
+				if (NormalOverlay && KnownInstanceIDs[KIItemInternalIdx++] != NormalOverlay->GetTriangle(TriID)[SubIdx])
+				{
+					continue;
+				}
+
+				bool FoundInUVs = true;
+				for (int UVLayerIndex = 0; UVLayerIndex < NumUVLayers; UVLayerIndex++)
+				{
+					const FDynamicMeshUVOverlay* Overlay = MeshIn->Attributes()->GetUVLayer(UVLayerIndex);
+					if (KnownInstanceIDs[KIItemInternalIdx++] != Overlay->GetTriangle(TriID)[SubIdx])
+					{
+						FoundInUVs = false;
+						break;
+					}
+				}
+				if (!FoundInUVs)
+				{
+					continue;
+				}
+
+				FoundInstance = KnownInstanceIDs[KIItemInternalIdx++];
+				check(KIItemInternalIdx == KIItemIdx + KIItemLen);
+				break;
+			}
+			if (FoundInstance == FVertexInstanceID::Invalid.GetValue())
+			{
+				FVertexInstanceID NewInstanceID = Builder.AppendInstance(MapV[VertID]);
+				if (NormalOverlay)
+				{
+					int ElID = NormalOverlay->GetTriangle(TriID)[SubIdx];
+					KnownInstanceIDs.Add(int32(ElID));
+					Builder.SetInstanceNormal(NewInstanceID, ElID != -1 ? NormalOverlay->GetElement(ElID) : FVector3f::UnitZ());
+				}
+				else
+				{
+					Builder.SetInstanceNormal(NewInstanceID, FVector::UpVector);
+				}
+				for (int UVLayerIndex = 0; UVLayerIndex < NumUVLayers; UVLayerIndex++)
+				{
+					const FDynamicMeshUVOverlay* Overlay = MeshIn->Attributes()->GetUVLayer(UVLayerIndex);
+					int ElID = Overlay->GetTriangle(TriID)[SubIdx];
+					KnownInstanceIDs.Add(int32(ElID));
+
+					Builder.SetInstanceUV(NewInstanceID, ElID != -1 ? Overlay->GetElement(ElID) : FVector2f::Zero(), UVLayerIndex);
+				}
+				FoundInstance = NewInstanceID.GetValue();
+				KnownInstanceIDs.Add(FoundInstance);
+			}
+			TriVertInstances[TriID].V[SubIdx] = FVertexInstanceID(FoundInstance);
+		}
+	}
+
+	// build the polygons
 	for (int TriID : MeshIn->TriangleIndicesItr())
 	{
-		// @todo support additional overlays (requires IndexNi...)
-		FIndex3i Triangle = MeshIn->GetTriangle(TriID);
-		FIndex3i UVTriangle = (UVOverlay != nullptr) ? UVOverlay->GetTriangle(TriID) : FIndex3i(-1, -1, -1);
-		FIndex3i NormalTriangle = (NormalOverlay != nullptr) ? NormalOverlay->GetTriangle(TriID) : FIndex3i(-1, -1, -1);
-		FVertexInstanceID InstanceTri[3];
-		for (int j = 0; j < 3; ++j)
+		// transfer material index to MeshDescription polygon group (by convention)
+		FPolygonGroupID UsePolygonGroupID = ZeroPolygonGroupID;
+		if (MaterialIDAttrib)
 		{
-			FIndex3i InstanceElem(Triangle[j], UVTriangle[j], NormalTriangle[j]);
-			if (InstanceList.Contains(InstanceElem) == false)
-			{
-				FVertexInstanceID NewInstanceID = Builder.AppendInstance(MapV[Triangle[j]]);
-				InstanceList.Add(InstanceElem, NewInstanceID);
-				Builder.SetInstance(NewInstanceID,
-					(UVTriangle[j] == -1 || UVOverlay == nullptr) ? FVector2f::Zero() : UVOverlay->GetElement(UVTriangle[j]),
-					(NormalTriangle[j] == -1 || NormalOverlay == nullptr) ? FVector3f::UnitY() : NormalOverlay->GetElement(NormalTriangle[j]));
-			}
-			InstanceTri[j] = InstanceList[InstanceElem];
+			int32 MaterialID;
+			MaterialIDAttrib->GetValue(TriID, &MaterialID);
+			UsePolygonGroupID = FPolygonGroupID(MaterialID);
 		}
 
-		FPolygonID NewPolygonID = Builder.AppendTriangle(InstanceTri[0], InstanceTri[1], InstanceTri[2], AllGroupID);
+		FPolygonID NewPolygonID = Builder.AppendTriangle(TriVertInstances[TriID].V[0], TriVertInstances[TriID].V[1], TriVertInstances[TriID].V[2], UsePolygonGroupID);
 
 		if (bCopyGroupToPolyGroup)
 		{
@@ -271,6 +359,8 @@ void FDynamicMeshToMeshDescription::Convert_SharedInstances(const FDynamicMesh3*
 
 void FDynamicMeshToMeshDescription::Convert_NoSharedInstances(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut)
 {
+	// TODO: update this path to support multiple UV layers
+
 	const FDynamicMeshUVOverlay* UVOverlay = MeshIn->HasAttributes() ? MeshIn->Attributes()->PrimaryUV() : nullptr;
 	const FDynamicMeshNormalOverlay* NormalOverlay = MeshIn->HasAttributes() ? MeshIn->Attributes()->PrimaryNormals() : nullptr;
 
@@ -280,7 +370,7 @@ void FDynamicMeshToMeshDescription::Convert_NoSharedInstances(const FDynamicMesh
 	Builder.SetMeshDescription(&MeshOut);
 
 	bool bCopyGroupToPolyGroup = false;
-	if (bSetPolyGroups && MeshIn->HasTriangleGroups())
+	if (ConversionOptions.bSetPolyGroups && MeshIn->HasTriangleGroups())
 	{
 		Builder.EnablePolyGroups();
 		bCopyGroupToPolyGroup = true;
@@ -292,7 +382,36 @@ void FDynamicMeshToMeshDescription::Convert_NoSharedInstances(const FDynamicMesh
 		MapV[VertID] = Builder.AppendVertex(MeshIn->GetVertex(VertID));
 	}
 
-	FPolygonGroupID AllGroupID = Builder.AppendPolygonGroup();
+	FPolygonGroupID ZeroPolygonGroupID = Builder.AppendPolygonGroup();
+
+	// check if we have per-triangle material ID
+	const FDynamicMeshMaterialAttribute* MaterialIDAttrib =
+		(MeshIn->HasAttributes() && MeshIn->Attributes()->HasMaterialID()) ?
+		MeshIn->Attributes()->GetMaterialID() : nullptr;
+
+	// need to know max material index value so we can reserve groups in MeshDescription
+	int32 MaxPolygonGroupID = 0;
+	if (MaterialIDAttrib)
+	{
+		for (int TriID : MeshIn->TriangleIndicesItr())
+		{
+			int32 MaterialID;
+			MaterialIDAttrib->GetValue(TriID, &MaterialID);
+			MaxPolygonGroupID = FMath::Max(MaterialID, MaxPolygonGroupID);
+		}
+		if (MaxPolygonGroupID == 0)
+		{
+			MaterialIDAttrib = nullptr;
+		}
+		else
+		{
+			for (int k = 0; k < MaxPolygonGroupID; ++k)
+			{
+				Builder.AppendPolygonGroup();
+			}
+		}
+	}
+
 
 	FVertexID TriVertices[3];
 	FVector2D TriUVs[3];
@@ -325,7 +444,16 @@ void FDynamicMeshToMeshDescription::Convert_NoSharedInstances(const FDynamicMesh
 		TriVertices[1] = MapV[Triangle[1]];
 		TriVertices[2] = MapV[Triangle[2]];
 
-		FPolygonID NewPolygonID = Builder.AppendTriangle(TriVertices, AllGroupID, UseUVs, UseNormals);
+		// transfer material index to MeshDescription polygon group (by convention)
+		FPolygonGroupID UsePolygonGroupID = ZeroPolygonGroupID;
+		if (MaterialIDAttrib)
+		{
+			int32 MaterialID;
+			MaterialIDAttrib->GetValue(TriID, &MaterialID);
+			UsePolygonGroupID = FPolygonGroupID(MaterialID);
+		}
+
+		FPolygonID NewPolygonID = Builder.AppendTriangle(TriVertices, UsePolygonGroupID, UseUVs, UseNormals);
 
 		if (bCopyGroupToPolyGroup)
 		{

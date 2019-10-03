@@ -807,7 +807,7 @@ static bool IsPureAnsi(const WIDECHAR* Str, const int32 Len)
 
 FNameEntryId FNamePool::Find(EName Ename) const
 {
-	check(Ename < NAME_MaxHardcodedNameIndex);
+	checkSlow(Ename < NAME_MaxHardcodedNameIndex);
 	return ENameToEntry[Ename];
 }
 
@@ -1311,17 +1311,6 @@ FString FName::NameToDisplayString( const FString& InDisplayName, const bool bIs
 		if( bLowerCase )
 		{
 			bInARun = false;
-		}
-
-		// We were running on uppercase letters before and still do, but the next character is a lowercase letter,
-		// so we should break the run here, like "3DWidget" should be "3D Widget"
-		if (bInARun && !bWasSpace && !bWasOpenParen && CharIndex < Chars.Num() - 1 && FChar::IsLower(Chars[CharIndex + 1]))
-		{
-			if (!bWasSpace && OutDisplayName.Len() > 0)
-			{
-				OutDisplayName += TEXT(' ');
-				bWasSpace = true;
-			}
 		}
 
 		// An underscore denotes a space, so replace it and continue the run

@@ -122,7 +122,7 @@ void FMovieSceneLiveLinkPropertyHandler<float>::Finalize(bool bInReduceKeys, con
 		const TArray<FLiveLinkPropertyKey<float>>& ElementKeys = Keys[i];
 		for (const FLiveLinkPropertyKey<float>& Key : ElementKeys)
 		{
-			PropertyStorage->FloatChannel[i].AddCubicKey(Key.Time, Key.Value, RCTM_Break);
+			PropertyStorage->FloatChannel[i].AddCubicKey(Key.Time, Key.Value, RCTM_Auto);
 		}
 	}
 
@@ -131,6 +131,13 @@ void FMovieSceneLiveLinkPropertyHandler<float>::Finalize(bool bInReduceKeys, con
 		for (FMovieSceneFloatChannel& Channel : PropertyStorage->FloatChannel)
 		{
 			MovieScene::Optimize(&Channel, InOptimizationParams);
+		}
+	}
+	else
+	{
+		for (FMovieSceneFloatChannel& Channel : PropertyStorage->FloatChannel)
+		{
+			Channel.AutoSetTangents();
 		}
 	}
 }

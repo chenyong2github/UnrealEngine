@@ -172,6 +172,7 @@ struct ENGINE_API FPhysicsCommand_PhysX
 
 	// Executes with appropriate write locking, return true if execution took place (actor was valid)
 	static bool ExecuteWrite(const FPhysicsActorHandle_PhysX& InHandle, TFunctionRef<void(const FPhysicsActorHandle_PhysX& Actor)> InCallable);
+	static bool ExecuteWrite(FPhysicsActorHandle_PhysX& InHandle, TFunctionRef<void(FPhysicsActorHandle_PhysX& Actor)> InCallable);
 	static bool ExecuteWrite(USkeletalMeshComponent* InMeshComponent, TFunctionRef<void()> InCallable);
 	static bool ExecuteWrite(const FPhysicsActorHandle_PhysX& InHandleA, const FPhysicsActorHandle_PhysX& InHandleB, TFunctionRef<void(const FPhysicsActorHandle_PhysX& ActorA, const FPhysicsActorHandle_PhysX& ActorB)> InCallable);
 	static bool ExecuteWrite(const FPhysicsConstraintHandle_PhysX& InHandle, TFunctionRef<void(const FPhysicsConstraintHandle_PhysX& Constraint)> InCallable);

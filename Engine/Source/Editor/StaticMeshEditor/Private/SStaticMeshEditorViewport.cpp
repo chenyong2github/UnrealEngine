@@ -58,11 +58,11 @@ void SStaticMeshEditorViewport::Construct(const FArguments& InArgs)
 	SEditorViewport::Construct( SEditorViewport::FArguments() );
 
 	PreviewMeshComponent = NewObject<UStaticMeshComponent>(GetTransientPackage(), NAME_None, RF_Transient );
-	if (GEditor->PreviewPlatform.GetEffectivePreviewFeatureLevel() <= ERHIFeatureLevel::ES3_1)
+	ERHIFeatureLevel::Type FeatureLevel = GEditor->PreviewPlatform.GetEffectivePreviewFeatureLevel();
+	if (FeatureLevel <= ERHIFeatureLevel::ES3_1)
 	{
 		PreviewMeshComponent->SetMobility(EComponentMobility::Static);
 	}
-
 	SetPreviewMesh(StaticMesh);
 
 	FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &SStaticMeshEditorViewport::OnObjectPropertyChanged);
@@ -278,11 +278,11 @@ void SStaticMeshEditorViewport::UpdatePreviewMesh(UStaticMesh* InStaticMesh, boo
 	}
 
 	PreviewMeshComponent = NewObject<UStaticMeshComponent>();
-	if (GEditor->PreviewPlatform.GetEffectivePreviewFeatureLevel() <= ERHIFeatureLevel::ES3_1)
+	ERHIFeatureLevel::Type FeatureLevel = GEditor->PreviewPlatform.GetEffectivePreviewFeatureLevel();
+	if ( FeatureLevel <= ERHIFeatureLevel::ES3_1)
 	{
 		PreviewMeshComponent->SetMobility(EComponentMobility::Static);
 	}
-
 	PreviewMeshComponent->SetStaticMesh(InStaticMesh);
 
 	PreviewScene->AddComponent(PreviewMeshComponent,FTransform::Identity);
@@ -411,6 +411,7 @@ void SStaticMeshEditorViewport::OnSetLODModel(int32 InLODSelection)
 {
 	if (PreviewMeshComponent)
 	{
+		PreviewMeshComponent->bOverrideMinLOD = (InLODSelection != 0);
 		LODSelection = InLODSelection;
 		PreviewMeshComponent->SetForcedLodModel(LODSelection);
 		//PopulateUVChoices();

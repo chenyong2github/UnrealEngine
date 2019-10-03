@@ -4,9 +4,17 @@
 
 #include "CoreMinimal.h"
 #include "RigHierarchyDefines.h"
+#include "ReferenceSkeleton.h"
 #include "RigBoneHierarchy.generated.h"
 
 class UControlRig;
+
+UENUM()
+enum class ERigBoneType : uint8
+{
+	Imported,
+	User
+};
 
 USTRUCT(BlueprintType)
 struct CONTROLRIG_API FRigBone: public FRigElement
@@ -21,6 +29,7 @@ struct CONTROLRIG_API FRigBone: public FRigElement
 		, GlobalTransform(FTransform::Identity)
 		, LocalTransform(FTransform::Identity)
 		, Dependents()
+		, Type(ERigBoneType::Imported)
 	{
 	}
 	virtual ~FRigBone() {}
@@ -44,6 +53,10 @@ struct CONTROLRIG_API FRigBone: public FRigElement
 	/** dependent list - direct dependent for child or anything that needs to update due to this */
 	UPROPERTY(transient)
 	TArray<int32> Dependents;
+
+	/** the source of the bone to differentiate procedurally generated, imported etc */
+	UPROPERTY(VisibleAnywhere, Category = FRigElement)
+	ERigBoneType Type;
 
 	FORCEINLINE virtual ERigElementType GetElementType() const override
 	{
@@ -81,9 +94,9 @@ struct CONTROLRIG_API FRigBoneHierarchy
 
 	FName GetSafeNewName(const FName& InPotentialNewName) const;
 
-	FRigBone& Add(const FName& InNewName, const FName& InParentName = NAME_None, const FTransform& InInitTransform = FTransform::Identity);
+	FRigBone& Add(const FName& InNewName, const FName& InParentName = NAME_None, ERigBoneType InType = ERigBoneType::Imported, const FTransform& InInitTransform = FTransform::Identity);
 
-	FRigBone& Add(const FName& InNewName, const FName& InParentName, const FTransform& InInitTransform, const FTransform& InLocalTransform, const FTransform& InGlobalTransform);
+	FRigBone& Add(const FName& InNewName, const FName& InParentName, ERigBoneType InType, const FTransform& InInitTransform, const FTransform& InLocalTransform, const FTransform& InGlobalTransform);
 
 	FRigBone Remove(const FName& InNameToRemove);
 
@@ -154,6 +167,8 @@ struct CONTROLRIG_API FRigBoneHierarchy
 	TArray<FName> CurrentSelection() const;
 	bool IsSelected(const FName& InName) const;
 
+	TArray<FRigElementKey> ImportSkeleton(const FReferenceSkeleton& InSkeleton, const FName& InNameSpace, bool bReplaceExistingBones, bool bRemoveObsoleteBones, bool bSelectBones);
+
 	FRigElementAdded OnBoneAdded;
 	FRigElementRemoved OnBoneRemoved;
 	FRigElementRenamed OnBoneRenamed;
@@ -186,6 +201,7 @@ private:
 	void RecalculateLocalTransform(FRigBone& InOutBone);
 	void RecalculateGlobalTransform(FRigBone& InOutBone);
 
+	void RefreshParentNames();
 	void RefreshMapping();
 	void Sort();
 

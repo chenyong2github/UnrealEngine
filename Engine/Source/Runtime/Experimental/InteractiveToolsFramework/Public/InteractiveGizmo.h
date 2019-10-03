@@ -81,3 +81,31 @@ protected:
 };
 
 
+
+/**
+ * ETransformGizmoSubElements identifies the sub-elements of a standard 3-axis transformation Gizmo.
+ * Used by GizmoManager to customize UTransformGizmo instances.
+ */
+UENUM()
+enum class ETransformGizmoSubElements
+{
+	None = 0,
+
+	TranslateAxisX = 1,
+	TranslateAxisY = 2,
+	TranslateAxisZ = 4,
+	TranslateAllAxes = TranslateAxisX | TranslateAxisY | TranslateAxisZ,
+
+	TranslatePlaneXY = 8,
+	TranslatePlaneXZ = 16,
+	TranslatePlaneYZ = 32,
+	TranslateAllPlanes = TranslatePlaneXY | TranslatePlaneXZ | TranslatePlaneYZ,
+
+	RotateAxisX = 64,
+	RotateAxisY = 128,
+	RotateAxisZ = 256,
+	RotateAllAxes = RotateAxisX | RotateAxisY | RotateAxisZ,
+
+	StanedardTranslateRotate = TranslateAllAxes | TranslateAllPlanes | RotateAllAxes
+};
+ENUM_CLASS_FLAGS(ETransformGizmoSubElements);

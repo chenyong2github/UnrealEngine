@@ -26,9 +26,6 @@
 #include "Math/Box.h"
 #include "Math/NumericLimits.h"
 #include "Modules/ModuleManager.h"
-#include "Chaos/ChaosGameplayEventDispatcher.h"
-
-#if INCLUDE_CHAOS
 
 void FPhysicsAssetSimulationUtil::BuildParams(const UObject* Caller, const AActor* OwningActor, const USkeletalMeshComponent* SkelMeshComponent, const UPhysicsAsset* PhysicsAsset, FSkeletalMeshPhysicsProxyParams& Params)
 {
@@ -513,5 +510,3 @@ bool FPhysicsAssetSimulationUtil::UpdateAnimState(const UObject* Caller, const A
 #endif
 	return (UpdatedBones > 0);
 }
-
-#endif

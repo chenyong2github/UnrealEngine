@@ -4,7 +4,7 @@
 
 #include "EditableMesh.h"
 #include "IMeshEditorModeUIContract.h"
-#include "MeshAttributes.h"
+#include "StaticMeshAttributes.h"
 #include "MeshEditorStyle.h"
 #include "UObject/UObjectIterator.h"
 

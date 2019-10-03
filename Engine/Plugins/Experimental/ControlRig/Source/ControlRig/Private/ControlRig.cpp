@@ -211,6 +211,10 @@ void UControlRig::Initialize(bool bInitRigUnits)
 
 	// cache requested inputs
 	// go through find requested inputs
+
+#if WITH_EDITOR
+	Hierarchy.ControlHierarchy.OnControlSelected.AddUObject(this, &UControlRig::HandleOnControlSelected);
+#endif
 }
 
 void UControlRig::InitializeFromCDO()
@@ -366,8 +370,6 @@ void UControlRig::Execute(const EControlRigState InState)
 
 FTransform UControlRig::GetGlobalTransform(const FName& BoneName) const
 {
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
 	int32 Index = Hierarchy.BoneHierarchy.GetIndex(BoneName);
 	if (Index != INDEX_NONE)
 	{
@@ -380,8 +382,6 @@ FTransform UControlRig::GetGlobalTransform(const FName& BoneName) const
 
 void UControlRig::SetGlobalTransform(const FName& BoneName, const FTransform& InTransform, bool bPropagateTransform)
 {
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
 	int32 Index = Hierarchy.BoneHierarchy.GetIndex(BoneName);
 	if (Index != INDEX_NONE)
 	{
@@ -391,38 +391,31 @@ void UControlRig::SetGlobalTransform(const FName& BoneName, const FTransform& In
 
 FTransform UControlRig::GetGlobalTransform(const int32 BoneIndex) const
 {
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	return Hierarchy.BoneHierarchy.GetGlobalTransform(BoneIndex);
 }
 
 void UControlRig::SetGlobalTransform(const int32 BoneIndex, const FTransform& InTransform, bool bPropagateTransform)
 {
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	Hierarchy.BoneHierarchy.SetGlobalTransform(BoneIndex, InTransform, bPropagateTransform);
 }
 
 float UControlRig::GetCurveValue(const FName& CurveName) const
 {
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	return Hierarchy.CurveContainer.GetValue(CurveName);
 }
 
 void UControlRig::SetCurveValue(const FName& CurveName, const float CurveValue)
 {
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
 	Hierarchy.CurveContainer.SetValue(CurveName, CurveValue);
 }
 
 float UControlRig::GetCurveValue(const int32 CurveIndex) const
 {
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	return Hierarchy.CurveContainer.GetValue(CurveIndex);
 }
 
 void UControlRig::SetCurveValue(const int32 CurveIndex, const float CurveValue)
 {
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	Hierarchy.CurveContainer.SetValue(CurveIndex, CurveValue);
 }
 
@@ -567,6 +560,15 @@ void UControlRig::AddReferencedObjects(UObject* InThis, FReferenceCollector& Col
 	}
 #endif // WITH_EDITOR
 }
+#if WITH_EDITOR
+//undo will clear out the transient Operators, need to recreate them
+void UControlRig::PostEditUndo()
+{
+	Super::PostEditUndo();
+	InstantiateOperatorsFromGeneratedClass();
+	ResolvePropertyPaths();
+}
+#endif // WITH_EDITOR
 
 void UControlRig::Serialize(FArchive& Ar)
 {
@@ -755,5 +757,43 @@ UControlRigGizmoLibrary* UControlRig::GetGizmoLibrary() const
 	return nullptr;
 }
 
+#if WITH_EDITOR
+
+void UControlRig::SelectControl(const FName& InControlName, bool bSelect)
+{
+	Hierarchy.ControlHierarchy.Select(InControlName, bSelect);
+}
+
+bool UControlRig::ClearControlSelection()
+{
+	return Hierarchy.ControlHierarchy.ClearSelection();
+}
+
+TArray<FName> UControlRig::CurrentControlSelection() const
+{
+	return Hierarchy.ControlHierarchy.CurrentSelection();
+}
+
+bool UControlRig::IsControlSelected(const FName& InControlName)const
+{
+	return Hierarchy.ControlHierarchy.IsSelected(InControlName);
+}
+
 // END IControlRigManipulatable interface
+
+void UControlRig::HandleOnControlSelected(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey, bool bSelected)
+{
+	if (InKey.Type == ERigElementType::Control)
+	{
+		FRigControl* Control = FindControl(InKey.Name);
+		if (Control)
+		{
+			ControlSelected().Broadcast(this, *Control, bSelected);
+		}
+	}
+}
+#endif
+
 #undef LOCTEXT_NAMESPACE
+
+

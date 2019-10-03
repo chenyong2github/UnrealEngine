@@ -28,8 +28,9 @@ struct FMovieSceneChannelMetaData
 	 * @param InName           The unique name of this channel within the section
 	 * @param InDisplayText    Text to display on the sequencer node tree
 	 * @param InGroup          (Optional) When not empty, specifies a name to group channels by
+	 * @param bInEnabled        (Optional) When true the channel is enabled, if false it is not.
 	 */
-	MOVIESCENE_API FMovieSceneChannelMetaData(FName InName, FText InDisplayText, FText InGroup = FText());
+	MOVIESCENE_API FMovieSceneChannelMetaData(FName InName, FText InDisplayText, FText InGroup = FText(), bool bInEnabled = true);
 
 	/*
 	 * Set the identifiers for this editor data

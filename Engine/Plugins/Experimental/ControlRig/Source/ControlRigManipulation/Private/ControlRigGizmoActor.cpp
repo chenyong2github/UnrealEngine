@@ -24,6 +24,8 @@ AControlRigGizmoActor::AControlRigGizmoActor(const FObjectInitializer& ObjectIni
 
 	RootComponent = ActorRootComponent;
 	StaticMeshComponent->SetupAttachment(RootComponent);
+	StaticMeshComponent->bCastStaticShadow = false;
+	StaticMeshComponent->bCastDynamicShadow = false;
 }
 
 void AControlRigGizmoActor::SetEnabled(bool bInEnabled)
@@ -108,7 +110,7 @@ namespace FControlRigGizmoHelper
 		ActorSpawnParameters.bTemporaryEditorActor = true;
 		ActorSpawnParameters.bHideFromSceneOutliner = true;
 		ActorSpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
+		ActorSpawnParameters.ObjectFlags = RF_Transient;
 		return ActorSpawnParameters;
 	}
 

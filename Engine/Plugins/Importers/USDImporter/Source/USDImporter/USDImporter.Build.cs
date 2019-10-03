@@ -26,6 +26,7 @@ namespace UnrealBuildTool.Rules
                     "RawMesh",
                     "GeometryCache",
 					"MeshDescription",
+					"StaticMeshDescription",
 					"MeshUtilities",
                     "PythonScriptPlugin",
                     "RenderCore",

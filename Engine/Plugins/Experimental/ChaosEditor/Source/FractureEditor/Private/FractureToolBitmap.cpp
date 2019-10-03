@@ -3,6 +3,7 @@
 
 #include "FractureToolBitmap.h"
 
+#include "FractureEditorModeToolkit.h"
 #include "FractureEditorStyle.h"
 
 #define LOCTEXT_NAMESPACE "FractureBitmap"
@@ -38,8 +39,15 @@ void UFractureToolBitmap::RegisterUICommand( FFractureEditorCommands* BindingCon
 TArray<UObject*> UFractureToolBitmap::GetSettingsObjects() const 
 { 
 	TArray<UObject*> Settings; 
+	Settings.Add(GetMutableDefault<UFractureCommonSettings>());
 	Settings.Add(GetMutableDefault<UFractureBitmapSettings>());
 	return Settings;
+}
+
+
+bool UFractureToolBitmap::CanExecuteFracture() const
+{
+	return FFractureEditorModeToolkit::IsLeafBoneSelected();
 }
 
 #undef LOCTEXT_NAMESPACE

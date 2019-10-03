@@ -70,9 +70,11 @@ struct FNiagaraEventGeneratorProperties
 
 	FNiagaraEventGeneratorProperties(FNiagaraDataSetProperties &Props, FName InEventGenerator)
 		: ID(Props.ID.Name)
-		, SetProps(Props)		
 	{
-
+		DataSetCompiledData.Variables = Props.Variables;
+		DataSetCompiledData.ID = Props.ID;
+		DataSetCompiledData.SimTarget = ENiagaraSimTarget::CPUSim;
+		DataSetCompiledData.BuildLayout();
 	}
 
 	/** Max Number of Events that can be generated per frame. */
@@ -83,7 +85,7 @@ struct FNiagaraEventGeneratorProperties
 	FName ID;
 
 	UPROPERTY()
-	FNiagaraDataSetProperties SetProps;
+	FNiagaraDataSetCompiledData DataSetCompiledData;
 };
 
 
@@ -215,6 +217,13 @@ public:
 	/** An emitter-based seed for the deterministic random number generator. */
 	UPROPERTY(EditAnywhere, Category = "Emitter", meta = (EditCondition = "bDeterminism"))
 	int32 RandomSeed;
+	
+	/** 
+	The emitter will allocate at least this many particles on it's first tick.
+	This can aid performance by avoiding many allocations as an emitter ramps up to it's max size.
+	*/
+	UPROPERTY(EditAnywhere, Category = "Emitter")
+	int32 PreAllocationCount;
 
 	UPROPERTY()
 	FNiagaraEmitterScriptProperties UpdateScriptProps;

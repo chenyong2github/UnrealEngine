@@ -11,8 +11,8 @@ FName FFractureEditorStyle::StyleName("FractureEditorStyle");
 FFractureEditorStyle::FFractureEditorStyle()
 	: FSlateStyleSet(StyleName)
 {
-	const FVector2D IconSize(48.0f, 48.0f);
-	const FVector2D SmallIconSize(32.0f, 32.0f);
+	const FVector2D IconSize(20.0f, 20.0f);
+	const FVector2D SmallIconSize(20.0f, 20.0f);
 	const FVector2D LabelIconSize(16.0f, 16.0f);
 
 
@@ -71,6 +71,8 @@ FFractureEditorStyle::FFractureEditorStyle()
 	Set("FractureEditor.Exploded", new FSlateImageBrush(RootToContentDir(TEXT("MiniExploded_32x.png")), LabelIconSize));
 	Set("FractureEditor.Levels", new FSlateImageBrush(RootToContentDir(TEXT("MiniLevel_32x.png")), LabelIconSize));
 	Set("FractureEditor.Visibility", new FSlateImageBrush(RootToContentDir(TEXT("GeneralVisibility_48x.png")), SmallIconSize));
+	Set("FractureEditor.ToggleShowBoneColors", new FSlateImageBrush(RootToContentDir(TEXT("GeneralVisibility_48x.png")), IconSize));
+	Set("FractureEditor.ToggleShowBoneColors.Small", new FSlateImageBrush(RootToContentDir(TEXT("GeneralVisibility_48x.png")), SmallIconSize));
 	Set("FractureEditor.ViewUpOneLevel", new FSlateImageBrush(RootToContentDir(TEXT("LevelViewUp_48x.png")), IconSize));
 	Set("FractureEditor.ViewUpOneLevel.Small", new FSlateImageBrush(RootToContentDir(TEXT("LevelViewUp_48x.png")), SmallIconSize));
 	Set("FractureEditor.ViewDownOneLevel", new FSlateImageBrush(RootToContentDir(TEXT("LevelViewDown_48x.png")), IconSize));

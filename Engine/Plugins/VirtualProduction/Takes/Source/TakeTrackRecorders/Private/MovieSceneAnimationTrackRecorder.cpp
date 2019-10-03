@@ -12,6 +12,7 @@
 #include "Animation/AnimSequence.h"
 #include "Engine/TimecodeProvider.h"
 #include "Engine/Engine.h"
+#include "LevelSequence.h"
 
 DEFINE_LOG_CATEGORY(AnimationSerialization);
 
@@ -40,6 +41,13 @@ void UMovieSceneAnimationTrackRecorder::CreateAnimationAssetAndSequence(const AA
 	{
 		ComponentTransform = SkeletalMeshComponent->GetComponentToWorld().GetRelativeTransform(Actor->GetTransform());
 		FString AnimationAssetName = Actor->GetActorLabel();
+
+		if (ULevelSequence* MasterLevelSequence = OwningTakeRecorderSource->GetMasterLevelSequence())
+		{
+			const FString& MasterLevelSequenceName = MasterLevelSequence->GetName();
+			AnimationAssetName = AnimationAssetName + TEXT("_") + MasterLevelSequenceName;
+		}
+
 		AnimSequence = TakesUtils::MakeNewAsset<UAnimSequence>(AnimationDirectory.Path, AnimationAssetName);
 		if (AnimSequence.IsValid())
 		{

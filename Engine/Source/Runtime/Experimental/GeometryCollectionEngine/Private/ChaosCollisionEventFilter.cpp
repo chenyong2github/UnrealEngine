@@ -1,8 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "ChaosCollisionEventFilter.h"
 
-#if INCLUDE_CHAOS
-
 void FChaosCollisionEventFilter::FilterEvents(const FTransform& ChaosComponentTransform, const Chaos::FCollisionDataArray& RawCollisionDataArray)
 {
 	FilteredDataArray.Reset();
@@ -142,5 +140,3 @@ void FChaosCollisionEventFilter::SortEvents(TArray<FChaosCollisionEventData>& In
 		break;
 	}
 }
-
-#endif // INCLUDE_CHAOS

@@ -9,9 +9,9 @@
 
 class IDetailsView;
 class FClothPainter;
-class UClothingAsset;
+class UClothingAssetCommon;
 class UClothPainterSettings;
-struct FClothParameterMask_PhysMesh;
+struct FPointWeightMap;
 
 class SClothPaintWidget : public SCompoundWidget
 {

@@ -8,6 +8,7 @@
 #include "UObject/StructOnScope.h"
 #include "PropertyHandle.h"
 #include "IDetailCustomNodeBuilder.h"
+#include "DetailBuilderTypes.h"
 
 class FDetailWidgetRow;
 class IDetailGroup;
@@ -92,7 +93,7 @@ public:
 	 * @param Location		The location within the category where the property is shown
 	 * @return A property row for customizing the property or NULL if the property could not be found
 	 */
-	virtual IDetailPropertyRow* AddExternalObjectProperty(const TArray<UObject*>& Objects, FName PropertyName, EPropertyLocation::Type Location = EPropertyLocation::Default) = 0;
+	virtual IDetailPropertyRow* AddExternalObjectProperty(const TArray<UObject*>& Objects, FName PropertyName, EPropertyLocation::Type Location = EPropertyLocation::Default, const FAddPropertyParams& Params = FAddPropertyParams()) = 0;
 
 	/**
 	 * Adds an external standalone structure to this details panel
@@ -111,7 +112,7 @@ public:
 	 * @param Location			The location within the category where the property is shown
 	 * @return A property row for customizing the property or NULL if the property could not be found
 	 */
-	virtual IDetailPropertyRow* AddExternalStructureProperty(TSharedPtr<FStructOnScope> StructData, FName PropertyName, EPropertyLocation::Type Location = EPropertyLocation::Default) = 0;
+	virtual IDetailPropertyRow* AddExternalStructureProperty(TSharedPtr<FStructOnScope> StructData, FName PropertyName, EPropertyLocation::Type Location = EPropertyLocation::Default, const FAddPropertyParams& Params = FAddPropertyParams()) = 0;
 
 	/**
 	 * Adds all properties for the specified external structure to this category

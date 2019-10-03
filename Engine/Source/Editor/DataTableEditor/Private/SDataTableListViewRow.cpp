@@ -59,7 +59,7 @@ void SDataTableListViewRow::OnSearchForReferences()
 			TArray<FAssetIdentifier> AssetIdentifiers;
 			AssetIdentifiers.Add(FAssetIdentifier(SourceDataTable, RowDataPtr->RowId));
 
-			FEditorDelegates::OnOpenReferenceViewer.Broadcast(AssetIdentifiers);
+			FEditorDelegates::OnOpenReferenceViewer.Broadcast(AssetIdentifiers, FReferenceViewerParams());
 		}
 	}
 }

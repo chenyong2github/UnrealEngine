@@ -764,146 +764,174 @@ void FMaterialInstanceParameterDetails::CreateLabeledTextureParameterValueWidget
 		UDEditorTextureParameterValue* TextureParam = Cast<UDEditorTextureParameterValue>(Parameter);
 		if (TextureParam)
 		{
-			TAttribute<bool> IsParamEnabled = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateStatic(&FMaterialPropertyHelpers::IsOverriddenExpression, Parameter));
-
-			IDetailPropertyRow& PropertyRow = DetailGroup.AddPropertyRow(ParameterValueProperty.ToSharedRef());
-
-			FIsResetToDefaultVisible IsResetVisible = FIsResetToDefaultVisible::CreateStatic(&FMaterialPropertyHelpers::ShouldShowResetToDefault, Parameter, MaterialEditorInstance);
-			FResetToDefaultHandler ResetHandler = FResetToDefaultHandler::CreateStatic(&FMaterialPropertyHelpers::ResetToDefault, Parameter, MaterialEditorInstance);
-			FResetToDefaultOverride ResetOverride = FResetToDefaultOverride::Create(IsResetVisible, ResetHandler);
-
-			PropertyRow
-				.DisplayName(FText::FromName(Parameter->ParameterInfo.Name))
-				.EditCondition(IsParamEnabled, FOnBooleanValueChanged::CreateStatic(&FMaterialPropertyHelpers::OnOverrideParameter, Parameter, MaterialEditorInstance))
-				.ToolTip(FMaterialPropertyHelpers::GetParameterTooltip(Parameter, MaterialEditorInstance))
-				.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateStatic(&FMaterialPropertyHelpers::ShouldShowExpression, Parameter, MaterialEditorInstance, ShowHiddenDelegate)))
-				.OverrideResetToDefault(ResetOverride);
-
-			
-			TSharedPtr<SWidget> NameWidget;
-			TSharedPtr<SWidget> ValueWidget;
-			FDetailWidgetRow Row;
-			PropertyRow.GetDefaultWidgets(NameWidget, ValueWidget, Row);
-
-			FDetailWidgetRow &DetailWidgetRow = PropertyRow.CustomWidget();
-			TSharedPtr<SVerticalBox> NameVerticalBox;
-			DetailWidgetRow.NameContent()
-			[
-				SAssignNew(NameVerticalBox, SVerticalBox)
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				[
-					SNew(STextBlock)
-					.Text(FText::FromName(Parameter->ParameterInfo.Name))
-					.ToolTipText(FMaterialPropertyHelpers::GetParameterTooltip(Parameter, MaterialEditorInstance))
-					.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-				]
-			];
-			DetailWidgetRow.ValueContent()
-			.MinDesiredWidth(Row.ValueWidget.MinWidth)
-			.MaxDesiredWidth(Row.ValueWidget.MaxWidth)
-			[
-				ValueWidget.ToSharedRef()
-			];
-
-			static const FName Red("R");
-			static const FName Green("G");
-			static const FName Blue("B");
-			static const FName Alpha("A");
-
-			if(!TextureParam->ChannelNames.R.IsEmpty())
+			UMaterial *Material = MaterialEditorInstance->SourceInstance->GetMaterial();
+			if (Material != nullptr)
 			{
-				NameVerticalBox->AddSlot()
-				[
-					SNew(SHorizontalBox)
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.Padding(20.0, 2.0, 4.0, 2.0)
-					[
-						SNew(STextBlock)
-						.Text(FText::FromName(Red))
-						.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
-					]
-					+SHorizontalBox::Slot()
-					.HAlign(HAlign_Left)
-					.Padding(4.0, 2.0)
-					[
-						SNew(STextBlock)
-						.Text(TextureParam->ChannelNames.R)
+				UMaterialExpressionTextureSampleParameter* Expression = Material->FindExpressionByGUID<UMaterialExpressionTextureSampleParameter>(TextureParam->ExpressionId);
+				if (Expression != nullptr)
+				{
+					TWeakObjectPtr<UMaterialExpressionTextureSampleParameter> SamplerExpression = Expression;
+					TAttribute<bool> IsParamEnabled = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateStatic(&FMaterialPropertyHelpers::IsOverriddenExpression, Parameter));
+
+					IDetailPropertyRow& PropertyRow = DetailGroup.AddPropertyRow(ParameterValueProperty.ToSharedRef());
+
+					FIsResetToDefaultVisible IsResetVisible = FIsResetToDefaultVisible::CreateStatic(&FMaterialPropertyHelpers::ShouldShowResetToDefault, Parameter, MaterialEditorInstance);
+					FResetToDefaultHandler ResetHandler = FResetToDefaultHandler::CreateStatic(&FMaterialPropertyHelpers::ResetToDefault, Parameter, MaterialEditorInstance);
+					FResetToDefaultOverride ResetOverride = FResetToDefaultOverride::Create(IsResetVisible, ResetHandler);
+
+					PropertyRow
+						.DisplayName(FText::FromName(Parameter->ParameterInfo.Name))
+						.EditCondition(IsParamEnabled, FOnBooleanValueChanged::CreateStatic(&FMaterialPropertyHelpers::OnOverrideParameter, Parameter, MaterialEditorInstance))
+						.ToolTip(FMaterialPropertyHelpers::GetParameterTooltip(Parameter, MaterialEditorInstance))
+						.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateStatic(&FMaterialPropertyHelpers::ShouldShowExpression, Parameter, MaterialEditorInstance, ShowHiddenDelegate)))
+						.OverrideResetToDefault(ResetOverride);
+
+
+					TSharedPtr<SWidget> NameWidget;
+					TSharedPtr<SWidget> ValueWidget;
+					FDetailWidgetRow Row;
+					PropertyRow.GetDefaultWidgets(NameWidget, ValueWidget, Row);
+
+					FDetailWidgetRow &DetailWidgetRow = PropertyRow.CustomWidget();
+					TSharedPtr<SVerticalBox> NameVerticalBox;
+					DetailWidgetRow.NameContent()
+						[
+							SAssignNew(NameVerticalBox, SVerticalBox)
+							+ SVerticalBox::Slot()
+						.AutoHeight()
+						[
+							SNew(STextBlock)
+							.Text(FText::FromName(Parameter->ParameterInfo.Name))
+						.ToolTipText(FMaterialPropertyHelpers::GetParameterTooltip(Parameter, MaterialEditorInstance))
 						.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-					]
-				];
-			}
-			if (!TextureParam->ChannelNames.G.IsEmpty())
-			{
-				NameVerticalBox->AddSlot()
-					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.Padding(20.0, 2.0, 4.0, 2.0)
-						.AutoWidth()
+						]
+						];
+					DetailWidgetRow.ValueContent()
+						.MinDesiredWidth(Row.ValueWidget.MinWidth)
+						.MaxDesiredWidth(Row.ValueWidget.MaxWidth)
 						[
-							SNew(STextBlock)
-							.Text(FText::FromName(Green))
+							SNew(SObjectPropertyEntryBox)
+							.PropertyHandle(ParameterValueProperty)
+							.AllowedClass(UTexture::StaticClass())
+							.CustomResetToDefault(ResetOverride)
+							.ThumbnailPool(PropertyUtilities.Pin()->GetThumbnailPool())
+							.OnShouldFilterAsset_Lambda([SamplerExpression](const FAssetData& AssetData)
+							{
+								if (SamplerExpression.Get())
+								{
+									bool VirtualTextured = false;
+									AssetData.GetTagValue<bool>("VirtualTextureStreaming", VirtualTextured);
+
+									bool ExpressionIsVirtualTextured = IsVirtualSamplerType(SamplerExpression->SamplerType);
+
+									return VirtualTextured != ExpressionIsVirtualTextured;
+								}
+								else
+								{
+									return false;
+								}
+							})
+						];
+
+					static const FName Red("R");
+					static const FName Green("G");
+					static const FName Blue("B");
+					static const FName Alpha("A");
+
+					if (!TextureParam->ChannelNames.R.IsEmpty())
+					{
+						NameVerticalBox->AddSlot()
+							[
+								SNew(SHorizontalBox)
+								+ SHorizontalBox::Slot()
+								.AutoWidth()
+								.Padding(20.0, 2.0, 4.0, 2.0)
+								[
+									SNew(STextBlock)
+									.Text(FText::FromName(Red))
+									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+								]
+								+ SHorizontalBox::Slot()
+								.HAlign(HAlign_Left)
+								.Padding(4.0, 2.0)
+								[
+									SNew(STextBlock)
+									.Text(TextureParam->ChannelNames.R)
+									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+								]
+							];
+					}
+					if (!TextureParam->ChannelNames.G.IsEmpty())
+					{
+						NameVerticalBox->AddSlot()
+							[
+								SNew(SHorizontalBox)
+								+ SHorizontalBox::Slot()
+							.Padding(20.0, 2.0, 4.0, 2.0)
+							.AutoWidth()
+							[
+								SNew(STextBlock)
+								.Text(FText::FromName(Green))
 							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
-						]
+							]
 						+ SHorizontalBox::Slot()
-						.HAlign(HAlign_Left)
-						.Padding(4.0, 2.0)
-						[
-							SNew(STextBlock)
-							.Text(TextureParam->ChannelNames.G)
+							.HAlign(HAlign_Left)
+							.Padding(4.0, 2.0)
+							[
+								SNew(STextBlock)
+								.Text(TextureParam->ChannelNames.G)
 							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-						]
-					];
-			}
-			if (!TextureParam->ChannelNames.B.IsEmpty())
-			{
-				NameVerticalBox->AddSlot()
-					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.Padding(20.0, 2.0, 4.0, 2.0)
-						.AutoWidth()
-						[
-							SNew(STextBlock)
-							.Text(FText::FromName(Blue))
+							]
+							];
+					}
+					if (!TextureParam->ChannelNames.B.IsEmpty())
+					{
+						NameVerticalBox->AddSlot()
+							[
+								SNew(SHorizontalBox)
+								+ SHorizontalBox::Slot()
+							.Padding(20.0, 2.0, 4.0, 2.0)
+							.AutoWidth()
+							[
+								SNew(STextBlock)
+								.Text(FText::FromName(Blue))
 							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
-						]
+							]
 						+ SHorizontalBox::Slot()
-						.HAlign(HAlign_Left)
-						.Padding(4.0, 2.0)
-						[
-							SNew(STextBlock)
-							.Text(TextureParam->ChannelNames.B)
+							.HAlign(HAlign_Left)
+							.Padding(4.0, 2.0)
+							[
+								SNew(STextBlock)
+								.Text(TextureParam->ChannelNames.B)
 							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-						]
-					];
+							]
+							];
+					}
+					if (!TextureParam->ChannelNames.A.IsEmpty())
+					{
+						NameVerticalBox->AddSlot()
+							[
+								SNew(SHorizontalBox)
+								+ SHorizontalBox::Slot()
+							.Padding(20.0, 2.0, 4.0, 2.0)
+							.AutoWidth()
+							[
+								SNew(STextBlock)
+								.Text(FText::FromName(Alpha))
+							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+							]
+						+ SHorizontalBox::Slot()
+							.HAlign(HAlign_Left)
+							.Padding(4.0, 2.0)
+							[
+								SNew(STextBlock)
+								.Text(TextureParam->ChannelNames.A)
+							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+							]
+							];
+					}
+				}
 			}
-			if (!TextureParam->ChannelNames.A.IsEmpty())
-			{
-				NameVerticalBox->AddSlot()
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.Padding(20.0, 2.0, 4.0, 2.0)
-					.AutoWidth()
-					[
-						SNew(STextBlock)
-						.Text(FText::FromName(Alpha))
-						.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
-					]
-					+ SHorizontalBox::Slot()
-					.HAlign(HAlign_Left)
-					.Padding(4.0, 2.0)
-					[
-						SNew(STextBlock)
-						.Text(TextureParam->ChannelNames.A)
-						.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-					]
-				];
-			}
-			
 		}
 	}
 }

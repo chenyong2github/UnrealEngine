@@ -1072,10 +1072,19 @@ static bool BlueprintActionDatabaseImpl::IsObjectValidForDatabase(UObject const*
 	{
 		bReturn = true;
 	}
-	else if(UBlueprint const* Blueprint = Cast<UBlueprint>(Object))
+	else if(Object->IsA<UBlueprint>())
 	{
-		// Level scripts are sometimes not assets because they have not been saved yet, but they are still valid for the database.
-		bReturn = FBlueprintEditorUtils::IsLevelScriptBlueprint(Blueprint);
+		// If this is a blueprint contained within an asset, we can include it in the action database
+		UObject* PotentialAsset = Object->GetOuter();
+		while (PotentialAsset)
+		{
+			if (PotentialAsset->IsAsset())
+			{
+				bReturn = true;
+				break;
+			}
+			PotentialAsset = PotentialAsset->GetOuter();
+		}
 	}
 	else if(UWorld const* World = Cast<UWorld>(Object))
 	{

@@ -63,6 +63,7 @@ void UFractureToolSlice::RegisterUICommand( FFractureEditorCommands* BindingCont
 TArray<UObject*> UFractureToolSlice::GetSettingsObjects() const 
 { 
 	TArray<UObject*> Settings; 
+	Settings.Add(GetMutableDefault<UFractureCommonSettings>());
 	Settings.Add(GetMutableDefault<UFractureSliceSettings>());
 	return Settings;
 }
@@ -217,6 +218,11 @@ void UFractureToolSlice::ExecuteFracture(const FFractureContext& FractureContext
 			int32 AddedGeomIdx = CutMultipleWithMultiplePlanes(CuttingPlanes, InternalSurfaceMaterials, *GeometryCollection, FractureContext.SelectedBones);
 		}
 	}
+}
+
+bool UFractureToolSlice::CanExecuteFracture() const
+{
+	return FFractureEditorModeToolkit::IsLeafBoneSelected();
 }
 
 #undef LOCTEXT_NAMESPACE
