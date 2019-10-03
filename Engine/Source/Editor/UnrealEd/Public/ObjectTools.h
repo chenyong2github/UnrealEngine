@@ -127,6 +127,12 @@ namespace ObjectTools
 		bool IsValid() const;
 	};
 
+	enum class EAllowCancelDuringDelete : uint8
+	{
+		AllowCancel,
+		CancelNotAllowed
+	};
+
 	/**
 	 * Handles fully loading packages for a set of passed in objects.
 	 *
@@ -272,7 +278,7 @@ namespace ObjectTools
 	 *
 	 * @return The number of objects successfully deleted
 	 */
-	UNREALED_API int32 DeleteObjects( const TArray< UObject* >& ObjectsToDelete, bool bShowConfirmation = true );
+	UNREALED_API int32 DeleteObjects( const TArray< UObject* >& ObjectsToDelete, bool bShowConfirmation = true, EAllowCancelDuringDelete AllowCancelDuringDelete = EAllowCancelDuringDelete::AllowCancel);
 
 	/**
 	* Deletes the list of objects without checking if they are still being used.  This should not be called directly

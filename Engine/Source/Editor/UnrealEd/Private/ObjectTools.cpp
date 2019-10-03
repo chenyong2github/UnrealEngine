@@ -495,7 +495,7 @@ namespace ObjectTools
 				}
 			}
 
-			const int32 NumObjectsDeleted = ObjectTools::DeleteObjects(ObjectsToDelete, bPromptToOverwrite);
+			const int32 NumObjectsDeleted = ObjectTools::DeleteObjects(ObjectsToDelete, bPromptToOverwrite, EAllowCancelDuringDelete::CancelNotAllowed);
 
 			// Remove all packages that we added to the root set above.
 			for ( auto PkgIt = DeletedObjectPackages.CreateConstIterator(); PkgIt; ++PkgIt )
@@ -2092,7 +2092,7 @@ namespace ObjectTools
 		return false;
 	}
 
-	int32 DeleteObjects( const TArray< UObject* >& InObjectsToDelete, bool bShowConfirmation )
+	int32 DeleteObjects( const TArray< UObject* >& InObjectsToDelete, bool bShowConfirmation, EAllowCancelDuringDelete AllowCancelDuringDelete )
 	{
 		const FScopedBusyCursor BusyCursor;
 
@@ -2187,24 +2187,30 @@ namespace ObjectTools
 		}
 		
 		bool bUserCanceled = false;
-
-		GWarn->BeginSlowTask(NSLOCTEXT("UnrealEd", "VerifyingDelete", "Verifying Delete"), true, true);
+		const bool bAllowCancelDuringDelete = (AllowCancelDuringDelete == EAllowCancelDuringDelete::AllowCancel);
+		GWarn->BeginSlowTask(NSLOCTEXT("UnrealEd", "VerifyingDelete", "Verifying Delete"), true, bAllowCancelDuringDelete);
 		while ( !bUserCanceled && DeleteModel->GetState() != FAssetDeleteModel::Finished )
 		{
 			DeleteModel->Tick(0);
 			GWarn->StatusUpdate((int32)( DeleteModel->GetProgress() * 100 ), 100, DeleteModel->GetProgressText());
 
-			bUserCanceled = GWarn->ReceivedUserCancel();
+			if (bAllowCancelDuringDelete)
+			{
+				bUserCanceled = GWarn->ReceivedUserCancel();
+			}
 		}
 		GWarn->EndSlowTask();
 
 		if ( bUserCanceled )
 		{
+			UE_LOG(LogUObjectGlobals, Warning, TEXT("User canceled delete operation"));
 			return 0;
 		}
 
 		if ( !DeleteModel->DoDelete() )
 		{
+			UE_LOG(LogUObjectGlobals, Warning, TEXT("Could not delete"));
+
 			//@todo ndarnell explain why the delete failed?  Maybe we should show the delete UI
 			// when this fails?
 		}
