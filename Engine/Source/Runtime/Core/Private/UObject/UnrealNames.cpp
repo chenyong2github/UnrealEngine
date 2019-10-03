@@ -265,6 +265,7 @@ public:
 	/** Initializes all member variables. */
 	FNameEntryAllocator()
 	{
+		LLM_SCOPE(ELLMTag::FName);
 		Blocks[0] = (uint8*)FMemory::Malloc(BlockSizeBytes, FPlatformMemory::GetConstants().PageSize);
 	}
 
@@ -376,6 +377,7 @@ private:
 	/** Allocates a new pool. */
 	void AllocateNewBlock()
 	{
+		LLM_SCOPE(ELLMTag::FName);
 		// Null-terminate final entry to allow DebugDump() entry iteration
 		if (CurrentByteCursor + FNameEntry::GetDataOffset() <= BlockSizeBytes)
 		{
@@ -548,6 +550,7 @@ class alignas(PLATFORM_CACHE_LINE_SIZE) FNamePoolShardBase : FNoncopyable
 public:
 	void Initialize(FNameEntryAllocator& InEntries)
 	{
+		LLM_SCOPE(ELLMTag::FName);
 		Entries = &InEntries;
 
 		Slots = (FNameSlot*)FMemory::Malloc(FNamePoolInitialSlotsPerShard * sizeof(FNameSlot), alignof(FNameSlot));
@@ -642,6 +645,7 @@ private:
 
 	void Grow()
 	{
+		LLM_SCOPE(ELLMTag::FName);
 		FNameSlot* const OldSlots = Slots;
 		const uint32 OldUsedSlots = UsedSlots;
 		const uint32 OldCapacity = Capacity();
