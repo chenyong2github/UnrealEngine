@@ -71,6 +71,9 @@ struct FNiagaraSystemCompiledData
 	FNiagaraParameterStore InstanceParamStore;
 
 	UPROPERTY()
+	TArray<FNiagaraVariable> SpawnCountScaleVars;
+
+	UPROPERTY()
 	FNiagaraDataSetCompiledData DataSetCompiledData;
 
 	UPROPERTY()

@@ -284,6 +284,10 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 		{
 			Id.AdditionalDefines.Add(TEXT("Emitter.Determinism"));
 		}
+		if (Emitter->bOverrideGlobalSpawnCountScale)
+		{
+			Id.AdditionalDefines.Add(TEXT("Emitter.OverrideGlobalSpawnCountScale"));
+		}
 
 		if (!Emitter->bBakeOutRapidIteration)
 		{
