@@ -305,7 +305,7 @@ namespace Chaos
 			}
 		}
 
-		EParticleType ParticleType() const { return MParticleType; }
+		CHAOS_API EParticleType ParticleType() const { return MParticleType; }
 
 	protected:
 		EParticleType MParticleType;
