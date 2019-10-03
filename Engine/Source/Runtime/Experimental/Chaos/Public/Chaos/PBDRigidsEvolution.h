@@ -151,6 +151,8 @@ class TPBDRigidsEvolutionBase
 		FPendingSpatialData& SpatialData = InternalAccelerationQueue.FindOrAdd(Particle.Handle());
 		SpatialData.AccelerationHandle = TAccelerationStructureHandle<T,d>(Particle);
 		SpatialData.bUpdate = true;
+		ensure(!SpatialData.bDelete || SpatialData.SpatialIdx == Particle.SpatialIdx());	//delete and add got same memory, but in a different spatial acceleration (need to handle case)
+		SpatialData.SpatialIdx = Particle.SpatialIdx();	//todo: handle case where we delete 
 
 		AsyncAccelerationQueue.FindOrAdd(Particle.Handle()) = SpatialData;
 		ExternalAccelerationQueue.FindOrAdd(Particle.Handle()) = SpatialData;
@@ -285,6 +287,7 @@ protected:
 		AsyncSpatialData.AccelerationHandle = TAccelerationStructureHandle<T, d>(ParticleHandle);
 		AsyncSpatialData.bUpdate = false;	//don't bother updating since deleting anyway
 		AsyncSpatialData.bDelete = true;
+		AsyncSpatialData.SpatialIdx = ParticleHandle.SpatialIdx();
 		ExternalAccelerationQueue.FindOrAdd(Particle) = AsyncSpatialData;
 
 		//remove particle immediately for intermediate structure
@@ -370,8 +373,7 @@ protected:
 		bool bDelete;
 
 		FPendingSpatialData()
-			: SpatialIdx{ 0,0 }	//todo: set properly
-			, bUpdate(false)
+			: bUpdate(false)
 			, bDelete(false)
 		{}
 
