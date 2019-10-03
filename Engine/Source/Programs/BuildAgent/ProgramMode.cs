@@ -22,6 +22,6 @@ namespace BuildAgent
 			return CommandLineArguments.GetParameters(GetType());
 		}
 
-		public abstract void Execute();
+		public abstract int Execute();
 	}
 }

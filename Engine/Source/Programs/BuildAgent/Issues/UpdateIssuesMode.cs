@@ -84,7 +84,7 @@ namespace BuildAgent.Issues
 		/// Main command entry point
 		/// </summary>
 		/// <param name="Arguments">The command line arguments</param>
-		public override void Execute()
+		public override int Execute()
 		{
 			// Build a mapping from category to matching
 			Dictionary<string, Matcher> CategoryNameToMatcher = new Dictionary<string, Matcher>();
@@ -243,7 +243,7 @@ namespace BuildAgent.Issues
 			// If we're in read-only mode, don't write anything out
 			if(bReadOnly)
 			{
-				return;
+				return 0;
 			}
 
 			// Save the persistent data
@@ -474,6 +474,7 @@ namespace BuildAgent.Issues
 			}
 
 			// TODO: VERIFY ISSUES ARE CLOSED
+			return 0;
 		}
 
 		/// <summary>

@@ -182,7 +182,7 @@ namespace BuildAgent.WebApi
 			return Parameters;
 		}
 
-		public override void Execute()
+		public override int Execute()
 		{
 			// Create the request
 			HttpWebRequest Request = (HttpWebRequest)WebRequest.Create(CommandUrl.ToString());
@@ -208,6 +208,8 @@ namespace BuildAgent.WebApi
 					Console.WriteLine(Json.Format(ResponseContent));
 				}
 			}
+
+			return 0;
 		}
 
 		static bool TryGetCommandArgument(CommandLineArguments Arguments, out CommandInfo Command)

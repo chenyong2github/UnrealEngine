@@ -151,7 +151,9 @@ namespace BuildAgent.Listeners
 				}
 
 				// Write them to disk
-				Write(OutputFile, Errors);
+				FileReference TempOutputFile = new FileReference(OutputFile.FullName + ".new");
+				Write(TempOutputFile, Errors);
+				FileUtils.ForceMoveFile(TempOutputFile, OutputFile);
 
 				// On the first run, set the path to the diagnostics file
 				if (!bHasSetDiagFile)

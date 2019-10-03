@@ -57,7 +57,7 @@ namespace BuildAgent.Workspace
 			}
 		}
 
-		public override void Execute()
+		public override int Execute()
 		{
 			// Create the repo
 			Repository Repo = CreateOrLoadRepository(ServerAndPort, UserName, BaseDir, bOverwrite);
@@ -73,6 +73,7 @@ namespace BuildAgent.Workspace
 			Trace.Listeners.Add(new TextWriterTraceListener(new StreamWriter(LogFile.FullName), "LogTraceListener"));
 
 			Execute(Repo);
+			return 0;
 		}
 
 		protected abstract void Execute(Repository Repo);

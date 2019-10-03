@@ -133,8 +133,7 @@ namespace BuildAgent
 			}
 
 			// Execute all the commands
-			Mode.Execute();
-			return 0;
+			return Mode.Execute();
 		}
 
 		/// <summary>

@@ -70,8 +70,10 @@ namespace BuildAgent.Run
 			ProgramArguments = Arguments.GetPositionalArguments();
 		}
 
-		public override void Execute()
+		public override int Execute()
 		{
+			int ExitCode = 0;
+
 			// Auto-register all the known matchers in this assembly
 			List<IErrorMatcher> Matchers = new List<IErrorMatcher>();
 			foreach (Type Type in Assembly.GetExecutingAssembly().GetTypes())
@@ -151,9 +153,8 @@ namespace BuildAgent.Run
 					{
 						Func<string> ReadLine = new LineFilter(() => ReadProcessLine(Process, CancellationToken)).ReadLine;
 						ProcessErrors(ReadLine, Matchers, IgnorePatterns, Listeners, bNoWarnings);
+						ExitCode = Process.ExitCode;
 					}
-
-					ProcessUtils.TerminateChildProcesses();
 				}
 			}
 			finally
@@ -163,6 +164,10 @@ namespace BuildAgent.Run
 					Listener.Dispose();
 				}
 			}
+
+			// Kill off any remaining child processes
+			ProcessUtils.TerminateChildProcesses();
+			return ExitCode;
 		}
 
 		/// <summary>
