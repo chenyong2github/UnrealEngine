@@ -473,7 +473,8 @@ float3 ComputeDirectLightingCulled(
 
 		if (Active)
 		{
-			float3 LightContribution = GetDynamicLighting(WorldPosition, -CameraVector, GBufferData, AmbientOcclusion, GBufferData.ShadingModelID, LightData, LightAttenuation, 0.5, uint2(0, 0), RectTexture).xyz;
+			float SurfaceShadow = 1.0f;
+			float3 LightContribution = GetDynamicLighting(WorldPosition, -CameraVector, GBufferData, AmbientOcclusion, GBufferData.ShadingModelID, LightData, LightAttenuation, 0.5, uint2(0, 0), RectTexture, SurfaceShadow).xyz;
 			DirectLighting += LightContribution * LightProfileMultiplier;
 		}
 
