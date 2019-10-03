@@ -284,7 +284,6 @@ namespace GeometryCollectionExample {
 		return PhysObject;
 #else
 		return nullptr;
-#endif
 	}
 	template FGeometryCollectionPhysicsProxy* RigidBodySetup(
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<float>> & PhysicalMaterial,
