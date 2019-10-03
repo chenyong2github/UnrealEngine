@@ -398,7 +398,7 @@ FTransform FControlRigMathLibrary::LerpTransform(const FTransform& A, const FTra
 	return Result;
 }
 
-void FControlRigMathLibrary::SolveBasicTwoBoneIK(FTransform& BoneA, FTransform& BoneB, FTransform& Effector, const FVector& PoleVector, const FVector& PrimaryAxis, const FVector& SecondaryAxis, float BoneALength, float BoneBLength, bool bEnableStretch, float StretchStartRatio, float StretchMaxRatio)
+void FControlRigMathLibrary::SolveBasicTwoBoneIK(FTransform& BoneA, FTransform& BoneB, FTransform& Effector, const FVector& PoleVector, const FVector& PrimaryAxis, const FVector& SecondaryAxis, float SecondaryAxisWeight, float BoneALength, float BoneBLength, bool bEnableStretch, float StretchStartRatio, float StretchMaxRatio)
 {
 	FVector RootPos = BoneA.GetLocation();
 	FVector ElbowPos = BoneB.GetLocation();
@@ -411,6 +411,7 @@ void FControlRigMathLibrary::SolveBasicTwoBoneIK(FTransform& BoneA, FTransform& 
 
 	FVector Axis = BoneA.TransformVectorNoScale(PrimaryAxis);
 	FVector Target1 = BoneB.GetLocation() - BoneA.GetLocation();
+
 	if (!Target1.IsNearlyZero() && !Axis.IsNearlyZero())
 	{
 		Target1 = Target1.GetSafeNormal();
@@ -418,14 +419,24 @@ void FControlRigMathLibrary::SolveBasicTwoBoneIK(FTransform& BoneA, FTransform& 
 		BoneA.SetRotation((Rotation1 * BoneA.GetRotation()).GetNormalized());
 
 		Axis = BoneA.TransformVectorNoScale(SecondaryAxis);
-		FVector Target2 = PoleVector - BoneA.GetLocation();
-		if (!Target2.IsNearlyZero() && !Axis.IsNearlyZero())
-		{
-			Target2 = Target2 - FVector::DotProduct(Target2, Target1) * Target1;
-			Target2 = Target2.GetSafeNormal();
 
-			FQuat Rotation2 = FQuat::FindBetweenNormals(Axis, Target2);
-			BoneA.SetRotation((Rotation2 * BoneA.GetRotation()).GetNormalized());
+		if (SecondaryAxisWeight > SMALL_NUMBER)
+		{
+			FVector Target2 = BoneB.GetLocation() - (Effector.GetLocation() + BoneA.GetLocation()) * 0.5f;
+			if (!Target2.IsNearlyZero() && !Axis.IsNearlyZero())
+			{
+				Target2 = Target2 - FVector::DotProduct(Target2, Target1) * Target1;
+				Target2 = Target2.GetSafeNormal();
+
+				FQuat Rotation2 = FQuat::FindBetweenNormals(Axis, Target2);
+				if (!FMath::IsNearlyEqual(SecondaryAxisWeight, 1.f))
+				{
+					FVector RotationAxis = Rotation2.GetRotationAxis();
+					float RotationAngle = Rotation2.GetAngle();
+					Rotation2 = FQuat(RotationAxis, RotationAngle * FMath::Clamp<float>(SecondaryAxisWeight, 0.f, 1.f));
+				}
+				BoneA.SetRotation((Rotation2 * BoneA.GetRotation()).GetNormalized());
+			}
 		}
 	}
 
@@ -437,15 +448,111 @@ void FControlRigMathLibrary::SolveBasicTwoBoneIK(FTransform& BoneA, FTransform& 
 		FQuat Rotation1 = FQuat::FindBetweenNormals(Axis, Target1);
 		BoneB.SetRotation((Rotation1 * BoneB.GetRotation()).GetNormalized());
 
-		Axis = BoneB.TransformVectorNoScale(SecondaryAxis);
-		FVector Target2 = PoleVector - BoneB.GetLocation();
-		if (!Target2.IsNearlyZero() && !Axis.IsNearlyZero())
+		if (SecondaryAxisWeight > SMALL_NUMBER)
 		{
-			Target2 = Target2 - FVector::DotProduct(Target2, Target1) * Target1;
-			Target2 = Target2.GetSafeNormal();
+			Axis = BoneB.TransformVectorNoScale(SecondaryAxis);
+			FVector Target2 = BoneB.GetLocation() - (Effector.GetLocation() + BoneA.GetLocation()) * 0.5f;
+			if (!Target2.IsNearlyZero() && !Axis.IsNearlyZero())
+			{
+				Target2 = Target2 - FVector::DotProduct(Target2, Target1) * Target1;
+				Target2 = Target2.GetSafeNormal();
 
-			FQuat Rotation2 = FQuat::FindBetweenNormals(Axis, Target2);
-			BoneB.SetRotation((Rotation2 * BoneB.GetRotation()).GetNormalized());
+				FQuat Rotation2 = FQuat::FindBetweenNormals(Axis, Target2);
+				if (!FMath::IsNearlyEqual(SecondaryAxisWeight, 1.f))
+				{
+					FVector RotationAxis = Rotation2.GetRotationAxis();
+					float RotationAngle = Rotation2.GetAngle();
+					Rotation2 = FQuat(RotationAxis, RotationAngle * FMath::Clamp<float>(SecondaryAxisWeight, 0.f, 1.f));
+				}
+				BoneB.SetRotation((Rotation2 * BoneB.GetRotation()).GetNormalized());
+			}
 		}
 	}
+}
+
+FVector FControlRigMathLibrary::ClampSpatially(const FVector& Value, EAxis::Type Axis, EControlRigClampSpatialMode::Type Type, float Minimum, float Maximum, FTransform Space)
+{
+	FVector Local = Space.InverseTransformPosition(Value);
+
+	switch (Type)
+	{
+		case EControlRigClampSpatialMode::Plane:
+		{
+			switch (Axis)
+			{
+				case EAxis::X:
+				{
+					Local.X = FMath::Clamp<float>(Local.X, Minimum, Maximum);
+					break;
+				}
+				case EAxis::Y:
+				{
+					Local.Y = FMath::Clamp<float>(Local.Y, Minimum, Maximum);
+					break;
+				}
+				default:
+				{
+					Local.Z = FMath::Clamp<float>(Local.Z, Minimum, Maximum);
+					break;
+				}
+			}
+			break;
+		}
+		case EControlRigClampSpatialMode::Cylinder:
+		{
+			switch (Axis)
+			{
+				case EAxis::X:
+				{
+					FVector OnPlane = Local * FVector(0.f, 1.f, 1.f);
+					if (!OnPlane.IsNearlyZero())
+					{
+						float Length = OnPlane.Size();
+						OnPlane = OnPlane * FMath::Clamp<float>(Length, Minimum, Maximum) / Length;
+						Local.Y = OnPlane.Y;
+						Local.Z = OnPlane.Z;
+					}
+					break;
+				}
+				case EAxis::Y:
+				{
+					FVector OnPlane = Local * FVector(1.f, 0.f, 1.f);
+					if (!OnPlane.IsNearlyZero())
+					{
+						float Length = OnPlane.Size();
+						OnPlane = OnPlane * FMath::Clamp<float>(Length, Minimum, Maximum) / Length;
+						Local.X = OnPlane.X;
+						Local.Z = OnPlane.Z;
+					}
+					break;
+				}
+				default:
+				{
+					FVector OnPlane = Local * FVector(1.f, 1.f, 0.f);
+					if (!OnPlane.IsNearlyZero())
+					{
+						float Length = OnPlane.Size();
+						OnPlane = OnPlane * FMath::Clamp<float>(Length, Minimum, Maximum) / Length;
+						Local.X = OnPlane.X;
+						Local.Y = OnPlane.Y;
+					}
+					break;
+				}
+			}
+			break;
+		}
+		default:
+		case EControlRigClampSpatialMode::Sphere:
+		{
+			if (!Local.IsNearlyZero())
+			{
+				float Length = Local.Size();
+				Local = Local * FMath::Clamp<float>(Length, Minimum, Maximum) / Length;
+			}
+			break;
+		}
+
+	}
+
+	return Space.TransformPosition(Local);
 }

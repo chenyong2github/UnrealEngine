@@ -6,6 +6,8 @@
 #include "Components/StaticMeshComponent.h"
 #include "StaticMeshResources.h"
 #include "EditableStaticMeshAdapter.h"
+#include "StaticMeshAttributes.h"
+
 
 bool FStaticMeshEditableMeshFormat::HandlesComponentType(class UPrimitiveComponent& Component)
 {
@@ -56,10 +58,9 @@ UEditableMesh* FStaticMeshEditableMeshFormat::MakeEditableMesh( UPrimitiveCompon
 
 	UEditableMesh* EditableMesh = NewObject<UEditableMesh>();
 	FMeshDescription* MeshDescription = EditableMesh->GetMeshDescription();
-	UStaticMesh::RegisterMeshAttributes( *MeshDescription );
+	FStaticMeshAttributes( *MeshDescription ).Register();
 
 	// Register additional attributes required by EditableMesh
-	MeshDescription->EdgeAttributes().RegisterAttribute<bool>( MeshAttribute::Edge::IsUVSeam, 1, false );
 	MeshDescription->PolygonAttributes().RegisterAttribute<FVector>( MeshAttribute::Polygon::Normal, 1, FVector::ZeroVector, EMeshAttributeFlags::Transient );
 	MeshDescription->PolygonAttributes().RegisterAttribute<FVector>( MeshAttribute::Polygon::Tangent, 1, FVector::ZeroVector, EMeshAttributeFlags::Transient );
 	MeshDescription->PolygonAttributes().RegisterAttribute<FVector>( MeshAttribute::Polygon::Binormal, 1, FVector::ZeroVector, EMeshAttributeFlags::Transient );

@@ -10,9 +10,7 @@
 #include "ChaosInterfaceWrapperCore.h"
 #endif
 
-#if INCLUDE_CHAOS
 #include "ChaosSQTypes.h"
-#endif
 
 #if WITH_PHYSX
 namespace physx
@@ -39,7 +37,6 @@ struct FCollisionQueryParams;
 struct FCollisionQueryParams;
 class ICollisionQueryFilterCallbackBase;
 
-#if INCLUDE_CHAOS
 class PHYSICSSQ_API FChaosSQAccelerator
 {
 public:
@@ -47,18 +44,17 @@ public:
 	FChaosSQAccelerator(const Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>,float, 3>& InSpatialAcceleration);
 	virtual ~FChaosSQAccelerator() {};
 
-	void Raycast(const FVector& Start, const FVector& Dir, const float DeltaMagnitude, ChaosInterface::FSQHitBuffer<ChaosInterface::FRaycastHit>& HitBuffer, EHitFlags OutputFlags, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback) const;
-	void Sweep(const Chaos::TImplicitObject<float, 3>& QueryGeom, const FTransform& StartTM, const FVector& Dir, const float DeltaMagnitude, ChaosInterface::FSQHitBuffer<ChaosInterface::FSweepHit>& HitBuffer, EHitFlags OutputFlags, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback) const;
-	void Overlap(const Chaos::TImplicitObject<float, 3>& QueryGeom, const FTransform& GeomPose, ChaosInterface::FSQHitBuffer<ChaosInterface::FOverlapHit>& HitBuffer, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback) const;
+	void Raycast(const FVector& Start, const FVector& Dir, const float DeltaMagnitude, ChaosInterface::FSQHitBuffer<ChaosInterface::FRaycastHit>& HitBuffer, EHitFlags OutputFlags, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback, const FQueryDebugParams& DebugParams = FQueryDebugParams()) const;
+	void Sweep(const Chaos::TImplicitObject<float, 3>& QueryGeom, const FTransform& StartTM, const FVector& Dir, const float DeltaMagnitude, ChaosInterface::FSQHitBuffer<ChaosInterface::FSweepHit>& HitBuffer, EHitFlags OutputFlags, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback, const FQueryDebugParams& DebugParams = FQueryDebugParams()) const;
+	void Overlap(const Chaos::TImplicitObject<float, 3>& QueryGeom, const FTransform& GeomPose, ChaosInterface::FSQHitBuffer<ChaosInterface::FOverlapHit>& HitBuffer, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback, const FQueryDebugParams& DebugParams = FQueryDebugParams()) const;
 
 private:
 	const Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>& SpatialAcceleration;
 
 };
-#endif
 
 // An interface to the scene query accelerator that allows us to run queries against either PhysX or Chaos
-// when compiling WITH_PHYSX and INCLUDE_CHAOS.
+// when compiling WITH_PHYSX.
 // This was used in the 2019 GDC demos and is now broken. To make it work again, we would need to implement
 // the FChaosSQAcceleratorAdapter below to use its internal SQ accelerator and convert the inputs and outputs
 // from/to PhysX types.
@@ -86,7 +82,7 @@ private:
 	TArray<ISQAccelerator*> Accelerators;
 };
 
-#if WITH_PHYSX && INCLUDE_CHAOS
+#if WITH_PHYSX
 // A Chaos Query Accelerator with a PhysX API
 // TODO: Not implemented - required to make GDC 2019 demos work again.
 class PHYSICSSQ_API FChaosSQAcceleratorAdapter : public ISQAccelerator

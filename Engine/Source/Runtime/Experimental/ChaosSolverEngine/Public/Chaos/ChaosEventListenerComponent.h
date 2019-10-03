@@ -36,10 +36,8 @@ public:
 
 protected:
 
-#if INCLUDE_CHAOS
 	const Chaos::FPhysicsSolver* GetSolver() const;
 	const TSharedPtr<FPhysScene_Chaos> GetPhysicsScene() const;
-#endif
 
 	const AChaosSolverActor* GetSolverActor() const;
 

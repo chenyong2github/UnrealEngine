@@ -2,8 +2,6 @@
 
 #pragma once
 
-#if INCLUDE_CHAOS
-
 #include "Chaos/Framework/PhysicsProxy.h"
 #include "GeometryCollection/GeometryCollectionSimulationTypes.h"
 #include "Chaos/Framework/BufferedData.h"
@@ -97,9 +95,11 @@ public:
 	void SyncBeforeDestroy() {};
 	void OnRemoveFromScene();
 	void PushToPhysicsState(const Chaos::FParticleData*) {};
+	void ClearAccumulatedData() {}
 	void BufferPhysicsResults();
 	void FlipBuffer();
 	void PullFromPhysicsState();
+	bool IsDirty() { return false; }
 	Chaos::FParticleData* NewData() { return nullptr; }
 	EPhysicsProxyType ConcreteType() { return EPhysicsProxyType::StaticMeshType; }
 	/** ----------------------- */
@@ -130,5 +130,3 @@ private:
 	bool bPendingKinematicUpdate;
 	FPhysicsProxyKinematicUpdate BufferedKinematicUpdate;
 };
-
-#endif

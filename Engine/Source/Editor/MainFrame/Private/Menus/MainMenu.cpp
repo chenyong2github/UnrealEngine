@@ -119,37 +119,6 @@ void FMainMenu::RegisterEditMenu()
 
 	{
 		FToolMenuSection& Section = EditMenu->AddSection("EditLocalTabSpawners", LOCTEXT("ConfigurationHeading", "Configuration"));
-		if (GetDefault<UEditorExperimentalSettings>()->bToolbarCustomization)
-		{
-			FUIAction ToggleMultiBoxEditMode(
-				FExecuteAction::CreateStatic(&FMultiBoxSettings::ToggleToolbarEditing),
-				FCanExecuteAction(),
-				FIsActionChecked::CreateStatic(&FMultiBoxSettings::IsInToolbarEditMode)
-			);
-		
-			Section.AddMenuEntry(
-				"EditToolbars",
-				LOCTEXT("EditToolbarsLabel", "Edit Toolbars"),
-				LOCTEXT("EditToolbarsToolTip", "Allows customization of each toolbar"),
-				FSlateIcon(),
-				ToggleMultiBoxEditMode,
-				EUserInterfaceActionType::ToggleButton
-			);
-
-			Section.AddDynamicEntry("TabManager", FNewToolMenuDelegateLegacy::CreateLambda([](FMenuBuilder& MenuBuilder, UToolMenu* MenuData)
-			{
-				if (USlateTabManagerContext* TabManagerContext = MenuData->FindContext<USlateTabManagerContext>())
-				{
-					if (TabManagerContext->TabManager.IsValid())
-					{
-						// Automatically populate tab spawners from TabManager
-						const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
-						TabManagerContext->TabManager.Pin()->PopulateTabSpawnerMenu(MenuBuilder, MenuStructure.GetEditOptions());
-					}
-				}
-			}));
-		}
-
 		if (GetDefault<UEditorStyleSettings>()->bExpandConfigurationMenus)
 		{
 			Section.AddSubMenu(

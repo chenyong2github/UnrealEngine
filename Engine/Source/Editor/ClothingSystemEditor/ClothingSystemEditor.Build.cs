@@ -8,6 +8,7 @@ public class ClothingSystemEditor : ModuleRules
 	public ClothingSystemEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
         PublicIncludePathModuleNames.Add("UnrealEd");
+        PublicIncludePathModuleNames.Add("ClothingSystemRuntimeInterface");
         PublicIncludePathModuleNames.Add("ClothingSystemRuntimeNv");
         PublicIncludePathModuleNames.Add("ClothingSystemEditorInterface");
 
@@ -23,6 +24,8 @@ public class ClothingSystemEditor : ModuleRules
 			new string[] { 
 				"Core",
 				"CoreUObject",
+				"ClothingSystemRuntimeInterface",
+                "ClothingSystemRuntimeCommon",
                 "ClothingSystemRuntimeNv",
                 "ContentBrowser",
                 "UnrealEd",

@@ -45,8 +45,8 @@ namespace CommonAnimationLibrary
 	 */
 	ANIMGRAPHRUNTIME_API FVector RetargetSingleLocation(
 		FVector Location,
-		FTransform Source,
-		FTransform Target,
+		const FTransform& Source,
+		const FTransform& Target,
 		const FRuntimeFloatCurve& CustomCurve,
 		EEasingFuncType EasingType = EEasingFuncType::Linear,
 		bool bFlipEasing = false,
@@ -77,9 +77,9 @@ namespace CommonAnimationLibrary
 	 *	@param EasingType The type of easing to apply
 	 */
 	ANIMGRAPHRUNTIME_API FQuat RetargetSingleRotation(
-		FQuat Rotation,
-		FTransform Source,
-		FTransform Target,
+		const FQuat& Rotation,
+		const FTransform& Source,
+		const FTransform& Target,
 		const FRuntimeFloatCurve& CustomCurve,
 		EEasingFuncType EasingType = EEasingFuncType::Linear,
 		bool bFlipEasing = false,

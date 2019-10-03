@@ -6,6 +6,11 @@
 #include "Materials/MaterialInterface.h"
 #include "UObject/ConstructorHelpers.h"
 #include "AppleARKitAvailability.h"
+
+#if SUPPORTS_ARKIT_1_0
+	#import <ARKit/ARKit.h>
+#endif
+
 #include "AppleARKitVideoOverlay.generated.h"
 
 class UARTextureCameraImage;

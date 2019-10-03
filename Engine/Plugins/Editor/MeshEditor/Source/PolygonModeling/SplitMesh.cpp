@@ -7,8 +7,7 @@
 #include "Editor.h"
 #include "Engine/Selection.h"
 #include "IMeshEditorModeEditingContract.h"
-#include "MeshAttributes.h"
-#include "MeshDescription.h"
+#include "StaticMeshAttributes.h"
 #include "MeshEditor/MeshEditorMode.h"
 #include "PackageTools.h"
 #include "Settings/EditorExperimentalSettings.h"
@@ -322,7 +321,6 @@ void USplitMeshCommand::Execute(IMeshEditorModeEditingContract& MeshEditorMode)
 
 		FElementIDRemappings Remappings;
 		NewMeshDescription->Compact(Remappings);
-		NewMeshDescription->TriangulateMesh();
 		for(int32 PolygonIdIndex = 0; PolygonIdIndex <= GroupId.GetValue(); ++PolygonIdIndex)
 		{
 			NewStaticMesh->StaticMaterials.Add(UMaterial::GetDefaultMaterial(MD_Surface));

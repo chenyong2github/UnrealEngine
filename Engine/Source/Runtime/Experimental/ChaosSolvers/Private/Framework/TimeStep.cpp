@@ -30,15 +30,11 @@ namespace Chaos
 
 		if((float)ActualDt > TargetDt)
 		{
-#if INCLUDE_CHAOS
 			UE_LOG(LogChaosDebug, Verbose, TEXT("PhysAdvance: Exceeded requested Dt of %.3f (%.2fFPS). Ran for %.3f"), TargetDt, 1.0f / TargetDt, ActualDt);
-#endif
 		}
 		else
 		{
-#if INCLUDE_CHAOS
 			UE_LOG(LogChaosDebug, Verbose, TEXT("PhysAdvance: Advance took %.3f, sleeping for %.3f to reach target Dt of %.3f (%.2fFPS)"), ActualDt, TargetDt - ActualDt, TargetDt, 1.0f / TargetDt);
-#endif
 
 			// #BG TODO need some way to handle abandonning this when the gamethread requests a sync
 			// Or just running more commands in general otherwise this is dead time.

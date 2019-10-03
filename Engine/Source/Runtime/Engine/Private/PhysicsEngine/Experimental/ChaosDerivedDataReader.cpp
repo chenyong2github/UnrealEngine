@@ -1,7 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#if INCLUDE_CHAOS
-
 #include "Physics/Experimental/ChaosDerivedDataReader.h"
 #include "Chaos/ChaosArchive.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
@@ -36,5 +34,3 @@ FChaosDerivedDataReader<T, d>::FChaosDerivedDataReader(FUntypedBulkData* InBulkD
 }
 
 template class FChaosDerivedDataReader<float, 3>;
-
-#endif

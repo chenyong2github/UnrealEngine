@@ -6,7 +6,8 @@
 #include "Engine/StaticMesh.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "EditableMeshFactory.h"
-#include "MeshAttributes.h"
+#include "StaticMeshAttributes.h"
+#include "StaticMeshOperations.h"
 #include "EditorSupportDelegates.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 
@@ -241,14 +242,7 @@ void UEditableGeometryCollectionAdapter::InitEditableGeometryCollection( UEditab
 						}
 					}
 				}
-				MeshDescription->DetermineEdgeHardnessesFromVertexInstanceNormals();
-
-				// Determine UV seams
-				CA_SUPPRESS(6326);
-				if (NumUVs > 0)
-				{
-					MeshDescription->DetermineUVSeamsFromUVs(0);
-				}
+				FStaticMeshOperations::DetermineEdgeHardnessesFromVertexInstanceNormals(*MeshDescription);
 
 				// Cache polygon tangent bases
 				static TArray<FPolygonID> PolygonIDs;

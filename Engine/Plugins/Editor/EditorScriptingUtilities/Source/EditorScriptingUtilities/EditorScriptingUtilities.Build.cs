@@ -26,10 +26,12 @@ namespace UnrealBuildTool.Rules
 					"RawMesh",
 					"Slate",
 					"SlateCore",
+					"StaticMeshDescription",
 					"UnrealEd",
                     "SkeletalMeshUtilitiesCommon",
-				}
-			);
+                    "LevelEditor",
+                }
+            );
 		}
 	}
 }

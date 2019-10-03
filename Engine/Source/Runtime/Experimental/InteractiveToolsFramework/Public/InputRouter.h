@@ -81,19 +81,17 @@ protected:
 	UPROPERTY()
 	UInputBehaviorSet* ActiveInputBehaviors;
 
-	UInputBehavior* ActiveKeyboardCapture;
-	void* ActiveKeyboardCaptureOwner;
+	UInputBehavior* ActiveKeyboardCapture = nullptr;
+	void* ActiveKeyboardCaptureOwner = nullptr;
 	FInputCaptureData ActiveKeyboardCaptureData;
 
-	UInputBehavior* ActiveLeftCapture;
-	void* ActiveLeftCaptureOwner;
+	UInputBehavior* ActiveLeftCapture = nullptr;
+	void* ActiveLeftCaptureOwner = nullptr;
 	FInputCaptureData ActiveLeftCaptureData;
 
-	UInputBehavior* ActiveRightCapture;
-	void* ActiveRightCaptureOwner;
+	UInputBehavior* ActiveRightCapture = nullptr;
+	void* ActiveRightCaptureOwner = nullptr;
 	FInputCaptureData ActiveRightCaptureData;
-
-	FInputDeviceState LastHoverInput;
 
 	virtual void PostInputEvent_Keyboard(const FInputDeviceState& Input);
 	void CheckForKeyboardCaptures(const FInputDeviceState& Input);
@@ -102,4 +100,15 @@ protected:
 	virtual void PostInputEvent_Mouse(const FInputDeviceState& Input);
 	void CheckForMouseCaptures(const FInputDeviceState& Input);
 	void HandleCapturedMouseInput(const FInputDeviceState& Input);
+
+
+	//
+	// Hover support
+	//
+
+	UInputBehavior* ActiveLeftHoverCapture = nullptr;
+	void* ActiveLeftHoverCaptureOwner = nullptr;
+
+	void TerminateHover(EInputCaptureSide Side);
+	bool ProcessMouseHover(const FInputDeviceState& Input);
 };

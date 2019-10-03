@@ -1103,11 +1103,6 @@ TArray<FString> FSlateFontCache::GetAvailableFontSubFaces(const FString& InFilen
 	return FFreeTypeFace::GetAvailableSubFaces(FTLibrary.Get(), InFilename);
 }
 
-uint16 FSlateFontCache::GetLocalizedFallbackFontRevision() const
-{
-	return FLegacySlateFontInfoCache::Get().GetLocalizedFallbackFontRevision();
-}
-
 void FSlateFontCache::RequestFlushCache(const FString& FlushReason)
 {
 	if (!bFlushRequested)

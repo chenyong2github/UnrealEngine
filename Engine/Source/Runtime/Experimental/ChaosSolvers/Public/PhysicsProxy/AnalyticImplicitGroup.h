@@ -1,6 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
-#if INCLUDE_CHAOS
 
 #include "Chaos/Box.h"
 #include "Chaos/Capsule.h"
@@ -653,9 +652,3 @@ protected:
 	FAnalyticImplicitGroup* Parent;
 	TArray<FAnalyticImplicitGroup*> Children;
 };
-
-
-
-
-
-#endif // INCLUDE_CHAOS

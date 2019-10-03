@@ -15,6 +15,7 @@ namespace
 {
 	static UTakeRecorderPanel* CurrentTakeRecorderPanel;
 	static UTakeRecorderBlueprintLibrary::FOnTakeRecorderPanelChanged TakeRecorderPanelChanged;
+	static UTakeRecorderBlueprintLibrary::FOnTakeRecorderPreInitialize TakeRecorderPreInitialize;
 	static UTakeRecorderBlueprintLibrary::FOnTakeRecorderStarted TakeRecorderStarted;
 	static UTakeRecorderBlueprintLibrary::FOnTakeRecorderStopped TakeRecorderStopped;
 	static UTakeRecorderBlueprintLibrary::FOnTakeRecorderFinished TakeRecorderFinished;
@@ -131,6 +132,11 @@ void UTakeRecorderBlueprintLibrary::SetOnTakeRecorderPanelChanged(FOnTakeRecorde
 	TakeRecorderPanelChanged = OnTakeRecorderPanelChanged;
 };
 
+void UTakeRecorderBlueprintLibrary::SetOnTakeRecorderPreInitialize(FOnTakeRecorderPreInitialize OnTakeRecorderPreInitialize)
+{
+	TakeRecorderPreInitialize = OnTakeRecorderPreInitialize;
+};
+
 void UTakeRecorderBlueprintLibrary::SetOnTakeRecorderStarted(FOnTakeRecorderStarted OnTakeRecorderStarted)
 {
 	TakeRecorderStarted = OnTakeRecorderStarted;
@@ -155,6 +161,11 @@ void UTakeRecorderBlueprintLibrary::SetOnTakeRecorderMarkedFrameAdded(FOnTakeRec
 {
 	TakeRecorderMarkedFrameAdded = OnTakeRecorderMarkedFrameAdded;
 };
+
+void UTakeRecorderBlueprintLibrary::OnTakeRecorderPreInitialize()
+{
+	TakeRecorderPreInitialize.ExecuteIfBound();
+}
 
 void UTakeRecorderBlueprintLibrary::OnTakeRecorderStarted()
 {

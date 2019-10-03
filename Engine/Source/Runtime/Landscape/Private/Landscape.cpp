@@ -1627,6 +1627,8 @@ void ULandscapeComponent::AddLayerData(const FGuid& InLayerGuid, const FLandscap
 	check(!LandscapeEditingLayer.IsValid());
 	FLandscapeLayerComponentData& Data = LayersData.FindOrAdd(InLayerGuid);
 	Data = InData;
+	CachedEditingLayer.Invalidate();
+	CachedEditingLayerData = nullptr;
 }
 
 void ULandscapeComponent::AddDefaultLayerData(const FGuid& InLayerGuid, const TArray<ULandscapeComponent*>& InComponentsUsingHeightmap, TMap<UTexture2D*, UTexture2D*>& InOutCreatedHeightmapTextures)
@@ -1712,6 +1714,8 @@ void ULandscapeComponent::RemoveLayerData(const FGuid& InLayerGuid)
 	Modify();
 	check(!LandscapeEditingLayer.IsValid());
 	LayersData.Remove(InLayerGuid);
+	CachedEditingLayer.Invalidate();
+	CachedEditingLayerData = nullptr;
 }
 
 void ULandscapeComponent::SetHeightmap(UTexture2D* NewHeightmap)

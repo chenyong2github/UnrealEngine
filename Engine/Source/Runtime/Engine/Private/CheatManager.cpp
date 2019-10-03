@@ -38,6 +38,7 @@
 #include "GameFramework/InputSettings.h"
 #include "Misc/CoreDelegates.h"
 #include "Engine/NetConnection.h"
+#include "HAL/PlatformApplicationMisc.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogCheatManager, Log, All);
 
@@ -1188,6 +1189,10 @@ void UCheatManager::LogOutBugItGoToLogFile( const FString& InScreenShotDesc, con
 	// Flush, close and delete.
 	//delete OutputFile;
 	OutputFile.TearDown();
+
+#if PLATFORM_DESKTOP
+	FPlatformApplicationMisc::ClipboardCopy(*InGoString);
+#endif
 
 	// so here we want to send this bad boy back to the PC
 	SendDataToPCViaUnrealConsole( TEXT("UE_PROFILER!BUGIT:"), *(FullFileName) );

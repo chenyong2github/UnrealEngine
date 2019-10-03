@@ -6,7 +6,7 @@ GeometryCollectionActor.cpp: AGeometryCollectionActor methods.
 
 #include "GeometryCollection/GeometryCollectionActor.h"
 
-#if !INCLUDE_CHAOS && 0
+#if 0
 
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
@@ -84,13 +84,11 @@ void AGeometryCollectionActor::Tick(float DeltaTime)
 		bInitializedState = true;
 
 		Scene.Init();
-#if INCLUDE_CHAOS
 		UGeometryCollection* RestCollection = const_cast<UGeometryCollection*>(GeometryCollectionComponent->GetRestCollection());
 		if (GeometryCollectionComponent->bClearCache)
 		{
 			RestCollection->RecordedTracks.Records.Reset();
 		}
-#endif
 	}
 
 	int32 NumTimeSteps = 1.f;

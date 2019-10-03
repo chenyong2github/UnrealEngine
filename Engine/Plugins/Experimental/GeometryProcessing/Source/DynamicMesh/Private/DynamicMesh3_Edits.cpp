@@ -698,7 +698,7 @@ EMeshResult FDynamicMesh3::RemoveTriangle(int tID, bool bRemoveIsolatedVertices,
 
 	if (HasAttributes())
 	{
-		Attributes()->OnRemoveTriangle(tID, bRemoveIsolatedVertices);
+		Attributes()->OnRemoveTriangle(tID);
 	}
 
 	UpdateTimeStamp(true, true);
@@ -1177,6 +1177,7 @@ EMeshResult FDynamicMesh3::FlipEdge(int vA, int vB, FEdgeFlipInfo& FlipInfo)
 
 EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_t, FEdgeCollapseInfo& CollapseInfo)
 {
+	checkSlow(!HasAttributes() || !Attributes()->IsSeamVertex(vRemove, false));
 	CollapseInfo = FEdgeCollapseInfo();
 
 	if (IsVertex(vKeep) == false || IsVertex(vRemove) == false)
@@ -1545,8 +1546,8 @@ EMeshResult FDynamicMesh3::MergeEdges(int eKeep, int eDiscard, FMergeEdgesInfo& 
 	// alternative that detects normal flip of triangle tcd. This is a more 
 	// robust geometric test, but fails if tri is degenerate...also more expensive
 	//FVector3d otherv = GetVertex(tcd_otherv);
-	//FVector3d Ncd = TMathUtil.FastNormalDirection(GetVertex(c), GetVertex(d), otherv);
-	//FVector3d Nab = TMathUtil.FastNormalDirection(GetVertex(a), GetVertex(b), otherv);
+	//FVector3d Ncd = VectorUtil::NormalDirection(GetVertex(c), GetVertex(d), otherv);
+	//FVector3d Nab = VectorUtil::NormalDirection(GetVertex(a), GetVertex(b), otherv);
 	//if (Ncd.Dot(Nab) < 0)
 	//return EMeshResult::Failed_SameOrientation;
 

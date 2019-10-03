@@ -2,8 +2,6 @@
 
 #pragma once
 
-#if INCLUDE_CHAOS
-
 #include "Physics/ImmediatePhysics/ImmediatePhysicsChaos/ImmediatePhysicsCore_Chaos.h"
 
 #include "Engine/EngineTypes.h"
@@ -110,8 +108,13 @@ namespace ImmediatePhysics_Chaos
 		float GetMaxContactImpulse() const;
 
 		/** Get the actor-space centre of mass offset */
-		// @todo(ccaulfield): should be FTransform
-		const FVector& GetCoMTranslation() const;
+		const FTransform& GetLocalCoMTransform() const;
+
+		Chaos::TGeometryParticleHandle<FReal, Dimensions>* GetParticle();
+		const Chaos::TGeometryParticleHandle<FReal, Dimensions>* GetParticle() const;
+
+		int32 GetLevel() const;
+		void SetLevel(int32 InLevel);
 
 	private:
 		friend struct FSimulation;
@@ -125,9 +128,8 @@ namespace ImmediatePhysics_Chaos
 		Chaos::TGeometryParticleHandle<FReal, Dimensions>* ParticleHandle;
 		TUniquePtr<Chaos::TImplicitObject<float, 3>> Geometry;
 		TArray<TUniquePtr<Chaos::TPerShapeData<float, 3>>> Shapes;
-		FVector ActorToCoMTranslation;
+		FTransform ActorToCoMTransform;
+		int32 Level;
 	};
 
 }
-
-#endif // INCLUDE_CHAOS

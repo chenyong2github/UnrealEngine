@@ -40,7 +40,7 @@ void SLevelEditorToolBox::Construct( const FArguments& InArgs, const TSharedRef<
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		.HAlign( HAlign_Left )
-		.Padding(0, 0, 0, 0)
+		.Padding(1.f)
 		[
 			SAssignNew( ModeToolBarContainer, SBorder )
 			.BorderImage( FEditorStyle::GetBrush( "NoBorder" ) )

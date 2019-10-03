@@ -168,7 +168,7 @@ struct FEventTrackExecutionToken
 struct FEventTriggerExecutionToken
 	: IMovieSceneExecutionToken
 {
-	FEventTriggerExecutionToken(TArray<FName> InEvents, const TArray<FMovieSceneObjectBindingID>& InEventReceivers)
+	FEventTriggerExecutionToken(TArray<FMovieSceneEventPtrs> InEvents, const TArray<FMovieSceneObjectBindingID>& InEventReceivers)
 		: Events(MoveTemp(InEvents)), EventReceivers(InEventReceivers)
 	{}
 
@@ -182,7 +182,7 @@ struct FEventTriggerExecutionToken
 		{
 #if !NO_LOGGING
 			UE_LOG(LogMovieScene, Warning, TEXT("Failed to trigger the following events because no director instance was available: %s."), *GenerateEventListString());
-#endif			
+#endif
 			return;
 		}
 
@@ -234,129 +234,140 @@ struct FEventTriggerExecutionToken
 		bool bIsGameWorld = World && World->IsGameWorld();
 #endif // WITH_EDITOR
 
-		for (FName EventName : Events)
+		for (const FMovieSceneEventPtrs& Event : Events)
 		{
-			if (EventName == NAME_None)
-			{
-				continue;
-			}
 
-			UFunction* Function = DirectorInstance->FindFunction(EventName);
-			// Event must have only a single object parameter, and the director instance must be an implementation of the function's class
-			if (!Function)
-			{
-				FMessageLog("PIE").Warning()
-					->AddToken(FUObjectToken::Create(Player.GetEvaluationTemplate().GetSequence(Operand.SequenceID)))
-					->AddToken(FTextToken::Create(FText::Format(LOCTEXT("LevelBP_MissingEvent_Error", "Failed to trigger event '{0}' because the function does not exist on the director instance."), FText::FromName(EventName))));
-				continue;
-			}
 #if WITH_EDITOR
-			else if (!bIsGameWorld && !Function->HasMetaData(NAME_CallInEditor))
+			if (!bIsGameWorld && !Event.Function->HasMetaData(NAME_CallInEditor))
 			{
-				UE_LOG(LogMovieScene, Verbose, TEXT("Refusing to trigger event '%s' in editor world when 'Call in Editor' is false."), *EventName.ToString());
+				UE_LOG(LogMovieScene, Verbose, TEXT("Refusing to trigger event '%s' in editor world when 'Call in Editor' is false."), *Event.Function->GetName());
 				continue;
 			}
 #endif // WITH_EDITOR
 
-			if (Function->NumParms == 0)
-			{
-				UE_LOG(LogMovieScene, VeryVerbose, TEXT("Triggering event '%s'."), *EventName.ToString());
-				DirectorInstance->ProcessEvent(Function, nullptr);
-			}
-			else if (Function->NumParms == 1 && Function->PropertyLink && (Function->PropertyLink->GetPropertyFlags() & CPF_ReferenceParm) == 0)
-			{
-				const int32 NumLevelScripts = Algo::Accumulate(EventContexts, 0, 
-					[](int32 Count, UObject* Obj)
-					{
-						return Obj && Obj->IsA<ALevelScriptActor>() ? Count + 1 : Count;
-					}
-				);
 
-				// Never pass through level script actors to event endpoints on non-interface pins.
-				if (NumLevelScripts > 0 && NumLevelScripts == EventContexts.Num() && !Function->PropertyLink->IsA<UInterfaceProperty>())
-				{
-					FMessageLog("PIE").Warning()
-						->AddToken(FUObjectToken::Create(Function))
-						->AddToken(FUObjectToken::Create(Player.GetEvaluationTemplate().GetSequence(Operand.SequenceID)))
-						->AddToken(FTextToken::Create(LOCTEXT("LevelBP_ObjectPin_Error", "Failed to trigger event: only Interface pins are supported for master tracks within Level Sequences. Please remove the pin, or change it to an interface that is implemented on the desired level blueprint.")));
-					continue;
-				}
+			UE_LOG(LogMovieScene, VeryVerbose, TEXT("Triggering event '%s'."), *Event.Function->GetName());
 
-				for (UObject* EventContextObject : EventContexts)
-				{
-					TriggerEvent(DirectorInstance, Function, EventContextObject, Player, Operand.SequenceID);
-				}
+			if (Event.Function->NumParms == 0)
+			{
+				DirectorInstance->ProcessEvent(Event.Function, nullptr);
 			}
 			else
 			{
-				FMessageLog("PIE").Warning()
-					->AddToken(FUObjectToken::Create(Function))
-					->AddToken(FUObjectToken::Create(Player.GetEvaluationTemplate().GetSequence(Operand.SequenceID)))
-					->AddToken(FTextToken::Create(LOCTEXT("LevelBP_InvalidEvent_Error", "Failed to trigger event because its signature is not compatible. Function signatures must have either 0 or 1 (non-ref) parameters.")));
+				TriggerEventWithParameters(DirectorInstance, Event, EventContexts, Player, Operand.SequenceID);
 			}
 		}
 	}
 
-	void TriggerEvent(UObject* DirectorInstance, UFunction* Function, UObject* ObjectParamValue, IMovieScenePlayer& Player, FMovieSceneSequenceID SequenceID)
+	void TriggerEventWithParameters(UObject* DirectorInstance, const FMovieSceneEventPtrs& Event, TArrayView<UObject* const> EventContexts, IMovieScenePlayer& Player, FMovieSceneSequenceID SequenceID)
 	{
-		// We know by now that the parameter type is compatible because it wouldn't be added to the array if not
-		if (UObjectProperty* ObjectParameter = Cast<UObjectProperty>(Function->PropertyLink))
+		if (!ensureMsgf(!Event.BoundObjectProperty || (Event.BoundObjectProperty->GetOuter() == Event.Function && Event.BoundObjectProperty->GetOffset_ForUFunction() < Event.Function->ParmsSize), TEXT("Bound object property belongs to the wrong function or has an offset greater than the parameter size! This should never happen and indicates a BP compilation or nativization error.")))
 		{
-			if (!ObjectParameter->PropertyClass || ObjectParamValue->IsA(ObjectParameter->PropertyClass))
-			{
-				DirectorInstance->ProcessEvent(Function, &ObjectParamValue);
-				return;
-			}
-
-
-			UE_LOG(LogMovieScene, VeryVerbose, TEXT("Failed to trigger event '%s' with object '%s' because it is not the correct type. Function expects a '%s' but target object is a '%s'."),
-				*Function->GetName(),
-				*ObjectParamValue->GetName(),
-				*ObjectParameter->PropertyClass->GetName(),
-				*ObjectParamValue->GetClass()->GetName()
-				);
-
 			return;
 		}
 
-		if (UInterfaceProperty* InterfaceParameter = Cast<UInterfaceProperty>(Function->PropertyLink))
+		// Parse all function parameters.
+		uint8* Parameters = (uint8*)FMemory_Alloca(Event.Function->ParmsSize + Event.Function->MinAlignment);
+		Parameters = Align(Parameters, Event.Function->MinAlignment);
+
+		Event.Function->InitializeStruct(Parameters);
+
+		for (UObject* BoundObject : EventContexts)
 		{
-			if (ObjectParamValue->GetClass()->ImplementsInterface(InterfaceParameter->InterfaceClass))
+			int32 NumParmsPatched = 0;
+
+			// Attempt to bind the object to the function parameters
+			if (!PatchBoundObject(Parameters, BoundObject, Event.BoundObjectProperty, Player, SequenceID))
 			{
-				DirectorInstance->ProcessEvent(Function, &ObjectParamValue);
-				return;
+				continue;
+			}
+			else
+			{
+				++NumParmsPatched;
 			}
 
+			ensureAlwaysMsgf(Event.Function->NumParms == NumParmsPatched, TEXT("Failed to patch the correct number of parameters for function call. Some parameters may be incorrect."));
 
-			UE_LOG(LogMovieScene, VeryVerbose, TEXT("Failed to trigger event '%s' with object '%s' because it does not implement the necessary interface. Function expects a '%s'."),
-				*Function->GetName(),
-				*ObjectParamValue->GetName(),
-				*InterfaceParameter->InterfaceClass->GetName()
-				);
+			// Call the function
+			DirectorInstance->ProcessEvent(Event.Function, Parameters);
+		}
 
-			return;
+		Event.Function->DestroyStruct(Parameters);
+	}
+
+	bool PatchBoundObject(uint8* Parameters, UObject* BoundObject, UProperty* BoundObjectProperty, IMovieScenePlayer& Player, FMovieSceneSequenceID SequenceID)
+	{
+		if (!BoundObjectProperty)
+		{
+			return true;
+		}
+
+		if (UInterfaceProperty* InterfaceParameter = Cast<UInterfaceProperty>(BoundObjectProperty))
+		{
+			if (BoundObject->GetClass()->ImplementsInterface(InterfaceParameter->InterfaceClass))
+			{
+				FScriptInterface Interface;
+				Interface.SetObject(BoundObject);
+				Interface.SetInterface(BoundObject->GetInterfaceAddress(InterfaceParameter->InterfaceClass));
+				InterfaceParameter->SetPropertyValue_InContainer(Parameters, BoundObject);
+				return true;
+			}
+
+			FMessageLog("PIE").Warning()
+				->AddToken(FUObjectToken::Create(BoundObjectProperty->GetOuter()))
+				->AddToken(FUObjectToken::Create(Player.GetEvaluationTemplate().GetSequence(SequenceID)))
+				->AddToken(FTextToken::Create(FText::Format(LOCTEXT("LevelBP_InterfaceNotImplemented_Error", "Failed to trigger event because it does not implement the necessary interface. Function expects a '{0}'."), FText::FromName(InterfaceParameter->InterfaceClass->GetFName()))));
+			return false;
+		}
+
+		if (UObjectProperty* ObjectParameter = Cast<UObjectProperty>(BoundObjectProperty))
+		{
+			if (BoundObject->IsA<ALevelScriptActor>())
+			{
+				FMessageLog("PIE").Warning()
+					->AddToken(FUObjectToken::Create(BoundObjectProperty->GetOuter()))
+					->AddToken(FUObjectToken::Create(Player.GetEvaluationTemplate().GetSequence(SequenceID)))
+					->AddToken(FTextToken::Create(LOCTEXT("LevelBP_LevelScriptActor_Error", "Failed to trigger event: only Interface pins are supported for master tracks within Level Sequences. Please remove the pin, or change it to an interface that is implemented on the desired level blueprint.")));
+
+				return false;
+			}
+			else if (!BoundObject->IsA(ObjectParameter->PropertyClass))
+			{
+				FMessageLog("PIE").Warning()
+					->AddToken(FUObjectToken::Create(Player.GetEvaluationTemplate().GetSequence(SequenceID)))
+					->AddToken(FUObjectToken::Create(BoundObjectProperty->GetOuter()))
+					->AddToken(FUObjectToken::Create(BoundObject))
+					->AddToken(FTextToken::Create(FText::Format(LOCTEXT("LevelBP_InvalidCast_Error", "Failed to trigger event: Cast to %s failed."), FText::FromName(ObjectParameter->PropertyClass->GetFName()))));
+
+				return false;
+			}
+
+			ObjectParameter->SetObjectPropertyValue_InContainer(Parameters, BoundObject);
+			return true;
 		}
 
 		FMessageLog("PIE").Warning()
-			->AddToken(FUObjectToken::Create(Function))
 			->AddToken(FUObjectToken::Create(Player.GetEvaluationTemplate().GetSequence(SequenceID)))
-			->AddToken(FTextToken::Create(FText::Format(LOCTEXT("LevelBP_InvalidObjectEvent_Error", "Failed to trigger event because its signature is not compatible. Function expects a '{0}' parameter, but only object and interface parameters are supported."), FText::FromName(Function->PropertyLink->GetClass()->GetFName()))));
+			->AddToken(FUObjectToken::Create(BoundObjectProperty->GetOuter()))
+			->AddToken(FUObjectToken::Create(BoundObject))
+			->AddToken(FTextToken::Create(FText::Format(LOCTEXT("LevelBP_UnsupportedProperty_Error", "Failed to trigger event: Unsupported property type for bound object: {0}."), FText::FromName(BoundObjectProperty->GetClass()->GetFName()))));
+		return false;
 	}
 
 #if !NO_LOGGING
 	FString GenerateEventListString() const
 	{
-		return Algo::Accumulate(Events, FString(), [](FString&& InString, FName Event){
+		return Algo::Accumulate(Events, FString(), [](FString&& InString, const FMovieSceneEventPtrs& EventPtrs){
 			if (InString.Len() > 0)
 			{
 				InString += TEXT(", ");
 			}
-			return InString + Event.ToString();
+			return InString + EventPtrs.Function->GetName();
 		});
 	}
 #endif
 
-	TArray<FName> Events;
+	TArray<FMovieSceneEventPtrs> Events;
 	TArray<FMovieSceneObjectBindingID, TInlineAllocator<2>> EventReceivers;
 };
 
@@ -437,17 +448,17 @@ void FMovieSceneEventSectionTemplate::EvaluateSwept(const FMovieSceneEvaluationO
 FMovieSceneEventTriggerTemplate::FMovieSceneEventTriggerTemplate(const UMovieSceneEventTriggerSection& Section, const UMovieSceneEventTrack& Track)
 	: FMovieSceneEventTemplateBase(Track)
 {
-	TMovieSceneChannelData<const FMovieSceneEvent> EventData = Section.EventChannel.GetData();
-	TArrayView<const FFrameNumber>     Times  = EventData.GetTimes();
-	TArrayView<const FMovieSceneEvent> Events = EventData.GetValues();
+	TMovieSceneChannelData<const FMovieSceneEvent> EventData   = Section.EventChannel.GetData();
+	TArrayView<const FFrameNumber>                 Times       = EventData.GetTimes();
+	TArrayView<const FMovieSceneEvent>             EntryPoints = EventData.GetValues();
 
 	EventTimes.Reserve(Times.Num());
-	EventFunctions.Reserve(Times.Num());
+	Events.Reserve(Times.Num());
 
 	for (int32 Index = 0; Index < Times.Num(); ++Index)
 	{
 		EventTimes.Add(Times[Index]);
-		EventFunctions.Add(Events[Index].FunctionName);
+		Events.Add(EntryPoints[Index].Ptrs);
 	}
 }
 
@@ -469,7 +480,7 @@ void FMovieSceneEventTriggerTemplate::EvaluateSwept(const FMovieSceneEvaluationO
 		return;
 	}
 
-	TArray<FName> Events;
+	TArray<FMovieSceneEventPtrs> EventsToTrigger;
 
 	const int32 First = bBackwards ? EventTimes.Num() - 1 : 0;
 	const int32 Last = bBackwards ? 0 : EventTimes.Num() - 1;
@@ -483,9 +494,9 @@ void FMovieSceneEventTriggerTemplate::EvaluateSwept(const FMovieSceneEvaluationO
 		for (int32 KeyIndex = EventTimes.Num() - 1; KeyIndex >= 0; --KeyIndex)
 		{
 			FFrameNumber Time = EventTimes[KeyIndex];
-			if (SweptRange.Contains(Time))
+			if (Events[KeyIndex].Function && SweptRange.Contains(Time))
 			{
-				Events.Add(EventFunctions[KeyIndex]);
+				EventsToTrigger.Add(Events[KeyIndex]);
 			}
 		}
 	}
@@ -493,16 +504,16 @@ void FMovieSceneEventTriggerTemplate::EvaluateSwept(const FMovieSceneEvaluationO
 	else for (int32 KeyIndex = 0; KeyIndex < EventTimes.Num(); ++KeyIndex)
 	{
 		FFrameNumber Time = EventTimes[KeyIndex];
-		if (SweptRange.Contains(Time))
+		if (Events[KeyIndex].Function && SweptRange.Contains(Time))
 		{
-			Events.Add(EventFunctions[KeyIndex]);
+			EventsToTrigger.Add(Events[KeyIndex]);
 		}
 	}
 
 
-	if (Events.Num())
+	if (EventsToTrigger.Num())
 	{
-		ExecutionTokens.Add(FEventTriggerExecutionToken(MoveTemp(Events), EventReceivers));
+		ExecutionTokens.Add(FEventTriggerExecutionToken(MoveTemp(EventsToTrigger), EventReceivers));
 	}
 }
 
@@ -510,7 +521,7 @@ void FMovieSceneEventTriggerTemplate::EvaluateSwept(const FMovieSceneEvaluationO
 
 FMovieSceneEventRepeaterTemplate::FMovieSceneEventRepeaterTemplate(const UMovieSceneEventRepeaterSection& Section, const UMovieSceneEventTrack& Track)
 	: FMovieSceneEventTemplateBase(Track)
-	, EventToTrigger(Section.Event.FunctionName)
+	, EventToTrigger(Section.Event.Ptrs)
 {
 }
 
@@ -522,7 +533,7 @@ void FMovieSceneEventRepeaterTemplate::EvaluateSwept(const FMovieSceneEvaluation
 	// Don't allow events to fire when playback is in a stopped state. This can occur when stopping 
 	// playback and returning the current position to the start of playback. It's not desireable to have 
 	// all the events from the last playback position to the start of playback be fired.
-	if (!SweptRange.Contains(CurrentFrame) || Context.GetStatus() == EMovieScenePlayerStatus::Stopped || Context.IsSilent())
+	if (!EventToTrigger.Function || !SweptRange.Contains(CurrentFrame) || Context.GetStatus() == EMovieScenePlayerStatus::Stopped || Context.IsSilent())
 	{
 		return;
 	}
@@ -530,7 +541,7 @@ void FMovieSceneEventRepeaterTemplate::EvaluateSwept(const FMovieSceneEvaluation
 	
 	if ((!bBackwards && bFireEventsWhenForwards) || (bBackwards && bFireEventsWhenBackwards))
 	{
-		TArray<FName> Events = { EventToTrigger };
+		TArray<FMovieSceneEventPtrs> Events = { EventToTrigger };
 		ExecutionTokens.Add(FEventTriggerExecutionToken(MoveTemp(Events), EventReceivers));
 	}
 }

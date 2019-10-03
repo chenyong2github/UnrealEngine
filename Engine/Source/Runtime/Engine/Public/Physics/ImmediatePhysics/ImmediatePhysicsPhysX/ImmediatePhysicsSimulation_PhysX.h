@@ -127,6 +127,8 @@ namespace ImmediatePhysics_PhysX
 		void SetPositionIterationCount(int32 InIterationCount);
 		void SetVelocityIterationCount(int32 InIterationCount);
 
+		void SetSimulationSpaceTransform(const FTransform& Transform) { }
+
 	private:
 		friend FActorHandle;
 

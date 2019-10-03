@@ -139,10 +139,11 @@ struct FActorPositioning
 	 *
 	 *	@param	Actor			The actor to spawn
 	 *	@param	bSnap			Whether to perform snapping on the placement transform or not (defaults to true)
+	 *	@param	InCursor		Optional pre-calculated cursor location
 	 *
 	 *	@return	The expected transform for the specified actor
 	*/
-	static UNREALED_API FTransform GetCurrentViewportPlacementTransform(const AActor& Actor, bool bSnap = true);
+	static UNREALED_API FTransform GetCurrentViewportPlacementTransform(const AActor& Actor, bool bSnap = true, const FViewportCursorLocation* InCursor = nullptr);
 
 	/** Get a default actor position in front of the camera
 	 *

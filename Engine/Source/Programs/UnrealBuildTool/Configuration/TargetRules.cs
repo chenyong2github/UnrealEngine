@@ -342,7 +342,7 @@ namespace UnrealBuildTool
 		/// Whether to enable the mesh editor.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
-		public bool bEnableMeshEditor = false;
+		public bool bEnableMeshEditor = true;
 
 		/// <summary>
 		/// Whether to compile the Chaos physics plugin.
@@ -361,6 +361,12 @@ namespace UnrealBuildTool
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
 		public bool bUseChaosChecked = false;
+
+		/// <summary>
+		/// Whether to compile in chaos memory tracking features
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bUseChaosMemoryTracking = false;
 
 		/// <summary>
 		/// Whether scene query acceleration is done by UE4. The physx scene query structure is still created, but we do not use it.
@@ -1869,6 +1875,11 @@ namespace UnrealBuildTool
 		public bool bUseChaos
 		{
 			get { return Inner.bUseChaos; }
+		}
+
+		public bool bUseChaosMemoryTracking
+		{
+			get { return Inner.bUseChaosMemoryTracking; }
 		}
 
 		public bool bUseChaosChecked

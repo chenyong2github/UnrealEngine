@@ -31,7 +31,7 @@ public class SkeletalMeshEditor : ModuleRules
                 "DesktopPlatform",
                 "PropertyEditor",
                 "RHI",
-                "ClothingSystemRuntimeNv",
+                "ClothingSystemRuntimeCommon",
                 "ClothingSystemEditorInterface",
 				"ClothingSystemRuntimeInterface",
 				"SkeletalMeshUtilitiesCommon",

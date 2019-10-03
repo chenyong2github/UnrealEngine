@@ -235,9 +235,9 @@ bool UK2Node_Tunnel::CanModifyExecutionWires()
 	return true;
 }
 
-ERenamePinResult UK2Node_Tunnel::RenameUserDefinedPin(const FName OldName, const FName NewName, bool bTest)
+ERenamePinResult UK2Node_Tunnel::RenameUserDefinedPinImpl(const FName OldName, const FName NewName, bool bTest)
 {
-	const ERenamePinResult ThisNodeResult = Super::RenameUserDefinedPin(OldName, NewName, bTest);
+	const ERenamePinResult ThisNodeResult = Super::RenameUserDefinedPinImpl(OldName, NewName, bTest);
 	if(ERenamePinResult::ERenamePinResult_NameCollision == ThisNodeResult)
 	{
 		return ERenamePinResult::ERenamePinResult_NameCollision;

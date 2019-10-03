@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "DetailBuilderTypes.h"
 
 class SWidget;
 class IPropertyHandle;
@@ -71,15 +72,8 @@ public:
 	 * @param  bCreateCategoryNodesOverride Allows customization of how the new root node's category is displayed (or not). 
 	 * @return The header row generated for this set of objects by the details panel
 	 */
-	virtual class IDetailPropertyRow* AddExternalObjectProperty(const TArray<UObject*>& Objects, FName PropertyName, FName UniqueIdName = NAME_None, TOptional<bool> bAllowChildrenOverride = TOptional<bool>(), TOptional<bool> bCreateCategoryNodesOverride = TOptional<bool>()) = 0;
+	virtual IDetailPropertyRow* AddExternalObjectProperty(const TArray<UObject*>& Objects, FName PropertyName, const FAddPropertyParams& Params = FAddPropertyParams()) = 0;
 
-	/**
-	 * Adds a custom structure as a child
-	 *
-	 * @param ChildStructure	The structure to add
-	 * @param UniqueIdName		Optional identifier that uniquely identifies this structure among other structures of the same type.  If this is empty, saving and restoring expansion state of this structure may not work
-	 */
-	virtual class IDetailPropertyRow* AddExternalStructure(TSharedRef<FStructOnScope> ChildStructure, FName UniqueIdName = NAME_None) = 0;
 
 	/**
 	 * Adds a property from a custom structure as a child
@@ -88,7 +82,15 @@ public:
 	 * @param PropertyName		Optional name of a property inside the Child structure to add.  If this is empty, the entire structure will be added
 	 * @param UniqueIdName		Optional identifier that uniquely identifies this structure among other structures of the same type.  If this is empty, saving and restoring expansion state of this structure may not work
 	 */
-	virtual class IDetailPropertyRow* AddExternalStructureProperty(TSharedRef<FStructOnScope> ChildStructure, FName PropertyName, FName UniqueIdName = NAME_None) = 0;
+	virtual IDetailPropertyRow* AddExternalStructureProperty(TSharedRef<FStructOnScope> ChildStructure, FName PropertyName, const FAddPropertyParams& Params = FAddPropertyParams()) = 0;
+
+	/**
+	 * Adds a custom structure as a child
+	 *
+	 * @param ChildStructure	The structure to add
+	 * @param UniqueIdName		Optional identifier that uniquely identifies this structure among other structures of the same type.  If this is empty, saving and restoring expansion state of this structure may not work
+	 */
+	virtual class IDetailPropertyRow* AddExternalStructure(TSharedRef<FStructOnScope> ChildStructure, FName UniqueIdName = NAME_None) = 0;
 
 	/**
 	 * Adds all the properties of an external structure as a children
@@ -116,6 +118,26 @@ public:
 	*/
 	virtual IDetailGroup* GetParentGroup() const = 0;
 
+	UE_DEPRECATED(4.24, "Please use the overload that accepts an FAddPropertyParams structure")
+	IDetailPropertyRow* AddExternalObjectProperty(const TArray<UObject*>& Objects, FName PropertyName, FName UniqueIdName = NAME_None, TOptional<bool> bAllowChildrenOverride = TOptional<bool>(), TOptional<bool> bCreateCategoryNodesOverride = TOptional<bool>())
+	{
+		FAddPropertyParams Params;
+		Params.UniqueId(UniqueIdName);
+		if (bAllowChildrenOverride.IsSet())
+		{
+			Params.AllowChildren(bAllowChildrenOverride.GetValue());
+		}
+		if (bCreateCategoryNodesOverride.IsSet())
+		{
+			Params.CreateCategoryNodes(bCreateCategoryNodesOverride.GetValue());
+		}
+		return AddExternalObjectProperty(Objects, PropertyName, Params);
+	}
+	UE_DEPRECATED(4.24, "Please use the overload that accepts an FAddPropertyParams structure")
+	IDetailPropertyRow* AddExternalStructureProperty(TSharedRef<FStructOnScope> ChildStructure, FName PropertyName, FName UniqueIdName)
+	{
+		return AddExternalStructureProperty(ChildStructure, PropertyName, FAddPropertyParams().UniqueId(UniqueIdName));
+	}
 
 	UE_DEPRECATED(4.17, "AddChildCustomBuilder has been deprecated.  Use AddCustomBuilder instead")
 	IDetailChildrenBuilder& AddChildCustomBuilder(TSharedRef<IDetailCustomNodeBuilder> InCustomBuilder)
@@ -144,7 +166,7 @@ public:
 	UE_DEPRECATED(4.17, "AddChildStructure has been deprecated.  Use AddExternalStructureProperty instead ")
 	class IDetailPropertyRow* AddChildStructure(TSharedRef<FStructOnScope> ChildStructure, FName PropertyName, FName UniqueIdName)
 	{
-		return AddExternalStructureProperty(ChildStructure, PropertyName, UniqueIdName);
+		return AddExternalStructureProperty(ChildStructure, PropertyName, FAddPropertyParams().UniqueId(UniqueIdName));
 	}
 
 	UE_DEPRECATED(4.17, "This version of AddStructure has been deprecated.  Use AddAllExternalStructureProperties instead ")

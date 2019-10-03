@@ -85,8 +85,6 @@ namespace
 			ContentBrowserConfig.bCanShowClasses = true;
 			ContentBrowserConfig.bUseSourcesView = true;
 			ContentBrowserConfig.bExpandSourcesView = true;
-			ContentBrowserConfig.bShowAssetPathTree = true;
-			ContentBrowserConfig.bAlwaysShowCollections = false;
 			ContentBrowserConfig.bUsePathPicker = true;
 			ContentBrowserConfig.bCanShowFilters = true;
 			ContentBrowserConfig.bCanShowAssetSearch = true;

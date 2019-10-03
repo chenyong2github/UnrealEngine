@@ -143,7 +143,7 @@ bool SClassPropertyRecorderSettings::IsPropertyExtendable(const UClass* InObject
 	return PropertyHandle.GetProperty()->HasAnyPropertyFlags(CPF_Interp) && FMovieSceneMultiPropertyRecorder::CanPropertyBeRecorded(*PropertyHandle.GetProperty());
 }
 
-TSharedRef<SWidget> SClassPropertyRecorderSettings::GenerateExtensionWidget(const UClass* InObjectClass, TSharedPtr<IPropertyHandle> PropertyHandle)
+TSharedRef<SWidget> SClassPropertyRecorderSettings::GenerateExtensionWidget(const IDetailLayoutBuilder& InDetailLayoutBuilder, const UClass* InObjectClass, TSharedPtr<IPropertyHandle> PropertyHandle)
 {
 	ECheckBoxState InitialState = ECheckBoxState::Unchecked;
 	FName PropertyName = *PropertyHandle->GeneratePathToProperty();

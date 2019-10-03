@@ -26,8 +26,6 @@ public:
 	UPROPERTY(config, noclear, EditAnywhere, Category = GameInstance, meta = (MetaClass = "ChaosSolverActor"))
 	FSoftClassPath DefaultChaosSolverActorClass;
 
-#if INCLUDE_CHAOS
-
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
@@ -43,7 +41,4 @@ private:
 	void UpdateAllProperties();
 	void RegisterSolverActorProvider();
 	//////////////////////////////////////////////////////////////////////////
-
-#endif		// INCLUDE_CHAOS
 };
-

@@ -45,8 +45,8 @@ public:
 
 	/** Replaces the binding for a single parameter colleciton instance. If for example the component begins to override the global instance. */
 	//void RebindParameterCollection(UNiagaraParameterCollectionInstance* OldInstance, UNiagaraParameterCollectionInstance* NewInstance);
-	void BindParameters();
-	void UnbindParameters();
+	void BindParameters(bool bExternalOnly);
+	void UnbindParameters(bool bExternalOnly);
 
 	bool IsAllowedToExecute() const;
 
@@ -127,7 +127,6 @@ public:
 	void TickFastPathAttributeBindings();
 
 	FNiagaraEmitterFastPath::FParamMap0& GetFastPathMap() { return FastPathMap; }
-
 private:
 	void CheckForErrors();
 

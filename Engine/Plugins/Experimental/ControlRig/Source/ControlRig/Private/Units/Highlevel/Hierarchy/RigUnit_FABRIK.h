@@ -42,6 +42,7 @@ struct FRigUnit_FABRIK : public FRigUnit_HighlevelBaseMutable
 	FRigUnit_FABRIK()
 	{
 		Precision = 1.f;
+		Weight = 1.f;
 		MaxIterations = 10;
 		EffectorTransform = FTransform::Identity;
 		bPropagateToChildren = false;
@@ -70,6 +71,12 @@ struct FRigUnit_FABRIK : public FRigUnit_HighlevelBaseMutable
 	 */
 	UPROPERTY(meta = (Input, Constant))
 	float Precision;
+
+	/**
+	 * The weight of the solver - how much the IK should be applied.
+	 */
+	UPROPERTY(meta = (Input))
+	float Weight;
 
 	/**
 	 * If set to true all of the global transforms of the children

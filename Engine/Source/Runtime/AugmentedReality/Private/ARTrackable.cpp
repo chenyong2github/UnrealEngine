@@ -283,9 +283,9 @@ FTransform UARFaceGeometry::GetWorldSpaceEyeTransform(EAREye Eye) const
 {
 	if (Eye == EAREye::LeftEye)
 	{
-		return GetLocalToWorldTransform() * LeftEyeTransform;
+		return LeftEyeTransform * GetLocalToWorldTransform();
 	}
-	return GetLocalToWorldTransform() * RightEyeTransform;
+	return RightEyeTransform * GetLocalToWorldTransform();
 }
 
 UAREnvironmentCaptureProbe::UAREnvironmentCaptureProbe()

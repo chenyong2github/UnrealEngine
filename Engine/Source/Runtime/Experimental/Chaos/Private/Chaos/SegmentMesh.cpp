@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/SegmentMesh.h"
+#include "Chaos/Particles.h"
 
 using namespace Chaos;
 

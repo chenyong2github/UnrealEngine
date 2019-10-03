@@ -17,10 +17,7 @@
 #include "DetailCategoryBuilder.h"
 #include "IDetailsView.h"
 #include "ProceduralMeshComponent.h"
-
-#include "MeshDescription.h"
-#include "MeshAttributes.h"
-#include "MeshAttributeArray.h"
+#include "StaticMeshAttributes.h"
 #include "MeshDescriptionOperations.h"
 
 #include "Dialogs/DlgPickAssetPath.h"
@@ -144,12 +141,7 @@ FReply FProceduralMeshComponentDetails::ClickedOnConvertToStaticMesh()
 				SrcModel.BuildSettings.bGenerateLightmapUVs = true;
 				SrcModel.BuildSettings.SrcLightmapIndex = 0;
 				SrcModel.BuildSettings.DstLightmapIndex = 1;
-				FMeshDescription* OriginalMeshDescription = StaticMesh->GetMeshDescription(0);
-				if (OriginalMeshDescription == nullptr)
-				{
-					OriginalMeshDescription = StaticMesh->CreateMeshDescription(0);
-				}
-				*OriginalMeshDescription = MeshDescription;
+				StaticMesh->CreateMeshDescription(0, MoveTemp(MeshDescription));
 				StaticMesh->CommitMeshDescription(0);
 
 				TSet<UMaterialInterface*> UniqueMaterials;

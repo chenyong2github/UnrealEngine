@@ -11,6 +11,9 @@ IControlRigManipulatable::~IControlRigManipulatable()
 {
 	OnFilterControl.Clear();
 	OnControlModified.Clear();
+#if WITH_EDITOR
+	OnControlSelected.Clear();
+#endif
 }
 
 bool IControlRigManipulatable::SetControlGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform)

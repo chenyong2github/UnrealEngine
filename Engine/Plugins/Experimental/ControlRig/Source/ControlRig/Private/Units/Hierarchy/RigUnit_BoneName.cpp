@@ -7,3 +7,7 @@ FString FRigUnit_BoneName::GetUnitLabel() const
 {
 	return FString::Printf(TEXT("%s Name"), *Bone.ToString());
 }
+
+FRigUnit_BoneName_Execute()
+{
+}

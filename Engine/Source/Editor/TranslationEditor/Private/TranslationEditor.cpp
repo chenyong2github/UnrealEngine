@@ -990,7 +990,7 @@ void FTranslationEditor::UpdateTranslationUnitSelection(TSet<TSharedRef<IPropert
 				UTranslationUnit* SelectedTranslationUnit = (UTranslationUnit*)UObjectPtr;
 				if (SelectedTranslationUnit != NULL)
 				{
-					PreviewTextBlock->SetText(SelectedTranslationUnit->Translation);
+					PreviewTextBlock->SetText(FText::AsCultureInvariant(SelectedTranslationUnit->Translation));
 					NamespaceTextBlock->SetText(FText::Format(LOCTEXT("TranslationNamespace", "Namespace: {0}"), FText::FromString(SelectedTranslationUnit->Namespace)));
 
 					// Add the ContextPropertyTable-specific path

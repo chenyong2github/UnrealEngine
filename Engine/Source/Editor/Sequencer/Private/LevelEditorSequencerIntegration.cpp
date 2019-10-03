@@ -9,7 +9,7 @@
 #include "Settings/LevelEditorPlaySettings.h"
 #include "Editor/PropertyEditor/Public/PropertyEditorModule.h"
 #include "Editor/LevelEditor/Public/ILevelEditor.h"
-#include "Editor/LevelEditor/Public/ILevelViewport.h"
+#include "Editor/UnrealEd/Public/IAssetViewport.h"
 #include "Editor/LevelEditor/Public/LevelEditor.h"
 #include "Framework/Application/SlateApplication.h"
 #include "IDetailsView.h"

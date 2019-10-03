@@ -7,13 +7,13 @@
 #include "Editor.h"
 
 class FEditorModeTools;
-class FEdMode;
 
 // Required forward declarations
 class FEdMode;
+class UEdMode;
 
 DECLARE_DELEGATE_RetVal(TSharedRef<FEdMode>, FEditorModeFactoryCallback);
-
+DECLARE_DELEGATE_RetVal(UEdMode*, FEditorModeFactoryDelegate);
 /**
  *	Class responsible for maintaining a list of registered editor mode types.
  *
@@ -90,6 +90,10 @@ struct IEditorModeFactory : public TSharedFromThis<IEditorModeFactory>
 	 * Create a new instance of our mode
 	 */
 	virtual TSharedRef<FEdMode> CreateMode() const = 0;
+
+	virtual UEdMode* CreateScriptableMode() const = 0;
+
+	virtual bool ForScriptableMode() const = 0;
 };
 
 struct FEditorModeFactory : IEditorModeFactory
@@ -112,6 +116,39 @@ struct FEditorModeFactory : IEditorModeFactory
 	 * Create a new instance of our mode
 	 */
 	virtual TSharedRef<FEdMode> CreateMode() const override { return FactoryCallback.Execute(); }
+
+	virtual UEdMode* CreateScriptableMode() const override { return nullptr; }
+
+	virtual bool ForScriptableMode() const override { return false; }
+};
+
+class UEditorModeFactory : public UObject, public IEditorModeFactory
+{
+	UEditorModeFactory(FEditorModeInfo InModeInfo) : ModeInfo(InModeInfo) {}
+	virtual ~UEditorModeFactory() {}
+
+	/** Information pertaining to this factory's mode */
+	FEditorModeInfo ModeInfo;
+
+	/** Callback used to create an instance of this mode type */
+	FEditorModeFactoryCallback FactoryCallback;
+
+	/** Callback used to create an instance of this mode type */
+	FEditorModeFactoryDelegate FactoryDelegate;
+
+	/**
+	 * Gets the information pertaining to the mode type that this factory creates
+	 */
+	virtual FEditorModeInfo GetModeInfo() const override { return ModeInfo; }
+
+	virtual TSharedRef<FEdMode> CreateMode() const override { return FactoryCallback.Execute(); }
+
+	/**
+	* Create a new instance of our mode
+	*/
+	virtual UEdMode* CreateScriptableMode() const override { return FactoryDelegate.Execute(); }
+
+	virtual bool ForScriptableMode() const override { return true; }
 };
 
 /**
@@ -203,6 +240,11 @@ public:
 	TSharedPtr<FEdMode> CreateMode(FEditorModeID ModeID, FEditorModeTools& Owner);
 
 	/**
+	 * Create a new instance of the mode registered under the specified ID
+	 */
+	UEdMode* CreateScriptableMode(FEditorModeID ModeID, FEditorModeTools& Owner);
+
+	/**
 	 * Const access to the internal factory map
 	 */
 	const FactoryMap& GetFactoryMap() const { return ModeFactories; }
@@ -213,9 +255,6 @@ private:
 	/** A map of editor mode IDs to factory callbacks */
 	FactoryMap ModeFactories;
 	
-	/** A list of all modes created */
-	TArray<TWeakPtr<FEdMode>> CreatedModes;
-
 	/** Event that is triggered whenever a mode is registered or unregistered */
 	FRegisteredModesChangedEvent RegisteredModesChanged;
 

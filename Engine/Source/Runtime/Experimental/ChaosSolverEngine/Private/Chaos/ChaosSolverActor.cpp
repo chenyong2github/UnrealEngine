@@ -13,12 +13,8 @@
 
 //DEFINE_LOG_CATEGORY_STATIC(AFA_Log, NoLogging, All);
 
-#if INCLUDE_CHAOS
 #ifndef CHAOS_WITH_PAUSABLE_SOLVER
 #define CHAOS_WITH_PAUSABLE_SOLVER 1
-#endif
-#else
-#define CHAOS_WITH_PAUSABLE_SOLVER 0
 #endif
 
 #if CHAOS_DEBUG_SUBSTEP
@@ -207,17 +203,13 @@ AChaosSolverActor::AChaosSolverActor(const FObjectInitializer& ObjectInitializer
 	, MassScale(1.f)
 	, ChaosDebugSubstepControl()
 {
-#if INCLUDE_CHAOS
 	// @question(Benn) : Does this need to be created on the Physics thread using a queued command?
 	PhysScene = MakeShareable(new FPhysScene_Chaos(this));
 	Solver = PhysScene->GetSolver();
-	// @todo: This should be gated by a parameter
-	Solver->GetEvolution()->AddForceFunction(Chaos::Utilities::GetRigidsGravityFunction(Chaos::TVector<float, 3>(0, 0, -1), 980.f));
-#endif
 	// Ticking setup for collision/breaking notifies
 	PrimaryActorTick.TickGroup = TG_PostPhysics;
-	PrimaryActorTick.bCanEverTick = INCLUDE_CHAOS ? true : false;
-	PrimaryActorTick.bStartWithTickEnabled = INCLUDE_CHAOS ? true : false;;
+	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bStartWithTickEnabled = true;
 
 	/*
 	* Display icon in the editor
@@ -269,7 +261,6 @@ void AChaosSolverActor::BeginPlay()
 {
 	Super::BeginPlay();
 
-#if INCLUDE_CHAOS
 	Chaos::IDispatcher* PhysDispatcher = PhysScene->GetDispatcher();
 	if (PhysDispatcher)
 	{
@@ -318,7 +309,6 @@ void AChaosSolverActor::BeginPlay()
 #endif  // #if TODO_REIMPLEMENT_SOLVER_SETTINGS_ACCESSORS
 		});
 	}
-#endif
 
 #if TODO_REIMPLEMENT_DEBUG_SUBSTEP
 #if CHAOS_DEBUG_SUBSTEP
@@ -339,7 +329,6 @@ void AChaosSolverActor::BeginPlay()
 
 void AChaosSolverActor::EndPlay(const EEndPlayReason::Type ReasonEnd)
 {
-#if INCLUDE_CHAOS
 	Chaos::IDispatcher* PhysDispatcher = PhysScene->GetDispatcher();
 	if (PhysDispatcher)
 	{
@@ -351,7 +340,6 @@ void AChaosSolverActor::EndPlay(const EEndPlayReason::Type ReasonEnd)
 			InSolver->SetEnabled(false);
 		});
 	}
-#endif
 #if TODO_REIMPLEMENT_DEBUG_SUBSTEP
 #if CHAOS_DEBUG_SUBSTEP
 	ChaosSolverActorConsoleObjects->RemoveSolver(GetName());
@@ -362,7 +350,6 @@ void AChaosSolverActor::EndPlay(const EEndPlayReason::Type ReasonEnd)
 void AChaosSolverActor::PostRegisterAllComponents()
 {
 	Super::PostRegisterAllComponents();
-
 #if INCLUDE_CHAOS
 	UWorld* const W = GetWorld(); 
 	if (W && !W->PhysicsScene_Chaos)
@@ -374,18 +361,17 @@ void AChaosSolverActor::PostRegisterAllComponents()
 
 void AChaosSolverActor::SetAsCurrentWorldSolver()
 {
-#if INCLUDE_CHAOS
 	UWorld* const W = GetWorld();
 	if (W)
 	{
+#if INCLUDE_CHAOS
 		W->PhysicsScene_Chaos = PhysScene;
-	}
 #endif
+	}
 }
 
 void AChaosSolverActor::SetSolverActive(bool bActive)
 {
-#if INCLUDE_CHAOS
 	if(Solver && PhysScene)
 	{
 		Chaos::IDispatcher* Dispatcher = PhysScene->GetDispatcher();
@@ -398,7 +384,6 @@ void AChaosSolverActor::SetSolverActive(bool bActive)
 			});
 		}
 	}
-#endif
 }
 
 #if WITH_EDITOR
@@ -406,7 +391,6 @@ void AChaosSolverActor::PostEditChangeProperty(struct FPropertyChangedEvent& Pro
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-#if INCLUDE_CHAOS
 	if (Solver && PropertyChangedEvent.Property)
 	{
 		Chaos::IDispatcher* PhysDispatcher = PhysScene->GetDispatcher();
@@ -523,7 +507,6 @@ void AChaosSolverActor::PostEditChangeProperty(struct FPropertyChangedEvent& Pro
 #endif
 		}
 	}
-#endif
 
 #if CHAOS_DEBUG_SUBSTEP
 #if TODO_REIMPLEMENT_DEBUG_SUBSTEP
@@ -561,7 +544,6 @@ void AChaosSolverActor::PostEditChangeProperty(struct FPropertyChangedEvent& Pro
 #if !UE_BUILD_SHIPPING
 void SerializeForPerfTest(const TArray< FString >&, UWorld* World, FOutputDevice&)
 {
-#if INCLUDE_CHAOS
 	UE_LOG(LogChaos, Log, TEXT("Serializing for perf test:"));
 	
 	const FString FileName(TEXT("ChaosPerf"));
@@ -571,7 +553,6 @@ void SerializeForPerfTest(const TArray< FString >&, UWorld* World, FOutputDevice
 		Chaos::FPhysicsSolver* Solver = Itr->GetSolver();
 		FChaosSolversModule::GetModule()->GetDispatcher()->EnqueueCommandImmediate(Solver, [FileName](Chaos::FPhysicsSolver* SolverIn) { SolverIn->SerializeForPerfTest(FileName); });
 	}
-#endif
 }
 
 FAutoConsoleCommand SerializeForPerfTestCommand(TEXT("p.SerializeForPerfTest"), TEXT(""), FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateStatic(&SerializeForPerfTest));

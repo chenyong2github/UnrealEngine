@@ -8,15 +8,12 @@
 #include "NiagaraShared.h"
 #include "VectorVM.h"
 #include "NiagaraDataInterface.h"
-#include "Chaos/ChaosSolver.h"
 #include "EventsData.h"
 #include "Chaos/ChaosSolverActor.h"
 #include "GeometryCollection/GeometryCollectionActor.h"
 #include "NiagaraDataInterfaceChaosDestruction.generated.h"
 
-#if INCLUDE_CHAOS
 struct PhysicsProxyWrapper;
-#endif
 
 USTRUCT()
 struct FChaosDestructionEvent
@@ -83,7 +80,6 @@ struct FChaosDestructionEvent
 	}
 };
 
-#if INCLUDE_CHAOS
 struct FSolverData
 {
 	FSolverData()
@@ -93,7 +89,6 @@ struct FSolverData
 	TSharedPtr<FPhysScene_Chaos> PhysScene;
 	Chaos::FPhysicsSolver* Solver;
 };
-#endif
 
 struct FNDIChaosDestruction_InstanceData
 {
@@ -684,7 +679,6 @@ public:
 protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 
-#if INCLUDE_CHAOS
 	void ResetInstData(FNDIChaosDestruction_InstanceData* InstData);
 
 	void HandleCollisionEvents(const Chaos::FCollisionEventData& Event);
@@ -732,8 +726,6 @@ protected:
 	bool CollisionCallback(FNDIChaosDestruction_InstanceData* InstData);
 	bool BreakingCallback(FNDIChaosDestruction_InstanceData* InstData);
 	bool TrailingCallback(FNDIChaosDestruction_InstanceData* InstData);
-	   
-#endif
 
 	void PushToRenderThread();
 
@@ -754,14 +746,10 @@ protected:
 
 	bool ShouldSpawn;
 
-#if INCLUDE_CHAOS
 	TArray<FSolverData> Solvers;
 	TArray<Chaos::TCollisionDataExt<float, 3>> CollisionEvents;
 	TArray<Chaos::TBreakingDataExt<float, 3>> BreakingEvents;
 	TArray<Chaos::TTrailingDataExt<float, 3>> TrailingEvents;
-
-#endif
-
 };
 
 struct FNiagaraDataInterfaceProxyChaosDestruction : public FNiagaraDataInterfaceProxy

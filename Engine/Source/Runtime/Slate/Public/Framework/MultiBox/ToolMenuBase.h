@@ -8,25 +8,49 @@
 
 class FMultiBox;
 
+UENUM()
+enum class ECustomizedToolMenuVisibility
+{
+	None,
+	Visible,
+	Hidden
+};
+
 USTRUCT()
 struct FCustomizedToolMenuEntry
 {
 	GENERATED_BODY()
 
+	FCustomizedToolMenuEntry() :
+		Visibility(ECustomizedToolMenuVisibility::None)
+	{
+	}
+
 	UPROPERTY()
-	FName Name;
+	ECustomizedToolMenuVisibility Visibility;
 };
 
 USTRUCT()
 struct FCustomizedToolMenuSection
 {
 	GENERATED_BODY()
-		
-	UPROPERTY()
-	FName Name;
+
+	FCustomizedToolMenuSection() :
+		Visibility(ECustomizedToolMenuVisibility::None)
+	{
+	}
 
 	UPROPERTY()
-	TArray<FCustomizedToolMenuEntry> Entries;
+	ECustomizedToolMenuVisibility Visibility;
+};
+
+USTRUCT()
+struct FCustomizedToolMenuNameArray
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<FName> Names;
 };
 
 USTRUCT()
@@ -38,27 +62,41 @@ struct SLATE_API FCustomizedToolMenu
 	FName Name;
 
 	UPROPERTY()
-	TArray<FCustomizedToolMenuSection> Sections;
+	TMap<FName, FCustomizedToolMenuEntry> Entries;
 
 	UPROPERTY()
-	TArray<FName> HiddenSections;
+	TMap<FName, FCustomizedToolMenuSection> Sections;
 
 	UPROPERTY()
-	TArray<FName> HiddenEntries;
+	TMap<FName, FCustomizedToolMenuNameArray> EntryOrder;
 
-	bool IsSectionHidden(const FName InSectionName) const;
-	bool IsEntryHidden(const FName InSectionName) const;
+	UPROPERTY()
+	TArray<FName> SectionOrder;
+
+	FCustomizedToolMenuEntry* FindEntry(const FName InEntryName);
+	const FCustomizedToolMenuEntry* FindEntry(const FName InEntryName) const;
+	FCustomizedToolMenuEntry* AddEntry(const FName InEntryName);
+	ECustomizedToolMenuVisibility GetEntryVisiblity(const FName InSectionName) const;
+	bool IsEntryHidden(const FName InEntryName) const;
+	FName GetEntrySectionName(const FName InEntryName) const;
 
 	FCustomizedToolMenuSection* FindSection(const FName InSectionName);
 	const FCustomizedToolMenuSection* FindSection(const FName InSectionName) const;
+	FCustomizedToolMenuSection* AddSection(const FName InSectionName);
+	ECustomizedToolMenuVisibility GetSectionVisiblity(const FName InSectionName) const;
+	bool IsSectionHidden(const FName InSectionName) const;
+};
 
-	FCustomizedToolMenuEntry* FindEntry(const FName InEntryName, FName* OutSectionName = nullptr);
-	const FCustomizedToolMenuEntry* FindEntry(const FName InEntryName, FName* OutSectionName = nullptr) const;
+struct SLATE_API FCustomizedToolMenuHierarchy
+{
+	FName GetEntrySectionName(const FName InEntryName) const;
+	bool IsEntryHidden(const FName InEntryName) const;
 
-	/* Updates re-positioning of sections and entries
-	 * Does not need to update hidden state as MultiBlocks/Widgets do not store hidden state of each entry and section themselves
-	 */
-	void UpdateFromMultiBox(const TSharedRef<const FMultiBox>& InMultiBox);
+	bool IsSectionHidden(const FName InSectionName) const;
+
+	FCustomizedToolMenu GenerateFlattened() const;
+
+	TArray<const FCustomizedToolMenu*> Hierarchy;
 };
 
 UCLASS(Abstract)
@@ -71,6 +109,12 @@ public:
 	virtual bool IsEditing() const { return false; }
 	virtual FName GetSectionName(const FName InEntryName) const { return NAME_None; }
 
+	virtual bool ContainsSection(const FName InName) const { return false; }
+	virtual bool ContainsEntry(const FName InName) const { return false; }
+
 	virtual FCustomizedToolMenu* FindMenuCustomization() const { return nullptr; }
 	virtual FCustomizedToolMenu* AddMenuCustomization() const { return nullptr; }
+	virtual FCustomizedToolMenuHierarchy GetMenuCustomizationHierarchy() const { return FCustomizedToolMenuHierarchy(); }
+	virtual void UpdateMenuCustomizationFromMultibox(const TSharedRef<const FMultiBox>& InMultiBox) {}
 };
+

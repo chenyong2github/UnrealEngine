@@ -67,7 +67,7 @@ void TPBDRigidSpringConstraints<T, d>::ApplySingle(const T Dt, int32 ConstraintI
 	{
 		const TVector<T, d> Radius = WorldSpaceX1 - PBDRigid0->P();
 		PBDRigid0->P() += PBDRigid0->InvM() * Delta;
-		PBDRigid0->Q() += TRotation<T, d>(WorldSpaceInvI1 * TVector<T, d>::CrossProduct(Radius, Delta), 0.f) * PBDRigid0->Q() * T(0.5);
+		PBDRigid0->Q() += TRotation<T, d>::FromElements(WorldSpaceInvI1 * TVector<T, d>::CrossProduct(Radius, Delta), 0.f) * PBDRigid0->Q() * T(0.5);
 		PBDRigid0->Q().Normalize();
 	}
 
@@ -75,7 +75,7 @@ void TPBDRigidSpringConstraints<T, d>::ApplySingle(const T Dt, int32 ConstraintI
 	{
 		const TVector<T, d> Radius = WorldSpaceX2 - PBDRigid1->P();
 		PBDRigid1->P() -= PBDRigid1->InvM() * Delta;
-		PBDRigid1->Q() += TRotation<T, d>(WorldSpaceInvI2 * TVector<T, d>::CrossProduct(Radius, -Delta), 0.f) * PBDRigid1->Q() * T(0.5);
+		PBDRigid1->Q() += TRotation<T, d>::FromElements(WorldSpaceInvI2 * TVector<T, d>::CrossProduct(Radius, -Delta), 0.f) * PBDRigid1->Q() * T(0.5);
 		PBDRigid1->Q().Normalize();
 	}
 }

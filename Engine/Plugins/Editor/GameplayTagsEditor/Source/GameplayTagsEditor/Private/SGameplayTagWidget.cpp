@@ -981,7 +981,7 @@ void SGameplayTagWidget::OnSearchForReferences(TSharedPtr<FGameplayTagNode> InTa
 	{
 		TArray<FAssetIdentifier> AssetIdentifiers;
 		AssetIdentifiers.Add(FAssetIdentifier(FGameplayTag::StaticStruct(), InTagNode->GetCompleteTagName()));
-		FEditorDelegates::OnOpenReferenceViewer.Broadcast(AssetIdentifiers);
+		FEditorDelegates::OnOpenReferenceViewer.Broadcast(AssetIdentifiers, FReferenceViewerParams());
 	}
 }
 

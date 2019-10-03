@@ -534,17 +534,14 @@ void FFbxExporter::ExportMatineeGroup(class AMatineeActor* MatineeActor, USkelet
 	FbxSkeletonRoots.Add(SkeletalMeshComponent, SkeletonRootNode);
 	BaseNode->AddChild(SkeletonRootNode);
 
-	FMatineeAnimTrackAdapter AnimTrackAdapter(MatineeActor);
-	ExportAnimTrack(AnimTrackAdapter, Owner, SkeletalMeshComponent);
-}
-
-void FFbxExporter::ExportAnimTrack(IAnimTrackAdapter& AnimTrackAdapter, AActor* Actor, USkeletalMeshComponent* SkeletalMeshComponent)
-{
 	static const float SamplingRate = 1.f / DEFAULT_SAMPLERATE;
 
-	float AnimationStart = AnimTrackAdapter.GetAnimationStart();
-	float AnimationLength = AnimTrackAdapter.GetAnimationLength();
-	float AnimationEnd = AnimationStart + AnimationLength;
+	FMatineeAnimTrackAdapter AnimTrackAdapter(MatineeActor);
+	ExportAnimTrack(AnimTrackAdapter, Owner, SkeletalMeshComponent, SamplingRate);
+}
+
+void FFbxExporter::ExportAnimTrack(IAnimTrackAdapter& AnimTrackAdapter, AActor* Actor, USkeletalMeshComponent* SkeletalMeshComponent, float SamplingRate)
+{
 	// show a status update every 1 second worth of samples
 	const float UpdateFrequency = 1.0f;
 	float NextUpdateTime = UpdateFrequency;
@@ -571,16 +568,23 @@ void FFbxExporter::ExportAnimTrack(IAnimTrackAdapter& AnimTrackAdapter, AActor* 
 
 	FTransform InitialInvParentTransform;
 
-	float SampleTime;
-	for(SampleTime = AnimationStart; SampleTime <= AnimationEnd; SampleTime += SamplingRate)
+	int32 LocalStartFrame = AnimTrackAdapter.GetLocalStartFrame();
+	int32 StartFrame = AnimTrackAdapter.GetStartFrame();
+	int32 AnimationLength = AnimTrackAdapter.GetLength();
+	float FrameRate = AnimTrackAdapter.GetFrameRate();
+
+	for (int32 FrameCount = 0; FrameCount <= AnimationLength; ++FrameCount)
 	{
-		if (SampleTime == AnimationStart)
+		if (FrameCount == 0)
 		{
 			InitialInvParentTransform = Actor->GetRootComponent()->GetComponentTransform().Inverse();
 		}
 
+		int32 LocalFrame = LocalStartFrame + FrameCount;
+		float SampleTime = (StartFrame + FrameCount) / FrameRate;
+
 		// This will call UpdateSkelPose on the skeletal mesh component to move bones based on animations in the matinee group
-		AnimTrackAdapter.UpdateAnimation( SampleTime );
+		AnimTrackAdapter.UpdateAnimation(LocalFrame);
 
 		// Update space bases so new animation position has an effect.
 		// @todo - hack - this will be removed at some point
@@ -593,8 +597,8 @@ void FFbxExporter::ExportAnimTrack(IAnimTrackAdapter& AnimTrackAdapter, AActor* 
 		SkeletalMeshComponent->MarkRenderTransformDirty();
 		SkeletalMeshComponent->MarkRenderDynamicDataDirty();
 
-		FbxTime ExportTime;
-		ExportTime.SetSecondDouble(SampleTime);
+		FbxTime ExportTime; 
+		ExportTime.SetSecondDouble(GetExportOptions()->bExportLocalTime ? LocalFrame / FrameRate : SampleTime);
 
 		NextUpdateTime -= SamplingRate;
 
@@ -605,6 +609,11 @@ void FFbxExporter::ExportAnimTrack(IAnimTrackAdapter& AnimTrackAdapter, AActor* 
 		}
 
 		TArray<FTransform> LocalBoneTransforms = SkeletalMeshComponent->GetBoneSpaceTransforms();
+
+		if (LocalBoneTransforms.Num() == 0)
+		{
+			continue;
+		}
 
 		// Add the animation data to the bone nodes
 		for(int32 BoneIndex = 0; BoneIndex < BoneNodes.Num(); ++BoneIndex)

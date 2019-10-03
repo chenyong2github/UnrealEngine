@@ -24,9 +24,8 @@ namespace Chaos
 	class TBox final : public TImplicitObject<T, d>
 	{
 	public:
-		IMPLICIT_OBJECT_SERIALIZER(TBox)
-
 		using TImplicitObject<T, d>::SignedDistance;
+		using TImplicitObject<T, d>::GetTypeName;
 
 		// This should never be used outside of creating a default for arrays
 		FORCEINLINE TBox()
@@ -36,6 +35,11 @@ namespace Chaos
 		    , MMin(Min)
 		    , MMax(Max)
 		{
+			//todo: turn back on
+			/*for (int Axis = 0; Axis < d; ++Axis)
+			{
+				ensure(MMin[Axis] <= MMax[Axis]);
+			}*/
 		}
 
 		FORCEINLINE TBox(const TBox<T, d>& Other)
@@ -76,6 +80,11 @@ namespace Chaos
 			return *this;
 		}
 		virtual ~TBox() {}
+
+		virtual TUniquePtr<TImplicitObject<T, d>> Copy() const override
+		{
+			return TUniquePtr<TImplicitObject<T, d>>(new TBox<T,d>(*this));
+		}
 
 		/**
 		 * Returns sample points centered about the origin.
@@ -170,10 +179,6 @@ namespace Chaos
 			{
 				for (int i = 0; i < d; ++i)
 				{
-					if (!ensure((MaxDists[i] <= 0 || MinDists[i] <= 0)))
-					{
-						return FLT_MAX;
-					}
 					if (MaxDists[i] > 0)
 					{
 						Normal[i] = MaxDists[i];
@@ -209,7 +214,7 @@ namespace Chaos
 
 		virtual bool CHAOS_API Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, d>& OutPosition, TVector<T, d>& OutNormal, int32& OutFaceIndex) const override;
 
-		bool RaycastFast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const TVector<T, d>& InvDir, const bool* bParallel, const T Length, const T InvLength, T& OutTime, TVector<T, d>& OutPosition) const
+		static bool RaycastFast(const TVector<T,d>& MMin, const TVector<T,d>& MMax, const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const TVector<T, d>& InvDir, const bool* bParallel, const T Length, const T InvLength, T& OutTime, TVector<T, d>& OutPosition)
 		{
 			const TVector<T, d> StartToMin = MMin - StartPoint;
 			const TVector<T, d> StartToMax = MMax - StartPoint;
@@ -381,7 +386,7 @@ namespace Chaos
 				ChosenPt[Axis] = Direction[Axis] < 0 ? MMin[Axis] : MMax[Axis];
 			}
 
-			if (Thickness > 0)
+			if (Thickness)
 			{
 				//We want N / ||N|| and to avoid inf
 				//So we want N / ||N|| < 1 / eps => N eps < ||N||, but this is clearly true for all eps < 1 and N > 0
@@ -426,8 +431,9 @@ namespace Chaos
 		//Grows (or shrinks) the box by this vector symmetrically - Changed name because previous Thicken had different semantics which caused several bugs
 		FORCEINLINE void ThickenSymmetrically(const TVector<T,d>& Thickness)
 		{
-			MMin -= Thickness;
-			MMax += Thickness;
+			const TVector<T,d> AbsThickness = TVector<T,d>(FGenericPlatformMath::Abs(Thickness.X), FGenericPlatformMath::Abs(Thickness.Y), FGenericPlatformMath::Abs(Thickness.Z));
+			MMin -= AbsThickness;
+			MMax += AbsThickness;
 		}
 
 		FORCEINLINE TVector<T, d> Center() const { return (MMax - MMin) / (T)2 + MMin; }
@@ -473,7 +479,7 @@ namespace Chaos
 		}
 		static TRotation<T, d> GetRotationOfMass()
 		{
-			return TRotation<T, d>(TVector<T, d>(0), 1);
+			return TRotation<T, d>::FromElements(TVector<T, d>(0), 1);
 		}
 
 		virtual FString ToString() const { return FString::Printf(TEXT("TBox Min:%s, Max:%s"), *Min().ToString(), *Max().ToString()); }
@@ -483,7 +489,11 @@ namespace Chaos
 			TImplicitObject<T, d>::SerializeImp(Ar);
 			Ar << MMin << MMax;
 		}
-		virtual void Serialize(FChaosArchive& Ar) override { SerializeImp(Ar); }
+		virtual void Serialize(FChaosArchive& Ar) override
+		{
+			FChaosArchiveScopedMemory ScopedMemory(Ar, GetTypeName());
+			SerializeImp(Ar);
+		}
 		virtual void Serialize(FArchive& Ar) override { SerializeImp(Ar); }
 
 		static TBox<T, d> EmptyBox() { return TBox<T, d>(TVector<T, d>(TNumericLimits<T>::Max()), TVector<T, d>(-TNumericLimits<T>::Max())); }

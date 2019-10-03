@@ -37,6 +37,7 @@ namespace UnrealBuildTool.Rules
                     "UnrealEd",
                     "RawMesh",
                     "MeshDescription",
+					"StaticMeshDescription",
                     "MeshUtilities",
                     "MaterialUtilities",
                     "PropertyEditor",

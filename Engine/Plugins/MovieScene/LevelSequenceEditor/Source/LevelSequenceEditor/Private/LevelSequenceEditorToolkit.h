@@ -17,7 +17,7 @@ struct FFrameNumber;
 class AActor;
 class FMenuBuilder;
 class FToolBarBuilder;
-class ILevelViewport;
+class IAssetViewport;
 class ISequencer;
 class UActorComponent;
 class ULevelSequence;

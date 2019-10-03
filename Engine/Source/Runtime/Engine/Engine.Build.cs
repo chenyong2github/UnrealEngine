@@ -81,6 +81,7 @@ public class Engine : ModuleRules
 				"PacketHandler",
 				"AudioPlatformConfiguration",
 				"MeshDescription",
+				"StaticMeshDescription",
 				"PakFile",
                 "NetworkReplayStreaming",
 				"PhysicsCore",
@@ -372,15 +373,12 @@ public class Engine : ModuleRules
 			DynamicallyLoadedModuleNames.Add("PhysXCooking");
 		}
 
-		if (Target.bCompileChaos || Target.bUseChaos)
-        {
-            PublicDependencyModuleNames.AddRange(
-				new string[] {
-					"PhysicsSQ",
-					"ChaosSolvers"
-				}
-			);
-        }
+        PublicDependencyModuleNames.AddRange(
+			new string[] {
+				"PhysicsSQ",
+				"ChaosSolvers"
+			}
+		);
 
         // Engine public headers need to know about some types (enums etc.)
         PublicIncludePathModuleNames.Add("ClothingSystemRuntimeInterface");

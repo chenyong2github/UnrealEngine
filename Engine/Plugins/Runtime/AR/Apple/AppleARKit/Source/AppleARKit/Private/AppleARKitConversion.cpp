@@ -405,17 +405,25 @@ ARConfiguration* FAppleARKitConversion::ToARConfiguration( UARSessionConfig* Ses
 		default:
 			return nullptr;
 	}
+	
 	if (SessionConfiguration != nullptr)
 	{
 		// Copy / convert properties
 		SessionConfiguration.lightEstimationEnabled = SessionConfig->GetLightEstimationMode() != EARLightEstimationMode::None;
 		SessionConfiguration.providesAudioData = NO;
 		SessionConfiguration.worldAlignment = FAppleARKitConversion::ToARWorldAlignment(SessionConfig->GetWorldAlignment());
-		
+	}
+	
+	return SessionConfiguration;
+}
+
+void FAppleARKitConversion::ConfigureSessionTrackingFeatures(UARSessionConfig* SessionConfig, ARConfiguration* SessionConfiguration)
+{
 #if SUPPORTS_ARKIT_3_0
 		// Enable additional frame semantics for ARKit 3.0
 		if (FAppleARKitAvailability::SupportsARKit30())
 		{
+			EARSessionType SessionType = SessionConfig->GetSessionType();
 			const EARSessionTrackingFeature SessionTrackingFeature = SessionConfig->GetEnabledSessionTrackingFeature();
 			if (SessionTrackingFeature != EARSessionTrackingFeature::None)
 			{
@@ -432,9 +440,6 @@ ARConfiguration* FAppleARKitConversion::ToARConfiguration( UARSessionConfig* Ses
 			}
 		}
 #endif
-	}
-	
-	return SessionConfiguration;
 }
 
 bool FAppleARKitConversion::IsSessionTrackingFeatureSupported(EARSessionType SessionType, EARSessionTrackingFeature SessionTrackingFeature)

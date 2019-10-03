@@ -15,10 +15,7 @@
 #include "Modules/ModuleManager.h"
 #include "PhysicsInitialization.h"
 #include "PhysicsEngine/PhysicsSettings.h"
-
-#if INCLUDE_CHAOS
 #include "ChaosSolversModule.h"
-#endif
 
 #if WITH_PHYSX
 	#include "PhysicsEngine/PhysXSupport.h"
@@ -41,7 +38,6 @@ FPhysicsDelegates::FOnPhysSceneInit FPhysicsDelegates::OnPhysSceneInit;
 FPhysicsDelegates::FOnPhysSceneTerm FPhysicsDelegates::OnPhysSceneTerm;
 FPhysicsDelegates::FOnPhysDispatchNotifications FPhysicsDelegates::OnPhysDispatchNotifications;
 
-#if INCLUDE_CHAOS
 /**
  *  Chaos is external to engine but utilizes IChaosSettingsProvider to take settings
  *  From external callers, this implementation allows Chaos to request settings from
@@ -96,8 +92,6 @@ private:
 };
 
 static FEngineChaosSettingsProvider GEngineChaosSettingsProvider;
-
-#endif
 
 //////////////////////////////////////////////////////////////////////////
 // UWORLD
@@ -258,7 +252,6 @@ FName FEndPhysicsTickFunction::DiagnosticContext(bool bDetailed)
 //////// GAME-LEVEL RIGID BODY PHYSICS STUFF ///////
 void PostEngineInitialize()
 {
-#if INCLUDE_CHAOS
 	FChaosSolversModule* ChaosModule = FChaosSolversModule::GetModule();
 
 	if(ChaosModule)
@@ -268,7 +261,6 @@ void PostEngineInitialize()
 		ChaosModule->SetSettingsProvider(&GEngineChaosSettingsProvider);
 		ChaosModule->OnSettingsChanged();
 	}
-#endif
 }
 
 bool InitGamePhys()

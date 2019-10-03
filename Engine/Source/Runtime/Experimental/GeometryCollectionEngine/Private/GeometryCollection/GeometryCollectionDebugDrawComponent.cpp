@@ -8,11 +8,10 @@
 #include "GeometryCollection/GeometryCollectionObject.h"
 #include "GeometryCollection/GeometryCollectionDebugDrawActor.h"
 #include "GeometryCollection/GeometryCollection.h"
-#if INCLUDE_CHAOS
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
-#endif  // #if INCLUDE_CHAOS
 #endif  // #if GEOMETRYCOLLECTION_DEBUG_DRAW
 #include "HAL/IConsoleManager.h"
+#include "PBDRigidsSolver.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGeometryCollectionDebugDraw, Log, All);
 
@@ -26,9 +25,7 @@ UGeometryCollectionDebugDrawComponent::UGeometryCollectionDebugDrawComponent(con
 	, GeometryCollectionRenderLevelSetActor(nullptr)
 	, GeometryCollectionComponent(nullptr)
 #if GEOMETRYCOLLECTION_DEBUG_DRAW
-#if INCLUDE_CHAOS
 	, ParticlesData()
-#endif  // #if INCLUDE_CHAOS
 	, ParentCheckSum(0)
 	, SelectedRigidBodyId(INDEX_NONE)
 	, SelectedTransformIndex(INDEX_NONE)
@@ -77,10 +74,8 @@ void UGeometryCollectionDebugDrawComponent::BeginPlay()
 		// Update the visibility and tick status depending on the debug draw properties currently selected
 		OnDebugDrawPropertiesChanged(false);
 
-#if INCLUDE_CHAOS
 		// Find or create level set renderer
 		GeometryCollectionRenderLevelSetActor = AGeometryCollectionRenderLevelSetActor::FindOrCreate(GetWorld());
-#endif  // #if INCLUDE_CHAOS
 	}
 #endif  // #if GEOMETRYCOLLECTION_DEBUG_DRAW
 }
@@ -122,13 +117,11 @@ void UGeometryCollectionDebugDrawComponent::TickComponent(float DeltaTime, enum 
 			// Debug draw collection
 			DebugDrawTick();
 
-#if INCLUDE_CHAOS
 			if (GeometryCollectionRenderLevelSetActor)
 			{
 				// Debug draw solver infos for this collection
 				DebugDrawChaosTick();
 			}
-#endif  // #if INCLUDE_CHAOS
 
 			// Detect breaking by tracking changes in parents so that the geometry visibility can be updated if required
 			// Note: The GeometryCollectionComponent breaking callback is unsuitable for this purpose as it notifies changes before any array gets updated.
@@ -170,10 +163,8 @@ bool UGeometryCollectionDebugDrawComponent::OnDebugDrawPropertiesChanged(bool bF
 		// Update geometry visibility
 		UpdateGeometryVisibility(bForceVisibilityUpdate);
 
-#if INCLUDE_CHAOS
 		// Turn off level set rendering when required
 		UpdateLevelSetVisibility();
-#endif  // #if INCLUDE_CHAOS
 
 		// Update tick function
 		UpdateTickStatus();
@@ -193,10 +184,8 @@ void UGeometryCollectionDebugDrawComponent::OnClusterChanged()
 		// Update geometry visibility
 		UpdateGeometryVisibility(true);  // Force visibility update
 
-#if INCLUDE_CHAOS
 		// Turn off level set rendering when required
 		UpdateLevelSetVisibility();
-#endif  // #if INCLUDE_CHAOS
 	}
 }
 
@@ -720,7 +709,6 @@ void UGeometryCollectionDebugDrawComponent::UpdateTickStatus()
 	UE_CLOG(GetOwner(), LogGeometryCollectionDebugDraw, Verbose, TEXT("Debug Draw Tick Component bIsEnabled = %d for actor %s"), bIsEnabled, *GetOwner()->GetName());
 }
 
-#if INCLUDE_CHAOS
 void UGeometryCollectionDebugDrawComponent::DebugDrawChaosTick()
 {
 	check(GeometryCollectionComponent);
@@ -891,5 +879,4 @@ void UGeometryCollectionDebugDrawComponent::UpdateLevelSetVisibility()
 		LastRenderedId = INDEX_NONE;
 	}
 }
-#endif  // #if INCLUDE_CHAOS
 #endif  // #if GEOMETRYCOLLECTION_DEBUG_DRAW

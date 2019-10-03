@@ -145,9 +145,12 @@ public:
 				TArray<UObject*> Objects;
 				Objects.Add(DefaultValueObject);
 
-				TOptional<bool> bAllowChildrenOverride(true);
-				TOptional<bool> bCreateCategoryNodesOverride(false);
-				Row = ChildrenBuilder.AddExternalObjectProperty(Objects, NAME_None, Parameter.GetName(), bAllowChildrenOverride, bCreateCategoryNodesOverride); 
+				FAddPropertyParams Params = FAddPropertyParams()
+					.UniqueId(Parameter.GetName())
+					.AllowChildren(true)
+					.CreateCategoryNodes(false);
+
+				Row = ChildrenBuilder.AddExternalObjectProperty(Objects, NAME_None, Params); 
 
 				CustomValueWidget =
 					SNew(STextBlock)
@@ -164,9 +167,12 @@ public:
 
 				//How do I set this up so I can have this pick actors from the level?
 
-				TOptional<bool> bAllowChildrenOverride(true);
-				TOptional<bool> bCreateCategoryNodesOverride(false);
-				Row = ChildrenBuilder.AddExternalObjectProperty(Objects, NAME_None, Parameter.GetName(), bAllowChildrenOverride, bCreateCategoryNodesOverride);
+				FAddPropertyParams Params = FAddPropertyParams()
+					.UniqueId(Parameter.GetName())
+					.AllowChildren(true)
+					.CreateCategoryNodes(false);
+
+				Row = ChildrenBuilder.AddExternalObjectProperty(Objects, NAME_None, Params);
 
 				//How do I make this an object picker from the level editor?
 				//Neither of these seem to work well.
@@ -206,7 +212,8 @@ public:
 			else
 			{
 				TSharedPtr<FStructOnScope> StructOnScope = MakeShareable(new FStructOnScope(Parameter.GetType().GetStruct(), (uint8*)ParamStore.GetParameterData(Parameter)));
-				Row = ChildrenBuilder.AddExternalStructureProperty(StructOnScope.ToSharedRef(), NAME_None, Parameter.GetName());
+
+				Row = ChildrenBuilder.AddExternalStructureProperty(StructOnScope.ToSharedRef(), NAME_None, FAddPropertyParams().UniqueId(Parameter.GetName()));
 
 			}
 

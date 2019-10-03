@@ -5,11 +5,12 @@
 #include "CoreMinimal.h"
 #include "PhysicsInterfaceDeclaresCore.h"
 
-#if INCLUDE_CHAOS
+#include "Chaos/ChaosArchive.h"
 #include "Chaos/PBDRigidsEvolutionGBF.h"
 #include "Chaos/ParticleHandle.h"
-#endif
 #include "SQCapture.h"
+#include "Serialization/MemoryReader.h"
+#include "Serialization/CustomVersion.h"
 
 #ifndef PHYS_TEST_SERIALIZER
 #define PHYS_TEST_SERIALIZER 1
@@ -34,6 +35,8 @@ namespace Chaos
 {
 	template <typename, int>
 	class TPBDRigidsEvolutionGBF;
+
+	class FChaosArchive;
 }
 
 class PHYSICSCORE_API FPhysTestSerializer
@@ -45,12 +48,17 @@ public:
 	FPhysTestSerializer& operator=(const FPhysTestSerializer&) = delete;
 	FPhysTestSerializer& operator=(FPhysTestSerializer&&) = delete;
 
-	void Serialize(FArchive& Ar);
+	void Serialize(Chaos::FChaosArchive& Ar);
 	void Serialize(const TCHAR* FilePrefix);
 
 	//Set the data from an external source. This will obliterate any existing data. Make sure you are not holding on to old internal data as it will go away
 	void SetPhysicsData(Chaos::TPBDRigidsEvolutionGBF<float, 3>& ChaosEvolution);
 	void SetPhysicsData(physx::PxScene& Scene);
+
+	const Chaos::FChaosArchiveContext* GetChaosContext() const
+	{
+		return ChaosContext.Get();
+	}
 
 	FSQCapture& CaptureSQ()
 	{
@@ -69,42 +77,42 @@ public:
 			SQCapture->CreatePhysXData();
 #endif
 
-#if INCLUDE_CHAOS
 			GetChaosData();
 #if WITH_PHYSX
-			SQCapture->CreateChaosData();
-#endif
+			SQCapture->CreateChaosDataFromPhysX();
 #endif
 		}
 		return SQCapture.Get();
 	}
 
-#if INCLUDE_CHAOS
 	Chaos::TPBDRigidsEvolutionGBF<float, 3>* GetChaosData()
 	{
 		if (!bChaosDataReady)
 		{
+			ensure(!bDiskDataIsChaos);
+			//only supported for physx to chaos - don't have serialization context
 			CreateChaosData();
 		}
 		return ChaosEvolution.Get();
 	}
-#endif
 
 #if WITH_PHYSX
 	physx::PxScene* GetPhysXData()
 	{
-		if (!AlignedDataHelper)
+		if (!bDiskDataIsChaos)	//don't support chaos to physx
 		{
-			CreatePhysXData();
-		}
+			if (!AlignedDataHelper)
+			{
+				CreatePhysXData();
+			}
 
-		return AlignedDataHelper->PhysXScene;
+			return AlignedDataHelper->PhysXScene;
+		}
+		return nullptr;
 	}
 
 	physx::PxBase* FindObject(uint64 Id);
-#endif
 
-#if WITH_PHYSX && INCLUDE_CHAOS
 	Chaos::TGeometryParticle<float,3>* PhysXActorToChaosHandle(physx::PxActor* Actor) const { return PxActorToChaosHandle.FindChecked(Actor)->GTGeometryParticle(); }
 	Chaos::TPerShapeData<float,3>* PhysXShapeToChaosImplicit(physx::PxShape* Shape) const { return PxShapeToChaosShapes.FindRef(Shape); }
 #endif
@@ -122,11 +130,13 @@ private:
 
 	TUniquePtr<FSQCapture> SQCapture;
 
-#if INCLUDE_CHAOS
 	TUniquePtr<Chaos::TPBDRigidsEvolutionGBF<float, 3>> ChaosEvolution;
 	Chaos::TPBDRigidsSOAs<float, 3> Particles;
 	TArray <TUniquePtr<Chaos::TGeometryParticle<float, 3>>> GTParticles;
-#endif
+
+	TUniquePtr<Chaos::FChaosArchiveContext> ChaosContext;
+
+	FCustomVersionContainer ArchiveVersion;
 
 #if WITH_PHYSX
 	struct FPhysXSerializerData
@@ -146,7 +156,7 @@ private:
 	TUniquePtr<FPhysXSerializerData> AlignedDataHelper;
 #endif
 
-#if WITH_PHYSX && INCLUDE_CHAOS
+#if WITH_PHYSX
 	TMap<physx::PxActor*, Chaos::TGeometryParticleHandle<float, 3>*> PxActorToChaosHandle;
 	TMap<physx::PxShape*, Chaos::TPerShapeData<float, 3>*> PxShapeToChaosShapes;
 #endif

@@ -62,8 +62,14 @@ struct FCollectionItem
 	/** If true, this item will be created the next time it is renamed */
 	bool bNewCollection;
 
+	/** The number of objects in this collection (static collections only) */
+	int32 NumObjects;
+
 	/** Current status of this collection item */
 	ECollectionItemStatus CurrentStatus;
+
+	/** The color of the collection */
+	FLinearColor CollectionColor;
 
 	/** Called once after the collection is created (see bNewCollection) */
 	DECLARE_DELEGATE_OneParam( FCollectionCreatedEvent, FCollectionNameType )
@@ -86,6 +92,8 @@ struct FCollectionItem
 		, ChildCollections()
 		, bRenaming(false)
 		, bNewCollection(false)
+		, NumObjects(0)
 		, CurrentStatus(ECollectionItemStatus::IsUpToDateAndEmpty)
+		, CollectionColor(FLinearColor::White)
 	{}
 };

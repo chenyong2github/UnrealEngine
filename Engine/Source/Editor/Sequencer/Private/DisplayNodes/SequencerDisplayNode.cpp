@@ -446,6 +446,12 @@ void FSequencerDisplayNode::SetParent(TSharedPtr<FSequencerDisplayNode> InParent
 			}
 
 			bExpanded = ParentTree.GetSavedExpansionState( *this );
+
+			if (InParent != ParentTree.GetRootNode())
+			{
+				bPinned = false;
+				ParentTree.SavePinnedState(*this, false);
+			}
 		}
 	}
 
@@ -479,6 +485,10 @@ void FSequencerDisplayNode::OnTreeRefreshed(float InVirtualTop, float InVirtualB
 	{
 		// Assign the saved expansion state when this node is initialized for the first time
 		bExpanded = ParentTree.GetSavedExpansionState( *this );
+		if (IsRootNode())
+		{
+			bPinned = ParentTree.GetSavedPinnedState(*this);
+		}
 	}
 
 	VirtualTop = InVirtualTop;
@@ -632,14 +642,14 @@ bool FSequencerDisplayNode::TraverseVisible_ParentFirst(const TFunctionRef<bool(
 	return true;
 }
 
-FLinearColor FSequencerDisplayNode::GetDisplayNameColor() const
+bool FSequencerDisplayNode::IsDimmed() const
 {
 	auto FindInActiveSection = [](FSequencerDisplayNode& InNode, bool EmptyNotActive = true)
 	{
 		if (InNode.GetType() == ESequencerNode::KeyArea)
 		{
 			const FSequencerSectionKeyAreaNode& KeyAreaNode = static_cast<FSequencerSectionKeyAreaNode&>(InNode);
-			auto KeyAreaNodes=  KeyAreaNode.GetAllKeyAreas();
+			auto KeyAreaNodes = KeyAreaNode.GetAllKeyAreas();
 			if (KeyAreaNodes.Num() > 0)
 			{
 				for (const TSharedRef<IKeyArea>& KeyArea : KeyAreaNodes)
@@ -705,7 +715,7 @@ FLinearColor FSequencerDisplayNode::GetDisplayNameColor() const
 	//find first child with active section, then it's active, else inactive.
 	bool bDimLabel = ChildNodes.Num() > 0 ? This->Traverse_ParentFirst(FindInActiveSection) :
 		((this->GetType() == ESequencerNode::Track || this->GetType() == ESequencerNode::KeyArea) && FindInActiveSection(*(This), false))
-		||false;
+		|| false;
 
 	if (!bDimLabel)
 	{
@@ -725,10 +735,14 @@ FLinearColor FSequencerDisplayNode::GetDisplayNameColor() const
 				bDimLabel = true;
 			}
 		}
-
 	}
 
-	return bDimLabel ? FLinearColor(0.6f, 0.6f, 0.6f, 0.6f) : FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+	return bDimLabel;
+}
+
+FLinearColor FSequencerDisplayNode::GetDisplayNameColor() const
+{
+	return IsDimmed() ? FLinearColor(0.6f, 0.6f, 0.6f, 0.6f) : FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
 FText FSequencerDisplayNode::GetDisplayNameToolTipText() const
@@ -778,7 +792,7 @@ const FSlateBrush* FSequencerDisplayNode::GetIconOverlayBrush() const
 
 FSlateColor FSequencerDisplayNode::GetIconColor() const
 {
-	return FSlateColor( FLinearColor::White );
+	return GetDisplayNameColor();
 }
 
 FText FSequencerDisplayNode::GetIconToolTipText() const
@@ -1189,7 +1203,10 @@ void FSequencerDisplayNode::TogglePinned()
 	FSequencerDisplayNode* BaseNode = GetBaseNode();
 	bool bShouldPin = !BaseNode->bPinned;
 	ParentTree.UnpinAllNodes();
+
 	BaseNode->bPinned = bShouldPin;
+	ParentTree.SavePinnedState(*this, bShouldPin);
+	
 	ParentTree.GetSequencer().RefreshTree();
 }
 
@@ -1199,6 +1216,8 @@ void FSequencerDisplayNode::Unpin()
 	if (BaseNode->bPinned)
 	{
 		BaseNode->bPinned = false;
+		ParentTree.SavePinnedState(*this, false);
+	
 		ParentTree.GetSequencer().RefreshTree();
 	}
 }

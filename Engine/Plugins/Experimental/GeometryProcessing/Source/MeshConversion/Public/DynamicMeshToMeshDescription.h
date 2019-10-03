@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "DynamicMesh3.h"
 #include "MeshDescription.h"
+#include "MeshConversionOptions.h"
 
 /**
  * Convert FDynamicMesh3 to FMeshDescription
@@ -16,8 +17,16 @@ public:
 	/** If true, will print some possibly-helpful debugging spew to output log */
 	bool bPrintDebugMessages = false;
 
-	/** Should DynamicMesh triangle groups be transfered to MeshDescription via custom PolyTriGroups attribute */
-	bool bSetPolyGroups = true;
+	/** General settings for conversions to mesh description */
+	FConversionToMeshDescriptionOptions ConversionOptions;
+
+	FDynamicMeshToMeshDescription()
+	{
+	}
+
+	FDynamicMeshToMeshDescription(FConversionToMeshDescriptionOptions ConversionOptions) : ConversionOptions(ConversionOptions)
+	{
+	}
 
 	/**
 	 * Default conversion of DynamicMesh to MeshDescription. Calls functions below depending on mesh state
@@ -27,9 +36,9 @@ public:
 
 	/**
 	 * Update existing MeshDescription based on DynamicMesh. Assumes mesh topology has not changed.
-	 * Copies positions, recalculates MeshDescription normals if bRecomputeNormals is true (copies otherwise).
+	 * Copies positions and normals; does not update UVs
 	 */
-	void Update(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut, bool bRecomputeNormals = true);
+	void Update(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut);
 
 
 	/**

@@ -17,6 +17,8 @@
 #include "Debugging/SlateDebugging.h"
 #include "Widgets/SWindow.h"
 #include "Types/ReflectionMetadata.h"
+#include "Misc/ScopeRWLock.h"
+#include "HAL/CriticalSection.h"
 
 #if WITH_ACCESSIBILITY
 #include "Widgets/Accessibility/SlateCoreAccessibleWidgets.h"
@@ -33,6 +35,50 @@ DEFINE_STAT(STAT_SlatePrepass);
 DEFINE_STAT(STAT_SlateTotalWidgets);
 DEFINE_STAT(STAT_SlateSWidgetAllocSize);
 
+template <typename AnnotationType>
+class TWidgetSparseAnnotation
+{
+public:
+	const AnnotationType* Find(const SWidget* Widget)
+	{
+		FRWScopeLock Lock(RWLock, SLT_ReadOnly);
+		return AnnotationMap.Find(Widget);
+	}
+
+	AnnotationType& FindOrAdd(const SWidget* Widget)
+	{
+		FRWScopeLock Lock(RWLock, SLT_Write);
+		return AnnotationMap.FindOrAdd(Widget);
+	}
+
+	void Add(const SWidget* Widget, const AnnotationType& Type)
+	{
+		FRWScopeLock Lock(RWLock, SLT_Write);
+		AnnotationMap.Add(Widget, Type);
+	}
+
+	void Remove(const SWidget* Widget)
+	{
+		FRWScopeLock Lock(RWLock, SLT_Write);
+		AnnotationMap.Remove(Widget);
+	}
+private:
+	TMap<const SWidget*, AnnotationType> AnnotationMap;
+	FRWLock RWLock;
+};
+
+#if WITH_ACCESSIBILITY
+TWidgetSparseAnnotation<TAttribute<FText>> AccessibleText;
+TWidgetSparseAnnotation<TAttribute<FText>> AccessibleSummaryText;
+#endif
+
+static void ClearSparseAnnotationsForWidget(const SWidget* Widget)
+{
+#if WITH_ACCESSIBILITY
+	AccessibleText.Remove(Widget);
+	AccessibleSummaryText.Remove(Widget);
+#endif
+}
 
 #if SLATE_CULL_WIDGETS
 
@@ -158,6 +204,11 @@ SWidget::SWidget()
 	, bUpdatingDesiredSize(false)
 	, bHasCustomPrepass(false)
 	, bVolatilityAlwaysInvalidatesPrepass(false)
+#if WITH_ACCESSIBILITY
+	, bCanChildrenBeAccessible(true)
+	, AccessibleBehavior(EAccessibleBehavior::NotAccessible)
+	, AccessibleSummaryBehavior(EAccessibleBehavior::Auto)
+#endif
 	, Clipping(EWidgetClipping::Inherit)
 	, FlowDirectionPreference(EFlowDirectionPreference::Inherit)
 	// Note we are defaulting to tick for backwards compatibility
@@ -207,6 +258,8 @@ SWidget::~SWidget()
 #if WITH_ACCESSIBILITY
 		FSlateApplicationBase::Get().GetAccessibleMessageHandler()->OnWidgetRemoved(this);
 #endif
+		// Only clear if initialized because SNullWidget's destructor may be called after annotations are deleted
+		ClearSparseAnnotationsForWidget(this);
 	}
 
 	DEC_DWORD_STAT(STAT_SlateTotalWidgets);
@@ -265,14 +318,6 @@ void SWidget::Construct(
 		// If custom text is provided, force behavior to custom. Otherwise, use the passed-in behavior and set their default text.
 		SetAccessibleBehavior(InAccessibleData->AccessibleText.IsSet() ? EAccessibleBehavior::Custom : InAccessibleData->AccessibleBehavior, InAccessibleData->AccessibleText, EAccessibleType::Main);
 		SetAccessibleBehavior(InAccessibleData->AccessibleSummaryText.IsSet() ? EAccessibleBehavior::Custom : InAccessibleData->AccessibleSummaryBehavior, InAccessibleData->AccessibleSummaryText, EAccessibleType::Summary);
-	}
-	if (AccessibleData.AccessibleBehavior != EAccessibleBehavior::Custom)
-	{
-		SetDefaultAccessibleText(EAccessibleType::Main);
-	}
-	if (AccessibleData.AccessibleSummaryBehavior != EAccessibleBehavior::Custom)
-	{
-		SetDefaultAccessibleText(EAccessibleType::Summary);
 	}
 #endif
 }
@@ -1550,19 +1595,21 @@ TSharedRef<FSlateAccessibleWidget> SWidget::CreateAccessibleWidget()
 
 void SWidget::SetAccessibleBehavior(EAccessibleBehavior InBehavior, const TAttribute<FText>& InText, EAccessibleType AccessibleType)
 {
-	EAccessibleBehavior& Behavior = (AccessibleType == EAccessibleType::Main) ? AccessibleData.AccessibleBehavior : AccessibleData.AccessibleSummaryBehavior;
+	EAccessibleBehavior& Behavior = (AccessibleType == EAccessibleType::Main) ? AccessibleBehavior : AccessibleSummaryBehavior;
+
+	if (InBehavior == EAccessibleBehavior::Custom)
+	{
+		TWidgetSparseAnnotation<TAttribute<FText>>& AccessibleTextAnnotation = (AccessibleType == EAccessibleType::Main) ? AccessibleText : AccessibleSummaryText;
+		AccessibleTextAnnotation.FindOrAdd(this) = InText;
+	}
+	else if (Behavior == EAccessibleBehavior::Custom)
+	{
+		TWidgetSparseAnnotation<TAttribute<FText>>& AccessibleTextAnnotation = (AccessibleType == EAccessibleType::Main) ? AccessibleText : AccessibleSummaryText;
+		AccessibleTextAnnotation.Remove(this);
+	}
+
 	if (Behavior != InBehavior)
 	{
-		// If switching off of custom, revert back to default text
-		if (Behavior == EAccessibleBehavior::Custom)
-		{
-			SetDefaultAccessibleText(AccessibleType);
-		}
-		else if (InBehavior == EAccessibleBehavior::Custom)
-		{
-			TAttribute<FText>& Text = (AccessibleType == EAccessibleType::Main) ? AccessibleData.AccessibleText : AccessibleData.AccessibleSummaryText;
-			Text = InText;
-		}
 		const bool bWasAccessible = Behavior != EAccessibleBehavior::NotAccessible;
 		Behavior = InBehavior;
 		if (AccessibleType == EAccessibleType::Main && bWasAccessible != (Behavior != EAccessibleBehavior::NotAccessible))
@@ -1574,30 +1621,25 @@ void SWidget::SetAccessibleBehavior(EAccessibleBehavior InBehavior, const TAttri
 
 void SWidget::SetCanChildrenBeAccessible(bool InCanChildrenBeAccessible)
 {
-	if (AccessibleData.bCanChildrenBeAccessible != InCanChildrenBeAccessible)
+	if (bCanChildrenBeAccessible != InCanChildrenBeAccessible)
 	{
-		AccessibleData.bCanChildrenBeAccessible = InCanChildrenBeAccessible;
+		bCanChildrenBeAccessible = InCanChildrenBeAccessible;
 		FSlateApplicationBase::Get().GetAccessibleMessageHandler()->MarkDirty();
 	}
 }
 
-void SWidget::SetDefaultAccessibleText(EAccessibleType AccessibleType)
-{
-	TAttribute<FText>& Text = (AccessibleType == EAccessibleType::Main) ? AccessibleData.AccessibleText : AccessibleData.AccessibleSummaryText;
-	Text = TAttribute<FText>();
-}
-
 FText SWidget::GetAccessibleText(EAccessibleType AccessibleType) const
 {
-	const EAccessibleBehavior Behavior = (AccessibleType == EAccessibleType::Main) ? AccessibleData.AccessibleBehavior : AccessibleData.AccessibleSummaryBehavior;
-	const EAccessibleBehavior OtherBehavior = (AccessibleType == EAccessibleType::Main) ? AccessibleData.AccessibleSummaryBehavior : AccessibleData.AccessibleBehavior;
-	const TAttribute<FText>& Text = (AccessibleType == EAccessibleType::Main) ? AccessibleData.AccessibleText : AccessibleData.AccessibleSummaryText;
-	const TAttribute<FText>& OtherText = (AccessibleType == EAccessibleType::Main) ? AccessibleData.AccessibleSummaryText : AccessibleData.AccessibleText;
+	const EAccessibleBehavior Behavior = (AccessibleType == EAccessibleType::Main) ? AccessibleBehavior : AccessibleSummaryBehavior;
+	const EAccessibleBehavior OtherBehavior = (AccessibleType == EAccessibleType::Main) ? AccessibleSummaryBehavior : AccessibleBehavior;
 
 	switch (Behavior)
 	{
 	case EAccessibleBehavior::Custom:
-		return Text.Get(FText::GetEmpty());
+	{
+		const TAttribute<FText>* Text = (AccessibleType == EAccessibleType::Main) ? AccessibleText.Find(this) : AccessibleSummaryText.Find(this);
+		return Text->Get(FText::GetEmpty());
+	}
 	case EAccessibleBehavior::Summary:
 		return GetAccessibleSummary();
 	case EAccessibleBehavior::ToolTip:
@@ -1611,9 +1653,10 @@ FText SWidget::GetAccessibleText(EAccessibleType AccessibleType) const
 		// used instead in that case - however, this will be used for widgets with special default text such as TextBlocks.
 		// If no text is found, then it will attempt to use the other variable's text, so that a developer can do things like
 		// leave Summary on Auto, set Main to Custom, and have Summary automatically use Main's value without having to re-type it.
-		if (Text.IsSet())
+		TOptional<FText> DefaultText = GetDefaultAccessibleText(AccessibleType);
+		if (DefaultText.IsSet())
 		{
-			return Text.Get(FText::GetEmpty());
+			return DefaultText.GetValue();
 		}
 		switch (OtherBehavior)
 		{
@@ -1627,6 +1670,11 @@ FText SWidget::GetAccessibleText(EAccessibleType AccessibleType) const
 		break;
 	}
 	return FText::GetEmpty();
+}
+
+TOptional<FText> SWidget::GetDefaultAccessibleText(EAccessibleType AccessibleType) const
+{
+	return TOptional<FText>();
 }
 
 FText SWidget::GetAccessibleSummary() const
@@ -1649,7 +1697,7 @@ FText SWidget::GetAccessibleSummary() const
 
 bool SWidget::IsAccessible() const
 {
-	if (AccessibleData.AccessibleBehavior == EAccessibleBehavior::NotAccessible)
+	if (AccessibleBehavior == EAccessibleBehavior::NotAccessible)
 	{
 		return false;
 	}
@@ -1668,12 +1716,12 @@ bool SWidget::IsAccessible() const
 
 EAccessibleBehavior SWidget::GetAccessibleBehavior(EAccessibleType AccessibleType) const
 {
-	return AccessibleType == EAccessibleType::Main ? AccessibleData.AccessibleBehavior : AccessibleData.AccessibleSummaryBehavior;
+	return AccessibleType == EAccessibleType::Main ? AccessibleBehavior : AccessibleSummaryBehavior;
 }
 
 bool SWidget::CanChildrenBeAccessible() const
 {
-	return AccessibleData.bCanChildrenBeAccessible;
+	return bCanChildrenBeAccessible;
 }
 
 #endif
