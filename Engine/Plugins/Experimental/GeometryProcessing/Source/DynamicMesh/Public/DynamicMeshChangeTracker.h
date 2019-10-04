@@ -38,7 +38,7 @@
  * on its own (see comments in ApplyReplaceChange)
  */
 template<typename RealType, int ElementSize>
-class DYNAMICMESH_API TDynamicMeshAttributeChange
+class TDynamicMeshAttributeChange
 {
 public:
 	void SaveInitialElement(const TDynamicMeshOverlay<RealType,ElementSize>* Overlay, int ElementID);
@@ -95,7 +95,7 @@ public:
 	TArray<FDynamicMeshUVChange> UVChanges;
 	TArray<FDynamicMeshNormalChange> NormalChanges;
 	TOptional<FDynamicMeshTriangleAttributeChange<int32, 1>> MaterialIDAttribChange;
-	TArray<TUniquePtr<FDynamicAttributeChangeBase>> RegisteredAttributeChanges;
+	TArray<TUniquePtr<FDynamicMeshAttributeChangeBase>> RegisteredAttributeChanges;
 
 	/** call ::Apply() on all the UV and Normal changes */
 	bool Apply(FDynamicMeshAttributeSet* Attributes, bool bRevert) const;

@@ -24,7 +24,7 @@ typedef TDynamicMeshTriangleAttribute<int32, 1> FDynamicMeshMaterialAttribute;
  * 
  * @todo current internal structure is a work-in-progress
  */
-class DYNAMICMESH_API FDynamicMeshAttributeSet : public FDynamicAttributeSetBase
+class DYNAMICMESH_API FDynamicMeshAttributeSet : public FDynamicMeshAttributeSetBase
 {
 public:
 
@@ -58,7 +58,7 @@ public:
 		ResetRegisteredAttributes();
 		for (int Idx = 0; Idx < Copy.GenericAttributes.Num(); Idx++)
 		{
-			const FDynamicAttributeBase* SourceAttrib = Copy.GenericAttributes[Idx].Get();
+			const FDynamicMeshAttributeBase* SourceAttrib = Copy.GenericAttributes[Idx].Get();
 			AttachAttribute(SourceAttrib->MakeCopy(ParentMesh));
 		}
 
@@ -197,14 +197,14 @@ public:
 	}
 
 	// Attach a new attribute (and transfer ownership of it to the attribute set)
-	int AttachAttribute(FDynamicAttributeBase* Attribute)
+	int AttachAttribute(FDynamicMeshAttributeBase* Attribute)
 	{
-		int AttributeID = GenericAttributes.Add(TUniquePtr<FDynamicAttributeBase>(Attribute));
+		int AttributeID = GenericAttributes.Add(TUniquePtr<FDynamicMeshAttributeBase>(Attribute));
 		RegisterExternalAttribute(Attribute);
 		return AttributeID;
 	}
 
-	FDynamicAttributeBase* GetAttachedAttribute(int AttributeID)
+	FDynamicMeshAttributeBase* GetAttachedAttribute(int AttributeID)
 	{
 		return GenericAttributes[AttributeID].Get();
 	}
@@ -226,7 +226,7 @@ protected:
 
 	TUniquePtr<FDynamicMeshMaterialAttribute> MaterialIDAttrib;
 
-	TArray<TUniquePtr<FDynamicAttributeBase>> GenericAttributes;
+	TArray<TUniquePtr<FDynamicMeshAttributeBase>> GenericAttributes;
 
 protected:
 	friend class FDynamicMesh3;
@@ -265,7 +265,7 @@ protected:
 	 */
 	virtual bool CheckValidity(bool bAllowNonmanifold, EValidityCheckFailMode FailMode) const
 	{
-		bool bValid = FDynamicAttributeSetBase::CheckValidity(bAllowNonmanifold, FailMode);
+		bool bValid = FDynamicMeshAttributeSetBase::CheckValidity(bAllowNonmanifold, FailMode);
 		for (int UVLayerIndex = 0; UVLayerIndex < NumUVLayers(); UVLayerIndex++)
 		{
 			bValid = GetUVLayer(UVLayerIndex)->CheckValidity(bAllowNonmanifold, FailMode) && bValid;

@@ -44,19 +44,19 @@ bool FDynamicMeshAttributeSet::IsSeamVertex(int VID, bool bBoundaryIsSeam) const
 
 void FDynamicMeshAttributeSet::OnNewVertex(int VertexID, bool bInserted)
 {
-	FDynamicAttributeSetBase::OnNewVertex(VertexID, bInserted);
+	FDynamicMeshAttributeSetBase::OnNewVertex(VertexID, bInserted);
 }
 
 
 void FDynamicMeshAttributeSet::OnRemoveVertex(int VertexID)
 {
-	FDynamicAttributeSetBase::OnRemoveVertex(VertexID);
+	FDynamicMeshAttributeSetBase::OnRemoveVertex(VertexID);
 }
 
 
 void FDynamicMeshAttributeSet::OnNewTriangle(int TriangleID, bool bInserted)
 {
-	FDynamicAttributeSetBase::OnNewTriangle(TriangleID, bInserted);
+	FDynamicMeshAttributeSetBase::OnNewTriangle(TriangleID, bInserted);
 
 	for (FDynamicMeshUVOverlay& UVLayer : UVLayers)
 	{
@@ -74,7 +74,7 @@ void FDynamicMeshAttributeSet::OnNewTriangle(int TriangleID, bool bInserted)
 
 void FDynamicMeshAttributeSet::OnRemoveTriangle(int TriangleID)
 {
-	FDynamicAttributeSetBase::OnRemoveTriangle(TriangleID);
+	FDynamicMeshAttributeSetBase::OnRemoveTriangle(TriangleID);
 
 	for (FDynamicMeshUVOverlay& UVLayer : UVLayers)
 	{
@@ -87,7 +87,7 @@ void FDynamicMeshAttributeSet::OnRemoveTriangle(int TriangleID)
 
 void FDynamicMeshAttributeSet::OnReverseTriOrientation(int TriangleID)
 {
-	FDynamicAttributeSetBase::OnReverseTriOrientation(TriangleID);
+	FDynamicMeshAttributeSetBase::OnReverseTriOrientation(TriangleID);
 
 	for (FDynamicMeshUVOverlay& UVLayer : UVLayers)
 	{
@@ -100,7 +100,7 @@ void FDynamicMeshAttributeSet::OnReverseTriOrientation(int TriangleID)
 
 void FDynamicMeshAttributeSet::OnSplitEdge(const FDynamicMesh3::FEdgeSplitInfo& SplitInfo)
 {
-	FDynamicAttributeSetBase::OnSplitEdge(SplitInfo);
+	FDynamicMeshAttributeSetBase::OnSplitEdge(SplitInfo);
 
 	for (FDynamicMeshUVOverlay& UVLayer : UVLayers)
 	{
@@ -116,7 +116,7 @@ void FDynamicMeshAttributeSet::OnSplitEdge(const FDynamicMesh3::FEdgeSplitInfo& 
 
 void FDynamicMeshAttributeSet::OnFlipEdge(const FDynamicMesh3::FEdgeFlipInfo & flipInfo)
 {
-	FDynamicAttributeSetBase::OnFlipEdge(flipInfo);
+	FDynamicMeshAttributeSetBase::OnFlipEdge(flipInfo);
 
 	for (FDynamicMeshUVOverlay& UVLayer : UVLayers)
 	{
@@ -133,7 +133,7 @@ void FDynamicMeshAttributeSet::OnFlipEdge(const FDynamicMesh3::FEdgeFlipInfo & f
 
 void FDynamicMeshAttributeSet::OnCollapseEdge(const FDynamicMesh3::FEdgeCollapseInfo & collapseInfo)
 {
-	FDynamicAttributeSetBase::OnCollapseEdge(collapseInfo);
+	FDynamicMeshAttributeSetBase::OnCollapseEdge(collapseInfo);
 
 	for (FDynamicMeshUVOverlay& UVLayer : UVLayers)
 	{
@@ -149,7 +149,7 @@ void FDynamicMeshAttributeSet::OnCollapseEdge(const FDynamicMesh3::FEdgeCollapse
 
 void FDynamicMeshAttributeSet::OnPokeTriangle(const FDynamicMesh3::FPokeTriangleInfo & pokeInfo)
 {
-	FDynamicAttributeSetBase::OnPokeTriangle(pokeInfo);
+	FDynamicMeshAttributeSetBase::OnPokeTriangle(pokeInfo);
 
 	for (FDynamicMeshUVOverlay& UVLayer : UVLayers)
 	{
@@ -165,7 +165,7 @@ void FDynamicMeshAttributeSet::OnPokeTriangle(const FDynamicMesh3::FPokeTriangle
 
 void FDynamicMeshAttributeSet::OnMergeEdges(const FDynamicMesh3::FMergeEdgesInfo & mergeInfo)
 {
-	FDynamicAttributeSetBase::OnMergeEdges(mergeInfo);
+	FDynamicMeshAttributeSetBase::OnMergeEdges(mergeInfo);
 
 	for (FDynamicMeshUVOverlay& UVLayer : UVLayers)
 	{

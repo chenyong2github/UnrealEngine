@@ -11,7 +11,7 @@ class TDynamicMeshTriangleAttribute;
 
 
 template<typename AttribValueType, int AttribDimension>
-class DYNAMICMESH_API FDynamicMeshTriangleAttributeChange : public FDynamicAttributeChangeBase
+class FDynamicMeshTriangleAttributeChange : public FDynamicMeshAttributeChangeBase
 {
 private:
 	struct FChangeTriangleAttribute
@@ -29,11 +29,11 @@ public:
 	virtual ~FDynamicMeshTriangleAttributeChange()
 	{}
 
-	inline virtual void SaveInitialTriangle(const FDynamicAttributeBase* Attribute, int TriangleID) override;
+	inline virtual void SaveInitialTriangle(const FDynamicMeshAttributeBase* Attribute, int TriangleID) override;
 
-	inline virtual void StoreAllFinalTriangles(const FDynamicAttributeBase* Attribute, const TArray<int>& TriangleIDs) override;
+	inline virtual void StoreAllFinalTriangles(const FDynamicMeshAttributeBase* Attribute, const TArray<int>& TriangleIDs) override;
 
-	inline virtual bool Apply(FDynamicAttributeBase* Attribute, bool bRevert) const override;
+	inline virtual bool Apply(FDynamicMeshAttributeBase* Attribute, bool bRevert) const override;
 };
 
 
@@ -46,7 +46,7 @@ public:
  * can be mirrored to the overlay via OnSplitEdge(), etc.
  */
 template<typename AttribValueType, int AttribDimension>
-class TDynamicMeshTriangleAttribute : public FDynamicAttributeBase
+class TDynamicMeshTriangleAttribute : public FDynamicMeshAttributeBase
 {
 
 protected:
@@ -77,7 +77,7 @@ public:
 	/** @return the parent mesh for this overlay */
 	FDynamicMesh3* GetParentMesh() { return ParentMesh; }
 
-	virtual FDynamicAttributeBase* MakeCopy(FDynamicMesh3* ParentMeshIn) const override
+	virtual FDynamicMeshAttributeBase* MakeCopy(FDynamicMesh3* ParentMeshIn) const override
 	{
 		TDynamicMeshTriangleAttribute<AttribValueType, AttribDimension>* ToFill = new TDynamicMeshTriangleAttribute<AttribValueType, AttribDimension>(ParentMeshIn);
 		ToFill->Copy(*this);
@@ -190,7 +190,7 @@ public:
 	}
 
 
-	virtual TUniquePtr<FDynamicAttributeChangeBase> NewBlankChange() override
+	virtual TUniquePtr<FDynamicMeshAttributeChangeBase> NewBlankChange() override
 	{
 		return MakeUnique<FDynamicMeshTriangleAttributeChange<AttribValueType, AttribDimension>>();
 	}
@@ -238,7 +238,7 @@ public:
 
 
 template<typename AttribValueType, int AttribDimension>
-void FDynamicMeshTriangleAttributeChange<AttribValueType, AttribDimension>::SaveInitialTriangle(const FDynamicAttributeBase* Attribute, int TriangleID)
+void FDynamicMeshTriangleAttributeChange<AttribValueType, AttribDimension>::SaveInitialTriangle(const FDynamicMeshAttributeBase* Attribute, int TriangleID)
 {
 	FChangeTriangleAttribute& Change = OldTriangleAttributes.Emplace_GetRef();
 	Change.TriangleID = TriangleID;
@@ -247,7 +247,7 @@ void FDynamicMeshTriangleAttributeChange<AttribValueType, AttribDimension>::Save
 }
 
 template<typename AttribValueType, int AttribDimension>
-void FDynamicMeshTriangleAttributeChange<AttribValueType, AttribDimension>::StoreAllFinalTriangles(const FDynamicAttributeBase* Attribute, const TArray<int>& TriangleIDs)
+void FDynamicMeshTriangleAttributeChange<AttribValueType, AttribDimension>::StoreAllFinalTriangles(const FDynamicMeshAttributeBase* Attribute, const TArray<int>& TriangleIDs)
 {
 	const TDynamicMeshTriangleAttribute<AttribValueType, AttribDimension>* AttribCast = static_cast<const TDynamicMeshTriangleAttribute<AttribValueType, AttribDimension>*>(Attribute);
 	NewTriangleAttributes.Reserve(NewTriangleAttributes.Num() + TriangleIDs.Num());
@@ -260,7 +260,7 @@ void FDynamicMeshTriangleAttributeChange<AttribValueType, AttribDimension>::Stor
 }
 
 template<typename AttribValueType, int AttribDimension>
-bool FDynamicMeshTriangleAttributeChange<AttribValueType, AttribDimension>::Apply(FDynamicAttributeBase* Attribute, bool bRevert) const
+bool FDynamicMeshTriangleAttributeChange<AttribValueType, AttribDimension>::Apply(FDynamicMeshAttributeBase* Attribute, bool bRevert) const
 {
 	TDynamicMeshTriangleAttribute<AttribValueType, AttribDimension>* AttribCast = static_cast<TDynamicMeshTriangleAttribute<AttribValueType, AttribDimension>*>(Attribute);
 	const TArray<FChangeTriangleAttribute> *Changes = bRevert ? &OldTriangleAttributes : &NewTriangleAttributes;

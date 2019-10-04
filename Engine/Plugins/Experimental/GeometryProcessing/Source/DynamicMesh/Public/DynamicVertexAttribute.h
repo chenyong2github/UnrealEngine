@@ -11,7 +11,7 @@ class TDynamicVertexAttribute;
 
 
 template<typename AttribValueType, int AttribDimension, typename ParentType>
-class DYNAMICMESH_API FDynamicVertexAttributeChange : public FDynamicAttributeChangeBase
+class TDynamicVertexAttributeChange : public TDynamicAttributeChangeBase<ParentType>
 {
 private:
 	struct FChangeVertexAttribute
@@ -23,17 +23,17 @@ private:
 	TArray<FChangeVertexAttribute> OldVertexAttributes, NewVertexAttributes;
 
 public:
-	FDynamicVertexAttributeChange()
+	TDynamicVertexAttributeChange()
 	{}
 
-	virtual ~FDynamicVertexAttributeChange()
+	virtual ~TDynamicVertexAttributeChange()
 	{}
 
-	inline virtual void SaveInitialVertex(const FDynamicAttributeBase* Attribute, int VertexID) override;
+	inline virtual void SaveInitialVertex(const TDynamicAttributeBase<ParentType>* Attribute, int VertexID) override;
 
-	inline virtual void StoreAllFinalVertices(const FDynamicAttributeBase* Attribute, const TArray<int>& VertexIDs) override;
+	inline virtual void StoreAllFinalVertices(const TDynamicAttributeBase<ParentType>* Attribute, const TArray<int>& VertexIDs) override;
 
-	inline virtual bool Apply(FDynamicAttributeBase* Attribute, bool bRevert) const override;
+	inline virtual bool Apply(TDynamicAttributeBase<ParentType>* Attribute, bool bRevert) const override;
 };
 
 
@@ -41,7 +41,7 @@ public:
  * TDynamicVertexAttribute provides per-vertex storage of an attribute value
  */
 template<typename AttribValueType, int AttribDimension, typename ParentType>
-class DYNAMICMESH_API TDynamicVertexAttribute : public FDynamicAttributeBase
+class TDynamicVertexAttribute : public TDynamicAttributeBase<ParentType>
 {
 
 protected:
@@ -75,7 +75,7 @@ public:
 	/** @return the parent for this attribute */
 	ParentType* GetParent() { return Parent; }
 
-	virtual FDynamicAttributeBase* MakeCopy(ParentType* ParentIn) const override
+	virtual TDynamicAttributeBase<ParentType>* MakeCopy(ParentType* ParentIn) const override
 	{
 		TDynamicVertexAttribute<AttribValueType, AttribDimension, ParentType>* ToFill = new TDynamicVertexAttribute<AttribValueType, AttribDimension, ParentType>(ParentIn);
 		ToFill->Copy(*this);
@@ -224,9 +224,9 @@ public:
 		SetAttributeFromLerp(MergeInfo.KeptVerts.B, MergeInfo.KeptVerts.B, MergeInfo.RemovedVerts.B, .5);
 	}
 
-	virtual TUniquePtr<FDynamicAttributeChangeBase> NewBlankChange() override
+	virtual TUniquePtr<TDynamicAttributeChangeBase<ParentType>> NewBlankChange() override
 	{
-		return MakeUnique<FDynamicVertexAttributeChange<AttribValueType, AttribDimension, ParentType>>();
+		return MakeUnique<TDynamicVertexAttributeChange<AttribValueType, AttribDimension, ParentType>>();
 	}
 
 	/**
@@ -294,7 +294,7 @@ using TDynamicMeshVertexAttribute = TDynamicVertexAttribute<AttribValueType, Att
 
 
 template<typename AttribValueType, int AttribDimension, typename ParentType>
-void FDynamicVertexAttributeChange<AttribValueType, AttribDimension, ParentType>::SaveInitialVertex(const FDynamicAttributeBase* Attribute, int VertexID)
+void TDynamicVertexAttributeChange<AttribValueType, AttribDimension, ParentType>::SaveInitialVertex(const TDynamicAttributeBase<ParentType>* Attribute, int VertexID)
 {
 	FChangeVertexAttribute& Change = OldVertexAttributes.Emplace_GetRef();
 	Change.VertexID = VertexID;
@@ -303,7 +303,7 @@ void FDynamicVertexAttributeChange<AttribValueType, AttribDimension, ParentType>
 }
 
 template<typename AttribValueType, int AttribDimension, typename ParentType>
-void FDynamicVertexAttributeChange<AttribValueType, AttribDimension, ParentType>::StoreAllFinalVertices(const FDynamicAttributeBase* Attribute, const TArray<int>& VertexIDs)
+void TDynamicVertexAttributeChange<AttribValueType, AttribDimension, ParentType>::StoreAllFinalVertices(const TDynamicAttributeBase<ParentType>* Attribute, const TArray<int>& VertexIDs)
 {
 	NewVertexAttributes.Reserve(NewVertexAttributes.Num() + VertexIDs.Num());
 	const TDynamicVertexAttribute<AttribValueType, AttribDimension, ParentType>* AttribCast = static_cast<const TDynamicVertexAttribute<AttribValueType, AttribDimension, ParentType>*>(Attribute);
@@ -316,7 +316,7 @@ void FDynamicVertexAttributeChange<AttribValueType, AttribDimension, ParentType>
 }
 
 template<typename AttribValueType, int AttribDimension, typename ParentType>
-bool FDynamicVertexAttributeChange<AttribValueType, AttribDimension, ParentType>::Apply(FDynamicAttributeBase* Attribute, bool bRevert) const
+bool TDynamicVertexAttributeChange<AttribValueType, AttribDimension, ParentType>::Apply(TDynamicAttributeBase<ParentType>* Attribute, bool bRevert) const
 {
 	const TArray<FChangeVertexAttribute> *Changes = bRevert ? &OldVertexAttributes : &NewVertexAttributes;
 	TDynamicVertexAttribute<AttribValueType, AttribDimension, ParentType>* AttribCast = static_cast<TDynamicVertexAttribute<AttribValueType, AttribDimension, ParentType>*>(Attribute);
@@ -329,9 +329,4 @@ bool FDynamicVertexAttributeChange<AttribValueType, AttribDimension, ParentType>
 }
 
 
-template<typename AttribValueType, int AttribDimension>
-using TDynamicMeshVertexAttribute = TDynamicVertexAttribute<AttribValueType, AttribDimension, FDynamicMesh3>;
-
-template<typename AttribValueType, int AttribDimension>
-using FDynamicMeshVertexAttributeChange = FDynamicVertexAttributeChange<AttribValueType, AttribDimension, FDynamicMesh3>;
 
