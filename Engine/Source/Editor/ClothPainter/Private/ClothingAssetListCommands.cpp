@@ -7,7 +7,9 @@
 void FClothingAssetListCommands::RegisterCommands()
 {
 	UI_COMMAND(DeleteAsset, "Delete Asset", "Deletes a clothing asset from the mesh.", EUserInterfaceActionType::Button, FInputChord());
+#if WITH_APEX_CLOTHING
 	UI_COMMAND(ReimportAsset, "Reimport Asset", "If an asset was originally imported from an external file, reimport from that file.", EUserInterfaceActionType::Button, FInputChord());
+#endif
 	UI_COMMAND(RebuildAssetParams, "Rebuild Asset Parameter Masks", "Takes the parameter masks in LOD0 and creates masks in all lower LODs to match, casting those parameter masks to the new mesh.", EUserInterfaceActionType::Button, FInputChord());
 }
 
