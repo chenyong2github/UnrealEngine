@@ -407,15 +407,10 @@ public:
 	virtual ITargetDeviceOutputPtr CreateDeviceOutputRouter(FOutputDevice* Output) const { return nullptr; };
 
 	/**
-	* Cancel the application running on the device
-	* @param ProcessIdentifier The bundle id
-	*/
+	 * Cancel the application running on the device
+	 * @param ProcessIdentifier The bundle id
+	 */
 	virtual bool TerminateLaunchedProcess(const FString & ProcessIdentifier) { return false;  };
-
-	/**
-	* Get the message endpoint to use for the session manager, if required
-	*/
-	virtual TSharedPtr<const class FInternetAddr> GetMessagingEndpoint() const { return nullptr; }
 
 public:
 

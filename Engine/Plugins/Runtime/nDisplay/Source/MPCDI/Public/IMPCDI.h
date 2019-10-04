@@ -81,7 +81,7 @@ public:
 			{
 			};
 
-			FAngles(float& top, float& bottom, float& left, float& right) : Left(left), Right(right), Top(top), Bottom(bottom)
+			FAngles(float top, float bottom, float left, float right) : Left(left), Right(right), Top(top), Bottom(bottom)
 			{
 			};
 		};
@@ -92,6 +92,9 @@ public:
 
 		// Output runtime calc data: 
 		FAngles ProjectionAngles;
+
+		// Warp mesh aabb points
+		FVector AABBoxPts[8];
 
 		// Frustum projection matrix
 		FMatrix  ProjectionMatrix;

@@ -7,6 +7,14 @@
 #include "UObject/UObjectIterator.h"
 
 
+// #ueent_todo: custom actions, more than 2 states:
+// Currently, an action is applicable or not applicable.
+// Eg. Currently, Retessellate action is applicable when there is some nurbs additional data.
+// This is OK to show/hide the action, but hiding an item prevents user from discovering features / learn to use them.
+// We could improve the situation with an other state:
+// - Irrelevant : eg. retessellate on materials
+// - Relevant : eg. retessellate on mesh with no nurbs data
+// - Applicable : eg. retessellate on mesh with nurbs data
 FDatasmithCustomActionManager::FDatasmithCustomActionManager()
 {
 	for (TObjectIterator<UClass> It; It; ++It)

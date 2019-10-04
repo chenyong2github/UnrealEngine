@@ -27,6 +27,17 @@ void SDataprepFilter::Construct(const FArguments& InArgs, UDataprepFilter& InFil
 	SDataprepActionBlock::Construct( SDataprepActionBlock::FArguments(), InDataprepActionContext );
 }
 
+void SDataprepFilter::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	if ( DetailsView.IsValid() && Filter )
+	{
+		if ( UDataprepFetcher* Fetcher = Filter->GetFetcher() )
+		{
+			DetailsView->SetObjectToDisplay( *Fetcher );
+		}
+	}
+}
+
 FText SDataprepFilter::GetBlockTitle() const
 {
 	if ( Filter )
@@ -75,7 +86,7 @@ FText SDataprepFilter::GetBlockTitle() const
 	return LOCTEXT("DefaultFilterTitle", "Unknow Filter Type");
 }
 
-TSharedRef<SWidget> SDataprepFilter::GetTitleWidget() const
+TSharedRef<SWidget> SDataprepFilter::GetTitleWidget()
 {
 	const ISlateStyle* DataprepEditorStyle = FSlateStyleRegistry::FindSlateStyle( FDataprepEditorStyle::GetStyleSetName() );
 	check( DataprepEditorStyle );
@@ -89,7 +100,7 @@ TSharedRef<SWidget> SDataprepFilter::GetTitleWidget() const
 		.Justification( ETextJustify::Center );
 }
 
-TSharedRef<SWidget> SDataprepFilter::GetContentWidget() const
+TSharedRef<SWidget> SDataprepFilter::GetContentWidget()
 {
 	TSharedPtr< SWidget > FilterWidget;
 
@@ -124,16 +135,12 @@ TSharedRef<SWidget> SDataprepFilter::GetContentWidget() const
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		[
-			SNew( SDataprepDetailsView )
-			.Object_Lambda( [Filter = Filter]()
-				{
-					return Filter->GetFetcher();
-				})
-			.Class( UDataprepFilter::StaticClass() )
+			SAssignNew( DetailsView, SDataprepDetailsView )
+			.Object( Filter ? Filter->GetFetcher() : nullptr )
 		];
 }
 
-void SDataprepFilter::PopulateMenuBuilder(FMenuBuilder& MenuBuilder) const
+void SDataprepFilter::PopulateMenuBuilder(FMenuBuilder& MenuBuilder)
 {
 	SDataprepActionBlock::PopulateMenuBuilder( MenuBuilder );
 

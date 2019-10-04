@@ -88,6 +88,7 @@ protected:
 
 	FCriticalSection	ReceiveMutex;
 	FCriticalSection	SendMutex;
+	FCriticalSection	PacketMutex;
 
 	double				LastReceiveTime;
 	double				LastSendTime;

@@ -49,6 +49,18 @@ bool ULiveLinkVirtualSubject::HasValidFrameSnapshot() const
 	return FrameSnapshot.StaticData.IsValid() && FrameSnapshot.FrameData.IsValid();
 }
 
+TArray<FLiveLinkTime> ULiveLinkVirtualSubject::GetFrameTimes() const
+{
+	if (!HasValidFrameSnapshot())
+	{
+		return TArray<FLiveLinkTime>();
+	}
+
+	TArray<FLiveLinkTime> Result;
+	Result.Emplace(FrameSnapshot.FrameData.GetBaseData()->WorldTime.GetOffsettedTime(), FrameSnapshot.FrameData.GetBaseData()->MetaData.SceneTime);
+	return Result;
+}
+
 bool ULiveLinkVirtualSubject::DependsOnSubject(FName SubjectName) const
 {
 	return Subjects.Contains(SubjectName);

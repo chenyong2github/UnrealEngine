@@ -31,7 +31,6 @@ namespace UnrealBuildTool.Rules
 					"Slate",
 					"SlateCore",
 					"SourceControl",
-					"UndoHistory",
 				}
 			);
 
@@ -41,8 +40,8 @@ namespace UnrealBuildTool.Rules
 					new string[]
 					{
 						"UnrealEd",
-                        "Sequencer",
-                        "WorkspaceMenuStructure",
+						"Sequencer",
+						"WorkspaceMenuStructure",
 					}
 				);
 			}

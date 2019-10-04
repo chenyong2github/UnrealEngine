@@ -22,6 +22,7 @@ FDisplayClusterClusterNodeCtrlMaster::~FDisplayClusterClusterNodeCtrlMaster()
 {
 }
 
+
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IPDisplayClusterClusterSyncProtocol
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -30,40 +31,6 @@ void FDisplayClusterClusterNodeCtrlMaster::GetTimecode(FTimecode& timecode, FFra
 	// This values are updated in UEngine::UpdateTimeAndHandleMaxTickRate (via UpdateTimecode).
 	timecode = FApp::GetTimecode();
 	frameRate = FApp::GetTimecodeFrameRate();
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////
-// IPDisplayClusterClusterEventsProtocol
-//////////////////////////////////////////////////////////////////////////////////////////////
-void FDisplayClusterClusterNodeCtrlMaster::EmitClusterEvent(const FDisplayClusterClusterEvent& Event)
-{
-	UE_LOG(LogDisplayClusterCluster, Warning, TEXT("This should never be called!"));
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////
-// IPDisplayClusterNodeController
-//////////////////////////////////////////////////////////////////////////////////////////////
-
-
-//////////////////////////////////////////////////////////////////////////////////////////////
-// IPDisplayClusterNodeController
-//////////////////////////////////////////////////////////////////////////////////////////////
-void FDisplayClusterClusterNodeCtrlMaster::GetSyncData(FDisplayClusterMessage::DataType& data)
-{
-	// Override slave implementation with empty one.
-	// There is no need to sync on master side since it have source data being synced.
-}
-
-void FDisplayClusterClusterNodeCtrlMaster::GetInputData(FDisplayClusterMessage::DataType& data)
-{
-	// Override slave implementation with empty one.
-	// There is no need to sync on master side since it have source data being synced.
-}
-
-void FDisplayClusterClusterNodeCtrlMaster::GetEventsData(FDisplayClusterMessage::DataType& data)
-{
-	// Override slave implementation with empty one.
-	// There is no need to sync on master side since it have source data being synced.
 }
 
 
@@ -101,19 +68,6 @@ bool FDisplayClusterClusterNodeCtrlMaster::InitializeServers()
 	return ClusterSyncServer.IsValid() && SwapSyncServer.IsValid() && ClusterEventsServer.IsValid();
 }
 
-
-
-#define SERVER_START(SRV, RESULT) \
-	if (SRV->Start()) \
-	{ \
-		UE_LOG(LogDisplayClusterCluster, Log, TEXT("%s started"), *SRV->GetName()); \
-	} \
-	else \
-	{ \
-		UE_LOG(LogDisplayClusterCluster, Error, TEXT("%s failed to start"), *SRV->GetName()); \
-		RESULT = false; \
-	} \
-
 bool FDisplayClusterClusterNodeCtrlMaster::StartServers()
 {
 	if (!FDisplayClusterClusterNodeCtrlSlave::StartServers())
@@ -123,17 +77,9 @@ bool FDisplayClusterClusterNodeCtrlMaster::StartServers()
 
 	UE_LOG(LogDisplayClusterCluster, Log, TEXT("%s - starting master servers..."), *GetControllerName());
 
-	bool Result = true;
-	SERVER_START(ClusterSyncServer, Result);
-	SERVER_START(SwapSyncServer, Result);
-	SERVER_START(ClusterEventsServer, Result);
-
 	// Start the servers
-	return Result;
+	return StartServerWithLogs(ClusterSyncServer.Get()) && StartServerWithLogs(SwapSyncServer.Get()) && StartServerWithLogs(ClusterEventsServer.Get());
 }
-
-#undef SERVER_START
-
 
 void FDisplayClusterClusterNodeCtrlMaster::StopServers()
 {

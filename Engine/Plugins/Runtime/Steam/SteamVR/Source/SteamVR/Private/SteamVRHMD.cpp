@@ -1391,7 +1391,7 @@ void FSteamVRHMD::AdjustViewRect(EStereoscopicPass StereoPass, int32& X, int32& 
 	SizeY = FMath::CeilToInt(IdealRenderTargetSize.Y * PixelDensity);
 
 	SizeX = SizeX / 2;
-	if( StereoPass == eSSP_RIGHT_EYE )
+	if(IStereoRendering::IsASecondaryView(StereoPass))
 	{
 		X += SizeX;
 	}
@@ -1399,18 +1399,18 @@ void FSteamVRHMD::AdjustViewRect(EStereoscopicPass StereoPass, int32& X, int32& 
 
 bool FSteamVRHMD::GetRelativeEyePose(int32 DeviceId, EStereoscopicPass Eye, FQuat& OutOrientation, FVector& OutPosition)
 {
-	if (DeviceId != IXRTrackingSystem::HMDDeviceId || !(Eye == eSSP_LEFT_EYE || Eye == eSSP_RIGHT_EYE))
+	if (DeviceId != IXRTrackingSystem::HMDDeviceId || !IStereoRendering::IsStereoEyeView(Eye))
 	{
 		return false;
 	}
 	auto Frame = GetTrackingFrame();
 
-	vr::Hmd_Eye HmdEye = (Eye == eSSP_LEFT_EYE) ? vr::Eye_Left : vr::Eye_Right;
-		vr::HmdMatrix34_t HeadFromEye = VRSystem->GetEyeToHeadTransform(HmdEye);
+	vr::Hmd_Eye HmdEye = IStereoRendering::IsAPrimaryView(Eye) ? vr::Eye_Left : vr::Eye_Right;
+	vr::HmdMatrix34_t HeadFromEye = VRSystem->GetEyeToHeadTransform(HmdEye);
 
 		// grab the eye position, currently ignoring the rotation supplied by GetHeadFromEyePose()
 	OutPosition = FVector(-HeadFromEye.m[2][3], HeadFromEye.m[0][3], HeadFromEye.m[1][3]) * Frame.WorldToMetersScale;
-		FQuat Orientation(ToFMatrix(HeadFromEye));
+	FQuat Orientation(ToFMatrix(HeadFromEye));
 
 	OutOrientation.X = -Orientation.Z;
 	OutOrientation.Y = Orientation.X;
@@ -1433,7 +1433,7 @@ FMatrix FSteamVRHMD::GetStereoProjectionMatrix(const enum EStereoscopicPass Ster
 {
 	check(IsStereoEnabled() || IsHeadTrackingEnforced());
 
-	vr::Hmd_Eye HmdEye = (StereoPassType == eSSP_LEFT_EYE) ? vr::Eye_Left : vr::Eye_Right;
+	vr::Hmd_Eye HmdEye = IStereoRendering::IsAPrimaryView(StereoPassType) ? vr::Eye_Left : vr::Eye_Right;
 	float Left, Right, Top, Bottom;
 
 	VRSystem->GetProjectionRaw(HmdEye, &Right, &Left, &Top, &Bottom);
@@ -1472,7 +1472,7 @@ FMatrix FSteamVRHMD::GetStereoProjectionMatrix(const enum EStereoscopicPass Ster
 
 void FSteamVRHMD::GetEyeRenderParams_RenderThread(const FRenderingCompositePassContext& Context, FVector2D& EyeToSrcUVScaleValue, FVector2D& EyeToSrcUVOffsetValue) const
 {
-	if (Context.View.StereoPass == eSSP_LEFT_EYE)
+	if (IStereoRendering::IsAPrimaryView(Context.View.StereoPass))
 	{
 		EyeToSrcUVOffsetValue.X = 0.0f;
 		EyeToSrcUVOffsetValue.Y = 0.0f;

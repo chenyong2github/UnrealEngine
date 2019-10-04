@@ -478,7 +478,33 @@ bool UPropertyValue::Resolve(UObject* Object)
 
 bool UPropertyValue::HasValidResolve() const
 {
-	return ParentContainerAddress != nullptr;
+	if (ParentContainerAddress == nullptr)
+	{
+		return false;
+	}
+
+	// We might be pointing at a component that was created via a construction script.
+	// Whenever an actor's property changes, all of its components that were generated
+	// by construction scripts will be destroyed and regenerated, so we will need to re-resolve
+	// We can't check the resolve state this way for USTRUCTs however (like FPostProcessSettings)
+	if (!ParentContainerClass->IsChildOf(UScriptStruct::StaticClass()))
+	{
+		if (UObject* Container = (UObject*)ParentContainerAddress)
+		{
+			// Replicate IsValidLowLevel without the warning, plus a couple of extra
+			// checks because this random address might be pointing at a destroyed component
+			if (this == nullptr ||
+				!GUObjectArray.IsValid(this) ||
+				!Container->GetClass() ||
+				Container->IsPendingKillOrUnreachable() ||
+				Container->HasAnyFlags(RF_BeginDestroyed | RF_FinishDestroyed))
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
 }
 
 void UPropertyValue::ClearLastResolve()
@@ -499,37 +525,42 @@ UStruct* UPropertyValue::GetPropertyParentContainerClass() const
 	return ParentContainerClass;
 }
 
-void UPropertyValue::RecordDataFromResolvedObject()
+TArray<uint8> UPropertyValue::GetDataFromResolvedObject() const
 {
-	if (!Resolve())
-	{
-		return;
-	}
-
 	int32 PropertySizeBytes = GetValueSizeInBytes();
+	TArray<uint8> CurrentData;
+	CurrentData.SetNumZeroed(PropertySizeBytes);
+
+	if (!HasValidResolve())
+	{
+		return CurrentData;
+	}
 
 	if (UBoolProperty* PropAsBool = Cast<UBoolProperty>(LeafProperty))
 	{
-		// This could probably be done in a cleaner way since we know its an UBoolProperty...
-		TArray<uint8> BoolBytes;
-		BoolBytes.SetNum(PropertySizeBytes);
-
-		bool* BoolBytesAddress = (bool*)BoolBytes.GetData();
-		*BoolBytesAddress = PropAsBool->GetPropertyValue(PropertyValuePtr);
-
-		SetRecordedData(BoolBytes.GetData(), PropertySizeBytes);
-	}
-	else if (UEnumProperty* PropAsEnum = Cast<UEnumProperty>(LeafProperty))
-	{
-		UNumericProperty* UnderlyingProp = PropAsEnum->GetUnderlyingProperty();
-		PropertySizeBytes = UnderlyingProp->ElementSize;
-
-		SetRecordedData(PropertyValuePtr, PropertySizeBytes);
+		bool* BytesAddress = (bool*)CurrentData.GetData();
+		*BytesAddress = PropAsBool->GetPropertyValue(PropertyValuePtr);
 	}
 	else
 	{
-		SetRecordedData(PropertyValuePtr, PropertySizeBytes);
+		FMemory::Memcpy(CurrentData.GetData(), PropertyValuePtr, PropertySizeBytes);
 	}
+
+	return CurrentData;
+}
+
+void UPropertyValue::RecordDataFromResolvedObject()
+{
+	if (!HasValidResolve())
+	{
+		if (!Resolve())
+		{
+			return;
+		}
+	}
+
+	TArray<uint8> NewData = GetDataFromResolvedObject();
+	SetRecordedData(NewData.GetData(), NewData.Num());
 
 	// If we don't have parameter defaults, try fetching them
 #if WITH_EDITOR
@@ -561,24 +592,28 @@ void UPropertyValue::ApplyDataToResolvedObject()
 		return;
 	}
 
-	// Ready to transact
+	// Modify owner actor
 	UObject* ContainerOwnerObject = nullptr;
-	UVariantObjectBinding* Parent = GetParent();
-	if (Parent)
+	if (UVariantObjectBinding* Parent = GetParent())
 	{
-		ContainerOwnerObject = Parent->GetObject();
-		if (ContainerOwnerObject)
+		if (UObject* OwnerActor = Parent->GetObject())
 		{
-			ContainerOwnerObject->SetFlags(RF_Transactional);
-			ContainerOwnerObject->Modify();
+			OwnerActor->SetFlags(RF_Transactional);
+			OwnerActor->Modify();
+			ContainerOwnerObject = OwnerActor;
 		}
 	}
-	// We might also need to modify a component if we're nested in one
-	UObject* ContainerObject = (UObject*) ParentContainerAddress;
-	if (ContainerObject && ContainerObject->IsA(UActorComponent::StaticClass()))
+
+	// Modify container component
+	UObject* ContainerObject = nullptr;
+	if (UObject* Component = (UObject*)ParentContainerAddress)
 	{
-		ContainerObject->SetFlags(RF_Transactional);
-		ContainerObject->Modify();
+		if(Component->IsA(UActorComponent::StaticClass()))
+		{
+			Component->SetFlags(RF_Transactional);
+			Component->Modify();
+			ContainerObject = Component;
+		}
 	}
 
 	if (PropertySetter)
@@ -618,19 +653,17 @@ void UPropertyValue::ApplyDataToResolvedObject()
 	}
 	else
 	{
-		// Actually change the object through its property value ptr
-		int32 PropertySizeBytes = LeafProperty->ElementSize;
-		ValueBytes.SetNum(PropertySizeBytes);
-		FMemory::Memcpy(PropertyValuePtr, ValueBytes.GetData(), PropertySizeBytes);
+		// Never access ValueBytes directly as we might need to fixup UObjectProperty values
+		const TArray<uint8>& RecordedData = GetRecordedData();
+		FMemory::Memcpy(PropertyValuePtr, RecordedData.GetData(), GetValueSizeInBytes());
 	}
 
 #if WITH_EDITOR
-	// Update object on viewport
 	if (ContainerObject)
 	{
 		ContainerObject->PostEditChange();
 	}
-	if (ContainerOwnerObject)
+	if (ContainerOwnerObject && ContainerOwnerObject != ContainerObject)
 	{
 		ContainerOwnerObject->PostEditChange();
 	}
@@ -682,6 +715,11 @@ UEnum* UPropertyValue::GetEnumPropertyEnum() const
 	}
 
 	return nullptr;
+}
+
+bool UPropertyValue::ContainsProperty(const UProperty* Prop) const
+{
+	return LeafProperty && LeafProperty == Prop;
 }
 
 // @Copypaste from PropertyEditorHelpers
@@ -1138,6 +1176,63 @@ void UPropertyValue::ClearDefaultValue()
 	DefaultValue.Empty();
 }
 
+bool UPropertyValue::IsRecordedDataCurrent()
+{
+	if (!HasValidResolve())
+	{
+		if (!Resolve())
+		{
+			return false;
+		}
+	}
+
+	if (!HasRecordedData())
+	{
+		return false;
+	}
+
+	const TArray<uint8>& RecordedData = GetRecordedData();
+	TArray<uint8> CurrentData = GetDataFromResolvedObject();
+
+	UClass* PropClass = GetPropertyClass();
+	if (PropClass)
+	{
+		// All string types are pointer/reference types, and need to be
+		// compared carefully
+		if (PropClass->IsChildOf(UNameProperty::StaticClass()))
+		{
+			FName CurrentFName = *((FName*)CurrentData.GetData());
+			return TempName.IsEqual(CurrentFName);
+		}
+		else if (PropClass->IsChildOf(UStrProperty::StaticClass()))
+		{
+			FString CurrentFString = *((FString*)CurrentData.GetData());
+			return TempStr.Equals(CurrentFString);
+		}
+		else if (PropClass->IsChildOf(UTextProperty::StaticClass()))
+		{
+			FText CurrentFText = *((FText*)CurrentData.GetData());
+			return TempText.EqualTo(CurrentFText);
+		}
+	}
+
+	// When setting relative rotation, our input rotator value goes through some math
+	// that might infinitesimaly change its quaternion representation, but nevertheless
+	// alter the float representation as a byte array, so we need this explicit check.
+	// Note that regular Rotator properties are compared byte-wise, so it should only happen for
+	// RelativeRotation
+	// See USceneComponent::SetRelativeRotation
+	if (PropCategory == EPropertyValueCategory::RelativeRotation)
+	{
+		const FRotator* RecordedRotator = (const FRotator*)RecordedData.GetData();
+		const FRotator* CurrentRotator = (const FRotator*)CurrentData.GetData();
+
+		return RecordedRotator->Equals(*CurrentRotator, SCENECOMPONENT_ROTATOR_TOLERANCE);
+	}
+
+	return RecordedData == CurrentData;
+}
+
 FOnPropertyApplied& UPropertyValue::GetOnPropertyApplied()
 {
 	return OnPropertyApplied;
@@ -1575,7 +1670,7 @@ void UPropertyValueVisibility::Serialize(FArchive& Ar)
 
 	switch (PropCategory)
 	{
-	case EPropertyValueCategory::bVisible:
+	case EPropertyValueCategory::Visibility:
 		PropertySetterName = FName(TEXT("SetVisibility"));
 		break;
 	default:

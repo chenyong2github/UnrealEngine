@@ -116,8 +116,17 @@ void SLiveLinkMessageBusSourceFactory::Tick(const FGeometry& AllottedGeometry, c
 	{
 		PollData.Reset();
 		PollData.Append(ILiveLinkModule::Get().GetMessageBusDiscoveryManager().GetDiscoveryResults());
-		PollData.Sort([](const FProviderPollResultPtr& A, const FProviderPollResultPtr& B) { return A->Name < B->Name; });
+		PollData.StableSort([](const FProviderPollResultPtr& LHS, const FProviderPollResultPtr& RHS)
+		{
+			if (LHS.IsValid() && RHS.IsValid())
+			{
+				return LHS->Name.Compare(RHS->Name) <= 0;
+			}
+			return true;
+		});
+
 		ListView->RequestListRefresh();
+		LastUIUpdateSeconds = FApp::GetCurrentTime();
 	}
 }
 

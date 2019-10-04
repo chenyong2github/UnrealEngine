@@ -13,7 +13,8 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Misc/AsyncTaskNotification.h"
 #include "Widgets/SWindow.h"
-#include "SDisasterRecovery.h"
+#include "SConcertSessionRecovery.h"
+#include "ConcertActivityStream.h"
 
 #define LOCTEXT_NAMESPACE "DisasterRecoveryFSM"
 
@@ -92,6 +93,12 @@ private:
 		CurrentState->OnEnter();
 	}
 
+	/**
+	 * Returns true if the recovery widget should display activity details. For recovery, we expect less than 10k/20K activities. Fetching
+	 * the transaction details should not be noticeable by user.
+	 */
+	constexpr bool ShouldDisplayActivityDetails() const { return true; }
+
 private:
 	TSharedRef<IConcertSyncClient> SyncClient;
 	IConcertClientRef Client;
@@ -101,6 +108,7 @@ private:
 	FGuid RecoveryServerAdminEndpointId;
 	FString RecoverySessionName;
 	FGuid RecoverySessionId;
+	TSharedPtr<FConcertActivityStream> ActivityStream;
 	TArray<TSharedPtr<FConcertClientSessionActivity>> Activities;
 	TSharedPtr<FConcertClientSessionActivity> SelectedRecoveryActivity;
 	bool bLiveDataOnly;
@@ -158,7 +166,8 @@ FDisasterRecoveryFSM::FDisasterRecoveryFSM(TSharedRef<IConcertSyncClient> InSync
 	LookupRecoveryServerState.OnTick   = [this]() { LookupRecoveryServer(); };
 	LookupRecoveryServerState.OnExit   = [this]() { Client->StopDiscovery(); };
 	LookupRecoverySessionState.OnEnter = [this]() { LookupRecoverySession(); };
-	FetchActivitiesState.OnEnter       = [this]() { FetchActivities(); };
+	FetchActivitiesState.OnEnter       = [this]() { ActivityStream = MakeShared<FConcertActivityStream>(Client, RecoveryServerAdminEndpointId, RecoverySessionId, ShouldDisplayActivityDetails()); };
+	FetchActivitiesState.OnTick        = [this]() { FetchActivities(); };
 	DisplayRecoveryUIState.OnEnter     = [this]() { DisplayRecoveryUI(); };
 	CreateAndJoinSessionState.OnEnter  = [this]() { Client->OnSessionConnectionChanged().AddRaw(this, &FDisasterRecoveryFSM::OnSessionConnectionChanged); CreateAndJoinSession(); };
 	CreateAndJoinSessionState.OnExit   = [this]() { Client->OnSessionConnectionChanged().RemoveAll(this); };
@@ -254,51 +263,29 @@ void FDisasterRecoveryFSM::LookupRecoverySession()
 
 void FDisasterRecoveryFSM::FetchActivities()
 {
-	// Note: Activity IDs are 1-based.
-	const int64 FromActivityId = Activities.Num() + 1;
+	check(ActivityStream.IsValid());
 
-	TWeakPtr<uint8> ExecutionToken = FutureExecutionToken;
-	Client->GetSessionActivities(RecoveryServerAdminEndpointId, RecoverySessionId, FromActivityId, MaxActivityPerRequest).Next([this, ExecutionToken](const FConcertAdmin_GetSessionActivitiesResponse& Response)
+	int32 FetchedCount;
+	FText ReadError;
+	bool bEndOfStream = ActivityStream->Read(Activities, FetchedCount, ReadError);
+
+	if (!ReadError.IsEmpty())
 	{
-		if (!ExecutionToken.IsValid())
+		ErrorMessage = ReadError;
+		RequestTransitTo(ErrorState);
+	}
+	else if (bEndOfStream) // Read everything?
+	{
+		if (Activities.Num() > 0)
 		{
-			return; // The 'this' object captured has been destructed, don't run the continuation.
+			RequestTransitTo(DisplayRecoveryUIState);
 		}
-
-		if (Response.ResponseCode == EConcertResponseCode::Success)
+		else // Nothing to recover
 		{
-			for (const FConcertSessionSerializedPayload& SerializedActivity : Response.Activities)
-			{
-				FConcertSyncActivity Activity;
-				SerializedActivity.GetTypedPayload<FConcertSyncActivity>(Activity);
-
-				// Get the Activity summary.
-				FStructOnScope EventSummaryPayload;
-				Activity.EventSummary.GetPayload(EventSummaryPayload);
-
-				Activities.Add(MakeShared<FConcertClientSessionActivity>(Activity, MoveTemp(EventSummaryPayload)));
-			}
-
-			if (Response.Activities.Num() == MaxActivityPerRequest) // Maybe there is more?
-			{
-				RequestTransitTo(FetchActivitiesState); // Exit/Enter the same state again to fetch the next page.
-			}
-			else if (Activities.Num() > 0) // Returned less than MaxActivityPerRequest -> it reached the last activity and there is something to recover.
-			{
-				RequestTransitTo(DisplayRecoveryUIState);
-			}
-			else // Nothing to recover.
-			{
-				UE_LOG(LogConcert, Warning, TEXT("Disaster recovery service could not find any activity to recover"));
-				RequestTransitTo(CreateAndJoinSessionState);
-			}
+			UE_LOG(LogConcert, Warning, TEXT("Disaster recovery service could not find any activity to recover"));
+			RequestTransitTo(CreateAndJoinSessionState);
 		}
-		else
-		{
-			ErrorMessage = FText::Format(LOCTEXT("ActivityQueryFailed", "Failed to retrieve {0} activities from the session '{1} ({2})'"), Activities.Num() + 1, FText::AsCultureInvariant(RecoverySessionName), FText::AsCultureInvariant(RecoverySessionId.ToString()));
-			RequestTransitTo(ErrorState);
-		}
-	});
+	}
 }
 
 void FDisasterRecoveryFSM::DisplayRecoveryUI()
@@ -312,14 +299,31 @@ void FDisasterRecoveryFSM::DisplayRecoveryUI()
 		.SupportsMaximize(true)
 		.SupportsMinimize(false);
 
-	TSharedRef<SDisasterRecovery> RecoveryWidget =
-		SNew(SDisasterRecovery, Activities)
-		.ParentWindow(NewWindow);
+	auto FetchActivitiesFn = [this](TArray<TSharedPtr<FConcertClientSessionActivity>>& OutActivities, int32& OutFetchCount, FText& OutErrorMsg)
+	{
+		OutFetchCount = Activities.Num();
+		OutErrorMsg = FText();
+		OutActivities.Append(Activities);
+		return true; // All activities fetched.
+	};
+
+	TSharedRef<SConcertSessionRecovery> RecoveryWidget =
+		SNew(SConcertSessionRecovery)
+		.IntroductionText(LOCTEXT("CrashRecoveryIntroductionText", "An abnormal Editor terminaison was detected for this project. You can recover up to the last operation recorded or to a previous state."))
+		.ParentWindow(NewWindow)
+		.OnFetchActivities(FetchActivitiesFn)
+		.ClientAvatarColorColumnVisibility(EVisibility::Hidden) // Disaster recovery has only one user, the local one.
+		.ClientNameColumnVisibility(EVisibility::Hidden)
+		.OperationColumnVisibility(EVisibility::Visible)
+		.PackageColumnVisibility(EVisibility::Visible)
+		.DetailsAreaVisibility(ShouldDisplayActivityDetails() ? EVisibility::Visible : EVisibility::Collapsed)
+		.IsConnectionActivityFilteringEnabled(false) // For disaster recovery, connection and lock events are meaningless, don't show the filtering options.
+		.IsLockActivityFilteringEnabled(false);
 
 	NewWindow->SetContent(RecoveryWidget);
 	FSlateApplication::Get().AddModalWindow(NewWindow, nullptr);
 
-	// Remember which item was selected to recover through.
+	// Get which item was selected to recover through.
 	SelectedRecoveryActivity = RecoveryWidget->GetRecoverThroughItem();
 	if (SelectedRecoveryActivity)
 	{

@@ -428,6 +428,31 @@ EConcertSessionResponseCode FConcertServerWorkspace::HandleResourceLockRequest(c
 	return EConcertSessionResponseCode::Success;
 }
 
+EConcertSessionResponseCode FConcertServerWorkspace::HandleSyncEventRequest(const FConcertSessionContext& Context, const FConcertSyncEventRequest& Request, FConcertSyncEventResponse& Response)
+{
+	if (Request.EventType == EConcertSyncActivityEventType::Transaction)
+	{
+		FConcertSyncTransactionEvent TransactionEvent;
+		if (LiveSession->GetSessionDatabase().GetTransactionEvent(Request.EventId, TransactionEvent, /*bMetaDataOnly*/false)) // The request is meant to retrive the transaction data from a partially sync event.
+		{
+			Response.Event.SetTypedPayload(TransactionEvent);
+			return EConcertSessionResponseCode::Success;
+		}
+	}
+	else if (Request.EventType == EConcertSyncActivityEventType::Package)
+	{
+		FConcertSyncPackageEvent PackageEvent;
+		if (LiveSession->GetSessionDatabase().GetPackageEvent(Request.EventId, PackageEvent, /*bMetaDataOnly*/false)) // The request is meant to retrive the package data from a partially sync event.
+		{
+			Response.Event.SetTypedPayload(PackageEvent);
+			return EConcertSessionResponseCode::Success;
+		}
+	}
+	// else Other event types (connection/lock) don't have interesting non-meta-data data to retrieve.
+
+	return EConcertSessionResponseCode::Failed;
+}
+
 void FConcertServerWorkspace::HandleBeginPlaySession(const FName InPlayPackageName, const FGuid& InEndpointId, bool bIsSimulating)
 {
 	TArray<FPlaySessionInfo>& PlaySessionEndpoints = ActivePlaySessions.FindOrAdd(InPlayPackageName);

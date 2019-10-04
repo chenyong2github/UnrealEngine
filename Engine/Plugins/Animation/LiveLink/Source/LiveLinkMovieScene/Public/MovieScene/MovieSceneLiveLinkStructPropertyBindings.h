@@ -43,12 +43,10 @@ public:
 	 * @return ValueType	The current value
 	 */
 	template <typename ValueType>
+	UE_DEPRECATED(4.24, "This function is deprecated. Use a GetCurrentValueAt with InIndex set to 0 for the same result.")
 	ValueType GetCurrentValue(const UScriptStruct& InStruct, const void* InSourceAddress)
 	{
-		FPropertyWrapper Property = FindOrAdd(InStruct);
-
-		const ValueType* ValuePtr = Property.GetPropertyAddress<ValueType>(InSourceAddress);
-		return ValuePtr ? *ValuePtr : ValueType();
+		return GetCurrentValueAt<ValueType>(0, InStruct, InSourceAddress);
 	}
 
 	/**
@@ -66,10 +64,20 @@ public:
 
 		if (UProperty* Property = FoundProperty.GetProperty())
 		{
-			UArrayProperty* ArrayProperty = CastChecked<UArrayProperty>(Property);
-			FScriptArrayHelper ArrayHelper(ArrayProperty, ArrayProperty->ContainerPtrToValuePtr<ValueType>(InSourceAddress));
-			const ValueType* ValuePtr = reinterpret_cast<const ValueType*>(ArrayHelper.GetRawPtr(InIndex));
-			return ValuePtr ? *ValuePtr : ValueType();
+			if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Property))
+			{
+				const ValueType* BaseAddr = FoundProperty.GetPropertyAddress<ValueType>(InSourceAddress, 0);
+				FScriptArrayHelper ArrayHelper(ArrayProperty, BaseAddr);
+				ArrayHelper.ExpandForIndex(InIndex);
+				const ValueType* ValuePtr = reinterpret_cast<const ValueType*>(ArrayHelper.GetRawPtr(InIndex));
+				return ValuePtr ? *ValuePtr : ValueType();
+			}
+			else
+			{
+				checkSlow(InIndex >= 0 && InIndex < Property->ArrayDim);
+				const ValueType* BaseAddr = FoundProperty.GetPropertyAddress<ValueType>(InSourceAddress, InIndex);
+				return BaseAddr ? *BaseAddr : ValueType();
+			}
 		}
 		return ValueType();
 	}
@@ -81,7 +89,11 @@ public:
 	 * @param InSourceAddress	The address of the instanced struct
 	 * @return ValueType	The current value
 	 */
-	int64 GetCurrentValueForEnum(const UScriptStruct& InStruct, const void* InSourceAddress);
+	UE_DEPRECATED(4.24, "This function is deprecated. Use a GetCurrentValueForEnumAt with InIndex set to 0 for the same result.")
+	int64 GetCurrentValueForEnum(const UScriptStruct& InStruct, const void* InSourceAddress)
+	{
+		return GetCurrentValueForEnumAt(0, InStruct, InSourceAddress);
+	}
 
 	/**
 	 * Gets the current value of an enum property at desired index
@@ -102,14 +114,10 @@ public:
 	 * @param InValue   The value to set
 	 */
 	template <typename ValueType>
+	UE_DEPRECATED(4.24, "This function is deprecated. Use a SetCurrentValueAt with InIndex set to 0 for the same result.")
 	void SetCurrentValue(const UScriptStruct& InStruct, void* InSourceAddress, typename TCallTraits<ValueType>::ParamType InValue)
 	{
-		FPropertyWrapper Property = FindOrAdd(InStruct);
-
-		if (ValueType* ValuePtr = Property.GetPropertyAddress<ValueType>(InSourceAddress))
-		{
-			*ValuePtr = InValue;
-		}
+		SetCurrentValueAt<ValueType>(0, InStruct, InSourceAddress, InValue);
 	}
 
 	/**
@@ -127,12 +135,25 @@ public:
 
 		if (UProperty* Property = FoundProperty.GetProperty())
 		{
-			UArrayProperty* ArrayProperty = CastChecked<UArrayProperty>(Property);
-			FScriptArrayHelper ArrayHelper(ArrayProperty, ArrayProperty->ContainerPtrToValuePtr<ValueType>(InSourceAddress));
-			ValueType* ValuePtr = reinterpret_cast<ValueType*>(ArrayHelper.GetRawPtr(InIndex));
-			if (ValuePtr)
+			if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Property))
 			{
-				*ValuePtr = InValue;
+				ValueType* BaseAddr = FoundProperty.GetPropertyAddress<ValueType>(InSourceAddress, 0);
+				FScriptArrayHelper ArrayHelper(ArrayProperty, BaseAddr);
+				ArrayHelper.ExpandForIndex(InIndex);
+				ValueType* ValuePtr = reinterpret_cast<ValueType*>(ArrayHelper.GetRawPtr(InIndex));
+				if (ValuePtr)
+				{
+					*ValuePtr = InValue;
+				}
+			}
+			else
+			{
+				checkSlow(InIndex >= 0 && InIndex < Property->ArrayDim);
+				ValueType* BaseAddr = FoundProperty.GetPropertyAddress<ValueType>(InSourceAddress, InIndex);
+				if (BaseAddr)
+				{
+					*BaseAddr = InValue;
+				}
 			}
 		}
 	}
@@ -144,7 +165,21 @@ public:
 	 * @param InSourceAddress	The address of the instanced struct
 	 * @param InValue   The value to set
 	 */
-	void SetCurrentValueForEnum(const UScriptStruct& InStruct, void* InSourceAddress, int64 InValue);
+	UE_DEPRECATED(4.24, "This function is deprecated. Use a SetCurrentValueForEnumAt with InIndex set to 0 for the same result.")
+	void SetCurrentValueForEnum(const UScriptStruct& InStruct, void* InSourceAddress, int64 InValue)
+	{
+		SetCurrentValueForEnumAt(0, InStruct, InSourceAddress, InValue);
+	}
+
+	/**
+	 * Sets the current value of an Enum property on an instance of a UStruct to a certain Index
+	 *
+	 * @param InIndex, Index where to write the value
+	 * @param InStruct	The struct to set the property on
+	 * @param InSourceAddress	The address of the instanced struct
+	 * @param InValue   The value to set
+	 */
+	void SetCurrentValueForEnumAt(int32 InIndex, const UScriptStruct& InStruct, void* InSourceAddress, int64 InValue);
 
 	/** @return the property path that this binding was initialized from */
 	const FString& GetPropertyPath() const
@@ -182,6 +217,7 @@ private:
 	struct FPropertyWrapper
 	{
 		TWeakObjectPtr<UProperty> Property;
+		int64 DeltaAddress;
 
 		UProperty* GetProperty() const
 		{
@@ -194,25 +230,29 @@ private:
 		}
 
 		template<typename ValueType>
-		ValueType* GetPropertyAddress(void* InContainerPtr) const
+		ValueType* GetPropertyAddress(void* BaseContainerAddress, int32 Index) const
 		{
 			UProperty* PropertyPtr = GetProperty();
-			return PropertyPtr ? PropertyPtr->ContainerPtrToValuePtr<ValueType>(InContainerPtr) : nullptr;
+			const PTRINT NewAddress = (PTRINT)BaseContainerAddress + DeltaAddress;
+			return PropertyPtr ? PropertyPtr->ContainerPtrToValuePtr<ValueType>((void*)NewAddress, Index) : nullptr;
 		}
 
 		template<typename ValueType>
-		const ValueType* GetPropertyAddress(const void* InContainerPtr) const
+		const ValueType* GetPropertyAddress(const void* BaseContainerAddress, int32 Index) const
 		{
 			UProperty* PropertyPtr = GetProperty();
-			return PropertyPtr ? PropertyPtr->ContainerPtrToValuePtr<const ValueType>(InContainerPtr) : nullptr;
+			const PTRINT NewAddress = (PTRINT)BaseContainerAddress + DeltaAddress;
+			return PropertyPtr ? PropertyPtr->ContainerPtrToValuePtr<const ValueType>((void*)NewAddress, Index) : nullptr;
 		}
 		
 		FPropertyWrapper()
 			: Property(nullptr)
+			, DeltaAddress(0)
 		{}
 	};
 
-	static FPropertyWrapper FindProperty(const UScriptStruct& InStruct, const FName InPropertyName);
+	static FPropertyWrapper FindPropertyRecursive(const UScriptStruct* InStruct, TArray<FString>& InPropertyNames, uint32 Index, void* ContainerAddress, int32 PreviousDelta);
+	static FPropertyWrapper FindProperty(const UScriptStruct& InStruct, const FString& InPropertyName);
 
 	/** Find or add the FPropertyWrapper for the specified struct */
 	FPropertyWrapper FindOrAdd(const UScriptStruct& InStruct)
@@ -241,5 +281,14 @@ private:
 };
 
 /** Explicit specializations for bools */
-template<> LIVELINKMOVIESCENE_API bool FLiveLinkStructPropertyBindings::GetCurrentValue<bool>(const UScriptStruct& InStruct, const void* InSourceAddress);
-template<> LIVELINKMOVIESCENE_API void FLiveLinkStructPropertyBindings::SetCurrentValue<bool>(const UScriptStruct& InStruct, void* InSourceAddress, TCallTraits<bool>::ParamType InValue);
+template<>
+UE_DEPRECATED(4.24, "This function is deprecated. Use a GetCurrentValueAt with InIndex set to 0 for the same result.")
+LIVELINKMOVIESCENE_API bool FLiveLinkStructPropertyBindings::GetCurrentValue<bool>(const UScriptStruct& InStruct, const void* InSourceAddress);
+
+template<>
+UE_DEPRECATED(4.24, "This function is deprecated. Use a SetCurrentValueAt with InIndex set to 0 for the same result.")
+LIVELINKMOVIESCENE_API void FLiveLinkStructPropertyBindings::SetCurrentValue<bool>(const UScriptStruct& InStruct, void* InSourceAddress, TCallTraits<bool>::ParamType InValue);
+
+
+template<> LIVELINKMOVIESCENE_API bool FLiveLinkStructPropertyBindings::GetCurrentValueAt<bool>(int32 InIndex, const UScriptStruct& InStruct, const void* InSourceAddress);
+template<> LIVELINKMOVIESCENE_API void FLiveLinkStructPropertyBindings::SetCurrentValueAt<bool>(int32 InIndex, const UScriptStruct& InStruct, void* InSourceAddress, TCallTraits<bool>::ParamType InValue);

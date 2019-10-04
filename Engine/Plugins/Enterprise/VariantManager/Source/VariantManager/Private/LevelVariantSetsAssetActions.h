@@ -1,0 +1,35 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Styling/ISlateStyle.h"
+#include "Toolkits/IToolkitHost.h"
+#include "AssetTypeActions_Base.h"
+
+
+class FLevelVariantSetsAssetActions
+	: public FAssetTypeActions_Base
+{
+public:
+
+	FLevelVariantSetsAssetActions(const TSharedRef<ISlateStyle>& InStyle);
+
+	// IAssetTypeActions interface
+	virtual uint32 GetCategories() override;
+	virtual FText GetName() const override;
+	virtual UClass* GetSupportedClass() const override;
+	virtual bool HasActions(const TArray<UObject*>& InObjects) const override { return true; }
+	virtual void GetActions(const TArray<UObject*>& InObjects, struct FToolMenuSection& Section) override;
+	virtual FColor GetTypeColor() const override;
+	virtual void OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>()) override;
+	virtual bool ShouldForceWorldCentric() override;
+	virtual bool CanLocalize() const override
+	{
+		 return false;
+	}
+	//~ End IAssetTypeActions interface
+
+private:
+	TSharedRef<ISlateStyle> Style;
+};

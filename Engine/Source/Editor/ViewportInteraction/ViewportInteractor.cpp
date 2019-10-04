@@ -35,8 +35,10 @@ UViewportInteractor::UViewportInteractor() :
 	WorldInteraction( nullptr ),
 	OtherInteractor( nullptr ),
 	bAllowGrabberSphere( true ),
+	bCanCarry( false ),
 	SavedLaserPointerEnd()
 {
+	CurrentHitResultGizmoFilterMode = EHitResultGizmoFilterMode::All;
 	SmoothingOneEuroFilter = ViewportInteractionUtils::FOneEuroFilter(VI::LaserSmoothMinimumCutoff->GetFloat(), VI::LaserSmoothLag->GetFloat(), 1.0f);
 }
 
@@ -131,7 +133,7 @@ bool UViewportInteractor::HandleInputKey( FEditorViewportClient& ViewportClient,
 			HandleInputKey_BP( *Action, Key, Event, bHandled );
 		}
 
-		FHitResult HitResult = GetHitResultFromLaserPointer();
+		FHitResult HitResult = GetHitResultFromLaserPointer(nullptr, CurrentHitResultGizmoFilterMode);
 
 		if( !bHandled )
 		{
@@ -556,6 +558,21 @@ FTransform UViewportInteractor::GetTransform() const
 	return InteractorData.Transform;
 }
 
+FTransform UViewportInteractor::GetRoomSpaceTransform() const
+{
+	return InteractorData.RoomSpaceTransform;
+}
+
+FTransform UViewportInteractor::GetLastTransform() const
+{
+	return InteractorData.LastTransform;
+}
+
+FTransform UViewportInteractor::GetLastRoomSpaceTransform() const
+{
+	return InteractorData.LastRoomSpaceTransform;
+}
+
 EViewportInteractionDraggingMode UViewportInteractor::GetDraggingMode() const
 {
 	return InteractorData.DraggingMode;
@@ -653,12 +670,12 @@ void UViewportInteractor::ResetHoverState()
 	SavedHitResult.Reset();
 }
 
-FHitResult UViewportInteractor::GetHitResultFromLaserPointer( TArray<AActor*>* OptionalListOfIgnoredActors /*= nullptr*/, const bool bIgnoreGizmos /*= false*/,
+FHitResult UViewportInteractor::GetHitResultFromLaserPointer( TArray<AActor*>* OptionalListOfIgnoredActors /*= nullptr*/, const EHitResultGizmoFilterMode GizmoFilterMode /*= EHitResultGizmoFilterMode::All*/,
 	TArray<UClass*>* ObjectsInFrontOfGizmo /*= nullptr */, const bool bEvenIfBlocked /*= false */, const float LaserLengthOverride /*= 0.0f */ )
 {
 	FHitResult BestHitResult;
 
-	if (SavedHitResult.IsSet() && OptionalListOfIgnoredActors != nullptr && !OptionalListOfIgnoredActors->Contains(SavedHitResult->Actor))
+	if (SavedHitResult.IsSet() && OptionalListOfIgnoredActors != nullptr && !OptionalListOfIgnoredActors->Contains(SavedHitResult->Actor) && (SavedHitResultFilterMode.IsSet() && (GizmoFilterMode == SavedHitResultFilterMode.GetValue())))
 	{
 		BestHitResult = SavedHitResult.GetValue();
 	}
@@ -667,7 +684,7 @@ FHitResult UViewportInteractor::GetHitResultFromLaserPointer( TArray<AActor*>* O
 		FVector LaserPointerStart, LaserPointerEnd;
 		if ( GetLaserPointer( LaserPointerStart, LaserPointerEnd, bEvenIfBlocked, LaserLengthOverride ) )
 		{
-			bool bActuallyIgnoreGizmos = bIgnoreGizmos;
+			bool bActuallyIgnoreGizmos = (GizmoFilterMode == EHitResultGizmoFilterMode::NoGizmos);
 			if( !WorldInteraction->IsTransformGizmoVisible() )
 			{
 				bActuallyIgnoreGizmos = true;
@@ -690,7 +707,7 @@ FHitResult UViewportInteractor::GetHitResultFromLaserPointer( TArray<AActor*>* O
 
 			// Twice twice.  Once for editor gizmos which are "on top" and always take precedence, then a second time
 			// for all of the scene objects
-			for ( int32 PassIndex = bActuallyIgnoreGizmos ? 1 : 0; PassIndex < 2; ++PassIndex )
+			for ( int32 PassIndex = bActuallyIgnoreGizmos ? 1 : 0; PassIndex < ((GizmoFilterMode == EHitResultGizmoFilterMode::GizmosOnly) ? 1 : 2); ++PassIndex )
 			{
 				const bool bOnlyEditorGizmos = ( PassIndex == 0 );
 
@@ -765,6 +782,7 @@ FHitResult UViewportInteractor::GetHitResultFromLaserPointer( TArray<AActor*>* O
 		}
 
 		SavedHitResult = BestHitResult;
+		SavedHitResultFilterMode = GizmoFilterMode;
 	}
 
 	return BestHitResult;
@@ -859,6 +877,28 @@ bool UViewportInteractor::IsHoveringOverSelectedActor() const
 void UViewportInteractor::ResetLaserEnd()
 {
 	SavedLaserPointerEnd.Reset();
+}
+
+
+void UViewportInteractor::SetHitResultGizmoFilterMode(EHitResultGizmoFilterMode newFilter)
+{
+	CurrentHitResultGizmoFilterMode = newFilter;
+}
+
+
+EHitResultGizmoFilterMode UViewportInteractor::GetHitResultGizmoFilterMode() const
+{
+	return CurrentHitResultGizmoFilterMode;
+}
+
+void UViewportInteractor::SetCanCarry(const bool bInCanCarry)
+{
+	bCanCarry = bInCanCarry;
+}
+
+bool UViewportInteractor::CanCarry() const
+{
+	return bCanCarry;
 }
 
 #undef LOCTEXT_NAMESPACE

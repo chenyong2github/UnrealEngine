@@ -2200,7 +2200,7 @@ void UEngine::UpdateTimecode()
 	const UTimecodeProvider* Provider = GetTimecodeProvider();
 	if (Provider->GetSynchronizationState() == ETimecodeProviderSynchronizationState::Synchronized)
 	{
-		FApp::SetTimecodeAndFrameRate(Provider->GetTimecode(), Provider->GetFrameRate());
+		FApp::SetTimecodeAndFrameRate(Provider->GetDelayedTimecode(), Provider->GetFrameRate());
 	}
 	else
 	{
@@ -2899,7 +2899,7 @@ public:
 	virtual void AdjustViewRect(EStereoscopicPass StereoPass, int32& X, int32& Y, uint32& SizeX, uint32& SizeY) const override
 	{
 		SizeX = SizeX / 2;
-		if (StereoPass == eSSP_RIGHT_EYE)
+		if (IStereoRendering::IsASecondaryView(StereoPass))
 		{
 			X += SizeX;
 		}
@@ -2907,10 +2907,10 @@ public:
 
 	virtual void CalculateStereoViewOffset(const enum EStereoscopicPass StereoPassType, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation) override
 	{
-		if (StereoPassType != eSSP_FULL)
+		if (IStereoRendering::IsStereoEyeView(StereoPassType))
 		{
 			float EyeOffset = 3.20000005f;
-			const float PassOffset = (StereoPassType == eSSP_LEFT_EYE) ? EyeOffset : -EyeOffset;
+			const float PassOffset = IStereoRendering::IsAPrimaryView(StereoPassType) ? EyeOffset : -EyeOffset;
 			ViewLocation += ViewRotation.Quaternion().RotateVector(FVector(0,PassOffset,0));
 		}
 	}

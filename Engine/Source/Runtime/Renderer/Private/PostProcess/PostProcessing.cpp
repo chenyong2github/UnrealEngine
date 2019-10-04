@@ -544,7 +544,7 @@ static FRCPassPostProcessTonemap* AddTonemapper(
 	const bool bIsComputePass = ShouldDoComputePostProcessing(View);
 
 	FRenderingCompositeOutputRef TonemapperCombinedLUTOutputRef;
-	if (IStereoRendering::IsAPrimaryView(StereoPass, GEngine->StereoRenderingDevice))
+	if (IStereoRendering::IsAPrimaryView(StereoPass))
 	{
 		TonemapperCombinedLUTOutputRef = AddCombineLUTPass(Context.Graph);
 	}
@@ -1022,7 +1022,7 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 				// Skip for transient views.
 				bHasViewState &&
 				// Skip for secondary views in a stereo setup.
-				IStereoRendering::IsAPrimaryView(View.StereoPass, GEngine->StereoRenderingDevice);
+				IStereoRendering::IsAPrimaryView(View.StereoPass);
 
 			const bool bHistogramEnabled =
 				// Force the histogram on when we are visualizing HDR.

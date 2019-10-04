@@ -1165,26 +1165,9 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 		return true;
 	}
 
-	FString UPackageTools::SanitizePackageName (const FString& InPackageName)
+	FString UPackageTools::SanitizePackageName(const FString& InPackageName)
 	{
-		FString SanitizedName;
-		FString InvalidChars = INVALID_LONGPACKAGE_CHARACTERS;
-
-		// See if the name contains invalid characters.
-		FString Char;
-		for( int32 CharIdx = 0; CharIdx < InPackageName.Len(); ++CharIdx )
-		{
-			Char = InPackageName.Mid(CharIdx, 1);
-
-			if ( InvalidChars.Contains(*Char) )
-			{
-				SanitizedName += TEXT("_");
-			}
-			else
-			{
-				SanitizedName += Char;
-			}
-		}
+		FString SanitizedName = ObjectTools::SanitizeInvalidChars(InPackageName, INVALID_LONGPACKAGE_CHARACTERS);
 
 		// Remove double-slashes
 		SanitizedName.ReplaceInline(TEXT("//"), TEXT("/"));

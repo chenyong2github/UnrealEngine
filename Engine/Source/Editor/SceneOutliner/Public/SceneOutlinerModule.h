@@ -7,6 +7,7 @@
 #include "ISceneOutliner.h"
 #include "SceneOutlinerPublicTypes.h"
 
+class ICustomSceneOutliner;
 class ISceneOutlinerColumn;
 class FOutlinerFilter;
 
@@ -43,6 +44,16 @@ public:
 	virtual TSharedRef< ISceneOutliner > CreateSceneOutliner(
 		const SceneOutliner::FInitializationOptions& InitOptions,
 		const FOnSceneOutlinerItemPicked& OnItemPickedDelegate ) const;
+
+	/**
+	 * Creates a custom scene outliner widget
+	 *
+	 * @param	InitOptions						Programmer-driven configuration for this widget instance. Know that the mode will always be converted to custom.
+	 *
+	 * @return	New custom scene outliner widget
+	 */
+	virtual TSharedRef< ICustomSceneOutliner > CreateCustomSceneOutliner(
+		SceneOutliner::FInitializationOptions& InitOptions ) const;
 
 public:
 	/** Register a new type of column available to all scene outliners */

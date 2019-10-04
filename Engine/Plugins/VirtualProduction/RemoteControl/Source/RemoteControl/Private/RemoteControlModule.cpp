@@ -105,14 +105,14 @@ public:
 
 				if (!Function)
 				{
-					ErrorText = TEXT("function does not exists.");
+					ErrorText = FString::Printf(TEXT("function: %s does not exist on object: %s"), *ObjectPath, *FunctionName);
 					bSuccess = false;
 				}
 				else if (!Function->HasAllFunctionFlags(FUNC_BlueprintCallable | FUNC_Public) ||
 					Function->HasMetaData(RemoteControlUtil::NAME_DeprecatedFunction) ||
 					Function->HasMetaData(RemoteControlUtil::NAME_ScriptNoExport))
 				{
-					ErrorText = TEXT("function is deprecated or unavailable remotely.");
+					ErrorText = FString::Printf(TEXT("function: %s is deprecated or unavailable remotely on object: %s"), *ObjectPath, *FunctionName);
 					bSuccess = false;
 				}
 				else
@@ -123,13 +123,13 @@ public:
 			}
 			else
 			{
-				ErrorText = TEXT("object does not exists.");
+				ErrorText = FString::Printf(TEXT("object: %s does not exists."), *ObjectPath);
 				bSuccess = false;
 			}
 		}
 		else
 		{
-			ErrorText = TEXT("can't resolve object while saving or garbage collecting.");
+			ErrorText = FString::Printf(TEXT("can't resolve object: %s while saving or garbage collecting."), *ObjectPath);
 			bSuccess = false;
 		}
 
@@ -181,7 +181,7 @@ public:
 					}
 					else
 					{
-						ErrorText = TEXT("object property is unavailable remotely.");
+						ErrorText = FString::Printf(TEXT("object property: %s is unavailable remotely on object: %s"), *PropertyName, *ObjectPath);
 						bSuccess = false;
 					}
 				}
@@ -193,13 +193,13 @@ public:
 			}
 			else
 			{
-				ErrorText = TEXT("object does not exists.");
+				ErrorText = FString::Printf(TEXT("object: %s does not exists when trying to resolve property: %s"), *ObjectPath, *PropertyName);
 				bSuccess = false;
 			}
 		}
 		else
 		{
-			ErrorText = TEXT("can't resolve object while saving or garbage collecting.");
+			ErrorText = FString::Printf(TEXT("can't resolve object: %s while saving or garbage collecting."), *ObjectPath);
 			bSuccess = false;
 		}
 

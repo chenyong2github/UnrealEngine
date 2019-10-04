@@ -35,12 +35,30 @@ UK2Node_DataprepAction::UK2Node_DataprepAction()
 	ActionTitle = LOCTEXT("DefaultNodeTitle", "New Action").ToString();
 }
 
+void UK2Node_DataprepAction::PostReconstructNode()
+{
+	Super::PostReconstructNode();
+
+	// Move content of deprecated DataprepAction_DEPRECATED to the new DataprepActionAsset.
+	if(DataprepAction_DEPRECATED)
+	{
+		DataprepActionAsset = DataprepAction_DEPRECATED;
+		DataprepAction_DEPRECATED = nullptr;
+	}
+
+	if(DataprepActionAsset)
+	{
+		DataprepActionAsset->SetLabel( *ActionTitle );
+	}
+}
+
+
 void UK2Node_DataprepAction::AllocateDefaultPins()
 {
 	// Inputs
 	CreatePin( EGPD_Input, UEdGraphSchema_K2::PC_Exec, UEdGraphSchema_K2::PN_Execute );
 	
-	// Hack don't put the objects pin when then node is in a dataprep asset
+	// Hack don't put the objects pin when then node is in a Dataprep asset
 	bool bIsInADataprepAsset = false;
 	UObject* Outer = GetOuter();
 	while ( Outer )
@@ -66,7 +84,7 @@ void UK2Node_DataprepAction::AllocateDefaultPins()
 	// Outputs
 	CreatePin( EGPD_Output, UEdGraphSchema_K2::PC_Exec, UEdGraphSchema_K2::PN_Then );
  
-	PreloadObject( DataprepAction );
+	PreloadObject( DataprepActionAsset );
  
 	Super::AllocateDefaultPins();
 }
@@ -89,15 +107,19 @@ FText UK2Node_DataprepAction::GetNodeTitle(ENodeTitleType::Type TitleType) const
 void UK2Node_DataprepAction::OnRenameNode(const FString& NewName)
 {
 	ActionTitle = NewName;
+	if ( DataprepActionAsset )
+	{
+		DataprepActionAsset->SetLabel( *NewName );
+	}
 }
 
 void UK2Node_DataprepAction::DestroyNode()
 {
-	if ( DataprepAction )
+	if ( DataprepActionAsset )
 	{
 		Modify();
 		// Force the transaction system to restore the action
-		DataprepAction = nullptr;
+		DataprepActionAsset = nullptr;
 	}
  
 	Super::DestroyNode();
@@ -105,7 +127,7 @@ void UK2Node_DataprepAction::DestroyNode()
 
 void UK2Node_DataprepAction::NodeConnectionListChanged()
 {
-	FDataprepEditorUtils::NotifySystemOfChangeInPipeline( this );
+	FDataprepEditorUtils::NotifySystemOfChangeInPipeline( GetDataprepAction() );
 }
 
 TSharedPtr<SGraphNode> UK2Node_DataprepAction::CreateVisualWidget()
@@ -160,7 +182,7 @@ void UK2Node_DataprepAction::ExpandNode(FKismetCompilerContext& CompilerContext,
  
 	// Manipulate the self pin
 	UEdGraphPin& CallSelfPin = *CallOperation->FindPinChecked( UEdGraphSchema_K2::PSC_Self, EGPD_Input );
-	CallSelfPin.DefaultObject = DuplicateObject( DataprepAction, GetBlueprint()->GeneratedClass );
+	CallSelfPin.DefaultObject = DuplicateObject( DataprepActionAsset, GetBlueprint()->GeneratedClass );
  
 	// Connects the objects pins
 	UEdGraphPin& CallFunctionInObjectsPin = *CallOperation->FindPinChecked( TEXT("InObjects"), EGPD_Input );
@@ -169,14 +191,6 @@ void UK2Node_DataprepAction::ExpandNode(FKismetCompilerContext& CompilerContext,
 	// Connects the executions Pins
 	CompilerContext.MovePinLinksToIntermediate( *GetExecPin(), *CallOperation->GetExecPin() );
 	CompilerContext.MovePinLinksToIntermediate( *CallOperation->GetThenPin(), GetOutExecutionPin() );
-}
-
-void UK2Node_DataprepAction::CreateDataprepActionAsset()
-{
-	if ( !DataprepAction )
-	{
-		DataprepAction = NewObject< UDataprepActionAsset >( this, UDataprepActionAsset::StaticClass(), NAME_None, RF_Transactional );
-	}
 }
 
 UEdGraphPin& UK2Node_DataprepAction::GetOutExecutionPin() const

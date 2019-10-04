@@ -37,6 +37,7 @@ public:
 	virtual bool HasValidFrameSnapshot() const = 0;
 	virtual FLiveLinkStaticDataStruct& GetStaticData() = 0;
 	virtual const FLiveLinkStaticDataStruct& GetStaticData() const = 0;
+	virtual TArray<FLiveLinkTime> GetFrameTimes() const = 0;
 
 	/** List of available translator the subject can use. */
 	virtual const TArray<ULiveLinkFrameTranslator::FWorkerSharedPtr> GetFrameTranslators() const = 0;

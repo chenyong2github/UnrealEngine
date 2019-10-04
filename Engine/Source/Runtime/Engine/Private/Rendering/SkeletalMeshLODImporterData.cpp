@@ -219,32 +219,66 @@ bool FSkeletalMeshImportData::ApplyRigToGeo(FSkeletalMeshImportData& Other)
 	{
 		const FVector2D& CurWedgeUV = Wedges[WedgeIndex].UVs[0];
 		int32 NewVertexIndex = (int32)(Wedges[WedgeIndex].VertexIndex);
-		int32 NewFaceIndex = (WedgeIndex / 3);
+		FVector& NewPointA = Points[NewVertexIndex];
+		SkeletalMeshImportData::FTriangle& NewFace = Faces[(WedgeIndex / 3)];
 		int32 NewFaceCorner = (WedgeIndex % 3);
-		FVector NewNormal = Faces[NewFaceIndex].TangentZ[NewFaceCorner];
-		TArray<int32> OldWedgeIndexes;
-		OldGeoOverlappingPosition.FindMatchingPositionWegdeIndexes(Points[NewVertexIndex], THRESH_POINTS_ARE_SAME, OldWedgeIndexes);
+		FVector NewNormal = NewFace.TangentZ[NewFaceCorner];
 		bool bFoundMatch = false;
+
+		TArray<int32> OldWedgeIndexes;
+		OldGeoOverlappingPosition.FindMatchingPositionWegdeIndexes(NewPointA, THRESH_POINTS_ARE_SAME, OldWedgeIndexes);
 		if (OldWedgeIndexes.Num() > 0)
 		{
+			//Getting the other 2 vertices of the new triangle
+			FVector& NewPointB = Points[Wedges[NewFace.WedgeIndex[(WedgeIndex + 1) % 3]].VertexIndex];
+			FVector& NewPointC = Points[Wedges[NewFace.WedgeIndex[(WedgeIndex + 2) % 3]].VertexIndex];
+			int32 BestOldVertexIndex = INDEX_NONE;
+			float LowestTriangleDeltaSum = 0;
+
 			for (int32 OldWedgeIndex : OldWedgeIndexes)
 			{
 				int32 OldVertexIndex = Other.Wedges[OldWedgeIndex].VertexIndex;
-				int32 OldFaceIndex = (OldWedgeIndex / 3);
+				SkeletalMeshImportData::FTriangle& OldFace = Other.Faces[OldWedgeIndex / 3];
 				int32 OldFaceCorner = (OldWedgeIndex % 3);
-				FVector OldNormal = Other.Faces[OldFaceIndex].TangentZ[OldFaceCorner];
-				
+				FVector OldNormal = OldFace.TangentZ[OldFaceCorner];
+
 				if (Other.Wedges[OldWedgeIndex].UVs[0].Equals(CurWedgeUV, THRESH_UVS_ARE_SAME)
 					&& OldNormal.Equals(NewNormal, THRESH_NORMALS_ARE_SAME))
 				{
-					OldToNewRemap[OldVertexIndex].AddUnique(NewVertexIndex);
-					bFoundMatch = true;
+					//If we have more than one good match, we select the vertex whose triangle is the most similar, 
+					//that way we avoid picking the wrong vertex on a mirror mesh seam.
+					if (OldWedgeIndexes.Num() == 1)
+					{
+						//We can skip the Delta calculation if there is only one similar vertex.
+						BestOldVertexIndex = OldVertexIndex;
+						break;
+					}
+
+					FVector& OldPointA = Other.Points[Other.Wedges[OldWedgeIndex].VertexIndex];
+					FVector& OldPointB = Other.Points[Other.Wedges[OldFace.WedgeIndex[(OldWedgeIndex + 1) % 3]].VertexIndex];
+					FVector& OldPointC = Other.Points[Other.Wedges[OldFace.WedgeIndex[(OldWedgeIndex + 2) % 3]].VertexIndex];
+					float TriangleDeltaSum =
+						(NewPointA - OldPointA).Size() +
+						(NewPointB - OldPointB).Size() +
+						(NewPointC - OldPointC).Size();
+
+					if (BestOldVertexIndex == INDEX_NONE || TriangleDeltaSum < LowestTriangleDeltaSum)
+					{
+						BestOldVertexIndex = OldVertexIndex;
+						LowestTriangleDeltaSum = TriangleDeltaSum;
+					}
 				}
+			}
+
+			if (BestOldVertexIndex != INDEX_NONE)
+			{
+				OldToNewRemap[BestOldVertexIndex].AddUnique(NewVertexIndex);
+				bFoundMatch = true;
 			}
 		}
 
 		//If some geometry was added, it will not found any exact match with the old geometry
-		//In this case we have to find the nearest list of wedge indexe
+		//In this case we have to find the nearest list of wedge indexes
 		if(!bFoundMatch)
 		{
 			TArray<FWedgeInfo> NearestWedges;

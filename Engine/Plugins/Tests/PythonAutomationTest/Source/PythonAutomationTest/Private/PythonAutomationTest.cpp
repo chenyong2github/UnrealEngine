@@ -73,6 +73,22 @@ public:
 	{
 	}
 
+	virtual FString GetTestSourceFileName() const override { return __FILE__; }
+	virtual FString GetTestSourceFileName(const FString& InTestName) const override
+	{
+		// Because FPythonAutomationTest is a Complex Automation Test, InTestName contains the name of the cpp class and a test parameter.
+		// We isolate the test parameter and return it as it is the path of the python script.
+		int Position = InTestName.Find(TEXT(" "));
+		return InTestName.RightChop(Position+1);
+	}
+
+	virtual int32 GetTestSourceFileLine() const override { return __LINE__; }
+	virtual int32 GetTestSourceFileLine(const FString& InTestName) const override
+	{
+		// FPythonAutomationTest generates one test per script file. File Line is therefore the begining of the file.
+		return 0;
+	}
+
 protected:
 	FString BeautifyPath(FString Path) const
 	{

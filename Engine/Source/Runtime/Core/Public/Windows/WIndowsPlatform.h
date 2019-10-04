@@ -72,6 +72,7 @@ typedef FWindowsPlatformTypes FPlatformTypes;
 
 #define PLATFORM_SUPPORTS_STACK_SYMBOLS						1
 #define PLATFORM_COMPILER_HAS_DECLTYPE_AUTO					1
+#define PLATFORM_IS_ANSI_MALLOC_THREADSAFE					1
 
 #define PLATFORM_GLOBAL_LOG_CATEGORY						LogWindows
 

@@ -20,7 +20,6 @@
 #include "IMeshBuilderModule.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
-#include "Layers/LayersSubsystem.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInterface.h"
 #include "Math/Vector2D.h"
@@ -75,7 +74,10 @@ namespace DataprepOperationsLibraryUtil
 				TInlineComponentArray<UStaticMeshComponent*> StaticMeshComponents(Cast<AActor>(Object));
 				for (UStaticMeshComponent* StaticMeshComponent : StaticMeshComponents)
 				{
-					SelectedMeshes.Add(StaticMeshComponent->GetStaticMesh());
+					if(UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh())
+					{
+						SelectedMeshes.Add( StaticMesh );
+					}
 				}
 			}
 		}
@@ -113,6 +115,29 @@ namespace DataprepOperationsLibraryUtil
 		}
 
 		return MaterialSet.Array();
+	}
+
+	TArray<UStaticMesh*> GetUsedMeshes(const TArray<UObject*>& SelectedObjects)
+	{
+		TSet<UStaticMesh*> MeshesSet;
+
+		for (UObject* Object : SelectedObjects)
+		{
+			if (AActor* Actor = Cast< AActor >(Object))
+			{
+				// Find the meshes by iterating over every mesh component.
+				TInlineComponentArray<UStaticMeshComponent*> MeshComponents(Actor);
+				for (UStaticMeshComponent* MeshComponent : MeshComponents)
+				{
+					if(MeshComponent && MeshComponent->GetStaticMesh())
+					{
+						MeshesSet.Add( MeshComponent->GetStaticMesh() );
+					}
+				}
+			}
+		}
+
+		return MeshesSet.Array();
 	}
 
 	class FScopedStaticMeshEdit final
@@ -193,11 +218,6 @@ namespace DataprepOperationsLibraryUtil
 		UStaticMesh* StaticMesh;
 	};
 
-	int32 GetActorDepth(AActor* Actor)
-	{
-		return Actor ? 1 + GetActorDepth(Actor->GetAttachParentActor()) : 0;
-	}
-
 	/** Customized version of UStaticMesh::SetMaterial avoiding the triggering of UStaticMesh::Build and its side-effects */
 	void SetMaterial( UStaticMesh* StaticMesh, int32 MaterialIndex, UMaterialInterface* NewMaterial )
 	{
@@ -229,6 +249,13 @@ namespace DataprepOperationsLibraryUtil
 	// #ueent_todo: Work with Geometry team to find the proper replacement
 	void BuildRenderData( UStaticMesh* StaticMesh, IMeshBuilderModule& MeshBuilderModule )
 	{
+		if(StaticMesh->GetNumSourceModels() == 0)
+		{
+			return;
+		}
+
+		TRACE_CPUPROFILER_EVENT_SCOPE(DataprepOperationsLibraryUtil::BuildRenderData);
+
 		FStaticMeshSourceModel& SourceModel = StaticMesh->GetSourceModel(0);
 
 		FMeshBuildSettings PrevBuildSettings = SourceModel.BuildSettings;
@@ -517,89 +544,80 @@ void UDataprepOperationsLibrary::SetLODGroup( const TArray<UObject*>& SelectedOb
 	}
 }
 
-void UDataprepOperationsLibrary::RemoveObjects(const TArray< UObject* >& Objects)
+void UDataprepOperationsLibrary::SetMesh(const TArray<UObject*>& SelectedObjects, UStaticMesh* MeshSubstitute)
 {
-	// Implementation based on DatasmithImporterImpl::DeleteActorsMissingFromScene, UEditorLevelLibrary::DestroyActor
-	struct FActorAndDepth
+	for (UObject* Object : SelectedObjects)
 	{
-		AActor* Actor;
-		int32 Depth;
-	};
-
-	TArray<FActorAndDepth> ActorsToDelete;
-	ActorsToDelete.Reserve(Objects.Num());
-
-	TArray<UObject*> AssetsToDelete;
-	AssetsToDelete.Reserve(Objects.Num());
-
-	for (UObject* Object : Objects)
-	{
-		if ( !ensure(Object) || Object->IsPendingKill() )
+		if (AActor* Actor = Cast< AActor >(Object))
 		{
-			continue;
-		}
-
-		if (AActor* Actor = Cast< AActor >( Object ))
-		{
-			ActorsToDelete.Add(FActorAndDepth{Actor, DataprepOperationsLibraryUtil::GetActorDepth(Actor)});
-			// #ueent_todo if rem children option, add them here
-		}
-		else
-		{
-			AssetsToDelete.Add(Object);
-		}
-	}
-
-	// Sort actors by decreasing depth (in order to delete children first)
-	ActorsToDelete.Sort([](const FActorAndDepth& Lhs, const FActorAndDepth& Rhs){ return Lhs.Depth > Rhs.Depth; });
-
-	bool bSelectionAffected = false;
-	ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
-	for (const FActorAndDepth& ActorInfo : ActorsToDelete)
-	{
-		AActor* Actor = ActorInfo.Actor;
-
-		// Reattach our children to our parent
-		TArray< USceneComponent* > AttachChildren = Actor->GetRootComponent()->GetAttachChildren(); // Make a copy because the array in RootComponent will get modified during the process
-		USceneComponent* AttachParent = Actor->GetRootComponent()->GetAttachParent();
-
-		for ( USceneComponent* ChildComponent : AttachChildren )
-		{
-			// skip component with invalid or condemned owner
-			AActor* Owner = ChildComponent->GetOwner();
-			if ( Owner == nullptr || Owner == Actor || Owner->IsPendingKill() || Objects.Contains(Owner))
+			// Find the meshes by iterating over every mesh component.
+			TInlineComponentArray<UStaticMeshComponent*> MeshComponents(Actor);
+			for (UStaticMeshComponent* MeshComponent : MeshComponents)
 			{
-				continue;
-			}
-
-			ChildComponent->AttachToComponent( AttachParent, FAttachmentTransformRules::KeepWorldTransform );
-		}
-
-		// Actual deletion of the actor
-		{
-			Actor->Rename();
-			if (Actor->IsSelected())
-			{
-				GEditor->SelectActor(Actor, false, false);
-				bSelectionAffected = true;
-			}
-
-			Layers->DisassociateActorFromLayers(Actor);
-
-			if (UWorld* World = Actor->GetWorld())
-			{
-				World->EditorDestroyActor(Actor, true);
+				if(MeshComponent)
+				{
+					MeshComponent->SetStaticMesh( MeshSubstitute );
+				}
 			}
 		}
 	}
+}
 
-	if (bSelectionAffected)
+void UDataprepOperationsLibrary::SubstituteMesh(const TArray<UObject*>& SelectedObjects, const FString& MeshSearch, EEditorScriptingStringMatchType StringMatch, UStaticMesh* MeshSubstitute)
+{
+	TArray<UStaticMesh*> MeshesUsed = DataprepOperationsLibraryUtil::GetUsedMeshes(SelectedObjects);
+
+	SubstituteMesh( SelectedObjects, MeshSearch, StringMatch, MeshesUsed, MeshSubstitute );
+}
+
+void UDataprepOperationsLibrary::SubstituteMeshesByTable(const TArray<UObject*>& SelectedObjects, const UDataTable * DataTable)
+{
+	if (DataTable == nullptr || DataTable->GetRowStruct() == nullptr || !DataTable->GetRowStruct()->IsChildOf(FMeshSubstitutionDataTable::StaticStruct()))
 	{
-		GEditor->NoteSelectionChange();
+		return;
 	}
 
-	FDataprepCoreUtils::PurgeObjects( MoveTemp( AssetsToDelete ) );
+	TArray<UStaticMesh*> MeshesUsed = DataprepOperationsLibraryUtil::GetUsedMeshes(SelectedObjects);
 
+	const TMap<FName, uint8*>&  MeshTableRowMap = DataTable->GetRowMap();
+	for (auto& MeshTableRowEntry : MeshTableRowMap)
+	{
+		const FMeshSubstitutionDataTable* MeshRow = (const FMeshSubstitutionDataTable*)MeshTableRowEntry.Value;
+		if (MeshRow != nullptr && MeshRow->MeshReplacement != nullptr)
+		{
+			SubstituteMesh( SelectedObjects, MeshRow->SearchString, MeshRow->StringMatch, MeshesUsed, MeshRow->MeshReplacement );
+		}
+	}
+}
+
+void UDataprepOperationsLibrary::SubstituteMesh(const TArray<UObject*>& SelectedObjects, const FString& MeshSearch, EEditorScriptingStringMatchType StringMatch, const TArray<UStaticMesh*>& MeshList, UStaticMesh* MeshSubstitute)
+{
+	TArray<UObject*> MatchingObjects = UEditorFilterLibrary::ByIDName(TArray<UObject*>(MeshList), MeshSearch, StringMatch, EEditorScriptingFilterType::Include);
+
+	TSet<UStaticMesh*> MeshesToReplace;
+	for (UObject* Object : MatchingObjects)
+	{
+		if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(Object))
+		{
+			MeshesToReplace.Add(StaticMesh);
+		}
+	}
+
+	for (UObject* Object : SelectedObjects)
+	{
+		if (AActor* Actor = Cast< AActor >(Object))
+		{
+			// Find the meshes by iterating over every mesh component.
+			TInlineComponentArray<UStaticMeshComponent*> MeshComponents(Actor);
+			for (UStaticMeshComponent* MeshComponent : MeshComponents)
+			{
+				if( MeshesToReplace.Contains( MeshComponent->GetStaticMesh() ) )
+				{
+					MeshComponent->SetStaticMesh( MeshSubstitute );
+				}
+			}
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -5,7 +5,7 @@
 #include "EditorFilterLibrary.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 
-#include "DataprepFilterLibrary.generated.h"
+#include "DataPrepFilterLibrary.generated.h"
 
 UENUM()
 enum class EDataprepSizeSource : uint8

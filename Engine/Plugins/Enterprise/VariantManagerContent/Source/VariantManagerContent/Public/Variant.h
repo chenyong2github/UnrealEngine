@@ -48,6 +48,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Variant")
 	void SwitchOn();
 
+	// Returns true if none of our properties are dirty
+	bool IsActive();
+
 private:
 
 	// The display name used to be a property. Use the non-deprecated, non-property version from now on

@@ -43,6 +43,23 @@ function getAvailableCirrusServer() {
 	return undefined;
 }
 
+// No servers are available so send some simple JavaScript to the client to make
+// it retry after a short period of time.
+function sendRetryResponse(res) {
+	res.send(`All ${cirrusServers.size} Cirrus servers are in use. Retrying in <span id="countdown">10</span> seconds.
+	<script>
+		var countdown = document.getElementById("countdown").textContent;
+		setInterval(function() {
+			countdown--;
+			if (countdown == 0) {
+				window.location.reload(1);
+			} else {
+				document.getElementById("countdown").textContent = countdown;
+			}
+		}, 1000);
+	</script>`);
+}
+
 // Handle standard URL.
 app.get('/', (req, res) => {
 	cirrusServer = getAvailableCirrusServer();
@@ -50,7 +67,7 @@ app.get('/', (req, res) => {
 		res.redirect(`http://${cirrusServer.address}:${cirrusServer.port}/`);
 		console.log(`Redirect to ${cirrusServer.address}:${cirrusServer.port}`);
 	} else {
-		res.send('No Cirrus servers are available');
+		sendRetryResponse(res);
 	}
 });
 
@@ -61,7 +78,7 @@ app.get('/custom_html/:htmlFilename', (req, res) => {
 		res.redirect(`http://${cirrusServer.address}:${cirrusServer.port}/custom_html/${req.params.htmlFilename}`);
 		console.log(`Redirect to ${cirrusServer.address}:${cirrusServer.port}`);
 	} else {
-		res.send('No Cirrus servers are available');
+		sendRetryResponse(res);
 	}
 });
 

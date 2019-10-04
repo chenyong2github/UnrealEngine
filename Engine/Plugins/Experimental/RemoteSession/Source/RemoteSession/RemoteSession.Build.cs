@@ -8,14 +8,6 @@ public class RemoteSession : ModuleRules
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 		
-		PublicIncludePaths.AddRange(
-			new string[] {
-				System.IO.Path.Combine(ModuleDirectory, "..")
-				// ... add public include paths required here ...
-			}
-		);
-				
-		
 		PrivateIncludePaths.AddRange(
 			new string[] {
 				"../../../../Source/Runtime/Renderer/Private",
@@ -25,15 +17,14 @@ public class RemoteSession : ModuleRules
 			}
 		);
 			
-		
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
 				"Core",
+				"MediaIOCore",
 				// ... add other public dependencies that you statically link with here ...
 			}
 		);
-			
 		
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
@@ -46,16 +37,16 @@ public class RemoteSession : ModuleRules
 				"InputCore",
 				"BackChannel",
 				"RHI",
-                "Renderer",
-                "RenderCore",
+				"Renderer",
+				"RenderCore",
 				"ImageWrapper",
 				"MovieSceneCapture",
 				"Sockets",
 				"EngineSettings",
 				"HeadMountedDisplay",
-                "AugmentedReality",
-                // iOS uses the Apple Image Utils plugin for GPU accellerated JPEG compression
-                "AppleImageUtils"
+				"AugmentedReality",
+				// iOS uses the Apple Image Utils plugin for GPU accellerated JPEG compression
+				"AppleImageUtils"
 			}
 		);
 
@@ -64,12 +55,5 @@ public class RemoteSession : ModuleRules
 			//reference the module "MyModule"
 			PrivateDependencyModuleNames.Add("UnrealEd");
 		}
-
-		DynamicallyLoadedModuleNames.AddRange(
-			new string[]
-			{
-				// ... add any modules that your module loads dynamically here ...
-			}
-		);
 	}
 }

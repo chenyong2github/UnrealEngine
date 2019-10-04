@@ -4,8 +4,6 @@
 #include "Render/Synchronization/DisplayClusterRenderSyncPolicySoftwareGeneric.h"
 #include "Render/Synchronization/DisplayClusterRenderSyncPolicySoftwareDX11.h"
 #include "Render/Synchronization/DisplayClusterRenderSyncPolicySoftwareDX12.h"
-#include "Render/Synchronization/DisplayClusterRenderSyncPolicySoftwareOpenGL.h"
-#include "Render/Synchronization/DisplayClusterRenderSyncPolicyNvidiaOpenGL.h"
 #include "Render/Synchronization/DisplayClusterRenderSyncPolicyNvidiaDX11.h"
 #include "Render/Synchronization/DisplayClusterRenderSyncPolicyNvidiaDX12.h"
 #include "Render/Synchronization/DisplayClusterRenderSyncPolicyNone.h"
@@ -37,10 +35,6 @@ TSharedPtr<IDisplayClusterRenderSyncPolicy> FDisplayClusterRenderSyncPolicyFacto
 		{
 			return MakeShareable(new FDisplayClusterRenderSyncPolicySoftwareDX12);
 		}
-		else if (InRHIName.Compare(DisplayClusterStrings::rhi::OpenGL, ESearchCase::IgnoreCase) == 0)
-		{
-			return MakeShareable(new FDisplayClusterRenderSyncPolicySoftwareOpenGL);
-		}
 	}
 	else if (InPolicyType.Compare(TEXT("2"), ESearchCase::IgnoreCase) == 0)
 	{
@@ -51,10 +45,6 @@ TSharedPtr<IDisplayClusterRenderSyncPolicy> FDisplayClusterRenderSyncPolicyFacto
 		else if (InRHIName.Compare(DisplayClusterStrings::rhi::D3D12, ESearchCase::IgnoreCase) == 0)
 		{
 			return MakeShareable(new FDisplayClusterRenderSyncPolicyNvidiaDX12);
-		}
-		else if (InRHIName.Compare(DisplayClusterStrings::rhi::OpenGL, ESearchCase::IgnoreCase) == 0)
-		{
-			return MakeShareable(new FDisplayClusterRenderSyncPolicyNvidiaOpenGL);
 		}
 	}
 

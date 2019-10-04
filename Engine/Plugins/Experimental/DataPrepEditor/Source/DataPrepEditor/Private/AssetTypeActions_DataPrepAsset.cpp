@@ -3,20 +3,12 @@
 #include "AssetTypeActions_DataPrepAsset.h"
 
 #include "DataPrepAsset.h"
+#include "DataprepAssetInstance.h"
 #include "DataPrepEditor.h"
-#include "DataPrepEditorModule.h"
-
-
-#define LOCTEXT_NAMESPACE "AssetTypeActions_DataprepAsset"
-
-uint32 FAssetTypeActions_DataprepAsset::GetCategories()
-{
-	return IDataprepEditorModule::DataprepCategoryBit;
-}
 
 FText FAssetTypeActions_DataprepAsset::GetName() const
 {
-	return NSLOCTEXT("AssetTypeActions_DataprepAsset", "AssetTypeActions_DataprepAsset_Name", "Dataprep");
+	return NSLOCTEXT("AssetTypeActions_DataprepAsset", "Name", "Dataprep Asset");
 }
 
 UClass* FAssetTypeActions_DataprepAsset::GetSupportedClass() const
@@ -36,9 +28,34 @@ void FAssetTypeActions_DataprepAsset::OpenAssetEditor(const TArray<UObject*>& In
 		if (UDataprepAsset* DataprepAsset = Cast<UDataprepAsset>(Object))
 		{
 			TSharedRef<FDataprepEditor> NewDataprepEditor(new FDataprepEditor());
-			NewDataprepEditor->InitDataprepEditor( EToolkitMode::Standalone, EditWithinLevelEditor, DataprepAsset );
+			NewDataprepEditor->InitDataprepEditor( EToolkitMode::Standalone, EditWithinLevelEditor, DataprepAsset, DataprepAsset->GetRecipeBP() );
 		}
 	}
 }
 
-#undef LOCTEXT_NAMESPACE
+FText FAssetTypeActions_DataprepAssetInstance::GetName() const
+{
+	return NSLOCTEXT("AssetTypeActions_DataprepAssetInstance", "Name", "Dataprep Asset Instance");
+}
+
+UClass* FAssetTypeActions_DataprepAssetInstance::GetSupportedClass() const
+{
+	return UDataprepAssetInstance::StaticClass();
+}
+
+void FAssetTypeActions_DataprepAssetInstance::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor)
+{
+	if (InObjects.Num() == 0)
+	{
+		return;
+	}
+
+	for (UObject* Object : InObjects)
+	{
+		if (UDataprepAssetInstance* DataprepAssetInstance = Cast<UDataprepAssetInstance>(Object))
+		{
+			TSharedRef<FDataprepEditor> NewDataprepEditor(new FDataprepEditor());
+			NewDataprepEditor->InitDataprepEditor( EToolkitMode::Standalone, EditWithinLevelEditor, DataprepAssetInstance );
+		}
+	}
+}

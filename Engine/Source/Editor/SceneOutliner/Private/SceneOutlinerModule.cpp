@@ -7,6 +7,7 @@
 #include "SceneOutlinerSettings.h"
 #include "SSceneOutliner.h"
 
+#include "ICustomSceneOutliner.h"
 #include "SceneOutlinerActorInfoColumn.h"
 #include "SceneOutlinerGutter.h"
 #include "SceneOutlinerItemLabelColumn.h"
@@ -60,6 +61,12 @@ TSharedRef< ISceneOutliner > FSceneOutlinerModule::CreateSceneOutliner( const Sc
 	return SNew( SceneOutliner::SSceneOutliner, InitOptions )
 		.IsEnabled( FSlateApplication::Get().GetNormalExecutionAttribute() )
 		.OnItemPickedDelegate( OnItemPickedDelegate );
+}
+
+TSharedRef< ICustomSceneOutliner >FSceneOutlinerModule::CreateCustomSceneOutliner( SceneOutliner::FInitializationOptions& InitOptions ) const
+{
+	InitOptions.Mode = ESceneOutlinerMode::Custom;
+	return SNew( SceneOutliner::SSceneOutliner, InitOptions );
 }
 
 

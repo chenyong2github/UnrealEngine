@@ -509,6 +509,26 @@ public:
 		Sort( TLess< ElementType >() );
 	}
 
+	/** Stable sorts the elements using the provided comparison class. */
+	template<typename PREDICATE_CLASS>
+	void StableSort(const PREDICATE_CLASS& Predicate)
+	{
+		if (Num() > 0)
+		{
+			// Compact the elements array so all the elements are contiguous.
+			CompactStable();
+
+			// Sort the elements according to the provided comparison class.
+			::StableSort(&GetData(0), Num(), FElementCompareClass< PREDICATE_CLASS >(Predicate));
+		}
+	}
+
+	/** Stable sorts the elements assuming < operator is defined for ElementType. */
+	void StableSort()
+	{
+		StableSort(TLess< ElementType >());
+	}
+
 	/** 
 	 * Helper function to return the amount of memory allocated by this container 
 	 * Only returns the size of allocations made directly by the container, not the elements themselves.
