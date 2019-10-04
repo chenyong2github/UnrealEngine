@@ -47,6 +47,7 @@ void GeometryParticleDefaultConstruct(FConcrete& Concrete, const TGeometryPartic
 {
 	Concrete.SetX(TVector<T, d>(0));
 	Concrete.SetR(TRotation<T, d>::Identity);
+	Concrete.SetSpatialIdx(FSpatialAccelerationIdx{ 0,0 });
 }
 
 template <typename T, int d, typename FConcrete>
@@ -364,6 +365,9 @@ public:
 
 	bool HasBounds() const { return GeometryParticles->HasBounds(ParticleIdx); }
 	void SetHasBounds(bool bHasBounds) { GeometryParticles->HasBounds(ParticleIdx) = bHasBounds; }
+
+	FSpatialAccelerationIdx SpatialIdx() const { return GeometryParticles->SpatialIdx(ParticleIdx); }
+	void SetSpatialIdx(FSpatialAccelerationIdx Idx) { GeometryParticles->SpatialIdx(ParticleIdx) = Idx; }
 	
 	EObjectStateType ObjectState() const;
 
@@ -1036,6 +1040,13 @@ public:
 	const TPBDRigidParticle<T, d>* AsDynamic() const;
 	TPBDRigidParticle<T, d>* AsDynamic();
 
+	FSpatialAccelerationIdx SpatialIdx() const { return MSpatialIdx; }
+	void SetSpatialIdx(FSpatialAccelerationIdx Idx)
+	{
+		MarkDirty(EParticleFlags::SpatialIdx);
+		MSpatialIdx = Idx;
+	}
+
 	FParticleData* NewData() const { return new TGeometryParticleData<T, d>( *this ); }
 
 	bool IsDirty() const
@@ -1073,6 +1084,7 @@ private:
 	TRotation<T, d> MR;
 	TSharedPtr<TImplicitObject<T, d>, ESPMode::ThreadSafe> MGeometry;	//TODO: geometry should live in bodysetup
 	TShapesArray<T,d> MShapesArray;
+	FSpatialAccelerationIdx MSpatialIdx;
 
 	// Pointer to some arbitrary data associated with the particle, but not used by Chaos. External systems may use this for whatever.
 	void* MUserData;
@@ -1113,13 +1125,15 @@ public:
 		: FParticleData(InType)
 		, X(TVector<T, d>(0))
 		, R(TRotation<T, d>())
+		, SpatialIdx(FSpatialAccelerationIdx{ 0,0 })
 	{}
 
-	TGeometryParticleData(const TGeometryParticle<T,d>& InParticle)
+	TGeometryParticleData(const TGeometryParticle<T, d>& InParticle)
 		: FParticleData(EParticleType::Static)
 		, X(InParticle.X())
 		, R(InParticle.R())
 		, Geometry(InParticle.GeometrySharedLowLevel())
+		, SpatialIdx(InParticle.SpatialIdx())
 	{}
 
 	void Reset() 
@@ -1128,11 +1142,13 @@ public:
 		X = TVector<T, d>(0); 
 		R = TRotation<T, d>(); 
 		Geometry = TSharedPtr<TImplicitObjectUnion<T, d>, ESPMode::ThreadSafe>();
+		SpatialIdx = FSpatialAccelerationIdx{ 0,0 };
 	}
 
 	TVector<T, d> X;
 	TRotation<T, d> R;
 	TSharedPtr<TImplicitObject<T, d>, ESPMode::ThreadSafe> Geometry;
+	FSpatialAccelerationIdx SpatialIdx;
 };
 
 

@@ -479,6 +479,7 @@ public:
 #endif
 
 	//~ Begin UObject interface
+	void PreSave(const class ITargetPlatform* TargetPlatform) override;
 	void Serialize(FArchive& Ar)override;
 	virtual void PostLoad() override;
 	virtual bool IsDestructionThreadSafe() const override { return false; }
@@ -586,14 +587,28 @@ public:
 
 	FNiagaraScriptExecutionParameterStore* GetExecutionReadyParameterStore(ENiagaraSimTarget SimTarget);
 	void InvalidateExecutionReadyParameterStores();
+
 private:
+
 	bool LegacyCanBeRunOnGpu()const;
 
+	/** Return the expected SimTarget for this script. Only returns a valid target if there is valid data to run with. */
+	TOptional<ENiagaraSimTarget> GetSimTarget() const;
+
+#if WITH_EDITORONLY_DATA
 	UPROPERTY(Transient)
 	FNiagaraScriptExecutionParameterStore ScriptExecutionParamStoreCPU;
 
 	UPROPERTY(Transient)
 	FNiagaraScriptExecutionParameterStore ScriptExecutionParamStoreGPU;
+#endif // WITH_EDITORONLY_DATA
+
+	/** The equivalent of ScriptExecutionParamStoreCPU (or GPU) cooked for the given platform.*/
+	UPROPERTY()
+	FNiagaraScriptExecutionParameterStore ScriptExecutionParamStore;
+	/** The cooked binding data between ScriptExecutionParamStore and RapidIterationParameters.*/
+	UPROPERTY()
+	TArray<FNiagaraBoundParameter> ScriptExecutionBoundParameters;
 
 #if WITH_EDITORONLY_DATA
 	class UNiagaraSystem* FindRootSystem();

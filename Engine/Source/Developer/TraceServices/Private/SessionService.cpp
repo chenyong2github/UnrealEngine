@@ -6,6 +6,8 @@
 #include "Misc/Paths.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "SocketSubsystem.h"
+#include "Trace/Analysis.h"
+#include "Trace/Analyzer.h"
 #include "Trace/ControlClient.h"
 #include "IPAddress.h"
 #include "AddressInfoTypes.h"
@@ -18,6 +20,49 @@
 
 namespace Trace
 {
+
+struct FDiagnosticsSessionAnalyzer
+	: public Trace::IAnalyzer
+{
+	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override
+	{
+		Context.InterfaceBuilder.RouteEvent(0, "Diagnostics", "Session");
+	}
+
+	virtual bool OnEvent(uint16, const FOnEventContext& Context) override
+	{
+		const FEventData& EventData = Context.EventData;
+		const uint8* Attachment = EventData.GetAttachment();
+		if (Attachment == nullptr)
+		{
+			return false;
+		}
+
+		uint8 AppNameOffset = EventData.GetValue<uint8>("AppNameOffset");
+		uint8 CommandLineOffset = EventData.GetValue<uint8>("CommandLineOffset");
+
+		Platform = FString(AppNameOffset, (const ANSICHAR*)Attachment);
+
+		Attachment += AppNameOffset;
+		int32 AppNameLength = CommandLineOffset - AppNameOffset;
+		AppName = FString(AppNameLength, (const ANSICHAR*)Attachment);
+
+		Attachment += AppNameLength;
+		int32 CommandLineLength = EventData.GetAttachmentSize() - CommandLineOffset;
+		CommandLine = FString(CommandLineLength, (const ANSICHAR*)Attachment);
+
+		ConfigurationType = EventData.GetValue<int8>("ConfigurationType");
+		TargetType = EventData.GetValue<int8>("TargetType");
+
+		return false;
+	}
+
+	FString Platform;
+	FString AppName;
+	FString CommandLine;
+	int8 ConfigurationType = 0;
+	int8 TargetType = 0;
+};
 
 FSessionService::FSessionService(FModuleService& InModuleService)
 	: ModuleService(InModuleService)
@@ -103,7 +148,14 @@ bool FSessionService::GetSessionInfo(FSessionHandle SessionHandle, FSessionInfo&
 	}
 	OutSessionInfo.Uri = FindIt->Uri;
 	OutSessionInfo.Name = FindIt->Name;
+	OutSessionInfo.TimeStamp = FindIt->TimeStamp;
+	OutSessionInfo.Size = FindIt->Size;
 	OutSessionInfo.bIsLive = FindIt->bIsLive;
+	OutSessionInfo.Platform = *FindIt->Platform;
+	OutSessionInfo.AppName = *FindIt->AppName;
+	OutSessionInfo.CommandLine = *FindIt->CommandLine;
+	OutSessionInfo.ConfigurationType = EBuildConfiguration(FindIt->ConfigurationType);
+	OutSessionInfo.TargetType = EBuildTargetType(FindIt->TargetType);
 	return true;
 }
 
@@ -215,7 +267,7 @@ bool FSessionService::ConnectSession(const TCHAR* ControlClientAddress)
 	{
 		return false;
 	}
-	ControlClient.SendConnect(*RecorderAddr->ToString(false));
+	ControlClient.SendSendTo(*RecorderAddr->ToString(false));
 	ControlClient.Disconnect();
 	return true;
 }
@@ -226,6 +278,51 @@ bool FSessionService::Tick(float DeltaTime)
 	return true;
 }
 
+void FSessionService::UpdateSessionContext(FStoreSessionHandle StoreHandle, FSessionInfoInternal& Info)
+{
+	if (Info.bIsUpdated)
+	{
+		return;
+	}
+
+	IInDataStream* Stream = TraceStore->OpenSessionStream(StoreHandle);
+
+	struct FDataStream
+		: public IInDataStream
+	{
+		virtual int32 Read(void* Data, uint32 Size) override
+		{
+			int32 InnerBytesRead = Inner->Read(Data, Size);
+			BytesRead += InnerBytesRead;
+			return (BytesRead < (2 << 20)) ? InnerBytesRead : 0;
+		}
+
+		int32 BytesRead = 0;
+		IInDataStream* Inner;
+	};
+
+	FDataStream DataStream;
+	DataStream.Inner = Stream;
+
+	FDiagnosticsSessionAnalyzer Analyzer;
+	FAnalysisContext Context;
+	Context.AddAnalyzer(Analyzer);
+	Context.Process(DataStream).Wait();
+
+	delete Stream;
+
+	if (Analyzer.Platform.Len() != 0)
+	{
+		Info.Platform = MoveTemp(Analyzer.Platform);
+		Info.AppName = MoveTemp(Analyzer.AppName);
+		Info.CommandLine = MoveTemp(Analyzer.CommandLine);
+		Info.ConfigurationType = Analyzer.ConfigurationType;
+		Info.TargetType = Analyzer.TargetType;
+	}
+
+	Info.bIsUpdated = true;
+}
+
 void FSessionService::UpdateSessions()
 {
 	TArray<FStoreSessionInfo> StoreSessions;
@@ -233,14 +330,28 @@ void FSessionService::UpdateSessions()
 	TArray<FRecorderSessionInfo> RecorderSessions;
 	TraceRecorder->GetActiveSessions(RecorderSessions);
 
+	TSet<FSessionHandle> SessionsToRemove;
+	for (const auto& KV : Sessions)
+	{
+		SessionsToRemove.Add(KV.Key);
+	}
+
 	FScopeLock Lock(&SessionsCS);
 	for (const FStoreSessionInfo& StoreSession : StoreSessions)
 	{
 		FSessionInfoInternal& Session = Sessions.FindOrAdd(StoreSession.Handle);
+		SessionsToRemove.Remove(StoreSession.Handle);
 		Session.Uri = StoreSession.Uri;
 		Session.Name = StoreSession.Name;
+		Session.TimeStamp = StoreSession.TimeStamp;
+		Session.Size = StoreSession.Size;
 		Session.bIsLive = StoreSession.bIsLive;
 		Session.RecorderSessionHandle = 0;
+	}
+
+	for (FSessionHandle Session : SessionsToRemove)
+	{
+		Sessions.Remove(Session);
 	}
 
 	for (const FRecorderSessionInfo& RecorderSession : RecorderSessions)
@@ -250,6 +361,11 @@ void FSessionService::UpdateSessions()
 		{
 			FindIt->RecorderSessionHandle = RecorderSession.Handle;
 		}
+	}
+
+	for (auto& KeyValue : Sessions)
+	{
+		UpdateSessionContext(KeyValue.Key, KeyValue.Value);
 	}
 }
 

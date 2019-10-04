@@ -885,6 +885,7 @@ void FNiagaraSystemInstance::ReInitInternal()
 	InstanceParameters = SystemCompiledData.InstanceParamStore;
 	const TArray<FNiagaraVariable>& NumParticleVars = SystemCompiledData.NumParticleVars;
 	const TArray<FNiagaraVariable>& TotalSpawnedParticlesVars = SystemCompiledData.TotalSpawnedParticlesVars;
+	const TArray<FNiagaraVariable>& SpawnCountScaleVars = SystemCompiledData.SpawnCountScaleVars;
 
 	// Make sure all parameters are added before initializing the bindings, otherwise parameter store layout changes might invalidate the bindings.
 	OwnerPositionParam.Init(InstanceParameters, SYS_PARAM_ENGINE_POSITION);
@@ -929,6 +930,12 @@ void FNiagaraSystemInstance::ReInitInternal()
 	for (int32 i = 0; i < TotalSpawnedParticlesVars.Num(); i++)
 	{
 		ParameterTotalSpawnedParticlesBindings[i].Init(InstanceParameters, TotalSpawnedParticlesVars[i]);
+	}
+
+	ParameterSpawnCountScaleBindings.SetNum(SpawnCountScaleVars.Num());
+	for (int32 i = 0; i < SpawnCountScaleVars.Num(); i++)
+	{
+		ParameterSpawnCountScaleBindings[i].Init(InstanceParameters, SpawnCountScaleVars[i]);
 	}
 
 	// rebind now after all parameters have been added
@@ -1370,6 +1377,8 @@ ETickingGroup FNiagaraSystemInstance::CalculateTickGroup()
 
 void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSeconds)
 {
+	static const auto EffectsQualityLevelCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("sg.EffectsQuality"));
+
 	if (!Component)
 	{
 		return;
@@ -1397,6 +1406,8 @@ void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSecond
 	GatheredInstanceParameters.Age = Age;
 	GatheredInstanceParameters.TickCount = TickCount;
 
+	int EffectsQualityLevel = EffectsQualityLevelCVar->GetInt();
+
 	GatheredInstanceParameters.NumAlive = 0;
 	for (int32 i = 0; i < Emitters.Num(); ++i)
 	{
@@ -1405,6 +1416,7 @@ void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSecond
 		{
 			GatheredInstanceParameters.EmitterNumParticles[i] = Emitter->GetNumParticles();
 			GatheredInstanceParameters.EmitterTotalSpawnedParticles[i] = Emitter->GetTotalSpawnedParticles();
+			GatheredInstanceParameters.EmitterSpawnCountScale[i] = Emitter->GetSpawnCountScale(EffectsQualityLevel);
 			if (!Emitter->IsComplete())
 			{
 				GatheredInstanceParameters.NumAlive++;
@@ -1468,6 +1480,7 @@ void FNiagaraSystemInstance::TickInstanceParameters_Concurrent()
 		{
 			ParameterNumParticleBindings[i].SetValue(GatheredInstanceParameters.EmitterNumParticles[i]);
 			ParameterTotalSpawnedParticlesBindings[i].SetValue(GatheredInstanceParameters.EmitterTotalSpawnedParticles[i]);
+			ParameterSpawnCountScaleBindings[i].SetValue(GatheredInstanceParameters.EmitterSpawnCountScale[i]);
 		}
 	}
 

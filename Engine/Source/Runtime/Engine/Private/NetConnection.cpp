@@ -473,33 +473,49 @@ void UNetConnection::NotifyAnalyticsProvider()
 
 void UNetConnection::EnableEncryptionWithKey(TArrayView<const uint8> Key)
 {
+	FEncryptionData EncryptionData;
+	EncryptionData.Key.Append(Key.GetData(), Key.Num());
+
+	EnableEncryption(EncryptionData);
+}
+
+void UNetConnection::EnableEncryption(const FEncryptionData& EncryptionData)
+{
 	if (Handler.IsValid())
 	{
-		UE_LOG(LogNet, Verbose, TEXT("UNetConnection::EnableEncryptionWithKey, %s"), *Describe());
+		UE_LOG(LogNet, Verbose, TEXT("UNetConnection::EnableEncryption, %s"), *Describe());
 
 		TSharedPtr<FEncryptionComponent> EncryptionComponent = Handler->GetEncryptionComponent();
 		if (EncryptionComponent.IsValid())
 		{
-			EncryptionComponent->SetEncryptionKey(Key);
+			EncryptionComponent->SetEncryptionData(EncryptionData);
 			EncryptionComponent->EnableEncryption();
 		}
 		else
 		{
-			UE_LOG(LogNet, Warning, TEXT("UNetConnection::EnableEncryptionWithKey, encryption component not found!"));
+			UE_LOG(LogNet, Warning, TEXT("UNetConnection::EnableEncryption, encryption component not found!"));
 		}
 	}
 }
 
 void UNetConnection::EnableEncryptionWithKeyServer(TArrayView<const uint8> Key)
 {
+	FEncryptionData EncryptionData;
+	EncryptionData.Key.Append(Key.GetData(), Key.Num());
+
+	EnableEncryptionServer(EncryptionData);
+}
+
+void UNetConnection::EnableEncryptionServer(const FEncryptionData& EncryptionData)
+{
 	if (State != USOCK_Invalid && State != USOCK_Closed && Driver)
 	{
 		SendClientEncryptionAck();
-		EnableEncryptionWithKey(Key);
+		EnableEncryption(EncryptionData);
 	}
 	else
 	{
-		UE_LOG(LogNet, Log, TEXT("UNetConnection::EnableEncryptionWithKeyServer, connection in invalid state. %s"), *Describe());
+		UE_LOG(LogNet, Log, TEXT("UNetConnection::EnableEncryptionServer, connection in invalid state. %s"), *Describe());
 	}
 }
 
@@ -518,18 +534,26 @@ void UNetConnection::SendClientEncryptionAck()
 
 void UNetConnection::SetEncryptionKey(TArrayView<const uint8> Key)
 {
+	FEncryptionData EncryptionData;
+	EncryptionData.Key.Append(Key.GetData(), Key.Num());
+
+	SetEncryptionData(EncryptionData);
+}
+
+void UNetConnection::SetEncryptionData(const FEncryptionData& EncryptionData)
+{
 	if (Handler.IsValid())
 	{
-		UE_LOG(LogNet, Verbose, TEXT("UNetConnection::SetEncryptionKey, %s"), *Describe());
+		UE_LOG(LogNet, Verbose, TEXT("UNetConnection::SetEncryptionData, %s"), *Describe());
 
 		TSharedPtr<FEncryptionComponent> EncryptionComponent = Handler->GetEncryptionComponent();
 		if (EncryptionComponent.IsValid())
 		{
-			EncryptionComponent->SetEncryptionKey(Key);
+			EncryptionComponent->SetEncryptionData(EncryptionData);
 		}
 		else
 		{
-			UE_LOG(LogNet, Warning, TEXT("UNetConnection::SetEncryptionKey, encryption component not found!"));
+			UE_LOG(LogNet, Warning, TEXT("UNetConnection::SetEncryptionData, encryption component not found!"));
 		}
 	}
 }

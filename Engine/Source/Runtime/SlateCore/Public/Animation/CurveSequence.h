@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Animation/CurveHandle.h"
+#include "Containers/Ticker.h"
 
 class FActiveTimerHandle;
 class SWidget;
@@ -101,6 +102,11 @@ public:
 	void Play( const TSharedRef<SWidget>& InOwnerWidget, bool bPlayLooped = false, const float StartAtTime = 0.0f, bool bRequiresActiveTimer = true);
 
 	/**
+	 * Plays the curve sequence for a ticker, rather than a widget.
+	 */
+	void Play(const FTickerDelegate& InDelegate, bool bPlayLooped = false, const float StartAtTime = 0.0f);
+
+	/**
 	 * Start playing this curve sequence in reverse. Registers an active timer for the widget using the sequence.
 	 *
 	 * @param InOwnerWidget The widget that is being animated by this sequence.
@@ -174,6 +180,9 @@ private:
 	/** Helper to take care of registering the active timer */
 	void RegisterActiveTimerIfNeeded(TSharedRef<SWidget> InOwnerWidget);
 
+	/** Tick callback from the Ticker based plays. */
+	bool TickPlay(float InDeltaTime, FTickerDelegate InUserDelegate);
+
 	/** Hollow active timer to ensure a Slate Tick/Paint pass while the sequence is playing */
 	EActiveTimerReturnType EnsureSlateTickDuringAnimation( double InCurrentTime, float InDeltaTime );
 
@@ -187,6 +196,9 @@ private:
 
 	/** The handle to the active timer */
 	TWeakPtr<FActiveTimerHandle> ActiveTimerHandle;
+
+	/** Handle to the ticker based player. */
+	FDelegateHandle TickerHandle;
 
 	/** All the curves in this sequence. */
 	TArray<FSlateCurve> Curves;

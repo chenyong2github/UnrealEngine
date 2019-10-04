@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include "Clang/ClangPlatform.h"
+
 #define PLATFORM_MAC_USE_CHAR16 1
 
 /**

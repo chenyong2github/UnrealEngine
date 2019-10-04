@@ -93,13 +93,14 @@ static FAutoConsoleVariableRef CVarSystemSimTransferParamsParallelThreshold(
 
 //////////////////////////////////////////////////////////////////////////
 
-FNiagaraSystemSimulationTickContext::FNiagaraSystemSimulationTickContext(FNiagaraSystemSimulation* InOwner, TArray<FNiagaraSystemInstance*>& InInstances, FNiagaraDataSet& InDataSet, float InDeltaSeconds, int32 InSpawnNum, const FGraphEventRef& InMyCompletionGraphEvent)
+FNiagaraSystemSimulationTickContext::FNiagaraSystemSimulationTickContext(FNiagaraSystemSimulation* InOwner, TArray<FNiagaraSystemInstance*>& InInstances, FNiagaraDataSet& InDataSet, float InDeltaSeconds, int32 InSpawnNum, int32 InEffectsQuality, const FGraphEventRef& InMyCompletionGraphEvent)
 	: Owner(InOwner)
 	, System(InOwner->GetSystem())
 	, Instances(InInstances)
 	, DataSet(InDataSet)
 	, DeltaSeconds(InDeltaSeconds)
 	, SpawnNum(InSpawnNum)
+	, EffectsQuality(InEffectsQuality)
 	, MyCompletionGraphEvent(InMyCompletionGraphEvent)
 	, FinalizeEvents(nullptr)
 	, bTickAsync(GbParallelSystemSimTick && FApp::ShouldUseThreadingForPerformance() && InMyCompletionGraphEvent.IsValid())
@@ -780,7 +781,8 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 			}
 		}
 
-		FNiagaraSystemSimulationTickContext Context(this, SystemInstances, MainDataSet, DeltaSeconds, SpawnNum, MyCompletionGraphEvent);
+		static const auto EffectsQualityCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("sg.EffectsQuality"));
+		FNiagaraSystemSimulationTickContext Context(this, SystemInstances, MainDataSet, DeltaSeconds, SpawnNum, EffectsQualityCVar->GetInt(), MyCompletionGraphEvent);
 
 		//Now kick of the concurrent tick.
 		if (Context.bTickAsync)
@@ -933,8 +935,8 @@ void FNiagaraSystemSimulation::Spawn_GameThread(float DeltaSeconds)
 	if ( SpawningInstances.Num() > 0 )
 	{
 		//-OPT: This can be async :)
-
-		FNiagaraSystemSimulationTickContext Context(this, SpawningInstances, SpawningDataSet, DeltaSeconds, SpawningInstances.Num(), nullptr);
+		static const auto EffectsQualityCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("sg.EffectsQuality"));
+		FNiagaraSystemSimulationTickContext Context(this, SpawningInstances, SpawningDataSet, DeltaSeconds, SpawningInstances.Num(), EffectsQualityCVar->GetInt(), nullptr);
 		Tick_Concurrent(Context);
 
 		check(MainDataSet.GetCurrentDataChecked().GetNumInstances() == SystemInstances.Num());
@@ -1084,7 +1086,7 @@ void FNiagaraSystemSimulation::Tick_Concurrent(FNiagaraSystemSimulationTickConte
 void FNiagaraSystemSimulation::TickFastPath(FNiagaraSystemSimulationTickContext& Context)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemSim_FastPathCNC);
-	
+
 	// PrepareForSystemSimulate
 	for (FNiagaraSystemInstance* SystemInstance : Context.Instances)
 	{
@@ -1105,8 +1107,13 @@ void FNiagaraSystemSimulation::TickFastPath(FNiagaraSystemSimulationTickContext&
 			EmitterMap.Engine.DeltaTime = Context.DeltaSeconds;
 			EmitterMap.Engine.Emitter.NumParticles = SystemInstance->GetNumParticles(EmitterIndex);
 			EmitterMap.Engine.Owner.Velocity = SystemInstance->GetOwnerVelocity();
-			EmitterMap.Engine.GlobalSpawnCountScale = INiagaraModule::GetGlobalSpawnCountScale();
 			EmitterMap.Emitter.ExecutionState = EmitterInstance->GetExecutionState();
+			EmitterMap.Engine.GlobalSpawnCountScale = INiagaraModule::GetGlobalSpawnCountScale();
+
+			if (UNiagaraEmitter* CachedEmitter = EmitterInstance->GetCachedEmitter())
+			{
+				EmitterMap.Emitter.SpawnCountScale = CachedEmitter->GetSpawnCountScale(Context.EffectsQuality);
+			}
 		}
 	}
 

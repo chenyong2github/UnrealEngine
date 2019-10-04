@@ -585,6 +585,13 @@ void FConcertClientWorkspace::OnEndFrame()
 		{
 			TransactionManager->ProcessPending();
 		}
+
+		if (bPendingStopIgnoringActivityOnRestore)
+		{
+			FConcertIgnoreActivityStateChangedEvent StateChangeEvent{LiveSession->GetSession().GetSessionClientEndpointId(), /*bIgnore*/false};
+			LiveSession->GetSession().SendCustomEvent(StateChangeEvent, LiveSession->GetSession().GetSessionServerEndpointId(), EConcertMessageFlags::ReliableOrdered);
+			bPendingStopIgnoringActivityOnRestore = false;
+		}
 	}
 }
 
@@ -760,6 +767,23 @@ void FConcertClientWorkspace::PostActivityUpdated(const FConcertSyncActivity& In
 				OnActivityAddedOrUpdatedDelegate.Broadcast(EndpointData.ClientInfo, Activity, ActivitySummary);
 			}
 		}
+	}
+}
+
+void FConcertClientWorkspace::SetIgnoreOnRestoreFlagForEmittedActivities(bool bIgnore)
+{
+	if (bIgnore) // Start ignoring further activities immediately.
+	{
+		FConcertIgnoreActivityStateChangedEvent StateChangeEvent{LiveSession->GetSession().GetSessionClientEndpointId(), bIgnore};
+		LiveSession->GetSession().SendCustomEvent(StateChangeEvent, LiveSession->GetSession().GetSessionServerEndpointId(), EConcertMessageFlags::ReliableOrdered);
+		bPendingStopIgnoringActivityOnRestore = false; // In case the 'ignore' state was toggle twice in the same frame.
+	}
+	else
+	{
+		// Stop 'ignoring' at the end of the frame, so that all pending transactions are sent and marked by the server properly. If a transaction started while
+		// the activities were set as 'ignored' but ended after the flat was cleared, the corresponding transaction activities will NOT be marked 'ignored' and
+		// will be seen as 'should restore' by the system.
+		bPendingStopIgnoringActivityOnRestore = true;
 	}
 }
 

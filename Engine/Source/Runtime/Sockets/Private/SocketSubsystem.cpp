@@ -3,8 +3,10 @@
 #include "SocketSubsystem.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ScopeLock.h"
+#include "Misc/CoreMisc.h"
 #include "SocketSubsystemModule.h"
 #include "Modules/ModuleManager.h"
+#include "Async/AsyncWork.h"
 #include "SocketTypes.h"
 #include "IPAddress.h"
 #include "Sockets.h"
@@ -14,15 +16,16 @@ DEFINE_LOG_CATEGORY(LogSockets);
 
 IMPLEMENT_MODULE( FSocketSubsystemModule, Sockets );
 
-/** Each platform will implement these functions to construct/destroy socket implementations */
-extern FName CreateSocketSubsystem( FSocketSubsystemModule& SocketSubsystemModule );
-extern void DestroySocketSubsystem( FSocketSubsystemModule& SocketSubsystemModule );
-
+/** Values for the Protocol Typenames */
 namespace FNetworkProtocolTypes
 {
 	const FLazyName IPv4(TEXT("IPv4"));
 	const FLazyName IPv6(TEXT("IPv6"));
 }
+
+/** Each platform will implement these functions to construct/destroy socket implementations */
+extern FName CreateSocketSubsystem(FSocketSubsystemModule& SocketSubsystemModule);
+extern void DestroySocketSubsystem(FSocketSubsystemModule& SocketSubsystemModule);
 
 /** Helper function to turn the friendly subsystem name into the module name */
 static inline FName GetSocketModuleName(const FString& SubsystemName)
@@ -256,6 +259,53 @@ int32 ISocketSubsystem::BindNextPort(FSocket* Socket, FInternetAddr& Addr, int32
 	}
 
 	return 0;
+}
+
+/** Async task support for GetAddressInfo */
+class FGetAddressInfoTask : public FNonAbandonableTask
+{
+public:
+	friend class FAutoDeleteAsyncTask<FGetAddressInfoTask>;
+
+	FGetAddressInfoTask(class ISocketSubsystem* InSocketSubsystem, const FString& InQueryHost,
+		const FString& InQueryService, EAddressInfoFlags InQueryFlags, const FName& InQueryProtocol,
+		ESocketType InQuerySocketType, FAsyncGetAddressInfoCallback InCallbackFunction) :
+
+		SocketSubsystem(InSocketSubsystem),
+		QueryHost(InQueryHost),
+		QueryService(InQueryService),
+		QueryFlags(InQueryFlags),
+		QueryProtocol(InQueryProtocol),
+		QuerySocketType(InQuerySocketType),
+		CallbackFunction(InCallbackFunction)
+	{
+
+	}
+
+	void DoWork()
+	{
+		CallbackFunction(SocketSubsystem->GetAddressInfo(*QueryHost, *QueryService, QueryFlags, QueryProtocol, QuerySocketType));
+	}
+
+	FORCEINLINE TStatId GetStatId() const
+	{
+		RETURN_QUICK_DECLARE_CYCLE_STAT(FGetAddressInfoTask, STATGROUP_ThreadPoolAsyncTasks);
+	}
+
+private:
+	ISocketSubsystem* SocketSubsystem;
+	const FString QueryHost;
+	const FString QueryService;
+	EAddressInfoFlags QueryFlags;
+	const FName QueryProtocol;
+	ESocketType QuerySocketType;
+	FAsyncGetAddressInfoCallback CallbackFunction;
+};
+
+void ISocketSubsystem::GetAddressInfoAsync(FAsyncGetAddressInfoCallback Callback, const TCHAR* HostName, const TCHAR* ServiceName,
+	EAddressInfoFlags QueryFlags, const FName ProtocolTypeName, ESocketType SocketType)
+{
+	(new FAutoDeleteAsyncTask<FGetAddressInfoTask>(this, HostName, ServiceName, QueryFlags, ProtocolTypeName, SocketType, Callback))->StartBackgroundTask();
 }
 
 TSharedRef<FInternetAddr> ISocketSubsystem::GetLocalBindAddr(FOutputDevice& Out)
@@ -512,3 +562,121 @@ double ISocketSubsystem::TranslatePacketTimestamp(const FPacketTimestamp& Timest
 	return 0.0;
 }
 
+//////////////////////////////////
+// SocketSubsystem Testing
+/////////////////////////////////
+#if WITH_DEV_AUTOMATION_TESTS && !UE_BUILD_SHIPPING
+
+static void DebugPrintGaiResults(ISocketSubsystem* SocketSub, const FAddressInfoResult& GAIResult)
+{
+	UE_LOG(LogSockets, Log, TEXT("Got %d GAI Results for hostname %s. Error Code: %s [%d]"), GAIResult.Results.Num(), *GAIResult.QueryHostName,
+		SocketSub->GetSocketError(GAIResult.ReturnCode), GAIResult.ReturnCode);
+
+	for (int i = 0; i < GAIResult.Results.Num(); ++i)
+	{
+		UE_LOG(LogSockets, Log, TEXT("Result #%d Address: %s Type: %s"), i, *GAIResult.Results[i].Address->ToString(false),
+			*GAIResult.Results[i].Address->GetProtocolType().ToString());
+	}
+}
+
+static void RunGAIQuery(const FString& HostStr)
+{
+	if (HostStr.IsEmpty())
+	{
+		UE_LOG(LogSockets, Warning, TEXT("SOCKETSUB GAI requires an input string to test with."));
+		return;
+	}
+
+	ISocketSubsystem* SocketSub = ISocketSubsystem::Get();
+	if (SocketSub)
+	{
+		FAddressInfoResult GAIResult = SocketSub->GetAddressInfo(*HostStr, nullptr, EAddressInfoFlags::AllResultsWithMapping | EAddressInfoFlags::OnlyUsableAddresses, NAME_None);
+		if (GAIResult.Results.Num() > 0)
+		{
+			DebugPrintGaiResults(SocketSub, GAIResult);
+		}
+		else
+		{
+			UE_LOG(LogSockets, Warning, TEXT("Did not get results!"));
+		}
+		return;
+	}
+
+	UE_LOG(LogSockets, Warning, TEXT("Failed to get socket subsystem!"));
+}
+
+static void RunAsyncGAIQuery(const FString& HostStr)
+{
+	if (HostStr.IsEmpty())
+	{
+		UE_LOG(LogSockets, Warning, TEXT("SOCKETSUB ASYNCGAI requires an input string to test with."));
+		return;
+	}
+
+	ISocketSubsystem* SocketSub = ISocketSubsystem::Get();
+	if (SocketSub)
+	{
+		double AsyncRequestStartTime = FPlatformTime::Seconds();
+		FAsyncGetAddressInfoCallback CallbackFunc = [SocketSub, AsyncRequestStartTime](FAddressInfoResult Results)
+		{
+			UE_LOG(LogSockets, Log, TEXT("Async GAI Request returned after %f seconds, started at %f"), FPlatformTime::Seconds() - AsyncRequestStartTime, AsyncRequestStartTime);
+			DebugPrintGaiResults(SocketSub, Results);
+		};
+		SocketSub->GetAddressInfoAsync(CallbackFunc, *HostStr, nullptr, EAddressInfoFlags::Default, NAME_None);
+		return;
+	}
+
+	UE_LOG(LogSockets, Warning, TEXT("Failed to get socket subsystem!"));
+}
+
+static void RunAddressSerialize(const FString& InputStr)
+{
+	if (InputStr.IsEmpty())
+	{
+		UE_LOG(LogSockets, Warning, TEXT("SOCKETSUB Serialize requires an ip address to test with."));
+		return;
+	}
+
+	ISocketSubsystem* SocketSub = ISocketSubsystem::Get();
+	if (SocketSub)
+	{
+		TSharedPtr<FInternetAddr> NewAddr = SocketSub->GetAddressFromString(InputStr);
+		if (NewAddr.IsValid())
+		{
+			UE_LOG(LogSockets, Log, TEXT("Result Address: %s Type: %s"), *NewAddr->ToString(false), *NewAddr->GetProtocolType().ToString());
+		}
+		else
+		{
+			UE_LOG(LogSockets, Warning, TEXT("Did not get results!"));
+		}
+		return;
+	}
+
+	UE_LOG(LogSockets, Warning, TEXT("Failed to get socket subsystem!"));
+}
+
+static bool SocketSubsystemCommandHandler(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+{
+	if (FParse::Command(&Cmd, TEXT("SOCKETSUB")))
+	{
+		if (FParse::Command(&Cmd, TEXT("GAI")))
+		{
+			RunGAIQuery(FParse::Token(Cmd, true));
+		}
+		else if (FParse::Command(&Cmd, TEXT("SERIALIZE")))
+		{
+			RunAddressSerialize(FParse::Token(Cmd, true));
+		}
+		else if (FParse::Command(&Cmd, TEXT("ASYNCGAI")))
+		{
+			RunAsyncGAIQuery(FParse::Token(Cmd, true));
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+FStaticSelfRegisteringExec FSocketSubsystemExecs(SocketSubsystemCommandHandler);
+#endif // WITH_DEV_AUTOMATION_TESTS && !UE_BUILD_SHIPPING

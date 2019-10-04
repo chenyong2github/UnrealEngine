@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Docking/TabManager.h"
+#include "GenericPlatform/GenericPlatformMisc.h"
 #include "Input/Reply.h"
 #include "Layout/Visibility.h"
 #include "Misc/Guid.h"
@@ -44,12 +45,28 @@ struct FTraceSession
 	Trace::FSessionHandle SessionHandle;
 	FText Name;
 	FText Uri;
+	FText Platform;
+	FText AppName;
+	FText CommandLine;
+	EBuildConfiguration ConfigurationType;
+	EBuildTargetType TargetType;
+	FDateTime TimeStamp;
+	uint64 Size;
 	bool bIsLive;
 
 	FTraceSession(const Trace::FSessionHandle InSessionHandle, const Trace::FSessionInfo& InSessionInfo)
 		: SessionHandle(InSessionHandle)
 		, Name(FText::FromString(InSessionInfo.Name))
 		, Uri(FText::FromString(InSessionInfo.Uri))
+		, Platform(FText::FromString(InSessionInfo.Platform))
+		, AppName(FText::FromString(InSessionInfo.AppName))
+		, CommandLine(FText::FromString(InSessionInfo.CommandLine))
+		//, ConfigurationType(EBuildConfiguration::Unknown)
+		, ConfigurationType(InSessionInfo.ConfigurationType)
+		//, TargetType(EBuildTargetType::Unknown)
+		, TargetType(InSessionInfo.TargetType)
+		, TimeStamp(InSessionInfo.TimeStamp)
+		, Size(InSessionInfo.Size)
 		, bIsLive(InSessionInfo.bIsLive)
 	{}
 };
@@ -77,7 +94,7 @@ private:
 	TSharedRef<SWidget> ConstructSessionsPanel();
 	TSharedRef<SWidget> ConstructLoadPanel();
 	TSharedRef<SWidget> ConstructLocalSessionDirectoryPanel();
-	TSharedRef<SWidget> ConstructRecoderPanel();
+	TSharedRef<SWidget> ConstructRecorderPanel();
 	TSharedRef<SWidget> ConstructConnectPanel();
 
 	/** Generate a new row for the TraceSessions list view. */
@@ -200,6 +217,7 @@ private:
 
 	TSharedPtr<SListView<TSharedPtr<FTraceSession>>> TraceSessionsListView;
 	TArray<TSharedPtr<FTraceSession>> TraceSessions;
+	TMap<Trace::FSessionHandle, TSharedPtr<FTraceSession>> TraceSessionsMap;
 	TSharedPtr<SEditableTextBox> HostTextBox;
 	TSharedPtr<FTraceSession> SelectedTraceSession;
 

@@ -145,7 +145,7 @@ public:
 	friend void operator<<(FStructuredArchive::FSlot Slot, TScriptDelegate& D)
 	{
 		FStructuredArchive::FRecord Record = Slot.EnterRecord();
-		Record << NAMED_ITEM("Object", D.Object) << NAMED_ITEM("FunctionName",D.FunctionName);
+		Record << SA_VALUE(TEXT("Object"), D.Object) << SA_VALUE(TEXT("FunctionName"),D.FunctionName);
 	}
 
 	/** Comparison operators */

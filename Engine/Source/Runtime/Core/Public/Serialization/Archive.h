@@ -1566,7 +1566,7 @@ private:
 	* Stored as a pointer to a heap-allocated object because of a 3-way dependency between TArray, FCustomVersionContainer and FArchive, which is too much work to change right now.
 	* Keeping it as a heap-allocated object also helps with performance in some cases as we don't need to construct it for archives that don't care about custom versions.
 	*/
-	mutable FCustomVersionContainer* CustomVersionContainer;
+	mutable FCustomVersionContainer* CustomVersionContainer = nullptr;
 
 public:
 	/** Custom property list attribute. If the flag below is set, only these properties will be iterated during serialization. If NULL, then no properties will be iterated. */

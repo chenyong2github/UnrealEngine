@@ -19,7 +19,8 @@
 		"UnrealFrontend",
 		"UnrealMultiUserServer",
 		"UnrealDisasterRecoveryService",
-		"UnrealLightmass"
+		"UnrealLightmass",
+		"CrashReportClientEditor"
 	],
 	"Modules" :
 	[
@@ -35,7 +36,8 @@
 				"UnrealFrontend",
 				"UnrealMultiUserServer",
 				"UnrealDisasterRecoveryService",
-				"UnrealLightmass"
+				"UnrealLightmass",
+				"CrashReportClientEditor"
 			]
 		}
 	]

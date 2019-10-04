@@ -1,0 +1,23 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+using UnrealBuildTool;
+using System.Collections.Generic;
+
+[SupportedPlatforms(UnrealPlatformClass.Desktop)]
+public class BenchmarkToolTarget : TargetRules
+{
+	public BenchmarkToolTarget(TargetInfo Target) : base(Target)
+	{
+		Type = TargetType.Program;
+		LinkType = TargetLinkType.Monolithic;
+		LaunchModuleName = "BenchmarkTool";
+
+		bBuildDeveloperTools			= false;
+		bUseMallocProfiler				= false;
+		bBuildWithEditorOnlyData		= false;
+		bCompileAgainstEngine			= false;
+		bCompileAgainstCoreUObject		= false;
+		bCompileAgainstApplicationCore	= false;
+		bIsBuildingConsoleApplication	= true;
+	}
+}

@@ -44,6 +44,8 @@
 #include "Async/Async.h"
 #include "Engine/SceneCapture2D.h"
 #include "Components/SceneCaptureComponent2D.h"
+#include "Sound/SoundCue.h"
+#include "Sound/SoundWave.h"
 
 #define LOCTEXT_NAMESPACE "GameplayStatics"
 
@@ -1604,6 +1606,26 @@ void UGameplayStatics::PushSoundMixModifier(const UObject* WorldContextObject, U
 	if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDevice())
 	{
 		AudioDevice->PushSoundMixModifier(InSoundMixModifier);
+	}
+}
+
+void UGameplayStatics::PrimeSound(USoundBase* InSound)
+{
+	if (!InSound || !GEngine || !GEngine->UseSound())
+	{
+		return;
+	}
+
+	if (USoundCue* InSoundCue = Cast<USoundCue>(InSound))
+	{
+		InSoundCue->PrimeSoundCue();
+	}
+	else if (USoundWave* InSoundWave = Cast<USoundWave>(InSound))
+	{
+		if (InSoundWave->GetNumChunks() > 1)
+		{
+			IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(InSoundWave, 1, TFunction<void(EAudioChunkLoadResult)>());
+		}
 	}
 }
 

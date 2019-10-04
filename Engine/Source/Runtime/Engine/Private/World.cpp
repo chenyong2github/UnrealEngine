@@ -19,7 +19,6 @@
 #include "UObject/UObjectAnnotation.h"
 #include "UObject/ReferenceChainSearch.h"
 #include "Misc/PackageName.h"
-#include "Serialization/AsyncLoading.h"
 #include "GameMapsSettings.h"
 #include "TimerManager.h"
 #include "Materials/MaterialInterface.h"
@@ -3840,7 +3839,7 @@ bool UWorld::HandleDemoPlayCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld*
 
 	if (ErrorString != nullptr)
 	{
-		Ar.Log(ErrorString);
+		UE_SUPPRESS(LogDemo, Error, Ar.Log(ErrorString));
 
 		if (GetGameInstance() != nullptr)
 		{
@@ -5293,7 +5292,7 @@ void UWorld::SendChallengeControlMessage(const FEncryptionKeyResponse& Response,
 		{
 			if (Response.Response == EEncryptionResponse::Success)
 			{
-				Connection->EnableEncryptionWithKeyServer(Response.EncryptionKey);
+				Connection->EnableEncryptionServer(Response.EncryptionData);
 				SendChallengeControlMessage(Connection);
 			}
 			else

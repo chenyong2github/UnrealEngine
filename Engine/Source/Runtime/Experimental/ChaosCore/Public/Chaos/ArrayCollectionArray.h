@@ -71,3 +71,9 @@ class TArrayCollectionArray : public TArrayCollectionArrayBase, public TArray<T>
 	}
 };
 }
+
+template<class T>
+struct TIsContiguousContainer<Chaos::TArrayCollectionArray<T>>
+{
+	static constexpr bool Value = TIsContiguousContainer<TArrayView<T>>::Value;
+};

@@ -10,6 +10,7 @@ namespace Trace
 {
 
 class ILinearAllocator;
+class IAnalyzer;
 
 class IProvider
 {
@@ -38,15 +39,23 @@ public:
 	virtual ILinearAllocator& GetLinearAllocator() = 0;
 	virtual const TCHAR* StoreString(const TCHAR* String) = 0;
 	
+	virtual void AddAnalyzer(IAnalyzer* Analyzer) = 0;
+
 	virtual void AddProvider(const FName& Name, IProvider* Provider) = 0;
 	template<typename ProviderType>
 	const ProviderType* ReadProvider(const FName& Name) const
 	{
 		return static_cast<const ProviderType*>(ReadProviderPrivate(Name));
 	}
+	template<typename ProviderType>
+	ProviderType* EditProvider(const FName& Name)
+	{
+		return static_cast<ProviderType*>(EditProviderPrivate(Name));
+	}
 
 private:
 	virtual const IProvider* ReadProviderPrivate(const FName& Name) const = 0;
+	virtual IProvider* EditProviderPrivate(const FName& Name) = 0;
 };
 
 struct FAnalysisSessionReadScope

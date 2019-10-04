@@ -28,18 +28,7 @@ CORE_API bool GIgnoreDebugger = false;
 CORE_API TCHAR MiniDumpFilenameW[1024] = TEXT("");
 
 
-volatile int32 GCrashType = 0;
 bool GEnsureShowsCRC = false;
-
-void SetCrashType(ECrashType InCrashType)
-{
-	GCrashType = (int32)InCrashType;
-}
-
-int32 GetCrashType()
-{
-	return GCrashType;
-}
 
 void ReportInteractiveEnsure(const TCHAR* InMessage)
 {

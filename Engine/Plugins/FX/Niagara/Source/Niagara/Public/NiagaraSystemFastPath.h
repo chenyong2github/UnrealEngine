@@ -516,6 +516,7 @@ namespace FNiagaraEmitterFastPath
 		float LoopedAge;
 		float NormalizedLoopAge;
 		float DistanceTraveled;
+		float SpawnCountScale;
 		FParamMap0_Emitter_Scalability Scalability;
 		TArray<FParamMap0_Emitter_SpawnRate> SpawnRate;
 		TArray<FParamMap0_Emitter_SpawnPerUnit> SpawnPerUnit;

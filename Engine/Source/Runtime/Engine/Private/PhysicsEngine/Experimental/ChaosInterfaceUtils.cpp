@@ -155,7 +155,7 @@ namespace ChaosInterface
 			const FKSphereElem ScaledSphereElem = InParams.Geometry->SphereElems[i].GetFinalScaled(Scale, InParams.LocalTransform);
 			const float UseRadius = FMath::Max(ScaledSphereElem.Radius, KINDA_SMALL_NUMBER);
 
-			auto ImplicitSphere = MakeUnique<Chaos::TSphere<float, 3>>(Chaos::TVector<float, 3>(0.f, 0.f, 0.f), UseRadius);
+			auto ImplicitSphere = MakeUnique<Chaos::TSphere<float, 3>>(ScaledSphereElem.Center, UseRadius);
 			auto NewShape = NewShapeHelper(MakeSerializable(ImplicitSphere));
 			Shapes.Emplace(MoveTemp(NewShape));
 			Geoms.Add(MoveTemp(ImplicitSphere));
@@ -171,13 +171,21 @@ namespace ChaosInterface
 			HalfExtents.Y = FMath::Max(HalfExtents.Y, KINDA_SMALL_NUMBER);
 			HalfExtents.Z = FMath::Max(HalfExtents.Z, KINDA_SMALL_NUMBER);
 
-			//todo: properly support transform on all geometries, for now just fixing a specific broken case with a translated aabb
-	//		ensure(BoxTransform.GetRotation() == FQuat::Identity);
-			TUniquePtr<Chaos::TBox<float, 3>> Box;
-			auto ImplicitBox = MakeUnique<Chaos::TBox<float, 3>>(BoxTransform.GetTranslation() - HalfExtents, BoxTransform.GetTranslation() + HalfExtents);
-			auto NewShape = NewShapeHelper(MakeSerializable(ImplicitBox));
+			// TBox can handle translations internally but if we have a rotation we need to wrap it in a transform
+			TUniquePtr<Chaos::TImplicitObject<float, 3>> Implicit;
+			if (!BoxTransform.GetRotation().IsIdentity())
+			{
+				auto ImplicitBox = MakeUnique<Chaos::TBox<float, 3>>(-HalfExtents, HalfExtents);
+				Implicit = TUniquePtr<Chaos::TImplicitObject<float, 3>>(new Chaos::TImplicitObjectTransformed<float, 3>(MoveTemp(ImplicitBox), BoxTransform));
+			}
+			else
+			{
+				Implicit = MakeUnique<Chaos::TBox<float, 3>>(BoxTransform.GetTranslation() - HalfExtents, BoxTransform.GetTranslation() + HalfExtents);
+			}
+
+			auto NewShape = NewShapeHelper(MakeSerializable(Implicit));
 			Shapes.Emplace(MoveTemp(NewShape));
-			Geoms.Add(MoveTemp(ImplicitBox));
+			Geoms.Add(MoveTemp(Implicit));
 		}
 		for (uint32 i = 0; i < static_cast<uint32>(InParams.Geometry->SphylElems.Num()); ++i)
 		{
@@ -190,7 +198,7 @@ namespace ChaosInterface
 			if (HalfHeight < KINDA_SMALL_NUMBER)
 			{
 				//not a capsule just use a sphere
-				auto ImplicitSphere = MakeUnique<Chaos::TSphere<float, 3>>(Chaos::TVector<float, 3>(0), Radius);
+				auto ImplicitSphere = MakeUnique<Chaos::TSphere<float, 3>>(ScaledSphylElem.Center, Radius);
 				auto NewShape = NewShapeHelper(MakeSerializable(ImplicitSphere));
 				Shapes.Emplace(MoveTemp(NewShape));
 				Geoms.Add(MoveTemp(ImplicitSphere));
@@ -198,9 +206,9 @@ namespace ChaosInterface
 			}
 			else
 			{
-				Chaos::TVector<float, 3> HalfExtents(0, 0, HalfHeight);
+				Chaos::TVector<float, 3> HalfExtents = ScaledSphylElem.Rotation.RotateVector(Chaos::TVector<float, 3>(0, 0, HalfHeight));
 
-				auto ImplicitCapsule = MakeUnique<Chaos::TCapsule<float>>(-HalfExtents, HalfExtents, Radius);
+				auto ImplicitCapsule = MakeUnique<Chaos::TCapsule<float>>(ScaledSphylElem.Center - HalfExtents, ScaledSphylElem.Center + HalfExtents, Radius);
 				auto NewShape = NewShapeHelper(MakeSerializable(ImplicitCapsule));
 				Shapes.Emplace(MoveTemp(NewShape));
 				Geoms.Add(MoveTemp(ImplicitCapsule));
@@ -238,12 +246,24 @@ namespace ChaosInterface
 		for (uint32 i = 0; i < static_cast<uint32>(InParams.Geometry->ConvexElems.Num()); ++i)
 		{
 			const FKConvexElem& CollisionBody = InParams.Geometry->ConvexElems[i];
+			const FTransform& ConvexTransform = CollisionBody.GetTransform();
 			if (const auto& ConvexImplicit = CollisionBody.GetChaosConvexMesh())
 			{
-				auto Implicit = MakeUnique<Chaos::TImplicitObjectScaled<float, 3>>(MakeSerializable(ConvexImplicit), Scale);
-				auto NewShape = NewShapeHelper(MakeSerializable(Implicit));
-				Shapes.Emplace(MoveTemp(NewShape));
-				Geoms.Add(MoveTemp(Implicit));
+				if (!ConvexTransform.GetTranslation().IsNearlyZero() || !ConvexTransform.GetRotation().IsIdentity())
+				{
+					TUniquePtr<Chaos::TImplicitObject<float, 3>> TransformImplicit = TUniquePtr<Chaos::TImplicitObject<float, 3>>(new Chaos::TImplicitObjectTransformed<float, 3>(MakeSerializable(ConvexImplicit), ConvexTransform));
+					TUniquePtr<Chaos::TImplicitObjectScaled<float, 3, false>> Implicit = MakeUnique<Chaos::TImplicitObjectScaled<float, 3, false>>(MoveTemp(TransformImplicit), Scale);
+					auto NewShape = NewShapeHelper(MakeSerializable(Implicit));
+					Shapes.Emplace(MoveTemp(NewShape));
+					Geoms.Add(MoveTemp(Implicit));
+				}
+				else
+				{
+					TUniquePtr<Chaos::TImplicitObjectScaled<float, 3, true>> Implicit = MakeUnique<Chaos::TImplicitObjectScaled<float, 3>>(MakeSerializable(ConvexImplicit), Scale);
+					auto NewShape = NewShapeHelper(MakeSerializable(Implicit));
+					Shapes.Emplace(MoveTemp(NewShape));
+					Geoms.Add(MoveTemp(Implicit));
+				}
 			}
 		}
 

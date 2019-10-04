@@ -22,7 +22,7 @@ FJsonArchiveInputFormatter::FJsonArchiveInputFormatter(FArchive& InInner, TFunct
 
 	TSharedPtr< FJsonObject > RootObject;
 	TSharedRef< TJsonReader<char> > Reader = TJsonReaderFactory<char>::Create(&InInner);
-	ensure(FJsonSerializer::Deserialize(Reader, RootObject));
+	ensure(FJsonSerializer::Deserialize(Reader, RootObject, FJsonSerializer::EFlags::StoreNumbersAsStrings));
 	ValueStack.Add(MakeShared<FJsonValueObject>(RootObject));
 
 	ValueStack.Reserve(64);
@@ -58,7 +58,7 @@ bool FJsonArchiveInputFormatter::HasDocumentTree() const
 void FJsonArchiveInputFormatter::EnterRecord()
 {
 	TSharedPtr<FJsonValue>& Value = ValueStack.Top();
-	ObjectStack.Add(FObjectRecord(Value->AsObject(), ValueStack.Num()));
+	ObjectStack.Emplace(Value->AsObject(), ValueStack.Num());
 }
 
 void FJsonArchiveInputFormatter::EnterRecord_TextOnly(TArray<FString>& OutFieldNames)
@@ -213,54 +213,143 @@ void FJsonArchiveInputFormatter::LeaveMapElement()
 	++MapIteratorStack.Top();
 }
 
+void FJsonArchiveInputFormatter::EnterAttributedValue()
+{
+	TSharedPtr<FJsonValue>& Value = ValueStack.Top();
+	const TSharedPtr<FJsonObject>* ObjectPtr = nullptr;
+	if (Value->TryGetObject(ObjectPtr))
+	{
+		FJsonObject& ObjectRef = **ObjectPtr;
+
+		TSharedPtr<FJsonValue> Field = ObjectRef.TryGetField(EscapeFieldName(TEXT("_Value")));
+		if (Field.IsValid())
+		{
+			ObjectStack.Emplace(*ObjectPtr, ValueStack.Num());
+			return;
+		}
+	}
+
+	ObjectStack.Emplace(nullptr, ValueStack.Num());
+}
+
+void FJsonArchiveInputFormatter::EnterAttribute(FArchiveFieldName AttributeName)
+{
+	TSharedPtr<FJsonObject>& NewObject = ObjectStack.Top().JsonObject;
+	TSharedPtr<FJsonValue> Field = NewObject->TryGetField(EscapeFieldName(*FString::Printf(TEXT("_%s"), AttributeName.Name)));
+	check(Field.IsValid());
+	ValueStack.Add(Field);
+}
+
+void FJsonArchiveInputFormatter::EnterAttributedValueValue()
+{
+	if (TSharedPtr<FJsonObject>& Object = ObjectStack.Top().JsonObject)
+	{
+		TSharedPtr<FJsonValue> Field = Object->TryGetField(EscapeFieldName(TEXT("_Value")));
+		checkSlow(Field);
+		ValueStack.Add(Field);
+	}
+	else
+	{
+		ValueStack.Add(CopyTemp(ValueStack.Top()));
+	}
+}
+
+bool FJsonArchiveInputFormatter::TryEnterAttributedValueValue()
+{
+	TSharedPtr<FJsonValue>& Value = ValueStack.Top();
+	const TSharedPtr<FJsonObject>* ObjectPtr = nullptr;
+	if (Value->TryGetObject(ObjectPtr))
+	{
+		FJsonObject& ObjectRef = **ObjectPtr;
+
+		TSharedPtr<FJsonValue> Field = ObjectRef.TryGetField(EscapeFieldName(TEXT("_Value")));
+		if (Field.IsValid())
+		{
+			ObjectStack.Emplace(*ObjectPtr, ValueStack.Num());
+			ValueStack.Add(Field);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void FJsonArchiveInputFormatter::LeaveAttribute()
+{
+	ValueStack.Pop();
+}
+
+void FJsonArchiveInputFormatter::LeaveAttributedValue()
+{
+	check(ValueStack.Num() == ObjectStack.Top().ValueCountOnCreation);
+	ObjectStack.Pop();
+}
+
+bool FJsonArchiveInputFormatter::TryEnterAttribute(FArchiveFieldName AttributeName, bool bEnterWhenSaving)
+{
+	if (TSharedPtr<FJsonObject>& Object = ObjectStack.Top().JsonObject)
+	{
+		if (TSharedPtr<FJsonValue> Field = Object->TryGetField(EscapeFieldName(TEXT("_Value"))))
+		{
+			TSharedPtr<FJsonValue> Attribute = Object->TryGetField(EscapeFieldName(*FString::Printf(TEXT("_%s"), AttributeName.Name)));
+			if (Attribute.IsValid())
+			{
+				ValueStack.Add(Attribute);
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 void FJsonArchiveInputFormatter::Serialize(uint8& Value)
 {
-	Value = (uint8)ValueStack.Top()->AsNumber();
+	verify(ValueStack.Top()->TryGetNumber(Value));
 }
 
 void FJsonArchiveInputFormatter::Serialize(uint16& Value)
 {
-	Value = (uint16)ValueStack.Top()->AsNumber();
+	verify(ValueStack.Top()->TryGetNumber(Value));
 }
 
 void FJsonArchiveInputFormatter::Serialize(uint32& Value)
 {
-	Value = (uint32)ValueStack.Top()->AsNumber();
+	verify(ValueStack.Top()->TryGetNumber(Value));
 }
 
 void FJsonArchiveInputFormatter::Serialize(uint64& Value)
 {
-	Value = (uint64)ValueStack.Top()->AsNumber();
+	verify(ValueStack.Top()->TryGetNumber(Value));
 }
 
 void FJsonArchiveInputFormatter::Serialize(int8& Value)
 {
-	Value = (int8)ValueStack.Top()->AsNumber();
+	verify(ValueStack.Top()->TryGetNumber(Value));
 }
 
 void FJsonArchiveInputFormatter::Serialize(int16& Value)
 {
-	Value = (int16)ValueStack.Top()->AsNumber();
+	verify(ValueStack.Top()->TryGetNumber(Value));
 }
 
 void FJsonArchiveInputFormatter::Serialize(int32& Value)
 {
-	Value = (int32)ValueStack.Top()->AsNumber();
+	verify(ValueStack.Top()->TryGetNumber(Value));
 }
 
 void FJsonArchiveInputFormatter::Serialize(int64& Value)
 {
-	Value = (int64)ValueStack.Top()->AsNumber();
+	verify(ValueStack.Top()->TryGetNumber(Value));
 }
 
 void FJsonArchiveInputFormatter::Serialize(float& Value)
 {
-	Value = (float)ValueStack.Top()->AsNumber();
+	verify(ValueStack.Top()->TryGetNumber(Value));
 }
 
 void FJsonArchiveInputFormatter::Serialize(double& Value)
 {
-	Value = (double)ValueStack.Top()->AsNumber();
+	verify(ValueStack.Top()->TryGetNumber(Value));
 }
 
 void FJsonArchiveInputFormatter::Serialize(bool& Value)
@@ -282,16 +371,7 @@ void FJsonArchiveInputFormatter::Serialize(FString& Value)
 void FJsonArchiveInputFormatter::Serialize(FName& Value)
 {
 	FString StringValue = ValueStack.Top()->AsString();
-
-	const TCHAR Prefix[] = TEXT("Name:");
-	if (ensure(StringValue.StartsWith(Prefix)))
-	{
-		Value = FName(*StringValue + UE_ARRAY_COUNT(Prefix) - 1);
-	}
-	else
-	{
-		Value = NAME_None;
-	}
+	Value = FName(*StringValue);
 }
 
 void FJsonArchiveInputFormatter::Serialize(UObject*& Value)
@@ -455,11 +535,7 @@ EArchiveValueType FJsonArchiveInputFormatter::GetValueType(const FJsonValue& Val
 	switch (Value.Type)
 	{
 	case EJson::String:
-		if (Value.AsString().StartsWith(TEXT("Name:")))
-		{
-			return EArchiveValueType::Name;
-		}
-		else if (Value.AsString().StartsWith(TEXT("Object:")))
+		if (Value.AsString().StartsWith(TEXT("Object:")))
 		{
 			return EArchiveValueType::Object;
 		}

@@ -5,6 +5,7 @@
 #include "TraceServices/Model/AnalysisSession.h"
 #include "TraceServices/Containers/Timelines.h"
 #include "TraceServices/Containers/Tables.h"
+#include "Containers/Array.h"
 
 namespace Trace
 {
@@ -28,6 +29,24 @@ struct FTimingProfilerAggregatedStats
 	const FTimingProfilerTimer* Timer = nullptr;
 };
 
+struct FTimingProfilerButterflyNode
+{
+	const FTimingProfilerTimer* Timer = nullptr;
+	uint64 Count = 0;
+	double InclusiveTime = 0.0;
+	double ExclusiveTime = 0.0;
+	const FTimingProfilerButterflyNode* Parent = nullptr;
+	TArray<FTimingProfilerButterflyNode*> Children;
+};
+
+class ITimingProfilerButterfly
+{
+public:
+	virtual ~ITimingProfilerButterfly() = default;
+	virtual const FTimingProfilerButterflyNode& GenerateCallersTree(uint32 TimerId) = 0;
+	virtual const FTimingProfilerButterflyNode& GenerateCalleesTree(uint32 TimerId) = 0;
+};
+
 class ITimingProfilerProvider
 	: public IProvider
 {
@@ -42,6 +61,7 @@ public:
 	virtual void EnumerateTimelines(TFunctionRef<void(const Timeline&)> Callback) const = 0;
 	virtual void ReadTimers(TFunctionRef<void(const FTimingProfilerTimer*, uint64)> Callback) const = 0;
 	virtual ITable<FTimingProfilerAggregatedStats>* CreateAggregation(double IntervalStart, double IntervalEnd, TFunctionRef<bool(uint32)> CpuThreadFilter, bool IncludeGpu) const = 0;
+	virtual ITimingProfilerButterfly* CreateButterfly(double IntervalStart, double IntervalEnd, TFunctionRef<bool(uint32)> CpuThreadFilter, bool IncludeGpu) const = 0;
 };
 
 TRACESERVICES_API const ITimingProfilerProvider* ReadTimingProfilerProvider(const IAnalysisSession& Session);

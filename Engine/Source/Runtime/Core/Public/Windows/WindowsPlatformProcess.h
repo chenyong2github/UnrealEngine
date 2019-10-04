@@ -46,6 +46,9 @@ struct CORE_API FWindowsPlatformProcess
 		/** Constructor */
 		FWindowsSemaphore(const FString& InName, Windows::HANDLE InSemaphore);
 
+		/** Allocation free constructor */
+		FWindowsSemaphore(const TCHAR* InName, Windows::HANDLE InSemaphore);
+
 		/** Destructor */
 		virtual ~FWindowsSemaphore();
 
@@ -178,6 +181,7 @@ public:
 	static bool WritePipe(void* WritePipe, const FString& Message, FString* OutWritten = nullptr);
 	static bool WritePipe(void* WritePipe, const uint8* Data, const int32 DataLength, int32* OutDataLength = nullptr);
 	static FSemaphore* NewInterprocessSynchObject(const FString& Name, bool bCreate, uint32 MaxLocks = 1);
+	static FSemaphore* NewInterprocessSynchObject(const TCHAR* Name, bool bCreate, uint32 MaxLocks = 1);
 	static bool DeleteInterprocessSynchObject(FSemaphore * Object);
 	static bool Daemonize();
 protected:

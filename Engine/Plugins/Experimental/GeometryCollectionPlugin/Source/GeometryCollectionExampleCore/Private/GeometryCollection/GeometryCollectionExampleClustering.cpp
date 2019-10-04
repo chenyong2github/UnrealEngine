@@ -49,12 +49,10 @@ namespace GeometryCollectionExample
 					}
 		return false;
 	}
-#endif
 
 	template<class T>
 	void RigidBodies_ClusterTest_SingleLevelNonBreaking()
 	{
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<T>>();
 		InitMaterialToZero(PhysicalMaterial);
 
@@ -129,7 +127,6 @@ namespace GeometryCollectionExample
 
 		delete PhysObject;
 
-#endif
 	}
 	template void RigidBodies_ClusterTest_SingleLevelNonBreaking<float>();
 
@@ -137,7 +134,6 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_ClusterTest_DeactivateClusterParticle()
 	{
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<T>>();
 		InitMaterialToZero(PhysicalMaterial);
 
@@ -275,9 +271,6 @@ namespace GeometryCollectionExample
 
 		delete PhysObject;
 
-#endif
-
-
 		
 	}
 	template void RigidBodies_ClusterTest_DeactivateClusterParticle<float>();
@@ -294,7 +287,6 @@ namespace GeometryCollectionExample
 		// Wait until the cluster hits the ground.
 		// Ensure that the cluster breaks and that the children have the correct states from then on.
 		//
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<T>>();
 		InitMaterialToZero(PhysicalMaterial);
 
@@ -424,7 +416,6 @@ namespace GeometryCollectionExample
 
 		delete PhysObject;
 
-#endif
 	}
 	template void RigidBodies_ClusterTest_SingleLevelBreaking<float>();
 
@@ -432,7 +423,6 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_ClusterTest_NestedCluster()
 	{
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<T>>();
 		InitMaterialToZero(PhysicalMaterial);
 
@@ -544,8 +534,6 @@ namespace GeometryCollectionExample
 
 		delete PhysObject;
 
-#endif
-
 		
 	}
 	template void RigidBodies_ClusterTest_NestedCluster<float>();
@@ -554,7 +542,6 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_ClusterTest_NestedCluster_MultiStrain()
 	{
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<T>>();
 		InitMaterialToZero(PhysicalMaterial);
 
@@ -700,9 +687,6 @@ namespace GeometryCollectionExample
 
 		delete PhysObject;
 
-#endif
-
-
 		
 	}
 	template void RigidBodies_ClusterTest_NestedCluster_MultiStrain<float>();
@@ -712,7 +696,6 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_ClusterTest_NestedCluster_Halt()
 	{
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<T>>();
 		InitMaterialToZero(PhysicalMaterial);
 
@@ -840,9 +823,6 @@ namespace GeometryCollectionExample
 
 		delete PhysObject;
 
-#endif
-
-
 		
 	}
 	template void RigidBodies_ClusterTest_NestedCluster_Halt<float>();
@@ -853,7 +833,6 @@ namespace GeometryCollectionExample
 		// Test : Set one element kinematic. When the cluster breaks the elements that do not contain the kinematic
 		//        rigid body should be dynamic, while the clusters that contain the kinematic body should remain 
 		//        kinematic. 
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<T>>();
 		InitMaterialToZero(PhysicalMaterial);
 
@@ -1081,9 +1060,6 @@ namespace GeometryCollectionExample
 
 		delete PhysObject;
 
-#endif
-
-
 		
 	}
 	template void RigidBodies_ClusterTest_KinematicAnchor<float>();
@@ -1095,7 +1071,6 @@ namespace GeometryCollectionExample
 		// Test : Set one element static. When the cluster breaks the elements that do not contain the static
 		//        rigid body should be dynamic, while the clusters that contain the static body should remain 
 		//        static. 
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<T>>();
 		InitMaterialToZero(PhysicalMaterial);
 
@@ -1299,7 +1274,6 @@ namespace GeometryCollectionExample
 
 		delete PhysObject;
 
-#endif
 	}
 	template void RigidBodies_ClusterTest_StaticAnchor<float>();
 
@@ -1309,7 +1283,6 @@ namespace GeometryCollectionExample
 	{
 		// Test : Set one element kinematic. When the cluster breaks the elements that do not contain the kinematic
 		//        Rigid body should be dynamic, while the clusters that contain the kinematic body should remain kinematic. 
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<T>>();
 		InitMaterialToZero(PhysicalMaterial);
 
@@ -1431,7 +1404,6 @@ namespace GeometryCollectionExample
 		delete PhysObject;
 		delete PhysObject2;
 
-#endif
 	}
 	template void RigidBodies_ClusterTest_UnionClusters<float>();
 
@@ -1442,7 +1414,6 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_ClusterTest_ReleaseClusterParticle_ClusteredNode()
 	{
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<T>>();
 		InitMaterialToZero(PhysicalMaterial);
 
@@ -1574,14 +1545,12 @@ namespace GeometryCollectionExample
 		delete PhysObject;
 		delete PhysObject2;
 
-#endif
 	}
 	template void RigidBodies_ClusterTest_ReleaseClusterParticle_ClusteredNode<float>();
 
 	template<class T>
 	void RigidBodies_ClusterTest_ReleaseClusterParticle_ClusteredKinematicNode()
 	{
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<T>>();
 		InitMaterialToZero(PhysicalMaterial);
 
@@ -1708,16 +1677,14 @@ namespace GeometryCollectionExample
 
 		delete PhysObject;
 		delete PhysObject2;
-#endif
-		
+	
 	}
 	template void RigidBodies_ClusterTest_ReleaseClusterParticle_ClusteredKinematicNode<float>();
-
+#endif
 
 	template<class T>
 	void RigidBodies_ClusterTest_ReleaseClusterParticles_AllLeafNodes()
 	{
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<T>>();
 		InitMaterialToZero(PhysicalMaterial);
 
@@ -1799,7 +1766,6 @@ namespace GeometryCollectionExample
 
 		delete PhysObject;
 
-#endif
 		
 	}
 	template void RigidBodies_ClusterTest_ReleaseClusterParticles_AllLeafNodes<float>();
@@ -1807,7 +1773,6 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_ClusterTest_ReleaseClusterParticles_ClusterNodeAndSubClusterNode()
 	{
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<T>>();
 		InitMaterialToZero(PhysicalMaterial);
 
@@ -1897,14 +1862,12 @@ namespace GeometryCollectionExample
 
 		delete PhysObject;
 
-#endif
 	}
 	template void RigidBodies_ClusterTest_ReleaseClusterParticles_ClusterNodeAndSubClusterNode<float>();
 
 	template<class T>
 	void RigidBodies_ClusterTest_RemoveOnFracture()
 	{
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<T>>();
 		InitMaterialToZero(PhysicalMaterial);
 
@@ -1997,17 +1960,12 @@ namespace GeometryCollectionExample
 		delete PhysObject;
 		delete FalloffField;
 		delete FieldObject;
-#endif
 	}
 	template void RigidBodies_ClusterTest_RemoveOnFracture<float>();
 
-
-
-	
 	template<class T>
 	void RigidBodiess_ClusterTest_ParticleImplicitCollisionGeometry()
 	{
-#if INCLUDE_CHAOS
 		typename SimulationObjects<T>::FParameters P;
 		P.CollisionGroup = -1;
 		P.EnableClustering = true;
@@ -2059,7 +2017,6 @@ namespace GeometryCollectionExample
 		FChaosSolversModule::GetModule()->DestroySolver(Solver);
 		
 		delete Object;
-#endif
 	}
 	template void RigidBodiess_ClusterTest_ParticleImplicitCollisionGeometry<float>();
 }

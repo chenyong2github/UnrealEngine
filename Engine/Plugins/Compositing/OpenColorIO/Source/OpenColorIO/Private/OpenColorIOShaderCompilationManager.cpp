@@ -35,22 +35,27 @@ void FOpenColorIOShaderCompilationManager::Tick(float DeltaSeconds)
 
 FOpenColorIOShaderCompilationManager::FOpenColorIOShaderCompilationManager()
 {
-	// Ew. Should we just use FShaderCompilingManager's workers instead? Is that safe?
-	const int32 NumVirtualCores = FPlatformMisc::NumberOfCoresIncludingHyperthreads();
-	const uint32 NumOpenColorIOShaderCompilingThreads = FMath::Min(NumVirtualCores-1, 4);		
-
-	for (uint32 WorkerIndex = 0; WorkerIndex < NumOpenColorIOShaderCompilingThreads; WorkerIndex++)
-	{
-		WorkerInfos.Add(new FOpenColorIOShaderCompileWorkerInfo());
-	}
+	
 }
 
+FOpenColorIOShaderCompilationManager::~FOpenColorIOShaderCompilationManager()
+{
+	for (FOpenColorIOShaderCompileWorkerInfo* Info : WorkerInfos)
+	{
+		delete Info;
+	}
+
+	WorkerInfos.Empty();
+}
 
 void FOpenColorIOShaderCompilationManager::RunCompileJobs()
 {
 #if WITH_EDITOR
 	// If we aren't compiling through workers, so we can just track the serial time here.
 //	COOK_STAT(FScopedDurationTimer CompileTimer(OpenColorIOShaderCookStats::AsyncCompileTimeSec));
+
+	InitWorkerInfo();
+
 	int32 NumActiveThreads = 0;
 
 	for (int32 WorkerIndex = 0; WorkerIndex < WorkerInfos.Num(); WorkerIndex++)
@@ -166,7 +171,20 @@ void FOpenColorIOShaderCompilationManager::RunCompileJobs()
 #endif
 }
 
+void FOpenColorIOShaderCompilationManager::InitWorkerInfo()
+{
+	if (WorkerInfos.Num() == 0) // Check to see if it has been initialized or not
+	{
+		// Ew. Should we just use FShaderCompilingManager's workers instead? Is that safe?
+		const int32 NumVirtualCores = FPlatformMisc::NumberOfCoresIncludingHyperthreads();
+		const uint32 NumOpenColorIOShaderCompilingThreads = FMath::Min(NumVirtualCores - 1, 4);
 
+		for (uint32 WorkerIndex = 0; WorkerIndex < NumOpenColorIOShaderCompilingThreads; WorkerIndex++)
+		{
+			WorkerInfos.Add(new FOpenColorIOShaderCompileWorkerInfo());
+		}
+	}	
+}
 
 OPENCOLORIO_API void FOpenColorIOShaderCompilationManager::AddJobs(TArray<FShaderCommonCompileJob*> InNewJobs)
 {

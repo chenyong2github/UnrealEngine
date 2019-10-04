@@ -445,12 +445,14 @@ ELobbyType BuildLobbyType(FOnlineSessionSettings* SessionSettings);
  *	Populate an FSession data structure from the data stored with a lobby
  * Expects a certain number of keys to be present otherwise this will fail
  *
+ * @param SteamSubsystem the online subsystem to use
  * @param LobbyId the Steam lobby to fill data from
  * @param Session empty session structure to fill in
+ * @param SearchData if this is provided and the Steam session supports SteamSockets, the ping for the lobby will be written into the search result data.
  *
  * @return true if successful, false otherwise
  */
-bool FillSessionFromLobbyData(FUniqueNetIdSteam& LobbyId, class FOnlineSession& Session);
+bool FillSessionFromLobbyData(FOnlineSubsystemSteam* SteamSubsystem, FUniqueNetIdSteam& LobbyId, class FOnlineSession& Session, FOnlineSessionSearchResult* SearchData = nullptr);
 
 /**
  *	Populate an FSession data structure from the data stored with the members of the lobby

@@ -132,6 +132,10 @@ struct FConcertSyncActivity
 	UPROPERTY()
 	int64 ActivityId = 0;
 
+	/** True if this activity is included for tracking purposes only, and can be ignored when migrating a database */
+	UPROPERTY()
+	bool bIgnored = false;
+
 	/** The ID of the endpoint that produced the activity */
 	UPROPERTY()
 	FGuid EndpointId;

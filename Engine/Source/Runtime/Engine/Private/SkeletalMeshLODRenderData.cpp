@@ -1021,20 +1021,21 @@ void FSkeletalMeshLODRenderData::Serialize(FArchive& Ar, UObject* Owner, int32 I
 			else
 #endif
 			{
-				FByteBulkData TmpBulkData;
-				TmpBulkData.Serialize(Ar, Owner, Idx);
+#if USE_BULKDATA_STREAMING_TOKEN
+				FByteBulkData StreamingBulkData;
+				StreamingBulkData.Serialize(Ar, Owner, Idx, false);
 
-				bIsLODOptional = !!(TmpBulkData.GetBulkDataFlags() & BULKDATA_OptionalPayload);
+				BulkDataStreamingToken = StreamingBulkData.CreateStreamingToken();
+#else
+				StreamingBulkData.Serialize(Ar, Owner, Idx, false);
+#endif
+				bIsLODOptional = !!(StreamingBulkData.GetBulkDataFlags() & BULKDATA_OptionalPayload);
 
-				int64 Tmp = TmpBulkData.GetBulkDataOffsetInFile();
-				check(Tmp >= 0 && Tmp <= 0xffffffffll);
-				OffsetInFile = static_cast<uint32>(Tmp);
-				Tmp = TmpBulkData.GetBulkDataSize();
-				check(Tmp >= 0 && Tmp <= 0xffffffffll);
-				BulkDataSize = static_cast<uint32>(Tmp);
-
-				bDiscardBulkData = !BulkDataSize;
-				BuffersSize = bDiscardBulkData ? 0 : BuffersSize;
+				if (StreamingBulkData.GetBulkDataSize() == 0)
+				{
+					bDiscardBulkData = true;
+					BuffersSize = 0;
+				}
 			}
 
 			if (!bDiscardBulkData)

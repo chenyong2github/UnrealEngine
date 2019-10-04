@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Internationalization/GatherableTextData.h"
-#include "Serialization/StructuredArchiveFromArchive.h"
+#include "Serialization/StructuredArchive.h"
 
 FArchive& operator<<(FArchive& Archive, FTextSourceSiteContext& This)
 {
@@ -12,12 +12,12 @@ FArchive& operator<<(FArchive& Archive, FTextSourceSiteContext& This)
 void operator<<(FStructuredArchive::FSlot Slot, FTextSourceSiteContext& This)
 {
 	FStructuredArchive::FRecord Record = Slot.EnterRecord();
-	Record << NAMED_ITEM("KeyName", This.KeyName);
-	Record << NAMED_ITEM("SiteDescription", This.SiteDescription);
-	Record << NAMED_ITEM("IsEditorOnly", This.IsEditorOnly);
-	Record << NAMED_ITEM("IsOptional", This.IsOptional);
-	Record << NAMED_ITEM("InfoMetaData", This.InfoMetaData);
-	Record << NAMED_ITEM("KeyMetaData", This.KeyMetaData);
+	Record << SA_VALUE(TEXT("KeyName"), This.KeyName);
+	Record << SA_VALUE(TEXT("SiteDescription"), This.SiteDescription);
+	Record << SA_VALUE(TEXT("IsEditorOnly"), This.IsEditorOnly);
+	Record << SA_VALUE(TEXT("IsOptional"), This.IsOptional);
+	Record << SA_VALUE(TEXT("InfoMetaData"), This.InfoMetaData);
+	Record << SA_VALUE(TEXT("KeyMetaData"), This.KeyMetaData);
 }
 
 FArchive& operator<<(FArchive& Archive, FTextSourceData& This)
@@ -29,8 +29,8 @@ FArchive& operator<<(FArchive& Archive, FTextSourceData& This)
 void operator<<(FStructuredArchive::FSlot Slot, FTextSourceData& This)
 {
 	FStructuredArchive::FRecord Record = Slot.EnterRecord();
-	Record << NAMED_ITEM("SourceString", This.SourceString);
-	Record << NAMED_ITEM("SourceStringMetaData", This.SourceStringMetaData);
+	Record << SA_VALUE(TEXT("SourceString"), This.SourceString);
+	Record << SA_VALUE(TEXT("SourceStringMetaData"), This.SourceStringMetaData);
 }
 
 FArchive& operator<<(FArchive& Archive, FGatherableTextData& This)
@@ -42,7 +42,7 @@ FArchive& operator<<(FArchive& Archive, FGatherableTextData& This)
 void operator<<(FStructuredArchive::FSlot Slot, FGatherableTextData& This)
 {
 	FStructuredArchive::FRecord Record = Slot.EnterRecord();
-	Record << NAMED_ITEM("NamespaceName", This.NamespaceName);
-	Record << NAMED_ITEM("SourceData", This.SourceData);
-	Record << NAMED_ITEM("SourceSiteContexts", This.SourceSiteContexts);
+	Record << SA_VALUE(TEXT("NamespaceName"), This.NamespaceName);
+	Record << SA_VALUE(TEXT("SourceData"), This.SourceData);
+	Record << SA_VALUE(TEXT("SourceSiteContexts"), This.SourceSiteContexts);
 }

@@ -23,7 +23,7 @@ struct FLoadedAnimationChunk
 {
 	TAtomic<FCompressedAnimSequence*> CompressedAnimData;
 
-	class IAsyncReadRequest* IORequest;
+	struct FBulkDataIORequest* IORequest;
 	double RequestStart;
 
 	uint32	Index;
@@ -115,8 +115,6 @@ public:
 	TArray<FLoadedAnimationChunk> LoadedChunks;
 
 	mutable FCriticalSection LoadedChunksCritcalSection;
-
-	class IAsyncReadFileHandle* IORequestHandle;
 
 	/** Indices of chunks that are currently loaded */
 	TArray<uint32>	LoadedChunkIndices;

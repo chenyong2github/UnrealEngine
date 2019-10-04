@@ -55,15 +55,6 @@ extern CORE_API void ReportHang(const TCHAR*, const uint64* StackFrames, int32 N
 extern CORE_API void NewReportEnsure(const TCHAR* ErrorMessage);
 #endif
 
-enum class ECrashType
-{
-	Debug = -1,
-	Normal = 0
-};
-
-/** In debug builds we can crash on demand so we want to let the crash reporting system know about it */
-extern CORE_API void SetCrashType(ECrashType InCrashType);
-extern CORE_API int32 GetCrashType();
 
 extern CORE_API void ReportInteractiveEnsure(const TCHAR* InMessage);
 extern CORE_API bool IsInteractiveEnsureMode();

@@ -1,6 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "CoreMinimal.h"
+
 namespace Chaos
 {
 	enum class EGeometryParticlesSimType
@@ -25,5 +27,10 @@ namespace Chaos
 		uint16 InnerIdx : 13;
 
 		static constexpr uint16 MaxBucketEntries = 1 << 13;
+
+		bool operator==(const FSpatialAccelerationIdx& Rhs) const
+		{
+			return ((const uint16&)*this) == ((const uint16&)Rhs);
+		}
 	};
 }

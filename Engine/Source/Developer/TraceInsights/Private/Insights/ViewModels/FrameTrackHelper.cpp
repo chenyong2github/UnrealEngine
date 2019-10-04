@@ -2,9 +2,6 @@
 
 #include "FrameTrackHelper.h"
 
-#include "Brushes/SlateBorderBrush.h"
-#include "Brushes/SlateColorBrush.h"
-#include "EditorStyleSet.h"
 #include "Fonts/FontMeasure.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Framework/Application/SlateApplication.h"
@@ -13,32 +10,34 @@
 
 // Insights
 #include "Insights/Common/PaintUtils.h"
+#include "Insights/InsightsStyle.h"
+#include "Insights/ViewModels/DrawHelpers.h"
 #include "Insights/ViewModels/FrameTrackViewport.h"
 
 #include <limits>
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// FFrameTrackTimelineBuilder
+// FFrameTrackSeriesBuilder
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FFrameTrackTimelineBuilder::FFrameTrackTimelineBuilder(FFrameTrackTimeline& InTimeline, const FFrameTrackViewport& InViewport)
-	: Timeline(InTimeline)
+FFrameTrackSeriesBuilder::FFrameTrackSeriesBuilder(FFrameTrackSeries& InSeries, const FFrameTrackViewport& InViewport)
+	: Series(InSeries)
 	, Viewport(InViewport)
 	, NumAddedFrames(0)
 {
 	SampleW = Viewport.GetSampleWidth();
 	FramesPerSample = Viewport.GetNumFramesPerSample();
-	NumSamples = FMath::Max(0, FMath::CeilToInt(Viewport.Width / SampleW));
+	NumSamples = FMath::Max(0, FMath::CeilToInt(Viewport.GetWidth() / SampleW));
 	FirstFrameIndex = Viewport.GetFirstFrameIndex();
 
-	Timeline.NumAggregatedFrames = 0;
-	Timeline.Samples.Reset();
-	Timeline.Samples.AddDefaulted(NumSamples);
+	Series.NumAggregatedFrames = 0;
+	Series.Samples.Reset();
+	Series.Samples.AddDefaulted(NumSamples);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FFrameTrackTimelineBuilder::AddFrame(const Trace::FFrame& Frame)
+void FFrameTrackSeriesBuilder::AddFrame(const Trace::FFrame& Frame)
 {
 	NumAddedFrames++;
 
@@ -47,7 +46,7 @@ void FFrameTrackTimelineBuilder::AddFrame(const Trace::FFrame& Frame)
 	int32 SampleIndex = (FrameIndex - FirstFrameIndex) / FramesPerSample;
 	if (SampleIndex >= 0 && SampleIndex < NumSamples)
 	{
-		FFrameTrackSample& Sample = Timeline.Samples[SampleIndex];
+		FFrameTrackSample& Sample = Series.Samples[SampleIndex];
 		Sample.NumFrames++;
 
 		double Duration = Frame.EndTime - Frame.StartTime;
@@ -67,7 +66,7 @@ void FFrameTrackTimelineBuilder::AddFrame(const Trace::FFrame& Frame)
 			Sample.LargestFrameDuration = Duration;
 		}
 
-		Timeline.NumAggregatedFrames++;
+		Series.NumAggregatedFrames++;
 	}
 }
 
@@ -78,8 +77,8 @@ void FFrameTrackTimelineBuilder::AddFrame(const Trace::FFrame& Frame)
 FFrameTrackDrawHelper::FFrameTrackDrawHelper(const FDrawContext& InDrawContext, const FFrameTrackViewport& InViewport)
 	: DrawContext(InDrawContext)
 	, Viewport(InViewport)
-	, WhiteBrush(FCoreStyle::Get().GetBrush("WhiteBrush"))
-	, BorderBrush(FEditorStyle::GetBrush("PlainBorder"))
+	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
+	, HoveredFrameBorderBrush(FInsightsStyle::Get().GetBrush("HoveredEventBorder"))
 	, NumFrames(0)
 	, NumDrawSamples(0)
 {
@@ -89,62 +88,34 @@ FFrameTrackDrawHelper::FFrameTrackDrawHelper(const FDrawContext& InDrawContext, 
 
 void FFrameTrackDrawHelper::DrawBackground() const
 {
-	const FSlateBrush* AreaBrush = WhiteBrush;
-	const FLinearColor ValidAreaColor(0.07f, 0.07f, 0.07f, 1.0f);
-	const FLinearColor InvalidAreaColor(0.1f, 0.07f, 0.07f, 1.0f);
+	const FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
 
-	float X0 = Viewport.MinX - Viewport.PosX;
-	float X1 = Viewport.MaxX - Viewport.PosX;
-	const float W = FMath::CeilToFloat(Viewport.Width);
-	const float H = FMath::CeilToFloat(Viewport.Height);
+	const float X0 = 0.0f;
+	const float X1 = ViewportX.GetMinPos() - ViewportX.GetPos();
+	const float X2 = ViewportX.GetMaxPos() - ViewportX.GetPos();
+	const float X3 = FMath::CeilToFloat(Viewport.GetWidth());
 
-	if (X0 >= W || X1 <= 0.0f)
-	{
-		// Draw invalid area (entire view).
-		DrawContext.DrawBox(0.0f, 0.0f, W, H, AreaBrush, InvalidAreaColor);
-	}
-	else // X0 < W && X1 > 0
-	{
-		if (X0 > 0.0f)
-		{
-			// Draw invalid area (left).
-			DrawContext.DrawBox(0.0f, 0.0f, X0, H, AreaBrush, InvalidAreaColor);
-		}
+	const float Y = 0.0f;
+	const float H = FMath::CeilToFloat(Viewport.GetHeight());
 
-		if (X1 < W)
-		{
-			// Draw invalid area (right).
-			DrawContext.DrawBox(X1, 0.0f, W - X1, H, AreaBrush, InvalidAreaColor);
-		}
-
-		X0 = FMath::Max(X0, 0.0f);
-		X1 = FMath::Min(X1, W);
-
-		if (X1 > X0)
-		{
-			// Draw valid area.
-			DrawContext.DrawBox(X0, 0.0f, X1 - X0, H, AreaBrush, ValidAreaColor);
-		}
-	}
-
-	DrawContext.LayerId++;
+	FDrawHelpers::DrawBackground(DrawContext, WhiteBrush, X0, X1, X2, X3, Y, H);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FLinearColor FFrameTrackDrawHelper::GetColorById(int32 Id) const
+FLinearColor FFrameTrackDrawHelper::GetColorByFrameType(int32 FrameType)
 {
-	const float Alpha = 0.9;
-	switch (Id)
+	const float Alpha = 0.9f;
+	switch (FrameType)
 	{
-	case 0: // Game Frames
+	case TraceFrameType_Game:
 		return FLinearColor(0.75, 1.0, 1.0, Alpha);
 
-	case 1: // Rendering Frames
+	case TraceFrameType_Rendering:
 		return FLinearColor(1.0, 0.75, 0.75, Alpha);
 
-	case 2:
-		return FLinearColor(0.75, 0.75, 1.0, Alpha);
+	//case 2:
+	//	return FLinearColor(0.75, 0.75, 1.0, Alpha);
 
 	default:
 		return FLinearColor(1.0, 1.0, 1.0, Alpha);
@@ -153,25 +124,28 @@ FLinearColor FFrameTrackDrawHelper::GetColorById(int32 Id) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FFrameTrackDrawHelper::DrawCached(const FFrameTrackTimeline& Timeline) const
+void FFrameTrackDrawHelper::DrawCached(const FFrameTrackSeries& Series) const
 {
-	if (Timeline.NumAggregatedFrames == 0)
+	if (Series.NumAggregatedFrames == 0)
 	{
 		return;
 	}
 
-	NumFrames += Timeline.NumAggregatedFrames;
+	NumFrames += Series.NumAggregatedFrames;
 
-	FLinearColor TimelineColor = GetColorById(static_cast<int32>(Timeline.Id));
+	FLinearColor SeriesColor = GetColorByFrameType(Series.FrameType);
 
 	const float SampleW = Viewport.GetSampleWidth();
-	const int32 NumSamples = Timeline.Samples.Num();
+	const int32 NumSamples = Series.Samples.Num();
 
-	const float Y1 = FMath::RoundToFloat(Viewport.GetViewportYForValue(0.0));
+	const FAxisViewportDouble& ViewportY = Viewport.GetVerticalAxisViewport();
+
+	const float ViewHeight = FMath::RoundToFloat(Viewport.GetHeight());
+	const float BaselineY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(0.0));
 
 	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 	{
-		const FFrameTrackSample& Sample = Timeline.Samples[SampleIndex];
+		const FFrameTrackSample& Sample = Series.Samples[SampleIndex];
 		if (Sample.NumFrames == 0)
 		{
 			continue;
@@ -180,20 +154,20 @@ void FFrameTrackDrawHelper::DrawCached(const FFrameTrackTimeline& Timeline) cons
 		NumDrawSamples++;
 
 		const float X = SampleIndex * SampleW;
-		float Y2;
+		float ValueY;
 
-		FLinearColor ColorFill = TimelineColor;
+		FLinearColor ColorFill = SeriesColor;
 
 		if (Sample.LargestFrameDuration == std::numeric_limits<double>::infinity())
 		{
-			Y2 = Viewport.Height;
+			ValueY = ViewHeight;
 			ColorFill.R = 0.0f;
 			ColorFill.G = 0.0f;
 			ColorFill.B = 0.0f;
 		}
 		else
 		{
-			Y2 = FMath::RoundToFloat(Viewport.GetViewportYForValue(Sample.LargestFrameDuration));
+			ValueY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(Sample.LargestFrameDuration));
 			if (Sample.LargestFrameDuration > 1.0 / 30.0)
 			{
 				ColorFill.G *= 0.5f;
@@ -205,8 +179,8 @@ void FFrameTrackDrawHelper::DrawCached(const FFrameTrackTimeline& Timeline) cons
 			}
 		}
 
-		const float Y = FMath::RoundToFloat(Viewport.Height) - Y2;
-		const float H = Y2 - Y1;
+		const float H = ValueY - BaselineY;
+		const float Y = ViewHeight - H;
 
 		const FLinearColor ColorBorder(ColorFill.R * 0.75f, ColorFill.G * 0.75f, ColorFill.B * 0.75f, 1.0);
 
@@ -239,38 +213,42 @@ void FFrameTrackDrawHelper::DrawHoveredSample(const FFrameTrackSample& Sample) c
 	const int32 SampleIndex = (Sample.LargestFrameIndex - FirstFrameIndex) / FramesPerSample;
 	const float X = SampleIndex * SampleW;
 
-	const float Y1 = FMath::RoundToFloat(Viewport.GetViewportYForValue(0.0));
-	float Y2;
+	const FAxisViewportDouble& ViewportY = Viewport.GetVerticalAxisViewport();
+
+	const float ViewHeight = FMath::RoundToFloat(Viewport.GetHeight());
+	const float BaselineY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(0.0));
+
+	float ValueY;
 	if (Sample.LargestFrameDuration == std::numeric_limits<double>::infinity())
 	{
-		Y2 = Viewport.Height;
+		ValueY = ViewHeight;
 	}
 	else
 	{
-		Y2 = FMath::RoundToFloat(Viewport.GetViewportYForValue(Sample.LargestFrameDuration));
+		ValueY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(Sample.LargestFrameDuration));
 	}
-	const float Y = FMath::RoundToFloat(Viewport.Height) - Y2;
-	const float H = Y2 - Y1;
+	const float H = ValueY - BaselineY;
+	const float Y = ViewHeight - H;
 
 	const FLinearColor ColorBorder(1.0f, 1.0f, 0.0f, 1.0);
-	DrawContext.DrawBox(X - 1.0f, Y - 1.0f, SampleW + 2.0f, H + 2.0f, BorderBrush, ColorBorder);
+	DrawContext.DrawBox(X - 1.0f, Y - 1.0f, SampleW + 2.0f, H + 2.0f, HoveredFrameBorderBrush, ColorBorder);
 	DrawContext.LayerId++;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FFrameTrackDrawHelper::DrawHighlightedInterval(const FFrameTrackTimeline& Timeline, const double StartTime, const double EndTime) const
+void FFrameTrackDrawHelper::DrawHighlightedInterval(const FFrameTrackSeries& Series, const double StartTime, const double EndTime) const
 {
-	const int32 NumSamples = Timeline.Samples.Num();
+	const int32 NumSamples = Series.Samples.Num();
 
 	//TODO: binary search
 	int32 Index1 = 0;
 	int32 Index2 = NumSamples - 1;
-	while (Index1 < NumSamples && Timeline.Samples[Index1].EndTime < StartTime)
+	while (Index1 < NumSamples && Series.Samples[Index1].EndTime < StartTime)
 	{
 		Index1++;
 	}
-	while (Index2 >= Index1 && Timeline.Samples[Index2].StartTime > EndTime)
+	while (Index2 >= Index1 && Series.Samples[Index2].StartTime > EndTime)
 	{
 		Index2--;
 	}
@@ -279,23 +257,23 @@ void FFrameTrackDrawHelper::DrawHighlightedInterval(const FFrameTrackTimeline& T
 	{
 		const float SampleW = Viewport.GetSampleWidth();
 		float X1 = Index1 * SampleW;
-		float X2 = Index2 * SampleW;
+		float X2 = (Index2 + 1) * SampleW;
 
-		constexpr float Y1 = 12.0f; // allows 12px for the horizontal scrollbar (one displayed on top of the track)
-		const float Y2 = Viewport.Height;
+		constexpr float Y1 = 0.0f; // allows 12px for the horizontal scrollbar (one displayed on top of the track)
+		const float Y2 = Viewport.GetHeight();
 		constexpr float D = 2.0f; // line thickness (for both horizontal and vertical lines)
 		constexpr float H = 10.0f; // height of corner lines
 
 		const FLinearColor Color(1.0f, 1.0f, 1.0f, 1.0f);
 
-		if (X1 >= 0.0f && X1 < Viewport.Width - 2.0f)
+		if (X1 >= 0.0f && X1 < Viewport.GetWidth() - 2.0f)
 		{
 			// Draw left side vertical lines.
 			DrawContext.DrawBox(X1 - D, Y1, D, H, WhiteBrush, Color);
 			DrawContext.DrawBox(X1 - D, Y2 - H, D, H, WhiteBrush, Color);
 		}
 
-		if (X2 >= -2.0f && X2 < Viewport.Width)
+		if (X2 >= -2.0f && X2 < Viewport.GetWidth())
 		{
 			// Draw right side vertical lines.
 			DrawContext.DrawBox(X2, Y1, D, H, WhiteBrush, Color);
@@ -306,9 +284,9 @@ void FFrameTrackDrawHelper::DrawHighlightedInterval(const FFrameTrackTimeline& T
 		{
 			X1 = 0.0f;
 		}
-		if (X2 > Viewport.Width)
+		if (X2 > Viewport.GetWidth())
 		{
-			X2 = Viewport.Width;
+			X2 = Viewport.GetWidth();
 		}
 		if (X1 < X2)
 		{

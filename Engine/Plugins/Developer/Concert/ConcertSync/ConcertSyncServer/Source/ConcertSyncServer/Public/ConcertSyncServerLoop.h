@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ConcertMessageData.h"
 #include "ConcertSyncSessionFlags.h"
 
 class UConcertServerConfig;
@@ -20,6 +21,9 @@ struct FConcertSyncServerLoopInitArgs
 
 	/** Friendly name to use for this service (when showing it to a user in log messages, etc) */
 	FString ServiceFriendlyName;
+
+	/** The session filter to apply when auto-archiving sessions on this server */
+	FConcertSessionFilter ServiceAutoArchiveSessionFilter;
 
 	/** Function to get the server settings object to configure the server with with, or unbound to parse the default settings */
 	TFunction<const UConcertServerConfig*()> GetServerConfigFunc;

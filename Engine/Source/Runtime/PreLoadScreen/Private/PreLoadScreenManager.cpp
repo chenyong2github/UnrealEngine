@@ -112,6 +112,10 @@ void FPreLoadScreenManager::PlayPreLoadScreenAtIndex(int Index)
             {
                 HandleEngineLoadingPlay();
             }
+			else if (ActiveScreen->GetPreLoadScreenType() == EPreLoadScreenTypes::CustomSplashScreen)
+			{
+				HandleCustomSplashScreenPlay();
+			}
             else
             {
                 UE_LOG(LogPreLoadScreenManager, Fatal, TEXT("Attempting to play an Active PreLoadScreen type that hasn't been implemented inside of PreLoadScreenmanager!"));
@@ -204,6 +208,45 @@ void FPreLoadScreenManager::HandleEngineLoadingPlay()
     }
 }
 
+void FPreLoadScreenManager::HandleCustomSplashScreenPlay()
+{
+	if (ensureAlwaysMsgf(HasActivePreLoadScreenType(EPreLoadScreenTypes::CustomSplashScreen), TEXT("Invalid Active PreLoadScreen!")))
+	{
+		IPreLoadScreen* PreLoadScreen = GetActivePreLoadScreen();
+		if (PreLoadScreen && MainWindow.IsValid())
+		{
+			SCOPED_BOOT_TIMING("FPreLoadScreenManager::HandleCustomSplashScreenPlay()");
+
+			PreLoadScreen->OnPlay(MainWindow.Pin());
+
+			if (PreLoadScreen->GetWidget().IsValid())
+			{
+				MainWindow.Pin()->SetContent(PreLoadScreen->GetWidget().ToSharedRef());
+			}
+			
+			bool bDidDisableScreensaver = false;
+			if (FPlatformApplicationMisc::IsScreensaverEnabled())
+			{
+				bDidDisableScreensaver = FPlatformApplicationMisc::ControlScreensaver(FGenericPlatformApplicationMisc::EScreenSaverAction::Disable);
+			}
+
+			FPlatformMisc::HidePlatformStartupScreen();
+			FPlatformMisc::PlatformHandleSplashScreen(false);
+
+			while (!PreLoadScreen->IsDone())
+			{
+				EarlyPlayFrameTick();
+			}
+
+			if (bDidDisableScreensaver)
+			{
+				FPlatformApplicationMisc::ControlScreensaver(FGenericPlatformApplicationMisc::EScreenSaverAction::Enable);
+			}
+
+			StopPreLoadScreen();
+		}
+	}
+}
 
 void FPreLoadScreenManager::RenderTick()
 {
@@ -267,7 +310,7 @@ const IPreLoadScreen* FPreLoadScreenManager::GetActivePreLoadScreen() const
 
 void FPreLoadScreenManager::EarlyPlayFrameTick()
 {
-    if (ensureAlwaysMsgf(HasActivePreLoadScreenType(EPreLoadScreenTypes::EarlyStartupScreen), TEXT("EarlyPlayFrameTick called without a valid EarlyPreLoadScreen!")))
+    if (ensureAlwaysMsgf(HasActivePreLoadScreenType(EPreLoadScreenTypes::EarlyStartupScreen) || HasActivePreLoadScreenType(EPreLoadScreenTypes::CustomSplashScreen), TEXT("EarlyPlayFrameTick called without a valid EarlyPreLoadScreen!")))
     {
         GameLogicFrameTick();
         EarlyPlayRenderFrameTick();

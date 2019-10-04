@@ -11,7 +11,6 @@
 #include "Misc/Guid.h"
 #include "Engine/EngineTypes.h"
 #include "UObject/UObjectIterator.h"
-#include "Templates/ScopedPointer.h"
 #include "Materials/MaterialInterface.h"
 #include "RenderResource.h"
 #include "PackedNormal.h"
@@ -383,10 +382,11 @@ struct FStaticMeshLODResources
 	/** Sum of all vertex and index buffer sizes. Calculated in SerializeBuffers */
 	uint32 BuffersSize;
 
-	/** Offset in the .bulk file if this LOD is streamed */
-	uint32 OffsetInFile;
-	/** Size of serialized buffer data in bytes */
-	uint32 BulkDataSize;
+#if USE_BULKDATA_STREAMING_TOKEN
+	FBulkDataStreamingToken BulkDataStreamingToken;
+#else
+	FByteBulkData StreamingBulkData;
+#endif
 
 #if STATS
 	uint32 StaticMeshIndexMemory;
