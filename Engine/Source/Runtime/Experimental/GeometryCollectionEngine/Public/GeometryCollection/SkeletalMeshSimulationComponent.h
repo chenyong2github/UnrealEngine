@@ -156,9 +156,7 @@ public:
 	virtual void DispatchChaosPhysicsCollisionBlueprintEvents(const FChaosPhysicsCollisionInfo& CollisionInfo) override;
 
 public:
-#if INCLUDE_CHAOS
 	const TSharedPtr<FPhysScene_Chaos> GetPhysicsScene() const;
-#endif
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 
 protected:
@@ -171,10 +169,8 @@ private:
 	void UpdateAnimTransforms();
 
 private:
-#if INCLUDE_CHAOS
 	FSkeletalMeshPhysicsProxy* PhysicsProxy;
 
 	//@todo(mlentine): Don't have one per static mesh
 	TUniquePtr<Chaos::TChaosPhysicsMaterial<float>> ChaosMaterial;
-#endif
 };

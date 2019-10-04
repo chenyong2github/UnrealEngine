@@ -1,6 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
-#if INCLUDE_CHAOS
 
 #include "Chaos/Framework/PhysicsProxy.h"
 #include "BoneHierarchy.h"
@@ -143,9 +142,11 @@ public:
 	void SyncBeforeDestroy();
 	void OnRemoveFromScene();
 	void PushToPhysicsState(const Chaos::FParticleData*) {};
+	void ClearAccumulatedData() {}
 	void BufferPhysicsResults();
 	void FlipBuffer();
 	void PullFromPhysicsState();
+	bool IsDirty() { return false; }
 	EPhysicsProxyType ConcreteType() { return EPhysicsProxyType::SkeletalMeshType; }
 	/** ----------------------- */
 
@@ -183,5 +184,3 @@ private:
 
 	FInitFunc InitFunc;
 };
-
-#endif // INCLUDE_CHAOS

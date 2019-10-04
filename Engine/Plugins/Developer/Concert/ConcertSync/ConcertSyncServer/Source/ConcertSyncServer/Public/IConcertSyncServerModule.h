@@ -9,6 +9,8 @@
 class IConcertSyncServer;
 class UConcertServerConfig;
 
+struct FConcertSessionFilter;
+
 /**
  * Interface for the Concert Sync Server module.
  */
@@ -48,7 +50,8 @@ public:
 	/**
 	 * Create a sync server that will perform a certain role (eg, MultiUser, DisasterRecovery, etc)
 	 * @param InRole The role to create
+	 * @param InAutoArchiveSessionFilter The session filter to apply when auto-archiving sessions
 	 * @return The server
 	 */
-	virtual TSharedRef<IConcertSyncServer> CreateServer(const FString& InRole) = 0;
+	virtual TSharedRef<IConcertSyncServer> CreateServer(const FString& InRole, const FConcertSessionFilter& InAutoArchiveSessionFilter) = 0;
 };

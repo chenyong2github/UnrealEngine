@@ -389,7 +389,7 @@ void FConcertClientTransactionManager::HandleLocalTransactionFinalized(const FCo
 			return;
 		}
 	}
-	
+
 	FPendingTransactionToSend& PendingTransaction = HandleLocalTransactionCommon(InCommonData);
 	PendingTransaction.FinalizedData = InFinalizedData;
 	PendingTransaction.bIsFinalized = true;

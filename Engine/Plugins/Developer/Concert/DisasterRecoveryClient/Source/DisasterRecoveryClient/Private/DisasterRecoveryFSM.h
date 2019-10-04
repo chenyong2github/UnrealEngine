@@ -18,7 +18,10 @@ namespace DisasterRecoveryUtil
  */
 void StartRecovery(TSharedRef<IConcertSyncClient> SyncClient, const FString& SessionNameToRecover, bool bLiveDataOnly);
 
-/** End the recovery flow. This can be called to abort the recovery process. */
-void EndRecovery();
+/**
+ * End the recovery flow. This can be called to abort the recovery process.
+ * @return True if the recovery already completed successfully, false if it was not completed and it was aborted.
+ */
+bool EndRecovery();
 
 }

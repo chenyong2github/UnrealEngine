@@ -49,6 +49,11 @@ struct FNiagaraEmitterCompiledData
 	/** Per-Emitter DataSet Data. */
 	UPROPERTY()
 	FNiagaraDataSetCompiledData DataSetCompiledData;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	FNiagaraDataSetCompiledData GPUCaptureDataSetCompiledData;
+#endif
 };
 
 USTRUCT()
@@ -64,6 +69,18 @@ struct FNiagaraSystemCompiledData
 
 	UPROPERTY()
 	FNiagaraParameterStore InstanceParamStore;
+
+	UPROPERTY()
+	TArray<FNiagaraVariable> SpawnCountScaleVars;
+
+	UPROPERTY()
+	FNiagaraDataSetCompiledData DataSetCompiledData;
+
+	UPROPERTY()
+	FNiagaraDataSetCompiledData SpawnInstanceParamsDataSetCompiledData;
+
+	UPROPERTY()
+	FNiagaraDataSetCompiledData UpdateInstanceParamsDataSetCompiledData;
 };
 
 USTRUCT()
@@ -165,6 +182,10 @@ public:
 	UNiagaraScript* GetSystemSpawnScript();
 	UNiagaraScript* GetSystemUpdateScript();
 
+private:
+	bool IsReadyToRunInternal() const;
+	bool bIsReadyToRunCached = false;
+public:
 	bool IsReadyToRun() const;
 
 	FORCEINLINE bool NeedsWarmup()const { return WarmupTickCount > 0 && WarmupTickDelta > SMALL_NUMBER; }
@@ -266,7 +287,7 @@ public:
 
 	/** Whether or not fixed bounds are enabled. */
 	UPROPERTY(EditAnywhere, Category = "System", meta = (InlineEditConditionToggle))
-		uint32 bFixedBounds : 1;
+	uint32 bFixedBounds : 1;
 
 	TStatId GetStatID(bool bGameThread, bool bConcurrent)const;
 

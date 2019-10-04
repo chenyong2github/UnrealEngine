@@ -1,108 +1,156 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "Model/Counters.h"
+#include "TraceServices/Model/Counters.h"
+#include "Model/CountersPrivate.h"
 #include "AnalysisServicePrivate.h"
 
 namespace Trace
 {
 
-FCounterInternal::FCounterInternal(ILinearAllocator& Allocator, uint32 InId, const TCHAR* InName, const TCHAR* InDescription, ECounterDisplayHint InDisplayHint)
-	: Name(InName)
-	, Description(InDescription)
+const FName FCounterProvider::ProviderName("CounterProvider");
+
+FCounter::FCounter(ILinearAllocator& Allocator, const TArray<double>& InFrameStartTimes, uint32 InId)
+	: FrameStartTimes(InFrameStartTimes)
+	, IntCounterData(Allocator)
+	, DoubleCounterData(Allocator)
 	, Id(InId)
-	, DisplayHint(InDisplayHint)
-	, Timestamps(Allocator, 1024)
-	, Ops(Allocator, 1024)
-	, IntOpArguments(Allocator, 1024)
-	, DoubleOpArguments(Allocator, 1024)
 {
 
 }
 
 template<typename CounterType, typename EnumerationType>
-static void EnumerateCounterValuesInternal(const TPagedArray<double>& Timestamps, const TPagedArray<ECounterOpType>& Ops, const TPagedArray<CounterType>& OpArgs, double IntervalStart, double IntervalEnd, TFunctionRef<void(double, EnumerationType)> Callback)
+static void EnumerateCounterValuesInternal(const TCounterData<CounterType>& CounterData, const TArray<double>& FrameStartTimes, bool bResetEveryFrame, double IntervalStart, double IntervalEnd, TFunctionRef<void(double, EnumerationType)> Callback)
 {
-	CounterType Value = 0;
-	auto TimeIterator = Timestamps.GetIteratorFromItem(0);
-	auto OpIterator = Ops.GetIteratorFromItem(0);
-	auto OpArgIterator = OpArgs.GetIteratorFromItem(0);
-	const double* Time = TimeIterator.GetCurrentItem();
-	const ECounterOpType* Op = OpIterator.GetCurrentItem();
-	const CounterType* OpArg = OpArgIterator.GetCurrentItem();
-	
-	double PrevTime = 0.0;
-	CounterType PrevValue = CounterType();
-	bool IsFirstValue = true;
-	bool IsFirstIncludedValue = true;
-	while (Time)
+	if (!CounterData.Num())
 	{
-		switch (*Op)
+		return;
+	}
+	TArray<double> NoFrameStartTimes;
+	auto CounterIterator = bResetEveryFrame ? CounterData.GetIterator(FrameStartTimes) : CounterData.GetIterator(NoFrameStartTimes);
+	bool bFirstValue = true;
+	bool bFirstEnumeratedValue = true;
+	CounterType LastValue = CounterType();
+	double LastTime = 0.0;
+	while (CounterIterator)
+	{
+		const TTuple<double, CounterType>& Current = *CounterIterator;
+		double Time = Current.template Get<0>();
+		CounterType CurrentValue = Current.template Get<1>();
+		if (Time >= IntervalStart)
 		{
-		case CounterOpType_Add:
-			Value += *OpArg;
-			break;
-		case CounterOpType_Set:
-			Value = *OpArg;
-			break;
-		}
-
-		if (*Time >= IntervalStart)
-		{
-			if (IsFirstIncludedValue && !IsFirstValue)
+			if (bFirstEnumeratedValue)
 			{
-				Callback(PrevTime, PrevValue);
+				if (!bFirstValue)
+				{
+					Callback(LastTime, LastValue);
+				}
+				bFirstEnumeratedValue = false;
 			}
-			PrevTime = *Time;
-			PrevValue = EnumerationType(Value);
-			Callback(PrevTime, PrevValue);
-			IsFirstIncludedValue = false;
+			Callback(Time, CurrentValue);
+			bFirstEnumeratedValue = false;
+			if (Time > IntervalEnd)
+			{
+				break;
+			}
 		}
-		if (*Time > IntervalEnd)
-		{
-			break;
-		}
-
-		IsFirstValue = false;
-
-		Time = TimeIterator.NextItem();
-		Op = OpIterator.NextItem();
-		OpArg = OpArgIterator.NextItem();
+		LastTime = Time;
+		LastValue = CurrentValue;
+		bFirstValue = false;
+		++CounterIterator;
 	}
 }
 
-void FCounterInternal::EnumerateValues(double IntervalStart, double IntervalEnd, TFunctionRef<void(double, int64)> Callback) const
+void FCounter::SetIsFloatingPoint(bool bInIsFloatingPoint)
 {
-	if (DisplayHint == CounterDisplayHint_FloatingPoint)
+	check(!ModCount);
+	bIsFloatingPoint = bInIsFloatingPoint;
+}
+
+void FCounter::EnumerateValues(double IntervalStart, double IntervalEnd, TFunctionRef<void(double, int64)> Callback) const
+{
+	if (bIsFloatingPoint)
 	{
-		EnumerateCounterValuesInternal<double, int64>(Timestamps, Ops, DoubleOpArguments, IntervalStart, IntervalEnd, Callback);
+		EnumerateCounterValuesInternal<double, int64>(DoubleCounterData, FrameStartTimes, bIsResetEveryFrame, IntervalStart, IntervalEnd, Callback);
 	}
 	else
 	{
-		EnumerateCounterValuesInternal<int64, int64>(Timestamps, Ops, IntOpArguments, IntervalStart, IntervalEnd, Callback);
+		EnumerateCounterValuesInternal<int64, int64>(IntCounterData, FrameStartTimes, bIsResetEveryFrame, IntervalStart, IntervalEnd, Callback);
 	}
 }
 
-void FCounterInternal::EnumerateFloatValues(double IntervalStart, double IntervalEnd, TFunctionRef<void(double, double)> Callback) const
+void FCounter::EnumerateFloatValues(double IntervalStart, double IntervalEnd, TFunctionRef<void(double, double)> Callback) const
 {
-	if (DisplayHint == CounterDisplayHint_FloatingPoint)
+	if (bIsFloatingPoint)
 	{
-		EnumerateCounterValuesInternal<double, double>(Timestamps, Ops, DoubleOpArguments, IntervalStart, IntervalEnd, Callback);
+		EnumerateCounterValuesInternal<double, double>(DoubleCounterData, FrameStartTimes, bIsResetEveryFrame, IntervalStart, IntervalEnd, Callback);
 	}
 	else
 	{
-		EnumerateCounterValuesInternal<int64, double>(Timestamps, Ops, IntOpArguments, IntervalStart, IntervalEnd, Callback);
+		EnumerateCounterValuesInternal<int64, double>(IntCounterData, FrameStartTimes, bIsResetEveryFrame, IntervalStart, IntervalEnd, Callback);
 	}
 }
 
-FCounterProvider::FCounterProvider(IAnalysisSession& InSession)
+void FCounter::AddValue(double Time, int64 Value)
+{
+	if (bIsFloatingPoint)
+	{
+		DoubleCounterData.InsertOp(Time, CounterOpType_Add, double(Value));
+	}
+	else
+	{
+		IntCounterData.InsertOp(Time, CounterOpType_Add, Value);
+	}
+	++ModCount;
+}
+
+void FCounter::AddValue(double Time, double Value)
+{
+	if (bIsFloatingPoint)
+	{
+		DoubleCounterData.InsertOp(Time, CounterOpType_Add, Value);
+	}
+	else
+	{
+		IntCounterData.InsertOp(Time, CounterOpType_Add, int64(Value));
+	}
+	++ModCount;
+}
+
+void FCounter::SetValue(double Time, int64 Value)
+{
+	if (bIsFloatingPoint)
+	{
+		DoubleCounterData.InsertOp(Time, CounterOpType_Set, double(Value));
+	}
+	else
+	{
+		IntCounterData.InsertOp(Time, CounterOpType_Set, Value);
+	}
+	++ModCount;
+}
+
+void FCounter::SetValue(double Time, double Value)
+{
+	if (bIsFloatingPoint)
+	{
+		DoubleCounterData.InsertOp(Time, CounterOpType_Set, Value);
+	}
+	else
+	{
+		IntCounterData.InsertOp(Time, CounterOpType_Set, int64(Value));
+	}
+	++ModCount;
+}
+
+FCounterProvider::FCounterProvider(IAnalysisSession& InSession, IFrameProvider& InFrameProvider)
 	: Session(InSession)
+	, FrameProvider(InFrameProvider)
 {
-
 }
 
 FCounterProvider::~FCounterProvider()
 {
-	for (FCounterInternal* Counter : Counters)
+	for (FCounter* Counter : Counters)
 	{
 		delete Counter;
 	}
@@ -111,78 +159,37 @@ FCounterProvider::~FCounterProvider()
 void FCounterProvider::EnumerateCounters(TFunctionRef<void(const ICounter &)> Callback) const
 {
 	uint32 Id = 0;
-	for (FCounterInternal* Counter : Counters)
+	for (FCounter* Counter : Counters)
 	{
 		Callback(*Counter);
 	}
 }
 
-FCounterInternal* FCounterProvider::CreateCounter(const TCHAR* Name, const TCHAR* Description, ECounterDisplayHint DisplayHint)
+bool FCounterProvider::ReadCounter(uint32 CounterId, TFunctionRef<void(const ICounter &)> Callback) const
 {
-	FCounterInternal* Counter = new FCounterInternal(Session.GetLinearAllocator(), Counters.Num(), Name, Description, DisplayHint);
+	if (CounterId >= uint32(Counters.Num()))
+	{
+		return false;
+	}
+	Callback(*Counters[CounterId]);
+	return true;
+}
+
+ICounter* FCounterProvider::CreateCounter()
+{
+	FCounter* Counter = new FCounter(Session.GetLinearAllocator(), FrameProvider.GetFrameStartTimes(TraceFrameType_Game), Counters.Num());
 	Counters.Add(Counter);
 	return Counter;
 }
 
-template<typename T>
-static void InsertOp(FCounterInternal& Counter, double Time, ECounterOpType Type, T Arg)
+const ICounterProvider& ReadCounterProvider(const IAnalysisSession& Session)
 {
-	TPagedArray<double>& Timestamps = Counter.EditTimestamps();
-	uint64 InsertionIndex;
-	if (Timestamps.Num() == 0 || Timestamps[Timestamps.Num() - 1] <= Time)
-	{
-		InsertionIndex = Timestamps.Num();
-	}
-	else
-	{
-		auto TimestampIterator = Timestamps.GetIteratorFromItem(Timestamps.Num() - 1);
-		auto CurrentPage = TimestampIterator.GetCurrentPage();
-		while (CurrentPage && *GetFirstItem(*CurrentPage) > Time)
-		{
-			CurrentPage = TimestampIterator.PrevPage();
-		}
-		if (!CurrentPage)
-		{
-			InsertionIndex = 0;
-		}
-		else
-		{
-			uint64 PageInsertionIndex = Algo::LowerBound(*CurrentPage, Time);
-			InsertionIndex = TimestampIterator.GetCurrentPageIndex() * Timestamps.GetPageSize() + PageInsertionIndex;
-		}
-	}
-	Timestamps.Insert(InsertionIndex) = Time;
-	Counter.EditOps().Insert(InsertionIndex) = Type;
-	if (Counter.GetDisplayHint() == CounterDisplayHint_FloatingPoint)
-	{
-		Counter.EditDoubleOpArguments().Insert(InsertionIndex) = double(Arg);
-	}
-	else
-	{
-		Counter.EditIntOpArguments().Insert(InsertionIndex) = int64(Arg);
-	}
+	return *Session.ReadProvider<ICounterProvider>(FCounterProvider::ProviderName);
 }
 
-void FCounterProvider::Add(FCounterInternal& Counter, double Time, int64 Value)
+ICounterProvider& EditCounterProvider(IAnalysisSession& Session)
 {
-	InsertOp(Counter, Time, CounterOpType_Add, Value);
+	return *Session.EditProvider<ICounterProvider>(FCounterProvider::ProviderName);
 }
-
-void FCounterProvider::Add(FCounterInternal& Counter, double Time, double Value)
-{
-	InsertOp(Counter, Time, CounterOpType_Add, Value);
-}
-
-void FCounterProvider::Set(FCounterInternal& Counter, double Time, int64 Value)
-{
-	InsertOp(Counter, Time, CounterOpType_Set, Value);
-}
-
-void FCounterProvider::Set(FCounterInternal& Counter, double Time, double Value)
-{
-	InsertOp(Counter, Time, CounterOpType_Set, Value);
-}
-
-
 
 }

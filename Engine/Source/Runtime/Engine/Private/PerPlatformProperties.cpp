@@ -51,21 +51,21 @@ ENGINE_API void operator<<(FStructuredArchive::FSlot Slot, TPerPlatformProperty<
 	if (UnderlyingArchive.IsCooking())
 	{
 		bCooked = true;
-		Record << NAMED_FIELD(bCooked);
+		Record << SA_VALUE(TEXT("bCooked"), bCooked);
 		// Save out platform override if it exists and Default otherwise
 		ValueType Value = Property.GetValueForPlatformIdentifiers(UnderlyingArchive.CookingTarget()->GetPlatformInfo().PlatformGroupName);
-		Record << NAMED_FIELD(Value);
+		Record << SA_VALUE(TEXT("Value"), Value);
 	}
 	else
 #endif
 	{
 		StructType* This = StaticCast<StructType*>(&Property);
-		Record << NAMED_FIELD(bCooked);
-		Record << NAMED_ITEM("Value", This->Default);
+		Record << SA_VALUE(TEXT("bCooked"), bCooked);
+		Record << SA_VALUE(TEXT("Value"), This->Default);
 #if WITH_EDITORONLY_DATA
 		if (!bCooked)
 		{
-			Record << NAMED_ITEM("PerPlatform", This->PerPlatform);
+			Record << SA_VALUE(TEXT("PerPlatform"), This->PerPlatform);
 		}
 #endif
 	}

@@ -1625,6 +1625,63 @@ static bool DetectAlphaChannel(const FImage& InImage)
 	return false;
 }
 
+/** Calculate a scale per 4x4 block of each image, and apply it to the red/green channels. Store scale in the blue channel. */
+static void ApplyYCoCgBlockScale(TArray<FImage>& InOutMipChain)
+{
+	const uint32 MipCount = InOutMipChain.Num();
+	for (uint32 MipIndex = 0; MipIndex < MipCount; ++MipIndex)
+	{
+		FImage& SrcMip = InOutMipChain[MipIndex];
+		FLinearColor* FirstColor = SrcMip.AsRGBA32F();
+
+		int32 BlockWidthX = SrcMip.SizeX / 4;
+		int32 BlockWidthY = SrcMip.SizeY / 4;
+
+		for (int32 Slice = 0; Slice < SrcMip.NumSlices; ++Slice)
+		{
+			FLinearColor* SliceFirstColor = FirstColor + (SrcMip.SizeX * SrcMip.SizeY * Slice);
+
+			for (int32 Y = 0; Y < BlockWidthY; ++Y)
+			{
+				FLinearColor* RowFirstColor = SliceFirstColor + (Y * 4 * SrcMip.SizeY);
+
+				for (int32 X = 0; X < BlockWidthX; ++X)
+				{
+					FLinearColor* BlockFirstColor = RowFirstColor + (X * 4);
+
+					// Iterate block to find MaxComponent
+					float MaxComponent = 0.f;
+					for (int32 BlockY = 0; BlockY < 4; ++BlockY)
+					{
+						FLinearColor* Color = BlockFirstColor + (BlockY * SrcMip.SizeY);
+						for (int32 BlockX = 0; BlockX < 4; ++BlockX, ++Color)
+						{
+							MaxComponent = FMath::Max(FMath::Abs(Color->R - 128.f / 255.f), MaxComponent);
+							MaxComponent = FMath::Max(FMath::Abs(Color->G - 128.f / 255.f), MaxComponent);
+						}
+					}
+
+					const float Scale = (MaxComponent < 32.f / 255.f) ? 4.f : (MaxComponent < 64.f / 255.f) ? 2.f : 1.f;
+					const float OutB = (Scale - 1.f) * 8.f / 255.f;
+
+					// Iterate block to modify for scale
+					for (int32 BlockY = 0; BlockY < 4; ++BlockY)
+					{
+						FLinearColor* Color = BlockFirstColor + (BlockY * SrcMip.SizeY);
+						for (int32 BlockX = 0; BlockX < 4; ++BlockX, ++Color)
+						{
+							const float OutR = (Color->R - 128.f / 255.f) * Scale + 128.f / 255.f;
+							const float OutG = (Color->G - 128.f / 255.f) * Scale + 128.f / 255.f;
+
+							*Color = FLinearColor(OutR, OutG, OutB, Color->A);
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 float RoughnessToSpecularPower(float Roughness)
 {
 	float Div = FMath::Pow(Roughness, 4);
@@ -2242,6 +2299,10 @@ private:
 		else if (BuildSettings.bReplicateAlpha)
 		{
 			ReplicateAlphaChannel(OutMipChain);
+		}
+		if (BuildSettings.bApplyYCoCgBlockScale)
+		{
+			ApplyYCoCgBlockScale(OutMipChain);
 		}
 
 		return true;

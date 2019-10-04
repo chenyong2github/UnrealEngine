@@ -76,7 +76,7 @@ void USubUVAnimation::Serialize(FStructuredArchive::FRecord Record)
 
 	// Save a bool indicating whether this is cooked data
 	// This is needed when loading cooked data, to know to serialize differently
-	Record << NAMED_FIELD(bCooked);
+	Record << SA_VALUE(TEXT("bCooked"), bCooked);
 
 	if (FPlatformProperties::RequiresCookedData() && !bCooked && UnderlyingArchive.IsLoading())
 	{
@@ -85,7 +85,7 @@ void USubUVAnimation::Serialize(FStructuredArchive::FRecord Record)
 
 	if (bCooked)
 	{
-		DerivedData.Serialize(Record.EnterField(FIELD_NAME_TEXT("DerivedData")));
+		DerivedData.Serialize(Record.EnterField(SA_FIELD_NAME(TEXT("DerivedData"))));
 	}
 }
 

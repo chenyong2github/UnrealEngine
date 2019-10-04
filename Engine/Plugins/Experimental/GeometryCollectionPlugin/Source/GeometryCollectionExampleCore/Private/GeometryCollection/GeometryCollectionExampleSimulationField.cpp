@@ -31,7 +31,6 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_Field_KinematicActivation()
 	{
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
@@ -91,14 +90,12 @@ namespace GeometryCollectionExample
 		FChaosSolversModule::GetModule()->DestroySolver(Solver);
 		delete PhysObject;
 
-#endif
 	}
 	template void RigidBodies_Field_KinematicActivation<float>();
 
 	template<class T>
 	void RigidBodies_Field_InitialLinearVelocity()
 	{
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
@@ -176,14 +173,12 @@ namespace GeometryCollectionExample
 		delete FieldObject;
 		delete PhysObject;
 
-#endif
 	}
 	template void RigidBodies_Field_InitialLinearVelocity<float>();
 
 	template<class T>
 	void RigidBodies_Field_StayDynamic()
 	{
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
@@ -263,7 +258,6 @@ namespace GeometryCollectionExample
 		delete PhysObject;
 		delete FieldObject;
 
-#endif
 	}
 	template void RigidBodies_Field_StayDynamic<float>();
 
@@ -271,7 +265,6 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_Field_LinearForce()
 	{
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
@@ -343,14 +336,12 @@ namespace GeometryCollectionExample
 		delete UniformVector;
 		delete PhysObject;
 		delete FieldObject;
-#endif
 	}
 	template void RigidBodies_Field_LinearForce<float>();
 
 	template<class T>
 	void RigidBodies_Field_Torque()
 	{
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
@@ -428,7 +419,6 @@ namespace GeometryCollectionExample
 		delete UniformVector;
 		delete PhysObject;
 		delete FieldObject;
-#endif
 	}
 	template void RigidBodies_Field_Torque<float>();
 
@@ -437,7 +427,6 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_Field_Kill()
 	{
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
@@ -500,14 +489,12 @@ namespace GeometryCollectionExample
 		delete FieldObject;
 		delete FalloffField;
 
-#endif
 	}
 	template void RigidBodies_Field_Kill<float>();
 
 	template<class T>
 	void RigidBodies_Field_LinearVelocity()
 	{
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
@@ -570,7 +557,6 @@ namespace GeometryCollectionExample
 		delete FieldObject;
 		delete VectorField;
 
-#endif
 	}
 	template void RigidBodies_Field_LinearVelocity<float>();
 
@@ -582,7 +568,6 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_Field_CollisionGroup()
 	{
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
@@ -661,14 +646,12 @@ namespace GeometryCollectionExample
 
 		delete PhysObject;
 		delete RadialMask;
-#endif
 	}
 	template void RigidBodies_Field_CollisionGroup<float>();
 
 	template<class T>
 	void RigidBodies_Field_ClusterBreak_StrainModel_Test1()
 	{
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = CreateClusteredBody_TwoByTwo_ThreeTransform(FVector(0));
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
@@ -754,7 +737,6 @@ namespace GeometryCollectionExample
 		delete PhysObject;
 		delete FalloffField;
 		delete FieldObject;
-#endif
 	}
 	template void RigidBodies_Field_ClusterBreak_StrainModel_Test1<float>();
 
@@ -763,7 +745,6 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_Field_ClusterBreak_StrainModel_Test2()
 	{
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = CreateClusteredBody_ThreeByTwo_ThreeTransform(FVector(0));
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
@@ -861,14 +842,12 @@ namespace GeometryCollectionExample
 		delete PhysObject;
 		delete FalloffField;
 		delete FieldObject;
-#endif
 	}
 	template void RigidBodies_Field_ClusterBreak_StrainModel_Test2<float>();
 
 	template<class T>
 	void RigidBodies_Field_ClusterBreak_StrainModel_Test3()
 	{
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = CreateClusteredBody_ThreeByTwo_ThreeTransform(FVector(0));
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
@@ -967,7 +946,6 @@ namespace GeometryCollectionExample
 		delete PhysObject;
 		delete FalloffField;
 		delete FieldObject;
-#endif
 	}
 	template void RigidBodies_Field_ClusterBreak_StrainModel_Test3<float>();
 
@@ -975,7 +953,6 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_Field_ClusterBreak_StrainModel_Test4()
 	{
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = CreateClusteredBody_TwoByTwo_ThreeTransform(FVector(0));
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
@@ -1065,9 +1042,7 @@ namespace GeometryCollectionExample
 		delete PhysObject;
 		delete FalloffField;
 		delete FieldObject;
-#endif
 	}
 	template void RigidBodies_Field_ClusterBreak_StrainModel_Test4<float>();
-
 
 }

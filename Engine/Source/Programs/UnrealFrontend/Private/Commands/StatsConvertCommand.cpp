@@ -3,7 +3,6 @@
 #include "StatsConvertCommand.h"
 #include "Misc/CommandLine.h"
 #include "HAL/FileManager.h"
-#include "Templates/ScopedPointer.h"
 #include "Templates/UniquePtr.h"
 
 /** Helper class used to extract stats data into CSV file. */

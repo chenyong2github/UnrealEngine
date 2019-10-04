@@ -5,6 +5,7 @@
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/ImplicitObjectUnion.h"
 #include "Chaos/Sphere.h"
+#include "ChaosArchive.h"
 
 namespace Chaos
 {
@@ -16,6 +17,8 @@ namespace Chaos
 	{
 	public:
 		using TImplicitObject<T, 3>::SignedDistance;
+		using TImplicitObject<T, 3>::GetTypeName;
+
 		TCapsule()
 		    : TImplicitObject<T, 3>(EImplicitObject::FiniteConvex, ImplicitObjectType::Capsule)
 		{}
@@ -34,7 +37,7 @@ namespace Chaos
 		}
 
 		TCapsule(const TCapsule<T>& Other)
-		    : TImplicitObject<T, 3>(EImplicitObject::FiniteConvex)
+		    : TImplicitObject<T, 3>(EImplicitObject::FiniteConvex, ImplicitObjectType::Capsule)
 		    , MPoint(Other.MPoint)
 		    , MVector(Other.MVector)
 		    , MHeight(Other.MHeight)
@@ -46,7 +49,7 @@ namespace Chaos
 		}
 
 		TCapsule(TCapsule<T>&& Other)
-		    : TImplicitObject<T, 3>(EImplicitObject::FiniteConvex)
+		    : TImplicitObject<T, 3>(EImplicitObject::FiniteConvex, ImplicitObjectType::Capsule)
 		    , MPoint(MoveTemp(Other.MPoint))
 		    , MVector(MoveTemp(Other.MVector))
 		    , MHeight(Other.MHeight)
@@ -137,7 +140,7 @@ namespace Chaos
 
 		virtual const TBox<T, 3>& BoundingBox() const override { return MLocalBoundingBox; }
 
-		virtual bool Raycast(const TVector<T, 3>& StartPoint, const TVector<T, 3>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex) const override
+		static bool RaycastFast(T MRadius, T MHeight, const TVector<T,3>& MVector, const TVector<T,3>& X1, const TVector<T,3>& X2, const TVector<T, 3>& StartPoint, const TVector<T, 3>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex)
 		{
 			ensure(FMath::IsNearlyEqual(MVector.SizeSquared(), 1, KINDA_SMALL_NUMBER));
 			ensure(FMath::IsNearlyEqual(Dir.SizeSquared(), 1, KINDA_SMALL_NUMBER));
@@ -149,7 +152,6 @@ namespace Chaos
 
 			//First check if we are initially overlapping
 			//Find closest point to cylinder core and check if it's inside the inflated capsule
-			const TVector<T, 3> X1 = GetX1();
 			const TVector<T, 3> X1ToStart = StartPoint - X1;
 			const T MVectorDotX1ToStart = TVector<T, 3>::DotProduct(X1ToStart, MVector);
 			if (MVectorDotX1ToStart >= -R && MVectorDotX1ToStart <= MHeight + R)
@@ -202,14 +204,14 @@ namespace Chaos
 				{
 					bCheckCaps = true;
 				}
-				else 
+				else
 				{
 					T Time;
 					const bool bSingleHit = QuarterUnderRoot < Epsilon;
 					if (bSingleHit)
 					{
 						Time = -HalfB / A;
-						
+
 					}
 					else
 					{
@@ -238,12 +240,12 @@ namespace Chaos
 					}
 				}
 			}
-			
+
 			if (bCheckCaps)
 			{
 				//can avoid some work here, but good enough for now
-				TSphere<T,3> X1Sphere(X1, MRadius);
-				TSphere<T, 3> X2Sphere(GetX2(), MRadius);
+				TSphere<T, 3> X1Sphere(X1, MRadius);
+				TSphere<T, 3> X2Sphere(X2, MRadius);
 
 				T Time1, Time2;
 				TVector<T, 3> Position1, Position2;
@@ -287,6 +289,11 @@ namespace Chaos
 			return false;
 		}
 
+		virtual bool Raycast(const TVector<T, 3>& StartPoint, const TVector<T, 3>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex) const override
+		{
+			return RaycastFast(MRadius, MHeight, MVector, GetX1(), GetX2(), StartPoint, Dir, Length, Thickness, OutTime, OutPosition, OutNormal, OutFaceIndex);
+		}
+
 		TVector<T,3> Support(const TVector<T, 3>& Direction, const T Thickness) const override
 		{
 			const T Dot = TVector<T, 3>::DotProduct(Direction, MVector);
@@ -300,6 +307,19 @@ namespace Chaos
 			}
 			const TVector<T, 3> Normalized = Direction / sqrt(SizeSqr);
 			return FarthestCap + Normalized * (MRadius + Thickness);
+		}
+
+		virtual void Serialize(FChaosArchive& Ar) override
+		{
+			FChaosArchiveScopedMemory ScopedMemory(Ar, GetTypeName());
+			TImplicitObject<T, 3>::SerializeImp(Ar);
+			Ar << MPoint << MVector << MHeight << MRadius << MLocalBoundingBox;
+			Ar << MUnionedObjects;
+		}
+
+		virtual TUniquePtr<TImplicitObject<T, 3>> Copy() const override
+		{
+			return TUniquePtr<TImplicitObject<T,3>>(new TCapsule<T>(*this));
 		}
 
 		const T& GetRadius() const { return MRadius; }
@@ -340,7 +360,7 @@ namespace Chaos
 
 		static TRotation<T, 3> GetRotationOfMass()
 		{
-			return TRotation<T, 3>(TVector<T, 3>(0), 1); 
+			return TRotation<T, 3>::FromIdentity(); 
 		}
 
 		virtual uint32 GetTypeHash() const override

@@ -1,9 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "Chaos/Vector.h"
-#include "CoreMinimal.h"
 #include "Box.h"
-#include "Chaos/ParticleHandle.h"
+#include "Chaos/ParticleHandleFwd.h"
 
 class UPhysicalMaterial;
 
@@ -443,5 +442,26 @@ struct TTrailingDataExt
 		return A.Particle == B.Particle;
 	}
 };
+
+
+template<class T, int d>
+struct TSleepingData
+{
+	TSleepingData()
+		: Particle(nullptr)
+		, Sleeping(true)
+	{}
+
+	TSleepingData(
+		  TGeometryParticle<T, d>* InParticle
+		, bool InSleeping) 
+		: Particle(InParticle)
+		, Sleeping(InSleeping)
+	{}
+
+	TGeometryParticle<T, d>* Particle;
+	bool Sleeping;	// if !Sleeping == Awake
+};
+
 
 }

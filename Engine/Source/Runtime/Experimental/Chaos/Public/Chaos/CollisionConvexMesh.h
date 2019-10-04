@@ -13,6 +13,14 @@ namespace Chaos
 	class TConvexBuilder
 	{
 	public:
+		static bool IsValidTriangle(const TVector<T, 3>& A, const TVector<T, 3>& B, const TVector<T, 3>& C)
+		{
+			const TVector<T, 3> BA = B - A;
+			const TVector<T, 3> CA = C - A;
+			const TVector<T, 3> Cross = TVector<T, 3>::CrossProduct(BA, CA);
+			return Cross.Size() > 1e-4;
+		}
+
 		static void Build(const TParticles<T, 3>& InParticles, TArray <TPlane<T, 3>>& OutPlanes, TParticles<T, 3>& OutSurfaceParticles, TBox<T, 3>& OutLocalBounds)
 		{
 			OutPlanes.Reset();
@@ -58,24 +66,18 @@ namespace Chaos
 			else if(NumParticles == 3)
 			{
 				//special support for triangle
-				TVector<T, 3> Normal = TVector<T, 3>::CrossProduct(InParticles.X(1) - InParticles.X(0), InParticles.X(2) - InParticles.X(0));
-				const T NormalLength = Normal.SafeNormalize();
-
-				TVector<T, 3> A = InParticles.X(1) - InParticles.X(0);
-				TVector<T, 3> B = InParticles.X(2) - InParticles.X(0);
-				TVector<T, 3> CheckNormal = TVector<T, 3>::CrossProduct(A, B);
+				const bool bIsValidTriangle = IsValidTriangle(InParticles.X(0), InParticles.X(1), InParticles.X(2));
 
 				//TODO_SQ_IMPLEMENTATION: should do proper cleanup to avoid this
-				//if(ensure(NormalLength > 1e-4))
-				if (NormalLength > 1e-4)
+				if (ensureMsgf(bIsValidTriangle, TEXT("TConvexBuilder::Build(): Generated invalid triangle!")))
 				{
+					TVector<T, 3> Normal = TVector<T, 3>::CrossProduct(InParticles.X(1) - InParticles.X(0), InParticles.X(2) - InParticles.X(0)).GetSafeNormal();
 					OutPlanes.Add(TPlane<T, 3>(InParticles.X(0), Normal));
 					OutSurfaceParticles.AddParticles(3);
 					OutSurfaceParticles.X(0) = InParticles.X(0);
 					OutSurfaceParticles.X(1) = InParticles.X(1);
 					OutSurfaceParticles.X(2) = InParticles.X(2);
 				}
-
 			}
 		}
 
@@ -140,8 +142,9 @@ namespace Chaos
 
 		struct FHalfEdge
 		{
-			FHalfEdge(int32 InVertex)
-				: Vertex(InVertex) {}
+			FHalfEdge(int32 InVertex=-1)
+				: Vertex(InVertex) 
+			{}
 			int32 Vertex;
 			FHalfEdge* Prev;
 			FHalfEdge* Next;
@@ -240,7 +243,7 @@ namespace Chaos
 				return nullptr;
 			}
 
-			const T Epsilon = 1e-4;
+			constexpr T Epsilon = 1e-4;
 
 			const int32 NumParticles = InParticles.Size();
 
@@ -251,14 +254,13 @@ namespace Chaos
 			FHalfEdge* A = nullptr; //min x
 			FHalfEdge* B = nullptr; //max x
 			FHalfEdge DummyHalfEdge(-1);
-			DummyHalfEdge.Next = nullptr;
 			DummyHalfEdge.Prev = nullptr;
+			DummyHalfEdge.Next = nullptr;
 			FHalfEdge* Prev = &DummyHalfEdge;
 
 			for(int32 i = 0; i < NumParticles; ++i)
 			{
 				FHalfEdge* VHalf = new FHalfEdge(i); //todo(ocohen): preallocate these
-				VHalf->Vertex = i;
 				Prev->Next = VHalf;
 				VHalf->Prev = Prev;
 				VHalf->Next = nullptr;

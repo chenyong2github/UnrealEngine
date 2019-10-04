@@ -19,8 +19,7 @@ class FPlatformFileTraceAnalyzer
 public:
 	FPlatformFileTraceAnalyzer(Trace::IAnalysisSession& Session, Trace::FFileActivityProvider& FileActivityProvider);
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
-	virtual void OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
-	virtual void OnAnalysisEnd() override;
+	virtual bool OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
 
 private:
 	enum : uint16
@@ -41,13 +40,14 @@ private:
 	{
 		uint64 ActivityIndex;
 		uint32 FileIndex;
+		uint32 ThreadId;
 	};
 
 	Trace::IAnalysisSession& Session;
 	Trace::FFileActivityProvider& FileActivityProvider;
 	TMap<uint64, uint32> OpenFilesMap;
-	TMap<uint64, FPendingActivity> PendingOpenMap;
-	TMap<uint64, FPendingActivity> PendingCloseMap;
+	TMap<uint32, FPendingActivity> PendingOpenMap;
+	TMap<uint32, FPendingActivity> PendingCloseMap;
 	TMap<uint64, FPendingActivity> ActiveReadsMap;
 	TMap<uint64, FPendingActivity> ActiveWritesMap;
 };

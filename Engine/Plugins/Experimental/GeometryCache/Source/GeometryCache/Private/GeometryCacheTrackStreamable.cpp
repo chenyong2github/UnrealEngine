@@ -11,6 +11,7 @@
 DECLARE_CYCLE_STAT(TEXT("Decode Mesh Frame"), STAT_UpdateMeshData, STATGROUP_GeometryCache);
 DECLARE_CYCLE_STAT(TEXT("Encode Mesh Frame"), STAT_AddMeshSample, STATGROUP_GeometryCache);
 
+#if WITH_EDITOR
 /**
  * Creates a totally invalid UGeometryCacheTrackStreamable instance specially set up to be very large
  * and then tries to serialize it to smoke-test the serialization of large assets and bulk data.
@@ -59,7 +60,7 @@ FAutoConsoleCommand TriggerSerializationCrashCommand(
 	TEXT("Test a crash searializing large bulk data object"),
 	FConsoleCommandDelegate::CreateStatic(UGeometryCacheTrackStreamable::TriggerSerializationCrash)
 );
-
+#endif
 
 /*-----------------------------------------------------------------------------
 UCompressedGeometryCacheTrack

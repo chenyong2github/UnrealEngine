@@ -43,35 +43,4 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Physics")
 	bool RaycastSingle(FVector Start, FVector End, FHitResult& OutHit) const;
 
-
-// #if ! INCLUDE_CHAOS
-// 	/// Stub support for Immediate mode. 
-// public:
-// 
-// 	void StartFrameCallback(float EndFrame);
-// 
-// 	void CreateRigidBodyCallback(FSolverCallbacks::FParticlesType& Particles);
-// 
-// 	void EndFrameCallback(float EndFrame);
-// 
-// 	void UpdateKinematicBodiesCallback(FSolverCallbacks::FParticlesType& Particles, const float Dt, const float Time, const int32 Index);
-// 
-// 	void ParameterUpdateCallback(FSolverCallbacks::FParticlesType& Particles, const float Time);
-// 
-// 	void DisableCollisionsCallback(TSet<TTuple<int32, int32>>& CollisionPairs);
-// 
-// 	void AddForceCallback(FSolverCallbacks::FParticlesType& Particles, const float Dt, const int32 Index);
-// 
-// private:
-// 	FPhysScene_LLImmediate Scene;
-// 	bool bInitializedState;
-// 	TSharedRef< TManagedArray<int32> > RigidBodyIdArray;
-// 	TSharedRef< TManagedArray<FVector> > CenterOfMassArray;
-// #endif
 };
-
-#if !INCLUDE_CHAOS
-inline AGeometryCollectionActor::AGeometryCollectionActor(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {}
-inline void AGeometryCollectionActor::Tick(float DeltaSeconds) {}
-inline bool AGeometryCollectionActor::RaycastSingle(FVector Start, FVector End, FHitResult& OutHit) const { return false; }
-#endif

@@ -7,11 +7,11 @@
 #include "BaseMeshPaintGeometryAdapter.h"
 #include "IMeshPaintGeometryAdapterFactory.h"
 
-struct FClothParameterMask_PhysMesh;
+struct FPointWeightMap;
 class FReferenceCollector;
 class UMeshComponent;
 class UClothingAssetBase;
-class UClothingAsset;
+class UClothingAssetCommon;
 class USkeletalMeshComponent;
 class USkeletalMesh;
 
@@ -33,7 +33,7 @@ protected:
 		TArray<TArray<int32>> NeighborMap;
 
 		/** The actual clothing asset relating to this data */
-		UClothingAsset* Asset;
+		UClothingAssetCommon* Asset;
 	};
 public:
 	static void InitializeAdapterGlobals() {}
@@ -84,7 +84,7 @@ public:
 	const TArray<int32>* GetVertexNeighbors(int32 InVertexIndex) const;
 
 	/** Get the current mask we're editing */
-	FClothParameterMask_PhysMesh* GetCurrentMask() const;
+	FPointWeightMap* GetCurrentMask() const;
 
 protected:
 

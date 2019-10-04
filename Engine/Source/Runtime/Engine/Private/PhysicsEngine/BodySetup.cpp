@@ -42,9 +42,7 @@
 #include "ProfilingDebugging/CookStats.h"
 #include "UObject/AnimPhysObjectVersion.h"
 
-#if INCLUDE_CHAOS
 #include "Chaos/TriangleMeshImplicitObject.h"
-#endif
 
 #if WITH_CHAOS
 	#include "Experimental/ChaosDerivedData.h"
@@ -1429,7 +1427,7 @@ void UBodySetup::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 	if (CookedFormatData.Contains(FPlatformProperties::GetPhysicsFormat()))
 	{
 		const FByteBulkData& FmtData = CookedFormatData.GetFormat(FPlatformProperties::GetPhysicsFormat());
-		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(FmtData.GetElementSize() * FmtData.GetElementCount());
+		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(FmtData.GetBulkDataSize());
 	}
 	
 	// Count any UV info

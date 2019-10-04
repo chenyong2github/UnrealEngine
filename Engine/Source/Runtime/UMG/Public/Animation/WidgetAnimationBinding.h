@@ -68,9 +68,9 @@ public:
 	friend void operator<<(FStructuredArchive::FSlot Slot, FWidgetAnimationBinding& Binding)
 	{
 		FStructuredArchive::FRecord Record = Slot.EnterRecord();
-		Record << NAMED_ITEM("WidgetName", Binding.WidgetName);
-		Record << NAMED_ITEM("SlotWidgetName", Binding.SlotWidgetName);
-		Record << NAMED_ITEM("AnimationGuid", Binding.AnimationGuid);
-		Record << NAMED_ITEM("bIsRootWidget", Binding.bIsRootWidget);
+		Record << SA_VALUE(TEXT("WidgetName"), Binding.WidgetName);
+		Record << SA_VALUE(TEXT("SlotWidgetName"), Binding.SlotWidgetName);
+		Record << SA_VALUE(TEXT("AnimationGuid"), Binding.AnimationGuid);
+		Record << SA_VALUE(TEXT("bIsRootWidget"), Binding.bIsRootWidget);
 	}
 };

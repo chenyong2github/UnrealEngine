@@ -1,17 +1,16 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#if INCLUDE_CHAOS
-
 #include "GeometryCollection/GeometryCollectionCollisionStructureManager.h"
 #include "ChaosLog.h"
 #include "Chaos/Box.h"
 #include "Chaos/ErrorReporter.h"
 #include "Chaos/Levelset.h"
 #include "Chaos/Particles.h"
-#include "Chaos/PBDRigidClustering.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/Vector.h"
 #include "HAL/IConsoleManager.h"
+#include "Chaos/TriangleMesh.h"
+#include "Chaos/PBDRigidClustering.h"
 
 DEFINE_LOG_CATEGORY_STATIC(GCS_Log, NoLogging, All);
 
@@ -323,6 +322,3 @@ FCollisionStructureManager::CalculateVolume(
 	ensureMsgf(Volume != 0.f, TEXT("Rigid volume check failure."));
 	return Volume;
 }
-
-
-#endif

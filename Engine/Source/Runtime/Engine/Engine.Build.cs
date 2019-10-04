@@ -41,13 +41,9 @@ public class Engine : ModuleRules
 
 		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
 		{
-			PrivateIncludePathModuleNames.AddRange(new string[] { "TaskGraph" });
-		}
-
-		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
-		{
 			PrivateIncludePathModuleNames.AddRange(
 				new string[] {
+					"TaskGraph",
 					"SlateReflector",
 				}
 			);
@@ -55,6 +51,13 @@ public class Engine : ModuleRules
 			DynamicallyLoadedModuleNames.AddRange(
 				new string[] {
 					"SlateReflector",
+				}
+			);
+
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"EditorAnalyticsSession",
 				}
 			);
 		}
@@ -103,8 +106,8 @@ public class Engine : ModuleRules
 				"AudioMixer",
 				"AudioMixerCore",
 				"SignalProcessing",
-                "CrunchCompression"
-            }
+				"CrunchCompression",
+			}
 		);
 
 		// Cross platform Audio Codecs:
@@ -369,15 +372,12 @@ public class Engine : ModuleRules
 			DynamicallyLoadedModuleNames.Add("PhysXCooking");
 		}
 
-		if (Target.bCompileChaos || Target.bUseChaos)
-        {
-            PublicDependencyModuleNames.AddRange(
-				new string[] {
-					"PhysicsSQ",
-					"ChaosSolvers"
-				}
-			);
-        }
+        PublicDependencyModuleNames.AddRange(
+			new string[] {
+				"PhysicsSQ",
+				"ChaosSolvers"
+			}
+		);
 
         // Engine public headers need to know about some types (enums etc.)
         PublicIncludePathModuleNames.Add("ClothingSystemRuntimeInterface");

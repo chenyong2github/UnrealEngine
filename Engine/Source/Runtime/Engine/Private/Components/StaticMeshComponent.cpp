@@ -865,7 +865,9 @@ void UStaticMeshComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelCon
 
 	if (IsStreamingRenderAsset(GetStaticMesh()))
 	{
-		const float TexelFactor = ForcedLodModel > 0 ? -(GetStaticMesh()->RenderData->LODResources.Num() - ForcedLodModel + 1) : Bounds.SphereRadius * 2.f;
+		const float TexelFactor = ForcedLodModel > 0 ?
+			-(GetStaticMesh()->RenderData->LODResources.Num() - ForcedLodModel + 1) :
+			(IsRegistered() ? Bounds.SphereRadius * 2.f : 0.f);
 		new (OutStreamingRenderAssets) FStreamingRenderAssetPrimitiveInfo(GetStaticMesh(), Bounds, TexelFactor, PackedRelativeBox_Identity, true);
 	}
 }

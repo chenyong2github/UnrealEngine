@@ -1,9 +1,14 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "Chaos/Vector.h"
+#include "Chaos/Box.h"
+#include "GeometryParticlesfwd.h"
 
 namespace Chaos
 {
+
+template <typename T, int d>
+class TBox;
 
 template <typename T, int d>
 class TGeometryParticle;
@@ -26,6 +31,26 @@ public:
 	TVector<T, d> End;
 };
 
+/** A struct which is passed to spatial acceleration visitors whenever there are potential hits.
+	In production, this class will only contain a payload.
+*/
+template <typename TPayloadType>
+struct CHAOS_API TSpatialVisitorData
+{
+	TPayloadType Payload;
+	TSpatialVisitorData(const TPayloadType& InPayload, const bool bInHasBounds = false, const TBox<float, 3>& InBounds = TBox<float, 3>::ZeroBox())
+		: Payload(InPayload)
+#if !(UE_BUILD_TEST || UE_BUILD_SHIPPING)
+		, bHasBounds(bInHasBounds)
+		, Bounds(InBounds)
+	{ }
+	bool bHasBounds;
+	TBox<float, 3> Bounds;
+#else
+	{ }
+#endif
+};
+
 /** Visitor base class used to iterate through spatial acceleration structures.
 	This class is responsible for gathering any information it wants (for example narrow phase query results).
 	This class determines whether the acceleration structure should continue to iterate through potential instances
@@ -40,21 +65,21 @@ public:
 		@Instance - the instance we are potentially overlapping
 		Returns true to continue iterating through the acceleration structure
 	*/
-	virtual bool Overlap(const TPayloadType Instance) = 0;
+	virtual bool Overlap(const TSpatialVisitorData<TPayloadType>& Instance) = 0;
 
 	/** Called whenever an instance in the acceleration structure may intersect with a raycast
 		@Instance - the instance we are potentially intersecting with a raycast
 		@CurLength - the length all future intersection tests will use. A blocking intersection should update this
 		Returns true to continue iterating through the acceleration structure
 	*/
-	virtual bool Raycast(const TPayloadType Instance, T& CurLength) = 0;
+	virtual bool Raycast(const TSpatialVisitorData<TPayloadType>& Instance, T& CurLength) = 0;
 
 	/** Called whenever an instance in the acceleration structure may intersect with a sweep
 		@Instance - the instance we are potentially intersecting with a sweep
 		@CurLength - the length all future intersection tests will use. A blocking intersection should update this
 		Returns true to continue iterating through the acceleration structure
 	*/
-	virtual bool Sweep(const TPayloadType Instance, T& CurLength) = 0;
+	virtual bool Sweep(const TSpatialVisitorData<TPayloadType>& Instance, T& CurLength) = 0;
 };
 
 enum class ESpatialAccelerationType
@@ -82,24 +107,84 @@ public:
 
 };
 
+enum ESpatialAcceleration
+{
+	BoundingVolume,
+	AABBTree,
+	AABBTreeBV,
+	Collection,
+	Unknown
+};
+
+
+template <typename TPayloadType, typename T>
+struct TPayloadBoundsElement
+{
+	TPayloadType Payload;
+	TBox<T, 3> Bounds;
+
+	void Serialize(FChaosArchive& Ar)
+	{
+		Ar << Payload;
+		Ar << Bounds;
+	}
+
+	template <typename TPayloadType2>
+	TPayloadType2 GetPayload(int32 Idx) const { return Payload; }
+
+	bool HasBoundingBox() const { return true; }
+
+	const TBox<T, 3>& BoundingBox() const { return Bounds; }
+};
+
+template <typename TPayloadType, typename T>
+FChaosArchive& operator<<(FChaosArchive& Ar, TPayloadBoundsElement<TPayloadType, T>& PayloadElement)
+{
+	PayloadElement.Serialize(Ar);
+	return Ar;
+}
+
 template <typename TPayloadType, typename T, int d>
 class CHAOS_API ISpatialAcceleration
 {
 public:
+
+	ISpatialAcceleration(ESpatialAcceleration InType = ESpatialAcceleration::Unknown)
+		: Type(InType)
+	{
+	}
 	virtual ~ISpatialAcceleration() = default;
 
-	virtual TArray<TPayloadType> FindAllIntersections(const TBox<T, d>& Box) const = 0;
-	virtual TArray<TPayloadType> FindAllIntersections(const TSpatialRay<T,d>& Ray) const = 0;
-	virtual TArray<TPayloadType> FindAllIntersections(const TVector<T, d>& Point) const = 0;
-	virtual TArray<TPayloadType> FindAllIntersections(const TGeometryParticles<T, d>& InParticles, const int32 i) const = 0;
+	virtual TArray<TPayloadType> FindAllIntersections(const TBox<T, d>& Box) const { check(false); return TArray<TPayloadType>(); }
 
-	virtual void Raycast(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T OriginalLength, ISpatialVisitor<TPayloadType, T>& Visitor) const {}
-	virtual void Sweep(const TVector<T, d>& Start, const TVector<T, d>& Dir, T OriginalLength, const TVector<T, d> QueryHalfExtents, ISpatialVisitor<TPayloadType, T>& Visitor, const TVector<T, d>& Scale = TVector<T, d>(1)) const {}
-	virtual void Overlap(const TBox<T, d>& QueryBounds, ISpatialVisitor<TPayloadType, T>& Visitor, const TVector<T, d>& Scale = TVector<T, d>(1)) const {}
+	virtual void Raycast(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T OriginalLength, ISpatialVisitor<TPayloadType, T>& Visitor) const { check(false); }
+	virtual void Sweep(const TVector<T, d>& Start, const TVector<T, d>& Dir, T OriginalLength, const TVector<T, d> QueryHalfExtents, ISpatialVisitor<TPayloadType, T>& Visitor) const { check(false); }
+	virtual void Overlap(const TBox<T, d>& QueryBounds, ISpatialVisitor<TPayloadType, T>& Visitor) const { check(false); }
 
 	virtual void RemoveElement(const TPayloadType& Payload)
 	{
 		check(false);	//not implemented
+	}
+
+	virtual void UpdateElement(const TPayloadType& Payload, const TBox<T, d>& NewBounds, bool bHasBounds)
+	{
+		check(false);
+	}
+
+	virtual void RemoveElementFrom(const TPayloadType& Payload, FSpatialAccelerationIdx Idx)
+	{
+		RemoveElement(Payload);
+	}
+
+	virtual void UpdateElementIn(const TPayloadType& Payload, const TBox<T, d>& NewBounds, bool bHasBounds, FSpatialAccelerationIdx Idx)
+	{
+		UpdateElement(Payload, NewBounds, bHasBounds);
+	}
+
+	virtual TUniquePtr<ISpatialAcceleration<TPayloadType, T, d>> Copy() const
+	{
+		check(false);	//not implemented
+		return nullptr;
 	}
 
 #if !UE_BUILD_SHIPPING
@@ -107,7 +192,60 @@ public:
 	virtual void DumpStats() const {}
 #endif
 
+	static ISpatialAcceleration<TPayloadType, T, d>* SerializationFactory(FChaosArchive& Ar, ISpatialAcceleration<TPayloadType, T, d>* Accel);
+	virtual void Serialize(FChaosArchive& Ar)
+	{
+		check(false);
+	}
+
+	template <typename TConcrete>
+	TConcrete* As()
+	{
+		return Type == TConcrete::StaticType ? static_cast<TConcrete*>(this) : nullptr;
+	}
+
+	template <typename TConcrete>
+	const TConcrete* As() const
+	{
+		return Type == TConcrete::StaticType ? static_cast<const TConcrete*>(this) : nullptr;
+	}
+
+	template <typename TConcrete>
+	TConcrete& AsChecked()
+	{
+		check(Type == TConcrete::StaticType); 
+		return static_cast<TConcrete&>(*this);
+	}
+
+	template <typename TConcrete>
+	const TConcrete& AsChecked() const
+	{
+		check(Type == TConcrete::StaticType);
+		return static_cast<const TConcrete&>(*this);
+	}
+
+private:
+	ESpatialAcceleration Type;
 };
+
+template <typename TBase, typename TDerived>
+static TUniquePtr<TDerived> AsUniqueSpatialAcceleration(TUniquePtr<TBase>&& Base)
+{
+	if (TDerived* Derived = Base->template As<TDerived>())
+	{
+		Base.Release();
+		return TUniquePtr<TDerived>(Derived);
+	}
+	return nullptr;
+}
+
+template <typename TDerived, typename TBase>
+static TUniquePtr<TDerived> AsUniqueSpatialAccelerationChecked(TUniquePtr<TBase>&& Base)
+{
+	TDerived& Derived = Base->template AsChecked<TDerived>();
+	Base.Release();
+	return TUniquePtr<TDerived>(&Derived);
+}
 
 /** Helper class used to bridge virtual to template implementation of acceleration structures */
 template <typename TPayloadType, typename T>
@@ -116,17 +254,17 @@ class TSpatialVisitor
 public:
 	TSpatialVisitor(ISpatialVisitor<TPayloadType, T>& InVisitor)
 		: Visitor(InVisitor) {}
-	FORCEINLINE bool VisitOverlap(const TPayloadType Instance)
+	FORCEINLINE bool VisitOverlap(const TSpatialVisitorData<TPayloadType>& Instance)
 	{
 		return Visitor.Overlap(Instance);
 	}
 
-	FORCEINLINE bool VisitRaycast(const TPayloadType Instance, T& CurLength)
+	FORCEINLINE bool VisitRaycast(const TSpatialVisitorData<TPayloadType>& Instance, T& CurLength)
 	{
 		return Visitor.Raycast(Instance, CurLength);
 	}
 
-	FORCEINLINE bool VisitSweep(const TPayloadType Instance, T& CurLength)
+	FORCEINLINE bool VisitSweep(const TSpatialVisitorData<TPayloadType>& Instance, T& CurLength)
 	{
 		return Visitor.Sweep(Instance, CurLength);
 	}

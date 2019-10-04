@@ -22,6 +22,7 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 	ServerLoopInitArgs.SessionFlags = EConcertSyncSessionFlags::Default_DisasterRecoverySession;
 	ServerLoopInitArgs.ServiceRole = TEXT("DisasterRecovery");
 	ServerLoopInitArgs.ServiceFriendlyName = TEXT("Disaster Recovery Service");
+	ServerLoopInitArgs.ServiceAutoArchiveSessionFilter.bIncludeIgnoredActivities = true;
 
 	ServerLoopInitArgs.GetServerConfigFunc = [&EditorProcessId]() -> const UConcertServerConfig*
 	{

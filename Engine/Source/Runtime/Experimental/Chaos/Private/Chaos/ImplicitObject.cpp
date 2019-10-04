@@ -4,6 +4,8 @@
 #include "Chaos/Box.h"
 #include "Chaos/Capsule.h"
 #include "Chaos/Convex.h"
+#include "Chaos/HeightField.h"
+#include "Chaos/ImplicitObjectScaled.h"
 #include "Chaos/ImplicitObjectTransformed.h"
 #include "Chaos/ImplicitObjectUnion.h"
 #include "Chaos/Levelset.h"
@@ -31,9 +33,53 @@ TImplicitObject<T, d>::~TImplicitObject()
 }
 
 template<class T, int d>
+ImplicitObjectType TImplicitObject<T, d>::GetType(bool bGetTrueType) const
+{
+	if (bIgnoreAnalyticCollisions && !bGetTrueType)
+	{
+		return ImplicitObjectType::Unknown;
+	}
+	return Type;
+}
+
+template<class T, int d>
+bool TImplicitObject<T, d>::IsValidGeometry() const
+{
+	return true;
+}
+
+template<class T, int d>
+TUniquePtr<TImplicitObject<T, d>> TImplicitObject<T, d>::Copy() const
+{
+	check(false);
+	return nullptr;
+}
+
+template<class T, int d>
+bool TImplicitObject<T, d>::IsUnderlyingUnion() const
+{
+	return Type == ImplicitObjectType::Union;
+}
+
+template<class T, int d>
+T TImplicitObject<T, d>::SignedDistance(const TVector<T, d>& x) const
+{
+	TVector<T, d> Normal;
+	return PhiWithNormal(x, Normal);
+}
+
+template<class T, int d>
+TVector<T, d> TImplicitObject<T, d>::Normal(const TVector<T, d>& x) const
+{
+	TVector<T, d> Normal;
+	PhiWithNormal(x, Normal);
+	return Normal;
+}
+
+template<class T, int d>
 TVector<T, d> TImplicitObject<T, d>::Support(const TVector<T, d>& Direction, const T Thickness) const
 {
-	check(false);	//not a good implementation, don't use this
+	check(false); //not a good implementation, don't use this
 	return TVector<T, d>(0);
 #if 0
 	check(bHasBoundingBox);
@@ -120,41 +166,42 @@ Pair<TVector<T, d>, bool> TImplicitObject<T, d>::FindDeepestIntersection(const T
 template<class T, int d>
 Pair<TVector<T, d>, bool> TImplicitObject<T, d>::FindClosestIntersection(const TVector<T, d>& StartPoint, const TVector<T, d>& EndPoint, const T Thickness) const
 {
-	T Epsilon = (T)1e-4;
+	constexpr T Epsilon = (T)1e-4;
+	constexpr T EpsilonSquared = Epsilon * Epsilon;
+
 	//Consider 0 thickness with Start sitting on abs(Phi) < Epsilon. This is a common case; for example a particle sitting perfectly on a floor. In this case intersection could return false.
 	//If start is in this fuzzy region we simply return that spot snapped onto the surface. This is valid because low precision means we don't really know where we are, so let's take the cheapest option
 	//If end is in this fuzzy region it is also a valid hit. However, there could be multiple hits between start and end and since we want the first one, we can't simply return this point.
 	//As such we move end away from start (and out of the fuzzy region) so that we always get a valid intersection if no earlier ones exist
 	//When Thickness > 0 the same idea applies, but we must consider Phi = (Thickness - Epsilon, Thickness + Epsilon)
 	TVector<T, d> Normal;
-	T Phi = PhiWithNormal(StartPoint, Normal);
-
+	const T Phi = PhiWithNormal(StartPoint, Normal);
 	if (FMath::IsNearlyEqual(Phi, Thickness, Epsilon))
 	{
-		return MakePair(TVector<T,d>(StartPoint - Normal * Phi), true); //snap to surface
+		return MakePair(TVector<T, d>(StartPoint - Normal * Phi), true); //snap to surface
 	}
 
 	TVector<T, d> ModifiedEnd = EndPoint;
 	{
 		const TVector<T, d> OriginalStartToEnd = (EndPoint - StartPoint);
-		const T OriginalLength = OriginalStartToEnd.Size();
-		if (OriginalLength < Epsilon)
+		const T OriginalLength2 = OriginalStartToEnd.SizeSquared();
+		if (OriginalLength2 < EpsilonSquared)
 		{
 			return MakePair(TVector<T, d>(0), false); //start was not close to surface, and end is very close to start so no hit
 		}
-		const TVector<T, d> OriginalDir = OriginalStartToEnd / OriginalLength;
 
 		TVector<T, d> EndNormal;
-		T EndPhi = PhiWithNormal(EndPoint, EndNormal);
+		const T EndPhi = PhiWithNormal(EndPoint, EndNormal);
 		if (FMath::IsNearlyEqual(EndPhi, Thickness, Epsilon))
 		{
 			//We want to push End out of the fuzzy region. Moving along the normal direction is best since direction could be nearly parallel with fuzzy band
 			//To ensure an intersection, we must go along the normal, but in the same general direction as the ray.
+			const TVector<T, d> OriginalDir = OriginalStartToEnd / FMath::Sqrt(OriginalLength2);
 			const T Dot = TVector<T, d>::DotProduct(OriginalDir, EndNormal);
 			if (FMath::IsNearlyZero(Dot, Epsilon))
 			{
 				//End is in the fuzzy region, and the direction from start to end is nearly parallel with this fuzzy band, so we should just return End since no other hits will occur
-				return MakePair(TVector<T,d>(EndPoint - Normal * Phi), true); //snap to surface
+				return MakePair(TVector<T, d>(EndPoint - Normal * Phi), true); //snap to surface
 			}
 			else
 			{
@@ -234,7 +281,7 @@ void TImplicitObject<T, d>::FindAllIntersectingObjects(TArray<Pair<const TImplic
 {
 	if (!HasBoundingBox() || LocalBounds.Intersects(BoundingBox()))
 	{
-		Out.Add(MakePair(this, TRigidTransform<T, d>(TVector<T, d>(0), TRotation<T, d>(TVector<T, d>(0), (T)1))));
+		Out.Add(MakePair(this, TRigidTransform<T, d>(TVector<T, d>(0), TRotation<T, d>::FromElements(TVector<T, d>(0), (T)1))));
 	}
 }
 
@@ -291,52 +338,67 @@ void TImplicitObject<T, d>::Serialize(FChaosArchive& Ar)
 }
 
 template<typename T, int d>
-void TImplicitObject<T, d>::StaticSerialize(FChaosArchive& Ar, TSerializablePtr<TImplicitObject<T, d>>& Serializable)
+const FName TImplicitObject<T, d>::GetTypeName(const ImplicitObjectType InType)
 {
-	TImplicitObject<T, d>* ImplicitObject = const_cast<TImplicitObject<T, d>*>(Serializable.Get());
-	int8 ObjectType = Ar.IsLoading() ? 0 : (int8)ImplicitObject->Type;
+	static const FName SphereName = TEXT("Sphere");
+	static const FName BoxName = TEXT("Box");
+	static const FName PlaneName = TEXT("Plane");
+	static const FName CapsuleName = TEXT("Capsule");
+	static const FName TransformedName = TEXT("Transformed");
+	static const FName UnionName = TEXT("Union");
+	static const FName LevelSetName = TEXT("LevelSet");
+	static const FName UnknownName = TEXT("Unknown");
+	static const FName ConvexName = TEXT("Convex");
+	static const FName TaperedCylinderName = TEXT("TaperedCylinder");
+	static const FName CylinderName = TEXT("Cylinder");
+	static const FName TriangleMeshName = TEXT("TriangleMesh");
+	static const FName HeightFieldName = TEXT("HeightField");
+	static const FName ScaledName = TEXT("Scaled");
+
+	switch (InType)
+	{
+		case ImplicitObjectType::Sphere: return SphereName;
+		case ImplicitObjectType::Box: return BoxName;
+		case ImplicitObjectType::Plane: return PlaneName;
+		case ImplicitObjectType::Capsule: return CapsuleName;
+		case ImplicitObjectType::Transformed: return TransformedName;
+		case ImplicitObjectType::Union: return UnionName;
+		case ImplicitObjectType::LevelSet: return LevelSetName;
+		case ImplicitObjectType::Unknown: return UnknownName;
+		case ImplicitObjectType::Convex: return ConvexName;
+		case ImplicitObjectType::TaperedCylinder: return TaperedCylinderName;
+		case ImplicitObjectType::Cylinder: return CylinderName;
+		case ImplicitObjectType::TriangleMesh: return TriangleMeshName;
+		case ImplicitObjectType::HeightField: return HeightFieldName;
+		case ImplicitObjectType::Scaled: return ScaledName;
+	}
+	return NAME_None;
+}
+
+template<typename T, int d>
+TImplicitObject<T, d>* TImplicitObject<T, d>::SerializationFactory(FChaosArchive& Ar, TImplicitObject<T, d>* Obj)
+{
+	int8 ObjectType = Ar.IsLoading() ? 0 : (int8)Obj->Type;
 	Ar << ObjectType;
-
-	if (Ar.IsLoading())
+	switch ((ImplicitObjectType)ObjectType)
 	{
-		switch ((ImplicitObjectType)ObjectType)
-		{
-		case ImplicitObjectType::Sphere: { ImplicitObject = new TSphere<T, d>(); break; }
-		case ImplicitObjectType::Box: { ImplicitObject = new TBox<T, d>(); break; }
-		case ImplicitObjectType::Plane: { ImplicitObject = new TPlane<T, d>(); break; }
-		case ImplicitObjectType::Capsule: { ImplicitObject = new TCapsule<T>(); break; }
-		case ImplicitObjectType::Transformed: { ImplicitObject = new TImplicitObjectTransformed<T, d>(); break; }
-		case ImplicitObjectType::Union: { ImplicitObject = new TImplicitObjectUnion<T, d>(); break; }
-		case ImplicitObjectType::LevelSet: { ImplicitObject = new TLevelSet<T, d>(); break; }
-		case ImplicitObjectType::Convex: { ImplicitObject = new TConvex<T, d>(); break; }
-		case ImplicitObjectType::TaperedCylinder: { ImplicitObject = new TTaperedCylinder<T>(); break; }
-		case ImplicitObjectType::TriangleMesh: { ImplicitObject = new TTriangleMeshImplicitObject<T>(); break; }
-		default:
-			check(false);
-		}
-
-		Serializable.SetFromRawLowLevel(ImplicitObject);
+	case ImplicitObjectType::Sphere: if (Ar.IsLoading()) { return new TSphere<T, d>(); } break;
+	case ImplicitObjectType::Box: if (Ar.IsLoading()) { return new TBox<T, d>(); } break;
+	case ImplicitObjectType::Plane: if (Ar.IsLoading()) { return new TPlane<T, d>(); } break;
+	case ImplicitObjectType::Capsule: if (Ar.IsLoading()) { return new TCapsule<T>(); } break;
+	case ImplicitObjectType::Transformed: if (Ar.IsLoading()) { return new TImplicitObjectTransformed<T, d>(); } break;
+	case ImplicitObjectType::Union: if (Ar.IsLoading()) { return new TImplicitObjectUnion<T, d>(); } break;
+	case ImplicitObjectType::LevelSet: if (Ar.IsLoading()) { return new TLevelSet<T, d>(); } break;
+	case ImplicitObjectType::Convex: if (Ar.IsLoading()) { return new TConvex<T, d>(); } break;
+	case ImplicitObjectType::TaperedCylinder: if (Ar.IsLoading()) { return new TTaperedCylinder<T>(); } break;
+	case ImplicitObjectType::TriangleMesh: if (Ar.IsLoading()) { return new TTriangleMeshImplicitObject<T>(); } break;
+	case ImplicitObjectType::Scaled: if (Ar.IsLoading()) { return new TImplicitObjectScaled<T,d>(); } break;
+	case ImplicitObjectType::HeightField: if (Ar.IsLoading()) { return new THeightField<T>(); } break;
+	case ImplicitObjectType::Cylinder: if (Ar.IsLoading()) { return new TCylinder<T>(); } break;
+	default:
+		check(false);
 	}
-	else
-	{
-		switch ((ImplicitObjectType)ObjectType)
-		{
-		case ImplicitObjectType::Sphere:
-		case ImplicitObjectType::Box:
-		case ImplicitObjectType::Plane:
-		case ImplicitObjectType::Capsule:
-		case ImplicitObjectType::Transformed:
-		case ImplicitObjectType::Union:
-		case ImplicitObjectType::LevelSet:
-		case ImplicitObjectType::Convex:
-		case ImplicitObjectType::TaperedCylinder:
-		case ImplicitObjectType::TriangleMesh:
-			break;
-		default:
-			check(false);
-		}
-	}
-	ImplicitObject->Serialize(Ar);
+	return nullptr;
 }
 
 //template class Chaos::TImplicitObject<float, 2>; // Missing 2D Rotation class

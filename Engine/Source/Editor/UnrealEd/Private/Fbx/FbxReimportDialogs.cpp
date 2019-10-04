@@ -54,7 +54,7 @@
 #include "AnimEncoding.h"
 #include "ApexClothingUtils.h"
 #include "Engine/SkeletalMeshSocket.h"
-#include "Assets/ClothingAsset.h"
+#include "ClothingAsset.h"
 #include "Factories/FbxSkeletalMeshImportData.h"
 #include "Rendering/SkeletalMeshModel.h"
 

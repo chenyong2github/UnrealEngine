@@ -4,12 +4,8 @@
 
 #include "GeometryCollection/GeometryCollection.h"
 
-#if INCLUDE_CHAOS
-
 #include "Chaos/Framework/PhysicsProxy.h"
-
 #include "GeometryCollection/ManagedArray.h"
-#include "GeometryCollection/GeometryCollectionSimulationCoreTypes.h"
 #include "GeometryCollection/GeometryCollectionCollisionStructureManager.h"
 #include "Chaos/Framework/BufferedData.h"
 
@@ -41,6 +37,8 @@ namespace Chaos
 template <typename T>
 class TSerializablePtr;
 class FErrorReporter;
+template <typename T>
+struct FClusterCreationParameters;
 }
 
 class FStubGeometryCollectionData : public Chaos::FParticleData {
@@ -88,9 +86,11 @@ public:
 	void SyncBeforeDestroy();
 	void OnRemoveFromScene();
 	void PushToPhysicsState(const Chaos::FParticleData*) {};
+	void ClearAccumulatedData() {}
 	void BufferPhysicsResults();
 	void FlipBuffer();
 	void PullFromPhysicsState();
+	bool IsDirty() { return false; }
 	EPhysicsProxyType ConcreteType() { return EPhysicsProxyType::GeometryCollectionType; }
 	/** ----------------------- */
 
@@ -228,4 +228,3 @@ private:
 };
 
 CHAOSSOLVERS_API void BuildSimulationData(Chaos::FErrorReporter& ErrorReporter, FGeometryCollection& GeometryCollection, const FSharedSimulationParameters& SharedParams);
-#endif

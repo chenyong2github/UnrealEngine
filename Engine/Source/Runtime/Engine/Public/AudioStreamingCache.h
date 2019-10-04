@@ -146,9 +146,8 @@ private:
 		TUniquePtr<FAsyncStreamDerivedChunkTask> DDCTask;
 #endif
 
-		TUniquePtr<IAsyncReadFileHandle> FileHandle;
 		// Handle to our async read request operation.
-		TUniquePtr<IAsyncReadRequest> ReadRequest;
+		TUniquePtr<FBulkDataIORequest> ReadRequest;
 
 #if DEBUG_STREAM_CACHE
 		FCacheElementDebugInfo DebugInfo;

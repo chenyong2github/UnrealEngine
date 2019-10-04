@@ -8,7 +8,6 @@
 
 #include "CoreMinimal.h"
 #include "Templates/RefCounting.h"
-#include "Templates/ScopedPointer.h"
 #include "HAL/PlatformProcess.h"
 #include "ShaderCore.h"
 #include "Shader.h"

@@ -1,0 +1,1215 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "SPacketView.h"
+
+#include "Fonts/FontMeasure.h"
+#include "Fonts/SlateFontInfo.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "HAL/PlatformTime.h"
+#include "Rendering/DrawElements.h"
+#include "TraceServices/Model/NetProfiler.h"
+#include "Styling/CoreStyle.h"
+#include "Widgets/Layout/SScrollBar.h"
+
+// Insights
+#include "Insights/Common/PaintUtils.h"
+#include "Insights/Common/Stopwatch.h"
+#include "Insights/Common/TimeUtils.h"
+#include "Insights/InsightsManager.h"
+#include "Insights/InsightsStyle.h"
+#include "Insights/NetworkingProfiler/NetworkingProfilerManager.h"
+#include "Insights/NetworkingProfiler/Widgets/SNetworkingProfilerWindow.h"
+#include "Insights/NetworkingProfiler/Widgets/SPacketContentView.h"
+
+#include <limits>
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#define LOCTEXT_NAMESPACE "SPacketView"
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+SPacketView::SPacketView()
+	: ProfilerWindow()
+	, PacketSeries(MakeShareable(new FNetworkPacketSeries()))
+{
+	Reset();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+SPacketView::~SPacketView()
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SPacketView::Reset()
+{
+	//ProfilerWindow
+
+	GameInstanceIndex = 0;
+	ConnectionIndex = 0;
+	ConnectionMode = Trace::ENetProfilerConnectionMode::Outgoing;
+
+	Viewport.Reset();
+	FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+	ViewportX.SetScaleLimits(0.0001f, 16.0f); // 10000 [sample/px] to 16 [px/sample]
+	ViewportX.SetScale(5.0f);
+	FAxisViewportDouble& ViewportY = Viewport.GetVerticalAxisViewport();
+	ViewportY.SetScaleLimits(0.0001, 50.0);
+	ViewportY.SetScale(0.02);
+	bIsViewportDirty = true;
+
+	PacketSeries->Reset();
+
+	bIsStateDirty = true;
+
+	bIsAutoZoomEnabled = true;
+
+	AnalysisSyncNextTimestamp = 0;
+	ConnectionChangeCount = 0;
+
+	MousePosition = FVector2D::ZeroVector;
+
+	MousePositionOnButtonDown = FVector2D::ZeroVector;
+	ViewportPosXOnButtonDown = 0.0f;
+
+	MousePositionOnButtonUp = FVector2D::ZeroVector;
+
+	bIsLMB_Pressed = false;
+	bIsRMB_Pressed = false;
+
+	bIsScrolling = false;
+
+	SelectionStartPacketIndex = 0;
+	SelectionEndPacketIndex = 0;
+	LastSelectedPacketIndex = 0;
+
+	SelectedSample.Reset();
+	HoveredSample.Reset();
+	TooltipDesiredOpacity = 0.9f;
+	TooltipOpacity = 0.0f;
+
+	//ThisGeometry
+
+	CursorType = ECursorType::Default;
+
+	NumUpdatedPackets = 0;
+	UpdateDurationHistory.Reset();
+	DrawDurationHistory.Reset();
+	OnPaintDurationHistory.Reset();
+	LastOnPaintTime = FPlatformTime::Cycles64();
+
+	if (ProfilerWindow.IsValid())
+	{
+		SetConnection(ProfilerWindow->GetSelectedGameInstanceIndex(), ProfilerWindow->GetSelectedConnectionIndex(), ProfilerWindow->GetSelectedConnectionMode());
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SPacketView::SetConnection(uint32 InGameInstanceIndex, uint32 InConnectionIndex, Trace::ENetProfilerConnectionMode InConnectionMode)
+{
+	GameInstanceIndex = InGameInstanceIndex;
+	ConnectionIndex = InConnectionIndex;
+	ConnectionMode = InConnectionMode;
+
+	HoveredSample.Reset();
+
+	SelectedSample.Reset();
+	SelectionStartPacketIndex = 0;
+	SelectionEndPacketIndex = 0;
+	LastSelectedPacketIndex = 0;
+	OnSelectionChanged();
+
+	bIsStateDirty = true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SPacketView::Construct(const FArguments& InArgs, TSharedPtr<SNetworkingProfilerWindow> InProfilerWindow)
+{
+	ProfilerWindow = InProfilerWindow;
+
+	ChildSlot
+	[
+		SNew(SOverlay)
+		.Visibility(EVisibility::SelfHitTestInvisible)
+
+		+ SOverlay::Slot()
+		.VAlign(VAlign_Top)
+		.Padding(FMargin(0, 0, 0, 0))
+		[
+			SAssignNew(HorizontalScrollBar, SScrollBar)
+			.Orientation(Orient_Horizontal)
+			.AlwaysShowScrollbar(false)
+			.Visibility(EVisibility::Visible)
+			.Thickness(FVector2D(5.0f, 5.0f))
+			.RenderOpacity(0.75)
+			.OnUserScrolled(this, &SPacketView::HorizontalScrollBar_OnUserScrolled)
+		]
+	];
+
+	UpdateHorizontalScrollBar();
+
+	BindCommands();
+
+	Reset();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SPacketView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	if (ThisGeometry != AllottedGeometry || bIsViewportDirty)
+	{
+		bIsViewportDirty = false;
+		const float ViewWidth = AllottedGeometry.GetLocalSize().X;
+		const float ViewHeight = AllottedGeometry.GetLocalSize().Y;
+		Viewport.SetSize(ViewWidth, ViewHeight);
+		bIsStateDirty = true;
+	}
+
+	ThisGeometry = AllottedGeometry;
+
+	FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+
+	if (!bIsScrolling)
+	{
+		// Elastic snap to horizontal limits.
+		if (ViewportX.UpdatePosWithinLimits())
+		{
+			bIsStateDirty = true;
+		}
+	}
+
+	uint64 Time = FPlatformTime::Cycles64();
+	if (Time > AnalysisSyncNextTimestamp)
+	{
+		const uint64 WaitTime = static_cast<uint64>(0.1 / FPlatformTime::GetSecondsPerCycle64()); // 100ms
+		AnalysisSyncNextTimestamp = Time + WaitTime;
+
+		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+		if (Session.IsValid())
+		{
+			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+			const Trace::INetProfilerProvider& NetProfilerProvider = Trace::ReadNetProfilerProvider(*Session.Get());
+
+			const uint32 NewConnectionChangeCount = NetProfilerProvider.GetConnectionChangeCount();
+			if (NewConnectionChangeCount != ConnectionChangeCount)
+			{
+				ConnectionChangeCount = NewConnectionChangeCount;
+				bIsStateDirty = true;
+			}
+		}
+	}
+
+	if (bIsStateDirty)
+	{
+		bIsStateDirty = false;
+		UpdateState();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SPacketView::UpdateState()
+{
+	FStopwatch Stopwatch;
+	Stopwatch.Start();
+
+	// Reset stats.
+	PacketSeries->NumAggregatedPackets = 0;
+	NumUpdatedPackets = 0;
+
+	FNetworkPacketSeriesBuilder Builder(*PacketSeries, Viewport);
+
+	FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+	ViewportX.SetMinMaxInterval(0, 0);
+
+	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	if (Session.IsValid())
+	{
+		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const Trace::INetProfilerProvider& NetProfilerProvider = Trace::ReadNetProfilerProvider(*Session.Get());
+
+		const uint32 GameInstanceCount = NetProfilerProvider.GetGameInstanceCount();
+		if (GameInstanceIndex < GameInstanceCount)
+		{
+			//const uint32 ConnectionCount = NetProfilerProvider.GetConnectionCount(GameInstanceIndex);
+			//if (ConnectionIndex < ConnectionCount) TODO: (if NetProfilerProvider.IsConnectionValid(GameInstanceIndex))
+			{
+				const uint32 NumPackets = NetProfilerProvider.GetPacketCount(ConnectionIndex, ConnectionMode);
+
+				ViewportX.SetMinMaxInterval(0, NumPackets);
+
+				if (NumPackets > 0)
+				{
+					const int32 MinIndex = ViewportX.GetValueAtOffset(0.0f);
+					const int32 MaxIndex = ViewportX.GetValueAtOffset(ViewportX.GetSize());
+
+					const uint32 PacketStartIndex = static_cast<uint32>(FMath::Max(0, MinIndex));
+					const uint32 PacketEndIndex = FMath::Min(NumPackets - 1, static_cast<uint32>(FMath::Max(0, MaxIndex)));
+
+					if (PacketStartIndex <= PacketEndIndex)
+					{
+						int32 PacketIndex = PacketStartIndex;
+						NetProfilerProvider.EnumeratePackets(ConnectionIndex, ConnectionMode, PacketStartIndex, PacketEndIndex, [&Builder, &PacketIndex](const Trace::FNetProfilerPacket& Packet)
+						{
+							Builder.AddPacket(PacketIndex++, Packet);
+						});
+					}
+				}
+			}
+		}
+	}
+
+	// Init series with mock data.
+	if (false)
+	{
+		constexpr int32 NumPackets = 100000;
+
+		ViewportX.SetMinMaxInterval(0, NumPackets);
+
+		const int32 StartIndex = FMath::Max(0, ViewportX.GetValueAtOffset(0.0f));
+		const int32 EndIndex = FMath::Min(NumPackets, ViewportX.GetValueAtOffset(ViewportX.GetSize()));
+
+		for (int32 PacketIndex = StartIndex; PacketIndex < EndIndex; ++PacketIndex)
+		{
+			FRandomStream RandomStream((PacketIndex * PacketIndex * PacketIndex) ^ 0x2c2c57ed);
+			int64 Size = RandomStream.RandRange(0, 2000);
+
+			Trace::ENetProfilerDeliveryStatus Status = Trace::ENetProfilerDeliveryStatus::Unknown;
+			const float Fraction = RandomStream.GetFraction();
+			if (Fraction < 0.01) // 1%
+			{
+				Status = Trace::ENetProfilerDeliveryStatus::Dropped;
+			}
+			else if (Fraction < 0.05) // 4%
+			{
+				Status = Trace::ENetProfilerDeliveryStatus::Delivered;
+			}
+
+			const double Timestamp = ((double)PacketIndex * 100.0) / (double)NumPackets + RandomStream.GetFraction() * 0.1;
+
+			Trace::FNetProfilerPacket Packet;
+			Packet.TimeStamp = static_cast<Trace::FNetProfilerTimeStamp>(Timestamp);
+			Packet.SequenceNumber = PacketIndex;
+			Packet.ContentSizeInBits = Size;
+			Packet.TotalPacketSizeInBytes = (Size + 7) / 8;
+			Packet.DeliveryStatus = Status;
+			Builder.AddPacket(PacketIndex, Packet);
+		}
+	}
+
+	NumUpdatedPackets += Builder.GetNumAddedPackets();
+
+	Stopwatch.Stop();
+	UpdateDurationHistory.AddValue(Stopwatch.AccumulatedTime);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FNetworkPacketSampleRef SPacketView::GetSampleAtMousePosition(float X, float Y)
+{
+	if (!bIsStateDirty)
+	{
+		float SampleW = Viewport.GetSampleWidth();
+		int32 SampleIndex = FMath::FloorToInt(X / SampleW);
+		if (SampleIndex >= 0)
+		{
+			if (PacketSeries->NumAggregatedPackets > 0 &&
+				SampleIndex < PacketSeries->Samples.Num())
+			{
+				const FNetworkPacketAggregatedSample& Sample = PacketSeries->Samples[SampleIndex];
+				if (Sample.NumPackets > 0)
+				{
+					const FAxisViewportDouble& ViewportY = Viewport.GetVerticalAxisViewport();
+
+					const float ViewHeight = FMath::RoundToFloat(Viewport.GetHeight());
+					const float BaselineY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(0.0));
+
+					//const float ValueY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(static_cast<double>(Sample.LargestPacket.ContentSizeInBits)));
+					const float ValueY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(static_cast<double>(Sample.LargestPacket.TotalSizeInBytes * 8)));
+
+					constexpr float ToleranceY = 3.0f; // [pixels]
+
+					const float BottomY = FMath::Min(ViewHeight, ViewHeight - BaselineY + ToleranceY);
+					const float TopY = FMath::Max(0.0f, ViewHeight - ValueY - ToleranceY);
+
+					if (Y >= TopY && Y < BottomY)
+					{
+						return FNetworkPacketSampleRef(PacketSeries, MakeShareable(new FNetworkPacketAggregatedSample(Sample)));
+					}
+				}
+			}
+		}
+	}
+	return FNetworkPacketSampleRef(nullptr, nullptr);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SPacketView::SelectSampleAtMousePosition(float X, float Y, const FPointerEvent& MouseEvent)
+{
+	FNetworkPacketSampleRef SampleRef = GetSampleAtMousePosition(X, Y);
+	if (!SampleRef.IsValid())
+	{
+		SampleRef = GetSampleAtMousePosition(X - 1.0f, Y);
+	}
+	if (!SampleRef.IsValid())
+	{
+		SampleRef = GetSampleAtMousePosition(X + 1.0f, Y);
+	}
+
+	bool bRaiseSelectionChanged = false;
+
+	if (SampleRef.IsValid())
+	{
+		const int32 SelectedPacketIndex = SampleRef.Sample->LargestPacket.Index;
+
+		if (MouseEvent.GetModifierKeys().IsShiftDown())
+		{
+			if (SelectedPacketIndex >= LastSelectedPacketIndex)
+			{
+				// Extend selection toward right.
+				if (SelectionStartPacketIndex != LastSelectedPacketIndex ||
+					SelectionEndPacketIndex != SelectedPacketIndex + 1)
+				{
+					SelectionStartPacketIndex = LastSelectedPacketIndex;
+					SelectionEndPacketIndex = SelectedPacketIndex + 1;
+					bRaiseSelectionChanged = true;
+				}
+				LastSelectedPacketIndex = SelectionStartPacketIndex;
+			}
+			else
+			{
+				// Extend selection toward left.
+				if (SelectionEndPacketIndex != SelectedPacketIndex + 1)
+				{
+					SelectionStartPacketIndex = SelectedPacketIndex;
+					SelectionEndPacketIndex = LastSelectedPacketIndex + 1;
+					bRaiseSelectionChanged = true;
+				}
+				LastSelectedPacketIndex = SelectionEndPacketIndex - 1;
+			}
+		}
+		else
+		{
+			if (SelectionStartPacketIndex != SelectedPacketIndex ||
+				SelectionEndPacketIndex != SelectedPacketIndex + 1)
+			{
+				SelectionStartPacketIndex = SelectedPacketIndex;
+				SelectionEndPacketIndex = SelectedPacketIndex + 1;
+				bRaiseSelectionChanged = true;
+			}
+			LastSelectedPacketIndex = SelectedPacketIndex;
+		}
+	}
+	else
+	{
+		if (SelectionStartPacketIndex != 0 ||
+			SelectionEndPacketIndex != 0)
+		{
+			SelectionStartPacketIndex = 0;
+			SelectionEndPacketIndex = 0;
+			LastSelectedPacketIndex = 0;
+			bRaiseSelectionChanged = true;
+		}
+	}
+
+	if (SelectionEndPacketIndex == SelectionStartPacketIndex + 1)
+	{
+		if (!SelectedSample.Equals(SampleRef))
+		{
+			SelectedSample = SampleRef;
+		}
+	}
+	else
+	{
+		SelectedSample.Reset();
+	}
+
+	if (bRaiseSelectionChanged)
+	{
+		OnSelectionChanged();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SPacketView::OnSelectionChanged()
+{
+	if (ProfilerWindow.IsValid())
+	{
+		if (SelectedSample.IsValid())
+		{
+			const uint32 BitSize = SelectedSample.Sample->LargestPacket.TotalSizeInBytes * 8;
+			ProfilerWindow->SetSelectedPacket(SelectedSample.Sample->LargestPacket.Index, SelectedSample.Sample->LargestPacket.Index + 1, BitSize);
+			ProfilerWindow->SetSelectedBitRange(0, BitSize);
+		}
+		else
+		{
+			ProfilerWindow->SetSelectedPacket(SelectionStartPacketIndex, SelectionEndPacketIndex);
+			ProfilerWindow->SetSelectedBitRange(0, 0);
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const TCHAR* StatusToString(Trace::ENetProfilerDeliveryStatus Status)
+{
+	switch (Status)
+	{
+		case Trace::ENetProfilerDeliveryStatus::Delivered:  return TEXT("Delivered");
+		case Trace::ENetProfilerDeliveryStatus::Dropped:    return TEXT("Dropped");
+		case Trace::ENetProfilerDeliveryStatus::Unknown:
+		default:                                            return TEXT("Unknown");
+	};
+}
+
+const TCHAR* AggregatedStatusToString(Trace::ENetProfilerDeliveryStatus Status)
+{
+	switch (Status)
+	{
+		case Trace::ENetProfilerDeliveryStatus::Delivered:  return TEXT("all packages are Delivered");
+		case Trace::ENetProfilerDeliveryStatus::Dropped:    return TEXT("at least one Dropped package");
+		case Trace::ENetProfilerDeliveryStatus::Unknown:
+		default:                                            return TEXT("Unknown");
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+int32 SPacketView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
+{
+	const bool bEnabled = ShouldBeEnabled(bParentEnabled);
+	const ESlateDrawEffect DrawEffects = bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
+	FDrawContext DrawContext(AllottedGeometry, MyCullingRect, InWidgetStyle, DrawEffects, OutDrawElements, LayerId);
+
+	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+	FSlateFontInfo SummaryFont = FCoreStyle::GetDefaultFontStyle("Regular", 8);
+
+	const FSlateBrush* WhiteBrush = FInsightsStyle::Get().GetBrush("WhiteBrush");
+
+	const float ViewWidth = AllottedGeometry.Size.X;
+	const float ViewHeight = AllottedGeometry.Size.Y;
+
+	int32 NumDrawSamples = 0;
+
+	//////////////////////////////////////////////////
+	{
+		FStopwatch Stopwatch;
+		Stopwatch.Start();
+
+		FPacketViewDrawHelper Helper(DrawContext, Viewport);
+
+		Helper.DrawBackground();
+
+		// Draw the horizontal axis grid.
+		DrawHorizontalAxisGrid(DrawContext, WhiteBrush, SummaryFont);
+
+		Helper.DrawCached(*PacketSeries);
+
+		NumDrawSamples = Helper.GetNumDrawSamples();
+
+		// Highlight the selected and/or hovered sample.
+		bool bIsSelectedAndHovered = SelectedSample.Equals(HoveredSample);
+		if (SelectedSample.IsValid())
+		{
+			Helper.DrawSampleHighlight(*SelectedSample.Sample, bIsSelectedAndHovered ? FPacketViewDrawHelper::EHighlightMode::SelectedAndHovered : FPacketViewDrawHelper::EHighlightMode::Selected);
+		}
+		if (HoveredSample.IsValid() && !bIsSelectedAndHovered)
+		{
+			Helper.DrawSampleHighlight(*HoveredSample.Sample, FPacketViewDrawHelper::EHighlightMode::Hovered);
+		}
+		if (SelectionEndPacketIndex > SelectionStartPacketIndex + 1)
+		{
+			Helper.DrawSelection(SelectionStartPacketIndex, SelectionEndPacketIndex);
+		}
+
+		// Draw the vertical axis grid.
+		DrawVerticalAxisGrid(DrawContext, WhiteBrush, SummaryFont);
+
+		// Draw tooltip for hovered sample.
+		if (HoveredSample.IsValid())
+		{
+			if (TooltipOpacity < TooltipDesiredOpacity)
+			{
+				TooltipOpacity = TooltipOpacity * 0.9f + TooltipDesiredOpacity * 0.1f;
+			}
+			else
+			{
+				TooltipOpacity = TooltipDesiredOpacity;
+			}
+
+			const double Precision = 0.01; // 10ms
+			int NumLines;
+			FString Text;
+			uint32 UnusedBits = HoveredSample.Sample->LargestPacket.TotalSizeInBytes * 8 - HoveredSample.Sample->LargestPacket.ContentSizeInBits;
+			if (HoveredSample.Sample->NumPackets == 1)
+			{
+				NumLines = 6;
+				Text = FString::Format(TEXT("Packet Index: {0}\n"
+											"Sequence Number: {1}\n"
+											"Content Size: {2} bits\n"
+											"Total Size: {3} bytes ({4} unused bits)\n"
+											"Timestamp: {5}\n"
+											"Status: {6}"),
+					{
+						FText::AsNumber(HoveredSample.Sample->LargestPacket.Index).ToString(),
+						FText::AsNumber(HoveredSample.Sample->LargestPacket.SequenceNumber).ToString(),
+						FText::AsNumber(HoveredSample.Sample->LargestPacket.ContentSizeInBits).ToString(),
+						FText::AsNumber(HoveredSample.Sample->LargestPacket.TotalSizeInBytes).ToString(),
+						FText::AsNumber(UnusedBits).ToString(),
+						TimeUtils::FormatTimeHMS(HoveredSample.Sample->LargestPacket.TimeStamp, Precision),
+						::StatusToString(HoveredSample.Sample->LargestPacket.Status)
+					});
+			}
+			else
+			{
+				NumLines = 9;
+				Text = FString::Format(TEXT("{0} network packets\n"
+											"({1})\n"
+											"Largest Packet\n"
+											"    Index: {2}\n"
+											"    Sequance Number: {3}\n"
+											"    Content Size: {4} bits\n"
+											"    Total Size: {5} bytes ({6} unused bits)\n"
+											"    Timestamp: {7}\n"
+											"    Status: {8}"),
+					{
+						HoveredSample.Sample->NumPackets,
+						::AggregatedStatusToString(HoveredSample.Sample->AggregatedStatus),
+						FText::AsNumber(HoveredSample.Sample->LargestPacket.Index).ToString(),
+						FText::AsNumber(HoveredSample.Sample->LargestPacket.SequenceNumber).ToString(),
+						FText::AsNumber(HoveredSample.Sample->LargestPacket.ContentSizeInBits).ToString(),
+						FText::AsNumber(HoveredSample.Sample->LargestPacket.TotalSizeInBytes).ToString(),
+						FText::AsNumber(UnusedBits).ToString(),
+						TimeUtils::FormatTimeHMS(HoveredSample.Sample->LargestPacket.TimeStamp, Precision),
+						::StatusToString(HoveredSample.Sample->LargestPacket.Status)
+					});
+			}
+
+			FVector2D TextSize = FontMeasureService->Measure(Text, SummaryFont);
+
+			const float DX = 2.0f;
+			const float W2 = TextSize.X / 2 + DX;
+
+			const FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+
+			float X1 = ViewportX.GetOffsetForValue(HoveredSample.Sample->LargestPacket.Index);
+			float CX = X1 + FMath::RoundToFloat(Viewport.GetSampleWidth() / 2);
+			if (CX + W2 > ViewportX.GetSize())
+			{
+				CX = FMath::RoundToFloat(ViewportX.GetSize() - W2);
+			}
+			if (CX - W2 < 0)
+			{
+				CX = W2;
+			}
+
+			const float Y = 10.0f;
+			const float H = 2.0f + 13.0f * NumLines;
+			DrawContext.DrawBox(CX - W2, Y, 2 * W2, H, WhiteBrush, FLinearColor(0.7, 0.7, 0.7, TooltipOpacity));
+			DrawContext.LayerId++;
+			DrawContext.DrawText(CX - W2 + DX, Y + 1.0f, Text, SummaryFont, FLinearColor(0.0, 0.0, 0.0, TooltipOpacity));
+			DrawContext.LayerId++;
+		}
+
+		Stopwatch.Stop();
+		DrawDurationHistory.AddValue(Stopwatch.AccumulatedTime);
+	}
+	//////////////////////////////////////////////////
+
+	const bool bShouldDisplayDebugInfo = FInsightsManager::Get()->IsDebugInfoEnabled();
+	if (bShouldDisplayDebugInfo)
+	{
+		const float MaxFontCharHeight = FontMeasureService->Measure(TEXT("!"), SummaryFont).Y;
+		const float DbgDY = MaxFontCharHeight;
+
+		const float DbgW = 280.0f;
+		const float DbgH = DbgDY * 5 + 3.0f;
+		const float DbgX = ViewWidth - DbgW - 20.0f;
+		float DbgY = 7.0f;
+
+		DrawContext.LayerId++;
+
+		DrawContext.DrawBox(DbgX - 2.0f, DbgY - 2.0f, DbgW, DbgH, WhiteBrush, FLinearColor(1.0, 1.0, 1.0, 0.9));
+		DrawContext.LayerId++;
+
+		FLinearColor DbgTextColor(0.0, 0.0, 0.0, 0.9);
+
+		// Time interval since last OnPaint call.
+		const uint64 CurrentTime = FPlatformTime::Cycles64();
+		const uint64 OnPaintDuration = CurrentTime - LastOnPaintTime;
+		LastOnPaintTime = CurrentTime;
+		OnPaintDurationHistory.AddValue(OnPaintDuration); // saved for last 32 OnPaint calls
+		const uint64 AvgOnPaintDuration = OnPaintDurationHistory.ComputeAverage();
+		const uint64 AvgOnPaintDurationMs = FStopwatch::Cycles64ToMilliseconds(AvgOnPaintDuration);
+		const double AvgOnPaintFps = AvgOnPaintDurationMs != 0 ? 1.0 / FStopwatch::Cycles64ToSeconds(AvgOnPaintDuration) : 0.0;
+
+		const uint64 AvgUpdateDurationMs = FStopwatch::Cycles64ToMilliseconds(UpdateDurationHistory.ComputeAverage());
+		const uint64 AvgDrawDurationMs = FStopwatch::Cycles64ToMilliseconds(DrawDurationHistory.ComputeAverage());
+
+		// Draw performance info.
+		DrawContext.DrawText
+		(
+			DbgX, DbgY,
+			FString::Printf(TEXT("U: %llu ms, D: %llu ms + %llu ms = %llu ms (%d fps)"),
+				AvgUpdateDurationMs, // caching time
+				AvgDrawDurationMs, // drawing time
+				AvgOnPaintDurationMs - AvgDrawDurationMs, // other overhead to OnPaint calls
+				AvgOnPaintDurationMs, // average time between two OnPaint calls
+				FMath::RoundToInt(AvgOnPaintFps)), // framerate of OnPaint calls
+			SummaryFont, DbgTextColor
+		);
+		DbgY += DbgDY;
+
+		// Draw number of draw calls.
+		DrawContext.DrawText
+		(
+			DbgX, DbgY,
+			FString::Printf(TEXT("U: %s packets, D: %s samples"),
+				*FText::AsNumber(NumUpdatedPackets).ToString(),
+				*FText::AsNumber(NumDrawSamples).ToString()),
+			SummaryFont, DbgTextColor
+		);
+		DbgY += DbgDY;
+
+		// Draw viewport's horizontal info.
+		DrawContext.DrawText
+		(
+			DbgX, DbgY,
+			Viewport.GetHorizontalAxisViewport().ToDebugString(TEXT("X"), TEXT("packet")),
+			SummaryFont, DbgTextColor
+		);
+		DbgY += DbgDY;
+
+		// Draw viewport's vertical info.
+		DrawContext.DrawText
+		(
+			DbgX, DbgY,
+			Viewport.GetVerticalAxisViewport().ToDebugString(TEXT("Y")),
+			SummaryFont, DbgTextColor
+		);
+		DbgY += DbgDY;
+
+		// Draw connection info.
+		DrawContext.DrawText
+		(
+			DbgX, DbgY,
+			FString::Printf(TEXT("Game Instance %d, Connection %d (%s)"),
+				GameInstanceIndex,
+				ConnectionIndex,
+				(ConnectionMode == Trace::ENetProfilerConnectionMode::Outgoing) ? TEXT("Outgoing") : TEXT("Incoming")),
+			SummaryFont, DbgTextColor
+		);
+		DbgY += DbgDY;
+	}
+
+	return SCompoundWidget::OnPaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled && IsEnabled());
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SPacketView::DrawVerticalAxisGrid(FDrawContext& DrawContext, const FSlateBrush* Brush, const FSlateFontInfo& Font) const
+{
+	const FAxisViewportDouble& ViewportY = Viewport.GetVerticalAxisViewport();
+
+	const float RoundedViewHeight = FMath::RoundToFloat(ViewportY.GetSize());
+
+	constexpr float MinDY = 32.0f; // min vertical distance between horizontal grid lines
+
+	const double TopValue = ViewportY.GetValueAtOffset(RoundedViewHeight);
+	const double GridValue = ViewportY.GetValueAtOffset(MinDY);
+	const double BottomValue = ViewportY.GetValueAtOffset(0.0f);
+	const double Delta = GridValue - BottomValue;
+
+	if (Delta > 0.0)
+	{
+		const int64 DeltaBits = static_cast<int64>(Delta);
+
+		// Compute rounding based on magnitude of visible range of values (Delta).
+		int64 Power10 = 1;
+		int64 Delta10 = DeltaBits;
+		while (Delta10 > 0)
+		{
+			Delta10 /= 10;
+			Power10 *= 10;
+		}
+		if (Power10 >= 100)
+		{
+			Power10 /= 100;
+		}
+		else
+		{
+			Power10 = 1;
+		}
+
+		const double Grid = static_cast<double>(((DeltaBits + Power10 - 1) / Power10) * Power10); // next value divisible with a multiple of 10
+
+		const double StartValue = FMath::GridSnap(BottomValue, Grid);
+
+		const float ViewWidth = Viewport.GetWidth();
+
+		const FLinearColor GridColor(0.0f, 0.0f, 0.0f, 0.1f);
+		const FLinearColor TextBgColor(0.05f, 0.05f, 0.05f, 1.0f);
+		const FLinearColor TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+
+		const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+
+		for (double Value = StartValue; Value < TopValue; Value += Grid)
+		{
+			const float Y = RoundedViewHeight - FMath::RoundToFloat(ViewportY.GetOffsetForValue(Value));
+
+			// Draw horizontal grid line.
+			DrawContext.DrawBox(0, Y, ViewWidth, 1, Brush, GridColor);
+
+			const int64 ValueBits = static_cast<int64>(Value);
+			const FString Text = (ValueBits == 0) ? TEXT("0") : FString::Format(TEXT("{0} bits"), { FText::AsNumber(ValueBits).ToString() });
+			const FVector2D TextSize = FontMeasureService->Measure(Text, Font);
+			constexpr float TextH = 14.0f;
+
+			// Draw background for value text.
+			DrawContext.DrawBox(ViewWidth - TextSize.X - 4.0f, Y - TextH, TextSize.X + 4.0f, TextH, Brush, TextBgColor);
+
+			// Draw value text.
+			DrawContext.DrawText(ViewWidth - TextSize.X - 2.0f, Y - TextH + 1.0f, Text, Font, TextColor);
+		}
+		DrawContext.LayerId++;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SPacketView::DrawHorizontalAxisGrid(FDrawContext& DrawContext, const FSlateBrush* Brush, const FSlateFontInfo& Font) const
+{
+	const FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+
+	const float RoundedViewWidth = FMath::RoundToFloat(ViewportX.GetSize());
+
+	constexpr float MinDX = 100.0f; // min horizontal distance between vertical grid lines
+
+	const int32 LeftIndex = ViewportX.GetValueAtOffset(0.0f);
+	const int32 GridIndex = ViewportX.GetValueAtOffset(MinDX);
+	const int32 RightIndex = ViewportX.GetValueAtOffset(RoundedViewWidth);
+	const int32 Delta = GridIndex - LeftIndex;
+
+	if (Delta > 0)
+	{
+		// Compute rounding based on magnitude of visible range of samples (Delta).
+		int32 Power10 = 1;
+		int32 Delta10 = Delta;
+		while (Delta10 > 0)
+		{
+			Delta10 /= 10;
+			Power10 *= 10;
+		}
+		if (Power10 >= 100)
+		{
+			Power10 /= 100;
+		}
+		else
+		{
+			Power10 = 1;
+		}
+
+		const int32 Grid = ((Delta + Power10 - 1) / Power10) * Power10; // next value divisible with a multiple of 10
+
+		// Skip grid lines for negative indices.
+		double StartIndex = ((LeftIndex + Grid - 1) / Grid) * Grid;
+		while (StartIndex < 0)
+		{
+			StartIndex += Grid;
+		}
+
+		const float ViewHeight = Viewport.GetHeight();
+
+		const FLinearColor GridColor(0.0f, 0.0f, 0.0f, 0.1f);
+		//const FLinearColor TextBgColor(0.05f, 0.05f, 0.05f, 1.0f);
+		//const FLinearColor TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+		const FLinearColor TopTextColor(1.0f, 1.0f, 1.0f, 0.7f);
+
+		//const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+
+		for (int32 Index = StartIndex; Index < RightIndex; Index += Grid)
+		{
+			const float X = FMath::RoundToFloat(ViewportX.GetOffsetForValue(Index));
+
+			// Draw vertical grid line.
+			DrawContext.DrawBox(X, 0, 1, ViewHeight, Brush, GridColor);
+
+			const FString Text = FText::AsNumber(Index).ToString();
+			//const FVector2D TextSize = FontMeasureService->Measure(Text, Font);
+			//constexpr float TextH = 14.0f;
+
+			// Draw background for index text.
+			//DrawContext.DrawBox(X, ViewHeight - TextH, TextSize.X + 4.0f, TextH, Brush, TextBgColor);
+
+			// Draw index text.
+			//DrawContext.DrawText(X + 2.0f, ViewHeight - TextH + 1.0f, Text, Font, TextColor);
+
+			DrawContext.DrawText(X + 2.0f, 10.0f, Text, Font, TopTextColor);
+		}
+		DrawContext.LayerId++;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply SPacketView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	FReply Reply = FReply::Unhandled();
+
+	MousePositionOnButtonDown = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
+	ViewportPosXOnButtonDown = Viewport.GetHorizontalAxisViewport().GetPos();
+
+	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	{
+		bIsLMB_Pressed = true;
+
+		// Capture mouse.
+		Reply = FReply::Handled().CaptureMouse(SharedThis(this));
+	}
+	else if (MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
+	{
+		bIsRMB_Pressed = true;
+
+		// Capture mouse, so we can scroll outside this widget.
+		Reply = FReply::Handled().CaptureMouse(SharedThis(this));
+	}
+
+	return Reply;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply SPacketView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	FReply Reply = FReply::Unhandled();
+
+	MousePositionOnButtonUp = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
+
+	const bool bIsValidForMouseClick = MousePositionOnButtonUp.Equals(MousePositionOnButtonDown, MOUSE_SNAP_DISTANCE);
+
+	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	{
+		if (bIsLMB_Pressed)
+		{
+			if (bIsScrolling)
+			{
+				bIsScrolling = false;
+				CursorType = ECursorType::Default;
+			}
+			else if (bIsValidForMouseClick)
+			{
+				SelectSampleAtMousePosition(MousePositionOnButtonUp.X, MousePositionOnButtonUp.Y, MouseEvent);
+			}
+
+			bIsLMB_Pressed = false;
+
+			// Release the mouse.
+			Reply = FReply::Handled().ReleaseMouseCapture();
+		}
+	}
+	else if (MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
+	{
+		if (bIsRMB_Pressed)
+		{
+			if (bIsScrolling)
+			{
+				bIsScrolling = false;
+				CursorType = ECursorType::Default;
+			}
+			else if (bIsValidForMouseClick)
+			{
+				ShowContextMenu(MouseEvent);
+			}
+
+			bIsRMB_Pressed = false;
+
+			// Release mouse as we no longer scroll.
+			Reply = FReply::Handled().ReleaseMouseCapture();
+		}
+	}
+
+	return Reply;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply SPacketView::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	FReply Reply = FReply::Unhandled();
+
+	MousePosition = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
+
+	if (!MouseEvent.GetCursorDelta().IsZero())
+	{
+		if (MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton) ||
+			MouseEvent.IsMouseButtonDown(EKeys::RightMouseButton))
+		{
+			if (HasMouseCapture())
+			{
+				if (!bIsScrolling)
+				{
+					bIsScrolling = true;
+					CursorType = ECursorType::Hand;
+
+					HoveredSample.Reset();
+				}
+
+				FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+				const float PosX = ViewportPosXOnButtonDown + (MousePositionOnButtonDown.X - MousePosition.X);
+				ViewportX.ScrollAtValue(ViewportX.GetValueAtPos(PosX)); // align viewport position with sample
+				UpdateHorizontalScrollBar();
+				bIsStateDirty = true;
+			}
+		}
+		else
+		{
+			if (!HoveredSample.IsValid())
+			{
+				TooltipOpacity = 0.0f;
+			}
+			HoveredSample = GetSampleAtMousePosition(MousePosition.X, MousePosition.Y);
+			if (!HoveredSample.IsValid())
+			{
+				HoveredSample = GetSampleAtMousePosition(MousePosition.X - 1.0f, MousePosition.Y);
+			}
+			if (!HoveredSample.IsValid())
+			{
+				HoveredSample = GetSampleAtMousePosition(MousePosition.X + 1.0f, MousePosition.Y);
+			}
+		}
+
+		Reply = FReply::Handled();
+	}
+
+	return Reply;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SPacketView::OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SPacketView::OnMouseLeave(const FPointerEvent& MouseEvent)
+{
+	if (!HasMouseCapture())
+	{
+		bIsLMB_Pressed = false;
+		bIsRMB_Pressed = false;
+
+		HoveredSample.Reset();
+
+		CursorType = ECursorType::Default;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply SPacketView::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	MousePosition = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
+
+	if (MouseEvent.GetModifierKeys().IsShiftDown())
+	{
+		FAxisViewportDouble& ViewportY = Viewport.GetVerticalAxisViewport();
+
+		// Zoom in/out vertically.
+		const float Delta = MouseEvent.GetWheelDelta();
+		constexpr float ZoomStep = 0.25f; // as percent
+		float ScaleY;
+
+		if (Delta > 0)
+		{
+			ScaleY = ViewportY.GetScale() * FMath::Pow(1.0f + ZoomStep, Delta);
+		}
+		else
+		{
+			ScaleY = ViewportY.GetScale() * FMath::Pow(1.0f / (1.0f + ZoomStep), -Delta);
+		}
+
+		ViewportY.SetScale(ScaleY);
+		//UpdateVerticalScrollBar();
+	}
+	else //if (MouseEvent.GetModifierKeys().IsControlDown())
+	{
+		// Zoom in/out horizontally.
+		const float Delta = MouseEvent.GetWheelDelta();
+		ZoomHorizontally(Delta, MousePosition.X);
+	}
+
+	return FReply::Handled();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply SPacketView::OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	return FReply::Unhandled();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FCursorReply SPacketView::OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const
+{
+	FCursorReply CursorReply = FCursorReply::Unhandled();
+
+	if (CursorType == ECursorType::Arrow)
+	{
+		CursorReply = FCursorReply::Cursor(EMouseCursor::ResizeLeftRight);
+	}
+	else if (CursorType == ECursorType::Hand)
+	{
+		CursorReply = FCursorReply::Cursor(EMouseCursor::GrabHand);
+	}
+
+	return CursorReply;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply SPacketView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	if (InKeyEvent.GetKey() == EKeys::A)
+	{
+		if (InKeyEvent.GetModifierKeys().IsControlDown())
+		{
+			// Select all.
+			SelectedSample.Reset();
+			SelectionStartPacketIndex = 0;
+			const FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+			SelectionEndPacketIndex = ViewportX.GetMaxValue();
+			LastSelectedPacketIndex = 0;
+			OnSelectionChanged();
+			return FReply::Handled();
+		}
+	}
+
+	return SCompoundWidget::OnKeyDown(MyGeometry, InKeyEvent);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SPacketView::ShowContextMenu(const FPointerEvent& MouseEvent)
+{
+	const bool bShouldCloseWindowAfterMenuSelection = true;
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, NULL);
+
+	MenuBuilder.BeginSection("Misc");
+	{
+		FUIAction Action_AutoZoom
+		(
+			FExecuteAction::CreateSP(this, &SPacketView::ContextMenu_AutoZoom_Execute),
+			FCanExecuteAction::CreateSP(this, &SPacketView::ContextMenu_AutoZoom_CanExecute),
+			FIsActionChecked::CreateSP(this, &SPacketView::ContextMenu_AutoZoom_IsChecked)
+		);
+		MenuBuilder.AddMenuEntry
+		(
+			LOCTEXT("ContextMenu_AutoZoom", "Auto Zoom"),
+			LOCTEXT("ContextMenu_AutoZoom_Desc", "Enable auto zoom. Makes entire graph series to fit into view."),
+			FSlateIcon(),
+			Action_AutoZoom,
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+	}
+	MenuBuilder.EndSection();
+
+	TSharedRef<SWidget> MenuWidget = MenuBuilder.MakeWidget();
+
+	FWidgetPath EventPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
+	const FVector2D ScreenSpacePosition = MouseEvent.GetScreenSpacePosition();
+	FSlateApplication::Get().PushMenu(SharedThis(this), EventPath, MenuWidget, ScreenSpacePosition, FPopupTransitionEffect::ContextMenu);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SPacketView::ContextMenu_AutoZoom_Execute()
+{
+	FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+
+	bIsAutoZoomEnabled = !(bIsAutoZoomEnabled && ViewportX.GetPos() == 0.0f);
+	if (bIsAutoZoomEnabled)
+	{
+		ViewportX.ScrollAtPos(0.0f);
+
+		// Auto zoom in.
+		while (ViewportX.GetMaxPos() - ViewportX.GetMinPos() < ViewportX.GetSize())
+		{
+			ZoomHorizontally(+0.1f, 0.0f);
+			ViewportX.ScrollAtPos(0.0f);
+		}
+
+		// Auto zoom out (until entire session time range fits into view).
+		while (ViewportX.GetMaxPos() - ViewportX.GetMinPos() > ViewportX.GetSize())
+		{
+			ZoomHorizontally(-0.1f, 0.0f);
+			ViewportX.ScrollAtPos(0.0f);
+		}
+
+		UpdateHorizontalScrollBar();
+		bIsStateDirty = true;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool SPacketView::ContextMenu_AutoZoom_CanExecute()
+{
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool SPacketView::ContextMenu_AutoZoom_IsChecked()
+{
+	return bIsAutoZoomEnabled && Viewport.GetHorizontalAxisViewport().GetPos() == 0.0f;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SPacketView::BindCommands()
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SPacketView::HorizontalScrollBar_OnUserScrolled(float ScrollOffset)
+{
+	FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+	ViewportX.OnUserScrolled(HorizontalScrollBar, ScrollOffset);
+	bIsStateDirty = true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SPacketView::UpdateHorizontalScrollBar()
+{
+	FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+	ViewportX.UpdateScrollBar(HorizontalScrollBar);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SPacketView::ZoomHorizontally(const float Delta, const float X)
+{
+	FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+	ViewportX.RelativeZoomWithFixedOffset(Delta, X);
+	ViewportX.ScrollAtValue(ViewportX.GetValueAtPos(ViewportX.GetPos())); // align viewport position with sample
+	UpdateHorizontalScrollBar();
+	bIsStateDirty = true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#undef LOCTEXT_NAMESPACE

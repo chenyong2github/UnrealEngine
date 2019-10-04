@@ -255,7 +255,7 @@ void USetProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, co
 
 		// Delete any explicitly-removed elements
 		int32 NumElementsToRemove = 0;
-		FStructuredArchive::FArray ElementsToRemoveArray = Record.EnterArray(FIELD_NAME_TEXT("ElementsToRemove"), NumElementsToRemove);
+		FStructuredArchive::FArray ElementsToRemoveArray = Record.EnterArray(SA_FIELD_NAME(TEXT("ElementsToRemove")), NumElementsToRemove);
 
 		if (NumElementsToRemove)
 		{
@@ -278,7 +278,7 @@ void USetProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, co
 		}
 
 		int32 Num = 0;
-		FStructuredArchive::FArray ElementsArray = Record.EnterArray(FIELD_NAME_TEXT("Elements"), Num);
+		FStructuredArchive::FArray ElementsArray = Record.EnterArray(SA_FIELD_NAME(TEXT("Elements")), Num);
 
 		// Allocate temporary key space if we haven't allocated it already above
 		if (Num != 0 && !TempElementStorage)
@@ -335,7 +335,7 @@ void USetProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, co
 
 		// Write out the removed elements
 		int32 RemovedElementsNum = Indices.Num();
-		FStructuredArchive::FArray RemovedElementsArray = Record.EnterArray(FIELD_NAME_TEXT("ElementsToRemove"), RemovedElementsNum);
+		FStructuredArchive::FArray RemovedElementsArray = Record.EnterArray(SA_FIELD_NAME(TEXT("ElementsToRemove")), RemovedElementsNum);
 		
 		{
 			FSerializedPropertyScope SerializedProperty(UnderlyingArchive, ElementProp, this);
@@ -367,7 +367,7 @@ void USetProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, co
 
 			// Write out differences from defaults
 			int32 Num = Indices.Num();
-			FStructuredArchive::FArray ElementsArray = Record.EnterArray(FIELD_NAME_TEXT("Elements"), Num);
+			FStructuredArchive::FArray ElementsArray = Record.EnterArray(SA_FIELD_NAME(TEXT("Elements")), Num);
 
 			FSerializedPropertyScope SerializedProperty(UnderlyingArchive, ElementProp, this);
 			for (int32 Index : Indices)
@@ -380,7 +380,7 @@ void USetProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, co
 		else
 		{
 			int32 Num = SetHelper.Num();
-			FStructuredArchive::FArray ElementsArray = Record.EnterArray(FIELD_NAME_TEXT("Elements"), Num);
+			FStructuredArchive::FArray ElementsArray = Record.EnterArray(SA_FIELD_NAME(TEXT("Elements")), Num);
 
 			FSerializedPropertyScope SerializedProperty(UnderlyingArchive, ElementProp, this);
 			for (int32 Index = 0; Num; ++Index)
@@ -820,7 +820,7 @@ EConvertFromTypeResult USetProperty::ConvertFromType(const FPropertyTag& Tag, FS
 			// instance that was being written. Presumably we were constructed from our defaults and must now remove 
 			// any of the elements that were not present when we saved this Set:
 			int32 NumElementsToRemove = 0;
-			FStructuredArchive::FArray ElementsToRemoveArray = ValueRecord.EnterArray(FIELD_NAME_TEXT("ElementsToRemove"), NumElementsToRemove);
+			FStructuredArchive::FArray ElementsToRemoveArray = ValueRecord.EnterArray(SA_FIELD_NAME(TEXT("ElementsToRemove")), NumElementsToRemove);
 
 			if(NumElementsToRemove)
 			{
@@ -853,7 +853,7 @@ EConvertFromTypeResult USetProperty::ConvertFromType(const FPropertyTag& Tag, FS
 			}
 
 			int32 Num = 0;
-			FStructuredArchive::FArray ElementsArray = ValueRecord.EnterArray(FIELD_NAME_TEXT("Elements"), Num);
+			FStructuredArchive::FArray ElementsArray = ValueRecord.EnterArray(SA_FIELD_NAME(TEXT("Elements")), Num);
 
 			if(bConversionSucceeded)
 			{

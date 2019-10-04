@@ -361,36 +361,37 @@ FString UAssetImportData::ResolveImportFilename(const FString& InRelativePath) c
 	return ResolveImportFilename(InRelativePath, GetOutermost());
 }
 
-void UAssetImportData::Serialize(FArchive& Ar)
+void UAssetImportData::Serialize(FStructuredArchive::FRecord Record)
 {
-	if (Ar.UE4Ver() >= VER_UE4_ASSET_IMPORT_DATA_AS_JSON)
+	FArchive& BaseArchive = Record.GetUnderlyingArchive();
+
+	if (BaseArchive.UE4Ver() >= VER_UE4_ASSET_IMPORT_DATA_AS_JSON)
 	{
-		
-		if (!Ar.IsFilterEditorOnly())
+		if (!BaseArchive.IsFilterEditorOnly())
 		{
 			FString Json;
-			if (Ar.IsLoading())
+			if (BaseArchive.IsLoading())
 			{
-				Ar << Json;
+				Record << SA_VALUE(TEXT("Json"), Json);
 				TOptional<FAssetImportInfo> Copy = FAssetImportInfo::FromJson(MoveTemp(Json));
 				if (Copy.IsSet())
 				{
 					SourceData = MoveTemp(Copy.GetValue());
 				}
 			}
-			else if (Ar.IsSaving())
+			else if (BaseArchive.IsSaving())
 			{
 				Json = SourceData.ToJson();
-				Ar << Json;
+				Record << SA_VALUE(TEXT("Json"), Json);
 			}
 		}
 	}
 
-	Super::Serialize(Ar);
+	Super::Serialize(Record);
 
-	Ar.UsingCustomVersion(FAnimPhysObjectVersion::GUID);
+	BaseArchive.UsingCustomVersion(FAnimPhysObjectVersion::GUID);
 
-	if (Ar.CustomVer(FAnimPhysObjectVersion::GUID) < FAnimPhysObjectVersion::ThumbnailSceneInfoAndAssetImportDataAreTransactional)
+	if (BaseArchive.CustomVer(FAnimPhysObjectVersion::GUID) < FAnimPhysObjectVersion::ThumbnailSceneInfoAndAssetImportDataAreTransactional)
 	{
 		SetFlags(RF_Transactional);
 	}

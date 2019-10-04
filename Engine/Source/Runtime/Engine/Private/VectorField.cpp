@@ -407,7 +407,7 @@ void UVectorFieldStatic::Serialize(FArchive& Ar)
 		SourceData.SetBulkDataFlags(BULKDATA_ForceInlinePayload | BULKDATA_SingleUse);
 	}
 
-	SourceData.Serialize(Ar,this);
+	SourceData.Serialize(Ar, this, INDEX_NONE, false);
 }
 
 void UVectorFieldStatic::PostLoad()

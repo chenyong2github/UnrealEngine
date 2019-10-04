@@ -130,10 +130,11 @@ public:
 
 	uint32 BuffersSize;
 
-	/** Offset in the .bulk file if this LOD is streamed */
-	uint32 OffsetInFile;
-	/** Size of serialized resource data in bytes */
-	uint32 BulkDataSize;
+#if USE_BULKDATA_STREAMING_TOKEN
+	FBulkDataStreamingToken BulkDataStreamingToken;
+#else
+	FByteBulkData StreamingBulkData;
+#endif
 
 	/** Whether buffers of this LOD is inlined (i.e. stored in .uexp instead of .ubulk) */
 	uint32 bStreamedDataInlined : 1;
@@ -164,8 +165,6 @@ public:
 	/** Constructor (default) */
 	FSkeletalMeshLODRenderData()
 		: BuffersSize(0)
-		, OffsetInFile(0xffffffff)
-		, BulkDataSize(0)
 		, bStreamedDataInlined(false)
 		, bIsLODOptional(false)
 	{

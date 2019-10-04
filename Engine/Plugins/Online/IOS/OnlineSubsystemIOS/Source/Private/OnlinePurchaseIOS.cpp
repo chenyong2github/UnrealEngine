@@ -31,12 +31,12 @@ FOnlinePurchaseIOS::FOnlinePurchaseIOS(FOnlineSubsystemIOS* InSubsystem)
 	, bRestoringTransactions(false)
 	, Subsystem(InSubsystem)
 {
-	UE_LOG_ONLINE_PURCHASE(Verbose, TEXT( "FOnlinePurchaseIOS::FOnlinePurchaseIOS" ));
+	UE_LOG_ONLINE_PURCHASE(Log, TEXT( "FOnlinePurchaseIOS::FOnlinePurchaseIOS" ));
 }
 
 FOnlinePurchaseIOS::FOnlinePurchaseIOS()
 {
-	UE_LOG_ONLINE_PURCHASE(Verbose, TEXT( "FOnlinePurchaseIOS::FOnlinePurchaseIOS" ));
+	UE_LOG_ONLINE_PURCHASE(Log, TEXT( "FOnlinePurchaseIOS::FOnlinePurchaseIOS" ));
 }
 
 FOnlinePurchaseIOS::~FOnlinePurchaseIOS()
@@ -65,6 +65,12 @@ void FOnlinePurchaseIOS::InitStoreKit(FStoreKitHelperV2* InStoreKit)
 	
 	FOnTransactionProgressDelegate OnTransactionDeferredDelegate = FOnTransactionProgressDelegate::CreateRaw(this, &FOnlinePurchaseIOS::OnTransactionDeferred);
 	[StoreHelper AddOnTransactionDeferred: OnTransactionDeferredDelegate];
+}
+
+void FOnlinePurchaseIOS::ManuallyIteratePaymentQueue()
+{
+	NSArray *Transactions = [[SKPaymentQueue defaultQueue] transactions];
+	[StoreHelper paymentQueue : [SKPaymentQueue defaultQueue] updatedTransactions : Transactions];
 }
 
 bool FOnlinePurchaseIOS::IsAllowedToPurchase(const FUniqueNetId& UserId)
@@ -155,7 +161,7 @@ void FOnlinePurchaseIOS::Checkout(const FUniqueNetId& UserId, const FPurchaseChe
 
 void FOnlinePurchaseIOS::FinalizePurchase(const FUniqueNetId& UserId, const FString& ReceiptId)
 {
-	UE_LOG_ONLINE_PURCHASE(Verbose, TEXT("FOnlinePurchaseIOS::FinalizePurchase %s %s"), *UserId.ToString(), *ReceiptId);
+	UE_LOG_ONLINE_PURCHASE(Log, TEXT("FOnlinePurchaseIOS::FinalizePurchase %s %s"), *UserId.ToString(), *ReceiptId);
 
 	const FString ReceiptIdCopy(ReceiptId);
 	dispatch_async(dispatch_get_main_queue(), ^
@@ -197,17 +203,32 @@ void FOnlinePurchaseIOS::QueryReceipts(const FUniqueNetId& UserId, bool bRestore
 		}
 		else
 		{
-			UE_LOG_ONLINE_PURCHASE(Verbose, TEXT("FOnlinePurchaseIOS::QueryReceipts already restoring transactions"));
+			UE_LOG_ONLINE_PURCHASE(Log, TEXT("FOnlinePurchaseIOS::QueryReceipts already restoring transactions"));
 			bSuccess = false;
 		}
+	}
+	else
+	{
+		// We don't always seem to get events from our payment queue observer, 
+		// so manually iterate the transactions in the queue and handle them.
+		ManuallyIteratePaymentQueue();
 	}
 	
 	if (bTriggerDelegate)
 	{
 		// Query receipts comes dynamically from the StoreKit observer
-		Subsystem->ExecuteNextTick([Delegate, bSuccess]() {
-			FOnlineError Result(bSuccess);
-			Delegate.ExecuteIfBound(Result);
+		// Re-entrant WaitNextTick happening here because we want to wait 2 frames, to ensure
+		// Async delegates fired as a result of ManuallyIteratePaymentQueue have been handled.
+		TWeakPtr<FOnlinePurchaseIOS, ESPMode::ThreadSafe> WeakThis(AsShared());
+		Subsystem->ExecuteNextTick([WeakThis, Delegate, bSuccess]() {
+			FOnlinePurchaseIOSPtr StrongThis = WeakThis.Pin();
+			if (StrongThis.IsValid())
+			{
+				StrongThis->Subsystem->ExecuteNextTick([Delegate, bSuccess]() {
+					FOnlineError Result(bSuccess);
+					Delegate.ExecuteIfBound(Result);
+				});
+			}
 		});
 	}
 }
@@ -235,12 +256,12 @@ void FOnlinePurchaseIOS::GetReceipts(const FUniqueNetId& UserId, TArray<FPurchas
 
 void FOnlinePurchaseIOS::OnProductPurchaseRequestResponse(SKProductsResponse* Response, const FOnQueryOnlineStoreOffersComplete& CompletionDelegate)
 {
-	UE_LOG_ONLINE_PURCHASE(Verbose, TEXT("FOnlinePurchaseIOS::OnProductPurchaseRequestResponse"));
+	UE_LOG_ONLINE_PURCHASE(Log, TEXT("FOnlinePurchaseIOS::OnProductPurchaseRequestResponse"));
 }
 
 void FOnlinePurchaseIOS::OnTransactionCompleteResponse(EPurchaseTransactionState Result, const FStoreKitTransactionData& TransactionData)
 {
-	UE_LOG_ONLINE_PURCHASE(Verbose, TEXT("FOnlinePurchaseIOS::OnTransactionCompleteResponse %d %s"), (int32)Result, *TransactionData.ToDebugString());
+	UE_LOG_ONLINE_PURCHASE(Log, TEXT("FOnlinePurchaseIOS::OnTransactionCompleteResponse %d %s"), (int32)Result, *TransactionData.ToDebugString());
 	
 	FString UserIdStr = IOSUSER;
 	const TSharedRef<FOnlinePurchasePendingTransactionIOS>* UserPendingTransactionPtr = PendingTransactions.Find(UserIdStr);

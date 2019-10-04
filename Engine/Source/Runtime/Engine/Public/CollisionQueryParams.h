@@ -83,6 +83,10 @@ struct ENGINE_API FCollisionQueryParams
 		RETURN_QUICK_DECLARE_CYCLE_STAT(UnknownSceneQuery, STATGROUP_Collision);
 	}
 
+#if !(UE_BUILD_TEST || UE_BUILD_SHIPPING)
+	bool bDebugQuery;
+#endif
+
 private:
 
 	/** Tracks whether the IgnoreComponents list is verified unique. */
@@ -149,6 +153,9 @@ public:
 		bIgnoreBlocks = false;
 		bIgnoreTouches = false;
 		StatId = GetUnknownStatId();
+#if !(UE_BUILD_TEST || UE_BUILD_SHIPPING)
+		bDebugQuery = false;
+#endif
 	}
 
 	FCollisionQueryParams()
@@ -164,6 +171,9 @@ public:
 		bIgnoreBlocks = false;
 		bIgnoreTouches = false;
 		StatId = GetUnknownStatId();
+#if !(UE_BUILD_TEST || UE_BUILD_SHIPPING)
+		bDebugQuery = false;
+#endif
 	}
 
 	FCollisionQueryParams(FName InTraceTag, bool bInTraceComplex=false, const AActor* InIgnoreActor=NULL)

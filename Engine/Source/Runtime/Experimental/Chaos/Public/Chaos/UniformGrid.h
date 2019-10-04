@@ -73,7 +73,16 @@ class CHAOS_API TUniformGridBase
 	}
 	TVector<int32, d> Cell(const TVector<T, d>& X) const
 	{
-		return (X - MMinCorner) / MDx;
+		const TVector<T, d> Delta = X - MMinCorner;
+		TVector<int32, d> Result = Delta / MDx;
+		for (int Axis = 0; Axis < d; ++Axis)
+		{
+			if (Delta[Axis] < 0)
+			{
+				Result[Axis] -= 1;	//negative snaps to the right which is wrong. Consider -50 x for DX of 100: -50 / 100 = 0 but we actually want -1
+			}
+		}
+		return Result;
 	}
 	TVector<int32, d> Face(const TVector<T, d>& X, const int32 Component) const
 	{
@@ -115,6 +124,7 @@ class CHAOS_API TUniformGrid : public TUniformGridBase<T, d>
   public:
 	using TUniformGridBase<T, d>::Location;
 
+	TUniformGrid() {}
 	TUniformGrid(const TVector<T, d>& MinCorner, const TVector<T, d>& MaxCorner, const TVector<int32, d>& Cells, const uint32 GhostCells = 0)
 	    : TUniformGridBase<T, d>(MinCorner, MaxCorner, Cells, GhostCells) {}
 	TUniformGrid(std::istream& Stream)
@@ -125,10 +135,28 @@ class CHAOS_API TUniformGrid : public TUniformGridBase<T, d>
 	{
 		return TUniformGridBase<T, d>::Location(GetIndex(Index));
 	}
-	TVector<int32, d> ClampIndex(const TVector<int32, d>& Index) const;
+	TVector<int32, d> ClampIndex(const TVector<int32, d>& Index) const
+	{
+		TVector<int32, d> Result;
+		for (int32 i = 0; i < d; ++i)
+		{
+			if (Index[i] >= MCells[i])
+				Result[i] = MCells[i] - 1;
+			else if (Index[i] < 0)
+				Result[i] = 0;
+			else
+				Result[i] = Index[i];
+		}
+		return Result;
+	}
+
 	TVector<T, d> Clamp(const TVector<T, d>& X) const;
 	TVector<T, d> ClampMinusHalf(const TVector<T, d>& X) const;
-	bool IsValid(const TVector<int32, d>& X) const;
+	
+	bool IsValid(const TVector<int32, d>& X) const
+	{
+		return X == ClampIndex(X);
+	}
 };
 
 template<class T>

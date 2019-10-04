@@ -14,7 +14,6 @@ namespace Chaos
 	class TBVHParticles final /*Note: removing this final has implications for serialization. See TImplicitObject*/ : public TParticles<T, d>
 	{
 	public:
-		static constexpr bool IsSerializablePtr = true;
 		using TArrayCollection::Size;
 		using TParticles<T, d>::X;
 		using TParticles<T, d>::AddParticles;
@@ -60,18 +59,9 @@ namespace Chaos
 			return MBVH.FindAllIntersections(Object);
 		}
 
-		static void StaticSerialize(FChaosArchive& Ar, TSerializablePtr<TBVHParticles<T, d>>& Serializable)
+		static TBVHParticles<T,d>* SerializationFactory(FChaosArchive& Ar, TBVHParticles<T,d>* BVHParticles)
 		{
-			TBVHParticles<T, d>* BVHParticles = const_cast<TBVHParticles<T, d>*>(Serializable.Get());
-
-			if (Ar.IsLoading())
-			{
-				//no children so simple new works
-				BVHParticles = new TBVHParticles();
-				Serializable.SetFromRawLowLevel(BVHParticles);
-			}
-
-			BVHParticles->Serialize(Ar);
+			return Ar.IsLoading() ? new TBVHParticles<T, d>() : nullptr;
 		}
 
 		void Serialize(FChaosArchive& Ar)

@@ -54,7 +54,7 @@ template <typename Hit>
 EConvertQueryResult ConvertTraceResults(bool& OutHasValidBlockingHit, const UWorld* World, int32 NumHits, Hit* Hits, float CheckLength, const FCollisionFilterData& QueryFilter, FHitResult& OutHits, const FVector& StartLoc, const FVector& EndLoc, const FPhysicsGeometry& Geom, const FTransform& QueryTM, float MaxDistance, bool bReturnFaceIndex, bool bReturnPhysMat);
 
 /** 
- * Util to convert physX overlap query to our overlap result
+ * Util to convert physX or Chaos overlap query to our overlap result
  *
  * @param	PShape		Shape that overlaps
  * @param	PActor		Specific actor as PShape might be shared among many actors

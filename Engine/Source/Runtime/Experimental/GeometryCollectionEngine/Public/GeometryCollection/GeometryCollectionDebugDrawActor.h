@@ -430,7 +430,6 @@ public:
 	/** Draw the bounding box for the part of the geometry attached to the specified transform index. */
 	void DrawBoundingBox(const TArray<FTransform>& GlobalTransforms, const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FColor& Color);
 
-#if INCLUDE_CHAOS
 	/** Return the concatenated transform for the specified particle. */
 	static FTransform GetParticleTransform(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData);
 
@@ -481,7 +480,6 @@ public:
 
 	/** Draw Chaos' single rigid body applied force and torque. */
 	void DrawRigidBodyForce(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const FColor& Color);
-#endif  // #if INCLUDE_CHAOS
 
 private:
 	/** Return a darker color depending on level. */
@@ -512,7 +510,6 @@ private:
 	/** Clear all persistent strings and debug lines. */
 	void Flush();
 
-#if INCLUDE_CHAOS
 	/** Return the concatenated transform for the specified particle. Must have the ParticleData X, R, and ChildToParentMap already synced. */
 	static FTransform GetParticleTransformNoChecks(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData);
 
@@ -539,7 +536,6 @@ private:
 
 	/** Draw Chaos' single rigid body applied force and torque without synchronization checks. */
 	void DrawRigidBodyForceNoChecks(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const FColor& Color);
-#endif  // #if INCLUDE_CHAOS
 
 private:
 	struct FDebugDrawText
@@ -556,7 +552,7 @@ private:
 	TArray<FDebugDrawText> DebugDrawTexts;
 
 	bool bNeedsDebugLinesFlush;
-#if INCLUDE_CHAOS && WITH_EDITOR
+#if WITH_EDITOR
 	bool bWasEditorPaused;
-#endif  // #if INCLUDE_CHAOS && WITH_EDITOR
+#endif  // #if WITH_EDITOR
 };

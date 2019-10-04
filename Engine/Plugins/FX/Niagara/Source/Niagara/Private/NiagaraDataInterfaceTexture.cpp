@@ -422,8 +422,6 @@ struct FNiagaraDataInterfaceParametersCS_Texture : public FNiagaraDataInterfaceP
 			SetShaderValue(RHICmdList, ComputeShaderRHI, Dimensions, TexDims);
 		}
 	}
-	
-
 private:
 
 	FShaderResourceParameter TextureParam;

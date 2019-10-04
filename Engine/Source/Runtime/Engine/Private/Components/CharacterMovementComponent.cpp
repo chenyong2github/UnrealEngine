@@ -8865,27 +8865,17 @@ bool UCharacterMovementComponent::ServerCheckClientError(float ClientTimeStamp, 
 	// Check location difference against global setting
 	if (!bIgnoreClientMovementErrorChecksAndCorrection)
 	{
-		const FVector LocDiff = UpdatedComponent->GetComponentLocation() - ClientWorldLocation;
-
 #if ROOT_MOTION_DEBUG
 		if (RootMotionSourceDebug::CVarDebugRootMotionSources.GetValueOnGameThread() == 1)
 		{
+			const FVector LocDiff = UpdatedComponent->GetComponentLocation() - ClientWorldLocation;
 			FString AdjustedDebugString = FString::Printf(TEXT("ServerCheckClientError LocDiff(%.1f) ExceedsAllowablePositionError(%d) TimeStamp(%f)"),
 				LocDiff.Size(), GetDefault<AGameNetworkManager>()->ExceedsAllowablePositionError(LocDiff), ClientTimeStamp);
 			RootMotionSourceDebug::PrintOnScreen(*CharacterOwner, AdjustedDebugString);
 		}
 #endif
 
-		const AGameNetworkManager* GameNetworkManager = (const AGameNetworkManager*)(AGameNetworkManager::StaticClass()->GetDefaultObject());
-		if (GameNetworkManager->ExceedsAllowablePositionError(LocDiff))
-		{
-			bNetworkLargeClientCorrection = (LocDiff.SizeSquared() > FMath::Square(NetworkLargeClientCorrectionDistance));
-			return true;
-		}
-
-		// Check for disagreement in movement mode
-		const uint8 CurrentPackedMovementMode = PackNetworkMovementMode();
-		if (CurrentPackedMovementMode != ClientMovementMode)
+		if (ServerExceedsAllowablePositionError(ClientTimeStamp, DeltaTime, Accel, ClientWorldLocation, RelativeClientLocation, ClientMovementBase, ClientBaseBoneName, ClientMovementMode))
 		{
 			return true;
 		}
@@ -8914,6 +8904,28 @@ bool UCharacterMovementComponent::ServerCheckClientError(float ClientTimeStamp, 
 	return false;
 }
 
+
+bool UCharacterMovementComponent::ServerExceedsAllowablePositionError(float ClientTimeStamp, float DeltaTime, const FVector& Accel, const FVector& ClientWorldLocation, const FVector& RelativeClientLocation, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode)
+{
+	// Check for disagreement in movement mode
+	const uint8 CurrentPackedMovementMode = PackNetworkMovementMode();
+	if (CurrentPackedMovementMode != ClientMovementMode)
+	{
+		// Consider this a major correction, see SendClientAdjustment()
+		bNetworkLargeClientCorrection = true;
+		return true;
+	}
+
+	const FVector LocDiff = UpdatedComponent->GetComponentLocation() - ClientWorldLocation;	
+	const AGameNetworkManager* GameNetworkManager = (const AGameNetworkManager*)(AGameNetworkManager::StaticClass()->GetDefaultObject());
+	if (GameNetworkManager->ExceedsAllowablePositionError(LocDiff))
+	{
+		bNetworkLargeClientCorrection |= (LocDiff.SizeSquared() > FMath::Square(NetworkLargeClientCorrectionDistance));
+		return true;
+	}
+
+	return false;
+}
 
 bool UCharacterMovementComponent::ServerShouldUseAuthoritativePosition(float ClientTimeStamp, float DeltaTime, const FVector& Accel, const FVector& ClientWorldLocation, const FVector& RelativeClientLocation, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode)
 {

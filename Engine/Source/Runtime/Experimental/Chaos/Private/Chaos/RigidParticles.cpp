@@ -20,4 +20,8 @@ void TRigidParticles<T, d>::SetCollisionParticles(const int32 Index, TParticles<
 	MCollisionParticles[Index] = MakeUnique<TBVHParticles<T, d>>(MoveTemp(Points));
 }
 
+#ifdef __clang__
+template class CHAOS_API Chaos::TRigidParticles<float, 3>;
+#else
 template class Chaos::TRigidParticles<float, 3>;
+#endif

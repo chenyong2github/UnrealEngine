@@ -9,26 +9,28 @@ namespace Chaos
 	// but clean property values will get overridden with physics thread results.
 	enum EParticleFlags : int32
 	{
-		X =				1 << 0,
-		R =				1 << 1,
-		V =				1 << 2,
-		W =				1 << 3,
-		CollisionGroup =1 << 4,
-		Disabled =		1 << 5,
-		PreV =			1 << 6,
-		PreW =			1 << 7,
-		P =				1 << 8,
-		Q =				1 << 9,
-		F =				1 << 10,
-		Torque =		1 << 11,
-		I =				1 << 12,
-		InvI =			1 << 13,
-		M =				1 << 14,
-		InvM =			1 << 15,
-		ObjectState =	1 << 16,
-		Geometry =		1 << 17,
-		ExternalForce = 1 << 18,
-		ExternalTorque =1 << 19
+		X =				 1 << 0,
+		R =				 1 << 1,
+		V =				 1 << 2,
+		W =				 1 << 3,
+		CollisionGroup = 1 << 4,
+		Disabled =		 1 << 5,
+		PreV =			 1 << 6,
+		PreW =			 1 << 7,
+		P =				 1 << 8,
+		Q =				 1 << 9,
+		F =				 1 << 10,
+		Torque =		 1 << 11,
+		I =				 1 << 12,
+		InvI =			 1 << 13,
+		M =				 1 << 14,
+		InvM =			 1 << 15,
+		ObjectState =	 1 << 16,
+		Geometry =		 1 << 17,
+		ExternalForce =  1 << 18,
+		ExternalTorque = 1 << 19,
+		GravityEnabled = 1 << 20,
+		SpatialIdx     = 1 << 21
 	};
 
 	class FParticleDirtyFlags

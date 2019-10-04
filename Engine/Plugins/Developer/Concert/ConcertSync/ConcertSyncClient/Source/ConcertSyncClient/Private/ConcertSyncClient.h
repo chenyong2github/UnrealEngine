@@ -33,6 +33,9 @@ public:
 	virtual FOnConcertClientWorkspaceStartupOrShutdown& OnWorkspaceStartup() override;
 	virtual FOnConcertClientWorkspaceStartupOrShutdown& OnWorkspaceShutdown() override;
 
+	virtual FOnConcertClientSyncSessionStartupOrShutdown& OnSyncSessionStartup() override;
+	virtual FOnConcertClientSyncSessionStartupOrShutdown& OnSyncSessionShutdown() override;
+
 	virtual void PersistAllSessionChanges() override;
 	virtual void GetSessionClientActions(const FConcertSessionClientInfo& InClientInfo, TArray<FConcertActionDefinition>& OutActions) const override;
 
@@ -66,6 +69,12 @@ private:
 
 	/** Delegate called on every workspace shutdown. */
 	FOnConcertClientWorkspaceStartupOrShutdown OnWorkspaceShutdownDelegate;
+
+	/** Delegate called just before the workspace get created. */
+	FOnConcertClientSyncSessionStartupOrShutdown OnSyncSessionStartupDelegate;
+	
+	/** Delegate called just after the workspace was deleted. */
+	FOnConcertClientSyncSessionStartupOrShutdown OnSyncSessionShutdownDelegate;
 
 #if WITH_EDITOR
 	/** Presence manager for the current session. */

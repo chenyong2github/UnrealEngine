@@ -9,7 +9,6 @@ struct CORE_API FWindowsPlatformCrashContext : public FGenericCrashContext
 {
 	FWindowsPlatformCrashContext(ECrashContextType InType, const TCHAR* InErrorMessage)
 		: FGenericCrashContext(InType, InErrorMessage)
-		, CrashedThreadId(-1)
 	{
 	}
 
@@ -17,9 +16,11 @@ struct CORE_API FWindowsPlatformCrashContext : public FGenericCrashContext
 
 	virtual void AddPlatformSpecificProperties() const override;
 
-	void CaptureAllThreadContexts() { AddAllThreadContexts(CrashedThreadId, AllThreadContexts); }
+	virtual void AddPortableThreadCallStack(uint32 ThreadId, const TCHAR* ThreadName, const uint64* StackFrames, int32 NumStackFrames) override;
 
-	void SetCrashedThreadId(uint32 InId) { CrashedThreadId = InId; }
+	virtual void CopyPlatformSpecificFiles(const TCHAR* OutputDirectory, void* Context) override;
+
+	void CaptureAllThreadContexts();
 
 protected:
 	virtual bool GetPlatformAllThreadContextsString(FString& OutStr) const override;
@@ -28,42 +29,22 @@ private:
 	// Helpers
 	typedef TArray<void*, TInlineAllocator<128>> FModuleHandleArray;
 	
-	static void GetProcModuleHandles(FModuleHandleArray& OutHandles);
+	static void GetProcModuleHandles(const FProcHandle& Process, FModuleHandleArray& OutHandles);
 
 	static void ConvertProgramCountersToStackFrames(
+		const FProcHandle& Process,
 		const FModuleHandleArray& SortedModuleHandles,
 		const uint64* ProgramCounters,
 		int32 NumPCs,
 		TArray<FCrashStackFrame>& OutStackFrames);
 
-	static void AddIsCrashed(bool bIsCrashed, FString& OutStr);
-	static void AddThreadId(uint32 ThreadId, FString& OutStr);
-	static void AddThreadName(const TCHAR* ThreadName, FString& OutStr);
-	static void AddThreadContext(
-		const FModuleHandleArray& ProcModuleHandles,
+	static void AddThreadContextString(
 		uint32 CrashedThreadId,
 		uint32 ThreadId,
 		const FString& ThreadName,
-		const uint64* StackTrace,
-		int32 Depth,
-		FString& OutStr);
-	static void AddAllThreadContexts(uint32 CrashedThreadId, FString& OutStr);
+		const TArray<FCrashStackFrame>& StackFrames,
+		FString& OutStr);	
 
-	/**
-	* <Thread>
-	*   <CallStack>...</CallStack>
-	*   <IsCrashed>...</IsCrashed>
-	*   <Registers>...</Registers>
-	*   <ThreadID>...</ThreadID>
-	*   <ThreadName>...</ThreadName>
-	* </Thead>
-	* <Thread>...</Thread>
-	* ...
-	*/
-	FString AllThreadContexts;
-
-	// ID of the crashed thread
-	uint32 CrashedThreadId;
 };
 
 typedef FWindowsPlatformCrashContext FPlatformCrashContext;

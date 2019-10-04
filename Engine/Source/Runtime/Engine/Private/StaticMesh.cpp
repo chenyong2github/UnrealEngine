@@ -634,6 +634,7 @@ void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Inde
 		}
 		else if (FPlatformProperties::RequiresCookedData() || Ar.IsCooking() || bUsingCookedData)
 		{
+			uint32 BulkDataSize = 0;
 #if WITH_EDITOR
 			if (Ar.IsSaving())
 			{
@@ -669,14 +670,18 @@ void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Inde
 			else
 #endif
 			{
+#if USE_BULKDATA_STREAMING_TOKEN
 				FByteBulkData TmpBulkData;
-				TmpBulkData.Serialize(Ar, Owner, Index);
+				TmpBulkData.Serialize(Ar, Owner, Index, false);
 				bIsOptionalLOD = !!(TmpBulkData.GetBulkDataFlags() & BULKDATA_OptionalPayload);
-				int64 Tmp = TmpBulkData.GetBulkDataOffsetInFile();
-				check(Tmp >= 0 && Tmp <= 0xffffffff);
-				OffsetInFile = static_cast<uint32>(Tmp);
-				check(TmpBulkData.GetBulkDataSize() >= 0);
-				BulkDataSize = static_cast<uint32>(TmpBulkData.GetBulkDataSize());
+
+				BulkDataStreamingToken = TmpBulkData.CreateStreamingToken();			
+				BulkDataSize = BulkDataStreamingToken.GetSize();
+#else
+				StreamingBulkData.Serialize(Ar, Owner, Index, false);
+				bIsOptionalLOD = !!(StreamingBulkData.GetBulkDataFlags() & BULKDATA_OptionalPayload);
+				BulkDataSize = (uint32)StreamingBulkData.GetBulkDataSize();
+#endif
 
 				// Streaming CPU data in editor build isn't supported yet because tools and utils need access
 				if (bUsingCookedData && BulkDataSize > 0)
@@ -693,7 +698,7 @@ void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Inde
 			Ar << TmpBuffersSize;
 			BuffersSize = TmpBuffersSize.CalcBuffersSize();
 
-			if (Ar.IsLoading() && bIsOptionalLOD && !BulkDataSize)
+			if (Ar.IsLoading() && bIsOptionalLOD)
 			{
 				ClearAvailabilityInfo();
 			}
@@ -1471,6 +1476,12 @@ void FStaticMeshRenderData::InitResources(ERHIFeatureLevel::Type InFeatureLevel,
 			LODResources[LODIndex].InitResources(Owner);
 			LODVertexFactories[LODIndex].InitResources(LODResources[LODIndex], LODIndex, Owner);
 		}
+		else if (!LODIndex && LODResources[LODIndex].DistanceFieldData)
+		{
+			FDistanceFieldVolumeData* DistanceFieldData = LODResources[LODIndex].DistanceFieldData;
+			DistanceFieldData->VolumeTexture.Initialize(Owner);
+			INC_DWORD_STAT_BY(STAT_StaticMeshDistanceFieldMemory, DistanceFieldData->GetResourceSizeBytes());
+		}
 	}
 
 	ENQUEUE_RENDER_COMMAND(CmdSetStaticMeshReadyForStreaming)(
@@ -1490,6 +1501,12 @@ void FStaticMeshRenderData::ReleaseResources()
 		{
 			LODResources[LODIndex].ReleaseResources();
 			LODVertexFactories[LODIndex].ReleaseResources();
+		}
+		else if (!LODIndex && LODResources[LODIndex].DistanceFieldData)
+		{
+			FDistanceFieldVolumeData* DistanceFieldData = LODResources[LODIndex].DistanceFieldData;
+			DEC_DWORD_STAT_BY(STAT_StaticMeshDistanceFieldMemory, DistanceFieldData->GetResourceSizeBytes());
+			DistanceFieldData->VolumeTexture.Release();
 		}
 	}
 }
@@ -2310,7 +2327,7 @@ void FStaticMeshRenderData::Cache(UStaticMesh* Owner, const FStaticMeshLODSettin
 
 
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("StaticMesh_Cache"));
+		TRACE_CPUPROFILER_EVENT_SCOPE(StaticMesh_Cache);
 
 		COOK_STAT(auto Timer = StaticMeshCookStats::UsageStats.TimeSyncWork());
 		int32 T0 = FPlatformTime::Cycles();

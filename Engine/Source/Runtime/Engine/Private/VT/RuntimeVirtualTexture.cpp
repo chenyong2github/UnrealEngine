@@ -362,6 +362,11 @@ bool URuntimeVirtualTexture::IsLayerSRGB(int32 LayerIndex) const
 	return false;
 }
 
+bool URuntimeVirtualTexture::IsLayerYCoCg(int32 LayerIndex) const
+{
+	return MaterialType == ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg && LayerIndex == 0;
+}
+
 int32 URuntimeVirtualTexture::GetEstimatedPageTableTextureMemoryKb() const
 {
 	//todo[vt]: Estimate memory usage
@@ -531,10 +536,12 @@ void URuntimeVirtualTexture::InitializeStreamingTexture(uint32 InSizeX, uint32 I
 		LayerFormats[Layer] = LayerFormat == PF_G16 ? TSF_G16 : TSF_BGRA8;
 
 		FTextureFormatSettings FormatSettings;
-		FormatSettings.SRGB = IsLayerSRGB(Layer);
-		FormatSettings.CompressionNone = LayerFormat == PF_B8G8R8A8 ||LayerFormat == PF_G16;
-		FormatSettings.CompressionNoAlpha = LayerFormat == PF_DXT1 || LayerFormat == PF_BC5;
 		FormatSettings.CompressionSettings = LayerFormat == PF_BC5 ? TC_Normalmap : TC_Default;
+		FormatSettings.CompressionNone = LayerFormat == PF_B8G8R8A8 || LayerFormat == PF_G16;
+		FormatSettings.CompressionNoAlpha = LayerFormat == PF_DXT1 || LayerFormat == PF_BC5;
+		FormatSettings.CompressionYCoCg = IsLayerYCoCg(Layer);
+		FormatSettings.SRGB = IsLayerSRGB(Layer);
+		
 		StreamingTexture->SetLayerFormatSettings(Layer, FormatSettings);
 	}
 

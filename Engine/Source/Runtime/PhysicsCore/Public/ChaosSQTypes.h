@@ -2,38 +2,49 @@
 
 #pragma once 
 
-#if INCLUDE_CHAOS
-
 #include "CoreMinimal.h"
 #include "PhysicsInterfaceWrapperShared.h"
-#include "Chaos/ParticleHandleFwd.h"
 #include "Chaos/Declares.h"
 
 namespace Chaos
 {
-	template <typename T, int d>
-	class TPerShapeData;
+	class FChaosArchive;
 }
 
 namespace ChaosInterface
 {
-
 	struct FActorShape
 	{
 		Chaos::TGeometryParticle<float, 3>* Actor;
 		const Chaos::TPerShapeData<float, 3>* Shape;
+
+		void Serialize(Chaos::FChaosArchive& Ar);
 	};
+
+	inline Chaos::FChaosArchive& operator<<(Chaos::FChaosArchive& Ar, FActorShape& ActorShape)
+	{
+		ActorShape.Serialize(Ar);
+		return Ar;
+	}
 
 	struct FQueryHit : public FActorShape
 	{
-		FQueryHit() : FaceIndex(-1) {}
+		FQueryHit() : FaceIndex(-1) {} 
 
 		/**
 		Face index of touched triangle, for triangle meshes, convex meshes and height fields. Defaults to -1 if face index is not available
 		*/
 
-		uint32 FaceIndex;
+		int32 FaceIndex; // Signed int to match TArray's size type, and so INDEX_NONE/-1 doesn't underflow.
+
+		void Serialize(Chaos::FChaosArchive& Ar);
 	};
+
+	inline Chaos::FChaosArchive& operator<<(Chaos::FChaosArchive& Ar, FQueryHit& QueryHit)
+	{
+		QueryHit.Serialize(Ar);
+		return Ar;
+	}
 
 	struct FLocationHit : public FQueryHit
 	{
@@ -41,21 +52,83 @@ namespace ChaosInterface
 		FVector WorldPosition;
 		FVector WorldNormal;
 		float Distance;
+
+		void Serialize(Chaos::FChaosArchive& Ar);
+
+		bool operator<(const FLocationHit& Other) const { return Distance < Other.Distance; }
 	};
+
+	inline Chaos::FChaosArchive& operator<<(Chaos::FChaosArchive& Ar, FLocationHit& LocationHit)
+	{
+		LocationHit.Serialize(Ar);
+		return Ar;
+	}
 
 	struct FRaycastHit : public FLocationHit
 	{
 		float U;
 		float V;
+
+		void Serialize(Chaos::FChaosArchive& Ar);
+
 	};
+
+	inline Chaos::FChaosArchive& operator<<(Chaos::FChaosArchive& Ar, FRaycastHit& RaycastHit)
+	{
+		RaycastHit.Serialize(Ar);
+		return Ar;
+	}
 
 	struct FOverlapHit : public FQueryHit
 	{
 	};
 
+	inline Chaos::FChaosArchive& operator<<(Chaos::FChaosArchive& Ar, FOverlapHit& OverlapHit)
+	{
+		OverlapHit.Serialize(Ar);
+		return Ar;
+	}
+
 	struct FSweepHit : public FLocationHit
 	{
 	};
+
+	inline Chaos::FChaosArchive& operator<<(Chaos::FChaosArchive& Ar, FSweepHit& SweepHit)
+	{
+		SweepHit.Serialize(Ar);
+		return Ar;
+	}
+
+	inline void FinishQueryHelper(TArray<FOverlapHit>& Hits, const FOverlapHit& BlockingHit, bool bHasBlockingHit)
+	{
+		if (bHasBlockingHit)
+		{
+			Hits.Add(BlockingHit);
+		}
+	}
+
+	template <typename HitType>
+	void FinishQueryHelper(TArray<HitType>& Hits, const HitType& BlockingHit, bool bHasBlockingHit)
+	{
+		Hits.Sort();
+		if (bHasBlockingHit)
+		{
+			int32 FinalNum = Hits.Num() + 1;
+			for (int32 HitIdx = Hits.Num() - 1; HitIdx >= 0; --HitIdx)
+			{
+				if (Hits[HitIdx].Distance >= BlockingHit.Distance)
+				{
+					--FinalNum;
+				}
+				else
+				{
+					break;
+				}
+			}
+			Hits.SetNum(FinalNum);
+			Hits[FinalNum - 1] = BlockingHit;
+		}
+	}
 
 	/** Stores the results of scene queries. This can be passed around to multiple SQAccelerators and is responsible for sorting the results and pruning based on blocking.
 	IncFlushCount / DecFlushCount is used to ensure any final sort / pruning operation is done when all SQAccelerators are finished. If you are passing this into multiple accelerators
@@ -70,10 +143,7 @@ namespace ChaosInterface
 			, bHasBlockingHit(false)
 			, bSingleResult(bSingle)
 		{
-			if (!bSingle)
-			{
-				Hits.Reserve(512);
-			}
+			Hits.Reserve(bSingleResult ? 1 : 512);
 		}
 
 		virtual ~FSQHitBuffer() {}
@@ -117,6 +187,9 @@ namespace ChaosInterface
 		/** Does not do any distance verification. This is up to the SQ code to manage */
 		void InsertHit(const HitType& Hit, bool bBlocking)
 		{
+			// Useful place to break when debugging, but breakpoints can't be set here, as
+			// this gets inlined even in a debug build.
+			//__debugbreak(); 
 			if (bBlocking)
 			{
 				SetBlockingHit(Hit);
@@ -133,18 +206,7 @@ namespace ChaosInterface
 
 		void FinishQuery()
 		{
-			//todo: sort
-			//Hits.Sort();
-			if (bHasBlockingHit)
-			{
-				//remove any touches that are past the blocking hit
-				/*for (int32 HitIdx = Hits.Num() - 1; HitIdx >= 0; --HitIdx)
-				{
-					if(Hits[HitIdx])
-				}*/
-				//always put blocking hit in the back
-				Hits.Add(CurrentBlockingHit);
-			}
+			FinishQueryHelper(Hits, CurrentBlockingHit, bHasBlockingHit);
 		}
 
 		HitType CurrentBlockingHit;
@@ -165,5 +227,3 @@ namespace ChaosInterface
 	};
 
 }
-
-#endif

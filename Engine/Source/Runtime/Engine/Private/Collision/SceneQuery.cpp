@@ -25,10 +25,8 @@ float DebugLineLifetime = 2.f;
 #include "PhysicsEngine/PhysXSupport.h"
 #include "PhysicsEngine/CollisionAnalyzerCapture.h"
 
-#if INCLUDE_CHAOS
 #include "ChaosSolversModule.h"
 #include "Physics/Experimental/ChaosInterfaceWrapper.h"
-#endif
 
 CSV_DEFINE_CATEGORY(SceneQuery, false);
 
@@ -118,9 +116,9 @@ struct FRaycastSQAdditionalInputs
 	}
 };
 
-void LowLevelRaycast(FPhysScene& Scene, const FVector& Start, const FVector& Dir, float DeltaMag, FPhysicsHitCallback<FHitRaycast>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback);
-void LowLevelSweep(FPhysScene& Scene, const FPhysicsGeometry& Geom, const FTransform& StartTM, const FVector& Dir, float DeltaMag, FPhysicsHitCallback<FHitSweep>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback);
-void LowLevelOverlap(FPhysScene& Scene, const FPhysicsGeometry& Geom, const FTransform& GeomPose, FPhysicsHitCallback<FHitOverlap>& HitBuffer, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback);
+void LowLevelRaycast(FPhysScene& Scene, const FVector& Start, const FVector& Dir, float DeltaMag, FPhysicsHitCallback<FHitRaycast>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const FQueryDebugParams& DebugParams);
+void LowLevelSweep(FPhysScene& Scene, const FPhysicsGeometry& Geom, const FTransform& StartTM, const FVector& Dir, float DeltaMag, FPhysicsHitCallback<FHitSweep>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const FQueryDebugParams& DebugParams);
+void LowLevelOverlap(FPhysScene& Scene, const FPhysicsGeometry& Geom, const FTransform& GeomPose, FPhysicsHitCallback<FHitOverlap>& HitBuffer, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const FQueryDebugParams& DebugParams);
 
 template <typename InHitType, ESweepOrRay InGeometryQuery, ESingleMultiOrTest InSingleMultiOrTest>
 struct TSQTraits
@@ -164,7 +162,11 @@ struct TSQTraits
 	static typename TEnableIf<T == ESweepOrRay::Raycast, void>::Type SceneTrace(FPhysScene& Scene, const TGeomInputs& GeomInputs, const FVector& Dir, float DeltaMag, const FTransform& StartTM, THitBuffer& HitBuffer, EHitFlags OutputFlags, EQueryFlags QueryFlags, const FCollisionFilterData& FilterData, const FCollisionQueryParams& Params, ICollisionQueryFilterCallbackBase* QueryCallback)
 	{
 		FQueryFilterData QueryFilterData = MakeQueryFilterData(FilterData, QueryFlags, Params);
-		LowLevelRaycast(Scene, StartTM.GetLocation(), Dir, DeltaMag, HitBuffer, OutputFlags, QueryFlags, FilterData, QueryFilterData, QueryCallback);	//todo(ocohen): namespace?
+		FQueryDebugParams DebugParams;
+#if !(UE_BUILD_TEST || UE_BUILD_SHIPPING) && WITH_CHAOS
+		DebugParams.bDebugQuery = Params.bDebugQuery;
+#endif
+		LowLevelRaycast(Scene, StartTM.GetLocation(), Dir, DeltaMag, HitBuffer, OutputFlags, QueryFlags, FilterData, QueryFilterData, QueryCallback, DebugParams);	//todo(ocohen): namespace?
 	}
 
 	//SceneTrace - sweep
@@ -172,7 +174,11 @@ struct TSQTraits
 	static typename TEnableIf<T == ESweepOrRay::Sweep, void>::Type SceneTrace(FPhysScene& Scene, const TGeomInputs& GeomInputs, const FVector& Dir, float DeltaMag, const FTransform& StartTM, THitBuffer& HitBuffer, EHitFlags OutputFlags, EQueryFlags QueryFlags, const FCollisionFilterData& FilterData, const FCollisionQueryParams& Params, ICollisionQueryFilterCallbackBase* QueryCallback)
 	{
 		FQueryFilterData QueryFilterData = MakeQueryFilterData(FilterData, QueryFlags, Params);
-		LowLevelSweep(Scene, *GeomInputs.GetGeometry(), StartTM, Dir, DeltaMag, HitBuffer, OutputFlags, QueryFlags, FilterData, QueryFilterData, QueryCallback);	//todo(ocohen): namespace?
+		FQueryDebugParams DebugParams;
+#if !(UE_BUILD_TEST || UE_BUILD_SHIPPING) && WITH_CHAOS
+		DebugParams.bDebugQuery = Params.bDebugQuery;
+#endif
+		LowLevelSweep(Scene, *GeomInputs.GetGeometry(), StartTM, Dir, DeltaMag, HitBuffer, OutputFlags, QueryFlags, FilterData, QueryFilterData, QueryCallback, DebugParams);	//todo(ocohen): namespace?
 	}
 
 	static void ResetOutHits(TArray<FHitResult>& OutHits, const FVector& Start, const FVector& End)
@@ -303,7 +309,6 @@ struct TSQTraits
 	constexpr static bool IsSweep() { return GeometryQuery == ESweepOrRay::Sweep;  }
 };
 
-#if INCLUDE_CHAOS
 struct FScopeHelper
 {
 	FScopeHelper()
@@ -325,7 +330,6 @@ struct FScopeHelper
 	}
 	FRWLock* MLock;
 };
-#endif
 
 template <typename Traits, typename TGeomInputs>
 bool TSceneCastCommon(const UWorld* World, typename Traits::TOutHits& OutHits, const TGeomInputs& GeomInputs, const FVector Start, const FVector End, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams)
@@ -373,10 +377,7 @@ bool TSceneCastCommon(const UWorld* World, typename Traits::TOutHits& OutHits, c
 		// Enable scene locks, in case they are required
 		FPhysScene& PhysScene = *World->GetPhysicsScene();
 		
-		
-#if INCLUDE_CHAOS
 		FScopeHelper ChaosLockedScope;
-#endif
 
 		FScopedSceneReadLock SceneLocks(PhysScene);
 		{
@@ -569,7 +570,7 @@ bool GeomOverlapMultiImp(const UWorld* World, const FPhysicsGeometry& Geom, cons
 				FScopedSQHitchRepeater<TRemoveReference<decltype(OverlapBuffer)>::Type> HitchRepeater(OverlapBuffer, QueryCallback, FHitchDetectionInfo(GeomPose, TraceChannel, Params));
 				do
 				{
-					LowLevelOverlap(PhysScene, Geom, GeomPose, HitchRepeater.GetBuffer(), QueryFlags, Filter, MakeQueryFilterData(Filter, QueryFlags, Params), &QueryCallback);
+					LowLevelOverlap(PhysScene, Geom, GeomPose, HitchRepeater.GetBuffer(), QueryFlags, Filter, MakeQueryFilterData(Filter, QueryFlags, Params), &QueryCallback, FQueryDebugParams());
 				} while(HitchRepeater.RepeatOnHitch());
 
 				if(GetHasBlock(OverlapBuffer) && InfoType != EQueryInfo::GatherAll)	//just want true or false so don't bother gathering info
@@ -623,12 +624,8 @@ bool FGenericPhysicsInterface::GeomOverlapBlockingTest(const UWorld* World, cons
 
 	TArray<FOverlapResult> Overlaps;	//needed only for template shared code
 	FTransform GeomTransform(Rot, Pos);
-#if WITH_PHYSX && !WITH_CHAOS_NEEDS_TO_BE_FIXED
-	FPhysXShapeAdapter Adaptor(GeomTransform.GetRotation(), CollisionShape);
+	FPhysicsShapeAdapter Adaptor(GeomTransform.GetRotation(), CollisionShape);
 	return GeomOverlapMultiImp<EQueryInfo::IsBlocking>(World, Adaptor.GetGeometry(), CollisionShape, Adaptor.GetGeomPose(GeomTransform.GetTranslation()), Overlaps, TraceChannel, Params, ResponseParams, ObjectParams);
-#else
-	return false;
-#endif
 }
 
 bool FGenericPhysicsInterface::GeomOverlapAnyTest(const UWorld* World, const struct FCollisionShape& CollisionShape, const FVector& Pos, const FQuat& Rot, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams)
@@ -639,12 +636,8 @@ bool FGenericPhysicsInterface::GeomOverlapAnyTest(const UWorld* World, const str
 
 	TArray<FOverlapResult> Overlaps;	//needed only for template shared code
 	FTransform GeomTransform(Rot, Pos);
-#if WITH_PHYSX && !WITH_CHAOS_NEEDS_TO_BE_FIXED
-	FPhysXShapeAdapter Adaptor(GeomTransform.GetRotation(), CollisionShape);
+	FPhysicsShapeAdapter Adaptor(GeomTransform.GetRotation(), CollisionShape);
 	return GeomOverlapMultiImp<EQueryInfo::GatherAll>(World, Adaptor.GetGeometry(), CollisionShape, Adaptor.GetGeomPose(GeomTransform.GetTranslation()), Overlaps, TraceChannel, Params, ResponseParams, ObjectParams);
-#else
-	return false;
-#endif
 }
 
 template<>
@@ -654,12 +647,8 @@ bool FGenericPhysicsInterface::GeomOverlapMulti(const UWorld* World, const FPhys
 	SCOPE_CYCLE_COUNTER(STAT_Collision_GeomOverlapMultiple);
 	CSV_SCOPED_TIMING_STAT(SceneQuery, GeomOverlapMultiple);
 
-#if WITH_PHYSX && !WITH_CHAOS_NEEDS_TO_BE_FIXED
 	FTransform GeomTransform(InRotation, InPosition);
 	return GeomOverlapMultiImp<EQueryInfo::GatherAll>(World, InGeom.GetGeometry(), InGeom, GeomTransform, OutOverlaps, TraceChannel, Params, ResponseParams, ObjectParams);
-#else
-	return false;
-#endif
 }
 
 template<>
@@ -670,10 +659,6 @@ bool FGenericPhysicsInterface::GeomOverlapMulti(const UWorld* World, const FColl
 	CSV_SCOPED_TIMING_STAT(SceneQuery, GeomOverlapMultiple);
 
 	FTransform GeomTransform(InRotation, InPosition);
-#if WITH_PHYSX && !WITH_CHAOS_NEEDS_TO_BE_FIXED
-	FPhysXShapeAdapter Adaptor(GeomTransform.GetRotation(), InGeom);
+	FPhysicsShapeAdapter Adaptor(GeomTransform.GetRotation(), InGeom);
 	return GeomOverlapMultiImp<EQueryInfo::GatherAll>(World, Adaptor.GetGeometry(), InGeom, Adaptor.GetGeomPose(GeomTransform.GetTranslation()), OutOverlaps, TraceChannel, Params, ResponseParams, ObjectParams);
-#else
-	return false;
-#endif
 }

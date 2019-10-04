@@ -80,6 +80,7 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UNiagaraComponent* InComponent)
 	, bIsTransformDirty(true)
 	, bNeedsFinalize(false)
 	, bDataInterfacesInitialized(false)
+	, bAlreadyBound(false)
 	, bAsyncWorkInProgress(false)
 	, CachedDeltaSeconds(0.0f)
 	, RequestedExecutionState(ENiagaraExecutionState::Complete)
@@ -160,6 +161,7 @@ void FNiagaraSystemInstance::Init(bool bInForceSolo)
 	bForceSolo = bInForceSolo;
 	ActualExecutionState = ENiagaraExecutionState::Inactive;
 	RequestedExecutionState = ENiagaraExecutionState::Inactive;
+	bAlreadyBound = false;
 
 	//InstanceParameters = GetSystem()->GetInstanceParameters();
 	// In order to get user data interface parameters in the component to work properly,
@@ -534,7 +536,7 @@ void FNiagaraSystemInstance::Complete()
 
 	DestroyDataInterfaceInstanceData();
 
-	UnbindParameters();
+	UnbindParameters(true);
 
 	bPendingSpawn = false;
 
@@ -827,6 +829,8 @@ void FNiagaraSystemInstance::ReInitInternal()
 	LocalBounds = FBox(FVector::ZeroVector, FVector::ZeroVector);
 	CachedDeltaSeconds = 0.0f;
 
+	bAlreadyBound = false;
+
 	FastPathIntUserParameterInputBindings.Empty();
 	FastPathFloatUserParameterInputBindings.Empty();
 	FastPathIntUpdateRangedInputBindings.Empty();
@@ -881,6 +885,7 @@ void FNiagaraSystemInstance::ReInitInternal()
 	InstanceParameters = SystemCompiledData.InstanceParamStore;
 	const TArray<FNiagaraVariable>& NumParticleVars = SystemCompiledData.NumParticleVars;
 	const TArray<FNiagaraVariable>& TotalSpawnedParticlesVars = SystemCompiledData.TotalSpawnedParticlesVars;
+	const TArray<FNiagaraVariable>& SpawnCountScaleVars = SystemCompiledData.SpawnCountScaleVars;
 
 	// Make sure all parameters are added before initializing the bindings, otherwise parameter store layout changes might invalidate the bindings.
 	OwnerPositionParam.Init(InstanceParameters, SYS_PARAM_ENGINE_POSITION);
@@ -925,6 +930,12 @@ void FNiagaraSystemInstance::ReInitInternal()
 	for (int32 i = 0; i < TotalSpawnedParticlesVars.Num(); i++)
 	{
 		ParameterTotalSpawnedParticlesBindings[i].Init(InstanceParameters, TotalSpawnedParticlesVars[i]);
+	}
+
+	ParameterSpawnCountScaleBindings.SetNum(SpawnCountScaleVars.Num());
+	for (int32 i = 0; i < SpawnCountScaleVars.Num(); i++)
+	{
+		ParameterSpawnCountScaleBindings[i].Init(InstanceParameters, SpawnCountScaleVars[i]);
 	}
 
 	// rebind now after all parameters have been added
@@ -997,7 +1008,11 @@ void FNiagaraSystemInstance::BindParameters()
 		return;
 	}
 
-	Component->GetOverrideParameters().Bind(&InstanceParameters);
+	if (!bAlreadyBound)
+	{
+		// NOTE: We don't rebind if it's already bound to improve reset times.
+		Component->GetOverrideParameters().Bind(&InstanceParameters); 
+	}
 
 	if (SystemSimulation->GetIsSolo())
 	{
@@ -1006,27 +1021,20 @@ void FNiagaraSystemInstance::BindParameters()
 		Component->GetOverrideParameters().Bind(&SystemSimulation->GetSpawnExecutionContext().Parameters);
 		Component->GetOverrideParameters().Bind(&SystemSimulation->GetUpdateExecutionContext().Parameters);
 	}
-	else 
-	{
-		// If this simulation is not solo than we have bind the source system parameters to the system simulation contexts so that
-		// the system and emitter scripts use the default shared data interfaces.
-		GetSystem()->GetExposedParameters().Bind(&SystemSimulation->GetSpawnExecutionContext().Parameters);
-		GetSystem()->GetExposedParameters().Bind(&SystemSimulation->GetUpdateExecutionContext().Parameters);
-	}
 
 	for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Simulation : Emitters)
 	{
-		Simulation->BindParameters();
+		Simulation->BindParameters(bAlreadyBound);
 	}
+
+	bAlreadyBound = true;
 }
 
-void FNiagaraSystemInstance::UnbindParameters()
+void FNiagaraSystemInstance::UnbindParameters(bool bFromComplete)
 {
-	//TODO: Split unbind into internal and external.
-	//We need to unbind from external sources when we complete but internal can stay bound to improve reset times.
-
-	if (Component)
+	if (Component && !bFromComplete)
 	{
+		// NOTE: We don't unbind this on complete to improve reset times.
 		Component->GetOverrideParameters().Unbind(&InstanceParameters);
 	}
 
@@ -1040,20 +1048,12 @@ void FNiagaraSystemInstance::UnbindParameters()
 				Component->GetOverrideParameters().Unbind(&SystemSimulation->GetUpdateExecutionContext().Parameters);
 			}
 		}
-		else 
-		{
-			UNiagaraSystem* System = GetSystem();
-			if (System)
-			{
-				System->GetExposedParameters().Unbind(&SystemSimulation->GetSpawnExecutionContext().Parameters);
-				System->GetExposedParameters().Unbind(&SystemSimulation->GetSpawnExecutionContext().Parameters);
-			}
-		}
 	}
 
+	bAlreadyBound = bFromComplete && bAlreadyBound;
 	for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Simulation : Emitters)
 	{
-		Simulation->UnbindParameters();
+		Simulation->UnbindParameters(bFromComplete);
 	}
 }
 
@@ -1377,6 +1377,8 @@ ETickingGroup FNiagaraSystemInstance::CalculateTickGroup()
 
 void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSeconds)
 {
+	static const auto EffectsQualityLevelCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("sg.EffectsQuality"));
+
 	if (!Component)
 	{
 		return;
@@ -1404,6 +1406,8 @@ void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSecond
 	GatheredInstanceParameters.Age = Age;
 	GatheredInstanceParameters.TickCount = TickCount;
 
+	int EffectsQualityLevel = EffectsQualityLevelCVar->GetInt();
+
 	GatheredInstanceParameters.NumAlive = 0;
 	for (int32 i = 0; i < Emitters.Num(); ++i)
 	{
@@ -1412,6 +1416,7 @@ void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSecond
 		{
 			GatheredInstanceParameters.EmitterNumParticles[i] = Emitter->GetNumParticles();
 			GatheredInstanceParameters.EmitterTotalSpawnedParticles[i] = Emitter->GetTotalSpawnedParticles();
+			GatheredInstanceParameters.EmitterSpawnCountScale[i] = Emitter->GetSpawnCountScale(EffectsQualityLevel);
 			if (!Emitter->IsComplete())
 			{
 				GatheredInstanceParameters.NumAlive++;
@@ -1475,6 +1480,7 @@ void FNiagaraSystemInstance::TickInstanceParameters_Concurrent()
 		{
 			ParameterNumParticleBindings[i].SetValue(GatheredInstanceParameters.EmitterNumParticles[i]);
 			ParameterTotalSpawnedParticlesBindings[i].SetValue(GatheredInstanceParameters.EmitterTotalSpawnedParticles[i]);
+			ParameterSpawnCountScaleBindings[i].SetValue(GatheredInstanceParameters.EmitterSpawnCountScale[i]);
 		}
 	}
 
@@ -1577,31 +1583,30 @@ void FNiagaraSystemInstance::InitEmitters()
 
 	LocalBounds = FBox(FVector::ZeroVector, FVector::ZeroVector);
 
-	Emitters.Empty();
+	Emitters.Empty(false);
 	UNiagaraSystem* System = GetSystem();
 	if (System != nullptr)
 	{
 		const TArray<FNiagaraEmitterHandle>& EmitterHandles = System->GetEmitterHandles();
-		for (int32 EmitterIdx=0; EmitterIdx < System->GetEmitterHandles().Num(); ++EmitterIdx)
+		Emitters.Reserve(EmitterHandles.Num());
+		for (int32 EmitterIdx = 0; EmitterIdx < System->GetEmitterHandles().Num(); ++EmitterIdx)
 		{
+			TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Sim = MakeShared<FNiagaraEmitterInstance, ESPMode::ThreadSafe>(this);
+			Sim->Init(EmitterIdx, ID);
+			if (System->bFixedBounds)
 			{
-				TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Sim = MakeShared<FNiagaraEmitterInstance, ESPMode::ThreadSafe>(this);
-				Sim->Init(EmitterIdx, ID);
-				if (System->bFixedBounds)
-				{
-					Sim->SetSystemFixedBoundsOverride(System->GetFixedBounds());
-				}
-				Emitters.Add(Sim);
+				Sim->SetSystemFixedBoundsOverride(System->GetFixedBounds());
 			}
+			Emitters.Add(Sim);
 		}
 
-		for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Simulation : Emitters)
+		for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& Simulation : Emitters)
 		{
-			if (Simulation->GetCachedEmitter() != nullptr)
+			FNiagaraEmitterInstance& Inst = Simulation.Get();
+			if (Inst.GetCachedEmitter() != nullptr)
 			{
-				bHasGPUEmitters |= Simulation->GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim;
-
-				Simulation->PostInitSimulation();
+				bHasGPUEmitters |= Inst.GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim;
+				Inst.PostInitSimulation();
 			}
 		}
 

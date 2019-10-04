@@ -551,8 +551,8 @@ FStripDataFlags::FStripDataFlags(FStructuredArchive::FSlot Slot, uint8 InClassFl
 			GlobalStripFlags |= UnderlyingArchive.CookingTarget()->IsServerOnly() ? FStripDataFlags::Server : FStripDataFlags::None;
 			ClassStripFlags = InClassFlags;
 		}
-		Record << NAMED_FIELD(GlobalStripFlags);
-		Record << NAMED_FIELD(ClassStripFlags);
+		Record << SA_VALUE(TEXT("GlobalStripFlags"), GlobalStripFlags);
+		Record << SA_VALUE(TEXT("ClassStripFlags"), ClassStripFlags);
 	}
 }
 
@@ -572,8 +572,8 @@ FStripDataFlags::FStripDataFlags(FStructuredArchive::FSlot Slot, uint8 InGlobalF
 			GlobalStripFlags = InGlobalFlags;
 			ClassStripFlags = InClassFlags;
 		}
-		Record << NAMED_FIELD(GlobalStripFlags);
-		Record << NAMED_FIELD(ClassStripFlags);
+		Record << SA_VALUE(TEXT("GlobalStripFlags"), GlobalStripFlags);
+		Record << SA_VALUE(TEXT("ClassStripFlags"), ClassStripFlags);
 	}
 }
 

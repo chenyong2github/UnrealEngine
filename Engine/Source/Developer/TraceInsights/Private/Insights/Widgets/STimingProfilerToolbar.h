@@ -4,10 +4,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Styling/SlateTypes.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 class SBorder;
+class FToolBarBuilder;
 
 /** Ribbon based toolbar used as a main menu in the Profiler window. */
 class STimingProfilerToolbar : public SCompoundWidget
@@ -30,26 +32,14 @@ public:
 	 */
 	void Construct( const FArguments& InArgs );
 
-	bool IsImplemented() const { return false; }
-	bool IsShowingStats() const { return true; }
-	bool IsShowingMemory() const { return false; }
-
-protected:
-	/** Called when the list of sessions has changed. @see FProfilerManager.FOnSessionsUpdated */
-	void ProfilerManager_SessionsUpdated();
-
+private:
 	/** Create the UI commands for the toolbar */
 	void CreateCommands();
 
-	/** Shows the stats profiler */
-	void ShowStats();
-
-	/** Shows the memory profiler */
-	void ShowMemory();
-
-	/** Shows the FPSChart view */
-	void ShowFPSChart();
-
-protected:
-	TSharedPtr<SBorder> Border;
+	bool ToggleModule_CanExecute(FName ModuleName) const;
+	void ToggleModule_Execute(FName ModuleName);
+	bool ToggleModule_IsChecked(FName ModuleName) const;
+	ECheckBoxState ToggleModule_IsChecked2(FName ModuleName) const;
+	void ToggleModule_OnCheckStateChanged(ECheckBoxState NewRadioState, FName ModuleName);
+	void FillModulesToolbar(FToolBarBuilder& ToolbarBuilder);
 };

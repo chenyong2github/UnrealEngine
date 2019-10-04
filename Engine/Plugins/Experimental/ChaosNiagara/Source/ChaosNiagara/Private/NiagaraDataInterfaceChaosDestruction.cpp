@@ -20,8 +20,8 @@
 //#pragma optimize("", off)
 
 DECLARE_CYCLE_STAT(TEXT("CollisionCallback"), STAT_CollisionCallback, STATGROUP_Niagara);
-DECLARE_CYCLE_STAT(TEXT("TrailingCallback"), STAT_TrailingCallback, STATGROUP_Niagara);
-DECLARE_CYCLE_STAT(TEXT("BreakingCallback"), STAT_BreakingCallback, STATGROUP_Niagara);
+DECLARE_CYCLE_STAT(TEXT("TrailingCallback"), STAT_NiagaraTrailingCallback, STATGROUP_Niagara);
+DECLARE_CYCLE_STAT(TEXT("BreakingCallback"), STAT_NiagaraBreakingCallback, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("CollisionCallbackSorting"), STAT_CollisionCallbackSorting, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("BreakingCallbackSorting"), STAT_BreakingCallbackSorting, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("TrailingCallbackSorting"), STAT_TrailingCallbackSorting, STATGROUP_Niagara);
@@ -140,9 +140,7 @@ UNiagaraDataInterfaceChaosDestruction::UNiagaraDataInterfaceChaosDestruction(FOb
 	ColorArray.Add({ 154.0 / 255.0, 205.0 / 255.0, 50.0 / 255.0 }); // Yellow green
 	ColorArray.Add({ 127.0 / 255.0, 255.0 / 255.0, 212.0 / 255.0 }); // Aqua marine
 
-#if INCLUDE_CHAOS
 	Solvers.Reset();
-#endif
 
 	Proxy = MakeShared<FNiagaraDataInterfaceProxyChaosDestruction, ESPMode::ThreadSafe>();
 	PushToRenderThread();
@@ -173,10 +171,14 @@ void UNiagaraDataInterfaceChaosDestruction::PostLoad()
 	TimeStampOfLastProcessedData = -1.f;
 
 #if WITH_CHAOS
-	FPhysScene* Scene = GetWorld()->GetPhysicsScene();
-	Scene->RegisterEventHandler<Chaos::FCollisionEventData>(Chaos::EEventType::Collision, this, &UNiagaraDataInterfaceChaosDestruction::HandleCollisionEvents);
-	Scene->RegisterEventHandler<Chaos::FBreakingEventData>(Chaos::EEventType::Breaking, this, &UNiagaraDataInterfaceChaosDestruction::HandleBreakingEvents);
-	Scene->RegisterEventHandler<Chaos::FTrailingEventData>(Chaos::EEventType::Trailing, this, &UNiagaraDataInterfaceChaosDestruction::HandleTrailingEvents);
+	if (GetWorld() && GetWorld()->GetPhysicsScene())
+	{
+		FPhysScene* Scene = GetWorld()->GetPhysicsScene();
+		Chaos::FEventManager* EventManager = Scene->GetScene().GetSolver()->GetEventManager();
+		EventManager->RegisterHandler<Chaos::FCollisionEventData>(Chaos::EEventType::Collision, this, &UNiagaraDataInterfaceChaosDestruction::HandleCollisionEvents);
+		EventManager->RegisterHandler<Chaos::FBreakingEventData>(Chaos::EEventType::Breaking, this, &UNiagaraDataInterfaceChaosDestruction::HandleBreakingEvents);
+		EventManager->RegisterHandler<Chaos::FTrailingEventData>(Chaos::EEventType::Trailing, this, &UNiagaraDataInterfaceChaosDestruction::HandleTrailingEvents);
+	}
 #endif
 
 	PushToRenderThread();
@@ -187,15 +189,13 @@ void UNiagaraDataInterfaceChaosDestruction::BeginDestroy()
 	Super::BeginDestroy();
 
 #if WITH_CHAOS
-	if (GetWorld())
+	if (GetWorld() && GetWorld()->GetPhysicsScene())
 	{
 		FPhysScene* Scene = GetWorld()->GetPhysicsScene();
-		if (Scene)
-		{
-			Scene->UnregisterEventHandler(Chaos::EEventType::Collision, this);
-			Scene->UnregisterEventHandler(Chaos::EEventType::Breaking, this);
-			Scene->UnregisterEventHandler(Chaos::EEventType::Trailing, this);
-		}
+		Chaos::FEventManager* EventManager = Scene->GetScene().GetSolver()->GetEventManager();
+		EventManager->UnregisterHandler(Chaos::EEventType::Collision, this);
+		EventManager->UnregisterHandler(Chaos::EEventType::Breaking, this);
+		EventManager->UnregisterHandler(Chaos::EEventType::Trailing, this);
 	}
 #endif
 }
@@ -437,10 +437,10 @@ bool UNiagaraDataInterfaceChaosDestruction::InitPerInstanceData(void* PerInstanc
 	LastSpawnTime = -1.0f;
 	TimeStampOfLastProcessedData = -1.f;
 
-#if INCLUDE_CHAOS
 	// If there is no SolverActor specified need to grab the WorldSolver
 	if (ChaosSolverActorSet.Num() == 0)
 	{
+#if INCLUDE_CHAOS
 		if (SystemInstance)
 		{
 			if (UNiagaraComponent* NiagaraComponent = SystemInstance->GetComponent())
@@ -455,6 +455,7 @@ bool UNiagaraDataInterfaceChaosDestruction::InitPerInstanceData(void* PerInstanc
 				}
 			}
 		}
+#endif
 	}
 	else
 	{
@@ -484,8 +485,6 @@ bool UNiagaraDataInterfaceChaosDestruction::InitPerInstanceData(void* PerInstanc
 	}
 	);
 
-#endif
-
 	return true;
 }
 
@@ -504,7 +503,6 @@ void UNiagaraDataInterfaceChaosDestruction::DestroyPerInstanceData(void* PerInst
 	);
 }
 
-#if INCLUDE_CHAOS
 void GetMeshExtData(FSolverData SolverData,
 					const int32 ParticleIndex,
 					const TArray<PhysicsProxyWrapper>& PhysicsProxyReverseMapping,
@@ -679,9 +677,6 @@ void GetMesPhysicalData(FSolverData SolverData,
 		}
 	}
 }
-#endif
-
-#if INCLUDE_CHAOS
 
 void UNiagaraDataInterfaceChaosDestruction::HandleCollisionEvents(const Chaos::FCollisionEventData& Event)
 {
@@ -2141,11 +2136,9 @@ void UNiagaraDataInterfaceChaosDestruction::ResetInstData(FNDIChaosDestruction_I
 	InstData->TransformScaleArray.Reset();
 	InstData->BoundsArray.Reset();
 }
-#endif
 
 bool UNiagaraDataInterfaceChaosDestruction::PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
 {
-#if INCLUDE_CHAOS
 	check(SystemInstance);
 	FNDIChaosDestruction_InstanceData* InstData = (FNDIChaosDestruction_InstanceData*)PerInstanceData;
 
@@ -2180,17 +2173,15 @@ bool UNiagaraDataInterfaceChaosDestruction::PerInstanceTick(void* PerInstanceDat
 		}
 		else if (DataSourceType == EDataSourceTypeEnum::ChaosNiagara_DataSourceType_Breaking)
 		{
-			SCOPE_CYCLE_COUNTER(STAT_BreakingCallback);
+			SCOPE_CYCLE_COUNTER(STAT_NiagaraBreakingCallback);
 			return BreakingCallback(InstData);
 		}
 		else if (DataSourceType == EDataSourceTypeEnum::ChaosNiagara_DataSourceType_Trailing)
 		{
-			SCOPE_CYCLE_COUNTER(STAT_TrailingCallback);
+			SCOPE_CYCLE_COUNTER(STAT_NiagaraTrailingCallback);
 			return TrailingCallback(InstData);
 		}
 	}
-
-#endif
 
 	return false;
 }

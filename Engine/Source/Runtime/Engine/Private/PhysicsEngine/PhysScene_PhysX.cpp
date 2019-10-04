@@ -24,9 +24,7 @@
 #include "PhysicsInterfaceDeclaresCore.h"
 #if !WITH_CHAOS_NEEDS_TO_BE_FIXED
 
-#if INCLUDE_CHAOS
 #include "SQAccelerator.h"
-#endif
 
 #if WITH_PHYSX
 #include "PhysXPublic.h"
@@ -2249,8 +2247,9 @@ void ListAwakeRigidBodiesFromScene(bool bIncludeKinematic, PxScene* PhysXScene, 
 void FPhysScene_PhysX::SerializeForTesting(FArchive& Ar)
 {
 	FPhysTestSerializer Serializer;
+	Chaos::FChaosArchive ChaosAr(Ar);
 	Serializer.SetPhysicsData(*GetPxScene());
-	Serializer.Serialize(Ar);
+	Serializer.Serialize(ChaosAr);
 }
 #endif // WITH_PHYSX
 

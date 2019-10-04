@@ -2,7 +2,6 @@
 #pragma once
 
 #include "Chaos/PBDCollisionConstraint.h"
-#include "Chaos/PBDRigidClustering.h"
 #include "Chaos/PBDCollisionTypes.h"
 
 namespace Chaos

@@ -300,6 +300,16 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 	UpdatePrimitiveIndirectLightingCacheBuffers();
 	
 	OnStartRender(RHICmdList);
+
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
+
+		for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
+		{
+			Extension->PrepareView(&Views[ViewIndex]);
+		}
+	}
 }
 
 /** 

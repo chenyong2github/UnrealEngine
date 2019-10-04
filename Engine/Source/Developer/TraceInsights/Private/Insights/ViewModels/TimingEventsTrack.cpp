@@ -81,14 +81,17 @@ void FTimingEventsTrackLayout::Update()
 // FTimingEventsTrack
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FTimingEventsTrack::FTimingEventsTrack(uint64 InTrackId, ETimingEventsTrackType InType, const FString& InName, const TCHAR* InGroupName)
+bool FTimingEventsTrack::bUseDownSampling = true;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FTimingEventsTrack::FTimingEventsTrack(uint64 InTrackId, const FName& InType, const FName& InSubType, const FString& InName)
 	: FBaseTimingTrack(InTrackId)
 	, Type(InType)
+	, SubType(InSubType)
 	, Name(InName)
-	, GroupName(InGroupName)
-	, ThreadId(0)
 	, Order(0)
-	, Depth(-1)
+	, NumLanes(0)
 	, bIsCollapsed(false)
 {
 }
@@ -105,7 +108,7 @@ void FTimingEventsTrack::Reset()
 {
 	FBaseTimingTrack::Reset();
 
-	Depth = -1;
+	NumLanes = 0;
 	bIsCollapsed = false;
 }
 

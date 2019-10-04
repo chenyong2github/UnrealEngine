@@ -10,7 +10,6 @@
 #include "UObject/ObjectMacros.h"
 #include "Misc/Guid.h"
 #include "UObject/WeakObjectPtr.h"
-#include "Templates/ScopedPointer.h"
 #include "Misc/PackageName.h"
 #include "Commandlets/Commandlet.h"
 #include "Templates/UniquePtr.h"

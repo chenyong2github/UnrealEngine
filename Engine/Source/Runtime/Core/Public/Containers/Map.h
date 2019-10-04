@@ -1560,7 +1560,7 @@ public:
 				Key,
 				MapLayout.SetLayout,
 				GetKeyHash, // We 'know' that the implementation of Find doesn't call GetKeyHash on anything except Key
-				[KeyEqualityFn, MapLayout](const void* InKey, const void* InPair )
+				[KeyEqualityFn](const void* InKey, const void* InPair )
 				{
 					return KeyEqualityFn(InKey, (uint8*)InPair);
 				}
@@ -1583,7 +1583,7 @@ public:
 		return nullptr;
 	}
 
-	/** Adds the (key, value) pair to the map, returning true if the element was added, or false if the element was already present and has been overwritten */
+	/** Adds the (key, value) pair to the map */
 	void Add(
 		const void* Key,
 		const void* Value,
@@ -1612,6 +1612,34 @@ public:
 				DestructKeyFn((uint8*)NewPair);
 			}
 		);
+	}
+
+	/**
+	 * Constructs a new key-value pair if key didn't exist
+	 *
+	 * No need to rehash after calling. The hash table must be properly hashed before calling.
+	 *
+	 * @return The address to the value, not the pair
+	 **/
+	void* FindOrAdd(
+		const void* Key,
+		const FScriptMapLayout& Layout,
+		TFunctionRef<uint32(const void*)> GetKeyHash,
+		TFunctionRef<bool(const void*, const void*)> KeyEqualityFn,
+		TFunctionRef<void(void*, void*)> ConstructPairFn)
+	{
+		const int32 ValueOffset = Layout.ValueOffset;
+		int32 PairIndex = Pairs.FindOrAdd(
+			Key,
+			Layout.SetLayout,
+			GetKeyHash,
+			KeyEqualityFn,
+			[ConstructPairFn, ValueOffset](void* NewPair)
+			{
+				ConstructPairFn(NewPair, (uint8*)NewPair + ValueOffset);
+			});
+
+		return (uint8*)Pairs.GetData(PairIndex, Layout.SetLayout) + ValueOffset;
 	}
 
 private:
