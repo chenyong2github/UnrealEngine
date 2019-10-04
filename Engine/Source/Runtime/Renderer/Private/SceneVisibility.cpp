@@ -2290,11 +2290,26 @@ struct FRelevancePacket
 								}
 #endif
 
-								if (ViewRelevance.bVelocityRelevance
-									&& FVelocityRendering::PrimitiveHasVelocity(View.GetFeatureLevel(), PrimitiveSceneInfo)
-									&& FVelocityRendering::PrimitiveHasVelocityForView(View, Bounds.BoxSphereBounds, PrimitiveSceneInfo))
+								if (ViewRelevance.HasVelocity())
 								{
-									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::Velocity);
+									const FPrimitiveSceneProxy* PrimitiveSceneProxy = PrimitiveSceneInfo->Proxy;
+
+									if (FVelocityMeshProcessor::PrimitiveHasVelocityForView(View, PrimitiveSceneProxy))
+									{
+										if (ViewRelevance.bVelocityRelevance &&
+											FOpaqueVelocityMeshProcessor::PrimitiveCanHaveVelocity(View.GetShaderPlatform(), PrimitiveSceneProxy) &&
+											FOpaqueVelocityMeshProcessor::PrimitiveHasVelocityForFrame(PrimitiveSceneProxy))
+										{
+											DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::Velocity);
+										}
+
+										if (ViewRelevance.bTranslucentVelocityRelevance &&
+											FTranslucentVelocityMeshProcessor::PrimitiveCanHaveVelocity(View.GetShaderPlatform(), PrimitiveSceneProxy) &&
+											FTranslucentVelocityMeshProcessor::PrimitiveHasVelocityForFrame(PrimitiveSceneProxy))
+										{
+											DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::TranslucentVelocity);
+										}
+									}
 								}
 
 								++NumVisibleStaticMeshElements;
@@ -2709,19 +2724,23 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 			}
 #endif
 
-			if (ViewRelevance.bVelocityRelevance
-				&& FVelocityRendering::PrimitiveHasVelocity(View.GetFeatureLevel(), PrimitiveSceneInfo)
-				&& FVelocityRendering::PrimitiveHasVelocityForView(View, Bounds.BoxSphereBounds, PrimitiveSceneInfo))
+			if (ViewRelevance.bVelocityRelevance)
 			{
 				PassMask.Set(EMeshPass::Velocity);
 				View.NumVisibleDynamicMeshElements[EMeshPass::Velocity] += NumElements;
 			}
-		}
 
-		if (ViewRelevance.bUsesSingleLayerWaterMaterial)
-		{
-			PassMask.Set(EMeshPass::SingleLayerWaterPass);
-			View.NumVisibleDynamicMeshElements[EMeshPass::SingleLayerWaterPass] += NumElements;
+			if (ViewRelevance.bTranslucentVelocityRelevance)
+			{
+				PassMask.Set(EMeshPass::TranslucentVelocity);
+				View.NumVisibleDynamicMeshElements[EMeshPass::TranslucentVelocity] += NumElements;
+			}
+
+			if (ViewRelevance.bUsesSingleLayerWaterMaterial)
+			{
+				PassMask.Set(EMeshPass::SingleLayerWaterPass);
+				View.NumVisibleDynamicMeshElements[EMeshPass::SingleLayerWaterPass] += NumElements;
+			}
 		}
 	}
 
