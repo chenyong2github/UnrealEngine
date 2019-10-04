@@ -118,26 +118,39 @@ void UMergeMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 	FDynamicMeshOpResult Result = Preview->Shutdown();
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
-		GetToolManager()->BeginUndoTransaction(LOCTEXT("MergeMeshes", "Merge Meshes"));
-
-		GenerateAsset(Result);
-
-		for (auto& ComponentTarget : ComponentTargets)
+		// Generate the result
 		{
-			ComponentTarget->SetOwnerVisibility(true);
-			AActor* Actor = ComponentTarget->GetOwnerActor();
-			if (MergeProps->bDeleteInputActors)
-			{
-				Actor->Destroy();
-			}
-			else
-			{
-				// just hide the result.
-				Actor->SetIsTemporarilyHiddenInEditor(true);
-			}
+			GetToolManager()->BeginUndoTransaction(LOCTEXT("MergeMeshes", "Merge Meshes"));
+
+			GenerateAsset(Result);
+
+			GetToolManager()->EndUndoTransaction();
 		}
 
-		GetToolManager()->EndUndoTransaction();
+		// Hide or destroy the sources
+		{
+			if (MergeProps->bDeleteInputActors) 
+				GetToolManager()->BeginUndoTransaction(LOCTEXT("MergeMeshes", "Remove Sources"));
+			
+			for (auto& ComponentTarget : ComponentTargets)
+			{
+				ComponentTarget->SetOwnerVisibility(true);
+				AActor* Actor = ComponentTarget->GetOwnerActor();
+				if (MergeProps->bDeleteInputActors)
+				{
+					Actor->Destroy();
+				}
+				else
+				{
+					// just hide the result.
+					Actor->SetIsTemporarilyHiddenInEditor(true);
+				}
+			}
+
+			if (MergeProps->bDeleteInputActors) 
+				GetToolManager()->EndUndoTransaction();
+		}
+		
 
 	}
 	else
