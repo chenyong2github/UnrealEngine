@@ -4,10 +4,7 @@
 #pragma warning(disable:4103)
 
 // The 10.0.18362.0 SDK introduces an error if the packing isn't the default for the platform.
-#if PLATFORM_WINDOWS && PLATFORM_32BITS
-	#pragma pack(push)
-	#pragma pack(8)
-#endif
+PRAGMA_PUSH_PLATFORM_DEFAULT_PACKING
 
 // Save these macros for later; Windows redefines them
 #pragma push_macro("MAX_uint8")
