@@ -1,8 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "DynamicMesh3.h"
-
 #pragma once
+
+#include "DynamicMesh3.h"
 
 
 class FDynamicAttributeBase;
