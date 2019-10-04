@@ -7,11 +7,13 @@
 
 class FHairDescription;
 class UGroomAsset;
+class UGroomImportOptions;
 
 struct HAIRSTRANDSEDITOR_API FHairImportContext
 {
-	FHairImportContext(UObject* InParent = nullptr, UClass* InClass = nullptr, FName InName = FName(), EObjectFlags InFlags = EObjectFlags::RF_NoFlags);
+	FHairImportContext(UGroomImportOptions* InImportOptions, UObject* InParent = nullptr, UClass* InClass = nullptr, FName InName = FName(), EObjectFlags InFlags = EObjectFlags::RF_NoFlags);
 
+	UGroomImportOptions* ImportOptions;
 	UObject* Parent;
 	UClass* Class;
 	FName Name;

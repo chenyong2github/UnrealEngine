@@ -11,7 +11,95 @@ Buffer<uint4>  DeformedSimPositionBuffer;
 Buffer<uint4>  Interpolation0Buffer;
 Buffer<uint4>  Interpolation1Buffer;
 
-RWBuffer<uint4>  OutRenderDeformedPositionBuffer;
+float3			OutRenderDeformedPositionCenter; 
+RWBuffer<uint4> OutRenderDeformedPositionBuffer;
+
+#if PERMUTATION_DYNAMIC_GEOMETRY == 1
+
+// Compact all these buffers into 2 buffers: translation + quaternion
+float3			RestPositionWorldCenter;
+Buffer<float4>  RestPosition0Buffer;
+Buffer<float4>  RestPosition1Buffer;
+Buffer<float4>  RestPosition2Buffer;
+
+float3			DeformedPositionWorldCenter;
+Buffer<float4>  DeformedPosition0Buffer;
+Buffer<float4>  DeformedPosition1Buffer;
+Buffer<float4>  DeformedPosition2Buffer;
+
+Buffer<uint>	RootToTriangleIndex;
+Buffer<uint>	VertexToRootIndexBuffer;
+
+#define QUATERNION_IDENTITY float4(0,0,0,1)
+#define SMALL_NUMBER 1e-8
+
+float4 NormalizeQuat(in float4 Quat)
+{
+	float SquaredNorm = dot(Quat, Quat);
+	return (SquaredNorm >= SMALL_NUMBER) ? Quat / sqrt(SquaredNorm) : QUATERNION_IDENTITY;
+}
+
+float4 InverseQuat(in float4 Quat)
+{
+	return float4(-Quat.x, -Quat.y, -Quat.z, Quat.w);
+}
+
+float4 MultiplyQuat(in float4 QuatA, in float4 QuatB)
+{
+	return float4(
+		QuatB.xyz * QuatA.w + QuatA.xyz * QuatB.w + cross(QuatA.xyz, QuatB.xyz),
+		QuatA.w * QuatB.w - dot(QuatA.xyz, QuatB.xyz));
+}
+
+float3 RotateVectorByQuat(in float3 Vector, in float4 Quat)
+{
+	float3 T = 2.0 * cross(Quat.xyz, Vector);
+	return Vector + Quat.w * T + cross(Quat.xyz, T);
+}
+
+float3 UnrotateVectorByQuat(in float3 Vector, in float4 Quat)
+{
+	float3 T = 2.0 * cross(Quat.xyz, Vector);
+	return Vector - Quat.w * T + cross(Quat.xyz, T);
+}
+
+float4 FindQuatBetweenHelper(in float3 A, in float3 B, in float NormAB)
+{
+	float W = NormAB + dot(A, B);
+	float4 Quat = (W > 1e-6*NormAB) ? float4(A.y*B.z - A.z*B.y, A.z*B.x - A.x*B.z, A.x*B.y - A.y*B.x, W) :
+		(abs(A.x) > abs(A.y)) ? float4(-A.z, 0.0, A.x, 0.0) : float4(0.0, -A.z, A.y, 0.0);
+	return NormalizeQuat(Quat);
+}
+
+float4 FindQuatBetweenNormals(in float3 NormalA, in float3 NormalB)
+{
+	float NormAB = 1.0;
+	return FindQuatBetweenHelper(NormalA, NormalB, NormAB);
+}
+
+void GetTriangleTransformation(uint VertexIndex, out float3 T, out float4 Q)
+{
+	const uint RootIndex = VertexToRootIndexBuffer[VertexIndex];
+//	const uint TriangleIndex = RootToTriangleIndex[RootIndex];
+
+	float3 Rest_P1 = RestPosition1Buffer[RootIndex].xyz + RestPositionWorldCenter;
+	float3 Rest_P0 = RestPosition0Buffer[RootIndex].xyz + RestPositionWorldCenter;
+	float3 Rest_P2 = RestPosition2Buffer[RootIndex].xyz + RestPositionWorldCenter;
+	float3 Rest_E0 = Rest_P1 - Rest_P0;
+	float3 Rest_E1 = Rest_P2 - Rest_P0;
+	float3 Rest_N = normalize(cross(Rest_E0, Rest_E1));
+
+	float3 Deformed_P0	= DeformedPosition0Buffer[RootIndex].xyz + DeformedPositionWorldCenter;
+	float3 Deformed_P1	= DeformedPosition1Buffer[RootIndex].xyz + DeformedPositionWorldCenter;
+	float3 Deformed_P2	= DeformedPosition2Buffer[RootIndex].xyz + DeformedPositionWorldCenter;
+	float3 Deformed_E0	= Deformed_P1 - Deformed_P0;
+	float3 Deformed_E1	= Deformed_P2 - Deformed_P0;
+	float3 Deformed_N	= normalize(cross(Deformed_E0, Deformed_E1));
+
+	T = Deformed_P0 - Rest_P0;
+	Q = FindQuatBetweenNormals(Rest_N, Deformed_N);
+}
+#endif
 
 #if PERMUTATION_DEBUG == 1
 Buffer<float4>	 SimAttributeBuffer;
@@ -57,7 +145,18 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 		}
 
-		OutRenderDeformedPositionBuffer[VertexIndex] = float4(f32tof16(ControlPoint + CurrOffset), RenderRestPosePositionBuffer[VertexIndex].w);
+		// Apply dynamic mesh deformation (translation / rotation)
+		// hair_todo: applied the transformation in local space and then rotation everything in global space
+		#if PERMUTATION_DYNAMIC_GEOMETRY == 1
+		{
+			float3 DynTranslation = 0;
+			float4 DynRotation = 0;
+			GetTriangleTransformation(VertexIndex, DynTranslation, DynRotation);
+			CurrOffset += DynTranslation;
+		}
+		#endif	
+
+		OutRenderDeformedPositionBuffer[VertexIndex] = float4(f32tof16(ControlPoint + CurrOffset - OutRenderDeformedPositionCenter), RenderRestPosePositionBuffer[VertexIndex].w);
 
 		#if PERMUTATION_DEBUG == 1
 		{

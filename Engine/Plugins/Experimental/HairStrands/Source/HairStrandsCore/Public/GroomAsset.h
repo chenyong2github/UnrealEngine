@@ -14,11 +14,69 @@
 class UMaterialInterface;
 class UNiagaraSystem;
 
+/* Render buffers for root deformation for dynamic meshes */
+struct FHairStrandsRootResource : public FRenderResource
+{
+	/** Build the hair strands resource */
+	FHairStrandsRootResource(const FHairStrandsDatas* HairStrandsDatas, uint32 LODCount);
+
+	/* Init the buffer */
+	virtual void InitRHI() override;
+
+	/* Release the buffer */
+	virtual void ReleaseRHI() override;
+
+	/* Get the resource name */
+	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsRootResource"); }
+	
+	FRWBuffer RootPositionBuffer;
+	FRWBuffer RootNormalBuffer;
+
+	struct FMeshProjectionLOD
+	{
+		enum class EStatus { Invalid, Initialized, Projected };
+		EStatus Status = EStatus::Invalid;
+		int32 LODIndex = -1;
+
+		/* Triangle on which a root is attached */
+		FRWBuffer RootTriangleIndexBuffer;
+		FRWBuffer RootTriangleBarycentricBuffer;
+	
+		/* Strand hair roots translation and rotation in rest position relative to the bound triangle. Positions are relative to the rest root center */
+		FVector	  RestRootCenter = FVector::ZeroVector;
+		FRWBuffer RestRootTrianglePosition0Buffer;
+		FRWBuffer RestRootTrianglePosition1Buffer;
+		FRWBuffer RestRootTrianglePosition2Buffer;
+
+		/* Strand hair roots translation and rotation in triangle-deformed position relative to the bound triangle. Positions are relative the deformed root center*/
+		FVector   DeformedRootCenter = FVector::ZeroVector;
+		FRWBuffer DeformedRootTrianglePosition0Buffer;
+		FRWBuffer DeformedRootTrianglePosition1Buffer;
+		FRWBuffer DeformedRootTrianglePosition2Buffer;
+	};
+
+	/* Store the hair projection information for each mesh LOD */
+	TArray<FMeshProjectionLOD> MeshProjectionLODs;
+
+	/* Strand hair vertex to curve index */
+	FRWBuffer VertexToCurveIndexBuffer;
+
+	const uint32 RootCount;
+	/* Curve index for every vertices */
+	TArray<FHairStrandsIndexFormat::Type> CurveIndices;
+
+	/* Curve root's positions */
+	TArray<FHairStrandsRootPositionFormat::Type> RootPositions;
+
+	/* Curve root's normal orientation */
+	TArray<FHairStrandsRootNormalFormat::Type> RootNormals;
+};
+
 /* Render buffers that will be used for rendering */
 struct FHairStrandsResource : public FRenderResource
 {
 	/** Build the hair strands resource */
-	FHairStrandsResource(FHairStrandsDatas* HairStrandsDatas);
+	FHairStrandsResource(const FHairStrandsDatas::FRenderData& HairStrandRenderData);
 
 	/* Init the buffer */
 	virtual void InitRHI() override;
@@ -41,14 +99,14 @@ struct FHairStrandsResource : public FRenderResource
 	/* Strand hair offset buffer */
 	FRWBuffer AttributeBuffer;
 
-	/* Pointer to the hair strands datas */
-	FHairStrandsDatas* StrandsDatas;
+	/* Reference to the hair strands render data */
+	const FHairStrandsDatas::FRenderData& RenderData;
 };
 
 struct FHairStrandsInterpolationResource : public FRenderResource
 {
 	/** Build the hair strands resource */
-	FHairStrandsInterpolationResource(const FHairStrandsInterpolationDatas& InterpolationData, const FHairStrandsDatas& SimDatas);
+	FHairStrandsInterpolationResource(const FHairStrandsInterpolationDatas::FRenderData& InterpolationRenderData, const FHairStrandsDatas& SimDatas);
 
 	/* Init the buffer */
 	virtual void InitRHI() override;
@@ -62,20 +120,19 @@ struct FHairStrandsInterpolationResource : public FRenderResource
 	FRWBuffer Interpolation0Buffer;
 	FRWBuffer Interpolation1Buffer;
 
-	/* Store interpolation data until the resource is created */
-	TArray<FHairStrandsInterpolation0Format::Type> Interpolation0;
-	TArray<FHairStrandsInterpolation1Format::Type> Interpolation1;
-
 	// For debug purpose only (should be remove once all hair simulation is correctly handled)
 	FRWBuffer SimRootPointIndexBuffer;
 	TArray<FHairStrandsRootIndexFormat::Type> SimRootPointIndex;
+
+	/* Reference to the hair strands interpolation render data */
+	const FHairStrandsInterpolationDatas::FRenderData& RenderData;
 };
 
 #if RHI_RAYTRACING
 struct FHairStrandsRaytracingResource : public FRenderResource
 {
 	/** Build the hair strands resource */
-	FHairStrandsRaytracingResource(FHairStrandsDatas* HairStrandsDatas);
+	FHairStrandsRaytracingResource(const FHairStrandsDatas& HairStrandsDatas);
 
 	/* Init the buffer */
 	virtual void InitRHI() override;
@@ -93,7 +150,7 @@ struct FHairStrandsRaytracingResource : public FRenderResource
 #endif
 
 USTRUCT(BlueprintType)
-struct HAIRSTRANDSCORE_API FHairGroupRenderSettings
+struct HAIRSTRANDSCORE_API FHairGroupInfo
 {
 	GENERATED_BODY()
 
@@ -103,28 +160,32 @@ struct HAIRSTRANDSCORE_API FHairGroupRenderSettings
 	UPROPERTY(VisibleAnywhere, Category = "Info", meta = (DisplayName = "Curve Count"))
 	int32 NumCurves = 0;
 
-	UPROPERTY(EditAnywhere, Category="Rendering")
-	UMaterialInterface* Material = nullptr;
-};
-
-USTRUCT(BlueprintType)
-struct HAIRSTRANDSCORE_API FHairGroupSimulationSettings
-{
-	GENERATED_BODY()
-
-	UPROPERTY(VisibleAnywhere, Category = "Info")
-	int32 GroupID = 0;
-
-	UPROPERTY(VisibleAnywhere, Category = "Info", meta = (DisplayName = "Curve Count"))
-	int32 NumCurves = 0;
+	UPROPERTY(VisibleAnywhere, Category = "Info", meta = (DisplayName = "Guide Count"))
+	int32 NumGuides = 0;
 
 	UPROPERTY(VisibleAnywhere, Category = "Info", meta = (DisplayName = "Auto-generated Guides", ToolTip = "Checked when guides were auto-generated"))
 	bool bIsAutoGenerated = false;
 
-	UPROPERTY(EditAnywhere, Category="Simulation", meta = (DisplayName = "Niagara System Asset"))
-	UNiagaraSystem* Asset = nullptr;
+	UPROPERTY(EditAnywhere, Category="Rendering")
+	UMaterialInterface* Material = nullptr;
 
-	// Add other physics/simulation settings
+	UPROPERTY(EditAnywhere, Category="Simulation", meta = (DisplayName = "Niagara System Asset"))
+	UNiagaraSystem* NiagaraAsset = nullptr;
+};
+
+struct HAIRSTRANDSCORE_API FHairGroupData
+{
+	FHairStrandsDatas HairRenderData;
+	FHairStrandsDatas HairSimulationData;
+	FHairStrandsInterpolationDatas HairInterpolationData;
+
+	/** Interpolated hair render resource to be allocated */
+	FHairStrandsResource* HairStrandsResource = nullptr;
+
+	/** Guide render resource to be allocated */
+	FHairStrandsResource* HairSimulationResource = nullptr;
+
+	friend FArchive& operator<<(FArchive& Ar, FHairGroupData& GroupData);
 };
 
 /**
@@ -137,18 +198,10 @@ class HAIRSTRANDSCORE_API UGroomAsset : public UObject
 
 public:
 
-	// #ueent_todo: Hair strands data should be computed and saved in the DDC
-	/** Hair strands data for rendering */
-	FHairStrandsDatas HairRenderData;
+	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintReadWrite, Category = "HairGroups", meta = (DisplayName = "Group"))
+	TArray<FHairGroupInfo> HairGroupsInfo;
 
-	/** Guide strands data for simulation */
-	FHairStrandsDatas HairSimulationData;
-
-	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintReadWrite, Category = "HairGroupSettings", meta = (DisplayName = "Rendering"))
-	TArray<FHairGroupRenderSettings> RenderHairGroups;
-
-	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintReadWrite, Category = "HairGroupSettings", meta = (DisplayName = "Simulation"))
-	TArray<FHairGroupSimulationSettings> SimulationHairGroups;
+	TArray<FHairGroupData> HairGroupsData;
 
 	//~ Begin UObject Interface.
 	virtual void PostLoad() override;
@@ -156,7 +209,7 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 
 	/** Density factor for converting hair into guide curve if no guides are provided. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BuildSettings", meta = (ClampMin = "0.01", UIMin = "0.01", UIMax = "1.0"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "BuildSettings", meta = (ClampMin = "0.01", UIMin = "0.01", UIMax = "1.0"))
 	float HairToGuideDensity = 0.1f;
 
 #if WITH_EDITOR
@@ -196,13 +249,9 @@ public:
 
 	void Reset();
 
+	int32 GetNumHairGroups() const;
+
 //private : 
 
 	TUniquePtr<FHairDescription> HairDescription;
-
-	/** Interpolated hair render resource to be allocated */
-	FHairStrandsResource* HairStrandsResource;
-
-	/** Guide render resource to be allocated */
-	FHairStrandsResource* HairSimulationResource;
 };
