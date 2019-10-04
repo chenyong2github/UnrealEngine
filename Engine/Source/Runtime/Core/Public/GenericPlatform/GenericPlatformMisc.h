@@ -1381,7 +1381,7 @@ public:
 	*/
 	static FString LoadTextFileFromPlatformPackage(const FString& RelativePath);
 
-	static bool FileExistsInPlatformPackage(const FString& RelativePath);
+	static bool FileExitsInPlatformPackage(const FString& RelativePath);
 
 	/**
 	 * Frees any memory retained by FGenericPlatformMisc.
