@@ -295,18 +295,19 @@ bool FStreamingNetworkPlatformFile::ShouldBeUsed(IPlatformFile* Inner, const TCH
 	if (bResult)
 	{
 		bResult = FParse::Param(CmdLine, TEXT("Streaming")) || !FPlatformMisc::SupportsLocalCaching();
-#if PLATFORM_DESKTOP || PLATFORM_HTML5 
-		//@todo. Platforms: Do we need to support 'in place' non-streaming cookonthefly?
-		// On desktop platforms, assume 'in place' execution - to prevent deletion of content, force streaming,
-		// unless it's explicitly allowed with -allowcaching (for automation tests with staged builds).
-		const bool bAllowCaching = FParse::Param(CmdLine, TEXT("AllowCaching"));
-
-		if (bResult == false && !bAllowCaching)
+		if (FPlatformMisc::AllowLocalCaching())
 		{
-			UE_LOG(LogStreamingPlatformFile, Warning, TEXT("Cooked desktop platforms do not support non-streaming. Forcing streaming on."));
+			//@todo. Platforms: Do we need to support 'in place' non-streaming cookonthefly?
+			// On desktop platforms, assume 'in place' execution - to prevent deletion of content, force streaming,
+			// unless it's explicitly allowed with -allowcaching (for automation tests with staged builds).
+			const bool bAllowCaching = FParse::Param(CmdLine, TEXT("AllowCaching"));
+
+			if (bResult == false && !bAllowCaching)
+			{
+				UE_LOG(LogStreamingPlatformFile, Warning, TEXT("Cooked desktop platforms do not support non-streaming. Forcing streaming on."));
+			}
+			bResult = bResult || !bAllowCaching;
 		}
-		bResult = bResult || !bAllowCaching;
-#endif
 	}
 
 	return bResult;

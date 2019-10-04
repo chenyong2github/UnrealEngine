@@ -9,10 +9,6 @@
 #include "OpenGLDrv.h"
 #include "OpenGLDrvPrivate.h"
 
-#if PLATFORM_HTML5
-#include "HTML5JavaScriptFx.h"
-#endif
-
 #if OPENGL_ESDEFERRED
 
 static TAutoConsoleVariable<int32> CVarDisjointTimerQueries(
@@ -326,13 +322,6 @@ void FOpenGLESDeferred::ProcessExtensions( const FString& ExtensionsString )
 	bSupportsNVFrameBufferBlit = ExtensionsString.Contains(TEXT("GL_NV_framebuffer_blit"));
 	bSupportsPackedDepthStencil = ExtensionsString.Contains(TEXT("GL_OES_packed_depth_stencil"));
 	bSupportsShaderTextureLod = ExtensionsString.Contains(TEXT("GL_EXT_shader_texture_lod"));
-#if PLATFORM_HTML5
-	// WebGL 1 extensions that were adopted to core WebGL 2 spec:
-	if (UE_BrowserWebGLVersion() == 2)
-	{
-		bSupportsColorBufferHalfFloat = bSupportsShaderTextureLod = true;
-	}
-#endif
 	bSupportsTextureStorageEXT = ExtensionsString.Contains(TEXT("GL_EXT_texture_storage"));
 	bSupportsCopyTextureLevels = bSupportsTextureStorageEXT && ExtensionsString.Contains(TEXT("GL_APPLE_copy_texture_levels"));
 	bSupportsDisjointTimeQueries = ExtensionsString.Contains(TEXT("GL_EXT_disjoint_timer_query"));// || ExtensionsString.Contains(TEXT("GL_NV_timer_query"));

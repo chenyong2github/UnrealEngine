@@ -15,11 +15,6 @@
 #include "MediaPlayer.h"
 #include "MediaPlayerFacade.h"
 
-#if PLATFORM_HTML5
-	#include "AudioDevice.h"
-	#include "Engine/Engine.h"
-#endif
-
 
 static int32 SyncAudioAfterDropoutsCVar = 1;
 FAutoConsoleVariableRef CVarSyncAudioAfterDropouts(

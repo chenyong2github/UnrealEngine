@@ -1,4 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+// @todo platplug: Replace all of these includes with a call to COMPILED_PLATFORM_HEADER(SslCertificateManager.h)
+
 #pragma once
 
 #include "CoreMinimal.h"
@@ -21,7 +24,7 @@ using FPlatformSslCertificateManager = FSslCertificateManager;
 using FPlatformSslCertificateManager = FSslCertificateManager;
 #elif PLATFORM_ANDROID
 #include "Android/AndroidPlatformSslCertificateManager.h"
-#elif PLATFORM_HTML5
+#elif defined(__EMSCRIPTEN__)
 #include "SslCertificateManager.h"
 using FPlatformSslCertificateManager = FSslCertificateManager;
 #elif PLATFORM_UNIX

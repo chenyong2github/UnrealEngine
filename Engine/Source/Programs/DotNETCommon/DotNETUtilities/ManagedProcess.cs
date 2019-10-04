@@ -434,7 +434,7 @@ namespace Tools.DotNETCommon
 					}
 
 					// Add it to our job object
-					if (AssignProcessToJobObject(Group.JobHandle, ProcessInfo.hProcess) == 0)
+					if (Group != null && AssignProcessToJobObject(Group.JobHandle, ProcessInfo.hProcess) == 0)
 					{
 						// Support for nested job objects was only addeed in Windows 8; prior to that, assigning processes to job objects would fail. Figure out if we're already in a job, and ignore the error if we are.
 						int OriginalError = Marshal.GetLastWin32Error();
