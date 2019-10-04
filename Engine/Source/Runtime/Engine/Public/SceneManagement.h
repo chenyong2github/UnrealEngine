@@ -2049,7 +2049,6 @@ private:
 	 */
 	uint32 bHasOpaqueMaterial : 1;
 	uint32 bHasMaskedMaterial : 1;
-	uint32 bHasTranslucentMaterialWithVelocity : 1;
 	uint32 bRenderInMainPass : 1;
 
 public:
@@ -2058,7 +2057,6 @@ public:
 	bool GetHasOpaqueMaterial() const { return bHasOpaqueMaterial; }
 	bool GetHasMaskedMaterial() const { return bHasMaskedMaterial; }
 	bool GetHasOpaqueOrMaskedMaterial() const { return bHasOpaqueMaterial || bHasMaskedMaterial; }
-	bool GetHasTranslucentMaterialWithVelocity() const { return bHasTranslucentMaterialWithVelocity; }
 	bool GetRenderInMainPass() const { return bRenderInMainPass; }
 };
 

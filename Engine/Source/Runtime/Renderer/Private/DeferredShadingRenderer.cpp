@@ -1711,9 +1711,12 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// If bBasePassCanOutputVelocity is set, basepass fully writes the velocity buffer unless bUseSelectiveBasePassOutputs is enabled.
 	if (bShouldRenderVelocities && (!bBasePassCanOutputVelocity || bUseSelectiveBasePassOutputs))
 	{
+		// We only need to clear if the base pass didn't already render velocities.
+		const bool bClearVelocityRT = !bBasePassCanOutputVelocity;
+
 		// Render the velocities of movable objects
 		RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_Velocity));
-		RenderVelocities(RHICmdList, SceneContext.SceneVelocity);
+		RenderVelocities(RHICmdList, SceneContext.SceneVelocity, EVelocityPass::Opaque, bClearVelocityRT);
 		RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_AfterVelocity));
 		ServiceLocalQueue();
 	}
@@ -2144,17 +2147,18 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_AfterTranslucency));
 		}
 
-		/*if (bShouldRenderVelocities)
+		if (bShouldRenderVelocities)
 		{
+			const bool bClearVelocityRT = false;
+
 			// Render the velocities of movable objects
 			RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_TranslucentVelocity));
-			RenderVelocities(RHICmdList, VelocityRT);
+			RenderVelocities(RHICmdList, SceneContext.SceneVelocity, EVelocityPass::Translucent, bClearVelocityRT);
 			RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_AfterTranslucentVelocity));
 			ServiceLocalQueue();
-		}*/
+		}
 
 		checkSlow(RHICmdList.IsOutsideRenderPass());
-
 	}
 
 	if (HairDatas)
