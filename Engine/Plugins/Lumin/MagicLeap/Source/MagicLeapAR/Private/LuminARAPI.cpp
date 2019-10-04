@@ -144,7 +144,6 @@ uint32 FLuminARSession::GetFrameNum()
 // Anchors and Planes
 ELuminARAPIStatus FLuminARSession::CreateARAnchor(const FTransform& TransfromInTrackingSpace, UARTrackedGeometry* TrackedGeometry, USceneComponent* ComponentToPin, FName InDebugName, UARPin*& OutAnchor)
 {
-	ELuminARAPIStatus AnchorCreateStatus = ELuminARAPIStatus::AR_SUCCESS;
 	OutAnchor = nullptr;
 
 	TSharedPtr<LuminArAnchor> NewLuminArAnchor;
@@ -167,17 +166,15 @@ ELuminARAPIStatus FLuminARSession::CreateARAnchor(const FTransform& TransfromInT
 		NewLuminArAnchor = MakeShared<LuminArAnchor>(Pose, ParentHandle);
 	}
 
-	if (AnchorCreateStatus == ELuminARAPIStatus::AR_SUCCESS)
-	{
-		OutAnchor = NewObject<UARPin>();
-		OutAnchor->InitARPin(GetARSystem(), ComponentToPin, TransfromInTrackingSpace, TrackedGeometry, InDebugName);
-		OutAnchor->SetNativeResource(reinterpret_cast<void*>(NewLuminArAnchor.Get()));
+	OutAnchor = NewObject<UARPin>();
+	OutAnchor->InitARPin(GetARSystem(), ComponentToPin, TransfromInTrackingSpace, TrackedGeometry, InDebugName);
+	OutAnchor->SetNativeResource(reinterpret_cast<void*>(NewLuminArAnchor.Get()));
 
-		UObjectManager->HandleToLuminAnchorMap.Add(NewLuminArAnchor->Handle, NewLuminArAnchor);
-		UObjectManager->AllAnchors.Add(OutAnchor);
-		UObjectManager->HandleToAnchorMap.Add(NewLuminArAnchor->Handle, OutAnchor);
-	}
-	return AnchorCreateStatus;
+	UObjectManager->HandleToLuminAnchorMap.Add(NewLuminArAnchor->Handle, NewLuminArAnchor);
+	UObjectManager->AllAnchors.Add(OutAnchor);
+	UObjectManager->HandleToAnchorMap.Add(NewLuminArAnchor->Handle, OutAnchor);
+
+	return ELuminARAPIStatus::AR_SUCCESS;
 }
 
 void FLuminARSession::DetachAnchor(UARPin* Anchor)
