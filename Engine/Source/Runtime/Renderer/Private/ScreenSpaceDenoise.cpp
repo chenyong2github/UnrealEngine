@@ -1913,7 +1913,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 
 				if (CompressedMetadataLayout == ECompressedMetadataLayout::DepthAndViewNormal)
 				{
-					if (i == 0)
+					// if (i == 0)
 					{
 						Dest = &View.ViewState->PrevFrameViewInfo.CompressedDepthViewNormal;
 					}

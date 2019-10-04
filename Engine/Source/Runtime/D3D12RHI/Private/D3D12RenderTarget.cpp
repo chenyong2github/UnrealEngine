@@ -1421,6 +1421,7 @@ void FD3D12DynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, void*& OutD
 	}
 #endif
 
+	check(DestTexture2D);
 	FD3D12Resource* Texture = DestTexture2D->GetResource();
 
 	DXGI_FORMAT Format = (DXGI_FORMAT)GPixelFormats[DestTexture2D->GetFormat()].PlatformFormat;
@@ -1487,6 +1488,7 @@ void FD3D12DynamicRHI::RHIUnmapStagingSurface(FRHITexture* TextureRHI, uint32 GP
 	}
 #endif
 
+	check(DestTexture2D);
 	ID3D12Resource* Texture = DestTexture2D->GetResource()->GetResource();
 
 	Texture->Unmap(0, nullptr);
