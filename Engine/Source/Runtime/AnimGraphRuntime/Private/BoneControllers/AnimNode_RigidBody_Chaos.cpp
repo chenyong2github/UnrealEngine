@@ -570,6 +570,8 @@ void ComputeBodyInsertionOrderChaos(TArray<FBoneIndexType>& InsertionOrder, cons
 
 void FAnimNode_RigidBody_Chaos::InitPhysics(const UAnimInstance* InAnimInstance)
 {
+	SCOPE_CYCLE_COUNTER(STAT_RigidBodyNodeInitTime);
+
 	const USkeletalMeshComponent* SkeletalMeshComp = InAnimInstance->GetSkelMeshComponent();
 	const USkeletalMesh* SkeletalMeshAsset = SkeletalMeshComp->SkeletalMesh;
 
