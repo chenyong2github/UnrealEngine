@@ -68,6 +68,7 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UNiagaraComponent* InComponent)
 	: SystemInstanceIndex(INDEX_NONE)
 	, Component(InComponent)
 	, PrereqComponent(nullptr)
+	, TickBehavior(InComponent ? InComponent->GetTickBehavior() : ENiagaraTickBehavior::UsePrereqs)
 	, Age(0.0f)
 	, TickCount(0)
 	, InstanceParameters(Component)
@@ -1344,34 +1345,54 @@ ETickingGroup FNiagaraSystemInstance::CalculateTickGroup()
 	ETickingGroup NewTickGroup = (ETickingGroup)0;
 
 	// Debugging feature to force last tick group
-	if ( GNiagaraForceLastTickGroup )
+	if (GNiagaraForceLastTickGroup)
 	{
 		return NiagaraLastTickGroup;
 	}
 
-	// Handle attached component tick group
-	if (PrereqComponent != nullptr)
+	// Determine tick group
+	switch ( TickBehavior )
 	{
-		//-TODO: This doesn't deal with 'DontCompleteUntil' on the prereq's tick, if we have to handle that it could mean continual TG demotion
-		ETickingGroup PrereqTG = ETickingGroup(FMath::Max(PrereqComponent->PrimaryComponentTick.TickGroup, PrereqComponent->PrimaryComponentTick.EndTickGroup) + 1);
-		NewTickGroup = FMath::Max(NewTickGroup, PrereqTG);
-	}
-
-	// Handle data interfaces that have tick dependencies
-	if ( bDataInterfacesHaveTickPrereqs )
-	{
-		for (TPair<TWeakObjectPtr<UNiagaraDataInterface>, int32>& Pair : DataInterfaceInstanceDataOffsets)
-		{
-			if (UNiagaraDataInterface* Interface = Pair.Key.Get())
+		default:
+		case ENiagaraTickBehavior::UsePrereqs:
+			// Handle attached component tick group
+			if (PrereqComponent != nullptr)
 			{
-				ETickingGroup PrereqTG = Interface->CalculateTickGroup(&DataInterfaceInstanceData[Pair.Value]);
+				//-TODO: This doesn't deal with 'DontCompleteUntil' on the prereq's tick, if we have to handle that it could mean continual TG demotion
+				ETickingGroup PrereqTG = ETickingGroup(FMath::Max(PrereqComponent->PrimaryComponentTick.TickGroup, PrereqComponent->PrimaryComponentTick.EndTickGroup) + 1);
 				NewTickGroup = FMath::Max(NewTickGroup, PrereqTG);
 			}
-		}
+
+			// Handle data interfaces that have tick dependencies
+			if ( bDataInterfacesHaveTickPrereqs )
+			{
+				for (TPair<TWeakObjectPtr<UNiagaraDataInterface>, int32>& Pair : DataInterfaceInstanceDataOffsets)
+				{
+					if (UNiagaraDataInterface* Interface = Pair.Key.Get())
+					{
+						ETickingGroup PrereqTG = Interface->CalculateTickGroup(&DataInterfaceInstanceData[Pair.Value]);
+						NewTickGroup = FMath::Max(NewTickGroup, PrereqTG);
+					}
+				}
+			}
+
+			// Clamp tick group to our range
+			NewTickGroup = FMath::Clamp(NewTickGroup, NiagaraFirstTickGroup, NiagaraLastTickGroup);
+			break;
+
+		case ENiagaraTickBehavior::UseComponentTickGroup:
+			NewTickGroup = FMath::Clamp((ETickingGroup)Component->PrimaryComponentTick.TickGroup, NiagaraFirstTickGroup, NiagaraLastTickGroup);
+			break;
+
+		case ENiagaraTickBehavior::ForceTickFirst:
+			NewTickGroup = NiagaraFirstTickGroup;
+			break;
+
+		case ENiagaraTickBehavior::ForceTickLast:
+			NewTickGroup = NiagaraLastTickGroup;
+			break;
 	}
 
-	// Clamp tick group to our range
-	NewTickGroup = FMath::Clamp(NewTickGroup, NiagaraFirstTickGroup, NiagaraLastTickGroup);
 	return NewTickGroup;
 }
 
