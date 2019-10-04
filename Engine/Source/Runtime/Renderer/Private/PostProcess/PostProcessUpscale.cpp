@@ -247,6 +247,7 @@ FScreenPassTexture AddUpscalePass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 			SetScreenPassPipelineState(RHICmdList, FScreenPassPipelineState(*TypedVertexShader, *PixelShader));
 			VertexShader = *TypedVertexShader;
 		}
+		check(VertexShader != nullptr);
 
 		SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), *PassParameters);
 
