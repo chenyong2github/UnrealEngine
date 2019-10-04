@@ -10,10 +10,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public DatasmithDeltaGenTranslator(ReadOnlyTargetRules Target) : base(Target)
 		{
-			OptimizeCode = CodeOptimization.Never;
-			bUseUnity = false;
-			PCHUsage = PCHUsageMode.NoPCHs;
-
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
