@@ -25,7 +25,6 @@ class CORE_API FCulture
 	friend class FText;
 	friend class FTextChronoFormatter;
 	friend class FICUBreakIteratorManager;
-	friend class FICUInternationalization;
 #endif
 
 public:

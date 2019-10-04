@@ -744,19 +744,10 @@ void FICUInternationalization::InitializeTimeZone()
 void FICUInternationalization::InitializeInvariantGregorianCalendar()
 {
 	UErrorCode ICUStatus = U_ZERO_ERROR;
-
-	// UE-81211 workaround: We use the createInstance API here as there is a size discrepancy between GregorianCalendar in UE4 and ICU which causes memory stomps
-	//InvariantGregorianCalendar = MakeUnique<icu::GregorianCalendar>(ICUStatus);
-	//InvariantGregorianCalendar->setTimeZone(icu::TimeZone::getUnknown());
-	
-	icu::Calendar* ICUCalendar = icu::Calendar::createInstance(icu::TimeZone::getUnknown(), I18N->InvariantCulture->Implementation->GetLocale(), ICUStatus);
-	if (ensureMsgf(ICUCalendar && ICUCalendar->getDynamicClassID() == icu::GregorianCalendar::getStaticClassID(), TEXT("The invariant culture was expected to return a Gregorian calendar!")))
+	InvariantGregorianCalendar = MakeUnique<icu::GregorianCalendar>(ICUStatus);
+	if (InvariantGregorianCalendar)
 	{
-		InvariantGregorianCalendar.Reset(static_cast<icu::GregorianCalendar*>(ICUCalendar));
-	}
-	else
-	{
-		delete ICUCalendar;
+		InvariantGregorianCalendar->setTimeZone(icu::TimeZone::getUnknown());
 	}
 }
 
