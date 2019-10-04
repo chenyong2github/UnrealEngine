@@ -197,9 +197,9 @@ void UPlaneCutTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
 	this->AssetAPI = AssetAPIIn;
 }
 
-TSharedPtr<FDynamicMeshOperator> UPlaneCutOperatorFactory::MakeNewOperator()
+TUniquePtr<FDynamicMeshOperator> UPlaneCutOperatorFactory::MakeNewOperator()
 {
-	TSharedPtr<FPlaneCutOp> CutOp = MakeShared<FPlaneCutOp>();
+	TUniquePtr<FPlaneCutOp> CutOp = MakeUnique<FPlaneCutOp>();
 	CutOp->bDiscardAttributes = CutTool->BasicProperties->bDiscardAttributes;
 	CutOp->bFillCutHole = CutTool->BasicProperties->bFillCutHole;
 	CutOp->bFillSpans = CutTool->BasicProperties->bFillSpans;

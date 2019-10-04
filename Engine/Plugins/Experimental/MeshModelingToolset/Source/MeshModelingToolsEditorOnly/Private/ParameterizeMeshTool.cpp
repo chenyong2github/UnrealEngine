@@ -179,9 +179,9 @@ void UParameterizeMeshTool::PostEditChangeProperty(FPropertyChangedEvent& Proper
 	Preview->InvalidateResult();
 }
 
-TSharedPtr<FDynamicMeshOperator> UParameterizeMeshTool::MakeNewOperator()
+TUniquePtr<FDynamicMeshOperator> UParameterizeMeshTool::MakeNewOperator()
 {
-	TSharedPtr<FParameterizeMeshOp> ParamertizeMeshOp = MakeShared<FParameterizeMeshOp>();
+	TUniquePtr<FParameterizeMeshOp> ParamertizeMeshOp = MakeUnique<FParameterizeMeshOp>();
 	ParamertizeMeshOp->Stretch   = ChartStretch;
 	ParamertizeMeshOp->NumCharts = 0;
 	ParamertizeMeshOp->InputMesh = InputMesh;

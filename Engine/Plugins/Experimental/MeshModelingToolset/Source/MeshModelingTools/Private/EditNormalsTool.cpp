@@ -178,9 +178,9 @@ void UEditNormalsTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
 	this->AssetAPI = AssetAPIIn;
 }
 
-TSharedPtr<FDynamicMeshOperator> UEditNormalsOperatorFactory::MakeNewOperator()
+TUniquePtr<FDynamicMeshOperator> UEditNormalsOperatorFactory::MakeNewOperator()
 {
-	TSharedPtr<FEditNormalsOp> NormalsOp = MakeShared<FEditNormalsOp>();
+	TUniquePtr<FEditNormalsOp> NormalsOp = MakeUnique<FEditNormalsOp>();
 	NormalsOp->bFixInconsistentNormals = Tool->BasicProperties->bFixInconsistentNormals;
 	NormalsOp->bInvertNormals = Tool->BasicProperties->bInvertNormals;
 	NormalsOp->bRecomputeNormals = Tool->BasicProperties->bRecomputeNormals;

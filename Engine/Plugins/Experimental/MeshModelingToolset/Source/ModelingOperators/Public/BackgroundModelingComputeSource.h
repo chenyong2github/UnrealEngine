@@ -26,20 +26,20 @@ class TModelingOpTask : public FAbortableBackgroundTask
 
 public:
 
-	TModelingOpTask(TSharedPtr<OpType> OperatorIn) :
-		Operator(OperatorIn)
+	TModelingOpTask(TUniquePtr<OpType> OperatorIn) :
+		Operator(MoveTemp(OperatorIn))
 	{}
 
 	/**
 	 * @return the contained computation Operator
 	 */
-	TSharedPtr<OpType> ExtractOperator()
+	TUniquePtr<OpType> ExtractOperator()
 	{
-		return Operator;
+		return MoveTemp(Operator);
 	}
 
 protected:
-	TSharedPtr<OpType> Operator;
+	TUniquePtr<OpType> Operator;
 
 	// 	FAbortableBackgroundTask API
 	void DoWork()
@@ -90,7 +90,7 @@ enum class EBackgroundComputeTaskStatus
  * and a OpTypeFactory, which creates OpType instances on demand. The APIs that must
  * be provided in these types are minimal:
  *   OpTypeFactory:
- *      - TSharedPtr<OpType> MakeNewOperator()
+ *      - TUniquePtr<OpType> MakeNewOperator()
  *   OpType:
  *      - void CalculateResult(FProgressCancel*)
  * 
@@ -167,7 +167,7 @@ public:
 	/**
 	 * @return The last computed Operator. This may only be called once, the caller then owns the Operator.
 	 */
-	TSharedPtr<OpType> ExtractResult();
+	TUniquePtr<OpType> ExtractResult();
 
 	/**
 	 * @return duration in seconds of current computation
@@ -221,8 +221,8 @@ void TBackgroundModelingComputeSource<OpType, OpTypeFactory>::StartNewCompute()
 {
 	check(ActiveBackgroundTask == nullptr);
 
-	TSharedPtr<OpType> NewOp = OperatorSource->MakeNewOperator();
-	ActiveBackgroundTask = new FAsyncTaskExecuterWithAbort<TModelingOpTask<OpType> >(NewOp);
+	TUniquePtr<OpType> NewOp = OperatorSource->MakeNewOperator();
+	ActiveBackgroundTask = new FAsyncTaskExecuterWithAbort<TModelingOpTask<OpType> >(MoveTemp(NewOp));
 	ActiveBackgroundTask->StartBackgroundTask();
 
 	LastStartTime = AccumTime;
@@ -276,10 +276,10 @@ EBackgroundComputeTaskStatus TBackgroundModelingComputeSource<OpType, OpTypeFact
 
 
 template<typename OpType, typename OpTypeFactory>
-TSharedPtr<OpType> TBackgroundModelingComputeSource<OpType, OpTypeFactory>::ExtractResult()
+TUniquePtr<OpType> TBackgroundModelingComputeSource<OpType, OpTypeFactory>::ExtractResult()
 {
 	check(ActiveBackgroundTask != nullptr && ActiveBackgroundTask->IsDone());
-	TSharedPtr<OpType> Result = ActiveBackgroundTask->GetTask().ExtractOperator();
+	TUniquePtr<OpType> Result = ActiveBackgroundTask->GetTask().ExtractOperator();
 
 	delete ActiveBackgroundTask;
 	ActiveBackgroundTask = nullptr;

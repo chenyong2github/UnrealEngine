@@ -211,9 +211,9 @@ void UUVProjectionTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
 	this->AssetAPI = AssetAPIIn;
 }
 
-TSharedPtr<FDynamicMeshOperator> UUVProjectionOperatorFactory::MakeNewOperator()
+TUniquePtr<FDynamicMeshOperator> UUVProjectionOperatorFactory::MakeNewOperator()
 {
-	TSharedPtr<FUVProjectionOp> Op = MakeShared<FUVProjectionOp>();
+	TUniquePtr<FUVProjectionOp> Op = MakeUnique<FUVProjectionOp>();
 	Op->ProjectionMethod = Tool->BasicProperties->UVProjectionMethod;
 
 	// TODO: de-dupe this logic (it's also in Render, below)

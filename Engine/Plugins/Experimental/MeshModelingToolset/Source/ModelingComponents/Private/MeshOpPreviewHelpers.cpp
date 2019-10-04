@@ -25,7 +25,7 @@ FDynamicMeshOpResult UMeshOpPreviewWithBackgroundCompute::Shutdown()
 	PreviewMesh->Disconnect();
 	PreviewMesh = nullptr;
 
-	return MoveTemp(Result);
+	return Result;
 }
 
 
@@ -66,9 +66,7 @@ void UMeshOpPreviewWithBackgroundCompute::UpdateResults()
 	EBackgroundComputeTaskStatus Status = BackgroundCompute->CheckStatus();
 	if (Status == EBackgroundComputeTaskStatus::NewResultAvailable)
 	{
-		TSharedPtr<FDynamicMeshOperator> MeshOp =
-			StaticCastSharedPtr<FDynamicMeshOperator>(BackgroundCompute->ExtractResult());
-
+		TUniquePtr<FDynamicMeshOperator> MeshOp  = BackgroundCompute->ExtractResult();
 		TUniquePtr<FDynamicMesh3> ResultMesh = MeshOp->ExtractResult();
 		PreviewMesh->SetTransform((FTransform)MeshOp->GetResultTransform());
 		PreviewMesh->UpdatePreview(ResultMesh.Get());  // copies the mesh @todo we could just give ownership to the Preview!

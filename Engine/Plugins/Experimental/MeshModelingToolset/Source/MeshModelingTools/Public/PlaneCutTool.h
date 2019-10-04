@@ -86,7 +86,7 @@ class MESHMODELINGTOOLS_API UPlaneCutOperatorFactory : public UObject, public ID
 
 public:
 	// IDynamicMeshOperatorFactory API
-	virtual TSharedPtr<FDynamicMeshOperator> MakeNewOperator() override;
+	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
 	UPlaneCutTool *CutTool;

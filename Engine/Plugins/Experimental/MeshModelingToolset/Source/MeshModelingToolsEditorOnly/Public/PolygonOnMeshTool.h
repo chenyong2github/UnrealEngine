@@ -97,7 +97,7 @@ class MESHMODELINGTOOLSEDITORONLY_API UPolygonOnMeshOperatorFactory : public UOb
 
 public:
 	// IDynamicMeshOperatorFactory API
-	virtual TSharedPtr<FDynamicMeshOperator> MakeNewOperator() override;
+	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
 	UPolygonOnMeshTool *Tool;

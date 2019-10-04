@@ -202,9 +202,9 @@ void UPolygonOnMeshTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
 	this->AssetAPI = AssetAPIIn;
 }
 
-TSharedPtr<FDynamicMeshOperator> UPolygonOnMeshOperatorFactory::MakeNewOperator()
+TUniquePtr<FDynamicMeshOperator> UPolygonOnMeshOperatorFactory::MakeNewOperator()
 {
-	TSharedPtr<FEmbedPolygonsOp> EmbedOp = MakeShared<FEmbedPolygonsOp>();
+	TUniquePtr<FEmbedPolygonsOp> EmbedOp = MakeUnique<FEmbedPolygonsOp>();
 	EmbedOp->bDiscardAttributes = Tool->BasicProperties->bDiscardAttributes;
 	EmbedOp->Operation = Tool->BasicProperties->PolygonOperation;
 	EmbedOp->PolygonScale = Tool->BasicProperties->PolygonScale;

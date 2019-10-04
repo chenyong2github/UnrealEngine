@@ -108,7 +108,7 @@ class MESHMODELINGTOOLS_API UUVProjectionOperatorFactory : public UObject, publi
 
 public:
 	// IDynamicMeshOperatorFactory API
-	virtual TSharedPtr<FDynamicMeshOperator> MakeNewOperator() override;
+	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
 	UUVProjectionTool *Tool;

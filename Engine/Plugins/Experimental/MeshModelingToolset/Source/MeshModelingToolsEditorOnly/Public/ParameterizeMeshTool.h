@@ -91,7 +91,7 @@ public:
 	virtual void OnPropertyModified(UObject* PropertySet, UProperty* Property) override;
 
 	// IDynamicMeshOperatorFactory API
-	virtual TSharedPtr<FDynamicMeshOperator> MakeNewOperator() override;
+	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
 
 protected:
 	// need to update bResultValid if these are modified, so we don't publicly expose them. 

@@ -181,18 +181,18 @@ bool USmoothMeshTool::CanAccept() const
 	return bResultValid;
 }
 
-TSharedPtr<FDynamicMeshOperator> USmoothMeshTool::MakeNewOperator()
+TUniquePtr<FDynamicMeshOperator> USmoothMeshTool::MakeNewOperator()
 {
-	TSharedPtr<FSmoothingOpBase> MeshOp;
+	TUniquePtr<FSmoothingOpBase> MeshOp;
 	switch (SmoothType)
 	{
 	default:
 	case ESmoothMeshToolSmoothType::Iterative:
-		MeshOp = MakeShared<FIterativeSmoothingOp>(&SrcDynamicMesh, SmoothSpeed, SmoothIterations);
+		MeshOp = MakeUnique<FIterativeSmoothingOp>(&SrcDynamicMesh, SmoothSpeed, SmoothIterations);
 		break;
 
 	case ESmoothMeshToolSmoothType::BiHarmonic_Cotan:
-		MeshOp = MakeShared<FCotanSmoothingOp>(&SrcDynamicMesh, SmoothSpeed, SmoothIterations);
+		MeshOp = MakeUnique<FCotanSmoothingOp>(&SrcDynamicMesh, SmoothSpeed, SmoothIterations);
 		break;
 /**
 	case ESmoothMeshToolSmoothType::BiHarmonic_MVW:

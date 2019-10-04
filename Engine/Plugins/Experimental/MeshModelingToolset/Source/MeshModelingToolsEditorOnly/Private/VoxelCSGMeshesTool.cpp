@@ -171,9 +171,9 @@ void UVoxelCSGMeshesTool::OnPropertyModified(UObject* PropertySet, UProperty* Pr
 	Preview->InvalidateResult();
 }
 
-TSharedPtr<FDynamicMeshOperator> UVoxelCSGMeshesTool::MakeNewOperator()
+TUniquePtr<FDynamicMeshOperator> UVoxelCSGMeshesTool::MakeNewOperator()
 {
-	TSharedPtr<FVoxelBooleanMeshesOp> CSGOp = MakeShared<FVoxelBooleanMeshesOp>();
+	TUniquePtr<FVoxelBooleanMeshesOp> CSGOp = MakeUnique<FVoxelBooleanMeshesOp>();
 	CSGOp->Operation      = (FVoxelBooleanMeshesOp::EBooleanOperation)(int)CSGProps->Operation;
 	CSGOp->VoxelCount     = CSGProps->VoxelCount;
 	CSGOp->AdaptivityD    = CSGProps->MeshAdaptivity;
