@@ -62,14 +62,22 @@ void UArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 {
 	checkSlow(Inner);
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
-	FStructuredArchive::FRecord Record = Slot.EnterRecord();
-
+	FPropertyTag InnerTag(UnderlyingArchive, Inner, 0, (uint8*)Value, (uint8*)Defaults);
+	
+	if (UnderlyingArchive.IsTextFormat() && InnerTag.Type == NAME_StructProperty)
+	{
+		Slot << SA_ATTRIBUTE(TEXT("InnerStructName"), InnerTag.StructName);
+		Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("InnerStructGuid"), InnerTag.StructGuid, FGuid());
+	}
+	
 	// Ensure that the Inner itself has been loaded before calling SerializeItem() on it
 	UnderlyingArchive.Preload(Inner);
 
 	FScriptArrayHelper ArrayHelper(this, Value);
 	int32		n		= ArrayHelper.Num();
-	Record << SA_VALUE(TEXT("Count"), n);
+	
+	FStructuredArchiveArray Array = Slot.EnterArray(n);
+
 	if( UnderlyingArchive.IsLoading() )
 	{
 		// If using a custom property list, don't empty the array on load. Not all indices may have been serialized, so we need to preserve existing values at those slots.
@@ -93,17 +101,15 @@ void UArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 	ArrayHelper.CountBytes( UnderlyingArchive );
 
 	// Serialize a PropertyTag for the inner property of this array, allows us to validate the inner struct to see if it has changed
-	FPropertyTag InnerTag(UnderlyingArchive, Inner, 0, (uint8*)Value, (uint8*)Defaults);
 	if (UnderlyingArchive.UE4Ver() >= VER_UE4_INNER_ARRAY_TAG_INFO && InnerTag.Type == NAME_StructProperty)
 	{
-		if (UnderlyingArchive.IsSaving())
+		if (!UnderlyingArchive.IsTextFormat())
 		{
-			Record << SA_VALUE(TEXT("InnerTag"), InnerTag);
+			UnderlyingArchive << InnerTag;
 		}
-		else if (UnderlyingArchive.IsLoading())
+		
+		if (UnderlyingArchive.IsLoading())
 		{
-			Record << SA_VALUE(TEXT("InnerTag"), InnerTag);
-
 			auto CanSerializeFromStructWithDifferentName = [](const FPropertyTag& PropertyTag, const UStructProperty* StructProperty)
 			{
 				return PropertyTag.StructGuid.IsValid()
@@ -155,8 +161,6 @@ void UArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 	// need to know how much data this call to SerializeItem consumes, so mark where we are
 	int64 DataOffset = UnderlyingArchive.Tell();
 
-	FStructuredArchive::FStream ValueStream = Record.EnterField(SA_FIELD_NAME(TEXT("Values"))).EnterStream();
-
 	// If we're using a custom property list, first serialize any explicit indices
 	int32 i = 0;
 	bool bSerializeRemainingItems = true;
@@ -191,7 +195,7 @@ void UArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 
 				// Serialize the item at this array index
 				i = PropertyNode->ArrayIndex;
-				Inner->SerializeItem(ValueStream.EnterElement(), ArrayHelper.GetRawPtr(i));
+				Inner->SerializeItem(Array.EnterElement(), ArrayHelper.GetRawPtr(i));
 				PropertyNode = PropertyNode->PropertyListNext;
 
 				// Restore the current property list
@@ -215,7 +219,7 @@ void UArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 			NAME_UArraySerializeCount.SetNumber(i);
 			FArchive::FScopeAddDebugData P(UnderlyingArchive, NAME_UArraySerializeCount);
 #endif
-			Inner->SerializeItem(ValueStream.EnterElement(), ArrayHelper.GetRawPtr(i++));
+			Inner->SerializeItem(Array.EnterElement(), ArrayHelper.GetRawPtr(i++));
 		}
 
 		// Restore use of the custom property list (if it was previously enabled)
@@ -600,10 +604,16 @@ EConvertFromTypeResult UArrayProperty::ConvertFromType(const FPropertyTag& Tag, 
 	{
 		void* ArrayPropertyData = ContainerPtrToValuePtr<void>(Data);
 
-		FStructuredArchive::FRecord ArrayRecord = Slot.EnterRecord();
-
 		int32 ElementCount = 0;
-		ArrayRecord << SA_VALUE(TEXT("Count"), ElementCount);
+
+		if (Slot.GetUnderlyingArchive().IsTextFormat())
+		{
+			Slot.EnterArray(ElementCount);
+		}
+		else
+		{
+			Slot.GetUnderlyingArchive() << ElementCount;
+		}
 
 		FScriptArrayHelper ScriptArrayHelper(this, ArrayPropertyData);
 		ScriptArrayHelper.EmptyAndAddValues(ElementCount);
@@ -615,7 +625,7 @@ EConvertFromTypeResult UArrayProperty::ConvertFromType(const FPropertyTag& Tag, 
 			InnerPropertyTag.Type = Tag.InnerType;
 			InnerPropertyTag.ArrayIndex = 0;
 
-			FStructuredArchive::FStream ValueStream = ArrayRecord.EnterField(SA_FIELD_NAME(TEXT("Value"))).EnterStream();
+			FStructuredArchive::FStream ValueStream = Slot.EnterStream();
 
 			if (Inner->ConvertFromType(InnerPropertyTag, ValueStream.EnterElement(), ScriptArrayHelper.GetRawPtr(0), DefaultsStruct) == EConvertFromTypeResult::Converted)
 			{

@@ -489,6 +489,9 @@ protected:
 	/** Returns if we have access to property guids */
 	virtual bool ArePropertyGuidsAvailable() const { return false; }
 
+	/** Serializes list of properties to a te, using property tags to handle mismatches */
+	void LoadTaggedPropertiesFromText(FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct, uint8* Defaults, const UObject* BreakRecursionIfFullyLoad) const;
+
 private:
 #if USTRUCT_FAST_ISCHILDOF_IMPL == USTRUCT_ISCHILDOF_STRUCTARRAY
 	// For UObjectBaseUtility
