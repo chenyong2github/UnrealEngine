@@ -55,7 +55,7 @@ void SToolBarSeparatorBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, 
 		SNew( SHorizontalBox )
 		+SHorizontalBox::Slot()
 		.AutoWidth()
-		.Padding( 8.0f, 0.0f, 8.0f, 0.0f )
+		.Padding( StyleSet->GetMargin( ISlateStyle::Join( StyleName, ".Separator.Padding" ) ) )
 		[
 			SNew(SSeparator)
 				.Orientation(Orient_Vertical)
