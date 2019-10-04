@@ -127,10 +127,7 @@ namespace Audio
 			return false;
 		}
 
-		if (AudioStreamInfo.StreamState == EAudioOutputStreamState::Running)
-		{
-			StopGeneratingAudio();
-		}
+		StopGeneratingAudio();
 
 		check(AudioStreamInfo.StreamState == EAudioOutputStreamState::Stopped);
 		return true;
