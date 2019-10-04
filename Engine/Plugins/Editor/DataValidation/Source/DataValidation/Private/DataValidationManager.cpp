@@ -140,7 +140,7 @@ int32 UDEPRECATED_DataValidationManager::ValidateAssets(TArray<FAssetData> Asset
 		{
 			if (Result == EDataValidationResult::Invalid)
 			{
-				DataValidationLog.Error()->AddToken(FAssetNameToken::Create(Data.PackageName.ToString()))
+				DataValidationLog.Info()->AddToken(FAssetNameToken::Create(Data.PackageName.ToString()))
 					->AddToken(FTextToken::Create(LOCTEXT("InvalidDataResult", "contains invalid data.")));
 				++NumInvalidFiles;
 			}
