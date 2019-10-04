@@ -240,20 +240,18 @@ namespace Tools.DotNETCommon
 		/// <param name="TargetFileName">Path to the target file</param>
 		public static void ForceMoveFile(FileReference SourceLocation, FileReference TargetLocation)
 		{
+			// Try to move the file into place
 			try
 			{
 				FileReference.Move(SourceLocation, TargetLocation);
+				return;
 			}
-			catch
+			catch (Exception Ex)
 			{
+				// Try to create the target directory
 				try
 				{
-					if (FileReference.Exists(TargetLocation))
-					{
-						FileReference.SetAttributes(TargetLocation, FileAttributes.Normal);
-						FileReference.Delete(TargetLocation);
-					}
-					else if (DirectoryReference.Exists(TargetLocation.Directory))
+					if (!DirectoryReference.Exists(TargetLocation.Directory))
 					{
 						CreateDirectoryTree(TargetLocation.Directory);
 					}
@@ -262,8 +260,24 @@ namespace Tools.DotNETCommon
 				{
 				}
 
-				// Always retry; creating the directory tree may be a race
-				FileReference.Move(SourceLocation, TargetLocation);
+				// Try to delete an existing file at the target location
+				try
+				{
+					if (FileReference.Exists(TargetLocation))
+					{
+						FileReference.SetAttributes(TargetLocation, FileAttributes.Normal);
+						FileReference.Delete(TargetLocation);
+						FileReference.Move(SourceLocation, TargetLocation);
+						return;
+					}
+				}
+				catch (Exception DeleteEx)
+				{
+					throw new WrappedFileOrDirectoryException(new AggregateException(Ex, DeleteEx), String.Format("Unable to move {0} to {1} (also tried delete/move)", SourceLocation, TargetLocation));
+				}
+
+				// Throw the original exception
+				throw new WrappedFileOrDirectoryException(Ex, String.Format("Unable to move {0} to {1}", SourceLocation, TargetLocation));
 			}
 		}
 
