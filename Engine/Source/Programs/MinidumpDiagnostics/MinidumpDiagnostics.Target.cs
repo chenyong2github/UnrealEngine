@@ -17,8 +17,7 @@ public class MinidumpDiagnosticsTarget : TargetRules
 
 		// MinidumpDiagnostics doesn't ever compile with the engine linked in
 		bCompileAgainstEngine = false;
-
-		//bCompileICU = false;
+		bCompileAgainstCoreUObject = true;
 
 		// MinidumpDiagnostics.exe has no exports, so no need to verify that a .lib and .exp file was emitted by the linker.
 		bHasExports = false;

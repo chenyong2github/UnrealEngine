@@ -12,10 +12,8 @@ int32 RunMinidumpDiagnostics(int32 ArgC, TCHAR* Argv[])
 	if( ArgC < 2 )
 	{
 		UE_LOG( LogInit, Error, TEXT( "MinidumpDiagnostics - not enough parameters." ) );
-		UE_LOG( LogInit, Error, TEXT( " ... usage: MinidumpDiagnostics.exe <Crash.dmp> [-Annotate] [-SyncSymbols] [-SyncMicrosoftSymbols]" ) );
+		UE_LOG( LogInit, Error, TEXT( " ... usage: MinidumpDiagnostics.exe <Crash.dmp> [-SyncMicrosoftSymbols]" ) );
 		UE_LOG( LogInit, Error, TEXT( " ..." ) );
-		UE_LOG( LogInit, Error, TEXT( " ... -Annotate: Use Perforce annotation to decorate the source context" ) );
-		UE_LOG( LogInit, Error, TEXT( " ... -SyncSymbols: Sync symbols to the revision specified by the engine version" ) );
 		UE_LOG( LogInit, Error, TEXT( " ... -SyncMicrosoftSymbols: Sync symbols from the Microsoft Symbol Server" ) );
 		return 1;
 	}

@@ -516,15 +516,6 @@ SSymbolDebugger::ESymbolDebuggerActionResults FSymbolDebugger::ActionHasComplete
 
 void FSymbolDebugger::Tick()
 {
-	static bool s_bFirstTick = true;
-	if (s_bFirstTick)
-	{
-		// Initialize source control and show the login window
-		CrashHelperModule->InitSourceControl(true);
-
-		s_bFirstTick = false;
-	}
-
 	if (CurrentAction == SSymbolDebugger::DebugAction_Inspect)
 	{
 		if (InspectionTask.IsValid() && InspectionTask->IsDone())
