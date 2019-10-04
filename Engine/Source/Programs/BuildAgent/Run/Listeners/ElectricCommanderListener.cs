@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 using System.Xml;
 using Tools.DotNETCommon;
 
-namespace BuildAgent.Listeners
+namespace BuildAgent.Run.Listeners
 {
 	/// <summary>
 	/// Writes parsed errors to a log file usable by Electric Commander

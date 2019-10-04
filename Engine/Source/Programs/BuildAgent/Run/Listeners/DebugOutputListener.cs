@@ -8,7 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace BuildAgent.Listeners
+namespace BuildAgent.Run.Listeners
 {
 	/// <summary>
 	/// Debug error listener. Just prints the error output to the log.

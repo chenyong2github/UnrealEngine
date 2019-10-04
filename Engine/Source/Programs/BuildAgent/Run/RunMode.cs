@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-using BuildAgent.Listeners;
 using BuildAgent.Run.Interfaces;
+using BuildAgent.Run.Listeners;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -53,6 +53,42 @@ namespace BuildAgent.Run
 		[Description("Enables the ElectricCommander listener")]
 		bool bElectricCommanderListener = false;
 
+		[CommandLine("-Stream=")]
+		[Description("Specifies the current stream (for issues output)")]
+		string Stream;
+
+		[CommandLine("-Change=")]
+		[Description("Specifies the current CL (for issues output)")]
+		int Change;
+
+		[CommandLine("-JobName=")]
+		[Description("Specifies the current job name (for issues output)")]
+		string JobName;
+
+		[CommandLine("-JobUrl=")]
+		[Description("Specifies the current job url (for issues output)")]
+		string JobUrl;
+
+		[CommandLine("-JobStepName=")]
+		[Description("Specifies the current job step name (for issues output)")]
+		string JobStepName;
+
+		[CommandLine("-JobStepUrl=")]
+		[Description("Specifies the current job step url (for issues output)")]
+		string JobStepUrl;
+
+		[CommandLine("-LineUrl=")]
+		[Description("Specifies a template for the url to a specific output line (for issues output)")]
+		string LineUrl;
+
+		[CommandLine("-BaseDir=")]
+		[Description("Specifies the base directory (for issues output)")]
+		string BaseDir;
+
+		[CommandLine("-IssuesOutput=")]
+		[Description("Specifies an output file for build issues")]
+		FileReference IssuesOutputFile = null;
+
 		public override void Configure(CommandLineArguments Arguments)
 		{
 			base.Configure(Arguments);
@@ -65,6 +101,34 @@ namespace BuildAgent.Run
 			if (!bElectricCommanderListener && !String.IsNullOrEmpty(Environment.GetEnvironmentVariable("COMMANDER_JOBSTEPID")))
 			{
 				bElectricCommanderListener = true;
+			}
+
+			if (IssuesOutputFile != null)
+			{
+				if (Stream == null)
+				{
+					throw new CommandLineArgumentException("Missing -Stream=... argument when specifying -IssuesOutput=...");
+				}
+				if (Change == 0)
+				{
+					throw new CommandLineArgumentException("Missing -Change=... argument when specifying -IssuesOutput=...");
+				}
+				if (JobName == null)
+				{
+					throw new CommandLineArgumentException("Missing -JobName=... argument when specifying -IssuesOutput=...");
+				}
+				if (JobUrl == null)
+				{
+					throw new CommandLineArgumentException("Missing -JobUrl=... argument when specifying -IssuesOutput=...");
+				}
+				if (JobStepName == null)
+				{
+					throw new CommandLineArgumentException("Missing -JobStepName=... argument when specifying -IssuesOutput=...");
+				}
+				if (JobStepUrl == null)
+				{
+					throw new CommandLineArgumentException("Missing -JobStepUrl=... argument when specifying -IssuesOutput=...");
+				}
 			}
 
 			ProgramArguments = Arguments.GetPositionalArguments();
@@ -124,6 +188,10 @@ namespace BuildAgent.Run
 				if (bElectricCommanderListener)
 				{
 					Listeners.Add(new ElectricCommanderListener());
+				}
+				if (IssuesOutputFile != null)
+				{
+					Listeners.Add(new IssuesListener(Stream, Change, JobName, JobUrl, JobStepName, JobStepUrl, LineUrl, BaseDir, IssuesOutputFile));
 				}
 
 				// Process the input
