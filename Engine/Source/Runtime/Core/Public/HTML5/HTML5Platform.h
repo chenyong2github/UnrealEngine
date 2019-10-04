@@ -6,7 +6,7 @@
 
 #pragma once
 
-
+#include "Clang/ClangPlatform.h"
 
 
 /**

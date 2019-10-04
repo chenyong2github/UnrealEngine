@@ -9,7 +9,7 @@ namespace Trace
 
 struct FFormatArgsHelper
 {
-	static void Format(TCHAR* Out, uint64 MaxOut, const TCHAR* FormatString, const uint8* FormatArgs);
+	static void Format(TCHAR* Out, uint64 MaxOut, TCHAR* Temp, uint64 MaxTemp, const TCHAR* FormatString, const uint8* FormatArgs);
 
 private:
 	struct FFormatArgSpec
@@ -36,8 +36,8 @@ private:
 	static bool AdvanceArgumentStream(FFormatArgsStreamContext& Context);
 	static uint64 ExtractIntegerArgument(FFormatArgsStreamContext& ArgStream);
 	static double ExtractFloatingPointArgument(FFormatArgsStreamContext& ArgStream);
-	static const TCHAR* ExtractStringArgument(FFormatArgsStreamContext& ArgStream);
-	static int32 FormatArgument(TCHAR* Out, uint64 MaxOut, const FFormatArgSpec& ArgSpec, FFormatArgsStreamContext& ArgStream);
+	static const TCHAR* ExtractStringArgument(FFormatArgsStreamContext& ArgStream, TCHAR* Temp, uint64 MaxTemp);
+	static int32 FormatArgument(TCHAR* Out, uint64 MaxOut, TCHAR* Temp, uint64 MaxTemp, const FFormatArgSpec& ArgSpec, FFormatArgsStreamContext& ArgStream);
 };
 
 }

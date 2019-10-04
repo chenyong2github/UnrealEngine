@@ -13,6 +13,7 @@ enum class EInstallBundleModuleInitResult : int
 {
 	OK,
 	BuildMetaDataNotFound,
+	BuildMetaDataDownloadError,
 	BuildMetaDataParsingError,
 	DistributionRootParseError,
 	DistributionRootDownloadError,
@@ -32,6 +33,7 @@ inline const TCHAR* LexToString(EInstallBundleModuleInitResult Result)
 	{
 		TEXT("OK"),
 		TEXT("BuildMetaDataNotFound"),
+		TEXT("BuildMetaDataDownloadError"),
 		TEXT("BuildMetaDataParsingError"),
 		TEXT("DistributionRootParseError"),
 		TEXT("DistributionRootDownloadError"),

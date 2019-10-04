@@ -17,7 +17,7 @@ class FTimingTrackViewport;
 class FTimeRulerTrack : public FBaseTimingTrack
 {
 public:
-	FTimeRulerTrack(uint64 InTrackId);
+	explicit FTimeRulerTrack(uint64 InTrackId);
 	virtual ~FTimeRulerTrack();
 
 	virtual void Reset() override;

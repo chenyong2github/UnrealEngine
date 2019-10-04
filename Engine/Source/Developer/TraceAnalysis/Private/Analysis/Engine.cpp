@@ -6,10 +6,9 @@
 #include "HAL/UnrealMemory.h"
 #include "Trace/Analysis.h"
 #include "Trace/Analyzer.h"
-#if 0
-#include "Trace/Private/DataDecoder.h"
-#endif // 0
-#include "Trace/Private/Event.h"
+#include "Trace/Detail/EventDef.h"
+#include "Transport/Transport.h"
+#include "Transport/TlsTransport.h"
 
 namespace Trace
 {
@@ -34,251 +33,173 @@ private:
 
 
 ////////////////////////////////////////////////////////////////////////////////
-class FTransportReader
+struct FAnalysisEngine::FDispatch
 {
-public:
-	void					SetSource(FStreamReader::FData& InSource);
-	template <typename RetType>
-	RetType const*			GetPointer();
-	template <typename RetType>
-	RetType const*			GetPointer(uint32 BlockSize);
-	virtual void			Advance(uint32 BlockSize);
+	struct FField
+	{
+		uint32		Hash;
+		uint16		Offset;
+		uint16		Size;
+		uint16		NameOffset;			// From FField ptr
+		int16		SizeAndType;		// value == byte_size, sign == float < 0 < int
+	};
 
-protected:
-	virtual const uint8*	GetPointerImpl(uint32 BlockSize);
-	FStreamReader::FData*	Source;
+	uint16			Uid;
+	uint16			FirstRoute;
+	uint16			FieldCount;			// Implicit logger name offset; Fields + FieldCount
+	uint16			EventSize;
+	uint16			EventNameOffset;	// From FDispatch ptr
+	uint16			_Unused0;
+	FField			Fields[];
+};
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+uint32 IAnalyzer::FEventTypeInfo::GetId() const
+{
+	const auto& Inner = *(const FAnalysisEngine::FDispatch*)this;
+	return Inner.Uid;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+uint32 IAnalyzer::FEventTypeInfo::GetSize() const
+{
+	const auto& Inner = *(const FAnalysisEngine::FDispatch*)this;
+	return Inner.EventSize;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+const ANSICHAR* IAnalyzer::FEventTypeInfo::GetName() const
+{
+	const auto& Inner = *(const FAnalysisEngine::FDispatch*)this;
+	return (const ANSICHAR*)(UPTRINT(&Inner) + Inner.EventNameOffset);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+const ANSICHAR* IAnalyzer::FEventTypeInfo::GetLoggerName() const
+{
+	const auto& Inner = *(const FAnalysisEngine::FDispatch*)this;
+	return (const ANSICHAR*)(Inner.Fields + Inner.FieldCount);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+uint32 IAnalyzer::FEventTypeInfo::GetFieldCount() const
+{
+	const auto& Inner = *(const FAnalysisEngine::FDispatch*)this;
+	return Inner.FieldCount;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+const IAnalyzer::FEventFieldInfo* IAnalyzer::FEventTypeInfo::GetFieldInfo(uint32 Index) const
+{
+	if (Index >= GetFieldCount())
+	{
+		return nullptr;
+	}
+
+	const auto& Inner = *(const FAnalysisEngine::FDispatch*)this;
+	return (const IAnalyzer::FEventFieldInfo*)(Inner.Fields + Index);
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+const ANSICHAR* IAnalyzer::FEventFieldInfo::GetName() const
+{
+	const auto* Inner = (const FAnalysisEngine::FDispatch::FField*)this;
+	return (const ANSICHAR*)(UPTRINT(Inner) + Inner->NameOffset);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+uint32 IAnalyzer::FEventFieldInfo::GetOffset() const
+{
+	const auto* Inner = (const FAnalysisEngine::FDispatch::FField*)this;
+	return Inner->Offset;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+uint32 IAnalyzer::FEventFieldInfo::GetSize() const
+{
+	const auto* Inner = (const FAnalysisEngine::FDispatch::FField*)this;
+	return (Inner->SizeAndType < 0) ? -(Inner->SizeAndType) : Inner->SizeAndType;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+IAnalyzer::FEventFieldInfo::EType IAnalyzer::FEventFieldInfo::GetType() const
+{
+	const auto* Inner = (const FAnalysisEngine::FDispatch::FField*)this;
+	if (Inner->SizeAndType > 0)
+	{
+		return EType::Integer;
+	}
+
+	if (Inner->SizeAndType < 0)
+	{
+		return EType::Float;
+	}
+
+	return EType::None;
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+struct FAnalysisEngine::FEventDataInfo
+{
+	const FDispatch&	Dispatch;
+	const uint8*		Ptr;
+	uint16				Size;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-void FTransportReader::SetSource(FStreamReader::FData& InSource)
+const IAnalyzer::FEventTypeInfo& IAnalyzer::FEventData::GetTypeInfo() const
 {
-	Source = &InSource;
+	const auto& Info = *(const FAnalysisEngine::FEventDataInfo*)this;
+	return (const FEventTypeInfo&)(Info.Dispatch);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-template <typename RetType>
-RetType const* FTransportReader::GetPointer()
+const void* IAnalyzer::FEventData::GetValueImpl(const ANSICHAR* FieldName, int16& SizeAndType) const
 {
-	return GetPointer<RetType>(sizeof(RetType));
-}
-
-////////////////////////////////////////////////////////////////////////////////
-template <typename RetType>
-RetType const* FTransportReader::GetPointer(uint32 BlockSize)
-{
-	return (RetType const*)GetPointerImpl(BlockSize);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void FTransportReader::Advance(uint32 BlockSize)
-{
-	Source->Advance(BlockSize);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-const uint8* FTransportReader::GetPointerImpl(uint32 BlockSize)
-{
-	return Source->GetPointer(BlockSize);
-}
-
-
-
-////////////////////////////////////////////////////////////////////////////////
-#if 0
-class FLz4TransportReader
-	: public FTransportReader
-{
-	enum : uint32 { MaxChunks = 4 };
-
-public:
-							FLz4TransportReader(uint32 InChunkPow2);
-	virtual					~FLz4TransportReader();
-
-private:
-	virtual void			Advance(uint32 BlockSize) override;
-	virtual const uint8*	GetPointerImpl(uint32 BlockSize) override;
-	bool					NextChunk();
-    FDataDecoder			Decoder;
-	uint8*					Buffer;
-	const uint8*			Cursor;
-	const uint8*			End;
-	uint32					Index = 0;
-	const uint32			ChunkPow2;
-};
-
-////////////////////////////////////////////////////////////////////////////////
-FLz4TransportReader::FLz4TransportReader(uint32 InChunkPow2)
-: ChunkPow2(InChunkPow2)
-{
-	uint32 ChunkSize = 1 << ChunkPow2;
-	Buffer = new uint8[ChunkSize * (MaxChunks + 1)];
-	Cursor = End = Buffer + (ChunkSize * 2);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-FLz4TransportReader::~FLz4TransportReader()
-{
-	delete[] Buffer;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void FLz4TransportReader::Advance(uint32 BlockSize)
-{
-	Cursor += BlockSize;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-const uint8* FLz4TransportReader::GetPointerImpl(uint32 BlockSize)
-{
-	while (true)
-	{
-		uint32 Remaining = uint32(UPTRINT(End - Cursor));
-		if (Remaining >= BlockSize)
-		{
-			break;
-		}
-
-		if (!NextChunk())
-		{
-			return nullptr;
-		}
-	}
-
-	return Cursor;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-bool FLz4TransportReader::NextChunk()
-{
-	const struct {
-		uint32	Size;
-		uint8	Data[];
-	}* Block;
-
-	Block = decltype(Block)(Source->GetPointer(sizeof(*Block)));
-	if (Block == nullptr)
-	{
-		return false;
-	}
-
-	int32 BlockSize = Block->Size;
-	if (BlockSize < 0)
-	{
-		BlockSize = ~BlockSize;
-	}
-
-	Block = decltype(Block)(Source->GetPointer(BlockSize));
-	if (Block == nullptr)
-	{
-		return false;
-	}
-
-	Index = (Index + 1) & (MaxChunks - 1);
-	if (!Index)
-	{
-		uint32 Remaining = uint32(UPTRINT(End - Cursor));
-		uint32 OverflowChunks = Remaining >> ChunkPow2;
-		if (OverflowChunks >= MaxChunks - 1)
-		{
-			return false;
-		}
-
-		char* Dest = (char*)(Buffer + (1ull << ChunkPow2));
-		Dest -= Remaining - OverflowChunks;
-		memcpy(Dest, Cursor, Remaining);
-		Cursor = (uint8*)Dest;
-		End = Cursor + Remaining;
-	}
-
-	uint32 SrcSize = BlockSize - sizeof(*Block);
-	uint32 DestSize = 1 << ChunkPow2;
-	int DecodedSize = Decoder.Decode(Block->Data, End, SrcSize, DestSize);
-	if (DecodedSize < 0)
-	{
-		return false;
-	}
-
-	End += DecodedSize;
-
-	if (BlockSize != Block->Size)
-	{
-		Decoder.Reset();
-	}
-
-	Source->Advance(BlockSize);
-	return true;
-}
-#endif // 0
-
-
-
-////////////////////////////////////////////////////////////////////////////////
-struct FAnalysisEngine::FEventDataImpl
-	: public FEventData
-{
-	virtual					~FEventDataImpl() = default;
-	virtual const FValue&	GetValue(const ANSICHAR* FieldName) const override;
-	virtual const FArray&	GetArray(const ANSICHAR* FieldName) const override;
-	virtual const uint8*	GetData() const override;
-	virtual const uint8*	GetAttachment() const override;
-	virtual uint16			GetAttachmentSize() const override;
-	virtual uint16			GetTotalSize() const override;
-	const FDispatch*		Dispatch;
-	const uint8*			Ptr;
-	uint16					Size;
-};
-
-////////////////////////////////////////////////////////////////////////////////
-const IAnalyzer::FValue& FAnalysisEngine::FEventDataImpl::GetValue(const ANSICHAR* FieldName) const
-{
-	UPTRINT Ret = ~0ull;
+	const auto& Info = *(const FAnalysisEngine::FEventDataInfo*)this;
 
 	FFnv1aHash Hash;
 	Hash.Add(FieldName);
 	uint32 NameHash = Hash.Get();
 
-	for (int i = 0, n = Dispatch->FieldCount; i < n; ++i)
+	for (int i = 0, n = Info.Dispatch.FieldCount; i < n; ++i)
 	{
-		const auto& Field = Dispatch->Fields[i];
+		const auto& Field = Info.Dispatch.Fields[i];
 		if (Field.Hash == NameHash)
 		{
-			Ret = UPTRINT(Ptr + Field.Offset);
-			Ret |= UPTRINT(Field.TypeInfo) << 48;
-			break;
+			SizeAndType = Field.SizeAndType;
+			return (Info.Ptr + Field.Offset);
 		}
 	}
 
-	return *(FValue*)Ret;
+	return nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-const IAnalyzer::FArray& FAnalysisEngine::FEventDataImpl::GetArray(const ANSICHAR* FieldName) const
+const uint8* IAnalyzer::FEventData::GetAttachment() const
 {
-	return *(FArray*)0x493;
+	const auto& Info = *(const FAnalysisEngine::FEventDataInfo*)this;
+	return Info.Ptr + Info.Dispatch.EventSize;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-const uint8* FAnalysisEngine::FEventDataImpl::GetData() const
+uint32 IAnalyzer::FEventData::GetAttachmentSize() const
 {
-	return Ptr;
+	const auto& Info = *(const FAnalysisEngine::FEventDataInfo*)this;
+	return Info.Size - Info.Dispatch.EventSize;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-const uint8* FAnalysisEngine::FEventDataImpl::GetAttachment() const
+const uint8* IAnalyzer::FEventData::GetRawPointer() const
 {
-	return Ptr + Dispatch->EventSize;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-uint16 FAnalysisEngine::FEventDataImpl::GetAttachmentSize() const
-{
-	return Size - Dispatch->EventSize;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-uint16 FAnalysisEngine::FEventDataImpl::GetTotalSize() const
-{
-	return Size;
+	const auto& Info = *(const FAnalysisEngine::FEventDataInfo*)this;
+	return Info.Ptr;
 }
 
 
@@ -292,19 +213,25 @@ enum ERouteId : uint16
 };
 
 ////////////////////////////////////////////////////////////////////////////////
+// This is used to influence the order of routes (routes are sorted by hash).
+enum EKnownRouteHashes : uint32
+{
+	RouteHash_NewEvent = 0, // must be 0 to match traces.
+	RouteHash_AllEvents,	
+};
+
+////////////////////////////////////////////////////////////////////////////////
 FAnalysisEngine::FAnalysisEngine(TArray<IAnalyzer*>&& InAnalyzers)
 : Analyzers(MoveTemp(InAnalyzers))
 {
-	EventDataImpl = new FEventDataImpl();
-
 	uint16 SelfIndex = Analyzers.Num();
 	Analyzers.Add(this);
 
 	// Manually add event routing for known events, and those we don't quite know
 	// yet but are expecting.
-	FDispatch& NewEventDispatch = AddDispatch(uint16(FNewEventEvent::Uid), 0);
-	NewEventDispatch.FirstRoute = 0;
-	AddRoute(SelfIndex, RouteId_NewEvent, 0);
+	FDispatch* NewEventDispatch = AddDispatch(uint16(FNewEventEvent::Uid), 0);
+	NewEventDispatch->FirstRoute = 0;
+	AddRoute(SelfIndex, RouteId_NewEvent, RouteHash_NewEvent);
 	AddRoute(SelfIndex, RouteId_NewTrace, "$Trace", "NewTrace");
 	AddRoute(SelfIndex, RouteId_Timing, "$Trace", "Timing");
 }
@@ -314,7 +241,10 @@ FAnalysisEngine::~FAnalysisEngine()
 {
 	for (IAnalyzer* Analyzer : Analyzers)
 	{
-		Analyzer->OnAnalysisEnd();
+		if (Analyzer != nullptr)
+		{
+			Analyzer->OnAnalysisEnd();
+		}
 	}
 
 	for (FDispatch* Dispatch : Dispatches)
@@ -322,28 +252,38 @@ FAnalysisEngine::~FAnalysisEngine()
 		FMemory::Free(Dispatch);
 	}
 
-	delete EventDataImpl;
+	delete Transport;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void FAnalysisEngine::OnAnalysisBegin(const FOnAnalysisContext& Context)
+void FAnalysisEngine::RetireAnalyzer(uint32 AnalyzerIndex)
 {
+	if (AnalyzerIndex >= uint32(Analyzers.Num()))
+	{
+		return;
+	}
+
+	IAnalyzer* Analyzer = Analyzers[AnalyzerIndex]; // this line is brought to you with the word "Analyzer" (mostly).
+	if (Analyzer == nullptr)
+	{
+		return;
+	}
+
+	Analyzer->OnAnalysisEnd();
+	Analyzers[AnalyzerIndex] = nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void FAnalysisEngine::OnAnalysisEnd()
-{
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void FAnalysisEngine::OnEvent(uint16 RouteId, const FOnEventContext& Context)
+bool FAnalysisEngine::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 {
 	switch (RouteId)
 	{
-	case RouteId_NewEvent:	return OnNewEvent(Context);
-	case RouteId_NewTrace:	return OnNewTrace(Context);
-	case RouteId_Timing:	return OnTiming(Context);
+	case RouteId_NewEvent:	OnNewEventInternal(Context);	break;
+	case RouteId_NewTrace:	OnNewTrace(Context);			break;
+	case RouteId_Timing:	OnTiming(Context);				break;
 	}
+
+	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -367,23 +307,9 @@ void FAnalysisEngine::AddRoute(
 {
 	check(AnalyzerIndex < Analyzers.Num());
 
-	uint16 HashIndex = 0;
-	for (uint16 n = Hashes.Num(); HashIndex < n; ++HashIndex)
-	{
-		if (Hashes[HashIndex] == Hash)
-		{
-			break;
-		}
-	}
-
-	if (HashIndex == Hashes.Num())
-	{
-		Hashes.Add(Hash);
-	}
-
 	FRoute& Route = Routes.Emplace_GetRef();
 	Route.Id = Id;
-	Route.HashIndex = HashIndex;
+	Route.Hash = Hash;
 	Route.Count = 1;
 	Route.AnalyzerIndex = AnalyzerIndex;
 }
@@ -398,6 +324,11 @@ void FAnalysisEngine::OnNewTrace(const FOnEventContext& Context)
 			Self->AddRoute(AnalyzerIndex, RouteId, Logger, Event);
 		}
 
+		virtual void RouteAllEvents(uint16 RouteId) override
+		{
+			Self->AddRoute(AnalyzerIndex, RouteId, RouteHash_AllEvents);
+		}
+
 		FAnalysisEngine* Self;
 		uint16 AnalyzerIndex;
 	} Builder;
@@ -410,14 +341,14 @@ void FAnalysisEngine::OnNewTrace(const FOnEventContext& Context)
 		Analyzers[i]->OnAnalysisBegin(OnAnalysisContext);
 	}
 
-	Algo::SortBy(Routes, [] (const FRoute& Route) { return Route.HashIndex; });
+	Algo::SortBy(Routes, [] (const FRoute& Route) { return Route.Hash; });
 
 	FRoute* Cursor = Routes.GetData();
 	Cursor->Count = 1;
 
 	for (uint16 i = 1, n = Routes.Num(); i < n; ++i)
 	{
-		if (Routes[i].HashIndex == Cursor->HashIndex)
+		if (Routes[i].Hash == Cursor->Hash)
 		{
 			Cursor->Count++;
 		}
@@ -427,55 +358,75 @@ void FAnalysisEngine::OnNewTrace(const FOnEventContext& Context)
 			Cursor->Count = 1;
 		}
 	}
-
-	// Add a terminal route for events that aren't subscribed to
-	FRoute& Route = Routes.Emplace_GetRef();
-	Route.HashIndex = Hashes.Num();
-	Route.Count = 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 void FAnalysisEngine::OnTiming(const FOnEventContext& Context)
 {
-	SessionContext.StartCycle = Context.EventData.GetValue("StartCycle").As<uint64>();
-	SessionContext.CycleFrequency = Context.EventData.GetValue("CycleFrequency").As<uint64>();
+	SessionContext.StartCycle = Context.EventData.GetValue<uint64>("StartCycle");
+	SessionContext.CycleFrequency = Context.EventData.GetValue<uint64>("CycleFrequency");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-FAnalysisEngine::FDispatch& FAnalysisEngine::AddDispatch(uint16 Uid, uint16 FieldCount)
+FAnalysisEngine::FDispatch* FAnalysisEngine::AddDispatch(
+	uint16 Uid,
+	uint16 FieldCount,
+	uint16 ExtraData)
 {
-	// Allocate a block of memory to hold the dispatch
-	uint32 Size = sizeof(FDispatch) + (sizeof(FDispatch::FField) * FieldCount);
-	auto* Dispatch = (FDispatch*)FMemory::Malloc(Size);
-	Dispatch->FieldCount = FieldCount;
-	Dispatch->EventSize = 0;
-	Dispatch->FirstRoute = -1;
-
-	// Add the new dispatch in the dispatch table
-	if (Uid >= Dispatches.Num())
+	// Make sure there's enough space in the dispatch table, failing gently if
+	// there appears to be an existing entry.
+	if (Uid < Dispatches.Num())
+	{
+		if (Dispatches[Uid] != nullptr)
+		{
+			return nullptr;
+		}
+	}
+	else
 	{
 		Dispatches.SetNum(Uid + 1);
 	}
-	check(Dispatches[Uid] == nullptr);
-	Dispatches[Uid] = Dispatch;
 
-	return *Dispatch;
+	// Allocate a block of memory to hold the dispatch
+	uint32 Size = sizeof(FDispatch) + (sizeof(FDispatch::FField) * FieldCount) + ExtraData;
+	auto* Dispatch = (FDispatch*)FMemory::Malloc(Size);
+	Dispatch->Uid = Uid;
+	Dispatch->FieldCount = FieldCount;
+	Dispatch->EventSize = 0;
+	Dispatch->FirstRoute = ~uint16(0);
+
+	// Add the new dispatch in the dispatch table
+	Dispatches[Uid] = Dispatch;
+	return Dispatch;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void FAnalysisEngine::OnNewEvent(const FOnEventContext& Context)
+void FAnalysisEngine::OnNewEventInternal(const FOnEventContext& Context)
 {
-	const auto& NewEvent = *(FNewEventEvent*)Context.EventData.GetData();
+	const FEventDataInfo& EventData = (const FEventDataInfo&)(Context.EventData);
+	const auto& NewEvent = *(FNewEventEvent*)(EventData.Ptr);
 
-	FDispatch& Dispatch = AddDispatch(NewEvent.EventUid, NewEvent.FieldCount);
+	// Create a new dispatch with enough space to store new event's various names
+	uint16 NameDataSize = NewEvent.LoggerNameSize + NewEvent.EventNameSize;
+	NameDataSize += NewEvent.FieldCount + 2; // null terminators
+	for (int i = 0, n = NewEvent.FieldCount; i < n; ++i)
+	{
+		NameDataSize += NewEvent.Fields[i].NameSize + 1;
+	}
+
+	FDispatch* Dispatch = AddDispatch(NewEvent.EventUid, NewEvent.FieldCount, NameDataSize);
+	if (Dispatch == nullptr)
+	{
+		return;
+	}
 
 	if (NewEvent.FieldCount)
 	{
 		auto& LastField = NewEvent.Fields[NewEvent.FieldCount - 1];
-		Dispatch.EventSize = LastField.Offset + LastField.Size;
+		Dispatch->EventSize = LastField.Offset + LastField.Size;
 	}
 
-	const uint8* NameCursor = (uint8*)(NewEvent.Fields + NewEvent.FieldCount);
+	const uint8* NameCursor = (const uint8*)(NewEvent.Fields + NewEvent.FieldCount);
 
 	// Calculate this dispatch's hash.
 	FFnv1aHash DispatchHash;
@@ -486,7 +437,7 @@ void FAnalysisEngine::OnNewEvent(const FOnEventContext& Context)
 	for (int i = 0, n = NewEvent.FieldCount; i < n; ++i)
 	{
 		const auto& In = NewEvent.Fields[i];
-		auto& Out = Dispatch.Fields[i];
+		auto& Out = Dispatch->Fields[i];
 
 		FFnv1aHash FieldHash;
 		NameCursor = FieldHash.Add(NameCursor, In.NameSize);
@@ -494,33 +445,98 @@ void FAnalysisEngine::OnNewEvent(const FOnEventContext& Context)
 		Out.Hash = FieldHash.Get();
 		Out.Offset = In.Offset;
 		Out.Size = In.Size;
-		Out.TypeInfo = In.TypeInfo;
+
+		Out.SizeAndType = 1 << (In.TypeInfo & _Field_Pow2SizeMask);
+		if ((In.TypeInfo & _Field_CategoryMask) == _Field_Float)
+		{
+			Out.SizeAndType = -Out.SizeAndType;
+		}
 	}
 
-	TArrayView<FDispatch::FField> Fields(Dispatch.Fields, Dispatch.FieldCount);
+	// Write out names with null terminators.
+	NameCursor = (const uint8*)(NewEvent.Fields + NewEvent.FieldCount);
+	uint8* WriteCursor = (uint8*)(Dispatch->Fields + Dispatch->FieldCount);
+	auto WriteName = [&] (uint32 Size)
+	{
+		memcpy(WriteCursor, NameCursor, Size);
+		NameCursor += Size;
+		WriteCursor += Size + 1;
+		WriteCursor[-1] = '\0';
+	};
+
+	UPTRINT EventNameOffset = UPTRINT(Dispatch->Fields + NewEvent.FieldCount);
+	EventNameOffset -= UPTRINT(Dispatch);
+	EventNameOffset += NewEvent.LoggerNameSize + 1;
+	Dispatch->EventNameOffset = uint16(EventNameOffset);
+
+	WriteName(NewEvent.LoggerNameSize);
+	WriteName(NewEvent.EventNameSize);
+	for (int i = 0, n = NewEvent.FieldCount; i < n; ++i)
+	{
+		auto& Out = Dispatch->Fields[i];
+		Out.NameOffset = uint16(UPTRINT(WriteCursor) - UPTRINT(Dispatch));
+
+		WriteName(NewEvent.Fields[i].NameSize);
+	}
+
+	// Sort by hash so we can binary search when looking up.
+	TArrayView<FDispatch::FField> Fields(Dispatch->Fields, Dispatch->FieldCount);
 	Algo::SortBy(Fields, [] (const auto& Field) { return Field.Hash; });
 
+	// Fix up field name offsets
+	for (int i = 0, n = NewEvent.FieldCount; i < n; ++i)
+	{
+		auto& Out = Dispatch->Fields[i];
+		Out.NameOffset = uint16(UPTRINT(Dispatch) + Out.NameOffset - UPTRINT(&Out));
+	}
+
 	// Find routes that have subscribed to this event.
-	uint16 HashIndex = 0;
-	for (uint16 n = Hashes.Num(); HashIndex < n; ++HashIndex)
+	for (uint16 i = 0, n = Routes.Num(); i < n; ++i)
 	{
-		if (Hashes[HashIndex] == DispatchHash.Get())
+		if (Routes[i].Hash == DispatchHash.Get())
 		{
+			Dispatch->FirstRoute = i;
 			break;
 		}
 	}
 
-	uint16 RouteIndex = 0;
-	for (uint16 n = Routes.Num(); RouteIndex < n; ++RouteIndex)
+	// Inform routes that a new event has been declared.
+	uint32 RouteCount = Routes.Num();
+	if (Dispatch->FirstRoute < RouteCount)
 	{
-		if (Routes[RouteIndex].HashIndex == HashIndex)
+		const FRoute* Route = Routes.GetData() + Dispatch->FirstRoute;
+		for (uint32 n = Route->Count; n--; ++Route)
 		{
-			break;
+			IAnalyzer* Analyzer = Analyzers[Route->AnalyzerIndex];
+			if (Analyzer == nullptr)
+			{
+				continue;
+			}
+
+			if (!Analyzer->OnNewEvent(Route->Id, *(FEventTypeInfo*)Dispatch))
+			{
+				RetireAnalyzer(Route->AnalyzerIndex);
+			}
 		}
 	}
 
-	check(RouteIndex < Routes.Num());
-	Dispatch.FirstRoute = RouteIndex;
+	const FRoute* Route = Routes.GetData() + 1;
+	if (RouteCount > 1 && Route->Hash == RouteHash_AllEvents)
+	{
+		for (uint32 n = Route->Count; n--; ++Route)
+		{
+			IAnalyzer* Analyzer = Analyzers[Route->AnalyzerIndex];
+			if (Analyzer == nullptr)
+			{
+				continue;
+			}
+
+			if (!Analyzer->OnNewEvent(Route->Id, *(FEventTypeInfo*)Dispatch))
+			{
+				RetireAnalyzer(Route->AnalyzerIndex);
+			}
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -535,17 +551,36 @@ bool FAnalysisEngine::EstablishTransport(FStreamReader::FData& Data)
 		return false;
 	}
 
-	Data.Advance(sizeof(*Header));
+	// Check for the magic uint32. Early traces did not include this as it was
+	// used to validate a inbound socket connection and then discarded.
+	if (Header->Format == 'E' || Header->Format == 'T')
+	{
+		const uint32* Magic = (const uint32*)(Data.GetPointer(sizeof(*Magic)));
+		if (*Magic == 'ECRT')
+		{
+			// Source is big-endian which we don't currently support
+			return false;
+		}
+
+		if (*Magic == 'TRCE')
+		{
+			Data.Advance(sizeof(*Magic));
+			return EstablishTransport(Data);
+		}
+
+		return false;
+	}
 
 	switch (Header->Format)
 	{
-	case 1:		Transport = new FTransportReader();						break;
-#if 0
-	case 4:		Transport = new FLz4TransportReader(Header->Parameter); break;
-#endif // 0
+	case 1:		Transport = new FTransport(); break;
+	case 2:		Transport = new FTlsTransport(); break;
 	default:	return false;
+	//case 'E':	/* See the magic above */ break;
+	//case 'T':	/* See the magic above */ break;
 	}
 
+	Data.Advance(sizeof(*Header));
 	return true;
 }
 
@@ -554,6 +589,12 @@ bool FAnalysisEngine::OnData(FStreamReader::FData& Data)
 {
 	if (Transport == nullptr)
 	{
+		// Ensure we've a reasonable amount of data to establish the transport with
+		if (Data.GetPointer(32) == nullptr)
+		{
+			return true;
+		}
+
 		if (!EstablishTransport(Data))
 		{
 			return false;
@@ -593,20 +634,69 @@ bool FAnalysisEngine::OnData(FStreamReader::FData& Data)
 		Transport->Advance(BlockSize);
 
 		const FDispatch* Dispatch = Dispatches[Uid];
-
-		EventDataImpl->Dispatch = Dispatch;
-		EventDataImpl->Ptr = Header->EventData;
-		EventDataImpl->Size = Header->Size;
-
-		const FRoute* Route = Routes.GetData() + Dispatch->FirstRoute;
-		for (uint32 n = Route->Count; n--; ++Route)
+		if (Dispatch == nullptr)
 		{
-			IAnalyzer* Analyzer = Analyzers[Route->AnalyzerIndex];
-			Analyzer->OnEvent(Route->Id, { SessionContext, *EventDataImpl });
+			return false;
+		}
+
+		FEventDataInfo EventDataInfo = { *Dispatch, Header->EventData, Header->Size };
+		const FEventData& EventData = (FEventData&)EventDataInfo;
+
+		uint32 RouteCount = Routes.Num();
+		if (Dispatch->FirstRoute < RouteCount)
+		{
+			const FRoute* Route = Routes.GetData() + Dispatch->FirstRoute;
+			for (uint32 n = Route->Count; n--; ++Route)
+			{
+				IAnalyzer* Analyzer = Analyzers[Route->AnalyzerIndex];
+				if (Analyzer == nullptr)
+				{
+					continue;
+				}
+
+				if (!Analyzer->OnEvent(Route->Id, { SessionContext, EventData }))
+				{
+					RetireAnalyzer(Route->AnalyzerIndex);
+				}
+			}
+		}
+
+		// Don't broadcast internal events
+		if (!Uid) // TODO: This makes assumptions about EKnownEventUids::User. Instead we should add this information to the trace.
+		{
+			continue;
+		}
+
+		const FRoute* Route = Routes.GetData() + 1;
+		if (RouteCount > 1 && Route->Hash == RouteHash_AllEvents)
+		{
+			for (uint32 n = Route->Count; n--; ++Route)
+			{
+				IAnalyzer* Analyzer = Analyzers[Route->AnalyzerIndex];
+				if (Analyzer == nullptr)
+				{
+					continue;
+				}
+
+				if (!Analyzer->OnEvent(Route->Id, { SessionContext, EventData }))
+				{
+					RetireAnalyzer(Route->AnalyzerIndex);
+				}
+			}
 		}
 	}
 
-	return true;
+	// If there's no analyzers left we might as well not continue
+	int32 ActiveAnalyzerCount = 0;
+	for (IAnalyzer* Analyzer : Analyzers)
+	{
+		if ((Analyzer != nullptr) && (Analyzer != this))
+		{
+			ActiveAnalyzerCount++;
+		}
+	}
+
+	return (ActiveAnalyzerCount > 0);
 }
 
 } // namespace Trace

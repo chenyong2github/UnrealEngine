@@ -31,6 +31,11 @@ public:
 	FDisasterRecoveryFSM(TSharedRef<IConcertSyncClient> InSyncClient, const FString& InSessionNameToRecover, bool bInLiveDataOnly);
 	~FDisasterRecoveryFSM();
 
+	bool IsDone() const
+	{
+		return CurrentState == &ExitState;
+	}
+
 private:
 	struct FState
 	{
@@ -361,6 +366,7 @@ void FDisasterRecoveryFSM::RestoreAndJoinSession()
 	RestoreArgs.SessionId = RecoverySessionId;
 	RestoreArgs.SessionFilter.ActivityIdUpperBound = SelectedRecoveryActivity->Activity.ActivityId;
 	RestoreArgs.SessionFilter.bOnlyLiveData = bLiveDataOnly; // TODO: I'm not sure if this should be true or false.
+	RestoreArgs.SessionFilter.bIncludeIgnoredActivities = false; // Don't restore ignored activities. (Like MultiUser events recorded in a DisasterRecovery session for inspection purpose)
 	RestoreArgs.SessionName = ClientConfig->DefaultSessionName;
 
 	// Restore the session on the server.
@@ -435,9 +441,16 @@ void DisasterRecoveryUtil::StartRecovery(TSharedRef<IConcertSyncClient> SyncClie
 	}
 }
 
-void DisasterRecoveryUtil::EndRecovery()
+bool DisasterRecoveryUtil::EndRecovery()
 {
-	RecoveryFSM.Reset();
+	bool bDone = true;
+	if (RecoveryFSM)
+	{
+		bDone = RecoveryFSM->IsDone();
+		RecoveryFSM.Reset();
+	}
+
+	return bDone;
 }
 
 #undef LOCTEXT_NAMESPACE

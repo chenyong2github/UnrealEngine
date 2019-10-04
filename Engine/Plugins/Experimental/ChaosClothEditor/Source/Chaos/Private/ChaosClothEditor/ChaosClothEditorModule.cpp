@@ -6,6 +6,7 @@
 
 #include "ClothingSystemEditorInterfaceModule.h"
 #include "Features/IModularFeatures.h"
+#include "Modules/ModuleManager.h"
 
 IMPLEMENT_MODULE(FChaosClothEditorModule, ChaosClothEditor);
 DEFINE_LOG_CATEGORY(LogChaosClothEditor);

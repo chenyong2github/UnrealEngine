@@ -554,11 +554,22 @@ bool FGenericPlatformProcess::SupportsMultithreading()
 }
 
 FGenericPlatformProcess::FSemaphore::FSemaphore(const FString& InName)
+	: FSemaphore(*InName)
 {
-	FCString::Strcpy(Name, sizeof(Name)-1, *InName);
+}
+
+
+FGenericPlatformProcess::FSemaphore::FSemaphore(const TCHAR* InName) 
+{
+	FCString::Strcpy(Name, sizeof(Name) - 1, InName);
 }
 
 FGenericPlatformProcess::FSemaphore* FGenericPlatformProcess::NewInterprocessSynchObject(const FString& Name, bool bCreate, uint32 MaxLocks)
+{
+	return NewInterprocessSynchObject(*Name, bCreate, MaxLocks);
+}
+
+FGenericPlatformProcess::FSemaphore* FGenericPlatformProcess::NewInterprocessSynchObject(const TCHAR* Name, bool bCreate, uint32 MaxLocks)
 {
 	UE_LOG(LogHAL, Fatal, TEXT("FGenericPlatformProcess::NewInterprocessSynchObject not implemented on this platform"));
 	return NULL;

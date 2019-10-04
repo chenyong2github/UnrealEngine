@@ -561,7 +561,7 @@ void FRenderAssetInstanceAsyncView::GetRenderAssetScreenSize(
 							&& CompiledElement.TexelFactor == 0.f
 							&& ensure(CompiledElement.BoundsIndex < View->NumBounds4() * 4))
 						{
-							FRenderAssetInstanceView::FCompiledElement* MutableCompiledElement = const_cast<FRenderAssetInstanceView::FCompiledElement*>(CompiledElementData);
+							FRenderAssetInstanceView::FCompiledElement* MutableCompiledElement = const_cast<FRenderAssetInstanceView::FCompiledElement*>(&CompiledElement);
 							MutableCompiledElement->TexelFactor = View->GetBounds4(CompiledElement.BoundsIndex / 4).Radius.Component(CompiledElement.BoundsIndex % 4) * 2.f;
 						}
 

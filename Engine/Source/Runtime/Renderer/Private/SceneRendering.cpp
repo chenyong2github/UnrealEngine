@@ -3131,6 +3131,13 @@ void FSceneRenderer::RenderCustomDepthPass(FRHICommandListImmediate& RHICmdList)
 						Scene->UniformBuffers.InstancedCustomDepthViewUniformBuffer.UpdateUniformBufferImmediate(reinterpret_cast<FInstancedViewUniformShaderParameters&>(*View.CachedViewUniformShaderParameters));
 					}
 				}
+
+				extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
+				
+				for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
+				{
+					Extension->BeginRenderView(&View);
+				}
 	
 				View.ParallelMeshDrawCommandPasses[EMeshPass::CustomDepth].DispatchDraw(nullptr, RHICmdList);
 			}
@@ -3156,6 +3163,13 @@ void FSceneRenderer::OnStartRender(FRHICommandListImmediate& RHICmdList)
 		{
 			View.ViewState->OnStartRender(View, ViewFamily);
 		}
+	}
+
+	extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
+
+	for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
+	{
+		Extension->BeginFrame();
 	}
 }
 

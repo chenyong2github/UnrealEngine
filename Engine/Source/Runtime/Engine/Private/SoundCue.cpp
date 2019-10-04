@@ -89,7 +89,10 @@ void USoundCue::CacheAggregateValues()
 
 void USoundCue::PrimeSoundCue()
 {
-	FirstNode->PrimeChildWavePlayers(true);
+	if (FirstNode != nullptr)
+	{
+		FirstNode->PrimeChildWavePlayers(true);
+	}
 }
 
 void USoundCue::Serialize(FStructuredArchive::FRecord Record)
@@ -107,18 +110,18 @@ void USoundCue::Serialize(FStructuredArchive::FRecord Record)
 
 	if (UnderlyingArchive.UE4Ver() >= VER_UE4_COOKED_ASSETS_IN_EDITOR_SUPPORT)
 	{
-		FStripDataFlags StripFlags(Record.EnterField(FIELD_NAME_TEXT("SoundCueStripFlags")));
+		FStripDataFlags StripFlags(Record.EnterField(SA_FIELD_NAME(TEXT("SoundCueStripFlags"))));
 #if WITH_EDITORONLY_DATA
 		if (!StripFlags.IsEditorDataStripped())
 		{
-			Record << NAMED_FIELD(SoundCueGraph);
+			Record << SA_VALUE(TEXT("SoundCueGraph"), SoundCueGraph);
 		}
 #endif // WITH_EDITORONLY_DATA
 	}
 #if WITH_EDITOR
 	else
 	{
-		Record << NAMED_FIELD(SoundCueGraph);
+		Record << SA_VALUE(TEXT("SoundCueGraph"), SoundCueGraph);
 	}
 #endif // WITH_EDITOR
 }
@@ -159,7 +162,7 @@ void USoundCue::PostLoad()
 
 	CacheAggregateValues();
 	
-	if (bPrimeOnLoad)
+	if (bPrimeOnLoad && FirstNode != nullptr)
 	{
 		FirstNode->PrimeChildWavePlayers(true);
 	}

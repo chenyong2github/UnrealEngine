@@ -23,6 +23,9 @@ template<class T, int d>
 class TParticles;
 template<class T, int d>
 class TBVHParticles;
+template<class T, int d>
+class TImplicitObject;
+
 
 enum class ImplicitObjectType : int8
 {
@@ -54,6 +57,37 @@ namespace EImplicitObject
 
 	const int32 FiniteConvex = IsConvex | HasBoundingBox;
 }
+
+
+
+template<class T, int d, bool bSerializable>
+struct TImplicitObjectPtrStorage
+{
+};
+
+template<class T, int d>
+struct TImplicitObjectPtrStorage<T, d, false>
+{
+	using PtrType = TImplicitObject<T, d>*;
+
+	static PtrType Convert(const TUniquePtr<TImplicitObject<T, d>>& Object)
+	{
+		return Object.Get();
+	}
+};
+
+template<class T, int d>
+struct TImplicitObjectPtrStorage<T, d, true>
+{
+	using PtrType = TSerializablePtr<TImplicitObject<T, d>>;
+
+	static PtrType Convert(const TUniquePtr<TImplicitObject<T, d>>& Object)
+	{
+		return MakeSerializable(Object);
+	}
+};
+
+
 
 template<class T, int d>
 class CHAOS_API TImplicitObject
@@ -100,44 +134,20 @@ public:
 		return static_cast<const T_DERIVED&>(*this);
 	}
 
-	ImplicitObjectType GetType(bool bGetTrueType = false) const
-	{
-		if (bIgnoreAnalyticCollisions && !bGetTrueType)
-		{
-			return ImplicitObjectType::Unknown;
-		}
-		return Type;
-	}
+	ImplicitObjectType GetType(bool bGetTrueType = false) const;
 
-	virtual bool IsValidGeometry() const
-	{
-		return true;
-	}
+	virtual bool IsValidGeometry() const;
 
-	virtual TUniquePtr<TImplicitObject<T, d>> Copy() const
-	{
-		check(false);
-		return nullptr;
-	}
+	virtual TUniquePtr<TImplicitObject<T, d>> Copy() const;
 
 	//This is strictly used for optimization purposes
-	bool IsUnderlyingUnion() const
-	{
-		return Type == ImplicitObjectType::Union;
-	}
+	bool IsUnderlyingUnion() const;
+
 	// Explicitly non-virtual.  Must cast to derived types to target their implementation.
-	T SignedDistance(const TVector<T, d>& x) const
-	{
-		TVector<T, d> Normal;
-		return PhiWithNormal(x, Normal);
-	}
+	T SignedDistance(const TVector<T, d>& x) const;
+
 	// Explicitly non-virtual.  Must cast to derived types to target their implementation.
-	TVector<T, d> Normal(const TVector<T, d>& x) const
-	{
-		TVector<T, d> Normal;
-		PhiWithNormal(x, Normal);
-		return Normal;
-	}
+	TVector<T, d> Normal(const TVector<T, d>& x) const;
 	virtual T PhiWithNormal(const TVector<T, d>& x, TVector<T, d>& Normal) const = 0;
 	virtual const class TBox<T, d>& BoundingBox() const;
 	virtual TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const;

@@ -14,9 +14,14 @@ struct FNiagaraScriptExecutionPaddingInfo
 public:
 	FNiagaraScriptExecutionPaddingInfo() : SrcOffset(0), DestOffset(0), SrcSize(0), DestSize(0) {}
 	FNiagaraScriptExecutionPaddingInfo(uint32 InSrcOffset, uint32 InDestOffset, uint32 InSrcSize, uint32 InDestSize) : SrcOffset(InSrcOffset), DestOffset(InDestOffset), SrcSize(InSrcSize), DestSize(InDestSize) {}
+
+	UPROPERTY()
 	uint32 SrcOffset;
+	UPROPERTY()
 	uint32 DestOffset;
+	UPROPERTY()
 	uint32 SrcSize;
+	UPROPERTY()
 	uint32 DestSize;
 };
 
@@ -89,7 +94,7 @@ public:
 
 
 	bool IsInitialized() const {return bInitialized;}
-
+	void SetAsInitialized() { bInitialized = true; }
 protected:
 	void AddPaddedParamSize(const FNiagaraTypeDefinition& InParamType, uint32 InOffset);
 

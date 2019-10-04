@@ -12,36 +12,11 @@
 FPropertyTag
 -----------------------------------------------------------------------------*/
 
-// Constructors.
-FPropertyTag::FPropertyTag()
-	: Prop      (nullptr)
-	, Type      (NAME_None)
-	, BoolVal   (0)
-	, Name      (NAME_None)
-	, StructName(NAME_None)
-	, EnumName  (NAME_None)
-	, InnerType (NAME_None)
-	, ValueType	(NAME_None)
-	, Size      (0)
-	, ArrayIndex(INDEX_NONE)
-	, SizeOffset(INDEX_NONE)
-	, HasPropertyGuid(0)
-{
-}
-
 FPropertyTag::FPropertyTag( FArchive& InSaveAr, UProperty* Property, int32 InIndex, uint8* Value, uint8* Defaults )
 	: Prop      (Property)
 	, Type      (Property->GetID())
-	, BoolVal   (0)
 	, Name      (Property->GetFName())
-	, StructName(NAME_None)
-	, EnumName	(NAME_None)
-	, InnerType	(NAME_None)
-	, ValueType	(NAME_None)
-	, Size		(0)
 	, ArrayIndex(InIndex)
-	, SizeOffset(INDEX_NONE)
-	, HasPropertyGuid(0)
 {
 	if (Property)
 	{
@@ -111,13 +86,13 @@ void operator<<(FStructuredArchive::FSlot Slot, FPropertyTag& Tag)
 	checkf(!UnderlyingArchive.IsSaving() || Tag.Prop, TEXT("FPropertyTag must be constructed with a valid property when used for saving data!"));
 
 	// Name.
-	Record << NAMED_ITEM("Name", Tag.Name);
+	Record << SA_VALUE(TEXT("Name"), Tag.Name);
 	if (Tag.Name.IsNone())
 	{
 		return;
 	}
 
-	Record << NAMED_ITEM("Type", Tag.Type);
+	Record << SA_VALUE(TEXT("Type"), Tag.Type);
 	if (UnderlyingArchive.IsSaving())
 	{
 		// remember the offset of the Size variable - UStruct::SerializeTaggedProperties will update it after the
@@ -126,7 +101,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPropertyTag& Tag)
 	}
 	{
 		FArchive::FScopeSetDebugSerializationFlags S(UnderlyingArchive, DSF_IgnoreDiff);
-		Record << NAMED_ITEM("Size", Tag.Size) << NAMED_ITEM("ArrayIndex", Tag.ArrayIndex);
+		Record << SA_VALUE(TEXT("Size"), Tag.Size) << SA_VALUE(TEXT("ArrayIndex"), Tag.ArrayIndex);
 	}
 
 	if (Tag.Type.GetNumber() == 0)
@@ -136,10 +111,10 @@ void operator<<(FStructuredArchive::FSlot Slot, FPropertyTag& Tag)
 		// only need to serialize this for structs
 		if (TagType == NAME_StructProperty)
 		{
-			Record << NAMED_ITEM("StructName", Tag.StructName);
+			Record << SA_VALUE(TEXT("StructName"), Tag.StructName);
 			if (Version >= VER_UE4_STRUCT_GUID_IN_PROPERTY_TAG)
 			{
-				Record << NAMED_ITEM("StructGuid", Tag.StructGuid);
+				Record << SA_VALUE(TEXT("StructGuid"), Tag.StructGuid);
 			}
 		}
 		// only need to serialize this for bools
@@ -148,36 +123,36 @@ void operator<<(FStructuredArchive::FSlot Slot, FPropertyTag& Tag)
 			if (UnderlyingArchive.IsSaving())
 			{
 				FSerializedPropertyScope SerializedProperty(UnderlyingArchive, Tag.Prop);
-				Record << NAMED_ITEM("BoolVal", Tag.BoolVal);
+				Record << SA_VALUE(TEXT("BoolVal"), Tag.BoolVal);
 			}
 			else
 			{
-				Record << NAMED_ITEM("BoolVal", Tag.BoolVal);
+				Record << SA_VALUE(TEXT("BoolVal"), Tag.BoolVal);
 			}
 		}
 		// only need to serialize this for bytes/enums
 		else if (TagType == NAME_ByteProperty || TagType == NAME_EnumProperty)
 		{
-			Record << NAMED_ITEM("EnumName", Tag.EnumName);
+			Record << SA_VALUE(TEXT("EnumName"), Tag.EnumName);
 		}
 		// only need to serialize this for arrays
 		else if (TagType == NAME_ArrayProperty)
 		{
 			if (Version >= VAR_UE4_ARRAY_PROPERTY_INNER_TAGS)
 			{
-				Record << NAMED_ITEM("InnerType", Tag.InnerType);
+				Record << SA_VALUE(TEXT("InnerType"), Tag.InnerType);
 			}
 		}
 		else if (Version >= VER_UE4_PROPERTY_TAG_SET_MAP_SUPPORT)
 		{
 			if (TagType == NAME_SetProperty)
 			{
-				Record << NAMED_ITEM("InnerType", Tag.InnerType);
+				Record << SA_VALUE(TEXT("InnerType"), Tag.InnerType);
 			}
 			else if (TagType == NAME_MapProperty)
 			{
-				Record << NAMED_ITEM("InnerType", Tag.InnerType);
-				Record << NAMED_ITEM("ValueType", Tag.ValueType);
+				Record << SA_VALUE(TEXT("InnerType"), Tag.InnerType);
+				Record << SA_VALUE(TEXT("ValueType"), Tag.ValueType);
 			}
 		}
 	}
@@ -185,10 +160,10 @@ void operator<<(FStructuredArchive::FSlot Slot, FPropertyTag& Tag)
 	// Property tags to handle renamed blueprint properties effectively.
 	if (Version >= VER_UE4_PROPERTY_GUID_IN_PROPERTY_TAG)
 	{
-		Record << NAMED_ITEM("HasPropertyGuid", Tag.HasPropertyGuid);
+		Record << SA_VALUE(TEXT("HasPropertyGuid"), Tag.HasPropertyGuid);
 		if (Tag.HasPropertyGuid)
 		{
-			Record << NAMED_ITEM("PropertyGuid", Tag.PropertyGuid);
+			Record << SA_VALUE(TEXT("PropertyGuid"), Tag.PropertyGuid);
 		}
 	}
 }

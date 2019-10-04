@@ -295,7 +295,7 @@ public:
 	friend void operator<<(FStructuredArchive::FSlot Slot, FIntPoint& Point)
 	{
 		FStructuredArchive::FRecord Record = Slot.EnterRecord();
-		Record << NAMED_ITEM("X", Point.X) << NAMED_ITEM("Y", Point.Y);
+		Record << SA_VALUE(TEXT("X"), Point.X) << SA_VALUE(TEXT("Y"), Point.Y);
 	}
 
 	/**

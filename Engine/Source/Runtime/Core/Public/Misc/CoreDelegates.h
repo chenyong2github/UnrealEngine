@@ -131,10 +131,6 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSyncLoadPackage, const FString&);
 	static FOnSyncLoadPackage OnSyncLoadPackage;
 
-	// Callback for when the initial loading screen is shown during PreInit
-	DECLARE_MULTICAST_DELEGATE(FOnInitialLoadingScreenShown);
-	static FOnInitialLoadingScreenShown OnInitialLoadingScreenShown;
-
 	// get a hotfix delegate
 	static FHotFixDelegate& GetHotfixDelegate(EHotfixDelegates::Type HotFix);
 

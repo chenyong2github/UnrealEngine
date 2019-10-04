@@ -53,13 +53,16 @@ FLogMessageSpec& FLogProvider::GetMessageSpec(uint64 LogPoint)
 void FLogProvider::AppendMessage(uint64 LogPoint, double Time, const uint8* FormatArgs)
 {
 	Session.WriteAccessCheck();
-	check(SpecMap.Contains(LogPoint));
-	FLogMessageInternal& InternalMessage = Messages.PushBack();
-	InternalMessage.Time = Time;
-	InternalMessage.Spec = SpecMap[LogPoint];
-	FFormatArgsHelper::Format(FormatBuffer, FormatBufferSize - 1, InternalMessage.Spec->FormatString, FormatArgs);
-	InternalMessage.Message = Session.StoreString(FormatBuffer);
-	Session.UpdateDurationSeconds(Time);
+	FLogMessageSpec** FindSpec = SpecMap.Find(LogPoint);
+	if (FindSpec && (*FindSpec)->Verbosity != ELogVerbosity::SetColor)
+	{
+		FLogMessageInternal& InternalMessage = Messages.PushBack();
+		InternalMessage.Time = Time;
+		InternalMessage.Spec = *FindSpec;
+		FFormatArgsHelper::Format(FormatBuffer, FormatBufferSize - 1, TempBuffer, FormatBufferSize - 1, InternalMessage.Spec->FormatString, FormatArgs);
+		InternalMessage.Message = Session.StoreString(FormatBuffer);
+		Session.UpdateDurationSeconds(Time);
+	}
 }
 
 uint64 FLogProvider::GetMessageCount() const
@@ -136,12 +139,9 @@ void FLogProvider::ConstructMessage(uint64 Index, TFunctionRef<void(const FLogMe
 void FLogProvider::EnumerateCategories(TFunctionRef<void(const FLogCategory &)> Callback) const
 {
 	Session.ReadAccessCheck();
-	auto Iterator = Categories.GetIteratorFromItem(0);
-	const FLogCategory* Category = Iterator.GetCurrentItem();
-	while (Category)
+	for (auto Iterator = Categories.GetIteratorFromItem(0); Iterator; ++Iterator)
 	{
-		Callback(*Category);
-		Category = Iterator.NextItem();
+		Callback(*Iterator);
 	}
 }
 

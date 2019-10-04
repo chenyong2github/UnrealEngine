@@ -153,7 +153,7 @@ FNiagaraParameterStore::~FNiagaraParameterStore()
 	Bindings.Empty();
 }
 
-void FNiagaraParameterStore::Bind(FNiagaraParameterStore* DestStore)
+void FNiagaraParameterStore::Bind(FNiagaraParameterStore* DestStore, const FNiagaraBoundParameterArray* BoundParameters)
 {
 	check(DestStore);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraParameterStoreBind);
@@ -161,7 +161,7 @@ void FNiagaraParameterStore::Bind(FNiagaraParameterStore* DestStore)
 	{
 		// Bind the parameter stores only if they have variables in common.
 		FNiagaraParameterStoreBinding HeapBinding;
-		if  (HeapBinding.Initialize(DestStore, this))
+		if  (HeapBinding.Initialize(DestStore, this, BoundParameters))
 		{
 			FNiagaraParameterStoreBinding& Binding = Bindings.FindOrAdd(DestStore);
 			FMemory::Memswap(&Binding, &HeapBinding, sizeof(FNiagaraParameterStoreBinding));
@@ -169,7 +169,81 @@ void FNiagaraParameterStore::Bind(FNiagaraParameterStore* DestStore)
 	}
 }
 
-bool FNiagaraParameterStoreBinding::BindParameters(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore)
+template <typename TVisitor>
+void FNiagaraParameterStoreBinding::MatchParameters(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore, TVisitor Visitor)
+{
+	const int32 SrcNum = SrcStore->GetSortedParameterOffsets().Num();
+	const int32 DestNum = DestStore->GetSortedParameterOffsets().Num();
+	const int32 BinarySearchComplexity = FMath::Min<int32>(SrcNum, DestNum) * FMath::RoundToInt(FMath::Log2((float)FMath::Max<int32>(SrcNum, DestNum)));
+	if (BinarySearchComplexity >= SrcNum + DestNum)
+	{
+		const TArray<FNiagaraVariableWithOffset>& SrcParamWithOffsets = SrcStore->GetSortedParameterOffsets();
+		const TArray<FNiagaraVariableWithOffset>& DestParamWithOffsets = DestStore->GetSortedParameterOffsets();
+
+		int32 SrcIndex = 0;
+		int32 DestIndex = 0;
+		while (SrcIndex < SrcNum && DestIndex < DestNum)
+		{
+			const FNiagaraVariableWithOffset& SrcParamWithOffset = SrcStore->GetSortedParameterOffsets()[SrcIndex];
+			const FNiagaraVariableWithOffset& DestParamWithOffset = DestStore->GetSortedParameterOffsets()[DestIndex];
+
+			const int32 CompValue = FNiagaraVariableSearch::Compare(SrcParamWithOffset, DestParamWithOffset);
+			if (CompValue < 0)
+			{
+				++SrcIndex;
+			}
+			else if (CompValue > 0)
+			{
+				++DestIndex;
+			}
+			else // CompValue == 0
+			{
+				Visitor(SrcParamWithOffset, SrcParamWithOffset.Offset, DestParamWithOffset.Offset);
+				++SrcIndex;
+				++DestIndex;
+			}
+
+		}
+
+	}
+	// Process the smaller parameter store the get the least amount of iterations when it is small (often empty).
+	else if (DestStore->GetNumParameters() <= SrcStore->GetNumParameters())
+	{
+		for (const FNiagaraVariableWithOffset& ParamWithOffset : DestStore->GetSortedParameterOffsets())
+		{
+			Visitor(ParamWithOffset, SrcStore->IndexOf(ParamWithOffset), ParamWithOffset.Offset);
+		}
+	}
+	else
+	{
+		for (const FNiagaraVariableWithOffset& ParamWithOffset : SrcStore->GetSortedParameterOffsets())
+		{
+			Visitor(ParamWithOffset, ParamWithOffset.Offset, DestStore->IndexOf(ParamWithOffset));
+		}
+	}
+}
+
+void FNiagaraParameterStoreBinding::GetBindingData(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore, FNiagaraBoundParameterArray& OutBoundParameters)
+{
+	OutBoundParameters.Empty();
+
+	auto AddVariable = [&](const FNiagaraVariable& InParameter, int32 SrcOffset, int32 DestOffset)
+	{
+		if (SrcOffset != INDEX_NONE && DestOffset != INDEX_NONE)
+		{
+			FNiagaraBoundParameter BoundParameter;
+			BoundParameter.Parameter = InParameter;
+			BoundParameter.SrcOffset = SrcOffset;
+			BoundParameter.DestOffset = DestOffset;
+
+			OutBoundParameters.Add(BoundParameter);
+		}
+	};
+
+	MatchParameters(DestStore, SrcStore, AddVariable);
+}
+
+bool FNiagaraParameterStoreBinding::BindParameters(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore, const FNiagaraBoundParameterArray* BoundParameters)
 {
 	InterfaceBindings.Reset();
 	ParameterBindings.Reset();
@@ -198,54 +272,18 @@ bool FNiagaraParameterStoreBinding::BindParameters(FNiagaraParameterStore* DestS
 		}
 	};
 
-	const int32 SrcNum = SrcStore->GetSortedParameterOffsets().Num();
-	const int32 DestNum = DestStore->GetSortedParameterOffsets().Num();
-	const int32 BinarySearchComplexity = FMath::Min<int32>(SrcNum, DestNum) * FMath::RoundToInt(FMath::Log2((float)FMath::Max<int32>(SrcNum, DestNum)));
-	if (BinarySearchComplexity >= SrcNum + DestNum)
+	if (!BoundParameters)
 	{
-		const TArray<FNiagaraVariableWithOffset>& SrcParamWithOffsets = SrcStore->GetSortedParameterOffsets();
-		const TArray<FNiagaraVariableWithOffset>& DestParamWithOffsets = DestStore->GetSortedParameterOffsets();
-
-		int32 SrcIndex = 0;
-		int32 DestIndex = 0;
-		while (SrcIndex < SrcNum && DestIndex < DestNum)
-		{
-			const FNiagaraVariableWithOffset& SrcParamWithOffset = SrcStore->GetSortedParameterOffsets()[SrcIndex];
-			const FNiagaraVariableWithOffset& DestParamWithOffset = DestStore->GetSortedParameterOffsets()[DestIndex];
-
-			const int32 CompValue = FNiagaraVariableSearch::Compare(SrcParamWithOffset, DestParamWithOffset);
-			if (CompValue < 0)
-			{
-				++SrcIndex;
-			}
-			else if (CompValue > 0)
-			{
-				++DestIndex;
-			}
-			else // CompValue == 0
-			{
-				BindVariable(SrcParamWithOffset, SrcParamWithOffset.Offset, DestParamWithOffset.Offset);
-				++SrcIndex;
-				++DestIndex;
-			}
-
-		}
-
+		MatchParameters(DestStore, SrcStore, BindVariable);
 	}
-	// Process the smaller parameter store the get the least amount of iterations when it is small (often empty).
-	else if (DestStore->GetNumParameters() <= SrcStore->GetNumParameters())
+	else if (BoundParameters->Num())
 	{
-		for (const FNiagaraVariableWithOffset& ParamWithOffset : DestStore->GetSortedParameterOffsets())
+		for (const FNiagaraBoundParameter& BoundParameter : *BoundParameters)
 		{
-			BindVariable(ParamWithOffset, SrcStore->IndexOf(ParamWithOffset), ParamWithOffset.Offset);
+			checkSlow(SrcStore->IndexOf(BoundParameter.Parameter) == BoundParameter.SrcOffset && DestStore->IndexOf(BoundParameter.Parameter) == BoundParameter.DestOffset);
+			BindVariable(BoundParameter.Parameter, BoundParameter.SrcOffset, BoundParameter.DestOffset);
 		}
-	}
-	else
-	{
-		for (const FNiagaraVariableWithOffset& ParamWithOffset : SrcStore->GetSortedParameterOffsets())
-		{
-			BindVariable(ParamWithOffset, ParamWithOffset.Offset, DestStore->IndexOf(ParamWithOffset));
-		}
+		bAnyBinding = true;
 	}
 
 	if (bAnyBinding)

@@ -84,6 +84,7 @@ class FOpenColorIOShaderCompilationManager
 {
 public:
 	FOpenColorIOShaderCompilationManager();
+	~FOpenColorIOShaderCompilationManager();
 
 	OPENCOLORIO_API void Tick(float DeltaSeconds = 0.0f);
 	OPENCOLORIO_API void AddJobs(TArray<FShaderCommonCompileJob*> InNewJobs);
@@ -94,6 +95,8 @@ public:
 private:
 	void ProcessCompiledOpenColorIOShaderMaps(TMap<int32, FOpenColorIOShaderMapFinalizeResults>& CompiledShaderMaps, float TimeBudget);
 	void RunCompileJobs();
+
+	void InitWorkerInfo();
 
 	TArray<FShaderCommonCompileJob*> JobQueue;
 

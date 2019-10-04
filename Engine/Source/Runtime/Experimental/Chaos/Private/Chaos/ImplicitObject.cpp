@@ -33,6 +33,50 @@ TImplicitObject<T, d>::~TImplicitObject()
 }
 
 template<class T, int d>
+ImplicitObjectType TImplicitObject<T, d>::GetType(bool bGetTrueType) const
+{
+	if (bIgnoreAnalyticCollisions && !bGetTrueType)
+	{
+		return ImplicitObjectType::Unknown;
+	}
+	return Type;
+}
+
+template<class T, int d>
+bool TImplicitObject<T, d>::IsValidGeometry() const
+{
+	return true;
+}
+
+template<class T, int d>
+TUniquePtr<TImplicitObject<T, d>> TImplicitObject<T, d>::Copy() const
+{
+	check(false);
+	return nullptr;
+}
+
+template<class T, int d>
+bool TImplicitObject<T, d>::IsUnderlyingUnion() const
+{
+	return Type == ImplicitObjectType::Union;
+}
+
+template<class T, int d>
+T TImplicitObject<T, d>::SignedDistance(const TVector<T, d>& x) const
+{
+	TVector<T, d> Normal;
+	return PhiWithNormal(x, Normal);
+}
+
+template<class T, int d>
+TVector<T, d> TImplicitObject<T, d>::Normal(const TVector<T, d>& x) const
+{
+	TVector<T, d> Normal;
+	PhiWithNormal(x, Normal);
+	return Normal;
+}
+
+template<class T, int d>
 TVector<T, d> TImplicitObject<T, d>::Support(const TVector<T, d>& Direction, const T Thickness) const
 {
 	check(false); //not a good implementation, don't use this

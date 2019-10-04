@@ -200,8 +200,6 @@ bool FStreamableHandle::BindUpdateDelegate(FStreamableUpdateDelegate NewDelegate
 
 EAsyncPackageState::Type FStreamableHandle::WaitUntilComplete(float Timeout, bool bStartStalledHandles)
 {
-	TRACE_LOADTIME_WAIT_FOR_STREAMABLE_HANDLE_SCOPE(this);
-
 	if (HasLoadCompleted())
 	{
 		return EAsyncPackageState::Complete;
@@ -506,7 +504,6 @@ void FStreamableHandle::StartStalledHandle()
 
 FStreamableHandle::~FStreamableHandle()
 {
-	TRACE_LOADTIME_DESTROY_STREAMABLE_HANDLE(this);
 	check(IsInGameThread() || IsInGarbageCollectorThread());
 
 	if (IsActive())
@@ -520,7 +517,6 @@ FStreamableHandle::~FStreamableHandle()
 
 void FStreamableHandle::CompleteLoad()
 {
-	TRACE_LOADTIME_END_LOAD_STREAMABLE_HANDLE(this);
 	// Only complete if it's still active
 	if (IsActive())
 	{
@@ -940,7 +936,6 @@ FStreamable* FStreamableManager::StreamInternal(const FSoftObjectPath& InTargetN
 			Existing->bAsyncLoadRequestOutstanding = true;
 			Existing->bLoadFailed = false;
 			int32 RequestId = LoadPackageAsync(Package, FLoadPackageAsyncDelegate::CreateSP(Handle, &FStreamableHandle::AsyncLoadCallbackWrapper, TargetName), Priority);
-			TRACE_LOADTIME_STREAMABLE_HANDLE_REQUEST_ASSOCIATION(&Handle.Get(), RequestId);
 		}
 	}
 	return Existing;
@@ -957,8 +952,6 @@ TSharedPtr<FStreamableHandle> FStreamableManager::RequestAsyncLoad(TArray<FSoftO
 	NewRequest->RequestedAssets = MoveTemp(TargetsToStream);
 	NewRequest->DebugName = MoveTemp(DebugName);
 	NewRequest->Priority = Priority;
-
-	TRACE_LOADTIME_NEW_STREAMABLE_HANDLE(&NewRequest.Get(), *NewRequest->DebugName, false);
 
 	int32 NumValidRequests = NewRequest->RequestedAssets.Num();
 	
@@ -1095,7 +1088,7 @@ TSharedPtr<FStreamableHandle> FStreamableManager::RequestSyncLoad(const FSoftObj
 
 void FStreamableManager::StartHandleRequests(TSharedRef<FStreamableHandle> Handle)
 {
-	TRACE_LOADTIME_BEGIN_LOAD_STREAMABLE_HANDLE(&Handle.Get());
+	TRACE_LOADTIME_REQUEST_GROUP_SCOPE(TEXT("StreamableManager - %s"), *Handle->GetDebugName());
 
 	TArray<FStreamable *> ExistingStreamables;
 	ExistingStreamables.Reserve(Handle->RequestedAssets.Num());
@@ -1340,7 +1333,6 @@ TSharedPtr<FStreamableHandle> FStreamableManager::CreateCombinedHandle(const TAr
 	NewRequest->OwningManager = this;
 	NewRequest->bIsCombinedHandle = true;
 	NewRequest->DebugName = DebugName;
-	TRACE_LOADTIME_NEW_STREAMABLE_HANDLE(&NewRequest.Get(), *DebugName, true);
 
 	for (TSharedPtr<FStreamableHandle> ChildHandle : ChildHandles)
 	{

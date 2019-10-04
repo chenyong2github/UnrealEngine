@@ -38,12 +38,6 @@ public:
 		TagAtLastTest = 0;
 	}
 
-	/** Construct from another pointer of the same type */
-	FORCEINLINE TPersistentObjectPtr(const TPersistentObjectPtr& Other)
-	{
-		(*this)=Other;
-	}
-
 	/** Construct from a unique object identifier */
 	explicit FORCEINLINE TPersistentObjectPtr(const TObjectID& InObjectID)
 		: WeakPtr()
@@ -83,15 +77,6 @@ public:
 		*this = Object;
 	}
 
-	/** Construct from another pointer */
-	FORCEINLINE void operator=(const TPersistentObjectPtr<TObjectID>& Other)
-	{
-		WeakPtr = Other.WeakPtr;
-		TagAtLastTest = Other.TagAtLastTest;
-		ObjectID = Other.ObjectID;
-
-	}
-	
 	/**
 	 * Gets the unique object identifier associated with this lazy pointer. Valid even if pointer is not currently valid
 	 *

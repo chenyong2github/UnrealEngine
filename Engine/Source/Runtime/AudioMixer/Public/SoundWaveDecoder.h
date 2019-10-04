@@ -87,7 +87,7 @@ namespace Audio
 		FMixerBuffer* MixerBuffer;
 
 		// Object which handles bulk of decoding operations
-		FMixerSourceBuffer MixerSourceBuffer;
+		TSharedPtr<FMixerSourceBuffer> MixerSourceBuffer;
 
 		// Sample rate of the source
 		int32 SampleRate;

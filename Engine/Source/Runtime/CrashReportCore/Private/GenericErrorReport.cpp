@@ -189,7 +189,10 @@ void FGenericErrorReport::SetPrimaryCrashProperties( FPrimaryCrashProperties& ou
 			CallStack.RemoveAt(0, FMath::Min(CallStack.Num(), (int32)NumMinidumpFramesToIgnore));
 		}
 
-		out_PrimaryCrashProperties.CallStack = CallStack;
+		if (CallStack.Num() > 0)
+		{
+			out_PrimaryCrashProperties.CallStack = CallStack;
+		}
 		out_PrimaryCrashProperties.Modules = Helper->CrashInfo.ModuleNames;
 		out_PrimaryCrashProperties.SourceContext = Helper->CrashInfo.SourceContext;
 

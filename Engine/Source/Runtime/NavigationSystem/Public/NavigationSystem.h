@@ -666,7 +666,7 @@ public:
 	//----------------------------------------------------------------------//
 	// Custom navigation links
 	//----------------------------------------------------------------------//
-	void RegisterCustomLink(INavLinkCustomInterface& CustomLink);
+	virtual void RegisterCustomLink(INavLinkCustomInterface& CustomLink);
 	void UnregisterCustomLink(INavLinkCustomInterface& CustomLink);
 	
 	static void RequestCustomLinkRegistering(INavLinkCustomInterface& CustomLink, UObject* OwnerOb);

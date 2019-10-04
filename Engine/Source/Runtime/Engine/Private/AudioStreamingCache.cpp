@@ -889,17 +889,10 @@ void FAudioChunkCache::KickOffAsyncLoad(FCacheElement* CacheElement, const FChun
 	else
 #endif // #if WITH_EDITORONLY_DATA
 	{
-		check(Chunk.BulkData.GetFilename().Len());
-		UE_CLOG(Chunk.BulkData.IsStoredCompressedOnDisk(), LogAudio, Fatal, TEXT("Package level compression is no longer supported."));
-
 		if (CacheElement->IsLoadInProgress())
 		{
 			CacheElement->WaitForAsyncLoadCompletion(true);
 		}
-
-		// TODO: Figure out how to cache this file handle somewhere, so that we are not reopening a file on every individual load operation.
-		CacheElement->FileHandle.Reset(FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*Chunk.BulkData.GetFilename()));
-		check(CacheElement->FileHandle.IsValid());
 
 		// Sanity check our bulk data against
 		const int32 ChunkBulkDataSize = Chunk.BulkData.GetBulkDataSize();
@@ -931,7 +924,7 @@ void FAudioChunkCache::KickOffAsyncLoad(FCacheElement* CacheElement, const FChun
 		CacheElement->DebugInfo.TimeLoadStarted = FPlatformTime::Seconds();
 #endif
 
-		CacheElement->ReadRequest.Reset(CacheElement->FileHandle->ReadRequest(Chunk.BulkData.GetBulkDataOffsetInFile(), ChunkDataSize, AsyncIOPriority, &AsyncFileCallBack, CacheElement->ChunkData.GetData()));
+		CacheElement->ReadRequest.Reset(Chunk.BulkData.CreateStreamingRequest( 0, ChunkDataSize, AsyncIOPriority, &AsyncFileCallBack, CacheElement->ChunkData.GetData()));
 		if (!CacheElement->ReadRequest.IsValid())
 		{
 			UE_LOG(LogAudio, Error, TEXT("Chunk load in audio LRU cache failed."));

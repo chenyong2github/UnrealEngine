@@ -56,10 +56,14 @@ public:
 	virtual void ReadAccessCheck() const override { return Lock.ReadAccessCheck(); }
 	virtual void WriteAccessCheck() override { return Lock.WriteAccessCheck(); }
 
+	virtual void AddAnalyzer(IAnalyzer* Analyzer) override;
 	virtual void AddProvider(const FName& Name, IProvider* Provider) override;
+
+	const TArray<IAnalyzer*> ReadAnalyzers() { return Analyzers; }
 
 private:
 	virtual const IProvider* ReadProviderPrivate(const FName& Name) const override;
+	virtual IProvider* EditProviderPrivate(const FName& Name) override;
 
 	mutable FAnalysisSessionLock Lock;
 
@@ -68,7 +72,9 @@ private:
 	double DurationSeconds = 0.0;
 	FSlabAllocator Allocator;
 	FStringStore StringStore;
-	TMap<FName, IProvider*> Providers;
+	TArray<IAnalyzer*> Analyzers;
+	TArray<IProvider*> Providers;
+	TMap<FName, IProvider*> ProvidersMap;
 };
 
 class FAnalysisService

@@ -3013,7 +3013,6 @@ bool FMaterial::WritesEveryPixel(bool bShadowPass) const
 	}
 
 	return !IsMasked()
-		&& !IsTranslucentBlendMode(GetBlendMode())
 		// Render dithered material as masked if a stencil prepass is not used (UE-50064, UE-49537)
 		&& !((bShadowPass || !bStencilDitheredLOD) && IsDitheredLODTransition())
 		&& !IsWireframe()

@@ -206,7 +206,6 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "Serialization/BufferReader.h"
 #include "Misc/SecureHash.h"
-#include "Templates/ScopedPointer.h"
 #include "Containers/StaticArray.h"
 #include "Misc/Paths.h"
 #include "Misc/CoreStats.h"

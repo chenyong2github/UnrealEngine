@@ -199,7 +199,7 @@ struct FConcertSessionFilter
 
 	/**
 	 * Return true if the given activity ID passes the ID tests of this filter.
-	 * @note This function only tests the ID conditions, not any data specific checks like bOnlyLiveData.
+	 * @note This function only tests the ID conditions, not any data specific checks like bOnlyLiveData and bIncludeIgnoredActivities.
 	 */
 	CONCERT_API bool ActivityIdPassesFilter(const int64 InActivityId) const;
 
@@ -222,6 +222,14 @@ struct FConcertSessionFilter
 	/** True if only live data should be included (live transactions and head package revisions) */
 	UPROPERTY()
 	bool bOnlyLiveData = false;
+
+	/** True to export the activity summaries without the package/transaction data to look at the log rather than replaying the activities. */
+	UPROPERTY()
+	bool bMetaDataOnly = false;
+
+	/** True to include ignored activities */
+	UPROPERTY()
+	bool bIncludeIgnoredActivities = false;
 };
 
 USTRUCT()

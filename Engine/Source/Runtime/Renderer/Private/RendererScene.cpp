@@ -920,6 +920,13 @@ void FPersistentUniformBuffers::Initialize()
 #endif
 }
 
+TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
+
+void FRendererModule::RegisterPersistentViewUniformBufferExtension(IPersistentViewUniformBufferExtension* Extension)
+{
+	PersistentViewUniformBufferExtensions.Add(Extension);
+}
+
 bool FPersistentUniformBuffers::UpdateViewUniformBuffer(const FViewInfo& View)
 {
 	// ViewUniformBuffer can be cached by mesh commands, so we need to update it every time we change current view.
@@ -941,6 +948,12 @@ bool FPersistentUniformBuffers::UpdateViewUniformBuffer(const FViewInfo& View)
 		}
 
 		CachedView = &View;
+
+		for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
+		{
+			Extension->BeginRenderView(&View);
+		}
+
 		return true;
 	}
 	return false;
@@ -3338,7 +3351,10 @@ void FScene::OnLevelAddedToWorld_RenderThread(FName InLevelName)
 			Proxy->bIsComponentLevelVisible = true;
 			if (Proxy->NeedsLevelAddedToWorldNotification())
 			{
+				// The only type of SceneProxy using this is landscape
+				(*It)->RemoveStaticMeshes();
 				Proxy->OnLevelAddedToWorld();
+				(*It)->AddStaticMeshes(FRHICommandListExecutor::GetImmediateCommandList());
 			}
 		}
 	}
@@ -3900,10 +3916,15 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList)
 		{
 			// free the primitive scene proxy.
 			delete PrimitiveSceneInfo->Proxy;
-			delete PrimitiveSceneInfo;
 			// Delete the PrimitiveSceneInfo on the game thread after the rendering thread has processed its removal.
 			// This must be done on the game thread because the hit proxy references (and possibly other members) need to be freed on the game thread.
-			//BeginCleanup(PrimitiveSceneInfo);
+			struct DeferDeleteHitProxies : FDeferredCleanupInterface
+			{
+				DeferDeleteHitProxies(TArray<TRefCountPtr<HHitProxy>>&& InHitProxies) : HitProxies(MoveTemp(InHitProxies)) {}
+				TArray<TRefCountPtr<HHitProxy>> HitProxies;
+			};
+			BeginCleanup(new DeferDeleteHitProxies(MoveTemp(PrimitiveSceneInfo->HitProxies)));
+			delete PrimitiveSceneInfo;
 		}
 	}
 

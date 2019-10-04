@@ -9,6 +9,8 @@
 #include "Modules/ModuleManager.h"
 #include "Async/AsyncWork.h"
 #include "UObject/ObjectMacros.h"
+#include "Framework/Dispatcher.h"
+#include "Framework/PersistentTask.h"
 #include "Framework/Threading.h"
 #include "PhysicsCoreTypes.h"
 #include "Chaos/Framework/MultiBufferResource.h"
@@ -31,9 +33,6 @@ public:
 	virtual EChaosSolverTickMode GetDedicatedThreadTickMode() const = 0;
 	virtual EChaosBufferMode GetDedicatedThreadBufferMode() const = 0;
 }; 
-
-#include "Framework/Dispatcher.h"
-#include "Framework/PersistentTask.h"
 
 namespace Chaos
 {

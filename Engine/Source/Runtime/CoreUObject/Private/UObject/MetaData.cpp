@@ -137,14 +137,14 @@ void UMetaData::Serialize(FStructuredArchive::FRecord Record)
 	
 	if (!UnderlyingArchive.IsLoading())
 	{
-		Record << NAMED_FIELD(ObjectMetaDataMap);
-		Record << NAMED_FIELD(RootMetaDataMap);
+		Record << SA_VALUE(TEXT("ObjectMetaDataMap"), ObjectMetaDataMap);
+		Record << SA_VALUE(TEXT("RootMetaDataMap"), RootMetaDataMap);
 	}
 	else
 	{
 		{
 			TMap< FWeakObjectPtr, TMap<FName, FString> > TempMap;
-			Record << NAMED_ITEM("ObjectMetaDataMap", TempMap);
+			Record << SA_VALUE(TEXT("ObjectMetaDataMap"), TempMap);
 
 			const bool bLoadFromLinker = (NULL != UnderlyingArchive.GetLinker());
 			if (bLoadFromLinker && HasAnyFlags(RF_LoadCompleted))
@@ -164,7 +164,7 @@ void UMetaData::Serialize(FStructuredArchive::FRecord Record)
 		if (UnderlyingArchive.CustomVer(FEditorObjectVersion::GUID) >= FEditorObjectVersion::RootMetaDataSupport)
 		{
 			TMap<FName, FString> TempMap;
-			Record << NAMED_ITEM("RootMetaDataMap", TempMap);
+			Record << SA_VALUE(TEXT("RootMetaDataMap"), TempMap);
 
 			const bool bLoadFromLinker = (NULL != UnderlyingArchive.GetLinker());
 			if (bLoadFromLinker && HasAnyFlags(RF_LoadCompleted))

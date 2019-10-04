@@ -43,143 +43,198 @@ inline const ItemType* GetLastItem(const TPagedArrayPage<ItemType>& Page)
 	}
 }
 
+template<typename ItemType, typename PageType>
+class TPagedArray;
+
+template<typename ItemType, typename PageType>
+class TPagedArrayIterator
+{
+public:
+	TPagedArrayIterator()
+	{
+
+	}
+
+	TPagedArrayIterator(const TPagedArray<ItemType, PageType>& InOuter, uint64 InitialPageIndex, uint64 InitialItemIndex)
+		: Outer(&InOuter)
+	{
+		if (Outer->PagesArray.Num())
+		{
+			check(InitialPageIndex < Outer->PagesArray.Num());
+			CurrentPageIndex = InitialPageIndex;
+			OnCurrentPageChanged();
+			PageType* CurrentPage = Outer->FirstPage + CurrentPageIndex;
+			check(InitialItemIndex < CurrentPage->Count);
+			CurrentItem = CurrentPage->Items + InitialItemIndex;
+		}
+	}
+
+	uint64 GetCurrentPageIndex()
+	{
+		return CurrentPageIndex;
+	}
+
+	const PageType* GetCurrentPage()
+	{
+		return Outer->FirstPage + CurrentPageIndex;
+	}
+
+	const ItemType* GetCurrentItem()
+	{
+		return CurrentItem;
+	}
+
+	const ItemType& operator*() const
+	{
+		return *CurrentItem;
+	}
+
+	const ItemType* operator->() const
+	{
+		return CurrentItem;
+	}
+
+	explicit operator bool() const
+	{
+		return CurrentItem != nullptr;
+	}
+
+	const PageType* PrevPage()
+	{
+		if (CurrentPageIndex == 0)
+		{
+			CurrentItem = nullptr;
+			CurrentPageFirstItem = nullptr;
+			CurrentPageLastItem = nullptr;
+			return nullptr;
+		}
+		--CurrentPageIndex;
+		OnCurrentPageChanged();
+		CurrentItem = CurrentPageLastItem;
+		return GetCurrentPage();
+	}
+
+	const PageType* NextPage()
+	{
+		if (CurrentPageIndex == Outer->PagesArray.Num() - 1)
+		{
+			CurrentItem = nullptr;
+			CurrentPageFirstItem = nullptr;
+			CurrentPageLastItem = nullptr;
+			return nullptr;
+		}
+		++CurrentPageIndex;
+		OnCurrentPageChanged();
+		CurrentItem = CurrentPageFirstItem;
+		return GetCurrentPage();
+	}
+
+	const ItemType* NextItem()
+	{
+		if (CurrentItem == CurrentPageLastItem)
+		{
+			if (!NextPage())
+			{
+				return nullptr;
+			}
+			else
+			{
+				return CurrentItem;
+			}
+		}
+		++CurrentItem;
+		return CurrentItem;
+	}
+
+	TPagedArrayIterator& operator++()
+	{
+		NextItem();
+		return *this;
+	}
+
+	TPagedArrayIterator operator++(int)
+	{
+		TPagedArrayIterator Tmp(*this);
+		NextItem();
+		return Tmp;
+	}
+
+	const ItemType* PrevItem()
+	{
+		if (CurrentItem == CurrentPageFirstItem)
+		{
+			if (!PrevPage())
+			{
+				return nullptr;
+			}
+			else
+			{
+				return CurrentItem;
+			}
+		}
+		--CurrentItem;
+		return CurrentItem;
+	}
+
+	TPagedArrayIterator& operator--()
+	{
+		PrevItem();
+		return *this;
+	}
+
+	TPagedArrayIterator operator--(int)
+	{
+		TPagedArrayIterator Tmp(*this);
+		PrevItem();
+		return Tmp;
+	}
+
+	const ItemType* SetPosition(uint64 Index)
+	{
+		uint64 PageIndex = Index / Outer->PageSize;
+		uint64 ItemIndexInPage = Index % Outer->PageSize;
+		if (PageIndex != CurrentPageIndex)
+		{
+			check(PageIndex < Outer->PagesArray.Num());
+			CurrentPageIndex = PageIndex;
+			OnCurrentPageChanged();
+		}
+		PageType* CurrentPage = Outer->FirstPage + CurrentPageIndex;
+		check(ItemIndexInPage < CurrentPage->Count);
+		CurrentItem = CurrentPage->Items + ItemIndexInPage;
+		return CurrentItem;
+	}
+
+private:
+	void OnCurrentPageChanged()
+	{
+		PageType* CurrentPage = Outer->FirstPage + CurrentPageIndex;
+		CurrentPageFirstItem = CurrentPage->Items;
+		if (CurrentPage->Items)
+		{
+			CurrentPageLastItem = CurrentPage->Items + CurrentPage->Count - 1;
+		}
+		else
+		{
+			CurrentPageLastItem = nullptr;
+		}
+	}
+
+	const TPagedArray<ItemType, PageType>* Outer = nullptr;
+	const ItemType* CurrentItem = nullptr;
+	const ItemType* CurrentPageFirstItem = nullptr;
+	const ItemType* CurrentPageLastItem = nullptr;
+	uint64 CurrentPageIndex = 0;
+};
+
 template<typename InItemType, typename InPageType = TPagedArrayPage<InItemType>>
 class TPagedArray
 {
 public:
 	typedef InItemType ItemType;
 	typedef InPageType PageType;
+	typedef TPagedArrayIterator<InItemType, InPageType> TIterator;
 	
-	class FIterator
-	{
-	public:
-		uint64 GetCurrentPageIndex()
-		{
-			return CurrentPageIndex;
-		}
-
-		const PageType* GetCurrentPage()
-		{
-			return Outer.FirstPage + CurrentPageIndex;
-		}
-
-		const ItemType* GetCurrentItem()
-		{
-			return CurrentItem;
-		}
-
-		const PageType* PrevPage()
-		{
-			if (CurrentPageIndex == 0)
-			{
-				return nullptr;
-			}
-			--CurrentPageIndex;
-			OnCurrentPageChanged();
-			CurrentItem = CurrentPageLastItem;
-			return GetCurrentPage();
-		}
-
-		const PageType* NextPage()
-		{
-			if (CurrentPageIndex == Outer.PagesArray.Num() - 1)
-			{
-				return nullptr;
-			}
-			++CurrentPageIndex;
-			OnCurrentPageChanged();
-			CurrentItem = CurrentPageFirstItem;
-			return GetCurrentPage();
-		}
-
-		const ItemType* NextItem()
-		{
-			if (CurrentItem == CurrentPageLastItem)
-			{
-				if (!NextPage())
-				{
-					return nullptr;
-				}
-				else
-				{
-					return CurrentItem;
-				}
-			}
-			++CurrentItem;
-			return CurrentItem;
-		}
-
-		const ItemType* PrevItem()
-		{
-			if (CurrentItem == CurrentPageFirstItem)
-			{
-				if (!PrevPage())
-				{
-					return nullptr;
-				}
-				else
-				{
-					return CurrentItem;
-				}
-			}
-			--CurrentItem;
-			return CurrentItem;
-		}
-
-		const ItemType* SetPosition(uint64 Index)
-		{
-			uint64 PageIndex = Index / Outer.PageSize;
-			uint64 ItemIndexInPage = Index % Outer.PageSize;
-			if (PageIndex != CurrentPageIndex)
-			{
-				check(PageIndex < Outer.PagesArray.Num());
-				CurrentPageIndex = PageIndex;
-				OnCurrentPageChanged();
-			}
-			PageType* CurrentPage = Outer.FirstPage + CurrentPageIndex;
-			check(ItemIndexInPage < CurrentPage->Count);
-			CurrentItem = CurrentPage->Items + ItemIndexInPage;
-			return CurrentItem;
-		}
-
-	private:
-		friend class TPagedArray;
-
-		FIterator(const TPagedArray& InOuter, uint64 InitialPageIndex, uint64 InitialItemIndex)
-			: Outer(InOuter)
-		{
-			if (Outer.PagesArray.Num())
-			{
-				check(InitialPageIndex < Outer.PagesArray.Num());
-				CurrentPageIndex = InitialPageIndex;
-				OnCurrentPageChanged();
-				PageType* CurrentPage = Outer.FirstPage + CurrentPageIndex;
-				check(InitialItemIndex < CurrentPage->Count);
-				CurrentItem = CurrentPage->Items + InitialItemIndex;
-			}
-		}
-
-		void OnCurrentPageChanged()
-		{
-			PageType* CurrentPage = Outer.FirstPage + CurrentPageIndex;
-			CurrentPageFirstItem = CurrentPage->Items;
-			if (CurrentPage->Items)
-			{
-				CurrentPageLastItem = CurrentPage->Items + CurrentPage->Count - 1;
-			}
-			else
-			{
-				CurrentPageLastItem = nullptr;
-			}
-		}
-
-		const TPagedArray& Outer;
-		uint64 CurrentPageIndex = 0;
-		const ItemType* CurrentItem = nullptr;
-		const ItemType* CurrentPageFirstItem = nullptr;
-		const ItemType* CurrentPageLastItem = nullptr;
-	};
-
 	TPagedArray(Trace::ILinearAllocator& InAllocator, uint64 InPageSize)
 		: Allocator(InAllocator)
 		, PageSize(InPageSize)
@@ -266,16 +321,21 @@ public:
 		return FirstPage + PageIndex;
 	}
 
-	FIterator GetIteratorFromPage(uint64 PageIndex) const
+	TIterator GetIterator() const
 	{
-		return FIterator(*this, PageIndex, 0);
+		return TIterator(*this, 0, 0);
 	}
 
-	FIterator GetIteratorFromItem(uint64 ItemIndex) const
+	TIterator GetIteratorFromPage(uint64 PageIndex) const
+	{
+		return TIterator(*this, PageIndex, 0);
+	}
+
+	TIterator GetIteratorFromItem(uint64 ItemIndex) const
 	{
 		uint64 PageIndex = ItemIndex / PageSize;
 		uint64 IndexInPage = ItemIndex % PageSize;
-		return FIterator(*this, PageIndex, IndexInPage);
+		return TIterator(*this, PageIndex, IndexInPage);
 	}
 
 	const PageType* GetPages() const
@@ -298,6 +358,9 @@ public:
 	}
 
 private:
+	template<typename ItemType, typename PageType>
+	friend class TPagedArrayIterator;
+
 	Trace::ILinearAllocator& Allocator;
 	TArray<PageType> PagesArray;
 	PageType* FirstPage = nullptr;

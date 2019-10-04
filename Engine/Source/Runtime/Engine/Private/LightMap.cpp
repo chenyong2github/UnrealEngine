@@ -3105,12 +3105,18 @@ void FLegacyLightMap1D::Serialize(FArchive& Ar)
 	check(Ar.IsLoading());
 
 	UObject* Owner;
+
+#if !USE_NEW_BULKDATA
 	TQuantizedLightSampleBulkData<FQuantizedDirectionalLightSample> DirectionalSamples;
 	TQuantizedLightSampleBulkData<FQuantizedSimpleLightSample> SimpleSamples;
+#else
+	FUntypedBulkData2<FQuantizedDirectionalLightSample> DirectionalSamples;
+	FUntypedBulkData2<FQuantizedSimpleLightSample> SimpleSamples;
+#endif
 
 	Ar << Owner;
 
-	DirectionalSamples.Serialize( Ar, Owner );
+	DirectionalSamples.Serialize( Ar, Owner, INDEX_NONE, false );
 
 	for (int32 ElementIndex = 0; ElementIndex < 5; ElementIndex++)
 	{
@@ -3118,7 +3124,7 @@ void FLegacyLightMap1D::Serialize(FArchive& Ar)
 		Ar << Dummy;
 	}
 
-	SimpleSamples.Serialize( Ar, Owner );
+	SimpleSamples.Serialize( Ar, Owner, INDEX_NONE, false );
 }
 
 /*-----------------------------------------------------------------------------

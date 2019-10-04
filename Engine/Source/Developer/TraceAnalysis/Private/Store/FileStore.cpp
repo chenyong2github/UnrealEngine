@@ -64,6 +64,8 @@ private:
 		FStoreSessionHandle Handle;
 		FString Name;
 		FString Path;
+		FDateTime TimeStamp;
+		uint64 Size;
 		bool bIsLive;
 		bool bIsValid;
 	};
@@ -184,17 +186,27 @@ FFileStore::~FFileStore()
 
 FFileStore::FSessionInfoInternal* FFileStore::AddSession(const FString& Path)
 {
+	IPlatformFile& FileSystem = IPlatformFile::GetPlatformPhysical();
+	FFileStatData FileStatData = FileSystem.GetStatData(*Path);
 	FScopeLock Lock(&SessionsCS);
-
 	FSessionInfoInternal* Session = new FSessionInfoInternal();
 	Session->Handle = NextSessionHandle++;
 	Session->Name = FPaths::GetBaseFilename(Path);
 	Session->Path = Path;
-	Session->bIsValid = true;
+	if (FileStatData.bIsValid)
+	{
+		Session->bIsValid = true;
+		Session->Size = uint64(FileStatData.FileSize);
+		Session->TimeStamp = FileStatData.CreationTime;
+	}
+	else
+	{
+		Session->bIsValid = false;
+		Session->Size = 0;
+	}
 	Session->bIsLive = false;
 	Sessions.Add(Session);
 	SessionsByPathMap.Add(Path, Session);
-
 	return Session;
 }
 
@@ -234,6 +246,8 @@ void FFileStore::GetAvailableSessions(TArray<FStoreSessionInfo>& OutSessions) co
 			SessionInfo.Handle = Session->Handle;
 			SessionInfo.Uri = *Session->Path;
 			SessionInfo.Name = *Session->Name;
+			SessionInfo.TimeStamp = Session->TimeStamp;
+			SessionInfo.Size = Session->Size;
 			SessionInfo.bIsLive = Session->bIsLive;
 		}
 	}
@@ -286,6 +300,20 @@ IInDataStream* FFileStore::OpenSessionStream(FStoreSessionHandle Handle)
 bool FFileStore::Tick(float DeltaTime)
 {
 	DirectoryWatcher->Tick(DeltaTime);
+
+	IPlatformFile& FileSystem = IPlatformFile::GetPlatformPhysical();
+	FScopeLock Lock(&SessionsCS);
+	for (FSessionInfoInternal* Session : Sessions)
+	{
+		if (Session->bIsValid && Session->bIsLive)
+		{
+			int64 NewSize = FileSystem.FileSize(*Session->Path);
+			if (NewSize >= 0)
+			{
+				Session->Size = NewSize;
+			}
+		}
+	}
 	return true;
 }
 

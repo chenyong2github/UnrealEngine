@@ -33,26 +33,26 @@ FString UObjectBaseUtility::GetPathName( const UObject* StopOuter/*=NULL*/ ) con
 }
 
 /**
- * Internal version of GetPathName() that eliminates unnecessary copies.
+ * Version of GetPathName() that eliminates unnecessary copies and appends an existing string.
  */
-void UObjectBaseUtility::GetPathName( const UObject* StopOuter, FString& ResultString ) const
+void UObjectBaseUtility::GetPathName(const UObject* StopOuter, FString& ResultString) const
 {
-	if( this != StopOuter && this != NULL )
+	if(this != StopOuter && this != NULL)
 	{
 		UObject* ObjOuter = GetOuter();
-		if (ObjOuter && ObjOuter != StopOuter )
+		if (ObjOuter && ObjOuter != StopOuter)
 		{
-			ObjOuter->GetPathName( StopOuter, ResultString );
+			ObjOuter->GetPathName(StopOuter, ResultString);
 
-			// SUBOBJECT_DELIMITER is used to indicate that this object's outer is not a UPackage
+			// SUBOBJECT_DELIMITER_CHAR is used to indicate that this object's outer is not a UPackage
 			if (ObjOuter->GetClass() != UPackage::StaticClass()
 			&& ObjOuter->GetOuter()->GetClass() == UPackage::StaticClass())
 			{
-				ResultString += SUBOBJECT_DELIMITER;
+				ResultString += SUBOBJECT_DELIMITER_CHAR;
 			}
 			else
 			{
-				ResultString += TEXT(".");
+				ResultString += TEXT('.');
 			}
 		}
 		AppendName(ResultString);
@@ -72,22 +72,36 @@ void UObjectBaseUtility::GetPathName( const UObject* StopOuter, FString& ResultS
  *
  * @note	safe to call on NULL object pointers!
  */
-FString UObjectBaseUtility::GetFullName( const UObject* StopOuter/*=NULL*/ ) const
+FString UObjectBaseUtility::GetFullName(const UObject* StopOuter, EObjectFullNameFlags Flags) const
 {
-	FString Result;  
-	if( this != nullptr )
+	FString Result;
+	Result.Empty(128);
+	GetFullName(StopOuter, Result, Flags);
+	return Result;
+}
+
+ /**
+  * Version of GetFullName() that eliminates unnecessary copies and appends an existing string.
+  */
+void UObjectBaseUtility::GetFullName(const UObject* StopOuter, FString& ResultString, EObjectFullNameFlags Flags) const
+{
+	if (this != nullptr)
 	{
-		Result.Empty(128);
-		GetClass()->AppendName(Result);
-		Result += TEXT(" ");
-		GetPathName( StopOuter, Result );
-		// could possibly put a Result.Shrink() here, but this isn't used much in a shipping game
+		if (EnumHasAllFlags(Flags, EObjectFullNameFlags::IncludeClassPackage))
+		{
+			ResultString += GetClass()->GetPathName();
+		}
+		else
+		{
+			GetClass()->AppendName(ResultString);
+		}
+		ResultString += TEXT(' ');
+		GetPathName(StopOuter, ResultString);
 	}
 	else
 	{
-		Result += TEXT("None");
-	}
-	return Result;  
+		ResultString += TEXT("None");
+	} 
 }
 
 

@@ -23,9 +23,9 @@ public:
 		EndpointProvider.Reset();
 	}
 
-	virtual IConcertServerRef CreateServer(const FString& InRole, IConcertServerEventSink* InEventSink) override
+	virtual IConcertServerRef CreateServer(const FString& InRole, const FConcertSessionFilter& InAutoArchiveSessionFilter, IConcertServerEventSink* InEventSink) override
 	{
-		return MakeShared<FConcertServer, ESPMode::ThreadSafe>(InRole, InEventSink, EndpointProvider);
+		return MakeShared<FConcertServer, ESPMode::ThreadSafe>(InRole, InAutoArchiveSessionFilter, InEventSink, EndpointProvider);
 	}
 
 	virtual IConcertClientRef CreateClient(const FString& InRole) override

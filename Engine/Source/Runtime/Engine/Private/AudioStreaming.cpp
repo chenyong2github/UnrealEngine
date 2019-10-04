@@ -99,14 +99,13 @@ void FAsyncStreamDerivedChunkWorker::DoWork()
 
 FStreamingWaveData::FStreamingWaveData()
 	: SoundWave(NULL)
-	, IORequestHandle(nullptr)
 	, AudioStreamingManager(nullptr)
 {
 }
 
 FStreamingWaveData::~FStreamingWaveData()
 {
-	check(IORequestHandle == nullptr);
+
 }
 
 void FStreamingWaveData::FreeResources()
@@ -126,17 +125,10 @@ void FStreamingWaveData::FreeResources()
 	{
 		FreeLoadedChunk(LoadedChunk);
 	}
-	if (IORequestHandle)
-	{
-		delete IORequestHandle;
-		IORequestHandle = nullptr;
-	}
 }
 
 bool FStreamingWaveData::Initialize(USoundWave* InSoundWave, FLegacyAudioStreamingManager* InAudioStreamingManager)
 {
-	check(!IORequestHandle);
-
 	if (!InSoundWave || !InSoundWave->RunningPlatformData->Chunks.Num())
 	{
 #if WITH_EDITOR
@@ -219,9 +211,10 @@ bool FStreamingWaveData::UpdateStreamingStatus()
 			// could maybe iterate over the things we know are done, but I couldn't tell if that was IndicesToLoad or not.
 			for (FLoadedAudioChunk& LoadedChunk : LoadedChunks)
 			{
-				if (LoadedChunk.IORequest && LoadedChunk.IORequest->PollCompletion())
+				if (LoadedChunk.IORequest != nullptr)
 				{
 					LoadedChunk.IORequest->WaitCompletion();
+
 					delete LoadedChunk.IORequest;
 					LoadedChunk.IORequest = nullptr;
 				}
@@ -337,7 +330,6 @@ void FStreamingWaveData::BeginPendingRequests(const TArray<uint32>& IndicesToLoa
 #if WITH_EDITORONLY_DATA
 			if (Chunk.DerivedDataKey.IsEmpty() == false)
 			{
-				ChunkStorage->MemorySize = ChunkSize;
 				ChunkStorage->Data = static_cast<uint8*>(FMemory::Malloc(ChunkSize));
 				INC_DWORD_STAT_BY(STAT_AudioMemorySize, ChunkSize);
 				INC_DWORD_STAT_BY(STAT_AudioMemory, ChunkSize);
@@ -359,16 +351,10 @@ void FStreamingWaveData::BeginPendingRequests(const TArray<uint32>& IndicesToLoa
 			else
 #endif // #if WITH_EDITORONLY_DATA
 			{
-				check(Chunk.BulkData.GetFilename().Len());
-				UE_CLOG(Chunk.BulkData.IsStoredCompressedOnDisk(), LogAudio, Fatal, TEXT("Package level compression is no longer supported."));
-				check(!ChunkStorage->IORequest);
-				if (!IORequestHandle)
-				{
-					IORequestHandle = FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*Chunk.BulkData.GetFilename());
-					check(IORequestHandle); // this generally cannot fail because it is async
-				}
-				check(Chunk.BulkData.GetBulkDataSize() == ChunkStorage->DataSize);
-
+				check(!ChunkStorage->IORequest); // Make sure we do not already have a request
+				check(!ChunkStorage->Data); // Make sure we do not already have data
+				check(Chunk.BulkData.GetBulkDataSize() == ChunkStorage->DataSize); // Make sure that the bulkdata size matches
+				
 				FAsyncFileCallBack AsyncFileCallBack =
 					[this, LoadedChunkStorageIndex](bool bWasCancelled, IAsyncReadRequest* Req)
 				{
@@ -377,8 +363,8 @@ void FStreamingWaveData::BeginPendingRequests(const TArray<uint32>& IndicesToLoa
 					PendingChunkChangeRequestStatus.Decrement();
 				};
 
-				check(!ChunkStorage->Data);
-				ChunkStorage->IORequest = IORequestHandle->ReadRequest(Chunk.BulkData.GetBulkDataOffsetInFile(), ChunkStorage->DataSize, AsyncIOPriority, &AsyncFileCallBack);
+				ChunkStorage->IORequest = Chunk.BulkData.CreateStreamingRequest(AsyncIOPriority, &AsyncFileCallBack, nullptr);
+
 				if (!ChunkStorage->IORequest)
 				{
 					UE_LOG(LogAudio, Error, TEXT("Audio streaming read request failed."));
@@ -410,6 +396,7 @@ bool FStreamingWaveData::BlockTillAllRequestsFinished(float TimeLimit)
 			if (LoadedChunk.IORequest)
 			{
 				LoadedChunk.IORequest->WaitCompletion();
+
 				delete LoadedChunk.IORequest;
 				LoadedChunk.IORequest = nullptr;
 			}
@@ -471,6 +458,7 @@ void FStreamingWaveData::FreeLoadedChunk(FLoadedAudioChunk& LoadedChunk)
 	{
 		LoadedChunk.IORequest->Cancel();
 		LoadedChunk.IORequest->WaitCompletion();
+
 		delete LoadedChunk.IORequest;
 		LoadedChunk.IORequest = nullptr;
 
@@ -488,7 +476,6 @@ void FStreamingWaveData::FreeLoadedChunk(FLoadedAudioChunk& LoadedChunk)
 	LoadedChunk.Data = NULL;
 	LoadedChunk.AudioDataSize = 0;
 	LoadedChunk.DataSize = 0;
-	LoadedChunk.MemorySize = 0;
 	LoadedChunk.Index = 0;
 }
 

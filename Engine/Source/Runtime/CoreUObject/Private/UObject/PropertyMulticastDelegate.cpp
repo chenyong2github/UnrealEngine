@@ -364,7 +364,8 @@ FMulticastScriptDelegate::FInvocationList& UMulticastInlineDelegateProperty::Get
 
 void UMulticastInlineDelegateProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const
 {
-	FArchiveUObjectFromStructuredArchive Ar(Slot);
+	FArchiveUObjectFromStructuredArchive Adapter(Slot);
+	FArchive& Ar = Adapter.GetArchive();
 	Ar << *GetPropertyValuePtr(Value);
 }
 
@@ -469,8 +470,8 @@ FMulticastScriptDelegate::FInvocationList& UMulticastSparseDelegateProperty::Get
 
 void UMulticastSparseDelegateProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const
 {
-	FArchiveUObjectFromStructuredArchive Ar(Slot);
-	SerializeItemInternal(Ar, Value, Defaults);
+	FArchiveUObjectFromStructuredArchive Adapter(Slot);
+	SerializeItemInternal(Adapter.GetArchive(), Value, Defaults);
 }
 
 void UMulticastSparseDelegateProperty::SerializeItemInternal(FArchive& Ar, void* Value, void const* Defaults) const

@@ -174,7 +174,7 @@ inline TUniquePtr<Chaos::TImplicitObjectTransformed<float, 3>> PxShapeToChaosGeo
 	default: ensure(false); return nullptr;	//missing support for this geometry type
 	}
 
-	return MakeUnique<TImplicitObjectTransformed<float, 3>>(MakeSerializable(InnerObj), MoveTemp(InnerObj), P2UTransform(ShapeTM));
+	return MakeUnique<TImplicitObjectTransformed<float, 3>>(MoveTemp(InnerObj), P2UTransform(ShapeTM));
 }
 
 #endif

@@ -15,7 +15,6 @@ namespace Audio
 	{
 		SourceInfo.VolumeParam.Init();
 		SourceInfo.VolumeParam.SetValue(InitData.VolumeScale);
-
 		SourceInfo.PitchScale = InitData.PitchScale;
 
 		MixerBuffer = FMixerBuffer::Init(AudioDevice, InitData.SoundWave, true);
@@ -23,7 +22,10 @@ namespace Audio
 
 	FDecodingSoundSource::~FDecodingSoundSource()
 	{
-		MixerSourceBuffer.ClearSoundWave();
+		if (MixerSourceBuffer.IsValid())
+		{
+			MixerSourceBuffer->OnEndGenerate();
+		}
 	}
 
 	bool FDecodingSoundSource::PreInit(int32 InSampleRate)
@@ -35,20 +37,32 @@ namespace Audio
 		SineTone[1].Init(InSampleRate, 440.0f, 0.5f);
 #endif
 
-		ELoopingMode LoopingMode = SoundWave->bLooping ? ELoopingMode::LOOP_Forever : ELoopingMode::LOOP_Never;
+		if (!SoundWave || !MixerBuffer)
+		{
+			return false;
+		}
 
-		return MixerSourceBuffer.PreInit(MixerBuffer, SoundWave, LoopingMode, SeekTime > 0.0f);
+		const ELoopingMode LoopingMode = SoundWave->bLooping ? ELoopingMode::LOOP_Forever : ELoopingMode::LOOP_Never;
+		const bool bIsSeeking = SeekTime > 0.0f;
+
+		MixerSourceBuffer = FMixerSourceBuffer::Create(*MixerBuffer, *SoundWave, LoopingMode, bIsSeeking);
+		return MixerSourceBuffer.IsValid();
 	}
 
 	bool FDecodingSoundSource::IsReadyToInit()
 	{
+		if (!MixerSourceBuffer.IsValid())
+		{
+			return false;
+		}
+
 		if (MixerBuffer && MixerBuffer->IsRealTimeSourceReady())
 		{
 			// Check if we have a realtime audio task already (doing first decode)
-			if (MixerSourceBuffer.IsAsyncTaskInProgress())
+			if (MixerSourceBuffer->IsAsyncTaskInProgress())
 			{
 				// not ready
-				return MixerSourceBuffer.IsAsyncTaskDone();
+				return MixerSourceBuffer->IsAsyncTaskDone();
 			}
 			else
 			{
@@ -67,7 +81,7 @@ namespace Audio
 
 						ICompressedAudioInfo* CompressedAudioInfo = MixerBuffer->GetDecompressionState(false);
 
-						MixerSourceBuffer.ReadMoreRealtimeData(CompressedAudioInfo, 0, EBufferReadMode::Asynchronous);
+						MixerSourceBuffer->ReadMoreRealtimeData(CompressedAudioInfo, 0, EBufferReadMode::Asynchronous);
 
 						// not ready
 						return false;
@@ -84,30 +98,34 @@ namespace Audio
 	{
 		if (MixerBuffer->GetNumChannels() > 0 && MixerBuffer->GetNumChannels() <= 2)
 		{
-			// Pass the decompression state off to the mixer source buffer if it hasn't already done so
-			ICompressedAudioInfo* Decoder = MixerBuffer->GetDecompressionState(false);
-			MixerSourceBuffer.SetDecoder(Decoder);
-			
-			if (!MixerSourceBuffer.IsAsyncTaskInProgress())
+			if (MixerSourceBuffer.IsValid())
 			{
-				MixerSourceBuffer.ReadMoreRealtimeData(Decoder, 0, EBufferReadMode::Asynchronous);
+
+				// Pass the decompression state off to the mixer source buffer if it hasn't already done so
+				ICompressedAudioInfo* Decoder = MixerBuffer->GetDecompressionState(false);
+				MixerSourceBuffer->SetDecoder(Decoder);
+
+				if (!MixerSourceBuffer->IsAsyncTaskInProgress())
+				{
+					MixerSourceBuffer->ReadMoreRealtimeData(Decoder, 0, EBufferReadMode::Asynchronous);
+				}
+
+				SourceInfo.NumSourceChannels = MixerBuffer->GetNumChannels();
+				SourceInfo.TotalNumFrames = MixerBuffer->GetNumFrames();
+
+				SourceInfo.CurrentFrameValues.AddZeroed(SourceInfo.NumSourceChannels);
+				SourceInfo.NextFrameValues.AddZeroed(SourceInfo.NumSourceChannels);
+
+				SourceInfo.BasePitchScale = MixerBuffer->GetSampleRate() / SampleRate;
+
+				SourceInfo.PitchParam.Init();
+				SourceInfo.PitchParam.SetValue(SourceInfo.BasePitchScale * SourceInfo.PitchScale);
+
+				MixerSourceBuffer->Init();
+				MixerSourceBuffer->OnBeginGenerate();
+
+				bInitialized = true;
 			}
-
-			SourceInfo.NumSourceChannels = MixerBuffer->GetNumChannels();
-			SourceInfo.TotalNumFrames = MixerBuffer->GetNumFrames();
-
-			SourceInfo.CurrentFrameValues.AddZeroed(SourceInfo.NumSourceChannels);
-			SourceInfo.NextFrameValues.AddZeroed(SourceInfo.NumSourceChannels);
-
-			SourceInfo.BasePitchScale = MixerBuffer->GetSampleRate() / SampleRate;
-		
-			SourceInfo.PitchParam.Init();
-			SourceInfo.PitchParam.SetValue(SourceInfo.BasePitchScale * SourceInfo.PitchScale);
-
-			MixerSourceBuffer.Init();
-			MixerSourceBuffer.OnBeginGenerate();
-
-			bInitialized = true;
 		}
 	}
 
@@ -153,12 +171,12 @@ namespace Audio
 					break;
 				}
 
-				MixerSourceBuffer.OnBufferEnd();
+				MixerSourceBuffer->OnBufferEnd();
 			}
 
-			if (MixerSourceBuffer.GetNumBuffersQueued() > 0)
+			if (MixerSourceBuffer->GetNumBuffersQueued() > 0)
 			{
-				SourceInfo.CurrentPCMBuffer = MixerSourceBuffer.GetNextBuffer();
+				SourceInfo.CurrentPCMBuffer = MixerSourceBuffer->GetNextBuffer();
 				SourceInfo.CurrentAudioChunkNumFrames = SourceInfo.CurrentPCMBuffer->AudioData.Num() / SourceInfo.NumSourceChannels;
 
 				if (bReadCurrentFrame)
@@ -399,7 +417,7 @@ namespace Audio
 			return true;
 		}
 
-		UE_LOG(LogAudioMixer, Warning, TEXT("Failed to initialize sound wave %s."), *InitData.SoundWave->GetName());
+		UE_LOG(LogAudioMixer, Warning, TEXT("Failed to initialize sound wave %s."), InitData.SoundWave ? *InitData.SoundWave->GetName() : TEXT("Unset"));
 		return false;
 	}
 

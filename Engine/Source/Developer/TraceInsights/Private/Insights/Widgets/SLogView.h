@@ -6,6 +6,7 @@
 #include "Logging/LogVerbosity.h"
 #include "Misc/ScopeLock.h"
 #include "SlateFwd.h"
+#include "Templates/UniquePtr.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/SCompoundWidget.h"
@@ -15,6 +16,8 @@
 #include "Insights/Common/Stopwatch.h"
 #include "Insights/ViewModels/LogFilter.h"
 #include "Insights/ViewModels/LogMessage.h"
+
+class FMenuBuilder;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -76,6 +79,8 @@ protected:
 	/** Generate a new list view row. */
 	TSharedRef<ITableRow> OnGenerateRow(TSharedPtr<FLogMessage> InLogMessage, const TSharedRef<STableViewBase>& OwnerTable);
 
+	void SelectLogMessage(TSharedPtr<FLogMessage> LogMessage);
+	void OnMouseButtonClick(TSharedPtr<FLogMessage> LogMessage);
 	void OnSelectionChanged(TSharedPtr<FLogMessage> LogMessage, ESelectInfo::Type SelectInfo);
 
 	void FilterTextBox_OnTextChanged(const FText& InFilterText);
@@ -93,6 +98,8 @@ protected:
 
 	bool VerbosityThreshold_IsChecked(ELogVerbosity::Type Verbosity) const;
 	void VerbosityThreshold_Execute(ELogVerbosity::Type Verbosity);
+	FText VerbosityThreshold_GetSuffixGlyph(ELogVerbosity::Type Verbosity) const;
+	FSlateColor VerbosityThreshold_GetSuffixColor(ELogVerbosity::Type Verbosity) const;
 
 	bool ShowHideAllCategories_IsChecked() const;
 	void ShowHideAllCategories_Execute();

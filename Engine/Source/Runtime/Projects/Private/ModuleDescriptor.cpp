@@ -37,7 +37,10 @@ const TCHAR* ELoadingPhase::ToString( const ELoadingPhase::Type Value )
 
 	case PostConfigInit:
 		return TEXT( "PostConfigInit" );
-		
+
+	case PostSplashScreen:
+		return TEXT("PostSplashScreen");
+
 	case PreEarlyLoadingScreen:
 		return TEXT("PreEarlyLoadingScreen");
 

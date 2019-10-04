@@ -109,6 +109,10 @@ class UEditorPerProjectUserSettings : public UObject
 	UPROPERTY(config)
 	bool bSCSEditorShowFloor;
 
+	/** If enabled, the Editor will attempt to get the users attention whenever a UAT task (such as cooking or packaging) is completed */
+	UPROPERTY(EditAnywhere, config, Category = UnrealAutomationTool)
+	bool bGetAttentionOnUATCompletion;
+
 	/** How fast the SCS viewport camera moves */
 	UPROPERTY(config, meta=(UIMin = "1", UIMax = "8", ClampMin="1", ClampMax="8"))
 	int32 SCSViewportCameraSpeed;

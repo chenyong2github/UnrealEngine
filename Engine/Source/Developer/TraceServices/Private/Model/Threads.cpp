@@ -101,6 +101,18 @@ void FThreadProvider::EnumerateThreads(TFunctionRef<void(const FThreadInfo &)> C
 	}
 }
 
+const TCHAR* FThreadProvider::GetThreadName(uint32 ThreadId) const
+{
+	Session.ReadAccessCheck();
+
+	const FThreadInfoInternal* const* FindIt = ThreadMap.Find(ThreadId);
+	if (!FindIt)
+	{
+		return TEXT("");
+	}
+	return (*FindIt)->Name;
+}
+
 void FThreadProvider::SortThreads()
 {
 	Algo::SortBy(SortedThreads, [](const FThreadInfoInternal* In) -> const FThreadInfoInternal&

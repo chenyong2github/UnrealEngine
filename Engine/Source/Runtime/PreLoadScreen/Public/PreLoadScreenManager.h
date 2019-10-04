@@ -119,7 +119,10 @@ protected:
 	void PlatformSpecificGameLogicFrameTick();
 
     /*** These functions describe how everything is handled during an non-Early PreLoadPlay. Everything is handled asynchronously in this case with a standalone renderer ***/
-    void HandleEngineLoadingPlay();
+	void HandleEngineLoadingPlay();
+
+	/*** These functions describe the flow for showing an CustomSplashScreen ***/
+	void HandleCustomSplashScreenPlay();
 
     IPreLoadScreen* GetActivePreLoadScreen();
     const IPreLoadScreen* GetActivePreLoadScreen() const;
