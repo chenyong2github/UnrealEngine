@@ -4,10 +4,6 @@
 #include "MagicLeapCameraPreviewPlayer.h"
 #include "Async/Async.h"
 
-#if 0
-PRAGMA_DISABLE_OPTIMIZATION
-#endif
-
 DEFINE_LOG_CATEGORY(LogMagicLeapCameraPreview);
 
 TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> FMagicLeapCameraPreviewModule::CreatePreviewPlayer(class IMediaEventSink& EventSink)
