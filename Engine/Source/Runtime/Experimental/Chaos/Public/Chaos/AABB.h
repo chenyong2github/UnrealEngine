@@ -441,6 +441,12 @@ namespace Chaos
 			}
 		}
 
+		FORCEINLINE void Scale(const TVector<T, d>& InScale)
+		{
+			MMin *= InScale;
+			MMax *= InScale;
+		}
+
 		FORCEINLINE const TVector<T, d>& Min() const { return MMin; }
 		FORCEINLINE const TVector<T, d>& Max() const { return MMax; }
 
