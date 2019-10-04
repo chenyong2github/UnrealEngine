@@ -34,6 +34,7 @@
 
 #include "Channels/RemoteSessionImageChannel.h"
 #include "Channels/RemoteSessionInputChannel.h"
+#include "RemoteSession/RemoteSession.h"
 #include "ImageProviders/RemoteSessionMediaOutput.h"
 #include "RemoteSessionEditorStyle.h"
 
