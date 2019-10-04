@@ -21,8 +21,9 @@
 
 bool UMergeMeshesToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	bool bHasBuildAPI = (this->AssetAPI != nullptr);
-	bool bHasComponents = ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) > 1;
+	const bool bHasBuildAPI = (this->AssetAPI != nullptr);
+	const int32 MinRequiredComponents = 1;
+	const bool bHasComponents = ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) >= MinRequiredComponents;
 	return ( bHasBuildAPI && bHasComponents );
 }
 
