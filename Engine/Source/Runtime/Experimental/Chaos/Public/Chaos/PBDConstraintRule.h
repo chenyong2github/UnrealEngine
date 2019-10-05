@@ -106,13 +106,6 @@ namespace Chaos
 			}
 		}
 
-		virtual void RemoveConstraints(const TSet<TGeometryParticleHandle<T,d>*>& RemovedParticles) override
-		{
-			// @todo(ccaulfield): should also remove graph edges here too. Currently the edges are rebuilt every tick so not a problem...
-			//ConstraintGraph->RemoveEdges(...)
-			Constraints.RemoveConstraints(RemovedParticles);
-		}
-
 		virtual int32 NumConstraints() const override { return Constraints.NumConstraints(); }
 
 	protected:
