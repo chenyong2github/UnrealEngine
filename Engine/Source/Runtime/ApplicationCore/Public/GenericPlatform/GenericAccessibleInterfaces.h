@@ -222,6 +222,12 @@ public:
 	 * @return A string representing the serialized value stored in the widget.
 	 */
 	virtual FString GetValue() const = 0;
+	/**
+	 * The current value stored by the widget as a FVariant. Used on platforms where the type of the value is important for accessibility methods
+	 * such as on Mac. .
+	 * @return An FVariant that holds the widget's current value and type of value.
+	 */
+	virtual FVariant GetValueAsVariant() const { return FVariant(); }
 	/*
 	 * Set the value stored by the widget. While this function accepts a String, there is no way to know
 	 * what the underlying data is stored as. The platform layer must retain some additional information
@@ -347,7 +353,7 @@ public:
 	 * @return A more-detailed description of what the widget is or how its used.
 	 */
 	virtual FString GetHelpText() const = 0;
-	
+
 	/**
 	 * Whether the widget is enabled and can be interacted with.
 	 *

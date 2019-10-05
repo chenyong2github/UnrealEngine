@@ -3,10 +3,17 @@
 
 #include "CoreMinimal.h"
 #include "GenericPlatform/ITextInputMethodSystem.h"
+#if WITH_ACCESSIBILITY
+#include "Mac/Accessibility/CocoaAccessibilityView.h"
+#endif
 
 #ifdef __OBJC__
-
+//INherit from FCocoaAccessibilityView to allow descendants (FMetalView in particular) to be visible to Voiceover
+#if WITH_ACCESSIBILITY
+OBJC_EXPORT @interface FCocoaTextView : FCocoaAccessibilityView <NSTextInputClient>
+#else
 OBJC_EXPORT @interface FCocoaTextView : NSView <NSTextInputClient>
+#endif
 {
 	TSharedPtr<ITextInputMethodContext> IMMContext;
 	NSRange markedRange;

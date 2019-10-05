@@ -19,6 +19,11 @@
 #include "HAL/ThreadHeartBeat.h"
 #include "IHapticDevice.h"
 #include "Apple/ApplePlatformCrashContext.h"
+#if WITH_ACCESSIBILITY
+#include "Mac/Accessibility/MacAccessibilityManager.h"
+#include "Mac/Accessibility/MacAccessibilityElement.h"
+#endif
+
 
 #include <IOKit/IOKitLib.h>
 #include <IOKit/graphics/IOGraphicsLib.h>
@@ -64,7 +69,10 @@ FMacApplication::FMacApplication()
 ,	bEmulatingRightClick(false)
 ,	bIgnoreMouseMoveDelta(0)
 ,	bIsWorkspaceSessionActive(true)
-, 	KeyBoardLayoutData(nil)
+,	KeyBoardLayoutData(nil)
+#if WITH_ACCESSIBILITY
+,	AccessibilityCacheTimer(Nil)
+#endif
 {
 	TextInputMethodSystem = MakeShareable(new FMacTextInputMethodSystem);
 	if (!TextInputMethodSystem->Initialize())
@@ -135,6 +143,18 @@ FMacApplication::~FMacApplication()
 	}
 
 	MainThreadCall(^{
+#if WITH_ACCESSIBILITY
+		if(GetAccessibleMessageHandler()->IsActive())
+		{
+			OnVoiceoverDisabled();
+		}
+		if(AccessibilityCacheTimer != Nil)
+		{
+			[AccessibilityCacheTimer release];
+		}
+		[[FMacAccessibilityManager AccessibilityManager] TearDown];
+#endif
+
 		if (MouseMovedEventMonitor)
 		{
 			[NSEvent removeMonitor:MouseMovedEventMonitor];
@@ -191,6 +211,24 @@ void FMacApplication::SetMessageHandler(const TSharedRef<FGenericApplicationMess
 	GenericApplication::SetMessageHandler(InMessageHandler);
 	HIDInput->SetMessageHandler(InMessageHandler);
 }
+
+#if WITH_ACCESSIBILITY
+void FMacApplication::SetAccessibleMessageHandler(const TSharedRef<FGenericAccessibleMessageHandler>& InAccessibleMessageHandler)
+{
+	GenericApplication::SetAccessibleMessageHandler(InAccessibleMessageHandler);
+	InAccessibleMessageHandler->SetAccessibleEventDelegate(FGenericAccessibleMessageHandler::FAccessibleEvent::CreateRaw(this, &FMacApplication::OnAccessibleEventRaised));
+	
+	MainThreadCall(^{
+		// Initializing FMacAccessibilityManager singleton to enable KVO registration for Voiceover changes
+		[FMacAccessibilityManager AccessibilityManager].MacApplication = this;
+		const bool bVoiceoverEnabled = [NSWorkspace sharedWorkspace].isVoiceOverEnabled;
+		if(bVoiceoverEnabled)
+		{
+			OnVoiceoverEnabled();
+		}
+	}, NSDefaultRunLoopMode, false);
+}
+#endif
 
 void FMacApplication::PollGameDeviceState(const float TimeDelta)
 {
@@ -1155,7 +1193,15 @@ bool FMacApplication::OnWindowDestroyed(TSharedRef<FMacWindow> DestroyedWindow)
 	{
 		OnWindowActivationChanged(DestroyedWindow, EWindowActivation::Deactivate);
 	}
-
+	
+#if WITH_ACCESSIBILITY
+	MainThreadCall(^{
+		//This is to clear the FMacAccessibilityElement* that represents the cocoa window in the FCocoaAccessibilityView.
+		// Before the FCocoaAccessibilityView is deallocated, it could be a danling pointer and accessibility calls from VoiceOVer will cause a crash
+		[WindowHandle ClearAccessibilityView];
+	}, NSDefaultRunLoopMode, false);
+#endif
+	
 	{
 		FScopeLock Lock(&WindowsMutex);
 		Windows.Remove(DestroyedWindow);
@@ -1188,7 +1234,7 @@ bool FMacApplication::OnWindowDestroyed(TSharedRef<FMacWindow> DestroyedWindow)
 	if (WindowToActivate.IsValid())
 	{
 		WindowToActivate->SetWindowFocus();
-	}
+			}
 
 	MessageHandler->OnCursorSet();
 
@@ -1220,6 +1266,29 @@ void FMacApplication::OnWindowOrderedFront(TSharedRef<FMacWindow> Window)
 		}
 	}
 	Windows = NewWindowsArray;
+	
+#if WITH_ACCESSIBILITY
+	// The IMainFrameModule creates an SWindow and tries to show it.
+	// When the SWindow calls ShowWindow(), the SlateRHIRenderer is initialized and creates a FMetalViewport.
+	// THe FMetalViewport creates a custom FMetalView NSView and sets it as the content view of the window, overriding any accessibility data on the original content view.
+	// THis happens AFTER we call OnVoiceoverEnabled() and set all the window IDs the first time
+	//We set the accessible Window ID here again to update the FMetalView NSView with accessibility children information
+	// @see FMetalViewport::FMetalViewport()
+	//@see SWindow::ShowWindow()
+	//@Review: Is there a better place for this?
+	if(GetAccessibleMessageHandler()->IsActive())
+	{
+		const AccessibleWidgetId WindowId = GetAccessibleMessageHandler()->GetAccessibleWindowId(Window);
+		MainThreadCall(^{
+			FCocoaWindow* CocoaWindow = Window->GetWindowHandle();
+			if(CocoaWindow)
+			{
+				[CocoaWindow UpdateAccessibilityView:WindowId];
+			}
+		}, NSDefaultRunLoopMode, false);
+	}
+#endif
+
 }
 
 void FMacApplication::OnWindowActivationChanged(const TSharedRef<FMacWindow>& Window, const EWindowActivation ActivationType)
@@ -2157,3 +2226,130 @@ void FDisplayMetrics::RebuildDisplayMetrics(FDisplayMetrics& OutDisplayMetrics)
 	// Apply the debug safe zones
 	OutDisplayMetrics.ApplyDefaultSafeZones();
 }
+
+#if WITH_ACCESSIBILITY
+void FMacApplication::OnAccessibleEventRaised(TSharedRef<IAccessibleWidget> Widget, EAccessibleEvent Event, FVariant OldValue, FVariant NewValue)
+{
+	// This should only be triggered by the accessible message handler which initiates from the Slate thread.
+	check(IsInGameThread());
+	
+	const AccessibleWidgetId Id = Widget->GetId();
+	switch (Event)
+	{
+		case EAccessibleEvent::FocusChange:
+		{
+			//@TODO: Posting accessibility focus notifications don't seem to do anything, investigate further
+			break;
+		}
+		case EAccessibleEvent::ParentChanged:
+		{
+			MainThreadCall(^{
+				FMacAccessibilityElement* Element = [[FMacAccessibilityManager AccessibilityManager] GetAccessibilityElement:Id];
+				if(Element)
+				{
+					const AccessibleWidgetId NewParentId = NewValue.GetValue<AccessibleWidgetId>();
+					Element.ParentId = NewParentId;
+					FMacAccessibilityElement* NewParent = [[FMacAccessibilityManager AccessibilityManager]GetAccessibilityElement:NewParentId];
+					Element.accessibilityParent = NewParent;
+
+					//if the element is orphaned by having a nill parent, we'll remove the entire subtree for now from the accessibility cache
+					//@TODO: Widget switcher unparents its children, but this is never executed. Strange
+					if(NewParent == Nil)
+					{
+						[[FMacAccessibilityManager AccessibilityManager] RemoveAccessibilitySubtree:Id];
+					}
+					
+
+				}
+				// LayoutChanged is to indicate things like "a widget became visible or hidden" while
+				// ScreenChanged is for large-scale UI changes. It can potentially take an NSString to read
+				// to the user when this happens, if we choose to support that.
+				//@TODO: Posting a notification with user info to the NSApp doesn't seem to do anything. Find out wy.
+			}, NSDefaultRunLoopMode, false);
+			break;
+		}
+		case EAccessibleEvent::WidgetRemoved:
+		{
+			MainThreadCall(^{
+				[[FMacAccessibilityManager AccessibilityManager] RemoveAccessibilityElement:Id];
+			}, NSDefaultRunLoopMode, false);
+			break;
+		}
+		case EAccessibleEvent::Notification:
+		{
+			//@TODO: Allow strings to be announced to the player
+			break;
+		}
+	} // switch event
+}
+
+void FMacApplication::OnVoiceoverEnabled()
+{
+	//Alll accessibility functions should originate from Main Thread
+	check([NSThread isMainThread]);
+	if(GetAccessibleMessageHandler()->IsActive())
+	{
+		return;
+	}
+	GetAccessibleMessageHandler()->SetActive(true);
+	// Retrieving Slate accessibility data needs to be done on the game thread
+	GameThreadCall(^{
+		FScopeLock Lock(&WindowsMutex);
+		TArray<AccessibleWidgetId> WindowIds;
+		for(const TSharedRef<FMacWindow>& window : Windows)
+		{
+			AccessibleWidgetId Id = GetAccessibleMessageHandler()->GetAccessibleWindowId(window);
+			WindowIds.Add(Id);
+		}
+		// All AppKit functions need to be called from Main Thread
+		MainThreadCall(^{
+			for(int WindowIndex = 0; WindowIndex < Windows.Num(); ++WindowIndex)
+			{
+				const TSharedRef<FMacWindow> CurrentWindow = Windows[WindowIndex];
+				FCocoaWindow* CurrentCocoaWindow = CurrentWindow->GetWindowHandle();
+				if(CurrentCocoaWindow)
+				{
+					[CurrentCocoaWindow UpdateAccessibilityView:WindowIds[WindowIndex]];
+				}
+			}// for all windows
+			//Start caching Mac Accessibility data to be returned to Voiceover upon request
+			// When Voiceover is enabled, the accessibility tree will take a while to build and
+			//accessibility may not work properly till then.
+			if (AccessibilityCacheTimer == nil)
+			{
+				AccessibilityCacheTimer = [NSTimer scheduledTimerWithTimeInterval:0.25f target:[FMacAccessibilityManager AccessibilityManager] selector:@selector(UpdateAllCachedProperties) userInfo:nil repeats:YES];
+			}
+		}, NSDefaultRunLoopMode, false);
+	}, @[ NSDefaultRunLoopMode ], false);
+}
+
+void FMacApplication::OnVoiceoverDisabled()
+{
+	// Accessibility should originate from Main Thread
+	check([NSThread isMainThread]);
+	if(!GetAccessibleMessageHandler()->IsActive())
+	{
+		return;
+	}
+	GetAccessibleMessageHandler()->SetActive(false);
+	MainThreadCall(^{
+		{
+			FScopeLock Lock(&WindowsMutex);
+			for(const TSharedRef<FMacWindow>& CurrentWindow : Windows)
+			{
+				FCocoaWindow* CurrentCocoaWindow = CurrentWindow->GetWindowHandle();
+				if(CurrentCocoaWindow)
+				{
+					[CurrentCocoaWindow ClearAccessibilityView];
+				}
+			}
+		}
+		[AccessibilityCacheTimer invalidate];
+		AccessibilityCacheTimer = nil;
+		[[FMacAccessibilityManager AccessibilityManager] Clear];
+		//This releases the accessibility element referenced by the app, deallocating it
+		NSApp.accessibilityApplicationFocusedUIElement = Nil;
+	}, NSDefaultRunLoopMode, false);
+}
+
+#endif
