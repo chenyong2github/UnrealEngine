@@ -269,14 +269,8 @@ namespace BuildAgent.Run
 			LineBuffer Buffer = new LineBuffer(ReadLine, 50);
 			ReadOnlyLineBuffer ReadOnlyBuffer = new ReadOnlyLineBuffer(Buffer);
 
-			Stopwatch Timer = Stopwatch.StartNew();
 			while (Buffer[0] != null)
 			{
-				if ((Buffer.CurrentLineNumber % 1000) == 0)
-				{
-					Log.TraceInformation("LINE: {0} ({1}s)", Buffer.CurrentLineNumber, (int)Timer.Elapsed.TotalSeconds);
-				}
-
 				// Try to match an error
 				ErrorMatch Error = null;
 				foreach (IErrorMatcher Matcher in Matchers)
