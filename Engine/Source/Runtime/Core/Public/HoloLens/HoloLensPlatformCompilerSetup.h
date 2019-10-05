@@ -197,6 +197,8 @@ static_assert(_MSC_VER >= 1900, "Visual Studio 2015 or newer required.");
 #pragma warning(disable : 4189) // local variable is initialized but not referenced 
 #pragma warning(disable : 4505) // unreferenced local function has been removed		
 
+#pragma warning(disable: 4984) // 'if constexpr' is a C++17 language extension
+
 // string.h adds this warning
 #pragma warning(disable : 4996)
 
