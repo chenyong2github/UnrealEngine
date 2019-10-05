@@ -35,7 +35,7 @@ bool FHTTPTransport::Initialize(const TCHAR* InHostIp)
 	// make sure that our string is again correctly formated
 	HostIp = FString::Printf(TEXT("http://%s"),*HostIp);
 
-	FCString::Strncpy(Url, *HostIp, ARRAY_COUNT(Url));
+	FCString::Strncpy(Url, *HostIp, UE_ARRAY_COUNT(Url));
 	emscripten_log(EM_LOG_CONSOLE , "Unreal File Server URL : %s ", TCHAR_TO_ANSI(Url));
 
 	TArray<uint8> In,Out;

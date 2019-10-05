@@ -4,7 +4,6 @@
 #include "Misc/App.h"
 #include "Misc/OutputDeviceError.h"
 #include "HTML5PlatformMisc.h"
-#include "Templates/ScopedPointer.h"
 #include "LaunchEngineLoop.h"
 #include "EngineAnalytics.h"
 #include "Interfaces/IAnalyticsProvider.h"
