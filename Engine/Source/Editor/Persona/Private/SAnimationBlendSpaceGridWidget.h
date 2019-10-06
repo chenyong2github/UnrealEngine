@@ -269,6 +269,15 @@ private:
 	FVector2D KeySize;
 	const FSlateBrush* KeyBrush;
 	const FSlateBrush* BackgroundImage;
+	enum class EArrowDirection : uint8 
+	{
+		Left, 
+		Right, 
+		Up, 
+		Down, 
+		Max
+	};
+	const FSlateBrush* ArrowBrushes[(int32)EArrowDirection::Max];
 
 	/** Individual sample state colours */
 	FSlateColor HighlightKeyColor;

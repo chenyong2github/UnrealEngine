@@ -19,6 +19,7 @@
 #include "Materials/MaterialInstance.h"
 #include "Misc/Compression.h"
 #include "Misc/FileHelper.h"
+#include "Misc/ScopedSlowTask.h"
 #include "ObjectTools.h"
 #include "PackageTools.h"
 #include "Serialization/MemoryReader.h"
@@ -42,7 +43,7 @@ enum class EDataprepAssetClass : uint8 {
 
 // #ueent_todo: Boolean driving activating actual snapshot based logic
 const bool bUseSnapshot = true;
-const bool bUseCompression = true;
+const bool bUseCompression = false;
 
 namespace DataprepSnapshotUtil
 {
@@ -50,6 +51,8 @@ namespace DataprepSnapshotUtil
 
 	void RemoveSnapshotFiles(const FString& RootDir)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DataprepSnapshotUtil::RemoveSnapshotFiles);
+
 		TArray<FString> FileNames;
 		IFileManager::Get().FindFiles( FileNames, *RootDir, SnapshotExtension );
 		for ( FString& FileName : FileNames )
@@ -68,7 +71,7 @@ namespace DataprepSnapshotUtil
 		return FPaths::ConvertRelativePathToFull( FPaths::Combine( RootPath, PackageFileName ) + SnapshotExtension );
 	}
 
-	void WriteSnapshotData(UObject* Object, TArray<uint8>& OutSerializedData, TMap<FString, UClass*>& OutClassesMap)
+	void WriteSnapshotData(UObject* Object, TArray<uint8>& OutSerializedData)
 	{
 		// Helper struct to identify dependency of a UObject on other UObject(s) except given one (its outer)
 		struct FObjectDependencyAnalyzer : public FArchiveUObject
@@ -102,8 +105,7 @@ namespace DataprepSnapshotUtil
 			TSet<UObject*> DependentObjects;
 		};
 
-		TArray<uint8> MemoryBuffer;
-		FMemoryWriter MemAr(MemoryBuffer);
+		FMemoryWriter MemAr(OutSerializedData);
 		FObjectAndNameAsStringProxyArchive Ar(MemAr, false);
 		Ar.SetIsTransacting(true);
 
@@ -175,7 +177,8 @@ namespace DataprepSnapshotUtil
 			FString ClassName = SubObjectClass->GetName();
 			MemAr << ClassName;
 
-			OutClassesMap.Add(ClassName, SubObjectClass);
+			int32 ObjectFlags = SubObject->GetFlags();
+			MemAr << ObjectFlags;
 		}
 
 		// Serialize sub-objects' outer path
@@ -208,6 +211,8 @@ namespace DataprepSnapshotUtil
 		{
 			const int32 BufferHeaderSize = (int32)sizeof(int32);
 
+			TArray<uint8> MemoryBuffer( MoveTemp( OutSerializedData ) );
+
 			// allocate all of the input space for the output, with extra space for max overhead of zlib (when compressed > uncompressed)
 			int32 CompressedSize = FCompression::CompressMemoryBound(NAME_Zlib, MemoryBuffer.Num());
 			OutSerializedData.SetNum( CompressedSize + BufferHeaderSize );
@@ -236,7 +241,7 @@ namespace DataprepSnapshotUtil
 
 			for(UObject* ObjectWithOuter : ObjectsWithOuter)
 			{
-				ObjectWithOuter->Rename( nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_NonTransactional );
+				FDataprepCoreUtils::MoveToTransientPackage( ObjectWithOuter );
 				ObjectsToDelete.Add( ObjectWithOuter );
 			}
 		};
@@ -276,10 +281,13 @@ namespace DataprepSnapshotUtil
 			FString ClassName;
 			MemAr << ClassName;
 
-			UClass** SubObjectClassPtr = InClassesMap.Find(ClassName);
-			check( SubObjectClassPtr );
+			UClass* SubObjectClass = FindObject<UClass>(ANY_PACKAGE, *ClassName);
+			check( SubObjectClass );
 
-			UObject* SubObject = NewObject<UObject>( Object, *SubObjectClassPtr, NAME_None, RF_Transient );
+			int32 ObjectFlags;
+			MemAr << ObjectFlags;
+
+			UObject* SubObject = NewObject<UObject>( Object, SubObjectClass, NAME_None, EObjectFlags(ObjectFlags) );
 			SubObjectsArray.Add( SubObject );
 
 			RemoveDefaultDependencies( SubObject );
@@ -300,7 +308,7 @@ namespace DataprepSnapshotUtil
 			UObject* SubObject = SubObjectsArray[Index];
 			if( NewOuter != SubObject->GetOuter() )
 			{
-				SubObject->Rename( nullptr, NewOuter, REN_DontCreateRedirectors | REN_NonTransactional );
+				FDataprepCoreUtils::RenameObject( SubObject, nullptr, NewOuter );
 			}
 		}
 
@@ -409,10 +417,16 @@ void FDataprepEditor::TakeSnapshot()
 		return;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDataprepEditor::TakeSnapshot);
+
 	uint64 StartTime = FPlatformTime::Cycles64();
-	UE_LOG( LogDataprepEditor, Log, TEXT("Taking snapshot...") );
+	UE_LOG( LogDataprepEditor, Verbose, TEXT("Taking snapshot...") );
+
+	FScopedSlowTask SlowTask( 100.0f, LOCTEXT("SaveSnapshot_Title", "Creating snapshot of world content ...") );
+	SlowTask.MakeDialog(false);
 
 	// Clean up temporary folder with content of previous snapshot(s)
+	SlowTask.EnterProgressFrame( 10.0f, LOCTEXT("SaveSnapshot_Cleanup", "Snapshot : Cleaning previous content ...") );
 	{
 		DataprepSnapshotUtil::RemoveSnapshotFiles( TempDir );
 		ContentSnapshot.DataEntries.Empty( Assets.Num() );
@@ -451,53 +465,70 @@ void FDataprepEditor::TakeSnapshot()
 		return AValue < BValue;
 	});
 
-	// Cache assets' flags
-	typedef TPair< UObject*, EObjectFlags > FAssetFlagsCache;
-	TArray<FAssetFlagsCache> FlagsCacheArray;
-	FlagsCacheArray.Reserve( Assets.Num() );
-
-	UObject* FaultyObject = nullptr;
-	ContentSnapshot.bIsValid = true;
-
-	for (const TWeakObjectPtr<UObject>& Asset : Assets)
+	// Cache the asset's path, class and flags
+	for( const TWeakObjectPtr<UObject>& AssetPtr : Assets )
 	{
-		if (Asset.IsValid())
+		if(UObject* AssetObject = AssetPtr.Get())
 		{
-			UObject* AssetObject = Asset.Get();
+			FSoftObjectPath AssetPath( AssetObject );
+			ContentSnapshot.DataEntries.Emplace(AssetPath.GetAssetPathString(), AssetObject->GetClass(), AssetObject->GetFlags());
+		}
+	}
 
-			FlagsCacheArray.Emplace(AssetObject, AssetObject->GetFlags());
+	FCriticalSection GlobalLock;
+	TAtomic<bool> bGlobalIsValid(true);
+	ParallelFor(Assets.Num(),
+		[&](int32 AssetIndex)
+	{
+		if (!bGlobalIsValid)
+		{
+			return;
+		}
+
+		if(UObject* AssetObject = Assets[AssetIndex].Get())
+		{
+			EObjectFlags ObjectFlags = AssetObject->GetFlags();
 			AssetObject->ClearFlags(RF_Transient);
 			AssetObject->SetFlags(RF_Public);
 
 			FSoftObjectPath AssetPath( AssetObject );
-			ContentSnapshot.DataEntries.Emplace( AssetPath.GetAssetPathString(), AssetObject->GetClass(), AssetObject->GetFlags() );
+			const FString AssetPathString = AssetPath.GetAssetPathString();
+			UE_LOG( LogDataprepEditor, Verbose, TEXT("Saving asset %s"), *AssetPathString );
 
-			UE_LOG( LogDataprepEditor, Verbose, TEXT("Saving asset %s"), *AssetPath.GetAssetPathString() );
+			bool bLocalIsValid = false;
 
 			// Serialize asset
 			{
 				TArray<uint8> SerializedData;
-				DataprepSnapshotUtil::WriteSnapshotData( AssetObject, SerializedData, SnapshotClassesMap);
+				DataprepSnapshotUtil::WriteSnapshotData( AssetObject, SerializedData );
 
-				FString AssetFilePath = DataprepSnapshotUtil::BuildAssetFileName( TempDir, AssetPath.GetAssetPathString() );
-				ContentSnapshot.bIsValid &= FFileHelper::SaveArrayToFile( SerializedData, *AssetFilePath );
+				FString AssetFilePath = DataprepSnapshotUtil::BuildAssetFileName( TempDir, AssetPathString );
+
+				bLocalIsValid = FFileHelper::SaveArrayToFile( SerializedData, *AssetFilePath );
 			}
 
-			if(!ContentSnapshot.bIsValid)
+			AssetObject->ClearFlags( RF_AllFlags );
+			AssetObject->SetFlags( ObjectFlags );
+
+			if(!bLocalIsValid)
 			{
-				UE_LOG( LogDataprepEditor, Log, TEXT("Failed to save %s"), *AssetPath.GetAssetPathString() );
-				FaultyObject = AssetObject;
-				break;
+				UE_LOG( LogDataprepEditor, Log, TEXT("Failed to save %s"), *AssetPathString );
+				bGlobalIsValid = false;
+				return;
 			}
 
-			UE_LOG( LogDataprepEditor, Verbose, TEXT("Asset %s successfully saved"), *AssetPath.GetAssetPathString() );
+			UE_LOG( LogDataprepEditor, Verbose, TEXT("Asset %s successfully saved"), *AssetPathString );
 		}
 	}
+	);
+
+	ContentSnapshot.bIsValid = bGlobalIsValid;
 
 	// Serialize world if applicable
 	if(ContentSnapshot.bIsValid)
 	{
-		UE_LOG( LogDataprepEditor, Log, TEXT("Saving preview world") );
+		SlowTask.EnterProgressFrame( 50.0f, LOCTEXT("SaveSnapshot_World", "Snapshot : caching level ...") );
+		UE_LOG( LogDataprepEditor, Verbose, TEXT("Saving preview world") );
 
 		PreviewWorld->ClearFlags(RF_Transient);
 		{
@@ -515,20 +546,12 @@ void FDataprepEditor::TakeSnapshot()
 
 		if(ContentSnapshot.bIsValid)
 		{
-			UE_LOG( LogDataprepEditor, Log, TEXT("Level successfully saved") );
+			UE_LOG( LogDataprepEditor, Verbose, TEXT("Level successfully saved") );
 		}
 		else
 		{
-			UE_LOG( LogDataprepEditor, Log, TEXT("Failed to save level") );
+			UE_LOG( LogDataprepEditor, Warning, TEXT("Failed to save level") );
 		}
-	}
-
-	// Restore flags on assets
-	for (FAssetFlagsCache& CacheEntry : FlagsCacheArray)
-	{
-		UObject* Object = CacheEntry.Get<0>();
-		Object->ClearFlags( RF_AllFlags );
-		Object->SetFlags( CacheEntry.Get<1>() );
 	}
 
 	if(!ContentSnapshot.bIsValid)
@@ -549,10 +572,10 @@ void FDataprepEditor::TakeSnapshot()
 
 	int ElapsedMin = int(ElapsedSeconds / 60.0);
 	ElapsedSeconds -= 60.0 * (double)ElapsedMin;
-	UE_LOG( LogDataprepEditor, Log, TEXT("Snapshot taken in [%d min %.3f s]"), ElapsedMin, ElapsedSeconds );
+	UE_LOG( LogDataprepEditor, Verbose, TEXT("Snapshot taken in [%d min %.3f s]"), ElapsedMin, ElapsedSeconds );
 }
 
-void FDataprepEditor::RestoreFromSnapshot()
+void FDataprepEditor::RestoreFromSnapshot(bool bUpdateViewport)
 {
 	if(!bUseSnapshot)
 	{
@@ -568,8 +591,7 @@ void FDataprepEditor::RestoreFromSnapshot()
 		return;
 	}
 
-	uint64 StartTime = FPlatformTime::Cycles64();
-	UE_LOG( LogDataprepEditor, Log, TEXT("Cleaning up preview world ...") );
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDataprepEditor::RestoreFromSnapshot);
 
 	// Clean up all assets and world content
 	{
@@ -577,15 +599,11 @@ void FDataprepEditor::RestoreFromSnapshot()
 		Assets.Reset(ContentSnapshot.DataEntries.Num());
 	}
 
-	// Log time spent to import incoming file in minutes and seconds
-	double ElapsedSeconds = FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - StartTime);
+	FScopedSlowTask SlowTask( 100.0f, LOCTEXT("RestoreFromSnapshot_Title", "Restoring world initial content ...") );
+	SlowTask.MakeDialog(false);
 
-	int ElapsedMin = int(ElapsedSeconds / 60.0);
-	ElapsedSeconds -= 60.0 * (double)ElapsedMin;
-	UE_LOG( LogDataprepEditor, Log, TEXT("Preview world cleaned in [%d min %.3f s]"), ElapsedMin, ElapsedSeconds );
-
-	StartTime = FPlatformTime::Cycles64();
-	UE_LOG( LogDataprepEditor, Log, TEXT("Restoring snapshot...") );
+	uint64 StartTime = FPlatformTime::Cycles64();
+	UE_LOG( LogDataprepEditor, Verbose, TEXT("Restoring snapshot...") );
 
 	TMap<FString, UPackage*> PackagesCreated;
 	PackagesCreated.Reserve(ContentSnapshot.DataEntries.Num());
@@ -594,45 +612,69 @@ void FDataprepEditor::RestoreFromSnapshot()
 	RootPackage->FullyLoad();
 
 	uint32 PortFlags = PPF_DeepCompareInstances | PPF_ExportsNotFullyQualified | PPF_IncludeTransient | PPF_Copy;
+	TArray<UObject*> ObjectsToDelete;
 
-	for (FSnapshotDataEntry& DataEntry : ContentSnapshot.DataEntries)
+	SlowTask.EnterProgressFrame( 40.0f, LOCTEXT("RestoreFromSnapshot_Assets", "Restoring assets ...") );
 	{
-		const FSoftObjectPath ObjectPath( DataEntry.Get<0>() );
-		const FString PackageToLoadPath = ObjectPath.GetLongPackageName();
-		const FString AssetName = ObjectPath.GetAssetName();
+		FScopedSlowTask SubSlowTask( ContentSnapshot.DataEntries.Num(), LOCTEXT("RestoreFromSnapshot_Assets", "Restoring assets ...") );
+		SubSlowTask.MakeDialog(false);
 
-		UE_LOG( LogDataprepEditor, Verbose, TEXT("Loading asset %s"), *ObjectPath.GetAssetPathString() );
-
-		if(PackagesCreated.Find(PackageToLoadPath) == nullptr)
+		for (FSnapshotDataEntry& DataEntry : ContentSnapshot.DataEntries)
 		{
-			UPackage* PackageCreated = NewObject< UPackage >( nullptr, *PackageToLoadPath, RF_Transient );
-			PackageCreated->FullyLoad();
-			PackageCreated->MarkPackageDirty();
+			const FSoftObjectPath ObjectPath( DataEntry.Get<0>() );
+			const FString PackageToLoadPath = ObjectPath.GetLongPackageName();
+			const FString AssetName = ObjectPath.GetAssetName();
 
-			PackagesCreated.Add( PackageToLoadPath, PackageCreated );
-		}
+			SubSlowTask.EnterProgressFrame( 1.0f, FText::Format( LOCTEXT("RestoreFromSnapshot_OneAsset", "Restoring asset {0}"), FText::FromString( ObjectPath.GetAssetName() ) ) );
+			UE_LOG( LogDataprepEditor, Verbose, TEXT("Loading asset %s"), *ObjectPath.GetAssetPathString() );
 
-		// Duplicate sub-objects to delete after all assets are read
-		TArray<UObject*> ObjectsToDelete;
-		UPackage* Package = PackagesCreated[PackageToLoadPath];
-		UObject* Asset = NewObject<UObject>( Package, DataEntry.Get<1>(), *AssetName, DataEntry.Get<2>() );
+			if(PackagesCreated.Find(PackageToLoadPath) == nullptr)
+			{
+				UPackage* PackageCreated = NewObject< UPackage >( nullptr, *PackageToLoadPath, RF_Transient );
+				PackageCreated->FullyLoad();
+				PackageCreated->MarkPackageDirty();
 
-		{
-			TArray<uint8> SerializedData;
-			FString AssetFilePath = DataprepSnapshotUtil::BuildAssetFileName( TempDir, ObjectPath.GetAssetPathString() );
-			FFileHelper::LoadFileToArray( SerializedData, *AssetFilePath );
+				PackagesCreated.Add( PackageToLoadPath, PackageCreated );
+			}
 
-			DataprepSnapshotUtil::ReadSnapshotData( Asset, SerializedData, SnapshotClassesMap, ObjectsToDelete );
+			// Duplicate sub-objects to delete after all assets are read
+			UPackage* Package = PackagesCreated[PackageToLoadPath];
+			UObject* Asset = NewObject<UObject>( Package, DataEntry.Get<1>(), *AssetName, DataEntry.Get<2>() );
+
+			{
+				TArray<uint8> SerializedData;
+				FString AssetFilePath = DataprepSnapshotUtil::BuildAssetFileName( TempDir, ObjectPath.GetAssetPathString() );
+				if(FFileHelper::LoadFileToArray(SerializedData, *AssetFilePath))
+				{
+					DataprepSnapshotUtil::ReadSnapshotData( Asset, SerializedData, SnapshotClassesMap, ObjectsToDelete );
+				}
+				else
+				{
+					UE_LOG( LogDataprepEditor, Error, TEXT("Failed to restore asset %s"), *ObjectPath.GetAssetPathString() );
+				}
+			}
+
+			Assets.Add( Asset );
+
+			UE_LOG( LogDataprepEditor, Verbose, TEXT("Asset %s loaded"), *ObjectPath.GetAssetPathString() );
 		}
 
 		FDataprepCoreUtils::PurgeObjects( MoveTemp( ObjectsToDelete ) );
-
-		Assets.Add( Asset );
-
-		UE_LOG( LogDataprepEditor, Verbose, TEXT("Asset %s loaded"), *ObjectPath.GetAssetPathString() );
 	}
 
-	UE_LOG( LogDataprepEditor, Log, TEXT("Loading level") );
+	/** 
+	 * Set all assets as public so the actors in the level can find the assets they are referring to
+	 * Also assets should always have a RF_Public flags as they are the public interface of their package
+	 */
+	for(int32 Index = 0; Index < Assets.Num(); ++Index)
+	{
+		if( UObject* Asset = Assets[Index].Get() )
+		{
+			Asset->SetFlags( RF_Public );
+		}
+	}
+
+	SlowTask.EnterProgressFrame( 60.0f, LOCTEXT("RestoreFromSnapshot_Level", "Restoring level ...") );
 	{
 		// Code inspired from UUnrealEdEngine::edactPasteSelected
 		ULevel* WorldLevel = PreviewWorld->GetCurrentLevel();
@@ -649,13 +691,21 @@ void FDataprepEditor::RestoreFromSnapshot()
 		UWorld* CachedWorld = GWorld;
 		GWorld = PreviewWorld.Get();
 
-		// Disable warnings from LogExec because ULevelFactory::FactoryCreateText is pretty verbose on harmless warnings
+		// Cache and disable recording of transaction
+		UTransactor* NormalTransactor = GEditor->Trans;
+		GEditor->Trans = nullptr;
+
+		// Cache and disable warnings from LogExec because ULevelFactory::FactoryCreateText is pretty verbose on harmless warnings
 		ELogVerbosity::Type PrevLogExecVerbosity = LogExec.GetVerbosity();
 		LogExec.SetVerbosity( ELogVerbosity::Error );
 
+		// Cache and disable Editor's selection
+		bool PrevEdSelectionLock = GEdSelectionLock;
+		GEdSelectionLock = false;
+
 		const TCHAR* Paste = *FileBuffer;
 		ULevelFactory* Factory = NewObject<ULevelFactory>();
-		Factory->FactoryCreateText( ULevel::StaticClass(), WorldLevel, WorldLevel->GetFName(), RF_Transactional, NULL, TEXT("paste"), Paste, Paste + FileBuffer.Len(), FGenericPlatformOutputDevices::GetFeedbackContext());
+		Factory->FactoryCreateText( ULevel::StaticClass(), WorldLevel, WorldLevel->GetFName(), RF_Transactional, NULL, TEXT("paste"), Paste, Paste + FileBuffer.Len(), GWarn/*FGenericPlatformOutputDevices::GetFeedbackContext()*/);
 
 		// Restore LogExec verbosity
 		LogExec.SetVerbosity( PrevLogExecVerbosity );
@@ -663,20 +713,26 @@ void FDataprepEditor::RestoreFromSnapshot()
 		// Reinstate old BSP update setting, and force a rebuild - any levels whose geometry has changed while pasting will be rebuilt
 		GetMutableDefault<ULevelEditorMiscSettings>()->bBSPAutoUpdate = bBSPAutoUpdate;
 
+		// Restore transaction's recording
+		GEditor->Trans = NormalTransactor;
+
+		// Restore Editor's selection
+		GEdSelectionLock = PrevEdSelectionLock;
+
 		// Reset the GWorld to its previous value
 		GWorld = CachedWorld;
 	}
-	UE_LOG( LogDataprepEditor, Log, TEXT("Level loaded") );
+	UE_LOG( LogDataprepEditor, Verbose, TEXT("Level loaded") );
 
 	// Log time spent to import incoming file in minutes and seconds
-	ElapsedSeconds = FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - StartTime);
+	double ElapsedSeconds = FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - StartTime);
 
-	ElapsedMin = int(ElapsedSeconds / 60.0);
+	int ElapsedMin = int(ElapsedSeconds / 60.0);
 	ElapsedSeconds -= 60.0 * (double)ElapsedMin;
-	UE_LOG( LogDataprepEditor, Log, TEXT("Preview world restored in [%d min %.3f s]"), ElapsedMin, ElapsedSeconds );
+	UE_LOG( LogDataprepEditor, Verbose, TEXT("Preview world restored in [%d min %.3f s]"), ElapsedMin, ElapsedSeconds );
 
 	// Update preview panels to reflect restored content
-	UpdatePreviewPanels();
+	UpdatePreviewPanels( bUpdateViewport );
 }
 
 #undef LOCTEXT_NAMESPACE

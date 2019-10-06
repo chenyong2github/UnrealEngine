@@ -3,6 +3,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
@@ -102,6 +103,11 @@ namespace Tools.DotNETCommon
 		int[] NextArgumentIndex;
 
 		/// <summary>
+		/// List of positional arguments
+		/// </summary>
+		List<int> PositionalArgumentIndices = new List<int>();
+
+		/// <summary>
 		/// Array of characters that separate argument names from values
 		/// </summary>
 		static readonly char[] ValueSeparators = { '=', ':' };
@@ -130,39 +136,58 @@ namespace Tools.DotNETCommon
 			ArgumentToFirstIndex = new Dictionary<string, int>(Arguments.Length, StringComparer.OrdinalIgnoreCase);
 			for(int Idx = 0; Idx < Arguments.Length; Idx++)
 			{
-				int SeparatorIdx = Arguments[Idx].IndexOfAny(ValueSeparators);
-				if(SeparatorIdx == -1)
+				if (Arguments[Idx].Equals("--", StringComparison.Ordinal))
 				{
-					// Ignore duplicate -Option flags; they are harmless.
-					if(ArgumentToFirstIndex.ContainsKey(Arguments[Idx]))
+					// End of option arguments
+					MarkAsUsed(Idx++);
+					for (; Idx < Arguments.Length; Idx++)
 					{
-						UsedArguments.Set(Idx, true);
+						PositionalArgumentIndices.Add(Idx);
+					}
+					break;
+				}
+				else if (Arguments[Idx].StartsWith("-", StringComparison.Ordinal))
+				{
+					// Option argument
+					int SeparatorIdx = Arguments[Idx].IndexOfAny(ValueSeparators);
+					if (SeparatorIdx == -1)
+					{
+						// Ignore duplicate -Option flags; they are harmless.
+						if (ArgumentToFirstIndex.ContainsKey(Arguments[Idx]))
+						{
+							UsedArguments.Set(Idx, true);
+						}
+						else
+						{
+							ArgumentToFirstIndex.Add(Arguments[Idx], Idx);
+						}
+
+						// Mark this argument as a flag
+						FlagArguments.Set(Idx, true);
 					}
 					else
 					{
-						ArgumentToFirstIndex.Add(Arguments[Idx], Idx);
-					}
+						// Just take the part up to and including the separator character
+						string Prefix = Arguments[Idx].Substring(0, SeparatorIdx + 1);
 
-					// Mark this argument as a flag
-					FlagArguments.Set(Idx, true);
+						// Add the prefix to the argument lookup, or update the appropriate matching argument list if it's been seen before
+						int ExistingArgumentIndex;
+						if (ArgumentToFirstIndex.TryGetValue(Prefix, out ExistingArgumentIndex))
+						{
+							NextArgumentIndex[LastArgumentIndex[ExistingArgumentIndex]] = Idx;
+							LastArgumentIndex[ExistingArgumentIndex] = Idx;
+						}
+						else
+						{
+							ArgumentToFirstIndex.Add(Prefix, Idx);
+							LastArgumentIndex[Idx] = Idx;
+						}
+					}
 				}
 				else
 				{
-					// Just take the part up to and including the separator character
-					string Prefix = Arguments[Idx].Substring(0, SeparatorIdx + 1);
-
-					// Add the prefix to the argument lookup, or update the appropriate matching argument list if it's been seen before
-					int ExistingArgumentIndex;
-					if(ArgumentToFirstIndex.TryGetValue(Prefix, out ExistingArgumentIndex))
-					{
-						NextArgumentIndex[LastArgumentIndex[ExistingArgumentIndex]] = Idx;
-						LastArgumentIndex[ExistingArgumentIndex] = Idx;
-					}
-					else
-					{
-						ArgumentToFirstIndex.Add(Prefix, Idx);
-						LastArgumentIndex[Idx] = Idx;
-					}
+					// Positional argument
+					PositionalArgumentIndices.Add(Idx);
 				}
 			}
 		}
@@ -184,7 +209,7 @@ namespace Tools.DotNETCommon
 		{
 			get { return Arguments[Index]; }
 		}
-		
+
 		/// <summary>
 		/// Determines if an argument has been used
 		/// </summary>
@@ -238,6 +263,63 @@ namespace Tools.DotNETCommon
 		{
 			CheckValidPrefix(Prefix);
 			return ArgumentToFirstIndex.ContainsKey(Prefix);
+		}
+
+		/// <summary>
+		/// Gets the positional argument at the given index
+		/// </summary>
+		/// <returns>Number of positional arguments</returns>
+		public int GetPositionalArgumentCount()
+		{
+			return PositionalArgumentIndices.Count;
+		}
+
+		/// <summary>
+		/// Gets the index of the numbered positional argument
+		/// </summary>
+		/// <param name="Index">Number of the positional argument</param>
+		/// <returns>Index of the positional argument</returns>
+		public int GetPositionalArgumentIndex(int Num)
+		{
+			return PositionalArgumentIndices[Num];
+		}
+
+		/// <summary>
+		/// Attempts to read the next unused positional argument
+		/// </summary>
+		/// <param name="Argument">Receives the argument that was read, on success</param>
+		/// <returns>True if an argument was read</returns>
+		public bool TryGetPositionalArgument(out string Argument)
+		{
+			for (int Idx = 0; Idx < PositionalArgumentIndices.Count; Idx++)
+			{
+				int Index = PositionalArgumentIndices[Idx];
+				if (!HasBeenUsed(Index))
+				{
+					MarkAsUsed(Index);
+					Argument = Arguments[Index];
+					return true;
+				}
+			}
+
+			Argument = null;
+			return false;
+		}
+
+		/// <summary>
+		/// Returns all the positional arguments, and marks them as used
+		/// </summary>
+		/// <returns>Array of positional arguments</returns>
+		public string[] GetPositionalArguments()
+		{
+			string[] PositionalArguments = new string[PositionalArgumentIndices.Count];
+			for (int Idx = 0; Idx < PositionalArguments.Length; Idx++)
+			{
+				int Index = PositionalArgumentIndices[Idx];
+				MarkAsUsed(Index);
+				PositionalArguments[Idx] = Arguments[Index];
+			}
+			return PositionalArguments;
 		}
 
 		/// <summary>
@@ -572,6 +654,43 @@ namespace Tools.DotNETCommon
 		}
 
 		/// <summary>
+		/// Gets the prefix for a particular argument
+		/// </summary>
+		/// <param name="FieldInfo">The field hosting the attribute</param>
+		/// <param name="Attribute">The attribute instance</param>
+		/// <returns>Prefix for this argument</returns>
+		private static string GetArgumentPrefix(FieldInfo FieldInfo, CommandLineAttribute Attribute)
+		{
+			// Get the inner field type, unwrapping nullable types
+			Type ValueType = FieldInfo.FieldType;
+			if (ValueType.IsGenericType && ValueType.GetGenericTypeDefinition() == typeof(Nullable<>))
+			{
+				ValueType = ValueType.GetGenericArguments()[0];
+			}
+
+			string Prefix = Attribute.Prefix;
+			if (Prefix == null)
+			{
+				if (ValueType == typeof(bool))
+				{
+					Prefix = String.Format("-{0}", FieldInfo.Name);
+				}
+				else
+				{
+					Prefix = String.Format("-{0}=", FieldInfo.Name);
+				}
+			}
+			else
+			{
+				if (ValueType != typeof(bool) && Attribute.Value == null && !Prefix.EndsWith("=") && !Prefix.EndsWith(":"))
+				{
+					Prefix = Prefix + "=";
+				}
+			}
+			return Prefix;
+		}
+
+		/// <summary>
 		/// Applies these arguments to fields with the [CommandLine] attribute in the given object.
 		/// </summary>
 		/// <param name="TargetObject">The object to configure</param>
@@ -593,33 +712,8 @@ namespace Tools.DotNETCommon
 					IEnumerable<CommandLineAttribute> Attributes = FieldInfo.GetCustomAttributes<CommandLineAttribute>();
 					foreach(CommandLineAttribute Attribute in Attributes)
 					{
-						// Get the inner field type, unwrapping nullable types
-						Type ValueType = FieldInfo.FieldType;
-						if(ValueType.IsGenericType && ValueType.GetGenericTypeDefinition() == typeof(Nullable<>))
-						{
-							ValueType = ValueType.GetGenericArguments()[0];
-						}
-
 						// Get the appropriate prefix for this attribute
-						string Prefix = Attribute.Prefix;
-						if(Prefix == null)
-						{
-							if(ValueType == typeof(bool))
-							{
-								Prefix = String.Format("-{0}", FieldInfo.Name);
-							}
-							else
-							{
-								Prefix = String.Format("-{0}=", FieldInfo.Name);
-							}
-						}
-						else
-						{
-							if(ValueType != typeof(bool) && Attribute.Value == null && !Prefix.EndsWith("=") && !Prefix.EndsWith(":"))
-							{
-								Prefix = Prefix + "=";
-							}
-						}
+						string Prefix = GetArgumentPrefix(FieldInfo, Attribute);
 
 						// Get the value with the correct prefix
 						int FirstIndex;
@@ -696,6 +790,112 @@ namespace Tools.DotNETCommon
 					throw new CommandLineArgumentException(String.Format("Missing {0} arguments", StringUtils.FormatList(MissingArguments.Select(x => x.Replace("=", "=...")))));
 				}
 			}
+		}
+
+		/// <summary>
+		/// Gets help text for the arguments of a given type
+		/// </summary>
+		/// <param name="Type">The type to find parameters for</param>
+		/// <returns>List of parameters</returns>
+		public static List<KeyValuePair<string, string>> GetParameters(Type Type)
+		{
+			List<KeyValuePair<string, string>> Parameters = new List<KeyValuePair<string, string>>();
+			for (Type TargetType = Type; TargetType != typeof(object); TargetType = TargetType.BaseType)
+			{
+				foreach (FieldInfo FieldInfo in TargetType.GetFields(BindingFlags.Instance | BindingFlags.GetField | BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
+				{
+					List<CommandLineAttribute> Attributes = FieldInfo.GetCustomAttributes<CommandLineAttribute>().ToList();
+					if(Attributes.Count > 0)
+					{
+						StringBuilder DescriptionBuilder = new StringBuilder();
+						foreach (DescriptionAttribute Attribute in FieldInfo.GetCustomAttributes<DescriptionAttribute>())
+						{
+							if(DescriptionBuilder.Length > 0)
+							{
+								DescriptionBuilder.Append("\n");
+							}
+							DescriptionBuilder.Append(Attribute.Description);
+						}
+
+						string Description = DescriptionBuilder.ToString();
+						if (Description.Length == 0)
+						{
+							Description = "No description available.";
+						}
+
+						foreach (CommandLineAttribute Attribute in Attributes)
+						{
+							string Prefix = GetArgumentPrefix(FieldInfo, Attribute);
+							if(Prefix.EndsWith("=", StringComparison.Ordinal))
+							{
+								Prefix += "...";
+							}
+							Parameters.Add(new KeyValuePair<string, string>(Prefix, Description));
+						}
+					}
+				}
+			}
+			return Parameters;
+		}
+
+		/// <summary>
+		/// Quotes a command line argument, if necessary
+		/// </summary>
+		/// <param name="Argument">The argument that may need quoting</param>
+		/// <returns>Argument which is safe to pass on the command line</returns>
+		public static string Quote(string Argument)
+		{
+			// See if the entire string is quoted correctly
+			bool bInQuotes = false;
+			for (int Idx = 0;;Idx++)
+			{
+				if (Idx == Argument.Length)
+				{
+					return Argument;
+				}
+				else if (Argument[Idx] == '\"')
+				{
+					bInQuotes ^= true;
+				}
+				else if (Argument[Idx] == ' ')
+				{
+					break;
+				}
+			}
+
+			// Try to insert a quote after the argument string
+			if (Argument[0] == '-')
+			{
+				for(int Idx = 1; Idx < Argument.Length && Argument[Idx] != ' '; Idx++)
+				{
+					if (Argument[Idx] == '=')
+					{
+						return String.Format("{0}=\"{1}\"", Argument.Substring(0, Idx), Argument.Substring(Idx + 1).Replace("\"", "\\\""));
+					}
+				}
+			}
+
+			// Quote the whole thing
+			return "\"" + Argument.Replace("\"", "\\\"") + "\"";
+		}
+
+		/// <summary>
+		/// Joins the given arguments into a command line
+		/// </summary>
+		/// <param name="Arguments">List of command line arguments</param>
+		/// <returns>Joined command line</returns>
+		public static string Join(IEnumerable<string> Arguments)
+		{
+			StringBuilder Result = new StringBuilder();
+			foreach (string Argument in Arguments)
+			{
+				if(Result.Length > 0)
+				{
+					Result.Append(' ');
+				}
+				Result.Append(Quote(Argument));
+			}
+			return Result.ToString();
 		}
 
 		/// <summary>
@@ -910,7 +1110,7 @@ namespace Tools.DotNETCommon
 		/// <returns>True if the text could be parsed, false otherwise</returns>
 		private static bool TryParseValue(Type FieldType, string Text, out object Value)
 		{
-			if(FieldType.IsGenericType && FieldType.GetGenericTypeDefinition() == typeof(Nullable<>))
+			if (FieldType.IsGenericType && FieldType.GetGenericTypeDefinition() == typeof(Nullable<>))
 			{
 				// Try to parse the inner type instead
 				return TryParseValue(FieldType.GetGenericArguments()[0], Text, out Value);
@@ -923,13 +1123,13 @@ namespace Tools.DotNETCommon
 					Value = Enum.Parse(FieldType, Text, true);
 					return true;
 				}
-				catch(ArgumentException)
+				catch (ArgumentException)
 				{
 					Value = null;
 					return false;
 				}
 			}
-			else if(FieldType == typeof(FileReference))
+			else if (FieldType == typeof(FileReference))
 			{
 				// Construct a file reference from the string
 				try
@@ -943,7 +1143,7 @@ namespace Tools.DotNETCommon
 					return false;
 				}
 			}
-			else if(FieldType == typeof(DirectoryReference))
+			else if (FieldType == typeof(DirectoryReference))
 			{
 				// Construct a file reference from the string
 				try
@@ -957,6 +1157,38 @@ namespace Tools.DotNETCommon
 					return false;
 				}
 			}
+			else if (FieldType == typeof(TimeSpan))
+			{
+				// Construct a time span form the string
+				double FloatValue;
+				if (Text.EndsWith("h", StringComparison.OrdinalIgnoreCase) && Double.TryParse(Text.Substring(0, Text.Length - 1), out FloatValue))
+				{
+					Value = TimeSpan.FromHours(FloatValue);
+					return true;
+				}
+				else if (Text.EndsWith("m", StringComparison.OrdinalIgnoreCase) && Double.TryParse(Text.Substring(0, Text.Length - 1), out FloatValue))
+				{
+					Value = TimeSpan.FromMinutes(FloatValue);
+					return true;
+				}
+				else if (Text.EndsWith("s", StringComparison.OrdinalIgnoreCase) && Double.TryParse(Text.Substring(0, Text.Length - 1), out FloatValue))
+				{
+					Value = TimeSpan.FromSeconds(FloatValue);
+					return true;
+				}
+
+				TimeSpan TimeSpanValue;
+				if (TimeSpan.TryParse(Text, out TimeSpanValue))
+				{
+					Value = TimeSpanValue;
+					return true;
+				}
+				else
+				{
+					Value = null;
+					return false;
+				}
+			}
 			else
 			{
 				// Otherwise let the framework convert between types
@@ -965,7 +1197,7 @@ namespace Tools.DotNETCommon
 					Value = Convert.ChangeType(Text, FieldType);
 					return true;
 				}
-				catch(InvalidCastException)
+				catch (InvalidCastException)
 				{
 					Value = null;
 					return false;

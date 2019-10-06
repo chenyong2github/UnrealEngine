@@ -19,33 +19,67 @@ class SScrollBar;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct FSampleRef
+struct FFrameTrackSampleRef
 {
-	const FFrameTrackTimeline* Timeline;
-	const FFrameTrackSample* Sample;
+	TSharedPtr<FFrameTrackSeries> Series;
+	TSharedPtr<FFrameTrackSample> Sample;
 
-	FSampleRef(const FFrameTrackTimeline* InTimeline, const FFrameTrackSample* InSample)
-		: Timeline(InTimeline), Sample(InSample)
+	FFrameTrackSampleRef()
+		: Series(), Sample()
 	{
 	}
 
-	void Reset() { Timeline = nullptr; Sample = nullptr; }
-	bool IsValid() const { return Timeline != nullptr && Sample != nullptr; }
+	FFrameTrackSampleRef(TSharedPtr<FFrameTrackSeries> InSeries, TSharedPtr<FFrameTrackSample> InSample)
+		: Series(InSeries), Sample(InSample)
+	{
+	}
+
+	FFrameTrackSampleRef(const FFrameTrackSampleRef& Other)
+		: Series(Other.Series), Sample(Other.Sample)
+	{
+	}
+
+	FFrameTrackSampleRef& operator=(const FFrameTrackSampleRef& Other)
+	{
+		Series = Other.Series;
+		Sample = Other.Sample;
+		return *this;
+	}
+
+	void Reset()
+	{
+		Series.Reset();
+		Sample.Reset();
+	}
+
+	bool IsValid() const
+	{
+		return Series.IsValid() && Sample.IsValid();
+	}
+
+	bool Equals(const FFrameTrackSampleRef& Other) const
+	{
+		return Series == Other.Series
+			&& ((Sample == Other.Sample) || (Sample.IsValid() && Other.Sample.IsValid() && Sample->Equals(*Other.Sample)));
+	}
+
+	static bool AreEquals(const FFrameTrackSampleRef& A, const FFrameTrackSampleRef& B)
+	{
+		return A.Equals(B);
+	}
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
- * Widget used to present frames data in a track.
+ * Widget used to present frames data in a bar track.
  */
 class SFrameTrack : public SCompoundWidget
 {
-	enum
-	{
-		/** Number of pixels. */
-		MOUSE_SNAP_DISTANCE = 4,
-	};
+public:
+	/** Number of pixels. */
+	static constexpr float MOUSE_SNAP_DISTANCE = 2.0f;
 
-	enum class EFrameTrackCursor
+	enum class ECursorType
 	{
 		Default,
 		Arrow,
@@ -95,14 +129,29 @@ public:
 	virtual FCursorReply OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const override;
 
 protected:
-	bool IsReady() { return true; }
-
+	TSharedPtr<FFrameTrackSeries> FindOrAddSeries(int32 FrameType);
+	TSharedPtr<FFrameTrackSeries> FindSeries(int32 FrameType) const;
 	void UpdateState();
 
-	FSampleRef GetSampleAtMousePosition(float X, float Y);
+	void DrawHorizontalAxisGrid(FDrawContext& DrawContext, const FSlateBrush* Brush, const FSlateFontInfo& Font) const;
+	void DrawVerticalAxisGrid(FDrawContext& DrawContext, const FSlateBrush* Brush, const FSlateFontInfo& Font) const;
+
+	FFrameTrackSampleRef GetSampleAtMousePosition(float X, float Y);
 	void SelectFrameAtMousePosition(float X, float Y);
 
-	void ShowContextMenu(const FVector2D& ScreenSpacePosition);
+	void ShowContextMenu(const FPointerEvent& MouseEvent);
+
+	void ContextMenu_ShowGameFrames_Execute();
+	bool ContextMenu_ShowGameFrames_CanExecute();
+	bool ContextMenu_ShowGameFrames_IsChecked();
+
+	void ContextMenu_ShowRenderingFrames_Execute();
+	bool ContextMenu_ShowRenderingFrames_CanExecute();
+	bool ContextMenu_ShowRenderingFrames_IsChecked();
+
+	void ContextMenu_AutoZoom_Execute();
+	bool ContextMenu_AutoZoom_CanExecute();
+	bool ContextMenu_AutoZoom_IsChecked();
 
 	/** Binds our UI commands to delegates. */
 	void BindCommands();
@@ -116,29 +165,20 @@ protected:
 
 	void ZoomHorizontally(const float Delta, const float X);
 
-	//////////////////////////////////////////////////
-	// SelectionBoxChanged Event
-
-public:
-	/** The event to execute when the selection box has been changed. */
-	DECLARE_EVENT_TwoParams(SFrameTrack, FSelectionBoxChangedEvent, int32 /*FrameStart*/, int32 /*FrameEnd*/);
-	FSelectionBoxChangedEvent& OnSelectionBoxChanged() { return SelectionBoxChangedEvent; }
-protected:
-	/** The event to execute when the selection box has been changed. */
-	FSelectionBoxChangedEvent SelectionBoxChangedEvent;
-
-	//////////////////////////////////////////////////
-
 protected:
 	/** The track's viewport. Encapsulates info about position and scale. */
 	FFrameTrackViewport Viewport;
 	bool bIsViewportDirty;
 
-	/** Cached info for timelines. */
-	TMap<uint64, FFrameTrackTimeline> CachedTimelines;
-	TArray<int32> TimelinesOrder;
+	/** Cached info for all frame series. */
+	TMap<int32, TSharedPtr<FFrameTrackSeries>> SeriesMap;
+	TArray<int32> SeriesOrder;
 
 	bool bIsStateDirty;
+
+	bool bShowGameFrames;
+	bool bShowRenderingFrames;
+	bool bIsAutoZoomEnabled;
 
 	uint64 AnalysisSyncNextTimestamp;
 
@@ -147,7 +187,7 @@ protected:
 	TSharedPtr<SScrollBar> HorizontalScrollBar;
 
 	//////////////////////////////////////////////////
-	// Panning, Zooming and Selection behaviors
+	// Panning and Zooming behaviors
 
 	/** The current mouse position. */
 	FVector2D MousePosition;
@@ -155,7 +195,6 @@ protected:
 	/** Mouse position during the call on mouse button down. */
 	FVector2D MousePositionOnButtonDown;
 	float ViewportPosXOnButtonDown;
-	float ViewportPosYOnButtonDown;
 
 	/** Mouse position during the call on mouse button up. */
 	FVector2D MousePositionOnButtonUp;
@@ -163,15 +202,16 @@ protected:
 	bool bIsLMB_Pressed;
 	bool bIsRMB_Pressed;
 
-	/** True, if the user is currently interactively scrolling the view by holding the right mouse button and dragging. */
+	/** True, if the user is currently interactively scrolling the view (ex.: by holding the left mouse button and dragging). */
 	bool bIsScrolling;
 
 	//////////////////////////////////////////////////
+	// Selection
 
-	int32 SelectionStartFrameIndex;
-	int32 SelectionEndFrameIndex;
+	FFrameTrackSampleRef HoveredSample;
 
-	FSampleRef HoveredSample;
+	float TooltipDesiredOpacity;
+	mutable float TooltipOpacity;
 
 	//////////////////////////////////////////////////
 	// Misc
@@ -179,7 +219,7 @@ protected:
 	FGeometry ThisGeometry;
 
 	/** Cursor type. */
-	EFrameTrackCursor CursorType;
+	ECursorType CursorType;
 
 	// Debug stats
 	int32 NumUpdatedFrames;

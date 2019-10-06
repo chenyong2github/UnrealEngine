@@ -108,7 +108,7 @@ public:
 
 	/** IHotReloadInterface implementation */
 	virtual void SaveConfig() override;
-	virtual bool RecompileModule(const FName InModuleName, const bool bReloadAfterRecompile, FOutputDevice &Ar, bool bFailIfGeneratedCodeChanges = true, bool bForceCodeProject = false) override;
+	virtual bool RecompileModule(const FName InModuleName, FOutputDevice &Ar, ERecompileModuleFlags Flags) override;
 	virtual bool IsCurrentlyCompiling() const override { return ModuleCompileProcessHandle.IsValid(); }
 	virtual void RequestStopCompilation() override { bRequestCancelCompilation = true; }
 	virtual void AddHotReloadFunctionRemap(FNativeFuncPtr NewFunctionPointer, FNativeFuncPtr OldFunctionPointer) override;	
@@ -255,14 +255,13 @@ private:
 	 *	@param ModuleNames The list of modules to compile.
 	 *	@param InRecompileModulesCallback Callback function to make when module recompiles.
 	 *	@param Ar
-	 *	@param bInFailIfGeneratedCodeChanges If true, fail the compilation if generated headers change.
 	 *	@param InAdditionalCmdLineArgs Additional arguments to pass to UBT.
-	 *  @param bForceCodeProject Compile as code-based project even if there's no game modules loaded
+	 *  @param Flags Compilation flags
 	 *	@return true if successful, false otherwise.
 	 */
-	bool StartCompilingModuleDLLs(const TArray< FModuleToRecompile >& ModuleNames, 
-		FRecompileModulesCallback&& InRecompileModulesCallback, FOutputDevice& Ar, bool bInFailIfGeneratedCodeChanges, 
-		const FString& InAdditionalCmdLineArgs, bool bForceCodeProject);
+	bool StartCompilingModuleDLLs(const TArray< FModuleToRecompile >& ModuleNames,
+		FRecompileModulesCallback&& InRecompileModulesCallback, FOutputDevice& Ar,
+		const FString& InAdditionalCmdLineArgs, ERecompileModuleFlags Flags);
 #endif
 
 	/** Launches UnrealBuildTool with the specified command line parameters */
@@ -557,10 +556,7 @@ bool FHotReloadModule::Exec( UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& A
 			if( !ModuleNameStr.IsEmpty() )
 			{
 				const FName ModuleName( *ModuleNameStr );
-				const bool bReloadAfterRecompile = true;
-				const bool bForceCodeProject = false;
-				const bool bFailIfGeneratedCodeChanges = true;
-				RecompileModule( ModuleName, bReloadAfterRecompile, Ar, bFailIfGeneratedCodeChanges, bForceCodeProject);
+				RecompileModule(ModuleName, Ar, ERecompileModuleFlags::ReloadAfterRecompile | ERecompileModuleFlags::FailIfGeneratedCodeChanges);
 			}
 
 			return true;
@@ -602,7 +598,7 @@ FString FHotReloadModule::GetModuleCompileMethod(FName InModuleName)
 	}
 }
 
-bool FHotReloadModule::RecompileModule(const FName InModuleName, const bool bReloadAfterRecompile, FOutputDevice &Ar, bool bFailIfGeneratedCodeChanges, bool bForceCodeProject)
+bool FHotReloadModule::RecompileModule(const FName InModuleName, FOutputDevice &Ar, ERecompileModuleFlags Flags)
 {
 #if WITH_HOT_RELOAD
 
@@ -653,11 +649,11 @@ bool FHotReloadModule::RecompileModule(const FName InModuleName, const bool bRel
 	 * @param Ar Output device for logging compilation status.
 	 * @param bForceCodeProject Even if it's a non-code project, treat it as code-based project
 	 */
-	auto RecompileModuleDLLs = [this, &Ar, bFailIfGeneratedCodeChanges, bForceCodeProject](const TArray< FModuleToRecompile >& ModuleNames)
+	auto RecompileModuleDLLs = [this, &Ar, Flags](const TArray< FModuleToRecompile >& ModuleNames)
 	{
 		bool bCompileSucceeded = false;
 		const FString AdditionalArguments = MakeUBTArgumentsForModuleCompiling();
-		if (StartCompilingModuleDLLs(ModuleNames, nullptr, Ar, bFailIfGeneratedCodeChanges, AdditionalArguments, bForceCodeProject))
+		if (StartCompilingModuleDLLs(ModuleNames, nullptr, Ar, AdditionalArguments, Flags))
 		{
 			bool bCompileStillInProgress = false;
 			CheckForFinishedModuleDLLCompile( EHotReloadFlags::WaitForCompletion, bCompileStillInProgress, bCompileSucceeded, Ar );
@@ -696,7 +692,7 @@ bool FHotReloadModule::RecompileModule(const FName InModuleName, const bool bRel
 	}
 
 	// Reload the module if it was loaded before we recompiled
-	if ((bWasModuleLoaded || bForceCodeProject) && bReloadAfterRecompile)
+	if ((bWasModuleLoaded || !!(Flags & ERecompileModuleFlags::ForceCodeProject)) && !!(Flags & ERecompileModuleFlags::ReloadAfterRecompile))
 	{
 		TGuardValue<bool> GuardIsHotReload(GIsHotReload, true);
 		Ar.Logf( TEXT( "Reloading module %s after successful compile." ), *InModuleName.ToString() );
@@ -708,7 +704,7 @@ bool FHotReloadModule::RecompileModule(const FName InModuleName, const bool bRel
 		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 	}
 
-	if (bForceCodeProject)
+	if (!!(Flags & ERecompileModuleFlags::ForceCodeProject))
 	{
 		HotReloadEvent.Broadcast( false );
 	}
@@ -1165,9 +1161,8 @@ ECompilationResult::Type FHotReloadModule::RebindPackagesInternal(const TArray<U
 			DoHotReloadInternal(ChangedModules, InPackages, DependentModules, Ar);
 		},
 		Ar,
-		false, /* bFailIfGeneratedCodeChanges */
 		AdditionalArguments,
-		false /* bForceCodeProject */
+		ERecompileModuleFlags::None
 	);
 
 	if (!bCompileStarted)
@@ -1602,9 +1597,9 @@ FString FHotReloadModule::MakeUBTArgumentsForModuleCompiling()
 }
 
 #if WITH_HOT_RELOAD
-bool FHotReloadModule::StartCompilingModuleDLLs(const TArray< FModuleToRecompile >& ModuleNames, 
-	FRecompileModulesCallback&& InRecompileModulesCallback, FOutputDevice& Ar, bool bInFailIfGeneratedCodeChanges, 
-	const FString& InAdditionalCmdLineArgs, bool bForceCodeProject)
+bool FHotReloadModule::StartCompilingModuleDLLs(const TArray< FModuleToRecompile >& ModuleNames,
+	FRecompileModulesCallback&& InRecompileModulesCallback, FOutputDevice& Ar,
+	const FString& InAdditionalCmdLineArgs, ERecompileModuleFlags Flags)
 {
 	// Keep track of what we're compiling
 	ModulesBeingCompiled.Empty(ModuleNames.Num());
@@ -1651,7 +1646,7 @@ bool FHotReloadModule::StartCompilingModuleDLLs(const TArray< FModuleToRecompile
 		ExtraArg += FString::Printf(TEXT("-Project=\"%s\" "), *FPaths::ConvertRelativePathToFull(FPaths::GetProjectFilePath()));
 	}
 
-	if (bInFailIfGeneratedCodeChanges)
+	if (!!(Flags & ERecompileModuleFlags::FailIfGeneratedCodeChanges))
 	{
 		// Additional argument to let UHT know that we can only compile the module if the generated code didn't change
 		ExtraArg += TEXT( "-FailIfGeneratedCodeChanges " );

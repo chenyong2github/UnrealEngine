@@ -5,6 +5,7 @@
 #include "Chaos/UniformGrid.h"
 #include "Chaos/Vector.h"
 #include "UObject/DestructionObjectVersion.h"
+#include "Chaos/ChaosArchive.h"
 
 namespace Chaos
 {
@@ -29,11 +30,9 @@ template<class T_DERIVED, class T, int d>
 class TArrayNDBase
 {
   public:
-#if UE_BUILD_SHIPPING || UE_BUILD_TEST
-	FORCEINLINE TArrayNDBase() {}
-#else
+
 	FORCEINLINE TArrayNDBase() { MCounts = TVector<int32, 3>(0); }
-#endif
+
 	FORCEINLINE TArrayNDBase(const TVector<int32, d>& Counts, const TArray<T>& Array)
 	    : MCounts(Counts), MArray(Array) {}
 	FORCEINLINE TArrayNDBase(const TArrayNDBase<T_DERIVED, T, d>& Other) = delete;
@@ -65,6 +64,13 @@ class TArrayNDBase
 			TryBulkSerializeArrayNDBase(Ar, MArray);
 		}
 	}
+
+	void Serialize(FChaosArchive& Ar)
+	{
+		Ar << MCounts;
+		Ar << MArray;
+	}
+
 	FORCEINLINE TArrayNDBase<T_DERIVED, T, d>& operator=(const TArrayNDBase<T_DERIVED, T, d>& Other) = delete;
 	FORCEINLINE TArrayNDBase<T_DERIVED, T, d>& operator=(TArrayNDBase<T_DERIVED, T, d>&& Other)
 	{
@@ -92,6 +98,13 @@ class TArrayNDBase
 
 template <typename Derived, typename T, int d>
 FArchive& operator<<(FArchive& Ar, TArrayNDBase<Derived, T,d>& ValueIn)
+{
+	ValueIn.Serialize(Ar);
+	return Ar;
+}
+
+template <typename Derived, typename T, int d>
+FArchive& operator<<(FChaosArchive& Ar, TArrayNDBase<Derived, T, d>& ValueIn)
 {
 	ValueIn.Serialize(Ar);
 	return Ar;

@@ -32,14 +32,13 @@ namespace MeshSmoothingOperators
 	* where L is the Laplacian (Del^2) , and L^T L is an approximation of the Del^4.
 	*
 	* dp/dt = - k*k L^T L[p]
-	* with
-	* weight = 1 / (k * Sqrt[dt] )
 	*
 	* p^{n+1} + dt * k * k L^TL [p^{n+1}] = p^{n}
 	*
 	* re-write as
 	* L^TL[p^{n+1}] + weight * weight p^{n+1} = weight * weight p^{n}
-	
+	* with
+	* weight = 1 / (k * Sqrt[dt] )
 	*
 	* The result is returned in the PositionArray
 	*/

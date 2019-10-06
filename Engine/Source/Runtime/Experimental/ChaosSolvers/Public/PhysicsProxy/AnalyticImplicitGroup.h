@@ -1,6 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
-#if INCLUDE_CHAOS
 
 #include "Chaos/Box.h"
 #include "Chaos/Capsule.h"
@@ -428,7 +427,6 @@ public:
 				// Make a copy and transfer ownership to the transformed implicit.
 				TUniquePtr<Chaos::TImplicitObject<float, 3>> ObjPtr(TransferImplicitObj(0));
 				return new Chaos::TImplicitObjectTransformed<float, 3, true>(
-					MakeSerializable(ObjPtr),
 					MoveTemp(ObjPtr),
 					Chaos::TRigidTransform<float, 3>(Transforms[0]));
 			}
@@ -455,7 +453,6 @@ public:
 					ImplicitObjects.Add(
 						TUniquePtr<Chaos::TImplicitObject<float, 3>>(
 							new Chaos::TImplicitObjectTransformed<float, 3, true>(
-								MakeSerializable(ObjPtr),
 								MoveTemp(ObjPtr),
 								Chaos::TRigidTransform<float, 3>(Xf))));
 				}
@@ -653,9 +650,3 @@ protected:
 	FAnalyticImplicitGroup* Parent;
 	TArray<FAnalyticImplicitGroup*> Children;
 };
-
-
-
-
-
-#endif // INCLUDE_CHAOS

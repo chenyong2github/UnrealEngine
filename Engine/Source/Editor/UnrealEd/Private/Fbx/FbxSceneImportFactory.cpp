@@ -58,6 +58,7 @@
 
 #include "HAL/FileManager.h"
 #include "LODUtilities.h"
+#include "ComponentReregisterContext.h"
 
 #define LOCTEXT_NAMESPACE "FBXSceneImportFactory"
 
@@ -1000,6 +1001,9 @@ FFeedbackContext*	Warn
 	{
 		return nullptr;
 	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(UFbxSceneImportFactory::FactoryCreateBinary);
+
 	NameOptionsMap.Reset();
 	UWorld* World = GWorld;
 	ULevel* CurrentLevel = World->GetCurrentLevel();
@@ -1100,7 +1104,6 @@ FFeedbackContext*	Warn
 	{
 		ChangeFrontAxis(FbxImporter, &SceneInfo, SceneInfoPtr);
 	}
-
 
 	FillSceneHierarchyPath(SceneInfoPtr);
 
@@ -1886,6 +1889,9 @@ UObject* UFbxSceneImportFactory::ImportOneSkeletalMesh(void* VoidRootNodeToImpor
 		}
 	}
 
+	//The skeletalmesh will be set after we import the LOD 0 since it is not created yet.
+	FScopedSkeletalMeshPostEditChange ScopedPostEditChange(nullptr);
+
 	int32 LODIndex;
 	for (LODIndex = 0; LODIndex < MaxLODLevel; LODIndex++)
 	{
@@ -1969,6 +1975,7 @@ UObject* UFbxSceneImportFactory::ImportOneSkeletalMesh(void* VoidRootNodeToImpor
 			NewObject = NewMesh;
 			if (NewMesh)
 			{
+				ScopedPostEditChange.SetSkeletalMesh(NewMesh);
 				TSharedPtr<FFbxNodeInfo> SkelMeshNodeInfo;
 				if (FindSceneNodeInfo(SceneInfo, SkelMeshNodeArray[0]->GetUniqueID(), SkelMeshNodeInfo) && SkelMeshNodeInfo.IsValid() && SkelMeshNodeInfo->AttributeInfo.IsValid())
 				{
@@ -2046,17 +2053,10 @@ UObject* UFbxSceneImportFactory::ImportOneSkeletalMesh(void* VoidRootNodeToImpor
 		}
 	}
 	
-	USkeletalMesh* ImportedSkelMesh = Cast<USkeletalMesh>(NewObject);
-	//If we have import some morph target we have to rebuild the render resources since morph target are now using GPU
-	if (ImportedSkelMesh && ImportedSkelMesh->MorphTargets.Num() > 0)
-	{
-		ImportedSkelMesh->ReleaseResources();
-		//Rebuild the resources with a post edit change since we have added some morph targets
-		ImportedSkelMesh->PostEditChange();
-	}
-	
 	//Put back the options
 	GlobalImportSettings->bBakePivotInVertex = Old_bBakePivotInVertex;
+
+	//FScopedSkeletalMeshPostEditChange will call post edit change when going out of scope
 	return NewObject;
 }
 
@@ -2102,6 +2102,8 @@ void UFbxSceneImportFactory::ImportAllSkeletalMesh(void* VoidRootNodeToImport, v
 
 void UFbxSceneImportFactory::ImportAllStaticMesh(void* VoidRootNodeToImport, void* VoidFbxImporter, EObjectFlags Flags, int32& NodeIndex, int32& InterestingNodeCount, TSharedPtr<FFbxSceneInfo> SceneInfo)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UFbxSceneImportFactory::ImportAllStaticMesh);
+
 	UnFbx::FFbxImporter* FbxImporter = (UnFbx::FFbxImporter*)VoidFbxImporter;
 	FbxNode *RootNodeToImport = (FbxNode *)VoidRootNodeToImport;
 	

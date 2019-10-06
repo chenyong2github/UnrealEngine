@@ -6,88 +6,95 @@
 #include "Misc/ConfigCacheIni.h"
 #include "ICollectionManager.h"
 #include "CollectionManagerModule.h"
+#include "EditorStyleSet.h"
 
 #define LOCTEXT_NAMESPACE "CollectionView"
 
 namespace CollectionViewUtils
 {
-	/** Create a string of the form "CollectionName:CollectionType */
-	FString ToConfigKey(const FString& InCollectionName, const ECollectionShareType::Type& InCollectionType)
-	{
-		static_assert(ECollectionShareType::CST_All == 4, "Update CollectionViewUtils::ToConfigKey for the updated ECollectionShareType values");
 
-		check(InCollectionType != ECollectionShareType::CST_All);
+// Keep a map of all the collections that have custom colors, so updating the color in one location updates them all
+static TMap<FString, TOptional<FLinearColor>> LegacyCollectionColors;
 
-		FString CollectionTypeStr;
-		switch(InCollectionType)
-		{
-		case ECollectionShareType::CST_System:
-			CollectionTypeStr = "System";
-			break;
-		case ECollectionShareType::CST_Local:
-			CollectionTypeStr = "Local";
-			break;
-		case ECollectionShareType::CST_Private:
-			CollectionTypeStr = "Private";
-			break;
-		case ECollectionShareType::CST_Shared:
-			CollectionTypeStr = "Shared";
-			break;
-		default:
-			break;
-		}
-
-		return InCollectionName + ":" + CollectionTypeStr;
-	}
-
-	/** Convert a string of the form "CollectionName:CollectionType back into its individual elements */
-	bool FromConfigKey(const FString& InKey, FString& OutCollectionName, ECollectionShareType::Type& OutCollectionType)
-	{
-		static_assert(ECollectionShareType::CST_All == 4, "Update CollectionViewUtils::FromConfigKey for the updated ECollectionShareType values");
-
-		FString CollectionTypeStr;
-		if(InKey.Split(":", &OutCollectionName, &CollectionTypeStr, ESearchCase::IgnoreCase, ESearchDir::FromEnd))
-		{
-			if(CollectionTypeStr == "System")
-			{
-				OutCollectionType = ECollectionShareType::CST_System;
-			}
-			else if(CollectionTypeStr == "Local")
-			{
-				OutCollectionType = ECollectionShareType::CST_Local;
-			}
-			else if(CollectionTypeStr == "Private")
-			{
-				OutCollectionType = ECollectionShareType::CST_Private;
-			}
-			else if(CollectionTypeStr == "Shared")
-			{
-				OutCollectionType = ECollectionShareType::CST_Shared;
-			}
-			else
-			{
-				return false;
-			}
-
-			return !OutCollectionName.IsEmpty();
-		}
-
-		return false;
-	}
-
-	// Keep a map of all the collections that have custom colors, so updating the color in one location updates them all
-	static TMap<FString, TSharedPtr<FLinearColor>> CollectionColors;
+FLinearColor GetLegacyDefaultColor()
+{
+	// The default tint the folder should appear as
+	return FLinearColor::Gray;
 }
 
-const TSharedPtr<FLinearColor> CollectionViewUtils::LoadColor(const FString& InCollectionName, const ECollectionShareType::Type& InCollectionType)
+/** Create a string of the form "CollectionName:CollectionType */
+FString ToConfigKey(const FString& InCollectionName, const ECollectionShareType::Type& InCollectionType)
+{
+	static_assert(ECollectionShareType::CST_All == 4, "Update CollectionViewUtils::ToConfigKey for the updated ECollectionShareType values");
+
+	check(InCollectionType != ECollectionShareType::CST_All);
+
+	FString CollectionTypeStr;
+	switch(InCollectionType)
+	{
+	case ECollectionShareType::CST_System:
+		CollectionTypeStr = "System";
+		break;
+	case ECollectionShareType::CST_Local:
+		CollectionTypeStr = "Local";
+		break;
+	case ECollectionShareType::CST_Private:
+		CollectionTypeStr = "Private";
+		break;
+	case ECollectionShareType::CST_Shared:
+		CollectionTypeStr = "Shared";
+		break;
+	default:
+		break;
+	}
+
+	return InCollectionName + ":" + CollectionTypeStr;
+}
+
+/** Convert a string of the form "CollectionName:CollectionType back into its individual elements */
+bool FromConfigKey(const FString& InKey, FString& OutCollectionName, ECollectionShareType::Type& OutCollectionType)
+{
+	static_assert(ECollectionShareType::CST_All == 4, "Update CollectionViewUtils::FromConfigKey for the updated ECollectionShareType values");
+
+	FString CollectionTypeStr;
+	if(InKey.Split(":", &OutCollectionName, &CollectionTypeStr, ESearchCase::IgnoreCase, ESearchDir::FromEnd))
+	{
+		if(CollectionTypeStr == "System")
+		{
+			OutCollectionType = ECollectionShareType::CST_System;
+		}
+		else if(CollectionTypeStr == "Local")
+		{
+			OutCollectionType = ECollectionShareType::CST_Local;
+		}
+		else if(CollectionTypeStr == "Private")
+		{
+			OutCollectionType = ECollectionShareType::CST_Private;
+		}
+		else if(CollectionTypeStr == "Shared")
+		{
+			OutCollectionType = ECollectionShareType::CST_Shared;
+		}
+		else
+		{
+			return false;
+		}
+
+		return !OutCollectionName.IsEmpty();
+	}
+
+	return false;
+}
+
+const TOptional<FLinearColor> LoadLegacyColor(const FName InCollectionName, const ECollectionShareType::Type& InCollectionType)
 {
 	check(InCollectionType != ECollectionShareType::CST_All);
 
-	const FString ColorKeyStr = ToConfigKey(InCollectionName, InCollectionType);
+	const FString ColorKeyStr = ToConfigKey(InCollectionName.ToString(), InCollectionType);
 
 	// See if we have a value cached first
 	{
-		TSharedPtr<FLinearColor>* const CachedColor = CollectionColors.Find(ColorKeyStr);
+		TOptional<FLinearColor>* const CachedColor = LegacyCollectionColors.Find(ColorKeyStr);
 		if(CachedColor)
 		{
 			return *CachedColor;
@@ -102,55 +109,35 @@ const TSharedPtr<FLinearColor> CollectionViewUtils::LoadColor(const FString& InC
 		if(GConfig->GetString(TEXT("CollectionColor"), *ColorKeyStr, ColorStr, GEditorPerProjectIni))
 		{
 			FLinearColor Color;
-			if(Color.InitFromString(ColorStr) && !Color.Equals(CollectionViewUtils::GetDefaultColor()))
+			if(Color.InitFromString(ColorStr) && !Color.Equals(CollectionViewUtils::GetLegacyDefaultColor()))
 			{
-				return CollectionColors.Add(ColorKeyStr, MakeShareable(new FLinearColor(Color)));
+				return LegacyCollectionColors.Add(ColorKeyStr, Color);
 			}
-		}
-		else
-		{
-			return CollectionColors.Add(ColorKeyStr, MakeShareable(new FLinearColor(CollectionViewUtils::GetDefaultColor())));
 		}
 	}
 
-	return nullptr;
+	// Cache an empty color to avoid hitting the disk again
+	return LegacyCollectionColors.Add(ColorKeyStr, TOptional<FLinearColor>());
 }
 
-void CollectionViewUtils::SaveColor(const FString& InCollectionName, const ECollectionShareType::Type& InCollectionType, const TSharedPtr<FLinearColor> CollectionColor, const bool bForceAdd)
+void ClearLegacyColor(const FName InCollectionName, const ECollectionShareType::Type& InCollectionType)
 {
 	check(InCollectionType != ECollectionShareType::CST_All);
 
-	const FString ColorKeyStr = ToConfigKey(InCollectionName, InCollectionType);
-
-	// Remove the color if it's invalid or default
-	const bool bRemove = !CollectionColor.IsValid() || (!bForceAdd && CollectionColor->Equals(CollectionViewUtils::GetDefaultColor()));
+	const FString ColorKeyStr = ToConfigKey(InCollectionName.ToString(), InCollectionType);
 
 	// Saves the color of the collection to the config
 	if(FPaths::FileExists(GEditorPerProjectIni))
 	{
 		// If this is no longer custom, remove it
-		if(bRemove)
-		{
-			GConfig->RemoveKey(TEXT("CollectionColor"), *ColorKeyStr, GEditorPerProjectIni);
-		}
-		else
-		{
-			GConfig->SetString(TEXT("CollectionColor"), *ColorKeyStr, *CollectionColor->ToString(), GEditorPerProjectIni);
-		}
+		GConfig->RemoveKey(TEXT("CollectionColor"), *ColorKeyStr, GEditorPerProjectIni);
 	}
 
 	// Update the map too
-	if(bRemove)
-	{
-		CollectionColors.Remove(ColorKeyStr);
-	}
-	else
-	{
-		CollectionColors.Add(ColorKeyStr, CollectionColor);
-	}
+	LegacyCollectionColors.Remove(ColorKeyStr);
 }
 
-bool CollectionViewUtils::HasCustomColors( TArray< FLinearColor >* OutColors )
+bool HasLegacyCustomColors(TArray<FLinearColor>* OutColors)
 {
 	if(!FPaths::FileExists(GEditorPerProjectIni))
 	{
@@ -178,7 +165,7 @@ bool CollectionViewUtils::HasCustomColors( TArray< FLinearColor >* OutColors )
 
 		// Ignore any that have invalid or default colors
 		FLinearColor CurrentColor;
-		if(!CurrentColor.InitFromString(ColorStr) || CurrentColor.Equals(CollectionViewUtils::GetDefaultColor()))
+		if(!CurrentColor.InitFromString(ColorStr) || CurrentColor.Equals(CollectionViewUtils::GetLegacyDefaultColor()))
 		{
 			continue;
 		}
@@ -218,10 +205,70 @@ bool CollectionViewUtils::HasCustomColors( TArray< FLinearColor >* OutColors )
 	return bHasCustom;
 }
 
-FLinearColor CollectionViewUtils::GetDefaultColor()
+FLinearColor ResolveColor(const FName InCollectionName, const ECollectionShareType::Type& InCollectionType)
 {
-	// The default tint the folder should appear as
-	return FLinearColor::Gray;
+	TOptional<FLinearColor> CollectionColor = GetCustomColor(InCollectionName, InCollectionType);
+	if (!CollectionColor)
+	{
+		CollectionColor = GetDefaultColor();
+	}
+	check(CollectionColor);
+	return CollectionColor.GetValue();
 }
+
+TOptional<FLinearColor> GetCustomColor(const FName InCollectionName, const ECollectionShareType::Type& InCollectionType)
+{
+	const FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
+	const ICollectionManager& CollectionManager = CollectionManagerModule.Get();
+
+	// First try and use the color set on the collection itself
+	TOptional<FLinearColor> CollectionColor;
+	CollectionManager.GetCollectionColor(InCollectionName, InCollectionType, CollectionColor);
+
+	// Failing that, try and use the legacy local color set for this collection
+	if (!CollectionColor)
+	{
+		CollectionColor = LoadLegacyColor(InCollectionName, InCollectionType);
+	}
+
+	return CollectionColor;
+}
+
+void SetCustomColor(const FName InCollectionName, const ECollectionShareType::Type& InCollectionType, const TOptional<FLinearColor>& CollectionColor)
+{
+	const FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
+	ICollectionManager& CollectionManager = CollectionManagerModule.Get();
+
+	if (CollectionManager.SetCollectionColor(InCollectionName, InCollectionType, CollectionColor))
+	{
+		// Set correctly, so clear any legacy color
+		ClearLegacyColor(InCollectionName, InCollectionType);
+	}
+}
+
+bool HasCustomColors(TArray<FLinearColor>* OutColors)
+{
+	const FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
+	const ICollectionManager& CollectionManager = CollectionManagerModule.Get();
+
+	bool bHasColors = false;
+
+	// First get the colors from the collection manager
+	bHasColors |= CollectionManager.HasCollectionColors(OutColors);
+
+	// Then add in any legacy colors
+	bHasColors |= HasLegacyCustomColors(OutColors);
+
+	return bHasColors;
+}
+
+FLinearColor GetDefaultColor()
+{
+	// Use the selection accent color as the default
+	const FSlateColor NewSlateColor = FEditorStyle::GetSlateColor("SelectionColor");
+	return NewSlateColor.IsColorSpecified() ? NewSlateColor.GetSpecifiedColor() : FLinearColor::White;
+}
+
+} // namespace CollectionViewUtils
 
 #undef LOCTEXT_NAMESPACE

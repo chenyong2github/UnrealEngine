@@ -82,6 +82,7 @@ class FLinkerLoad
 	friend class UObject;
 	friend class UPackageMap;
 	friend struct FAsyncPackage;
+	friend struct FAsyncPackage2;
 	friend struct FResolvingExportTracker;
 protected:
 	/** Linker loading status. */
@@ -142,13 +143,14 @@ private:
 	FStructuredArchive* StructuredArchive;
 	FArchiveFormatterType* StructuredArchiveFormatter;
 	TOptional<FStructuredArchive::FRecord> StructuredArchiveRootRecord;
-
-	/** A map of full object path name to package index. Used with text assets to resolve incoming string names to an export */
-	TMap<FName, FPackageIndex> ObjectNameToPackageImportIndex;
-	TMap<FName, FPackageIndex> ObjectNameToPackageExportIndex;
+	TArray<FStructuredArchiveChildReader*> ExportReaders;
 
 	/** The archive that actually reads the raw data from disk.																*/
 	FArchive*				Loader;
+
+	int32* LocalImportIndices = nullptr;
+	UObject** GlobalImportObjects = nullptr;
+	const TArray<FNameEntryId>* ActiveNameMap = &NameMap;
 
 protected:
 
@@ -178,14 +180,15 @@ public:
 	}
 
 	/** The async package associated with this linker */
-	struct FAsyncPackage* AsyncRoot;
+	class FGCObject* AsyncRoot;
 #if WITH_EDITOR
 	/** Bulk data that does not need to be loaded when the linker is loaded.												*/
 	TArray<FUntypedBulkData*> BulkDataLoaders;
 #endif // WITH_EDITOR
 
 	/** Hash table for exports.																								*/
-	int32						ExportHash[256];
+	static constexpr int32 ExportHashCount = 256;
+	TUniquePtr<int32[]> ExportHash;
 
 	/**
 	* List of imports and exports that must be serialized before other exports...all packed together, see FirstExportDependency
@@ -277,6 +280,8 @@ private:
 
 	/** Whether we already serialized the package file summary.																*/
 	bool					bHasSerializedPackageFileSummary;
+	/** Whether we have already reconstructed the import/export tables for a text asset */
+	bool					bHasReconstructedImportAndExportMap;
 	/** Whether we already serialized preload dependencies.																*/
 	bool					bHasSerializedPreloadDependencies;
 	/** Whether we already fixed up import map.																				*/
@@ -818,10 +823,10 @@ private:
 		int32 Number = 0;
 		Ar << Number;
 
-		if (NameMap.IsValidIndex(NameIndex))
+		if (ActiveNameMap->IsValidIndex(NameIndex))
 		{
 			// if the name wasn't loaded (because it wasn't valid in this context)
-			FNameEntryId MappedName = NameMap[NameIndex];
+			FNameEntryId MappedName = (*ActiveNameMap)[NameIndex];
 
 			// simply create the name from the NameMap's name and the serialized instance number
 			Name = FName::CreateFromDisplayId(MappedName, Number);
@@ -878,7 +883,7 @@ protected: // Daniel L: Made this protected so I can override the constructor an
 	 * 
 	 * @return	true if linker has finished creation, false if it is still in flight
 	 */
-	ELinkerStatus Tick( float InTimeLimit, bool bInUseTimeLimit, bool bInUseFullTimeLimit);
+	ELinkerStatus Tick( float InTimeLimit, bool bInUseTimeLimit, bool bInUseFullTimeLimit, TMap<TPair<FName, FPackageIndex>, FPackageIndex>* ObjectNameWithOuterToExportMap);
 
 	/**
 	 * Private constructor, passing arguments through from CreateLinker.
@@ -912,6 +917,11 @@ private:
 	ELinkerStatus SerializePackageFileSummary();
 
 	/**
+	 * Updates the linker, loader and root package with data from the package file summary.
+	 * */
+	ELinkerStatus UpdateFromPackageFileSummary();
+
+	/**
 	 * Serializes the name map.
 	 */
 	ELinkerStatus SerializeNameMap();
@@ -931,12 +941,25 @@ private:
 	 */
 	ELinkerStatus SerializeExportMap();
 
+#if WITH_TEXT_ARCHIVE_SUPPORT
+	/**
+	 * Create an import and export table when loading a text asset.
+	 */
+	ELinkerStatus ReconstructImportAndExportMap();
+#endif
+
 	ELinkerStatus SerializeDependsMap();
 
 	ELinkerStatus SerializePreloadDependencies();
 
 	/** Sets the basic linker archive info */
 	void ResetStatusInfo();
+
+	/** For a given full object path, find or create the associated import or export table record. Used when loading text assets which only store object paths */
+	FPackageIndex FindOrCreateImportOrExport(const FString& InFullPath);
+
+	/** For the given object and class info, find or create an associated import record. Used when loading text assets which only store object paths */
+	FPackageIndex FindOrCreateImport(const FName InObjectName, const FName InClassName, const FName InClassPackageName);
 
 public:
 	/**
@@ -1181,11 +1204,21 @@ private:
 	/**
 	 * Finalizes linker creation, adding linker to loaders array and potentially verifying imports.
 	 */
-	ELinkerStatus FinalizeCreation();
+	ELinkerStatus FinalizeCreation(TMap<TPair<FName, FPackageIndex>, FPackageIndex>* ObjectNameWithOuterToExportMap);
 
 	//
 	// FLinkerLoad creation helpers END
 	//
+
+private:
+
+#if WITH_TEXT_ARCHIVE_SUPPORT
+	// Cache of the export names in a text asset. Allows us to enter those export slots by index rather than needing to reconstruct the name
+	TArray<FName> OriginalExportNames;
+
+	// Function to get a slot for a given export
+	FStructuredArchiveSlot GetExportSlot(FPackageIndex InExportIndex);
+#endif
 
 public:
 

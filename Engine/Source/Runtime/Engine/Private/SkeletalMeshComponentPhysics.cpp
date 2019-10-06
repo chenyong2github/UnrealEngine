@@ -37,11 +37,11 @@
 
 #if WITH_APEX
 
-#if WITH_APEX_CLOTHING
+#if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 	// for cloth morph target	
 	#include "Animation/MorphTarget.h"
 
-#endif// #if WITH_APEX_CLOTHING
+#endif// #if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 
 #endif//#if WITH_APEX
 #include "PhysicsEngine/ConstraintInstance.h"
@@ -612,13 +612,13 @@ void USkeletalMeshComponent::InitArticulated(FPhysScene* PhysScene)
 
 
 	// Update Flag
-#if WITH_APEX_CLOTHING
+#if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 	PrevRootBoneMatrix = GetBoneMatrix(0); // save the root bone transform
 
 	// pre-compute cloth teleport thresholds for performance
 	ComputeTeleportDistanceThresholdInRadians();
 	ComputeTeleportRotationThresholdInRadians();
-#endif // #if WITH_APEX_CLOTHING
+#endif // #if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 }
 
 TAutoConsoleVariable<int32> CVarEnableRagdollPhysics(TEXT("p.RagdollPhysics"), 1, TEXT("If 1, ragdoll physics will be used. Otherwise just root body is simulated"));

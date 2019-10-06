@@ -5,11 +5,13 @@
 #include "Factories.h"
 #include "PhysXPublic.h"
 #include "PhysicsPublic.h"
-#include "Assets/ClothingAsset.h"
+#include "ClothingAsset.h"
+#include "ClothPhysicalMeshDataNv.h" // for MaskTarget_PhysMesh
 #if WITH_APEX_CLOTHING
 #include "ClothingAssetAuthoring.h"
-#endif // WITH_APEX_CLOTHING
+#include "Assets/ClothingAssetNv.h"
 #include "ApexClothingUtils.h"
+#endif // WITH_APEX_CLOTHING
 #include "ContentBrowserModule.h"
 #include "Misc/FileHelper.h"
 #include "Engine/SkeletalMesh.h"
@@ -93,7 +95,7 @@ UClothingAssetBase* UClothingAssetFactory::Import
 		return nullptr;
 	}
 
-	UClothingAsset* NewClothingAsset = nullptr;
+	UClothingAssetCommon* NewClothingAsset = nullptr;
 
 	TArray<uint8> FileBuffer;
 	if(FFileHelper::LoadFileToArray(FileBuffer, *Filename, FILEREAD_Silent))
@@ -107,7 +109,7 @@ UClothingAssetBase* UClothingAssetFactory::Import
 		}
 
 		// Create an unreal clothing asset
-		NewClothingAsset = Cast<UClothingAsset>(CreateFromApexAsset(ApexAsset, TargetMesh, InName));
+		NewClothingAsset = Cast<UClothingAssetCommon>(CreateFromApexAsset(ApexAsset, TargetMesh, InName));
 
 		if(NewClothingAsset)
 		{
@@ -150,8 +152,8 @@ UClothingAssetBase* UClothingAssetFactory::Reimport(const FString& Filename, USk
 	
 		FMultiComponentReregisterContext ReregisterContext(ComponentsToReregister);
 
-		UClothingAsset* OldClothingAsset = Cast<UClothingAsset>(TargetMesh->MeshClothingAssets[OldIndex]);
-		UClothingAsset* NewClothingAsset = nullptr;
+		UClothingAssetCommon* OldClothingAsset = Cast<UClothingAssetCommon>(TargetMesh->MeshClothingAssets[OldIndex]);
+		UClothingAssetCommon* NewClothingAsset = nullptr;
 		FName AssetName = NAME_None;
 
 		if(!OldClothingAsset || !TargetMesh->MeshClothingAssets.IsValidIndex(OldIndex))
@@ -172,7 +174,7 @@ UClothingAssetBase* UClothingAssetFactory::Reimport(const FString& Filename, USk
 			OldClothingAsset->UnbindFromSkeletalMesh(TargetMesh);
 
 			// Create an unreal clothing asset
-			NewClothingAsset = Cast<UClothingAsset>(CreateFromApexAsset(ApexAsset, TargetMesh, AssetName));
+			NewClothingAsset = Cast<UClothingAssetCommon>(CreateFromApexAsset(ApexAsset, TargetMesh, AssetName));
 
 			if(NewClothingAsset)
 			{
@@ -235,13 +237,18 @@ UClothingAssetBase* UClothingAssetFactory::CreateFromSkeletalMesh(USkeletalMesh*
 	}
 
 	FString SanitizedName = ObjectTools::SanitizeObjectName(Params.AssetName);
-	FName ObjectName = MakeUniqueObjectName(TargetMesh, UClothingAsset::StaticClass(), FName(*SanitizedName));
-	UClothingAsset* NewAsset = NewObject<UClothingAsset>(TargetMesh, ObjectName);
+	FName ObjectName = MakeUniqueObjectName(TargetMesh, UClothingAssetCommon::StaticClass(), FName(*SanitizedName));
+#if WITH_APEX_CLOTHING
+	UClothingAssetCommon* NewAsset = NewObject<UClothingAssetNv>(TargetMesh, ObjectName);
+#else
+	check(false); // TODO: Implement Chaos ClothingAsset, and have the factory get the correct object
+	UClothingAssetCommon* NewAsset = NewObject<UClothingAssetCommon>(TargetMesh, ObjectName);
+#endif
 	NewAsset->SetFlags(RF_Transactional);
 
 	// Adding a new LOD from this skeletal mesh
-	NewAsset->LodData.AddDefaulted();
-	FClothLODData& LodData = NewAsset->LodData.Last();
+	NewAsset->AddNewLod();
+	UClothLODDataBase* LodData = NewAsset->ClothLodData.Last();
 
 	if(ImportToLodInternal(TargetMesh, Params.LodIndex, Params.SourceSection, NewAsset, LodData))
 	{
@@ -271,7 +278,7 @@ UClothingAssetBase* UClothingAssetFactory::CreateFromSkeletalMesh(USkeletalMesh*
 
 UClothingAssetBase* UClothingAssetFactory::CreateFromExistingCloth(USkeletalMesh* TargetMesh, USkeletalMesh* SourceMesh, UClothingAssetBase* SourceAsset)
 {
-	UClothingAsset* SourceClothingAsset = Cast<UClothingAsset>(SourceAsset);
+	UClothingAssetCommon* SourceClothingAsset = Cast<UClothingAssetCommon>(SourceAsset);
 
 	if (!SourceClothingAsset)
 	{
@@ -279,7 +286,7 @@ UClothingAssetBase* UClothingAssetFactory::CreateFromExistingCloth(USkeletalMesh
 	}
 
 	//Duplicating the clothing asset using the existing asset as a template
-	UClothingAsset* NewAsset = DuplicateObject<UClothingAsset>(SourceClothingAsset, TargetMesh, SourceClothingAsset->GetFName());
+	UClothingAssetCommon* NewAsset = DuplicateObject<UClothingAssetCommon>(SourceClothingAsset, TargetMesh, SourceClothingAsset->GetFName());
 
 	NewAsset->AssetGuid = FGuid::NewGuid();
 	//Need to empty LODMap to remove previous mappings from cloth LOD to SkelMesh LOD
@@ -318,40 +325,40 @@ UClothingAssetBase* UClothingAssetFactory::ImportLodToClothing(USkeletalMesh* Ta
 		if(TargetMesh->MeshClothingAssets.Find(TargetClothing, MeshAssetIndex))
 		{
 			// Everything looks good, continue to actual import
-			UClothingAsset* ConcreteTarget = CastChecked<UClothingAsset>(TargetClothing);
+			UClothingAssetCommon* ConcreteTarget = CastChecked<UClothingAssetCommon>(TargetClothing);
 
-			FClothLODData* RemapSource = nullptr;
+			UClothLODDataBase* RemapSource = nullptr;
 
 			if(Params.bRemapParameters)
 			{
-				if(Params.TargetLod == ConcreteTarget->LodData.Num())
+				if(Params.TargetLod == ConcreteTarget->GetNumLods())
 				{
 					// New LOD, remap from previous
-					RemapSource = &ConcreteTarget->LodData.Last();
+					RemapSource = ConcreteTarget->ClothLodData.Last();
 				}
 				else
 				{
 					// This is a replacement, remap from current LOD
-					check(ConcreteTarget->LodData.IsValidIndex(Params.TargetLod));
-					RemapSource = &ConcreteTarget->LodData[Params.TargetLod];
+					check(ConcreteTarget->ClothLodData.IsValidIndex(Params.TargetLod));
+					RemapSource = ConcreteTarget->ClothLodData[Params.TargetLod];
 				}
 			}
 
-			if(Params.TargetLod == ConcreteTarget->LodData.Num())
+			if(Params.TargetLod == ConcreteTarget->GetNumLods())
 			{
-				ConcreteTarget->LodData.AddDefaulted();
+				ConcreteTarget->AddNewLod();
 			}
-			else if(!ConcreteTarget->LodData.IsValidIndex(Params.TargetLod))
+			else if(!ConcreteTarget->ClothLodData.IsValidIndex(Params.TargetLod))
 			{
 				LogAndToastWarning(LOCTEXT("Warning_InvalidLodTarget", "Failed to import clothing LOD, invalid target LOD."));
 				return nullptr;
 			}
 
-			FClothLODData& NewLod = ConcreteTarget->LodData[Params.TargetLod];
+			UClothLODDataBase* NewLod = ConcreteTarget->ClothLodData[Params.TargetLod];
 
 			if(Params.TargetLod > 0 && Params.bRemapParameters)
 			{
-				RemapSource = &ConcreteTarget->LodData[Params.TargetLod - 1];
+				RemapSource = ConcreteTarget->ClothLodData[Params.TargetLod - 1];
 			}
 
 			if(ImportToLodInternal(TargetMesh, Params.LodIndex, Params.SourceSection, ConcreteTarget, NewLod, RemapSource))
@@ -382,7 +389,7 @@ UClothingAssetBase* UClothingAssetFactory::ImportLodToClothing(USkeletalMesh* Ta
 UClothingAssetBase* UClothingAssetFactory::CreateFromApexAsset(nvidia::apex::ClothingAsset* InApexAsset, USkeletalMesh* TargetMesh, FName InName)
 {
 #if WITH_APEX_CLOTHING
-	UClothingAsset* NewClothingAsset = NewObject<UClothingAsset>(TargetMesh, InName);
+	UClothingAssetNv* NewClothingAsset = NewObject<UClothingAssetNv>(TargetMesh, InName);
 	NewClothingAsset->SetFlags(RF_Transactional);
 
 	const NvParameterized::Interface* AssetParams = InApexAsset->getAssetNvParameterized();
@@ -393,11 +400,15 @@ UClothingAssetBase* UClothingAssetFactory::CreateFromApexAsset(nvidia::apex::Clo
 	int32 NumLodsToBuild = 0;
 	GraphicalLodArrayHandle.getArraySize(NumLodsToBuild);
 
-	NewClothingAsset->LodData.AddZeroed(NumLodsToBuild);
-
 	for(int32 CurrLodIdx = 0; CurrLodIdx < NumLodsToBuild; ++CurrLodIdx)
 	{
-		FClothLODData& CurrentLodData = NewClothingAsset->LodData[CurrLodIdx];
+		NewClothingAsset->AddNewLod();
+		UClothLODDataNv* CurrentLodDataPtr = Cast<UClothLODDataNv>(NewClothingAsset->ClothLodData[CurrLodIdx]);
+		if (!ensure(CurrentLodDataPtr))
+		{
+			continue;
+		}
+		UClothLODDataNv& CurrentLodData = *CurrentLodDataPtr;
 
 		TArray<FApexVertData> ApexVertData;
 
@@ -406,14 +417,19 @@ UClothingAssetBase* UClothingAssetFactory::CreateFromApexAsset(nvidia::apex::Clo
 		ExtractMaterialParameters(NewClothingAsset, *InApexAsset);
 
 		// Set to use legacy wind calculations, which is what APEX would normally have used
-		NewClothingAsset->ClothConfig.WindMethod = EClothingWindMethod::Legacy;
+		UClothConfigNv* ConfigNv = Cast<UClothConfigNv>(NewClothingAsset->ClothSimConfig);
+		if (!ensure(ConfigNv))
+		{
+			continue;
+		}
+		ConfigNv->WindMethod = EClothingWindMethod::Legacy;
 
 		// Fixup unreal-side bone indices
-		const int32 NumBoneDatas = CurrentLodData.PhysicalMeshData.BoneData.Num();
+		const int32 NumBoneDatas = CurrentLodData.PhysicalMeshData->BoneData.Num();
 		check(NumBoneDatas == ApexVertData.Num());
 		for(int32 BoneDataIndex = 0; BoneDataIndex < NumBoneDatas; ++BoneDataIndex)
 		{
-			FClothVertBoneData& BoneData = CurrentLodData.PhysicalMeshData.BoneData[BoneDataIndex];
+			FClothVertBoneData& BoneData = CurrentLodData.PhysicalMeshData->BoneData[BoneDataIndex];
 			FApexVertData& CurrentVertData = ApexVertData[BoneDataIndex];
 		
 			for(int32 BoneInfluenceIdx = 0; BoneInfluenceIdx < MAX_TOTAL_INFLUENCES; ++BoneInfluenceIdx)
@@ -460,32 +476,38 @@ UClothingAssetBase* UClothingAssetFactory::CreateFromApexAsset(nvidia::apex::Clo
 	NewClothingAsset->CalculateReferenceBoneIndex();
 
 	// Add masks for parameters
-	for(FClothLODData& Lod : NewClothingAsset->LodData)
+	for (UClothLODDataBase* LodPtr : NewClothingAsset->ClothLodData)
 	{
-		FClothPhysicalMeshData& PhysMesh = Lod.PhysicalMeshData;
+		check(LodPtr);
+		UClothPhysicalMeshDataNv* PhysMeshPtr = Cast<UClothPhysicalMeshDataNv>(LodPtr->PhysicalMeshData);
+		if (!ensure(PhysMeshPtr))
+		{
+			continue;
+		}
+		UClothPhysicalMeshDataNv& PhysMesh = *PhysMeshPtr;
 
 		// Didn't do anything previously - clear out incase there's something in there
 		// so we can use it correctly now.
-		Lod.ParameterMasks.Reset(3);
+		LodPtr->ParameterMasks.Reset(3);
 
 		// Max distances
-		Lod.ParameterMasks.AddDefaulted();
-		FClothParameterMask_PhysMesh& MaxDistanceMask = Lod.ParameterMasks.Last();
-		MaxDistanceMask.CopyFromPhysMesh(PhysMesh, MaskTarget_PhysMesh::MaxDistance);
+		LodPtr->ParameterMasks.AddDefaulted();
+		FPointWeightMap& MaxDistanceMask = LodPtr->ParameterMasks.Last();
+		MaxDistanceMask.CopyFrom(PhysMesh.GetFloatArray((int32)MaskTarget_PhysMesh::MaxDistance), (uint8)MaskTarget_PhysMesh::MaxDistance);
 		MaxDistanceMask.bEnabled = true;
 
 		if(PhysMesh.BackstopRadiuses.FindByPredicate([](const float& A) {return A != 0.0f; }))
 		{
 			// Backstop radii
-			Lod.ParameterMasks.AddDefaulted();
-			FClothParameterMask_PhysMesh& BackstopRadiusMask = Lod.ParameterMasks.Last();
-			BackstopRadiusMask.CopyFromPhysMesh(PhysMesh, MaskTarget_PhysMesh::BackstopRadius);
+			LodPtr->ParameterMasks.AddDefaulted();
+			FPointWeightMap& BackstopRadiusMask = LodPtr->ParameterMasks.Last();
+			BackstopRadiusMask.CopyFrom(PhysMesh.GetFloatArray((int32)MaskTarget_PhysMesh::BackstopRadius), (uint8)MaskTarget_PhysMesh::BackstopRadius);
 			BackstopRadiusMask.bEnabled = true;
 
 			// Backstop distances
-			Lod.ParameterMasks.AddDefaulted();
-			FClothParameterMask_PhysMesh& BackstopDistanceMask = Lod.ParameterMasks.Last();
-			BackstopDistanceMask.CopyFromPhysMesh(PhysMesh, MaskTarget_PhysMesh::BackstopDistance);
+			LodPtr->ParameterMasks.AddDefaulted();
+			FPointWeightMap& BackstopDistanceMask = LodPtr->ParameterMasks.Last();
+			BackstopDistanceMask.CopyFrom(PhysMesh.GetFloatArray((int32)MaskTarget_PhysMesh::BackstopDistance), (uint8)MaskTarget_PhysMesh::BackstopDistance);
 			BackstopDistanceMask.bEnabled = true;
 		}
 	}
@@ -821,7 +843,7 @@ void UClothingAssetFactory::FlipAuthoringUvs(NvParameterized::Interface* InRende
 	}
 }
 
-void UClothingAssetFactory::ExtractBoneData(UClothingAsset* NewAsset, ClothingAsset &InApexAsset)
+void UClothingAssetFactory::ExtractBoneData(UClothingAssetCommon* NewAsset, ClothingAsset &InApexAsset)
 {
 	const uint32 NumApexUsedBones = InApexAsset.getNumUsedBones();
 
@@ -834,7 +856,7 @@ void UClothingAssetFactory::ExtractBoneData(UClothingAsset* NewAsset, ClothingAs
 	}
 }
 
-void UClothingAssetFactory::ExtractSphereCollisions(UClothingAsset* NewAsset, nvidia::apex::ClothingAsset &InApexAsset, int32 InLodIdx, FClothLODData &InLodData)
+void UClothingAssetFactory::ExtractSphereCollisions(UClothingAssetCommon* NewAsset, nvidia::apex::ClothingAsset &InApexAsset, int32 InLodIdx, UClothLODDataNv &InLodData)
 {
 	const NvParameterized::Interface* AssetParams = InApexAsset.getAssetNvParameterized();
 
@@ -966,7 +988,7 @@ void UClothingAssetFactory::ExtractSphereCollisions(UClothingAsset* NewAsset, nv
 	}
 }
 
-void UClothingAssetFactory::ExtractMaterialParameters(UClothingAsset* NewAsset, nvidia::apex::ClothingAsset &InApexAsset)
+void UClothingAssetFactory::ExtractMaterialParameters(UClothingAssetCommon* NewAsset, nvidia::apex::ClothingAsset &InApexAsset)
 {
 	const NvParameterized::Interface* AssetParams = InApexAsset.getAssetNvParameterized();
 
@@ -986,8 +1008,9 @@ void UClothingAssetFactory::ExtractMaterialParameters(UClothingAsset* NewAsset, 
 
 	MaterialArrayHandle.set(MaterialIndex);
 
+	if(UClothConfigNv* ConfigPtr = Cast<UClothConfigNv>(NewAsset->ClothSimConfig))
 	{
-		FClothConfig& Config = NewAsset->ClothConfig;
+		UClothConfigNv& Config = *ConfigPtr;
 		NvParameterized::Handle ChildHandle(MaterialArrayHandle);
 
 		// Read out material params
@@ -1111,7 +1134,13 @@ void UClothingAssetFactory::ExtractMaterialParameters(UClothingAsset* NewAsset, 
 #endif // WITH_APEX_CLOTHING
 
 
-bool UClothingAssetFactory::ImportToLodInternal(USkeletalMesh* SourceMesh, int32 SourceLodIndex, int32 SourceSectionIndex, UClothingAsset* DestAsset, FClothLODData& DestLod, FClothLODData* InParameterRemapSource)
+bool UClothingAssetFactory::ImportToLodInternal(
+	USkeletalMesh* SourceMesh, 
+	int32 SourceLodIndex, 
+	int32 SourceSectionIndex, 
+	UClothingAssetCommon* DestAsset, 
+	UClothLODDataBase* DestLod, 
+	UClothLODDataBase* InParameterRemapSource)
 {
 	if(!SourceMesh || !SourceMesh->GetImportedModel())
 	{
@@ -1149,8 +1178,7 @@ bool UClothingAssetFactory::ImportToLodInternal(USkeletalMesh* SourceMesh, int32
 	TArray<uint32> IndexRemap;
 	IndexRemap.AddDefaulted(NumVerts);
 	{
-		float ThreshSq = SMALL_NUMBER * SMALL_NUMBER;
-
+		static const float ThreshSq = SMALL_NUMBER * SMALL_NUMBER;
 		for(int32 VertIndex = 0; VertIndex < NumVerts; ++VertIndex)
 		{
 			const FSoftSkinVertex& SourceVert = SourceSection.SoftVertices[VertIndex];
@@ -1196,13 +1224,14 @@ bool UClothingAssetFactory::ImportToLodInternal(USkeletalMesh* SourceMesh, int32
 	TArray<FVector> CachedNormals;
 	TArray<uint32> CachedIndices;
 	int32 NumSourceMasks = 0;
-	TArray<FClothParameterMask_PhysMesh> SourceMaskCopy;
+	TArray<FPointWeightMap> SourceMaskCopy;
 	
 	bool bPerformParamterRemap = false;
 
 	if(InParameterRemapSource)
 	{
-		FClothPhysicalMeshData& RemapPhysMesh = InParameterRemapSource->PhysicalMeshData;
+		check(InParameterRemapSource->PhysicalMeshData);
+		UClothPhysicalMeshDataBase& RemapPhysMesh = *InParameterRemapSource->PhysicalMeshData;
 		CachedPositions = RemapPhysMesh.Vertices;
 		CachedNormals = RemapPhysMesh.Normals;
 		CachedIndices = RemapPhysMesh.Indices;
@@ -1212,10 +1241,13 @@ bool UClothingAssetFactory::ImportToLodInternal(USkeletalMesh* SourceMesh, int32
 		bPerformParamterRemap = true;
 	}
 
-	FClothPhysicalMeshData& PhysMesh = DestLod.PhysicalMeshData;
+	check(DestLod->PhysicalMeshData);
+	UClothPhysicalMeshDataBase& PhysMesh = *DestLod->PhysicalMeshData;
 	PhysMesh.Reset(NumUniqueVerts);
 	PhysMesh.Indices.Reset(NumIndices);
 	PhysMesh.Indices.AddZeroed(NumIndices);
+
+	TArray<TArray<float>*> WeightArrays = PhysMesh.GetFloatArrays();
 
 	for(int32 VertexIndex = 0; VertexIndex < NumUniqueVerts; ++VertexIndex)
 	{
@@ -1224,16 +1256,20 @@ bool UClothingAssetFactory::ImportToLodInternal(USkeletalMesh* SourceMesh, int32
 		PhysMesh.Vertices[VertexIndex] = SourceVert.Position;
 		PhysMesh.Normals[VertexIndex] = SourceVert.TangentZ;
 		PhysMesh.VertexColors[VertexIndex] = SourceVert.Color;
-		PhysMesh.MaxDistances[VertexIndex] = 0.0f;
 
-		PhysMesh.BackstopRadiuses[VertexIndex] = 0.0f;
-		PhysMesh.BackstopDistances[VertexIndex] = 0.0f;
+		for (int32 WeightArrayIndex = 0; WeightArrayIndex < WeightArrays.Num(); ++WeightArrayIndex)
+		{
+			TArray<float>* Weights = WeightArrays[WeightArrayIndex];
+			if (Weights && Weights->IsValidIndex(VertexIndex))
+			{
+				(*Weights)[VertexIndex] = 0.0f;
+			}
+		}
 
 		FClothVertBoneData& BoneData = PhysMesh.BoneData[VertexIndex];
 		for(int32 InfluenceIndex = 0; InfluenceIndex < MAX_TOTAL_INFLUENCES; ++InfluenceIndex)
 		{
 			const uint16 SourceIndex = SourceSection.BoneMap[SourceVert.InfluenceBones[InfluenceIndex]];
-
 			if(SourceIndex != INDEX_NONE)
 			{
 				FName BoneName = SourceMesh->RefSkeleton.GetBoneName(SourceIndex);
@@ -1244,9 +1280,9 @@ bool UClothingAssetFactory::ImportToLodInternal(USkeletalMesh* SourceMesh, int32
 	}
 
 	// Add a max distance parameter mask to begin with
-	DestLod.ParameterMasks.AddDefaulted();
-	FClothParameterMask_PhysMesh& Mask = DestLod.ParameterMasks.Last();
-	Mask.CopyFromPhysMesh(PhysMesh, MaskTarget_PhysMesh::MaxDistance);
+	DestLod->ParameterMasks.AddDefaulted();
+	FPointWeightMap& Mask = DestLod->ParameterMasks.Last();
+	Mask.CopyFrom(PhysMesh.GetFloatArray((uint32)MaskTarget_PhysMesh::MaxDistance), (uint8)MaskTarget_PhysMesh::MaxDistance);
 	Mask.bEnabled = true;
 
 	PhysMesh.MaxBoneWeights = SourceSection.MaxBoneInfluences;
@@ -1279,16 +1315,16 @@ bool UClothingAssetFactory::ImportToLodInternal(USkeletalMesh* SourceMesh, int32
 	{
 		ClothingMeshUtils::FVertexParameterMapper ParameterRemapper(PhysMesh.Vertices, PhysMesh.Normals, CachedPositions, CachedNormals, CachedIndices);
 
-		DestLod.ParameterMasks.Reset(NumSourceMasks);
+		DestLod->ParameterMasks.Reset(NumSourceMasks);
 
 		for(int32 MaskIndex = 0; MaskIndex < NumSourceMasks; ++MaskIndex)
 		{
-			FClothParameterMask_PhysMesh& SourceMask = SourceMaskCopy[MaskIndex];
+			FPointWeightMap& SourceMask = SourceMaskCopy[MaskIndex];
 
-			DestLod.ParameterMasks.AddDefaulted();
-			FClothParameterMask_PhysMesh& DestMask = DestLod.ParameterMasks.Last();
+			DestLod->ParameterMasks.AddDefaulted();
+			FPointWeightMap& DestMask = DestLod->ParameterMasks.Last();
 
-			DestMask.Initialize(PhysMesh);
+			DestMask.Initialize(PhysMesh.Vertices.Num());
 			DestMask.CurrentTarget = SourceMask.CurrentTarget;
 			DestMask.bEnabled = SourceMask.bEnabled;
 
@@ -1303,11 +1339,16 @@ bool UClothingAssetFactory::ImportToLodInternal(USkeletalMesh* SourceMesh, int32
 
 #if WITH_APEX_CLOTHING
 
-void UClothingAssetFactory::ExtractLodPhysicalData(UClothingAsset* NewAsset, ClothingAsset &InApexAsset, int32 InLodIdx, FClothLODData &InLodData, TArray<FApexVertData>& OutApexVertData)
+void UClothingAssetFactory::ExtractLodPhysicalData(UClothingAssetCommon* NewAsset, ClothingAsset &InApexAsset, int32 InLodIdx, UClothLODDataNv &InLodData, TArray<FApexVertData>& OutApexVertData)
 {
 	const NvParameterized::Interface* AssetParams = InApexAsset.getAssetNvParameterized();
 
-	FClothPhysicalMeshData& PhysData = InLodData.PhysicalMeshData;
+	UClothPhysicalMeshDataNv* PhysDataPtr = Cast<UClothPhysicalMeshDataNv>(InLodData.PhysicalMeshData);
+	if (!ensure(PhysDataPtr))
+	{
+		return;
+	}
+	UClothPhysicalMeshDataNv& PhysData = *PhysDataPtr;
 
 	NvParameterized::Handle GraphicalMeshArrayHandle(*AssetParams, "graphicalLods");
 

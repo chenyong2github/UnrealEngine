@@ -18,6 +18,7 @@ namespace UnrealBuildTool.Rules
                     "EditableMesh",
 					"MeshEditor",
                     "MeshDescription",
+					"StaticMeshDescription",
 					"SlateCore",
 					"ViewportInteraction",
                     "BlastAuthoring",

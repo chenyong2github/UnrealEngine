@@ -9,6 +9,7 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
+					"AssetTools",
 					"BlueprintGraph",
 					"Core",
 					"CoreUObject",
@@ -18,13 +19,16 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"GraphEditor",
 					"InputCore",
-					"LevelSequence",
 					"KismetCompiler",
+					"LevelSequence",
 					"MeshDescription",
 					"MeshDescriptionOperations",
+					"MessageLog",
 					"PropertyEditor",
+					"RenderCore",
 					"Slate",
 					"SlateCore",
+					"StaticMeshDescription",
 					"UnrealEd",
 				}
 			);

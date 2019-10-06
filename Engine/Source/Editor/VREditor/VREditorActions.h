@@ -72,6 +72,8 @@ public:
 
 	static void SetGizmoMode(UVREditorMode* InVRMode, EGizmoHandleTypes InGizmoMode);
 
+	static EGizmoHandleTypes GetGizmoMode(const UVREditorMode* InVRMode);
+
 	static ECheckBoxState IsActiveGizmoMode(UVREditorMode* InVRMode, EGizmoHandleTypes InGizmoMode);
 
 	/** Returns the gizmo type as text to use as the button display text */

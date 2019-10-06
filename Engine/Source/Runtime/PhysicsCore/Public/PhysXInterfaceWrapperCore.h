@@ -234,9 +234,6 @@ FORCEINLINE_DEBUGGABLE bool IsInvalidFaceIndex(PxU32 faceIndex)
 	return (faceIndex == 0xFFFFffff);
 }
 
-template <typename T>
-using FPhysicsHitCallback = PxHitCallback<T>;
-
 using FQueryFilterData = PxQueryFilterData;
 
 template <typename HitType>

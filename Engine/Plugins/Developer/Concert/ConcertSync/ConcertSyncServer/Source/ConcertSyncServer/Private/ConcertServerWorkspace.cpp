@@ -56,6 +56,8 @@ void FConcertServerWorkspace::BindSession(const TSharedRef<FConcertSyncServerLiv
 	LiveSession->GetSession().RegisterCustomEventHandler<FConcertTransactionSnapshotEvent>(this, &FConcertServerWorkspace::HandleTransactionSnapshotEvent);
 
 	LiveSession->GetSession().RegisterCustomRequestHandler<FConcertResourceLockRequest, FConcertResourceLockResponse>(this, &FConcertServerWorkspace::HandleResourceLockRequest);
+	LiveSession->GetSession().RegisterCustomRequestHandler<FConcertSyncEventRequest, FConcertSyncEventResponse>(this, &FConcertServerWorkspace::HandleSyncEventRequest);
+	LiveSession->GetSession().RegisterCustomEventHandler<FConcertIgnoreActivityStateChangedEvent>(this, &FConcertServerWorkspace::HandleIgnoredActivityStateChanged);
 }
 
 void FConcertServerWorkspace::UnbindSession()
@@ -130,6 +132,7 @@ void FConcertServerWorkspace::HandleSessionClientChanged(IConcertServerSession& 
 			ConnectionActivity.EndpointId = InClientInfo.ClientEndpointId;
 			ConnectionActivity.EventData.ConnectionEventType = EConcertSyncConnectionEventType::Connected;
 			ConnectionActivity.EventSummary.SetTypedPayload(FConcertSyncConnectionActivitySummary::CreateSummaryForEvent(ConnectionActivity.EventData));
+			ConnectionActivity.bIgnored = ShouldIgnoreClientActivityOnRestore(InClientInfo.ClientEndpointId);
 			AddConnectionActivity(ConnectionActivity);
 		}
 	}
@@ -145,12 +148,27 @@ void FConcertServerWorkspace::HandleSessionClientChanged(IConcertServerSession& 
 			ConnectionActivity.EndpointId = InClientInfo.ClientEndpointId;
 			ConnectionActivity.EventData.ConnectionEventType = EConcertSyncConnectionEventType::Disconnected;
 			ConnectionActivity.EventSummary.SetTypedPayload(FConcertSyncConnectionActivitySummary::CreateSummaryForEvent(ConnectionActivity.EventData));
+			ConnectionActivity.bIgnored = ShouldIgnoreClientActivityOnRestore(InClientInfo.ClientEndpointId);
 			AddConnectionActivity(ConnectionActivity);
 		}
 
 		LiveSyncEndpoints.Remove(InClientInfo.ClientEndpointId);
 		ManualSyncEndpoints.Remove(InClientInfo.ClientEndpointId);
 		SyncCommandQueue->UnregisterEndpoint(InClientInfo.ClientEndpointId);
+
+		IgnoredActivityClients.Remove(InClientInfo.ClientEndpointId);
+	}
+}
+
+void FConcertServerWorkspace::HandleIgnoredActivityStateChanged(const FConcertSessionContext& Context, const FConcertIgnoreActivityStateChangedEvent& Event)
+{
+	if (Event.bIgnore)
+	{
+		IgnoredActivityClients.Add(Event.EndpointId);
+	}
+	else
+	{
+		IgnoredActivityClients.Remove(Event.EndpointId);
 	}
 }
 
@@ -260,7 +278,7 @@ void FConcertServerWorkspace::HandlePackageUpdateEvent(const FConcertSessionCont
 	{
 		return;
 	}
-	
+
 	// Consider acquiring lock on asset saving an explicit lock
 	const bool bLockOwned = LockWorkspaceResource(Event.Package.Info.PackageName, Context.SourceEndpointId, EConcertLockFlags::Temporary);
 	if (bLockOwned)
@@ -280,6 +298,7 @@ void FConcertServerWorkspace::HandlePackageUpdateEvent(const FConcertSessionCont
 				}
 			}
 			PackageActivity.EventSummary.SetTypedPayload(FConcertSyncPackageActivitySummary::CreateSummaryForEvent(PackageActivity.EventData));
+			PackageActivity.bIgnored = ShouldIgnoreClientActivityOnRestore(Context.SourceEndpointId);
 			AddPackageActivity(PackageActivity);
 		}
 
@@ -322,6 +341,7 @@ void FConcertServerWorkspace::HandleTransactionFinalizedEvent(const FConcertSess
 			TransactionActivity.EndpointId = InEventContext.SourceEndpointId;
 			TransactionActivity.EventData.Transaction = InEvent;
 			TransactionActivity.EventSummary.SetTypedPayload(FConcertSyncTransactionActivitySummary::CreateSummaryForEvent(TransactionActivity.EventData));
+			TransactionActivity.bIgnored = ShouldIgnoreClientActivityOnRestore(InEventContext.SourceEndpointId);
 			AddTransactionActivity(TransactionActivity);
 		}
 
@@ -408,6 +428,31 @@ EConcertSessionResponseCode FConcertServerWorkspace::HandleResourceLockRequest(c
 	return EConcertSessionResponseCode::Success;
 }
 
+EConcertSessionResponseCode FConcertServerWorkspace::HandleSyncEventRequest(const FConcertSessionContext& Context, const FConcertSyncEventRequest& Request, FConcertSyncEventResponse& Response)
+{
+	if (Request.EventType == EConcertSyncActivityEventType::Transaction)
+	{
+		FConcertSyncTransactionEvent TransactionEvent;
+		if (LiveSession->GetSessionDatabase().GetTransactionEvent(Request.EventId, TransactionEvent, /*bMetaDataOnly*/false)) // The request is meant to retrive the transaction data from a partially sync event.
+		{
+			Response.Event.SetTypedPayload(TransactionEvent);
+			return EConcertSessionResponseCode::Success;
+		}
+	}
+	else if (Request.EventType == EConcertSyncActivityEventType::Package)
+	{
+		FConcertSyncPackageEvent PackageEvent;
+		if (LiveSession->GetSessionDatabase().GetPackageEvent(Request.EventId, PackageEvent, /*bMetaDataOnly*/false)) // The request is meant to retrive the package data from a partially sync event.
+		{
+			Response.Event.SetTypedPayload(PackageEvent);
+			return EConcertSessionResponseCode::Success;
+		}
+	}
+	// else Other event types (connection/lock) don't have interesting non-meta-data data to retrieve.
+
+	return EConcertSessionResponseCode::Failed;
+}
+
 void FConcertServerWorkspace::HandleBeginPlaySession(const FName InPlayPackageName, const FGuid& InEndpointId, bool bIsSimulating)
 {
 	TArray<FPlaySessionInfo>& PlaySessionEndpoints = ActivePlaySessions.FindOrAdd(InPlayPackageName);
@@ -449,6 +494,7 @@ void FConcertServerWorkspace::HandleEndPlaySession(const FName InPlayPackageName
 		DummyPackageActivity.EventData.Package.Info.PackageName = InPlayPackageName;
 		LiveSession->GetSessionDatabase().GetTransactionMaxEventId(DummyPackageActivity.EventData.Package.Info.TransactionEventIdAtSave);
 		DummyPackageActivity.EventSummary.SetTypedPayload(FConcertSyncPackageActivitySummary::CreateSummaryForEvent(DummyPackageActivity.EventData));
+		DummyPackageActivity.bIgnored = ShouldIgnoreClientActivityOnRestore(InEndpointId);
 		AddPackageActivity(DummyPackageActivity);
 	}
 }
@@ -502,6 +548,7 @@ bool FConcertServerWorkspace::LockWorkspaceResource(const FName InResourceName, 
 			LockActivity.EventData.LockEventType = EConcertSyncLockEventType::Locked;
 			LockActivity.EventData.ResourceNames.Add(InResourceName);
 			LockActivity.EventSummary.SetTypedPayload(FConcertSyncLockActivitySummary::CreateSummaryForEvent(LockActivity.EventData));
+			LockActivity.bIgnored = ShouldIgnoreClientActivityOnRestore(InLockEndpointId);
 			AddLockActivity(LockActivity);
 
 			FConcertResourceLockEvent LockEvent{ InLockEndpointId, {InResourceName}, EConcertResourceLockType::Lock };
@@ -559,6 +606,7 @@ bool FConcertServerWorkspace::LockWorkspaceResources(const TArray<FName>& InReso
 			LockActivity.EventData.LockEventType = EConcertSyncLockEventType::Locked;
 			LockActivity.EventData.ResourceNames = LockEvent.ResourceNames;
 			LockActivity.EventSummary.SetTypedPayload(FConcertSyncLockActivitySummary::CreateSummaryForEvent(LockActivity.EventData));
+			LockActivity.bIgnored = ShouldIgnoreClientActivityOnRestore(InLockEndpointId);
 			AddLockActivity(LockActivity);
 
 			LiveSession->GetSession().SendCustomEvent(LockEvent, LiveSession->GetSession().GetSessionClientEndpointIds(), EConcertMessageFlags::ReliableOrdered);
@@ -596,6 +644,7 @@ bool FConcertServerWorkspace::UnlockWorkspaceResource(const FName InResourceName
 					LockActivity.EventData.LockEventType = EConcertSyncLockEventType::Unlocked;
 					LockActivity.EventData.ResourceNames.Add(InResourceName);
 					LockActivity.EventSummary.SetTypedPayload(FConcertSyncLockActivitySummary::CreateSummaryForEvent(LockActivity.EventData));
+					LockActivity.bIgnored = ShouldIgnoreClientActivityOnRestore(InLockEndpointId);
 					AddLockActivity(LockActivity);
 
 					FConcertResourceLockEvent LockEvent{ InLockEndpointId, {InResourceName}, EConcertResourceLockType::Unlock };
@@ -650,6 +699,7 @@ bool FConcertServerWorkspace::UnlockWorkspaceResources(const TArray<FName>& InRe
 		LockActivity.EventData.LockEventType = EConcertSyncLockEventType::Unlocked;
 		LockActivity.EventData.ResourceNames = LockEvent.ResourceNames;
 		LockActivity.EventSummary.SetTypedPayload(FConcertSyncLockActivitySummary::CreateSummaryForEvent(LockActivity.EventData));
+		LockActivity.bIgnored = ShouldIgnoreClientActivityOnRestore(InLockEndpointId);
 		AddLockActivity(LockActivity);
 
 		LiveSession->GetSession().SendCustomEvent(LockEvent, LiveSession->GetSession().GetSessionClientEndpointIds(), EConcertMessageFlags::ReliableOrdered);
@@ -684,6 +734,7 @@ void FConcertServerWorkspace::UnlockAllWorkspaceResources(const FGuid& InLockEnd
 			LockActivity.EventData.LockEventType = EConcertSyncLockEventType::Unlocked;
 			LockActivity.EventData.ResourceNames = LockEvent.ResourceNames;
 			LockActivity.EventSummary.SetTypedPayload(FConcertSyncLockActivitySummary::CreateSummaryForEvent(LockActivity.EventData));
+			LockActivity.bIgnored = ShouldIgnoreClientActivityOnRestore(InLockEndpointId);
 			AddLockActivity(LockActivity);
 		}
 

@@ -13,6 +13,7 @@
 #include "StructurePropertyNode.h"
 #include "ItemPropertyNode.h"
 #include "IPropertyGenerationUtilities.h"
+#include "DetailBuilderTypes.h"
 
 namespace DetailLayoutConstants
 {
@@ -73,9 +74,11 @@ bool FDetailLayoutCustomization::IsHidden() const
 {
 	return !IsValidCustomization()
 		|| (HasCustomWidget() && WidgetDecl->VisibilityAttr.Get() != EVisibility::Visible)
-		|| (HasPropertyNode() && PropertyRow->GetPropertyVisibility() != EVisibility::Visible)
-		|| (HasCustomBuilder() && CustomBuilderRow->AreChildCustomizationsHidden());
+		|| (HasPropertyNode() && PropertyRow->GetPropertyVisibility() != EVisibility::Visible);
+	/** Partial revert of CL 7273612 (fix for UE-76064) that caused a bunch of regressions in the details panel (UE-77377,UE-77376,UE-77451). */
+	//|| (HasCustomBuilder() && CustomBuilderRow->AreChildCustomizationsHidden());
 }
+
 
 TSharedPtr<FPropertyNode> FDetailLayoutCustomization::GetPropertyNode() const
 {
@@ -326,7 +329,7 @@ IDetailPropertyRow* FDetailCategoryImpl::AddExternalObjects(const TArray<UObject
 {
 	FDetailLayoutCustomization NewCustomization;
 
-	FDetailPropertyRow::MakeExternalPropertyRowCustomization(Objects, NAME_None, AsShared(), NewCustomization, true);
+	FDetailPropertyRow::MakeExternalPropertyRowCustomization(Objects, NAME_None, AsShared(), NewCustomization, FAddPropertyParams().AllowChildren(true));
 
 	TSharedPtr<FDetailPropertyRow> NewRow = NewCustomization.PropertyRow;
 
@@ -345,11 +348,11 @@ IDetailPropertyRow* FDetailCategoryImpl::AddExternalObjects(const TArray<UObject
 	return NewRow.Get();
 }
 
-IDetailPropertyRow* FDetailCategoryImpl::AddExternalObjectProperty(const TArray<UObject*>& Objects, FName PropertyName, EPropertyLocation::Type Location)
+IDetailPropertyRow* FDetailCategoryImpl::AddExternalObjectProperty(const TArray<UObject*>& Objects, FName PropertyName, EPropertyLocation::Type Location, const FAddPropertyParams& Params)
 {
 	FDetailLayoutCustomization NewCustomization;
 
-	FDetailPropertyRow::MakeExternalPropertyRowCustomization(Objects, PropertyName, AsShared(), NewCustomization);
+	FDetailPropertyRow::MakeExternalPropertyRowCustomization(Objects, PropertyName, AsShared(), NewCustomization, Params);
 
 	TSharedPtr<FDetailPropertyRow> NewRow = NewCustomization.PropertyRow;
 
@@ -374,11 +377,11 @@ IDetailPropertyRow* FDetailCategoryImpl::AddExternalStructure(TSharedPtr<FStruct
 	return AddExternalStructureProperty(StructData, NAME_None, Location);
 }
 
-IDetailPropertyRow* FDetailCategoryImpl::AddExternalStructureProperty(TSharedPtr<FStructOnScope> StructData, FName PropertyName, EPropertyLocation::Type Location/* = EPropertyLocation::Default*/)
+IDetailPropertyRow* FDetailCategoryImpl::AddExternalStructureProperty(TSharedPtr<FStructOnScope> StructData, FName PropertyName, EPropertyLocation::Type Location/* = EPropertyLocation::Default*/, const FAddPropertyParams& Params)
 {
 	FDetailLayoutCustomization NewCustomization;
 
-	FDetailPropertyRow::MakeExternalPropertyRowCustomization(StructData, PropertyName, AsShared(), NewCustomization);
+	FDetailPropertyRow::MakeExternalPropertyRowCustomization(StructData, PropertyName, AsShared(), NewCustomization, Params);
 
 	TSharedPtr<FDetailPropertyRow> NewRow = NewCustomization.PropertyRow;
 

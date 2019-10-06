@@ -169,46 +169,112 @@ public:
 };
 
 UCLASS(EditInlineNew)
+class DATASMITHCONTENT_API UDatasmithFBXSceneImportData : public UDatasmithSceneImportData
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(VisibleAnywhere, Category = ImportOptions)
+	bool bGenerateLightmapUVs;
+
+	UPROPERTY(VisibleAnywhere, Category = ImportOptions)
+	FString TexturesDir;
+
+	// Corresponds to a EDatasmithFBXIntermediateSerializationType
+	UPROPERTY(VisibleAnywhere, Category = ImportOptions)
+	uint8 IntermediateSerialization;
+
+	UPROPERTY(VisibleAnywhere, Category = ImportOptions)
+	bool bColorizeMaterials;
+};
+
+UCLASS(EditInlineNew)
 class DATASMITHCONTENT_API UDatasmithDeltaGenAssetImportData : public UDatasmithAssetImportData
 {
 	GENERATED_BODY()
 };
 
 UCLASS(EditInlineNew)
-class DATASMITHCONTENT_API UDatasmithDeltaGenSceneImportData : public UDatasmithSceneImportData
+class DATASMITHCONTENT_API UDatasmithDeltaGenSceneImportData : public UDatasmithFBXSceneImportData
 {
 	GENERATED_BODY()
-};
 
-UENUM(BlueprintType)
-enum class EVREDDataTableType : uint8
-{
-	NotDatatable,
-	AnimClips,
-	AnimNodes
+public:
+	UPROPERTY(VisibleAnywhere, Category = ImportOptions)
+	bool bMergeNodes;
+
+	UPROPERTY(VisibleAnywhere, Category = ImportOptions)
+	bool bOptimizeDuplicatedNodes;
+
+	UPROPERTY(VisibleAnywhere, Category = ImportOptions)
+	bool bRemoveInvisibleNodes;
+
+	UPROPERTY(VisibleAnywhere, Category = ImportOptions)
+	bool bSimplifyNodeHierarchy;
+
+	UPROPERTY(VisibleAnywhere, Category = ImportOptions)
+	bool bImportVar;
+
+	UPROPERTY(VisibleAnywhere, Category = ImportOptions)
+	FString VarPath;
+
+	UPROPERTY(VisibleAnywhere, Category = ImportOptions)
+	bool bImportPos;
+
+	UPROPERTY(VisibleAnywhere, Category = ImportOptions)
+	FString PosPath;
+
+	UPROPERTY(VisibleAnywhere, Category = ImportOptions)
+	bool bImportTml;
+
+	UPROPERTY(VisibleAnywhere, Category = ImportOptions)
+	FString TmlPath;
 };
 
 UCLASS(EditInlineNew)
 class DATASMITHCONTENT_API UDatasmithVREDAssetImportData : public UDatasmithAssetImportData
 {
 	GENERATED_BODY()
-
-public:
-	EVREDDataTableType DataTableType;
 };
 
 UCLASS(EditInlineNew)
-class DATASMITHCONTENT_API UDatasmithVREDSceneImportData : public UDatasmithSceneImportData
+class DATASMITHCONTENT_API UDatasmithVREDSceneImportData : public UDatasmithFBXSceneImportData
 {
 	GENERATED_BODY()
 
-// TODO
-//#if WITH_EDITORONLY_DATA
-//public:
-//	UPROPERTY(EditAnywhere, Category="VREDOptions", meta=(ShowOnlyInnerProperties))
-//	class UDatasmithVREDImportOptions* VREDOptions;
-//
-//#endif // WITH_EDITORONLY_DATA
+public:
+	UPROPERTY(VisibleAnywhere, Category = ImportOptions)
+	bool bMergeNodes;
+
+	UPROPERTY(VisibleAnywhere, Category = ImportOptions)
+	bool bOptimizeDuplicatedNodes;
+
+	UPROPERTY(VisibleAnywhere, Category = ImportOptions)
+	bool bImportMats;
+
+	UPROPERTY(VisibleAnywhere, Category = ImportOptions)
+	FString MatsPath;
+
+	UPROPERTY(VisibleAnywhere, Category = ImportOptions)
+	bool bImportVar;
+
+	UPROPERTY(VisibleAnywhere, Category = ImportOptions)
+	bool bCleanVar;
+
+	UPROPERTY(VisibleAnywhere, Category = ImportOptions)
+	FString VarPath;
+
+	UPROPERTY(VisibleAnywhere, Category = ImportOptions)
+	bool bImportLightInfo;
+
+	UPROPERTY(VisibleAnywhere, Category = ImportOptions)
+	FString LightInfoPath;
+
+	UPROPERTY(VisibleAnywhere, Category = ImportOptions)
+	bool bImportClipInfo;
+
+	UPROPERTY(VisibleAnywhere, Category = ImportOptions)
+	FString ClipInfoPath;
 };
 
 UCLASS(EditInlineNew)

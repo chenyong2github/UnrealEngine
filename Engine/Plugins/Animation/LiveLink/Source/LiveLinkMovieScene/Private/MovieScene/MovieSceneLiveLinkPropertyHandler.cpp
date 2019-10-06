@@ -81,7 +81,6 @@ void FMovieSceneLiveLinkPropertyHandler<float>::CreateChannels(const UScriptStru
 	else
 	{
 		check(FoundProperty->IsA<UFloatProperty>());
-		check(InElementCount == 1);
 	}
 
 	PropertyStorage->FloatChannel.SetNum(InElementCount);
@@ -104,11 +103,6 @@ void FMovieSceneLiveLinkPropertyHandler<float>::InitializeFromExistingChannels(c
 		}
 		else
 		{
-			if (ElementCount > 1)
-			{
-				UE_LOG(LogLiveLinkMovieScene, Warning, TEXT("Initializing channels for property '%s' with %d elements. C-Style array aren't supported. Only one element will be used."), *FoundProperty->GetFName().ToString(), ElementCount);
-			}
-
 			check(FoundProperty->IsA<UFloatProperty>());
 		}
 	}
@@ -122,7 +116,7 @@ void FMovieSceneLiveLinkPropertyHandler<float>::Finalize(bool bInReduceKeys, con
 		const TArray<FLiveLinkPropertyKey<float>>& ElementKeys = Keys[i];
 		for (const FLiveLinkPropertyKey<float>& Key : ElementKeys)
 		{
-			PropertyStorage->FloatChannel[i].AddCubicKey(Key.Time, Key.Value, RCTM_Break);
+			PropertyStorage->FloatChannel[i].AddCubicKey(Key.Time, Key.Value, RCTM_Auto);
 		}
 	}
 
@@ -131,6 +125,13 @@ void FMovieSceneLiveLinkPropertyHandler<float>::Finalize(bool bInReduceKeys, con
 		for (FMovieSceneFloatChannel& Channel : PropertyStorage->FloatChannel)
 		{
 			MovieScene::Optimize(&Channel, InOptimizationParams);
+		}
+	}
+	else
+	{
+		for (FMovieSceneFloatChannel& Channel : PropertyStorage->FloatChannel)
+		{
+			Channel.AutoSetTangents();
 		}
 	}
 }
@@ -166,7 +167,6 @@ void FMovieSceneLiveLinkPropertyHandler<int32>::CreateChannels(const UScriptStru
 	else
 	{
 		check(FoundProperty->IsA<UIntProperty>());
-		check(InElementCount == 1);
 	}
 
 	PropertyStorage->IntegerChannel.SetNum(InElementCount);
@@ -180,7 +180,6 @@ void FMovieSceneLiveLinkPropertyHandler<int32>::InitializeFromExistingChannels(c
 	ElementCount = PropertyStorage->IntegerChannel.Num();
 	check(ElementCount > 0);
 
-
 	UProperty* FoundProperty = PropertyBinding.GetProperty(InStruct);
 	if (FoundProperty)
 	{
@@ -190,11 +189,6 @@ void FMovieSceneLiveLinkPropertyHandler<int32>::InitializeFromExistingChannels(c
 		}
 		else
 		{
-			if (ElementCount > 1)
-			{
-				UE_LOG(LogLiveLinkMovieScene, Warning, TEXT("Initializing channels for property '%s' with %d elements. C-Style array aren't supported. Only one element will be used."), *FoundProperty->GetFName().ToString(), ElementCount);
-			}
-
 			check(FoundProperty->IsA<UIntProperty>());
 		}
 	}
@@ -249,7 +243,6 @@ void FMovieSceneLiveLinkPropertyHandler<FString>::CreateChannels(const UScriptSt
 	else
 	{
 		check(FoundProperty->IsA<UStrProperty>());
-		check(InElementCount == 1);
 	}
 
 	PropertyStorage->StringChannel.SetNum(InElementCount);
@@ -272,11 +265,6 @@ void FMovieSceneLiveLinkPropertyHandler<FString>::InitializeFromExistingChannels
 		}
 		else
 		{
-			if (ElementCount > 1)
-			{
-				UE_LOG(LogLiveLinkMovieScene, Warning, TEXT("Initializing channels for property '%s' with %d elements. C-Style array aren't supported. Only one element will be used."), *FoundProperty->GetFName().ToString(), ElementCount);
-			}
-
 			check(FoundProperty->IsA<UStrProperty>());
 		}
 	}
@@ -330,7 +318,6 @@ void FMovieSceneLiveLinkPropertyHandler<uint8>::CreateChannels(const UScriptStru
 	else
 	{
 		check(FoundProperty->IsA<UByteProperty>());
-		check(InElementCount == 1);
 	}
 
 	PropertyStorage->ByteChannel.SetNum(InElementCount);
@@ -354,11 +341,6 @@ void FMovieSceneLiveLinkPropertyHandler<uint8>::InitializeFromExistingChannels(c
 		}
 		else
 		{
-			if (ElementCount > 1)
-			{
-				UE_LOG(LogLiveLinkMovieScene, Warning, TEXT("Initializing channels for property '%s' with %d elements. C-Style array aren't supported. Only one element will be used."), *FoundProperty->GetFName().ToString(), ElementCount);
-			}
-
 			check(FoundProperty->IsA<UByteProperty>());
 		}
 	}
@@ -413,7 +395,6 @@ void FMovieSceneLiveLinkPropertyHandler<bool>::CreateChannels(const UScriptStruc
 	else
 	{
 		check(FoundProperty->IsA<UBoolProperty>());
-		check(InElementCount == 1);
 	}
 
 	PropertyStorage->BoolChannel.SetNum(InElementCount);
@@ -436,11 +417,6 @@ void FMovieSceneLiveLinkPropertyHandler<bool>::InitializeFromExistingChannels(co
 		}
 		else
 		{
-			if (ElementCount > 1)
-			{
-				UE_LOG(LogLiveLinkMovieScene, Warning, TEXT("Initializing channels for property '%s' with %d elements. C-Style array aren't supported. Only one element will be used."), *FoundProperty->GetFName().ToString(), ElementCount);
-			}
-
 			check(FoundProperty->IsA<UBoolProperty>());
 		}
 	}
@@ -497,7 +473,6 @@ void FMovieSceneLiveLinkPropertyHandler<FVector>::CreateChannels(const UScriptSt
 	{
 		UStructProperty* StructProperty = CastChecked<UStructProperty>(FoundProperty);
 		check(StructProperty->Struct->GetFName() == NAME_Vector);
-		check(InElementCount == 1);
 	}
 
 	PropertyStorage->FloatChannel.SetNum(InElementCount * 3);
@@ -525,11 +500,6 @@ void FMovieSceneLiveLinkPropertyHandler<FVector>::InitializeFromExistingChannels
 		}
 		else
 		{
-			if (ElementCount > 1)
-			{
-				UE_LOG(LogLiveLinkMovieScene, Warning, TEXT("Initializing channels for property '%s' with %d elements. C-Style array aren't supported. Only one element will be used."), *FoundProperty->GetFName().ToString(), ElementCount);
-			}
-
 			UStructProperty* StructProperty = CastChecked<UStructProperty>(FoundProperty);
 			check(StructProperty->Struct->GetFName() == NAME_Vector);
 		}
@@ -622,11 +592,6 @@ void FMovieSceneLiveLinkPropertyHandler<FColor>::InitializeFromExistingChannels(
 		}
 		else
 		{
-			if (ElementCount > 1)
-			{
-				UE_LOG(LogLiveLinkMovieScene, Warning, TEXT("Initializing channels for property '%s' with %d elements. C-Style array aren't supported. Only one element will be used."), *FoundProperty->GetFName().ToString(), ElementCount);
-			}
-
 			UStructProperty* StructProperty = CastChecked<UStructProperty>(FoundProperty);
 			check(StructProperty->Struct->GetFName() == NAME_Color);
 		}

@@ -34,7 +34,7 @@
 
 //Slate dependencies
 #include "Misc/FeedbackContext.h"
-#include "ILevelViewport.h"
+#include "IAssetViewport.h"
 #include "SLandscapeEditor.h"
 #include "Framework/Application/SlateApplication.h"
 
@@ -559,7 +559,6 @@ void FEdModeLandscape::SetLandscapeInfo(ULandscapeInfo* InLandscapeInfo)
 			TGuardValue<bool> GuardFlag(bUpdatingLandscapeInfo, true);
 			CurrentToolTarget.LandscapeInfo = InLandscapeInfo;
 			UpdateTargetList();
-			UpdateShownLayerList();
 			UpdateToolModes();
 		}
 		RefreshDetailPanel();
@@ -2757,6 +2756,8 @@ void FEdModeLandscape::UpdateTargetList()
 	}
 
 	TargetsListUpdated.Broadcast();
+
+	UpdateShownLayerList();
 }
 
 void FEdModeLandscape::UpdateTargetLayerDisplayOrder(ELandscapeLayerDisplayMode InTargetDisplayOrder)
@@ -2874,7 +2875,6 @@ void FEdModeLandscape::UpdateTargetLayerDisplayOrder(ELandscapeLayerDisplayMode 
 void FEdModeLandscape::OnLandscapeMaterialChangedDelegate()
 {
 	UpdateTargetList();
-	UpdateShownLayerList();
 }
 
 void FEdModeLandscape::RequestUpdateShownLayerList()
@@ -3066,7 +3066,6 @@ void FEdModeLandscape::HandleLevelsChanged(bool ShouldExitMode)
 
 	UpdateLandscapeList();
 	UpdateTargetList();
-	UpdateShownLayerList();
 	UpdateBrushList();
 
 	// if the Landscape is deleted then close the landscape editor
@@ -3092,7 +3091,6 @@ void FEdModeLandscape::OnMaterialCompilationFinished(UMaterialInterface* Materia
 	{
 		CurrentToolTarget.LandscapeInfo->UpdateLayerInfoMap();
 		UpdateTargetList();
-		UpdateShownLayerList();
 	}
 }
 
@@ -3540,12 +3538,12 @@ void FEdModeLandscape::ForceRealTimeViewports(const bool bEnable, const bool bSt
 	TSharedPtr<ILevelEditor> LevelEditor = LevelEditorModule.GetFirstLevelEditor();
 	if (LevelEditor.IsValid())
 	{
-		TArray<TSharedPtr<ILevelViewport>> Viewports = LevelEditor->GetViewports();
-		for (const TSharedPtr<ILevelViewport>& ViewportWindow : Viewports)
+		TArray<TSharedPtr<IAssetViewport>> Viewports = LevelEditor->GetViewports();
+		for (const TSharedPtr<IAssetViewport>& ViewportWindow : Viewports)
 		{
 			if (ViewportWindow.IsValid())
 			{
-				FEditorViewportClient& Viewport = ViewportWindow->GetLevelViewportClient();
+				FEditorViewportClient& Viewport = ViewportWindow->GetAssetViewportClient();
 				if (bEnable)
 				{
 					Viewport.SetRealtime(bEnable, bStoreCurrentState);

@@ -8,7 +8,6 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "GeometryCollection/GeometryCollectionActor.h"
-#include "AutoClusterFracture.h"
 
 class IDetailsView;
 class SScrollBox;
@@ -59,7 +58,6 @@ public:
 
 
 	// Cluster Command Callbacks
-	void OnAutoCluster();
 	void OnCluster();
 	void OnUncluster();
 	void OnFlatten();
@@ -74,7 +72,8 @@ public:
 	// Fracture Command Callback
 	FReply OnFractureClicked();
 	bool CanExecuteFracture() const;
-	bool IsLeafBoneSelected() const;
+
+	static bool IsLeafBoneSelected();
 
 	static ULevel* GetSelectedLevel();
  	static AActor* AddActor(ULevel* InLevel, UClass* Class);
@@ -95,27 +94,23 @@ public:
 	// static int32 GetLevelCount();
 	int32 GetLevelCount();
 
+	FText GetStatisticsSummary() const;
 
-	TSharedRef<SWidget> GetAutoClusterModesMenu();	
-	void SetAutoClusterMode(EFractureAutoClusterMode InAutoClusterMode);
-	FText GetAutoClusterModeDisplayName() const;
+	/** Returns the number of Mode specific tabs in the mode toolbar **/ 
+	const static TArray<FName> PaletteNames;
+	virtual void GetToolPaletteNames( TArray<FName>& InPaletteName ) const { InPaletteName = PaletteNames; }
+	virtual FText GetToolPaletteDisplayName(FName PaletteName); 
+	virtual void BuildToolPalette(FName PaletteName, class FToolBarBuilder& ToolbarBuilder);
+	virtual void OnToolPaletteChanged(FName PaletteName) override;
 
-	void SetAutoClusterSiteCount(uint32 InSiteCount);
-	uint32 GetAutoClusterSiteCount() const;
-
-	/** Fracture Group Layout Management */
-	SSplitter::ESizeRule GetFractureGroupSizeRule() const { return bFractureGroupExpanded ? SSplitter::ESizeRule::FractionOfParent : SSplitter::ESizeRule::SizeToContent; }
-	void OnFractureGroupExpansionChanged(bool bExpanded) { bFractureGroupExpanded = bExpanded; }
-
-	/** Outliner Group Layout Management */
-	SSplitter::ESizeRule GetOutlinerGroupSizeRule() const { return bOutlinerGroupExpanded ? SSplitter::ESizeRule::FractionOfParent : SSplitter::ESizeRule::SizeToContent; }
-	void OnOutlinerGroupExpansionChanged(bool bExpanded) { bOutlinerGroupExpanded = bExpanded; }
-
+	TSharedPtr<SWidget> ExplodedViewWidget;
+	TSharedPtr<SWidget> LevelViewWidget;
+	TSharedPtr<SWidget> ShowBoneColorsWidget;
 
 protected:
 	static bool IsGeometryCollectionSelected();
 	static bool IsStaticMeshSelected();
-	static bool IsSeletedActorsInEditorWorld();
+	static bool IsSelectedActorsInEditorWorld();
 	void UpdateExplodedVectors(UGeometryCollectionComponent* GeometryCollectionComponent) const;
 private:
 	void OnOutlinerBoneSelectionChanged(UGeometryCollectionComponent* RootComponent, TArray<int32>& SelectedBones);
@@ -124,14 +119,8 @@ private:
 	float ExplodeAmount;
 	int32 FractureLevel;
 
-	EFractureAutoClusterMode AutoClusterMode;
-	uint32 AutoClusterSiteCount;
-
 	UFractureTool* ActiveTool;
 
-	bool bFractureGroupExpanded = true;
-	bool bOutlinerGroupExpanded = true;
-	
 	TSharedPtr<IDetailsView> DetailsView;
 	TSharedPtr<SWidget> ToolkitWidget;
 	TSharedPtr<SGeometryCollectionOutliner> OutlinerView;

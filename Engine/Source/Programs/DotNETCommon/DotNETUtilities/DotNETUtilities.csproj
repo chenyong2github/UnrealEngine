@@ -76,12 +76,14 @@
     <Compile Include="FastJSON\JsonSerializer.cs" />
     <Compile Include="FastJSON\Reflection.cs" />
     <Compile Include="FastJSON\SafeDictionary.cs" />
+    <Compile Include="FatalErrorException.cs" />
     <Compile Include="FileFilter.cs" />
     <Compile Include="FileFilterNode.cs" />
     <Compile Include="FilePattern.cs" />
     <Compile Include="FileReference.cs" />
     <Compile Include="FileSystemReference.cs" />
     <Compile Include="FileUtils.cs" />
+    <Compile Include="HelpUtils.cs" />
     <Compile Include="Json.cs" />
     <Compile Include="JsonObject.cs" />
     <Compile Include="JsonWriter.cs" />
@@ -155,6 +157,7 @@
     <Compile Include="Perforce\Records\UpdateChangeOptions.cs" />
     <Compile Include="Perforce\Records\UserRecord.cs" />
     <Compile Include="Perforce\Records\WhereRecord.cs" />
+    <Compile Include="ProcessUtils.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ReadOnlyHashSet.cs" />
     <Compile Include="ResXResource\UEResXReader.cs" />
@@ -162,6 +165,7 @@
     <Compile Include="StringUtils.cs" />
     <Compile Include="ThreadPoolWorkQueue.cs" />
     <Compile Include="HashCollection.cs" />
+    <Compile Include="Win32ExceptionWithCode.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

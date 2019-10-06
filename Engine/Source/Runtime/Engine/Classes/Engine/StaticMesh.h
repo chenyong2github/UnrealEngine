@@ -12,7 +12,6 @@
 #include "UObject/ScriptMacros.h"
 #include "Interfaces/Interface_AssetUserData.h"
 #include "RenderCommandFence.h"
-#include "Templates/ScopedPointer.h"
 #include "Components.h"
 #include "Interfaces/Interface_CollisionDataProvider.h"
 #include "Engine/MeshMerging.h"
@@ -20,11 +19,8 @@
 #include "Templates/UniquePtr.h"
 #include "StaticMeshResources.h"
 #include "PerPlatformProperties.h"
-
-#include "MeshDescription.h"
-#include "MeshAttributes.h"
-#include "MeshAttributeArray.h"
 #include "RenderAssetUpdate.h"
+#include "MeshTypes.h"
 
 #include "StaticMesh.generated.h"
 
@@ -32,7 +28,10 @@ class FSpeedTreeWind;
 class UAssetUserData;
 class UMaterialInterface;
 class UNavCollisionBase;
+class UStaticMeshComponent;
+class UStaticMeshDescription;
 class FStaticMeshUpdate;
+struct FMeshDescription;
 struct FMeshDescriptionBulkData;
 struct FStaticMeshLODResources;
 
@@ -246,6 +245,9 @@ struct FStaticMeshSourceModel
 #if WITH_EDITOR
 	/** Serializes bulk data. */
 	void SerializeBulkData(FArchive& Ar, UObject* Owner);
+
+	/** Create a new MeshDescription object */
+	FMeshDescription* CreateMeshDescription();
 #endif
 };
 
@@ -375,7 +377,7 @@ struct FAssetEditorOrbitCameraPosition
 #if WITH_EDITOR
 /** delegate type for pre mesh build events */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnPreMeshBuild, class UStaticMesh*);
-/** delegate type for pre mesh build events */
+/** delegate type for post mesh build events */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnPostMeshBuild, class UStaticMesh*);
 #endif
 
@@ -475,69 +477,6 @@ struct FMaterialRemapIndex
 
 	UPROPERTY()
 	TArray<int32> MaterialRemap;
-};
-
-struct FStaticMeshDescriptionConstAttributeGetter
-{
-	ENGINE_API FStaticMeshDescriptionConstAttributeGetter(const FMeshDescription* InMeshDescription)
-		: MeshDescription(InMeshDescription)
-	{}
-
-	const FMeshDescription* MeshDescription;
-
-	ENGINE_API TVertexAttributesConstRef<FVector> GetPositions() const { return MeshDescription->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position); }
-
-	ENGINE_API TVertexInstanceAttributesConstRef<FVector> GetNormals() const { return MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal); }
-
-	ENGINE_API TVertexInstanceAttributesConstRef<FVector> GetTangents() const { return MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent); }
-
-	ENGINE_API TVertexInstanceAttributesConstRef<float> GetBinormalSigns() const { return MeshDescription->VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign); }
-
-	ENGINE_API TVertexInstanceAttributesConstRef<FVector4> GetColors() const { return MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color); }
-
-	ENGINE_API TVertexInstanceAttributesConstRef<FVector2D> GetUVs() const { return MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate); }
-
-	ENGINE_API TEdgeAttributesConstRef<bool> GetEdgeHardnesses() const { return MeshDescription->EdgeAttributes().GetAttributesRef<bool>(MeshAttribute::Edge::IsHard); }
-
-	ENGINE_API TEdgeAttributesConstRef<float> GetEdgeCreaseSharpnesses() const { return MeshDescription->EdgeAttributes().GetAttributesRef<float>(MeshAttribute::Edge::CreaseSharpness); }
-
-	ENGINE_API TPolygonGroupAttributesConstRef<FName> GetPolygonGroupImportedMaterialSlotNames() { return MeshDescription->PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::ImportedMaterialSlotName); }
-};
-
-struct FStaticMeshDescriptionAttributeGetter
-{
-	ENGINE_API FStaticMeshDescriptionAttributeGetter(FMeshDescription* InMeshDescription)
-		: MeshDescription(InMeshDescription)
-	{}
-	
-	FMeshDescription* MeshDescription;
-
-	ENGINE_API TVertexAttributesRef<FVector> GetPositions() const { return MeshDescription->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position); }
-	ENGINE_API TVertexAttributesConstRef<FVector> GetPositionsConst() const { return MeshDescription->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position); }
-
-	ENGINE_API TVertexInstanceAttributesRef<FVector> GetNormals() const { return MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal); }
-	ENGINE_API TVertexInstanceAttributesConstRef<FVector> GetNormalsConst() const { return MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal); }
-
-	ENGINE_API TVertexInstanceAttributesRef<FVector> GetTangents() const { return MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent); }
-	ENGINE_API TVertexInstanceAttributesConstRef<FVector> GetTangentsConst() const { return MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent); }
-
-	ENGINE_API TVertexInstanceAttributesRef<float> GetBinormalSigns() const { return MeshDescription->VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign); }
-	ENGINE_API TVertexInstanceAttributesConstRef<float> GetBinormalSignsConst() const { return MeshDescription->VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign); }
-
-	ENGINE_API TVertexInstanceAttributesRef<FVector4> GetColors() const { return MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color); }
-	ENGINE_API TVertexInstanceAttributesConstRef<FVector4> GetColorsConst() const { return MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color); }
-
-	ENGINE_API TVertexInstanceAttributesRef<FVector2D> GetUVs() const { return MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate); }
-	ENGINE_API TVertexInstanceAttributesConstRef<FVector2D> GetUVsConst() const { return MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate); }
-
-	ENGINE_API TEdgeAttributesRef<bool> GetEdgeHardnesses() const { return MeshDescription->EdgeAttributes().GetAttributesRef<bool>(MeshAttribute::Edge::IsHard); }
-	ENGINE_API TEdgeAttributesConstRef<bool> GetEdgeHardnessesConst() const { return MeshDescription->EdgeAttributes().GetAttributesRef<bool>(MeshAttribute::Edge::IsHard); }
-	
-	ENGINE_API TEdgeAttributesRef<float> GetEdgeCreaseSharpnesses() const { return MeshDescription->EdgeAttributes().GetAttributesRef<float>(MeshAttribute::Edge::CreaseSharpness); }
-	ENGINE_API TEdgeAttributesConstRef<float> GetEdgeCreaseSharpnessesConst() const { return MeshDescription->EdgeAttributes().GetAttributesRef<float>(MeshAttribute::Edge::CreaseSharpness); }
-
-	ENGINE_API TPolygonGroupAttributesRef<FName> GetPolygonGroupImportedMaterialSlotNames() { return MeshDescription->PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::ImportedMaterialSlotName); }
-	ENGINE_API TPolygonGroupAttributesConstRef<FName> GetPolygonGroupImportedMaterialSlotNamesConst() { return MeshDescription->PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::ImportedMaterialSlotName); }
 };
 
 
@@ -719,6 +658,11 @@ class UStaticMesh : public UStreamableRenderAsset, public IInterface_CollisionDa
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = StaticMesh)
 	uint8 bSupportUniformlyDistributedSampling : 1;
 
+	/**
+	 * If true, StaticMesh has been built at runtime
+	 */
+	uint8 bIsBuiltAtRuntime : 1;
+
 protected:
 	/** Tracks whether InitResources has been called, and rendering resources are initialized. */
 	uint8 bRenderingResourcesInitialized:1;
@@ -826,7 +770,7 @@ protected:
 public:
 	/** The editable mesh representation of this static mesh */
 	// @todo: Maybe we don't want this visible in the details panel in the end; for now, this might aid debugging.
-	UPROPERTY(Instanced, VisibleAnywhere, Category = EditableMesh)
+	UPROPERTY(Instanced)
 	class UObject* EditableMesh;
 
 #if WITH_EDITORONLY_DATA
@@ -837,6 +781,7 @@ public:
 	/**
 	 * Registers the mesh attributes required by the mesh description for a static mesh.
 	 */
+	UE_DEPRECATED(4.25, "Please use FStaticMeshAttributes::Register to do this.")
 	ENGINE_API static void RegisterMeshAttributes( FMeshDescription& MeshDescription );
 
 #if WITH_EDITORONLY_DATA
@@ -848,21 +793,37 @@ public:
 	ENGINE_API bool IsMeshDescriptionValid(int32 LodIndex) const;
 	ENGINE_API FMeshDescription* CreateMeshDescription(int32 LodIndex);
 	ENGINE_API FMeshDescription* CreateMeshDescription(int32 LodIndex, FMeshDescription MeshDescription);
-	ENGINE_API void CommitMeshDescription(int32 LodIndex);
+
+	/** Structure that defines parameters passed into the commit mesh description function */
+	struct FCommitMeshDescriptionParams
+	{
+		FCommitMeshDescriptionParams()
+			: bMarkPackageDirty(true)
+			, bUseHashAsGuid(false)
+		{}
+
+		/**
+		 * If set to false, the caller can be from any thread but will have the
+		 * responsability to call MarkPackageDirty() from the main thread.
+		 */
+		bool bMarkPackageDirty;
+
+		/**
+		 * Uses a hash as the GUID, useful to prevent recomputing content already in cache.
+		 */
+		bool bUseHashAsGuid;
+	};
+
+	/*
+	 * Serialize the mesh description into its more optimized form.
+	 *
+	 * @param	LodIndex	Index of the StaticMesh LOD.
+	 * @param	Params		Different options to use when committing mesh description
+	 */
+	ENGINE_API void CommitMeshDescription(int32 LodIndex, const FCommitMeshDescriptionParams& Params = FCommitMeshDescriptionParams());
+
 	ENGINE_API void ClearMeshDescription(int32 LodIndex);
 	ENGINE_API void ClearMeshDescriptions();
-
-	UE_DEPRECATED(4.22, "Please use GetMeshDescription().")
-	FMeshDescription* GetOriginalMeshDescription(int32 LodIndex) const { return GetMeshDescription(LodIndex); }
-	
-	UE_DEPRECATED(4.22, "Please use CreateMeshDescription().")
-	FMeshDescription* CreateOriginalMeshDescription(int32 LodIndex) { return CreateMeshDescription(LodIndex); }
-
-	UE_DEPRECATED(4.22, "Please use CommitMeshDescription().")
-	void CommitOriginalMeshDescription(int32 LodIndex) { CommitMeshDescription(LodIndex); }
-
-	UE_DEPRECATED(4.22, "Please use ClearMeshDescription().")
-	void ClearOriginalMeshDescription(int32 LodIndex) { ClearMeshDescription(LodIndex); }
 
 	/**
 	 * Internal function use to make sure all imported material slot name are unique and non empty.
@@ -903,6 +864,27 @@ public:
 
 #endif
 
+	/** Create an empty StaticMeshDescription object, to describe a static mesh at runtime */
+	UFUNCTION(BlueprintCallable, Category="StaticMesh")
+	static ENGINE_API UStaticMeshDescription* CreateStaticMeshDescription(UObject* Outer = nullptr);
+
+	/** Builds static mesh LODs from the array of StaticMeshDescriptions passed in */
+	UFUNCTION(BlueprintCallable, Category="StaticMesh")
+	ENGINE_API void BuildFromStaticMeshDescriptions(const TArray<UStaticMeshDescription*>& StaticMeshDescriptions);
+
+	/**
+	 * Builds static mesh render buffers from a list of MeshDescriptions, one per LOD.
+	 */
+	ENGINE_API bool BuildFromMeshDescriptions(const TArray<const FMeshDescription*>& MeshDescriptions);
+
+	/**
+	 * Builds simple collisions at runtime
+	 */
+	ENGINE_API bool BuildSimpleCollision();
+
+	/** Builds a LOD resource from a MeshDescription */
+	void BuildFromMeshDescription(const FMeshDescription& MeshDescription, FStaticMeshLODResources& LODResources);
+
 	/**
 	 * Returns the number of UV channels for the given LOD of a StaticMesh.
 	 * @param	LODIndex			Index of the StaticMesh LOD.
@@ -933,7 +915,10 @@ public:
 
 	//SourceModels API
 	ENGINE_API FStaticMeshSourceModel& AddSourceModel();
+
+	UFUNCTION(BlueprintCallable, Category="StaticMesh")
 	ENGINE_API void SetNumSourceModels(int32 Num);
+
 	ENGINE_API void RemoveSourceModel(int32 Index);
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ENGINE_API TArray<FStaticMeshSourceModel>& GetSourceModels() { return SourceModels; }
@@ -1006,9 +991,19 @@ public:
 
 	/**
 	 * Rebuilds renderable data for this static mesh.
-	 * @param bSilent - If true will not popup a progress dialog.
+	 * @param		bInSilent	If true will not popup a progress dialog.
+	 * @param [out]	OutErrors	If provided, will contain the errors that occurred during this process.
 	 */
-	ENGINE_API void Build(bool bSilent = false, TArray<FText>* OutErrors = nullptr);
+	ENGINE_API void Build(bool bInSilent = false, TArray<FText>* OutErrors = nullptr);
+
+	/**
+	 * Rebuilds renderable data for a batch of static meshes.
+	 * @param		InStaticMeshes		The list of all static meshes to build.
+	 * @param		bInSilent			If true will not popup a progress dialog.
+	 * @param		InProgressCallback	If provided, will be used to abort task and report progress to higher level functions (should return true to continue, false to abort).
+	 * @param [out]	OutErrors			If provided, will contain the errors that occurred during this process.
+	 */
+	ENGINE_API static void BatchBuild(const TArray<UStaticMesh*>& InStaticMeshes, bool bInSilent = false, TFunction<bool(UStaticMesh*)> InProgressCallback = nullptr, TArray<FText>* OutErrors = nullptr);
 
 	/**
 	 * Initialize the static mesh's render resources.
@@ -1054,7 +1049,7 @@ public:
 	/**
 	 * Returns the number of LODs used by the mesh.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "StaticMesh", meta=(ScriptName="GetNumLods"))
+	UFUNCTION(BlueprintPure, Category = "StaticMesh", meta=(ScriptName="GetNumLods"))
 	ENGINE_API int32 GetNumLODs() const;
 
 	/**
@@ -1071,11 +1066,11 @@ public:
 	ENGINE_API FBoxSphereBounds GetBounds() const;
 
 	/** Returns the bounding box, in local space including bounds extension(s), of the StaticMesh asset */
-	UFUNCTION(BlueprintCallable, Category="StaticMesh")
+	UFUNCTION(BlueprintPure, Category="StaticMesh")
 	ENGINE_API FBox GetBoundingBox() const;
 
 	/** Returns number of Sections that this StaticMesh has, in the supplied LOD (LOD 0 is the highest) */
-	UFUNCTION(BlueprintCallable, Category = "StaticMesh")
+	UFUNCTION(BlueprintPure, Category = "StaticMesh")
 	ENGINE_API int32 GetNumSections(int32 InLOD) const;
 
 	/**
@@ -1083,15 +1078,21 @@ public:
 	 *
 	 * @return Requested material
 	 */
-	UFUNCTION(BlueprintCallable, Category = "StaticMesh")
+	UFUNCTION(BlueprintPure, Category = "StaticMesh")
 	ENGINE_API UMaterialInterface* GetMaterial(int32 MaterialIndex) const;
 
 	/**
-	* Gets a Material index given a slot name
-	*
-	* @return Requested material
-	*/
+	 * Adds a new material and return its slot name
+	 */
 	UFUNCTION(BlueprintCallable, Category = "StaticMesh")
+	ENGINE_API FName AddMaterial(UMaterialInterface* Material);
+
+	/**
+	 * Gets a Material index given a slot name
+	 *
+	 * @return Requested material
+	 */
+	UFUNCTION(BlueprintPure, Category = "StaticMesh")
 	ENGINE_API int32 GetMaterialIndex(FName MaterialSlotName) const;
 
 	ENGINE_API int32 GetMaterialIndexFromImportedMaterialSlotName(FName ImportedMaterialSlotName) const;
@@ -1176,7 +1177,7 @@ public:
 	 *	Find a socket object in this StaticMesh by name.
 	 *	Entering NAME_None will return NULL. If there are multiple sockets with the same name, will return the first one.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "StaticMesh")
+	UFUNCTION(BlueprintPure, Category = "StaticMesh")
 	ENGINE_API class UStaticMeshSocket* FindSocket(FName InSocketName) const;
 
 	/**
@@ -1278,6 +1279,26 @@ private:
 	* Caches mesh data.
 	*/
 	void CacheMeshData();
+	
+	/**
+	 * Verify if the static mesh can be built.
+	 */
+	bool CanBuild() const;
+
+	/**
+	 * Initial step for the static mesh building process - Can't be done in parallel.
+	 */
+	void PreBuildInternal();
+
+	/**
+	 * Build the static mesh
+	 */
+	bool BuildInternal(bool bSilent, TArray<FText>* OutErrors);
+
+	/**
+	 * Complete the static mesh building process - Can't be done in parallel.
+	 */
+	void PostBuildInternal(const TArray<UStaticMeshComponent*>& InAffectedComponents, bool bHasRenderDataChanged);
 
 public:
 	/**

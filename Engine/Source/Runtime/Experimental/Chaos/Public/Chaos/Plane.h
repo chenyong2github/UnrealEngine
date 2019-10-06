@@ -2,9 +2,7 @@
 #pragma once
 
 #include "Chaos/ImplicitObject.h"
-
-#include <algorithm>
-#include <cmath>
+#include "ChaosArchive.h"
 
 namespace Chaos
 {
@@ -12,7 +10,9 @@ template<class T, int d>
 class TPlane final : public TImplicitObject<T, d>
 {
   public:
-	IMPLICIT_OBJECT_SERIALIZER(TPlane)
+	using TImplicitObject<T, d>::GetTypeName;
+
+
 	TPlane() : TImplicitObject<T, d>(0, ImplicitObjectType::Plane) {}	//needed for serialization
 	TPlane(const TVector<T, d>& InX, const TVector<T, d>& InNormal)
 	    : TImplicitObject<T, d>(0, ImplicitObjectType::Plane)
@@ -37,6 +37,14 @@ class TPlane final : public TImplicitObject<T, d>
 	static ImplicitObjectType GetType()
 	{
 		return ImplicitObjectType::Plane;
+	}
+
+	/**
+	 * Phi is positive on the side of the normal, and negative otherwise.
+	 */
+	T SignedDistance(const TVector<T, d>& x) const
+	{
+		return TVector<T, d>::DotProduct(x - MX, MNormal);
 	}
 
 	/**
@@ -131,6 +139,7 @@ class TPlane final : public TImplicitObject<T, d>
 
 	virtual void Serialize(FChaosArchive& Ar) override
 	{
+		FChaosArchiveScopedMemory ScopedMemory(Ar, GetTypeName());
 		SerializeImp(Ar);
 	}
 

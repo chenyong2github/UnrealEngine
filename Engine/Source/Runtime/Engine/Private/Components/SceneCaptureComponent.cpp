@@ -7,6 +7,7 @@
 #include "Components/SceneCaptureComponent.h"
 #include "Misc/ScopeLock.h"
 #include "UObject/RenderingObjectVersion.h"
+#include "UObject/EditorObjectVersion.h"
 #include "UObject/ConstructorHelpers.h"
 #include "GameFramework/Actor.h"
 #include "RenderingThread.h"
@@ -746,15 +747,15 @@ void APlanarReflection::PostLoad()
 	Super::PostLoad();
 
 	if (GetLinkerCustomVersion(FEditorObjectVersion::GUID) < FEditorObjectVersion::ChangeSceneCaptureRootComponent)
-{
-		if (PlanarReflectionComponent)
 	{
+		if (PlanarReflectionComponent)
+		{
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			PlanarReflectionComponent->bShowPreviewPlane = bShowPreviewPlane_DEPRECATED;
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
-			}
-		}
+	}
+}
 
 void APlanarReflection::OnInterpToggle(bool bEnable)
 {

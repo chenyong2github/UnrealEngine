@@ -2,7 +2,6 @@
 
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/FileManager.h"
-#include "Templates/ScopedPointer.h"
 #include "Misc/Paths.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "Stats/Stats.h"

@@ -41,6 +41,7 @@ namespace IncludeTool
 	enum BuildModulePCHUsage
 	{
 		Default,
+		NoPCHs,
 		NoSharedPCHs,
 		UseSharedPCHs,
 		UseExplicitOrSharedPCHs

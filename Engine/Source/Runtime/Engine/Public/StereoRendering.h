@@ -7,6 +7,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/Engine.h"
 
 class IStereoLayers;
 class IStereoRenderTargetManager;
@@ -87,7 +88,7 @@ public:
 	/**
 	* Return true if this pass is for a stereo eye view
 	*/
-	virtual bool IsStereoEyePass(EStereoscopicPass Pass)
+	virtual bool DeviceIsStereoEyeView(EStereoscopicPass Pass)
 	{
 		return !(Pass == EStereoscopicPass::eSSP_FULL);
 	}
@@ -114,15 +115,27 @@ public:
 		return Pass > eSSP_RIGHT_EYE;
 	}
 
+	/**
+	* Return true if this pass is for a stereo eye view
+	*/
+	static bool IsStereoEyeView(EStereoscopicPass Pass)
+	{
+		if (IsStereoRenderingDeviceValid())
+		{
+			return GEngine->StereoRenderingDevice->DeviceIsStereoEyeView(Pass);
+		}
+
+		return !(Pass == EStereoscopicPass::eSSP_FULL);
+	}
 
 	/**
 	* Return true if this pass is for a view we do all the work for (ie this view can't borrow from another)
 	*/
-	static bool IsAPrimaryView(EStereoscopicPass Pass, TSharedPtr< class IStereoRendering, ESPMode::ThreadSafe > StereoRenderingDevice)
+	static bool IsAPrimaryView(EStereoscopicPass Pass)
 	{
-		if (StereoRenderingDevice.IsValid())
+		if (IsStereoRenderingDeviceValid())
 		{
-			return StereoRenderingDevice->DeviceIsAPrimaryView(Pass);
+			return GEngine->StereoRenderingDevice->DeviceIsAPrimaryView(Pass);	
 		}
 
 		return Pass == eSSP_FULL || Pass == eSSP_LEFT_EYE;
@@ -131,27 +144,39 @@ public:
 	/**
 	* Return true if this pass is for a view for which we share some work done for eSSP_LEFT_EYE (ie borrow some intermediate state from that eye)
 	*/
-	static bool IsASecondaryView(EStereoscopicPass Pass, TSharedPtr< class IStereoRendering, ESPMode::ThreadSafe > StereoRenderingDevice)
+	static bool IsASecondaryView(EStereoscopicPass Pass)
 	{
-		if (StereoRenderingDevice.IsValid())
+		if (IsStereoRenderingDeviceValid())
 		{
-			return StereoRenderingDevice->DeviceIsASecondaryView(Pass);
-		}
-
-		return !IsAPrimaryView(Pass, StereoRenderingDevice);
+			return GEngine->StereoRenderingDevice->DeviceIsASecondaryView(Pass);
+		}		
+		return Pass == EStereoscopicPass::eSSP_RIGHT_EYE; // !IsAPrimaryView(Pass);
 	}
 	
 	/**
 	* Return true for additional eyes past the first two (a plugin could implement additional 'eyes').
 	*/
-	static bool IsAnAdditionalView(EStereoscopicPass Pass, TSharedPtr< class IStereoRendering, ESPMode::ThreadSafe > StereoRenderingDevice)
+	static bool IsAnAdditionalView(EStereoscopicPass Pass)
 	{
-		if (StereoRenderingDevice.IsValid())
+		if (IsStereoRenderingDeviceValid())
 		{
-			return StereoRenderingDevice->DeviceIsAnAdditionalView(Pass);
-		}
+			return GEngine->StereoRenderingDevice->DeviceIsAnAdditionalView(Pass);
+		}		
 
 		return Pass > eSSP_RIGHT_EYE;
+	}
+
+	static bool IsStereoRenderingDeviceValid()
+	{
+		if (GEngine != NULL)
+		{
+			if (GEngine->StereoRenderingDevice.IsValid())
+			{
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**

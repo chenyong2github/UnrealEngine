@@ -11,6 +11,8 @@
 #include "IStatsViewer.h"
 #include "IStatsPage.h"
 
+class FStatsPageManager;
+
 /**
  * Stats Viewer widget
  */
@@ -19,7 +21,7 @@ class SStatsViewer : public IStatsViewer
 public:
 
 	SLATE_BEGIN_ARGS( SStatsViewer ){}
-
+	SLATE_ARGUMENT(TSharedPtr< FStatsPageManager >, StatsPageManager)
 	SLATE_END_ARGS()
 
 	/**
@@ -172,5 +174,8 @@ private:
 
 	/** Container for custom filters supplied by stats pages */
 	TSharedPtr< SBorder > CustomFilter;
+
+	/** The page manager that is managing our pages */
+	TSharedPtr < FStatsPageManager > StatsPageManager;
 };
 

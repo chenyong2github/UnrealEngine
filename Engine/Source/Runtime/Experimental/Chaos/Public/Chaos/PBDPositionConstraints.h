@@ -2,7 +2,6 @@
 #pragma once
 
 #include "Chaos/Array.h"
-#include "Chaos/Map.h"
 #include "Chaos/ConstraintHandle.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDConstraintContainer.h"
@@ -157,7 +156,7 @@ namespace Chaos
 		{
 		}
 
-		void Apply(const T Dt, const TArray<FConstraintHandle*>& ConstraintHandles) const
+		void Apply(const T Dt, const TArray<FConstraintHandle*>& ConstraintHandles, const int32 It, const int32 NumIts) const
 		{
 			for (FConstraintHandle* ConstraintHandle : ConstraintHandles)
 			{

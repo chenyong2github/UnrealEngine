@@ -36,7 +36,6 @@ public class DisplayCluster : ModuleRules
 				"Json",
 				"JsonUtilities",
 				"Networking",
-				"OpenGLDrv",
 				"RHI",
 				"RenderCore",
 				"Slate",
@@ -49,8 +48,6 @@ public class DisplayCluster : ModuleRules
 			PrivateDependencyModuleNames.Add("UnrealEd");
 		}
 
-		PublicSystemLibraries.Add("opengl32.lib");
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenGL");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");

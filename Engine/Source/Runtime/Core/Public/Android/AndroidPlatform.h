@@ -7,6 +7,7 @@
 #pragma once
 
 #include "GenericPlatform/GenericPlatform.h"
+#include "Clang/ClangPlatform.h"
 #include "Misc/Build.h"
 
 /** Define the android platform to be the active one **/

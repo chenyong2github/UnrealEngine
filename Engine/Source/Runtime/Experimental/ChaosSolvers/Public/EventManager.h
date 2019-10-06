@@ -265,7 +265,9 @@ namespace Chaos
 		template<typename PayloadType>
 		void RegisterEvent(const FEventID& EventID, TFunction<void(const Chaos::FPBDRigidsSolver* Solver, PayloadType& EventData)> InFunction)
 		{
+			ContainerLock.WriteLock();
 			InternalRegisterInjector(EventID, new TEventContainer<PayloadType>(BufferMode, InFunction));
+			ContainerLock.WriteUnlock();
 		}
 
 		/**
@@ -279,8 +281,10 @@ namespace Chaos
 		template<typename PayloadType, typename HandlerType>
 		void RegisterHandler(const FEventID& EventID, HandlerType* Handler, typename TRawEventHandler<PayloadType, HandlerType>::FHandlerFunction HandlerFunction)
 		{
+			ContainerLock.WriteLock();
 			checkf(EventID < EventContainers.Num(), TEXT("Registering event Handler for an event ID that does not exist"));
 			EventContainers[EventID]->RegisterHandler(new TRawEventHandler<PayloadType, HandlerType>(Handler, HandlerFunction));
+			ContainerLock.WriteUnlock();
 		}
 
 		/**
@@ -315,6 +319,8 @@ namespace Chaos
 		Chaos::EMultiBufferMode BufferMode;			// specifies the buffer type to be constructed, single, double, triple
 		TArray<FEventContainerPtr> EventContainers;	// Array of event types
 		FRWLock ResourceLock;
+		FRWLock ContainerLock;
+
 	};
 
 }

@@ -29,3 +29,19 @@ void FMeshPaintAdapterFactory::InitializeAdapterGlobals()
 		Factory->InitializeAdapterGlobals();
 	}
 }
+
+void FMeshPaintAdapterFactory::AddReferencedObjectsGlobals(FReferenceCollector& Collector)
+{
+	for (const auto& Factory : FactoryList)
+	{
+		Factory->AddReferencedObjectsGlobals(Collector);
+	}
+}
+
+void FMeshPaintAdapterFactory::CleanupGlobals()
+{
+	for (const auto& Factory : FactoryList)
+	{
+		Factory->CleanupGlobals();
+	}
+}

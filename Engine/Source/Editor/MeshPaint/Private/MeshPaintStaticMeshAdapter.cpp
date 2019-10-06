@@ -143,6 +143,19 @@ void FMeshPaintGeometryAdapterForStaticMeshes::InitializeAdapterGlobals()
 	}
 }
 
+void FMeshPaintGeometryAdapterForStaticMeshes::CleanupGlobals()
+{
+	for (TPair<UStaticMesh*, FStaticMeshReferencers>& Pair : MeshToComponentMap)
+	{
+		if (Pair.Key && Pair.Value.RestoreBodySetup)
+		{
+			Pair.Key->BodySetup = Pair.Value.RestoreBodySetup;
+		}
+	}
+
+	MeshToComponentMap.Empty();
+}
+
 void FMeshPaintGeometryAdapterForStaticMeshes::OnAdded()
 {
 	check(StaticMeshComponent);
@@ -205,11 +218,9 @@ void FMeshPaintGeometryAdapterForStaticMeshes::OnAdded()
 
 void FMeshPaintGeometryAdapterForStaticMeshes::OnRemoved()
 {
-	check(StaticMeshComponent);
-	
 	// If the referenced static mesh has been destroyed (and nulled by GC), don't try to do anything more.
 	// It should be in the process of removing all global geometry adapters if it gets here in this situation.
-	if (!ReferencedStaticMesh)
+	if (!ReferencedStaticMesh || !StaticMeshComponent)
 	{
 		return;
 	}
@@ -233,13 +244,6 @@ void FMeshPaintGeometryAdapterForStaticMeshes::OnRemoved()
 			StaticMeshComponent->RecreatePhysicsState();
 
 			StaticMeshReferencers->Referencers.RemoveAtSwap(Index);
-
-			// If the last reference was removed, restore the body setup for the static mesh
-			if (StaticMeshReferencers->Referencers.Num() == 0)
-			{
-				ReferencedStaticMesh->BodySetup = StaticMeshReferencers->RestoreBodySetup;
-				verify(MeshToComponentMap.Remove(ReferencedStaticMesh) == 1);
-			}
 		}
 		else
 		{
@@ -248,6 +252,13 @@ void FMeshPaintGeometryAdapterForStaticMeshes::OnRemoved()
 			{
 				return Info.StaticMeshComponent == nullptr;
 			});
+		}
+
+		// If the last reference was removed, restore the body setup for the static mesh
+		if (StaticMeshReferencers->Referencers.Num() == 0)
+		{
+			ReferencedStaticMesh->BodySetup = StaticMeshReferencers->RestoreBodySetup;
+			verify(MeshToComponentMap.Remove(ReferencedStaticMesh) == 1);
 		}
 	}
 }
@@ -268,21 +279,23 @@ void FMeshPaintGeometryAdapterForStaticMeshes::ApplyOrRemoveTextureOverride(UTex
 	DefaultApplyOrRemoveTextureOverride(StaticMeshComponent, SourceTexture, OverrideTexture);
 }
 
+void FMeshPaintGeometryAdapterForStaticMeshes::AddReferencedObjectsGlobals(FReferenceCollector& Collector)
+{
+	for (TPair<UStaticMesh*, FStaticMeshReferencers>& Pair : MeshToComponentMap)
+	{
+		Collector.AddReferencedObject(Pair.Key);
+		Collector.AddReferencedObject(Pair.Value.RestoreBodySetup);
+		for (FStaticMeshReferencers::FReferencersInfo& ReferencerInfo : Pair.Value.Referencers)
+		{
+			Collector.AddReferencedObject(ReferencerInfo.StaticMeshComponent);
+		}
+	}
+}
+
 void FMeshPaintGeometryAdapterForStaticMeshes::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	if (!ReferencedStaticMesh)
-	{
-		return;
-	}
-
-	FStaticMeshReferencers* StaticMeshReferencers = MeshToComponentMap.Find(ReferencedStaticMesh);
-	check(StaticMeshReferencers);
-	Collector.AddReferencedObject(StaticMeshReferencers->RestoreBodySetup);
-
-	for (auto& Info : StaticMeshReferencers->Referencers)
-	{
-		Collector.AddReferencedObject(Info.StaticMeshComponent);
-	}
+	Collector.AddReferencedObject(ReferencedStaticMesh);
+	Collector.AddReferencedObject(StaticMeshComponent);
 }
 
 void FMeshPaintGeometryAdapterForStaticMeshes::GetVertexColor(int32 VertexIndex, FColor& OutColor, bool bInstance /*= true*/) const

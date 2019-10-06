@@ -33,7 +33,7 @@ class BuildPhysX : BuildCommand
 	{
 		PhysX,
 		APEX,		// Note: Building APEX deploys shared binaries and libs
-        NvCloth
+		NvCloth
 	}
 
 	private struct TargetPlatformData
@@ -80,7 +80,7 @@ class BuildPhysX : BuildCommand
 	private static DirectoryReference PhysXSourceRootDirectory = DirectoryReference.Combine(CommandUtils.RootDirectory, "Engine", "Source", "ThirdParty", "PhysX3");
 	private static DirectoryReference PhysX34SourceRootDirectory = DirectoryReference.Combine(PhysXSourceRootDirectory, "PhysX_3.4");
 	private static DirectoryReference APEX14SourceRootDirectory = DirectoryReference.Combine(PhysXSourceRootDirectory, "APEX_1.4");
-    private static DirectoryReference NvClothSourceRootDirectory = DirectoryReference.Combine(PhysXSourceRootDirectory, "NvCloth");
+	private static DirectoryReference NvClothSourceRootDirectory = DirectoryReference.Combine(PhysXSourceRootDirectory, "NvCloth");
 	private static DirectoryReference SharedSourceRootDirectory = DirectoryReference.Combine(PhysXSourceRootDirectory, "PxShared");
 	private static DirectoryReference RootOutputBinaryDirectory = DirectoryReference.Combine(CommandUtils.RootDirectory, "Engine", "Binaries", "ThirdParty", "PhysX3");
 	private static DirectoryReference RootOutputLibDirectory = DirectoryReference.Combine(PhysXSourceRootDirectory, "Lib");
@@ -110,10 +110,6 @@ class BuildPhysX : BuildCommand
 		Environment.SetEnvironmentVariable("CMAKE_ROOT", DirectoryReference.Combine(CMakeRootDirectory, "share").ToString());
 		LogInformation("set {0}={1}", "CMAKE_ROOT", Environment.GetEnvironmentVariable("CMAKE_ROOT"));
 
-		if (TargetData.Platform == UnrealTargetPlatform.HTML5)
-		{
-			return "cmake";
-		}
 		if (TargetData.Platform == UnrealTargetPlatform.Mac ||
 			TargetData.Platform == UnrealTargetPlatform.IOS ||
 			TargetData.Platform == UnrealTargetPlatform.TVOS)
@@ -295,17 +291,6 @@ class BuildPhysX : BuildCommand
 				{
 					return DirectoryReference.Combine(PhysXCMakeFiles, "Switch").ToString() + " -G \"Visual Studio 14 2015\" -DTARGET_BUILD_PLATFORM=switch -DCMAKE_TOOLCHAIN_FILE=\"" + PhysXSourceRootDirectory + "\\Externals\\CMakeModules\\switch\\NX64Toolchain.txt\" -DCMAKE_GENERATOR_PLATFORM=NX-NXFP2-a64" + OutputFlags;
 				}
-				if (TargetData.Platform == UnrealTargetPlatform.HTML5)
-				{
-					string CmakeToolchainFile = FileReference.Combine(PhysXSourceRootDirectory, "Externals", "CMakeModules", "HTML5", "Emscripten." + BuildConfig + ".cmake").ToString();
-					return "\"" + DirectoryReference.Combine(PhysXCMakeFiles, "HTML5").ToString() + "\"" +
-						" -G \"Unix Makefiles\" -DTARGET_BUILD_PLATFORM=html5" +
-						" -DPXSHARED_ROOT_DIR=\"" + SharedSourceRootDirectory.ToString() + "\"" +
-						" -DNVTOOLSEXT_INCLUDE_DIRS=\"" + PhysX34SourceRootDirectory + "/externals/nvToolsExt/include\"" +
-						" -DEMSCRIPTEN_GENERATE_BITCODE_STATIC_LIBRARIES=ON " +
-						" -DCMAKE_BUILD_TYPE=\"Release\" -DCMAKE_TOOLCHAIN_FILE=\"" + CmakeToolchainFile + "\"" +
-						OutputFlags;
-				}
 				throw new AutomationException(String.Format("Non-CMake or unsupported platform '{0}' supplied to GetCMakeArguments", TargetData.ToString()));
 			case PhysXTargetLib.APEX:
 				DirectoryReference ApexCMakeFiles = DirectoryReference.Combine(APEX14SourceRootDirectory, "compiler", "cmake");
@@ -342,8 +327,8 @@ class BuildPhysX : BuildCommand
 					return DirectoryReference.Combine(ApexCMakeFiles, "Mac").ToString() + " -G \"Xcode\" -DTARGET_BUILD_PLATFORM=mac" + OutputFlags + ApexFlags;
 				}
 				throw new AutomationException(String.Format("Non-CMake or unsupported platform '{0}' supplied to GetCMakeArguments", TargetData.ToString()));
-            case PhysXTargetLib.NvCloth:
-                DirectoryReference NvClothCMakeFiles = DirectoryReference.Combine(NvClothSourceRootDirectory, "compiler", "cmake");
+			case PhysXTargetLib.NvCloth:
+				DirectoryReference NvClothCMakeFiles = DirectoryReference.Combine(NvClothSourceRootDirectory, "compiler", "cmake");
 				if (TargetData.Platform == UnrealTargetPlatform.Win32)
 				{
 					return DirectoryReference.Combine(NvClothCMakeFiles, "Windows").ToString() + " -G \"" + VisualStudioName + "\" -AWin32 -DTARGET_BUILD_PLATFORM=windows -DNV_CLOTH_ENABLE_CUDA=0 -DNV_CLOTH_ENABLE_DX11=0" + OutputFlags;
@@ -428,8 +413,8 @@ class BuildPhysX : BuildCommand
 				return "PhysX.sln";
 			case PhysXTargetLib.APEX:
 				return "APEX.sln";
-            case PhysXTargetLib.NvCloth:
-                return "NvCloth.sln";
+			case PhysXTargetLib.NvCloth:
+				return "NvCloth.sln";
 			default:
 				throw new AutomationException(String.Format("Unknown target lib '{0}' specified to GetTargetLibSolutionName", TargetLib));
 		}
@@ -456,7 +441,7 @@ class BuildPhysX : BuildCommand
 	private static bool DoesPlatformUseMakefiles(TargetPlatformData TargetData)
 	{
 		if (TargetData.Platform == UnrealTargetPlatform.Android || TargetData.Platform == UnrealTargetPlatform.Linux ||
-			TargetData.Platform == UnrealTargetPlatform.LinuxAArch64 || TargetData.Platform == UnrealTargetPlatform.HTML5 ||
+			TargetData.Platform == UnrealTargetPlatform.LinuxAArch64 ||
 			TargetData.Platform == UnrealTargetPlatform.PS4)
 		{
 			return true;
@@ -484,8 +469,8 @@ class BuildPhysX : BuildCommand
 				return PhysX34SourceRootDirectory;
 			case PhysXTargetLib.APEX:
 				return APEX14SourceRootDirectory;
-            case PhysXTargetLib.NvCloth:
-                return NvClothSourceRootDirectory;
+			case PhysXTargetLib.NvCloth:
+				return NvClothSourceRootDirectory;
 			default:
 				throw new AutomationException(String.Format("Unknown target lib '{0}' specified to GetTargetLibRootDirectory", TargetLib));
 		}
@@ -653,7 +638,7 @@ class BuildPhysX : BuildCommand
 
 		string CMakeName = GetCMakeNameAndSetupEnv(TargetData);
 
-		if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64 || 
+		if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64 ||
 			TargetData.Platform == UnrealTargetPlatform.HoloLens)
 		{
 			// for windows platforms we support building against multiple compilers
@@ -757,57 +742,6 @@ class BuildPhysX : BuildCommand
 				RunLocalProcessAndLogOutput(StartInfo);
 			}
 		}
-		else if (TargetData.Platform == UnrealTargetPlatform.HTML5)
-		{
-			// NOTE: HTML5 does not do "debug" - the full text blows out memory
-			//	   instead, HTML5 builds have 4 levels of optimizations
-			// so, MAP BuildConfig to HTML5 optimization levels
-			Dictionary<string, string> BuildMap = new Dictionary<string, string>()
-			{
-				{"debug", "-O0"},
-				{"checked", "-O2"},
-				{"profile", "-Oz"},
-				{"release", "-O3"}
-			};
-			DirectoryReference HTML5CMakeModules = DirectoryReference.Combine(PhysXSourceRootDirectory, "Externals", "CMakeModules", "HTML5");
-			MakeFreshDirectoryIfRequired(HTML5CMakeModules);
-
-				foreach(string BuildConfig in TargetConfigurations)
-			{
-				DirectoryReference CMakeTargetDirectory = GetProjectDirectory(TargetLib, TargetData);
-				CMakeTargetDirectory = DirectoryReference.Combine(CMakeTargetDirectory, "BUILD" + BuildMap[BuildConfig]);
-				MakeFreshDirectoryIfRequired(CMakeTargetDirectory);
-
-				if (!bCleanOnly)
-				{
-					LogInformation("Generating projects for lib " + TargetLib.ToString() + ", " + TargetData.ToString());
-
-					// CMAKE_TOOLCHAIN_FILE
-					Environment.SetEnvironmentVariable("LIB_SUFFIX", GetConfigurationSuffix(BuildConfig, TargetData)); // only used in HTML5's CMakefiles
-
-					string orig = File.ReadAllText(HTML5SDKInfo.EmscriptenCMakeToolChainFile);
-					string txt = Regex.Replace(orig, "-O2" , BuildMap[BuildConfig] );
-					string CmakeToolchainFile = FileReference.Combine(HTML5CMakeModules, "Emscripten." + BuildConfig + ".cmake").ToString();
-					File.WriteAllText(CmakeToolchainFile, txt);
-
-					// ----------------------------------------
-
-					// CMAKE
-					ProcessStartInfo StartInfo = new ProcessStartInfo();
-					StartInfo.FileName = "python";
-					StartInfo.WorkingDirectory = CMakeTargetDirectory.ToString();
-					StartInfo.Arguments = "\"" + HTML5SDKInfo.EMSCRIPTEN_ROOT + "\\emcmake\" cmake " + GetCMakeArguments(TargetLib, TargetData, BuildConfig);
-
-					LogInformation("Working in: {0}", StartInfo.WorkingDirectory);
-					LogInformation("{0} {1}", StartInfo.FileName, StartInfo.Arguments);
-
-					if (RunLocalProcessAndLogOutput(StartInfo) != 0)
-					{
-						throw new AutomationException(String.Format("Unabled to generate projects for {0}.", TargetLib.ToString() + ", " + TargetData.ToString()));
-					}
-				}
-			}
-		}
 		else
 		{
 			DirectoryReference CMakeTargetDirectory = GetProjectDirectory(TargetLib, TargetData);
@@ -908,33 +842,6 @@ class BuildPhysX : BuildCommand
 		}
 	}
 
-	private void SetupInstanceBuildEnvironment()
-	{
-		// ================================================================================
-		// HTML5
-		if (GetTargetPlatforms().Any(X => X.Platform == UnrealTargetPlatform.HTML5))
-		{
-			// override BuildConfiguration defaults - so we can use HTML5SDKInfo
-			string EngineSourceDir = GetProjectDirectory(PhysXTargetLib.PhysX, new TargetPlatformData(UnrealTargetPlatform.HTML5)).ToString();
-			EngineSourceDir = Regex.Replace(EngineSourceDir, @"\\", "/");
-			EngineSourceDir = Regex.Replace(EngineSourceDir, ".*Engine/", "");
-
-			if (!HTML5SDKInfo.IsSDKInstalled())
-			{
-				throw new AutomationException("EMSCRIPTEN SDK TOOLCHAIN NOT FOUND...");
-			}
-			// warm up emscripten config file
-			HTML5SDKInfo.SetUpEmscriptenConfigFile(true);
-			Environment.SetEnvironmentVariable("PATH",
-					Environment.GetEnvironmentVariable("EMSCRIPTEN") + ";" +
-					Environment.GetEnvironmentVariable("NODEPATH") + ";" +
-					Environment.GetEnvironmentVariable("LLVM") + ";" +
-					Path.GetDirectoryName(HTML5SDKInfo.Python().FullName) + ";" +
-					Environment.GetEnvironmentVariable("PATH"));
-			//Log("set {0}={1}", "PATH", Environment.GetEnvironmentVariable("PATH"));
-		}
-	}
-
 	private static void BuildMSBuildTarget(PhysXTargetLib TargetLib, TargetPlatformData TargetData, List<string> TargetConfigurations, WindowsCompiler TargetWindowsCompiler = WindowsCompiler.VisualStudio2015_DEPRECATED)
 	{
 		string SolutionFile = GetTargetLibSolutionFileName(TargetLib, TargetData, TargetWindowsCompiler).ToString();
@@ -994,47 +901,47 @@ class BuildPhysX : BuildCommand
 		}
 	}
 
-    private static void BuildSwitchTarget(PhysXTargetLib TargetLib, TargetPlatformData TargetData, List<string> TargetConfigurations, WindowsCompiler TargetWindowsCompiler = WindowsCompiler.VisualStudio2015_DEPRECATED)
-    {
-        if (TargetData.Platform != UnrealTargetPlatform.Switch)
-        {
-            return;
-        }
+	private static void BuildSwitchTarget(PhysXTargetLib TargetLib, TargetPlatformData TargetData, List<string> TargetConfigurations, WindowsCompiler TargetWindowsCompiler = WindowsCompiler.VisualStudio2015_DEPRECATED)
+	{
+		if (TargetData.Platform != UnrealTargetPlatform.Switch)
+		{
+			return;
+		}
 
-        string SolutionFile = GetTargetLibSolutionFileName(TargetLib, TargetData, TargetWindowsCompiler).ToString();
-        string MSBuildExe = GetMsBuildExe(TargetData);
+		string SolutionFile = GetTargetLibSolutionFileName(TargetLib, TargetData, TargetWindowsCompiler).ToString();
+		string MSBuildExe = GetMsBuildExe(TargetData);
 
-        if (!FileExists(SolutionFile))
-        {
-            throw new AutomationException(String.Format("Unabled to build Solution {0}. Solution file not found.", SolutionFile));
-        }
-        if (String.IsNullOrEmpty(MSBuildExe))
-        {
-            throw new AutomationException(String.Format("Unabled to build Solution {0}. msbuild.exe not found.", SolutionFile));
-        }
+		if (!FileExists(SolutionFile))
+		{
+			throw new AutomationException(String.Format("Unabled to build Solution {0}. Solution file not found.", SolutionFile));
+		}
+		if (String.IsNullOrEmpty(MSBuildExe))
+		{
+			throw new AutomationException(String.Format("Unabled to build Solution {0}. msbuild.exe not found.", SolutionFile));
+		}
 
-        string AdditionalProperties = "";
+		string AdditionalProperties = "";
 
-        string AutoSDKPropsPath = Environment.GetEnvironmentVariable("SwitchAutoSDKProp");
-        if (AutoSDKPropsPath != null && AutoSDKPropsPath.Length > 0)
-        {
-            AdditionalProperties += String.Format(";CustomBeforeMicrosoftCommonProps={0}", AutoSDKPropsPath);
-        }
+		string AutoSDKPropsPath = Environment.GetEnvironmentVariable("SwitchAutoSDKProp");
+		if (AutoSDKPropsPath != null && AutoSDKPropsPath.Length > 0)
+		{
+			AdditionalProperties += String.Format(";CustomBeforeMicrosoftCommonProps={0}", AutoSDKPropsPath);
+		}
 
-        string SwitchCMakeModulesPath = Path.Combine(PhysXSourceRootDirectory.FullName, "Externals", "CMakeModules", "Switch", "Microsoft.Cpp.NX-NXFP2-a64.user.props");
-        if (File.Exists(SwitchCMakeModulesPath))
-        {
-            AdditionalProperties += String.Format(";ForceImportBeforeCppTargets={0}", SwitchCMakeModulesPath);
-        }
+		string SwitchCMakeModulesPath = Path.Combine(PhysXSourceRootDirectory.FullName, "Externals", "CMakeModules", "Switch", "Microsoft.Cpp.NX-NXFP2-a64.user.props");
+		if (File.Exists(SwitchCMakeModulesPath))
+		{
+			AdditionalProperties += String.Format(";ForceImportBeforeCppTargets={0}", SwitchCMakeModulesPath);
+		}
 
-        foreach (string BuildConfig in TargetConfigurations)
-        {
-            string CmdLine = String.Format("\"{0}\" /t:build /p:Configuration={1};Platform=NX-NXFP2-a64{2}", SolutionFile, BuildConfig, AdditionalProperties);
-            RunAndLog(BuildCommand.CmdEnv, MSBuildExe, CmdLine);
-        }
-    }
+		foreach (string BuildConfig in TargetConfigurations)
+		{
+			string CmdLine = String.Format("\"{0}\" /t:build /p:Configuration={1};Platform=NX-NXFP2-a64{2}", SolutionFile, BuildConfig, AdditionalProperties);
+			RunAndLog(BuildCommand.CmdEnv, MSBuildExe, CmdLine);
+		}
+	}
 
-    private static void BuildMakefileTarget(PhysXTargetLib TargetLib, TargetPlatformData TargetData, List<string> TargetConfigurations)
+	private static void BuildMakefileTarget(PhysXTargetLib TargetLib, TargetPlatformData TargetData, List<string> TargetConfigurations)
 	{
 		// FIXME: use absolute path
 		string MakeCommand = "make";
@@ -1050,7 +957,6 @@ class BuildPhysX : BuildCommand
 			MakeOptions = string.Format("{1} \"MAKE={0} {1}\"", MakeCommand, MakeOptions);
 		}
 
-		// this will be replaced for HTML5 - see SetupBuildForTargetLibAndPlatform() for details
 		Dictionary<string, string> BuildMap = new Dictionary<string, string>()
 		{
 			{"debug", "debug"},
@@ -1063,29 +969,16 @@ class BuildPhysX : BuildCommand
 		{
 			// Use make from Android toolchain
 			string NDKDirectory = Environment.GetEnvironmentVariable("NDKROOT");
-	
+
 			// don't register if we don't have an NDKROOT specified
 			if (String.IsNullOrEmpty(NDKDirectory))
 			{
 				throw new AutomationException("NDKROOT is not specified; cannot build Android.");
 			}
-	
+
 			NDKDirectory = NDKDirectory.Replace("\"", "");
-	
+
 			MakeCommand = NDKDirectory + "\\prebuilt\\windows-x86_64\\bin\\make.exe";
-		}
-		else if (TargetData.Platform == UnrealTargetPlatform.HTML5)
-		{
-			// Use emscripten toolchain
-			MakeCommand = "python";
-			MakeOptions = "\"" + HTML5SDKInfo.EMSCRIPTEN_ROOT + "\\emmake\" make";
-			BuildMap = new Dictionary<string, string>()
-			{
-				{"debug", "Build-O0"},
-				{"checked", "Build-O2"},
-				{"profile", "Build-Oz"},
-				{"release", "Build-O3"}
-			};
 		}
 
 		// makefile build has "projects" for every configuration. However, we abstract away from that by assuming GetProjectDirectory points to the "meta-project"
@@ -1093,7 +986,6 @@ class BuildPhysX : BuildCommand
 		{
 			DirectoryReference MetaProjectDirectory = GetProjectDirectory(TargetLib, TargetData);
 			DirectoryReference ConfigDirectory = DirectoryReference.Combine(MetaProjectDirectory, BuildMap[BuildConfig]);
-			Environment.SetEnvironmentVariable("LIB_SUFFIX", GetConfigurationSuffix(BuildConfig, TargetData)); // only used in HTML5's CMakefiles
 			string Makefile = FileReference.Combine(ConfigDirectory, "Makefile").ToString();
 			if (!FileExists(Makefile))
 			{
@@ -1118,22 +1010,22 @@ class BuildPhysX : BuildCommand
 	private static void BuildXcodeTarget(PhysXTargetLib TargetLib, TargetPlatformData TargetData, List<string> TargetConfigurations)
 	{
 		DirectoryReference Directory = GetProjectDirectory(TargetLib, TargetData);
-        string ProjectName = "";
+		string ProjectName = "";
 
-        switch(TargetLib)
-        {
-            case PhysXTargetLib.APEX:
-                ProjectName = "APEX";
-                break;
-            case PhysXTargetLib.NvCloth:
-                ProjectName = "NvCloth";
-                break;
-            case PhysXTargetLib.PhysX:
-                ProjectName = "PhysX";
-                break;
-            default:
-                throw new AutomationException(String.Format("Unabled to build XCode target, Unsupported library {0}.", TargetLib.ToString()));
-        }
+		switch(TargetLib)
+		{
+			case PhysXTargetLib.APEX:
+				ProjectName = "APEX";
+				break;
+			case PhysXTargetLib.NvCloth:
+				ProjectName = "NvCloth";
+				break;
+			case PhysXTargetLib.PhysX:
+				ProjectName = "PhysX";
+				break;
+			default:
+				throw new AutomationException(String.Format("Unabled to build XCode target, Unsupported library {0}.", TargetLib.ToString()));
+		}
 
 		string ProjectFile = FileReference.Combine(Directory, ProjectName + ".xcodeproj").ToString();
 
@@ -1153,7 +1045,7 @@ class BuildPhysX : BuildCommand
 	{
 		if (DoesPlatformUseMSBuild(TargetData))
 		{
-			if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64 || 
+			if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64 ||
 				TargetData.Platform == UnrealTargetPlatform.HoloLens)
 			{
 				// for windows platforms we support building against multiple compilers
@@ -1294,10 +1186,6 @@ class BuildPhysX : BuildCommand
 		{
 			ArchName = "Mac";
 		}
-		else if (TargetData.Platform == UnrealTargetPlatform.HTML5)
-		{
-			ArchName = "HTML5";
-		}
 		else if (TargetData.Platform == UnrealTargetPlatform.IOS)
 		{
 			ArchName = "IOS";
@@ -1327,15 +1215,15 @@ class BuildPhysX : BuildCommand
 	{
 		return TargetData.Platform == UnrealTargetPlatform.Win32 ||
 			TargetData.Platform == UnrealTargetPlatform.Win64 ||
-			// Target.Platform == UnrealTargetPlatform.Mac || 
+			// Target.Platform == UnrealTargetPlatform.Mac ||
 			TargetData.Platform == UnrealTargetPlatform.Linux ||
 			TargetData.Platform == UnrealTargetPlatform.LinuxAArch64 ||
-			TargetData.Platform == UnrealTargetPlatform.XboxOne || 
+			TargetData.Platform == UnrealTargetPlatform.XboxOne ||
 			TargetData.Platform == UnrealTargetPlatform.HoloLens;
 	}
 	private static string GetPlatformDebugDatabaseExtension(TargetPlatformData TargetData)
 	{
-		if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64 || TargetData.Platform == UnrealTargetPlatform.XboxOne || 
+		if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64 || TargetData.Platform == UnrealTargetPlatform.XboxOne ||
 				TargetData.Platform == UnrealTargetPlatform.HoloLens)
 		{
 			return "pdb";
@@ -1344,7 +1232,7 @@ class BuildPhysX : BuildCommand
 		{
 			return "dSYM";
 		}
-		if (TargetData.Platform == UnrealTargetPlatform.Mac)
+		if (TargetData.Platform == UnrealTargetPlatform.Linux)
 		{
 			return "sym";
 		}
@@ -1353,7 +1241,7 @@ class BuildPhysX : BuildCommand
 
 	private static string GetPlatformBinaryExtension(TargetPlatformData TargetData)
 	{
-		if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64 || 
+		if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64 ||
 				TargetData.Platform == UnrealTargetPlatform.HoloLens)
 		{
 			return "dll";
@@ -1371,46 +1259,42 @@ class BuildPhysX : BuildCommand
 
 	private static string GetPlatformLibExtension(TargetPlatformData TargetData)
 	{
-		if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64 || TargetData.Platform == UnrealTargetPlatform.XboxOne || 
+		if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64 || TargetData.Platform == UnrealTargetPlatform.XboxOne ||
 				TargetData.Platform == UnrealTargetPlatform.HoloLens)
 		{
 			return "lib";
-		}
-		if (TargetData.Platform == UnrealTargetPlatform.HTML5)
-		{
-			return "bc";
 		}
 
 		// everything else is clang
 		return "a";
 	}
 
-    private static bool FileGeneratedByLib(string FileNameUpper, PhysXTargetLib TargetLib)
-    {
-        switch(TargetLib)
-        {
-            case PhysXTargetLib.APEX:
-                return FileGeneratedByAPEX(FileNameUpper);
-            case PhysXTargetLib.NvCloth:
-                return FileGeneratedByNvCloth(FileNameUpper);
-            default:
-                break;
-        }
+	private static bool FileGeneratedByLib(string FileNameUpper, PhysXTargetLib TargetLib)
+	{
+		switch(TargetLib)
+		{
+			case PhysXTargetLib.APEX:
+				return FileGeneratedByAPEX(FileNameUpper);
+			case PhysXTargetLib.NvCloth:
+				return FileGeneratedByNvCloth(FileNameUpper);
+			default:
+				break;
+		}
 
-        // Must have been PhysX if we got here, if it wasn't generated by other libs, then it's PhysX
-        return !FileGeneratedByAPEX(FileNameUpper) && !FileGeneratedByNvCloth(FileNameUpper);
-    }
+		// Must have been PhysX if we got here, if it wasn't generated by other libs, then it's PhysX
+		return !FileGeneratedByAPEX(FileNameUpper) && !FileGeneratedByNvCloth(FileNameUpper);
+	}
 
-    private static bool FileGeneratedByNvCloth(string FileNameUpper)
-    {
+	private static bool FileGeneratedByNvCloth(string FileNameUpper)
+	{
 		if (FileNameUpper.Contains("NVCLOTH"))
-        {
-            return true;
-        }
+		{
+			return true;
+		}
 
-        return false;
-    }
-    
+		return false;
+	}
+
 	private static bool FileGeneratedByAPEX(string FileNameUpper)
 	{
 		if (FileNameUpper.Contains("APEX"))
@@ -1441,7 +1325,7 @@ class BuildPhysX : BuildCommand
 		foreach (FileReference FoundFile in DirectoryReference.EnumerateFiles(BaseDir, SearchPrefix))
 		{
 			string FileNameUpper = FoundFile.GetFileName().ToString().ToUpper();
-			
+
 			if(FileGeneratedByLib(FileNameUpper, TargetLib))
 			{
 				OutputFiles.Add(FoundFile);
@@ -1510,18 +1394,6 @@ class BuildPhysX : BuildCommand
 			{"release", ""}
 		};
 
-		if (TargetData.Platform == UnrealTargetPlatform.HTML5)
-		{
-			// HTML5 - see SetupBuildForTargetLibAndPlatform() for details
-			BuildSuffix = new Dictionary<string, string>()
-			{
-				{"debug", ""},
-				{"checked", "_O2"},
-				{"profile", "_Oz"},
-				{"release", "_O3"}
-			};
-		}
-
 		return BuildSuffix[TargetConfiguration];
 	}
 
@@ -1532,7 +1404,7 @@ class BuildPhysX : BuildCommand
 		{
 			SearchSuffix += "_x86";
 		}
-		else if (TargetData.Platform == UnrealTargetPlatform.Win64 || 
+		else if (TargetData.Platform == UnrealTargetPlatform.Win64 ||
 				TargetData.Platform == UnrealTargetPlatform.HoloLens)
 		{
 			SearchSuffix += "_x64";
@@ -1570,7 +1442,7 @@ class BuildPhysX : BuildCommand
 				TargetData.Platform == UnrealTargetPlatform.PS4 ||
 				TargetData.Platform == UnrealTargetPlatform.XboxOne ||
 				TargetData.Platform == UnrealTargetPlatform.Mac ||
-				TargetData.Platform == UnrealTargetPlatform.Switch || 
+				TargetData.Platform == UnrealTargetPlatform.Switch ||
 				TargetData.Platform == UnrealTargetPlatform.HoloLens)
 			{
 				return true;
@@ -1584,14 +1456,14 @@ class BuildPhysX : BuildCommand
 			return false;
 		}
 
-        if(TargetLib == PhysXTargetLib.NvCloth)
-        {
+		if(TargetLib == PhysXTargetLib.NvCloth)
+		{
 			if (TargetData.Platform == UnrealTargetPlatform.Win32 ||
 				TargetData.Platform == UnrealTargetPlatform.Win64 ||
 				TargetData.Platform == UnrealTargetPlatform.PS4 ||
 				TargetData.Platform == UnrealTargetPlatform.XboxOne ||
 				TargetData.Platform == UnrealTargetPlatform.Mac ||
-				TargetData.Platform == UnrealTargetPlatform.Switch || 
+				TargetData.Platform == UnrealTargetPlatform.Switch ||
 				TargetData.Platform == UnrealTargetPlatform.HoloLens)
 			{
 				return true;
@@ -1611,7 +1483,6 @@ class BuildPhysX : BuildCommand
 	public override void ExecuteBuild()
 	{
 		SetupStaticBuildEnvironment();
-		SetupInstanceBuildEnvironment();
 
 		bool bBuildSolutions = true;
 		if (ParseParam("SkipBuildSolutions"))
@@ -1636,7 +1507,7 @@ class BuildPhysX : BuildCommand
 		{
 			bAutoSubmit = false;
 		}
-		
+
 		// if we don't pass anything, we'll just merge by default
 		string RobomergeCommand = ParseParamValue("Robomerge", "").ToLower();
 		if(!string.IsNullOrEmpty(RobomergeCommand))
@@ -1708,7 +1579,7 @@ class BuildPhysX : BuildCommand
 					foreach (string TargetConfiguration in TargetConfigurations)
 					{
 						// Delete output files before building them
-						if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64 || 
+						if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64 ||
 								TargetData.Platform == UnrealTargetPlatform.HoloLens)
 						{
 							foreach (WindowsCompiler TargetCompiler in TargetWindowsCompilers)
@@ -1717,7 +1588,7 @@ class BuildPhysX : BuildCommand
 							}
 						}
 						else
-						{ 
+						{
 							FindOutputFiles(FilesToDelete, TargetLib, TargetData, TargetConfiguration);
 						}
 					}
@@ -1742,14 +1613,14 @@ class BuildPhysX : BuildCommand
 		{
 			string LibDeploymentDesc = "";
 
-            foreach(PhysXTargetLib Lib in TargetLibs)
+			foreach(PhysXTargetLib Lib in TargetLibs)
 			{
-                if(LibDeploymentDesc.Length != 0)
-                {
-                    LibDeploymentDesc += " & ";
+				if(LibDeploymentDesc.Length != 0)
+				{
+					LibDeploymentDesc += " & ";
 			}
 
-                LibDeploymentDesc += Lib.ToString();
+				LibDeploymentDesc += Lib.ToString();
 			}
 
 			foreach (TargetPlatformData TargetData in TargetPlatforms)
@@ -1762,7 +1633,7 @@ class BuildPhysX : BuildCommand
 			{
 				RobomergeLine = Environment.NewLine + RobomergeCommand;
 			}
-            P4ChangeList = P4.CreateChange(P4Env.Client, String.Format("BuildPhysX.Automation: Deploying {0} libs.", LibDeploymentDesc) + Environment.NewLine + "#rb none" + Environment.NewLine + "#lockdown Nick.Penwarden" + Environment.NewLine + "#tests none" + Environment.NewLine + "#jira none" + Environment.NewLine + "#okforgithub ignore" + RobomergeLine);
+			P4ChangeList = P4.CreateChange(P4Env.Client, String.Format("BuildPhysX.Automation: Deploying {0} libs.", LibDeploymentDesc) + Environment.NewLine + "#rb none" + Environment.NewLine + "#lockdown Nick.Penwarden" + Environment.NewLine + "#tests none" + Environment.NewLine + "#jira none" + Environment.NewLine + "#okforgithub ignore" + RobomergeLine);
 		}
 
 
@@ -1781,7 +1652,7 @@ class BuildPhysX : BuildCommand
 						}
 
 
-						if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64 || 
+						if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64 ||
 								TargetData.Platform == UnrealTargetPlatform.HoloLens)
 						{
 							foreach (WindowsCompiler TargetCompiler in TargetWindowsCompilers)

@@ -11,8 +11,54 @@
 
 #include "DataPrepContentProducer.generated.h"
 
+/** Structure to pass execution context to producer */
+struct FDataprepProducerContext
+{
+	FDataprepProducerContext() {}
+
+	/** World where the producer must add its actors */
+	TWeakObjectPtr<UWorld> WorldPtr;
+
+	/**
+	* Package of the content folder under which the producer must create assets to
+	* @remark: It is important to follow this rule since the Dataprep consumer assumes this is where all created assets are located
+	*/
+	TWeakObjectPtr<UPackage> RootPackagePtr;
+
+	/** Reporter the producer should use to report progress */
+	TSharedPtr< IDataprepProgressReporter > ProgressReporterPtr;
+
+	/** Logger the producer should use to log messages */
+	TSharedPtr<  IDataprepLogger > LoggerPtr;
+
+	/** Helpers to set different members of the context */
+	FDataprepProducerContext& SetWorld( UWorld* InWorld )
+	{ 
+		WorldPtr = TWeakObjectPtr< UWorld >(InWorld);
+		return *this;
+	}
+
+	FDataprepProducerContext& SetRootPackage( UPackage* InRootPackage )
+	{
+		RootPackagePtr = TWeakObjectPtr< UPackage >(InRootPackage);
+		return *this;
+	}
+
+	FDataprepProducerContext& SetProgressReporter( const TSharedPtr< IDataprepProgressReporter >& InProgressReporter )
+	{
+		ProgressReporterPtr = InProgressReporter;
+		return *this;
+	}
+
+	FDataprepProducerContext& SetLogger( const TSharedPtr< IDataprepLogger >& InLogger )
+	{
+		LoggerPtr = InLogger;
+		return *this;
+	}
+};
+
 /**
- * Abstract class to derived from to be a producer in the dataprep asset
+ * Abstract class to derived from to be a producer in the Dataprep asset
  */
 UCLASS(Experimental, Abstract)
 class DATAPREPCORE_API UDataprepContentProducer : public UObject
@@ -21,77 +67,16 @@ class DATAPREPCORE_API UDataprepContentProducer : public UObject
 
 public:
 
-	/** Structure to pass execution context to producer */
-	struct ProducerContext
-	{
-		ProducerContext() {}
-
-		/** World where the producer must add its actors */
-		TWeakObjectPtr<UWorld> WorldPtr;
-
-		/**
-		  * Package of the content folder under which the producer must create assets to
-		  * @remark: It is important to follow this rule since the Dataprep consumer assumes this is where all created assets are located
-		  */
-		TWeakObjectPtr<UPackage> RootPackagePtr;
-
-		/** Reporter the producer should use to report progress */
-		TSharedPtr< IDataprepProgressReporter > ProgressReporterPtr;
-
-		/** Logger the producer should use to log messages */
-		TSharedPtr<  IDataprepLogger > LoggerPtr;
-
-		/** Helpers to set different members of the context */
-		ProducerContext& SetWorld( UWorld* InWorld )
-		{ 
-			WorldPtr = TWeakObjectPtr< UWorld >(InWorld);
-			return *this;
-		}
-
-		ProducerContext& SetRootPackage( UPackage* InRootPackage )
-		{
-			RootPackagePtr = TWeakObjectPtr< UPackage >(InRootPackage);
-			return *this;
-		}
-
-		ProducerContext& SetProgressReporter( const TSharedPtr< IDataprepProgressReporter >& InProgressReporter )
-		{
-			ProgressReporterPtr = InProgressReporter;
-			return *this;
-		}
-
-		ProducerContext& SetLogger( const TSharedPtr< IDataprepLogger >& InLogger )
-		{
-			LoggerPtr = InLogger;
-			return *this;
-		}
-	};
-
 	/**
-	 * Initialize the producer to be ready for a call to the Run method.
-	 * @param InContext : Context containing all the data required to perform a run.
-	 * @param OutReason : Text containing description of failure if the method returns false
-	 * @return true if the initialization was successful, false otherwise
-	 * @remark A copy of the context is made by the consumer. The context is cleared by a call to Reset
+	 * Successively calls the Initialize, Execute and Reset methods
+	 * Additionally, to avoid naming collision, rename the newly created actors to include the producer's namespace.
+	 * @param InContext		Context containing all the data required to perform a run.
+	 * @param OutAssets		Array of assets created by the producer
+	 * @param OutReason		Text containing description of failure if the method returns false
+	 *
 	 * @remark The world in the context should be assumed to be transient
 	 */
-	virtual bool Initialize( const ProducerContext& InContext, FString& OutReason );
-
-	/**
-	 * Calls the Execute method and rename the newly created actors to include the producer's namespace.
-	 */
-	bool Produce();
-
-	/**
-	 * Clean up the objects used by the producer. This call follows a call to Execute.
-	 * Note: The producer must assume that the world and assets it has produced are about to be deleted.
-	 */
-	virtual void Reset();
-
-	/**
-	 * Returns the array of assets generated after a call to the method Run.
-	 */
-	const TArray< TWeakObjectPtr< UObject > >& GetAssets() const { return Assets; }
+	bool Produce(const FDataprepProducerContext& InContext, TArray< TWeakObjectPtr< UObject > >& OutAssets);
 
 	/** Name used by the UI to be displayed. */
 	virtual const FText& GetLabel() const { return FText::GetEmpty(); }
@@ -130,10 +115,23 @@ public:
 protected:
 
 	/**
+	 * Initialize the producer to be ready for a call to the Execute method.
+	 * @param OutReason		Text containing description of failure if the method returns false
+	 * @return true if the initialization was successful, false otherwise
+	 */
+	virtual bool Initialize() { return false; };
+
+	/**
 	 * Populates the world and fill up the array of assets.
 	 * Reminder: All assets must be stored in the sub-package of the package provided in the context
 	 */
-	virtual bool Execute() { return IsValid() ? true : false; }
+	virtual bool Execute(TArray< TWeakObjectPtr< UObject > >& OutAssets) { return false; };
+
+	/**
+	 * Clean up the objects used by the producer. This call follows a call to Execute.
+	 * Note: The producer must assume that the world and assets it has produced are about to be deleted.
+	 */
+	virtual void Reset() {};
 
 	// Start of helper functions to log messages and report progress
 	void LogInfo(const FText& Message)
@@ -165,11 +163,20 @@ protected:
 
 protected:
 	/** Context which the producer will run with */
-	ProducerContext Context;
-
-	/** Array of assets generated after a call to Run */
-	TArray<TWeakObjectPtr<UObject>> Assets;
+	FDataprepProducerContext Context;
 
 	/** Delegate to broadcast changes to the producer */
 	FDataprepProducerChanged OnChanged;
+
+private:
+	void Terminate()
+	{
+		Reset();
+
+		// Release hold onto all context's objects
+		Context.WorldPtr.Reset();
+		Context.RootPackagePtr.Reset();
+		Context.ProgressReporterPtr.Reset();
+		Context.LoggerPtr.Reset();
+	}
 };

@@ -80,5 +80,6 @@ public:
 	virtual TArray<UObject*> GetSettingsObjects() const override;// { return TArray<UObject*>(); }
 	// virtual void ExecuteFracture() {}
 	// virtual bool CanExecuteFracture() { return true; }
+	virtual bool CanExecuteFracture() const override;
 
 };

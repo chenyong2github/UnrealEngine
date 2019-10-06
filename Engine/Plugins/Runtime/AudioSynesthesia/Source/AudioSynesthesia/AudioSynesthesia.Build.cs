@@ -16,6 +16,8 @@ namespace UnrealBuildTool.Rules
                     "Core",
 					"CoreUObject",
 					"Engine",
+					"SignalProcessing",
+					"AudioMixerCore",
 					"AudioMixer",
                     "AudioAnalyzer"
                 }

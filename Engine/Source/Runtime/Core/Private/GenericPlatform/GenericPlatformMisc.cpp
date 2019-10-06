@@ -464,7 +464,7 @@ void FGenericPlatformMisc::HandleIOFailure( const TCHAR* Filename )
 void FGenericPlatformMisc::RaiseException(uint32 ExceptionCode)
 {
 	/** This is the last place to gather memory stats before exception. */
-	FGenericCrashContext::CrashMemoryStats = FPlatformMemory::GetStats();
+	FGenericCrashContext::SetMemoryStats(FPlatformMemory::GetStats());
 
 #if HACK_HEADER_GENERATOR && !PLATFORM_EXCEPTIONS_DISABLED
 	// We want Unreal Header Tool to throw an exception but in normal runtime code 
@@ -1372,7 +1372,7 @@ FString FGenericPlatformMisc::LoadTextFileFromPlatformPackage(const FString& Rel
 	return Result;
 }
 
-bool FGenericPlatformMisc::FileExitsInPlatformPackage(const FString& RelativePath)
+bool FGenericPlatformMisc::FileExistsInPlatformPackage(const FString& RelativePath)
 {
 	FString Path = RootDir() / RelativePath;
 	return IFileManager::Get().FileExists(*Path);

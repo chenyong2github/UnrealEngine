@@ -527,7 +527,7 @@ int8 ComputeTemporalStaticMeshLOD( const FStaticMeshRenderData* RenderData, cons
 // Ensure we always use the left eye when selecting lods to avoid divergent selections in stereo
 const FSceneView& GetLODView(const FSceneView& InView)
 {
-	if (InView.StereoPass == EStereoscopicPass::eSSP_RIGHT_EYE && InView.Family)
+	if (IStereoRendering::IsASecondaryView(InView.StereoPass) && InView.Family)
 	{
 		return *InView.Family->Views[0];
 	}

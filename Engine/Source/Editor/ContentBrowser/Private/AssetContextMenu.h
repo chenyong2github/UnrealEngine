@@ -295,8 +295,12 @@ private:
 	/** Handler to export the selected asset(s) to experimental text format */
 	void ExportSelectedAssetsToText();
 
-	/** Handler to check if we can export the selected asset(s) to experimental text format */
-	bool CanExportSelectedAssetsToText() const;
+	/** Handler to export the selected asset(s) to experimental text format */
+	void ViewSelectedAssetAsText();
+	bool CanViewSelectedAssetAsText() const;
+
+	/** Run the rountrip test on this asset */
+	void DoTextFormatRoundtrip();
 
 	/** Handler to check to see if a sync to asset tree command is allowed */
 	bool CanExecuteSyncToAssetTree() const;

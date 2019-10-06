@@ -10,7 +10,6 @@
 #include "Insights/ViewModels/StatsNode.h"
 
 DECLARE_DELEGATE_TwoParams(FSetHoveredStatsTableCell, const FName /*ColumnId*/, const FStatsNodePtr /*SamplePtr*/);
-DECLARE_DELEGATE_RetVal_OneParam(bool, FIsColumnVisibleDelegate, const FName /*ColumnId*/);
 DECLARE_DELEGATE_RetVal_OneParam(EHorizontalAlignment, FGetColumnOutlineHAlignmentDelegate, const FName /*ColumnId*/);
 
 class SStatsTableCell : public SCompoundWidget
@@ -21,7 +20,7 @@ public:
 		SLATE_ATTRIBUTE(FText, HighlightText)
 		SLATE_ARGUMENT(FStatsNodePtr, StatsNodePtr)
 		SLATE_ARGUMENT(FName, ColumnId)
-		SLATE_ARGUMENT(bool, IsStatsNameColumn)
+		SLATE_ARGUMENT(bool, IsNameColumn)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, const TSharedRef<class ITableRow>& TableRow);
@@ -88,20 +87,19 @@ protected:
 		SetHoveredTableCellDelegate.ExecuteIfBound(NAME_None, nullptr);
 	}
 
+	EVisibility GetColorBoxVisibility() const
+	{
+		return StatsNodePtr->IsAddedToGraph() ? EVisibility::Visible : EVisibility::Collapsed;
+	}
+
 	EVisibility GetHintIconVisibility() const
 	{
 		return IsHovered() ? EVisibility::Visible : EVisibility::Hidden;
 	}
 
-	EVisibility GetCulledEventsIconVisibility() const
+	FText GetDisplayName() const
 	{
-		//return StatsNodePtr->HasCulledChildren() ? EVisibility::Visible : EVisibility::Collapsed;
-		return EVisibility::Collapsed;
-	}
-
-	FText GetNameEx() const
-	{
-		return StatsNodePtr->GetNameEx();
+		return StatsNodePtr->GetDisplayName();
 	}
 
 	FSlateColor GetColorAndOpacity() const
@@ -119,6 +117,11 @@ protected:
 			StatsNodePtr->GetAggregatedStats().Count == 0 ? FLinearColor(1.0f, 1.0f, 1.0f, 0.6f) :
 			FLinearColor::White;
 		return TextColor;
+	}
+
+	FSlateColor GetStatsBoxColorAndOpacity() const
+	{
+		return StatsNodePtr->GetColor();
 	}
 
 	FLinearColor GetShadowColorAndOpacity() const

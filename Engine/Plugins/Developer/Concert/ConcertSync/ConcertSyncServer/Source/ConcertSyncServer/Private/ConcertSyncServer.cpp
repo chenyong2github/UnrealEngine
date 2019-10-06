@@ -127,9 +127,12 @@ bool MigrateSessionData(const FConcertSyncSessionDatabase& InSourceDatabase, con
 				{
 					MIGRATE_SET_ERROR_RESULT_AND_RETURN("Failed to get connection activity '%s' from database at '%s': %s", *LexToString(InActivityId), *InSourceDatabase.GetFilename(), *InSourceDatabase.GetLastError());
 				}
-				if (!DestDatabase.SetConnectionActivity(ConnectionActivity))
+				if (InDestSessionFilter.bIncludeIgnoredActivities || !ConnectionActivity.bIgnored)
 				{
-					MIGRATE_SET_ERROR_RESULT_AND_RETURN("Failed to set connection activity '%s' on database at '%s': %s", *LexToString(InActivityId), *DestDatabase.GetFilename(), *DestDatabase.GetLastError());
+					if (!DestDatabase.SetConnectionActivity(ConnectionActivity))
+					{
+						MIGRATE_SET_ERROR_RESULT_AND_RETURN("Failed to set connection activity '%s' on database at '%s': %s", *LexToString(InActivityId), *DestDatabase.GetFilename(), *DestDatabase.GetLastError());
+					}
 				}
 			}
 			break;
@@ -141,9 +144,12 @@ bool MigrateSessionData(const FConcertSyncSessionDatabase& InSourceDatabase, con
 				{
 					MIGRATE_SET_ERROR_RESULT_AND_RETURN("Failed to get lock activity '%s' from database at '%s': %s", *LexToString(InActivityId), *InSourceDatabase.GetFilename(), *InSourceDatabase.GetLastError());
 				}
-				if (!DestDatabase.SetLockActivity(LockActivity))
+				if (InDestSessionFilter.bIncludeIgnoredActivities || !LockActivity.bIgnored)
 				{
-					MIGRATE_SET_ERROR_RESULT_AND_RETURN("Failed to set lock activity '%s' on database at '%s': %s", *LexToString(InActivityId), *DestDatabase.GetFilename(), *DestDatabase.GetLastError());
+					if (!DestDatabase.SetLockActivity(LockActivity))
+					{
+						MIGRATE_SET_ERROR_RESULT_AND_RETURN("Failed to set lock activity '%s' on database at '%s': %s", *LexToString(InActivityId), *DestDatabase.GetFilename(), *DestDatabase.GetLastError());
+					}
 				}
 			}
 			break;
@@ -155,13 +161,13 @@ bool MigrateSessionData(const FConcertSyncSessionDatabase& InSourceDatabase, con
 				{
 					MIGRATE_SET_ERROR_RESULT_AND_RETURN("Failed to get transaction activity '%s' from database at '%s': %s", *LexToString(InActivityId), *InSourceDatabase.GetFilename(), *InSourceDatabase.GetLastError());
 				}
-				if (ConcertSyncSessionDatabaseFilterUtil::TransactionEventPassesFilter(TransactionActivity.EventId, InDestSessionFilter, InSourceDatabase))
+				if ((InDestSessionFilter.bIncludeIgnoredActivities || !TransactionActivity.bIgnored) && ConcertSyncSessionDatabaseFilterUtil::TransactionEventPassesFilter(TransactionActivity.EventId, InDestSessionFilter, InSourceDatabase))
 				{
-					if (!InSourceDatabase.GetTransactionEvent(TransactionActivity.EventId, TransactionActivity.EventData))
+					if (!InSourceDatabase.GetTransactionEvent(TransactionActivity.EventId, TransactionActivity.EventData, InDestSessionFilter.bMetaDataOnly))
 					{
 						MIGRATE_SET_ERROR_RESULT_AND_RETURN("Failed to get transaction event '%s' from database at '%s': %s", *LexToString(TransactionActivity.EventId), *InSourceDatabase.GetFilename(), *InSourceDatabase.GetLastError());
 					}
-					if (!DestDatabase.SetTransactionActivity(TransactionActivity))
+					if (!DestDatabase.SetTransactionActivity(TransactionActivity, InDestSessionFilter.bMetaDataOnly))
 					{
 						MIGRATE_SET_ERROR_RESULT_AND_RETURN("Failed to set transaction activity '%s' on database at '%s': %s", *LexToString(InActivityId), *DestDatabase.GetFilename(), *DestDatabase.GetLastError());
 					}
@@ -176,13 +182,13 @@ bool MigrateSessionData(const FConcertSyncSessionDatabase& InSourceDatabase, con
 				{
 					MIGRATE_SET_ERROR_RESULT_AND_RETURN("Failed to get package activity '%s' from database at '%s': %s", *LexToString(InActivityId), *InSourceDatabase.GetFilename(), *InSourceDatabase.GetLastError());
 				}
-				if (ConcertSyncSessionDatabaseFilterUtil::PackageEventPassesFilter(PackageActivity.EventId, InDestSessionFilter, InSourceDatabase))
+				if ((InDestSessionFilter.bIncludeIgnoredActivities || !PackageActivity.bIgnored) && ConcertSyncSessionDatabaseFilterUtil::PackageEventPassesFilter(PackageActivity.EventId, InDestSessionFilter, InSourceDatabase))
 				{
-					if (!InSourceDatabase.GetPackageEvent(PackageActivity.EventId, PackageActivity.EventData))
+					if (!InSourceDatabase.GetPackageEvent(PackageActivity.EventId, PackageActivity.EventData, InDestSessionFilter.bMetaDataOnly))
 					{
 						MIGRATE_SET_ERROR_RESULT_AND_RETURN("Failed to get package event '%s' from database at '%s': %s", *LexToString(PackageActivity.EventId), *InSourceDatabase.GetFilename(), *InSourceDatabase.GetLastError());
 					}
-					if (!DestDatabase.SetPackageActivity(PackageActivity))
+					if (!DestDatabase.SetPackageActivity(PackageActivity, InDestSessionFilter.bMetaDataOnly))
 					{
 						MIGRATE_SET_ERROR_RESULT_AND_RETURN("Failed to set package activity '%s' on database at '%s': %s", *LexToString(InActivityId), *DestDatabase.GetFilename(), *DestDatabase.GetLastError());
 					}
@@ -207,8 +213,8 @@ bool MigrateSessionData(const FConcertSyncSessionDatabase& InSourceDatabase, con
 
 } // namespace ConcertSyncServerUtils
 
-FConcertSyncServer::FConcertSyncServer(const FString& InRole)
-	: ConcertServer(IConcertModule::Get().CreateServer(InRole, this))
+FConcertSyncServer::FConcertSyncServer(const FString& InRole, const FConcertSessionFilter& InAutoArchiveSessionFilter)
+	: ConcertServer(IConcertModule::Get().CreateServer(InRole, InAutoArchiveSessionFilter, this))
 	, SessionFlags(EConcertSyncSessionFlags::None)
 {
 }
@@ -308,6 +314,22 @@ bool FConcertSyncServer::ArchiveSession(const IConcertServer& InServer, const FS
 	return RetVal;
 }
 
+bool FConcertSyncServer::ExportSession(const IConcertServer& InServer, const FGuid& InSessionId, const FString& DestDir, const FConcertSessionFilter& InSessionFilter, bool bAnonymizeData)
+{
+	if (TSharedPtr<FConcertSyncServerLiveSession> LiveSession = LiveSessions.FindRef(InSessionId)) // If the session is live.
+	{
+		ConcertSyncServerUtils::WriteSessionInfoToDirectory(DestDir, LiveSession->GetSession().GetSessionInfo());
+		return ConcertSyncServerUtils::MigrateSessionData(LiveSession->GetSessionDatabase(), DestDir, InSessionFilter);
+	}
+	else if (TSharedPtr<FConcertSyncServerArchivedSession> ArchivedSession = ArchivedSessions.FindRef(InSessionId)) // If the session is archived.
+	{
+		ConcertSyncServerUtils::WriteSessionInfoToDirectory(DestDir, ArchivedSession->GetSessionInfo());
+		return ConcertSyncServerUtils::MigrateSessionData(ArchivedSession->GetSessionDatabase(), DestDir, InSessionFilter);
+	}
+
+	return false; // Session not found.
+}
+
 bool FConcertSyncServer::RestoreSession(const IConcertServer& InServer, const FGuid& InArchivedSessionId, const FString& InLiveSessionRoot, const FConcertSessionInfo& InLiveSessionInfo, const FConcertSessionFilter& InSessionFilter)
 {
 	if (TSharedPtr<FConcertSyncServerArchivedSession> ArchivedSession = ArchivedSessions.FindRef(InArchivedSessionId))
@@ -317,39 +339,93 @@ bool FConcertSyncServer::RestoreSession(const IConcertServer& InServer, const FG
 	return false;
 }
 
-bool FConcertSyncServer::GetSessionActivities(const IConcertServer& InServer, const FGuid& SessionId, int64 FromActivityId, int64 ActivityCount, TArray<FConcertSessionSerializedPayload>& Activities)
+bool FConcertSyncServer::GetSessionActivities(const IConcertServer& InServer, const FGuid& SessionId, int64 FromActivityId, int64 ActivityCount, TArray<FConcertSessionSerializedPayload>& Activities, TMap<FGuid, FConcertClientInfo>& OutEndpointClientInfoMap, bool bIncludeDetails)
 {
 	if (TSharedPtr<FConcertSyncServerLiveSession> LiveSession = LiveSessions.FindRef(SessionId))
 	{
-		return GetSessionActivities(LiveSession->GetSessionDatabase(), FromActivityId, ActivityCount, Activities);
+		return GetSessionActivities(LiveSession->GetSessionDatabase(), FromActivityId, ActivityCount, Activities, OutEndpointClientInfoMap, bIncludeDetails);
 	}
 	else if (TSharedPtr<FConcertSyncServerArchivedSession> ArchivedSession = ArchivedSessions.FindRef(SessionId))
 	{
-		return GetSessionActivities(ArchivedSession->GetSessionDatabase(), FromActivityId, ActivityCount, Activities);
+		return GetSessionActivities(ArchivedSession->GetSessionDatabase(), FromActivityId, ActivityCount, Activities, OutEndpointClientInfoMap, bIncludeDetails);
 	}
 
 	return false; // Not Found.
 }
 
-bool FConcertSyncServer::GetSessionActivities(const FConcertSyncSessionDatabase& Database, int64 FromActivityId, int64 ActivityCount, TArray<FConcertSessionSerializedPayload>& OutActivities)
+bool FConcertSyncServer::GetSessionActivities(const FConcertSyncSessionDatabase& Database, int64 FromActivityId, int64 ActivityCount, TArray<FConcertSessionSerializedPayload>& OutActivities, TMap<FGuid, FConcertClientInfo>& OutEndpointClientInfoMap, bool bIncludeDetails)
 {
 	int64 MaxActivityId;
 	Database.GetActivityMaxId(MaxActivityId);
 
-	if (ActivityCount < 0)
+	if (ActivityCount < 0) // Client requested the 'ActivityCount' last activities?
 	{
 		ActivityCount = FMath::Abs(ActivityCount);
-		FromActivityId = FMath::Max(1ll, MaxActivityId - ActivityCount + 1); // Note: Activity ID are 1-based, not 0-based.
+		FromActivityId = FMath::Max(1ll, MaxActivityId - ActivityCount + 1); // Note: Activity IDs are 1-based, not 0-based.
 	}
 
-	OutActivities.Reserve(FMath::Min(ActivityCount, MaxActivityId));
+	OutEndpointClientInfoMap.Reset();
+	OutActivities.Reset(FMath::Min(ActivityCount, MaxActivityId));
 
 	// Retrieve the generic part of activities.
-	Database.EnumerateActivitiesInRange(FromActivityId, ActivityCount, [&OutActivities](FConcertSyncActivity&& InActivity)
+	Database.EnumerateActivityIdsAndEventTypesInRange(FromActivityId, ActivityCount, [&Database, &OutActivities, &OutEndpointClientInfoMap, bIncludeDetails](const int64 InActivityId, const EConcertSyncActivityEventType InEventType)
 	{
-		FConcertSessionSerializedPayload Payload;
-		Payload.SetTypedPayload(InActivity);
-		OutActivities.Add(MoveTemp(Payload));
+		// Maps endpoint client id to the client info.
+		auto UpdateEndpointMap = [](const FConcertSyncSessionDatabase& Database, FGuid EndpointId, TMap<FGuid, FConcertClientInfo>& OutEndpointClientInfoMap)
+		{
+			FConcertSyncEndpointData EndpointData;
+			if (Database.GetEndpoint(EndpointId, EndpointData))
+			{
+				OutEndpointClientInfoMap.Add(EndpointId, EndpointData.ClientInfo);
+			}
+		};
+
+		FConcertSessionSerializedPayload SerializedSyncActivityPayload;
+
+		if (InEventType == EConcertSyncActivityEventType::Transaction)
+		{
+			FConcertSyncTransactionActivity SyncActivity;
+			if (Database.GetActivity(InActivityId, SyncActivity)) // Get the generic part of the activity.
+			{
+				UpdateEndpointMap(Database, SyncActivity.EndpointId, OutEndpointClientInfoMap);
+
+				// If the details are requested, get the transaction data, to inspect what properties were affected by this transaction.
+				if (bIncludeDetails)
+				{
+					Database.GetTransactionEvent(SyncActivity.EventId, SyncActivity.EventData, /*bMetaDataOnly*/false); // Transaction data is required to inspect what property changed.
+				}
+
+				SerializedSyncActivityPayload.SetTypedPayload(SyncActivity);
+			}
+		}
+		else if (InEventType == EConcertSyncActivityEventType::Package)
+		{
+			FConcertSyncPackageActivity SyncActivity;
+			if (Database.GetActivity(InActivityId, SyncActivity)) // Get the generic part of the activity.
+			{
+				UpdateEndpointMap(Database, SyncActivity.EndpointId, OutEndpointClientInfoMap);
+
+				// If the details are requested, get the package event meta-data, which contain extra info about the package name/version, etc.
+				if (bIncludeDetails)
+				{
+					Database.GetPackageEvent(SyncActivity.EventId, SyncActivity.EventData, true/*bMetaDataOnly*/); // Just get the package event meta-data, the package data is not required to display details.
+				}
+
+				SerializedSyncActivityPayload.SetTypedPayload(SyncActivity);
+			}
+		}
+		else // Connection/lock -> Don't have interesting info to display outside the generic activity info.
+		{
+			FConcertSyncActivity SyncActivity;
+			if (Database.GetActivity(InActivityId, SyncActivity)) // Get the generic part of the activity.
+			{
+				UpdateEndpointMap(Database, SyncActivity.EndpointId, OutEndpointClientInfoMap);
+				SerializedSyncActivityPayload.SetTypedPayload(SyncActivity);
+			}
+		}
+
+		OutActivities.Add(MoveTemp(SerializedSyncActivityPayload));
+
 		return true; // Continue until 'ActivityCount' is fetched or the last activity is reached.
 	});
 

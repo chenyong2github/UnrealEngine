@@ -219,7 +219,7 @@ void FD3D12Viewport::Init()
 #if !PLATFORM_HOLOLENS
 	// Tell the window to redraw when they can.
 	// @todo: For Slate viewports, it doesn't make sense to post WM_PAINT messages (we swallow those.)
-	::PostMessage(WindowHandle, WM_PAINT, 0, 0);
+	::PostMessageW(WindowHandle, WM_PAINT, 0, 0);
 #endif
 	// : END HoloLens support
 }

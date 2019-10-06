@@ -1204,6 +1204,8 @@ bool FFbxImporter::ImportFile(FString Filename, bool bPreventMaterialNameClash /
 		return false;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(FFbxImporter::ImportFile);
+
 	bool Result = true;
 	
 	bool bStatus;
@@ -1739,6 +1741,52 @@ FName FFbxImporter::MakeNameForMesh(FString InName, FbxObject* FbxObject)
 	
 	MeshNamesCache.Add(OutputName.ToString());
 	return OutputName;
+}
+
+FbxNode* FFbxImporter::GetMeshNodesFromName(const FString& ReimportMeshName, TArray<FbxNode*>& FbxMeshArray)
+{
+	//StaticMesh->GetName()
+	char MeshName[1024];
+	FCStringAnsi::Strcpy(MeshName, 1024, TCHAR_TO_UTF8(*ReimportMeshName));
+	// find the Fbx mesh node that the Unreal Mesh matches according to name
+	int32 MeshIndex;
+	for (MeshIndex = 0; MeshIndex < FbxMeshArray.Num(); MeshIndex++)
+	{
+		const char* FbxMeshName = FbxMeshArray[MeshIndex]->GetName();
+		// The name of Unreal mesh may have a prefix, so we match from end
+		int32 i = 0;
+		char* MeshPtr = MeshName + FCStringAnsi::Strlen(MeshName) - 1;
+		if (FCStringAnsi::Strlen(FbxMeshName) <= FCStringAnsi::Strlen(MeshName))
+		{
+			const char* FbxMeshPtr = FbxMeshName + FCStringAnsi::Strlen(FbxMeshName) - 1;
+			while (i < FCStringAnsi::Strlen(FbxMeshName))
+			{
+				bool bIsPointAndUnderscore = *FbxMeshPtr == '.' && *MeshPtr == '_';
+
+				if (*MeshPtr != *FbxMeshPtr && !bIsPointAndUnderscore)
+				{
+					break;
+				}
+				else
+				{
+					i++;
+					MeshPtr--;
+					FbxMeshPtr--;
+				}
+			}
+		}
+
+		if (i == FCStringAnsi::Strlen(FbxMeshName)) // matched
+		{
+			// check further
+			if (FCStringAnsi::Strlen(FbxMeshName) == FCStringAnsi::Strlen(MeshName) || // the name of Unreal mesh is full match
+				*MeshPtr == '_')														// or the name of Unreal mesh has a prefix
+			{
+				return FbxMeshArray[MeshIndex];
+			}
+		}
+	}
+	return nullptr;
 }
 
 FbxAMatrix FFbxImporter::ComputeSkeletalMeshTotalMatrix(FbxNode* Node, FbxNode *RootSkeletalNode)

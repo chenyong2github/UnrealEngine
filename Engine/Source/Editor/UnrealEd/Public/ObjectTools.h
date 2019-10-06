@@ -96,7 +96,7 @@ namespace ObjectTools
 		}
 
 	private:
-		/** 
+		/**
 		 * UObject serialize operator implementation
 		 *
 		 * @param Object	reference to Object reference
@@ -122,9 +122,15 @@ namespace ObjectTools
 		FString NewObjName;
 
 		void Set(const TCHAR* InFullPackageName, const TCHAR* InNewObjName);
-		
+
 		/** @return		true once valid (non-empty) move info exists. */
 		bool IsValid() const;
+	};
+
+	enum class EAllowCancelDuringDelete : uint8
+	{
+		AllowCancel,
+		CancelNotAllowed
 	};
 
 	/**
@@ -132,7 +138,7 @@ namespace ObjectTools
 	 *
 	 * @param	Objects				Array of objects whose packages need to be fully loaded
 	 * @param	OperationString		Localization key for a string describing the operation; appears in the warning string presented to the user.
-	 * 
+	 *
 	 * @return true if all packages where fully loaded, false otherwise
 	 */
 	bool HandleFullyLoadingPackages( const TArray<UObject*>& Objects, const FText& OperationText );
@@ -157,7 +163,7 @@ namespace ObjectTools
 	 * @retun	The duplicated object or NULL if a failure occurred.
 	 */
 	UNREALED_API UObject* DuplicateSingleObject(UObject* Object, const FPackageGroupName& PGN, TSet<UPackage*>& InOutPackagesUserRefusedToFullyLoad, bool bPromptToOverwrite = true);
-	
+
 	/** Helper struct to detail the results of a consolidation operation */
 	struct UNREALED_API FConsolidationResults : public FGCObject
 	{
@@ -204,7 +210,7 @@ namespace ObjectTools
 	UNREALED_API void ShowReferencers( const TArray< UObject* >& SelectedObjects ); // const
 
 	/**
-	 * Displays a tree(currently) of all assets which reference the passed in object.  
+	 * Displays a tree(currently) of all assets which reference the passed in object.
 	 *
 	 * @param ObjectToGraph		The object to find references to.
 	 * @param InBrowsableTypes	A mapping of classes to browsable types.  The tool only shows browsable types or actors
@@ -272,7 +278,7 @@ namespace ObjectTools
 	 *
 	 * @return The number of objects successfully deleted
 	 */
-	UNREALED_API int32 DeleteObjects( const TArray< UObject* >& ObjectsToDelete, bool bShowConfirmation = true );
+	UNREALED_API int32 DeleteObjects( const TArray< UObject* >& ObjectsToDelete, bool bShowConfirmation = true, EAllowCancelDuringDelete AllowCancelDuringDelete = EAllowCancelDuringDelete::AllowCancel);
 
 	/**
 	* Deletes the list of objects without checking if they are still being used.  This should not be called directly
@@ -360,7 +366,7 @@ namespace ObjectTools
 
 	/**
 	 * Helper function for RenameObjectsInternal. This function Updates a FMoveDialogInfo with information from the user. If OkToAll was pressed, it simply updates the relevant information.
-	 * 
+	 *
 	 * @param DialogTitle				The title text for the dialog, if it opens
 	 * @param Object					The object for which to provide move information.
 	 * @param bUniqueDefaultName		If true, when the user is prompted for a name the default supplied name will be unique.
@@ -373,7 +379,7 @@ namespace ObjectTools
 
 	/**
 	 * Internal implementation of rename objects with refs
-	 * 
+	 *
 	 * @param Objects					The objects to rename
 	 * @param bLocPackages				If true, the objects belong in localized packages
 	 * @param ObjectToLanguageExtMap	A mapping of object to matching language (for fixing up localization if the objects are moved ).  Note: Not used if bLocPackages is false
@@ -386,7 +392,7 @@ namespace ObjectTools
 
 	/**
 	 * Renames a single object
-	 * 
+	 *
 	 * @param Object								The object to rename
 	 * @param PGN									The new package, group, and name of the object.
 	 * @param InOutPackagesUserRefusedToFullyLoad	A set of packages the user opted out of fully loading. This is used internally to prevent asking multiple times.
@@ -397,9 +403,9 @@ namespace ObjectTools
 	 */
 	UNREALED_API bool RenameSingleObject(UObject* Object, FPackageGroupName& PGN, TSet<UPackage*>& InOutPackagesUserRefusedToFullyLoad, FText& InOutErrorMessage, const TMap< UObject*, FString >* ObjectToLanguageExtMap = NULL, bool bLeaveRedirector = true);
 
-	/** 
+	/**
 	 * Finds all language variants for the passed in sound wave
-	 * 
+	 *
 	 * @param OutObjects	A list of found localized sound wave objects
 	 * @param OutObjectToLanguageExtMap	A mapping of sound wave objects to their language extension
 	 * @param Wave	The sound wave to search for
@@ -424,8 +430,11 @@ namespace ObjectTools
 	/** Converts all invalid object path characters to _ */
 	UNREALED_API FString SanitizeObjectPath(const FString& InObjectPath);
 	/** Converts all specified invalid characters to _ */
-	UNREALED_API FString SanitizeInvalidChars(const FString& InObjectName, const FString& InvalidChars);
-
+	UNREALED_API FString SanitizeInvalidChars(const FString& InText, const FString& InvalidChars);
+	/** Converts all specified invalid characters to _ */
+	UNREALED_API FString SanitizeInvalidChars(const FString& InText, const TCHAR* InvalidChars);
+	/** Converts all specified invalid characters to _ */
+	UNREALED_API void SanitizeInvalidCharsInline(FString& InText, const TCHAR* InvalidChars);
 
 	/**
 	 * Populates two strings with all of the file types and extensions the provided factory supports.
@@ -435,7 +444,7 @@ namespace ObjectTools
 	 * @param	out_Extensions	Extensions supported by the provided factory, concatenated into a string
 	 */
 	UNREALED_API void GenerateFactoryFileExtensions( const UFactory* InFactory, FString& out_Filetypes, FString& out_Extensions, TMultiMap<uint32, UFactory*>& out_FilterIndexToFactory );
-	
+
 	/**
 	 * Populates two strings with all of the file types and extensions the provided factories support.
 	 *
@@ -444,7 +453,7 @@ namespace ObjectTools
 	 * @param	out_Extensions	Extensions supported by the provided factory, concatenated into a string
 	 */
 	UNREALED_API void GenerateFactoryFileExtensions( const TArray<UFactory*>& InFactories, FString& out_Filetypes, FString& out_Extensions, TMultiMap<uint32, UFactory*>& out_FilterIndexToFactory );
-	
+
 	/**
 	 * Generates a list of file types for a given class.
 	 */
@@ -483,7 +492,7 @@ namespace ObjectTools
 	};
 
 	/**
-	 * Tags objects which are in use by levels specified by the search option 
+	 * Tags objects which are in use by levels specified by the search option
 	 *
 	 * @param SearchOption	 The search option for finding in use objects
 	 */
@@ -509,7 +518,7 @@ namespace ObjectTools
 	 *
 	 * @param InWorld	The world.
 	 * @param ObjectPath	Object path.
-	 * 
+	 *
 	 * @return true if the asset can be placed in the world.
 	 */
 	UNREALED_API bool IsAssetValidForPlacing(UWorld* InWorld, const FString& ObjectPath);
@@ -518,7 +527,7 @@ namespace ObjectTools
 	 * Determines if the class is placeable in a world.
 	 *
 	 * @param InClass	Class to test.
-	 * 
+	 *
 	 * @return true if the class can be placed in the world.
 	 */
 	UNREALED_API bool IsClassValidForPlacing(const UClass* InClass);
@@ -527,7 +536,7 @@ namespace ObjectTools
 	 * Determines if a given class is a redirector.
 	 *
 	 * @param Class	The class
-	 * 
+	 *
 	 * @return true if the class is a redirector, otherwise false.
 	 */
 	UNREALED_API bool IsClassRedirector( const UClass* Class );
@@ -536,13 +545,13 @@ namespace ObjectTools
 	 * Determines if an array of objects are all of interchangeable types.
 	 *
 	 * @param InProposedObjects	The objects to check.
-	 * 
+	 *
 	 * @return true if all objects are interchangeable, otherwise false.
 	 */
 	UNREALED_API bool AreObjectsOfEquivalantType( const TArray<UObject*>& InProposedObjects );
 
 	/**
-	 * Determines if two classes are interchangeable.  This would tell you if you could substitute one object 
+	 * Determines if two classes are interchangeable.  This would tell you if you could substitute one object
 	 * reference for another.  For example, Material and MaterialInstances are interchangeable.
 	 *
 	 * @param ClassA	The first class

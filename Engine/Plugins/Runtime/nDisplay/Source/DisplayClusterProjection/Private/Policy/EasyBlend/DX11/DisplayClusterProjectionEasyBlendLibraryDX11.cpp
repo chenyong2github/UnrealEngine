@@ -6,6 +6,7 @@
 #include "IDisplayClusterProjection.h"
 
 #include "HAL/PlatformProcess.h"
+#include "Misc/Paths.h"
 #include "Interfaces/IPluginManager.h"
 #include "Misc/Paths.h"
 

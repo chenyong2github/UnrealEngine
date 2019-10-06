@@ -544,7 +544,7 @@ static FRCPassPostProcessTonemap* AddTonemapper(
 	const bool bIsComputePass = ShouldDoComputePostProcessing(View);
 
 	FRenderingCompositeOutputRef TonemapperCombinedLUTOutputRef;
-	if (IStereoRendering::IsAPrimaryView(StereoPass, GEngine->StereoRenderingDevice))
+	if (IStereoRendering::IsAPrimaryView(StereoPass))
 	{
 		TonemapperCombinedLUTOutputRef = AddCombineLUTPass(Context.Graph);
 	}
@@ -1022,7 +1022,7 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 				// Skip for transient views.
 				bHasViewState &&
 				// Skip for secondary views in a stereo setup.
-				IStereoRendering::IsAPrimaryView(View.StereoPass, GEngine->StereoRenderingDevice);
+				IStereoRendering::IsAPrimaryView(View.StereoPass);
 
 			const bool bHistogramEnabled =
 				// Force the histogram on when we are visualizing HDR.
@@ -1098,7 +1098,7 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 					}
 
 					// DOF passes were not added, therefore need to compose Separate translucency manually.
-					if (LocalSceneColorTexture == SceneColorTexture && SeparateTranslucencyTexture)
+					if (LocalSceneColorTexture == SceneColorTexture && SeparateTranslucencyTexture && View.Family->EngineShowFlags.Translucency)
 					{
 						LocalSceneColorTexture = AddSeparateTranslucencyCompositionPass(GraphBuilder, View, SceneColorTexture, SeparateTranslucencyTexture);
 					}
@@ -1416,7 +1416,7 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 					FRDGTextureRef LocalSeparateTranslucency = Pass->CreateRDGTextureForOptionalInput(GraphBuilder, ePId_Input1, TEXT("SeparateTranslucency"));
 
 					FRDGTextureRef NewSceneColor = SceneColor;
-					if (LocalSeparateTranslucency)
+					if (LocalSeparateTranslucency && InContext.View.Family->EngineShowFlags.Translucency)
 					{
 						NewSceneColor = AddSeparateTranslucencyCompositionPass(GraphBuilder, InContext.View, SceneColor, LocalSeparateTranslucency);
 					}
@@ -1792,12 +1792,7 @@ void FPostProcessing::ProcessES2(FRHICommandListImmediate& RHICmdList, FScene* S
 
 			// Use original mobile Dof on ES2 devices regardless of bMobileHQGaussian.
 			// HQ gaussian 
-#if PLATFORM_HTML5 // EMSCRITPEN_TOOLCHAIN_UPGRADE_CHECK -- i.e. remove this when LLVM no longer errors -- appologies for the mess
-			// UE-61742 : the following will coerce i160 bit (bMobileHQGaussian) to an i8 LLVM variable
-			bool bUseMobileDof = bUseDof && ((1 - View.FinalPostProcessSettings.bMobileHQGaussian) + (Context.View.GetFeatureLevel() < ERHIFeatureLevel::ES3_1));
-#else
 			bool bUseMobileDof = bUseDof && (!View.FinalPostProcessSettings.bMobileHQGaussian || (Context.View.GetFeatureLevel() < ERHIFeatureLevel::ES3_1));
-#endif
 
 			// This is a workaround to avoid a performance cliff when using many render targets. 
 			bool bUseBloomSmall = bUseBloom && !bUseSun && !bUseDof && bWorkaround;

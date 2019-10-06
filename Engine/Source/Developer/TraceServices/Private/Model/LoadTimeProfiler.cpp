@@ -11,25 +11,14 @@ namespace Trace
 FLoadTimeProfilerProvider::FLoadTimeProfilerProvider(IAnalysisSession& InSession)
 	: Session(InSession)
 	, ClassInfos(Session.GetLinearAllocator(), 4096)
+	, Requests(Session.GetLinearAllocator(), 4096)
 	, Packages(Session.GetLinearAllocator(), 4096)
 	, Exports(Session.GetLinearAllocator(), 4090)
 	, MainThreadCpuTimeline(MakeShared<CpuTimelineInternal>(Session.GetLinearAllocator()))
 	, AsyncLoadingThreadCpuTimeline(MakeShared<CpuTimelineInternal>(Session.GetLinearAllocator()))
+	, RequestsTable(Requests)
 {
 	
-}
-
-void FLoadTimeProfilerProvider::EnumeratePackages(TFunctionRef<void(const FPackageInfo&)> Callback) const
-{
-	Session.ReadAccessCheck();
-
-	auto Iterator = Packages.GetIteratorFromItem(0);
-	const FPackageInfo* Package = Iterator.GetCurrentItem();
-	while (Package)
-	{
-		Callback(*Package);
-		Package = Iterator.NextItem();
-	}
 }
 
 void FLoadTimeProfilerProvider::ReadMainThreadCpuTimeline(TFunctionRef<void(const CpuTimeline &)> Callback) const
@@ -60,45 +49,7 @@ ITable<FLoadTimeProfilerAggregatedStats>* FLoadTimeProfilerProvider::CreateEvent
 	for (const auto& KV : Aggregation)
 	{
 		FLoadTimeProfilerAggregatedStats& Row = Table->AddRow();
-		switch (KV.Key)
-		{
-		case LoadTimeProfilerPackageEventType_CreateLinker:
-			Row.Name = TEXT("CreateLinker");
-			break;
-		case LoadTimeProfilerPackageEventType_FinishLinker:
-			Row.Name = TEXT("FinishLinker");
-			break;
-		case LoadTimeProfilerPackageEventType_StartImportPackages:
-			Row.Name = TEXT("StartImportPackages");
-			break;
-		case LoadTimeProfilerPackageEventType_SetupImports:
-			Row.Name = TEXT("SetupImports");
-			break;
-		case LoadTimeProfilerPackageEventType_SetupExports:
-			Row.Name = TEXT("SetupExports");
-			break;
-		case LoadTimeProfilerPackageEventType_ProcessImportsAndExports:
-			Row.Name = TEXT("ProcessImportsAndExports");
-			break;
-		case LoadTimeProfilerPackageEventType_ExportsDone:
-			Row.Name = TEXT("ExportsDone");
-			break;
-		case LoadTimeProfilerPackageEventType_PostLoadWait:
-			Row.Name = TEXT("PostLoadWait");
-			break;
-		case LoadTimeProfilerPackageEventType_StartPostLoad:
-			Row.Name = TEXT("StartPostLoad");
-			break;
-		case LoadTimeProfilerPackageEventType_Tick:
-			Row.Name = TEXT("Tick");
-			break;
-		case LoadTimeProfilerPackageEventType_DeferredPostLoad:
-			Row.Name = TEXT("DeferredPostLoad");
-			break;
-		case LoadTimeProfilerPackageEventType_Finish:
-			Row.Name = TEXT("Finish");
-			break;
-		}
+		Row.Name = GetLoadTimeProfilerPackageEventTypeString(KV.Key);
 		const FAggregatedTimingStats& Stats = KV.Value;
 		Row.Count = Stats.InstanceCount;
 		Row.Total = Stats.TotalExclusiveTime;
@@ -142,6 +93,128 @@ ITable<FLoadTimeProfilerAggregatedStats>* FLoadTimeProfilerProvider::CreateObjec
 	return Table;
 }
 
+ITable<FPackagesTableRow>* FLoadTimeProfilerProvider::CreatePackageDetailsTable(double IntervalStart, double IntervalEnd) const
+{
+	TTable<FPackagesTableLayout>* Table = new TTable<FPackagesTableLayout>();
+
+	TMap<TTuple<const FPackageInfo*, ELoadTimeProfilerPackageEventType>, FPackagesTableRow*> PackagesMap;
+
+	auto FindRow = [Table, &PackagesMap](const FLoadTimeProfilerCpuEvent& Event) -> FPackagesTableRow*
+	{
+		if (Event.Package)
+		{
+			auto Key = MakeTuple(Event.Package, Event.PackageEventType);
+			FPackagesTableRow** FindIt = PackagesMap.Find(Key);
+			FPackagesTableRow* Row = nullptr;
+			if (!FindIt)
+			{
+				Row = &Table->AddRow();
+				Row->PackageInfo = Event.Package;
+				Row->EventType = Event.PackageEventType;
+				PackagesMap.Add(Key, Row);
+			}
+			else
+			{
+				Row = *FindIt;
+			}
+
+			if (Event.Export && Event.ExportEventType == LoadTimeProfilerObjectEventType_Serialize)
+			{
+				++Row->SerializedExportsCount;
+				Row->SerializedExportsSize += Event.Export->SerialSize;
+			}
+
+			if (!Event.Export && Event.PackageEventType == LoadTimeProfilerPackageEventType_CreateLinker)
+			{
+				Row->SerializedHeaderSize += Event.Package->Summary.TotalHeaderSize;
+			}
+
+			return Row;
+		}
+		else
+		{
+			return nullptr;
+		}
+	};
+
+	AsyncLoadingThreadCpuTimeline->EnumerateEvents(IntervalStart, IntervalEnd, [Table, &PackagesMap, FindRow](double StartTime, double EndTime, uint32, const FLoadTimeProfilerCpuEvent& Event)
+	{
+		FPackagesTableRow* Row = FindRow(Event);
+		if (Row)
+		{
+			Row->AsyncLoadingThreadTime += EndTime - StartTime; // TODO: Should be exclusive time
+		}
+	});
+	MainThreadCpuTimeline->EnumerateEvents(IntervalStart, IntervalEnd, [Table, &PackagesMap, FindRow](double StartTime, double EndTime, uint32, const FLoadTimeProfilerCpuEvent& Event)
+	{
+		FPackagesTableRow* Row = FindRow(Event);
+		if (Row)
+		{
+			Row->MainThreadTime += EndTime - StartTime; // TODO: Should be exclusive time
+		}
+	});
+
+	return Table;
+}
+
+ITable<FExportsTableRow>* FLoadTimeProfilerProvider::CreateExportDetailsTable(double IntervalStart, double IntervalEnd) const
+{
+	TTable<FExportsTableLayout>* Table = new TTable<FExportsTableLayout>();
+
+	TMap<TTuple<const FPackageExportInfo*, ELoadTimeProfilerObjectEventType>, FExportsTableRow*> ExportsMap;
+
+	auto FindRow = [Table, &ExportsMap](const FLoadTimeProfilerCpuEvent& Event) -> FExportsTableRow*
+	{
+		if (Event.Export)
+		{
+			auto Key = MakeTuple(Event.Export, Event.ExportEventType);
+			FExportsTableRow** FindIt = ExportsMap.Find(Key);
+			FExportsTableRow* Row = nullptr;
+			if (!FindIt)
+			{
+				Row = &Table->AddRow();
+				Row->ExportInfo = Event.Export;
+				Row->EventType = Event.ExportEventType;
+				ExportsMap.Add(Key, Row);
+			}
+			else
+			{
+				Row = *FindIt;
+			}
+
+			if (Event.ExportEventType == LoadTimeProfilerObjectEventType_Serialize)
+			{
+				Row->SerializedSize += Event.Export->SerialSize;
+			}
+
+			return Row;
+		}
+		else
+		{
+			return nullptr;
+		}
+	};
+
+	AsyncLoadingThreadCpuTimeline->EnumerateEvents(IntervalStart, IntervalEnd, [Table, &ExportsMap, FindRow](double StartTime, double EndTime, uint32, const FLoadTimeProfilerCpuEvent& Event)
+	{
+		FExportsTableRow* Row = FindRow(Event);
+		if (Row)
+		{
+			Row->AsyncLoadingThreadTime += EndTime - StartTime; // TODO: Should be exclusive time
+		}
+	});
+	MainThreadCpuTimeline->EnumerateEvents(IntervalStart, IntervalEnd, [Table, &ExportsMap, FindRow](double StartTime, double EndTime, uint32, const FLoadTimeProfilerCpuEvent& Event)
+	{
+		FExportsTableRow* Row = FindRow(Event);
+		if (Row)
+		{
+			Row->MainThreadTime += EndTime - StartTime; // TODO: Should be exclusive time
+		}
+	});
+
+	return Table;
+}
+
 const Trace::FClassInfo& FLoadTimeProfilerProvider::AddClassInfo(const TCHAR* ClassName)
 {
 	Session.WriteAccessCheck();
@@ -149,6 +222,14 @@ const Trace::FClassInfo& FLoadTimeProfilerProvider::AddClassInfo(const TCHAR* Cl
 	FClassInfo& ClassInfo = ClassInfos.PushBack();
 	ClassInfo.Name = Session.StoreString(ClassName);
 	return ClassInfo;
+}
+
+Trace::FLoadRequest& FLoadTimeProfilerProvider::CreateRequest()
+{
+	Session.WriteAccessCheck();
+
+	FLoadRequest& RequestInfo = Requests.PushBack();
+	return RequestInfo;
 }
 
 Trace::FPackageInfo& FLoadTimeProfilerProvider::CreatePackage(const TCHAR* PackageName)
@@ -170,6 +251,84 @@ Trace::FPackageExportInfo& FLoadTimeProfilerProvider::CreateExport()
 	FPackageExportInfo& Export = Exports.PushBack();
 	Export.Id = ExportId;
 	return Export;
+}
+
+FLoadTimeProfilerProvider::CpuTimelineInternal& FLoadTimeProfilerProvider::EditAdditionalCpuTimeline(uint32 ThreadId)
+{
+	if (AdditionalCpuTimelinesMap.Contains(ThreadId))
+	{
+		return AdditionalCpuTimelinesMap[ThreadId].Get();
+	}
+	else
+	{
+		TSharedRef<CpuTimelineInternal> Timeline = MakeShared<CpuTimelineInternal>(Session.GetLinearAllocator());
+		AdditionalCpuTimelinesMap.Add(ThreadId, Timeline);
+		return Timeline.Get();
+	}
+}
+
+uint64 FLoadTimeProfilerProvider::PackageSizeSum(const FLoadRequest& Row)
+{
+	uint64 Sum = 0;
+	for (const FPackageInfo* Package : Row.Packages)
+	{
+		Sum += Package->Summary.TotalHeaderSize;
+		for (const FPackageExportInfo* Export : Package->Exports)
+		{
+			Sum += Export->SerialSize;
+		}
+	}
+	return Sum;
+}
+
+const TCHAR* GetLoadTimeProfilerPackageEventTypeString(ELoadTimeProfilerPackageEventType EventType)
+{
+	switch (EventType)
+	{
+	case LoadTimeProfilerPackageEventType_CreateLinker:
+		return TEXT("CreateLinker");
+	case LoadTimeProfilerPackageEventType_FinishLinker:
+		return TEXT("FinishLinker");
+	case LoadTimeProfilerPackageEventType_StartImportPackages:
+		return TEXT("StartImportPackages");
+	case LoadTimeProfilerPackageEventType_SetupImports:
+		return TEXT("SetupImports");
+	case LoadTimeProfilerPackageEventType_SetupExports:
+		return TEXT("SetupExports");
+	case LoadTimeProfilerPackageEventType_ProcessImportsAndExports:
+		return TEXT("ProcessImportsAndExports");
+	case LoadTimeProfilerPackageEventType_ExportsDone:
+		return TEXT("ExportsDone");
+	case LoadTimeProfilerPackageEventType_PostLoadWait:
+		return TEXT("PostLoadWait");
+	case LoadTimeProfilerPackageEventType_StartPostLoad:
+		return TEXT("StartPostLoad");
+	case LoadTimeProfilerPackageEventType_Tick:
+		return TEXT("Tick");
+	case LoadTimeProfilerPackageEventType_DeferredPostLoad:
+		return TEXT("DeferredPostLoad");
+	case LoadTimeProfilerPackageEventType_Finish:
+		return TEXT("Finish");
+	case LoadTimeProfilerPackageEventType_None:
+		return TEXT("None");
+	}
+	return TEXT("[invalid]");
+}
+
+const TCHAR* GetLoadTimeProfilerObjectEventTypeString(ELoadTimeProfilerObjectEventType EventType)
+{
+	switch (EventType)
+	{
+	case LoadTimeProfilerObjectEventType_Create:
+		return TEXT("Create");
+	case LoadTimeProfilerObjectEventType_Serialize:
+		return TEXT("Serialize");
+	case LoadTimeProfilerObjectEventType_PostLoad:
+		return TEXT("PostLoad");
+	case LoadTimeProfilerObjectEventType_None:
+		return TEXT("None");
+	}
+	return TEXT("[invalid]");
 }
 
 }

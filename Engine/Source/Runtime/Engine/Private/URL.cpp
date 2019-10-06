@@ -288,7 +288,7 @@ FURL::FURL( FURL* Base, const TCHAR* TextURL, ETravelType Type )
 
 			// Square bracket indicates an IPv6 address, but IPv6 addresses can contain dots also
 			// They also typically have multiple colons in them as well.
-			if (bIsHostnameWithDot || SquareBracket || (Colon && Colon != LastColonLocation) || bHasMultipleColons)
+			if (bIsHostnameWithDot || SquareBracket || (Colon && Colon == LastColonLocation) || bHasMultipleColons)
 			{
 				TCHAR* ss = URL;
 				// Clear out the URL such that all that should be left is the map
@@ -674,7 +674,7 @@ static bool URLSerializationTests(UWorld* InWorld, const TCHAR* Cmd, FOutputDevi
 		TestCases.Push(FURLTestCase(TEXT("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]:7778"), TEXT("2001:0db8:85a3:0000:0000:8a2e:0370:7334"), TEXT(""), 7778));
 		TestCases.Push(FURLTestCase(TEXT("[2001:db8:85a3::8a2e:370:7334]"), TEXT("2001:db8:85a3::8a2e:370:7334")));
 		TestCases.Push(FURLTestCase(TEXT("epic://2001:db8:85a3::8a2e:370:7334"), TEXT("2001:db8:85a3::8a2e:370:7334"), TEXT("epic")));
-		TestCases.Push(FURLTestCase(TEXT("192.168.0.1"), TEXT("192.168.0.1")));
+		TestCases.Push(FURLTestCase(TEXT("192.168.0.1:17777"), TEXT("192.168.0.1"), TEXT(""), 17777));
 		TestCases.Push(FURLTestCase(TEXT("test://192.168.0.1"), TEXT("192.168.0.1"), TEXT("test")));
 		TestCases.Push(FURLTestCase(TEXT("::ffff:192.168.0.1"), TEXT("::ffff:192.168.0.1")));
 		TestCases.Push(FURLTestCase(TEXT("[::ffff:192.168.0.1]"), TEXT("::ffff:192.168.0.1")));
@@ -685,6 +685,7 @@ static bool URLSerializationTests(UWorld* InWorld, const TCHAR* Cmd, FOutputDevi
 		TestCases.Push(FURLTestCase(TEXT("http://[::ffff:192.168.0.1]:8080"), TEXT("::ffff:192.168.0.1"), TEXT("http"), 8080));
 		TestCases.Push(FURLTestCase(TEXT("https:[2001:db8:85a3::8a2e:370:7334]:443"), TEXT("2001:db8:85a3::8a2e:370:7334"), TEXT("https"), 443));
 		TestCases.Push(FURLTestCase(TEXT("steam.76561197993275299:20/"), TEXT("steam.76561197993275299"), TEXT(""), 20));
+		TestCases.Push(FURLTestCase(TEXT("unreal::44750/"), TEXT(""), TEXT("unreal"), 44750));
 
 		bool bAllCasesPassed = true;
 		for (const auto& TestCase : TestCases)

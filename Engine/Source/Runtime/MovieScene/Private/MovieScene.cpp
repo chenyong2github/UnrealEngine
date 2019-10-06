@@ -3,6 +3,7 @@
 #include "MovieScene.h"
 #include "MovieSceneTrack.h"
 #include "MovieSceneFolder.h"
+#include "MovieSceneSequence.h"
 #include "Evaluation/MovieSceneEvaluationCustomVersion.h"
 #include "Compilation/MovieSceneSegmentCompiler.h"
 #include "UObject/SequencerObjectVersion.h"
@@ -528,6 +529,159 @@ void UMovieScene::SetPlaybackRangeLocked(bool bLocked)
 #endif
 
 
+#if WITH_EDITORONLY_DATA
+
+bool FMovieSceneSectionGroup::Contains(const UMovieSceneSection& Section) const
+{
+	return Sections.Contains(&Section);
+}
+
+void FMovieSceneSectionGroup::Add(UMovieSceneSection& Section)
+{
+	Sections.AddUnique(&Section);
+}
+
+void FMovieSceneSectionGroup::Append(const FMovieSceneSectionGroup& SectionGroup)
+{
+	if (SectionGroup == *this)
+	{
+		return;
+	}
+
+	// Append the groups using AddUnique to prevent duplicates
+	Sections.Reserve(Sections.Num() + SectionGroup.Num());
+	for (TWeakObjectPtr<UMovieSceneSection> Section : SectionGroup)
+	{
+		if (Section.IsValid())
+		{
+			Sections.AddUnique(Section);
+		}
+	}
+}
+
+void FMovieSceneSectionGroup::Remove(const UMovieSceneSection& Section)
+{
+	Sections.RemoveSingle(const_cast<UMovieSceneSection*>(&Section));
+}
+
+void FMovieSceneSectionGroup::Clean()
+{
+	Sections.RemoveAll([](TWeakObjectPtr<UMovieSceneSection>& Section) { return !(Section.IsValid()); });
+}
+
+
+bool UMovieScene::IsSectionInGroup(const UMovieSceneSection& InSection) const
+{
+	for (const FMovieSceneSectionGroup& Group : SectionGroups)
+	{
+		if (Group.Contains(InSection))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void UMovieScene::GroupSections(const TArray<UMovieSceneSection*> InSections)
+{
+	if (InSections.Num() < 2)
+	{
+		return;
+	}
+
+	Modify();
+
+	FMovieSceneSectionGroup* Group = nullptr;
+
+	// Check if the first section is already in a group, and if so use it as the target group
+	for (FMovieSceneSectionGroup& ExistingGroup : SectionGroups)
+	{
+		if (ExistingGroup.Contains(*InSections[0]))
+		{
+			Group = &ExistingGroup;
+			break;
+		}
+	}
+
+	// If we didn't find a group, create a new one.
+	if (!Group)
+	{
+		int32 Index = SectionGroups.AddDefaulted(1);
+		Group = &SectionGroups[Index];
+		Group->Add(*InSections[0]);
+	}
+
+	// Add the remaining sections
+	for (int32 Index = 1; Index < InSections.Num(); ++Index)
+	{
+		UMovieSceneSection* Section = InSections[Index];
+
+		// Check if the section is already in a group, and merge if needed
+		for (FMovieSceneSectionGroup& ExistingGroup : SectionGroups)
+		{
+			// Skip checking the working group. If the section is in it, there is nothing to do.
+			if (&ExistingGroup == Group)
+			{
+				continue;
+			}
+
+			if (ExistingGroup.Contains(*Section))
+			{
+				// If the section is already in a group, merge our new group in to it, and work on that group instead
+				// This has fewer edge cases than merging the found group in to the working group.
+				ExistingGroup.Append(*Group);
+				SectionGroups.RemoveSingle(*Group);
+				Group = &ExistingGroup;
+				break;
+			}
+		}
+
+		// If the section was not added as part of a merged group, add it now.
+		if (!Group->Contains(*Section))
+		{
+			Group->Add(*Section);
+		}
+	}
+}
+
+void UMovieScene::UngroupSection(const UMovieSceneSection& InSection)
+{
+	for (FMovieSceneSectionGroup& ExistingGroup : SectionGroups)
+	{
+		if (ExistingGroup.Contains(InSection))
+		{
+			Modify();
+			ExistingGroup.Remove(InSection);
+			break;
+		}
+	}
+	CleanSectionGroups();
+}
+
+const FMovieSceneSectionGroup* UMovieScene::GetSectionGroup(const UMovieSceneSection& InSection) const
+{
+	for (const FMovieSceneSectionGroup& Group : SectionGroups)
+	{
+		if (Group.Contains(InSection))
+		{
+			return &Group;
+		}
+	}
+	return nullptr;
+}
+
+void UMovieScene::CleanSectionGroups()
+{
+	for (FMovieSceneSectionGroup& SectionGroup : SectionGroups)
+	{
+		SectionGroup.Clean();
+	}
+
+	SectionGroups.RemoveAll([](FMovieSceneSectionGroup& SectionGroup) { return SectionGroup.Num() < 2; });
+}
+#endif
+
+
 TArray<UMovieSceneSection*> UMovieScene::GetAllSections() const
 {
 	TArray<UMovieSceneSection*> OutSections;
@@ -943,6 +1097,10 @@ void UMovieScene::PostLoad()
 		MarkedFrames.Add(FMovieSceneMarkedFrame(MarkedFrame));
 	}
 	EditorData.MarkedFrames_DEPRECATED.Empty();
+
+
+	// Clean any section groups which might refer to sections which were not serialized
+	CleanSectionGroups();
 #endif
 
 	Super::PostLoad();
@@ -974,6 +1132,9 @@ void UMovieScene::PreSave(const class ITargetPlatform* TargetPlatform)
 			It.RemoveCurrent();
 		}
 	}
+
+	// Clean any section groups which contain stale references
+	CleanSectionGroups();
 #endif
 }
 
@@ -1017,6 +1178,8 @@ void UMovieScene::ReplaceBinding(const FGuid& OldGuid, const FGuid& NewGuid, con
 
 void UMovieScene::ReplaceBinding(const FGuid& BindingToReplaceGuid, const FMovieSceneBinding& NewBinding)
 {
+	Modify();
+
 	FMovieSceneBinding* Binding = ObjectBindings.FindByPredicate([BindingToReplaceGuid](const FMovieSceneBinding& CheckedBinding) { return CheckedBinding.GetObjectGuid() == BindingToReplaceGuid; });
 	if (Binding)
 	{

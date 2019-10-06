@@ -92,7 +92,7 @@ public:
 	virtual TFuture<FConcertAdmin_GetSessionsResponse> GetLiveSessions(const FGuid& ServerAdminEndpointId) const override;
 	virtual TFuture<FConcertAdmin_GetSessionsResponse> GetArchivedSessions(const FGuid& ServerAdminEndpointId) const override;
 	virtual TFuture<FConcertAdmin_GetSessionClientsResponse> GetSessionClients(const FGuid& ServerAdminEndpointId, const FGuid& SessionId) const override;
-	virtual TFuture<FConcertAdmin_GetSessionActivitiesResponse> GetSessionActivities(const FGuid& ServerAdminEndpointId, const FGuid& SessionId, int64 FromActivityId, int64 ActivityCount) const override;
+	virtual TFuture<FConcertAdmin_GetSessionActivitiesResponse> GetSessionActivities(const FGuid& ServerAdminEndpointId, const FGuid& SessionId, int64 FromActivityId, int64 ActivityCount, bool bIncludeDetails) const override;
 
 private:
 	/** internal friend class for auto connection. */
@@ -120,8 +120,8 @@ private:
 	/** Handle any answers from Concert server to our search queries */
 	void HandleServerDiscoveryEvent(const FConcertMessageContext& Context);
 
-	/** Create a Concert client session based on the session information provided */
-	void CreateClientSession(const FConcertSessionInfo& SessionInfo);
+	/** Create a Concert client session based on the session information provided. The future is set when the client connection is established or has failed. */
+	TFuture<EConcertResponseCode> CreateClientSession(const FConcertSessionInfo& SessionInfo);
 
 	/** Internal handler bound to the current session (if any) to propagate via our own OnSessionConnectionChanged delegate */
 	void HandleSessionConnectionChanged(IConcertClientSession& InSession, EConcertConnectionStatus Status);
@@ -184,4 +184,7 @@ private:
 
 	/** Holds the pending connection routine, if any (shared as it is used as a weak pointer with UI). */
 	TSharedPtr<FConcertPendingConnection> PendingConnection;
+
+	/** The promise sets when the connection to the current session is confirmed or infirmed. */
+	TUniquePtr<TPromise<EConcertResponseCode>> ConnectionPromise;
 };

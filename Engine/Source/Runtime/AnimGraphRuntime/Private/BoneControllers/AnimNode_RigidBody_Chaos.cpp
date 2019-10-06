@@ -22,8 +22,6 @@
 
 #define LOCTEXT_NAMESPACE "ImmediatePhysics"
 
-#if INCLUDE_CHAOS
-
 TAutoConsoleVariable<int32> CVarEnableChaosRigidBodyNode(TEXT("p.ChaosRigidBodyNode"), 1, TEXT("Enables/disables chaos rigid body node updates and evaluations"), ECVF_Scalability);
 TAutoConsoleVariable<int32> CVarChaosRigidBodyLODThreshold(TEXT("p.ChaosRigidBodyLODThreshold"), -1, TEXT("Max LOD that chaos rigid body node is allowed to run on. Provides a global threshold that overrides per-node the LODThreshold property. -1 means no override."), ECVF_Scalability);
 
@@ -572,6 +570,8 @@ void ComputeBodyInsertionOrderChaos(TArray<FBoneIndexType>& InsertionOrder, cons
 
 void FAnimNode_RigidBody_Chaos::InitPhysics(const UAnimInstance* InAnimInstance)
 {
+	SCOPE_CYCLE_COUNTER(STAT_RigidBodyNodeInitTime);
+
 	const USkeletalMeshComponent* SkeletalMeshComp = InAnimInstance->GetSkelMeshComponent();
 	const USkeletalMesh* SkeletalMeshAsset = SkeletalMeshComp->SkeletalMesh;
 
@@ -1058,8 +1058,6 @@ bool FAnimNode_RigidBody_Chaos::IsValidToEvaluate(const USkeleton* Skeleton, con
 {
 	return BaseBoneRef.IsValidToEvaluate(RequiredBones);
 }
-
-#endif // INCLUDE_CHAOS
 
 #if WITH_EDITORONLY_DATA
 void FAnimNode_RigidBody_Chaos::PostSerialize(const FArchive& Ar)

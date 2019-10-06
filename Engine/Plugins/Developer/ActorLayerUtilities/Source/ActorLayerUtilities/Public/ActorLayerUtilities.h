@@ -31,6 +31,20 @@ public:
 	/**
 	 * Get all the actors in this layer
 	 */
-	UFUNCTION(BlueprintCallable, Category=Layer, meta=(WorldContext=WorldContextObject,DevelopmentOnly))
+	UFUNCTION(BlueprintCallable, Category=Layer, meta=(WorldContext=WorldContextObject, DevelopmentOnly))
 	static TArray<AActor*> GetActors(UObject* WorldContextObject, const FActorLayer& ActorLayer);
+
+	/** 
+	 * Adds the actor to the specified layer
+	 */
+	UFUNCTION(BlueprintCallable, Category = Layer)
+	static void AddActorToLayer(AActor* InActor, const FActorLayer& Layer);
+
+	/**
+	 * Removes the actor from the specified layer
+	 */
+	UFUNCTION(BlueprintCallable, Category = Layer)
+	static void RemoveActorFromLayer(AActor* InActor, const FActorLayer& Layer);
+
+
 };

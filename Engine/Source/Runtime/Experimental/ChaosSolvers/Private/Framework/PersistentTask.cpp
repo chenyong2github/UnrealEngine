@@ -1,7 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#if INCLUDE_CHAOS
-
 #include "Framework/PersistentTask.h"
 
 #include "Modules/ModuleManager.h"
@@ -399,5 +397,3 @@ namespace Chaos
 		InSolver->AdvanceSolverBy(InDt);
 	}
 }
-
-#endif

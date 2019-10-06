@@ -79,6 +79,7 @@ private:
 	TPagedArray<FLogMessageSpec> MessageSpecs;
 	TPagedArray<FLogMessageInternal> Messages;
 	TCHAR FormatBuffer[FormatBufferSize];
+	TCHAR TempBuffer[FormatBufferSize];
 	TTableView<FMessagesTableLayout> MessagesTable;
 };
 

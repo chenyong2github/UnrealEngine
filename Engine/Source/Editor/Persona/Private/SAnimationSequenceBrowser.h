@@ -27,6 +27,7 @@ class UAnimationAsset;
 class UDebugSkelMeshComponent;
 class USoundWave;
 class FFrontendFilter_Folder;
+class FFrontendFilter_SkeletonNotify;
 
 //////////////////////////////////////////////////////////////////////////
 // FAnimationAssetViewportClient
@@ -67,7 +68,9 @@ public:
 
 	/** IAnimationSequenceBrowser interface */
 	virtual void SelectAsset(UAnimationAsset * AnimAsset) override;
-
+	virtual void AddToHistory(UAnimationAsset* AnimAsset) override;
+	virtual void FilterBySkeletonNotify(const FName& InNotifyName) override;
+	
 	/** Delegate that handles creation of context menu */
 	TSharedPtr<SWidget> OnGetAssetContextMenu(const TArray<FAssetData>& SelectedAssets);
 
@@ -103,9 +106,6 @@ public:
 	 *	Only allowed for AnimSequence 
 	 */
 	void OnCreateCopy(TArray<FAssetData> Selected);
-
-	/** public reference to add to history */
-	virtual void AddToHistory(UAnimationAsset * AnimAsset) override;
 
 protected:
 	bool CanShowColumnForAssetRegistryTag(FName AssetType, FName TagName) const;
@@ -261,6 +261,9 @@ protected:
 
 	/** All the folder filters we have */
 	TArray<TSharedPtr<FFrontendFilter_Folder>> FolderFilters;
+
+	/** The skeleton notify filter */
+	TSharedPtr<FFrontendFilter_SkeletonNotify> SkeletonNotifyFilter;
 
 	void RetargetAnimationHandler(USkeleton* OldSkeleton, USkeleton* NewSkeleton, bool bRemapReferencedAssets, bool bAllowRemapToExisting, bool bConvertSpaces, const EditorAnimUtils::FNameDuplicationRule* NameRule, TArray<TWeakObjectPtr<UObject>> InAnimAssets);
 

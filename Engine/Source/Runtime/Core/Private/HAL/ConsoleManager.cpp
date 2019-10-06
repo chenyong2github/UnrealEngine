@@ -2046,7 +2046,7 @@ static TAutoConsoleVariable<int32> CVarLimitRenderingFeatures(
 static TAutoConsoleVariable<int32> CVarUniformBufferPooling(
 	TEXT("r.UniformBufferPooling"),
 	1,
-	TEXT("If we pool object in RHICreateUniformBuffer to have less real API calls to creat buffers\n")
+	TEXT("If we pool object in RHICreateUniformBuffer to have less real API calls to create buffers\n")
 	TEXT(" 0: off (for debugging)\n")
 	TEXT(" 1: on (optimization)"),
 	ECVF_RenderThreadSafe);

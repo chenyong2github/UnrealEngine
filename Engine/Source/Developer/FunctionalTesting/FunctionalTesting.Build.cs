@@ -30,7 +30,8 @@ public class FunctionalTesting : ModuleRules
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"SourceControl",
-					"UnrealEd"
+					"UnrealEd",
+					"LevelEditor"
 				}
 			);
 		}

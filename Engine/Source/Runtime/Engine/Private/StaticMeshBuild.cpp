@@ -13,8 +13,14 @@
 #include "UObject/UObjectIterator.h"
 #include "StaticMeshResources.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "DistanceFieldAtlas.h"
 
 #if WITH_EDITOR
+#include "Async/Async.h"
+#include "IMeshBuilderModule.h"
+#include "IMeshReductionManagerModule.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
+
 #include "MeshUtilities.h"
 #include "MeshUtilitiesCommon.h"
 #include "Misc/FeedbackContext.h"
@@ -68,38 +74,176 @@ static bool HasBadNTB(UStaticMesh* Mesh, bool &bZeroNormals, bool &bZeroTangents
 	}
 	return bBadTangents;
 }
-#endif // #if WITH_EDITOR
 
-void UStaticMesh::Build(bool bSilent, TArray<FText>* OutErrors)
+bool UStaticMesh::CanBuild() const
 {
-#if WITH_EDITOR
 	if (IsTemplate())
-		return;
+	{
+		return false;
+	}
 
 	if (GetNumSourceModels() <= 0)
 	{
-		UE_LOG(LogStaticMesh,Warning,TEXT("Static mesh has no source models: %s"),*GetPathName());
-		return;
+		UE_LOG(LogStaticMesh, Warning, TEXT("Static mesh has no source models: %s"), *GetPathName());
+		return false;
 	}
 
 	if (GetNumSourceModels() > MAX_STATIC_MESH_LODS)
 	{
 		UE_LOG(LogStaticMesh, Warning, TEXT("Cannot build LOD %d.  The maximum allowed is %d.  Skipping."), GetNumSourceModels(), MAX_STATIC_MESH_LODS);
-		return;
+		return false;
 	}
 
-	if(!bSilent)
+	return true;
+}
+
+static TAutoConsoleVariable<int32> CVarStaticMeshDisableThreadedBuild(
+	TEXT("r.StaticMesh.DisableThreadedBuild"),
+	0,
+	TEXT("Activate to force static mesh building from a single thread.\n"),
+	ECVF_Default);
+
+#endif // #if WITH_EDITOR
+
+void UStaticMesh::Build(bool bInSilent, TArray<FText>* OutErrors)
+{
+#if WITH_EDITOR
+	if (!bInSilent)
 	{
 		FFormatNamedArguments Args;
-		Args.Add( TEXT("Path"), FText::FromString( GetPathName() ) );
-		const FText StatusUpdate = FText::Format( LOCTEXT("BeginStaticMeshBuildingTask", "({Path}) Building"), Args );
-		GWarn->BeginSlowTask( StatusUpdate, true );	
+		Args.Add(TEXT("Path"), FText::FromString(GetPathName()));
+		const FText StatusUpdate = FText::Format(LOCTEXT("BeginStaticMeshBuildingTask", "({Path}) Building"), Args);
+		GWarn->BeginSlowTask(StatusUpdate, true);
 	}
+#endif // #if WITH_EDITOR
+
+	BatchBuild({ this }, bInSilent, nullptr, OutErrors);
+
+#if WITH_EDITOR
+	if (!bInSilent)
+	{
+		GWarn->EndSlowTask();
+	}
+#endif // #if WITH_EDITOR
+}
+
+void UStaticMesh::BatchBuild(const TArray<UStaticMesh*>& InStaticMeshes, bool bInSilent, TFunction<bool(UStaticMesh*)> InProgressCallback, TArray<FText>* OutErrors)
+{
+#if WITH_EDITOR
+	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::BatchBuild);
+
+	TArray<UStaticMesh*> StaticMeshesToProcess;
+	StaticMeshesToProcess.Reserve(InStaticMeshes.Num());
+
+	for (UStaticMesh* StaticMesh : InStaticMeshes)
+	{
+		if (StaticMesh && StaticMesh->CanBuild())
+		{
+			StaticMeshesToProcess.Add(StaticMesh);
+		}
+	}
+
+	if (StaticMeshesToProcess.Num())
+	{
+		// Ensure those modules are loaded on the main thread - we'll need them in async tasks
+		FModuleManager::Get().LoadModuleChecked<IMeshBuilderModule>(TEXT("MeshBuilder"));
+		FModuleManager::Get().LoadModuleChecked<IMeshReductionManagerModule>(TEXT("MeshReductionInterface"));
+
+		// Make sure the target platform is properly initialized before accessing it from multiple threads
+		ITargetPlatformManagerModule& TargetPlatformManager = GetTargetPlatformManagerRef();
+		ITargetPlatform* RunningPlatform = TargetPlatformManager.GetRunningTargetPlatform();
+		check(RunningPlatform);
+
+		// Detach all instances of those static meshes from the scene.
+		FStaticMeshComponentRecreateRenderStateContext RecreateRenderStateContext(StaticMeshesToProcess, false);
+
+		if (StaticMeshesToProcess.Num() > 1 && CVarStaticMeshDisableThreadedBuild.GetValueOnAnyThread() == 0)
+		{
+			FCriticalSection OutErrorsLock;
+
+			// Start async tasks to build the static meshes in parallel
+			TArray<TFuture<bool>> AsyncTasks;
+			AsyncTasks.Reserve(StaticMeshesToProcess.Num());
+			TAtomic<bool> bCancelled(false);
+
+			for (UStaticMesh* StaticMesh : StaticMeshesToProcess)
+			{
+				StaticMesh->PreBuildInternal();
+
+				AsyncTasks.Emplace(
+					Async(
+						EAsyncExecution::LargeThreadPool,
+						[StaticMesh, bInSilent, OutErrors, &OutErrorsLock, &bCancelled]()
+						{
+							if (bCancelled.Load(EMemoryOrder::Relaxed))
+							{
+								return false;
+							}
+
+							TArray<FText> Errors;
+							const bool bHasRenderDataChanged = StaticMesh->BuildInternal(bInSilent, &Errors);
+						
+							if (OutErrors)
+							{
+								FScopeLock ScopeLock(&OutErrorsLock);
+								OutErrors->Append(Errors);
+							}
+
+							return bHasRenderDataChanged;
+						}
+					)
+				);
+			}
+
+			for (int32 Index = 0; Index < AsyncTasks.Num(); ++Index)
+			{
+				UStaticMesh* StaticMesh = StaticMeshesToProcess[Index];
+
+				if (InProgressCallback && !InProgressCallback(StaticMesh))
+				{
+					bCancelled = true;
+				}
+
+				// Wait the result of the async task
+				const bool bHasRenderDataChanged = AsyncTasks[Index].Get();
+
+				StaticMesh->PostBuildInternal(RecreateRenderStateContext.GetComponentsUsingMesh(StaticMesh), bHasRenderDataChanged);
+			}
+		}
+		else
+		{
+			for (UStaticMesh* StaticMesh : StaticMeshesToProcess)
+			{
+				if (InProgressCallback && !InProgressCallback(StaticMesh))
+				{
+					break;
+				}
+
+				StaticMesh->PreBuildInternal();
+
+				const bool bHasRenderDataChanged = StaticMesh->BuildInternal(bInSilent, OutErrors);
+
+				StaticMesh->PostBuildInternal(RecreateRenderStateContext.GetComponentsUsingMesh(StaticMesh), bHasRenderDataChanged);
+			}
+		}
+	}
+
+#else
+	UE_LOG(LogStaticMesh, Fatal, TEXT("UStaticMesh::Build should not be called on non-editor builds."));
+#endif
+}
+
+#if WITH_EDITOR
+
+void UStaticMesh::PreBuildInternal()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::PreBuildInternal);
 
 	PreMeshBuild.Broadcast(this);
 
-	// Detach all instances of this static mesh from the scene.
-	FStaticMeshComponentRecreateRenderStateContext RecreateRenderStateContext(this,false);
+	// Ensure we have a bodysetup.
+	CreateBodySetup();
+	check(BodySetup != NULL);
 
 	// Release the static mesh's resources.
 	ReleaseResources();
@@ -108,6 +252,18 @@ void UStaticMesh::Build(bool bSilent, TArray<FText>* OutErrors)
 	// allocated, and potentially accessing the UStaticMesh.
 	ReleaseResourcesFence.Wait();
 
+	if (RenderData)
+	{
+		// Finish any previous async builds before modifying RenderData
+		// This can happen during import as the mesh is rebuilt redundantly
+		GDistanceFieldAsyncQueue->BlockUntilBuildComplete(this, true);
+	}
+}
+
+bool UStaticMesh::BuildInternal(bool bInSilent, TArray<FText> * OutErrors)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::BuildInternal);
+
 	// If we're controlled by an editable mesh do not build. The editable mesh will build us
 	if (EditableMesh)
 	{
@@ -115,7 +271,8 @@ void UStaticMesh::Build(bool bSilent, TArray<FText>* OutErrors)
 		{
 			InitResources();
 		}
-		return;
+
+		return false;
 	}
 
 	// Remember the derived data key of our current render data if any.
@@ -134,10 +291,6 @@ void UStaticMesh::Build(bool bSilent, TArray<FText>* OutErrors)
 		// Reinitialize the static mesh's resources.
 		InitResources();
 	}
-
-	// Ensure we have a bodysetup.
-	CreateBodySetup();
-	check(BodySetup != NULL);
 
 	if( GetNumSourceModels() )
 	{
@@ -181,7 +334,7 @@ void UStaticMesh::Build(bool bSilent, TArray<FText>* OutErrors)
 					UE_LOG(LogStaticMesh, Warning, TEXT("%s"), *WarningMsg.ToString());
 				}
 
-				if (!bSilent && OutErrors)
+				if (!bInSilent && OutErrors)
 				{
 					OutErrors->Add(WarningMsg);
 				}
@@ -204,7 +357,7 @@ void UStaticMesh::Build(bool bSilent, TArray<FText>* OutErrors)
 			{
 				UE_LOG(LogStaticMesh, Warning, TEXT("%s"), *WarningMsg.ToString());
 			}
-			if (!bSilent && OutErrors)
+			if (!bInSilent && OutErrors)
 			{
 				OutErrors->Add(WarningMsg);
 			}
@@ -226,7 +379,7 @@ void UStaticMesh::Build(bool bSilent, TArray<FText>* OutErrors)
 				UE_LOG(LogStaticMesh, Warning, TEXT("%s"), *WarningMsg.ToString());
 			}
 
-			if (!bSilent && OutErrors)
+			if (!bInSilent && OutErrors)
 			{
 				OutErrors->Add(WarningMsg);
 			}
@@ -248,7 +401,7 @@ void UStaticMesh::Build(bool bSilent, TArray<FText>* OutErrors)
 				UE_LOG(LogStaticMesh, Warning, TEXT("%s"), *WarningMsg.ToString());
 			}
 
-			if (!bSilent && OutErrors)
+			if (!bInSilent && OutErrors)
 			{
 				OutErrors->Add(WarningMsg);
 			}
@@ -256,17 +409,23 @@ void UStaticMesh::Build(bool bSilent, TArray<FText>* OutErrors)
 
 		// Force the static mesh to re-export next time lighting is built
 		SetLightingGuid();
+	}
 
+	return bHasRenderDataChanged;
+}
+
+void UStaticMesh::PostBuildInternal(const TArray<UStaticMeshComponent*> & InAffectedComponents, bool bHasRenderDataChanged)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::PostBuildInternal);
+
+	if (bHasRenderDataChanged)
+	{
 		// Find any static mesh components that use this mesh and fixup their override colors if necessary.
 		// Also invalidate lighting. *** WARNING components may be reattached here! ***
-		const uint32 NumLODs = RenderData->LODResources.Num();
-		for (TObjectIterator<UStaticMeshComponent> It; It; ++It)
+		for (UStaticMeshComponent* Component : InAffectedComponents)
 		{
-			if ( It->GetStaticMesh() == this )
-			{
-				It->FixupOverrideColorsIfNecessary(true);
-				It->InvalidateLightingCache();
-			}
+			Component->FixupOverrideColorsIfNecessary(true);
+			Component->InvalidateLightingCache();
 		}
 	}
 
@@ -277,16 +436,9 @@ void UStaticMesh::Build(bool bSilent, TArray<FText>* OutErrors)
 	CreateNavCollision(/*bIsUpdate=*/true);
 
 	PostMeshBuild.Broadcast(this);
-
-	if(!bSilent)
-	{
-		GWarn->EndSlowTask();
-	}
-
-#else
-	UE_LOG(LogStaticMesh,Fatal,TEXT("UStaticMesh::Build should not be called on non-editor builds."));
-#endif
 }
+
+#endif // #if WITH_EDITOR
 
 /*------------------------------------------------------------------------------
 	Remapping of painted vertex colors.
@@ -398,10 +550,11 @@ void RemapPaintedVertexColors(const TArray<FPaintedVertex>& InPaintedVertices,
 	// Iterate over each new vertex position, attempting to find the old vertex it is closest to, applying
 	// the color of the old vertex to the new position if possible.
 	OutOverrideColors.Empty(NewPositions.GetNumVertices());
+	TArray<FPaintedVertex> PointsToConsider;
 	const float DistanceOverNormalThreshold = OptionalVertexBuffer ? KINDA_SMALL_NUMBER : 0.0f;
 	for ( uint32 NewVertIndex = 0; NewVertIndex < NewPositions.GetNumVertices(); ++NewVertIndex )
 	{
-		TArray<FPaintedVertex> PointsToConsider;
+		PointsToConsider.Reset();
 		TSMCVertPosOctree::TConstIterator<> OctreeIter( VertPosOctree );
 		const FVector& CurPosition = NewPositions.VertexPosition( NewVertIndex );
 		FVector CurNormal = FVector::ZeroVector;

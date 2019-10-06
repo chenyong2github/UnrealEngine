@@ -365,7 +365,43 @@ struct FObjectExport : public FObjectResource
 	/** I/O functions */
 	friend COREUOBJECT_API FArchive& operator<<(FArchive& Ar, FObjectExport& E);
 	friend COREUOBJECT_API void operator<<(FStructuredArchive::FSlot Slot, FObjectExport& E);
+};
 
+/*-----------------------------------------------------------------------------
+	FObjectTextExport
+-----------------------------------------------------------------------------*/
+
+/**
+ * Simple wrapper around a FObjectExport which does the text asset specific serialization of export data
+ */
+struct FObjectTextExport
+{
+	/**
+	 * Constructor
+	 */
+	FObjectTextExport(FObjectExport& InExport, UObject* InOuter)
+		: Export(InExport)
+		, Outer(InOuter)
+	{
+	}
+
+	/** The export object that we are wrapping */
+	FObjectExport& Export;
+
+	/** The outer that this export lives inside */
+	UObject* Outer;
+
+	/** String full object path for this export's class */
+	FString ClassName;
+
+	/** String full object path for this export's superstruct, if applicable */
+	FString SuperStructName;
+
+	/** String full object path for this export's outer, if applicable (i.e. if it's not the package itself) */
+	FString OuterName;
+
+	/** Serializer */
+	friend COREUOBJECT_API void operator<<(FStructuredArchive::FSlot Slot, FObjectTextExport& E);
 };
 
 /*-----------------------------------------------------------------------------

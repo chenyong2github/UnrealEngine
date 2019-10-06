@@ -710,6 +710,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Audio", meta=(WorldContext = "WorldContextObject"))
 	static void SetBaseSoundMix(const UObject* WorldContextObject, class USoundMix* InSoundMix);
 
+	/** Primes the sound, caching the first chunk of streamed audio. **/
+	UFUNCTION(BlueprintCallable, Category = "Audio")
+	static void PrimeSound(USoundBase* InSound);
+
 	/** Overrides the sound class adjuster in the given sound mix. If the sound class does not exist in the input sound mix, the sound class adjustment will be added to the sound mix.
 	 * @param InSoundMixModifier The sound mix to modify.
 	 * @param InSoundClass The sound class to override (or add) in the sound mix.
@@ -1168,6 +1172,16 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "Utilities")
 	static bool ProjectWorldToScreen(APlayerController const* Player, const FVector& WorldPosition, FVector2D& ScreenPosition, bool bPlayerViewportRelative = false);
+
+	/**
+	 * Returns the View Matrix, Projection Matrix and the View x Projection Matrix for a given view
+	 * @param DesiredView			FMinimalViewInfo struct for a camera.
+	 * @param ViewMatrix			(out) Corresponding View Matrix
+	 * @param ProjectionMatrix		(out) Corresponding Projection Matrix
+	 * @param ViewProjectionMatrix	(out) Corresponding View x Projection Matrix
+	 */
+	UFUNCTION(BlueprintPure, Category = "Utilities")
+	static void GetViewProjectionMatrix(FMinimalViewInfo DesiredView, FMatrix &ViewMatrix, FMatrix &ProjectionMatrix, FMatrix &ViewProjectionMatrix);
 
 	/**
 	 * Calculate view-projection matrices from a specified view target

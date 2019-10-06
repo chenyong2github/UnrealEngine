@@ -2,8 +2,6 @@
 
 #pragma once
 
-#if INCLUDE_CHAOS
-
 #include "Templates/UniquePtr.h"
 #include "PhysicsEngine/BodySetup.h"
 namespace Chaos
@@ -41,5 +39,3 @@ private:
 };
 
 extern template class FChaosDerivedDataReader<float, 3>;
-
-#endif

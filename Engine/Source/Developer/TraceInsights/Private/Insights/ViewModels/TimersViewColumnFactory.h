@@ -4,8 +4,6 @@
 
 #include "CoreMinimal.h"
 
-#include "Insights/ViewModels/TimersViewColumn.h"
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct FTimersViewColumns
@@ -39,24 +37,39 @@ struct FTimersViewColumns
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+namespace Insights
+{
+	class FTableColumn;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 struct FTimersViewColumnFactory
 {
-private:
-	/** Default constructor. */
-	FTimersViewColumnFactory();
-
-	/** Destructor. */
-	~FTimersViewColumnFactory();
-
 public:
-	/** Contains basic information about columns used in the Timers view widget. Names should be localized. */
-	TArray<FTimersViewColumn*> Collection;
+	static void CreateTimersViewColumns(TArray<TSharedPtr<Insights::FTableColumn>>& Columns);
+	static void CreateTimerTreeViewColumns(TArray<TSharedPtr<Insights::FTableColumn>>& Columns);
 
-	/** Mapping between column IDs and FTimersViewColumn pointers. */
-	TMap<FName, const FTimersViewColumn*> ColumnIdToPtrMapping;
+	static TSharedRef<Insights::FTableColumn> CreateNameColumn();
+	static TSharedRef<Insights::FTableColumn> CreateMetaGroupNameColumn();
+	static TSharedRef<Insights::FTableColumn> CreateTypeColumn();
+	static TSharedRef<Insights::FTableColumn> CreateInstanceCountColumn();
 
-	/** Singleton */
-	static const FTimersViewColumnFactory& Get();
+	static TSharedRef<Insights::FTableColumn> CreateTotalInclusiveTimeColumn();
+	static TSharedRef<Insights::FTableColumn> CreateMaxInclusiveTimeColumn();
+	static TSharedRef<Insights::FTableColumn> CreateAverageInclusiveTimeColumn();
+	static TSharedRef<Insights::FTableColumn> CreateMedianInclusiveTimeColumn();
+	static TSharedRef<Insights::FTableColumn> CreateMinInclusiveTimeColumn();
+
+	static TSharedRef<Insights::FTableColumn> CreateTotalExclusiveTimeColumn();
+	static TSharedRef<Insights::FTableColumn> CreateMaxExclusiveTimeColumn();
+	static TSharedRef<Insights::FTableColumn> CreateAverageExclusiveTimeColumn();
+	static TSharedRef<Insights::FTableColumn> CreateMedianExclusiveTimeColumn();
+	static TSharedRef<Insights::FTableColumn> CreateMinExclusiveTimeColumn();
+
+private:
+	static constexpr float TotalTimeColumnInitialWidth = 60.0f;
+	static constexpr float TimeMsColumnInitialWidth = 50.0f;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

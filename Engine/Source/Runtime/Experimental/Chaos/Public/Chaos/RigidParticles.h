@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Queue.h"
 #include "Chaos/ArrayCollectionArray.h"
 #include "Chaos/BVHParticles.h"
 #include "Chaos/GeometryParticles.h"
@@ -9,7 +10,6 @@
 #include "Chaos/Matrix.h"
 #include "Chaos/Particles.h"
 #include "Chaos/Rotation.h"
-#include "Chaos/TriangleMesh.h"
 
 namespace Chaos
 {
@@ -47,7 +47,7 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
     using TParticles<T, d>::X;
     using TGeometryParticles<T, d>::R;
 
-	TRigidParticles()
+	CHAOS_API TRigidParticles()
 	    : TKinematicGeometryParticles<T, d>()
 	{
 		TArrayCollection::AddArray(&MF);
@@ -66,7 +66,7 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 		TArrayCollection::AddArray(&MToBeRemovedOnFracture);
 	}
 	TRigidParticles(const TRigidParticles<T, d>& Other) = delete;
-	TRigidParticles(TRigidParticles<T, d>&& Other)
+	CHAOS_API TRigidParticles(TRigidParticles<T, d>&& Other)
 	    : TKinematicGeometryParticles<T, d>(MoveTemp(Other)), MF(MoveTemp(Other.MF)), MT(MoveTemp(Other.MT)), MExternalForce(MoveTemp(Other.MExternalForce)), MExternalTorque(MoveTemp(Other.MExternalTorque)), MI(MoveTemp(Other.MI)), MInvI(MoveTemp(Other.MInvI)), MM(MoveTemp(Other.MM)), MInvM(MoveTemp(Other.MInvM)), MCollisionParticles(MoveTemp(Other.MCollisionParticles)), MCollisionGroup(MoveTemp(Other.MCollisionGroup)), MObjectState(MoveTemp(Other.MObjectState))
 	{
 		TArrayCollection::AddArray(&MF);
@@ -84,6 +84,9 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 		TArrayCollection::AddArray(&MIsland);
 		TArrayCollection::AddArray(&MToBeRemovedOnFracture);
 	}
+
+	CHAOS_API virtual ~TRigidParticles()
+	{}
 
 	const TVector<T, d>& Torque(const int32 Index) const { return MT[Index]; }
 	TVector<T, d>& Torque(const int32 Index) { return MT[Index]; }
@@ -130,6 +133,9 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 	const bool ToBeRemovedOnFracture(const int32 Index) const { return MToBeRemovedOnFracture[Index]; }
 	bool& ToBeRemovedOnFracture(const int32 Index) { return MToBeRemovedOnFracture[Index]; }
 
+	TQueue<TGeometryParticleHandle<T, d>*, EQueueMode::Mpsc>& GetSleepData() { return MSleepData; }
+	void AddSleepData(TGeometryParticleHandle<T, d>* Particle) { MSleepData.Enqueue(Particle); }
+
 	const EObjectStateType ObjectState(const int32 Index) const { return MObjectState[Index]; }
 	EObjectStateType& ObjectState(const int32 Index) { return MObjectState[Index]; }
 
@@ -148,7 +154,7 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 		return FString::Printf(TEXT("%s, MF:%s, MT:%s, MExternalForce:%s, MExternalTorque:%s, MI:%s, MInvI:%s, MM:%f, MInvM:%f, MCollisionParticles(num):%d, MCollisionGroup:%d, MDisabled:%d, MSleepring:%d, MIsland:%d"), *BaseString, *F(index).ToString(), *Torque(index).ToString(), *ExternalForce(index).ToString(), *ExternalTorque(index).ToString(), *I(index).ToString(), *InvI(index).ToString(), M(index), InvM(index), CollisionParticlesSize(index), CollisionGroup(index), Disabled(index), Sleeping(index), Island(index));
 	}
 
-	void Serialize(FChaosArchive& Ar)
+	CHAOS_API virtual void Serialize(FChaosArchive& Ar) override
 	{
 		TKinematicGeometryParticles<T,d>::Serialize(Ar);
 		Ar << MF << MT << MExternalForce << MExternalTorque << MI << MInvI << MM << MInvM;
@@ -170,6 +176,7 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 	TArrayCollectionArray<bool> MDisabled;
 	TArrayCollectionArray<bool> MToBeRemovedOnFracture;
 	TArrayCollectionArray<EObjectStateType> MObjectState;
+	TQueue<TGeometryParticleHandle<T, d>*, EQueueMode::Mpsc> MSleepData;
 };
 
 
@@ -181,6 +188,13 @@ FChaosArchive& operator<<(FChaosArchive& Ar, TRigidParticles<T, d>& Particles)
 	return Ar;
 }
 
+#ifdef __clang__
+#if PLATFORM_WINDOWS
 extern template class TRigidParticles<float, 3>;
-
+#else
+extern template class CHAOS_API TRigidParticles<float, 3>;
+#endif
+#else
+extern template class TRigidParticles<float, 3>;
+#endif
 }

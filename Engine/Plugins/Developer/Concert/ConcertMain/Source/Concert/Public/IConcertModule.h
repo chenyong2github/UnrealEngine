@@ -10,6 +10,8 @@ class IConcertServer;
 class IConcertClient;
 class IConcertServerEventSink;
 
+struct FConcertSessionFilter;
+
 typedef TSharedPtr<IConcertServer, ESPMode::ThreadSafe> IConcertServerPtr;
 typedef TSharedRef<IConcertServer, ESPMode::ThreadSafe> IConcertServerRef;
 typedef TSharedPtr<IConcertClient, ESPMode::ThreadSafe> IConcertClientPtr;
@@ -47,10 +49,11 @@ public:
 	/**
 	 * Create a server that will perform a certain role (eg, MultiUser, DisasterRecovery, etc)
 	 * @param InRole The role to create
+	 * @param InAutoArchiveSessionFilter The session filter to apply when auto-archiving sessions
 	 * @param InEventSink Sink functions for events that the server can emit
 	 * @return The server
 	 */
-	virtual IConcertServerRef CreateServer(const FString& InRole, IConcertServerEventSink* InEventSink) = 0;
+	virtual IConcertServerRef CreateServer(const FString& InRole, const FConcertSessionFilter& InAutoArchiveSessionFilter, IConcertServerEventSink* InEventSink) = 0;
 
 	/**
 	 * Create a client that will perform a certain role (eg, MultiUser, DisasterRecovery, etc)

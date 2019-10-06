@@ -187,6 +187,7 @@ struct FHardwareSurveyResults
 	TCHAR MultimediaAPI_DEPRECATED[MaxStringLength];
 
 	uint32 HardDriveGB;
+	uint32 HardDriveFreeMB;
 	uint32 MemoryMB;
 
 	float CPUPerformanceIndex;

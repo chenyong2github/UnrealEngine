@@ -265,9 +265,9 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 				FPhysicsInterface::CreateActor(Params, PhysHandle);
 
 				TUniquePtr<Chaos::TImplicitObjectTransformed<float, 3>> ChaosHeightField = PxShapeToChaosGeom(HeightFieldShapeSync);
-				TUniquePtr<Chaos::TPerShapeData<float, 3>> NewShape = MakeUnique<Chaos::TPerShapeData<float, 3>>();
+				TUniquePtr<Chaos::TPerShapeData<float, 3>> NewShape = Chaos::TPerShapeData<float, 3>::CreatePerShapeData();
 
-				NewShape->Geometry = ChaosHeightField.Get();
+				NewShape->Geometry = MakeSerializable(ChaosHeightField);
 				NewShape->QueryData = QueryFilterData;
 				NewShape->SimData = SimFilterData;
 
@@ -951,7 +951,7 @@ void ULandscapeMeshCollisionComponent::CreateCollisionObject()
 				for (UPhysicalMaterial* PhysicalMaterial : CookedPhysicalMaterials)
 				{
 #if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
-                    ensure(false);
+					UE_LOG(LogLandscape, Warning, TEXT("CHAOS - Landscape material setup not implemented"));
 #else
 					MeshRef->UsedPhysicalMaterialArray.Add(PhysicalMaterial->GetPhysicsMaterial().Material);
 #endif
@@ -1054,7 +1054,7 @@ void ULandscapeMeshCollisionComponent::OnCreatePhysicsState()
 					if (PTriMeshGeomEd.isValid())
 					{
 #if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
-                        ensure(false);
+						UE_LOG(LogLandscape, Warning, TEXT("CHAOS - Landscape shape creation not implemented"));
 #else
 						PxMaterial* PDefaultMat = GEngine->DefaultPhysMaterial->GetPhysicsMaterial().Material;
 						PxShape* MeshShapeEdSync = GPhysXSDK->createShape(PTriMeshGeomEd, &PDefaultMat, 1, true);
@@ -1082,7 +1082,7 @@ void ULandscapeMeshCollisionComponent::OnCreatePhysicsState()
 				BodyInstance.OwnerComponent = this;
 
 #if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
-                ensure(false);
+				UE_LOG(LogLandscape, Warning, TEXT("CHAOS - Landscape sim scene addition not implemented"));
 #else
 				BodyInstance.ActorHandle.SyncActor = MeshActorSync;
 				MeshActorSync->userData = &BodyInstance.PhysicsUserData;
@@ -2209,8 +2209,8 @@ LANDSCAPE_API TOptional<float> ALandscapeProxy::GetHeightAtLocation(FVector Loca
 {
 	TOptional<float> Height;
 	ULandscapeInfo* Info = GetLandscapeInfo();
-	const FVector ActorSpaceLocation = GetActorTransform().InverseTransformPosition(Location);
-	const FIntPoint Key = FIntPoint(ActorSpaceLocation.X, ActorSpaceLocation.Y) / ComponentSizeQuads;
+	const FVector ActorSpaceLocation = LandscapeActorToWorld().InverseTransformPosition(Location);
+	const FIntPoint Key = FIntPoint(FMath::FloorToInt(ActorSpaceLocation.X / ComponentSizeQuads), FMath::FloorToInt(ActorSpaceLocation.Y / ComponentSizeQuads));
 	ULandscapeComponent* Component = Info->XYtoComponentMap.FindRef(Key);
 	if (Component)
 	{

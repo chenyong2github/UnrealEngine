@@ -353,6 +353,7 @@ public:
 	{
 		TSharedPtr< ITypedTableView<ItemType> > OwnerWidget = OwnerTablePtr.Pin();
 		bChangedSelectionOnMouseDown = false;
+		bDragWasDetected = false;
 
 		check(OwnerWidget.IsValid());
 
@@ -434,7 +435,7 @@ public:
 			const bool bIsUnderMouse = MyGeometry.IsUnderLocation(MouseEvent.GetScreenSpacePosition());
 			if ( HasMouseCapture() )
 			{
-				if ( bIsUnderMouse )
+				if ( bIsUnderMouse && !bDragWasDetected )
 				{
 					switch( GetSelectionMode() )
 					{
@@ -481,7 +482,7 @@ public:
 					Reply = FReply::Handled().ReleaseMouseCapture();
 				}
 
-				if (bChangedSelectionOnMouseDown && (SignalSelectionMode == ETableRowSignalSelectionMode::Deferred))
+				if (bChangedSelectionOnMouseDown && !bDragWasDetected && (SignalSelectionMode == ETableRowSignalSelectionMode::Deferred))
 				{
 					OwnerWidget->Private_SignalSelectionChanged(ESelectInfo::OnMouseClick);
 				}
@@ -587,10 +588,16 @@ public:
 			bProcessingSelectionTouch = false;
 			return FReply::Handled().CaptureMouse( OwnerTablePtr.Pin()->AsWidget() );
 		}
-		else if ( HasMouseCapture() && bChangedSelectionOnMouseDown && (SignalSelectionMode == ETableRowSignalSelectionMode::Deferred))
+		else if ( HasMouseCapture() )
 		{
-			TSharedPtr< ITypedTableView<ItemType> > OwnerWidget = OwnerTablePtr.Pin();
-			OwnerWidget->Private_SignalSelectionChanged(ESelectInfo::OnMouseClick);
+			// Avoid changing the selection on the mouse up if there was a drag
+			bDragWasDetected = true;
+
+			if ( bChangedSelectionOnMouseDown && SignalSelectionMode == ETableRowSignalSelectionMode::Deferred )
+			{
+				TSharedPtr< ITypedTableView<ItemType> > OwnerWidget = OwnerTablePtr.Pin();
+				OwnerWidget->Private_SignalSelectionChanged(ESelectInfo::OnMouseClick);
+			}
 		}
 
 		if (OnDragDetected_Handler.IsBound())
@@ -1059,6 +1066,8 @@ protected:
 	TWeakPtr<SWidget> Content;
 
 	bool bChangedSelectionOnMouseDown;
+
+	bool bDragWasDetected;
 
 	/** Did the current a touch interaction start in this item?*/
 	bool bProcessingSelectionTouch;

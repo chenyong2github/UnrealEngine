@@ -7,7 +7,6 @@
 #include "Misc/Guid.h"
 #include "Engine/EngineTypes.h"
 #include "RenderCommandFence.h"
-#include "Templates/ScopedPointer.h"
 #include "Materials/MaterialInterface.h"
 #include "MaterialShared.h"
 #include "MaterialExpressionIO.h"

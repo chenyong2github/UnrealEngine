@@ -4,6 +4,12 @@
 
 #include <sal.h>
 
+#if defined(__clang__)
+	#include "Clang/ClangPlatform.h"
+#else
+	#include "MSVC/MSVCPlatform.h"
+#endif
+
 
 /**
 * Windows specific types
@@ -55,6 +61,7 @@ typedef FWindowsPlatformTypes FPlatformTypes;
 #define PLATFORM_MAX_FILEPATH_LENGTH_DEPRECATED				WINDOWS_MAX_PATH
 #define PLATFORM_HAS_BSD_SOCKET_FEATURE_WINSOCKETS			1
 #define PLATFORM_USES_MICROSOFT_LIBC_FUNCTIONS				1
+#define PLATFORM_IS_ANSI_MALLOC_THREADSAFE					1
 #define PLATFORM_SUPPORTS_TBB								1
 #define PLATFORM_SUPPORTS_NAMED_PIPES						1
 #define PLATFORM_COMPILER_HAS_TCHAR_WMAIN					1
@@ -65,6 +72,7 @@ typedef FWindowsPlatformTypes FPlatformTypes;
 
 #define PLATFORM_SUPPORTS_STACK_SYMBOLS						1
 #define PLATFORM_COMPILER_HAS_DECLTYPE_AUTO					1
+#define PLATFORM_IS_ANSI_MALLOC_THREADSAFE					1
 
 #define PLATFORM_GLOBAL_LOG_CATEGORY						LogWindows
 

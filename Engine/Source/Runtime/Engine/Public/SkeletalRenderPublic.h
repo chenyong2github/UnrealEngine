@@ -43,6 +43,31 @@ enum class EPreviousBoneTransformUpdateMode
 	DuplicateCurrentToPrevious,
 };
 
+struct FCachedGeometrySection
+{
+	FRHIShaderResourceView* PositionBuffer = nullptr;
+	FRHIShaderResourceView* IndexBuffer = nullptr;
+	uint32 NumPrimitives = 0;
+	uint32 VertexBaseIndex = 0;
+	uint32 IndexBaseIndex = 0;
+	uint32 TotalVertexCount = 0;
+	uint32 TotalIndexCount = 0;
+	uint32 SectionIndex = 0;
+	int32 LODIndex = 0;
+};
+
+struct FCachedGeometry
+{
+	int32 LODIndex = 0;
+	TArray<FCachedGeometrySection> Sections;
+
+	void Reset()
+	{
+		LODIndex = 0;
+		Sections.Empty();
+	}
+};
+
 /**
 * Interface for mesh rendering data
 */
@@ -197,12 +222,17 @@ public:
 	/** Get the skeletal mesh resource for which this mesh object was created. */
 	FORCEINLINE FSkeletalMeshRenderData& GetSkeletalMeshRenderData() const { return *SkeletalMeshRenderData; }
 
+	/** Set callback data for register/unregister/update events  */
+	virtual void SetCallbackData(struct FSkeletalMeshObjectCallbackData& CallbackData) {};
+
 #if RHI_RAYTRACING
 	/** Retrieve ray tracing geometry from the underlying mesh object */
 	virtual FRayTracingGeometry* GetRayTracingGeometry() { return nullptr; }
 	virtual const FRayTracingGeometry* GetRayTracingGeometry() const { return nullptr; }
 	virtual FRWBuffer* GetRayTracingDynamicVertexBuffer() { return nullptr; }
 #endif // RHI_RAYTRACING
+
+	virtual FCachedGeometry GetCachedGeometry() const { return FCachedGeometry(); };
 
 	/** Called to notify clothing data that component transform has changed */
 	virtual void RefreshClothingTransforms(const FMatrix& InNewLocalToWorld, uint32 FrameNumber) {};

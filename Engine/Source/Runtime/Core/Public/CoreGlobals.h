@@ -71,7 +71,7 @@ struct CORE_API FScopedBootTiming
 };
 
 
-#define SCOPED_BOOT_TIMING(x) TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT(x)); FScopedBootTiming ANONYMOUS_VARIABLE(BootTiming_)(x);
+#define SCOPED_BOOT_TIMING(x) TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(x); FScopedBootTiming ANONYMOUS_VARIABLE(BootTiming_)(x);
 
 #define GLog GetGlobalLogSingleton()
 extern CORE_API FConfigCacheIni* GConfig;

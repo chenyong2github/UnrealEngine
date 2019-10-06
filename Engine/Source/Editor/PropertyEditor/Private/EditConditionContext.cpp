@@ -81,6 +81,22 @@ T* FindTypedField(const TWeakPtr<FPropertyNode>& PropertyNode, const FString& Pr
 	return nullptr;
 }
 
+FPropertyNode* GetEditConditionParentNode(const TSharedPtr<FPropertyNode>& PropertyNode)
+{
+	FPropertyNode* ParentNode = PropertyNode->GetParentNode();
+	const UObject* PropertyOuter = PropertyNode->GetProperty()->GetOuter();
+
+	if (Cast<UArrayProperty>(PropertyOuter) != nullptr ||
+		Cast<USetProperty>(PropertyOuter) != nullptr ||
+		Cast<UMapProperty>(PropertyOuter) != nullptr)
+	{
+		// in a dynamic container, parent is actually one level up
+		return ParentNode->GetParentNode();
+	}
+
+	return ParentNode;
+}
+
 TOptional<bool> FEditConditionContext::GetBoolValue(const FString& PropertyName) const
 {
 	const UBoolProperty* BoolProperty = FindTypedField<UBoolProperty>(PropertyNode, PropertyName);
@@ -90,11 +106,10 @@ TOptional<bool> FEditConditionContext::GetBoolValue(const FString& PropertyName)
 	}
 
 	TSharedPtr<FPropertyNode> PinnedNode = PropertyNode.Pin();
-	FPropertyNode* ParentNode = PinnedNode->GetParentNode();
-	
-	TOptional<bool> Result;
-
+	FPropertyNode* ParentNode = GetEditConditionParentNode(PinnedNode);
 	FComplexPropertyNode* ComplexParentNode = PinnedNode->FindComplexParent();
+
+	TOptional<bool> Result;
 	for (int32 Index = 0; Index < ComplexParentNode->GetInstancesNum(); ++Index)
 	{
 		uint8* BasePtr = ComplexParentNode->GetMemoryOfInstance(Index);
@@ -137,11 +152,10 @@ TOptional<double> FEditConditionContext::GetNumericValue(const FString& Property
 	}
 
 	TSharedPtr<FPropertyNode> PinnedNode = PropertyNode.Pin();
-	FPropertyNode* ParentNode = PinnedNode->GetParentNode();
+	FPropertyNode* ParentNode = GetEditConditionParentNode(PinnedNode);
+	FComplexPropertyNode* ComplexParentNode = PinnedNode->FindComplexParent();
 
 	TOptional<double> Result;
-
-	FComplexPropertyNode* ComplexParentNode = PinnedNode->FindComplexParent();
 	for (int32 Index = 0; Index < ComplexParentNode->GetInstancesNum(); ++Index)
 	{
 		uint8* BasePtr = ComplexParentNode->GetMemoryOfInstance(Index);
@@ -211,11 +225,10 @@ TOptional<FString> FEditConditionContext::GetEnumValue(const FString& PropertyNa
 	}
 	
 	TSharedPtr<FPropertyNode> PinnedNode = PropertyNode.Pin();
-	FPropertyNode* ParentNode = PinnedNode->GetParentNode();
-	
-	TOptional<int64> Result;
-
+	FPropertyNode* ParentNode = GetEditConditionParentNode(PinnedNode);
 	FComplexPropertyNode* ComplexParentNode = PinnedNode->FindComplexParent();
+
+	TOptional<int64> Result;
 	for (int32 Index = 0; Index < ComplexParentNode->GetInstancesNum(); ++Index)
 	{
 		uint8* BasePtr = ComplexParentNode->GetMemoryOfInstance(Index);

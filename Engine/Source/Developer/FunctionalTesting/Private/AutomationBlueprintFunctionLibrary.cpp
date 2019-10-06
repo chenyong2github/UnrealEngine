@@ -16,7 +16,7 @@
 #include "Editor.h"
 #include "HighResScreenshot.h"
 #include "LevelEditor.h"
-#include "ILevelViewport.h"
+#include "IAssetViewport.h"
 #include "LevelEditorViewport.h"
 #endif
 #include "Tests/AutomationCommon.h"
@@ -44,6 +44,10 @@
 #include "Engine/LevelStreaming.h"
 #include "Templates/UnrealTemplate.h"
 #include "UObject/GCObjectScopeGuard.h"
+
+#if WITH_EDITOR
+#include "SLevelViewport.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "Automation"
 
@@ -1060,7 +1064,7 @@ UAutomationEditorTask* UAutomationBlueprintFunctionLibrary::TakeHighResScreensho
 			HighResScreenshotConfig.SetHDRCapture(bCaptureHDR);
 
 			FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
-			ILevelViewport* LevelViewport = LevelEditor.GetFirstActiveViewport().Get();
+			SLevelViewport* LevelViewport = LevelEditor.GetFirstActiveLevelViewport().Get();
 
 			// Move Viewport to Camera
 			if (Camera)
@@ -1121,6 +1125,14 @@ FAutomationScreenshotOptions UAutomationBlueprintFunctionLibrary::GetDefaultScre
 	Options.SetToleranceAmounts(Tolerance);
 
 	return Options;
+}
+
+void UAutomationBlueprintFunctionLibrary::AddExpectedLogError(FString ExpectedPatternString, int32 Occurrences, bool ExactMatch)
+{
+	if (FAutomationTestBase* CurrentTest = FAutomationTestFramework::Get().GetCurrentTest())
+	{
+		CurrentTest->AddExpectedError(ExpectedPatternString, ExactMatch? EAutomationExpectedErrorFlags::Exact:EAutomationExpectedErrorFlags::Contains, Occurrences);
+	}
 }
 
 void UAutomationBlueprintFunctionLibrary::SetScalabilityQualityLevelRelativeToMax(UObject* WorldContextObject, int32 Value /*= 1*/)

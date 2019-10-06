@@ -113,7 +113,7 @@ public:
 
 	virtual RetValType Execute(ParamTypes... Params) const override final
 	{
-		typedef TPayload<RetValType (ParamTypes..., VarTypes...)> FParmsWithPayload;
+		typedef TPayload<RetValType (typename TDecay<ParamTypes>::Type..., typename TDecay<VarTypes> ::Type...)> FParmsWithPayload;
 
 		checkSlow(IsSafeToExecute());
 

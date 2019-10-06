@@ -109,7 +109,7 @@
 
         onicecandidate = function (e) {
             console.log('ICE candidate', e)
-            if (e.candidate) {
+            if (e.candidate && e.candidate.candidate) {
                 self.onWebRtcCandidate(JSON.stringify(e.candidate));
             }
         };

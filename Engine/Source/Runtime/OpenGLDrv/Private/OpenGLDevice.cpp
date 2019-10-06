@@ -257,13 +257,8 @@ JNI_METHOD void Java_com_epicgames_ue4_MediaPlayer14_nativeClearCachedAttributeS
 
 bool GDisableOpenGLDebugOutput = false;
 
-// workaround for HTML5.
-#if PLATFORM_HTML5
-#undef GL_ARB_debug_output
-#undef GL_KHR_debug
-#endif
-
 #if defined(GL_ARB_debug_output) || defined(GL_KHR_debug)
+
 /**
  * Map GL_DEBUG_SOURCE_*_ARB to a human-readable string.
  */
@@ -349,7 +344,7 @@ static const TCHAR* GetOpenGLDebugSeverityStringARB(GLenum Severity)
 /**
  * OpenGL debug message callback. Conforms to GLDEBUGPROCARB.
  */
-#if PLATFORM_ANDROID || PLATFORM_HTML5
+#if PLATFORM_ANDROID
 	#ifndef GL_APIENTRY
 	#define GL_APIENTRY APIENTRY
 	#endif
@@ -808,11 +803,6 @@ static void InitRHICapabilitiesForGL()
 	// Optional emulation on ES3.1 and PC
 	GUseEmulatedUniformBuffers = (IsES2Platform(GMaxRHIShaderPlatform) && !IsPCPlatform(GMaxRHIShaderPlatform)) || bUseEmulatedUBs;
 
-#if PLATFORM_HTML5
-	// On browser builds, ask the current browser we are running on whether it supports uniform buffers or not.
-	GUseEmulatedUniformBuffers = !FOpenGL::SupportsUniformBuffers();
-#endif
-
 	FString FeatureLevelName;
 	GetFeatureLevelName(GMaxRHIFeatureLevel, FeatureLevelName);
 	FString ShaderPlatformName = LegacyShaderPlatformToShaderFormat(GMaxRHIShaderPlatform).ToString();
@@ -1028,7 +1018,7 @@ static void InitRHICapabilitiesForGL()
 		SetupTextureFormat(PF_G8, FOpenGLTextureFormat(GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE, GL_UNSIGNED_BYTE, false, false));
 		SetupTextureFormat(PF_A8, FOpenGLTextureFormat(GL_ALPHA, GL_ALPHA, GL_ALPHA, GL_ALPHA, GL_ALPHA, GL_UNSIGNED_BYTE, false, false));
 	#endif
-	#if PLATFORM_HTML5
+	#ifdef __EMSCRIPTEN__
 		SetupTextureFormat(PF_R8G8B8A8_UINT, FOpenGLTextureFormat(GL_RGBA8UI, GL_RGBA8UI, GL_RGBA_INTEGER, GL_UNSIGNED_BYTE, false, false));
 	#endif
 
@@ -1041,6 +1031,7 @@ static void InitRHICapabilitiesForGL()
 			SetupTextureFormat(PF_R16_UINT, FOpenGLTextureFormat(GL_R16UI, GL_R16UI, GL_RED_INTEGER, GL_UNSIGNED_SHORT, false, false));
 			SetupTextureFormat(PF_R16_SINT, FOpenGLTextureFormat(GL_R16I, GL_R16I, GL_RED_INTEGER, GL_SHORT, false, false));
 			SetupTextureFormat(PF_R8_UINT, FOpenGLTextureFormat(GL_R8UI, GL_R8UI, GL_RED_INTEGER, GL_UNSIGNED_BYTE, false, false));
+			SetupTextureFormat(PF_R8G8, FOpenGLTextureFormat(GL_RG8, GL_RG8, GL_RG, GL_UNSIGNED_BYTE, false, false));
 		}
 #endif
 

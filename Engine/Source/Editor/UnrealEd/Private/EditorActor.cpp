@@ -65,6 +65,7 @@
 #include "AssetToolsModule.h"
 #include "AssetSelection.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Misc/ScopedSlowTask.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "UnrealEd.EditorActor"
@@ -620,14 +621,7 @@ void UUnrealEdEngine::edactDuplicateSelected( ULevel* InLevel, bool bOffsetLocat
 			PostDuplicateSelection.Add(Actor);
 		}
 
-		TArray<FEdMode*> ActiveModes;
-		GLevelEditorModeTools().GetActiveModes(ActiveModes);
-
-		for (int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex)
-		{
-			// Tell the tools about the duplication
-			ActiveModes[ModeIndex]->ActorsDuplicatedNotify(PreDuplicateSelection, PostDuplicateSelection, bOffsetLocations);
-		}
+		GLevelEditorModeTools().ActorsDuplicatedNotify(PreDuplicateSelection, PostDuplicateSelection, bOffsetLocations);
 	}
 }
 
@@ -808,10 +802,15 @@ bool UUnrealEdEngine::edactDeleteSelected( UWorld* InWorld, bool bVerifyDeletion
 
 		if (bWarnAboutSoftReferences)
 		{
+			FScopedSlowTask SlowTask(ActorsToDelete.Num(), LOCTEXT("ComputeActorSoftReferences", "Computing References"));
+			SlowTask.MakeDialogDelayed(1.0f);
+
 			FAssetToolsModule& AssetToolsModule = FModuleManager::GetModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
 
 			for (int32 ActorIndex = 0; ActorIndex < ActorsToDelete.Num(); ++ActorIndex)
 			{
+				SlowTask.EnterProgressFrame();
+
 				TArray<UObject*> SoftReferencingObjects;
 				AActor* Actor = ActorsToDelete[ActorIndex];
 

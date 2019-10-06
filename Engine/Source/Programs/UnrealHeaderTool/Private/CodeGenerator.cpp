@@ -2737,28 +2737,24 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 		ClassRange.Validate();
 	}
 
-	bool bHasSerializeToFArchive = Class->HasMetaData(TEXT("SerializeToFArchive"));
-	bool bHasSerializeToFStructuredArchive = Class->HasMetaData(TEXT("SerializeToFStructuredArchive"));
-
 	FString GeneratedSerializeFunctionCPP;
 	FString GeneratedSerializeFunctionHeaderMacroName;
 
-	if (bHasSerializeToFArchive != bHasSerializeToFStructuredArchive)
+	if (const FArchiveTypeDefinePair* ArchiveTypeDefinePair = GClassSerializerMap.Find(Class))
 	{
 		FString EnclosingDefines;
 		FUHTStringBuilder Boilerplate, BoilerPlateCPP;
 		FString MacroNameHeader, MacroNameCPP;
 		GeneratedSerializeFunctionHeaderMacroName = SourceFile.GetGeneratedMacroName(ClassData, TEXT("_ARCHIVESERIALIZER"));
 
-		if (!bHasSerializeToFArchive)
+		EnclosingDefines = ArchiveTypeDefinePair->EnclosingDefine;
+		if (ArchiveTypeDefinePair->ArchiveType == ESerializerArchiveType::StructuredArchiveRecord)
 		{
-			EnclosingDefines = Class->GetMetaData(TEXT("SerializeToFStructuredArchive"));
 			MacroNameHeader = TEXT("DECLARE_FARCHIVE_SERIALIZER");
 			MacroNameCPP = TEXT("IMPLEMENT_FARCHIVE_SERIALIZER");
 		}
 		else
 		{
-			EnclosingDefines = Class->GetMetaData(TEXT("SerializeToFArchive"));
 			MacroNameHeader = TEXT("DECLARE_FSTRUCTUREDARCHIVE_SERIALIZER");
 			MacroNameCPP = TEXT("IMPLEMENT_FSTRUCTUREDARCHIVE_SERIALIZER");
 		}
@@ -5470,18 +5466,15 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 				}
 			}
 
-			bool bHasSerializeToFArchive = Class->HasMetaData(TEXT("SerializeToFArchive"));
-			bool bHasSerializeToFStructuredArchive = Class->HasMetaData(TEXT("SerializeToFStructuredArchive"));
-
-			if (bHasSerializeToFArchive != bHasSerializeToFStructuredArchive)
+			if (const FArchiveTypeDefinePair* ArchiveTypeDefinePair = GClassSerializerMap.Find(Class))
 			{
-				if (!bAddedStructuredArchiveFromArchiveHeader && !bHasSerializeToFArchive)
+				if (!bAddedStructuredArchiveFromArchiveHeader && ArchiveTypeDefinePair->ArchiveType == ESerializerArchiveType::StructuredArchiveRecord)
 				{
-					RelativeIncludes.AddUnique(TEXT("Serialization/StructuredArchiveFromArchive.h"));
+					RelativeIncludes.AddUnique(TEXT("Serialization/StructuredArchive.h"));
 					bAddedStructuredArchiveFromArchiveHeader = true;
 				}
 
-				if (!bAddedArchiveUObjectFromStructuredArchiveHeader && !bHasSerializeToFStructuredArchive)
+				if (!bAddedArchiveUObjectFromStructuredArchiveHeader && ArchiveTypeDefinePair->ArchiveType == ESerializerArchiveType::Archive)
 				{
 					RelativeIncludes.AddUnique(TEXT("Serialization/ArchiveUObjectFromStructuredArchive.h"));
 					bAddedArchiveUObjectFromStructuredArchiveHeader = true;

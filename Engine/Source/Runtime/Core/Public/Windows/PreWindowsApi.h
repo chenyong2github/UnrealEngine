@@ -1,13 +1,15 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 // Disable the warning that the pack size is changed in this header.
-#pragma warning(disable:4103)
+#ifdef __clang__
+	#pragma clang diagnostic push
+	#pragma clang diagnostic ignored "-Wpragma-pack"
+#else	// __clang__
+	#pragma warning(disable:4103)
+#endif	// __clang__
 
 // The 10.0.18362.0 SDK introduces an error if the packing isn't the default for the platform.
-#if PLATFORM_WINDOWS && PLATFORM_32BITS
-	#pragma pack(push)
-	#pragma pack(8)
-#endif
+PRAGMA_PUSH_PLATFORM_DEFAULT_PACKING
 
 // Save these macros for later; Windows redefines them
 #pragma push_macro("MAX_uint8")

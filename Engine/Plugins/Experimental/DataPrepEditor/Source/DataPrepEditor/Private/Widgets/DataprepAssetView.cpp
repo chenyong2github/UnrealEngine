@@ -7,8 +7,8 @@
 
 #include "DataPrepContentConsumer.h"
 #include "DataprepEditorStyle.h"
-#include "DataprepWidgets.h"
 #include "SAssetsPreviewWidget.h"
+#include "SDataprepProducersWidget.h"
 
 #include "Engine/SCS_Node.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -34,8 +34,6 @@
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "DataprepAssetView"
-
-const float IndentSize = 12;
 
 namespace DataprepEditorUtils
 {
@@ -288,188 +286,28 @@ void SGraphNodeDetailsWidget::UpdateFromObjects(const TArray<UObject*>& Property
 	ContextualEditingBorderWidget->SetContent(ContextualEditingWidget);
 }
 
-void SProducerStackEntryTreeView::Construct(const FArguments& InArgs, SDataprepAssetView* InDataprepAssetView, UDataprepAsset* InDataprepAssetPtr)
-{
-	DataprepAssetPtr = InDataprepAssetPtr;
-	check( DataprepAssetPtr.IsValid() );
-
-	BuildProducerEntries();
-
-	STreeView::Construct
-	(
-		STreeView::FArguments()
-		.TreeItemsSource(&RootNodes)
-		.OnGenerateRow(this, &SProducerStackEntryTreeView::OnGenerateRow)
-		.OnGetChildren(this, &SProducerStackEntryTreeView::OnGetChildren)
-	);
-}
-
-int32 SProducerStackEntryTreeView::GetDisplayIndexOfNode(FProducerStackEntryRef InNode)
-{
-	return LinearizedItems.Find(InNode);
-}
-
-void SProducerStackEntryTreeView::Refresh()
-{
-	BuildProducerEntries();
-	RequestTreeRefresh();
-}
-
-void SProducerStackEntryTreeView::OnExpansionChanged(FProducerStackEntryRef InItem, bool bInIsExpanded)
-{
-}
-
-TSharedRef<ITableRow> SProducerStackEntryTreeView::OnGenerateRow(FProducerStackEntryRef InDisplayNode, const TSharedRef<STableViewBase>& OwnerTable)
-{
-	return SNew(SProducerStackEntryTableRow, OwnerTable, InDisplayNode);
-}
-
-void SProducerStackEntryTreeView::BuildProducerEntries()
-{
-	if( UDataprepAsset* DataprepAsset = DataprepAssetPtr.Get() )
-	{
-		int32 ProducersCount = DataprepAsset->GetProducersCount();
-
-		RootNodes.Empty( ProducersCount );
-
-		for( int32 Index = 0; Index < ProducersCount; ++Index )
-		{
-			TSharedRef<FProducerStackEntry> ProducerStackEntry = MakeShareable( new FProducerStackEntry( Index, DataprepAsset ) );
-			RootNodes.Add( ProducerStackEntry );
-		}
-	}
-}
-
-void SProducerStackEntryTreeView::OnDataprepAssetProducerChanged()
-{
-	BuildProducerEntries();
-	RequestTreeRefresh();
-}
-
-void SProducerStackEntryTreeView::OnGetChildren(FProducerStackEntryRef InParent, TArray<FProducerStackEntryRef>& OutChildren) const
-{
-	OutChildren.Reset();
-}
-
-/** Construct function for this widget */
-void SProducerStackEntryTableRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTableView, const TSharedRef<FProducerStackEntry>& InNode)
-{
-	Node = InNode;
-	STableRow::Construct(STableRow::FArguments(), OwnerTableView);
-
-	FProducerStackEntryPtr ProducerStackEntry = Node.Pin();
-
-	if (!ProducerStackEntry.IsValid())
-	{
-		SetContent( SNullWidget::NullWidget );
-	}
-	else
-	{
-		SetContent( GetInputMainWidget() );
-	}
-}
-
-TSharedRef<SWidget> SProducerStackEntryTableRow::GetInputMainWidget()
-{
-	FProducerStackEntryPtr ProducerStackEntry = Node.Pin();
-
-	if ( !ProducerStackEntry.IsValid() )
-	{
-		return SNullWidget::NullWidget;
-	}
-
-	auto DeleteEntry = [ProducerStackEntry]()
-	{
-		ProducerStackEntry->RemoveProducer();
-		return FReply::Handled();
-	};
-
-	// Padding for check and delete buttons to center them on the first line of the detail view
-	const FMargin ButtonPadding( 0.0f, 10.0f, 0.0f, 0.0f );
-
-	TSharedPtr<STextBlock> StatusText;
-
-	TSharedPtr<SWidget> Widget = SNew(SBorder)
-	.BorderImage(FEditorStyle::GetBrush("NoBrush"))
-	.Padding(5.0f)
-	[
-		SNew(SHorizontalBox)
-		// Check button
-		+ SHorizontalBox::Slot()
-		.HAlign(HAlign_Center)
-		.Padding( ButtonPadding )
-		.AutoWidth()
-		[
-			SAssignNew(StatusText, STextBlock)
-			.Font( DataprepEditorUtils::GetGlyphFont() )
-			.ColorAndOpacity( this, &SProducerStackEntryTableRow::GetStatusColorAndOpacity )
-			.Text( FEditorFontGlyphs::Exclamation_Triangle )
-		]
-		// Input entry label
-		+ SHorizontalBox::Slot()
-		.FillWidth(1.0f)
-		[
-			SNew( SDataprepDetailsView )
-			.Object( ProducerStackEntry->GetProducer() )
-			.Class( UDataprepContentProducer::StaticClass() )
-		]
-		// Delete button
-		+ SHorizontalBox::Slot()
-		.HAlign(HAlign_Center)
-		.Padding( ButtonPadding )
-		.AutoWidth()
-		[
-			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-			.ToolTipText(LOCTEXT("ProducerStackEntryTableRow_DeleteToolTip", "Delete this producer"))
-			.IsFocusable(false)
-			.OnClicked_Lambda( DeleteEntry )
-			.VAlign( VAlign_Top )
-			.Content()
-			[
-				SNew(STextBlock)
-				.Font( DataprepEditorUtils::GetGlyphFont() )
-				.ColorAndOpacity( FLinearColor::White )
-				.Text( FEditorFontGlyphs::Trash )
-			]
-		]
-	];
-
-	StatusText->SetToolTipText( TAttribute<FText>( this, &SProducerStackEntryTableRow::GetStatusTooltipText ) );
-
-	return Widget.ToSharedRef();
-}
-
-FSlateColor SProducerStackEntryTableRow::GetStatusColorAndOpacity() const
-{
-	FProducerStackEntryPtr ProducerStackEntry = Node.Pin();
-	return  ( ProducerStackEntry.IsValid() && ProducerStackEntry->WillBeRun() ) ? FLinearColor::Transparent : FLinearColor::Red;
-}
-
-FText SProducerStackEntryTableRow::GetStatusTooltipText() const
-{
-	FProducerStackEntryPtr ProducerStackEntry = Node.Pin();
-	if( !ProducerStackEntry.IsValid() )
-	{
-		return LOCTEXT( "ProducerStackEntryTableRow_StatusTextTooltip_Invalid", "The producer is not valid");
-	}
-
-	return  ProducerStackEntry->WillBeRun() ? FText() : LOCTEXT( "ProducerStackEntryTableRow_StatusTextTooltip_Superseded", "This producer is superseded by another one and will be skipped when run.");
-}
-
-void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAsset* InDataprepAssetPtr, TSharedPtr<FUICommandList>& CommandList )
+void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInterface* InDataprepAssetPtr, TSharedPtr<FUICommandList>& CommandList )
 {
 	check( InDataprepAssetPtr );
 
-	DataprepAssetPtr = InDataprepAssetPtr;
+	DataprepAssetInterfacePtr = InDataprepAssetPtr;
 
-	DataprepAssetPtr->GetOnChanged().AddRaw( this, &SDataprepAssetView::OnDataprepAssetChanged );
+	DataprepAssetInterfacePtr->GetOnChanged().AddRaw( this, &SDataprepAssetView::OnDataprepAssetChanged );
 
 	bIsChecked = true;
 
-	for(int32 Index = 0; Index < DataprepAssetPtr->GetProducersCount(); ++Index)
+	ColumnWidth = 0.7f;
+	ColumnSizeData = MakeShared< FDataprepDetailsViewColumnSizeData >();
+	ColumnSizeData->LeftColumnWidth = TAttribute<float>(this, &SDataprepAssetView::OnGetLeftColumnWidth);
+	ColumnSizeData->RightColumnWidth = TAttribute<float>(this, &SDataprepAssetView::OnGetRightColumnWidth);
+	ColumnSizeData->OnWidthChanged = SSplitter::FOnSlotResized::CreateSP(this, &SDataprepAssetView::OnSetColumnWidth);
+
+	UDataprepAssetProducers* AssetProducers = DataprepAssetInterfacePtr->GetProducers();
+	check( AssetProducers );
+
+	for(int32 Index = 0; Index < AssetProducers->GetProducersCount(); ++Index)
 	{
-		bIsChecked &= DataprepAssetPtr->IsProducerEnabled( Index ) && !DataprepAssetPtr->IsProducerSuperseded( Index );
+		bIsChecked &= AssetProducers->IsProducerEnabled( Index ) && !AssetProducers->IsProducerSuperseded( Index );
 	}
 
 	for( TObjectIterator< UClass > It ; It ; ++It )
@@ -485,7 +323,7 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAsset* In
 					TSharedPtr< FString >& ConsumerDescriptionLabel = ConsumerDescriptionList.Emplace_GetRef( new FString( Consumer->GetLabel().ToString() ) );
 					ConsumerDescriptionMap.Add( ConsumerDescriptionLabel, CurrentClass );
 
-					if (DataprepAssetPtr->GetConsumer() != nullptr && DataprepAssetPtr->GetConsumer()->GetClass() == CurrentClass )
+					if (DataprepAssetInterfacePtr->GetConsumer() != nullptr && DataprepAssetInterfacePtr->GetConsumer()->GetClass() == CurrentClass )
 					{
 						SelectedConsumerDescription = ConsumerDescriptionLabel;
 					}
@@ -503,38 +341,19 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAsset* In
 		}
 
 
-		ProducerSelector = SNew( STextComboBox )
+		ConsumerSelector = SNew( STextComboBox )
 		.OptionsSource( &ConsumerDescriptionList )
 		.OnSelectionChanged( this, &SDataprepAssetView::OnNewConsumerSelected )
 		.InitiallySelectedItem( SelectedConsumerDescription );
 	}
 	else
 	{
-		ProducerSelector = SNullWidget::NullWidget;
+		ConsumerSelector = SNullWidget::NullWidget;
 	}
 
-	TSharedPtr<SWidget> AddNewMenu = SNew(SComboButton)
-	.ComboButtonStyle(FEditorStyle::Get(), "ToolbarComboButton")
-	.ForegroundColor(FLinearColor::White)
-	.ToolTipText(LOCTEXT("AddNewToolTip", "Add a new producer."))
-	.OnGetMenuContent(this, &SDataprepAssetView::CreateAddProducerMenuWidget, CommandList)
-	.HasDownArrow(false)
-	.ButtonContent()
-	[
-		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(FMargin(0, 1))
-		.HAlign(HAlign_Center)
-		[
-			SAssignNew(CheckBox, STextBlock)
-			.Font( DataprepEditorUtils::GetGlyphFont() )
-			.ColorAndOpacity( FLinearColor::White )
-			.Text( FEditorFontGlyphs::Plus_Circle )
-		]
-	];
+	ProducersWidget = SNew(SDataprepProducersWidget, AssetProducers, CommandList)
+		.ColumnSizeData(ColumnSizeData);
 
-	TreeView = SNew(SProducerStackEntryTreeView, this, DataprepAssetPtr.Get() );
 	TSharedRef<SScrollBar> ScrollBar = SNew(SScrollBar);
 
 	// #ueent_todo: Look at changing the border brushes to add color to this stuff
@@ -553,37 +372,13 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAsset* In
 				.ExternalScrollbar(ScrollBar)
 				+ SScrollBox::Slot()
 				[
-
 					SNew(SVerticalBox)
-					// Section for producers
 					+ SVerticalBox::Slot()
 					.Padding( 5.0f )
 					.AutoHeight()
+					.MaxHeight( 400.f )
 					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.FillWidth(1.0f)
-						.HAlign(EHorizontalAlignment::HAlign_Left)
-						.VAlign(VAlign_Center)
-						.Padding( FMargin( 10, 0, 0, 0 ) )
-						[
-							SNew(STextBlock)
-							.Font( IDetailLayoutBuilder::GetDetailFontBold() )
-							.Text(LOCTEXT("DataprepAssetView_Producers_label", "Inputs"))
-						]
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						.HAlign(EHorizontalAlignment::HAlign_Right)
-						.Padding(0, 0, 2, 0)
-						[
-							AddNewMenu.ToSharedRef()
-						]
-					]
-					+ SVerticalBox::Slot()
-					.Padding( 5.0f )
-					.AutoHeight()
-					[
-						TreeView.ToSharedRef()
+						ProducersWidget.ToSharedRef()
 					]
 					+ SVerticalBox::Slot()
 					.AutoHeight()
@@ -610,6 +405,7 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAsset* In
 							.Size( FVector2D( 200, 10 ) )		
 						]
 					]
+
 					// Section for consumer
 					+ SVerticalBox::Slot()
 					.AutoHeight()
@@ -619,7 +415,7 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAsset* In
 						.FillWidth(1.0f)
 						.HAlign(EHorizontalAlignment::HAlign_Left)
 						.VAlign(VAlign_Center)
-						.Padding( FMargin( 10, 0, 0, 0 ) )
+						.Padding( FMargin( 5.0f, 5.0f, 0, 7.0f ) )
 						[
 							SNew(STextBlock)
 							.Text(LOCTEXT("DataprepAssetView_Consumer_label", "Output"))
@@ -631,14 +427,21 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAsset* In
 						.HAlign(EHorizontalAlignment::HAlign_Right)
 						.Padding(0, 0, 2, 0)
 						[
-							ProducerSelector.ToSharedRef()
+							ConsumerSelector.ToSharedRef()
 						]
 					]
 					+ SVerticalBox::Slot()
 					.AutoHeight()
 					[
 						SAssignNew( ConsumerWidget, SDataprepConsumerWidget )
-						.DataprepConsumer( DataprepAssetPtr->GetConsumer() )
+						.DataprepConsumer( DataprepAssetInterfacePtr->GetConsumer() )
+						.ColumnSizeData( ColumnSizeData )
+					]
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew( SDataprepDetailsView )
+						.Object( DataprepAssetInterfacePtr->GetConsumer())
 					]
 					+ SVerticalBox::Slot()
 					.AutoHeight()
@@ -668,7 +471,7 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAsset* In
 
 SDataprepAssetView::~SDataprepAssetView()
 {
-	if( UDataprepAsset* DataprepAsset = DataprepAssetPtr.Get() )
+	if( UDataprepAssetInterface* DataprepAsset = DataprepAssetInterfacePtr.Get() )
 	{
 		DataprepAsset->GetOnChanged().RemoveAll( this );
 	}
@@ -681,14 +484,14 @@ void SDataprepAssetView::OnNewConsumerSelected( TSharedPtr<FString> NewConsumerD
 		return;
 	}
 
-	if( UDataprepAsset* DataprepAsset = DataprepAssetPtr.Get() )
+	if( UDataprepAssetInterface* DataprepAsset = DataprepAssetInterfacePtr.Get() )
 	{
 		UClass** NewConsumerClassPtr = ConsumerDescriptionMap.Find(NewConsumerDescription);
 		check(NewConsumerClassPtr);
 
-		if( !DataprepAsset->ReplaceConsumer( *NewConsumerClassPtr ) )
+		if( !DataprepAsset->SetConsumer( *NewConsumerClassPtr ) )
 		{
-			((STextComboBox*)ProducerSelector.Get())->SetSelectedItem(SelectedConsumerDescription);
+			((STextComboBox*)ConsumerSelector.Get())->SetSelectedItem(SelectedConsumerDescription);
 		}
 		// Update SelectedConsumerDescription only, the widget displaying the consumer is updated thru notifications 
 		else
@@ -698,9 +501,9 @@ void SDataprepAssetView::OnNewConsumerSelected( TSharedPtr<FString> NewConsumerD
 	}
 }
 
-void SDataprepAssetView::OnDataprepAssetChanged(FDataprepAssetChangeType ChangeType, int32 Index)
+void SDataprepAssetView::OnDataprepAssetChanged(FDataprepAssetChangeType ChangeType)
 {
-	if( UDataprepAsset* DataprepAsset = DataprepAssetPtr.Get() )
+	if( UDataprepAssetInterface* DataprepAsset = DataprepAssetInterfacePtr.Get() )
 	{
 		if(ChangeType == FDataprepAssetChangeType::ConsumerModified)
 		{
@@ -712,75 +515,8 @@ void SDataprepAssetView::OnDataprepAssetChanged(FDataprepAssetChangeType ChangeT
 			ChangeType == FDataprepAssetChangeType::ProducerRemoved )
 		{
 			// Brute force : Regenerate the whole tree view
-			TreeView->Refresh();
+			ProducersWidget->Refresh();
 		}
-	}
-}
-
-TSharedRef<SWidget> SDataprepAssetView::CreateAddProducerMenuWidget(TSharedPtr<FUICommandList> CommandList)
-{
-	const bool bShouldCloseWindowAfterMenuSelection = true;
-	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, CommandList);
-
-	MenuBuilder.BeginSection("AddNewProducer", LOCTEXT("DataprepEditorViews_AddImports", "Add Producer"));
-	{
-		FUIAction MenuAction;
-		int32 Index = 0;
-
-		// Find content producers the user could use for his/her data preparation
-		for( TObjectIterator< UClass > It ; It ; ++It )
-		{
-			UClass* CurrentClass = (*It);
-
-			if ( !CurrentClass->HasAnyClassFlags( CLASS_Abstract ) )
-			{
-				if( CurrentClass->IsChildOf( UDataprepContentProducer::StaticClass() ) )
-				{
-					MenuAction.ExecuteAction.BindSP(this, &SDataprepAssetView::OnAddProducer, CurrentClass);
-
-					UDataprepContentProducer* DefaultProducer = CurrentClass->GetDefaultObject<UDataprepContentProducer>();
-					check( DefaultProducer );
-
-					MenuBuilder.AddMenuEntry(
-						DefaultProducer->GetLabel(),
-						DefaultProducer->GetDescription(),
-						FSlateIcon( FDataprepEditorStyle::GetStyleSetName(), TEXT("DataprepEditor.Producer") ),
-						MenuAction,
-						NAME_None,
-						EUserInterfaceActionType::Button
-					);
-
-					++Index;
-				}
-			}
-		}
-	}
-	MenuBuilder.EndSection();
-
-	return MenuBuilder.MakeWidget();
-}
-
-void SDataprepAssetView::OnAddProducer( UClass* ProducerClass )
-{
-	if( UDataprepAsset* DataprepAsset = DataprepAssetPtr.Get() )
-	{
-		DataprepAsset->AddProducer(ProducerClass);
-	}
-}
-
-void SDataprepAssetView::OnSelectionChanged( TSharedPtr< FProducerStackEntry > InItem, ESelectInfo::Type InSeletionInfo )
-{
-	// An entry is selected
-	if ( InItem.IsValid() && InItem->HasValidData() )
-	{
-		// Take hold on the selected entry
-		SelectedEntry = InItem;
-	}
-	// An entry is deselected
-	else
-	{
-		// Release hold on selected entry
-		SelectedEntry.Reset();
 	}
 }
 

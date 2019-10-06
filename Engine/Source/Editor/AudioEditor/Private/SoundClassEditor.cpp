@@ -31,6 +31,7 @@
 #include "SoundClassEditorCommands.h"
 #include "Audio/AudioDebug.h"
 #include "AudioDeviceManager.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "SoundClassEditor"
 DEFINE_LOG_CATEGORY_STATIC( LogSoundClassEditor, Log, All );

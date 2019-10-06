@@ -35,6 +35,14 @@ public:
 	// IViewportInteractorInterface overrides
 	virtual void Shutdown_Implementation() override;
 
+	/** Sets the gizmo mode for selected object */
+	UFUNCTION(BlueprintCallable, Category = "Scouting")
+	void SetGizmoMode(EGizmoHandleTypes InGizmoMode);
+
+	/** Gets the gizmo mode for selected object */
+	UFUNCTION(BlueprintCallable, Category = "Scouting")
+	EGizmoHandleTypes GetGizmoMode() const;
+
 	/** Gets all actors that are selected in the world editor */
 	UFUNCTION(BlueprintCallable, Category = "Scouting")
 	static TArray<AActor*> GetSelectedActors();

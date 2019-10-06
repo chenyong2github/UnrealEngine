@@ -131,6 +131,19 @@ FToolMenuEntry* FToolMenuSection::FindEntry(const FName InName)
 	return nullptr;
 }
 
+const FToolMenuEntry* FToolMenuSection::FindEntry(const FName InName) const
+{
+	for (int32 i=0; i < Blocks.Num(); ++i)
+	{
+		if (Blocks[i].Name == InName)
+		{
+			return &Blocks[i];
+		}
+	}
+
+	return nullptr;
+}
+
 int32 FToolMenuSection::IndexOfBlock(const FName InName) const
 {
 	for (int32 i=0; i < Blocks.Num(); ++i)

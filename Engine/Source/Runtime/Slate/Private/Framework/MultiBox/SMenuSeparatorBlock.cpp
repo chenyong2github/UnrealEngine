@@ -8,8 +8,8 @@
 /**
  * Constructor
  */
-FMenuSeparatorBlock::FMenuSeparatorBlock(const FName& InExtensionHook)
-	: FMultiBlock( nullptr, nullptr, InExtensionHook, EMultiBlockType::MenuSeparator )
+FMenuSeparatorBlock::FMenuSeparatorBlock(const FName& InExtensionHook, bool bInIsPartOfHeading)
+	: FMultiBlock( nullptr, nullptr, InExtensionHook, EMultiBlockType::MenuSeparator, bInIsPartOfHeading )
 {
 }
 

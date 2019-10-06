@@ -9,10 +9,17 @@
 #include "ConcertLogGlobal.h"
 #include "IConcertServerEventSink.h"
 
+#include "Algo/AnyOf.h"
 #include "Misc/App.h"
 #include "Misc/Paths.h"
 
 #include "Runtime/Launch/Resources/Version.h"
+#include "ConcertServerInstanceInfo.h"
+#include "StructSerializer.h"
+#include "StructDeserializer.h"
+#include "Backends/JsonStructSerializerBackend.h"
+#include "Backends/JsonStructDeserializerBackend.h"
+#include "HAL/FileManager.h"
 
 #define LOCTEXT_NAMESPACE "ConcertServer"
 
@@ -31,6 +38,62 @@ FString GetArchiveName(const FString& SessionName, const FConcertSessionSettings
 	}
 }
 
+FString GetServerInstanceInfoPathname(const FString& Role)
+{
+	return FPaths::ProjectSavedDir() / Role / TEXT("InstanceInfo.json");
+}
+
+bool SaveServerInstanceInfo(const FString& Role, const FConcertServerInstanceInfo& InInstanceInfo)
+{
+	if (TUniquePtr<FArchive> FileWriter = TUniquePtr<FArchive>(IFileManager::Get().CreateFileWriter(*GetServerInstanceInfoPathname(Role))))
+	{
+		FJsonStructSerializerBackend Backend(*FileWriter, EStructSerializerBackendFlags::Default);
+		FStructSerializer::Serialize(InInstanceInfo, Backend);
+
+		FileWriter->Close();
+		return !FileWriter->IsError();
+	}
+
+	return false;
+}
+
+bool LoadServerInstanceInfo(const FString& Role, FConcertServerInstanceInfo& OutIntanceInfo)
+{
+	if (TUniquePtr<FArchive> FileReader = TUniquePtr<FArchive>(IFileManager::Get().CreateFileReader(*GetServerInstanceInfoPathname(Role))))
+	{
+		FJsonStructDeserializerBackend Backend(*FileReader);
+		FStructDeserializer::Deserialize(OutIntanceInfo, Backend);
+
+		FileReader->Close();
+		return !FileReader->IsError();
+	}
+
+	return false;
+}
+
+int32 RemoveInactiveServerInstances(FConcertServerInstanceInfo& InOutIntanceInfo)
+{
+	InOutIntanceInfo.Instances.RemoveAll([](const FConcertServerInstance& Instance)
+	{
+		if (FPlatformProcess::IsApplicationRunning(Instance.ProcessId))
+		{
+			// If the PID was reused by another application, remove it from the list.
+			return FPaths::GetPathLeaf(FPlatformProcess::GetApplicationName(Instance.ProcessId)) != FPaths::GetPathLeaf(FPlatformProcess::GetApplicationName(FPlatformProcess::GetCurrentProcessId()));
+		}
+		return true; // Not running, remove it.
+	});
+
+	return InOutIntanceInfo.Instances.Num(); // How many remains?
+}
+
+bool SharesDirectoriesWithOtherInstances(const FConcertServerPaths& Paths, FConcertServerInstanceInfo& InstanceInfo)
+{
+	return Algo::AnyOf(InstanceInfo.Instances, [&Paths](const FConcertServerInstance& Instance)
+	{
+		return Instance.ArchiveDirectory == Paths.GetSavedDir() || Instance.WorkingDirectory == Paths.GetWorkingDir();
+	});
+}
+
 }
 
 
@@ -42,8 +105,9 @@ FConcertServerPaths::FConcertServerPaths(const FString& InRole, const FString& I
 {
 }
 
-FConcertServer::FConcertServer(const FString& InRole, IConcertServerEventSink* InEventSink, const TSharedPtr<IConcertEndpointProvider>& InEndpointProvider)
+FConcertServer::FConcertServer(const FString& InRole, const FConcertSessionFilter& InAutoArchiveSessionFilter, IConcertServerEventSink* InEventSink, const TSharedPtr<IConcertEndpointProvider>& InEndpointProvider)
 	: Role(InRole)
+	, AutoArchiveSessionFilter(InAutoArchiveSessionFilter)
 	, EventSink(InEventSink)
 	, EndpointProvider(InEndpointProvider)
 {
@@ -76,7 +140,7 @@ void FConcertServer::Configure(const UConcertServerConfig* InSettings)
 
 	if (InSettings->ServerSettings.bIgnoreSessionSettingsRestriction)
 	{
-		ServerInfo.ServerFlags |= EConcertSeverFlags::IgnoreSessionRequirement;
+		ServerInfo.ServerFlags |= EConcertServerFlags::IgnoreSessionRequirement;
 	}
 }
 
@@ -128,21 +192,45 @@ void FConcertServer::Startup()
 		ServerAdminEndpoint->RegisterRequestHandler<FConcertAdmin_GetSessionClientsRequest, FConcertAdmin_GetSessionClientsResponse>(this, &FConcertServer::HandleGetSessionClientsRequest);
 		ServerAdminEndpoint->RegisterRequestHandler<FConcertAdmin_GetSessionActivitiesRequest, FConcertAdmin_GetSessionActivitiesResponse>(this, &FConcertServer::HandleGetSessionActivitiesRequest);
 
-		if (Settings->bCleanWorkingDir)
-		{
-			ConcertUtil::DeleteDirectoryTree(*Paths->GetWorkingDir(), *Paths->GetBaseWorkingDir());
-		}
-		else
-		{
-			if (Settings->bAutoArchiveOnReboot)
-			{
-				// Migrate live sessions files (session is not restored yet) to its archive form and directory.
-				ArchiveOfflineSessions();
-			}
+		// Concurrent server instances may fight to get ownership of the info file. Use a system wide mutex with an arbitrary name that will unlikely be found in other applications.
+		FSystemWideCriticalSection ScopedSystemWideMutex(TEXT("Unreal_ConcertServer_67822dAB"));
 
-			// Build the list of archive/live sessions and rotate the list of archive to prevent having too many of them.
-			RecoverSessions();
+		// Load the file containing the instance info.
+		FConcertServerInstanceInfo InstanceInfo;
+		ConcertServerUtil::LoadServerInstanceInfo(Role, InstanceInfo);
+
+		// Check if the server can scan/load/rotate the existing session files in the configured directories. (The existing session files are not sharable, they can only managed by one instance)
+		int32 ActiveInstanceCount = ConcertServerUtil::RemoveInactiveServerInstances(InstanceInfo);
+		bool bLoadExistingSessions = ActiveInstanceCount == 0 || !ConcertServerUtil::SharesDirectoriesWithOtherInstances(*Paths, InstanceInfo);
+		if (bLoadExistingSessions)
+		{
+			if (Settings->bCleanWorkingDir)
+			{
+				ConcertUtil::DeleteDirectoryTree(*Paths->GetWorkingDir(), *Paths->GetBaseWorkingDir());
+			}
+			else
+			{
+				if (Settings->bAutoArchiveOnReboot)
+				{
+					// Migrate live sessions files (session is not restored yet) to its archive form and directory.
+					ArchiveOfflineSessions();
+				}
+
+				// Build the list of archive/live sessions and rotate the list of archive to prevent having too many of them.
+				RecoverSessions();
+			}
 		}
+		// else -> This instance will be able to create/rename/delete new sessions but will not see/expose the currently existing ones to avoid file conflict/corruption.
+
+		// Add this instance to the instance info file.
+		FConcertServerInstance& ThisInstance = InstanceInfo.Instances.AddDefaulted_GetRef();
+		ThisInstance.ServerName = Settings->ServerName;
+		ThisInstance.WorkingDirectory = Paths->GetWorkingDir();
+		ThisInstance.ArchiveDirectory = Paths->GetSavedDir();
+		ThisInstance.ProcessId = FPlatformProcess::GetCurrentProcessId();
+		ThisInstance.bEnclaved = !bLoadExistingSessions; // Enclaved means this instance did not scan and load existing sessions to avoid conflict with another running instance(s). It was restricted to work with its own sessions only.
+
+		ConcertServerUtil::SaveServerInstanceInfo(Role, InstanceInfo);
 	}
 }
 
@@ -181,7 +269,7 @@ void FConcertServer::Shutdown()
 			bool bDeleteSessionData = true;
 			if (bAutoArchiveOnShutdown)
 			{
-				bDeleteSessionData = ArchiveLiveSession(LiveSessionId, FString(), FConcertSessionFilter()).IsValid();
+				bDeleteSessionData = ArchiveLiveSession(LiveSessionId, FString(), AutoArchiveSessionFilter).IsValid();
 			}
 			DestroyLiveSession(LiveSessionId, bDeleteSessionData);
 		}
@@ -362,7 +450,7 @@ void FConcertServer::RecoverSessions()
 			// Remove the oldest sessions
 			for (const FSavedSessionInfo& SortedSession : SortedSessions)
 			{
-				ConcertUtil::DeleteDirectoryTree(*Paths->GetSessionSavedDir(ArchivedSessionInfos[SortedSession.Key].SessionId), *Paths->GetBaseSavedDir());	
+				ConcertUtil::DeleteDirectoryTree(*Paths->GetSessionSavedDir(ArchivedSessionInfos[SortedSession.Key].SessionId), *Paths->GetBaseSavedDir());
 			}
 
 			// Update the list of sessions to restore
@@ -397,7 +485,7 @@ void FConcertServer::ArchiveOfflineSessions()
 		ArchivedSessionInfo.SessionId = FGuid::NewGuid();
 		ArchivedSessionInfo.SessionName = ConcertServerUtil::GetArchiveName(LiveSessionInfo.SessionName, LiveSessionInfo.Settings);
 
-		if (EventSink->ArchiveSession(*this, Paths->GetSessionWorkingDir(LiveSessionInfo.SessionId), Paths->GetSessionSavedDir(ArchivedSessionInfo.SessionId), ArchivedSessionInfo, FConcertSessionFilter()))
+		if (EventSink->ArchiveSession(*this, Paths->GetSessionWorkingDir(LiveSessionInfo.SessionId), Paths->GetSessionSavedDir(ArchivedSessionInfo.SessionId), ArchivedSessionInfo, AutoArchiveSessionFilter))
 		{
 			UE_LOG(LogConcert, Display, TEXT("Deleting %s"), *Paths->GetSessionWorkingDir(LiveSessionInfo.SessionId));
 			ConcertUtil::DeleteDirectoryTree(*Paths->GetSessionWorkingDir(LiveSessionInfo.SessionId), *Paths->GetBaseWorkingDir());
@@ -422,6 +510,11 @@ FGuid FConcertServer::ArchiveSession(const FGuid& SessionId, const FString& Arch
 	}
 
 	return ArchivedSessionId;
+}
+
+bool FConcertServer::ExportSession(const FGuid& SessionId, const FConcertSessionFilter& SessionFilter, const FString& DestDir, bool bAnonymizeData, FText& OutFailureReason)
+{
+	return EventSink->ExportSession(*this, SessionId, DestDir, SessionFilter, bAnonymizeData);
 }
 
 bool FConcertServer::RenameSession(const FGuid& SessionId, const FString& NewName, FText& OutFailureReason)
@@ -819,7 +912,7 @@ TFuture<FConcertAdmin_GetSessionActivitiesResponse> FConcertServer::HandleGetSes
 	FConcertAdmin_GetSessionActivitiesResponse ResponseData;
 
 	const FConcertAdmin_GetSessionActivitiesRequest* Message = Context.GetMessage<FConcertAdmin_GetSessionActivitiesRequest>();
-	if (EventSink->GetSessionActivities(*this, Message->SessionId, Message->FromActivityId, Message->ActivityCount, ResponseData.Activities))
+	if (EventSink->GetSessionActivities(*this, Message->SessionId, Message->FromActivityId, Message->ActivityCount, ResponseData.Activities, ResponseData.EndpointClientInfoMap, Message->bIncludeDetails))
 	{
 		ResponseData.ResponseCode = EConcertResponseCode::Success;
 	}

@@ -13,7 +13,6 @@
 #include "Misc/Guid.h"
 #include "Engine/EngineTypes.h"
 #include "RenderCommandFence.h"
-#include "Templates/ScopedPointer.h"
 #include "RenderResource.h"
 #include "PackedNormal.h"
 #include "Containers/DynamicRHIResourceArray.h"

@@ -15,8 +15,22 @@ enum class EHotReloadFlags : uint8
 	// Should not return until the recompile and reload has completed
 	WaitForCompletion = 0x01
 };
-
 ENUM_CLASS_FLAGS(EHotReloadFlags)
+
+enum class ERecompileModuleFlags : uint8
+{
+	None = 0x00,
+
+	// Perform a reload of the module after the recompile finishes
+	ReloadAfterRecompile = 0x01,
+
+	// Report failure if UHT-generated code changes as a result of the recompile
+	FailIfGeneratedCodeChanges = 0x02,
+
+	// Even if this is not code-based project compile with game project as the target for UBT (do not use UE4Editor target)
+	ForceCodeProject = 0x04,
+};
+ENUM_CLASS_FLAGS(ERecompileModuleFlags)
 
 /**
  * HotReload module interface
@@ -50,11 +64,10 @@ public:
 	 * Recompiles a single module
 	 *
 	 * @param InModuleName Name of the module to compile
-	 * @param bReloadAfterRecompile Should the module be reloaded after recompile
 	 * @param Ar Output device (logging)
-	 * @param bForceCodeProject Even if this is not code-based project compile with game project as the target for UBT (do not use UE4Editor target)
+	 * @param Flags Recompilation flags
 	 */
-	virtual bool RecompileModule(const FName InModuleName, const bool bReloadAfterRecompile, FOutputDevice &Ar, bool bFailIfGeneratedCodeChanges = true, bool bForceCodeProject = false) = 0;
+	virtual bool RecompileModule(const FName InModuleName, FOutputDevice &Ar, ERecompileModuleFlags Flags) = 0;
 
 	/**
 	 * Returns whether modules are currently being compiled

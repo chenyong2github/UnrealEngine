@@ -101,6 +101,8 @@ struct FPreAnimatedAnimationTokenProducer : IMovieScenePreAnimatedTokenProducer
 					SequencerInst->ResetNodes();
 				}
 
+				UAnimSequencerInstance::UnbindFromSkeletalMeshComponent(Component);
+
 				// Reset the mesh component update flag and animation mode to what they were before we animated the object
 				Component->VisibilityBasedAnimTickOption = VisibilityBasedAnimTickOption;
 				if (Component->GetAnimationMode() != AnimationMode)
@@ -129,8 +131,11 @@ struct FPreAnimatedAnimationTokenProducer : IMovieScenePreAnimatedTokenProducer
 #if WITH_EDITOR
 				Component->SetUpdateAnimationInEditor(bUpdateAnimationInEditor);
 #endif
-
-				UAnimSequencerInstance::UnbindFromSkeletalMeshComponent(Component);
+				// if not game world, don't clean this up
+				if (Component->GetWorld() != nullptr && Component->GetWorld()->IsGameWorld() == false)
+				{
+					Component->ClearMotionVector();
+				}
 			}
 
 			EVisibilityBasedAnimTickOption VisibilityBasedAnimTickOption;
@@ -395,7 +400,9 @@ namespace MovieScene
 				FMontagePlayerPerSectionData* SectionData = MontageData.Find(Section);
 
 				int32 InstanceId = (SectionData) ? SectionData->MontageInstanceId : INDEX_NONE;
-				TWeakObjectPtr<UAnimMontage> Montage = FAnimMontageInstance::SetSequencerMontagePosition(SlotName, SkeletalMeshComponent, InstanceId, InAnimSequence, InFromPosition, InToPosition, Weight, bLooping, bPlaying);
+
+				const float AssetPlayRate = FMath::IsNearlyZero(InAnimSequence->RateScale) ? 1.0f : InAnimSequence->RateScale;
+				TWeakObjectPtr<UAnimMontage> Montage = FAnimMontageInstance::SetSequencerMontagePosition(SlotName, SkeletalMeshComponent, InstanceId, InAnimSequence, InFromPosition / AssetPlayRate, InToPosition / AssetPlayRate, Weight, bLooping, bPlaying);
 
 				if (Montage.IsValid())
 				{
@@ -440,7 +447,9 @@ namespace MovieScene
 				FMontagePlayerPerSectionData* SectionData = MontageData.Find(Section);
 
 				int32 InstanceId = (SectionData)? SectionData->MontageInstanceId : INDEX_NONE;
-				TWeakObjectPtr<UAnimMontage> Montage = FAnimMontageInstance::PreviewSequencerMontagePosition(SlotName, SkeletalMeshComponent, InstanceId, InAnimSequence, InFromPosition, InToPosition, Weight, bLooping, bFireNotifies, bPlaying);
+
+				const float AssetPlayRate = FMath::IsNearlyZero(InAnimSequence->RateScale) ? 1.0f : InAnimSequence->RateScale;
+				TWeakObjectPtr<UAnimMontage> Montage = FAnimMontageInstance::PreviewSequencerMontagePosition(SlotName, SkeletalMeshComponent, InstanceId, InAnimSequence, InFromPosition / AssetPlayRate, InToPosition / AssetPlayRate, Weight, bLooping, bFireNotifies, bPlaying);
 
 				if (Montage.IsValid())
 				{

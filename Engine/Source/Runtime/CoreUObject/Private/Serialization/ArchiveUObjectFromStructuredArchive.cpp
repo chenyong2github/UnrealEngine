@@ -4,18 +4,12 @@
 
 #if WITH_TEXT_ARCHIVE_SUPPORT
 
-FArchiveUObjectFromStructuredArchive::FArchiveUObjectFromStructuredArchive(FStructuredArchive::FSlot Slot)
-	: FArchiveFromStructuredArchive(Slot)
-	, bPendingSerialize(true)
+FArchiveUObjectFromStructuredArchiveImpl::FArchiveUObjectFromStructuredArchiveImpl(FStructuredArchive::FSlot Slot)
+	: Super(Slot)
 {
 }
 
-FArchiveUObjectFromStructuredArchive::~FArchiveUObjectFromStructuredArchive()
-{
-	Commit();
-}
-
-FArchive& FArchiveUObjectFromStructuredArchive::operator<<(FLazyObjectPtr& Value)
+FArchive& FArchiveUObjectFromStructuredArchiveImpl::operator<<(FLazyObjectPtr& Value)
 {
 	OpenArchive();
 
@@ -45,7 +39,7 @@ FArchive& FArchiveUObjectFromStructuredArchive::operator<<(FLazyObjectPtr& Value
 	return *this;
 }
 
-FArchive& FArchiveUObjectFromStructuredArchive::operator<<(FSoftObjectPtr& Value)
+FArchive& FArchiveUObjectFromStructuredArchiveImpl::operator<<(FSoftObjectPtr& Value)
 {
 	OpenArchive();
 
@@ -75,7 +69,7 @@ FArchive& FArchiveUObjectFromStructuredArchive::operator<<(FSoftObjectPtr& Value
 	return *this;
 }
 
-FArchive& FArchiveUObjectFromStructuredArchive::operator<<(FSoftObjectPath& Value)
+FArchive& FArchiveUObjectFromStructuredArchiveImpl::operator<<(FSoftObjectPath& Value)
 {
 	OpenArchive();
 
@@ -122,7 +116,7 @@ FArchive& FArchiveUObjectFromStructuredArchive::operator<<(FSoftObjectPath& Valu
 	return *this;
 }
 
-FArchive& FArchiveUObjectFromStructuredArchive::operator<<(FWeakObjectPtr& Value)
+FArchive& FArchiveUObjectFromStructuredArchiveImpl::operator<<(FWeakObjectPtr& Value)
 {
 	OpenArchive();
 
@@ -152,38 +146,36 @@ FArchive& FArchiveUObjectFromStructuredArchive::operator<<(FWeakObjectPtr& Value
 	return *this;
 }
 
-void FArchiveUObjectFromStructuredArchive::SerializeInternal(FStructuredArchive::FRecord Record)
+bool FArchiveUObjectFromStructuredArchiveImpl::Finalize(FStructuredArchive::FRecord Record)
 {
-	FArchiveFromStructuredArchive::SerializeInternal(Record);
-
-	if (bPendingSerialize)
+	bool bShouldSerialize = Super::Finalize(Record);
+	if (bShouldSerialize)
 	{
-		TOptional<FStructuredArchive::FSlot> LazyObjectPtrsSlot = Record.TryEnterField(FIELD_NAME_TEXT("LazyObjectPtrs"), LazyObjectPtrs.Num() > 0);
+		TOptional<FStructuredArchive::FSlot> LazyObjectPtrsSlot = Record.TryEnterField(SA_FIELD_NAME(TEXT("LazyObjectPtrs")), LazyObjectPtrs.Num() > 0);
 		if (LazyObjectPtrsSlot.IsSet())
 		{
 			LazyObjectPtrsSlot.GetValue() << LazyObjectPtrs;
 		}
 
-		TOptional<FStructuredArchive::FSlot> SoftObjectPtrsSlot = Record.TryEnterField(FIELD_NAME_TEXT("SoftObjectPtrs"), SoftObjectPtrs.Num() > 0);
+		TOptional<FStructuredArchive::FSlot> SoftObjectPtrsSlot = Record.TryEnterField(SA_FIELD_NAME(TEXT("SoftObjectPtrs")), SoftObjectPtrs.Num() > 0);
 		if (SoftObjectPtrsSlot.IsSet())
 		{
 			SoftObjectPtrsSlot.GetValue() << SoftObjectPtrs;
 		}
 
-		TOptional<FStructuredArchive::FSlot> SoftObjectPathsSlot = Record.TryEnterField(FIELD_NAME_TEXT("SoftObjectPaths"), SoftObjectPaths.Num() > 0);
+		TOptional<FStructuredArchive::FSlot> SoftObjectPathsSlot = Record.TryEnterField(SA_FIELD_NAME(TEXT("SoftObjectPaths")), SoftObjectPaths.Num() > 0);
 		if (SoftObjectPathsSlot.IsSet())
 		{
 			SoftObjectPathsSlot.GetValue() << SoftObjectPaths;
 		}
 
-		TOptional<FStructuredArchive::FSlot> WeakObjectPtrsSlot = Record.TryEnterField(FIELD_NAME_TEXT("WeakObjectPtrs"), WeakObjectPtrs.Num() > 0);
+		TOptional<FStructuredArchive::FSlot> WeakObjectPtrsSlot = Record.TryEnterField(SA_FIELD_NAME(TEXT("WeakObjectPtrs")), WeakObjectPtrs.Num() > 0);
 		if (WeakObjectPtrsSlot.IsSet())
 		{
 			WeakObjectPtrsSlot.GetValue() << WeakObjectPtrs;
 		}
-
-		bPendingSerialize = true;
 	}
+	return bShouldSerialize;
 }
 
 #endif

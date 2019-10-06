@@ -14,6 +14,8 @@
 #include "IDetailCustomization.h"
 #include "Widgets/Input/SComboBox.h"
 
+DECLARE_LOG_CATEGORY_EXTERN(LogSkeletalMeshPersonaMeshDetail, Log, All);
+
 struct FAssetData;
 class FDetailWidgetRow;
 class FPersonaMeshDetails;
@@ -24,6 +26,10 @@ class SUniformGridPanel;
 struct FSectionLocalizer;
 class IDetailCategoryBuilder;
 class IDetailGroup;
+
+//The parameter is the LOD index so we know which LOD need to be rebuild
+DECLARE_DELEGATE_RetVal_OneParam(bool, FIsLODSettingsEnabledDelegate, int32)
+DECLARE_DELEGATE_OneParam(FModifyMeshLODSettingsDelegate, int32)
 
 /**
  * Struct to uniquely identify clothing applied to a material section
@@ -80,6 +86,183 @@ struct FSectionLocalizer
 	int32 SectionIndex;
 };
 
+class FSkeletalMeshReductionSettingsLayout : public IDetailCustomNodeBuilder, public TSharedFromThis<FSkeletalMeshReductionSettingsLayout>
+{
+public:
+	FSkeletalMeshReductionSettingsLayout(FSkeletalMeshOptimizationSettings& InReductionettings, bool InbIsLODModelbuildDataAvailable, int32 InLODIndex, FIsLODSettingsEnabledDelegate InIsLODSettingsEnabledDelegate, FModifyMeshLODSettingsDelegate InModifyMeshLODSettingsDelegate);
+	virtual ~FSkeletalMeshReductionSettingsLayout() {};
+
+	enum EImportanceType
+	{
+		ID_Silhouette,
+		ID_Texture,
+		ID_Shading,
+		ID_Skinning
+	};
+
+	DECLARE_DELEGATE_RetVal(float, FGetFloatDelegate);
+	DECLARE_DELEGATE_OneParam(FSetFloatDelegate, float);
+
+	DECLARE_DELEGATE_RetVal(int32, FGetIntegerDelegate);
+	DECLARE_DELEGATE_OneParam(FSetIntegerDelegate, int32);
+
+	DECLARE_DELEGATE_RetVal(ECheckBoxState, FGetCheckBoxStateDelegate);
+	DECLARE_DELEGATE_OneParam(FSetCheckBoxStateDelegate, ECheckBoxState);
+private:
+	/** IDetailCustomNodeBuilder Interface*/
+	virtual void SetOnRebuildChildren(FSimpleDelegate InOnRegenerateChildren) override {}
+	virtual void GenerateHeaderRowContent(FDetailWidgetRow& NodeRow) override;
+	virtual void GenerateChildContent(IDetailChildrenBuilder& ChildrenBuilder) override;
+	virtual void Tick(float DeltaTime) override {}
+	virtual bool RequiresTick() const override { return false; }
+	virtual FName GetName() const override { static FName MeshBuildSettings("MeshBuildSettings"); return MeshBuildSettings; }
+	virtual bool InitiallyCollapsed() const override { return true; }
+
+	bool IsReductionEnabled() const;
+
+	//Custom Row Add utilities
+	FDetailWidgetRow& AddFloatRow(IDetailChildrenBuilder& ChildrenBuilder, const FText RowTitleText, const FText RowNameContentText, const FText RowNameContentTootlipText, const float MinSliderValue, const float MaxSliderValue, FGetFloatDelegate GetterDelegate, FSetFloatDelegate SetterDelegate);
+	FDetailWidgetRow& AddBoolRow(IDetailChildrenBuilder& ChildrenBuilder, const FText RowTitleText, const FText RowNameContentText, const FText RowNameContentToolitipText, FGetCheckBoxStateDelegate GetterDelegate, FSetCheckBoxStateDelegate SetterDelegate);
+	FDetailWidgetRow& AddIntegerRow(IDetailChildrenBuilder& ChildrenBuilder, const FText RowTitleText, const FText RowNameContentText, const FText RowNameContentTootlipText, const int32 MinSliderValue, const int32 MaxSliderValue, FGetIntegerDelegate GetterDelegate, FSetIntegerDelegate SetterDelegate);
+	void AddBaseLODRow(IDetailChildrenBuilder& ChildrenBuilder);
+
+	void SetPercentAndAbsoluteVisibility(FDetailWidgetRow& Row, SkeletalMeshTerminationCriterion FirstCriterion, SkeletalMeshTerminationCriterion SecondCriterion);
+
+	int32 GetBaseLODValue() const
+	{
+		return ReductionSettings.BaseLOD;
+	}
+	void SetBaseLODValue(int32 Value)
+	{
+		ReductionSettings.BaseLOD = Value;
+	}
+	TSharedRef<class SWidget> FillReductionMethodMenu();
+	FText GetReductionMethodText() const;
+
+	TSharedRef<class SWidget> FillReductionImportanceMenu(const EImportanceType Importance);
+	FText GetReductionImportanceText(const EImportanceType Importance) const;
+
+	TSharedRef<class SWidget> FillReductionTerminationCriterionMenu();
+	FText GetReductionTerminationCriterionText() const;
+
+	float GetNumTrianglesPercentage() const;
+	void SetNumTrianglesPercentage(float Value);
+
+	float GetNumVerticesPercentage() const;
+	void SetNumVerticesPercentage(float Value);
+
+	int32 GetNumMaxTrianglesCount() const;
+	void SetNumMaxTrianglesCount(int32 Value);
+
+	int32 GetNumMaxVerticesCount() const;
+	void SetNumMaxVerticesCount(int32 Value);
+
+	float GetAccuracyPercentage() const;
+	void SetAccuracyPercentage(float Value);
+
+	ECheckBoxState ShouldRecomputeNormals() const;
+	void OnRecomputeNormalsChanged(ECheckBoxState NewState);
+
+	float GetNormalsThreshold() const;
+	void SetNormalsThreshold(float Value);
+
+	float GetWeldingThreshold() const;
+	void SetWeldingThreshold(float Value);
+
+	ECheckBoxState GetLockEdges() const;
+	void SetLockEdges(ECheckBoxState NewState);
+
+	ECheckBoxState GetEnforceBoneBoundaries() const;
+	void SetEnforceBoneBoundaries(ECheckBoxState NewState);
+
+	float GetVolumeImportance() const;
+	void SetVolumeImportance(float Value);
+	
+	ECheckBoxState GetRemapMorphTargets() const;
+	void SetRemapMorphTargets(ECheckBoxState NewState);
+
+	int32 GetMaxBonesPerVertex() const;
+	void SetMaxBonesPerVertex(int32 Value);
+
+	// Used the the thrid-party UI.  
+	EVisibility GetVisibiltyIfCurrentReductionMethodIsNot(SkeletalMeshOptimizationType ReductionType) const;
+
+	// Used by the native tool UI.
+	EVisibility ShowIfCurrentCriterionIs(TArray<SkeletalMeshTerminationCriterion> TerminationCriterionArray) const;
+
+	/** Detect usage of thirdparty vs native tool */
+	bool UseNativeLODTool() const;
+	bool UseNativeReductionTool() const;
+
+	/**
+	Used to hide parameters that only make sense for the third party tool.
+	@return EVisibility::Visible if we are using the simplygon tool, otherwise EVisibility::Hidden
+	*/
+	EVisibility GetVisibilityForThirdPartyTool() const;
+
+private:
+	FSkeletalMeshOptimizationSettings& ReductionSettings;
+	bool bIsLODModelbuildDataAvailable;
+	int32 LODIndex;
+	FIsLODSettingsEnabledDelegate IsLODSettingsEnabledDelegate;
+	FModifyMeshLODSettingsDelegate ModifyMeshLODSettingsDelegate;
+
+	UEnum* EnumReductionMethod;
+	UEnum* EnumImportance;
+	UEnum* EnumTerminationCriterion;
+
+	//Use this data to keep a valid reference so the helper lambda can have persistent data
+	//Helper lambda are use with spinner to not do a transaction when spinning with mouse movement
+	struct FSliderStateData
+	{
+		float MovementValueFloat = 0.0f;
+		int32 MovementValueInt = 0;
+		bool bSliderActiveMode = false;
+	};
+	TArray<FSliderStateData> SliderStateDataArray;
+};
+
+class FSkeletalMeshBuildSettingsLayout : public IDetailCustomNodeBuilder, public TSharedFromThis<FSkeletalMeshBuildSettingsLayout>
+{
+public:
+	FSkeletalMeshBuildSettingsLayout(FSkeletalMeshBuildSettings& InBuildSettings, int32 InLODIndex, FIsLODSettingsEnabledDelegate InIsBuildSettingsEnabledDelegate, FModifyMeshLODSettingsDelegate InModifyMeshLODSettingsDelegate);
+	virtual ~FSkeletalMeshBuildSettingsLayout() {};
+
+private:
+	/** IDetailCustomNodeBuilder Interface*/
+	virtual void SetOnRebuildChildren(FSimpleDelegate InOnRegenerateChildren) override {}
+	virtual void GenerateHeaderRowContent(FDetailWidgetRow& NodeRow) override;
+	virtual void GenerateChildContent(IDetailChildrenBuilder& ChildrenBuilder) override;
+	virtual void Tick(float DeltaTime) override {}
+	virtual bool RequiresTick() const override { return false; }
+	virtual FName GetName() const override { static FName MeshBuildSettings("MeshBuildSettings"); return MeshBuildSettings; }
+	virtual bool InitiallyCollapsed() const override { return true; }
+
+	bool IsBuildEnabled() const;
+	ECheckBoxState ShouldRecomputeNormals() const;
+	ECheckBoxState ShouldRecomputeTangents() const;
+	ECheckBoxState ShouldUseMikkTSpace() const;
+	ECheckBoxState ShouldComputeWeightedNormals() const;
+	ECheckBoxState ShouldRemoveDegenerates() const;
+	ECheckBoxState ShouldUseHighPrecisionTangentBasis() const;
+	ECheckBoxState ShouldUseFullPrecisionUVs() const;
+	ECheckBoxState ShouldBuildAdjacencyBuffer() const;
+
+	void OnRecomputeNormalsChanged(ECheckBoxState NewState);
+	void OnRecomputeTangentsChanged(ECheckBoxState NewState);
+	void OnUseMikkTSpaceChanged(ECheckBoxState NewState);
+	void OnComputeWeightedNormalsChanged(ECheckBoxState NewState);
+	void OnRemoveDegeneratesChanged(ECheckBoxState NewState);
+	void OnUseHighPrecisionTangentBasisChanged(ECheckBoxState NewState);
+	void OnUseFullPrecisionUVsChanged(ECheckBoxState NewState);
+	void OnBuildAdjacencyBufferChanged(ECheckBoxState NewState);
+private:
+	FSkeletalMeshBuildSettings& BuildSettings;
+	int32 LODIndex;
+	FIsLODSettingsEnabledDelegate IsBuildSettingsEnabledDelegate;
+	FModifyMeshLODSettingsDelegate ModifyMeshLODSettingsDelegate;
+};
+
 class FPersonaMeshDetails : public IDetailCustomization
 {
 public:
@@ -93,6 +276,8 @@ public:
 	virtual void CustomizeDetails( IDetailLayoutBuilder& DetailLayout ) override;
 
 private:
+	//This function customize the LODInfo temporary object
+	void CustomizeLODInfoSetingsDetails(IDetailLayoutBuilder& DetailLayout, class ULODInfoUILayout* LODInfoUILayout, TSharedRef<IPropertyHandle> LODInfoProperty, IDetailCategoryBuilder& LODCategory);
 
 	FReply AddMaterialSlot();
 
@@ -266,34 +451,6 @@ private:
 	void OnSectionIsolatedChanged(ECheckBoxState NewState, int32 SectionIndex);
 
 	/**
-	 * Handler for check box display based on whether the material has shadow casting enabled
-	 *
-	 * @param MaterialIndex	The material index which a section in a specific LOD model has
-	 */
-	ECheckBoxState IsShadowCastingEnabled(int32 MaterialIndex) const;
-
-	/**
-	 * Handler for changing shadow casting status on a material
-	 *
-	 * @param MaterialIndex	The material index which a section in a specific LOD model has
-	 */
-	void OnShadowCastingChanged(ECheckBoxState NewState, int32 MaterialIndex);
-
-	/**
-	* Handler for check box display based on whether this section does recalculate normal or not
-	*
-	* @param MaterialIndex	The material index which a section in a specific LOD model has
-	*/
-	ECheckBoxState IsRecomputeTangentEnabled(int32 MaterialIndex) const;
-
-	/**
-	* Handler for changing recalulate normal status on a material
-	*
-	* @param MaterialIndex	The material index which a section in a specific LOD model has
-	*/
-	void OnRecomputeTangentChanged(ECheckBoxState NewState, int32 MaterialIndex);
-
-	/**
 	* Handler for check box display based on whether the material has shadow casting enabled
 	*
 	* @param LODIndex	The LODIndex we want to change
@@ -366,15 +523,15 @@ private:
 	/** apply LOD changes if the user modified LOD reduction settings */
 	FReply OnApplyChanges();
 	/** regenerate one specific LOD Index no dependencies*/
-	void RegenerateOneLOD(int32 LODIndex, bool bReregisterComponent = true);
+	void RegenerateOneLOD(int32 LODIndex);
 	/** regenerate the specific all LODs dependent of InLODIndex. This is not regenerating the InLODIndex*/
-	void RegenerateDependentLODs(int32 LODIndex, bool bReregisterComponent = true);
+	void RegenerateDependentLODs(int32 LODIndex);
+	/** Apply specified LOD Index */
+	FReply ApplyLODChanges(int32 LODIndex);
 	/** Apply specified LOD Index */
 	FReply RegenerateLOD(int32 LODIndex);
 	/** Removes the specified lod from the skeletal mesh */
 	FReply RemoveOneLOD(int32 LODIndex);
-	/** Remove Bones again */
-	FReply RemoveBones(int32 LODIndex);
 	/** hide properties which don't need to be showed to end users */
 	void HideUnnecessaryProperties(IDetailLayoutBuilder& DetailLayout);
 
@@ -453,6 +610,10 @@ private:
 	TWeakPtr<class IPersonaToolkit> PersonaToolkitPtr;
 
 	IDetailLayoutBuilder* MeshDetailLayout;
+
+	//This is the mockup UObjects to modify a copy of the LODInfo
+	TArray<class ULODInfoUILayout*> LODInfoUILayouts;
+	TArray<TSharedRef<IDetailsView>> LODInfoUILayoutDetailsViews;
 
 	/** LOD import options */
 	TArray<TSharedPtr<FString> > LODNames;
@@ -542,14 +703,16 @@ private:
 	/* Make uniform grid widget for Apex details */
 	TSharedRef<SUniformGridPanel> MakeClothingDetailsWidget(int32 AssetIndex) const;
 
+#if WITH_APEX_CLOTHING
 	/* Opens dialog to add a new clothing asset */
 	FReply OnOpenClothingFileClicked(IDetailLayoutBuilder* DetailLayout);
 
 	/* Reimports a clothing asset */ 
 	FReply OnReimportApexFileClicked(int32 AssetIndex, IDetailLayoutBuilder* DetailLayout);
+#endif
 
 	/* Removes a clothing asset */ 
-	FReply OnRemoveApexFileClicked(int32 AssetIndex, IDetailLayoutBuilder* DetailLayout);
+	FReply OnRemoveClothingAssetClicked(int32 AssetIndex, IDetailLayoutBuilder* DetailLayout);
 
 	/* Create LOD setting assets from current setting */
 	FReply OnSaveLODSettings();
@@ -559,6 +722,10 @@ private:
 
 	/** LOD Info editing is enabled? LODIndex == -1, then it just verifies if the asset exists */
 	bool IsLODInfoEditingEnabled(int32 LODIndex) const;
+	void ModifyMeshLODSettings(int32 LODIndex);
+
+	TMap<int32, TSharedPtr<FSkeletalMeshBuildSettingsLayout>> BuildSettingsWidgetsPerLOD;
+	TMap<int32, TSharedPtr<FSkeletalMeshReductionSettingsLayout>> ReductionSettingsWidgetsPerLOD;
 
 	// Property handle used to determine if the VertexColorImportOverride property should be enabled.
 	TSharedPtr<IPropertyHandle> VertexColorImportOptionHandle;

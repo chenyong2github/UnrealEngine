@@ -1,7 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#if INCLUDE_CHAOS
-
 #include "Framework/Dispatcher.h"
 #include "DispatcherImpl.h"
 
@@ -253,5 +251,3 @@ FString LexToString(const Chaos::EThreadingMode InValue)
 template class Chaos::FDispatcher<EChaosThreadingMode::DedicatedThread>;
 template class Chaos::FDispatcher<EChaosThreadingMode::SingleThread>;
 template class Chaos::FDispatcher<EChaosThreadingMode::TaskGraph>;
-
-#endif

@@ -426,7 +426,19 @@ public:
 		// does any work only if that's the case
 		if (Number > Elements.Num())
 		{
+			// Preallocates memory for array of elements
 			Elements.Reserve(Number);
+
+			// Calculate the corresponding hash size for the specified number of elements.
+			const int32 NewHashSize = Allocator::GetNumberOfHashBuckets(Number);
+
+			// If the hash hasn't been created yet, or is smaller than the corresponding hash size, rehash
+			// to force a preallocation of the hash table
+			if(!HashSize || HashSize < NewHashSize)
+			{
+				HashSize = NewHashSize;
+				Rehash();
+			}
 		}
 	}
 
@@ -879,6 +891,19 @@ public:
 	{
 		// Sort the elements according to the provided comparison class.
 		Elements.Sort( FElementCompareClass< PREDICATE_CLASS >( Predicate ) );
+
+		// Rehash.
+		Rehash();
+	}
+
+	/**
+	 * Stable sorts the set's elements using the provided comparison class.
+	 */
+	template <typename PREDICATE_CLASS>
+	void StableSort(const PREDICATE_CLASS& Predicate)
+	{
+		// Sort the elements according to the provided comparison class.
+		Elements.StableSort(FElementCompareClass< PREDICATE_CLASS >(Predicate));
 
 		// Rehash.
 		Rehash();
@@ -1620,72 +1645,108 @@ public:
 		}
 	}
 
+private:
+	int32 FindIndexImpl(const void* Element, const FScriptSetLayout& Layout, uint32 KeyHash, TFunctionRef<bool (const void*, const void*)> EqualityFn)
+	{
+		const int32  HashIndex = KeyHash & (HashSize - 1);
+
+		uint8* CurrentElement = nullptr;
+		for (FSetElementId ElementId = GetTypedHash(HashIndex);
+			ElementId.IsValidId();
+			ElementId = GetHashNextIdRef(CurrentElement, Layout))
+		{
+			CurrentElement = (uint8*)Elements.GetData(ElementId, Layout.SparseArrayLayout);
+			if (EqualityFn(Element, CurrentElement))
+			{
+				return ElementId;
+			}
+		}
+	
+		return INDEX_NONE;
+	}
+
+public:
 	int32 FindIndex(const void* Element, const FScriptSetLayout& Layout, TFunctionRef<uint32 (const void*)> GetKeyHash, TFunctionRef<bool (const void*, const void*)> EqualityFn)
 	{
 		if (Elements.Num())
 		{
-			const uint32 KeyHash = GetKeyHash(Element);
-			const int32  HashIndex = KeyHash & (HashSize - 1);
-
-			uint8* CurrentElement = nullptr;
-			for (FSetElementId ElementId = GetTypedHash(HashIndex);
-				ElementId.IsValidId();
-				ElementId = GetHashNextIdRef(CurrentElement, Layout))
-			{
-				CurrentElement = (uint8*)Elements.GetData(ElementId, Layout.SparseArrayLayout);
-				if (EqualityFn(Element, CurrentElement))
-				{
-					return ElementId;
-				}
-			}
+			return FindIndexImpl(Element, Layout, GetKeyHash(Element), EqualityFn);
 		}
 
 		return INDEX_NONE;
 	}
 
+
+	int32 FindIndexByHash(const void* Element, const FScriptSetLayout& Layout, uint32 KeyHash, TFunctionRef<bool (const void*, const void*)> EqualityFn)
+	{
+		if (Elements.Num())
+		{
+			return FindIndexImpl(Element, Layout, KeyHash, EqualityFn);
+		}
+
+		return INDEX_NONE;
+	}
+
+	int32 FindOrAdd(const void* Element, const FScriptSetLayout& Layout, TFunctionRef<uint32(const void*)> GetKeyHash, TFunctionRef<bool(const void*, const void*)> EqualityFn, TFunctionRef<void(void*)> ConstructFn)
+	{
+		uint32 KeyHash = GetKeyHash(Element);
+		int32 OldElementIndex = FindIndexByHash(Element, Layout, KeyHash, EqualityFn);
+		if (OldElementIndex != INDEX_NONE)
+		{
+			return OldElementIndex;
+		}
+
+		return AddNewElement(Layout, GetKeyHash, KeyHash, ConstructFn);
+	}
+
 	void Add(const void* Element, const FScriptSetLayout& Layout, TFunctionRef<uint32(const void*)> GetKeyHash, TFunctionRef<bool(const void*, const void*)> EqualityFn, TFunctionRef<void(void*)> ConstructFn, TFunctionRef<void(void*)> DestructFn)
 	{
-		// Minor efficiency concern: we hash the element both here and in the FindIndex() call
 		uint32 KeyHash = GetKeyHash(Element);
-
-		int32 NewElementIndex = FindIndex(Element, Layout, GetKeyHash, EqualityFn);
-		if (NewElementIndex != INDEX_NONE)
+		int32 OldElementIndex = FindIndexByHash(Element, Layout, KeyHash, EqualityFn);
+		if (OldElementIndex != INDEX_NONE)
 		{
-			void* ElementPtr = Elements.GetData(NewElementIndex, Layout.SparseArrayLayout);
+			void* ElementPtr = Elements.GetData(OldElementIndex, Layout.SparseArrayLayout);
 
 			DestructFn(ElementPtr);
 			ConstructFn(ElementPtr);
 
 			// We don't update the hash because we don't need to - the new element
 			// should have the same hash, but let's just check.
-			check(KeyHash == GetKeyHash(ElementPtr));
+			checkSlow(KeyHash == GetKeyHash(ElementPtr));
 		}
 		else
 		{
-			NewElementIndex = Elements.AddUninitialized(Layout.SparseArrayLayout);
-
-			void* ElementPtr = Elements.GetData(NewElementIndex, Layout.SparseArrayLayout);
-			ConstructFn(ElementPtr);
-
-			const int32 DesiredHashSize = FDefaultSetAllocator::GetNumberOfHashBuckets(Num());
-			if (!HashSize || HashSize < DesiredHashSize)
-			{
-				// rehash, this will link in our new element if needed:
-				Rehash(Layout, GetKeyHash);
-			}
-			else
-			{
-				// link the new element into the set:
-				int32 HashIndex = KeyHash & (HashSize - 1);
-				FSetElementId& TypedHash = GetTypedHash(HashIndex);
-				GetHashIndexRef(ElementPtr, Layout) = HashIndex;
-				GetHashNextIdRef(ElementPtr, Layout) = TypedHash;
-				TypedHash = FSetElementId(NewElementIndex);
-			}
+			AddNewElement(Layout, GetKeyHash, KeyHash, ConstructFn);
 		}
 	}
 
 private:
+	int32 AddNewElement(const FScriptSetLayout& Layout, TFunctionRef<uint32(const void*)> GetKeyHash, uint32 KeyHash, TFunctionRef<void(void*)> ConstructFn)
+	{
+		int32 NewElementIndex = Elements.AddUninitialized(Layout.SparseArrayLayout);
+
+		void* ElementPtr = Elements.GetData(NewElementIndex, Layout.SparseArrayLayout);
+		ConstructFn(ElementPtr);
+
+		const int32 DesiredHashSize = FDefaultSetAllocator::GetNumberOfHashBuckets(Num());
+		if (!HashSize || HashSize < DesiredHashSize)
+		{
+			// rehash, this will link in our new element if needed:
+			Rehash(Layout, GetKeyHash);
+		}
+		else
+		{
+			// link the new element into the set:
+			int32 HashIndex = KeyHash & (HashSize - 1);
+			FSetElementId& TypedHash = GetTypedHash(HashIndex);
+			GetHashIndexRef(ElementPtr, Layout) = HashIndex;
+			GetHashNextIdRef(ElementPtr, Layout) = TypedHash;
+			TypedHash = FSetElementId(NewElementIndex);
+		}
+
+		return NewElementIndex;
+	}
+
 	typedef FDefaultSetAllocator Allocator;
 	typedef Allocator::HashAllocator::ForElementType<FSetElementId> HashType;
 

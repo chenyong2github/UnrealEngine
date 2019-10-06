@@ -10,29 +10,20 @@
 void SGameplayAttributeGraphPin::Construct( const FArguments& InArgs, UEdGraphPin* InGraphPinObj )
 {
 	SGraphPin::Construct( SGraphPin::FArguments(), InGraphPinObj );
-	LastSelectedProperty = NULL;
+	LastSelectedProperty = nullptr;
 
 }
 
 TSharedRef<SWidget>	SGameplayAttributeGraphPin::GetDefaultValueWidget()
 {
-	// Parse out current default value
-	// It will be in the form (Attribute=/Script/<PackageName>.<ObjectName>:<PropertyName>)
-	
+	// Parse out current default value	
 	FString DefaultString = GraphPinObj->GetDefaultAsString();
 	FGameplayAttribute DefaultAttribute;
 
-	if (DefaultString.StartsWith(TEXT("(")) && DefaultString.EndsWith(TEXT(")")))
+	UScriptStruct* PinLiteralStructType = FGameplayAttribute::StaticStruct();
+	if (!DefaultString.IsEmpty())
 	{
-		DefaultString = DefaultString.LeftChop(1);
-		DefaultString = DefaultString.RightChop(1);
-
-		DefaultString.Split("=", NULL, &DefaultString);
-
-		DefaultString = DefaultString.LeftChop(1);
-		DefaultString = DefaultString.RightChop(1);
-
-		DefaultAttribute.SetUProperty(FindObject<UProperty>(ANY_PACKAGE, *DefaultString));
+		PinLiteralStructType->ImportText(*DefaultString, &DefaultAttribute, nullptr, EPropertyPortFlags::PPF_SerializedAsImportText, GError, PinLiteralStructType->GetName(), true);
 	}
 
 	//Create widget
@@ -49,23 +40,13 @@ TSharedRef<SWidget>	SGameplayAttributeGraphPin::GetDefaultValueWidget()
 void SGameplayAttributeGraphPin::OnAttributeChanged(UProperty* SelectedAttribute)
 {
 	FString FinalValue;
+	FGameplayAttribute NewAttributeStruct;
+	NewAttributeStruct.SetUProperty(SelectedAttribute);
 
-	if (SelectedAttribute == nullptr)
-	{
-		FinalValue = FString(TEXT("()"));
-	}
-	else
-	{
-		FinalValue = FString::Printf(TEXT("(Attribute=\"%s\")"), *SelectedAttribute->GetPathName());
-	}
+	FGameplayAttribute::StaticStruct()->ExportText(FinalValue, &NewAttributeStruct, &NewAttributeStruct, nullptr, EPropertyPortFlags::PPF_SerializedAsImportText, nullptr);
 
 	GraphPinObj->GetSchema()->TrySetDefaultValue(*GraphPinObj, FinalValue);
-
-
-	FString DefTagString = GraphPinObj->GetDefaultAsString();
-
 	LastSelectedProperty = SelectedAttribute;
-
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -239,6 +239,13 @@ protected:
 	bool IsEnabled() const;
 
 	/**
+	 * Called by Slate to determine if this menu entry is enabled (during menu editing)
+	 * 
+	 * @return True if the menu entry is enabled, false otherwise
+	 */
+	bool IsEnabledDuringEditMode() const;
+
+	/**
 	 * Called by Slate when this check box button is toggled in a menu entry
 	 */
 	void OnCheckStateChanged( const ECheckBoxState NewCheckedState );

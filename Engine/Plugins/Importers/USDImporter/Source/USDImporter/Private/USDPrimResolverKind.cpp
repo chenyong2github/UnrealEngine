@@ -1,14 +1,19 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "USDPrimResolverKind.h"
-#include "USDImporter.h"
+
 #include "USDConversionUtils.h"
-#include "AssetData.h"
-#include "Modules/ModuleManager.h"
-#include "AssetRegistryModule.h"
+#include "USDImportOptions.h"
+#include "USDImporter.h"
 #include "USDSceneImportFactory.h"
-#include "Engine/StaticMesh.h"
+#include "USDTypesConversion.h"
 #include "UnrealUSDWrapper.h"
+
+#include "AssetData.h"
+#include "AssetRegistryModule.h"
+#include "Engine/StaticMesh.h"
+#include "Modules/ModuleManager.h"
+
 
 #if USE_USD_SDK
 void UUSDPrimResolverKind::FindActorsToSpawn(FUSDSceneImportContext& ImportContext, TArray<FActorSpawnData>& OutActorSpawnData) const
@@ -18,7 +23,7 @@ void UUSDPrimResolverKind::FindActorsToSpawn(FUSDSceneImportContext& ImportConte
 
 void UUSDPrimResolverKind::FindActorsToSpawn_Recursive(FUSDSceneImportContext& ImportContext, const TUsdStore< pxr::UsdPrim >& Prim, const TUsdStore< pxr::UsdPrim >& ParentPrim, TArray<FActorSpawnData>& OutSpawnDatas) const
 {
-	FName PrimName = USDToUnreal::ConvertName(Prim.Get().GetName().GetString());
+	FName PrimName = UsdToUnreal::ConvertName(Prim.Get().GetName().GetString());
 
 	UUSDSceneImportOptions* ImportOptions = Cast<UUSDSceneImportOptions>(ImportContext.ImportOptions);
 
@@ -36,13 +41,13 @@ void UUSDPrimResolverKind::FindActorsToSpawn_Recursive(FUSDSceneImportContext& I
 
 		if (bHasUnrealActorClass)
 		{
-			SpawnData.ActorClassName = USDToUnreal::ConvertString( IUsdPrim::GetUnrealActorClass( *Prim ) );
+			SpawnData.ActorClassName = UsdToUnreal::ConvertString( IUsdPrim::GetUnrealActorClass( *Prim ) );
 
 			UE_LOG(LogUSDImport, Log, TEXT("Adding %s Actor with custom actor class to spawn"), *PrimName.ToString());
 		}
 		else if(bHasUnrealAssetPath)
 		{
-			SpawnData.AssetPath = USDToUnreal::ConvertString( IUsdPrim::GetUnrealAssetPath( *Prim ) );
+			SpawnData.AssetPath = UsdToUnreal::ConvertString( IUsdPrim::GetUnrealAssetPath( *Prim ) );
 			FAssetData AssetData = AssetRegistry->GetAssetByObjectPath(FName(*SpawnData.AssetPath));
 			if ( !AssetData.IsValid() || AssetData.AssetClass == UStaticMesh::StaticClass()->GetFName() )
 			{
@@ -60,7 +65,7 @@ void UUSDPrimResolverKind::FindActorsToSpawn_Recursive(FUSDSceneImportContext& I
 			UE_LOG(LogUSDImport, Log, TEXT("Adding %s Actor with %d meshes"), *PrimName.ToString(), SpawnData.AssetsToImport.Num());
 		}
 
-		SpawnData.WorldTransform = USDToUnreal::ConvertMatrix( *ImportContext.Stage, IUsdPrim::GetLocalTransform( *Prim ) );
+		SpawnData.WorldTransform = UsdToUnreal::ConvertMatrix( *ImportContext.Stage, IUsdPrim::GetLocalTransform( *Prim ) );
 		SpawnData.ActorPrim = Prim;
 		SpawnData.ActorName = PrimName;
 		SpawnData.AttachParentPrim = GroupParent;
@@ -82,7 +87,7 @@ void UUSDPrimResolverKind::FindActorsToSpawn_Recursive(FUSDSceneImportContext& I
 		SpawnData.ActorPrim = Prim;
 		SpawnData.ActorName = PrimName;
 
-		SpawnData.WorldTransform = USDToUnreal::ConvertMatrix( *ImportContext.Stage, IUsdPrim::GetLocalTransform( *Prim ) );
+		SpawnData.WorldTransform = UsdToUnreal::ConvertMatrix( *ImportContext.Stage, IUsdPrim::GetLocalTransform( *Prim ) );
 		SpawnData.AttachParentPrim = GroupParent;
 
 		// New parent of all children is this prim

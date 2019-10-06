@@ -38,5 +38,5 @@ void MainPS(float4 InPosition : SV_POSITION,
 	out float4 OutColor : SV_Target0)
 {
 	float4 InputColor = InputTexture.Sample(InputTextureSampler, InUV.xy);
-	OutColor = float4(OCIOConvert(InputColor, ociolut3d_0Sampler).xyz, 1.0);
+	OutColor = float4(OCIOConvert(InputColor, ociolut3d_0Sampler).xyz, InputColor.w);
 }

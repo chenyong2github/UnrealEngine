@@ -193,6 +193,7 @@
 #include "DDSLoader.h"
 #include "HDRLoader.h"
 #include "Factories/IESLoader.h"
+#include "Factories/TIFFLoader.h"
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
 
@@ -2911,6 +2912,7 @@ UTextureFactory::UTextureFactory(const FObjectInitializer& ObjectInitializer)
 	Formats.Add( TEXT( "jpg;Texture" ) );
 	Formats.Add( TEXT( "jpeg;Texture" ) );
 	Formats.Add( TEXT( "exr;Texture (HDR)" ) );
+	Formats.Add( TEXT( "tif;Texture (TIFF)" ) );
 
 	bCreateNew = false;
 	bEditorImport = true;
@@ -3656,7 +3658,25 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, uint32 Length, FFeedbackC
 			return true;
 		}
 	}
-	
+
+	FTiffLoadHelper TiffLoaderHelper;
+	if (TiffLoaderHelper.IsValid())
+	{
+		if (TiffLoaderHelper.Load(Buffer, Length))
+		{
+			OutImage.Init2D(
+				TiffLoaderHelper.Width,
+				TiffLoaderHelper.Height,
+				TiffLoaderHelper.TextureSourceFormat,
+				TiffLoaderHelper.RawData.GetData()
+			);
+
+			OutImage.SRGB = TiffLoaderHelper.bSRGB;
+			OutImage.CompressionSettings = TiffLoaderHelper.CompressionSettings;
+			return true;
+		}
+	}
+
 	return false;
 }
 
@@ -4728,7 +4748,7 @@ bool UTextureExporterBMP::SupportsObject(UObject* Object) const
 
 		if (Texture)
 		{
-			bSupportsObject = Texture->Source.GetFormat() == TSF_BGRA8 || Texture->Source.GetFormat() == TSF_RGBA16;
+			bSupportsObject = Texture->Source.GetFormat() == TSF_BGRA8 || Texture->Source.GetFormat() == TSF_RGBA16 || Texture->Source.GetFormat() == TSF_G8;
 		}
 	}
 	return bSupportsObject;
@@ -4738,13 +4758,14 @@ bool UTextureExporterBMP::ExportBinary( UObject* Object, const TCHAR* Type, FArc
 {
 	UTexture2D* Texture = CastChecked<UTexture2D>( Object );
 
-	if( !Texture->Source.IsValid() || ( Texture->Source.GetFormat() != TSF_BGRA8 && Texture->Source.GetFormat() != TSF_RGBA16 ) )
+	if( !Texture->Source.IsValid() || ( Texture->Source.GetFormat() != TSF_BGRA8 && Texture->Source.GetFormat() != TSF_RGBA16  && Texture->Source.GetFormat() != TSF_G8) )
 	{
 		return false;
 	}
 
 	const bool bIsRGBA16 = Texture->Source.GetFormat() == TSF_RGBA16;
-	const int32 SourceBytesPerPixel = bIsRGBA16 ? 8 : 4;
+	const bool bIsG8 = Texture->Source.GetFormat() == TSF_G8;
+	const int32 SourceBytesPerPixel = bIsRGBA16 ? 8 : (bIsG8 ? 1 : 4);
 
 	if (bIsRGBA16)
 	{
@@ -4800,6 +4821,13 @@ bool UTextureExporterBMP::ExportBinary( UObject* Object, const TCHAR* Type, FArc
 				Ar << ScreenPtr[3];
 				Ar << ScreenPtr[5];
 				ScreenPtr += 8;
+			}
+			else if (bIsG8)
+			{
+				Ar << ScreenPtr[0];
+				Ar << ScreenPtr[0];
+				Ar << ScreenPtr[0];
+				ScreenPtr += 1;
 			}
 			else
 			{
@@ -6221,6 +6249,7 @@ EReimportResult::Type UReimportFbxSkeletalMeshFactory::Reimport( UObject* Obj, i
 		ImportOptions->SkeletonForAnimation = SkeletalMesh->Skeleton;
 		ImportOptions->bCreatePhysicsAsset = false;
 		ImportOptions->PhysicsAsset = SkeletalMesh->PhysicsAsset;
+		
 
 		ImportOptions = GetImportOptions( FFbxImporter, ReimportUI, bShowOptionDialog, bIsAutomated, Obj->GetPathName(), bOperationCanceled, bOutImportAll, bIsObjFormat, Filename, bForceImportType, FBXIT_SkeletalMesh);
 
@@ -6231,11 +6260,32 @@ EReimportResult::Type UReimportFbxSkeletalMeshFactory::Reimport( UObject* Obj, i
 		}
 	}
 
+	//Set the build option to reflect the user choice in the dialog
+	UFbxSkeletalMeshImportData* SKImportData = UFbxSkeletalMeshImportData::GetImportDataForSkeletalMesh(SkeletalMesh, ReimportUI->SkeletalMeshImportData);
+	if (SKImportData)
+	{
+		FSkeletalMeshLODInfo* LODInfo = SkeletalMesh->GetLODInfo(0);
+		if (LODInfo && SkeletalMesh->GetImportedModel() && SkeletalMesh->GetImportedModel()->LODModels.IsValidIndex(0))
+		{
+			const FSkeletalMeshLODModel& LODModel = SkeletalMesh->GetImportedModel()->LODModels[0];
+			if (LODModel.RawSkeletalMeshBulkData.IsBuildDataAvailable())
+			{
+				//Set the build settings
+				LODInfo->BuildSettings.bComputeWeightedNormals = SKImportData->bComputeWeightedNormals;
+				LODInfo->BuildSettings.bRecomputeNormals = SKImportData->NormalImportMethod == EFBXNormalImportMethod::FBXNIM_ComputeNormals;
+				LODInfo->BuildSettings.bRecomputeTangents = SKImportData->NormalImportMethod != EFBXNormalImportMethod::FBXNIM_ImportNormalsAndTangents;
+				LODInfo->BuildSettings.bUseMikkTSpace = SKImportData->NormalGenerationMethod == EFBXNormalGenerationMethod::MikkTSpace;
+			}
+		}
+	}
+
 	UE_LOG(LogEditorFactories, Log, TEXT("Performing atomic reimport of [%s]"), *Filename);
 	CurrentFilename = Filename;
 
 	if( !bOperationCanceled )
 	{
+		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkeletalMesh);
+
 		ImportOptions->bCanShowDialog = !IsUnattended;
 
 		if (ImportOptions->bImportAsSkeletalSkinning)
@@ -6293,7 +6343,7 @@ EReimportResult::Type UReimportFbxSkeletalMeshFactory::Reimport( UObject* Obj, i
 			//Restore skin weight profile infos, then reimport affected LODs
 			TArray<FSkinWeightProfileInfo>&SkinWeightsProfile = SkeletalMesh->GetSkinWeightProfiles();
 			SkinWeightsProfile = ExistingSkinWeightProfileInfos;
-			FSkinWeightsUtilities::ReimportAlternateSkinWeight(SkeletalMesh, 0, true);
+			FSkinWeightsUtilities::ReimportAlternateSkinWeight(SkeletalMesh, 0);
 		}
 
 		// Reimporting can have dangerous effects if the mesh is still in the transaction buffer.  Reset the transaction buffer if this is the case

@@ -10,6 +10,7 @@
 #include "IMediaSamples.h"
 #include "IMediaTextureSample.h"
 #include "IMediaTextureSampleConverter.h"
+#include "MediaDelegates.h"
 #include "MediaPlayerFacade.h"
 #include "MediaSampleSource.h"
 #include "MediaShaders.h"
@@ -205,6 +206,13 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 				break; // future sample (reverse play)
 			}
 
+#if UE_MEDIAUTILS_DEVELOPMENT_DELEGATE
+			if (UseSample && Sample.IsValid())
+			{
+				FMediaDelegates::OnSampleDiscarded_RenderThread.Broadcast(&Owner, Sample);
+			}
+#endif
+
 			UseSample = SampleSource->Dequeue(Sample);
 
 #if MEDIATEXTURERESOURCE_TRACE_RENDER
@@ -218,6 +226,10 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 			}
 #endif
 		}
+
+#if UE_MEDIAUTILS_DEVELOPMENT_DELEGATE
+		FMediaDelegates::OnPreSampleRender_RenderThread.Broadcast(&Owner, UseSample, Sample);
+#endif
 
 		if (UseSample)
 		{

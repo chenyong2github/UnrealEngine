@@ -248,6 +248,9 @@ public:
 	static void Initialize();
 	static void Terminate();
 
+	void LockAccess();
+	void UnlockAccess();
+
 	void Add(PxBase* Obj, const FString& OwnerName);
 	void Remove(PxBase* Obj);
 
@@ -258,6 +261,7 @@ private:
 	/** Collection of shared physx objects */
 	PxCollection* SharedObjects;
 	TMap<PxBase*, FString> OwnerNames;
+	FCriticalSection CriticalSection;
 
 	static FPhysxSharedData* Singleton;
 

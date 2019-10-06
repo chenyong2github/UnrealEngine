@@ -99,13 +99,32 @@ FRigUnit_CCDIK_Execute()
 			// If we moved some bones, update bone transforms.
 			if (bBoneLocationUpdated)
 			{
-				for (int32 LinkIndex = 0; LinkIndex < BoneIndices.Num(); LinkIndex++)
+				if (FMath::IsNearlyEqual(Weight, 1.f))
 				{
-					const FCCDIKChainLink& CurrentLink = Chain[LinkIndex];
-					Hierarchy->SetGlobalTransform(BoneIndices[LinkIndex], CurrentLink.Transform, bPropagateToChildren);
-				}
+					for (int32 LinkIndex = 0; LinkIndex < BoneIndices.Num(); LinkIndex++)
+					{
+						const FCCDIKChainLink& CurrentLink = Chain[LinkIndex];
+						Hierarchy->SetGlobalTransform(BoneIndices[LinkIndex], CurrentLink.Transform, bPropagateToChildren);
+					}
 
-				Hierarchy->SetGlobalTransform(EffectorIndex, EffectorTransform, bPropagateToChildren);
+					Hierarchy->SetGlobalTransform(EffectorIndex, EffectorTransform, bPropagateToChildren);
+				}
+				else
+				{
+					float T = FMath::Clamp<float>(Weight, 0.f, 1.f);
+
+					for (int32 LinkIndex = 0; LinkIndex < BoneIndices.Num(); LinkIndex++)
+					{
+						const FCCDIKChainLink& CurrentLink = Chain[LinkIndex];
+						FTransform PreviousXfo = Hierarchy->GetGlobalTransform(BoneIndices[LinkIndex]);
+						FTransform Xfo = FControlRigMathLibrary::LerpTransform(PreviousXfo, CurrentLink.Transform, T);
+						Hierarchy->SetGlobalTransform(BoneIndices[LinkIndex], Xfo, bPropagateToChildren);
+					}
+
+					FTransform PreviousXfo = Hierarchy->GetGlobalTransform(EffectorIndex);
+					FTransform Xfo = FControlRigMathLibrary::LerpTransform(PreviousXfo, EffectorTransform, T);
+					Hierarchy->SetGlobalTransform(EffectorIndex, Xfo, bPropagateToChildren);
+				}
 			}
 		}
 	}

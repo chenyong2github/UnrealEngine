@@ -41,6 +41,10 @@
 #include "Preferences/PersonaOptions.h"
 #include "Settings/SkeletalMeshEditorSettings.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "SSkeletonAnimNotifies.h"
+#include "SAnimCurveViewer.h"
+#include "IEditableSkeleton.h"
+#include "SAnimCurvePicker.h"
 
 #define LOCTEXT_NAMESPACE "SequenceBrowser"
 
@@ -63,6 +67,199 @@ public:
 		const FString TagValue = InItem.GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UAnimSequence, AdditiveAnimType));
 		return !TagValue.IsEmpty() && !TagValue.Equals(TEXT("AAT_None"));
 	}
+};
+
+/** A filter that displays animations that use a skeleton notify */
+class FFrontendFilter_SkeletonNotify : public FFrontendFilter
+{
+public:
+	FFrontendFilter_SkeletonNotify(TSharedPtr<FFrontendFilterCategory> InCategory, TSharedPtr<IEditableSkeleton> InEditableSkeleton)
+		: FFrontendFilter(InCategory) 
+		, EditableSkeleton(InEditableSkeleton)
+	{}
+
+	// FFrontendFilter implementation
+	virtual FString GetName() const override 
+	{
+		return TEXT("SkeletonNotifyAssets"); 
+	}
+
+	virtual FText GetDisplayName() const override 
+	{ 
+		return NotifyString.IsEmpty() ? LOCTEXT("FFrontendFilter_SkeletonNotifyAssetsEmpty", "Uses Skeleton Notify...") : FText::Format(LOCTEXT("FFrontendFilter_SkeletonNotifyAssets", "Uses Skeleton Notify: {0}"), FText::FromString(NotifyString));
+	}
+
+	virtual FText GetToolTipText() const override
+	{
+		return NotifyString.IsEmpty() ? LOCTEXT("FFrontendFilter_SkeletonNotifyAssetsEmptyTooltip", "Show assets that use a specified skeleton notify") : FText::Format(LOCTEXT("FFrontendFilter_SkeletonNotifyAssetsTooltip", "Show assets that use skeleton notify '{0}'"), FText::FromString(NotifyString));
+	}
+
+	virtual void ModifyContextMenu(FMenuBuilder& MenuBuilder) override
+	{
+		MenuBuilder.BeginSection(TEXT("NotifySection"), LOCTEXT("NotifySectionHeading", "Choose Notify"));
+
+		TSharedRef<SWidget> Widget =
+			SNew(SBox)
+			.HeightOverride(300.0f)
+			.WidthOverride(200.0f)
+			[
+				SNew(SSkeletonAnimNotifies, EditableSkeleton.ToSharedRef())
+				.IsPicker(true)
+				.OnItemSelected_Lambda([this](const FName& InNotifyName)
+				{
+					FSlateApplication::Get().DismissAllMenus();
+					NotifyString = InNotifyName.ToString();
+					OnChanged().Broadcast();
+				})
+			];
+
+		MenuBuilder.AddWidget(Widget, FText(), true);
+
+		MenuBuilder.EndSection();
+	}
+
+	virtual FLinearColor GetColor() const override
+	{
+		return FLinearColor(0.0f, 0.4f, 0.6f, 1);
+	}
+
+	// IFilter implementation
+	virtual bool PassesFilter(FAssetFilterType InItem) const override
+	{
+		if (!NotifyString.IsEmpty())
+		{
+			const FString TagValue = InItem.GetTagValueRef<FString>(USkeleton::AnimNotifyTag);
+			if (!TagValue.IsEmpty())
+			{
+				// parse notifies
+				TArray<FString> NotifyValues;
+				if (TagValue.ParseIntoArray(NotifyValues, *USkeleton::AnimNotifyTagDelimiter, true) > 0)
+				{
+					for (const FString& NotifyValue : NotifyValues)
+					{
+						if (NotifyValue == NotifyString)
+						{
+							return true;
+						}
+					}
+				}
+			}
+
+			return false;
+		}
+
+		return true;
+	}
+
+	void SetNotifyFilter(const FName& InNotifyFilter)
+	{
+		NotifyString = InNotifyFilter.ToString();
+		OnChanged().Broadcast();
+		SetActive(true);
+	}
+
+public:
+	/** Notify string to use when filtering */
+	FString NotifyString;
+
+	/** Editable skeleton used to access available notifies */
+	TSharedPtr<IEditableSkeleton> EditableSkeleton;
+};
+
+/** A filter that displays animations that use a curve */
+class FFrontendFilter_Curves : public FFrontendFilter
+{
+public:
+	FFrontendFilter_Curves(TSharedPtr<FFrontendFilterCategory> InCategory, TSharedPtr<IEditableSkeleton> InEditableSkeleton)
+		: FFrontendFilter(InCategory)
+		, EditableSkeleton(InEditableSkeleton)
+	{}
+
+	// FFrontendFilter implementation
+	virtual FString GetName() const override
+	{
+		return TEXT("CurveAssets");
+	}
+
+	virtual FText GetDisplayName() const override
+	{
+		return CurveString.IsEmpty() ? LOCTEXT("FFrontendFilter_CurveAssetsEmpty", "Uses Curve...") : FText::Format(LOCTEXT("FFrontendFilter_CurveAssets", "Uses Curve: {0}"), FText::FromString(CurveString));
+	}
+
+	virtual FText GetToolTipText() const override
+	{
+		return CurveString.IsEmpty() ? LOCTEXT("FFrontendFilter_CurveAssetsEmptyTooltip", "Show assets that use a specified curve") : FText::Format(LOCTEXT("FFrontendFilter_CurveAssetsTooltip", "Show assets that use curve '{0}'"), FText::FromString(CurveString));
+	}
+
+	virtual void ModifyContextMenu(FMenuBuilder& MenuBuilder) override
+	{
+		MenuBuilder.BeginSection(TEXT("CurveSection"), LOCTEXT("CurveSectionHeading", "Choose Curve"));
+
+		TSharedRef<SWidget> Widget = 
+			SNew(SBox)
+			.HeightOverride(300.0f)
+			.WidthOverride(200.0f)
+			[
+				SNew(SAnimCurvePicker, EditableSkeleton.ToSharedRef())
+				.OnCurveNamePicked_Lambda([this](const FName& InCurveName)
+				{
+					FSlateApplication::Get().DismissAllMenus();
+					CurveString = InCurveName.ToString();
+					OnChanged().Broadcast();
+				})
+			];
+
+		MenuBuilder.AddWidget(Widget, FText(), true);
+
+		MenuBuilder.EndSection();
+	}
+
+	virtual FLinearColor GetColor() const override
+	{
+		return FLinearColor(0.0f, 0.6f, 0.2f, 1);
+	}
+
+	// IFilter implementation
+	virtual bool PassesFilter(FAssetFilterType InItem) const override
+	{
+		if (!CurveString.IsEmpty())
+		{
+			const FString TagValue = InItem.GetTagValueRef<FString>(USkeleton::CurveNameTag);
+			if (!TagValue.IsEmpty())
+			{
+				// parse curves
+				TArray<FString> CurveValues;
+				if (TagValue.ParseIntoArray(CurveValues, *USkeleton::CurveTagDelimiter, true) > 0)
+				{
+					for (const FString& CurveValue : CurveValues)
+					{
+						if (CurveValue == CurveString)
+						{
+							return true;
+						}
+					}
+				}
+			}
+
+			return false;
+		}
+
+		return true;
+	}
+
+	void SetCurveFilter(const FName& InCurveFilter)
+	{
+		CurveString = InCurveFilter.ToString();
+		OnChanged().Broadcast();
+		SetActive(true);
+	}
+
+public:
+	/** Curve string to use when filtering */
+	FString CurveString;
+
+	/** Editable skeleton used to access available curves */
+	TSharedPtr<IEditableSkeleton> EditableSkeleton;
 };
 
 /** A filter that displays sound waves */
@@ -635,6 +832,10 @@ void SAnimationSequenceBrowser::Construct(const FArguments& InArgs, const TShare
 		Config.ExtraFrontendFilters.Add(FolderFilter);
 	}
 
+	SkeletonNotifyFilter = MakeShareable(new FFrontendFilter_SkeletonNotify(AnimCategory, InPersonaToolkit->GetEditableSkeleton()));
+	Config.ExtraFrontendFilters.Add(SkeletonNotifyFilter.ToSharedRef());
+	Config.ExtraFrontendFilters.Add(MakeShareable(new FFrontendFilter_Curves(AnimCategory, InPersonaToolkit->GetEditableSkeleton())));
+
 	Config.OnIsAssetValidForCustomToolTip = FOnIsAssetValidForCustomToolTip::CreateLambda([](const FAssetData& AssetData) {return AssetData.IsAssetLoaded(); });
 	Config.OnGetCustomAssetToolTip = FOnGetCustomAssetToolTip::CreateSP(this, &SAnimationSequenceBrowser::CreateCustomAssetToolTip);
 	Config.OnVisualizeAssetToolTip = FOnVisualizeAssetToolTip::CreateSP(this, &SAnimationSequenceBrowser::OnVisualizeAssetToolTip);
@@ -954,6 +1155,13 @@ void SAnimationSequenceBrowser::SelectAsset(UAnimationAsset * AnimAsset)
 			SyncToAssetsDelegate.Execute(AssetsToSelect);
 		}
 	}
+}
+
+void SAnimationSequenceBrowser::FilterBySkeletonNotify(const FName& InNotifyName)
+{
+	check(SkeletonNotifyFilter.IsValid());
+
+	SkeletonNotifyFilter->SetNotifyFilter(InNotifyName);
 }
 
 void SAnimationSequenceBrowser::AddToHistory(UAnimationAsset * AnimAsset)

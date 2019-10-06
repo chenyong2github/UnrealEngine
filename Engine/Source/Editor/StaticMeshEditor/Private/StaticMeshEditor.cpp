@@ -1398,7 +1398,7 @@ void FStaticMeshEditor::HandleReimportAllMesh()
 					continue;
 				}
 
-				bool bHasBeenSimplified = StaticMesh->GetMeshDescription(LodIndex) == nullptr || StaticMesh->IsReductionActive(LodIndex);
+				bool bHasBeenSimplified = !StaticMesh->IsMeshDescriptionValid(LodIndex) || StaticMesh->IsReductionActive(LodIndex);
 				if (!bHasBeenSimplified)
 				{
 					FbxMeshUtils::ImportMeshLODDialog(StaticMesh, LodIndex);

@@ -190,8 +190,8 @@ public:
 	virtual void OpenAssetAuditUI(TArray<FName> SelectedPackages) = 0;
 
 	/** Spawns reference viewer, showing selected packages or identifiers */
-	virtual void OpenReferenceViewerUI(TArray<FAssetIdentifier> SelectedIdentifiers) = 0;
-	virtual void OpenReferenceViewerUI(TArray<FName> SelectedPackages) = 0;
+	virtual void OpenReferenceViewerUI(const TArray<FAssetIdentifier> SelectedIdentifiers, const FReferenceViewerParams ReferenceViewerParams = FReferenceViewerParams()) = 0;
+	virtual void OpenReferenceViewerUI(const TArray<FName> SelectedPackages, const FReferenceViewerParams ReferenceViewerParams = FReferenceViewerParams()) = 0;
 
 	/** Spawns size map with selected packages */
 	virtual void OpenSizeMapUI(TArray<FAssetIdentifier> SelectedIdentifiers) = 0;

@@ -2,19 +2,19 @@
 #pragma once
 
 #include "Chaos/Defines.h"
-#include "Chaos/Particles.h"
-#include "Chaos/TriangleMesh.h"
+#include "Chaos/Matrix.h"
+#include "Chaos/Rotation.h"
+#include "Chaos/Vector.h"
 #include "Containers/ArrayView.h"
 
 #if !COMPILE_WITHOUT_UNREAL_SUPPORT
 namespace Chaos
 {
-	template<class T, int M, int N>
-	class PMatrix;
-	template<class T, int D>
-	class TRotation;
-	template<class T, int D>
-	class TVector;
+	template<class T>
+	class TTriangleMesh;
+
+	template<class T, int d>
+	class TParticles;
 
 	template<class T, int d>
 	struct TMassProperties
@@ -22,7 +22,7 @@ namespace Chaos
 		TMassProperties()
 		    : Volume(0)
 		    , CenterOfMass(0)
-		    , RotationOfMass(TVector<T, d>(0), 1)
+		    , RotationOfMass(TRotation<T, d>::FromElements(TVector<T, d>(0), 1))
 		    , InertiaTensor(0)
 		{}
 		T Volume;

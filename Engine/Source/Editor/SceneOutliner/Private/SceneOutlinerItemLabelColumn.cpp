@@ -62,6 +62,15 @@ struct FCommonLabelData
 
 		return TOptional<FLinearColor>();
 	}
+
+	bool CanExecuteRenameRequest(const FTreeItemPtr& Item)
+	{
+		if (ISceneOutliner* SceneOutliner = WeakSceneOutliner.Pin().Get())
+		{
+			return SceneOutliner->CanExecuteRenameRequest(Item);
+		}
+		return false;
+	}
 };
 
 const FLinearColor FCommonLabelData::DarkColor(0.3f, 0.3f, 0.3f);
@@ -99,6 +108,10 @@ struct SActorTreeLabel : FCommonLabelData, public SCompoundWidget
 				.OnTextCommitted(this, &SActorTreeLabel::OnLabelCommitted)
 				.OnVerifyTextChanged(this, &SActorTreeLabel::OnVerifyItemLabelChanged)
 				.IsSelected(FIsSelected::CreateSP(&InRow, &STableRow<FTreeItemPtr>::IsSelectedExclusively))
+				.IsReadOnly_Lambda([Item = ActorItem.AsShared(), this]()
+					{
+						return !CanExecuteRenameRequest(Item);
+					})
 			]
 
 			+ SHorizontalBox::Slot()
@@ -477,7 +490,11 @@ struct SFolderTreeLabel : FCommonLabelData, public SCompoundWidget
 			.ColorAndOpacity(this, &SFolderTreeLabel::GetForegroundColor)
 			.OnTextCommitted(this, &SFolderTreeLabel::OnLabelCommitted)
 			.OnVerifyTextChanged(this, &SFolderTreeLabel::OnVerifyItemLabelChanged)
-			.IsSelected(FIsSelected::CreateSP(&InRow, &STableRow<FTreeItemPtr>::IsSelectedExclusively));
+			.IsSelected(FIsSelected::CreateSP(&InRow, &STableRow<FTreeItemPtr>::IsSelectedExclusively))
+			.IsReadOnly_Lambda([Item = FolderItem.AsShared(), this]()
+			{
+				return !CanExecuteRenameRequest(Item);
+			});
 
 		if (SceneOutliner.GetSharedData().Mode == ESceneOutlinerMode::ActorBrowsing)
 		{
@@ -658,12 +675,16 @@ struct SComponentTreeLabel : FCommonLabelData, public SCompoundWidget
 			[
 				SAssignNew(InlineTextBlock, SInlineEditableTextBlock)
 				.Text(this, &SComponentTreeLabel::GetDisplayText)
-			.ToolTipText(this, &SComponentTreeLabel::GetTooltipText)
-			//.HighlightText(HighlightText)
-			.ColorAndOpacity(this, &SComponentTreeLabel::GetForegroundColor)
-			//.OnTextCommitted(this, &SComponentTreeLabel::OnLabelCommitted)
-			//.OnVerifyTextChanged(this, &SComponentTreeLabel::OnVerifyItemLabelChanged)
-			.IsSelected(FIsSelected::CreateSP(&InRow, &STableRow<FTreeItemPtr>::IsSelectedExclusively))
+				.ToolTipText(this, &SComponentTreeLabel::GetTooltipText)
+				//.HighlightText(HighlightText)
+				.ColorAndOpacity(this, &SComponentTreeLabel::GetForegroundColor)
+				//.OnTextCommitted(this, &SComponentTreeLabel::OnLabelCommitted)
+				//.OnVerifyTextChanged(this, &SComponentTreeLabel::OnVerifyItemLabelChanged)
+				.IsReadOnly_Lambda([Item = ComponentItem.AsShared(), this]()
+				{
+					return !CanExecuteRenameRequest(Item);
+				})
+				.IsSelected(FIsSelected::CreateSP(&InRow, &STableRow<FTreeItemPtr>::IsSelectedExclusively))
 			];
 
 		TSharedRef<SOverlay> IconContent = SNew(SOverlay)
@@ -673,7 +694,7 @@ struct SComponentTreeLabel : FCommonLabelData, public SCompoundWidget
 			[
 				SNew(SImage)
 				.Image(this, &SComponentTreeLabel::GetIcon)
-			.ToolTipText(this, &SComponentTreeLabel::GetIconTooltip)
+				.ToolTipText(this, &SComponentTreeLabel::GetIconTooltip)
 			]
 
 		+ SOverlay::Slot()
@@ -847,12 +868,16 @@ struct SSubComponentTreeLabel : FCommonLabelData, public SCompoundWidget
 			[
 				SAssignNew(InlineTextBlock, SInlineEditableTextBlock)
 				.Text(this, &SSubComponentTreeLabel::GetDisplayText)
-			.ToolTipText(this, &SSubComponentTreeLabel::GetTooltipText)
-			//.HighlightText(HighlightText)
-			.ColorAndOpacity(this, &SSubComponentTreeLabel::GetForegroundColor)
-			.OnTextCommitted(this, &SSubComponentTreeLabel::OnLabelCommitted)
-			.OnVerifyTextChanged(this, &SSubComponentTreeLabel::OnVerifyItemLabelChanged)
-			.IsSelected(FIsSelected::CreateSP(&InRow, &STableRow<FTreeItemPtr>::IsSelectedExclusively))
+				.ToolTipText(this, &SSubComponentTreeLabel::GetTooltipText)
+				//.HighlightText(HighlightText)
+				.ColorAndOpacity(this, &SSubComponentTreeLabel::GetForegroundColor)
+				.OnTextCommitted(this, &SSubComponentTreeLabel::OnLabelCommitted)
+				.OnVerifyTextChanged(this, &SSubComponentTreeLabel::OnVerifyItemLabelChanged)
+				.IsSelected(FIsSelected::CreateSP(&InRow, &STableRow<FTreeItemPtr>::IsSelectedExclusively))
+				.IsReadOnly_Lambda([Item = SubComponentItem.AsShared(), this]()
+				{
+					return !CanExecuteRenameRequest(Item);
+				})
 			];
 
 		TSharedRef<SOverlay> IconContent = SNew(SOverlay)
@@ -862,10 +887,10 @@ struct SSubComponentTreeLabel : FCommonLabelData, public SCompoundWidget
 			[
 				SNew(SImage)
 				.Image(this, &SSubComponentTreeLabel::GetIcon)
-			.ToolTipText(this, &SSubComponentTreeLabel::GetIconTooltip)
+				.ToolTipText(this, &SSubComponentTreeLabel::GetIconTooltip)
 			]
 
-		+ SOverlay::Slot()
+			+ SOverlay::Slot()
 			.HAlign(HAlign_Right)
 			.VAlign(VAlign_Center)
 			[
@@ -887,31 +912,30 @@ struct SSubComponentTreeLabel : FCommonLabelData, public SCompoundWidget
 		}
 
 		ChildSlot
-			[
-				SNew(SHorizontalBox)
+		[
+			SNew(SHorizontalBox)
 
-				+ SHorizontalBox::Slot()
+			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.VAlign(VAlign_Center)
 			.Padding(FDefaultTreeItemMetrics::IconPadding())
 			[
 				SNew(SBox)
 				.WidthOverride(FDefaultTreeItemMetrics::IconSize())
-			.HeightOverride(FDefaultTreeItemMetrics::IconSize())
-			[
-				IconContent
-			]
+				.HeightOverride(FDefaultTreeItemMetrics::IconSize())
+				[
+					IconContent
+				]
 			]
 
-		+ SHorizontalBox::Slot()
+			+ SHorizontalBox::Slot()
 			.FillWidth(1.0f)
 			.VAlign(VAlign_Center)
 			.Padding(0.0f, 2.0f)
 			[
 				MainContent
 			]
-
-			];
+		];
 	}
 
 private:

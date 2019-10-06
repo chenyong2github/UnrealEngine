@@ -223,6 +223,21 @@ public:
 		/** Called when any widget contained within sequencer has received focus */
 		SLATE_EVENT( FSimpleDelegate, OnReceivedFocus )
 
+		/** Called when something is dragged over the sequencer. */
+		SLATE_EVENT( FOptionalOnDragDrop, OnReceivedDragOver )
+
+		/** Called when something is dropped onto the sequencer. */
+		SLATE_EVENT( FOptionalOnDragDrop, OnReceivedDrop )
+
+		/** Called when an asset is dropped on the sequencer. Not called if OnReceivedDrop is bound and returned true. */
+		SLATE_EVENT( FOnAssetsDrop, OnAssetsDrop )
+
+		/** Called when a class is dropped on the sequencer. Not called if OnReceivedDrop is bound and returned true. */
+		SLATE_EVENT( FOnClassesDrop, OnClassesDrop )
+		
+		/** Called when an actor is dropped on the sequencer. Not called if OnReceivedDrop is bound and returned true. */
+		SLATE_EVENT( FOnActorsDrop, OnActorsDrop )
+
 		/** Extender to use for the add menu. */
 		SLATE_ARGUMENT( TSharedPtr<FExtender>, AddMenuExtender )
 
@@ -472,6 +487,12 @@ private:
 	/** Gets the root movie scene name */
 	FText GetRootAnimationName() const;
 
+	/** Get the maximum height the pinned track area should be allowed to be.. */
+	float GetPinnedAreaMaxHeight() const;
+	
+	/** Gets whether or not the Pinned track area should be visible. */
+	EVisibility GetPinnedAreaVisibility() const;
+
 	FText GetBreadcrumbTextForSection(TWeakObjectPtr<UMovieSceneSubSection> SubSection) const;
 	FText GetBreadcrumbTextForSequence(TWeakObjectPtr<UMovieSceneSequence> Sequence, bool bIsActive) const;
 
@@ -516,8 +537,11 @@ public:
 	void OnPaste();
 	bool CanPaste();
 
-	/** Handle Track Paste */
-	void DoPaste();
+	/**
+	 * Handle Track Paste
+	 * @return Whether the paste event was handled
+	 */
+	bool DoPaste();
 
 	/** Open the paste menu */
 	bool OpenPasteMenu();
@@ -540,6 +564,9 @@ private:
 
 	/** Stretch box widget. */
 	TSharedPtr<SSequencerStretchBox> StretchBox;
+
+	/** Main Sequencer Area*/
+	TSharedPtr<SVerticalBox> MainSequencerArea;
 
 	/** Section area widget */
 	TSharedPtr<SSequencerTrackArea> TrackArea;
@@ -638,6 +665,21 @@ private:
 
 	/** Called when any widget contained within sequencer has received focus */
 	FSimpleDelegate OnReceivedFocus;
+
+	/** Called when something is dragged over the sequencer. */
+	FOptionalOnDragDrop OnReceivedDragOver;
+
+	/** Called when something is dropped onto the sequencer. */
+	FOptionalOnDragDrop OnReceivedDrop;
+
+	/** Called when an asset is dropped on the sequencer. */
+	FOnAssetsDrop OnAssetsDrop;
+
+	/** Called when a class is dropped on the sequencer. */
+	FOnClassesDrop OnClassesDrop;
+	
+	/** Called when an actor is dropped on the sequencer. */
+	FOnActorsDrop OnActorsDrop;
 
 	/** Cached clamp and view range for unlinking the curve editor time range */
 	TRange<double> CachedClampRange;

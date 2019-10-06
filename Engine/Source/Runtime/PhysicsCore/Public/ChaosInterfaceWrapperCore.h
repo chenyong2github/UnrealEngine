@@ -2,17 +2,24 @@
 
 #pragma once
 
-#if INCLUDE_CHAOS
-
 #include "ChaosSQTypes.h"
 #include "PhysicsInterfaceWrapperShared.h"
-#include "Chaos/ImplicitObject.h"
-#include "Chaos/Capsule.h"
 #include "PhysicsInterfaceTypesCore.h"
 
 #if WITH_PHYSX
 #include "PhysXPublicCore.h"
 #endif
+
+class UPhysicalMaterial;
+
+namespace Chaos
+{
+	template <class T, int d>
+	class TImplicitObject;
+
+	template <class T>
+	class TCapsule;
+}
 
 namespace ChaosInterface
 {
@@ -69,37 +76,38 @@ struct FPhysicsOverlapInputAdapater
 	FTransform GeomPose;
 };
 
-inline ECollisionShapeType GetImplicitType(const Chaos::TImplicitObject<float, 3>& InGeometry)
+#if WITH_CHAOS
+/** This is used to add debug data to scene query visitors in non-shipping builds */
+struct FQueryDebugParams
 {
-	switch (InGeometry.GetType())
-	{
-	case Chaos::ImplicitObjectType::Sphere: return ECollisionShapeType::Sphere;
-	case Chaos::ImplicitObjectType::Box: return ECollisionShapeType::Box;
-	case Chaos::ImplicitObjectType::Capsule: return ECollisionShapeType::Capsule;
-	case Chaos::ImplicitObjectType::Convex: return ECollisionShapeType::Convex;
-	case Chaos::ImplicitObjectType::TriangleMesh: return ECollisionShapeType::Trimesh;
-	case Chaos::ImplicitObjectType::HeightField: return ECollisionShapeType::Heightfield;
-	case Chaos::ImplicitObjectType::Scaled: return ECollisionShapeType::Scaled;
-	default: break;
-	}
+#if !(UE_BUILD_TEST || UE_BUILD_SHIPPING) 
+	FQueryDebugParams()
+		: bDebugQuery(false) { }
+	bool bDebugQuery;
+	bool IsDebugQuery() const { return bDebugQuery; }
+#else
+	// In test or shipping builds, this struct must be left empty
+	FQueryDebugParams() { }
+	constexpr bool IsDebugQuery() const { return false; }
+#endif
+};
+#endif
 
-	return ECollisionShapeType::None;
-}
+extern PHYSICSCORE_API FCollisionFilterData GetQueryFilterData(const Chaos::TPerShapeData<float, 3>& Shape);
+extern PHYSICSCORE_API FCollisionFilterData GetSimulationFilterData(const Chaos::TPerShapeData<float, 3>& Shape);
 
-inline ECollisionShapeType GetType(const Chaos::TImplicitObject<float, 3>& InGeometry)
+
+PHYSICSCORE_API ECollisionShapeType GetImplicitType(const Chaos::TImplicitObject<float, 3>& InGeometry);
+
+FORCEINLINE ECollisionShapeType GetType(const Chaos::TImplicitObject<float, 3>& InGeometry)
 {
 	return GetImplicitType(InGeometry);
 }
 
-inline float GetRadius(const Chaos::TCapsule<float>& InCapsule)
-{
-	return InCapsule.GetRadius();
-}
+PHYSICSCORE_API float GetRadius(const Chaos::TCapsule<float>& InCapsule);
 
-inline float GetHalfHeight(const Chaos::TCapsule<float>& InCapsule)
-{
-	return InCapsule.GetHeight()/2.;
-}
+PHYSICSCORE_API float GetHalfHeight(const Chaos::TCapsule<float>& InCapsule);
+
 
 inline bool HadInitialOverlap(const FLocationHit& Hit)
 {
@@ -156,15 +164,6 @@ inline void SetInternalFaceIndex(FQueryHit& Hit, uint32 FaceIndex)
 	Hit.FaceIndex = FaceIndex;
 }
 
-inline FCollisionFilterData GetQueryFilterData(const Chaos::TPerShapeData<float, 3>& Shape)
-{
-	return Shape.QueryData;
-}
-
-inline FCollisionFilterData GetSimulationFilterData(const Chaos::TPerShapeData<float, 3>& Shape)
-{
-	return Shape.QueryData;
-}
 
 inline uint32 GetInvalidPhysicsFaceIndex()
 {
@@ -214,8 +213,6 @@ bool GetHasBlock(const FSQHitBuffer<HitType>& Callback)
 }
 
 } // namespace ChaosInterface
-
-#endif // WITH_CHAOS
 
 #if WITH_CHAOS && (!defined(PHYSICS_INTERFACE_PHYSX) || !PHYSICS_INTERFACE_PHYSX)
 using namespace ChaosInterface;

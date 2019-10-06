@@ -6,8 +6,6 @@
 #include "GeometryCollection/GeometryCollectionSimulationTypes.h"
 #include "PhysicsInterfaceDeclaresCore.h"
 
-#if INCLUDE_CHAOS
-
 class AActor;
 class FSkeletalMeshPhysicsProxy;
 struct FSkeletalMeshPhysicsProxyParams;
@@ -21,5 +19,3 @@ struct GEOMETRYCOLLECTIONENGINE_API FPhysicsAssetSimulationUtil
 	static void BuildParams(const UObject* Caller, const AActor* OwningActor, const USkeletalMeshComponent* SkelMeshComponent, const UPhysicsAsset* PhysicsAsset, FSkeletalMeshPhysicsProxyParams& OutParams);
 	static bool UpdateAnimState(const UObject* Caller, const AActor* OwningActor, const USkeletalMeshComponent* SkelMeshComponent, const float Dt, FSkeletalMeshPhysicsProxyParams& OutParams);
 };
-
-#endif

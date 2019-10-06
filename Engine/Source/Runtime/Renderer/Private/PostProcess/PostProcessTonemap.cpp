@@ -1124,7 +1124,7 @@ void FRCPassPostProcessTonemap::Process(FRenderingCompositePassContext& Context)
 			const bool bFirstView = (&View == View.Family->Views[0]);
 
 			// Full clear to avoid restore
-			if ((View.StereoPass == eSSP_FULL && bFirstView) || View.StereoPass == eSSP_LEFT_EYE)
+			if ((!IStereoRendering::IsStereoEyeView(View.StereoPass) && bFirstView) || IStereoRendering::IsAPrimaryView(View.StereoPass))
 			{
 				LoadAction = ERenderTargetLoadAction::EClear;
 			}
@@ -1399,12 +1399,7 @@ class FPostProcessTonemapPS_ES2 : public FGlobalShader
 		}
 		else if (GSupportsRenderTargetFormat_PF_FloatRGBA)
 		{
-#if PLATFORM_HTML5 // EMSCRITPEN_TOOLCHAIN_UPGRADE_CHECK -- i.e. remove this when LLVM no longer errors -- appologies for the mess
-			// UE-61742 : the following will coerce i160 bit (bMobileHQGaussian) to an i8 LLVM variable
-			bool bUseDof = GetMobileDepthOfFieldScale(View) > 0.0f && ((1 - Settings.bMobileHQGaussian) + (View.GetFeatureLevel() < ERHIFeatureLevel::ES3_1));
-#else
 			bool bUseDof = GetMobileDepthOfFieldScale(View) > 0.0f && (!Settings.bMobileHQGaussian || (View.GetFeatureLevel() < ERHIFeatureLevel::ES3_1));
-#endif
 
 			MobilePermutationVector.Set<FTonemapperDOFDim>(bUseDof);
 			MobilePermutationVector.Set<FTonemapperLightShaftsDim>(View.bLightShaftUse);
@@ -1743,7 +1738,7 @@ void FRCPassPostProcessTonemapES2::Process(FRenderingCompositePassContext& Conte
 		const bool bFirstView = (&View == View.Family->Views[0]);
 		
 		// Full clear to avoid restore
-		if ((View.StereoPass == eSSP_FULL && bFirstView) || View.StereoPass == eSSP_LEFT_EYE)
+		if ((!IStereoRendering::IsStereoEyeView(View.StereoPass) && bFirstView) || IStereoRendering::IsAPrimaryView(View.StereoPass))
 		{
 			LoadAction = ERenderTargetLoadAction::EClear;
 		}

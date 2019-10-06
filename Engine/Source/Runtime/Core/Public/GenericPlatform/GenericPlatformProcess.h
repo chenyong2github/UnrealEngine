@@ -126,6 +126,13 @@ struct CORE_API FGenericPlatformProcess
 		 */
 		FSemaphore(const FString& InName);
 
+		/**
+		 * Creates and initializes a new instance with the specified name.
+		 *
+		 * @param InName name of the semaphore (all processes should use the same)
+		 */
+		FSemaphore(const TCHAR* InName);
+
 		/** Virtual destructor. */
 		virtual ~FSemaphore() { };
 
@@ -580,8 +587,19 @@ struct CORE_API FGenericPlatformProcess
 	 * @param Name name (so we can use it across processes).
 	 * @param bCreate If true, the function will try to create, otherwise will try to open existing.
 	 * @param MaxLocks Maximum amount of locks that the semaphore can have (pass 1 to make it act as mutex).
+	 * @return Pointer to heap allocated semaphore object. Caller is responsible for deletion.
 	 */
 	static FSemaphore* NewInterprocessSynchObject(const FString& Name, bool bCreate, uint32 MaxLocks = 1);
+
+	/**
+	 * Creates or opens an interprocess synchronization object.
+	 *
+	 * @param Name name (so we can use it across processes).
+	 * @param bCreate If true, the function will try to create, otherwise will try to open existing.
+	 * @param MaxLocks Maximum amount of locks that the semaphore can have (pass 1 to make it act as mutex).
+	 * @return Pointer to heap allocated semaphore object. Caller is responsible for deletion.
+	 */
+	static FSemaphore* NewInterprocessSynchObject(const TCHAR* Name, bool bCreate, uint32 MaxLocks = 1);
 
 	/**
 	 * Deletes an interprocess synchronization object.
@@ -606,6 +624,11 @@ struct CORE_API FGenericPlatformProcess
 	 * Tears down allocated process resources.
 	 */
 	static void TearDown();
+
+	/**
+	 * force skip calling FThreadStats::WaitForStats()
+	 */
+	static bool SkipWaitForStats() { return false; }
 };
 
 

@@ -27,6 +27,8 @@ class FMenuBuilder;
 class FUICommandList;
 class UVREditorWidgetComponent;
 class UWidgetComponent;
+class FName;
+typedef FName FEditorModeID;
 
 typedef FName VREditorPanelID;
 
@@ -204,6 +206,9 @@ public:
 	/** Function to force an update of the Actor Preview UI based on a change */
 	void UpdateActorPreviewUI(TSharedRef<SWidget> InWidget, int32 Index, AActor *InActor );
 
+	/** Function to force an update of the Actor Preview UI based on a change when the preview is detached from the actor */
+	void UpdateDetachedActorPreviewUI(TSharedRef<SWidget> InWidget, int32 Index);
+	
 	void UpdateExternalUMGUI(const struct FVREditorFloatingUICreationContext& CreationContext);
 
 	void UpdateExternalSlateUI(TSharedRef<SWidget> InWidget, FName Name, FVector2D InSize);
@@ -238,12 +243,12 @@ public:
 	static const VREditorPanelID WorldSettingsPanelID;
 	static const VREditorPanelID ColorPickerPanelID;
 	static const VREditorPanelID SequencerPanelID;
-	static const VREditorPanelID InfoDisplayPanelID;
+	static VREDITOR_API const VREditorPanelID InfoDisplayPanelID;
 	static const VREditorPanelID RadialMenuPanelID;
 	static const VREditorPanelID TabManagerPanelID;
 
 	/** Get UI panel Actor from the passed ID */
-	AVREditorFloatingUI* GetPanel(const VREditorPanelID& InPanelID) const;
+	VREDITOR_API AVREditorFloatingUI* GetPanel(const VREditorPanelID& InPanelID) const;
 
 protected:
 
@@ -313,7 +318,7 @@ protected:
 	* @param Mode The mode that changed.
 	* @param IsEnabled true if the mode is enabled, otherwise false.
 	*/
-	void HandleEditorModeChanged(class FEdMode* Mode, bool IsEnabled);
+	void HandleEditorModeChanged(const FEditorModeID& EditorModeID, bool IsEnabled);
 
 	/** Reset function that puts you back in placement mode, closes all UIs, etc. */
 	void ResetAll();

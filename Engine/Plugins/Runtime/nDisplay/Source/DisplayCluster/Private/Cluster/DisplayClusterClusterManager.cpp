@@ -7,6 +7,7 @@
 #include "Cluster/Controller/DisplayClusterNodeCtrlStandalone.h"
 #include "Cluster/Controller/DisplayClusterClusterNodeCtrlMaster.h"
 #include "Cluster/Controller/DisplayClusterClusterNodeCtrlSlave.h"
+#include "Cluster/Controller/DisplayClusterClusterNodeCtrlEditor.h"
 
 #include "Config/IPDisplayClusterConfigManager.h"
 
@@ -427,9 +428,9 @@ void FDisplayClusterClusterManager::ExportEventsData(FDisplayClusterMessage::Dat
 			// Clear the output pool since we have all data cached already
 			ClusterEventsPoolOut.Empty(ClusterEventsPoolOut.Num() | 0x07);
 		}
-	}
 
-	data = ClusterEventsCacheOut;
+		data = ClusterEventsCacheOut;
+	}
 }
 
 void FDisplayClusterClusterManager::ImportEventsData(const FDisplayClusterMessage::DataType& data)
@@ -568,9 +569,8 @@ FDisplayClusterClusterManager::TController FDisplayClusterClusterManager::Create
 	}
 	else if (CurrentOperationMode == EDisplayClusterOperationMode::Editor)
 	{
-		UE_LOG(LogDisplayClusterCluster, Log, TEXT("Instantiating cluster master controller..."));
-		//pController = new FDisplayClusterNodeCtrlStandalone(FString("[CTRL-STNDA]"), ClusterNodeId);
-		pController = new FDisplayClusterNodeCtrlStandalone(FString("[CTRL-STNDA]"), FString("standalone"));
+		UE_LOG(LogDisplayClusterCluster, Log, TEXT("Instantiating editor controller..."));
+		pController = new FDisplayClusterClusterNodeCtrlEditor(FString("[CTRL-EDTR]"), FString("editor"));
 	}
 	else if (CurrentOperationMode == EDisplayClusterOperationMode::Disabled)
 	{

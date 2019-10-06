@@ -97,5 +97,7 @@ struct FHairStrandsInterpolationOutput
 void ComputeHairStrandsInterpolation(
 	FRHICommandListImmediate& RHICmdList,
 	FHairStrandsInterpolationInput* Input,
-	FHairStrandsInterpolationOutput* Output);
+	FHairStrandsInterpolationOutput* Output, 
+	struct FHairStrandsProjectionHairData& HairData,
+	int32 LODIndex);
 

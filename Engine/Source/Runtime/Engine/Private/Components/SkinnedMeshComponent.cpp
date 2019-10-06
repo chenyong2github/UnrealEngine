@@ -782,6 +782,12 @@ void USkinnedMeshComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 	// Tick ActorComponent first.
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
+	// Refresh callback in case MeshObjectCallbackData was updated
+	if (MeshObject)
+	{
+		MeshObject->SetCallbackData(MeshObjectCallbackData);
+	}
+
 	// See if this mesh was rendered recently. This has to happen first because other data will rely on this
 	bRecentlyRendered = (GetLastRenderTime() > GetWorld()->TimeSeconds - 1.0f);
 
@@ -1456,6 +1462,11 @@ void USkinnedMeshComponent::SetSkeletalMesh(USkeletalMesh* InSkelMesh, bool bRei
 		FRenderStateRecreator RenderStateRecreator(this);
 
 		SkeletalMesh = InSkelMesh;
+
+		for (TWeakObjectPtr<USkinnedMeshComponent>& SlavePoseComponent : SlavePoseComponents)
+		{
+			SlavePoseComponent->UpdateMasterBoneMap();
+		}
 
 		// Don't init anim state if not registered
 		if (IsRegistered())

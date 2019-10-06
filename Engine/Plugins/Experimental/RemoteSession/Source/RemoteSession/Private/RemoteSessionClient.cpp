@@ -153,7 +153,7 @@ void FRemoteSessionClient::OnBindEndpoints()
 
 void FRemoteSessionClient::OnChannelSelection(FBackChannelOSCMessage& Message, FBackChannelOSCDispatch& Dispatch)
 {
-	TMap<FString, ERemoteSessionChannelMode> DesiredChannels;
+	TArray<FRemoteSessionChannelInfo> DesiredChannels;
 	
 	const int NumChannels = Message.GetArgumentCount() / 2;
 	
@@ -165,9 +165,9 @@ void FRemoteSessionClient::OnChannelSelection(FBackChannelOSCMessage& Message, F
 		Message.Read(ChannelName);
 		Message.Read(ChannelMode);
 		
-		if (ChannelName.Len())
+		if (ChannelName.Len() && ChannelMode >= 0 && ChannelMode <= 1)
 		{
-			DesiredChannels.Add(ChannelName, (ERemoteSessionChannelMode)ChannelMode);
+			DesiredChannels.Emplace(MoveTemp(ChannelName), (ERemoteSessionChannelMode)ChannelMode, FOnRemoteSessionChannelCreated());
 		}
 		else
 		{

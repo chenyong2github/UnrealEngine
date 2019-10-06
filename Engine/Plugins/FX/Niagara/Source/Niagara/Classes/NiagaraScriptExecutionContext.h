@@ -185,8 +185,14 @@ private:
 public:
 	static uint32 TickCounter;
 
+#if !UE_BUILD_SHIPPING
 	//Persistent state 
 	FString DebugSimName;
+	FORCEINLINE const TCHAR* GetDebugSimName() const { return *DebugSimName; }
+#else
+	FORCEINLINE const TCHAR* GetDebugSimName() const { return TEXT(""); }
+#endif
+
 	class FNiagaraDataSet *MainDataSet;
 	UNiagaraScript* GPUScript;
 	class FNiagaraShaderScript*  GPUScript_RT;
@@ -209,6 +215,9 @@ public:
 
 	uint32 MaxUpdateIterations;
 	TSet<uint32> SpawnStages;
+
+	/** Temp data used in NiagaraEmitterInstanceBatcher::ExecuteAll() to avoid creating a map per FNiagaraComputeExecutionContext */
+	mutable int32 ScratchIndex = INDEX_NONE;
 
 #if WITH_EDITORONLY_DATA
 	mutable FRHIGPUMemoryReadback *GPUDebugDataReadbackFloat;

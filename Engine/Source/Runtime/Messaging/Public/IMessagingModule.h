@@ -5,6 +5,7 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "Templates/SharedPointer.h"
+#include "Delegates/Delegate.h"
 
 class IAuthorizeMessageRecipients;
 class IMessageBridge;
@@ -12,7 +13,6 @@ class IMessageBus;
 class IMessageTransport;
 
 struct FMessageAddress;
-
 
 /**
  * Interface for messaging modules.
@@ -22,7 +22,16 @@ struct FMessageAddress;
 class IMessagingModule
 	: public IModuleInterface
 {
+
 public:
+	// delegate type, helper macro cannot be used due to comma in expansion can't be avoided with extra parenthesis.
+	typedef TMulticastDelegate<void, TWeakPtr<IMessageBus, ESPMode::ThreadSafe>> FOnMessageBusStartupOrShutdown;
+	
+	/** Event triggered when a message bus is started. */
+	virtual FOnMessageBusStartupOrShutdown& OnMessageBusStartup() = 0;
+
+	/** Event triggered when a message bus is shutdown. */
+	virtual FOnMessageBusStartupOrShutdown& OnMessageBusShutdown() = 0;
 
 	/**
 	 * Creates a new message bridge.
@@ -45,7 +54,17 @@ public:
 	 * @return The new message bus, or nullptr if the bus couldn't be created.
 	 * @see CreateBridge
 	 */
-	virtual TSharedPtr<IMessageBus, ESPMode::ThreadSafe> CreateBus(const TSharedPtr<IAuthorizeMessageRecipients>& RecipientAuthorizer) = 0;
+	virtual TSharedPtr<IMessageBus, ESPMode::ThreadSafe> CreateBus(const TSharedPtr<IAuthorizeMessageRecipients>& RecipientAuthorizer = nullptr) = 0;
+
+	/**
+	 * Creates a new message bus.
+	 *
+	 * @param Name The name of this message bus.
+	 * @param RecipientAuthorizer An optional recipient authorizer.
+	 * @return The new message bus, or nullptr if the bus couldn't be created.
+	 * @see CreateBridge
+	 */
+	virtual TSharedPtr<IMessageBus, ESPMode::ThreadSafe> CreateBus(FString InName, const TSharedPtr<IAuthorizeMessageRecipients>& RecipientAuthorizer = nullptr) = 0;
 
 	/**
 	 * Gets the default message bus if it has been initialized.
@@ -53,6 +72,14 @@ public:
 	 * @return The default bus.
 	 */
 	virtual TSharedPtr<IMessageBus, ESPMode::ThreadSafe> GetDefaultBus() const = 0;
+
+	/**
+	 * Gets all message buses that were created by this module via the #CreateBus method
+	 * that are still valid.
+	 *
+	 * @return All message buses.
+	 */
+	virtual TArray<TSharedRef<IMessageBus, ESPMode::ThreadSafe>> GetAllBuses() const = 0;
 
 public:
 

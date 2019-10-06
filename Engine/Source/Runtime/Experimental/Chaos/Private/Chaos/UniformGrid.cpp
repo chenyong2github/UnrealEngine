@@ -144,22 +144,6 @@ TVector<int32, d> TUniformGrid<T, d>::GetIndex(const int32 Index) const
 }
 
 template<class T, int d>
-TVector<int32, d> TUniformGrid<T, d>::ClampIndex(const TVector<int32, d>& Index) const
-{
-	TVector<int32, d> Result;
-	for (int32 i = 0; i < d; ++i)
-	{
-		if (Index[i] >= MCells[i])
-			Result[i] = MCells[i] - 1;
-		else if (Index[i] < 0)
-			Result[i] = 0;
-		else
-			Result[i] = Index[i];
-	}
-	return Result;
-}
-
-template<class T, int d>
 TVector<T, d> TUniformGrid<T, d>::Clamp(const TVector<T, d>& X) const
 {
 	TVector<T, d> Result;
@@ -191,12 +175,6 @@ TVector<T, d> TUniformGrid<T, d>::ClampMinusHalf(const TVector<T, d>& X) const
 			Result[i] = X[i];
 	}
 	return Result;
-}
-
-template<class T, int d>
-bool Chaos::TUniformGrid<T, d>::IsValid(const TVector<int32, d>& X) const
-{
-	return X == ClampIndex(X);
 }
 
 template<class T>

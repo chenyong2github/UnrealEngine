@@ -65,7 +65,7 @@ namespace FastTriWinding
 			//if (TriCache == null)
 			//{
 			//	c = (1.0 / 3.0) * (P0 + P1 + P2);
-			//	n = FMathd::FastNormalArea(P0, P1, P2, out a);
+			//	n = VectorUtil::NormalArea(P0, P1, P2, out a);
 			//}
 			//else
 			{

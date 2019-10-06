@@ -24,12 +24,28 @@
 #include "PropertyCustomizationHelpers.h"
 
 #include "ObjectEditorUtils.h"
+#include "UObject/UObjectAnnotation.h"
 #include "UObject/FrameworkObjectVersion.h"
 
 #define LOCTEXT_NAMESPACE "K2Node"
 
 // File-Scoped Globals
 static const uint32 MaxArrayPinTooltipLineCount = 10;
+
+namespace UK2Node_Private
+{
+	struct FPinRenamedAnnotation
+	{
+		mutable FOnUserDefinedPinRenamed PinRenamedEvent;
+		bool bIsDefault = true;
+
+		bool IsDefault() const
+		{
+			return bIsDefault;
+		}
+	};
+	FUObjectAnnotationSparse<FPinRenamedAnnotation, true> GOnUserDefinedPinRenamedAnnotation;
+}
 
 /////////////////////////////////////////////////////
 // UK2Node
@@ -75,7 +91,7 @@ void UK2Node::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FFrameworkObjectVersion::GUID);
 
-	if (Ar.IsSaving())
+	if (Ar.IsSaving() && !GIsSavingPackage)
 	{
 		if (Ar.IsObjectReferenceCollector() || Ar.Tell() < 0)
 		{
@@ -1285,6 +1301,46 @@ FLinearColor UK2Node::GetNodeTitleColor() const
 }
 
 ERenamePinResult UK2Node::RenameUserDefinedPin(const FName OldName, const FName NewName, bool bTest)
+{
+	ERenamePinResult Result = RenameUserDefinedPinImpl(OldName, NewName, bTest);
+
+	// If we actually applied the change (!bTest) and it was successful, broadcast the change notification
+	if (bTest == false && Result == ERenamePinResult_Success)
+	{
+		BroadcastUserDefinedPinRenamed(OldName, NewName);
+	}
+
+	return Result;
+}
+
+void UK2Node::BroadcastUserDefinedPinRenamed(FName OldName, FName NewName)
+{
+	using namespace UK2Node_Private;
+
+	// We're not concerned with thread safety here, but the annotation API forces thread safety by returning copies of data
+	if (const FPinRenamedAnnotation* Annotation = GOnUserDefinedPinRenamedAnnotation.GetAnnotationMap().Find(this))
+	{
+		Annotation->PinRenamedEvent.Broadcast(this, OldName, NewName);
+	}
+}
+
+FOnUserDefinedPinRenamed& UK2Node::OnUserDefinedPinRenamed()
+{
+	using namespace UK2Node_Private;
+
+	// We're not concerned with thread safety here, but the annotation API forces thread safety by returning copies of data
+	const TMap<const UObjectBase*,FPinRenamedAnnotation>& Map = GOnUserDefinedPinRenamedAnnotation.GetAnnotationMap();
+	if (!Map.Contains(this))
+	{
+		FPinRenamedAnnotation NewEvent;
+		NewEvent.bIsDefault = false;
+		GOnUserDefinedPinRenamedAnnotation.AddAnnotation(this, NewEvent);
+	}
+
+	return Map.FindChecked(this).PinRenamedEvent;
+}
+
+ERenamePinResult UK2Node::RenameUserDefinedPinImpl(const FName OldName, const FName NewName, bool bTest)
 {
 	UEdGraphPin* Pin = nullptr;
 	for (UEdGraphPin* CurrentPin : Pins)

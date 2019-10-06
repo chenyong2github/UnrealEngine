@@ -164,6 +164,15 @@ struct APPLICATIONCORE_API FGenericPlatformApplicationMisc
 	static bool IsHighDPIAwarenessEnabled();
 
 	/*
+	 * UE expects mouse coordinates in screen space. Some platforms provides in client space. 
+	 * Return true to anchor the window at the top/left corner to make sure client space coordinates and screen space coordinates match up. 
+	 */
+	static bool AnchorWindowWindowPositionTopLeft()
+	{
+		return false;
+	}
+
+	/*
 	* Set whether gamepads are allowed at the platform level.
 	*/
 	static void SetGamepadsAllowed(bool bAllowed)

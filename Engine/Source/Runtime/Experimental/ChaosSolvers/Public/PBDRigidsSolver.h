@@ -1,13 +1,10 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
-#if INCLUDE_CHAOS
-
-#include "Chaos/ArrayCollectionArray.h"
 #include "Chaos/Defines.h"
-#include "Chaos/Framework/PhysicsProxy.h"
 #include "Chaos/Framework/MultiBufferResource.h"
+#include "Chaos/Framework/PhysicsProxy.h"
+#include "Chaos/Framework/PhysicsSolverBase.h"
 #include "Chaos/PBDRigidParticles.h"
 #include "Chaos/PBDRigidsEvolutionGBF.h"
 #include "Chaos/PBDCollisionConstraint.h"
@@ -20,15 +17,12 @@
 #include "Chaos/Transform.h"
 #include "CoreMinimal.h"
 #include "Containers/Queue.h"
+#include "EventManager.h"
 #include "Framework/Dispatcher.h"
 #include "Field/FieldSystem.h"
-#include "EventManager.h"
+#include "PBDRigidActiveParticlesBuffer.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
 #include "SolverEventFilters.h"
-
-#ifndef CHAOS_WITH_PAUSABLE_SOLVER
-#define CHAOS_WITH_PAUSABLE_SOLVER 1
-#endif
 
 class FPhysicsSolverAdvanceTask;
 class FPhysInterface_Chaos;
@@ -50,12 +44,14 @@ namespace Chaos
 	/**
 	*
 	*/
-	class CHAOSSOLVERS_API FPBDRigidsSolver
+	class CHAOSSOLVERS_API FPBDRigidsSolver : public FPhysicsSolverBase
 	{
 
 		FPBDRigidsSolver(const EMultiBufferMode BufferingModeIn);
 
 	public:
+		typedef FPhysicsSolverBase Super;
+
 		friend class FPersistentPhysicsTask;
 		friend class ::FPhysicsSolverAdvanceTask;
 		friend class ::FChaosSolversModule;
@@ -66,10 +62,12 @@ namespace Chaos
 
 		friend class FPhysInterface_Chaos;
 		friend class FPhysScene_ChaosInterface;
+		friend class FPBDRigidActiveParticlesBuffer;
 
 		void* PhysSceneHack;	//This is a total hack for now to get at the owning scene
 
 		typedef TPBDRigidsSOAs<float, 3> FParticlesType;
+		typedef FPBDRigidActiveParticlesBuffer FActiveParticlesBuffer;
 
 		typedef Chaos::TGeometryParticle<float, 3> FParticle;
 		typedef Chaos::TGeometryParticleHandle<float, 3> FHandle;
@@ -196,16 +194,26 @@ namespace Chaos
 		void SetEnabled(bool bEnabledIn) { bEnabled = bEnabledIn; }
 		bool HasActiveParticles() const { return !!GetNumPhysicsProxies(); }
 		bool HasPendingCommands() const { return !CommandQueue.IsEmpty(); }
+		FActiveParticlesBuffer* GetActiveParticlesBuffer() const { return MActiveParticlesBuffer.Get(); }
 
 		/**/
 		void Reset();
 
 		/**/
 		void AdvanceSolverBy(float DeltaTime);
-		void UpdatePhysicsThreadStructures();
-		void UpdateGameThreadStructures();
+
+		/**/
+		void PushPhysicsState(IDispatcher* Dispatcher = nullptr);
+
+		/**/
 		void BufferPhysicsResults();
+
+		/**/
 		void FlipBuffers();
+
+		/**/
+		void UpdateGameThreadStructures();
+
 
 		/**/
 		void SetCurrentFrame(const int32 CurrentFrameIn) { CurrentFrame = CurrentFrameIn; }
@@ -252,7 +260,29 @@ namespace Chaos
 		/**/
 		void SyncEvents_GameThread();
 
+		/**/
+		void PostTickDebugDraw() const;
+
 	private:
+
+		template<typename ParticleType>
+		void FlipBuffer(Chaos::TGeometryParticleHandle<float, 3>* Handle)
+		{
+			((ParticleType*)(Handle->GTGeometryParticle()->Proxy))->FlipBuffer();
+		}
+
+		template<typename ParticleType>
+		void PullFromPhysicsState(Chaos::TGeometryParticleHandle<float, 3>* Handle)
+		{
+			((ParticleType*)(Handle->GTGeometryParticle()->Proxy))->PullFromPhysicsState();
+		}
+
+		template<typename ParticleType>
+		void BufferPhysicsResults(Chaos::TGeometryParticleHandle<float, 3>* Handle)
+		{
+			((ParticleType*)(Handle->GTGeometryParticle()->Proxy))->BufferPhysicsResults();
+		}
+
 
 		//
 		// Solver Data
@@ -272,6 +302,7 @@ namespace Chaos
 		TUniquePtr<FPBDRigidsEvolution> MEvolution;
 		TUniquePtr<FEventManager> MEventManager;
 		TUniquePtr<FSolverEventFilters> MSolverEventFilters;
+		TUniquePtr<FActiveParticlesBuffer> MActiveParticlesBuffer;
 
 		//
 		// Commands
@@ -281,7 +312,6 @@ namespace Chaos
 		//
 		// Proxies
 		//
-		EMultiBufferMode BufferMode;
 		TSharedPtr<FCriticalSection> MCurrentLock;
 		TArray< FGeometryParticlePhysicsProxy* > GeometryParticlePhysicsProxies;
 		TArray< FKinematicGeometryParticlePhysicsProxy* > KinematicGeometryParticlePhysicsProxies;
@@ -294,4 +324,3 @@ namespace Chaos
 	};
 
 }; // namespace Chaos
-#endif

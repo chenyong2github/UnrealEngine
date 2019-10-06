@@ -13,6 +13,7 @@ namespace UnrealBuildTool.Rules
                     "CoreUObject",
                     "EditableMesh",
                     "MeshDescription",
+					"StaticMeshDescription",
                     "Blast",
                     "BlastCore",
                     "GeometryCollectionCore",

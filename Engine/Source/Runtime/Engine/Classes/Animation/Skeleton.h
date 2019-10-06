@@ -837,8 +837,8 @@ public:
 	ENGINE_API void RemoveBonesFromSkeleton(const TArray<FName>& BonesToRemove, bool bRemoveChildBones);
 
 	// Asset registry information for animation notifies
-	static const FName AnimNotifyTag;
-	static const FString AnimNotifyTagDelimiter;
+	ENGINE_API static const FName AnimNotifyTag;
+	ENGINE_API static const FString AnimNotifyTagDelimiter;
 
 	// Asset registry information for animation curves
 	ENGINE_API static const FName CurveNameTag;

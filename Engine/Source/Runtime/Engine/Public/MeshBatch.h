@@ -245,9 +245,6 @@ struct FMeshBatch
 	/** The current hit proxy ID being rendered. */
 	FHitProxyId BatchHitProxyId;
 
-	/** This is the threshold that will be used to know if we should use this mesh batch or use one with no tessellation enabled */
-	float TessellationDisablingShadowMapMeshSize;
-
 	FORCEINLINE bool IsTranslucent(ERHIFeatureLevel::Type InFeatureLevel) const
 	{
 		// Note: blend mode does not depend on the feature level we are actually rendering in.
@@ -341,7 +338,6 @@ struct FMeshBatch
 	,	LCI(NULL)
 	,	VertexFactory(NULL)
 	,	MaterialRenderProxy(NULL)
-	,	TessellationDisablingShadowMapMeshSize(0.0f)
 	{
 		// By default always add the first element.
 		new(Elements) FMeshBatchElement;

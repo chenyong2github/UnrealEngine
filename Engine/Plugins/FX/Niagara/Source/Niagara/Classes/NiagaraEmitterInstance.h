@@ -45,8 +45,8 @@ public:
 
 	/** Replaces the binding for a single parameter colleciton instance. If for example the component begins to override the global instance. */
 	//void RebindParameterCollection(UNiagaraParameterCollectionInstance* OldInstance, UNiagaraParameterCollectionInstance* NewInstance);
-	void BindParameters();
-	void UnbindParameters();
+	void BindParameters(bool bExternalOnly);
+	void UnbindParameters(bool bExternalOnly);
 
 	bool IsAllowedToExecute() const;
 
@@ -83,6 +83,7 @@ public:
 		return 0;
 	}
 	FORCEINLINE int32 GetTotalSpawnedParticles()const { return TotalSpawnedParticles; }
+	FORCEINLINE float GetSpawnCountScale(int32 EffectsQuality = -1)const { return CachedEmitter->GetSpawnCountScale(EffectsQuality); }
 
 	NIAGARA_API const FNiagaraEmitterHandle& GetEmitterHandle() const;
 
@@ -127,7 +128,6 @@ public:
 	void TickFastPathAttributeBindings();
 
 	FNiagaraEmitterFastPath::FParamMap0& GetFastPathMap() { return FastPathMap; }
-
 private:
 	void CheckForErrors();
 

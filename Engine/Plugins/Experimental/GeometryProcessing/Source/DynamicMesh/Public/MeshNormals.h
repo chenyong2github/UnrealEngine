@@ -67,7 +67,7 @@ public:
 	 * Recompute the per-element normals of the given overlay by averaging one-ring face normals
 	 * @warning NormalOverlay must be attached to ParentMesh or an exact copy
 	 */
-	void RecomputeOverlayNormals(FDynamicMeshNormalOverlay* NormalOverlay, bool bWeightByArea = true, bool bWeightByAngle = true)
+	void RecomputeOverlayNormals(const FDynamicMeshNormalOverlay* NormalOverlay, bool bWeightByArea = true, bool bWeightByAngle = true)
 	{
 		Compute_Overlay_FaceAvg(NormalOverlay, bWeightByArea, bWeightByAngle);
 	}

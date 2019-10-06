@@ -2493,7 +2493,7 @@ bool ListFilesInPak(const TCHAR * InPakFilename, int64 SizeFilter, bool bInclude
 				bool bWasCompressed = Entry.CompressionMethodIndex != 0;
 
 				Lines.Add( FString::Printf(
-					TEXT("%s%s, %d, %d, %s, %s, %s, %d"),
+					TEXT("%s%s, %lld, %lld, %s, %s, %s, %d"),
 					*MountPoint, *It.Filename(),
 					Entry.Offset, Entry.Size,
 					*BytesToHex(Entry.Hash, sizeof(Entry.Hash)),
@@ -3556,7 +3556,7 @@ bool GenerateHashesFromPak(const TCHAR* InPakFilename, const TCHAR* InDestPakFil
 				    EntryInfo.Serialize(PakReader, PakFile.GetInfo().Version);
 				    if (EntryInfo == Entry)
 				    {
-					    // TAutoPtr<FArchive> FileHandle(IFileManager::Get().CreateFileWriter(*DestFilename));
+					    // TUniquePtr<FArchive> FileHandle(IFileManager::Get().CreateFileWriter(*DestFilename));
 					    TArray<uint8> Bytes;
 					    FMemoryWriter MemoryFile(Bytes);
 					    FArchive* FileHandle = &MemoryFile;

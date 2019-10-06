@@ -14,10 +14,10 @@
 #include "Physics/PhysicsFiltering.h"
 #include "PhysXPublic.h"
 #include "PhysXSupportCore.h"
+#include "Serialization/BulkData.h"
 
 class UBodySetup;
 class UPhysicalMaterial;
-struct FByteBulkData;
 struct FCollisionShape;
 class FPhysScene_PhysX;
 

@@ -47,6 +47,13 @@ struct FSpawnObjectToken : IMovieSceneExecutionToken
 	{
 		MOVIESCENE_DETAILED_SCOPE_CYCLE_COUNTER(MovieSceneEval_SpawnTrack_TokenExecute)
 
+		if (const FMovieSceneEvaluationOperand* OperandOverride = Player.BindingOverrides.Find(Operand))
+		{
+			// Don't do anything if this operand was overriden... someone else will take care of it (either another spawn track, or
+			// some possessable).
+			return;
+		}
+
 		bool bHasSpawnedObject = Player.GetSpawnRegister().FindSpawnedObject(Operand.ObjectBindingID, Operand.SequenceID).Get() != nullptr;
 		
 		// Check binding overrides to see if this spawnable has been overridden, and whether it allows the default spawnable to exist

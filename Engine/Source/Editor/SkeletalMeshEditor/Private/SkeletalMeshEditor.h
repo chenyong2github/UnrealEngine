@@ -62,6 +62,10 @@ public:
 	virtual FString GetWorldCentricTabPrefix() const override;
 	virtual FLinearColor GetWorldCentricTabColorScale() const override;
 
+	//~ Begin FAssetEditorToolkit Interface.
+	virtual bool OnRequestClose() override;
+	//~ End FAssetEditorToolkit Interface.
+
 	/** FEditorUndoClient interface */
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override;

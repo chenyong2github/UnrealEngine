@@ -13,7 +13,7 @@ public class RHI : ModuleRules
 
 		if (Target.bCompileAgainstEngine)
 		{
-            DynamicallyLoadedModuleNames.Add("NullDrv");
+			DynamicallyLoadedModuleNames.Add("NullDrv");
 
 			if (Target.Type != TargetRules.TargetType.Server)   // Dedicated servers should skip loading everything but NullDrv
 			{
@@ -40,13 +40,12 @@ public class RHI : ModuleRules
 
 				if ((Target.Platform == UnrealTargetPlatform.Win32) ||
 					(Target.Platform == UnrealTargetPlatform.Win64) ||
-					(Target.IsInPlatformGroup(UnrealPlatformGroup.Linux) && Target.Type != TargetRules.TargetType.Server) ||  // @todo should servers on all platforms skip this?
-					(Target.Platform == UnrealTargetPlatform.HTML5))
+					(Target.IsInPlatformGroup(UnrealPlatformGroup.Linux) && Target.Type != TargetRules.TargetType.Server))  // @todo should servers on all platforms skip this?
 				{
 					DynamicallyLoadedModuleNames.Add("OpenGLDrv");
 				}
 			}
-        }
+		}
 
 		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
 		{
@@ -54,5 +53,5 @@ public class RHI : ModuleRules
 		}
 
 		PrivateIncludePaths.Add("Runtime/RHI/Private");
-    }
+	}
 }

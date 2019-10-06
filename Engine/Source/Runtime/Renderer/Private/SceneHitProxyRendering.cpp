@@ -21,6 +21,7 @@
 #include "MeshPassProcessor.inl"
 #include "GPUScene.h"
 #include "Rendering/ColorVertexBuffer.h"
+#include "FXSystem.h"
 
 class FHitProxyShaderElementData : public FMeshMaterialShaderElementData
 {
@@ -580,6 +581,13 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRHICommandListImmediate& R
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
 			UploadDynamicPrimitiveShaderDataForView(RHICmdList, *Scene, Views[ViewIndex]);
+
+			extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
+
+			for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
+			{
+				Extension->BeginRenderView(&Views[ViewIndex]);
+			}
 		}	
 
 		if (UpdateViewCustomDataEvents.Num())
@@ -594,6 +602,12 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRHICommandListImmediate& R
 		DynamicIndexBufferForInitViews.Commit();
 		DynamicVertexBufferForInitViews.Commit();
 		DynamicReadBufferForInitViews.Commit();
+
+		// Notify the FX system that the scene is about to be rendered.
+		if (Scene->FXSystem && Views.IsValidIndex(0))
+		{
+			Scene->FXSystem->PreRender(RHICmdList, &Views[0].GlobalDistanceFieldInfo.ParameterData, false);
+		}
 
 		::DoRenderHitProxies(RHICmdList, this, HitProxyRT, HitProxyDepthRT);
 		ClearPrimitiveSingleFrameIndirectLightingCacheBuffers();

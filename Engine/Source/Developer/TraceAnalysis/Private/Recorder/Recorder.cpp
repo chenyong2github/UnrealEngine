@@ -105,14 +105,15 @@ FRecorder::~FRecorder()
 ////////////////////////////////////////////////////////////////////////////////
 FRecorder::FSession* FRecorder::AcceptSession(FSocket& Socket)
 {
+	uint32 Magic;
 	bool bAcceptable = false;
 	if (Socket.Wait(ESocketWaitConditions::WaitForRead, FTimespan(ETimespan::TicksPerSecond / 3)))
 	{
-		uint32 Magic;
 		int32 RecvSize;
 		if (Socket.Recv((uint8*)&Magic, sizeof(Magic), RecvSize))
 		{
-			bAcceptable = (RecvSize == sizeof(Magic)) & (Magic == 'TRCE');
+			bAcceptable = (RecvSize == sizeof(Magic));
+			bAcceptable |= ((Magic == 'TRCE') | (Magic == 'ECRT'));
 		}
 	}
 
@@ -122,17 +123,23 @@ FRecorder::FSession* FRecorder::AcceptSession(FSocket& Socket)
 	}
 
 	TTuple<FStoreSessionHandle, IOutDataStream*> StoreSession = Store->CreateNewSession();
-	if (!StoreSession.Get<1>())
+	IOutDataStream* OutStream = StoreSession.Get<1>();
+	if (!OutStream)
 	{
 		return nullptr;
 	}
+
+	OutStream->Write(&Magic, sizeof(Magic));
+
+	TSharedRef<FInternetAddr> PeerAddress = ISocketSubsystem::Get()->CreateInternetAddr();
+	Socket.GetPeerAddress(*PeerAddress);
+	PeerAddress->SetPort(1985);
+
 	FSession* Session = new FSession();
-	Session->ControlClientAddress = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
-	Socket.GetPeerAddress(*Session->ControlClientAddress);
-	Session->ControlClientAddress->SetPort(1985);
+	Session->ControlClientAddress = PeerAddress;
 	Session->Socket = &Socket;
 	Session->StoreSessionHandle = StoreSession.Get<0>();
-	Session->StoreSessionStream = StoreSession.Get<1>();
+	Session->StoreSessionStream = OutStream;
 	Session->Thread = FRunnableThread::Create(Session, TEXT("TraceRecSession"));
 	return Session;
 }

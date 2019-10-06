@@ -4,7 +4,6 @@
 
 #include "Async/ParallelFor.h"
 #include "ChaosSolversModule.h"
-#include "Chaos/RigidParticles.h"
 #include "Field/FieldSystemCoreAlgo.h"
 #include "Field/FieldSystemSceneProxy.h"
 #include "Field/FieldSystemNodes.h"
@@ -19,10 +18,8 @@ DEFINE_LOG_CATEGORY_STATIC(FSC_Log, NoLogging, All);
 UFieldSystemComponent::UFieldSystemComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, FieldSystem(nullptr)
-#if INCLUDE_CHAOS
 	, PhysicsProxy(nullptr)
 	, ChaosModule(nullptr)
-#endif
 	, bHasPhysicsState(false)
 {
 	UE_LOG(FSC_Log, Log, TEXT("FieldSystemComponent[%p]::UFieldSystemComponent()"),this);
@@ -46,12 +43,12 @@ void UFieldSystemComponent::OnCreatePhysicsState()
 	const bool bValidWorld = GetWorld() && GetWorld()->IsGameWorld();
 	if(bValidWorld)
 	{
-#if INCLUDE_CHAOS
 		// Check we can get a suitable dispatcher
 		ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
 		check(ChaosModule);
 
 		PhysicsProxy = new FFieldSystemPhysicsProxy(this);
+#if INCLUDE_CHAOS
 		TSharedPtr<FPhysScene_Chaos> Scene = GetOwner()->GetWorld()->PhysicsScene_Chaos;
 		Scene->AddObject(this, PhysicsProxy);
 #endif
@@ -63,19 +60,19 @@ void UFieldSystemComponent::OnCreatePhysicsState()
 void UFieldSystemComponent::OnDestroyPhysicsState()
 {
 	UActorComponent::OnDestroyPhysicsState();
-#if INCLUDE_CHAOS
 	if (!PhysicsProxy)
 	{
 		check(!bHasPhysicsState);
 		return;
 	}
 
+#if INCLUDE_CHAOS
 	TSharedPtr<FPhysScene_Chaos> Scene = GetOwner()->GetWorld()->PhysicsScene_Chaos;
 	Scene->RemoveObject(PhysicsProxy);
+#endif
 
 	ChaosModule = nullptr;
 	PhysicsProxy = nullptr;
-#endif
 
 	bHasPhysicsState = false;
 	
@@ -93,7 +90,6 @@ bool UFieldSystemComponent::HasValidPhysicsState() const
 
 void UFieldSystemComponent::DispatchCommand(const FFieldSystemCommand& InCommand)
 {
-#if INCLUDE_CHAOS
 	if (HasValidPhysicsState())
 	{
 		checkSlow(ChaosModule); // Should already be checked from OnCreatePhysicsState
@@ -129,7 +125,6 @@ void UFieldSystemComponent::DispatchCommand(const FFieldSystemCommand& InCommand
 			}
 		});
 	}
-#endif
 }
 
 void UFieldSystemComponent::ApplyStayDynamicField(bool Enabled, FVector Position, float Radius)

@@ -158,6 +158,11 @@ void FVREditorActionCallbacks::SetGizmoMode(UVREditorMode* InVRMode, EGizmoHandl
 	}
 }
 
+EGizmoHandleTypes FVREditorActionCallbacks::GetGizmoMode(const UVREditorMode* InVRMode)
+{
+	return InVRMode->GetWorldInteraction().GetCurrentGizmoType();
+}
+
 ECheckBoxState FVREditorActionCallbacks::IsActiveGizmoMode(UVREditorMode* InVRMode, EGizmoHandleTypes InGizmoMode)
 {
 	return (InVRMode->GetWorldInteraction().GetCurrentGizmoType() == InGizmoMode) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
@@ -606,15 +611,7 @@ void FVREditorActionCallbacks::ChangeEditorModes(FEditorModeID InMode)
 	GLevelEditorModeTools().ActivateMode(InMode);
 
 	// Find and disable any other 'visible' modes since we only ever allow one of those active at a time.
-	TArray<FEdMode*> ActiveModes;
-	GLevelEditorModeTools().GetActiveModes(ActiveModes);
-	for (FEdMode* Mode : ActiveModes)
-	{
-		if (Mode->GetID() != InMode && Mode->GetModeInfo().bVisible)
-		{
-			GLevelEditorModeTools().DeactivateMode(Mode->GetID());
-		}
-	}
+	GLevelEditorModeTools().DeactivateOtherVisibleModes(InMode);
 }
 
 ECheckBoxState FVREditorActionCallbacks::EditorModeActive(FEditorModeID InMode)

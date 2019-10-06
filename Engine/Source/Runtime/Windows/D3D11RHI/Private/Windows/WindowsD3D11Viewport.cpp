@@ -175,6 +175,7 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 			SwapChainDesc.SwapEffect = GSwapEffect;
 			SwapChainDesc.BufferCount = BackBufferCount;
 			SwapChainDesc.Flags = GSwapChainFlags;
+			SwapChainDesc.Scaling = DXGI_SCALING_NONE;
 
 			IDXGISwapChain1* SwapChain1 = nullptr;
 			IDXGIFactory2* Factory2 = (IDXGIFactory2*)D3DRHI->GetFactory();
@@ -218,7 +219,7 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 
 	// Tell the window to redraw when they can.
 	// @todo: For Slate viewports, it doesn't make sense to post WM_PAINT messages (we swallow those.)
-	::PostMessage( WindowHandle, WM_PAINT, 0, 0 );
+	::PostMessageW( WindowHandle, WM_PAINT, 0, 0 );
 
 	BeginInitResource(&FrameSyncEvent);
 }

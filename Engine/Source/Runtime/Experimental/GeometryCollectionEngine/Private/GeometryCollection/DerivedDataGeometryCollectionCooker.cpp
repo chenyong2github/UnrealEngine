@@ -22,7 +22,6 @@ FString FDerivedDataGeometryCollectionCooker::GetDebugContextString() const
 
 bool FDerivedDataGeometryCollectionCooker::Build(TArray<uint8>& OutData)
 {
-#if INCLUDE_CHAOS
 	FMemoryWriter Ar(OutData);
 	Chaos::FChaosArchive ChaosAr(Ar);
 	if (FGeometryCollection* Collection = GeometryCollection.GetGeometryCollection().Get())
@@ -47,7 +46,6 @@ bool FDerivedDataGeometryCollectionCooker::Build(TArray<uint8>& OutData)
 
 		return true;
 	}
-#endif
 
 	return false;
 }

@@ -702,12 +702,10 @@ bool UGameViewportClient::InputMotion(FViewport* InViewport, int32 ControllerId,
 
 void UGameViewportClient::SetIsSimulateInEditorViewport(bool bInIsSimulateInEditorViewport)
 {
-#if PLATFORM_DESKTOP || PLATFORM_HTML5
-	if (GetUseMouseForTouch())
+	if (FPlatformMisc::DesktopTouchScreen() && GetUseMouseForTouch())
 	{
 		FSlateApplication::Get().SetGameIsFakingTouchEvents(!bInIsSimulateInEditorViewport);
 	}
-#endif
 
 	for (ULocalPlayer* LocalPlayer : GetOuterUEngine()->GetGamePlayers(this))
 	{
@@ -743,12 +741,10 @@ void UGameViewportClient::MouseEnter(FViewport* InViewport, int32 x, int32 y)
 {
 	Super::MouseEnter(InViewport, x, y);
 
-#if PLATFORM_DESKTOP || PLATFORM_HTML5
-	if (InViewport && GetUseMouseForTouch() && GetGameViewport() && !GetGameViewport()->GetPlayInEditorIsSimulate())
+	if (FPlatformMisc::DesktopTouchScreen() && InViewport && GetUseMouseForTouch() && GetGameViewport() && !GetGameViewport()->GetPlayInEditorIsSimulate())
 	{
 		FSlateApplication::Get().SetGameIsFakingTouchEvents(true);
 	}
-#endif
 
 	// Replace all the cursors.
 	TSharedPtr<ICursor> PlatformCursor = FSlateApplication::Get().GetPlatformCursor();
@@ -775,14 +771,15 @@ void UGameViewportClient::MouseLeave(FViewport* InViewport)
 			FIntPoint LastViewportCursorPos;
 			InViewport->GetMousePos(LastViewportCursorPos, false);
 
-#if PLATFORM_DESKTOP || PLATFORM_HTML5
-			TSharedPtr<class SViewport> ViewportWidget = GetGameViewportWidget();
-			if (ViewportWidget.IsValid() && !ViewportWidget->HasFocusedDescendants())
+			if (FPlatformMisc::DesktopTouchScreen())
 			{
-				FVector2D CursorPos(LastViewportCursorPos.X, LastViewportCursorPos.Y);
-				FSlateApplication::Get().SetGameIsFakingTouchEvents(false, &CursorPos);
+				TSharedPtr<class SViewport> ViewportWidget = GetGameViewportWidget();
+				if (ViewportWidget.IsValid() && !ViewportWidget->HasFocusedDescendants())
+				{
+					FVector2D CursorPos(LastViewportCursorPos.X, LastViewportCursorPos.Y);
+					FSlateApplication::Get().SetGameIsFakingTouchEvents(false, &CursorPos);
+				}
 			}
-#endif
 		}
 	}
 
@@ -1403,7 +1400,7 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 
 	// If the views don't cover the entire bounding rectangle, clear the entire buffer.
 	bool bBufferCleared = false;
-	bool bStereoscopicPass = (ViewFamily.Views.Num() != 0 && ViewFamily.Views[0]->StereoPass != eSSP_FULL);
+	bool bStereoscopicPass = (ViewFamily.Views.Num() != 0 && IStereoRendering::IsStereoEyeView(ViewFamily.Views[0]->StereoPass));
 	if (ViewFamily.Views.Num() == 0 || TotalArea != (MaxX-MinX)*(MaxY-MinY) || bDisableWorldRendering || bStereoscopicPass)
 	{
 		if (bDisableWorldRendering || !bStereoscopicPass) // TotalArea computation does not work correctly for stereoscopic views
@@ -1870,12 +1867,10 @@ void UGameViewportClient::LostFocus(FViewport* InViewport)
 
 void UGameViewportClient::ReceivedFocus(FViewport* InViewport)
 {
-#if PLATFORM_DESKTOP || PLATFORM_HTML5
-	if (GetUseMouseForTouch() && GetGameViewport() && !GetGameViewport()->GetPlayInEditorIsSimulate())
+	if (FPlatformMisc::DesktopTouchScreen() && GetUseMouseForTouch() && GetGameViewport() && !GetGameViewport()->GetPlayInEditorIsSimulate())
 	{
 		FSlateApplication::Get().SetGameIsFakingTouchEvents(true);
 	}
-#endif
 
 	if (GEngine && GEngine->GetAudioDeviceManager())
 	{
@@ -1918,9 +1913,10 @@ void UGameViewportClient::CloseRequested(FViewport* InViewport)
 {
 	check(InViewport == Viewport);
 
-#if PLATFORM_DESKTOP || PLATFORM_HTML5
-	FSlateApplication::Get().SetGameIsFakingTouchEvents(false);
-#endif
+	if (FGenericPlatformMisc::DesktopTouchScreen())
+	{
+		FSlateApplication::Get().SetGameIsFakingTouchEvents(false);
+	}
 
 	// broadcast close request to anyone that registered an interest
 	CloseRequestedDelegate.Broadcast(InViewport);

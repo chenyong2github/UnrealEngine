@@ -102,9 +102,8 @@ void FLazyObjectPtr::PossiblySerializeObjectGuid(UObject *Object, FStructuredArc
 	if (UnderlyingArchive.IsSaving() || UnderlyingArchive.IsCountingMemory())
 	{
 		FUniqueObjectGuid Guid = GuidAnnotation.GetAnnotation(Object);
-		bool HasGuid = Guid.IsValid();
-		Record << NAMED_FIELD(HasGuid);
-		if (HasGuid)
+		TOptional<FStructuredArchiveSlot> GuidSlot = Record.TryEnterField(SA_FIELD_NAME(TEXT("Guid")), Guid.IsValid());
+		if (GuidSlot.IsSet())
 		{
 			if (UnderlyingArchive.GetPortFlags() & PPF_DuplicateForPIE)
 			{
@@ -120,17 +119,16 @@ void FLazyObjectPtr::PossiblySerializeObjectGuid(UObject *Object, FStructuredArc
 				}
 			}
 
-			Record << NAMED_FIELD(Guid);
+			GuidSlot.GetValue() << Guid;
 		}
 	}
 	else if (UnderlyingArchive.IsLoading())
 	{
-		bool HasGuid = false;
-		Record << NAMED_FIELD(HasGuid);
-		if (HasGuid)
+		TOptional<FStructuredArchiveSlot> GuidSlot = Record.TryEnterField(SA_FIELD_NAME(TEXT("Guid")), false);
+		if (GuidSlot.IsSet())
 		{
 			FUniqueObjectGuid Guid;
-			Record << NAMED_FIELD(Guid);
+			GuidSlot.GetValue() << Guid;
 
 			// Don't try and resolve GUIDs when loading a package for diffing
 			const UPackage* Package = Object->GetOutermost();

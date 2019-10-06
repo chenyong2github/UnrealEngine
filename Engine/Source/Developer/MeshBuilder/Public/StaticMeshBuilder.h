@@ -7,12 +7,26 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogStaticMeshBuilder, Log, All);
 
+class UStaticMesh;
+class FStaticMeshRenderData;
+class FStaticMeshLODGroup;
+class USkeletalMesh;
+
 class MESHBUILDER_API FStaticMeshBuilder : public FMeshBuilder
 {
 public:
 	FStaticMeshBuilder();
 
-	virtual bool Build(class FStaticMeshRenderData& OutRenderData, class UStaticMesh* StaticMesh, const class FStaticMeshLODGroup& LODGroup) override;
+	virtual bool Build(FStaticMeshRenderData& OutRenderData, UStaticMesh* StaticMesh, const FStaticMeshLODGroup& LODGroup) override;
+
+	//No support for skeletal mesh build in this class
+	virtual bool Build(USkeletalMesh* SkeletalMesh, const int32 LODIndex, const bool bRegenDepLODs) override
+	{
+		bool No_Support_For_SkeletalMesh_Build_In_FStaticMeshBuilder_Class = false;
+		check(No_Support_For_SkeletalMesh_Build_In_FStaticMeshBuilder_Class);
+		return false;
+	}
+
 	virtual ~FStaticMeshBuilder() {}
 
 private:

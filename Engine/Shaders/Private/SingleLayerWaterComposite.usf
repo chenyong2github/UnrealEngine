@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	WaterComposite - functionality to apply local cubemaps.
+	SingleLayerWaterComposite - final step of the single layer water
 =============================================================================*/
 
 #include "Common.ush"
@@ -16,7 +16,7 @@
 
 #define ENABLE_SKY_LIGHT 1
 
-#define REFLECTION_COMPOSITE_USE_BLENDED_REFLECTION_CAPTURES 0
+#define REFLECTION_COMPOSITE_USE_BLENDED_REFLECTION_CAPTURES (FEATURE_LEVEL >= FEATURE_LEVEL_SM5)
 #define REFLECTION_COMPOSITE_SUPPORT_SKYLIGHT_BLEND 0
 #include "ReflectionEnvironmentComposite.ush"
 
@@ -294,14 +294,19 @@ float2 SVPositionToSourceTextureUV;
 
 void WaterRefractionCopyPS(
 	in float4 SVPosition : SV_Position,
-	out float4 OutSceneColor : SV_Target0,
-	out float OutSceneDepth : SV_Target1)
+	out float OutSceneDepth : SV_Target0
+#if DOWNSAMPLE_COLOR
+	, out float4 OutSceneColor : SV_Target1
+#endif
+)
 {
 	float2 BufferUV = SVPosition.xy * SVPositionToSourceTextureUV;
 
+#if DOWNSAMPLE_COLOR
 	// Downsample and average all 2x2 quads
 	OutSceneColor.xyz = Texture2DSampleLevel(SceneColorCopyDownsampleTexture, SceneColorCopyDownsampleSampler, BufferUV, 0).xyz;
 	OutSceneColor.w = 1.0f;
+#endif
 
 	float DeviceDepthZ = 0.0f;
 #if DOWNSAMPLE_REFRACTION

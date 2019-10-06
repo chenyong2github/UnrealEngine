@@ -1,42 +1,42 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-
 #include "SSceneOutliner.h"
-#include "Widgets/SOverlay.h"
-#include "Engine/GameViewportClient.h"
-#include "Modules/ModuleManager.h"
-#include "Layout/WidgetPath.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Textures/SlateIcon.h"
-#include "Framework/Commands/UIAction.h"
-#include "Widgets/Layout/SSeparator.h"
-#include "Widgets/Images/SImage.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "ToolMenus.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Input/SComboButton.h"
-#include "EditorStyleSet.h"
-#include "Editor/UnrealEdEngine.h"
+
+#include "EdMode.h"
+#include "Editor.h"
 #include "Editor/GroupActor.h"
-#include "GameFramework/WorldSettings.h"
+#include "Editor/UnrealEdEngine.h"
+#include "EditorModeManager.h"
+#include "EditorStyleSet.h"
+#include "Engine/GameViewportClient.h"
 #include "Engine/Selection.h"
 #include "EngineUtils.h"
-#include "Editor.h"
-#include "EdMode.h"
-#include "EditorModeManager.h"
-#include "UnrealEdGlobals.h"
-#include "ScopedTransaction.h"
-#include "SceneOutlinerSettings.h"
-#include "ISceneOutlinerColumn.h"
-#include "SceneOutlinerModule.h"
-#include "SceneOutlinerDelegates.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Framework/Commands/UIAction.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "GameFramework/WorldSettings.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "ISceneOutlinerColumn.h"
 #include "Kismet2/ComponentEditorUtils.h"
+#include "Layout/WidgetPath.h"
+#include "Modules/ModuleManager.h"
+#include "SceneOutlinerDelegates.h"
+#include "SceneOutlinerFilters.h"
+#include "SceneOutlinerModule.h"
+#include "SceneOutlinerSettings.h"
+#include "ScopedTransaction.h"
+#include "Textures/SlateIcon.h"
+#include "ToolMenus.h"
+#include "UnrealEdGlobals.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Layout/SSeparator.h"
+#include "Widgets/SOverlay.h"
 
 #include "SceneOutlinerDragDrop.h"
 #include "SceneOutlinerMenuContext.h"
-
 
 #include "ActorEditorUtils.h"
 #include "LevelUtils.h"
@@ -47,9 +47,6 @@
 #include "Features/IModularFeatures.h"
 #include "ISceneOutlinerTraversal.h"
 
-//HACK THIS IS TEMP AND SHOULD BE REMOVED 
-#include "FractureToolDelegates.h"
-
 DEFINE_LOG_CATEGORY_STATIC(LogSceneOutliner, Log, All);
 
 #define LOCTEXT_NAMESPACE "SSceneOutliner"
@@ -59,6 +56,9 @@ DEFINE_LOG_CATEGORY_STATIC(LogSceneOutliner, Log, All);
 
 namespace SceneOutliner
 {
+	DECLARE_MULTICAST_DELEGATE(FOnSharedSettingsChanged);
+	FOnSharedSettingsChanged OnSharedSettingChangedDelegate;
+
 	FText GetWorldDescription(UWorld* World)
 	{
 		FText Description;
@@ -250,15 +250,20 @@ namespace SceneOutliner
 		// Copy over the shared data from the initialization options
 		static_cast<FSharedDataBase&>(*SharedData) = static_cast<const FSharedDataBase&>(InInitOptions);
 
+		SelectionMode = (SharedData->Mode == ESceneOutlinerMode::ActorBrowsing) ? ESelectionMode::Multi : ESelectionMode::Single;
+
 		OnItemPicked = InArgs._OnItemPickedDelegate;
 
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (InInitOptions.OnSelectionChanged.IsBound())
 		{
 			FSceneOutlinerDelegates::Get().SelectionChanged.Add(InInitOptions.OnSelectionChanged);
 		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		bFullRefresh = true;
 		bNeedsRefresh = true;
+		bNeedsColumRefresh = true;
 		bIsReentrant = false;
 		bSortDirty = true;
 		bActorSelectionDirty = SharedData->Mode == ESceneOutlinerMode::ActorBrowsing;
@@ -307,7 +312,7 @@ namespace SceneOutliner
 		SearchBoxFilter->OnChanged().AddSP( this, &SSceneOutliner::FullRefresh );
 		Filters->OnChanged().AddSP( this, &SSceneOutliner::FullRefresh );
 
-		//Apply custom filters based on global preferences
+		//Apply filters based on global preferences
 		if (SharedData->Mode == ESceneOutlinerMode::ActorBrowsing)
 		{
 			ApplyShowOnlySelectedFilter( IsShowingOnlySelected() );
@@ -315,7 +320,7 @@ namespace SceneOutliner
 			ApplyShowOnlyCurrentLevelFilter( IsShowingOnlyCurrentLevel() );
 		}
 
-		TSharedRef< SHeaderRow > HeaderRowWidget =
+		HeaderRowWidget =
 			SNew( SHeaderRow )
 				// Only show the list header if the user configured the outliner for that
 				.Visibility(InInitOptions.bShowHeaderRow ? EVisibility::Visible : EVisibility::Collapsed);
@@ -544,11 +549,11 @@ namespace SceneOutliner
 			OnLevelSelectionChanged( NULL );
 			USelection::SelectionChangedEvent.AddRaw(this, &SSceneOutliner::OnLevelSelectionChanged);
 			USelection::SelectObjectEvent.AddRaw(this, &SSceneOutliner::OnLevelSelectionChanged);
-		}
 
-		// Capture selection changes of bones from mesh selection in fracture tools
-		FSceneOutlinerDelegates::Get().OnComponentSelectionChanged.AddRaw(this, &SSceneOutliner::OnComponentSelectionChanged);
-		FSceneOutlinerDelegates::Get().OnComponentsUpdated.AddRaw(this, &SSceneOutliner::OnComponentsUpdated);
+			// Capture selection changes of bones from mesh selection in fracture tools
+			FSceneOutlinerDelegates::Get().OnComponentSelectionChanged.AddRaw(this, &SSceneOutliner::OnComponentSelectionChanged);
+			FSceneOutlinerDelegates::Get().OnComponentsUpdated.AddRaw(this, &SSceneOutliner::OnComponentsUpdated);
+		}
 
 		// Register to find out when actors are added or removed
 		// @todo outliner: Might not catch some cases (see: CALLBACK_ActorPropertiesChange, CALLBACK_LayerChange, CALLBACK_LevelDirtied, CALLBACK_OnActorMoved, CALLBACK_UpdateLevelsForAllActors)
@@ -579,16 +584,23 @@ namespace SceneOutliner
 		Folders.OnFolderMove.AddSP(this, &SSceneOutliner::OnBroadcastFolderMove);
 		Folders.OnFolderDelete.AddSP(this, &SSceneOutliner::OnBroadcastFolderDelete);
 
-		FEditorDelegates::OnEditCutActorsBegin.AddSP(this, &SSceneOutliner::OnEditCutActorsBegin);
-		FEditorDelegates::OnEditCutActorsEnd.AddSP(this, &SSceneOutliner::OnEditCutActorsEnd);
-		FEditorDelegates::OnEditCopyActorsBegin.AddSP(this, &SSceneOutliner::OnEditCopyActorsBegin);
-		FEditorDelegates::OnEditCopyActorsEnd.AddSP(this, &SSceneOutliner::OnEditCopyActorsEnd);
-		FEditorDelegates::OnEditPasteActorsBegin.AddSP(this, &SSceneOutliner::OnEditPasteActorsBegin);
-		FEditorDelegates::OnEditPasteActorsEnd.AddSP(this, &SSceneOutliner::OnEditPasteActorsEnd);
-		FEditorDelegates::OnDuplicateActorsBegin.AddSP(this, &SSceneOutliner::OnDuplicateActorsBegin);
-		FEditorDelegates::OnDuplicateActorsEnd.AddSP(this, &SSceneOutliner::OnDuplicateActorsEnd);
-		FEditorDelegates::OnDeleteActorsBegin.AddSP(this, &SSceneOutliner::OnDeleteActorsBegin);
-		FEditorDelegates::OnDeleteActorsEnd.AddSP(this, &SSceneOutliner::OnDeleteActorsEnd);
+		if ( SharedData->Mode == ESceneOutlinerMode::ActorBrowsing )
+		{
+			// Only the actor browsing mode seems to need those
+			FEditorDelegates::OnEditCutActorsBegin.AddSP(this, &SSceneOutliner::OnEditCutActorsBegin);
+			FEditorDelegates::OnEditCutActorsEnd.AddSP(this, &SSceneOutliner::OnEditCutActorsEnd);
+			FEditorDelegates::OnEditCopyActorsBegin.AddSP(this, &SSceneOutliner::OnEditCopyActorsBegin);
+			FEditorDelegates::OnEditCopyActorsEnd.AddSP(this, &SSceneOutliner::OnEditCopyActorsEnd);
+			FEditorDelegates::OnEditPasteActorsBegin.AddSP(this, &SSceneOutliner::OnEditPasteActorsBegin);
+			FEditorDelegates::OnEditPasteActorsEnd.AddSP(this, &SSceneOutliner::OnEditPasteActorsEnd);
+			FEditorDelegates::OnDuplicateActorsBegin.AddSP(this, &SSceneOutliner::OnDuplicateActorsBegin);
+			FEditorDelegates::OnDuplicateActorsEnd.AddSP(this, &SSceneOutliner::OnDuplicateActorsEnd);
+			FEditorDelegates::OnDeleteActorsBegin.AddSP(this, &SSceneOutliner::OnDeleteActorsBegin);
+			FEditorDelegates::OnDeleteActorsEnd.AddSP(this, &SSceneOutliner::OnDeleteActorsEnd);
+		}
+
+		SetUseSharedSceneOutlinerSettings(SharedData->Mode == ESceneOutlinerMode::Custom);
+		OnSharedSettingChangedDelegate.AddSP(this, &SSceneOutliner::OnSharedSettingChanged);
 	}
 
 	void SSceneOutliner::SetupColumns(SHeaderRow& HeaderRow)
@@ -649,6 +661,12 @@ namespace SceneOutliner
 		}
 
 		Columns.Shrink();
+		bNeedsColumRefresh = false;
+	}
+
+	void SSceneOutliner::RefreshColums()
+	{
+		bNeedsColumRefresh = true;
 	}
 
 	SSceneOutliner::~SSceneOutliner()
@@ -859,17 +877,38 @@ namespace SceneOutliner
 
 	/** FILTERS */
 
+	void SSceneOutliner::OnSharedSettingChanged()
+	{
+		// Only update if we use the shared settings
+		if (!SceneOutlinerSettings)
+		{
+			ApplyHideTemporaryActorsFilter(IsHidingTemporaryActors());
+			ApplyShowActorComponentsFilter(IsShowingActorComponents());
+			ApplyShowOnlyCurrentLevelFilter(IsShowingOnlyCurrentLevel());
+			ApplyShowOnlySelectedFilter(IsShowingOnlySelected());
+		}
+	}
+
 	// Show Only Selected
 	void SSceneOutliner::ToggleShowOnlySelected()
 	{
 		const bool bEnableFlag = !IsShowingOnlySelected();
 
-		USceneOutlinerSettings* Settings = GetMutableDefault<USceneOutlinerSettings>();
-		Settings->bShowOnlySelectedActors = bEnableFlag;
-		Settings->PostEditChange();
+		if (SceneOutlinerSettings)
+		{
+			SceneOutlinerSettings->bShowOnlySelectedActors = bEnableFlag;
+		}
+		else
+		{
+			USceneOutlinerSettings* Settings = GetMutableDefault<USceneOutlinerSettings>();
+			Settings->bShowOnlySelectedActors = bEnableFlag;
+			Settings->PostEditChange();
+			OnSharedSettingChangedDelegate.Broadcast();
+		}
 
 		ApplyShowOnlySelectedFilter(bEnableFlag);
 	}
+
 	void SSceneOutliner::ApplyShowOnlySelectedFilter(bool bShowOnlySelected)
 	{
 		if ( !SelectedActorFilter.IsValid() )
@@ -886,8 +925,13 @@ namespace SceneOutliner
 			Filters->Remove( SelectedActorFilter );
 		}
 	}
+
 	bool SSceneOutliner::IsShowingOnlySelected() const
 	{
+		if (SceneOutlinerSettings)
+		{
+			return SceneOutlinerSettings->bShowOnlySelectedActors;
+		}
 		return GetDefault<USceneOutlinerSettings>()->bShowOnlySelectedActors;
 	}
 
@@ -896,9 +940,17 @@ namespace SceneOutliner
 	{
 		const bool bEnableFlag = !IsHidingTemporaryActors();
 
-		USceneOutlinerSettings* Settings = GetMutableDefault<USceneOutlinerSettings>();
-		Settings->bHideTemporaryActors = bEnableFlag;
-		Settings->PostEditChange();
+		if (SceneOutlinerSettings)
+		{
+			SceneOutlinerSettings->bHideTemporaryActors = bEnableFlag;
+		}
+		else
+		{
+			USceneOutlinerSettings* Settings = GetMutableDefault<USceneOutlinerSettings>();
+			Settings->bHideTemporaryActors = bEnableFlag;
+			Settings->PostEditChange();
+			OnSharedSettingChangedDelegate.Broadcast();
+		}
 
 		ApplyHideTemporaryActorsFilter(bEnableFlag);
 	}
@@ -921,6 +973,10 @@ namespace SceneOutliner
 	}
 	bool SSceneOutliner::IsHidingTemporaryActors() const
 	{
+		if (SceneOutlinerSettings)
+		{
+			return SceneOutlinerSettings->bHideTemporaryActors;
+		}
 		return GetDefault<USceneOutlinerSettings>()->bHideTemporaryActors;
 	}
 
@@ -929,9 +985,17 @@ namespace SceneOutliner
 	{
 		const bool bEnableFlag = !IsShowingOnlyCurrentLevel();
 
-		USceneOutlinerSettings* Settings = GetMutableDefault<USceneOutlinerSettings>();
-		Settings->bShowOnlyActorsInCurrentLevel = bEnableFlag;
-		Settings->PostEditChange();
+		if (SceneOutlinerSettings)
+		{
+			SceneOutlinerSettings->bShowOnlyActorsInCurrentLevel = bEnableFlag;
+		}
+		else
+		{
+			USceneOutlinerSettings* Settings = GetMutableDefault<USceneOutlinerSettings>();
+			Settings->bShowOnlyActorsInCurrentLevel = bEnableFlag;
+			Settings->PostEditChange();
+			OnSharedSettingChangedDelegate.Broadcast();
+		}
 
 		ApplyShowOnlyCurrentLevelFilter(bEnableFlag);
 	}
@@ -963,8 +1027,12 @@ namespace SceneOutliner
 		FullRefresh();
 	}
 
-	bool SSceneOutliner::IsShowingActorComponents()
+	bool SSceneOutliner::IsShowingActorComponents() const
 	{
+		if (SceneOutlinerSettings)
+		{
+			return SceneOutlinerSettings->bShowActorComponents;
+		}
 		return SharedData->Mode == ESceneOutlinerMode::ComponentPicker || (GetDefault<USceneOutlinerSettings>()->bShowActorComponents);
 	}
 
@@ -974,9 +1042,17 @@ namespace SceneOutliner
 		{
 			const bool bEnableFlag = !IsShowingActorComponents();
 
-			USceneOutlinerSettings* Settings = GetMutableDefault<USceneOutlinerSettings>();
-			Settings->bShowActorComponents = bEnableFlag;
-			Settings->PostEditChange();
+			if (SceneOutlinerSettings)
+			{
+				SceneOutlinerSettings->bShowActorComponents = bEnableFlag;
+			}
+			else
+			{
+				USceneOutlinerSettings* Settings = GetMutableDefault<USceneOutlinerSettings>();
+				Settings->bShowActorComponents = bEnableFlag;
+				Settings->PostEditChange();
+				OnSharedSettingChangedDelegate.Broadcast();
+			}
 
 			ApplyShowActorComponentsFilter(bEnableFlag);
 		}
@@ -1001,6 +1077,10 @@ namespace SceneOutliner
 
 	bool SSceneOutliner::IsShowingOnlyCurrentLevel() const
 	{
+		if (SceneOutlinerSettings)
+		{
+			return SceneOutlinerSettings->bShowOnlyActorsInCurrentLevel;
+		}
 		return GetDefault<USceneOutlinerSettings>()->bShowOnlyActorsInCurrentLevel;
 	}
 
@@ -1032,8 +1112,7 @@ namespace SceneOutliner
 
 	ESelectionMode::Type SSceneOutliner::GetSelectionMode() const
 	{
-		return (SharedData->Mode == ESceneOutlinerMode::ActorBrowsing)? 
-			ESelectionMode::Multi : ESelectionMode::Single;
+		return SelectionMode;
 	}
 
 
@@ -1067,13 +1146,13 @@ namespace SceneOutliner
 		SharedData->RepresentingWorld = nullptr;
 
 		// check if the user-chosen world is valid and in the editor contexts
-		if(SharedData->UserChosenWorld.IsValid())
+		if(UWorld* UserChosenWorld = SharedData->UserChosenWorld.Get())
 		{
 			for (const FWorldContext& Context : GEngine->GetWorldContexts())
 			{
-				if(SharedData->UserChosenWorld.Get() == Context.World())
+				if(UserChosenWorld == Context.World())
 				{
-					SharedData->RepresentingWorld = Context.World();
+					SharedData->RepresentingWorld = UserChosenWorld;
 					break;
 				}
 			}
@@ -1097,7 +1176,7 @@ namespace SceneOutliner
 					else if(World->GetNetMode() == NM_Client && Context.PIEInstance == 2)	// Slightly dangerous: assumes server is always PIEInstance = 1;
 					{
 						SharedData->RepresentingWorld = World;
-						break;						
+						break;
 					}
 				}
 			}
@@ -1417,7 +1496,7 @@ namespace SceneOutliner
 					OutlinerTreeView->SetItemSelection(Item, true);
 				}
 
-				if (*ActionMask & ENewItemAction::Rename)
+				if (*ActionMask & ENewItemAction::Rename && CanExecuteRenameRequest(Item))
 				{
 					PendingRenameItem = Item;
 				}
@@ -1462,7 +1541,21 @@ namespace SceneOutliner
 			RootTreeItems.Add(Item);
 		}
 
-		Item->Visit(FOnItemAddedToTree(*this));
+		if (SharedData->Mode == ESceneOutlinerMode::ActorBrowsing)
+		{
+			Item->Visit(FOnItemAddedToTree(*this));
+		}
+		else if (SharedData->Mode == ESceneOutlinerMode::Custom)
+		{
+			if(TTreeItemGetter<bool>* ShouldSelectNewItem = ShouldSelectNewItemVisitor.Get())
+			{
+				Item->Visit(*ShouldSelectNewItem);
+				if (ShouldSelectNewItem->Result())
+				{
+					OutlinerTreeView->SetItemSelection(Item, true);
+				}
+			}
+		}
 	}
 
 	SSceneOutliner::FParentsExpansionState SSceneOutliner::GetParentsExpansionState() const
@@ -1595,17 +1688,17 @@ namespace SceneOutliner
 
 	TSharedPtr<SWidget> SSceneOutliner::OnOpenContextMenu()
 	{
-		TArray<AActor*> SelectedActors;
-		GEditor->GetSelectedActors()->GetSelectedObjects<AActor>( SelectedActors );
-
-		/** Legacy context menu override only supports actors */
-		if (SelectedActors.Num() && SharedData->ContextMenuOverride.IsBound())
+		/** Legacy mode and now also used by the custom mode */
+		if (SharedData->ContextMenuOverride.IsBound())
 		{
 			return SharedData->ContextMenuOverride.Execute();
 		}
 
 		if (SharedData->Mode == ESceneOutlinerMode::ActorBrowsing)
 		{
+			TArray<AActor*> SelectedActors;
+			GEditor->GetSelectedActors()->GetSelectedObjects<AActor>(SelectedActors);
+
 			// Make sure that no components are selected
 			if (GEditor->GetSelectedComponentCount() > 0)
 			{
@@ -1627,65 +1720,92 @@ namespace SceneOutliner
 	
 	bool SSceneOutliner::Delete_CanExecute()
 	{
-		FItemSelection ItemSelection(*OutlinerTreeView);
-		if (ItemSelection.Folders.Num() > 0 && ItemSelection.Folders.Num() == OutlinerTreeView->GetNumItemsSelected())
+		if (SharedData->Mode == ESceneOutlinerMode::ActorPicker)
 		{
-			return true;
+			FItemSelection ItemSelection(*OutlinerTreeView);
+			if (ItemSelection.Folders.Num() > 0 && ItemSelection.Folders.Num() == OutlinerTreeView->GetNumItemsSelected())
+			{
+				return true;
+			}
 		}
 		return false;
 	}
 
 	bool SSceneOutliner::Rename_CanExecute()
 	{
-		FItemSelection ItemSelection(*OutlinerTreeView);
-		if (ItemSelection.Folders.Num() == 1 && ItemSelection.Folders.Num() == OutlinerTreeView->GetNumItemsSelected())
+		if (SharedData->Mode == ESceneOutlinerMode::ActorBrowsing)
 		{
-			return true;
+			FItemSelection ItemSelection(*OutlinerTreeView);
+			if (ItemSelection.Folders.Num() == 1 && ItemSelection.Folders.Num() == OutlinerTreeView->GetNumItemsSelected())
+			{
+				return true;
+			}
 		}
 		return false;
 	}
 
 	void SSceneOutliner::Rename_Execute()
 	{
-		// handle folders only here, actors and components are handled in LevelEditorActions::Rename_Execute
 		FItemSelection ItemSelection(*OutlinerTreeView);
-		if (ItemSelection.Folders.Num() == 1 && ItemSelection.Folders.Num() == OutlinerTreeView->GetNumItemsSelected())
-		{
-			FTreeItemPtr ItemToRename = OutlinerTreeView->GetSelectedItems()[0];
+		FTreeItemPtr ItemToRename;
 
-			if (ItemToRename->CanInteract())
+		if (SharedData->Mode == ESceneOutlinerMode::ActorBrowsing)
+		{
+			// handle folders only here, actors and components are handled in LevelEditorActions::Rename_Execute
+			if (ItemSelection.Folders.Num() == 1 && ItemSelection.Folders.Num() == OutlinerTreeView->GetNumItemsSelected())
 			{
-				PendingRenameItem = ItemToRename->AsShared();
-				ScrollItemIntoView(ItemToRename);
+				ItemToRename = OutlinerTreeView->GetSelectedItems()[0];
 			}
+		}
+		else if (SharedData->Mode == ESceneOutlinerMode::Custom)
+		{
+			if (OutlinerTreeView->GetNumItemsSelected() == 1)
+			{
+				ItemToRename = OutlinerTreeView->GetSelectedItems()[0];
+			}
+		}
+
+		if (ItemToRename.IsValid() && CanExecuteRenameRequest(ItemToRename) && ItemToRename->CanInteract())
+		{
+			PendingRenameItem = ItemToRename->AsShared();
+			ScrollItemIntoView(ItemToRename);
 		}
 	}
 
 	bool SSceneOutliner::Cut_CanExecute()
 	{
-		FItemSelection ItemSelection(*OutlinerTreeView);
-		if (ItemSelection.Folders.Num() > 0 && ItemSelection.Folders.Num() == OutlinerTreeView->GetNumItemsSelected())
+		if (SharedData->Mode == ESceneOutlinerMode::ActorBrowsing)
 		{
-			return true;
+			FItemSelection ItemSelection(*OutlinerTreeView);
+			if (ItemSelection.Folders.Num() > 0 && ItemSelection.Folders.Num() == OutlinerTreeView->GetNumItemsSelected())
+			{
+				return true;
+			}
 		}
 		return false;
 	}
 
 	bool SSceneOutliner::Copy_CanExecute()
 	{
-		FItemSelection ItemSelection(*OutlinerTreeView);
-		if (ItemSelection.Folders.Num() > 0 && ItemSelection.Folders.Num() == OutlinerTreeView->GetNumItemsSelected())
+		if (SharedData->Mode == ESceneOutlinerMode::ActorBrowsing)
 		{
-			return true;
+			FItemSelection ItemSelection(*OutlinerTreeView);
+			if (ItemSelection.Folders.Num() > 0 && ItemSelection.Folders.Num() == OutlinerTreeView->GetNumItemsSelected())
+			{
+				return true;
+			}
 		}
 		return false;
 	}
 
 	bool SSceneOutliner::Paste_CanExecute()
 	{
-		if (CanPasteFoldersOnlyFromClipboard())
+		if (SharedData->Mode == ESceneOutlinerMode::ActorBrowsing)
 		{
-			return true;
+			if (CanPasteFoldersOnlyFromClipboard())
+			{
+				return true;
+			}
 		}
 		return false;
 	}
@@ -1697,6 +1817,340 @@ namespace SceneOutliner
 		FString PasteString;
 		FPlatformApplicationMisc::ClipboardPaste(PasteString);
 		return PasteString.StartsWith("BEGIN FOLDERLIST");
+	}
+
+	bool SSceneOutliner::CanSupportDragAndDrop() const
+	{
+		return SharedData->Mode == ESceneOutlinerMode::ActorBrowsing || SharedData->Mode == ESceneOutlinerMode::Custom;
+	}
+
+	bool SSceneOutliner::CanExecuteRenameRequest(const FTreeItemPtr& ItemPtr) const
+	{
+		if (TTreeItemGetter<bool>* Visitor = CanRenameItemVisitor.Get())
+		{
+			ItemPtr->Visit(*Visitor);
+			return Visitor->Result();
+		}
+
+		// Legacy default behavior
+		return true;
+	}
+
+	int32 SSceneOutliner::AddFilter(const TSharedRef<SceneOutliner::FOutlinerFilter>& Filter)
+	{
+		// Deal with build in filters. If a build in filter is already in the filters, add will return it's index
+		if (Filter == HideTemporaryActorsFilter && !IsHidingTemporaryActors())
+		{
+			ToggleHideTemporaryActors();
+			return Filters->Num() - 1;
+		}
+		else if (Filter == ShowActorComponentsFilter && !IsShowingActorComponents())
+		{
+			ToggleShowActorComponents();
+			return Filters->Num() - 1;
+		}
+		else if (Filter == ShowOnlyActorsInCurrentLevelFilter && !IsShowingOnlyCurrentLevel())
+		{
+			ToggleShowOnlyCurrentLevel();
+			return Filters->Num() - 1;
+		}
+		else if (Filter == SelectedActorFilter && !IsShowingOnlySelected())
+		{
+			ToggleShowOnlySelected();
+			return Filters->Num() - 1;
+		}
+
+		// Custom Filter
+		return Filters->Add(Filter);
+	}
+
+	bool SSceneOutliner::RemoveFilter(const TSharedRef<SceneOutliner::FOutlinerFilter>& Filter)
+	{
+		bool bRemovedAFilter = false;
+
+		// Deal with build in filters. If a build in filter is already in the filters toggle to update the settings
+		if (Filter == HideTemporaryActorsFilter && IsHidingTemporaryActors())
+		{
+			ToggleHideTemporaryActors();
+			bRemovedAFilter = true;
+		}
+		else if (Filter == ShowActorComponentsFilter && IsShowingActorComponents())
+		{
+			ToggleShowActorComponents();
+			bRemovedAFilter = true;
+		}
+		else if (Filter == ShowOnlyActorsInCurrentLevelFilter && IsShowingOnlyCurrentLevel())
+		{
+			ToggleShowOnlyCurrentLevel();
+			bRemovedAFilter = true;
+		}
+		else if (Filter == SelectedActorFilter && IsShowingOnlySelected())
+		{
+			ToggleShowOnlySelected();
+			bRemovedAFilter = true;
+		}
+		else
+		{
+			bRemovedAFilter = Filters->Remove(Filter) > 0;
+		}
+
+		return bRemovedAFilter;
+	}
+
+	TSharedPtr<SceneOutliner::FOutlinerFilter> SSceneOutliner::GetFilterAtIndex(int32 Index)
+	{
+		return StaticCastSharedPtr<SceneOutliner::FOutlinerFilter>(Filters->GetFilterAtIndex(Index));
+	}
+
+	int32 SSceneOutliner::GetFilterCount() const
+	{
+		return Filters->Num();
+	}
+
+	void SSceneOutliner::AddColumn(FName ColumId, const SceneOutliner::FColumnInfo& ColumInfo)
+	{
+		SharedData->ColumnMap.Add(ColumId, ColumInfo);
+		RefreshColums();
+	}
+
+	void SSceneOutliner::RemoveColumn(FName ColumId)
+	{
+		SharedData->ColumnMap.Remove(ColumId);
+		RefreshColums();
+	}
+
+	TArray<FName> SSceneOutliner::GetColumnIds() const
+	{
+		TArray<FName> ColumnsName;
+		SharedData->ColumnMap.GenerateKeyArray(ColumnsName);
+		return ColumnsName;
+	}
+
+	ICustomSceneOutliner& SSceneOutliner::SetSelectionMode(ESelectionMode::Type InSelectionMode)
+	{
+		SelectionMode = InSelectionMode;
+		return *this;
+	}
+
+	ICustomSceneOutliner& SSceneOutliner::SetCanRenameItem(TUniquePtr<TTreeItemGetter<bool>>&& CanRenameItem)
+	{
+		CanRenameItemVisitor = MoveTemp(CanRenameItem);
+		return *this;
+	}
+
+	ICustomSceneOutliner& SSceneOutliner::SetShouldSelectItemWhenAdded(TUniquePtr<TTreeItemGetter<bool>>&& ShouldSelectItemWhenAdded)
+	{
+		ShouldSelectNewItemVisitor = MoveTemp(ShouldSelectItemWhenAdded);
+		return *this;
+	}
+
+	ICustomSceneOutliner& SSceneOutliner::SetOnItemDragDetected(TUniqueFunction<FReply(const SceneOutliner::ITreeItem&)> Callback)
+	{
+		OnItemDragDetected = MoveTemp(Callback);
+		return *this;
+	}
+
+	ICustomSceneOutliner& SSceneOutliner::SetOnDragOverItem(TUniqueFunction<FReply(const FDragDropEvent&, const SceneOutliner::ITreeItem&)> Callback)
+	{
+		OnDragOverItem = MoveTemp(Callback);
+		return *this;
+	}
+
+	ICustomSceneOutliner& SSceneOutliner::SetOnDropOnItem(TUniqueFunction<FReply(const FDragDropEvent&, const SceneOutliner::ITreeItem&)> Callback)
+	{
+		OnDropOnItem = MoveTemp(Callback);
+		return *this;
+	}
+
+	ICustomSceneOutliner& SSceneOutliner::SetOnDragEnterItem(TUniqueFunction<void(const FDragDropEvent&, const SceneOutliner::ITreeItem&)> Callback)
+	{
+		OnDragEnterItem = MoveTemp(Callback);
+		return *this;
+	}
+
+	ICustomSceneOutliner& SSceneOutliner::SetOnDragLeaveItem(TUniqueFunction<void(const FDragDropEvent&, const SceneOutliner::ITreeItem&)> Callback)
+	{
+		OnDragLeaveItem = MoveTemp(Callback);
+		return *this;
+	}
+
+
+	const TUniqueFunction<FReply(const SceneOutliner::ITreeItem&)>& SSceneOutliner::GetOnItemDragDetected() const
+	{
+		return OnItemDragDetected;
+	}
+
+	const TUniqueFunction<FReply(const FDragDropEvent&, const SceneOutliner::ITreeItem&)>& SSceneOutliner::GetOnDragOverItem() const
+	{
+		return OnDragOverItem;
+	}
+
+	const TUniqueFunction<FReply(const FDragDropEvent&, const SceneOutliner::ITreeItem&)>& SSceneOutliner::GetOnDropOnItem() const
+	{
+		return OnDropOnItem;
+	}
+
+	const TUniqueFunction<void(const FDragDropEvent&, const SceneOutliner::ITreeItem&)>& SSceneOutliner::GetOnDragEnterItem() const
+	{
+		return OnDragEnterItem;
+	}
+
+	const TUniqueFunction<void(const FDragDropEvent&, const SceneOutliner::ITreeItem&)>& SSceneOutliner::GetOnDragLeaveItem() const
+	{
+		return OnDragLeaveItem;
+	}
+
+	ICustomSceneOutliner& SSceneOutliner::SetUseSharedSceneOutlinerSettings(bool bUseSharedSettings)
+	{
+		if ( bUseSharedSettings && !SceneOutlinerSettings )
+		{
+			SceneOutlinerSettings = NewObject<USceneOutlinerSettings>();
+			ApplyHideTemporaryActorsFilter(IsHidingTemporaryActors());
+			ApplyShowActorComponentsFilter(IsShowingActorComponents());
+			ApplyShowOnlyCurrentLevelFilter(IsShowingOnlyCurrentLevel());
+			ApplyShowOnlySelectedFilter(IsShowingOnlySelected());
+		}
+		else if ( !bUseSharedSettings && SceneOutlinerSettings )
+		{
+			SceneOutlinerSettings = nullptr;
+			ApplyHideTemporaryActorsFilter(IsHidingTemporaryActors());
+			ApplyShowActorComponentsFilter(IsShowingActorComponents());
+			ApplyShowOnlyCurrentLevelFilter(IsShowingOnlyCurrentLevel());
+			ApplyShowOnlySelectedFilter(IsShowingOnlySelected());
+		}
+		return *this;
+	}
+
+	bool SSceneOutliner::IsUsingSharedSceneOutlinerSettings() const 
+	{
+		return SceneOutlinerSettings != nullptr;
+	}
+
+	ICustomSceneOutliner& SSceneOutliner::SetHideTemporaryActors(bool bHideTemporaryActors)
+	{
+		if ( bHideTemporaryActors != IsHidingTemporaryActors() )
+		{
+			ToggleHideTemporaryActors();
+		}
+		return *this;
+	}
+
+	ICustomSceneOutliner& SSceneOutliner::SetShowOnlyCurrentLevel(bool bShowOnlyCurrentLevel)
+	{
+		if ( bShowOnlyCurrentLevel != IsShowingOnlyCurrentLevel() )
+		{
+			ToggleShowOnlyCurrentLevel();
+		}
+		return *this;
+	}
+
+	ICustomSceneOutliner& SSceneOutliner::SetShownOnlySelected(bool bShowOnlySelected)
+	{
+		if ( bShowOnlySelected != IsShowingOnlySelected() )
+		{
+			ToggleShowOnlySelected();
+		}
+		return *this;
+	}
+
+	ICustomSceneOutliner& SSceneOutliner::SetShowActorComponents(bool bShowActorComponents)
+	{
+		if ( bShowActorComponents != IsShowingActorComponents() )
+		{
+			ToggleShowActorComponents();
+		}
+		return *this;
+	}
+
+	void SSceneOutliner::SetSelection(const SceneOutliner::TTreeItemGetter<bool>& ItemSelector)
+	{
+		TArray<FTreeItemPtr> ItemsToAdd;
+		for (const auto& TPairIdAndItem : TreeItemMap)
+		{
+			FTreeItemPtr ItemPtr = TPairIdAndItem.Value;
+			if (ITreeItem*  Item = ItemPtr.Get())
+			{
+				Item->Visit(ItemSelector);
+				if (ItemSelector.Result())
+				{
+					ItemsToAdd.Add(ItemPtr);
+				}
+			}
+		}
+		OutlinerTreeView->ClearSelection();
+		OutlinerTreeView->SetItemSelection(ItemsToAdd, true);
+	}
+
+	void SSceneOutliner::AddToSelection(const SceneOutliner::TTreeItemGetter<bool>& ItemSelector)
+	{
+		TArray<FTreeItemPtr> ItemsToAdd;
+		for (const auto& TPairIdAndItem : TreeItemMap)
+		{
+			FTreeItemPtr ItemPtr = TPairIdAndItem.Value;
+			if (ITreeItem*  Item = ItemPtr.Get())
+			{
+				Item->Visit(ItemSelector);
+				if (ItemSelector.Result())
+				{
+					ItemsToAdd.Add(ItemPtr);
+				}
+			}
+		}
+		OutlinerTreeView->SetItemSelection(ItemsToAdd, true);
+	}
+
+	void SSceneOutliner::RemoveFromSelection(const SceneOutliner::TTreeItemGetter<bool>& ItemDeselector)
+	{
+		TArray<FTreeItemPtr> ItemsToRemove;
+		for (const FTreeItemPtr& ItemPtr : OutlinerTreeView->GetSelectedItems())
+		{
+			if (ITreeItem* Item = ItemPtr.Get())
+			{
+				Item->Visit(ItemDeselector);
+				if (ItemDeselector.Result())
+				{
+					ItemsToRemove.Add(ItemPtr);
+				}
+			}
+		}
+		OutlinerTreeView->SetItemSelection(ItemsToRemove, false);
+	}
+
+	void SSceneOutliner::AddObjectToSelection(const UObject* Object)
+	{
+		if(FTreeItemPtr* ItemPtr = TreeItemMap.Find(Object))
+		{
+			OutlinerTreeView->SetItemSelection(*ItemPtr, true);
+		}
+	}
+
+	void SSceneOutliner::RemoveObjectFromSelection(const UObject* Object)
+	{
+		if (FTreeItemPtr* ItemPtr = TreeItemMap.Find(Object))
+		{
+			OutlinerTreeView->SetItemSelection(*ItemPtr, false);
+		}
+	}
+
+	void SSceneOutliner::AddFolderToSelection(const FName& FolderName)
+	{
+		if (FTreeItemPtr* ItemPtr = TreeItemMap.Find(FolderName))
+		{
+			OutlinerTreeView->SetItemSelection(*ItemPtr, true);
+		}
+	}
+
+	void SSceneOutliner::RemoveFolderFromSelection(const FName& FolderName)
+	{
+		if (FTreeItemPtr* ItemPtr = TreeItemMap.Find(FolderName))
+		{
+			OutlinerTreeView->SetItemSelection(*ItemPtr, false);
+		}
+	}
+
+	void SSceneOutliner::ClearSelection()
+	{
+		OutlinerTreeView->ClearSelection();
 	}
 
 	TSharedPtr<SWidget> SSceneOutliner::BuildDefaultContextMenu()
@@ -2254,66 +2708,78 @@ namespace SceneOutliner
 
 	void SSceneOutliner::OnEditCutActorsBegin()
 	{
+		// Only a callback in actor browsing mode
 		CopyFoldersBegin();
 		DeleteFoldersBegin();
 	}
 
 	void SSceneOutliner::OnEditCutActorsEnd()
 	{
+		// Only a callback in actor browsing mode
 		CopyFoldersEnd();
 		DeleteFoldersEnd();
 	}
 
 	void SSceneOutliner::OnEditCopyActorsBegin()
 	{
+		// Only a callback in actor browsing mode
 		CopyFoldersBegin();
 	}
 
 	void SSceneOutliner::OnEditCopyActorsEnd()
 	{
+		// Only a callback in actor browsing mode
 		CopyFoldersEnd();
 	}
 
 	void SSceneOutliner::OnEditPasteActorsBegin()
 	{
+		// Only a callback in actor browsing mode
 		TArray<FName> Folders = GetClipboardPasteFolders();
 		PasteFoldersBegin(Folders);
 	}
 
 	void SSceneOutliner::OnEditPasteActorsEnd()
 	{
+		// Only a callback in actor browsing mode
 		PasteFoldersEnd();
 	}
 
 	void SSceneOutliner::OnDuplicateActorsBegin()
 	{
+		// Only a callback in actor browsing mode
 		TArray<FFolderTreeItem*> SelectedFolders = GetSelectedFolders();
 		PasteFoldersBegin(SelectedFolders);
 	}
 
 	void SSceneOutliner::OnDuplicateActorsEnd()
 	{
+		// Only a callback in actor browsing mode
 		PasteFoldersEnd();
 	}
 
 	void SSceneOutliner::OnDeleteActorsBegin()
 	{
+		// Only a callback in actor browsing mode
 		DeleteFoldersBegin();
 	}
 
 	void SSceneOutliner::OnDeleteActorsEnd()
 	{
+		// Only a callback in actor browsing mode
 		DeleteFoldersEnd();
 	}
 
 	void SSceneOutliner::CopyFoldersBegin()
 	{
+		// Only a callback in actor browsing mode
 		CacheFoldersEdit = GetSelectedFolderNames();
 		FPlatformApplicationMisc::ClipboardPaste(CacheClipboardContents);
 	}
 
 	void SSceneOutliner::CopyFoldersEnd()
 	{
+		// Only a callback in actor browsing mode
 		if (CacheFoldersEdit.Num() > 0)
 		{
 			CopyFoldersToClipboard(CacheFoldersEdit, CacheClipboardContents);
@@ -2559,11 +3025,13 @@ namespace SceneOutliner
 
 	void SSceneOutliner::DeleteFoldersBegin()
 	{
+		// Only a callback in actor browsing mode
 		CacheFoldersDelete = GetSelectedFolders();
 	}
 
 	void SSceneOutliner::DeleteFoldersEnd()
 	{
+		// Only a callback in actor browsing mode
 		struct FMatchName
 		{
 			FMatchName(const FName InPathName)
@@ -2731,6 +3199,12 @@ namespace SceneOutliner
 			return;
 		}
 
+		if (SharedData->Mode == ESceneOutlinerMode::Custom)
+		{
+			OnItemSelectionChanged.Broadcast(TreeItem, SelectInfo);
+			return;
+		}
+
 		if( SharedData->Mode == ESceneOutlinerMode::ActorPicker || SharedData->Mode == ESceneOutlinerMode::ComponentPicker )
 		{
 			// In actor picking mode, we fire off the notification to whoever is listening.
@@ -2886,8 +3360,7 @@ namespace SceneOutliner
 
 	void SSceneOutliner::OnOutlinerTreeDoubleClick( FTreeItemPtr TreeItem )
 	{
-		// We only deal with double clicks when in actor browsing mode
-		if( SharedData->Mode == ESceneOutlinerMode::ActorBrowsing )
+		if(SharedData->Mode == ESceneOutlinerMode::ActorBrowsing)
 		{
 			auto ExpandCollapseFolder = [&](const FFolderTreeItem& Folder){
 				auto Shared = const_cast<FFolderTreeItem&>(Folder).AsShared();
@@ -2941,6 +3414,10 @@ namespace SceneOutliner
 				);
 			}
 		}
+		else if (SharedData->Mode == ESceneOutlinerMode::Custom)
+		{
+			OnDoubleClickOnTreeEvent.Broadcast(TreeItem);
+		}
 	}
 
 	void SSceneOutliner::OnOutlinerTreeItemScrolledIntoView( FTreeItemPtr TreeItem, const TSharedPtr<ITableRow>& Widget )
@@ -2970,12 +3447,18 @@ namespace SceneOutliner
 
 	void SSceneOutliner::OnLevelAdded(ULevel* InLevel, UWorld* InWorld)
 	{
-		FullRefresh();
+		if ( SharedData->RepresentingWorld == InWorld )
+		{
+			FullRefresh();
+		}
 	}
 
 	void SSceneOutliner::OnLevelRemoved(ULevel* InLevel, UWorld* InWorld)
 	{
-		FullRefresh();
+		if (SharedData->RepresentingWorld == InWorld)
+		{
+			FullRefresh();
+		}
 	}
 
 	void SSceneOutliner::OnLevelActorsAdded(AActor* InActor)
@@ -3102,7 +3585,7 @@ namespace SceneOutliner
 		{
 			// Ensure that the item we want to rename is visible in the tree
 			FTreeItemPtr ItemToRename = SelectedItems[SelectedItems.Num() - 1];
-			if (ItemToRename->CanInteract())
+			if (CanExecuteRenameRequest(ItemToRename) && ItemToRename->CanInteract())
 			{
 				PendingRenameItem = ItemToRename->AsShared();
 				ScrollItemIntoView(ItemToRename);
@@ -3265,6 +3748,25 @@ namespace SceneOutliner
 						OutlinerTreeView->SetSelection( Selection.Actors[0]->AsShared(), ESelectInfo::OnKeyPress );
 					}
 				}
+				// In the custom mode we want to mimic a similar result to the actor browser
+				else if (SharedData->Mode == ESceneOutlinerMode::Custom)
+				{
+					if (SelectionMode == ESelectionMode::Single || SelectionMode == ESelectionMode::SingleToggle)
+					{
+						OutlinerTreeView->SetSelection( Selection.Actors[0]->AsShared(), ESelectInfo::OnKeyPress );
+					}
+					else if (SelectionMode == ESelectionMode::Multi)
+					{
+						TArray<FTreeItemPtr> ItemsPtr;
+						ItemsPtr.Reserve(Selection.Actors.Num());
+						for (FActorTreeItem* Item : Selection.Actors)
+						{
+							ItemsPtr.Add(Item->AsShared());
+						}
+						OutlinerTreeView->ClearSelection();
+						OutlinerTreeView->SetItemSelection( ItemsPtr, true, ESelectInfo::OnKeyPress );
+					}
+				}
 			}
 		}
 		else if (CommitInfo == ETextCommit::OnCleared)
@@ -3424,7 +3926,7 @@ namespace SceneOutliner
 				{
 					FTreeItemPtr ItemToRename = OutlinerTreeView->GetSelectedItems()[0];
 					
-					if (ItemToRename->CanInteract())
+					if (CanExecuteRenameRequest(ItemToRename) && ItemToRename->CanInteract())
 					{
 						PendingRenameItem = ItemToRename->AsShared();
 						ScrollItemIntoView(ItemToRename);
@@ -3552,6 +4054,11 @@ namespace SceneOutliner
 			bPendingFocusNextFrame = false;
 		}
 
+		if ( bNeedsColumRefresh )
+		{
+			SetupColumns(*HeaderRowWidget);
+		}
+
 		if( bNeedsRefresh )
 		{
 			if( !bIsReentrant )
@@ -3584,6 +4091,11 @@ namespace SceneOutliner
 			SynchronizeActorSelection();
 			bActorSelectionDirty = false;
 		}
+	}
+
+	void SSceneOutliner::AddReferencedObjects(FReferenceCollector& Collector)
+	{
+		Collector.AddReferencedObject(SceneOutlinerSettings);
 	}
 
 	EColumnSortMode::Type SSceneOutliner::GetColumnSortMode( const FName ColumnId ) const
@@ -3633,9 +4145,8 @@ namespace SceneOutliner
 		Outliner.FilteredActorCount += ActorItem.Flags.bIsFilteredOut ? 0 : 1;
 
 		// Synchronize selection
-		if (Outliner.SharedData->Mode == ESceneOutlinerMode::ActorBrowsing && GEditor->GetSelectedActors()->IsSelected(ActorItem.Actor.Get()))
+		if (GEditor->GetSelectedActors()->IsSelected(ActorItem.Actor.Get()))
 		{
-			// Have to const cast here as the tree view is templated on non-const ptrs
 			Outliner.OutlinerTreeView->SetItemSelection(ActorItem.AsShared(), true);
 		}
 	}

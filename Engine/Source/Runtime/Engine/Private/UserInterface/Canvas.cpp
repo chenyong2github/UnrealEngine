@@ -809,7 +809,7 @@ void FCanvas::Flush_GameThread(bool bForce)
 	bool bEmitCanvasDrawEvents = GetEmitDrawEvents();
 
 	// Only create these render commands if we actually have something to draw.
-	if(SortedElements.Num() > 0)
+	if(SortedElements.Num() > 0 && !GUsingNullRHI)
 	{
 		FRenderThreadScope RenderThreadScope;
 		RenderThreadScope.EnqueueRenderCommand(
@@ -1920,7 +1920,7 @@ void UCanvas::SetView(FSceneView* InView)
 	SceneView = InView;
 	if (InView)
 	{
-		if (GEngine->StereoRenderingDevice.IsValid() && InView->StereoPass != eSSP_FULL)
+		if (GEngine->StereoRenderingDevice.IsValid() && IStereoRendering::IsStereoEyeView(InView->StereoPass))
 		{
 			GEngine->StereoRenderingDevice->InitCanvasFromView(InView, this);
 		}

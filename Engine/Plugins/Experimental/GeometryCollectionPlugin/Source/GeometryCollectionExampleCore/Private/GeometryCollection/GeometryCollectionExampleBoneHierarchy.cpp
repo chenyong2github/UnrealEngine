@@ -9,7 +9,6 @@
 
 namespace GeometryCollectionExample
 {
-#if INCLUDE_CHAOS
 	template <class TImplicitShape>
 	void AllOnSurface(const TImplicitShape *Shape, const TArray<Chaos::TVector<float, 3>> &Points, const float Tolerance = KINDA_SMALL_NUMBER)
 	{
@@ -137,15 +136,12 @@ namespace GeometryCollectionExample
 			check(Xf->Equals(XfExpected));
 		}
 	}
-#endif
 
 	template<class T>
 	void TestImplicitBoneHierarchy()
 	{
-#if INCLUDE_CHAOS
 		RunAnalyticImplicitGroupTest();
 		RunBoneHierarchyTest();
-#endif
 	}
 	template void TestImplicitBoneHierarchy<float>();
 } // namespace GeometryCollectionExample

@@ -1,10 +1,10 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "GroomAsset.h"
+#include "GroomBuilder.h"
 #include "RenderingThread.h"
 #include "HairStrandsVertexFactory.h"
 #include "Misc/Paths.h"
-#include "UObject/PhysicsObjectVersion.h"
 
 #if WITH_EDITORONLY_DATA
 #include "EditorFramework/AssetImportData.h"
@@ -41,24 +41,20 @@ void CreateBuffer(uint32 InVertexCount , FRWBuffer& OutBuffer)
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
-FHairStrandsResource::FHairStrandsResource(FHairStrandsDatas* HairStrandsDatas) : 
-	RestPositionBuffer(), TangentBuffer(), AttributeBuffer(), StrandsDatas(HairStrandsDatas)
+FHairStrandsResource::FHairStrandsResource(const FHairStrandsDatas::FRenderData& HairStrandRenderData) : 
+	RestPositionBuffer(), TangentBuffer(), AttributeBuffer(), RenderData(HairStrandRenderData)
 {}
 
 void FHairStrandsResource::InitRHI()
 {
-	if (StrandsDatas != nullptr)
-	{
-		TArray<FHairStrandsPositionFormat::Type> RenderingPositions;
-		TArray<FHairStrandsAttributeFormat::Type> RenderingAttributes;
-		StrandsDatas->BuildRenderingDatas(RenderingPositions, RenderingAttributes);
+	const TArray<FHairStrandsPositionFormat::Type>& RenderingPositions = RenderData.RenderingPositions;
+	const TArray<FHairStrandsAttributeFormat::Type>& RenderingAttributes = RenderData.RenderingAttributes;
 
-		CreateBuffer<FHairStrandsPositionFormat>(RenderingPositions, RestPositionBuffer);
-		CreateBuffer<FHairStrandsPositionFormat>(RenderingPositions, DeformedPositionBuffer[0]);
-		CreateBuffer<FHairStrandsPositionFormat>(RenderingPositions, DeformedPositionBuffer[1]);
-		CreateBuffer<FHairStrandsTangentFormat>(RenderingPositions.Num() * FHairStrandsTangentFormat::ComponentCount, TangentBuffer);
-		CreateBuffer<FHairStrandsAttributeFormat>(RenderingAttributes, AttributeBuffer);
-	}
+	CreateBuffer<FHairStrandsPositionFormat>(RenderingPositions, RestPositionBuffer);
+	CreateBuffer<FHairStrandsPositionFormat>(RenderingPositions, DeformedPositionBuffer[0]);
+	CreateBuffer<FHairStrandsPositionFormat>(RenderingPositions, DeformedPositionBuffer[1]);
+	CreateBuffer<FHairStrandsTangentFormat>(RenderingPositions.Num() * FHairStrandsTangentFormat::ComponentCount, TangentBuffer);
+	CreateBuffer<FHairStrandsAttributeFormat>(RenderingAttributes, AttributeBuffer);
 }
 
 void FHairStrandsResource::ReleaseRHI()
@@ -72,13 +68,116 @@ void FHairStrandsResource::ReleaseRHI()
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
-FHairStrandsInterpolationResource::FHairStrandsInterpolationResource(const FHairStrandsInterpolationDatas& InData, const FHairStrandsDatas& SimDatas) :
-	Interpolation0Buffer(), Interpolation1Buffer()
+FHairStrandsRootResource::FHairStrandsRootResource(const FHairStrandsDatas* HairStrandsDatas, uint32 LODCount):
+	RootCount(HairStrandsDatas ? HairStrandsDatas->GetNumCurves() : 0)
 {
-	check(Interpolation0.Num()==0);
-	check(Interpolation1.Num()==0);
-	InData.BuildRenderingDatas(Interpolation0, Interpolation1);
+	if (!HairStrandsDatas)
+		return;
 
+	const uint32 CurveCount = HairStrandsDatas->GetNumCurves();
+	CurveIndices.SetNum(HairStrandsDatas->GetNumPoints());
+	RootPositions.SetNum(RootCount);
+	RootNormals.SetNum(RootCount);
+
+
+	for (uint32 CurveIndex = 0; CurveIndex < CurveCount; ++CurveIndex)
+	{
+		const uint32 RootIndex = HairStrandsDatas->StrandsCurves.CurvesOffset[CurveIndex];
+		const uint32 PointCount = HairStrandsDatas->StrandsCurves.CurvesCount[CurveIndex];
+		for (uint32 PointIndex = 0; PointIndex < PointCount; ++PointIndex)
+		{
+			CurveIndices[RootIndex + PointIndex] = CurveIndex; // RootIndex;
+		}
+
+		check(PointCount > 1);
+
+		const FVector P0 = HairStrandsDatas->StrandsPoints.PointsPosition[RootIndex];
+		const FVector P1 = HairStrandsDatas->StrandsPoints.PointsPosition[RootIndex+1];
+		FVector N0 = (P1 - P0).GetSafeNormal();
+
+		// Fallback in case the initial points are too close (this happens on certain assets)
+		if (FVector::DotProduct(N0, N0) == 0)
+		{
+			N0 = FVector(0, 0, 1);
+		}
+
+		FVector4_16 P;
+		P.X = P0.X;
+		P.Y = P0.Y;
+		P.Z = P0.Z;
+		P.W = 1;
+
+		FVector4_16 N;
+		N.X = N0.X;
+		N.Y = N0.Y;
+		N.Z = N0.Z;
+		N.W = 0;
+
+		RootPositions[CurveIndex] = P;
+		RootNormals[CurveIndex] = N;
+	}
+	
+	MeshProjectionLODs.SetNum(LODCount);
+	uint32 LODIndex = 0;
+	for (FMeshProjectionLOD& MeshProjectionLOD : MeshProjectionLODs)
+	{
+		MeshProjectionLOD.Status = FMeshProjectionLOD::EStatus::Invalid;
+		MeshProjectionLOD.LODIndex = LODIndex++;
+	}
+}
+
+void FHairStrandsRootResource::InitRHI()
+{
+	if (CurveIndices.Num() > 0)
+	{
+		CreateBuffer<FHairStrandsIndexFormat>(CurveIndices, VertexToCurveIndexBuffer);
+		CreateBuffer<FHairStrandsRootPositionFormat>(RootPositions, RootPositionBuffer);
+		CreateBuffer<FHairStrandsRootNormalFormat>(RootNormals, RootNormalBuffer);	
+		for (FMeshProjectionLOD& LOD : MeshProjectionLODs)
+		{
+			LOD.Status = FHairStrandsRootResource::FMeshProjectionLOD::EStatus::Initialized;
+
+			// Create buffers. Initialization will be done by render passes
+			CreateBuffer<FHairStrandsCurveTriangleIndexFormat>(RootCount, LOD.RootTriangleIndexBuffer);
+			CreateBuffer<FHairStrandsCurveTriangleBarycentricFormat>(RootCount, LOD.RootTriangleBarycentricBuffer);
+			CreateBuffer<FHairStrandsCurveTranslationFormat>(RootCount, LOD.RestRootTrianglePosition0Buffer);
+			CreateBuffer<FHairStrandsCurveTranslationFormat>(RootCount, LOD.RestRootTrianglePosition1Buffer);
+			CreateBuffer<FHairStrandsCurveTranslationFormat>(RootCount, LOD.RestRootTrianglePosition2Buffer);
+
+			// Strand hair roots translation and rotation in triangle-deformed position relative to the bound triangle 
+			CreateBuffer<FHairStrandsCurveTranslationFormat>(RootCount, LOD.DeformedRootTrianglePosition0Buffer);
+			CreateBuffer<FHairStrandsCurveTranslationFormat>(RootCount, LOD.DeformedRootTrianglePosition1Buffer);
+			CreateBuffer<FHairStrandsCurveTranslationFormat>(RootCount, LOD.DeformedRootTrianglePosition2Buffer);
+		}
+	}
+}
+
+void FHairStrandsRootResource::ReleaseRHI()
+{
+	RootPositionBuffer.Release();
+	RootNormalBuffer.Release();
+	VertexToCurveIndexBuffer.Release();
+
+	for (FMeshProjectionLOD& LOD : MeshProjectionLODs)
+	{
+		LOD.Status = FHairStrandsRootResource::FMeshProjectionLOD::EStatus::Invalid;
+		LOD.RootTriangleIndexBuffer.Release();
+		LOD.RootTriangleBarycentricBuffer.Release();
+		LOD.RestRootTrianglePosition0Buffer.Release();
+		LOD.RestRootTrianglePosition1Buffer.Release();
+		LOD.RestRootTrianglePosition2Buffer.Release();
+		LOD.DeformedRootTrianglePosition0Buffer.Release();
+		LOD.DeformedRootTrianglePosition1Buffer.Release();
+		LOD.DeformedRootTrianglePosition2Buffer.Release();
+	}
+	MeshProjectionLODs.Empty();
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////
+
+FHairStrandsInterpolationResource::FHairStrandsInterpolationResource(const FHairStrandsInterpolationDatas::FRenderData& InterpolationRenderData, const FHairStrandsDatas& SimDatas) :
+	Interpolation0Buffer(), Interpolation1Buffer(), RenderData(InterpolationRenderData)
+{
 	const uint32 RootCount = SimDatas.GetNumCurves();
 	SimRootPointIndex.SetNum(SimDatas.GetNumPoints());
 	for (uint32 CurveIndex = 0; CurveIndex < RootCount; ++CurveIndex)
@@ -94,22 +193,17 @@ FHairStrandsInterpolationResource::FHairStrandsInterpolationResource(const FHair
 
 void FHairStrandsInterpolationResource::InitRHI()
 {
-	check(Interpolation0.Num() == Interpolation1.Num());
-	if (Interpolation0.Num() > 0)
-	{
-		CreateBuffer<FHairStrandsInterpolation0Format>(Interpolation0, Interpolation0Buffer);
-		CreateBuffer<FHairStrandsInterpolation1Format>(Interpolation1, Interpolation1Buffer);
-		CreateBuffer<FHairStrandsRootIndexFormat>(SimRootPointIndex, SimRootPointIndexBuffer);
-		Interpolation0.SetNum(0);
-		Interpolation1.SetNum(0);
-		SimRootPointIndex.SetNum(0);
-	}
+	CreateBuffer<FHairStrandsInterpolation0Format>(RenderData.Interpolation0, Interpolation0Buffer);
+	CreateBuffer<FHairStrandsInterpolation1Format>(RenderData.Interpolation1, Interpolation1Buffer);
+	CreateBuffer<FHairStrandsRootIndexFormat>(SimRootPointIndex, SimRootPointIndexBuffer);
+	SimRootPointIndex.SetNum(0);
 }
 
 void FHairStrandsInterpolationResource::ReleaseRHI()
 {
 	Interpolation0Buffer.Release();
 	Interpolation1Buffer.Release();
+	SimRootPointIndexBuffer.Release();
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -117,8 +211,8 @@ void FHairStrandsInterpolationResource::ReleaseRHI()
 #if RHI_RAYTRACING
 // RT geometry is built to for a cross around the fiber.
 // 4 triangles per hair vertex => 12 vertices per hair vertex
-FHairStrandsRaytracingResource::FHairStrandsRaytracingResource(FHairStrandsDatas* InData) :
-	PositionBuffer(), VertexCount(InData->GetNumPoints()*12)  
+FHairStrandsRaytracingResource::FHairStrandsRaytracingResource(const FHairStrandsDatas& InData) :
+	PositionBuffer(), VertexCount(InData.GetNumPoints()*12)  
 {}
 
 void FHairStrandsRaytracingResource::InitRHI()
@@ -140,68 +234,66 @@ void UGroomAsset::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 
-	Ar.UsingCustomVersion(FPhysicsObjectVersion::GUID);
-
-	// #ueent_todo: Serialize HairDescription
-
-	HairRenderData.Serialize(Ar);
-
-	if (Ar.CustomVer(FPhysicsObjectVersion::GUID) >= FPhysicsObjectVersion::HairAssetSerialization)
-	{
-		HairSimulationData.Serialize(Ar);
-	}
+	Ar << HairGroupsData;
 }
 
 void UGroomAsset::InitResource()
 {
-	check(!HairStrandsResource);
+	for (FHairGroupData& GroupData : HairGroupsData)
+	{
+		GroupData.HairStrandsResource = new FHairStrandsResource(GroupData.HairRenderData.RenderData);
 
-	HairStrandsResource = new FHairStrandsResource(&HairRenderData);
+		BeginInitResource(GroupData.HairStrandsResource);
 
-	BeginInitResource(HairStrandsResource);
+		GroupData.HairSimulationResource = new FHairStrandsResource(GroupData.HairSimulationData.RenderData);
 
-	HairSimulationResource = new FHairStrandsResource(&HairSimulationData);
-
-	BeginInitResource(HairSimulationResource);
+		BeginInitResource(GroupData.HairSimulationResource);
+	}
 }
 
 void UGroomAsset::UpdateResource()
 {
-	if (HairStrandsResource)
+	for (FHairGroupData& GroupData : HairGroupsData)
 	{
-		BeginUpdateResourceRHI(HairStrandsResource);
-	}
+		if (GroupData.HairStrandsResource)
+		{
+			BeginUpdateResourceRHI(GroupData.HairStrandsResource);
+		}
 
-	if (HairSimulationResource)
-	{
-		BeginUpdateResourceRHI(HairSimulationResource);
+		if (GroupData.HairSimulationResource)
+		{
+			BeginUpdateResourceRHI(GroupData.HairSimulationResource);
+		}
 	}
 }
 
 void UGroomAsset::ReleaseResource()
 {
-	if (HairStrandsResource)
+	for (FHairGroupData& GroupData : HairGroupsData)
 	{
-		FHairStrandsResource* InResource = HairStrandsResource;
-		ENQUEUE_RENDER_COMMAND(ReleaseHairStrandsResourceCommand)(
-			[InResource](FRHICommandList& RHICmdList)
+		if (GroupData.HairStrandsResource)
 		{
-			InResource->ReleaseResource();
-			delete InResource;
-		});
-		HairStrandsResource = nullptr;
-	}
+			FHairStrandsResource* InResource = GroupData.HairStrandsResource;
+			ENQUEUE_RENDER_COMMAND(ReleaseHairStrandsResourceCommand)(
+				[InResource](FRHICommandList& RHICmdList)
+			{
+				InResource->ReleaseResource();
+				delete InResource;
+			});
+			GroupData.HairStrandsResource = nullptr;
+		}
 
-	if (HairSimulationResource)
-	{
-		FHairStrandsResource* InResource = HairSimulationResource;
-		ENQUEUE_RENDER_COMMAND(ReleaseHairStrandsResourceCommand)(
-			[InResource](FRHICommandList& RHICmdList)
+		if (GroupData.HairSimulationResource)
 		{
-			InResource->ReleaseResource();
-			delete InResource;
-		});
-		HairSimulationResource = nullptr;
+			FHairStrandsResource* InResource = GroupData.HairSimulationResource;
+			ENQUEUE_RENDER_COMMAND(ReleaseHairStrandsResourceCommand)(
+				[InResource](FRHICommandList& RHICmdList)
+			{
+				InResource->ReleaseResource();
+				delete InResource;
+			});
+			GroupData.HairSimulationResource = nullptr;
+		}
 	}
 }
 
@@ -209,39 +301,18 @@ void UGroomAsset::Reset()
 {
 	ReleaseResource();
 
-	HairRenderData.Reset();
-	HairSimulationData.Reset();
-
-	RenderHairGroups.Reset();
-	SimulationHairGroups.Reset();
+	HairGroupsInfo.Reset();
+	HairGroupsData.Reset();
 }
 
 void UGroomAsset::PostLoad()
 {
 	Super::PostLoad();
 
-	// If the asset was previously serialized without hair sim data, generate it here
-	bool bAutoGeneratedGuides = false;
-	if (HairSimulationData.StrandsPoints.Num() == 0 || HairSimulationData.StrandsCurves.Num() == 0)
+	check(HairGroupsData.Num() > 0);
+	if (HairGroupsData[0].HairSimulationData.GetNumCurves() == 0 || HairGroupsData[0].HairInterpolationData.Num() == 0)
 	{
-		DecimateStrandData(HairRenderData, FMath::Clamp(HairToGuideDensity, 0.f, 1.f), HairSimulationData);
-		bAutoGeneratedGuides = true;
-	}
-
-	// If the asset was previously serialized without group settings, fill them out here
-	if (RenderHairGroups.Num() == 0)
-	{
-		FHairGroupRenderSettings& GroupSettings = RenderHairGroups.AddDefaulted_GetRef();
-		GroupSettings.GroupID = 0;
-		GroupSettings.NumCurves = HairRenderData.GetNumCurves();
-	}
-
-	if (SimulationHairGroups.Num() == 0)
-	{
-		FHairGroupSimulationSettings& GroupSettings = SimulationHairGroups.AddDefaulted_GetRef();
-		GroupSettings.GroupID = 0;
-		GroupSettings.NumCurves = HairSimulationData.GetNumCurves();
-		GroupSettings.bIsAutoGenerated = bAutoGeneratedGuides;
+		FGroomBuilder::BuildData(this);
 	}
 
 	if (!IsTemplate())
@@ -286,4 +357,16 @@ void UGroomAsset::PostInitProperties()
 }
 #endif
 
+int32 UGroomAsset::GetNumHairGroups() const
+{
+	return HairGroupsData.Num();
+}
 
+FArchive& operator<<(FArchive& Ar, FHairGroupData& GroupData)
+{
+	GroupData.HairRenderData.Serialize(Ar);
+	GroupData.HairSimulationData.Serialize(Ar);
+	GroupData.HairInterpolationData.Serialize(Ar);
+
+	return Ar;
+}

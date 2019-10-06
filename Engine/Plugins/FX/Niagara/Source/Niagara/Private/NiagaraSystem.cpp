@@ -369,12 +369,12 @@ void UNiagaraSystem::PostLoad()
 			UE_LOG(LogNiagara, Log, TEXT("System %s being compiled because there were changes to an emitter script Change ID."), *GetPathName());
 		}
 
-	if (EmitterCompiledData.Num() == 0 || EmitterCompiledData[0].DataSetCompiledData.Variables.Num() == 0)
-	{
-		InitEmitterCompiledData();
-	}
+		if (EmitterCompiledData.Num() == 0 || EmitterCompiledData[0].DataSetCompiledData.Variables.Num() == 0)
+		{
+			InitEmitterCompiledData();
+		}
 
-		if (SystemCompiledData.InstanceParamStore.GetNumParameters() == 0)
+		if (SystemCompiledData.InstanceParamStore.GetNumParameters() == 0 ||SystemCompiledData.DataSetCompiledData.Variables.Num() == 0)
 		{
 			InitSystemCompiledData();
 		}
@@ -428,6 +428,10 @@ void UNiagaraSystem::PostLoad()
 	}
 #endif // WITH_EDITORONLY_DATA
 
+	if ( FPlatformProperties::RequiresCookedData() )
+	{
+		bIsReadyToRunCached = IsReadyToRunInternal();
+	}
 }
 
 #if WITH_EDITORONLY_DATA
@@ -501,7 +505,7 @@ const TArray<FNiagaraEmitterHandle>& UNiagaraSystem::GetEmitterHandles()const
 	return EmitterHandles;
 }
 
-bool UNiagaraSystem::IsReadyToRun() const
+bool UNiagaraSystem::IsReadyToRunInternal() const
 {
 	if (!SystemSpawnScript || !SystemUpdateScript)
 	{
@@ -517,7 +521,7 @@ bool UNiagaraSystem::IsReadyToRun() const
 	/* Check that our post compile data is in sync with the current emitter handles count. If we have just added a new emitter handle, we will not have any outstanding compilation requests as the new compile
 	 * will not be added to the outstanding compilation requests until the next tick.
 	 */
-	if (EmitterHandles.Num() != EmitterCompiledData.Num() || EmitterHandles.Num() != SystemCompiledData.NumParticleVars.Num() || EmitterHandles.Num() != SystemCompiledData.TotalSpawnedParticlesVars.Num())
+	if (EmitterHandles.Num() != EmitterCompiledData.Num() || EmitterHandles.Num() != SystemCompiledData.NumParticleVars.Num() || EmitterHandles.Num() != SystemCompiledData.TotalSpawnedParticlesVars.Num() || EmitterHandles.Num() != SystemCompiledData.SpawnCountScaleVars.Num())
 	{
 		return false;
 	}
@@ -537,6 +541,18 @@ bool UNiagaraSystem::IsReadyToRun() const
 		}
 	}
 	return true;
+}
+
+bool UNiagaraSystem::IsReadyToRun() const
+{
+	if (FPlatformProperties::RequiresCookedData())
+	{
+		return bIsReadyToRunCached;
+	}
+	else
+	{
+		return IsReadyToRunInternal();
+	}
 }
 
 #if WITH_EDITORONLY_DATA
@@ -1130,10 +1146,16 @@ void UNiagaraSystem::InitEmitterCompiledData()
 			const FNiagaraEmitterHandle& EmitterHandle = EmitterHandles[EmitterIdx];
 			const UNiagaraEmitter* Emitter = EmitterHandle.GetInstance();
 			FNiagaraDataSetCompiledData& EmitterDataSetCompiledData = EmitterCompiledData[EmitterIdx].DataSetCompiledData;
+			FNiagaraDataSetCompiledData& GPUCaptureCompiledData = EmitterCompiledData[EmitterIdx].GPUCaptureDataSetCompiledData;
 			if ensureMsgf(Emitter != nullptr, TEXT("Failed to get Emitter Instance from Emitter Handle in post compile, please investigate."))
 			{
+				static FName GPUCaptureDataSetName = TEXT("GPU Capture Dataset");
 				InitEmitterVariableAliasNames(EmitterCompiledData[EmitterIdx], Emitter);
 				InitEmitterDataSetCompiledData(EmitterDataSetCompiledData, Emitter, EmitterHandle);
+				GPUCaptureCompiledData.ID = FNiagaraDataSetID(GPUCaptureDataSetName, ENiagaraDataSetType::ParticleData);
+				GPUCaptureCompiledData.Variables = EmitterDataSetCompiledData.Variables;
+				GPUCaptureCompiledData.SimTarget = ENiagaraSimTarget::CPUSim;
+				GPUCaptureCompiledData.BuildLayout();				
 			}
 		}
 	}
@@ -1143,6 +1165,7 @@ void UNiagaraSystem::InitSystemCompiledData()
 {
 	SystemCompiledData.NumParticleVars.Empty();
 	SystemCompiledData.TotalSpawnedParticlesVars.Empty();
+	SystemCompiledData.SpawnCountScaleVars.Empty();
 	SystemCompiledData.InstanceParamStore.Empty();
 
 	SystemCompiledData.InstanceParamStore = INiagaraModule::GetFixedSystemInstanceParameterStore();
@@ -1168,8 +1191,39 @@ void UNiagaraSystem::InitSystemCompiledData()
 				SystemCompiledData.InstanceParamStore.AddParameter(Var, true, false);
 				SystemCompiledData.TotalSpawnedParticlesVars.Add(Var);
 			}
+			{
+				FNiagaraVariable Var = SYS_PARAM_ENGINE_EMITTER_SPAWN_COUNT_SCALE;
+				const FString ParamName = Var.GetName().ToString().Replace(TEXT("Emitter"), *EmitterName);
+				Var.SetName(*ParamName);
+				SystemCompiledData.InstanceParamStore.AddParameter(Var, true, false);
+				SystemCompiledData.SpawnCountScaleVars.Add(Var);
+			}
 		}
 	}
+
+	auto CreateDataSetCompiledData = [&](FNiagaraDataSetCompiledData& CompiledData, TArrayView<FNiagaraVariable> Vars)
+	{
+		CompiledData.Empty();
+
+		CompiledData.Variables.Reset(Vars.Num());
+		for (const FNiagaraVariable& Var : Vars)
+		{
+			CompiledData.Variables.AddUnique(Var);
+		}
+
+		CompiledData.bNeedsPersistentIDs = false;
+		CompiledData.ID = FNiagaraDataSetID();
+		CompiledData.SimTarget = ENiagaraSimTarget::CPUSim;
+
+		CompiledData.BuildLayout();
+	};
+
+	CreateDataSetCompiledData(SystemCompiledData.DataSetCompiledData, GetSystemUpdateScript()->GetVMExecutableData().Attributes);
+
+	FNiagaraParameters* EngineParamsSpawn = GetSystemSpawnScript()->GetVMExecutableData().DataSetToParameters.Find(TEXT("Engine"));
+	CreateDataSetCompiledData(SystemCompiledData.SpawnInstanceParamsDataSetCompiledData, EngineParamsSpawn ? EngineParamsSpawn->Parameters : TArrayView<FNiagaraVariable>());
+	FNiagaraParameters* EngineParamsUpdate = GetSystemUpdateScript()->GetVMExecutableData().DataSetToParameters.Find(TEXT("Engine"));
+	CreateDataSetCompiledData(SystemCompiledData.UpdateInstanceParamsDataSetCompiledData, EngineParamsUpdate ? EngineParamsUpdate->Parameters : TArrayView<FNiagaraVariable>());
 }
 #endif
 

@@ -245,6 +245,7 @@ void FNiagaraEmitterFastPath::SetSpawnMapDefaults(const UNiagaraEmitter& Emitter
 	Map.Emitter.LoopedAge = 0.0f;
 	Map.Emitter.NormalizedLoopAge = 0.0f;
 	Map.Emitter.DistanceTraveled = 0;
+	//Map.Emitter.SpawnCountScale = 1.0f; // TODO: This seems to always set the value to 1.0 due to the order of operations in FNiagaraSystemSimulation::TickFastPath
 	Map.Emitter.Scalability.DistanceFraction = 1;
 	Map.Scalability.Emitter.ExecutionState = (ENiagaraExecutionState)0;
 	Map.Scalability.Emitter.SpawnCountScale = 1;
@@ -522,7 +523,7 @@ void FNiagaraEmitterFastPath::Module_SpawnRate(FParamMap0& Context_Map)
 		const FParamMap0_SpawnRate& Context_Map_SpawnRate = Context_Map.SpawnRate[SpawnRateIndex];
 		FParamMap0_Emitter_SpawnRate& Context_Map_Emitter_SpawnRate = Context_Map.Emitter.SpawnRate[SpawnRateIndex];
 
-		float Result57 = Context_Map_SpawnRate.SpawnRate * Context_Map.Scalability.Emitter.SpawnCountScale * Context_Map.Engine.GlobalSpawnCountScale;
+		float Result57 = Context_Map_SpawnRate.SpawnRate * Context_Map.Scalability.Emitter.SpawnCountScale * Context_Map.Emitter.SpawnCountScale;
 		float Result58 = 1.0f / Result57;// Reciprocal(Result57);
 		float Result59 = 1 - Context_Map_Emitter_SpawnRate.SpawnRemainder;
 		float Result60 = Result58 * Result59;
@@ -676,7 +677,7 @@ void FNiagaraEmitterFastPath::Module_SpawnBurstInstantaneous(FParamMap0& Context
 		int32 Constant60 = 0;
 		bool Result89 = Context_Map_SpawnBurst_Instantaneous.SpawnCount == Constant60;
 		float Constant61 = 0;
-		float Result90 = Context_Map_SpawnBurst_Instantaneous.SpawnCount * Context_Map.Scalability.Emitter.SpawnCountScale * Context_Map.Engine.GlobalSpawnCountScale;
+		float Result90 = Context_Map_SpawnBurst_Instantaneous.SpawnCount * Context_Map.Scalability.Emitter.SpawnCountScale * Context_Map.Emitter.SpawnCountScale; 
 		float Constant62 = 1;
 		float Result91 = FMath::Max(Result90, Constant62);
 		float float_IfResult11;

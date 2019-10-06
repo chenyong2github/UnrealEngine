@@ -61,6 +61,10 @@ protected:
 	UPROPERTY(config, EditAnywhere, Category="LiveLink")
 	TArray<FLiveLinkRoleProjectSetting> DefaultRoleSettings;
 
+	/** The interpolation to use for the subject. If null, no interpolation will be performed. */
+	UPROPERTY(config)
+	TSubclassOf<ULiveLinkFrameInterpolationProcessor> FrameInterpolationProcessor;
+
 public:
 	/** The default location in which to save take presets */
 	UPROPERTY(config, EditAnywhere, Category="LiveLink", meta=(DisplayName="Preset Save Location"))
@@ -78,20 +82,34 @@ public:
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category="LiveLink", meta=(ConfigRestartRequired=true, ForceUnits=s))
 	double MessageBusHeartbeatTimeout;
 
+	/** Subjects will be removed when their source has been unresponsive for this long. */
+	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "LiveLink", meta=(ForceUnits=s))
+	double MessageBusTimeBeforeRemovingInactiveSource;
+	
 	/**
-	 * A source may still exist but do not send frames for a subject.
+	 * A source may still exist but does not send frames for a subject.
 	 * Time before considering the subject as "invalid".
-	 * The subject still exist and can still be evaluated.
+	 * The subject still exists and can still be evaluated.
 	 * An invalid subject is shown as yellow in the LiveLink UI.
 	 */
-	UPROPERTY(config, EditAnywhere, Category = "LiveLink|UI", meta=(ForceUnits=s))
+	UPROPERTY(config, EditAnywhere, Category = "LiveLink|UI", DisplayName="Time Without Frame to be Considered as Invalid", meta=(ForceUnits=s))
 	double TimeWithoutFrameToBeConsiderAsInvalid;
 
+	/** Color for active Subjects receiving data from their Source. */
 	UPROPERTY(config, EditAnywhere, Category = "LiveLink|UI")
 	FLinearColor ValidColor;
 
+	/** Color for Subjects that have not received data from their Source for TimeWithoutFrameToBeConsiderAsInvalid. */
 	UPROPERTY(config, EditAnywhere, Category = "LiveLink|UI")
 	FLinearColor InvalidColor;
+
+	/** Font size of Source names shown in LiveLink Debug View. */
+	UPROPERTY(config, EditAnywhere, Category = "LiveLink|UI|Debug")
+	uint8 TextSizeSource;
+
+	/** Font size of Subject names shown in LiveLink Debug View. */
+	UPROPERTY(config, EditAnywhere, Category = "LiveLink|UI|Debug")
+	uint8 TextSizeSubject;
 
 public:
 	FLiveLinkRoleProjectSetting GetDefaultSettingForRole(TSubclassOf<ULiveLinkRole> Role) const;
@@ -102,4 +120,5 @@ public:
 	float GetMessageBusPingRequestFrequency() const { return MessageBusPingRequestFrequency; }
 	float GetMessageBusHeartbeatFrequency() const { return MessageBusHeartbeatFrequency; }
 	double GetMessageBusHeartbeatTimeout() const { return MessageBusHeartbeatTimeout; }
+	double GetMessageBusTimeBeforeRemovingDeadSource() const { return MessageBusTimeBeforeRemovingInactiveSource; }
 };
