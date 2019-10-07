@@ -67,6 +67,27 @@
 		__pragma(warning(pop))
 #endif // PRAGMA_POP
 
+// UE4 uses a struct packing of 4 for Win32 and 8 for Win64, 
+// and the default packing is 8 for Win32 and 16 for Win64
+#ifdef _WIN64
+	#ifndef PRAGMA_PUSH_PLATFORM_DEFAULT_PACKING
+		#define PRAGMA_PUSH_PLATFORM_DEFAULT_PACKING \
+			__pragma(pack(push)) \
+			__pragma(pack(16))
+	#endif // PRAGMA_PUSH_PLATFORM_DEFAULT_PACKING
+#else // _WIN64
+	#ifndef PRAGMA_PUSH_PLATFORM_DEFAULT_PACKING
+		#define PRAGMA_PUSH_PLATFORM_DEFAULT_PACKING \
+			__pragma(pack(push)) \
+			__pragma(pack(8))
+	#endif // PRAGMA_PUSH_PLATFORM_DEFAULT_PACKING
+#endif // _WIN64
+	
+#ifndef PRAGMA_POP_PLATFORM_DEFAULT_PACKING
+	#define PRAGMA_POP_PLATFORM_DEFAULT_PACKING \
+		__pragma(pack(pop))
+#endif // PRAGMA_POP_PLATFORM_DEFAULT_PACKING
+
 // Disable common CA warnings around SDK includes
 #ifndef THIRD_PARTY_INCLUDES_START
 	#define THIRD_PARTY_INCLUDES_START \
