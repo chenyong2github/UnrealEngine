@@ -27,10 +27,6 @@
 
 #define D3D12_RHI_RAYTRACING (RHI_RAYTRACING)
 
-#ifndef WITH_DX_PERF
-#define WITH_DX_PERF 0
-#endif
-
 // Dependencies.
 #include "CoreMinimal.h"
 #include "RHI.h"

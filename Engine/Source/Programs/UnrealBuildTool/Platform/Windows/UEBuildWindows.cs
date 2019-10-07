@@ -1805,7 +1805,7 @@ namespace UnrealBuildTool
 
 			if (ModuleName == "D3D12RHI")
 			{
-				if (Target.WindowsPlatform.bPixProfilingEnabled && Target.Platform == UnrealTargetPlatform.Win64 && Target.Configuration != UnrealTargetConfiguration.Shipping && Target.Configuration != UnrealTargetConfiguration.Test)
+				if (Target.WindowsPlatform.bPixProfilingEnabled && Target.Platform == UnrealTargetPlatform.Win64 && Target.Configuration != UnrealTargetConfiguration.Shipping)
 				{
 					// Define to indicate profiling enabled (64-bit only)
 					Rules.PublicDefinitions.Add("D3D12_PROFILING_ENABLED=1");
