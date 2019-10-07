@@ -20,7 +20,9 @@ THIRD_PARTY_INCLUDES_START
 	#include <unicode/coll.h>
 	#include <unicode/numfmt.h>
 	#include <unicode/decimfmt.h>
-	#include <unicode/datefmt.h>
+PRAGMA_PUSH_PLATFORM_DEFAULT_PACKING
+	#include <unicode/datefmt.h> // icu::Calendar can be affected by the non-standard packing UE4 uses, so force the platform default
+PRAGMA_POP_PLATFORM_DEFAULT_PACKING
 	#include <unicode/plurrule.h>
 THIRD_PARTY_INCLUDES_END
 
