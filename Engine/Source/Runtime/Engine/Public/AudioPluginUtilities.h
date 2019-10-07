@@ -27,7 +27,7 @@ struct ENGINE_API AudioPluginUtilities
 	static const EAudioPlatform CurrentPlatform = EAudioPlatform::Playstation4;
 #elif PLATFORM_SWITCH
 	static const EAudioPlatform CurrentPlatform = EAudioPlatform::Switch;
-#elif PLATFORM_HTML5
+#elif defined(__EMSCRIPTEN__)
 	static const EAudioPlatform CurrentPlatform = EAudioPlatform::HTML5;
 #elif PLATFORM_HOLOLENS
 	static const EAudioPlatform CurrentPlatform = EAudioPlatform::HoloLens;

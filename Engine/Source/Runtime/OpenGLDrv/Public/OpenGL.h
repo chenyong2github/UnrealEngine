@@ -382,6 +382,21 @@ public:
 	static FORCEINLINE GLuint CreateProgram()										{ return glCreateProgram(); }
 	static FORCEINLINE bool TimerQueryDisjoint()									{ return false; }
 
+	// Calling glBufferData() to discard-reupload is slower than calling glBufferSubData() on some platforms,
+	// because changing glBufferData() with a different size (from before) may incur extra validation.
+	// To use glBufferData() discard trick: set to this to true - otherwise, glBufferSubData() will used.
+	static FORCEINLINE bool DiscardFrameBufferToResize()							{ return true; }
+
+	static FORCEINLINE EPixelFormat PreferredPixelFormatHint(EPixelFormat PreferredPixelFormat)
+	{
+		// Use a default pixel format if none was specified	
+		if (PreferredPixelFormat == EPixelFormat::PF_Unknown)
+		{
+			PreferredPixelFormat = EPixelFormat::PF_B8G8R8A8;
+		}
+		return PreferredPixelFormat;
+	}
+
 protected:
 	static GLint MaxTextureImageUnits;
 	static GLint MaxCombinedTextureImageUnits;
@@ -655,13 +670,6 @@ protected:
 #define GL_DISPATCH_INDIRECT_BUFFER       0x90EE
 #define GL_DISPATCH_INDIRECT_BUFFER_BINDING 0x90EF
 #define GL_COMPUTE_SHADER_BIT             0x00000020
-#endif
-
-#if PLATFORM_HTML5
-// WebGL has this in core spec: http://www.khronos.org/registry/webgl/specs/latest/1.0/#6.6
-#ifndef GL_DEPTH_STENCIL_ATTACHMENT
-#define GL_DEPTH_STENCIL_ATTACHMENT					0x821A
-#endif
 #endif
 
 #ifndef GL_GPU_DISJOINT_EXT

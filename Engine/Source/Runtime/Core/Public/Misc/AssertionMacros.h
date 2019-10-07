@@ -175,10 +175,17 @@ public:
 	#define _DebugBreakAndPromptForRemote()
 #endif // !UE_BUILD_SHIPPING
 
+
 #if DO_CHECK
+#ifndef checkCode
 	#define checkCode( Code )		do { Code; } while ( false );
+#endif
+#ifndef verify
 	#define verify(expr)			UE_CHECK_IMPL(expr)
+#endif
+#ifndef check
 	#define check(expr)				UE_CHECK_IMPL(expr)
+#endif
 
 	// Technically we could use just the _F version (lambda-based) for asserts
 	// both with and without formatted messages. However MSVC emits extra
@@ -204,8 +211,12 @@ public:
 	 * verifyf, checkf: Same as verify, check but with printf style additional parameters
 	 * Read about __VA_ARGS__ (variadic macros) on http://gcc.gnu.org/onlinedocs/gcc-3.4.4/cpp.pdf.
 	 */
+#ifndef verifyf
 	#define verifyf(expr, format,  ...)		UE_CHECK_F_IMPL(expr, format, ##__VA_ARGS__)
+#endif
+#ifndef checkf
 	#define checkf(expr, format,  ...)		UE_CHECK_F_IMPL(expr, format, ##__VA_ARGS__)
+#endif
 
 	#define UE_CHECK_F_IMPL(expr, format, ...) \
 		{ \
@@ -223,14 +234,18 @@ public:
 	/**
 	 * Denotes code paths that should never be reached.
 	 */
+#ifndef checkNoEntry
 	#define checkNoEntry()       check(!"Enclosing block should never be called")
+#endif
 
 	/**
 	 * Denotes code paths that should not be executed more than once.
 	 */
+#ifndef checkNoReentry
 	#define checkNoReentry()     { static bool s_beenHere##__LINE__ = false;                                         \
 	                               check( !"Enclosing block was called more than once" || !s_beenHere##__LINE__ );   \
 								   s_beenHere##__LINE__ = true; }
+#endif
 
 	class FRecursionScopeMarker
 	{
@@ -244,11 +259,15 @@ public:
 	/**
 	 * Denotes code paths that should never be called recursively.
 	 */
+#ifndef checkNoRecursion
 	#define checkNoRecursion()  static uint16 RecursionCounter##__LINE__ = 0;                                            \
 	                            check( !"Enclosing block was entered recursively" || RecursionCounter##__LINE__ == 0 );  \
 	                            const FRecursionScopeMarker ScopeMarker##__LINE__( RecursionCounter##__LINE__ )
+#endif
 
+#ifndef unimplemented
 	#define unimplemented()		check(!"Unimplemented function called")
+#endif
 
 #else
 	#define checkCode(...)

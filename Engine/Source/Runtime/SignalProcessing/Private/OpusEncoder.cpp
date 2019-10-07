@@ -2,7 +2,7 @@
 
 #include "DSP/Encoders/OpusEncoder.h"
 
-#if !PLATFORM_HTML5 && !PLATFORM_TVOS
+#if !PLATFORM_TVOS
 
 THIRD_PARTY_INCLUDES_START
 #include "opus.h"
@@ -455,4 +455,4 @@ bool FOpusEncoder::EndFile(TArray<uint8>& OutBytes)
 }
 
 
-#endif // !PLATFORM_HTML5 && !PLATFORM_TVOS
+#endif // !PLATFORM_TVOS

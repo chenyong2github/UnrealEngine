@@ -239,7 +239,6 @@ public class UnrealEd : ModuleRules
 				"UndoHistory",
 				"SourceCodeAccess",
 				"HotReload",
-				"HTML5PlatformEditor",
 				"PortalProxies",
 				"PortalServices",
 				"BlueprintNativeCodeGen",
@@ -283,7 +282,7 @@ public class UnrealEd : ModuleRules
 		// Add include directory for Lightmass
 		PublicIncludePaths.Add("Programs/UnrealLightmass/Public");
 
-        PublicIncludePaths.Add("Developer/Android/AndroidDeviceDetection/Public/Interfaces");
+		PublicIncludePaths.Add("Developer/Android/AndroidDeviceDetection/Public/Interfaces");
 
 		PublicIncludePathModuleNames.AddRange(
 			new string[] {
@@ -301,7 +300,7 @@ public class UnrealEd : ModuleRules
 				"Engine",
 				"SourceControl",
 			}
-			);
+		);
 
 
 		if ((Target.Platform == UnrealTargetPlatform.Win64) ||
@@ -318,13 +317,7 @@ public class UnrealEd : ModuleRules
 				"Vorbis",
 				"VorbisFile",
 				"DX11Audio"
-				);
-		}
-
-		if (Target.Platform == UnrealTargetPlatform.HTML5)
-		{
-			PublicDependencyModuleNames.Add("ALAudio");
-            PublicDependencyModuleNames.Add("AudioMixerSDL");
+			);
 		}
 
 		AddEngineThirdPartyPrivateStaticDependencies(Target,
@@ -345,9 +338,9 @@ public class UnrealEd : ModuleRules
 			PublicDefinitions.Add( "WITH_RECAST=0" );
 		}
 
-        if (Target.bWithLiveCoding)
-        {
+		if (Target.bWithLiveCoding)
+		{
 			PrivateIncludePathModuleNames.Add("LiveCoding");
-        }
+		}
 	}
 }

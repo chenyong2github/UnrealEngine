@@ -11093,11 +11093,11 @@ UNetDriver* CreateNetDriver_Local(UEngine* Engine, FWorldContext& Context, FName
 	*
 	*
 	* Example:
-	*	Use HTML5 for the main game net driver:
-	*		-NetDriverOverrides=/Script/HTML5Networking.WebSocketNetDriver
+	*	Use WebSocket for the main game net driver:
+	*		-NetDriverOverrides=/Script/WebSocketNetworking.WebSocketNetDriver
 	*
-	*	Use HTML5 for the main game net driver, and the party beacon net driver
-	*		-NetDriverOverrides="/Script/HTML5Networking.WebSocketNetDriver;BeaconNetDriver,/Script/HTML5Networking.WebSocketNetDriver"
+	*	Use WebSocket for the main game net driver, and the party beacon net driver
+	*		-NetDriverOverrides="/Script/WebSocketNetworking.WebSocketNetDriver;BeaconNetDriver,/Script/WebSocketNetworking.WebSocketNetDriver"
 	*/
 
 	static TArray<FNetDriverDefinition> NetDriverOverrides = TArray<FNetDriverDefinition>();
@@ -14292,14 +14292,10 @@ bool AllowHighQualityLightmaps(ERHIFeatureLevel::Type FeatureLevel)
 // Helper function for changing system resolution via the r.setres console command
 void FSystemResolution::RequestResolutionChange(int32 InResX, int32 InResY, EWindowMode::Type InWindowMode)
 {
-#if PLATFORM_UNIX || PLATFORM_HTML5
-	// Fullscreen and WindowedFullscreen behave the same on Linux, see FLinuxWindow::ReshapeWindow()/SetWindowMode().
-	// Allowing Fullscreen window mode confuses higher level code (see UE-19996).
-	if (InWindowMode == EWindowMode::Fullscreen)
+	if (FPlatformMisc::FullscreenSameAsWindowedFullscreen() && (InWindowMode == EWindowMode::Fullscreen))
 	{
 		InWindowMode = EWindowMode::WindowedFullscreen;
 	}
-#endif
 
 	FString WindowModeSuffix;
 	switch (InWindowMode)
