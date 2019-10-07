@@ -204,7 +204,8 @@ void FMainFrameModule::CreateDefaultMainFrame( const bool bStartImmersive, const
 				)
 			);
 
-			MainFrameContent = FGlobalTabmanager::Get()->RestoreFrom( LoadedLayout, RootWindow, bEmbedTitleAreaContent );
+			const bool bCanRestoreAreaOutputBeNullptr = true;
+			MainFrameContent = FGlobalTabmanager::Get()->RestoreFrom(LoadedLayout, RootWindow, bEmbedTitleAreaContent, bCanRestoreAreaOutputBeNullptr);
 			bLevelEditorIsMainTab = true;
 		}
 
