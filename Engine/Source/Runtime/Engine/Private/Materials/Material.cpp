@@ -6319,6 +6319,11 @@ bool UMaterial::HasFlippedCoordinates()
 }
 #endif //WITH_EDITORONLY_DATA
 
+bool UMaterial::SingleLayerWaterUsesSimpleShading(EShaderPlatform ShaderPlatform)
+{
+	return  IsSwitchPlatform(ShaderPlatform) && IsForwardShadingEnabled(ShaderPlatform);
+}
+
 void UMaterial::GetLightingGuidChain(bool bIncludeTextures, TArray<FGuid>& OutGuids) const
 {
 #if WITH_EDITORONLY_DATA
