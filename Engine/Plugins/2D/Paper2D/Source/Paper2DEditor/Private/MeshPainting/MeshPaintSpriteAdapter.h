@@ -20,6 +20,8 @@ class FMeshPaintSpriteAdapter : public IMeshPaintGeometryAdapter
 {
 public:
 	static void InitializeAdapterGlobals() {}
+	static void AddReferencedObjectsGlobals(FReferenceCollector& Collector) {}
+	static void CleanupGlobals() {}
 
 	virtual bool Construct(UMeshComponent* InComponent, int32 InMeshLODIndex) override;
 	virtual bool Initialize() override;
@@ -67,4 +69,6 @@ class FMeshPaintSpriteAdapterFactory : public IMeshPaintGeometryAdapterFactory
 public:
 	virtual TSharedPtr<IMeshPaintGeometryAdapter> Construct(UMeshComponent* InComponent, int32 InMeshLODIndex) const override;
 	virtual void InitializeAdapterGlobals() override { FMeshPaintSpriteAdapter::InitializeAdapterGlobals(); }
+	virtual void AddReferencedObjectsGlobals(FReferenceCollector& Collector) override { FMeshPaintSpriteAdapter::AddReferencedObjectsGlobals(Collector); }
+	virtual void CleanupGlobals() override { FMeshPaintSpriteAdapter::CleanupGlobals(); }
 };
