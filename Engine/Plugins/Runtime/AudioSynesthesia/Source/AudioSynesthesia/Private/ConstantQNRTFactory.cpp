@@ -47,7 +47,6 @@ namespace Audio
 
 	const TArray<FConstantQFrame>& FConstantQNRTResult::GetFramesForChannel(int32 InChannelIndex) const
 	{
-		check(InChannelIndex < ChannelCQTFrames.Num());
 		return ChannelCQTFrames[InChannelIndex];
 	}
 
