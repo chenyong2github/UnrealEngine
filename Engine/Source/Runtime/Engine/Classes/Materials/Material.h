@@ -1796,9 +1796,6 @@ public:
 	bool HasFlippedCoordinates();
 #endif //WITH_EDITORONLY_DATA
 
-	// This is to have switch use the simple single layer water shading similar to mobile: no dynamic lights, only sun and sky, no distortion, no colored transmittance on background, no custom depth read.
-	static bool SingleLayerWaterUsesSimpleShading(EShaderPlatform ShaderPlatform);
-
 private:
 #if WITH_EDITOR
 	static FMaterialCompilationFinished MaterialCompilationFinishedEvent;
