@@ -606,29 +606,3 @@ void FD3D12ResourceLocation::SetResource(FD3D12Resource* Value)
 	UnderlyingResource = Value;
 	ResidencyHandle = UnderlyingResource->GetResidencyHandle();
 }
-
-/////////////////////////////////////////////////////////////////////
-//	FD3D12 Dynamic Buffer
-/////////////////////////////////////////////////////////////////////
-
-FD3D12DynamicBuffer::FD3D12DynamicBuffer(FD3D12Device* InParent)
-	: FD3D12DeviceChild(InParent)
-	, ResourceLocation(InParent)
-{
-}
-
-FD3D12DynamicBuffer::~FD3D12DynamicBuffer()
-{
-}
-
-void* FD3D12DynamicBuffer::Lock(uint32 Size)
-{
-	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
-
-	return 	Adapter->GetUploadHeapAllocator(GetParentDevice()->GetGPUIndex()).AllocUploadResource(Size, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT, ResourceLocation);
-}
-
-FD3D12ResourceLocation* FD3D12DynamicBuffer::Unlock()
-{
-	return &ResourceLocation;
-}
