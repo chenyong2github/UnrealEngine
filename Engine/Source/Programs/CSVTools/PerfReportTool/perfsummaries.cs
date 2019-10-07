@@ -1129,7 +1129,7 @@ namespace PerfSummaries
 				PeakStatInfo statInfo = getOrAddStatInfo(stat);
 
 				if ((csvStats.Stats.ContainsKey(statName.ToLower())) && // If the main stats table contains this stat AND
-                     (sectionPrefix == null || statName.StartsWith(sectionPrefix)) // If there is no hide prefix just display the stat, otherwise, make sure they match.
+                     (sectionPrefix == null || statName.StartsWith(sectionPrefix, true, null)) // If there is no hide prefix just display the stat, otherwise, make sure they match.
                    )
                 {
                     // Do the calculations for the averages and peak, and then write it to the table along with the budget.
