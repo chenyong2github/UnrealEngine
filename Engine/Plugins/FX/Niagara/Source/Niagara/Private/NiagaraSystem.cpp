@@ -428,6 +428,10 @@ void UNiagaraSystem::PostLoad()
 	}
 #endif // WITH_EDITORONLY_DATA
 
+	if ( FPlatformProperties::RequiresCookedData() )
+	{
+		bIsReadyToRunCached = IsReadyToRunInternal();
+	}
 }
 
 #if WITH_EDITORONLY_DATA
@@ -501,7 +505,7 @@ const TArray<FNiagaraEmitterHandle>& UNiagaraSystem::GetEmitterHandles()const
 	return EmitterHandles;
 }
 
-bool UNiagaraSystem::IsReadyToRun() const
+bool UNiagaraSystem::IsReadyToRunInternal() const
 {
 	if (!SystemSpawnScript || !SystemUpdateScript)
 	{
@@ -537,6 +541,18 @@ bool UNiagaraSystem::IsReadyToRun() const
 		}
 	}
 	return true;
+}
+
+bool UNiagaraSystem::IsReadyToRun() const
+{
+	if (FPlatformProperties::RequiresCookedData())
+	{
+		return bIsReadyToRunCached;
+	}
+	else
+	{
+		return IsReadyToRunInternal();
+	}
 }
 
 #if WITH_EDITORONLY_DATA
