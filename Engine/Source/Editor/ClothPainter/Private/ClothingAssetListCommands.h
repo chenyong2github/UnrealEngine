@@ -21,9 +21,7 @@ public:
 
 	TSharedPtr<FUICommandInfo> DeleteAsset;
 
-#if WITH_APEX_CLOTHING
 	TSharedPtr<FUICommandInfo> ReimportAsset;
-#endif
 
 	TSharedPtr<FUICommandInfo> RebuildAssetParams;
 

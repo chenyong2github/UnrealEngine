@@ -54,11 +54,10 @@ void RefreshSkelMeshComponents(USkeletalMesh* SkelMesh)
 	}
 }
 
-#if WITH_APEX_CLOTHING
 FString PromptForClothingFile()
 {
 	if(IDesktopPlatform* Platform = FDesktopPlatformModule::Get())
-	{
+{
 		const void* ParentWindowWindowHandle = FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr);
 
 		TArray<FString> OpenFilenames;
@@ -73,7 +72,7 @@ FString PromptForClothingFile()
 			EFileDialogFlags::None,
 			OpenFilenames
 			))
-		{
+	{
 			return OpenFilenames[0];
 		}
 	}
@@ -89,18 +88,19 @@ void PromptAndImportClothing(USkeletalMesh* SkelMesh)
 	FString Filename = PromptForClothingFile();
 
 	if(!Filename.IsEmpty())
-	{
+{
 		FEditorDirectories::Get().SetLastDirectory(ELastDirectory::MESH_IMPORT_EXPORT, Filename);
 
-		UClothingAssetFactory* Factory = UClothingAssetFactory::StaticClass()->GetDefaultObject<UClothingAssetFactory>();  // TODO: Rename this class to UClothingAssetFactoryNv
+		UClothingAssetFactory* Factory = UClothingAssetFactory::StaticClass()->GetDefaultObject<UClothingAssetFactory>();
 
 		if(Factory && Factory->CanImport(Filename))
-		{
+	{					
 			Factory->Import(Filename, SkelMesh);
-		}
+	}
 	}
 }
 
+#if WITH_APEX_CLOTHING
 apex::ClothingAsset* CreateApexClothingAssetFromPxStream(physx::PxFileBuf& Stream)
 {
 	// Peek into the buffer to see what kind of data it is (binary or xml)
