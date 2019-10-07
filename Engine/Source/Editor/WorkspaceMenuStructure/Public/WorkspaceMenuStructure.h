@@ -56,6 +56,9 @@ public:
 	virtual TSharedRef<FWorkspaceItem> GetDeveloperToolsLogCategory() const = 0;
 
 	/** See diagram above */
+	virtual TSharedRef<FWorkspaceItem> GetDeveloperToolsProfilingCategory() const = 0;	
+	
+	/** See diagram above */
 	virtual TSharedRef<FWorkspaceItem> GetDeveloperToolsMiscCategory() const = 0;
 
 	/** See diagram above */
