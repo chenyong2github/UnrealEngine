@@ -189,6 +189,8 @@ public:
 	virtual ECollisionResponse GetCollisionResponseToChannel(ECollisionChannel Channel) const override;
 	virtual ECollisionChannel GetCollisionObjectType() const override;
 	virtual const FCollisionResponseContainer& GetCollisionResponseToChannels() const override;
+	virtual void OnRegister() override;
+	virtual void OnUnregister() override;
 	//~ End USceneComponent Interface.
 
 	//~ Begin UPrimitiveComponent Interface
@@ -217,10 +219,7 @@ public:
 	virtual void PostEditImport() override;
 	virtual void PostEditUndo() override;
 	//~ End UObject Interface.
-
-	/** Gets the landscape info object for this landscape */
-	ULandscapeInfo* GetLandscapeInfo() const;
-
+		
 	/**  We speculatively async load collision object from DDC to remove hitch when streaming */
 	void SpeculativelyLoadAsyncDDCCollsionData();
 
@@ -235,6 +234,8 @@ public:
 	/** Computes a hash of all the data that will impact final collision */
 	virtual uint32 ComputeCollisionHash() const;
 #endif
+	/** Gets the landscape info object for this landscape */
+	ULandscapeInfo* GetLandscapeInfo() const;
 
 	/** Creates collision object from a cooked collision data */
 	virtual void CreateCollisionObject();
