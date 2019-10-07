@@ -206,6 +206,9 @@ USoundWave::USoundWave(const FObjectInitializer& ObjectInitializer)
 	bCachedSampleRateFromPlatformSettings = false;
 	bSampleRateManuallyReset = false;
 	CachedSampleRateOverride = 0.0f;
+#else
+	bWasStreamCachingEnabledOnLastCook = FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching();
+	RunningPlatformData = nullptr;
 #endif //!WITH_EDITOR
 }
 
@@ -632,6 +635,9 @@ void USoundWave::BeginGetCompressedData(FName Format, const FPlatformAudioCookOv
 		return;
 	}
 
+	// If stream caching has been enabled or disabled since the previous DDC operation, we need to invalidate the current
+	InvalidateSoundWaveIfNeccessary();
+
 	FName PlatformSpecificFormat = GetPlatformSpecificFormat(Format, CompressionOverrides);
 
 	if (!CompressedFormatData.Contains(PlatformSpecificFormat) && !AsyncLoadingDataFormats.Contains(PlatformSpecificFormat))
@@ -707,7 +713,9 @@ FByteBulkData* USoundWave::GetCompressedData(FName Format, const FPlatformAudioC
 void USoundWave::InvalidateCompressedData()
 {
 	CompressedDataGuid = FGuid::NewGuid();
+	ZerothChunkData.Reset();
 	CompressedFormatData.FlushData();
+	FreeResources(false);
 }
 
 void USoundWave::PostLoad()
@@ -735,8 +743,10 @@ void USoundWave::PostLoad()
 		return;
 	}
 
+#if !WITH_EDITOR
 	// In case any code accesses bStreaming directly, we fix up bStreaming based on the current platform's cook overrides.
 	bStreaming = IsStreaming();
+#endif
 
 	// Compress to whatever formats the active target platforms want
 	// static here as an optimization
@@ -970,7 +980,31 @@ void USoundWave::RemoveAudioResource()
 #endif
 }
 
+
+
 #if WITH_EDITOR
+
+void USoundWave::InvalidateSoundWaveIfNeccessary()
+{
+	if (bProcedural)
+	{
+		return;
+	}
+
+	// if stream caching was enabled since the last time we invalidated the compressed audio, force a re-cook.
+	const bool bIsStreamCachingEnabled = FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching();
+	if (bWasStreamCachingEnabledOnLastCook != bIsStreamCachingEnabled)
+	{
+		InvalidateCompressedData();
+		bWasStreamCachingEnabledOnLastCook = bIsStreamCachingEnabled;
+		
+		// If stream caching is now turned on, recook the streaming audio if neccessary.
+		if(bIsStreamCachingEnabled && IsStreaming())
+		{
+			EnsureZerothChunkIsLoaded();
+		}
+	}
+}
 
 float USoundWave::GetSampleRateForTargetPlatform(const ITargetPlatform* TargetPlatform)
 {
@@ -1404,7 +1438,7 @@ void USoundWave::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 }
 #endif // WITH_EDITOR
 
-void USoundWave::FreeResources()
+void USoundWave::FreeResources(bool bStopSoundsUsingThisResource)
 {
 	check(IsInAudioThread());
 
@@ -1418,7 +1452,7 @@ void USoundWave::FreeResources()
 	{
 		// Notify the audio device to free the bulk data associated with this wave.
 		FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
-		if (AudioDeviceManager)
+		if (bStopSoundsUsingThisResource && AudioDeviceManager)
 		{
 			AudioDeviceManager->StopSoundsUsingResource(this);
 			AudioDeviceManager->FreeResource(this);

@@ -20,6 +20,7 @@
 #include "Misc/MessageDialog.h"
 #include "Misc/FeedbackContext.h"
 #include "EditorFramework/AssetImportData.h"
+#include "AudioCompressionSettingsUtils.h"
 #include "SoundFileIO/SoundFileIO.h"
 
 
@@ -496,6 +497,12 @@ UObject* USoundFactory::CreateObject
 		Sound->SetSampleRate(*WaveInfo.pSamplesPerSec);
 		Sound->NumChannels = ChannelCount;
 		Sound->TotalSamples = *WaveInfo.pSamplesPerSec * Sound->Duration;
+
+		// If stream caching is enabled, we need to make sure this asset is ready for playback.
+		if (FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching() && Sound->IsStreaming())
+		{
+			Sound->EnsureZerothChunkIsLoaded();
+		}
 
 		GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, Sound);
 
