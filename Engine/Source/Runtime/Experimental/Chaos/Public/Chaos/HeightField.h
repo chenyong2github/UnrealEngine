@@ -11,7 +11,6 @@
 #include "Templates/UnrealTypeTraits.h"
 #include "UniformGrid.h"
 #include "Utilities.h"
-PRAGMA_DISABLE_OPTIMIZATION
 
 namespace Chaos
 {
@@ -28,8 +27,10 @@ namespace Chaos
 		using TImplicitObject<T, 3>::GetTypeName;
 
 		THeightField(TArray<T>&& Height, int32 InNumRows, int32 InNumCols, const TVector<T,3>& InScale);
+		THeightField(TArrayView<const uint16> InHeights, int32 InNumRows, int32 InNumCols, const TVector<T, 3>& InScale);
 		THeightField(const THeightField& Other) = delete;
 		THeightField(THeightField&& Other) = default;
+
 		virtual ~THeightField() {}
 
 		virtual T PhiWithNormal(const TVector<T, 3>& x, TVector<T, 3>& Normal) const
@@ -47,7 +48,8 @@ namespace Chaos
 
 		virtual const TBox<T, 3>& BoundingBox() const
 		{
-			return LocalBounds;
+			CachedBounds = TBox<T, 3>(LocalBounds.Min() * GeomData.Scale, LocalBounds.Max() * GeomData.Scale);
+			return CachedBounds;
 		}
 
 		virtual uint32 GetTypeHash() const override
@@ -75,10 +77,20 @@ namespace Chaos
 			
 			GeomData.Serialize(Ar);
 
+			Ar << FlatGrid;
+			Ar << FlattenedBounds.Min;
+			Ar << FlattenedBounds.Max;
+			Ar << LocalBounds;
+
 			if(Ar.IsLoading())
 			{
 				BuildQueryData();
 			}
+		}
+
+		void SetScale(const TVector<T, 3>& InScale)
+		{
+			GeomData.Scale = InScale;
 		}
 
 		template<typename InStorageType, typename InRealType>
@@ -137,15 +149,20 @@ namespace Chaos
 				const int32 X = Index % (NumCols);
 				const int32 Y = Index / (NumCols);
 
-				TVector<typename FDataType::RealType, 3> P0 = {(typename FDataType::RealType)X, (typename FDataType::RealType)Y, H0};
-				TVector<typename FDataType::RealType, 3> P1 = {(typename FDataType::RealType)X + 1, (typename FDataType::RealType)Y, H1};
-				TVector<typename FDataType::RealType, 3> P2 = {(typename FDataType::RealType)X, (typename FDataType::RealType)Y + 1, H2};
-				TVector<typename FDataType::RealType, 3> P3 = {(typename FDataType::RealType)X + 1, (typename FDataType::RealType)Y + 1, H3};
-				
-				OutPts[0] = (P0 * Scale);
-				OutPts[1] = (P1 * Scale);
-				OutPts[2] = (P2 * Scale);
-				OutPts[3] = (P3 * Scale);
+				OutPts[0] = {(typename FDataType::RealType)X, (typename FDataType::RealType)Y, H0};
+				OutPts[1] = {(typename FDataType::RealType)X + 1, (typename FDataType::RealType)Y, H1};
+				OutPts[2] = {(typename FDataType::RealType)X, (typename FDataType::RealType)Y + 1, H2};
+				OutPts[3] = {(typename FDataType::RealType)X + 1, (typename FDataType::RealType)Y + 1, H3};
+			}
+
+			FORCEINLINE void GetPointsScaled(int32 Index, TVector<T, 3> OutPts[4]) const
+			{
+				GetPoints(Index, OutPts);
+
+				OutPts[0] *= Scale;
+				OutPts[1] *= Scale;
+				OutPts[2] *= Scale;
+				OutPts[3] *= Scale;
 			}
 
 			void Serialize(FChaosArchive& Ar)
@@ -168,6 +185,9 @@ namespace Chaos
 				Ar << MaxValue;
 				Ar << NumRows;
 				Ar << NumCols;
+				Ar << Range;
+				Ar << HeightPerUnit;
+				Ar << CellBounds;
 			}
 		};
 
@@ -329,6 +349,8 @@ namespace Chaos
 		// Helpers for accessing bounds
 		bool GetCellBounds2D(const TVector<int32, 2> InCoord, FBounds2D& OutBounds, const TVector<T, 2>& InInflate = {0}) const;
 		bool GetCellBounds3D(const TVector<int32, 2> InCoord, TVector<T, 3>& OutMin, TVector<T, 3>& OutMax, const TVector<T, 3>& InInflate = TVector<T, 3>(0)) const;
+		bool GetCellBounds2DScaled(const TVector<int32, 2> InCoord, FBounds2D& OutBounds, const TVector<T, 2>& InInflate = {0}) const;
+		bool GetCellBounds3DScaled(const TVector<int32, 2> InCoord, TVector<T, 3>& OutMin, TVector<T, 3>& OutMax, const TVector<T, 3>& InInflate = TVector<T, 3>(0)) const;
 		bool CalcCellBounds3D(const TVector<int32, 2> InCoord, TVector<T, 3>& OutMin, TVector<T, 3>& OutMax, const TVector<T, 3>& InInflate = TVector<T, 3>(0)) const;
 
 		// Query functions - sweep, ray, overlap
@@ -337,13 +359,18 @@ namespace Chaos
 		bool GridCast(const TVector<T, 3>& StartPoint, const TVector<T, 3>& Dir, const T Length, THeightfieldRaycastVisitor<T>& Visitor) const;
 		bool GetGridIntersections(FBounds2D InFlatBounds, TArray<TVector<int32, 2>>& OutInterssctions) const;
 		
+		FBounds2D GetFlatBounds() const;
+
 		// Grid for queries, faster than bounding volumes for heightfields
 		TUniformGrid<T, 2> FlatGrid;
 		// Bounds in 2D of the whole heightfield, to clip queries against
 		FBounds2D FlattenedBounds;
 		// 3D bounds for the heightfield, for insertion to the scene structure
 		TBox<T, 3> LocalBounds;
+		// Cached when bounds are requested. Mutable to allow GetBounds to be logical const
+		mutable TBox<T, 3> CachedBounds;
 
+		void CalcBounds();
 		void BuildQueryData();
 		
 		// Needed for serialization
@@ -351,4 +378,3 @@ namespace Chaos
 		friend TImplicitObject<T, 3>;
 	};
 }
-PRAGMA_ENABLE_OPTIMIZATION
