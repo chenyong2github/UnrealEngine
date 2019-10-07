@@ -33,4 +33,9 @@ namespace Chaos
 			return ((const uint16&)*this) == ((const uint16&)Rhs);
 		}
 	};
+
+	inline FArchive& operator<<(FArchive& Ar, FSpatialAccelerationIdx& Idx)
+	{
+		return Ar << (uint16&)Idx;
+	}
 }
