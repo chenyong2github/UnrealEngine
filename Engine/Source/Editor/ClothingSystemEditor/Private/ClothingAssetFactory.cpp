@@ -10,8 +10,8 @@
 #if WITH_APEX_CLOTHING
 #include "ClothingAssetAuthoring.h"
 #include "Assets/ClothingAssetNv.h"
-#endif // WITH_APEX_CLOTHING
 #include "ApexClothingUtils.h"
+#endif // WITH_APEX_CLOTHING
 #include "ContentBrowserModule.h"
 #include "Misc/FileHelper.h"
 #include "Engine/SkeletalMesh.h"
