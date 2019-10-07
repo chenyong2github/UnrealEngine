@@ -214,6 +214,33 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_LayersBrushStack::OnBrushC
 		{
 			TSharedRef<FLandscapeEditorCustomNodeBuilder_LayersBrushStack> SharedThis = AsShared();
 
+			// Show only selected
+			FUIAction ShowOnlySelectedAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, CurrentBrush]
+			{
+				const FScopedTransaction Transaction(LOCTEXT("LandscapeBrushShowOnlySelectedTransaction", "Show Only Selected Brush"));
+				GetEditorMode()->ShowOnlySelectedBrush(CurrentBrush);
+			}));
+			MenuBuilder.AddMenuEntry(LOCTEXT("LandscapeBrushShowOnlySelected", "Show Only Selected"), LOCTEXT("LandscapeBrushShowOnlySelectedToolTip", "Hides all other brushes from the same layer"), FSlateIcon(), ShowOnlySelectedAction);
+
+			// Hide selected
+			FUIAction ShowHideSelectedAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, CurrentBrush]
+			{
+				SharedThis->OnToggleVisibility(CurrentBrush);
+			}));
+
+			FText MenuText = CurrentBrush->IsVisible() ? LOCTEXT("LandscapeBrushHideSelected", "Hide Selected") : LOCTEXT("LandscapeBrushShowSelected", "Show Selected");
+			MenuBuilder.AddMenuEntry(MenuText, LOCTEXT("LandscapeBrushToggleVisiblityToolTip", "Toggle brush visiblity"), FSlateIcon(), ShowHideSelectedAction);
+
+			MenuBuilder.AddMenuSeparator();
+
+			// Duplicate Brush
+			FUIAction DuplicateAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, CurrentBrush]
+			{
+				const FScopedTransaction Transaction(LOCTEXT("LandscapeBrushDuplicateTransaction", "Duplicate Brush"));
+				GetEditorMode()->DuplicateBrush(CurrentBrush);
+			}));
+			MenuBuilder.AddMenuEntry(LOCTEXT("LandscapeBrushDuplicate", "Duplicate"), LOCTEXT("LandscapeBrushDuplicateToolTip", "Duplicate brush"), FSlateIcon(), DuplicateAction);
+
 			// Add Brush
 			const TArray<ALandscapeBlueprintBrushBase*>& Brushes = GetEditorMode()->GetBrushList();
 			TArray<ALandscapeBlueprintBrushBase*> FilteredBrushes = Brushes.FilterByPredicate([](ALandscapeBlueprintBrushBase* Brush) { return Brush->GetOwningLandscape() == nullptr; });
@@ -283,11 +310,16 @@ FReply FLandscapeEditorCustomNodeBuilder_LayersBrushStack::OnToggleVisibility(in
 {
 	if (ALandscapeBlueprintBrushBase* Brush = GetBrush(InBrushIndex))
 	{
-		const FScopedTransaction Transaction(LOCTEXT("Landscape_Brush_SetVisibility", "Set Brush Visibility"));
-		bool bVisible = Brush->IsVisible();
-		Brush->SetIsVisible(!bVisible);
+		OnToggleVisibility(Brush);
 	}
 	return FReply::Handled();
+}
+
+void FLandscapeEditorCustomNodeBuilder_LayersBrushStack::OnToggleVisibility(ALandscapeBlueprintBrushBase* Brush)
+{
+	const FScopedTransaction Transaction(LOCTEXT("Landscape_Brush_SetVisibility", "Set Brush Visibility"));
+	bool bVisible = Brush->IsVisible();
+	Brush->SetIsVisible(!bVisible);
 }
 
 const FSlateBrush* FLandscapeEditorCustomNodeBuilder_LayersBrushStack::GetAffectsWeightmapBrush(int32 InBrushIndex) const
@@ -331,15 +363,19 @@ void FLandscapeEditorCustomNodeBuilder_LayersBrushStack::OnBrushSelectionChanged
 	}
 
 	const FName CurrentToolName = LandscapeEdMode->CurrentTool->GetToolName();
-	if (CurrentToolName == TEXT("BlueprintBrush"))
+	const FName BlueprintBrushTool = TEXT("BlueprintBrush");
+	bool bSwitchTool = CurrentToolName != BlueprintBrushTool;
+	
+	ALandscapeBlueprintBrushBase* Brush = GetBrush(InBrushIndex);
+	if (Brush != nullptr)
 	{
-		ALandscapeBlueprintBrushBase* Brush = GetBrush(InBrushIndex);
-		if (Brush != nullptr)
+		FScopedTransaction Transaction(LOCTEXT("LandscapeBrushSelect", "Brush selection"));
+		if (bSwitchTool)
 		{
-			FScopedTransaction Transaction(LOCTEXT("LandscapeBrushSelect", "Brush selection"));
-			GEditor->SelectNone(true, true);
-			GEditor->SelectActor(Brush, true, true);
+			LandscapeEdMode->SetCurrentTool(BlueprintBrushTool);
 		}
+		GEditor->SelectNone(true, true);
+		GEditor->SelectActor(Brush, true, true);
 	}
 }
 
