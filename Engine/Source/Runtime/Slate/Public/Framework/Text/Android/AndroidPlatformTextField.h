@@ -2,6 +2,8 @@
 
 #pragma once
 
+#if USE_ANDROID_JNI
+
 #include "CoreMinimal.h"
 #include "Framework/Application/IPlatformTextField.h"
 
@@ -20,3 +22,8 @@ private:
 
 typedef FAndroidPlatformTextField FPlatformTextField;
 
+#else
+
+#include "Framework/Text/GenericPlatformTextField.h"
+
+#endif
