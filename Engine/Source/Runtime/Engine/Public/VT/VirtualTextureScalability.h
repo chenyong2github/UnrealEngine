@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+
 namespace VirtualTextureScalability
 {
 	/** Get max upload rate to virtual textures. */
