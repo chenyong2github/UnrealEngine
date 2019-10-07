@@ -2,8 +2,6 @@
 <root xmlns:android="http://schemas.android.com/apk/res/android">
 	<init>
 		<log text="Android Permission Plugin Init"/>
-		<!-- check if using Gradle -->
-		<setBoolFromProperty result="bGradle" ini="Engine" section="/Script/AndroidRuntimeSettings.AndroidRuntimeSettings" property="bEnableGradle" default="false"/>
 	</init>
 	
 	<prebuildCopies>
@@ -19,15 +17,6 @@
 			}
 		</insert>
 	</proguardAdditions>
-
-	<AARImports>
-		<if condition="bGradle">
-			<false>
-				<insert>com.android.support,support-v13,25.2.0</insert>
-				<insertNewline/>
-			</false>
-		</if>
-	</AARImports>
 
 	<buildGradleAdditions>
 		<insert>
