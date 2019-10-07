@@ -156,6 +156,11 @@ public:
 	void IgnoreAnalyticCollisions(const bool Ignore = true) { bIgnoreAnalyticCollisions = Ignore; }
 	bool GetIgnoreAnalyticCollisions() const { return bIgnoreAnalyticCollisions; }
 	void SetConvex(const bool Convex = true) { bIsConvex = Convex; }
+	virtual bool IsPerformanceWarning() const { return false; }
+	virtual FString PerformanceWarningAndSimplifaction() 
+	{
+		return FString::Printf(TEXT("ImplicitObject - No Performance String"));
+	};
 
 	Pair<TVector<T, d>, bool> FindDeepestIntersection(const TImplicitObject<T, d>* Other, const TBVHParticles<float, d>* Particles, const PMatrix<T, d, d>& OtherToLocalTransform, const T Thickness) const;
 	Pair<TVector<T, d>, bool> FindDeepestIntersection(const TImplicitObject<T, d>* Other, const TParticles<float, d>* Particles, const PMatrix<T, d, d>& OtherToLocalTransform, const T Thickness) const;

@@ -696,6 +696,13 @@ void UBodySetup::FinishCreatingPhysicsMeshes_Chaos(FChaosDerivedDataReader<float
 		{
 			FKConvexElem& ConvexElem = AggGeom.ConvexElems[ElementIndex];
 			ConvexElem.SetChaosConvexMesh(MoveTemp(InReader.ConvexImplicitObjects[ElementIndex]));
+
+			if (ConvexElem.GetChaosConvexMesh()->IsPerformanceWarning())
+			{
+				const FString& PerformanceString = ConvexElem.GetChaosConvexMesh()->PerformanceWarningAndSimplifaction();
+				UE_LOG(LogPhysics, Warning, TEXT("TConvex Name:%s, Element [%d], %s"), FullName.GetCharArray().GetData(), ElementIndex, PerformanceString.GetCharArray().GetData());
+			}
+
 		}
 		InReader.ConvexImplicitObjects.Reset();
 	}
