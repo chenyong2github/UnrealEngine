@@ -15,7 +15,9 @@ class FInternationalization;
 
 THIRD_PARTY_INCLUDES_START
 	#include <unicode/umachine.h>
-	#include <unicode/gregocal.h>
+PRAGMA_PUSH_PLATFORM_DEFAULT_PACKING
+	#include <unicode/gregocal.h> // icu::Calendar can be affected by the non-standard packing UE4 uses, so force the platform default
+PRAGMA_POP_PLATFORM_DEFAULT_PACKING
 THIRD_PARTY_INCLUDES_END
 
 // This should be defined by ICU.build.cs
