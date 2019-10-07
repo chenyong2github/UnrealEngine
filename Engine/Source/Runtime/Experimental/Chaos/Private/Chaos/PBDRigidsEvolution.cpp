@@ -44,10 +44,10 @@ namespace Chaos
 	DECLARE_CYCLE_STAT(TEXT("ComputeIntermediateSpatialAcceleration"), STAT_ComputeIntermediateSpatialAcceleration, STATGROUP_Chaos);
 
 	template<class FPBDRigidsEvolution, class FPBDCollisionConstraint, class T, int d>
-	TPBDRigidsEvolutionBase<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::FChaosAccelerationStructureTask::FChaosAccelerationStructureTask(const TArray<FAccelerationStructureBuilder>& InBounds
+	TPBDRigidsEvolutionBase<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::FChaosAccelerationStructureTask::FChaosAccelerationStructureTask(const TArray<FAccelerationStructBuilderCache>& CacheMap
 		, TUniquePtr<FAccelerationStructure>& InAccelerationStructure
 		, TUniquePtr<FAccelerationStructure>& InAccelerationStructureCopy)
-		: CachedSpatialBuilderData(InBounds)
+		: BuilderCacheMap(CacheMap)
 		, AccelerationStructure(InAccelerationStructure)
 		, AccelerationStructureCopy(InAccelerationStructureCopy)
 	{
@@ -151,7 +151,30 @@ namespace Chaos
 	template<class FPBDRigidsEvolution, class FPBDCollisionConstraint, class T, int d>
 	void TPBDRigidsEvolutionBase<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::FChaosAccelerationStructureTask::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
-		AccelerationStructure.Reset(CreateNewSpatialStructure(CachedSpatialBuilderData));
+		//todo: no reason to do this in serial
+		for (const FAccelerationStructBuilderCache& Cache : BuilderCacheMap)
+		{
+			auto OldStruct = AccelerationStructure->RemoveSubstructure(Cache.SpatialIdx);
+			//This is a hack, need to have a Reinitialize API instead of downcasting
+			using BVType = TBoundingVolume<TAccelerationStructureHandle<T, d>, T, d>;
+			using AABBType = TAABBTree<TAccelerationStructureHandle<T, d>, TAABBTreeLeafArray<TAccelerationStructureHandle<T, d>, T>, T>;
+			ISpatialAcceleration<TAccelerationStructureHandle<T,d>,T,d>* NewStruct;
+			if (OldStruct->template As<BVType>())
+			{
+				NewStruct = new BVType(*Cache.CachedSpatialBuilderData);
+			}
+			else if (OldStruct->template As<AABBType>())
+			{
+				NewStruct = new AABBType(*Cache.CachedSpatialBuilderData);
+			}
+			else
+			{
+				using AccelType = TAABBTree<TAccelerationStructureHandle<T, d>, TBoundingVolume<TAccelerationStructureHandle<T, d>, T, d>, T>;
+				NewStruct = new AccelType(*Cache.CachedSpatialBuilderData);
+			}
+
+			AccelerationStructure->AddSubstructure(TUniquePtr<ISpatialAcceleration<TAccelerationStructureHandle<T, d>, T,d>>(NewStruct), Cache.SpatialIdx.Bucket); //this assumes bucket size is 1, which will not be true in future. Need to fix all this
+		}
 		AccelerationStructureCopy = AsUniqueSpatialAccelerationChecked<FAccelerationStructure>(AccelerationStructure->Copy());
 	}
 
@@ -166,12 +189,14 @@ namespace Chaos
 		//As long as we delete first and update second this will be respected
 		if (SpatialData.bDelete)
 		{
-			AccelerationStructure.RemoveElementFrom(SpatialData.AccelerationHandle, SpatialData.SpatialIdx);
+			AccelerationStructure.RemoveElementFrom(SpatialData.AccelerationHandle, SpatialData.DeletedSpatialIdx);
 
 			if (bAsync)
 			{
 				if (int32* CacheIdxPtr = ParticleToCacheIdx.Find(Particle))
 				{
+					const auto SpatialIdx = SpatialData.DeletedSpatialIdx;
+					TArray<FAccelerationStructureBuilder>& CachedSpatialBuilderData = *CachedSpatialBuilderDataMap.FindByPredicate([SpatialIdx](const auto& Cache){ return Cache.SpatialIdx == SpatialIdx;})->CachedSpatialBuilderData;
 					const int32 CacheIdx = *CacheIdxPtr;
 					if (CacheIdx + 1 < CachedSpatialBuilderData.Num())	//will get swapped with last element, so update it
 					{
@@ -188,10 +213,13 @@ namespace Chaos
 
 		if(SpatialData.bUpdate)
 		{
-			AccelerationStructure.UpdateElementIn(Particle, Particle->WorldSpaceInflatedBounds(), Particle->HasBounds(), SpatialData.SpatialIdx);	//todo: can the spatial idx change when we recreate and re-use memory? (yes, potential bug)
+			AccelerationStructure.UpdateElementIn(Particle, Particle->WorldSpaceInflatedBounds(), Particle->HasBounds(), SpatialData.UpdatedSpatialIdx);
 			
 			if (bAsync)
 			{
+				const auto SpatialIdx = SpatialData.UpdatedSpatialIdx;
+				TArray<FAccelerationStructureBuilder>& CachedSpatialBuilderData = *CachedSpatialBuilderDataMap.FindByPredicate([SpatialIdx](const auto& Cache) { return Cache.SpatialIdx == SpatialIdx; })->CachedSpatialBuilderData;
+
 				//make sure in mapping
 				int32 CacheIdx;
 				if (int32* CacheIdxPtr = ParticleToCacheIdx.Find(Particle))
@@ -274,6 +302,7 @@ namespace Chaos
 			FlushInternalAccelerationQueue();
 			FlushExternalAccelerationQueue(*ScratchExternalAcceleration);
 			bExternalReady = true;
+			InitializeAccelerationCache();
 		}
 
 		if (bBlock)
@@ -293,11 +322,22 @@ namespace Chaos
 				bExternalReady = true;
 			}
 
-			AccelerationStructureTaskComplete = TGraphTask<FChaosAccelerationStructureTask>::CreateTask().ConstructAndDispatchWhenReady(CachedSpatialBuilderData, AsyncInternalAcceleration, AsyncExternalAcceleration);
+			AccelerationStructureTaskComplete = TGraphTask<FChaosAccelerationStructureTask>::CreateTask().ConstructAndDispatchWhenReady(CachedSpatialBuilderDataMap, AsyncInternalAcceleration, AsyncExternalAcceleration);
 		}
 		else
 		{
 			FlushInternalAccelerationQueue();
+		}
+	}
+
+	template<class FPBDRigidsEvolution, class FPBDCollisionConstraint, class T, int d>
+	void TPBDRigidsEvolutionBase<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::InitializeAccelerationCache()
+	{
+		CachedSpatialBuilderDataMap.Empty();
+		const auto SpatialIndices = InternalAcceleration->GetAllSpatialIndices();
+		for (const auto& Idx : SpatialIndices)
+		{
+			CachedSpatialBuilderDataMap.Add(Idx);
 		}
 	}
 
@@ -337,6 +377,7 @@ namespace Chaos
 			{
 				Ar << SubStructure;
 				InternalAcceleration = CreateNewSpatialStructureFromSubStructure(MoveTemp(SubStructure));
+				InitializeAccelerationCache();
 			}
 
 			SerializePendingMap(Ar, InternalAccelerationQueue);

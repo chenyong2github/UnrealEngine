@@ -22,6 +22,7 @@ public:
 	/** This is kind of a hack to avoid virtuals. We simply route calls into templated functions */
 	virtual void PBDComputeConstraintsLowLevel_GatherStats(TPBDCollisionConstraint<T, d>& CollisionConstraint, T Dt) const = 0;
 	virtual void PBDComputeConstraintsLowLevel(TPBDCollisionConstraint<T, d>& CollisionConstraint, T Dt) const = 0;
+	virtual TArray<FSpatialAccelerationIdx> GetAllSpatialIndices() const = 0;
 };
 
 template <typename TSpatialAcceleration>
@@ -102,6 +103,16 @@ public:
 			{
 				ObjList.Append(Acceleration->GlobalObjects());
 			}
+		}
+	}
+
+	void GetAllSpatialIndices(TArray<FSpatialAccelerationIdx>& Indices, uint16 BucketIdx) const
+	{
+		Indices.Reserve(Indices.Num() + Accelerations.Num());
+		uint16 InnerIdx = 0;
+		for (const auto& Acceleration : Accelerations)
+		{
+			Indices.Add(FSpatialAccelerationIdx{ BucketIdx, InnerIdx++ });
 		}
 	}
 
@@ -287,6 +298,16 @@ struct TSpatialAccelerationCollectionHelper
 			TSpatialAccelerationCollectionHelper < NextBucket < NumBuckets ? NextBucket : 0, NumBuckets, Tuple, TPayloadType, T, d>::GlobalObjects(Buckets, ObjList);
 		}
 	}
+
+	static void GetAllSpatialIndices(const Tuple& Buckets, TArray<FSpatialAccelerationIdx>& Indices)
+	{
+		GetBucket<BucketIdx>(Buckets).GetAllSpatialIndices(Indices, BucketIdx);
+		constexpr int NextBucket = BucketIdx + 1;
+		if (NextBucket < NumBuckets)
+		{
+			TSpatialAccelerationCollectionHelper < NextBucket < NumBuckets ? NextBucket : 0, NumBuckets, Tuple, TPayloadType, T, d>::GetAllSpatialIndices(Buckets, Indices);
+		}
+	}
 };
 
 template <bool bGatherStats, typename SpatialAccelerationCollection, typename T, int d>
@@ -411,6 +432,13 @@ public:
 		TArray<TPayloadBoundsElement<TPayloadType, T>> ObjList;
 		TSpatialAccelerationCollectionHelper<0, NumBuckets, decltype(Buckets), TPayloadType, T, d>::GlobalObjects(Buckets, ObjList);
 		return ObjList;
+	}
+
+	virtual TArray<FSpatialAccelerationIdx> GetAllSpatialIndices() const override
+	{
+		TArray<FSpatialAccelerationIdx> Indices;
+		TSpatialAccelerationCollectionHelper<0, NumBuckets, decltype(Buckets), TPayloadType, T, d>::GetAllSpatialIndices(Buckets, Indices);
+		return Indices;
 	}
 
 	virtual void RemoveElementFrom(const TPayloadType& Payload, FSpatialAccelerationIdx SpatialIdx) override

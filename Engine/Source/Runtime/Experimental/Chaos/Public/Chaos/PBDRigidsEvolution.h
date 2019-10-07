@@ -151,8 +151,7 @@ class TPBDRigidsEvolutionBase
 		FPendingSpatialData& SpatialData = InternalAccelerationQueue.FindOrAdd(Particle.Handle());
 		SpatialData.AccelerationHandle = TAccelerationStructureHandle<T,d>(Particle);
 		SpatialData.bUpdate = true;
-		ensure(!SpatialData.bDelete || SpatialData.SpatialIdx == Particle.SpatialIdx());	//delete and add got same memory, but in a different spatial acceleration (need to handle case)
-		SpatialData.SpatialIdx = Particle.SpatialIdx();	//todo: handle case where we delete 
+		SpatialData.UpdatedSpatialIdx = Particle.SpatialIdx();
 
 		AsyncAccelerationQueue.FindOrAdd(Particle.Handle()) = SpatialData;
 		ExternalAccelerationQueue.FindOrAdd(Particle.Handle()) = SpatialData;
@@ -285,14 +284,21 @@ protected:
 		auto Particle = ParticleHandle.Handle();
 		FPendingSpatialData& AsyncSpatialData = AsyncAccelerationQueue.FindOrAdd(Particle);
 		AsyncSpatialData.AccelerationHandle = TAccelerationStructureHandle<T, d>(ParticleHandle);
+		if (!AsyncSpatialData.bDelete)
+		{
+			//There are three cases to consider:
+			//Simple single delete happens, in that case just use the index you see (the first and only index)
+			//Delete followed by any number deletes and updates and finally an update, in that case we must delete the first particle and add the final (so use first index for delete)
+			//Delete followed by multiple updates and or deletes and a final delete. In that case we still only delete the first particle since the final delete is not really needed (add will be cancelled)
+			AsyncSpatialData.DeletedSpatialIdx = ParticleHandle.SpatialIdx();
+		}
 		AsyncSpatialData.bUpdate = false;	//don't bother updating since deleting anyway
 		AsyncSpatialData.bDelete = true;
-		AsyncSpatialData.SpatialIdx = ParticleHandle.SpatialIdx();
 		ExternalAccelerationQueue.FindOrAdd(Particle) = AsyncSpatialData;
 
 		//remove particle immediately for intermediate structure
 		InternalAccelerationQueue.Remove(Particle);
-		InternalAcceleration->RemoveElementFrom(AsyncSpatialData.AccelerationHandle, AsyncSpatialData.SpatialIdx);	//todo: use proper idx
+		InternalAcceleration->RemoveElementFrom(AsyncSpatialData.AccelerationHandle, AsyncSpatialData.DeletedSpatialIdx);	//even though we remove immediately, future adds are still pending
 	}
 
 	void UpdateConstraintPositionBasedState(T Dt)
@@ -368,7 +374,8 @@ protected:
 	struct FPendingSpatialData
 	{
 		TAccelerationStructureHandle<T, d> AccelerationHandle;
-		FSpatialAccelerationIdx SpatialIdx;
+		FSpatialAccelerationIdx UpdatedSpatialIdx;
+		FSpatialAccelerationIdx DeletedSpatialIdx;	//need both updated and deleted in case memory is reused but a different idx is neede
 		bool bUpdate;
 		bool bDelete;
 
@@ -436,22 +443,33 @@ protected:
 	};
 
 	/** Used for async acceleration rebuild */
-	TArray<FAccelerationStructureBuilder> CachedSpatialBuilderData;
 	TMap<TGeometryParticleHandle<T, d>*, int32> ParticleToCacheIdx;
+
+	struct FAccelerationStructBuilderCache
+	{
+		FSpatialAccelerationIdx SpatialIdx;
+		TUniquePtr <TArray<FAccelerationStructureBuilder>> CachedSpatialBuilderData;
+
+		FAccelerationStructBuilderCache(FSpatialAccelerationIdx Idx)
+			: SpatialIdx(Idx)
+			, CachedSpatialBuilderData(MakeUnique<TArray<FAccelerationStructureBuilder>>())
+		{}
+	};
+	TArray<FAccelerationStructBuilderCache> CachedSpatialBuilderDataMap;
 
 	FORCEINLINE_DEBUGGABLE void ApplyParticlePendingData(TGeometryParticleHandle<T, d>* Particle, const FPendingSpatialData& PendingData, FAccelerationStructure& SpatialAcceleration, bool bAsync);
 
 	class FChaosAccelerationStructureTask
 	{
 	public:
-		FChaosAccelerationStructureTask(const TArray<FAccelerationStructureBuilder>& InBounds, TUniquePtr<FAccelerationStructure>& InAccelerationStructure,
+		FChaosAccelerationStructureTask(const TArray<FAccelerationStructBuilderCache>& BuilderCacheMap, TUniquePtr<FAccelerationStructure>& InAccelerationStructure,
 			TUniquePtr<FAccelerationStructure>& InAccelerationStructureCopy);
 		static FORCEINLINE TStatId GetStatId();
 		static FORCEINLINE ENamedThreads::Type GetDesiredThread();
 		static FORCEINLINE ESubsequentsMode::Type GetSubsequentsMode();
 		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
 
-		const TArray<FAccelerationStructureBuilder>& CachedSpatialBuilderData;
+		const TArray<FAccelerationStructBuilderCache>& BuilderCacheMap;
 		TUniquePtr<FAccelerationStructure>& AccelerationStructure;
 		TUniquePtr<FAccelerationStructure>& AccelerationStructureCopy;
 	};
@@ -460,6 +478,7 @@ protected:
 	int32 NumIterations;
 
 	static ISpatialAccelerationCollection<TAccelerationStructureHandle<T, d>, T, d>* CreateNewSpatialStructure(const TArray<FAccelerationStructureBuilder>& Bounds);
+	void InitializeAccelerationCache();
 };
 
 }
