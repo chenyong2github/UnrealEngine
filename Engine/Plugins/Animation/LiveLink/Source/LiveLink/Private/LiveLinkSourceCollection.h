@@ -102,7 +102,7 @@ public:
 	void SetSubjectEnabled(FLiveLinkSubjectKey SubjectKey, bool bEnabled);
 
 	void RemovePendingKill();
-	void Shutdown();
+	bool RequestShutdown();
 
 	FSimpleMulticastDelegate& OnLiveLinkSourcesChanged() { return OnLiveLinkSourcesChangedDelegate; }
 	FSimpleMulticastDelegate& OnLiveLinkSubjectsChanged() { return OnLiveLinkSubjectsChangedDelegate; }

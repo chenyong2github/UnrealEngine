@@ -26,14 +26,16 @@ FFindReferencersArchive::FFindReferencersArchive(UObject* InPotentialReferencer,
 	ArIgnoreOuterRef = true;
 
 	// initialize the map
+	TargetObjects.Reserve(InTargetObjects.Num());
 	for (int32 ObjIndex = 0; ObjIndex < InTargetObjects.Num(); ObjIndex++)
 	{
 		UObject* TargetObject = InTargetObjects[ObjIndex];
 		if (TargetObject != nullptr)
 		{
-			TargetObjects.Add(TargetObject, 0);
+			TargetObjects.AddObject(TargetObject);
 		}
 	}
+	TargetObjects.Freeze();
 
 	PotentialReferencer = nullptr;
 	ResetPotentialReferencer(InPotentialReferencer);
@@ -44,10 +46,7 @@ void FFindReferencersArchive::ResetPotentialReferencer(UObject* InPotentialRefer
 	if (PotentialReferencer)
 	{
 		// Reset all reference counts
-		for (TMap<UObject*, int32>::TIterator It(TargetObjects); It; ++It)
-		{
-			It.Value() = 0;
-		}
+		TargetObjects.ResetRefCounts();
 	}
 
 	PotentialReferencer = InPotentialReferencer;
@@ -107,7 +106,7 @@ int32 FFindReferencersArchive::GetReferenceCount( UObject* TargetObject, TArray<
 	int32 Result = 0;
 	if ( TargetObject != nullptr && PotentialReferencer != TargetObject )
 	{
-		const int32* pCount = TargetObjects.Find(TargetObject);
+		const int32* pCount = TargetObjects.TryGetRefCountPtr(TargetObject);
 		if ( pCount != nullptr && ( *pCount ) > 0 )
 		{
 			Result = *pCount;
@@ -138,11 +137,11 @@ int32 FFindReferencersArchive::GetReferenceCount( UObject* TargetObject, TArray<
 int32 FFindReferencersArchive::GetReferenceCounts( TMap<class UObject*, int32>& out_ReferenceCounts ) const
 {
 	out_ReferenceCounts.Empty();
-	for ( TMap<UObject*,int32>::TConstIterator It(TargetObjects); It; ++It )
+	for (int32 Index = 0; Index < TargetObjects.RefCountNum(); ++Index)
 	{
-		if ( It.Value() > 0 && It.Key() != PotentialReferencer )
+		if ( TargetObjects.GetRefCount(Index) > 0 && TargetObjects.GetObject(Index) != PotentialReferencer )
 		{
-			out_ReferenceCounts.Add(It.Key(), It.Value());
+			out_ReferenceCounts.Add(TargetObjects.GetObject(Index), TargetObjects.GetRefCount(Index));
 		}
 	}
 
@@ -187,7 +186,7 @@ FArchive& FFindReferencersArchive::operator<<( UObject*& Obj )
 {
 	if ( Obj != nullptr && Obj != PotentialReferencer )
 	{
-		int32* pReferenceCount = TargetObjects.Find(Obj);
+		int32* pReferenceCount = TargetObjects.GetRefCountPtr(Obj);
 		if ( pReferenceCount != nullptr )
 		{
 			// if this object was serialized via a UProperty, add it to the list

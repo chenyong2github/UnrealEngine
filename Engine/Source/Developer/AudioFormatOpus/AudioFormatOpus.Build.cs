@@ -13,7 +13,7 @@ public class AudioFormatOpus : ModuleRules
 				"Core",
 				"Engine"
 			}
-			);
+		);
 
 		if ((Target.Platform == UnrealTargetPlatform.Win64) ||
 			(Target.Platform == UnrealTargetPlatform.Win32) ||
@@ -21,12 +21,11 @@ public class AudioFormatOpus : ModuleRules
 			Target.IsInPlatformGroup(UnrealPlatformGroup.Linux) ||
 			(Target.Platform == UnrealTargetPlatform.Mac) ||
 			(Target.Platform == UnrealTargetPlatform.XboxOne)
-			//(Target.Platform == UnrealTargetPlatform.HTML5) // TODO test this for HTML5 !
 		)
 		{
 			AddEngineThirdPartyPrivateStaticDependencies(Target,
 				"libOpus"
-				);
+			);
 		}
 
 		PublicDefinitions.Add("WITH_OGGVORBIS=1");

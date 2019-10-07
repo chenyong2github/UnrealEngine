@@ -77,7 +77,7 @@ public:
 	UFUNCTION( BlueprintCallable, Category = "UVREditorInteractor" )
 	FName GetHMDDeviceType() const;
 
-	virtual FHitResult GetHitResultFromLaserPointer( TArray<AActor*>* OptionalListOfIgnoredActors = nullptr, const bool bIgnoreGizmos = false,
+	virtual FHitResult GetHitResultFromLaserPointer( TArray<AActor*>* OptionalListOfIgnoredActors = nullptr, const EHitResultGizmoFilterMode GizmoFilerMode = EHitResultGizmoFilterMode::All,
 	TArray<UClass*>* ObjectsInFrontOfGizmo = nullptr, const bool bEvenIfBlocked = false, const float LaserLengthOverride = 0.0f ) override;
 	virtual void ResetHoverState() override;
 	virtual bool IsModifierPressed() const override;
@@ -241,10 +241,18 @@ public:
 	/* ViewportInteractor overrides, checks if the laser is blocked by UI */
 	virtual bool GetIsLaserBlocked() const override;
 
+	/** Replace the default VR controller mesh with a custom one. */
+	UFUNCTION(BlueprintCallable, Category = "VREditorInteractor")
+	void ReplaceHandMeshComponent(UStaticMesh* NewMesh);
+
 protected:
 
 	/** Polls input for the motion controllers transforms */
 	virtual void PollInput() override;
+
+	/** Whether swiping left/right on touchpad/joystick triggers undo/redo  */
+	UPROPERTY(EditDefaultsOnly, Category = "VREditorInteractor")
+	bool bIsUndoRedoSwipeEnabled;
 
 	/** Motion controller component which handles late-frame transform updates of all parented sub-components */
 	UPROPERTY()
@@ -254,9 +262,11 @@ protected:
 	// Graphics
 	//
 
-	/** Mesh for this hand */
+	/** Access to the current handmesh. Use ReplaceHandMeshComponent() to update the entire StaticMeshComponent. */
 	UPROPERTY(BlueprintReadWrite, Category = "VREditorInteractor")
 	class UStaticMeshComponent* HandMeshComponent;
+
+
 private:
 
 	/** Spline for this hand's laser pointer */
@@ -286,6 +296,10 @@ private:
 	/** MID for hand mesh */
 	UPROPERTY()
 	class UMaterialInstanceDynamic* HandMeshMID;
+
+	/** Avatar actor that we're attached to. Cached so that we can change the HandMeshComponent via BP at runtime. */
+	UPROPERTY()
+	AActor* OwningAvatar;
 
 	/** True if this hand has a motion controller (or both!) */
 	bool bHaveMotionController;
@@ -338,6 +352,8 @@ private:
 	/** Updates the radial menu */
 	void UpdateRadialMenuInput( const float DeltaTime );
 
+	/** Initialize shared HandMeshComponent settings */
+	void SetHandMeshComponentProperties();
 
 	/** Start undo or redo from swipe for the Vive */
 	void UndoRedoFromSwipe( const ETouchSwipeDirection InSwipeDirection );

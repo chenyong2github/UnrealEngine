@@ -146,4 +146,15 @@ bool FMallocTBB::GetAllocationSize(void *Original, SIZE_T &SizeOut)
 	return true;
 }
 
+void FMallocTBB::Trim(bool bTrimThreadCaches)
+{
+// TBB memory trimming might impact performance so it is only enabled in editor for now where large thread pools are used
+// and more likely to do allocation migration between threads.
+// Also disabled on other platform than Windows since they use an older TBB (i.e. MACOS).
+// Make sure to coordinate with IntelTBB.Build.cs if making changes here
+#if WITH_EDITOR && PLATFORM_WINDOWS
+	scalable_allocation_command(bTrimThreadCaches ? TBBMALLOC_CLEAN_ALL_BUFFERS : TBBMALLOC_CLEAN_THREAD_BUFFERS, 0);
+#endif
+}
+
 #endif // PLATFORM_SUPPORTS_TBB && TBB_ALLOCATOR_ALLOWED

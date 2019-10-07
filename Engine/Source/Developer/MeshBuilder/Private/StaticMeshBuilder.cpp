@@ -75,6 +75,8 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 		return false;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshBuilder::Build);
+
 	const int32 NumSourceModels = StaticMesh->GetNumSourceModels();
 	StaticMeshRenderData.AllocateLODResources(NumSourceModels);
 
@@ -371,6 +373,8 @@ void BuildVertexBuffer(
 	, float VertexComparisonThreshold
 	, TArray<int32>& RemapVerts)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(BuildVertexBuffer);
+
 	const FVertexArray& Vertices = MeshDescription.Vertices();
 	const FVertexInstanceArray& VertexInstances = MeshDescription.VertexInstances();
 	const FPolygonGroupArray& PolygonGroupArray = MeshDescription.PolygonGroups();
@@ -541,6 +545,8 @@ void BuildVertexBuffer(
 
 void BuildAllBufferOptimizations(FStaticMeshLODResources& StaticMeshLOD, const FMeshBuildSettings& LODBuildSettings, TArray< uint32 >& IndexBuffer, bool bNeeds32BitIndices, TArray< FStaticMeshBuildVertex >& StaticMeshBuildVertices)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(BuildAllBufferOptimizations);
+
 	if (StaticMeshLOD.AdditionalIndexBuffers == nullptr)
 	{
 		StaticMeshLOD.AdditionalIndexBuffers = new FAdditionalStaticMeshIndexBuffers();

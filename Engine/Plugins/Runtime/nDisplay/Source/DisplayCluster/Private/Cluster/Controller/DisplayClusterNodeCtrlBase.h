@@ -6,6 +6,8 @@
 #include "Cluster/Controller/IPDisplayClusterNodeController.h"
 
 class FDisplayClusterClusterManager;
+class FDisplayClusterServer;
+class FDisplayClusterClient;
 
 
 /**
@@ -42,6 +44,51 @@ public:
 	virtual FString GetControllerName() const override final
 	{ return ControllerName; }
 
+public:
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	// IPDisplayClusterClusterEventsProtocol - default overrides
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	virtual void EmitClusterEvent(const FDisplayClusterClusterEvent& Event) override
+	{ }
+
+public:
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	// IPDisplayClusterClusterSyncProtocol - default overrides
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	virtual void WaitForGameStart() override
+	{ }
+
+	virtual void WaitForFrameStart() override
+	{ }
+
+	virtual void WaitForFrameEnd() override
+	{ }
+
+	virtual void WaitForTickEnd() override
+	{ }
+
+	virtual void GetDeltaTime(float& deltaTime) override
+	{ }
+
+	virtual void GetTimecode(FTimecode& timecode, FFrameRate& frameRate) override
+	{ }
+
+	virtual void GetSyncData(FDisplayClusterMessage::DataType& data) override
+	{ }
+
+	virtual void GetInputData(FDisplayClusterMessage::DataType& data) override
+	{ }
+
+	virtual void GetEventsData(FDisplayClusterMessage::DataType& data) override
+	{ }
+
+public:
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	// IPDisplayClusterSwapSyncProtocol - default overrides
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	virtual void WaitForSwapSync(double* pThreadWaitTime, double* pBarrierWaitTime) override
+	{ }
+
 protected:
 	virtual bool InitializeServers()
 	{ return true; }
@@ -60,6 +107,10 @@ protected:
 	
 	virtual void StopClients()
 	{ return; }
+
+protected:
+	bool StartServerWithLogs(FDisplayClusterServer* Server) const;
+	bool StartClientWithLogs(FDisplayClusterClient* Client, const FString& Addr, int32 Port, int32 ClientConnTriesAmount, int32 ClientConnRetryDelay) const;
 
 private:
 	const FString NodeName;

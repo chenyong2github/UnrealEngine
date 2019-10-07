@@ -172,6 +172,12 @@ public:
 		return *UISystem;
 	}
 
+	/** Check whether the UISystem exists */
+	bool UISystemIsActive() const
+	{
+		return UISystem != nullptr;
+	}
+
 	/** Lets other modules know if the radial menu is visible on a given interactor so input should be handled differently */
 	bool IsShowingRadialMenu( const class UVREditorInteractor* Interactor ) const;
 
@@ -267,7 +273,7 @@ public:
 	void TogglePIEAndVREditor();
 
 	/** Create a static motion controller mesh for the current HMD platform */
-	UStaticMeshComponent* CreateMotionControllerMesh( AActor* OwningActor, USceneComponent* AttachmentToComponent );
+	UStaticMeshComponent* CreateMotionControllerMesh( AActor* OwningActor, USceneComponent* AttachmentToComponent, UStaticMesh* OptionalControllerMesh = nullptr );
 
 	/** Helper functions to create a static mesh */
 	UStaticMeshComponent* CreateMesh( AActor* OwningActor, const FString& MeshName, USceneComponent* AttachmentToComponent /*= nullptr */ );
@@ -493,7 +499,7 @@ public:
 	void RefreshVREditorSequencer(class ISequencer* InCurrentSequencer);
 
 	/** Refresh the current actor preview widget on an in-world UI panel */
-	void RefreshActorPreviewWidget(TSharedRef<SWidget> InWidget, int32 Index, AActor *Actor);
+	void RefreshActorPreviewWidget(TSharedRef<SWidget> InWidget, int32 Index, AActor *Actor, bool bIsPanelDetached = false);
 
 	/** General way to spawn an external UMG UI from a radial menu */
 	void UpdateExternalUMGUI(const struct FVREditorFloatingUICreationContext& CreationContext);

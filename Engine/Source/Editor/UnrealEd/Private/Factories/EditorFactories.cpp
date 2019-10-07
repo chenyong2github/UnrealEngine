@@ -193,6 +193,7 @@
 #include "DDSLoader.h"
 #include "HDRLoader.h"
 #include "Factories/IESLoader.h"
+#include "Factories/TIFFLoader.h"
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
 
@@ -2911,6 +2912,7 @@ UTextureFactory::UTextureFactory(const FObjectInitializer& ObjectInitializer)
 	Formats.Add( TEXT( "jpg;Texture" ) );
 	Formats.Add( TEXT( "jpeg;Texture" ) );
 	Formats.Add( TEXT( "exr;Texture (HDR)" ) );
+	Formats.Add( TEXT( "tif;Texture (TIFF)" ) );
 
 	bCreateNew = false;
 	bEditorImport = true;
@@ -3656,7 +3658,25 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, uint32 Length, FFeedbackC
 			return true;
 		}
 	}
-	
+
+	FTiffLoadHelper TiffLoaderHelper;
+	if (TiffLoaderHelper.IsValid())
+	{
+		if (TiffLoaderHelper.Load(Buffer, Length))
+		{
+			OutImage.Init2D(
+				TiffLoaderHelper.Width,
+				TiffLoaderHelper.Height,
+				TiffLoaderHelper.TextureSourceFormat,
+				TiffLoaderHelper.RawData.GetData()
+			);
+
+			OutImage.SRGB = TiffLoaderHelper.bSRGB;
+			OutImage.CompressionSettings = TiffLoaderHelper.CompressionSettings;
+			return true;
+		}
+	}
+
 	return false;
 }
 
@@ -4728,7 +4748,7 @@ bool UTextureExporterBMP::SupportsObject(UObject* Object) const
 
 		if (Texture)
 		{
-			bSupportsObject = Texture->Source.GetFormat() == TSF_BGRA8 || Texture->Source.GetFormat() == TSF_RGBA16;
+			bSupportsObject = Texture->Source.GetFormat() == TSF_BGRA8 || Texture->Source.GetFormat() == TSF_RGBA16 || Texture->Source.GetFormat() == TSF_G8;
 		}
 	}
 	return bSupportsObject;
@@ -4738,13 +4758,14 @@ bool UTextureExporterBMP::ExportBinary( UObject* Object, const TCHAR* Type, FArc
 {
 	UTexture2D* Texture = CastChecked<UTexture2D>( Object );
 
-	if( !Texture->Source.IsValid() || ( Texture->Source.GetFormat() != TSF_BGRA8 && Texture->Source.GetFormat() != TSF_RGBA16 ) )
+	if( !Texture->Source.IsValid() || ( Texture->Source.GetFormat() != TSF_BGRA8 && Texture->Source.GetFormat() != TSF_RGBA16  && Texture->Source.GetFormat() != TSF_G8) )
 	{
 		return false;
 	}
 
 	const bool bIsRGBA16 = Texture->Source.GetFormat() == TSF_RGBA16;
-	const int32 SourceBytesPerPixel = bIsRGBA16 ? 8 : 4;
+	const bool bIsG8 = Texture->Source.GetFormat() == TSF_G8;
+	const int32 SourceBytesPerPixel = bIsRGBA16 ? 8 : (bIsG8 ? 1 : 4);
 
 	if (bIsRGBA16)
 	{
@@ -4800,6 +4821,13 @@ bool UTextureExporterBMP::ExportBinary( UObject* Object, const TCHAR* Type, FArc
 				Ar << ScreenPtr[3];
 				Ar << ScreenPtr[5];
 				ScreenPtr += 8;
+			}
+			else if (bIsG8)
+			{
+				Ar << ScreenPtr[0];
+				Ar << ScreenPtr[0];
+				Ar << ScreenPtr[0];
+				ScreenPtr += 1;
 			}
 			else
 			{

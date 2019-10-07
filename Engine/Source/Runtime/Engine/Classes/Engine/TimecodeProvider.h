@@ -42,11 +42,25 @@ class ENGINE_API UTimecodeProvider : public UObject
 
 public:
 	/**
+	 * Number of frames to subtract from the current timecode when GetDelayedTimecode is called.
+	 * @see GetDelayedTimecode
+	 */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Settings")
+	int32 FrameDelay = 0;
+
+	/**
 	 * Return the Timecode at that moment. It may not be in sync with the current frame.
 	 * Only valid when GetSynchronizationState() is Synchronized.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Provider")
 	virtual FTimecode GetTimecode() const PURE_VIRTUAL(UTimecodeProvider::GetTimecode, return FTimecode(););
+
+	/**
+	 * Return the Timecode with the Frame Delay applied. It may not be in sync with the current frame.
+	 * Only valid when GetSynchronizationState() is Synchronized.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Provider")
+	FTimecode GetDelayedTimecode() const;
 	
 	/**
 	 * Return the frame rate.

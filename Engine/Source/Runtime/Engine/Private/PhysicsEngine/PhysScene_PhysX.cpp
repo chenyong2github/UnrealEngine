@@ -1297,13 +1297,7 @@ void FPhysScene_PhysX::SyncComponentsToBodies_AssumesLocked()
 	for (PxU32 TransformIdx = 0; TransformIdx < NumActors; ++TransformIdx)
 	{
 		PxActor* PActiveActor = PActiveActors[TransformIdx];
-#ifdef __EMSCRIPTEN__
-		// emscripten doesn't seem to know how to look at <PxRigidActor> from the PxActor class...
-		PxRigidActor* XRigidActor = static_cast<PxRigidActor*>(PActiveActor); // is()
-		PxRigidActor* RigidActor = XRigidActor->PxRigidActor::isKindOf(PxTypeInfo<PxRigidActor>::name()) ? XRigidActor : NULL; // typeMatch<T>()
-#else
 		PxRigidActor* RigidActor = PActiveActor->is<PxRigidActor>();
-#endif
 
 		ensure(!RigidActor->userData || !FPhysxUserData::IsGarbage(RigidActor->userData));
 

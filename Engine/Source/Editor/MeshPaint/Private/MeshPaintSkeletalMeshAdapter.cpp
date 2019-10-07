@@ -109,6 +109,19 @@ void FMeshPaintGeometryAdapterForSkeletalMeshes::InitializeAdapterGlobals()
 	}
 }
 
+void FMeshPaintGeometryAdapterForSkeletalMeshes::CleanupGlobals()
+{
+	for (TPair<USkeletalMesh*, FSkeletalMeshReferencers>& Pair : MeshToComponentMap)
+	{
+		if (Pair.Key && Pair.Value.RestoreBodySetup)
+		{
+			Pair.Key->BodySetup = Pair.Value.RestoreBodySetup;
+		}
+	}
+
+	MeshToComponentMap.Empty();
+}
+
 void FMeshPaintGeometryAdapterForSkeletalMeshes::OnAdded()
 {
 	checkf(SkeletalMeshComponent, TEXT("Invalid SkeletalMesh Component"));
@@ -171,11 +184,9 @@ void FMeshPaintGeometryAdapterForSkeletalMeshes::OnAdded()
 
 void FMeshPaintGeometryAdapterForSkeletalMeshes::OnRemoved()
 {
-	checkf(SkeletalMeshComponent, TEXT("Invalid SkeletalMesh Component"));
-	
 	// If the referenced skeletal mesh has been destroyed (and nulled by GC), don't try to do anything more.
 	// It should be in the process of removing all global geometry adapters if it gets here in this situation.
-	if (!ReferencedSkeletalMesh)
+	if (!ReferencedSkeletalMesh || !SkeletalMeshComponent)
 	{
 		return;
 	}
@@ -286,25 +297,23 @@ void FMeshPaintGeometryAdapterForSkeletalMeshes::ApplyOrRemoveTextureOverride(UT
 	DefaultApplyOrRemoveTextureOverride(SkeletalMeshComponent, SourceTexture, OverrideTexture);
 }
 
+void FMeshPaintGeometryAdapterForSkeletalMeshes::AddReferencedObjectsGlobals(FReferenceCollector& Collector)
+{
+	for (TPair<USkeletalMesh*, FSkeletalMeshReferencers>& Pair : MeshToComponentMap)
+	{
+		Collector.AddReferencedObject(Pair.Key);
+		Collector.AddReferencedObject(Pair.Value.RestoreBodySetup);
+		for (FSkeletalMeshReferencers::FReferencersInfo& ReferencerInfo : Pair.Value.Referencers)
+		{
+			Collector.AddReferencedObject(ReferencerInfo.SkeletalMeshComponent);
+		}
+	}
+}
+
 void FMeshPaintGeometryAdapterForSkeletalMeshes::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	if (!ReferencedSkeletalMesh)
-	{
-		return;
-	}
-
-	FSkeletalMeshReferencers* SkeletalMeshReferencers = MeshToComponentMap.Find(ReferencedSkeletalMesh);
-	checkf(SkeletalMeshReferencers, TEXT("No references found for Skeletal Mesh"));
-	if (SkeletalMeshReferencers->RestoreBodySetup != nullptr)
-	{
-		Collector.AddReferencedObject(SkeletalMeshReferencers->RestoreBodySetup);
-	}
-	
-
-	for (auto& Info : SkeletalMeshReferencers->Referencers)
-	{
-		Collector.AddReferencedObject(Info.SkeletalMeshComponent);
-	}
+	Collector.AddReferencedObject(ReferencedSkeletalMesh);
+	Collector.AddReferencedObject(SkeletalMeshComponent);
 }
 
 void FMeshPaintGeometryAdapterForSkeletalMeshes::GetTextureCoordinate(int32 VertexIndex, int32 ChannelIndex, FVector2D& OutTextureCoordinate) const

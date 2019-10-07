@@ -3,14 +3,42 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#include "Delegates/DelegateCombinations.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/TextProperty.h"
 
-#include "DataprepOperationContext.h"
-
 #include "DataPrepOperation.generated.h"
 
+/**
+ * Delegate used by a Dataprep operation to add an asset to the Dataprep's working set
+ * @return	A new asset which is either a duplicate of Asset if not null or of class AssetClass and name AssetName
+ * @remark	Returns nullptr if Asset and AssetClass is null
+ * @remark	If Asset is not null, it will not be added to the list of assets tracked by Dataprep. It can safely be deleted
+ */
+DECLARE_DELEGATE_RetVal_ThreeParams(UObject* /* NewAsset */, FDataprepAddAsset, const UObject* /* Asset */, UClass* /* AssetClass */, const TCHAR* /* Assetname */ )
+
+/**
+ * Delegate used by a Dataprep operation to add an actor to the Dataprep's working set
+ * @return	A new Actor of class ActorClass and name ActorName added to the Dataprep's transient world
+ */
+DECLARE_DELEGATE_RetVal_TwoParams(class AActor* /* Actor */, FDataprepCreateActor, UClass* /* ActorClass */, const TCHAR* /* ActorName */ )
+
+/**
+ * Delegate used by a Dataprep operation to remove an object
+ * If bLocalContext is true, the object is removed from the working set of the action owning the operation
+ * Otherwise, the object is removed from the Dataprep's working set
+ * @remark If the object is removed from the Dataprep's working set, the operation is therefore owning the object.
+ */
+DECLARE_DELEGATE_TwoParams(FDataprepRemoveObject, UObject* /* Object */, bool /* bLocalContext */ )
+
+/**
+ * Delegate used by a Dataprep operation to remove and delete an array of objects from the Dataprep's working set.
+ * After execution, Object will not be accessible by subsequent operations.
+ * The asset is NOT immediately deleted. This is a deferred deletion.
+ */
+DECLARE_DELEGATE_OneParam(FDataprepDeleteObjects, TArray<UObject*> /* Objects */ )
 
 class DATAPREPCORE_API FDataprepOperationCategories
 {
@@ -20,7 +48,10 @@ public:
 	static FText ObjectOperation;
 };
 
-/** Experimental struct. Todo add stuct wide comment */
+class FDataprepWorkReporter;
+class UDataprepEditingOperation;
+
+/** Experimental struct. Todo add struct wide comment */
 USTRUCT(BlueprintType)
 struct FDataprepContext
 {
@@ -31,6 +62,45 @@ struct FDataprepContext
 	 */
 	UPROPERTY( BlueprintReadOnly, Category = "Dataprep")
 	TArray<UObject*> Objects;
+};
+
+/**
+ * Contains all data regarding the context in which an operation will be executed
+ */
+struct FDataprepOperationContext
+{
+	// The context contains on which the operation should operate on.
+	TSharedPtr<struct FDataprepContext> Context;
+
+	/**
+	 * Delegate to add an asset to the Dataprep content
+	 * Only effective if the operation is of class UDataprepEditingOperation
+	 */
+	FDataprepAddAsset AddAssetDelegate;
+
+	/**
+	 * Delegate to add an asset to the Dataprep content
+	 * Only effective if the operation is of class UDataprepEditingOperation
+	 */
+	FDataprepCreateActor CreateActorDelegate;
+
+	/**
+	 * Delegate to remove an object from the Dataprep's or the action's working set
+	 * Only effective if the operation is of class UDataprepEditingOperation
+	 */
+	FDataprepRemoveObject RemoveObjectDelegate;
+
+	/**
+	 * Delegate to remove an asset from the Dataprep content
+	 * Only effective if the operation is of class UDataprepEditingOperation
+	 */
+	FDataprepDeleteObjects DeleteObjectsDelegate;
+
+	// Optional Logger to capture the log produced by an operation (via the functions LogInfo, LogWarning and LogError).
+	TSharedPtr<class IDataprepLogger> DataprepLogger;
+
+	// Optional Progress Reporter to capture any progress reported by an operation.
+	TSharedPtr<class IDataprepProgressReporter> DataprepProgressReporter;
 };
 
 // Todo add class wide comment
@@ -87,6 +157,34 @@ protected:
 	UFUNCTION(BlueprintCallable,  Category = "Log", meta = (HideSelfPin = "true"))
 	void LogError(const FText& InLogError);
 
+	/**
+	 * Indicates the beginning of a new work to report on
+	 * @param InDescription		Text describing the work about to begin
+	 * @param InAmountOfWork	Expected total amount of work
+	 */
+	UFUNCTION(BlueprintCallable,  Category = "Report", meta = (HideSelfPin = "true"))
+	void BeginWork( const FText& InDescription, float InAmountOfWork );
+
+	/** Indicates the end of the work */
+	UFUNCTION(BlueprintCallable,  Category = "Report", meta = (HideSelfPin = "true"))
+	void EndWork();
+
+	/**
+	 * Report foreseen progress on the current work
+	 * @param IncrementOfWork	Amount of progress foreseen until the next call
+	 * @param InMessage			Message to be displayed along side the reported progress
+	 */
+	UFUNCTION(BlueprintCallable,  Category = "Report", meta = (HideSelfPin = "true"))
+	void ReportProgress( float IncrementOfWork, const FText& InMessage );
+
+	/**
+	 * Create a task to report progress during the execution of an operation
+	 * @param InDescription		The description of the task about to be performed
+	 * @param InAmountOfWork	Expected amount of work for the task
+	 * @param InIncrementOfWork	Expected increment during the execution of the task
+	 */
+	TSharedPtr<FDataprepWorkReporter> CreateTask( const FText& InDescription, float InAmountOfWork, float InIncrementOfWork = 1.0f );
+
 	// User friendly interface end here ========================================================================
 
 public:
@@ -98,26 +196,26 @@ public:
 	void ExecuteOperation(TSharedRef<FDataprepOperationContext>& InOperationContext);
 
 	/** 
-	* Allows to change the name of the fetcher for the ui if needed.
-	*/
+	 * Allows to change the name of the fetcher for the ui if needed.
+	 */
 	UFUNCTION(BlueprintNativeEvent,  Category = "Display")
 	FText GetDisplayOperationName() const;
 
 	/**
-	* Allows to change the tooltip of the fetcher for the ui if needed.
-	*/
+	 * Allows to change the tooltip of the fetcher for the ui if needed.
+	 */
 	UFUNCTION(BlueprintNativeEvent,  Category = "Display")
 	FText GetTooltip() const;
 
 	/**
-	* Allows to change the tooltip of the fetcher for the ui if needed.
-	*/
+	 * Allows to change the tooltip of the fetcher for the ui if needed.
+	 */
 	UFUNCTION(BlueprintNativeEvent,  Category = "Display")
 	FText GetCategory() const;
 
 	/**
-	* Allows to add more keywords for when a user is searching for the fetcher in the ui.
-	*/
+	 * Allows to add more keywords for when a user is searching for the fetcher in the ui.
+	 */
 	UFUNCTION(BlueprintNativeEvent,  Category = "Display|Search")
 	FText GetAdditionalKeyword() const;
 
@@ -129,18 +227,78 @@ public:
 	// Everything below is only for the Dataprep systems internal use =========================================
 private:
 	TSharedPtr<const FDataprepOperationContext> OperationContext;
+
+	friend class UDataprepEditingOperation;
 };
 
 
 // Todo add class wide comment
 UCLASS(Experimental, Abstract, Blueprintable)
-class DATAPREPCORE_API UDataprepAdditiveOperation : public UDataprepOperation
+class DATAPREPCORE_API UDataprepEditingOperation : public UDataprepOperation
 {
 	GENERATED_BODY()
 
-public:
-	const TArray< UObject* > GetCreatedAssets() { return CreatedAssets; }
-
 protected:
-	TArray< UObject* > CreatedAssets;
+	/**
+	 * Add an asset to the Dataprep's and action's working set
+	 * @param Asset			If not null, the asset will be duplicated
+	 * @param AssetClass	If Asset is null, an asset of the given class will be returned
+	 * @param AssetName		Name of the asset to create. Name collision will be performed before naming the asset
+	 * @returns				The asset newly created
+	 */
+	UFUNCTION(BlueprintCallable,  Category = "Dataprep | Editing Operation")
+	UObject* AddAsset(const UObject* Asset, UClass* AssetClass, const FString& AssetName );
+
+	/**
+	 * Add an actor to the Dataprep's transient world and action's working set
+	 * @param ActorClass	Class of the actor to create
+	 * @param ActorName		Name of the actor to create. Name collision will be performed before naming the asset
+	 * @returns				The actor newly created
+	 */
+	UFUNCTION(BlueprintCallable,  Category = "Dataprep | Editing Operation")
+	AActor* CreateActor( UClass* ActorClass, const FString& ActorName );
+
+	/**
+	 * Remove an object from the Dataprep's and/or action's working set
+	 * @param Object			Object to be removed from the working set 
+	 * @param bLocalContext		If set to true, the object is removed from the current working set.
+	 *							The object will not be accessible to any subsequent operation using the current context.
+	 *							If set to false, the object is removed from the Dataprep's working set.
+	 *							The object will not be accessible to any subsequent operation in the Dataprep's pipeline.
+	 */
+	UFUNCTION(BlueprintCallable,  Category = "Dataprep | Editing Operation")
+	void RemoveObject(UObject* Object, bool bLocalContext = false);
+
+	/**
+	 * Remove an array of objects from the Dataprep's and/or action's working set
+	 * @param Objects			An array of objects to be removed from the working set 
+	 * @param bLocalContext		If set to true, the object is removed from the current working set.
+	 *							The object will not be accessible to any subsequent operation using the current context.
+	 *							If set to false, the object is removed from the Dataprep's working set.
+	 *							The object will not be accessible to any subsequent operation in the Dataprep's pipeline.
+	 */
+	UFUNCTION(BlueprintCallable,  Category = "Dataprep | Editing Operation")
+	void RemoveObjects(TArray<UObject*> Objects, bool bLocalContext = false);
+
+	/**
+	 * Delete an object from the Dataprep's working set
+	 * @param Object		The object to be deleted
+	 * @remark	The deletion of the object is deferred. However, if the object is not an asset, it is removed from
+	 *			the Dataprep's transient world. If the object is an asset, it is moved to the transient package, no
+	 *			action is taken to clean up any object referencing this asset.
+	 * @remark	After execution, the object is not accessible by any subsequent operation in the Dataprep's pipeline.
+	 */
+	UFUNCTION(BlueprintCallable,  Category = "Dataprep | Editing Operation")
+	void DeleteObject(UObject* Objects);
+
+	/**
+	 * Delete an array of objects from the Dataprep's and action's working set
+	 * @param Objects		The array of objects to delete
+	 * @remark	The deletion of the object is deferred. However, if the object is not an asset, it is removed from
+	 *			the Dataprep's transient world. If the object is an asset, it is moved to the transient package, no
+	 *			action is taken to clean up any object referencing this asset.
+	 * @remark	After execution, the object is not accessible by any subsequent operation in the Dataprep's pipeline.
+	 */
+	UFUNCTION(BlueprintCallable,  Category = "Dataprep | Editing Operation")
+	void DeleteObjects(TArray<UObject*> Objects);
 };

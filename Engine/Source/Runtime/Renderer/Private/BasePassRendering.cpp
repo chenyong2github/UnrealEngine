@@ -485,7 +485,7 @@ void SetupSharedBasePassParameters(
 
 	SetupFogUniformParameters(View, SharedParameters.Fog);
 
-	if (View.bIsInstancedStereoEnabled && View.StereoPass == EStereoscopicPass::eSSP_LEFT_EYE)
+	if (View.bIsInstancedStereoEnabled && IStereoRendering::IsAPrimaryView(View.StereoPass))
 	{
 		const FSceneView& RightEye = *View.Family->Views[1];
 		SharedParameters.ForwardISR = RightEye.ForwardLightingResources->ForwardLightData;

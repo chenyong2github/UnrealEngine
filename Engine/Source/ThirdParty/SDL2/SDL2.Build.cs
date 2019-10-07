@@ -1,68 +1,47 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 using UnrealBuildTool;
+using System.IO;
 
 public class SDL2 : ModuleRules
 {
+	protected virtual string SDL2Version { get { return "SDL-gui-backend"; } }
+	protected virtual string IncRootDirectory { get { return Target.UEThirdPartySourceDirectory; } }
+	protected virtual string LibRootDirectory { get { return Target.UEThirdPartySourceDirectory; } }
+
+	protected virtual string SDL2IncPath { get { return Path.Combine(IncRootDirectory, "SDL2", SDL2Version, "include"); } }
+	protected virtual string SDL2LibPath { get { return Path.Combine(LibRootDirectory, "SDL2", SDL2Version, "lib"); } }
+
 	public SDL2(ReadOnlyTargetRules Target) : base(Target)
 	{
 		Type = ModuleType.External;
 
-		string SDL2Path = Target.UEThirdPartySourceDirectory + "SDL2/SDL-gui-backend/";
-		string SDL2LibPath = SDL2Path + "lib/";
-
 		// assume SDL to be built with extensions
 		PublicDefinitions.Add("SDL_WITH_EPIC_EXTENSIONS=1");
 
+		PublicIncludePaths.Add(SDL2IncPath);
+
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			PublicIncludePaths.Add(SDL2Path + "include");
 			if (Target.Configuration == UnrealTargetConfiguration.Debug)
 			{
 				// Debug version should be built with -fPIC and usable in all targets
-				PublicAdditionalLibraries.Add(SDL2LibPath + "Linux/" + Target.Architecture + "/libSDL2_fPIC_Debug.a");
+				PublicAdditionalLibraries.Add(Path.Combine(SDL2LibPath, "Linux", Target.Architecture, "libSDL2_fPIC_Debug.a"));
 			}
 			else if (Target.LinkType == TargetLinkType.Monolithic)
 			{
-				PublicAdditionalLibraries.Add(SDL2LibPath + "Linux/" + Target.Architecture + "/libSDL2.a");
+				PublicAdditionalLibraries.Add(Path.Combine(SDL2LibPath, "Linux", Target.Architecture, "libSDL2.a"));
 			}
 			else
 			{
-				PublicAdditionalLibraries.Add(SDL2LibPath + "Linux/" + Target.Architecture + "/libSDL2_fPIC.a");
+				PublicAdditionalLibraries.Add(Path.Combine(SDL2LibPath, "Linux", Target.Architecture, "libSDL2_fPIC.a"));
 			}
-		}
-		else if (Target.Platform == UnrealTargetPlatform.HTML5)
-		{
-			string OptimizationSuffix = "";
-			if (Target.bCompileForSize)
-			{
-				OptimizationSuffix = "_Oz";
-			}
-			else
-			{
-				if (Target.Configuration == UnrealTargetConfiguration.Development)
-				{
-					OptimizationSuffix = "_O2";
-				}
-				else if (Target.Configuration == UnrealTargetConfiguration.Shipping)
-				{
-					OptimizationSuffix = "_O3";
-				}
-			}
-			PublicIncludePaths.Add(SDL2Path + "include");
-			SDL2LibPath += "HTML5/";
-			PublicAdditionalLibraries.Add(SDL2LibPath + "libSDL2" + OptimizationSuffix + ".bc");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			PublicIncludePaths.Add(SDL2Path + "include");
+			PublicAdditionalLibraries.Add(Path.Combine(SDL2LibPath, "Win64", "SDL2.lib"));
 
-			SDL2LibPath += "Win64/";
-
-			PublicAdditionalLibraries.Add(SDL2LibPath + "SDL2.lib");
-
-			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/SDL2/Win64/SDL2.dll");
+			RuntimeDependencies.Add(Path.Combine("$(EngineDir)", "Binaries", "ThirdParty", "SDL2", "Win64/SDL2.dll"));
 			PublicDelayLoadDLLs.Add("SDL2.dll");
 		}
-
 	}
 }

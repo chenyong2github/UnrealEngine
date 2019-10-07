@@ -36,7 +36,7 @@ ENGINE_API EMobileHDRMode GetMobileHDRMode()
 {
 	EMobileHDRMode HDRMode = EMobileHDRMode::EnabledFloat16;
 
-	if (!IsMobileHDR() && !IsHTML5Platform())
+	if (!IsMobileHDR() && (GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel] != SP_OPENGL_ES2_WEBGL))
 	{
 		HDRMode = EMobileHDRMode::Disabled;
 	}

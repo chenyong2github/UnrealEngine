@@ -9,6 +9,8 @@
 #include "CoreTypes.h"
 #include "GenericPlatform/GenericPlatformMemory.h"
 
+#include <malloc.h>
+
 /**
  *	Unix implementation of the FGenericPlatformMemoryStats.
  */

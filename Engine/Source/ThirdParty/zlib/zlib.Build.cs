@@ -54,27 +54,6 @@ public class zlib : ModuleRules
 			PublicIncludePaths.Add(OldzlibPath + "/Inc");
 			PublicSystemLibraries.Add("z");
 		}
-		else if (Target.Platform == UnrealTargetPlatform.HTML5)
-		{
-			string OptimizationSuffix = "";
-			if (Target.bCompileForSize)
-			{
-				OptimizationSuffix = "_Oz";
-			}
-			else
-			{
-				if (Target.Configuration == UnrealTargetConfiguration.Development)
-				{
-					OptimizationSuffix = "_O2";
-				}
-				else if (Target.Configuration == UnrealTargetConfiguration.Shipping)
-				{
-					OptimizationSuffix = "_O3";
-				}
-			}
-			PublicIncludePaths.Add(OldzlibPath + "/Inc");
-			PublicAdditionalLibraries.Add(OldzlibPath + "/Lib/HTML5/zlib" + OptimizationSuffix + ".bc");
-		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
 			string platform = "/Linux/" + Target.Architecture;

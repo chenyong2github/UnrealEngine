@@ -1365,11 +1365,11 @@ bool FSteamVRHMD::GetRelativeEyePose(int32 DeviceId, EStereoscopicPass Eye, FQua
 	auto Frame = GetTrackingFrame();
 
 	vr::Hmd_Eye HmdEye = (Eye == eSSP_LEFT_EYE) ? vr::Eye_Left : vr::Eye_Right;
-		vr::HmdMatrix34_t HeadFromEye = VRSystem->GetEyeToHeadTransform(HmdEye);
+	vr::HmdMatrix34_t HeadFromEye = VRSystem->GetEyeToHeadTransform(HmdEye);
 
 		// grab the eye position, currently ignoring the rotation supplied by GetHeadFromEyePose()
 	OutPosition = FVector(-HeadFromEye.m[2][3], HeadFromEye.m[0][3], HeadFromEye.m[1][3]) * Frame.WorldToMetersScale;
-		FQuat Orientation(ToFMatrix(HeadFromEye));
+	FQuat Orientation(ToFMatrix(HeadFromEye));
 
 	OutOrientation.X = -Orientation.Z;
 	OutOrientation.Y = Orientation.X;

@@ -325,7 +325,8 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 			return PostProcessMaterialInputs;
 		};
 
-		const bool bPrimaryView = IStereoRendering::IsAPrimaryView(View, GEngine->StereoRenderingDevice);
+		const EStereoscopicPass StereoPass = View.StereoPass;
+		const bool bPrimaryView = IStereoRendering::IsAPrimaryView(StereoPass);
 		const bool bHasViewState = View.ViewState != nullptr;
 		const bool bDepthOfFieldEnabled = DiaphragmDOF::IsEnabled(View);
 		const bool bVisualizeDepthOfField = bDepthOfFieldEnabled && EngineShowFlags.VisualizeDOF;
@@ -1194,9 +1195,10 @@ static FRCPassPostProcessTonemap* AddTonemapper(
 	const bool bHDRTonemapperOutput)
 {
 	const FViewInfo& View = Context.View;
+	const EStereoscopicPass StereoPass = View.StereoPass;
 
 	FRenderingCompositeOutputRef TonemapperCombinedLUTOutputRef;
-	if (IStereoRendering::IsAPrimaryView(View, GEngine->StereoRenderingDevice))
+	if (IStereoRendering::IsAPrimaryView(StereoPass))
 	{
 		TonemapperCombinedLUTOutputRef = AddCombineLUTPass(Context.Graph);
 	}
@@ -1297,12 +1299,7 @@ void FPostProcessing::ProcessES2(FRHICommandListImmediate& RHICmdList, FScene* S
 
 			// Use original mobile Dof on ES2 devices regardless of bMobileHQGaussian.
 			// HQ gaussian 
-#if PLATFORM_HTML5 // EMSCRITPEN_TOOLCHAIN_UPGRADE_CHECK -- i.e. remove this when LLVM no longer errors -- appologies for the mess
-			// UE-61742 : the following will coerce i160 bit (bMobileHQGaussian) to an i8 LLVM variable
-			bool bUseMobileDof = bUseDof && ((1 - View.FinalPostProcessSettings.bMobileHQGaussian) + (Context.View.GetFeatureLevel() < ERHIFeatureLevel::ES3_1));
-#else
 			bool bUseMobileDof = bUseDof && (!View.FinalPostProcessSettings.bMobileHQGaussian || (Context.View.GetFeatureLevel() < ERHIFeatureLevel::ES3_1));
-#endif
 
 			// This is a workaround to avoid a performance cliff when using many render targets. 
 			bool bUseBloomSmall = bUseBloom && !bUseSun && !bUseDof && bWorkaround;

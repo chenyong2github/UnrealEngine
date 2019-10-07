@@ -11,21 +11,11 @@
 
 #if WITH_OGGVORBIS
 
-// hack to get ogg types right for HTML5.
-#if PLATFORM_HTML5
-#define _WIN32
-#define __MINGW32__
-#endif
 #pragma pack(push, 8)
 #include "ogg/ogg.h"
 #include "vorbis/vorbisenc.h"
 #include "vorbis/vorbisfile.h"
 #pragma pack(pop)
-#endif
-
-#if PLATFORM_HTML5
-#undef  _WIN32
-#undef __MINGW32__
 #endif
 
 #if PLATFORM_LITTLE_ENDIAN

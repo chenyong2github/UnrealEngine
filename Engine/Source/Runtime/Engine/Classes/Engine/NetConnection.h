@@ -1158,7 +1158,13 @@ public:
 	 * Get the current number of sent packets for which we have received a delivery notification
 	 */
 	ENGINE_API uint32 GetOutTotalNotifiedPackets() const { return OutTotalNotifiedPackets; }
-	
+
+	/** Sends the NMT_Challenge message */
+	void SendChallengeControlMessage();
+
+	/** Sends the NMT_Challenge message based on encryption response */
+	void SendChallengeControlMessage(const FEncryptionKeyResponse& Response);
+
 protected:
 
 	ENGINE_API void SetPendingCloseDueToSocketSendFailure();

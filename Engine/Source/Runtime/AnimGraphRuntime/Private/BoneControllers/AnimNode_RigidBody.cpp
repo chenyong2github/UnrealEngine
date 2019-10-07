@@ -21,6 +21,8 @@
 
 #define LOCTEXT_NAMESPACE "ImmediatePhysics"
 
+DEFINE_STAT(STAT_RigidBodyNodeInitTime);
+
 TAutoConsoleVariable<int32> CVarEnableRigidBodyNode(TEXT("p.RigidBodyNode"), 1, TEXT("Enables/disables rigid body node updates and evaluations"), ECVF_ReadOnly);
 TAutoConsoleVariable<int32> CVarRigidBodyLODThreshold(TEXT("p.RigidBodyLODThreshold"), -1, TEXT("Max LOD that rigid body node is allowed to run on. Provides a global threshold that overrides per-node the LODThreshold property. -1 means no override."), ECVF_Scalability);
 
@@ -596,6 +598,8 @@ void ComputeBodyInsertionOrder(TArray<FBoneIndexType>& InsertionOrder, const USk
 
 void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 {
+	SCOPE_CYCLE_COUNTER(STAT_RigidBodyNodeInitTime);
+
 	const USkeletalMeshComponent* SkeletalMeshComp = InAnimInstance->GetSkelMeshComponent();
 	const USkeletalMesh* SkeletalMeshAsset = SkeletalMeshComp->SkeletalMesh;
 
@@ -641,7 +645,13 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 		// Instantiate a FBodyInstance/FConstraintInstance set that will be cloned into the Immediate Physics sim.
 		TArray<FBodyInstance*> HighLevelBodyInstances;
 		TArray<FConstraintInstance*> HighLevelConstraintInstances;
+#if WITH_CHAOS
+		// Chaos relies on the initial pose to set up constraint positions
 		SkeletalMeshComp->InstantiatePhysicsAssetRefPose(*UsePhysicsAsset, SimulationSpace == ESimulationSpace::WorldSpace ? SkeletalMeshComp->GetComponentToWorld().GetScale3D() : FVector(1.f), HighLevelBodyInstances, HighLevelConstraintInstances);
+#else
+		// PhysX sets up constraints each tick
+		SkeletalMeshComp->InstantiatePhysicsAsset(*UsePhysicsAsset, SimulationSpace == ESimulationSpace::WorldSpace ? SkeletalMeshComp->GetComponentToWorld().GetScale3D() : FVector(1.f), HighLevelBodyInstances, HighLevelConstraintInstances);
+#endif
 
 		TMap<FName, ImmediatePhysics::FActorHandle*> NamesToHandles;
 		TArray<ImmediatePhysics::FActorHandle*> IgnoreCollisionActors;

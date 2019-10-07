@@ -44,6 +44,7 @@
 #include "Templates/UniquePtr.h"
 
 #if WITH_EDITOR
+#include "Async/ParallelFor.h"
 #include "RawMesh.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "MeshBuilder.h"
@@ -1306,6 +1307,8 @@ FStaticMeshRenderData::FStaticMeshRenderData()
 
 void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCooked)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshRenderData::Serialize);
+
 	DECLARE_SCOPE_CYCLE_COUNTER( TEXT("FStaticMeshRenderData::Serialize"), STAT_StaticMeshRenderData_Serialize, STATGROUP_LoadTime );
 
 	// Note: this is all derived data, native versioning is not needed, but be sure to bump STATICMESH_DERIVEDDATA_VER when modifying!
@@ -2050,8 +2053,8 @@ static void SerializeBuildSettingsForDDC(FArchive& Ar, FMeshBuildSettings& Build
 // If static mesh derived data needs to be rebuilt (new format, serialization
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
-// and set this new GUID as the version.                                       
-#define STATICMESH_DERIVEDDATA_VER TEXT("7D08EB504D3A42A4AAFAE139899C44E7")
+// and set this new GUID as the version.
+#define STATICMESH_DERIVEDDATA_VER TEXT("A9B55814188440DA96CF4A9D318BC1C5")
 
 static const FString& GetStaticMeshDerivedDataVersion()
 {
@@ -2327,7 +2330,7 @@ void FStaticMeshRenderData::Cache(UStaticMesh* Owner, const FStaticMeshLODSettin
 
 
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(StaticMesh_Cache);
+		TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshRenderData::Cache);
 
 		COOK_STAT(auto Timer = StaticMeshCookStats::UsageStats.TimeSyncWork());
 		int32 T0 = FPlatformTime::Cycles();
@@ -2432,7 +2435,7 @@ void FStaticMeshRenderData::Cache(UStaticMesh* Owner, const FStaticMeshLODSettin
 
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
 
-	if (CVar->GetValueOnGameThread() != 0 || Owner->bGenerateMeshDistanceField)
+	if (CVar->GetValueOnAnyThread(true) != 0 || Owner->bGenerateMeshDistanceField)
 	{
 		FString DistanceFieldKey = BuildDistanceFieldDerivedDataKey(DerivedDataKey);
 		if (LODResources.IsValidIndex(0))
@@ -2757,6 +2760,8 @@ static float GetUVDensity(const TIndirectArray<FStaticMeshLODResources>& LODReso
 void UStaticMesh::UpdateUVChannelData(bool bRebuildAll)
 {
 #if WITH_EDITORONLY_DATA
+	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::UpdateUVChannelData);
+
 	// Once cooked, the data required to compute the scales will not be CPU accessible.
 	if (FPlatformProperties::HasEditorOnlyData() && RenderData)
 	{
@@ -2883,6 +2888,7 @@ const FMeshUVChannelInfo* UStaticMesh::GetUVChannelData(int32 MaterialIndex) con
  */
 void UStaticMesh::ReleaseResources()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::ReleaseResources);
 #if STATS
 	uint32 StaticMeshResourceSize = GetResourceSizeBytes(EResourceSizeMode::Exclusive);
 	DEC_DWORD_STAT_BY( STAT_StaticMeshTotalMemory, StaticMeshResourceSize );
@@ -2908,6 +2914,8 @@ void UStaticMesh::ReleaseResources()
 #if WITH_EDITOR
 void UStaticMesh::PreEditChange(UProperty* PropertyAboutToChange)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::PreEditChange);
+
 	Super::PreEditChange(PropertyAboutToChange);
 
 	// Release the static mesh's resources.
@@ -2920,6 +2928,8 @@ void UStaticMesh::PreEditChange(UProperty* PropertyAboutToChange)
 
 void UStaticMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::PostEditChangeProperty);
+
 	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	const FName PropertyName = PropertyThatChanged ? PropertyThatChanged->GetFName() : NAME_None;
 	
@@ -3469,6 +3479,9 @@ void FStaticMeshSourceModel::SaveRawMesh(FRawMesh& InRawMesh, bool /* unused */)
 	{
 		return;
 	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshSourceModel::SaveRawMesh);
+
 	//Save both format
 	RawMeshBulkData->SaveRawMesh(InRawMesh);
 
@@ -3854,31 +3867,53 @@ FMeshDescription* UStaticMesh::CreateMeshDescription(int32 LodIndex, FMeshDescri
 }
 
 
-void UStaticMesh::CommitMeshDescription(int32 LodIndex)
+void UStaticMesh::CommitMeshDescription(int32 LodIndex, const FCommitMeshDescriptionParams & Params)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::CommitMeshDescription);
+
+	// This part should remain thread-safe so it can be called from any thread
+	// as long as no more than one thread is calling it for the same UStaticMesh.
+
 	// The source model must be created before calling this function
 	check(IsSourceModelValid(LodIndex));
 
 	FStaticMeshSourceModel& SourceModel = GetSourceModel(LodIndex);
 	if (SourceModel.MeshDescription.IsValid())
 	{
-		// Convert MeshDescription to RawMesh
-		FRawMesh TempRawMesh;
-		TMap<FName, int32> MaterialMap;
-		for (int32 MaterialIndex = 0; MaterialIndex < StaticMaterials.Num(); ++MaterialIndex)
-		{
-			MaterialMap.Add(StaticMaterials[MaterialIndex].ImportedMaterialSlotName, MaterialIndex);
-		}
-		FMeshDescriptionOperations::ConvertToRawMesh(*SourceModel.MeshDescription, TempRawMesh, MaterialMap);
-		SourceModel.RawMeshBulkData->SaveRawMesh(TempRawMesh);
-
 		// Package up mesh description into bulk data
 		if (!SourceModel.MeshDescriptionBulkData.IsValid())
 		{
 			SourceModel.MeshDescriptionBulkData = MakeUnique<FMeshDescriptionBulkData>();
 		}
 
-		SourceModel.MeshDescriptionBulkData->SaveMeshDescription(*SourceModel.MeshDescription);
+		// Handle ConvertToRawMesh and SaveMeshDescription in parallel
+		// Something like ParallelInvoke would be cleaner here, but we need the ParallelFor ability to join work on the current thread
+		ParallelFor(2,
+			[this, &SourceModel, &Params](int32 Num)
+			{
+				if (Num == 0)
+				{
+					TMap<FName, int32> MaterialMap;
+					for (int32 MaterialIndex = 0; MaterialIndex < StaticMaterials.Num(); ++MaterialIndex)
+					{
+						MaterialMap.Add(StaticMaterials[MaterialIndex].ImportedMaterialSlotName, MaterialIndex);
+					}
+
+					FRawMesh TempRawMesh;
+					FMeshDescriptionOperations::ConvertToRawMesh(*SourceModel.MeshDescription, TempRawMesh, MaterialMap);
+					SourceModel.RawMeshBulkData->SaveRawMesh(TempRawMesh);
+				}
+				else
+				{
+					SourceModel.MeshDescriptionBulkData->SaveMeshDescription(*SourceModel.MeshDescription);
+
+					if (Params.bUseHashAsGuid)
+					{
+						SourceModel.MeshDescriptionBulkData->UseHashAsGuid();
+					}
+				}
+			}
+		);
 	}
 	else
 	{
@@ -3888,13 +3923,19 @@ void UStaticMesh::CommitMeshDescription(int32 LodIndex)
 		SourceModel.RawMeshBulkData->Empty();
 	}
 
-	MarkPackageDirty();
+	// This part is not thread-safe, so we give the caller the option of calling it manually from the mainthread
+	if (Params.bMarkPackageDirty)
+	{
+		MarkPackageDirty();
+	}
 }
 
 void UStaticMesh::ClearMeshDescription(int32 LodIndex)
 {
 	if (IsSourceModelValid(LodIndex))
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::ClearMeshDescription);
+
 		FStaticMeshSourceModel& SourceModel = GetSourceModel(LodIndex);
 		SourceModel.MeshDescription.Reset();
 	}
@@ -3999,6 +4040,8 @@ bool UStaticMesh::GetMeshDataKey(int32 LodIndex, FString& OutKey) const
 
 void UStaticMesh::CacheMeshData()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::CacheMeshData);
+
 	// Generate MeshDescription source data in the DDC if no bulk data is present from the asset
 	for (int32 LodIndex = 0; LodIndex < GetNumSourceModels(); ++LodIndex)
 	{
@@ -4203,6 +4246,8 @@ int32 UStaticMesh::GetNumUVChannels(int32 LODIndex)
 
 void UStaticMesh::CacheDerivedData()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::CacheDerivedData);
+
 #if WITH_EDITORONLY_DATA
 	CacheMeshData();
 #endif
@@ -4298,6 +4343,8 @@ void UStaticMesh::Serialize(FArchive& Ar)
 	LLM_SCOPE(ELLMTag::StaticMesh);
 
 	DECLARE_SCOPE_CYCLE_COUNTER( TEXT("UStaticMesh::Serialize"), STAT_StaticMesh_Serialize, STATGROUP_LoadTime );
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::Serialize);
 
 	Super::Serialize(Ar);
 
@@ -4560,6 +4607,7 @@ void UStaticMesh::PostLoad()
 	Super::PostLoad();
 
 #if WITH_EDITOR
+	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::PostLoad);
 
 	if (GetNumSourceModels() > 0)
 	{

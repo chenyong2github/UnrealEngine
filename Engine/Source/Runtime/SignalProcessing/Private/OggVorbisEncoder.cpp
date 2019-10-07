@@ -207,4 +207,4 @@ bool FOggVorbisEncoder::EndFile(TArray<uint8>& OutBytes)
 
 	return true;
 }
-#endif // !PLATFORM_HTML5 && !PLATFORM_TVOS
+#endif // !PLATFORM_TVOS

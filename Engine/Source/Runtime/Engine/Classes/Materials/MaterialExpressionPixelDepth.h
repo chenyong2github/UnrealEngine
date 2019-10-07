@@ -11,7 +11,7 @@
 #include "Materials/MaterialExpression.h"
 #include "MaterialExpressionPixelDepth.generated.h"
 
-UCLASS(collapsecategories, hidecategories=Object)
+UCLASS(collapsecategories, hidecategories=Object, MinimalAPI)
 class UMaterialExpressionPixelDepth : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()

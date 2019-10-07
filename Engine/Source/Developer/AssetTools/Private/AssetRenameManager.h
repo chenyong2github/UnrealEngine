@@ -8,6 +8,15 @@
 
 struct FAssetRenameDataWithReferencers;
 
+struct FCachedSoftReference
+{
+	// Insert friendly
+	TMap<FSoftObjectPath, TSet<FWeakObjectPtr>> Map;
+
+	// So we can binary search for the TMap keys
+	TArray<FSoftObjectPath> Keys;
+};
+
 /** 
  * The manager to handle renaming assets.
  * This manager attempts to fix up references in memory if possible and only leaves UObjectRedirectors when needed.
@@ -99,7 +108,6 @@ private:
 	FAssetPostRenameEvent AssetPostRenameEvent;
 
 	/** Cache of package->soft references, to avoid serializing the same package over and over */
-	mutable TMap<FName, TSet<FSoftObjectPath>> CachedSoftReferences;
+	mutable TMap<FName, FCachedSoftReference> CachedSoftReferences;
 	mutable FDelegateHandle DirtyDelegateHandle;
-
 };

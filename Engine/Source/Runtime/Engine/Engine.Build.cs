@@ -86,7 +86,7 @@ public class Engine : ModuleRules
 				"MeshDescription",
 				"StaticMeshDescription",
 				"PakFile",
-                "NetworkReplayStreaming",
+				"NetworkReplayStreaming",
 				"PhysicsCore",
                 "SignalProcessing"
 			}
@@ -110,17 +110,13 @@ public class Engine : ModuleRules
 			}
 		);
 
-		if(Target.Platform != UnrealTargetPlatform.HTML5)
-		{
-			// Cross platform Audio Codecs:
-			AddEngineThirdPartyPrivateStaticDependencies(Target,
-                    "UEOgg",
-                    "Vorbis",
-                    "VorbisFile",
-                    "libOpus"
-                    );
-        }
-
+		// Cross platform Audio Codecs:
+		AddEngineThirdPartyPrivateStaticDependencies(Target,
+			"UEOgg",
+			"Vorbis",
+			"VorbisFile",
+			"libOpus"
+			);
 
 		DynamicallyLoadedModuleNames.Add("EyeTracker");
 
@@ -203,7 +199,7 @@ public class Engine : ModuleRules
 		// The AnimGraphRuntime module is not needed by Engine proper, but it is loaded in LaunchEngineLoop.cpp,
 		// and needs to be listed in an always-included module in order to be compiled into standalone games
 		DynamicallyLoadedModuleNames.Add("AnimGraphRuntime");
-        
+
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[]
 			{
@@ -399,17 +395,6 @@ public class Engine : ModuleRules
 			// Head Mounted Display support
 //			PrivateIncludePathModuleNames.AddRange(new string[] { "HeadMountedDisplay" });
 //			DynamicallyLoadedModuleNames.AddRange(new string[] { "HeadMountedDisplay" });
-		}
-
-		if (Target.Platform == UnrealTargetPlatform.HTML5)
-		{
-			// TODO test this for HTML5 !
-			//AddEngineThirdPartyPrivateStaticDependencies(Target,
-			//		"UEOgg",
-			//		"Vorbis",
-			//		"VorbisFile"
-			//		);
-			PublicDependencyModuleNames.Add("HTML5JS");
 		}
 
 		if (Target.Platform == UnrealTargetPlatform.Mac)

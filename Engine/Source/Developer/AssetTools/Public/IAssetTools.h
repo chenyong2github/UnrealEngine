@@ -391,7 +391,7 @@ public:
 	/** Opens editor for assets */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools", meta = (DeprecatedFunction, DeprecationMessage = "Please use UAssetEditorSubsystem::OpenEditorForAssets instead."))
 	virtual void OpenEditorForAssets(const TArray<UObject*>& Assets) = 0;
-	
+
 	/** Converts the given UTexture2D to virtual textures or converts virtual textures back to standard textures and updates the related UMaterials 
 	 * @param Textures					The given textures to convert.
 	 * @param bConvertBackToNonVirtual	If true, virtual textures will be converted back to standard textures.

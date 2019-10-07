@@ -31,6 +31,11 @@ FTimecode UTimeManagementBlueprintLibrary::GetTimecode()
 	return FApp::GetTimecode();
 }
 
+FFrameRate UTimeManagementBlueprintLibrary::GetTimecodeFrameRate()
+{
+	return FApp::GetTimecodeFrameRate();
+}
+
 bool UTimeManagementBlueprintLibrary::IsValid_Framerate(const FFrameRate& InFrameRate) 
 { 
 	return InFrameRate.IsValid();

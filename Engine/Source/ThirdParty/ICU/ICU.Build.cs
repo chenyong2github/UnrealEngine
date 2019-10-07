@@ -173,44 +173,6 @@ public class ICU : ModuleRules
 			string ICULibName = UseDebugLibs ? "libicud_fPIC.a" : "libicu_fPIC.a";
 			PublicAdditionalLibraries.Add(Path.Combine(ICULibPath, Target.Architecture, ICULibName));
 		}
-		else if (Target.Platform == UnrealTargetPlatform.HTML5)
-		{
-			// we don't bother with debug libraries on HTML5. Mainly because debugging isn't viable on html5 currently
-			string StaticLibraryExtension = "bc";
-
-			string[] LibraryNameStems =
-			{
-				"data", // Data
-				"uc",   // Unicode Common
-				"i18n", // Internationalization
-				"le",   // Layout Engine
-				"lx",   // Layout Extensions
-				"io"	// Input/Output
-			};
-
-			string OptimizationSuffix = "";
-			if (Target.bCompileForSize)
-			{
-				OptimizationSuffix = "_Oz";
-			}
-			else
-			{
-				if (Target.Configuration == UnrealTargetConfiguration.Development)
-				{
-					OptimizationSuffix = "_O2";
-				}
-				else if (Target.Configuration == UnrealTargetConfiguration.Shipping)
-				{
-					OptimizationSuffix = "_O3";
-				}
-			}
-
-			foreach (string Stem in LibraryNameStems)
-			{
-				string LibraryName = "libicu" + Stem + OptimizationSuffix + "." + StaticLibraryExtension;
-				PublicAdditionalLibraries.Add(Path.Combine(ICULibPath, LibraryName));
-			}
-		}
 		else if (Target.Platform == UnrealTargetPlatform.XboxOne)
 		{
 			// Use reflection to allow type not to exist if console code is not present

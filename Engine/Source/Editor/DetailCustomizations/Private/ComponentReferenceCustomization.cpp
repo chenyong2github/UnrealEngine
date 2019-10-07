@@ -418,7 +418,7 @@ bool FComponentReferenceCustomization::IsComponentReferenceValid(const FComponen
 
 				if (Actor)
 				{
-					if (NewComponent->GetOwner()->GetLevel() == Actor->GetLevel())
+					if (NewComponent->GetOwner()->GetLevel() != Actor->GetLevel())
 					{
 						return false;
 					}
@@ -575,7 +575,7 @@ bool FComponentReferenceCustomization::IsFilteredComponent(const UActorComponent
 		&& (!bAllowAnyActor || (OuterActor && Component->GetOwner()->GetLevel() == OuterActor->GetLevel()))
 		&& FComponentEditorUtils::CanEditComponentInstance(Component, SceneComp, false)
 		&& IsFilteredObject(Component, AllowedComponentClassFilters, DisallowedComponentClassFilters)
-		&& IsFilteredObject(Component->GetOwner(), AllowedActorClassFilters, AllowedComponentClassFilters);
+		&& IsFilteredObject(Component->GetOwner(), AllowedActorClassFilters, DisallowedActorClassFilters);
 }
 
 bool FComponentReferenceCustomization::IsFilteredObject(const UObject* const Object, const TArray<const UClass*>& AllowedFilters, const TArray<const UClass*>& DisallowedFilters)
@@ -595,17 +595,17 @@ bool FComponentReferenceCustomization::IsFilteredObject(const UObject* const Obj
 				break;
 			}
 		}
+	}
 
-		if (DisallowedFilters.Num() > 0 && bAllowedToSetBasedOnFilter)
+	if (DisallowedFilters.Num() > 0 && bAllowedToSetBasedOnFilter)
+	{
+		for (const UClass* DisallowedClass : DisallowedFilters)
 		{
-			for (const UClass* DisallowedClass : DisallowedFilters)
+			const bool bDisallowedClassIsInterface = DisallowedClass->HasAnyClassFlags(CLASS_Interface);
+			if (ObjectClass->IsChildOf(DisallowedClass) || (bDisallowedClassIsInterface && ObjectClass->ImplementsInterface(DisallowedClass)))
 			{
-				const bool bDisallowedClassIsInterface = DisallowedClass->HasAnyClassFlags(CLASS_Interface);
-				if (ObjectClass->IsChildOf(DisallowedClass) || (bDisallowedClassIsInterface && ObjectClass->ImplementsInterface(DisallowedClass)))
-				{
-					bAllowedToSetBasedOnFilter = false;
-					break;
-				}
+				bAllowedToSetBasedOnFilter = false;
+				break;
 			}
 		}
 	}

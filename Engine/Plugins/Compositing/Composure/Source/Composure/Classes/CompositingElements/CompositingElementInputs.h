@@ -77,6 +77,8 @@ class COMPOSURE_API UMediaTextureCompositingInput : public UCompositingMediaInpu
 	GENERATED_BODY()
 
 public:
+	UMediaTextureCompositingInput();
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Compositing Pass", meta = (DisplayAfter = "PassName", EditCondition = "bEnabled"))
 	UMediaTexture* MediaSource;
 

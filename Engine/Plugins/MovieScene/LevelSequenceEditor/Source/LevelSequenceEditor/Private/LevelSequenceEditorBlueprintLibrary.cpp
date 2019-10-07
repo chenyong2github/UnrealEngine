@@ -9,6 +9,8 @@
 #include "LevelEditor.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
+#include "MovieSceneCommonHelpers.h"
+
 namespace
 {
 	static TWeakPtr<ISequencer> CurrentSequencer;
@@ -16,7 +18,12 @@ namespace
 
 bool ULevelSequenceEditorBlueprintLibrary::OpenLevelSequence(ULevelSequence* LevelSequence)
 {
-	return GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(LevelSequence);
+	if (LevelSequence)
+	{
+		return GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(LevelSequence);
+	}
+
+	return false;
 }
 
 ULevelSequence* ULevelSequenceEditorBlueprintLibrary::GetCurrentLevelSequence()
@@ -89,3 +96,67 @@ void ULevelSequenceEditorBlueprintLibrary::SetSequencer(TSharedRef<ISequencer> I
 {
 	CurrentSequencer = TWeakPtr<ISequencer>(InSequencer);
 }
+
+bool ULevelSequenceEditorBlueprintLibrary::IsLevelSequenceLocked()
+{
+	if (CurrentSequencer.IsValid())
+	{
+		TSharedPtr<ISequencer> Sequencer = CurrentSequencer.Pin();
+		UMovieSceneSequence* FocusedMovieSceneSequence = Sequencer->GetFocusedMovieSceneSequence();
+		if (FocusedMovieSceneSequence) 
+		{
+			if (FocusedMovieSceneSequence->GetMovieScene()->IsReadOnly()) 
+			{
+				return true;
+			}
+			else
+			{
+				TArray<UMovieScene*> DescendantMovieScenes;
+				MovieSceneHelpers::GetDescendantMovieScenes(Sequencer->GetFocusedMovieSceneSequence(), DescendantMovieScenes);
+
+				for (UMovieScene* DescendantMovieScene : DescendantMovieScenes)
+				{
+					if (DescendantMovieScene && DescendantMovieScene->IsReadOnly())
+					{
+						return true;
+					}
+				}
+			}
+		}
+	}
+	return false;
+}
+
+void ULevelSequenceEditorBlueprintLibrary::SetLockLevelSequence(bool bLock)
+{
+	if (CurrentSequencer.IsValid())
+	{
+		TSharedPtr<ISequencer> Sequencer = CurrentSequencer.Pin();
+
+		if (Sequencer->GetFocusedMovieSceneSequence())
+		{
+			UMovieScene* MovieScene = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
+
+			if (bLock != MovieScene->IsReadOnly()) 
+			{
+				MovieScene->Modify();
+				MovieScene->SetReadOnly(bLock);
+			}
+
+			TArray<UMovieScene*> DescendantMovieScenes;
+			MovieSceneHelpers::GetDescendantMovieScenes(Sequencer->GetFocusedMovieSceneSequence(), DescendantMovieScenes);
+
+			for (UMovieScene* DescendantMovieScene : DescendantMovieScenes)
+			{
+				if (DescendantMovieScene && bLock != DescendantMovieScene->IsReadOnly())
+				{
+					DescendantMovieScene->Modify();
+					DescendantMovieScene->SetReadOnly(bLock);
+				}
+			}
+
+			Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::Unknown);
+		}
+	}
+}
+

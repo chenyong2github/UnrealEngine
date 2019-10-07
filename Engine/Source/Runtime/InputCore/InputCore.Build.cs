@@ -12,7 +12,7 @@ public class InputCore : ModuleRules
 		{
 			PrivateIncludePathModuleNames.Add("ApplicationCore");
 		}
-		if(Target.IsInPlatformGroup(UnrealPlatformGroup.Linux) || Target.Platform == UnrealTargetPlatform.HTML5)
+		if(Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
 		{
 			PrivateIncludePathModuleNames.Add("SDL2");
 		}

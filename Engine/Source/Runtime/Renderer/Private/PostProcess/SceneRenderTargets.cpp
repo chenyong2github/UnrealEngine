@@ -2090,9 +2090,9 @@ void FSceneRenderTargets::AllocateMobileRenderTargets(FRHICommandList& RHICmdLis
 
 	EPixelFormat Format = GetSceneColor()->GetDesc().Format;
 
-#if PLATFORM_HTML5
 	// For 64-bit ES2 without framebuffer fetch, create extra render target for copy of alpha channel.
-	if((Format == PF_FloatRGBA) && (GSupportsShaderFramebufferFetch == false)) 
+	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(CurrentFeatureLevel);
+	if((ShaderPlatform == SP_OPENGL_ES2_WEBGL) && (Format == PF_FloatRGBA) && (GSupportsShaderFramebufferFetch == false))
 	{
 		// creating a PF_R16F (a true one-channel renderable fp texture) is only supported on GL if EXT_texture_rg is available.  It's present
 		// on iOS, but not in WebGL or Android.
@@ -2100,7 +2100,6 @@ void FSceneRenderTargets::AllocateMobileRenderTargets(FRHICommandList& RHICmdLis
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SceneAlphaCopy, TEXT("SceneAlphaCopy"));
 	}
 	else
-#endif
 	{
 		SceneAlphaCopy = GSystemTextures.MaxFP16Depth;
 	}

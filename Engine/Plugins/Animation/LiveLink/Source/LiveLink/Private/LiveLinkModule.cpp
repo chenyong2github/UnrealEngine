@@ -8,7 +8,8 @@
 #include "LiveLinkMessageBusDiscoveryManager.h"
 
 #include "LiveLinkClient.h"
-
+#include "LiveLinkLogInstance.h"
+#include "LiveLinkDebugCommand.h"
 #include "LiveLinkHeartbeatEmitter.h"
 
 /**
@@ -30,12 +31,14 @@ public:
 		, LiveLinkMotionController(LiveLinkClient)
 		, HeartbeatEmitter(MakeUnique<FLiveLinkHeartbeatEmitter>())
 		, DiscoveryManager(MakeUnique<FLiveLinkMessageBusDiscoveryManager>())
+		, LiveLinkDebugCommand(MakeUnique<FLiveLinkDebugCommand>(LiveLinkClient))
 	{}
 
 	// IModuleInterface interface
 
 	virtual void StartupModule() override
 	{
+		FLiveLinkLogInstance::CreateInstance();
 		IModularFeatures::Get().RegisterModularFeature(FLiveLinkClient::ModularFeatureName, &LiveLinkClient);
 		LiveLinkMotionController.RegisterController();
 	}
@@ -46,6 +49,7 @@ public:
 		DiscoveryManager->Stop();
 		LiveLinkMotionController.UnregisterController();
 		IModularFeatures::Get().UnregisterModularFeature(FLiveLinkClient::ModularFeatureName, &LiveLinkClient);
+		FLiveLinkLogInstance::DestroyInstance();
 	}
 
 	virtual bool SupportsDynamicReloading() override
@@ -66,6 +70,9 @@ public:
 private:
 	TUniquePtr<FLiveLinkHeartbeatEmitter> HeartbeatEmitter;
 	TUniquePtr<FLiveLinkMessageBusDiscoveryManager> DiscoveryManager;
+
+	/** Handler for LiveLink debug command. */
+	TUniquePtr<FLiveLinkDebugCommand> LiveLinkDebugCommand;
 };
 
 IMPLEMENT_MODULE(FLiveLinkModule, LiveLink);

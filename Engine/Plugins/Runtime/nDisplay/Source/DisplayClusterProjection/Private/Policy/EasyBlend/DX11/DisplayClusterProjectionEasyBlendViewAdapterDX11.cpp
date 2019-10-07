@@ -3,6 +3,7 @@
 #include "Policy/EasyBlend/DX11/DisplayClusterProjectionEasyBlendViewAdapterDX11.h"
 #include "Policy/EasyBlend/DX11/DisplayClusterProjectionEasyBlendLibraryDX11.h"
 
+#include "DisplayClusterProjectionHelpers.h"
 #include "DisplayClusterProjectionLog.h"
 
 #include "RHI.h"
@@ -135,30 +136,15 @@ bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::GetProjectionMatrix(cons
 		FPlane(0, 0, 1, 1));
 
 	// Build Projection matrix:
-	float n = ZNear;
-	float f = ZFar;
+	const float n = ZNear;
+	const float f = ZFar;
 
 	float l = float(ZNear * tan(FMath::DegreesToRadians(Views[ViewIdx].EasyBlendMeshData->Frustum.LeftAngle)));
 	float r = float(ZNear * tan(FMath::DegreesToRadians(Views[ViewIdx].EasyBlendMeshData->Frustum.RightAngle)));
 	float b = float(ZNear * tan(FMath::DegreesToRadians(Views[ViewIdx].EasyBlendMeshData->Frustum.BottomAngle)));
 	float t = float(ZNear * tan(FMath::DegreesToRadians(Views[ViewIdx].EasyBlendMeshData->Frustum.TopAngle)));
 
-	const float mx = 2.f * n / (r - l);
-	const float my = 2.f * n / (t - b);
-
-	const float ma = -(r + l) / (r - l);
-	const float mb = -(t + b) / (t - b);
-	const float mc =  (f + n) / (f - n);
-
-	const float md = -2.f*(f * n) / (f - n);
-	const float me = 1.f;
-
-	// Normal LHS
-	const FMatrix pm = FMatrix(
-		FPlane(mx, 0, 0, 0),
-		FPlane(0, my, 0, 0),
-		FPlane(ma, mb, mc, me),
-		FPlane(0, 0, md, 0));
+	const FMatrix pm = DisplayClusterHelpers::math::GetSafeProjectionMatrix(l, r, t, b, n, f);
 
 	const FMatrix result(pm * flipZ);
 

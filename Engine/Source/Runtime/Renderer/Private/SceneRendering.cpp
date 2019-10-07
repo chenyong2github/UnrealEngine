@@ -2539,8 +2539,8 @@ void FSceneRenderer::ComputeFamilySize()
 
 		if (!IStereoRendering::IsAnAdditionalView(View, GEngine->StereoRenderingDevice))
 		{
-		InstancedStereoWidth = FPlatformMath::Max(InstancedStereoWidth, static_cast<uint32>(View.ViewRect.Max.X));
-	}
+			InstancedStereoWidth = FPlatformMath::Max(InstancedStereoWidth, static_cast<uint32>(View.ViewRect.Max.X));
+		}
 	}
 
 	// We render to the actual position of the viewports so with black borders we need the max.
@@ -4140,5 +4140,22 @@ FRHITexture* FSceneRenderer::GetMultiViewSceneColor(const FSceneRenderTargets& S
 	else
 	{
 		return static_cast<FTextureRHIRef>(ViewFamily.RenderTarget->GetRenderTargetTexture());
+	}
+}
+
+void RunGPUSkinCacheTransition(FRHICommandList& RHICmdList, FScene* Scene, EGPUSkinCacheTransition Type)
+{
+	// * When hair strands is disabled, the skin cache sync point run later 
+	//   during the deferred render pass
+	// * When hair strands is enabled, the skin cache sync point is run earlier, during 
+	//   the init views pass, as the output of the skin cached is used by Niagara
+	const bool bHairStrandsEnabled = IsHairStrandsEnable(Scene->GetShaderPlatform());
+	const bool bRun = bHairStrandsEnabled && EGPUSkinCacheTransition::FrameSetup == Type;
+	if (bRun)
+	{
+		if (FGPUSkinCache* GPUSkinCache = Scene->GetGPUSkinCache())
+		{
+			GPUSkinCache->TransitionAllToReadable(RHICmdList);
+		}
 	}
 }

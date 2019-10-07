@@ -108,11 +108,17 @@ class FHairInterpolationCS : public FGlobalShader
 
 	class FGroupSize : SHADER_PERMUTATION_INT("PERMUTATION_GROUP_SIZE", 2);
 	class FDebug : SHADER_PERMUTATION_INT("PERMUTATION_DEBUG", 2);
-	using FPermutationDomain = TShaderPermutationDomain<FGroupSize, FDebug>;
+	class FDynamicGeometry : SHADER_PERMUTATION_INT("PERMUTATION_DYNAMIC_GEOMETRY", 2);
+	using FPermutationDomain = TShaderPermutationDomain<FGroupSize, FDebug, FDynamicGeometry>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, VertexCount)
 		SHADER_PARAMETER(uint32, DispatchCountX)
+
+		SHADER_PARAMETER(FVector, RestPositionWorldCenter)
+		SHADER_PARAMETER(FVector, DeformedPositionWorldCenter)
+		SHADER_PARAMETER(FVector, OutRenderDeformedPositionCenter)
+
 		SHADER_PARAMETER_SRV(Buffer, RenderRestPosePositionBuffer)
 		SHADER_PARAMETER_UAV(RWBuffer, OutRenderDeformedPositionBuffer)
 
@@ -124,6 +130,16 @@ class FHairInterpolationCS : public FGlobalShader
 
 		SHADER_PARAMETER_SRV(Buffer, SimAttributeBuffer)
 		SHADER_PARAMETER_UAV(RWBuffer, OutRenderAttributeBuffer)
+		SHADER_PARAMETER_SRV(Buffer<float4>, RestPosition0Buffer)
+		SHADER_PARAMETER_SRV(Buffer<float4>, RestPosition1Buffer)
+		SHADER_PARAMETER_SRV(Buffer<float4>, RestPosition2Buffer)
+
+		SHADER_PARAMETER_SRV(Buffer<float4>, DeformedPosition0Buffer)
+		SHADER_PARAMETER_SRV(Buffer<float4>, DeformedPosition1Buffer)
+		SHADER_PARAMETER_SRV(Buffer<float4>, DeformedPosition2Buffer)
+
+		SHADER_PARAMETER_SRV(Buffer<uint>,	RootToTriangleIndex)
+		SHADER_PARAMETER_SRV(Buffer<uint>, VertexToRootIndexBuffer)
 
 		END_SHADER_PARAMETER_STRUCT()
 
@@ -135,6 +151,8 @@ IMPLEMENT_GLOBAL_SHADER(FHairInterpolationCS, "/Engine/Private/HairStrands/HairS
 
 static void AddHairStrandsInterpolationPass(
 	FRDGBuilder& GraphBuilder,
+	const FHairStrandsProjectionHairData& InHairData,
+	const int32 LODIndex,
 	const uint32 VertexCount,
 	const FShaderResourceViewRHIRef& RenderRestPosePositionBuffer,
 	const FShaderResourceViewRHIRef& Interpolation0Buffer,
@@ -163,11 +181,32 @@ static void AddHairStrandsInterpolationPass(
 	}
 	Parameters->VertexCount = VertexCount;
 	Parameters->DispatchCountX = DispatchCount.X;
+	Parameters->OutRenderDeformedPositionCenter = FVector::ZeroVector;
+
+	const bool bSupportDynamicMesh = InHairData.RootCount > 0 && LODIndex >= 0 && LODIndex < InHairData.LODDatas.Num() && InHairData.LODDatas[LODIndex].bIsValid;
+	if (bSupportDynamicMesh)
+	{
+		Parameters->OutRenderDeformedPositionCenter = FVector::ZeroVector; // TODO
+
+		Parameters->RestPositionWorldCenter = FVector::ZeroVector; // TODO: InHairData.LODDatas[LODIndex].RestRootCenter;
+		Parameters->RestPosition0Buffer = InHairData.LODDatas[LODIndex].RestRootTrianglePosition0Buffer->SRV;
+		Parameters->RestPosition1Buffer = InHairData.LODDatas[LODIndex].RestRootTrianglePosition1Buffer->SRV;
+		Parameters->RestPosition2Buffer = InHairData.LODDatas[LODIndex].RestRootTrianglePosition2Buffer->SRV;
+
+		Parameters->DeformedPositionWorldCenter = FVector::ZeroVector; // TODO: InHairData.LODDatas[LODIndex].DeformedRootCenter;
+		Parameters->DeformedPosition0Buffer = InHairData.LODDatas[LODIndex].DeformedRootTrianglePosition0Buffer->SRV;
+		Parameters->DeformedPosition1Buffer = InHairData.LODDatas[LODIndex].DeformedRootTrianglePosition1Buffer->SRV;
+		Parameters->DeformedPosition2Buffer = InHairData.LODDatas[LODIndex].DeformedRootTrianglePosition2Buffer->SRV;
+
+		Parameters->RootToTriangleIndex = InHairData.LODDatas[LODIndex].RootTriangleIndexBuffer->SRV;
+		Parameters->VertexToRootIndexBuffer = InHairData.VertexToCurveIndexBuffer->SRV;
+	}
 
 	FHairInterpolationCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FHairInterpolationCS::FGroupSize>(GetGroupSizePermutation(GroupSize));
 	PermutationVector.Set<FHairInterpolationCS::FDebug>(bCopySimAttributesToRenderAttributes ? 1 : 0);
-
+	PermutationVector.Set<FHairInterpolationCS::FDynamicGeometry>(bSupportDynamicMesh ? 1 : 0);
+	
 	TShaderMap<FGlobalShaderType>* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
 
 	TShaderMapRef<FHairInterpolationCS> ComputeShader(ShaderMap, PermutationVector);
@@ -328,7 +367,9 @@ static void BuildHairAccelerationStructure(FRHICommandList& RHICmdList, uint32 R
 void ComputeHairStrandsInterpolation(
 	FRHICommandListImmediate& RHICmdList,
 	FHairStrandsInterpolationInput* InInput,
-	FHairStrandsInterpolationOutput* InOutput)
+	FHairStrandsInterpolationOutput* InOutput,
+	FHairStrandsProjectionHairData& InHairData,
+	int32 LODIndex)
 {
 	if (!InInput || !InOutput) return;
 	FHairStrandsInterpolationInput& Input = *InInput;
@@ -370,7 +411,7 @@ void ComputeHairStrandsInterpolation(
 	// * None	: Display hair normally
 	// * Sim	: Show sim strands
 	// * Render : Show rendering strands with sim color influence
-	const EHairStrandsDebugMode DebugMode = GetHairStrandsDebugMode();
+	const EHairStrandsDebugMode DebugMode = GetHairStrandsDebugStrandsMode();
 	if (DebugMode == EHairStrandsDebugMode::SimHairStrands)
 	{
 		AddHairTangentPass(
@@ -398,6 +439,8 @@ void ComputeHairStrandsInterpolation(
 
 		AddHairStrandsInterpolationPass(
 			GraphBuilder,
+			InHairData,
+			LODIndex,
 			Input.RenderVertexCount,
 			Input.RenderRestPosePositionBuffer->SRV,
 			Input.Interpolation0Buffer->SRV,

@@ -1700,6 +1700,20 @@ bool FConcertSyncSessionDatabase::AddTransactionEvent(const FConcertSyncTransact
 	return SetTransactionEvent(OutTransactionEventId, InTransactionEvent);
 }
 
+bool FConcertSyncSessionDatabase::UpdateTransactionEvent(const int64 InTransactionEventId, const FConcertSyncTransactionEvent& InTransactionEvent)
+{
+	int64 MaxTransactionEventId;
+	if (GetTransactionMaxEventId(MaxTransactionEventId) && InTransactionEventId <= MaxTransactionEventId) // Ensure the transaction ID is in bound.
+	{
+		FConcertSyncSessionDatabaseScopedTransaction ScopedTransaction(*Statements);
+		return ScopedTransaction.CommitOrRollback(
+			SetTransactionEvent(InTransactionEventId, InTransactionEvent)
+		);
+	}
+
+	return false;
+}
+
 bool FConcertSyncSessionDatabase::SetTransactionEvent(const int64 InTransactionEventId, const FConcertSyncTransactionEvent& InTransactionEvent, const bool bMetaDataOnly)
 {
 	// Write the data blob file
@@ -1921,6 +1935,20 @@ bool FConcertSyncSessionDatabase::AddPackageEvent(const FConcertSyncPackageEvent
 	++PackageRevision;
 
 	return SetPackageEvent(OutPackageEventId, PackageRevision, InPackageEvent.Package);
+}
+
+bool FConcertSyncSessionDatabase::UpdatePackageEvent(const int64 InPackageEventId, const FConcertSyncPackageEvent& InPackageEvent)
+{
+	int64 MaxPackageEventId;
+	if (GetPackageMaxEventId(MaxPackageEventId) && InPackageEventId <= MaxPackageEventId) // Ensure the package ID is in bound.
+	{
+		FConcertSyncSessionDatabaseScopedTransaction ScopedTransaction(*Statements);
+		return ScopedTransaction.CommitOrRollback(
+			SetPackageEvent(InPackageEventId, InPackageEvent)
+		);
+	}
+
+	return false;
 }
 
 bool FConcertSyncSessionDatabase::SetPackageEvent(const int64 InPackageEventId, const FConcertSyncPackageEvent& InPackageEvent, const bool bMetaDataOnly)

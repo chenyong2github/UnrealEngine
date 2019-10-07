@@ -2,11 +2,11 @@
 
 #include "DataPrepEditor.h"
 
-#include "Widgets/DataPrepAssetView.h"
+#include "Widgets/DataprepAssetView.h"
 #include "DataPrepContentConsumer.h"
 #include "DataPrepContentProducer.h"
-#include "DataprepEditorActions.h"
-#include "DataprepEditorModule.h"
+#include "DataPrepEditorActions.h"
+#include "DataPrepEditorModule.h"
 #include "DataprepEditorStyle.h"
 #include "DataPrepRecipe.h"
 #include "Widgets/SAssetsPreviewWidget.h"
@@ -85,7 +85,7 @@ void FDataprepEditor::SetDetailsObjects(const TSet<UObject*>& Objects, bool bCan
 		DetailsView->ShowDetailsObjects(Objects.Array());
 		DetailsView->SetCanEditProperties(bCanEditProperties);
 
-		if ( DetailsTabPtr.Pin()->GetContent() != DetailsView )
+		if ( DetailsTabPtr.IsValid() && DetailsTabPtr.Pin()->GetContent() != DetailsView )
 		{
 			DetailsTabPtr.Pin()->SetContent( DetailsView.ToSharedRef() );
 		}

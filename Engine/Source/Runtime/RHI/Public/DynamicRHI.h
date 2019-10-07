@@ -1010,6 +1010,12 @@ public:
 	// Return what colour space the viewport is in. Used for HDR displays
 	virtual EColorSpaceAndEOTF RHIGetColorSpace(FRHIViewport* Viewport);
 
+	// Return preferred pixel format if given format is unsupported.
+	virtual EPixelFormat RHIPreferredPixelFormatHint(EPixelFormat PreferredPixelFormat)
+	{
+		return PreferredPixelFormat;
+	}
+
 	// Tests the viewport to see if its HDR status has changed. This is usually tested after a window has been moved
 	virtual void RHICheckViewportHDRStatus(FRHIViewport* Viewport);
 

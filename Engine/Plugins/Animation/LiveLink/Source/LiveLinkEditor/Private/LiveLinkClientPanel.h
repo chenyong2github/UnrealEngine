@@ -81,6 +81,12 @@ private:
 	// Handle disabling of editor performance throttling
 	FReply DisableEditorPerformanceThrottling();
 
+	// Return the message count text
+	FText GetMessageCountText() const;
+
+	// Return the occurrence count and last time occurred text
+	FText GetSelectedMessageOccurrenceText() const;
+
 private:
 	int32 GetDetailWidgetIndex() const;
 

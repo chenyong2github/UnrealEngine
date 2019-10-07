@@ -2,35 +2,70 @@
 
 #include "DataprepWidgets.h"
 
+#include "DataPrepAsset.h"
 #include "DataPrepContentConsumer.h"
+#include "DataprepAssetView.h"
 #include "DataprepEditorUtils.h"
+#include "Parameterization/DataprepParameterizationUtils.h"
 
 #include "ContentBrowserModule.h"
 #include "DetailLayoutBuilder.h"
 #include "Dialogs/DlgPickPath.h"
+#include "Editor.h"
+#include "EditorFontGlyphs.h"
 #include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "PropertyEditorModule.h"
 #include "HAL/PlatformProcess.h"
 #include "IContentBrowserSingleton.h"
 #include "IDetailTreeNode.h"
 #include "IPropertyRowGenerator.h"
+#include "EditorFontGlyphs.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyCustomizationHelpers.h"
 #include "PropertyEditorModule.h"
+#include "PropertyEditorModule.h"
 #include "Styling/CoreStyle.h"
+#include "UObject/StrongObjectPtr.h"
+#include "UObject/UnrealType.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
+#include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/SEditableTextBox.h"
-#include "Widgets/Layout/SBox.h"
 
 #define LOCTEXT_NAMESPACE "DataprepSlateHelper"
+
+/** Helper class to force a widget to fill in a space. Copied from SDetailSingleItemRow.cpp */
+class SConstrainedBox : public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SConstrainedBox)
+	{
+	}
+	SLATE_DEFAULT_SLOT(FArguments, Content)
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs)
+	{
+		ChildSlot
+		[
+			InArgs._Content.Widget
+		];
+	}
+
+	virtual FVector2D ComputeDesiredSize(float LayoutScaleMultiplier) const override
+	{
+		// Voluntarily ridiculously large value to force the child widget to fill up the available space
+		const float MinWidthVal = 2000;
+		const FVector2D ChildSize = ChildSlot.GetWidget()->GetDesiredSize();
+		return FVector2D(FMath::Max(MinWidthVal, ChildSize.X), ChildSize.Y);
+	}
+};
 
 void SDataprepConsumerWidget::OnLevelNameChanged( const FText &NewLevelName, ETextCommit::Type CommitType )
 {
@@ -79,9 +114,22 @@ void SDataprepConsumerWidget::SetDataprepConsumer(UDataprepContentConsumer* InDa
 	LevelTextBox->SetText( FText::FromString( DataprepConsumer->GetLevelName() ) );
 }
 
-void SDataprepConsumerWidget::Construct(const FArguments& InArgs)
+void SDataprepConsumerWidget::Construct(const FArguments& InArgs )
 {
 	DataprepConsumer = InArgs._DataprepConsumer;
+
+	if (InArgs._ColumnSizeData.IsValid())
+	{
+		ColumnSizeData = InArgs._ColumnSizeData;
+	}
+	else
+	{
+		ColumnWidth = 0.7f;
+		ColumnSizeData = MakeShared<FDataprepDetailsViewColumnSizeData>();
+		ColumnSizeData->LeftColumnWidth = TAttribute<float>(this, &SDataprepConsumerWidget::OnGetLeftColumnWidth);
+		ColumnSizeData->RightColumnWidth = TAttribute<float>(this, &SDataprepConsumerWidget::OnGetRightColumnWidth);
+		ColumnSizeData->OnWidthChanged = SSplitter::FOnSlotResized::CreateSP(this, &SDataprepConsumerWidget::OnSetColumnWidth);
+	}
 
 	ChildSlot
 	[
@@ -101,73 +149,146 @@ TSharedRef<SWidget> SDataprepConsumerWidget::BuildWidget()
 	TSharedRef<SWidget> Widget = SNew(SBorder)
 	.BorderImage( FCoreStyle::Get().GetBrush("NoBrush") )
 	[
-		SNew(SVerticalBox)
-		+ SVerticalBox::Slot()
-		.Padding( FMargin( 20, 0, 0, 0 ) )
+		SNew(SGridPanel)
+		.FillColumn(0, 1.0f)
+		+ SGridPanel::Slot(0, 0)
+		.Padding(10.0f, 5.0f, 0.0f, 5.0f)
 		[
-			SNew(SGridPanel)
-			.FillColumn(0, 0.25f)
-			.FillColumn(1, 0.75f)
-			+ SGridPanel::Slot(0, 0)
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.f)
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
 			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Center)
-				.FillWidth(1.0f)
+				SNew(SSplitter)
+				.Style(FEditorStyle::Get(), "DetailsView.Splitter")
+				.PhysicalSplitterHandleSize(1.0f)
+				.HitDetectionSplitterHandleSize(5.0f)
+				.ResizeMode(ESplitterResizeMode::Fill)
+				+ SSplitter::Slot()
+				.Value(ColumnSizeData->LeftColumnWidth)
+				.OnSlotResized(SSplitter::FOnSlotResized::CreateSP(this, &SDataprepConsumerWidget::OnLeftColumnResized))
+				[
+					SNew(SHorizontalBox)
+					.Clipping(EWidgetClipping::OnDemand)
+					+ SHorizontalBox::Slot()
+					.HAlign(HAlign_Left)
+					.VAlign(VAlign_Center)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("DataprepSlateHelper_ContentFolderLabel", "Folder"))
+						.Font(IDetailLayoutBuilder::GetDetailFont())
+					]
+				]
+				+ SSplitter::Slot()
+				.Value(ColumnSizeData->RightColumnWidth)
+				.OnSlotResized(ColumnSizeData->OnWidthChanged)
+				[
+					SNew(SHorizontalBox)
+					.Clipping(EWidgetClipping::OnDemand)
+					+ SHorizontalBox::Slot()
+					.FillWidth(1.0f)
+					.Padding(5.0f, 2.5f, 2.0f, 2.5f)
+					[
+						// Trick to force the splitter widget to fill up the space of its parent
+						// Strongly inspired from SDetailSingleItemRow
+						SNew(SConstrainedBox)
+						[
+							SAssignNew(ContentFolderTextBox, SEditableTextBox)
+							.Font(IDetailLayoutBuilder::GetDetailFont())
+							.HintText(LOCTEXT("DataprepSlateHelper_ContentFolderHintText", "Set the content folder to save in"))
+							.IsReadOnly(false)
+						]
+					]
+				]
+			]
+		]
+		+ SGridPanel::Slot(1, 0)
+		.Padding(5.0f, 5.0f, 0.0f, 5.0f)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Right)
+			.AutoWidth()
+			[
+				BrowseButton
+			]
+		]
+		// This column is required to align consumer section with producers' section which has 3 columns.
+		+ SGridPanel::Slot(2, 0)
+		.Padding(5.0f, 5.0f, 0.0f, 5.0f)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Right)
+			.AutoWidth()
+			[
+				SNew(SButton)
+				.IsFocusable(false)
+				.Visibility(EVisibility::Hidden)
+				.IsEnabled(false)
+				.VAlign(VAlign_Top)
+				.Content()
 				[
 					SNew(STextBlock)
-					.Text(LOCTEXT("DataprepSlateHelper_ContentFolderLabel", "Folder"))
-					.Font( IDetailLayoutBuilder::GetDetailFont() )
+					.Font(FDataprepEditorUtils::GetGlyphFont())
+					.ColorAndOpacity(FLinearColor::Transparent)
+					.Text(FEditorFontGlyphs::Exclamation_Triangle)
 				]
 			]
-			+ SGridPanel::Slot(1, 0)
-			.Padding(0.0f, 5.0f)
+		]
+		+ SGridPanel::Slot(0, 1)
+		.Padding(10.0f, 5.0f, 0.0f, 5.0f)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.f)
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
 			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				.FillWidth(1.0f)
+				SNew(SSplitter)
+				.Style(FEditorStyle::Get(), "DetailsView.Splitter")
+				.PhysicalSplitterHandleSize(1.0f)
+				.HitDetectionSplitterHandleSize(5.0f)
+				.ResizeMode(ESplitterResizeMode::Fill)
+				+ SSplitter::Slot()
+				.Value(ColumnSizeData->LeftColumnWidth)
+				.OnSlotResized(SSplitter::FOnSlotResized::CreateSP(this, &SDataprepConsumerWidget::OnLeftColumnResized))
 				[
-					SAssignNew(ContentFolderTextBox, SEditableTextBox)
-					.Font( IDetailLayoutBuilder::GetDetailFont() )
-					.HintText( LOCTEXT("DataprepSlateHelper_ContentFolderHintText", "Set the content folder to save in") )
-					.IsReadOnly( true )
+					SNew(SHorizontalBox)
+					.Clipping(EWidgetClipping::OnDemand)
+					+ SHorizontalBox::Slot()
+					.HAlign(HAlign_Left)
+					.VAlign(VAlign_Center)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("DataprepSlateHelper_LevelNameLabel", "Sub-Level"))
+						.Font(IDetailLayoutBuilder::GetDetailFont())
+					]
 				]
-				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Center)
+				+ SSplitter::Slot()
+				.Value(ColumnSizeData->RightColumnWidth)
+				.OnSlotResized(ColumnSizeData->OnWidthChanged)
 				[
-					BrowseButton
-				]
-			]
-			+ SGridPanel::Slot(0, 1)
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Center)
-				.FillWidth(1.0f)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("DataprepSlateHelper_LevelNameLabel", "Sub-Level"))
-					.Font( IDetailLayoutBuilder::GetDetailFont() )
-				]
-			]
-			+ SGridPanel::Slot(1, 1)
-			.Padding(0.0f, 5.0f)
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Center)
-				.FillWidth(1.0f)
-				[
-					SAssignNew(LevelTextBox, SEditableTextBox)
-					.Text( FText::FromString( DataprepConsumer->GetLevelName() ) )
-					.Font( IDetailLayoutBuilder::GetDetailFont() )
-					.HintText( LOCTEXT("DataprepSlateHelper_LevelNameHintText", "Current will be used") )
-					.OnTextCommitted(  this, &SDataprepConsumerWidget::OnLevelNameChanged  )
+					SNew(SHorizontalBox)
+					.Clipping(EWidgetClipping::OnDemand)
+					+ SHorizontalBox::Slot()
+					.FillWidth(1.0f)
+					.Padding(5.0f, 2.5f, 2.0f, 2.5f)
+					[
+						// Trick to force the splitter widget to fill up the space of its parent
+						// Strongly inspired from SDetailSingleItemRow
+						SNew(SConstrainedBox)
+						[
+							SAssignNew(LevelTextBox, SEditableTextBox)
+							.Text(FText::FromString(DataprepConsumer->GetLevelName()))
+							.Font(IDetailLayoutBuilder::GetDetailFont())
+							.HintText(LOCTEXT("DataprepSlateHelper_LevelNameHintText", "Current will be used"))
+							.OnTextCommitted(this, &SDataprepConsumerWidget::OnLevelNameChanged)
+						]
+					]
 				]
 			]
 		]
@@ -222,33 +343,49 @@ void SDataprepConsumerWidget::UpdateContentFolderText()
 	}
 }
 
-TSharedRef< SWidget > SDataprepDetailsView::CreateDefaultWidget( TSharedPtr< SWidget >& NameWidget, TSharedPtr< SWidget >& ValueWidget, float LeftPadding, EHorizontalAlignment HAlign, EVerticalAlignment VAlign )
+
+TSharedRef< SWidget > SDataprepDetailsView::CreateDefaultWidget( TSharedPtr< SWidget >& NameWidget, TSharedPtr< SWidget >& ValueWidget, float LeftPadding, EHorizontalAlignment HAlign, EVerticalAlignment VAlign, const TArray<FDataprepPropertyLink>& InPropertyChain)
 {
-	/** Helper class to force a widget to fill in a space. Copied from SDetailSingleItemRow.cpp */
-	class SConstrainedBox : public SCompoundWidget
+	TSharedRef<SHorizontalBox> NameColumn = SNew(SHorizontalBox)
+		.Clipping(EWidgetClipping::OnDemand);
+
+	// Optionally add the parameterization widget
+	if ( DataprepAssetForParameterization.IsValid() && InPropertyChain.Num() > 0 )
 	{
-	public:
-		SLATE_BEGIN_ARGS(SConstrainedBox)
-		{}
-		SLATE_DEFAULT_SLOT(FArguments, Content)
-			SLATE_END_ARGS()
 
-			void Construct(const FArguments& InArgs)
-		{
-			ChildSlot
+
+		NameColumn->AddSlot()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
 			[
-				InArgs._Content.Widget
-			];
-		}
 
-		virtual FVector2D ComputeDesiredSize(float LayoutScaleMultiplier) const override
-		{
-			// Voluntarily ridiculously large value to force the child widget to fill up the available space
-			const float MinWidthVal = 2000;
-			const FVector2D ChildSize = ChildSlot.GetWidget()->GetDesiredSize();
-			return FVector2D( FMath::Max( MinWidthVal, ChildSize.X ), ChildSize.Y );
-		}
-	};
+				SNew(STextBlock)
+				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+				.Text(FEditorFontGlyphs::Plus_Circle)
+				.Margin(FMargin(5.0f, 5.0f, 0.0f, 0.0f))
+				.ColorAndOpacity(FColor::Blue)
+				.OnDoubleClicked_Lambda([this, PropertyChain = InPropertyChain](const FGeometry&,const FPointerEvent&) -> FReply
+					{
+						if ( UDataprepAsset* DataprepAsset = DataprepAssetForParameterization.Get() )
+						{
+							DataprepAssetForParameterization->BindObjectPropertyToParameterization( DetailedObject, PropertyChain, *PropertyChain.Last().CachedProperty->GetDisplayNameText().ToString() );
+						}
+
+						return FReply::Handled();
+					})
+			];
+	}
+
+	// Add the name widget
+	NameColumn->AddSlot()
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Left)
+		.Padding(FMargin(LeftPadding, 0.f, 0.f, 0.f))
+		[
+			NameWidget.ToSharedRef()
+		];
+
 
 	return SNew(SHorizontalBox)
 	+ SHorizontalBox::Slot()
@@ -262,22 +399,14 @@ TSharedRef< SWidget > SDataprepDetailsView::CreateDefaultWidget( TSharedPtr< SWi
 		.HitDetectionSplitterHandleSize(5.0f)
 		.ResizeMode( ESplitterResizeMode::Fill )
 		+ SSplitter::Slot()
-		.Value(ColumnSizeData.LeftColumnWidth)
+		.Value(ColumnSizeData->LeftColumnWidth)
 		.OnSlotResized( SSplitter::FOnSlotResized::CreateSP( this, &SDataprepDetailsView::OnLeftColumnResized ) )
 		[
-			SNew(SHorizontalBox)
-			.Clipping(EWidgetClipping::OnDemand)
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Left)
-			.Padding( FMargin( LeftPadding, 0.f, 0.f, 0.f ) )
-			[
-				NameWidget.ToSharedRef()
-			]
+			NameColumn
 		]
 		+ SSplitter::Slot()
-		.Value(ColumnSizeData.RightColumnWidth)
-		.OnSlotResized(ColumnSizeData.OnWidthChanged)
+		.Value(ColumnSizeData->RightColumnWidth)
+		.OnSlotResized(ColumnSizeData->OnWidthChanged)
 		[
 			SNew(SHorizontalBox)
 			.Clipping(EWidgetClipping::OnDemand)
@@ -303,17 +432,16 @@ void SDataprepDetailsView::OnPropertyChanged(const FPropertyChangedEvent& InEven
 
 	if( TrackedProperties.Contains( InEvent.Property ) )
 	{
-		TArray< UObject* > Objects;
-		Generator->SetObjects( Objects );
+		bNewObjectToDisplay = true;
+	}
+}
 
-		TrackedProperties.Empty();
-
-		ChildSlot.DetachWidget();
-
-		Objects.Add( DetailedObject );
-		Generator->SetObjects( Objects );
-
-		Construct();
+void SDataprepDetailsView::OnObjectReplaced(const TMap<UObject*, UObject*>& ReplacementObjectMap)
+{
+	if ( UObject * const* ObjectPtr = ReplacementObjectMap.Find( DetailedObject ) )
+	{
+		DetailedObject = *ObjectPtr;
+		bNewObjectToDisplay = true;
 	}
 }
 
@@ -323,17 +451,40 @@ void SDataprepDetailsView::AddWidgets( const TArray< TSharedRef< IDetailTreeNode
 	{
 		if(PropertyHandle.IsValid() && PropertyHandle->IsValidHandle() && PropertyHandle->IsEditable())
 		{
-			return PropertyHandle->GetProperty() != nullptr && !PropertyHandle->GetProperty()->HasAnyPropertyFlags( CPF_DisableEditOnInstance );
+			UProperty* Property = PropertyHandle->GetProperty();
+
+			if ( Property )
+			{
+				if ( UObject * Outer = Property->GetOuter() )
+				{
+					// if the outer is a container property (array,set or map) it's editable even without the proper flags.
+					UClass* OuterClass = Outer->GetClass();
+					if ( OuterClass == UArrayProperty::StaticClass() || OuterClass == USetProperty::StaticClass() || OuterClass == UMapProperty::StaticClass() )
+					{
+						return true;
+					}
+				}
+
+				return Property && !Property->HasAnyPropertyFlags(CPF_DisableEditOnInstance) && Property->HasAnyPropertyFlags(CPF_Edit);
+			}
 		}
 
+		// Ok to display DetailNode without property because at this stage the parent property was displayable
 		return true;
 	};
 
-	auto IsDetailNodeAPropertyArray = []( const TSharedPtr< IPropertyHandle >& PropertyHandle)
+	auto IsDetailNodeDisplayableContainerProperty = []( const TSharedPtr< IPropertyHandle >& PropertyHandle)
 	{
 		if( PropertyHandle.IsValid() && PropertyHandle->IsValidHandle() && PropertyHandle->IsEditable() )
 		{
-			return Cast<UArrayProperty>( PropertyHandle->GetProperty() ) != nullptr;
+			if ( UProperty* Property = PropertyHandle->GetProperty() )
+			{ 
+				UClass* PropertyClass = Property->GetClass();
+				if ( PropertyClass == UArrayProperty::StaticClass() || PropertyClass == USetProperty::StaticClass() || PropertyClass == UMapProperty::StaticClass() )
+				{
+					return !Property->HasAnyPropertyFlags(CPF_DisableEditOnInstance) && Property->HasAnyPropertyFlags(CPF_Edit);
+				}
+			}
 		}
 
 		return false;
@@ -365,7 +516,7 @@ void SDataprepDetailsView::AddWidgets( const TArray< TSharedRef< IDetailTreeNode
 			ChildNode->GetChildren( Children );
 			AddWidgets( Children, GridPanel, Index, LeftPadding );
 		}
-		else if( IsDetailNodeAPropertyArray( PropertyHandle ) )
+		else if( IsDetailNodeDisplayableContainerProperty( PropertyHandle ) )
 		{
 			TSharedPtr< IDetailPropertyRow > DetailPropertyRow = ChildNode->GetRow();
 			if( DetailPropertyRow.IsValid() )
@@ -374,10 +525,11 @@ void SDataprepDetailsView::AddWidgets( const TArray< TSharedRef< IDetailTreeNode
 				TSharedPtr< SWidget > NameWidget;
 				TSharedPtr< SWidget > ValueWidget;
 				DetailPropertyRow->GetDefaultWidgets( NameWidget, ValueWidget, Row, true );
-				GridPanel->AddSlot( 0, Index )
+				GridPanel->AddSlot(0, Index)
 				[
-					CreateDefaultWidget( NameWidget, ValueWidget, LeftPadding, Row.ValueWidget.HorizontalAlignment, Row.ValueWidget.VerticalAlignment )
+					CreateDefaultWidget( NameWidget, ValueWidget, LeftPadding, Row.ValueWidget.HorizontalAlignment, Row.ValueWidget.VerticalAlignment, FDataprepParameterizationUtils::MakePropertyChain( PropertyHandle ) )
 				];
+
 				Index++;
 
 				TArray< TSharedRef< IDetailTreeNode > > Children;
@@ -420,7 +572,7 @@ void SDataprepDetailsView::AddWidgets( const TArray< TSharedRef< IDetailTreeNode
 			{
 				GridPanel->AddSlot(0, Index)
 				[
-					CreateDefaultWidget( NameWidget, ValueWidget, LeftPadding, HAlign, VAlign )
+					CreateDefaultWidget( NameWidget, ValueWidget, LeftPadding, HAlign, VAlign, FDataprepParameterizationUtils::MakePropertyChain( PropertyHandle ) )
 				];
 				Index++;
 
@@ -450,20 +602,22 @@ void SDataprepDetailsView::AddWidgets( const TArray< TSharedRef< IDetailTreeNode
 
 void SDataprepDetailsView::Construct(const FArguments& InArgs)
 {
-	ObjectAttribute =  InArgs._Object;
-	if( !ObjectAttribute.IsSet() )
+	bNewObjectToDisplay = false;
+	DetailedObject = InArgs._Object;
+
+	if (InArgs._ColumnSizeData.IsValid())
 	{
-		ChildSlot
-		[
-			SNullWidget::NullWidget
-		];
-
-		return;
+		ColumnSizeData = InArgs._ColumnSizeData;
 	}
-
-	DetailedObject = InArgs._Object.Get();
-	DetailedClass = InArgs._Class.Get();
-
+	else
+	{
+		ColumnWidth = 0.7f;
+		ColumnSizeData = MakeShared<FDataprepDetailsViewColumnSizeData>();
+		ColumnSizeData->LeftColumnWidth = TAttribute<float>(this, &SDataprepDetailsView::OnGetLeftColumnWidth);
+		ColumnSizeData->RightColumnWidth = TAttribute<float>(this, &SDataprepDetailsView::OnGetRightColumnWidth);
+		ColumnSizeData->OnWidthChanged = SSplitter::FOnSlotResized::CreateSP(this, &SDataprepDetailsView::OnSetColumnWidth);
+	}
+	
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
 	FPropertyRowGeneratorArgs Args;
@@ -476,20 +630,25 @@ void SDataprepDetailsView::Construct(const FArguments& InArgs)
 		Generator->SetObjects( Objects );
 	}
 
-	ColumnWidth = 0.7f;
-	ColumnSizeData.LeftColumnWidth = TAttribute<float>( this, &SDataprepDetailsView::OnGetLeftColumnWidth );
-	ColumnSizeData.RightColumnWidth = TAttribute<float>( this, &SDataprepDetailsView::OnGetRightColumnWidth );
-	ColumnSizeData.OnWidthChanged = SSplitter::FOnSlotResized::CreateSP( this, &SDataprepDetailsView::OnSetColumnWidth );
 	OnPropertyChangedHandle = Generator->OnFinishedChangingProperties().AddSP( this, &SDataprepDetailsView::OnPropertyChanged );
+
+	if ( GEditor )
+	{
+		OnObjectReplacedHandle = GEditor->OnObjectsReplaced().AddSP(this, &SDataprepDetailsView::OnObjectReplaced);
+	}
 
 	Construct();
 }
 
 void SDataprepDetailsView::Construct()
 {
+	DataprepAssetForParameterization.Reset();
+
 	if ( DetailedObject )
 	{
-		TSharedPtr<SGridPanel> GridPanel = SNew(SGridPanel).FillColumn(0.0f, 1.0f);
+		DataprepAssetForParameterization = FDataprepParameterizationUtils::GetDataprepAssetForParameterization( DetailedObject );
+
+		TSharedPtr<SGridPanel> GridPanel = SNew(SGridPanel).FillColumn( 0.0f, 1.0f );
 
 		TArray< TSharedRef< IDetailTreeNode > > RootNodes = Generator->GetRootTreeNodes();
 
@@ -508,7 +667,7 @@ void SDataprepDetailsView::Construct()
 	}
 	else
 	{
-		FText ErrorText = FText::Format( LOCTEXT( "DataprepSlateHelper_InvalidDetailedObject", "Error: Not a valid {0}" ), FText::FromString( DetailedClass ? DetailedClass->GetName() : UObject::StaticClass()->GetName() ) );
+		FText ErrorText = LOCTEXT( "DataprepSlateHelper_InvalidDetailedObject", "Error: Not a valid Object" );
 
 		ChildSlot
 		[
@@ -536,23 +695,35 @@ void SDataprepDetailsView::Construct()
 SDataprepDetailsView::~SDataprepDetailsView()
 {
 	Generator->OnFinishedChangingProperties().Remove( OnPropertyChangedHandle );
+
+	if ( GEditor )
+	{
+		GEditor->OnObjectsReplaced().Remove( OnObjectReplacedHandle );
+	}
 }
 
 void SDataprepDetailsView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	Super::Tick( AllottedGeometry, InCurrentTime, InDeltaTime );
 
-	UObject* Object = ObjectAttribute.Get();
-	if ( DetailedObject != Object )
+	if ( bNewObjectToDisplay )
 	{
-		DetailedObject = Object;
-		if ( DetailedObject )
-		{
-			TArray< UObject* > Objects;
-			Objects.Add(DetailedObject);
-			Generator->SetObjects(Objects);
-		}
+		TArray< UObject* > Objects;
+		Objects.Add( DetailedObject );
+		Generator->SetObjects( Objects );
+		 
 		Construct();
+		bNewObjectToDisplay = false;
+	}
+}
+
+void SDataprepDetailsView::SetObjectToDisplay(UObject& Object)
+{
+	UObject* NewObjectToDisplay = &Object;
+	if ( DetailedObject != NewObjectToDisplay )
+	{
+		DetailedObject = NewObjectToDisplay;
+		bNewObjectToDisplay = true;
 	}
 }
 

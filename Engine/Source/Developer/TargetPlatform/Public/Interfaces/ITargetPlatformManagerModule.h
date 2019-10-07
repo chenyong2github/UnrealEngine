@@ -66,6 +66,15 @@ public:
 	virtual ITargetPlatform* FindTargetPlatform( const FString& Name ) = 0;
 
 	/**
+	 * Finds a target platform by looking for one that supports a given value for a generic type of support
+	 *
+	 * @param Name SupportClass The type of support needed (like "ShaderFormat")
+	 * @param RequiredSupportValue The value of the supported type that is needed
+	 * @return The target platform, or nullptr if not found.
+	 */
+	virtual ITargetPlatform* FindTargetPlatformWithSupport(FName SupportType, FName RequiredSupportedValue) = 0;
+
+	/**
 	 * Return the list of platforms which we need to support when cooking (only set when actually cooking)
 	 *
 	 * @return Collection of platforms.

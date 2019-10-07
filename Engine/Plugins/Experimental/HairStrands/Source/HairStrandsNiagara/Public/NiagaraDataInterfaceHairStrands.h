@@ -22,25 +22,11 @@ enum class EHairStrandsSize : uint8
 	Size32 = 0x20 UMETA(DisplatName = "32")
 };
 
-/** Structure storing the grid size*/
-struct FGridSize
-{
-	FGridSize(const uint32 InGridSizeX = 0, const uint32 InGridSizeY = 0, 
-		      const uint32 InGridSizeZ = 0, const uint32 InGridSizeW = 0) : GridSizeX(InGridSizeX), 
-		GridSizeY(InGridSizeY), GridSizeZ(InGridSizeZ), GridSizeW(InGridSizeW) {}
-
-	uint32 GridSizeX;
-	uint32 GridSizeY;
-	uint32 GridSizeZ;
-	uint32 GridSizeW;
-};
-
-
 /** Render buffers that will be used in hlsl functions */
 struct FNDICollisionGridBuffer : public FRenderResource
 {
 	/** Set the grid size */
-	void SetGridSize(const FGridSize GridSize);
+	void SetGridSize(const FUintVector4 GridSize);
 
 	/** Init the buffer */
 	virtual void InitRHI() override;
@@ -58,7 +44,7 @@ struct FNDICollisionGridBuffer : public FRenderResource
 	FTextureRWBuffer3D GridDataBuffer;
 
 	/** Grid size that will be used for the collision*/
-	FGridSize GridSize;
+	FUintVector4 GridSize;
 };
 
 /** Render buffers that will be used in hlsl functions */
@@ -117,7 +103,7 @@ struct FNDIHairStrandsData
 	FVector4 GridOrigin;
 
 	/** Grid Size */
-	FGridSize GridSize;
+	FUintVector4 GridSize;
 
 	/** Strands Gpu buffer */
 	FNDIHairStrandsBuffer* HairStrandsBuffer;
@@ -133,9 +119,6 @@ struct FNDIHairStrandsData
 
 	/** Pointer to the destination buffer */
 	FNDICollisionGridBuffer* DestinationGridBuffer;
-
-	/** Sorted index particle buffers*/
-	//FParticleSortBuffers SortedParticleBuffers;
 };
 
 /** Data Interface for the strand base */
@@ -296,6 +279,60 @@ public:
 	/** Project the collision grid */
 	void ProjectCollisionGrid(FVectorVMContext& Context);
 
+	/** Get the bounding box center */
+	void GetBoxCenter(FVectorVMContext& Context);
+
+	/** Get the bounding box extent */
+	void GetBoxExtent(FVectorVMContext& Context);
+
+	/** Setup the stretch spring material */
+	void SetupStretchSpringMaterial(FVectorVMContext& Context);
+
+	/** Solve the stretch spring material */
+	void SolveStretchSpringMaterial(FVectorVMContext& Context);
+
+	/** Project the stretch spring material */
+	void ProjectStretchSpringMaterial(FVectorVMContext& Context);
+
+	/** Setup the bend spring material */
+	void SetupBendSpringMaterial(FVectorVMContext& Context);
+
+	/** Solve the bend spring material */
+	void SolveBendSpringMaterial(FVectorVMContext& Context);
+
+	/** Project the bend spring material */
+	void ProjectBendSpringMaterial(FVectorVMContext& Context);
+
+	/** Setup the stretch rod material */
+	void SetupStretchRodMaterial(FVectorVMContext& Context);
+
+	/** Solve the stretch rod material */
+	void SolveStretchRodMaterial(FVectorVMContext& Context);
+
+	/** Project the stretch rod material */
+	void ProjectStretchRodMaterial(FVectorVMContext& Context);
+
+	/** Setup the bend rod material */
+	void SetupBendRodMaterial(FVectorVMContext& Context);
+
+	/** Solve the bend rod material */
+	void SolveBendRodMaterial(FVectorVMContext& Context);
+
+	/** Project the bend rod material */
+	void ProjectBendRodMaterial(FVectorVMContext& Context);
+
+	/** Solve the static collision constraint */
+	void SolveStaticCollisionConstraint(FVectorVMContext& Context);
+
+	/** Project the static collision constraint */
+	void ProjectStaticCollisionConstraint(FVectorVMContext& Context);
+
+	/** Compute the rest direction*/
+	void ComputeRestDirection(FVectorVMContext& Context);
+
+	/** Update the node orientation to match the bishop frame*/
+	void UpdateNodeOrientation(FVectorVMContext& Context);
+
 	/** Name of the world transform */
 	static const FString WorldTransformName;
 
@@ -360,7 +397,7 @@ struct FNDIHairStrandsProxy : public FNiagaraDataInterfaceProxy
 
 	/** Initialize the Proxy data strands buffer */
 	void InitializePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance, FNDIHairStrandsBuffer* StrandsBuffer, FNDICollisionGridBuffer* CollisionGridBufferA, FNDICollisionGridBuffer* CollisionGridBufferB, const uint32 NumStrands, const uint8 StrandSize,
-		const float StrandDensity, const float RootThickness, const float TipThickness, const FVector4& GridOrigin, const FGridSize& GridSize);
+		const float StrandDensity, const float RootThickness, const float TipThickness, const FVector4& GridOrigin, const FUintVector4& GridSize);
 
 	/** Destroy the proxy data if necessary */
 	void DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance);

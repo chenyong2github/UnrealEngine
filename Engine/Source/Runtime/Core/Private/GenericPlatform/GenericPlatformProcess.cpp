@@ -546,9 +546,9 @@ bool FGenericPlatformProcess::WritePipe(void* WritePipe, const uint8* Data, cons
 bool FGenericPlatformProcess::SupportsMultithreading()
 {
 #if DEFAULT_NO_THREADING
-	static bool bSupportsMultithreading = FParse::Param(FCommandLine::Get(), TEXT("threading"));
+	static bool bSupportsMultithreading = FCommandLine::IsInitialized() ? FParse::Param(FCommandLine::Get(), TEXT("threading")) : 0;
 #else
-	static bool bSupportsMultithreading = !FParse::Param(FCommandLine::Get(), TEXT("nothreading"));
+	static bool bSupportsMultithreading = FCommandLine::IsInitialized() ? !FParse::Param(FCommandLine::Get(), TEXT("nothreading")) : 1;
 #endif
 	return bSupportsMultithreading;
 }

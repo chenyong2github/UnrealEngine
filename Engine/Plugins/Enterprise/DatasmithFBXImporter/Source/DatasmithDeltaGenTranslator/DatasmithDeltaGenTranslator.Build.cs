@@ -1,0 +1,43 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+using UnrealBuildTool;
+using System;
+using System.IO;
+
+namespace UnrealBuildTool.Rules
+{
+	public class DatasmithDeltaGenTranslator : ModuleRules
+	{
+		public DatasmithDeltaGenTranslator(ReadOnlyTargetRules Target) : base(Target)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"Core",
+					"CoreUObject",
+					"DatasmithCore",
+					"Engine",
+					"FBX",
+					"LevelSequence",
+					"MeshDescription",
+					"StaticMeshDescription",
+					"UnrealEd",
+					"VariantManagerContent",
+					"XmlParser",
+				}
+			);
+
+			PublicDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"DatasmithContent",
+					"DatasmithImporter",
+                    "DatasmithFBXTranslator"
+				}
+			);
+
+			//TODO: set this false by default and add option to turn this on for development
+			PrivateDefinitions.Add("WITH_DELTAGEN_DEBUG_CODE=1");
+		}
+	}
+}

@@ -20,6 +20,8 @@ class FMeshPaintGeometryAdapterForStaticMeshes : public FBaseMeshPaintGeometryAd
 {
 public:
 	static void InitializeAdapterGlobals();
+	static void AddReferencedObjectsGlobals(FReferenceCollector& Collector);
+	static void CleanupGlobals();
 
 	/** Start IMeshPaintGeometryAdapter Overrides */
 	virtual bool Construct(UMeshComponent* InComponent, int32 InMeshLODIndex) override;
@@ -95,4 +97,6 @@ class FMeshPaintGeometryAdapterForStaticMeshesFactory : public IMeshPaintGeometr
 public:
 	virtual TSharedPtr<IMeshPaintGeometryAdapter> Construct(class UMeshComponent* InComponent, int32 InMeshLODIndex) const override;
 	virtual void InitializeAdapterGlobals() override { FMeshPaintGeometryAdapterForStaticMeshes::InitializeAdapterGlobals(); }
+	virtual void AddReferencedObjectsGlobals(FReferenceCollector& Collector) override { FMeshPaintGeometryAdapterForStaticMeshes::AddReferencedObjectsGlobals(Collector); }
+	virtual void CleanupGlobals() override { FMeshPaintGeometryAdapterForStaticMeshes::CleanupGlobals(); }
 };

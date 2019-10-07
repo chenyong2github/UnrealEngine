@@ -535,138 +535,10 @@ protected:
 	FCriticalSection CS;
 };
 
-class FD3D12AbstractRingBuffer
-{
-public:
-	FD3D12AbstractRingBuffer(uint64 BufferSize)
-		: Fence(nullptr)
-		, Size(BufferSize)
-		, Head(BufferSize)
-		, Tail(0)
-		, LastFence(0)
-	{}
-
-	static const uint64 FailedReturnValue = uint64(-1);
-
-	inline void Reset(uint64 NewSize)
-	{
-		Size = NewSize;
-		Head = Size;
-		Tail = 0;
-		LastFence = 0;
-		OutstandingAllocs.Empty();
-	}
-
-	inline void SetFence(FD3D12Fence* InFence)
-	{
-		Fence = InFence;
-		LastFence = 0;
-	}
-
-	inline const uint64 GetSpaceLeft() const { return Head - Tail; }
-
-#if 0  // used to detect problems with fencing 
-	void GetOverwritableBlocks(uint64& Block1Start, uint64& Block1Size, uint64& Block2Start, uint64& Block2Size) const
-	{
-		check(Head >= Tail);
-		check(Size >= Head - Tail);
-		uint64 Used = Size - (Head - Tail);
-
-		if (Used == Size)
-		{
-			Block1Start = 0;
-			Block1Size = 0;
-
-			Block2Start = 0;
-			Block2Size = 0;
-		}
-		else
-		{
-			uint64 PhysicalTail = Tail % Size;
-
-			if (PhysicalTail <= Used)
-			{
-				// there is only one block, it starts at PhysicalTail
-				Block1Start = 0;
-				Block1Size = 0;
-
-				Block2Start = PhysicalTail;
-				Block2Size = Size - Used;
-			}
-			else
-			{
-				Block1Start = 0;
-				Block1Size = PhysicalTail - Used;
-
-				Block2Start = PhysicalTail;
-				Block2Size = Size - PhysicalTail;
-			}
-		}
-	}
-#endif // used to detect problems with fencing 
-
-	inline uint64 Allocate(uint64 Count)
-	{
-		{
-			const uint64 LastCompletedFence = Fence->GetLastCompletedFenceFast();
-			// If progress has been made since we were here last
-			if (LastCompletedFence > LastFence)
-			{
-				LastFence = LastCompletedFence;
-
-				for (auto It = OutstandingAllocs.CreateIterator(); It; ++It)
-				{
-					if (It.Key() < LastCompletedFence)
-					{
-						Head += It.Value();
-						It.RemoveCurrent();
-					}
-				}
-			}
-		}
-
-		uint64 ReturnValue = FailedReturnValue;
-
-		uint64 PhysicalTail = Tail % Size;
-
-		if (PhysicalTail + Count > Size)
-		{
-			// Force the wrap around by simply allocating the difference
-			uint64 Padding = Allocate(Size - PhysicalTail);
-			if (Padding == FailedReturnValue)
-			{
-				return FailedReturnValue;
-			}
-
-			PhysicalTail = Tail % Size;
-		}
-
-		if (Tail + Count < Head)
-		{
-			ReturnValue = PhysicalTail;
-			Tail += Count;
-			OutstandingAllocs.FindOrAdd(Fence->GetCurrentFence()) += Count;
-		}
-
-		return ReturnValue;
-	}
-
-private:
-	FD3D12Fence* Fence;
-	uint64 Size;
-	uint64 Head;
-	uint64 Tail;
-	uint64 LastFence;
-
-	TMap<uint64, uint64, TInlineSetAllocator<16> > OutstandingAllocs;
-};
-
 class FD3D12FastConstantAllocator : public FD3D12DeviceChild, public FD3D12MultiNodeGPUObject
 {
 public:
-	FD3D12FastConstantAllocator(FD3D12Device* Parent, FRHIGPUMask VisibiltyMask, uint32 InPageSize);
-
-	void Init();
+	FD3D12FastConstantAllocator(FD3D12Device* Parent, FRHIGPUMask VisibiltyMask);
 
 #if USE_STATIC_ROOT_SIGNATURE
 	void* Allocate(uint32 Bytes, class FD3D12ResourceLocation& OutLocation, FD3D12ConstantBufferView* OutCBView);
@@ -676,12 +548,10 @@ public:
 
 
 private:
-	void ReallocBuffer();
-
 	FD3D12ResourceLocation UnderlyingResource;
 
+	uint32 Offset;
 	uint32 PageSize;
-	FD3D12AbstractRingBuffer RingBuffer;
 };
 
 //-----------------------------------------------------------------------------

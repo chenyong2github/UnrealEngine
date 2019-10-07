@@ -43,6 +43,9 @@ bool WaterRefract(float3 V, float3 N, float Eta, out float3 R)
 WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 	FMaterialPixelParameters MaterialParameters, FPixelMaterialInputs PixelMaterialInputs, ViewState ResolvedView,
 	float DirectionalLightShadow,
+#if SINGLE_LAYER_WATER_SIMPLE_FORWARD
+	Texture2D SceneDepthWithoutSingleLayerWaterTexture, SamplerState SceneDepthWithoutSingleLayerWaterSampler,
+#endif
 #if !SIMPLE_SINGLE_LAYER_WATER
 	Texture2D SceneColorWithoutSingleLayerWaterTexture, SamplerState SceneColorWithoutSingleLayerWaterSampler,
 	Texture2D SceneDepthWithoutSingleLayerWaterTexture, SamplerState SceneDepthWithoutSingleLayerWaterSampler,
@@ -64,8 +67,14 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 	{
 		float WaterDepth = ConvertFromDeviceZ(MaterialParameters.SvPosition.z);
 #if SIMPLE_SINGLE_LAYER_WATER
+
+#if SINGLE_LAYER_WATER_SIMPLE_FORWARD 
+		float PixelSceneDepth = SceneDepthWithoutSingleLayerWaterTexture.SampleLevel(SceneDepthWithoutSingleLayerWaterSampler, ViewportUV, 0).x * SINGLE_LAYER_WATER_DEPTH_SCALE;
+		float PixelSceneDeviceZ = ConvertToDeviceZ(PixelSceneDepth);
+#else
 		float PixelSceneDeviceZ = LookupDeviceZ(ViewportUV);
 		float PixelSceneDepth = ConvertFromDeviceZ(PixelSceneDeviceZ);
+#endif
 
 #if FEATURE_LEVEL <= FEATURE_LEVEL_ES3_1
 		// Only mobile run the SIMPLE_SINGLE_LAYER_WATER path today.
@@ -121,9 +130,10 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 		const float3 ScatteringCoeff = max(0.0f, GetSingleLayerWaterMaterialOutput0(MaterialParameters));
 		const float3 AbsorptionCoeff = max(0.0f, GetSingleLayerWaterMaterialOutput1(MaterialParameters));
 		const float PhaseG = clamp(GetSingleLayerWaterMaterialOutput2(MaterialParameters), -1.0f, 1.0f);
+		const float3 ExtinctionCoeff = ScatteringCoeff + AbsorptionCoeff; 
 		// Max to avoid division by 0 with the analytical integral below.
 		// 1e-5 is high enough to avoid denorms on mobile
-		const float3 ExtinctionCoeff = max(ScatteringCoeff + AbsorptionCoeff, 1e-5); 
+		const float3 ExtinctionCoeffSafe = max(ScatteringCoeff + AbsorptionCoeff, 1e-5); 
 		
 		float DirLightPhaseValue = 0.0f; // Default when Total Internal Reflection happens.
 		{
@@ -163,7 +173,7 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 		const float3 OpticalDepth = ExtinctionCoeff * BehindWaterDeltaDepth;
 		float3 Transmittance = exp(-OpticalDepth);
 		float3 ScatteredLuminance = ScatteringCoeff * (AmbScattLuminance + SunScattLuminance * DirectionalLightShadow);
-		ScatteredLuminance = (ScatteredLuminance - ScatteredLuminance * Transmittance) / ExtinctionCoeff;
+		ScatteredLuminance = (ScatteredLuminance - ScatteredLuminance * Transmittance) / ExtinctionCoeffSafe;
 #else
 		// TODO Make the volumetric shadow part work again
 		float3 Transmittance = 1.0f;
@@ -183,7 +193,7 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 
 			float3 SampleTransmittance = exp(-ExtinctionCoeff * RayMarchStepSize); // Constant
 			float3 SS = (ScatteringCoeff * TransmittanceToLightThroughWater * (SunScattLuminance * Shadow + AmbScattLuminance));
-			ScatteredLuminance += Transmittance * (SS - SS * SampleTransmittance) / ExtinctionCoeff;
+			ScatteredLuminance += Transmittance * (SS - SS * SampleTransmittance) / ExtinctionCoeffSafe;
 			Transmittance *= SampleTransmittance;
 		}
 
@@ -193,7 +203,7 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 		{
 			float3 Transmittance2 = exp(-OpticalDepth2);
 			float3 ScatteredLuminance2 = ScatteringCoeff * (SunScattLuminance + AmbScattLuminance);
-			ScatteredLuminance += Transmittance * (ScatteredLuminance2 - ScatteredLuminance2 * Transmittance2) / ExtinctionCoeff;
+			ScatteredLuminance += Transmittance * (ScatteredLuminance2 - ScatteredLuminance2 * Transmittance2) / ExtinctionCoeffSafe;
 			Transmittance *= Transmittance2;
 		}
 #endif

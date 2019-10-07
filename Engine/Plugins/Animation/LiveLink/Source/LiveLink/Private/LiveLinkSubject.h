@@ -56,6 +56,7 @@ public:
 	virtual bool HasValidFrameSnapshot() const override;
 	virtual FLiveLinkStaticDataStruct& GetStaticData() override { return StaticData; }
 	virtual const FLiveLinkStaticDataStruct& GetStaticData() const override { return StaticData; }
+	virtual TArray<FLiveLinkTime> GetFrameTimes() const override;
 	virtual const TArray<ULiveLinkFrameTranslator::FWorkerSharedPtr> GetFrameTranslators() const override { return FrameTranslators; }
 protected:
 	virtual const FLiveLinkSubjectFrameData& GetFrameSnapshot() const { return FrameSnapshot; }
@@ -83,9 +84,12 @@ public:
 
 private:
 	int32 FindNewFrame_WorldTime(const FLiveLinkWorldTime& FrameTime) const;
-	int32 FindNewFrame_SceneTime(const FQualifiedFrameTime& FrameTime) const;
-	int32 FindNewFrame_Latest() const;
+	int32 FindNewFrame_WorldTimeInternal(const FLiveLinkWorldTime& FrameTime) const;
+	int32 FindNewFrame_SceneTime(const FQualifiedFrameTime& FrameTime, const FLiveLinkWorldTime& WorldTime) const;
+	int32 FindNewFrame_Latest(const FLiveLinkWorldTime& FrameTime) const;
 
+	// Reorder frame with the same timecode and create subframes
+	void AdjustSubFrame_SceneTime(int32 FrameIndex);
 
 	// Populate OutFrame with a frame based off of the supplied time and our own offsets
 	bool GetFrameAtWorldTime(const double InSeconds, FLiveLinkSubjectFrameData& OutFrame);

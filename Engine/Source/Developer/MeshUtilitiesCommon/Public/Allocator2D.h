@@ -32,8 +32,8 @@ public:
 		uint32 Index;
 		uint32 LongestSegment; // Represents either the longest free segment or the longest used segment, depending on how we're using this row
 
-		TArray< FSegment > FreeSegments;
-		TArray< FSegment > UsedSegments;
+		TArray< FSegment, TInlineAllocator<2> > FreeSegments;
+		TArray< FSegment, TInlineAllocator<2> > UsedSegments;
 	};
 
 public:

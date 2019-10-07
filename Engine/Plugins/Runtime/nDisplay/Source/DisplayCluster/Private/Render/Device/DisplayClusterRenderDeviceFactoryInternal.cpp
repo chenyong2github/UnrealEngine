@@ -4,16 +4,12 @@
 
 #include "Render/Device/Monoscopic/DisplayClusterDeviceMonoscopicDX11.h"
 #include "Render/Device/Monoscopic/DisplayClusterDeviceMonoscopicDX12.h"
-#include "Render/Device/Monoscopic/DisplayClusterDeviceMonoscopicOpenGL.h"
 #include "Render/Device/QuadBufferStereo/DisplayClusterDeviceQuadBufferStereoDX11.h"
 #include "Render/Device/QuadBufferStereo/DisplayClusterDeviceQuadBufferStereoDX12.h"
-#include "Render/Device/QuadBufferStereo/DisplayClusterDeviceQuadBufferStereoOpengl.h"
 #include "Render/Device/SideBySide/DisplayClusterDeviceSideBySideDX11.h"
 #include "Render/Device/SideBySide/DisplayClusterDeviceSideBySideDX12.h"
-#include "Render/Device/SideBySide/DisplayClusterDeviceSideBySideOpenGL.h"
 #include "Render/Device/TopBottom/DisplayClusterDeviceTopBottomDX11.h"
 #include "Render/Device/TopBottom/DisplayClusterDeviceTopBottomDX12.h"
-#include "Render/Device/TopBottom/DisplayClusterDeviceTopBottomOpenGL.h"
 
 #include "DisplayClusterLog.h"
 #include "DisplayClusterStrings.h"
@@ -42,11 +38,6 @@ TSharedPtr<IDisplayClusterRenderDevice, ESPMode::ThreadSafe> FDisplayClusterRend
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating DX12 monoscopic device..."));
 			return MakeShareable(new FDisplayClusterDeviceMonoscopicDX12);
 		}
-		else if (InRHIName.Compare(DisplayClusterStrings::rhi::OpenGL, ESearchCase::IgnoreCase) == 0)
-		{
-			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating OpenGL monoscopic device..."));
-			return MakeShareable(new FDisplayClusterDeviceMonoscopicOpenGL);
-		}
 	}
 	// Quad buffer stereo
 	else if (InDeviceType.Compare(DisplayClusterStrings::args::dev::QBS, ESearchCase::IgnoreCase) == 0)
@@ -60,11 +51,6 @@ TSharedPtr<IDisplayClusterRenderDevice, ESPMode::ThreadSafe> FDisplayClusterRend
 		{
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating D3D12 quad buffer stereo device..."));
 			return MakeShareable(new FDisplayClusterDeviceQuadBufferStereoDX12);
-		}
-		else if (InRHIName.Compare(DisplayClusterStrings::rhi::OpenGL, ESearchCase::IgnoreCase) == 0)
-		{
-			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating OpenGL quad buffer stereo device..."));
-			return  MakeShareable(new FDisplayClusterDeviceQuadBufferStereoOpenGL);
 		}
 	}
 	// Side-by-side
@@ -80,11 +66,6 @@ TSharedPtr<IDisplayClusterRenderDevice, ESPMode::ThreadSafe> FDisplayClusterRend
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating D3D12 side-by-side stereo device..."));
 			return MakeShareable(new FDisplayClusterDeviceSideBySideDX12);
 		}
-		else if (InRHIName.Compare(DisplayClusterStrings::rhi::OpenGL, ESearchCase::IgnoreCase) == 0)
-		{
-			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating OpenGL side-by-side stereo device..."));
-			return MakeShareable(new FDisplayClusterDeviceSideBySideOpenGL);
-		}
 	}
 	// Top-bottom
 	else if (InDeviceType.Compare(DisplayClusterStrings::args::dev::TB, ESearchCase::IgnoreCase) == 0)
@@ -98,11 +79,6 @@ TSharedPtr<IDisplayClusterRenderDevice, ESPMode::ThreadSafe> FDisplayClusterRend
 		{
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating D3D12 top-bottom stereo device..."));
 			return MakeShareable(new FDisplayClusterDeviceTopBottomDX12);
-		}
-		else if (InRHIName.Compare(DisplayClusterStrings::rhi::OpenGL, ESearchCase::IgnoreCase) == 0)
-		{
-			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating OpenGL top-bottom stereo device..."));
-			return MakeShareable(new FDisplayClusterDeviceTopBottomOpenGL);
 		}
 	}
 

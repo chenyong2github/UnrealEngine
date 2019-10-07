@@ -89,25 +89,43 @@ TPBDCollisionConstraint<T, d>::TPBDCollisionConstraint(const TPBDRigidsSOAs<T,d>
 	, MThickness(Thickness)
 	, MAngularFriction(0)
 	, bUseCCD(false)
+	, bEnableCollisions(true)
+	, LifespanCounter(0)
 	, PostComputeCallback(nullptr)
 	, PostApplyCallback(nullptr)
 	, PostApplyPushOutCallback(nullptr)
 {
 }
 
+DECLARE_CYCLE_STAT(TEXT("CollisionConstraint::Reset"), STAT_CollisionConstraintsReset, STATGROUP_Chaos);
+
 template<typename T, int d>
 void TPBDCollisionConstraint<T, d>::Reset(/*const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices*/)
 {
-	for (FConstraintHandle* Handle : Handles)
-	{
-		HandleAllocator.FreeHandle(Handle);
-	}
-	Handles.Empty();
+	SCOPE_CYCLE_COUNTER(STAT_CollisionConstraintsReset);
 
-	Constraints.Empty();
+	int32 Threshold = LifespanCounter - 1; // Maybe this should be solver time?
+	for (int32 Idx = Constraints.Num() - 1; Idx >= 0; Idx--)
+	{
+		if (Constraints[Idx].Lifespan < Threshold)
+		{
+			RemoveConstraint(Idx);
+		}
+	}
 
 	MAngularFriction = 0;
 	bUseCCD = false;
+}
+
+template<typename T, int d>
+void TPBDCollisionConstraint<T, d>::RemoveConstraint(int32 Idx)
+{
+	HandleAllocator.FreeHandle(Handles.FindAndRemoveChecked(GetConstraintHandleID(Idx)));
+	Constraints.RemoveAtSwap(Idx);
+	if (Idx < Constraints.Num())
+	{
+		Handles[GetConstraintHandleID(Idx)]->SetConstraintIndex(Idx);
+	}
 }
 
 template<typename T, int d>
@@ -151,21 +169,25 @@ void TPBDCollisionConstraint<T, d>::UpdatePositionBasedState(/*const TPBDRigidPa
 {
 	Reset();
 
+	if (bEnableCollisions)
+	{
 #if !UE_BUILD_SHIPPING
-	if (PendingHierarchyDump)
-	{
-		ComputeConstraints<true>(*SpatialAcceleration, Dt);
-	}
-	else
+		if (PendingHierarchyDump)
+		{
+			ComputeConstraints<true>(*SpatialAcceleration, Dt);
+		}
+		else
 #endif
-	{
-		ComputeConstraints(*SpatialAcceleration, Dt);
+		{
+			ComputeConstraints(*SpatialAcceleration, Dt);
+		}
 	}
 }
 
 DEFINE_STAT(STAT_ComputeConstraints);
 DEFINE_STAT(STAT_ComputeConstraintsNP);
 DEFINE_STAT(STAT_ComputeConstraintsBP);
+DEFINE_STAT(STAT_ComputeConstraintsSU);
 
 CHAOS_API int32 CollisionConstraintsForceSingleThreaded = 0;
 FAutoConsoleVariableRef CVarCollisionConstraintsForceSingleThreaded(TEXT("p.Chaos.Collision.ForceSingleThreaded"), CollisionConstraintsForceSingleThreaded, TEXT("CollisionConstraintsForceSingleThreaded"));
@@ -208,28 +230,6 @@ void TPBDCollisionConstraint<T, d>::ComputeConstraints(const FAccelerationStruct
 	}
 }
 
-template<typename T, int d>
-void TPBDCollisionConstraint<T, d>::RemoveConstraints(const TSet<TGeometryParticleHandle<T, d>*>& RemovedParticles)
-{
-#if CHAOS_PARTICLEHANDLE_TODO
-	SpatialAccelerationResource.GetWritable().RemoveElements(RemovedParticles.Array());
-	for (int32 i = 0; i < Constraints.Num(); ++i)
-	{
-		const auto& Constraint = Constraints[i];
-		if (RemovedParticles.Contains(Constraint.ParticleIndex) || RemovedParticles.Contains(Constraint.LevelsetIndex))
-		{
-			Constraints.RemoveAtSwap(i);
-			HandleAllocator.FreeHandle(Handles[i]);
-			Handles.RemoveAtSwap(i);
-			if (i < Handles.Num())
-			{
-				SetConstraintIndex(Handles[i], i);
-			}
-			i--;
-		}
-	}
-#endif
-}
 
 DECLARE_CYCLE_STAT(TEXT("UpdateConstraints"), STAT_UpdateConstraints, STATGROUP_Chaos);
 
@@ -364,12 +364,26 @@ void TPBDCollisionConstraint<T, d>::UpdateConstraintsHelper(/*const TPBDRigidPar
 			}*/
 		}
 	});
-	while(!Queue.IsEmpty())
-	{				
-		int32 Idx = Constraints.AddUninitialized(1);
-		Queue.Dequeue(Constraints[Idx]);
-		Handles.Add(HandleAllocator.AllocHandle(this, Idx));
+	while (!Queue.IsEmpty())
+	{
+		const TRigidBodyContactConstraint<T, d> * Constraint = Queue.Peek();
+		FConstraintHandleID HandleID = GetConstraintHandleID(*Constraint);
+		if (Handles.Contains(HandleID))
+		{
+			FConstraintHandle* Handle = Handles[HandleID];
+			int32 Idx = Handle->GetConstraintIndex();
+			Queue.Dequeue(Constraints[Idx]);
+			Constraints[Idx].Lifespan = LifespanCounter;
+		}
+		else
+		{
+			int32 Idx = Constraints.AddUninitialized(1);
+			Queue.Dequeue(Constraints[Idx]);
+			Handles.Add(GetConstraintHandleID(Idx), HandleAllocator.AllocHandle(this, Idx));
+			Constraints[Idx].Lifespan = LifespanCounter;
+		}
 	}
+	LifespanCounter++;
 
 	Timer.Stop();
 	UE_LOG(LogChaos, Verbose, TEXT("\tPBDCollisionConstraint Update %d Constraints with Potential Collisions %f"), Constraints.Num(), Time);
@@ -1591,7 +1605,7 @@ void UpdateSingleUnionConstraint(const T Thickness, TRigidBodyContactConstraint<
 	for (const Pair<const TImplicitObject<T, d>*, TRigidTransform<T, d>>& LevelsetObjPair : LevelsetShapes)
 	{
 		const TImplicitObject<T, d>& LevelsetInnerObj = *LevelsetObjPair.First;
-		const TRigidTransform<T, d> LevelsetInnerObjTM = LevelsetTM * LevelsetObjPair.Second;
+		const TRigidTransform<T, d> LevelsetInnerObjTM = LevelsetObjPair.Second * LevelsetTM;
 		UpdateConstraintImp2<UpdateType>(*ParticleObj, ParticlesTM, LevelsetInnerObj, LevelsetInnerObjTM, Thickness, Constraint);
 	}
 }

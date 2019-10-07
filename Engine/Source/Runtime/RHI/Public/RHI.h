@@ -124,6 +124,9 @@ RHI_API bool RHISupportsIndexBufferUAVs(const EShaderPlatform Platform);
 // helper to check if a preview feature level has been requested.
 RHI_API bool RHIGetPreviewFeatureLevel(ERHIFeatureLevel::Type& PreviewFeatureLevelOUT);
 
+// helper to check if preferred EPixelFormat is supported, return one if it is not
+RHI_API EPixelFormat RHIPreferredPixelFormatHint(EPixelFormat PreferredPixelFormat);
+
 inline bool RHISupportsInstancedStereo(const EShaderPlatform Platform)
 {
 	// Only D3D SM5, PS4 and Metal SM5 supports Instanced Stereo
@@ -1646,11 +1649,8 @@ struct FTextureMemoryStats
 
 	bool AreHardwareStatsValid() const
 	{
-#if !PLATFORM_HTML5 // TODO: should this be tested with GRHISupportsRHIThread instead? -- seems this would be better done in SynthBenchmarkPrivate.cpp
-		return (DedicatedVideoMemory >= 0 && DedicatedSystemMemory >= 0 && SharedSystemMemory >= 0);
-#else
-		return false;
-#endif
+		// pardon the redundancy, have a broken compiler (__EMSCRIPTEN__) that needs these types spelled out...
+		return ((int64)DedicatedVideoMemory >= 0 && (int64)DedicatedSystemMemory >= 0 && (int64)SharedSystemMemory >= 0);
 	}
 
 	bool IsUsingLimitedPoolSize() const

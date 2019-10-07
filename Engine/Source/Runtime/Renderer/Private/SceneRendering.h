@@ -1999,3 +1999,12 @@ extern FFastVramConfig GFastVRamConfig;
 
 extern bool UseCachedMeshDrawCommands();
 extern bool IsDynamicInstancingEnabled(ERHIFeatureLevel::Type FeatureLevel);
+
+enum class EGPUSkinCacheTransition
+{
+	FrameSetup,
+	Renderer,
+};
+
+/* Run GPU skin cache resource transitions */
+void RunGPUSkinCacheTransition(class FRHICommandList& RHICmdList, class FScene* Scene, EGPUSkinCacheTransition Type);

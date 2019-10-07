@@ -140,11 +140,6 @@ public class Core : ModuleRules
 			// Core uses dlopen()
 			PublicSystemLibraries.Add("dl");
         }
-		else if (Target.Platform == UnrealTargetPlatform.HTML5)
-		{
-            PrivateDependencyModuleNames.Add("HTML5JS");
-            PrivateDependencyModuleNames.Add("MapPakDownloader");
-        }
 
 		if ( Target.bCompileICU == true )
         {

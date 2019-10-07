@@ -6,6 +6,7 @@
 #include "ILiveLinkModule.h"
 #include "LiveLinkClient.h"
 #include "LiveLinkHeartbeatEmitter.h"
+#include "LiveLinkLog.h"
 #include "LiveLinkMessageBusDiscoveryManager.h"
 #include "LiveLinkMessages.h"
 #include "LiveLinkRoleTrait.h"
@@ -73,6 +74,17 @@ void FLiveLinkMessageBusSource::Update()
 		const double CurrentTime = FApp::GetCurrentTime();
 
 		bIsValid = CurrentTime - ConnectionLastActive < HeartbeatTimeout;
+		if (!bIsValid)
+		{
+			const double DeadSourceTimeout = GetDefault<ULiveLinkSettings>()->GetMessageBusTimeBeforeRemovingDeadSource();
+			if (CurrentTime - ConnectionLastActive > DeadSourceTimeout)
+			{
+				if (RequestSourceShutdown())
+				{
+					Client->RemoveSource(SourceGuid);
+				}
+			}
+		}
 	}
 }
 
@@ -105,11 +117,8 @@ void FLiveLinkMessageBusSource::InternalHandleMessage(const TSharedRef<IMessageC
 	}
 	if (SubjectName == NAME_None)
 	{
-		if (!bInvalidSubjectNameErrorReported)
-		{
-			UE_LOG(LogLiveLink, Error, TEXT("No Subject Name was provided for connection '%s'"), *GetSourceMachineName().ToString());
-			bInvalidSubjectNameErrorReported = true;
-		}
+		static const FName NAME_InvalidSubject = "LiveLinkMessageBusSource_InvalidSubject";
+		FLiveLinkLog::ErrorOnce(NAME_InvalidSubject, FLiveLinkSubjectKey(SourceGuid, NAME_None), TEXT("No Subject Name was provided for connection '%s'"), *GetSourceMachineName().ToString());
 		return;
 	}
 
@@ -157,11 +166,8 @@ void FLiveLinkMessageBusSource::InternalHandleMessage(const TSharedRef<IMessageC
 
 		if (SubjectRole.Get() == nullptr)
 		{
-			if (!bInvalidRoleErrorReported)
-			{
-				UE_LOG(LogLiveLink, Error, TEXT("No Role was provided or found for connection '%s'"), *GetSourceMachineName().ToString());
-				bInvalidRoleErrorReported = true;
-			}
+			static const FName NAME_InvalidRole = "LiveLinkMessageBusSource_InvalidRole";
+			FLiveLinkLog::ErrorOnce(NAME_InvalidRole, FLiveLinkSubjectKey(SourceGuid, SubjectName), TEXT("No Role was provided or found for subject '%s' with connection '%s'"), *SubjectName.ToString(), *GetSourceMachineName().ToString());
 			return;
 		}
 

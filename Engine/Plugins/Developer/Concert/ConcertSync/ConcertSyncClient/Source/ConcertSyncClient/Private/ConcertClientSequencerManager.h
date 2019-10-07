@@ -63,6 +63,18 @@ public:
 	virtual void SetSequencerPlaybackSync(bool bEnable) override;
 
 	/**
+	 * @return true if unrelated timeline syncing across opened sequencer is enabled
+	 */
+	virtual bool IsUnrelatedSequencerTimelineSyncEnabled() const override;
+
+	/**
+	 * Set the unrelated timeline syncing option in Multi-User which syncs time from any remote sequence.
+	 *
+	 * @param bEnable The value to set for unrelated timeline syncing.
+	 */
+	virtual void SetUnrelatedSequencerTimelineSync(bool bEnable) override;
+
+	/**
 	 * @return true if the remote open option is enabled.
 	 */
 	virtual bool IsSequencerRemoteOpenEnabled() const override;
@@ -203,7 +215,7 @@ private:
 	 * @param InSequenceObjectPath        The full path to the root asset to gather sequences for
 	 * @return An array containing all the entries that apply to the supplied sequence path
 	 */
-	TArray<FOpenSequencerData*, TInlineAllocator<1>> GatherRootSequencersByAssetPath(const FString& InSequenceObjectPath);
+	TArray<FOpenSequencerData*, TInlineAllocator<1>> GatherRootSequencersByState(const FConcertSequencerState& InSequenceObjectPath);
 
 	/**
 	 * Get the amount of latency compensation to apply to time-synchronization sensitive interactions

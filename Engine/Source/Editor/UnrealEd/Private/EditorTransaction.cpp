@@ -912,7 +912,7 @@ void FTransaction::Apply()
 
 	// An Actor's components must always get its PostEditUndo before the owning Actor
 	// so do a quick sort on Outer depth, component will deeper than their owner
-	ChangedObjects.KeySort([](UObject& A, UObject& B)
+	ChangedObjects.KeyStableSort([](UObject& A, UObject& B)
 	{
 		return Cast<UActorComponent>(&A) != nullptr;
 	});
@@ -994,7 +994,7 @@ void FTransaction::Finalize()
 
 	// An Actor's components must always be notified before the owning Actor
 	// so do a quick sort on Outer depth, component will deeper than their owner
-	ChangedObjects.KeySort([](UObject& A, UObject& B)
+	ChangedObjects.KeyStableSort([](UObject& A, UObject& B)
 	{
 		return Cast<UActorComponent>(&A) != nullptr;
 	});

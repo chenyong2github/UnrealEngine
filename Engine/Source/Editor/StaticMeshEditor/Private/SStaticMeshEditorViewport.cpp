@@ -306,6 +306,12 @@ void SStaticMeshEditorViewport::UpdatePreviewMesh(UStaticMesh* InStaticMesh, boo
 
 	EditorViewportClient->SetPreviewMesh(InStaticMesh, PreviewMeshComponent, bResetCamera);
 
+	if (EditorViewportClient->EngineShowFlags.VertexColors)
+	{
+		//Reapply the vertex color mode on the newly set static mesh.
+		SetViewModeVertexColorImplemetation(true);
+	}
+
 	PreviewMeshComponent->SelectionOverrideDelegate = UPrimitiveComponent::FSelectionOverride::CreateRaw(this, &SStaticMeshEditorViewport::PreviewComponentSelectionOverride);
 	PreviewMeshComponent->PushSelectionToProxy();
 }
@@ -346,33 +352,23 @@ bool SStaticMeshEditorViewport::IsInViewModeWireframeChecked() const
 
 void SStaticMeshEditorViewport::SetViewModeVertexColor()
 {
-	if (!EditorViewportClient->EngineShowFlags.VertexColors)
-	{
-		EditorViewportClient->EngineShowFlags.SetVertexColors(true);
-		EditorViewportClient->EngineShowFlags.SetLighting(false);
-		EditorViewportClient->EngineShowFlags.SetIndirectLightingCache(false);
-		EditorViewportClient->EngineShowFlags.SetPostProcessing(false);
-		EditorViewportClient->EngineShowFlags.SetSelectionOutline(false);
+	SetViewModeVertexColorImplemetation(!EditorViewportClient->EngineShowFlags.VertexColors);
 
-		EditorViewportClient->SetFloorAndEnvironmentVisibility(false);
-		StaticMeshEditorPtr.Pin()->GetStaticMeshComponent()->bDisplayVertexColors = true;
-		StaticMeshEditorPtr.Pin()->GetStaticMeshComponent()->MarkRenderStateDirty();
-	}
-	else
-	{
-		EditorViewportClient->EngineShowFlags.SetVertexColors(false);
-		EditorViewportClient->EngineShowFlags.SetLighting(true);
-		EditorViewportClient->EngineShowFlags.SetIndirectLightingCache(true);
-		EditorViewportClient->EngineShowFlags.SetPostProcessing(true);
-		EditorViewportClient->EngineShowFlags.SetSelectionOutline(GetDefault<ULevelEditorViewportSettings>()->bUseSelectionOutline);
-		EditorViewportClient->SetFloorAndEnvironmentVisibility(true);
-		StaticMeshEditorPtr.Pin()->GetStaticMeshComponent()->bDisplayVertexColors = false;
-		StaticMeshEditorPtr.Pin()->GetStaticMeshComponent()->MarkRenderStateDirty();
-	}
 	if (FEngineAnalytics::IsAvailable())
 	{
 		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.Toolbar"), FAnalyticsEventAttribute(TEXT("VertexColors"), static_cast<int>(EditorViewportClient->EngineShowFlags.VertexColors)));
 	}
+}
+
+void SStaticMeshEditorViewport::SetViewModeVertexColorImplemetation(bool bValue)
+{
+	EditorViewportClient->EngineShowFlags.SetVertexColors(bValue);
+	EditorViewportClient->EngineShowFlags.SetLighting(!bValue);
+	EditorViewportClient->EngineShowFlags.SetIndirectLightingCache(!bValue);
+	EditorViewportClient->EngineShowFlags.SetPostProcessing(!bValue);
+	EditorViewportClient->SetFloorAndEnvironmentVisibility(!bValue);
+	StaticMeshEditorPtr.Pin()->GetStaticMeshComponent()->bDisplayVertexColors = bValue;
+	StaticMeshEditorPtr.Pin()->GetStaticMeshComponent()->MarkRenderStateDirty();
 	SceneViewport->Invalidate();
 }
 

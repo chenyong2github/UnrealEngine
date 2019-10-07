@@ -18,13 +18,11 @@ void FMovieSceneLiveLinkEnumHandler::CreateChannels(const UScriptStruct& InStruc
 
 	if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(FoundProperty))
 	{
-		checkf(false, TEXT("Array of Enums are not supported."));
 		check(ArrayProperty->Inner->IsA<UEnumProperty>());
 	}
 	else
 	{
 		check(FoundProperty->IsA<UEnumProperty>());
-		check(InElementCount == 1);
 	}
 
 	PropertyStorage->ByteChannel.SetNum(InElementCount);
@@ -36,17 +34,14 @@ void FMovieSceneLiveLinkEnumHandler::RecordFrame(const FFrameNumber& InFrameNumb
 {
 	if (InFrameData != nullptr)
 	{
-		if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(PropertyBinding.GetProperty(InStruct)))
+		for (int32 i = 0; i < ElementCount; ++i)
 		{
-			checkf(false, TEXT("Array of Enums are not supported."));
-		}
-		else
-		{
-			const int64 NewValue = PropertyBinding.GetCurrentValueForEnum(InStruct, InFrameData);
+			const int64 NewValue = PropertyBinding.GetCurrentValueForEnumAt(i, InStruct, InFrameData);
+
 			FLiveLinkPropertyKey<int64> Key;
 			Key.Time = InFrameNumber;
 			Key.Value = NewValue;
-			Keys[0].Add(Key);
+			Keys[i].Add(Key);
 		}
 	}
 }
@@ -73,22 +68,15 @@ void FMovieSceneLiveLinkEnumHandler::InitializeFromExistingChannels(const UScrip
 	ElementCount = PropertyStorage->ByteChannel.Num();
 	check(ElementCount > 0);
 
-
 	UProperty* FoundProperty = PropertyBinding.GetProperty(InStruct);
 	if (FoundProperty)
 	{
 		if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(FoundProperty))
 		{
-			checkf(false, TEXT("Array of Enums are not supported."));
 			check(ArrayProperty->Inner->IsA<UEnumProperty>());
 		}
 		else
 		{
-			if (ElementCount > 1)
-			{
-				UE_LOG(LogLiveLinkMovieScene, Warning, TEXT("Initializing channels for property '%s' with %d elements. C-Style array aren't supported. Only one element will be used."), *FoundProperty->GetFName().ToString(), ElementCount);
-			}
-
 			check(FoundProperty->IsA<UEnumProperty>());
 		}
 	}
@@ -96,31 +84,21 @@ void FMovieSceneLiveLinkEnumHandler::InitializeFromExistingChannels(const UScrip
 
 void FMovieSceneLiveLinkEnumHandler::FillFrame(int32 InKeyIndex, const FLiveLinkWorldTime& InWorldTime, const TOptional<FQualifiedFrameTime>& InTimecodeTime, const UScriptStruct& InStruct, FLiveLinkBaseFrameData* OutFrame)
 {
-	UProperty* FoundProperty = PropertyBinding.GetProperty(InStruct);
-	if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(FoundProperty))
+	int32 ChannelIndex = 0;
+	for (int32 i = 0; i < ElementCount; ++i)
 	{
-		checkf(false, TEXT("Array of Enums are not supported."));
-	}
-	else
-	{
-		//C-Style arrays are not supported, only one value is used. 
-		const int64 Value = GetChannelValue(InKeyIndex, 0);
-		PropertyBinding.SetCurrentValueForEnum(InStruct, OutFrame, Value);
+		const int64 Value = GetChannelValue(InKeyIndex, i);
+		PropertyBinding.SetCurrentValueForEnumAt(i, InStruct, OutFrame, Value);
 	}
 }
 
 void FMovieSceneLiveLinkEnumHandler::FillFrameInterpolated(const FFrameTime& InFrameTime, const FLiveLinkWorldTime& InWorldTime, const TOptional<FQualifiedFrameTime>& InTimecodeTime, const UScriptStruct& InStruct, FLiveLinkBaseFrameData* OutFrame)
 {
-	UProperty* FoundProperty = PropertyBinding.GetProperty(InStruct);
-	if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(FoundProperty))
+	int32 ChannelIndex = 0;
+	for (int32 i = 0; i < ElementCount; ++i)
 	{
-		checkf(false, TEXT("Array of Enums are not supported."));
-	}
-	else
-	{
-		//C-Style arrays are not supported, only one value is used. 
-		const int64 Value = GetChannelValueInterpolated(InFrameTime, 0);
-		PropertyBinding.SetCurrentValueForEnum(InStruct, OutFrame, Value);
+		const int64 Value = GetChannelValueInterpolated(InFrameTime, i);
+		PropertyBinding.SetCurrentValueForEnumAt(i, InStruct, OutFrame, Value);
 	}
 }
 

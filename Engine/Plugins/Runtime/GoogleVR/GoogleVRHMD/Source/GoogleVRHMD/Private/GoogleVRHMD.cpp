@@ -1402,14 +1402,14 @@ FMatrix FGoogleVRHMD::GetStereoProjectionMatrix(const enum EStereoscopicPass Ste
 	switch(StereoPassType)
 	{
 		case EStereoscopicPass::eSSP_LEFT_EYE:
-			gvr_buffer_viewport_list_get_item(ActiveViewportList, 0, ScratchViewport);
+		gvr_buffer_viewport_list_get_item(ActiveViewportList, 0, ScratchViewport);
 			break;
 		case EStereoscopicPass::eSSP_RIGHT_EYE:
-			gvr_buffer_viewport_list_get_item(ActiveViewportList, 1, ScratchViewport);
+		gvr_buffer_viewport_list_get_item(ActiveViewportList, 1, ScratchViewport);
 			break;
 		default:
-			// We shouldn't got here.
-			check(false);
+		// We shouldn't got here.
+		check(false);
 			break;
 	}
 

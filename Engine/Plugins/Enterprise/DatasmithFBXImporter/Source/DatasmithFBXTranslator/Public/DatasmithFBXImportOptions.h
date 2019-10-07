@@ -1,0 +1,50 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Engine/EngineTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+
+#include "DatasmithFBXImportOptions.generated.h"
+
+class UDatasmithFBXSceneImportData;
+
+UENUM()
+enum class EDatasmithFBXIntermediateSerializationType : uint8
+{
+	Disabled UMETA(Tooltip="Import Fbx file"),
+	Enabled UMETA(Tooltip="Import Fbx, save intermediate during import"),
+	SaveLoadSkipFurtherImport UMETA(Tooltip="Just convert Fbx into intermediate format and do not import")
+};
+
+UCLASS(config = EditorPerProjectUserSettings, HideCategories=(DebugProperty))
+class DATASMITHFBXTRANSLATOR_API UDatasmithFBXImportOptions : public UObject
+{
+	GENERATED_UCLASS_BODY()
+
+public:
+	UPROPERTY(config, EditAnywhere, Category = Lightmaps, meta = (ToolTip = "Generate new UV coordinates for lightmapping instead of using the highest index UV set. \nTurn this on to have Unreal Studio generate lightmap UV sets automatically.\nTurn this off to try using the highest index existing UV set (if available) as the lightmap UV set.\nFor both cases, geometry without existing UV sets will receive an empty UV set, which will by itself not be valid for use with Lightmass."))
+	bool bGenerateLightmapUVs;
+
+	UPROPERTY(config, EditAnywhere, Category=AssetImporting, meta=(DisplayName="Texture folders", ToolTip="Where to look for textures"))
+	TArray<FDirectoryPath> TextureDirs;
+
+	UPROPERTY(config, EditAnywhere, Category=DebugProperty, meta=(DisplayName="Intermediate Serialization", ToolTip="Cache imported Fbx file in intermediate format for faster debugging"))
+	EDatasmithFBXIntermediateSerializationType IntermediateSerialization;
+
+	UPROPERTY(config, EditAnywhere, Category=DebugProperty, meta=(DisplayName="Colorize materials", ToolTip="Do not import actual materials from Fbx, but generate dummy colorized materials instead"))
+	bool bColorizeMaterials;
+
+public:
+	/**
+	 * Overwrites our data with data from a UDatasmithFBXSceneImportData object
+	 */
+	virtual void FromSceneImportData(UDatasmithFBXSceneImportData* InImportData);
+
+	/**
+	 * Places our data into a UDatasmithVREDSceneImportData object
+	 */
+	virtual void ToSceneImportData(UDatasmithFBXSceneImportData* OutImportData);
+};

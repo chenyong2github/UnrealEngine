@@ -249,15 +249,15 @@ namespace ChaosInterface
 			const FTransform& ConvexTransform = CollisionBody.GetTransform();
 			if (const auto& ConvexImplicit = CollisionBody.GetChaosConvexMesh())
 			{
-				if (!ConvexTransform.GetTranslation().IsNearlyZero() || !ConvexTransform.GetRotation().IsIdentity())
-				{
-					TUniquePtr<Chaos::TImplicitObject<float, 3>> TransformImplicit = TUniquePtr<Chaos::TImplicitObject<float, 3>>(new Chaos::TImplicitObjectTransformed<float, 3>(MakeSerializable(ConvexImplicit), ConvexTransform));
-					TUniquePtr<Chaos::TImplicitObjectScaled<float, 3, false>> Implicit = MakeUnique<Chaos::TImplicitObjectScaled<float, 3, false>>(MoveTemp(TransformImplicit), Scale);
-					auto NewShape = NewShapeHelper(MakeSerializable(Implicit));
-					Shapes.Emplace(MoveTemp(NewShape));
-					Geoms.Add(MoveTemp(Implicit));
-				}
-				else
+				//if (!ConvexTransform.GetTranslation().IsNearlyZero() || !ConvexTransform.GetRotation().IsIdentity())
+				//{
+				//	TUniquePtr<Chaos::TImplicitObject<float, 3>> TransformImplicit = TUniquePtr<Chaos::TImplicitObject<float, 3>>(new Chaos::TImplicitObjectTransformed<float, 3>(MakeSerializable(ConvexImplicit), ConvexTransform));
+				//	TUniquePtr<Chaos::TImplicitObjectScaled<float, 3, false>> Implicit = MakeUnique<Chaos::TImplicitObjectScaled<float, 3, false>>(MoveTemp(TransformImplicit), Scale);
+				//	auto NewShape = NewShapeHelper(MakeSerializable(Implicit));
+				//	Shapes.Emplace(MoveTemp(NewShape));
+				//	Geoms.Add(MoveTemp(Implicit));
+				//}
+				//else
 				{
 					TUniquePtr<Chaos::TImplicitObjectScaled<float, 3, true>> Implicit = MakeUnique<Chaos::TImplicitObjectScaled<float, 3>>(MakeSerializable(ConvexImplicit), Scale);
 					auto NewShape = NewShapeHelper(MakeSerializable(Implicit));

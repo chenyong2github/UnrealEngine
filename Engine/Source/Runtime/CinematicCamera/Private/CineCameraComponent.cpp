@@ -50,8 +50,8 @@ UCineCameraComponent::UCineCameraComponent()
 	if (Template)
 	{
 		// default filmback
-		SetFilmbackPresetByName(Template->DefaultFilmbackPreset);
-		SetLensPresetByName(Template->DefaultLensPresetName);
+		SetFilmbackPresetByNameInternal(Template->DefaultFilmbackPreset);
+		SetLensPresetByNameInternal(Template->DefaultLensPresetName);
 		// other lens defaults
 		CurrentAperture = Template->DefaultLensFStop;
 		CurrentFocalLength = Template->DefaultLensFocalLength;
@@ -203,6 +203,12 @@ void UCineCameraComponent::SetFieldOfView(float InFieldOfView)
 	CurrentFocalLength = (FilmbackSettings.SensorWidth / 2.f) / FMath::Tan(FMath::DegreesToRadians(InFieldOfView / 2.f));
 }
 
+void UCineCameraComponent::SetCurrentFocalLength(const float& InFocalLength)
+{
+	CurrentFocalLength = InFocalLength;
+	RecalcDerivedData();
+}
+
 float UCineCameraComponent::GetHorizontalFieldOfView() const
 {
 	return (CurrentFocalLength > 0.f)
@@ -235,6 +241,13 @@ FString UCineCameraComponent::GetFilmbackPresetName() const
 
 void UCineCameraComponent::SetFilmbackPresetByName(const FString& InPresetName)
 {
+	SetFilmbackPresetByNameInternal(InPresetName);
+	// Explicitely call RecalcDerivedData() when invoked via Blueprint, since no other method (incl. PostEditChangeProperty) will trigger
+	RecalcDerivedData();
+}
+
+void UCineCameraComponent::SetFilmbackPresetByNameInternal(const FString& InPresetName)
+{
 	TArray<FNamedFilmbackPreset> const& Presets = UCineCameraComponent::GetFilmbackPresets();
 	int32 const NumPresets = Presets.Num();
 	for (int32 PresetIdx = 0; PresetIdx < NumPresets; ++PresetIdx)
@@ -266,6 +279,13 @@ FString UCineCameraComponent::GetLensPresetName() const
 
 void UCineCameraComponent::SetLensPresetByName(const FString& InPresetName)
 {
+	SetLensPresetByNameInternal(InPresetName);
+	// Explicitely call RecalcDerivedData() when invoked via Blueprint, since no other method (incl. PostEditChangeProperty) will trigger
+	RecalcDerivedData();
+}
+
+void UCineCameraComponent::SetLensPresetByNameInternal(const FString& InPresetName)
+{
 	TArray<FNamedLensPreset> const& Presets = UCineCameraComponent::GetLensPresets();
 	int32 const NumPresets = Presets.Num();
 	for (int32 PresetIdx = 0; PresetIdx < NumPresets; ++PresetIdx)
@@ -284,6 +304,12 @@ float UCineCameraComponent::GetWorldToMetersScale() const
 	UWorld const* const World = GetWorld();
 	AWorldSettings const* const WorldSettings = World ? World->GetWorldSettings() : nullptr;
 	return WorldSettings ? WorldSettings->WorldToMeters : 100.f;
+}
+
+// static
+TArray<FNamedLensPreset> UCineCameraComponent::GetLensPresetsCopy()
+{
+	return GetDefault<UCineCameraComponent>()->LensPresets;
 }
 
 // static

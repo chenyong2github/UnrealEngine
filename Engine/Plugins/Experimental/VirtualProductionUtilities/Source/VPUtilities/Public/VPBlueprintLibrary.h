@@ -74,6 +74,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
 	static bool EditorRedo();
 
+	/** Trigger an UnrealEd Duplicate */
+	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
+	static bool EditorDuplicate();
+
 	/** Trigger an UnrealEd Delete */
 	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
 	static bool EditorDeleteSelectedObjects();
