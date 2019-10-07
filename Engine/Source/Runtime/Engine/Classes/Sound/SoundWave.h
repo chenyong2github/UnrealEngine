@@ -797,8 +797,9 @@ public:
 
 	/**
 	 * Change the guid and flush all compressed data
+	 * @param bFreeResources if true, will delete any precached compressed data as well.
 	 */
-	void InvalidateCompressedData();
+	void InvalidateCompressedData(bool bFreeResources = false);
 
 	/** Returns curves associated with this sound wave */
 	virtual class UCurveTable* GetCurveData() const override { return Curves; }
