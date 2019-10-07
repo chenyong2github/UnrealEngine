@@ -134,6 +134,12 @@ UTexture* UCompositingMediaInput::GenerateInput_Implementation()
 
 #include "MediaTexture.h"
 
+UMediaTextureCompositingInput::UMediaTextureCompositingInput()
+{
+	// set to false so the Chroma Key picker works
+	bIntermediate = false;
+}
+
 UTexture* UMediaTextureCompositingInput::GetMediaTexture() const
 {
 	return MediaSource;

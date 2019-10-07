@@ -426,7 +426,19 @@ public:
 		// does any work only if that's the case
 		if (Number > Elements.Num())
 		{
+			// Preallocates memory for array of elements
 			Elements.Reserve(Number);
+
+			// Calculate the corresponding hash size for the specified number of elements.
+			const int32 NewHashSize = Allocator::GetNumberOfHashBuckets(Number);
+
+			// If the hash hasn't been created yet, or is smaller than the corresponding hash size, rehash
+			// to force a preallocation of the hash table
+			if(!HashSize || HashSize < NewHashSize)
+			{
+				HashSize = NewHashSize;
+				Rehash();
+			}
 		}
 	}
 
@@ -879,6 +891,19 @@ public:
 	{
 		// Sort the elements according to the provided comparison class.
 		Elements.Sort( FElementCompareClass< PREDICATE_CLASS >( Predicate ) );
+
+		// Rehash.
+		Rehash();
+	}
+
+	/**
+	 * Stable sorts the set's elements using the provided comparison class.
+	 */
+	template <typename PREDICATE_CLASS>
+	void StableSort(const PREDICATE_CLASS& Predicate)
+	{
+		// Sort the elements according to the provided comparison class.
+		Elements.StableSort(FElementCompareClass< PREDICATE_CLASS >(Predicate));
 
 		// Rehash.
 		Rehash();

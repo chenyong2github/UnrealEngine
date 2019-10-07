@@ -23,13 +23,14 @@ class FMessageBus
 	, public IMessageBus
 {
 public:
-
+	
 	/**
 	 * Creates and initializes a new instance.
 	 *
+	 * @param InDebugName The debug name of this message bus.
 	 * @param InRecipientAuthorizer An optional recipient authorizer.
 	 */
-	FMessageBus(const TSharedPtr<IAuthorizeMessageRecipients>& InRecipientAuthorizer);
+	FMessageBus(FString InName, const TSharedPtr<IAuthorizeMessageRecipients>& InRecipientAuthorizer);
 
 	/** Virtual destructor. */
 	virtual ~FMessageBus();
@@ -53,7 +54,11 @@ public:
 
 	virtual void AddNotificationListener(const TSharedRef<IBusListener, ESPMode::ThreadSafe>& Listener) override;
 	virtual void RemoveNotificationListener(const TSharedRef<IBusListener, ESPMode::ThreadSafe>& Listener) override;
+	virtual const FString& GetName() const override;
+
 private:
+	/** The message bus debugging name. */
+	const FString Name;
 
 	/** Holds the message router. */
 	FMessageRouter* Router;

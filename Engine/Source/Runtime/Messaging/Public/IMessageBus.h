@@ -246,6 +246,11 @@ public:
 	 */
 	virtual void RemoveNotificationListener(const TSharedRef<IBusListener, ESPMode::ThreadSafe>& Listener) = 0;
 
+	/**
+	 * @return The name of this message bus. 
+	 */
+	virtual const FString& GetName() const = 0;
+
 public:
 
 	/**

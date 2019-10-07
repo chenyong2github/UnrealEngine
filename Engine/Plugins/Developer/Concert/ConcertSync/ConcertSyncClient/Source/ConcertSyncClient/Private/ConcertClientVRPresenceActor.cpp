@@ -32,14 +32,21 @@ AConcertClientVRPresenceActor::AConcertClientVRPresenceActor(const FObjectInitia
 	AddOwnedComponent(RightControllerMeshComponent);
 	RightControllerMeshComponent->SetupAttachment(RootComponent);
 
-	LaserSplineComponent = CreateDefaultSubobject<USplineComponent>(TEXT("Spline"));
-	AddOwnedComponent(LaserSplineComponent);
-	LaserSplineComponent->SetupAttachment(RootComponent);
-	LaserSplineComponent->SetVisibility(false);
+	LeftLaserSplineComponent = CreateDefaultSubobject<USplineComponent>(TEXT("LeftSpline"));
+	AddOwnedComponent(LeftLaserSplineComponent);
+	LeftLaserSplineComponent->SetupAttachment(RootComponent);
+	LeftLaserSplineComponent->SetVisibility(false);
+
+	RightLaserSplineComponent = CreateDefaultSubobject<USplineComponent>(TEXT("RightSpline"));
+	AddOwnedComponent(RightLaserSplineComponent);
+	RightLaserSplineComponent->SetupAttachment(RootComponent);
+	RightLaserSplineComponent->SetVisibility(false);
 
 	bIsRightControllerVisible = true;
 	bIsLeftControllerVisible = true;
-	bIsLaserVisible = true;
+
+	bIsLeftLaserVisible = false;
+	bIsRightLaserVisible = false;
 }
 
 void AConcertClientVRPresenceActor::HandleEvent(const FStructOnScope& InEvent)
@@ -87,27 +94,43 @@ void AConcertClientVRPresenceActor::HandleEvent(const FStructOnScope& InEvent)
 				}
 			}
 
-			// laser
-			if (Event->bHasLaser)
+			// lasers
+			auto UpdateLaserLastKnownLocation = [TimestampSeconds, LocationUpdateFrequency](TOptional<FConcertClientMovement>& MovementObject, const FVector& Position)
 			{
-				auto UpdateLaserLastKnownLocation = [TimestampSeconds, LocationUpdateFrequency](TOptional<FConcertClientMovement>& MovementObject, const FVector& Position)
+				if (!MovementObject.IsSet())
 				{
-					if (!MovementObject.IsSet())
-					{
-						MovementObject = FConcertClientMovement(LocationUpdateFrequency, TimestampSeconds, Position);
-					}
-					else
-					{
-						MovementObject->UpdateLastKnownLocation(TimestampSeconds, Position);
-					}
-				};
+					MovementObject = FConcertClientMovement(LocationUpdateFrequency, TimestampSeconds, Position);
+				}
+				else
+				{
+					MovementObject->UpdateLastKnownLocation(TimestampSeconds, Position);
+				}
+			};
 
-				UpdateLaserLastKnownLocation(LaserStartMovement, Event->LaserStart);
-				UpdateLaserLastKnownLocation(LaserEndMovement, Event->LaserEnd);
+			//  left laser
+			if (Event->Lasers[(int32)EControllerHand::Left].IsValid())
+			{
+				const FConcertLaserData& Laser = Event->Lasers[(int32)EControllerHand::Left];
+				UpdateLaserLastKnownLocation(LeftLaserStartMovement, Laser.LaserStart);
+				UpdateLaserLastKnownLocation(LeftLaserEndMovement, Laser.LaserEnd);
+
 			}
 			else
 			{
-				HideLaser();
+				HideLeftLaser();
+			}
+
+			// right laser
+			if (Event->Lasers[(int32)EControllerHand::Right].IsValid())
+			{
+				const FConcertLaserData& Laser = Event->Lasers[(int32)EControllerHand::Right];
+				UpdateLaserLastKnownLocation(RightLaserStartMovement, Laser.LaserStart);
+				UpdateLaserLastKnownLocation(RightLaserEndMovement, Laser.LaserEnd);
+
+			}
+			else
+			{
+				HideRightLaser();
 			}
 		}
 	}
@@ -121,6 +144,7 @@ void AConcertClientVRPresenceActor::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
+	// Left Controller
 	if (LeftControllerMovement.IsSet())
 	{
 		if (!bIsLeftControllerVisible)
@@ -136,6 +160,7 @@ void AConcertClientVRPresenceActor::Tick(float DeltaSeconds)
 		LeftControllerMeshComponent->SetWorldTransform(LeftControllerTransform);
 	}
 
+	// Right Controller
 	if (RightControllerMovement.IsSet())
 	{
 		if (!bIsRightControllerVisible)
@@ -152,19 +177,34 @@ void AConcertClientVRPresenceActor::Tick(float DeltaSeconds)
 		RightControllerMeshComponent->SetRelativeScale3D(FVector(1.0f, -1.0f, 1.0f));
 	}
 
-	// Calculate laser
-	if (LaserSplineComponent && LaserStartMovement.IsSet() && LaserEndMovement.IsSet())
+	// Left Laser
+	if (LeftLaserSplineComponent && LeftLaserStartMovement.IsSet() && LeftLaserEndMovement.IsSet())
 	{
-		if (!bIsLaserVisible)
+		if (!bIsLeftLaserVisible)
 		{
-			ShowLaser();
+			ShowLeftLaser();
 		}
 
 		FVector LaserStartPosition;
 		FVector LaserEndPosition;
-		LaserStartMovement->MoveSmooth(DeltaSeconds, LaserStartPosition);
-		LaserEndMovement->MoveSmooth(DeltaSeconds, LaserEndPosition);
-		UpdateSplineLaser(LaserStartPosition, LaserEndPosition);
+		LeftLaserStartMovement->MoveSmooth(DeltaSeconds, LaserStartPosition);
+		LeftLaserEndMovement->MoveSmooth(DeltaSeconds, LaserEndPosition);
+		UpdateSplineLaser(LeftLaserSplineComponent, LeftLaserSplineMeshComponents, LaserStartPosition, LaserEndPosition);
+	}
+
+	// Right Laser
+	if (RightLaserSplineComponent && RightLaserStartMovement.IsSet() && RightLaserEndMovement.IsSet())
+	{
+		if (!bIsRightLaserVisible)
+		{
+			ShowRightLaser();
+		}
+
+		FVector LaserStartPosition;
+		FVector LaserEndPosition;
+		RightLaserStartMovement->MoveSmooth(DeltaSeconds, LaserStartPosition);
+		RightLaserEndMovement->MoveSmooth(DeltaSeconds, LaserEndPosition);
+		UpdateSplineLaser(RightLaserSplineComponent, RightLaserSplineMeshComponents, LaserStartPosition, LaserEndPosition);
 	}
 }
 
@@ -203,39 +243,43 @@ void AConcertClientVRPresenceActor::InitPresence(const class UConcertAssetContai
 	UMaterialInterface* LaserCoreMaterial = InAssetContainer.LaserCoreMaterial;
 	LaserCoreMid = UMaterialInstanceDynamic::Create(LaserCoreMaterial, this);
 
-	for (int32 i = 0; i < NumLaserSplinePoints; i++)
+	auto AddSplinePoints = [this, StartSplineMesh, MiddleSplineMesh, EndSplineMesh, NumLaserSplinePoints](TArray<USplineMeshComponent*>& LaserSplineMeshComponents)
 	{
-		USplineMeshComponent* SplineSegment = NewObject<USplineMeshComponent>(this);
-		SplineSegment->SetMobility(EComponentMobility::Movable);
-		SplineSegment->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		SplineSegment->SetSplineUpDir(FVector::UpVector, false);
-
-		UStaticMesh* StaticMesh = nullptr;
-		if (i == 0)
+		for (int32 i = 0; i < NumLaserSplinePoints; i++)
 		{
-			StaticMesh = StartSplineMesh;
-		}
-		else if (i == NumLaserSplinePoints - 1)
-		{
-			StaticMesh = EndSplineMesh;
-		}
-		else
-		{
-			StaticMesh = MiddleSplineMesh;
-		}
+			USplineMeshComponent* SplineSegment = NewObject<USplineMeshComponent>(this);
+			SplineSegment->SetMobility(EComponentMobility::Movable);
+			SplineSegment->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			SplineSegment->SetSplineUpDir(FVector::UpVector, false);
 
-		SplineSegment->SetStaticMesh(StaticMesh);
-		SplineSegment->bTickInEditor = true;
-		SplineSegment->bCastDynamicShadow = false;
-		SplineSegment->CastShadow = false;
-		SplineSegment->SetMaterial(0, LaserCoreMid);
-		SplineSegment->SetMaterial(1, LaserMid);
-		SplineSegment->SetVisibility(true);
-		SplineSegment->RegisterComponent();
+			UStaticMesh* StaticMesh = nullptr;
+			if (i == 0)
+			{
+				StaticMesh = StartSplineMesh;
+			}
+			else if (i == NumLaserSplinePoints - 1)
+			{
+				StaticMesh = EndSplineMesh;
+			}
+			else
+			{
+				StaticMesh = MiddleSplineMesh;
+			}
 
+			SplineSegment->SetStaticMesh(StaticMesh);
+			SplineSegment->bTickInEditor = true;
+			SplineSegment->bCastDynamicShadow = false;
+			SplineSegment->CastShadow = false;
+			SplineSegment->SetMaterial(0, LaserCoreMid);
+			SplineSegment->SetMaterial(1, LaserMid);
+			SplineSegment->SetVisibility(true);
+			SplineSegment->RegisterComponent();
 
-		LaserSplineMeshComponents.Add(SplineSegment);
-	}
+			LaserSplineMeshComponents.Add(SplineSegment);
+		}
+	};
+	AddSplinePoints(LeftLaserSplineMeshComponents);
+	AddSplinePoints(RightLaserSplineMeshComponents);
 }
 
 void AConcertClientVRPresenceActor::SetPresenceColor(const FLinearColor& InColor)
@@ -250,19 +294,19 @@ void AConcertClientVRPresenceActor::SetPresenceColor(const FLinearColor& InColor
 	TextMID->SetVectorParameterValue(ColorParamName, InColor);
 }
 
-void AConcertClientVRPresenceActor::UpdateSplineLaser(const FVector& InStartLocation, const FVector& InEndLocation)
+void AConcertClientVRPresenceActor::UpdateSplineLaser(USplineComponent* InLaserSplineComponent, const TArray<USplineMeshComponent*>& InLaserSplineMeshComponents, const FVector& InStartLocation, const FVector& InEndLocation)
 {
-	if (LaserSplineComponent)
+	if (InLaserSplineComponent)
 	{
 		// Clear the segments before updating it
-		LaserSplineComponent->ClearSplinePoints(true);
+		InLaserSplineComponent->ClearSplinePoints(true);
 
 		const FVector SmoothLaserDirection = InEndLocation - InStartLocation;
 		float Distance = SmoothLaserDirection.Size();
 		const FVector StraightLaserEndLocation = InEndLocation;
-		const int32 NumLaserSplinePoints = LaserSplineMeshComponents.Num();
+		const int32 NumLaserSplinePoints = InLaserSplineMeshComponents.Num();
 
-		LaserSplineComponent->AddSplinePoint(InStartLocation, ESplineCoordinateSpace::Local, false);
+		InLaserSplineComponent->AddSplinePoint(InStartLocation, ESplineCoordinateSpace::Local, false);
 		for (int32 Index = 1; Index < NumLaserSplinePoints; Index++)
 		{
 			float Alpha = (float)Index / (float)NumLaserSplinePoints;
@@ -270,23 +314,23 @@ void AConcertClientVRPresenceActor::UpdateSplineLaser(const FVector& InStartLoca
 			const FVector PointOnStraightLaser = FMath::Lerp(InStartLocation, StraightLaserEndLocation, Alpha);
 			const FVector PointOnSmoothLaser = FMath::Lerp(InStartLocation, InEndLocation, Alpha);
 			const FVector PointBetweenLasers = FMath::Lerp(PointOnStraightLaser, PointOnSmoothLaser, Alpha);
-			LaserSplineComponent->AddSplinePoint(PointBetweenLasers, ESplineCoordinateSpace::Local, false);
+			InLaserSplineComponent->AddSplinePoint(PointBetweenLasers, ESplineCoordinateSpace::Local, false);
 		}
-		LaserSplineComponent->AddSplinePoint(InEndLocation, ESplineCoordinateSpace::Local, false);
+		InLaserSplineComponent->AddSplinePoint(InEndLocation, ESplineCoordinateSpace::Local, false);
 
 		// Update all the segments of the spline
-		LaserSplineComponent->UpdateSpline();
+		InLaserSplineComponent->UpdateSpline();
 
-		const float LaserPointerRadius = 0.5f;
+		const float LaserPointerRadius = LaserThickness;
 		Distance *= 0.0001f;
 		for (int32 Index = 0; Index < NumLaserSplinePoints; Index++)
 		{
-			USplineMeshComponent* SplineMeshComponent = LaserSplineMeshComponents[Index];
+			USplineMeshComponent* SplineMeshComponent = InLaserSplineMeshComponents[Index];
 			check(SplineMeshComponent != nullptr);
 
 			FVector StartLoc, StartTangent, EndLoc, EndTangent;
-			LaserSplineComponent->GetLocationAndTangentAtSplinePoint(Index, StartLoc, StartTangent, ESplineCoordinateSpace::Local);
-			LaserSplineComponent->GetLocationAndTangentAtSplinePoint(Index + 1, EndLoc, EndTangent, ESplineCoordinateSpace::Local);
+			InLaserSplineComponent->GetLocationAndTangentAtSplinePoint(Index, StartLoc, StartTangent, ESplineCoordinateSpace::Local);
+			InLaserSplineComponent->GetLocationAndTangentAtSplinePoint(Index + 1, EndLoc, EndTangent, ESplineCoordinateSpace::Local);
 
 			const float AlphaIndex = (float)Index / (float)NumLaserSplinePoints;
 			const float AlphaDistance = Distance * AlphaIndex;
@@ -331,7 +375,6 @@ void AConcertClientVRPresenceActor::HideRightController()
 	{
 		RightControllerMovement.Reset();
 	}
-
 }
 
 void AConcertClientVRPresenceActor::ShowRightController()
@@ -340,27 +383,62 @@ void AConcertClientVRPresenceActor::ShowRightController()
 	RightControllerMeshComponent->SetVisibility(true, true);
 }
 
-void AConcertClientVRPresenceActor::HideLaser()
+void AConcertClientVRPresenceActor::HideLeftLaser()
 {
-	bIsLaserVisible = false;
-	LaserSplineComponent->SetVisibility(false, true);
-
-	if (LaserStartMovement.IsSet())
+	bIsLeftLaserVisible = false;
+	for (USplineMeshComponent* LaserSplineMeshSegmentCmp : LeftLaserSplineMeshComponents)
 	{
-		LaserStartMovement.Reset();
+		LaserSplineMeshSegmentCmp->SetVisibility(false, true);
+	}
+	
+	if (LeftLaserStartMovement.IsSet())
+	{
+		LeftLaserStartMovement.Reset();
 	}
 
-	if (LaserEndMovement.IsSet())
+	if (LeftLaserEndMovement.IsSet())
 	{
-		LaserEndMovement.IsSet();
+		LeftLaserEndMovement.IsSet();
 	}
 }
 
-void AConcertClientVRPresenceActor::ShowLaser()
+void AConcertClientVRPresenceActor::ShowLeftLaser()
 {
-	bIsLaserVisible = true;
-	LaserSplineComponent->SetVisibility(true, true);
+	bIsLeftLaserVisible = true;
+	for (USplineMeshComponent* LaserSplineMeshSegmentCmp : LeftLaserSplineMeshComponents)
+	{
+		LaserSplineMeshSegmentCmp->SetVisibility(true, true);
+	}
 }
+
+void AConcertClientVRPresenceActor::HideRightLaser()
+{
+	bIsRightLaserVisible = false;
+	for (USplineMeshComponent* LaserSplineMeshSegmentCmp : RightLaserSplineMeshComponents)
+	{
+		LaserSplineMeshSegmentCmp->SetVisibility(false, true);
+	}
+
+	if (RightLaserStartMovement.IsSet())
+	{
+		RightLaserStartMovement.Reset();
+	}
+
+	if (RightLaserEndMovement.IsSet())
+	{
+		RightLaserEndMovement.IsSet();
+	}
+}
+
+void AConcertClientVRPresenceActor::ShowRightLaser()
+{
+	bIsRightLaserVisible = true;
+	for (USplineMeshComponent* LaserSplineMeshSegmentCmp : RightLaserSplineMeshComponents)
+	{
+		LaserSplineMeshSegmentCmp->SetVisibility(true, true);
+	}
+}
+
 
 #undef LOCTEXT_NAMESPACE
 

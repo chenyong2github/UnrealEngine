@@ -3,6 +3,9 @@
 #include "ConcertClientPresenceActor.h"
 #include "UObject/ConstructorHelpers.h"
 #include "EngineGlobals.h"
+#include "UObject/StructOnScope.h"
+#include "Engine/Scene.h"
+#include "ConcertPresenceEvents.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "ConcertAssetContainer.h"
@@ -25,7 +28,7 @@ AConcertClientPresenceActor::AConcertClientPresenceActor(const FObjectInitialize
 	: Super(ObjectInitializer)
 {
 	// Initialize if this actor will be editor only based the `EnablePresenceInGame` console variable.
-	bIsEditorOnly = CVarEnablePresenceInGame.GetValueOnAnyThread() == 0;
+	bIsEditorOnlyActor = CVarEnablePresenceInGame.GetValueOnAnyThread() == 0;
 
 	// Set root component 
 	{
@@ -60,7 +63,7 @@ bool AConcertClientPresenceActor::ShouldTickIfViewportsOnly() const
 
 bool AConcertClientPresenceActor::IsEditorOnly() const
 {
-	return bIsEditorOnly;
+	return bIsEditorOnlyActor;
 }
 
 void AConcertClientPresenceActor::SetPresenceName(const FString& InName)

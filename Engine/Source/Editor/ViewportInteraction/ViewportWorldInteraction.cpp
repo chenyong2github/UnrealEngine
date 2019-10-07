@@ -1859,7 +1859,11 @@ void UViewportWorldInteraction::UpdateDragging(
 			{
 				// Translate only (one hand)
 				TranslationOffset = DragDelta;
-				TranslationOffset *= VI::DragScale->GetFloat();
+				//Apply drag scale only if dragging world
+				if (DraggingMode == EViewportInteractionDraggingMode::World)
+				{
+					TranslationOffset *= VI::DragScale->GetFloat();
+				}
 				GizmoScaleSinceDragStarted = 0.0f;
 				GizmoRotationRadiansSinceDragStarted = 0.0f;
 			}
@@ -2533,9 +2537,9 @@ bool UViewportWorldInteraction::FindPlacementPointUnderLaser( UViewportInteracto
 	}
 
 
-	const bool bIgnoreGizmos = true;		// Never place on top of gizmos, just ignore them
+	const EHitResultGizmoFilterMode GizmoFilterMode = EHitResultGizmoFilterMode::NoGizmos; // Never place on top of gizmos, just ignore them
 	const bool bEvenIfUIIsInFront = true;	// Don't let the UI block placement
-	FHitResult HitResult = Interactor->GetHitResultFromLaserPointer( &IgnoredActors, bIgnoreGizmos, nullptr, bEvenIfUIIsInFront );
+	FHitResult HitResult = Interactor->GetHitResultFromLaserPointer( &IgnoredActors, GizmoFilterMode, nullptr, bEvenIfUIIsInFront );
 	if( HitResult.Actor.IsValid() )
 	{
 		bHitSomething = true;

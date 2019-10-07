@@ -7,8 +7,6 @@
 
 class FBackChannelOSCConnection;
 
-enum class ERemoteSessionChannelMode;
-
 class REMOTESESSION_API IRemoteSessionChannel
 {
 
@@ -21,5 +19,16 @@ public:
 	virtual void Tick(const float InDeltaTime) = 0;
 
 	virtual const TCHAR* GetType() const = 0;
+};
 
+class REMOTESESSION_API IRemoteSessionChannelFactoryWorker
+{
+
+public:
+
+	virtual ~IRemoteSessionChannelFactoryWorker() {}
+
+	virtual const TCHAR* GetType() const = 0;
+
+	virtual TSharedPtr<IRemoteSessionChannel> Construct(ERemoteSessionChannelMode InMode, TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection) const = 0;
 };

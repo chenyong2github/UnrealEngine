@@ -6,7 +6,6 @@
 #if WITH_EDITOR
 #include "EditorFramework/AssetImportData.h"
 #include "Factories/CSVImportFactory.h"
-#include "Misc/FileHelper.h"
 #include "HAL/FileManager.h"
 #endif //WITH_EDITOR
 

@@ -7,6 +7,7 @@
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "IMessageAttachment.h"
 #include "Templates/SharedPointer.h"
+#include "Async/Future.h"
 
 class FArrayReader;
 class FUdpReassembledMessage;
@@ -30,7 +31,8 @@ struct FGuid;
  * Console and mobile platforms use a single multicast socket for all sending and receiving.
  */
 class FUdpMessageTransport
-	: public IMessageTransport
+	: public TSharedFromThis<FUdpMessageTransport, ESPMode::ThreadSafe>
+	, public IMessageTransport
 {
 public:
 
@@ -41,7 +43,7 @@ public:
 	 * @param InMulticastEndpoint The multicast group endpoint to transport messages to.
 	 * @param InMulticastTtl The multicast time-to-live.
 	 */
-	FUdpMessageTransport(const FIPv4Endpoint& InLocalEndpoint, const FIPv4Endpoint& InMulticastEndpoint, uint8 InMulticastTtl);
+	FUdpMessageTransport(const FIPv4Endpoint& InLocalEndpoint, const FIPv4Endpoint& InMulticastEndpoint, TArray<FIPv4Endpoint> InStaticEndpoints, uint8 InMulticastTtl);
 
 	/** Virtual destructor. */
 	virtual ~FUdpMessageTransport();
@@ -50,9 +52,37 @@ public:
 	void OnAppPreExit();
 
 public:
+	/**
+	 * Add a static endpoint to the transport
+	 * @param InEndpoint the endpoint to add
+	 */
+	void AddStaticEndpoint(const FIPv4Endpoint& InEndpoint);
+
+	/**
+	 * Remove a static endpoint from the transport
+	 * @param InEndpoint the endpoint to remove
+	 */
+	void RemoveStaticEndpoint(const FIPv4Endpoint& InEndpoint);
+
+	/**
+	 * Returns a delegate that is executed when a socket error happened.
+	 *
+	 * @return The delegate.
+	 * @note this delegate is executed from the main thread by the task graph.
+	 */
+	DECLARE_DELEGATE(FOnError)
+	FOnError& OnTransportError()
+	{
+		return TransportErrorDelegate;
+	}
+
+	/**
+	 * Restart the transport using the same Transport handler
+	 * @return true if the restart was successful
+	 */
+	bool RestartTransport();
 
 	//~ IMessageTransport interface
-
 	virtual FName GetDebugName() const override;
 	virtual bool StartTransport(IMessageTransportHandler& Handler) override;
 	virtual void StopTransport() override;
@@ -69,10 +99,18 @@ private:
 	/** Handles lost transport endpoints. */
 	void HandleProcessorNodeLost(const FGuid& LostNodeId);
 
+	/** */
+	void HandleProcessorError();
+
 	/** Handles received socket data. */
 	void HandleSocketDataReceived(const TSharedPtr<FArrayReader, ESPMode::ThreadSafe>& Data, const FIPv4Endpoint& Sender);
 
 private:
+	/** Holds any pending restart request. */
+	TFuture<void> ErrorFuture;
+
+	/** Holds the transport error delegate. */
+	FOnError TransportErrorDelegate;
 
 	/** Holds the message processor. */
 	FUdpMessageProcessor* MessageProcessor;
@@ -108,4 +146,7 @@ private:
 	/** Holds the unicast socket. */
 	FSocket* UnicastSocket;
 #endif
+
+	/** Holds the static endpoints. */
+	TSet<FIPv4Endpoint> StaticEndpoints;
 };

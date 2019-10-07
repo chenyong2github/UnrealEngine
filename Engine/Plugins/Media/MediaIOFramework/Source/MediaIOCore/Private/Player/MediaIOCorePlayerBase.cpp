@@ -6,6 +6,7 @@
 #include "Engine/TimecodeProvider.h"
 #include "IMediaEventSink.h"
 #include "IMediaOptions.h"
+#include "MediaIOCoreModule.h"
 #include "MediaIOCoreSamples.h"
 #include "Misc/App.h"
 #include "Misc/ScopeLock.h"
@@ -14,8 +15,39 @@
 
 #define LOCTEXT_NAMESPACE "MediaIOCorePlayerBase"
 
+/* MediaIOCorePlayerDetail
+ *****************************************************************************/
+
+namespace MediaIOCorePlayerDetail
+{
+	static double ComputeTimeCodeOffset()
+	{
+		const FDateTime DateTime = FDateTime::Now();
+		double HighPerformanceClock = FPlatformTime::Seconds();
+		const FTimespan Timespan = DateTime.GetTimeOfDay();
+		double Delta = Timespan.GetTotalSeconds() - HighPerformanceClock;
+		return Delta;
+	}
+
+	static const double HighPerformanceClockDelta = ComputeTimeCodeOffset();
+	static bool bLogTimecode = false;
+
+	static FAutoConsoleCommand CCommandShowTimecode(
+		TEXT("MediaIO.ShowInputTimecode"),
+		TEXT("All media player will log the frame timecode when a new frame is captured."),
+		FConsoleCommandDelegate::CreateLambda([](){ MediaIOCorePlayerDetail::bLogTimecode = true; }),
+		ECVF_Cheat);
+
+	static FAutoConsoleCommand CCommandHideTimecode(
+		TEXT("MediaIO.HideInputTimecode"),
+		TEXT("All media player will stop logging the frame timecode when a new frame is captured."),
+		FConsoleCommandDelegate::CreateLambda([]() { MediaIOCorePlayerDetail::bLogTimecode = false; }),
+		ECVF_Cheat);
+}
+
 /* FMediaIOCoreMediaOption structors
  *****************************************************************************/
+
 const FName FMediaIOCoreMediaOption::FrameRateNumerator("FrameRateNumerator");
 const FName FMediaIOCoreMediaOption::FrameRateDenominator("FrameRateDenominator");
 const FName FMediaIOCoreMediaOption::ResolutionWidth("ResolutionWidth");
@@ -26,13 +58,15 @@ const FName FMediaIOCoreMediaOption::VideoModeName("VideoModeName");
  *****************************************************************************/
 
 FMediaIOCorePlayerBase::FMediaIOCorePlayerBase(IMediaEventSink& InEventSink)
-	: bIsTimecodeLogEnable(false)
-	, CurrentState(EMediaState::Closed)
+	: CurrentState(EMediaState::Closed)
 	, CurrentTime(FTimespan::Zero())
 	, EventSink(InEventSink)
 	, VideoFrameRate(30, 1)
 	, Samples(new FMediaIOCoreSamples)
 	, bUseTimeSynchronization(false)
+	, bWarnedIncompatibleFrameRate(false)
+	, FrameDelay(0)
+	, TimeDelay(0.0)
 	, PreviousFrameTimespan(FTimespan::Zero())
 {
 }
@@ -142,13 +176,31 @@ void FMediaIOCorePlayerBase::TickTimeManagement()
 {
 	if (bUseTimeSynchronization)
 	{
-		const FTimecode Timecode = FApp::GetTimecode();
-		CurrentTime = Timecode.ToTimespan(FApp::GetTimecodeFrameRate());
+		FTimecode Timecode = FApp::GetTimecode();
+		const FFrameRate FrameRate = FApp::GetTimecodeFrameRate();
+
+		if (!bWarnedIncompatibleFrameRate)
+		{
+			if (!FrameRate.IsMultipleOf(VideoFrameRate) && !VideoFrameRate.IsMultipleOf(FrameRate))
+			{
+				bWarnedIncompatibleFrameRate = true;
+				UE_LOG(LogMediaIOCore, Warning, TEXT("The video's frame rate is incompatible with engine's frame rate. %s"), *OpenUrl);
+			}
+		}
+
+		if (FrameDelay != 0)
+		{
+			FFrameNumber FrameNumber = Timecode.ToFrameNumber(VideoFrameRate);
+			FrameNumber -= FrameDelay;
+			Timecode = FTimecode::FromFrameNumber(FrameNumber, FrameRate, Timecode.bDropFrameFormat);
+		}
+
+		CurrentTime = Timecode.ToTimespan(FrameRate);
 	}
 	else
 	{
 		// As default, use the App time
-		CurrentTime = FTimespan::FromSeconds(FApp::GetCurrentTime());
+		CurrentTime = FTimespan::FromSeconds(GetApplicationSeconds() - TimeDelay);
 	}
 }
 
@@ -372,6 +424,9 @@ bool FMediaIOCorePlayerBase::SetTrackFormat(EMediaTrackType TrackType, int32 Tra
 bool FMediaIOCorePlayerBase::ReadMediaOptions(const IMediaOptions* Options)
 {
 	bUseTimeSynchronization = Options->GetMediaOption(TimeSynchronizableMedia::UseTimeSynchronizatioOption, false);
+	FrameDelay = Options->GetMediaOption(TimeSynchronizableMedia::FrameDelay, (int64)0);
+	TimeDelay = Options->GetMediaOption(TimeSynchronizableMedia::TimeDelay, 0.0);
+
 	{
 		int32 Numerator = Options->GetMediaOption(FMediaIOCoreMediaOption::FrameRateNumerator, (int64)30);
 		int32 Denominator = Options->GetMediaOption(FMediaIOCoreMediaOption::FrameRateDenominator, (int64)1);
@@ -388,24 +443,23 @@ bool FMediaIOCorePlayerBase::ReadMediaOptions(const IMediaOptions* Options)
 	return true;
 }
 
-bool FMediaIOCorePlayerBase::Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+double FMediaIOCorePlayerBase::GetApplicationSeconds()
 {
-#if !UE_BUILD_SHIPPING
-	if (FParse::Command(&Cmd, TEXT("MediaIO")))
-	{
-		if (FParse::Command(&Cmd, TEXT("ShowInputTimecode")))
-		{
-			bIsTimecodeLogEnable = true;
-			return true;
-		}
-		else if (FParse::Command(&Cmd, TEXT("HideInputTimecode")))
-		{
-			bIsTimecodeLogEnable = false;
-			return true;
-		}
-	}
-#endif
+	return MediaIOCorePlayerDetail::HighPerformanceClockDelta + FApp::GetCurrentTime();
+}
+
+double FMediaIOCorePlayerBase::GetPlatformSeconds()
+{
+	return MediaIOCorePlayerDetail::HighPerformanceClockDelta + FPlatformTime::Seconds();
+}
+
+bool FMediaIOCorePlayerBase::IsTimecodeLogEnabled()
+{
+#if !(UE_BUILD_SHIPPING)
+	return MediaIOCorePlayerDetail::bLogTimecode;
+#else
 	return false;
+#endif
 }
 
 #undef LOCTEXT_NAMESPACE

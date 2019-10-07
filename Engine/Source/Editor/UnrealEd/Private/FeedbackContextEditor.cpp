@@ -186,10 +186,9 @@ private:
 			else if (Scope->Visibility == ESlowTaskVisibility::Default && !Scope->DefaultMessage.IsEmpty())
 			{
 				const auto TimeOpen = FPlatformTime::Seconds() - Scope->StartTime;
-				const auto WorkDone = ScopeStack->GetProgressFraction(Index);
 
-				// We only show visible scopes if they have been opened a while, and have a reasonable amount of work left
-				if (WorkDone * TimeOpen > VisibleScopeThreshold)
+				// We only show visible scopes if they have been opened a while
+				if (TimeOpen > VisibleScopeThreshold)
 				{
 					DynamicProgressIndices.Add(Index);
 				}

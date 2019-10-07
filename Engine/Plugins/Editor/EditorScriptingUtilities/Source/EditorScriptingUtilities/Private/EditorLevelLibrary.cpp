@@ -1093,7 +1093,7 @@ namespace InternalEditorLevelLibrary
 			OutFailureReason = TEXT("The actors were not in a valid world.");
 			return false;
 		}
-		if (CurrentWorld->WorldType != EWorldType::Editor)
+		if (CurrentWorld->WorldType != EWorldType::Editor && CurrentWorld->WorldType != EWorldType::EditorPreview)
 		{
 			OutFailureReason = TEXT("The actors were not in an editor world.");
 			return false;

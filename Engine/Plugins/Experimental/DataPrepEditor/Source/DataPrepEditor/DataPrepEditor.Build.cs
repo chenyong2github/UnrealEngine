@@ -9,6 +9,7 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
+					"AdvancedPreviewScene",
 					"ApplicationCore",
 					"AssetRegistry",
 					"AssetTools",
@@ -26,12 +27,18 @@ namespace UnrealBuildTool.Rules
 					"Kismet",
 					"KismetCompiler",
 					"KismetWidgets",
+					"MeshDescription",
+					"MeshDescriptionOperations",
+					"MeshUtilities",
+					"MeshUtilitiesCommon",
 					"MessageLog",
 					"Projects",
 					"PropertyEditor",
+					"RHI",
 					"SceneOutliner",
 					"Slate",
 					"SlateCore",
+					"StatsViewer",
 					"UnrealEd",
                 }
             );

@@ -160,6 +160,16 @@ void FPhysxSharedData::Terminate()
 	}
 }
 
+void FPhysxSharedData::LockAccess()
+{
+	CriticalSection.Lock();
+}
+
+void FPhysxSharedData::UnlockAccess()
+{
+	CriticalSection.Unlock();
+}
+
 void FPhysxSharedData::Add( PxBase* Obj, const FString& OwnerName )
 {
 	if(Obj) 

@@ -21,6 +21,7 @@ public:
 	virtual void* Realloc( void* Ptr, SIZE_T NewSize, uint32 Alignment ) override;
 	virtual void Free( void* Ptr ) override;
 	virtual bool GetAllocationSize( void *Original, SIZE_T &SizeOut ) override;
+	virtual void Trim(bool bTrimThreadCaches) override;
 
 	virtual bool IsInternallyThreadSafe( ) const override
 	{ 

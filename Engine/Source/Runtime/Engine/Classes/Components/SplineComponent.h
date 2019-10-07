@@ -77,7 +77,7 @@ struct ENGINE_API FSplineCurves
 	FInterpCurveFloat ReparamTable;
 
 	UPROPERTY()
-	USplineMetadata* Metadata_DEPRECATED;
+	USplineMetadata* Metadata_DEPRECATED = nullptr;
 
 	bool operator==(const FSplineCurves& Other) const
 	{

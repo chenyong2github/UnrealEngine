@@ -626,6 +626,7 @@ private:
 		Response->Headers.Add(TEXT("Access-Control-Allow-Origin"), { TEXT("*") });
 		Response->Headers.Add(TEXT("Access-Control-Allow-Methods"), { TEXT("PUT, POST, GET, OPTIONS") });
 		Response->Headers.Add(TEXT("Access-Control-Allow-Headers"), { TEXT("Origin, X-Requested-With, Content-Type, Accept") });
+		Response->Headers.Add(TEXT("Access-Control-Max-Age"), { TEXT("600") });
 	}
 
 	struct FRemoteEventHook

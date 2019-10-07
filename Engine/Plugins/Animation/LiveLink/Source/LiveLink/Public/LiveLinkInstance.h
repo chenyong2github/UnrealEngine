@@ -29,6 +29,7 @@ public:
 	}
 
 	virtual void Initialize(UAnimInstance* InAnimInstance) override;
+	virtual void PreUpdate(UAnimInstance* InAnimInstance, float DeltaSeconds) override;
 	virtual bool Evaluate(FPoseContext& Output) override;
 	virtual void UpdateAnimationNode(const FAnimationUpdateContext& InContext) override;
 

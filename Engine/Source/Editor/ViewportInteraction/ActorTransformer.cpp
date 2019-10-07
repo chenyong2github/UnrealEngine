@@ -83,6 +83,14 @@ void UActorTransformer::OnActorSelectionChanged( UObject* ChangedObject )
 
 				Transformable->ActorWeakPtr = SelectedActor;
 				Transformable->StartTransform = SelectedActor->GetTransform();
+				for (UViewportInteractor* Interactor : ViewportWorldInteraction->GetInteractors())
+				{
+					if (Interactor->CanCarry())
+					{
+						Transformable->bShouldBeCarried = true;
+						break;
+					}
+				}
 			}
 		}
 	}

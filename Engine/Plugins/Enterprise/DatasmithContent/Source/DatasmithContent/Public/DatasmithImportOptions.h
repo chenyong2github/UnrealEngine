@@ -264,6 +264,14 @@ public:
 		return (FMath::IsNearlyEqual(ChordTolerance, Other.ChordTolerance) && FMath::IsNearlyEqual(MaxEdgeLength, Other.MaxEdgeLength) && FMath::IsNearlyEqual(NormalTolerance, Other.NormalTolerance) && StitchingTechnique == Other.StitchingTechnique);
 	}
 
+	//void operator = (const FDatasmithTessellationOptions& Other)
+	//{
+	//	ChordTolerance = Other.ChordTolerance;
+	//	MaxEdgeLength = Other.MaxEdgeLength;
+	//	NormalTolerance = Other.NormalTolerance;
+	//	StitchingTechnique = Other.StitchingTechnique;
+	//}
+
 	uint32 GetHash() const
 	{
 		uint32 Hash = uint32(StitchingTechnique);

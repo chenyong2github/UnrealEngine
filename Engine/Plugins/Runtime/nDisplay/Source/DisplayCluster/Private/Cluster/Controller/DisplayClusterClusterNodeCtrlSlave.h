@@ -72,4 +72,3 @@ private:
 	TUniquePtr<FDisplayClusterSwapSyncClient>      SwapSyncClient;
 	TUniquePtr<FDisplayClusterClusterEventsClient> ClusterEventsClient;
 };
-

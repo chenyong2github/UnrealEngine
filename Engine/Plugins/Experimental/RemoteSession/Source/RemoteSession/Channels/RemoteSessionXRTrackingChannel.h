@@ -72,3 +72,11 @@ private:
 	/** Used to finish construction of the class. Should be called from within the ctors */
 	void Init();
 };
+
+class REMOTESESSION_API FRemoteSessionXRTrackingChannelFactoryWorker : public IRemoteSessionChannelFactoryWorker
+{
+public:
+	virtual const TCHAR* GetType() const override { return FRemoteSessionXRTrackingChannel::StaticType(); }
+	virtual TSharedPtr<IRemoteSessionChannel> Construct(ERemoteSessionChannelMode InMode, TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection) const override;
+};
+

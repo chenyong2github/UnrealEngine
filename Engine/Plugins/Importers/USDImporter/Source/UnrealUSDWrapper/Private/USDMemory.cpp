@@ -89,7 +89,8 @@ private:
 	TArray< EUsdActiveAllocator > ActiveAllocatorsStack;
 };
 
-TOptional< FTlsSlot > FUsdMemoryManager::ActiveAllocatorsStackTLS{};
+TOptional< FTlsSlot > FUsdMemoryManager::ActiveAllocatorsStackTLS {};
+TSet< void* > FUsdMemoryManager::SystemAllocedPtrs {};
 
 void FUsdMemoryManager::Initialize()
 {
@@ -138,6 +139,7 @@ void* FUsdMemoryManager::Malloc( SIZE_T Count )
 	if ( FUsdMemoryManager::IsUsingSystemMalloc() )
 	{
 		Result = FMemory::SystemMalloc( Count );
+		SystemAllocedPtrs.Add( Result );
 	}
 	else
 	{
@@ -149,8 +151,11 @@ void* FUsdMemoryManager::Malloc( SIZE_T Count )
 
 void FUsdMemoryManager::Free( void* Original )
 {
-	if ( FUsdMemoryManager::IsUsingSystemMalloc() )
+	// Because USD is multi-threaded, it might call us back to free an object after we've exited our allocator scope.
+	// This can happen for inlined USD functions that call delete.
+	if ( FUsdMemoryManager::IsUsingSystemMalloc() || SystemAllocedPtrs.Contains( Original ) )
 	{
+		SystemAllocedPtrs.Remove( Original );
 		FMemory::SystemFree( Original );
 	}
 	else

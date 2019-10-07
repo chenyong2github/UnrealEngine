@@ -2,6 +2,7 @@
 
 #include "LiveLinkTimeSynchronizationSource.h"
 #include "LiveLinkClient.h"
+#include "LiveLinkLog.h"
 #include "Features/IModularFeatures.h"
 #include "Math/NumericLimits.h"
 
@@ -58,7 +59,7 @@ bool ULiveLinkTimeSynchronizationSource::Open(const FTimeSynchronizationOpenData
 	FLiveLinkSubjectKey* SubjectKeyPtr = AllSubjects.FindByPredicate([this](const FLiveLinkSubjectKey& InSubjectKey) { return InSubjectKey.SubjectName == SubjectName; });
 	if (SubjectKeyPtr == nullptr)
 	{
-		UE_LOG(LogLiveLink, Error, TEXT("The susbject '%s' is not valid"), *SubjectName.ToString());
+		FLiveLinkLog::Error(TEXT("The subject '%s' is not valid"), *SubjectName.ToString());
 		return false;
 	}
 
@@ -98,26 +99,30 @@ bool ULiveLinkTimeSynchronizationSource::IsCurrentStateValid() const
 
 	if (!LiveLinkClient->IsSubjectEnabled(SubjectKey, false))
 	{
-		UE_LOG(LogLiveLink, Error, TEXT("The subject '%s' is not enabled."), *SubjectName.ToString());
+		static const FName NAME_DisabledSubject = "ULiveLinkTimeSynchronizationSource_DisabledSubject";
+		FLiveLinkLog::ErrorOnce(NAME_DisabledSubject, SubjectKey, TEXT("The subject '%s' is not enabled."), *SubjectName.ToString());
 		return false;
 	}
 
 	if (LiveLinkClient->IsVirtualSubject(SubjectKey))
 	{
-		UE_LOG(LogLiveLink, Error, TEXT("The subject '%s' can't be a virtual subject."), *SubjectName.ToString());
+		static const FName NAME_VirtualSubject = "ULiveLinkTimeSynchronizationSource_VirtualSubject";
+		FLiveLinkLog::ErrorOnce(NAME_VirtualSubject, SubjectKey, TEXT("The subject '%s' can't be a virtual subject."), *SubjectName.ToString());
 		return false;
 	}
 
 	ULiveLinkSourceSettings* SourceSettings = LiveLinkClient->GetSourceSettings(SubjectKey.Source);
 	if (SourceSettings == nullptr)
 	{
-		UE_LOG(LogLiveLink, Error, TEXT("The subject '%s' source does not have a source settings."), *SubjectName.ToString());
+		static const FName NAME_InvalidSettings = "ULiveLinkTimeSynchronizationSource_InvalidSettings";
+		FLiveLinkLog::ErrorOnce(NAME_InvalidSettings, SubjectKey, TEXT("The subject '%s' source does not have a source settings."), *SubjectName.ToString());
 		return false;
 	}
 
 	if (SourceSettings->Mode != ELiveLinkSourceMode::Timecode)
 	{
-		UE_LOG(LogLiveLink, Error, TEXT("The subject '%s' source is not in Timecode mode."), *SubjectName.ToString());
+		static const FName NAME_InvalidTimeMode = "ULiveLinkTimeSynchronizationSource_InvalidTimeMode";
+		FLiveLinkLog::ErrorOnce(NAME_InvalidTimeMode, SubjectKey, TEXT("The subject '%s' source is not in Timecode mode."), *SubjectName.ToString());
 		return false;
 	}
 

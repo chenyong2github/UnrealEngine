@@ -1,0 +1,40 @@
+{
+	"FileVersion" : 3,
+	"Version" : 1,
+	"VersionName" : "1.0",
+	"FriendlyName" : "Datasmith C4D Importer",
+	"Description" : "Adds support for importing content from Cinema4D applications into Unreal Engine",
+	"Category" : "Importers",
+	"CreatedBy" : "Epic Games, Inc.",
+	"CreatedByURL" : "http://epicgames.com",
+	"DocsURL" : "https://docs.unrealengine.com/en-US/Studio/Datasmith",
+	"MarketplaceURL" : "",
+	"SupportURL" : "",
+	"EnabledByDefault" : false,
+	"CanContainContent" : false,
+	"IsBetaVersion" : true,
+	"Installed" : false,
+	"SupportedTargetPlatforms":
+	[
+		"Win64"
+	],
+	"Modules" :
+	[
+		{
+			"Name" : "DatasmithC4DTranslator",
+			"Type" : "Editor",
+			"LoadingPhase" : "PostDefault",
+			"WhitelistPlatforms" :
+			[
+				"Win64"
+			]
+		}
+	],
+	"Plugins":
+	[
+		{
+			"Name": "DatasmithImporter",
+			"Enabled": true
+		}
+  ]
+}

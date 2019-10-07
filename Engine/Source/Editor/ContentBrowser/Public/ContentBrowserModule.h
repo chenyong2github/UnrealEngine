@@ -12,6 +12,29 @@ class IContentBrowserSingleton;
 struct FARFilter;
 class FMainMRUFavoritesList;
 
+/** Extra state generator that adds an icon and a corresponding legend entry on an asset. */
+class FAssetViewExtraStateGenerator
+{
+public:
+	FAssetViewExtraStateGenerator(FOnGenerateAssetViewExtraStateIndicators InIconGenerator, FOnGenerateAssetViewExtraStateIndicators InToolTipGenerator)
+		: IconGenerator(MoveTemp(InIconGenerator))
+		, ToolTipGenerator(MoveTemp(InToolTipGenerator))
+		, Handle(FDelegateHandle::GenerateNewHandle)
+	{}
+
+	/** Delegate called to generate an extra icon on an asset view. */
+	FOnGenerateAssetViewExtraStateIndicators IconGenerator;
+	
+	/** Delegate called to generate an extra tooltip on an asset view. */
+	FOnGenerateAssetViewExtraStateIndicators ToolTipGenerator;
+
+private:
+	/** The handle to this extra state generator. */
+	FDelegateHandle Handle;
+
+	friend class FContentBrowserModule;
+};
+
 /**
  * Content browser module
  */
@@ -44,6 +67,19 @@ public:
 	/** Gets the content browser singleton */
 	virtual IContentBrowserSingleton& Get() const;
 
+	/**
+	 * Add a generator to add extra state functionality to the content browser's assets.
+	 * @param Generator the delegates that add functionality. 
+	 * @return FDelegateHandle the handle to the extra state generator.
+	 */
+	virtual FDelegateHandle AddAssetViewExtraStateGenerator(const FAssetViewExtraStateGenerator& Generator);
+
+	/**
+	 * Remove an asset view extra state generator.
+	 * @param GeneratorHandle the extra state generator's handle.
+	 */
+	virtual void RemoveAssetViewExtraStateGenerator(const FDelegateHandle& GeneratorHandle);
+
 	/** Delegates to be called to extend the content browser menus */
 	virtual TArray<FContentBrowserMenuExtender_SelectedPaths>& GetAllAssetContextMenuExtenders() {return AssetContextMenuExtenders;}
 	virtual TArray<FContentBrowserMenuExtender_SelectedPaths>& GetAllPathViewContextMenuExtenders() {return PathViewContextMenuExtenders;}
@@ -55,11 +91,8 @@ public:
 	/** Delegates to call to extend the command/keybinds for content browser */
 	virtual TArray<FContentBrowserCommandExtender>& GetAllContentBrowserCommandExtenders() { return ContentBrowserCommandExtenders; }
 
-	/** Delegates to be called to add extra state indicators on the asset view items */
-	virtual TArray<FOnGenerateAssetViewExtraStateIndicators>& GetAllAssetViewExtraStateIconGenerators() { return AssetViewExtraStateIconGenerators; }
-
-	/** Delegates to be called to add extra state indicators on the asset view items */
-	virtual TArray<FOnGenerateAssetViewExtraStateIndicators>& GetAllAssetViewExtraStateTooltipGenerators() { return AssetViewExtraStateTooltipGenerators; }
+	/** Delegates to be called to add extra state indicators on the asset view */
+	virtual const TArray<FAssetViewExtraStateGenerator>& GetAllAssetViewExtraStateGenerators() { return AssetViewExtraStateGenerators; }
 
 	/** Delegates to be called to extend the drag-and-drop support of the asset view */
 	virtual TArray<FAssetViewDragAndDropExtender>& GetAssetViewDragAndDropExtenders() { return AssetViewDragAndDropExtenders; }
@@ -85,7 +118,7 @@ private:
 private:
 	IContentBrowserSingleton* ContentBrowserSingleton;
 	TSharedPtr<class FContentBrowserSpawner> ContentBrowserSpawner;
-
+	
 	/** All extender delegates for the content browser menus */
 	TArray<FContentBrowserMenuExtender_SelectedPaths> AssetContextMenuExtenders;
 	TArray<FContentBrowserMenuExtender_SelectedPaths> PathViewContextMenuExtenders;
@@ -96,8 +129,7 @@ private:
 	TArray<FContentBrowserCommandExtender> ContentBrowserCommandExtenders;
 
 	/** All delegates generating extra state indicators */
-	TArray<FOnGenerateAssetViewExtraStateIndicators> AssetViewExtraStateIconGenerators;
-	TArray<FOnGenerateAssetViewExtraStateIndicators> AssetViewExtraStateTooltipGenerators;
+	TArray<FAssetViewExtraStateGenerator> AssetViewExtraStateGenerators;
 
 	/** All extender delegates for the drag-and-drop support of the asset view */
 	TArray<FAssetViewDragAndDropExtender> AssetViewDragAndDropExtenders;

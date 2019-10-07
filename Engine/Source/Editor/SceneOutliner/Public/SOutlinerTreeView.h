@@ -68,10 +68,7 @@ namespace SceneOutliner
 
 		virtual void OnDragLeave( const FDragDropEvent& DragDropEvent ) override;
 
-		virtual FReply OnDragOver( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override
-		{
-			return FReply::Handled();
-		}
+		virtual FReply OnDragOver( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
 
 		virtual FReply OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
 

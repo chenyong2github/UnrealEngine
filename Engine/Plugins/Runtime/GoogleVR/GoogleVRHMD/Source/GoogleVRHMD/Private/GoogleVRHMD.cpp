@@ -1039,17 +1039,17 @@ FMatrix FGoogleVRHMD::GetPreviewViewerStereoProjectionMatrix(enum EStereoscopicP
 #if !GOOGLEVRHMD_SUPPORTED_PLATFORMS
 
 	case EVP_GoogleCardboard1:
-		return StereoPass == eSSP_LEFT_EYE ? GoogleCardboardViewerPreviews::GoogleCardboard1::LeftStereoProjectionMatrix : GoogleCardboardViewerPreviews::GoogleCardboard1::RightStereoProjectionMatrix;
+		return IStereoRendering::IsAPrimaryView(StereoPass) ? GoogleCardboardViewerPreviews::GoogleCardboard1::LeftStereoProjectionMatrix : GoogleCardboardViewerPreviews::GoogleCardboard1::RightStereoProjectionMatrix;
 	case EVP_GoogleCardboard2:
-		return StereoPass == eSSP_LEFT_EYE ? GoogleCardboardViewerPreviews::GoogleCardboard2::LeftStereoProjectionMatrix : GoogleCardboardViewerPreviews::GoogleCardboard2::RightStereoProjectionMatrix;
+		return IStereoRendering::IsAPrimaryView(StereoPass) ? GoogleCardboardViewerPreviews::GoogleCardboard2::LeftStereoProjectionMatrix : GoogleCardboardViewerPreviews::GoogleCardboard2::RightStereoProjectionMatrix;
 	case EVP_ViewMaster:
-		return StereoPass == eSSP_LEFT_EYE ? GoogleCardboardViewerPreviews::ViewMaster::LeftStereoProjectionMatrix : GoogleCardboardViewerPreviews::ViewMaster::RightStereoProjectionMatrix;
+		return IStereoRendering::IsAPrimaryView(StereoPass) ? GoogleCardboardViewerPreviews::ViewMaster::LeftStereoProjectionMatrix : GoogleCardboardViewerPreviews::ViewMaster::RightStereoProjectionMatrix;
 	case EVP_SnailVR:
-		return StereoPass == eSSP_LEFT_EYE ? GoogleCardboardViewerPreviews::SnailVR::LeftStereoProjectionMatrix : GoogleCardboardViewerPreviews::SnailVR::RightStereoProjectionMatrix;
+		return IStereoRendering::IsAPrimaryView(StereoPass) ? GoogleCardboardViewerPreviews::SnailVR::LeftStereoProjectionMatrix : GoogleCardboardViewerPreviews::SnailVR::RightStereoProjectionMatrix;
 	case EVP_RiTech2:
-		return StereoPass == eSSP_LEFT_EYE ? GoogleCardboardViewerPreviews::RiTech2::LeftStereoProjectionMatrix : GoogleCardboardViewerPreviews::RiTech2::RightStereoProjectionMatrix;
+		return IStereoRendering::IsAPrimaryView(StereoPass) ? GoogleCardboardViewerPreviews::RiTech2::LeftStereoProjectionMatrix : GoogleCardboardViewerPreviews::RiTech2::RightStereoProjectionMatrix;
 	case EVP_Go4DC1Glass:
-		return StereoPass == eSSP_LEFT_EYE ? GoogleCardboardViewerPreviews::Go4DC1Glass::LeftStereoProjectionMatrix : GoogleCardboardViewerPreviews::Go4DC1Glass::RightStereoProjectionMatrix;
+		return IStereoRendering::IsAPrimaryView(StereoPass) ? GoogleCardboardViewerPreviews::Go4DC1Glass::LeftStereoProjectionMatrix : GoogleCardboardViewerPreviews::Go4DC1Glass::RightStereoProjectionMatrix;
 
 #endif
 
@@ -1067,17 +1067,17 @@ uint32 FGoogleVRHMD::GetPreviewViewerNumVertices(enum EStereoscopicPass StereoPa
 #if !GOOGLEVRHMD_SUPPORTED_PLATFORMS
 
 	case EVP_GoogleCardboard1:
-		return StereoPass == eSSP_LEFT_EYE ? GoogleCardboardViewerPreviews::GoogleCardboard1::NumLeftVertices : GoogleCardboardViewerPreviews::GoogleCardboard1::NumRightVertices;
+		return IStereoRendering::IsAPrimaryView(StereoPass) ? GoogleCardboardViewerPreviews::GoogleCardboard1::NumLeftVertices : GoogleCardboardViewerPreviews::GoogleCardboard1::NumRightVertices;
 	case EVP_GoogleCardboard2:
-		return StereoPass == eSSP_LEFT_EYE ? GoogleCardboardViewerPreviews::GoogleCardboard2::NumLeftVertices : GoogleCardboardViewerPreviews::GoogleCardboard2::NumRightVertices;
+		return IStereoRendering::IsAPrimaryView(StereoPass) ? GoogleCardboardViewerPreviews::GoogleCardboard2::NumLeftVertices : GoogleCardboardViewerPreviews::GoogleCardboard2::NumRightVertices;
 	case EVP_ViewMaster:
-		return StereoPass == eSSP_LEFT_EYE ? GoogleCardboardViewerPreviews::ViewMaster::NumLeftVertices : GoogleCardboardViewerPreviews::ViewMaster::NumRightVertices;
+		return IStereoRendering::IsAPrimaryView(StereoPass) ? GoogleCardboardViewerPreviews::ViewMaster::NumLeftVertices : GoogleCardboardViewerPreviews::ViewMaster::NumRightVertices;
 	case EVP_SnailVR:
-		return StereoPass == eSSP_LEFT_EYE ? GoogleCardboardViewerPreviews::SnailVR::NumLeftVertices : GoogleCardboardViewerPreviews::SnailVR::NumRightVertices;
+		return IStereoRendering::IsAPrimaryView(StereoPass) ? GoogleCardboardViewerPreviews::SnailVR::NumLeftVertices : GoogleCardboardViewerPreviews::SnailVR::NumRightVertices;
 	case EVP_RiTech2:
-		return StereoPass == eSSP_LEFT_EYE ? GoogleCardboardViewerPreviews::RiTech2::NumLeftVertices : GoogleCardboardViewerPreviews::RiTech2::NumRightVertices;
+		return IStereoRendering::IsAPrimaryView(StereoPass) ? GoogleCardboardViewerPreviews::RiTech2::NumLeftVertices : GoogleCardboardViewerPreviews::RiTech2::NumRightVertices;
 	case EVP_Go4DC1Glass:
-		return StereoPass == eSSP_LEFT_EYE ? GoogleCardboardViewerPreviews::Go4DC1Glass::NumLeftVertices : GoogleCardboardViewerPreviews::Go4DC1Glass::NumRightVertices;
+		return IStereoRendering::IsAPrimaryView(StereoPass) ? GoogleCardboardViewerPreviews::Go4DC1Glass::NumLeftVertices : GoogleCardboardViewerPreviews::Go4DC1Glass::NumRightVertices;
 
 #endif
 
@@ -1095,17 +1095,17 @@ const FDistortionVertex* FGoogleVRHMD::GetPreviewViewerVertices(enum EStereoscop
 #if !GOOGLEVRHMD_SUPPORTED_PLATFORMS
 
 	case EVP_GoogleCardboard1:
-		return StereoPass == eSSP_LEFT_EYE ? GoogleCardboardViewerPreviews::GoogleCardboard1::LeftVertices : GoogleCardboardViewerPreviews::GoogleCardboard1::RightVertices;
+		return IStereoRendering::IsAPrimaryView(StereoPass) ? GoogleCardboardViewerPreviews::GoogleCardboard1::LeftVertices : GoogleCardboardViewerPreviews::GoogleCardboard1::RightVertices;
 	case EVP_GoogleCardboard2:
-		return StereoPass == eSSP_LEFT_EYE ? GoogleCardboardViewerPreviews::GoogleCardboard2::LeftVertices : GoogleCardboardViewerPreviews::GoogleCardboard2::RightVertices;
+		return IStereoRendering::IsAPrimaryView(StereoPass) ? GoogleCardboardViewerPreviews::GoogleCardboard2::LeftVertices : GoogleCardboardViewerPreviews::GoogleCardboard2::RightVertices;
 	case EVP_ViewMaster:
-		return StereoPass == eSSP_LEFT_EYE ? GoogleCardboardViewerPreviews::ViewMaster::LeftVertices : GoogleCardboardViewerPreviews::ViewMaster::RightVertices;
+		return IStereoRendering::IsAPrimaryView(StereoPass) ? GoogleCardboardViewerPreviews::ViewMaster::LeftVertices : GoogleCardboardViewerPreviews::ViewMaster::RightVertices;
 	case EVP_SnailVR:
-		return StereoPass == eSSP_LEFT_EYE ? GoogleCardboardViewerPreviews::SnailVR::LeftVertices : GoogleCardboardViewerPreviews::SnailVR::RightVertices;
+		return IStereoRendering::IsAPrimaryView(StereoPass) ? GoogleCardboardViewerPreviews::SnailVR::LeftVertices : GoogleCardboardViewerPreviews::SnailVR::RightVertices;
 	case EVP_RiTech2:
-		return StereoPass == eSSP_LEFT_EYE ? GoogleCardboardViewerPreviews::RiTech2::LeftVertices : GoogleCardboardViewerPreviews::RiTech2::RightVertices;
+		return IStereoRendering::IsAPrimaryView(StereoPass) ? GoogleCardboardViewerPreviews::RiTech2::LeftVertices : GoogleCardboardViewerPreviews::RiTech2::RightVertices;
 	case EVP_Go4DC1Glass:
-		return StereoPass == eSSP_LEFT_EYE ? GoogleCardboardViewerPreviews::Go4DC1Glass::LeftVertices : GoogleCardboardViewerPreviews::Go4DC1Glass::RightVertices;
+		return IStereoRendering::IsAPrimaryView(StereoPass) ? GoogleCardboardViewerPreviews::Go4DC1Glass::LeftVertices : GoogleCardboardViewerPreviews::Go4DC1Glass::RightVertices;
 
 #endif
 
@@ -1134,19 +1134,21 @@ void FGoogleVRHMD::AdjustViewRect(enum EStereoscopicPass StereoPass, int32& X, i
 	check(GVRRenderTargetSize.X != 0 && GVRRenderTargetSize.Y != 0);
 	check(ActiveViewportList);
 	check(gvr_buffer_viewport_list_get_size(ActiveViewportList) == 2);
-	switch (StereoPass)
+
+	if (IStereoRendering::IsAPrimaryView(StereoPass))
 	{
-	case EStereoscopicPass::eSSP_LEFT_EYE:
 		gvr_buffer_viewport_list_get_item(ActiveViewportList, 0, ScratchViewport);
-		break;
-	case EStereoscopicPass::eSSP_RIGHT_EYE:
+	}
+	else if(IStereoRendering::IsASecondaryView(StereoPass))	
+	{
 		gvr_buffer_viewport_list_get_item(ActiveViewportList, 1, ScratchViewport);
-		break;
-	default:
+	}
+	else
+	{
 		// We shouldn't got here.
 		check(false);
-		break;
 	}
+
 	gvr_rectf GVRRect = gvr_buffer_viewport_get_source_uv(ScratchViewport);
 	int Left = static_cast<int>(GVRRect.left * GVRRenderTargetSize.X);
 	int Bottom = static_cast<int>(GVRRect.bottom * GVRRenderTargetSize.Y);
@@ -1160,7 +1162,7 @@ void FGoogleVRHMD::AdjustViewRect(enum EStereoscopicPass StereoPass, int32& X, i
 	SizeY = Top - Bottom;
 #else
 	SizeX = SizeX / 2;
-	if (StereoPass == eSSP_RIGHT_EYE)
+	if (IStereoRendering::IsASecondaryView(StereoPass))
 	{
 		X += SizeX;
 	}
@@ -1399,18 +1401,19 @@ FMatrix FGoogleVRHMD::GetStereoProjectionMatrix(const enum EStereoscopicPass Ste
 
 	check(ActiveViewportList);
 	check(gvr_buffer_viewport_list_get_size(ActiveViewportList) == 2);
-	switch(StereoPassType)
+
+	if (IStereoRendering::IsAPrimaryView(StereoPassType))
 	{
-		case EStereoscopicPass::eSSP_LEFT_EYE:
-			gvr_buffer_viewport_list_get_item(ActiveViewportList, 0, ScratchViewport);
-			break;
-		case EStereoscopicPass::eSSP_RIGHT_EYE:
-			gvr_buffer_viewport_list_get_item(ActiveViewportList, 1, ScratchViewport);
-			break;
-		default:
-			// We shouldn't got here.
-			check(false);
-			break;
+		gvr_buffer_viewport_list_get_item(ActiveViewportList, 0, ScratchViewport);
+	}
+	else if (IStereoRendering::IsASecondaryView(StereoPassType))
+	{
+		gvr_buffer_viewport_list_get_item(ActiveViewportList, 1, ScratchViewport);
+	}
+	else
+	{
+		// We shouldn't got here.
+		check(false);
 	}
 
 	gvr_rectf EyeFov = gvr_buffer_viewport_get_source_fov(ScratchViewport);
@@ -1436,7 +1439,7 @@ FMatrix FGoogleVRHMD::GetStereoProjectionMatrix(const enum EStereoscopicPass Ste
 	FPlane Plane2 = FPlane((SumRL * InvRL), (SumTB * InvTB), 0.0f, 1.0f);
 	FPlane Plane3 = FPlane(0.0f, 0.0f, ZNear, 0.0f);
 
-	const TCHAR* EyeString = StereoPassType == eSSP_LEFT_EYE ? TEXT("Left") : TEXT("Right");
+	const TCHAR* EyeString = IStereoRendering::IsAPrimaryView(StereoPassType)? TEXT("Left") : TEXT("Right");
 	UE_LOG(LogHMD, Log, TEXT("===== Begin Projection Matrix Eye %s"), EyeString);
 	UE_LOG(LogHMD, Log, TEXT("const FMatrix %sStereoProjectionMatrix = FMatrix("), EyeString);
 	UE_LOG(LogHMD, Log, TEXT("FPlane(%ff,  0.0f, 0.0f, 0.0f),"), Plane0.X);
@@ -1467,7 +1470,7 @@ FMatrix FGoogleVRHMD::GetStereoProjectionMatrix(const enum EStereoscopicPass Ste
 #else //!GOOGLEVRHMD_SUPPORTED_PLATFORMS
 #if GOOGLEVRHMD_SUPPORTED_INSTANT_PREVIEW_PLATFORMS
 	if (bIsInstantPreviewActive) {
-		int index = (StereoPassType == eSSP_LEFT_EYE) ? 0 : 1;
+		int index = IStereoRendering::IsAPrimaryView(StereoPassType) ? 0 : 1;
 		// Have to flip left/right and top/bottom to match UE4 expectations
 		float Right = FPlatformMath::Tan(FMath::DegreesToRadians(FMath::Abs(EyeViews.eye_views[index].eye_fov.left)));
 		float Left = -FPlatformMath::Tan(FMath::DegreesToRadians(FMath::Abs(EyeViews.eye_views[index].eye_fov.right)));
@@ -1491,7 +1494,7 @@ FMatrix FGoogleVRHMD::GetStereoProjectionMatrix(const enum EStereoscopicPass Ste
 	{
 		// Test data copied from SimpleHMD
 		const float ProjectionCenterOffset = 0.151976421f;
-		const float PassProjectionOffset = (StereoPassType == eSSP_LEFT_EYE) ? ProjectionCenterOffset : -ProjectionCenterOffset;
+		const float PassProjectionOffset = IStereoRendering::IsAPrimaryView(StereoPassType) ? ProjectionCenterOffset : -ProjectionCenterOffset;
 
 		const float HalfFov = 2.19686294f / 2.f;
 		const float InWidth = 640.f;
@@ -1528,7 +1531,7 @@ gvr_rectf FGoogleVRHMD::GetGVREyeFOV(int EyeIndex) const
 
 void FGoogleVRHMD::GetEyeRenderParams_RenderThread(const struct FRenderingCompositePassContext& Context, FVector2D& EyeToSrcUVScaleValue, FVector2D& EyeToSrcUVOffsetValue) const
 {
-	if (Context.View.StereoPass == eSSP_LEFT_EYE)
+	if (IStereoRendering::IsAPrimaryView(Context.View.StereoPass))
 	{
 		EyeToSrcUVOffsetValue.X = 0.0f;
 		EyeToSrcUVOffsetValue.Y = 0.0f;
@@ -1669,7 +1672,7 @@ float FGoogleVRHMD::GetInterpupillaryDistance() const
 
 bool FGoogleVRHMD::GetRelativeEyePose(int32 DeviceId, EStereoscopicPass Eye, FQuat& OutOrientation, FVector& OutPosition)
 {
-	if (DeviceId != IXRTrackingSystem::HMDDeviceId || !(Eye == eSSP_LEFT_EYE || Eye == eSSP_RIGHT_EYE))
+	if (DeviceId != IXRTrackingSystem::HMDDeviceId || !IStereoRendering::IsStereoEyeView(Eye))
 	{
 		return false;
 	}
@@ -1683,7 +1686,7 @@ bool FGoogleVRHMD::GetRelativeEyePose(int32 DeviceId, EStereoscopicPass Eye, FQu
 void FGoogleVRHMD::GetRelativeHMDEyePose(EStereoscopicPass Eye, FQuat& OutOrientation, FVector& OutPosition) const
 {
 #if GOOGLEVRHMD_SUPPORTED_PLATFORMS
-	gvr_mat4f EyeMat = gvr_get_eye_from_head_matrix(GVRAPI, (Eye == eSSP_LEFT_EYE?GVR_LEFT_EYE:GVR_RIGHT_EYE));
+	gvr_mat4f EyeMat = gvr_get_eye_from_head_matrix(GVRAPI, (IStereoRendering::IsAPrimaryView(Eye) ? GVR_LEFT_EYE:GVR_RIGHT_EYE));
 	OutPosition = FVector(-EyeMat.m[2][3], -EyeMat.m[0][3], EyeMat.m[1][3]) * GetWorldToMetersScale();
 	FQuat Orientation(ToFMatrix(EyeMat));
 
@@ -1692,11 +1695,11 @@ void FGoogleVRHMD::GetRelativeHMDEyePose(EStereoscopicPass Eye, FQuat& OutOrient
 	OutOrientation.Z = Orientation.Y;
 	OutOrientation.W = -Orientation.W;
 #elif  GOOGLEVRHMD_SUPPORTED_INSTANT_PREVIEW_PLATFORMS
-	instant_preview::Pose EyePose = EyeViews.eye_views[(Eye == eSSP_LEFT_EYE ? 0 : 1)].eye_pose;
+	instant_preview::Pose EyePose = EyeViews.eye_views[IStereoRendering::IsAPrimaryView(Eye) ? 0 : 1].eye_pose;
 	OutPosition = FVector(-EyePose.transform[14], -EyePose.transform[12], EyePose.transform[13]) * GetWorldToMetersScale();
 	OutOrientation = FQuat::Identity; // TODO: extract orientation from transform?
 #else  // GOOGLEVRHMD_SUPPORTED_PLATFORMS || GOOGLEVRHMD_SUPPORTED_INSTANT_PREVIEW_PLATFORMS
-	OutPosition = FVector(0, (Eye == eSSP_LEFT_EYE ? .5 : -.5) * GetPreviewViewerInterpupillaryDistance() * GetWorldToMetersScale(), 0);
+	OutPosition = FVector(0, (IStereoRendering::IsAPrimaryView(Eye) ? .5 : -.5) * GetPreviewViewerInterpupillaryDistance() * GetWorldToMetersScale(), 0);
 	OutOrientation = FQuat::Identity; // TODO: extract orientation from transform?
 #endif  // GOOGLEVRHMD_SUPPORTED_PLATFORMS
 }

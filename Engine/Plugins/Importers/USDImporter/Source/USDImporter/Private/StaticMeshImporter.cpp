@@ -9,11 +9,19 @@
 #include "Materials/Material.h"
 #include "Misc/PackageName.h"
 #include "UObject/Package.h"
-#include "USDAssetImportData.h"
 #include "Factories/Factory.h"
-#include "StaticMeshAttributes.h"
+#include "Factories/MaterialImportHelpers.h"
+#include "MeshDescription.h"
+#include "MeshDescriptionOperations.h"
+#include "MeshAttributes.h"
 #include "IMeshBuilderModule.h"
 #include "PackageTools.h"
+#include "StaticMeshAttributes.h"
+
+#include "USDAssetImportData.h"
+#include "USDGeomMeshConversion.h"
+#include "USDImportOptions.h"
+#include "USDTypesConversion.h"
 
 #if USE_USD_SDK
 #include "USDIncludesStart.h"
@@ -21,7 +29,6 @@
 #include "USDIncludesEnd.h"
 
 #define LOCTEXT_NAMESPACE "USDImportPlugin"
-
 
 struct FUSDImportMaterialInfo
 {
@@ -62,10 +69,6 @@ private:
 public:
 	void ProcessStaticUSDGeometry(const pxr::UsdPrim& GeomPrim, int32 LODIndex);
 	void ProcessMaterials(int32 LODIndex);
-
-private:
-	void AddVertexPositions( const pxr::UsdGeomMesh& Mesh );
-	bool AddPolygons( const pxr::UsdGeomMesh& Mesh, const TArray< FString >& MaterialNames, const TArray< int32 >& FaceMaterialIndices );
 };
 
 void FUSDStaticMeshImportState::ProcessStaticUSDGeometry(const pxr::UsdPrim& GeomPrim, int32 LODIndex)
@@ -76,287 +79,7 @@ void FUSDStaticMeshImportState::ProcessStaticUSDGeometry(const pxr::UsdPrim& Geo
 		return;
 	}
 
-	VertexOffset = MeshDescription->Vertices().Num();
-	VertexInstanceOffset = MeshDescription->VertexInstances().Num();
-	PolygonOffset = MeshDescription->Polygons().Num();
-	MaterialIndexOffset = Materials.Num();
-
-	TTuple< TArray< FString >, TArray< int32 > > GeometryMaterials = IUsdPrim::GetGeometryMaterials( pxr::UsdTimeCode::Default().GetValue(), GeomPrim );
-
-	Materials.AddDefaulted( GeometryMaterials.Key.Num() );
-
-	AddVertexPositions( Mesh );
-	AddPolygons( Mesh, GeometryMaterials.Key, GeometryMaterials.Value );
-}
-
-void FUSDStaticMeshImportState::AddVertexPositions( const pxr::UsdGeomMesh& Mesh )
-{
-	using namespace pxr;
-
-	FStaticMeshAttributes Attributes(*MeshDescription);
-	pxr::UsdAttribute Points = Mesh.GetPointsAttr();
-	if ( Points )
-	{
-		pxr::VtArray< pxr::GfVec3f > PointsArray;
-		Points.Get( &PointsArray, UsdTimeCode::Default().GetValue() );
-
-		for ( int32 LocalPointIndex = 0; LocalPointIndex < PointsArray.size(); ++LocalPointIndex )
-		{
-			const GfVec3f& Point = PointsArray[ LocalPointIndex ];
-
-			FVector Pos = USDToUnreal::ConvertVector( *ImportContext.Stage, Point );
-			Pos = FinalTransform.TransformPosition(Pos);
-
-			FVertexID AddedVertexId = MeshDescription->CreateVertex();
-			Attributes.GetVertexPositions()[AddedVertexId] = Pos;
-		}
-	}
-}
-
-bool FUSDStaticMeshImportState::AddPolygons( const pxr::UsdGeomMesh& Mesh, const TArray< FString >& MaterialNames, const TArray< int32 >& FaceMaterialIndices )
-{
-	using namespace pxr;
-
-	FStaticMeshAttributes Attributes(*MeshDescription);
-	TMap<int32, FPolygonGroupID> PolygonGroupMapping;
-	TArray<FVertexInstanceID> CornerInstanceIDs;
-	TArray<FVertexID> CornerVerticesIDs;
-	int32 CurrentVertexInstanceIndex = 0;
-
-	bool bFlipThisGeometry = bFlip;
-
-	if ( IUsdPrim::GetGeometryOrientation( Mesh ) == EUsdGeomOrientation::LeftHanded )
-	{
-		bFlipThisGeometry = !bFlip;
-	}
-
-	// Face counts
-	UsdAttribute FaceCountsAttribute = Mesh.GetFaceVertexCountsAttr();
-	VtArray< int > FaceCounts;
-
-	if ( FaceCountsAttribute )
-	{
-		FaceCountsAttribute.Get( &FaceCounts, UsdTimeCode::Default().GetValue() );
-	}
-
-	// Face indices
-	UsdAttribute FaceIndicesAttribute = Mesh.GetFaceVertexIndicesAttr();
-	VtArray< int > FaceIndices;
-
-	if ( FaceIndicesAttribute )
-	{
-		FaceIndicesAttribute.Get( &FaceIndices, UsdTimeCode::Default().GetValue() );
-	}
-
-	// Normals
-	UsdAttribute NormalsAttribute = Mesh.GetNormalsAttr();
-	VtArray< GfVec3f > Normals;
-
-	if ( NormalsAttribute )
-	{
-		NormalsAttribute.Get( &Normals, UsdTimeCode::Default().GetValue() );
-	}
-
-	// UVs
-	struct FUVSet
-	{
-		TOptional< VtIntArray > UVIndices; // UVs might be indexed or they might be flat (one per vertex)
-		VtVec2fArray UVs;
-	};
-
-	EUsdInterpolationMethod UVInterpolationMethod = EUsdInterpolationMethod::FaceVarying;
-	TArray< FUVSet > UVSets;
-	{
-		static TfToken UVSetName("primvars:st");
-
-		UsdGeomPrimvar STPrimvar = Mesh.GetPrimvar(UVSetName);
-
-		if(STPrimvar)
-		{
-			FUVSet UVSet;
-
-			if (STPrimvar.GetInterpolation() == UsdGeomTokens->vertex)
-			{
-				UVInterpolationMethod = EUsdInterpolationMethod::Vertex;
-
-				UVSet.UVIndices.Emplace();
-
-				if ( STPrimvar.GetIndices(&UVSet.UVIndices.GetValue()) && STPrimvar.Get(&UVSet.UVs) )
-				{
-					UVSets.Add( MoveTemp( UVSet ) );
-				}
-			}
-			else
-			{
-				if ( STPrimvar.ComputeFlattened(&UVSet.UVs) )
-				{
-					UVSets.Add( MoveTemp( UVSet ) );
-				}
-			}
-		}
-	}
-
-	// When importing multiple mesh pieces to the same static mesh.  Ensure each mesh piece has the same number of Uv's
-	{
-		int32 ExistingUVCount = Attributes.GetVertexInstanceUVs().GetNumIndices();
-		int32 NumUVs = FMath::Max(UVSets.Num(), ExistingUVCount);
-		NumUVs = FMath::Min<int32>(MAX_MESH_TEXTURE_COORDS_MD, NumUVs);
-		// At least one UV set must exist.  
-		NumUVs = FMath::Max<int32>(1, NumUVs);
-
-		//Make sure all Vertex instance have the correct number of UVs
-		Attributes.GetVertexInstanceUVs().SetNumIndices(NumUVs);
-	}
-
-	for ( int32 PolygonIndex = 0; PolygonIndex < FaceCounts.size(); ++PolygonIndex )
-	{
-		int32 PolygonVertexCount = FaceCounts[PolygonIndex];
-		CornerInstanceIDs.Reset();
-		CornerInstanceIDs.AddUninitialized(PolygonVertexCount);
-		CornerVerticesIDs.Reset();
-		CornerVerticesIDs.AddUninitialized(PolygonVertexCount);
-
-		for (int32 CornerIndex = 0; CornerIndex < PolygonVertexCount; ++CornerIndex, ++CurrentVertexInstanceIndex)
-		{
-			int32 VertexInstanceIndex = VertexInstanceOffset + CurrentVertexInstanceIndex;
-			const FVertexInstanceID VertexInstanceID(VertexInstanceIndex);
-			CornerInstanceIDs[CornerIndex] = VertexInstanceID;
-			const int32 ControlPointIndex = FaceIndices[CurrentVertexInstanceIndex];
-			const FVertexID VertexID(VertexOffset + ControlPointIndex);
-			const FVector VertexPosition = Attributes.GetVertexPositions()[VertexID];
-			CornerVerticesIDs[CornerIndex] = VertexID;
-
-			FVertexInstanceID AddedVertexInstanceId = MeshDescription->CreateVertexInstance(VertexID);
-
-			if ( Normals.size() > 0 )
-			{
-				const int32 NormalIndex = Normals.size() != FaceIndices.size() ? FaceIndices[CurrentVertexInstanceIndex] : CurrentVertexInstanceIndex;
-				check(NormalIndex < Normals.size());
-				const GfVec3f& Normal = Normals[NormalIndex];
-				FVector TransformedNormal = FinalTransformIT.TransformVector( USDToUnreal::ConvertVector( *ImportContext.Stage, Normal ) );
-
-				Attributes.GetVertexInstanceNormals()[AddedVertexInstanceId] = TransformedNormal.GetSafeNormal();
-			}
-
-			int32 UVLayerIndex = 0;
-			for ( const FUVSet& UVSet : UVSets )
-			{
-				GfVec2f UV;
-
-				if ( UVInterpolationMethod == EUsdInterpolationMethod::Vertex && UVSet.UVIndices.IsSet() )
-				{
-					int32 NumFaces = FaceCounts.size();
-					int32 NumFaceIndices = FaceIndices.size();
-					int32 NumUVs = UVSet.UVs.size();
-					int32 NumIndices = UVSet.UVIndices->size();
-
-					if ( ensure( UVSet.UVIndices.GetValue().size() > VertexID.GetValue() ) )
-					{
-						UV = UVSet.UVs[ UVSet.UVIndices.GetValue()[ VertexID.GetValue() ] ];
-					}
-				}
-				else if ( UVSet.UVs.size() > CurrentVertexInstanceIndex )
-				{
-					UV = UVSet.UVs[ CurrentVertexInstanceIndex ];
-				}
-
-				// Flip V for Unreal uv's which match directx
-				FVector2D FinalUVVector(UV[0], 1.f - UV[1]);
-				Attributes.GetVertexInstanceUVs().Set(AddedVertexInstanceId, UVLayerIndex, FinalUVVector);
-
-				++UVLayerIndex;
-			}
-		}
-
-		int32 MaterialIndex = 0;
-		if (PolygonIndex >= 0 && PolygonIndex < FaceMaterialIndices.Num())
-		{
-			MaterialIndex = FaceMaterialIndices[PolygonIndex];
-			if (MaterialIndex < 0 || MaterialIndex > MaterialNames.Num())
-			{
-				MaterialIndex = 0;
-			}
-		}
-
-		int32 RealMaterialIndex = MaterialIndexOffset + MaterialIndex;
-		if (!PolygonGroupMapping.Contains(RealMaterialIndex))
-		{
-			FName ImportedMaterialSlotName;
-			if (MaterialIndex >= 0 && MaterialIndex < MaterialNames.Num())
-			{
-				FString MaterialName = MaterialNames[MaterialIndex];
-				ImportedMaterialSlotName = FName(*MaterialName);
-				Materials[RealMaterialIndex].Name = MaterialName;
-			}
-
-			FPolygonGroupID ExistingPolygonGroup = FPolygonGroupID::Invalid;
-			for (const FPolygonGroupID PolygonGroupID : MeshDescription->PolygonGroups().GetElementIDs())
-			{
-				if (Attributes.GetPolygonGroupMaterialSlotNames()[PolygonGroupID] == ImportedMaterialSlotName)
-				{
-					ExistingPolygonGroup = PolygonGroupID;
-					break;
-				}
-			}
-			if (ExistingPolygonGroup == FPolygonGroupID::Invalid)
-			{
-				ExistingPolygonGroup = MeshDescription->CreatePolygonGroup();
-				Attributes.GetPolygonGroupMaterialSlotNames()[ExistingPolygonGroup] = ImportedMaterialSlotName;
-			}
-			PolygonGroupMapping.Add(RealMaterialIndex, ExistingPolygonGroup);
-		}
-
-		FPolygonGroupID PolygonGroupID = PolygonGroupMapping[RealMaterialIndex];
-		// Insert a polygon into the mesh
-		const FPolygonID NewPolygonID = MeshDescription->CreatePolygon(PolygonGroupID, CornerInstanceIDs);
-		if (bFlipThisGeometry)
-		{
-			MeshDescription->ReversePolygonFacing(NewPolygonID);
-		}
-	}
-
-	// Vertex color
-	UsdGeomPrimvar ColorPrimvar = Mesh.GetDisplayColorPrimvar();
-	if (ColorPrimvar)
-	{
-		pxr::VtArray<pxr::GfVec3f> USDColors;
-		ColorPrimvar.ComputeFlattened(&USDColors);
-
-		TVertexInstanceAttributesRef<FVector4> Colors = Attributes.GetVertexInstanceColors();
-
-		int32 NumColors = USDColors.size();
-
-		auto ConvertToLinear = []( const pxr::GfVec3f& UsdColor ) -> FLinearColor
-		{
-			return FLinearColor( FLinearColor( USDToUnreal::ConvertColor( UsdColor ) ).ToFColor( false ) );
-		};
-
-		pxr::TfToken USDInterpType = ColorPrimvar.GetInterpolation();
-		if(USDInterpType == pxr::UsdGeomTokens->faceVarying && NumColors >= Colors.GetNumElements())
-		{
-			for(int Index = 0; Index < Colors.GetNumElements(); ++Index)
-			{
-				Colors[FVertexInstanceID(Index)] = ConvertToLinear(USDColors[Index]);
-			}
-		}
-		else if(USDInterpType == pxr::UsdGeomTokens->vertex && NumColors >= MeshDescription->Vertices().Num())
-		{
-			for(auto VertexInstID : MeshDescription->VertexInstances().GetElementIDs())
-			{
-				FVertexID VertexID = MeshDescription->GetVertexInstanceVertex(VertexInstID);
-				Colors[VertexInstID] = ConvertToLinear(USDColors[VertexID.GetValue()]);
-			}
-		}
-		else if (USDInterpType == pxr::UsdGeomTokens->constant && NumColors == 1)
-		{
-			for(int Index = 0; Index < Colors.GetNumElements(); ++Index)
-			{
-				Colors[FVertexInstanceID(Index)] = ConvertToLinear(USDColors[0]);
-			}
-		}
-	}
-	
-	return true;
+	UsdToUnreal::ConvertGeomMesh( Mesh, *MeshDescription );
 }
 
 void FUSDStaticMeshImportState::ProcessMaterials(int32 LODIndex)
@@ -370,6 +93,7 @@ void FUSDStaticMeshImportState::ProcessMaterials(int32 LODIndex)
 		const FName& ImportedMaterialSlotName = Attributes.GetPolygonGroupMaterialSlotNames()[PolygonGroupID];
 		const FString ImportedMaterialSlotNameString = ImportedMaterialSlotName.ToString();
 		const FName MaterialSlotName = ImportedMaterialSlotName;
+
 		int32 MaterialIndex = INDEX_NONE;
 		for (int32 MeshMaterialIndex = 0; MeshMaterialIndex < Materials.Num(); ++MeshMaterialIndex)
 		{
@@ -380,6 +104,7 @@ void FUSDStaticMeshImportState::ProcessMaterials(int32 LODIndex)
 				break;
 			}
 		}
+
 		if (MaterialIndex == INDEX_NONE)
 		{
 			MaterialIndex = PolygonGroupID.GetValue();
@@ -411,8 +136,11 @@ void FUSDStaticMeshImportState::ProcessMaterials(int32 LODIndex)
 
 		if (Material == nullptr)
 		{
-			FSoftObjectPath VertexColorMaterialPath( TEXT("Material'/Engine/EngineDebugMaterials/VertexColorMaterial.VertexColorMaterial'") );
-			Material = Cast< UMaterialInterface >( VertexColorMaterialPath.TryLoad() );
+			if ( FMeshDescriptionOperations::HasVertexColor( *MeshDescription ) )
+			{
+				FSoftObjectPath VertexColorMaterialPath( TEXT("Material'/Engine/EngineDebugMaterials/VertexColorMaterial.VertexColorMaterial'") );
+				Material = Cast< UMaterialInterface >( VertexColorMaterialPath.TryLoad() );
+			}
 		}
 
 		FStaticMaterial StaticMaterial(Material, MaterialSlotName, ImportedMaterialSlotName);
@@ -436,7 +164,7 @@ UStaticMesh* FUSDStaticMeshImporter::ImportStaticMesh(FUsdImportContext& ImportC
 {
 	const pxr::UsdPrim& Prim = *PrimToImport.Prim;
 
-	FTransform PrimToWorld = ImportContext.bApplyWorldTransformToGeometry ? USDToUnreal::ConvertMatrix(ImportContext.Stage.Get(), IUsdPrim::GetLocalTransform( Prim )) : FTransform::Identity;
+	FTransform PrimToWorld = ImportContext.bApplyWorldTransformToGeometry ? UsdToUnreal::ConvertMatrix(ImportContext.Stage.Get(), IUsdPrim::GetLocalTransform( Prim )) : FTransform::Identity;
 
 	FTransform FinalTransform = PrimToWorld;
 	if (ImportContext.ImportOptions->Scale != 1.0f)
@@ -451,7 +179,7 @@ UStaticMesh* FUSDStaticMeshImporter::ImportStaticMesh(FUsdImportContext& ImportC
 	int32 NumLODs = PrimToImport.NumLODs;
 
 	UUSDImportOptions* ImportOptions = nullptr;
-	UStaticMesh* NewMesh = USDUtils::FindOrCreateObject<UStaticMesh>(ImportContext.Parent, ImportContext.ObjectName, ImportContext.ImportObjectFlags);
+	UStaticMesh* NewMesh = UsdUtils::FindOrCreateObject<UStaticMesh>(ImportContext.Parent, ImportContext.ObjectName, ImportContext.ImportObjectFlags);
 	check(NewMesh);
 	UUSDAssetImportData* ImportData = Cast<UUSDAssetImportData>(NewMesh->AssetImportData);
 	if (!ImportData)

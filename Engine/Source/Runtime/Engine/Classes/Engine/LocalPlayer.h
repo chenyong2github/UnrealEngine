@@ -204,8 +204,7 @@ public:
 	FOnControllerIdChanged& OnControllerIdChanged() const { return OnControllerIdChangedEvent; }
 
 private:
-	FSceneViewStateReference ViewState;
-	TArray<FSceneViewStateReference> StereoViewStates;
+	TArray<FSceneViewStateReference> ViewStates;
 
 	/** The controller ID which this player accepts input from. */
 	UPROPERTY()

@@ -7,6 +7,7 @@
 #include "VPTransientEditorTickableActorBase.h"
 #include "VPUtilitiesEditorBlueprintLibrary.generated.h"
 
+class UTexture;
 
 UCLASS()
 class VPUTILITIESEDITOR_API UVPUtilitiesEditorBlueprintLibrary : public UBlueprintFunctionLibrary
@@ -29,4 +30,8 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
 	static AVPTransientEditorTickableActorBase* SpawnVPTransientEditorTickableActor(UObject* ContextObject, const TSubclassOf<AVPTransientEditorTickableActorBase> ActorClass, const FVector Location, const FRotator Rotation);
+
+	/** Imports Image file into VirtualProduction/Snapshots/ folder */
+	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
+	static UTexture* ImportSnapshotTexture(FString FileName, FString SubFolderName);
 };

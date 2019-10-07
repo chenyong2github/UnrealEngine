@@ -157,9 +157,29 @@ public:
 	*/
 	virtual void SetViewportCamera(const FString& InCameraId = FString(), const FString& InViewportId = FString()) = 0;
 
+	/**
+	* Returns location and size of a viewport
+	*
+	* @param InViewportID   - ID of a viewport
+	* @param Rect           - a rectangle that describes location and size of the viewport
+	*/
 	virtual bool GetViewportRect(const FString& InViewportID, FIntRect& Rect) = 0;
+	
+	/**
+	* Scales buffer of a viewport
+	*
+	* @param InViewportID   - ID of a viewport which buffer we're going to scale
+	* @param InBufferRatio  - Buffer ratio (1 - same as viewport size, 0.25 - is 0.25 width and height of viewport size)
+	*/
+	virtual bool SetBufferRatio(const FString& InViewportID, float InBufferRatio) = 0;
 
-
+	/**
+	* Returns current buffer ratio of a viewport
+	*
+	* @param InViewportID   - ID of a viewport
+	* @param OutBufferRatio - Current buffer ratio (1 - same as viewport size, 0.25 - is 0.25 width and height of viewport size)
+	*/
+	virtual bool GetBufferRatio(const FString& InViewportID, float &OutBufferRatio) const = 0;
 
 	/**
 	* Configuration of interpupillary (interocular) distance

@@ -49,4 +49,8 @@ public:
 	virtual void SetFinalPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& FinalPostProcessingSettings) = 0;
 
 	virtual bool GetViewportRect(const FString& InViewportID, FIntRect& Rect) = 0;
+
+	virtual bool SetBufferRatio(const FString& InViewportID, float  InBufferRatio) = 0;
+	virtual bool GetBufferRatio(const FString& InViewportID, float& OutBufferRatio) const = 0;
+	virtual bool GetBufferRatio(int32 ViewIdx, float& OutBufferRatio) const = 0;
 };

@@ -51,7 +51,7 @@ UObject* UUSDAssetImportFactory::FactoryCreateFile(UClass* InClass, UObject* InP
 
 	if (IsAutomatedImport() || USDImporter->ShowImportOptions(*ImportOptions))
 	{
-		TUsdStore< pxr::UsdStageRefPtr > Stage = USDImporter->ReadUSDFile(ImportContext, Filename);
+		TUsdStore< pxr::UsdStageRefPtr > Stage = USDImporter->ReadUsdFile(ImportContext, Filename);
 		if (*Stage)
 		{
 			ImportContext.Init(InParent, InName.ToString(), Stage);

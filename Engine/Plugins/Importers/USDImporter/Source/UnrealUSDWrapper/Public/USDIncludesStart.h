@@ -2,9 +2,12 @@
 
 #if USE_USD_SDK
 
+#include "CoreMinimal.h"
+
 THIRD_PARTY_INCLUDES_START
 
 #pragma warning(push)
+#pragma warning(disable: 4193) /* #pragma warning(pop): no matching '#pragma warning(push)', the pop is in USDIncludesEnd.h */
 #pragma warning(disable: 4582) /* Workaround union in pxr/usd/pcp/mapFunction.h */
 #pragma warning(disable: 4583)
 #pragma warning(disable: 4003) /* pxr/usd/sdf/fileFormat.h BOOST_PP_SEQ_DETAIL_IS_NOT_EMPTY during static analysis */

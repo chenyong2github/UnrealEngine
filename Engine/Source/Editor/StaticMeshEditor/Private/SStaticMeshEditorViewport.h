@@ -142,6 +142,9 @@ private:
 	/** Callback for toggling the vertex color show flag. */
 	void SetViewModeVertexColor();
 
+	/** Implementation of the SetViewModeVertexColor, used to apply the vertex color show flag. */
+	void SetViewModeVertexColorImplemetation(bool bValue);
+
 	/** Callback for checking the vertex color show flag. */
 	bool IsInViewModeVertexColorChecked() const;
 
