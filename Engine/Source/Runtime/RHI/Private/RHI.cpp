@@ -472,6 +472,7 @@ bool GHardwareHiddenSurfaceRemoval = false;
 bool GRHISupportsAsyncTextureCreation = false;
 bool GRHISupportsQuadTopology = false;
 bool GRHISupportsRectTopology = false;
+bool GRHISupportsDepthUAV = false;
 bool GRHISupportsAtomicUInt64 = false;
 bool GSupportsParallelRenderingTasksWithSeparateRHIThread = true;
 bool GRHIThreadNeedsKicking = false;

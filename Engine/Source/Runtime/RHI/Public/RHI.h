@@ -354,6 +354,9 @@ extern RHI_API bool GSupportsDepthBoundsTest;
 /** True if the RHI and current hardware support a render target write mask */
 extern RHI_API bool GSupportsRenderTargetWriteMask;
 
+/** True if the RHI supports depth target unordered access views. */
+extern RHI_API bool GRHISupportsDepthUAV;
+
 /** True if the RHI and current hardware supports efficient AsyncCompute (by default we assume false and later we can enable this for more hardware) */
 extern RHI_API bool GSupportsEfficientAsyncCompute;
 
