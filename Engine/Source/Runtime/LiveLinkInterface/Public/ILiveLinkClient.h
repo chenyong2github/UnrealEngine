@@ -21,6 +21,7 @@ DECLARE_EVENT_OneParam(ILiveLinkClient, FOnLiveLinkSourceChangedDelegate, FGuid 
 DECLARE_EVENT_OneParam(ILiveLinkClient, FOnLiveLinkSubjectChangedDelegate, FLiveLinkSubjectKey /*SubjectKey*/);
 DECLARE_EVENT_ThreeParams(ILiveLinkClient, FOnLiveLinkSubjectStaticDataReceived, FLiveLinkSubjectKey /*InSubjectKey*/, TSubclassOf<ULiveLinkRole> /*SubjectRole*/, const FLiveLinkStaticDataStruct& /*InStaticData*/)
 DECLARE_EVENT_ThreeParams(ILiveLinkClient, FOnLiveLinkSubjectFrameDataReceived, FLiveLinkSubjectKey /*InSubjectKey*/, TSubclassOf<ULiveLinkRole> /*SubjectRole*/, const FLiveLinkFrameDataStruct& /*InFrameData*/)
+DECLARE_EVENT_FiveParams(ILiveLinkClient, FOnLiveLinkSubjectEvaluated, FLiveLinkSubjectKey /*InSubjectKey*/, TSubclassOf<ULiveLinkRole> /*RequestedRole*/, const FLiveLinkTime& /*RequestedTime*/, bool /*bResult*/, const FLiveLinkTime& /*EvaluatedFrameTime*/)
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 class ILiveLinkClient_Base_DEPRECATED : public IModularFeature
@@ -97,6 +98,7 @@ public:
 };
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+
 /**
  * Interface for streaming and consuming data from external sources into UE4.
  * A LiveLinkSource, may stream multiple LiveLinkSubject.
@@ -120,6 +122,9 @@ public:
 
 	/** Remove the specified source from the live link client */
 	virtual void RemoveSource(TSharedPtr<ILiveLinkSource> Source) = 0;
+
+	/** Remove the source specified by the source Id from the live link client */
+	virtual void RemoveSource(FGuid SourceGuid) = 0;
 
 	/** Is the source been added */
 	virtual bool HasSourceBeenAdded(TSharedPtr<ILiveLinkSource> Source) const = 0;
@@ -172,7 +177,7 @@ public:
 	 * At the start of the frame, a snapshot of the enabled subjects will be made.
 	 * That snapshot dictate which subject will be used for the duration of that frame.
 	 */
-	virtual bool IsSubjectEnabled(const FLiveLinkSubjectKey& SubjectKey, bool bUseSnaphot) const = 0;
+	virtual bool IsSubjectEnabled(const FLiveLinkSubjectKey& SubjectKey, bool bForThisFrame) const = 0;
 
 	/**
 	 * Whether or not the client has a subject with this name enabled
@@ -208,6 +213,26 @@ public:
 
 	/** Whether a subject support a particular role, either directly or through a translator */
 	virtual bool DoesSubjectSupportsRole(const FLiveLinkSubjectKey& SubjectKey, TSubclassOf<ULiveLinkRole> SupportedRole) const = 0;
+
+	/**
+	 * Get the time of all the frames for a specific source.
+	 * @note Use for debugging purposes.
+	 */
+	virtual TArray<FLiveLinkTime> GetSubjectFrameTimes(const FLiveLinkSubjectKey& SubjectKey) const = 0;
+
+	/**
+	 * Get the time of all the frames for a source.
+	 * @note Use for debugging purposes.
+	 */
+	virtual TArray<FLiveLinkTime> GetSubjectFrameTimes(FLiveLinkSubjectName SubjectName) const = 0;
+
+	/**
+	 * Return the evaluated subject from a specific source snapshot for a specific role.
+	 * A subject could have to go through a translator to output in the desired role.
+	 * @note This will always return the same value for a specific frame.
+	 * @note The prefer method is EvaluateFrame_AnyThread this method should be used for diagnostic or replication.
+	 */
+	virtual bool EvaluateFrameFromSource_AnyThread(const FLiveLinkSubjectKey& SubjectKey, TSubclassOf<ULiveLinkRole> Role, FLiveLinkSubjectFrameData& OutFrame) = 0;
 
 	/**
 	 * Return the evaluated subject snapshot for a specific role.
@@ -255,6 +280,11 @@ public:
 
 	/** Notify when a subject has been removed */
 	virtual FOnLiveLinkSubjectChangedDelegate& OnLiveLinkSubjectRemoved() = 0;
+
+#if WITH_EDITOR
+	/** Notify the debug interface when a subject has been evaluated. Only available in editor and used for debugging purpose. */
+	virtual FOnLiveLinkSubjectEvaluated& OnLiveLinkSubjectEvaluated() = 0;
+#endif
 
 	/** Register for when a frame has been received for a subject */
 	virtual bool RegisterForSubjectFrames(FLiveLinkSubjectName SubjectName, const FOnLiveLinkSubjectStaticDataReceived::FDelegate& OnStaticDataReceived, const FOnLiveLinkSubjectFrameDataReceived::FDelegate& OnFrameDataReceived, FDelegateHandle& OutStaticDataReceivedHandle, FDelegateHandle& OutFrameDataReceivedHandle, TSubclassOf<ULiveLinkRole>& OutSubjectRole, FLiveLinkStaticDataStruct* OutStaticData = nullptr) = 0;

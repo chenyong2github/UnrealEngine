@@ -1124,7 +1124,7 @@ void FRCPassPostProcessTonemap::Process(FRenderingCompositePassContext& Context)
 			const bool bFirstView = (&View == View.Family->Views[0]);
 
 			// Full clear to avoid restore
-			if ((View.StereoPass == eSSP_FULL && bFirstView) || View.StereoPass == eSSP_LEFT_EYE)
+			if ((!IStereoRendering::IsStereoEyeView(View.StereoPass) && bFirstView) || IStereoRendering::IsAPrimaryView(View.StereoPass))
 			{
 				LoadAction = ERenderTargetLoadAction::EClear;
 			}
@@ -1738,7 +1738,7 @@ void FRCPassPostProcessTonemapES2::Process(FRenderingCompositePassContext& Conte
 		const bool bFirstView = (&View == View.Family->Views[0]);
 		
 		// Full clear to avoid restore
-		if ((View.StereoPass == eSSP_FULL && bFirstView) || View.StereoPass == eSSP_LEFT_EYE)
+		if ((!IStereoRendering::IsStereoEyeView(View.StereoPass) && bFirstView) || IStereoRendering::IsAPrimaryView(View.StereoPass))
 		{
 			LoadAction = ERenderTargetLoadAction::EClear;
 		}

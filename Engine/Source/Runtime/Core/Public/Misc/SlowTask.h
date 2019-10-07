@@ -66,6 +66,9 @@ private:
 	/** Prevent copying */
 	FSlowTask(const FSlowTask&);
 
+	/** Whenever we encounter edge condition requiring to force a UI refresh */
+	static void ForceRefresh(FFeedbackContext& Context);
+
 public:
 
 	/**

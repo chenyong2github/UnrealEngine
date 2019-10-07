@@ -3,7 +3,6 @@
 #include "DataPrepOperation.h"
 
 #include "DataprepCoreLogCategory.h"
-#include "DataprepOperationContext.h"
 #include "IDataprepLogger.h"
 #include "IDataprepProgressReporter.h"
 
@@ -50,10 +49,44 @@ void UDataprepOperation::LogError(const FText& InLogText)
 	}
 }
 
+void UDataprepOperation::BeginWork( const FText& InDescription, float InAmountOfWork )
+{
+	if ( OperationContext && OperationContext->DataprepProgressReporter )
+	{
+		OperationContext->DataprepProgressReporter->BeginWork( InDescription, InAmountOfWork );
+	}
+}
+
+void UDataprepOperation::EndWork()
+{
+	if ( OperationContext && OperationContext->DataprepProgressReporter )
+	{
+		OperationContext->DataprepProgressReporter->EndWork();
+	}
+}
+
+void UDataprepOperation::ReportProgress( float IncrementOfWork, const FText& InMessage )
+{
+	if ( OperationContext && OperationContext->DataprepProgressReporter )
+	{
+		OperationContext->DataprepProgressReporter->ReportProgress( IncrementOfWork, InMessage );
+	}
+}
+
+TSharedPtr<FDataprepWorkReporter> UDataprepOperation::CreateTask(const FText & InDescription, float InAmountOfWork, float InIncrementOfWork)
+{
+	if( OperationContext )
+	{
+		return TSharedPtr<FDataprepWorkReporter>( new FDataprepWorkReporter( OperationContext->DataprepProgressReporter, InDescription, InAmountOfWork, InIncrementOfWork ) );
+	}
+
+	return TSharedPtr<FDataprepWorkReporter>();
+}
+
 void UDataprepOperation::ExecuteOperation(TSharedRef<FDataprepOperationContext>&  InOperationContext)
 {
 	OperationContext = InOperationContext;
-	if ( OperationContext->Context )
+	if ( OperationContext->Context.IsValid() )
 	{
 		OnExecution( *OperationContext->Context );
 	}
@@ -81,6 +114,79 @@ FText UDataprepOperation::GetCategory_Implementation() const
 FText UDataprepOperation::GetAdditionalKeyword_Implementation() const
 {
 	return FText();
+}
+
+UObject* UDataprepEditingOperation::AddAsset( const UObject* Asset, UClass* AssetClass, const FString& AssetName )
+{
+	if ( OperationContext && OperationContext->AddAssetDelegate.IsBound() )
+	{
+		return OperationContext->AddAssetDelegate.Execute( Asset, AssetClass, AssetName.Len() > 0 ? *AssetName : nullptr );
+	}
+
+	// #ueent_todo: Report error
+
+	return nullptr;
+}
+
+AActor * UDataprepEditingOperation::CreateActor(UClass* ActorClass, const FString& ActorName)
+{
+	if ( OperationContext && OperationContext->CreateActorDelegate.IsBound() )
+	{
+		return OperationContext->CreateActorDelegate.Execute( ActorClass, ActorName.Len() > 0 ? *ActorName : nullptr );
+	}
+
+	// #ueent_todo: Report error
+
+	return nullptr;
+}
+
+void UDataprepEditingOperation::RemoveObject( UObject* Object, bool bLocalContext )
+{
+	if ( OperationContext && OperationContext->RemoveObjectDelegate.IsBound() )
+	{
+		OperationContext->RemoveObjectDelegate.Execute( Object, bLocalContext );
+		return;
+	}
+
+	// #ueent_todo: Report error
+}
+
+void UDataprepEditingOperation::RemoveObjects(TArray<UObject*> Objects, bool bLocalContext)
+{
+	if ( OperationContext && OperationContext->RemoveObjectDelegate.IsBound() )
+	{
+		for(UObject* Object : Objects)
+		{
+			OperationContext->RemoveObjectDelegate.Execute( Object, bLocalContext );
+		}
+		return;
+	}
+
+	// #ueent_todo: Report error
+}
+
+void UDataprepEditingOperation::DeleteObject( UObject* Object )
+{
+	if ( OperationContext && OperationContext->DeleteObjectsDelegate.IsBound() )
+	{
+		TArray<UObject*> Objects;
+		Objects.Add( Object );
+		OperationContext->DeleteObjectsDelegate.Execute( Objects );
+		return;
+	}
+
+	// #ueent_todo: Report error
+}
+
+void UDataprepEditingOperation::DeleteObjects( TArray<UObject*> Objects )
+{
+	if ( OperationContext && OperationContext->DeleteObjectsDelegate.IsBound() )
+	{
+		OperationContext->DeleteObjectsDelegate.Execute( Objects );
+		return;
+	}
+
+	// #ueent_todo: Report error
 }
 
 #undef LOCTEXT_NAMESPACE

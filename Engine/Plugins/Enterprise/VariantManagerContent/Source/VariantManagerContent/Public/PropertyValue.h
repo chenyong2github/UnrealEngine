@@ -26,9 +26,10 @@ enum class EPropertyValueCategory : uint8
 	RelativeLocation = 2,
 	RelativeRotation = 4,
 	RelativeScale3D = 8,
-	bVisible = 16,
+	Visibility = 16,
 	Material = 32,
-	Color = 64
+	Color = 64,
+	Option = 128
 };
 ENUM_CLASS_FLAGS(EPropertyValueCategory)
 
@@ -79,12 +80,17 @@ public:
 	bool HasValidResolve() const;
 	void ClearLastResolve();
 
-	// Need valid resolve
 	void* GetPropertyParentContainerAddress() const;
 	virtual UStruct* GetPropertyParentContainerClass() const;
+
+	// Fetches the value bytes for this property from the resolved object
+	virtual TArray<uint8> GetDataFromResolvedObject() const;
+
+	// Uses GetDataFromResolvedObject to update our recorded data
 	virtual void RecordDataFromResolvedObject();
+
+	// Applies our recorded data to the PropertyValuePtr for the resolved object
 	virtual void ApplyDataToResolvedObject();
-	//~ End valid resolve requirement
 
 	// Returns the type of UProperty (UObjectProperty, UFloatProperty, etc)
 	// If checking for Enums, prefer checking if GetEnumPropertyEnum() != nullptr, as it may be that
@@ -94,6 +100,7 @@ public:
 	virtual UScriptStruct* GetStructPropertyStruct() const;
 	virtual UClass* GetObjectPropertyObjectClass() const;
 	UEnum* GetEnumPropertyEnum() const;
+	virtual bool ContainsProperty(const UProperty* Prop) const;
 
 	// Utility functions for UEnumProperties
 	TArray<FName> GetValidEnumsFromPropertyOverride();
@@ -128,6 +135,9 @@ public:
 	void SetRecordedData(const uint8* NewDataBytes, int32 NumBytes, int32 Offset = 0);
 	virtual const TArray<uint8>& GetDefaultValue();
 	void ClearDefaultValue();
+	// Returns true if our recorded data would remain the same if we called
+	// RecordDataFromResolvedObject right now
+	virtual bool IsRecordedDataCurrent();
 
 	FOnPropertyApplied& GetOnPropertyApplied();
 	FOnPropertyRecorded& GetOnPropertyRecorded();

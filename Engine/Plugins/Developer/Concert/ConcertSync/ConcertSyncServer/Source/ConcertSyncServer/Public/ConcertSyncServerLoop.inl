@@ -12,6 +12,7 @@
 #include "Misc/OutputDeviceConsole.h"
 #include "Interfaces/IPluginManager.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "HAL/PlatformApplicationMisc.h"
 
 #include "Runtime/Launch/Resources/Version.h"
 
@@ -146,6 +147,11 @@ int32 ConcertSyncServerLoop(int32 ArgC, TCHAR** ArgV, const FConcertSyncServerLo
 
 			// Run garbage collection for the UObjects for the rest of the frame or at least to 2 ms
 			IncrementalPurgeGarbage(true, FMath::Max<float>(0.002f, IdealFrameTime - (FPlatformTime::Seconds() - LastTime)));
+
+#if PLATFORM_MAC
+			// Pumps the message from the main loop. (On Mac, we have a full application to get a proper console window to output logs)
+			FPlatformApplicationMisc::PumpMessages(true);
+#endif
 
 			// Throttle main thread main fps by sleeping if we still have time
 			FPlatformProcess::Sleep(FMath::Max<float>(0.0f, IdealFrameTime - (FPlatformTime::Seconds() - LastTime)));

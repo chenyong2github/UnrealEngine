@@ -292,7 +292,7 @@ bool FMPCDIModule::Load(const ConfigParser& CfgData, IMPCDI::FRegionLocator& Out
 		}
 	}
 	else
-	{// Load from MPCDI file:
+	{
 		// Check if MPCDI file exists
 		if (!FPaths::FileExists(CfgData.MPCDIFileName))
 		{
@@ -317,7 +317,7 @@ bool FMPCDIModule::Load(const ConfigParser& CfgData, IMPCDI::FRegionLocator& Out
 		bResult = true;
 	}
 
-	{// Support overrides:
+	{
 		// PFM
 		if (!CfgData.PFMFile.IsEmpty())
 		{
@@ -333,7 +333,7 @@ bool FMPCDIModule::Load(const ConfigParser& CfgData, IMPCDI::FRegionLocator& Out
 			{
 				UE_LOG(LogMPCDI, Warning, TEXT("Couldn't get load ext alphamap for <buf %s, reg %s> from file: %s"), *CfgData.BufferId, *CfgData.RegionId, *CfgData.AlphaFile);
 			}
-		}	
+		}
 		// BetaMAP
 		if (!CfgData.BetaFile.IsEmpty())
 		{
@@ -442,7 +442,7 @@ bool FMPCDIModule::LoadConfig(const FString& ConfigLineStr, ConfigParser& OutCon
 		UE_LOG(LogMPCDI, Log, TEXT("No origin node found for %s:%s. VR root will be used as default."), *OutConfig.BufferId, *OutConfig.RegionId);
 	}
 
-	{// Try get custom setup:		
+	{
 		// MPCDIType (optional)
 		FString MPCDITypeStr;
 		if (!DisplayClusterHelpers::str::ExtractValue(ConfigLineStr, DisplayClusterStrings::cfg::data::mpcdi::MPCDIType, MPCDITypeStr))

@@ -11,6 +11,7 @@ namespace UnrealBuildTool.Rules
 				{
 					"AssetRegistry",
 					"AssetTools",
+					"ClassViewer",
 					"Core",
 					"CoreUObject",
 					"EditorStyle",

@@ -586,6 +586,32 @@ void UDisplayClusterBlueprintAPIImpl::SetViewportCamera(const FString& InCameraI
 	return;
 }
 
+void UDisplayClusterBlueprintAPIImpl::GetBufferRatio(const FString& InViewportId, float &OutBufferRatio)
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
+
+	IDisplayClusterRenderManager* const Manager = IDisplayCluster::Get().GetRenderMgr();
+	if (Manager)
+	{
+		Manager->GetBufferRatio(InViewportId, OutBufferRatio);
+	}
+
+	return;
+}
+
+void UDisplayClusterBlueprintAPIImpl::SetBufferRatio(const FString& InViewportId, float InBufferRatio)
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
+
+	IDisplayClusterRenderManager* const Manager = IDisplayCluster::Get().GetRenderMgr();
+	if (Manager)
+	{
+		Manager->SetBufferRatio(InViewportId, InBufferRatio);
+	}
+
+	return;
+}
+
 void UDisplayClusterBlueprintAPIImpl::SetStartPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& StartPostProcessingSettings)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);

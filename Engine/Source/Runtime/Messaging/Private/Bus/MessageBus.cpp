@@ -11,11 +11,12 @@
 /* FMessageBus structors
  *****************************************************************************/
 
-FMessageBus::FMessageBus(const TSharedPtr<IAuthorizeMessageRecipients>& InRecipientAuthorizer)
-	: RecipientAuthorizer(InRecipientAuthorizer)
+FMessageBus::FMessageBus(FString InName, const TSharedPtr<IAuthorizeMessageRecipients>& InRecipientAuthorizer)
+	: Name(MoveTemp(InName))
+	, RecipientAuthorizer(InRecipientAuthorizer)
 {
 	Router = new FMessageRouter();
-	RouterThread = FRunnableThread::Create(Router, TEXT("FMessageBus.Router"), 128 * 1024, TPri_Normal, FPlatformAffinity::GetPoolThreadMask());
+	RouterThread = FRunnableThread::Create(Router, *FString::Printf(TEXT("FMessageBus.%s.Router"), *Name), 128 * 1024, TPri_Normal, FPlatformAffinity::GetPoolThreadMask());
 
 	check(Router != nullptr);
 }
@@ -207,4 +208,9 @@ void FMessageBus::AddNotificationListener(const TSharedRef<IBusListener, ESPMode
 void FMessageBus::RemoveNotificationListener(const TSharedRef<IBusListener, ESPMode::ThreadSafe>& Listener)
 {
 	Router->RemoveNotificationListener(Listener);
+}
+
+const FString& FMessageBus::GetName() const
+{
+	return Name;
 }

@@ -88,18 +88,13 @@ FConcertClientPresenceManager::FConcertClientPresenceManager(TSharedRef<IConcert
 	, CurrentAvatarMode(nullptr)
 	, AssetContainer(nullptr)
 	, bIsPresenceEnabled(true)
-	, VRDeviceType(NAME_None)
-	, CurrentAvatarActorClass(nullptr)
-	, DesktopAvatarActorClass(nullptr)
-	, VRAvatarActorClass(nullptr)
 {
 	// Setup the asset container.
 	AssetContainer = LoadObject<UConcertAssetContainer>(nullptr, FConcertClientPresenceManager::AssetContainerPath);
 	checkf(AssetContainer, TEXT("Failed to load UConcertAssetContainer (%s). See log for reason."), FConcertClientPresenceManager::AssetContainerPath);
 
-	// Load the avatar classes specified by the session client info.
-	UpdateLocalUserAvatarClasses();
-	CurrentAvatarActorClass = !VRDeviceType.IsNone() ? VRAvatarActorClass : DesktopAvatarActorClass;
+	// Create the default presence mode factory
+	PresenceModeFactory = MakeShared<FConcertClientDefaultPresenceModeFactory>(this);
 
 	PreviousEndFrameTime = FPlatformTime::Seconds();
 	SecondsSinceLastLocationUpdate = ConcertClientPresenceManagerUtil::LocationUpdateFrequencySeconds;
@@ -113,33 +108,22 @@ FConcertClientPresenceManager::~FConcertClientPresenceManager()
 	ClearAllPresenceState();
 }
 
-bool FConcertClientPresenceManager::UpdateLocalUserAvatarClasses()
-{
-	bool bUpdated = false;
-
-	FSoftClassPath DesktopAvatarActorClassPath = Session->GetLocalClientInfo().DesktopAvatarActorClass;
-	if (DesktopAvatarActorClass == nullptr || DesktopAvatarActorClassPath != DesktopAvatarActorClass->GetPathName() )
-	{
-		DesktopAvatarActorClass = LoadObject<UClass>(nullptr, *DesktopAvatarActorClassPath.ToString());
-		bUpdated = true;
-	}
-
-	FSoftClassPath VRAvatarActorClassPath = Session->GetLocalClientInfo().VRAvatarActorClass;
-	if (VRAvatarActorClass == nullptr || VRAvatarActorClassPath != VRAvatarActorClass->GetPathName())
-	{
-		VRAvatarActorClass = LoadObject<UClass>(nullptr, *VRAvatarActorClassPath.ToString());
-		bUpdated = true;
-	}
-
-	return bUpdated;
-}
-
 void FConcertClientPresenceManager::AddReferencedObjects(FReferenceCollector& Collector)
 {
+	// Add reference to the asset container
 	Collector.AddReferencedObject(AssetContainer);
-	Collector.AddReferencedObject(CurrentAvatarActorClass);
-	Collector.AddReferencedObject(DesktopAvatarActorClass);
-	Collector.AddReferencedObject(VRAvatarActorClass);
+
+	// Add reference from the factory, if any 
+	if (PresenceModeFactory)
+	{
+		PresenceModeFactory->AddReferencedObjects(Collector);
+	}
+
+	// Add reference from the mode, if any
+	if (CurrentAvatarMode)
+	{
+		CurrentAvatarMode->AddReferencedObjects(Collector);
+	}
 
 	// Ensure that Avatar classes used to represent remote clients are referenced.
 	for (TPair<FString, UClass*>& Pair : OthersAvatarClasses)
@@ -184,9 +168,6 @@ void FConcertClientPresenceManager::UpdatePresence(AConcertClientPresenceActor* 
 template<typename PresenceUpdateEventType>
 void FConcertClientPresenceManager::HandleConcertClientPresenceUpdateEvent(const FConcertSessionContext& InSessionContext, const PresenceUpdateEventType& InEvent)
 {
-	// FName EventTypeName = PresenceUpdateEventType::StaticStruct()->GetFName();
-	//const FConcertClientPresenceEventBase& Event = InEvent;
-
 	if (!ShouldProcessPresenceEvent(InSessionContext, PresenceUpdateEventType::StaticStruct(), InEvent))
 	{
 		UE_LOG(LogConcert, VeryVerbose, TEXT("Dropping presence update event for '%s' (index %d) as it arrived out-of-order"), *InSessionContext.SourceEndpointId.ToString(), InEvent.TransactionUpdateIndex);
@@ -211,10 +192,6 @@ void FConcertClientPresenceManager::Register()
 	// Add handler for session client changing
 	Session->OnSessionClientChanged().AddRaw(this, &FConcertClientPresenceManager::OnSessionClientChanged);
 
-	// Add handler for VR mode
-	IVREditorModule::Get().OnVREditingModeEnter().AddRaw(this, &FConcertClientPresenceManager::OnVREditingModeEnter);
-	IVREditorModule::Get().OnVREditingModeExit().AddRaw(this, &FConcertClientPresenceManager::OnVREditingModeExit);	
-
 	// Register OnEndFrame events
 	FCoreDelegates::OnEndFrame.AddRaw(this, &FConcertClientPresenceManager::OnEndFrame);
 }
@@ -222,9 +199,6 @@ void FConcertClientPresenceManager::Register()
 void FConcertClientPresenceManager::Unregister()
 {
 	Session->OnSessionClientChanged().RemoveAll(this);
-
-	IVREditorModule::Get().OnVREditingModeEnter().RemoveAll(this);
-	IVREditorModule::Get().OnVREditingModeExit().RemoveAll(this);
 
 	FCoreDelegates::OnEndFrame.RemoveAll(this);
 
@@ -262,6 +236,12 @@ FLevelEditorViewportClient* FConcertClientPresenceManager::GetPerspectiveViewpor
 		: nullptr;
 }
 
+void FConcertClientPresenceManager::SetPresenceModeFactory(TSharedRef<IConcertClientPresenceModeFactory> InFactory)
+{
+	PresenceModeFactory = InFactory;
+	CurrentAvatarMode.Reset();
+}
+
 void FConcertClientPresenceManager::OnEndFrame()
 {
 	const double CurrentTime = FPlatformTime::Seconds();
@@ -272,15 +252,17 @@ void FConcertClientPresenceManager::OnEndFrame()
 	// Game client do not generate a presence mode and state.
 	if (SecondsSinceLastLocationUpdate >= ConcertClientPresenceManagerUtil::LocationUpdateFrequencySeconds && !IsInGame() && CVarEmitPresence.GetValueOnAnyThread() > 0)
 	{
-		// Reload the avatar classes if the local client changed any of them.
-		if (UpdateLocalUserAvatarClasses())
+		// if the factory indicate the mode should be reset for recreation.
+		if (PresenceModeFactory->ShouldResetPresenceMode())
 		{
-			CurrentAvatarMode.Reset(); // Ensure to recreate the avatar mode because CurrentAvatarActorClass may have change.
+			CurrentAvatarMode.Reset();
 		}
 
+		// Create the presence mode if needed and send vr device events
 		if (!CurrentAvatarMode)
 		{
-			CurrentAvatarMode = FConcertClientBasePresenceMode::CreatePresenceMode(CurrentAvatarActorClass, this);
+			CurrentAvatarMode = PresenceModeFactory->CreatePresenceMode();
+			SendPresenceInVREvent();
 		}
 
 		// Send our current presence data to remote clients
@@ -587,35 +569,10 @@ void FConcertClientPresenceManager::OnSessionClientChanged(IConcertClientSession
 	}
 }
 
-void FConcertClientPresenceManager::OnVREditingModeEnter()
-{
-	UVREditorMode* VRMode = IVREditorModule::Get().GetVRMode();
-	VRDeviceType = VRMode ? VRMode->GetHMDDeviceType() : FName();
-	UpdatePresenceMode();
-}
-
-void FConcertClientPresenceManager::OnVREditingModeExit()
-{
-	VRDeviceType = FName();
-	UpdatePresenceMode();
-}
-
-void FConcertClientPresenceManager::UpdatePresenceMode()
-{
-	if ((!VRDeviceType.IsNone() && CurrentAvatarActorClass != VRAvatarActorClass) ||
-		(VRDeviceType.IsNone() && CurrentAvatarActorClass != DesktopAvatarActorClass))
-	{
-		// Mode will get recreated on next call to OnEndFrame
-		CurrentAvatarMode.Reset();
-		CurrentAvatarActorClass = !VRDeviceType.IsNone() ? VRAvatarActorClass : DesktopAvatarActorClass;
-		SendPresenceInVREvent();
-	}
-}
-
 void FConcertClientPresenceManager::SendPresenceInVREvent(const FGuid* InEndpointId)
 {
 	FConcertClientPresenceInVREvent Event;
-	Event.VRDevice = VRDeviceType;
+	Event.VRDevice = CurrentAvatarMode ? CurrentAvatarMode->GetVRDeviceType() : FName();
 
 	if (InEndpointId)
 	{
@@ -715,7 +672,7 @@ FTransform FConcertClientPresenceManager::GetPresenceTransform(const FGuid& Endp
 {
 	if (CurrentAvatarMode && EndpointId == Session->GetSessionClientEndpointId())
 	{
-		return CurrentAvatarMode->GetHeadTransform();
+		return CurrentAvatarMode->GetTransform();
 	}
 	if (const TSharedPtr<FConcertClientPresenceDataUpdateEvent> OtherClientState = GetCachedPresenceState(EndpointId))
 	{
@@ -827,7 +784,7 @@ void FConcertClientPresenceManager::OnJumpToPresence(FGuid InEndpointId, FTransf
 		FVector JumpPosition = OtherClientState->Position + InTransformOffset.GetLocation();
 
 		// Disregard pitch and roll when teleporting to a VR presence.
-		if (!VRDeviceType.IsNone())
+		if (CurrentAvatarMode && !CurrentAvatarMode->GetVRDeviceType().IsNone())
 		{
 			OtherClientRotation.Pitch = 0.0f;
 			OtherClientRotation.Roll = 0.0f;
@@ -933,6 +890,58 @@ FString FConcertClientPresenceManager::GetPresenceWorldPath(const FGuid& InEndpo
 		}
 	}
 	return WorldPath;
+}
+
+FConcertClientDefaultPresenceModeFactory::FConcertClientDefaultPresenceModeFactory(FConcertClientPresenceManager* InManager)
+	: Manager(InManager)
+	, VRDeviceType(NAME_None)
+	, bShouldResetPresenceMode(true)
+{
+	// Add handler for VR mode
+	IVREditorModule::Get().OnVREditingModeEnter().AddRaw(this, &FConcertClientDefaultPresenceModeFactory::OnVREditingModeEnter);
+	IVREditorModule::Get().OnVREditingModeExit().AddRaw(this, &FConcertClientDefaultPresenceModeFactory::OnVREditingModeExit);
+}
+
+FConcertClientDefaultPresenceModeFactory::~FConcertClientDefaultPresenceModeFactory()
+{
+	IVREditorModule::Get().OnVREditingModeEnter().RemoveAll(this);
+	IVREditorModule::Get().OnVREditingModeExit().RemoveAll(this);
+}
+
+bool FConcertClientDefaultPresenceModeFactory::ShouldResetPresenceMode() const
+{
+	return bShouldResetPresenceMode;
+}
+
+TUniquePtr<IConcertClientBasePresenceMode> FConcertClientDefaultPresenceModeFactory::CreatePresenceMode()
+{
+	bShouldResetPresenceMode = false;
+	if (!VRDeviceType.IsNone())
+	{
+		return MakeUnique<FConcertClientVRPresenceMode>(Manager, VRDeviceType);
+	}
+	else
+	{
+		return MakeUnique<FConcertClientDesktopPresenceMode>(Manager);
+	}
+}
+
+void FConcertClientDefaultPresenceModeFactory::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	// No reference to add
+}
+
+void FConcertClientDefaultPresenceModeFactory::OnVREditingModeEnter()
+{
+	UVREditorMode* VRMode = IVREditorModule::Get().GetVRMode();
+	VRDeviceType = VRMode ? VRMode->GetHMDDeviceType() : FName();
+	bShouldResetPresenceMode = true;
+}
+
+void FConcertClientDefaultPresenceModeFactory::OnVREditingModeExit()
+{
+	VRDeviceType = FName();
+	bShouldResetPresenceMode = true;
 }
 
 #else

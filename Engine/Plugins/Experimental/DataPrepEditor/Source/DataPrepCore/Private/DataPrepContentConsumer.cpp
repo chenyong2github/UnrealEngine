@@ -2,10 +2,15 @@
 
 #include "DataPrepContentConsumer.h"
 
+#include "DataprepAssetUserData.h"
+#include "DataprepAssetInterface.h"
+#include "DataprepCorePrivateUtils.h"
+
 #include "EditorLevelUtils.h"
 #include "Engine/Level.h"
 #include "Engine/LevelStreamingDynamic.h"
 #include "Engine/World.h"
+#include "GameFramework/Actor.h"
 #include "HAL/FileManager.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
@@ -18,8 +23,15 @@ UDataprepContentConsumer::UDataprepContentConsumer()
 	TargetContentFolder = FPaths::GetPath( GetOutermost()->GetPathName() );
 }
 
-bool UDataprepContentConsumer::Initialize( const ConsumerContext& InContext, FString& OutReason )
+bool UDataprepContentConsumer::Consume(const FDataprepConsumerContext& InContext)
 {
+	if(!InContext.WorldPtr.IsValid())
+	{
+		return false;
+	}
+
+	bool bSuccessful = false;
+	
 	Context = InContext;
 
 	// Set package path if empty
@@ -28,17 +40,23 @@ bool UDataprepContentConsumer::Initialize( const ConsumerContext& InContext, FSt
 		TargetContentFolder = FPaths::GetPath( GetOutermost()->GetPathName() );
 	}
 
-	return Context.WorldPtr.IsValid();
-}
+	if( Initialize() )
+	{
+		// Mark all incoming assets and actor's root components as done by the outer Dataprep asset
+		AddDataprepAssetUserData();
+		bSuccessful = Run();
+	}
 
-void UDataprepContentConsumer::Reset()
-{
+	Reset();
+
 	Context.WorldPtr.Reset();
 	Context.ProgressReporterPtr.Reset();
 	Context.LoggerPtr.Reset();
 	Context.Assets.Empty();
 
-	Context = ConsumerContext();
+	Context = FDataprepConsumerContext();
+
+	return bSuccessful;
 }
 
 bool UDataprepContentConsumer::SetTargetContentFolder(const FString& InTargetContentFolder)
@@ -66,6 +84,51 @@ bool UDataprepContentConsumer::SetLevelName(const FString & InLevelName, FText& 
 {
 	OutReason = LOCTEXT( "DataprepContentConsumer_SetLevelName", "Not implemented" );
 	return false;
+}
+
+void UDataprepContentConsumer::AddDataprepAssetUserData()
+{
+	UDataprepAssetInterface* DataprepAssetInterface = Cast<UDataprepAssetInterface>( GetOuter() );
+	check( DataprepAssetInterface );
+
+	auto AddUserData = [&DataprepAssetInterface](UObject* Object)
+	{
+		if (Object && Object->GetClass()->ImplementsInterface( UInterface_AssetUserData::StaticClass() ) )
+		{
+			if(IInterface_AssetUserData* AssetUserDataInterface = Cast< IInterface_AssetUserData >(Object))
+			{
+				UDataprepAssetUserData* DataprepAssetUserData = AssetUserDataInterface->GetAssetUserData< UDataprepAssetUserData >();
+
+				if(!DataprepAssetUserData)
+				{
+					EObjectFlags Flags = RF_Public /*| RF_Transactional*/; // RF_Transactional Disabled as is can cause a crash in the transaction system for blueprints
+
+					DataprepAssetUserData = NewObject< UDataprepAssetUserData >( Object, NAME_None, Flags );
+
+					AssetUserDataInterface->AddAssetUserData( DataprepAssetUserData );
+				}
+
+				DataprepAssetUserData->DataprepAssetPtr = DataprepAssetInterface;
+			}
+		}
+	};
+
+	// Add Dataprep user data to assets
+	for( TWeakObjectPtr< UObject >& AssetPtr : Context.Assets )
+	{
+		AddUserData( AssetPtr.Get() );
+	}
+
+	TArray< AActor* > ActorsInWorld;
+	DataprepCorePrivateUtils::GetActorsFromWorld( Context.WorldPtr.Get(), ActorsInWorld );
+
+	for( AActor* Actor : ActorsInWorld )
+	{
+		if( Actor )
+		{
+			AddUserData(  Actor->GetRootComponent() );
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -833,12 +833,21 @@ void FDistanceFieldAsyncQueue::AddTask(FAsyncDistanceFieldTask* Task)
 		MeshUtilities = &FModuleManager::Get().LoadModuleChecked<IMeshUtilities>(TEXT("MeshUtilities"));
 	}
 	
-	ReferencedTasks.Add(Task);
+	{
+		// Array protection when called from multiple threads
+		FScopeLock Lock(&CriticalSection);
+		ReferencedTasks.Add(Task);
+	}
 
-	if (GUseAsyncDistanceFieldBuildQueue)
+	// If we're already in worker threads, we have to use async tasks
+	// to avoid crashing in the Build function.
+	// Also protects from creating too many thread pools when already parallel.
+	if (GUseAsyncDistanceFieldBuildQueue || !IsInGameThread())
 	{
 		TaskQueue.Push(Task);
 
+		// Logic protection when called from multiple threads
+		FScopeLock Lock(&CriticalSection);
 		if (!ThreadRunnable->IsRunning())
 		{
 			ThreadRunnable->Launch();

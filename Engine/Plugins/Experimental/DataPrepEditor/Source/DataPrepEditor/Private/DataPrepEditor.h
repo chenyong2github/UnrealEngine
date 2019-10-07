@@ -4,19 +4,21 @@
 
 #include "CoreMinimal.h"
 
-#include "DataPrepAsset.h"
+#include "DataprepAssetInterface.h"
+#include "DataprepActionAsset.h"
 
 #include "EditorUndoClient.h"
 #include "Engine/EngineBaseTypes.h"
 #include "GraphEditor.h"
 #include "Misc/NotifyHook.h"
-#include "Toolkits/IToolkitHost.h"
+#include "SceneOutlinerFwd.h"
 #include "Toolkits/AssetEditorToolkit.h"
+#include "Toolkits/IToolkitHost.h"
 #include "UObject/SoftObjectPath.h"
 #include "UObject/StrongObjectPtr.h"
 
-class FTabManager;
 class FSpawnTabArgs;
+class FTabManager;
 class FUICommandList;
 class IMessageLogListing;
 class IMessageToken;
@@ -68,7 +70,7 @@ public:
 	virtual void RegisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
 	virtual void UnregisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
 
-	void InitDataprepEditor(const EToolkitMode::Type Mode, const TSharedPtr< IToolkitHost >& InitToolkitHost, UDataprepAsset* InDataprepAsset);
+	void InitDataprepEditor(const EToolkitMode::Type Mode, const TSharedPtr< IToolkitHost >& InitToolkitHost, UDataprepAssetInterface* InDataprepAssetInterface, UObject* Blueprint = nullptr);
 
 	/** IToolkit interface */
 	virtual FName GetToolkitFName() const override;
@@ -78,9 +80,9 @@ public:
 	/** @return Returns the color and opacity to use for the color that appears behind the tab text for this toolkit's tab in world-centric mode. */
 	virtual FLinearColor GetWorldCentricTabColorScale() const override;
 
-	UDataprepAsset* GetDataprepAsset() const
+	UDataprepAssetInterface* GetDataprepAsset() const
 	{
-		return DataprepAssetPtr.IsValid() ? DataprepAssetPtr.Get() : nullptr;
+		return DataprepAssetInterfacePtr.Get();
 	}
 
 	/** Gets or sets the flag for context sensitivity in the graph action menu */
@@ -92,6 +94,19 @@ public:
 	/** Returns root directory which all transient directories and data are created under */
 	static const FString& GetRootTemporaryDir();
 
+	/** Return the selected object from the scene outliner / world preview */
+	const TSet<TWeakObjectPtr<UObject>>& GetWorldItemsSelection() const { return WorldItemsSelection; };
+
+	enum class EWorldSelectionFrom : uint8
+	{
+		SceneOutliner,
+		Viewport,
+		Unknow,
+	};
+
+	/** Set the selection of the world items */
+	void SetWorldObjectsSelection(TSet<TWeakObjectPtr<UObject>>&& NewSelection, EWorldSelectionFrom SelectionFrom = EWorldSelectionFrom::Unknow);
+
 private:
 	void BindCommands();
 	void OnSaveScene();
@@ -101,8 +116,8 @@ private:
 	void OnExecutePipeline();
 	void OnCommitWorld();
 
-	/** Updates asset preview and scene outliner */
-	void UpdatePreviewPanels();
+	/** Updates asset preview, scene outliner and 3D viewport if applicable */
+	void UpdatePreviewPanels(bool bInclude3dViewport = true);
 
 	void CreateTabs();
 
@@ -113,6 +128,12 @@ private:
 	TSharedRef<SDockTab> SpawnTabPalette(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTabDetails(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTabDataprep(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTabSceneViewport( const FSpawnTabArgs& Args );
+	TSharedRef<SDockTab> SpawnTabStatistics(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTabParameterization(const FSpawnTabArgs& Args);
+
+	TSharedRef<FTabManager::FLayout> CreateDataprepLayout();
+	TSharedRef<FTabManager::FLayout> CreateDataprepInstanceLayout();
 
 	void TryInvokingDetailsTab(bool bFlash);
 
@@ -149,40 +170,51 @@ private:
 	void TakeSnapshot();
 
 	/** Recreate preview world from snapshot */
-	void RestoreFromSnapshot();
+	void RestoreFromSnapshot( bool bUpdateViewport = false );
 
 	/** Handles changes in the Dataprep asset */
-	void OnDataprepAssetChanged(FDataprepAssetChangeType ChangeType, int32 Index);
-
-	/** Handles change to the Dataprep pipeline */
-	void OnDataprepPipelineChange(UObject* ChangedObject);
+	void OnDataprepAssetChanged(FDataprepAssetChangeType ChangeType);
 
 	/** Remove all temporary data remaining from previous runs of the Dataprep editor */
 	void CleanUpTemporaryDirectories();
+
+	/** Handles change to selection in SceneOutliner */
+	void OnSceneOutlinerSelectionChanged(SceneOutliner::FTreeItemPtr ItemPtr, ESelectInfo::Type SelectionMode);
+
+	bool OnCanExecuteNextStep(UDataprepActionAsset* ActionAsset, UDataprepOperation* Operation, UDataprepFilter* Filter );
+
+	/** Handles change to the content passed to an action */
+	void OnActionsContextChanged( const UDataprepActionAsset* ActionAsset, bool bWorldChanged, bool bAssetsChanged, const TArray< TWeakObjectPtr<UObject> >& NewAssets );
 
 private:
 	bool bWorldBuilt;
 	bool bIsFirstRun;
 	bool bPipelineChanged;
-	TWeakObjectPtr<UDataprepAsset> DataprepAssetPtr;
+	TWeakObjectPtr<UDataprepAssetInterface> DataprepAssetInterfacePtr;
 
 	FOnDataprepAssetProducerChanged DataprepAssetProducerChangedDelegate;
 	FOnDataprepAssetConsumerChanged DataprepAssetConsumerChangedDelegate;
 
 	TWeakPtr<SDockTab> DetailsTabPtr;
-	TSharedPtr<SWidget> ViewportView;
+	TSharedPtr<class SDataprepEditorViewport> SceneViewportView;
 	TSharedPtr<AssetPreviewWidget::SAssetsPreviewWidget> AssetPreviewView;
 	TSharedPtr<SWidget> ScenePreviewView;
 	TSharedPtr<SGraphNodeDetailsWidget> DetailsView;
 	TSharedPtr<class SDataprepAssetView > DataprepAssetView;
 	TSharedPtr<class SGraphEditor> PipelineView;
 
-	TSharedPtr<class ISceneOutliner> SceneOutliner;
+	TSharedPtr<class ICustomSceneOutliner> SceneOutliner;
 
 	/** Command list for the pipeline editor */
 	TSharedPtr<FUICommandList> PipelineEditorCommands;
 	bool bIsActionMenuContextSensitive;
 	bool bSaveIntermediateBuildProducts;
+
+	/** 
+	 * Track the user selection from the scene outliner
+	 * This is referred to the garbage collector as a week reference
+	 */
+	TSet<TWeakObjectPtr<UObject>> WorldItemsSelection;
 
 	/**
 	 * All assets tracked for this editor.
@@ -221,6 +253,9 @@ private:
 	static const FName PaletteTabId;
 	static const FName DetailsTabId;
 	static const FName DataprepAssetTabId;
+	static const FName SceneViewportTabId;
+	static const FName DataprepStatisticsTabId;
+	static const FName ParameterizationDefaultTabId;
 
 //Temp Code to allow us to work on the nodes while we don't have our own graph.
 public:
@@ -298,7 +333,7 @@ private:
 	TSharedPtr<SWidget> CompilerResults;
 	TSharedPtr<IMessageLogListing> CompilerResultsListing;
 
-	UEdGraphNode* StartNode;
+	TSharedPtr<FDataprepActionContext> ActionsContext;
 
 	static const FName PipelineGraphTabId;
 	// End of temp code

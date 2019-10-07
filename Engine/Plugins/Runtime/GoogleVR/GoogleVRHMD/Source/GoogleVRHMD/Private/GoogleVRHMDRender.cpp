@@ -43,7 +43,7 @@ void FGoogleVRHMD::GenerateDistortionCorrectionIndexBuffer()
 
 void FGoogleVRHMD::GenerateDistortionCorrectionVertexBuffer(EStereoscopicPass Eye)
 {
-	FVertexBufferRHIRef& DistortionMeshVertices = (Eye == eSSP_LEFT_EYE) ? DistortionMeshVerticesLeftEye : DistortionMeshVerticesRightEye;
+	FVertexBufferRHIRef& DistortionMeshVertices = IStereoRendering::IsAPrimaryView(Eye) ? DistortionMeshVerticesLeftEye : DistortionMeshVerticesRightEye;
 	FRHIResourceCreateInfo CreateInfo;
 	DistortionMeshVertices = RHICreateVertexBuffer(sizeof(FDistortionVertex) * NumVerts, BUF_Static, CreateInfo);
 	void* VoidPtr = RHILockVertexBuffer(DistortionMeshVertices, 0, sizeof(FDistortionVertex) * NumVerts, RLM_WriteOnly);
@@ -51,7 +51,7 @@ void FGoogleVRHMD::GenerateDistortionCorrectionVertexBuffer(EStereoscopicPass Ey
 
 #if GOOGLEVRHMD_SUPPORTED_PLATFORMS
 	// Fill out distortion vertex info, using GVR Api to calculate transformation coordinates
-	const gvr_eye Type = (Eye == eSSP_RIGHT_EYE) ? GVR_RIGHT_EYE : GVR_LEFT_EYE;
+	const gvr_eye Type = IStereoRendering::IsASecondaryView(Eye) ? GVR_RIGHT_EYE : GVR_LEFT_EYE;
 	uint32 VertexIndex = 0;
 	for(uint32 y = 0; y < DistortionPointsY; ++y)
 	{
@@ -110,7 +110,7 @@ void FGoogleVRHMD::DrawDistortionMesh_RenderThread(struct FRenderingCompositePas
 	FIntPoint ViewportSize = ViewFamily.RenderTarget->GetSizeXY();
 
 #if GOOGLEVRHMD_SUPPORTED_PLATFORMS
-	if(View.StereoPass == eSSP_LEFT_EYE)
+	if(IStereoRendering::IsAPrimaryView(View.StereoPass))
 	{
 		RHICmdList.SetViewport(0, 0, 0.0f, ViewportSize.X / 2, ViewportSize.Y, 1.0f);
 		RHICmdList.SetStreamSource(0, DistortionMeshVerticesLeftEye, 0);
@@ -144,7 +144,7 @@ void FGoogleVRHMD::DrawDistortionMesh_RenderThread(struct FRenderingCompositePas
 		RHIUnlockVertexBuffer(VertexBufferRHI);
 
 		const uint32 XBound = TextureSize.X / 2;
-		if(View.StereoPass == eSSP_LEFT_EYE)
+		if(IStereoRendering::IsAPrimaryView(View.StereoPass))
 		{
 			RHICmdList.SetViewport(0, 0, 0.0f, XBound, TextureSize.Y, 1.0f);
 			RHICmdList.SetStreamSource(0, VertexBufferRHI, 0);

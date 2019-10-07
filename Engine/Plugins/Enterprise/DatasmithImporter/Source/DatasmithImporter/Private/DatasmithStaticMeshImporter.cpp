@@ -1,0 +1,693 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "DatasmithStaticMeshImporter.h"
+
+#include "DatasmithImportContext.h"
+#include "DatasmithImporterModule.h"
+#include "DatasmithMaterialImporter.h"
+#include "DatasmithMeshHelper.h"
+#include "DatasmithMeshUObject.h"
+#include "IDatasmithSceneElements.h"
+#include "ObjectTemplates/DatasmithStaticMeshTemplate.h"
+#include "Translators/DatasmithPayload.h"
+#include "Utility/DatasmithImporterUtils.h"
+
+#include "Algo/AnyOf.h"
+#include "Async/Async.h"
+#include "Engine/StaticMesh.h"
+#include "LayoutUV.h"
+#include "MeshBuild.h"
+#include "MeshDescriptionOperations.h"
+#include "MeshUtilities.h"
+#include "Misc/FeedbackContext.h"
+#include "Misc/Paths.h"
+#include "Misc/ScopedSlowTask.h"
+#include "OverlappingCorners.h"
+#include "PhysicsEngine/AggregateGeom.h"
+#include "PhysicsEngine/BodySetup.h"
+#include "StaticMeshAttributes.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/Package.h"
+
+#define LOCTEXT_NAMESPACE "DatasmithImporter"
+
+namespace DatasmithStaticMeshImporterImpl
+{
+	float Get2DSurface(const FVector4& Dimensions)
+	{
+		if (Dimensions[0] >= Dimensions[1] && Dimensions[2] >= Dimensions[1])
+		{
+			return Dimensions[0]*Dimensions[2];
+		}
+		if (Dimensions[0] >= Dimensions[2] && Dimensions[1] >= Dimensions[2])
+		{
+			return Dimensions[0]*Dimensions[1];
+		}
+		return Dimensions[2]*Dimensions[1];
+	}
+
+	float CalcBlendWeight(const FVector4& Dimensions, float MaxArea, float Max2DSurface)
+	{
+		float Current2DSurface = Get2DSurface(Dimensions);
+		float Weight = FMath::Sqrt((Dimensions[3] / MaxArea)) + FMath::Sqrt(Current2DSurface / Max2DSurface);
+		return Weight;
+	}
+
+	int32 GetLightmapSize(float Weight, int32 MinimumSize, int32 MaximumSize)
+	{
+		Weight = FMath::Clamp(Weight, 0.f, 1.f);
+
+		float WeightedSize = (float(MinimumSize)*(1.0f - Weight)) + Weight*float(MaximumSize);
+
+		int32 LightmapSizeValue = MinimumSize;
+		while (WeightedSize > LightmapSizeValue)
+		{
+			LightmapSizeValue *= 2;
+		}
+
+		return FMath::Clamp( LightmapSizeValue, 0, 4096 );
+	}
+
+	TMap< int32, FString > GetMaterials( TSharedRef< IDatasmithMeshElement > MeshElement )
+	{
+		TMap< int32, FString > Materials;
+		for ( int i = 0; i < MeshElement->GetMaterialSlotCount(); ++i )
+		{
+			Materials.Add( MeshElement->GetMaterialSlotAt(i)->GetId(), MeshElement->GetMaterialSlotAt(i)->GetName() );
+		}
+		return Materials;
+	}
+
+	int32 GetStaticMeshBuildRequirements( const FDatasmithAssetsImportContext& AssetsContext, TSharedRef< IDatasmithMeshElement > MeshElement )
+	{
+		int32 BuildRequirements = EMaterialRequirements::RequiresNormals | EMaterialRequirements::RequiresTangents;;
+		for ( const TPair<int32, FString>& Material : GetMaterials( MeshElement ) )
+		{
+			if ( AssetsContext.MaterialsRequirements.Contains( *Material.Value ) )
+			{
+				BuildRequirements |= AssetsContext.MaterialsRequirements[ *Material.Value ];
+			}
+		}
+		return BuildRequirements;
+	}
+}
+
+UStaticMesh* FDatasmithStaticMeshImporter::ImportStaticMesh(const TSharedRef< IDatasmithMeshElement > MeshElement, FDatasmithMeshElementPayload& Payload, EObjectFlags ObjectFlags, const FDatasmithStaticMeshImportOptions& ImportOptions, FDatasmithAssetsImportContext& AssetsContext, UStaticMesh* ExistingMesh)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithStaticMeshImporter::ImportStaticMesh);
+
+	// 1. import data
+	TArray< FMeshDescription >& MeshDescriptions = Payload.LodMeshes;
+
+	// Update MeshElement's LOD count with the actual number of mesh descriptions
+	MeshElement->SetLODCount( MeshDescriptions.Num() );
+	if ( MeshDescriptions.Num() == 0 )
+	{
+		return nullptr;
+	}
+
+	// 2. find the destination
+	UStaticMesh* ResultStaticMesh = nullptr;
+	FString StaticMeshName = AssetsContext.StaticMeshNameProvider.GenerateUniqueName( MeshElement->GetLabel() );
+	UPackage* Outer = AssetsContext.StaticMeshesImportPackage.Get();
+
+	// Verify that the static mesh could be created in final package
+	FText FailReason;
+	if (!FDatasmithImporterUtils::CanCreateAsset<UStaticMesh>( AssetsContext.StaticMeshesFinalPackage.Get(), StaticMeshName, FailReason ))
+	{
+		AssetsContext.ParentContext.LogError(FailReason);
+		return nullptr;
+	}
+
+	if ( ExistingMesh )
+	{
+		if ( ExistingMesh->GetOuter() != Outer )
+		{
+			ResultStaticMesh = DuplicateObject< UStaticMesh >( ExistingMesh, Outer, *StaticMeshName );
+			IDatasmithImporterModule::Get().ResetOverrides( ResultStaticMesh ); // Don't copy the existing overrides
+		}
+		else
+		{
+			ResultStaticMesh = ExistingMesh;
+		}
+
+		ResultStaticMesh->SetFlags( ObjectFlags );
+	}
+	else
+	{
+		ResultStaticMesh = NewObject< UStaticMesh >( Outer, *StaticMeshName, ObjectFlags );
+	}
+
+	// 3. Write data to destination
+	int32 LODIndex = 0;
+	for (FMeshDescription& MeshDesc : MeshDescriptions)
+	{
+		DatasmithMeshHelper::FillUStaticMesh(ResultStaticMesh, LODIndex, MoveTemp(MeshDesc));
+		LODIndex++;
+	}
+
+	// 4. Collisions
+	TArray< FVector > VertexPositions;
+	DatasmithMeshHelper::ExtractVertexPositions(Payload.CollisionMesh, VertexPositions);
+	if ( VertexPositions.Num() == 0 )
+	{
+		VertexPositions = MoveTemp(Payload.CollisionPointCloud);
+	}
+
+	if ( VertexPositions.Num() > 0 )
+	{
+		ProcessCollision( ResultStaticMesh, VertexPositions );
+	}
+
+	return ResultStaticMesh;
+}
+
+bool FDatasmithStaticMeshImporter::ShouldRecomputeNormals(const FMeshDescription& MeshDescription, int32 BuildRequirements)
+{
+	const TVertexInstanceAttributesConstRef<FVector> Normals = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
+	check(Normals.IsValid());
+	return Algo::AnyOf(MeshDescription.VertexInstances().GetElementIDs(), [&](const FVertexInstanceID& InstanceID) { return !Normals[InstanceID].IsNormalized(); });
+}
+
+bool FDatasmithStaticMeshImporter::ShouldRecomputeTangents(const FMeshDescription& MeshDescription, int32 BuildRequirements)
+{
+	const TVertexInstanceAttributesConstRef<FVector> Tangents = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
+	check(Tangents.IsValid());
+	return Algo::AnyOf(MeshDescription.VertexInstances().GetElementIDs(), [&](const FVertexInstanceID& InstanceID) { return !Tangents[InstanceID].IsNormalized(); });
+}
+
+bool FDatasmithStaticMeshImporter::PreBuildStaticMesh( UStaticMesh* StaticMesh )
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithStaticMeshImporter::PreBuildStaticMesh);
+
+	// The input static mesh must at least have its LOD 0 valid
+	if (!StaticMesh->IsMeshDescriptionValid(0))
+	{
+		return false;
+	}
+
+	for (int32 LodIndex = 0; LodIndex < StaticMesh->GetNumSourceModels(); ++LodIndex)
+	{
+		if (!StaticMesh->IsMeshDescriptionValid(LodIndex))
+		{
+			continue;
+		}
+
+		FMeshBuildSettings& BuildSettings = StaticMesh->GetSourceModel(LodIndex).BuildSettings;
+		FMeshDescription& MeshDescription = *StaticMesh->GetMeshDescription(LodIndex);
+
+		// We should always have some UV data in channel 0 because it is used in the mesh tangent calculation during the build.
+		if (!DatasmithMeshHelper::HasUVData(MeshDescription, 0))
+		{
+			DatasmithMeshHelper::CreateDefaultUVs(MeshDescription);
+		}
+
+		// If lightmap UVs are not to be generated, set destination lightmap to 0.
+		if (!BuildSettings.bGenerateLightmapUVs)
+		{
+			BuildSettings.DstLightmapIndex = 0;
+		}
+		else if (!DatasmithMeshHelper::HasUVData(MeshDescription, BuildSettings.SrcLightmapIndex))
+		{
+			//We know that a UV at channel 0 exists so we fallback on it.
+			BuildSettings.SrcLightmapIndex = 0;
+		}
+
+		if (DatasmithMeshHelper::IsMeshValid(MeshDescription, BuildSettings.BuildScale3D))
+		{
+			DatasmithMeshHelper::RequireUVChannel(MeshDescription, BuildSettings.DstLightmapIndex);
+			UStaticMesh::FCommitMeshDescriptionParams Params;
+
+			// We will call MarkPackageDirty() ourself from the main thread
+			Params.bMarkPackageDirty = false;
+
+			// Ensure we get DDC benefits when we import already cached content
+			Params.bUseHashAsGuid = true;
+
+			StaticMesh->CommitMeshDescription(LodIndex, Params);
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+void FDatasmithStaticMeshImporter::BuildStaticMesh( UStaticMesh* StaticMesh )
+{
+	BuildStaticMeshes({ StaticMesh });
+}
+
+void FDatasmithStaticMeshImporter::PostMeshBuild(UStaticMesh* StaticMesh)
+{
+	StaticMesh->ClearMeshDescriptions();
+}
+
+void FDatasmithStaticMeshImporter::BuildStaticMeshes(const TArray< UStaticMesh* >& StaticMeshes, TFunction<bool(UStaticMesh*)> ProgressCallback)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithStaticMeshImporter::BuildStaticMeshes);
+
+	TArray<FDelegateHandle> PostMeshBuildDelegateHandles;
+	PostMeshBuildDelegateHandles.SetNum(StaticMeshes.Num());
+
+	for (int32 StaticMeshIndex = 0; StaticMeshIndex < StaticMeshes.Num(); ++StaticMeshIndex)
+	{
+		// Release mesh descriptions as soon as they've been serialized and built to reduce memory footprint during import
+		PostMeshBuildDelegateHandles[StaticMeshIndex] = StaticMeshes[StaticMeshIndex]->OnPostMeshBuild().AddStatic(&FDatasmithStaticMeshImporter::PostMeshBuild);
+	}
+
+	UStaticMesh::BatchBuild(StaticMeshes, true, ProgressCallback);
+
+	for (int32 StaticMeshIndex = 0; StaticMeshIndex < StaticMeshes.Num(); ++StaticMeshIndex)
+	{
+		StaticMeshes[StaticMeshIndex]->OnPostMeshBuild().Remove(PostMeshBuildDelegateHandles[StaticMeshIndex]);
+	}
+}
+
+void FDatasmithStaticMeshImporter::ProcessCollision(UStaticMesh* StaticMesh, const TArray< FVector >& VertexPositions)
+{
+	// The following code is copied from StaticMeshEdit AddConvexGeomFromVertices (inaccessible outside UnrealEd)
+	if ( !StaticMesh )
+	{
+		return;
+	}
+
+	StaticMesh->bCustomizedCollision = true;
+	StaticMesh->CreateBodySetup();
+	if ( !ensure(StaticMesh->BodySetup) )
+	{
+		return;
+	}
+
+	// Convex elements must be removed first since the re-import process uses the same flow
+	FKAggregateGeom& AggGeom = StaticMesh->BodySetup->AggGeom;
+	AggGeom.ConvexElems.Reset();
+	FKConvexElem& ConvexElem = AggGeom.ConvexElems.AddDefaulted_GetRef();
+
+	ConvexElem.VertexData.Reserve( VertexPositions.Num() );
+	for ( const FVector& Position : VertexPositions )
+	{
+		ConvexElem.VertexData.Add( Position );
+	}
+
+	ConvexElem.UpdateElemBox();
+}
+
+void FDatasmithStaticMeshImporter::PreBuildStaticMeshes( FDatasmithImportContext& ImportContext )
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithStaticMeshImporter::PreBuildStaticMeshes);
+
+	FScopedSlowTask Progress(ImportContext.ImportedStaticMeshes.Num(), LOCTEXT("PreBuildStaticMeshes", "Packing UVs and computing tangents..."), true, *ImportContext.Warn);
+	Progress.MakeDialog(true);
+
+	IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked< IMeshUtilities >( "MeshUtilities" );
+
+	TArray<UStaticMesh*> SortedMesh;
+	for (const TPair<TSharedRef<IDatasmithMeshElement>, UStaticMesh*>& Kvp : ImportContext.ImportedStaticMeshes)
+	{
+		if (Kvp.Value)
+		{
+			SortedMesh.Add(Kvp.Value);
+		}
+	}
+
+	// Start with the biggest mesh first to help balancing tasks on threads
+	SortedMesh.Sort(
+		[](const UStaticMesh& Lhs, const UStaticMesh& Rhs)
+		{
+			int32 LhsVerticesNum = Lhs.IsMeshDescriptionValid(0) ? Lhs.GetMeshDescription(0)->Vertices().Num() : 0;
+			int32 RhsVerticesNum = Rhs.IsMeshDescriptionValid(0) ? Rhs.GetMeshDescription(0)->Vertices().Num() : 0;
+
+			return LhsVerticesNum > RhsVerticesNum;
+		}
+	);
+
+	// Setup tasks in such a way that we're able to update the progress for tasks finishing in any order
+	TAtomic<uint32> TasksDone(0);
+	TArray<TFuture<bool>> TasksIsMeshValidResult;
+	for (UStaticMesh* StaticMesh : SortedMesh)
+	{
+		TasksIsMeshValidResult.Add(
+			Async(
+				EAsyncExecution::LargeThreadPool,
+				[StaticMesh]() { return PreBuildStaticMesh(StaticMesh); },
+				[&TasksDone]() { TasksDone++; }
+			)
+		);
+	}
+
+	// Ensure UI stays responsive by updating the progress even when the number of tasks hasn't changed
+	for (int32 OldTasksDone = 0, NewTasksDone = 0; OldTasksDone != SortedMesh.Num(); OldTasksDone = NewTasksDone)
+	{
+		NewTasksDone = TasksDone.Load();
+		Progress.EnterProgressFrame(NewTasksDone - OldTasksDone, FText::FromString(FString::Printf(TEXT("Packing UVs and computing tangents for static mesh %d/%d ..."), NewTasksDone, SortedMesh.Num())));
+		FPlatformProcess::Sleep(0.1);
+	}
+
+	for (int32 Index = 0; Index < TasksIsMeshValidResult.Num(); ++Index)
+	{
+		UStaticMesh* StaticMesh = SortedMesh[Index];
+
+		if (TasksIsMeshValidResult[Index].Get())
+		{
+			SortedMesh[Index]->MarkPackageDirty();
+		}
+		else
+		{
+			// Log invalid meshes and remove mesh reference from imported meshes and mesh actors
+			for (const TPair<TSharedRef<IDatasmithMeshElement>, UStaticMesh*>& Kvp : ImportContext.ImportedStaticMeshes)
+			{
+				if (Kvp.Value == StaticMesh)
+				{
+					ImportContext.LogError( FText::Format( LOCTEXT("PreBuildMesh", "Static mesh {0} is invalid since it contains only degenerated triangles or no triangle."), FText::FromName( StaticMesh->GetFName() ) ) );
+
+					ImportContext.ImportedStaticMeshes.Remove(Kvp.Key);
+					break;
+				}
+			}
+		}
+	}
+}
+
+class FMeshMaterialSlotBuilder
+{
+	struct SectionInfo
+	{
+		enum { InvalidIndex = -1 };
+
+		int32 LodIndex;
+		int32 SectionIndex;        // index of this group (in given LOD's mesh)
+		FPolygonGroupID SectionId; // id stored on the triangles
+		FName MaterialSlotName;    // per PolygonGroup FName attribute
+		int32 PolyCount;           // Number of poly
+		int32 StaticMaterialsIndex = InvalidIndex; // index in the FStaticMesh::StaticMaterials
+	};
+
+public:
+	FMeshMaterialSlotBuilder(UStaticMesh& StaticMesh, int32 MeshElementLODCount)
+	{
+		// Populate section LODs declared in IDatasmithMeshElement
+		for (int32 LodIndex = 0; LodIndex < MeshElementLODCount; ++LodIndex)
+		{
+			if (FMeshDescription* MeshDescription = StaticMesh.GetMeshDescription(LodIndex))
+			{
+				FStaticMeshAttributes Attributes(*MeshDescription);
+				TPolygonGroupAttributesConstRef<FName> MaterialSlotNameAttribute = Attributes.GetPolygonGroupMaterialSlotNames();
+				int32 SectionIndex = 0;
+				RawSections.Reserve(MeshDescription->PolygonGroups().Num());
+				for (FPolygonGroupID PolygonGroupID : MeshDescription->PolygonGroups().GetElementIDs())
+				{
+					SectionInfo& ThisSection = RawSections.Add_GetRef({});
+					ThisSection.LodIndex = LodIndex;
+					ThisSection.SectionIndex = SectionIndex++;
+					ThisSection.SectionId = PolygonGroupID;
+					ThisSection.MaterialSlotName = MaterialSlotNameAttribute[PolygonGroupID];
+					ThisSection.PolyCount = MeshDescription->GetPolygonGroupPolygons(PolygonGroupID).Num();
+				}
+			}
+		}
+
+		// Prepares StaticMaterials Slot informations from sections found in the mesh
+		for (SectionInfo& Section : RawSections)
+		{
+			// get associated slot (but skip empty polygon groups)
+			Section.StaticMaterialsIndex = Section.PolyCount <= 0 ? SectionInfo::InvalidIndex : SlotNames.Add(Section.MaterialSlotName).AsInteger();
+		}
+	}
+
+	FMeshSectionInfoMap GenerateSectionInfoMap() const
+	{
+		FMeshSectionInfoMap InfoMap;
+		for (const SectionInfo& Section : RawSections)
+		{
+			if (Section.StaticMaterialsIndex != SectionInfo::InvalidIndex)
+			{
+				InfoMap.Set(Section.LodIndex, Section.SectionIndex, FMeshSectionInfo(Section.StaticMaterialsIndex));
+			}
+		}
+		return InfoMap;
+	}
+
+	const TArray<SectionInfo>& GetSectionsInfos() const
+	{
+		return RawSections;
+	}
+
+	const TSet<FName>& GetSlotNames() const
+	{
+		return SlotNames;
+	}
+
+
+private:
+	TArray<SectionInfo> RawSections;
+	TSet<FName> SlotNames;
+};
+
+void FDatasmithStaticMeshImporter::SetupStaticMesh( FDatasmithAssetsImportContext& AssetsContext, TSharedRef< IDatasmithMeshElement > MeshElement, UStaticMesh* StaticMesh,
+	const FDatasmithStaticMeshImportOptions& StaticMeshImportOptions, float LightmapWeight )
+{
+	if (StaticMesh == nullptr)
+	{
+		return;
+	}
+
+	// The input static mesh must at least have its LOD 0 valid
+	if (!StaticMesh->IsMeshDescriptionValid(0))
+	{
+		return;
+	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithStaticMeshImporter::SetupStaticMesh);
+
+	FMeshMaterialSlotBuilder Sections(*StaticMesh, MeshElement->GetLODCount());
+	UDatasmithStaticMeshTemplate* StaticMeshTemplate = NewObject< UDatasmithStaticMeshTemplate >( StaticMesh );
+
+	int32 MinLightmapSize = FDatasmithStaticMeshImportOptions::ConvertLightmapEnumToValue( StaticMeshImportOptions.MinLightmapResolution );
+	int32 MaxLightmapSize = FDatasmithStaticMeshImportOptions::ConvertLightmapEnumToValue( StaticMeshImportOptions.MaxLightmapResolution );
+
+	int32 LightmapSize = DatasmithStaticMeshImporterImpl::GetLightmapSize( LightmapWeight, MinLightmapSize, MaxLightmapSize );
+	StaticMesh->LightingGuid = FGuid::NewGuid();
+	StaticMesh->InitResources();
+
+	StaticMeshTemplate->LightMapResolution = LightmapSize;
+	StaticMeshTemplate->LightMapCoordinateIndex = 2;
+
+	// Get build requirement for the assigned materials
+	const int32 BuildRequirements = DatasmithStaticMeshImporterImpl::GetStaticMeshBuildRequirements( AssetsContext, MeshElement );
+
+	TSet< int32 > MaterialIndexToImportIndex;
+
+	bool bLightmapCoordinateIndexInvalid = false;
+
+	// Only setup LODs declared by the mesh element
+	for ( int32 LodIndex = 0; LodIndex < MeshElement->GetLODCount(); ++LodIndex)
+	{
+		if (!StaticMesh->IsMeshDescriptionValid(LodIndex))
+		{
+			continue;
+		}
+
+		FMeshDescription& MeshDescription = *StaticMesh->GetMeshDescription(LodIndex);
+
+		auto GetNextOpenUVChannel = [](FMeshDescription& Mesh, int32 FromUVChannelIndex)
+		{
+			for (int32 UVChannelIndex = FromUVChannelIndex; UVChannelIndex < MAX_MESH_TEXTURE_COORDS_MD; ++UVChannelIndex)
+			{
+				if (!DatasmithMeshHelper::HasUVData(Mesh, UVChannelIndex))
+				{
+					return UVChannelIndex;
+				}
+			}
+			return -1;
+		};
+
+		// UV Channels
+		int32 SourceIndex = -1;
+		bool bGenerateLightmapUVs = StaticMeshImportOptions.bGenerateLightmapUVs;
+		// Set DestinationIndex to 0 if generation of lightmap UVs is not required.
+		int32 DestinationIndex = bGenerateLightmapUVs ? -1 : 0;
+
+		// if a lightmap coordinate index was exported, disable lightmap generation
+		if (DatasmithMeshHelper::HasUVData(MeshDescription, MeshElement->GetLightmapCoordinateIndex()))
+		{
+			bGenerateLightmapUVs = false;
+		}
+
+		if (bGenerateLightmapUVs)
+		{
+			// Set the source lightmap index to the imported mesh data lightmap source if any, otherwise use the first open channel.
+			const bool bOriginalSourceIsValid = DatasmithMeshHelper::HasUVData(MeshDescription, MeshElement->GetLightmapSourceUV());
+			const int32 FirstOpenUVChannel = GetNextOpenUVChannel(MeshDescription, 0);
+
+			if (bOriginalSourceIsValid)
+			{
+				SourceIndex = MeshElement->GetLightmapSourceUV();
+				DestinationIndex = FirstOpenUVChannel;
+			}
+			else
+			{
+				//If the lightmap source index was not set, set it to 0 (as we will generate a UV latter if it's missing).
+				SourceIndex = 0;
+				DestinationIndex = FMath::Max(FirstOpenUVChannel, SourceIndex + 1);
+			}
+			
+			if (!FMath::IsWithin<int32>(SourceIndex, 0, MAX_MESH_TEXTURE_COORDS_MD))
+			{
+				AssetsContext.ParentContext.LogError(FText::Format(LOCTEXT("InvalidLightmapSourceIndexError", "Lightmap generation error for mesh {0}: Specified source is invalid {1}. Cannot find an available fallback source channel."), FText::FromName(StaticMesh->GetFName()), MeshElement->GetLightmapSourceUV()));
+				bGenerateLightmapUVs = false;
+			}
+			else if (!FMath::IsWithin<int32>(DestinationIndex, 0, MAX_MESH_TEXTURE_COORDS_MD))
+			{
+				AssetsContext.ParentContext.LogError(FText::Format(LOCTEXT("InvalidLightmapDestinationIndexError", "Lightmap generation error for mesh {0}: Cannot find an available destination channel."), FText::FromName(StaticMesh->GetFName())));
+				bGenerateLightmapUVs = false;
+			}
+
+			if (!bGenerateLightmapUVs)
+			{
+				AssetsContext.ParentContext.LogWarning(FText::Format(LOCTEXT("LightmapUVsWontBeGenerated", "Lightmap UVs for mesh {0} won't be generated. The lightmap coordinate index will be set to 0."), FText::FromName(StaticMesh->GetFName())));
+				SourceIndex = 0;
+				DestinationIndex = 1;
+			}
+		}
+
+		FDatasmithMeshBuildSettingsTemplate BuildSettingsTemplate;
+		BuildSettingsTemplate.Load(StaticMesh->GetSourceModel(LodIndex).BuildSettings);
+
+		BuildSettingsTemplate.bUseMikkTSpace = true;
+		BuildSettingsTemplate.bRecomputeNormals = FDatasmithStaticMeshImporter::ShouldRecomputeNormals(MeshDescription, BuildRequirements );
+		BuildSettingsTemplate.bRecomputeTangents = FDatasmithStaticMeshImporter::ShouldRecomputeTangents(MeshDescription, BuildRequirements );
+		BuildSettingsTemplate.bRemoveDegenerates = StaticMeshImportOptions.bRemoveDegenerates;
+		BuildSettingsTemplate.bUseHighPrecisionTangentBasis = true;
+		BuildSettingsTemplate.bUseFullPrecisionUVs = true;
+		BuildSettingsTemplate.bGenerateLightmapUVs = bGenerateLightmapUVs;
+		BuildSettingsTemplate.SrcLightmapIndex = SourceIndex;
+		BuildSettingsTemplate.DstLightmapIndex = DestinationIndex;
+		BuildSettingsTemplate.MinLightmapResolution = MinLightmapSize;
+
+		// Don't build adjacency buffer for meshes with over 500 000 triangles because it's too slow
+		BuildSettingsTemplate.bBuildAdjacencyBuffer = ((BuildRequirements & EMaterialRequirements::RequiresAdjacency) != 0) && DatasmithMeshHelper::GetPolygonCount(MeshDescription) < 500000;
+
+		StaticMeshTemplate->BuildSettings.Add( MoveTemp( BuildSettingsTemplate ) );
+
+		if (!StaticMeshImportOptions.bGenerateLightmapUVs)
+		{
+			StaticMeshTemplate->LightMapCoordinateIndex = MeshElement->GetLightmapCoordinateIndex() < 0 ? BuildSettingsTemplate.DstLightmapIndex : MeshElement->GetLightmapCoordinateIndex();
+		}
+		else if (MeshElement->GetLightmapCoordinateIndex() < 0)
+		{
+			StaticMeshTemplate->LightMapCoordinateIndex = bGenerateLightmapUVs ? BuildSettingsTemplate.DstLightmapIndex : BuildSettingsTemplate.SrcLightmapIndex;
+		}
+		else
+		{
+			int LastValidUVChannel = MAX_MESH_TEXTURE_COORDS_MD - 1;
+			while (LastValidUVChannel > 0 && !DatasmithMeshHelper::HasUVData(MeshDescription, LastValidUVChannel))
+			{
+				--LastValidUVChannel;
+			}
+
+			if (MeshElement->GetLightmapCoordinateIndex() <= LastValidUVChannel)
+			{
+				StaticMeshTemplate->LightMapCoordinateIndex = MeshElement->GetLightmapCoordinateIndex();
+			}
+			else
+			{
+				bLightmapCoordinateIndexInvalid = true;
+				StaticMeshTemplate->LightMapCoordinateIndex = LastValidUVChannel;
+			}
+		}
+	}
+
+	// Build a FMeshSectionInfoMap so that it computes the proper key for us
+	FMeshSectionInfoMap MeshSectionInfoMap = Sections.GenerateSectionInfoMap();
+	StaticMeshTemplate->SectionInfoMap.Load( MeshSectionInfoMap );
+
+	// Create one StaticMaterial per material index. Actual materials will be assigned later. This is just so that we create all the slots.
+	for (const FName& SlotName : Sections.GetSlotNames())
+	{
+		FDatasmithStaticMaterialTemplate StaticMaterial;
+		StaticMaterial.MaterialSlotName = SlotName;
+
+		StaticMeshTemplate->StaticMaterials.Add(MoveTemp(StaticMaterial));
+	}
+
+	ApplyMaterialsToStaticMesh(AssetsContext, MeshElement, StaticMeshTemplate);
+	StaticMeshTemplate->Apply(StaticMesh);
+
+	if (bLightmapCoordinateIndexInvalid)
+	{
+		FFormatNamedArguments FormatArgs;
+		FormatArgs.Add(TEXT("LightmapCoordinateIndex"), FText::FromString(FString::FromInt(MeshElement->GetLightmapCoordinateIndex())));
+		FormatArgs.Add(TEXT("MeshName"), FText::FromName(StaticMesh->GetFName()));
+		AssetsContext.ParentContext.LogError(FText::Format(LOCTEXT("InvalidLightmapSourceUVError", "The lightmap coordinate index '{LightmapCoordinateIndex}' used for the mesh '{MeshName}' is invalid. A valid lightmap coordinate index was set instead."), FormatArgs));
+	}
+}
+
+TMap< TSharedRef< IDatasmithMeshElement >, float > FDatasmithStaticMeshImporter::CalculateMeshesLightmapWeights( const TSharedRef< IDatasmithScene >& SceneElement )
+{
+	TMap< TSharedRef< IDatasmithMeshElement >, float > LightmapWeights;
+
+	float MaxArea = 0.0f;
+	float Max2DSurface = 0.0f;
+
+	// Compute the max values based on all meshes in the Datasmith Scene
+
+	for ( int32 MeshIndex = 0; MeshIndex < SceneElement->GetMeshesCount(); ++MeshIndex )
+	{
+		TSharedPtr< IDatasmithMeshElement > MeshElement = SceneElement->GetMesh( MeshIndex );
+
+		FVector4 Dimensions;
+		Dimensions.Set( MeshElement->GetWidth(), MeshElement->GetDepth(), MeshElement->GetHeight(), MeshElement->GetArea() );
+
+		MaxArea = FMath::Max( MaxArea, MeshElement->GetArea() );
+		Max2DSurface = FMath::Max(Max2DSurface, DatasmithStaticMeshImporterImpl::Get2DSurface( Dimensions ));
+	}
+
+	float MaxWeight = 0.0f;
+
+	for ( int32 MeshIndex = 0; MeshIndex < SceneElement->GetMeshesCount(); ++MeshIndex )
+	{
+		TSharedPtr< IDatasmithMeshElement > MeshElement = SceneElement->GetMesh( MeshIndex );
+
+		FVector4 Dimensions( MeshElement->GetWidth(), MeshElement->GetDepth(), MeshElement->GetHeight(), MeshElement->GetArea() );
+
+		MaxWeight = FMath::Max( MaxWeight, DatasmithStaticMeshImporterImpl::CalcBlendWeight( Dimensions, MaxArea, Max2DSurface ) );
+	}
+
+	for ( int32 MeshIndex = 0; MeshIndex < SceneElement->GetMeshesCount(); ++MeshIndex )
+	{
+		TSharedPtr< IDatasmithMeshElement > MeshElement = SceneElement->GetMesh( MeshIndex );
+
+		FVector4 Dimensions( MeshElement->GetWidth(), MeshElement->GetDepth(), MeshElement->GetHeight(), MeshElement->GetArea() );
+
+		float LightmapWeight = DatasmithStaticMeshImporterImpl::CalcBlendWeight( Dimensions, MaxArea, Max2DSurface ) / MaxWeight;
+
+		LightmapWeights.Add( MeshElement.ToSharedRef() ) = LightmapWeight;
+	}
+
+	return LightmapWeights;
+}
+
+void FDatasmithStaticMeshImporter::ApplyMaterialsToStaticMesh( const FDatasmithAssetsImportContext& AssetsContext, const TSharedRef< IDatasmithMeshElement >& MeshElement, UDatasmithStaticMeshTemplate* StaticMeshTemplate )
+{
+	for ( TPair<int32, FString>& Material : DatasmithStaticMeshImporterImpl::GetMaterials( MeshElement ) )
+	{
+		UMaterialInterface* MaterialInterface = FDatasmithImporterUtils::FindAsset< UMaterialInterface >( AssetsContext, *Material.Value );
+
+		FName MaterialSlotName = DatasmithMeshHelper::DefaultSlotName(Material.Key);
+
+		FDatasmithStaticMaterialTemplate* MaterialTemplate = Algo::FindByPredicate( StaticMeshTemplate->StaticMaterials, [ &MaterialSlotName ]( const FDatasmithStaticMaterialTemplate& Current ) -> bool
+		{
+			return Current.MaterialSlotName == MaterialSlotName;
+		});
+
+		if ( MaterialTemplate )
+		{
+			MaterialTemplate->MaterialInterface = MaterialInterface;
+		}
+	}
+}
+
+#undef LOCTEXT_NAMESPACE

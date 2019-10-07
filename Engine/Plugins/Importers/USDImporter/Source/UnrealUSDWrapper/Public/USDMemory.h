@@ -2,8 +2,10 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "Misc/Optional.h"
 #include "Modules/Boilerplate/ModuleBoilerplate.h"
+#include "Templates/SharedPointer.h"
 #include "Templates/UnrealTemplate.h"
 
 /**
@@ -73,13 +75,15 @@ private:
 	static bool IsUsingSystemMalloc();
 
 	static TOptional< FTlsSlot > ActiveAllocatorsStackTLS;
+
+	static TSet< void* > SystemAllocedPtrs;
 };
 
 /**
  * Activates an allocator on construction and deactivates it on destruction
  */
 template< EUsdActiveAllocator AllocatorType >
-class UNREALUSDWRAPPER_API TScopedAllocs final
+class TScopedAllocs final
 {
 public:
 	TScopedAllocs()
@@ -106,66 +110,66 @@ using FScopedUnrealAllocs = TScopedAllocs< EUsdActiveAllocator::Unreal >;
  * Stores a USD object.
  * Ensures that its constructed, copied, moved and destroyed using the USD allocator.
  */
-template < typename T >
+template < typename UsdObjectType >
 class TUsdStore final
 {
 public:
 	TUsdStore()
 	{
-		StoredUsdObject = TOptional< T >{}; // Force init with current allocator
+		StoredUsdObject = TOptional< UsdObjectType >{}; // Force init with current allocator
 
 		{
 			FScopedUsdAllocs UsdAllocs;
-			StoredUsdObject.Emplace(); // Create T with USD allocator
+			StoredUsdObject.Emplace(); // Create UsdObjectType with USD allocator
 		}
 	}
 
-	TUsdStore( const TUsdStore< T >& Other )
+	TUsdStore( const TUsdStore< UsdObjectType >& Other )
 	{
 		FScopedUsdAllocs UsdAllocs;
 		StoredUsdObject.Emplace( Other.StoredUsdObject.GetValue() );
 	}
 
-	TUsdStore( TUsdStore< T >&& Other )
+	TUsdStore( TUsdStore< UsdObjectType >&& Other )
 	{
 		FScopedUsdAllocs UsdAllocs;
 		StoredUsdObject = MoveTemp( Other.StoredUsdObject );
 	}
 
-	TUsdStore< T >& operator=( const TUsdStore< T >& Other )
+	TUsdStore< UsdObjectType >& operator=( const TUsdStore< UsdObjectType >& Other )
 	{
 		FScopedUsdAllocs UsdAllocs;
 		StoredUsdObject.Emplace( Other.StoredUsdObject.GetValue() );
 		return *this;
 	}
 
-	TUsdStore< T >& operator=( TUsdStore< T >&& Other )
+	TUsdStore< UsdObjectType >& operator=( TUsdStore< UsdObjectType >&& Other )
 	{
 		FScopedUsdAllocs UsdAllocs;
 		StoredUsdObject = MoveTemp( Other.StoredUsdObject );
 		return *this;
 	}
 
-	TUsdStore( const T& UsdObject )
+	TUsdStore( const UsdObjectType& UsdObject )
 	{
 		FScopedUsdAllocs UsdAllocs;
 		StoredUsdObject = UsdObject;
 	}
 
-	TUsdStore( T&& UsdObject )
+	TUsdStore( UsdObjectType&& UsdObject )
 	{
 		FScopedUsdAllocs UsdAllocs;
 		StoredUsdObject = MoveTemp( UsdObject );
 	}
 
-	TUsdStore< T >& operator=( const T& UsdObject )
+	TUsdStore< UsdObjectType >& operator=( const UsdObjectType& UsdObject )
 	{
 		FScopedUsdAllocs UsdAllocs;
 		StoredUsdObject = UsdObject;
 		return *this;
 	}
 
-	TUsdStore< T >& operator=( T&& UsdObject )
+	TUsdStore< UsdObjectType >& operator=( UsdObjectType&& UsdObject )
 	{
 		FScopedUsdAllocs UsdAllocs;
 		StoredUsdObject = MoveTemp( UsdObject );
@@ -175,21 +179,33 @@ public:
 	~TUsdStore()
 	{
 		FScopedUsdAllocs UsdAllocs;
-		StoredUsdObject.Reset(); // Destroy T with USD allocator
+		StoredUsdObject.Reset(); // Destroy UsdObjectType with USD allocator
 	}
 
-	T& Get() { return StoredUsdObject.GetValue(); }
-	const T& Get() const { return StoredUsdObject.GetValue(); }
+	UsdObjectType& Get() { return StoredUsdObject.GetValue(); }
+	const UsdObjectType& Get() const { return StoredUsdObject.GetValue(); }
 
-	T& operator*() { return Get(); }
-	const T& operator*() const { return Get(); }
+	UsdObjectType& operator*() { return Get(); }
+	const UsdObjectType& operator*() const { return Get(); }
 
 private:
-	TOptional< T > StoredUsdObject;
+	TOptional< UsdObjectType > StoredUsdObject;
 };
 
-template< typename T >
-TUsdStore< T > MakeUsdStore( T&& UsdObject ) { return TUsdStore< T >( MoveTemp( UsdObject ) ); }
+template< typename UsdObjectType, typename... ArgTypes >
+TUsdStore< UsdObjectType > MakeUsdStore( ArgTypes&&... Args )
+{
+	FScopedUsdAllocs UsdAllocs;
+	return TUsdStore< UsdObjectType >( UsdObjectType( Forward< ArgTypes >( Args )... ) );
+}
+
+// MakeShared version that makes sure that the SharedPointer allocs are made with the Unreal allocator
+template< typename ObjectType, typename... ArgTypes >
+TSharedRef< ObjectType > MakeSharedUnreal( ArgTypes&&... Args )
+{
+	FScopedUnrealAllocs UnrealAllocs;
+	return MakeShared< ObjectType >( Forward< ArgTypes >( Args )... );
+}
 
 #if !FORCE_ANSI_ALLOCATOR && !IS_MONOLITHIC
 	#define REPLACEMENT_OPERATOR_NEW_AND_DELETE_USD \

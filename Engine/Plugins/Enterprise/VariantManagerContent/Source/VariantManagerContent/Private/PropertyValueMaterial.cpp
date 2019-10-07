@@ -9,6 +9,7 @@
 
 #define LOCTEXT_NAMESPACE "PropertyValueMaterial"
 
+UProperty* UPropertyValueMaterial::OverrideMaterialsProperty = nullptr;
 
 UPropertyValueMaterial::UPropertyValueMaterial(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -94,79 +95,103 @@ bool UPropertyValueMaterial::Resolve(UObject* Object)
 	return true;
 }
 
+bool UPropertyValueMaterial::ContainsProperty(const UProperty* Prop) const
+{
+	if (OverrideMaterialsProperty == nullptr)
+	{
+		if (UArrayProperty* ArrayProp = FindField<UArrayProperty>(UMeshComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(UMeshComponent, OverrideMaterials)))
+		{
+			OverrideMaterialsProperty = ArrayProp->Inner;
+		}
+	}
+
+	return OverrideMaterialsProperty ? Prop == OverrideMaterialsProperty : false;
+}
+
 UStruct* UPropertyValueMaterial::GetPropertyParentContainerClass() const
 {
 	return UMeshComponent::StaticClass();
 }
 
-void UPropertyValueMaterial::RecordDataFromResolvedObject()
+TArray<uint8> UPropertyValueMaterial::GetDataFromResolvedObject() const
 {
-	if (!Resolve())
-	{
-		return;
-	}
-
+	TArray<uint8> CurrentData;
 	int32 PropertySizeBytes = GetValueSizeInBytes();
+	CurrentData.SetNumZeroed(PropertySizeBytes);
+
+	if (!HasValidResolve())
+	{
+		return CurrentData;
+	}
 
 	UMeshComponent* ContainerObject = (UMeshComponent*) ParentContainerAddress;
 	if (!ContainerObject)
 	{
 		UE_LOG(LogVariantContent, Error, TEXT("UPropertyValueMaterial '%s' does not have a UMeshComponent as parent address!"), *GetFullDisplayString());
-		return;
+		return CurrentData;
 	}
 
 	int32 NumSegs = CapturedPropSegments.Num();
 	if (NumSegs < 1)
 	{
-		return;
+		return CurrentData;
 	}
 
 	int32 MatIndex = CapturedPropSegments[NumSegs-1].PropertyIndex;
 	UMaterialInterface* Mat = ContainerObject->GetMaterial(MatIndex);
 
-	if (Mat && Mat->IsValidLowLevel())
-	{
-		SetRecordedData((uint8*)&Mat, PropertySizeBytes);
-	}
-
-	OnPropertyRecorded.Broadcast();
+	FMemory::Memcpy(CurrentData.GetData(), (uint8*)&Mat, PropertySizeBytes);
+	return CurrentData;
 }
 
 void UPropertyValueMaterial::ApplyDataToResolvedObject()
 {
-	if (!HasRecordedData() || !Resolve())
+	if (!HasRecordedData())
 	{
 		return;
 	}
 
-	// Ready to transact
-	UObject* ContainerOwnerObject = nullptr;
-	UVariantObjectBinding* Parent = GetParent();
-	if (Parent)
+	if (!Resolve())
 	{
-		ContainerOwnerObject = Parent->GetObject();
-		if (ContainerOwnerObject)
+		return;
+	}
+
+	// Modify owner actor
+	UObject* ContainerOwnerObject = nullptr;
+	if (UVariantObjectBinding* Parent = GetParent())
+	{
+		UObject* OwnerActor = Parent->GetObject();
+		if (OwnerActor)
 		{
-			ContainerOwnerObject->SetFlags(RF_Transactional);
-			ContainerOwnerObject->Modify();
+			OwnerActor->SetFlags(RF_Transactional);
+			OwnerActor->Modify();
+			ContainerOwnerObject = OwnerActor;
 		}
 	}
 
-	UMeshComponent* ContainerObject = (UMeshComponent*) ParentContainerAddress;
+	// Modify container component
+	UMeshComponent* ContainerObject = nullptr;
+	if (UMeshComponent* MeshComponent = (UMeshComponent*) ParentContainerAddress)
+	{
+		if(MeshComponent)
+		{
+			MeshComponent->SetFlags(RF_Transactional);
+			MeshComponent->Modify();
+			ContainerObject = MeshComponent;
+		}
+	}
+
 	if (!ContainerObject)
 	{
 		UE_LOG(LogVariantContent, Error, TEXT("UPropertyValueMaterial '%s' does not have a UMeshComponent as parent address!"), *GetFullDisplayString());
 		return;
 	}
 
-	ContainerObject->SetFlags(RF_Transactional);
-	ContainerObject->Modify();
-
 	// Go through GetRecordedData to resolve our path if we need to
 	UMaterialInterface* Mat = *((UMaterialInterface**)GetRecordedData().GetData());
 
 	int32 NumSegs = CapturedPropSegments.Num();
-	if (Mat && Mat->IsValidLowLevel() && NumSegs > 0)
+	if (NumSegs > 0)
 	{
 		int32 MatIndex = CapturedPropSegments[NumSegs-1].PropertyIndex;
 		ContainerObject->SetMaterial(MatIndex, Mat);
@@ -175,7 +200,7 @@ void UPropertyValueMaterial::ApplyDataToResolvedObject()
 	// Update object on viewport
 #if WITH_EDITOR
 	ContainerObject->PostEditChange();
-	if (ContainerOwnerObject)
+	if (ContainerOwnerObject && ContainerOwnerObject != ContainerObject)
 	{
 		ContainerOwnerObject->PostEditChange();
 	}

@@ -294,7 +294,7 @@ FText SDataprepActionBlock::GetBlockTitle() const
 	return FText::FromString( TEXT("Default Action Block Title") );
 }
 
-TSharedRef<SWidget> SDataprepActionBlock::GetTitleWidget() const
+TSharedRef<SWidget> SDataprepActionBlock::GetTitleWidget()
 {
 	const ISlateStyle* DataprepEditorStyle = FSlateStyleRegistry::FindSlateStyle(FDataprepEditorStyle::GetStyleSetName());
 	check( DataprepEditorStyle );
@@ -308,7 +308,7 @@ TSharedRef<SWidget> SDataprepActionBlock::GetTitleWidget() const
 		.Justification( ETextJustify::Center );
 }
 
-TSharedRef<SWidget> SDataprepActionBlock::GetTitleBackgroundWidget() const
+TSharedRef<SWidget> SDataprepActionBlock::GetTitleBackgroundWidget()
 {
 	const ISlateStyle* DataprepEditorStyle = FSlateStyleRegistry::FindSlateStyle( FDataprepEditorStyle::GetStyleSetName() );
 	check( DataprepEditorStyle );
@@ -317,12 +317,12 @@ TSharedRef<SWidget> SDataprepActionBlock::GetTitleBackgroundWidget() const
 		.Color( DataprepEditorStyle->GetColor( "DataprepActionBlock.TitleBackgroundColor" ) );
 }
 
-TSharedRef<SWidget> SDataprepActionBlock::GetContentWidget() const
+TSharedRef<SWidget> SDataprepActionBlock::GetContentWidget()
 {
 	return SNullWidget::NullWidget;
 }
 
-TSharedRef<SWidget> SDataprepActionBlock::GetContentBackgroundWidget() const
+TSharedRef<SWidget> SDataprepActionBlock::GetContentBackgroundWidget()
 {
 	const ISlateStyle* DataprepEditorStyle = FSlateStyleRegistry::FindSlateStyle( FDataprepEditorStyle::GetStyleSetName() );
 	check( DataprepEditorStyle );
@@ -331,7 +331,7 @@ TSharedRef<SWidget> SDataprepActionBlock::GetContentBackgroundWidget() const
 		.Color( DataprepEditorStyle->GetColor( "DataprepActionBlock.ContentBackgroundColor" ) );
 }
 
-void SDataprepActionBlock::PopulateMenuBuilder(FMenuBuilder& MenuBuilder) const
+void SDataprepActionBlock::PopulateMenuBuilder(FMenuBuilder& MenuBuilder)
 {
 	FUIAction DeleteAction;
 	DeleteAction.ExecuteAction.BindSP( this, &SDataprepActionBlock::DeleteStep );

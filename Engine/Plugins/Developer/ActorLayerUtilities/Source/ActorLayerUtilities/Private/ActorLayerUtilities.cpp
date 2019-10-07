@@ -5,6 +5,8 @@
 #include "EngineUtils.h"
 #include "Modules/ModuleManager.h"
 
+IMPLEMENT_MODULE(FDefaultModuleImpl, ActorLayerUtilities)
+
 TArray<AActor*> ULayersBlueprintLibrary::GetActors(UObject* WorldContextObject, const FActorLayer& ActorLayer)
 {
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
@@ -28,4 +30,18 @@ TArray<AActor*> ULayersBlueprintLibrary::GetActors(UObject* WorldContextObject, 
 	return AllActors;
 }
 
-IMPLEMENT_MODULE(FDefaultModuleImpl, ActorLayerUtilities)
+void ULayersBlueprintLibrary::AddActorToLayer(AActor* InActor, const FActorLayer& Layer)
+{
+	if (InActor && (Layer.Name != NAME_None))
+	{
+		InActor->Layers.AddUnique(Layer.Name);
+	}
+}
+
+void ULayersBlueprintLibrary::RemoveActorFromLayer(AActor* InActor, const FActorLayer& Layer)
+{
+	if (InActor && (Layer.Name != NAME_None))
+	{
+		InActor->Layers.Remove(Layer.Name);
+	}
+}

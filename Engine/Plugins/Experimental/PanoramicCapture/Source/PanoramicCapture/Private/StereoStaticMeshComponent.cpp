@@ -28,27 +28,20 @@ public:
         FPrimitiveViewRelevance viewRelevance = FStaticMeshSceneProxy::GetViewRelevance(View);
         bool bVisible = true;
 
-        switch (View->StereoPass)
-        {
-        case eSSP_RIGHT_EYE:
-            if ((EyeToRender != ESPStereoCameraLayer::RightEye) && (EyeToRender != ESPStereoCameraLayer::BothEyes))
-            {
-                bVisible = false;
-            }
-            break;
-
-        case eSSP_LEFT_EYE:
-            if ((EyeToRender != ESPStereoCameraLayer::LeftEye) && (EyeToRender != ESPStereoCameraLayer::BothEyes))
-            {
-                bVisible = false;
-            }
-            break;
-
-        case eSSP_FULL:
-        default:
-            //Draw both planes when in mono mode
-            break;
-        }
+		if (IStereoRendering::IsASecondaryView(View->StereoPass))
+		{
+			if ((EyeToRender != ESPStereoCameraLayer::RightEye) && (EyeToRender != ESPStereoCameraLayer::BothEyes))
+			{
+				bVisible = false;
+			}
+		}
+		else if (IStereoRendering::IsAPrimaryView(View->StereoPass))
+		{
+			if ((EyeToRender != ESPStereoCameraLayer::LeftEye) && (EyeToRender != ESPStereoCameraLayer::BothEyes))
+			{
+				bVisible = false;
+			}
+		}
 
         viewRelevance.bDrawRelevance &= bVisible;
 

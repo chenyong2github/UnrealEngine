@@ -2777,6 +2777,12 @@ void UGameplayStatics::CalculateViewProjectionMatricesFromMinimalView(const FMin
 	//OutInvViewProjectionMatrix = OutInvProjectionMatrix * OutInvViewMatrix;
 }
 
+void UGameplayStatics::GetViewProjectionMatrix(FMinimalViewInfo DesiredView, FMatrix &ViewMatrix, FMatrix &ProjectionMatrix, FMatrix &ViewProjectionMatrix)
+{
+	TOptional<FMatrix> CustomMatrix;
+	CalculateViewProjectionMatricesFromMinimalView(DesiredView, CustomMatrix, ViewMatrix, ProjectionMatrix, ViewProjectionMatrix);
+}
+
 bool UGameplayStatics::GrabOption( FString& Options, FString& Result )
 {
 	FString QuestionMark(TEXT("?"));

@@ -1765,6 +1765,8 @@ void FSlateApplication::AddModalWindow( TSharedRef<SWindow> InSlateWindow, const
 		return;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(FSlateApplication::AddModalWindow);
+
 	if( GIsRunningUnattendedScript && !bSlowTaskWindow )
 	{
 		UE_LOG(LogSlate, Warning, TEXT("A modal window tried to take control while running in unattended script mode. The window was canceled."));

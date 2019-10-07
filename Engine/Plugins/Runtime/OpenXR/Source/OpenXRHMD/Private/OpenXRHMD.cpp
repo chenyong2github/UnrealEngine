@@ -697,16 +697,16 @@ EStereoscopicPass FOpenXRHMD::GetViewPassForIndex(bool bStereoRequested, uint32 
 
 uint32 FOpenXRHMD::GetViewIndexForPass(EStereoscopicPass StereoPassType) const
 {
-	switch (StereoPassType)
+	if (IStereoRendering::IsAPrimaryView(StereoPassType) || !IStereoRendering::IsStereoEyeView(StereoPassType))
 	{
-	case eSSP_LEFT_EYE:
-	case eSSP_FULL:
 		return 0;
-
-	case eSSP_RIGHT_EYE:
+	}
+	else if (IStereoRendering::IsASecondaryView(StereoPassType))
+	{
 		return 1;
-
-	default:
+	}
+	else
+	{
 		return StereoPassType - eSSP_LEFT_EYE;
 	}
 }
@@ -1621,7 +1621,7 @@ bool FOpenXRHMD::HasVisibleAreaMesh() const
 void FOpenXRHMD::DrawHiddenAreaMesh_RenderThread(class FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const
 {
 	check(IsInRenderingThread());
-	check(StereoPass != eSSP_FULL);
+	check(IStereoRendering::IsStereoEyeView(StereoPass));
 
 	const uint32 ViewIndex = GetViewIndexForPass(StereoPass);
 	check(ViewIndex < (uint32)HiddenAreaMeshes.Num());
@@ -1635,7 +1635,7 @@ void FOpenXRHMD::DrawHiddenAreaMesh_RenderThread(class FRHICommandList& RHICmdLi
 void FOpenXRHMD::DrawVisibleAreaMesh_RenderThread(class FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const
 {
 	check(IsInRenderingThread());
-	check(StereoPass != eSSP_FULL);
+	check(IStereoRendering::IsStereoEyeView(StereoPass));
 
 	const uint32 ViewIndex = GetViewIndexForPass(StereoPass);
 	check(ViewIndex < (uint32)VisibleAreaMeshes.Num());

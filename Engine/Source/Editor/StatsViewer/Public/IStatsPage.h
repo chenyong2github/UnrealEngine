@@ -142,4 +142,13 @@ public:
 	 * @param	OutCustomColumns	The array to be filled in containing column customizations.
 	 */
 	virtual void GetCustomColumns(TArray< TSharedRef< class IPropertyTableCustomColumn > >& OutCustomColumns) const = 0;
+
+	/**
+	 * Set a specific world to use for page statistics.
+	 * @param	InWorld The world to use.
+	 */
+	virtual void SetWorld(UWorld& InWorld) = 0;
+
+	/** Get the world used for page statistics. */
+	virtual UWorld* GetWorld() const = 0;
 };

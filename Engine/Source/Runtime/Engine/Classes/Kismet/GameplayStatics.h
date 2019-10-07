@@ -1174,6 +1174,16 @@ public:
 	static bool ProjectWorldToScreen(APlayerController const* Player, const FVector& WorldPosition, FVector2D& ScreenPosition, bool bPlayerViewportRelative = false);
 
 	/**
+	 * Returns the View Matrix, Projection Matrix and the View x Projection Matrix for a given view
+	 * @param DesiredView			FMinimalViewInfo struct for a camera.
+	 * @param ViewMatrix			(out) Corresponding View Matrix
+	 * @param ProjectionMatrix		(out) Corresponding Projection Matrix
+	 * @param ViewProjectionMatrix	(out) Corresponding View x Projection Matrix
+	 */
+	UFUNCTION(BlueprintPure, Category = "Utilities")
+	static void GetViewProjectionMatrix(FMinimalViewInfo DesiredView, FMatrix &ViewMatrix, FMatrix &ProjectionMatrix, FMatrix &ViewProjectionMatrix);
+
+	/**
 	 * Calculate view-projection matrices from a specified view target
 	 */
 	static void CalculateViewProjectionMatricesFromViewTarget(AActor* InViewTarget, FMatrix& OutViewMatrix, FMatrix& OutProjectionMatrix, FMatrix& OutViewProjectionMatrix);

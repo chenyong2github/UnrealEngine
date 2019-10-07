@@ -137,6 +137,12 @@ public:
 	static FAutomationScreenshotOptions GetDefaultScreenshotOptionsForRendering(EComparisonTolerance Tolerance = EComparisonTolerance::Low, float Delay = 0.2);
 
 	/**
+	 * Mute the report of log error and warning matching a pattern during an automated test
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Automation", meta = (AdvancedDisplay = "Occurrences, ExactMatch"))
+	static void AddExpectedLogError(FString ExpectedPatternString, int32 Occurrences = 1, bool ExactMatch = false);
+
+	/**
 	 * Sets all other settings based on an overall value
 	 * @param Value 0:Cinematic, 1:Epic...etc.
 	 */

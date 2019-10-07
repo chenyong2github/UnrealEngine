@@ -4,28 +4,29 @@
 
 #include "ILiveLinkClient.h"
 #include "LiveLinkFrameTranslator.h"
-
-DEFINE_LOG_CATEGORY_STATIC(LogLiveLinkSubject, Warning, All);
-
+#include "LiveLinkLog.h"
 
 bool ILiveLinkSubject::EvaluateFrame(TSubclassOf<ULiveLinkRole> InDesiredRole, FLiveLinkSubjectFrameData& OutFrame)
 {
 	TSubclassOf<ULiveLinkRole> Role = GetRole();
 	if (Role == nullptr)
 	{
-		UE_LOG(LogLiveLinkSubject, Warning, TEXT("Can't evaluate frame for subject %s. No role has been set yet."), *GetSubjectKey().SubjectName.ToString());
+		static const FName NAME_InvalidRole = "ILiveLinkSubject_InvalidRole";
+		FLiveLinkLog::WarningOnce(NAME_InvalidRole, GetSubjectKey(), TEXT("Can't evaluate frame for '%s'. No role has been set."), *GetSubjectKey().SubjectName.ToString());
 		return false;
 	}
 
 	if (InDesiredRole == nullptr)
 	{
-		UE_LOG(LogLiveLinkSubject, Warning, TEXT("Can't evaluate frame for subject '%s'. Invalid role was received for evaluation."), *GetSubjectKey().SubjectName.ToString());
+		static const FName NAME_InvalidRequestedRole = "ILiveLinkSubject_InvalidRequestedRole";
+		FLiveLinkLog::WarningOnce(NAME_InvalidRequestedRole, GetSubjectKey(), TEXT("Can't evaluate frame for '%s'. The requested role is invalid."), *GetSubjectKey().SubjectName.ToString());
 		return false;
 	}
 
 	if (!HasValidFrameSnapshot())
 	{
-		UE_LOG(LogLiveLinkSubject, Verbose, TEXT("Can't evaluate frame for subject '%s'. No data was available."), *GetSubjectKey().SubjectName.ToString());
+		static const FName NAME_HasValidFrameSnapshot = "ILiveLinkSubject_HasValidFrameSnapshot";
+		FLiveLinkLog::InfoOnce(NAME_HasValidFrameSnapshot, GetSubjectKey(), TEXT("Can't evaluate frame for '%s'. No data was available."), *GetSubjectKey().SubjectName.ToString());
 		return false;
 	}
 
@@ -40,7 +41,9 @@ bool ILiveLinkSubject::EvaluateFrame(TSubclassOf<ULiveLinkRole> InDesiredRole, F
 	const bool bSuccess = Translate(this, InDesiredRole, GetFrameSnapshot().StaticData, GetFrameSnapshot().FrameData, OutFrame);
 	if (!bSuccess)
 	{
-		UE_LOG(LogLiveLinkSubject, Verbose, TEXT("Can't evaluate frame for subject '%s' for incompatible role '%s. Subject has the role '%s' and no translators could work."), *GetSubjectKey().SubjectName.ToString(), *InDesiredRole->GetName(), *Role->GetName());
+		static FName NAME_CantTranslate = "ILiveLinkSubject_CantTranslate";
+		NAME_CantTranslate.SetNumber(GetTypeHash(InDesiredRole->GetFName())); // Create a unique FName with the role as number. ie. ILiveLinkSubject_CantTranslate_8465
+		FLiveLinkLog::WarningOnce(NAME_CantTranslate, GetSubjectKey(), TEXT("Can't evaluate frame for '%s'. The requested role is '%s' and no translators was able to translate it."), *GetSubjectKey().SubjectName.ToString(), *InDesiredRole->GetName());
 	}
 
 	return bSuccess;

@@ -95,7 +95,7 @@ public:
 	*
 	* @param The new actor preview widget
 	*/
-	virtual void UpdateActorPreview(TSharedRef<class SWidget> InWidget, int32 Index, AActor *Actor = nullptr) = 0;
+	virtual void UpdateActorPreview(TSharedRef<class SWidget> InWidget, int32 Index, AActor *Actor = nullptr, bool bIsDetached = false) = 0;
 
 
 	/**

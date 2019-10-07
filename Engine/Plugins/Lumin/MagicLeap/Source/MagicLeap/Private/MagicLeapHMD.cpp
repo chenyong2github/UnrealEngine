@@ -913,7 +913,7 @@ void FMagicLeapHMD::AdjustViewRect(EStereoscopicPass StereoPass, int32& X, int32
 	Y = 0;
 
 	SizeX = SizeX / 2;
-	if (StereoPass == eSSP_RIGHT_EYE)
+	if (IStereoRendering::IsASecondaryView(StereoPass))
 	{
 		X += SizeX;
 	}
@@ -925,7 +925,7 @@ FMatrix FMagicLeapHMD::GetStereoProjectionMatrix(const enum EStereoscopicPass St
 	// This function should only be called in game thread
 	check(IsInGameThread());
 	check(IsStereoEnabled());
-	const int viewport = (StereoPassType == eSSP_LEFT_EYE) ? 0 : 1;
+	const int viewport = IStereoRendering::IsAPrimaryView(StereoPassType) ? 0 : 1;
 	const FTrackingFrame& frame = GetCurrentFrame();
 	// TODO: Remove this for vulkan when we can get a better result from the frame
 	return (bDeviceInitialized && !IsVulkanPlatform(GMaxRHIShaderPlatform)) ? MagicLeap::ToFMatrix(frame.UpdateInfoArray.virtual_camera_extents[viewport].projection) : FMatrix::Identity;
@@ -1583,10 +1583,10 @@ bool FMagicLeapHMD::GetRelativeEyePose(int32 DeviceId, EStereoscopicPass Eye, FQ
 #if WITH_MLSDK
 	OutOrientation = FQuat::Identity;
 	OutPosition = FVector::ZeroVector;
-	if (DeviceId == IXRTrackingSystem::HMDDeviceId && (Eye == eSSP_LEFT_EYE || Eye == eSSP_RIGHT_EYE))
+	if (DeviceId == IXRTrackingSystem::HMDDeviceId && (IStereoRendering::IsStereoEyeView(Eye)))
 	{
 		const FTrackingFrame& Frame = GetCurrentFrame();
-		const int EyeIdx = (Eye == eSSP_LEFT_EYE) ? 0 : 1;
+		const int EyeIdx = IStereoRendering::IsAPrimaryView(Eye) ? 0 : 1;
 
 		const FTransform EyeToWorld = MagicLeap::ToFTransform(Frame.RenderInfoArray.virtual_cameras[EyeIdx].transform, Frame.WorldToMetersScale);		// "world" here means the HMDs tracking space
 		const FTransform EyeToHMD = EyeToWorld * Frame.RawPose.Inverse();		// RawPose is HMDToWorld
@@ -1605,7 +1605,7 @@ void FMagicLeapHMD::GetEyeRenderParams_RenderThread(const FRenderingCompositePas
 	check(bDeviceInitialized);
 	check(IsInRenderingThread());
 
-	if (Context.View.StereoPass == eSSP_LEFT_EYE)
+	if (IStereoRendering::IsAPrimaryView(Context.View.StereoPass))
 	{
 		EyeToSrcUVOffsetValue.X = 0.0f;
 		EyeToSrcUVOffsetValue.Y = 0.0f;

@@ -53,6 +53,7 @@ public:
 #endif
 
 	/** Returns the spline component that defines the rail path */
+	UFUNCTION(BlueprintPure, Category = "Rail Components")
 	USplineComponent* GetRailSplineComponent() { return RailSplineComponent; }
 	
 private:

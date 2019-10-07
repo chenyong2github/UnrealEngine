@@ -90,6 +90,7 @@ void FBackChannelOSCConnection::ReceiveData(const float MaxTime /*= 0*/)
 				else
 				{
 					// read packet
+					FScopeLock PacketLock(&PacketMutex);
 					TSharedPtr<FBackChannelOSCPacket> Packet = FBackChannelOSCPacket::CreateFromBuffer(ReceiveBuffer.GetData(), ExpectedDataSize);
 
 					if (Packet.IsValid())
@@ -142,7 +143,7 @@ void FBackChannelOSCConnection::ReceiveData(const float MaxTime /*= 0*/)
 
 void FBackChannelOSCConnection::DispatchMessages()
 {
-	FScopeLock Lock(&ReceiveMutex);
+	FScopeLock Lock(&PacketMutex);
 
 	for (auto& Packet : ReceivedPackets)
 	{
@@ -283,13 +284,13 @@ FString FBackChannelOSCConnection::GetDescription()
 
 void FBackChannelOSCConnection::SetMessageOptions(const TCHAR* Path, int32 MaxQueuedMessages)
 {
-	FScopeLock Lock(&ReceiveMutex);
+	FScopeLock Lock(&PacketMutex);
 	MessageLimits.FindOrAdd(Path) = MaxQueuedMessages;
 }
 
 FDelegateHandle FBackChannelOSCConnection::AddMessageHandler(const TCHAR* Path, FBackChannelDispatchDelegate::FDelegate Delegate)
 {
-	FScopeLock Lock(&ReceiveMutex);
+	FScopeLock Lock(&PacketMutex);
 	return DispatchMap.GetAddressHandler(Path).Add(Delegate);
 }
 
@@ -302,7 +303,7 @@ void FBackChannelOSCConnection::RemoveMessageHandler(const TCHAR* Path, FDelegat
 
 int32 FBackChannelOSCConnection::GetMessageCountForPath(const TCHAR* Path)
 {
-	FScopeLock Lock(&ReceiveMutex);
+	FScopeLock Lock(&PacketMutex);
 	
 	int32 Count = 0;
 
@@ -325,7 +326,7 @@ int32 FBackChannelOSCConnection::GetMessageCountForPath(const TCHAR* Path)
 
 int32 FBackChannelOSCConnection::GetMessageLimitForPath(const TCHAR* InPath)
 {
-	FScopeLock Lock(&ReceiveMutex);
+	FScopeLock Lock(&PacketMutex);
 
 	FString Path = InPath;
 
@@ -349,7 +350,7 @@ int32 FBackChannelOSCConnection::GetMessageLimitForPath(const TCHAR* InPath)
 
 void FBackChannelOSCConnection::RemoveMessagesWithPath(const TCHAR* Path, const int32 Num /*= 0*/)
 {
-	FScopeLock Lock(&ReceiveMutex);
+	FScopeLock Lock(&PacketMutex);
 
 	auto It = ReceivedPackets.CreateIterator();
 

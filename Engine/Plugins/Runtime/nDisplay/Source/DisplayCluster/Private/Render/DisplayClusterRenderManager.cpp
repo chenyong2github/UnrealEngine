@@ -458,6 +458,9 @@ void FDisplayClusterRenderManager::SetViewportCamera(const FString& InCameraId /
 
 bool FDisplayClusterRenderManager::GetViewportRect(const FString& InViewportID, FIntRect& Rect)
 {
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
+	check(IsInGameThread());
+
 	if (!RenderDevice.IsValid())
 	{
 		return false;
@@ -466,8 +469,37 @@ bool FDisplayClusterRenderManager::GetViewportRect(const FString& InViewportID, 
 	return RenderDevice->GetViewportRect(InViewportID, Rect);
 }
 
+bool FDisplayClusterRenderManager::SetBufferRatio(const FString& InViewportID, float InBufferRatio)
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
+	check(IsInGameThread());
+
+	if (!RenderDevice.IsValid())
+	{
+		return false;
+	}
+
+	return RenderDevice->SetBufferRatio(InViewportID, InBufferRatio);
+}
+
+bool FDisplayClusterRenderManager::GetBufferRatio(const FString& InViewportID, float &OutBufferRatio) const
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
+	check(IsInGameThread());
+
+	if (!RenderDevice.IsValid())
+	{
+		return false;
+	}
+
+	return RenderDevice->GetBufferRatio(InViewportID, OutBufferRatio);
+}
+
 void FDisplayClusterRenderManager::SetStartPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& StartPostProcessingSettings)
 {
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
+	check(IsInGameThread());
+
 	if (!RenderDevice.IsValid())
 	{
 		return;
@@ -478,6 +510,9 @@ void FDisplayClusterRenderManager::SetStartPostProcessingSettings(const FString&
 
 void FDisplayClusterRenderManager::SetOverridePostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& OverridePostProcessingSettings, float BlendWeight)
 {
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
+	check(IsInGameThread());
+
 	if (!RenderDevice.IsValid())
 	{
 		return;
@@ -488,6 +523,9 @@ void FDisplayClusterRenderManager::SetOverridePostProcessingSettings(const FStri
 
 void FDisplayClusterRenderManager::SetFinalPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& FinalPostProcessingSettings)
 {
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
+	check(IsInGameThread());
+
 	if (!RenderDevice.IsValid())
 	{
 		return;

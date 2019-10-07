@@ -309,8 +309,12 @@ void FModuleManager::AddModule(const FName InModuleName)
 
 IModuleInterface* FModuleManager::LoadModule( const FName InModuleName )
 {
-	// FModuleManager is not thread-safe
-	ensure(IsInGameThread());
+	// We allow an already loaded module to be returned in other threads to simplify
+	// parallel processing scenarios but they must have been loaded from the main thread beforehand.
+	if(!IsInGameThread())
+	{
+		return GetModule(InModuleName);
+	}
 
 	EModuleLoadResult FailureReason;
 	IModuleInterface* Result = LoadModuleWithFailureReason(InModuleName, FailureReason );
@@ -410,6 +414,9 @@ IModuleInterface* FModuleManager::LoadModuleWithFailureReason(const FName InModu
 			// The module might try to load other dependent modules in StartupModule. In this case, we want those modules shut down AFTER this one because we may still depend on the module at shutdown.
 			ModuleInfo->LoadOrder = FModuleInfo::CurrentLoadOrder++;
 
+			// It's now ok for other threads to use the module.
+			ModuleInfo->bIsReady = true;
+
 			// Module was started successfully!  Fire callbacks.
 			ModulesChangedEvent.Broadcast(InModuleName, EModuleChangeReason::ModuleLoaded);
 
@@ -503,6 +510,9 @@ IModuleInterface* FModuleManager::LoadModuleWithFailureReason(const FName InModu
 							// The module might try to load other dependent modules in StartupModule. In this case, we want those modules shut down AFTER this one because we may still depend on the module at shutdown.
 							ModuleInfo->LoadOrder = FModuleInfo::CurrentLoadOrder++;
 
+							// It's now ok for other threads to use the module.
+							ModuleInfo->bIsReady = true;
+
 							// Module was started successfully!  Fire callbacks.
 							ModulesChangedEvent.Broadcast(InModuleName, EModuleChangeReason::ModuleLoaded);
 
@@ -557,6 +567,9 @@ bool FModuleManager::UnloadModule( const FName InModuleName, bool bIsShutdown )
 		// Only if already loaded
 		if( ModuleInfo.Module.IsValid() )
 		{
+			// Will offer use-before-ready protection at next reload
+			ModuleInfo.bIsReady = false;
+
 			// Shutdown the module
 			ModuleInfo.Module->ShutdownModule();
 
@@ -615,6 +628,9 @@ void FModuleManager::AbandonModule( const FName InModuleName )
 		// Only if already loaded
 		if( ModuleInfo.Module.IsValid() )
 		{
+			// Will offer use-before-ready protection at next reload
+			ModuleInfo.bIsReady = false;
+
 			// Allow the module to shut itself down
 			ModuleInfo.Module->ShutdownModule();
 
@@ -700,7 +716,8 @@ IModuleInterface* FModuleManager::GetModule( const FName InModuleName )
 		return nullptr;
 	}
 
-	return ModuleInfo->Module.Get();
+	// For loading purpose, the GameThread is allowed to query modules that are not yet ready
+	return (ModuleInfo->bIsReady || IsInGameThread()) ? ModuleInfo->Module.Get() : nullptr;
 }
 
 bool FModuleManager::Exec( UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar )

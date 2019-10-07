@@ -10,6 +10,7 @@
 #include "Bus/MessageBus.h"
 #include "Bridge/MessageBridge.h"
 #include "IMessagingModule.h"
+#include "INetworkMessagingExtension.h"
 
 
 #ifndef PLATFORM_SUPPORTS_MESSAGEBUS
@@ -62,19 +63,57 @@ public:
 
 	//~ IMessagingModule interface
 
+	virtual FOnMessageBusStartupOrShutdown& OnMessageBusStartup() override
+	{
+		return OnMessageBusStartupDelegate;
+	}
+
+	virtual FOnMessageBusStartupOrShutdown& OnMessageBusShutdown() override
+	{
+		return OnMessageBusShutdownDelegate;
+	}
+
 	virtual TSharedPtr<IMessageBridge, ESPMode::ThreadSafe> CreateBridge(const FMessageAddress& Address, const TSharedRef<IMessageBus, ESPMode::ThreadSafe>& Bus, const TSharedRef<IMessageTransport, ESPMode::ThreadSafe>& Transport) override
 	{
-		return MakeShareable(new FMessageBridge(Address, Bus, Transport));
+		return MakeShared<FMessageBridge, ESPMode::ThreadSafe>(Address, Bus, Transport);
 	}
 
 	virtual TSharedPtr<IMessageBus, ESPMode::ThreadSafe> CreateBus(const TSharedPtr<IAuthorizeMessageRecipients>& RecipientAuthorizer) override
 	{
-		return MakeShareable(new FMessageBus(RecipientAuthorizer));
+		return CreateBus(FGuid::NewGuid().ToString(), RecipientAuthorizer);
+	}
+
+	virtual TSharedPtr<IMessageBus, ESPMode::ThreadSafe> CreateBus(FString InName, const TSharedPtr<IAuthorizeMessageRecipients>& RecipientAuthorizer) override
+	{
+		TSharedRef<IMessageBus, ESPMode::ThreadSafe> Bus = MakeShared<FMessageBus, ESPMode::ThreadSafe>(MoveTemp(InName), RecipientAuthorizer);
+
+		Bus->OnShutdown().AddLambda([this, WeakBus = TWeakPtr<IMessageBus, ESPMode::ThreadSafe>(Bus)]()
+		{
+			WeakBuses.RemoveSwap(WeakBus);
+			OnMessageBusShutdownDelegate.Broadcast(WeakBus);
+		});
+
+		WeakBuses.Add(Bus);
+		OnMessageBusStartupDelegate.Broadcast(Bus);
+		return Bus;
 	}
 
 	virtual TSharedPtr<IMessageBus, ESPMode::ThreadSafe> GetDefaultBus() const override
 	{
 		return DefaultBus;
+	}
+	
+	virtual TArray<TSharedRef<IMessageBus, ESPMode::ThreadSafe>> GetAllBuses() const override
+	{
+		TArray<TSharedRef<IMessageBus, ESPMode::ThreadSafe>> Buses;
+		for (const TWeakPtr<IMessageBus, ESPMode::ThreadSafe>& WeakBus : WeakBuses)
+		{
+			if (TSharedPtr<IMessageBus, ESPMode::ThreadSafe> Bus = WeakBus.Pin())
+			{
+				Buses.Add(Bus.ToSharedRef());
+			}
+		}
+		return Buses;
 	}
 
 public:
@@ -85,7 +124,7 @@ public:
 	{
 #if PLATFORM_SUPPORTS_MESSAGEBUS
 		FCoreDelegates::OnPreExit.AddRaw(this, &FMessagingModule::HandleCorePreExit);
-		DefaultBus = CreateBus(nullptr);
+		DefaultBus = CreateBus(TEXT("DefaultBus"), nullptr);
 #endif	//PLATFORM_SUPPORTS_MESSAGEBUS
 	}
 
@@ -115,13 +154,25 @@ protected:
 
 		// wait for the bus to shut down
 		int32 SleepCount = 0;
-
 		while (DefaultBusPtr.IsValid())
 		{
-			check(SleepCount < 10);	// something is holding on to the message bus
+			if (SleepCount > 10)
+			{
+				check(!"Something is holding on the default message bus");
+				break;
+			}			
 			++SleepCount;
-
 			FPlatformProcess::Sleep(0.1f);
+		}
+
+		// validate all other buses were also properly shutdown
+		for (TWeakPtr<IMessageBus, ESPMode::ThreadSafe> WeakBus : WeakBuses)
+		{
+			if (WeakBus.IsValid())
+			{
+				check(!"Something is holding on a message bus");
+				break;
+			}
 		}
 	}
 
@@ -134,10 +185,19 @@ private:
 	}
 
 private:
-
 	/** Holds the message bus. */
 	TSharedPtr<IMessageBus, ESPMode::ThreadSafe> DefaultBus;
+
+	/** All buses that were created through this module including the default one. */
+	TArray<TWeakPtr<IMessageBus, ESPMode::ThreadSafe>> WeakBuses;
+
+	/** The delegate fired when a message bus instance is started. */
+	FOnMessageBusStartupOrShutdown OnMessageBusStartupDelegate;
+
+	/** The delegate fired when a message bus instance is shutdown. */
+	FOnMessageBusStartupOrShutdown OnMessageBusShutdownDelegate;
 };
 
+FName INetworkMessagingExtension::ModularFeatureName("NetworkMessaging");
 
 IMPLEMENT_MODULE(FMessagingModule, Messaging);
