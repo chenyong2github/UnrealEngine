@@ -27,6 +27,9 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 		//Global elements have bounds so we can skip them
 		GlobalElementsHaveBounds,
 
+		//SpatialIdx serialized
+		SpatialIdxSerialized,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
