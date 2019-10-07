@@ -165,6 +165,7 @@
     <Compile Include="StringUtils.cs" />
     <Compile Include="ThreadPoolWorkQueue.cs" />
     <Compile Include="HashCollection.cs" />
+    <Compile Include="Win32ExceptionWithCode.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
