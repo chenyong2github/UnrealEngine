@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -110,12 +110,18 @@ namespace BuildGraph.Tasks
 			CommandUtils.RunUAT(CommandUtils.CmdEnv, CommandLine.ToString(), Identifier: Parameters.Name);
 
 			// Merge in any new telemetry data that was produced
-			if (Parameters.MergeTelemetryWithPrefix != null)
+			if (TelemetryFile != null && FileReference.Exists(TelemetryFile))
 			{
+				Log.TraceLog("Merging telemetry from {0}", TelemetryFile);
+
 				TelemetryData NewTelemetry;
 				if (TelemetryData.TryRead(TelemetryFile, out NewTelemetry))
 				{
 					CommandUtils.Telemetry.Merge(Parameters.MergeTelemetryWithPrefix, NewTelemetry);
+				}
+				else
+				{
+					Log.TraceWarning("Unable to read UAT telemetry file from {0}", TelemetryFile);
 				}
 			}
 		}
