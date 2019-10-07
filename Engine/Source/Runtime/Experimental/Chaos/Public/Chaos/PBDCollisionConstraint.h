@@ -117,6 +117,11 @@ public:
 		MPairIterations = InPairIterations;
 	}
 
+	void SetCollisionsEnabled(bool bInEnableCollisions)
+	{
+		bEnableCollisions = bInEnableCollisions;
+	}
+
 	/**
 	 * Get the number of constraints.
 	 */
@@ -258,6 +263,7 @@ private:
 	T MThickness;
 	T MAngularFriction;
 	bool bUseCCD;
+	bool bEnableCollisions;
 	int32 LifespanCounter;
 
 	TRigidBodyContactConstraintsPostComputeCallback<T, d> PostComputeCallback;

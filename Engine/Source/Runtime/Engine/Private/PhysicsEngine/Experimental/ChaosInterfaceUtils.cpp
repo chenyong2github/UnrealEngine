@@ -173,12 +173,12 @@ namespace ChaosInterface
 
 			// TBox can handle translations internally but if we have a rotation we need to wrap it in a transform
 			TUniquePtr<Chaos::TImplicitObject<float, 3>> Implicit;
-			//if (!BoxTransform.GetRotation().IsIdentity())
-			//{
-			//	auto ImplicitBox = MakeUnique<Chaos::TBox<float, 3>>(-HalfExtents, HalfExtents);
-			//	Implicit = TUniquePtr<Chaos::TImplicitObject<float, 3>>(new Chaos::TImplicitObjectTransformed<float, 3>(MoveTemp(ImplicitBox), BoxTransform));
-			//}
-			//else
+			if (!BoxTransform.GetRotation().IsIdentity())
+			{
+				auto ImplicitBox = MakeUnique<Chaos::TBox<float, 3>>(-HalfExtents, HalfExtents);
+				Implicit = TUniquePtr<Chaos::TImplicitObject<float, 3>>(new Chaos::TImplicitObjectTransformed<float, 3>(MoveTemp(ImplicitBox), BoxTransform));
+			}
+			else
 			{
 				Implicit = MakeUnique<Chaos::TBox<float, 3>>(BoxTransform.GetTranslation() - HalfExtents, BoxTransform.GetTranslation() + HalfExtents);
 			}
