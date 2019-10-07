@@ -7,7 +7,7 @@
 /**
  * A Normalized curve view supporting one or more curves with their own screen transform that normalizes the vertical curve range to [-1,1]
  */
-class SCurveEditorViewAbsolute : public SInteractiveCurveEditorView
+class CURVEEDITOR_API SCurveEditorViewAbsolute : public SInteractiveCurveEditorView
 {
 public:
 
