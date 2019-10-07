@@ -54,6 +54,22 @@ struct ENGINE_API FNetworkReplayDelegates
 	static FOnProcessGameSpecificDemoHeader OnProcessGameSpecificDemoHeader;
 };
 
+/**
+ * Struct containing various parameters that can be passed to DOREPLIFETIME_WITH_PARAMS to control
+ * how variables are replicated.
+ */
+struct ENGINE_API FDoRepLifetimeParams
+{
+	/** Replication Condition. The property will only be replicated to connections where this condition is met. */
+	ELifetimeCondition Condition = COND_None;
+	
+	/**
+	 * RepNotify Condition. The property will only trigger a RepNotify if this condition is met, and has been
+	 * properly set up to handle RepNotifies.
+	 */
+	ELifetimeRepNotifyCondition RepNotifyCondition = REPNOTIFY_OnChanged;
+};
+
 /*-----------------------------------------------------------------------------
 	Replication.
 -----------------------------------------------------------------------------*/
@@ -77,11 +93,13 @@ static UProperty* GetReplicatedProperty(const UClass* CallingClass, const UClass
 	return TheProperty;
 }
 
-#define DOREPLIFETIME(c,v) \
+#define DOREPLIFETIME_WITH_PARAMS(c,v,params) \
 { \
 	UProperty* ReplicatedProperty = GetReplicatedProperty(StaticClass(), c::StaticClass(),GET_MEMBER_NAME_CHECKED(c,v)); \
-	RegisterReplicatedLifetimeProperty(ReplicatedProperty, OutLifetimeProps, COND_None); \
+	RegisterReplicatedLifetimeProperty(ReplicatedProperty, OutLifetimeProps, params); \
 }
+
+#define DOREPLIFETIME(c,v) DOREPLIFETIME_WITH_PARAMS(c,v,FDoRepLifetimeParams())
 
 /** This macro is used by nativized code (DynamicClasses), so the Property may be recreated. */
 #define DOREPLIFETIME_DIFFNAMES(c,v, n) \
@@ -101,16 +119,20 @@ static UProperty* GetReplicatedProperty(const UClass* CallingClass, const UClass
 
 #define DOREPLIFETIME_CONDITION(c,v,cond) \
 { \
-	UProperty* ReplicatedProperty = GetReplicatedProperty(StaticClass(), c::StaticClass(),GET_MEMBER_NAME_CHECKED(c,v)); \
-	RegisterReplicatedLifetimeProperty(ReplicatedProperty, OutLifetimeProps, cond); \
+	FDoRepLifetimeParams LocalDoRepParams; \
+	LocalDoRepParams.Condition = cond; \
+	DOREPLIFETIME_WITH_PARAMS(c,v,LocalDoRepParams); \
 }
 
 /** Allows gamecode to specify RepNotify condition: REPNOTIFY_OnChanged (default) or REPNOTIFY_Always for when repnotify function is called  */
-#define DOREPLIFETIME_CONDITION_NOTIFY(c,v,cond, rncond) \
+#define DOREPLIFETIME_CONDITION_NOTIFY(c,v,cond,rncond) \
 { \
-	UProperty* ReplicatedProperty = GetReplicatedProperty(StaticClass(), c::StaticClass(),GET_MEMBER_NAME_CHECKED(c,v)); \
-	RegisterReplicatedLifetimeProperty(ReplicatedProperty, OutLifetimeProps, cond, rncond); \
+	FDoRepLifetimeParams LocalDoRepParams; \
+	LocalDoRepParams.Condition = cond; \
+	LocalDoRepParams.RepNotifyCondition = rncond; \
+	DOREPLIFETIME_WITH_PARAMS(c,v,LocalDoRepParams); \
 }
+
 
 #define DOREPLIFETIME_ACTIVE_OVERRIDE(c,v,active)	\
 {													\
@@ -121,7 +143,7 @@ static UProperty* GetReplicatedProperty(const UClass* CallingClass, const UClass
 	}																						\
 }
 
-UE_DEPRECATED(4.30, "Please use the RESET_REPLIFETIME_CONDITION macro")
+UE_DEPRECATED(4.24, "Please use the RESET_REPLIFETIME_CONDITION macro")
 ENGINE_API void DeprecatedChangeCondition(UProperty* ReplicatedProperty, TArray< FLifetimeProperty >& OutLifetimeProps, ELifetimeCondition InCondition);
 
 #define DOREPLIFETIME_CHANGE_CONDITION(c,v,cond) \
@@ -130,7 +152,17 @@ ENGINE_API void DeprecatedChangeCondition(UProperty* ReplicatedProperty, TArray<
 	DeprecatedChangeCondition(sp##v, OutLifetimeProps, cond);														\
 }
 
-ENGINE_API void RegisterReplicatedLifetimeProperty(const UProperty* ReplicatedProperty, TArray< FLifetimeProperty >& OutLifetimeProps, ELifetimeCondition InCondition, ELifetimeRepNotifyCondition InRepNotifyCondition = REPNOTIFY_OnChanged);
+UE_DEPRECATED(4.24, "Use RegisterReplicatedLifetimeProperty that takes FDoRepLifetimeParams.")
+ENGINE_API void RegisterReplicatedLifetimeProperty(
+	const UProperty* ReplicatedProperty,
+	TArray<FLifetimeProperty>& OutLifetimeProps,
+	ELifetimeCondition InCondition,
+	ELifetimeRepNotifyCondition InRepNotifyCondition = REPNOTIFY_OnChanged);
+
+ENGINE_API void RegisterReplicatedLifetimeProperty(
+	const UProperty* ReplicatedProperty,
+	TArray<FLifetimeProperty>& OutLifetimeProps,
+	const FDoRepLifetimeParams& Params);
 
 /*-----------------------------------------------------------------------------
 	Disable macros.

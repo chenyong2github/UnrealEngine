@@ -8,7 +8,24 @@ FOnProcessGameSpecificDemoHeader FNetworkReplayDelegates::OnProcessGameSpecificD
 
 // ----------------------------------------------------------------
 
-void RegisterReplicatedLifetimeProperty(const UProperty* ReplicatedProperty, TArray< FLifetimeProperty >& OutLifetimeProps, ELifetimeCondition InCondition, ELifetimeRepNotifyCondition InRepNotifyCondition)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+void RegisterReplicatedLifetimeProperty(
+	const UProperty* ReplicatedProperty,
+	TArray<FLifetimeProperty>& OutLifetimeProps,
+	ELifetimeCondition InCondition,
+	ELifetimeRepNotifyCondition InRepNotifyCondition)
+{
+	FDoRepLifetimeParams Params;
+	Params.Condition = InCondition;
+	Params.RepNotifyCondition = InRepNotifyCondition;
+	RegisterReplicatedLifetimeProperty(ReplicatedProperty, OutLifetimeProps, Params);
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+void RegisterReplicatedLifetimeProperty(
+	const UProperty* ReplicatedProperty,
+	TArray<FLifetimeProperty>& OutLifetimeProps,
+	const FDoRepLifetimeParams& Params)
 {
 	if (!ReplicatedProperty) 
 	{
@@ -21,7 +38,7 @@ void RegisterReplicatedLifetimeProperty(const UProperty* ReplicatedProperty, TAr
 		const uint16 RepIndex = ReplicatedProperty->RepIndex + i;
 		FLifetimeProperty* RegisteredPropertyPtr = OutLifetimeProps.FindByPredicate([&RepIndex](const FLifetimeProperty& Var) { return Var.RepIndex == RepIndex; });
 
-		FLifetimeProperty LifetimeProp(RepIndex, InCondition, InRepNotifyCondition);
+		FLifetimeProperty LifetimeProp(RepIndex, Params.Condition, Params.RepNotifyCondition);
 
 		if (RegisteredPropertyPtr)
 		{
@@ -34,7 +51,7 @@ void RegisterReplicatedLifetimeProperty(const UProperty* ReplicatedProperty, TAr
 			else
 			{
 				// Conditions should be identical when calling DOREPLIFETIME twice on the same variable.
-				checkf((*RegisteredPropertyPtr) == LifetimeProp, TEXT("Property %s was registered twice with different conditions (old:%d) (new:%d)"), *ReplicatedProperty->GetName(), RegisteredPropertyPtr->Condition, InCondition);
+				checkf((*RegisteredPropertyPtr) == LifetimeProp, TEXT("Property %s was registered twice with different conditions (old:%d) (new:%d)"), *ReplicatedProperty->GetName(), RegisteredPropertyPtr->Condition, Params.Condition);
 			}
 		}
 		else
