@@ -200,6 +200,8 @@ namespace UE4StructuredArchive_Private
 	public:
 		FArchive& GetUnderlyingArchive() const;
 
+		const FArchiveState& GetArchiveState() const;
+
 	protected:
 		FStructuredArchive& Ar;
 
@@ -453,6 +455,14 @@ public:
 		return Formatter.GetUnderlyingArchive();
 	}
 
+	/**
+	 * Gets the archiving state.
+	 */
+	FORCEINLINE const FArchiveState& GetArchiveState() const
+	{
+		return GetUnderlyingArchive().GetArchiveState();
+	}
+
 	FStructuredArchive(const FStructuredArchive&) = delete;
 	FStructuredArchive& operator=(const FStructuredArchive&) = delete;
 
@@ -558,6 +568,11 @@ FORCEINLINE FArchive& UE4StructuredArchive_Private::FSlotBase::GetUnderlyingArch
 	return Ar.GetUnderlyingArchive();
 }
 
+FORCEINLINE const FArchiveState& UE4StructuredArchive_Private::FSlotBase::GetArchiveState() const
+{
+	return Ar.GetArchiveState();
+}
+
 FORCEINLINE bool FStructuredArchiveSlot::IsFilled() const
 {
 #if WITH_TEXT_ARCHIVE_SUPPORT
@@ -573,7 +588,7 @@ FORCEINLINE_DEBUGGABLE void operator<<(FStructuredArchiveSlot Slot, TArray<T>& I
 	int32 NumElements = InArray.Num();
 	FStructuredArchiveArray Array = Slot.EnterArray(NumElements);
 
-	if (Slot.GetUnderlyingArchive().IsLoading())
+	if (Slot.GetArchiveState().IsLoading())
 	{
 		InArray.SetNum(NumElements);
 	}

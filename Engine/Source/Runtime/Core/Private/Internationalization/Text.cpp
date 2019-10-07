@@ -1220,7 +1220,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FFormatArgumentValue& Value)
 		}
 	case EFormatArgumentType::Text:
 		{
-			if(Slot.GetUnderlyingArchive().IsLoading())
+			if(Slot.GetArchiveState().IsLoading())
 			{
 				Value.TextValue = FText();
 			}
