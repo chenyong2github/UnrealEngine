@@ -1426,6 +1426,25 @@ FBoxSphereBounds ULandscapeComponent::CalcBounds(const FTransform& LocalToWorld)
 	return FBoxSphereBounds(MyBounds);
 }
 
+static void OnStaticMeshLODDistanceScaleChanged()
+{
+	extern RENDERER_API TAutoConsoleVariable<float> CVarStaticMeshLODDistanceScale;
+
+	static float LastValue = 1.0f;
+
+	if (LastValue != CVarStaticMeshLODDistanceScale.GetValueOnAnyThread())
+	{
+		LastValue = CVarStaticMeshLODDistanceScale.GetValueOnAnyThread();
+
+		for (auto* LandscapeComponent : TObjectRange<ULandscapeComponent>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::PendingKill))
+		{
+			LandscapeComponent->MarkRenderStateDirty();
+		}
+	}
+}
+
+FAutoConsoleVariableSink OnStaticMeshLODDistanceScaleChangedSink(FConsoleCommandDelegate::CreateStatic(&OnStaticMeshLODDistanceScaleChanged));
+
 void ULandscapeComponent::OnRegister()
 {
 	Super::OnRegister();
