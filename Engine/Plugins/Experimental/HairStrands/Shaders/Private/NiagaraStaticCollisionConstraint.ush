@@ -1,0 +1,61 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+/* -----------------------------------------------------------------
+ * Static collision constraint
+ * -----------------------------------------------------------------
+ */
+ float3 ComputeStaticCollisionDisplacement( in float3 DeltaPosition, in float3 DeltaVelocity, in float3 CollisionNormal, in float PenetrationDepth,
+							  in float StaticFriction, in float KineticFriction, in bool IsProjection)
+ {
+	const float DeltaVNormal = dot(DeltaVelocity,CollisionNormal);
+	const float DeltaPNormal = dot(DeltaPosition,CollisionNormal)-PenetrationDepth;
+
+	if (DeltaPNormal < 0.0)
+	{
+		const float DeltaFNormal = IsProjection ? DeltaPNormal : DeltaVNormal;
+		const float NormDeltaFN = abs(DeltaFNormal);
+
+		const float3 CollisionTangent = DeltaVelocity - DeltaVNormal * CollisionNormal;
+		const float TangentLength = length(CollisionTangent);
+
+		float3 CollisionTangentA = (TangentLength > 0.0) ? CollisionTangent/TangentLength : (abs(CollisionNormal.x-1.0f) > 0.0) ? float3(1,0,0) : 
+																					        (abs(CollisionNormal.y-1.0f) > 0.0) ? float3(0,1,0) :
+																						     float3(0,0,1);
+		float3 CollisionTangentB = cross(CollisionNormal,CollisionTangentA);
+		CollisionTangentA = cross(CollisionTangentB,CollisionNormal);
+
+		const float TangentLengthA = length(CollisionTangentA);
+		const float TangentLengthB = length(CollisionTangentB);
+
+		CollisionTangentA = (TangentLengthA > 0.0) ? CollisionTangentA/TangentLengthA : float3(0,0,0);
+		CollisionTangentB = (TangentLengthB > 0.0) ? CollisionTangentB/TangentLengthB : float3(0,0,0);
+
+		const float DeltaVTangentA = dot( DeltaVelocity, CollisionTangentA);
+		const float DeltaVTangentB = dot( DeltaVelocity, CollisionTangentB);
+
+		const float NormDeltaVTA = abs(DeltaVTangentA);
+		const float NormDeltaVTB = abs(DeltaVTangentB);
+
+		const float AlphaTangentA = ( NormDeltaVTA < StaticFriction * NormDeltaFN ) ? 1.0 : (KineticFriction > 0.0) ? min(KineticFriction*NormDeltaFN/NormDeltaVTA, 1.0) : 0.0;
+		const float AlphaTangentB = ( NormDeltaVTB < StaticFriction * NormDeltaFN ) ? 1.0 : (KineticFriction > 0.0) ? min(KineticFriction*NormDeltaFN/NormDeltaVTB, 1.0) : 0.0;
+
+		return DeltaFNormal * CollisionNormal + AlphaTangentA * CollisionTangentA * DeltaVTangentA + AlphaTangentB * CollisionTangentB * DeltaVTangentB;
+	}
+	return float3(0,0,0);
+ }
+
+void SolveStaticCollisionConstraint(in int StrandsSize, in float PenetrationDepth, in float3 CollisionPosition, in float3 CollisionVelocity, in float3 CollisionNormal, 
+				in float StaticFriction, in float KineticFriction, in float DeltaTime, in bool IsProjection, in float3 PreviousPosition, inout float3 OutNodePosition )
+{
+	if( GGroupThreadId.x % StrandsSize > 1)
+	{
+		const float3 NodeVelocity = (OutNodePosition - PreviousPosition)/DeltaTime;
+		const float3 DeltaPosition = OutNodePosition - CollisionPosition;
+		const float3 DeltaVelocity = (NodeVelocity - CollisionVelocity) * DeltaTime;
+
+		const float3 PositionDisplacement = ComputeStaticCollisionDisplacement(DeltaPosition,DeltaVelocity,CollisionNormal,PenetrationDepth,StaticFriction,KineticFriction,IsProjection);
+		OutNodePosition -= PositionDisplacement;
+	}
+}

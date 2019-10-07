@@ -27,14 +27,20 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HairStrands Rendering", meta = (ClampMin = "0.0001", UIMin = "0.01", UIMax = "10.0"))
 	float HairDensity;
 
-	/** Threshold for merging consecutive hair segments when loading asset */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HairStrands Rendering", meta = (ClampMin = "0.01", UIMin = "0.01", UIMax = "1.0"))
-	float MergeThreshold;
+	/** 
+	 * When activated, the hair groom will be attached and skinned onto the mesh, if the groom component is a child of a skeletal/skinned component.
+	 * This requires the following projection settings: 
+	 * - Rendering settings: 'Skin cache' enabled
+	 * - Animation settings: 'Tick Animation On Skeletal Mesh Init' disabled
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "HairStrands Rendering")
+	bool bSkinGroom;
 
 	//~ Begin UActorComponent Interface.
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+	virtual void SendRenderTransform_Concurrent() override;
 	//~ End UActorComponent Interface.
 
 	//~ Begin USceneComponent Interface.
@@ -52,10 +58,10 @@ public:
 	//~ End UMeshComponent Interface.
 
 	/** Return the guide hairs datas */
-	FHairStrandsDatas* GetGuideStrandsDatas() { return GroomAsset ? &GroomAsset->HairSimulationData : nullptr; }
+	FHairStrandsDatas* GetGuideStrandsDatas();
 
 	/** Return the guide hairs resources*/
-	FHairStrandsResource* GetGuideStrandsResource() { return GroomAsset ? GroomAsset->HairSimulationResource : nullptr; }
+	FHairStrandsResource* GetGuideStrandsResource();
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -64,6 +70,8 @@ public:
 	FHairStrandsInterpolationResource* InterpolationResource = nullptr;
 	struct FHairStrandsInterpolationOutput* InterpolationOutput = nullptr;
 	struct FHairStrandsInterpolationInput* InterpolationInput = nullptr;
+	struct FHairStrandsRootResource* RenRootResources = nullptr;
+	struct FHairStrandsRootResource* SimRootResources = nullptr;
 
 #if RHI_RAYTRACING
 	FHairStrandsRaytracingResource* RaytracingResources = nullptr;
@@ -71,6 +79,17 @@ public:
 
 private:
 	void* InitializedResources;
+
+	enum class EMeshProjectionState
+	{
+		Invalid,
+		WaitForData,
+		Completed
+	};
+	class USkeletalMeshComponent* RegisteredSkeletalMeshComponent;
+	int32 MeshProjectionLODIndex;
+	uint32 MeshProjectionTickDelay;
+	EMeshProjectionState MeshProjectionState;
 
 	void InitResources();
 	void ReleaseResources();
