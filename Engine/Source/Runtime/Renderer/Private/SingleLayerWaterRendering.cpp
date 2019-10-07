@@ -92,6 +92,12 @@ static bool ShouldRenderSingleLayerWater(const FViewInfo& View)
 	return View.bHasSingleLayerWaterMaterial;
 }
 
+// This is to have switch use the simple single layer water shading similar to mobile: no dynamic lights, only sun and sky, no distortion, no colored transmittance on background, no custom depth read.
+bool SingleLayerWaterUsesSimpleShading(EShaderPlatform ShaderPlatform)
+{
+	return  IsSwitchPlatform(ShaderPlatform) && IsForwardShadingEnabled(ShaderPlatform);
+}
+
 bool ShouldRenderSingleLayerWater(const TArray<FViewInfo>& Views, const FEngineShowFlags& EngineShowFlags)
 {
 	if (CVarWaterSingleLayer.GetValueOnRenderThread() > 0) // && EngineShowFlags.Water)
@@ -138,7 +144,8 @@ FSingleLayerWaterPassMeshProcessor::FSingleLayerWaterPassMeshProcessor(const FSc
 	: FMeshPassProcessor(Scene, Scene->GetFeatureLevel(), InViewIfDynamicMeshCommand, InDrawListContext)
 	, PassDrawRenderState(InPassDrawRenderState)
 {
-	if (UMaterial::SingleLayerWaterUsesSimpleShading(Scene->GetShaderPlatform()))
+	const bool bSingleLayerWaterUsesSimpleShading = SingleLayerWaterUsesSimpleShading(Scene->GetShaderPlatform());
+	if (bSingleLayerWaterUsesSimpleShading)
 	{
 		// Force non opaque, pre multiplied alpha, transparent blend mode because water is going to be blended against scene color (no distortion from texture scene color).
 		FRHIBlendState* ForwardSimpleWaterBlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha>::GetRHI();
@@ -432,8 +439,8 @@ public:
 
 void FDeferredShadingSceneRenderer::CopySingleLayerWaterTextures(FRHICommandListImmediate& RHICmdList, FSingleLayerWaterPassData& PassData)
 {
-	const bool bSingleLayerWaterSimpleShading = UMaterial::SingleLayerWaterUsesSimpleShading(Scene->GetShaderPlatform());
-	bool bCopyColor = !bSingleLayerWaterSimpleShading;
+	const bool bSingleLayerWaterUsesSimpleShading = SingleLayerWaterUsesSimpleShading(Scene->GetShaderPlatform());
+	bool bCopyColor = !bSingleLayerWaterUsesSimpleShading;
 
 	check(RHICmdList.IsOutsideRenderPass());
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
