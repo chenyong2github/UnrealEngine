@@ -252,6 +252,7 @@ void FTextureCacheDerivedDataWorker::BuildTexture()
 		DerivedData->SizeX = 0;
 		DerivedData->SizeY = 0;
 		DerivedData->PixelFormat = PF_Unknown;
+		DerivedData->bCubemap = false;
 		DerivedData->VTData = nullptr;
 
 		// Compress the texture.
@@ -288,6 +289,7 @@ void FTextureCacheDerivedDataWorker::BuildTexture()
 					DerivedData->SizeY = CompressedImage.SizeY;
 					DerivedData->PixelFormat = (EPixelFormat)CompressedImage.PixelFormat;
 					DerivedData->NumSlices = BuildSettingsPerLayer[0].bCubemap ? 6 : (BuildSettingsPerLayer[0].bVolume || BuildSettingsPerLayer[0].bTextureArray) ? CompressedImage.SizeZ : 1;
+					DerivedData->bCubemap = BuildSettingsPerLayer[0].bCubemap;
 				}
 				else
 				{

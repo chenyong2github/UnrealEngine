@@ -435,6 +435,8 @@ struct FTexturePlatformData
 	uint32 ExtData;
 	/** Number of mips making up the mip tail, which must always be resident */
 	uint32 NumMipsInTail;
+	/** Is Cubemap texture */
+	bool bCubemap;
 	/** Mip data or VT data. one or the other. */
 	TIndirectArray<struct FTexture2DMipMap> Mips;
 	struct FVirtualTextureBuiltData* VTData;
