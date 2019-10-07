@@ -1978,6 +1978,8 @@ void ALandscapeProxy::PreSave(const class ITargetPlatform* TargetPlatform)
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
 		bHasLandscapeGrass = LandscapeComponents.ContainsByPredicate([](ULandscapeComponent* Component) { return Component->MaterialHasGrass(); });
+
+		UpdateGrassData();
 	}
 
 	if (ALandscape* Landscape = GetLandscapeActor())
