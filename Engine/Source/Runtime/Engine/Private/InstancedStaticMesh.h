@@ -169,6 +169,10 @@ struct FInstancedStaticMeshDataType
 	FRHIShaderResourceView* InstanceOriginSRV = nullptr;
 	FRHIShaderResourceView* InstanceTransformSRV = nullptr;
 	FRHIShaderResourceView* InstanceLightmapSRV = nullptr;
+
+	/** Used to track state for debugging. */
+	uint32 NumInstances = 0;
+	bool bInitialized = false;
 };
 
 /**
@@ -257,6 +261,16 @@ public:
 #if ALLOW_DITHERED_LOD_FOR_INSTANCED_STATIC_MESHES
 	virtual bool SupportsNullPixelShader() const override { return false; }
 #endif
+
+	inline bool IsDataInitialized() const
+	{
+		return Data.bInitialized;
+	}
+
+	inline uint32 GetNumInstances() const
+	{
+		return Data.NumInstances;
+	}
 
 	inline FRHIShaderResourceView* GetInstanceOriginSRV() const
 	{
