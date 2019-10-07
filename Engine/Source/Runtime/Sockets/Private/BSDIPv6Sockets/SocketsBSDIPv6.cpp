@@ -387,6 +387,19 @@ bool FSocketBSDIPv6::SetBroadcast(bool bAllowBroadcast)
 	return setsockopt(Socket,SOL_SOCKET,SO_BROADCAST,(char*)&Param,sizeof(Param)) == 0;
 }
 
+bool FSocketBSDIPv6::SetNoDelay(bool bIsNoDelay)
+{
+	if (GetSocketType() == SOCKTYPE_Streaming)
+	{
+#if PLATFORM_HAS_BSD_SOCKET_FEATURE_NODELAY
+		int Param = bIsNoDelay ? 1 : 0;
+		return setsockopt(Socket, IPPROTO_TCP, TCP_NODELAY, (char*)&Param, sizeof(Param)) == 0;
+#endif
+	}
+
+	return true;
+}
+
 
 bool FSocketBSDIPv6::JoinMulticastGroup(const FInternetAddr& GroupAddress)
 {
