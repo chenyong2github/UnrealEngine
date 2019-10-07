@@ -1527,6 +1527,10 @@ ResourcesString = TEXT("");
 			{
 				OutEnvironment.SetDefine(TEXT("DISABLE_FORWARD_LOCAL_LIGHTS"), TEXT("1"));
 			}
+			if (ShadingModels.HasShadingModel(MSM_SingleLayerWater) && UMaterial::SingleLayerWaterUsesSimpleShading(InPlatform))
+			{
+				OutEnvironment.SetDefine(TEXT("SINGLE_LAYER_WATER_SIMPLE_FORWARD"), TEXT("1"));
+			}
 
 			if (NumSetMaterials == 1)
 			{

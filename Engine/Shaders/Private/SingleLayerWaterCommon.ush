@@ -43,6 +43,9 @@ bool WaterRefract(float3 V, float3 N, float Eta, out float3 R)
 WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 	FMaterialPixelParameters MaterialParameters, FPixelMaterialInputs PixelMaterialInputs, ViewState ResolvedView,
 	float DirectionalLightShadow,
+#if SINGLE_LAYER_WATER_SIMPLE_FORWARD
+	Texture2D SceneDepthWithoutSingleLayerWaterTexture, SamplerState SceneDepthWithoutSingleLayerWaterSampler,
+#endif
 #if !SIMPLE_SINGLE_LAYER_WATER
 	Texture2D SceneColorWithoutSingleLayerWaterTexture, SamplerState SceneColorWithoutSingleLayerWaterSampler,
 	Texture2D SceneDepthWithoutSingleLayerWaterTexture, SamplerState SceneDepthWithoutSingleLayerWaterSampler,
@@ -64,8 +67,14 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 	{
 		float WaterDepth = ConvertFromDeviceZ(MaterialParameters.SvPosition.z);
 #if SIMPLE_SINGLE_LAYER_WATER
+
+#if SINGLE_LAYER_WATER_SIMPLE_FORWARD 
+		float PixelSceneDepth = SceneDepthWithoutSingleLayerWaterTexture.SampleLevel(SceneDepthWithoutSingleLayerWaterSampler, ViewportUV, 0).x * SINGLE_LAYER_WATER_DEPTH_SCALE;
+		float PixelSceneDeviceZ = ConvertToDeviceZ(PixelSceneDepth);
+#else
 		float PixelSceneDeviceZ = LookupDeviceZ(ViewportUV);
 		float PixelSceneDepth = ConvertFromDeviceZ(PixelSceneDeviceZ);
+#endif
 
 #if FEATURE_LEVEL <= FEATURE_LEVEL_ES3_1
 		// Only mobile run the SIMPLE_SINGLE_LAYER_WATER path today.
