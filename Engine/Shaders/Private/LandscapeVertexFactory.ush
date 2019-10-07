@@ -67,7 +67,11 @@ float4 GetNeighborSectionLod()
 	//    - - 3 - -   
 	//       +Y
 
-	int2 NeighborOffset[4] = { {0, -1}, {-1, 0}, {1, 0}, {0, 1} };
+	int2 NeighborOffset[4];
+    NeighborOffset[0] = int2(0, -1);
+    NeighborOffset[1] = int2(-1, 0);
+    NeighborOffset[2] = int2(1, 0);
+    NeighborOffset[3] = int2(0, 1);
 	float NeighborLod[4];
 	for (int i = 0; i < 4; i++)
 	{
