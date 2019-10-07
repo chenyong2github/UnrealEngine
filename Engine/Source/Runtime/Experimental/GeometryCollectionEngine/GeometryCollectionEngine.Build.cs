@@ -20,7 +20,6 @@ namespace UnrealBuildTool.Rules
                     "Chaos",
 					"ChaosSolvers",
                     "PhysX",
-                    "APEX",
                     "FieldSystemCore",
                     "FieldSystemEngine",
                     "GeometryCollectionCore", 
@@ -30,6 +29,11 @@ namespace UnrealBuildTool.Rules
 					"PhysicsSQ"
                 }
                 );
+
+			if (Target.bCompileAPEX)
+			{
+				PublicDependencyModuleNames.Add("APEX");
+			}
 
 	        if (!Target.bBuildRequiresCookedData)
 			{

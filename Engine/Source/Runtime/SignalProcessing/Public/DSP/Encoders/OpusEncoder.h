@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "DSP/Encoders/IAudioEncoder.h"
 
-#if !PLATFORM_HTML5 && !PLATFORM_TVOS
+#if !PLATFORM_TVOS
 
 class FOpusEncoderPrivateState;
 class FOggEncapsulator;
@@ -21,7 +21,7 @@ enum class EOpusFrameSizes : uint8
 	Max, // 60 milliseconds
 };
 
-enum class EOpusMode : uint8 
+enum class EOpusMode : uint8
 {
 	File, // Use this when encoding a .opus file. Pushes the Opus frames into Ogg packets.
 	AudioStream, // Use this for general music and non-speech streaming applications.
@@ -65,4 +65,4 @@ private:
 	uint32 PacketIndex;
 };
 
-#endif // !PLATFORM_HTML5 && !PLATFORM_TVOS
+#endif // !PLATFORM_TVOS

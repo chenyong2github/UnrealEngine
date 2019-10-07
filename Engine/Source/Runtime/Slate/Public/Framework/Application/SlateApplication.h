@@ -1180,12 +1180,8 @@ public:
 	/** @return true if mouse events are being turned into touch events, and touch UI should be forced on */
 	bool IsFakingTouchEvents() const;
 
-#if PLATFORM_DESKTOP || PLATFORM_HTML5
-	
 	/** Sets whether the application is treating mouse events as imitating touch events.  Optional CursorLocation can be supplied to override the platform's belief of where the cursor is */
 	void SetGameIsFakingTouchEvents(const bool bIsFaking, FVector2D* CursorLocation = nullptr);
-
-#endif
 
 	/** Sets the handler for otherwise unhandled key down events. This is used by the editor to provide a global action list, if the key was not consumed by any widget. */
 	void SetUnhandledKeyDownEventHandler( const FOnKeyEvent& NewHandler );

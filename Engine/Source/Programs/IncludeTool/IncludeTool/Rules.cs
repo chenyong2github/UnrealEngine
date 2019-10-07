@@ -60,7 +60,7 @@ namespace IncludeTool
 
 			return true;
 		}
-		
+
 		/// <summary>
 		/// List of include tokens which are external files, and do not need to be resolved
 		/// </summary>
@@ -117,12 +117,9 @@ namespace IncludeTool
 			"unistd.h",
 			"stdio.h",
 			"unicode/",
-			
+
 			// Android
 			"SLES/OpenSLES_Android.h",
-
-			// HTML5
-			"html5.h",
 
 			// Windows
 			"windows.h",
@@ -144,7 +141,7 @@ namespace IncludeTool
 			"iphlpapi.h",
 			"Iphlpapi.h",
 			"IcmpAPI.h",
-			
+
 			// Mac
 			"AUEffectBase.h",
 			"Security/Security.h",
@@ -574,18 +571,18 @@ namespace IncludeTool
 			return false;
 		}
 
-        /// <summary>
-        /// Allow overriding whether a symbol should be forward-declared
-        /// </summary>
-        /// <param name="Symbol"></param>
-        /// <returns></returns>
-        public static bool AllowSymbol(string Name)
-        {
-            if(Name == "FNode" || Name == "FFunctionExpression" || Name == "ITextData" || Name == "Rect")
-            {
-                return false;
-            }
-            return true;
-        }
+		/// <summary>
+		/// Allow overriding whether a symbol should be forward-declared
+		/// </summary>
+		/// <param name="Symbol"></param>
+		/// <returns></returns>
+		public static bool AllowSymbol(string Name)
+		{
+			if(Name == "FNode" || Name == "FFunctionExpression" || Name == "ITextData" || Name == "Rect")
+			{
+				return false;
+			}
+			return true;
+		}
 	}
 }

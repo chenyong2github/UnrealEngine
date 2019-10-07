@@ -624,6 +624,11 @@ struct CORE_API FGenericPlatformProcess
 	 * Tears down allocated process resources.
 	 */
 	static void TearDown();
+
+	/**
+	 * force skip calling FThreadStats::WaitForStats()
+	 */
+	static bool SkipWaitForStats() { return false; }
 };
 
 
