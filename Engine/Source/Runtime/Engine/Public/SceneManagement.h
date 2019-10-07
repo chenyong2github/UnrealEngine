@@ -999,15 +999,31 @@ public:
 	}
 };
 
-inline bool DoesPlatformSupportDistanceFieldShadowing(EShaderPlatform Platform)
+inline bool DoesPlatformSupportDistanceFields(EShaderPlatform Platform)
 {
-	// Hasn't been tested elsewhere yet
-	return Platform == SP_PCD3D_SM5 || Platform == SP_PS4
+	return Platform == SP_PCD3D_SM5
+		|| Platform == SP_PS4
 		|| IsMetalSM5Platform(Platform)
 		|| Platform == SP_XBOXONE_D3D12
 		|| IsVulkanSM5Platform(Platform)
-	    || Platform == SP_SWITCH || Platform == SP_SWITCH_FORWARD
+		|| Platform == SP_SWITCH
+		|| Platform == SP_SWITCH_FORWARD
 		|| FDataDrivenShaderPlatformInfo::GetInfo(Platform).bSupportsDistanceFields;
+}
+
+inline bool DoesPlatformSupportDistanceFieldShadowing(EShaderPlatform Platform)
+{
+	return DoesPlatformSupportDistanceFields(Platform);
+}
+
+inline bool DoesPlatformSupportDistanceFieldAO(EShaderPlatform Platform)
+{
+	return DoesPlatformSupportDistanceFields(Platform);
+}
+
+inline bool DoesPlatformSupportDistanceFieldGI(EShaderPlatform Platform)
+{
+	return (Platform == SP_PCD3D_SM5) && DoesPlatformSupportDistanceFields(Platform);
 }
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileReflectionCaptureShaderParameters,ENGINE_API)

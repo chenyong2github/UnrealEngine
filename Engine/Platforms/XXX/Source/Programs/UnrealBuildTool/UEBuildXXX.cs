@@ -199,18 +199,15 @@ class XXXPlatform : UEBuildPlatform
 			Rules.PublicDefinitions.Add("PLATFORM_XXX=0");
 		}
 
-		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Linux)
+		if (ModuleName == "RHI")
 		{
-			if (ModuleName == "RHI")
-			{
-				// these must be mirrored down below
-				Rules.AppendStringToPublicDefinition("DDPI_EXTRA_SHADERPLATFORMS", "SP_XXX, ");
-				Rules.AppendStringToPublicDefinition("DDPI_EXTRA_SHADERFORMATS", "static FName NAME_SF_XXX(TEXT(\"SF_XXX\")); ");
-				Rules.AppendStringToPublicDefinition("DDPI_EXTRA_SHADERPLATFORM_TO_SHADERFORMAT", "case SP_XXX: return NAME_SF_XXX; ");
-				Rules.AppendStringToPublicDefinition("DDPI_EXTRA_SHADERFORMAT_TO_SHADERPLATFORM", "if (ShaderFormat == NAME_SF_XXX) return SP_XXX; ");
-				Rules.AppendStringToPublicDefinition("DDPI_EXTRA_SHADERPLATFORM_LEXTOSTRING", "case SP_XXX: return TEXT(\"XXX\"); ");
-			}
+			// these must be mirrored down below
+			Rules.AppendStringToPublicDefinition("DDPI_EXTRA_SHADERPLATFORMS", "SP_XXX=32, ");
+			Rules.AppendStringToPublicDefinition("DDPI_SHADER_PLATFORM_NAME_MAP", "{ TEXT(\"XXX\"), SP_XXX },");
+		}
 
+		if (Target.Platform == UnrealTargetPlatform.Win64)
+		{
 			bool bIsMonolithic = true;
 			UEBuildPlatform BuildPlatform = GetBuildPlatform(Target.Platform);
 

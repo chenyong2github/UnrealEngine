@@ -100,6 +100,12 @@ public:
 	 */
 	virtual void NotifyShaderCooked(const TArray<uint8>& PlatformDebugData, FName Format) const { }
 
+	/**
+	 * Appends shader key text to the provided key string for use in DDC unique key construction.
+	 * @param KeyString String that will get shader key text appended to.
+	 */
+	virtual void AppendToKeyString(FString& KeyString) const { }
+
 public:
 	/** Virtual destructor. */
 	virtual ~IShaderFormat() { }

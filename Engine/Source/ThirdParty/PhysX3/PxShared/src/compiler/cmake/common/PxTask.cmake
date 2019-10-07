@@ -3,12 +3,12 @@
 #
 
 SET(PXTASK_HEADERS
-	${PROJECT_SOURCE_DIR}/../../../../include/task/PxCpuDispatcher.h
-	${PROJECT_SOURCE_DIR}/../../../../include/task/PxGpuDispatcher.h
-	${PROJECT_SOURCE_DIR}/../../../../include/task/PxGpuTask.h
-	${PROJECT_SOURCE_DIR}/../../../../include/task/PxTask.h
-	${PROJECT_SOURCE_DIR}/../../../../include/task/PxTaskDefine.h
-	${PROJECT_SOURCE_DIR}/../../../../include/task/PxTaskManager.h
+	${PXSHARED_ROOT_DIR}/include/task/PxCpuDispatcher.h
+	${PXSHARED_ROOT_DIR}/include/task/PxGpuDispatcher.h
+	${PXSHARED_ROOT_DIR}/include/task/PxGpuTask.h
+	${PXSHARED_ROOT_DIR}/include/task/PxTask.h
+	${PXSHARED_ROOT_DIR}/include/task/PxTaskDefine.h
+	${PXSHARED_ROOT_DIR}/include/task/PxTaskManager.h
 )
 SOURCE_GROUP(include FILES ${PXTASK_HEADERS})
 

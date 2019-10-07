@@ -6,7 +6,9 @@
 
 #include "Common.ush"
 
-#if PS4_PROFILE
+#ifdef PLATFORM_HDRCUSTOMRESOLVESHADERS_USH
+# include PLATFORM_HDRCUSTOMRESOLVESHADERS_USH
+#elif PS4_PROFILE
 # include "Platform/PS4/HdrCustomResolveShaders.ush"
 #else
 

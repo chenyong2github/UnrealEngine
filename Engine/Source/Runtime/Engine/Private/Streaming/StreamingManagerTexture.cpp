@@ -2466,6 +2466,7 @@ void FRenderAssetStreamingManager::DumpTextureGroupStats( bool bDetailedStats )
 		FTextureGroupStats& Waste = TextureGroupWaste[Texture->LODGroup];
 		FStreamingRenderAsset* StreamingTexture = GetStreamingRenderAsset(Texture2D);
 		uint32 TextureAlign = 0;
+		FRHIResourceCreateInfo CreateInfo(Texture2D ? Texture2D->GetExtData() : 0);
 		if ( StreamingTexture )
 		{
 			Stat.NumTextures++;
@@ -2473,11 +2474,11 @@ void FRenderAssetStreamingManager::DumpTextureGroupStats( bool bDetailedStats )
 			Stat.WantedTextureSize += StreamingTexture->GetSize( StreamingTexture->WantedMips );
 			Stat.MaxTextureSize += StreamingTexture->GetSize( StreamingTexture->MaxAllowedMips );
 			
-			int64 WasteCurrent = StreamingTexture->GetSize( StreamingTexture->ResidentMips ) - RHICalcTexture2DPlatformSize(Texture2D->GetSizeX(), Texture2D->GetSizeY(), Texture2D->GetPixelFormat(), StreamingTexture->ResidentMips, 1, 0, TextureAlign);			
+			int64 WasteCurrent = StreamingTexture->GetSize( StreamingTexture->ResidentMips ) - RHICalcTexture2DPlatformSize(Texture2D->GetSizeX(), Texture2D->GetSizeY(), Texture2D->GetPixelFormat(), StreamingTexture->ResidentMips, 1, 0, CreateInfo, TextureAlign);
 
-			int64 WasteWanted = StreamingTexture->GetSize( StreamingTexture->WantedMips ) - RHICalcTexture2DPlatformSize(Texture2D->GetSizeX(), Texture2D->GetSizeY(), Texture2D->GetPixelFormat(), StreamingTexture->WantedMips, 1, 0, TextureAlign);			
+			int64 WasteWanted = StreamingTexture->GetSize( StreamingTexture->WantedMips ) - RHICalcTexture2DPlatformSize(Texture2D->GetSizeX(), Texture2D->GetSizeY(), Texture2D->GetPixelFormat(), StreamingTexture->WantedMips, 1, 0, CreateInfo, TextureAlign);
 
-			int64 WasteMaxSize = StreamingTexture->GetSize( StreamingTexture->MaxAllowedMips ) - RHICalcTexture2DPlatformSize(Texture2D->GetSizeX(), Texture2D->GetSizeY(), Texture2D->GetPixelFormat(), StreamingTexture->MaxAllowedMips, 1, 0, TextureAlign);			
+			int64 WasteMaxSize = StreamingTexture->GetSize( StreamingTexture->MaxAllowedMips ) - RHICalcTexture2DPlatformSize(Texture2D->GetSizeX(), Texture2D->GetSizeY(), Texture2D->GetPixelFormat(), StreamingTexture->MaxAllowedMips, 1, 0, CreateInfo, TextureAlign);
 
 			Waste.NumTextures++;
 			Waste.CurrentTextureSize += FMath::Max<int64>(WasteCurrent,0);
@@ -2493,7 +2494,7 @@ void FRenderAssetStreamingManager::DumpTextureGroupStats( bool bDetailedStats )
 			Stat.NonStreamingSize += TextureSize;
 			if ( Texture2D && Texture2D->Resource )
 			{				
-				int64 WastedSize = TextureSize - RHICalcTexture2DPlatformSize(Texture2D->GetSizeX(), Texture2D->GetSizeY(), Texture2D->GetPixelFormat(), Texture2D->GetNumMips(), 1, 0, TextureAlign);				
+				int64 WastedSize = TextureSize - RHICalcTexture2DPlatformSize(Texture2D->GetSizeX(), Texture2D->GetSizeY(), Texture2D->GetPixelFormat(), Texture2D->GetNumMips(), 1, 0, CreateInfo, TextureAlign);
 
 				Waste.NumNonStreamingTextures++;
 				Waste.NonStreamingSize += FMath::Max<int64>(WastedSize, 0);

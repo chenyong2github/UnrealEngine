@@ -9,7 +9,7 @@
 #elif PLATFORM_ANDROID && USE_ANDROID_JNI
 	#include "Android/AndroidPlatformTextField.h"
 #elif PLATFORM_PS4
-	#include "PS4/PS4PlatformTextField.h"
+	#include "Framework/Text/PS4PlatformTextField.h"
 #elif PLATFORM_XBOXONE
 	#include "XboxOne/XboxOnePlatformTextField.h"
 #elif PLATFORM_SWITCH

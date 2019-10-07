@@ -20,7 +20,9 @@
 // TODO: Have shader compiler including these platform specific USF files, that needs to work
 // with ShaderCore.cpp's GetShaderIncludes().
 
-#if PS4_PROFILE  
+#ifdef PLATFORM_COMMON_USH
+	#include PLATFORM_COMMON_USH
+#elif PS4_PROFILE  
 	// always #include PS4Common.usf so it can #define override anything in any other included file.
 	#include "Platform/PS4/PS4Common.ush"
 #elif XBOXONE_PROFILE
@@ -705,8 +707,10 @@ float UnpackByte3(uint v) { return float(v >> 24); }
 #endif
 #endif
 
-#if COMPILER_HLSLCC || PS4_PROFILE
-	#define INFINITE_FLOAT 3.402823e+38
-#else
-	#define INFINITE_FLOAT 1.#INF
+#ifndef INFINITE_FLOAT
+	#if COMPILER_HLSLCC
+		#define INFINITE_FLOAT 3.402823e+38
+	#else
+		#define INFINITE_FLOAT 1.#INF
+	#endif
 #endif

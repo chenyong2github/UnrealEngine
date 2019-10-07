@@ -433,7 +433,7 @@ TCHAR* FindNextUniformBufferReference(TCHAR* SearchPtr, const TCHAR* SearchStrin
 }
 
 
-void MoveShaderParametersToRootConstantBuffer(const FShaderCompilerInput& CompilerInput, FString& PreprocessedShaderSource)
+void MoveShaderParametersToRootConstantBuffer(const FShaderCompilerInput& CompilerInput, FString& PreprocessedShaderSource, const FString& ConstantBufferType)
 {
 	check(CompilerInput.RootParameterBindings.Num());
 
@@ -663,10 +663,11 @@ void MoveShaderParametersToRootConstantBuffer(const FShaderCompilerInput& Compil
 	}
 
 	FString NewShaderCode = FString::Printf(
-		TEXT("cbuffer %s\r\n")
+		TEXT("%s %s\r\n")
 		TEXT("{\r\n")
 		TEXT("%s")
 		TEXT("}\r\n\r\n%s"),
+		*ConstantBufferType,
 		FShaderParametersMetadata::kRootUniformBufferBindingName,
 		*RootCBufferContent,
 		*PreprocessedShaderSource);

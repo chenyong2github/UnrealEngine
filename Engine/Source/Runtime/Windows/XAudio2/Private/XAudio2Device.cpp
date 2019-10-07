@@ -745,6 +745,5 @@ void* FXAudio2Device::AllocatePermanentMemory( int32 Size, bool& AllocatedInPool
 
 FAudioPlatformSettings FXAudio2Device::GetPlatformSettings() const
 {
-	const TCHAR* ConfigSection = AudioPluginUtilities::GetPlatformConfigSection(EAudioPlatform::Windows);
-	return FAudioPlatformSettings::GetPlatformSettings(ConfigSection);
+	return FAudioPlatformSettings::GetPlatformSettings(FPlatformProperties::GetRuntimeSettingsClassName());
 }

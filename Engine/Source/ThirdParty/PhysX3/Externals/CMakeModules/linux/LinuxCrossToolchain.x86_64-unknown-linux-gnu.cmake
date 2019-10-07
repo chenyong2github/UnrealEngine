@@ -30,7 +30,7 @@ IF(NOT $ENV{LINUX_ROOT} EQUAL "")
 	#set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 	#set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 ELSE()
-	MESSAGE("LINUX_ROOT environment variable not defined!")
+	MESSAGE(FATAL_ERROR "LINUX_ROOT environment variable not defined!")
 ENDIF()
 
 

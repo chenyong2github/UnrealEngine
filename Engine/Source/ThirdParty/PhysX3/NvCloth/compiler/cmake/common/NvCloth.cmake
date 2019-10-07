@@ -2,7 +2,7 @@
 # Build NvCloth common
 #
 
-MESSAGE("[NvCloth]cmake/common/NvCloth.cmake")
+MESSAGE(STATUS "[NvCloth]cmake/common/NvCloth.cmake")
 
 #run 
 #> dir /a-d /b /s
@@ -134,7 +134,7 @@ ADD_LIBRARY(NvCloth ${NVCLOTH_LIBTYPE} ${NV_CLOTH_SOURCE_LIST})
 foreach(source IN LISTS NV_CLOTH_SOURCE_LIST)
 	string(LENGTH ${PROJECT_ROOT_DIR} strlen)
 	string(SUBSTRING ${source} ${strlen} -1 timmedSource)
-	#MESSAGE("${source} -> ${timmedSource}")
+	#MESSAGE(STATUS "${source} -> ${timmedSource}")
 	get_filename_component(source_path "${timmedSource}" PATH)
 	string(REPLACE "/" "\\" source_path_msvc "${source_path}")
 	source_group("${source_path_msvc}" FILES "${source}")
@@ -178,4 +178,4 @@ IF(NOT ${NVCLOTH_LIBTYPE} STREQUAL "OBJECT")
 		COMPILE_PDB_NAME_RELEASE "NvCloth${CMAKE_RELEASE_POSTFIX}"
 	)
 ENDIF()
-MESSAGE("[NvCloth]cmake/common/NvCloth.cmake END")
+MESSAGE(STATUS "[NvCloth]cmake/common/NvCloth.cmake END")

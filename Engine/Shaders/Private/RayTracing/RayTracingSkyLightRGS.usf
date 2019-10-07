@@ -31,8 +31,7 @@ float3 EvalSkyLight(float3 Direction)
 	return SkyLight.Color * TextureCubeSampleLevel(SkyLight.Texture, SkyLight.TextureSampler, Direction, 0).rgb;
 }
 
-[shader("raygeneration")]
-void SkyLightRGS()
+RAY_TRACING_ENTRY_RAYGEN(SkyLightRGS)
 {
 	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin.xy;
 	uint LinearIndex = CalcLinearIndex(PixelCoord);

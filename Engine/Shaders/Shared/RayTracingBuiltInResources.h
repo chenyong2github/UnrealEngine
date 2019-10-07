@@ -72,18 +72,20 @@ struct FHitGroupSystemRootConstants
 #define RAY_TRACING_SYSTEM_ROOTCONSTANT_REGISTER 0
 
 #if INCLUDED_FROM_HLSL_CODE
+
+#ifndef PLATFORM_RAY_TRACING_USH
 	#define RT_CONCATENATE2(a, b) a##b
 	#define RT_CONCATENATE(a, b) RT_CONCATENATE2(a, b)
 	#define RT_REGISTER(InType, InIndex, InSpace) register(RT_CONCATENATE(InType, InIndex), RT_CONCATENATE(space, InSpace))
-
 	// Built-in local root parameters that are always bound to all hit shaders
 	ByteAddressBuffer									HitGroupSystemIndexBuffer   : RT_REGISTER(t, RAY_TRACING_SYSTEM_INDEXBUFFER_REGISTER,  RAY_TRACING_REGISTER_SPACE_SYSTEM);
 	ByteAddressBuffer									HitGroupSystemVertexBuffer  : RT_REGISTER(t, RAY_TRACING_SYSTEM_VERTEXBUFFER_REGISTER, RAY_TRACING_REGISTER_SPACE_SYSTEM);
 	ConstantBuffer<FHitGroupSystemRootConstants>		HitGroupSystemRootConstants : RT_REGISTER(b, RAY_TRACING_SYSTEM_ROOTCONSTANT_REGISTER, RAY_TRACING_REGISTER_SPACE_SYSTEM);
-
 	#undef RT_REGISTER
 	#undef RT_CONCATENATE
 	#undef RT_CONCATENATE2
+#endif // !PLATFORM_RAY_TRACING_USH
+
 #endif // INCLUDED_FROM_HLSL_CODE
 
 

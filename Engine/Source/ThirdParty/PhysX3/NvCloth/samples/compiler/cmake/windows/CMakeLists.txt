@@ -15,7 +15,7 @@ ENDIF()
 
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}; "${CMAKE_CURRENT_SOURCE_DIR}/..")
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}; "${CMAKE_CURRENT_SOURCE_DIR}/external/CMakeModules")
-MESSAGE("CMAKE_MODULE_PATH: " ${CMAKE_MODULE_PATH})
+MESSAGE(STATUS "CMAKE_MODULE_PATH: " ${CMAKE_MODULE_PATH})
 
 #NOTE: Warnings lowered on the sample projects as it's got a lot of warnings. Defines below hide more.
 SET(CMAKE_CXX_FLAGS "/GR- /GF /MP /Gy /EHsc /d2Zi+ /errorReport:prompt /fp:fast /Gd /Gm- /GS- /nologo /W3 /WX /Zc:forScope /Zc:inline /Zc:wchar_t /Zi")
@@ -72,7 +72,7 @@ FIND_PACKAGE(NvCloth REQUIRED)
 
 # Add PxShared as a dependency so that we can use project references
 #ADD_SUBDIRECTORY(${PXSHARED_ROOT_DIR}/src/compiler/cmake/windows "${CMAKE_CURRENT_BINARY_DIR}/pxshared_bin")
-#MESSAGE("NVCLOTH_ROOT_DIR = ${NVCLOTH_ROOT_DIR}")
+#MESSAGE(STATUS "NVCLOTH_ROOT_DIR = ${NVCLOTH_ROOT_DIR}")
 ADD_SUBDIRECTORY(${NVCLOTH_ROOT_DIR}/compiler/cmake/windows "${CMAKE_CURRENT_BINARY_DIR}/NvCloth_bin")
 
 

@@ -518,11 +518,11 @@ void FDeferredShadingSceneRenderer::BeginRenderingWaterGBuffer(FRHICommandList& 
 	RHICmdList.BindClearMRTValues(true, true, false);
 }
 
-void FDeferredShadingSceneRenderer::FinishWaterGBufferPassAndResolve(FRHICommandListImmediate& RHICmdList)
+void FDeferredShadingSceneRenderer::FinishWaterGBufferPassAndResolve(FRHICommandListImmediate& RHICmdList, FExclusiveDepthStencil::Type DepthStencilAccess)
 {
 	// Same as the GBuffer for now (also same resolves)
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-	SceneContext.FinishGBufferPassAndResolve(RHICmdList);
+	SceneContext.FinishGBufferPassAndResolve(RHICmdList, DepthStencilAccess);
 }
 
 

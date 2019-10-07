@@ -89,7 +89,7 @@ Operating system defines, see http://sourceforge.net/p/predef/wiki/OperatingSyst
 #define PX_PS4 1
 #elif defined(__NX__)
 #define PX_SWITCH 1
-#else
+#elif !defined(PX_EXTERNAL_PLATFORM) // EPIC - OS defines are passed via the external CMake config.
 #error "Unknown operating system"
 #endif
 

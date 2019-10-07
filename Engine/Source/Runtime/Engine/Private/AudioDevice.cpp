@@ -376,7 +376,7 @@ bool FAudioDevice::Init(int32 InMaxSources)
 	UpdateAudioPluginSettingsObjectCache();
 
 	//Get the requested spatialization plugin and set it up.
-	IAudioSpatializationFactory* SpatializationPluginFactory = AudioPluginUtilities::GetDesiredSpatializationPlugin(AudioPluginUtilities::CurrentPlatform);
+	IAudioSpatializationFactory* SpatializationPluginFactory = AudioPluginUtilities::GetDesiredSpatializationPlugin();
 	if (SpatializationPluginFactory != nullptr)
 	{
 		SpatializationPluginInterface = SpatializationPluginFactory->CreateNewSpatializationPlugin(this);
@@ -403,7 +403,7 @@ bool FAudioDevice::Init(int32 InMaxSources)
 	}
 
 	//Get the requested reverb plugin and set it up:
-	IAudioReverbFactory* ReverbPluginFactory = AudioPluginUtilities::GetDesiredReverbPlugin(AudioPluginUtilities::CurrentPlatform);
+	IAudioReverbFactory* ReverbPluginFactory = AudioPluginUtilities::GetDesiredReverbPlugin();
 	if (ReverbPluginFactory != nullptr)
 	{
 		ReverbPluginInterface = ReverbPluginFactory->CreateNewReverbPlugin(this);
@@ -418,7 +418,7 @@ bool FAudioDevice::Init(int32 InMaxSources)
 	}
 
 	//Get the requested occlusion plugin and set it up.
-	IAudioOcclusionFactory* OcclusionPluginFactory = AudioPluginUtilities::GetDesiredOcclusionPlugin(AudioPluginUtilities::CurrentPlatform);
+	IAudioOcclusionFactory* OcclusionPluginFactory = AudioPluginUtilities::GetDesiredOcclusionPlugin();
 	if (OcclusionPluginFactory != nullptr)
 	{
 		OcclusionInterface = OcclusionPluginFactory->CreateNewOcclusionPlugin(this);
@@ -432,7 +432,7 @@ bool FAudioDevice::Init(int32 InMaxSources)
 	}
 
 	//Get the requested modulation plugin and set it up.
-	if (IAudioModulationFactory* ModulationPluginFactory = AudioPluginUtilities::GetDesiredModulationPlugin(AudioPluginUtilities::CurrentPlatform))
+	if (IAudioModulationFactory* ModulationPluginFactory = AudioPluginUtilities::GetDesiredModulationPlugin())
 	{
 		ModulationInterface = ModulationPluginFactory->CreateNewModulationPlugin(this);
 

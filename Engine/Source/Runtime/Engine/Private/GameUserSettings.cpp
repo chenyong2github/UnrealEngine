@@ -17,13 +17,6 @@
 #include "AudioDevice.h"
 #include "DynamicResolutionState.h"
 
-// Console platforms default HDR to on in the user settings, since this setting may not actually be exposed.
-#if PLATFORM_XBOXONE || PLATFORM_PS4
-const bool GUserSettingsDefaultHDRValue = true;
-#else
-const bool GUserSettingsDefaultHDRValue = false;
-#endif
-
 extern EWindowMode::Type GetWindowModeType(EWindowMode::Type WindowMode);
 
 enum EGameUserSettingsVersion
@@ -234,7 +227,7 @@ void UGameUserSettings::SetToDefaults()
 	}
 
 	bUseDynamicResolution = false;
-	bUseHDRDisplayOutput = GUserSettingsDefaultHDRValue;
+	bUseHDRDisplayOutput = FPlatformMisc::UseHDRByDefault();
 	HDRDisplayOutputNits = 1000;
 }
 
@@ -398,13 +391,15 @@ void UGameUserSettings::ValidateSettings()
 	LastUserConfirmedDesiredScreenWidth = DesiredScreenWidth;
 	LastUserConfirmedDesiredScreenHeight = DesiredScreenHeight;
 
-#if !PLATFORM_PS4 && !PLATFORM_XBOXONE
+
 	// We do not modify the user setting on console if HDR is not supported
-	if (bUseHDRDisplayOutput && !SupportsHDRDisplayOutput())
+	if (!FPlatformMisc::UseHDRByDefault())
 	{
-		bUseHDRDisplayOutput = false;
+		if (bUseHDRDisplayOutput && !SupportsHDRDisplayOutput())
+		{
+			bUseHDRDisplayOutput = false;
+		}
 	}
-#endif
 
 	LastConfirmedAudioQualityLevel = AudioQualityLevel;
 
@@ -571,7 +566,7 @@ void UGameUserSettings::PreloadResolutionSettings()
 	int32 ResolutionY = GetDefaultResolution().Y;
 	EWindowMode::Type WindowMode = GetDefaultWindowMode();
 	bool bUseDesktopResolution = false;
-	bool bUseHDR = GUserSettingsDefaultHDRValue;
+	bool bUseHDR = FPlatformMisc::UseHDRByDefault();
 
 	int32 Version=0;
 	if (GConfig->GetInt(*GameUserSettingsCategory, TEXT("Version"), Version, GGameUserSettingsIni) && Version == UE_GAMEUSERSETTINGS_VERSION)

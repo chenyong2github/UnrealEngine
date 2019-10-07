@@ -12,8 +12,7 @@ struct FBarycentricsPayload : FMinimalPayload
 };
 
 
-[shader("raygeneration")]
-void RayTracingBarycentricsMainRGS()
+RAY_TRACING_ENTRY_RAYGEN(RayTracingBarycentricsMainRGS)
 {
 	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin;
 
@@ -45,8 +44,9 @@ void RayTracingBarycentricsMainRGS()
 	Output[PixelCoord] = Result;
 }
 
-[shader("closesthit")]
-void RayTracingBarycentricsMainCHS(inout FBarycentricsPayload Payload, in FDefaultAttributes Attributes)
+RAY_TRACING_ENTRY_CLOSEST_HIT(RayTracingBarycentricsMainCHS,
+	FBarycentricsPayload, Payload,
+	FDefaultAttributes, Attributes)
 {
 	Payload.Barycentrics = Attributes.Barycentrics;
 	Payload.HitT = RayTCurrent();

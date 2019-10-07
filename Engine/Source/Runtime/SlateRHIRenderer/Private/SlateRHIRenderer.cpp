@@ -613,7 +613,7 @@ public:
 		SetShaderValue(RHICmdList, GetPixelShader(), UILevel, CVarUILevel.GetValueOnRenderThread());
 		SetShaderValue(RHICmdList, GetPixelShader(), OutputDevice, CVarOutputDevice->GetValueOnRenderThread());
 		
-		if (GSupportsRenderTargetWriteMask)
+		if (RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform))
 		{
 			SetTextureParameter(RHICmdList, GetPixelShader(), UIWriteMaskTexture, UITextureWriteMaskRHI);
 		}
@@ -751,7 +751,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 				|| !ViewportInfo.HDRSourceRT || ViewportInfo.HDRSourceRT->GetRenderTargetItem().TargetableTexture->GetFormat() != BackBuffer->GetFormat()))
 			{
 				// Composition buffers
-				uint32 BaseFlags = (GSupportsRenderTargetWriteMask) ? TexCreate_NoFastClearFinalize : TexCreate_None;
+				uint32 BaseFlags = RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform) ? TexCreate_NoFastClearFinalize : TexCreate_None;
 
 				FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(ViewportWidth, ViewportHeight),
 					PF_B8G8R8A8,
@@ -948,12 +948,14 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 					FResolveParams ResolveParams;
 					RHICmdList.CopyToResolveTarget(ViewportInfo.UITargetRT->GetRenderTargetItem().TargetableTexture, ViewportInfo.UITargetRT->GetRenderTargetItem().TargetableTexture, ResolveParams);
 
-					if (GSupportsRenderTargetWriteMask)
+					if (RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform))
 					{
-						RHICmdList.TransitionResource(EResourceTransitionAccess::EMetaData, ViewportInfo.UITargetRT->GetRenderTargetItem().TargetableTexture);
-						FRenderTargetWriteMask::Decode(RHICmdList, ShaderMap, { ViewportInfo.UITargetRT }, ViewportInfo.UITargetRTMask, 0, TEXT("UIRTWriteMask"));
+						IPooledRenderTarget* RenderTargets[1] = { ViewportInfo.UITargetRT.GetReference() };
+						FRenderTargetWriteMask::Decode<1>(RHICmdList, ShaderMap, RenderTargets, ViewportInfo.UITargetRTMask, 0, TEXT("UIRTWriteMask"));
 					}
 
+					RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, FinalBuffer);
+					RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, ViewportInfo.HDRSourceRT->GetRenderTargetItem().TargetableTexture);
 					FRHIRenderPassInfo RPInfo(FinalBuffer, ERenderTargetActions::Load_Store);
 					RHICmdList.BeginRenderPass(RPInfo, TEXT("SlateComposite"));
 					{
@@ -965,7 +967,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 
 						TShaderMapRef<FScreenVS> VertexShader(ShaderMap);
 
-						FRHITexture* UITargetRTMaskTexture = GSupportsRenderTargetWriteMask ? ViewportInfo.UITargetRTMask->GetRenderTargetItem().TargetableTexture : nullptr;
+						FRHITexture* UITargetRTMaskTexture = RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform) ? ViewportInfo.UITargetRTMask->GetRenderTargetItem().TargetableTexture : nullptr;
 						if (HDROutputDevice == 5 || HDROutputDevice == 6)
 						{
 							// ScRGB encoding

@@ -15,6 +15,34 @@
 #include "../ShadingCommon.ush"
 #include "/Engine/Shared/RayTracingDefinitions.h"
 
+#ifdef PLATFORM_RAY_TRACING_USH
+#include "/Platform/Private/RayTracing.ush"
+#endif // PLATFORM_RAY_TRACING_USH
+
+// Define generic wrappers for ray tracing shader entry points, if not already overriden
+
+#ifndef RAY_TRACING_ENTRY_RAYGEN
+#define RAY_TRACING_ENTRY_RAYGEN(name)\
+[shader("raygeneration")] void name()
+#endif // RAY_TRACING_ENTRY_RAYGEN
+
+#ifndef RAY_TRACING_ENTRY_CLOSEST_HIT
+#define RAY_TRACING_ENTRY_CLOSEST_HIT(name, payload_type, payload_name, attributes_type, attributes_name)\
+[shader("closesthit")] void name(inout payload_type payload_name, in attributes_type attributes_name)
+#endif //RAY_TRACING_ENTRY_CLOSEST_HIT
+
+#ifndef RAY_TRACING_ENTRY_ANY_HIT
+#define RAY_TRACING_ENTRY_ANY_HIT(name, payload_type, payload_name, attributes_type, attributes_name)\
+[shader("anyhit")] void name(inout payload_type payload_name, in attributes_type attributes_name)
+#endif // RAY_TRACING_ENTRY_ANY_HIT
+
+#ifndef RAY_TRACING_ENTRY_MISS
+#define RAY_TRACING_ENTRY_MISS(name, payload_type, payload_name)\
+[shader("miss")] void name(inout payload_type payload_name)
+#endif //RAY_TRACING_ENTRY_MISS
+
+// 
+
 struct FBasicRayData
 {
 	float3 Origin;
@@ -106,7 +134,7 @@ float3 ReconstructWorldPositionFromDepth(float2 UV, float Depth)
 
 uint CalcLinearIndex(uint2 PixelCoord)
 {
-	return PixelCoord.y * View.BufferSizeAndInvSize.x + PixelCoord.x;
+	return PixelCoord.y * uint(View.BufferSizeAndInvSize.x) + PixelCoord.x;
 }
 
 uint2 GetPixelCoord(uint2 DispatchThreadId, uint UpscaleFactor)

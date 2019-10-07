@@ -108,7 +108,7 @@ float3 SampleAreaLightDirection(
 	float3 WorldPosition = Payload.WorldPos;
 
 	float3 RayOrigin;
-	uint RayTMin, RayTMax;
+	float RayTMin, RayTMax;
 	float RayPdf;
 
 	uint DummyVariable;

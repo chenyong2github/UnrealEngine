@@ -26,7 +26,7 @@ namespace ResonanceAudio
 			return DisplayName;
 		}
 
-		virtual bool SupportsPlatform(EAudioPlatform Platform) override
+		virtual bool SupportsPlatform(const FString& PlatformName) override
 		{
 			return true;
 		}
@@ -58,7 +58,7 @@ namespace ResonanceAudio
 			return DisplayName;
 		}
 
-		virtual bool SupportsPlatform(EAudioPlatform Platform) override
+		virtual bool SupportsPlatform(const FString& PlatformName) override
 		{
 			return true;
 		}

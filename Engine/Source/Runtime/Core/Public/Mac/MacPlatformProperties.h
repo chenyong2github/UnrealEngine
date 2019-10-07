@@ -29,6 +29,11 @@ struct FMacPlatformProperties
 		return "Mac";
 	}
 
+	static FORCEINLINE const TCHAR* GetRuntimeSettingsClassName()
+	{
+		return TEXT("/Script/MacTargetPlatform.MacTargetSettings");
+	}
+
 	static FORCEINLINE bool IsGameOnly( )
 	{
 		return UE_GAME;

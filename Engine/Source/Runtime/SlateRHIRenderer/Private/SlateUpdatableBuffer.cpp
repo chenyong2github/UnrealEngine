@@ -25,7 +25,7 @@ FSlateUpdatableInstanceBuffer::~FSlateUpdatableInstanceBuffer()
 
 void FSlateUpdatableInstanceBuffer::Update(FSlateInstanceBufferData& Data)
 {
-	check(!IsInRenderingThread() && !IsInRHIThread());
+	check(IsThreadSafeForSlateRendering());
 
 	NumInstances = Data.Num();
 	if (NumInstances > 0)

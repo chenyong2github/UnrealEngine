@@ -73,6 +73,16 @@ public:
 	{}
 };
 
+class FDefaultMainCHSOpaqueAHS : public FBuiltInRayTracingShader
+{
+	DECLARE_EXPORTED_SHADER_TYPE(FDefaultMainCHSOpaqueAHS, Global, RENDERCORE_API);
+public:
+
+	FDefaultMainCHSOpaqueAHS() = default;
+	FDefaultMainCHSOpaqueAHS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FBuiltInRayTracingShader(Initializer)
+	{}
+};
 
 class FDefaultMainMS : public FBuiltInRayTracingShader
 {

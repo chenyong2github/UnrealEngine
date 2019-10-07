@@ -150,8 +150,7 @@ bool GenerateRectLightImportanceSampledRay(
 	return RayTMax > RayTMin;
 }
 
-[shader("raygeneration")]
-void RectLightRGS()
+RAY_TRACING_ENTRY_RAYGEN(RectLightRGS)
 {
 	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin;
 

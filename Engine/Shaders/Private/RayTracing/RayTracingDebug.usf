@@ -13,8 +13,7 @@ RaytracingAccelerationStructure TLAS;
 uint VisualizationMode;
 uint ShouldUsePreExposure;
 
-[shader("raygeneration")]
-void RayTracingDebugMainRGS()
+RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugMainRGS)
 {
 	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin;
 

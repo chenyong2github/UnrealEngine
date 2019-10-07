@@ -133,8 +133,8 @@ FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexI
 	uint SubsectionSizeVertsCurrentLOD = LodValues.z + 1;
 
 	#if 1
-		FTriangleBaseAttributes Triangle = LoadTriangleBaseAttributes(TriangleIndex);
-		uint VertexId = Triangle.Indices[VertexIndex];
+		FTriangleBaseAttributes Tri = LoadTriangleBaseAttributes(TriangleIndex);
+		uint VertexId = Tri.Indices[VertexIndex];
 	#else
 		uint QuadId = TriangleIndex / 2;
 		uint QuadX = QuadId % SubsectionSizeQuadsCurrentLOD;

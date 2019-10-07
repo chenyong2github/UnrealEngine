@@ -193,10 +193,10 @@ FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexI
 {
 	FVertexFactoryInput Input = (FVertexFactoryInput)0;
 
-	FTriangleBaseAttributes Triangle = LoadTriangleBaseAttributes(TriangleIndex);
+	FTriangleBaseAttributes Tri = LoadTriangleBaseAttributes(TriangleIndex);
 
-	Input.VertexId = Triangle.Indices[VertexIndex];
-	Input.Position = float4(Triangle.LocalPositions[VertexIndex], 1.0f);
+	Input.VertexId = Tri.Indices[VertexIndex];
+	Input.Position = float4(Tri.LocalPositions[VertexIndex], 1.0f);
 	#if VF_USE_PRIMITIVE_SCENE_DATA
 		Input.PrimitiveId = GetInstanceUserData();
 	#endif

@@ -110,8 +110,7 @@ bool FIOSAudioDevice::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 
 FAudioPlatformSettings FIOSAudioDevice::GetPlatformSettings() const
 {
-	const TCHAR* ConfigSection = AudioPluginUtilities::GetPlatformConfigSection(EAudioPlatform::IOS);
-	return FAudioPlatformSettings::GetPlatformSettings(ConfigSection);
+	return FAudioPlatformSettings::GetPlatformSettings(FPlatformProperties::GetRuntimeSettingsClassName());
 }
 
 bool FIOSAudioDevice::InitializeHardware()

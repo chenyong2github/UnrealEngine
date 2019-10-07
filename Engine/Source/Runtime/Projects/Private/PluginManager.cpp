@@ -4,6 +4,7 @@
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/PlatformFilemanager.h"
 #include "HAL/FileManager.h"
+#include "Misc/DataDrivenPlatformInfoRegistry.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
@@ -227,18 +228,21 @@ void FPluginManager::ReadAllPlugins(TMap<FString, TSharedRef<FPlugin>>& Plugins,
 	{
 		// Find "built-in" plugins.  That is, plugins situated right within the Engine directory.
 		ReadPluginsInDirectory(FPaths::EnginePluginsDir(), EPluginType::Engine, Plugins, ChildPlugins);
-		ReadPluginsInDirectory(FPaths::EnginePlatformExtensionsDir() + TEXT("Plugins"), EPluginType::Engine, Plugins, ChildPlugins);
+		for (auto const& Platform : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
+		{
+			ReadPluginsInDirectory(FPaths::EnginePlatformExtensionsDir() / Platform.Key / TEXT("Plugins"), EPluginType::Engine, Plugins, ChildPlugins);
+		}
 
 		// Find plugins in the game project directory (<MyGameProject>/Plugins). If there are any engine plugins matching the name of a game plugin,
 		// assume that the game plugin version is preferred.
 		if (Project != nullptr)
 		{
-#if IS_PROGRAM
-			ReadPluginsInDirectory(FPaths::GetPath(FPaths::GetProjectFilePath()) / TEXT("Plugins"), EPluginType::Project, Plugins, ChildPlugins);
-#else
-			ReadPluginsInDirectory(FPaths::ProjectPluginsDir(), EPluginType::Project, Plugins, ChildPlugins);
-			ReadPluginsInDirectory(FPaths::ProjectPlatformExtensionsDir() + TEXT("Plugins"), EPluginType::Project, Plugins, ChildPlugins);
-#endif
+			FString Root = FPaths::GetPath(FPaths::GetProjectFilePath());
+			ReadPluginsInDirectory(Root / TEXT("Plugins"), EPluginType::Project, Plugins, ChildPlugins);
+			for (auto const& Platform : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
+			{
+				ReadPluginsInDirectory(Root / TEXT("Platforms") / Platform.Key / TEXT("Plugins"), EPluginType::Project, Plugins, ChildPlugins);
+			}
 		}
 	}
 	else
@@ -355,6 +359,14 @@ void FPluginManager::ReadAllPlugins(TMap<FString, TSharedRef<FPlugin>>& Plugins,
 							}
 						}
 					}
+				}
+			}
+
+			if (Parent->GetDescriptor().SupportedTargetPlatforms.Num() != 0 && Child->GetDescriptor().SupportedTargetPlatforms.Num() != 0)
+			{
+				for (const FString& SupportedTargetPlatform : Child->GetDescriptor().SupportedTargetPlatforms)
+				{
+					Parent->Descriptor.SupportedTargetPlatforms.AddUnique(SupportedTargetPlatform);
 				}
 			}
 		}

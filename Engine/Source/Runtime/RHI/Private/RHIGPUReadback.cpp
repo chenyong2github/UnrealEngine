@@ -119,6 +119,7 @@ void FRHIGPUTextureReadback::EnqueueCopy(FRHICommandList& RHICmdList, FRHITextur
 		}
 
 		// Transfer memory GPU -> CPU
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, DestinationStagingBuffer);
 		RHICmdList.CopyToResolveTarget(SourceTexture, DestinationStagingBuffer, FResolveParams(Rect));
 		RHICmdList.WriteGPUFence(Fence);
 	}

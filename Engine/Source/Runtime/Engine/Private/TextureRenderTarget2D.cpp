@@ -486,6 +486,7 @@ void FTextureRenderTarget2DResource::InitDynamicRHI()
 		uint32 TexCreateFlags = Owner->IsSRGB() ? TexCreate_SRGB : 0;
 		TexCreateFlags |= Owner->bGPUSharedFlag ? TexCreate_Shared : 0;
 		FRHIResourceCreateInfo CreateInfo = FRHIResourceCreateInfo(FClearValueBinding(ClearColor));
+		CreateInfo.DebugName = TEXT("TextureRenderTarget2DResource");
 
 		if (Owner->bAutoGenerateMips)
 		{

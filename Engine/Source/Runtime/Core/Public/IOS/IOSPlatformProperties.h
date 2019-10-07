@@ -33,6 +33,11 @@ struct FIOSPlatformProperties
 		return "IOS";
 	}
 
+	static FORCEINLINE const TCHAR* GetRuntimeSettingsClassName()
+	{
+		return TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings");
+	}
+
 	static FORCEINLINE bool IsGameOnly()
 	{
 		return true;

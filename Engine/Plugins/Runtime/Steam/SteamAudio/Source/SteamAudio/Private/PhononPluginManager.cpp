@@ -93,7 +93,7 @@ namespace SteamAudio
 		}
 
 		FString SteamPluginName = Module->GetPluginFactory(PluginType)->GetDisplayName();
-		FString CurrentPluginName = AudioPluginUtilities::GetDesiredPluginName(PluginType, AudioPluginUtilities::CurrentPlatform);
+		FString CurrentPluginName = AudioPluginUtilities::GetDesiredPluginName(PluginType);
 		return CurrentPluginName.Equals(SteamPluginName);
 	}
 }

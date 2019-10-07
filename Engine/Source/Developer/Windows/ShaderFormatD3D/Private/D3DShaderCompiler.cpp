@@ -1728,7 +1728,7 @@ void CompileD3DShader(const FShaderCompilerInput& Input,FShaderCompilerOutput& O
 
 	if (Input.RootParameterBindings.Num())
 	{
-		MoveShaderParametersToRootConstantBuffer(Input, PreprocessedShaderSource);
+		MoveShaderParametersToRootConstantBuffer(Input, PreprocessedShaderSource, TEXT("cbuffer"));
 	}
 	RemoveUniformBuffersFromSource(Input.Environment, PreprocessedShaderSource);
 

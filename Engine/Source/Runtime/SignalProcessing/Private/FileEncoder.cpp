@@ -74,21 +74,20 @@ namespace Audio
 		{
 			return new FWavEncoder(QualityInfo, 4096);
 		}
-#if !PLATFORM_HTML5 && !PLATFORM_TVOS
-		else if (Extension.Equals(OggExtension))
+#if PLATFORM_SUPPORTS_VORBIS_CODEC 
+		if (Extension.Equals(OggExtension))
 		{
 			return new FOggVorbisEncoder(QualityInfo, 4096);
 		}
-		else if (Extension.Equals(OpusExtension))
+#endif
+#if PLATFORM_SUPPORTS_OPUS_CODEC 
+		if (Extension.Equals(OpusExtension))
 		{
 			return new FOpusEncoder(QualityInfo, 4096);
 		}
-#endif // !PLATFORM_HTML5 && !PLATFORM_TVOS
-		else
-		{
-			UE_LOG(LogTemp, Error, TEXT("Invalid file extension %s."), *Extension);
-			return nullptr;
-		}
+#endif
+		UE_LOG(LogTemp, Error, TEXT("Invalid file extension %s."), *Extension);
+		return nullptr;
 	}
 
 	FString FAudioFileWriter::GetExtensionForFile(const FString& InPath)

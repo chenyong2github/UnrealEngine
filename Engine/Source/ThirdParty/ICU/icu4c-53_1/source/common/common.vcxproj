@@ -5,10 +5,6 @@
       <Configuration>Debug</Configuration>
       <Platform>Durango</Platform>
     </ProjectConfiguration>
-    <ProjectConfiguration Include="Debug|ORBIS">
-      <Configuration>Debug</Configuration>
-      <Platform>ORBIS</Platform>
-    </ProjectConfiguration>
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
       <Platform>Win32</Platform>
@@ -20,10 +16,6 @@
     <ProjectConfiguration Include="Release|Durango">
       <Configuration>Release</Configuration>
       <Platform>Durango</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Release|ORBIS">
-      <Configuration>Release</Configuration>
-      <Platform>ORBIS</Platform>
     </ProjectConfiguration>
     <ProjectConfiguration Include="Release|Win32">
       <Configuration>Release</Configuration>
@@ -72,12 +64,6 @@
     <EmbedManifest>false</EmbedManifest>
     <GenerateManifest>false</GenerateManifest>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'" Label="Configuration">
-    <ConfigurationType>StaticLibrary</ConfigurationType>
-    <UseOfMfc>false</UseOfMfc>
-    <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v110</PlatformToolset>
-  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
@@ -92,15 +78,8 @@
     <EmbedManifest>false</EmbedManifest>
     <GenerateManifest>false</GenerateManifest>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'" Label="Configuration">
-    <ConfigurationType>StaticLibrary</ConfigurationType>
-    <UseOfMfc>false</UseOfMfc>
-    <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v110</PlatformToolset>
-  </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
-  <ImportGroup Label="ExtensionSettings">
-  </ImportGroup>
+  <ImportGroup Label="ExtensionSettings"></ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC71.props" />
@@ -116,20 +95,12 @@
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'" Label="PropertySheets">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC71.props" />
-  </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC71.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Durango'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-  </ImportGroup>
-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'" Label="PropertySheets">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC71.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
@@ -143,21 +114,9 @@
     <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.\x64\Release\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.\x64\Release\</IntDir>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkIncremental>
-    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">false</LinkIncremental>
     <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\x64\Debug\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\x64\Debug\</IntDir>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</LinkIncremental>
-    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">true</LinkIncremental>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">
-    <OutDir>.\..\..\PS4\lib\</OutDir>
-    <TargetExt>.lib</TargetExt>
-    <TargetName>sicuucd</TargetName>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">
-    <OutDir>.\..\..\PS4\lib\</OutDir>
-    <TargetExt>.lib</TargetExt>
-    <TargetName>sicuuc</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">
     <ExecutablePath>$(Console_SdkRoot)bin;$(VCInstallDir)bin\x86_amd64;$(VCInstallDir)bin;$(WindowsSDK_ExecutablePath_x86);$(VSInstallDir)Common7\Tools\bin;$(VSInstallDir)Common7\tools;$(VSInstallDir)Common7\ide;$(ProgramFiles)\HTML Help Workshop;$(MSBuildToolsPath32);$(FxCopDir);$(PATH);</ExecutablePath>
@@ -210,8 +169,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <BaseAddress>0x4a800000</BaseAddress>
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
-      <DataExecutionPrevention>
-      </DataExecutionPrevention>
+      <DataExecutionPrevention></DataExecutionPrevention>
       <ImportLibrary>..\..\lib\icuuc.lib</ImportLibrary>
     </Link>
   </ItemDefinitionGroup>
@@ -251,8 +209,7 @@
       <ProgramDatabaseFile>.\..\..\lib\icuucd.pdb</ProgramDatabaseFile>
       <BaseAddress>0x4a800000</BaseAddress>
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
-      <DataExecutionPrevention>
-      </DataExecutionPrevention>
+      <DataExecutionPrevention></DataExecutionPrevention>
       <ImportLibrary>..\..\lib\icuucd.lib</ImportLibrary>
     </Link>
   </ItemDefinitionGroup>
@@ -341,45 +298,8 @@
     </Link>
     <Lib>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
-      <AdditionalDependencies>
-      </AdditionalDependencies>
+      <AdditionalDependencies></AdditionalDependencies>
     </Lib>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">
-    <Midl>
-      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <MkTypLibCompatible>true</MkTypLibCompatible>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-      <TypeLibraryName>.\..\..\lib64\icuuc.tlb</TypeLibraryName>
-    </Midl>
-    <ClCompile>
-      <PreprocessorDefinitions>U_STATIC_IMPLEMENTATION; UCONFIG_NO_TRANSLITERATION=1; U_COMMON_IMPLEMENTATION; U_USING_ICU_NAMESPACE=0;U_STATIC_IMPLEMENTATION;U_NO_DEFAULT_INCLUDE_UTF_HEADERS=1;UNISTR_FROM_CHAR_EXPLICIT=explicit;UNISTR_FROM_STRING_EXPLICIT=explicit;U_ATTRIBUTE_DEPRECATED=;_DEBUG;U_COMMON_IMPLEMENTATION;U_PLATFORM=U_PF_ORBIS;__BSD_VISIBLE;U_HAVE_NL_LANGINFO_CODESET=0;U_ENABLE_DYLOAD=0;ICU_NO_USER_DATA_OVERRIDE=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <StringPooling>true</StringPooling>
-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
-      <FunctionLevelLinking>true</FunctionLevelLinking>
-      <DisableLanguageExtensions>false</DisableLanguageExtensions>
-      <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
-      <PrecompiledHeaderOutputFile>.\x64\Release/common.pch</PrecompiledHeaderOutputFile>
-      <AssemblerListingLocation>.\x64\Release/</AssemblerListingLocation>
-      <ObjectFileName>.\PS4\Release/</ObjectFileName>
-      <ProgramDataBaseFileName>.\x64\Release/</ProgramDataBaseFileName>
-      <WarningLevel>Level3</WarningLevel>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalOptions>-frtti %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalIncludeDirectories>.\</AdditionalIncludeDirectories>
-    </ClCompile>
-    <ResourceCompile>
-      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <Culture>0x0409</Culture>
-    </ResourceCompile>
-    <Link>
-      <OutputFile>..\..\bin64\icuuc53.dll</OutputFile>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-      <ProgramDatabaseFile>.\..\..\lib64\icuuc.pdb</ProgramDatabaseFile>
-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
-      <BaseAddress>0x4a800000</BaseAddress>
-      <ImportLibrary>..\..\lib64\icuuc.lib</ImportLibrary>
-    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Midl>
@@ -466,80 +386,32 @@
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
     </Lib>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">
-    <Midl>
-      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <MkTypLibCompatible>true</MkTypLibCompatible>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-      <TypeLibraryName>.\..\..\lib64\icuucd.tlb</TypeLibraryName>
-    </Midl>
-    <ClCompile>
-      <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>U_STATIC_IMPLEMENTATION; UCONFIG_NO_TRANSLITERATION=1; U_COMMON_IMPLEMENTATION; U_USING_ICU_NAMESPACE=0;U_STATIC_IMPLEMENTATION;U_NO_DEFAULT_INCLUDE_UTF_HEADERS=1;UNISTR_FROM_CHAR_EXPLICIT=explicit;UNISTR_FROM_STRING_EXPLICIT=explicit;U_ATTRIBUTE_DEPRECATED=;_DEBUG;U_COMMON_IMPLEMENTATION;U_PLATFORM=U_PF_ORBIS;__BSD_VISIBLE;U_HAVE_NL_LANGINFO_CODESET=0;U_ENABLE_DYLOAD=0;ICU_NO_USER_DATA_OVERRIDE=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
-      <BufferSecurityCheck>true</BufferSecurityCheck>
-      <DisableLanguageExtensions>false</DisableLanguageExtensions>
-      <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
-      <PrecompiledHeaderOutputFile>.\x64\Debug/common.pch</PrecompiledHeaderOutputFile>
-      <AssemblerListingLocation>.\x64\Debug/</AssemblerListingLocation>
-      <ObjectFileName>.\PS4\Debug/</ObjectFileName>
-      <ProgramDataBaseFileName>.\x64\Debug/</ProgramDataBaseFileName>
-      <BrowseInformation>true</BrowseInformation>
-      <WarningLevel>Level3</WarningLevel>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalOptions>-frtti %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalIncludeDirectories>.\</AdditionalIncludeDirectories>
-    </ClCompile>
-    <ResourceCompile>
-      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <Culture>0x0409</Culture>
-    </ResourceCompile>
-    <Link>
-      <OutputFile>..\..\bin64\icuuc53d.dll</OutputFile>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-      <ProgramDatabaseFile>.\..\..\lib64\icuucd.pdb</ProgramDatabaseFile>
-      <BaseAddress>0x4a800000</BaseAddress>
-      <ImportLibrary>..\..\lib64\icuucd.lib</ImportLibrary>
-    </Link>
-  </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="ubidi.c" />
     <ClCompile Include="ubidi_props.c" />
     <ClCompile Include="ubidiln.c" />
     <ClCompile Include="ubidiwrt.c" />
     <ClCompile Include="ushape.cpp" />
-    <ClCompile Include="brkeng.cpp">
-    </ClCompile>
-    <ClCompile Include="brkiter.cpp">
-    </ClCompile>
+    <ClCompile Include="brkeng.cpp"></ClCompile>
+    <ClCompile Include="brkiter.cpp"></ClCompile>
     <ClCompile Include="dictbe.cpp" />
-    <ClCompile Include="rbbi.cpp">
-    </ClCompile>
-    <ClCompile Include="rbbidata.cpp">
-    </ClCompile>
+    <ClCompile Include="rbbi.cpp"></ClCompile>
+    <ClCompile Include="rbbidata.cpp"></ClCompile>
     <ClCompile Include="rbbinode.cpp" />
-    <ClCompile Include="rbbirb.cpp">
-    </ClCompile>
+    <ClCompile Include="rbbirb.cpp"></ClCompile>
     <ClCompile Include="rbbiscan.cpp" />
     <ClCompile Include="rbbisetb.cpp" />
-    <ClCompile Include="rbbistbl.cpp">
-    </ClCompile>
-    <ClCompile Include="rbbitblb.cpp">
-    </ClCompile>
+    <ClCompile Include="rbbistbl.cpp"></ClCompile>
+    <ClCompile Include="rbbitblb.cpp"></ClCompile>
     <ClCompile Include="dictionarydata.cpp" />
     <ClCompile Include="ubrk.cpp" />
     <ClCompile Include="ucol_swp.cpp">
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">..\i18n;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\i18n;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\i18n;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\i18n;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\i18n;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\i18n;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\i18n;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\i18n;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <ClCompile Include="propsvec.c" />
     <ClCompile Include="uarrsort.c" />
@@ -561,32 +433,26 @@
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</DisableLanguageExtensions>
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</DisableLanguageExtensions>
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">false</DisableLanguageExtensions>
-      <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">false</DisableLanguageExtensions>
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</DisableLanguageExtensions>
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</DisableLanguageExtensions>
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">false</DisableLanguageExtensions>
-      <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">false</DisableLanguageExtensions>
     </ClCompile>
     <ClCompile Include="putil.cpp">
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</DisableLanguageExtensions>
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</DisableLanguageExtensions>
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">false</DisableLanguageExtensions>
-      <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">false</DisableLanguageExtensions>
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</DisableLanguageExtensions>
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</DisableLanguageExtensions>
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">false</DisableLanguageExtensions>
-      <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">false</DisableLanguageExtensions>
     </ClCompile>
     <ClCompile Include="umath.c" />
     <ClCompile Include="umutex.cpp">
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</DisableLanguageExtensions>
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</DisableLanguageExtensions>
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">false</DisableLanguageExtensions>
-      <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">false</DisableLanguageExtensions>
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</DisableLanguageExtensions>
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</DisableLanguageExtensions>
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">false</DisableLanguageExtensions>
-      <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">false</DisableLanguageExtensions>
     </ClCompile>
     <ClCompile Include="utrace.c" />
     <ClCompile Include="utypes.c" />
@@ -594,23 +460,19 @@
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</DisableLanguageExtensions>
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</DisableLanguageExtensions>
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">false</DisableLanguageExtensions>
-      <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">false</DisableLanguageExtensions>
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</DisableLanguageExtensions>
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</DisableLanguageExtensions>
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">false</DisableLanguageExtensions>
-      <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">false</DisableLanguageExtensions>
     </ClCompile>
     <ClCompile Include="ucnv.c" />
     <ClCompile Include="ucnv2022.cpp" />
-    <ClCompile Include="ucnv_bld.cpp">
-    </ClCompile>
+    <ClCompile Include="ucnv_bld.cpp"></ClCompile>
     <ClCompile Include="ucnv_cb.c" />
     <ClCompile Include="ucnv_cnv.c" />
     <ClCompile Include="ucnv_ct.c" />
     <ClCompile Include="ucnv_err.c" />
     <ClCompile Include="ucnv_ext.cpp" />
-    <ClCompile Include="ucnv_io.cpp">
-    </ClCompile>
+    <ClCompile Include="ucnv_io.cpp"></ClCompile>
     <ClCompile Include="ucnv_lmb.c" />
     <ClCompile Include="ucnv_set.c" />
     <ClCompile Include="ucnv_u16.c" />
@@ -624,18 +486,15 @@
     <ClCompile Include="ucnvlat1.c" />
     <ClCompile Include="ucnvmbcs.c" />
     <ClCompile Include="ucnvscsu.c" />
-    <ClCompile Include="ucnvsel.cpp">
-    </ClCompile>
+    <ClCompile Include="ucnvsel.cpp"></ClCompile>
     <ClCompile Include="cmemory.c" />
     <ClCompile Include="ucln_cmn.c">
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</DisableLanguageExtensions>
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</DisableLanguageExtensions>
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">false</DisableLanguageExtensions>
-      <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">false</DisableLanguageExtensions>
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</DisableLanguageExtensions>
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</DisableLanguageExtensions>
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">false</DisableLanguageExtensions>
-      <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">false</DisableLanguageExtensions>
     </ClCompile>
     <ClCompile Include="ucmndata.c" />
     <ClCompile Include="udata.cpp" />
@@ -648,11 +507,9 @@
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</DisableLanguageExtensions>
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</DisableLanguageExtensions>
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">false</DisableLanguageExtensions>
-      <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">false</DisableLanguageExtensions>
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</DisableLanguageExtensions>
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</DisableLanguageExtensions>
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">false</DisableLanguageExtensions>
-      <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">false</DisableLanguageExtensions>
     </ClCompile>
     <ClCompile Include="uobject.cpp" />
     <ClCompile Include="dtintrv.cpp" />
@@ -663,21 +520,17 @@
     <ClCompile Include="punycode.cpp" />
     <ClCompile Include="uidna.cpp" />
     <ClCompile Include="uts46.cpp" />
-    <ClCompile Include="locavailable.cpp">
-    </ClCompile>
+    <ClCompile Include="locavailable.cpp"></ClCompile>
     <ClCompile Include="locbased.cpp" />
     <ClCompile Include="locdispnames.cpp" />
-    <ClCompile Include="locid.cpp">
-    </ClCompile>
+    <ClCompile Include="locid.cpp"></ClCompile>
     <ClCompile Include="loclikely.cpp" />
     <ClCompile Include="locresdata.cpp" />
-    <ClCompile Include="locutil.cpp">
-    </ClCompile>
+    <ClCompile Include="locutil.cpp"></ClCompile>
     <ClCompile Include="lrucache.cpp">
       <DisableLanguageExtensions>false</DisableLanguageExtensions>
     </ClCompile>
-    <ClCompile Include="resbund.cpp">
-    </ClCompile>
+    <ClCompile Include="resbund.cpp"></ClCompile>
     <ClCompile Include="resbund_cnv.cpp" />
     <ClCompile Include="ucat.c" />
     <ClCompile Include="uloc.cpp" />
@@ -685,24 +538,18 @@
     <ClCompile Include="ures_cnv.c" />
     <ClCompile Include="uresbund.cpp" />
     <ClCompile Include="uresdata.c" />
-    <ClCompile Include="caniter.cpp">
-    </ClCompile>
+    <ClCompile Include="caniter.cpp"></ClCompile>
     <ClCompile Include="filterednormalizer2.cpp" />
-    <ClCompile Include="normalizer2.cpp">
-    </ClCompile>
-    <ClCompile Include="normalizer2impl.cpp">
-    </ClCompile>
-    <ClCompile Include="normlzr.cpp">
-    </ClCompile>
+    <ClCompile Include="normalizer2.cpp"></ClCompile>
+    <ClCompile Include="normalizer2impl.cpp"></ClCompile>
+    <ClCompile Include="normlzr.cpp"></ClCompile>
     <ClCompile Include="unorm.cpp" />
     <ClCompile Include="unormcmp.cpp" />
     <ClCompile Include="bmpset.cpp" />
     <ClCompile Include="patternprops.cpp" />
-    <ClCompile Include="propname.cpp">
-    </ClCompile>
+    <ClCompile Include="propname.cpp"></ClCompile>
     <ClCompile Include="ruleiter.cpp" />
-    <ClCompile Include="ucase.cpp">
-    </ClCompile>
+    <ClCompile Include="ucase.cpp"></ClCompile>
     <ClCompile Include="uchar.c" />
     <ClCompile Include="unames.cpp" />
     <ClCompile Include="unifilt.cpp" />
@@ -719,20 +566,13 @@
     <ClCompile Include="uset_props.cpp" />
     <ClCompile Include="usetiter.cpp" />
     <ClCompile Include="icuplug.c" />
-    <ClCompile Include="serv.cpp">
-    </ClCompile>
-    <ClCompile Include="servlk.cpp">
-    </ClCompile>
-    <ClCompile Include="servlkf.cpp">
-    </ClCompile>
-    <ClCompile Include="servls.cpp">
-    </ClCompile>
-    <ClCompile Include="servnotf.cpp">
-    </ClCompile>
-    <ClCompile Include="servrbf.cpp">
-    </ClCompile>
-    <ClCompile Include="servslkf.cpp">
-    </ClCompile>
+    <ClCompile Include="serv.cpp"></ClCompile>
+    <ClCompile Include="servlk.cpp"></ClCompile>
+    <ClCompile Include="servlkf.cpp"></ClCompile>
+    <ClCompile Include="servls.cpp"></ClCompile>
+    <ClCompile Include="servnotf.cpp"></ClCompile>
+    <ClCompile Include="servrbf.cpp"></ClCompile>
+    <ClCompile Include="servslkf.cpp"></ClCompile>
     <ClCompile Include="usprep.cpp" />
     <ClCompile Include="appendable.cpp" />
     <ClCompile Include="bytestream.cpp" />
@@ -771,8 +611,7 @@
     <ClCompile Include="ustrtrns.cpp" />
     <ClCompile Include="utext.cpp" />
     <ClCompile Include="utf_impl.c" />
-    <ClCompile Include="listformatter.cpp">
-    </ClCompile>
+    <ClCompile Include="listformatter.cpp"></ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="unicode\ubidi.h">
@@ -783,11 +622,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -795,11 +631,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="localsvc.h" />
     <ClInclude Include="msvcres.h" />
@@ -814,11 +647,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -826,11 +656,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="brkeng.h" />
     <CustomBuild Include="unicode\brkiter.h">
@@ -841,11 +668,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -853,11 +677,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\dbbi.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -867,11 +688,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -879,11 +697,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="dictbe.h" />
     <CustomBuild Include="unicode\rbbi.h">
@@ -894,11 +709,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -906,11 +718,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="rbbidata.h" />
     <ClInclude Include="rbbinode.h" />
@@ -928,11 +737,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -940,11 +746,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="ubidi_props_data.h" />
     <ClInclude Include="ubrkimpl.h" />
@@ -962,11 +765,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -974,11 +774,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="uarrsort.h" />
     <CustomBuild Include="unicode\uenum.h">
@@ -989,11 +786,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1001,11 +795,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="uelement.h" />
     <ClInclude Include="uenumimp.h" />
@@ -1019,11 +810,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1031,11 +819,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="ustrenum.h" />
     <ClInclude Include="utrie.h" />
@@ -1054,11 +839,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1066,11 +848,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\errorcode.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -1080,11 +859,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1092,11 +868,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\icudataver.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -1106,11 +879,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1118,11 +888,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="locmap.h" />
     <ClInclude Include="mutex.h" />
@@ -1134,11 +901,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1146,11 +910,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\ptypes.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -1160,11 +921,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1172,11 +930,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\putil.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -1186,11 +941,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1198,11 +950,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="putilimp.h" />
     <CustomBuild Include="unicode\std_string.h">
@@ -1213,11 +962,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1225,11 +971,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="uassert.h" />
     <CustomBuild Include="unicode\uconfig.h">
@@ -1240,11 +983,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1252,11 +992,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\umachine.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -1266,11 +1003,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1278,11 +1012,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="umutex.h" />
     <ClInclude Include="uposixdefs.h" />
@@ -1294,11 +1025,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1306,11 +1034,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\utrace.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -1320,11 +1045,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1332,11 +1054,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="utracimp.h" />
     <CustomBuild Include="unicode\utypes.h">
@@ -1347,11 +1066,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1359,11 +1075,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\uvernum.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -1373,11 +1086,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1385,11 +1095,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\uversion.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -1399,11 +1106,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1411,11 +1115,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="wintz.h" />
     <CustomBuild Include="unicode\ucnv.h">
@@ -1426,11 +1127,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1438,11 +1136,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="ucnv_bld.h" />
     <CustomBuild Include="unicode\ucnv_cb.h">
@@ -1453,11 +1148,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1465,11 +1157,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="ucnv_cnv.h" />
     <CustomBuild Include="unicode\ucnv_err.h">
@@ -1480,11 +1169,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1492,11 +1178,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="ucnv_ext.h" />
     <ClInclude Include="ucnv_imp.h" />
@@ -1510,11 +1193,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1522,11 +1202,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="cmemory.h" />
     <CustomBuild Include="unicode\localpointer.h">
@@ -1537,11 +1214,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1549,11 +1223,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\uclean.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -1563,11 +1234,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1575,11 +1243,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="ucln.h" />
     <ClInclude Include="ucln_cmn.h" />
@@ -1593,11 +1258,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1605,11 +1267,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="udatamem.h" />
     <ClInclude Include="udataswp.h" />
@@ -1622,11 +1281,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1634,11 +1290,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\dtintrv.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -1648,11 +1301,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1660,11 +1310,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\parseerr.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -1674,11 +1321,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1686,11 +1330,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\parsepos.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -1700,11 +1341,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1712,11 +1350,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\umisc.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -1726,11 +1361,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1738,11 +1370,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="ustrfmt.h" />
     <ClInclude Include="util.h" />
@@ -1754,11 +1383,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1766,11 +1392,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="punycode.h" />
     <CustomBuild Include="unicode\uidna.h">
@@ -1781,11 +1404,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1793,11 +1413,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="locbased.h" />
     <CustomBuild Include="unicode\locid.h">
@@ -1808,11 +1425,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1820,11 +1434,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="locutil.h" />
     <ClInclude Include="lrucache.h" />
@@ -1836,11 +1447,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1848,11 +1456,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="sharedobject.h" />
     <ClCompile Include="sharedobject.cpp" />
@@ -1866,11 +1471,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1878,11 +1480,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\uloc.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -1892,11 +1491,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1904,11 +1500,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="ulocimp.h" />
     <CustomBuild Include="unicode\ures.h">
@@ -1919,11 +1512,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1931,11 +1521,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="uresdata.h" />
     <ClInclude Include="uresimp.h" />
@@ -1948,11 +1535,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1960,11 +1544,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\normalizer2.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -1974,11 +1555,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -1986,11 +1564,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="normalizer2impl.h" />
     <CustomBuild Include="unicode\normlzr.h">
@@ -2001,11 +1576,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2013,11 +1585,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\unorm.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -2027,11 +1596,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2039,11 +1605,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\unorm2.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -2053,11 +1616,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2065,11 +1625,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="unormimp.h" />
     <ClInclude Include="bmpset.h" />
@@ -2085,11 +1642,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2097,11 +1651,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="ucase.h" />
     <CustomBuild Include="unicode\uchar.h">
@@ -2112,11 +1663,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2124,11 +1672,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\unifilt.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -2138,11 +1683,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2150,11 +1692,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\unifunct.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -2164,11 +1703,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2176,11 +1712,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\unimatch.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -2190,11 +1723,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2202,11 +1732,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\uniset.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -2216,11 +1743,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2228,11 +1752,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="unisetspan.h" />
     <ClInclude Include="uprops.h" />
@@ -2245,11 +1766,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2257,11 +1775,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\uset.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -2271,11 +1786,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2283,11 +1795,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="uset_imp.h" />
     <CustomBuild Include="unicode\usetiter.h">
@@ -2298,11 +1807,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2310,11 +1816,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\icuplug.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -2324,11 +1827,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2336,11 +1836,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="icuplugimp.h" />
     <ClInclude Include="serv.h" />
@@ -2355,11 +1852,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2367,11 +1861,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\appendable.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -2381,11 +1872,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2393,11 +1881,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\bytestream.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -2407,11 +1892,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2419,11 +1901,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\bytestrie.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -2433,11 +1912,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2445,11 +1921,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\bytestriebuilder.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -2459,11 +1932,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2471,11 +1941,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\chariter.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -2485,11 +1952,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2497,11 +1961,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="charstr.h" />
     <ClInclude Include="cstring.h" />
@@ -2514,11 +1975,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2526,11 +1984,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\rep.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -2540,11 +1995,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2552,11 +2004,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\schriter.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -2566,11 +2015,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2578,11 +2024,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\stringpiece.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -2592,11 +2035,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2604,11 +2044,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\stringtriebuilder.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -2618,11 +2055,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2630,11 +2064,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\ucasemap.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -2644,11 +2075,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2656,11 +2084,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\ucharstrie.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -2670,11 +2095,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2682,11 +2104,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\ucharstriebuilder.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -2696,11 +2115,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2708,11 +2124,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\uchriter.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -2722,11 +2135,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2734,11 +2144,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="uinvchar.h" />
     <CustomBuild Include="unicode\uiter.h">
@@ -2749,11 +2156,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2761,11 +2165,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\unistr.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -2775,11 +2176,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2787,11 +2185,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\urep.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -2801,11 +2196,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2813,11 +2205,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="ustr_cnv.h" />
     <ClInclude Include="ustr_imp.h" />
@@ -2829,11 +2218,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2841,11 +2227,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\ustringtrie.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -2855,11 +2238,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2867,11 +2247,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\utext.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -2881,11 +2258,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2893,11 +2267,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\utf.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -2907,11 +2278,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2919,11 +2287,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\utf16.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -2933,11 +2298,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2945,11 +2307,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\utf32.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -2959,11 +2318,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2971,11 +2327,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\utf8.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -2985,11 +2338,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -2997,11 +2347,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\utf_old.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -3011,11 +2358,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -3023,11 +2367,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="unicode\listformatter.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(FullPath)" ..\..\include\unicode
@@ -3037,11 +2378,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
@@ -3049,11 +2387,8 @@
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">copy "%(FullPath)" ..\..\include\unicode
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">copy "%(FullPath)" ..\..\include\unicode
-</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">..\..\include\unicode\%(Filename)%(Extension);%(Outputs)</Outputs>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
@@ -3069,6 +2404,5 @@
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <ImportGroup Label="ExtensionTargets">
-  </ImportGroup>
+  <ImportGroup Label="ExtensionTargets"></ImportGroup>
 </Project>

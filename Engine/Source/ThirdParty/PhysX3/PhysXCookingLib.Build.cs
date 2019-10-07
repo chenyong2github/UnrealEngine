@@ -6,65 +6,8 @@ using System.IO;
 
 public class PhysXCookingLib : ModuleRules
 {
-	enum PhysXLibraryMode
-	{
-		Debug,
-		Profile,
-		Checked,
-		Shipping
-	}
-
-	PhysXLibraryMode GetPhysXLibraryMode(UnrealTargetConfiguration Config)
-	{
-		switch (Config)
-		{
-			case UnrealTargetConfiguration.Debug:
-				if (Target.bDebugBuildsActuallyUseDebugCRT)
-				{
-					return PhysXLibraryMode.Debug;
-				}
-				else
-				{
-					return PhysXLibraryMode.Checked;
-				}
-			case UnrealTargetConfiguration.Shipping:
-				return PhysXLibraryMode.Shipping;
-			case UnrealTargetConfiguration.Test:
-				return PhysXLibraryMode.Profile;
-			case UnrealTargetConfiguration.Development:
-			case UnrealTargetConfiguration.DebugGame:
-			case UnrealTargetConfiguration.Unknown:
-			default:
-				if (Target.bUseShippingPhysXLibraries)
-				{
-					return PhysXLibraryMode.Shipping;
-				}
-				else if (Target.bUseCheckedPhysXLibraries)
-				{
-					return PhysXLibraryMode.Checked;
-				}
-				else
-				{
-					return PhysXLibraryMode.Profile;
-				}
-		}
-	}
-
-	static string GetPhysXLibrarySuffix(PhysXLibraryMode Mode)
-	{
-		switch (Mode)
-		{
-			case PhysXLibraryMode.Debug:
-				return "DEBUG";
-			case PhysXLibraryMode.Checked:
-				return "CHECKED";
-			case PhysXLibraryMode.Profile:
-				return "PROFILE";
-			case PhysXLibraryMode.Shipping:
-			default:
-				return "";
-		}
-	}
+	protected virtual PhysXLibraryMode LibraryMode { get { return Target.GetPhysXLibraryMode(); } }
+    protected virtual string LibrarySuffix         { get { return LibraryMode.AsSuffix(); } }
 
 	public PhysXCookingLib(ReadOnlyTargetRules Target) : base(Target)
 	{
@@ -75,17 +18,13 @@ public class PhysXCookingLib : ModuleRules
             return;
         }
 
-        // Determine which kind of libraries to link against
-        PhysXLibraryMode LibraryMode = GetPhysXLibraryMode(Target.Configuration);
-        string LibrarySuffix = GetPhysXLibrarySuffix(LibraryMode);
-
-        string PhysXLibDir = Target.UEThirdPartySourceDirectory + "PhysX3/Lib/";
+        string PhysXLibDir = Path.Combine(ModuleDirectory, "Lib");
 
         // Libraries and DLLs for windows platform
         if (Target.Platform == UnrealTargetPlatform.Win64)
         {
-            PublicAdditionalLibraries.Add(String.Format("{0}/Win64/VS{1}/PhysX3Cooking{2}_x64.lib", PhysXLibDir, Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), LibrarySuffix));
-            PublicDelayLoadDLLs.Add(String.Format("PhysX3Cooking{0}_x64.dll", LibrarySuffix));
+			PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "Win64", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), String.Format("PhysX3Cooking{0}_x64.lib", LibrarySuffix)));
+			PublicDelayLoadDLLs.Add(String.Format("PhysX3Cooking{0}_x64.dll", LibrarySuffix));
 
             string PhysXBinariesDir = String.Format("$(EngineDir)/Binaries/ThirdParty/PhysX3/Win64/VS{0}/", Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
             string FileName = PhysXBinariesDir + String.Format("PhysX3Cooking{0}_x64.dll", LibrarySuffix);
@@ -94,7 +33,7 @@ public class PhysXCookingLib : ModuleRules
         }
         else if (Target.Platform == UnrealTargetPlatform.Win32)
         {
-            PublicAdditionalLibraries.Add(String.Format("{0}/Win32/VS{1}/PhysX3Cooking{2}_x86.lib", PhysXLibDir, Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), LibrarySuffix));
+			PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "Win32", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), String.Format("PhysX3Cooking{0}_x86.lib", LibrarySuffix)));
             PublicDelayLoadDLLs.Add(String.Format("PhysX3Cooking{0}_x86.dll", LibrarySuffix));
 
             string PhysXBinariesDir = String.Format("$(EngineDir)/Binaries/ThirdParty/PhysX3/Win32/VS{0}/", Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
@@ -104,9 +43,7 @@ public class PhysXCookingLib : ModuleRules
         }
         else if (Target.Platform == UnrealTargetPlatform.Mac)
         {
-            string PhysXBinariesDir = Target.UEThirdPartyBinariesDirectory + "PhysX3/Mac/";
-            string LibraryPath = PhysXBinariesDir + String.Format("libPhysX3Cooking{0}.dylib", LibrarySuffix);
-            
+            string LibraryPath = Path.Combine(Target.UEThirdPartyBinariesDirectory, "PhysX3", "Mac", String.Format("libPhysX3Cooking{0}.dylib", LibrarySuffix));
             PublicDelayLoadDLLs.Add(LibraryPath);
             RuntimeDependencies.Add(LibraryPath);
         }
@@ -121,48 +58,38 @@ public class PhysXCookingLib : ModuleRules
         {
             if (Target.Architecture != "arm-unknown-linux-gnueabihf")
             {
-                PhysXLibDir = Path.Combine(PhysXLibDir, "Linux", Target.Architecture);
-                PublicAdditionalLibraries.Add(PhysXLibDir + String.Format("/libPhysX3Cooking{0}.a", LibrarySuffix));
+				PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "Linux", Target.Architecture, String.Format("libPhysX3Cooking{0}.a", LibrarySuffix)));
             }
-
         }
         else if (Target.Platform == UnrealTargetPlatform.IOS)
         {
-            PhysXLibDir = Path.Combine(PhysXLibDir, "IOS/");
-            PublicAdditionalLibraries.Add(PhysXLibDir + String.Format("/libPhysX3Cooking{0}.a", LibrarySuffix));
+			PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "IOS", String.Format("libPhysX3Cooking{0}.a", LibrarySuffix)));
         }
         else if (Target.Platform == UnrealTargetPlatform.TVOS)
         {
-            PhysXLibDir = Path.Combine(PhysXLibDir, "TVOS/");
-            PublicAdditionalLibraries.Add(PhysXLibDir + String.Format("/libPhysX3Cooking{0}.a", LibrarySuffix));
+			PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "TVOS", String.Format("libPhysX3Cooking{0}.a", LibrarySuffix)));
         }
         else if (Target.Platform == UnrealTargetPlatform.HTML5)
         {
-            PhysXLibDir = Path.Combine(PhysXLibDir, "HTML5/");
-            string OpimizationSuffix = "";
+            string OptimizationSuffix = "";
             if (Target.bCompileForSize)
             {
-                OpimizationSuffix = "_Oz";
+                OptimizationSuffix = "_Oz";
             }
             else
             {
                 if (Target.Configuration == UnrealTargetConfiguration.Development)
                 {
-                    OpimizationSuffix = "_O2";
+                    OptimizationSuffix = "_O2";
                 }
                 else if (Target.Configuration == UnrealTargetConfiguration.Shipping)
                 {
-                    OpimizationSuffix = "_O3";
+                    OptimizationSuffix = "_O3";
                 }
             }
 
-            PublicAdditionalLibraries.Add(PhysXLibDir + "PhysX3Cooking" + OpimizationSuffix + ".bc");
+			PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "HTML5", "PhysX3Cooking" + OptimizationSuffix + ".bc"));
 
-        }
-        else if (Target.Platform == UnrealTargetPlatform.PS4)
-        {
-            PhysXLibDir = Path.Combine(PhysXLibDir, "PS4/");
-            PublicAdditionalLibraries.Add(PhysXLibDir + String.Format("libPhysX3Cooking{0}.a", LibrarySuffix));
         }
         else if (Target.Platform == UnrealTargetPlatform.XboxOne)
         {
@@ -171,15 +98,12 @@ public class PhysXCookingLib : ModuleRules
 			if (XboxOnePlatformType != null)
 			{
 				System.Object VersionName = XboxOnePlatformType.GetMethod("GetVisualStudioCompilerVersionName").Invoke(null, null) as string;
-                PhysXLibDir = Path.Combine(PhysXLibDir, "XboxOne", "VS" + VersionName) + "/";
-
-                PublicAdditionalLibraries.Add(PhysXLibDir + String.Format("PhysX3Cooking{0}.lib", LibrarySuffix));
+				PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "XboxOne", "VS" + VersionName, String.Format("PhysX3Cooking{0}.lib", LibrarySuffix)));
             }
         }
         else if (Target.Platform == UnrealTargetPlatform.Switch)
         {
-            PhysXLibDir = Path.Combine(PhysXLibDir, "Switch/");
-            PublicAdditionalLibraries.Add(PhysXLibDir + String.Format("libPhysX3Cooking{0}.a", LibrarySuffix));
+			PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "Switch", String.Format("libPhysX3Cooking{0}.a", LibrarySuffix)));
         }
 	}
 }

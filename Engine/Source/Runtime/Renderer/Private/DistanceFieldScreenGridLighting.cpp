@@ -598,6 +598,8 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldAOScreenGrid(
 		SCOPED_DRAW_EVENT(RHICmdList, ConeTraceObjects);
 		FTileIntersectionResources* TileIntersectionResources = ((FSceneViewState*)View.State)->AOTileIntersectionResources;
 
+		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, ScreenGridResources->ScreenGridConeVisibility.UAV);
+
 		if (bUseGlobalDistanceField)
 		{
 			check(View.GlobalDistanceFieldInfo.Clipmaps.Num() > 0);
@@ -642,8 +644,6 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldAOScreenGrid(
 				ComputeShader->UnsetParameters(RHICmdList, View);
 			}
 		}
-
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, ScreenGridResources->ScreenGridConeVisibility.UAV);
 	}
 
 	TRefCountPtr<IPooledRenderTarget> DownsampledIrradiance;
@@ -677,6 +677,8 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldAOScreenGrid(
 		Desc.Flags |= GFastVRamConfig.DistanceFieldAODownsampledBentNormal;
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, DownsampledBentNormal, TEXT("DownsampledBentNormal"));
 	}
+
+	RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, ScreenGridResources->ScreenGridConeVisibility.UAV);
 
 	{
 		SCOPED_DRAW_EVENT(RHICmdList, CombineCones);

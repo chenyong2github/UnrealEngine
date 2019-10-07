@@ -71,6 +71,20 @@ public:
 			Data &= ~Mask;
 		}
 	}
+	FORCEINLINE void operator|=(const bool NewValue)
+	{
+		if (NewValue)
+		{
+			Data |= Mask;
+		}
+	}
+	FORCEINLINE void operator&=(const bool NewValue)
+	{
+		if (!NewValue)
+		{
+			Data &= ~Mask;
+		}
+	}
 	FORCEINLINE void AtomicSet(const bool NewValue)
 	{
 		if(NewValue)

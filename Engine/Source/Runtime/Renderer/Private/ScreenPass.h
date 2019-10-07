@@ -248,7 +248,7 @@ struct FScreenPassPipelineState
 };
 
 // Helper function which sets the pipeline state object on the command list prior to invoking a screen pass.
-void SetScreenPassPipelineState(FRHICommandList& RHICmdList, const FScreenPassPipelineState& ScreenPassDraw);
+void RENDERER_API SetScreenPassPipelineState(FRHICommandList& RHICmdList, const FScreenPassPipelineState& ScreenPassDraw);
 
 enum class EScreenPassDrawFlags : uint8
 {

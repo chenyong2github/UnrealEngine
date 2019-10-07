@@ -2060,8 +2060,8 @@ bool GPUFFT::FFTImage2D(FGPUFFTShaderContext& Context, const FIntPoint& Frequenc
 
 	}
 
+	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, DstBuffer.UAV);
 	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, TmpBuffer.UAV);
-
 
 	// Complex transform in the other direction: TmpBuffer fills DstBuffer
 	if (FitsInGroupSharedMemory(ComplexFFTDesc))

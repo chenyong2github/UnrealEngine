@@ -205,6 +205,12 @@ public:
 	**/
 	virtual IAsyncReadRequest* ReadRequest(int64 Offset, int64 BytesToRead, EAsyncIOPriorityAndFlags PriorityAndFlags = AIOP_Normal, FAsyncFileCallBack* CompleteCallback = nullptr, uint8* UserSuppliedMemory = nullptr) = 0;
 
+	/** Return true if this file is backed by a cache, if not, then precache requests are ignored. **/
+	virtual bool UsesCache()
+	{
+		return true;
+	}
+
 	// Non-copyable
 	IAsyncReadFileHandle(const IAsyncReadFileHandle&) = delete;
 	IAsyncReadFileHandle& operator=(const IAsyncReadFileHandle&) = delete;

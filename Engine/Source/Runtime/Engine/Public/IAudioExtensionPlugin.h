@@ -20,22 +20,6 @@
 
 class FAudioDevice;
 
-enum class EAudioPlatform : uint8
-{
-	Windows,
-	Mac,
-	Linux,
-	IOS,
-	Android,
-	XboxOne,
-	Playstation4,
-	Switch,
-	HTML5,
-	Lumin,
-	HoloLens,
-	Unknown
-};
-
 /**
 * Enumeration of audio plugin types
 *
@@ -199,7 +183,7 @@ public:
 	* @param Platform an enumerated platform (i.e. Windows, Playstation4, etc.)
 	* @return true if this plugin supports use on Platform, false otherwise.
 	*/
-	virtual bool SupportsPlatform(EAudioPlatform Platform) = 0;
+	virtual bool SupportsPlatform(const FString& PlatformName) = 0;
 
 	/*
 	* Returns whether this plugin sends audio to an external renderer.

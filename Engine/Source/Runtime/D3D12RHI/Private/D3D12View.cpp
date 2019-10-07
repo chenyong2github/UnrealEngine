@@ -388,6 +388,11 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView_RenderTh
 	return RHICreateShaderResourceView(StructuredBufferRHI);
 }
 
+FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceViewWriteMask_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2D)
+{
+	return RHICreateShaderResourceViewWriteMask(Texture2D);
+}
+
 #if USE_STATIC_ROOT_SIGNATURE
 void FD3D12ConstantBufferView::AllocateHeapSlot()
 {

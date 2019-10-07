@@ -227,12 +227,19 @@ static FAutoConsoleVariableRef CVarAsyncLoadingPrecachePriority(
 	ECVF_Default
 );
 
-EAsyncIOPriorityAndFlags GetAsyncIOPrecachePriorityAndFlags()
+EAsyncIOPriorityAndFlags GetAsyncIOPriority()
 {
 	check(GAsyncLoadingPrecachePriority >= AIOP_MIN && GAsyncLoadingPrecachePriority <= AIOP_MAX);
 	EAsyncIOPriorityAndFlags Priority = (EAsyncIOPriorityAndFlags)FMath::Clamp(GAsyncLoadingPrecachePriority, (int32)AIOP_MIN, (int32)AIOP_MAX);
-	return Priority | AIOP_FLAG_PRECACHE;
+	return Priority;
 }
+
+EAsyncIOPriorityAndFlags GetAsyncIOPrecachePriorityAndFlags()
+{
+	return GetAsyncIOPriority() | AIOP_FLAG_PRECACHE;
+}
+
+
 
 #if !UE_BUILD_SHIPPING
 
@@ -3366,7 +3373,7 @@ void FAsyncPackage::MakeNextPrecacheRequestCurrent()
 	check(AsyncLoader);
 	Read->WaitCompletion();
 
-	bool bReady = AsyncLoader->PrecacheForEvent(CurrentBlockOffset, CurrentBlockBytes);
+	bool bReady = AsyncLoader->PrecacheForEvent(Read, CurrentBlockOffset, CurrentBlockBytes);
 	UE_CLOG(!bReady, LogStreaming, Warning, TEXT("Precache request should have been hot %s."), *Linker->Filename);
 	for (int32 Index = Req.FirstExportCovered; Index <= Req.LastExportCovered; Index++)
 	{
@@ -3378,7 +3385,6 @@ void FAsyncPackage::MakeNextPrecacheRequestCurrent()
 		RemoveNode(EEventLoadNode::Export_StartIO, FPackageIndex::FromExport(LocalExportIndex));
 	}
 	PrecacheRequests.Remove(Read);
-	delete Read;	
 }
 
 void FAsyncPackage::FlushPrecacheBuffer()
@@ -4880,7 +4886,7 @@ void FAsyncLoadingThread::Stop()
 
 void FAsyncLoadingThread::CancelLoading()
 {
-	check(IsInGameThread());	
+	check(IsInGameThread());
 
 	bShouldCancelLoading = true;
 	if (IsMultithreaded())
@@ -4974,7 +4980,7 @@ void FAsyncLoadingThread::CancelAsyncLoadingInternal()
 
 void FAsyncLoadingThread::FinalizeCancelAsyncLoadingInternal()
 {
-	check(IsInGameThread());
+	check(IsInGameThread());	
 
 #if THREADSAFE_UOBJECTS
 	FScopeLock QueueLock(&QueueCritical);
@@ -5102,8 +5108,8 @@ void FAsyncLoadingThread::NotifyConstructedDuringAsyncLoading(UObject* Object, b
 		{
 			AsyncPackage->MarkNewObjectForLoadIfItIsAnExport(Object);
 		}
+		}
 	}
-}
 
 void FAsyncLoadingThread::FireCompletedCompiledInImport(FGCObject* AsyncPackage, FPackageIndex Import)
 {
@@ -6542,7 +6548,7 @@ EAsyncPackageState::Type FAsyncPackage::PostLoadDeferredObjects(double InTickSta
 		{
 			Result = EAsyncPackageState::TimeOut;
 		}
-	
+
 		// Mark package as having been fully loaded and update load time.
 		if (Result == EAsyncPackageState::Complete && LinkerRoot && !bLoadHasFailed)
 		{
@@ -6772,14 +6778,14 @@ void FAsyncPackage::Cancel()
 
 	FUObjectSerializeContext* LoadContext = GetSerializeContext();
 	if (LoadContext)
-	{
+		{			
 		TArray<UObject*>& ThreadObjLoaded = LoadContext->PRIVATE_GetObjectsLoadedInternalUseOnly();
 		if (ThreadObjLoaded.Num())
-		{
+			{
 			PackageObjLoaded.Append(ThreadObjLoaded);
 			ThreadObjLoaded.Reset();
+			}
 		}
-	}
 
 	{
 		// Clear load flags from any referenced objects
@@ -7046,7 +7052,7 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoading(bool bUseTimeLimit,
 	CSV_CUSTOM_STAT(FileIO, ExistingQueuedPackagesQueueDepth, GetExistingAsyncPackagesCount(), ECsvCustomStatOp::Set);
 
 	{
-		SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_TickAsyncLoadingGameThread);
+		SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_TickAsyncLoadingGameThread); 
 		TickAsyncLoading(bUseTimeLimit, bUseFullTimeLimit, TimeLimit);
 	}
 
@@ -7198,7 +7204,7 @@ void FAsyncArchive::ReadCallback(bool bWasCancelled, IAsyncReadRequest* Request)
 			{
 				int64 Size = FMath::Min<int64>(FMaxPackageSummarySize::Value, FileSize);
 				LogItem(TEXT("Starting Summary"), 0, Size);
-				SummaryRequestPtr = Handle->ReadRequest(0, Size, AIOP_Normal, &ReadCallbackFunction);
+				SummaryRequestPtr = Handle->ReadRequest(0, Size, GetAsyncIOPriority(), &ReadCallbackFunction);
 				// I need a precache request here to keep the memory alive until I submit the header request
 				SummaryPrecacheRequestPtr = Handle->ReadRequest(0, Size, GetAsyncIOPrecachePriorityAndFlags() );
 #if WITH_EDITOR
@@ -7444,7 +7450,7 @@ void FAsyncArchive::CompleteRead()
 			GAsyncArchiveMemTracker.Allocate(FileName, PrecacheEndPos - PrecacheStartPos);
 #endif
 			// keeps the last cache block of the header around until we process the first export
-			if (LoadPhase != ELoadPhase::ProcessingExports)
+			if (LoadPhase != ELoadPhase::ProcessingExports && Handle->UsesCache())
 			{
 				CompleteCancel();
 				CanceledReadRequestPtr = Handle->ReadRequest(PrecacheEndPos - HeaderSizeWhenReadingExportsFromSplitFile - 1, 1, GetAsyncIOPrecachePriorityAndFlags());
@@ -7559,29 +7565,34 @@ bool FAsyncArchive::WaitForIntialPhases(float InTimeLimit)
 	return true;
 }
 
-bool FAsyncArchive::PrecacheInternal(int64 RequestOffset, int64 RequestSize, bool bApplyMinReadSize)
+bool FAsyncArchive::PrecacheInternal(int64 RequestOffset, int64 RequestSize, bool bApplyMinReadSize, IAsyncReadRequest* Read)
 {
 	// CAUTION! This is possibly called the first time from a random IO thread.
 
 	bool bIsWaitingForSummary =( LoadPhase == ELoadPhase::WaitingForSummary);
+
+	bool bReadIsActualRequest = !Handle->UsesCache();
 
 	if (!bIsWaitingForSummary)
 	{
 		if (RequestSize == 0 || (RequestOffset >= PrecacheStartPos && RequestOffset + RequestSize <= PrecacheEndPos))
 		{
 			// ready
+			delete Read;
 			return true;
 		}
 		if (ReadRequestPtr && RequestOffset >= ReadRequestOffset && RequestOffset + RequestSize <= ReadRequestOffset + ReadRequestSize)
 		{
 			// current request contains request
+			bool bResult = false;
 			if (ReadRequestPtr->PollCompletion())
 			{
 				CompleteRead();
 				check(RequestOffset >= PrecacheStartPos && RequestOffset + RequestSize <= PrecacheEndPos);
-				return true;
+				bResult = true;
 			}
-			return false;
+			delete Read;
+			return bResult;
 		}
 		if (ReadRequestPtr)
 		{
@@ -7595,7 +7606,7 @@ bool FAsyncArchive::PrecacheInternal(int64 RequestOffset, int64 RequestSize, boo
 	ReadRequestSize = RequestSize;
 
 
-	if (bApplyMinReadSize && !bIsWaitingForSummary)
+	if (bApplyMinReadSize && !bIsWaitingForSummary && !bReadIsActualRequest)
 	{
 #if WITH_EDITOR
 		static int64 MinimumReadSize = 1024 * 1024;
@@ -7624,10 +7635,19 @@ bool FAsyncArchive::PrecacheInternal(int64 RequestOffset, int64 RequestSize, boo
 #endif
 	check(ReadRequestOffset - HeaderSizeWhenReadingExportsFromSplitFile >= 0 && ReadRequestSize > 0);
 
+	if (Read && bReadIsActualRequest)
+	{
+		ReadRequestPtr = Read;
+		Read = nullptr;
+	}
+	else
+	{
 	// caution, this callback can fire before this even returns....and so bIsWaitingForSummary must be a local variable or we could get all confused by concurrency!
-	ReadRequestPtr = Handle->ReadRequest(ReadRequestOffset - HeaderSizeWhenReadingExportsFromSplitFile, ReadRequestSize, AIOP_Normal
+		ReadRequestPtr = Handle->ReadRequest(ReadRequestOffset - HeaderSizeWhenReadingExportsFromSplitFile, ReadRequestSize, GetAsyncIOPriority()
 		, (GEventDrivenLoaderEnabled && bIsWaitingForSummary) ? &ReadCallbackFunctionForLinkerLoad : nullptr
 		);
+	}
+	delete Read;
 	if (!bIsWaitingForSummary && ReadRequestPtr->PollCompletion())
 	{
 		LogItem(TEXT("Read Start Hot"), ReadRequestOffset - HeaderSizeWhenReadingExportsFromSplitFile, ReadRequestSize, StartTime);
@@ -7682,16 +7702,23 @@ IAsyncReadRequest* FAsyncArchive::MakeEventDrivenPrecacheRequest(int64 Offset, i
 	if (LoadPhase == ELoadPhase::WaitingForFirstExport)
 	{
 		// we need to avoid tearing down the old file and requests until we have the one in flight
-		double StartTime = FPlatformTime::Seconds();
 		HeaderSizeWhenReadingExportsFromSplitFile = HeaderSize;
-
 		FString NewFileName = FPaths::GetBaseFilename(FileName, false) + TEXT(".uexp");
-		IAsyncReadFileHandle* NewHandle = FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*NewFileName);
+		IAsyncReadFileHandle* NewHandle;
+		{
+			double StartTime = FPlatformTime::Seconds();
+			NewHandle = FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*NewFileName);
 		check(NewHandle); // this generally cannot fail because it is async
+			LogItem(TEXT("Open UExp"), Offset - HeaderSizeWhenReadingExportsFromSplitFile, BytesToRead, StartTime);
+		}
+		{
+			double StartTime = FPlatformTime::Seconds();
 
+			check(Offset - HeaderSizeWhenReadingExportsFromSplitFile >= 0);
 
-		check(Offset - HeaderSizeWhenReadingExportsFromSplitFile >= 0);
-		IAsyncReadRequest* Precache = NewHandle->ReadRequest(Offset - HeaderSizeWhenReadingExportsFromSplitFile, BytesToRead, GetAsyncIOPrecachePriorityAndFlags(), CompleteCallback);
+			EAsyncIOPriorityAndFlags Prio = NewHandle->UsesCache() ? GetAsyncIOPrecachePriorityAndFlags() : GetAsyncIOPriority();
+
+			IAsyncReadRequest* Precache = NewHandle->ReadRequest(Offset - HeaderSizeWhenReadingExportsFromSplitFile, BytesToRead, Prio, CompleteCallback);
 		FlushCache();
 		if (Handle)
 		{
@@ -7712,10 +7739,12 @@ IAsyncReadRequest* FAsyncArchive::MakeEventDrivenPrecacheRequest(int64 Offset, i
 		LogItem(TEXT("First Precache"), Offset - HeaderSizeWhenReadingExportsFromSplitFile, BytesToRead, StartTime);
 		return Precache;
 	}
+	}
 	double StartTime = FPlatformTime::Seconds();
 	check(Offset - HeaderSizeWhenReadingExportsFromSplitFile >= 0);
 	check(Offset + BytesToRead <= TotalSizeOrMaxInt64IfNotReady());
-	IAsyncReadRequest* Precache = Handle->ReadRequest(Offset - HeaderSizeWhenReadingExportsFromSplitFile, BytesToRead, GetAsyncIOPrecachePriorityAndFlags(), CompleteCallback);
+	EAsyncIOPriorityAndFlags Prio = Handle->UsesCache() ? GetAsyncIOPrecachePriorityAndFlags() : GetAsyncIOPriority();
+	IAsyncReadRequest* Precache = Handle->ReadRequest(Offset - HeaderSizeWhenReadingExportsFromSplitFile, BytesToRead, Prio, CompleteCallback);
 	LogItem(TEXT("Event Precache"), Offset - HeaderSizeWhenReadingExportsFromSplitFile, BytesToRead, StartTime);
 	return Precache;
 }
@@ -7768,10 +7797,10 @@ bool FAsyncArchive::Precache(int64 RequestOffset, int64 RequestSize)
 	return PrecacheInternal(RequestOffset, RequestSize);
 }
 
-bool FAsyncArchive::PrecacheForEvent(int64 RequestOffset, int64 RequestSize)
+bool FAsyncArchive::PrecacheForEvent(IAsyncReadRequest* Read, int64 RequestOffset, int64 RequestSize)
 {
 	check(int32(LoadPhase) > int32(ELoadPhase::WaitingForHeader));
-	return PrecacheInternal(RequestOffset, RequestSize, false);
+	return PrecacheInternal(RequestOffset, RequestSize, false, Read);
 }
 
 

@@ -154,7 +154,7 @@ void FLuminTargetSettingsDetails::CopySetupFilesIntoProject()
 
 void FLuminTargetSettingsDetails::BuildAudioSection(IDetailLayoutBuilder& DetailBuilder)
 {
-	AudioPluginManager.BuildAudioCategory(DetailBuilder, EAudioPlatform::Lumin);
+	AudioPluginManager.BuildAudioCategory(DetailBuilder, FString(TEXT("Lumin")));
 }
 
 void FLuminTargetSettingsDetails::BuildAppTileSection(IDetailLayoutBuilder& DetailBuilder)

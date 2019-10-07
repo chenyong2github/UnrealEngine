@@ -39,6 +39,11 @@ struct FHTML5PlatformProperties
 		return "HTML5";
 	}
 
+	static FORCEINLINE const TCHAR* GetRuntimeSettingsClassName()
+	{
+		return TEXT("/Script/HTML5PlatformEditor.HTML5TargetSettings");
+	}
+
 	static FORCEINLINE bool RequiresCookedData( )
 	{
 		return true;

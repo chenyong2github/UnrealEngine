@@ -100,7 +100,7 @@
 #   define ICU_NO_USER_DATA_OVERRIDE 1
 #elif U_PLATFORM == U_PF_OS390
 #   include "unicode/ucnv.h"   /* Needed for UCNV_SWAP_LFNL_OPTION_STRING */
-#elif U_PLATFORM_IS_DARWIN_BASED || U_PLATFORM_IS_LINUX_BASED || U_PLATFORM == U_PF_BSD || U_PLATFORM == U_PF_ORBIS || U_PLATFORM == U_PF_SOLARIS
+#elif U_PLATFORM_IS_DARWIN_BASED || U_PLATFORM_IS_LINUX_BASED || U_PLATFORM == U_PF_BSD || U_PLATFORM == U_PF_SOLARIS
 #   include <limits.h>
 #   include <unistd.h>
 #   if U_PLATFORM == U_PF_SOLARIS
@@ -1028,7 +1028,7 @@ uprv_tzname(int n)
 #endif*/
 
 /* This code can be temporarily disabled to test tzname resolution later on. */
-#if !defined (DEBUG_TZNAME) && (U_PLATFORM != U_PF_ORBIS) && !defined(PLATFORM_HOLOLENS)
+#if !defined (DEBUG_TZNAME) && (!defined(U_PLATFORM_HAS_GETENV) || U_PLATFORM_HAS_GETENV != 0) && !defined(PLATFORM_HOLOLENS)
     tzid = getenv("TZ");
     if (tzid != NULL && isValidOlsonID(tzid)
 #if U_PLATFORM == U_PF_SOLARIS
@@ -1454,7 +1454,7 @@ static const char *uprv_getPOSIXIDForCategory(int category)
             || (uprv_strcmp("C", posixID) == 0)
             || (uprv_strcmp("POSIX", posixID) == 0))
         {
-#if U_PLATFORM == U_PF_ORBIS || PLATFORM_HOLOLENS
+#if (defined(U_PLATFORM_HAS_GETENV) && U_PLATFORM_HAS_GETENV == 0) || PLATFORM_HOLOLENS
 
 #else
             /* Maybe we got some garbage.  Try something more reasonable */

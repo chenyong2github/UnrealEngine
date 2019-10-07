@@ -72,6 +72,7 @@ void FMorphVertexBuffer::InitDynamicRHI()
 	// Create the buffer rendering resource
 	uint32 Size = LodData.GetNumVertices() * sizeof(FMorphGPUSkinVertex);
 	FRHIResourceCreateInfo CreateInfo;
+	CreateInfo.DebugName = TEXT("MorphVertexBuffer");
 
 	const bool bUseGPUMorphTargets = UseGPUMorphTargets(GMaxRHIShaderPlatform);
 	bUsesComputeShader = bUseGPUMorphTargets;
@@ -470,6 +471,7 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(FGPUSkinCache* GPUSki
 		if (IsValidRef(LOD.MorphVertexBuffer.GetUAV()))
 		{
 			ClearUAV(RHICmdList, LOD.MorphVertexBuffer.GetUAV(), LOD.MorphVertexBuffer.GetUAVSize(), 0);
+			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, LOD.MorphVertexBuffer.GetUAV());
 		}
 	}
 	LOD.MorphVertexBuffer.bNeedsInitialClear = false;

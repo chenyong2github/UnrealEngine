@@ -65,23 +65,23 @@ public class VorbisFile : ModuleRules
 		else if (Target.Platform == UnrealTargetPlatform.HTML5)
 		{
 			string VorbisLibPath = VorbisPath + "lib/HTML5/";
-			string OpimizationSuffix = "";
+			string OptimizationSuffix = "";
 			if (Target.bCompileForSize)
 			{
-				OpimizationSuffix = "_Oz";
+				OptimizationSuffix = "_Oz";
 			}
 			else
 			{
 				if (Target.Configuration == UnrealTargetConfiguration.Development)
 				{
-					OpimizationSuffix = "_O2";
+					OptimizationSuffix = "_O2";
 				}
 				else if (Target.Configuration == UnrealTargetConfiguration.Shipping)
 				{
-					OpimizationSuffix = "_O3";
+					OptimizationSuffix = "_O3";
 				}
 			}
-			PublicAdditionalLibraries.Add(VorbisLibPath + "libvorbisfile" + OpimizationSuffix + ".bc");
+			PublicAdditionalLibraries.Add(VorbisLibPath + "libvorbisfile" + OptimizationSuffix + ".bc");
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
 		{

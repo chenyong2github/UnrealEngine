@@ -3,19 +3,22 @@
 #include "../Common.ush"
 #include "RayTracingCommon.ush"
 
-[shader("closesthit")]
-void OpaqueShadowCHS(inout FPackedMaterialClosestHitPayload PackedPayload, in FDefaultAttributes Attributes)
+RAY_TRACING_ENTRY_CLOSEST_HIT(OpaqueShadowCHS,
+	FPackedMaterialClosestHitPayload, PackedPayload,
+	FDefaultAttributes, Attributes)
 {
 	PackedPayload.HitT = RayTCurrent();
 }
 
-[shader("closesthit")]
-void HiddenMaterialCHS(inout FPackedMaterialClosestHitPayload PackedPayload, in FDefaultAttributes Attributes)
+RAY_TRACING_ENTRY_CLOSEST_HIT(HiddenMaterialCHS,
+	FPackedMaterialClosestHitPayload, PackedPayload,
+	FDefaultAttributes, Attributes)
 {
 }
 
-[shader("anyhit")] 
-void HiddenMaterialAHS(inout FPackedMaterialClosestHitPayload PackedPayload, in FDefaultAttributes Attributes)
+RAY_TRACING_ENTRY_ANY_HIT(HiddenMaterialAHS,
+	FPackedMaterialClosestHitPayload, PackedPayload,
+	FDefaultAttributes, Attributes)
 {
 	IgnoreHit();
 }  

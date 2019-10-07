@@ -152,7 +152,7 @@ public:
 	bool SendReadMessage(uint8* Destination, int64 BytesToRead);
 	bool SendWriteMessage(const uint8* Source, int64 BytesToWrite);
 
-	static void ConvertServerFilenameToClientFilename(FString& FilenameToConvert, const FString& InServerEngineDir, const FString& InServerProjectDir);
+	static void ConvertServerFilenameToClientFilename(FString& FilenameToConvert, const FString& InServerEngineDir, const FString& InServerProjectDir, const FString& InServerEnginePlatformExtensionsDir, const FString& InServerProjectPlatformExtensionsDir);
 
 
 	virtual FString GetVersionInfo() const;
@@ -246,6 +246,11 @@ protected:
 	/** The server game dir */
 	FString ServerProjectDir;
 
+	/** The server engine platform extensions dir */
+	FString ServerEnginePlatformExtensionsDir;
+
+	/** The server project platform extensions dir */
+	FString ServerProjectPlatformExtensionsDir;
 
 	/** This is the "TOC" of the server */
 	FServerTOC ServerFiles;

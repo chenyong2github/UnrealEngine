@@ -708,7 +708,6 @@ void FSlateRHIRenderingPolicy::DrawElements(
 
 			// Something may have messed with the viewport size so set it back to the full target.
 			RHICmdList.SetViewport(0, 0, 0, BackBuffer.GetSizeXY().X, BackBuffer.GetSizeXY().Y, 0.0f);
-			RHICmdList.SetStreamSource(0, VertexBufferPtr->VertexBufferRHI, 0);
 		}
 				
 #if WITH_SLATE_VISUALIZERS

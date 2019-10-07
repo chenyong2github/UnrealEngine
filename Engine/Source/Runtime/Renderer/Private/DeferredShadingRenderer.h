@@ -110,7 +110,7 @@ public:
 	/** Begin the water GBuffer rendering pass*/
 	static void BeginRenderingWaterGBuffer(FRHICommandList& RHICmdList, FExclusiveDepthStencil::Type DepthStencilAccess, bool bBindQuadOverdrawBuffers, EShaderPlatform InShaderPlatform);
 	/** End the water GBuffer rendering pass*/
-	void FinishWaterGBufferPassAndResolve(FRHICommandListImmediate& RHICmdList);
+	void FinishWaterGBufferPassAndResolve(FRHICommandListImmediate& RHICmdList, FExclusiveDepthStencil::Type DepthStencilAccess);
 	/**
 	* Renders the scene's single layer water base pass
 	* @return true if anything was rendered

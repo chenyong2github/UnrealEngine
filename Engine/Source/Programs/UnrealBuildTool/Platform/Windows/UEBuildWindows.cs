@@ -1840,15 +1840,6 @@ namespace UnrealBuildTool
 			// both Win32 and Win64 use Windows headers, so we enforce that here
 			CompileEnvironment.Definitions.Add(String.Format("OVERRIDE_PLATFORM_HEADER_NAME={0}", GetPlatformName()));
 
-			FileReference MorpheusShaderPath = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Shaders", "Private", "Platform", "PS4", "PostProcessHMDMorpheus.usf");
-			if (FileReference.Exists(MorpheusShaderPath))
-			{
-				CompileEnvironment.Definitions.Add("HAS_MORPHEUS=1");
-
-				//on PS4 the SDK now handles distortion correction.  On PC we will still have to handle it manually,				
-				CompileEnvironment.Definitions.Add("MORPHEUS_ENGINE_DISTORTION=1");
-			}
-
 			// Add path to Intel math libraries when using ICL based on target platform
 			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Intel)
 			{

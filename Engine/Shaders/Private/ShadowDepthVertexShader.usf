@@ -359,29 +359,32 @@ void Main(
 	OutputVertexID( OutParameters );
 }
 
+// Vertex shader exports must match GS inputs.
+// This is a requirement on some platforms.
 void MainForGS(
+	OPTIONAL_VertexID
 	FVertexFactoryInput Input,
 #if USING_TESSELLATION
-	out FShadowDepthVSToDS OutParameters,
+	out FShadowDepthVSToDS OutParameters
 #elif ONEPASS_POINTLIGHT_SHADOW
-	out FShadowDepthVSToGS OutParameters,
+	out FShadowDepthVSToGS OutParameters
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && USING_VERTEX_SHADER_LAYER
-	out uint LayerIndex : SV_RenderTargetArrayIndex,
+	, out uint LayerIndex : SV_RenderTargetArrayIndex
 #endif
 #else
-	out FShadowDepthVSToPS OutParameters,
+	out FShadowDepthVSToPS OutParameters
 #endif
-	OPTIONAL_VertexID
-	out float4 OutPosition : SV_POSITION
 	)
 {
+	float4 UnusedPosition;
+
 	Main(Input,
 		OutParameters,
 		OPTIONAL_VertexID_PARAM
 #if !USING_TESSELLATION && (FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && ONEPASS_POINTLIGHT_SHADOW && USING_VERTEX_SHADER_LAYER)
 		LayerIndex,
 #endif
-		OutPosition);
+		UnusedPosition);
 }
 
 #define USING_ONEPASS_POINT_VERTEX_LAYER	(FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && ONEPASS_POINTLIGHT_SHADOW && USING_VERTEX_SHADER_LAYER)
@@ -448,24 +451,27 @@ void PositionOnlyMain(
 }
 
 
+// Vertex shader exports must match GS inputs.
+// This is a requirement on some platforms.
 void PositionOnlyMainForGS(
 	in FPositionAndNormalOnlyVertexFactoryInput Input,
 #if USING_ONEPASS_POINT_VERTEX_LAYER
 	out uint LayerIndex : SV_RenderTargetArrayIndex,
 #endif
 #if ONEPASS_POINTLIGHT_SHADOW
-	out FShadowDepthVSToGS OutParameters,
+	out FShadowDepthVSToGS OutParameters
 #else
-	out FShadowDepthVSToPS OutParameters,
+	out FShadowDepthVSToPS OutParameters
 #endif
-	out float4 OutPosition : SV_POSITION
 	)
 {
+	float4 UnusedPosition;
+
 	PositionOnlyMain(Input,
 #if USING_ONEPASS_POINT_VERTEX_LAYER
 		LayerIndex,
 #endif
-		OutParameters, OutPosition);
+		OutParameters, UnusedPosition);
 }
 
 #endif

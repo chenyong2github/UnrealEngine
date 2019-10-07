@@ -431,6 +431,10 @@ struct FTexturePlatformData
 	int32 NumSlices;
 	/** Format in which mip data is stored. */
 	EPixelFormat PixelFormat;
+	/** Optional extra data that the runtime may need. */
+	uint32 ExtData;
+	/** Number of mips making up the mip tail, which must always be resident */
+	uint32 NumMipsInTail;
 	/** Mip data or VT data. one or the other. */
 	TIndirectArray<struct FTexture2DMipMap> Mips;
 	struct FVirtualTextureBuiltData* VTData;

@@ -613,6 +613,7 @@ struct FShaderCompilerInput
 	FExtraShaderCompilerSettings ExtraSettings;
 
 	FShaderCompilerInput() :
+		Target(SF_NumFrequencies, SP_NumPlatforms),
 		bSkipPreprocessedCache(false),
 		bGenerateDirectCompileFile(false),
 		bCompilingForShaderPipeline(false),
@@ -821,10 +822,10 @@ typedef uint32 unaligned_uint32;
 // later we can transform that to the actual class passed around at the RHI level
 class FShaderCodeReader
 {
-	const TArray<uint8>& ShaderCode;
+	TArrayView<const uint8> ShaderCode;
 
 public:
-	FShaderCodeReader(const TArray<uint8>& InShaderCode)
+	FShaderCodeReader(TArrayView<const uint8> InShaderCode)
 		: ShaderCode(InShaderCode)
 	{
 		check(ShaderCode.Num());
@@ -1127,16 +1128,19 @@ extern RENDERCORE_API bool CheckVirtualShaderFilePath(const FString& VirtualPath
  */
 extern RENDERCORE_API FString ParseVirtualShaderFilename(const FString& InFilename);
 
+/** Replaces virtual platform path with appropriate path for a given ShaderPlatform. Returns true if path was changed. */
+extern RENDERCORE_API bool ReplaceVirtualFilePathForShaderPlatform(FString& InOutVirtualFilePath, EShaderPlatform ShaderPlatform);
+
 /**
  * Loads the shader file with the given name.
  * @param VirtualFilePath - The virtual path of shader file to load.
  * @param OutFileContents - If true is returned, will contain the contents of the shader file. Can be null.
  * @return True if the file was successfully loaded.
  */
-extern RENDERCORE_API bool LoadShaderSourceFile(const TCHAR* VirtualFilePath, FString* OutFileContents, TArray<FShaderCompilerError>* OutCompileErrors);
+extern RENDERCORE_API bool LoadShaderSourceFile(const TCHAR* VirtualFilePath, EShaderPlatform ShaderPlatform, FString* OutFileContents, TArray<FShaderCompilerError>* OutCompileErrors);
 
 /** Loads the shader file with the given name.  If the shader file couldn't be loaded, throws a fatal error. */
-extern RENDERCORE_API void LoadShaderSourceFileChecked(const TCHAR* VirtualFilePath, FString& OutFileContents);
+extern RENDERCORE_API void LoadShaderSourceFileChecked(const TCHAR* VirtualFilePath, EShaderPlatform ShaderPlatform, FString& OutFileContents);
 
 /**
  * Recursively populates IncludeFilenames with the include filenames from Filename

@@ -105,8 +105,7 @@ float3 GetSkyRadiance(float3 Direction, float Roughness)
 	return GetSkyLightReflection(Direction, Roughness, SkyAverageBrightness);
 }
 
-[shader("raygeneration")]
-void RayTracingPrimaryRaysRGS()
+RAY_TRACING_ENTRY_RAYGEN(RayTracingPrimaryRaysRGS)
 {
 	uint2 DispatchThreadId = DispatchRaysIndex().xy + View.ViewRectMin;
 	uint2 PixelCoord = GetPixelCoord(DispatchThreadId, UpscaleFactor);

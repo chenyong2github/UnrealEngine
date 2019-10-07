@@ -38,7 +38,7 @@ struct RENDERCORE_API FRayGenShaderUtils
 			FRHIRayTracingShader* RayGenShaderTable[] = { RayGenerationShader->GetRayTracingShader() };
 			Initializer.SetRayGenShaderTable(RayGenShaderTable);
 
-			FRHIRayTracingPipelineState* Pipeline = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(Initializer);
+			FRayTracingPipelineState* Pipeline = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(RHICmdList, Initializer);
 			RHICmdList.RayTraceDispatch(Pipeline, RayGenerationShader->GetRayTracingShader(), GlobalResources, Resolution.X, Resolution.Y);
 		});
 	}

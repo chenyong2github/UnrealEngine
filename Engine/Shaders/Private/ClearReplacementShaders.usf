@@ -6,73 +6,86 @@
 
 #include "Common.ush"
 
-#ifndef Type
-#define Type float4
+#if ENABLE_CLEAR_VALUE
+	VALUE_TYPE ClearValue;
+#else
+	static const VALUE_TYPE ClearValue = (VALUE_TYPE)0;
 #endif
 
-Type ClearColor;
-
-float4 ClearVS(uint Id : SV_VertexID) : SV_POSITION
-{
-	int x = Id &  1;
-	int y = Id >> 1;
-
-	return float4(x * 2 - 1, y * 2 - 1, 0, 1);
-}
-
-
-float4 ClearPS() : SV_Target0
-{
-	return ClearColor;
-}
-
 #if COMPUTESHADER
-RWTexture2D<Type> ClearTextureRW;
-uint4 TargetBounds; //xy upperleft, zw lowerright
 
-[numthreads(8,8,1)]
-void ClearTexture2DCS(uint2 Position : SV_DispatchThreadID)
-{
-	ClearTextureRW[Position] = ClearColor;
-}
+	#if ENABLE_BOUNDS
+		uint4 MinBounds;
+		uint4 MaxBounds;
+	#endif
 
-//clear with emulated scissor rects.
-[numthreads(8, 8, 1)]
-void ClearTexture2DScissorCS(uint2 Position : SV_DispatchThreadID)
-{
-	uint2 FinalPos = Position + TargetBounds.xy;
-	if (all(FinalPos < TargetBounds.zw))
+	#if RESOURCE_TYPE == 0
+
+		RWBuffer        <VALUE_TYPE> ClearResource;
+		#define ADDR(p) (p).x
+		#define COMP(a,b) ((a).x < (b).x)
+
+	#elif RESOURCE_TYPE == 1
+
+		RWTexture2D     <VALUE_TYPE> ClearResource;
+		#define ADDR(p) (p).xy
+		#define COMP(a,b) (((a).x < (b).x) && ((a).y < (b).y))
+
+	#elif RESOURCE_TYPE == 2
+
+		RWTexture2DArray<VALUE_TYPE> ClearResource;
+		#define ADDR(p) (p).xyz
+		#define COMP(a,b) (((a).x < (b).x) && ((a).y < (b).y) && ((a).z < (b).z))
+
+	#elif RESOURCE_TYPE == 3
+
+		RWTexture3D     <VALUE_TYPE> ClearResource;
+		#define ADDR(p) (p).xyz
+		#define COMP(a,b) (((a).x < (b).x) && ((a).y < (b).y) && ((a).z < (b).z))
+
+	#endif
+
+	[numthreads(THREADGROUPSIZE_X, THREADGROUPSIZE_Y, THREADGROUPSIZE_Z)]
+	void ClearCS(uint3 Position : SV_DispatchThreadID)
 	{
-		ClearTextureRW[FinalPos] = ClearColor;
+	#if ENABLE_BOUNDS
+		ADDR(Position) += ADDR(MinBounds);
+		if (COMP(Position, MaxBounds))
+	#endif
+		{
+			ClearResource[ADDR(Position)] = ClearValue;
+		}
 	}
-}
 
+#else
 
-// x: clear value, y: number of uint's to clear, z: unused, w: unused
-uint4 ClearBufferCSParams;
-RWBuffer<uint> ClearBufferRW;
+	#if ENABLE_BOUNDS
+		float2 MinBounds;
+		float2 MaxBounds;
+	#endif
 
-[numthreads(64,1,1)]
-void ClearBufferCS(uint Position : SV_DispatchThreadID)
-{
-    if (Position < ClearBufferCSParams.y)
-    {
-        ClearBufferRW[Position] = ClearBufferCSParams.x;
-    }
-}
+	#if ENABLE_DEPTH
+		float Depth;
+	#else
+		static const float Depth = 0;
+	#endif
 
-RWTexture2DArray<Type> ClearTextureArrayRW;
-[numthreads(8, 8, 1)]
-void ClearTexture2DArrayCS(uint3 Position : SV_DispatchThreadID)
-{
-	ClearTextureArrayRW[Position] = ClearColor;
-}
+	float4 ClearVS(uint Id : SV_VertexID) : SV_POSITION
+	{
+		float2 UV = float2(Id & 1, Id >> 1);
 
-RWTexture3D<Type> ClearVolumeRW;
-[numthreads(4, 4, 4)]
-void ClearVolumeCS(uint3 Position : SV_DispatchThreadID)
-{
-	ClearVolumeRW[Position] = ClearColor;
-}
+#if ENABLE_BOUNDS
+		float2 Pos = lerp(MinBounds, MaxBounds, UV);
+#else
+		float2 Pos = UV * 2 - 1;
+#endif
 
-#endif // COMPUTESHADER
+		return float4(Pos, Depth, 1);
+	}
+
+	VALUE_TYPE ClearPS() : SV_Target0
+	{
+		return ClearValue;
+	}
+
+#endif

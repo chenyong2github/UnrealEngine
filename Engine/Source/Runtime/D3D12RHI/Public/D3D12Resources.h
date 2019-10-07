@@ -735,7 +735,15 @@ class FD3D12TransientResource
 public:
 	void Swap(FD3D12TransientResource&) {}
 };
-class FD3D12FastClearResource {};
+class FD3D12FastClearResource
+{
+public:
+	inline void GetWriteMaskProperties(void*& OutData, uint32& OutSize)
+	{
+		OutData = nullptr;
+		OutSize = 0;
+	}
+};
 #endif
 
 /** Index buffer resource class that stores stride information. */

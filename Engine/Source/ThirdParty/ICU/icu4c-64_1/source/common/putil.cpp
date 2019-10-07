@@ -1083,7 +1083,7 @@ uprv_tzname(int n)
 #endif*/
 
 /* This code can be temporarily disabled to test tzname resolution later on. */
-#ifndef DEBUG_TZNAME
+#if !defined(DEBUG_TZNAME) && (!defined(U_PLATFORM_HAS_GETENV) || U_PLATFORM_HAS_GETENV != 0)
     tzid = getenv("TZ");
     if (tzid != NULL && isValidOlsonID(tzid)
 #if U_PLATFORM == U_PF_SOLARIS
@@ -1467,7 +1467,7 @@ static void U_CALLCONV TimeZoneDataDirInitFn(UErrorCode &status) {
     if (getIcuDataDirectoryUnderWindowsDirectory(datadir_path_buffer, UPRV_LENGTHOF(datadir_path_buffer))) {
         dir = datadir_path_buffer;
     }
-#else
+#elif (!defined(U_PLATFORM_HAS_GETENV) || U_PLATFORM_HAS_GETENV == 1) 
     dir = getenv("ICU_TIMEZONE_FILES_DIR");
 #endif // U_PLATFORM_HAS_WINUWP_API
 
@@ -1535,6 +1535,9 @@ static const char *uprv_getPOSIXIDForCategory(int category)
             || (uprv_strcmp("C", posixID) == 0)
             || (uprv_strcmp("POSIX", posixID) == 0))
         {
+#if (defined(U_PLATFORM_HAS_GETENV) && U_PLATFORM_HAS_GETENV == 0)
+
+#else
             /* Maybe we got some garbage.  Try something more reasonable */
             posixID = getenv("LC_ALL");
             /* Solaris speaks POSIX -  See IEEE Std 1003.1-2008 
@@ -1552,6 +1555,7 @@ static const char *uprv_getPOSIXIDForCategory(int category)
                     posixID = getenv("LANG");
                 }
             }
+#endif
         }
     }
     if ((posixID==0)

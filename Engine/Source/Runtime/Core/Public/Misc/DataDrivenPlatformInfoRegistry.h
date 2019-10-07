@@ -25,6 +25,11 @@ struct CORE_API FDataDrivenPlatformInfoRegistry
 	};
 
 	/**
+	* Get the global set of data driven platform information
+	*/
+	static const TMap<FString, FDataDrivenPlatformInfoRegistry::FPlatformInfo>& GetAllPlatformInfos();
+
+	/**
 	 * Get the data driven platform info for a given platform. If the platform doesn't have any on disk,
 	 * this will return a default constructed FConfigDataDrivenPlatformInfo
 	 */

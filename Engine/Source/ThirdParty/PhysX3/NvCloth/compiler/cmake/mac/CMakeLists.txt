@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.3)
-MESSAGE("[NvCloth]cmake/mac/CMakeList.txt")
+MESSAGE(STATUS "[NvCloth]cmake/mac/CMakeList.txt")
 include(../common/CMakeLists.txt)
 
 

@@ -35,6 +35,11 @@ struct FLuminPlatformProperties : public FAndroidPlatformProperties
 		return "Lumin";
 	}
 
+	static FORCEINLINE const TCHAR* GetRuntimeSettingsClassName()
+	{
+		return TEXT("/Script/LuminRuntimeSettings.LuminRuntimeSettings");
+	}
+
 	static FORCEINLINE bool SupportsAutoSDK()
 	{
 		return false;

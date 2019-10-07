@@ -1,7 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "PostProcess/PostProcessHMD.h"
-#include "PostProcess/PostProcessMorpheus.h"
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
 #include "IHeadMountedDisplay.h"
@@ -130,26 +129,14 @@ FScreenPassTexture AddDefaultHMDDistortionPass(FRDGBuilder& GraphBuilder, const 
 	return MoveTemp(Output);
 }
 
-FScreenPassTexture AddExtensionHMDDistortionPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FHMDDistortionInputs& Inputs)
-{
-	// TODO: Move this method into IHeadMountedDisplay.
-	static const FName MorpheusName(TEXT("PSVR"));
-#if defined(MORPHEUS_ENGINE_DISTORTION) && MORPHEUS_ENGINE_DISTORTION
-	if (GEngine->XRSystem->GetSystemName() == MorpheusName)
-	{
-		return AddMorpheusDistortionPass(GraphBuilder, View, Inputs);
-	}
-#endif
-	return FScreenPassTexture();
-}
-
 FScreenPassTexture AddHMDDistortionPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FHMDDistortionInputs& Inputs)
 {
 	check(GEngine && GEngine->XRSystem.IsValid());
 	checkf(GEngine->XRSystem->GetHMDDevice(), TEXT("EngineShowFlags.HMDDistortion can not be true when IXRTrackingSystem::GetHMDDevice returns null"));
 
 	// First attempt to use a pass from the HMD system.
-	FScreenPassTexture Output = AddExtensionHMDDistortionPass(GraphBuilder, View, Inputs);
+	FScreenPassTexture Output;
+	GEngine->XRSystem->GetHMDDevice()->CreateHMDPostProcessPass_RenderThread(GraphBuilder, View, Inputs, Output);
 
 	if (!Output.IsValid())
 	{

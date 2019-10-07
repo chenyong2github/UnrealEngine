@@ -674,7 +674,7 @@ static_assert(UE_ARRAY_COUNT(kHistoryConvolutionResourceNames) == int32(ESignalP
 static_assert(UE_ARRAY_COUNT(kDenoiserOutputResourceNames) == int32(ESignalProcessing::MAX) * kMaxBufferProcessingCount, "You forgot me!");
 
 
-/** Returns whether should compole pipeline for a given shader platform.*/
+/** Returns whether should compile pipeline for a given shader platform.*/
 bool ShouldCompileSignalPipeline(ESignalProcessing SignalProcessing, EShaderPlatform Platform)
 {
 	if (SignalProcessing == ESignalProcessing::ScreenSpaceDiffuseIndirect)
@@ -685,7 +685,7 @@ bool ShouldCompileSignalPipeline(ESignalProcessing SignalProcessing, EShaderPlat
 		SignalProcessing == ESignalProcessing::Reflections ||
 		SignalProcessing == ESignalProcessing::DiffuseSphericalHarmonic)
 	{
-		return Platform == SP_PCD3D_SM5 && ShouldCompileRayTracingShadersForProject(Platform);
+		return Platform == SP_PCD3D_SM5 || RHISupportsRayTracingShaders(Platform);
 	}
 	else if (
 		SignalProcessing == ESignalProcessing::ShadowVisibilityMask ||
@@ -694,7 +694,7 @@ bool ShouldCompileSignalPipeline(ESignalProcessing SignalProcessing, EShaderPlat
 		SignalProcessing == ESignalProcessing::DiffuseAndAmbientOcclusion)
 	{
 		// Only for ray tracing denoising.
-		return Platform == SP_PCD3D_SM5 && ShouldCompileRayTracingShadersForProject(Platform);
+		return RHISupportsRayTracingShaders(Platform);
 	}
 	check(0);
 	return false;

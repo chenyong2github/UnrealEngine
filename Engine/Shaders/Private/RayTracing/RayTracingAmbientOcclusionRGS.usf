@@ -41,8 +41,7 @@ void GenerateCosineNormalRay(
 	RayTMax = MaxRayDistance;
 }
 
-[shader("raygeneration")]
-void AmbientOcclusionRGS()
+RAY_TRACING_ENTRY_RAYGEN(AmbientOcclusionRGS)
 {
 	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin;
 

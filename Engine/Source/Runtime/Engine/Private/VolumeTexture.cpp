@@ -247,7 +247,7 @@ uint32 UVolumeTexture::CalcTextureMemorySize(int32 MipCount) const
 		CalcMipMapExtent3D(GetSizeX(), GetSizeY(), GetSizeZ(), Format, FMath::Max<int32>(0, GetNumMips() - MipCount), SizeX, SizeY, SizeZ);
 
 		uint32 TextureAlign = 0;
-		Size = (uint32)RHICalcTexture3DPlatformSize(SizeX, SizeY, SizeZ, Format, MipCount, Flags, TextureAlign);
+		Size = (uint32)RHICalcTexture3DPlatformSize(SizeX, SizeY, SizeZ, Format, MipCount, Flags, FRHIResourceCreateInfo(PlatformData->ExtData), TextureAlign);
 	}
 	return Size;
 }
@@ -352,29 +352,30 @@ public:
 	 * Minimal initialization constructor.
 	 * @param InOwner - The UVolumeTexture which this FTexture3DResource represents.
 	 */
-	FTexture3DResource(UVolumeTexture* VolumeTexture, int32 MipBias)
-	:	SizeX(VolumeTexture->GetSizeX())
-	,	SizeY(VolumeTexture->GetSizeY())
-	,	SizeZ(VolumeTexture->GetSizeZ())
+	FTexture3DResource(UVolumeTexture* InOwner, int32 MipBias)
+	:	Owner( InOwner )
+	,	SizeX(InOwner->GetSizeX())
+	,	SizeY(InOwner->GetSizeY())
+	,	SizeZ(InOwner->GetSizeZ())
 	,	CurrentFirstMip(INDEX_NONE)
-	,	NumMips(VolumeTexture->GetNumMips())
-	,	PixelFormat(VolumeTexture->GetPixelFormat())
+	,	NumMips(InOwner->GetNumMips())
+	,	PixelFormat(InOwner->GetPixelFormat())
 	,	TextureSize(0)
-	,	TextureReference(&VolumeTexture->TextureReference)
+	,	TextureReference(&InOwner->TextureReference)
 	,	InitialData(MipBias)
 	{
 		check(0 < NumMips && NumMips <= MAX_TEXTURE_MIP_COUNT);
 		check(0 <= MipBias && MipBias < NumMips);
 
-		STAT(LODGroupStatName = TextureGroupStatFNames[VolumeTexture->LODGroup]);
-		TextureName = VolumeTexture->GetFName();
+		STAT(LODGroupStatName = TextureGroupStatFNames[Owner->LODGroup]);
+		TextureName = Owner->GetFName();
 
-		CreationFlags = (VolumeTexture->SRGB ? TexCreate_SRGB : 0)  | TexCreate_OfflineProcessed | TexCreate_ShaderResource | (VolumeTexture->bNoTiling ? TexCreate_NoTiling : 0);
-		SamplerFilter = (ESamplerFilter)UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetSamplerFilter(VolumeTexture);
+		CreationFlags = (Owner->SRGB ? TexCreate_SRGB : 0)  | TexCreate_OfflineProcessed | TexCreate_ShaderResource | (Owner->bNoTiling ? TexCreate_NoTiling : 0);
+		SamplerFilter = (ESamplerFilter)UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetSamplerFilter(Owner);
 
 		bGreyScaleFormat = (PixelFormat == PF_G8) || (PixelFormat == PF_BC4);
 
-		FTexturePlatformData* PlatformData = VolumeTexture->PlatformData;
+		FTexturePlatformData* PlatformData = Owner->PlatformData;
 		if (PlatformData && PlatformData->TryLoadMips(MipBias, InitialData.GetMipData() + MipBias))
 		{
 			for (int32 MipIndex = MipBias; MipIndex < NumMips; ++MipIndex)
@@ -419,6 +420,7 @@ public:
 			const uint32 BaseMipSizeY = FMath::Max<uint32>(SizeY >> CurrentFirstMip, 1);
 			const uint32 BaseMipSizeZ = FMath::Max<uint32>(SizeZ >> CurrentFirstMip, 1);
 
+			CreateInfo.ExtData = Owner->PlatformData ? Owner->PlatformData->ExtData : 0;
 			Texture3DRHI = RHICreateTexture3D(BaseMipSizeX, BaseMipSizeY, BaseMipSizeZ, PixelFormat, NumMips - CurrentFirstMip, CreationFlags, CreateInfo);
 			TextureRHI = Texture3DRHI; 
 		}
@@ -498,6 +500,9 @@ public:
 	}
 
 private:
+
+	/** The UTexture2D which this resource represents.														*/
+	UVolumeTexture*	Owner;
 
 #if STATS
 	/** The FName of the LODGroup-specific stat	*/
@@ -619,7 +624,7 @@ bool UVolumeTexture::ShaderPlatformSupportsCompression(EShaderPlatform ShaderPla
 		return true;
 
 	default:
-		return false;
+		return FDataDrivenShaderPlatformInfo::GetInfo(ShaderPlatform).bSupportsVolumeTextureCompression;
 	}
 }
 
