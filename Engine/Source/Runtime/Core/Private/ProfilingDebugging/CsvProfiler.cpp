@@ -2450,10 +2450,12 @@ FCsvProfiler::FCsvProfiler()
 {
 	check(IsInGameThread());
 
+#if !CSV_PROFILER_USE_CUSTOM_FRAME_TIMINGS
 	FCoreDelegates::OnBeginFrame.AddStatic(CsvProfilerBeginFrame);
 	FCoreDelegates::OnEndFrame.AddStatic(CsvProfilerEndFrame);
 	FCoreDelegates::OnBeginFrameRT.AddStatic(CsvProfilerBeginFrameRT);
 	FCoreDelegates::OnEndFrameRT.AddStatic(CsvProfilerEndFrameRT);
+#endif
 }
 
 FCsvProfiler::~FCsvProfiler()
