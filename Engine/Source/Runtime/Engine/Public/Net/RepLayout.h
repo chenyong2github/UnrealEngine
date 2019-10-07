@@ -315,6 +315,18 @@ public:
 		Changed.CountBytes(Ar);
 	}
 
+	bool WasSent() const
+	{
+		return OutPacketIdRange.First != INDEX_NONE;
+	}
+
+	void Reset()
+	{
+		OutPacketIdRange = FPacketIdRange();
+		Changed.Empty();
+		Resend = false;
+	}
+
 	/** Range of the Packets that this changelist was last sent with. Used to track acknowledgments. */
 	FPacketIdRange OutPacketIdRange;
 
@@ -1063,6 +1075,25 @@ enum class UE_DEPRECATED(4.24, "Use FRepLayout::IsEmpty() instead.") ERepLayoutS
  * Receiving is very similar, except the Handles are baked into the serialized data so no
  * explicit changelist is required. As each Handle is read, a Layout Command is applied
  * that serializes the data from the network bunch and applies it to an object.
+ *
+ * RETRIES AND RELIABLES
+ *
+ * @FSendingRepState maintains a circular buffer that tracks recently sent Changelists (@FRepChangedHistory).
+ * These history items track the Changelist alongside the Packet ID that the bunches were sent in.
+ * 
+ * Once we receive ACKs for all associated packets, the history will be removed from the buffer.
+ * If NAKs are received for any of the packets, we will merge the changelist into the next set of properties we replicate.
+ *
+ * If we receive no NAKs or ACKs for an extended period, to prevent overflows in the history buffer,
+ * we will merge the entire buffer into a single monolithic changelist which will be sent alongside the next set of properties.
+ *
+ * In both cases of NAKs or no response, the merged changelists will be tracked in the latest history item
+ * alongside with other sent properties.
+ *
+ * When "net.PartialBunchReliableThreshold" is non-zero and property data bunches are split into partial bunches above
+ * the threshold, we will not generate a history item. Instead, we will rely on the reliable bunch framework for resends
+ * and replication of the Object will be completely paused until the property bunches are acknowledged.
+ * However, this will not affect other history items since they are still unreliable.
  */
 class ENGINE_VTABLE FRepLayout : public FGCObject, public TSharedFromThis<FRepLayout>
 {
