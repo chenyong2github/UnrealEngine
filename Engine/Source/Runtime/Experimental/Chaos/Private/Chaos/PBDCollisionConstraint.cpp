@@ -129,6 +129,20 @@ void TPBDCollisionConstraint<T, d>::RemoveConstraint(int32 Idx)
 }
 
 template<typename T, int d>
+void TPBDCollisionConstraint<T, d>::ApplyCollisionModifier(const TFunction<ECollisionModifierResult(FRigidBodyContactConstraint& Constraint)>& CollisionModifier)
+{
+	for (int ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
+	{
+		ECollisionModifierResult Result = CollisionModifier(Constraints[ConstraintIndex]);
+		if (Result == ECollisionModifierResult::Disabled)
+		{
+			RemoveConstraint(ConstraintIndex);
+			--ConstraintIndex;
+		}
+	}
+}
+
+template<typename T, int d>
 void TPBDCollisionConstraint<T, d>::SetPostComputeCallback(const TRigidBodyContactConstraintsPostComputeCallback<T, d>& Callback)
 {
 	PostComputeCallback = Callback;
@@ -226,7 +240,7 @@ void TPBDCollisionConstraint<T, d>::ComputeConstraints(const FAccelerationStruct
 	
 	if (PostComputeCallback != nullptr)
 	{
-		PostComputeCallback(Constraints);
+		PostComputeCallback();
 	}
 }
 

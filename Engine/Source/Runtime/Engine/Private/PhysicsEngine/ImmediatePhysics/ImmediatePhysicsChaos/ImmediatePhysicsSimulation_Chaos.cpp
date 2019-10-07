@@ -20,7 +20,7 @@
 // @todo(ccaulfield): remove when finished
 float ChaosImmediate_Evolution_DeltaTime = 0.03f;
 int32 ChaosImmediate_Evolution_Iterations = 10;
-int32 ChaosImmediate_Collision_Enabled = 0;
+int32 ChaosImmediate_Collision_Enabled = 1;
 int32 ChaosImmediate_Collision_ApplyEnabled = 0;
 int32 ChaosImmediate_Collision_PushOutIterations = 5;
 int32 ChaosImmediate_Collision_PushOutPairIterations = 2;
@@ -96,25 +96,6 @@ namespace ImmediatePhysics_Chaos
 		return false;
 	}
 
-	template<typename T, int d>
-	void FilterCollisionConstraints(
-		TArray<Chaos::TRigidBodyContactConstraint<T, d>>& Constraints, 
-		const TMap<const Chaos::TGeometryParticleHandle<T, d>*, TSet<const Chaos::TGeometryParticleHandle<T, d>*>>& IgnoreSetMap)
-	{
-		using namespace Chaos;
-
-		for (int ConstraintIndex = 0; ConstraintIndex < Constraints.Num(); ++ConstraintIndex)
-		{
-			if (ShouldIgnoreCollisionConstraint(Constraints[ConstraintIndex].Particle, Constraints[ConstraintIndex].Levelset, IgnoreSetMap))
-			{
-				Constraints.RemoveAtSwap(ConstraintIndex);
-				--ConstraintIndex;
-				continue;
-			}
-		}
-	}
-
-
 	//
 	//
 	//
@@ -133,10 +114,20 @@ namespace ImmediatePhysics_Chaos
 
 		Evolution->AddConstraintRule(JointsRule.Get());
 
+		// Filter collisions after detection
+		// @todo(ccaulfield): Eventually we will build lists of potentially colliding pairs and won't need this
 		Collisions.SetPostComputeCallback(
-			[this](TArray<TRigidBodyContactConstraint<FReal, Dimensions>>& Constraints)
+			[this]()
 			{
-				FilterCollisionConstraints(Constraints, IgnoreCollisionParticlePairTable);
+				Evolution->GetCollisionConstraints().ApplyCollisionModifier(
+					[this](TRigidBodyContactConstraint<float, 3>& Constraint)
+					{
+						if (ShouldIgnoreCollisionConstraint(Constraint.Particle, Constraint.Levelset, IgnoreCollisionParticlePairTable))
+						{
+							return ECollisionModifierResult::Disabled;
+						}
+						return ECollisionModifierResult::Unchanged;
+					});
 			});
 		
 #if CHAOS_DEBUG_DRAW
