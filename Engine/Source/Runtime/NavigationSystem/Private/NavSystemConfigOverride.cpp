@@ -68,14 +68,7 @@ void ANavSystemConfigOverride::PostLoad()
 	UWorld* World = GetWorld();
 	if ((World != nullptr) && (World->IsGameWorld() == false))
 	{
-		if (World->bInTick)
-		{
-			World->GetTimerManager().SetTimerForNextTick(this, &ANavSystemConfigOverride::ApplyConfig);
-		}
-		else
-		{
-			ApplyConfig();
-		}
+		GEditor->GetTimerManager()->SetTimerForNextTick(this, &ANavSystemConfigOverride::ApplyConfig);
 	}
 #endif // WITH_EDITOR
 }
