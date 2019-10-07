@@ -294,7 +294,10 @@ namespace Chaos
 					{
 						FConstraintHandle* Handle = Handles[HandleID];
 						int32 Idx = Handle->GetConstraintIndex();
+						FVector Position = Constraint[Idx].Location;
+
 						Queue.Dequeue(Constraints[Idx]);
+						Constraints[Idx].PreviousLocation = Position;
 						Constraints[Idx].Lifespan = LifespanCounter;
 					}
 					else
