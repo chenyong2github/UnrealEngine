@@ -18,10 +18,10 @@ FVirtualTexturePhysicalSpace::FVirtualTexturePhysicalSpace(const FVTPhysicalSpac
 	, bGpuTextureLimit(false)
 {
 	// Find matching physical pool
-	UVirtualTexturePoolConfig* PoolConfig = GetMutableDefault<UVirtualTexturePoolConfig>();
-	const FVirtualTextureSpacePoolConfig* Config = PoolConfig->FindPoolConfig(InDesc.Format, InDesc.NumLayers, InDesc.TileSize);
-	const uint32 PoolSizeInBytes = Config->SizeInMegabyte * 1024u * 1024u;
-	const bool bForce16BitPageTable = false;
+	FVirtualTextureSpacePoolConfig Config;
+	UVirtualTexturePoolConfig const* PoolConfig = GetDefault<UVirtualTexturePoolConfig>();
+	PoolConfig->FindPoolConfig(InDesc.Format, InDesc.NumLayers, InDesc.TileSize, Config);
+	const uint32 PoolSizeInBytes = Config.SizeInMegabyte * 1024u * 1024u;
 
 	const FPixelFormatInfo& FormatInfo = GPixelFormats[InDesc.Format[0]];
 	check(InDesc.TileSize % FormatInfo.BlockSizeX == 0);
@@ -31,14 +31,15 @@ FVirtualTexturePhysicalSpace::FVirtualTexturePhysicalSpace(const FVTPhysicalSpac
 	{
 		TileSizeBytes += CalculateImageBytes(InDesc.TileSize, InDesc.TileSize, 0, InDesc.Format[Layer]);
 	}
-	const uint32 MaxTiles = (uint32)(PoolSizeInBytes / TileSizeBytes);
-	
+	const uint32 MaxTiles = FMath::Max((uint32)(PoolSizeInBytes / TileSizeBytes), 1u);
 	TextureSizeInTiles = FMath::FloorToInt(FMath::Sqrt((float)MaxTiles));
-	if (bForce16BitPageTable)
-	{
-		// 16 bit page tables support max size of 64x64 (4096 tiles)
-		TextureSizeInTiles = FMath::Min(64u, TextureSizeInTiles);
-	}
+	
+// 	const bool bForce16BitPageTable = false;
+// 	if (bForce16BitPageTable)
+// 	{
+// 		// 16 bit page tables support max size of 64x64 (4096 tiles)
+// 		TextureSizeInTiles = FMath::Min(64u, TextureSizeInTiles);
+// 	}
 
 	if (TextureSizeInTiles * InDesc.TileSize > GetMax2DTextureDimension())
 	{

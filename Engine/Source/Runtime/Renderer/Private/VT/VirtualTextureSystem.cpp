@@ -9,13 +9,14 @@
 #include "ScenePrivate.h"
 #include "SceneUtils.h"
 #include "Stats/Stats.h"
-#include "TexturePagePool.h"
-#include "UniquePageList.h"
-#include "UniqueRequestList.h"
-#include "VirtualTextureFeedback.h"
-#include "VirtualTexturePhysicalSpace.h"
-#include "VirtualTextureSpace.h"
 #include "VirtualTexturing.h"
+#include "VT/TexturePagePool.h"
+#include "VT/UniquePageList.h"
+#include "VT/UniqueRequestList.h"
+#include "VT/VirtualTextureFeedback.h"
+#include "VT/VirtualTexturePhysicalSpace.h"
+#include "VT/VirtualTextureScalability.h"
+#include "VT/VirtualTextureSpace.h"
 
 DECLARE_CYCLE_STAT(TEXT("Feedback Analysis"), STAT_FeedbackAnalysis, STATGROUP_VirtualTexturing);
 DECLARE_CYCLE_STAT(TEXT("VirtualTextureSystem Update"), STAT_VirtualTextureSystem_Update, STATGROUP_VirtualTexturing);
@@ -50,13 +51,6 @@ DECLARE_MEMORY_STAT_POOL(TEXT("Total Physical Memory"), STAT_TotalPhysicalMemory
 DECLARE_MEMORY_STAT_POOL(TEXT("Total Pagetable Memory"), STAT_TotalPagetableMemory, STATGROUP_VirtualTextureMemory, FPlatformMemory::MCR_GPU);
 
 DECLARE_GPU_STAT( VirtualTexture );
-
-static TAutoConsoleVariable<int32> CVarVTMaxUploadsPerFrame(
-	TEXT("r.VT.MaxUploadsPerFrame"),
-	64,
-	TEXT("Max number of page uploads per frame"),
-	ECVF_RenderThreadSafe
-	);
 
 static TAutoConsoleVariable<int32> CVarVTEnableFeedBack(
 	TEXT("r.VT.EnableFeedBack"),
@@ -1100,7 +1094,7 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 
 		// Limit the number of uploads (account for MappedTilesToProduce this frame)
 		// Are all pages equal? Should there be different limits on different types of pages?
-		const int32 MaxNumUploads = CVarVTMaxUploadsPerFrame.GetValueOnRenderThread();
+		const int32 MaxNumUploads = VirtualTextureScalability::GetMaxUploadsPerFrame();
 		const int32 MaxRequestUploads = FMath::Max(MaxNumUploads - MappedTilesToProduce.Num(), 1);
 
 		MergedRequestList->SortRequests(Producers, MemStack, MaxRequestUploads);

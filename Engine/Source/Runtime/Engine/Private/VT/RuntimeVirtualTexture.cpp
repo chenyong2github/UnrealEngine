@@ -7,18 +7,9 @@
 #include "VT/VirtualTextureBuildSettings.h"
 #include "VT/RuntimeVirtualTextureNotify.h"
 #include "VT/RuntimeVirtualTextureStreamingProxy.h"
-#include "VT/UploadingVirtualTexture.h"
 #include "VT/VirtualTextureLevelRedirector.h"
-
-
-/** Device scalability option for runtime virtual texture size. */
-static TAutoConsoleVariable<int32> CVarVTTileCountBias(
-	TEXT("r.VT.RVT.TileCountBias"),
-	0,
-	TEXT("Bias to apply to Runtime Virtual Texture size."),
-	ECVF_RenderThreadSafe
-);
-
+#include "VT/VirtualTextureScalability.h"
+#include "VT/UploadingVirtualTexture.h"
 
 namespace
 {
@@ -229,7 +220,7 @@ void URuntimeVirtualTexture::GetProducerDescription(FVTProducerDescription& OutD
 	OutDesc.HeightInBlocks = 1;
 
 	// Apply TileCount modifier here to allow size scalability option
-	const int32 TileCountBias = CVarVTTileCountBias.GetValueOnAnyThread();
+	const int32 TileCountBias = VirtualTextureScalability::GetRuntimeVirtualTextureSizeBias();
 	const int32 MaxSizeInTiles = GetTileCount(TileCount + TileCountBias);
 
 	// Set width and height to best match the runtime virtual texture volume's aspect ratio
