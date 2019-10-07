@@ -60,7 +60,8 @@ namespace Chaos
 			case ImplicitObjectType::Box:
 			{
 				const TBox<T, d>* Box = Shape->template GetObject<TBox<T, d>>();
-				FDebugDrawQueue::GetInstance().DrawDebugBox(ShapeTransform.GetLocation(), (T)0.5 * Box->Extents(), ShapeTransform.GetRotation(), Color, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+				const TVector<T, d> P = ShapeTransform.TransformPosition(Box->Center());
+				FDebugDrawQueue::GetInstance().DrawDebugBox(P, (T)0.5 * Box->Extents(), ShapeTransform.GetRotation(), Color, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
 				break;
 			}
 			case ImplicitObjectType::Plane:
