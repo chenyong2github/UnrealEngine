@@ -21,8 +21,7 @@
 			"Type": "Runtime",
 			"LoadingPhase": "PreDefault",
 			"BlacklistPlatforms": [
-				"HoloLens",
-				"HTML5"
+				"HoloLens"
 			]
 		},
     {
