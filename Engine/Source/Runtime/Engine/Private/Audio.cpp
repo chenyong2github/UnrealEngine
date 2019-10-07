@@ -79,6 +79,13 @@ FAutoConsoleVariableRef CVarAllowAudioSpatializationCVar(
 	TEXT("0: Disable, >0: Enable"),
 	ECVF_Default);
 
+static int32 OcclusionFilterScaleEnabledCVar = 0;
+FAutoConsoleVariableRef CVarOcclusionFilterScaleEnabled(
+	TEXT("au.EnableOcclusionFilterScale"),
+	OcclusionFilterScaleEnabledCVar,
+	TEXT("Whether or not we scale occlusion by 0.25f to compensate for change in filter cutoff frequencies in audio mixer. \n")
+	TEXT("0: Not Enabled, 1: Enabled"),
+
 static int32 AllowReverbForMultichannelSources = 1;
 FAutoConsoleVariableRef CvarAllowReverbForMultichannelSources(
 	TEXT("au.AllowReverbForMultichannelSources"),
@@ -380,8 +387,15 @@ void FSoundSource::SetFilterFrequency()
 
 		default:
 		{
+			// compensate for filter coefficient calculation error for occlusion
+			float OcclusionFilterScale = 1.0f;
+			if (AudioDevice->IsAudioMixerEnabled() && OcclusionFilterScaleEnabledCVar == 1 && !FMath::IsNearlyEqual(WaveInstance->OcclusionFilterFrequency, MAX_FILTER_FREQUENCY))
+			{
+				OcclusionFilterScale = 0.25f;
+			}
+
 			// Set the LPFFrequency to lowest provided value
-			LPFFrequency = FMath::Min(WaveInstance->OcclusionFilterFrequency, WaveInstance->LowPassFilterFrequency);
+			LPFFrequency = FMath::Min(WaveInstance->OcclusionFilterFrequency * OcclusionFilterScale, WaveInstance->LowPassFilterFrequency);
 			LPFFrequency = FMath::Min(LPFFrequency, WaveInstance->AmbientZoneFilterFrequency);
 			LPFFrequency = FMath::Min(LPFFrequency, WaveInstance->AttenuationLowpassFilterFrequency);
 			LPFFrequency = FMath::Min(LPFFrequency, WaveInstance->SoundModulationControls.Lowpass);
