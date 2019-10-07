@@ -125,14 +125,16 @@ namespace Chaos
 		static bool IsPerformanceWarning(int32 NumPlanes, int32 NumParticles)
 		{
 			if (!PerformGeometryCheck)
+			{
 				return false;
+			}
 
 			return (NumParticles > ParticlesThreshold);
 		}
 
 		static bool IsGeometryReductionEnabled()
 		{
-			return PerformGeometryReduction;
+			return (PerformGeometryReduction>0)?true:false;
 		}
 
 		static FString PerformanceWarningString(int32 NumPlanes, int32 NumParticles)
