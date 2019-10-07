@@ -242,6 +242,8 @@ namespace Tools.DotNETCommon
 		[DllImport("kernel32.dll", SetLastError=true)]
 		static extern UInt32 WaitForSingleObject(SafeHandleZeroOrMinusOneIsInvalid hHandle, UInt32 dwMilliseconds);
 
+		const int ERROR_ACCESS_DENIED = 5;
+
 		/// <summary>
 		/// Handle for the child process.
 		/// </summary>
@@ -388,15 +390,15 @@ namespace Tools.DotNETCommon
 
 							if (CreatePipe(out StdInRead, out StdInWrite, SecurityAttributes, 0) == 0 || SetHandleInformation(StdInWrite, HANDLE_FLAG_INHERIT, 0) == 0)
 							{
-								throw new Win32Exception();
+								throw new Win32ExceptionWithCode("Unable to create stdin pipe");
 							}
 							if (CreatePipe(out StdOutRead, out StdOutWrite, SecurityAttributes, 0) == 0 || SetHandleInformation(StdOutRead, HANDLE_FLAG_INHERIT, 0) == 0)
 							{
-								throw new Win32Exception();
+								throw new Win32ExceptionWithCode("Unable to create stdout pipe");
 							}
 							if (DuplicateHandle(GetCurrentProcess(), StdOutWrite, GetCurrentProcess(), out StdErrWrite, 0, true, DUPLICATE_SAME_ACCESS) == 0)
 							{
-								throw new Win32Exception(String.Format("Unable to duplicate stdout handle ({0})", StdOutWrite.DangerousGetHandle()));
+								throw new Win32ExceptionWithCode("Unable to duplicate stdout handle");
 							}
 
 							// Create the new process as suspended, so we can modify it before it starts executing (and potentially preempting us)
@@ -407,9 +409,22 @@ namespace Tools.DotNETCommon
 							StartupInfo.hStdError = StdErrWrite;
 							StartupInfo.dwFlags = STARTF_USESTDHANDLES;
 
-							if (CreateProcess(null, new StringBuilder("\"" + FileName + "\" " + CommandLine), IntPtr.Zero, IntPtr.Zero, true, Flags, EnvironmentBlock, WorkingDirectory, StartupInfo, ProcessInfo) == 0)
+							// Under heavy load (ie. spawning large number of processes, typically Clang) we see CreateProcess very occasionally failing with ERROR_ACCESS_DENIED.
+							int[] RetryDelay = { 100, 200, 1000, 5000 };
+							for(int AttemptIdx = 0; ; AttemptIdx++)
 							{
-								throw new Win32Exception();
+								if (CreateProcess(null, new StringBuilder("\"" + FileName + "\" " + CommandLine), IntPtr.Zero, IntPtr.Zero, true, Flags, EnvironmentBlock, WorkingDirectory, StartupInfo, ProcessInfo) != 0)
+								{
+									break;
+								}
+
+								if (Marshal.GetLastWin32Error() != ERROR_ACCESS_DENIED || AttemptIdx >= RetryDelay.Length)
+								{
+									throw new Win32ExceptionWithCode("Unable to create process");
+								}
+
+								Log.TraceWarning("Unable to create process {0} (access denied); waiting {1}ms to retry...", FileName, RetryDelay[AttemptIdx]);
+								Thread.Sleep(RetryDelay[AttemptIdx]);
 							}
 						}
 						finally
@@ -444,14 +459,14 @@ namespace Tools.DotNETCommon
 
 						if (!bProcessInJob)
 						{
-							throw new Win32Exception(OriginalError);
+							throw new Win32ExceptionWithCode(OriginalError, "Unable to assign process to job object");
 						}
 					}
 
 					// Allow the thread to start running
 					if (ResumeThread(ProcessInfo.hThread) == -1)
 					{
-						throw new Win32Exception();
+						throw new Win32ExceptionWithCode("Unable to resume thread in child process");
 					}
 
 					// If we have any input text, write it to stdin now
