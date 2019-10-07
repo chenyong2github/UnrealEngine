@@ -142,13 +142,11 @@ public:
 			FExecuteAction::CreateSP(this, &SAssetListRow::DeleteAsset)
 		);
 
-#if WITH_APEX_CLOTHING
 		UICommandList->MapAction(
 			Commands.ReimportAsset,
 			FExecuteAction::CreateSP(this, &SAssetListRow::ReimportAsset),
 			FCanExecuteAction::CreateSP(this, &SAssetListRow::CanReimportAsset)
 		);
-#endif
 
 		UICommandList->MapAction(
 			Commands.RebuildAssetParams,
@@ -167,9 +165,7 @@ public:
 			Builder.BeginSection(NAME_None, LOCTEXT("AssetActions_SectionName", "Actions"));
 			{
 				Builder.AddMenuEntry(FGenericCommands::Get().Delete);
-#if WITH_APEX_CLOTHING
 				Builder.AddMenuEntry(Commands.ReimportAsset);
-#endif
 				Builder.AddMenuEntry(Commands.RebuildAssetParams);
 			}
 			Builder.EndSection();
@@ -234,7 +230,6 @@ private:
 		}
 	}
 
-#if WITH_APEX_CLOTHING
 	void ReimportAsset()
 	{
 		if(UClothingAssetCommon* Asset = Item->ClothingAsset.Get())
@@ -288,7 +283,6 @@ private:
 	{
 		return Item.IsValid() && !Item->ClothingAsset->ImportedFilePath.IsEmpty();
 	}
-#endif  // #if WITH_APEX_CLOTHING
 
 	// Using LOD0 of an asset, rebuild the other LOD masks by mapping the LOD0 parameters onto their meshes
 	void RebuildLODParameters()
@@ -732,14 +726,13 @@ void SClothAssetSelector::Construct(const FArguments& InArgs, USkeletalMesh* InM
 					.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 					.ShadowOffset(FVector2D(1.0f, 1.0f))
 				]
-#if WITH_APEX_CLOTHING
 				+SHorizontalBox::Slot()
 				.AutoWidth()
 				.VAlign(VAlign_Center)
 				.HAlign(HAlign_Right)
 				.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 				[
-					SNew(SButton)
+					SAssignNew(ImportApexButton, SButton)
 					.ButtonStyle(FEditorStyle::Get(), "RoundButton")
 					.ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
 					.ContentPadding(FMargin(2, 0))
@@ -770,7 +763,6 @@ void SClothAssetSelector::Construct(const FArguments& InArgs, USkeletalMesh* InM
 						]
 					]
 				]
-#endif  // #if WITH_APEX_CLOTHING
 				+ SHorizontalBox::Slot()
 					.AutoWidth()
 					.VAlign(VAlign_Center)
@@ -960,7 +952,6 @@ void SClothAssetSelector::PostUndo(bool bSuccess)
 	OnRefresh();
 }
 
-#if WITH_APEX_CLOTHING
 FReply SClothAssetSelector::OnImportApexFileClicked()
 {
 	if(Mesh)
@@ -973,7 +964,6 @@ FReply SClothAssetSelector::OnImportApexFileClicked()
 
 	return FReply::Unhandled();
 }
-#endif  // #if WITH_APEX_CLOTHING
 
 void SClothAssetSelector::OnCopyClothingAssetSelected(const FAssetData& AssetData)
 {
