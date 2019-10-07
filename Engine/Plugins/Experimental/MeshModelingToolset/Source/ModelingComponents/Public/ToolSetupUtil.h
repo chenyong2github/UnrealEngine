@@ -41,4 +41,12 @@ namespace ToolSetupUtil
 	 */
 	MODELINGCOMPONENTS_API UMaterialInterface* GetSelectionMaterial(UInteractiveToolManager* ToolManager);
 
+
+
+	/**
+	 * @param bRoundPoints true for round points, false for square
+	 * @return custom material suitable for use with UPointSetComponent
+	 */
+	MODELINGCOMPONENTS_API UMaterialInterface* GetDefaultPointComponentMaterial(bool bRoundPoints, UInteractiveToolManager* ToolManager);
+
 }
