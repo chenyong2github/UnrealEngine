@@ -276,8 +276,8 @@ namespace Chaos
 	template<typename HeightfieldT, typename BufferType>
 	void BuildGeomData(TArrayView<BufferType> BufferView, int32 NumRows, int32 NumCols, const TVector<HeightfieldT, 3>& InScale, TUniqueFunction<HeightfieldT(const BufferType)> ToRealFunc, typename THeightField<HeightfieldT>::FDataType& OutData, TBox<HeightfieldT, 3>& OutBounds)
 	{
-		using FDataType = THeightField<HeightfieldT>::FDataType;
-		using RealType = FDataType::RealType;
+		using FDataType = typename THeightField<HeightfieldT>::FDataType;
+		using RealType = typename FDataType::RealType;
 
 		const int32 NumCells = NumRows * NumCols;
 		ensure(BufferView.Num() == NumCells);
@@ -296,7 +296,7 @@ namespace Chaos
 
 		for(int32 HeightIndex = 1; HeightIndex < NumHeights; ++HeightIndex)
 		{
-			const typename RealType CurrHeight = ToRealFunc(BufferView[HeightIndex]);
+			const RealType CurrHeight = ToRealFunc(BufferView[HeightIndex]);
 
 			if(CurrHeight > OutData.MaxValue)
 			{
@@ -317,7 +317,7 @@ namespace Chaos
 
 			int32 X = HeightIndex % (NumCols);
 			int32 Y = HeightIndex / (NumCols);
-			TVector<HeightfieldT, 3> Position(typename RealType(X), typename RealType(Y), OutData.MinValue + OutData.Heights[HeightIndex] * OutData.HeightPerUnit);
+			TVector<HeightfieldT, 3> Position(RealType(X), RealType(Y), OutData.MinValue + OutData.Heights[HeightIndex] * OutData.HeightPerUnit);
 			if(HeightIndex == 0)
 			{
 				OutBounds = TBox<HeightfieldT, 3>(Position * InScale, Position * InScale);
