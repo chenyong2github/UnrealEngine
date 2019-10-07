@@ -1477,36 +1477,30 @@ void UpdateCapsuleBoxConstraint(const TCapsule<T>& A, const TRigidTransform<T, d
 
 	TRigidTransform<T, d> BToATransform = BTransform.GetRelativeTransform(ATransform);
 
-	// USe GJK to track closest points (not strictly necessary yet)
-	//TVector<T, d> NearPointALocal, NearPointBLocal;
-	//T NearPointDistance;
-	//if (GJKDistance<T>(A, B, BToATransform, NearPointDistance, NearPointALocal, NearPointBLocal))
-	//{
-	//	TVector<T, d> NearPointAWorld = ATransform.TransformPosition(NearPointALocal);
-	//	TVector<T, d> NearPointBWorld = BTransform.TransformPosition(NearPointBLocal);
-	//	TVector<T, d> NearPointBtoAWorld = NearPointAWorld - NearPointBWorld;
-	//	Constraint.Phi = NearPointDistance;
-	//	Constraint.Normal = NearPointBtoAWorld.GetSafeNormal();
-	//	Constraint.Location = NearPointAWorld;
-	//}
-	//else
+	// Use GJK to track closest points (not strictly necessary yet)
+	TVector<T, d> NearPointALocal, NearPointBLocal;
+	T NearPointDistance;
+	if (GJKDistance<T>(A, B, BToATransform, NearPointDistance, NearPointALocal, NearPointBLocal))
+	{
+		TVector<T, d> NearPointAWorld = ATransform.TransformPosition(NearPointALocal);
+		TVector<T, d> NearPointBWorld = BTransform.TransformPosition(NearPointBLocal);
+		TVector<T, d> NearPointBtoAWorld = NearPointAWorld - NearPointBWorld;
+		Constraint.Phi = NearPointDistance;
+		Constraint.Normal = NearPointBtoAWorld.GetSafeNormal();
+		Constraint.Location = NearPointAWorld;
+	}
+	else
 	{
 		// Use box particle samples against the implicit capsule
-		const TArray<TVector<T, d>> BParticles = B.ComputeLocalSamplePoints();
+		const TArray<TVector<T, d>> BParticles = B.ComputeSamplePoints();
 		const int32 NumParticles = BParticles.Num();
-		bool bFoundContact = false;
 		for (int32 ParticleIndex = 0; ParticleIndex < NumParticles; ++ParticleIndex)
 		{
 			if (SampleObjectHelper2(A, ATransform, BToATransform, BParticles[ParticleIndex], Thickness, Constraint))
 			{
-				bFoundContact = true;
+				// SampleObjectHelper2 expects A to be the box, so reverse the results
+				Constraint.Normal = -Constraint.Normal;
 			}
-		}
-
-		// SampleObjectHelper2 expects A to be the box, so reverse the results
-		if (bFoundContact)
-		{
-			Constraint.Normal = -Constraint.Normal;
 		}
 	}
 
@@ -1804,7 +1798,7 @@ void UpdateBoxConstraint(const TBox<T, d>& Box1, const TRigidTransform<T, d>& Bo
 			//check(Constraint.Phi < MThickness);
 			// For now revert to doing all points vs lsv check until we can figure out a good way to get the deepest point without needing this
 			{
-				const TArray<TVector<T, d>> SampleParticles = Box1.ComputeLocalSamplePoints();
+				const TArray<TVector<T, d>> SampleParticles = Box1.ComputeSamplePoints();
 				const TRigidTransform<T, d> Box1ToBox2Transform = Box1Transform.GetRelativeTransform(Box2Transform);
 				int32 NumParticles = SampleParticles.Num();
 				for (int32 i = 0; i < NumParticles; ++i)
