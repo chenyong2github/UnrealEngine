@@ -305,8 +305,10 @@ public:
 
 	virtual bool HasBuildMetaData() const = 0;
 
-	virtual void PushInitErrorCallback(FInstallBundleManagerInitErrorHandler Callback) = 0;
+	virtual FDelegateHandle PushInitErrorCallback(FInstallBundleManagerInitErrorHandler Callback) = 0;
 	virtual void PopInitErrorCallback() = 0;
+	virtual void PopInitErrorCallback(FDelegateHandle Handle) = 0;
+	virtual void PopInitErrorCallback(const void* InUserObject) = 0;
 
 	virtual bool IsInitialized() const = 0;
 	virtual bool IsInitializing() const = 0;
