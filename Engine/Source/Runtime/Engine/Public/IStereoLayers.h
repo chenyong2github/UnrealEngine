@@ -67,11 +67,6 @@ public:
 		FVector2D RightBias;
 	};
 
-	/** Structure describing additional settings for cylindrical layers */
-	struct FCylinderProps
-	{
-	};
-
 	/**
 	 * Structure describing the visual appearance of a single stereo layer
 	 */
