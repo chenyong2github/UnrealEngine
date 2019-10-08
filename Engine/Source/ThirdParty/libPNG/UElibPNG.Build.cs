@@ -51,7 +51,7 @@ public class UElibPNG : ModuleRules
 		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
 			string PlatformSubpath = Target.Platform.ToString();
-			LibDir = Path.Combine(LibPNGPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
+			LibDir = Path.Combine(LibPNGPath, PlatformSubpath, "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
 			if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
 			{
 				LibDir = Path.Combine(LibDir, Target.WindowsPlatform.GetArchitectureSubpath());
