@@ -35,6 +35,7 @@ FAutoConsoleVariableRef CVarCollisionPushOutPairIterations(TEXT("p.Chaos.ImmPhys
 FAutoConsoleVariableRef CVarChaosImmPhysThickness(TEXT("p.Chaos.ImmPhys.CollisionThickness"), ChaosImmediate_Collision_Thickness, TEXT("ChaosImmediateThickness"));
 
 float ChaosImmediate_Joint_SwingTwistAngleTolerance = 1.0e-6f;
+int32 ChaosImmediate_Joint_EnableLinearLimits = 1;
 int32 ChaosImmediate_Joint_EnableTwistLimits = 1;
 int32 ChaosImmediate_Joint_EnableSwingLimits = 1;
 int32 ChaosImmediate_Joint_EnableDrives = 1;
@@ -44,6 +45,7 @@ float ChaosImmediate_Joint_PBDDriveStiffness = 0.0f;
 float ChaosImmediate_Joint_PBDMinParentMassRatio = 0.5f;
 float ChaosImmediate_Joint_PBDMaxInertiaRatio = 5.0f;
 FAutoConsoleVariableRef CVarSwingTwistAngleTolerance(TEXT("p.Chaos.ImmPhys.Joint.SwingTwistAngleTolerance"), ChaosImmediate_Joint_SwingTwistAngleTolerance, TEXT("SwingTwistAngleTolerance."));
+FAutoConsoleVariableRef CVarEnableLinearLimits(TEXT("p.Chaos.ImmPhys.Joint.EnableLinearLimits"), ChaosImmediate_Joint_EnableLinearLimits, TEXT("EnableLinearLimits."));
 FAutoConsoleVariableRef CVarEnableTwistLimits(TEXT("p.Chaos.ImmPhys.Joint.EnableTwistLimits"), ChaosImmediate_Joint_EnableTwistLimits, TEXT("EnableTwistLimits."));
 FAutoConsoleVariableRef CVarEnableSwingLimits(TEXT("p.Chaos.ImmPhys.Joint.EnableSwingLimits"), ChaosImmediate_Joint_EnableSwingLimits, TEXT("EnableSwingLimits."));
 FAutoConsoleVariableRef CVarEnableDrives(TEXT("p.Chaos.ImmPhys.Joint.EnableDrives"), ChaosImmediate_Joint_EnableDrives, TEXT("EnableDrives."));
@@ -388,9 +390,10 @@ namespace ImmediatePhysics_Chaos
 			JointsSettings.PBDMaxInertiaRatio = ChaosImmediate_Joint_PBDMaxInertiaRatio;
 			JointsSettings.FreezeIterations = ChaosImmediate_Joint_FreezeIterations;
 			JointsSettings.FrozenIterations = ChaosImmediate_Joint_FrozenIterations;
-			JointsSettings.bEnableTwistLimits = ChaosImmediate_Joint_EnableTwistLimits > 0;
-			JointsSettings.bEnableSwingLimits = ChaosImmediate_Joint_EnableSwingLimits > 0;
-			JointsSettings.bEnableDrives = ChaosImmediate_Joint_EnableDrives > 0;
+			JointsSettings.bEnableLinearLimits = ChaosImmediate_Joint_EnableLinearLimits != 0;
+			JointsSettings.bEnableTwistLimits = ChaosImmediate_Joint_EnableTwistLimits != 0;
+			JointsSettings.bEnableSwingLimits = ChaosImmediate_Joint_EnableSwingLimits != 0;
+			JointsSettings.bEnableDrives = ChaosImmediate_Joint_EnableDrives != 0;
 			JointsSettings.PBDDriveStiffness = ChaosImmediate_Joint_PBDDriveStiffness;
 			Joints->SetSettings(JointsSettings);
 

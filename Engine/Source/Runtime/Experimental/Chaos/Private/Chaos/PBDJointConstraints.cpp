@@ -112,6 +112,7 @@ namespace Chaos
 		, PBDMaxInertiaRatio(5.0f)
 		, FreezeIterations(0)
 		, FrozenIterations(0)
+		, bEnableLinearLimits(1)
 		, bEnableTwistLimits(1)
 		, bEnableSwingLimits(1)
 		, bEnableDrives(1)
@@ -393,9 +394,16 @@ namespace Chaos
 			}
 		}
 
+		const TVector<EJointMotionType, d>& LinearMotion = JointSettings.Motion.LinearMotionTypes;
 		EJointMotionType TwistMotion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist];
 		EJointMotionType Swing1Motion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1];
 		EJointMotionType Swing2Motion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2];
+
+		// Disable a constraint if it has any linear limits?
+		if (!Settings.bEnableLinearLimits && ((LinearMotion[0] == EJointMotionType::Limited) || (LinearMotion[1] == EJointMotionType::Limited) || (LinearMotion[1] == EJointMotionType::Limited)))
+		{
+			return;
+		}
 
 		// Apply angular drives
 		if (Settings.bEnableDrives)
@@ -462,7 +470,6 @@ namespace Chaos
 		}
 
 		// Apply linear constraints
-		const TVector<EJointMotionType, d>& LinearMotion = JointSettings.Motion.LinearMotionTypes;
 		if ((LinearMotion[0] != EJointMotionType::Free) || (LinearMotion[1] != EJointMotionType::Free) || (LinearMotion[2] != EJointMotionType::Free))
 		{
 			TPBDJointUtilities<T, d>::ApplyJointPositionConstraint(Dt, Settings, JointSettings, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
