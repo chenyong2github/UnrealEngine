@@ -87,9 +87,11 @@ TSharedPtr<SToolTip> SNetStatsViewTooltip::GetColumnTooltip(const Insights::FTab
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedPtr<SToolTip> SNetStatsViewTooltip::GetCellTooltip(const TSharedPtr<FNetEventNode> NetEventNodePtr, const TSharedPtr<Insights::FTableColumn> ColumnPtr)
+TSharedPtr<SToolTip> SNetStatsViewTooltip::GetRowTooltip(const TSharedPtr<FNetEventNode> NetEventNodePtr)
 {
 	const Trace::FNetProfilerAggregatedStats& Stats = NetEventNodePtr->GetAggregatedStats();
+
+	const FText InstanceCountText = FText::AsNumber(Stats.InstanceCount);
 
 	const FText TotalInclusiveSizeText = FText::AsNumber(Stats.TotalInclusive);
 	const FText MaxInclusiveSizeText = FText::AsNumber(Stats.MaxInclusive);
@@ -99,8 +101,6 @@ TSharedPtr<SToolTip> SNetStatsViewTooltip::GetCellTooltip(const TSharedPtr<FNetE
 	const FText MaxExclusiveSizeText = FText::AsNumber(Stats.MaxExclusive);
 	//const FText AvgExclusiveSizeText = FText::AsNumber(Stats.AverageExclusive);
 	const FText AvgExclusiveSizeText;
-
-	const FText InstanceCountText = FText::AsNumber(Stats.InstanceCount);
 
 	TSharedPtr<SGridPanel> GridPanel;
 	TSharedPtr<SHorizontalBox> HBox;
@@ -177,7 +177,7 @@ TSharedPtr<SToolTip> SNetStatsViewTooltip::GetCellTooltip(const TSharedPtr<FNetE
 					//	.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
 					//]
 
-					// Sizer Type: [Type]
+					// Net Event Type: [Type]
 					+ SGridPanel::Slot(0, 3)
 					.Padding(2.0f)
 					[

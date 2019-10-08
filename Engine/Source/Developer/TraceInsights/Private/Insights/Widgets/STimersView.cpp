@@ -1613,22 +1613,34 @@ void STimersView::UpdateStats(double StartTime, double EndTime)
 		const bool bIsGpuTrackVisible = TimingView.IsValid() && TimingView->IsGpuTrackVisible();
 
 		TUniquePtr<Trace::ITable<Trace::FTimingProfilerAggregatedStats>> AggregationResultTable;
+
 		{
 			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 			const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
 			AggregationResultTable.Reset(TimingProfilerProvider.CreateAggregation(StartTime, EndTime, ThreadFilter, bIsGpuTrackVisible));
 		}
 
-		TUniquePtr<Trace::ITableReader<Trace::FTimingProfilerAggregatedStats>> AggregationResultTableReader(AggregationResultTable->CreateReader());
-		while (AggregationResultTableReader->IsValid())
+		if (AggregationResultTable.IsValid())
 		{
-			const Trace::FTimingProfilerAggregatedStats* Row = AggregationResultTableReader->GetCurrentRow();
-			FTimerNodePtr* TimerNodePtrPtr = TimerNodesIdMap.Find(Row->Timer->Id);
-			if (TimerNodePtrPtr != nullptr)
+			TUniquePtr<Trace::ITableReader<Trace::FTimingProfilerAggregatedStats>> TableReader(AggregationResultTable->CreateReader());
+			while (TableReader->IsValid())
 			{
-				(*TimerNodePtrPtr)->SetAggregatedStats(*Row);
+				const Trace::FTimingProfilerAggregatedStats* Row = TableReader->GetCurrentRow();
+				FTimerNodePtr* TimerNodePtrPtr = TimerNodesIdMap.Find(Row->Timer->Id);
+				if (TimerNodePtrPtr != nullptr)
+				{
+					FTimerNodePtr TimerNodePtr = *TimerNodePtrPtr;
+					TimerNodePtr->SetAggregatedStats(*Row);
+
+					TSharedPtr<ITableRow> TableRowPtr = TreeView->WidgetFromItem(TimerNodePtr);
+					if (TableRowPtr.IsValid())
+					{
+						TSharedPtr<STimerTableRow> RowPtr = StaticCastSharedPtr<STimerTableRow, ITableRow>(TableRowPtr);
+						RowPtr->InvalidateContent();
+					}
+				}
+				TableReader->NextRow();
 			}
-			AggregationResultTableReader->NextRow();
 		}
 	}
 

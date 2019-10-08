@@ -12,6 +12,7 @@
 #include "Insights/Table/ViewModels/Table.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/Table/Widgets/STableTreeViewCell.h"
+#include "Insights/Table/Widgets/STableTreeViewTooltip.h"
 
 #define LOCTEXT_NAMESPACE "STableTreeView"
 
@@ -26,14 +27,16 @@ void STableTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 {
 	OnShouldBeEnabled = InArgs._OnShouldBeEnabled;
 	IsColumnVisibleDelegate = InArgs._OnIsColumnVisible;
-	SetHoveredCellDelegate = InArgs._OnSetHoveredCell;
 	GetColumnOutlineHAlignmentDelegate = InArgs._OnGetColumnOutlineHAlignmentDelegate;
+	SetHoveredCellDelegate = InArgs._OnSetHoveredCell;
 
 	HighlightText = InArgs._HighlightText;
 	HighlightedNodeName = InArgs._HighlightedNodeName;
 
 	TablePtr = InArgs._TablePtr;
 	TableTreeNodePtr = InArgs._TableTreeNodePtr;
+
+	RowToolTip = MakeShareable(new STableTreeRowToolTip(TableTreeNodePtr));
 
 	SetEnabled(TAttribute<bool>(this, &STableTreeViewRow::HandleShouldBeEnabled));
 
@@ -90,6 +93,20 @@ FReply STableTreeViewRow::OnDragDetected(const FGeometry& MyGeometry, const FPoi
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+TSharedRef<IToolTip> STableTreeViewRow::GetRowToolTip() const
+{
+	return RowToolTip.ToSharedRef();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeViewRow::InvalidateContent()
+{
+	RowToolTip->InvalidateWidget();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 FSlateColor STableTreeViewRow::GetBackgroundColorAndOpacity() const
 {
 	return FLinearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -102,7 +119,7 @@ FSlateColor STableTreeViewRow::GetBackgroundColorAndOpacity(double Time) const
 	const FLinearColor Color =	Time > TimeUtils::Second      ? FLinearColor(0.3f, 0.0f, 0.0f, 1.0f) :
 								Time > TimeUtils::Milisecond  ? FLinearColor(0.3f, 0.1f, 0.0f, 1.0f) :
 								Time > TimeUtils::Microsecond ? FLinearColor(0.0f, 0.1f, 0.0f, 1.0f) :
-																FLinearColor(0.0f, 0.0f, 0.0f, 1.0f);
+								                                FLinearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	return Color;
 }
 

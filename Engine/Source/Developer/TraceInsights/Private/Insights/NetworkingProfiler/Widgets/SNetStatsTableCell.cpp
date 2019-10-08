@@ -15,7 +15,7 @@
 // Insights
 #include "Insights/Table/ViewModels/Table.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
-#include "Insights/NetworkingProfiler/Widgets/SNetStatsViewTooltip.h"
+#include "Insights/NetworkingProfiler/Widgets/SNetStatsTableRow.h"
 
 #define LOCTEXT_NAMESPACE "SNetStatsView"
 
@@ -23,7 +23,7 @@
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
-void SNetStatsTableCell::Construct(const FArguments& InArgs, const TSharedRef<class ITableRow>& TableRow)
+void SNetStatsTableCell::Construct(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow)
 {
 	TablePtr = InArgs._TablePtr;
 	ColumnPtr = InArgs._ColumnPtr;
@@ -43,7 +43,7 @@ void SNetStatsTableCell::Construct(const FArguments& InArgs, const TSharedRef<cl
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> SNetStatsTableCell::GenerateWidgetForColumn(const FArguments& InArgs, const TSharedRef<class ITableRow>& TableRow)
+TSharedRef<SWidget> SNetStatsTableCell::GenerateWidgetForColumn(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow)
 {
 	if (InArgs._IsNameColumn)
 	{
@@ -57,7 +57,7 @@ TSharedRef<SWidget> SNetStatsTableCell::GenerateWidgetForColumn(const FArguments
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> SNetStatsTableCell::GenerateWidgetForNameColumn(const FArguments& InArgs, const TSharedRef<class ITableRow>& TableRow)
+TSharedRef<SWidget> SNetStatsTableCell::GenerateWidgetForNameColumn(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow)
 {
 	return
 		SNew(SHorizontalBox)
@@ -79,7 +79,7 @@ TSharedRef<SWidget> SNetStatsTableCell::GenerateWidgetForNameColumn(const FArgum
 			SNew(SImage)
 			.Visibility(this, &SNetStatsTableCell::GetHintIconVisibility)
 			.Image(FEditorStyle::GetBrush("Profiler.Tooltip.HintIcon10"))
-			.ToolTip(SNetStatsViewTooltip::GetCellTooltip(NetEventNodePtr, ColumnPtr))
+			.ToolTip(GetRowToolTip(TableRow))
 		]
 
 		// Name
@@ -101,10 +101,23 @@ TSharedRef<SWidget> SNetStatsTableCell::GenerateWidgetForNameColumn(const FArgum
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> SNetStatsTableCell::GenerateWidgetForStatsColumn(const FArguments& InArgs, const TSharedRef<class ITableRow>& TableRow)
+TSharedPtr<IToolTip> SNetStatsTableCell::GetRowToolTip(const TSharedRef<ITableRow>& TableRow) const
 {
-	const FText CellText = NetEventNodePtr->IsGroup() ? FText::GetEmpty() : ColumnPtr->GetValueAsText(*NetEventNodePtr);
+	TSharedRef<SNetStatsTableRow> Row = StaticCastSharedRef<SNetStatsTableRow, ITableRow>(TableRow);
+	return Row->GetRowToolTip();
+}
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText SNetStatsTableCell::GetValueAsText() const
+{
+	return NetEventNodePtr->IsGroup() ? FText::GetEmpty() : ColumnPtr->GetValueAsText(*NetEventNodePtr);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SWidget> SNetStatsTableCell::GenerateWidgetForStatsColumn(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow)
+{
 	return
 		SNew(SHorizontalBox)
 
@@ -116,7 +129,7 @@ TSharedRef<SWidget> SNetStatsTableCell::GenerateWidgetForStatsColumn(const FArgu
 		.Padding(FMargin(2.0f, 0.0f))
 		[
 			SNew(STextBlock)
-			.Text(CellText)
+			.Text(this, &SNetStatsTableCell::GetValueAsText)
 			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
 			.ColorAndOpacity(this, &SNetStatsTableCell::GetStatsColorAndOpacity)
 			.ShadowColorAndOpacity(this, &SNetStatsTableCell::GetShadowColorAndOpacity)
