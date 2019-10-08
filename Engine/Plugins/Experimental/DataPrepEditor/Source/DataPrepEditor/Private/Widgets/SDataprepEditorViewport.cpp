@@ -567,7 +567,7 @@ void SDataprepEditorViewport::PopulateViewportOverlays(TSharedRef<SOverlay> Over
 	SEditorViewport::PopulateViewportOverlays(Overlay);
 
 	ScreenSizeText = SNew(STextBlock)
-	.Text( LOCTEXT( "ScreenSize_F", "Current Screen Size:"))
+	.Text( LOCTEXT( "ScreenSize", "Current Screen Size:"))
 	.TextStyle(FEditorStyle::Get(), "TextBlock.ShadowedText");
 
 	Overlay->AddSlot()
@@ -1384,7 +1384,7 @@ void SDataprepEditorViewportToolbar::ExtendLeftAlignedToolbarSlots(TSharedPtr<SH
 	[
 		SNew(SEditorViewportToolbarMenu)
 		.Label( LOCTEXT("DataprepEditor_Experimental", "Experimental") )
-		.ToolTipText(LOCTEXT("DataprepEditor_RenderingTooltip", "Experimental viewing modes or actions."))
+		.ToolTipText(LOCTEXT("DataprepEditor_ExperimentalTooltip", "Experimental viewing modes or actions."))
 		.ParentToolBar( ParentToolBarPtr )
 		.Cursor(EMouseCursor::Default)
 		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ExperimentalMenuButton")))

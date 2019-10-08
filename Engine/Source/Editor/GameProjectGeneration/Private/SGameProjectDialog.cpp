@@ -164,7 +164,7 @@ TSharedRef<SWidget> SGameProjectDialog::CreateLandingPage()
 	}
 	else if (DialogMode == EMode::Both)
 	{
-		Description = LOCTEXT("LandingPageDesc_Open", "Choose a recent <RichTextBlock.BoldHighlight>project</> to load, press <RichTextBlock.BoldHighlight>More</> to see all projects on your computer, or choose a template <RichTextBlock.BoldHighlight>category</> to create a new project.");
+		Description = LOCTEXT("LandingPageDesc_Both", "Choose a recent <RichTextBlock.BoldHighlight>project</> to load, press <RichTextBlock.BoldHighlight>More</> to see all projects on your computer, or choose a template <RichTextBlock.BoldHighlight>category</> to create a new project.");
 	}
 
 	TSharedRef<SWidget> Widget = SNew(SVerticalBox)

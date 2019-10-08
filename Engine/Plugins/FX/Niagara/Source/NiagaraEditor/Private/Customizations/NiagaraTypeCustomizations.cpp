@@ -125,7 +125,7 @@ FText FNiagaraVariableAttributeBindingCustomization::GetTooltipText() const
 			DefaultValueStr.TrimEndInline();
 		}
 
-		FText TooltipDesc = FText::Format(LOCTEXT("BindingTooltip", "Use the variable \"{0}\" if it exists, otherwise use the default \"{1}\" "), FText::FromName(TargetVariableBinding->BoundVariable.GetName()),
+		FText TooltipDesc = FText::Format(LOCTEXT("AttributeBindingTooltip", "Use the variable \"{0}\" if it exists, otherwise use the default \"{1}\" "), FText::FromName(TargetVariableBinding->BoundVariable.GetName()),
 			FText::FromString(DefaultValueStr));
 		return TooltipDesc;
 	}
@@ -224,7 +224,7 @@ void FNiagaraVariableAttributeBindingCustomization::OnActionSelected(const TArra
 
 void FNiagaraVariableAttributeBindingCustomization::ChangeSource(FName InVarName)
 {
-	FScopedTransaction Transaction(FText::Format(LOCTEXT("ChangeSource", " Change Variable Source to \"{0}\" "), FText::FromName(InVarName)));
+	FScopedTransaction Transaction(FText::Format(LOCTEXT("ChangeVariableSource", " Change Variable Source to \"{0}\" "), FText::FromName(InVarName)));
 	TArray<UObject*> Objects;
 	PropertyHandle->GetOuterObjects(Objects);
 	for (UObject* Obj : Objects)
@@ -314,7 +314,7 @@ FText FNiagaraUserParameterBindingCustomization::GetTooltipText() const
 {
 	if (BaseSystem && TargetUserParameterBinding && TargetUserParameterBinding->Parameter.IsValid())
 	{
-		FText TooltipDesc = FText::Format(LOCTEXT("BindingTooltip", "Bound to the user parameter \"{0}\""), FText::FromName(TargetUserParameterBinding->Parameter.GetName()));
+		FText TooltipDesc = FText::Format(LOCTEXT("ParameterBindingTooltip", "Bound to the user parameter \"{0}\""), FText::FromName(TargetUserParameterBinding->Parameter.GetName()));
 		return TooltipDesc;
 	}
 	return FText::FromString(TEXT("Missing"));
@@ -366,7 +366,7 @@ void FNiagaraUserParameterBindingCustomization::CollectAllActions(FGraphActionLi
 		FText CategoryName = FText();
 		FString DisplayNameString = FName::NameToDisplayString(UserParamName.ToString(), false);
 		const FText NameText = FText::FromString(DisplayNameString);
-		const FText TooltipDesc = FText::Format(LOCTEXT("SetFunctionPopupTooltip", "Bind to the User Parameter \"{0}\" "), FText::FromString(DisplayNameString));
+		const FText TooltipDesc = FText::Format(LOCTEXT("BindToUserParameter", "Bind to the User Parameter \"{0}\" "), FText::FromString(DisplayNameString));
 		TSharedPtr<FNiagaraStackAssetAction_VarBind> NewNodeAction(new FNiagaraStackAssetAction_VarBind(UserParamName, CategoryName, NameText,
 			TooltipDesc, 0, FText()));
 		OutAllActions.AddAction(NewNodeAction);
@@ -406,7 +406,7 @@ void FNiagaraUserParameterBindingCustomization::OnActionSelected(const TArray< T
 
 void FNiagaraUserParameterBindingCustomization::ChangeSource(FName InVarName)
 {
-	FScopedTransaction Transaction(FText::Format(LOCTEXT("ChangeSource", " Change User Parameter Source to \"{0}\" "), FText::FromName(InVarName)));
+	FScopedTransaction Transaction(FText::Format(LOCTEXT("ChangeParameterSource", " Change User Parameter Source to \"{0}\" "), FText::FromName(InVarName)));
 	TArray<UObject*> Objects;
 	PropertyHandle->GetOuterObjects(Objects);
 	for (UObject* Obj : Objects)

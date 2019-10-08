@@ -165,4 +165,6 @@ void FSimulationEditorExtender::ShowClothSections(USkeletalMeshComponent* MeshCo
 	}
 }
 
+#undef LOCTEXT_NAMESPACE
+
 #endif  // #if WITH_CHAOS

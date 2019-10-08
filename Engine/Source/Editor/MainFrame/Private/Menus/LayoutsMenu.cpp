@@ -211,16 +211,16 @@ FText GetDisplayTextInternal(const FString& InString)
 	const FText DisplayName = FText::FromString(FName::NameToDisplayString(DisplayNameText.ToString(), bIsBool));
 	return DisplayName;
 }
-FText GetTooltipTextInternal(const FText& InDisplayName, const FString& InLayoutFilePath, const FText& InLayoutName, const int32 LayoutIndex)
+FText GetTooltipTextInternal(const FText& InDisplayName, const FString& InLayoutFilePath, const FText& InLayoutName)
 {
 	FText Tooltip;
 	if (InLayoutName.IsEmpty())
 	{
-		Tooltip = FText::Format(LOCTEXT("DisplayName{0}", "Layout name:\n{1}\n\nFull file path:\n{2}"), FText::AsNumber(LayoutIndex), InDisplayName, FText::FromString(InLayoutFilePath));
+		Tooltip = FText::Format(LOCTEXT("DisplayNameFmt", "Layout name:\n{0}\n\nFull file path:\n{1}"), InDisplayName, FText::FromString(InLayoutFilePath));
 	}
 	else
 	{
-		Tooltip = FText::Format(LOCTEXT("DisplayName{0}", "Description:\n{1}.\n\nFull file path:\n{2}"), FText::AsNumber(LayoutIndex), InLayoutName, FText::FromString(InLayoutFilePath));
+		Tooltip = FText::Format(LOCTEXT("LayoutNameFmt", "Description:\n{0}.\n\nFull file path:\n{1}"), InLayoutName, FText::FromString(InLayoutFilePath));
 	}
 	return Tooltip;
 }
@@ -240,7 +240,7 @@ void DisplayLayoutsInternal(FToolMenuSection& InSection, const TArray<TSharedPtr
 			const FText LayoutDescription = FLayoutSaveRestore::LoadSectionFromConfig(LayoutFilePath, "LayoutDescription");
 			// If no localization name, then display the file name
 			const FText DisplayName = (!LayoutName.IsEmpty() ? LayoutName : GetDisplayTextInternal(InLayoutIniFileNames[LayoutIndex]));
-			const FText Tooltip = GetTooltipTextInternal(DisplayName, LayoutFilePath, LayoutDescription, LayoutIndex);
+			const FText Tooltip = GetTooltipTextInternal(DisplayName, LayoutFilePath, LayoutDescription);
 			InSection.AddMenuEntry(InXLayoutCommands[LayoutIndex], DisplayName, Tooltip).Name = NAME_None;
 		}
 	}
@@ -579,7 +579,7 @@ void FLayoutsMenuLoad::ImportLayout()
 			{
 				const FText TextBody = LOCTEXT("SuccessfulImportBody",
 					"The layout(s) were successfully imported into the \"User Layouts\" section. However, no layout has been loaded into your current Unreal Editor UI because PIE is currently running. In order to do so, you must stop PIE and then load the layout from the \"User Layouts\" section.");
-				const FText TextTitle = LOCTEXT("UnsuccessfulImportHeader", "Successful Import!");
+				const FText TextTitle = LOCTEXT("SuccessfulImportHeader", "Successful Import!");
 				OpenMsgDlgInt(EAppMsgType::Ok, TextBody, TextTitle);
 				return;
 			}

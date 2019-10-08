@@ -489,7 +489,7 @@ void FSkeletalMeshReductionSettingsLayout::GenerateChildContent(IDetailChildrenB
 		AddFloatRow(ChildrenBuilder, 
 			LOCTEXT("PercentTriangles_Row", "Triangle Percentage"),
 			LOCTEXT("PercentTriangles", "Percent of Triangles"),
-			LOCTEXT("PercentTriangles_ToolTip", "The percentage of triangles to retain as a ratio, e.g. 0.1 indicates 10 percent."),
+			LOCTEXT("PercentTriangles_DeviationToolTip", "The percentage of triangles to retain as a ratio, e.g. 0.1 indicates 10 percent."),
 			0.0f,
 			1.0f,
 			FGetFloatDelegate::CreateRaw(this, &FSkeletalMeshReductionSettingsLayout::GetNumTrianglesPercentage),

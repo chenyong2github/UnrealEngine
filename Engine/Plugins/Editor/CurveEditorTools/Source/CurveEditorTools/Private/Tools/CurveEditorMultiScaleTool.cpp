@@ -681,3 +681,5 @@ FVector2D FCurveEditorMultiScaleTool::GetPivot(FCurveModel* InCurve, const TArra
 	}
 	return Pivot;
 }
+
+#undef LOCTEXT_NAMESPACE

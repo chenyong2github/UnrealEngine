@@ -2066,7 +2066,7 @@ void FStaticLightingSystem::GatherScene()
 		{
 			if (LegacyAtmosphericFogRegistered)
 			{
-				FMessageLog("LightingResults").Warning(LOCTEXT("LightmassError_BuildSelected", "Both a legacy AtmosphericFog and a new SkyAtmosphere wants to register. Lightmass will not consider the legacy component."));
+				FMessageLog("LightingResults").Warning(LOCTEXT("LightmassError_BothAtmosphericFogAndSkyAtmosphereSelected", "Both a legacy AtmosphericFog and a new SkyAtmosphere wants to register. Lightmass will not consider the legacy component."));
 			}
 			LightmassExporter->SetAtmosphericComponent(nullptr);
 			LightmassExporter->SetSkyAtmosphereComponent(SkyAtmosphere);
