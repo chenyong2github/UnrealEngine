@@ -2414,9 +2414,10 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		}
 	}
 
+	ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatformWithSupport(TEXT("ShaderFormat"), LegacyShaderPlatformToShaderFormat(Platform));
+
 	{
 		bool bForwardShading = false;
-		ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatformWithSupport(TEXT("ShaderFormat"), LegacyShaderPlatformToShaderFormat(Platform));
 		if (TargetPlatform)
 		{
 			// if there is a specific target platform that matches our shader platform, use that to drive forward shading
@@ -2432,6 +2433,13 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		if (bForwardShading)
 		{
 			KeyString += TEXT("_FS");
+		}
+	}
+
+	{
+		if (UseVirtualTexturing(GetMaxSupportedFeatureLevel(Platform), TargetPlatform))
+		{
+			KeyString += TEXT("_VT");
 		}
 	}
 
