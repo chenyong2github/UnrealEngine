@@ -45,6 +45,69 @@ enum EStereoLayerShape
 	SLSH_MAX,
 };
 
+/** Additional properties for equirect layers */
+USTRUCT(BlueprintType)
+struct FEquirectProps
+{
+	GENERATED_USTRUCT_BODY()
+public:
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Equirect Layer Properties")
+		/** Left source texture UVRect, specifying portion of input texture corresponding to left eye. */
+		FBox2D LeftUVRect;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Equirect Layer Properties")
+		/** Right source texture UVRect, specifying portion of input texture corresponding to right eye. */
+		FBox2D RightUVRect;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Equirect Layer Properties")
+		/** Left eye's texture coordinate scale after mapping to 2D. */
+		FVector2D LeftScale;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Equirect Layer Properties")
+		/** Right eye's texture coordinate scale after mapping to 2D. */
+		FVector2D RightScale;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Equirect Layer Properties")
+		/** Left eye's texture coordinate bias after mapping to 2D. */
+		FVector2D LeftBias;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Equirect Layer Properties")
+		/** Right eye's texture coordinate bias after mapping to 2D. */
+		FVector2D RightBias;
+
+public:
+
+	FEquirectProps()
+		: LeftUVRect(FBox2D(FVector2D(0.0f, 0.0f), FVector2D(1.0f, 1.0f)))
+		, RightUVRect(FBox2D(FVector2D(0.0f, 0.0f), FVector2D(1.0f, 1.0f)))
+		, LeftScale(FVector2D(1.0f, 1.0f))
+		, RightScale(FVector2D(1.0f, 1.0f))
+		, LeftBias(FVector2D(0.0f, 0.0f))
+		, RightBias(FVector2D(0.0f, 0.0f))
+	{}
+
+	FEquirectProps(FBox2D InLeftUVRect, FBox2D InRightUVRect, FVector2D InLeftScale, FVector2D InRightScale, FVector2D InLeftBias, FVector2D InRightBias)
+		: LeftUVRect(InLeftUVRect)
+		, RightUVRect(InRightUVRect)
+		, LeftScale(InLeftScale)
+		, RightScale(InRightScale)
+		, LeftBias(InLeftBias)
+		, RightBias(InRightBias)
+	{ }
+
+	/**
+	 * Compares two FEquirectProps for equality.
+	 *
+	 * @param Other The other FEquirectProps to compare with.
+	 * @return true if the are equal, false otherwise.
+	 */
+	bool operator==(const FEquirectProps& Other) const
+	{
+		return (LeftUVRect == Other.LeftUVRect) && (RightUVRect == Other.RightUVRect) && (LeftScale == Other.LeftScale) && (RightScale == Other.RightScale) && (LeftBias == Other.LeftBias) && (RightBias == Other.RightBias);
+	}
+};
+
 /** 
  * A geometry layer within the stereo rendered viewport.
  */
