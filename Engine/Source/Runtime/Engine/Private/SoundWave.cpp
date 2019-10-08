@@ -722,6 +722,11 @@ void USoundWave::InvalidateCompressedData(bool bFreeResources)
 	}
 }
 
+bool USoundWave::HasStreamingChunks()
+{
+	return RunningPlatformData != NULL && RunningPlatformData->Chunks.Num() > 0;
+}
+
 void USoundWave::PostLoad()
 {
 	LLM_SCOPE(ELLMTag::AudioSoundWaves);
@@ -793,14 +798,16 @@ void USoundWave::PostLoad()
 		IStreamingManager::Get().GetAudioStreamingManager().AddStreamingSoundWave(this);
 	}
 
-	if (ShouldUseStreamCaching() && IsStreaming())
+	const bool bDoesSoundWaveHaveStreamingAudioData = HasStreamingChunks();
+
+	if (ShouldUseStreamCaching() && IsStreaming() && bDoesSoundWaveHaveStreamingAudioData)
 	{
 		EnsureZerothChunkIsLoaded();
 	}
 
 	const bool bShouldPrimeSound = LoadIntoCacheOnPostLoadCVar || bLoadCompressedAudioWhenSoundWaveIsLoaded;
 
-	if (bShouldPrimeSound && FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching())
+	if (bShouldPrimeSound && FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching() && bDoesSoundWaveHaveStreamingAudioData)
 	{
 		// Load rest of the audio into cache.
 		IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(this, 1, [](EAudioChunkLoadResult) {});

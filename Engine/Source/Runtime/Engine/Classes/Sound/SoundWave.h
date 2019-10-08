@@ -804,6 +804,9 @@ public:
 	/** Returns curves associated with this sound wave */
 	virtual class UCurveTable* GetCurveData() const override { return Curves; }
 
+	// This function returns true if there are streamable chunks in this asset.
+	bool HasStreamingChunks();
+
 #if WITH_EDITOR
 	/** These functions are required for support for some custom details/editor functionality.*/
 
