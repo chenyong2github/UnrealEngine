@@ -147,7 +147,7 @@ TSharedRef<SWidget> FVariantManagerStructPropertyNode::GenerateFloatEntryBox(UNu
 	.OnValueChanged(this, &FVariantManagerStructPropertyNode::OnFloatValueChanged, Prop)
 	.OnValueCommitted(this, &FVariantManagerStructPropertyNode::OnFloatPropCommitted, Prop, Offset)
 	.Value(this, &FVariantManagerStructPropertyNode::GetFloatValueFromCache, Prop)
-	.UndeterminedString(FText::FromString(TEXT("Multiple Values")))
+	.UndeterminedString(LOCTEXT("MultipleValuesLabel", "Multiple Values"))
 	.ShiftMouseMovePixelPerDelta(ShiftMouseMovePixelPerDelta)
 	.SupportDynamicSliderMaxValue(SupportDynamicSliderMaxValue)
 	.SupportDynamicSliderMinValue(SupportDynamicSliderMinValue)
@@ -182,7 +182,7 @@ TSharedRef<SWidget> FVariantManagerStructPropertyNode::GenerateSignedEntryBox(UN
 	.OnValueChanged(this, &FVariantManagerStructPropertyNode::OnSignedValueChanged, Prop)
 	.OnValueCommitted(this, &FVariantManagerStructPropertyNode::OnSignedPropCommitted, Prop, Offset)
 	.Value(this, &FVariantManagerStructPropertyNode::GetSignedValueFromCache, Prop)
-	.UndeterminedString(FText::FromString(TEXT("Multiple Values")))
+	.UndeterminedString(LOCTEXT("MultipleValuesLabel", "Multiple Values"))
 	.ShiftMouseMovePixelPerDelta(ShiftMouseMovePixelPerDelta)
 	.SupportDynamicSliderMaxValue(SupportDynamicSliderMaxValue)
 	.SupportDynamicSliderMinValue(SupportDynamicSliderMinValue)
@@ -217,7 +217,7 @@ TSharedRef<SWidget> FVariantManagerStructPropertyNode::GenerateUnsignedEntryBox(
 	.OnValueChanged(this, &FVariantManagerStructPropertyNode::OnUnsignedValueChanged, Prop)
 	.OnValueCommitted(this, &FVariantManagerStructPropertyNode::OnUnsignedPropCommitted, Prop, Offset)
 	.Value(this, &FVariantManagerStructPropertyNode::GetUnsignedValueFromCache, Prop)
-	.UndeterminedString(FText::FromString(TEXT("Multiple Values")))
+	.UndeterminedString(LOCTEXT("MultipleValuesLabel", "Multiple Values"))
 	.ShiftMouseMovePixelPerDelta(ShiftMouseMovePixelPerDelta)
 	.SupportDynamicSliderMaxValue(SupportDynamicSliderMaxValue)
 	.SupportDynamicSliderMinValue(SupportDynamicSliderMinValue)
@@ -512,7 +512,7 @@ void FVariantManagerStructPropertyNode::OnFloatPropCommitted(double InValue, ETe
 	}
 
 	FScopedTransaction Transaction(FText::Format(
-		LOCTEXT("StructPropertyNodeUpdateRecordedData", "Edit captured property '{0}'"),
+		LOCTEXT("EditCapturedProperty", "Edit captured property '{0}'"),
 		FText::FromName(FirstPropertyValue->GetPropertyName())));
 
 	TOptional<double>& StoredVal = FloatValues.FindOrAdd(Prop);

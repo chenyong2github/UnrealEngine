@@ -230,7 +230,7 @@ TSharedPtr<SWidget> FVariantManagerPropertyNode::GetPropertyValueWidget()
 		.HAlign(HAlign_Left)
 		[
 			SNew(STextBlock)
-			.Text(LOCTEXT("MultipleValuesText", "Multiple Values"))
+			.Text(LOCTEXT("MultipleValuesLabel", "Multiple Values"))
 			.Font(FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont"))
 			.ColorAndOpacity(this, &FVariantManagerDisplayNode::GetDisplayNameColor)
 			.ToolTipText(LOCTEXT("MultipleValuesTooltip", "The selected actors have different values for this property"))
@@ -281,11 +281,11 @@ TSharedPtr<SWidget> FVariantManagerPropertyNode::GetPropertyValueWidget()
 		.HAlign(HAlign_Left)
 		[
 			SNew(STextBlock)
-			.Text(LOCTEXT("FailedToResolveText", "Unsupported property type!"))
+			.Text(LOCTEXT("UnsupportedPropertyType", "Unsupported property type!"))
 			.Font(FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont"))
 			.ColorAndOpacity(this, &FVariantManagerDisplayNode::GetDisplayNameColor)
 			.ToolTipText(FText::Format(
-				LOCTEXT("FailedToResolveTooltip", "Properties of class '{0}' can't be captured yet!"),
+				LOCTEXT("UnsupportedPropertyTypeTooltip", "Properties of class '{0}' can't be captured yet!"),
 				FText::FromString(FirstPropertyValue->GetPropertyClass()->GetName())))
 		];
 	}
@@ -451,8 +451,8 @@ void FVariantManagerPropertyNode::UpdateRecordedDataFromSinglePropView(TSharedPt
 FReply FVariantManagerPropertyNode::ResetMultipleValuesToDefault()
 {
 	FScopedTransaction Transaction(FText::Format(
-		LOCTEXT("ResetPropertyValue", "Reset {0} property captures to default"),
-		FText::FromString(FString::FromInt(PropertyValues.Num()))
+		LOCTEXT("ResetPropertyValue", "Reset {0} property {0}|plural(one=capture,other=captures) to default"),
+		PropertyValues.Num()
 	));
 
 	TArray<uint8> DefaultValue;
@@ -486,8 +486,8 @@ FReply FVariantManagerPropertyNode::ResetMultipleValuesToDefault()
 FReply FVariantManagerPropertyNode::RecordMultipleValues()
 {
 	FScopedTransaction Transaction(FText::Format(
-		LOCTEXT("ResetPropertyValue", "Recorded new data for {0} property captures"),
-		FText::FromString(FString::FromInt(PropertyValues.Num()))
+		LOCTEXT("RecordedNewDataForProperty", "Recorded new data for {0} property {0}|plural(one=capture,other=captures)"),
+		PropertyValues.Num()
 	));
 
 	for (TWeakObjectPtr<UPropertyValue> PropertyValue : PropertyValues)

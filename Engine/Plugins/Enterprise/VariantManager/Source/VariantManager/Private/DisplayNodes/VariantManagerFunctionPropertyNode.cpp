@@ -44,12 +44,12 @@ void FVariantManagerFunctionPropertyNode::BuildContextMenu(FMenuBuilder& MenuBui
 
 FText FVariantManagerFunctionPropertyNode::GetDisplayName() const
 {
-	return FText::FromString(TEXT("Function caller"));
+	return LOCTEXT("NodeDisplayName", "Function caller");
 }
 
 FText FVariantManagerFunctionPropertyNode::GetDisplayNameToolTipText() const
 {
-	return FText::FromString(TEXT("Reference to one of the functions of the parent LevelVariantSets' FunctionDirector"));
+	return LOCTEXT("NodeToolTipText", "Reference to one of the functions of the parent LevelVariantSets' FunctionDirector");
 }
 
 TWeakObjectPtr<UVariantObjectBinding> FVariantManagerFunctionPropertyNode::GetObjectBinding() const
@@ -226,7 +226,7 @@ TSharedRef<SWidget> FVariantManagerFunctionPropertyNode::GetMenuContent()
 							else
 							{
 								TooltipText = FText::Format(
-									LOCTEXT("WrongPinTypeTooltip", "Input pin '{0}' of type '{1}' must be a reference\nto an object of a class parent to '{2}'"),
+									LOCTEXT("WrongPinTypeTooltipWithClass", "Input pin '{0}' of type '{1}' must be a reference\nto an object of a class parent to '{2}'"),
 									FText::FromName(PinInfo->PinName),
 									FText::FromString(PinClass->GetName()),
 									FText::FromString(BoundObjectClass->GetName()));

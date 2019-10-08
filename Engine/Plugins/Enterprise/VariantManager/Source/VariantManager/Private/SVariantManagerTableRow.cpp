@@ -60,9 +60,8 @@ FReply SVariantManagerTableRow::DragDetected( const FGeometry& InGeometry, const
 
 			int32 NumNodes = DraggableNodes.Num();
 
-			DefaultHoverText = FText::Format(NSLOCTEXT("VariantManagerTableRow", "DefaultDragText", "{0} actor node{1}" ),
-				FText::AsNumber(NumNodes),
-				NumNodes != 1 ? FText::FromString(TEXT("s")) : FText());
+			DefaultHoverText = FText::Format(NSLOCTEXT("VariantManagerTableRow", "DragActorNode", "{0} actor {0}|plural(one=node,other=nodes)" ),
+				NumNodes);
 
 			break;
 		}
@@ -81,8 +80,8 @@ FReply SVariantManagerTableRow::DragDetected( const FGeometry& InGeometry, const
 
 			int32 NumNodes = DraggableNodes.Num();
 
-			DefaultHoverText = FText::Format(NSLOCTEXT("VariantManagerTableRow", "DefaultDragText", "{0} variants and variant sets" ),
-				FText::AsNumber(NumNodes));
+			DefaultHoverText = FText::Format(NSLOCTEXT("VariantManagerTableRow", "DragVariants", "{0} {0}|plural(one=variant,other=variants) and/or variant {0}|plural(one=set,other=sets)" ),
+				NumNodes);
 
 			break;
 		}
