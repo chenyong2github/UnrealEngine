@@ -197,9 +197,8 @@ bool UClothingAssetCommon::BindToSkeletalMesh(
 	// If we've been added to the wrong mesh
 	if(InSkelMesh != GetOuter())
 	{
-		FText Error = FText::Format(LOCTEXT(
-			"Error_WrongMesh", 
-			"Failed to bind clothing asset {0} as the provided mesh is not the owner of this asset."), 
+		FText Error = FText::Format(
+			LOCTEXT("Error_WrongMesh", "Failed to bind clothing asset {0} as the provided mesh is not the owner of this asset."), 
 			FText::FromString(GetName()));
 		Warn(Error);
 		return false;
@@ -208,12 +207,11 @@ bool UClothingAssetCommon::BindToSkeletalMesh(
 	// If we don't have clothing data
 	if(!ClothLodData.IsValidIndex(InAssetLodIndex))
 	{
-		FText Error = FText::Format(LOCTEXT(
-			"Error_NoClothingLod", 
-			"Failed to bind clothing asset {0} LOD{1} as LOD{2} does not exist."), 
+		FText Error = FText::Format(
+			LOCTEXT("Error_NoClothingLod", "Failed to bind clothing asset {0} LOD{1} as LOD{2} does not exist."), 
 			FText::FromString(GetName()), 
-			FText::AsNumber(InAssetLodIndex), 
-			FText::AsNumber(InAssetLodIndex));
+			InAssetLodIndex,
+			InAssetLodIndex);
 		Warn(Error);
 		return false;
 	}
@@ -221,9 +219,8 @@ bool UClothingAssetCommon::BindToSkeletalMesh(
 	// If we don't have a mesh
 	if(!InSkelMesh)
 	{
-		FText Error = FText::Format(LOCTEXT(
-			"Error_NoMesh", 
-			"Failed to bind clothing asset {0} as provided skel mesh does not exist."), 
+		FText Error = FText::Format(
+			LOCTEXT("Error_NoMesh", "Failed to bind clothing asset {0} as provided skel mesh does not exist."), 
 			FText::FromString(GetName()));
 		Warn(Error);
 		return false;
@@ -232,11 +229,10 @@ bool UClothingAssetCommon::BindToSkeletalMesh(
 	// If the mesh LOD index is invalid
 	if(!InSkelMesh->GetImportedModel()->LODModels.IsValidIndex(InMeshLodIndex))
 	{
-		FText Error = FText::Format(LOCTEXT(
-			"Error_InvalidMeshLOD", 
-			"Failed to bind clothing asset {0} as mesh LOD{1} does not exist."), 
+		FText Error = FText::Format(
+			LOCTEXT("Error_InvalidMeshLOD", "Failed to bind clothing asset {0} as mesh LOD{1} does not exist."), 
 			FText::FromString(GetName()), 
-			FText::AsNumber(InMeshLodIndex));
+			InMeshLodIndex);
 		Warn(Error);
 		return false;
 	}
@@ -247,13 +243,12 @@ bool UClothingAssetCommon::BindToSkeletalMesh(
 		const int32& MappedLod = LodMap[MapIndex];
 		if(MappedLod == InAssetLodIndex)
 		{
-			FText Error = FText::Format(LOCTEXT(
-				"Error_LodMapped", 
-				"Failed to bind clothing asset {0} LOD{1} as LOD{2} is already mapped to mesh LOD{3}."), 
+			FText Error = FText::Format(
+				LOCTEXT("Error_LodMapped", "Failed to bind clothing asset {0} LOD{1} as LOD{2} is already mapped to mesh LOD{3}."), 
 				FText::FromString(GetName()), 
-				FText::AsNumber(InAssetLodIndex), 
-				FText::AsNumber(InAssetLodIndex), 
-				FText::AsNumber(MapIndex));
+				InAssetLodIndex, 
+				InAssetLodIndex, 
+				MapIndex);
 			Warn(Error);
 			return false;
 		}
@@ -337,14 +332,12 @@ bool UClothingAssetCommon::BindToSkeletalMesh(
 	if(TempBoneMap.Num() > FGPUBaseSkinVertexFactory::GetMaxGPUSkinBones())
 	{
 		// Failed to apply as we've exceeded the number of bones we can skin
-		FText Error = FText::Format(LOCTEXT(
-			"Error_TooManyBones", 
-			"Failed to bind clothing asset {0} LOD{1} as this causes the section to require {2} bones. "
-			"The maximum per section is currently {3}."), 
+		FText Error = FText::Format(
+			LOCTEXT("Error_TooManyBones", "Failed to bind clothing asset {0} LOD{1} as this causes the section to require {2} bones. The maximum per section is currently {3}."), 
 			FText::FromString(GetName()), 
-			FText::AsNumber(InAssetLodIndex), 
-			FText::AsNumber(TempBoneMap.Num()), 
-			FText::AsNumber(FGPUBaseSkinVertexFactory::GetMaxGPUSkinBones()));
+			InAssetLodIndex, 
+			TempBoneMap.Num(), 
+			FGPUBaseSkinVertexFactory::GetMaxGPUSkinBones());
 		Warn(Error);
 		return false;
 	}
@@ -433,11 +426,10 @@ void UClothingAssetCommon::UnbindFromSkeletalMesh(
 	{
 		if(!Mesh->LODModels.IsValidIndex(InMeshLodIndex))
 		{
-			FText Error = FText::Format(LOCTEXT(
-				"Error_UnbindNoMeshLod", 
-				"Failed to remove clothing asset {0} from mesh LOD{1} as that LOD doesn't exist."), 
+			FText Error = FText::Format(
+				LOCTEXT("Error_UnbindNoMeshLod", "Failed to remove clothing asset {0} from mesh LOD{1} as that LOD doesn't exist."), 
 				FText::FromString(GetName()), 
-				FText::AsNumber(InMeshLodIndex));
+				InMeshLodIndex);
 			Warn(Error);
 
 			return;

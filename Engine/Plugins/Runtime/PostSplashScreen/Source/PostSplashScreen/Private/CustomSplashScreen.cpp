@@ -49,3 +49,5 @@ float FCustomSplashScreen::GetAddedTickDelay()
 	const float DefaultTickTime = 0.03f;
 	return FMath::Min(MaxTimeToDisplay, DefaultTickTime);
 }
+
+#undef LOCTEXT_NAMESPACE

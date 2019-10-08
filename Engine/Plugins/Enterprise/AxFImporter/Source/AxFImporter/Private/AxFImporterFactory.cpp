@@ -225,11 +225,11 @@ void UAxFImporterFactory::CleanUp()
 bool UAxFImporterFactory::LoadMaterials(IAxFFileImporter* Importer,
     UObject* InPackage, EObjectFlags InFlags, const FString& InFilename, const UAxFImporterOptions& InImporterOptions, FFeedbackContext& OutWarn)
 {
-	FScopedSlowTask Progress(100.0f, LOCTEXT("AxF", "Importing File ..."), true, OutWarn);
+	FScopedSlowTask Progress(100.0f, LOCTEXT("ImportingFile", "Importing File ..."), true, OutWarn);
 	Progress.MakeDialog();
 
 	const float StartProgress = 25.f;
-	Progress.EnterProgressFrame(StartProgress, FText::Format(LOCTEXT("AxF", "Loading materials: {0} ..."), FText::FromString(InFilename)));
+	Progress.EnterProgressFrame(StartProgress, FText::Format(LOCTEXT("LoadingMaterials", "Loading materials: {0} ..."), FText::FromString(InFilename)));
 
 	bool bSuccess = Importer->OpenFile(InFilename, InImporterOptions);
 
@@ -245,11 +245,11 @@ bool UAxFImporterFactory::LoadMaterials(IAxFFileImporter* Importer,
 				const float FinishProgress   = 90.f;
 				const float MaterialProgress = (FinishProgress - StartProgress) / MaterialCount;
 				Progress.EnterProgressFrame(MaterialProgress,
-				                            FText::Format(LOCTEXT("AxF", "Material processing: {0} ..."), FText::FromString(MaterialName)));
+				                            FText::Format(LOCTEXT("MaterialProcessing", "Material processing: {0} ..."), FText::FromString(MaterialName)));
 			}
 			else
 			{
-				Progress.EnterProgressFrame(5.f, FText::Format(LOCTEXT("AxF", "Finishing materials: {0} ..."), FText::FromString(InFilename)));
+				Progress.EnterProgressFrame(5.f, FText::Format(LOCTEXT("FinishingMaterials", "Finishing materials: {0} ..."), FText::FromString(InFilename)));
 			}
 		};
 

@@ -191,7 +191,7 @@ UTexture* FDatasmithTextureImporter::CreateTexture(const TSharedPtr<IDatasmithTe
 		// try opening from absolute path
 		if (!(FFileHelper::LoadFileToArray(FileTextureData, *ImageFileName) && FileTextureData.Num() > 0))
 		{
-			ImportContext.LogWarning(FText::Format(LOCTEXT("InvalidData", "Unable to find Texture file {0}."), FText::FromString(Filename)));
+			ImportContext.LogWarning(FText::Format(LOCTEXT("NoTextureFileFound", "Unable to find Texture file {0}."), FText::FromString(Filename)));
 			return nullptr;
 		}
 

@@ -1217,7 +1217,7 @@ TSharedRef<SWidget> STableTreeView::GetGroupingCrumbMenuContent(const TSharedPtr
 			MenuBuilder.AddSubMenu
 			(
 				LOCTEXT("ChangeGrouping_Section", "Change To..."),
-				LOCTEXT("GroupingMenu_Add_Desc", "Change selected grouping."),
+				LOCTEXT("ChangeGrouping_Desc", "Change selected grouping."),
 				FNewMenuDelegate::CreateSP(this, &STableTreeView::BuildGroupingSubMenu_Change, CrumbGrouping),
 				false,
 				FSlateIcon()

@@ -1875,3 +1875,5 @@ void UToolMenus::RemoveAllCustomizations()
 {
 	CustomizedMenus.Reset();
 }
+
+#undef LOCTEXT_NAMESPACE

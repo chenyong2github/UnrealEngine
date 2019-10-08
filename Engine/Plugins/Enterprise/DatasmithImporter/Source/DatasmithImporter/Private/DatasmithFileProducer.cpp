@@ -153,7 +153,7 @@ bool UDatasmithFileProducer::Execute(TArray< TWeakObjectPtr< UObject > >& OutAss
 	ProgressTaskPtr->ReportNextStep( FText::Format( LOCTEXT( "DatasmithFileProducer_ConvertingFile", "Converting {0} ..."), FText::FromString( FilePath ) ), 2.0f );
 	SceneElementToWorld();
 
-	ProgressTaskPtr->ReportNextStep( LOCTEXT( "DatasmithFileProducer_LoadingFile", "Cleaning data ...") );
+	ProgressTaskPtr->ReportNextStep( LOCTEXT( "DatasmithFileProducer_CleaningData", "Cleaning data ...") );
 	PreventNameCollision();
 
 	OutAssets.Append( MoveTemp( Assets ) );
@@ -600,7 +600,7 @@ bool UDatasmithDirProducer::Execute(TArray< TWeakObjectPtr< UObject > >& OutAsse
 {
 	if(!IsValid())
 	{
-		LogError( LOCTEXT( "DatasmithDirProducerNoFile", "Execution failed: Producer is not valid." ) );
+		LogError( LOCTEXT( "DatasmithProducerInvalid", "Execution failed: Producer is not valid." ) );
 		return false;
 	}
 
@@ -867,7 +867,7 @@ public:
 			[
 				SNew(SButton)
 				.OnClicked(this, &SDatasmithFileProducerFileProperty::OnChangePathClicked )
-				.ToolTipText(LOCTEXT("ChangePath_Tooltip", "Browse for a new source file path"))
+				.ToolTipText(LOCTEXT("ChangeSourcePath_Tooltip", "Browse for a new source file path"))
 				[
 					SNew(STextBlock)
 					.Text(LOCTEXT("...", "..."))

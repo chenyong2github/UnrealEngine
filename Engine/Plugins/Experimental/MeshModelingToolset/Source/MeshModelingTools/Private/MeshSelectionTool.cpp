@@ -898,7 +898,7 @@ void UMeshSelectionTool::DeleteSelectedTriangles()
 	ChangeSeq->AppendChange(PreviewMesh, MoveTemp(MeshChange));
 
 	// emit combined change sequence
-	GetToolManager()->EmitObjectChange(this, MoveTemp(ChangeSeq), LOCTEXT("MeshSelectionToolDelete", "Delete Faces"));
+	GetToolManager()->EmitObjectChange(this, MoveTemp(ChangeSeq), LOCTEXT("MeshSelectionToolDeleteFaces", "Delete Faces"));
 
 	OnExternalSelectionChange();
 	bHaveModifiedMesh = true;

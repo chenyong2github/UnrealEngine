@@ -231,11 +231,11 @@ void UMDLImporterFactory::CleanUp()
 bool UMDLImporterFactory::LoadMaterials(IMdlFileImporter* Importer,
     UObject* InPackage, EObjectFlags InFlags, const FString& InFilename, const UMDLImporterOptions& InImporterOptions, FFeedbackContext& OutWarn)
 {
-	FScopedSlowTask Progress(100.0f, LOCTEXT("MDL", "Importing File ..."), true, OutWarn);
+	FScopedSlowTask Progress(100.0f, LOCTEXT("ImportingFiles", "Importing File ..."), true, OutWarn);
 	Progress.MakeDialog();
 
 	const float StartProgress = 25.f;
-	Progress.EnterProgressFrame(StartProgress, FText::Format(LOCTEXT("MDL", "Importing materials: {0} ..."), FText::FromString(InFilename)));
+	Progress.EnterProgressFrame(StartProgress, FText::Format(LOCTEXT("ImportingMaterials", "Importing materials: {0} ..."), FText::FromString(InFilename)));
 
 	bool                     bSuccess = Importer->OpenFile(InFilename, InImporterOptions);
 	if (bSuccess)
@@ -250,11 +250,11 @@ bool UMDLImporterFactory::LoadMaterials(IMdlFileImporter* Importer,
 				const float FinishProgress   = 90.f;
 				const float MaterialProgress = (FinishProgress - StartProgress) / MaterialCount;
 				Progress.EnterProgressFrame(MaterialProgress,
-				                            FText::Format(LOCTEXT("MDL", "Material distillation: {0} ..."), FText::FromString(MaterialName)));
+				                            FText::Format(LOCTEXT("MaterialDistillation", "Material distillation: {0} ..."), FText::FromString(MaterialName)));
 			}
 			else
 			{
-				Progress.EnterProgressFrame(5.f, FText::Format(LOCTEXT("MDL", "Finishing materials: {0} ..."), FText::FromString(InFilename)));
+				Progress.EnterProgressFrame(5.f, FText::Format(LOCTEXT("FinishingMaterials", "Finishing materials: {0} ..."), FText::FromString(InFilename)));
 			}
 		};
 
