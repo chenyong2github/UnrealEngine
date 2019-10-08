@@ -374,9 +374,16 @@ void MainForGS(
 #else
 	out FShadowDepthVSToPS OutParameters
 #endif
+#if COMPILER_METAL
+#define SKIP_UNUSED_POSITION
+	// Metal needs a position output
+	, out float4 UnusedPosition : SV_POSITION
+#endif
 	)
 {
+#ifndef SKIP_UNUSED_POSITION
 	float4 UnusedPosition;
+#endif
 
 	Main(Input,
 		OutParameters,
@@ -463,9 +470,18 @@ void PositionOnlyMainForGS(
 #else
 	out FShadowDepthVSToPS OutParameters
 #endif
+#if COMPILER_METAL
+	#ifndef SKIP_UNUSED_POSITION
+		#define SKIP_UNUSED_POSITION
+	#endif
+	// Metal needs a position output
+	, out float4 UnusedPosition : SV_POSITION
+#endif
 	)
 {
+#ifndef SKIP_UNUSED_POSITION
 	float4 UnusedPosition;
+#endif
 
 	PositionOnlyMain(Input,
 #if USING_ONEPASS_POINT_VERTEX_LAYER
