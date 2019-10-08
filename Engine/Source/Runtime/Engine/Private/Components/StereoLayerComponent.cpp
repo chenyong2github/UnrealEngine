@@ -85,7 +85,6 @@ void UStereoLayerComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 		LayerDsec.Priority = Priority;
 		LayerDsec.QuadSize = QuadSize;
 		LayerDsec.UVRect = UVRect;
-		LayerDsec.EquirectProps = EquirectProps;
 		LayerDsec.Transform = Transform;
 
 		if (Texture)
@@ -97,17 +96,12 @@ void UStereoLayerComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 		{
 			LayerDsec.LeftTexture = LeftTexture->Resource->TextureRHI;
 		}
-		LayerDsec.CylinderRadius = CylinderRadius; 
-		LayerDsec.CylinderOverlayArc = CylinderOverlayArc;
-		LayerDsec.CylinderHeight = CylinderHeight;
-			
-			
+				
 		LayerDsec.Flags |= (bLiveTexture) ? IStereoLayers::LAYER_FLAG_TEX_CONTINUOUS_UPDATE : 0;
 		LayerDsec.Flags |= (bNoAlphaChannel) ? IStereoLayers::LAYER_FLAG_TEX_NO_ALPHA_CHANNEL : 0;
 		LayerDsec.Flags |= (bQuadPreserveTextureRatio) ? IStereoLayers::LAYER_FLAG_QUAD_PRESERVE_TEX_RATIO : 0;
 		LayerDsec.Flags |= (bSupportsDepth) ? IStereoLayers::LAYER_FLAG_SUPPORT_DEPTH : 0;
 		LayerDsec.Flags |= (!bCurrVisible) ? IStereoLayers::LAYER_FLAG_HIDDEN : 0;
-
 
 		switch (StereoLayerType)
 		{
@@ -130,6 +124,9 @@ void UStereoLayerComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 
 		case SLSH_CylinderLayer:
 			LayerDsec.ShapeType = IStereoLayers::CylinderLayer;
+			LayerDsec.CylinderRadius = CylinderRadius;
+			LayerDsec.CylinderOverlayArc = CylinderOverlayArc;
+			LayerDsec.CylinderHeight = CylinderHeight;
 			break;
 
 		case SLSH_CubemapLayer:
@@ -138,6 +135,7 @@ void UStereoLayerComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 
 		case SLSH_EquirectLayer:
 			LayerDsec.ShapeType = IStereoLayers::EquirectLayer;
+			LayerDsec.EquirectProps = { EquirectProps.LeftUVRect, EquirectProps.RightUVRect, EquirectProps.LeftScale, EquirectProps.RightScale, EquirectProps.LeftBias, EquirectProps.RightBias };
 			break;
 
 		default:
