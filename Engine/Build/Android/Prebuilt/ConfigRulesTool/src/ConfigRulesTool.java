@@ -92,7 +92,7 @@ public class ConfigRulesTool
 			int version = -1;
 			try
 			{
-				String versionLine = new String(bytesToCompress, 0, 80, "UTF-8");
+				String versionLine = new String(bytesToCompress, 0, sizeUncompressed, "UTF-8");
 				if (versionLine.startsWith("// version:"))
 				{
 					int eolIndex = versionLine.indexOf("\r");
