@@ -1737,6 +1737,18 @@ protected:
 			print_type_full(expr->operands[0]->type);
 			ralloc_asprintf_append(buffer, "(0))");
 		}
+		else if(numOps == 2 && op == ir_binop_add && expr->operands[0]->type == expr->operands[1]->type && expr->operands[0]->type->is_float() && !expr->operands[0]->type->is_matrix())
+		{
+			// FORT-214186
+			// Mathematically speaking, this is strictly unnecessary; however, it appears to impact precision enough to matter.
+			ralloc_asprintf_append(buffer, "fma(");
+			print_type_full(expr->operands[0]->type);
+			ralloc_asprintf_append(buffer, "(1),");
+			expr->operands[0]->accept(this);
+			ralloc_asprintf_append(buffer, ",");
+			expr->operands[1]->accept(this);
+			ralloc_asprintf_append(buffer, ")");
+		}
 		else if (numOps == 2 && (op == ir_binop_add || op == ir_binop_sub || op == ir_binop_mul || op == ir_binop_div))
 		{
 			bool bHandleFloatHalfConflict = false;
