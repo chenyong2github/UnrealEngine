@@ -1541,7 +1541,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 				}
 				else if (CompareType.equals("CMP_GreaterEqual"))
 				{
-					if ((bNumericOperands && (SourceFloat <= MatchFloat)) || (!bNumericOperands && (Source.compareTo(MatchString) < 0)))
+					if ((bNumericOperands && (SourceFloat < MatchFloat)) || (!bNumericOperands && (Source.compareTo(MatchString) < 0)))
 					{
 						bConditionTrue = false;
 						break;
