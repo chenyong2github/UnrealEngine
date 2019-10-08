@@ -836,10 +836,13 @@ void UToolMenus::PopulateMenuBuilder(FMenuBuilder& MenuBuilder, UToolMenu* MenuD
 							Block.Label,
 							Block.ToolTip,
 							NewMenuDelegate,
+							UIAction,
+							Block.Name,
+							Block.UserInterfaceActionType,
 							Block.SubMenuData.bOpenSubMenuOnClick,
 							Block.Icon.Get(),
-							Block.bShouldCloseWindowAfterMenuSelection,
-							Block.Name);
+							Block.bShouldCloseWindowAfterMenuSelection
+							);
 					}
 				}
 				else
