@@ -23,6 +23,7 @@
 #include "Chaos/PerParticleGravity.h"
 #include "Chaos/PerParticlePBDLongRangeConstraints.h"
 #include "Chaos/PerParticlePBDShapeConstraints.h"
+#include "Chaos/PBDSphericalConstraint.h"
 #include "Chaos/Plane.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/TaperedCylinder.h"
@@ -396,6 +397,36 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 				std::placeholders::_1,
 				std::placeholders::_2));
     }
+
+	// Maximum Distance Constraints
+	const UEnum* const MeshTargets = PhysMesh->GetFloatArrayTargets();	
+	const uint32 PhysMeshMaxDistanceIndex = MeshTargets->GetValueByName(TEXT("MaxDistance"));;
+	if (PhysMesh->GetFloatArray(PhysMeshMaxDistanceIndex)->Num() > 0)
+	{
+		check(Mesh->GetNumElements() > 0);
+		Chaos::PBDSphericalConstraint<float, 3> SphericalContraint(Offset, PhysMesh->GetFloatArray(PhysMeshMaxDistanceIndex)->Num(), true, &AnimationPositions, PhysMesh->GetFloatArray(PhysMeshMaxDistanceIndex));
+		Evolution->AddPBDConstraintFunction([=](TPBDParticles<float, 3>& InParticles, const float Dt)
+		{
+			SphericalContraint.Apply(InParticles, Dt);
+		});
+	}
+
+	// Backstop Constraints
+	const uint32 PhysMeshBackstopDistanceIndex = MeshTargets->GetValueByName(TEXT("BackstopDistance"));
+	const uint32 PhysMeshBackstopRadiusIndex = MeshTargets->GetValueByName(TEXT("BackstopRadius"));
+	if (PhysMesh->GetFloatArray(PhysMeshBackstopRadiusIndex)->Num() > 0 && PhysMesh->GetFloatArray(PhysMeshBackstopDistanceIndex)->Num() > 0)
+	{
+		check(Mesh->GetNumElements() > 0);
+		check(PhysMesh->GetFloatArray(PhysMeshBackstopRadiusIndex)->Num() == PhysMesh->GetFloatArray(PhysMeshBackstopDistanceIndex)->Num());
+
+		Chaos::PBDSphericalConstraint<float, 3> SphericalContraint(Offset, PhysMesh->GetFloatArray(PhysMeshBackstopRadiusIndex)->Num(), false, &AnimationPositions, 
+			PhysMesh->GetFloatArray(PhysMeshBackstopRadiusIndex), PhysMesh->GetFloatArray(PhysMeshBackstopDistanceIndex), &AnimationNormals);
+		Evolution->AddPBDConstraintFunction([=](TPBDParticles<float, 3>& InParticles, const float Dt)
+		{
+			SphericalContraint.Apply(InParticles, Dt);
+		});		
+	}
+
     // Add Self Collisions
     if (bUseSelfCollisions)
     {
