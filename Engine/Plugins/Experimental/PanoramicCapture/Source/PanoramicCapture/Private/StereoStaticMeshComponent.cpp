@@ -28,14 +28,14 @@ public:
         FPrimitiveViewRelevance viewRelevance = FStaticMeshSceneProxy::GetViewRelevance(View);
         bool bVisible = true;
 
-		if (IStereoRendering::IsASecondaryView(View->StereoPass))
+		if (IStereoRendering::IsASecondaryView(*View, GEngine->StereoRenderingDevice))
 		{
 			if ((EyeToRender != ESPStereoCameraLayer::RightEye) && (EyeToRender != ESPStereoCameraLayer::BothEyes))
 			{
 				bVisible = false;
 			}
 		}
-		else if (IStereoRendering::IsAPrimaryView(View->StereoPass))
+		else if (IStereoRendering::IsAPrimaryView(*View, GEngine->StereoRenderingDevice))
 		{
 			if ((EyeToRender != ESPStereoCameraLayer::LeftEye) && (EyeToRender != ESPStereoCameraLayer::BothEyes))
 			{
