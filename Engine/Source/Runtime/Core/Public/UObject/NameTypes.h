@@ -992,10 +992,12 @@ public:
 	template<int N>
 	FLazyName(const TCHAR(&Literal)[N])
 		: Either(Literal)
+		, Number(ParseNumber(Literal, N))
 	{}
 
 	explicit FLazyName(FName Name)
 		: Either(Name.GetComparisonIndex())
+		, Number(Name.GetNumber())
 	{}
 
 	operator FName() const
@@ -1006,7 +1008,7 @@ public:
 		if (Copy.IsName())
 		{
 			FNameEntryId Id = Copy.AsName();
-			return FName(Id, Id, 0);
+			return FName(Id, Id, Number);
 		}
 
 		// Resolve to FName
@@ -1015,7 +1017,7 @@ public:
 		// Deliberately unsynchronized write of word-sized int, ok if multiple threads resolve same lazy name
 		Either = FLiteralOrName(Id);
 
-		return FName(Id, Id, 0);
+		return FName(Id, Id, Number);
 	}
 
 private:
@@ -1091,6 +1093,9 @@ private:
 	};
 
 	mutable FLiteralOrName Either;
+	mutable uint32 Number = 0;
+
+	CORE_API static uint32 ParseNumber(const TCHAR* Literal, int32 Len);
 
 public:
 	friend bool operator==(FName Name, FLazyName Lazy)
