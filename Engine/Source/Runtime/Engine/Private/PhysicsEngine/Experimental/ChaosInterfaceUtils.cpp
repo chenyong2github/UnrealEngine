@@ -22,9 +22,7 @@
 #include "PhysicsEngine/AggregateGeom.h"
 
 #if WITH_PHYSX
-#include "foundation/PxSimpleTypes.h"
-#include "geometry/PxConvexMesh.h"
-#include "geometry/PxTriangleMesh.h"
+#include "PhysXIncludes.h"
 #endif
 
 #define FORCE_ANALYTICS 0
