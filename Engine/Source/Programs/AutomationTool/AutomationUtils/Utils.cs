@@ -276,37 +276,45 @@ namespace AutomationTool
 			return Result;
 		}
 
-		// @todo: This could be passed in from elsewhere, and this should be somehow done per ini section
-		// but this will get it so that games won't ship passwords
-		private static string[] LinesToFilter = new string[]
-		{
-			"KeyStorePassword",
-			"KeyPassword",
-			"rsa.privateexp",
-			"rsa.modulus",
-			"rsa.publicexp",
-			"aes.key",
-			"SigningPublicExponent",
-			"SigningModulus",
-			"SigningPrivateExponent",
-			"EncryptionKey"
-		};
+		// Characters that can appear at the start of
+		private static char[] IgnoredIniValuePrefixes = { '+', '-', ' ', '\t', ';' };
 
-		private static void FilterIniFile(string SourceName, string TargetName)
+		private static void FilterIniFile(string SourceName, string TargetName, List<string> IniKeyBlacklist, List<string> InSectionBlacklist)
 		{
 			string[] Lines = File.ReadAllLines(SourceName);
 			StringBuilder NewLines = new StringBuilder("");
+			bool bFilteringSection = false;
 
-			foreach (string Line in Lines)
+			foreach (string OriginalLine in Lines)
 			{
+				string Line = OriginalLine.Trim();
+				bool bFiltered = bFilteringSection;
+
 				// look for each filter on each line
-				bool bFiltered = false;
-				foreach (string Filter in LinesToFilter)
+				if (!bFiltered)
 				{
-					if (Line.StartsWith(Filter + "="))
+					string TrimmedLine = Line.TrimStart(IgnoredIniValuePrefixes);
+					foreach (string Filter in IniKeyBlacklist)
 					{
-						bFiltered = true;
-						break;
+						if (TrimmedLine.StartsWith(Filter + "="))
+						{
+							bFiltered = true;
+							break;
+						}
+					}
+				}
+
+				if (InSectionBlacklist != null)
+				{
+					if (Line.StartsWith("[") && Line.EndsWith("]"))
+					{
+						string SectionName = Line.Substring(1, Line.Length - 2);
+						bFilteringSection = bFiltered = InSectionBlacklist.Contains(SectionName);
+
+						if (bFilteringSection)
+						{
+							Log.TraceLog("Filtering config section '{0}'", SectionName);
+						}
 					}
 				}
 
@@ -334,7 +342,7 @@ namespace AutomationTool
 		/// <param name="SourceName">Source name</param>
 		/// <param name="TargetName">Target name</param>
 		/// <returns>True if the operation was successful, false otherwise.</returns>
-		public static bool SafeCopyFile(string SourceName, string TargetName, bool bQuiet = false, bool bFilterSpecialLinesFromIniFiles = false)
+		public static bool SafeCopyFile(string SourceName, string TargetName, bool bQuiet = false, List<string> IniKeyBlacklist = null, List<string> IniSectionBlacklist = null)
 		{
 			if (!bQuiet)
 			{
@@ -351,9 +359,9 @@ namespace AutomationTool
 				try
 				{
 					bool bSkipSizeCheck = false;
-					if (bFilterSpecialLinesFromIniFiles && Path.GetExtension(SourceName) == ".ini")
+					if (IniKeyBlacklist != null && Path.GetExtension(SourceName) == ".ini")
 					{
-						FilterIniFile(SourceName, TargetName);
+						FilterIniFile(SourceName, TargetName, IniKeyBlacklist, IniSectionBlacklist);
 						// ini files may change size, don't check
 						bSkipSizeCheck = true;
 					}

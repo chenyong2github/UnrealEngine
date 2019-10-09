@@ -355,6 +355,14 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Packaging, AdvancedDisplay)
 	TArray<FString> CompressedChunkWildcard;
 
+	/** List of ini file keys to strip when packaging */
+	UPROPERTY(config, EditAnywhere, Category = Packaging)
+	TArray<FString> IniKeyBlacklist;
+
+	/** List of ini file sections to strip when packaging */
+	UPROPERTY(config, EditAnywhere, Category = Packaging)
+	TArray<FString> IniSectionBlacklist;
+
 	/**
 	 * List of specific files to include with GenerateEarlyDownloaderPakFile
 	 */
