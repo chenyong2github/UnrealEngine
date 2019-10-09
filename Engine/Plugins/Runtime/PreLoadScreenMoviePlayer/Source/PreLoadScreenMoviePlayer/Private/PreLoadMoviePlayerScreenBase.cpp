@@ -80,7 +80,7 @@ protected:
     FOnKeyDown OnKeyDownHandler;
 };
 
-bool FPreLoadMoviePlayerScreenBase::Init()
+bool FPreLoadMoviePlayerScreenBase::Init(TFunctionRef<TSharedPtr<IAnalyticsProviderET>()> AnalyticsFactory)
 {
     if (!bInitialized)
     {

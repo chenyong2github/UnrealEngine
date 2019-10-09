@@ -19,7 +19,7 @@ public:
     virtual void Tick(float DeltaTime) override;
     virtual void RenderTick(float DeltaTime) override;
 
-    virtual bool Init() override;
+    virtual bool Init(TFunctionRef<TSharedPtr<IAnalyticsProviderET>()> AnalyticsFactory) override;
 
     virtual TSharedPtr<SWidget> GetWidget() override { return MoviePlayerContents; }
     virtual const TSharedPtr<const SWidget> GetWidget() const override { return MoviePlayerContents; }
