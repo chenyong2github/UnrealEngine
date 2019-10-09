@@ -131,6 +131,9 @@ void FDisplayMetrics::RebuildDisplayMetrics(FDisplayMetrics& OutDisplayMetrics)
 	OutDisplayMetrics.PrimaryDisplayWidth = OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Right - OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Left;
 	OutDisplayMetrics.PrimaryDisplayHeight = OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Bottom - OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Top;
 
+	// Get ui window rect
+	OutDisplayMetrics.IosUiWindowAreaRect = FIOSWindow::GetUIWindowRect();
+
 #if !PLATFORM_TVOS
 	if (@available(iOS 11, *))
 	{
