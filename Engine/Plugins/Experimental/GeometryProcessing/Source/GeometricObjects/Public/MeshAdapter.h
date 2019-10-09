@@ -65,6 +65,16 @@ struct TIndexMeshArrayAdapter
 	const TArray<FVector>* SourceVertices;
 	const TArray<IndexType>* SourceTriangles;
 
+	void SetSources(const TArray<FVector>* SourceVerticesIn, const TArray<uint32>* SourceTrianglesIn)
+	{
+		SourceVertices = SourceVerticesIn;
+		SourceTriangles = SourceTrianglesIn;
+	}
+
+	TIndexMeshArrayAdapter() : SourceVertices(nullptr), SourceTriangles(nullptr)
+	{
+	}
+
 	TIndexMeshArrayAdapter(const TArray<FVector>* SourceVerticesIn, const TArray<uint32>* SourceTrianglesIn) : SourceVertices(SourceVerticesIn), SourceTriangles(SourceTrianglesIn)
 	{
 	}

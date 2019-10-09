@@ -61,7 +61,25 @@ public:
 	 * @param MaxDistance maximum hit distance
 	 * @return ID of triangle intersected by ray within MaxDistance, or InvalidID if not found
 	 */
-	virtual int FindNearestHitTriangle(const FRay3d& Ray, double MaxDistance = TNumericLimits<double>::Max()) = 0;
+	inline virtual int FindNearestHitTriangle(const FRay3d& Ray, double MaxDistance = TNumericLimits<double>::Max())
+	{
+		double NearestT;
+		int TID;
+		FindNearestHitTriangle(Ray, NearestT, TID, MaxDistance);
+		return TID;
+	}
+
+	/**
+	 * Find nearest triangle from the given ray
+	 * @param Ray query ray
+	 * @param NearestT returned-by-reference parameter of the nearest hit
+	 * @param TID returned-by-reference ID of triangle intersected by ray within MaxDistance, or InvalidID if not found
+	 * @param MaxDistance maximum hit distance
+	 * @return true if hit, false if no hit found
+	 */
+	virtual bool FindNearestHitTriangle(const FRay3d& Ray, double& NearestT, int& TID, double MaxDistance = TNumericLimits<double>::Max()) = 0;
+
+
 };
 
 
