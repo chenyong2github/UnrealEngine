@@ -65,9 +65,22 @@ struct FDiagnosticsSessionAnalyzer
 };
 
 FSessionService::FSessionService(FModuleService& InModuleService)
+	: FSessionService(InModuleService, nullptr)
+{
+
+}
+
+FSessionService::FSessionService(FModuleService& InModuleService, const TCHAR* OverrideSessionDirectory)
 	: ModuleService(InModuleService)
 {
-	LocalSessionDirectory = FPaths::ProjectSavedDir() / TEXT("TraceSessions");
+	if (OverrideSessionDirectory)
+	{
+		LocalSessionDirectory = FString(OverrideSessionDirectory);
+	}
+	else
+	{
+		LocalSessionDirectory = FPaths::ProjectSavedDir() / TEXT("TraceSessions");
+	}
 	TraceStore = Store_Create(*LocalSessionDirectory);
 	TraceRecorder = Recorder_Create(TraceStore.ToSharedRef());
 

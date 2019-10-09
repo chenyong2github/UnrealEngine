@@ -17,6 +17,7 @@ class FSessionService
 {
 public:
 	FSessionService(FModuleService& ModuleService);
+	FSessionService(FModuleService& ModuleService, const TCHAR* OverrideSessionsDirectory);
 	virtual ~FSessionService();
 	virtual bool StartRecorderServer() override;
 	virtual bool IsRecorderServerRunning() const override;
