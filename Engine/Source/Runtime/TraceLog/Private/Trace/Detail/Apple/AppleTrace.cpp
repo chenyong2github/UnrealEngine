@@ -84,22 +84,10 @@ void ThreadDestroy(UPTRINT Handle)
 
 
 ////////////////////////////////////////////////////////////////////////////////
-const mach_timebase_info_data_t& TimeGetInfo()
-{
-    static mach_timebase_info_data_t Info;
-    static dispatch_once_t OnceToken;
-
-	dispatch_once(&OnceToken, ^{
-		   (void) mach_timebase_info(&Info);
-	   });
-
-	return Info;
-}
-
-////////////////////////////////////////////////////////////////////////////////
 uint64 TimeGetFrequency()
 {
-	const mach_timebase_info_data_t& Info = TimeGetInfo();
+	mach_timebase_info_data_t Info;
+	mach_timebase_info(&Info);
 	return (uint64(1 * 1000 * 1000 * 1000) * uint64(Info.denom)) / uint64(Info.numer);
 }
 
