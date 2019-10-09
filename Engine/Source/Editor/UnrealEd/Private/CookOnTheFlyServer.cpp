@@ -1986,7 +1986,7 @@ bool UCookOnTheFlyServer::IsCookByTheBookMode() const
 
 bool UCookOnTheFlyServer::IsUsingPackageStore() const
 {
-	return CookByTheBookOptions->bPackageStore;
+	return IsCookByTheBookMode() && CookByTheBookOptions->bPackageStore;
 }
 
 bool UCookOnTheFlyServer::IsCookOnTheFlyMode() const
@@ -6332,18 +6332,7 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 
 	UPackage::WaitForAsyncFileWrites();
 	
-	if (IsCookByTheBookMode() && IsUsingPackageStore())
-	{
-		SCOPE_TIMER(SavingNameMap);
-		UE_LOG(LogCook, Display, TEXT("Saving name map(s)..."));
-		const TArray<ITargetPlatform*>& TargetPlatforms = GetCookingTargetPlatforms();
-		for (int32 PlatformIndex = 0; PlatformIndex < TargetPlatforms.Num(); ++PlatformIndex)
-		{
-			INameMapSaver& NameMapSaver = SavePackageContexts[PlatformIndex]->HeaderSaver.NameMapSaver;
-			NameMapSaver.End();
-		}
-		UE_LOG(LogCook, Display, TEXT("Done saving name map(s)"));
-	}
+	FinalizePackageStore();
 
 	GetDerivedDataCacheRef().WaitForQuiescence(true);
 	
@@ -6718,13 +6707,9 @@ void UCookOnTheFlyServer::InitializeSandbox()
 
 void UCookOnTheFlyServer::InitializePackageStore(const TArray<FName>& TargetPlatformNames)
 {
-	// TODO: should ideally support cook-on-the-fly
-
-	if (!(IsCookByTheBookMode() && IsUsingPackageStore()))
+	// TODO: should ideally support all cook modes
+	if (!IsUsingPackageStore())
 	{
-		// set up reusable buffers for non-package store case???
-		SavePackageContexts.SetNum(TargetPlatformNames.Num());
-
 		return;
 	}
 
@@ -6746,6 +6731,25 @@ void UCookOnTheFlyServer::InitializePackageStore(const TArray<FName>& TargetPlat
 
 		SavePackageContexts.Add(SavePackageContext);
 	}
+}
+
+void UCookOnTheFlyServer::FinalizePackageStore()
+{
+	if (!IsUsingPackageStore())
+	{
+		return;
+	}
+
+	SCOPE_TIMER(FinalizePackageStore);
+
+	UE_LOG(LogCook, Display, TEXT("Saving name map(s)..."));
+	const TArray<ITargetPlatform*>& TargetPlatforms = GetCookingTargetPlatforms();
+	for (int32 PlatformIndex = 0; PlatformIndex < TargetPlatforms.Num(); ++PlatformIndex)
+	{
+		INameMapSaver& NameMapSaver = SavePackageContexts[PlatformIndex]->HeaderSaver.NameMapSaver;
+		NameMapSaver.End();
+	}
+	UE_LOG(LogCook, Display, TEXT("Done saving name map(s)"));
 }
 
 void UCookOnTheFlyServer::InitializeTargetPlatforms()

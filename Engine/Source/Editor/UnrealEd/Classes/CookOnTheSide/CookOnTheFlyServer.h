@@ -690,6 +690,11 @@ private:
 	void InitializePackageStore(const TArray<FName>& TargetPlatformNames);
 
 	/**
+	* Finalize the package store
+	*/
+	void FinalizePackageStore();
+
+	/**
 	* Initialize all target platforms
 	*/
 	void InitializeTargetPlatforms();
