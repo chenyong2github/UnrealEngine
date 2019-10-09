@@ -54,13 +54,14 @@ namespace Chaos
 			case ImplicitObjectType::Sphere:
 			{
 				const TSphere<T, d>* Sphere = Shape->template GetObject<TSphere<T, d>>();
-				FDebugDrawQueue::GetInstance().DrawDebugSphere(ShapeTransform.GetLocation(), Sphere->GetRadius(), 20, Color, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+				const TVector<T, d> P = ShapeTransform.TransformPosition(Sphere->GetCenter());
+				FDebugDrawQueue::GetInstance().DrawDebugSphere(P, Sphere->GetRadius(), 20, Color, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
 				break;
 			}
 			case ImplicitObjectType::Box:
 			{
 				const TBox<T, d>* Box = Shape->template GetObject<TBox<T, d>>();
-				const TVector<T, d> P = ShapeTransform.TransformPosition(Box->Center());
+				const TVector<T, d> P = ShapeTransform.TransformPosition(Box->GetCenter());
 				FDebugDrawQueue::GetInstance().DrawDebugBox(P, (T)0.5 * Box->Extents(), ShapeTransform.GetRotation(), Color, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
 				break;
 			}
@@ -115,7 +116,7 @@ namespace Chaos
 		void DrawParticleShapesImpl(const TRigidTransform<float, 3>& SpaceTransform, const TGeometryParticleHandle<T, d>* Particle, T ColorScale)
 		{
 			FColor ShapeColor = Particle->AsDynamic() ? FColor::Yellow : FColor::Orange;
-			FColor Color = (ColorScale * ShapeColor).ToFColor(false);
+			FColor Color = (((T)0.5 * ColorScale) * ShapeColor).ToFColor(false);
 			TVector<T, d> P = SpaceTransform.TransformPosition(Particle->AsDynamic() ? Particle->AsDynamic()->P() : Particle->X());
 			TRotation<T, d> Q = SpaceTransform.GetRotation() * (Particle->AsDynamic() ? Particle->AsDynamic()->Q() : Particle->R());
 
