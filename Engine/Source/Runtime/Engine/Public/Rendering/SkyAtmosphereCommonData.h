@@ -39,6 +39,8 @@ struct FAtmosphereSetup
 
 	FLinearColor GroundAlbedo;
 
+	float TransmittanceMinLightElevationAngle;
+
 	ENGINE_API FAtmosphereSetup(const USkyAtmosphereComponent& SkyAtmosphereComponent);
 
 	ENGINE_API FLinearColor GetTransmittanceAtGroundLevel(const FVector& SunDirection) const;
