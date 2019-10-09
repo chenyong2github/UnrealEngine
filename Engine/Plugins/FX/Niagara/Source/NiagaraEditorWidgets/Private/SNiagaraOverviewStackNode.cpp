@@ -10,6 +10,7 @@
 
 #include "Modules/ModuleManager.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/Input/SCheckBox.h"
 
 void SNiagaraOverviewStackNode::Construct(const FArguments& InArgs, UNiagaraOverviewNode* InNode)
 {
