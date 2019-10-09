@@ -115,8 +115,8 @@ void FTraceServicesModule::ShutdownModule()
 	IModularFeatures::Get().UnregisterModularFeature(Trace::ModuleFeatureName, &LoadTimeProfilerModule);
 	IModularFeatures::Get().UnregisterModularFeature(Trace::ModuleFeatureName, &TimingProfilerModule);
 
-	SessionService.Reset();
 	AnalysisService.Reset();
+	SessionService.Reset();
 	ModuleService.Reset();
 }
 
