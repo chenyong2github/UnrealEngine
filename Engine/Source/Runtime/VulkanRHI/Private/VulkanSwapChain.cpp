@@ -451,7 +451,14 @@ FVulkanSwapChain::FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevic
 
 	//ensure(SwapChainInfo.imageExtent.width >= SurfProperties.minImageExtent.width && SwapChainInfo.imageExtent.width <= SurfProperties.maxImageExtent.width);
 	//ensure(SwapChainInfo.imageExtent.height >= SurfProperties.minImageExtent.height && SwapChainInfo.imageExtent.height <= SurfProperties.maxImageExtent.height);
-	UE_LOG(LogVulkanRHI, Verbose, TEXT("Creating new VK swapchain with format %d, color space %d"), static_cast<uint32>(SwapChainInfo.imageFormat), static_cast<uint32>(SwapChainInfo.imageColorSpace));
+	static bool bPrintSwapchainCreationInfo = true;
+	if (bPrintSwapchainCreationInfo)
+	{
+		UE_LOG(LogVulkanRHI, Log, TEXT("Creating new VK swapchain with format %d, color space %d, num images %d"), static_cast<uint32>(SwapChainInfo.imageFormat), static_cast<uint32>(SwapChainInfo.imageColorSpace), static_cast<uint32>(SwapChainInfo.minImageCount));
+#if WITH_EDITOR
+		bPrintSwapchainCreationInfo = false;
+#endif
+	}
 
 	VERIFYVULKANRESULT_EXPANDED(VulkanRHI::vkCreateSwapchainKHR(Device.GetInstanceHandle(), &SwapChainInfo, VULKAN_CPU_ALLOCATOR, &SwapChain));
 
