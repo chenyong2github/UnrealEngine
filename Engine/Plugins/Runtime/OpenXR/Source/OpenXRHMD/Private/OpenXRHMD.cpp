@@ -1191,6 +1191,9 @@ bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 
 {
 	check(IsInRenderingThread());
 
+	// We need to ensure we can sample from the texture in CopyTexture
+	Flags |= TexCreate_ShaderResource;
+
 	Swapchain = RenderBridge->CreateSwapchain(Session, Format, SizeX, SizeY, NumMips, NumSamples, Flags, TargetableTextureFlags);
 	if (!Swapchain)
 	{
