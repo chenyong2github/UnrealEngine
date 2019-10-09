@@ -178,10 +178,14 @@ FAttenuationListenerData FAttenuationListenerData::Create(const FAudioDevice& Au
 	// Store the actual distance for surround-panning sources with spread (AudioMixer)
 	ListenerData.ListenerToSoundDistanceForPanning = ListenerData.ListenerToSoundDistance;
 
+	// Calculating override listener-to-sound distance and transform must
+	// be applied after distance used for panning value is calculated.
 	if (AudioDevice.IsUsingListenerAttenuationOverride())
 	{
 		const FVector& AttenuationOverride = AudioDevice.GetListenerAttenuationOverride();
+
 		ListenerData.ListenerToSoundDistance = (SoundTranslation - AttenuationOverride).Size();
+		ListenerData.ListenerTransform.SetTranslation(AttenuationOverride);
 	}
 
 	const FSoundAttenuationSettings& AttenuationSettings = *ListenerData.AttenuationSettings;
