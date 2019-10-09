@@ -1,0 +1,31 @@
+<!-- Copyright 1998-2019 Epic Games, Inc. All Rights Reserved. -->
+<!DOCTYPE HTML>
+<html>
+
+<style type="text/css">
+
+	p{
+		margin : 0px;
+	}
+</style>
+
+<head>
+	<link rel="shortcut icon" href="/images/favicon.ico" type="image/x-icon">
+	<script type="text/javascript" src="scripts/frontend.js"></script>
+</head>
+
+<body>
+	<!-- From https://developer.mozilla.org/en-US/docs/Learn/HTML/Forms/Sending_forms_through_JavaScript !-->
+	<button type="button" onclick="sendCmd({ 'cmd': 'start', 'params': {} })">CMD: Start</button>
+	<button type="button" onclick="sendCmd({ 'cmd': 'stop', 'params': {} })">CMD: Stop</button>
+	<button type="button" onclick="sendCmd({ 'cmd': 'getevents', 'params': {} })">CMD: GetEvents</button>
+	<button type="button" onclick="clearLog()">Clear log</button>
+
+	<br />
+	<br />
+	<p>- LOG -</p>
+	<div id="debugDiv" style="background-color:gray;font-family:Courier New, Courier, monospace;font-size:small">
+		<p></p>
+	</div>
+</body>
+</html>

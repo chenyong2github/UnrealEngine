@@ -876,6 +876,20 @@ public:
 	FORCEINLINE TSharedPtr<const FSlateUser> GetUser(const FInputEvent& InputEvent) const { return GetUser(InputEvent.GetUserIndex()); }
 	FORCEINLINE TSharedPtr<FSlateUser> GetUser(const FInputEvent& InputEvent) { return GetUser(InputEvent.GetUserIndex()); }
 
+	/** Get the standard 'default' user (there's always guaranteed to be at least one). */
+	FORCEINLINE TSharedPtr<const FSlateUser> GetCursorUser() const
+	{
+		TSharedPtr<const FSlateUser> SlateUser = GetUser(CursorUserIndex);
+		check(SlateUser.IsValid());
+		return SlateUser;
+	}
+	FORCEINLINE TSharedPtr<FSlateUser> GetCursorUser()
+	{
+		TSharedPtr<FSlateUser> SlateUser = GetUser(CursorUserIndex);
+		check(SlateUser.IsValid());
+		return SlateUser;
+	}
+
 	/**
 	 * @return a handle for the existing or newly created virtual slate user.  This is handy when you need to create
 	 * virtual hardware users for slate components in the virtual world that may need to be interacted with with virtual hardware.

@@ -8,6 +8,7 @@
 #include "RHIStaticStates.h"
 #include "HAL/ThreadSafeBool.h"
 #include "HAL/ThreadSafeCounter.h"
+#include "HAL/Thread.h"
 #include "HAL/Event.h"
 #include "Misc/ScopeExit.h"
 #include "ShaderCore.h"
@@ -205,7 +206,7 @@ public:
 		}
 
 		if (!SUCCEEDED(HRes) ||
-			!SUCCEEDED(HRes = InfoQueue->QueryInterface(__uuidof(ID3D11InfoQueue), reinterpret_cast<void**>(Debug.GetInitReference()))))
+			!SUCCEEDED(HRes = Debug->QueryInterface(__uuidof(ID3D11InfoQueue), reinterpret_cast<void**>(InfoQueue.GetInitReference()))))
 		{
 			UE_LOG(GameplayMediaEncoder, VeryVerbose, TEXT("Failed to get ID3D11InfoQueue: 0x%X - %s"), HRes, *GetComErrorDescription(HRes));
 			return;
