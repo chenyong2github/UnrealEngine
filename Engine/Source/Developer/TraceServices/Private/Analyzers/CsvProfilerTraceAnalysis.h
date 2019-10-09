@@ -14,7 +14,7 @@ namespace Trace
 	class IFrameProvider;
 	class IThreadProvider;
 	class ICounterProvider;
-	class ICounter;
+	class IEditableCounter;
 }
 
 class FCsvProfilerAnalyzer
@@ -87,7 +87,7 @@ private:
 	{
 		uint64 ProviderHandle = uint64(-1);
 		uint64 ProviderCountHandle = uint64(-1);
-		Trace::ICounter* Counter = nullptr;
+		Trace::IEditableCounter* Counter = nullptr;
 		int64 CurrentFrame = -1;
 		FStatSeriesValue CurrentValue;
 		int64 CurrentCount = 0;

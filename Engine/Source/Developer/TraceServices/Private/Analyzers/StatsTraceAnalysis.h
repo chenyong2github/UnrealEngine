@@ -9,7 +9,7 @@
 namespace Trace
 {
 	class IAnalysisSession;
-	class ICounter;
+	class IEditableCounter;
 	class ICounterProvider;
 }
 
@@ -37,6 +37,6 @@ private:
 
 	Trace::IAnalysisSession& Session;
 	Trace::ICounterProvider& CounterProvider;
-	TMap<uint32, Trace::ICounter*> CountersMap;
+	TMap<uint32, Trace::IEditableCounter*> CountersMap;
 	TMap<uint32, TSharedRef<FThreadState>> ThreadStatesMap;
 };
