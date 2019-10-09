@@ -12,11 +12,14 @@
 // Insights
 #include "Insights/Table/ViewModels/TableTreeNode.h"
 
+class IToolTip;
+
 namespace Insights
 {
 
 class FTable;
 class FTableColumn;
+class STableTreeRowToolTip;
 
 DECLARE_DELEGATE_RetVal_OneParam(bool, FShouldBeEnabledDelegate, const uint32 /*TreeNodeId*/);
 DECLARE_DELEGATE_RetVal_OneParam(bool, FIsColumnVisibleDelegate, const FName /*ColumnId*/);
@@ -59,6 +62,9 @@ public:
 	 */
 	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 
+	TSharedRef<IToolTip> GetRowToolTip() const;
+	void InvalidateContent();
+
 protected:
 	FSlateColor GetBackgroundColorAndOpacity() const;
 	FSlateColor GetBackgroundColorAndOpacity(double Time) const;
@@ -85,6 +91,8 @@ protected:
 
 	/** Name of the tree node that should be drawn as highlighted. */
 	TAttribute<FName> HighlightedNodeName;
+
+	TSharedPtr<STableTreeRowToolTip> RowToolTip;
 };
 
 } // namespace Insights

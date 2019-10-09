@@ -10,8 +10,8 @@
 // Insights
 #include "Insights/Common/TimeUtils.h"
 #include "Insights/ViewModels/StatsViewColumnFactory.h"
-#include "Insights/Widgets/SStatsViewTooltip.h"
 #include "Insights/Widgets/SStatsTableCell.h"
+#include "Insights/Widgets/SStatsViewTooltip.h"
 
 #define LOCTEXT_NAMESPACE "SStatsView"
 
@@ -23,13 +23,15 @@ void SStatsTableRow::Construct(const FArguments& InArgs, const TSharedRef<STable
 {
 	OnShouldBeEnabled = InArgs._OnShouldBeEnabled;
 	IsColumnVisibleDelegate = InArgs._OnIsColumnVisible;
-	SetHoveredTableCellDelegate = InArgs._OnSetHoveredTableCell;
 	GetColumnOutlineHAlignmentDelegate = InArgs._OnGetColumnOutlineHAlignmentDelegate;
+	SetHoveredTableCellDelegate = InArgs._OnSetHoveredTableCell;
 
 	HighlightText = InArgs._HighlightText;
 	HighlightedNodeName = InArgs._HighlightedNodeName;
 
 	StatsNodePtr = InArgs._StatsNodePtr;
+
+	RowToolTip = MakeShareable(new SStatsCounterTableRowToolTip(StatsNodePtr));
 
 	SetEnabled(TAttribute<bool>(this, &SStatsTableRow::HandleShouldBeEnabled));
 
@@ -78,38 +80,27 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 FReply SStatsTableRow::OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	//im:TODO
-	//if (MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
-	//{
-	//	if (StatsNode->IsGroup())
-	//	{
-	//		// Add all timer Ids for the group.
-	//		TArray<int32> StatsIds;
-	//		const TArray<FStatsNodePtr>& FilteredChildren = StatsNode->GetFilteredChildren();
-	//		const int32 NumFilteredChildren = FilteredChildren.Num();
-	//
-	//		StatsIds.Reserve(NumFilteredChildren);
-	//		for (int32 Nx = 0; Nx < NumFilteredChildren; ++Nx)
-	//		{
-	//			StatsIds.Add(FilteredChildren[Nx]->GetId());
-	//		}
-	//
-	//		return FReply::Handled().BeginDragDrop(FStatIDDragDropOp::NewGroup(StatsIds, StatsNode->GetName().GetPlainNameString()));
-	//	}
-	//	else
-	//	{
-	//		return FReply::Handled().BeginDragDrop(FStatIDDragDropOp::NewSingle(StatsNode->GetId(), StatsNode->GetName().GetPlainNameString()));
-	//	}
-	//}
-
 	return SMultiColumnTableRow<FStatsNodePtr>::OnDragDetected(MyGeometry, MouseEvent);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<IToolTip> SStatsTableRow::GetRowToolTip() const
+{
+	return RowToolTip.ToSharedRef();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SStatsTableRow::InvalidateContent()
+{
+	RowToolTip->InvalidateWidget();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FSlateColor SStatsTableRow::GetBackgroundColorAndOpacity() const
 {
-	//return GetBackgroundColorAndOpacity(StatsNodePtr->GetAggregatedStats().Sum);
 	return FLinearColor(0.0f, 0.0f, 0.0f, 1.0f);
 }
 
@@ -120,7 +111,7 @@ FSlateColor SStatsTableRow::GetBackgroundColorAndOpacity(double Time) const
 	const FLinearColor Color =	Time > TimeUtils::Second      ? FLinearColor(0.3f, 0.0f, 0.0f, 1.0f) :
 								Time > TimeUtils::Milisecond  ? FLinearColor(0.3f, 0.1f, 0.0f, 1.0f) :
 								Time > TimeUtils::Microsecond ? FLinearColor(0.0f, 0.1f, 0.0f, 1.0f) :
-																FLinearColor(0.0f, 0.0f, 0.0f, 1.0f);
+								                                FLinearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	return Color;
 }
 

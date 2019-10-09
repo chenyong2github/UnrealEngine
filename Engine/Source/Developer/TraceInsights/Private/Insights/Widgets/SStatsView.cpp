@@ -1648,7 +1648,10 @@ void TTimeCalculationHelper<double>::EnumerateValues(const Trace::ICounter& Coun
 
 	Counter.EnumerateFloatValues(IntervalStartTime, IntervalEndTime, [this, &StatsEx, Callback](double Time, double Value)
 	{
-		Callback(StatsEx, Value);
+		if (Time >= IntervalStartTime && Time < IntervalEndTime)
+		{
+			Callback(StatsEx, Value);
+		}
 	});
 }
 
@@ -1670,7 +1673,10 @@ void TTimeCalculationHelper<int64>::EnumerateValues(const Trace::ICounter& Count
 
 	Counter.EnumerateValues(IntervalStartTime, IntervalEndTime, [this, &StatsEx, Callback](double Time, int64 Value)
 	{
-		Callback(StatsEx, Value);
+		if (Time >= IntervalStartTime && Time < IntervalEndTime)
+		{
+			Callback(StatsEx, Value);
+		}
 	});
 }
 
@@ -1830,10 +1836,11 @@ void TTimeCalculationHelper<double>::PostProcess(TMap<uint64, FStatsNodePtr>& St
 		PostProcess(KV.Value, bComputeMedian);
 
 		// Update the stats node.
-		FStatsNodePtr* StatsNodePtrPtr = StatsNodesIdMap.Find(KV.Key);
-		if (StatsNodePtrPtr != nullptr)
+		FStatsNodePtr* NodePtrPtr = StatsNodesIdMap.Find(KV.Key);
+		if (NodePtrPtr != nullptr)
 		{
-			(*StatsNodePtrPtr)->SetAggregatedStats(KV.Value.BaseStats);
+			FStatsNodePtr NodePtr = *NodePtrPtr;
+			NodePtr->SetAggregatedStats(KV.Value.BaseStats);
 		}
 	}
 }
@@ -1849,10 +1856,11 @@ void TTimeCalculationHelper<int64>::PostProcess(TMap<uint64, FStatsNodePtr>& Sta
 		PostProcess(KV.Value, bComputeMedian);
 
 		// Update the stats node.
-		FStatsNodePtr* StatsNodePtrPtr = StatsNodesIdMap.Find(KV.Key);
-		if (StatsNodePtrPtr != nullptr)
+		FStatsNodePtr* NodePtrPtr = StatsNodesIdMap.Find(KV.Key);
+		if (NodePtrPtr != nullptr)
 		{
-			(*StatsNodePtrPtr)->SetAggregatedIntegerStats(KV.Value.BaseStats);
+			FStatsNodePtr NodePtr = *NodePtrPtr;
+			NodePtr->SetAggregatedIntegerStats(KV.Value.BaseStats);
 		}
 	}
 }
@@ -1929,6 +1937,17 @@ void SStatsView::UpdateStats(double StartTime, double EndTime)
 		CalculationHelperInt.PostProcess(StatsNodesIdMap, bComputeMedian);
 	}
 
+	// Invalidate all tree table rows.
+	for (const FStatsNodePtr NodePtr : StatsNodes)
+	{
+		TSharedPtr<ITableRow> TableRowPtr = TreeView->WidgetFromItem(NodePtr);
+		if (TableRowPtr.IsValid())
+		{
+			TSharedPtr<SStatsTableRow> StatsTableRowPtr = StaticCastSharedPtr<SStatsTableRow, ITableRow>(TableRowPtr);
+			StatsTableRowPtr->InvalidateContent();
+		}
+	}
+
 	UpdateTree();
 }
 
@@ -1936,12 +1955,13 @@ void SStatsView::UpdateStats(double StartTime, double EndTime)
 
 void SStatsView::SelectStatsNode(uint64 Id)
 {
-	FStatsNodePtr* StatsNodePtrPtr = StatsNodesIdMap.Find(Id);
-	if (StatsNodePtrPtr != nullptr)
+	FStatsNodePtr* NodePtrPtr = StatsNodesIdMap.Find(Id);
+	if (NodePtrPtr != nullptr)
 	{
-		//UE_LOG(TimingProfiler, Log, TEXT("Select and RequestScrollIntoView %s"), *(*StatsNodePtrPtr)->GetName().ToString());
-		TreeView->SetSelection(*StatsNodePtrPtr);
-		TreeView->RequestScrollIntoView(*StatsNodePtrPtr);
+		FStatsNodePtr NodePtr = *NodePtrPtr;
+
+		TreeView->SetSelection(NodePtr);
+		TreeView->RequestScrollIntoView(NodePtr);
 	}
 }
 
