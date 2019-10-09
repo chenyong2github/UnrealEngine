@@ -849,7 +849,9 @@ namespace Gauntlet
 
 		private void CheckHeartbeat()
 		{
-			if (CachedConfig == null || CachedConfig.HeartbeatOptions.bExpectHeartbeats == false)
+			if (CachedConfig == null 
+				|| CachedConfig.HeartbeatOptions.bExpectHeartbeats == false
+				|| GetTestStatus() != TestStatus.InProgress)
 			{
 				return;
 			}
