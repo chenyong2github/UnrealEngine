@@ -1210,6 +1210,14 @@ void AActor::PostCreateBlueprintComponent(UActorComponent* NewActorComp)
 
 		// Need to do this so component gets saved - Components array is not serialized
 		BlueprintCreatedComponents.Add(NewActorComp);
+
+		// The component may not have been added to ReplicatedComponents if it was duplicated from
+		// a template, since ReplicatedComponents is normally only updated before the duplicated properties
+		// are copied over - in this case bReplicates would not have been set yet, but it will be now.
+		if (NewActorComp->GetIsReplicated())
+		{
+			ReplicatedComponents.AddUnique(NewActorComp);
+		}
 	}
 }
 
