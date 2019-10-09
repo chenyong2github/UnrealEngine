@@ -13,9 +13,9 @@
 #define CONFIG_BASENAME TEXT("PostSplashScreen")
 FString GPostSplashScreenIni;
 
-bool FCustomSplashScreen::Init(TFunctionRef<TSharedPtr<IAnalyticsProviderET>()> AnalyticsFactory)
+void FCustomSplashScreen::Init()
 {
-	FPreLoadScreenBase::Init(AnalyticsFactory);
+	FPreLoadScreenBase::Init();
 	
 	SetPluginName("PostSplashScreen");
 	InitSettingsFromConfig("PostSplashScreen");
@@ -28,8 +28,6 @@ bool FCustomSplashScreen::Init(TFunctionRef<TSharedPtr<IAnalyticsProviderET>()> 
 	MaxTimeToDisplay = 0.f;
 	FConfigCacheIni::LoadGlobalIniFile(GPostSplashScreenIni, CONFIG_BASENAME);
 	GConfig->GetFloat(TEXT("PreLoadScreen.UISettings"), TEXT("PostSplashScreenLength"), MaxTimeToDisplay, GPostSplashScreenIni);
-
-	return true;
 }
 
 void FCustomSplashScreen::Tick(float DeltaTime)
