@@ -66,6 +66,7 @@ void SNiagaraStackModuleItem::Construct(const FArguments& InArgs, UNiagaraStackM
 				.IssueSeverity_UObject(ModuleItem, &UNiagaraStackModuleItem::GetHighestStackIssueSeverity)
 				.ErrorTooltip(this, &SNiagaraStackModuleItem::GetErrorButtonTooltipText)
 				.Visibility(this, &SNiagaraStackModuleItem::GetStackIssuesWarningVisibility)
+				.IsEnabled(this, &SNiagaraStackModuleItem::GetButtonsEnabled)
 				.OnButtonClicked(this, &SNiagaraStackModuleItem::ExpandEntry)
 			]
 			// Raise Action Menu button
@@ -81,6 +82,7 @@ void SNiagaraStackModuleItem::Construct(const FArguments& InArgs, UNiagaraStackM
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
 				.Visibility(this, &SNiagaraStackModuleItem::GetRaiseActionMenuVisibility)
+				.IsEnabled(this, &SNiagaraStackModuleItem::GetButtonsEnabled)
 			]
 			// Refresh button
 			+ SHorizontalBox::Slot()
@@ -93,6 +95,7 @@ void SNiagaraStackModuleItem::Construct(const FArguments& InArgs, UNiagaraStackM
 				.ForegroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.FlatButtonColor"))
 				.ToolTipText(LOCTEXT("RefreshTooltip", "Refresh this module"))
 				.Visibility(this, &SNiagaraStackModuleItem::GetRefreshVisibility)
+				.IsEnabled(this, &SNiagaraStackModuleItem::GetButtonsEnabled)
 				.OnClicked(this, &SNiagaraStackModuleItem::RefreshClicked)
 				.Content()
 				[
@@ -110,8 +113,8 @@ void SNiagaraStackModuleItem::Construct(const FArguments& InArgs, UNiagaraStackM
 				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
 				.IsFocusable(false)
 				.ForegroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.FlatButtonColor"))
-				.ToolTipText(LOCTEXT("DeleteToolTip", "Delete this module"))
-				.Visibility(this, &SNiagaraStackModuleItem::GetEditButtonVisibility)
+				.ToolTipText(this, &SNiagaraStackModuleItem::GetDeleteButtonToolTipText)
+				.IsEnabled(this, &SNiagaraStackModuleItem::GetDeleteButtonEnabled)
 				.OnClicked(this, &SNiagaraStackModuleItem::DeleteClicked)
 				.Content()
 				[
@@ -128,6 +131,7 @@ void SNiagaraStackModuleItem::Construct(const FArguments& InArgs, UNiagaraStackM
 				SNew(SCheckBox)
 				.IsChecked(this, &SNiagaraStackModuleItem::GetCheckState)
 				.OnCheckStateChanged(this, &SNiagaraStackModuleItem::OnCheckStateChanged)
+				.IsEnabled(this, &SNiagaraStackModuleItem::GetEnabledCheckBoxEnabled)
 			]
 		]
 	];
@@ -198,9 +202,32 @@ void SNiagaraStackModuleItem::OnCheckStateChanged(ECheckBoxState InCheckState)
 	ModuleItem->SetIsEnabled(InCheckState == ECheckBoxState::Checked);
 }
 
-EVisibility SNiagaraStackModuleItem::GetEditButtonVisibility() const
+bool SNiagaraStackModuleItem::GetButtonsEnabled() const
 {
-	return ModuleItem->CanMoveAndDelete() ? EVisibility::Visible : EVisibility::Collapsed;
+	return ModuleItem->GetOwnerIsEnabled() && ModuleItem->GetIsEnabled();
+}
+
+FText SNiagaraStackModuleItem::GetDeleteButtonToolTipText() const
+{
+	if (ModuleItem->CanMoveAndDelete())
+	{
+		return LOCTEXT("DeleteToolTip", "Delete this module");
+	}
+	else
+	{
+		// TODO: This message should be handled by the entry.
+		return LOCTEXT("CantDeleteToolTip", "This module can not be deleted becaue it is inherited.");
+	}
+}
+
+bool SNiagaraStackModuleItem::GetDeleteButtonEnabled() const
+{
+	return ModuleItem->GetOwnerIsEnabled() && ModuleItem->CanMoveAndDelete();
+}
+
+bool SNiagaraStackModuleItem::GetEnabledCheckBoxEnabled() const
+{
+	return ModuleItem->GetOwnerIsEnabled();
 }
 
 EVisibility SNiagaraStackModuleItem::GetRaiseActionMenuVisibility() const

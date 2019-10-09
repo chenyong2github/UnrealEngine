@@ -7,6 +7,9 @@
 #include "NiagaraStackEditorData.h"
 #include "ViewModels/Stack/NiagaraStackSpacer.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
+#include "ViewModels/NiagaraEmitterHandleViewModel.h"
+#include "ViewModels/NiagaraEmitterViewModel.h"
 
 
 void UNiagaraStackItemGroup::Initialize(FRequiredEntryData InRequiredEntryData, FText InDisplayName, FText InToolTip, INiagaraStackItemGroupAddUtilities* InAddUtilities)
@@ -30,6 +33,11 @@ UNiagaraStackEntry::EStackRowStyle UNiagaraStackItemGroup::GetStackRowStyle() co
 FText UNiagaraStackItemGroup::GetTooltipText() const 
 {
 	return GroupToolTip;
+}
+
+bool UNiagaraStackItemGroup::GetIsEnabled() const
+{
+	return OwningEmitterHandleViewModel.IsValid() == false || OwningEmitterHandleViewModel->GetIsEnabled();
 }
 
 INiagaraStackItemGroupAddUtilities* UNiagaraStackItemGroup::GetAddUtilities() const
@@ -73,17 +81,21 @@ void UNiagaraStackItemGroup::SetDisplayName(FText InDisplayName)
 
 void UNiagaraStackItemGroup::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
 {
-	UNiagaraStackSpacer* SeparatorSpacer = FindCurrentChildOfTypeByPredicate<UNiagaraStackSpacer>(CurrentChildren,
-		[=](UNiagaraStackSpacer* CurrentSpacer) { return CurrentSpacer->GetSpacerKey() == "SeparatorSpacer"; });
-	if (SeparatorSpacer == nullptr)
-	{
-		SeparatorSpacer = NewObject<UNiagaraStackSpacer>(this);
-		FRequiredEntryData RequiredEntryData(GetSystemViewModel(), GetEmitterViewModel(), GetExecutionCategoryName(), NAME_None, GetStackEditorData());
-		SeparatorSpacer->Initialize(RequiredEntryData, "SeparatorSpacer");
-	}
-	NewChildren.Add(SeparatorSpacer);
 	RecursiveStackIssuesCount.Reset();
 	HighestIssueSeverity.Reset();
+
+	TSharedPtr<FNiagaraEmitterViewModel> OwningEmitterViewModel = GetEmitterViewModel();
+	if (OwningEmitterViewModel.IsValid())
+	{
+		if (OwningEmitterHandleViewModel.IsValid() == false || OwningEmitterHandleViewModel->GetEmitterViewModel() != OwningEmitterViewModel)
+		{
+			OwningEmitterHandleViewModel = GetSystemViewModel()->GetEmitterHandleViewModelForEmitter(OwningEmitterViewModel->GetEmitter());
+		}
+	}
+	else
+	{
+		OwningEmitterHandleViewModel.Reset();
+	}
 }
 
 int32 UNiagaraStackItemGroup::GetChildIndentLevel() const

@@ -99,18 +99,6 @@ UNiagaraStackEmitterSettingsGroup::UNiagaraStackEmitterSettingsGroup()
 
 void UNiagaraStackEmitterSettingsGroup::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
 {
-	FName PropertiesSpacerKey = "PropertiesSpacer";
-	UNiagaraStackSpacer* PropertiesSpacer = FindCurrentChildOfTypeByPredicate<UNiagaraStackSpacer>(CurrentChildren,
-		[=](UNiagaraStackSpacer* CurrentPropertiesSpacer) { return CurrentPropertiesSpacer->GetSpacerKey() == PropertiesSpacerKey; });
-
-	if (PropertiesSpacer == nullptr)
-	{
-		PropertiesSpacer = NewObject<UNiagaraStackSpacer>(this);
-		PropertiesSpacer->Initialize(CreateDefaultChildRequiredData(), PropertiesSpacerKey);
-	}
-
-	NewChildren.Add(PropertiesSpacer);
-
 	if (PropertiesItem == nullptr)
 	{
 		PropertiesItem = NewObject<UNiagaraStackEmitterPropertiesItem>(this);

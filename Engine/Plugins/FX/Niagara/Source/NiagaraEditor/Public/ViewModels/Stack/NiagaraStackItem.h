@@ -27,6 +27,9 @@ public:
 
 	uint32 GetRecursiveStackIssuesCount() const;
 	EStackIssueSeverity GetHighestStackIssueSeverity() const;
+
+	virtual bool CanChangeEnabled() const { return false; }
+	virtual void SetIsEnabled(bool bInIsEnabled) { }
 	
 protected:
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;

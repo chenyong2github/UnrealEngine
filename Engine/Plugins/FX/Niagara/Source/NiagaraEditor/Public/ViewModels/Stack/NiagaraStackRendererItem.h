@@ -34,8 +34,9 @@ public:
 
 	void ResetToBase();
 
-	bool GetIsEnabled() const;
-	void SetIsEnabled(bool bInIsEnabled);
+	virtual bool CanChangeEnabled() const override { return true; }
+	virtual bool GetIsEnabled() const override;
+	virtual void SetIsEnabled(bool bInIsEnabled) override;
 
 	static TArray<FNiagaraVariable> GetMissingVariables(UNiagaraRendererProperties* RendererProperties, UNiagaraEmitter* Emitter);
 	static bool AddMissingVariable(UNiagaraEmitter* Emitter, const FNiagaraVariable& Variable);

@@ -37,8 +37,9 @@ public:
 	bool CanRefresh() const;
 	void Refresh();
 
+	virtual bool CanChangeEnabled() const override { return true; }
 	virtual bool GetIsEnabled() const override;
-	void SetIsEnabled(bool bInIsEnabled);
+	virtual void SetIsEnabled(bool bInIsEnabled) override;
 
 	void Delete();
 

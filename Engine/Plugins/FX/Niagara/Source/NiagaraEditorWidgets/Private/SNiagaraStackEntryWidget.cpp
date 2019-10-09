@@ -35,14 +35,23 @@ TSharedRef<SWidget> SNiagaraStackDisplayName::ConstructChildren()
 		.Text_UObject(StackEntry, &UNiagaraStackEntry::GetDisplayName)
 		.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
 		.ColorAndOpacity(ColorAndOpacity)
-		.IsEnabled_UObject(StackEntry, &UNiagaraStackEntry::GetIsEnabled);
+		.IsEnabled(this, &SNiagaraStackDisplayName::GetIsEnabled);
 
-	if (StackViewModel->GetTopLevelViewModels().Num() == 1)
+	int32 NumTopLevelEmitters = 0;
+	for (const TSharedRef<UNiagaraStackViewModel::FTopLevelViewModel>& TopLevelViewModel : StackViewModel->GetTopLevelViewModels())
+	{
+		if (TopLevelViewModel->EmitterHandleViewModel.IsValid())
+		{
+			NumTopLevelEmitters++;
+		}
+	}
+
+	if (NumTopLevelEmitters <= 1)
 	{
 		TopLevelViewModelCountAtLastConstruction = 1;
 		return BaseNameWidget;
 	}
-	else if (StackViewModel->GetTopLevelViewModels().Num() > 1)
+	else
 	{
 		TopLevelViewModelCountAtLastConstruction = StackViewModel->GetTopLevelViewModels().Num();
 		TSharedPtr<UNiagaraStackViewModel::FTopLevelViewModel> TopLevelViewModel = StackViewModel->GetTopLevelViewModelForEntry(*StackEntry);
@@ -59,7 +68,7 @@ TSharedRef<SWidget> SNiagaraStackDisplayName::ConstructChildren()
 					.Text(this, &SNiagaraStackDisplayName::GetTopLevelDisplayName, TWeakPtr<UNiagaraStackViewModel::FTopLevelViewModel>(TopLevelViewModel))
 					.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
 					.ColorAndOpacity(ColorAndOpacity)
-					.IsEnabled_UObject(StackEntry, &UNiagaraStackEntry::GetIsEnabled)
+					.IsEnabled(this, &SNiagaraStackDisplayName::GetIsEnabled)
 				]
 				+ SWrapBox::Slot()
 				[
@@ -95,6 +104,11 @@ void SNiagaraStackDisplayName::StackViewModelStructureChanged()
 	{
 		Container->SetContent(ConstructChildren());
 	}
+}
+
+bool SNiagaraStackDisplayName::GetIsEnabled() const
+{
+	return StackEntry->GetOwnerIsEnabled() && StackEntry->GetIsEnabled();
 }
 
 FSlateColor SNiagaraStackEntryWidget::GetTextColorForSearch() const

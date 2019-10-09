@@ -20,6 +20,8 @@ public:
 	/** Gets the name of this node, shown in title bar */
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 
+	virtual FLinearColor GetNodeTitleColor() const override;
+
 	/** Whether or not this node can be deleted by user action */
 	virtual bool CanUserDeleteNode() const override;
 
@@ -35,4 +37,8 @@ private:
 
 	UPROPERTY()
 	FGuid EmitterHandleGuid;
+
+	static bool bColorsAreInitialized;
+	static FLinearColor SystemColor;
+	static FLinearColor EmitterColor;
 };
