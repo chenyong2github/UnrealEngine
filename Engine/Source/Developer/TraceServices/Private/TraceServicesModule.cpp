@@ -45,7 +45,7 @@ TSharedPtr<Trace::ISessionService> FTraceServicesModule::GetSessionService()
 	if (!SessionService.IsValid())
 	{
 		GetModuleService();
-		SessionService = MakeShared<Trace::FSessionService>(*ModuleService.Get());
+		SessionService = MakeShared<Trace::FSessionService>(*ModuleService.Get(), *AnalysisService.Get());
 	}
 	return SessionService;
 }
@@ -73,7 +73,7 @@ TSharedPtr<Trace::ISessionService> FTraceServicesModule::CreateSessionService(co
 {
 	checkf(!SessionService.IsValid(), TEXT("A SessionService already exists."));
 	GetModuleService();
-	SessionService = MakeShared<Trace::FSessionService>(*ModuleService.Get(), SessionDirectory);
+	SessionService = MakeShared<Trace::FSessionService>(*ModuleService.Get(), *AnalysisService.Get(), SessionDirectory);
 	return SessionService;
 }
 

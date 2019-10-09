@@ -24,7 +24,7 @@ void FStatsModule::OnAnalysisBegin(IAnalysisSession& Session)
 
 void FStatsModule::GetLoggers(TArray<const TCHAR *>& OutLoggers)
 {
-	OutLoggers.Add(TEXT("Stats"));
+	//OutLoggers.Add(TEXT("Stats"));
 }
 
 }

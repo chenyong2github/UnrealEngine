@@ -2,6 +2,8 @@
 
 #include "TraceServices/SessionService.h"
 #include "SessionServicePrivate.h"
+#include "ModuleServicePrivate.h"
+#include "AnalysisServicePrivate.h"
 #include "Trace/DataStream.h"
 #include "Misc/Paths.h"
 #include "Misc/OutputDeviceRedirector.h"
@@ -64,14 +66,15 @@ struct FDiagnosticsSessionAnalyzer
 	int8 TargetType = 0;
 };
 
-FSessionService::FSessionService(FModuleService& InModuleService)
-	: FSessionService(InModuleService, nullptr)
+FSessionService::FSessionService(FModuleService& InModuleService, FAnalysisService& InAnalysisService)
+	: FSessionService(InModuleService, InAnalysisService, nullptr)
 {
 
 }
 
-FSessionService::FSessionService(FModuleService& InModuleService, const TCHAR* OverrideSessionDirectory)
+FSessionService::FSessionService(FModuleService& InModuleService, FAnalysisService& InAnalysisService, const TCHAR* OverrideSessionDirectory)
 	: ModuleService(InModuleService)
+	, AnalysisService(InAnalysisService)
 {
 	if (OverrideSessionDirectory)
 	{
@@ -172,16 +175,6 @@ bool FSessionService::GetSessionInfo(FSessionHandle SessionHandle, FSessionInfo&
 	return true;
 }
 
-Trace::IInDataStream* FSessionService::OpenSessionStream(FSessionHandle SessionHandle)
-{
-	return TraceStore->OpenSessionStream(SessionHandle);
-}
-
-Trace::IInDataStream* FSessionService::OpenSessionFromFile(const TCHAR* FilePath)
-{
-	return Trace::DataStream_ReadFile(FilePath);
-}
-
 void FSessionService::SetModuleEnabled(FSessionHandle SessionHandle, const FName& ModuleName, bool bState)
 {
 	FScopeLock Lock(&SessionsCS);
@@ -192,11 +185,7 @@ void FSessionService::SetModuleEnabled(FSessionHandle SessionHandle, const FName
 	}
 	if (bState)
 	{
-		TArray<const TCHAR*> Loggers;
-		if (!ModuleService.GetModuleLoggers(ModuleName, Loggers))
-		{
-			return;
-		}
+		TArray<const TCHAR*> Loggers = ModuleService.GetModuleLoggers(ModuleName);
 		TSet<FString>& EnabledLoggers = FindIt->EnabledModuleLoggersMap.FindOrAdd(ModuleName);
 		for (const TCHAR* Logger : Loggers)
 		{
@@ -283,6 +272,38 @@ bool FSessionService::ConnectSession(const TCHAR* ControlClientAddress)
 	ControlClient.SendSendTo(*RecorderAddr->ToString(false));
 	ControlClient.Disconnect();
 	return true;
+}
+
+TSharedPtr<const IAnalysisSession> FSessionService::StartAnalysis(FSessionHandle SessionHandle)
+{
+	FScopeLock Lock(&SessionsCS);
+
+	FSessionInfoInternal* FindIt = Sessions.Find(SessionHandle);
+	if (!FindIt)
+	{
+		return nullptr;
+	}
+	
+	TUniquePtr<IInDataStream> DataStream(TraceStore->OpenSessionStream(SessionHandle));
+	if (!DataStream)
+	{
+		return nullptr;
+	}
+
+	if (!FindIt->CommandLine.IsEmpty())
+	{
+		TSet<FName> CommandLineEnabledModules = ModuleService.GetEnabledModulesFromCommandLine(*FindIt->CommandLine);
+		for (const FName& EnabledModuleName : CommandLineEnabledModules)
+		{
+			TSet<FString>& EnabledLoggers = FindIt->EnabledModuleLoggersMap.FindOrAdd(EnabledModuleName);
+			for (const TCHAR* Logger : ModuleService.GetModuleLoggers(EnabledModuleName))
+			{
+				EnabledLoggers.Add(Logger);
+			}
+		}
+	}
+
+	return AnalysisService.StartAnalysis(FindIt->Name, MoveTemp(DataStream));
 }
 
 bool FSessionService::Tick(float DeltaTime)

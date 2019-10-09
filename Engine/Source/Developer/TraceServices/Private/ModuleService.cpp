@@ -85,17 +85,41 @@ void FModuleService::OnAnalysisBegin(IAnalysisSession& Session)
 	}
 }
 
-bool FModuleService::GetModuleLoggers(const FName& ModuleName, TArray<const TCHAR*>& OutLoggers)
+TArray<const TCHAR*> FModuleService::GetModuleLoggers(const FName& ModuleName)
 {
+	TArray<const TCHAR*> Loggers;
+
 	FScopeLock Lock(&CriticalSection);
 	Initialize();
-	IModule** FindIt = ModulesMap.Find(ModuleName);
-	if (!FindIt)
+	IModule* FindIt = ModulesMap.FindRef(ModuleName);
+	if (FindIt)
 	{
-		return false;
+		FindIt->GetLoggers(Loggers);
 	}
-	(*FindIt)->GetLoggers(OutLoggers);
-	return true;
+	return Loggers;
+}
+
+TSet<FName> FModuleService::GetEnabledModulesFromCommandLine(const TCHAR* CommandLine)
+{
+	TSet<FName> EnabledModulesFromCommandLine;
+
+	if (!CommandLine)
+	{
+		return EnabledModulesFromCommandLine;
+	}
+
+	FScopeLock Lock(&CriticalSection);
+	Initialize();
+	for (const auto& KV : ModulesMap)
+	{
+		IModule* Module = KV.Value;
+		const TCHAR* ModuleCommandLineArgument = Module->GetCommandLineArgument();
+		if (ModuleCommandLineArgument && FParse::Param(CommandLine, ModuleCommandLineArgument))
+		{
+			EnabledModulesFromCommandLine.Add(KV.Key);
+		}
+	}
+	return EnabledModulesFromCommandLine;
 }
 
 void FModuleService::GenerateReports(const IAnalysisSession& Session, const TCHAR* CmdLine, const TCHAR* OutputDirectory)

@@ -289,13 +289,9 @@ void FInsightsManager::LoadSession(Trace::FSessionHandle SessionHandle)
 {
 	ResetSession();
 
-	Trace::FSessionInfo SessionInfo;
-	SessionService->GetSessionInfo(SessionHandle, SessionInfo);
-
-	TUniquePtr<Trace::IInDataStream> DataStream(SessionService->OpenSessionStream(SessionHandle));
-	if (DataStream)
+	Session = SessionService->StartAnalysis(SessionHandle);
+	if (Session)
 	{
-		Session = AnalysisService->StartAnalysis(SessionInfo.Name, MoveTemp(DataStream));
 		CurrentSessionHandle = SessionHandle;
 		SpawnAndActivateTabs();
 		OnSessionChanged();
@@ -308,10 +304,9 @@ void FInsightsManager::LoadTraceFile(const FString& TraceFilepath)
 {
 	ResetSession();
 
-	TUniquePtr<Trace::IInDataStream> DataStream(SessionService->OpenSessionFromFile(*TraceFilepath));
-	if (DataStream)
+	Session = AnalysisService->StartAnalysis(*TraceFilepath);
+	if (Session)
 	{
-		Session = AnalysisService->StartAnalysis(*TraceFilepath, MoveTemp(DataStream));
 		CurrentSessionHandle = 0;
 		SpawnAndActivateTabs();
 		OnSessionChanged();

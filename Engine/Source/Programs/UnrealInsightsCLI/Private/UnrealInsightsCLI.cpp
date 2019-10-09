@@ -30,17 +30,18 @@ Arguments:\n\
 
 
 /**
- * Generate the report given a data stream.
+ * Generate the report given a session URI.
  */
-int GenerateReport(TUniquePtr<Trace::IInDataStream>& DataStream, ITraceServicesModule& TraceServicesModule, const FString& OutputDirectory)
+int GenerateReport(const TCHAR* SessionUri, Trace::IAnalysisService& AnalysisService, Trace::IModuleService& ModuleService, const FString& OutputDirectory)
 {
 	using namespace Trace; 
 	
-	TSharedPtr<IAnalysisService> AnalysisService = TraceServicesModule.GetAnalysisService();
-	TSharedPtr<IModuleService> ModuleService = TraceServicesModule.GetModuleService();
-
-	TSharedPtr<const IAnalysisSession> Session = AnalysisService->Analyze(TEXT("Session"), MoveTemp(DataStream));
-
+	TSharedPtr<const IAnalysisSession> Session = AnalysisService.Analyze(SessionUri);
+	if (!Session)
+	{
+		UE_LOG(LogUnrealInsightsCLI, Error, TEXT("Trace file %s not found"), SessionUri);
+		return 1;
+	}
 
 	IPlatformFile& FileSystem = IPlatformFile::GetPlatformPhysical();
 	if (FileSystem.CreateDirectory(*OutputDirectory))
@@ -49,7 +50,7 @@ int GenerateReport(TUniquePtr<Trace::IInDataStream>& DataStream, ITraceServicesM
 		UE_LOG(LogUnrealInsightsCLI, Display, TEXT("Saving reports to %s"), *OutputDirectoryAbs);
 
 		FAnalysisSessionReadScope _(*Session);
-		ModuleService->GenerateReports(*Session, FCommandLine::Get(), *OutputDirectory);
+		ModuleService.GenerateReports(*Session, FCommandLine::Get(), *OutputDirectory);
 	}
 	else
 	{
@@ -90,20 +91,9 @@ int Command_ReportFromFile(const TArray<FString> Args)
 	UE_LOG(LogUnrealInsightsCLI, Display, TEXT("Output directory set to %s."), *OutputDirectory);
 
 	ITraceServicesModule& TraceServicesModule = FModuleManager::LoadModuleChecked<ITraceServicesModule>("TraceServices");
-	TSharedPtr<Trace::ISessionService> SessionService = TraceServicesModule.GetSessionService();
 	
-	TUniquePtr<IInDataStream> DataStream(SessionService->OpenSessionFromFile(*FileName));
-	if (!DataStream)
-	{
-		UE_LOG(LogUnrealInsightsCLI, Error, TEXT("Trace file %s not found"), *FileName);
-		return 1;
-	}
 	UE_LOG(LogUnrealInsightsCLI, Display, TEXT("Analyzing %s..."), *FileName);
-
-	TSharedPtr<IAnalysisService> AnalysisService = TraceServicesModule.GetAnalysisService();
-	TSharedPtr<IModuleService> ModuleService = TraceServicesModule.GetModuleService();
-
-	return GenerateReport(DataStream, TraceServicesModule, OutputDirectory);
+	return GenerateReport(*FileName, *TraceServicesModule.GetAnalysisService(), *TraceServicesModule.GetModuleService(), OutputDirectory);
 }
 
 /**
@@ -161,9 +151,14 @@ int Command_ReportFromConnection(const TArray<FString>&  Args)
 		FTicker::GetCoreTicker().Tick(0.2f);
 	}
 
-	TUniquePtr<IInDataStream> DataStream(SessionService->OpenSessionStream(Session));
+	Trace::FSessionInfo SessionInfo;
+	if (!SessionService->GetSessionInfo(Session, SessionInfo))
+	{
+		UE_LOG(LogUnrealInsightsCLI, Error, TEXT("Failed to load session"));
+		return 1;
+	}
 
-	return GenerateReport(DataStream, TraceServicesModule, OutputDirectory);
+	return GenerateReport(SessionInfo.Uri, *TraceServicesModule.GetAnalysisService(), *TraceServicesModule.GetModuleService(), OutputDirectory);
 }
 
 INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
@@ -194,7 +189,7 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 
 	FModuleManager::Get().UnloadModulesAtShutdown();
 
-	GIsRequestingExit = true;
+	RequestEngineExit(TEXT("UnrealInsightsCLI finished"));
 	return Result;
 }
 
