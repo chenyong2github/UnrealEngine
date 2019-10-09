@@ -634,7 +634,7 @@ public:
 
 protected:
 	/** Hierarchical LOD Setup */
-	UPROPERTY(EditAnywhere, Category=LODSystem, config, meta=(editcondition = "bEnableHierarchicalLODSystem"))
+	UPROPERTY(EditAnywhere, Category=LODSystem, config)
 	TArray<struct FHierarchicalSimplification>	HierarchicalLODSetup;
 
 public:
