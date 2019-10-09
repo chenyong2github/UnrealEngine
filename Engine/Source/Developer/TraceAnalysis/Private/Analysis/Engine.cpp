@@ -256,21 +256,19 @@ FAnalysisEngine::~FAnalysisEngine()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void FAnalysisEngine::RetireAnalyzer(uint32 AnalyzerIndex)
+void FAnalysisEngine::RetireAnalyzer(IAnalyzer* Analyzer)
 {
-	if (AnalyzerIndex >= uint32(Analyzers.Num()))
+	for (uint32 i = 0, n = Analyzers.Num(); i < n; ++i)
 	{
-		return;
-	}
+		if (Analyzers[i] != Analyzer)
+		{
+			continue;
+		}
 
-	IAnalyzer* Analyzer = Analyzers[AnalyzerIndex]; // this line is brought to you with the word "Analyzer" (mostly).
-	if (Analyzer == nullptr)
-	{
-		return;
+		Analyzer->OnAnalysisEnd();
+		Analyzers[i] = nullptr;
+		break;
 	}
-
-	Analyzer->OnAnalysisEnd();
-	Analyzers[AnalyzerIndex] = nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -515,7 +513,7 @@ void FAnalysisEngine::OnNewEventInternal(const FOnEventContext& Context)
 
 			if (!Analyzer->OnNewEvent(Route->Id, *(FEventTypeInfo*)Dispatch))
 			{
-				RetireAnalyzer(Route->AnalyzerIndex);
+				RetireAnalyzer(Analyzer);
 			}
 		}
 	}
@@ -533,7 +531,7 @@ void FAnalysisEngine::OnNewEventInternal(const FOnEventContext& Context)
 
 			if (!Analyzer->OnNewEvent(Route->Id, *(FEventTypeInfo*)Dispatch))
 			{
-				RetireAnalyzer(Route->AnalyzerIndex);
+				RetireAnalyzer(Analyzer);
 			}
 		}
 	}
@@ -656,7 +654,7 @@ bool FAnalysisEngine::OnData(FStreamReader::FData& Data)
 
 				if (!Analyzer->OnEvent(Route->Id, { SessionContext, EventData }))
 				{
-					RetireAnalyzer(Route->AnalyzerIndex);
+					RetireAnalyzer(Analyzer);
 				}
 			}
 		}
@@ -680,7 +678,7 @@ bool FAnalysisEngine::OnData(FStreamReader::FData& Data)
 
 				if (!Analyzer->OnEvent(Route->Id, { SessionContext, EventData }))
 				{
-					RetireAnalyzer(Route->AnalyzerIndex);
+					RetireAnalyzer(Analyzer);
 				}
 			}
 		}

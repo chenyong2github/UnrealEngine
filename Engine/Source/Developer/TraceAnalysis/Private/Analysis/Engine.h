@@ -40,7 +40,7 @@ private:
 	void				OnNewTrace(const FOnEventContext& Context);
 	void				OnTiming(const FOnEventContext& Context);
 	void				OnNewEventInternal(const FOnEventContext& Context);
-	void				RetireAnalyzer(uint32 AnalyzerIndex);
+	void				RetireAnalyzer(IAnalyzer* Analyzer);
 	FSessionContext		SessionContext;
 	TArray<FRoute>		Routes;
 	TArray<IAnalyzer*>	Analyzers;
