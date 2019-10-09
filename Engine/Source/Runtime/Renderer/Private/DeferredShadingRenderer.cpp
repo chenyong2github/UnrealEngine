@@ -1237,7 +1237,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		Scene->FXSystem->PreRender(RHICmdList, &Views[0].GlobalDistanceFieldInfo.ParameterData, Views[0].AllowGPUParticleUpdate());
 	}
 
-	if (bStencilLODComputeAsync)
+	if (AsyncDitherLODEndFence)
 	{
 		RHICmdList.WaitComputeFence(AsyncDitherLODEndFence);
 	}
