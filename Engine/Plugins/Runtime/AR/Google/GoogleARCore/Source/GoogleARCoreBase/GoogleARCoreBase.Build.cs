@@ -60,8 +60,9 @@ namespace UnrealBuildTool.Rules
 				// Additional dependencies on android...
 				PrivateDependencyModuleNames.Add("Launch");
 
-				// Register Plugin Language
-				AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(ModuleDirectory, "GoogleARCoreBase_APL.xml"));
+                // Register Plugin Language
+                string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
+                AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(PluginPath, "GoogleARCoreBase_APL.xml"));
 				
 				// Needed for including "AndroidEGL.h"
 				string EnginePath = Path.GetFullPath(Target.RelativeEnginePath);
