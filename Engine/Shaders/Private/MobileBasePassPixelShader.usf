@@ -500,8 +500,9 @@ void Main(
 		IndirectIrradiance *= MaterialAO;
 	#endif
 
-	#if !MATERIAL_SHADINGMODEL_UNLIT
-		half Shadow = GetPrimaryPrecomputedShadowMask(Interpolants).r;
+		half Shadow = 1.0f;
+	#if !MATERIAL_SHADINGMODEL_UNLIT && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+		Shadow = GetPrimaryPrecomputedShadowMask(Interpolants).r;
 		#if DIRECTIONAL_LIGHT_CSM && !MOBILE_MULTI_VIEW
 		// Cascaded Shadow Map
 		{
