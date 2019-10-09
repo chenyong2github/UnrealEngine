@@ -200,6 +200,7 @@ private:
 	bool					bIsRendering;
 	bool					bRunRequested;
 	bool					bDepthExtensionSupported;
+	bool					bHiddenAreaMaskSupported;
 	bool					bNeedReAllocatedDepth;
 	
 	XrSessionState			CurrentSessionState;
