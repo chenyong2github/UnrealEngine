@@ -15,6 +15,8 @@ class FOnlineUserPresence;
 class UPartyMember;
 enum class EPlatformIconDisplayRule : uint8;
 
+struct FOnlineError;
+
 namespace EOnlinePresenceState { enum Type : uint8; }
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnNewSocialUserInitialized, USocialUser&);
@@ -44,6 +46,8 @@ public:
 	FUniqueNetIdRepl GetUserId(ESocialSubsystem SubsystemType) const;
 	FString GetDisplayName() const;
 	FString GetDisplayName(ESocialSubsystem SubsystemType) const;
+	FString GetNickname() const;
+	void SetNickname(const FString& InNickName);
 
 	EInviteStatus::Type GetFriendInviteStatus(ESocialSubsystem SubsystemType) const;
 	bool IsFriend() const;
@@ -101,6 +105,9 @@ public:
 
 	UPartyMember* GetPartyMember(const FOnlinePartyTypeId& PartyTypeId) const;
 
+	DECLARE_EVENT(USocialUser, FOnNicknameChanged);
+	FOnNicknameChanged& OnNicknameChanged() const { return OnNicknameChangedEvent; }
+
 	DECLARE_EVENT(USocialUser, FPartyInviteResponseEvent);
 	FPartyInviteResponseEvent& OnPartyInviteAccepted() const { return OnPartyInviteAcceptedEvent; }
 	FPartyInviteResponseEvent& OnPartyInviteRejected() const { return OnPartyInviteRejectedEvent; }
@@ -152,6 +159,7 @@ private:
 	
 	void SetUserInfo(ESocialSubsystem SubsystemType, const TSharedRef<FOnlineUser>& UserInfo);
 	void HandleQueryUserInfoComplete(ESocialSubsystem SubsystemType, bool bWasSuccessful, const TSharedPtr<FOnlineUser>& UserInfo);
+	void HandleSetNicknameComplete(int32 LocalUserNum, const FUniqueNetId& FriendId, const FString& ListName, const FOnlineError& Error);
 
 	virtual FString SanitizePresenceString(FString InString) const;
 	
@@ -190,6 +198,7 @@ private:
 	// Initialization delegates that fire only when a specific user has finishing initializing
 	static TMap<TWeakObjectPtr<USocialUser>, FOnNewSocialUserInitialized> InitEventsByUser;
 
+	mutable FOnNicknameChanged OnNicknameChangedEvent;
 	mutable FPartyInviteResponseEvent OnPartyInviteAcceptedEvent;
 	mutable FPartyInviteResponseEvent OnPartyInviteRejectedEvent;
 	mutable FOnUserPresenceChanged OnUserPresenceChangedEvent;
