@@ -2570,6 +2570,13 @@ FSceneRenderer::~FSceneRenderer()
 	// Manually release references to TRefCountPtrs that are allocated on the mem stack, which doesn't call dtors
 	SortedShadowsForShadowDepthPass.Release();
 
+	extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
+
+	for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
+	{
+		Extension->EndFrame();
+	}
+
 	Views.Empty();
 }
 
@@ -3150,13 +3157,6 @@ void FSceneRenderer::OnStartRender(FRHICommandListImmediate& RHICmdList)
 		{
 			View.ViewState->OnStartRender(View, ViewFamily);
 		}
-	}
-
-	extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
-
-	for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
-	{
-		Extension->BeginFrame();
 	}
 }
 
