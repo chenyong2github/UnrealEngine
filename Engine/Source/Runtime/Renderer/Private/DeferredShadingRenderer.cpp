@@ -2369,7 +2369,11 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		{
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 			{
-				GPostProcessing.Process(RHICmdList, Views[ ViewIndex ], SceneContext.SceneVelocity);
+				FViewInfo& View = Views[ViewIndex];
+
+				SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
+				RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
+				AddPostProcessingPasses(GraphBuilder, View, PostProcessingInputs);
 			}
 		}
 
