@@ -11,6 +11,7 @@
 #include "Templates/UnrealTypeTraits.h"
 #include "UniformGrid.h"
 #include "Utilities.h"
+#include "UObject/ExternalPhysicsCustomObjectVersion.h"
 
 namespace Chaos
 {
@@ -77,10 +78,15 @@ namespace Chaos
 			
 			GeomData.Serialize(Ar);
 
-			Ar << FlatGrid;
-			Ar << FlattenedBounds.Min;
-			Ar << FlattenedBounds.Max;
-			Ar << LocalBounds;
+			Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::HeightfieldData)
+			{
+				Ar << FlatGrid;
+				Ar << FlattenedBounds.Min;
+				Ar << FlattenedBounds.Max;
+				Ar << LocalBounds;
+			}
+			
 
 			if(Ar.IsLoading())
 			{
@@ -185,9 +191,14 @@ namespace Chaos
 				Ar << MaxValue;
 				Ar << NumRows;
 				Ar << NumCols;
-				Ar << Range;
-				Ar << HeightPerUnit;
-				Ar << CellBounds;
+
+				Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+				if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::HeightfieldData)
+				{
+					Ar << Range;
+					Ar << HeightPerUnit;
+					Ar << CellBounds;
+				}
 			}
 		};
 
