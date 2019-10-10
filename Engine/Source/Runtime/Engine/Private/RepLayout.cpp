@@ -1523,8 +1523,9 @@ void FRepLayout::UpdateChangelistHistory(
 
 		if (HistoryItem.OutPacketIdRange.First == INDEX_NONE)
 		{
-			//  Hasn't been initialized in PostReplicate yet
-			continue;
+			// Hasn't been initialized in PostReplicate yet
+			// No need to go further, otherwise we'll overwrite entries incorrectly.
+			break;
 		}
 
 		// All active history items should contain a change list
@@ -1539,21 +1540,17 @@ void FRepLayout::UpdateChangelistHistory(
 				TArray<uint16> Temp = MoveTemp(*OutMerged);
 				MergeChangeList(Data, HistoryItem.Changed, Temp, *OutMerged);
 
-				HistoryItem.Changed.Empty();
-
 #ifdef SANITY_CHECK_MERGES
 				SanityCheckChangeList(Data, *OutMerged);
 #endif
 
 				if (HistoryItem.Resend)
 				{
-					HistoryItem.Resend = false;
 					RepState->NumNaks--;
 				}
 			}
 
-			HistoryItem.Changed.Empty();
-			HistoryItem.OutPacketIdRange = FPacketIdRange();
+			HistoryItem.Reset();
 			RepState->HistoryStart++;
 		}
 	}
@@ -1561,7 +1558,7 @@ void FRepLayout::UpdateChangelistHistory(
 	// Remove any tiling in the history markers to keep them from wrapping over time
 	const int32 NewHistoryCount	= RepState->HistoryEnd - RepState->HistoryStart;
 
-	check(NewHistoryCount <= FSendingRepState::MAX_CHANGE_HISTORY);
+	check(NewHistoryCount < FSendingRepState::MAX_CHANGE_HISTORY);
 
 	RepState->HistoryStart = RepState->HistoryStart % FSendingRepState::MAX_CHANGE_HISTORY;
 	RepState->HistoryEnd = RepState->HistoryStart + NewHistoryCount;
