@@ -114,7 +114,8 @@ namespace Chaos
 		template <typename T, int d>
 		void DrawParticleShapesImpl(const TRigidTransform<float, 3>& SpaceTransform, const TGeometryParticleHandle<T, d>* Particle, T ColorScale)
 		{
-			FColor Color = (ColorScale * FColor::White).ToFColor(false);
+			FColor ShapeColor = Particle->AsDynamic() ? FColor::Yellow : FColor::Orange;
+			FColor Color = (ColorScale * ShapeColor).ToFColor(false);
 			TVector<T, d> P = SpaceTransform.TransformPosition(Particle->AsDynamic() ? Particle->AsDynamic()->P() : Particle->X());
 			TRotation<T, d> Q = SpaceTransform.GetRotation() * (Particle->AsDynamic() ? Particle->AsDynamic()->Q() : Particle->R());
 
