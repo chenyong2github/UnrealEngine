@@ -34,8 +34,7 @@ static FAutoConsoleVariableRef CVarNoRecreateSplineMeshProxy(
 
 void FSplineMeshVertexFactoryShaderParameters::Bind(const FShaderParameterMap& ParameterMap)
 {
-	// @todo: fix the shader compile errors and restore the mandatory flag
-	SplineMeshParams.Bind(ParameterMap, TEXT("SplineParams")/*, SPF_Mandatory*/);
+	SplineMeshParams.Bind(ParameterMap, TEXT("SplineParams"), SPF_Mandatory);
 }
 
 void FSplineMeshVertexFactoryShaderParameters::GetElementShaderBindings(
