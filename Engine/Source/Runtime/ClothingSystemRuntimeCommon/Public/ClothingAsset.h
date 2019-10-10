@@ -98,7 +98,7 @@ public:
 	 * Create weights for skinning the render mesh to our simulation mesh, and 
 	 * weights to drive our sim mesh from the skeleton.
 	 */
-	virtual bool BindToSkeletalMesh(USkeletalMesh* InSkelMesh, const int32 InMeshLodIndex, const int32 InSectionIndex, const int32 InAssetLodIndex, const bool bCallPostEditChange=true) override;
+	virtual bool BindToSkeletalMesh(USkeletalMesh* InSkelMesh, const int32 InMeshLodIndex, const int32 InSectionIndex, const int32 InAssetLodIndex) override;
 
 	/**
 	 * Helper that invokes \c UnbindFromSkeletalMesh() for each avilable entry in 
