@@ -244,42 +244,6 @@ private:
 	int32 NumActiveTargets;
 };
 
-/**
- * Class for managing dynamic buffers.
- */
-class FD3D11DynamicBuffer : public FRenderResource, public FRefCountedObject
-{
-public:
-	/** Initialization constructor. */
-	FD3D11DynamicBuffer(class FD3D11DynamicRHI* InD3DRHI, D3D11_BIND_FLAG InBindFlags, uint32* InBufferSizes);
-	/** Destructor. */
-	~FD3D11DynamicBuffer();
-
-	/** Locks the buffer returning at least Size bytes. */
-	void* Lock(uint32 Size);
-	/** Unlocks the buffer returning the underlying D3D11 buffer to use as a resource. */
-	ID3D11Buffer* Unlock();
-
-	//~ Begin FRenderResource Interface.
-	virtual void InitRHI() override;
-	virtual void ReleaseRHI() override;
-	// End FRenderResource interface.
-
-private:
-	/** The maximum number of sub-buffers supported. */
-	enum { MAX_BUFFER_SIZES = 4 };
-	/** The size of each sub-buffer. */
-	TArray<uint32,TFixedAllocator<MAX_BUFFER_SIZES> > BufferSizes;
-	/** The sub-buffers. */
-	TArray<TRefCountPtr<ID3D11Buffer>,TFixedAllocator<MAX_BUFFER_SIZES> > Buffers;
-	/** The D3D11 RHI to that owns this dynamic buffer. */
-	class FD3D11DynamicRHI* D3DRHI;
-	/** Bind flags to use when creating sub-buffers. */
-	D3D11_BIND_FLAG BindFlags;
-	/** The index of the currently locked sub-buffer. */
-	int32 LockedBufferIndex;
-};
-
 template <
 	typename JobType,
 	typename = TEnableIf<TOr<

@@ -981,28 +981,6 @@ private:
 	TArray<D3D12_RESOURCE_BARRIER> Barriers;
 };
 
-/**
-* Class for managing dynamic buffers (Used for DrawUp).
-*/
-class FD3D12DynamicBuffer : public FD3D12DeviceChild
-{
-public:
-	/** Initialization constructor. */
-	FD3D12DynamicBuffer(FD3D12Device* InParent);
-	/** Destructor. */
-	~FD3D12DynamicBuffer();
-
-	/** Locks the buffer returning at least Size bytes. */
-	void* Lock(uint32 Size);
-	/** Unlocks the buffer returning the underlying D3D12 buffer to use as a resource. */
-	FD3D12ResourceLocation* Unlock();
-
-	void ReleaseResourceLocation() { ResourceLocation.Clear(); }
-
-private:
-	FD3D12ResourceLocation ResourceLocation;
-};
-
 class FD3D12StagingBuffer : public FRHIStagingBuffer
 {
 	friend class FD3D12CommandContext;
