@@ -14,6 +14,23 @@ FFileActivityProvider::FFileActivityProvider(IAnalysisSession& InSession)
 	, FileActivities(InSession.GetLinearAllocator(), 1024)
 	, FileActivityTable(FileActivities)
 {
+	FileActivityTable.EditLayout().
+		AddColumn<const TCHAR*>([](const FFileActivity& Row)
+			{
+				return Row.File ? Row.File->Path : TEXT("N/A");
+			},
+			TEXT("File")).
+		AddColumn(&FFileActivity::StartTime, TEXT("StartTime")).
+		AddColumn(&FFileActivity::EndTime, TEXT("EndTime")).
+		AddColumn(&FFileActivity::ThreadId, TEXT("ThreadId")).
+		AddColumn<const TCHAR*>([](const FFileActivity& Row)
+			{
+				return GetFileActivityTypeString(Row.ActivityType);
+			},
+			TEXT("Type")).
+		AddColumn(&FFileActivity::Offset, TEXT("Offset")).
+		AddColumn(&FFileActivity::Size, TEXT("Size")).
+		AddColumn(&FFileActivity::Failed, TEXT("Failed"));
 }
 
 void FFileActivityProvider::EnumerateFileActivity(TFunctionRef<bool(const FFileInfo&, const Timeline&)> Callback) const

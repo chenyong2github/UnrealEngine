@@ -17,6 +17,15 @@ FNetProfilerProvider::FNetProfilerProvider(IAnalysisSession& InSession)
 {
 	// Use name index 0 to indicate that we do not know the name
 	AddNetProfilerName(TEXT("N/A"));
+
+	AggregatedStatsTableLayout.
+		AddColumn(&FNetProfilerAggregatedStats::EventTypeIndex, TEXT("EventTypeIndex")).
+		AddColumn(&FNetProfilerAggregatedStats::InstanceCount, TEXT("Count")).
+		AddColumn(&FNetProfilerAggregatedStats::TotalInclusive, TEXT("Incl")).
+		AddColumn(&FNetProfilerAggregatedStats::MaxInclusive, TEXT("I.Max")).
+		AddColumn(&FNetProfilerAggregatedStats::AverageInclusive, TEXT("I.Avg")).
+		AddColumn(&FNetProfilerAggregatedStats::TotalExclusive, TEXT("Excl")).
+		AddColumn(&FNetProfilerAggregatedStats::MaxExclusive, TEXT("E.Max"));
 }
 
 FNetProfilerProvider::~FNetProfilerProvider()
@@ -544,7 +553,7 @@ ITable<FNetProfilerAggregatedStats>* FNetProfilerProvider::CreateAggregation(uin
 	}
 
 	// Calculate averages and populate table
-	TTable<FAggregatedStatsTableLayout>* Table = new TTable<FAggregatedStatsTableLayout>();
+	TTable<FNetProfilerAggregatedStats>* Table = new TTable<FNetProfilerAggregatedStats>(AggregatedStatsTableLayout);
 	for (const auto& KV : AggregatedStats)
 	{
 		FNetProfilerAggregatedStats& Row = Table->AddRow();
