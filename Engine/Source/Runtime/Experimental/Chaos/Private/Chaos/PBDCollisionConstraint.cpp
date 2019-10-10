@@ -89,6 +89,7 @@ TPBDCollisionConstraint<T, d>::TPBDCollisionConstraint(const TPBDRigidsSOAs<T,d>
 	, MThickness(Thickness)
 	, MAngularFriction(0)
 	, bUseCCD(false)
+	, bEnableCollisions(true)
 	, LifespanCounter(0)
 	, PostComputeCallback(nullptr)
 	, PostApplyCallback(nullptr)
@@ -164,15 +165,18 @@ void TPBDCollisionConstraint<T, d>::UpdatePositionBasedState(/*const TPBDRigidPa
 {
 	Reset();
 
+	if (bEnableCollisions)
+	{
 #if !UE_BUILD_SHIPPING
-	if (PendingHierarchyDump)
-	{
-		ComputeConstraints<true>(*SpatialAcceleration, Dt);
-	}
-	else
+		if (PendingHierarchyDump)
+		{
+			ComputeConstraints<true>(*SpatialAcceleration, Dt);
+		}
+		else
 #endif
-	{
-		ComputeConstraints(*SpatialAcceleration, Dt);
+		{
+			ComputeConstraints(*SpatialAcceleration, Dt);
+		}
 	}
 }
 
@@ -1619,7 +1623,7 @@ void UpdateSingleUnionConstraint(const T Thickness, TRigidBodyContactConstraint<
 	for (const Pair<const TImplicitObject<T, d>*, TRigidTransform<T, d>>& LevelsetObjPair : LevelsetShapes)
 	{
 		const TImplicitObject<T, d>& LevelsetInnerObj = *LevelsetObjPair.First;
-		const TRigidTransform<T, d> LevelsetInnerObjTM = LevelsetTM * LevelsetObjPair.Second;
+		const TRigidTransform<T, d> LevelsetInnerObjTM = LevelsetObjPair.Second * LevelsetTM;
 		UpdateConstraintImp2<UpdateType>(*ParticleObj, ParticlesTM, LevelsetInnerObj, LevelsetInnerObjTM, Thickness, Constraint);
 	}
 }
