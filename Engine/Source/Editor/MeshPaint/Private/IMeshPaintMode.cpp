@@ -23,7 +23,7 @@
 
 //Slate dependencies
 #include "LevelEditor.h"
-#include "ILevelViewport.h"
+#include "IAssetViewport.h"
 
 #include "MeshPaintAdapterFactory.h"
 

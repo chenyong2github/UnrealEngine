@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintNativeCodeGenUtils.h"
+#include "BlueprintCompilationManager.h"
 #include "Engine/Blueprint.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
@@ -453,19 +454,9 @@ void FBlueprintNativeCodeGenUtils::GenerateCppCode(UObject* Obj, TSharedPtr<FStr
 		CodeGenBackend.NativizationSummary() = NativizationSummary;
 
 		{
-			TSharedPtr<FBlueprintCompileReinstancer> Reinstancer = FBlueprintCompileReinstancer::Create(DuplicateBP->GeneratedClass);
+			FBlueprintCompilationManager::CompileSynchronouslyToCpp( DuplicateBP, OutHeaderSource, OutCppSource, NativizationOptions );
+			
 			IKismetCompilerInterface& Compiler = FModuleManager::LoadModuleChecked<IKismetCompilerInterface>(KISMET_COMPILER_MODULENAME);
-			TGuardValue<bool> GuardTemplateNameFlag(GCompilingBlueprint, true);
-			FCompilerResultsLog Results;
-
-			FKismetCompilerOptions CompileOptions;
-			CompileOptions.CompileType = EKismetCompileType::Cpp;
-			CompileOptions.OutCppSourceCode = OutCppSource;
-			CompileOptions.OutHeaderSourceCode = OutHeaderSource;
-			CompileOptions.NativizationOptions = NativizationOptions;
-
-			Compiler.CompileBlueprint(DuplicateBP, CompileOptions, Results);
-
 			Compiler.RemoveBlueprintGeneratedClasses(DuplicateBP);
 		}
 

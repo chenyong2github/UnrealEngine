@@ -2,7 +2,6 @@
 
 #include "Windows/WindowsApplication.h"
 #include "Containers/StringConv.h"
-#include "Templates/ScopedPointer.h"
 #include "CoreGlobals.h"
 #include "Internationalization/Text.h"
 #include "Misc/ConfigCacheIni.h"

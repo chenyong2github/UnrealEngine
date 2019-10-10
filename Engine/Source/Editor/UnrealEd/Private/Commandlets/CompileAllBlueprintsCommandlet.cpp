@@ -9,6 +9,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Engine/Engine.h"
+#include "Kismet2/KismetEditorUtilities.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogCompileAllBlueprintsCommandlet, Log, All);
 
@@ -18,7 +19,6 @@ UCompileAllBlueprintsCommandlet::UCompileAllBlueprintsCommandlet(const FObjectIn
 : Super(ObjectInitializer)
 {
 	bResultsOnly = false;
-	bCompileSkeletonOnly = false;
 	bCookedOnly = false;
 	bDirtyOnly = false;
 	bSimpleAssetList = false;
@@ -51,7 +51,6 @@ void UCompileAllBlueprintsCommandlet::InitCommandLine(const FString& Params)
 	bResultsOnly = Switches.Contains(TEXT("ShowResultsOnly"));
 	bDirtyOnly = Switches.Contains(TEXT("DirtyOnly"));
 	bCookedOnly = Switches.Contains(TEXT("CookedOnly"));
-	bCompileSkeletonOnly = Switches.Contains(TEXT("CompileSkeletonOnly"));
 	bSimpleAssetList = Switches.Contains(TEXT("SimpleAssetList"));
 	
 	RequireAssetTags.Empty();
@@ -302,21 +301,12 @@ void UCompileAllBlueprintsCommandlet::CompileBlueprint(UBlueprint* Blueprint)
 		{
 			MessageLog.bAnnotateMentionedNodes = true;
 		}
-	
-		FKismetCompilerOptions CompileOptions;
-		//Defaults to use for CompileOptions
-		CompileOptions.CompileType = EKismetCompileType::Full;
-		CompileOptions.bSaveIntermediateProducts = false;
-		CompileOptions.bRegenerateSkelton = false;
-		CompileOptions.bIsDuplicationInstigated = false;
-		CompileOptions.bReinstanceAndStubOnFailure = false;
+		MessageLog.SetSourcePath(Blueprint->GetPathName());
+		MessageLog.BeginEvent(TEXT("Compile"));
 
-		if (bCompileSkeletonOnly)
-		{
-			CompileOptions.CompileType = EKismetCompileType::SkeletonOnly;
-		}
-		
-		KismetBlueprintCompilerModule->CompileBlueprint(Blueprint, CompileOptions, MessageLog);
+		FKismetEditorUtilities::CompileBlueprint(Blueprint, EBlueprintCompileOptions::SkipGarbageCollection, &MessageLog);
+
+		MessageLog.EndEvent();
 
 		if ((MessageLog.NumErrors + MessageLog.NumWarnings) > 0)
 		{

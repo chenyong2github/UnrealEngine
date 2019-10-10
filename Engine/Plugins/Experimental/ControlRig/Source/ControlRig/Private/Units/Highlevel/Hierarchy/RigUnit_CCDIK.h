@@ -73,6 +73,7 @@ struct FRigUnit_CCDIK : public FRigUnit_HighlevelBaseMutable
 	{
 		EffectorTransform = FTransform::Identity;
 		Precision = 1.f;
+		Weight = 1.f;
 		MaxIterations = 10;
 		bStartFromTail = true;
 		bPropagateToChildren = false;
@@ -102,6 +103,12 @@ struct FRigUnit_CCDIK : public FRigUnit_HighlevelBaseMutable
 	 */
 	UPROPERTY(meta = (Input, Constant))
 	float Precision;
+
+	/**
+	 * The weight of the solver - how much the IK should be applied.
+	 */
+	UPROPERTY(meta = (Input))
+	float Weight;
 
 	/**
 	 * The maximum number of iterations. Values between 4 and 16 are common.

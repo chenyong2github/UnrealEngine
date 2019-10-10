@@ -95,7 +95,7 @@ public:
 	 * Does the given path contain assets?
 	 * @note This function doesn't recurse into sub-paths.
 	 */
-	 bool HasAssets(const FName PackagePath) const;
+	bool HasAssets(const FName PackagePath) const;
 
 	/**
 	 * Gets asset data for all assets that match the filter.
@@ -190,7 +190,7 @@ public:
 	/**
 	 * Gets the asset data for the specified asset tag
 	 *
-	 * @param TagName the tag name to search for 
+	 * @param TagName the tag name to search for
 	 * @return An array of AssetData*, empty if nothing found
 	 */
 	const TArray<const FAssetData*>& GetAssetsByTagName(const FName TagName) const
@@ -209,6 +209,12 @@ public:
 	const TMap<FName, const FAssetData*>& GetObjectPathToAssetDataMap() const
 	{
 		return reinterpret_cast<const TMap<FName, const FAssetData*>&>(CachedAssetsByObjectPath);
+	}
+
+	/** Returns const version of internal Tag->AssetDatas map for fast iteration */
+	const TMap<FName, const TArray<const FAssetData*>> GetTagToAssetDatasMap() const
+	{
+		return reinterpret_cast<const TMap<FName, const TArray<const FAssetData*>>&>(CachedAssetsByTag);
 	}
 
 	/** Returns const version of internal PackageName->PackageData map for fast iteration */

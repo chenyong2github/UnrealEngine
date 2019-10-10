@@ -63,10 +63,7 @@ FViewportRHIRef FOpenGLDynamicRHI::RHICreateViewport(void* WindowHandle,uint32 S
 //	SCOPED_SUSPEND_RENDERING_THREAD(true);
 
 	// Use a default pixel format if none was specified	
-	if (PreferredPixelFormat == EPixelFormat::PF_Unknown)
-	{
-		PreferredPixelFormat = EPixelFormat::PF_B8G8R8A8;
-	}
+	PreferredPixelFormat = RHIPreferredPixelFormatHint(PreferredPixelFormat);
 
 	return new FOpenGLViewport(this,WindowHandle,SizeX,SizeY,bIsFullscreen,PreferredPixelFormat);
 }
@@ -79,6 +76,11 @@ void FOpenGLDynamicRHI::RHIResizeViewport(FRHIViewport* ViewportRHI,uint32 SizeX
 //	SCOPED_SUSPEND_RENDERING_THREAD(true);
 
 	Viewport->Resize(SizeX,SizeY,bIsFullscreen);
+}
+
+EPixelFormat FOpenGLDynamicRHI::RHIPreferredPixelFormatHint(EPixelFormat PreferredPixelFormat)
+{
+	return FOpenGL::PreferredPixelFormatHint(PreferredPixelFormat);
 }
 
 void FOpenGLDynamicRHI::RHITick( float DeltaTime )
@@ -102,19 +104,21 @@ void FOpenGLDynamicRHI::RHIBeginDrawingViewport(FRHIViewport* ViewportRHI, FRHIT
 
 	bRevertToSharedContextAfterDrawingViewport = false;
 	EOpenGLCurrentContext CurrentContext = PlatformOpenGLCurrentContext( PlatformDevice );
-#ifndef __EMSCRIPTEN__
 	if( CurrentContext != CONTEXT_Rendering )
 	{
 		check(CurrentContext == CONTEXT_Shared);
-		check(!bIsRenderingContextAcquired || !GUseThreadedRendering);
-		bRevertToSharedContextAfterDrawingViewport = true;
-		PlatformRenderingContextSetup(PlatformDevice);
+		if (FOpenGL::GetShaderPlatform() != EShaderPlatform::SP_OPENGL_ES2_WEBGL)
+		{
+			check(!bIsRenderingContextAcquired || !GUseThreadedRendering);
+			bRevertToSharedContextAfterDrawingViewport = true;
+			PlatformRenderingContextSetup(PlatformDevice);
+		}
+		else
+		{
+			// XXX multithread check?
+			// On WebGL, PlatformRenderingContextSetup actually makes-current the Shared context.
+		}
 	}
-#else
-// XXX multithread check?
-	// On WebGL, PlatformRenderingContextSetup actually makes-current the Shared context.
-	check(CurrentContext == CONTEXT_Shared);
-#endif
 
 	// Set the render target and viewport.
 	if( RenderTarget )

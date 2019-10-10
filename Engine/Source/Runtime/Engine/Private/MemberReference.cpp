@@ -9,8 +9,6 @@
 #include "BlueprintCompilationManager.h"
 #endif
 
-extern COREUOBJECT_API bool GBlueprintUseCompilationManager;
-
 //////////////////////////////////////////////////////////////////////////
 // FMemberReference
 
@@ -116,6 +114,19 @@ void FMemberReference::InvalidateScope()
 		// Make it into a member reference since we are clearing the local context
 		bSelfContext = true;
 	}
+}
+
+bool FMemberReference::IsSparseClassData(const UClass* OwningClass) const
+{
+	bool bIsSparseClassData = false;
+	UScriptStruct* SparseClassDataStruct = OwningClass ? OwningClass->GetSparseClassDataStruct() : nullptr;
+	if (SparseClassDataStruct)
+	{
+		UProperty* VariableProperty = FindField<UProperty>(SparseClassDataStruct, GetMemberName());
+		bIsSparseClassData = VariableProperty != nullptr;
+	}
+
+	return bIsSparseClassData;
 }
 
 #if WITH_EDITOR
@@ -253,7 +264,7 @@ void FMemberReference::InitFieldRedirectMap()
 
 UClass* FMemberReference::GetClassToUse(UClass* InClass, bool bUseUpToDateClass)
 {
-	if(GBlueprintUseCompilationManager && bUseUpToDateClass)
+	if(bUseUpToDateClass)
 	{
 		return FBlueprintEditorUtils::GetMostUpToDateClass(InClass);
 	}

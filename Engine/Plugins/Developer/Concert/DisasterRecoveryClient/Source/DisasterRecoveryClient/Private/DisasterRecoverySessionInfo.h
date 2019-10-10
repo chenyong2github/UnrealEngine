@@ -6,7 +6,7 @@
 #include "DisasterRecoverySessionInfo.generated.h"
 
 USTRUCT()
-struct FDisasterRecoverySessionInfo
+struct FDisasterRecoverySession
 {
 	GENERATED_BODY()
 
@@ -14,5 +14,28 @@ struct FDisasterRecoverySessionInfo
 	FString LastSessionName;
 
 	UPROPERTY()
+	int32 ProcessId = 0;
+
+	UPROPERTY()
 	bool bAutoRestoreLastSession = false;
+
+	/** The PID of the last client that write the file for this session. */
+	UPROPERTY()
+	int32 DisasterRecoveryClientPID = 0;
+
+	/** The PID of the disaster recovery service launched by the client for the session. */
+	UPROPERTY()
+	int32 DisasterRecoveryServicePID = 0;
+};
+
+/**
+ * Hold the information for multiple disaster recovery sessions.
+ */
+USTRUCT()
+struct FDisasterRecoverySessionInfo
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<FDisasterRecoverySession> Sessions;
 };

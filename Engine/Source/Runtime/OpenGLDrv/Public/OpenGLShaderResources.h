@@ -313,7 +313,7 @@ typedef TOpenGLShader<FRefCountedObject, GL_TESS_CONTROL_SHADER, SF_Hull> FOpenG
 typedef TOpenGLShader<FRefCountedObject, GL_TESS_EVALUATION_SHADER, SF_Domain> FOpenGLDomainShader;
 
 
-class FOpenGLComputeShader : public TOpenGLShader<FRHIComputeShader, GL_COMPUTE_SHADER, SF_Compute>
+class FOpenGLComputeShader : public TOpenGLShader<FRefCountedObject, GL_COMPUTE_SHADER, SF_Compute>
 {
 public:
 	FOpenGLComputeShader():
@@ -424,9 +424,22 @@ struct FOpenGLProgramKey
 	FString ToString() const
 	{
 		FString retme;
-		retme = TEXT("Program V_") + ShaderHashes[CrossCompiler::SHADER_STAGE_VERTEX].ToString();
-		retme += TEXT("_P_") + ShaderHashes[CrossCompiler::SHADER_STAGE_PIXEL].ToString();
-		return retme;
+		if(ShaderHashes[CrossCompiler::SHADER_STAGE_VERTEX] != FSHAHash())
+		{
+			retme = TEXT("Program V_") + ShaderHashes[CrossCompiler::SHADER_STAGE_VERTEX].ToString();
+			retme += TEXT("_P_") + ShaderHashes[CrossCompiler::SHADER_STAGE_PIXEL].ToString();
+			return retme;
+		}
+		else if(ShaderHashes[CrossCompiler::SHADER_STAGE_COMPUTE] != FSHAHash())
+		{
+			retme = TEXT("Program C_") + ShaderHashes[CrossCompiler::SHADER_STAGE_COMPUTE].ToString();
+			return retme;
+		}
+		else
+		{
+			retme = TEXT("Program with unset key");
+			return retme;
+		}
 	}
 
 	FSHAHash ShaderHashes[CrossCompiler::NUM_SHADER_STAGES];

@@ -353,7 +353,7 @@ void FBlackboardKeySelector::AddObjectFilter(UObject* Owner, FName PropertyName,
 	AllowedTypes.Add(FilterOb);
 }
 
-void FBlackboardKeySelector::AddClassFilter(UObject* Owner, FName PropertyName, TSubclassOf<UClass> AllowedClass)
+void FBlackboardKeySelector::AddClassFilter(UObject* Owner, FName PropertyName, TSubclassOf<UObject> AllowedClass)
 {
 	const FName FilterName = MakeUniqueObjectName(Owner, UBlackboardKeyType_Class::StaticClass(), *FString::Printf(TEXT("%s_Class"), *PropertyName.ToString()));
 	UBlackboardKeyType_Class* FilterOb = NewObject<UBlackboardKeyType_Class>(Owner, FilterName);
@@ -417,6 +417,13 @@ void FBlackboardKeySelector::AddNameFilter(UObject* Owner, FName PropertyName)
 {
 	const FString FilterName = PropertyName.ToString() + TEXT("_Name");
 	AllowedTypes.Add(NewObject<UBlackboardKeyType_Name>(Owner, *FilterName));
+}
+
+// deprecated
+void FBlackboardKeySelector::AddClassFilter(UObject* Owner, FName PropertyName, TSubclassOf<UClass> AllowedClass)
+{
+	TSubclassOf<UObject> AllowedObjectClass = AllowedClass;
+	AddClassFilter(Owner, PropertyName, AllowedObjectClass);
 }
 
 //----------------------------------------------------------------------//

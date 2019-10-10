@@ -7,6 +7,7 @@
 #include "Chaos/PerParticleInitForce.h"
 #include "Chaos/PerParticleEulerStepVelocity.h"
 #include "Chaos/PerParticleEtherDrag.h"
+#include "Chaos/PerParticleGravity.h"
 #include "Chaos/PerParticlePBDEulerStep.h"
 #include "Chaos/PerParticleExternalForces.h"
 
@@ -21,6 +22,16 @@ CHAOS_API extern float HackLinearDrag;
 CHAOS_API extern float HackAngularDrag;
 
 template<typename T, int d>
+class TPBDRigidsEvolutionGBF;
+
+template<typename T, int d>
+using TPBDRigidsEvolutionCallback = TFunction<void()>;
+
+template<typename T, int d>
+using TPBDRigidsEvolutionIslandCallback = TFunction<void(int32 Island)>;
+
+
+template<typename T, int d>
 class TPBDRigidsEvolutionGBF : public TPBDRigidsEvolutionBase<TPBDRigidsEvolutionGBF<T, d>, TPBDCollisionConstraint<T,d>, T, d>
 {
 public:
@@ -31,9 +42,10 @@ public:
 	using Base::SetParticleUpdateVelocityFunction;
 	using Base::SetParticleUpdatePositionFunction;
 	using Base::AddConstraintRule;
-    using Base::AddForceFunction;
+	using Base::AddForceFunction;
 	using Base::Clustering;
 	using typename Base::FForceRule;
+	using FGravityForces = TPerParticleGravity<T, d>;
 	using FCollisionConstraints = TPBDCollisionConstraint<T, d>;
 	using FExternalForces = TPerParticleExternalForces<T, d>;
 	using FCollisionConstraintRule = TPBDConstraintColorRule<FCollisionConstraints, T, d>;
@@ -45,6 +57,26 @@ public:
 	CHAOS_API TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<T, d>& InParticles, int32 InNumIterations = DefaultNumIterations);
 	CHAOS_API ~TPBDRigidsEvolutionGBF() {}
 
+	void SetPostIntegrateCallback(const TPBDRigidsEvolutionCallback<T, d>& Cb)
+	{
+		PostIntegrateCallback = Cb;
+	}
+
+	void SetPreApplyCallback(const TPBDRigidsEvolutionCallback<T, d>& Cb)
+	{
+		PreApplyCallback = Cb;
+	}
+
+	void SetPostApplyCallback(const TPBDRigidsEvolutionIslandCallback<T, d>& Cb)
+	{
+		PostApplyCallback = Cb;
+	}
+
+	void SetPostApplyPushOutCallback(const TPBDRigidsEvolutionIslandCallback<T, d>& Cb)
+	{
+		PostApplyPushOutCallback = Cb;
+	}
+
 	CHAOS_API void AdvanceOneTimeStep(const T dt);
 
 	using Base::ApplyConstraints;
@@ -53,9 +85,14 @@ public:
 	FCollisionConstraints& GetCollisionConstraints() { return CollisionConstraints; }
 	const FCollisionConstraints& GetCollisionConstraints() const { return CollisionConstraints; }
 
+	FCollisionConstraintRule& GetCollisionConstraintsRule() { return CollisionRule; }
+	const FCollisionConstraintRule& GetCollisionConstraintsRule() const { return CollisionRule; }
+
 	FExternalForces& GetExternalForces() { return ExternalForces; }
 	const FExternalForces& GetExternalForces() const { return ExternalForces; }
 
+	FGravityForces& GetGravityForces() { return GravityForces; }
+	const FGravityForces& GetGravityForces() const { return GravityForces; }
 
 	CHAOS_API inline void EndFrame(T Dt)
 	{
@@ -116,11 +153,25 @@ public:
 					}
 				}
 
-
 				EulerStepRule.Apply(Particle, Dt);
+
+				if (Particle.HasBounds())
+				{
+					const TBox<T, d>& LocalBounds = Particle.LocalBounds();
+					TBox<T, d> WorldSpaceBounds = LocalBounds.TransformedBox(TRigidTransform<T, d>(Particle.P(), Particle.Q()));
+					WorldSpaceBounds.ThickenSymmetrically(Particle.V());
+					Particle.SetWorldSpaceInflatedBounds(WorldSpaceBounds);
+				}
 			}
 		});
+
+		for (auto& Particle : InParticles)
+		{
+			Base::DirtyParticle(Particle);
+		}
 	}
+
+	CHAOS_API void Serialize(FChaosArchive& Ar);
 
 protected:
 	using Base::UpdateConstraintPositionBasedState;
@@ -131,9 +182,16 @@ protected:
 	using Base::PhysicsMaterials;
 	using Base::ParticleDisableCount;
 	using Base::Collided;
+	using Base::InternalAcceleration;
 
+	FGravityForces GravityForces;
 	FExternalForces ExternalForces;
 	FCollisionConstraints CollisionConstraints;
 	FCollisionConstraintRule CollisionRule;
+
+	TPBDRigidsEvolutionCallback<T, d> PostIntegrateCallback;
+	TPBDRigidsEvolutionCallback<T, d> PreApplyCallback;
+	TPBDRigidsEvolutionIslandCallback<T, d> PostApplyCallback;
+	TPBDRigidsEvolutionIslandCallback<T, d> PostApplyPushOutCallback;
 };
 }

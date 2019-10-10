@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "PrimitiveSceneProxy.h"
 #include "Materials/MaterialInterface.h"
+#include "ComponentReregisterContext.h"
 
 class FMaterialRenderProxy;
 class FMeshElementCollector;
@@ -122,7 +123,8 @@ struct ESkeletalMeshVertexFlags
 		None = 0x0,
 		UseFullPrecisionUVs = 0x1,
 		HasVertexColors = 0x2,
-		UseHighPrecisionTangentBasis = 0x4
+		UseHighPrecisionTangentBasis = 0x4,
+		BuildAdjacencyIndexBuffer = 0x8
 	};
 };
 
@@ -414,3 +416,35 @@ private:
 	bool bRefreshBounds;
 };
 
+#if WITH_EDITOR
+
+//Helper to scope skeletal mesh post edit change.
+class ENGINE_API FScopedSkeletalMeshPostEditChange
+{
+public:
+	/*
+	 * This constructor increment the skeletal mesh PostEditChangeStackCounter. If the stack counter is zero before the increment
+	 * the skeletal mesh component will be unregister from the world. The component will also release there rendering resources.
+	 * Parameters:
+	 * @param InbCallPostEditChange - if we are the first scope PostEditChange will be called.
+	 * @param InbReregisterComponents - if we are the first scope we will re register component from world and also component render data.
+	 */
+	FScopedSkeletalMeshPostEditChange(USkeletalMesh* InSkeletalMesh, bool InbCallPostEditChange = true, bool InbReregisterComponents = true);
+
+	/*
+	 * This destructor decrement the skeletal mesh PostEditChangeStackCounter. If the stack counter is zero after the decrement,
+	 * the skeletal mesh PostEditChange will be call. The component will also be register to the world and there render data resources will be rebuild.
+	 */
+	~FScopedSkeletalMeshPostEditChange();
+
+	void SetSkeletalMesh(USkeletalMesh* InSkeletalMesh);
+
+private:
+	USkeletalMesh* SkeletalMesh;
+	bool bReregisterComponents;
+	bool bCallPostEditChange;
+	FSkinnedMeshComponentRecreateRenderStateContext* RecreateExistingRenderStateContext;
+	TIndirectArray<FComponentReregisterContext> ComponentReregisterContexts;
+};
+
+#endif

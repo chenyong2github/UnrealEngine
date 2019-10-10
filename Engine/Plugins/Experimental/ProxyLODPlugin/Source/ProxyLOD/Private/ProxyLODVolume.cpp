@@ -99,7 +99,7 @@ public:
 		using namespace openvdb::tools;
 
 		FMeshDescription RawMesh;
-		UStaticMesh::RegisterMeshAttributes(RawMesh);
+		FStaticMeshAttributes(RawMesh).Register();
 		ConvertToRawMesh(RawMesh);
 		FMeshDescriptionAdapter MeshAdapter(RawMesh, SDFVolume->transform());
 

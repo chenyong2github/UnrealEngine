@@ -4,6 +4,7 @@
 #include "BlueprintCompilationManager.h"
 #include "BlueprintEditorSettings.h"
 #include "UObject/UObjectHash.h"
+#include "UObject/FrameworkObjectVersion.h"
 #include "UObject/Interface.h"
 #include "UObject/PropertyPortFlags.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
@@ -1321,6 +1322,41 @@ bool UK2Node_CallFunction::IsActionFilteredOut(FBlueprintActionFilter const& Fil
 		bIsFilteredOut |= !CanPasteHere(TargetGraph);
 	}
 
+	if(const UFunction* TargetFunction = GetTargetFunction())
+	{
+		const bool bIsProtected = (TargetFunction->FunctionFlags & FUNC_Protected) != 0;
+		const bool bIsPrivate = (TargetFunction->FunctionFlags & FUNC_Private) != 0;
+		const UClass* OwningClass = TargetFunction->GetOwnerClass();
+		if( (bIsProtected || bIsPrivate) && !FBlueprintEditorUtils::IsNativeSignature(TargetFunction) && OwningClass)
+		{
+			OwningClass = OwningClass->GetAuthoritativeClass();
+			// we can filter private and protected blueprints that are unrelated:
+			bool bAccessibleInAll = true;
+			for (const UBlueprint* Blueprint : Filter.Context.Blueprints)
+			{
+				UClass* AuthoritativeClass = Blueprint->GeneratedClass;
+				if(!AuthoritativeClass)
+				{
+					continue;
+				}
+
+				if(bIsPrivate)
+				{
+					bAccessibleInAll = bAccessibleInAll && AuthoritativeClass == OwningClass;
+				}
+				else if(bIsProtected)
+				{
+					bAccessibleInAll = bAccessibleInAll && AuthoritativeClass->IsChildOf(OwningClass);
+				}
+			}
+
+			if(!bAccessibleInAll)
+			{
+				bIsFilteredOut = true;
+			}
+		}
+	}
+
 	return bIsFilteredOut;
 }
 
@@ -2007,6 +2043,41 @@ void UK2Node_CallFunction::ValidateNodeDuringCompilation(class FCompilerResultsL
 			if (ParentClass && !FBlueprintEditorUtils::ImplementsGetWorld(Blueprint) && !ParentClass->HasMetaDataHierarchical(FBlueprintMetadata::MD_ShowWorldContextPin))
 			{
 				MessageLog.Warning(*LOCTEXT("FunctionUnsafeInContext", "Function '@@' is unsafe to call from blueprints of class '@@'.").ToString(), this, ParentClass);
+			}
+		}
+
+		if(Blueprint && !FBlueprintEditorUtils::IsNativeSignature(Function))
+		{
+			// enforce protected function restriction
+			const bool bCanTreatAsError = Blueprint->GetLinkerCustomVersion(FFrameworkObjectVersion::GUID) >= FFrameworkObjectVersion::EnforceBlueprintFunctionVisibility;
+
+			const bool bIsProtected = (Function->FunctionFlags & FUNC_Protected) != 0;
+			const bool bFuncBelongsToSubClass = Blueprint->SkeletonGeneratedClass->IsChildOf(Function->GetOuterUClass());
+			if (bIsProtected && !bFuncBelongsToSubClass)
+			{
+				if(bCanTreatAsError)
+				{
+					MessageLog.Error(*LOCTEXT("FunctionPrivateAccessed", "Function '@@' is protected and can't be accessed outside of its hierarchy.").ToString(), this);
+				}
+				else
+				{
+					MessageLog.Note(*LOCTEXT("FunctionPrivateAccessedNote", "Function '@@' is protected and can't be accessed outside of its hierarchy - this will be an error if the asset is resaved.").ToString(), this);
+				}
+			}
+
+			// enforce private function restriction
+			const bool bIsPrivate = (Function->FunctionFlags & FUNC_Private) != 0;
+			const bool bFuncBelongsToClass = bFuncBelongsToSubClass && (Blueprint->SkeletonGeneratedClass == Function->GetOuterUClass());
+			if (bIsPrivate && !bFuncBelongsToClass)
+			{
+				if(bCanTreatAsError)
+				{
+					MessageLog.Error(*LOCTEXT("FunctionPrivateAccessed", "Function '@@' is private and can't be accessed outside of its defined class '@@'.").ToString(), this, Function->GetOuterUClass());
+				}
+				else
+				{
+					MessageLog.Note(*LOCTEXT("FunctionPrivateAccessedNote", "Function '@@' is private and can't be accessed outside of its defined class '@@' - this will be an error if the asset is resaved.").ToString(), this, Function->GetOuterUClass());
+				}
 			}
 		}
 	}

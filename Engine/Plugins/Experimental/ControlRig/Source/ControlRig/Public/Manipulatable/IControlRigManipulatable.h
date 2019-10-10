@@ -16,6 +16,9 @@
  * and implements a series of setter functions to perform changes.
  *
  */
+
+class IControlRigObjectBinding;
+
 class CONTROLRIG_API IControlRigManipulatable
 {
 public:
@@ -27,6 +30,10 @@ public:
 
 	/** Bindable event for external objects to be notified of Control changes */
 	DECLARE_EVENT_TwoParams(IControlRigManipulatable, FControlModifiedEvent, IControlRigManipulatable*, const FRigControl&);
+#if WITH_EDITOR
+	/** Bindable event for external objects to be notified that a Control is Selected */
+	DECLARE_EVENT_ThreeParams(IControlRigManipulatable, FControlSelectedEvent, IControlRigManipulatable*, const FRigControl&,  bool);
+#endif
 
 	// Returns true if this manipulatable subject is currently
 	// available for manipulation / is enabled.
@@ -90,7 +97,7 @@ public:
 
 	// Sets the relative value of a Control
 	template<class T>
-	FORCEINLINE bool SetControlValue(const FName& InControlName, T InValue, bool bNotify = true)
+	FORCEINLINE void SetControlValue(const FName& InControlName, T InValue, bool bNotify = true)
 	{
 		SetControlValue(InControlName, FRigControlValue::Make<T>(InValue), bNotify);
 	}
@@ -108,22 +115,52 @@ public:
 	// Sets a Control's Space (for space switching), returns true when successful.
 	virtual bool SetControlSpace(const FName& InControlName, const FName& InSpaceName) = 0;
 
-	// Returns a event than can be used to subscribe to
+	// Returns a event that can be used to subscribe to
 	// filtering control data when needed
 	FFilterControlEvent& ControlFilter() { return OnFilterControl;  }
 	
-	// Returns a event than can be used to subscribe to
-	// notifications coming from the manipulated subject.
+	// Returns a event that can be used to subscribe to
+	// change notifications coming from the manipulated subject.
 	FControlModifiedEvent& ControlModified() { return OnControlModified;  }
+
+#if WITH_EDITOR
+	// Returns a event that can be used to subscribe to
+	// selection changes coming from the manipulated subject.
+	FControlSelectedEvent& ControlSelected() { return OnControlSelected; }
+
+	//Select or deselected the specified control  
+	virtual void SelectControl(const FName& InControlName, bool bSelect = true) = 0;
+
+	//Clear selection on all controls
+	virtual bool ClearControlSelection() = 0;
+
+	//Get the current selection
+	virtual TArray<FName> CurrentControlSelection() const = 0;
+
+	//Is the Specified Control Selected
+	virtual bool IsControlSelected(const FName& InControlName) const = 0;
+
+#endif
+	//Get Name
+	virtual FString GetName() const = 0;
 
 	// Returns the gizmo library used for generating gizmos
 	virtual UControlRigGizmoLibrary* GetGizmoLibrary() const { return nullptr; }
+
+	//Set Object Binding
+	virtual void SetObjectBinding(TSharedPtr<IControlRigObjectBinding> InObjectBinding) {};
+
+	//Get bindings to a runtime object 
+	virtual TSharedPtr<IControlRigObjectBinding> GetObjectBinding() const {	return nullptr;}
+
 
 private:
 
 	FFilterControlEvent OnFilterControl;
 	FControlModifiedEvent OnControlModified;
-
+#if WITH_EDITOR
+	FControlSelectedEvent OnControlSelected;
+#endif
 	/** True if currently manipulation is enabled */
 	bool bManipulationEnabled;
 };

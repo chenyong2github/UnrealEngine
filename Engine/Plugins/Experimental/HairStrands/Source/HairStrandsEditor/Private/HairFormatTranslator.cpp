@@ -3,6 +3,7 @@
 #include "HairFormatTranslator.h"
 
 #include "GenericPlatform/GenericPlatformFile.h"
+#include "GroomImportOptions.h"
 #include "HAL/PlatformFilemanager.h"
 #include "Misc/Paths.h"
 
@@ -52,7 +53,7 @@ namespace HairFormat
 	};
 }
 
-bool FHairFormatTranslator::Translate(const FString& FileName, FHairDescription& HairDescription)
+bool FHairFormatTranslator::Translate(const FString& FileName, FHairDescription& HairDescription, const FGroomConversionSettings& ConversionSettings)
 {
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 	IFileHandle* FileHandle = PlatformFile.OpenRead(*FileName);
@@ -110,6 +111,8 @@ bool FHairFormatTranslator::Translate(const FString& FileName, FHairDescription&
 				TVertexAttributesRef<FVector> VertexPositions = HairDescription.VertexAttributes().GetAttributesRef<FVector>(HairAttribute::Vertex::Position);
 				if (FileHeader.BitArrays & HAIR_FILE_POINTS_BIT)
 				{
+					FMatrix ConversionMatrix = FScaleMatrix::Make(ConversionSettings.Scale) * FRotationMatrix::Make(FQuat::MakeFromEuler(ConversionSettings.Rotation));
+
 					TArray<FVector> Positions;
 					Positions.SetNum(NumVertices);
 
@@ -118,7 +121,7 @@ bool FHairFormatTranslator::Translate(const FString& FileName, FHairDescription&
 					for (int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
 					{
 						FVertexID VertexID(VertexIndex);
-						VertexPositions[VertexID] = Positions[VertexIndex];
+						VertexPositions[VertexID] = ConversionMatrix.TransformPosition(Positions[VertexIndex]);
 					}
 				}
 
@@ -127,6 +130,8 @@ bool FHairFormatTranslator::Translate(const FString& FileName, FHairDescription&
 				TVertexAttributesRef<float> VertexWidths = HairDescription.VertexAttributes().GetAttributesRef<float>(HairAttribute::Vertex::Width);
 				if (FileHeader.BitArrays & HAIR_FILE_THICKNESS_BIT)
 				{
+					float Scale = ConversionSettings.Scale.X;
+
 					TArray<float> Widths;
 					Widths.SetNum(NumVertices);
 
@@ -135,7 +140,7 @@ bool FHairFormatTranslator::Translate(const FString& FileName, FHairDescription&
 					for (int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
 					{
 						FVertexID VertexID(VertexIndex);
-						VertexWidths[VertexID] = Widths[VertexIndex];
+						VertexWidths[VertexID] = Widths[VertexIndex] * Scale;
 					}
 				}
 				

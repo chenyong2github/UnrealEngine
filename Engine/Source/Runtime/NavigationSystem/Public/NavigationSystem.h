@@ -666,7 +666,7 @@ public:
 	//----------------------------------------------------------------------//
 	// Custom navigation links
 	//----------------------------------------------------------------------//
-	void RegisterCustomLink(INavLinkCustomInterface& CustomLink);
+	virtual void RegisterCustomLink(INavLinkCustomInterface& CustomLink);
 	void UnregisterCustomLink(INavLinkCustomInterface& CustomLink);
 	
 	static void RequestCustomLinkRegistering(INavLinkCustomInterface& CustomLink, UObject* OwnerOb);
@@ -800,7 +800,9 @@ public:
 
 	void UpdateLevelCollision(ULevel* InLevel);
 
+	UE_DEPRECATED(4.24, "Use OnEditorModeIDChanged instead")
 	virtual void OnEditorModeChanged(FEdMode* Mode, bool IsEntering);
+	virtual void OnEditorModeIDChanged(const FEditorModeID& ModeID, bool IsEntering);
 #endif // WITH_EDITOR
 
 	FORCEINLINE bool IsSetUpForLazyGeometryExporting() const { return bGenerateNavigationOnlyAroundNavigationInvokers; }

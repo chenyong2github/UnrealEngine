@@ -2,13 +2,12 @@
 
 #pragma once
 
-#if INCLUDE_CHAOS
-
 #include "Chaos/ArrayCollectionArray.h"
 #include "Chaos/Framework/MultiBufferResource.h"
 #include "Chaos/Framework/PhysicsProxy.h"
 #include "Chaos/PBDPositionConstraints.h"
 #include "Chaos/ParticleHandle.h"
+#include "PhysicsCoreTypes.h"
 
 namespace Chaos
 {
@@ -42,7 +41,7 @@ private:
 };
 
 template<class PARTICLE_TYPE>
-class CHAOSSOLVERS_API FSingleParticlePhysicsProxy : public TPhysicsProxy<FSingleParticlePhysicsProxy<PARTICLE_TYPE>, typename PARTICLE_TYPE::FData>
+class FSingleParticlePhysicsProxy : public TPhysicsProxy<FSingleParticlePhysicsProxy<PARTICLE_TYPE>, typename PARTICLE_TYPE::FData>
 {
 	typedef TPhysicsProxy<FSingleParticlePhysicsProxy<PARTICLE_TYPE>, typename PARTICLE_TYPE::FData> Base;
 
@@ -79,6 +78,11 @@ public:
 		return Handle;
 	}
 
+	virtual void* GetHandleUnsafe() const override
+	{
+		return Handle;
+	}
+
 	void SetHandle(FParticleHandle* InHandle)
 	{
 		Handle = InHandle;
@@ -104,12 +108,18 @@ public:
 	}
 
 	/**/
-	EPhysicsProxyType ConcreteType() { return EPhysicsProxyType::FloatGeometryParticleType; }
+	EPhysicsProxyType ConcreteType() { return EPhysicsProxyType::NoneType; }
 
 	// Threading API
 
 	/**/
+	void FlipBuffer() { BufferedData->FlipProducer(); }
+
+	/**/
 	void PushToPhysicsState(const Chaos::FParticleData*);
+
+	/**/
+	void ClearAccumulatedData();
 
 	/**/
 	void BufferPhysicsResults();
@@ -117,8 +127,8 @@ public:
 	/**/
 	void PullFromPhysicsState();
 
-	/**/
-	void FlipBuffer();
+
+	bool IsDirty();
 
 private:
 	bool bInitialized;
@@ -132,4 +142,67 @@ private:
 	TUniquePtr<Chaos::IBufferResource<FStorageData>> BufferedData;
 };
 
-#endif
+
+// TGeometryParticle specialization prototypes
+template< >
+void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::ClearAccumulatedData();
+
+template< >
+CHAOSSOLVERS_API void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::BufferPhysicsResults();
+
+template< >
+CHAOSSOLVERS_API void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::PullFromPhysicsState();
+
+template< >
+bool FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::IsDirty();
+
+template< >
+void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::PushToPhysicsState(const Chaos::FParticleData* InData);
+
+template< >
+EPhysicsProxyType FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::ConcreteType();
+
+
+// TKinematicGeometryParticle specialization prototypes
+
+template< >
+void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::PushToPhysicsState(const Chaos::FParticleData* InData);
+
+template< >
+void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::ClearAccumulatedData();
+
+template< >
+CHAOSSOLVERS_API void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::BufferPhysicsResults();
+
+template< >
+CHAOSSOLVERS_API void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::PullFromPhysicsState();
+
+template< >
+bool FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::IsDirty();
+
+template< >
+EPhysicsProxyType FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::ConcreteType();
+
+
+// TPBDRigidParticles specialization prototypes
+
+template< >
+void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::ClearAccumulatedData();
+
+template< >
+CHAOSSOLVERS_API void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::BufferPhysicsResults();
+
+template< >
+CHAOSSOLVERS_API void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PullFromPhysicsState();
+
+template< >
+bool FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::IsDirty();
+
+template< >
+void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhysicsState(const Chaos::FParticleData* InData);
+
+template< >
+EPhysicsProxyType FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::ConcreteType();
+extern template class FSingleParticlePhysicsProxy< Chaos::TGeometryParticle<float, 3> >;
+extern template class FSingleParticlePhysicsProxy< Chaos::TKinematicGeometryParticle<float, 3> >;
+extern template class FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float,3> >;

@@ -294,10 +294,21 @@ void FPixelStreamingPlugin::OnGameModePostLogin(AGameModeBase* GameMode, APlayer
 		InputComponent->RegisterComponent();
 		InputComponents.Push(InputComponent);
 	}
+	if (InputDevice.IsValid())
+	{
+		for (UPixelStreamingInputComponent* InputComponent : InputComponents)
+		{
+			InputDevice->AddInputComponent(InputComponent);
+		}
+	}
 }
 
 void FPixelStreamingPlugin::OnGameModeLogout(AGameModeBase* GameMode, AController* Exiting)
 {
+	for (UPixelStreamingInputComponent* InputComponent : InputComponents)
+	{
+		InputDevice->RemoveInputComponent(InputComponent);
+	}
 	InputComponents.Empty();
 }
 

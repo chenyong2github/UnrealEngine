@@ -5,6 +5,7 @@
 #include "CoreGlobals.h"
 #include "CoreMinimal.h"
 #include "Features/IModularFeatures.h"
+#include "HAL/IConsoleManager.h"
 #include "Misc/ConfigCacheIni.h"
 
 
@@ -15,95 +16,6 @@ FAutoConsoleVariableRef CVarActiveModulationPlugin(
 	TEXT("Name of default modulation plugin to load and use (overridden "
 	"by platform-specific implementation name in config.\n"),
 	ECVF_Default);
-
-
-/************************************************************************/
-/* Plugin Utilities                                                     */
-/************************************************************************/
-/** Platform config section for each platform's target settings. */
-const TCHAR* AudioPluginUtilities::GetPlatformConfigSection(EAudioPlatform AudioPlatform)
-{
-	static const FString UnknownConfig = TEXT("");
-
-	switch (AudioPlatform)
-	{
-		case EAudioPlatform::Windows:
-		{
-			static const FString WindowsConfig = TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings");
-			return *WindowsConfig;
-		}
-
-		case EAudioPlatform::Mac:
-		{
-			static const FString MacConfig = TEXT("/Script/MacTargetPlatform.MacTargetSettings");
-			return *MacConfig;
-		}
-
-		case EAudioPlatform::Linux:
-		{
-			static const FString LinuxConfig = TEXT("/Script/LinuxTargetPlatform.LinuxTargetSettings");
-			return *LinuxConfig;
-		}
-
-		case EAudioPlatform::IOS:
-		{
-			static const FString IOSConfig = TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings");
-			return *IOSConfig;
-		}
-
-		case EAudioPlatform::Android:
-		{
-			static const FString AndroidConfig = TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings");
-			return *AndroidConfig;
-		}
-
-		case EAudioPlatform::XboxOne:
-		{
-			static const FString XBoxConfig = TEXT("/Script/XboxOnePlatformEditor.XboxOneTargetSettings");
-			return *XBoxConfig;
-		}
-
-		case EAudioPlatform::Playstation4:
-		{
-			static const FString Playstation4Config = TEXT("/Script/PS4PlatformEditor.PS4TargetSettings");
-			return *Playstation4Config;
-		}
-
-		case EAudioPlatform::Switch:
-		{
-			static const FString SwitchConfig = TEXT("/Script/SwitchRuntimeSettings.SwitchRuntimeSettings");
-			return *SwitchConfig;
-		}
-
-		case EAudioPlatform::HTML5:
-		{
-			static const FString HTML5Config = TEXT("/Script/HTML5PlatformEditor.HTML5TargetSettings");
-			return *HTML5Config;
-		}
-
-		case EAudioPlatform::Lumin:
-		{
-			static FString LuminConfig = TEXT("/Script/LuminRuntimeSettings.LuminRuntimeSettings");
-			return *LuminConfig;
-		}
-
-		case EAudioPlatform::HoloLens:
-			return TEXT("/Script/HoloLensRuntimeSettings.HoloLensRuntimeSettings");
-
-		case EAudioPlatform::Unknown:
-		{
-			return *UnknownConfig;
-		}
-
-		default:
-		{
-			checkf(false, TEXT("Undefined audio platform."));
-			break;
-		}
-	}
-
-	return *UnknownConfig;
-}
 
 /** Get the target setting name for each platform type. */
 FORCEINLINE const TCHAR* GetPluginConfigName(EAudioPlugin PluginType)
@@ -128,11 +40,12 @@ FORCEINLINE const TCHAR* GetPluginConfigName(EAudioPlugin PluginType)
 	}
 }
 
-IAudioSpatializationFactory* AudioPluginUtilities::GetDesiredSpatializationPlugin(EAudioPlatform AudioPlatform)
+/************************************************************************/
+/* Plugin Utilities                                                     */
+/************************************************************************/
+IAudioSpatializationFactory* AudioPluginUtilities::GetDesiredSpatializationPlugin()
 {
-	//Get the name of the desired spatialization plugin:
-	FString DesiredSpatializationPlugin = GetDesiredPluginName(EAudioPlugin::SPATIALIZATION, AudioPlatform);
-
+	FString DesiredSpatializationPlugin = GetDesiredPluginName(EAudioPlugin::SPATIALIZATION);
 
 	TArray<IAudioSpatializationFactory *> SpatializationPluginFactories = IModularFeatures::Get().GetModularFeatureImplementations<IAudioSpatializationFactory>(IAudioSpatializationFactory::GetModularFeatureName());
 
@@ -149,10 +62,10 @@ IAudioSpatializationFactory* AudioPluginUtilities::GetDesiredSpatializationPlugi
 	return nullptr;
 }
 
-IAudioReverbFactory* AudioPluginUtilities::GetDesiredReverbPlugin(EAudioPlatform AudioPlatform)
+IAudioReverbFactory* AudioPluginUtilities::GetDesiredReverbPlugin()
 {
 	//Get the name of the desired Reverb plugin:
-	FString DesiredReverbPlugin = GetDesiredPluginName(EAudioPlugin::REVERB, AudioPlatform);
+	FString DesiredReverbPlugin = GetDesiredPluginName(EAudioPlugin::REVERB);
 
 	TArray<IAudioReverbFactory *> ReverbPluginFactories = IModularFeatures::Get().GetModularFeatureImplementations<IAudioReverbFactory>(IAudioReverbFactory::GetModularFeatureName());
 
@@ -169,9 +82,9 @@ IAudioReverbFactory* AudioPluginUtilities::GetDesiredReverbPlugin(EAudioPlatform
 	return nullptr;
 }
 
-IAudioOcclusionFactory* AudioPluginUtilities::GetDesiredOcclusionPlugin(EAudioPlatform AudioPlatform)
+IAudioOcclusionFactory* AudioPluginUtilities::GetDesiredOcclusionPlugin()
 {
-	FString DesiredOcclusionPlugin = GetDesiredPluginName(EAudioPlugin::OCCLUSION, AudioPlatform);
+	FString DesiredOcclusionPlugin = GetDesiredPluginName(EAudioPlugin::OCCLUSION);
 
 	TArray<IAudioOcclusionFactory *> OcclusionPluginFactories = IModularFeatures::Get().GetModularFeatureImplementations<IAudioOcclusionFactory>(IAudioOcclusionFactory::GetModularFeatureName());
 
@@ -188,9 +101,9 @@ IAudioOcclusionFactory* AudioPluginUtilities::GetDesiredOcclusionPlugin(EAudioPl
 	return nullptr;
 }
 
-IAudioModulationFactory* AudioPluginUtilities::GetDesiredModulationPlugin(EAudioPlatform AudioPlatform)
+IAudioModulationFactory* AudioPluginUtilities::GetDesiredModulationPlugin()
 {
-	const FName& PlatformPluginName = FName(*GetDesiredPluginName(EAudioPlugin::MODULATION, AudioPlatform));
+	const FName& PlatformPluginName = FName(*GetDesiredPluginName(EAudioPlugin::MODULATION));
 	const FName& PluginName = PlatformPluginName == NAME_None ? GetDefaultModulationPluginName() : PlatformPluginName;
 	const FName& FeatureName = IAudioModulationFactory::GetModularFeatureName();
 
@@ -207,10 +120,10 @@ IAudioModulationFactory* AudioPluginUtilities::GetDesiredModulationPlugin(EAudio
 	return nullptr;
 }
 
-FString AudioPluginUtilities::GetDesiredPluginName(EAudioPlugin PluginType, EAudioPlatform AudioPlatform)
+FString AudioPluginUtilities::GetDesiredPluginName(EAudioPlugin PluginType)
 {
 	FString PluginName;
-	GConfig->GetString(GetPlatformConfigSection(AudioPlatform), GetPluginConfigName(PluginType), PluginName, GEngineIni);
+	GConfig->GetString(FPlatformProperties::GetRuntimeSettingsClassName(), GetPluginConfigName(PluginType), PluginName, GEngineIni);
 	return PluginName;
 }
 

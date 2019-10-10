@@ -220,6 +220,7 @@ void FPluginDescriptor::Write(TJsonWriter<>& Writer) const
 	{
 		Writer.WriteValue(TEXT("SupportedPrograms"), SupportedPrograms);
 	}
+
 	if (bIsPluginExtension)
 	{
 		Writer.WriteValue(TEXT("bIsPluginExtension"), bIsPluginExtension);

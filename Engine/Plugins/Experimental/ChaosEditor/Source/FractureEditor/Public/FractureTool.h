@@ -93,8 +93,12 @@ public:
 
 	UFractureTool(const FObjectInitializer& ObjInit) : Super(ObjInit) {}
 
+	/** This is the Text that will appear on the tool button to execute the fracture **/
 	virtual FText GetDisplayText() const  { return FText(); }
 	virtual FText GetTooltipText() const { return FText(); }
+
+	/** This is the Text that will appear on the button to execute the fracture **/
+	virtual FText GetApplyText() const { return FText(NSLOCTEXT("Fracture", "ExecuteFracture", "Fracture")); }
 
 	// TODO: What's the correct thing to return here?
 	virtual FSlateIcon GetToolIcon() const { return FSlateIcon(); }

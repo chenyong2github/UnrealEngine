@@ -228,6 +228,9 @@ public:
 
 	/** Toggle the visibility of the stretch box. */
 	TSharedPtr< FUICommandInfo > ToggleShowStretchBox;
+
+	/** Opens the director blueprint for a sequence. */
+	TSharedPtr< FUICommandInfo > OpenDirectorBlueprint;
 	
 	/** Sets the tree search widget as the focused widget in Slate for easy typing. */
 	TSharedPtr< FUICommandInfo > QuickTreeSearch;
@@ -327,9 +330,6 @@ public:
 
 	/** Restores all animated state for the current sequence. */
 	TSharedPtr< FUICommandInfo > RestoreAnimatedState;
-
-	/** Discard all changes to the current movie scene. */
-	TSharedPtr< FUICommandInfo > DiscardChanges;
 
 	/** Attempts to fix broken actor references. */
 	TSharedPtr< FUICommandInfo > FixActorReferences;

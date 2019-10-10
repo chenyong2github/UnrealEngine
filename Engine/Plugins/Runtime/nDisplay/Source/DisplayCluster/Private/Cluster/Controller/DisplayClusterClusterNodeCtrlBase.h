@@ -23,4 +23,3 @@ public:
 	virtual bool IsStandalone() const override final
 	{ return false; }
 };
-

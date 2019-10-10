@@ -29,6 +29,7 @@
 #include "K2Node.h"
 #include "K2Node_Tunnel.h"
 #include "K2Node_FunctionEntry.h"
+#include "K2Node_Knot.h"
 #include "K2Node_MacroInstance.h"
 #include "K2Node_Message.h"
 #include "Kismet2/KismetEditorUtilities.h"
@@ -167,7 +168,17 @@ void FKismetDebugUtilities::RequestStepOver()
 						{
 							for(UEdGraphPin* LinkedTo : Pin->LinkedTo)
 							{
-								Data.TargetGraphNodes.AddUnique(LinkedTo->GetOwningNode());
+								UEdGraphNode* GraphNode = LinkedTo->GetOwningNode();
+								if(UK2Node_Knot* Knot = Cast<UK2Node_Knot>(GraphNode))
+								{
+									// search the knot chain to find the actual node:
+									GraphNode = Knot->GetExecTerminal();
+								}
+
+								if(GraphNode)
+								{
+									Data.TargetGraphNodes.AddUnique(GraphNode);
+								}
 							}
 						}
 					}

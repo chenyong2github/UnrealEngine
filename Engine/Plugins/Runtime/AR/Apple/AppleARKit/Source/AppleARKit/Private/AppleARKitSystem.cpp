@@ -1307,14 +1307,6 @@ bool FAppleARKitSystem::Run(UARSessionConfig* SessionConfig)
 		LastReceivedFrame = TSharedPtr<FAppleARKitFrame, ESPMode::ThreadSafe>();
 	}
 
-	// Make sure this is set at session start, because there are timing issues with using only the delegate approach
-	if (DeviceOrientation == EDeviceScreenOrientation::Unknown)
-	{
-		EDeviceScreenOrientation ScreenOrientation = FPlatformMisc::GetDeviceOrientation();
-		SetDeviceOrientationAndDerivedTracking( ScreenOrientation );
-	}
-
-
 #if SUPPORTS_ARKIT_1_0
 	// Don't do the conversion work if they don't want this
 	FAppleARKitAnchorData::bGenerateGeometry = SessionConfig->bGenerateMeshDataFromTrackedGeometry;
@@ -1326,13 +1318,13 @@ bool FAppleARKitSystem::Run(UARSessionConfig* SessionConfig)
 		ARConfiguration* Configuration = nullptr;
 		CheckForFaceARSupport(SessionConfig);
 		CheckForPoseTrackingARLiveLink(SessionConfig);
-		if (FaceARSupport == nullptr)
+		if (FaceARSupport != nullptr && SessionConfig->GetSessionType() == EARSessionType::Face)
 		{
-			Configuration = FAppleARKitConversion::ToARConfiguration(SessionConfig, CandidateImages, ConvertedCandidateImages, CandidateObjects);
+			Configuration = FaceARSupport->ToARConfiguration(SessionConfig, TimecodeProvider);
 		}
 		else
 		{
-			Configuration = FaceARSupport->ToARConfiguration(SessionConfig, TimecodeProvider);
+			Configuration = FAppleARKitConversion::ToARConfiguration(SessionConfig, CandidateImages, ConvertedCandidateImages, CandidateObjects);
 		}
 
 		// Not all session types are supported by all devices
@@ -1341,6 +1333,9 @@ bool FAppleARKitSystem::Run(UARSessionConfig* SessionConfig)
 			UE_LOG(LogAppleARKit, Error, TEXT("The requested session type is not supported by this device"));
 			return false;
 		}
+		
+		// Configure additional tracking features
+		FAppleARKitConversion::ConfigureSessionTrackingFeatures(SessionConfig, Configuration);
 
 		// Create our ARSessionDelegate
 		if (Delegate == nullptr)
@@ -1394,7 +1389,12 @@ bool FAppleARKitSystem::Run(UARSessionConfig* SessionConfig)
 	}
 	
 #endif
-	
+
+	// Make sure this is set at session start, because there are timing issues with using only the delegate approach
+	// Also this needs to be set each time a new session is started in case we switch tracking modes (gravity vs face)
+	EDeviceScreenOrientation ScreenOrientation = FPlatformMisc::GetDeviceOrientation();
+	SetDeviceOrientationAndDerivedTracking(ScreenOrientation);
+
 	// @todo arkit Add support for relocating ARKit space to Unreal World Origin? BaseTransform = FTransform::Identity;
 	
 	// Set running state

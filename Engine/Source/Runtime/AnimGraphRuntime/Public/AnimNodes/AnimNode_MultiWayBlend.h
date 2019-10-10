@@ -12,8 +12,6 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_MultiWayBlend : public FAnimNode_Base
 {
 	GENERATED_USTRUCT_BODY()
 
-	friend struct FAnimSequencerInstanceProxy;
-
 public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Links)
@@ -54,6 +52,7 @@ public:
 	{
 		Poses.AddDefaulted();
 		DesiredAlphas.AddZeroed();
+		UpdateCachedAlphas();
 
 		return Poses.Num();
 	}
@@ -61,12 +60,14 @@ public:
 	void RemovePose(int32 PoseIndex)
 	{
 		Poses.RemoveAt(PoseIndex);
+		CachedAlphas.RemoveAt(PoseIndex);
 		DesiredAlphas.RemoveAt(PoseIndex);
 	}
 
 	void ResetPoses()
 	{
 		Poses.Reset();
+		CachedAlphas.Reset();
 		DesiredAlphas.Reset();
 	}
 

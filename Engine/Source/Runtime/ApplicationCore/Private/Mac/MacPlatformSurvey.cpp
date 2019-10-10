@@ -113,12 +113,16 @@ bool FMacPlatformSurvey::GetSurveyResults( FHardwareSurveyResults& OutResults, b
 	// Get CPU info
 	OutResults.CPUInfo = FMacPlatformMisc::GetCPUInfo();
 
-	// Get HDD details
+	// get HDD details
 	OutResults.HardDriveGB = -1;
-	NSDictionary *HDDAttributes = [[NSFileManager defaultManager] attributesOfFileSystemForPath: @"/" error: nil];
-	if (HDDAttributes)
+	OutResults.HardDriveFreeMB = -1;
+
+	uint64 TotalDiskSpace = 0;
+	uint64 FreeDiskSpace = 0;
+	if (FPlatformMisc::GetDiskTotalAndFreeSpace(FPlatformProcess::BaseDir(), TotalDiskSpace, FreeDiskSpace))
 	{
-		OutResults.HardDriveGB = (uint32)([[HDDAttributes objectForKey: NSFileSystemFreeSize] longLongValue] / 1024 / 1024 / 1024);
+		OutResults.HardDriveGB = (uint32)(TotalDiskSpace / uint64(1024 * 1024 * 1024));
+		OutResults.HardDriveFreeMB = (uint32)(FreeDiskSpace / uint64(1024 * 1024));
 	}
 	else
 	{

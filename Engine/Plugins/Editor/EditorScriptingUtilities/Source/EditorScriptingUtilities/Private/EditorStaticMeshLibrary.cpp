@@ -23,12 +23,10 @@
 #include "Kismet2/ComponentEditorUtils.h"
 #include "LevelEditorViewport.h"
 #include "Engine/MapBuildDataRegistry.h"
-#include "MeshAttributes.h"
-#include "MeshAttributeArray.h"
+#include "StaticMeshAttributes.h"
 #include "MeshDescriptionOperations.h"
 #include "MeshMergeModule.h"
 #include "PhysicsEngine/BodySetup.h"
-#include "MeshDescription.h"
 #include "ScopedTransaction.h"
 
 #include "UnrealEdGlobals.h"
@@ -347,7 +345,7 @@ int32 UEditorStaticMeshLibrary::SetLodFromStaticMesh(UStaticMesh* DestinationSta
 	DestinationMeshSourceModel.SourceImportFilename = SourceStaticMesh->GetSourceModel(BaseSourceLodIndex).SourceImportFilename;
 
 	// Copy the mesh description
-	const FMeshDescription& SourceMeshDescription = *SourceStaticMesh->GetMeshDescription(BaseSourceLodIndex );
+	const FMeshDescription& SourceMeshDescription = *SourceStaticMesh->GetMeshDescription(BaseSourceLodIndex);
 	FMeshDescription& DestinationMeshDescription = *DestinationStaticMesh->GetMeshDescription(DestinationLodIndex);
 	DestinationMeshDescription = SourceMeshDescription;
 	DestinationStaticMesh->CommitMeshDescription(DestinationLodIndex);
@@ -942,11 +940,13 @@ bool UEditorStaticMeshLibrary::HasVertexColors(UStaticMesh* StaticMesh)
 	for (int32 LodIndex = 0; LodIndex < StaticMesh->GetNumSourceModels(); ++LodIndex)
 	{
 		const FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(LodIndex);
-		if (!MeshDescription->VertexInstanceAttributes().HasAttribute(MeshAttribute::VertexInstance::Color))
+		FStaticMeshConstAttributes Attributes(*MeshDescription);
+		TVertexInstanceAttributesConstRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
+		if (!VertexInstanceColors.IsValid())
 		{
 			continue;
 		}
-		TVertexInstanceAttributesConstRef<FVector4> VertexInstanceColors = MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color);
+
 		for (const FVertexInstanceID VertexInstanceID : MeshDescription->VertexInstances().GetElementIDs())
 		{
 			FLinearColor VertexInstanceColor(VertexInstanceColors[VertexInstanceID]);

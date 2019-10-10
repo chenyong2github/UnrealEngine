@@ -18,7 +18,7 @@ UK2Node_StructOperation::UK2Node_StructOperation(const FObjectInitializer& Objec
 void UK2Node_StructOperation::ValidateNodeDuringCompilation(class FCompilerResultsLog& MessageLog) const
 {
 	// Skip UK2Node_Variable's validation because it doesn't need a property (see CL# 1756451)
-	Super::Super::ValidateNodeDuringCompilation(MessageLog);
+	UK2Node::ValidateNodeDuringCompilation(MessageLog);
 }
 
 bool UK2Node_StructOperation::HasExternalDependencies(TArray<class UStruct*>* OptionalOutput) const

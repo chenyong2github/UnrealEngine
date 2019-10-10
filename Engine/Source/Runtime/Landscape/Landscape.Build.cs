@@ -48,6 +48,7 @@ public class Landscape : ModuleRules
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"MeshDescription",
+					"StaticMeshDescription",
                     "MeshUtilitiesCommon"
 				}
 			);

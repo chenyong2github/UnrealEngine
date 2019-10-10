@@ -13,6 +13,7 @@
 #include "EditorFramework/ThumbnailInfo.h"
 #include "Engine/MeshMerging.h"
 #include "Engine/StaticMesh.h"
+#include "StaticMeshAttributes.h"
 #include "Engine/StaticMeshSocket.h"
 #include "Engine/Polys.h"
 #include "Editor.h"
@@ -31,8 +32,6 @@
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Settings/EditorExperimentalSettings.h"
-#include "MeshDescription.h"
-#include "MeshAttributes.h"
 
 #include "Modules/ModuleManager.h"
 #include "IMeshReductionManagerModule.h"
@@ -595,9 +594,8 @@ UStaticMesh* CreateStaticMesh(FMeshDescription& RawMesh,TArray<FStaticMaterial>&
 	auto StaticMesh = NewObject<UStaticMesh>(InOuter, InName, RF_Public | RF_Standalone);
 
 	// Add one LOD for the base mesh
-	FStaticMeshSourceModel& SrcModel = StaticMesh->AddSourceModel();
-	FMeshDescription* MeshDescription = StaticMesh->CreateMeshDescription(0);
-	*MeshDescription = RawMesh;
+	StaticMesh->AddSourceModel();
+	FMeshDescription* MeshDescription = StaticMesh->CreateMeshDescription(0, RawMesh);
 	StaticMesh->CommitMeshDescription(0);
 	StaticMesh->StaticMaterials = Materials;
 
@@ -805,10 +803,9 @@ UStaticMesh* CreateStaticMeshFromBrush(UObject* Outer, FName Name, ABrush* Brush
 	UStaticMesh* StaticMesh = NewObject<UStaticMesh>(Outer, Name, RF_Public | RF_Standalone);
 
 	// Add one LOD for the base mesh
-	FStaticMeshSourceModel& SrcModel = StaticMesh->AddSourceModel();
+	StaticMesh->AddSourceModel();
 	const int32 LodIndex = StaticMesh->GetNumSourceModels() - 1;
 	FMeshDescription* MeshDescription = StaticMesh->CreateMeshDescription(LodIndex);
-	UStaticMesh::RegisterMeshAttributes(*MeshDescription);
 
 	// Fill out the mesh description and materials from the brush geometry
 	TArray<FStaticMaterial> Materials;
@@ -1490,9 +1487,7 @@ void RestoreExistingMeshData(ExistingStaticMeshData* ExistingMeshDataPtr, UStati
 		FStaticMeshSourceModel& SrcModel = NewMesh->AddSourceModel();
 		if (ExistingMeshDataPtr->ExistingLODData[i].ExistingMeshDescription.IsValid())
 		{
-			FMeshDescription* MeshDescription = NewMesh->CreateMeshDescription(i);
-			*MeshDescription = MoveTemp(*ExistingMeshDataPtr->ExistingLODData[i].ExistingMeshDescription);
-			ExistingMeshDataPtr->ExistingLODData[i].ExistingMeshDescription.Reset();
+			FMeshDescription* MeshDescription = NewMesh->CreateMeshDescription(i, MoveTemp(*ExistingMeshDataPtr->ExistingLODData[i].ExistingMeshDescription));
 			NewMesh->CommitMeshDescription(i);
 		}
 		SrcModel.BuildSettings = ExistingMeshDataPtr->ExistingLODData[i].ExistingBuildSettings;

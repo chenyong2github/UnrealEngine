@@ -10,8 +10,6 @@
 #include "Chaos/Serializable.h"
 #include "ChaosStats.h"
 
-#if INCLUDE_CHAOS
-
 FStaticMeshPhysicsProxy::FStaticMeshPhysicsProxy(UObject* InOwner, FCallbackInitFunc InInitFunc, FSyncDynamicFunc InSyncFunc)
 	: Base(InOwner)
 	, bInitializedState(false)
@@ -365,5 +363,3 @@ void FStaticMeshPhysicsProxy::PullFromPhysicsState()
 		SyncDynamicTransformFunc(Results.GetGameDataForRead());
 	}
 }
-
-#endif

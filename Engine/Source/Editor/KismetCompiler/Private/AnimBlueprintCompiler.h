@@ -161,6 +161,7 @@ protected:
 		bool Apply(UObject* Object);
 	};
 
+	/** BP execution handler for Anim node - possibly */
 	struct FEvaluationHandlerRecord
 	{
 	public:
@@ -170,6 +171,9 @@ protected:
 
 		// The specific evaluation handler inside the specified node
 		int32 EvaluationHandlerIdx;
+
+		// Whether or not our serviced properties are actually on the anim node 
+		bool bServicesNodeProperties;
 
 		// Whether or not our serviced properties are actually on the instance instead of the node
 		bool bServicesInstanceProperties;
@@ -185,6 +189,7 @@ protected:
 		FEvaluationHandlerRecord()
 			: NodeVariableProperty(nullptr)
 			, EvaluationHandlerIdx(INDEX_NONE)
+			, bServicesNodeProperties(false)
 			, bServicesInstanceProperties(false)
 			, HandlerFunctionName(NAME_None)
 		{}
@@ -298,8 +303,7 @@ private:
 	UK2Node_CallFunction* SpawnCallAnimInstanceFunction(UEdGraphNode* SourceNode, FName FunctionName);
 
 	// Creates an evaluation handler for an FExposedValue property in an animation node
-	void CreateEvaluationHandlerStruct(UAnimGraphNode_Base* VisualAnimNode, FEvaluationHandlerRecord& Record);
-	void CreateEvaluationHandlerInstance(UAnimGraphNode_Base* VisualAnimNode, FEvaluationHandlerRecord& Record);
+	void CreateEvaluationHandler(UAnimGraphNode_Base* VisualAnimNode, FEvaluationHandlerRecord& Record);
 
 	// Prunes any nodes that aren't reachable via a pose link
 	void PruneIsolatedAnimationNodes(const TArray<UAnimGraphNode_Base*>& RootSet, TArray<UAnimGraphNode_Base*>& GraphNodes);

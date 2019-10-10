@@ -89,6 +89,8 @@ FSimpleMulticastDelegate								FEditorDelegates::LoadSelectedAssetsIfNeeded;
 FSimpleMulticastDelegate								FEditorDelegates::DisplayLoadErrors;
 FEditorDelegates::FOnEditorModeTransitioned				FEditorDelegates::EditorModeEnter;
 FEditorDelegates::FOnEditorModeTransitioned				FEditorDelegates::EditorModeExit;
+FEditorDelegates::FOnEditorModeIDTransitioned			FEditorDelegates::EditorModeIDEnter;
+FEditorDelegates::FOnEditorModeIDTransitioned			FEditorDelegates::EditorModeIDExit;
 FEditorDelegates::FOnPIEEvent							FEditorDelegates::PreBeginPIE;
 FEditorDelegates::FOnPIEEvent							FEditorDelegates::BeginPIE;
 FEditorDelegates::FOnPIEEvent							FEditorDelegates::PrePIEEnded;
@@ -138,7 +140,7 @@ FEditorDelegates::FOnDuplicateActorsBegin				FEditorDelegates::OnDuplicateActors
 FEditorDelegates::FOnDuplicateActorsEnd					FEditorDelegates::OnDuplicateActorsEnd;
 FEditorDelegates::FOnDeleteActorsBegin					FEditorDelegates::OnDeleteActorsBegin;
 FEditorDelegates::FOnDeleteActorsEnd					FEditorDelegates::OnDeleteActorsEnd;
-FEditorDelegates::FOnViewAssetIdentifiers				FEditorDelegates::OnOpenReferenceViewer;
+FEditorDelegates::FOnOpenReferenceViewer				FEditorDelegates::OnOpenReferenceViewer;
 FEditorDelegates::FOnViewAssetIdentifiers				FEditorDelegates::OnOpenSizeMap;
 FEditorDelegates::FOnViewAssetIdentifiers				FEditorDelegates::OnOpenAssetAudit;
 FEditorDelegates::FOnViewAssetIdentifiers				FEditorDelegates::OnEditAssetIdentifiers;

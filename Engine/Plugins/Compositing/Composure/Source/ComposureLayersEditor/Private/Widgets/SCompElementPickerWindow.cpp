@@ -582,7 +582,9 @@ void SCompElementPickerWindow::Construct(const FArguments& InArgs)
 			.SupportsMinimize(false)
 	);		
 
-	TWeakUIntrfacePtr<ICompImageColorPickerInterface> PickerTarget = InArgs._PickerTarget;
+	TWeakUIntrfacePtr<ICompImageColorPickerInterface> PickerTarget; 
+	PickerTarget = InArgs._PickerTarget;
+
 	FColorPickedEventHandler OnColorPicked = InArgs._OnColorPicked;
 	OnPickerCanceled = InArgs._OnPickerCanceled;
 

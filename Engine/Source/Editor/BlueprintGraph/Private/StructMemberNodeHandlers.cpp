@@ -20,7 +20,8 @@ static FBPTerminal* RegisterStructVar(FCompilerResultsLog& MessageLog, FKismetFu
 	UStruct* SearchScope = (SelfPin != NULL) ? Context.GetScopeFromPinType(SelfPin->PinType, Context.NewClass) : Context.Function;
 
 	// Now find the variable
-	if (UProperty* BoundProperty = FKismetCompilerUtilities::FindNamedPropertyInScope(SearchScope, MemberSetNode->GetVarName()))
+	bool bIsSparseProperty;
+	if (UProperty* BoundProperty = FKismetCompilerUtilities::FindNamedPropertyInScope(SearchScope, MemberSetNode->GetVarName(), bIsSparseProperty))
 	{
 		// Create the term in the list
 		FBPTerminal* Term = new FBPTerminal();

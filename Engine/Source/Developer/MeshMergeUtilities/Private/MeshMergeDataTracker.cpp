@@ -4,6 +4,7 @@
 #include "MeshMergeHelpers.h"
 #include "Misc/Crc.h"
 #include "Engine/StaticMesh.h"
+#include "StaticMeshAttributes.h"
 
 FMeshMergeDataTracker::FMeshMergeDataTracker()
 	: AvailableLightMapUVChannel(INDEX_NONE), SummedLightMapPixels(0)
@@ -16,7 +17,7 @@ FMeshDescription& FMeshMergeDataTracker::AddAndRetrieveRawMesh(int32 MeshIndex, 
 {
 	checkf(!RawMeshLODs.Contains(FMeshLODKey(MeshIndex, LODIndex, InMesh)), TEXT("Raw Mesh already added for this key"));
 	FMeshDescription& MeshDescription = RawMeshLODs.Add(FMeshLODKey(MeshIndex, LODIndex, InMesh));
-	UStaticMesh::RegisterMeshAttributes(MeshDescription);
+	FStaticMeshAttributes(MeshDescription).Register();
 	return MeshDescription;
 }
 

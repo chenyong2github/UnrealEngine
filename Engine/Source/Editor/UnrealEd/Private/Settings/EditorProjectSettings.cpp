@@ -3,8 +3,6 @@
 #include "Settings/EditorProjectSettings.h"
 #include "UObject/UnrealType.h"
 
-extern COREUOBJECT_API bool GBlueprintUseCompilationManager;
-
 EUnit ConvertDefaultInputUnits(EDefaultLocationUnit In)
 {
 	typedef EDefaultLocationUnit EDefaultLocationUnit;

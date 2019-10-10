@@ -48,6 +48,14 @@ public:
 	virtual void EnterMapElement_TextOnly(FString& OutName, EArchiveValueType& OutType) override;
 	virtual void LeaveMapElement() override;
 
+	virtual void EnterAttributedValue() override;
+	virtual void EnterAttribute(FArchiveFieldName AttributeName) override;
+	virtual void EnterAttributedValueValue() override;
+	virtual void LeaveAttribute() override;
+	virtual void LeaveAttributedValue() override;
+	virtual bool TryEnterAttribute(FArchiveFieldName AttributeName, bool bEnterWhenSavin) override;
+	virtual bool TryEnterAttributedValueValue() override;
+
 	virtual void Serialize(uint8& Value) override;
 	virtual void Serialize(uint16& Value) override;
 	virtual void Serialize(uint32& Value) override;

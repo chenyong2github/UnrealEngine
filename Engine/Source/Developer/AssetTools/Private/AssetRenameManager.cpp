@@ -50,6 +50,40 @@
 
 #define LOCTEXT_NAMESPACE "AssetRenameManager"
 
+namespace AssetRenameManagerImpl
+{
+	// Same as CheckSubPath.IsEmpty() || SubPath == CheckSubPath || SubPath.StartsWith(CheckSubPath + TEXT("."))
+	// but with early outs and without having to concatenate a string for comparison
+	static bool IsSubPath(const FString& SubPath, const FString& CheckSubPath)
+	{
+		const int32 CheckSubPathLen = CheckSubPath.Len();
+		if (CheckSubPathLen == 0)
+		{
+			return true;
+		}
+
+		const int32 SubPathLen = SubPath.Len();
+		if (SubPathLen == CheckSubPathLen)
+		{
+			if (SubPathLen)
+			{
+				// Checking the last character first should skip most string compare since lots of paths might have the same beginning
+				return (*SubPath)[SubPathLen - 1] == (*CheckSubPath)[SubPathLen - 1] && SubPath == CheckSubPath;
+			}
+			else
+			{
+				// Both strings are empty
+				return true;
+			}
+		}
+		else
+		{
+			//Checking for the . at the exact position first should eliminate most of the StartsWith comparison.
+			return SubPathLen > CheckSubPathLen && (*SubPath)[CheckSubPathLen] == TEXT('.') && SubPath.StartsWith(CheckSubPath);
+		}
+	}
+}
+
 struct FAssetRenameDataWithReferencers : public FAssetRenameData
 {
 	TArray<FName> ReferencingPackageNames;
@@ -845,6 +879,7 @@ void FAssetRenameManager::DetectReadOnlyPackages(TArray<FAssetRenameDataWithRefe
 		}
 	}
 }
+
 struct FSoftObjectPathRenameSerializer : public FArchiveUObject
 {
 	void StartSerializingObject(UObject* InCurrentObject)
@@ -857,7 +892,7 @@ struct FSoftObjectPathRenameSerializer : public FArchiveUObject
 		return bFoundReference; 
 	}
 
-	FSoftObjectPathRenameSerializer(const TMap<FSoftObjectPath, FSoftObjectPath>& InRedirectorMap, bool bInCheckOnly, TSet<FSoftObjectPath>* InCachedObjectPaths)
+	FSoftObjectPathRenameSerializer(const TMap<FSoftObjectPath, FSoftObjectPath>& InRedirectorMap, bool bInCheckOnly, TMap<FSoftObjectPath, TSet<FWeakObjectPtr>>* InCachedObjectPaths)
 		: RedirectorMap(InRedirectorMap)
 		, CachedObjectPaths(InCachedObjectPaths)
 		, CurrentObject(nullptr)
@@ -902,6 +937,8 @@ struct FSoftObjectPathRenameSerializer : public FArchiveUObject
 
 	FArchive& operator<<(FSoftObjectPath& Value)
 	{
+		using namespace AssetRenameManagerImpl;
+
 		// Ignore untracked references if just doing a search only. We still want to fix them up if they happen to be there
 		if (bSearchOnly)
 		{
@@ -918,20 +955,25 @@ struct FSoftObjectPathRenameSerializer : public FArchiveUObject
 			}
 		}
 
-		FString SubPath = Value.GetSubPathString();
+		if (CachedObjectPaths)
+		{
+			TSet<FWeakObjectPtr>* ObjectSet = CachedObjectPaths->Find(Value);
+			if (ObjectSet == nullptr)
+			{
+				ObjectSet = &CachedObjectPaths->Add(Value);
+			}
+			ObjectSet->Add(CurrentObject);
+		}
+
+		const FString& SubPath = Value.GetSubPathString();
 		for (const TPair<FSoftObjectPath, FSoftObjectPath>& Pair : RedirectorMap)
 		{
-			if (CachedObjectPaths)
-			{
-				CachedObjectPaths->Add(Value);
-			}
-
 			if (Pair.Key.GetAssetPathName() == Value.GetAssetPathName())
 			{
 				// Same asset, fix sub path. Asset will be fixed by normal serializePath call below
-				FString CheckSubPath = Pair.Key.GetSubPathString();
+				const FString& CheckSubPath = Pair.Key.GetSubPathString();
 
-				if (CheckSubPath.IsEmpty() || SubPath == CheckSubPath || SubPath.StartsWith(CheckSubPath + TEXT(".")))
+				if (IsSubPath(SubPath, CheckSubPath))
 				{
 					bFoundReference = true;
 
@@ -942,8 +984,10 @@ struct FSoftObjectPathRenameSerializer : public FArchiveUObject
 							check(!CachedObjectPaths); // Modify can invalidate the object paths map, not allowed to be modifying and using the cache at the same time
 							CurrentObject->Modify(true);
 						}
-						SubPath.ReplaceInline(*CheckSubPath, *Pair.Value.GetSubPathString());
-						Value = FSoftObjectPath(Pair.Value.GetAssetPathName(), SubPath);
+
+						FString NewSubPath(SubPath);
+						NewSubPath.ReplaceInline(*CheckSubPath, *Pair.Value.GetSubPathString());
+						Value = FSoftObjectPath(Pair.Value.GetAssetPathName(), NewSubPath);
 					}
 					break;
 				}
@@ -955,7 +999,7 @@ struct FSoftObjectPathRenameSerializer : public FArchiveUObject
 
 private:
 	const TMap<FSoftObjectPath, FSoftObjectPath>& RedirectorMap;
-	TSet<FSoftObjectPath>* CachedObjectPaths;
+	TMap<FSoftObjectPath, TSet<FWeakObjectPtr>>* CachedObjectPaths;
 	UObject* CurrentObject;
 	bool bSearchOnly;
 	bool bFoundReference;
@@ -1010,66 +1054,99 @@ void FAssetRenameManager::OnMarkPackageDirty(UPackage* Pkg, bool bWasDirty)
 
 bool FAssetRenameManager::CheckPackageForSoftObjectReferences(UPackage* Package, const TMap<FSoftObjectPath, FSoftObjectPath>& AssetRedirectorMap, TArray<UObject*>& OutReferencingObjects) const
 {	
+	using namespace AssetRenameManagerImpl;
+
+	struct FSoftObjectPathLess
+	{
+		FORCEINLINE bool operator()(const FSoftObjectPath& A, const FSoftObjectPath& B) const
+		{
+			int32 Result = A.GetAssetPathName().CompareIndexes(B.GetAssetPathName());
+			return Result ? Result < 0 : A.GetSubPathString() < B.GetSubPathString();
+		}
+	};
+
 	bool bFoundReference = false;
 	
 	// First check cache
-	TSet<FSoftObjectPath>* CachedReferences = CachedSoftReferences.Find(Package->GetFName());
+	FCachedSoftReference* CachedReferences = CachedSoftReferences.Find(Package->GetFName());
 
-	if (CachedReferences)
+	if (CachedReferences == nullptr)
 	{
-		for (const TPair<FSoftObjectPath, FSoftObjectPath>& Pair : AssetRedirectorMap)
-		{
-			for (FSoftObjectPath& Value : *CachedReferences)
-			{
-				FString SubPath = Value.GetSubPathString();
-				if (Pair.Key.GetAssetPathName() == Value.GetAssetPathName())
-				{
-					FString CheckSubPath = Pair.Key.GetSubPathString();
-					if (CheckSubPath.IsEmpty() || SubPath == CheckSubPath || SubPath.StartsWith(CheckSubPath + TEXT(".")))
-					{
-						bFoundReference = true;
-					}
-				}
-			}
-		}
+		CachedReferences = &CachedSoftReferences.Add(Package->GetFName());
 
-		if (!bFoundReference)
-		{
-			return false;
-		}
-	}
-	else
-	{
 		// Bind to dirty callback if we aren't already
 		if (!DirtyDelegateHandle.IsValid())
 		{
 			DirtyDelegateHandle = UPackage::PackageMarkedDirtyEvent.AddSP(const_cast<FAssetRenameManager*>(this), &FAssetRenameManager::OnMarkPackageDirty);
 		}
 
-		CachedReferences = &CachedSoftReferences.Add(Package->GetFName());
+		//Extract all objects soft references along with their referencer and cache them to avoid having to serialize again
+		TMap<FSoftObjectPath, FSoftObjectPath> EmptyMap;
+		FSoftObjectPathRenameSerializer CheckSerializer(EmptyMap, true, &CachedReferences->Map);
+
+		TArray<UObject*> ObjectsInPackage;
+		GetObjectsWithOuter(Package, ObjectsInPackage);
+
+		for (UObject* Object : ObjectsInPackage)
+		{
+			if (Object->IsPendingKill())
+			{
+				continue;
+			}
+
+			CheckSerializer.StartSerializingObject(Object);
+			Object->Serialize(CheckSerializer);
+		}
+
+		CachedReferences->Map.GenerateKeyArray(CachedReferences->Keys);
+		
+		// Keys need to be sorted for binary search
+		CachedReferences->Keys.Sort(FSoftObjectPathLess());
 	}
 
-	FSoftObjectPathRenameSerializer CheckSerializer(AssetRedirectorMap, true, CachedReferences);
-
-	TArray<UObject*> ObjectsInPackage;
-	GetObjectsWithOuter(Package, ObjectsInPackage);
-
-	for (UObject* Object : ObjectsInPackage)
+	for (const TPair<FSoftObjectPath, FSoftObjectPath>& Pair : AssetRedirectorMap)
 	{
-		if (Object->IsPendingKill())
-		{
-			continue;
-		}
+		const FString& CheckSubPath = Pair.Key.GetSubPathString();
 
-		CheckSerializer.StartSerializingObject(Object);
-		Object->Serialize(CheckSerializer);
-
-		if (CheckSerializer.HasFoundReference())
+		// Find where we're going to start iterating
+		int32 Index = Algo::LowerBound(CachedReferences->Keys, Pair.Key, FSoftObjectPathLess());
+		for (int32 Num = CachedReferences->Keys.Num(); Index < Num; ++Index)
 		{
-			bFoundReference = true;
-			OutReferencingObjects.AddUnique(Object);
+			const FSoftObjectPath& CachedKey = CachedReferences->Keys[Index];
+			const FString& SubPath = CachedKey.GetSubPathString();
+
+			// Stop as soon as we're not anymore in the range we're searching
+			if (Pair.Key.GetAssetPathName() != CachedKey.GetAssetPathName())
+			{
+				break;
+			}
+
+			// Check if CheckSubPath is included in SubPath first to handle this case:
+			//
+			// SubPath:      PersistentLevel.Level_1_4__Head_Level_300.Level_1_4__Head_Level_300
+			//    which is >
+			// CheckSubPath: PersistentLevel.Level_1_4__Head_Level_300
+			//
+			if (IsSubPath(SubPath, CheckSubPath))
+			{
+				bFoundReference = true;
+				for (const FWeakObjectPtr& WeakPtr : *CachedReferences->Map.Find(CachedKey))
+				{
+					UObject* ObjectPtr = WeakPtr.Get();
+					if (ObjectPtr)
+					{
+						OutReferencingObjects.AddUnique(ObjectPtr);
+					}
+				}
+			}
+			else if (SubPath > CheckSubPath)
+			{
+				// Stop once CheckSubPath is not included in SubPath anymore and we're out of search range
+				break;
+			}
 		}
 	}
+
 	return bFoundReference;
 }
 

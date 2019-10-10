@@ -28,6 +28,7 @@ public class MeshPaint : ModuleRules
                 "EditorStyle",
                 "UnrealEd",
                 "MeshDescription",
+				"StaticMeshDescription",
                 "SourceControl",
                 "ViewportInteraction",
                 "VREditor",

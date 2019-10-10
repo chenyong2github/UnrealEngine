@@ -9,6 +9,8 @@
 #include "DatasmithScene.generated.h"
 
 class ULevelSequence;
+class ULevelVariantSets;
+class UMaterialFunction;
 class UMaterialInterface;
 class UStaticMesh;
 class UTexture;
@@ -46,6 +48,10 @@ public:
 	UPROPERTY(VisibleAnywhere, Category="Datasmith", AdvancedDisplay)
 	TMap< FName, TSoftObjectPtr< UTexture > > Textures;
 
+	/** Map of all the material functions related to this Datasmith Scene */
+	UPROPERTY(VisibleAnywhere, Category="Datasmith", AdvancedDisplay)
+	TMap< FName, TSoftObjectPtr< UMaterialFunction > > MaterialFunctions;
+
 	/** Map of all the materials related to this Datasmith Scene */
 	UPROPERTY(VisibleAnywhere, Category="Datasmith", AdvancedDisplay)
 	TMap< FName, TSoftObjectPtr< UMaterialInterface > > Materials;
@@ -53,6 +59,10 @@ public:
 	/** Map of all the level sequences related to this Datasmith Scene */
 	UPROPERTY(VisibleAnywhere, Category="Datasmith", AdvancedDisplay)
 	TMap< FName, TSoftObjectPtr< ULevelSequence > > LevelSequences;
+
+	/** Map of all the level variant sets related to this Datasmith Scene */
+	UPROPERTY(VisibleAnywhere, Category="Datasmith", AdvancedDisplay)
+	TMap< FName, TSoftObjectPtr< ULevelVariantSets > > LevelVariantSets;
 #endif // #if WITH_EDITORONLY_DATA
 
 	/** Register the DatasmithScene to the PreWorldRename callback as needed*/

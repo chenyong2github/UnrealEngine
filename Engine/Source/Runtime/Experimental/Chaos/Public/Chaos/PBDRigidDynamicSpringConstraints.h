@@ -2,7 +2,6 @@
 #pragma once
 
 #include "Chaos/Array.h"
-#include "Chaos/Map.h"
 #include "Chaos/ConstraintHandle.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDConstraintContainer.h"
@@ -163,7 +162,7 @@ namespace Chaos
 
 		void UpdatePositionBasedState(const T Dt);
 
-		void Apply(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles)
+		void Apply(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles, const int32 It, const int32 NumIts)
 		{
 			for (FConstraintHandle* ConstraintHandle : InConstraintHandles)
 			{

@@ -3,6 +3,7 @@
 #include "Rigs/RigBoneHierarchy.h"
 #include "ControlRig.h"
 #include "HelperUtil.h"
+#include "AnimationRuntime.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // FRigBoneHierarchy
@@ -49,7 +50,7 @@ FName FRigBoneHierarchy::GetSafeNewName(const FName& InPotentialNewName) const
 	return Name;
 }
 
-FRigBone& FRigBoneHierarchy::Add(const FName& InNewName, const FName& InParentName, const FTransform& InInitTransform)
+FRigBone& FRigBoneHierarchy::Add(const FName& InNewName, const FName& InParentName, ERigBoneType InType, const FTransform& InInitTransform)
 {
 	FRigBone NewBone;
 	NewBone.Name = GetSafeNewName(InNewName);
@@ -57,6 +58,7 @@ FRigBone& FRigBoneHierarchy::Add(const FName& InNewName, const FName& InParentNa
 	NewBone.ParentName = NewBone.ParentIndex == INDEX_NONE ? NAME_None : InParentName;
 	NewBone.InitialTransform = InInitTransform;
 	NewBone.GlobalTransform = InInitTransform;
+	NewBone.Type = InType;
 	RecalculateLocalTransform(NewBone);
 
 	FName NewBoneName = NewBone.Name;
@@ -71,9 +73,9 @@ FRigBone& FRigBoneHierarchy::Add(const FName& InNewName, const FName& InParentNa
 	return Bones[Index];
 }
 
-FRigBone& FRigBoneHierarchy::Add(const FName& InNewName, const FName& InParentName, const FTransform& InInitTransform, const FTransform& InLocalTransform, const FTransform& InGlobalTransform)
+FRigBone& FRigBoneHierarchy::Add(const FName& InNewName, const FName& InParentName, ERigBoneType InType, const FTransform& InInitTransform, const FTransform& InLocalTransform, const FTransform& InGlobalTransform)
 {
-	FRigBone& Bone = Add(InNewName, InParentName, InInitTransform);
+	FRigBone& Bone = Add(InNewName, InParentName, InType, InInitTransform);
 	Bone.LocalTransform = InLocalTransform;
 	Bone.GlobalTransform = InGlobalTransform;
 	return Bone;
@@ -375,9 +377,8 @@ FName FRigBoneHierarchy::Rename(const FName& InOldName, const FName& InNewName)
 
 void FRigBoneHierarchy::Sort()
 {
+	TArray<int32> RootArray;
 	TMap<int32, TArray<int32>> HierarchyTree;
-
-	TArray<int32> SortedArray;
 
 	// first figure out children and find roots
 	for (int32 Index = 0; Index < Bones.Num(); ++Index)
@@ -392,23 +393,30 @@ void FRigBoneHierarchy::Sort()
 		{
 			// as as a root
 			HierarchyTree.Add(Index);
-			// add them to the list first
-			SortedArray.Add(Index);
+			RootArray.Add(Index);
 		}
 	}
-
-	// now go through map and add to sorted array
-	for (int32 SortIndex = 0; SortIndex < SortedArray.Num(); ++SortIndex)
+	
+	struct Local
 	{
-		// add children of sorted array
-		TArray<int32>* ChildIndices = HierarchyTree.Find(SortedArray[SortIndex]);
-		if (ChildIndices)
+		static void VisitBone(int32 Index, const TMap<int32, TArray<int32>>& InHierarchyTree, TArray<int32>& SortedArray)
 		{
-			// append children now
-			SortedArray.Append(*ChildIndices);
-			// now sorted array will grow
-			// this is same as BFS as it starts from all roots, and going down
+			if (const TArray<int32>* ChildIndices = InHierarchyTree.Find(Index))
+			{
+				SortedArray.Append(*ChildIndices);
+				for (int32 ChildIndex : *ChildIndices)
+				{
+					VisitBone(ChildIndex, InHierarchyTree, SortedArray);
+				}
+			}
 		}
+	};
+
+	TArray<int32> SortedArray;
+	for (int32 RootIndex : RootArray)
+	{
+		SortedArray.Add(RootIndex);
+		Local::VisitBone(RootIndex, HierarchyTree, SortedArray);
 	}
 
 	check(SortedArray.Num() == Bones.Num());
@@ -432,8 +440,21 @@ void FRigBoneHierarchy::Sort()
 	}
 }
 
+void FRigBoneHierarchy::RefreshParentNames()
+{
+	for (FRigBone& Bone : Bones)
+	{
+		Bone.ParentIndex = INDEX_NONE;
+		if (Bone.ParentName != NAME_None)
+		{
+			Bone.ParentIndex = GetIndex(Bone.ParentName);
+		}
+	}
+}
+
 void FRigBoneHierarchy::RefreshMapping()
 {
+	RefreshParentNames();
 	Sort();
 
 	NameToIndexMapping.Empty();
@@ -448,7 +469,6 @@ void FRigBoneHierarchy::Initialize()
 {
 	RefreshMapping();
 
-	// update parent index
 	for (int32 Index = 0; Index < Bones.Num(); ++Index)
 	{
 		Bones[Index].ParentIndex = GetIndex(Bones[Index].ParentName);
@@ -574,5 +594,155 @@ bool FRigBoneHierarchy::IsSelected(const FName& InName) const
 {
 	return Selection.Contains(InName);
 }
+
+TArray<FRigElementKey> FRigBoneHierarchy::ImportSkeleton(const FReferenceSkeleton& InSkeleton, const FName& InNameSpace, bool bReplaceExistingBones, bool bRemoveObsoleteBones, bool bSelectBones)
+{
+	TArray<FRigElementKey> AddedBones;
+	TArray<FName> BoneNamesToSelect;
+	TMap<FName, FName> BoneNameMap;
+
+	const TArray<FMeshBoneInfo>& BoneInfos = InSkeleton.GetRefBoneInfo();
+	const TArray<FTransform>& BonePoses = InSkeleton.GetRefBonePose();
+
+	struct Local
+	{
+		static FName DetermineBoneName(const FName& InBoneName, const FName& InNameSpace)
+		{
+			if (InNameSpace == NAME_None || InBoneName == NAME_None)
+			{
+				return InBoneName;
+			}
+			return *FString::Printf(TEXT("%s_%s"), *InNameSpace.ToString(), *InBoneName.ToString());
+		}
+	};
+
+	if (bReplaceExistingBones)
+	{
+		for (const FRigBone& ExistingBone : Bones)
+		{
+			BoneNameMap.Add(ExistingBone.Name, ExistingBone.Name);
+		}
+
+		for (int32 Index = 0; Index < BoneInfos.Num(); ++Index)
+		{
+			int32 ExistingBoneIndex = GetIndex(BoneInfos[Index].Name);
+			FName DesiredBoneName = Local::DetermineBoneName(BoneInfos[Index].Name, InNameSpace);
+			FName ParentName = (BoneInfos[Index].ParentIndex != INDEX_NONE) ? BoneInfos[BoneInfos[Index].ParentIndex].Name : NAME_None;
+			ParentName = Local::DetermineBoneName(ParentName, InNameSpace);
+
+			const FName* MappedParentNamePtr = BoneNameMap.Find(ParentName);
+			if (MappedParentNamePtr)
+			{
+				ParentName = *MappedParentNamePtr;
+			}
+
+			if (ExistingBoneIndex != INDEX_NONE)
+			{
+				// check it's parent
+				if (ParentName != NAME_None)
+				{
+					Bones[ExistingBoneIndex].ParentName = ParentName;
+				}
+
+				// reset it's initial transform
+				SetInitialTransform(ExistingBoneIndex, FAnimationRuntime::GetComponentSpaceTransform(InSkeleton, BonePoses, Index));
+
+				BoneNamesToSelect.Add(Bones[ExistingBoneIndex].Name);
+			}
+			else
+			{
+				FRigBone& AddedBone = Add(DesiredBoneName, ParentName, ERigBoneType::Imported, FAnimationRuntime::GetComponentSpaceTransform(InSkeleton, BonePoses, Index));
+				BoneNameMap.Add(DesiredBoneName, AddedBone.Name);
+				AddedBones.Add(AddedBone.GetElementKey());
+				BoneNamesToSelect.Add(AddedBone.Name);
+			}
+		}
+
+	}
+	else // import all as new
+	{
+		for (int32 Index = 0; Index < BoneInfos.Num(); ++Index)
+		{
+			FName DesiredBoneName = Local::DetermineBoneName(BoneInfos[Index].Name, InNameSpace);
+			FName ParentName = (BoneInfos[Index].ParentIndex != INDEX_NONE) ? BoneInfos[BoneInfos[Index].ParentIndex].Name : NAME_None;
+			ParentName = Local::DetermineBoneName(ParentName, InNameSpace);
+
+			const FName* MappedParentNamePtr = BoneNameMap.Find(ParentName);
+			if (MappedParentNamePtr)
+			{
+				ParentName = *MappedParentNamePtr;
+			}
+			
+			FRigBone& AddedBone = Add(DesiredBoneName, ParentName, ERigBoneType::Imported, FAnimationRuntime::GetComponentSpaceTransform(InSkeleton, BonePoses, Index));
+			BoneNameMap.Add(DesiredBoneName, AddedBone.Name);
+			AddedBones.Add(AddedBone.GetElementKey());
+			BoneNamesToSelect.Add(AddedBone.Name);
+		}
+	}
+
+	RefreshMapping();
+
+	if (bReplaceExistingBones && bRemoveObsoleteBones)
+	{
+		TMap<FName, int32> BoneNameToIndexInSkeleton;
+		for (const FMeshBoneInfo& BoneInfo : BoneInfos)
+		{
+			FName DesiredBoneName = Local::DetermineBoneName(BoneInfo.Name, InNameSpace);
+			BoneNameToIndexInSkeleton.Add(DesiredBoneName, BoneNameToIndexInSkeleton.Num());
+		}
+		
+		TArray<FName> BonesToDelete;
+		for (int32 ExistingBoneIndex = 0; ExistingBoneIndex < Bones.Num(); ExistingBoneIndex++)
+		{
+			const FRigBone& Bone = Bones[ExistingBoneIndex];
+			if (!BoneNameToIndexInSkeleton.Contains(Bone.Name))
+			{
+				if (Bone.Type == ERigBoneType::Imported)
+				{
+					BonesToDelete.Add(Bone.Name);
+				}
+			}
+		}
+
+		for (const FName& BoneToDelete : BonesToDelete)
+		{
+			const FRigBone& Bone = Bones[GetIndex(BoneToDelete)];
+			TArray<FName> Dependents;
+			for (int32 DependentIndex : Bone.Dependents)
+			{
+				if (Bones[DependentIndex].Type != ERigBoneType::Imported)
+				{
+					Dependents.Add(Bones[DependentIndex].Name);
+				}
+			}
+
+			Algo::Reverse(Dependents);
+			for (const FName& DependentName : Dependents)
+			{
+				Reparent(DependentName, NAME_None);
+			}
+		}
+
+		for (const FName& BoneToDelete : BonesToDelete)
+		{
+			Remove(BoneToDelete);
+			BoneNamesToSelect.Remove(BoneToDelete);
+		}
+	}
+
+	if (bSelectBones)
+	{
+		ClearSelection();
+		for (const FName& BoneNameToSelect : BoneNamesToSelect)
+		{
+			Select(BoneNameToSelect);
+		}
+	}
+
+	Initialize();
+
+	return AddedBones;
+}
+
 
 #endif

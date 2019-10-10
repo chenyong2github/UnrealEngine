@@ -50,8 +50,6 @@ public:
 	virtual void MoveGizmo(AControlRigGizmoActor* GizmoActor, const bool bTranslation, FVector& InDrag, 
 		const bool bRotation, FRotator& InRot, const bool bScale, FVector& InScale, const FTransform& ToWorldTransform) override;
 	virtual void TickGizmo(AControlRigGizmoActor* GizmoActor, const FTransform& ComponentTransform) override;
-	// need templatizing input type @fixme: add implementation
-	virtual void AddKey(const AControlRigGizmoActor* GizmoActor, TSharedPtr<ISequencer> Sequencer) override {};
 	virtual bool ModeSupportedByGizmoActor(const AControlRigGizmoActor* GizmoActor, FWidget::EWidgetMode InMode) const override;
 	// IControlRigManipulationLayer END
 
@@ -87,11 +85,9 @@ private:
 	// control data related
 	virtual void ResetControlData();
 
-	void OnRigExecuted(class UControlRig* InRig, const EControlRigState State);
-	TArray<FDelegateHandle> ExecuteDelegateHandles;
-
-	void OnRigInitialized(class UControlRig* InRig, const EControlRigState State);
-	TArray<FDelegateHandle> InitializeDelegateHandle;
+	// Post pose update handler
+	UFUNCTION()
+	virtual void PostPoseUpdate();
 
 	void OnControlModified(IControlRigManipulatable* InManipulatable, const FRigControl& InControl);
 	TArray<FDelegateHandle> ControlModifiedDelegateHandles;
@@ -100,4 +96,8 @@ private:
 	void OnControlRigRemoved(UControlRig* InControlRig);
 
 	void GetGizmoCreationParams(TArray<FGizmoActorCreationParam>& OutCreationParams);
+	// world clean up handlers
+	FDelegateHandle OnWorldCleanupHandle;
+	void OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources);
+	UWorld* WorldPtr = nullptr;
 };

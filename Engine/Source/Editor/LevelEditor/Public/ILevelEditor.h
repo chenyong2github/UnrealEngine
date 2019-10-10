@@ -13,7 +13,7 @@
 #include "Toolkits/IToolkitHost.h"
 
 class ISceneOutliner;
-class ILevelViewport;
+class IAssetViewport;
 class SLevelViewport;
 
 /**
@@ -34,10 +34,10 @@ public:
 	virtual const TArray< TSharedPtr< IToolkit > >& GetHostedToolkits() const = 0;
 
 	/** Gets an array of all viewports in this level editor */
-	virtual TArray< TSharedPtr< ILevelViewport > > GetViewports() const = 0;
+	virtual TArray< TSharedPtr< IAssetViewport > > GetViewports() const = 0;
 	
 	/** Gets the active level viewport for this level editor */
-	virtual TSharedPtr<ILevelViewport> GetActiveViewportInterface() = 0;
+	virtual TSharedPtr<IAssetViewport> GetActiveViewportInterface() = 0;
 
 	/** Get the thumbnail pool used by this level editor */
 	virtual TSharedPtr< class FAssetThumbnailPool > GetThumbnailPool() const = 0;

@@ -14,6 +14,11 @@ FSequencerTrackFilter_LevelFilter::~FSequencerTrackFilter_LevelFilter()
 
 bool FSequencerTrackFilter_LevelFilter::PassesFilter(FTrackFilterType InItem) const
 {
+	if (!InItem || !InItem->GetOutermost())
+	{
+		return false;
+	}
+
 	// For anything in a level, outermost should refer to the ULevel that contains it
 	FString OutermostName = FPackageName::GetShortName(InItem->GetOutermost()->GetName());
 	

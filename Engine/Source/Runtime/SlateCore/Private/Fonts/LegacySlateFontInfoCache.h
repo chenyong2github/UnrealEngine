@@ -54,21 +54,6 @@ public:
 	TSharedPtr<const FCompositeFont> GetSystemFont();
 
 	/**
-	 * Is the localized fallback font available (can be controlled via a CVar).
-	 */
-	bool IsLocalizedFallbackFontAvailable() const;
-
-	/**
-	 * Get (or create) the culture specific fallback font
-	 */
-	const FFontData& GetLocalizedFallbackFontData(const FFallbackContext& InContext);
-
-	/**
-	 * Get the revision index of the currently active localized fallback font.
-	 */
-	uint16 GetLocalizedFallbackFontRevision() const;
-
-	/**
 	 * Is the last resort fallback font available (not all builds have it).
 	 */
 	bool IsLastResortFontAvailable() const;
@@ -89,11 +74,6 @@ public:
 
 private:
 	FLegacySlateFontInfoCache();
-
-	/**
-	 * Called after the active culture has changed
-	 */
-	void HandleCultureChanged();
 
 	struct FLegacyFontKey
 	{
@@ -139,12 +119,6 @@ private:
 	TSharedPtr<const FFontData> LocalizedFallbackFontData;
 	TSharedPtr<const FFontData> LastResortFontData;
 
-	TMap<FString, TSharedPtr<const FFontData>> AllLocalizedFallbackFontData;
-	uint16 LocalizedFallbackFontRevision;
-	uint16 LocalizedFallbackFontDataHistoryVersion;
-	uint64 LocalizedFallbackFontFrameCounter;
-
-	FCriticalSection LocalizedFallbackFontDataCS;
 	FCriticalSection LastResortFontCS;
 	FCriticalSection LastResortFontDataCS;
 

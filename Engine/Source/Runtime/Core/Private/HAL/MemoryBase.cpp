@@ -10,10 +10,6 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("Free calls"),				STAT_FreeCalls,STATGROUP_Memor
 DECLARE_DWORD_COUNTER_STAT(TEXT("Realloc calls"),			STAT_ReallocCalls,STATGROUP_MemoryAllocator);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Total Allocator calls"),	STAT_TotalAllocatorCalls,STATGROUP_MemoryAllocator);
 
-TAtomic<uint32> FMalloc::TotalMallocCalls(0);
-TAtomic<uint32> FMalloc::TotalFreeCalls(0);
-TAtomic<uint32> FMalloc::TotalReallocCalls(0);
-
 #if !UE_BUILD_SHIPPING
 TAtomic<uint64> FMalloc::MaxSingleAlloc;
 #endif
@@ -41,9 +37,9 @@ struct FCurrentFrameCalls
 
 	void Update()
 	{
-		uint32 LocalTotalMallocCalls  = FMalloc::TotalMallocCalls.Load(EMemoryOrder::Relaxed);
-		uint32 LocalTotalReallocCalls = FMalloc::TotalReallocCalls.Load(EMemoryOrder::Relaxed);
-		uint32 LocalTotalFreeCalls    = FMalloc::TotalFreeCalls.Load(EMemoryOrder::Relaxed);
+		uint32 LocalTotalMallocCalls  = 0;
+		uint32 LocalTotalReallocCalls = 0;
+		uint32 LocalTotalFreeCalls    = 0;
 
 		MallocCalls      = LocalTotalMallocCalls - LastMallocCalls;
 		ReallocCalls     = LocalTotalReallocCalls - LastReallocCalls;

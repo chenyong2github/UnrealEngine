@@ -31,8 +31,13 @@ public:
 	/** Constructs this widget with InArgs */
 	void Construct( const FArguments& InArgs );
 
-	/** Sets a new root package name */
-	void SetGraphRootIdentifiers(const TArray<FAssetIdentifier>& NewGraphRootIdentifiers);
+	/**
+	 * Sets a new root package name
+	 *
+	 * @param NewGraphRootIdentifiers	The root elements of the new graph to be generated
+	 * @param ReferenceViewerParams		Different visualization settings, such as whether it should display the referencers or the dependencies of the NewGraphRootIdentifiers
+	 */
+	void SetGraphRootIdentifiers(const TArray<FAssetIdentifier>& NewGraphRootIdentifiers, const FReferenceViewerParams& ReferenceViewerParams = FReferenceViewerParams());
 
 	/** Gets graph editor */
 	TSharedPtr<SGraphEditor> GetGraphEditor() const { return GraphEditorPtr; }
@@ -170,4 +175,25 @@ private:
 
 	/** List of collection filter options */
 	TArray<TSharedPtr<FName>> CollectionsComboList;
+
+	/**
+	 * Whether to visually show to the user the option of "Search Depth Limit" or hide it and fix it to a default value:
+	 * - If 0 or negative, it will show to the user the option of "Search Depth Limit".
+	 * - If >0, it will hide that option and fix the Depth value to this value.
+	 */
+	int32 FixAndHideSearchDepthLimit;
+	/**
+	 * Whether to visually show to the user the option of "Search Breadth Limit" or hide it and fix it to a default value:
+	 * - If 0 or negative, it will show to the user the option of "Search Breadth Limit".
+	 * - If >0, it will hide that option and fix the Breadth value to this value.
+	 */
+	int32 FixAndHideSearchBreadthLimit;
+	/** Whether to visually show to the user the option of "Collection Filter" */
+	bool bShowCollectionFilter;
+	/** Whether to visually show to the user the options of "Show Soft/Hard/Management References" */
+	bool bShowShowReferencesOptions;
+	/** Whether to visually show to the user the option of "Show Searchable Names" */
+	bool bShowShowSearchableNames;
+	/** Whether to visually show to the user the option of "Show Native Packages" */
+	bool bShowShowNativePackages;
 };

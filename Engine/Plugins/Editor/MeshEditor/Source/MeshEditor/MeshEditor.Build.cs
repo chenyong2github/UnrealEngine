@@ -20,6 +20,7 @@ namespace UnrealBuildTool.Rules
                     "RenderCore",
 					"EditableMesh",
                     "MeshDescription",
+					"StaticMeshDescription",
 					"ViewportInteraction",
                     "VREditor",
 					"Projects",

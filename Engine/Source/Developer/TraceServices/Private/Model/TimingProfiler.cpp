@@ -5,9 +5,48 @@
 #include "AnalysisServicePrivate.h"
 #include "Common/StringStore.h"
 #include "Common/TimelineStatistics.h"
+#include "Templates/TypeHash.h"
 
 namespace Trace
 {
+
+struct FTimingProfilerCallstackKey
+{
+	bool operator==(const FTimingProfilerCallstackKey& Other) const
+	{
+		return Other.TimerStack == TimerStack;
+	}
+
+	friend uint32 GetTypeHash(const FTimingProfilerCallstackKey& Key)
+	{
+		return Key.Hash;
+	}
+
+	TArray<uint32> TimerStack;
+	uint32 Hash;
+};
+
+class FTimingProfilerButterfly
+	: public ITimingProfilerButterfly
+{
+public:
+	FTimingProfilerButterfly();
+	virtual ~FTimingProfilerButterfly() = default;
+	virtual const FTimingProfilerButterflyNode& GenerateCallersTree(uint32 TimerId) override;
+	virtual const FTimingProfilerButterflyNode& GenerateCalleesTree(uint32 TimerId) override;
+
+private:
+	void CreateCallersTreeRecursive(const FTimingProfilerButterflyNode* TimerNode, const FTimingProfilerButterflyNode* RootNode, FTimingProfilerButterflyNode* OutputParent);
+	void CreateCalleesTreeRecursive(const FTimingProfilerButterflyNode* TimerNode, FTimingProfilerButterflyNode* OutputParent);
+
+	FSlabAllocator Allocator;
+	TPagedArray<FTimingProfilerButterflyNode> Nodes;
+	TArray<TArray<FTimingProfilerButterflyNode*>> TimerCallstacksMap;
+	TMap<uint32, FTimingProfilerButterflyNode*> CachedCallerTrees;
+	TMap<uint32, FTimingProfilerButterflyNode*> CachedCalleeTrees;
+
+	friend class FTimingProfilerProvider;
+};
 
 FTimingProfilerProvider::FTimingProfilerProvider(IAnalysisSession& InSession)
 	: Session(InSession)
@@ -174,6 +213,215 @@ ITable<FTimingProfilerAggregatedStats>* FTimingProfilerProvider::CreateAggregati
 		Row.Timer = KV.Key;
 	}
 	return Table;
+}
+
+FTimingProfilerButterfly::FTimingProfilerButterfly()
+	: Allocator(2 << 20)
+	, Nodes(Allocator, 1024)
+{
+
+}
+
+void FTimingProfilerButterfly::CreateCallersTreeRecursive(const FTimingProfilerButterflyNode* TimerNode, const FTimingProfilerButterflyNode* RootNode, FTimingProfilerButterflyNode* OutputParent)
+{
+	if (!TimerNode)
+	{
+		return;
+	}
+	FTimingProfilerButterflyNode* AggregatedChildNode = nullptr;
+	for (FTimingProfilerButterflyNode* Candidate : OutputParent->Children)
+	{
+		if (Candidate->Timer == TimerNode->Timer)
+		{
+			AggregatedChildNode = Candidate;
+			break;
+		}
+	}
+	if (!AggregatedChildNode)
+	{
+		AggregatedChildNode = &Nodes.PushBack();
+		AggregatedChildNode->Timer = TimerNode->Timer;
+		OutputParent->Children.Add(AggregatedChildNode);
+		AggregatedChildNode->Parent = OutputParent;
+	}
+
+	AggregatedChildNode->InclusiveTime += RootNode->InclusiveTime;
+	AggregatedChildNode->ExclusiveTime += RootNode->ExclusiveTime;
+	AggregatedChildNode->Count += RootNode->Count;
+
+	CreateCallersTreeRecursive(TimerNode->Parent, RootNode, AggregatedChildNode);
+}
+
+const FTimingProfilerButterflyNode& FTimingProfilerButterfly::GenerateCallersTree(uint32 TimerId)
+{
+	FTimingProfilerButterflyNode** Cached = CachedCallerTrees.Find(TimerId);
+	if (Cached)
+	{
+		return **Cached;
+	}
+
+	FTimingProfilerButterflyNode* Root = &Nodes.PushBack();
+	for (FTimingProfilerButterflyNode* TimerNode : TimerCallstacksMap[TimerId])
+	{
+		Root->Timer = TimerNode->Timer;
+		Root->InclusiveTime += TimerNode->InclusiveTime;
+		Root->ExclusiveTime += TimerNode->ExclusiveTime;
+		Root->Count += TimerNode->Count;
+
+		CreateCallersTreeRecursive(TimerNode->Parent, TimerNode, Root);
+	}
+	CachedCallerTrees.Add(TimerId, Root);
+	return *Root;
+}
+
+void FTimingProfilerButterfly::CreateCalleesTreeRecursive(const FTimingProfilerButterflyNode* TimerNode, FTimingProfilerButterflyNode* OutputParent)
+{
+	for (const FTimingProfilerButterflyNode* ChildNode : TimerNode->Children)
+	{
+		FTimingProfilerButterflyNode* AggregatedChildNode = nullptr;
+		for (FTimingProfilerButterflyNode* Candidate : OutputParent->Children)
+		{
+			if (Candidate->Timer == ChildNode->Timer)
+			{
+				AggregatedChildNode = Candidate;
+				break;
+			}
+		}
+		if (!AggregatedChildNode)
+		{
+			AggregatedChildNode = &Nodes.PushBack();
+			AggregatedChildNode->Timer = ChildNode->Timer;
+			OutputParent->Children.Add(AggregatedChildNode);
+			AggregatedChildNode->Parent = OutputParent;
+		}
+		AggregatedChildNode->InclusiveTime += ChildNode->InclusiveTime;
+		AggregatedChildNode->ExclusiveTime += ChildNode->ExclusiveTime;
+		AggregatedChildNode->Count += ChildNode->Count;
+
+		CreateCalleesTreeRecursive(ChildNode, AggregatedChildNode);
+	}
+}
+
+const FTimingProfilerButterflyNode& FTimingProfilerButterfly::GenerateCalleesTree(uint32 TimerId)
+{
+	FTimingProfilerButterflyNode** Cached = CachedCalleeTrees.Find(TimerId);
+	if (Cached)
+	{
+		return **Cached;
+	}
+
+	FTimingProfilerButterflyNode* Root = &Nodes.PushBack();
+	for (FTimingProfilerButterflyNode* TimerNode : TimerCallstacksMap[TimerId])
+	{
+		Root->Timer = TimerNode->Timer;
+		Root->InclusiveTime += TimerNode->InclusiveTime;
+		Root->ExclusiveTime += TimerNode->ExclusiveTime;
+		Root->Count += TimerNode->Count;
+
+		CreateCalleesTreeRecursive(TimerNode, Root);
+	}
+	CachedCalleeTrees.Add(TimerId, Root);
+	return *Root;
+}
+
+ITimingProfilerButterfly* FTimingProfilerProvider::CreateButterfly(double IntervalStart, double IntervalEnd, TFunctionRef<bool(uint32)> CpuThreadFilter, bool IncludeGpu) const
+{
+	FTimingProfilerButterfly* Butterfly = new FTimingProfilerButterfly();
+	Butterfly->TimerCallstacksMap.AddDefaulted(Timers.Num());
+
+	TArray<const TimelineInternal*> IncludedTimelines;
+	if (IncludeGpu)
+	{
+		IncludedTimelines.Add(&Timelines[GpuTimelineIndex].Get());
+	}
+	for (const auto& KV : CpuThreadTimelineIndexMap)
+	{
+		if (CpuThreadFilter(KV.Key))
+		{
+			IncludedTimelines.Add(&Timelines[KV.Value].Get());
+		}
+	}
+
+	FTimingProfilerCallstackKey CurrentCallstackKey;
+	CurrentCallstackKey.TimerStack.Reserve(1024);
+
+	struct FLocalStackEntry
+	{
+		FTimingProfilerButterflyNode* Node;
+		double StartTime;
+		double ExclusiveTime;
+		uint32 CurrentCallstackHash;
+	};
+
+	TArray<FLocalStackEntry> CurrentCallstack;
+	CurrentCallstack.Reserve(1024);
+
+	TMap<FTimingProfilerCallstackKey, FTimingProfilerButterflyNode*> CallstackNodeMap;
+
+	double LastTime = 0.0;
+	for (const TimelineInternal* Timeline : IncludedTimelines)
+	{
+		Timeline->EnumerateEvents(IntervalStart, IntervalEnd, [this, IntervalStart, IntervalEnd, &CurrentCallstackKey, &CurrentCallstack, &CallstackNodeMap, &LastTime, Butterfly](bool IsEnter, double Time, const FTimingProfilerEvent& Event)
+		{
+			Time = FMath::Clamp(Time, IntervalStart, IntervalEnd);
+			FTimingProfilerButterflyNode* ParentNode = nullptr;
+			uint32 ParentCallstackHash = 17;
+			if (CurrentCallstack.Num())
+			{
+				FLocalStackEntry& Stackentry = CurrentCallstack.Top();
+				ParentNode = Stackentry.Node;
+				ParentCallstackHash = Stackentry.CurrentCallstackHash;
+				Stackentry.ExclusiveTime += Time - LastTime;
+			}
+			LastTime = Time;
+			if (IsEnter)
+			{
+				FLocalStackEntry& StackEntry = CurrentCallstack.AddDefaulted_GetRef();
+				StackEntry.StartTime = Time;
+				StackEntry.ExclusiveTime = 0.0;
+				StackEntry.CurrentCallstackHash = ParentCallstackHash * 17 + Event.TimerIndex;
+
+				CurrentCallstackKey.TimerStack.Push(Event.TimerIndex);
+				CurrentCallstackKey.Hash = StackEntry.CurrentCallstackHash;
+
+				FTimingProfilerButterflyNode** FindIt = CallstackNodeMap.Find(CurrentCallstackKey);
+				if (FindIt)
+				{
+					StackEntry.Node = *FindIt;
+				}
+				else
+				{
+					StackEntry.Node = &Butterfly->Nodes.PushBack();
+					CallstackNodeMap.Add(CurrentCallstackKey, StackEntry.Node);
+					Butterfly->TimerCallstacksMap[Event.TimerIndex].Add(StackEntry.Node);
+					StackEntry.Node->InclusiveTime = 0.0;
+					StackEntry.Node->ExclusiveTime = 0.0;
+					StackEntry.Node->Count = 0;
+					StackEntry.Node->Timer = &this->Timers[Event.TimerIndex];
+					StackEntry.Node->Parent = ParentNode;
+					if (ParentNode)
+					{
+						ParentNode->Children.Add(StackEntry.Node);
+					}
+				}
+			}
+			else
+			{
+				FLocalStackEntry& StackEntry = CurrentCallstack.Top();
+				double InclusiveTime = Time - StackEntry.StartTime;
+				check(InclusiveTime >= 0.0);
+				check(StackEntry.ExclusiveTime >= 0.0 && StackEntry.ExclusiveTime <= InclusiveTime);
+				
+				StackEntry.Node->InclusiveTime += InclusiveTime;
+				StackEntry.Node->ExclusiveTime += StackEntry.ExclusiveTime;
+				++StackEntry.Node->Count;
+
+				CurrentCallstack.Pop(false);
+				CurrentCallstackKey.TimerStack.Pop(false);
+			}
+		});
+	}
+	return Butterfly;
 }
 
 }

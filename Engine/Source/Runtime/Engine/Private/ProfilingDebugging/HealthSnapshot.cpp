@@ -6,10 +6,6 @@
 #include "ContentStreaming.h"
 #include "ChartCreation.h"
 
-#if PLATFORM_PS4
-#include "Runtime/PS4/PS4RHI/Public/GnmMemory.h"
-#endif
-
 #include "HAL/MemoryMisc.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/ThreadSafeCounter64.h"

@@ -11,6 +11,7 @@
 #include "Widgets/SWidget.h"
 #include "Editor/UnrealEdTypes.h"
 #include "Application/ThrottleManager.h"
+#include "AssetViewportLayout.h"
 #include "TickableEditorObject.h"
 
 class FLevelEditorViewportClient;
@@ -43,15 +44,13 @@ struct FViewportConstructionArgs
 	TAttribute<bool> IsEnabled;
 };
 
+
 /** Interface that defines an entity within a viewport layout */
-class IViewportLayoutEntity : public TSharedFromThis<IViewportLayoutEntity>
+class ILevelViewportLayoutEntity : public IAssetViewportLayoutEntity
 {
 public:
 	/** Virtual destruction */
-	virtual ~IViewportLayoutEntity() {};
-
-	/** Return a widget that is represents this entity */
-	virtual TSharedRef<SWidget> AsWidget() const = 0;
+	virtual ~ILevelViewportLayoutEntity() {};
 
 	/** Optionally return this entity as an SLevelViewport. Legacy function for interop with code that used to deal directly with SLevelViewports */
 	virtual TSharedPtr<SLevelViewport> AsLevelViewport() const { return nullptr; }
@@ -64,28 +63,13 @@ public:
 
 	/** Register this viewport layout entity as a game viewport, if it's currently PIE-ing */
 	virtual void RegisterGameViewportIfPIE() = 0;
-
-	/** Set keyboard focus to this viewport entity */
-	virtual void SetKeyboardFocus() = 0;
-
-	/** Called when the parent layout is being destroyed */
-	virtual void OnLayoutDestroyed() = 0;
-
-	/** Called to save this item's settings in the specified config section */
-	virtual void SaveConfig(const FString& ConfigSection) = 0;
-
-	/** Get the type of this viewport as a name */
-	virtual FName GetType() const = 0;
-
-	/** Take a high res screen shot of viewport entity */
-	virtual void TakeHighResScreenShot() const = 0;
 };
 
 /**
  * Base class for level viewport layout configurations
  * Handles maximizing and restoring well as visibility of specific viewports.
  */
-class LEVELEDITOR_API FLevelViewportLayout : public TSharedFromThis<FLevelViewportLayout>, public FTickableEditorObject
+class LEVELEDITOR_API FLevelViewportLayout : public TSharedFromThis<FLevelViewportLayout>, public FAssetViewportLayout, public FTickableEditorObject
 {
 public:
 	/**
@@ -155,17 +139,7 @@ public:
 	 */
 	bool IsViewportImmersive( FName InViewport ) const;
 
-	/**
-	 * @return All the viewports in this configuration
-	 */
-	const TMap< FName, TSharedPtr<IViewportLayoutEntity> >& GetViewports() const { return Viewports; }
 
-	/**
-	 * Saves viewport layout information between editor sessions
-	 */
-	virtual void SaveLayoutString(const FString& LayoutString) const = 0;
-
-	virtual const FName& GetLayoutTypeName() const = 0;
 
 
 	/** FTickableEditorObject interface */
@@ -269,8 +243,6 @@ protected:
 	/** Curve for animating from a "restored" state to a maximized state */
 	FCurveSequence MaximizeAnimation;
 
-	/** List of all of the viewports in this layout, keyed on their config key */
-	TMap< FName, TSharedPtr< IViewportLayoutEntity > > Viewports;
 	
 	/** The parent tab where this layout resides */
 	TWeakPtr< SDockTab > ParentTab;

@@ -141,8 +141,7 @@ void FixSampleDirectionIfNeeded(float3 SmoothSurfaceNormal, inout float3 SampleD
 	}
 }
 
-[shader("raygeneration")]
-void RayTracingReflectionsRGS()
+RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 {
 	const float ClearCoatSpecularColor = 0.04; // See ReflectionEnvironmentPixelShader.usf
 
@@ -167,7 +166,7 @@ void RayTracingReflectionsRGS()
 
 	uint2 PixelCoord = GetPixelCoord(DispatchThreadId, UpscaleFactor); // GBuffer pixel coordinates (full resolution)
 
-	uint LinearIndex = PixelCoord.y * View.BufferSizeAndInvSize.x + PixelCoord.x; // TODO: PixelCoord or DispatchThreadId
+	uint LinearIndex = PixelCoord.y * View.BufferSizeAndInvSize.x + PixelCoord.x; // TODO(Denoiser): PixelCoord or DispatchThreadId
 	
 	RandomSequence RandSequence;
 	RandomSequence_Initialize(RandSequence, LinearIndex, View.StateFrameIndex);
@@ -726,7 +725,7 @@ void RayTracingReflectionsRGS()
 			float DistanceFadeRange = LocalMaxRayDistance * 0.1; // Fade out reflections over 10% of the total maximum ray length (arbitrarily chosen)
 			float DistanceFade = bAllowSkySampling ? 1.0 : saturate((LocalMaxRayDistance - HitDistance) * rcp(DistanceFadeRange));
 
-			ReflectedColor *= DistanceFade * max(RoughnessFade, ClearCoatRoughnessFade) * rcp(ReflectedWeight);
+			ReflectedColor *= DistanceFade * max(RoughnessFade, ClearCoatRoughnessFade) * rcp(LocalSamplesPerPixel);
 		}
 
 	#if USE_PREEXPOSURE
@@ -737,7 +736,7 @@ void RayTracingReflectionsRGS()
 		RayHitDistanceOutput[DispatchThreadId] = HitDistance;
 
 		// Imaginary depth computation for Nvidia's denoiser.
-		// TODO: shader permutation?
+		// TODO(Denoiser): shader permutation?
 		{
 			float3 OriginalWorldPos;
 			float3 CameraToPixel;

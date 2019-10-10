@@ -23,7 +23,7 @@
 class FLevelEditorViewportClient;
 class FSceneViewport;
 struct FSlateBrush;
-class ILevelViewport;
+class IAssetViewport;
 class SViewport;
 class SMediaFrameworkCapture;
 
@@ -182,7 +182,7 @@ private:
 
 private:
 	TWeakPtr<FSceneViewport> EditorSceneViewport;
-	TWeakPtr<ILevelViewport> LevelViewport;
+	TWeakPtr<IAssetViewport> LevelViewport;
 	FPreviousViewportClientFlags ViewportClientFlags;
 
 	EViewModeIndex ViewMode;

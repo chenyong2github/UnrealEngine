@@ -556,6 +556,15 @@ void FRenderAssetInstanceAsyncView::GetRenderAssetScreenSize(
 					const FRenderAssetInstanceView::FCompiledElement& CompiledElement = CompiledElementData[CompiledElementIndex];
 					if (ensure(BoundsViewInfo.IsValidIndex(CompiledElement.BoundsIndex)))
 					{
+						// Texel factor wasn't available because the component wasn't registered. Lazy initialize it now.
+						if (AssetType != FStreamingRenderAsset::AT_Texture
+							&& CompiledElement.TexelFactor == 0.f
+							&& ensure(CompiledElement.BoundsIndex < View->NumBounds4() * 4))
+						{
+							FRenderAssetInstanceView::FCompiledElement* MutableCompiledElement = const_cast<FRenderAssetInstanceView::FCompiledElement*>(&CompiledElement);
+							MutableCompiledElement->TexelFactor = View->GetBounds4(CompiledElement.BoundsIndex / 4).Radius.Component(CompiledElement.BoundsIndex % 4) * 2.f;
+						}
+
 						ProcessElement(
 							AssetType,
 							BoundsViewInfo[CompiledElement.BoundsIndex],

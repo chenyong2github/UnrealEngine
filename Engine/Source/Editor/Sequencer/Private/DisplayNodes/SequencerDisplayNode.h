@@ -188,6 +188,11 @@ public:
 	virtual void SetDisplayName(const FText& NewDisplayName) = 0;
 
 	/**
+	 * @return Whether this track should be drawn as dim 
+	 */
+	virtual bool IsDimmed() const;
+
+	/**
 	 * @return Whether this node handles resize events
 	 */
 	virtual bool IsResizable() const

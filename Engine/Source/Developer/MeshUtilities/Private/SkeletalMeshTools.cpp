@@ -207,8 +207,8 @@ namespace SkeletalMeshTools
 		for (int32 SrcChunkIndex = 0; SrcChunkIndex < SrcChunks.Num(); ++SrcChunkIndex)
 		{
 			FSkinnedMeshChunk* SrcChunk = SrcChunks[SrcChunkIndex];
+			SrcChunk->OriginalSectionIndex = SrcChunkIndex;
 			int32 FirstChunkIndex = Chunks.Num();
-
 			for (int32 i = 0; i < SrcChunk->Indices.Num(); i += 3)
 			{
 				// Find all bones needed by this triangle.
@@ -257,9 +257,10 @@ namespace SkeletalMeshTools
 				if (DestChunk == NULL)
 				{
 					DestChunk = new FSkinnedMeshChunk();
-					Chunks.Add(DestChunk);
+					int32 ChunkSectionIndex = Chunks.Add(DestChunk);
 					DestChunk->MaterialIndex = SrcChunk->MaterialIndex;
 					DestChunk->OriginalSectionIndex = SrcChunk->OriginalSectionIndex;
+					DestChunk->ParentChunkSectionIndex = ChunkSectionIndex == FirstChunkIndex ? INDEX_NONE : FirstChunkIndex;
 					TArray<int32>& IndexMap = *new TArray<int32>();
 					IndexMaps.Add(&IndexMap);
 					IndexMap.AddUninitialized(SrcChunk->Vertices.Num());

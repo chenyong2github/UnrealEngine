@@ -12,7 +12,6 @@
 #include "Stats/Stats.h"
 #include "RHI.h"
 #include "RenderResource.h"
-#include "Templates/ScopedPointer.h"
 #include "UniformBuffer.h"
 #include "GlobalDistanceFieldParameters.h"
 #include "SceneView.h"
@@ -150,17 +149,6 @@ public:
 
 	/** A list of per-object shadows that were occluded. We need to track these so we can issue occlusion queries for them. */
 	TArray<FProjectedShadowInfo*,SceneRenderingAllocator> OccludedPerObjectShadows;
-};
-
-enum class EVelocityPass : uint32
-{
-	// Renders a separate velocity pass for opaques.
-	Opaque = 0,
-
-	// Renders a separate velocity / depth pass for translucency AFTER the translucent pass.
-	Translucency,
-
-	Count
 };
 
 // Stores the primitive count of each translucency pass (redundant, could be computed after sorting but this way we touch less memory)
@@ -2011,3 +1999,12 @@ extern FFastVramConfig GFastVRamConfig;
 
 extern bool UseCachedMeshDrawCommands();
 extern bool IsDynamicInstancingEnabled(ERHIFeatureLevel::Type FeatureLevel);
+
+enum class EGPUSkinCacheTransition
+{
+	FrameSetup,
+	Renderer,
+};
+
+/* Run GPU skin cache resource transitions */
+void RunGPUSkinCacheTransition(class FRHICommandList& RHICmdList, class FScene* Scene, EGPUSkinCacheTransition Type);

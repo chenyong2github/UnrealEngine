@@ -166,7 +166,7 @@ int32 SSplitter::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeome
 	// Draw the splitter above any children
 	MaxLayerId += 1;
 
-	for( int32 ChildIndex = 0; ChildIndex < ArrangedChildren.Num(); ++ChildIndex )
+	for( int32 ChildIndex = 0; ChildIndex < ArrangedChildren.Num() - 1; ++ChildIndex )
 	{
 		const FGeometry& GeometryAfterSplitter = ArrangedChildren[ FMath::Clamp(ChildIndex + 1, 0, ArrangedChildren.Num()-1) ].Geometry;
 

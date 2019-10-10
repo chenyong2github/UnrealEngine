@@ -81,6 +81,8 @@ USkyAtmosphereComponent::~USkyAtmosphereComponent()
 
 static bool SkyAtmosphereComponentStaticLightingBuilt(const USkyAtmosphereComponent* Component)
 {
+	// Temporary fix for FORT-213944
+#if 0
 	UMapBuildDataRegistry* Registry = Component->GetOwner() && Component->GetOwner()->GetLevel() ? Component->GetOwner()->GetLevel()->GetOrCreateMapBuildData() : nullptr;
 	const FSkyAtmosphereMapBuildData* SkyAtmosphereFogBuildData = Registry ? Registry->GetSkyAtmosphereBuildData(Component->GetStaticLightingBuiltGuid()) : nullptr;
 	UWorld* World = Component->GetWorld();
@@ -93,6 +95,7 @@ static bool SkyAtmosphereComponentStaticLightingBuilt(const USkyAtmosphereCompon
 		// Built data is available or static lighting does not depend any sun/sky components.
 		return (SkyAtmosphereFogBuildData != nullptr && StaticLightingDependsOnAtmosphere) || !StaticLightingDependsOnAtmosphere;
 	}
+#endif
 	return true;	// The component has not been spawned in any world yet so let's mark it as built for now.
 }
 

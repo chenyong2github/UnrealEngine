@@ -26,3 +26,8 @@ public:
 	virtual FString GetArchiveName() const { return *FString::Printf( TEXT("FBufferArchive %s"), *ArchiveName.ToString()); }
 };
 
+template <>
+struct TIsContiguousContainer<FBufferArchive>
+{
+	static constexpr bool Value = TIsContiguousContainer<TArray<uint8>>::Value;
+};

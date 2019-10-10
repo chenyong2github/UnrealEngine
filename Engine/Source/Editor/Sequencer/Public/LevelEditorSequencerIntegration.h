@@ -15,7 +15,7 @@ class FExtender;
 class FMenuBuilder;
 class FSequencer;
 class FUICommandList;
-class ILevelViewport;
+class IAssetViewport;
 class ISequencer;
 class ULevel;
 struct FPropertyAndParent;

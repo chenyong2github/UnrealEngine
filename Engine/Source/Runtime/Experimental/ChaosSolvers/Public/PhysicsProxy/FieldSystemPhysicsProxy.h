@@ -2,8 +2,6 @@
 
 #pragma once
 
-#if INCLUDE_CHAOS
-
 #include "Chaos/Framework/PhysicsProxy.h"
 #include "Field/FieldSystem.h"
 #include "Chaos/PBDPositionConstraints.h"
@@ -43,9 +41,11 @@ public:
 	void SyncBeforeDestroy(){}
 	void OnRemoveFromScene();
 	void PushToPhysicsState(const Chaos::FParticleData*) {};
+	void ClearAccumulatedData() {}
 	void BufferPhysicsResults(){}
 	void FlipBuffer(){}
 	void PullFromPhysicsState(){}
+	bool IsDirty() { return false; }
 	EPhysicsProxyType ConcreteType() {return EPhysicsProxyType::FieldType;}
 
 	/*
@@ -63,5 +63,3 @@ private:
 	FCriticalSection CommandLock;
 	TMap<Chaos::FPhysicsSolver*, TArray<FFieldSystemCommand>*> Commands;
 };
-
-#endif

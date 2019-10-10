@@ -38,22 +38,4 @@ struct FMovieSceneSequenceEditor_LevelSequence : FMovieSceneSequenceEditor
 		LevelSequence->SetDirectorBlueprint(Blueprint);
 		return Blueprint;
 	}
-
-	virtual void SetupDefaultPinForEndpoint(UMovieSceneEventTrack* EventTrack, UK2Node_FunctionEntry* Endpoint) const override
-	{
-		// By default for master tracks we create a pin (that receives the level blueprint for master event tracks, or the event receivers)
-		UClass* PinClass = nullptr;
-
-		// When event receivers are not set, we set the pin type to the type of the object binding
-		if (EventTrack->EventReceivers.Num() == 0)
-		{
-			PinClass = FindTrackObjectBindingClass(EventTrack);
-		}
-
-		FEdGraphPinType PinType;
-		PinType.PinCategory = UEdGraphSchema_K2::PC_Object;
-		PinType.PinSubCategoryObject = PinClass ? PinClass : UObject::StaticClass();
-
-		Endpoint->CreateUserDefinedPin(TargetPinName, PinType, EGPD_Output, true);
-	}
 };

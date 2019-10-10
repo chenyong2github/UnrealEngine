@@ -200,7 +200,7 @@ void MainPS(
 #endif
 	OutColor = float4(GetMaterialEmissive(PixelMaterialInputs), Alpha );
 
-#if !MATERIALBLENDING_MODULATE && USE_PREEXPOSURE && !POST_PROCESS_MATERIAL_AFTER_TAA_UPSAMPLE
+#if !MATERIALBLENDING_MODULATE && USE_PREEXPOSURE && POST_PROCESS_MATERIAL_BEFORE_TONEMAP
 	OutColor.xyz *= View.PreExposure;
 #endif
 } 

@@ -47,7 +47,6 @@ class MEDIAIOCORE_API FMediaIOCorePlayerBase
 	, protected IMediaControls
 	, protected IMediaTracks
 	, protected IMediaView
-	, public FSelfRegisteringExec
 {
 public:
 
@@ -118,33 +117,33 @@ protected:
 	virtual bool SelectTrack(EMediaTrackType TrackType, int32 TrackIndex) override;
 	virtual bool SetTrackFormat(EMediaTrackType TrackType, int32 TrackIndex, int32 FormatIndex) override;
 
-
 protected:
-
-	//~ FSelfRegisteringExec
-	
-	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
-
-protected:
+	/** Is the IO hardware/device ready to be used. */
 	virtual bool IsHardwareReady() const = 0;
 
-	/** Return true if the options combination are valid */
+	/** Return true if the options combination are valid. */
 	virtual bool ReadMediaOptions(const IMediaOptions* Options);
+
+	/** Get the application time with a delta to represent the actual system time. Use instead of FApp::GetCurrentTime. */
+	static double GetApplicationSeconds();
+
+	/** Get the platform time with a delta to represent the actual system time. Use instead of FApp::Seconds. */
+	static double GetPlatformSeconds();
+
+	/** Log the timecode when a frame is received. */
+	static bool IsTimecodeLogEnabled();
 
 protected:
 	/** Critical section for synchronizing access to receiver and sinks. */
 	FCriticalSection CriticalSection;
 
-	/** Enable timecode logging */
-	bool bIsTimecodeLogEnable;
-
-	/** Url used to open the media player */
+	/** Url used to open the media player. */
 	FString OpenUrl;
 
-	/** format of the video */
+	/** format of the video. */
 	FMediaVideoTrackFormat VideoTrackFormat;
 	
-	/** format of the audio */
+	/** format of the audio. */
 	FMediaAudioTrackFormat AudioTrackFormat;
 
 	/** Current state of the media player. */
@@ -164,6 +163,15 @@ protected:
 
 	/** Whether to use the Synchronization Time module as time source. */
 	bool bUseTimeSynchronization;
+
+	/** Warn when the video frame rate is not the same as the engine's frame rate. */
+	bool bWarnedIncompatibleFrameRate;
+
+	/** When using Time Synchronization (TC synchronization), how many frame back of a delay would you like. */
+	int32 FrameDelay;
+
+	/** When not using Time Synchronization (use computer time), how many sec back of a delay would you like. */
+	double TimeDelay;
 
 	/** Previous frame Timespan */
 	FTimespan PreviousFrameTimespan;

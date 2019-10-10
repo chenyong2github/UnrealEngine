@@ -6,7 +6,7 @@
 
 #include "CoreTypes.h"
 #include "Engine/StaticMesh.h"
-#include "MeshDescription.h"
+#include "StaticMeshAttributes.h"
 #include "Templates/Casts.h"
 
 FDatasmithMeshBuildSettingsTemplate::FDatasmithMeshBuildSettingsTemplate()
@@ -262,11 +262,12 @@ UObject* UDatasmithStaticMeshTemplate::UpdateObject( UObject* Destination, bool 
 	const int32 NumLODs = StaticMesh->GetNumLODs();
 	for ( int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex )
 	{
-		FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription( LODIndex );
+		const FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription( LODIndex );
 		if ( MeshDescription && MeshDescription->PolygonGroups().Num() == StaticMesh->StaticMaterials.Num() )
 		{
+			FStaticMeshConstAttributes Attributes(*MeshDescription);
 			TArray< FStaticMaterial > TempStaticMaterials;
-			TPolygonGroupAttributesConstRef< FName > PolygonGroupImportedMaterialSlotNames = MeshDescription->PolygonGroupAttributes().GetAttributesRef< FName >( MeshAttribute::PolygonGroup::ImportedMaterialSlotName );
+			TPolygonGroupAttributesConstRef< FName > PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
 			int32 SectionIndex = 0;
 			for ( const FPolygonGroupID PolygonGroupID : MeshDescription->PolygonGroups().GetElementIDs() )
 			{

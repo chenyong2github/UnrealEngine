@@ -60,4 +60,13 @@ struct FMergeToolUtils
 	 * @return The requested version of the specified asset object, could be null if the supplied revision failed to load.
 	 */
 	static UObject const* LoadRevision(const UObject* AssetObject, const FRevisionInfo& DesiredRevision);
+
+	/**
+	 * Attempts to load the specified asset from the provided package.
+	 * 
+	 * @param  PackageFileName  The file name of the package where to look for the asset.
+	 * @param  AssetName        The name of the asset you want loaded from the package.
+	 * @return The asset object you wanted loaded, could be null if the asset wasn't found in the package.
+	 */
+	static UObject const* LoadAssetFromPackage(const FString& PackageFileName, const FString& AssetName);
 };

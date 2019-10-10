@@ -27,6 +27,15 @@ namespace UnrealBuildTool.Rules
 				"Slate",
 				"TimeManagement"
 			});
+
+			if (Target.bBuildEditor)
+			{
+				PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"MessageLog",
+				});
+			}
 		}
 	}
 }

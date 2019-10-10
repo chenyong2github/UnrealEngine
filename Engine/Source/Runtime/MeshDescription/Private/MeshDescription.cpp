@@ -2,10 +2,11 @@
 
 #include "MeshDescription.h"
 #include "MeshAttributes.h"
+#include "Algo/Copy.h"
+#include "Misc/SecureHash.h"
 #include "Serialization/BulkDataReader.h"
 #include "Serialization/BulkDataWriter.h"
-#include "Algo/Copy.h"
-
+#include "UObject/EnterpriseObjectVersion.h"
 
 void UDEPRECATED_MeshDescription::Serialize( FArchive& Ar )
 {
@@ -22,6 +23,13 @@ void UDEPRECATED_MeshDescription::Serialize( FArchive& Ar )
 
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
+FMeshDescription::FMeshDescription()
+{
+	// Minimal requirement is that vertices have a Position attribute
+	VertexAttributesSet.RegisterAttribute(MeshAttribute::Vertex::Position, 1, FVector::ZeroVector, EMeshAttributeFlags::Lerpable);
+}
+
 
 void FMeshDescription::Serialize(FArchive& Ar)
 {
@@ -1229,6 +1237,39 @@ void FMeshDescription::ComputePolygonTriangulation(const FPolygonID PolygonID, T
 }
 
 
+FBoxSphereBounds FMeshDescription::GetBounds() const
+{
+	FBoxSphereBounds BoundingBoxAndSphere;
+
+	FBox BoundingBox;
+	BoundingBox.Init();
+
+	TVertexAttributesConstRef<FVector> VertexPositions = VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+
+	for (const FVertexID VertexID : Vertices().GetElementIDs())
+	{
+		if (!IsVertexOrphaned(VertexID))
+		{
+			BoundingBox += VertexPositions[VertexID];
+		}
+	}
+
+	BoundingBox.GetCenterAndExtents(BoundingBoxAndSphere.Origin, BoundingBoxAndSphere.BoxExtent);
+
+	// Calculate the bounding sphere, using the center of the bounding box as the origin.
+	BoundingBoxAndSphere.SphereRadius = 0.0f;
+
+	for (const FVertexID VertexID : Vertices().GetElementIDs())
+	{
+		if (!IsVertexOrphaned(VertexID))
+		{
+			BoundingBoxAndSphere.SphereRadius = FMath::Max((VertexPositions[VertexID] - BoundingBoxAndSphere.Origin).Size(), BoundingBoxAndSphere.SphereRadius);
+		}
+	}
+
+	return BoundingBoxAndSphere;
+}
+
 void FMeshDescription::TriangulateMesh()
 {
 	// Perform triangulation directly into mesh polygons
@@ -1237,6 +1278,47 @@ void FMeshDescription::TriangulateMesh()
 		ComputePolygonTriangulation( PolygonID );
 	}
 }
+
+
+namespace MeshAttribute_
+{
+	namespace Vertex
+	{
+		const FName CornerSharpness("CornerSharpness");
+	}
+
+	namespace VertexInstance
+	{
+		const FName TextureCoordinate("TextureCoordinate");
+		const FName Normal("Normal");
+		const FName Tangent("Tangent");
+		const FName BinormalSign("BinormalSign");
+		const FName Color("Color");
+	}
+
+	namespace Edge
+	{
+		const FName IsHard("IsHard");
+		const FName IsUVSeam("IsUVSeam");
+		const FName CreaseSharpness("CreaseSharpness");
+	}
+
+	namespace Polygon
+	{
+		const FName Normal("Normal");
+		const FName Tangent("Tangent");
+		const FName Binormal("Binormal");
+		const FName Center("Center");
+	}
+
+	namespace PolygonGroup
+	{
+		const FName ImportedMaterialSlotName("ImportedMaterialSlotName");
+		const FName EnableCollision("EnableCollision");
+		const FName CastShadow("CastShadow");
+	}
+}
+
 
 
 bool FMeshDescription::ComputePolygonTangentsAndNormals(const FPolygonID PolygonID
@@ -1308,11 +1390,11 @@ bool FMeshDescription::ComputePolygonTangentsAndNormals(const FPolygonID Polygon
 void FMeshDescription::ComputePolygonTangentsAndNormals(const TArray<FPolygonID>& PolygonIDs, float ComparisonThreshold)
 {
 	const TVertexAttributesRef<FVector> VertexPositions = VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
-	const TVertexInstanceAttributesRef<FVector2D> VertexUVs = VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
-	TPolygonAttributesRef<FVector> PolygonNormals = PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Normal);
-	TPolygonAttributesRef<FVector> PolygonTangents = PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Tangent);
-	TPolygonAttributesRef<FVector> PolygonBinormals = PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Binormal);
-	TPolygonAttributesRef<FVector> PolygonCenters = PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Center);
+	const TVertexInstanceAttributesRef<FVector2D> VertexUVs = VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute_::VertexInstance::TextureCoordinate);
+	TPolygonAttributesRef<FVector> PolygonNormals = PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute_::Polygon::Normal);
+	TPolygonAttributesRef<FVector> PolygonTangents = PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute_::Polygon::Tangent);
+	TPolygonAttributesRef<FVector> PolygonBinormals = PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute_::Polygon::Binormal);
+	TPolygonAttributesRef<FVector> PolygonCenters = PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute_::Polygon::Center);
 
 	TArray<FPolygonID> DegeneratePolygonIDs;
 	for (const FPolygonID PolygonID : PolygonIDs)
@@ -1374,7 +1456,7 @@ void FMeshDescription::GetConnectedSoftEdges(const FVertexID VertexID, TArray<FE
 {
 	OutConnectedSoftEdges.Reset();
 
-	TEdgeAttributesConstRef<bool> EdgeHardnesses = EdgeAttributes().GetAttributesRef<bool>(MeshAttribute::Edge::IsHard);
+	TEdgeAttributesConstRef<bool> EdgeHardnesses = EdgeAttributes().GetAttributesRef<bool>(MeshAttribute_::Edge::IsHard);
 	for (const FEdgeID ConnectedEdgeID : VertexArray[VertexID].ConnectedEdgeIDs)
 	{
 		if (!EdgeHardnesses[ConnectedEdgeID])
@@ -1495,6 +1577,19 @@ float FMeshDescription::GetPolygonCornerAngleForVertex(const FPolygonID PolygonI
 	return 0.0f;
 }
 
+FBox FMeshDescription::ComputeBoundingBox() const
+{
+	FBox BoundingBox(ForceInit);
+
+	TVertexAttributesConstRef<FVector> VertexPositions = VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+
+	for (const FVertexID VertexID : Vertices().GetElementIDs())
+	{
+		BoundingBox += VertexPositions[VertexID];
+	}
+
+	return BoundingBox;
+}
 
 void FMeshDescription::ComputeTangentsAndNormals(const FVertexInstanceID VertexInstanceID
 	, EComputeNTBsOptions ComputeNTBsOptions
@@ -1608,13 +1703,13 @@ void FMeshDescription::ComputeTangentsAndNormals(const FVertexInstanceID VertexI
 
 void FMeshDescription::ComputeTangentsAndNormals(const TArray<FVertexInstanceID>& VertexInstanceIDs, EComputeNTBsOptions ComputeNTBsOptions)
 {
-	const TPolygonAttributesRef<FVector> PolygonNormals = PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Normal);
-	const TPolygonAttributesRef<FVector> PolygonTangents = PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Tangent);
-	const TPolygonAttributesRef<FVector> PolygonBinormals = PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Binormal);
+	const TPolygonAttributesRef<FVector> PolygonNormals = PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute_::Polygon::Normal);
+	const TPolygonAttributesRef<FVector> PolygonTangents = PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute_::Polygon::Tangent);
+	const TPolygonAttributesRef<FVector> PolygonBinormals = PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute_::Polygon::Binormal);
 
-	TVertexInstanceAttributesRef<FVector> VertexNormals = VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
-	TVertexInstanceAttributesRef<FVector> VertexTangents = VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
-	TVertexInstanceAttributesRef<float> VertexBinormalSigns = VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign);
+	TVertexInstanceAttributesRef<FVector> VertexNormals = VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute_::VertexInstance::Normal);
+	TVertexInstanceAttributesRef<FVector> VertexTangents = VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute_::VertexInstance::Tangent);
+	TVertexInstanceAttributesRef<float> VertexBinormalSigns = VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute_::VertexInstance::BinormalSign);
 
 	for (const FVertexInstanceID VertexInstanceID : VertexInstanceIDs)
 	{
@@ -1625,13 +1720,13 @@ void FMeshDescription::ComputeTangentsAndNormals(const TArray<FVertexInstanceID>
 
 void FMeshDescription::ComputeTangentsAndNormals(EComputeNTBsOptions ComputeNTBsOptions)
 {
-	const TPolygonAttributesRef<FVector> PolygonNormals = PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Normal);
-	const TPolygonAttributesRef<FVector> PolygonTangents = PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Tangent);
-	const TPolygonAttributesRef<FVector> PolygonBinormals = PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Binormal);
+	const TPolygonAttributesRef<FVector> PolygonNormals = PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute_::Polygon::Normal);
+	const TPolygonAttributesRef<FVector> PolygonTangents = PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute_::Polygon::Tangent);
+	const TPolygonAttributesRef<FVector> PolygonBinormals = PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute_::Polygon::Binormal);
 
-	TVertexInstanceAttributesRef<FVector> VertexNormals = VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
-	TVertexInstanceAttributesRef<FVector> VertexTangents = VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
-	TVertexInstanceAttributesRef<float> VertexBinormalSigns = VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign);
+	TVertexInstanceAttributesRef<FVector> VertexNormals = VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute_::VertexInstance::Normal);
+	TVertexInstanceAttributesRef<FVector> VertexTangents = VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute_::VertexInstance::Tangent);
+	TVertexInstanceAttributesRef<float> VertexBinormalSigns = VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute_::VertexInstance::BinormalSign);
 
 	for (const FVertexInstanceID VertexInstanceID : VertexInstances().GetElementIDs())
 	{
@@ -1642,8 +1737,8 @@ void FMeshDescription::ComputeTangentsAndNormals(EComputeNTBsOptions ComputeNTBs
 
 void FMeshDescription::DetermineEdgeHardnessesFromVertexInstanceNormals( const float Tolerance )
 {
-	const TVertexInstanceAttributesRef<FVector> VertexNormals = VertexInstanceAttributes().GetAttributesRef<FVector>( MeshAttribute::VertexInstance::Normal );
-	TEdgeAttributesRef<bool> EdgeHardnesses = EdgeAttributes().GetAttributesRef<bool>( MeshAttribute::Edge::IsHard );
+	const TVertexInstanceAttributesRef<FVector> VertexNormals = VertexInstanceAttributes().GetAttributesRef<FVector>( MeshAttribute_::VertexInstance::Normal );
+	TEdgeAttributesRef<bool> EdgeHardnesses = EdgeAttributes().GetAttributesRef<bool>( MeshAttribute_::Edge::IsHard );
 
 	// Holds unique vertex instance IDs for a given edge vertex
 	// @todo: use TMemStackAllocator or similar to avoid expensive allocations
@@ -1706,8 +1801,8 @@ void FMeshDescription::DetermineEdgeHardnessesFromVertexInstanceNormals( const f
 
 void FMeshDescription::DetermineUVSeamsFromUVs( const int32 UVIndex, const float Tolerance )
 {
-	const TVertexInstanceAttributesRef<FVector2D> VertexUVs = VertexInstanceAttributes().GetAttributesRef<FVector2D>( MeshAttribute::VertexInstance::TextureCoordinate );
-	TEdgeAttributesRef<bool> EdgeUVSeams = EdgeAttributes().GetAttributesRef<bool>( MeshAttribute::Edge::IsUVSeam );
+	const TVertexInstanceAttributesRef<FVector2D> VertexUVs = VertexInstanceAttributes().GetAttributesRef<FVector2D>( MeshAttribute_::VertexInstance::TextureCoordinate );
+	TEdgeAttributesRef<bool> EdgeUVSeams = EdgeAttributes().GetAttributesRef<bool>( MeshAttribute_::Edge::IsUVSeam );
 
 	// Holds unique vertex instance IDs for a given edge vertex
 	// @todo: use TMemStackAllocator or similar to avoid expensive allocations
@@ -1769,7 +1864,7 @@ void FMeshDescription::DetermineUVSeamsFromUVs( const int32 UVIndex, const float
 
 void FMeshDescription::GetPolygonsInSameChartAsPolygon( const FPolygonID PolygonID, TArray<FPolygonID>& OutPolygonIDs )
 {
-	const TEdgeAttributesRef<bool> EdgeUVSeams = EdgeAttributes().GetAttributesRef<bool>( MeshAttribute::Edge::IsUVSeam );
+	const TEdgeAttributesRef<bool> EdgeUVSeams = EdgeAttributes().GetAttributesRef<bool>( MeshAttribute_::Edge::IsUVSeam );
 	const int32 NumPolygons = Polygons().Num();
 
 	// This holds the results - all polygon IDs which are in the same UV chart
@@ -1854,8 +1949,15 @@ void FMeshDescription::ReversePolygonFacing(const FPolygonID PolygonID)
 		Polygon.PerimeterContour.VertexInstanceIDs.Swap(i, Polygon.PerimeterContour.VertexInstanceIDs.Num() - i - 1);
 	}
 
-	// Triangulate the polygon since we reverse the indices
-	ComputePolygonTriangulation(PolygonID);
+	// Update the polygon's triangle vertex instance ids with the reversed ids
+	for (FTriangleID TriangleID : GetPolygonTriangleIDs(PolygonID))
+	{
+		FMeshTriangle& Triangle = TriangleArray[TriangleID];
+		FVertexInstanceID VertexInstanceID0 = Triangle.GetVertexInstanceID(0);
+		FVertexInstanceID VertexInstanceID2 = Triangle.GetVertexInstanceID(2);
+		Triangle.SetVertexInstanceID(0, VertexInstanceID2);
+		Triangle.SetVertexInstanceID(2, VertexInstanceID0);
+	}
 }
 
 
@@ -1871,7 +1973,7 @@ void FMeshDescription::ReverseAllPolygonFacing()
 
 void FMeshDescription::RemapPolygonGroups(const TMap<FPolygonGroupID, FPolygonGroupID>& Remap)
 {
-	TPolygonGroupAttributesRef<FName> PolygonGroupNames = PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::ImportedMaterialSlotName);
+	TPolygonGroupAttributesRef<FName> PolygonGroupNames = PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute_::PolygonGroup::ImportedMaterialSlotName);
 
 	struct FOldPolygonGroupData
 	{
@@ -1920,6 +2022,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 void FMeshDescriptionBulkData::Serialize( FArchive& Ar, UObject* Owner )
 {
 	Ar.UsingCustomVersion( FEditorObjectVersion::GUID );
+	Ar.UsingCustomVersion( FEnterpriseObjectVersion::GUID );
 
 	if( Ar.IsTransacting() )
 	{
@@ -1958,11 +2061,23 @@ void FMeshDescriptionBulkData::Serialize( FArchive& Ar, UObject* Owner )
 	{
 		Ar << Guid;
 	}
+	
+	// MeshDescriptionBulkData contains a bGuidIsHash so we can benefit from DDC caching.
+	if( Ar.IsLoading() && Ar.CustomVer( FEnterpriseObjectVersion::GUID ) < FEnterpriseObjectVersion::MeshDescriptionBulkDataGuidIsHash )
+	{
+		bGuidIsHash = false;
+	}
+	else
+	{
+		Ar << bGuidIsHash;
+	}
 }
 
 
 void FMeshDescriptionBulkData::SaveMeshDescription( FMeshDescription& MeshDescription )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshDescriptionBulkData::SaveMeshDescription);
+
 	BulkData.RemoveBulkData();
 
 	if( !MeshDescription.IsEmpty() )
@@ -1975,7 +2090,14 @@ void FMeshDescriptionBulkData::SaveMeshDescription( FMeshDescription& MeshDescri
 		CustomVersions = Ar.GetCustomVersions();
 	}
 
-	FPlatformMisc::CreateGuid( Guid );
+	if (bGuidIsHash)
+	{
+		UseHashAsGuid();
+	}
+	else
+	{
+		FPlatformMisc::CreateGuid( Guid );
+	}
 
 	// Mark the MeshDescriptionBulkData as having been updated.
 	// This means we know that its version is up-to-date.
@@ -2016,7 +2138,28 @@ void FMeshDescriptionBulkData::Empty()
 
 FString FMeshDescriptionBulkData::GetIdString() const
 {
-	return Guid.ToString();
+	FString GuidString = Guid.ToString();
+	if (bGuidIsHash)
+	{
+		GuidString += TEXT("X");
+	}
+	return GuidString;
+}
+
+
+void FMeshDescriptionBulkData::UseHashAsGuid()
+{
+	uint32 Hash[5] = {};
+
+	if (BulkData.GetBulkDataSize() > 0)
+	{
+		bGuidIsHash = true;
+		void* Buffer = BulkData.Lock(LOCK_READ_ONLY);
+		FSHA1::HashBuffer(Buffer, BulkData.GetBulkDataSize(), (uint8*)Hash);
+		BulkData.Unlock();
+	}
+
+	Guid = FGuid(Hash[0] ^ Hash[4], Hash[1], Hash[2], Hash[3]);
 }
 
 #endif // #if WITH_EDITORONLY_DATA

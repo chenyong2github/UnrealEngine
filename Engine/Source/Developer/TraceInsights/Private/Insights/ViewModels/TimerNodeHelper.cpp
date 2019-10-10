@@ -9,7 +9,7 @@
 // TimerNode Type Helper
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FText TimerNodeTypeHelper::ToName(const ETimerNodeType NodeType)
+FText TimerNodeTypeHelper::ToText(const ETimerNodeType NodeType)
 {
 	static_assert(static_cast<int>(ETimerNodeType::InvalidOrMax) == 4, "Not all cases are handled in switch below!?");
 	switch (NodeType)
@@ -78,7 +78,7 @@ const FSlateBrush* TimerNodeTypeHelper::GetIconForTimerNodeType(const ETimerNode
 // TimerNode Grouping Helper
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FText TimerNodeGroupingHelper::ToName(const ETimerGroupingMode GroupingMode)
+FText TimerNodeGroupingHelper::ToText(const ETimerGroupingMode GroupingMode)
 {
 	static_assert(static_cast<int>(ETimerGroupingMode::InvalidOrMax) == 7, "Not all cases are handled in switch below!?");
 	switch (GroupingMode)

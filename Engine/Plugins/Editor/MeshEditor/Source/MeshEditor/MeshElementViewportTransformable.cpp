@@ -3,7 +3,7 @@
 #include "MeshElementViewportTransformable.h"
 #include "MeshEditorMode.h"
 #include "EditableMesh.h"
-#include "MeshAttributes.h"
+#include "StaticMeshAttributes.h"
 
 
 const FTransform FMeshElementViewportTransformable::GetTransform() const

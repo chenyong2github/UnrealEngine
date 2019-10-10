@@ -158,6 +158,10 @@
       <Name>Localization.Automation</Name>
       <Private>False</Private>
     </ProjectReference>
+    <ProjectReference Include="..\Lumin\Lumin.Automation.csproj">
+      <Project>{17779110-5cab-43a0-9dfb-4df67df29b42}</Project>
+      <Name>Lumin.Automation</Name>
+    </ProjectReference>
     <ProjectReference Include="..\XLocLocalization\XLocLocalization.Automation.csproj">
       <Project>{7e2d6784-c9b7-40c6-a89b-0a8afddce60d}</Project>
       <Name>XLocLocalization.Automation</Name>
@@ -223,24 +227,20 @@
     </When>
   </Choose>
   <Choose>
+    <When Condition="Exists('Platform\Lumin\Gauntlet.TargetDeviceLumin.cs')">
+      <ItemGroup>
+        <Compile Include="Platform\Lumin\Gauntlet.TargetDeviceLumin.cs" />
+        <Compile Include="Platform\Lumin\Gauntlet.LuminBuildSource.cs" />
+      </ItemGroup>
+    </When>
+  </Choose>
+  <Choose>
     <When Condition="Exists('Platform\Mac\Gauntlet.TargetDeviceMac.cs')">
       <ItemGroup>
         <Compile Include="Platform\Mac\Gauntlet.TargetDeviceMac.cs" />
         <Compile Include="Platform\Mac\Gauntlet.MacBuildSource.cs" />
         <Compile Include="Platform\Mac\Gauntlet.SelfTest.TestUnrealInstallAndRunMac.cs" />
         <Compile Include="Platform\Mac\Gauntlet.SelfTest.TestTargetDeviceMac.cs" />
-      </ItemGroup>
-    </When>
-  </Choose>
-  <Choose>
-    <When Condition="Exists('Platform\PS4\Gauntlet.TargetDevicePS4.cs')">
-      <ItemGroup>
-        <Compile Include="Platform\PS4\Gauntlet.TargetDevicePS4.cs" />
-        <Compile Include="Platform\PS4\Gauntlet.PS4BuildSources.cs" />
-        <Compile Include="Platform\PS4\Gauntlet.SelfTest.TestUnrealInstallAndRunPS4.cs" />
-        <Compile Include="Platform\PS4\Gauntlet.SelfTest.TestTargetDevicePS4.cs" />
-        <Compile Include="Platform\PS4\Gauntlet.PS4PGO.cs" />
-        <Compile Include="Platform\PS4\Gauntlet.PS4Utils.cs" />
       </ItemGroup>
     </When>
   </Choose>
@@ -274,5 +274,16 @@
       </ItemGroup>
     </When>
   </Choose>
+
+  <!-- The following will glob all platform extensions' Gauntlet source
+  files and include them in the build. They will also appear in VisualStudio -->
+  <ItemGroup>
+    <PlatformExtensions Include="../../../../Platforms/*/Source/Programs/AutomationTool/Gauntlet/**/*.cs" />
+    <Compile Include="@(PlatformExtensions)">
+      <Link>Platform/$([System.Text.RegularExpressions.Regex]::Split(`%(Identity)`, `[\\/]`)[5])/_</Link>
+    </Compile>
+  </ItemGroup>
+  
+  
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

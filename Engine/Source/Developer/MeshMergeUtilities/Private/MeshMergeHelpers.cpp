@@ -6,9 +6,7 @@
 #include "Engine/MeshMerging.h"
 
 #include "MaterialOptions.h"
-#include "MeshDescription.h"
-#include "MeshAttributes.h"
-#include "MeshAttributeArray.h"
+#include "StaticMeshAttributes.h"
 #include "MeshDescriptionOperations.h"
 
 #include "Misc/PackageName.h"
@@ -169,7 +167,7 @@ void FMeshMergeHelpers::ExtractSections(const UStaticMesh* StaticMesh, int32 LOD
 void FMeshMergeHelpers::ExpandInstances(const UInstancedStaticMeshComponent* InInstancedStaticMeshComponent, FMeshDescription& InOutRawMesh, TArray<FSectionInfo>& InOutSections)
 {
 	FMeshDescription CombinedRawMesh;
-	UStaticMesh::RegisterMeshAttributes(CombinedRawMesh);
+	FStaticMeshAttributes(CombinedRawMesh).Register();
 
 	FTransform ComponentTransform = InInstancedStaticMeshComponent->GetComponentTransform();
 	FTransform ComponentTransformInv = ComponentTransform.Inverse();
@@ -864,7 +862,7 @@ void FMeshMergeHelpers::RetrieveCullingLandscapeAndVolumes(UWorld* InWorld, cons
 	{
 		// Export the landscape to raw mesh format
 		FMeshDescription* MeshDescription = new FMeshDescription();
-		UStaticMesh::RegisterMeshAttributes(*MeshDescription);
+		FStaticMeshAttributes(*MeshDescription).Register();
 		FBoxSphereBounds LandscapeBounds = EstimatedMeshProxyBounds;
 		Landscape->ExportToRawMesh(LandscapeExportLOD, *MeshDescription, LandscapeBounds);
 		if (MeshDescription->Vertices().Num())
@@ -878,14 +876,15 @@ void FMeshMergeHelpers::RetrieveCullingLandscapeAndVolumes(UWorld* InWorld, cons
 	{
 		// Export the landscape to raw mesh format
 		FMeshDescription* VolumeMesh = new FMeshDescription();
-		UStaticMesh::RegisterMeshAttributes(*VolumeMesh);
+		FStaticMeshAttributes MeshAttributes(*VolumeMesh);
+		MeshAttributes.Register();
 
 		TArray<FStaticMaterial>	VolumeMaterials;
 		GetBrushMesh(Volume, Volume->Brush, *VolumeMesh, VolumeMaterials);
 
 		// Offset vertices to correct world position;
 		FVector VolumeLocation = Volume->GetActorLocation();
-		TVertexAttributesRef<FVector> VertexPositions = VolumeMesh->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+		TVertexAttributesRef<FVector> VertexPositions = MeshAttributes.GetVertexPositions();
 		for(const FVertexID& VertexID : VolumeMesh->Vertices().GetElementIDs())
 		{
 			VertexPositions[VertexID] += VolumeLocation;
@@ -1289,7 +1288,7 @@ void FMeshMergeHelpers::ExtractImposterToRawMesh(const UStaticMeshComponent* InI
 {
 	// Retrieve imposter LOD mesh	
 	const int32 LODIndex = InImposterComponent->GetStaticMesh()->GetNumLODs() - 1;
-	UStaticMesh::RegisterMeshAttributes(InRawMesh);
+	FStaticMeshAttributes(InRawMesh).Register();
 	FMeshMergeHelpers::RetrieveMesh(InImposterComponent->GetStaticMesh(), LODIndex, InRawMesh);
 }
 
@@ -1329,7 +1328,8 @@ void FMeshMergeHelpers::MergeImpostersToRawMesh(TArray<const UStaticMeshComponen
 
 			// Retrieve mesh data in FMeshDescription form
 			FMeshDescription ImposterMesh;
-			UStaticMesh::RegisterMeshAttributes(ImposterMesh);
+			FStaticMeshAttributes ImposterMeshAttributes(ImposterMesh);
+			ImposterMeshAttributes.Register();
 			FMeshMergeHelpers::RetrieveMesh(Component, LODIndex, ImposterMesh, false);
 
 			// Retrieve the sections, we're expect 1 for imposter meshes
@@ -1344,7 +1344,7 @@ void FMeshMergeHelpers::MergeImpostersToRawMesh(TArray<const UStaticMeshComponen
 
 			// Imposter magic, we're storing the actor world position and X scale spread across two UV channels
 			const int32 UVTwoIndex = UVOneIndex + 1;
-			TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = ImposterMesh.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+			TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = ImposterMeshAttributes.GetVertexInstanceUVs();
 			VertexInstanceUVs.SetNumIndices(UVTwoIndex + 1);
 			const int32 NumIndices = ImposterMesh.VertexInstances().Num();
 			const FTransform& ActorToWorld = Component->GetOwner()->GetActorTransform();
@@ -1363,7 +1363,7 @@ void FMeshMergeHelpers::MergeImpostersToRawMesh(TArray<const UStaticMeshComponen
 				VertexInstanceUVs.Set(VertexInstanceID, UVTwoIndex, UVTwo);
 			}
 
-			TPolygonGroupAttributesRef<FName> SourcePolygonGroupImportedMaterialSlotNames = ImposterMesh.PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::ImportedMaterialSlotName);
+			TPolygonGroupAttributesRef<FName> SourcePolygonGroupImportedMaterialSlotNames = ImposterMeshAttributes.GetPolygonGroupMaterialSlotNames();
 			TPolygonGroupAttributesRef<FName> TargetPolygonGroupImportedMaterialSlotNames = InRawMesh.PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::ImportedMaterialSlotName);
 
 			//Add the missing polygon group ID to the target(InRawMesh)

@@ -3,7 +3,6 @@
 #include "Commandlets/GenerateTextLocalizationResourceCommandlet.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
-#include "Templates/ScopedPointer.h"
 #include "Internationalization/TextLocalizationResource.h"
 #include "TextLocalizationResourceGenerator.h"
 #include "Templates/UniquePtr.h"

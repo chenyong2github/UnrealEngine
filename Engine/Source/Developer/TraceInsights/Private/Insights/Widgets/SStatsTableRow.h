@@ -27,7 +27,7 @@ public:
 		SLATE_EVENT(FSetHoveredStatsTableCell, OnSetHoveredTableCell)
 		SLATE_EVENT(FGetColumnOutlineHAlignmentDelegate, OnGetColumnOutlineHAlignmentDelegate)
 		SLATE_ATTRIBUTE(FText, HighlightText)
-		SLATE_ATTRIBUTE(FName, HighlightedStatsName)
+		SLATE_ATTRIBUTE(FName, HighlightedNodeName)
 		SLATE_ARGUMENT(FStatsNodePtr, StatsNodePtr)
 	SLATE_END_ARGS()
 
@@ -53,21 +53,6 @@ public:
 	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 
 protected:
-	/**
-	 * @return a text which describes this table row, refers to both groups and stats
-	 */
-	FText GetText() const;
-
-	/**
-	 * @return a font style which is used to draw this table row, refers to both groups and stats
-	 */
-	FSlateFontInfo GetFont() const;
-
-	/**
-	 * @return a color and opacity value used to draw this table row, refers to both groups and stats
-	 */
-	FSlateColor GetColorAndOpacity() const;
-
 	FSlateColor GetBackgroundColorAndOpacity() const;
 	FSlateColor GetBackgroundColorAndOpacity(double Time) const;
 	FSlateColor GetOutlineColorAndOpacity() const;
@@ -88,6 +73,6 @@ protected:
 	/** Text to be highlighted on stats name. */
 	TAttribute<FText> HighlightText;
 
-	/** Name of the stats that should be drawn as highlighted. */
-	TAttribute<FName> HighlightedStatsName;
+	/** Name of the stats node that should be drawn as highlighted. */
+	TAttribute<FName> HighlightedNodeName;
 };

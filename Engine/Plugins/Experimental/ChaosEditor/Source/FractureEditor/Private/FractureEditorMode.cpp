@@ -118,10 +118,13 @@ void FFractureEditorMode::Render(const FSceneView* View, FViewport* Viewport, FP
 
 	FFractureEditorModeToolkit* FractureToolkit = (FFractureEditorModeToolkit*)Toolkit.Get();
  
-	UFractureTool* FractureTool = FractureToolkit->GetActiveTool();
+	if (UFractureTool* FractureTool = FractureToolkit->GetActiveTool())
+	{
+		auto Settings = FractureTool->GetSettingsObjects();
+		FractureTool->Render(View, Viewport, PDI);
+	}
 
-	auto Settings = FractureTool->GetSettingsObjects();
-	FractureTool->Render(View, Viewport, PDI);
+
 }
 
 bool FFractureEditorMode::UsesToolkits() const
@@ -198,7 +201,7 @@ bool FFractureEditorMode::FrustumSelect(const FConvexVolume& InFrustum, FEditorV
 
 				TMap<int32, FBox> BoundsToBone;
 			
-				GetActorGlobalBounds(MakeArrayView<UGeometryCollectionComponent*>(GeometryComponents), BoundsToBone);
+				GetActorGlobalBounds(MakeArrayView(GeometryComponents), BoundsToBone);
 
 				TArray<int32> SelectedBonesArray;
 

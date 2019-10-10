@@ -55,24 +55,53 @@ namespace Audio
 		return CurrentSample >= NumSamples;
 	}
 
-	FMixerSourceBuffer::FMixerSourceBuffer()
+	TSharedPtr<FMixerSourceBuffer> FMixerSourceBuffer::Create(FMixerBuffer& InBuffer, USoundWave& InWave, ELoopingMode InLoopingMode, bool bInIsSeeking)
+	{
+		LLM_SCOPE(ELLMTag::AudioMixer);
+
+		// Prevent double-triggering procedural soundwaves
+		if (InWave.bProcedural && InWave.IsGeneratingAudio())
+		{
+			UE_LOG(LogAudioMixer, Warning,
+				TEXT("Procedural USoundWave is reinitializing even though it is actively "
+				"generating audio. Sound must be stopped before playing again."));
+			return nullptr;
+		}
+
+		TSharedPtr<FMixerSourceBuffer> NewSourceBuffer = MakeShareable(new FMixerSourceBuffer(InBuffer, InWave, InLoopingMode, bInIsSeeking));
+		return NewSourceBuffer;
+	}
+
+	FMixerSourceBuffer::FMixerSourceBuffer(FMixerBuffer& InBuffer, USoundWave& InWave, ELoopingMode InLoopingMode, bool bInIsSeeking)
 		: NumBuffersQeueued(0)
 		, CurrentBuffer(0)
-		, SoundWave(nullptr)
+		, SoundWave(&InWave)
 		, AsyncRealtimeAudioTask(nullptr)
 		, DecompressionState(nullptr)
-		, LoopingMode(ELoopingMode::LOOP_Never)
-		, NumChannels(0)
-		, BufferType(Audio::EBufferType::Invalid)
-		, NumPrecacheFrames(0)
+		, LoopingMode(InLoopingMode)
+		, NumChannels(InBuffer.NumChannels)
+		, BufferType(InBuffer.GetType())
+		, NumPrecacheFrames(InWave.NumPrecacheFrames)
 		, bInitialized(false)
 		, bBufferFinished(false)
 		, bPlayedCachedBuffer(false)
-		, bIsSeeking(false)
+		, bIsSeeking(bInIsSeeking)
 		, bLoopCallback(false)
-		, bProcedural(false)
-		, bIsBus(false)
+		, bProcedural(InWave.bProcedural)
+		, bIsBus(InWave.bIsBus)
 	{
+		InWave.AddPlayingSource();
+
+		const uint32 TotalSamples = MONO_PCM_BUFFER_SAMPLES * NumChannels;
+		for (int32 BufferIndex = 0; BufferIndex < Audio::MAX_BUFFERS_QUEUED; ++BufferIndex)
+		{
+			SourceVoiceBuffers.Add(MakeShared<FMixerSourceVoiceBuffer>());
+
+			// Prepare the memory to fit the max number of samples
+			SourceVoiceBuffers[BufferIndex]->AudioData.Reset(TotalSamples);
+			SourceVoiceBuffers[BufferIndex]->bRealTimeBuffer = true;
+			SourceVoiceBuffers[BufferIndex]->LoopCount = 0;
+		}
 	}
 
 	FMixerSourceBuffer::~FMixerSourceBuffer()
@@ -103,52 +132,6 @@ namespace Audio
 		{
 			SoundWave->RemovePlayingSource();
 		}
-	}
-
-	bool FMixerSourceBuffer::PreInit(FMixerBuffer* InBuffer, USoundWave* InWave, ELoopingMode InLoopingMode, bool bInIsSeeking)
-	{
-		LLM_SCOPE(ELLMTag::AudioMixer);
-		if (!InWave)
-		{
-			return false;
-		}
-
-		NumChannels = InBuffer->NumChannels;
-		BufferType = InBuffer->GetType();
-		bIsBus = InWave->bIsBus;
-		bProcedural = InWave->bProcedural;
-		NumPrecacheFrames = InWave->NumPrecacheFrames;
-		
-		// Prevent double-triggering procedural soundwaves
-		if (bProcedural && InWave->IsGeneratingAudio())
-		{
-			UE_LOG(LogAudioMixer, Warning, TEXT("Procedural sound wave is reinitializing even though it is currently actively generating audio. Please stop sound before trying to play it again."));
-			return false;
-		}
-
-		check(SoundWave == nullptr);
-		// Only need to have a handle to a USoundWave for procedural sound waves
-		SoundWave = InWave;
-		check(SoundWave);
-		SoundWave->AddPlayingSource();
-
-		LoopingMode = InLoopingMode;
-		bIsSeeking = bInIsSeeking;
-		bLoopCallback = false;
-
-		BufferQueue.Empty();
-
-		const uint32 TotalSamples = MONO_PCM_BUFFER_SAMPLES * NumChannels;
-		for (int32 BufferIndex = 0; BufferIndex < Audio::MAX_BUFFERS_QUEUED; ++BufferIndex)
-		{
-			SourceVoiceBuffers.Add(TSharedPtr<FMixerSourceVoiceBuffer>(new FMixerSourceVoiceBuffer()));
-
-			// Prepare the memory to fit the max number of samples
-			SourceVoiceBuffers[BufferIndex]->AudioData.Reset(TotalSamples);
-			SourceVoiceBuffers[BufferIndex]->bRealTimeBuffer = true;
-			SourceVoiceBuffers[BufferIndex]->LoopCount = 0;
-		}
-		return true;
 	}
 
 	void FMixerSourceBuffer::SetDecoder(ICompressedAudioInfo* InCompressedAudioInfo)
@@ -487,12 +470,6 @@ namespace Audio
 			delete AsyncRealtimeAudioTask;
 			AsyncRealtimeAudioTask = nullptr;
 		}
-	}
-
-	void FMixerSourceBuffer::ClearSoundWave()
-	{
-		// Call on end generate right now, before destructor
-		OnEndGenerate();
 	}
 
 	void FMixerSourceBuffer::OnBeginGenerate()

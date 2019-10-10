@@ -995,7 +995,7 @@ static bool BlueprintActionFilterImpl::IsIncompatibleImpureNode(FBlueprintAction
 
 	for (UEdGraph* Graph : FilterContext.Graphs)
 	{
-		if (const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>())
+		if (const UEdGraphSchema_K2* K2Schema = Cast<UEdGraphSchema_K2>(Graph->GetSchema()))
 		{
 			bAllowImpureNodes &= K2Schema->DoesGraphSupportImpureFunctions(Graph);
 		}

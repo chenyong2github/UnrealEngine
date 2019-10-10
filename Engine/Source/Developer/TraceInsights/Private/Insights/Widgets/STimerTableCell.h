@@ -9,19 +9,24 @@
 // Insights
 #include "Insights/ViewModels/TimerNode.h"
 
-DECLARE_DELEGATE_TwoParams(FSetHoveredTimerTableCell, const FName /*ColumnId*/, const FTimerNodePtr /*SamplePtr*/);
-DECLARE_DELEGATE_RetVal_OneParam(bool, FIsColumnVisibleDelegate, const FName /*ColumnId*/);
-DECLARE_DELEGATE_RetVal_OneParam(EHorizontalAlignment, FGetColumnOutlineHAlignmentDelegate, const FName /*ColumnId*/);
+namespace Insights
+{
+	class FTable;
+	class FTableColumn;
+}
+
+DECLARE_DELEGATE_ThreeParams(FSetHoveredTimerTableCell, TSharedPtr<Insights::FTable> /*TablePtr*/, TSharedPtr<Insights::FTableColumn> /*ColumnPtr*/, const FTimerNodePtr /*TimerNodePtr*/);
 
 class STimerTableCell : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(STimerTableCell) {}
-		SLATE_EVENT(FSetHoveredTimerTableCell, OnSetHoveredTableCell)
+		SLATE_EVENT(FSetHoveredTimerTableCell, OnSetHoveredCell)
 		SLATE_ATTRIBUTE(FText, HighlightText)
+		SLATE_ARGUMENT(TSharedPtr<Insights::FTable>, TablePtr)
+		SLATE_ARGUMENT(TSharedPtr<Insights::FTableColumn>, ColumnPtr)
 		SLATE_ARGUMENT(FTimerNodePtr, TimerNodePtr)
-		SLATE_ARGUMENT(FName, ColumnId)
-		SLATE_ARGUMENT(bool, IsTimerNameColumn)
+		SLATE_ARGUMENT(bool, IsNameColumn)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, const TSharedRef<class ITableRow>& TableRow);
@@ -40,7 +45,7 @@ protected:
 	virtual void OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
 	{
 		SCompoundWidget::OnMouseEnter(MyGeometry, MouseEvent);
-		SetHoveredTableCellDelegate.ExecuteIfBound(ColumnId, TimerNodePtr);
+		SetHoveredCellDelegate.ExecuteIfBound(TablePtr, ColumnPtr, TimerNodePtr);
 	}
 
 	/**
@@ -51,7 +56,7 @@ protected:
 	virtual void OnMouseLeave(const FPointerEvent& MouseEvent) override
 	{
 		SCompoundWidget::OnMouseLeave(MouseEvent);
-		SetHoveredTableCellDelegate.ExecuteIfBound(NAME_None, nullptr);
+		SetHoveredCellDelegate.ExecuteIfBound(nullptr, nullptr, nullptr);
 	}
 
 	/**
@@ -74,7 +79,7 @@ protected:
 	virtual void OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override
 	{
 		SCompoundWidget::OnDragEnter(MyGeometry, DragDropEvent);
-		SetHoveredTableCellDelegate.ExecuteIfBound(ColumnId, TimerNodePtr);
+		SetHoveredCellDelegate.ExecuteIfBound(TablePtr, ColumnPtr, TimerNodePtr);
 	}
 
 	/**
@@ -85,7 +90,12 @@ protected:
 	virtual void OnDragLeave(const FDragDropEvent& DragDropEvent)  override
 	{
 		SCompoundWidget::OnDragLeave(DragDropEvent);
-		SetHoveredTableCellDelegate.ExecuteIfBound(NAME_None, nullptr);
+		SetHoveredCellDelegate.ExecuteIfBound(nullptr, nullptr, nullptr);
+	}
+
+	EVisibility GetHotPathIconVisibility() const
+	{
+		return TimerNodePtr->IsHotPath() && !IsHovered() ? EVisibility::Visible : EVisibility::Collapsed;
 	}
 
 	EVisibility GetHintIconVisibility() const
@@ -93,48 +103,49 @@ protected:
 		return IsHovered() ? EVisibility::Visible : EVisibility::Hidden;
 	}
 
-	EVisibility GetCulledEventsIconVisibility() const
+	FText GetDisplayName() const
 	{
-		//return TimerNodePtr->HasCulledChildren() ? EVisibility::Visible : EVisibility::Collapsed;
-		return EVisibility::Collapsed;
-	}
-
-	FText GetNameEx() const
-	{
-		return TimerNodePtr->GetNameEx();
+		return TimerNodePtr->GetDisplayName();
 	}
 
 	FSlateColor GetColorAndOpacity() const
 	{
 		const FLinearColor TextColor =
-			TimerNodePtr->IsFiltered() ? FLinearColor(1.0f, 1.0f, 1.0f, 0.5f) :
-			FLinearColor::White;
+			TimerNodePtr->IsFiltered() ?
+				FLinearColor(1.0f, 1.0f, 1.0f, 0.5f) :
+				FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
 		return TextColor;
 	}
 
 	FSlateColor GetStatsColorAndOpacity() const
 	{
 		const FLinearColor TextColor =
-			TimerNodePtr->IsFiltered() ? FLinearColor(1.0f, 1.0f, 1.0f, 0.5f) :
-			TimerNodePtr->GetAggregatedStats().InstanceCount == 0 ? FLinearColor(1.0f, 1.0f, 1.0f, 0.6f) :
-			FLinearColor::White;
+			TimerNodePtr->IsFiltered() ?
+				FLinearColor(1.0f, 1.0f, 1.0f, 0.5f) :
+			TimerNodePtr->GetAggregatedStats().InstanceCount == 0 ?
+				FLinearColor(1.0f, 1.0f, 1.0f, 0.6f) :
+				FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
 		return TextColor;
 	}
 
 	FLinearColor GetShadowColorAndOpacity() const
 	{
 		const FLinearColor ShadowColor =
-			TimerNodePtr->IsFiltered() ? FLinearColor(0.f, 0.f, 0.f, 0.25f) :
-			FLinearColor(0.0f, 0.0f, 0.0f, 0.5f);
+			TimerNodePtr->IsFiltered() ?
+				FLinearColor(0.f, 0.f, 0.f, 0.25f) :
+				FLinearColor(0.0f, 0.0f, 0.0f, 0.5f);
 		return ShadowColor;
 	}
 
 protected:
+	/** A shared pointer to the table view model. */
+	TSharedPtr<Insights::FTable> TablePtr; // TODO: TSharedRef
+
+	/** A shared pointer to the table column view model. */
+	TSharedPtr<Insights::FTableColumn> ColumnPtr; // TODO: TSharedRef
+
 	/** A shared pointer to the timer node. */
-	FTimerNodePtr TimerNodePtr;
+	FTimerNodePtr TimerNodePtr; // TODO: TSharedRef
 
-	/** The Id of the column where this timer belongs. */
-	FName ColumnId;
-
-	FSetHoveredTimerTableCell SetHoveredTableCellDelegate;
+	FSetHoveredTimerTableCell SetHoveredCellDelegate;
 };

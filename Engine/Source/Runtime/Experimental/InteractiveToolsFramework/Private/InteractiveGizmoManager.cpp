@@ -2,6 +2,14 @@
 
 
 #include "InteractiveGizmoManager.h"
+#include "InteractiveToolsContext.h"
+
+#include "BaseGizmos/AxisPositionGizmo.h"
+#include "BaseGizmos/PlanePositionGizmo.h"
+#include "BaseGizmos/AxisAngleGizmo.h"
+#include "BaseGizmos/TransformGizmo.h"
+
+#define LOCTEXT_NAMESPACE "UInteractiveGizmoManager"
 
 
 UInteractiveGizmoManager::UInteractiveGizmoManager()
@@ -32,6 +40,14 @@ void UInteractiveGizmoManager::Shutdown()
 	ActiveGizmos.Reset();
 
 	this->TransactionsAPI = nullptr;
+
+	if (bDefaultGizmosRegistered)
+	{
+		DeregisterGizmoType(DefaultAxisPositionBuilderIdentifier);
+		DeregisterGizmoType(DefaultPlanePositionBuilderIdentifier);
+		DeregisterGizmoType(DefaultAxisAngleBuilderIdentifier);
+		DeregisterGizmoType(DefaultThreeAxisTransformBuilderIdentifier);
+	}
 }
 
 
@@ -47,7 +63,9 @@ bool UInteractiveGizmoManager::DeregisterGizmoType(const FString& BuilderIdentif
 {
 	if (GizmoBuilders.Contains(BuilderIdentifier) == false)
 	{
-		PostMessage(FString::Printf(TEXT("UInteractiveGizmoManager::DeregisterGizmoType: could not find requested type %s"), *BuilderIdentifier), EToolMessageLevel::Internal);
+		DisplayMessage(
+			FText::Format(LOCTEXT("DeregisterFailedMessage", "UInteractiveGizmoManager::DeregisterGizmoType: could not find requested type {0}"), FText::FromString(BuilderIdentifier) ),
+			EToolMessageLevel::Internal);
 		return false;
 	}
 	GizmoBuilders.Remove(BuilderIdentifier);
@@ -57,22 +75,29 @@ bool UInteractiveGizmoManager::DeregisterGizmoType(const FString& BuilderIdentif
 
 
 
-UInteractiveGizmo* UInteractiveGizmoManager::CreateGizmo(const FString& BuilderIdentifier, const FString& InstanceIdentifier)
+UInteractiveGizmo* UInteractiveGizmoManager::CreateGizmo(const FString& BuilderIdentifier, const FString& InstanceIdentifier, void* Owner)
 {
 	if ( GizmoBuilders.Contains(BuilderIdentifier) == false )
 	{
-		PostMessage(FString::Printf(TEXT("UInteractiveGizmoManager::CreateGizmo: could not find requested type %s"), *BuilderIdentifier), EToolMessageLevel::Internal);
+		DisplayMessage(
+			FText::Format(LOCTEXT("CreateGizmoCannotFindFailedMessage", "UInteractiveGizmoManager::CreateGizmo: could not find requested type {0}"), FText::FromString(BuilderIdentifier) ),
+			EToolMessageLevel::Internal);
 		return nullptr;
 	}
 	UInteractiveGizmoBuilder* FoundBuilder = GizmoBuilders[BuilderIdentifier];
 
 	// check if we have used this instance identifier
-	for (FActiveGizmo& ActiveGizmo : ActiveGizmos)
+	if (InstanceIdentifier.IsEmpty() == false)
 	{
-		if (ActiveGizmo.InstanceIdentifier == InstanceIdentifier)
+		for (FActiveGizmo& ActiveGizmo : ActiveGizmos)
 		{
-			PostMessage(FString::Printf(TEXT("UInteractiveGizmoManager::CreateGizmo: instance identifier %s already in use!"), *InstanceIdentifier), EToolMessageLevel::Internal);
-			return nullptr;
+			if (ActiveGizmo.InstanceIdentifier == InstanceIdentifier)
+			{
+				DisplayMessage(
+					FText::Format(LOCTEXT("CreateGizmoExistsMessage", "UInteractiveGizmoManager::CreateGizmo: instance identifier {0} already in use!"), FText::FromString(InstanceIdentifier) ),
+					EToolMessageLevel::Internal);
+				return nullptr;
+			}
 		}
 	}
 
@@ -82,7 +107,7 @@ UInteractiveGizmo* UInteractiveGizmoManager::CreateGizmo(const FString& BuilderI
 	UInteractiveGizmo* NewGizmo = FoundBuilder->BuildGizmo(CurrentSceneState);
 	if (NewGizmo == nullptr)
 	{
-		PostMessage(FString::Printf(TEXT("UInteractiveGizmoManager::CreateGizmo: BuildGizmo() returned null")), EToolMessageLevel::Internal);
+		DisplayMessage(LOCTEXT("CreateGizmoReturnNullMessage", "UInteractiveGizmoManager::CreateGizmo: BuildGizmo() returned null"), EToolMessageLevel::Internal);
 		return nullptr;
 	}
 
@@ -93,7 +118,7 @@ UInteractiveGizmo* UInteractiveGizmoManager::CreateGizmo(const FString& BuilderI
 
 	PostInvalidation();
 
-	FActiveGizmo ActiveGizmo = { NewGizmo, BuilderIdentifier, InstanceIdentifier };
+	FActiveGizmo ActiveGizmo = { NewGizmo, BuilderIdentifier, InstanceIdentifier, Owner };
 	ActiveGizmos.Add(ActiveGizmo);
 
 	return NewGizmo;
@@ -158,6 +183,23 @@ void UInteractiveGizmoManager::DestroyAllGizmosOfType(const FString& BuilderIden
 }
 
 
+void UInteractiveGizmoManager::DestroyAllGizmosByOwner(void* Owner)
+{
+	TArray<UInteractiveGizmo*> Found;
+	for ( const FActiveGizmo& ActiveGizmo : ActiveGizmos )
+	{
+		if (ActiveGizmo.Owner == Owner)
+		{
+			Found.Add(ActiveGizmo.Gizmo);
+		}
+	}
+	for (UInteractiveGizmo* Gizmo : Found)
+	{
+		DestroyGizmo(Gizmo);
+	}
+}
+
+
 
 UInteractiveGizmo* UInteractiveGizmoManager::FindGizmoByInstanceIdentifier(const FString& Identifier)
 {
@@ -191,15 +233,9 @@ void UInteractiveGizmoManager::Render(IToolsContextRenderAPI* RenderAPI)
 
 }
 
-
-void UInteractiveGizmoManager::PostMessage(const TCHAR* Message, EToolMessageLevel Level)
+void UInteractiveGizmoManager::DisplayMessage(const FText& Message, EToolMessageLevel Level)
 {
-	TransactionsAPI->PostMessage(Message, Level);
-}
-
-void UInteractiveGizmoManager::PostMessage(const FString& Message, EToolMessageLevel Level)
-{
-	TransactionsAPI->PostMessage(*Message, Level);
+	TransactionsAPI->DisplayMessage(Message, Level);
 }
 
 void UInteractiveGizmoManager::PostInvalidation()
@@ -220,9 +256,59 @@ void UInteractiveGizmoManager::EndUndoTransaction()
 
 
 
-void UInteractiveGizmoManager::EmitObjectChange(UObject* TargetObject, TUniquePtr<FChange> Change, const FText& Description)
+void UInteractiveGizmoManager::EmitObjectChange(UObject* TargetObject, TUniquePtr<FToolCommandChange> Change, const FText& Description)
 {
 	TransactionsAPI->AppendChange(TargetObject, MoveTemp(Change), Description );
 }
 
 
+
+
+FString UInteractiveGizmoManager::DefaultAxisPositionBuilderIdentifier = TEXT("StandardXFormAxisTranslationGizmo");
+FString UInteractiveGizmoManager::DefaultPlanePositionBuilderIdentifier = TEXT("StandardXFormPlaneTranslationGizmo");
+FString UInteractiveGizmoManager::DefaultAxisAngleBuilderIdentifier = TEXT("StandardXFormAxisRotationGizmo");
+FString UInteractiveGizmoManager::DefaultThreeAxisTransformBuilderIdentifier = TEXT("DefaultThreeAxisTransformBuilderIdentifier");
+const FString UInteractiveGizmoManager::CustomThreeAxisTransformBuilderIdentifier = TEXT("CustomThreeAxisTransformBuilderIdentifier");
+
+void UInteractiveGizmoManager::RegisterDefaultGizmos()
+{
+	check(bDefaultGizmosRegistered == false);
+
+	UAxisPositionGizmoBuilder* AxisTranslationBuilder = NewObject<UAxisPositionGizmoBuilder>();
+	RegisterGizmoType(DefaultAxisPositionBuilderIdentifier, AxisTranslationBuilder);
+
+	UPlanePositionGizmoBuilder* PlaneTranslationBuilder = NewObject<UPlanePositionGizmoBuilder>();
+	RegisterGizmoType(DefaultPlanePositionBuilderIdentifier, PlaneTranslationBuilder);
+
+	UAxisAngleGizmoBuilder* AxisRotationBuilder = NewObject<UAxisAngleGizmoBuilder>();
+	RegisterGizmoType(DefaultAxisAngleBuilderIdentifier, AxisRotationBuilder);
+
+	UTransformGizmoBuilder* TransformBuilder = NewObject<UTransformGizmoBuilder>();
+	RegisterGizmoType(DefaultThreeAxisTransformBuilderIdentifier, TransformBuilder);
+
+	CustomThreeAxisBuilder = NewObject<UTransformGizmoBuilder>();
+	CustomThreeAxisBuilder->GizmoActorBuilder = MakeShared<FTransformGizmoActorFactory>();
+	RegisterGizmoType(CustomThreeAxisTransformBuilderIdentifier, CustomThreeAxisBuilder);
+
+	bDefaultGizmosRegistered = true;
+}
+
+UTransformGizmo* UInteractiveGizmoManager::Create3AxisTransformGizmo(void* Owner, const FString& InstanceIdentifier)
+{
+	check(bDefaultGizmosRegistered);
+	UInteractiveGizmo* NewGizmo = CreateGizmo(DefaultThreeAxisTransformBuilderIdentifier, InstanceIdentifier, Owner);
+	check(NewGizmo);
+	return Cast<UTransformGizmo>(NewGizmo);
+}
+
+UTransformGizmo* UInteractiveGizmoManager::CreateCustomTransformGizmo(ETransformGizmoSubElements Elements, void* Owner, const FString& InstanceIdentifier)
+{
+	check(bDefaultGizmosRegistered);
+	CustomThreeAxisBuilder->GizmoActorBuilder->EnableElements = Elements;
+	UInteractiveGizmo* NewGizmo = CreateGizmo(CustomThreeAxisTransformBuilderIdentifier, InstanceIdentifier, Owner);
+	check(NewGizmo);
+	return Cast<UTransformGizmo>(NewGizmo);
+}
+
+
+#undef LOCTEXT_NAMESPACE

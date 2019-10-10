@@ -14,269 +14,336 @@
 #include "Containers/StaticArray.h"
 #include <iostream>
 #include <utility>
+#include <initializer_list>
+#include <limits>
 
 namespace Chaos
 {
 	template<class T, int d>
-	class TVector : public TArray<T>
+	struct TVectorTraits
+	{
+		static const bool RequireRangeCheck = true;
+	};
+
+
+	template<class T, int d>
+	class TVector
 	{
 	public:
-		using TArray<T>::SetNum;
+		using FElement = T;
+		static const int NumElements = d;
+		using FTraits = TVectorTraits<T, d>;
 
-		TVector()
-		    : TArray<T>()
+		TVector() {}
+		explicit TVector(const FElement& Element)
 		{
-			SetNum(d);
-		}
-		explicit TVector(const T element)
-		    : TArray<T>()
-		{
-			SetNum(d);
-			for (int32 i = 0; i < d; ++i)
-				(*this)[i] = element;
-		}
-		TVector(const T s1, const T s2)
-		{
-			check(d == 2);
-			SetNum(2);
-			(*this)[0] = s1;
-			(*this)[1] = s2;
-		}
-		TVector(const T s1, const T s2, const T s3)
-		{
-			check(d == 3);
-			SetNum(3);
-			(*this)[0] = s1;
-			(*this)[1] = s2;
-			(*this)[2] = s3;
-		}
-		TVector(const T s1, const T s2, const T s3, const T s4)
-		{
-			check(d == 4);
-			SetNum(4);
-			(*this)[0] = s1;
-			(*this)[1] = s2;
-			(*this)[2] = s3;
-			(*this)[3] = s4;
-		}
-#if !COMPILE_WITHOUT_UNREAL_SUPPORT
-		TVector(const FVector& Other)
-		{
-			check(d == 3);
-			SetNum(3);
-			(*this)[0] = static_cast<T>(Other.X);
-			(*this)[1] = static_cast<T>(Other.Y);
-			(*this)[2] = static_cast<T>(Other.Z);
-		}
-#endif
-		template<class T2>
-		TVector(const TVector<T2, d>& Other)
-		{
-			SetNum(d);
-			for (int32 i = 0; i < d; ++i)
+			for (int32 i = 0; i < NumElements; ++i)
 			{
-				(*this)[i] = static_cast<T>(Other[i]);
-			}
-		}
-		TVector(std::istream& Stream)
-		{
-			for (int32 i = 0; i < d; ++i)
-			{
-				Stream.read(reinterpret_cast<char*>(&(*this)[i]), sizeof(T));
+				V[i] = Element;
 			}
 		}
 		~TVector() {}
-		void Write(std::ostream& Stream) const
+
+		TVector(std::initializer_list<T> InElements)
 		{
-			for (int32 i = 0; i < d; ++i)
+			check(InElements.size() == NumElements);
+			FElement* Element = &V[0];
+			for (auto InIt = InElements.begin(); InIt != InElements.end(); ++InIt)
 			{
-				Stream.write(reinterpret_cast<const char*>(&(*this)[i]), sizeof(T));
+				*Element++ = *InIt;
 			}
 		}
+
+		template <int N=d, typename std::enable_if<N==2, int>::type = 0>
+		TVector(const T& V0, const T& V1)
+		{
+			V[0] = V0;
+			V[1] = V1;
+		}
+
+		template <int N=d, typename std::enable_if<N==3, int>::type = 0>
+		TVector(const T& V0, const T& V1, const T& V2)
+		{
+			V[0] = V0;
+			V[1] = V1;
+			V[2] = V2; //-V557
+		}
+
+		template <int N=d, typename std::enable_if<N==4, int>::type = 0>
+		TVector(const T& V0, const T& V1, const T& V2, const T& V3)
+		{
+			V[0] = V0;
+			V[1] = V1;
+			V[2] = V2; //-V557
+			V[3] = V3; //-V557
+		}
+
+#if !COMPILE_WITHOUT_UNREAL_SUPPORT
+		template <int N=d, typename std::enable_if<N==3, int>::type = 0>
+		TVector(const FVector& Other)
+		{
+			V[0] = static_cast<FElement>(Other.X);
+			V[1] = static_cast<FElement>(Other.Y);
+			V[2] = static_cast<FElement>(Other.Z); //-V557
+		}
+#endif
+
+		template<class T2>
+		TVector(const TVector<T2, d>& Other)
+		{
+			for (int32 i = 0; i < NumElements; ++i)
+			{
+				V[i] = static_cast<T>(Other.V[i]);
+			}
+		}
+
 		TVector<T, d>& operator=(const TVector<T, d>& Other)
 		{
-			for (int32 i = 0; i < d; ++i)
+			for (int32 i = 0; i < NumElements; ++i)
 			{
 				(*this)[i] = Other[i];
 			}
 			return *this;
 		}
-		T Size() const
+
+		FElement& operator[](int Index)
 		{
-			T SquaredSum = 0;
-			for (int32 i = 0; i < d; ++i)
+			if (FTraits::RequireRangeCheck)
 			{
-				SquaredSum += ((*this)[i] * (*this)[i]);
+				check(Index >= 0);
+				check(Index < NumElements);
 			}
-			return sqrt(SquaredSum);
+			return V[Index];
 		}
-		T Product() const
+
+		const FElement& operator[](int Index) const
 		{
-			T Result = 1;
-			for (int32 i = 0; i < d; ++i)
+			if (FTraits::RequireRangeCheck)
 			{
-				Result *= (*this)[i];
+				check(Index >= 0);
+				check(Index < NumElements);
 			}
-			return Result;
+			return V[Index];
 		}
-		static TVector<T, d> AxisVector(const int32 Axis)
+
+		int32 Num() const
 		{
-			check(Axis >= 0 && Axis < d);
-			TVector<T, d> Result(0);
-			Result[Axis] = (T)1;
-			return Result;
+			return NumElements;
 		}
-		T SizeSquared() const
+
+		TVector(std::istream& Stream)
 		{
-			T Result = 0;
-			for (int32 i = 0; i < d; ++i)
+			for (int32 i = 0; i < NumElements; ++i)
 			{
-				Result += ((*this)[i] * (*this)[i]);
+				Stream.read(reinterpret_cast<char*>(&V[i]), sizeof(FElement));
 			}
-			return Result;
 		}
-		TVector<T, d> GetSafeNormal() const
+		void Write(std::ostream& Stream) const
 		{
-			//We want N / ||N|| and to avoid inf
-			//So we want N / ||N|| < 1 / eps => N eps < ||N||, but this is clearly true for all eps < 1 and N > 0
-			T SizeSqr = SizeSquared();
-			if (SizeSqr <= TNumericLimits<T>::Min())
-				return AxisVector(0);
-			return (*this) / sqrt(SizeSqr);
-		}
-		T SafeNormalize()
-		{
-			T Size = SizeSquared();
-			if (Size < (T)1e-4)
+			for (int32 i = 0; i < NumElements; ++i)
 			{
-				*this = AxisVector(0);
-				return (T)0.;
+				Stream.write(reinterpret_cast<const char*>(&V[i]), sizeof(FElement));
 			}
-			Size = sqrt(Size);
-			*this = (*this) / Size;
-			return Size;
 		}
-		TVector<T, d> operator-() const
+
+		friend bool operator==(const TVector<T, d>& L, const TVector<T, d>& R)
 		{
-			TVector<T, d> Result;
-			for (int32 i = 0; i < d; ++i)
+			for (int32 i = 0; i < NumElements; ++i)
 			{
-				Result[i] = -(*this)[i];
+				if (L.V[i] != R.V[i])
+				{
+					return false;
+				}
 			}
-			return Result;
+			return true;
 		}
-		TVector<T, d> operator*(const TVector<T, d>& Other) const
+
+		friend bool operator!=(const TVector<T, d>& L, const TVector<T, d>& R)
 		{
-			TVector<T, d> Result;
-			for (int32 i = 0; i < d; ++i)
-			{
-				Result[i] = (*this)[i] * Other[i];
-			}
-			return Result;
+			return !(L == R);
 		}
-		TVector<T, d> operator/(const TVector<T, d>& Other) const
-		{
-			TVector<T, d> Result;
-			for (int32 i = 0; i < d; ++i)
-			{
-				Result[i] = (*this)[i] / Other[i];
-			}
-			return Result;
-		}
-		TVector<T, d> operator+(const TVector<T, d>& Other) const
-		{
-			TVector<T, d> Result;
-			for (int32 i = 0; i < d; ++i)
-			{
-				Result[i] = (*this)[i] + Other[i];
-			}
-			return Result;
-		}
-		TVector<T, d> operator-(const TVector<T, d>& Other) const
-		{
-			TVector<T, d> Result;
-			for (int32 i = 0; i < d; ++i)
-			{
-				Result[i] = (*this)[i] - Other[i];
-			}
-			return Result;
-		}
-		TVector<T, d>& operator+=(const TVector<T, d>& Other)
-		{
-			for (int32 i = 0; i < d; ++i)
-			{
-				(*this)[i] += Other[i];
-			}
-			return *this;
-		}
-		TVector<T, d>& operator-=(const TVector<T, d>& Other)
-		{
-			for (int32 i = 0; i < d; ++i)
-			{
-				(*this)[i] -= Other[i];
-			}
-			return *this;
-		}
-		TVector<T, d>& operator/=(const TVector<T, d>& Other)
-		{
-			for (int32 i = 0; i < d; ++i)
-			{
-				(*this)[i] /= Other[i];
-			}
-			return *this;
-		}
-		TVector<T, d> operator*(const T& S) const
-		{
-			TVector<T, d> Result;
-			for (int32 i = 0; i < d; ++i)
-			{
-				Result[i] = (*this)[i] * S;
-			}
-			return Result;
-		}
-		TVector<T, d>& operator*=(const T& S)
-		{
-			for (int32 i = 0; i < d; ++i)
-			{
-				(*this)[i] *= S;
-			}
-			return *this;
-		}
-#if COMPILE_WITHOUT_UNREAL_SUPPORT
-		static inline float DotProduct(const Vector<float, 3>& V1, const Vector<float, 3>& V2)
-		{
-			return V1[0] * V2[0] + V1[1] * V2[1] + V1[2] * V2[2];
-		}
-		static inline Vector<float, 3> CrossProduct(const Vector<float, 3>& V1, const Vector<float, 3>& V2)
-		{
-			Vector<float, 3> Result;
-			Result[0] = V1[1] * V2[2] - V1[2] * V2[1];
-			Result[1] = V1[2] * V2[0] - V1[0] * V2[2];
-			Result[2] = V1[0] * V2[1] - V1[1] * V2[0];
-			return Result;
-		}
-#endif
+
+
+		// @todo(ccaulfield): the following should only be available for TVector of numeric types
+//		T Size() const
+//		{
+//			T SquaredSum = 0;
+//			for (int32 i = 0; i < NumElements; ++i)
+//			{
+//				SquaredSum += ((*this)[i] * (*this)[i]);
+//			}
+//			return sqrt(SquaredSum);
+//		}
+//		T Product() const
+//		{
+//			T Result = 1;
+//			for (int32 i = 0; i < NumElements; ++i)
+//			{
+//				Result *= (*this)[i];
+//			}
+//			return Result;
+//		}
+//		static TVector<T, d> AxisVector(const int32 Axis)
+//		{
+//			check(Axis >= 0 && Axis < NumElements);
+//			TVector<T, d> Result(0);
+//			Result[Axis] = (T)1;
+//			return Result;
+//		}
+//		T SizeSquared() const
+//		{
+//			T Result = 0;
+//			for (int32 i = 0; i < d; ++i)
+//			{
+//				Result += ((*this)[i] * (*this)[i]);
+//			}
+//			return Result;
+//		}
+//		TVector<T, d> GetSafeNormal() const
+//		{
+//			//We want N / ||N|| and to avoid inf
+//			//So we want N / ||N|| < 1 / eps => N eps < ||N||, but this is clearly true for all eps < 1 and N > 0
+//			T SizeSqr = SizeSquared();
+//			if (SizeSqr <= TNumericLimits<T>::Min())
+//				return AxisVector(0);
+//			return (*this) / sqrt(SizeSqr);
+//		}
+//		T SafeNormalize()
+//		{
+//			T Size = SizeSquared();
+//			if (Size < (T)1e-4)
+//			{
+//				*this = AxisVector(0);
+//				return (T)0.;
+//			}
+//			Size = sqrt(Size);
+//			*this = (*this) / Size;
+//			return Size;
+//		}
+//		TVector<T, d> operator-() const
+//		{
+//			TVector<T, d> Result;
+//			for (int32 i = 0; i < Num; ++i)
+//			{
+//				Result[i] = -(*this)[i];
+//			}
+//			return Result;
+//		}
+//		TVector<T, d> operator*(const TVector<T, d>& Other) const
+//		{
+//			TVector<T, d> Result;
+//			for (int32 i = 0; i < d; ++i)
+//			{
+//				Result[i] = (*this)[i] * Other[i];
+//			}
+//			return Result;
+//		}
+//		TVector<T, d> operator/(const TVector<T, d>& Other) const
+//		{
+//			TVector<T, d> Result;
+//			for (int32 i = 0; i < d; ++i)
+//			{
+//				Result[i] = (*this)[i] / Other[i];
+//			}
+//			return Result;
+//		}
+//		TVector<T, d> operator+(const TVector<T, d>& Other) const
+//		{
+//			TVector<T, d> Result;
+//			for (int32 i = 0; i < d; ++i)
+//			{
+//				Result[i] = (*this)[i] + Other[i];
+//			}
+//			return Result;
+//		}
+//		TVector<T, d> operator-(const TVector<T, d>& Other) const
+//		{
+//			TVector<T, d> Result;
+//			for (int32 i = 0; i < d; ++i)
+//			{
+//				Result[i] = (*this)[i] - Other[i];
+//			}
+//			return Result;
+//		}
+//		TVector<T, d>& operator+=(const TVector<T, d>& Other)
+//		{
+//			for (int32 i = 0; i < d; ++i)
+//			{
+//				(*this)[i] += Other[i];
+//			}
+//			return *this;
+//		}
+//		TVector<T, d>& operator-=(const TVector<T, d>& Other)
+//		{
+//			for (int32 i = 0; i < d; ++i)
+//			{
+//				(*this)[i] -= Other[i];
+//			}
+//			return *this;
+//		}
+//		TVector<T, d>& operator/=(const TVector<T, d>& Other)
+//		{
+//			for (int32 i = 0; i < d; ++i)
+//			{
+//				(*this)[i] /= Other[i];
+//			}
+//			return *this;
+//		}
+//		TVector<T, d> operator*(const T& S) const
+//		{
+//			TVector<T, d> Result;
+//			for (int32 i = 0; i < d; ++i)
+//			{
+//				Result[i] = (*this)[i] * S;
+//			}
+//			return Result;
+//		}
+//		friend TVector<T, d> operator*(const T S, const TVector<T, d>& V)
+//		{
+//			TVector<T, d> Ret;
+//			for (int32 i = 0; i < d; ++i)
+//			{
+//				Ret[i] = S * V[i];
+//			}
+//			return Ret;
+//		}
+//		TVector<T, d>& operator*=(const T& S)
+//		{
+//			for (int32 i = 0; i < d; ++i)
+//			{
+//				(*this)[i] *= S;
+//			}
+//			return *this;
+//		}
+//		friend TVector<T, d> operator/(const T S, const TVector<T, d>& V)
+//		{
+//			TVector<T, d> Ret;
+//			for (int32 i = 0; i < d; ++i)
+//			{
+//				Ret = S / V[i];
+//			}
+//			return Ret;
+//		}
+//
+//#if COMPILE_WITHOUT_UNREAL_SUPPORT
+//		static inline float DotProduct(const Vector<float, 3>& V1, const Vector<float, 3>& V2)
+//		{
+//			return V1[0] * V2[0] + V1[1] * V2[1] + V1[2] * V2[2];
+//		}
+//		static inline Vector<float, 3> CrossProduct(const Vector<float, 3>& V1, const Vector<float, 3>& V2)
+//		{
+//			Vector<float, 3> Result;
+//			Result[0] = V1[1] * V2[2] - V1[2] * V2[1];
+//			Result[1] = V1[2] * V2[0] - V1[0] * V2[2];
+//			Result[2] = V1[0] * V2[1] - V1[1] * V2[0];
+//			return Result;
+//		}
+//#endif
+
+	private:
+		FElement V[NumElements];
 	};
-	template<class T, int d>
-	inline TVector<T, d> operator*(const T S, const TVector<T, d>& V)
-	{
-		TVector<T, d> Ret;
-		for (int32 i = 0; i < d; ++i)
-		{
-			Ret[i] = S * V[i];
-		}
-		return Ret;
-	}
-	template<class T, int d>
-	inline TVector<T, d> operator/(const T S, const TVector<T, d>& V)
-	{
-		TVector<T, d> Ret;
-		for (int32 i = 0; i < d; ++i)
-		{
-			Ret = S / V[i];
-		}
-		return Ret;
-	}
+
 
 #if !COMPILE_WITHOUT_UNREAL_SUPPORT
 	template<>
@@ -354,6 +421,22 @@ namespace Chaos
 		TVector<float, 3> operator/(const float Other) const
 		{
 			return TVector<float, 3>(X / Other, Y / Other, Z / Other);
+		}
+		friend TVector<float, 3> operator/(const float S, const TVector<float, 3>& V)
+		{
+			return TVector<float, 3>(S / V.X, S / V.Y, S / V.Z);
+		}
+		TVector<float, 3> operator-(const TVector<float, 3>& Other) const
+		{
+			return TVector<float, 3>(X - Other[0], Y - Other[1], Z - Other[2]);
+		}
+		TVector<float, 3> operator*(const TVector<float, 3>& Other) const
+		{
+			return TVector<float, 3>(X * Other[0], Y * Other[1], Z * Other[2]);
+		}
+		TVector<float, 3> operator/(const TVector<float, 3>& Other) const
+		{
+			return TVector<float, 3>(X / Other[0], Y / Other[1], Z / Other[2]);
 		}
 		template<class T2>
 		TVector<float, 3> operator-(const TVector<T2, 3>& Other) const
@@ -443,16 +526,15 @@ namespace Chaos
 			return atan2(s, c);
 		}
 	};
-	template<>
-	inline TVector<float, 3> operator/(const float S, const TVector<float, 3>& V)
-	{
-		return TVector<float, 3>(S / V.X, S / V.Y, S / V.Z);
-	}
 
 	template<>
 	class TVector<float, 2> : public FVector2D
 	{
 	public:
+
+		using FVector2D::X;
+		using FVector2D::Y;
+
 		TVector()
 		    : FVector2D() {}
 		TVector(const float x)
@@ -465,6 +547,12 @@ namespace Chaos
 		{
 			Stream.read(reinterpret_cast<char*>(&X), sizeof(X));
 			Stream.read(reinterpret_cast<char*>(&Y), sizeof(Y));
+		}
+		template <typename OtherT>
+		TVector(const TVector<OtherT, 2>& InVector)
+		{
+			X = ((float)InVector[0]);
+			Y = ((float)InVector[1]);
 		}
 		~TVector() {}
 		void Write(std::ostream& Stream) const
@@ -505,6 +593,15 @@ namespace Chaos
 			{
 				return MakePair(max.Y, 1);
 			}
+		}
+		template<class T2>
+		TVector<float, 2> operator/(const TVector<T2, 2>& Other) const
+		{
+			return TVector<float, 2>(X / Other[0], Y / Other[1]);
+		}
+		TVector<float, 2> operator/(const float Other) const
+		{
+			return TVector<float, 2>(X / Other, Y / Other);
 		}
 	};
 #endif // !COMPILE_WITHOUT_UNREAL_SUPPORT
@@ -673,93 +770,103 @@ namespace Chaos
 	class TVector<int32, 2>
 	{
 	public:
+		using FElement = int32;
+
 		FORCEINLINE TVector()
 		{}
-		FORCEINLINE explicit TVector(const int32 InX)
+		FORCEINLINE explicit TVector(const FElement InX)
 		    : X(InX), Y(InX)
 		{}
-		FORCEINLINE TVector(const int32 InX, const int32 InY)
+		FORCEINLINE TVector(const FElement InX, const FElement InY)
 		    : X(InX), Y(InY)
+		{}
+		template<typename OtherT>
+		FORCEINLINE TVector(const TVector<OtherT, 2>& InVector)
+			: X((int32)InVector.X)
+			, Y((int32)InVector.Y)
 		{}
 		FORCEINLINE ~TVector()
 		{}
 
 		FORCEINLINE int32 Num() const { return 2; }
 
-		FORCEINLINE int32 Product() const
+		FORCEINLINE FElement Product() const
 		{
 			return X * Y;
 		}
 
-		FORCEINLINE static TVector<int32, 2>
-		AxisVector(const int32 Axis)
+		FORCEINLINE static TVector<FElement, 2> AxisVector(const int32 Axis)
 		{
-			TVector<int32, 2> Result(0);
+			TVector<FElement, 2> Result(0);
 			Result[Axis] = 1;
 			return Result;
 		}
 
 		FORCEINLINE void Write(std::ostream& Stream) const
 		{
-			Stream.write(reinterpret_cast<const char*>(&X), sizeof(int32));
-			Stream.write(reinterpret_cast<const char*>(&Y), sizeof(int32));
+			Stream.write(reinterpret_cast<const char*>(&X), sizeof(FElement));
+			Stream.write(reinterpret_cast<const char*>(&Y), sizeof(FElement));
 		}
 
-		FORCEINLINE TVector<int32, 2>&
-		operator=(const TVector<int32, 2>& Other)
+		FORCEINLINE TVector<FElement, 2>& operator=(const TVector<FElement, 2>& Other)
 		{
 			X = Other.X;
 			Y = Other.Y;
 			return *this;
 		}
 
-		FORCEINLINE bool
-		operator==(const TVector<int32, 2>& Other) const
-		{
-			return X == Other.X && Y == Other.Y;
-		}
+		FORCEINLINE FElement operator[](const int32 Idx) const { return (static_cast<const FElement*>(&X))[Idx]; }
+		FORCEINLINE FElement& operator[](const int32 Idx) { return (static_cast<FElement*>(&X))[Idx]; }
 
-		FORCEINLINE int32 operator[](const int32 Idx) const { return (static_cast<const int32*>(&X))[Idx]; }
-		FORCEINLINE int32& operator[](const int32 Idx) { return (static_cast<int32*>(&X))[Idx]; }
+		FORCEINLINE TVector<FElement, 2> operator-() const { return {-X, -Y}; }
+		FORCEINLINE TVector<FElement, 2> operator*(const TVector<FElement, 2>& Other) const { return {X * Other.X, Y * Other.Y}; }
+		FORCEINLINE TVector<FElement, 2> operator/(const TVector<FElement, 2>& Other) const { return {X / Other.X, Y / Other.Y}; }
+		FORCEINLINE TVector<FElement, 2> operator+(const TVector<FElement, 2>& Other) const { return {X + Other.X, Y + Other.Y}; }
+		FORCEINLINE TVector<FElement, 2> operator-(const TVector<FElement, 2>& Other) const { return {X - Other.X, Y - Other.Y}; }
 
-		FORCEINLINE TVector<int32, 2> operator-() const { return {-X, -Y}; }
-		FORCEINLINE TVector<int32, 2> operator*(const TVector<int32, 2>& Other) const { return {X * Other.X, Y * Other.Y}; }
-		FORCEINLINE TVector<int32, 2> operator/(const TVector<int32, 2>& Other) const { return {X / Other.X, Y / Other.Y}; }
-		FORCEINLINE TVector<int32, 2> operator+(const TVector<int32, 2>& Other) const { return {X + Other.X, Y + Other.Y}; }
-		FORCEINLINE TVector<int32, 2> operator-(const TVector<int32, 2>& Other) const { return {X - Other.X, Y - Other.Y}; }
-
-		FORCEINLINE TVector<int32, 2>& operator+=(const TVector<int32, 2>& Other)
+		FORCEINLINE TVector<FElement, 2>& operator+=(const TVector<FElement, 2>& Other)
 		{
 			X += Other.X;
 			Y += Other.Y;
 			return *this;
 		}
-		FORCEINLINE TVector<int32, 2>& operator-=(const TVector<int32, 2>& Other)
+		FORCEINLINE TVector<FElement, 2>& operator-=(const TVector<FElement, 2>& Other)
 		{
 			X -= Other.X;
 			Y -= Other.Y;
 			return *this;
 		}
-		FORCEINLINE TVector<int32, 2>& operator/=(const TVector<int32, 2>& Other)
+		FORCEINLINE TVector<FElement, 2>& operator/=(const TVector<FElement, 2>& Other)
 		{
 			X /= Other.X;
 			Y /= Other.Y;
 			return *this;
 		}
-		FORCEINLINE TVector<int32, 2> operator*(const int32& S) const
+		FORCEINLINE TVector<FElement, 2> operator*(const FElement& S) const
 		{
 			return {X * S, Y * S};
 		}
-		FORCEINLINE TVector<int32, 2>& operator*=(const int32& S)
+		FORCEINLINE TVector<FElement, 2>& operator*=(const FElement& S)
 		{
 			X *= S;
 			Y *= S;
 			return *this;
 		}
 
+		FORCEINLINE friend bool operator==(const TVector<FElement, 2>& L, const TVector<FElement, 2>& R)
+		{
+			return (L.X == R.X) && (L.Y == R.Y);
+		}
+
+		FORCEINLINE friend bool operator!=(const TVector<FElement, 2>& L, const TVector<FElement, 2>& R)
+		{
+			return !(L == R);
+		}
+
+
 	private:
-		int32 X;
-		int32 Y;
+		FElement X;
+		FElement Y;
 	};
 
 	template<class T>
@@ -790,6 +897,12 @@ namespace Chaos
 	}
 
 } // namespace Chaos
+
+template<class T, int d>
+struct TIsContiguousContainer<Chaos::TVector<T, d>>
+{
+	static constexpr bool Value = TIsContiguousContainer<TArray<T>>::Value;
+};
 
 //template<>
 //uint32 GetTypeHash(const Chaos::TVector<int32, 2>& V)

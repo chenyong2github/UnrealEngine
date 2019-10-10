@@ -7,7 +7,6 @@
 #include "Misc/Guid.h"
 #include "Engine/EngineTypes.h"
 #include "RenderCommandFence.h"
-#include "Templates/ScopedPointer.h"
 #include "Materials/MaterialInterface.h"
 #include "MaterialShared.h"
 #include "MaterialExpressionIO.h"
@@ -412,10 +411,7 @@ private:
 	TEnumAsByte<enum EMaterialShadingModel> ShadingModel; 
 
 public:
-	/**
-	* If true, translucent materials will cast dynamic shadows according to their opacity.
-	* OpacityMaskClipValue is used as the threshold value.
-	*/
+	/** Whether the material should cast shadows as masked even though it has a translucent blend mode. */
 	UPROPERTY(EditAnywhere, Category = Material, AdvancedDisplay)
 	uint8 bCastDynamicShadowAsMasked : 1;
 
@@ -431,8 +427,12 @@ private:
 
 public:
 
-	/** If BlendMode is BLEND_Masked, the surface is not rendered where OpacityMask < OpacityMaskClipValue. */
-	UPROPERTY(EditAnywhere, Category=Material, AdvancedDisplay)
+	/**
+	 * If BlendMode is BLEND_Masked, the surface is not rendered where OpacityMask < OpacityMaskClipValue.
+	 * If BlendMode is BLEND_Translucent, BLEND_Additive, or BLEND_Modulate, and "Output Velocity" is enabled,
+	 * the object velocity is not rendered where Opacity < OpacityMaskClipValue.
+	 */
+	UPROPERTY(EditAnywhere, Category = Material, AdvancedDisplay)
 	float OpacityMaskClipValue;
 
 	/** Adds to world position in the vertex shader. */

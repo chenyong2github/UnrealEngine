@@ -19,6 +19,7 @@
 #include "Evaluation/Blending/MovieSceneBlendingActuator.h"
 #include "Evaluation/Blending/MovieSceneMultiChannelBlending.h"
 #include "Compilation/MovieSceneTemplateInterrogation.h"
+#include "TransformData.h"
 #include "MovieScenePropertyTemplate.generated.h"
 
 class UMovieScenePropertyTrack;
@@ -236,8 +237,6 @@ public:
 	//use thse keys for setting and iterating the correct types.
 	const static FMovieSceneInterrogationKey GetFloatInterrogationKey();
 	const static FMovieSceneInterrogationKey GetInt32InterrogationKey();
-	const static FMovieSceneInterrogationKey GetTransformInterrogationKey();
-	const static FMovieSceneInterrogationKey GetEulerTransformInterrogationKey();
 	const static FMovieSceneInterrogationKey GetVector4InterrogationKey();
 	const static FMovieSceneInterrogationKey GetVectorInterrogationKey();
 	const static FMovieSceneInterrogationKey GetVector2DInterrogationKey();
@@ -297,15 +296,21 @@ inline void TPropertyActuator<FVector2D>::Actuate(FMovieSceneInterrogationData& 
 template<>
 inline void TPropertyActuator<FEulerTransform>::Actuate(FMovieSceneInterrogationData& InterrogationData, typename TCallTraits<FEulerTransform>::ParamType InValue, const TBlendableTokenStack<FEulerTransform>& OriginalStack, const FMovieSceneContext& Context) const
 {
-	FEulerTransform Value = InValue;
-	InterrogationData.Add(Value, FMovieScenePropertySectionTemplate::GetEulerTransformInterrogationKey());
+	FTransformData Value;
+	Value.Translation = InValue.Location;
+	Value.Rotation = InValue.Rotation;
+	Value.Scale = InValue.Scale;
+	InterrogationData.Add(Value, FMovieSceneInterrogationKey::GetTransformInterrogationKey());
 };
 
 template<>
 inline void TPropertyActuator<FTransform>::Actuate(FMovieSceneInterrogationData& InterrogationData, typename TCallTraits<FTransform>::ParamType InValue, const TBlendableTokenStack<FTransform>& OriginalStack, const FMovieSceneContext& Context) const
 {
-	FTransform Value = InValue;
-	InterrogationData.Add(Value, FMovieScenePropertySectionTemplate::GetTransformInterrogationKey());
+	FTransformData Value;
+	Value.Translation = InValue.GetTranslation();
+	Value.Rotation = InValue.GetRotation().Rotator();
+	Value.Scale = InValue.GetScale3D();
+	InterrogationData.Add(Value, FMovieSceneInterrogationKey::GetTransformInterrogationKey());
 };
 
 template<>

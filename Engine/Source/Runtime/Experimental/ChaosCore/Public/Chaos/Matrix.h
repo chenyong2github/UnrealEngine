@@ -296,24 +296,54 @@ namespace Chaos
 			    M[1][0] * Other[0] + M[1][1] * Other[1] + M[1][2] * Other[2],
 			    M[2][0] * Other[0] + M[2][1] * Other[1] + M[2][2] * Other[2]);
 		}
+		PMatrix<float, 3, 3> operator+(const PMatrix<float, 3, 3>& Other) const
+		{
+			return PMatrix<float, 3, 3>(
+				M[0][0] + Other.M[0][0],
+				M[1][0] + Other.M[1][0],
+				M[2][0] + Other.M[2][0],
+				M[0][1] + Other.M[0][1],
+				M[1][1] + Other.M[1][1],
+				M[2][1] + Other.M[2][1],
+				M[0][2] + Other.M[0][2],
+				M[1][2] + Other.M[1][2],
+				M[2][2] + Other.M[2][2]);
+		}
+		friend PMatrix<float, 3, 3> operator+(const PMatrix<float, 3, 3>& Other)
+		{
+			return Other;
+		}
 		PMatrix<float, 3, 3> operator-(const PMatrix<float, 3, 3>& Other) const
 		{
 			return PMatrix<float, 3, 3>(
-			    M[0][0] - Other.M[0][0],
-			    M[1][0] - Other.M[1][0],
-			    M[2][0] - Other.M[2][0],
-			    M[0][1] - Other.M[0][1],
-			    M[1][1] - Other.M[1][1],
-			    M[2][1] - Other.M[2][1],
-			    M[0][2] - Other.M[0][2],
-			    M[1][2] - Other.M[1][2],
-			    M[2][2] - Other.M[2][2]);
+				M[0][0] - Other.M[0][0],
+				M[1][0] - Other.M[1][0],
+				M[2][0] - Other.M[2][0],
+				M[0][1] - Other.M[0][1],
+				M[1][1] - Other.M[1][1],
+				M[2][1] - Other.M[2][1],
+				M[0][2] - Other.M[0][2],
+				M[1][2] - Other.M[1][2],
+				M[2][2] - Other.M[2][2]);
+		}
+		friend PMatrix<float, 3, 3> operator-(const PMatrix<float, 3, 3>& Other)
+		{
+			return PMatrix<float, 3, 3>(
+				-Other.M[0][0],
+				-Other.M[1][0],
+				-Other.M[2][0],
+				-Other.M[0][1],
+				-Other.M[1][1],
+				-Other.M[2][1],
+				-Other.M[0][2],
+				-Other.M[1][2],
+				-Other.M[2][2]);
 		}
 		PMatrix<float, 3, 3> operator*(const PMatrix<float, 3, 3>& Other) const
 		{
 			return static_cast<const FMatrix*>(this)->operator*(static_cast<const FMatrix&>(Other));
 		}
-		PMatrix<float, 3, 3> operator*(const float& Other) const
+		PMatrix<float, 3, 3> operator*(const float Other) const
 		{
 			return PMatrix<float, 3, 3>(
 			    M[0][0] * Other,
@@ -325,6 +355,10 @@ namespace Chaos
 			    M[0][2] * Other,
 			    M[1][2] * Other,
 			    M[2][2] * Other);
+		}
+		friend PMatrix<float, 3, 3> operator*(const float OtherF, const PMatrix<float, 3, 3>& OtherM)
+		{
+			return OtherM * OtherF;
 		}
 		PMatrix<float, 3, 2> operator*(const PMatrix<float, 3, 2>& Other) const
 		{
@@ -381,6 +415,87 @@ namespace Chaos
 			}
 			return TVector<float, 3>(1, 0, 0);
 		}
+
+		/**
+		 * Get the specified axis (0-indexed, X,Y,Z).
+		 * @note: we are treating matrices as column major, so axis elements are sequential in memory
+		 */
+		TVector<float, 3> GetAxis(int32 AxisIndex) const
+		{
+			return TVector<float, 3>(M[AxisIndex][0], M[AxisIndex][1], M[AxisIndex][2]);
+		}
+
+		/**
+		 * Set the specified axis (0-indexed, X,Y,Z).
+		 * @note: we are treating matrices as column major, so axis elements are sequential in memory
+		 */
+		void SetAxis(int32 AxisIndex, const TVector<float, 3>& Axis)
+		{
+			M[AxisIndex][0] = Axis.X;
+			M[AxisIndex][1] = Axis.Y;
+			M[AxisIndex][2] = Axis.Z;
+			M[AxisIndex][3] = 0;
+		}
+
+		/**
+		 * Get the specified row (0-indexed, X,Y,Z).
+		 * @note: we are treating matrices as column major, so rows are not sequential in memory
+		 * @seealso GetAxis, GetColumn
+		 */
+		TVector<float, 3> GetRow(int32 RowIndex) const
+		{
+			return TVector<float, 3>(M[0][RowIndex], M[1][RowIndex], M[2][RowIndex]);
+		}
+
+		/**
+		 * Set the specified row.
+		 * @note: we are treating matrices as column major, so axis elements are sequential in memory
+		 * @seealso SetAxis, SetColumn
+		 */
+		void SetRow(int32 RowIndex, const TVector<float, 3>& V)
+		{
+			M[0][RowIndex] = V.X;
+			M[1][RowIndex] = V.Y;
+			M[2][RowIndex] = V.Z;
+			M[3][RowIndex] = 0;
+		}
+
+		/**
+		 * Get the specified column (0-indexed, X,Y,Z). Equivalent to GetAxis.
+		 * @note: we are treating matrices as column major, so columns are sequential in memory
+		 * @seealso GetAxis, GetRow
+		 */
+		TVector<float, 3> GetColumn(int32 ColumnIndex) const
+		{
+			return GetAxis(ColumnIndex);
+		}
+
+		/**
+		 * Set the specified column. Equivalent to SetAxis.
+		 * @note: we are treating matrices as column major, so axis elements are sequential in memory
+		 * @seealso SetAxis, SetRow
+		 */
+		void SetColumn(int32 ColumnIndex, const TVector<float, 3>& V)
+		{
+			SetAxis(ColumnIndex, V);
+		}
+
+		/**
+		 * Get the diagonal elements as a vector.
+		 */
+		TVector<float, 3> GetDiagonal() const
+		{
+			return TVector<float, 3>(M[0][0], M[1][1], M[2][2]);
+		}
+
+		/**
+		 * Return a diagonal matrix with the specified elements
+		 */
+		static PMatrix<float, 3, 3> FromDiagonal(const TVector<float, 3>& D)
+		{
+			return PMatrix<float, 3, 3>(D.X, D.Y, D.Z);
+		}
+
 #if COMPILE_WITHOUT_UNREAL_SUPPORT
 		// TODO(mlentine): Document which one is row and which one is column
 		PMatrix<float, 3, 3> operator*(const PMatrix<float, 3, 3>& Other)
@@ -410,5 +525,22 @@ namespace Chaos
 			    M[2][0] * Scalar + M[2][1] * Scalar + M[2][2] * Scalar);
 		}
 #endif
+		inline bool Equals(const PMatrix<float, 3, 3>& Other, float Tolerance = KINDA_SMALL_NUMBER) const
+		{
+			return true
+				&& (FMath::Abs(Other.M[0][0] - M[0][0]) <= Tolerance)
+				&& (FMath::Abs(Other.M[0][1] - M[0][1]) <= Tolerance)
+				&& (FMath::Abs(Other.M[0][2] - M[0][2]) <= Tolerance)
+				&& (FMath::Abs(Other.M[1][0] - M[1][0]) <= Tolerance)
+				&& (FMath::Abs(Other.M[1][1] - M[1][1]) <= Tolerance)
+				&& (FMath::Abs(Other.M[1][2] - M[1][2]) <= Tolerance)
+				&& (FMath::Abs(Other.M[2][0] - M[2][0]) <= Tolerance)
+				&& (FMath::Abs(Other.M[2][1] - M[2][1]) <= Tolerance)
+				&& (FMath::Abs(Other.M[2][2] - M[2][2]) <= Tolerance);
+		}
+
+
+		static const PMatrix<float, 3, 3> Zero;
+		static const PMatrix<float, 3, 3> Identity;
 	};
 }

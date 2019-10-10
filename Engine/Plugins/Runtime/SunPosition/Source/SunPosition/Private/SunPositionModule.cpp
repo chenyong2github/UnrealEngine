@@ -1,12 +1,18 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "SunPositionModule.h"
+#include "SunPositionPlacement.h"
+#include "SunPositionStyle.h"
 
-#include "Modules/ModuleInterface.h"
-#include "Modules/ModuleManager.h"
+void FSunPositionModule::StartupModule()
+{
+	FSunPositionStyle::Initialize();
+	FSunPositionPlacement::RegisterPlacement();
+}
 
-IMPLEMENT_MODULE(FDefaultModuleImpl, SunPosition)
+void FSunPositionModule::ShutdownModule()
+{
+	FSunPositionStyle::Shutdown();
+}
 
-
-
-
+IMPLEMENT_MODULE(FSunPositionModule, SunPosition)

@@ -173,21 +173,38 @@ void FEventTrackEditor::BuildTrackContextMenu(FMenuBuilder& MenuBuilder, UMovieS
 	UMovieSceneEventTrack* EventTrack = CastChecked<UMovieSceneEventTrack>(Track);
 	UProperty* EventPositionProperty = FindField<UProperty>(Track->GetClass(), GET_MEMBER_NAME_STRING_CHECKED(UMovieSceneEventTrack, EventPosition));
 
+	FGuid ObjectBinding;
+	EventTrack->GetTypedOuter<UMovieScene>()->FindTrackBinding(*EventTrack, ObjectBinding);
+
 	/** Specific details customization for the event track */
 	class FEventTrackCustomization : public IDetailCustomization
 	{
 	public:
+		FGuid ObjectBindingID;
+
+		FEventTrackCustomization(const FGuid& InObjectBindingID)
+			: ObjectBindingID(InObjectBindingID)
+		{}
+
 		virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override
 		{
 			DetailBuilder.HideCategory("Track");
 			DetailBuilder.HideCategory("General");
 
-			IDetailCategoryBuilder& Category = DetailBuilder.EditCategory("TrackEvent");
-			Category.AddProperty("EventReceivers").ShouldAutoExpand(true);
+			if (ObjectBindingID.IsValid())
+			{
+				IDetailCategoryBuilder& Category = DetailBuilder.EditCategory("TrackEvent");
+				Category.AddProperty("EventReceivers").ShouldAutoExpand(true);
+			}
+			else
+			{
+				// Do not show event receivers for tracks that exist on object bindings
+				DetailBuilder.HideCategory("TrackEvent");
+			}
 		}
 	};
 
-	auto PopulateSubMenu = [this, EventTrack](FMenuBuilder& SubMenuBuilder)
+	auto PopulateSubMenu = [this, EventTrack, ObjectBinding](FMenuBuilder& SubMenuBuilder)
 	{
 		FPropertyEditorModule& PropertyEditor = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
@@ -200,7 +217,7 @@ void FEventTrackEditor::BuildTrackContextMenu(FMenuBuilder& MenuBuilder, UMovieS
 		TSharedRef<IDetailsView> DetailsView = PropertyEditor.CreateDetailView(DetailsViewArgs);
 		
 		// Register the custom type layout for the class
-		FOnGetDetailCustomizationInstance CreateInstance = FOnGetDetailCustomizationInstance::CreateLambda(&MakeShared<FEventTrackCustomization>);
+		FOnGetDetailCustomizationInstance CreateInstance = FOnGetDetailCustomizationInstance::CreateLambda([ObjectBinding]{ return MakeShared<FEventTrackCustomization>(ObjectBinding); });
 		DetailsView->RegisterInstancedCustomPropertyLayout(UMovieSceneEventTrack::StaticClass(), CreateInstance);
 
 		GetSequencer()->OnInitializeDetailsPanel().Broadcast(DetailsView, GetSequencer().ToSharedRef());

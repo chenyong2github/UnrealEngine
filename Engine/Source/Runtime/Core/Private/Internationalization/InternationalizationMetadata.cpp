@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Internationalization/InternationalizationMetadata.h"
-#include "Serialization/StructuredArchiveFromArchive.h"
+#include "Serialization/StructuredArchive.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogInternationalizationMetadata, Log, All);
 
@@ -293,10 +293,10 @@ namespace
 		}
 
 		int32 MetaDataTypeAsInt = static_cast<int32>(MetaDataType);
-		Record << NAMED_ITEM("Type", MetaDataTypeAsInt);
+		Record << SA_VALUE(TEXT("Type"), MetaDataTypeAsInt);
 		MetaDataType = static_cast<ELocMetadataType>(MetaDataTypeAsInt);
 
-		FStructuredArchive::FSlot ValueSlot = Record.EnterField(FIELD_NAME_TEXT("Value"));
+		FStructuredArchive::FSlot ValueSlot = Record.EnterField(SA_FIELD_NAME(TEXT("Value")));
 
 		switch (MetaDataType)
 		{
@@ -350,7 +350,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FLocMetadataObject& Object)
 {
 	FStructuredArchive::FRecord Record = Slot.EnterRecord();
 	int32 ValueCount = Object.Values.Num();
-	Record << NAMED_FIELD(ValueCount);
+	Record << SA_VALUE(TEXT("ValueCount"), ValueCount);
 
 	bool bIsLoading = Slot.GetUnderlyingArchive().IsLoading();
 
@@ -359,7 +359,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FLocMetadataObject& Object)
 		Object.Values.Reserve(ValueCount);
 	}
 
-	FStructuredArchive::FStream Stream = Record.EnterStream(FIELD_NAME_TEXT("Values"));
+	FStructuredArchive::FStream Stream = Record.EnterStream(SA_FIELD_NAME(TEXT("Values")));
 	TArray<FString> MapKeys;
 	Object.Values.GetKeys(MapKeys);
 	for (int32 i = 0; i < ValueCount; ++i)
@@ -373,9 +373,9 @@ void operator<<(FStructuredArchive::FSlot Slot, FLocMetadataObject& Object)
 			Key = MapKeys[i];
 		}
 
-		ValueRecord << NAMED_FIELD(Key);
+		ValueRecord << SA_VALUE(TEXT("Key"), Key);
 
-		FStructuredArchive::FSlot ValueSlot = ValueRecord.EnterField(FIELD_NAME_TEXT("Value"));
+		FStructuredArchive::FSlot ValueSlot = ValueRecord.EnterField(SA_FIELD_NAME(TEXT("Value")));
 		if (bIsLoading)
 		{
 			TSharedPtr<FLocMetadataValue> Value;

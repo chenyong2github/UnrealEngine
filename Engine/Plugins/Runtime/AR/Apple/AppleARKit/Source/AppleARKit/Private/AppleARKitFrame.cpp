@@ -3,6 +3,7 @@
 // AppleARKit
 #include "AppleARKitFrame.h"
 #include "AppleARKitModule.h"
+#include "AppleARKitConversion.h"
 #include "Misc/ScopeLock.h"
 
 // Default constructor

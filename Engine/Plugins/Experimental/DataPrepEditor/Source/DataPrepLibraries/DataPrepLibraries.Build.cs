@@ -20,10 +20,12 @@ namespace UnrealBuildTool.Rules
 					"GraphEditor",
 					"InputCore",
 					"KismetCompiler",
+					"LevelSequence",
 					"MeshDescription",
 					"MeshDescriptionOperations",
 					"Slate",
 					"SlateCore",
+					"StaticMeshDescription",
 					"UnrealEd",
 				}
 			);

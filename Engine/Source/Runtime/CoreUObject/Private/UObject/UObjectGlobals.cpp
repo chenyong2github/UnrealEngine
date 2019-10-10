@@ -52,6 +52,7 @@
 #include "UObject/TextProperty.h"
 #include "UObject/MetaData.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "HAL/LowLevelMemStats.h"
 #include "Misc/CoreDelegates.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
@@ -1040,7 +1041,7 @@ public:
 
 		
 
-		while ( Tick(0.0, false, false) == FLinkerLoad::LINKER_TimedOut ) 
+		while ( Tick(0.0, false, false, nullptr) == FLinkerLoad::LINKER_TimedOut ) 
 		{ 
 		}
 
@@ -4582,6 +4583,8 @@ namespace UE4CodeGen_Private
 #endif
 
 		NewClass->StaticLink();
+
+		NewClass->SetSparseClassDataStruct(NewClass->GetSparseClassDataArchetypeStruct());
 	}
 }
 

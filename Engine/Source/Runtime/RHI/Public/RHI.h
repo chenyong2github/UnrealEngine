@@ -124,6 +124,9 @@ RHI_API bool RHISupportsIndexBufferUAVs(const EShaderPlatform Platform);
 // helper to check if a preview feature level has been requested.
 RHI_API bool RHIGetPreviewFeatureLevel(ERHIFeatureLevel::Type& PreviewFeatureLevelOUT);
 
+// helper to check if preferred EPixelFormat is supported, return one if it is not
+RHI_API EPixelFormat RHIPreferredPixelFormatHint(EPixelFormat PreferredPixelFormat);
+
 inline bool RHISupportsInstancedStereo(const EShaderPlatform Platform)
 {
 	// Only D3D SM5, PS4 and Metal SM5 supports Instanced Stereo
@@ -202,7 +205,7 @@ inline bool RHISupportsAbsoluteVertexID(EShaderPlatform InShaderPlatform)
  **/
 inline RHI_API bool RHISupportsRayTracingShaders(EShaderPlatform Platform)
 {
-	return Platform == SP_PCD3D_SM5;
+	return FDataDrivenShaderPlatformInfo::GetInfo(Platform).bSupportsRayTracing;
 }
 
 /** Can this platform compile shaders that use shader model 6.0 wave intrinsics.
@@ -214,6 +217,14 @@ inline RHI_API bool RHISupportsWaveOperations(EShaderPlatform Platform)
 	return Platform == SP_PCD3D_SM5;
 }
 
+/** True if the given shader platform supports a render target write mask */
+inline bool RHISupportsRenderTargetWriteMask(EShaderPlatform Platform)
+{
+	return
+		Platform == SP_PS4 ||
+		Platform == SP_XBOXONE_D3D12 ||
+		FDataDrivenShaderPlatformInfo::GetInfo(Platform).bSupportsRenderTargetWriteMask;
+}
 
 // Wrapper for GRHI## global variables, allows values to be overridden for mobile preview modes.
 template <typename TValueType>
@@ -346,9 +357,6 @@ extern RHI_API bool GSupportsWideMRT;
 /** True if the RHI and current hardware supports supports depth bounds testing */
 extern RHI_API bool GSupportsDepthBoundsTest;
 
-/** True if the RHI and current hardware supports a render target write mask */
-extern RHI_API bool GSupportsRenderTargetWriteMask;
-
 /** True if the RHI supports explicit access to depth target HTile meta data. */
 extern RHI_API bool GRHISupportsExplicitHTile;
 
@@ -372,6 +380,9 @@ extern RHI_API bool GSupportsTransientResourceAliasing;
 
 /** true if the RHI requires a valid RT bound during UAV scatter operation inside the pixel shader */
 extern RHI_API bool GRHIRequiresRenderTargetForPixelShaderUAVs;
+
+/** true if the RHI supports unordered access view format aliasing */
+extern RHI_API bool GRHISupportsUAVFormatAliasing;
 
 /** The minimum Z value in clip space for the RHI. */
 extern RHI_API float GMinClipZ;
@@ -1229,46 +1240,39 @@ struct FRHIResourceCreateInfo
 		, GPUMask(FRHIGPUMask::All())
 		, bWithoutNativeResource(false)
 		, DebugName(nullptr)
+		, ExtData(0)
 	{}
 
 	// for CreateTexture calls
 	FRHIResourceCreateInfo(FResourceBulkDataInterface* InBulkData)
-		: BulkData(InBulkData)
-		, ResourceArray(nullptr)
-		, ClearValueBinding(FLinearColor::Transparent)
-		, GPUMask(FRHIGPUMask::All())
-		, bWithoutNativeResource(false)
-		, DebugName(nullptr)
-	{}
+		: FRHIResourceCreateInfo()
+	{
+		BulkData = InBulkData;
+	}
 
 	// for CreateVertexBuffer/CreateStructuredBuffer calls
 	FRHIResourceCreateInfo(FResourceArrayInterface* InResourceArray)
-		: BulkData(nullptr)
-		, ResourceArray(InResourceArray)
-		, ClearValueBinding(FLinearColor::Transparent)
-		, GPUMask(FRHIGPUMask::All())
-		, bWithoutNativeResource(false)
-		, DebugName(nullptr)
-	{}
+		: FRHIResourceCreateInfo()
+	{
+		ResourceArray = InResourceArray;
+	}
 
 	FRHIResourceCreateInfo(const FClearValueBinding& InClearValueBinding)
-		: BulkData(nullptr)
-		, ResourceArray(nullptr)
-		, ClearValueBinding(InClearValueBinding)
-		, GPUMask(FRHIGPUMask::All())
-		, bWithoutNativeResource(false)
-		, DebugName(nullptr)
+		: FRHIResourceCreateInfo()
 	{
+		ClearValueBinding = InClearValueBinding;
 	}
 
 	FRHIResourceCreateInfo(const TCHAR* InDebugName)
-		: BulkData(nullptr)
-		, ResourceArray(nullptr)
-		, ClearValueBinding(FLinearColor::Transparent)
-		, GPUMask(FRHIGPUMask::All())
-		, bWithoutNativeResource(false)
-		, DebugName(InDebugName)
+		: FRHIResourceCreateInfo()
 	{
+		DebugName = InDebugName;
+	}
+
+	FRHIResourceCreateInfo(uint32 InExtData)
+		: FRHIResourceCreateInfo()
+	{
+		ExtData = InExtData;
 	}
 
 	// for CreateTexture calls
@@ -1285,6 +1289,9 @@ struct FRHIResourceCreateInfo
 	// whether to create an RHI object with no underlying resource
 	bool bWithoutNativeResource;
 	const TCHAR* DebugName;
+
+	// optional data that would have come from an offline cooker or whatever - general purpose
+	uint32 ExtData;
 };
 
 enum ERHITextureSRVOverrideSRGBType
@@ -1642,11 +1649,8 @@ struct FTextureMemoryStats
 
 	bool AreHardwareStatsValid() const
 	{
-#if !PLATFORM_HTML5 // TODO: should this be tested with GRHISupportsRHIThread instead? -- seems this would be better done in SynthBenchmarkPrivate.cpp
-		return (DedicatedVideoMemory >= 0 && DedicatedSystemMemory >= 0 && SharedSystemMemory >= 0);
-#else
-		return false;
-#endif
+		// pardon the redundancy, have a broken compiler (__EMSCRIPTEN__) that needs these types spelled out...
+		return ((int64)DedicatedVideoMemory >= 0 && (int64)DedicatedSystemMemory >= 0 && (int64)SharedSystemMemory >= 0);
 	}
 
 	bool IsUsingLimitedPoolSize() const

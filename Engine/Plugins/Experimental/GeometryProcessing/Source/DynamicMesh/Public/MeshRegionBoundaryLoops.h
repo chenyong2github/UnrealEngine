@@ -6,7 +6,7 @@
 
 #include "DynamicMesh3.h"
 #include "EdgeLoop.h"
-
+#include "Util/SparseIndexCollectionTypes.h"
 
 /**
  * Extract FEdgeLoops on the boundary of a set of triangles of a mesh.
@@ -54,14 +54,11 @@ protected:
 
 	// TODO: C# code used IndexFlagSet here, which is sparse if region size << mesh size
 	// list of included triangles and edges
-	TArray<bool> triangles;
-	TArray<bool> edges;
+	FIndexFlagSet Triangles;
+	FIndexFlagSet Edges;
 	TArray<int> edges_roi;
 
-
-	static bool ContainsElement(const TArray<bool>& flagset, int index) { return flagset[index] == true; }
-
-	bool IsEdgeOnBoundary(int eid) const { return ContainsElement(edges, eid); }
+	bool IsEdgeOnBoundary(int eid) const { return Edges.Contains(eid); }
 
 	// returns true for both internal and mesh boundary edges
 	// tid_in and tid_out are triangles 'in' and 'out' of set, respectively
@@ -85,7 +82,7 @@ protected:
 	// ok, bdry_edges[0...bdry_edges_count] contains the boundary edges coming out of bowtie_v.
 	// We want to pick the best one to continue the loop that came : to bowtie_v on incoming_e.
 	// If the loops are all sane, then we will get the smallest loops by "turning left" at bowtie_v.
-	int FindLeftTurnEdge(int incoming_e, int bowtie_v, TArray<int>& bdry_edges, int bdry_edges_count, TArray<bool>& used_edges);
+	int FindLeftTurnEdge(int incoming_e, int bowtie_v, TArray<int>& bdry_edges, int bdry_edges_count, const FIndexFlagSet& used_edges);
 
 
 	// This is called when loopV contains one or more "bowtie" vertices.

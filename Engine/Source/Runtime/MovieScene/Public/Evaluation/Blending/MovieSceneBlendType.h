@@ -7,9 +7,10 @@
 #include "MovieSceneBlendType.generated.h"
 
 /** Movie scene blend type enumeration */
-UENUM()
+UENUM(BlueprintType)
 enum class EMovieSceneBlendType : uint8
 {
+	Invalid UMETA(Hidden),
 	/** Blends all other weighted values together as an average of the total weight */
 	Absolute			= 0x1,
 	/** Applies this value as a sum total of all other additives */
@@ -19,7 +20,7 @@ enum class EMovieSceneBlendType : uint8
 };
 
 /** Optional blend type structure */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FOptionalMovieSceneBlendType
 {
 	GENERATED_BODY()

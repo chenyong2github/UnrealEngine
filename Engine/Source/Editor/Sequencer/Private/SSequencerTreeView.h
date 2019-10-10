@@ -68,6 +68,9 @@ public:
 	/** Access the underlying tree data */
 	TSharedPtr<FSequencerNodeTree> GetNodeTree() { return SequencerNodeTree; }
 
+	/** @return the number of root nodes this tree contains */
+	int32 GetNumRootNodes() const { return RootNodes.Num(); }
+
 	/** @return an optional region specifying the vertical bounds in which a highlight should be drawn */
 	const TOptional<FHighlightRegion>& GetHighlightRegion() const { return HighlightRegion; }
 

@@ -18,7 +18,7 @@ public:
 	/**
 	 * Constructor
 	 */
-	FMenuSeparatorBlock(const FName& InExtensionHook);
+	FMenuSeparatorBlock(const FName& InExtensionHook, bool bInIsPartOfHeading);
 
 
 private:

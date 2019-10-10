@@ -275,7 +275,7 @@ void UMovieScenePropertyTrack::SetSectionToKey(UMovieSceneSection* InSection)
 	SectionToKey = InSection;
 }
 
-UMovieSceneSection* UMovieScenePropertyTrack::GetSectionToKey()
+UMovieSceneSection* UMovieScenePropertyTrack::GetSectionToKey() const
 {
 	return SectionToKey;
 }

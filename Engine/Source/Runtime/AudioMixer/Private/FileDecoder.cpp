@@ -65,27 +65,24 @@ ICompressedAudioInfo* FAudioFileReader::GetNewDecompressorForFile(const FString&
 {
 	FString Extension = GetExtensionForFile(InPath);
 
-#if !PLATFORM_TVOS && !PLATFORM_HTML5
 	static const FString OpusExtension = TEXT("opus");
 	static const FString OggExtension = TEXT("ogg");
 
+#if PLATFORM_SUPPORTS_OPUS_CODEC 
 	if (Extension.Equals(OpusExtension))
 	{
 		return new FOpusAudioInfo();
 	}
-	else if (Extension.Equals(OggExtension))
+#endif
+#if PLATFORM_SUPPORTS_VORBIS_CODEC 
+	if (Extension.Equals(OggExtension))
 	{
 		return new FVorbisAudioInfo();
 	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("Invalid file extension %s."), *Extension);
-		return nullptr;
-	}
-#else
-	UE_LOG(LogTemp, Error, TEXT("FAudioFileReader is not supported on this platform."), *Extension);
+#endif
+
+	UE_LOG(LogTemp, Error, TEXT("Unknown extension '%s' for the FAudioFileReader formats supported on this platform."), *Extension);
 	return nullptr;
-#endif // !PLATFORM_TVOS && !PLATFORM_HTML5
 }
 
 FString FAudioFileReader::GetExtensionForFile(const FString& InPath)

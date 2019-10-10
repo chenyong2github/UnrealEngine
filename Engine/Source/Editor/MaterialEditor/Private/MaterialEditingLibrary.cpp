@@ -213,9 +213,19 @@ namespace MaterialEditingLibraryImpl
 
 			int32 InputIndex = 0;
 
-			for ( FFunctionExpressionInput& FunctionExpressionInput : Inputs )
+			if ( Inputs.Num() > 0 )
 			{
-				LayoutMaterialExpression( FunctionExpressionInput.ExpressionInput, nullptr, MaterialExpressionsToLayout, ++InputIndex, 0 );
+				for ( FFunctionExpressionInput& FunctionExpressionInput : Inputs )
+				{
+					LayoutMaterialExpression( FunctionExpressionInput.ExpressionInput, nullptr, MaterialExpressionsToLayout, ++InputIndex, 0 );
+				}
+			}
+			else
+			{
+				for ( FFunctionExpressionOutput& FunctionExpressionOutput : Outputs )
+				{
+					LayoutMaterialExpression( FunctionExpressionOutput.ExpressionOutput, nullptr, MaterialExpressionsToLayout, ++InputIndex, 0 );
+				}
 			}
 		}
 

@@ -102,7 +102,7 @@ public:
 
 	SLATE_END_ARGS()
 public:
-	void Construct(const FArguments& InArgs, const TSharedRef<IEditableSkeleton>& InEditableSkeleton);
+	void Construct(const FArguments& InArgs, const TSharedRef<IEditableSkeleton>& InEditableSkeleton, const TSharedPtr<class FAssetEditorToolkit>& InHostingApp = nullptr);
 
 	~SSkeletonAnimNotifies();
 
@@ -187,6 +187,9 @@ private:
 	/** Handle when an item is scrolled into view, triggers a rename for new items */
 	void OnItemScrolledIntoView(TSharedPtr<FDisplayedAnimNotifyInfo> InItem, const TSharedPtr<ITableRow>& InTableRow);
 
+	/** Handle find references from the context menu */
+	void OnFindReferences();
+
 	/** The skeleton we are currently editing */
 	TSharedPtr<class IEditableSkeleton> EditableSkeleton;
 
@@ -210,6 +213,9 @@ private:
 
 	/** Delegate fired when a notify is selected */
 	FOnItemSelected OnItemSelected;
+
+	/** The app we are embedded in */
+	TWeakPtr<class FAssetEditorToolkit> WeakHostingApp;
 
 	/** Whether we should use this dialog as a picker or an editor. In picker mode we cant add, remove or rename notifies. */
 	bool bIsPicker;

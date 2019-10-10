@@ -73,3 +73,31 @@ FPointSetAdapterd MeshAdapterUtil::MakeBoundaryEdgeMidpointsAdapter(const FDynam
 
 	return Adapter;
 }
+
+
+FTriangleMeshAdapterd MeshAdapterUtil::MakeTransformedDynamicMeshAdapter(const FDynamicMesh3* Mesh, FTransform Transform)
+{
+	FTriangleMeshAdapterd Adapter = MakeDynamicMeshAdapter(Mesh);
+	Adapter.GetVertex = [Mesh, Transform](int32 Idx)
+	{
+		return FVector3d(Transform.TransformPosition(Mesh->GetVertex(Idx)));
+	};
+	return Adapter;
+}
+
+
+FTriangleMeshAdapterd MeshAdapterUtil::MakeDynamicMeshAdapter(const FDynamicMesh3* Mesh)
+{
+	return
+	FTriangleMeshAdapterd {
+		[Mesh](int Idx) { return Mesh->IsTriangle(Idx); },
+		[Mesh](int Idx) { return Mesh->IsVertex(Idx); },
+		[Mesh]() { return Mesh->MaxTriangleID(); },
+		[Mesh]() { return Mesh->MaxVertexID(); },
+		[Mesh]() { return Mesh->TriangleCount(); },
+		[Mesh]() { return Mesh->VertexCount(); },
+		[Mesh]() { return Mesh->GetShapeTimestamp(); },
+		[Mesh](int Idx) { return Mesh->GetTriangle(Idx); },
+		[Mesh](int Idx) { return Mesh->GetVertex(Idx); }
+	};
+}

@@ -710,7 +710,7 @@ void SNiagaraSpreadsheetView::SetTarget(UNiagaraComponent* InComponent)
 
 	for (int32 i = 0; i < (int32)UIMax; i++)
 	{
-		CaptureData[i].DataSet.Init(FNiagaraDataSetID(), ENiagaraSimTarget::CPUSim, InComponent->GetFullName() + TEXT("/Spreadsheet"));
+		CaptureData[i].DataSet.Init(nullptr);
 		CaptureData[i].InputParams.Reset();
 		CaptureData[i].CaptureData.Reset();
 	}
@@ -902,7 +902,7 @@ void SNiagaraSpreadsheetView::SystemSelectionChanged(UNiagaraSystemSelectionView
 	// Need to reset the attributes list...
 	for (int32 i = 0; i < (int32)UIMax; i++)
 	{
-		CaptureData[i].DataSet.Init(FNiagaraDataSetID(), ENiagaraSimTarget::CPUSim, TEXT("/Spreadsheet"));
+		CaptureData[i].DataSet.Init(nullptr);
 		CaptureData[i].SupportedInputIndices.SetNum(0);
 		CaptureData[i].SupportedOutputIndices.SetNum(0);
 		CaptureData[i].OutputsListView->RequestTreeRefresh();
@@ -1035,8 +1035,7 @@ void SNiagaraSpreadsheetView::HandleTimeChange()
 					else
 					{
 						CaptureData[i].CaptureData.Reset();
-						CaptureData[i].DataSet.Init(FNiagaraDataSetID(), ENiagaraSimTarget::CPUSim, TargetComponent->GetFullName() + TEXT("/Spreadsheet"));
-						CaptureData[i].DataSet.Finalize();
+						CaptureData[i].DataSet.Init(nullptr);
 
 						ResetColumns((EUITab)i);
 						ResetEntries((EUITab)i);

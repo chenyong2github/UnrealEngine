@@ -4,52 +4,14 @@
 #include "Chaos/PBDRigidClusteredParticles.h"
 #include "Chaos/Transform.h"
 #include "Chaos/PBDCollisionTypes.h"
+#include "Chaos/TriangleMesh.h"
+#include "Chaos/ClusterCreationParameters.h"
 #include "Framework/BufferedData.h"
-#include "BoundingVolume.h"
-#include "ImplicitObjectUnion.h"
 
 #define TODO_CONVERT_GEOMETRY_COLLECTION_PARTICLE_INDICES_TO_PARTICLE_POINTERS 0
 
 namespace Chaos
 {
-
-template <typename T>
-struct FClusterCreationParameters
-{
-	enum EConnectionMethod { None = 0, PointImplicit, DelaunayTriangulation, MinimalSpanningSubsetDelaunayTriangulation, PointImplicitAugmentedWithMinimalDelaunay };
-
-
-	FClusterCreationParameters(
-		T CoillisionThicknessPercentIn=0.3
-		, int32 MaxNumConnectionsIn=100
-		, bool bCleanCollisionParticlesIn=true 
-		, bool bCopyCollisionParticlesIn=true
-		, bool bGenerateConnectionGraphIn = true
-		, EConnectionMethod ConnectionMethodIn = EConnectionMethod::PointImplicitAugmentedWithMinimalDelaunay
-		, TBVHParticles<float,3>* CollisionParticlesIn = nullptr
-		, int32 RigidBodyIndexIn = INDEX_NONE
-		) 
-		: CoillisionThicknessPercent(CoillisionThicknessPercentIn)
-		, MaxNumConnections(MaxNumConnectionsIn)
-		, bCleanCollisionParticles(bCleanCollisionParticlesIn)
-		, bCopyCollisionParticles(bCopyCollisionParticlesIn)
-		, bGenerateConnectionGraph(bGenerateConnectionGraphIn)
-		, ConnectionMethod(ConnectionMethodIn)
-		, CollisionParticles(CollisionParticlesIn)
-		, RigidBodyIndex(RigidBodyIndexIn)
-	{}
-
-	T CoillisionThicknessPercent;
-	int32 MaxNumConnections;
-	bool bCleanCollisionParticles;
-	bool bCopyCollisionParticles;
-	bool bGenerateConnectionGraph;
-	EConnectionMethod ConnectionMethod;
-	TBVHParticles<float,3>* CollisionParticles;
-	int32 RigidBodyIndex;
-
-};
-
 
 template <typename T, int d>
 class CHAOS_API TClusterBuffer

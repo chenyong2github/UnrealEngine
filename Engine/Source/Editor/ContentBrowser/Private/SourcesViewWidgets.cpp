@@ -12,7 +12,6 @@
 #include "DragDropHandler.h"
 #include "ContentBrowserUtils.h"
 #include "CollectionViewUtils.h"
-#include "Widgets/Text/SInlineEditableTextBlock.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
@@ -319,96 +318,30 @@ void SCollectionTreeItem::Construct( const FArguments& InArgs )
 	OnHandleDragDrop = InArgs._OnHandleDragDrop;
 	bDraggedOver = false;
 
+	TSharedPtr<SAssetTagItem> AssetTagItem;
+
 	ChildSlot
 	[
-		SNew(SBorder)
-		.BorderImage(this, &SCollectionTreeItem::GetBorderImage)
-		.Padding(0)
-		[
-			SNew(SHorizontalBox)
-
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.Padding(0, 0, 2, 0)
-			[
-				SNew(SCheckBox)
-				.Visibility( InArgs._IsCollectionChecked.IsSet() ? EVisibility::Visible : EVisibility::Collapsed )
-				.IsEnabled( InArgs._IsCheckBoxEnabled )
-				.IsChecked( InArgs._IsCollectionChecked )
-				.OnCheckStateChanged( InArgs._OnCollectionCheckStateChanged )
-			]
-
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.Padding(0, 0, 2, 0)
-			[
-				// Share Type Icon
-				SNew(SImage)
-				.Image( FEditorStyle::GetBrush( ECollectionShareType::GetIconStyleName(InArgs._CollectionItem->CollectionType) ) )
-				.ColorAndOpacity( this, &SCollectionTreeItem::GetCollectionColor )
-				.ToolTipText(ECollectionShareType::GetDescription(InArgs._CollectionItem->CollectionType))
-			]
-
-			+SHorizontalBox::Slot()
-			[
-				SAssignNew(InlineRenameWidget, SInlineEditableTextBlock)
-				.Text( this, &SCollectionTreeItem::GetNameText )
-				.HighlightText( InArgs._HighlightText )
-				.Font( FEditorStyle::GetFontStyle("ContentBrowser.SourceListItemFont") )
-				.OnBeginTextEdit(this, &SCollectionTreeItem::HandleBeginNameChange)
-				.OnTextCommitted(this, &SCollectionTreeItem::HandleNameCommitted)
-				.OnVerifyTextChanged(this, &SCollectionTreeItem::HandleVerifyNameChanged)
-				.IsSelected( InArgs._IsSelected )
-				.IsReadOnly( InArgs._IsReadOnly )
-			]
-
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(2, 0, 3, 0)
-			[
-				// Storage Mode Icon
-				SNew(SBox)
-				.WidthOverride(16)
-				.HeightOverride(16)
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Center)
-				[
-					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-					.Text(this, &SCollectionTreeItem::GetCollectionStorageModeIconText)
-					.ColorAndOpacity(FLinearColor::Gray)
-					.ToolTipText(this, &SCollectionTreeItem::GetCollectionStorageModeToolTipText)
-				]
-			]
-
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.Padding(2, 0, 2, 0)
-			[
-				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("ContentBrowser.CollectionStatus"))
-				.ColorAndOpacity(this, &SCollectionTreeItem::GetCollectionStatusColor)
-				.ToolTipText(this, &SCollectionTreeItem::GetCollectionStatusToolTipText)
-			]
-		]
+		SAssignNew(AssetTagItem, SAssetTagItem)
+		.ViewMode(InArgs._ViewMode)
+		.BaseColor(this, &SCollectionTreeItem::GetCollectionColor)
+		.DisplayName(this, &SCollectionTreeItem::GetNameText)
+		.CountText(this, &SCollectionTreeItem::GetCollectionObjectCountText)
+		.WarningText(this, &SCollectionTreeItem::GetCollectionWarningText)
+		.HighlightText(InArgs._HighlightText)
+		.OnBeginNameEdit(this, &SCollectionTreeItem::HandleBeginNameChange)
+		.OnNameCommitted(this, &SCollectionTreeItem::HandleNameCommitted)
+		.OnVerifyName(this, &SCollectionTreeItem::HandleVerifyNameChanged)
+		.IsSelected(InArgs._IsSelected)
+		.IsNameReadOnly(InArgs._IsReadOnly)
+		.IsCheckBoxEnabled(InArgs._IsCheckBoxEnabled)
+		.IsChecked(InArgs._IsCollectionChecked)
+		.OnCheckStateChanged(InArgs._OnCollectionCheckStateChanged)
+		.OnBuildToolTipInfo(this, &SCollectionTreeItem::BuildToolTipInfo)
 	];
 
-	if(InlineRenameWidget.IsValid())
-	{
-		// This is broadcast when the context menu / input binding requests a rename
-		EnterEditingModeDelegateHandle = CollectionItem.Pin()->OnRenamedRequestEvent.AddSP(InlineRenameWidget.Get(), &SInlineEditableTextBlock::EnterEditingMode);
-	}
-}
-
-SCollectionTreeItem::~SCollectionTreeItem()
-{
-	if(InlineRenameWidget.IsValid())
-	{
-		CollectionItem.Pin()->OnRenamedRequestEvent.Remove( EnterEditingModeDelegateHandle );
-	}
+	// This is broadcast when the context menu / input binding requests a rename
+	InArgs._CollectionItem->OnRenamedRequestEvent.AddSP(AssetTagItem.Get(), &SAssetTagItem::RequestRename);
 }
 
 void SCollectionTreeItem::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
@@ -540,122 +473,59 @@ FText SCollectionTreeItem::GetNameText() const
 	}
 }
 
-FSlateColor SCollectionTreeItem::GetCollectionColor() const
+FLinearColor SCollectionTreeItem::GetCollectionColor() const
 {
 	TSharedPtr<FCollectionItem> CollectionItemPtr = CollectionItem.Pin();
 
 	if ( CollectionItemPtr.IsValid() )
 	{
-		const TSharedPtr<FLinearColor> Color = CollectionViewUtils::LoadColor(CollectionItemPtr->CollectionName.ToString(), CollectionItemPtr->CollectionType);
-		if( Color.IsValid() )
-		{
-			return *Color.Get();
-		}
+		return CollectionItemPtr->CollectionColor;
 	}
 	
 	return CollectionViewUtils::GetDefaultColor();
 }
 
-const FSlateBrush* SCollectionTreeItem::GetBorderImage() const
-{
-	return bDraggedOver ? FEditorStyle::GetBrush("Menu.Background") : FEditorStyle::GetBrush("NoBorder");
-}
-
-FText SCollectionTreeItem::GetCollectionStorageModeIconText() const
+FText SCollectionTreeItem::GetCollectionObjectCountText() const
 {
 	TSharedPtr<FCollectionItem> CollectionItemPtr = CollectionItem.Pin();
 
-	if (CollectionItemPtr.IsValid())
+	if (CollectionItemPtr)
 	{
-		switch(CollectionItemPtr->StorageMode)
+		if (CollectionItemPtr->StorageMode == ECollectionStorageMode::Static)
 		{
-		case ECollectionStorageMode::Static:
-			return FEditorFontGlyphs::List_Alt;
-
-		case ECollectionStorageMode::Dynamic:
-			return FEditorFontGlyphs::Bolt;
-
-		default:
-			break;
+			return CollectionItemPtr->NumObjects > 999
+				? NSLOCTEXT("ContentBrowser", "999+", "999+")
+				: FText::AsNumber(CollectionItemPtr->NumObjects);
 		}
+
+		return NSLOCTEXT("ContentBrowser", "InfinitySymbol", "\u221E");
 	}
 
 	return FText::GetEmpty();
 }
 
-FText SCollectionTreeItem::GetCollectionStorageModeToolTipText() const
+FText SCollectionTreeItem::GetCollectionWarningText() const
 {
 	TSharedPtr<FCollectionItem> CollectionItemPtr = CollectionItem.Pin();
 
-	if (CollectionItemPtr.IsValid())
+	if (CollectionItemPtr)
 	{
-		return ECollectionStorageMode::GetDescription(CollectionItemPtr->StorageMode);
-	}
-
-	return FText::GetEmpty();
-}
-
-FSlateColor SCollectionTreeItem::GetCollectionStatusColor() const
-{
-	TSharedPtr<FCollectionItem> CollectionItemPtr = CollectionItem.Pin();
-
-	if (CollectionItemPtr.IsValid())
-	{
-		switch(CollectionItemPtr->CurrentStatus)
+		switch (CollectionItemPtr->CurrentStatus)
 		{
-		case ECollectionItemStatus::IsUpToDateAndPopulated:
-			return FLinearColor(0.10616, 0.48777, 0.10616); // Green
-
-		case ECollectionItemStatus::IsUpToDateAndEmpty:
-			return FLinearColor::Gray;
-
 		case ECollectionItemStatus::IsOutOfDate:
-			return FLinearColor(0.87514, 0.42591, 0.07383); // Orange
+			return NSLOCTEXT("ContentBrowser", "CollectionStatus_IsOutOfDate", "Collection is not at the latest revision");
 
 		case ECollectionItemStatus::IsCheckedOutByAnotherUser:
-		case ECollectionItemStatus::IsConflicted:
-		case ECollectionItemStatus::IsMissingSCCProvider:
-			return FLinearColor(0.70117, 0.08464, 0.07593); // Red
-
-		case ECollectionItemStatus::HasLocalChanges:
-			return FLinearColor(0.10363, 0.53564, 0.7372); // Blue
-
-		default:
-			break;
-		}
-	}
-
-	return FLinearColor::White;
-}
-
-FText SCollectionTreeItem::GetCollectionStatusToolTipText() const
-{
-	TSharedPtr<FCollectionItem> CollectionItemPtr = CollectionItem.Pin();
-
-	if (CollectionItemPtr.IsValid())
-	{
-		switch(CollectionItemPtr->CurrentStatus)
-		{
-		case ECollectionItemStatus::IsUpToDateAndPopulated:
-			return LOCTEXT("CollectionStatus_IsUpToDateAndPopulated", "Collection is up-to-date");
-
-		case ECollectionItemStatus::IsUpToDateAndEmpty:
-			return LOCTEXT("CollectionStatus_IsUpToDateAndEmpty", "Collection is empty");
-
-		case ECollectionItemStatus::IsOutOfDate:
-			return LOCTEXT("CollectionStatus_IsOutOfDate", "Collection is not at the latest revision");
-
-		case ECollectionItemStatus::IsCheckedOutByAnotherUser:
-			return LOCTEXT("CollectionStatus_IsCheckedOutByAnotherUser", "Collection is checked out by another user");
+			return NSLOCTEXT("ContentBrowser", "CollectionStatus_IsCheckedOutByAnotherUser", "Collection is checked out by another user");
 
 		case ECollectionItemStatus::IsConflicted:
-			return LOCTEXT("CollectionStatus_IsConflicted", "Collection is conflicted - please use your external source control provider to resolve this conflict");
+			return NSLOCTEXT("ContentBrowser", "CollectionStatus_IsConflicted", "Collection is conflicted - please use your external source control provider to resolve this conflict");
 
 		case ECollectionItemStatus::IsMissingSCCProvider:
-			return LOCTEXT("CollectionStatus_IsMissingSCCProvider", "Collection is missing its source control provider - please check your source control settings");
+			return NSLOCTEXT("ContentBrowser", "CollectionStatus_IsMissingSCCProvider", "Collection is missing its source control provider - please check your source control settings");
 
 		case ECollectionItemStatus::HasLocalChanges:
-			return LOCTEXT("CollectionStatus_HasLocalChanges", "Collection has local unsaved or uncomitted changes");
+			return NSLOCTEXT("ContentBrowser", "CollectionStatus_HasLocalChanges", "Collection has local unsaved or uncomitted changes");
 
 		default:
 			break;
@@ -663,6 +533,21 @@ FText SCollectionTreeItem::GetCollectionStatusToolTipText() const
 	}
 
 	return FText::GetEmpty();
+}
+
+void SCollectionTreeItem::BuildToolTipInfo(const FOnBuildAssetTagItemToolTipInfoEntry& InCallback) const
+{
+	TSharedPtr<FCollectionItem> CollectionItemPtr = CollectionItem.Pin();
+
+	if (CollectionItemPtr)
+	{
+		InCallback(LOCTEXT("CollectionShareTypeKey", "Share Type"), ECollectionShareType::ToText(CollectionItemPtr->CollectionType));
+		InCallback(LOCTEXT("CollectionStorageModeKey", "Storage Mode"), ECollectionStorageMode::ToText(CollectionItemPtr->StorageMode));
+		if (CollectionItemPtr->StorageMode == ECollectionStorageMode::Static)
+		{
+			InCallback(LOCTEXT("CollectionObjectCountKey", "Object Count"), FText::AsNumber(CollectionItemPtr->NumObjects));
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

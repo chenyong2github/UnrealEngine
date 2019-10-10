@@ -42,7 +42,17 @@ void FSlowTask::Initialize()
 	if (bEnabled)
 	{
 		Context.ScopeStack.Push(this);
+
+		Context.RequestUpdateUI();
 	}
+}
+
+void FSlowTask::ForceRefresh(FFeedbackContext& Context)
+{
+	// We force refresh twice to account for r.oneframethreadlag in slate renderer to avoid
+	// missing any visual cue when important transition occurs.
+	Context.RequestUpdateUI(true);
+	Context.RequestUpdateUI(true);
 }
 
 void FSlowTask::Destroy()
@@ -52,13 +62,17 @@ void FSlowTask::Destroy()
 		if (bCreatedDialog)
 		{
 			checkSlow(GIsSlowTask);
+
+			// Make sure we see the progress fully updated just before destroying it
+			ForceRefresh(Context);
+
 			Context.FinalizeSlowTask();
 		}
 
 		FSlowTaskStack& Stack = Context.ScopeStack;
 		checkSlow(Stack.Num() != 0 && Stack.Last() == this);
 
-		auto* Task = Stack.Last();
+		FSlowTask* Task = Stack.Last();
 		if (ensureMsgf(Task == this, TEXT("Out-of-order scoped task construction/destruction")))
 		{
 			Stack.Pop(false);
@@ -71,10 +85,11 @@ void FSlowTask::Destroy()
 		if (Stack.Num() != 0)
 		{
 			// Stop anything else contributing to the parent frame
-			auto* Parent = Stack.Last();
+			FSlowTask* Parent = Stack.Last();
 			Parent->EnterProgressFrame(0, Parent->FrameMessage);
-		}
 
+			Parent->Context.RequestUpdateUI();
+		}
 	}
 }
 
@@ -107,7 +122,7 @@ void FSlowTask::EnterProgressFrame(float ExpectedWorkThisFrame, FText Text)
 
 	if (bEnabled)
 	{
-		Context.RequestUpdateUI(bCreatedDialog || Context.ScopeStack[0] == this);
+		Context.RequestUpdateUI();
 	}
 }
 
@@ -126,6 +141,9 @@ void FSlowTask::MakeDialog(bool bShowCancelButton, bool bAllowInPIE)
 		if (GIsSlowTask)
 		{
 			bCreatedDialog = true;
+
+			// Refresh UI after dialog has been created
+			ForceRefresh(Context);
 		}
 	}
 }

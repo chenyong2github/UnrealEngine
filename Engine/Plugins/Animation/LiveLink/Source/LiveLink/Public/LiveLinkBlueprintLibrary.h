@@ -125,7 +125,7 @@ public:
 	 * That snapshot dictate which subject will be used for the duration of that frame.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "LiveLink")
-	bool IsSpecificLiveLinkSubjectEnabled(const FLiveLinkSubjectKey SubjectKey, bool bUseSnapshot);
+	bool IsSpecificLiveLinkSubjectEnabled(const FLiveLinkSubjectKey SubjectKey, bool bForThisFrame);
 
 	/**
 	 * Whether or not the client has a subject with this name enabled

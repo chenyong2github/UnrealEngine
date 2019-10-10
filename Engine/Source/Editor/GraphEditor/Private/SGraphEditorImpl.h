@@ -334,11 +334,13 @@ private:
 
 	bool IsLocked() const;
 	
+	void RegisterContextMenu(const class UEdGraphSchema* Schema, struct FToolMenuContext& MenuContext) const;
 	class UToolMenu* GenerateContextMenu(const class UEdGraphSchema* Schema, struct FToolMenuContext& MenuContext) const;
 
-	static void RegisterContextMenuFor_EdGraphSchema();
+	static void RegisterContextMenuFor_EdGraphSchema(const FName ParentMenuName);
 	static FName GetNodeParentContextMenuName(UClass* InClass);
 	static FName GetNodeContextMenuName(UClass* InClass);
+	static void AddContextMenuCommentSection(UToolMenu* InMenu);
 
 private:
 	bool bIsActiveTimerRegistered;

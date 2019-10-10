@@ -3,7 +3,6 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
-#include "Chaos/ChaosSolver.h"
 #include "ChaosFilter.h"
 #include "EventsData.h"
 #include "ChaosBreakingEventFilter.generated.h"
@@ -93,8 +92,6 @@ struct FChaosBreakingEventRequestSettings
 	{}
 };
 
-#if INCLUDE_CHAOS
-
 class GEOMETRYCOLLECTIONENGINE_API FChaosBreakingEventFilter : public IChaosEventFilter<Chaos::FBreakingDataArray, TArray<FChaosBreakingEventData>, EChaosBreakingSortMethod>
 {
 public:
@@ -108,5 +105,3 @@ private:
 	FChaosBreakingEventFilter() : BreakingEventRequestSettings(nullptr) {}
 	const FChaosBreakingEventRequestSettings* BreakingEventRequestSettings;
 };
-
-#endif

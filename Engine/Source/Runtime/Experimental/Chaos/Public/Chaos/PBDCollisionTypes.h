@@ -1,9 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "Chaos/Vector.h"
-#include "CoreMinimal.h"
 #include "Box.h"
-#include "Chaos/ParticleHandle.h"
+#include "Chaos/ParticleHandleFwd.h"
 
 class UPhysicalMaterial;
 
@@ -14,13 +13,16 @@ namespace Chaos
 template<class T, int d>
 struct TRigidBodyContactConstraint
 {
-	TRigidBodyContactConstraint() : AccumulatedImpulse(0.f) {}
+	TRigidBodyContactConstraint() : AccumulatedImpulse(0.f), PreviousLocation( FLT_MAX ), Lifespan(0) {}
 	TGeometryParticleHandle<T, d>* Particle;
 	TGeometryParticleHandle<T, d>* Levelset;
 	TVector<T, d> Normal;
 	TVector<T, d> Location;
 	T Phi;
 	TVector<T, d> AccumulatedImpulse;
+
+	TVector<T, d> PreviousLocation;
+	int32 Lifespan;
 
 	FString ToString() const
 	{
@@ -443,5 +445,26 @@ struct TTrailingDataExt
 		return A.Particle == B.Particle;
 	}
 };
+
+
+template<class T, int d>
+struct TSleepingData
+{
+	TSleepingData()
+		: Particle(nullptr)
+		, Sleeping(true)
+	{}
+
+	TSleepingData(
+		  TGeometryParticle<T, d>* InParticle
+		, bool InSleeping) 
+		: Particle(InParticle)
+		, Sleeping(InSleeping)
+	{}
+
+	TGeometryParticle<T, d>* Particle;
+	bool Sleeping;	// if !Sleeping == Awake
+};
+
 
 }

@@ -1246,7 +1246,7 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 						{
 							if (!SourceControlModule.GetProvider().IsAvailable())
 							{
-								return FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.SourceControl.Error");
+								return FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.SourceControl.Problem");
 							}
 							else
 							{

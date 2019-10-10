@@ -34,6 +34,8 @@ public:
 	virtual void Reconcile() { }
 	virtual void TickSimulation(float DeltaTimeSeconds) { }
 
+	INetworkSimulationModel* GetNetworkSimulation() const { return NetworkSim.Get(); }
+
 protected:
 	
 	// Classes must instantiate their own NetworkSim here. The UNetworkPredictionComponent will manage its lifetime

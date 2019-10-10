@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.IO;
@@ -156,13 +156,6 @@ public class BuildCommonTools : BuildCommand
 			Agenda.AddTarget("XboxOnePDBFileUtil", UnrealBuildTool.UnrealTargetPlatform.Win64, UnrealBuildTool.UnrealTargetConfiguration.Development);
 		}
 
-		// HTML5 binaries
-		if (Platforms.Contains(UnrealBuildTool.UnrealTargetPlatform.HTML5))
-		{
-			Agenda.DotNetProjects.Add(@"Engine/Source/Programs/HTML5/HTML5LaunchHelper/HTML5LaunchHelper.csproj");
-			ExtraBuildProducts.Add(CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, @"Engine/Binaries/DotNET/HTML5LaunchHelper.exe"));
-		}
-
 		return Agenda;
 	}
 }
@@ -185,6 +178,9 @@ public class ZipProjectUp : BuildCommand
 		FileFilter Filter = new FileFilter();
 		Filter.Include("/Config/...");
 		Filter.Include("/Content/...");
+		Filter.Include("/Plugins/...");
+		Filter.Exclude("/Plugins/.../Intermediate/...");
+		Filter.Exclude("/Plugins/.../Binaries/...");
 		Filter.Include("/Source/...");
 		Filter.Include("*.uproject");
 

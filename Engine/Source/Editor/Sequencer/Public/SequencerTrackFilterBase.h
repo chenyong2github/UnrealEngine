@@ -67,6 +67,11 @@ class FSequencerTrackFilter_ComponentType : public FSequencerTrackFilter
 	// IFilter implementation
 	virtual bool PassesFilter(FTrackFilterType InItem) const override
 	{
+		if (!InItem)
+		{
+			return false;
+		}
+
 		if (InItem->IsA(ComponentType::StaticClass()))
 		{
 			return true;

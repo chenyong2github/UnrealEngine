@@ -14,10 +14,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "Engine/Texture2D.h"
 #include "StaticMeshResources.h"
-
-#include "MeshDescription.h"
-#include "MeshAttributes.h"
-#include "MeshAttributeArray.h"
+#include "StaticMeshAttributes.h"
 
 #include "Rendering/SkeletalMeshRenderData.h"
 
@@ -38,7 +35,7 @@
 
 #include "Editor.h"
 #include "LevelEditor.h"
-#include "ILevelViewport.h"
+#include "IAssetViewport.h"
 #include "EditorViewportClient.h"
 #include "LevelEditorViewport.h"
 
@@ -112,22 +109,21 @@ bool MeshPaintHelpers::PropagateColorsToRawMesh(UStaticMesh* StaticMesh, int32 L
 	if (RenderData.WedgeMap.Num() > 0 && ColorVertexBuffer.GetNumVertices() == RenderModel.GetNumVertices())
 	{
 		// Use the wedge map if it is available as it is lossless.
-		FMeshDescription* RawMeshPtr = StaticMesh->GetMeshDescription(LODIndex);
+		FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(LODIndex);
 
-		if (RawMeshPtr == nullptr)
+		if (MeshDescription == nullptr)
 		{
 			//Cannot propagate to a generated LOD, the generated LOD use the source LOD vertex painting. 
 			return false;
 		}
 
-		FMeshDescription& RawMesh = *RawMeshPtr;
-		int32 NumWedges = RawMesh.VertexInstances().Num();
+		FStaticMeshAttributes Attributes(*MeshDescription);
+		int32 NumWedges = MeshDescription->VertexInstances().Num();
 		if (RenderData.WedgeMap.Num() == NumWedges)
 		{
-			FStaticMeshDescriptionAttributeGetter AttributeGetter(&RawMesh);
-			TVertexInstanceAttributesRef<FVector4> Colors = AttributeGetter.GetColors();
+			TVertexInstanceAttributesRef<FVector4> Colors = Attributes.GetVertexInstanceColors();
 			int32 VertexInstanceIndex = 0;
-			for (const FVertexInstanceID VertexInstanceID : RawMesh.VertexInstances().GetElementIDs())
+			for (const FVertexInstanceID VertexInstanceID : MeshDescription->VertexInstances().GetElementIDs())
 			{
 				FLinearColor WedgeColor = FLinearColor::White;
 				int32 Index = RenderData.WedgeMap[VertexInstanceIndex];
@@ -144,24 +140,25 @@ bool MeshPaintHelpers::PropagateColorsToRawMesh(UStaticMesh* StaticMesh, int32 L
 	}
 	else
 	{
-		FMeshDescription* SrcModelMeshDescription = StaticMesh->GetMeshDescription(LODIndex);
+		FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(LODIndex);
 		// If there's no raw mesh data, don't try to do any fixup here
-		if (SrcModelMeshDescription == nullptr || ComponentLODInfo.OverrideVertexColors == nullptr)
+		if (MeshDescription == nullptr || ComponentLODInfo.OverrideVertexColors == nullptr)
 		{
 			return false;
 		}
 
+		FStaticMeshAttributes Attributes(*MeshDescription);
+
 		// Fall back to mapping based on position.
-		FStaticMeshDescriptionAttributeGetter AttributeGetter(SrcModelMeshDescription);
-		TVertexAttributesConstRef<FVector> VertexPositions = AttributeGetter.GetPositionsConst();
-		TVertexInstanceAttributesRef<FVector4> Colors = AttributeGetter.GetColors();
+		TVertexAttributesConstRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+		TVertexInstanceAttributesRef<FVector4> Colors = Attributes.GetVertexInstanceColors();
 		TArray<FColor> NewVertexColors;
 		FPositionVertexBuffer TempPositionVertexBuffer;
-		int32 NumVertex = SrcModelMeshDescription->Vertices().Num();
+		int32 NumVertex = MeshDescription->Vertices().Num();
 		TArray<FVector> VertexPositionsDup;
 		VertexPositionsDup.AddZeroed(NumVertex);
 		int32 VertexIndex = 0;
-		for (const FVertexID VertexID : SrcModelMeshDescription->Vertices().GetElementIDs())
+		for (const FVertexID VertexID : MeshDescription->Vertices().GetElementIDs())
 		{
 			VertexPositionsDup[VertexIndex] = VertexPositions[VertexID];
 		}
@@ -177,9 +174,9 @@ bool MeshPaintHelpers::PropagateColorsToRawMesh(UStaticMesh* StaticMesh, int32 L
 		);
 		if (NewVertexColors.Num() == NumVertex)
 		{
-			for (const FVertexInstanceID VertexInstanceID : SrcModelMeshDescription->VertexInstances().GetElementIDs())
+			for (const FVertexInstanceID VertexInstanceID : MeshDescription->VertexInstances().GetElementIDs())
 			{
-				const FVertexID VertexID = SrcModelMeshDescription->GetVertexInstanceVertex(VertexInstanceID);
+				const FVertexID VertexID = MeshDescription->GetVertexInstanceVertex(VertexInstanceID);
 				Colors[VertexInstanceID] = FLinearColor(NewVertexColors[VertexID.GetValue()]);
 			}
 			StaticMesh->CommitMeshDescription(LODIndex);
@@ -1152,11 +1149,11 @@ void MeshPaintHelpers::SetViewportColorMode(EMeshPaintColorViewMode ColorViewMod
 void MeshPaintHelpers::SetRealtimeViewport(bool bRealtime)
 {
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
-	TSharedPtr< ILevelViewport > ViewportWindow = LevelEditorModule.GetFirstActiveViewport();
+	TSharedPtr< IAssetViewport > ViewportWindow = LevelEditorModule.GetFirstActiveViewport();
 	const bool bRememberCurrentState = false;
 	if (ViewportWindow.IsValid())
 	{
-		FEditorViewportClient &Viewport = ViewportWindow->GetLevelViewportClient();
+		FEditorViewportClient &Viewport = ViewportWindow->GetAssetViewportClient();
 		if (Viewport.IsPerspective())
 		{
 			if (bRealtime)

@@ -26,7 +26,7 @@
 #include "Widgets/Text/STextBlock.h"
 
 #include "Editor.h"
-#include "ILevelViewport.h"
+#include "IAssetViewport.h"
 #include "LevelEditor.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionTextureSample.h"
@@ -607,13 +607,13 @@ void SMediaFrameworkCaptureCurrentViewportWidget::StartOutput()
 			{
 				// Find a editor viewport
 				FLevelEditorModule& LevelEditorModule = FModuleManager::Get().GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-				TSharedPtr<ILevelViewport> LevelViewportInterface = LevelEditorModule.GetFirstActiveViewport();
-				if (LevelViewportInterface.IsValid())
+				TSharedPtr<IAssetViewport> ViewportInterface = LevelEditorModule.GetFirstActiveViewport();
+				if (ViewportInterface.IsValid())
 				{
-					LevelViewport = LevelViewportInterface;
-					SceneViewport = LevelViewportInterface->GetSharedActiveViewport();
+					LevelViewport = ViewportInterface;
+					SceneViewport = ViewportInterface->GetSharedActiveViewport();
 
-					FLevelEditorViewportClient& ViewportClient = LevelViewportInterface->GetLevelViewportClient();
+					FEditorViewportClient& ViewportClient = ViewportInterface->GetAssetViewportClient();
 
 					// Save settings
 					ViewportClientFlags.bRealTime = ViewportClient.IsRealtime();
@@ -706,10 +706,10 @@ void SMediaFrameworkCaptureCurrentViewportWidget::ShutdownViewport()
 	GEditor->OnLevelViewportClientListChanged().RemoveAll(this);
 
 	TSharedPtr<FSceneViewport> EditorSceneViewportPin = EditorSceneViewport.Pin();
-	TSharedPtr<ILevelViewport> LevelViewportPin = LevelViewport.Pin();
+	TSharedPtr<IAssetViewport> LevelViewportPin = LevelViewport.Pin();
 	if (LevelViewportPin.IsValid() && LevelViewportPin->GetSharedActiveViewport() == EditorSceneViewportPin)
 	{
-		FLevelEditorViewportClient& ViewportClient = LevelViewportPin->GetLevelViewportClient();
+		FEditorViewportClient& ViewportClient = LevelViewportPin->GetAssetViewportClient();
 
 		// Reset settings
 		ViewportClient.SetRealtime(ViewportClientFlags.bRealTime);

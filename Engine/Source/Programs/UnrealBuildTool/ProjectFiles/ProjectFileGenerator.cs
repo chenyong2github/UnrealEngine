@@ -444,22 +444,32 @@ namespace UnrealBuildTool
 			DirectoryReference EngineExtras = DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Extras");
 			DiscoverCSharpProgramProjectsRecursively(EngineExtras, FoundProjects);
 
-			DirectoryReference EngineProgramsSource = DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Source", "Programs");
-			DiscoverCSharpProgramProjectsRecursively(EngineProgramsSource, FoundProjects);
+			DirectoryReference[] AllEngineDirectories = UnrealBuildTool.GetAllEngineDirectories("Source/Programs");
+			foreach (DirectoryReference EngineDir in AllEngineDirectories)
+			{
+				DiscoverCSharpProgramProjectsRecursively(EngineDir, FoundProjects);
+			}
 
 			foreach (FileReference FoundProject in FoundProjects)
 			{
-				if(!FoundProject.ContainsAnyNames(UnsupportedPlatformNames, EngineProgramsSource))
+				foreach (DirectoryReference EngineDir in AllEngineDirectories)
 				{
-					VCSharpProjectFile Project = new VCSharpProjectFile(FoundProject);
-
-					if (AllowDotNetCoreProjects || !Project.IsDotNETCoreProject())
+					if (FoundProject.IsUnderDirectory(EngineDir))
 					{
-						Project.ShouldBuildForAllSolutionTargets = true;
-						Project.ShouldBuildByDefaultForSolutionTargets = true;
+						if (!FoundProject.ContainsAnyNames(UnsupportedPlatformNames, EngineDir))
+						{
+							VCSharpProjectFile Project = new VCSharpProjectFile(FoundProject);
 
-						AddExistingProjectFile(Project, bForceDevelopmentConfiguration: false);
-						ProgramsFolder.ChildProjects.Add(Project);
+							if (AllowDotNetCoreProjects || !Project.IsDotNETCoreProject())
+							{
+								Project.ShouldBuildForAllSolutionTargets = true;
+								Project.ShouldBuildByDefaultForSolutionTargets = true;
+
+								AddExistingProjectFile(Project, bForceDevelopmentConfiguration: false);
+								ProgramsFolder.ChildProjects.Add(Project);
+							}
+						}
+						break;
 					}
 				}
 			}
@@ -2389,7 +2399,7 @@ namespace UnrealBuildTool
 		{
 			// Find all the mods for game projects
 			ModProjects = new List<ProjectFile>();
-			if(GameProjects.Count == 1)
+			if (GameProjects.Count == 1)
 			{
 				ProjectFile GameProject = GameProjects.First();
 				foreach(PluginInfo PluginInfo in Plugins.ReadProjectPlugins(GameProject.BaseDir))

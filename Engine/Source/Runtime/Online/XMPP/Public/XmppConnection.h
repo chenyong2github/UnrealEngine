@@ -55,6 +55,7 @@ public:
 		, PingTimeout(30.0f)
 		, MaxPingRetries(1)
 		, bPrivateChatFriendsOnly(false)
+		, bResetPingTimeoutOnReceiveStanza(true)
 	{}
 
 	/** ip/host to connect to */
@@ -83,6 +84,8 @@ public:
 	int32 MaxPingRetries;
 	/** limit private chat to friends only */
 	bool bPrivateChatFriendsOnly;
+	/** reset ping timeout on received stanzas */
+	bool bResetPingTimeoutOnReceiveStanza;
 };
 
 /**

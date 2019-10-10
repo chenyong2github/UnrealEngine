@@ -12,7 +12,7 @@
 
 SLevelEditorModeContent::~SLevelEditorModeContent()
 {
-	GLevelEditorModeTools().OnEditorModeChanged().RemoveAll( this );
+	GLevelEditorModeTools().OnEditorModeIDChanged().RemoveAll( this );
 	GetMutableDefault<UEditorPerProjectUserSettings>()->OnUserSettingChanged().RemoveAll( this );
 }
 
@@ -23,7 +23,7 @@ void SLevelEditorModeContent::Construct( const FArguments& InArgs, const TShared
 	EditorMode = InEditorMode;
 
 	InOwningDocTab->SetOnTabClosed( SDockTab::FOnTabClosedCallback::CreateSP(this, &SLevelEditorModeContent::HandleParentClosed ) );
-	GLevelEditorModeTools().OnEditorModeChanged().AddSP( this, &SLevelEditorModeContent::HandleEditorModeChanged );
+	GLevelEditorModeTools().OnEditorModeIDChanged().AddSP( this, &SLevelEditorModeContent::HandleEditorModeChanged );
 	GetMutableDefault<UEditorPerProjectUserSettings>()->OnUserSettingChanged().AddSP( this, &SLevelEditorModeContent::HandleUserSettingsChange );
 
 	ChildSlot
@@ -49,9 +49,9 @@ void SLevelEditorModeContent::Construct( const FArguments& InArgs, const TShared
 	UpdateModeToolBar();
 }
 
-void SLevelEditorModeContent::HandleEditorModeChanged( FEdMode* Mode, bool IsEnabled )
+void SLevelEditorModeContent::HandleEditorModeChanged(const FEditorModeID& EditorModeID, bool IsEnabled )
 {
-	if ( Mode == EditorMode && !IsEnabled )
+	if ( EditorModeID == EditorMode->GetID() && !IsEnabled )
 	{
 		DocTab.Pin()->SetOnTabClosed( SDockTab::FOnTabClosedCallback() );
 		DocTab.Pin()->RequestCloseTab();

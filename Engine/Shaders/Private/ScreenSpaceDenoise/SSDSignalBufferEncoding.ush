@@ -103,7 +103,7 @@ void DecodeMultiplexedSignalsFromFloat4(
 		for (uint BatchSignalId = 0; BatchSignalId < MAX_SIGNAL_BATCH_SIZE; BatchSignalId++)
 		{
 			uint MultiplexId = BatchSignalId;
-			// TODO: feed the actual number of sample.
+			// TODO(Denoiser): feed the actual number of sample.
 			OutSamples.Array[MultiplexId].SampleCount = (RawSample[MultiplexId].g == DENOISER_INVALID_HIT_DISTANCE ? 0.0 : 1.0);
 			OutSamples.Array[MultiplexId].MissCount = OutSamples.Array[MultiplexId].SampleCount * RawSample[MultiplexId].r;
 			OutSamples.Array[MultiplexId].ClosestHitDistance = OutSamples.Array[MultiplexId].SampleCount * (RawSample[MultiplexId].g == DENOISER_MISS_HIT_DISTANCE ? 1000000 : RawSample[MultiplexId].g);
@@ -117,7 +117,7 @@ void DecodeMultiplexedSignalsFromFloat4(
 			uint MultiplexId = BatchSignalId;
 			float2 Channels = float2(RawSample[MultiplexId / 2][2 * (MultiplexId % 2)], RawSample[MultiplexId / 2][2 * (MultiplexId % 2) + 1]);
 	
-			// TODO: feed the actual number of sample.
+			// TODO(Denoiser): feed the actual number of sample.
 			OutSamples.Array[MultiplexId].SampleCount = (Channels.g == -2.0 ? 0.0 : 1.0);
 			OutSamples.Array[MultiplexId].MissCount = OutSamples.Array[MultiplexId].SampleCount * Channels.r;
 			OutSamples.Array[MultiplexId].WorldBluringRadius = OutSamples.Array[MultiplexId].SampleCount * (Channels.g == -1 ? WORLD_RADIUS_MISS : Channels.g);
@@ -459,7 +459,7 @@ FSSDSignalArray DecodeMultiplexedSignals(
 			/* out */ MultiplexedSamples.Array[0].MissCount,
 			/* out */ MultiplexedSamples.Array[0].ColorSH);
 
-		// TODO: SRV on RG F32 and manually decode with f16tof32(), going to reduce VGPR pressure between fetch and result.
+		// TODO(Denoiser): SRV on RG F32 and manually decode with f16tof32(), going to reduce VGPR pressure between fetch and result.
 	}
 	#endif
 	// Uncompress assuming this is packed as 16bit floats.
@@ -780,7 +780,7 @@ FSSDCompressedMultiplexedSample SampleCompressedMultiplexedSignals(
 		}
 		#elif CONFIG_SIGNAL_INPUT_TEXTURE_TYPE >= SIGNAL_TEXTURE_TYPE_UINT1 && CONFIG_SIGNAL_INPUT_TEXTURE_TYPE <= SIGNAL_TEXTURE_TYPE_UINT4
 		{
-			// TODO: Exposed the int3 instead as function parameter.
+			// TODO(Denoiser): Exposed the int3 instead as function parameter.
 			int3 Coord = int3(PixelCoord >> uint(Level), int(Level));
 			CompressedSample.VGPRArray[0] = SignalBuffer0.Load(Coord);
 			CompressedSample.VGPRArray[1] = SignalBuffer1.Load(Coord);

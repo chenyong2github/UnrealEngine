@@ -5,7 +5,6 @@
 
 #include "CoreMinimal.h"
 #include "GenericPlatform/GenericPlatformFile.h"
-#include "Templates/ScopedPointer.h"
 #include "Misc/Paths.h"
 #include "Templates/UniquePtr.h"
 

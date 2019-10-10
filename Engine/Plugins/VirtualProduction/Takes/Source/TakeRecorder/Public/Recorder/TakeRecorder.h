@@ -31,6 +31,7 @@ enum class ETakeRecorderState : uint8
 	Cancelled,
 };
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnTakeRecordingPreInitialize, UTakeRecorder*);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnTakeRecordingInitialized, UTakeRecorder*);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnTakeRecordingStarted, UTakeRecorder*);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnTakeRecordingFinished, UTakeRecorder*);
@@ -109,18 +110,23 @@ public:
 	void Stop();
 
 	/**
-	* Retrieve a multi-cast delegate that is triggered when this recording starts
-	*/
+	 * Retrieve a multi-cast delegate that is triggered before initialization occurs (ie. when the recording button is pressed and before the countdown starts)
+	 */
+	FOnTakeRecordingPreInitialize& OnRecordingPreInitialize();
+
+	/**
+	 * Retrieve a multi-cast delegate that is triggered when this recording starts
+	 */
 	FOnTakeRecordingStarted& OnRecordingStarted();
 
 	/**
-	* Retrieve a multi-cast delegate that is triggered when this recording finishes
-	*/
+	 * Retrieve a multi-cast delegate that is triggered when this recording finishes
+	 */
 	FOnTakeRecordingFinished& OnRecordingFinished();
 
 	/**
-	* Retrieve a multi-cast delegate that is triggered when this recording is cancelled
-	*/
+	 * Retrieve a multi-cast delegate that is triggered when this recording is cancelled
+	 */
 	FOnTakeRecordingCancelled& OnRecordingCancelled();
 
 private:
@@ -201,6 +207,9 @@ private:
 
 	/** Anonymous array of cleanup functions to perform when a recording has finished */
 	TArray<TFunction<void()>> OnStopCleanup;
+
+	/** Triggered before the recorder is initialized */
+	FOnTakeRecordingPreInitialize OnRecordingPreInitializeEvent;
 
 	/** Triggered when this recorder starts */
 	FOnTakeRecordingStarted OnRecordingStartedEvent;

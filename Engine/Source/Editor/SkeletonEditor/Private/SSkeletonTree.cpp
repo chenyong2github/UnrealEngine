@@ -906,12 +906,20 @@ bool GetSourceNameFromItem(TSharedPtr<ISkeletonTreeItem> SourceBone, FName& OutN
 void SSkeletonTree::FillVirtualBoneSubmenu(FMenuBuilder& MenuBuilder, TArray<TSharedPtr<ISkeletonTreeItem>> SourceBones)
 {
 	const bool bShowVirtualBones = false;
-	TSharedRef<SWidget> MenuContent = SNew(SBoneTreeMenu)
+	TSharedRef<SBoneTreeMenu> MenuContent = SNew(SBoneTreeMenu)
 		.bShowVirtualBones(false)
 		.Title(LOCTEXT("TargetBonePickerTitle", "Pick Target Bone..."))
 		.OnBoneSelectionChanged(this, &SSkeletonTree::OnVirtualTargetBonePicked, SourceBones)
 		.OnGetReferenceSkeleton(this, &SSkeletonTree::OnGetReferenceSkeleton);
 	MenuBuilder.AddWidget(MenuContent, FText::GetEmpty(), true);
+
+	MenuContent->RegisterActiveTimer(0.0f, FWidgetActiveTimerDelegate::CreateLambda(
+		[FilterTextBox = MenuContent->GetFilterTextWidget()](double, float)
+		{
+			FSlateApplication::Get().SetKeyboardFocus(FilterTextBox);
+			return EActiveTimerReturnType::Stop;
+		}
+	));
 }
 
 void SSkeletonTree::OnVirtualTargetBonePicked(FName TargetBoneName, TArray<TSharedPtr<ISkeletonTreeItem>> SourceBones)

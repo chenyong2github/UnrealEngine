@@ -4,8 +4,8 @@
 
 #include "AssetTypeActions_DataPrep.h"
 #include "AssetTypeActions_DataPrepAsset.h"
+#include "DataprepAssetProducers.h"
 #include "DataPrepEditor.h"
-#include "DataprepEditorStyle.h"
 
 #include "Developer/AssetTools/Public/IAssetTools.h"
 #include "Developer/AssetTools/Public/AssetToolsModule.h"
@@ -14,11 +14,14 @@
 #include "PropertyEditorModule.h"
 #include "UObject/StrongObjectPtr.h"
 
+#include "DataprepEditorStyle.h"
+#include "Widgets/DataprepWidgets.h"
+#include "Widgets/SDataprepProducersWidget.h"
+#include "Widgets/SNullWidget.h"
+
 const FName DataprepEditorAppIdentifier = FName(TEXT("DataprepEditorApp"));
 
 #define LOCTEXT_NAMESPACE "DataprepEditorModule"
-
-EAssetTypeCategories::Type IDataprepEditorModule::DataprepCategoryBit;
 
 class FDataprepEditorModule : public IDataprepEditorModule
 {
@@ -34,9 +37,6 @@ public:
 		// Register asset type actions for DataPrepRecipe class
 		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 
-		// Register Datasmith asset category to group asset type actions related to Datasmith together
-		DataprepCategoryBit = AssetTools.RegisterAdvancedAssetCategory(FName(TEXT("Dataprep")), LOCTEXT("DataprepAssetCategory", "Dataprep"));
-
 		TSharedPtr<FAssetTypeActions_Dataprep> DataprepRecipeTypeAction = MakeShareable(new FAssetTypeActions_Dataprep);
 		AssetTools.RegisterAssetTypeActions(DataprepRecipeTypeAction.ToSharedRef());
 		AssetTypeActionsArray.Add(DataprepRecipeTypeAction);
@@ -45,8 +45,16 @@ public:
 		AssetTools.RegisterAssetTypeActions(DataprepAssetTypeAction.ToSharedRef());
 		AssetTypeActionsArray.Add(DataprepAssetTypeAction);
 
+		TSharedPtr<FAssetTypeActions_DataprepAssetInstance> DataprepAssetInstanceTypeAction = MakeShareable(new FAssetTypeActions_DataprepAssetInstance);
+		AssetTools.RegisterAssetTypeActions(DataprepAssetInstanceTypeAction.ToSharedRef());
+		AssetTypeActionsArray.Add(DataprepAssetInstanceTypeAction);
+
 		// Register mount point for Dataprep editors root package folder
 		FPackageName::RegisterMountPoint( FDataprepEditor::GetRootPackagePath() + TEXT("/"), FDataprepEditor::GetRootTemporaryDir() );
+
+		// Register the details customizer
+		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked< FPropertyEditorModule >( TEXT("PropertyEditor") );
+		PropertyModule.RegisterCustomClassLayout( UDataprepAssetProducers::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic( &FDataprepAssetProducersDetails::MakeDetails ) );
 	}
 
 	virtual void ShutdownModule() override
@@ -69,11 +77,32 @@ public:
 
 		// Unregister mount point for Dataprep editors root package folder
 		FPackageName::UnRegisterMountPoint( FDataprepEditor::GetRootPackagePath() + TEXT("/"), FDataprepEditor::GetRootTemporaryDir() );
+
+		// Register the details customizer
+		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked< FPropertyEditorModule >( TEXT("PropertyEditor") );
+		PropertyModule.UnregisterCustomClassLayout( TEXT("DataprepAssetProducers") );
 	}
 
 	/** Gets the extensibility managers for outside entities to extend datasmith data prep editor's menus and toolbars */
 	virtual TSharedPtr<FExtensibilityManager> GetMenuExtensibilityManager() override { return MenuExtensibilityManager; }
 	virtual TSharedPtr<FExtensibilityManager> GetToolBarExtensibilityManager() override { return ToolBarExtensibilityManager; }
+
+	virtual TSharedRef<SWidget> CreateDataprepProducersWidget(UDataprepAssetProducers* AssetProducers) override
+	{
+		TSharedPtr<FUICommandList> CommandList = MakeShareable( new FUICommandList );
+		return AssetProducers ? SNew(SDataprepProducersWidget, AssetProducers, CommandList) : SNullWidget::NullWidget;
+	}
+
+	virtual TSharedRef<SWidget> CreateDataprepDetailsView(UObject* ObjectToDetail) override
+	{
+		if(ObjectToDetail)
+		{
+			return SNew(SDataprepDetailsView).Object( ObjectToDetail );
+		}
+
+		return SNullWidget::NullWidget;
+	}
+
 
 private:
 	TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;

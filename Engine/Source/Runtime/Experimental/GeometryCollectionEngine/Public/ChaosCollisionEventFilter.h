@@ -3,7 +3,6 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
-#include "Chaos/ChaosSolver.h"
 #include "ChaosFilter.h"
 #include "EventsData.h"
 #include "ChaosCollisionEventFilter.generated.h"
@@ -119,8 +118,6 @@ struct FChaosCollisionEventRequestSettings
 	{}
 };
 
-#if INCLUDE_CHAOS
-
 class GEOMETRYCOLLECTIONENGINE_API FChaosCollisionEventFilter : public IChaosEventFilter<Chaos::FCollisionDataArray, TArray<FChaosCollisionEventData>, EChaosCollisionSortMethod>
  {
 public:
@@ -134,5 +131,3 @@ private:
 	FChaosCollisionEventFilter() : CollisionEventRequestSettings(nullptr) { check(false);  }
 	const FChaosCollisionEventRequestSettings* CollisionEventRequestSettings;
 };
-
-#endif

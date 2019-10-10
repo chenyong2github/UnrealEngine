@@ -580,69 +580,60 @@ void UBlueprint::PostDuplicate(bool bDuplicateForPIE)
 	}
 }
 
-extern COREUOBJECT_API bool GBlueprintUseCompilationManager;
-
 UClass* UBlueprint::RegenerateClass(UClass* ClassToRegenerate, UObject* PreviousCDO)
 {
 	LoadModulesRequiredForCompilation();
 
-	if(GBlueprintUseCompilationManager)
+	// ensure that we have UProperties for any properties declared in the blueprint:
+	if(!GeneratedClass || !HasAnyFlags(RF_BeingRegenerated) || bIsRegeneratingOnLoad || bHasBeenRegenerated)
 	{
-		// ensure that we have UProperties for any properties declared in the blueprint:
-		if(!GeneratedClass || !HasAnyFlags(RF_BeingRegenerated) || bIsRegeneratingOnLoad || bHasBeenRegenerated)
-		{
-			return GeneratedClass;
-		}
-		
-		// tag ourself as bIsRegeneratingOnLoad so that any reentrance via ForceLoad calls doesn't recurse:
-		bIsRegeneratingOnLoad = true;
-		
-		UPackage* Package = GetOutermost();
-		bool bIsPackageDirty = Package ? Package->IsDirty() : false;
-
-		UClass* GeneratedClassResolved = GeneratedClass;
-
-		UBlueprint::ForceLoadMetaData(this);
-		if (ensure(GeneratedClassResolved->ClassDefaultObject ))
-		{
-			UBlueprint::ForceLoadMembers(GeneratedClassResolved);
-			UBlueprint::ForceLoadMembers(GeneratedClassResolved->ClassDefaultObject);
-		}
-		UBlueprint::ForceLoadMembers(this);
-		
-		FBlueprintEditorUtils::PreloadConstructionScript( this );
-
-		FBlueprintEditorUtils::LinkExternalDependencies( this );
-
-		FBlueprintEditorUtils::RefreshVariables(this);
-		
-		// Preload Overridden Components
-		if (InheritableComponentHandler)
-		{
-			InheritableComponentHandler->PreloadAll();
-		}
-
-		FBlueprintCompilationManager::NotifyBlueprintLoaded( this ); 
-		
-		FBlueprintEditorUtils::PreloadBlueprintSpecificData( this );
-
-		FBlueprintEditorUtils::UpdateOutOfDateAnimBlueprints(this);
-
-		// clear this now that we're not in a re-entrrant context - bHasBeenRegenerated will guard against 'real' 
-		// double regeneration calls:
-		bIsRegeneratingOnLoad = false;
-
-		if( Package )
-		{
-			Package->SetDirtyFlag(bIsPackageDirty);
-		}
-
-		return GeneratedClassResolved;
+		return GeneratedClass;
 	}
-	else
+		
+	// tag ourself as bIsRegeneratingOnLoad so that any reentrance via ForceLoad calls doesn't recurse:
+	bIsRegeneratingOnLoad = true;
+		
+	UPackage* Package = GetOutermost();
+	bool bIsPackageDirty = Package ? Package->IsDirty() : false;
+
+	UClass* GeneratedClassResolved = GeneratedClass;
+
+	UBlueprint::ForceLoadMetaData(this);
+	if (ensure(GeneratedClassResolved->ClassDefaultObject ))
 	{
-		return FBlueprintEditorUtils::RegenerateBlueprintClass(this, ClassToRegenerate, PreviousCDO);
+		UBlueprint::ForceLoadMembers(GeneratedClassResolved);
+		UBlueprint::ForceLoadMembers(GeneratedClassResolved->ClassDefaultObject);
 	}
+	UBlueprint::ForceLoadMembers(this);
+		
+	FBlueprintEditorUtils::PreloadConstructionScript( this );
+
+	FBlueprintEditorUtils::LinkExternalDependencies( this );
+
+	FBlueprintEditorUtils::RefreshVariables(this);
+		
+	// Preload Overridden Components
+	if (InheritableComponentHandler)
+	{
+		InheritableComponentHandler->PreloadAll();
+	}
+
+	FBlueprintCompilationManager::NotifyBlueprintLoaded( this ); 
+		
+	FBlueprintEditorUtils::PreloadBlueprintSpecificData( this );
+
+	FBlueprintEditorUtils::UpdateOutOfDateAnimBlueprints(this);
+
+	// clear this now that we're not in a re-entrrant context - bHasBeenRegenerated will guard against 'real' 
+	// double regeneration calls:
+	bIsRegeneratingOnLoad = false;
+
+	if( Package )
+	{
+		Package->SetDirtyFlag(bIsPackageDirty);
+	}
+
+	return GeneratedClassResolved;
 }
 
 void UBlueprint::RemoveChildRedirectors()
@@ -2010,8 +2001,11 @@ UEdGraph* UBlueprint::GetLastEditedUberGraph() const
 #if WITH_EDITORONLY_DATA
 void UBlueprint::LoadModulesRequiredForCompilation()
 {
-	static const FName ModuleName(TEXT("KismetCompiler"));
-	FModuleManager::Get().LoadModule(ModuleName);
+	static const FName KismetCompilerModuleName("KismetCompiler");
+	static const FName MovieSceneToolsModuleName("MovieSceneTools");
+
+	FModuleManager::Get().LoadModule(KismetCompilerModuleName);
+	FModuleManager::Get().LoadModule(MovieSceneToolsModuleName);
 }
 #endif //WITH_EDITORONLY_DATA
 

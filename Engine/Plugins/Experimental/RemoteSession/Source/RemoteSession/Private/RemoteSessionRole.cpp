@@ -9,11 +9,18 @@
 #include "Channels/RemoteSessionARCameraChannel.h"
 #include "Channels/RemoteSessionARSystemChannel.h"
 #include "Channels/RemoteSessionFrameBufferChannel.h"
+
+#include "ARBlueprintLibrary.h"
 #include "Async/Async.h"
 #include "GeneralProjectSettings.h"
-#include "ARBlueprintLibrary.h"
+#include "Misc/ScopeLock.h"
 
 DEFINE_LOG_CATEGORY(LogRemoteSession);
+
+FRemoteSessionRole::FRemoteSessionRole()
+	: bShouldCreateChannels(false)
+{
+}
 
 FRemoteSessionRole::~FRemoteSessionRole()
 {
@@ -32,6 +39,7 @@ void FRemoteSessionRole::Close()
 
 void FRemoteSessionRole::CloseWithError(const FString& Message)
 {
+	FScopeLock Tmp(&CriticalSectionForMainThread);
 	ErrorMessage = Message;
 	Close();
 }
@@ -45,6 +53,14 @@ void FRemoteSessionRole::Tick(float DeltaTime)
 			if (ThreadRunning == false && OSCConnection->IsThreaded() == false)
 			{
 				OSCConnection->ReceivePackets();
+			}
+
+			if (bShouldCreateChannels)
+			{
+				bShouldCreateChannels = false;
+				UE_LOG(LogRemoteSession, Log, TEXT("FRemoteSessionRole: Binding endpoints and creating channels"));
+				OnBindEndpoints();
+				OnCreateChannels();
 			}
 
 			for (auto& Channel : Channels)
@@ -85,9 +101,21 @@ void FRemoteSessionRole::StartBackgroundThread()
 
 bool FRemoteSessionRole::IsConnected() const
 {
-    // just check this is valid, when it's actually disconnected we do some error
-    // handling and clean this up
-    return OSCConnection.IsValid();
+	// just check this is valid, when it's actually disconnected we do some error
+	// handling and clean this up
+	return OSCConnection.IsValid();
+}
+
+bool FRemoteSessionRole::HasError() const
+{
+	FScopeLock Tmp(&CriticalSectionForMainThread);
+	return ErrorMessage.Len() > 0;
+}
+
+FString FRemoteSessionRole::GetErrorMessage() const
+{
+	FScopeLock Tmp(&CriticalSectionForMainThread);
+	return ErrorMessage;
 }
 
 uint32 FRemoteSessionRole::Run()
@@ -136,17 +164,16 @@ void FRemoteSessionRole::CreateOSCConnection(TSharedRef<IBackChannelConnection> 
 	OSCConnection->AddMessageHandler(TEXT("/Version"),Delegate);
 	
 	Delegate = FBackChannelDispatchDelegate::FDelegate::CreateRaw(this, &FRemoteSessionRole::OnCreateChannels);
-	OSCConnection->AddMessageHandler(*GetChannelSelectionEndPoint(), Delegate);
+	OSCConnection->AddMessageHandler(GetChannelSelectionEndPoint(), Delegate);
 
 	OSCConnection->StartReceiveThread();
 	
 	SendVersion();
 }
 
-FString FRemoteSessionRole::GetVersion() const
+const TCHAR* FRemoteSessionRole::GetVersion() const
 {
 	return REMOTE_SESSION_VERSION_STRING;
-	//return FString::Printf(TEXT("%d"), FMath::RandHelper(1000));
 }
 
 void FRemoteSessionRole::SendVersion()
@@ -183,13 +210,7 @@ void FRemoteSessionRole::OnVersionCheck(FBackChannelOSCMessage& Message, FBackCh
 	}
 	else
 	{
-		// Run on the main thread incase our derived states touch anything there (Create Channels does)
-		AsyncTask(ENamedThreads::GameThread, [this]
-		{
-			UE_LOG(LogRemoteSession, Log, TEXT("FRemoteSessionRole: Binding endpoints and creating channels"));
-			OnBindEndpoints();
-			OnCreateChannels();
-		});
+		bShouldCreateChannels = true;
 	}
 }
 
@@ -210,77 +231,34 @@ void FRemoteSessionRole::OnCreateChannels()
 {
 }
 
-void FRemoteSessionRole::CreateChannel(const FString& InChannelName, ERemoteSessionChannelMode InMode)
+void FRemoteSessionRole::CreateChannel(const FRemoteSessionChannelInfo& InChannel)
 {
 	TSharedPtr<IRemoteSessionChannel> NewChannel;
-	
-	if (InChannelName == FRemoteSessionInputChannel::StaticType())
+	IRemoteSessionModule& RemoteSession = FModuleManager::GetModuleChecked<IRemoteSessionModule>("RemoteSession");
+	if (TSharedPtr<IRemoteSessionChannelFactoryWorker> Worker = RemoteSession.FindChannelFactoryWorker(*InChannel.Type))
 	{
-		NewChannel = MakeShareable(new FRemoteSessionInputChannel(InMode, OSCConnection));
-	}
-	else if (InChannelName == FRemoteSessionFrameBufferChannel::StaticType())
-	{
-		NewChannel = MakeShareable(new FRemoteSessionFrameBufferChannel(InMode, OSCConnection));
-	}
-	else if (InChannelName == FRemoteSessionXRTrackingChannel::StaticType())
-	{
-		bool IsSupported = (InMode == ERemoteSessionChannelMode::Read) || UARBlueprintLibrary::IsSessionTypeSupported(EARSessionType::Orientation);
-		if (IsSupported)
-		{
-			NewChannel = MakeShareable(new FRemoteSessionXRTrackingChannel(InMode, OSCConnection));
-		}
-		else
-		{
-			UE_LOG(LogRemoteSession, Warning, TEXT("FRemoteSessionXRTrackingChannel does not support sending on this platform/device"));
-		}
-	}
-	else if (InChannelName == FRemoteSessionARCameraChannel::StaticType())
-	{
-		// Client side sending only works on iOS with Android coming in the future
-		bool bSessionTypeSupported = UARBlueprintLibrary::IsSessionTypeSupported(EARSessionType::World);
-		bool IsSupported = (InMode == ERemoteSessionChannelMode::Read) || (PLATFORM_IOS && bSessionTypeSupported);
-		if (IsSupported)
-		{
-			NewChannel = MakeShareable(new FRemoteSessionARCameraChannel(InMode, OSCConnection));
-		}
-		else
-		{
-			UE_LOG(LogRemoteSession, Warning, TEXT("FRemoteSessionARCameraChannel does not support sending on this platform/device"));
-		}
-	}
-	else if (InChannelName == FRemoteSessionARSystemChannel::StaticType())
-	{
-		bool IsSupported = (InMode == ERemoteSessionChannelMode::Read) || UARBlueprintLibrary::IsSessionTypeSupported(EARSessionType::World);
-		if (IsSupported)
-		{
-			NewChannel = MakeShareable(new FRemoteSessionARSystemChannel(InMode, OSCConnection));
-		}
-		else
-		{
-			UE_LOG(LogRemoteSession, Warning, TEXT("FRemoteSessionARSystemChannel does not support sending on this platform/device"));
-		}
+		NewChannel = Worker->Construct(InChannel.Mode, OSCConnection);
 	}
 
 	if (NewChannel.IsValid())
 	{
-		UE_LOG(LogRemoteSession, Log, TEXT("Created Channel %s with mode %d"), *InChannelName, (int)InMode);
+		UE_LOG(LogRemoteSession, Log, TEXT("Created Channel %s with mode %d"), *InChannel.Type, (int32)InChannel.Mode);
 		Channels.Add(NewChannel);
+		InChannel.OnCreated.ExecuteIfBound(NewChannel, InChannel.Type, InChannel.Mode);
 	}
 	else
 	{
-		UE_LOG(LogRemoteSession, Error, TEXT("Requested Channel %s was not recognized"), *InChannelName);
+		UE_LOG(LogRemoteSession, Error, TEXT("Requested Channel %s was not recognized"), *InChannel.Type);
 	}
 }
 
-void FRemoteSessionRole::CreateChannels(const TMap<FString, ERemoteSessionChannelMode>& ChannelMap)
+void FRemoteSessionRole::CreateChannels(const TArray<FRemoteSessionChannelInfo>& InChannels)
 {
 	ClearChannels();
 	
-	for (const auto& KP : ChannelMap)
+	for (const FRemoteSessionChannelInfo& Channel : InChannels)
 	{
-		TSharedPtr<IRemoteSessionChannel> NewChannel;
-		
-		CreateChannel(KP.Key, KP.Value);
+		CreateChannel(Channel);
 	}
 }
 
@@ -294,11 +272,11 @@ void FRemoteSessionRole::ClearChannels()
 	Channels.Empty();
 }
 
-TSharedPtr<IRemoteSessionChannel> FRemoteSessionRole::GetChannel(const FString& InType)
+TSharedPtr<IRemoteSessionChannel> FRemoteSessionRole::GetChannel(const TCHAR* InType)
 {
 	TSharedPtr<IRemoteSessionChannel> Channel;
 
-	TSharedPtr<IRemoteSessionChannel>* FoundChannel = Channels.FindByPredicate([InType](auto Item) {
+	TSharedPtr<IRemoteSessionChannel>* FoundChannel = Channels.FindByPredicate([InType](const auto& Item) {
 		return Item->GetType() == InType;
 	});
 

@@ -6,7 +6,6 @@
 #include "DerivedDataBackendInterface.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "DerivedDataCacheUsageStats.h"
-#include "Templates/ScopedPointer.h"
 #include "DerivedDataBackendAsyncPutWrapper.h"
 #include "Templates/UniquePtr.h"
 

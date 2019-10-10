@@ -2,20 +2,20 @@
 
 #include "VirtualTextureSystem.h"
 
-#include "TexturePagePool.h"
-#include "VirtualTextureSpace.h"
-#include "VirtualTexturePhysicalSpace.h"
 #include "AllocatedVirtualTexture.h"
-#include "VirtualTextureFeedback.h"
-#include "VirtualTexturing.h"
-#include "UniquePageList.h"
-#include "UniqueRequestList.h"
-#include "Stats/Stats.h"
-#include "ScenePrivate.h"
-#include "SceneUtils.h"
 #include "HAL/IConsoleManager.h"
 #include "PostProcess/SceneRenderTargets.h"
-
+#include "ProfilingDebugging/CsvProfiler.h"
+#include "ScenePrivate.h"
+#include "SceneUtils.h"
+#include "Stats/Stats.h"
+#include "TexturePagePool.h"
+#include "UniquePageList.h"
+#include "UniqueRequestList.h"
+#include "VirtualTextureFeedback.h"
+#include "VirtualTexturePhysicalSpace.h"
+#include "VirtualTextureSpace.h"
+#include "VirtualTexturing.h"
 
 DECLARE_CYCLE_STAT(TEXT("Feedback Analysis"), STAT_FeedbackAnalysis, STATGROUP_VirtualTexturing);
 DECLARE_CYCLE_STAT(TEXT("VirtualTextureSystem Update"), STAT_VirtualTextureSystem_Update, STATGROUP_VirtualTexturing);
@@ -37,6 +37,7 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("Num page visible"), STAT_NumPageVisible, STATGR
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num page visible resident"), STAT_NumPageVisibleResident, STATGROUP_VirtualTexturing);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num page visible not resident"), STAT_NumPageVisibleNotResident, STATGROUP_VirtualTexturing);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num page prefetch"), STAT_NumPagePrefetch, STATGROUP_VirtualTexturing);
+DECLARE_DWORD_COUNTER_STAT(TEXT("Num page free"), STAT_NumPageFree, STATGROUP_VirtualTexturing);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num page update"), STAT_NumPageUpdate, STATGROUP_VirtualTexturing);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num continuous page update"), STAT_NumContinuousPageUpdate, STATGROUP_VirtualTexturing);
 
@@ -562,6 +563,8 @@ FVirtualTextureProducer* FVirtualTextureSystem::FindProducer(const FVirtualTextu
 
 FVirtualTextureSpace* FVirtualTextureSystem::AcquireSpace(const FVTSpaceDescription& InDesc, uint32 InSizeNeeded)
 {
+	LLM_SCOPE(ELLMTag::VirtualTextureSystem);
+
 	// If InDesc requests a private space, don't reuse any existing spaces
 	if (!InDesc.bPrivateSpace)
 	{
@@ -604,12 +607,14 @@ void FVirtualTextureSystem::ReleaseSpace(FVirtualTextureSpace* Space)
 		// This can only happen on render thread, so we can call ReleaseResource() directly and then delete the pointer immediately
 		DEC_MEMORY_STAT_BY(STAT_TotalPagetableMemory, Space->GetSizeInBytes());
 		Space->ReleaseResource();
-		Spaces[Space->GetID()].Release();
+		Spaces[Space->GetID()].Reset();
 	}
 }
 
 FVirtualTexturePhysicalSpace* FVirtualTextureSystem::AcquirePhysicalSpace(const FVTPhysicalSpaceDescription& InDesc)
 {
+	LLM_SCOPE(ELLMTag::VirtualTextureSystem);
+
 	for (int i = 0; i < PhysicalSpaces.Num(); ++i)
 	{
 		FVirtualTexturePhysicalSpace* PhysicalSpace = PhysicalSpaces[i];
@@ -1600,6 +1605,7 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 		}
 	}
 
+	uint32 TotalAllocatedPages = 0u;
 	for (uint32 PhysicalSpaceID = 0u; PhysicalSpaceID < (uint32)PhysicalSpaces.Num(); ++PhysicalSpaceID)
 	{
 		if (PhysicalSpaces[PhysicalSpaceID] == nullptr)
@@ -1608,6 +1614,8 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 		}
 
 		FVirtualTexturePhysicalSpace* RESTRICT PhysicalSpace = GetPhysicalSpace(PhysicalSpaceID);
+		TotalAllocatedPages += PhysicalSpace->GetNumTiles();
+
 		FPageUpdateBuffer& RESTRICT Buffer = PageUpdateBuffers[PhysicalSpaceID];
 
 		if (Buffer.WorkingSetSize > 0u)
@@ -1642,10 +1650,16 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 	INC_DWORD_STAT_BY(STAT_NumPageVisibleResident, NumResidentPages);
 	INC_DWORD_STAT_BY(STAT_NumPageVisibleNotResident, NumNonResidentPages);
 	INC_DWORD_STAT_BY(STAT_NumPagePrefetch, NumPrefetchPages);
+	INC_DWORD_STAT_BY(STAT_NumPageFree, TotalAllocatedPages - NumResidentPages);
+
+	const float PhysicalPoolUsage = TotalAllocatedPages > 0 ? (float)NumResidentPages / (float)TotalAllocatedPages : 0.f;
+	CSV_CUSTOM_STAT_GLOBAL(VirtualTexturePageUsage, PhysicalPoolUsage, ECsvCustomStatOp::Set);
 }
 
 void FVirtualTextureSystem::SubmitRequestsFromLocalTileList(const TSet<FVirtualTextureLocalTile>& LocalTileList, EVTProducePageFlags Flags, FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel)
 {
+	LLM_SCOPE(ELLMTag::VirtualTextureSystem);
+
 	for (const FVirtualTextureLocalTile& Tile : LocalTileList)
 	{
 		const FVirtualTextureProducerHandle ProducerHandle = Tile.GetProducerHandle();
@@ -1724,6 +1738,8 @@ void FVirtualTextureSystem::SubmitPreMappedRequests(FRHICommandListImmediate& RH
 
 void FVirtualTextureSystem::SubmitRequests(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FMemStack& MemStack, FUniqueRequestList* RequestList, bool bAsync)
 {
+	LLM_SCOPE(ELLMTag::VirtualTextureSystem);
+
 	FMemMark Mark(MemStack);
 
 	// Allocate space to hold the physical address we allocate for each page load (1 page per layer per request)
@@ -2040,6 +2056,8 @@ void FVirtualTextureSystem::SubmitRequests(FRHICommandListImmediate& RHICmdList,
 
 void FVirtualTextureSystem::AllocateResources(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel)
 {
+	LLM_SCOPE(ELLMTag::VirtualTextureSystem);
+
 	for (uint32 ID = 0; ID < MaxSpaces; ID++)
 	{
 		if (Spaces[ID])

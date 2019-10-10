@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "Assets/ClothingAsset.h"
+#include "ClothingAsset.h"
 #include "ClothingAssetFactoryInterface.h"
+#include "ClothLODDataNv.h"
 #include "GPUSkinPublicDefs.h"
 
 #include "ClothingAssetFactory.generated.h"
@@ -44,7 +45,7 @@ public:
 	// Tests whether the given filename should be able to be imported
 	virtual bool CanImport(const FString& Filename) override;
 
-	// Given an APEX asset, build a UClothingAsset containing the required data
+	// Given an APEX asset, build a UClothingAssetCommon containing the required data
 	virtual UClothingAssetBase* CreateFromApexAsset(nvidia::apex::ClothingAsset* InApexAsset, USkeletalMesh* TargetMesh, FName InName = NAME_None) override;
 
 private:
@@ -63,17 +64,17 @@ private:
 	void FlipAuthoringUvs(NvParameterized::Interface* InRenderMeshAuthoringInterface, bool bFlipU, bool bFlipV);
 
 	// Extraction methods for pulling the required data from an APEX asset and
-	// pushing it to a UClothingAsset
-	void ExtractLodPhysicalData(UClothingAsset* NewAsset, nvidia::apex::ClothingAsset &InApexAsset, int32 InLodIdx, FClothLODData &InLodData, TArray<FApexVertData>& OutApexVertData);
-	void ExtractBoneData(UClothingAsset* NewAsset, nvidia::apex::ClothingAsset &InApexAsset);
-	void ExtractSphereCollisions(UClothingAsset* NewAsset, nvidia::apex::ClothingAsset &InApexAsset, int32 InLodIdx, FClothLODData &InLodData);
-	void ExtractMaterialParameters(UClothingAsset* NewAsset, nvidia::apex::ClothingAsset &InApexAsset);
+	// pushing it to a UClothingAssetCommon
+	void ExtractLodPhysicalData(UClothingAssetCommon* NewAsset, nvidia::apex::ClothingAsset &InApexAsset, int32 InLodIdx, UClothLODDataNv &InLodData, TArray<FApexVertData>& OutApexVertData);
+	void ExtractBoneData(UClothingAssetCommon* NewAsset, nvidia::apex::ClothingAsset &InApexAsset);
+	void ExtractSphereCollisions(UClothingAssetCommon* NewAsset, nvidia::apex::ClothingAsset &InApexAsset, int32 InLodIdx, UClothLODDataNv &InLodData);
+	void ExtractMaterialParameters(UClothingAssetCommon* NewAsset, nvidia::apex::ClothingAsset &InApexAsset);
 #endif
 
 	// Utility methods for skeletal mesh extraction //////////////////////////
 
 	/** Handles internal import of LODs */
-	bool ImportToLodInternal(USkeletalMesh* SourceMesh, int32 SourceLodIndex, int32 SourceSectionIndex, UClothingAsset* DestAsset, FClothLODData& DestLod, FClothLODData* InParameterRemapSource = nullptr);
+	bool ImportToLodInternal(USkeletalMesh* SourceMesh, int32 SourceLodIndex, int32 SourceSectionIndex, UClothingAssetCommon* DestAsset, UClothLODDataBase* DestLod, UClothLODDataBase* InParameterRemapSource = nullptr);
 
 	//////////////////////////////////////////////////////////////////////////
 

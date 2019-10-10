@@ -12,6 +12,7 @@
 #include "IDetailCustomization.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
+#include "IDetailPropertyExtensionHandler.h"
 
 struct FAssetData;
 class FBlueprintEditor;
@@ -22,6 +23,18 @@ class UEditorParentPlayerListObj;
 class USkeleton;
 class IEditableSkeleton;
 struct FAnimParentNodeAssetOverride;
+
+class FAnimGraphNodeShowAsPinExtension : public IDetailPropertyExtensionHandler
+{
+public:
+	// IDetailPropertyExtensionHandler interface
+	virtual bool IsPropertyExtendable(const UClass* InObjectClass, const IPropertyHandle& PropertyHandle) const override;
+	virtual TSharedRef<SWidget> GenerateExtensionWidget(const IDetailLayoutBuilder& InDetailBuilder, const UClass* InObjectClass, TSharedPtr<IPropertyHandle> PropertyHandle) override;
+
+private:
+	// Helper function
+	void GetOptionalPinData(const IPropertyHandle& PropertyHandle, int32& OutOptionalPinIndex, UAnimGraphNode_Base*& OutAnimGraphNode) const;
+};
 
 /////////////////////////////////////////////////////
 // FAnimGraphNodeDetails 

@@ -12,6 +12,7 @@
 #include "NiagaraSystem.h"
 #include "NiagaraStats.h"
 #include "Modules/ModuleManager.h"
+#include "Misc/ConfigCacheIni.h"
 
 #if WITH_EDITOR
 const FName UNiagaraEmitter::PrivateMemberNames::EventHandlerScriptProps = GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, EventHandlerScriptProps);
@@ -50,6 +51,32 @@ static FAutoConsoleVariableRef CVarEnableEmitterChangeIdMergeLogging(
 	TEXT("If > 0 verbose change id information will be logged to help with debuggin merge issues. \n"),
 	ECVF_Default
 );
+
+float UNiagaraEmitter::GetSpawnCountScale(int EffectsQuality)
+{
+	if (bOverrideGlobalSpawnCountScale)
+	{
+		switch (EffectsQuality)
+		{
+		case 0: return GlobalSpawnCountScaleOverrides.Low;
+		case 1: return GlobalSpawnCountScaleOverrides.Medium;
+		case 2: return GlobalSpawnCountScaleOverrides.High;
+		case 3: return GlobalSpawnCountScaleOverrides.Epic;
+		case 4: return GlobalSpawnCountScaleOverrides.Cine;
+		}
+	}
+	
+	return INiagaraModule::GetGlobalSpawnCountScale(); // default to the global spawn scale when invalid effects quality
+}
+
+FNiagaraDetailsLevelScaleOverrides::FNiagaraDetailsLevelScaleOverrides()
+{
+	GConfig->GetFloat(TEXT("EffectsQuality@0"), TEXT("fx.NiagaraGlobalSpawnCountScale"), Low, GScalabilityIni);
+	GConfig->GetFloat(TEXT("EffectsQuality@1"), TEXT("fx.NiagaraGlobalSpawnCountScale"), Medium, GScalabilityIni);
+	GConfig->GetFloat(TEXT("EffectsQuality@2"), TEXT("fx.NiagaraGlobalSpawnCountScale"), High, GScalabilityIni);
+	GConfig->GetFloat(TEXT("EffectsQuality@3"), TEXT("fx.NiagaraGlobalSpawnCountScale"), Epic, GScalabilityIni);
+	GConfig->GetFloat(TEXT("EffectsQuality@Cine"), TEXT("fx.NiagaraGlobalSpawnCountScale"), Cine, GScalabilityIni);
+}
 
 void FNiagaraEmitterScriptProperties::InitDataSetAccess()
 {
@@ -98,6 +125,7 @@ bool FNiagaraEmitterScriptProperties::DataSetAccessSynchronized() const
 
 UNiagaraEmitter::UNiagaraEmitter(const FObjectInitializer& Initializer)
 : Super(Initializer)
+, PreAllocationCount(0)
 , FixedBounds(FBox(FVector(-100), FVector(100)))
 , MinDetailLevel(0)
 , MaxDetailLevel(4)
@@ -527,6 +555,17 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 		if (GraphSource != nullptr)
 		{
 			GraphSource->MarkNotSynchronized(TEXT("Emitter Determinism changed."));
+		}
+
+#if WITH_EDITORONLY_DATA
+		UNiagaraSystem::RequestCompileForEmitter(this);
+#endif
+	}
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bOverrideGlobalSpawnCountScale))
+	{
+		if (GraphSource != nullptr)
+		{
+			GraphSource->MarkNotSynchronized(TEXT("Emitter Override Global Spawn Count Scale changed."));
 		}
 
 #if WITH_EDITORONLY_DATA

@@ -999,23 +999,23 @@ namespace UnrealBuildTool
 			PublicDependencyModuleNames.Add("PhysicsCore");
 
 			bool bUseNonPhysXInterface = Target.bUseChaos == true;
+            PublicIncludePathModuleNames.AddRange(
+                new string[] {
+                    "Chaos",
+					"FieldSystemCore"
+                }
+            );
+            PublicDependencyModuleNames.AddRange(
+				new string[] {
+					"Chaos",
+					"FieldSystemCore"
+                }
+            );
 
             // 
             if (Target.bCompileChaos == true || Target.bUseChaos == true)
             {
                 PublicDefinitions.Add("INCLUDE_CHAOS=1");
-                PublicIncludePathModuleNames.AddRange(
-                    new string[] {
-                        "Chaos",
-						"FieldSystemCore"
-                    }
-                );
-                PublicDependencyModuleNames.AddRange(
-                  new string[] {
-                        "Chaos",
-						"FieldSystemCore"
-                  }
-                );
             }
             else
             {
@@ -1038,6 +1038,7 @@ namespace UnrealBuildTool
 			{
 				// Disable non-physx interfaces
 				PublicDefinitions.Add("WITH_CHAOS=0");
+				PublicDefinitions.Add("WITH_CHAOS_CLOTHING=0");
 
 				// 
 				// WITH_CHAOS_NEEDS_TO_BE_FIXED
@@ -1116,7 +1117,6 @@ namespace UnrealBuildTool
 				PublicDefinitions.Add("PHYSICS_INTERFACE_PHYSX=0");
 				PublicDefinitions.Add("WITH_APEX=0");
 				PublicDefinitions.Add("WITH_APEX_CLOTHING=0");
-				PublicDefinitions.Add("WITH_CLOTH_COLLISION_DETECTION=0");
 				PublicDefinitions.Add(string.Format("WITH_PHYSX_COOKING={0}", Target.bBuildEditor && Target.bCompilePhysX ? 1 : 0));  // without APEX, we only need cooking in editor builds
 				PublicDefinitions.Add("WITH_NVCLOTH=0");
 
@@ -1125,6 +1125,8 @@ namespace UnrealBuildTool
 					PublicDefinitions.Add("WITH_CHAOS=1");
 					PublicDefinitions.Add("WITH_CHAOS_NEEDS_TO_BE_FIXED=1");
 					PublicDefinitions.Add("COMPILE_ID_TYPES_AS_INTS=0");
+					PublicDefinitions.Add("WITH_CHAOS_CLOTHING=1");
+					PublicDefinitions.Add("WITH_CLOTH_COLLISION_DETECTION=1");
 					
 					PublicIncludePathModuleNames.AddRange(
 						new string[] {
@@ -1142,6 +1144,8 @@ namespace UnrealBuildTool
 				{
 					PublicDefinitions.Add("WITH_CHAOS=0");
 					PublicDefinitions.Add("WITH_CHAOS_NEEDS_TO_BE_FIXED=0");
+					PublicDefinitions.Add("WITH_CHAOS_CLOTHING=0");
+					PublicDefinitions.Add("WITH_CLOTH_COLLISION_DETECTION=0");
 				}
 			}
 
@@ -1172,7 +1176,7 @@ namespace UnrealBuildTool
 					case ModuleRules.PrecompileTargetsType.None:
 						return false;
 					case ModuleRules.PrecompileTargetsType.Default:
-						return (Target.Type == TargetType.Editor || !RulesFile.IsUnderDirectory(UnrealBuildTool.EngineSourceDeveloperDirectory) || Plugin != null);
+						return (Target.Type == TargetType.Editor || !UnrealBuildTool.GetAllEngineDirectories("Source/Developer").Any(Dir => RulesFile.IsUnderDirectory(Dir)) || Plugin != null);
 					case ModuleRules.PrecompileTargetsType.Game:
 						return (Target.Type == TargetType.Client || Target.Type == TargetType.Server || Target.Type == TargetType.Game);
 					case ModuleRules.PrecompileTargetsType.Editor:

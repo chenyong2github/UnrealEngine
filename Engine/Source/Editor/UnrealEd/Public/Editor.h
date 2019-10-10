@@ -98,6 +98,8 @@ struct UNREALED_API FEditorDelegates
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnMapOpened, const FString& /* Filename */, bool /*bAsTemplate*/);
 	/** Delegate used for entering or exiting an editor mode */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnEditorModeTransitioned, FEdMode* /*Mode*/);
+	/** Delegate used for entering or exiting an editor mode */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnEditorModeIDTransitioned, const FEditorModeID& /*Mode*/);
 	/** delegate type to determine if a user requests can delete certain assets. */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnAssetsCanDelete, const TArray<UObject*>& /*InObjectToDelete*/, FCanDeleteAssetResult& /*OutCanDelete*/);
 	/** delegate type for when a user requests to delete certain assets... DOES NOT mean the asset(s) will be deleted (the user could cancel) */
@@ -132,6 +134,8 @@ struct UNREALED_API FEditorDelegates
 	DECLARE_MULTICAST_DELEGATE(FOnDeleteActorsEnd);
 	/** delegate type to handle viewing/editing a set of asset identifiers which are packages or ids */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnViewAssetIdentifiers, TArray<FAssetIdentifier>);
+	/** delegate type to handle viewing/editing a set of asset identifiers (which are packages or ids) in the reference viewer */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnOpenReferenceViewer, const TArray<FAssetIdentifier>, const FReferenceViewerParams);
 
 	/** Called when the CurrentLevel is switched to a new level.  Note that this event won't be fired for temporary
 		changes to the current level, such as when copying/pasting actors. */
@@ -166,9 +170,15 @@ struct UNREALED_API FEditorDelegates
 	/** Called when load errors are about to be displayed */
 	static FSimpleMulticastDelegate DisplayLoadErrors;
 	/** Called when an editor mode is being entered */
+	UE_DEPRECATED(4.24, "Use EditorModeIDEnter instead")
 	static FOnEditorModeTransitioned EditorModeEnter;
 	/** Called when an editor mode is being exited */
+	UE_DEPRECATED(4.24, "Use EditorModeIDExit instead")
 	static FOnEditorModeTransitioned EditorModeExit;
+	/** Called when an editor mode ID is being entered */
+	static FOnEditorModeIDTransitioned EditorModeIDEnter;
+	/** Called when an editor mode ID is being exited */
+	static FOnEditorModeIDTransitioned EditorModeIDExit;
 	/** Sent when a PIE session is beginning (before we decide if PIE can run - allows clients to avoid blocking PIE) */
 	static FOnPIEEvent PreBeginPIE;
 	/** Sent when a PIE session is beginning (but hasn't actually started yet) */
@@ -271,7 +281,7 @@ struct UNREALED_API FEditorDelegates
 	/** Sent when delete end called */
 	static FOnDeleteActorsEnd OnDeleteActorsEnd;
 	/** Called when you want to view things in the reference viewer, these are bound to by asset manager editor plugins */
-	static FOnViewAssetIdentifiers OnOpenReferenceViewer;
+	static FOnOpenReferenceViewer OnOpenReferenceViewer;
 	/** Called when you want to view things in the size map */
 	static FOnViewAssetIdentifiers OnOpenSizeMap;
 	/** Called when you want to view things in the asset audit window */

@@ -9,24 +9,23 @@
 namespace Trace
 {
 
-FName FTimingProfilerModule::ModuleName("TraceModule_TimingProfiler");
+static const FName TimingProfilerModuleName("TraceModule_TimingProfiler");
+static const FName TimingProfilerProviderName("TimingProfilerProvider");
 
 void FTimingProfilerModule::GetModuleInfo(FModuleInfo& OutModuleInfo)
 {
-	OutModuleInfo.Name = ModuleName;
+	OutModuleInfo.Name = TimingProfilerModuleName;
 	OutModuleInfo.DisplayName = TEXT("Timing");
 }
 	
-static const FName TimingProfilerProviderName("TimingProfilerProvider");
-
-void FTimingProfilerModule::OnAnalysisBegin(IAnalysisSession& InSession, bool bIsEnabled, TArray<IAnalyzer*>& OutAnalyzers)
+void FTimingProfilerModule::OnAnalysisBegin(IAnalysisSession& InSession)
 {
 	FAnalysisSession& Session = static_cast<FAnalysisSession&>(InSession);
 	
 	FTimingProfilerProvider* TimingProfilerProvider = new FTimingProfilerProvider(Session);
 	Session.AddProvider(TimingProfilerProviderName, TimingProfilerProvider);
-	OutAnalyzers.Add(new FCpuProfilerAnalyzer(Session, *TimingProfilerProvider));
-	OutAnalyzers.Add(new FGpuProfilerAnalyzer(Session, *TimingProfilerProvider));
+	Session.AddAnalyzer(new FCpuProfilerAnalyzer(Session, *TimingProfilerProvider));
+	Session.AddAnalyzer(new FGpuProfilerAnalyzer(Session, *TimingProfilerProvider));
 }
 
 void FTimingProfilerModule::GetLoggers(TArray<const TCHAR *>& OutLoggers)

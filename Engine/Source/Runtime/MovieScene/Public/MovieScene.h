@@ -120,6 +120,10 @@ struct FMovieSceneEditorData
 	UPROPERTY()
 	TMap<FString, FMovieSceneExpansionState> ExpansionStates;
 
+	/** List of Pinned nodes. */
+	UPROPERTY()
+	TArray<FString> PinnedNodes;
+
 	/** The last view-range start that the user was observing */
 	UPROPERTY()
 	double ViewStart;
@@ -177,6 +181,60 @@ struct FMovieSceneObjectBindingIDs
 
 	UPROPERTY()
 	TArray<FMovieSceneObjectBindingID> IDs;
+};
+
+/**
+ * Structure that represents a group of sections
+ */
+USTRUCT()
+struct FMovieSceneSectionGroup
+{
+	GENERATED_BODY()
+public:
+	/* @return Whether the section is part of this group */
+	MOVIESCENE_API bool Contains(const UMovieSceneSection& Section) const;
+	
+	/* Add the section to this group */
+	MOVIESCENE_API void Add(UMovieSceneSection& Section);
+
+	/* Remove the section from this group */
+	MOVIESCENE_API void Remove(const UMovieSceneSection& Section);
+
+	/* Add all members of a group to this group */
+	MOVIESCENE_API void Append(const FMovieSceneSectionGroup& SectionGroup);
+
+	/* Removes any sections which the pointers are stale or otherwise not valid */
+	MOVIESCENE_API void Clean();
+
+	int32 Num() const { return Sections.Num(); }
+
+protected:
+	UPROPERTY()
+	TArray<TWeakObjectPtr<UMovieSceneSection> > Sections;
+
+public:
+	/**
+	 * Comparison operators
+	 * We only need these for being stored in a container, to check if it's the same object.
+	 * Not intended for direct use.
+	 */
+	FORCEINLINE bool operator==(const FMovieSceneSectionGroup& Other) const
+	{
+		return &Sections == &Other.Sections;
+	}
+	FORCEINLINE bool operator!=(const FMovieSceneSectionGroup& Other) const
+	{
+		return &Sections != &Other.Sections;;
+	}
+
+	/**
+	 * DO NOT USE DIRECTLY
+	 * STL-like iterators to enable range-based for loop support.
+	 */
+	FORCEINLINE TArray<TWeakObjectPtr<UMovieSceneSection> >::RangedForIteratorType      begin() { return Sections.begin(); }
+	FORCEINLINE TArray<TWeakObjectPtr<UMovieSceneSection> >::RangedForConstIteratorType begin() const { return Sections.begin(); }
+	FORCEINLINE TArray<TWeakObjectPtr<UMovieSceneSection> >::RangedForIteratorType      end() { return Sections.end(); }
+	FORCEINLINE TArray<TWeakObjectPtr<UMovieSceneSection> >::RangedForConstIteratorType end() const { return Sections.end(); }
 };
 
 /**
@@ -760,6 +818,31 @@ public:
 		EditorData = InEditorData;
 	}
 
+	/*
+	 * @return Whether the section is in a group
+	 */
+	bool IsSectionInGroup(const UMovieSceneSection& InSection) const;
+
+	/*
+	 * Create a group containing InSections, merging any existing groups the sections are in
+	 */
+	void GroupSections(const TArray<UMovieSceneSection*> InSections);
+
+	/*
+	 * Remove InSection from any group it currently is in
+	 */
+	void UngroupSection(const UMovieSceneSection& InSection);
+
+	/*
+	 * @return The group containing the InSection, or a nullptr if InSection is not grouped.
+	 */
+	const FMovieSceneSectionGroup* GetSectionGroup(const UMovieSceneSection& InSection) const;
+
+	/*
+	 * Cleans stale UMovieSceneSection pointers, and removes any section groups which are no longer valid, e.g. contain less that two valid sections
+	 */
+	void CleanSectionGroups();
+
 	/** The timecode at which this movie scene section is based (ie. when it was recorded) */
 	UPROPERTY()
 	FMovieSceneTimecodeSource TimecodeSource;
@@ -968,6 +1051,10 @@ private:
 	/** Nodes currently marked Mute, stored as node tree paths */
 	UPROPERTY()
 	TArray<FString> MuteNodes;
+
+	/** Groups of sections which should maintain the same relative offset */
+	UPROPERTY()
+	TArray<FMovieSceneSectionGroup> SectionGroups;
 
 private:
 

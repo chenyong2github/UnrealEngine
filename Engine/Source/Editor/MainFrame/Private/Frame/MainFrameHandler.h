@@ -18,7 +18,7 @@
 #include "FileHelpers.h"
 #include "UnrealEdGlobals.h"
 #include "LevelEditor.h"
-#include "ILevelViewport.h"
+#include "IAssetViewport.h"
 #include "MainFrameLog.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
@@ -227,7 +227,7 @@ public:
 			Window->BringToFront( bForceWindowToFront );
 
 			// Need to register after the window is shown or else we cant capture the mouse
-			TSharedPtr<ILevelViewport> Viewport = LevelEditor.GetFirstActiveViewport();
+			TSharedPtr<IAssetViewport> Viewport = LevelEditor.GetFirstActiveViewport();
 			Viewport->RegisterGameViewportIfPIE();
 		}
 		else

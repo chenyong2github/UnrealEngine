@@ -212,6 +212,24 @@ public:
 
 	virtual bool ShouldSendServerRPC(float DeltaSeconds) = 0;
 	virtual void SetDesiredServerRPCSendFrequency(float DesiredHz) = 0;
+
+	// ----------------------------------------------------------------------
+	// Functions for depedent simulation (forward predicting a simulated proxy sim along with an auto proxy sim)
+	// ----------------------------------------------------------------------
+	
+	// Main function to call on simulated proxy sim
+	virtual void SetParentSimulation(INetworkSimulationModel* Simulation) = 0;
+	virtual INetworkSimulationModel* GetParentSimulation() const = 0;
+	
+	virtual void AddDepdentSimulation(INetworkSimulationModel* Simulation) = 0;
+	virtual void RemoveDependentSimulation(INetworkSimulationModel* Simulation) = 0;
+	
+	// Tell parent sim that a dependent sim needs to reconcile (parent sim drives this)
+	virtual void NotifyDependentSimNeedsReconcile() = 0;
+	
+	// Called by parent sim on the dependent sim as it reconciles
+	virtual void BeginRollback(const struct FNetworkSimTime& RollbackDeltaTime, const int32 ParentKeyframe) = 0;
+	virtual void StepRollback(const struct FNetworkSimTime& Step, const int32 ParentKeyframe, const bool FinalStep) = 0;
 };
 
 // -------------------------------------------------------------------------------------------------------------------------------

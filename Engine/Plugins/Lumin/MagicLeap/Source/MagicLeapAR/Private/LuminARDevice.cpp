@@ -121,9 +121,9 @@ bool FLuminARDevice::GetStartSessionRequestFinished()
 }
 
 // Note that this function will only be registered when LuminAR is supported.
-void FLuminARDevice::OnWorldTickStart(ELevelTick TickType, float DeltaTime)
+void FLuminARDevice::OnWorldTickStart(UWorld* World, ELevelTick TickType, float DeltaTime)
 {
-	WorldToMeterScale = GWorld->GetWorldSettings()->WorldToMeters;
+	WorldToMeterScale = World->GetWorldSettings()->WorldToMeters;
 	TFunction<void()> Func;
 	while (RunOnGameThreadQueue.Dequeue(Func))
 	{
@@ -253,7 +253,7 @@ void FLuminARDevice::StartSession()
 
 void* FLuminARDevice::GetARSessionRawPointer()
 {
-#if PLATFORM_LUMIN
+#if WITH_MLSDK
 	check(false); // never used and unsupported
 	return nullptr;
 #endif
@@ -262,7 +262,7 @@ void* FLuminARDevice::GetARSessionRawPointer()
 
 void* FLuminARDevice::GetGameThreadARFrameRawPointer()
 {
-#if PLATFORM_LUMIN
+#if WITH_MLSDK
 	return reinterpret_cast<void*>(LuminARSession->GetLatestFrameRawPointer());
 #endif
 	return nullptr;

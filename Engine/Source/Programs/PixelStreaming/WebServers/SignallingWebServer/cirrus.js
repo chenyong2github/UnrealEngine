@@ -163,10 +163,33 @@ if(config.UseHTTPS){
 
 sendGameSessionData();
 
+//Setup the login page if we are using authentication
+if(config.UseAuthentication){
+	app.get('/login', function(req, res){
+		res.sendFile(__dirname + '/login.htm');
+	});
+
+	// create application/x-www-form-urlencoded parser
+	var urlencodedParser = bodyParser.urlencoded({ extended: false })
+
+	//login page form data is posted here
+	app.post('/login', 
+		urlencodedParser, 
+		passport.authenticate('local', { failureRedirect: '/login' }), 
+		function(req, res){
+			//On success try to redirect to the page that they originally tired to get to, default to '/' if no redirect was found
+			var redirectTo = req.session.redirectTo ? req.session.redirectTo : '/';
+			delete req.session.redirectTo;
+			console.log(`Redirecting to: '${redirectTo}'`);
+			res.redirect(redirectTo);
+		}
+	);
+}
+
 //Setup folders
 app.use(express.static(path.join(__dirname, '/public')))
 app.use('/images', express.static(path.join(__dirname, './images')))
-app.use('/scripts', [isAuthenticated('/login'), express.static(path.join(__dirname, '/scripts'))]);
+app.use('/scripts', [isAuthenticated('/login'),express.static(path.join(__dirname, '/scripts'))]);
 app.use('/', [isAuthenticated('/login'), express.static(path.join(__dirname, '/custom_html'))])
 
 try{
@@ -196,28 +219,6 @@ app.get('/', isAuthenticated('/login'), function(req, res){
 	});
 });
 
-//Setup the login page if we are using authentication
-if(config.UseAuthentication){
-	app.get('/login', function(req, res){
-		res.sendFile(__dirname + '/login.htm');
-	});
-
-	// create application/x-www-form-urlencoded parser
-	var urlencodedParser = bodyParser.urlencoded({ extended: false })
-
-	//login page form data is posted here
-	app.post('/login', 
-		urlencodedParser, 
-		passport.authenticate('local', { failureRedirect: '/login' }), 
-		function(req, res){
-			//On success try to redirect to the page that they originally tired to get to, default to '/' if no redirect was found
-			var redirectTo = req.session.redirectTo ? req.session.redirectTo : '/';
-			delete req.session.redirectTo;
-			console.log(`Redirecting to: '${redirectTo}'`);
-			res.redirect(redirectTo);
-		}
-	);
-}
 
 /*
 app.get('/:sessionId', isAuthenticated('/login'), function(req, res){

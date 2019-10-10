@@ -129,14 +129,15 @@ struct TSequencerChannelInterfaceCommon : ISequencerChannelInterface
 	 *
 	 * @param Channel               The channel to query
 	 * @param InKeyHandles          Array of handles to duplicate
+	 * @param InOwner               The section that owns the channel
 	 * @param OutKeyDrawParams      Pre-sized array to receive key draw parameters. Invalid key handles will not be assigned to this array. Must match size of InKeyHandles.
 	 */
-	virtual void DrawKeys_Raw(FMovieSceneChannel* InChannel, TArrayView<const FKeyHandle> InKeyHandles, TArrayView<FKeyDrawParams> OutKeyDrawParams) const override
+	virtual void DrawKeys_Raw(FMovieSceneChannel* InChannel, TArrayView<const FKeyHandle> InKeyHandles, const UMovieSceneSection* InOwner, TArrayView<FKeyDrawParams> OutKeyDrawParams) const override
 	{
 		check(InKeyHandles.Num() == OutKeyDrawParams.Num());
 
 		using namespace Sequencer;
-		DrawKeys(static_cast<ChannelType*>(InChannel), InKeyHandles, OutKeyDrawParams);
+		DrawKeys(static_cast<ChannelType*>(InChannel), InKeyHandles, InOwner, OutKeyDrawParams);
 	}
 
 	/**

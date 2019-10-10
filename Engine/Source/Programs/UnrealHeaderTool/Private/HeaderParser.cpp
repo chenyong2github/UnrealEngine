@@ -5457,6 +5457,7 @@ bool FHeaderParser::CompileDeclaration(FClasses& AllClasses, TArray<UDelegateFun
 		static const FName NAME_CloseBracket(TEXT(")"));
 		static const FName NAME_FArchive(TEXT("FArchive"));
 		static const FName NAME_FStructuredArchive(TEXT("FStructuredArchive"));
+		static const FName NAME_FStructuredArchiveRecord(TEXT("FStructuredArchiveRecord"));
 		static const FName NAME_Reference(TEXT("&"));
 		static const FName NAME_ClassMember(TEXT("::"));
 		static const FName NAME_FRecord(TEXT("FRecord"));
@@ -5475,72 +5476,81 @@ bool FHeaderParser::CompileDeclaration(FClasses& AllClasses, TArray<UDelegateFun
 				if (Token.Identifier == NAME_OpenBracket)
 				{
 					GetToken(Token);
-					bool bMatchedSerializeToFArchive = Token.Identifier == NAME_FArchive;
-					bool bMatchedSerializeToFStructuredArchive = Token.Identifier == NAME_FStructuredArchive;
 
-					if (bMatchedSerializeToFArchive || bMatchedSerializeToFStructuredArchive)
+					ESerializerArchiveType ArchiveType = ESerializerArchiveType::None;
+					if (Token.Identifier == NAME_FArchive)
 					{
-						bool bMatchingFunctionSignature = false;
 						GetToken(Token);
-
-						if (bMatchedSerializeToFArchive)
+						if (Token.Identifier == NAME_Reference)
 						{
-							if (Token.Identifier == NAME_Reference)
+							GetToken(Token);
+
+							// Allow the declaration to not define a name for the archive parameter
+							if (Token.Identifier != NAME_CloseBracket)
+							{
+								GetToken(Token);
+							}
+
+							if (Token.Identifier == NAME_CloseBracket)
+							{
+								ArchiveType = ESerializerArchiveType::Archive;
+							}
+						}
+					}
+					else if (Token.Identifier == NAME_FStructuredArchive)
+					{
+						GetToken(Token);
+						if (Token.Identifier == NAME_ClassMember)
+						{
+							GetToken(Token);
+
+							if (Token.Identifier == NAME_FRecord)
 							{
 								GetToken(Token);
 
-								// Allow the declaration to not define a name for the archive parameter
+								// Allow the declaration to not define a name for the slot parameter
 								if (Token.Identifier != NAME_CloseBracket)
 								{
 									GetToken(Token);
 								}
 
-								bMatchingFunctionSignature = Token.Identifier == NAME_CloseBracket;
+								if (Token.Identifier == NAME_CloseBracket)
+								{
+									ArchiveType = ESerializerArchiveType::StructuredArchiveRecord;
+								}
 							}
+						}
+					}
+					else if (Token.Identifier == NAME_FStructuredArchiveRecord)
+					{
+						GetToken(Token);
+
+						// Allow the declaration to not define a name for the slot parameter
+						if (Token.Identifier != NAME_CloseBracket)
+						{
+							GetToken(Token);
+						}
+
+						if (Token.Identifier == NAME_CloseBracket)
+						{
+							ArchiveType = ESerializerArchiveType::StructuredArchiveRecord;
+						}
+					}
+
+					if (ArchiveType != ESerializerArchiveType::None)
+					{
+						// Found what we want!
+						if (CompilerDirectiveStack.Num() == 0 || (CompilerDirectiveStack.Num() == 1 && CompilerDirectiveStack[0] == ECompilerDirective::WithEditorOnlyData))
+						{
+							FString EnclosingDefine = CompilerDirectiveStack.Num() > 0 ? TEXT("WITH_EDITORONLY_DATA") : TEXT("");
+
+							UClass* CurrentClass = GetCurrentClass();
+
+							GClassSerializerMap.Add(CurrentClass, { ArchiveType, MoveTemp(EnclosingDefine) });
 						}
 						else
 						{
-							if (Token.Identifier == NAME_ClassMember)
-							{
-								GetToken(Token);
-
-								if (Token.Identifier == NAME_FRecord)
-								{
-									GetToken(Token);
-
-									// Allow the declaration to not define a name for the slot parameter
-									if (Token.Identifier != NAME_CloseBracket)
-									{
-										GetToken(Token);
-									}
-
-									bMatchingFunctionSignature = Token.Identifier == NAME_CloseBracket;
-								}
-							}
-						}
-
-						if (bMatchingFunctionSignature)
-						{
-							// Found what we want!
-							if (CompilerDirectiveStack.Num() == 0 || (CompilerDirectiveStack.Num() == 1 && CompilerDirectiveStack[0] == ECompilerDirective::WithEditorOnlyData))
-							{
-								FString EnclosingDefine = CompilerDirectiveStack.Num() > 0 ? TEXT("WITH_EDITORONLY_DATA") : TEXT("");
-
-								UClass* CurrentClass = GetCurrentClass();
-								
-								if (bMatchedSerializeToFArchive)
-								{
-									CurrentClass->SetMetaData(TEXT("SerializeToFArchive"), *EnclosingDefine);
-								}
-								else
-								{
-									CurrentClass->SetMetaData(TEXT("SerializeToFStructuredArchive"), *EnclosingDefine);
-								}
-							}
-							else
-							{
-								FError::Throwf(TEXT("Serialize functions must not be inside preprocessor blocks, except for WITH_EDITORONLY_DATA"));
-							}
+							FError::Throwf(TEXT("Serialize functions must not be inside preprocessor blocks, except for WITH_EDITORONLY_DATA"));
 						}
 					}
 				}
@@ -5932,6 +5942,7 @@ UClass* FHeaderParser::CompileClassDeclaration(FClasses& AllClasses)
 	if (ClassDeclarationData->AutoCollapseCategories.Num()) { MetaData.Add("AutoCollapseCategories", FString::Join(ClassDeclarationData->AutoCollapseCategories, TEXT(" "))); }
 	if (ClassDeclarationData->HideCategories.Num()) { MetaData.Add("HideCategories", FString::Join(ClassDeclarationData->HideCategories, TEXT(" "))); }
 	if (ClassDeclarationData->ShowSubCatgories.Num()) { MetaData.Add("ShowCategories", FString::Join(ClassDeclarationData->ShowSubCatgories, TEXT(" "))); }
+	if (ClassDeclarationData->SparseClassDataTypes.Num()) { MetaData.Add("SparseClassDataTypes", FString::Join(ClassDeclarationData->SparseClassDataTypes, TEXT(" "))); }
 	if (ClassDeclarationData->HideFunctions.Num()) { MetaData.Add("HideFunctions", FString::Join(ClassDeclarationData->HideFunctions, TEXT(" "))); }
 	if (ClassDeclarationData->AutoExpandCategories.Num()) { MetaData.Add("AutoExpandCategories", FString::Join(ClassDeclarationData->AutoExpandCategories, TEXT(" "))); }
 
@@ -9699,6 +9710,10 @@ void FHeaderParser::ResetClassData()
 		{
 			CurrentClass->SetMetaData(TEXT("ShowCategories"), *SuperClass->GetMetaData("ShowCategories"));
 		}
+		if (SuperClass->HasMetaData(TEXT("SparseClassDataTypes")))
+		{
+			CurrentClass->SetMetaData(TEXT("SparseClassDataTypes"), *SuperClass->GetMetaData("SparseClassDataTypes"));
+		}
 		if (SuperClass->HasMetaData(TEXT("HideFunctions")))
 		{
 			CurrentClass->SetMetaData(TEXT("HideFunctions"), *SuperClass->GetMetaData("HideFunctions"));
@@ -9933,7 +9948,7 @@ void FHeaderParser::CheckDocumentationPolicyForStruct(UStruct* Struct, const TMa
 		for (UProperty* Property : TFieldRange<UProperty>(Struct, EFieldIteratorFlags::ExcludeSuper))
 		{
 			FString ToolTip = Property->GetToolTipText().ToString();
-			if (ToolTip.IsEmpty() || ToolTip.Equals(Property->GetName()))
+			if (ToolTip.IsEmpty() || ToolTip.Equals(Property->GetDisplayNameText().ToString()))
 			{
 				UE_LOG_ERROR_UHT(TEXT("Property '%s::%s' does not provide a tooltip / comment (DocumentationPolicy)."), *Struct->GetName(), *Property->GetName());
 				continue;

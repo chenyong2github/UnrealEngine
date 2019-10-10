@@ -764,9 +764,7 @@ void FDynamicMesh3::GetTriInfo(int tID, FVector3d& Normal, double& Area, FVector
 	FVector3d v0, v1, v2;
 	GetTriVertices(tID, v0, v1, v2);
 	Centroid = (v0 + v1 + v2) * (1.0 / 3.0);
-	Area = VectorUtil::Area(v0, v1, v2);
-	Normal = VectorUtil::Normal(v0, v1, v2);
-	//normal = FastNormalArea(ref v0, ref v1, ref v2, out fArea);
+	Normal = VectorUtil::NormalArea(v0, v1, v2, Area);
 }
 
 

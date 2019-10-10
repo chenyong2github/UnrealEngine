@@ -1,71 +1,74 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "CoreMinimal.h"
+
 #include "Chaos/Array.h"
-#include "Chaos/Map.h"
-#include "Chaos/Matrix.h"
+#include "Chaos/Transform.h"
 #include "Chaos/Vector.h"
 
 #include "Chaos/ConstraintHandle.h"
 #include "Chaos/ParticleHandleFwd.h"
 #include "Chaos/PBDConstraintContainer.h"
+#include "Chaos/PBDJointConstraintTypes.h"
 
 namespace Chaos
 {
 	template<class T, int d>
-	class TPBDJointConstraints;
-
-	template<class T, int d>
-	class CHAOS_API TPBDJointConstraintHandle : public TContainerConstraintHandle<TPBDJointConstraints<T, d>>
+	class TPBDJointConstraintHandle : public TContainerConstraintHandle<TPBDJointConstraints<T, d>>
 	{
 	public:
 		using Base = TContainerConstraintHandle<TPBDJointConstraints<T, d>>;
 		using FConstraintContainer = TPBDJointConstraints<T, d>;
 
-		TPBDJointConstraintHandle() {}
-		TPBDJointConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex) : TContainerConstraintHandle<TPBDJointConstraints<T, d>>(InConstraintContainer, InConstraintIndex) {}
+		CHAOS_API TPBDJointConstraintHandle();
+		CHAOS_API TPBDJointConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex);
 
-		const TVector<TVector<T, 3>, 2>& GetConstraintPositions() const;
-		void SetConstraintPositions(const TVector<TVector<T, 3>, 2>& ConstraintPositions);
-
+		CHAOS_API void CalculateConstraintSpace(TVector<T, d>& OutXa, PMatrix<T, d, d>& OutRa, TVector<T, d>& OutXb, PMatrix<T, d, d>& OutRb, TVector<T, d>& OutCR) const;
+		CHAOS_API void SetParticleLevels(const TVector<int32, 2>& ParticleLevels);
+		CHAOS_API int32 GetConstraintLevel() const;
+		CHAOS_API const TPBDJointSettings<T, d>& GetSettings() const;
 	protected:
 		using Base::ConstraintIndex;
 		using Base::ConstraintContainer;
 	};
 
-
 	template<class T, int d>
-	class CHAOS_API TPBDJointConstraints : public TPBDConstraintContainer<T, d>
+	class CHAOS_API TPBDJointState
+	{
+	public:
+		TPBDJointState();
+
+		// Priorities used for ordering, mass conditioning, projection, and freezing
+		int32 Level;
+		TVector<int32, 2> ParticleLevels;
+	};
+
+	/**
+	 * A joint restricting up to 6 degrees of freedom, with linear and angular limits.
+	 */
+	template<class T, int d>
+	class TPBDJointConstraints : public TPBDConstraintContainer<T, d>
 	{
 	public:
 		using Base = TPBDConstraintContainer<T, d>;
 		using FReal = T;
 		static const int Dimensions = d;
+
 		using FConstraintHandle = TPBDJointConstraintHandle<FReal, Dimensions>;
 		using FConstraintHandleAllocator = TConstraintHandleAllocator<TPBDJointConstraints<FReal, Dimensions>>;
-		using FConstrainedParticlePair = TVector<TGeometryParticleHandle<T, d>*, 2>;
+		using FParticlePair = TVector<TGeometryParticleHandle<FReal, Dimensions>*, 2>;
+		using FVectorPair = TVector<TVector<FReal, Dimensions>, 2>;
+		using FTransformPair = TVector<TRigidTransform<FReal, Dimensions>, 2>;
+		using FJointSettings = TPBDJointSettings<FReal, Dimensions>;
+		using FJointState = TPBDJointState<FReal, Dimensions>;
 
+		CHAOS_API TPBDJointConstraints(const TPBDJointSolverSettings<T, d>& InSettings = TPBDJointSolverSettings<T, d>());
 
-		TPBDJointConstraints(const T InStiffness = (T)1)
-			: Stiffness(InStiffness)
-		{
-		}
+		CHAOS_API virtual ~TPBDJointConstraints();
 
-		TPBDJointConstraints(const TArray<TVector<T, d>>& Locations, TArray<FConstrainedParticlePair>&& InConstraints, const T InStiffness = (T)1)
-			: Constraints(MoveTemp(InConstraints)), Stiffness(InStiffness)
-		{
-			if (Constraints.Num() > 0)
-			{
-				Handles.Reserve(Constraints.Num());
-				for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.Num(); ++ConstraintIndex)
-				{
-					Handles.Add(HandleAllocator.AllocHandle(this, ConstraintIndex));
-				}
-			}
-			UpdateDistances(Locations);
-		}
-
-		virtual ~TPBDJointConstraints() {}
+		CHAOS_API const TPBDJointSolverSettings<T, d>& GetSettings() const;
+		CHAOS_API void SetSettings(const TPBDJointSolverSettings<T, d>& InSettings);
 
 		//
 		// Constraint Container API
@@ -74,152 +77,79 @@ namespace Chaos
 		/**
 		 * Get the number of constraints.
 		 */
-		int32 NumConstraints() const
-		{
-			return Constraints.Num();
-		}
+		CHAOS_API int32 NumConstraints() const;
 
-		/** 
-		 * Add a constraint initialized from current world-space particle positions. 
-		 * You would use this method when your objects are already positioned in the world. 
+		/**
+		 * Add a constraint with particle-space constraint offsets.
 		 */
-		FConstraintHandle* AddConstraint(const FConstrainedParticlePair& InConstrainedParticles, const TVector<T, d>& InLocation)
-		{
-			Handles.Add(HandleAllocator.AllocHandle(this, Handles.Num()));
-			int32 ConstraintIndex = Constraints.Add(InConstrainedParticles);
-			UpdateDistance(InLocation, ConstraintIndex);
-			return Handles.Last();
-		}
-
-		/** 
-		 * Add a constraint and explicitly provide constrained particle offsets. 
-		 * You would use this method to initialize a constraint when the particles are not already in the correct locations. This might be because the
-		 * particles have not been positioned yet, or if the particles are not positioned correctly (it will be the constraint's job to correct the positions).
-		 */
-		FConstraintHandle* AddConstraintLocal(const FConstrainedParticlePair& InConstrainedParticles, const TVector<TVector<T, 3>, 2>& InLocations)
-		{
-			Handles.Add(HandleAllocator.AllocHandle(this, Handles.Num()));
-			Constraints.Add(InConstrainedParticles);
-			Distances.Add(InLocations);
-			return Handles.Last();
-		}
+		CHAOS_API FConstraintHandle* AddConstraint(const FParticlePair& InConstrainedParticles, const TRigidTransform<FReal, Dimensions>& WorldConstraintFrame);
+		CHAOS_API FConstraintHandle* AddConstraint(const FParticlePair& InConstrainedParticles, const FTransformPair& ConstraintFrames);
+		CHAOS_API FConstraintHandle* AddConstraint(const FParticlePair& InConstrainedParticles, const TPBDJointSettings<T, d>& InConstraintSettings);
 
 		/**
 		 * Remove the specified constraint.
 		 */
-		void RemoveConstraint(int ConstraintIndex)
-		{
-			FConstraintHandle* ConstraintHandle = Handles[ConstraintIndex];
-			if (ConstraintHandle != nullptr)
-			{
-				// Release the handle for the freed constraint
-				HandleAllocator.FreeHandle(ConstraintHandle);
-				Handles[ConstraintIndex] = nullptr;
-			}
-
-			// Swap the last constraint into the gap to keep the array packed
-			Constraints.RemoveAtSwap(ConstraintIndex);
-			Distances.RemoveAtSwap(ConstraintIndex);
-			Handles.RemoveAtSwap(ConstraintIndex);
-
-			// Update the handle for the constraint that was moved
-			if (ConstraintIndex < Handles.Num())
-			{
-				SetConstraintIndex(Handles[ConstraintIndex], ConstraintIndex);
-			}
-		}
+		CHAOS_API void RemoveConstraint(int ConstraintIndex);
 
 		// @todo(ccaulfield): rename/remove  this
-		void RemoveConstraints(const TSet<TGeometryParticleHandle<T, d>*>& RemovedParticles)
-		{
-		}
+		CHAOS_API void RemoveConstraints(const TSet<TGeometryParticleHandle<T, d>*>& RemovedParticles);
+
+		CHAOS_API void SetPreApplyCallback(const TJointPostApplyCallback<T, d>& Callback);
+		CHAOS_API void ClearPreApplyCallback();
+
+		CHAOS_API void SetPostApplyCallback(const TJointPostApplyCallback<T, d>& Callback);
+		CHAOS_API void ClearPostApplyCallback();
 
 		//
 		// Constraint API
 		//
 
-		const FConstraintHandle* GetConstraintHandle(int32 ConstraintIndex) const
-		{
-			return Handles[ConstraintIndex];
-		}
-
-		FConstraintHandle* GetConstraintHandle(int32 ConstraintIndex)
-		{
-			return Handles[ConstraintIndex];
-		}
+		CHAOS_API const FConstraintHandle* GetConstraintHandle(int32 ConstraintIndex) const;
+		CHAOS_API FConstraintHandle* GetConstraintHandle(int32 ConstraintIndex);
 
 		/**
 		 * Get the particles that are affected by the specified constraint.
 		 */
-		const FConstrainedParticlePair& GetConstrainedParticles(int32 ConstraintIndex) const
-		{
-			return Constraints[ConstraintIndex];
-		}
+		CHAOS_API const FParticlePair& GetConstrainedParticles(int32 ConstraintIndex) const;
 
-		/**
-		 * Get the local-space constraint positions for each body.
-		 */
-		const TVector<TVector<T, 3>, 2>& GetConstraintPositions(int ConstraintIndex) const
-		{
-			return Distances[ConstraintIndex];
-		}
+		CHAOS_API const TPBDJointSettings<T, d>& GetConstraintSettings(int32 ConstraintIndex) const;
 
-		/**
-		 * Set the local-space constraint positions for each body.
-		 */
-		void SetConstraintPositions(int ConstraintIndex, const TVector<TVector<T, 3>, 2>& ConstraintPositions)
-		{
-			Distances[ConstraintIndex] = ConstraintPositions;
-		}
-
+		CHAOS_API int32 GetConstraintLevel(int32 ConstraintIndex) const;
+		CHAOS_API void SetParticleLevels(int32 ConstraintIndex, const TVector<int32, 2>& ParticleLevels);
 
 		//
 		// Island Rule API
 		//
 
-		void UpdatePositionBasedState(const T Dt)
-		{
-		}
+		CHAOS_API void UpdatePositionBasedState(const T Dt);
 
-		void Apply(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles)
-		{
-			for (FConstraintHandle* ConstraintHandle : InConstraintHandles)
-			{
-				ApplySingle(Dt, ConstraintHandle->GetConstraintIndex());
-			}
-		}
+		CHAOS_API void Apply(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles, const int32 It, const int32 NumIts);
 
 		// @todo(ccaulfield): remove  this
-		void ApplyPushOut(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles)
-		{
-		}
-
+		CHAOS_API void ApplyPushOut(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles);
 
 	protected:
 		using Base::GetConstraintIndex;
 		using Base::SetConstraintIndex;
 
-		void ApplySingle(const T Dt, const int32 ConstraintIndex);
-
 	private:
-		void UpdateDistanceInternal(const TVector<T, d>& InLocation, const int32 InConstraintIndex);
-		void UpdateDistance(const TVector<T, d>& InLocation, const int32 InConstraintIndex);
-		void UpdateDistances(const TArray<TVector<T, d>>& InLocations);
+		friend class TPBDJointConstraintHandle<T, d>;
 
-		// Double dynamic body solve
-		void ApplyDynamicDynamic(const T Dt, const int32 ConstraintIndex, const int32 PBDRigid0Index, const int32 PBDRigid1Index, const bool bApplyProjection);
-		TVector<T, d> GetDeltaDynamicDynamic(const TVector<T, d>& P0, const TVector<T, d>& P1, const TVector<T, d>& WorldSpaceX0, const TVector<T, d>& WorldSpaceX1, const PMatrix<T, d, d>& WorldSpaceInvI0, const PMatrix<T, d, d>& WorldSpaceInvI1, const T InvM0, const T InvM1);
+		CHAOS_API void CalculateConstraintSpace(int32 ConstraintIndex, TVector<T, d>& OutX0, PMatrix<T, d, d>& OutR0, TVector<T, d>& OutX1, PMatrix<T, d, d>& OutR1, TVector<T, d>& OutAngles) const;
 
-		// Single dynamic body solve
-		void ApplyDynamicStatic(const T Dt, const int32 ConstraintIndex, const int32 PBDRigid0Index, const int32 Static1Index, const bool bApplyProjection);
-		TVector<T, d> GetDeltaDynamicKinematic(const TVector<T, d>& P0, const TVector<T, d>& WorldSpaceX0, const TVector<T, d>& WorldSpaceX1, const PMatrix<T, d, d>& WorldSpaceInvI0, const T InvM0);
+		CHAOS_API void ApplySingle(const T Dt, const int32 ConstraintIndex, const int32 It, const int32 NumIts);
 
-		// @todo(ccaulfield): we never iterate over these separately. Do we still want SoA?
-		TArray<FConstrainedParticlePair> Constraints;
-		TArray<TVector<TVector<T, 3>, 2>> Distances;
-		T Stiffness;
+		TPBDJointSolverSettings<T, d> Settings;
+
+		TArray<FJointSettings> ConstraintSettings;
+		TArray<FParticlePair> ConstraintParticles;
+		TArray<FJointState> ConstraintStates;
 
 		TArray<FConstraintHandle*> Handles;
 		FConstraintHandleAllocator HandleAllocator;
+
+		TJointPreApplyCallback<T, d> PreApplyCallback;
+		TJointPostApplyCallback<T, d> PostApplyCallback;
 	};
+
 }

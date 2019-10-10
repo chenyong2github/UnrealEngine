@@ -46,7 +46,7 @@ namespace Chaos
 		virtual void UpdatePositionBasedState(const T Dt) {}
 
 		/** Apply all corrections for constraints in the specified island */
-		virtual void ApplyConstraints(const T Dt, int32 Island) {};
+		virtual void ApplyConstraints(const T Dt, int32 Island, const int32 It, const int32 NumIts) {};
 
 		/** Apply push out for constraints in the specified island */
 		virtual void ApplyPushOut(const T Dt, int32 Island) {};
@@ -106,13 +106,6 @@ namespace Chaos
 			}
 		}
 
-		virtual void RemoveConstraints(const TSet<TGeometryParticleHandle<T,d>*>& RemovedParticles) override
-		{
-			// @todo(ccaulfield): should also remove graph edges here too. Currently the edges are rebuilt every tick so not a problem...
-			//ConstraintGraph->RemoveEdges(...)
-			Constraints.RemoveConstraints(RemovedParticles);
-		}
-
 		virtual int32 NumConstraints() const override { return Constraints.NumConstraints(); }
 
 	protected:
@@ -140,11 +133,11 @@ namespace Chaos
 		{
 		}
 
-		virtual void ApplyConstraints(const T Dt, int32 Island) override
+		virtual void ApplyConstraints(const T Dt, int32 Island, const int32 It, const int32 NumIts) override
 		{
 			if (IslandConstraintLists[Island].Num())
 			{
-				Constraints.Apply(Dt, GetIslandConstraints(Island));
+				Constraints.Apply(Dt, GetIslandConstraints(Island), It, NumIts);
 			}
 		}
 
@@ -181,12 +174,18 @@ namespace Chaos
 			}
 		}
 
+		template<typename TVisitor>
+		void VisitIslandConstraints(const int32 Island, const TVisitor& Visitor) const
+		{
+			Visitor(GetIslandConstraints(Island));
+		}
+
 	private:
 		using Base::Constraints;
 		using Base::ConstraintGraph;
 		using Base::ContainerId;
 
-		const TArray<FConstraintHandle*>& GetIslandConstraints(int32 Island)
+		const TArray<FConstraintHandle*>& GetIslandConstraints(int32 Island) const
 		{
 			// Constraint rules are bound to a single type, but the FConstraintGraph works with many types. We have
 			// already pre-filtered the constraint lists based on type, so this case is safe.
@@ -226,7 +225,7 @@ namespace Chaos
 			Constraints.UpdatePositionBasedState(Dt);
 		}
 
-		virtual void ApplyConstraints(const T Dt, int32 Island) override
+		virtual void ApplyConstraints(const T Dt, int32 Island, const int32 It, const int32 NumIts) override
 		{
 			const typename FConstraintColor::FLevelToColorToConstraintListMap& LevelToColorToConstraintListMap = GraphColor.GetIslandLevelToColorToConstraintListMap(Island);
 			int32 MaxColor = GraphColor.GetIslandMaxColor(Island);
@@ -238,7 +237,7 @@ namespace Chaos
 					if (LevelToColorToConstraintListMap[Level].Contains(Color) && LevelToColorToConstraintListMap[Level][Color].Num())
 					{
 						const TArray<typename FConstraints::FConstraintHandle*>& ConstraintHandles = GetLevelColorConstraints(LevelToColorToConstraintListMap, Level, Color);
-						Constraints.Apply(Dt, ConstraintHandles);
+						Constraints.Apply(Dt, ConstraintHandles, It, NumIts);
 					}
 				}
 			}
@@ -250,11 +249,11 @@ namespace Chaos
 			int32 MaxColor = GraphColor.GetIslandMaxColor(Island);
 			int32 MaxLevel = GraphColor.GetIslandMaxLevel(Island);
 
-			bool NeedsAnotherIteration = false;
 			TSet<TGeometryParticleHandle<T,d>*> IsTemporarilyStatic;	// Also needs to be per-constraint type
-			for (int32 Iteration = 0; (Iteration == 0 || NeedsAnotherIteration) && Iteration < PushOutIterations; ++Iteration)
+			bool bNeedsAnotherIteration = true;
+			for (int32 Iteration = 0; bNeedsAnotherIteration && (Iteration < PushOutIterations); ++Iteration)
 			{
-				NeedsAnotherIteration = false;
+				bNeedsAnotherIteration = false;
 				for (int32 Level = 0; Level <= MaxLevel; ++Level)
 				{
 					for (int32 Color = 0; Color <= MaxColor; ++Color)
@@ -262,7 +261,10 @@ namespace Chaos
 						if (LevelToColorToConstraintListMap[Level].Contains(Color) && LevelToColorToConstraintListMap[Level][Color].Num())
 						{
 							const TArray<typename FConstraints::FConstraintHandle*>& ConstraintHandles = GetLevelColorConstraints(LevelToColorToConstraintListMap, Level, Color);
-							NeedsAnotherIteration = Constraints.ApplyPushOut(Dt, ConstraintHandles, IsTemporarilyStatic, Iteration, PushOutIterations);
+							if (Constraints.ApplyPushOut(Dt, ConstraintHandles, IsTemporarilyStatic, Iteration, PushOutIterations))
+							{
+								bNeedsAnotherIteration = true;
+							}
 						}
 					}
 #if USE_SHOCK_PROPOGATION
@@ -306,6 +308,25 @@ namespace Chaos
 		void SetPushOutIterations(const int32 InPushOutIterations)
 		{
 			PushOutIterations = InPushOutIterations;
+		}
+
+		template<typename TVisitor>
+		void VisitIslandConstraints(const int32 Island, const TVisitor& Visitor) const
+		{
+			const typename FConstraintColor::FLevelToColorToConstraintListMap& LevelToColorToConstraintListMap = GraphColor.GetIslandLevelToColorToConstraintListMap(Island);
+			int32 MaxColor = GraphColor.GetIslandMaxColor(Island);
+			int32 MaxLevel = GraphColor.GetIslandMaxLevel(Island);
+			for (int32 Level = 0; Level <= MaxLevel; ++Level)
+			{
+				for (int32 Color = 0; Color <= MaxColor; ++Color)
+				{
+					if (LevelToColorToConstraintListMap[Level].Contains(Color) && LevelToColorToConstraintListMap[Level][Color].Num())
+					{
+						const TArray<typename FConstraints::FConstraintHandle*>& ConstraintHandles = GetLevelColorConstraints(LevelToColorToConstraintListMap, Level, Color);
+						Visitor(ConstraintHandles);
+					}
+				}
+			}
 		}
 
 	private:

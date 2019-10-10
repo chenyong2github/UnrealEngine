@@ -27,9 +27,11 @@ public:
 	// that shouldn't be used by themselves
 	virtual bool Resolve(UObject* OnObject = nullptr) override;
 
+	virtual bool ContainsProperty(const UProperty* Prop) const override;
+
 	virtual UStruct* GetPropertyParentContainerClass() const override;
 
-	virtual void RecordDataFromResolvedObject() override;
+	virtual TArray<uint8> GetDataFromResolvedObject() const override;
 	virtual void ApplyDataToResolvedObject() override;
 
 	virtual UClass* GetPropertyClass() const override;
@@ -38,4 +40,8 @@ public:
 	virtual int32 GetValueSizeInBytes() const override;
 
 	virtual const TArray<uint8>& GetDefaultValue();
+
+private:
+
+	static UProperty* OverrideMaterialsProperty;
 };

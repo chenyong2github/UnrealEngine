@@ -110,8 +110,8 @@ void UK2Node_Variable::CreatePinForSelf()
 	// Create the self pin
 	if (!K2Schema->FindSelfPin(*this, EGPD_Input))
 	{
-		// Do not create a self pin for locally scoped variables
-		if( !VariableReference.IsLocalScope() )
+		// Do not create a self pin for locally scoped variables or sparse class data
+		if (!VariableReference.IsLocalScope() && !VariableReference.IsSparseClassData(GetBlueprintClassFromNode()))
 		{
 			bool bSelfTarget = VariableReference.IsSelfContext() && (ESelfContextInfo::NotSelfContext != SelfContextInfo);
 			UClass* MemberParentClass = VariableReference.GetMemberParentClass(GetBlueprintClassFromNode());
@@ -132,18 +132,18 @@ void UK2Node_Variable::CreatePinForSelf()
 
 			// Self Target pins should always make the class be the owning class of the property,
 			// so if the node is from a Macro Blueprint, it will hook up as self in any placed Blueprint
-			if(bSelfTarget)
+			if (bSelfTarget)
 			{
 				if(UProperty* Property = VariableReference.ResolveMember<UProperty>(GetBlueprintClassFromNode()))
 				{
 					TargetClass = Property->GetOwnerClass()->GetAuthoritativeClass();
 				}
-				else if(GetBlueprint()->SkeletonGeneratedClass)
+				else if (GetBlueprint()->SkeletonGeneratedClass)
 				{
 					TargetClass = GetBlueprint()->SkeletonGeneratedClass->GetAuthoritativeClass();
 				}
 			}
-			else if(TargetClass && TargetClass->ClassGeneratedBy)
+			else if (TargetClass && TargetClass->ClassGeneratedBy)
 			{
 				TargetClass = TargetClass->GetAuthoritativeClass();
 			}
@@ -376,13 +376,24 @@ UClass* UK2Node_Variable::GetVariableSourceClass() const
 UProperty* UK2Node_Variable::GetPropertyForVariable_Internal(UClass* OwningClass) const
 {
 	const FName VarName = GetVarName();
-	UEdGraphPin* VariablePin = FindPin(VarName);
 
-	UProperty* VariableProperty = VariableReference.ResolveMember<UProperty>(OwningClass);
+	// Look in the sparse class data first
+	UProperty* VariableProperty = nullptr;
+	UScriptStruct* SparseClassDataStruct = OwningClass ? OwningClass->GetSparseClassDataStruct() : nullptr;
+	if (SparseClassDataStruct)
+	{
+		VariableProperty = FindField<UProperty>(SparseClassDataStruct, VarName);
+	}
+	if (!VariableProperty)
+	{
+		VariableProperty = VariableReference.ResolveMember<UProperty>(OwningClass);
+	}
 
 	// if the variable has been deprecated, don't use it
 	if (VariableProperty != nullptr)
 	{
+		UEdGraphPin* VariablePin = FindPin(VarName);
+
 		// If the variable has been remapped update the pin
 		if (VariablePin && VarName != GetVarName())
 		{

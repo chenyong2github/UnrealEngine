@@ -288,11 +288,17 @@ public:
 	/** return true if this Behavior supports hover (ie passive input events) */
 	virtual bool WantsHoverEvents();
 
-	/** called on each new hover input event, ie if no other behavior is actively capturing input */
-	virtual void UpdateHover(const FInputDeviceState& InputState);
+	/** Given the input state, does this Behavior want to begin capturing some input devices for hover */
+	virtual FInputCaptureRequest WantsHoverCapture(const FInputDeviceState& InputState);
 
-	/** if a capture begins or focus is lost, any active hover visualization needs to terminate */
-	virtual void EndHover(const FInputDeviceState& InputState);
+	/** Called after WantsHoverCapture() returns a capture request that was accepted */
+	virtual FInputCaptureUpdate BeginHoverCapture(const FInputDeviceState& InputState, EInputCaptureSide eSide);
+
+	/** Called on each new hover input event, ie if no other behavior is actively capturing input */
+	virtual FInputCaptureUpdate UpdateHoverCapture(const FInputDeviceState& InputState);
+
+	/** If a different hover capture begins, focus is lost, a tool starts, etc, any active hover visualization needs to terminate */
+	virtual void EndHoverCapture();
 
 
 protected:

@@ -23,10 +23,7 @@
 #include "AssetRegistryModule.h"
 #include "MeshUtilities.h"
 
-#include "MeshDescription.h"
-#include "MeshAttributes.h"
-#include "MeshAttributeArray.h"
-
+#include "StaticMeshAttributes.h"
 #include "Materials/Material.h"
 #include "MaterialUtilities.h"
 #include "LandscapeLayerInfoObject.h"
@@ -2158,12 +2155,13 @@ bool FWorldTileCollectionModel::GenerateLODLevels(FLevelModelList InLevelList, i
 				//Set the Imported version before calling the build
 				StaticMesh->ImportVersion = EImportStaticMeshVersion::LastVersion;
 			}
-			FMeshDescription& LandscapeRawMesh = *(StaticMesh->CreateMeshDescription(0));
+			FMeshDescription* LandscapeRawMesh = StaticMesh->CreateMeshDescription(0);
+			FStaticMeshAttributes Attributes(*LandscapeRawMesh);
 		
-			Landscape->ExportToRawMesh(LandscapeLOD, LandscapeRawMesh);
+			Landscape->ExportToRawMesh(LandscapeLOD, *LandscapeRawMesh);
 		
-			TVertexAttributesRef<FVector> VertexPositions = LandscapeRawMesh.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
-			for (const FVertexID& VertexID : LandscapeRawMesh.Vertices().GetElementIDs())
+			TVertexAttributesRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+			for (const FVertexID& VertexID : LandscapeRawMesh->Vertices().GetElementIDs())
 			{
 				VertexPositions[VertexID] -= LandscapeWorldLocation;
 			}

@@ -17,7 +17,7 @@
 #define DEBUG_ENABLE_TILE_CLASSIFICATION 1
 
 /** Should output invalid data when know there is a need. */
-// TODO: there is an artifact in temporal reprojection.
+// TODO(Denoiser): there is an artifact in temporal reprojection.
 #define DEBUG_WASTFUL_OUTPUT 1
 
 /** Force the signal to a specific mip level. */
@@ -287,7 +287,7 @@
 //------------------------------------------------------- GLOBAL CONFIGURATION OF ALL DENOISER SHADERS
 
 /** Do normal based anysotropy. */
-// TODO: the hierarchical denoiser needs that.
+// TODO(Denoiser): the hierarchical denoiser needs that.
 #define CONFIG_NORMAL_ANISOTROPY 0
 
 /** Whether should enable VGPR optimizations in the entry point of the shaders. */
@@ -297,7 +297,7 @@
 #define CONFIG_VALU_OPTIMIZATIONS 1
 
 /** Whether should compile hint to the shader compiler to force shift some variable to SGPR. */
-// TODO: the shader compiler is not doing the right thing.
+// TODO(Denoiser): the shader compiler is not doing the right thing.
 #define CONFIG_SGPR_HINT_OPTIMIZATION 0
 
 /** Configures whether the world normal should be compressed in FSSDSampleSceneInfos. */
@@ -313,5 +313,5 @@
 #define REFLECTIONS_REJECTION_COLOR_SPACE (COLOR_SPACE_LCOCG | COLOR_SPACE_UNPREMULTIPLY)
 
 /** Defines the order of the spherical harmonic to denoise. */
-// TODO: quality permutation instead?
+// TODO(Denoiser): quality permutation instead?
 #define SPHERICAL_HARMONIC_ORDER 2

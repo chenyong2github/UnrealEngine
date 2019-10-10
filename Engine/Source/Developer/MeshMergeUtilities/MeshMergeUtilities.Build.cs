@@ -31,6 +31,7 @@ public class MeshMergeUtilities : ModuleRules
 			new string [] {
                 "RawMesh",
                 "MeshDescription",
+				"StaticMeshDescription",
                 "MeshDescriptionOperations"
             }
 		);

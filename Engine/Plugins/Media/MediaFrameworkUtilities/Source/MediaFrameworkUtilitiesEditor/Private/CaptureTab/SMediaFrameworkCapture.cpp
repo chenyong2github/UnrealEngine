@@ -9,6 +9,7 @@
 #include "Framework/MultiBox/MultiBoxDefs.h"
 #include "LevelEditor.h"
 #include "LevelEditorViewport.h"
+#include "ScopedTransaction.h"
 #include "SlateOptMacros.h"
 #include "Slate/SceneViewport.h"
 #include "Textures/SlateIcon.h"
@@ -23,7 +24,6 @@
 #include "Editor.h"
 #include "Engine/World.h"
 #include "GameFramework/WorldSettings.h"
-#include "MediaFrameworkWorldSettingsAssetUserData.h"
 #include "PropertyEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "MediaFrameworkUtilities"
@@ -213,6 +213,7 @@ void SMediaFrameworkCapture::Construct(const FArguments& InArgs)
 	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
 	DetailsViewArgs.ViewIdentifier = "MediaFrameworkUtilitites";
 	DetailView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+	DetailView->SetIsPropertyReadOnlyDelegate(FIsPropertyReadOnly::CreateSP(this, &SMediaFrameworkCapture::IsPropertyReadOnly));
 	DetailView->SetObject(AssetUserData);
 
 	SAssignNew(CaptureBoxes, MediaFrameworkUtilities::SCaptureVerticalBox);
@@ -331,6 +332,8 @@ TSharedRef<SWidget> SMediaFrameworkCapture::CreateSettingsMenu()
 			FUIAction(
 				FExecuteAction::CreateLambda([this]
 				{
+					const FScopedTransaction Transaction(LOCTEXT("CaptureSplitterOrientation", "Capture Splitter Orientation"));
+					GetMutableDefault<UMediaFrameworkMediaCaptureSettings>()->Modify();
 					GetMutableDefault<UMediaFrameworkMediaCaptureSettings>()->bIsVerticalSplitterOrientation = !GetDefault<UMediaFrameworkMediaCaptureSettings>()->bIsVerticalSplitterOrientation;
 					Splitter->SetOrientation(GetDefault<UMediaFrameworkMediaCaptureSettings>()->bIsVerticalSplitterOrientation ? EOrientation::Orient_Vertical : EOrientation::Orient_Horizontal);
 					GetMutableDefault<UMediaFrameworkMediaCaptureSettings>()->SaveConfig();
@@ -339,6 +342,29 @@ TSharedRef<SWidget> SMediaFrameworkCapture::CreateSettingsMenu()
 				FIsActionChecked::CreateLambda([this]
 				{
 					return GetDefault<UMediaFrameworkMediaCaptureSettings>()->bIsVerticalSplitterOrientation;
+				})
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+			);
+
+		SettingsMenuBuilder.AddMenuEntry(
+			LOCTEXT("SaveCaptureSetingsInWorld_Label", "Capture Settings Per Level"),
+			LOCTEXT("SaveCaptureSetingsInWorld_Tooltip", "Should the Capture Setting be saved with the level or should they be saved in the editor settings (and be the same in every level)."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([this]
+				{
+					const FScopedTransaction Transaction(LOCTEXT("CaptureSettingPerLevel", "Capture Settings Per World"));
+					GetMutableDefault<UMediaFrameworkEditorCaptureSettings>()->Modify();
+					GetMutableDefault<UMediaFrameworkEditorCaptureSettings>()->bSaveCaptureSetingsInWorld = !GetDefault<UMediaFrameworkEditorCaptureSettings>()->bSaveCaptureSetingsInWorld;
+					DetailView->SetObject(FindOrAddMediaFrameworkAssetUserData());
+					GetMutableDefault<UMediaFrameworkEditorCaptureSettings>()->SaveConfig();
+				}),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this]
+				{
+					return GetDefault<UMediaFrameworkEditorCaptureSettings>()->bSaveCaptureSetingsInWorld;
 				})
 			),
 			NAME_None,
@@ -479,14 +505,21 @@ UMediaFrameworkWorldSettingsAssetUserData* SMediaFrameworkCapture::FindMediaFram
 {
 	UMediaFrameworkWorldSettingsAssetUserData* Result = nullptr;
 
-	UWorld* World = GEditor ? GEditor->GetEditorWorldContext(false).World() : nullptr;
-	if (World)
+	if (GetDefault<UMediaFrameworkEditorCaptureSettings>()->bSaveCaptureSetingsInWorld)
 	{
-		AWorldSettings* WorldSetting = World ? World->GetWorldSettings() : nullptr;
-		if (WorldSetting)
+		UWorld* World = GEditor ? GEditor->GetEditorWorldContext(false).World() : nullptr;
+		if (World)
 		{
-			Result = CastChecked<UMediaFrameworkWorldSettingsAssetUserData>(WorldSetting->GetAssetUserDataOfClass(UMediaFrameworkWorldSettingsAssetUserData::StaticClass()), ECastCheckedType::NullAllowed);
+			AWorldSettings* WorldSetting = World ? World->GetWorldSettings() : nullptr;
+			if (WorldSetting)
+			{
+				Result = CastChecked<UMediaFrameworkWorldSettingsAssetUserData>(WorldSetting->GetAssetUserDataOfClass(UMediaFrameworkWorldSettingsAssetUserData::StaticClass()), ECastCheckedType::NullAllowed);
+			}
 		}
+	}
+	else
+	{
+		Result = GetMutableDefault<UMediaFrameworkEditorCaptureSettings>();
 	}
 
 	return Result;
@@ -496,23 +529,43 @@ UMediaFrameworkWorldSettingsAssetUserData* SMediaFrameworkCapture::FindOrAddMedi
 {
 	UMediaFrameworkWorldSettingsAssetUserData* Result = nullptr;
 
-	UWorld* World = GEditor ? GEditor->GetEditorWorldContext(false).World() : nullptr;
-	if (World)
+	if (GetDefault<UMediaFrameworkEditorCaptureSettings>()->bSaveCaptureSetingsInWorld)
 	{
-		AWorldSettings* WorldSetting = World ? World->GetWorldSettings() : nullptr;
-		if (WorldSetting)
+		UWorld* World = GEditor ? GEditor->GetEditorWorldContext(false).World() : nullptr;
+		if (World)
 		{
-			Result = CastChecked<UMediaFrameworkWorldSettingsAssetUserData>(WorldSetting->GetAssetUserDataOfClass(UMediaFrameworkWorldSettingsAssetUserData::StaticClass()), ECastCheckedType::NullAllowed);
-
-			if (!Result)
+			AWorldSettings* WorldSetting = World ? World->GetWorldSettings() : nullptr;
+			if (WorldSetting)
 			{
-				Result = NewObject<UMediaFrameworkWorldSettingsAssetUserData>(WorldSetting);
-				WorldSetting->AddAssetUserData(Result);
+				Result = CastChecked<UMediaFrameworkWorldSettingsAssetUserData>(WorldSetting->GetAssetUserDataOfClass(UMediaFrameworkWorldSettingsAssetUserData::StaticClass()), ECastCheckedType::NullAllowed);
+
+				if (!Result)
+				{
+					Result = NewObject<UMediaFrameworkWorldSettingsAssetUserData>(WorldSetting);
+					WorldSetting->AddAssetUserData(Result);
+				}
 			}
 		}
 	}
+	else
+	{
+		Result = GetMutableDefault<UMediaFrameworkEditorCaptureSettings>();
+	}
 
 	return Result;
+}
+
+void SMediaFrameworkCapture::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged)
+{
+	if (GetDefault<UMediaFrameworkEditorCaptureSettings>()->bSaveCaptureSetingsInWorld)
+	{
+		GetMutableDefault<UMediaFrameworkEditorCaptureSettings>()->SaveConfig();
+	}
+}
+
+bool SMediaFrameworkCapture::IsPropertyReadOnly(const FPropertyAndParent& PropertyAndParent) const
+{
+	return !GetDefault<UMediaFrameworkEditorCaptureSettings>()->bSaveCaptureSetingsInWorld && PropertyAndParent.Property.GetFName() == GET_MEMBER_NAME_CHECKED(UMediaFrameworkWorldSettingsAssetUserData, ViewportCaptures);
 }
 
 void SMediaFrameworkCapture::OnMapChange(uint32 MapFlags)

@@ -2,7 +2,7 @@
 
 #include "DSP/Encoders/OggVorbisEncoder.h"
 
-#if !PLATFORM_HTML5 && !PLATFORM_TVOS
+#if PLATFORM_SUPPORTS_VORBIS_CODEC 
 #pragma pack(push, 8)
 #include "vorbis/vorbisenc.h"
 #include "vorbis/vorbisfile.h"
@@ -207,4 +207,4 @@ bool FOggVorbisEncoder::EndFile(TArray<uint8>& OutBytes)
 
 	return true;
 }
-#endif // !PLATFORM_HTML5 && !PLATFORM_TVOS
+#endif // !PLATFORM_TVOS

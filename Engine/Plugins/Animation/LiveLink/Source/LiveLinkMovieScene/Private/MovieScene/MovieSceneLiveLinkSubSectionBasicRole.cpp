@@ -58,7 +58,7 @@ void UMovieSceneLiveLinkSubSectionBasicRole::CreatePropertiesChannel()
 
 	const FName PropertyName = GET_MEMBER_NAME_CHECKED(FLiveLinkBaseFrameData, PropertyValues);
 	SubSectionData.Properties.SetNum(1);
-	SubSectionData.Properties[0].PropertyName =		PropertyName;
+	SubSectionData.Properties[0].PropertyName = PropertyName;
 	PropertyHandler = LiveLinkPropertiesUtils::CreatePropertyHandler(*FLiveLinkBaseFrameData::StaticStruct(), &SubSectionData.Properties[0]);
 	PropertyHandler->CreateChannels(*FLiveLinkBaseFrameData::StaticStruct(), PropertyCount);
 }

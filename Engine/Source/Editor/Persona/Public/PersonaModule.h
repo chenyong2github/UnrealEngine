@@ -269,8 +269,11 @@ public:
 	/** Add looping interpolation to the list of animations */
 	virtual void AddLoopingInterpolation(TArray<TWeakObjectPtr<class UAnimSequence>>& AnimSequences);
 
+	UE_DEPRECATED(4.24, "Function renamed, please use CustomizeBlueprintEditorDetails")
+	virtual void CustomizeSlotNodeDetails(const TSharedRef<class IDetailsView>& InDetailsView, FOnInvokeTab InOnInvokeTab) { CustomizeBlueprintEditorDetails(InDetailsView, InOnInvokeTab); }
+
 	/** Customize the details of a slot node for the specified details view */
-	virtual void CustomizeSlotNodeDetails(const TSharedRef<class IDetailsView>& InDetailsView, FOnInvokeTab InOnInvokeTab);
+	virtual void CustomizeBlueprintEditorDetails(const TSharedRef<class IDetailsView>& InDetailsView, FOnInvokeTab InOnInvokeTab);
 
 	/** Create a Persona editor mode manager. Should be destroyed using plain ol' delete. Note: Only FPersonaEditMode-derived modes should be used with this manager! */
 	virtual class IPersonaEditorModeManager* CreatePersonaEditorModeManager();

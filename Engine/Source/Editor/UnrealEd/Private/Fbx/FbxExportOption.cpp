@@ -22,6 +22,7 @@ UFbxExportOption::UFbxExportOption(const FObjectInitializer& ObjectInitializer)
 	bExportMorphTargets = true;
 	VertexColor = true;
 	MapSkeletalMotionToRoot = false;
+	bExportLocalTime = true;
 }
 
 void UFbxExportOption::ResetToDefault()

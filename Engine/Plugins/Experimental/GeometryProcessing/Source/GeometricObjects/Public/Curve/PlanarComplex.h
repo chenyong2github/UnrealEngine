@@ -1,5 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 // Very approximately ported from geometry3sharp's PlanarComplex
 // Convert a set of polygons into general polygon form, tracking the outer-polygon and hole-polygon indices
 

@@ -281,6 +281,31 @@ FRigUnit_MathVectorUnit_Execute()
 	Result = Value.GetUnsafeNormal();
 }
 
+FRigUnit_MathVectorSetLength_Execute()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+	if (Value.IsNearlyZero())
+	{
+		UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Value is nearly zero"));
+		Result = FVector::ZeroVector;
+		return;
+	}
+	Result = Value.GetUnsafeNormal() * Length;
+}
+
+FRigUnit_MathVectorClampLength_Execute()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+	if (Value.IsNearlyZero())
+	{
+		UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Value is nearly zero"));
+		Result = FVector::ZeroVector;
+		return;
+	}
+	float Length = Value.Size();
+	Result = Value * FMath::Clamp<float>(Length, MinimumLength, MaximumLength) / Length;
+}
+
 FRigUnit_MathVectorMirror_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -354,4 +379,104 @@ FRigUnit_MathVectorBezierFourPoint_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	FControlRigMathLibrary::FourPointBezier(Bezier, T, Result, Tangent);
+}
+
+FRigUnit_MathVectorMakeBezierFourPoint_Execute()
+{
+}
+
+FRigUnit_MathVectorClampSpatially_Execute()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+	Result = FControlRigMathLibrary::ClampSpatially(Value, Axis, Type, Minimum, Maximum, Space);
+
+	if (Context.DrawInterface != nullptr && bDrawDebug)
+	{
+		switch (Type)
+		{
+			case EControlRigClampSpatialMode::Plane:
+			{
+				TArray<FVector> Points;
+				Points.SetNumUninitialized(2);
+					
+				switch (Axis)
+				{
+					case EAxis::X:
+					{
+						Points[0] = FVector(Minimum, 0.f, 0.f);
+						Points[1] = FVector(Maximum, 0.f, 0.f);
+						break;
+					}
+					case EAxis::Y:
+					{
+						Points[0] = FVector(0.f, Minimum, 0.f);
+						Points[1] = FVector(0.f, Maximum, 0.f);
+						break;
+					}
+					default:
+					{
+						Points[0] = FVector(0.f, 0.f, Minimum);
+						Points[1] = FVector(0.f, 0.f, Maximum);
+						break;
+					}
+				}
+
+				Context.DrawInterface->DrawLine(Space, Points[0], Points[1], DebugColor, DebugThickness);
+				Context.DrawInterface->DrawPoints(Space, Points, DebugThickness * 8.f, DebugColor);
+
+				break;
+			}
+			case EControlRigClampSpatialMode::Cylinder:
+			{
+				FTransform CircleTransform = FTransform::Identity;
+				switch (Axis)
+				{
+					case EAxis::X:
+					{
+						CircleTransform.SetRotation(FQuat(FVector(0.f, 1.f, 0.f), PI * 0.5f));
+						break;
+					}
+					case EAxis::Y:
+					{
+						CircleTransform.SetRotation(FQuat(FVector(1.f, 0.f, 0.f), PI * 0.5f));
+						break;
+					}
+					default:
+					{
+						break;
+					}
+				}
+				if (Minimum > SMALL_NUMBER)
+				{
+					Context.DrawInterface->DrawArc(Space, CircleTransform, Minimum, 0.f, PI * 2.f, DebugColor, DebugThickness, 16);
+				}
+				Context.DrawInterface->DrawArc(Space, CircleTransform, Maximum, 0.f, PI * 2.f, DebugColor, DebugThickness, 16);
+				break;
+			}
+			default:
+			case EControlRigClampSpatialMode::Sphere:
+			{
+				FTransform CircleTransform = FTransform::Identity;
+				if (Minimum > SMALL_NUMBER)
+				{
+					Context.DrawInterface->DrawArc(Space, CircleTransform, Minimum, 0.f, PI * 2.f, DebugColor, DebugThickness, 16);
+				}
+				Context.DrawInterface->DrawArc(Space, CircleTransform, Maximum, 0.f, PI * 2.f, DebugColor, DebugThickness, 16);
+				CircleTransform.SetRotation(FQuat(FVector(0.f, 1.f, 0.f), PI * 0.5f));
+				if (Minimum > SMALL_NUMBER)
+				{
+					Context.DrawInterface->DrawArc(Space, CircleTransform, Minimum, 0.f, PI * 2.f, DebugColor, DebugThickness, 16);
+				}
+				Context.DrawInterface->DrawArc(Space, CircleTransform, Maximum, 0.f, PI * 2.f, DebugColor, DebugThickness, 16);
+				CircleTransform.SetRotation(FQuat(FVector(1.f, 0.f, 0.f), PI * 0.5f));
+				if (Minimum > SMALL_NUMBER)
+				{
+					Context.DrawInterface->DrawArc(Space, CircleTransform, Minimum, 0.f, PI * 2.f, DebugColor, DebugThickness, 16);
+				}
+				Context.DrawInterface->DrawArc(Space, CircleTransform, Maximum, 0.f, PI * 2.f, DebugColor, DebugThickness, 16);
+				break;
+			}
+
+		}
+	}
 }

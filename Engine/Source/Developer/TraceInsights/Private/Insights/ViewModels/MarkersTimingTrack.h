@@ -44,7 +44,7 @@ class FMarkersTimingTrack : public FBaseTimingTrack
 	friend class FTimeMarkerTrackBuilder;
 
 public:
-	FMarkersTimingTrack(uint64 InTrackId);
+	explicit FMarkersTimingTrack(uint64 InTrackId);
 	virtual ~FMarkersTimingTrack();
 
 	virtual void Reset() override;
@@ -58,10 +58,6 @@ public:
 		bUseOnlyBookmarks = bInUseOnlyBookmarks;
 		UpdateHeight();
 	}
-
-	bool IsDirty() const { return bIsDirty; }
-	void SetDirtyFlag() { bIsDirty = true; }
-	void ClearDirtyFlag() { bIsDirty = false; }
 
 	// Stats
 	int32 GetNumLogMessages() const { return NumLogMessages; }
@@ -91,7 +87,6 @@ private:
 
 	bool bIsCollapsed; // If false, the vertical lines will extend to entire viewport height; otherwise will be limited to this track's height.
 	bool bUseOnlyBookmarks; // If true, uses only bookmarks; otherwise it uses all log messages.
-	bool bIsDirty; // Source list of bookmarks/markers has changed. Cached Boxes and Texts are dirty.
 
 	float TargetHoveredAnimPercent; // [0.0 .. 1.0], 0.0 = hidden, 1.0 = visible
 	float CurrentHoveredAnimPercent;
@@ -111,7 +106,7 @@ private:
 class FTimeMarkerTrackBuilder
 {
 public:
-	FTimeMarkerTrackBuilder(FMarkersTimingTrack& InTrack, const FTimingTrackViewport& InViewport);
+	explicit FTimeMarkerTrackBuilder(FMarkersTimingTrack& InTrack, const FTimingTrackViewport& InViewport);
 
 	/**
 	 * Non-copyable

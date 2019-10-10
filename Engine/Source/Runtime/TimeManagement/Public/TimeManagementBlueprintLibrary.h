@@ -16,6 +16,7 @@ UCLASS(meta = (BlueprintThreadSafe, ScriptName = "TimeManagementLibrary"))
 class TIMEMANAGEMENT_API UTimeManagementBlueprintLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
+
 public:
 	/** Converts an FrameRate to a float ie: 1/30 returns 0.0333333 */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "FrameRate to Seconds", BlueprintAutocast), Category = "Utilities|Time Management")
@@ -76,11 +77,13 @@ public:
 	/** Converts a FrameNumber to an int32 for use in functions that take int32 frame counts for convenience. */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "FrameNumber to Integer", ScriptName="FrameNumberToInteger", BlueprintAutocast), Category = "Utilities|Time Management")
 	static int32 Conv_FrameNumberToInteger(const FFrameNumber& InFrameNumber);
+
 public:
-	/**
-	 * Get the Timecode from the TimeManagement's TimecodeProvider.
-	 * @return true if the Timecode is valid. The timecode is valid when the TimecodeProfier is Synchronized.
-	 */
+	/** Get the current timecode of the engine. */
 	UFUNCTION(BlueprintPure, Category = "Utilities|Timecode Provider")
 	static FTimecode GetTimecode();
+
+	/** Gets the current timecode frame rate. */
+	UFUNCTION(BlueprintPure, Category = "Utilities|Timecode Provider")
+	static FFrameRate GetTimecodeFrameRate();
 };

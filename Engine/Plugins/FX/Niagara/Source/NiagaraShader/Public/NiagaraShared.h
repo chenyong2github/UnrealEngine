@@ -11,7 +11,6 @@
 #include "Misc/Guid.h"
 #include "Engine/EngineTypes.h"
 #include "Templates/RefCounting.h"
-#include "Templates/ScopedPointer.h"
 #include "Misc/SecureHash.h"
 #include "RHI.h"
 #include "RenderResource.h"

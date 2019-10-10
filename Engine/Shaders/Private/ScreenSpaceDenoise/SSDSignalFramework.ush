@@ -136,7 +136,7 @@ float Luma_To_LumaLog(float x)
 /** Returns the exposure multiplier that should be used for the color transformation of the signal. */
 float GetSignalColorTransformationExposure()
 {
-	// TODO: expose that guy.
+	// TODO(Denoiser): expose that guy.
 	const float Tweak = 1;
 
 	float FrameExposureScale = EyeAdaptationLookup();
@@ -152,10 +152,10 @@ float GetSignalColorTransformationExposure()
 float GetSignalLuma4(FSSDSignalSample Sample, const uint Basis)
 #if COMPILE_SIGNAL_COLOR
 {
-	// TODO: should force this to be scalar load.
+	// TODO(Denoiser): should force this to be scalar load.
 	float FrameExposureScale = GetSignalColorTransformationExposure();
 		
-	// TODO: exposes optimisation if sample is normalized.
+	// TODO(Denoiser): exposes optimisation if sample is normalized.
 	const bool bIsNormalizedSample = false;
 
 	if (Basis & COLOR_SPACE_KARIS_WEIGHTING)
@@ -199,10 +199,10 @@ FSSDSignalSample TransformSignal(FSSDSignalSample Sample, const uint SrcBasis, c
 		return Sample;
 	}
 
-	// TODO: should force this to be scalar load.
+	// TODO(Denoiser): should force this to be scalar load.
 	float FrameExposureScale = GetSignalColorTransformationExposure();
 		
-	// TODO: exposes optimisation if sample is normalized.
+	// TODO(Denoiser): exposes optimisation if sample is normalized.
 	const bool bIsNormalizedSample = false;
 	const bool bDebugForceNormalizeColor = true;
 	const bool bIsNormalizedColor = bIsNormalizedSample || bDebugForceNormalizeColor;
@@ -346,7 +346,7 @@ FSphericalGaussian ComputeRoughnessLobe(FSSDSampleSceneInfos RefSceneMetadata)
 {
 	#if CONFIG_USE_VIEW_SPACE
 		float3 N = RefSceneMetadata.ViewNormal;
-		float3 V = float3(1, 0, 0); // TODO.
+		float3 V = float3(1, 0, 0); // TODO(Denoiser).
 	#else
 		float3 N = RefSceneMetadata.WorldNormal;
 		float3 V = normalize(View.TranslatedWorldCameraOrigin - GetTranslatedWorldPosition(RefSceneMetadata));
@@ -401,12 +401,12 @@ void ProjectSpecularLobeToScreenSpace(
 		float3x3 TangentBasis = GetTangentBasis(N);
 		float3 TangentV = mul(TangentBasis, V);
 		
-		// TODO: optimise using lobe symetry along anisotropy major axis.
+		// TODO(Denoiser): optimise using lobe symetry along anisotropy major axis.
 		float3 TangentL[4];
 		UNROLL_N(4)
 		for (uint i = 0; i < 4; i++)
 		{
-			// TODO: optimise VALU here.
+			// TODO(Denoiser): optimise VALU here.
 			float3 TangentH = ImportanceSampleVisibleGGX(ArrayE[i], a2, TangentV).xyz;
 			TangentL[i] = 2 * dot(TangentV, TangentH) * TangentH - TangentV;
 		}
@@ -442,7 +442,7 @@ float ComputeBluringRadiusOfNormalizedSample(FSSDSignalSample Sample, FSSDSample
 	return ComputeInfinityBluringRadius(SceneMetadata) * ComputeBluringOutOfFocusOfNormalizedSample(Sample, SceneMetadata);
 }
 
-// TODO: duplicated...
+// TODO(Denoiser): duplicated...
 float3 GenerateReflectedRayDirection(
 	float3 IncidentDirection,
 	float3 WorldNormal,
@@ -479,7 +479,7 @@ float3 GenerateReflectedRayDirection(
 	return RayDirection;
 }
 
-// TODO: duplicated...
+// TODO(Denoiser): duplicated...
 void GetInputRayDirectionPixel(
 	uint2 PixelCoord,
 	FSSDSampleSceneInfos SceneMetadata,
@@ -561,7 +561,7 @@ float ComputeBilateralWeight(
 	}
 	else if ((BilateralSettings & 0xF) == 2)
 	{
-		// TODO: save 2 VGPR by using SceneDepth instead of RefSceneMetadata.TranslatedWorldPosition (not sure it can work in math yet).
+		// TODO(Denoiser): save 2 VGPR by using SceneDepth instead of RefSceneMetadata.TranslatedWorldPosition (not sure it can work in math yet).
 		// float2 ClipPosition = ScreenPosition * (View.ViewToClip[3][3] < 1.0f ? WorldDepth : 1.0f);
 		// Infos.TranslatedWorldPosition = mul(float4(ClipPosition, WorldDepth, 1), ScreenToTranslatedWorld).xyz;
 
@@ -578,14 +578,14 @@ float ComputeBilateralWeight(
 	}
 	else if ((BilateralSettings & 0xF) == 4)
 	{
-		// TODO: extremely expensive with rcp()...
+		// TODO(Denoiser): extremely expensive with rcp()...
 		PositionBilateralWeight = saturate(1 - dot(NeighborToRefVector, NeighborToRefVector) * rcp(MaxWorldBluringDistance * MaxWorldBluringDistance));
 	}
 	else if ((BilateralSettings & 0xF) == 5)
 	{
 		float DistFromRefPlane = dot(RefNormal, NeighborToRefVector);
 
-		// TODO: extremely expensive with rcp()...
+		// TODO(Denoiser): extremely expensive with rcp()...
 		PositionBilateralWeight = (
 			saturate(1 - dot(NeighborToRefVector, NeighborToRefVector) * rcp(MaxWorldBluringDistance * MaxWorldBluringDistance)) *
 			saturate(1 - 6 * abs(DistFromRefPlane) * rcp(MaxWorldBluringDistance)));
@@ -596,11 +596,11 @@ float ComputeBilateralWeight(
 	{
 		float NoN = max(dot(RefNormal, NeighborNormal), 0);
 
-		#if 1 // TODO
+		#if 1 // TODO(Denoiser)
 			NormalBilateralWeight = pow(NoN, 4);
 		#else
 			// [ Kontkanen et al 2004, "Irradiance Filtering for Monte Carlo Ray Tracing" ]
-			// TODO: looks broken
+			// TODO(Denoiser): looks broken
 			float m = MaxWorldBluringDistance;
 			float a = 0.3;
 			float d = sqrt(1 - NoN); // + length(RefSceneMetadata.TranslatedWorldPosition - NeighborSceneMetadata.TranslatedWorldPosition) * rcp(m);
@@ -647,7 +647,7 @@ float GetSignalWorldBluringRadius(FSSDSignalSample Sample, FSSDSampleSceneInfos 
 	FSSDSignalDomainKnowledge DomainKnowledge = GetSignalDomainKnowledge(BatchedSignalId);
 
 	// Sometime, artists might put occluder very close to the area light compared to they area, that may lead to negative values.
-	// TODO: the correct way to fix this is to move this world bluring radius computation into the RGS, and have DistanceFromLight = Ray's MaxT.
+	// TODO(Denoiser): the correct way to fix this is to move this world bluring radius computation into the RGS, and have DistanceFromLight = Ray's MaxT.
 	const float ClosestLightDistance = 0.001;
 
 	BRANCH
@@ -701,7 +701,7 @@ float GetSamplePenumbraSafe(FSSDSignalSample Sample)
 // Get penumbra, but be aware of NaN.
 float GetSamplePenumbra(FSSDSignalSample Sample)
 {
-	if (1) // TODO: For debugging purpose of division by 0.
+	if (1) // TODO(Denoiser): For debugging purpose of division by 0.
 	{
 		return GetSamplePenumbraSafe(Sample);
 	}
@@ -741,7 +741,7 @@ float GetRatioEstimatorWeight(
 
 	float a2 = Pow4(RefSceneMetadata.Roughness);
 
-	// TODO: Improve quantization in CONFIG_COMPRESS_WORLD_NORMAL and use it.
+	// TODO(Denoiser): Improve quantization in CONFIG_COMPRESS_WORLD_NORMAL and use it.
 	float3 N = GetWorldNormal(RefSceneMetadata);
 
 	float NoH;
@@ -793,7 +793,7 @@ float GetRatioEstimatorWeight(
 
 
 // Matches GenerateCosineNormalRay()
-// TODO: expose a Weight that multiply directly onto the Sample.SceneColor to reduce ALU
+// TODO(Denoiser): expose a Weight that multiply directly onto the Sample.SceneColor to reduce ALU
 #if COMPILE_SIGNAL_COLOR_SH && COMPILE_SIGNAL_COLOR
 FSSDSphericalHarmonicRGB ComputeSampleColorSH(FSSDSampleSceneInfos SampleSceneMetadata, FSSDSignalSample Sample, uint2 NeighborPixelCoord)
 {

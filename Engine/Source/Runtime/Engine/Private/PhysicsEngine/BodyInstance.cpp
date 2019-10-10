@@ -37,6 +37,12 @@
 #include "PxShape.h"
 #endif // WITH_PHYSX
 
+#if WITH_CHAOS
+#include "Chaos/ImplicitObject.h"
+#endif
+
+
+
 #define LOCTEXT_NAMESPACE "BodyInstance"
 
 #include "Components/ModelComponent.h"
@@ -2538,7 +2544,7 @@ void FBodyInstance::UpdateMassProperties()
 #if WITH_PHYSX
 	if (FPhysicsInterface::IsValid(ActorHandle) && FPhysicsInterface::IsRigidBody(ActorHandle))
 	{
-		FPhysicsCommand::ExecuteWrite(ActorHandle, [&](const FPhysicsActorHandle& Actor)
+		FPhysicsCommand::ExecuteWrite(ActorHandle, [&](FPhysicsActorHandle& Actor)
 		{
 			check(FPhysicsInterface::IsValid(Actor));
 
@@ -3086,11 +3092,18 @@ bool FBodyInstance::OverlapTestForBodiesImpl(const FVector& Pos, const FQuat& Ro
 
 		for(const FPhysicsShapeHandle& Shape : TargetShapes)
 		{
+#if WITH_CHAOS
+			if (!Shape.GetGeometry().IsConvex())
+			{
+				continue;	//we skip complex shapes - should this respect ComplexAsSimple?
+			}
+#else
 			ECollisionShapeType ShapeType = FPhysicsInterface::GetShapeType(Shape);
 			if(ShapeType == ECollisionShapeType::Heightfield || ShapeType == ECollisionShapeType::Trimesh)
 			{
 				continue;	//we skip complex shapes - should this respect ComplexAsSimple?
 			}
+#endif
 
 			// Calc shape global pose
 			FTransform PShapeGlobalPose = FPhysicsInterface::GetLocalTransform(Shape) * PTestGlobalPose;
@@ -3211,11 +3224,18 @@ bool FBodyInstance::OverlapMulti(TArray<struct FOverlapResult>& InOutOverlaps, c
 					continue;
 				}
 
-				ECollisionShapeType ShapeType = FPhysicsInterface::GetShapeType(ShapeRef);
-				if(ShapeType == ECollisionShapeType::Heightfield || ShapeType == ECollisionShapeType::Trimesh)
+#if WITH_CHAOS
+				if (!ShapeRef.GetGeometry().IsConvex())
 				{
 					continue;	//we skip complex shapes - should this respect ComplexAsSimple?
 				}
+#else
+				ECollisionShapeType ShapeType = FPhysicsInterface::GetShapeType(ShapeRef);
+				if (ShapeType == ECollisionShapeType::Heightfield || ShapeType == ECollisionShapeType::Trimesh)
+				{
+					continue;	//we skip complex shapes - should this respect ComplexAsSimple?
+				}
+#endif
 
 				// Calc shape global pose
 				const FTransform LocalTransform = FPhysicsInterface::GetLocalTransform(ShapeRef);

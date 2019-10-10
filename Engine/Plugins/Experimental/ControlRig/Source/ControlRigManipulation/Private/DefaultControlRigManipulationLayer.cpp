@@ -19,9 +19,6 @@ void UDefaultControlRigManipulationLayer::CreateLayer()
 
 void UDefaultControlRigManipulationLayer::DestroyLayer()
 {
-	ExecuteDelegateHandles.Empty();
-	InitializeDelegateHandle.Empty();
-
 	IControlRigManipulationLayer::DestroyLayer();
 }
 
@@ -49,17 +46,22 @@ void UDefaultControlRigManipulationLayer::RemoveManipulatableObject(IControlRigM
 void UDefaultControlRigManipulationLayer::OnControlRigAdded(UControlRig* InControlRig)
 {
 	// bind execution delegate
-	ExecuteDelegateHandles.Add(InControlRig->OnExecuted().AddUObject(this, &UDefaultControlRigManipulationLayer::OnRigExecuted));
-	InitializeDelegateHandle.Add(InControlRig->OnInitialized().AddUObject(this, &UDefaultControlRigManipulationLayer::OnRigInitialized));
+
 	ControlModifiedDelegateHandles.Add(InControlRig->ControlModified().AddUObject(this, &UDefaultControlRigManipulationLayer::OnControlModified));
 
 	// ensure the size matches
-	ensure(ExecuteDelegateHandles.Num() == ManipulatableObjects.Num());
-	ensure(InitializeDelegateHandle.Num() == ManipulatableObjects.Num());
 	ensure(ControlModifiedDelegateHandles.Num() == ManipulatableObjects.Num());
 
 	// object binding. This overwrites if there were multi
 	SetObjectBinding(InControlRig->GetObjectBinding());
+
+	// currently all the manipulatable mesh component is supposed to be same
+	// if that changes, this code has to change
+	USkeletalMeshComponent* MeshComponent = GetSkeletalMeshComponent();
+	if (MeshComponent)
+	{
+		MeshComponent->OnBoneTransformsFinalized.AddDynamic(this, &UDefaultControlRigManipulationLayer::PostPoseUpdate);
+	}
 }
 
 void UDefaultControlRigManipulationLayer::OnControlRigRemoved(UControlRig* InControlRig)
@@ -68,14 +70,16 @@ void UDefaultControlRigManipulationLayer::OnControlRigRemoved(UControlRig* InCon
 	int32 Found = ManipulatableObjects.Find(InControlRig);
 	if (Found != INDEX_NONE)
 	{
-		if (ExecuteDelegateHandles.IsValidIndex(Found) && ExecuteDelegateHandles[Found].IsValid())
+		// last one 
+		// currently all the manipulatable mesh component is supposed to be same
+		// if that changes, this code has to change
+		if (ManipulatableObjects.Num() == 1)
 		{
-			InControlRig->OnExecuted().Remove(ExecuteDelegateHandles[Found]);
-		}
-
-		if (InitializeDelegateHandle.IsValidIndex(Found) && InitializeDelegateHandle[Found].IsValid())
-		{
-			InControlRig->OnInitialized().Remove(InitializeDelegateHandle[Found]);
+			USkeletalMeshComponent* MeshComponent = GetSkeletalMeshComponent();
+			if (MeshComponent)
+			{
+				MeshComponent->OnBoneTransformsFinalized.RemoveDynamic(this, &UDefaultControlRigManipulationLayer::PostPoseUpdate);
+			}
 		}
 
 		if (ControlModifiedDelegateHandles.IsValidIndex(Found) && ControlModifiedDelegateHandles[Found].IsValid())
@@ -83,7 +87,6 @@ void UDefaultControlRigManipulationLayer::OnControlRigRemoved(UControlRig* InCon
 			InControlRig->ControlModified().Remove(ControlModifiedDelegateHandles[Found]);
 		}
 	}
-	
 }
 
 // gizmo related 
@@ -321,8 +324,19 @@ bool UDefaultControlRigManipulationLayer::CreateGizmoActors(UWorld* World, TArra
 			OutGizmoActors.Add(GizmoActor);
 		}
 	}
-	
+
+	WorldPtr = World;
+	OnWorldCleanupHandle = FWorldDelegates::OnWorldCleanup.AddUObject(this, &UDefaultControlRigManipulationLayer::OnWorldCleanup);
 	return (OutGizmoActors.Num() > 0);
+}
+
+void UDefaultControlRigManipulationLayer::OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources)
+{
+	// if world gets cleaned up first, we destroy gizmo actors
+	if (WorldPtr == World)
+	{
+		DestroyGizmosActors();
+	}
 }
 
 void UDefaultControlRigManipulationLayer::DestroyGizmosActors()
@@ -340,21 +354,8 @@ void UDefaultControlRigManipulationLayer::DestroyGizmosActors()
 	}
 
 	ResetControlData();
-}
 
-void UDefaultControlRigManipulationLayer::OnRigExecuted(class UControlRig* InRig, const EControlRigState State)
-{
-	FTransform ComponentTransform = GetSkeletalMeshComponentTransform();
-
-	// after executing rig, update gizmo
-	for (auto Iter=GizmoToControlMap.CreateIterator(); Iter; ++Iter)
-	{
-		TickGizmo(Iter.Key(), ComponentTransform);
-	}
-}
-
-void UDefaultControlRigManipulationLayer::OnRigInitialized(class UControlRig* InRig, const EControlRigState State)
-{
+	FWorldDelegates::OnWorldCleanup.Remove(OnWorldCleanupHandle);
 }
 
 void UDefaultControlRigManipulationLayer::OnControlModified(IControlRigManipulatable* InManipulatable, const FRigControl& InControl)
@@ -424,4 +425,14 @@ void UDefaultControlRigManipulationLayer::BeginTransaction()
 
 void UDefaultControlRigManipulationLayer::EndTransaction()
 {
+}
+
+void UDefaultControlRigManipulationLayer::PostPoseUpdate()
+{
+	FTransform ComponentTransform = GetSkeletalMeshComponentTransform();
+	// after executing rig, update gizmo
+	for (auto Iter = GizmoToControlMap.CreateIterator(); Iter; ++Iter)
+	{
+		TickGizmo(Iter.Key(), ComponentTransform);
+	}
 }

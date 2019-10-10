@@ -24,7 +24,8 @@ STextBlock::STextBlock()
 	bSimpleTextMode = false;
 
 #if WITH_ACCESSIBILITY
-	AccessibleData = FAccessibleWidgetData(EAccessibleBehavior::Auto, EAccessibleBehavior::Auto, false);
+	AccessibleBehavior = EAccessibleBehavior::Auto;
+	bCanChildrenBeAccessible = false;
 #endif
 }
 
@@ -117,28 +118,21 @@ void STextBlock::SetText( const TAttribute< FString >& InText )
 {
 	if (InText.IsSet() && !InText.IsBound())
 	{
-		SetText(InText.Get());
+		SetText(FText::AsCultureInvariant(InText.Get()));
 		return;
 	}
 
 	SCOPE_CYCLE_COUNTER(Stat_SlateTextBlockSetText);
-	struct Local
+	BoundText = MakeAttributeLambda([InText]()
 	{
-		static FText PassThroughAttribute( TAttribute< FString > InString )
-		{
-			return FText::FromString( InString.Get( TEXT("") ) );
-		}
-	};
-
-	BoundText = TAttribute< FText >::Create(TAttribute<FText>::FGetter::CreateStatic( &Local::PassThroughAttribute, InText) );
-
+		return FText::AsCultureInvariant(InText.Get(FString()));
+	});
 	InvalidateText(EInvalidateWidget::LayoutAndVolatility);
-
 }
 
 void STextBlock::SetText( const FString& InText )
 {
-	SetText(FText::FromString(InText));
+	SetText(FText::AsCultureInvariant(InText));
 }
 
 void STextBlock::SetText( const TAttribute< FText >& InText )
@@ -479,9 +473,8 @@ TSharedRef<FSlateAccessibleWidget> STextBlock::CreateAccessibleWidget()
 	return MakeShareable<FSlateAccessibleWidget>(new FSlateAccessibleTextBlock(SharedThis(this)));
 }
 
-void STextBlock::SetDefaultAccessibleText(EAccessibleType AccessibleType)
+TOptional<FText> STextBlock::GetDefaultAccessibleText(EAccessibleType AccessibleType) const
 {
-	TAttribute<FText>& Text = (AccessibleType == EAccessibleType::Main) ? AccessibleData.AccessibleText : AccessibleData.AccessibleSummaryText;
-	Text.Bind(this, &STextBlock::GetTextCopy);
+	return GetText();
 }
 #endif

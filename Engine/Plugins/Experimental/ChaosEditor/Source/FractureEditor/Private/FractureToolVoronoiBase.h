@@ -23,6 +23,7 @@ public:
 
 	virtual void FractureContextChanged() override;
 	virtual void ExecuteFracture(const FFractureContext& FractureContext) override;
+	virtual bool CanExecuteFracture() const override;
 
 protected:
 	

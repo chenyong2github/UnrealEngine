@@ -196,6 +196,11 @@ void FClassDeclarationMetaData::ParseClassProperties(const TArray<FPropertySpeci
 				HideFunctions.AddUnique(Value);
 			}
 		}
+		// Currently some code only handles a single sidecar data structure so we enforce that here
+		else if (Specifier == TEXT("SparseClassDataTypes"))
+		{
+			SparseClassDataTypes.AddUnique(FHeaderParser::RequireExactlyOneSpecifierValue(PropSpecifier));
+		}
 		else if (Specifier == TEXT("classGroup"))
 		{
 			FHeaderParser::RequireSpecifierValue(PropSpecifier);
@@ -294,11 +299,13 @@ void FClassDeclarationMetaData::MergeClassCategories(FClass* Class)
 	TArray<FString> ParentHideCategories;
 	TArray<FString> ParentShowSubCatgories;
 	TArray<FString> ParentHideFunctions;
+	TArray<FString> ParentSparseClassDataTypes;
 	TArray<FString> ParentAutoExpandCategories;
 	TArray<FString> ParentAutoCollapseCategories;
 	Class->GetHideCategories(ParentHideCategories);
 	Class->GetShowCategories(ParentShowSubCatgories);
 	Class->GetHideFunctions(ParentHideFunctions);
+	Class->GetSparseClassDataTypes(ParentSparseClassDataTypes);
 	Class->GetAutoExpandCategories(ParentAutoExpandCategories);
 	Class->GetAutoCollapseCategories(ParentAutoCollapseCategories);
 

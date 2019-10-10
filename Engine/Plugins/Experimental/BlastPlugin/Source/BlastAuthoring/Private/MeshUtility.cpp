@@ -2,7 +2,7 @@
 
 #include "MeshUtility.h"
 #include "PxPhysicsAPI.h"
-#include "MeshAttributes.h"
+#include "StaticMeshAttributes.h"
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
@@ -27,10 +27,11 @@ using namespace physx;
 void FMeshUtility::EditableMeshToBlastMesh(const UEditableMesh* SourceMesh, Nv::Blast::Mesh*& OutBlastMesh)
 {
 	const FMeshDescription* MeshDescription = SourceMesh->GetMeshDescription();
+	FStaticMeshConstAttributes Attributes(*MeshDescription);
 
-	TVertexAttributesConstRef<FVector> VertexPositions = MeshDescription->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
-	TVertexInstanceAttributesConstRef<FVector2D> VertexUvs = MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
-	TVertexInstanceAttributesConstRef<FVector> VertexNormals = MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
+	TVertexAttributesConstRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+	TVertexInstanceAttributesConstRef<FVector2D> VertexUvs = Attributes.GetVertexInstanceUVs();
+	TVertexInstanceAttributesConstRef<FVector> VertexNormals = Attributes.GetVertexInstanceNormals();
 
 	// Blast representation
 	TArray<PxVec2> BlastUvs;
@@ -83,10 +84,11 @@ void FMeshUtility::EditableMeshToBlastMesh(const UEditableMesh* SourceMesh, int3
 {
 	OutBlastMesh = nullptr;
 	const FMeshDescription* MeshDescription = SourceMesh->GetMeshDescription();
+	FStaticMeshConstAttributes Attributes(*MeshDescription);
 
-	TVertexAttributesConstRef<FVector> VertexPositions = MeshDescription->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
-	TVertexInstanceAttributesConstRef<FVector2D> VertexUVs = MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
-	TVertexInstanceAttributesConstRef<FVector> VertexNormals = MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
+	TVertexAttributesConstRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+	TVertexInstanceAttributesConstRef<FVector2D> VertexUVs = Attributes.GetVertexInstanceUVs();
+	TVertexInstanceAttributesConstRef<FVector> VertexNormals = Attributes.GetVertexInstanceNormals();
 	UGeometryCollection* GeometryCollection = Cast<UGeometryCollection>(static_cast<UObject*>(SourceMesh->GetSubMeshAddress().MeshObjectPtr));
 
 	//#define VALIDATE_INPUT

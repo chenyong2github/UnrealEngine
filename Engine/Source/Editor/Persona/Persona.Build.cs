@@ -30,6 +30,7 @@ public class Persona : ModuleRules
                 "AnimationEditor",
                 "MeshReductionInterface",
                 "SequenceRecorder",
+                "AnimationBlueprintEditor",
             }
         );
 
@@ -55,9 +56,9 @@ public class Persona : ModuleRules
                 "RHI",
                 "Json",
                 "JsonUtilities",
-                "ClothingSystemRuntimeNv",
                 "ClothingSystemEditorInterface",
                 "ClothingSystemRuntimeInterface",
+                "ClothingSystemRuntimeCommon",
                 "AnimGraphRuntime",
                 "UnrealEd",
                 "CommonMenuExtensions",

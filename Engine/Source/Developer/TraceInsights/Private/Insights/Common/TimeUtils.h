@@ -54,7 +54,8 @@ namespace TimeUtils
 		bool bIsInfinite;
 	};
 
-	FString FormatTimeAuto(const double Duration);
+	FString FormatTimeValue(const double Duration, const int32 NumDigits = 1);
+	FString FormatTimeAuto(const double Duration, const int32 NumDigits = 1);
 	FString FormatTimeMs(const double Duration, const int32 NumDigits = 2, bool bAddTimeUnit = false);
 	FString FormatTime(const double Time, const double Precision = 0.0);
 	FString FormatTimeHMS(const double Time, const double Precision = 0.0);

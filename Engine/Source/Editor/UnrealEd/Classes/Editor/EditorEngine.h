@@ -23,6 +23,8 @@
 #include "Settings/LevelEditorPlaySettings.h"
 #include "Settings/LevelEditorViewportSettings.h"
 #include "Misc/CompilationResult.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
 
 #include "EditorSubsystem.h"
 #include "Subsystems/SubsystemCollection.h"
@@ -44,7 +46,7 @@ class FViewport;
 class IEngineLoop;
 class ILauncherWorker;
 class ILayers;
-class ILevelViewport;
+class IAssetViewport;
 class ITargetPlatform;
 class SViewport;
 class UActorFactory;
@@ -103,7 +105,7 @@ struct FSlatePlayInEditorInfo
 	TSharedPtr<class FSceneViewport>	SlatePlayInEditorWindowViewport;
 	
 	/** The slate viewport that should be used for play in viewport */
-	TWeakPtr<class ILevelViewport>		DestinationSlateViewport;
+	TWeakPtr<class IAssetViewport>		DestinationSlateViewport;
 
 	FSlatePlayInEditorInfo()
 	: SlatePlayInEditorWindow(NULL), DestinationSlateViewport(NULL)
@@ -390,9 +392,15 @@ struct FPreviewPlatformInfo
 	/** Convert platform name like "Android", or NAME_None if none is set or the preview feature level is not active */
 	FName GetEffectivePreviewPlatformName() const
 	{
-		return (PreviewShaderPlatformName != NAME_None && bPreviewFeatureLevelActive) ?
-			ShaderPlatformToPlatformName(ShaderFormatToLegacyShaderPlatform(PreviewShaderPlatformName)) :
-			NAME_None;
+		if (PreviewShaderPlatformName != NAME_None && bPreviewFeatureLevelActive)
+		{
+			ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatformWithSupport(TEXT("ShaderFormat"), PreviewShaderPlatformName);
+			if (TargetPlatform)
+			{
+				return FName(*TargetPlatform->IniPlatformName());
+			}
+		}
+		return NAME_None;
 	}
 
 	/** returns the preview feature level if active, or GMaxRHIFeatureLevel otherwise */
@@ -619,7 +627,7 @@ public:
 	TMap<FName, FSlatePlayInEditorInfo>	SlatePlayInEditorMap;
 
 	/** Viewport the next PlaySession was requested to happen on */
-	TWeakPtr<class ILevelViewport>		RequestedDestinationSlateViewport;
+	TWeakPtr<class IAssetViewport>		RequestedDestinationSlateViewport;
 
 	/** When set to anything other than -1, indicates a specific In-Editor viewport index that PIE should use */
 	UPROPERTY()
@@ -985,6 +993,7 @@ public:
 	bool	HandleDumpPublicCommand( const TCHAR* Str, FOutputDevice& Ar );
 	bool	HandleJumpToCommand( const TCHAR* Str, FOutputDevice& Ar );
 	bool	HandleBugItGoCommand( const TCHAR* Str, FOutputDevice& Ar );
+	bool	HandleBugItCommand(const TCHAR* Str, FOutputDevice& Ar);
 	bool	HandleTagSoundsCommand( const TCHAR* Str, FOutputDevice& Ar );
 	bool	HandlecheckSoundsCommand( const TCHAR* Str, FOutputDevice& Ar );
 	bool	HandleFixupBadAnimNotifiersCommand( const TCHAR* Str, FOutputDevice& Ar );
@@ -1814,7 +1823,7 @@ public:
 	 * @param	bUseMobilePreview		True to enable mobile preview mode (PC platform only)
 	 * @param	bUseVRPreview			True to enable VR preview mode (PC platform only)
 	 */
-	void RequestPlaySession( bool bAtPlayerStart, TSharedPtr<class ILevelViewport> DestinationViewport, bool bInSimulateInEditor, const FVector* StartLocation = NULL, const FRotator* StartRotation = NULL, int32 DestinationConsole = -1, bool bUseMobilePreview = false, bool bUseVRPreview = false, bool bUseVulkanPreview = false);
+	void RequestPlaySession( bool bAtPlayerStart, TSharedPtr<class IAssetViewport> DestinationViewport, bool bInSimulateInEditor, const FVector* StartLocation = NULL, const FRotator* StartRotation = NULL, int32 DestinationConsole = -1, bool bUseMobilePreview = false, bool bUseVRPreview = false, bool bUseVulkanPreview = false);
 
 	// @todo gmp: temp hack for Rocket demo
 	void RequestPlaySession(const FVector* StartLocation, const FRotator* StartRotation, bool MobilePreview, bool VulkanPreview, const FString& MobilePreviewTargetDevice, FString AdditionalStandaloneLaunchParameters = TEXT(""));
@@ -2292,14 +2301,15 @@ public:
 
 	/** The editor wrapper for UPackage::SavePackage. Auto-adds files to source control when necessary */
 	bool SavePackage( UPackage* InOuter, UObject* Base, EObjectFlags TopLevelFlags, const TCHAR* Filename, 
-		FOutputDevice* Error=GError, FLinkerLoad* Conform=NULL, bool bForceByteSwapping=false, bool bWarnOfLongFilename=true, 
+		FOutputDevice* Error=GError, FLinkerNull* Conform=NULL, bool bForceByteSwapping=false, bool bWarnOfLongFilename=true, 
 		uint32 SaveFlags=SAVE_None, const class ITargetPlatform* TargetPlatform = NULL, const FDateTime& FinalTimeStamp = FDateTime::MinValue(), bool bSlowTask = true );
 
 	/** The editor wrapper for UPackage::Save. Auto-adds files to source control when necessary */
 	FSavePackageResultStruct Save(UPackage* InOuter, UObject* Base, EObjectFlags TopLevelFlags, const TCHAR* Filename,
-		FOutputDevice* Error = GError, FLinkerLoad* Conform = NULL, bool bForceByteSwapping = false, bool bWarnOfLongFilename = true,
+		FOutputDevice* Error = GError, FLinkerNull* Conform = NULL, bool bForceByteSwapping = false, bool bWarnOfLongFilename = true,
 		uint32 SaveFlags = SAVE_None, const class ITargetPlatform* TargetPlatform = NULL, const FDateTime& FinalTimeStamp = FDateTime::MinValue(), 
-		bool bSlowTask = true, class FArchiveDiffMap* InOutDiffMap = nullptr);
+		bool bSlowTask = true, class FArchiveDiffMap* InOutDiffMap = nullptr,
+		FSavePackageContext* SavePackageContext = nullptr);
 
 	virtual bool InitializePhysicsSceneForSaveIfNecessary(UWorld* World, bool &bOutForceInitialized);
 	void CleanupPhysicsSceneThatWasInitializedForSave(UWorld* World, bool bForceInitialized);

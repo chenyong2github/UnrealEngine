@@ -2,7 +2,7 @@
 
 #include "GeometryCollection/GeometryCollectionParticlesData.h"
 
-#if INCLUDE_CHAOS && !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 #include "PhysicsSolver.h"
 #include "Chaos/Sphere.h"
@@ -263,5 +263,5 @@ FString TGeometryCollectionParticlesData<T, d>::FData::ToString(int32 Index, con
 // Current chaos particles type
 template class TGeometryCollectionParticlesData<float, 3>;
 
-#endif  // #if INCLUDE_CHAOS && !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif  // #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 

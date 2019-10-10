@@ -1,6 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Sections/EventSection.h"
+#include "MovieSceneEventUtils.h"
+#include "K2Node_CustomEvent.h"
 #include "Rendering/DrawElements.h"
 #include "SequencerSectionPainter.h"
 #include "ISectionLayoutBuilder.h"
@@ -144,22 +146,31 @@ int32 FEventTriggerSection::OnPaintSection(FSequencerSectionPainter& Painter) co
 		return LayerId;
 	}
 
+	UMovieSceneSequence* Sequence = EventTriggerSection->GetTypedOuter<UMovieSceneSequence>();
+	FMovieSceneSequenceEditor* SequenceEditor = FMovieSceneSequenceEditor::Find(Sequence);
+	UBlueprint* SequenceDirectorBP = SequenceEditor ? SequenceEditor->FindDirectorBlueprint(Sequence) : nullptr;
+
+	// If we do not have a sequence director BP we can't possibly be bound to anything
+	if (!SequenceDirectorBP)
+	{
+		return LayerId;
+	}
+
 	const FTimeToPixel& TimeToPixelConverter = Painter.GetTimeConverter();
 
-	TMovieSceneChannelData<FMovieSceneEvent> EventData = EventTriggerSection->EventChannel.GetData();
-	TArrayView<const FFrameNumber>     Times  = EventData.GetTimes();
-	TArrayView<const FMovieSceneEvent> Events = EventData.GetValues();
+	TArrayView<const FFrameNumber> Times  = EventTriggerSection->EventChannel.GetData().GetTimes();
+	TArrayView<FMovieSceneEvent>   Events = EventTriggerSection->EventChannel.GetData().GetValues();
 
 	TRange<FFrameNumber> EventSectionRange = EventTriggerSection->GetRange();
 	for (int32 KeyIndex = 0; KeyIndex < Times.Num(); ++KeyIndex)
 	{
 		FFrameNumber EventTime = Times[KeyIndex];
-		UK2Node_FunctionEntry* FunctionEntry = Events[KeyIndex].GetFunctionEntry();
-
 		if (EventSectionRange.Contains(EventTime))
 		{
-			FString EventString = FunctionEntry ? FunctionEntry->GetNodeTitle(ENodeTitleType::MenuTitle).ToString() : FString();
-			bool bIsEventValid = FMovieSceneEvent::IsValidFunction(FunctionEntry);
+			UK2Node* EndpointNode = FMovieSceneEventUtils::FindEndpoint(&Events[KeyIndex], EventTriggerSection, SequenceDirectorBP);
+
+			FString EventString = EndpointNode ? EndpointNode->GetNodeTitle(ENodeTitleType::MenuTitle).ToString() : FString();
+			bool bIsEventValid = true;
 
 			const float PixelPos = TimeToPixelConverter.FrameToPixel(EventTime);
 			PaintEventName(Painter, LayerId, EventString, PixelPos, bIsEventValid);
@@ -172,36 +183,45 @@ int32 FEventTriggerSection::OnPaintSection(FSequencerSectionPainter& Painter) co
 FReply FEventTriggerSection::OnKeyDoubleClicked(FKeyHandle KeyHandle)
 {
 	UMovieSceneEventTriggerSection* EventTriggerSection = Cast<UMovieSceneEventTriggerSection>( WeakSection.Get() );
-	if (EventTriggerSection)
+	if (!EventTriggerSection)
 	{
-		TMovieSceneChannelData<FMovieSceneEvent> ChannelData = EventTriggerSection->EventChannel.GetData();
-		int32 EventIndex = ChannelData.GetIndex(KeyHandle);
-		if (EventIndex != INDEX_NONE)
-		{
-			TArrayView<FMovieSceneEvent> Events = ChannelData.GetValues();
-			FMovieSceneEvent& Event = Events[EventIndex];
+		return FReply::Handled();
+	}
 
-			if (!Event.IsBoundToBlueprint())
-			{
-				FMovieSceneSequenceEditor* SequenceEditor = FMovieSceneSequenceEditor::Find(EventTriggerSection->GetTypedOuter<UMovieSceneSequence>());
-				if (ensure(SequenceEditor))
-				{
-					FScopedTransaction Transaction(LOCTEXT("BindTriggerEvent", "Create Event Endpoint"));
+	UMovieSceneSequence* Sequence = EventTriggerSection->GetTypedOuter<UMovieSceneSequence>();
+	check(Sequence);
 
-					UK2Node_FunctionEntry* NewEndpoint = SequenceEditor->CreateEventEndpoint(EventTriggerSection->GetTypedOuter<UMovieSceneSequence>());
-					if (NewEndpoint)
-					{
-						SequenceEditor->InitializeEndpointForTrack(EventTriggerSection->GetTypedOuter<UMovieSceneEventTrack>(), NewEndpoint);
-						FMovieSceneSequenceEditor::BindEventToEndpoint(EventTriggerSection, &Event, NewEndpoint);
-					}
-				}
-			}
+	FMovieSceneSequenceEditor* SequenceEditor = FMovieSceneSequenceEditor::Find(Sequence);
+	if (!SequenceEditor)
+	{
+		return FReply::Handled();
+	}
 
-			if (UK2Node_FunctionEntry* FunctionEntry = Event.GetFunctionEntry())
-			{
-				FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(FunctionEntry, false);
-			}
-		}
+	UBlueprint* SequenceDirectorBP = SequenceEditor->GetOrCreateDirectorBlueprint(Sequence);
+	if (!SequenceDirectorBP)
+	{
+		return FReply::Handled();
+	}
+
+	TMovieSceneChannelData<FMovieSceneEvent> ChannelData = EventTriggerSection->EventChannel.GetData();
+	const int32 EventIndex = ChannelData.GetIndex(KeyHandle);
+	if (EventIndex == INDEX_NONE)
+	{
+		return FReply::Handled();
+	}
+
+	FMovieSceneEvent* EventEntryPoint = &ChannelData.GetValues()[EventIndex];
+	UK2Node* Endpoint = FMovieSceneEventUtils::FindEndpoint(EventEntryPoint, EventTriggerSection, SequenceDirectorBP);
+
+	if (!Endpoint)
+	{
+		FScopedTransaction Transaction(LOCTEXT("CreateEventEndpoint", "Create Event Endpoint"));
+		Endpoint = FMovieSceneEventUtils::BindNewUserFacingEvent(EventEntryPoint, EventTriggerSection, SequenceDirectorBP);
+	}
+
+	if (Endpoint)
+	{
+		FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(Endpoint, false);
 	}
 
 	return FReply::Handled();
@@ -212,45 +232,72 @@ int32 FEventRepeaterSection::OnPaintSection(FSequencerSectionPainter& Painter) c
 	int32 LayerId = Painter.PaintSectionBackground();
 
 	UMovieSceneEventRepeaterSection* EventRepeaterSection = Cast<UMovieSceneEventRepeaterSection>(WeakSection.Get());
-	if (EventRepeaterSection)
+	if (!EventRepeaterSection)
 	{
-		UK2Node_FunctionEntry* FunctionEntry = EventRepeaterSection->Event.GetFunctionEntry();
-
-		float TextOffsetX = EventRepeaterSection->GetRange().GetLowerBound().IsClosed() ? FMath::Max(0.f, Painter.GetTimeConverter().FrameToPixel(EventRepeaterSection->GetRange().GetLowerBoundValue())) : 0.f;
-
-		FString EventString = FunctionEntry ? FunctionEntry->GetNodeTitle(ENodeTitleType::MenuTitle).ToString() : FString();
-		bool bIsEventValid = FMovieSceneEvent::IsValidFunction(FunctionEntry);
-		PaintEventName(Painter, LayerId, EventString, TextOffsetX, bIsEventValid);
+		return LayerId;
 	}
+
+	UMovieSceneSequence* Sequence = EventRepeaterSection->GetTypedOuter<UMovieSceneSequence>();
+	FMovieSceneSequenceEditor* SequenceEditor = FMovieSceneSequenceEditor::Find(Sequence);
+	UBlueprint* SequenceDirectorBP = SequenceEditor ? SequenceEditor->FindDirectorBlueprint(Sequence) : nullptr;
+
+	// If we do not have a sequence director BP we can't possibly be bound to anything
+	if (!SequenceDirectorBP)
+	{
+		return LayerId;
+	}
+
+	UK2Node* EndpointNode = FMovieSceneEventUtils::FindEndpoint(&EventRepeaterSection->Event, EventRepeaterSection, SequenceDirectorBP);
+
+	float TextOffsetX = EventRepeaterSection->GetRange().GetLowerBound().IsClosed() ? FMath::Max(0.f, Painter.GetTimeConverter().FrameToPixel(EventRepeaterSection->GetRange().GetLowerBoundValue())) : 0.f;
+
+	FString EventString = EndpointNode ? EndpointNode->GetNodeTitle(ENodeTitleType::MenuTitle).ToString() : FString();
+	bool bIsEventValid = true;
+	PaintEventName(Painter, LayerId, EventString, TextOffsetX, bIsEventValid);
 
 	return LayerId + 1;
 }
 
 FReply FEventRepeaterSection::OnSectionDoubleClicked(const FGeometry& SectionGeometry, const FPointerEvent& MouseEvent)
 {
-	UMovieSceneEventRepeaterSection* EventRepeaterSection = Cast<UMovieSceneEventRepeaterSection>( WeakSection.Get() );
-	if (EventRepeaterSection)
+	TSharedPtr<ISequencer> SequencerPtr = Sequencer.Pin();
+	if (!SequencerPtr)
 	{
-		if (!EventRepeaterSection->Event.IsBoundToBlueprint())
-		{
-			FMovieSceneSequenceEditor* SequenceEditor = FMovieSceneSequenceEditor::Find(EventRepeaterSection->GetTypedOuter<UMovieSceneSequence>());
-			if (ensure(SequenceEditor))
-			{
-				FScopedTransaction Transaction(LOCTEXT("BindRepeaterEvent", "Create Event Endpoint"));
+		return FReply::Handled();
+	}
 
-				UK2Node_FunctionEntry* NewEndpoint = SequenceEditor->CreateEventEndpoint(EventRepeaterSection->GetTypedOuter<UMovieSceneSequence>());
-				if (NewEndpoint)
-				{
-					SequenceEditor->InitializeEndpointForTrack(EventRepeaterSection->GetTypedOuter<UMovieSceneEventTrack>(), NewEndpoint);
-					FMovieSceneSequenceEditor::BindEventToEndpoint(EventRepeaterSection, &EventRepeaterSection->Event, NewEndpoint);
-				}
-			}
-		}
+	UMovieSceneEventRepeaterSection* EventRepeaterSection = Cast<UMovieSceneEventRepeaterSection>(WeakSection.Get());
+	if (!EventRepeaterSection)
+	{
+		return FReply::Handled();
+	}
 
-		if (UK2Node* FunctionEntry = EventRepeaterSection->Event.GetFunctionEntry())
-		{
-			FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(FunctionEntry, false);
-		}
+	UMovieSceneSequence* Sequence = EventRepeaterSection->GetTypedOuter<UMovieSceneSequence>();
+	check(Sequence);
+
+	FMovieSceneSequenceEditor* SequenceEditor = FMovieSceneSequenceEditor::Find(Sequence);
+	if (!SequenceEditor)
+	{
+		return FReply::Handled();
+	}
+
+	UBlueprint* SequenceDirectorBP = SequenceEditor->GetOrCreateDirectorBlueprint(Sequence);
+	if (!SequenceDirectorBP)
+	{
+		return FReply::Handled();
+	}
+
+	UK2Node* Endpoint = FMovieSceneEventUtils::FindEndpoint(&EventRepeaterSection->Event, EventRepeaterSection, SequenceDirectorBP);
+
+	if (!Endpoint)
+	{
+		FScopedTransaction Transaction(LOCTEXT("BindRepeaterEvent", "Create Event Endpoint"));
+		Endpoint = FMovieSceneEventUtils::BindNewUserFacingEvent(&EventRepeaterSection->Event, EventRepeaterSection, SequenceDirectorBP);
+	}
+
+	if (Endpoint)
+	{
+		FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(Endpoint, false);
 	}
 
 	return FReply::Handled();

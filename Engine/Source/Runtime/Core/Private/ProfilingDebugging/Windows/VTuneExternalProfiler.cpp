@@ -4,7 +4,6 @@
 #include "HAL/PlatformProcess.h"
 #include "Misc/AssertionMacros.h"
 #include "ProfilingDebugging/ExternalProfiler.h"
-#include "Templates/ScopedPointer.h"
 #include "Features/IModularFeatures.h"
 #include "Templates/UniquePtr.h"
 #include "Containers/Map.h"

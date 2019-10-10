@@ -18,3 +18,4 @@ TMap<FName, TSharedRef<FClassDeclarationMetaData> > GClassDeclarations;
 TSet<UProperty*> GUnsizedProperties;
 TSet<UField*> GEditorOnlyDataTypes;
 TMap<UStruct*, TTuple<TSharedRef<FUnrealSourceFile>, int32>> GStructToSourceLine;
+TMap<UClass*, FArchiveTypeDefinePair> GClassSerializerMap;

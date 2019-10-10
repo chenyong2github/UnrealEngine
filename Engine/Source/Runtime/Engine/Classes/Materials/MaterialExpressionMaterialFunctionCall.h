@@ -109,8 +109,8 @@ class UMaterialExpressionMaterialFunctionCall : public UMaterialExpression
 	ENGINE_API void GetDependentFunctions(TArray<UMaterialFunctionInterface*>& DependentFunctions) const;
 
 #if WITH_EDITOR
-	void UnlinkFunctionFromCaller(FMaterialCompiler* Compiler);
-	void LinkFunctionIntoCaller(FMaterialCompiler* Compiler);
+	ENGINE_API void UnlinkFunctionFromCaller(FMaterialCompiler* Compiler);
+	ENGINE_API void LinkFunctionIntoCaller(FMaterialCompiler* Compiler);
 #endif
 
 	//~ Begin UMaterialExpression Interface

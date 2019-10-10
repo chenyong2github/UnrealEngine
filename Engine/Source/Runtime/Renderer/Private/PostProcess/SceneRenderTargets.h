@@ -186,7 +186,8 @@ protected:
 		DefaultDepthClear(FClearValueBinding::DepthFar),
 		QuadOverdrawIndex(INDEX_NONE),
 		bHMDAllocatedDepthTarget(false),
-		bKeepDepthContent(true)
+		bKeepDepthContent(true),
+		bAllocatedFoveationTexture(false)
 		{
 			FMemory::Memset(LargestDesiredSizes, 0);
 #if PREVENT_RENDERTARGET_SIZE_THRASHING
@@ -226,8 +227,8 @@ public:
 
 	void BindVirtualTextureFeedbackUAV(FRHIRenderPassInfo& RPInfo);
 
-	void BeginRenderingGBuffer(FRHICommandList& RHICmdList, ERenderTargetLoadAction ColorLoadAction, ERenderTargetLoadAction DepthLoadAction, FExclusiveDepthStencil::Type DepthStencilAccess, bool bBindQuadOverdrawBuffers, bool bClearQuadOverdrawBuffers = false, const FLinearColor& ClearColor = FLinearColor(0, 0, 0, 1), bool bIsWireframe=false);
-	void FinishGBufferPassAndResolve(FRHICommandListImmediate& RHICmdList);
+	void BeginRenderingGBuffer(FRHICommandList& RHICmdList, ERenderTargetLoadAction ColorLoadAction, ERenderTargetLoadAction DepthLoadAction, FExclusiveDepthStencil DepthStencilAccess, bool bBindQuadOverdrawBuffers, bool bClearQuadOverdrawBuffers = false, const FLinearColor& ClearColor = FLinearColor(0, 0, 0, 1), bool bIsWireframe=false);
+	void FinishGBufferPassAndResolve(FRHICommandListImmediate& RHICmdList, FExclusiveDepthStencil DepthStencilAccess);
 
 	/**
 	 * Sets the scene color target and restores its contents if necessary
@@ -375,6 +376,7 @@ public:
 	const FTexture2DRHIRef& GetGBufferDTexture() const { return (const FTexture2DRHIRef&)GBufferD->GetRenderTargetItem().ShaderResourceTexture; }
 	const FTexture2DRHIRef& GetGBufferETexture() const { return (const FTexture2DRHIRef&)GBufferE->GetRenderTargetItem().ShaderResourceTexture; }
 	const FTexture2DRHIRef& GetGBufferVelocityTexture() const { return (const FTexture2DRHIRef&)SceneVelocity->GetRenderTargetItem().ShaderResourceTexture; }
+	const FTexture2DRHIRef& GetFoveationTexture() const { return (const FTexture2DRHIRef&)FoveationTexture->GetRenderTargetItem().ShaderResourceTexture; }
 
 	const FTextureRHIRef& GetLightAttenuationTexture() const
 	{
@@ -500,6 +502,7 @@ public:
 	void ReleaseSceneColor();
 	
 	ERHIFeatureLevel::Type GetCurrentFeatureLevel() const { return CurrentFeatureLevel; }
+	bool IsFoveationTextureAllocated() const { return bAllocatedFoveationTexture;  }
 
 private: // Get...() methods instead of direct access
 
@@ -584,6 +587,9 @@ public:
 	/** Downsampled depth used when rendering translucency in smaller resolution. */
 	TRefCountPtr<IPooledRenderTarget> DownsampledTranslucencyDepthRT;
 
+	/** Texture to control variable resolution rendering */
+	TRefCountPtr<IPooledRenderTarget> FoveationTexture;
+
 	// todo: free ScreenSpaceAO so pool can reuse
 	bool bScreenSpaceAOIsValid;
 
@@ -642,6 +648,9 @@ private:
 	/** Allocates common depth render targets that are used by both mobile and deferred rendering paths */
 	void AllocateCommonDepthTargets(FRHICommandList& RHICmdList);
 
+	/** Allocates a texture for controlling variable resolution rendering. */
+	void AllocateFoveationTexture(FRHICommandList& RHICmdList);
+
 	/** Determine the appropriate render target dimensions. */
 	FIntPoint ComputeDesiredSize(const FSceneViewFamily& ViewFamily);
 
@@ -666,6 +675,9 @@ private:
 
 	/** Determine if the default clear values for color and depth match the allocated scene render targets. Mobile only. */
 	bool AreRenderTargetClearsValid(ESceneColorFormatType InSceneColorFormatType) const;
+
+	/** Determine if an allocate is required for the render targets. */
+	bool IsAllocateRenderTargetsRequired() const;
 
 	/** Determine whether the render targets for any shading path have been allocated */
 	bool AreAnyShadingPathRenderTargetsAllocated() const 
@@ -768,6 +780,9 @@ private:
 
 	/** True if the contents of the depth buffer must be kept for post-processing. When this is false, the depth buffer can be allocated as memoryless on mobile platforms which support it. */
 	bool bKeepDepthContent;
+
+	/** True if the a variable resolution texture is allocated to control sampling or shading rate */
+	bool bAllocatedFoveationTexture;
 
 	/** CAUTION: When adding new data, make sure you copy it in the snapshot constructor! **/
 

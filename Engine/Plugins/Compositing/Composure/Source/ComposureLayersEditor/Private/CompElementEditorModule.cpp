@@ -21,7 +21,7 @@
 #include "Features/IModularFeatures.h"
 #include "Widgets/SCompElementPreviewPane.h"
 #include "Widgets/SCompElementPickerWindow.h"
-#include "ILevelViewport.h"
+#include "IAssetViewport.h"
 #include "LevelEditorViewport.h"
 #include "Widgets/SCompElementPreviewDialog.h"
 
@@ -33,10 +33,10 @@ namespace CompElementEditor_Impl
 	void RedrawViewport()
 	{
 		FLevelEditorModule& LevelEditorModule = FModuleManager::Get().GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-		TSharedPtr<ILevelViewport> Viewport = LevelEditorModule.GetFirstActiveViewport();
+		TSharedPtr<IAssetViewport> Viewport = LevelEditorModule.GetFirstActiveViewport();
 		if (Viewport.IsValid())
 		{
-			Viewport->GetLevelViewportClient().RedrawRequested(Viewport->GetActiveViewport());
+			Viewport->GetAssetViewportClient().RedrawRequested(Viewport->GetActiveViewport());
 		}
 		else if (GCurrentLevelEditingViewportClient)
 		{

@@ -23,6 +23,9 @@ struct FSlateIcon;
 struct FDiffResults;
 struct FDiffSingleResult;
 
+class FPropertyLocalizationDataGatherer;
+enum class EPropertyLocalizationGathererTextFlags : uint8;
+
 /**
   * Struct used to define information for terminal types, e.g. types that can be contained
   * by a container. Currently can represent strong/weak references to a type (only UObjects), 
@@ -922,6 +925,12 @@ public:
 	void ForEachNodeDirectlyConnectedToOutputs(TFunctionRef<void(UEdGraphNode*)> Func);
 	
 protected:
+#if WITH_EDITORONLY_DATA
+	/** Internal function used to gather pins from a graph node for localization */
+	friend void GatherGraphNodeForLocalization(const UObject* const Object, FPropertyLocalizationDataGatherer& PropertyLocalizationDataGatherer, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
+	virtual void GatherForLocalization(FPropertyLocalizationDataGatherer& PropertyLocalizationDataGatherer, const EPropertyLocalizationGathererTextFlags GatherTextFlags) const;
+#endif
+
 	/**
 	 * Finds the difference in properties of node instance, for subobjects
 	 *

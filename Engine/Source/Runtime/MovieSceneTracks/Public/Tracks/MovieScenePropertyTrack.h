@@ -90,13 +90,13 @@ public:
 	 *
 	 * @param Section The section that changes.
 	 */
-	void SetSectionToKey(UMovieSceneSection* Section);
+	virtual void SetSectionToKey(UMovieSceneSection* Section) override;
 
 	/**
 	 * Finds a section we want to key and recieve globally changed values.
 	 * @return The Section that changes.
 	 */
-	class UMovieSceneSection* GetSectionToKey();
+	virtual UMovieSceneSection* GetSectionToKey() const override;
 #if WITH_EDITORONLY_DATA
 public:
 	/** Unique name for this track to afford multiple tracks on a given object (i.e. for array properties) */

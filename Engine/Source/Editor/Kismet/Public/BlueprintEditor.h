@@ -837,22 +837,6 @@ protected:
 	*/
 	void ConvertFunctionToEvent(UK2Node_FunctionEntry* SelectedCallFunctionNode);
 
-	/**
-	* Output a map of pin names to a set of connections given a function entry pin
-	* 
-	* @param Node				The entry pin to gather connections from
-	* @param OutPinConnections	Output map of connection data
-	*/
-	void GetPinConnectionMap(UEdGraphNode* Node, TMap<FString, TSet<UEdGraphPin*>>& OutPinConnections) const;
-
-	/**
-	* Reconnect the pin map to the given node
-	* 
-	* @param Node				The node to connect pins to
-	* @param PinConnections		Map of pin connections to set
-	*/
-	void ReconnectPinMap(UEdGraphNode* Node, const TMap<FString, TSet<UEdGraphPin*>>& PinConnections);
-
 	void OnConvertEventToFunction();
 	void ConvertEventToFunction(UK2Node_Event* SelectedEventNode);
 	bool CanConvertEventToFunction() const;

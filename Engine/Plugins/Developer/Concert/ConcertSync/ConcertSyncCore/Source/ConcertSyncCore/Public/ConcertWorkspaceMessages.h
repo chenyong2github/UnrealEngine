@@ -66,6 +66,32 @@ struct FConcertWorkspaceSyncCompletedEvent
 	GENERATED_BODY()
 };
 
+/** Request to sync an event that was partially synced on the client but for which the full data is required for inspection. FConcertSyncEventResponse is the corresponding response. */
+USTRUCT()
+struct FConcertSyncEventRequest
+{
+	GENERATED_BODY()
+
+	/** The type of event to sync. Only Package and Transaction event types are supported. */
+	UPROPERTY()
+	EConcertSyncActivityEventType EventType;
+
+	/** The ID of the event to sync. */
+	UPROPERTY()
+	int64 EventId;
+};
+
+/** Response to a FConcertSyncEventRequest request. */
+USTRUCT()
+struct FConcertSyncEventResponse
+{
+	GENERATED_BODY()
+
+	/** The payload contains the event corresponding to the requested event type like FConcertSyncTransactionEvent/FConcertSyncPackageEvent or an empty payload if the request failed. */
+	UPROPERTY()
+	FConcertSessionSerializedPayload Event;
+};
+
 USTRUCT()
 struct FConcertPackageUpdateEvent
 {
@@ -158,4 +184,21 @@ struct FConcertPlaySessionEvent
 
 	UPROPERTY()
 	bool bIsSimulating = false;
+};
+
+/**
+ * Sets the specified client 'ignore on restore' state for further activities. The 'ignored' flag can be raised to mark a series of activities as 'should not be restored'.
+ * @note This can be used to record and monitor session activities for inspection purpose, for example allowing disaster recovery to record what
+ *       happens in a multi-user session without restoring such activities in case of crash (because they occurred in a transient sandbox).
+ */
+USTRUCT()
+struct FConcertIgnoreActivityStateChangedEvent
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FGuid EndpointId;
+
+	UPROPERTY()
+	bool bIgnore = false;
 };

@@ -458,7 +458,7 @@ FD3D12Texture3D::~FD3D12Texture3D()
 	}
 }
 
-uint64 FD3D12DynamicRHI::RHICalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, uint32 Flags, uint32& OutAlign)
+uint64 FD3D12DynamicRHI::RHICalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, uint32 Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
 {
 	D3D12_RESOURCE_DESC Desc = {};
 	Desc.DepthOrArraySize = 1;
@@ -476,7 +476,7 @@ uint64 FD3D12DynamicRHI::RHICalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY
 	return AllocationInfo.SizeInBytes;
 }
 
-uint64 FD3D12DynamicRHI::RHICalcTexture3DPlatformSize(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 Flags, uint32& OutAlign)
+uint64 FD3D12DynamicRHI::RHICalcTexture3DPlatformSize(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
 {
 	D3D12_RESOURCE_DESC Desc = {};
 	Desc.DepthOrArraySize = SizeZ;
@@ -494,7 +494,7 @@ uint64 FD3D12DynamicRHI::RHICalcTexture3DPlatformSize(uint32 SizeX, uint32 SizeY
 	return AllocationInfo.SizeInBytes;
 }
 
-uint64 FD3D12DynamicRHI::RHICalcTextureCubePlatformSize(uint32 Size, uint8 Format, uint32 NumMips, uint32 Flags, uint32& OutAlign)
+uint64 FD3D12DynamicRHI::RHICalcTextureCubePlatformSize(uint32 Size, uint8 Format, uint32 NumMips, uint32 Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
 {
 	D3D12_RESOURCE_DESC Desc = {};
 	Desc.DepthOrArraySize = 6;
@@ -2833,6 +2833,99 @@ void FD3D12DynamicRHI::RHIAliasTextureResources(FRHITexture* DestTextureRHI, FRH
 		DestTexture = DestTexture->GetNextObject();
 		SrcTexture = SrcTexture->GetNextObject();
 	}
+}
+
+template<typename BaseResourceType>
+TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateAliasedD3D12Texture2D(TD3D12Texture2D<BaseResourceType>* SourceTexture)
+{
+	FD3D12Adapter* Adapter = &GetAdapter();
+
+	D3D12_RESOURCE_DESC TextureDesc = SourceTexture->GetResource()->GetDesc();
+	TextureDesc.Alignment = 0;
+
+	uint32 SizeX = TextureDesc.Width;
+	uint32 SizeY = TextureDesc.Height;
+	uint32 SizeZ = 1;
+	uint32 ArraySize = TextureDesc.DepthOrArraySize;
+	uint32 NumMips = TextureDesc.MipLevels;
+	uint32 NumSamples = TextureDesc.SampleDesc.Count;
+
+	check(TextureDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D);
+	check(ArraySize == 1);
+
+	//TODO: Somehow Oculus is creating a Render Target with 4k alignment with ovr_GetTextureSwapChainBufferDX
+	//      This is invalid and causes our size calculation to fail. Oculus SDK bug?
+	if (TextureDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET)
+	{
+		TextureDesc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+	}
+
+	SCOPE_CYCLE_COUNTER(STAT_D3D12CreateTextureTime);
+
+	FD3D12Device* Device = Adapter->GetDevice(0);
+
+	const bool bSRGB = (SourceTexture->GetFlags() & TexCreate_SRGB) != 0;
+
+	const DXGI_FORMAT PlatformResourceFormat = TextureDesc.Format;
+	const DXGI_FORMAT PlatformShaderResourceFormat = FindShaderResourceDXGIFormat(PlatformResourceFormat, bSRGB);
+	const DXGI_FORMAT PlatformRenderTargetFormat = FindShaderResourceDXGIFormat(PlatformResourceFormat, bSRGB);
+
+	TD3D12Texture2D<BaseResourceType>* Texture2D = new TD3D12Texture2D<BaseResourceType>(Device, SizeX, SizeY, SizeZ, NumMips, NumSamples, SourceTexture->GetFormat(), false, SourceTexture->GetFlags(), SourceTexture->GetClearBinding());
+
+	// Set up the texture bind flags.
+	bool bCreateRTV = (TextureDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET) != 0;
+	bool bCreateDSV = (TextureDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0;
+
+	const D3D12_RESOURCE_STATES State = D3D12_RESOURCE_STATE_COMMON;
+
+	if (bCreateRTV)
+	{
+		Texture2D->SetCreatedRTVsPerSlice(false, NumMips);
+		Texture2D->SetNumRenderTargetViews(NumMips);
+
+		// Create a render target view for each array index and mip index.
+		// These are null because we'll be aliasing them shortly.
+		for (uint32 ArrayIndex = 0; ArrayIndex < ArraySize; ArrayIndex++)
+		{
+			for (uint32 MipIndex = 0; MipIndex < NumMips; MipIndex++)
+			{
+				Texture2D->SetRenderTargetViewIndex(nullptr, ArrayIndex * NumMips + MipIndex);
+			}
+		}
+	}
+
+	if (bCreateDSV)
+	{
+		// Create a depth-stencil-view for the texture.
+		for (uint32 AccessType = 0; AccessType < FExclusiveDepthStencil::MaxIndex; ++AccessType)
+		{
+			Texture2D->SetDepthStencilView(nullptr, AccessType);
+		}
+	}
+
+	RHIAliasTextureResources(Texture2D, SourceTexture);
+
+	return Texture2D;
+}
+
+FTextureRHIRef FD3D12DynamicRHI::RHICreateAliasedTexture(FRHITexture* SourceTextureRHI)
+{
+	FD3D12TextureBase* SourceTexture = GetD3D12TextureFromRHITexture(SourceTextureRHI);
+	if (SourceTextureRHI->GetTexture2D() != nullptr)
+	{
+		return CreateAliasedD3D12Texture2D<FD3D12BaseTexture2D>(static_cast<FD3D12Texture2D*>(SourceTextureRHI->GetTexture2D()));
+	}
+	else if (SourceTextureRHI->GetTexture2DArray() != nullptr)
+	{
+		return CreateAliasedD3D12Texture2D<FD3D12BaseTexture2DArray>(static_cast<FD3D12Texture2DArray*>(SourceTextureRHI->GetTexture2DArray()));
+	}
+	else if (SourceTextureRHI->GetTextureCube() != nullptr)
+	{
+		return CreateAliasedD3D12Texture2D<FD3D12BaseTextureCube>(static_cast<FD3D12TextureCube*>(SourceTextureRHI->GetTextureCube()));
+	}
+
+	UE_LOG(LogD3D12RHI, Error, TEXT("Currently FD3D12DynamicRHI::RHICreateAliasedTexture only supports 2D, 2D Array and Cube textures."));
+	return nullptr;
 }
 
 void FD3D12DynamicRHI::RHICopySubTextureRegion(FRHITexture2D* SourceTextureRHI, FRHITexture2D* DestTextureRHI, FBox2D SourceBox, FBox2D DestinationBox)

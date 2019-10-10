@@ -5,59 +5,149 @@
 
 
 
-bool FDynamicMeshAttributeSet::IsSeamEdge(int eid) const
+void FDynamicMeshAttributeSet::EnableMaterialID()
 {
-	return UV0.IsSeamEdge(eid) || Normals0.IsSeamEdge(eid);
+	if (HasMaterialID() == false)
+	{
+		MaterialIDAttrib = MakeUnique<FDynamicMeshMaterialAttribute>(ParentMesh);
+		MaterialIDAttrib->Initialize((int32)0);
+	}
 }
 
+
+
+bool FDynamicMeshAttributeSet::IsSeamEdge(int eid) const
+{
+	for (const FDynamicMeshUVOverlay& UVLayer : UVLayers)
+	{
+		if (UVLayer.IsSeamEdge(eid))
+		{
+			return true;
+		}
+	}
+	return Normals0.IsSeamEdge(eid);
+}
+
+
+bool FDynamicMeshAttributeSet::IsSeamVertex(int VID, bool bBoundaryIsSeam) const
+{
+	for (const FDynamicMeshUVOverlay& UVLayer : UVLayers)
+	{
+		if (UVLayer.IsSeamVertex(VID, bBoundaryIsSeam))
+		{
+			return true;
+		}
+	}
+	return Normals0.IsSeamVertex(VID, bBoundaryIsSeam);
+}
 
 
 void FDynamicMeshAttributeSet::OnNewTriangle(int TriangleID, bool bInserted)
 {
-	UV0.InitializeNewTriangle(TriangleID);
+	for (FDynamicMeshUVOverlay& UVLayer : UVLayers)
+	{
+		UVLayer.InitializeNewTriangle(TriangleID);
+	}
 	Normals0.InitializeNewTriangle(TriangleID);
+
+	if (MaterialIDAttrib)
+	{
+		int NewValue = 0;
+		MaterialIDAttrib->SetNewValue(TriangleID, &NewValue);
+	}
 }
 
-void FDynamicMeshAttributeSet::OnRemoveTriangle(int TriangleID, bool bRemoveIsolatedVertices)
+
+void FDynamicMeshAttributeSet::OnRemoveTriangle(int TriangleID)
 {
-	UV0.OnRemoveTriangle(TriangleID, bRemoveIsolatedVertices);
-	Normals0.OnRemoveTriangle(TriangleID, bRemoveIsolatedVertices);
+	for (FDynamicMeshUVOverlay& UVLayer : UVLayers)
+	{
+		UVLayer.OnRemoveTriangle(TriangleID);
+	}
+	Normals0.OnRemoveTriangle(TriangleID);
+
+	// has no effect on MaterialIDAttrib
 }
 
 void FDynamicMeshAttributeSet::OnReverseTriOrientation(int TriangleID)
 {
-	UV0.OnReverseTriOrientation(TriangleID);
+	for (FDynamicMeshUVOverlay& UVLayer : UVLayers)
+	{
+		UVLayer.OnReverseTriOrientation(TriangleID);
+	}
 	Normals0.OnReverseTriOrientation(TriangleID);
+
+	// has no effect on MaterialIDAttrib
 }
 
 void FDynamicMeshAttributeSet::OnSplitEdge(const FDynamicMesh3::FEdgeSplitInfo & splitInfo)
 {
-	UV0.OnSplitEdge(splitInfo);
+	for (FDynamicMeshUVOverlay& UVLayer : UVLayers)
+	{
+		UVLayer.OnSplitEdge(splitInfo);
+	}
 	Normals0.OnSplitEdge(splitInfo);
+
+	if (MaterialIDAttrib)
+	{
+		MaterialIDAttrib->OnSplitEdge(splitInfo);
+	}
 }
 
 void FDynamicMeshAttributeSet::OnFlipEdge(const FDynamicMesh3::FEdgeFlipInfo & flipInfo)
 {
-	UV0.OnFlipEdge(flipInfo);
+	for (FDynamicMeshUVOverlay& UVLayer : UVLayers)
+	{
+		UVLayer.OnFlipEdge(flipInfo);
+	}
 	Normals0.OnFlipEdge(flipInfo);
+
+	if (MaterialIDAttrib)
+	{
+		MaterialIDAttrib->OnFlipEdge(flipInfo);
+	}
 }
 
 
 void FDynamicMeshAttributeSet::OnCollapseEdge(const FDynamicMesh3::FEdgeCollapseInfo & collapseInfo)
 {
-	UV0.OnCollapseEdge(collapseInfo);
+	for (FDynamicMeshUVOverlay& UVLayer : UVLayers)
+	{
+		UVLayer.OnCollapseEdge(collapseInfo);
+	}
 	Normals0.OnCollapseEdge(collapseInfo);
+
+	if (MaterialIDAttrib)
+	{
+		MaterialIDAttrib->OnCollapseEdge(collapseInfo);
+	}
 }
 
 void FDynamicMeshAttributeSet::OnPokeTriangle(const FDynamicMesh3::FPokeTriangleInfo & pokeInfo)
 {
-	UV0.OnPokeTriangle(pokeInfo);
+	for (FDynamicMeshUVOverlay& UVLayer : UVLayers)
+	{
+		UVLayer.OnPokeTriangle(pokeInfo);
+	}
 	Normals0.OnPokeTriangle(pokeInfo);
+
+	if (MaterialIDAttrib)
+	{
+		MaterialIDAttrib->OnPokeTriangle(pokeInfo);
+	}
 }
 
 void FDynamicMeshAttributeSet::OnMergeEdges(const FDynamicMesh3::FMergeEdgesInfo & mergeInfo)
 {
-	UV0.OnMergeEdges(mergeInfo);
+	for (FDynamicMeshUVOverlay& UVLayer : UVLayers)
+	{
+		UVLayer.OnMergeEdges(mergeInfo);
+	}
 	Normals0.OnMergeEdges(mergeInfo);
+
+	if (MaterialIDAttrib)
+	{
+		MaterialIDAttrib->OnMergeEdges(mergeInfo);
+	}
 }
 

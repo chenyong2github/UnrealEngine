@@ -255,6 +255,7 @@ FTextFilterExpressionEvaluator& FTextFilterExpressionEvaluator::operator=(const 
 	FilterType = ETextFilterExpressionType::Empty;
 	FilterText = FText::GetEmpty();
 	FilterErrorText = FText::GetEmpty();
+	ExpressionTokens.Reset();
 	CompiledFilter.Reset();
 
 	// If our source object has a different evaluation mode, we need to re-construct the expression parser
@@ -298,6 +299,7 @@ bool FTextFilterExpressionEvaluator::SetFilterText(const FText& InFilterText)
 
 	FilterType = ETextFilterExpressionType::Invalid;
 	FilterText = InFilterText;
+	ExpressionTokens.Reset();
 	CompiledFilterSingleBasicStringTextToken.Reset();
 
 	if (FilterText.IsEmptyOrWhitespace())
@@ -314,9 +316,7 @@ bool FTextFilterExpressionEvaluator::SetFilterText(const FText& InFilterText)
 		if (LexResult.IsValid())
 		{
 			auto& TmpLexTokens = LexResult.GetValue();
-
-			TArray<FExpressionToken> FinalTokens;
-			FinalTokens.Reserve(TmpLexTokens.Num());
+			ExpressionTokens.Reserve(TmpLexTokens.Num());
 
 			bool bIsComplexExpression = false;
 
@@ -373,11 +373,11 @@ bool FTextFilterExpressionEvaluator::SetFilterText(const FText& InFilterText)
 									FunctionParameter.Accumulate(NextToken->Context);
 								}
 								FStringToken EmptyToken;
-								FinalTokens.Add(FExpressionToken(EmptyToken, FSubExpressionStart()));
-								FinalTokens.Add(FExpressionToken(FunctionName, FTextToken(FunctionName.GetString(), ETextFilterTextComparisonMode::Partial, FTextToken::EInvertResult::No)));
-								FinalTokens.Add(FExpressionToken(EmptyToken, FFunction()));
-								FinalTokens.Add(FExpressionToken(FunctionParameter, FTextToken(FunctionParameter.GetString(), ETextFilterTextComparisonMode::Partial, FTextToken::EInvertResult::No)));
-								FinalTokens.Add(FExpressionToken(EmptyToken, FSubExpressionEnd()));
+								ExpressionTokens.Add(FExpressionToken(EmptyToken, FSubExpressionStart()));
+								ExpressionTokens.Add(FExpressionToken(FunctionName, FTextToken(FunctionName.GetString(), ETextFilterTextComparisonMode::Partial, FTextToken::EInvertResult::No)));
+								ExpressionTokens.Add(FExpressionToken(EmptyToken, FFunction()));
+								ExpressionTokens.Add(FExpressionToken(FunctionParameter, FTextToken(FunctionParameter.GetString(), ETextFilterTextComparisonMode::Partial, FTextToken::EInvertResult::No)));
+								ExpressionTokens.Add(FExpressionToken(EmptyToken, FSubExpressionEnd()));
 								continue;
 							}
 						}
@@ -398,7 +398,7 @@ bool FTextFilterExpressionEvaluator::SetFilterText(const FText& InFilterText)
 						if (bIsCurrentTokenValidToInjectANDOperatorBefore)
 						{
 							// Inject the new token before we move the current token into the final list
-							FinalTokens.Add(FExpressionToken(CurrentToken.Context, FAnd()));
+							ExpressionTokens.Add(FExpressionToken(CurrentToken.Context, FAnd()));
 						}
 					}
 
@@ -406,7 +406,7 @@ bool FTextFilterExpressionEvaluator::SetFilterText(const FText& InFilterText)
 					bWasPreviousTokenValidToInjectANDOperatorAfter = (CurrentToken.Node.Cast<FTextToken>() || CurrentToken.Node.Cast<FSubExpressionEnd>());
 
 					// Move this token into the final list since we should have injected the AND operator (if required) by now
-					FinalTokens.Add(MoveTemp(CurrentToken));
+					ExpressionTokens.Add(MoveTemp(CurrentToken));
 				}
 			}
 			else if (TmpLexTokens.Num() > 0)
@@ -416,10 +416,19 @@ bool FTextFilterExpressionEvaluator::SetFilterText(const FText& InFilterText)
 				{
 					CombinedTokenContext.Accumulate(TmpLexTokens[TokenIndex].Context);
 				}
-				FinalTokens.Add(FExpressionToken(CombinedTokenContext, CreateTextTokenFromUnquotedString(FText::TrimPrecedingAndTrailing(FilterText).ToString())));
+				ExpressionTokens.Add(FExpressionToken(CombinedTokenContext, CreateTextTokenFromUnquotedString(FText::TrimPrecedingAndTrailing(FilterText).ToString())));
 			}
 
-			CompiledFilter = ExpressionParser::Compile(MoveTemp(FinalTokens), Grammar);
+			{
+				TArray<FExpressionToken> LocalExpressionTokens;
+				LocalExpressionTokens.Reserve(ExpressionTokens.Num());
+				for (const FExpressionToken& Token : ExpressionTokens)
+				{
+					LocalExpressionTokens.Add(FExpressionToken(Token.Context, Token.Node.Copy()));
+				}
+
+				CompiledFilter = ExpressionParser::Compile(MoveTemp(LocalExpressionTokens), Grammar);
+			}
 
 			auto& CompiledResult = CompiledFilter.GetValue();
 			if (CompiledResult.IsValid())
@@ -458,6 +467,11 @@ bool FTextFilterExpressionEvaluator::SetFilterText(const FText& InFilterText)
 FText FTextFilterExpressionEvaluator::GetFilterErrorText() const
 {
 	return FilterErrorText;
+}
+
+const TArray<FExpressionToken>& FTextFilterExpressionEvaluator::GetFilterExpressionTokens() const
+{
+	return ExpressionTokens;
 }
 
 bool FTextFilterExpressionEvaluator::TestTextFilter(const ITextFilterExpressionContext& InContext) const

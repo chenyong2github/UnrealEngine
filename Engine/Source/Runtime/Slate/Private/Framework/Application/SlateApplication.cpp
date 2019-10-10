@@ -1765,6 +1765,8 @@ void FSlateApplication::AddModalWindow( TSharedRef<SWindow> InSlateWindow, const
 		return;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(FSlateApplication::AddModalWindow);
+
 	if( GIsRunningUnattendedScript && !bSlowTaskWindow )
 	{
 		UE_LOG(LogSlate, Warning, TEXT("A modal window tried to take control while running in unattended script mode. The window was canceled."));
@@ -4301,10 +4303,10 @@ FKey TranslateMouseButtonToKey( const EMouseButtons::Type Button )
 	return Key;
 }
 
-#if PLATFORM_DESKTOP || PLATFORM_HTML5
-
 void FSlateApplication::SetGameIsFakingTouchEvents(const bool bIsFaking, FVector2D* CursorLocation)
 {
+	// note, this is usually guarded by FPlatformMisc::DesktopTouchScreen()
+	// the only place this is not guarded is in FPIEPreviewDeviceModule::OnWindowReady()
 	if ( bIsGameFakingTouch != bIsFaking )
 	{
 		if (bIsFakingTouched && !bIsFaking && bIsGameFakingTouch && !bIsFakingTouch)
@@ -4315,8 +4317,6 @@ void FSlateApplication::SetGameIsFakingTouchEvents(const bool bIsFaking, FVector
 		bIsGameFakingTouch = bIsFaking;
 	}
 }
-
-#endif
 
 bool FSlateApplication::IsFakingTouchEvents() const
 {

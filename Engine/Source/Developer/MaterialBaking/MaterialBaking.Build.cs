@@ -22,6 +22,7 @@ public class MaterialBaking : ModuleRules
                 "EditorStyle",
                 "Renderer",
                 "MeshDescription",
+				"StaticMeshDescription"
             }
 		);
     }

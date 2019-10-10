@@ -14,8 +14,8 @@
 #include "Engine/StaticMesh.h"
 #include "Components/StaticMeshComponent.h"
 
-#include "EditorToolAssetAPI.h"
-#include "EditorComponentSourceFactory.h"
+#include "Tools/EditorToolAssetAPI.h"
+#include "Tools/EditorComponentSourceFactory.h"
 #include "InteractiveToolObjects.h"
 
 //#include "PhysicsEngine/BodySetup.h"
@@ -61,6 +61,13 @@ public:
 	virtual void GetCurrentViewState(FViewCameraState& StateOut) const override
 	{
 		StateOut = CachedViewState;
+	}
+
+
+	virtual EToolContextCoordinateSystem GetCurrentCoordinateSystem() const override
+	{
+		ECoordSystem CoordSys = EditorMode->GetModeManager()->GetCoordSystem();
+		return (CoordSys == COORD_World) ? EToolContextCoordinateSystem::World : EToolContextCoordinateSystem::Local;
 	}
 
 
@@ -240,9 +247,20 @@ public:
 	}
 
 
-	virtual void PostMessage(const TCHAR* Message, EToolMessageLevel Level) override
+	virtual void DisplayMessage(const FText& Message, EToolMessageLevel Level) override
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[ToolsContext] %s"), Message);
+		if (Level == EToolMessageLevel::UserNotification)
+		{
+			ToolsContext->PostToolNotificationMessage(Message);
+		}
+		if (Level == EToolMessageLevel::UserWarning)
+		{
+			ToolsContext->PostToolWarningMessage(Message);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("%s"), *Message.ToString());
+		}
 	}
 
 
@@ -261,7 +279,7 @@ public:
 		GEditor->EndTransaction();
 	}
 
-	virtual void AppendChange(UObject* TargetObject, TUniquePtr<FChange> Change, const FText& Description) override
+	virtual void AppendChange(UObject* TargetObject, TUniquePtr<FToolCommandChange> Change, const FText& Description) override
 	{
 		FScopedTransaction Transaction(Description);
 		check(GUndo != nullptr);
@@ -325,6 +343,12 @@ void UEdModeInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* Queries
 		TerminateActiveToolsOnSaveWorld();
 	});
 
+	ToolManager->OnToolEnded.AddLambda([this](UInteractiveToolManager*, UInteractiveTool*)
+	{
+		RestoreEditorState();
+	});
+
+
 	bInvalidationPending = false;
 }
 
@@ -366,6 +390,8 @@ void UEdModeInteractiveToolsContext::ShutdownContext()
 {
 	Shutdown();
 
+	OnToolNotificationMessage.Clear();
+
 	if (QueriesAPI != nullptr)
 	{
 		delete QueriesAPI;
@@ -387,6 +413,16 @@ void UEdModeInteractiveToolsContext::ShutdownContext()
 	this->EditorMode = nullptr;
 }
 
+
+void UEdModeInteractiveToolsContext::PostToolNotificationMessage(const FText& Message)
+{
+	OnToolNotificationMessage.Broadcast(Message);
+}
+
+void UEdModeInteractiveToolsContext::PostToolWarningMessage(const FText& Message)
+{
+	OnToolWarningMessage.Broadcast(Message);
+}
 
 
 
@@ -750,72 +786,53 @@ FRay UEdModeInteractiveToolsContext::GetRayFromMousePos(FEditorViewportClient* V
 
 bool UEdModeInteractiveToolsContext::CanStartTool(const FString& ToolTypeIdentifier) const
 {
-	return (ToolManager->HasActiveTool(EToolSide::Mouse) == false) &&
-		(ToolManager->CanActivateTool(EToolSide::Mouse, ToolTypeIdentifier) == true);
+	return UInteractiveToolsContext::CanStartTool(EToolSide::Mouse, ToolTypeIdentifier);
 }
 
 bool UEdModeInteractiveToolsContext::ActiveToolHasAccept() const
 {
-	return ToolManager->HasActiveTool(EToolSide::Mouse) &&
-		ToolManager->GetActiveTool(EToolSide::Mouse)->HasAccept();
+	return  UInteractiveToolsContext::ActiveToolHasAccept(EToolSide::Mouse);
 }
 
 bool UEdModeInteractiveToolsContext::CanAcceptActiveTool() const
 {
-	return ToolManager->CanAcceptActiveTool(EToolSide::Mouse);
+	return UInteractiveToolsContext::CanAcceptActiveTool(EToolSide::Mouse);
 }
 
 bool UEdModeInteractiveToolsContext::CanCancelActiveTool() const
 {
-	return ToolManager->CanCancelActiveTool(EToolSide::Mouse);
+	return UInteractiveToolsContext::CanCancelActiveTool(EToolSide::Mouse);
 }
 
 bool UEdModeInteractiveToolsContext::CanCompleteActiveTool() const
 {
-	return ToolManager->HasActiveTool(EToolSide::Mouse) && CanCancelActiveTool() == false;
+	return UInteractiveToolsContext::CanCompleteActiveTool(EToolSide::Mouse);
 }
 
 void UEdModeInteractiveToolsContext::StartTool(const FString& ToolTypeIdentifier)
 {
-	if (ToolManager->SelectActiveToolType(EToolSide::Mouse, ToolTypeIdentifier) == false)
+	if (UInteractiveToolsContext::StartTool(EToolSide::Mouse, ToolTypeIdentifier))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("ToolManager: Unknown Tool Type %s"), *ToolTypeIdentifier);
-	}
-	else
-	{
-		ToolManager->ActivateTool(EToolSide::Mouse);
 		SaveEditorStateAndSetForTool();
 	}
 }
 
 void UEdModeInteractiveToolsContext::EndTool(EToolShutdownType ShutdownType)
 {
-	DeactivateActiveTool(EToolSide::Mouse, ShutdownType);
+	UInteractiveToolsContext::EndTool(EToolSide::Mouse, ShutdownType);
 }
 
 
 
 void UEdModeInteractiveToolsContext::DeactivateActiveTool(EToolSide WhichSide, EToolShutdownType ShutdownType)
 {
-	ToolManager->DeactivateTool(WhichSide, ShutdownType);
+	UInteractiveToolsContext::DeactivateActiveTool(WhichSide, ShutdownType);
 	RestoreEditorState();
 }
 
 void UEdModeInteractiveToolsContext::DeactivateAllActiveTools()
 {
-	if (ToolManager->HasActiveTool(EToolSide::Left))
-	{
-		EToolShutdownType ShutdownType = ToolManager->CanAcceptActiveTool(EToolSide::Left) ?
-			EToolShutdownType::Accept : EToolShutdownType::Cancel;
-		ToolManager->DeactivateTool(EToolSide::Left, ShutdownType);
-	}
-	if (ToolManager->HasActiveTool(EToolSide::Right))
-	{
-		EToolShutdownType ShutdownType = ToolManager->CanAcceptActiveTool(EToolSide::Right) ?
-			EToolShutdownType::Accept : EToolShutdownType::Cancel;
-		ToolManager->DeactivateTool(EToolSide::Right, ShutdownType);
-	}
-
+	UInteractiveToolsContext::DeactivateAllActiveTools();
 	RestoreEditorState();
 }
 

@@ -1994,6 +1994,35 @@ DEFINE_FUNCTION(UObject::execInstanceVariable)
 }
 IMPLEMENT_VM_FUNCTION( EX_InstanceVariable, execInstanceVariable );
 
+DEFINE_FUNCTION(UObject::execClassSparseDataVariable)
+{
+	UProperty* VarProperty = (UProperty*)Stack.ReadObject();
+	Stack.MostRecentProperty = VarProperty;
+
+	if (VarProperty == nullptr || P_THIS->GetSparseClassDataStruct() == nullptr)
+	{
+		FBlueprintExceptionInfo ExceptionInfo(EBlueprintExceptionType::AccessViolation, FText::Format(LOCTEXT("MissingProperty", "Attempted to access missing sparse property '{0}' {1}, {2}. If this is a packaged/cooked build, are you attempting to use an editor-only property?"), FText::FromString(GetNameSafe(VarProperty)), FText::FromString(GetNameSafe(P_THIS->GetSparseClassDataStruct())), FText::FromString(GetNameSafe(VarProperty ? (UClass*)VarProperty->GetOuter() : nullptr))));
+		FBlueprintCoreDelegates::ThrowScriptException(P_THIS, Stack, ExceptionInfo);
+
+		Stack.MostRecentPropertyAddress = nullptr;
+	}
+	else
+	{
+		void* SparseDataBaseAddress = P_THIS->GetClass()->GetOrCreateSparseClassData();
+		Stack.MostRecentPropertyAddress = VarProperty->ContainerPtrToValuePtr<uint8>(SparseDataBaseAddress);
+
+		// SPARSEDATA_TODO: remove these two lines once we're sure the math is right
+		int32 Offset = VarProperty->GetOffset_ForInternal();
+		check((uint8*)SparseDataBaseAddress + Offset == Stack.MostRecentPropertyAddress);
+
+		if (RESULT_PARAM)
+		{
+			VarProperty->CopyCompleteValueToScriptVM(RESULT_PARAM, Stack.MostRecentPropertyAddress);
+		}
+	}
+}
+IMPLEMENT_VM_FUNCTION(EX_ClassSparseDataVariable, execClassSparseDataVariable);
+
 DEFINE_FUNCTION(UObject::execDefaultVariable)
 {
 	UProperty* VarProperty = (UProperty*)Stack.ReadObject();

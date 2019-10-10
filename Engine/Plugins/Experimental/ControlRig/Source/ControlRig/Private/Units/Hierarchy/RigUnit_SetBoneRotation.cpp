@@ -30,14 +30,34 @@ FRigUnit_SetBoneRotation_Execute()
 						case EBoneGetterSetterMode::GlobalSpace:
 						{
 							FTransform Transform = Hierarchy->GetGlobalTransform(CachedBoneIndex);
-							Transform.SetRotation(Rotation);
+
+							if (FMath::IsNearlyEqual(Weight, 1.f))
+							{
+								Transform.SetRotation(Rotation);
+							}
+							else
+							{
+								float T = FMath::Clamp<float>(Weight, 0.f, 1.f);
+								Transform.SetRotation(FQuat::Slerp(Transform.GetRotation(), Rotation, T));
+							}
+
 							Hierarchy->SetGlobalTransform(CachedBoneIndex, Transform, bPropagateToChildren);
 							break;
 						}
 						case EBoneGetterSetterMode::LocalSpace:
 						{
 							FTransform Transform = Hierarchy->GetLocalTransform(CachedBoneIndex);
-							Transform.SetRotation(Rotation);
+
+							if (FMath::IsNearlyEqual(Weight, 1.f))
+							{
+								Transform.SetRotation(Rotation);
+							}
+							else
+							{
+								float T = FMath::Clamp<float>(Weight, 0.f, 1.f);
+								Transform.SetRotation(FQuat::Slerp(Transform.GetRotation(), Rotation, T));
+							}
+
 							Hierarchy->SetLocalTransform(CachedBoneIndex, Transform, bPropagateToChildren);
 							break;
 						}
@@ -61,9 +81,9 @@ FRigUnit_SetBoneRotation_Execute()
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetBoneRotation)
 {
-	BoneHierarchy.Add(TEXT("Root"), NAME_None, FTransform(FQuat(FVector(-1.f, 0.f, 0.f), 0.1f)));
-	BoneHierarchy.Add(TEXT("BoneA"), TEXT("Root"), FTransform(FQuat(FVector(-1.f, 0.f, 0.f), 0.5f)));
-	BoneHierarchy.Add(TEXT("BoneB"), TEXT("BoneA"), FTransform(FQuat(FVector(-1.f, 0.f, 0.f), 0.7f)));
+	BoneHierarchy.Add(TEXT("Root"), NAME_None, ERigBoneType::User, FTransform(FQuat(FVector(-1.f, 0.f, 0.f), 0.1f)));
+	BoneHierarchy.Add(TEXT("BoneA"), TEXT("Root"), ERigBoneType::User, FTransform(FQuat(FVector(-1.f, 0.f, 0.f), 0.5f)));
+	BoneHierarchy.Add(TEXT("BoneB"), TEXT("BoneA"), ERigBoneType::User, FTransform(FQuat(FVector(-1.f, 0.f, 0.f), 0.7f)));
 	BoneHierarchy.Initialize();
 
 	Unit.ExecuteContext.Hierarchy = &HierarchyContainer;

@@ -833,16 +833,12 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 		{
 			GEngine->NotifyToolsOfObjectReplacement(InPackageReloadedEvent->GetRepointedObjects());
 
-			// Notify any Blueprint assets that are about to be unloaded.
+			// Notify any Blueprints that are about to be unloaded.
 			ForEachObjectWithOuter(InPackageReloadedEvent->GetOldPackage(), [&](UObject* InObject)
 			{
-				if (InObject->IsAsset())
+				if (UBlueprint* BP = Cast<UBlueprint>(InObject))
 				{
-					// Notify about any BP assets that are about to be unloaded
-					if (UBlueprint* BP = Cast<UBlueprint>(InObject))
-					{
-						BP->ClearEditorReferences();
-					}
+					BP->ClearEditorReferences();
 				}
 			}, false, RF_Transient, EInternalObjectFlags::PendingKill);
 		}
@@ -1169,26 +1165,9 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 		return true;
 	}
 
-	FString UPackageTools::SanitizePackageName (const FString& InPackageName)
+	FString UPackageTools::SanitizePackageName(const FString& InPackageName)
 	{
-		FString SanitizedName;
-		FString InvalidChars = INVALID_LONGPACKAGE_CHARACTERS;
-
-		// See if the name contains invalid characters.
-		FString Char;
-		for( int32 CharIdx = 0; CharIdx < InPackageName.Len(); ++CharIdx )
-		{
-			Char = InPackageName.Mid(CharIdx, 1);
-
-			if ( InvalidChars.Contains(*Char) )
-			{
-				SanitizedName += TEXT("_");
-			}
-			else
-			{
-				SanitizedName += Char;
-			}
-		}
+		FString SanitizedName = ObjectTools::SanitizeInvalidChars(InPackageName, INVALID_LONGPACKAGE_CHARACTERS);
 
 		// Remove double-slashes
 		SanitizedName.ReplaceInline(TEXT("//"), TEXT("/"));

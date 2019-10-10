@@ -40,7 +40,7 @@ void FMaterialRelevance::SetPrimitiveViewRelevance(FPrimitiveViewRelevance& OutV
 {
 	OutViewRelevance.bOpaqueRelevance = bOpaque;
 	OutViewRelevance.bMaskedRelevance = bMasked;
-	OutViewRelevance.bOutputsTranslucentVelocityRelevance = bOutputsTranslucentVelocity;
+	OutViewRelevance.bTranslucentVelocityRelevance = bOutputsTranslucentVelocity;
 	OutViewRelevance.bDistortionRelevance = bDistortion;
 	OutViewRelevance.bHairStrandsRelevance = bHairStrands;
 	OutViewRelevance.bSeparateTranslucencyRelevance = bSeparateTranslucency;

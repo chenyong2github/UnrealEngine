@@ -120,6 +120,17 @@ public:
 	virtual FGuid ArchiveSession(const FGuid& SessionId, const FString& ArchiveNameOverride, const FConcertSessionFilter& SessionFilter, FText& OutFailureReason) = 0;
 
 	/**
+	 * Copy the session data to a destination folder for external usage.
+	 * @param SessionId The ID of the session to export. Can be a live or archived session.
+	 * @param SessionFilter The filter controlling which activities from the session should be archived.
+	 * @param DestDir The directory where the exported files should be copied. (Must exist)
+	 * @param bAnonymizeData True to obfuscate the object and package names stored in the database. Ignored if FConcertSessionFilter::bMetaDataOnly is false.
+	 * @param OutFailureReason The reason why exporting the session would fail.
+	 * @return True if the session files were exported successfully, false otherwise.
+	 */
+	virtual bool ExportSession(const FGuid& SessionId, const FConcertSessionFilter& SessionFilter, const FString& DestDir, bool bAnonymizeData, FText& OutFailureReason) = 0;
+
+	/**
 	 * Rename a live or archived Concert session on the server. The server automatically detects if the specified session Id is a live or an
 	 * archived session.
 	 * @param SessionId The ID of the session to rename

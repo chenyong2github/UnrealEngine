@@ -4,6 +4,13 @@
 #include "Toolkits/ToolkitManager.h"
 #include "Widgets/Docking/SDockableTab.h"
 #include "Widgets/Docking/SDockTabStack.h"
+#include "PropertyEditorModule.h"
+#include "Modules/ModuleManager.h"
+#include "IDetailsView.h"
+#include "InteractiveToolManager.h"
+#include "Editor.h"
+#include "InteractiveTool.h"
+#include "Tools/UEdMode.h"
 
 #define LOCTEXT_NAMESPACE "BaseToolkit"
 
@@ -209,6 +216,34 @@ void FModeToolkit::Init(const TSharedPtr< class IToolkitHost >& InitToolkitHost)
 	ToolkitHost = InitToolkitHost;
 
 	FToolkitManager::Get().RegisterNewToolkit( SharedThis( this ) );
+
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+	FDetailsViewArgs DetailsViewArgs(
+		/*bUpdateFromSelection=*/ false,
+		/*bLockable=*/ false,
+		/*bAllowSearch=*/ false,
+		FDetailsViewArgs::HideNameArea,
+		/*bHideSelectionTip=*/ true,
+		/*InNotifyHook=*/ nullptr,
+		/*InSearchInitialKeyFocus=*/ false,
+		/*InViewIdentifier=*/ NAME_None);
+	DetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Automatic;
+	DetailsViewArgs.bShowOptions = false;
+	DetailsViewArgs.bAllowMultipleTopLevelObjects = true;
+
+	DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+}
+
+
+FName FModeToolkit::GetToolkitFName() const
+{
+	return FName("EditorModeToolkit");
+}
+
+FText FModeToolkit::GetBaseToolkitName() const
+{
+	return NSLOCTEXT("EditorModeToolkit", "DisplayName", "EditorMode Tool");
 }
 
 FString FModeToolkit::GetWorldCentricTabPrefix() const
@@ -229,4 +264,69 @@ const TArray< UObject* >* FModeToolkit::GetObjectsCurrentlyBeingEdited() const
 FLinearColor FModeToolkit::GetWorldCentricTabColorScale() const
 {
 	return FLinearColor();
+}
+
+
+
+bool FModeToolkit::CanStartTool(const FString& ToolTypeIdentifier)
+{
+	UInteractiveToolManager* Manager = GetScriptableEditorMode()->GetToolManager();
+
+	return (Manager->HasActiveTool(EToolSide::Left) == false) &&
+		(Manager->CanActivateTool(EToolSide::Left, ToolTypeIdentifier) == true);
+}
+
+bool FModeToolkit::CanAcceptActiveTool()
+{
+	return GetScriptableEditorMode()->GetToolManager()->CanAcceptActiveTool(EToolSide::Left);
+}
+
+bool FModeToolkit::CanCancelActiveTool()
+{
+	return GetScriptableEditorMode()->GetToolManager()->CanCancelActiveTool(EToolSide::Left);
+}
+
+bool FModeToolkit::CanCompleteActiveTool()
+{
+	return GetScriptableEditorMode()->GetToolManager()->HasActiveTool(EToolSide::Left) && CanCancelActiveTool() == false;
+}
+
+
+FReply FModeToolkit::StartTool(const FString& ToolTypeIdentifier)
+{
+	if (GetScriptableEditorMode()->GetToolManager()->SelectActiveToolType(EToolSide::Left, ToolTypeIdentifier) == false)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("ToolManager: Unknown Tool Type %s"), *ToolTypeIdentifier);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("ToolManager: Starting Tool Type %s"), *ToolTypeIdentifier);
+		GetScriptableEditorMode()->GetToolManager()->ActivateTool(EToolSide::Left);
+
+		// Update properties panel
+		UInteractiveTool* CurTool = GetScriptableEditorMode()->GetToolManager()->GetActiveTool(EToolSide::Left);
+		DetailsView->SetObjects(CurTool->GetToolProperties());
+	}
+	return FReply::Handled();
+}
+
+FReply FModeToolkit::EndTool(EToolShutdownType ShutdownType)
+{
+	UE_LOG(LogTemp, Warning, TEXT("ENDING TOOL"));
+
+	GetScriptableEditorMode()->GetToolManager()->DeactivateTool(EToolSide::Left, ShutdownType);
+
+	DetailsView->SetObject(nullptr);
+
+	return FReply::Handled();
+}
+
+class FEdMode* FModeToolkit::GetEditorMode() const
+{
+	return nullptr; 
+}
+
+UEdMode* FModeToolkit::GetScriptableEditorMode() const
+{
+	return nullptr;
 }

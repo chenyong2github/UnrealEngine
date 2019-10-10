@@ -38,6 +38,11 @@ public class MovieSceneTracks : ModuleRules
 					"BlueprintGraph"
 				}
 			);
-		}
+            PrivateDependencyModuleNames.AddRange(
+                new string[] {
+                    "UnrealEd"
+                }
+            );
+        }
 	}
 }

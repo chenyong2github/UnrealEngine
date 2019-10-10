@@ -32,17 +32,26 @@ public:
 	virtual bool ConnectSession(const TCHAR* ControlClientAddress) override;
 
 private:
-	bool Tick(float DeltaTime);
-	void UpdateSessions();
-
 	struct FSessionInfoInternal
 	{
 		FRecorderSessionHandle RecorderSessionHandle;
 		const TCHAR* Uri;
 		const TCHAR* Name;
+		FString Platform;
+		FString AppName;
+		FString CommandLine;
 		TMap<FName, TSet<FString>> EnabledModuleLoggersMap;
+		FDateTime TimeStamp;
+		uint64 Size;
 		bool bIsLive;
+		int8 ConfigurationType;
+		int8 TargetType;
+		bool bIsUpdated = false;
 	};
+
+	bool Tick(float DeltaTime);
+	void UpdateSessions();
+	void UpdateSessionContext(FStoreSessionHandle StoreHandle, FSessionInfoInternal& Info);
 
 	FModuleService& ModuleService;
 	void* RecorderEvent = nullptr;

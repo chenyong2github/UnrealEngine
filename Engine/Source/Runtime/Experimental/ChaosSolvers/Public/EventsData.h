@@ -2,8 +2,6 @@
 
 #pragma once
 
-#if INCLUDE_CHAOS
-
 #include "Chaos/PBDCollisionTypes.h"
 #include "Chaos/Framework/PhysicsProxy.h"
 
@@ -19,6 +17,7 @@ namespace Chaos
 	typedef TArray<TCollisionData<float, 3>> FCollisionDataArray;
 	typedef TArray<TBreakingData<float, 3>> FBreakingDataArray;
 	typedef TArray<TTrailingData<float, 3>> FTrailingDataArray;
+	typedef TArray<TSleepingData<float, 3>> FSleepingDataArray;
 
 	/* Common */
 
@@ -115,6 +114,12 @@ namespace Chaos
 		FIndicesByPhysicsProxy PhysicsProxyToTrailingIndices;
 	};
 
-}
+	struct FSleepingEventData
+	{
+		FSleepingEventData() {}
 
-#endif
+		FSleepingDataArray SleepingData;
+		FIndicesByPhysicsProxy PhysicsProxyToSleepingIndices;
+	};
+
+}

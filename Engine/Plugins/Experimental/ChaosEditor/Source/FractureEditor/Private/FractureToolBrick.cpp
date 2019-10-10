@@ -2,6 +2,7 @@
 
 #include "FractureToolBrick.h"
 
+#include "FractureEditorModeToolkit.h"
 #include "FractureEditorStyle.h"
 #include "Editor.h"
 #include "Engine/Selection.h"
@@ -63,6 +64,7 @@ void UFractureToolBrick::RegisterUICommand( FFractureEditorCommands* BindingCont
 TArray<UObject*> UFractureToolBrick::GetSettingsObjects() const 
 { 
 	TArray<UObject*> Settings; 
+	Settings.Add(GetMutableDefault<UFractureCommonSettings>());
 	Settings.Add(GetMutableDefault<UFractureBrickSettings>());
 	return Settings;
 }
@@ -362,6 +364,11 @@ void UFractureToolBrick::ExecuteFracture(const FFractureContext& FractureContext
 			CutMultipleWithPlanarCells(VoronoiPlanarCells, *GeometryCollection, FractureContext.SelectedBones);
  		}
 	}
+}
+
+bool UFractureToolBrick::CanExecuteFracture() const
+{
+	return FFractureEditorModeToolkit::IsLeafBoneSelected();
 }
 
 #undef LOCTEXT_NAMESPACE

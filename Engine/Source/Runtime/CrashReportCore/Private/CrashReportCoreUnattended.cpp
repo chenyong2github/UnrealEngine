@@ -68,11 +68,6 @@ bool FCrashReportCoreUnattended::Tick(float UnusedDeltaTime)
 	}
 
     bUploadComplete = true;
-	
-	if (bExitWhenComplete)
-	{
-		FPlatformMisc::RequestExit(false /* don't force */);
-	}
 	return false;
 }
 

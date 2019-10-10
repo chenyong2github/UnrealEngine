@@ -20,6 +20,8 @@
 enum class ERayTracingPrimaryRaysFlag : uint32;
 #endif
 
+enum class EVelocityPass : uint32;
+
 class FSceneTextureParameters;
 class FDistanceFieldAOParameters;
 class UStaticMeshComponent;
@@ -108,7 +110,7 @@ public:
 	/** Begin the water GBuffer rendering pass*/
 	static void BeginRenderingWaterGBuffer(FRHICommandList& RHICmdList, FExclusiveDepthStencil::Type DepthStencilAccess, bool bBindQuadOverdrawBuffers, EShaderPlatform InShaderPlatform);
 	/** End the water GBuffer rendering pass*/
-	void FinishWaterGBufferPassAndResolve(FRHICommandListImmediate& RHICmdList);
+	void FinishWaterGBufferPassAndResolve(FRHICommandListImmediate& RHICmdList, FExclusiveDepthStencil::Type DepthStencilAccess);
 	/**
 	* Renders the scene's single layer water base pass
 	* @return true if anything was rendered
@@ -314,11 +316,11 @@ private:
 	bool ShouldRenderVelocities() const;
 
 	/** Renders the velocities of movable objects for the motion blur effect. */
-	void RenderVelocities(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& VelocityRT);
+	void RenderVelocities(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& VelocityRT, EVelocityPass VelocityPass, bool bClearVelocityRT);
 
 	/** Renders the velocities of movable objects for the motion blur effect. */
-	void RenderVelocitiesInner(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& VelocityRT);
-	void RenderVelocitiesInnerParallel(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& VelocityRT);
+	void RenderVelocitiesInner(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& VelocityRT, EVelocityPass VelocityPass);
+	void RenderVelocitiesInnerParallel(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& VelocityRT, EVelocityPass VelocityPass);
 
 	/** Renders world-space lightmap density instead of the normal color. */
 	bool RenderLightMapDensities(FRHICommandListImmediate& RHICmdList);

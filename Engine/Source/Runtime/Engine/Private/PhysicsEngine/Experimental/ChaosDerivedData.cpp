@@ -21,7 +21,7 @@ const TCHAR* FChaosDerivedDataCooker::GetPluginName() const
 
 const TCHAR* FChaosDerivedDataCooker::GetVersionString() const
 {
-	return TEXT("19C69FC43DDA4F058B28C21F08D623F2");
+	return TEXT("UN4SF7NU5G9O0X2LHNHLBG0R0CIS3TON");
 }
 
 FString FChaosDerivedDataCooker::GetPluginSpecificCacheKeySuffix() const
@@ -99,8 +99,9 @@ void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::TTria
 	FinalIndices.Reserve(InParams.TriangleMeshDesc.Indices.Num() * 3);
 	for(const FTriIndices& Tri : InParams.TriangleMeshDesc.Indices)
 	{
-		FinalIndices.Add(Tri.v0);
+		//question: It seems like unreal triangles are CW, but couldn't find confirmation for this
 		FinalIndices.Add(Tri.v1);
+		FinalIndices.Add(Tri.v0);
 		FinalIndices.Add(Tri.v2);
 	}
 
@@ -123,8 +124,19 @@ void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::TTria
 
 	for(int32 TriangleIndex = 0; TriangleIndex < NumTriangles; ++TriangleIndex)
 	{
+		// Only add this triangle if it is valid
 		const int32 BaseIndex = TriangleIndex * 3;
-		Triangles.Add(Chaos::TVector<int32, 3>(FinalIndices[BaseIndex], FinalIndices[BaseIndex + 1], FinalIndices[BaseIndex + 2]));
+		const bool bIsValidTriangle = Chaos::TConvexBuilder<Precision>::IsValidTriangle(
+			FinalVerts[FinalIndices[BaseIndex]],
+			FinalVerts[FinalIndices[BaseIndex + 1]],
+			FinalVerts[FinalIndices[BaseIndex + 2]]);
+
+		// TODO: Figure out a proper way to handle this. Could these edges get sewn together? Is this important?
+		//if (ensureMsgf(bIsValidTriangle, TEXT("FChaosDerivedDataCooker::BuildTriangleMeshes(): Trimesh attempted cooked with invalid triangle!")));
+		if (bIsValidTriangle)
+		{
+			Triangles.Add(Chaos::TVector<int32, 3>(FinalIndices[BaseIndex], FinalIndices[BaseIndex + 1], FinalIndices[BaseIndex + 2]));
+		}
 	}
 
 	OutTriangleMeshes.Emplace(new Chaos::TTriangleMeshImplicitObject<Precision>(MoveTemp(TriMeshParticles), MoveTemp(Triangles)));
@@ -137,7 +149,7 @@ template void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Cha
 template<typename Precision>
 void FChaosDerivedDataCooker::BuildConvexMeshes(TArray<TUniquePtr<Chaos::TImplicitObject<Precision, 3>>>& OutConvexMeshes, const FCookBodySetupInfo& InParams)
 {
-	auto BuildConvexFromVerts = [](TArray<TUniquePtr<Chaos::TImplicitObject<Precision, 3>>>& OutConvexes, const TArray<TArray<FVector>>& InMeshVerts)
+	auto BuildConvexFromVerts = [](TArray<TUniquePtr<Chaos::TImplicitObject<Precision, 3>>>& OutConvexes, const TArray<TArray<FVector>>& InMeshVerts, const bool bMirrored)
 	{
 		for(const TArray<FVector>& HullVerts : InMeshVerts)
 		{
@@ -149,7 +161,8 @@ void FChaosDerivedDataCooker::BuildConvexMeshes(TArray<TUniquePtr<Chaos::TImplic
 
 			for(int32 VertIndex = 0; VertIndex < NumHullVerts; ++VertIndex)
 			{
-				ConvexParticles.X(VertIndex) = HullVerts[VertIndex];
+				const FVector& HullVert = HullVerts[VertIndex];
+				ConvexParticles.X(VertIndex) = FVector(bMirrored ? -HullVert.X : HullVert.X, HullVert.Y, HullVert.Z);
 			}
 
 			OutConvexes.Emplace(new Chaos::TConvex<Precision, 3>(ConvexParticles));
@@ -158,12 +171,12 @@ void FChaosDerivedDataCooker::BuildConvexMeshes(TArray<TUniquePtr<Chaos::TImplic
 
 	if(InParams.bCookNonMirroredConvex)
 	{
-		BuildConvexFromVerts(OutConvexMeshes, InParams.NonMirroredConvexVertices);
+		BuildConvexFromVerts(OutConvexMeshes, InParams.NonMirroredConvexVertices, false);
 	}
 
 	if(InParams.bCookMirroredConvex)
 	{
-		BuildConvexFromVerts(OutConvexMeshes, InParams.MirroredConvexVertices);
+		BuildConvexFromVerts(OutConvexMeshes, InParams.MirroredConvexVertices, true);
 	}
 
 }

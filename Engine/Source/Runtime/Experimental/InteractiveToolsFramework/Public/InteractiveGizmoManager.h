@@ -4,23 +4,25 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
-#include "Misc/Change.h"
 #include "InteractiveGizmo.h"
 #include "InteractiveGizmoBuilder.h"
 #include "InputRouter.h"
+#include "InteractiveToolChange.h"
 #include "ToolContextInterfaces.h"
 #include "InteractiveGizmoManager.generated.h"
 
-
+class UTransformGizmo;
+class UTransformGizmoBuilder;
 
 USTRUCT()
 struct FActiveGizmo
 {
-	GENERATED_BODY();
+	GENERATED_BODY()
 
 	UInteractiveGizmo* Gizmo;
 	FString BuilderIdentifier;
 	FString InstanceIdentifier;
+	void* Owner = nullptr;
 };
 
 
@@ -31,7 +33,7 @@ struct FActiveGizmo
  * 
  */
 UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UInteractiveGizmoManager : public UObject
+class INTERACTIVETOOLSFRAMEWORK_API UInteractiveGizmoManager : public UObject, public IToolContextTransactionProvider
 {
 	GENERATED_BODY()
 
@@ -69,12 +71,28 @@ public:
 
 
 	/**
-	 * Try to activate a new Gizmo instance on the given Side
+	 * Try to activate a new Gizmo instance
 	 * @param BuilderIdentifier string used to identify Builder that should be called
-	 * @param InstanceIdentifier client-defined string that can be used to locate this instance
+	 * @param InstanceIdentifier optional client-defined string that can be used to locate this instance (must be unique across all Gizmos)
+	 * @param Owner void pointer to whatever "owns" this Gizmo. Allows Gizmo to later be deleted using DestroyAllGizmosByOwner()
 	 * @return new Gizmo instance that has been created and initialized
 	 */	
-	virtual UInteractiveGizmo* CreateGizmo(const FString& BuilderIdentifier, const FString& InstanceIdentifier );
+	virtual UInteractiveGizmo* CreateGizmo(const FString& BuilderIdentifier, const FString& InstanceIdentifier = FString(), void* Owner = nullptr);
+
+
+	/**
+	 * Try to activate a new Gizmo instance 
+	 * @param BuilderIdentifier string used to identify Builder that should be called
+	 * @param InstanceIdentifier optional client-defined string that can be used to locate this instance (must be unique across all Gizmos)
+	 * @param Owner void pointer to whatever "owns" this Gizmo. Allows Gizmo to later be deleted using DestroyAllGizmosByOwner()
+	 * @return new Gizmo instance that has been created and initialized, and cast to template type
+	 */
+	template<typename GizmoType>
+	GizmoType* CreateGizmo(const FString& BuilderIdentifier, const FString& InstanceIdentifier = FString(), void* Owner = nullptr)
+	{
+		UInteractiveGizmo* NewGizmo = CreateGizmo(BuilderIdentifier, InstanceIdentifier, Owner);
+		return CastChecked<GizmoType>(NewGizmo);
+	}
 
 
 	/**
@@ -89,6 +107,13 @@ public:
 	 * @param BuilderIdentifier the Builder string registered with RegisterGizmoType
 	 */
 	virtual void DestroyAllGizmosOfType(const FString& BuilderIdentifier);
+
+	/**
+	 * Destroy all Gizmos that are owned by the given pointer
+	 * @param Owner pointer that was passed to CreateGizmo
+	 */
+	virtual void DestroyAllGizmosByOwner(void* Owner);
+
 
 	/**
 	 * Find all the existing Gizmo instances that were created by the identified GizmoBuilder
@@ -112,10 +137,7 @@ public:
 	//
 	
 	/** Post a message via the Transactions API */
-	virtual void PostMessage(const TCHAR* Message, EToolMessageLevel Level);
-
-	/** Post a message via the Transactions API */
-	virtual void PostMessage(const FString& Message, EToolMessageLevel Level);
+	virtual void DisplayMessage(const FText& Message, EToolMessageLevel Level);
 
 	/** Request an Invalidation via the Transactions API (ie to cause a repaint, etc) */
 	virtual void PostInvalidation();
@@ -135,7 +157,7 @@ public:
 	 * @param Change the change object that the Context should insert into the transaction history
 	 * @param Description text description of this change (this is the string that appears on undo/redo in the UE Editor)
 	 */
-	virtual void EmitObjectChange(UObject* TargetObject, TUniquePtr<FChange> Change, const FText& Description );
+	virtual void EmitObjectChange(UObject* TargetObject, TUniquePtr<FToolCommandChange> Change, const FText& Description );
 
 
 	//
@@ -158,7 +180,46 @@ public:
 	virtual IToolsContextQueriesAPI* GetContextQueriesAPI() { return QueriesAPI; }
 
 
+
+
 public:
+	//
+	// Standard Gizmos
+	// 
+
+	/**
+	 * Register default gizmo types
+	 */
+	virtual void RegisterDefaultGizmos();
+
+	/**
+	 * Activate a new instance of the default 3-axis transformation Gizmo. RegisterDefaultGizmos() must have been called first.
+	 * @param Owner optional void pointer to whatever "owns" this Gizmo. Allows Gizmo to later be deleted using DestroyAllGizmosByOwner()
+	 * @param InstanceIdentifier optional client-defined *unique* string that can be used to locate this instance
+	 * @return new Gizmo instance that has been created and initialized
+	 */
+	virtual UTransformGizmo* Create3AxisTransformGizmo(void* Owner = nullptr, const FString& InstanceIdentifier = FString());
+
+	/**
+	 * Activate a new customized instance of the default 3-axis transformation Gizmo, with only certain elements included. RegisterDefaultGizmos() must have been called first.
+	 * @param Elements flags that indicate which standard gizmo sub-elements should be included
+	 * @param Owner optional void pointer to whatever "owns" this Gizmo. Allows Gizmo to later be deleted using DestroyAllGizmosByOwner()
+	 * @param InstanceIdentifier optional client-defined *unique* string that can be used to locate this instance
+	 * @return new Gizmo instance that has been created and initialized
+	 */
+	virtual UTransformGizmo* CreateCustomTransformGizmo(ETransformGizmoSubElements Elements, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
+
+
+public:
+	// builder identifiers for default gizmo types. Perhaps should have an API for this...
+	static FString DefaultAxisPositionBuilderIdentifier;
+	static FString DefaultPlanePositionBuilderIdentifier;
+	static FString DefaultAxisAngleBuilderIdentifier;
+	static FString DefaultThreeAxisTransformBuilderIdentifier;
+	static const FString CustomThreeAxisTransformBuilderIdentifier;
+
+
+protected:
 	/** set of Currently-active Gizmos */
 	UPROPERTY()
 	TArray<FActiveGizmo> ActiveGizmos;
@@ -176,4 +237,7 @@ protected:
 	/** Current set of named GizmoBuilders */
 	UPROPERTY()
 	TMap<FString, UInteractiveGizmoBuilder*> GizmoBuilders;
+
+	bool bDefaultGizmosRegistered = false;
+	UTransformGizmoBuilder* CustomThreeAxisBuilder = nullptr;
 };

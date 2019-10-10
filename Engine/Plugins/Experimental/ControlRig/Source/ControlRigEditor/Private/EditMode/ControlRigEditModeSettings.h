@@ -19,7 +19,6 @@ class UControlRigEditModeSettings : public UObject
 
 	UControlRigEditModeSettings()
 		: bDisplayHierarchy(false)
-		, bShowManipulatorsDuringPlayback(true)
 		, bHideManipulators(false)
 		, bDisplayAxesOnSelection(true)
 		, AxisScale(10.f)
@@ -30,21 +29,10 @@ class UControlRigEditModeSettings : public UObject
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 
 public:
-	/** Sequence to animate */
-	UPROPERTY(EditAnywhere, Category = "Animation", NoClear)
-	UControlRigSequence* Sequence;
-
-	/** The actor we are currently animating */
-	UPROPERTY(EditAnywhere, Category = "Animation")
-	TLazyObjectPtr<AActor> Actor;
 
 	/** Whether to show all nodes in the hierarchy being animated */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
 	bool bDisplayHierarchy;
-
-	/** Whether to show manipulators when animations are being played back */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
-	bool bShowManipulatorsDuringPlayback;
 
 	/** Should we always hide manipulators in viewport */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
@@ -58,7 +46,4 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
 	float AxisScale;
 
-private:
-	/** Cache the previous actor for pre/post edit change handling */
-	AActor* PrevActor;
 };

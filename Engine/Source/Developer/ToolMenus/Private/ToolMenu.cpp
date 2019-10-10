@@ -47,6 +47,9 @@ void UToolMenu::InitGeneratedCopy(const UToolMenu* Source, const FName InMenuNam
 	bToolBarForceSmallIcons = Source->bToolBarForceSmallIcons;
 	MenuOwner = Source->MenuOwner;
 
+	SubMenuParent = Source->SubMenuParent;
+	SubMenuSourceEntryName = Source->SubMenuSourceEntryName;
+
 	if (InContext)
 	{
 		Context = *InContext;
@@ -138,6 +141,7 @@ FToolMenuSection& UToolMenu::AddSection(const FName SectionName, const TAttribut
 
 	FToolMenuSection& NewSection = Sections.AddDefaulted_GetRef();
 	NewSection.InitSection(SectionName, InLabel, InPosition);
+	//NewSection.OwnerMenu = this;
 	return NewSection;
 }
 
@@ -218,6 +222,32 @@ bool UToolMenu::FindEntry(const FName EntryName, int32& SectionIndex, int32& Ent
 	return false;
 }
 
+const FToolMenuEntry* UToolMenu::FindEntry(const FName EntryName) const
+{
+	for (int32 i=0; i < Sections.Num(); ++i)
+	{
+		if (const FToolMenuEntry* Found = Sections[i].FindEntry(EntryName))
+		{
+			return Found;
+		}
+	}
+
+	return nullptr;
+}
+
+FToolMenuEntry* UToolMenu::FindEntry(const FName EntryName)
+{
+	for (int32 i=0; i < Sections.Num(); ++i)
+	{
+		if (FToolMenuEntry* Found = Sections[i].FindEntry(EntryName))
+		{
+			return Found;
+		}
+	}
+
+	return nullptr;
+}
+
 void UToolMenu::AddMenuEntry(const FName SectionName, const FToolMenuEntry& Args)
 {
 	FindOrAddSection(SectionName).AddEntry(Args);
@@ -241,6 +271,38 @@ FName UToolMenu::GetSectionName(const FName InEntryName) const
 	return NAME_None;
 }
 
+bool UToolMenu::ContainsSection(const FName InName) const
+{
+	if (InName != NAME_None)
+	{
+		for (const FToolMenuSection& Section : Sections)
+		{
+			if (Section.Name == InName)
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+bool UToolMenu::ContainsEntry(const FName InName) const
+{
+	if (InName != NAME_None)
+	{
+		for (const FToolMenuSection& Section : Sections)
+		{
+			if (Section.FindEntry(InName) != nullptr)
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 FCustomizedToolMenu* UToolMenu::FindMenuCustomization() const
 {
 	return UToolMenus::Get()->FindMenuCustomization(MenuName);
@@ -250,4 +312,136 @@ FCustomizedToolMenu* UToolMenu::AddMenuCustomization() const
 {
 	return UToolMenus::Get()->AddMenuCustomization(MenuName);
 }
+	
+TArray<FName> UToolMenu::GetMenuHierarchyNames(bool bIncludeSubMenuRoot) const
+{
+	TArray<FName> HierarchyNames;
 
+	TArray<UToolMenu*> Hierarchy = UToolMenus::Get()->CollectHierarchy(GetMenuName());
+	for (int32 i = Hierarchy.Num() - 1; i >= 0; --i)
+	{
+		HierarchyNames.AddUnique(Hierarchy[i]->GetMenuName());
+	}
+
+	if (bIncludeSubMenuRoot && SubMenuParent)
+	{
+		TArray<const UToolMenu*> SubMenuChain = GetSubMenuChain();
+		if (SubMenuChain.Num() > 0)
+		{
+			FString SubMenuFullPath;
+			for (int32 i = 1; i < SubMenuChain.Num(); ++i)
+			{
+				if (SubMenuFullPath.Len() > 0)
+				{
+					SubMenuFullPath += TEXT(".");
+				}
+				SubMenuFullPath += SubMenuChain[i]->SubMenuSourceEntryName.ToString();
+			}
+
+			// Hierarchy of the initial menu opened in the sub-menu chain of menus
+			TArray<UToolMenu*> FirstMenuHierarchy = UToolMenus::Get()->CollectHierarchy(SubMenuChain[0]->GetMenuName());
+			for (int32 i = FirstMenuHierarchy.Num() - 1; i >= 0; --i)
+			{
+				HierarchyNames.AddUnique(UToolMenus::JoinMenuPaths(FirstMenuHierarchy[i]->GetMenuName(), *SubMenuFullPath));
+			}
+		}
+	}	
+	Algo::Reverse(HierarchyNames);
+
+	return HierarchyNames;
+}
+
+FCustomizedToolMenuHierarchy UToolMenu::GetMenuCustomizationHierarchy() const
+{
+	FCustomizedToolMenuHierarchy Result;
+	
+	UToolMenus* ToolMenus = UToolMenus::Get();
+	TArray<FName> HierarchyNames = GetMenuHierarchyNames(true);
+	for (const FName ItName : HierarchyNames)
+	{
+		if (FCustomizedToolMenu* Found = ToolMenus->FindMenuCustomization(ItName))
+		{
+			Result.Hierarchy.Add(Found);
+		}
+	}
+
+	return Result;
+}
+
+void UToolMenu::UpdateMenuCustomizationFromMultibox(const TSharedRef<const FMultiBox>& InMultiBox)
+{
+	FCustomizedToolMenu* Customization = AddMenuCustomization();
+
+	Customization->EntryOrder.Reset();
+	Customization->SectionOrder.Reset();
+
+	FName CurrentSectionName = NAME_None;
+	const TArray< TSharedRef< const FMultiBlock > >& Blocks = InMultiBox->GetBlocks();
+	for (int32 BlockIndex = 0; BlockIndex < Blocks.Num(); ++BlockIndex)
+	{
+		const TSharedRef< const FMultiBlock >& Block = Blocks[BlockIndex];
+
+		if (Block->GetExtensionHook() == NAME_None)
+		{
+			continue;
+		}
+
+		// Ignore separators that are part of a section heading
+		if (Block->IsSeparator() && (BlockIndex + 1 < Blocks.Num()) && Blocks[BlockIndex + 1]->GetType() == EMultiBlockType::Heading)
+		{
+			continue;
+		}
+
+		if (Block->GetType() == EMultiBlockType::Heading)
+		{
+			CurrentSectionName = Block->GetExtensionHook();
+			Customization->SectionOrder.Add(CurrentSectionName);
+		}
+		else if (CurrentSectionName != NAME_None)
+		{
+			FCustomizedToolMenuNameArray& EntryOrderForSection = Customization->EntryOrder.FindOrAdd(CurrentSectionName);
+			EntryOrderForSection.Names.Add(Block->GetExtensionHook());
+		}
+	}
+}
+
+TArray<const UToolMenu*> UToolMenu::GetSubMenuChain() const
+{
+	TArray<const UToolMenu*> SubMenuChain;
+
+	TSet<const UToolMenu*> SubMenus;
+	for (const UToolMenu* CurrentMenu = this; CurrentMenu; CurrentMenu = CurrentMenu->SubMenuParent)
+	{
+		bool bIsAlreadyInSet = false;
+		SubMenus.Add(CurrentMenu, &bIsAlreadyInSet);
+		if (bIsAlreadyInSet)
+		{
+			ensure(!bIsAlreadyInSet);
+			break;
+		}
+		SubMenuChain.Add(CurrentMenu);
+	}
+
+	Algo::Reverse(SubMenuChain);
+
+	return SubMenuChain;
+}
+
+FString UToolMenu::GetSubMenuNamePath() const
+{
+	FString SubMenuNamePath;
+	TArray<const UToolMenu*> SubMenuChain = GetSubMenuChain();
+	if (SubMenuChain.Num() > 0)
+	{
+		for (int32 i = 1; i < SubMenuChain.Num(); ++i)
+		{
+			if (SubMenuNamePath.Len() > 0)
+			{
+				SubMenuNamePath += TEXT(".");
+			}
+			SubMenuNamePath += SubMenuChain[i]->SubMenuSourceEntryName.ToString();
+		}
+	}
+
+	return SubMenuNamePath;
+}

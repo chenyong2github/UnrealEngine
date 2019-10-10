@@ -44,7 +44,6 @@ class FKismet2CompilerModule : public IKismetCompilerInterface
 {
 public:
 	// Implementation of the IKismetCompilerInterface
-	virtual void CompileBlueprint(class UBlueprint* Blueprint, const FKismetCompilerOptions& CompileOptions, FCompilerResultsLog& Results, TSharedPtr<class FBlueprintCompileReinstancer> ParentReinstancer = NULL) override;
 	virtual void RefreshVariables(UBlueprint* Blueprint) override final;
 	virtual void CompileStructure(class UUserDefinedStruct* Struct, FCompilerResultsLog& Results) override;
 	virtual void RecoverCorruptedBlueprint(class UBlueprint* Blueprint) override;
@@ -56,7 +55,6 @@ public:
 	virtual FString GenerateCppWrapper(UBlueprintGeneratedClass* BPGC, const FCompilerNativizationOptions& NativizationOptions) override;
 	// End implementation
 private:
-	void CompileBlueprintInner(class UBlueprint* Blueprint, const FKismetCompilerOptions& CompileOptions, FCompilerResultsLog& Results, TSharedPtr<FBlueprintCompileReinstancer> Reinstancer);
 
 	TArray<IBlueprintCompiler*> Compilers;
 };
@@ -82,83 +80,6 @@ public:
 };
 
 // Compiles a blueprint.
-void FKismet2CompilerModule::CompileBlueprintInner(class UBlueprint* Blueprint, const FKismetCompilerOptions& CompileOptions, FCompilerResultsLog& Results, TSharedPtr<FBlueprintCompileReinstancer> Reinstancer)
-{
-	FBlueprintIsBeingCompiledHelper BeingCompiled(Blueprint);
-
-	Blueprint->CurrentMessageLog = &Results;
-
-	// Early out if blueprint parent is missing
-	if (Blueprint->ParentClass == NULL)
-	{
-		Results.Error(*LOCTEXT("KismetCompileError_MalformedParentClasss", "Blueprint @@ has missing or NULL parent class.").ToString(), Blueprint);
-	}
-	else
-	{
-		const uint32 PreviousSignatureCrc = Blueprint->CrcLastCompiledSignature;
-		const bool bIsFullCompile = CompileOptions.DoesRequireBytecodeGeneration() && (Blueprint->BlueprintType != BPTYPE_Interface);
-		const bool bRecompileDependencies = bIsFullCompile && !Blueprint->bIsRegeneratingOnLoad && Reinstancer.IsValid();
-
-		TArray<UBlueprint*> StoredDependentBlueprints;
-		if (bRecompileDependencies)
-		{
-			FBlueprintEditorUtils::GetDependentBlueprints(Blueprint, StoredDependentBlueprints);
-		}
-
-		// Loop through all external compiler delegates attempting to compile the blueprint.
-		bool Compiled = false;
-		for ( IBlueprintCompiler* Compiler : Compilers )
-		{
-			if ( Compiler->CanCompile(Blueprint) )
-			{
-				Compiled = true;
-				Compiler->Compile(Blueprint, CompileOptions, Results);
-				break;
-			}
-		}
-
-		// if no one handles it, then use the default blueprint compiler.
-		if ( !Compiled )
-		{
-			if ( UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(Blueprint) )
-			{
-				FAnimBlueprintCompilerContext Compiler(AnimBlueprint, Results, CompileOptions);
-				Compiler.Compile();
-				check(Compiler.NewClass);
-			}
-			else
-			{
-				FKismetCompilerContext Compiler(Blueprint, Results, CompileOptions);
-				Compiler.Compile();
-				check(Compiler.NewClass);
-			}
-		}
-
-		if (bRecompileDependencies)
-		{
-			Reinstancer->BlueprintWasRecompiled(Blueprint, CompileOptions.CompileType == EKismetCompileType::BytecodeOnly);
-
-			const bool bSignatureWasChanged = PreviousSignatureCrc != Blueprint->CrcLastCompiledSignature;
-			UE_LOG(LogK2Compiler, Verbose, TEXT("Signature of Blueprint '%s' %s changed"), *GetNameSafe(Blueprint), bSignatureWasChanged ? TEXT("was") : TEXT("was not"));
-
-			if (bSignatureWasChanged)
-			{
-				for (UBlueprint* CurrentBP : StoredDependentBlueprints)
-				{
-					Reinstancer->EnlistDependentBlueprintToRecompile(CurrentBP, !(CurrentBP->IsPossiblyDirty() || CurrentBP->Status == BS_Error) && CurrentBP->IsValidForBytecodeOnlyRecompile());
-				}
-
-				if(!Blueprint->ParentClass->HasAnyClassFlags(CLASS_Native))
-				{
-					Reinstancer->EnlistDependentBlueprintToRecompile(Blueprint, true);
-				}
-			}
-		}
-	}
-
-	Blueprint->CurrentMessageLog = NULL;
-}
-
 
 void FKismet2CompilerModule::CompileStructure(UUserDefinedStruct* Struct, FCompilerResultsLog& Results)
 {
@@ -186,126 +107,6 @@ FString FKismet2CompilerModule::GenerateCppWrapper(UBlueprintGeneratedClass* BPG
 }
 
 extern UNREALED_API FSecondsCounterData BlueprintCompileAndLoadTimerData;
-
-// Compiles a blueprint.
-void FKismet2CompilerModule::CompileBlueprint(class UBlueprint* Blueprint, const FKismetCompilerOptions& CompileOptions, FCompilerResultsLog& Results, TSharedPtr<FBlueprintCompileReinstancer> ParentReinstancer)
-{
-	FSecondsCounterScope Timer(BlueprintCompileAndLoadTimerData);
-	BP_SCOPED_COMPILER_EVENT_STAT(EKismetCompilerStats_CompileTime);
-
-	Results.SetSourcePath(Blueprint->GetPathName());
-
-	const bool bIsBrandNewBP = (Blueprint->SkeletonGeneratedClass == NULL) && (Blueprint->GeneratedClass == NULL) && (Blueprint->ParentClass != NULL) && !CompileOptions.bIsDuplicationInstigated;
-
-	for ( IBlueprintCompiler* Compiler : Compilers )
-	{
-		Compiler->PreCompile(Blueprint, CompileOptions);
-	}
-
-	if (CompileOptions.CompileType != EKismetCompileType::Cpp
-		&& CompileOptions.CompileType != EKismetCompileType::BytecodeOnly
-		&& CompileOptions.bRegenerateSkelton )
-	{
-		BP_SCOPED_COMPILER_EVENT_STAT(EKismetCompilerStats_CompileSkeletonClass);
-		auto SkeletonReinstancer = FBlueprintCompileReinstancer::Create(Blueprint->SkeletonGeneratedClass);
-
-		FCompilerResultsLog SkeletonResults;
-		SkeletonResults.bSilentMode = true;
-		FKismetCompilerOptions SkeletonCompileOptions;
-		SkeletonCompileOptions.CompileType = EKismetCompileType::SkeletonOnly;
-		CompileBlueprintInner(Blueprint, SkeletonCompileOptions, SkeletonResults, ParentReinstancer);
-
-		// Only when doing full compiles do we want to compile all skeletons before continuing to compile 
-		if (CompileOptions.CompileType == EKismetCompileType::Full)
-		{
-			SkeletonReinstancer->ReinstanceObjects();
-		}
-	}
-
-	// If this was a full compile, take appropriate actions depending on the success of failure of the compile
-	if( CompileOptions.IsGeneratedClassCompileType() )
-	{
-		BP_SCOPED_COMPILER_EVENT_STAT(EKismetCompilerStats_CompileGeneratedClass);
-
-		FBlueprintCompileReinstancer::OptionallyRefreshNodes(Blueprint);
-
-		// Perform the full compile
-		CompileBlueprintInner(Blueprint, CompileOptions, Results, ParentReinstancer);
-
-		if (Results.NumErrors == 0)
-		{
-			// Blueprint is error free.  Go ahead and fix up debug info
-			Blueprint->Status = (0 == Results.NumWarnings) ? BS_UpToDate : BS_UpToDateWithWarnings;
-			
-			Blueprint->BlueprintSystemVersion = UBlueprint::GetCurrentBlueprintSystemVersion();
-
-			// Reapply breakpoints to the bytecode of the new class
-			for (int32 Index = 0; Index < Blueprint->Breakpoints.Num(); ++Index)
-			{
-				UBreakpoint* Breakpoint = Blueprint->Breakpoints[Index];
-				FKismetDebugUtilities::ReapplyBreakpoint(Breakpoint);
-			}
-		}
-		else
-		{
-			// Should never get errors from a brand new blueprint!
-			ensure(!bIsBrandNewBP || (Results.NumErrors == 0));
-
-			// There were errors.  Compile the generated class to have function stubs
-			Blueprint->Status = BS_Error;
-
-			if(CompileOptions.bReinstanceAndStubOnFailure)
-			{
-				// Reinstance objects here, so we can preserve their memory layouts to reinstance them again
-				if (ParentReinstancer.IsValid())
-				{
-					ParentReinstancer->UpdateBytecodeReferences();
-
-					if(!Blueprint->bIsRegeneratingOnLoad)
-					{
-						ParentReinstancer->ReinstanceObjects();
-					}
-				}
-				const EBlueprintCompileReinstancerFlags Flags = (EKismetCompileType::BytecodeOnly == CompileOptions.CompileType) ? EBlueprintCompileReinstancerFlags::BytecodeOnly : EBlueprintCompileReinstancerFlags::None;
-				TSharedPtr<FBlueprintCompileReinstancer> StubReinstancer = FBlueprintCompileReinstancer::Create(Blueprint->GeneratedClass, Flags);
-
-				// Toss the half-baked class and generate a stubbed out skeleton class that can be used
-				FCompilerResultsLog StubResults;
-				StubResults.bSilentMode = true;
-				FKismetCompilerOptions StubCompileOptions(CompileOptions);
-				StubCompileOptions.CompileType = EKismetCompileType::StubAfterFailure;
-				{
-					CompileBlueprintInner(Blueprint, StubCompileOptions, StubResults, StubReinstancer);
-				}
-
-				StubReinstancer->UpdateBytecodeReferences();
-				if( !Blueprint->bIsRegeneratingOnLoad )
-				{
-					StubReinstancer->ReinstanceObjects();
-				}
-			}
-		}
-	}
-
-	for ( IBlueprintCompiler* Compiler : Compilers )
-	{
-		Compiler->PostCompile(Blueprint, CompileOptions);
-	}
-
-	UPackage* Package = Blueprint->GetOutermost();
-	if( Package )
-	{
-		UMetaData* MetaData =  Package->GetMetaData();
-		MetaData->RemoveMetaDataOutsidePackage();
-	}
-
-	if (!Results.bSilentMode)
-	{
-		FScopedBlueprintMessageLog MessageLog(Blueprint);
-		MessageLog.Log->ClearMessages();
-		MessageLog.Log->AddMessages(Results.Messages, false);
-	}
-}
 
 void FKismet2CompilerModule::RefreshVariables(UBlueprint* Blueprint)
 {

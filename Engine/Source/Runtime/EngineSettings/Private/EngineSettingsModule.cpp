@@ -213,6 +213,21 @@ void UGameMapsSettings::SetGlobalDefaultGameMode( const FString& NewGameMode )
 	GameMapsSettings->GlobalDefaultGameMode = NewGameMode;
 }
 
+UGameMapsSettings* UGameMapsSettings::GetGameMapsSettings()
+{
+	return GetMutableDefault<UGameMapsSettings>();
+}
+
+void UGameMapsSettings::SetSkipAssigningGamepadToPlayer1(bool bSkipFirstPlayer)
+{
+	bOffsetPlayerGamepadIds = bSkipFirstPlayer;
+}
+
+bool UGameMapsSettings::GetSkipAssigningGamepadToPlayer1() const
+{
+	return bOffsetPlayerGamepadIds;
+}
+
 // Backwards compat for map strings
 void FixMapAssetRef(FSoftObjectPath& MapAssetReference)
 {
@@ -230,7 +245,9 @@ void UGameMapsSettings::PostInitProperties()
 {
 	Super::PostInitProperties();
 
+#if WITH_EDITORONLY_DATA
 	FixMapAssetRef(EditorStartupMap);
+#endif
 	FixMapAssetRef(GameDefaultMap);
 	FixMapAssetRef(ServerDefaultMap);
 	FixMapAssetRef(TransitionMap);
@@ -240,11 +257,14 @@ void UGameMapsSettings::PostReloadConfig( UProperty* PropertyThatWasLoaded )
 {
 	if (PropertyThatWasLoaded)
 	{
+#if WITH_EDITORONLY_DATA
 		if (PropertyThatWasLoaded->GetFName() == GET_MEMBER_NAME_CHECKED(UGameMapsSettings, EditorStartupMap))
 		{
 			FixMapAssetRef(EditorStartupMap);
 		}
-		else if (PropertyThatWasLoaded->GetFName() == GET_MEMBER_NAME_CHECKED(UGameMapsSettings, GameDefaultMap))
+		else
+#endif
+		if (PropertyThatWasLoaded->GetFName() == GET_MEMBER_NAME_CHECKED(UGameMapsSettings, GameDefaultMap))
 		{
 			FixMapAssetRef(GameDefaultMap);
 		}
@@ -259,7 +279,9 @@ void UGameMapsSettings::PostReloadConfig( UProperty* PropertyThatWasLoaded )
 	}
 	else
 	{
+#if WITH_EDITORONLY_DATA
 		FixMapAssetRef(EditorStartupMap);
+#endif
 		FixMapAssetRef(GameDefaultMap);
 		FixMapAssetRef(ServerDefaultMap);
 		FixMapAssetRef(TransitionMap);

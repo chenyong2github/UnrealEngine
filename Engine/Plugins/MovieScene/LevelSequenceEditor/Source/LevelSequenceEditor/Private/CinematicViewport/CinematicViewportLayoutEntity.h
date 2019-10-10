@@ -12,7 +12,7 @@
 #include "Editor/UnrealEdEngine.h"
 #include "UnrealEdGlobals.h"
 
-class FCinematicViewportLayoutEntity : public IViewportLayoutEntity
+class FCinematicViewportLayoutEntity : public ILevelViewportLayoutEntity
 {
 public:
 	FCinematicViewportLayoutEntity(const FViewportConstructionArgs& Args)

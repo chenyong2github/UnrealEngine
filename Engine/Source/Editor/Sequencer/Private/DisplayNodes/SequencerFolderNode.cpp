@@ -111,6 +111,11 @@ const FSlateBrush* FSequencerFolderNode::GetIconBrush() const
 
 FSlateColor FSequencerFolderNode::GetIconColor() const
 {
+	if (ParentTree.IsNodeMute(this))
+	{
+		return FSlateColor(MovieSceneFolder.GetFolderColor().ReinterpretAsLinear() * FLinearColor(0.6f, 0.6f, 0.6f, 0.6f));
+	}
+
 	return FSlateColor(MovieSceneFolder.GetFolderColor());
 }
 

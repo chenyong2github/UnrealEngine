@@ -199,7 +199,6 @@
 #include "Templates/RefCounting.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "Misc/Paths.h"
-#include "Templates/ScopedPointer.h"
 #include "Serialization/CustomVersion.h"
 #include "Misc/OutputDeviceError.h"
 #include "Misc/ObjectThumbnail.h"

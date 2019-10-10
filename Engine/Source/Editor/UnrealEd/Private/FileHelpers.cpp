@@ -688,6 +688,15 @@ static bool SaveWorld(UWorld* World,
 					{
 						Package = DuplicatedWorld->GetOutermost();
 					}
+					else
+					{
+						// Avoid assert during rename when duplicate fails
+						if (!Package->Rename(*NewPackageName, NULL, REN_Test))
+						{
+							FMessageDialog::Open(EAppMsgType::Ok, FText::Format(NSLOCTEXT("UnrealEd", "Error_OverwriteMapCleanup", "Unable to overwrite existing package {0}."), FText::FromString(NewPackageName)));
+							return false;
+						}
+					}
 				}
 
 				if (!DuplicatedWorld)
@@ -1242,6 +1251,8 @@ bool FEditorFileUtils::SaveLevelAs(ULevel* InLevel, FString* OutSavedFilename)
  */
 void FEditorFileUtils::Import()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorFileUtils::Import);
+
 	TArray<FString> OpenedFiles;
 	FString DefaultLocation(GetDefaultDirectory());
 

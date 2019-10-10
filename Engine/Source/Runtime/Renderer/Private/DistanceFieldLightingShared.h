@@ -23,8 +23,6 @@ class FSceneRenderer;
 class FShaderParameterMap;
 class FViewInfo;
 
-template<typename ReferencedType> class TScopedPointer;
-
 DECLARE_LOG_CATEGORY_EXTERN(LogDistanceField, Warning, All);
 
 /** Tile sized used for most AO compute shaders. */
@@ -33,11 +31,6 @@ extern int32 GDistanceFieldAOTileSizeY;
 extern int32 GAverageObjectsPerShadowCullTile;
 
 extern int32 GDistanceFieldGI;
-
-inline bool DoesPlatformSupportDistanceFieldGI(EShaderPlatform Platform)
-{
-	return Platform == SP_PCD3D_SM5;
-}
 
 inline bool SupportsDistanceFieldGI(ERHIFeatureLevel::Type FeatureLevel, EShaderPlatform ShaderPlatform)
 {

@@ -3,7 +3,6 @@
 #include "CoreMinimal.h"
 #include "GenericPlatform/GenericPlatformStackWalk.h"
 #include "HAL/FileManager.h"
-#include "Templates/ScopedPointer.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Misc/Guid.h"

@@ -10,7 +10,7 @@
 #include "SafeZoneSlot.generated.h"
 
 UCLASS()
-class USafeZoneSlot : public UPanelSlot
+class UMG_API USafeZoneSlot : public UPanelSlot
 {
 	GENERATED_BODY()
 public:

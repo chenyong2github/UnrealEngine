@@ -4,7 +4,7 @@
 #include "MeshRegionBoundaryLoops.h"
 #include "MeshBoundaryLoops.h"   // has a set of internal static functions we re-use
 #include "VectorUtil.h"
-
+#include "Util/SparseIndexCollectionTypes.h"
 
 
 FMeshRegionBoundaryLoops::FMeshRegionBoundaryLoops(const FDynamicMesh3* MeshIn, const TArray<int>& RegionTris, bool bAutoCompute)
@@ -12,16 +12,16 @@ FMeshRegionBoundaryLoops::FMeshRegionBoundaryLoops(const FDynamicMesh3* MeshIn, 
 	this->Mesh = MeshIn;
 
 	// make flag set for included triangles
-	triangles.Init(false, Mesh->MaxTriangleID());
+	Triangles.InitAuto(Mesh->MaxTriangleID(), RegionTris.Num());
 	for (int i = 0; i < RegionTris.Num(); ++i)
 	{
-		triangles[RegionTris[i]] = true;
+		Triangles.Add(RegionTris[i]);
 	}
 
 	// make flag set for included edges
 	// NOTE: this currently processes non-boundary-edges twice. Could
 	// avoid w/ another IndexFlagSet, but the check is inexpensive...
-	edges.Init(false, Mesh->MaxEdgeID());
+	Edges.InitAuto(Mesh->MaxEdgeID(), RegionTris.Num());
 	for (int i = 0; i < RegionTris.Num(); ++i)
 	{
 		int tid = RegionTris[i];
@@ -29,13 +29,13 @@ FMeshRegionBoundaryLoops::FMeshRegionBoundaryLoops(const FDynamicMesh3* MeshIn, 
 		for (int j = 0; j < 3; ++j)
 		{
 			int eid = te[j];
-			if (!ContainsElement(edges, eid))
+			if (!Edges.Contains(eid))
 			{
 				FIndex2i et = Mesh->GetEdgeT(eid);
-				if (et.B == IndexConstants::InvalidID || triangles[et.A] != triangles[et.B])
+				if (et.B == IndexConstants::InvalidID || Triangles[et.A] != Triangles[et.B])
 				{
 					edges_roi.Add(eid);
-					edges[eid] = true;
+					Edges.Add(eid);
 				}
 			}
 		}
@@ -71,8 +71,8 @@ bool FMeshRegionBoundaryLoops::Compute()
 	Loops.SetNum(0);
 
 	// Temporary memory used to indicate when we have "used" an edge.
-	TArray<bool> used_edge;
-	used_edge.Init(false, Mesh->MaxEdgeID());
+	FIndexFlagSet used_edge;
+	used_edge.InitAuto(Mesh->MaxEdgeID(), edges_roi.Num());
 
 	// current loop is stored here, cleared after each loop extracted
 	TArray<int> loop_edges;
@@ -98,7 +98,7 @@ bool FMeshRegionBoundaryLoops::Compute()
 
 		// ok this is start of a boundary chain
 		int eStart = eid;
-		used_edge[eStart] = true;
+		used_edge.Add(eStart);
 		loop_edges.Add(eStart);
 
 		int eCur = eid;
@@ -178,7 +178,7 @@ bool FMeshRegionBoundaryLoops::Compute()
 				check(used_edge[eNext] == false);
 				loop_edges.Add(eNext);
 				eCur = eNext;
-				used_edge[eCur] = true;
+				used_edge.Add(eCur);
 			}
 		}
 
@@ -219,7 +219,7 @@ bool FMeshRegionBoundaryLoops::Compute()
 // tid_in and tid_out are triangles 'in' and 'out' of set, respectively
 bool FMeshRegionBoundaryLoops::IsEdgeOnBoundary(int eid, int& tid_in, int& tid_out) const
 {
-	if (ContainsElement(edges, eid) == false)
+	if (Edges.Contains(eid) == false)
 	{
 		return false;
 	}
@@ -233,8 +233,8 @@ bool FMeshRegionBoundaryLoops::IsEdgeOnBoundary(int eid, int& tid_in, int& tid_o
 		return true;
 	}
 
-	bool in0 = triangles[et.A];
-	bool in1 = triangles[et.B];
+	bool in0 = Triangles[et.A];
+	bool in1 = Triangles[et.B];
 	if (in0 != in1)
 	{
 		tid_in = (in0) ? et.A : et.B;
@@ -315,7 +315,7 @@ FVector3d FMeshRegionBoundaryLoops::GetVertexNormal(int vid)
 // If the loops are all sane, then we will get the smallest loops by "turning left" at bowtie_v.
 // So, we compute the tangent plane at bowtie_v, and then the signed angle for each
 // viable edge : this plane. 
-int FMeshRegionBoundaryLoops::FindLeftTurnEdge(int incoming_e, int bowtie_v, TArray<int>& bdry_edges, int bdry_edges_count, TArray<bool>& used_edges)
+int FMeshRegionBoundaryLoops::FindLeftTurnEdge(int incoming_e, int bowtie_v, TArray<int>& bdry_edges, int bdry_edges_count, const FIndexFlagSet& used_edges)
 {
 	// compute normal and edge [a,bowtie]
 	FVector3d n = GetVertexNormal(bowtie_v);

@@ -5,6 +5,7 @@
 #include "ProxyLODMeshConvertUtils.h"
 #include "ProxyLODMeshUtilities.h"
 #include "ProxyLODMeshParameterization.h"
+#include "StaticMeshAttributes.h"
 
 
 
@@ -65,7 +66,7 @@ public:
 			}
 			// Reset the result mesh description
 			MeshDescription.Empty();
-			UStaticMesh::RegisterMeshAttributes(MeshDescription);
+			FStaticMeshAttributes(MeshDescription).Register();
 
 			// convert to fill the mesh description
 			ProxyLOD::ConvertMesh(VertexDataMesh, MeshDescription);

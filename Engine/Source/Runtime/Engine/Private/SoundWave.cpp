@@ -126,13 +126,16 @@ void FStreamedAudioChunk::Serialize(FArchive& Ar, UObject* Owner, int32 ChunkInd
 	Ar << bCooked;
 
 	// ChunkIndex 0 is always inline payload, all other chunks are streamed.
-	if (ChunkIndex == 0)
+	if (Ar.IsSaving())
 	{
-		BulkData.SetBulkDataFlags(BULKDATA_ForceInlinePayload);
-	}
-	else
-	{
-		BulkData.SetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload);
+		if (ChunkIndex == 0)
+		{
+			BulkData.SetBulkDataFlags(BULKDATA_ForceInlinePayload);
+		}
+		else
+		{
+			BulkData.SetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload);
+		}
 	}
 
 	// streaming doesn't use memory mapped IO
@@ -404,7 +407,7 @@ void USoundWave::Serialize( FArchive& Ar )
 	else
 	{
 		// only save the raw data for non-cooked packages
-		RawData.Serialize( Ar, this );
+		RawData.Serialize(Ar, this, INDEX_NONE, false);
 	}
 
 	Ar << CompressedDataGuid;
@@ -822,7 +825,10 @@ void USoundWave::EnsureZerothChunkIsLoaded()
 	uint8* TempChunkBuffer = nullptr;
 	int32 ChunkSizeInBytes = RunningPlatformData->GetChunkFromDDC(0, &TempChunkBuffer, true);
 	// Since we block for the DDC in the previous call we should always have the chunk loaded.
-	check(ChunkSizeInBytes > 0);
+	if (ChunkSizeInBytes == 0)
+	{
+		return;
+	}
 
 	// TODO: Support passing a TArray by ref into FStreamedAudioPlatformData::GetChunkFromDDC.
 	// Currently not feasible unless FUntypedBulkData::GetCopy API was changed.

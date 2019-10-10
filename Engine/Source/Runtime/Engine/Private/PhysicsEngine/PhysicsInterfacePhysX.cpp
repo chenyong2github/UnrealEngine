@@ -14,9 +14,7 @@
 
 #if !WITH_CHAOS_NEEDS_TO_BE_FIXED
 
-#if INCLUDE_CHAOS
 #include "SQAccelerator.h"
-#endif
 
 #if WITH_PHYSX
 #include "PhysXPublic.h"
@@ -664,6 +662,19 @@ bool FPhysicsCommand_PhysX::ExecuteWrite(FPhysScene_PhysX* InScene, TFunctionRef
 	InCallable();
 
 	return ScopeLock.Scenes[0] || ScopeLock.Scenes[1];
+
+	return false;
+}
+
+bool FPhysicsCommand_PhysX::ExecuteWrite(FPhysicsActorHandle_PhysX& InHandle, TFunctionRef<void(FPhysicsActorHandle_PhysX& Actor)> InCallable)
+{
+	if(InHandle.IsValid())
+	{
+		FPhysicsInterfaceScopedLock_PhysX ScopeLock(&InHandle, EPhysicsInterfaceScopedLockType::Write);
+		InCallable(InHandle);
+
+		return true;
+	}
 
 	return false;
 }

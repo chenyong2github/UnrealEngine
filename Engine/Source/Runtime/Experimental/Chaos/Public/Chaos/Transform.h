@@ -137,6 +137,8 @@ class TRigidTransform<float, 3> : public FTransform
 	    : FTransform() {}
 	TRigidTransform(const TVector<float, 3>& Translation, const TRotation<float, 3>& Rotation)
 	    : FTransform(Rotation, Translation) {}
+	TRigidTransform(const TVector<float, 3>& Translation, const TRotation<float, 3>& Rotation, const TVector<float,3>& Scale)
+		: FTransform(Rotation, Translation, Scale) {}
 	TRigidTransform(const FMatrix& Matrix)
 	    : FTransform(Matrix) {}
 	TRigidTransform(const FTransform& Transform)

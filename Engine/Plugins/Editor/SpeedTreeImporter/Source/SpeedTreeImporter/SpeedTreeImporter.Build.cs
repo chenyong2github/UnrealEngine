@@ -35,6 +35,7 @@ namespace UnrealBuildTool.Rules
                     "UnrealEd",
                     "MainFrame",
                     "MeshDescription",
+					"StaticMeshDescription"
                 }
 				);
 

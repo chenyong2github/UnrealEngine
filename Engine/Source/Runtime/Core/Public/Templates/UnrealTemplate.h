@@ -75,14 +75,13 @@ auto GetData(T&& Container) -> decltype(Container.GetData())
 	return Container.GetData();
 }
 
-template <typename T, SIZE_T N>
-CONSTEXPR T* GetData(T (&Container)[N])
-{
-	return Container;
-}
+template <typename T, SIZE_T N> CONSTEXPR       T* GetData(      T (& Container)[N]) { return Container; }
+template <typename T, SIZE_T N> CONSTEXPR       T* GetData(      T (&&Container)[N]) { return Container; }
+template <typename T, SIZE_T N> CONSTEXPR const T* GetData(const T (& Container)[N]) { return Container; }
+template <typename T, SIZE_T N> CONSTEXPR const T* GetData(const T (&&Container)[N]) { return Container; }
 
 template <typename T>
-CONSTEXPR T* GetData(std::initializer_list<T> List)
+CONSTEXPR const T* GetData(std::initializer_list<T> List)
 {
 	return List.begin();
 }
@@ -96,11 +95,10 @@ SIZE_T GetNum(T&& Container)
 	return (SIZE_T)Container.Num();
 }
 
-template <typename T, SIZE_T N>
-CONSTEXPR SIZE_T GetNum(T (&Container)[N])
-{
-	return N;
-}
+template <typename T, SIZE_T N> CONSTEXPR SIZE_T GetNum(      T (& Container)[N]) { return N; }
+template <typename T, SIZE_T N> CONSTEXPR SIZE_T GetNum(      T (&&Container)[N]) { return N; }
+template <typename T, SIZE_T N> CONSTEXPR SIZE_T GetNum(const T (& Container)[N]) { return N; }
+template <typename T, SIZE_T N> CONSTEXPR SIZE_T GetNum(const T (&&Container)[N]) { return N; }
 
 template <typename T>
 CONSTEXPR SIZE_T GetNum(std::initializer_list<T> List)
@@ -131,11 +129,11 @@ FORCEINLINE const T& AsConst(T& Ref)
 ----------------------------------------------------------------------------*/
 
 #ifdef __clang__
-template <typename T>
-auto UE4ArrayCountHelper(T& t) -> typename TEnableIf<__is_array(T), char(&)[sizeof(t) / sizeof(t[0]) + 1]>::Type;
+	template <typename T>
+	auto UE4ArrayCountHelper(T& t) -> typename TEnableIf<__is_array(T), char(&)[sizeof(t) / sizeof(t[0]) + 1]>::Type;
 #else
-template <typename T, uint32 N>
-char(&UE4ArrayCountHelper(const T(&)[N]))[N + 1];
+	template <typename T, uint32 N>
+	char (&UE4ArrayCountHelper(const T (&)[N]))[N + 1];
 #endif
 
 // Number of elements in an array.
@@ -301,9 +299,9 @@ private:
  * Macro variant on TGuardValue<bool> that can deal with bitfields which cannot be passed by reference in to TGuardValue
  */
 #define FGuardValue_Bitfield(ReferenceValue, NewValue) \
-	const bool TempBitfield##__LINE__ = ReferenceValue; \
+	const bool PREPROCESSOR_JOIN(TempBitfield, __LINE__) = ReferenceValue; \
 	ReferenceValue = NewValue; \
-	const TGuardValue_Bitfield_Cleanup<TFunction<void()>> TempBitfieldCleanup##__LINE__([&](){ ReferenceValue = TempBitfield##__LINE__; });
+	const TGuardValue_Bitfield_Cleanup<TFunction<void()>> PREPROCESSOR_JOIN(TempBitfieldCleanup, __LINE__)([&](){ ReferenceValue = PREPROCESSOR_JOIN(TempBitfield, __LINE__); });
 
 /** 
  * Commonly used to make sure a value is incremented, and then decremented anyway the function can terminate.

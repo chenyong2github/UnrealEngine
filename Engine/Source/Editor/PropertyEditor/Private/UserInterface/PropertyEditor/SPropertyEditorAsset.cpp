@@ -158,7 +158,8 @@ void SPropertyEditorAsset::InitializeClassFilters(const UProperty* Property)
 			}
 		}
 	}
-	else
+	
+	if (AllowedClassFilters.Num() == 0)
 	{
 		// always add the object class to the filters
 		AllowedClassFilters.Add(ObjectClass);
@@ -239,8 +240,6 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 	bAllowClear = InArgs._AllowClear.IsSet() ? InArgs._AllowClear.GetValue() : (Property ? !(Property->PropertyFlags & CPF_NoClear) : true);
 
 	InitializeClassFilters(Property);
-
-	ensure(AllowedClassFilters.Num() > 0);
 
 	// Make the ObjectClass more specific if we only have one class filter
 	// eg. if ObjectClass was set to Actor, but AllowedClasses="PointLight", we can limit it to PointLight immediately

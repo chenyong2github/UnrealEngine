@@ -1,6 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
-#if INCLUDE_CHAOS
 
 #include "PhysicsProxy/AnalyticImplicitGroup.h"
 
@@ -502,5 +501,3 @@ protected:
 	// The working set of indices.
 	TArray<int32> TempTargetIndices;
 };
-
-#endif // INCLUDE_CHAOS

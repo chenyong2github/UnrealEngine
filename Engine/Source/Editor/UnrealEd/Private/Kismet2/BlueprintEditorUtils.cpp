@@ -120,8 +120,6 @@
 #include "AnimGraphNode_Root.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
-extern COREUOBJECT_API bool GBlueprintUseCompilationManager;
-
 #define LOCTEXT_NAMESPACE "Blueprint"
 
 DEFINE_LOG_CATEGORY(LogBlueprintDebug);
@@ -270,16 +268,21 @@ static void PromoteInterfaceImplementationToOverride(FBPInterfaceDescription con
  * @param  InOldVarName		The current name of the variable we want to replace
  * @param  InNewVarName		The name that we wish to change all references to
  */
-static void RenameVariableReferencesInGraph(UBlueprint* InBlueprint, UClass* InVariableClass, UEdGraph* InGraph, const FName& InOldVarName, const FName& InNewVarName)
+static bool RenameVariableReferencesInGraph(UBlueprint* InBlueprint, UClass* InVariableClass, UEdGraph* InGraph, const FName& InOldVarName, const FName& InNewVarName)
 {
+	bool bFoundReference = false;
+
 	for(UEdGraphNode* GraphNode : InGraph->Nodes)
 	{
 		// Allow node to handle variable renaming
 		if (UK2Node* const K2Node = Cast<UK2Node>(GraphNode))
 		{
+			bFoundReference |= K2Node->ReferencesVariable(InOldVarName, nullptr);
 			K2Node->HandleVariableRenamed(InBlueprint, InVariableClass, InGraph, InOldVarName, InNewVarName);
 		}
 	}
+
+	return bFoundReference;
 }
 
 FBlueprintEditorUtils::FOnRenameVariableReferences FBlueprintEditorUtils::OnRenameVariableReferencesEvent;
@@ -292,7 +295,10 @@ void FBlueprintEditorUtils::RenameVariableReferences(UBlueprint* Blueprint, UCla
 	// Update any graph nodes that reference the old variable name to instead reference the new name
 	for(UEdGraph* CurrentGraph : AllGraphs)
 	{
-		RenameVariableReferencesInGraph(Blueprint, VariableClass, CurrentGraph, OldVarName, NewVarName);
+		if (RenameVariableReferencesInGraph(Blueprint, VariableClass, CurrentGraph, OldVarName, NewVarName))
+		{
+			MarkBlueprintAsModified(Blueprint);
+		}
 	}
 
 	OnRenameVariableReferencesEvent.Broadcast(Blueprint, VariableClass, OldVarName, NewVarName);
@@ -769,6 +775,21 @@ UClass* FBlueprintEditorUtils::FindFirstNativeClass(UClass* Class)
 	return Class;
 }
 
+bool FBlueprintEditorUtils::IsNativeSignature(const UFunction* Fn)
+{
+	if(UClass* OwningClass = Fn->GetOwnerClass())
+	{
+		if(UClass* PotentialNativeOwner = FindFirstNativeClass(OwningClass))
+		{
+			return PotentialNativeOwner->FindFunctionByName(Fn->GetFName()) != nullptr;
+		}
+	}
+
+	// All UFunctions are owned by UClasses, but if we encounter one that
+	// is not lets just fall back to the flag:
+	return Fn->HasAnyFunctionFlags(FUNC_Native);
+}
+
 void FBlueprintEditorUtils::GetAllGraphNames(const UBlueprint* Blueprint, TSet<FName>& GraphNames)
 {
 	TArray< UEdGraph* > GraphList;
@@ -1234,6 +1255,7 @@ void FBlueprintEditorUtils::RemoveStaleFunctions(UBlueprintGeneratedClass* Class
 		OrphanedClass->ClassAddReferencedObjects = Class->AddReferencedObjects;
 		OrphanedClass->ClassFlags |= CLASS_CompiledFromBlueprint;
 		OrphanedClass->ClassGeneratedBy = Class->ClassGeneratedBy;
+		OrphanedClass->SparseClassData = Class->GetOrCreateSparseClassData();
 
 		const ERenameFlags RenFlags = REN_DontCreateRedirectors | (Blueprint->bIsRegeneratingOnLoad ? REN_ForceNoResetLoaders : 0) | REN_NonTransactional | REN_DoNotDirty;
 
@@ -1542,6 +1564,7 @@ void FBlueprintEditorUtils::RecreateClassMetaData(UBlueprint* Blueprint, UClass*
 		Class->RemoveMetaData("HideFunctions");
 		Class->RemoveMetaData("AutoExpandCategories");
 		Class->RemoveMetaData("AutoCollapseCategories");
+		Class->RemoveMetaData("SparseClassDataTypes");
 		Class->RemoveMetaData("ClassGroupNames");
 		Class->RemoveMetaData("Category");
 		Class->RemoveMetaData(FBlueprintMetadata::MD_AllowableBlueprintVariableType);
@@ -1586,6 +1609,11 @@ void FBlueprintEditorUtils::RecreateClassMetaData(UBlueprint* Blueprint, UClass*
 			}
 
 			Class->SetMetaData(NAME_ClassGroupNames, *ClassGroupCategory);
+		}
+
+		if (ParentClass->HasMetaData(TEXT("SparseClassDataTypes")))
+		{
+			Class->SetMetaData(TEXT("SparseClassDataTypes"), *ParentClass->GetMetaData("SparseClassDataTypes"));
 		}
 	}
 
@@ -1758,10 +1786,7 @@ void FBlueprintEditorUtils::PostDuplicateBlueprint(UBlueprint* Blueprint, bool b
 			Blueprint->SkeletonGeneratedClass = nullptr;
 
 			// Make sure the new blueprint has a shiny new class
-			IKismetCompilerInterface& Compiler = FModuleManager::LoadModuleChecked<IKismetCompilerInterface>(KISMET_COMPILER_MODULENAME);
 			FCompilerResultsLog Results;
-			FKismetCompilerOptions CompileOptions;
-			CompileOptions.bIsDuplicationInstigated = true;
 
 			FName NewSkelClassName, NewGenClassName;
 			Blueprint->GetBlueprintClassNames(NewGenClassName, NewSkelClassName);
@@ -1773,9 +1798,6 @@ void FBlueprintEditorUtils::PostDuplicateBlueprint(UBlueprint* Blueprint, bool b
 			NewClass->ClassGeneratedBy = Blueprint;
 			NewClass->SetSuperStruct(Blueprint->ParentClass);
 			Blueprint->bHasBeenRegenerated = true;		// Set to true, similar to CreateBlueprint, since we've regerated the class by duplicating it
-
-			// Since we just duplicated the generated class above, we don't need to do a full compile below
-			CompileOptions.CompileType = EKismetCompileType::SkeletonOnly;
 
 			TMap<UObject*, UObject*> OldToNewMap;
 
@@ -1850,16 +1872,9 @@ void FBlueprintEditorUtils::PostDuplicateBlueprint(UBlueprint* Blueprint, bool b
 			Blueprint->Timelines = NewBPGC->Timelines;
 			Blueprint->InheritableComponentHandler = NewBPGC->InheritableComponentHandler;
 
-			if (GBlueprintUseCompilationManager)
-			{
-				FBlueprintCompilationManager::CompileSynchronously(
-					FBPCompileRequest(Blueprint, EBlueprintCompileOptions::RegenerateSkeletonOnly, nullptr)
-				);
-			}
-			else
-			{
-				Compiler.CompileBlueprint(Blueprint, CompileOptions, Results);
-			}
+			FBlueprintCompilationManager::CompileSynchronously(
+				FBPCompileRequest(Blueprint, EBlueprintCompileOptions::RegenerateSkeletonOnly, nullptr)
+			);
 
 			// Create a new blueprint guid
 			Blueprint->GenerateNewGuid();
@@ -1901,24 +1916,15 @@ void FBlueprintEditorUtils::PostDuplicateBlueprint(UBlueprint* Blueprint, bool b
 				}
 			}
 
-			if (GBlueprintUseCompilationManager)
-			{
-				// Skip CDO validation in this case as we will not have yet propagated values to the new CDO. Also skip
-				// Blueprint search data updates, as that will be handled by an OnAssetAdded() delegate in the FiB manager.
-				const EBlueprintCompileOptions BPCompileOptions =
-					EBlueprintCompileOptions::SkipDefaultObjectValidation |
-					EBlueprintCompileOptions::SkipFiBSearchMetaUpdate;
+			// Skip CDO validation in this case as we will not have yet propagated values to the new CDO. Also skip
+			// Blueprint search data updates, as that will be handled by an OnAssetAdded() delegate in the FiB manager.
+			const EBlueprintCompileOptions BPCompileOptions =
+				EBlueprintCompileOptions::SkipDefaultObjectValidation |
+				EBlueprintCompileOptions::SkipFiBSearchMetaUpdate;
 
-				FBlueprintCompilationManager::CompileSynchronously(
-					FBPCompileRequest(Blueprint, BPCompileOptions, nullptr)
-				);
-			}
-			else
-			{
-				// Needs a full compile to handle the ArchiveReplaceObjectRef
-				CompileOptions.CompileType = EKismetCompileType::Full;
-				Compiler.CompileBlueprint(Blueprint, CompileOptions, Results);
-			}
+			FBlueprintCompilationManager::CompileSynchronously(
+				FBPCompileRequest(Blueprint, BPCompileOptions, nullptr)
+			);
 
 			FArchiveReplaceObjectRef<UObject> ReplaceTemplateRefs(NewBPGC, OldToNewMap, /*bNullPrivateRefs=*/ false, /*bIgnoreOuterRef=*/ false, /*bIgnoreArchetypeRef=*/ false);
 
@@ -1990,55 +1996,6 @@ void FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(UBlueprint* Blue
 {
 	FSecondsCounterScope Timer(BlueprintCompileAndLoadTimerData);
 
-	struct FRefreshHelper
-	{
-		static void SkeletalRecompileChildren(TArray<UClass*> SkelClassesToRecompile, bool bIsCompilingOnLoad)
-		{
-			FSecondsCounterScope SkeletalRecompileTimer(BlueprintCompileAndLoadTimerData);
-
-			for (UClass* SkelClass : SkelClassesToRecompile)
-			{
-				if (SkelClass->HasAnyClassFlags(CLASS_NewerVersionExists))
-				{
-					continue;
-				}
-
-				UBlueprint* SkelBlueprint = Cast<UBlueprint>(SkelClass->ClassGeneratedBy);
-				if (SkelBlueprint
-					&& SkelBlueprint->Status != BS_BeingCreated
-					&& !SkelBlueprint->bBeingCompiled
-					&& !SkelBlueprint->bIsRegeneratingOnLoad)
-				{
-					TArray<UClass*> ChildrenOfClass;
-					GetDerivedClasses(SkelClass, ChildrenOfClass, false);
-
-					IKismetCompilerInterface& Compiler = FModuleManager::LoadModuleChecked<IKismetCompilerInterface>(KISMET_COMPILER_MODULENAME);
-
-					FCompilerResultsLog Results;
-					Results.bSilentMode = true;
-					Results.bLogInfoOnly = true;
-
-					{
-						bool const bWasRegenerating = SkelBlueprint->bIsRegeneratingOnLoad;
-						SkelBlueprint->bIsRegeneratingOnLoad |= bIsCompilingOnLoad;
-
-						FKismetCompilerOptions CompileOptions;
-						CompileOptions.CompileType = EKismetCompileType::SkeletonOnly;
-						Compiler.CompileBlueprint(SkelBlueprint, CompileOptions, Results);
-						SkelBlueprint->Status = BS_Dirty;
-
-						SkelBlueprint->BroadcastCompiled();
-
-						SkelBlueprint->MarkPackageDirty();
-
-						SkeletalRecompileChildren(ChildrenOfClass, bIsCompilingOnLoad);
-						SkelBlueprint->bIsRegeneratingOnLoad = bWasRegenerating;
-					}
-				}
-			}
-		}
-	};
-
 	// The Blueprint has been structurally modified and this means that some node titles will need to be refreshed
 	GetDefault<UEdGraphSchema_K2>()->ForceVisualizationCacheClear();
 
@@ -2047,61 +2004,9 @@ void FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(UBlueprint* Blue
 	{
 		BP_SCOPED_COMPILER_EVENT_STAT(EKismetCompilerStats_MarkBlueprintasStructurallyModified);
 
-		if (GBlueprintUseCompilationManager)
-		{
-			FBlueprintCompilationManager::CompileSynchronously(
-				FBPCompileRequest(Blueprint, EBlueprintCompileOptions::RegenerateSkeletonOnly, nullptr)
-			);
-		}
-		else
-		{
-			FCompilerResultsLog Results;
-			Results.bLogInfoOnly = Blueprint->bIsRegeneratingOnLoad;
-
-			TArray<UClass*> ChildrenOfClass;
-			if (UClass* SkelClass = Blueprint->SkeletonGeneratedClass)
-			{
-				if (!Blueprint->bIsRegeneratingOnLoad)
-				{
-					if (IsInterfaceBlueprint(Blueprint))
-					{
-						// Find all dependent Blueprints that implement the interface. Note: Using
-						// GetDependentBlueprints() here as the result is cached and thus it should
-						// generally be a faster path than iterating through all loaded Blueprints.
-						TArray<UBlueprint*> DependentBlueprints;
-						GetDependentBlueprints(Blueprint, DependentBlueprints, true);
-						for (UBlueprint* DependentBlueprint : DependentBlueprints)
-						{
-							const bool bDependentBPImplementsInterface = DependentBlueprint->ImplementedInterfaces.ContainsByPredicate([&Blueprint](const FBPInterfaceDescription& InterfaceDesc)
-							{
-								return InterfaceDesc.Interface == Blueprint->GeneratedClass;
-							});
-
-							if (bDependentBPImplementsInterface)
-							{
-								ChildrenOfClass.Add(DependentBlueprint->SkeletonGeneratedClass);
-							}
-						}
-					}
-					else
-					{
-						GetDerivedClasses(SkelClass, ChildrenOfClass, false);
-					}
-				}
-			}
-
-			{
-				// Invoke the compiler to update the skeleton class definition
-				IKismetCompilerInterface& Compiler = FModuleManager::LoadModuleChecked<IKismetCompilerInterface>(KISMET_COMPILER_MODULENAME);
-
-				FKismetCompilerOptions CompileOptions;
-				CompileOptions.CompileType = EKismetCompileType::SkeletonOnly;
-				Compiler.CompileBlueprint(Blueprint, CompileOptions, Results);
-			}
-			UpdateDelegatesInBlueprint(Blueprint);
-
-			FRefreshHelper::SkeletalRecompileChildren(ChildrenOfClass, Blueprint->bIsRegeneratingOnLoad);
-		}
+		FBlueprintCompilationManager::CompileSynchronously(
+			FBPCompileRequest(Blueprint, EBlueprintCompileOptions::RegenerateSkeletonOnly, nullptr)
+		);
 
 		// Call general modification callback as well
 		MarkBlueprintAsModified(Blueprint);
@@ -2118,7 +2023,7 @@ void FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(UBlueprint* Blue
 // Blueprint has changed in some manner that invalidates the compiled data (link made/broken, default value changed, etc...)
 void FBlueprintEditorUtils::MarkBlueprintAsModified(UBlueprint* Blueprint, FPropertyChangedEvent PropertyChangedEvent)
 {
-	if(Blueprint->bBeingCompiled && GBlueprintUseCompilationManager)
+	if(Blueprint->bBeingCompiled)
 	{
 		return;
 	}
@@ -2238,16 +2143,9 @@ UClass* FBlueprintEditorUtils::GetMostUpToDateClass(UClass* FromClass)
 		return FromClass;
 	}
 
-	if(GBlueprintUseCompilationManager)
-	{
-		// It's really not safe/coherent to try and dig out the 'right' class. Things that need the 'most up to date'
-		// version of a class should always be looking at the skeleton:
-		return GetSkeletonClass(FromClass);
-	}
-	else
-	{
-		return FromClass;
-	}
+	// It's really not safe/coherent to try and dig out the 'right' class. Things that need the 'most up to date'
+	// version of a class should always be looking at the skeleton:
+	return GetSkeletonClass(FromClass);
 }
 
 const UClass* FBlueprintEditorUtils::GetMostUpToDateClass(const UClass* FromClass)
@@ -2257,13 +2155,7 @@ const UClass* FBlueprintEditorUtils::GetMostUpToDateClass(const UClass* FromClas
 
 bool FBlueprintEditorUtils::PropertyStillExists(UProperty* Property)
 {
-	if(GBlueprintUseCompilationManager)
-	{
-		return GetMostUpToDateProperty(Property) != nullptr;
-	}
-
-	// We can't reliably know if the property still exists, but assume that it does:
-	return true;
+	return GetMostUpToDateProperty(Property) != nullptr;
 }
 
 UProperty* FBlueprintEditorUtils::GetMostUpToDateProperty(UProperty* Property)
@@ -2759,6 +2651,24 @@ void FBlueprintEditorUtils::RenameGraph(UEdGraph* Graph, const FString& NewNameS
 		// Potentially adjust variable names for any child blueprints.
 		// Note: This will find ALL children (including nested children) so there's no need to do this recursively.
 		ValidateBlueprintChildVariables(Blueprint, Graph->GetFName(), PostValidateChildBlueprintLambda);
+
+		// Find all variable nodes in this graph.
+		TArray<UK2Node_Variable*> VariableNodes;
+		Graph->GetNodesOfClass<UK2Node_Variable>(VariableNodes);
+		for (const UEdGraph* SubGraph : Graph->SubGraphs)
+		{
+			check(SubGraph != nullptr);
+			SubGraph->GetNodesOfClass<UK2Node_Variable>(VariableNodes);
+		}
+
+		// For any nodes that reference a local variable, update the variable's scope to be the graph's new name (which will mirror the UFunction).
+		for (UK2Node_Variable* const VariableNode : VariableNodes)
+		{
+			if (VariableNode->VariableReference.IsLocalScope())
+			{
+				VariableNode->VariableReference.SetLocalMember(VariableNode->VariableReference.GetMemberName(), NewNameStr, VariableNode->VariableReference.GetMemberGuid());
+			}
+		}
 
 		// Rename any function call points (including any calls w/ a child Blueprint as the target).
 		for (TObjectIterator<UK2Node_CallFunction> It(RF_ClassDefaultObject | RF_Transient); It; ++It)
@@ -4419,7 +4329,6 @@ void FBlueprintEditorUtils::GetClassVariableList(const UBlueprint* Blueprint, TS
 	// Existing variables in the parent class and above, when using the compilation manager the previous SkeletonGeneratedClass will have been cleared when
 	// we're regenerating the SkeletonGeneratedClass. Using this function in the skeleton pass at all is highly dubious, but I am leaving it until the 
 	// compilation manager is on full time:
-	check(!Blueprint->bHasBeenRegenerated || Blueprint->bIsRegeneratingOnLoad || (Blueprint->SkeletonGeneratedClass != nullptr) || GBlueprintUseCompilationManager);
 	if (Blueprint->SkeletonGeneratedClass != nullptr)
 	{
 		for (TFieldIterator<UProperty> PropertyIt(Blueprint->SkeletonGeneratedClass, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
@@ -5291,7 +5200,10 @@ void FBlueprintEditorUtils::RenameLocalVariable(UBlueprint* InBlueprint, const U
 			LocalVariable->FriendlyName = FName::NameToDisplayString( InNewName.ToString(), LocalVariable->VarType.PinCategory == UEdGraphSchema_K2::PC_Boolean );
 
 			// Update any existing references to the old name
-			RenameVariableReferencesInGraph(InBlueprint, InBlueprint->GeneratedClass, FindScopeGraph(InBlueprint, InScope), InOldName, InNewName);
+			if (RenameVariableReferencesInGraph(InBlueprint, InBlueprint->GeneratedClass, FindScopeGraph(InBlueprint, InScope), InOldName, InNewName))
+			{
+				MarkBlueprintAsModified(InBlueprint);
+			}
 
 			// Validate child blueprints and adjust variable names to avoid a potential name collision
 			FBlueprintEditorUtils::ValidateBlueprintChildVariables(InBlueprint, InNewName);
@@ -6155,47 +6067,20 @@ bool FBlueprintEditorUtils::RemoveInterfaceFunction(UBlueprint* Blueprint, FBPIn
 		{
 			CurrentGraph->Modify();
 			Blueprint->Modify();
-			UEdGraph* NewGraph = nullptr;
-			FString OriginalName;
-			CurrentGraph->GetName(OriginalName);
 
-			// Create a new one with it's signature if the user wants to preserve it
 			if (bPreserveFunction)
 			{
-				// Create a new function graph with this signature
-				static const FString TempName = "TEMP_INTERFACE_GRAPH_NAME";
-				const FName TempFuncGraphName = FBlueprintEditorUtils::GenerateUniqueGraphName(Blueprint, TempName);
-				UEdGraph* EventGraph = FBlueprintEditorUtils::FindEventGraph(Blueprint);
-				const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
-
-				if (EventGraph)
-				{
-					EventGraph->Modify();
-
-					NewGraph = FBlueprintEditorUtils::CreateNewGraph(
-						Blueprint,
-						TempFuncGraphName,
-						EventGraph->GetClass(),
-						EventGraph->GetSchema() ? EventGraph->GetSchema()->GetClass() : Schema->GetClass()
-					);
-
-					// Add the function graph like this to avoid the MarkBlueprintAsStructurallyModified call
-					CreateFunctionGraph(Blueprint, NewGraph, /*bIsUserCreated=*/true, Function);
-					Blueprint->FunctionGraphs.Add(NewGraph);
-					// Potentially adjust variable names for any child blueprints
-					ValidateBlueprintChildVariables(Blueprint, NewGraph->GetFName());
-				}
+				// Promote the graph if the user wants to preserve it:
+				PromoteGraphFromInterfaceOverride(Blueprint, CurrentGraph);
+				Blueprint->FunctionGraphs.Add(CurrentGraph);
 			}
 
 			FBlueprintEditorUtils::UpdateTransactionalFlags(Blueprint);
 
-			// Remove the interface graph
-			FBlueprintEditorUtils::RemoveGraph(Blueprint, CurrentGraph, EGraphRemoveFlags::MarkTransient);	// Do not recompile, yet
-			
-			// Rename the new graph to the original interface name
-			if (NewGraph)
+			if(!bPreserveFunction)
 			{
-				FBlueprintEditorUtils::RenameGraph(NewGraph, OriginalName);
+				// Remove the interface graph
+				FBlueprintEditorUtils::RemoveGraph(Blueprint, CurrentGraph, EGraphRemoveFlags::MarkTransient);	// Do not recompile, yet
 			}
 
 			return true;
@@ -7035,7 +6920,11 @@ void FBlueprintEditorUtils::UpdateOutOfDateCompositeWithOuter(UBlueprint* Bluepr
 		}
 		else if (UAnimStateTransitionNode* TransitionNode = Cast<UAnimStateTransitionNode>(Node))
 		{
-			BoundGraph = TransitionNode->BoundGraph;
+			// Shared rule graphs are not necessarily outered to their node, so skip them here
+			if(!TransitionNode->bSharedRules)
+			{
+				BoundGraph = TransitionNode->BoundGraph;
+			}
 		}
 		else if (UAnimGraphNode_StateMachineBase* StateMachineNode = Cast<UAnimGraphNode_StateMachineBase>(Node))
 		{

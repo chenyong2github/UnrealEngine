@@ -13,4 +13,17 @@ UCLASS(meta=(DocumentationPolicy = "Strict"))
 class UClassToDocument : public UObject
 {
 	GENERATED_BODY()
+
+	UClassToDocument()
+		: MyProperty(0.f)
+	{
+	}
+
+	// A property for testing the policy
+	UPROPERTY(meta = (UIMin = "0.0", UIMax = "1.0"))
+	float MyProperty;
+
+	// A function to test the policy
+	UFUNCTION()
+	void MyFunction() {}
 };

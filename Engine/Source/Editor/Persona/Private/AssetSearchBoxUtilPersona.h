@@ -7,9 +7,9 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Framework/SlateDelegates.h"
 #include "PropertyHandle.h"
+#include "SAssetSearchBox.h"
 
 class USkeleton;
-class SAssetSearchBox;
 
 class SAssetSearchBoxForBones : public SCompoundWidget
 {
@@ -84,5 +84,5 @@ private:
 	TWeakObjectPtr<USkeleton> Skeleton;
 
 	/** Get the search suggestions */
-	TArray<FString> GetCurveSearchSuggestions() const;
+	TArray<FAssetSearchBoxSuggestion> GetCurveSearchSuggestions() const;
 };

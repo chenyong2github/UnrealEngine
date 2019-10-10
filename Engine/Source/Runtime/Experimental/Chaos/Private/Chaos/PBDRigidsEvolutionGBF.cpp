@@ -1,6 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "Chaos/PBDRigidsEvolutionGBF.h"
-#include "Chaos/Box.h"
 #include "Chaos/Defines.h"
 #include "Chaos/Framework/Parallel.h"
 #include "Chaos/ImplicitObjectTransformed.h"
@@ -18,7 +17,9 @@
 
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "Chaos/DebugDrawQueue.h"
-#include "Chaos/Levelset.h"
+#include "Misc/ScopeLock.h"
+#include "Misc/Paths.h"
+#include "HAL/FileManager.h"
 
 namespace Chaos
 {
@@ -38,6 +39,7 @@ FAutoConsoleVariableRef CVarHackAngularDrag(TEXT("p.HackAngularDrag2"), HackAngu
 int DisableThreshold = 5;
 FAutoConsoleVariableRef CVarDisableThreshold(TEXT("p.DisableThreshold2"), DisableThreshold, TEXT("Disable threshold frames to transition to sleeping"));
 
+
 DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::AdvanceOneTimeStep"), STAT_AdvanceOneTimeStep, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::Integrate"), STAT_Integrate, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::UpdateConstraintPositionBasedState"), STAT_UpdateConstraintPositionBasedState, STATGROUP_Chaos);
@@ -46,14 +48,66 @@ DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::CreateIslands"), STAT_CreateIsl
 DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::ParallelSolve"), STAT_ParallelSolve, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::DeactivateSleep"), STAT_DeactivateSleep, STATGROUP_Chaos);
 
+int32 SerializeEvolution = 0;
+FAutoConsoleVariableRef CVarSerializeEvolution(TEXT("p.SerializeEvolution"), SerializeEvolution, TEXT(""));
+
+#if !UE_BUILD_SHIPPING
+template <typename TEvolution>
+void SerializeToDisk(TEvolution& Evolution)
+{
+	const TCHAR* FilePrefix = TEXT("ChaosEvolution");
+	const FString FullPathPrefix = FPaths::ProfilingDir() / FilePrefix;
+
+	static FCriticalSection CS;	//many evolutions could be running in parallel, serialize one at a time to avoid file conflicts
+	FScopeLock Lock(&CS);
+
+	int32 Tries = 0;
+	FString UseFileName;
+	do
+	{
+		UseFileName = FString::Printf(TEXT("%s_%d.bin"), *FullPathPrefix, Tries++);
+	} while (IFileManager::Get().FileExists(*UseFileName));
+
+	//this is not actually file safe but oh well, very unlikely someone else is trying to create this file at the same time
+	TUniquePtr<FArchive> File(IFileManager::Get().CreateFileWriter(*UseFileName));
+	if (File)
+	{
+		FChaosArchive Ar(*File);
+		UE_LOG(LogChaos, Log, TEXT("SerializeToDisk File: %s"), *UseFileName);
+		Evolution.Serialize(Ar);
+	}
+	else
+	{
+		UE_LOG(LogChaos, Warning, TEXT("Could not create file(%s)"), *UseFileName);
+	}
+}
+#endif
+
 template <typename T, int d>
 void TPBDRigidsEvolutionGBF<T, d>::AdvanceOneTimeStep(T Dt)
 {
 	SCOPE_CYCLE_COUNTER(STAT_AdvanceOneTimeStep);
 
+#if !UE_BUILD_SHIPPING
+	if (SerializeEvolution)
+	{
+		SerializeToDisk(*this);
+	}
+#endif
+
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Integrate);
 		Integrate(Particles.GetNonDisabledDynamicView(), Dt);	//Question: should we use an awake view?
+	}
+
+	if (PostIntegrateCallback != nullptr)
+	{
+		PostIntegrateCallback();
+	}
+
+	{
+		Base::ComputeIntermediateSpatialAcceleration();
+		CollisionConstraints.SetSpatialAcceleration(InternalAcceleration.Get());
 	}
 
 	{
@@ -68,12 +122,18 @@ void TPBDRigidsEvolutionGBF<T, d>::AdvanceOneTimeStep(T Dt)
 		SCOPE_CYCLE_COUNTER(STAT_CreateIslands);
 		CreateIslands();
 	}
-	
+
+	if (PreApplyCallback != nullptr)
+	{
+		PreApplyCallback();
+	}
+
 	TArray<bool> SleepedIslands;
 	SleepedIslands.SetNum(ConstraintGraph.NumIslands());
 	TArray<TArray<TPBDRigidParticleHandle<T,d>*>> DisabledParticles;
 	DisabledParticles.SetNum(ConstraintGraph.NumIslands());
 	SleepedIslands.SetNum(ConstraintGraph.NumIslands());
+	if(Dt > 0)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ParallelSolve);
 		PhysicsParallelFor(ConstraintGraph.NumIslands(), [&](int32 Island) {
@@ -81,12 +141,19 @@ void TPBDRigidsEvolutionGBF<T, d>::AdvanceOneTimeStep(T Dt)
 
 			ApplyConstraints(Dt, Island);
 
-			if (Dt > 0)
+			if (PostApplyCallback != nullptr)
 			{
-				UpdateVelocities(Dt, Island);
+				PostApplyCallback(Island);
 			}
 
+			UpdateVelocities(Dt, Island);
+
 			ApplyPushOut(Dt, Island);
+
+			if (PostApplyPushOutCallback != nullptr)
+			{
+				PostApplyPushOutCallback(Island);
+			}
 
 			for (auto Particle : IslandParticles)
 			{
@@ -142,7 +209,6 @@ void TPBDRigidsEvolutionGBF<T, d>::AdvanceOneTimeStep(T Dt)
 	Clustering.AdvanceClustering(Dt, GetCollisionConstraints());
 
 	ParticleUpdatePosition(Particles.GetActiveParticlesView(), Dt);
-	CollisionConstraints.SwapSpatialAcceleration();	//TODO_SQ_IMPLEMENTATION: there's a better place for this
 }
 
 template <typename T, int d>
@@ -150,6 +216,10 @@ TPBDRigidsEvolutionGBF<T, d>::TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<T, d>& InPar
 	: Base(InParticles, InNumIterations)
 	, CollisionConstraints(InParticles, Collided, PhysicsMaterials, DefaultNumPushOutPairIterations)
 	, CollisionRule(CollisionConstraints, DefaultNumPushOutIterations)
+	, PostIntegrateCallback(nullptr)
+	, PreApplyCallback(nullptr)
+	, PostApplyCallback(nullptr)
+	, PostApplyPushOutCallback(nullptr)
 {
 	SetParticleUpdateVelocityFunction([PBDUpdateRule = TPerParticlePBDUpdateFromDeltaPosition<float, 3>(), this](const TParticleView<TPBDRigidParticles<T, d>>& ParticlesInput, const T Dt) {
 		ParticlesInput.ParallelFor([&](auto& Particle, int32 Index) {
@@ -171,8 +241,18 @@ TPBDRigidsEvolutionGBF<T, d>::TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<T, d>& InPar
 		ExternalForces.Apply(HandleIn, Dt);
 	});
 
+	AddForceFunction([this](TTransientPBDRigidParticleHandle<T, d>& HandleIn, const T Dt)
+	{
+		GravityForces.Apply(HandleIn, Dt);
+	});
 
 	AddConstraintRule(&CollisionRule);
+}
+
+template <typename T, int d>
+void TPBDRigidsEvolutionGBF<T,d>::Serialize(FChaosArchive& Ar)
+{
+	Base::Serialize(Ar);
 }
 
 }

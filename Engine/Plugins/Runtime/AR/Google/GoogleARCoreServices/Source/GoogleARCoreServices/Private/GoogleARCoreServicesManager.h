@@ -32,7 +32,7 @@ private:
 	EARPinCloudTaskResult CheckCloudTaskError();
 
 	void OnARSessionStarted();
-	void OnWorldTickStart(ELevelTick TickType, float DeltaTime);
+	void OnWorldTickStart(UWorld* World, ELevelTick TickType, float DeltaTime);
 
 	bool bHasValidARSystem;
 	bool bCloudARPinEnabled;

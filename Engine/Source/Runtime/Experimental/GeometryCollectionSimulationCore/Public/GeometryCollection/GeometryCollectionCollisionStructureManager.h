@@ -2,8 +2,6 @@
 
 #pragma once
 
-#if INCLUDE_CHAOS
-
 #include "CoreMinimal.h"
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionSimulationCoreTypes.h"
@@ -86,5 +84,3 @@ public:
 
 	static void UpdateImplicitFlags(FImplicit* Implicit, ECollisionTypeEnum CollisionType);
 };
-
-#endif

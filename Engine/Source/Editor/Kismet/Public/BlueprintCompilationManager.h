@@ -55,6 +55,11 @@ struct KISMET_API FBlueprintCompilationManager
 	 * if there are several blueprints that require compilation (e.g. typical case on PIE):
 	 */
 	static void CompileSynchronously(const FBPCompileRequest& Request);
+
+	/** 
+	 * Write c++ represenetation of the blueprint to OutHeaderSource and OutCppSource
+	 */
+	static void CompileSynchronouslyToCpp(UBlueprint* BP, TSharedPtr<FString> OutHeaderSource, TSharedPtr<FString> OutCppSource, const FCompilerNativizationOptions& NativizationOptions);
 	
 	/**
 	 * Adds a newly loaded blueprint to the compilation queue

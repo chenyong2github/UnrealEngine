@@ -30,6 +30,7 @@
 #include "SceneInterface.h"
 #include "Engine/NetDriver.h"
 #include "Engine/PackageMapClient.h"
+#include "Serialization/LoadTimeTrace.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogLevelStreaming, Log, All);
 
@@ -892,6 +893,8 @@ bool ULevelStreaming::RequestLevel(UWorld* PersistentWorld, bool bAllowLevelLoad
 		return false;
 	}
 
+	TRACE_LOADTIME_REQUEST_GROUP_SCOPE(TEXT("LevelStreaming - %s"), *GetPathName());
+
 	EPackageFlags PackageFlags = PKG_ContainsMap;
 	int32 PIEInstanceID = INDEX_NONE;
 
@@ -1418,8 +1421,9 @@ FName ULevelStreaming::GetLoadedLevelPackageName() const
 
 void ULevelStreaming::SetWorldAssetByPackageName(FName InPackageName)
 {
+	// Need to strip PIE prefix from object name, only the package has it
 	const FString TargetWorldPackageName = InPackageName.ToString();
-	const FString TargetWorldObjectName = FPackageName::GetLongPackageAssetName(TargetWorldPackageName);
+	const FString TargetWorldObjectName = UWorld::RemovePIEPrefix(FPackageName::GetLongPackageAssetName(TargetWorldPackageName));
 	TSoftObjectPtr<UWorld> NewWorld;
 	NewWorld = FString::Printf(TEXT("%s.%s"), *TargetWorldPackageName, *TargetWorldObjectName);
 	SetWorldAsset(NewWorld);

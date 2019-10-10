@@ -221,7 +221,11 @@ void FPakPlatformFile::GetFilenamesInPakFile(const FString& InPakFilename, TArra
 	}
 }
 
-#define USE_PAK_PRECACHE (!IS_PROGRAM && !WITH_EDITOR) // you can turn this off to use the async IO stuff without the precache
+#if !defined(PLATFORM_BYPASS_PAK_PRECACHE)
+	#error "PLATFORM_BYPASS_PAK_PRECACHE must be defined."
+#endif
+
+#define USE_PAK_PRECACHE (!PLATFORM_BYPASS_PAK_PRECACHE && !IS_PROGRAM && !WITH_EDITOR) // you can turn this off to use the async IO stuff without the precache
 
 /**
 * Precaching
@@ -341,6 +345,23 @@ static FAutoConsoleVariableRef CVar_ForceDecompressionFails(
 	TEXT("If > 0, then force decompression failures to test the panic sync read fallback.")
 );
 #endif
+
+class FPakSizeRequest : public IAsyncReadRequest
+{
+public:
+	FPakSizeRequest(FAsyncFileCallBack* CompleteCallback, int64 InFileSize)
+		: IAsyncReadRequest(CompleteCallback, true, nullptr)
+	{
+		Size = InFileSize;
+		SetComplete();
+	}
+	virtual void WaitCompletionImpl(float TimeLimitSeconds) override
+	{
+	}
+	virtual void CancelImpl()
+	{
+	}
+};
 
 #if USE_PAK_PRECACHE
 #include "Async/TaskGraphInterfaces.h"
@@ -3165,23 +3186,6 @@ public:
 	}
 };
 
-class FPakSizeRequest : public IAsyncReadRequest
-{
-public:
-	FPakSizeRequest(FAsyncFileCallBack* CompleteCallback, int64 InFileSize)
-		: IAsyncReadRequest(CompleteCallback, true, nullptr)
-	{
-		Size = InFileSize;
-		SetComplete();
-	}
-	virtual void WaitCompletionImpl(float TimeLimitSeconds) override
-	{
-	}
-	virtual void CancelImpl()
-	{
-	}
-};
-
 class FPakProcessedReadRequest : public IAsyncReadRequest
 {
 	FPakAsyncReadFileHandle* Owner;
@@ -4065,6 +4069,65 @@ void FPakPlatformFile::TrackPak(const TCHAR* Filename, const FPakEntry* PakEntry
 }
 #endif
 
+class FBypassPakAsyncReadFileHandle final : public IAsyncReadFileHandle
+{
+	FName PakFile;
+	int64 PakFileSize;
+	int64 OffsetInPak;
+	int64 UncompressedFileSize;
+	FPakEntry FileEntry;
+	IAsyncReadFileHandle* LowerHandle;
+
+public:
+	FBypassPakAsyncReadFileHandle(const FPakEntry* InFileEntry, FPakFile* InPakFile, const TCHAR* Filename)
+		: PakFile(InPakFile->GetFilenameName())
+		, PakFileSize(InPakFile->TotalSize())
+		, FileEntry(*InFileEntry)
+	{
+		OffsetInPak = FileEntry.Offset + FileEntry.GetSerializedSize(InPakFile->GetInfo().Version);
+		UncompressedFileSize = FileEntry.UncompressedSize;
+		int64 CompressedFileSize = FileEntry.UncompressedSize;
+		check(FileEntry.CompressionMethodIndex == 0);
+		UE_LOG(LogPakFile, Verbose, TEXT("FPakPlatformFile::OpenAsyncRead (FBypassPakAsyncReadFileHandle)[%016llX, %016llX) %s"), OffsetInPak, OffsetInPak + CompressedFileSize, Filename);
+		check(PakFileSize > 0 && OffsetInPak + CompressedFileSize <= PakFileSize && OffsetInPak >= 0);
+
+		LowerHandle = IPlatformFile::GetPlatformPhysical().OpenAsyncRead(*InPakFile->GetFilename());
+	}
+	~FBypassPakAsyncReadFileHandle()
+	{
+		delete LowerHandle;
+	}
+
+	virtual IAsyncReadRequest* SizeRequest(FAsyncFileCallBack* CompleteCallback = nullptr) override
+	{
+		if (!LowerHandle)
+		{
+			return nullptr;
+		}
+		return new FPakSizeRequest(CompleteCallback, UncompressedFileSize);
+	}
+	virtual IAsyncReadRequest* ReadRequest(int64 Offset, int64 BytesToRead, EAsyncIOPriorityAndFlags PriorityAndFlags = AIOP_Normal, FAsyncFileCallBack* CompleteCallback = nullptr, uint8* UserSuppliedMemory = nullptr) override
+	{
+		if (!LowerHandle)
+		{
+			return nullptr;
+		}
+		if (BytesToRead == MAX_int64)
+		{
+			BytesToRead = UncompressedFileSize - Offset;
+		}
+		check(Offset + BytesToRead <= UncompressedFileSize && Offset >= 0);
+		check(FileEntry.CompressionMethodIndex == 0);
+		check(Offset + BytesToRead + OffsetInPak <= PakFileSize);
+
+		return LowerHandle->ReadRequest(Offset + OffsetInPak, BytesToRead, PriorityAndFlags, CompleteCallback, UserSuppliedMemory);
+	}
+	virtual bool UsesCache() override
+	{
+		return LowerHandle->UsesCache();
+	}
+};
+
 IAsyncReadFileHandle* FPakPlatformFile::OpenAsyncRead(const TCHAR* Filename)
 {
 	CSV_SCOPED_TIMING_STAT(FileIO, PakOpenAsyncRead);
@@ -4084,8 +4147,21 @@ IAsyncReadFileHandle* FPakPlatformFile::OpenAsyncRead(const TCHAR* Filename)
 			return new FPakAsyncReadFileHandle(&FileEntry, PakFile, Filename);
 		}
 	}
+#elif PLATFORM_BYPASS_PAK_PRECACHE
+	{
+		FPakEntry FileEntry;
+		FPakFile* PakFile = NULL;
+		bool bFoundEntry = FindFileInPakFiles(Filename, &PakFile, &FileEntry);
+		if (bFoundEntry && PakFile && PakFile->GetFilenameName() != NAME_None && FileEntry.CompressionMethodIndex == 0 && !FileEntry.IsEncrypted())
+		{
+#if PAK_TRACKER
+			TrackPak(Filename, &FileEntry);
 #endif
-	return IPlatformFile::OpenAsyncRead(Filename);
+			return new FBypassPakAsyncReadFileHandle(&FileEntry, PakFile, Filename);
+		}
+	}
+#endif
+	return LowerLevel->OpenAsyncRead(Filename);
 }
 
 void FPakPlatformFile::SetAsyncMinimumPriority(EAsyncIOPriorityAndFlags Priority)
@@ -4095,6 +4171,8 @@ void FPakPlatformFile::SetAsyncMinimumPriority(EAsyncIOPriorityAndFlags Priority
 	{
 		FPakPrecacher::Get().SetAsyncMinimumPriority(Priority);
 	}
+#elif PLATFORM_BYPASS_PAK_PRECACHE
+	IPlatformFile::GetPlatformPhysical().SetAsyncMinimumPriority(Priority);
 #endif
 }
 
@@ -5880,11 +5958,14 @@ void FPakPlatformFile::FindPakFilesInDirectory(IPlatformFile* LowLevelFile, cons
 		TArray<FString>& FoundPakFiles;
 		IPlatformChunkInstall* ChunkInstall = nullptr;
 		FString WildCard;
+		bool bSkipOptionalPakFiles;
+
 	public:
-		FPakSearchVisitor(TArray<FString>& InFoundPakFiles, const FString& InWildCard, IPlatformChunkInstall* InChunkInstall)
+		FPakSearchVisitor(TArray<FString>& InFoundPakFiles, const FString& InWildCard, IPlatformChunkInstall* InChunkInstall, bool bInSkipOptionalPakFiles)
 			: FoundPakFiles(InFoundPakFiles)
 			, ChunkInstall(InChunkInstall)
 			, WildCard(InWildCard)
+			, bSkipOptionalPakFiles(bInSkipOptionalPakFiles)
 		{}
 		virtual bool Visit(const TCHAR* FilenameOrDirectory, bool bIsDirectory)
 		{
@@ -5905,14 +5986,23 @@ void FPakPlatformFile::FindPakFilesInDirectory(IPlatformFile* LowLevelFile, cons
 							}
 						}
 					}
-					FoundPakFiles.Add(Filename);
+
+#if !UE_BUILD_SHIPPING
+					if (bSkipOptionalPakFiles == false || Filename.Find("optional") == INDEX_NONE)
+#endif
+					{
+						FoundPakFiles.Add(Filename);
+					}
 				}
 			}
 			return true;
 		}
 	};
+
+	bool bSkipOptionalPakFiles = FParse::Param(FCommandLine::Get(), TEXT("SkipOptionalPakFiles"));
+
 	// Find all pak files.
-	FPakSearchVisitor Visitor(OutPakFiles, WildCard, FPlatformMisc::GetPlatformChunkInstall());
+	FPakSearchVisitor Visitor(OutPakFiles, WildCard, FPlatformMisc::GetPlatformChunkInstall(), bSkipOptionalPakFiles);
 	LowLevelFile->IterateDirectoryRecursively(Directory, Visitor);
 }
 

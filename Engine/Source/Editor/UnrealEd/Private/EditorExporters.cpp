@@ -59,7 +59,7 @@
 #include "Editor.h"
 #include "MatineeExporter.h"
 #include "FbxExporter.h"
-#include "MeshDescription.h"
+#include "StaticMeshAttributes.h"
 #include "MeshDescriptionOperations.h"
 #include "MaterialUtilities.h"
 #include "InstancedFoliageActor.h"

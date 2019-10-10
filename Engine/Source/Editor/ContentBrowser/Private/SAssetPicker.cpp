@@ -98,12 +98,9 @@ void SAssetPicker::Construct( const FArguments& InArgs )
 	{
 		HighlightText = TAttribute< FText >( this, &SAssetPicker::GetHighlightedText );
 
-		OtherDevelopersFilter = MakeShareable( new FFrontendFilter_ShowOtherDevelopers(nullptr) );
-		FrontendFilters->Add( OtherDevelopersFilter );
-
 		TSharedRef<SHorizontalBox> HorizontalBox = SNew(SHorizontalBox);
 
-		if(InArgs._AssetPickerConfig.bAddFilterUI)
+		if (InArgs._AssetPickerConfig.bAddFilterUI)
 		{
 			// Filter
 			HorizontalBox->AddSlot()
@@ -137,17 +134,18 @@ void SAssetPicker::Construct( const FArguments& InArgs )
 			.OnKeyDownHandler( this, &SAssetPicker::HandleKeyDownFromSearchBox )
 		];
 
+		// The 'Other Developers' filter is always on by design.
 		HorizontalBox->AddSlot()
 		.AutoWidth()
 		[
-			SNew( SCheckBox )
-			.Style( FEditorStyle::Get(), "ToggleButtonCheckbox" )
-			.ToolTipText( this, &SAssetPicker::GetShowOtherDevelopersToolTip )
-			.OnCheckStateChanged( this, &SAssetPicker::HandleShowOtherDevelopersCheckStateChanged )
-			.IsChecked( this, &SAssetPicker::GetShowOtherDevelopersCheckState )
+			SNew(SCheckBox)
+			.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+			.ToolTipText(this, &SAssetPicker::GetShowOtherDevelopersToolTip)
+			.OnCheckStateChanged(this, &SAssetPicker::HandleShowOtherDevelopersCheckStateChanged)
+			.IsChecked(this, &SAssetPicker::GetShowOtherDevelopersCheckState)
 			[
-				SNew( SImage )
-				.Image( FEditorStyle::GetBrush("ContentBrowser.ColumnViewDeveloperFolderIcon") )
+				SNew(SImage)
+				.Image(FEditorStyle::GetBrush("ContentBrowser.ColumnViewDeveloperFolderIcon"))
 			]
 		];
 
@@ -198,7 +196,7 @@ void SAssetPicker::Construct( const FArguments& InArgs )
 	CurrentBackendFilter = InArgs._AssetPickerConfig.Filter;
 	CurrentBackendFilter.PackagePaths.Reset();
 
-	if(InArgs._AssetPickerConfig.bAddFilterUI)
+	if (InArgs._AssetPickerConfig.bAddFilterUI)
 	{
 		// Filters
 		TArray<UClass*> FilterClassList;
@@ -221,6 +219,15 @@ void SAssetPicker::Construct( const FArguments& InArgs )
 			.InitialClassFilters(FilterClassList)
 			.ExtraFrontendFilters(InArgs._AssetPickerConfig.ExtraFrontendFilters)
 		];
+
+		// Use the 'other developer' filter from the filter list widget. 
+		OtherDevelopersFilter = StaticCastSharedPtr<FFrontendFilter_ShowOtherDevelopers>(FilterListPtr->GetFrontendFilter(TEXT("ShowOtherDevelopers")));
+	}
+	else
+	{
+		// Filter UI is off, but the 'other developer' filter is a built-in feature.
+		OtherDevelopersFilter = MakeShared<FFrontendFilter_ShowOtherDevelopers>(nullptr);
+		FrontendFilters->Add(OtherDevelopersFilter);
 	}
 
 	// Make game-specific filter
@@ -292,7 +299,6 @@ void SAssetPicker::Construct( const FArguments& InArgs )
 		.FilterRecursivelyWithBackendFilter( false )
 		.CanShowRealTimeThumbnails( InArgs._AssetPickerConfig.bCanShowRealTimeThumbnails )
 		.CanShowDevelopersFolder( InArgs._AssetPickerConfig.bCanShowDevelopersFolder )
-		.CanShowCollections( false )
 		.PreloadAssetsForContextMenu( InArgs._AssetPickerConfig.bPreloadAssetsForContextMenu )
 		.HighlightedText( HighlightText )
 		.ThumbnailLabel( ThumbnailLabel )
@@ -536,24 +542,40 @@ void SAssetPicker::RefreshAssetView(bool bRefreshSources)
 
 FText SAssetPicker::GetShowOtherDevelopersToolTip() const
 {
-	if (OtherDevelopersFilter->GetShowOtherDeveloperAssets())
+	// NOTE: This documents the filter effect rather than the button action.
+	if (FilterListPtr ? FilterListPtr->IsFrontendFilterActive(OtherDevelopersFilter) : OtherDevelopersFilter->GetShowOtherDeveloperAssets())
 	{
-		return LOCTEXT( "ShowOtherDevelopersFilterTooltipText", "Show Other Developers Assets");
+		return LOCTEXT("ShowingOtherDevelopersFilterTooltipText", "Showing Other Developers Assets");
 	}
 	else
 	{
-		return LOCTEXT( "HideOtherDevelopersFilterTooltipText", "Hide Other Developers Assets");
+		return LOCTEXT("HidingOtherDevelopersFilterTooltipText", "Hiding Other Developers Assets");
 	}
 }
 
 void SAssetPicker::HandleShowOtherDevelopersCheckStateChanged( ECheckBoxState InCheckboxState )
 {
-	OtherDevelopersFilter->SetShowOtherDeveloperAssets( InCheckboxState == ECheckBoxState::Checked );
+	if (FilterListPtr) // Filter UI enabled?
+	{
+		// Pin+activate or unpin+deactivate the filter. A widget is pinned on the filter UI. It allows the user to activate/deactive the filter independently of the 'checked' state.
+		FilterListPtr->SetFrontendFilterCheckState(OtherDevelopersFilter, InCheckboxState);
+	}
+	else
+	{
+		OtherDevelopersFilter->SetShowOtherDeveloperAssets(InCheckboxState == ECheckBoxState::Checked); // The checked state matches the active state.
+	}
 }
 
 ECheckBoxState SAssetPicker::GetShowOtherDevelopersCheckState() const
 {
-	return OtherDevelopersFilter->GetShowOtherDeveloperAssets() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	if (FilterListPtr) // Filter UI enabled?
+	{
+		return FilterListPtr->GetFrontendFilterCheckState(OtherDevelopersFilter); // Tells whether the 'other developer' filter is pinned on the filter UI. (The filter itself may be active or not).
+	}
+	else
+	{
+		return OtherDevelopersFilter->GetShowOtherDeveloperAssets() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; // The checked state matches the active state.
+	}
 }
 
 void SAssetPicker::OnRenameRequested() const

@@ -11,6 +11,8 @@ class IConcertClientPackageBridge;
 class IConcertClientTransactionBridge;
 class UConcertClientConfig;
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnConcertClientCreated, TSharedRef<IConcertSyncClient>);
+
 /**
  * Interface for the Concert Sync Client module.
  */
@@ -63,4 +65,14 @@ public:
 	 * Get the bridge between the editor transaction system and Concert.
 	 */
 	virtual IConcertClientTransactionBridge& GetTransactionBridge() = 0;
+
+	/**
+	 * Returns the list of active clients.
+	 */
+	virtual TArray<TSharedRef<IConcertSyncClient>> GetClients() const = 0;
+
+	/**
+	 * Delegate invoked when a new concert sync client is created.
+	 */
+	virtual FOnConcertClientCreated& OnClientCreated() = 0;
 };

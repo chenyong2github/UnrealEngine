@@ -1459,10 +1459,12 @@ void FSceneViewState::SetupLightPropagationVolume(FSceneView& View, FSceneViewFa
 
 	const ERHIFeatureLevel::Type ViewFeatureLevel = View.GetFeatureLevel();
 
+	//#todo-rv-vr
 	if (IStereoRendering::IsASecondaryView(View, GEngine->StereoRenderingDevice))
 	{
 		// The right eye will reference the left eye's LPV with the assumption that the left eye uses the primary view (index 0)
 		const FSceneView* PrimaryView = ViewFamily.Views[0];
+		//#todo-rv-vr
 		if (PrimaryView->StereoPass == eSSP_LEFT_EYE && PrimaryView->State)
 		{
 			FSceneViewState* PrimaryViewState = PrimaryView->State->GetConcreteViewState();

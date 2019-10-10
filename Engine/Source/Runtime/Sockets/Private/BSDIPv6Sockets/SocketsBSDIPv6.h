@@ -125,6 +125,8 @@ public:
 
 	virtual bool SetBroadcast(bool bAllowBroadcast = true) override;
 
+	virtual bool SetNoDelay(bool bIsNoDelay = true) override;
+
 	virtual bool JoinMulticastGroup(const FInternetAddr& GroupAddress) override;
 
 	virtual bool LeaveMulticastGroup(const FInternetAddr& GroupAddress) override;

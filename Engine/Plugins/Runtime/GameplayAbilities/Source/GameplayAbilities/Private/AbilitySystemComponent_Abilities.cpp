@@ -963,7 +963,7 @@ void UAbilitySystemComponent::OnRep_ActivateAbilities()
 
 	// Try to run any pending activations that couldn't run before. If they don't work now, kill them
 
-	for (auto PendingAbilityInfo : PendingServerActivatedAbilities)
+	for (const FPendingAbilityInfo& PendingAbilityInfo : PendingServerActivatedAbilities)
 	{
 		if (PendingAbilityInfo.bPartiallyActivated)
 		{
@@ -1827,47 +1827,9 @@ bool UAbilitySystemComponent::TriggerAbilityFromGameplayEvent(FGameplayAbilitySp
 	// Run on the non-instanced ability
 	if (Ability->ShouldAbilityRespondToEvent(ActorInfo, &TempEventData))
 	{
-		int32 ExecutingAbilityIndex = -1;
-
-		// if we're the server and this is coming from a predicted event we should check if the client has already predicted it
-		if (ScopedPredictionKey.IsValidKey()
-			&& Ability->GetNetExecutionPolicy() == EGameplayAbilityNetExecutionPolicy::LocalPredicted
-			&& ActorInfo->OwnerActor->GetLocalRole() == ROLE_Authority)
-		{
-			bool bPendingClientAbilityFound = false;
-			for (auto PendingAbilityInfo : Component.PendingClientActivatedAbilities)
-			{
-				if (ScopedPredictionKey.Current == PendingAbilityInfo.PredictionKey.Base && Handle == PendingAbilityInfo.Handle) // found a match
-				{
-					Component.PendingClientActivatedAbilities.RemoveSingleSwap(PendingAbilityInfo);
-					bPendingClientAbilityFound = true;
-					break;
-				}
-			}
-
-			// we haven't received the client's copy of the triggered ability
-			// keep track of this so we can associate the prediction keys when it comes in
-			if (bPendingClientAbilityFound == false)
-			{
-				UAbilitySystemComponent::FExecutingAbilityInfo Info;
-				Info.PredictionKey = ScopedPredictionKey;
-				Info.Handle = Handle;
-
-				ExecutingAbilityIndex = Component.ExecutingServerAbilities.Add(Info);
-			}
-		}
-
 		if (InternalTryActivateAbility(Handle, ScopedPredictionKey, nullptr, nullptr, &TempEventData))
 		{
-			if (ExecutingAbilityIndex >= 0)
-			{
-				Component.ExecutingServerAbilities[ExecutingAbilityIndex].State = UAbilitySystemComponent::EAbilityExecutionState::Succeeded;
-			}
 			return true;
-		}
-		else if (ExecutingAbilityIndex >= 0)
-		{
-			Component.ExecutingServerAbilities[ExecutingAbilityIndex].State = UAbilitySystemComponent::EAbilityExecutionState::Failed;
 		}
 	}
 	return false;

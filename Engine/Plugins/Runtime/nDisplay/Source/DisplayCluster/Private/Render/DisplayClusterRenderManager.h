@@ -68,6 +68,8 @@ public:
 
 	// Viewports
 	virtual bool GetViewportRect(const FString& InViewportID, FIntRect& Rect) override;
+	virtual bool SetBufferRatio(const FString& InViewportID, float InBufferRatio) override;
+	virtual bool GetBufferRatio(const FString& InViewportID, float &OutBufferRatio) const override;
 
 	// Camera API
 	virtual float GetInterpupillaryDistance(const FString& CameraId) const override;

@@ -714,6 +714,9 @@ void FMaterialEditor::InitMaterialEditor( const EToolkitMode::Type Mode, const T
 	RegenerateCodeView(true);
 
 	ForceRefreshExpressionPreviews();
+	
+	// Update the parameter list now that the material has been fully initialized
+	MaterialParametersOverviewWidget->UpdateEditorInstance(MaterialEditorInstance);
 
 	if (OriginalMaterial->bUsedAsSpecialEngineMaterial)
 	{
@@ -964,7 +967,7 @@ void FMaterialEditor::CreateInternalWidgets()
 	MaterialParametersOverviewWidget = SNew(SMaterialParametersOverviewPanel)
 		.InMaterialEditorInstance(MaterialEditorInstance);
 	MaterialParametersOverviewWidget->GetGenerator()->OnFinishedChangingProperties().AddSP(this, &FMaterialEditor::OnFinishedChangingParametersFromOverview);
-	
+
 	IMaterialEditorModule* MaterialEditorModule = &FModuleManager::LoadModuleChecked<IMaterialEditorModule>("MaterialEditor");
 	if (MaterialEditorModule->MaterialLayersEnabled())
 	{
@@ -3873,7 +3876,6 @@ UMaterialExpression* FMaterialEditor::CreateNewMaterialExpression(UClass* NewExp
 	RefreshExpressionPreviews();
 	GraphEditor->NotifyGraphChanged();
 	SetMaterialDirty();
-	MaterialParametersOverviewWidget->UpdateEditorInstance(MaterialEditorInstance);
 	return NewExpression;
 }
 
@@ -4332,7 +4334,7 @@ void FMaterialEditor::UpdateMaterialAfterGraphChange()
 	RegenerateCodeView();
 	RefreshExpressionPreviews();
 	SetMaterialDirty();
-	
+	MaterialParametersOverviewWidget->UpdateEditorInstance(MaterialEditorInstance);
 	if (bHideUnrelatedNodes && !bLockNodeFadeState && bSelectRegularNode)
 	{
 		GraphEditor->ResetAllNodesUnrelatedStates();
@@ -5283,16 +5285,17 @@ bool FMaterialEditor::OnVerifyNodeTextCommit(const FText& NewText, UEdGraphNode*
 FReply FMaterialEditor::OnSpawnGraphNodeByShortcut(FInputChord InChord, const FVector2D& InPosition, UEdGraph* InGraph)
 {
 	UEdGraph* Graph = InGraph;
-
-	TSharedPtr< FEdGraphSchemaAction > Action = FMaterialEditorSpawnNodeCommands::Get().GetGraphActionByChord(InChord, InGraph);
-
-	if(Action.IsValid())
+	if (FMaterialEditorSpawnNodeCommands::IsRegistered())
 	{
-		TArray<UEdGraphPin*> DummyPins;
-		Action->PerformAction(Graph, DummyPins, InPosition);
-		return FReply::Handled();
-	}
+		TSharedPtr< FEdGraphSchemaAction > Action = FMaterialEditorSpawnNodeCommands::Get().GetGraphActionByChord(InChord, InGraph);
 
+		if (Action.IsValid())
+		{
+			TArray<UEdGraphPin*> DummyPins;
+			Action->PerformAction(Graph, DummyPins, InPosition);
+			return FReply::Handled();
+		}
+	}
 	return FReply::Unhandled();
 }
 

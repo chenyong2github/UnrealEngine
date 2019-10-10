@@ -178,12 +178,10 @@ protected:
 	};
 	FThreadSafeCounter TaskState;
 
-#if INCLUDE_CHAOS
 	// The raw data arrays derived from the solvers
 	Chaos::FCollisionDataArray RawCollisionDataArray;
 	Chaos::FBreakingDataArray RawBreakingDataArray;
 	Chaos::FTrailingDataArray RawTrailingDataArray;
-#endif
 
 	FTransform ChaosComponentTransform;
 
@@ -193,7 +191,6 @@ protected:
 	float LastBreakingDataTimeStamp;
 	float LastTrailingDataTimeStamp;
 
-#if INCLUDE_CHAOS
 	// The list of rigid body solvers, used to retrieve destruction events
 	TSet<Chaos::FPhysicsSolver*> Solvers;
 
@@ -231,5 +228,4 @@ public:
 	void HandleCollisionEvents(const Chaos::FCollisionEventData& CollisionData);
 	void HandleBreakingEvents(const Chaos::FBreakingEventData& BreakingData);
 	void HandleTrailingEvents(const Chaos::FTrailingEventData& TrailingData);
-#endif // INCLUDE_CHAOS
 };

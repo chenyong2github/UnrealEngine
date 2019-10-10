@@ -3229,6 +3229,10 @@ void FOpenGLDynamicRHI::RHIDispatchComputeShader(uint32 ThreadGroupCountX, uint3
 
 		FOpenGLComputeShader* ComputeShader = ResourceCast(ComputeShaderRHI);
 
+		if (ComputeShader->LinkedProgram == nullptr)
+		{
+			ComputeShader->LinkedProgram = GetLinkedComputeProgram(ComputeShaderRHI);
+		}
 		FOpenGLContextState& ContextState = GetContextStateForCurrentContext();
 
 		GPUProfilingData.RegisterGPUDispatch(FIntVector(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ));	
@@ -3259,6 +3263,11 @@ void FOpenGLDynamicRHI::RHIDispatchIndirectComputeShader(FRHIVertexBuffer* Argum
 		check(ComputeShaderRHI);
 
 		FOpenGLComputeShader* ComputeShader = ResourceCast(ComputeShaderRHI);
+		if (ComputeShader->LinkedProgram == nullptr)
+		{
+			ComputeShader->LinkedProgram = GetLinkedComputeProgram(ComputeShaderRHI);
+		}
+
 		FOpenGLVertexBuffer* ArgumentBuffer = ResourceCast(ArgumentBufferRHI);
 
 		FOpenGLContextState& ContextState = GetContextStateForCurrentContext();

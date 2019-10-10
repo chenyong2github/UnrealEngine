@@ -97,7 +97,7 @@ void FNiagaraMetaDataCustomNodeBuilder::GenerateChildContent(IDetailChildrenBuil
 		const FNiagaraParameterHandle& ParameterHandle = MetaDataRowDataItem.Get<1>();
 		TSharedRef<FStructOnScope>& MetaDataContainerStruct = MetaDataRowDataItem.Get<2>();
 		
-		IDetailPropertyRow* MetaDataRow = ChildrenBuilder.AddExternalStructureProperty(MetaDataContainerStruct, GET_MEMBER_NAME_CHECKED(FNiagaraVariableMetaDataContainer, MetaData), ParameterVariable.GetName());
+		IDetailPropertyRow* MetaDataRow = ChildrenBuilder.AddExternalStructureProperty(MetaDataContainerStruct, GET_MEMBER_NAME_CHECKED(FNiagaraVariableMetaDataContainer, MetaData), FAddPropertyParams().UniqueId(ParameterVariable.GetName()));
 		MetaDataRow->DisplayName(FText::FromName(ParameterHandle.GetName()));
 		if (MetaDataRow->GetPropertyHandle().IsValid())
 		{

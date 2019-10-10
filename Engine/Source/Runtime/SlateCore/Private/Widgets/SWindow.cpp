@@ -387,12 +387,11 @@ void SWindow::Construct(const FArguments& InArgs)
 		DeltaSize = WindowSize - InArgs._ClientSize;
 	}
 
-// HoloLens needs similar treatment to HTML5 here.  Also note comments in FDisplayMetrics::GetDisplayMetrics for HoloLens.
-#if PLATFORM_HTML5 || PLATFORM_HOLOLENS
-	// UE expects mouse coordinates in screen space. SDL/HTML5 canvas provides in client space. 
-	// Anchor the window at the top/left corner to make sure client space coordinates and screen space coordinates match up. 
-	WindowPosition.X =  WindowPosition.Y = 0; 
-#endif 
+	if (FPlatformApplicationMisc::AnchorWindowWindowPositionTopLeft())
+	{
+		WindowPosition.X = WindowPosition.Y = 0;
+	}
+
 	this->InitialDesiredScreenPosition = WindowPosition;
 	this->InitialDesiredSize = WindowSize;
 
@@ -1989,7 +1988,7 @@ SWindow::SWindow()
 	SetInvalidationRootHittestGrid(*HittestGrid);
 
 #if WITH_ACCESSIBILITY
-	AccessibleData = FAccessibleWidgetData(EAccessibleBehavior::Auto);
+	AccessibleBehavior = EAccessibleBehavior::Auto;
 #endif
 }
 
@@ -2250,9 +2249,8 @@ TSharedRef<FSlateAccessibleWidget> SWindow::CreateAccessibleWidget()
 	return MakeShareable<FSlateAccessibleWidget>(new FSlateAccessibleWindow(SharedThis(this)));
 }
 
-void SWindow::SetDefaultAccessibleText(EAccessibleType AccessibleType)
+TOptional<FText> SWindow::GetDefaultAccessibleText(EAccessibleType AccessibleType) const
 {
-	TAttribute<FText>& Text = (AccessibleType == EAccessibleType::Main) ? AccessibleData.AccessibleText : AccessibleData.AccessibleSummaryText;
-	Text.Bind(this, &SWindow::GetTitle);
+	return GetTitle();
 }
 #endif

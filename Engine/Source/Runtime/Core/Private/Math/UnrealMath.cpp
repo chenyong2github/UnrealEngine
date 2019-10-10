@@ -2295,7 +2295,7 @@ CORE_API FVector FMath::VInterpNormalRotationTo(const FVector& Current, const FV
 	return Target;
 }
 
-CORE_API FVector FMath::VInterpConstantTo(const FVector Current, const FVector& Target, float DeltaTime, float InterpSpeed)
+CORE_API FVector FMath::VInterpConstantTo(const FVector& Current, const FVector& Target, float DeltaTime, float InterpSpeed)
 {
 	const FVector Delta = Target - Current;
 	const float DeltaM = Delta.Size();

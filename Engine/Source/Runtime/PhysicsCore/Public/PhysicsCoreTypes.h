@@ -4,10 +4,6 @@
 
 #include "CoreMinimal.h"
 
-#if INCLUDE_CHAOS
-#include "Chaos/PBDRigidParticles.h"
-#endif
-
 #include "PhysicsCoreTypes.generated.h"
 
 UENUM()
@@ -38,6 +34,9 @@ enum class EChaosBufferMode : uint8
 	Invalid UMETA(Hidden)
 };
 
-#if INCLUDE_CHAOS
+namespace Chaos
+{
+	template<class T, int>
+	class TPBDRigidParticles;
+}
 typedef Chaos::TPBDRigidParticles<float, 3> FParticlesType;
-#endif

@@ -23,7 +23,7 @@ struct FPrimitiveViewRelevance
 	/** The primitive has one or more masked elements. */
 	uint32 bMaskedRelevance : 1;
 	/** The primitive has one or more translucent elements which output velocity. */
-	uint32 bOutputsTranslucentVelocityRelevance : 1;
+	uint32 bTranslucentVelocityRelevance : 1;
 	/** The primitive has one or more distortion elements. */
 	uint32 bDistortionRelevance : 1;
 	/** The primitive has one or more elements that have SeparateTranslucency. */
@@ -53,6 +53,8 @@ struct FPrimitiveViewRelevance
 	uint32 bVelocityRelevance : 1;
 	/** The primitive should render to the custom depth pass. */
 	uint32 bRenderCustomDepth : 1;
+	/** The primitive should render to the depth prepass even if it's not rendered in the main pass. */
+	uint32 bRenderInDepthPass : 1;
 	/** The primitive should render to the base pass / normal depth / velocity rendering. */
 	uint32 bRenderInMainPass : 1;
 	/** The primitive has materials using the volume domain. */
@@ -96,6 +98,11 @@ struct FPrimitiveViewRelevance
 	bool HasTranslucency() const 
 	{
 		return bSeparateTranslucencyRelevance || bNormalTranslucencyRelevance;
+	}
+
+	bool HasVelocity() const
+	{
+		return bVelocityRelevance || bTranslucentVelocityRelevance;
 	}
 
 	/** Default constructor */

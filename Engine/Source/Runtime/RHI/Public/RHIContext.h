@@ -292,6 +292,23 @@ public:
 		RHITransitionResources(TransitionType, TransitionPipeline, InUAVs, NumUAVs, nullptr);
 	}
 
+	/**
+	* Explicitly transition a depth/stencil texture from readable -> writable by the GPU or vice versa.
+	* This implementation provides compatibility with the old RHI behavior where the stencil mode is ignored and the whole depth/stencil resource is transitioned.
+	*
+	* RHIs should override this method to implement stencil-specific resource barriers.
+	*/
+	virtual void RHITransitionResources(FExclusiveDepthStencil DepthStencilMode, FRHITexture* DepthTexture)
+	{
+		if (DepthStencilMode.IsUsingDepthStencil())
+		{
+			RHITransitionResources(DepthStencilMode.IsAnyWrite()
+				? EResourceTransitionAccess::EWritable
+				: EResourceTransitionAccess::EReadable, 
+				&DepthTexture, 1);
+		}
+	}
+
 	virtual void RHIBeginRenderQuery(FRHIRenderQuery* RenderQuery) = 0;
 
 	virtual void RHIEndRenderQuery(FRHIRenderQuery* RenderQuery) = 0;

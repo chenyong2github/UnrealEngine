@@ -426,8 +426,8 @@ UNavigationSystemV1::UNavigationSystemV1(const FObjectInitializer& ObjectInitial
 #if WITH_EDITOR
 	if (GIsEditor && HasAnyFlags(RF_ClassDefaultObject) == false)
 	{
-		FEditorDelegates::EditorModeEnter.AddUObject(this, &UNavigationSystemV1::OnEditorModeChanged, true);
-		FEditorDelegates::EditorModeExit.AddUObject(this, &UNavigationSystemV1::OnEditorModeChanged, false);
+		FEditorDelegates::EditorModeIDEnter.AddUObject(this, &UNavigationSystemV1::OnEditorModeIDChanged, true);
+		FEditorDelegates::EditorModeIDExit.AddUObject(this, &UNavigationSystemV1::OnEditorModeIDChanged, false);
 	}
 #endif // WITH_EDITOR
 }
@@ -440,8 +440,8 @@ UNavigationSystemV1::~UNavigationSystemV1()
 #if WITH_EDITOR
 	if (GIsEditor)
 	{
-		FEditorDelegates::EditorModeEnter.RemoveAll(this);
-		FEditorDelegates::EditorModeExit.RemoveAll(this);
+		FEditorDelegates::EditorModeIDEnter.RemoveAll(this);
+		FEditorDelegates::EditorModeIDExit.RemoveAll(this);
 	}
 #endif // WITH_EDITOR
 
@@ -2781,6 +2781,25 @@ void UNavigationSystemV1::OnEditorModeChanged(FEdMode* Mode, bool IsEntering)
 		}
 	}
 }
+
+void UNavigationSystemV1::OnEditorModeIDChanged(const FEditorModeID& ModeID, bool IsEntering)
+{
+	if (IsEntering == false && ModeID == FBuiltinEditorModes::EM_Geometry)
+	{
+		// check if any of modified brushes belongs to an ANavMeshBoundsVolume
+		FEdMode* Mode = GLevelEditorModeTools().GetActiveMode(ModeID);
+		FEdModeGeometry* GeometryMode = (FEdModeGeometry*)Mode;
+		for (auto GeomObjectIt = GeometryMode->GeomObjectItor(); GeomObjectIt; GeomObjectIt++)
+		{
+			ANavMeshBoundsVolume* Volume = Cast<ANavMeshBoundsVolume>((*GeomObjectIt)->GetActualBrush());
+			if (Volume)
+			{
+				OnNavigationBoundsUpdated(Volume);
+			}
+		}
+	}
+}
+
 #endif
 
 void UNavigationSystemV1::OnNavigationBoundsUpdated(ANavMeshBoundsVolume* NavVolume)

@@ -52,7 +52,9 @@ bool FDisplayClusterProjectionMPCDIPolicy::HandleAddViewport(const FIntPoint& In
 	check(InViewsAmount > 0);
 
 	IMPCDI::ConfigParser CfgData;
-	{//Load config:
+	
+	{
+		// Load settings from config file
 		FDisplayClusterConfigProjection CfgProjection;
 		if (!DisplayClusterHelpers::config::GetViewportProjection(GetViewportId(), CfgProjection))
 		{
@@ -60,6 +62,7 @@ bool FDisplayClusterProjectionMPCDIPolicy::HandleAddViewport(const FIntPoint& In
 			return false;
 		}
 
+		// Pass config line to the MPCDI module
 		if (!MPCDIAPI.LoadConfig(CfgProjection.Params, CfgData))
 		{
 			UE_LOG(LogDisplayClusterProjectionMPCDI, Error, TEXT("Couldn't read MPCDI configuration from the config file"));

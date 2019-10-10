@@ -30,6 +30,8 @@ protected:
 
 	TSharedPtr<IHairStrandsTranslator> GetTranslator(const FString& Filename);
 
+	class UGroomImportOptions* ImportOptions;
+
 private:
 	TArray<TSharedPtr<IHairStrandsTranslator>> Translators;
 };

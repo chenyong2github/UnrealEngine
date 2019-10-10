@@ -609,9 +609,10 @@ void FWidgetBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 	UWidgetBlueprint* WidgetBP = WidgetBlueprint();
 	UWidgetBlueprintGeneratedClass* BPGClass = CastChecked<UWidgetBlueprintGeneratedClass>(Class);
 	UClass* ParentClass = WidgetBP->ParentClass;
+	const bool bIsSkeletonOnly = CompileOptions.CompileType == EKismetCompileType::SkeletonOnly;
 
 	// Don't do a bunch of extra work on the skeleton generated class.
-	if ( CompileOptions.CompileType != EKismetCompileType::SkeletonOnly )
+	if ( !bIsSkeletonOnly )
 	{
 		if( !WidgetBP->bHasBeenRegenerated )
 		{

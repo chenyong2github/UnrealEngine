@@ -19,13 +19,6 @@ public:
 	virtual FStructurePropertyNode* AsStructureNode() override { return this; }
 	virtual const FStructurePropertyNode* AsStructureNode() const override { return this; }
 
-	/** FPropertyNode Interface */
-	virtual uint8* GetValueBaseAddress(uint8* Base) override
-	{
-		ensure(true);
-		return HasValidStructData() ? StructData->GetStructMemory() : NULL;
-	}
-
 	void SetStructure(TSharedPtr<FStructOnScope> InStructData)
 	{
 		ClearCachedReadAddresses(true);
@@ -65,7 +58,7 @@ public:
 
 		uint8* ReadAddress = StructData->GetStructMemory();
 		check(ReadAddress);
-		OutAddresses.Add(NULL, InPropertyNode.GetValueBaseAddress(ReadAddress), true);
+		OutAddresses.Add(nullptr, InPropertyNode.GetValueBaseAddress(ReadAddress, InPropertyNode.HasNodeFlags(EPropertyNodeFlags::IsSparseClassData) != 0), true);
 		return true;
 	}
 
@@ -95,12 +88,30 @@ public:
 	/** FComplexPropertyNode Interface */
 	virtual const UStruct* GetBaseStructure() const override
 	{ 
-		return HasValidStructData() ? StructData->GetStruct() : NULL;
+		return HasValidStructData() ? StructData->GetStruct() : nullptr;
 	}
 	virtual UStruct* GetBaseStructure() override
 	{
-		const UStruct* Struct = HasValidStructData() ? StructData->GetStruct() : NULL;
+		const UStruct* Struct = HasValidStructData() ? StructData->GetStruct() : nullptr;
 		return const_cast<UStruct*>(Struct);
+	}
+	virtual TArray<UStruct*> GetAllStructures() override
+	{
+		TArray<UStruct*> RetVal;
+		if (UStruct* BaseStruct = GetBaseStructure())
+		{
+			RetVal.Add(BaseStruct);
+		}
+		return RetVal;
+	}
+	virtual TArray<const UStruct*> GetAllStructures() const override
+	{
+		TArray<const UStruct*> RetVal;
+		if (const UStruct* BaseStruct = GetBaseStructure())
+		{
+			RetVal.Add(BaseStruct);
+		}
+		return RetVal;
 	}
 	virtual int32 GetInstancesNum() const override
 	{ 
@@ -110,6 +121,13 @@ public:
 	{ 
 		check(0 == Index);
 		return HasValidStructData() ? StructData->GetStructMemory() : NULL;
+	}
+	virtual uint8* GetValuePtrOfInstance(int32 Index, const UProperty* InProperty, FPropertyNode* InParentNode) override
+	{ 
+		check(0 == Index);
+		uint8* StructBaseAddress = HasValidStructData() ? StructData->GetStructMemory() : nullptr;
+		uint8* ParentBaseAddress = InParentNode ? InParentNode->GetValueAddress(StructBaseAddress, false) : nullptr;
+		return InProperty ? InProperty->ContainerPtrToValuePtr<uint8>(ParentBaseAddress) : nullptr;
 	}
 	virtual TWeakObjectPtr<UObject> GetInstanceAsUObject(int32 Index) override
 	{
@@ -130,6 +148,12 @@ protected:
 
 	/** FPropertyNode interface */
 	virtual void InitChildNodes() override;
+
+	virtual uint8* GetValueBaseAddress(uint8* Base, bool bIsSparseData) override
+	{
+		check(bIsSparseData == false);
+		return HasValidStructData() ? StructData->GetStructMemory() : nullptr;
+	}
 
 	virtual bool GetQualifiedName(FString& PathPlusIndex, const bool bWithArrayIndex, const FPropertyNode* StopParent = nullptr, bool bIgnoreCategories = false) const override
 	{

@@ -9,14 +9,15 @@
 #include "Algo/Copy.h"
 #include "EditorStyleSet.h"
 
-constexpr float StackedHeight = 150.f;
-constexpr float StackedPadding = 10.f;
 
 void SCurveEditorViewStacked::Construct(const FArguments& InArgs, TWeakPtr<FCurveEditor> InCurveEditor)
 {
 	bFixedOutputBounds = true;
 	OutputMin = 0.0;
 	OutputMax = 1.0;
+
+	StackedHeight = 150.0f;
+	StackedPadding = 10.0f;
 
 	SInteractiveCurveEditorView::Construct(InArgs, InCurveEditor);
 }

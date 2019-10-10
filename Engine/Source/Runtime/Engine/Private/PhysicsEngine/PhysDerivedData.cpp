@@ -63,6 +63,8 @@ FString FDerivedDataPhysXCooker::GetDebugContextString() const
 
 bool FDerivedDataPhysXCooker::Build( TArray<uint8>& OutData )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDerivedDataPhysXCooker::Build);
+
 	SCOPE_CYCLE_COUNTER(STAT_PhysXCooking);
 
 	check(Cooker != NULL);

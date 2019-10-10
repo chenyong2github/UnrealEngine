@@ -74,11 +74,17 @@ struct INTERACTIVETOOLSFRAMEWORK_API FInputRayHit
 {
 	GENERATED_BODY()
 
-		/** true if ray hit something, false otherwise */
-		bool bHit;
+	/** true if ray hit something, false otherwise */
+	bool bHit;
 
 	/** distance along ray at which intersection occurred */
 	float HitDepth;
+
+	/** Normal at hit point, if available */
+	FVector HitNormal;
+
+	/** True if HitNormal was set */
+	bool bHasHitNormal;
 
 	/** client-defined integer identifier for hit object/element/target/etc */
 	int32 HitIdentifier;
@@ -90,6 +96,8 @@ struct INTERACTIVETOOLSFRAMEWORK_API FInputRayHit
 	{
 		bHit = false;
 		HitDepth = TNumericLimits<float>::Max();
+		HitNormal = FVector(0, 0, 1);
+		bHasHitNormal = false;
 		HitIdentifier = 0;
 		HitOwner = nullptr;
 	}
@@ -98,6 +106,18 @@ struct INTERACTIVETOOLSFRAMEWORK_API FInputRayHit
 	{
 		bHit = true;
 		HitDepth = HitDepthIn;
+		HitNormal = FVector(0, 0, 1);
+		bHasHitNormal = false;
+		HitIdentifier = 0;
+		HitOwner = nullptr;
+	}
+
+	explicit FInputRayHit(float HitDepthIn, const FVector& HitNormalIn)
+	{
+		bHit = true;
+		HitDepth = HitDepthIn;
+		HitNormal = HitNormalIn;
+		bHasHitNormal = true;
 		HitIdentifier = 0;
 		HitOwner = nullptr;
 	}

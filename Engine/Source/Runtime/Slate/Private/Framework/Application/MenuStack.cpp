@@ -743,9 +743,10 @@ TSharedPtr<IMenu> FMenuStack::FindMenuFromWindow(TSharedRef<SWindow> InWindow) c
 	return TSharedPtr<IMenu>();
 }
 
-FSlateRect FMenuStack::GetToolTipForceFieldRect(TSharedRef<IMenu> InMenu, const FWidgetPath& PathContainingMenu) const
+bool FMenuStack::GetToolTipForceFieldRect(const TSharedRef<IMenu>& InMenu, const FWidgetPath& InPathContainingMenu, FSlateRect& OutSlateRect) const
 {
-	FSlateRect ForceFieldRect(0, 0, 0, 0);
+	bool bWasSolutionFound = false;
+	OutSlateRect = FSlateRect(0, 0, 0, 0);
 
 	int32 StackLevel = Stack.IndexOfByKey(InMenu);
 
@@ -756,7 +757,7 @@ FSlateRect FMenuStack::GetToolTipForceFieldRect(TSharedRef<IMenu> InMenu, const 
 			TSharedPtr<SWidget> MenuContent = Stack[StackLevelIndex]->GetContent();
 			if (MenuContent.IsValid())
 			{
-				FWidgetPath WidgetPath = PathContainingMenu.GetPathDownTo(MenuContent.ToSharedRef());
+				FWidgetPath WidgetPath = InPathContainingMenu.GetPathDownTo(MenuContent.ToSharedRef());
 				if (!WidgetPath.IsValid())
 				{
 					FSlateApplication::Get().GeneratePathToWidgetChecked(MenuContent.ToSharedRef(), WidgetPath);
@@ -764,12 +765,30 @@ FSlateRect FMenuStack::GetToolTipForceFieldRect(TSharedRef<IMenu> InMenu, const 
 				if (WidgetPath.IsValid())
 				{
 					const FGeometry& ContentGeometry = WidgetPath.Widgets.Last().Geometry;
-					ForceFieldRect = ForceFieldRect.Expand(ContentGeometry.GetLayoutBoundingRect());
+					// No first time: Expand
+					if (bWasSolutionFound)
+					{
+						OutSlateRect = OutSlateRect.Expand(ContentGeometry.GetLayoutBoundingRect());
+					}
+					// First time: assign it
+					// Otherwise, it would assume that the point [0,0,0,0] is part of the final rectangle, which is not the case in multiple scenarios.
+					// E.g., if the monitor where Slate is running is not the main one or if the Slate window is restored to the right half of the monitor.
+					else
+					{
+						OutSlateRect = ContentGeometry.GetLayoutBoundingRect();
+						bWasSolutionFound = true;
+					}
 				}
 			}
 		}
 	}
+	return bWasSolutionFound;
+}
 
+FSlateRect FMenuStack::GetToolTipForceFieldRect(TSharedRef<IMenu> InMenu, const FWidgetPath& PathContainingMenu) const
+{
+	FSlateRect ForceFieldRect(0, 0, 0, 0);
+	GetToolTipForceFieldRect(InMenu, PathContainingMenu, ForceFieldRect);
 	return ForceFieldRect;
 }
 

@@ -303,11 +303,12 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 					Row.ValueWidget.Widget
 				];
 
-			ValueWidget = CreateExtensionWidget(ValueWidget.ToSharedRef(), *Customization, InOwnerTreeNode);
+			TSharedRef<SWidget> ExtensionWidget = CreateExtensionWidget(ValueWidget.ToSharedRef(), *Customization, InOwnerTreeNode);
 
 			if(Row.IsEnabledAttr.IsBound())
 			{
 				ValueWidget->SetEnabled(Row.IsEnabledAttr);
+				ExtensionWidget->SetEnabled(Row.IsEnabledAttr);
 			}
 
 			TSharedRef<SWidget> KeyFrameButton = CreateKeyframeButton(*Customization, InOwnerTreeNode);
@@ -431,20 +432,27 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 					.Value(ColumnSizeData.RightColumnWidth)
 					.OnSlotResized(ColumnSizeData.OnWidthChanged)
 					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
+						SNew(SBox)
+						.IsEnabled(IsPropertyEditingEnabled)
 						[
-							SAssignNew(HBox, SHorizontalBox)
-							+ SHorizontalBox::Slot()
-							.Padding(DetailWidgetConstants::RightRowPadding)
-							.HAlign(Row.ValueWidget.HorizontalAlignment)
-							.VAlign(Row.ValueWidget.VerticalAlignment)
+							SNew(SHorizontalBox)
+							+SHorizontalBox::Slot()
+							.FillWidth(1.0f)
 							[
-								SNew(SBox)
-								.IsEnabled(IsPropertyEditingEnabled)
+								SNew(SHorizontalBox)
+								+ SHorizontalBox::Slot()
+								.Padding(DetailWidgetConstants::RightRowPadding)
+								.HAlign(Row.ValueWidget.HorizontalAlignment)
+								.VAlign(Row.ValueWidget.VerticalAlignment)
 								[
 									ValueWidget.ToSharedRef()
 								]
+							]
+							+SHorizontalBox::Slot()
+							.AutoWidth()
+							.VAlign(VAlign_Center)
+							[
+								ExtensionWidget
 							]
 						]
 					];
@@ -721,6 +729,8 @@ const FSlateBrush* SDetailSingleItemRow::GetBorderImage() const
 
 TSharedRef<SWidget> SDetailSingleItemRow::CreateExtensionWidget(TSharedRef<SWidget> ValueWidget, FDetailLayoutCustomization& InCustomization, TSharedRef<FDetailTreeNode> InTreeNode)
 {
+	TSharedPtr<SWidget> ExtensionWidget = SNullWidget::NullWidget;
+
 	if(InTreeNode->GetParentCategory().IsValid())
 	{
 		IDetailsViewPrivate* DetailsView = InTreeNode->GetDetailsView();
@@ -733,23 +743,13 @@ TSharedRef<SWidget> SDetailSingleItemRow::CreateExtensionWidget(TSharedRef<SWidg
 			UClass* ObjectClass = InCustomization.GetPropertyNode()->FindObjectItemParent()->GetObjectBaseClass();
 			if(Handle->IsValidHandle() && ExtensionHandler->IsPropertyExtendable(ObjectClass, *Handle))
 			{
-				ValueWidget = SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.FillWidth(1.0f)
-					[
-						ValueWidget
-					]
-
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					[
-						ExtensionHandler->GenerateExtensionWidget(ObjectClass, Handle)
-					];
+				FDetailLayoutBuilderImpl& DetailLayout = OwnerTreeNode.Pin()->GetParentCategory()->GetParentLayoutImpl();
+				ExtensionWidget = ExtensionHandler->GenerateExtensionWidget(DetailLayout, ObjectClass, Handle);
 			}
 		}
 	}
 
-	return ValueWidget;
+	return ExtensionWidget.ToSharedRef();
 }
 
 TSharedRef<SWidget> SDetailSingleItemRow::CreateKeyframeButton( FDetailLayoutCustomization& InCustomization, TSharedRef<FDetailTreeNode> InTreeNode )

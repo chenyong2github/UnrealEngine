@@ -1751,6 +1751,11 @@ void FWidgetBlueprintEditor::SyncSequencerSelectionToSelectedWidgets()
 
 	TGuardValue<bool> Guard(bUpdatingSequencerSelection, true);
 
+	if (GetSequencer()->GetSequencerSettings()->GetShowSelectedNodesOnly())
+	{
+		GetSequencer()->RefreshTree();
+	}
+
 	GetSequencer()->ExternalSelectionHasChanged();
 }
 

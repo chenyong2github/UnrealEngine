@@ -748,10 +748,12 @@ void FPersonaModule::AddLoopingInterpolation(TArray<TWeakObjectPtr<UAnimSequence
 	}
 }
 
-void FPersonaModule::CustomizeSlotNodeDetails(const TSharedRef<class IDetailsView>& InDetailsView, FOnInvokeTab InOnInvokeTab)
+void FPersonaModule::CustomizeBlueprintEditorDetails(const TSharedRef<class IDetailsView>& InDetailsView, FOnInvokeTab InOnInvokeTab)
 {
 	InDetailsView->RegisterInstancedCustomPropertyLayout(UAnimGraphNode_Slot::StaticClass(),
 		FOnGetDetailCustomizationInstance::CreateStatic(&FAnimGraphNodeSlotDetails::MakeInstance, InOnInvokeTab));
+
+	InDetailsView->SetExtensionHandler(MakeShared<FAnimGraphNodeShowAsPinExtension>());
 }
 
 IPersonaEditorModeManager* FPersonaModule::CreatePersonaEditorModeManager()

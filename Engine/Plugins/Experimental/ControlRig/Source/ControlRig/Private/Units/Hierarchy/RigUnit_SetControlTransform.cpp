@@ -19,7 +19,7 @@ FRigUnit_SetControlTransform_Execute()
 			case EControlRigState::Init:
 			{
 				CachedControlIndex = Hierarchy->GetIndex(Control);
-				// fall through to update
+				break;
 			}
 			case EControlRigState::Update:
 			{

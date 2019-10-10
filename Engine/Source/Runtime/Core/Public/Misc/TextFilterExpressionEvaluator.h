@@ -184,11 +184,15 @@ public:
 	/** Get the last error returned from lexing or compiling the current filter text */
 	FText GetFilterErrorText() const;
 
+	/** Get the filter expression tokens created from the current filter text */
+	const TArray<FExpressionToken>& GetFilterExpressionTokens() const;
+
 	/** Test our compiled filter using the given context */
 	bool TestTextFilter(const ITextFilterExpressionContext& InContext) const;
 
 	/** Helper function to add callbacks for function tokens */
 	void AddFunctionTokenCallback(FString InFunctionName, FTokenFunctionHandler InCallback);
+
 protected:
 	/** Sets up grammar used for evaluation */
 	void SetupGrammar();
@@ -210,6 +214,9 @@ protected:
 
 	/** The last error returned from lexing or compiling the current filter text */
 	FText FilterErrorText;
+
+	/** The filter expression tokens created from the current filter text (lexed from FilterText) */
+	TArray<FExpressionToken> ExpressionTokens;
 
 	/** The compiled filter created from the current filter text (compiled from FilterText) */
 	TOptional<ExpressionParser::CompileResultType> CompiledFilter;

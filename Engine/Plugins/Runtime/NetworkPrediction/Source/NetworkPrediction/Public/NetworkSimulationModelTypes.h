@@ -319,13 +319,7 @@ struct TSimulationTickState
 
 	int32 LastProcessedInputKeyframe = 0;	// The last input keyframe that we processed
 	int32 MaxAllowedInputKeyframe = 0;		// The max input keyframe that we are allowed to process (e.g, don't process input past this keyframe yet)
-
-	void SetTotalAllowedSimulationTime(const FNetworkSimTime& SimTime)
-	{
-		TotalAllowedSimulationTime = SimTime;
-		RealtimeAccumulator.Reset();
-	}
-
+	
 	FNetworkSimTime GetTotalProcessedSimulationTime() const 
 	{ 
 		return TotalProcessedSimulationTime; 
@@ -352,6 +346,12 @@ struct TSimulationTickState
 		
 	// Historic tracking of simulation time. This allows us to timestamp sync data as its produced
 	TReplicationBuffer<FNetworkSimTime>	SimulationTimeBuffer;
+
+	void SetTotalAllowedSimulationTime(const FNetworkSimTime& SimTime)
+	{
+		TotalAllowedSimulationTime = SimTime;
+		RealtimeAccumulator.Reset();
+	}
 
 	// "Grants" allowed simulation time to this tick state. That is, we are now allowed to advance the simulation by this amount the next time the sim ticks.
 	// Note the input is RealTime in SECONDS. This is what the rest of the engine uses when dealing with float delta time.

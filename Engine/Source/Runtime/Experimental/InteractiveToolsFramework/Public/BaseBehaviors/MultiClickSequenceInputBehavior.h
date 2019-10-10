@@ -59,8 +59,10 @@ public:
 	virtual void ForceEndCapture(const FInputCaptureData& Data) override;
 
 	virtual bool WantsHoverEvents() override;
-	virtual void UpdateHover(const FInputDeviceState& input) override;
-	virtual void EndHover(const FInputDeviceState& input) override;
+	virtual FInputCaptureRequest WantsHoverCapture(const FInputDeviceState& InputState) override;
+	virtual FInputCaptureUpdate BeginHoverCapture(const FInputDeviceState& InputState, EInputCaptureSide eSide) override;
+	virtual FInputCaptureUpdate UpdateHoverCapture(const FInputDeviceState& InputState) override;
+	virtual void EndHoverCapture() override;
 
 
 public:

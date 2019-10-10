@@ -5,7 +5,7 @@
 #include "IMeshEditorModeUIContract.h"
 #include "Framework/Commands/UICommandInfo.h"
 #include "EditableMesh.h"
-#include "MeshAttributes.h"
+#include "StaticMeshAttributes.h"
 #include "MeshElement.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Commands/UICommandList.h"

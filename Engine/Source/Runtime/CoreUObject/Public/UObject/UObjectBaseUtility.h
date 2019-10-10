@@ -20,6 +20,20 @@
 #endif
 
 /**
+* Enum which specifies the mode in which full object names are constructed
+*/
+enum class EObjectFullNameFlags
+{
+	// Standard object full name (i.e. "Type PackageName.ObjectName:SubobjectName")
+	None = 0,
+
+	// Adds package to the type portion (i.e. "TypePackage.TypeName PackageName.ObjectName:SubobjectName")
+	IncludeClassPackage = 1,
+};
+
+ENUM_CLASS_FLAGS(EObjectFullNameFlags);
+
+/**
  * Provides utility functions for UObject, this class should not be used directly
  */
 class COREUOBJECT_API UObjectBaseUtility : public UObjectBase
@@ -287,10 +301,16 @@ public:
 	 *
 	 * @param	StopOuter	if specified, indicates that the output string should be relative to this object.  if StopOuter
 	 *						does not exist in this object's Outer chain, the result would be the same as passing NULL.
+	 * @param	Flags		flags that control the behavior of full name generation
 	 *
 	 * @note	safe to call on NULL object pointers!
 	 */
-	FString GetFullName( const UObject* StopOuter=NULL ) const;
+	FString GetFullName( const UObject* StopOuter=NULL, EObjectFullNameFlags Flags = EObjectFullNameFlags::None ) const;
+
+	/**
+	 * Version of GetFullName() that eliminates unnecessary copies.
+	 */
+	void GetFullName( const UObject* StopOuter, FString& ResultString, EObjectFullNameFlags Flags = EObjectFullNameFlags::None ) const;
 
 	/**
 	 * Returns the fully qualified pathname for this object, in the format:
@@ -302,6 +322,11 @@ public:
 	 * @note	safe to call on NULL object pointers!
 	 */
 	FString GetPathName( const UObject* StopOuter=NULL ) const;
+
+	/**
+	 * Version of GetPathName() that eliminates unnecessary copies.
+	 */
+	void GetPathName(const UObject* StopOuter, FString& ResultString) const;
 
 public:
 	/**
@@ -341,11 +366,6 @@ public:
 protected:
 	/** Helper function to create a cluster from UObject */
 	static void CreateClusterFromObject(UObjectBaseUtility* ClusterRootObject, UObjectBaseUtility* ReferencingObject);
-
-	/**
-	 * Internal version of GetPathName() that eliminates lots of copies.
-	 */
-	void GetPathName( const UObject* StopOuter, FString& ResultString ) const;
 
 public:
 	/**

@@ -60,8 +60,8 @@ static TAutoConsoleVariable<int32> CVarRayTracingRenderInstances(
 
 static TAutoConsoleVariable<int32> CVarRayTracingRenderInstancesCulling(
 	TEXT("r.RayTracing.InstancedStaticMeshes.Culling"),
-	0,
-	TEXT("Enable culling for instances in ray tracing (default = 0 (Culling disabled))"));
+	1,
+	TEXT("Enable culling for instances in ray tracing (default = 1 (Culling enabled))"));
 
 static TAutoConsoleVariable<float> CVarRayTracingInstancesCullClusterMaxRadiusMultiplier(
 	TEXT("r.RayTracing.InstancedStaticMeshes.CullClusterMaxRadiusMultiplier"),
@@ -384,6 +384,8 @@ void FStaticMeshInstanceBuffer::BindInstanceVertexBuffer(const class FVertexFact
 		InstancedStaticMeshData.InstanceOriginSRV = InstanceOriginSRV;
 		InstancedStaticMeshData.InstanceTransformSRV = InstanceTransformSRV;
 		InstancedStaticMeshData.InstanceLightmapSRV = InstanceLightmapSRV;
+		InstancedStaticMeshData.NumInstances = InstanceData->GetNumInstances();
+		InstancedStaticMeshData.bInitialized = true;
 	}
 
 	{
@@ -2945,10 +2947,17 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 	{
 		if (InstancedVertexFactory->SupportsManualVertexFetch(FeatureLevel))
 		{
-			ShaderBindings.Add(VertexFetch_InstanceOriginBufferParameter, InstancedVertexFactory->GetInstanceOriginSRV());
-			ShaderBindings.Add(VertexFetch_InstanceTransformBufferParameter, InstancedVertexFactory->GetInstanceTransformSRV());
-			ShaderBindings.Add(VertexFetch_InstanceLightmapBufferParameter, InstancedVertexFactory->GetInstanceLightmapSRV());
-			ShaderBindings.Add(InstanceOffset, InstanceOffsetValue);
+			if (InstancedVertexFactory->GetNumInstances() > 0)
+			{
+				ShaderBindings.Add(VertexFetch_InstanceOriginBufferParameter, InstancedVertexFactory->GetInstanceOriginSRV());
+				ShaderBindings.Add(VertexFetch_InstanceTransformBufferParameter, InstancedVertexFactory->GetInstanceTransformSRV());
+				ShaderBindings.Add(VertexFetch_InstanceLightmapBufferParameter, InstancedVertexFactory->GetInstanceLightmapSRV());
+				ShaderBindings.Add(InstanceOffset, InstanceOffsetValue);
+			}
+			else
+			{
+				ensureMsgf(false, TEXT("Instanced static mesh rendered with no instances. Data initialized: %d"), InstancedVertexFactory->IsDataInitialized());
+			}
 		}
 
 		if (InstanceOffsetValue > 0 && VertexStreams.Num() > 0)

@@ -47,7 +47,7 @@ private:
 
 #if SUPPORTS_PROCEDURAL_MESH
 	UProceduralMeshComponent* Mesh;
-#endif // !PLATFORM_HTML5
+#endif
 
 	UPROPERTY()
 	UMaterial* Material;

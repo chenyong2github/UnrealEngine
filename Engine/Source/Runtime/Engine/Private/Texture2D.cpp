@@ -183,7 +183,7 @@ private:
 /*-----------------------------------------------------------------------------
 	FTexture2DMipMap
 -----------------------------------------------------------------------------*/
-
+#if TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA
 FTexture2DMipMap::FCompactByteBulkData::FCompactByteBulkData()
 {
 	Reset();
@@ -239,14 +239,14 @@ typename FTexture2DMipMap::FCompactByteBulkData& FTexture2DMipMap::FCompactByteB
 	return *this;
 }
 
-void FTexture2DMipMap::FCompactByteBulkData::Serialize(FArchive& Ar, UObject* Owner, int32 MipIdx)
+void FTexture2DMipMap::FCompactByteBulkData::Serialize(FArchive& Ar, UObject* Owner, int32 MipIdx, bool /*bAttemptFileMapping*/)
 {
 	check(Ar.IsLoading());
 	FMemory::Free(TexelData);
 	TexelData = nullptr;
 
 	FByteBulkData TmpBulkData;
-	TmpBulkData.Serialize(Ar, Owner, MipIdx);
+	TmpBulkData.Serialize(Ar, Owner, MipIdx, false);
 
 	const int64 Tmp = TmpBulkData.GetBulkDataOffsetInFile();
 	check(Tmp >= 0 && Tmp <= 0xffffffffll);
@@ -256,7 +256,7 @@ void FTexture2DMipMap::FCompactByteBulkData::Serialize(FArchive& Ar, UObject* Ow
 
 	if (IsInlined())
 	{
-		TmpBulkData.GetCopy((void**)&TexelData);
+		TmpBulkData.GetCopy((void**)&TexelData, true);
 	}
 
 	if (!MipIdx && !IsInlined())
@@ -348,12 +348,43 @@ void FTexture2DMipMap::FCompactByteBulkData::GetCopy(void** Dest, bool bDiscardI
 	}
 }
 
+FBulkDataIORequest* FTexture2DMipMap::FCompactByteBulkData::CreateStreamingRequest(const FString& Filename, int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback, uint8* UserSuppliedMemory) const
+{
+	check(Filename.IsEmpty() == false);
+
+	UE_CLOG(IsStoredCompressedOnDisk(), LogSerialization, Fatal, TEXT("Package level compression is no longer supported (%s)."), *Filename);
+	UE_CLOG(GetBulkDataSize() <= 0, LogSerialization, Error, TEXT("(%s) has invalid bulk data size."), *Filename);
+
+	IAsyncReadFileHandle* IORequestHandle = FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*Filename);
+	check(IORequestHandle); // this generally cannot fail because it is async
+
+	if (IORequestHandle == nullptr)
+	{
+		return nullptr;
+	}
+
+	const int64 FinalOffsetInFile = GetBulkDataOffsetInFile() + OffsetInBulkData;
+
+	IAsyncReadRequest* ReadRequest = IORequestHandle->ReadRequest(FinalOffsetInFile, BytesToRead, Priority, CompleteCallback, UserSuppliedMemory);
+	if (ReadRequest != nullptr)
+	{
+		return new FBulkDataIORequest(IORequestHandle, ReadRequest, BytesToRead);
+	}
+	else
+	{
+		delete IORequestHandle;
+		return nullptr;
+	}
+}
+
+#endif // #if TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA
+
 void FTexture2DMipMap::Serialize(FArchive& Ar, UObject* Owner, int32 MipIdx)
 {
 	bool bCooked = Ar.IsCooking();
 	Ar << bCooked;
 
-	BulkData.Serialize(Ar, Owner, MipIdx);
+	BulkData.Serialize(Ar, Owner, MipIdx, false);
 	Ar << SizeX;
 	Ar << SizeY;
 	Ar << SizeZ;
@@ -453,7 +484,7 @@ int32 UTexture2D::CalcNumOptionalMips() const
 		int32 NumOptionalMips = 0;
 		for (int32 MipIndex = 0; MipIndex < PlatformData->Mips.Num(); ++MipIndex)
 		{
-			if (PlatformData->Mips[MipIndex].BulkData.GetBulkDataFlags() & BULKDATA_OptionalPayload)
+			if (PlatformData->Mips[MipIndex].BulkData.IsOptional())
 			{
 				++NumOptionalMips;
 			}
@@ -478,7 +509,7 @@ bool UTexture2D::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFi
 			OutBulkDataFilename = PlatformData->Mips[MipIndex].BulkData.GetFilename();
 #else
 			OutBulkDataFilename = PlatformData->CachedPackageFileName;
-			bool UseOptionalBulkDataFileName = PlatformData->Mips[MipIndex].BulkData.GetBulkDataFlags() & BULKDATA_OptionalPayload;
+			const bool UseOptionalBulkDataFileName = PlatformData->Mips[MipIndex].BulkData.IsOptional();
 			OutBulkDataFilename = FPaths::ChangeExtension(OutBulkDataFilename, UseOptionalBulkDataFileName ? TEXT(".uptnl") : TEXT(".ubulk"));
 #endif
 			return true;
@@ -915,7 +946,7 @@ int32 UTexture2D::CalcTextureMemorySize( int32 MipCount ) const
 		FIntPoint MipExtents = CalcMipMapExtent(SizeX, SizeY, Format, FirstMip);
 
 		uint32 TextureAlign = 0;
-		uint64 TextureSize = RHICalcTexture2DPlatformSize(MipExtents.X, MipExtents.Y, Format, MipCount, 1, 0, TextureAlign);
+		uint64 TextureSize = RHICalcTexture2DPlatformSize(MipExtents.X, MipExtents.Y, Format, MipCount, 1, 0, FRHIResourceCreateInfo(PlatformData->ExtData), TextureAlign);
 		Size = (int32)TextureSize;
 	}
 	return Size;
@@ -929,6 +960,7 @@ int32 UTexture2D::GetNumMipsAllowed(bool bIgnoreMinResidency) const
 	// See the logic around FirstMipToSerialize in TextureDerivedData.cpp, SerializePlatformData().
 	const int32 LODBiasNoCinematics = UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->CalculateLODBias(this, false);
 	const int32 CookedMips = FMath::Clamp<int32>(NumMips - LODBiasNoCinematics, 1, GMaxTextureMipCount);
+	const int32 MinResidentMipCount = GetMinTextureResidentMipCount();
 
 	// If the data is already cooked, then mips bellow min resident can't be stripped out.
 	// This would happen if the data is cooked with some texture group settings, but launched
@@ -937,10 +969,10 @@ int32 UTexture2D::GetNumMipsAllowed(bool bIgnoreMinResidency) const
 	{
 		return CookedMips;
 	}
-	else if (NumMips > GetMinTextureResidentMipCount())
+	else if (NumMips > MinResidentMipCount)
 	{
 		// In non cooked, the engine can not partially load the resident mips.
-		return FMath::Max<int32>(CookedMips, GetMinTextureResidentMipCount());
+		return FMath::Max<int32>(CookedMips, MinResidentMipCount);
 	}
 	else
 	{
@@ -1052,7 +1084,7 @@ int32 UTexture2D::GetNumNonStreamingMips() const
 		NumNonStreamingMips = FMath::Max(0, MipCount - GetMipTailBaseIndex());
 
 		// Take in to account the min resident limit.
-		NumNonStreamingMips = FMath::Max(NumNonStreamingMips, UTexture2D::GetMinTextureResidentMipCount());
+		NumNonStreamingMips = FMath::Max(NumNonStreamingMips, GetMinTextureResidentMipCount());
 		NumNonStreamingMips = FMath::Min(NumNonStreamingMips, MipCount);
 	}
 
@@ -1062,14 +1094,14 @@ int32 UTexture2D::GetNumNonStreamingMips() const
 void UTexture2D::CalcAllowedMips( int32 MipCount, int32 NumNonStreamingMips, int32 LODBias, int32& OutMinAllowedMips, int32& OutMaxAllowedMips )
 {
 	// Calculate the minimum number of mip-levels required.
-	int32 MinAllowedMips = UTexture2D::GetMinTextureResidentMipCount();
-	MinAllowedMips = FMath::Max( MinAllowedMips, MipCount - LODBias );
-	MinAllowedMips = FMath::Min( MinAllowedMips, NumNonStreamingMips );
-	MinAllowedMips = FMath::Min( MinAllowedMips, MipCount );
+	int32 MinAllowedMips = GMinTextureResidentMipCount;
+	MinAllowedMips = FMath::Max(MinAllowedMips, MipCount - LODBias);
+	MinAllowedMips = FMath::Min(MinAllowedMips, NumNonStreamingMips);
+	MinAllowedMips = FMath::Min(MinAllowedMips, MipCount);
 
 	// Calculate the maximum number of mip-levels.
-	int32 MaxAllowedMips = FMath::Max( MipCount - LODBias, MinAllowedMips );
-	MaxAllowedMips = FMath::Min( MaxAllowedMips, GMaxTextureMipCount );
+	int32 MaxAllowedMips = FMath::Max(MipCount - LODBias, MinAllowedMips);
+	MaxAllowedMips = FMath::Min(MaxAllowedMips, GMaxTextureMipCount);
 
 	// Make sure min <= max
 	MinAllowedMips = FMath::Min(MinAllowedMips, MaxAllowedMips);
@@ -1468,7 +1500,7 @@ FTexture2DResource::FTexture2DResource( UTexture2D* InOwner, int32 InitialMipCou
 	check(UE_ARRAY_COUNT(MipData)>=GMaxTextureMipCount);
 
 	// Keep track of first miplevel to use.
-	CurrentFirstMip = InOwner->GetNumMips() - InitialMipCount;
+	CurrentFirstMip = InOwner->GetNumMips() - FMath::Max(InitialMipCount, Owner->PlatformData ? (int32)Owner->PlatformData->NumMipsInTail : 0);
 	InOwner->SetCachedNumResidentLODs(static_cast<uint8>(InitialMipCount));
 
 	check(CurrentFirstMip>=0);
@@ -1565,12 +1597,13 @@ void FTexture2DResource::InitRHI()
 			static auto CVarVirtualTextureReducedMemoryEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextureReducedMemory"));
 			check(CVarVirtualTextureReducedMemoryEnabled);
 
-			if ( Owner->bIsStreamable && bUseVirtualUpdatePath && (CVarVirtualTextureReducedMemoryEnabled->GetValueOnRenderThread() == 0 || RequestedMips > UTexture2D::GetMinTextureResidentMipCount()) )
+			if ( Owner->bIsStreamable && bUseVirtualUpdatePath && (CVarVirtualTextureReducedMemoryEnabled->GetValueOnRenderThread() == 0 || RequestedMips > Owner->GetMinTextureResidentMipCount()) )
 			{
 				TexCreateFlags |= TexCreate_Virtual;
 
 				FRHIResourceCreateInfo CreateInfo(ResourceMem);
-				Texture2DRHI	= RHICreateTexture2D( OwnerMips[0].SizeX, OwnerMips[0].SizeY, EffectiveFormat, OwnerMips.Num(), 1, TexCreateFlags, CreateInfo);
+				CreateInfo.ExtData = Owner->PlatformData ? Owner->PlatformData->ExtData : 0;
+				Texture2DRHI = RHICreateTexture2D( OwnerMips[0].SizeX, OwnerMips[0].SizeY, EffectiveFormat, OwnerMips.Num(), 1, TexCreateFlags, CreateInfo);
 				RHIVirtualTextureSetFirstMipInMemory(Texture2DRHI, CurrentFirstMip);
 				RHIVirtualTextureSetFirstMipVisible(Texture2DRHI, CurrentFirstMip);
 
@@ -1605,13 +1638,14 @@ void FTexture2DResource::InitRHI()
 
 			// create texture with ResourceMem data when available
 			FRHIResourceCreateInfo CreateInfo(ResourceMem);
+			CreateInfo.ExtData = Owner->PlatformData ? Owner->PlatformData->ExtData : 0;
 			Texture2DRHI	= RHICreateTexture2D( SizeX, SizeY, EffectiveFormat, RequestedMips, 1, TexCreateFlags, CreateInfo);
 			TextureRHI		= Texture2DRHI;
 			TextureRHI->SetName(Owner->GetFName());
 			RHIBindDebugLabelName(TextureRHI, *Owner->GetName());
 			RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI,TextureRHI);
 
-			check(Owner->PlatformData->Mips[CurrentFirstMip].SizeX == Texture2DRHI->GetSizeX() && Owner->PlatformData->Mips[CurrentFirstMip].SizeY == Texture2DRHI->GetSizeY());
+			check(!Owner->PlatformData || (Owner->PlatformData->Mips[CurrentFirstMip].SizeX == Texture2DRHI->GetSizeX() && Owner->PlatformData->Mips[CurrentFirstMip].SizeY == Texture2DRHI->GetSizeY()));
 
 			if( ResourceMem )
 			{
@@ -1626,7 +1660,7 @@ void FTexture2DResource::InitRHI()
 			else
 			{
 				// Read the resident mip-levels into the RHI texture.
-				for( int32 MipIndex=CurrentFirstMip; MipIndex<Owner->PlatformData->Mips.Num(); MipIndex++ )
+				for (int32 MipIndex = CurrentFirstMip; MipIndex < Owner->PlatformData->Mips.Num(); MipIndex++)
 				{
 					if( MipData[MipIndex] != NULL )
 					{
@@ -1655,12 +1689,13 @@ void FTexture2DResource::InitRHI()
 		if (GIsEditor || (!bSkipRHITextureCreation)) //-V560
 		{
 			FRHIResourceCreateInfo CreateInfo;
+			CreateInfo.ExtData = Owner->PlatformData ? Owner->PlatformData->ExtData : 0;
 			Texture2DRHI	= RHICreateTexture2D( SizeX, SizeY, EffectiveFormat, RequestedMips, 1, TexCreateFlags, CreateInfo );
 			TextureRHI		= Texture2DRHI;
 			TextureRHI->SetName(Owner->GetFName());
 			RHIBindDebugLabelName(TextureRHI, *Owner->GetName());
 			RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI,TextureRHI);
-			for( int32 MipIndex=CurrentFirstMip; MipIndex<OwnerMips.Num(); MipIndex++ )
+			for (int32 MipIndex = CurrentFirstMip; MipIndex < OwnerMips.Num(); MipIndex++)
 			{
 				if( MipData[MipIndex] != NULL )
 				{
@@ -2221,7 +2256,7 @@ void FTexture2DResource::UpdateTexture(FTexture2DRHIRef& InTextureRHI, int32 InN
 
 		TextureRHI		= InTextureRHI;
 		Texture2DRHI	= InTextureRHI;
-		CurrentFirstMip = InNewFirstMip;
+		CurrentFirstMip = FMath::Min(InNewFirstMip, NumMips - (Owner->PlatformData ? (int32)Owner->PlatformData->NumMipsInTail : 0));
 		Owner->SetCachedNumResidentLODs(static_cast<uint8>(NumMips - InNewFirstMip));
 		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, TextureRHI);
 	}
@@ -2328,7 +2363,7 @@ FIncomingTextureArrayDataEntry::FIncomingTextureArrayDataEntry(UTexture2D* InTex
 			MipData[MipIndex].SizeX = Mip.SizeX;
 			MipData[MipIndex].SizeY = Mip.SizeY;
 			
-			const int32 MipDataSize = Mip.BulkData.GetElementCount() * Mip.BulkData.GetElementSize();
+			const int32 MipDataSize = Mip.BulkData.GetBulkDataSize();
 			MipData[MipIndex].Data.Empty(MipDataSize);
 			MipData[MipIndex].Data.AddUninitialized(MipDataSize);
 			// Get copy of data, potentially loading array or using already loaded version.

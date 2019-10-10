@@ -690,7 +690,7 @@ TArray<FRigElementKey> FRigHierarchyContainer::ImportFromText(const FString& InC
 							ParentName = ParentKey->Name;
 						}
 
-						FRigBone& NewElement = BoneHierarchy.Add(Element.Name, ParentName, Element.InitialTransform, Element.LocalTransform, Data.GlobalTransforms[Index]);
+						FRigBone& NewElement = BoneHierarchy.Add(Element.Name, ParentName, ERigBoneType::User, Element.InitialTransform, Element.LocalTransform, Data.GlobalTransforms[Index]);
 						ElementMap.FindOrAdd(Element.GetElementKey()) = NewElement.GetElementKey();
 						PastedKeys.Add(NewElement.GetElementKey());
 						break;

@@ -66,6 +66,11 @@ public:
 	{
 		Driver = InDriver;
 	}
+	virtual ~TNetworkedSimulationModel()
+	{
+		SetParentSimulation(nullptr);
+		ClearAllDependentSimulations();
+	}
 
 	void Tick(const FNetSimTickParameters& Parameters) final override
 	{
@@ -343,6 +348,70 @@ public:
 			return 0;
 		};
 	}
+
+	ESimulatedUpdateMode GetSimulatedUpdateMode() const
+	{
+		return RepProxy_Simulated.GetSimulatedUpdateMode();
+	}
+
+	// ------------------------------------------------------------------------------------------------------
+
+	void SetParentSimulation(INetworkSimulationModel* Simulation) final override
+	{
+		if (RepProxy_Simulated.ParentSimulation)
+		{
+			RepProxy_Simulated.ParentSimulation->RemoveDependentSimulation(this);
+		}
+		
+		RepProxy_Simulated.ParentSimulation = Simulation;
+		if (Simulation)
+		{
+			Simulation->AddDepdentSimulation(this);
+		}
+	}
+
+	INetworkSimulationModel* GetParentSimulation() const final override
+	{
+		return RepProxy_Simulated.ParentSimulation;
+	}
+
+	void AddDepdentSimulation(INetworkSimulationModel* Simulation) final override
+	{
+		check(RepProxy_Autonomous.DependentSimulations.Contains(Simulation) == false);
+		RepProxy_Autonomous.DependentSimulations.Add(Simulation);
+		NotifyDependentSimNeedsReconcile(); // force reconcile on purpose
+	}
+
+	void RemoveDependentSimulation(INetworkSimulationModel* Simulation) final override
+	{
+		RepProxy_Autonomous.DependentSimulations.Remove(Simulation);
+	}
+
+	void NotifyDependentSimNeedsReconcile()
+	{
+		RepProxy_Autonomous.bDependentSimulationNeedsReconcile = true;
+	}
+
+	void BeginRollback(const FNetworkSimTime& RollbackDeltaTime, const int32 ParentKeyframe) final override
+	{
+		RepProxy_Simulated.template DependentRollbackBegin<TSimulation, TDriver>(Driver, Buffers, TickInfo, RollbackDeltaTime, ParentKeyframe);
+	}
+
+	void StepRollback(const FNetworkSimTime& Step, const int32 ParentKeyframe, const bool bFinalStep) final override
+	{
+		RepProxy_Simulated.template DependentRollbackStep<TSimulation, TDriver>(Driver, Buffers, TickInfo, Step, ParentKeyframe, bFinalStep);
+	}
+
+	void ClearAllDependentSimulations()
+	{
+		TArray<INetworkSimulationModel*> LocalList = MoveTemp(RepProxy_Autonomous.DependentSimulations);
+		for (INetworkSimulationModel* DependentSim : LocalList)
+		{
+			DependentSim->SetParentSimulation(nullptr);
+		}
+	}
+
+	// -------------------------------------------------------------------------------------------------------
 
 	TDriver* Driver = nullptr;	
 	TSimulationTickState<TTickSettings> TickInfo;	// Manages simulation time and what inputs we are processed

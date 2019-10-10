@@ -19,7 +19,7 @@
 #include "Internationalization/FastDecimalFormat.h"
 #include "Internationalization/TextGeneratorRegistry.h"
 
-#include "Serialization/ArchiveFromStructuredArchive.h"
+#include "Serialization/StructuredArchive.h"
 
 #include "UObject/EditorObjectVersion.h"
 #include "HAL/PlatformProcess.h"
@@ -131,19 +131,19 @@ void operator<<(FStructuredArchive::FSlot Slot, FNumberFormattingOptions& Value)
 
 	if (UnderlyingArchive.CustomVer(FEditorObjectVersion::GUID) >= FEditorObjectVersion::AddedAlwaysSignNumberFormattingOption)
 	{
-		Record << NAMED_ITEM("AlwaysSign", Value.AlwaysSign);
+		Record << SA_VALUE(TEXT("AlwaysSign"), Value.AlwaysSign);
 	}
 
-	Record << NAMED_ITEM("UseGrouping", Value.UseGrouping);
+	Record << SA_VALUE(TEXT("UseGrouping"), Value.UseGrouping);
 
 	int8 RoundingModeInt8 = (int8)Value.RoundingMode;
-	Record << NAMED_ITEM("RoundingMode", RoundingModeInt8);
+	Record << SA_VALUE(TEXT("RoundingMode"), RoundingModeInt8);
 	Value.RoundingMode = (ERoundingMode)RoundingModeInt8;
 
-	Record << NAMED_ITEM("MinimumIntegralDigits", Value.MinimumIntegralDigits);
-	Record << NAMED_ITEM("MaximumIntegralDigits", Value.MaximumIntegralDigits);
-	Record << NAMED_ITEM("MinimumFractionalDigits", Value.MinimumFractionalDigits);
-	Record << NAMED_ITEM("MaximumFractionalDigits", Value.MaximumFractionalDigits);
+	Record << SA_VALUE(TEXT("MinimumIntegralDigits"), Value.MinimumIntegralDigits);
+	Record << SA_VALUE(TEXT("MaximumIntegralDigits"), Value.MaximumIntegralDigits);
+	Record << SA_VALUE(TEXT("MinimumFractionalDigits"), Value.MinimumFractionalDigits);
+	Record << SA_VALUE(TEXT("MaximumFractionalDigits"), Value.MaximumFractionalDigits);
 }
 
 uint32 GetTypeHash( const FNumberFormattingOptions& Key )
@@ -806,7 +806,7 @@ void FText::SerializeText(FStructuredArchive::FSlot Slot, FText& Value)
 	if (UnderlyingArchive.IsLoading() && UnderlyingArchive.UE4Ver() < VER_UE4_FTEXT_HISTORY)
 	{
 		FString SourceStringToImplantIntoHistory;
-		Record << NAMED_FIELD(SourceStringToImplantIntoHistory);
+		Record << SA_VALUE(TEXT("SourceStringToImplantIntoHistory"), SourceStringToImplantIntoHistory);
 
 		FTextDisplayStringPtr DisplayString;
 
@@ -816,8 +816,8 @@ void FText::SerializeText(FStructuredArchive::FSlot Slot, FText& Value)
 			FString Namespace;
 			FString Key;
 
-			Record << NAMED_FIELD(Namespace);
-			Record << NAMED_FIELD(Key);
+			Record << SA_VALUE(TEXT("Namespace"), Namespace);
+			Record << SA_VALUE(TEXT("Key"), Key);
 
 			// Get the DisplayString using the namespace, key, and source string.
 			DisplayString = FTextLocalizationManager::Get().GetDisplayString(Namespace, Key, &SourceStringToImplantIntoHistory);
@@ -855,7 +855,7 @@ void FText::SerializeText(FStructuredArchive::FSlot Slot, FText& Value)
 			Value.Flags &= ~(ETextFlag::ConvertedProperty | ETextFlag::InitializedFromString); // Remove conversion flag before saving.
 		}
 	}
-	Record << NAMED_ITEM("Flags", Value.Flags);
+	Record << SA_VALUE(TEXT("Flags"), Value.Flags);
 
 	if (UnderlyingArchive.IsLoading() && UnderlyingArchive.IsPersistent())
 	{
@@ -879,14 +879,14 @@ void FText::SerializeText(FStructuredArchive::FSlot Slot, FText& Value)
 			if (!bSerializeHistory)
 			{
 				int8 HistoryType = (int8)ETextHistoryType::None;
-				Record << NAMED_FIELD(HistoryType);
+				Record << SA_VALUE(TEXT("HistoryType"), HistoryType);
 
 				bool bHasCultureInvariantString = !Value.IsEmpty() && Value.IsCultureInvariant();
-				Record << NAMED_FIELD(bHasCultureInvariantString);
+				Record << SA_VALUE(TEXT("bHasCultureInvariantString"), bHasCultureInvariantString);
 				if (bHasCultureInvariantString)
 				{
 					FString CultureInvariantString = Value.GetSourceString();
-					Record << NAMED_FIELD(CultureInvariantString);
+					Record << SA_VALUE(TEXT("CultureInvariantString"), CultureInvariantString);
 				}
 			}
 		}
@@ -894,7 +894,7 @@ void FText::SerializeText(FStructuredArchive::FSlot Slot, FText& Value)
 		{
 			// The type is serialized during the serialization of the history, during deserialization we need to deserialize it and create the correct history
 			int8 HistoryType = (int8)ETextHistoryType::None;
-			Record << NAMED_FIELD(HistoryType);
+			Record << SA_VALUE(TEXT("HistoryType"), HistoryType);
 
 			// Create the history class based on the serialized type
 			switch((ETextHistoryType)HistoryType)
@@ -972,11 +972,11 @@ void FText::SerializeText(FStructuredArchive::FSlot Slot, FText& Value)
 					if (UnderlyingArchive.CustomVer(FEditorObjectVersion::GUID) >= FEditorObjectVersion::CultureInvariantTextSerializationKeyStability)
 					{
 						bool bHasCultureInvariantString = false;
-						Record << NAMED_FIELD(bHasCultureInvariantString);
+						Record << SA_VALUE(TEXT("bHasCultureInvariantString"), bHasCultureInvariantString);
 						if (bHasCultureInvariantString)
 						{
 							FString CultureInvariantString;
-							Record << NAMED_FIELD(CultureInvariantString);
+							Record << SA_VALUE(TEXT("CultureInvariantString"), CultureInvariantString);
 							Value.TextData = FText(MoveTemp(CultureInvariantString)).TextData;
 						}
 					}
@@ -1193,29 +1193,29 @@ void operator<<(FStructuredArchive::FSlot Slot, FFormatArgumentValue& Value)
 {
 	FStructuredArchive::FRecord Record = Slot.EnterRecord();
 	int8 TypeAsInt8 = Value.GetType();
-	Record << NAMED_ITEM("Type", TypeAsInt8);
+	Record << SA_VALUE(TEXT("Type"), TypeAsInt8);
 	Value.Type = (EFormatArgumentType::Type)TypeAsInt8;
 
 	switch(Value.Type)
 	{
 	case EFormatArgumentType::Double:
 		{
-			Record << NAMED_ITEM("Value", Value.DoubleValue);
+			Record << SA_VALUE(TEXT("Value"), Value.DoubleValue);
 			break;
 		}
 	case EFormatArgumentType::Float:
 		{
-			Record << NAMED_ITEM("Value", Value.FloatValue);
+			Record << SA_VALUE(TEXT("Value"), Value.FloatValue);
 			break;
 		}
 	case EFormatArgumentType::Int:
 		{
-			Record << NAMED_ITEM("Value", Value.IntValue);
+			Record << SA_VALUE(TEXT("Value"), Value.IntValue);
 			break;
 		}
 	case EFormatArgumentType::UInt:
 		{
-			Record << NAMED_ITEM("Value", Value.UIntValue);
+			Record << SA_VALUE(TEXT("Value"), Value.UIntValue);
 			break;
 		}
 	case EFormatArgumentType::Text:
@@ -1224,7 +1224,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FFormatArgumentValue& Value)
 			{
 				Value.TextValue = FText();
 			}
-			Record << NAMED_ITEM("Value", Value.TextValue.GetValue());
+			Record << SA_VALUE(TEXT("Value"), Value.TextValue.GetValue());
 			break;
 		}
 	}
@@ -1399,18 +1399,18 @@ void operator<<(FStructuredArchive::FSlot Slot, FFormatArgumentData& Value)
 		// ArgumentName was changed to be FString rather than FText, so we need to convert older data to ensure serialization stays happy outside of UStruct::SerializeTaggedProperties.
 		if (UnderlyingArchive.UE4Ver() >= VER_UE4_K2NODE_VAR_REFERENCEGUIDS) // There was no version bump for this change, but VER_UE4_K2NODE_VAR_REFERENCEGUIDS was made at almost the same time.
 		{
-			Record << NAMED_ITEM("ArgumentName", Value.ArgumentName);
+			Record << SA_VALUE(TEXT("ArgumentName"), Value.ArgumentName);
 		}
 		else
 		{
 			FText TempValue;
-			Record << NAMED_ITEM("ArgumentName", TempValue);
+			Record << SA_VALUE(TEXT("ArgumentName"), TempValue);
 			Value.ArgumentName = TempValue.ToString();
 		}
 	}
 	if (UnderlyingArchive.IsSaving())
 	{
-		Record << NAMED_ITEM("ArgumentName", Value.ArgumentName);
+		Record << SA_VALUE(TEXT("ArgumentName"), Value.ArgumentName);
 	}
 
 	uint8 TypeAsByte = Value.ArgumentValueType;
@@ -1420,7 +1420,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FFormatArgumentData& Value)
 
 		if (UnderlyingArchive.CustomVer(FEditorObjectVersion::GUID) >= FEditorObjectVersion::TextFormatArgumentDataIsVariant)
 		{
-			Record << NAMED_ITEM("Type", TypeAsByte);
+			Record << SA_VALUE(TEXT("Type"), TypeAsByte);
 		}
 		else
 		{
@@ -1430,25 +1430,25 @@ void operator<<(FStructuredArchive::FSlot Slot, FFormatArgumentData& Value)
 	}
 	else if (UnderlyingArchive.IsSaving())
 	{
-		Record << NAMED_ITEM("Type", TypeAsByte);
+		Record << SA_VALUE(TEXT("Type"), TypeAsByte);
 	}
 
 	Value.ArgumentValueType = (EFormatArgumentType::Type)TypeAsByte;
 	switch (Value.ArgumentValueType)
 	{
 	case EFormatArgumentType::Int:
-		Record << NAMED_ITEM("Value", Value.ArgumentValueInt);
+		Record << SA_VALUE(TEXT("Value"), Value.ArgumentValueInt);
 		break;
 	case EFormatArgumentType::Float:
-		Record << NAMED_ITEM("Value", Value.ArgumentValueFloat);
+		Record << SA_VALUE(TEXT("Value"), Value.ArgumentValueFloat);
 		break;
 	case EFormatArgumentType::Text:
-		Record << NAMED_ITEM("Value", Value.ArgumentValue);
+		Record << SA_VALUE(TEXT("Value"), Value.ArgumentValue);
 		break;
 	case EFormatArgumentType::Gender:
 		{
 			uint8& Gender = (uint8&)Value.ArgumentValueGender;
-			Record << NAMED_ITEM("Value", Gender);
+			Record << SA_VALUE(TEXT("Value"), Gender);
 			break;
 		}
 	default:

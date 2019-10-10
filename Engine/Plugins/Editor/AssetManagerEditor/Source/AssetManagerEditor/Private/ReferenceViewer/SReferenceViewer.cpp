@@ -95,6 +95,14 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 
 	static const FName DefaultForegroundName("DefaultForeground");
 
+	// Visual options visibility
+	FixAndHideSearchDepthLimit = 0;
+	FixAndHideSearchBreadthLimit = 0;
+	bShowCollectionFilter = true;
+	bShowShowReferencesOptions = true;
+	bShowShowSearchableNames = true;
+	bShowShowNativePackages = true;
+
 	ChildSlot
 	[
 		SNew(SVerticalBox)
@@ -198,6 +206,7 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 					.AutoHeight()
 					[
 						SNew(SHorizontalBox)
+						.Visibility_Lambda([this]() { return (FixAndHideSearchDepthLimit > 0 ? EVisibility::Collapsed : EVisibility::Visible); })
 
 						+SHorizontalBox::Slot()
 						.VAlign(VAlign_Center)
@@ -239,6 +248,7 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 					.AutoHeight()
 					[
 						SNew(SHorizontalBox)
+						.Visibility_Lambda([this]() { return (FixAndHideSearchBreadthLimit > 0 ? EVisibility::Collapsed : EVisibility::Visible); })
 
 						+SHorizontalBox::Slot()
 						.VAlign(VAlign_Center)
@@ -280,6 +290,7 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 					.AutoHeight()
 					[
 						SNew(SHorizontalBox)
+						.Visibility_Lambda([this]() { return (bShowCollectionFilter ? EVisibility::Visible : EVisibility::Collapsed); })
 
 						+SHorizontalBox::Slot()
 						.VAlign(VAlign_Center)
@@ -324,6 +335,7 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 					.AutoHeight()
 					[
 						SNew(SHorizontalBox)
+						.Visibility_Lambda([this]() { return (bShowShowReferencesOptions ? EVisibility::Visible : EVisibility::Collapsed); })
 
 						+SHorizontalBox::Slot()
 						.VAlign(VAlign_Center)
@@ -349,6 +361,7 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 					.AutoHeight()
 					[
 						SNew(SHorizontalBox)
+						.Visibility_Lambda([this]() { return (bShowShowReferencesOptions ? EVisibility::Visible : EVisibility::Collapsed); })
 
 						+ SHorizontalBox::Slot()
 						.VAlign(VAlign_Center)
@@ -398,6 +411,7 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 					.AutoHeight()
 					[
 						SNew(SHorizontalBox)
+						.Visibility_Lambda([this]() { return (bShowShowSearchableNames ? EVisibility::Visible : EVisibility::Collapsed); })
 
 						+ SHorizontalBox::Slot()
 						.VAlign(VAlign_Center)
@@ -422,6 +436,7 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 					.AutoHeight()
 					[
 						SNew(SHorizontalBox)
+						.Visibility_Lambda([this]() { return (bShowShowNativePackages ? EVisibility::Visible : EVisibility::Collapsed); })
 
 						+ SHorizontalBox::Slot()
 						.VAlign(VAlign_Center)
@@ -455,10 +470,30 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 	];
 }
 
-void SReferenceViewer::SetGraphRootIdentifiers(const TArray<FAssetIdentifier>& NewGraphRootIdentifiers)
+void SReferenceViewer::SetGraphRootIdentifiers(const TArray<FAssetIdentifier>& NewGraphRootIdentifiers, const FReferenceViewerParams& ReferenceViewerParams)
 {
 	GraphObj->SetGraphRoot(NewGraphRootIdentifiers);
-	
+	// Set properties
+	GraphObj->SetShowReferencers(ReferenceViewerParams.bShowReferencers);
+	GraphObj->SetShowDependencies(ReferenceViewerParams.bShowDependencies);
+	// Set user-interactive properties
+	FixAndHideSearchDepthLimit = ReferenceViewerParams.FixAndHideSearchDepthLimit;
+	if (FixAndHideSearchDepthLimit > 0)
+	{
+		GraphObj->SetSearchDepthLimit(FixAndHideSearchDepthLimit);
+		GraphObj->SetSearchDepthLimitEnabled(true);
+	}
+	FixAndHideSearchBreadthLimit = ReferenceViewerParams.FixAndHideSearchBreadthLimit;
+	if (FixAndHideSearchBreadthLimit > 0)
+	{
+		GraphObj->SetSearchBreadthLimit(FixAndHideSearchBreadthLimit);
+		GraphObj->SetSearchBreadthLimitEnabled(true);
+	}
+	bShowCollectionFilter = ReferenceViewerParams.bShowCollectionFilter;
+	bShowShowReferencesOptions = ReferenceViewerParams.bShowShowReferencesOptions;
+	bShowShowSearchableNames = ReferenceViewerParams.bShowShowSearchableNames;
+	bShowShowNativePackages = ReferenceViewerParams.bShowShowNativePackages;
+
 	RebuildGraph();
 
 	// Zoom once this frame to make sure widgets are visible, then zoom again so size is correct
@@ -813,7 +848,7 @@ ECheckBoxState SReferenceViewer::IsShowHardReferencesChecked() const
 
 EVisibility SReferenceViewer::GetManagementReferencesVisibility() const
 {
-	if (UAssetManager::IsValid())
+	if (bShowShowReferencesOptions && UAssetManager::IsValid())
 	{
 		return EVisibility::SelfHitTestInvisible;
 	}

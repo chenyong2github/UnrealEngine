@@ -121,6 +121,11 @@ namespace UnrealBuildTool
 		PostConfigInit,
 
 		/// <summary>
+		/// The first screen to be rendered after system splash screen
+		/// </summary>
+		PostSplashScreen,
+
+		/// <summary>
 		/// After PostConfigInit and before coreUobject initialized. used for early boot loading screens before the uobjects are initialized
 		/// </summary>
 		PreEarlyLoadingScreen,

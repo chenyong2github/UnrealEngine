@@ -12,7 +12,6 @@
 #include "Animation/CurveSequence.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Templates/ScopedPointer.h"
 #include "SNodePanel.h"
 #include "Templates/UniquePtr.h"
 

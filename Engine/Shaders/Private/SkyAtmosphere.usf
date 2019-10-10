@@ -264,7 +264,7 @@ void UvToSkyViewLutParams(out float3 ViewDir, in float ViewHeight, in float2 UV)
 
 	float Vhorizon = sqrt(ViewHeight * ViewHeight - Atmosphere.BottomRadius * Atmosphere.BottomRadius);
 	float CosBeta = Vhorizon / ViewHeight;				// cos of zenith angle from horizon to zeniht
-	float Beta = acos(CosBeta);
+	float Beta = acosFast(CosBeta);
 	float ZenithHorizonAngle = PI - Beta;
 
 	float ViewZenithAngle;

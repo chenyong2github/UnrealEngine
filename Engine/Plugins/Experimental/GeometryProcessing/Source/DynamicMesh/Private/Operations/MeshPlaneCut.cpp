@@ -93,15 +93,14 @@ bool FMeshPlaneCut::Cut()
 		}
 
 		FDynamicMesh3::FEdgeSplitInfo splitInfo;
-		EMeshResult result = Mesh->SplitEdge(EID, splitInfo);
-		ensureMsgf(result == EMeshResult::Ok, TEXT("FMeshPlaneCut::Cut: failed to SplitEdge")); // edge split really shouldn't fail
-
-		// SplitEdge just bisects edge; now move created vertex to plane intersection pt
 		double t = f0 / (f0 - f1);
-		FVector3d newPos = (1 - t) * Mesh->GetVertex(ev.A) + (t) * Mesh->GetVertex(ev.B);
-		Mesh->SetVertex(splitInfo.NewVertex, newPos);
+		EMeshResult result = Mesh->SplitEdge(EID, splitInfo, t);
+		if (!ensureMsgf(result == EMeshResult::Ok, TEXT("FMeshPlaneCut::Cut: failed to SplitEdge")))
+		{
+			continue; // edge split really shouldn't fail; skip the edge if it somehow does
+		}
 
-		NewEdges.Add(splitInfo.NewEdges.A); // TODO: why not OnCutEdges.Add(splitInfo.NewEdges.A);  ???
+		NewEdges.Add(splitInfo.NewEdges.A);
 		NewEdges.Add(splitInfo.NewEdges.B); OnCutEdges.Add(splitInfo.NewEdges.B);
 		if (splitInfo.NewEdges.C != FDynamicMesh3::InvalidID)
 		{
@@ -182,6 +181,16 @@ void FMeshPlaneCut::CollapseDegenerateEdges(const TSet<int>& OnCutEdges, const T
 				}
 
 				FIndex2i EV = Mesh->GetEdgeV(EID);
+				// if the vertex we'd remove is on a seam, try removing the other one instead
+				if (Mesh->HasAttributes() && Mesh->Attributes()->IsSeamVertex(EV.B, false))
+				{
+					Swap(EV.A, EV.B);
+					// if they were both on seams, then collapse should not happen?  (& would break OnCollapseEdge assumptions in overlay)
+					if (Mesh->HasAttributes() && Mesh->Attributes()->IsSeamVertex(EV.B, false))
+					{
+						continue;
+					}
+				}
 				FDynamicMesh3::FEdgeCollapseInfo CollapseInfo;
 				EMeshResult Result = Mesh->CollapseEdge(EV.A, EV.B, CollapseInfo);
 				if (Result == EMeshResult::Ok)

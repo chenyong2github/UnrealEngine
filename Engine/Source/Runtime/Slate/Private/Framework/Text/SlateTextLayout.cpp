@@ -23,7 +23,6 @@ FSlateTextLayout::FSlateTextLayout(SWidget* InOwner, FTextBlockStyle InDefaultTe
 	: DefaultTextStyle(MoveTemp(InDefaultTextStyle))
 	, Children(InOwner, false)
 	, bIsPassword(false)
-	, LocalizedFallbackFontRevision(0)
 {
 
 }
@@ -150,24 +149,6 @@ void FSlateTextLayout::EndLayout()
 {
 	FTextLayout::EndLayout();
 	AggregateChildren();
-}
-
-void FSlateTextLayout::UpdateIfNeeded()
-{
-	const uint16 CurrentLocalizedFallbackFontRevision = FSlateApplication::Get().GetRenderer()->GetFontCache()->GetLocalizedFallbackFontRevision();
-	if (CurrentLocalizedFallbackFontRevision != LocalizedFallbackFontRevision)
-	{
-		if (LocalizedFallbackFontRevision != 0)
-		{
-			// If the localized fallback font has changed, we need to purge the current layout data as things may need to be re-measured
-			DirtyFlags |= ETextLayoutDirtyState::Layout;
-			DirtyAllLineModels(ELineModelDirtyState::WrappingInformation | ELineModelDirtyState::ShapingCache);
-		}
-
-		LocalizedFallbackFontRevision = CurrentLocalizedFallbackFontRevision;
-	}
-
-	FTextLayout::UpdateIfNeeded();
 }
 
 void FSlateTextLayout::SetDefaultTextStyle(FTextBlockStyle InDefaultTextStyle)

@@ -9,11 +9,11 @@ namespace UnrealBuildTool.Rules
             PrivateIncludePaths.Add("Runtime/MeshDescription/Private");
             PublicIncludePaths.Add("Runtime/MeshDescription/Public");
 
-			PrivateDependencyModuleNames.AddRange(
+			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
 					"Core",
-					"CoreUObject",
+					"CoreUObject"
 				}
 			);
 		}

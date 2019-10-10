@@ -860,17 +860,35 @@ public:
 	/**
 	 * Sets the encryption key and enables encryption.
 	 */
+	UE_DEPRECATED(4.24, "Use SetEncryptionData instead.")
 	ENGINE_API void EnableEncryptionWithKey(TArrayView<const uint8> Key);
+	
+	/**
+	 * Sets the encryption data and enables encryption.
+	 */
+	ENGINE_API void EnableEncryption(const FEncryptionData& EncryptionData);
 
 	/**
 	 * Sets the encryption key, enables encryption, and sends the encryption ack to the client.
 	 */
+	UE_DEPRECATED(4.24, "Use SetEncryptionData instead.")
 	ENGINE_API void EnableEncryptionWithKeyServer(TArrayView<const uint8> Key);
+
+	/**
+	 * Sets the encryption data, enables encryption, and sends the encryption ack to the client.
+	 */
+	ENGINE_API void EnableEncryptionServer(const FEncryptionData& EncryptionData);
 
 	/**
 	 * Sets the key for the underlying encryption packet handler component, but doesn't modify encryption enabled state.
 	 */
+	UE_DEPRECATED(4.24, "Use SetEncryptionData instead.")
 	ENGINE_API void SetEncryptionKey(TArrayView<const uint8> Key);
+
+	/**
+	 * Sets the data for the underlying encryption packet handler component, but doesn't modify encryption enabled state.
+	 */
+	ENGINE_API void SetEncryptionData(const FEncryptionData& EncryptionData);
 
 	/**
 	 * Sends an NMT_EncryptionAck message
@@ -1140,7 +1158,13 @@ public:
 	 * Get the current number of sent packets for which we have received a delivery notification
 	 */
 	ENGINE_API uint32 GetOutTotalNotifiedPackets() const { return OutTotalNotifiedPackets; }
-	
+
+	/** Sends the NMT_Challenge message */
+	void SendChallengeControlMessage();
+
+	/** Sends the NMT_Challenge message based on encryption response */
+	void SendChallengeControlMessage(const FEncryptionKeyResponse& Response);
+
 protected:
 
 	ENGINE_API void SetPendingCloseDueToSocketSendFailure();

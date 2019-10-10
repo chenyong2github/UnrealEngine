@@ -27,7 +27,6 @@ namespace ControlRigVM
 		{
 		case EControlRigOpCode::Copy:
 		{
-			DECLARE_SCOPE_HIERARCHICAL_COUNTER(ControlRigVM::CopyPropertyValue)
 			PropertyPathHelpers::CopyPropertyValueFast(OuterObject, InOperator.CachedPropertyPath2, InOperator.CachedPropertyPath1);
 			return true;
 		}

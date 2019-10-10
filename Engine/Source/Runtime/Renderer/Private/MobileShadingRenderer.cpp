@@ -295,6 +295,16 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 	UpdatePrimitiveIndirectLightingCacheBuffers();
 	
 	OnStartRender(RHICmdList);
+
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
+
+		for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
+		{
+			Extension->PrepareView(&Views[ViewIndex]);
+		}
+	}
 }
 
 /** 
@@ -501,13 +511,21 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		}
 	}
 
+	FRHITexture* FoveationTexture = nullptr;
+	
+	if (SceneContext.IsFoveationTextureAllocated())
+	{
+		FoveationTexture = SceneContext.GetFoveationTexture();
+	}
+
 	FRHIRenderPassInfo SceneColorRenderPassInfo(
 		SceneColor,
 		ColorTargetAction,
 		SceneColorResolve,
 		SceneDepth,
-		DepthTargetAction, 
+		DepthTargetAction,
 		nullptr, // we never resolve scene depth on mobile
+		FoveationTexture,
 		FExclusiveDepthStencil::DepthWrite_StencilWrite
 	);
 	SceneColorRenderPassInfo.SubpassHint = ESubpassHint::DepthReadSubpass;
@@ -598,6 +616,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			SceneDepth,
 			DepthTargetAction, 
 			nullptr,
+			FoveationTexture,
 			ExclusiveDepthStencil
 		);
 		TranslucentRenderPassInfo.NumOcclusionQueries = 0;
@@ -840,7 +859,7 @@ bool FMobileSceneRenderer::RequiresTranslucencyPass(FRHICommandListImmediate& RH
 	}
 
 	// Always render LDR in single pass
-	if (!IsMobileHDR() && !IsHTML5Platform())
+	if (!IsMobileHDR() && (ShaderPlatform != SP_OPENGL_ES2_WEBGL))
 	{
 		return false;
 	}
@@ -866,7 +885,7 @@ void FMobileSceneRenderer::ConditionalResolveSceneDepth(FRHICommandListImmediate
 		// resolve MSAA depth for translucency
 		SceneContext.ResolveSceneDepthTexture(RHICmdList, FResolveRect(0, 0, FamilySize.X, FamilySize.Y));
 	}
-	else if (IsHTML5Platform() || IsAndroidOpenGLESPlatform(ShaderPlatform))
+	else if ((ShaderPlatform == SP_OPENGL_ES2_WEBGL) || IsAndroidOpenGLESPlatform(ShaderPlatform))
 	{
 		const bool bSceneDepthInAlpha = (SceneContext.GetSceneColor()->GetDesc().Format == PF_FloatRGBA);
 		const bool bAlwaysResolveDepth = CVarMobileAlwaysResolveDepth.GetValueOnRenderThread() == 1;

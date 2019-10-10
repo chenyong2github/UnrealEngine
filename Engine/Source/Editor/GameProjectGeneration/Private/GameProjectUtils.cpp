@@ -100,12 +100,12 @@ bool GameProjectUtils::bUseAudioMixerForAllPlatforms = false;
 struct FAudioDefaultPlatformSettings
 {
 	FString Name;
-	EAudioPlatform Platform;
 	FAudioPlatformSettings Settings;
+	const TCHAR* ConfigSectionName;
 	bool bUseAudioMixer;
 
-	FAudioDefaultPlatformSettings(EAudioPlatform InPlatform)
-		: Platform(InPlatform)
+	FAudioDefaultPlatformSettings(const TCHAR* InConfigSectionName)
+		: ConfigSectionName(InConfigSectionName)
 		, bUseAudioMixer(false)
 	{
 	}
@@ -121,42 +121,86 @@ namespace
 		// the new audio mixer on specific platform. Ex. for Windows:
 		// WindowsSettings.bUseAudioMixer = true;
 
-		FAudioDefaultPlatformSettings AndroidSettings(EAudioPlatform::Android);
+		FAudioDefaultPlatformSettings AndroidSettings(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"));
 		AndroidSettings.Settings.MaxChannels = 12;
 		DefaultProjectSettings.Add(TEXT("Android"), AndroidSettings);
 
-		FAudioDefaultPlatformSettings IOSSettings(EAudioPlatform::IOS);
+		FAudioDefaultPlatformSettings IOSSettings(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"));
 		IOSSettings.Settings.MaxChannels = 16;
 		DefaultProjectSettings.Add(TEXT("IOS"), IOSSettings);
 
-		FAudioDefaultPlatformSettings LinuxSettings(EAudioPlatform::Linux);
+		FAudioDefaultPlatformSettings LinuxSettings(TEXT("/Script/LinuxTargetPlatform.LinuxTargetSettings"));
 		LinuxSettings.Settings.MaxChannels = 16;
 		DefaultProjectSettings.Add(TEXT("Linux"), LinuxSettings);
 
-		FAudioDefaultPlatformSettings MacSettings(EAudioPlatform::Mac);
+		FAudioDefaultPlatformSettings MacSettings(TEXT("/Script/MacTargetPlatform.MacTargetSettings"));
 		DefaultProjectSettings.Add(TEXT("Mac"), MacSettings);
 
-		FAudioDefaultPlatformSettings PS4Settings(EAudioPlatform::Playstation4);
+		FAudioDefaultPlatformSettings PS4Settings(TEXT("/Script/PS4PlatformEditor.PS4TargetSettings"));
 		PS4Settings.Settings.CallbackBufferFrameSize = 256;
 		PS4Settings.Settings.NumBuffers = 7;
 		PS4Settings.Settings.NumSourceWorkers = 4;
 		DefaultProjectSettings.Add(TEXT("PS4"), PS4Settings);
 
-		FAudioDefaultPlatformSettings SwitchSettings(EAudioPlatform::Switch);
+		FAudioDefaultPlatformSettings SwitchSettings(TEXT("/Script/SwitchRuntimeSettings.SwitchRuntimeSettings"));
 		SwitchSettings.Settings.MaxChannels = 16;
 		DefaultProjectSettings.Add(TEXT("Switch"), SwitchSettings);
 
-		FAudioDefaultPlatformSettings WindowsSettings(EAudioPlatform::Windows);
+		FAudioDefaultPlatformSettings WindowsSettings(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"));
 		WindowsSettings.Settings.CallbackBufferFrameSize = 256;
 		WindowsSettings.Settings.NumBuffers = 7;
 		DefaultProjectSettings.Add(TEXT("Windows"), WindowsSettings);
 
-		FAudioDefaultPlatformSettings XBoxSettings(EAudioPlatform::XboxOne);
+		FAudioDefaultPlatformSettings XBoxSettings(TEXT("/Script/XboxOnePlatformEditor.XboxOneTargetSettings"));
 		XBoxSettings.Settings.CallbackBufferFrameSize = 256;
 		XBoxSettings.Settings.NumBuffers = 7;
 		DefaultProjectSettings.Add(TEXT("XboxOne"), XBoxSettings);
 
 		return MoveTemp(DefaultProjectSettings);
+	}
+
+	/** Set the state of XR plugins in OutProject based on the flags in InProjectInfo. */
+	void SetXRPluginStates(const FProjectInformation& InProjectInfo, FProjectDescriptor& OutProject)
+	{
+		static const FString XRPlugins[] = {
+			TEXT("MagicLeapMedia"),
+			TEXT("MagicLeap"),
+			TEXT("OculusVR"),
+			TEXT("SteamVR") };
+
+		if (!InProjectInfo.bEnableXR)
+		{
+			for (const FString& Plugin : XRPlugins)
+			{
+				int32 Index = OutProject.FindPluginReferenceIndex(Plugin);
+				if (Index == INDEX_NONE)
+				{
+					Index = OutProject.Plugins.AddDefaulted();
+					OutProject.Plugins[Index].Name = Plugin;
+				}
+
+				OutProject.Plugins[Index].bEnabled = false;
+			}
+		}
+	}
+
+	/** Get the configuration values for raytracing if enabled. */
+	FString GetRaytracingConfigString(const FProjectInformation& InProjectInfo)
+	{
+		FString RaytracingConfig;
+
+		if (InProjectInfo.bEnableRaytracing)
+		{
+			RaytracingConfig += LINE_TERMINATOR;
+			RaytracingConfig += TEXT("[/Script/WindowsTargetPlatform.WindowsTargetSettings]") LINE_TERMINATOR;
+			RaytracingConfig += TEXT("DefaultGraphicsRHI=DefaultGraphicsRHI_DX12") LINE_TERMINATOR;
+			RaytracingConfig += LINE_TERMINATOR;
+			RaytracingConfig += TEXT("[/Script/Engine.RendererSettings]") LINE_TERMINATOR;
+			RaytracingConfig += TEXT("r.SkinCache.CompileShaders=True") LINE_TERMINATOR;
+			RaytracingConfig += TEXT("r.RayTracing=True") LINE_TERMINATOR;
+		}
+
+		return MoveTemp(RaytracingConfig);
 	}
 } // namespace <>
 
@@ -1268,6 +1312,11 @@ UTemplateProjectDefs* GameProjectUtils::LoadTemplateDefs(const FString& ProjectD
 		TemplateDefs = NewObject<UTemplateProjectDefs>(GetTransientPackage(), ClassToConstruct);
 		TemplateDefs->LoadConfig(UTemplateProjectDefs::StaticClass(), *TemplateDefsIniFilename);
 
+		if (TemplateDefs->HiddenSettings.Num() > 1 && TemplateDefs->HiddenSettings.Contains(ETemplateSetting::All))
+		{
+			UE_LOG(LogGameProjectGeneration, Warning, TEXT("Template '%s' contains 'All' in HiddenSettings in addition to other entries. This is a mistake, and means that all settings will be hidden."), *ProjectDirectory);
+		}
+
 		TArray<TSharedPtr<FTemplateCategory>> AllTemplateCategories;
 		FGameProjectGenerationModule::Get().GetAllTemplateCategories(AllTemplateCategories);
 
@@ -1280,7 +1329,7 @@ UTemplateProjectDefs* GameProjectUtils::LoadTemplateDefs(const FString& ProjectD
 
 			if (!bCategoryExists)
 			{
-				UE_LOG(LogGameProjectGeneration, Warning, TEXT("Failed to find category definition named '%s', not defined in TemplateCategories.ini."), *CategoryKey.ToString());
+				UE_LOG(LogGameProjectGeneration, Warning, TEXT("Failed to find category definition named '%s' while loading template '%s', it is not defined in any TemplateCategories.ini."), *CategoryKey.ToString(), *ProjectDirectory);
 			}
 		}
 	}
@@ -1349,17 +1398,19 @@ bool GameProjectUtils::GenerateProjectFromScratch(const FProjectInformation& InP
 	// Generate the project file
 	{
 		// Set up the descriptor
-		FProjectDescriptor Descriptor;
+		FProjectDescriptor Project;
 		for(int32 Idx = 0; Idx < StartupModuleNames.Num(); Idx++)
 		{
-			Descriptor.Modules.Add(FModuleDescriptor(*StartupModuleNames[Idx]));
+			Project.Modules.Add(FModuleDescriptor(*StartupModuleNames[Idx]));
 		}
 
-		Descriptor.bIsEnterpriseProject = InProjectInfo.bIsEnterpriseProject;
+		Project.bIsEnterpriseProject = InProjectInfo.bIsEnterpriseProject;
+
+		SetXRPluginStates(InProjectInfo, Project);
 
 		// Try to save it
 		FText LocalFailReason;
-		if(!Descriptor.Save(InProjectInfo.ProjectFilename, LocalFailReason))
+		if(!Project.Save(InProjectInfo.ProjectFilename, LocalFailReason))
 		{
 			OutFailReason = LocalFailReason;
 			return false;
@@ -1592,6 +1643,8 @@ bool GameProjectUtils::CreateProjectFromTemplate(const FProjectInformation& InPr
 		FileContents += LINE_TERMINATOR;
 		FileContents += GetHardwareConfigString(InProjectInfo);
 
+		FileContents += GetRaytracingConfigString(InProjectInfo);
+
 		if ( !WriteOutputFile(DefaultEngineIniFilename, FileContents, OutFailReason) )
 		{
 			return false;
@@ -1756,6 +1809,9 @@ bool GameProjectUtils::CreateProjectFromTemplate(const FProjectInformation& InPr
 		{
 			ModuleInfo.Name = FName(*ModuleInfo.Name.ToString().Replace(*BaseSourceName, *BaseNewName));
 		}
+
+		// Disable XR plugins if desired
+		SetXRPluginStates(InProjectInfo, Project);
 
 		// Save it to disk
 		if(!Project.Save(InProjectInfo.ProjectFilename, OutFailReason))
@@ -1922,7 +1978,7 @@ FString GameProjectUtils::GetHardwareConfigString(const FProjectInformation& InP
 	HardwareTargeting += FString::Printf(TEXT("DefaultGraphicsPerformance=%s") LINE_TERMINATOR, *GraphicsPresetAsString);
 	HardwareTargeting += LINE_TERMINATOR;
 
-	return HardwareTargeting;
+	return MoveTemp(HardwareTargeting);
 }
 
 bool GameProjectUtils::GenerateConfigFiles(const FProjectInformation& InProjectInfo, TArray<FString>& OutCreatedFiles, FText& OutFailReason)
@@ -1985,6 +2041,9 @@ bool GameProjectUtils::GenerateConfigFiles(const FProjectInformation& InProjectI
 				FileContents += FString::Printf(TEXT("GlobalDefaultGameMode=\"/Script/%s.%sGameMode\"") LINE_TERMINATOR, *NewProjectName, *NewProjectName);
 			}
 		}
+
+		FileContents += LINE_TERMINATOR;
+		FileContents += GetRaytracingConfigString(InProjectInfo);
 
 		if (WriteOutputFile(DefaultEngineIniFilename, FileContents, OutFailReason))
 		{
@@ -2059,7 +2118,7 @@ bool GameProjectUtils::GeneratePlatformConfigFiles(const FProjectInformation& In
 		const FString& PlatformName = SettingsPair.Key;
 		const FAudioPlatformSettings& PlatformSettings = SettingsPair.Value.Settings;
 
-		FileContents += TEXT("[") + FString(AudioPluginUtilities::GetPlatformConfigSection(SettingsPair.Value.Platform)) + TEXT("]") + LINE_TERMINATOR;
+		FileContents += TEXT("[") + FString(SettingsPair.Value.ConfigSectionName) + TEXT("]") + LINE_TERMINATOR;
 
 		if (DefaultSettings.SampleRate == PlatformSettings.SampleRate)
 		{
@@ -3909,10 +3968,7 @@ GameProjectUtils::EAddCodeToProjectResult GameProjectUtils::AddCodeToProject_Int
 		check(ModuleInfo.ModuleName == GameModuleName);
 
 		IHotReloadInterface& HotReloadSupport = FModuleManager::LoadModuleChecked<IHotReloadInterface>("HotReload");
-		const bool bReloadAfterCompiling = true;
-		const bool bForceCodeProject = true;
-		const bool bFailIfGeneratedCodeChanges = false;
-		if (!HotReloadSupport.RecompileModule(*GameModuleName, bReloadAfterCompiling, *GWarn, bFailIfGeneratedCodeChanges, bForceCodeProject))
+		if (!HotReloadSupport.RecompileModule(*GameModuleName, *GWarn, ERecompileModuleFlags::ReloadAfterRecompile | ERecompileModuleFlags::ForceCodeProject))
 		{
 			OutFailReason = LOCTEXT("FailedToCompileNewGameModule", "Failed to compile newly created game module.");
 			return EAddCodeToProjectResult::FailedToHotReload;
@@ -3958,10 +4014,7 @@ GameProjectUtils::EAddCodeToProjectResult GameProjectUtils::AddCodeToProject_Int
 			else
 			{
 				// Perform a regular unload, then reload
-				const bool bReloadAfterRecompile = true;
-				const bool bForceCodeProject = false;
-				const bool bFailIfGeneratedCodeChanges = true;
-				if (!HotReloadSupport.RecompileModule(ModuleFName, bReloadAfterRecompile, *GWarn, bFailIfGeneratedCodeChanges, bForceCodeProject))
+				if (!HotReloadSupport.RecompileModule(ModuleFName, *GWarn, ERecompileModuleFlags::ReloadAfterRecompile | ERecompileModuleFlags::FailIfGeneratedCodeChanges))
 				{
 					OutFailReason = FText::Format(LOCTEXT("FailedToCompileModuleFmt", "Failed to automatically compile the '{0}' module."), FText::FromString(ModuleInfo.ModuleName));
 					return EAddCodeToProjectResult::FailedToHotReload;
@@ -4092,7 +4145,6 @@ bool GameProjectUtils::AddSharedContentToProject(const FProjectInformation &InPr
 		{
 			RequiredDetail = EFeaturePackDetailLevel::Standard;
 		}
-
 
 		TUniquePtr<FFeaturePackContentSource> TempFeaturePack = MakeUnique<FFeaturePackContentSource>();
 		bool bCopied = TempFeaturePack->InsertAdditionalResources(TemplateDefs->SharedContentPacks,RequiredDetail, DestFolder,CreatedFiles);

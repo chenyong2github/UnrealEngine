@@ -30,10 +30,10 @@ struct TTriangleMeshAdapter
 	}
 };
 
-typedef TTriangleMeshAdapter<double> TTriangleMeshAdapterd;
-typedef TTriangleMeshAdapter<float> TTriangleMeshAdapterf;
+typedef TTriangleMeshAdapter<double> FTriangleMeshAdapterd;
+typedef TTriangleMeshAdapter<float> FTriangleMeshAdapterf;
 
-TTriangleMeshAdapterd GetArrayMesh(TArray<FVector>& Vertices, TArray<FIntVector>& Triangles)
+inline FTriangleMeshAdapterd GetArrayMesh(TArray<FVector>& Vertices, TArray<FIntVector>& Triangles)
 {
 	return {
 		[&](int) { return true; },

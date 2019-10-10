@@ -71,8 +71,12 @@ TSharedRef<SWidget> UEditorUtilityWidgetBlueprint::CreateUtilityWidget()
 	UClass* BlueprintClass = GeneratedClass;
 	TSubclassOf<UEditorUtilityWidget> WidgetClass = BlueprintClass;
 	UWorld* World = GEditor->GetEditorWorldContext().World();
-	if (!CreatedUMGWidget && World)
+	if (World)
 	{
+		if (CreatedUMGWidget)
+		{
+			CreatedUMGWidget->Rename(nullptr, GetTransientPackage());
+		}
 		CreatedUMGWidget = CreateWidget<UEditorUtilityWidget>(World, WidgetClass);
 	}
 

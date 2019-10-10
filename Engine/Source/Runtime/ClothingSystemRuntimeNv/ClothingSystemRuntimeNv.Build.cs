@@ -16,7 +16,8 @@ public class ClothingSystemRuntimeNv : ModuleRules
             new string[] {
                 "Core",
                 "CoreUObject",
-                "ClothingSystemRuntimeInterface"
+                "ClothingSystemRuntimeInterface",
+                "ClothingSystemRuntimeCommon"
             }
         );
 

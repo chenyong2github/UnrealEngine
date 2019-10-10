@@ -2,7 +2,6 @@
 
 #pragma once
 
-#if INCLUDE_CHAOS
 
 #include "Async/TaskGraphInterfaces.h"
 #include "Dispatcher.h"
@@ -119,5 +118,3 @@ private:
 	FGraphEventRef CompletionEvent;
 
 };
-
-#endif

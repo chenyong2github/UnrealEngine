@@ -46,7 +46,7 @@ public:
 	}
 
 	/** Releases ownership of the written data. */
-	void ReleaseOwnership();
+	uint8* ReleaseOwnership();
 
 	/** Check whether data is allocated or if the ownership was released. */
 	bool HasData() const 

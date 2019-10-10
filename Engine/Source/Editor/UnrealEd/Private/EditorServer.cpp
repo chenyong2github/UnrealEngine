@@ -4995,13 +4995,7 @@ bool UEditorEngine::SnapObjectTo( FActorOrComponent Object, const bool InAlign, 
 			RebuildAlteredBSP();
 		}
 
-		TArray<FEdMode*> ActiveModes; 
-		GCurrentLevelEditingViewportClient->GetModeTools()->GetActiveModes(ActiveModes);
-		for( int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex )
-		{
-			// Notify active modes
-			ActiveModes[ModeIndex]->ActorMoveNotify();
-		}
+		GCurrentLevelEditingViewportClient->GetModeTools()->ActorMoveNotify();
 
 		return true;
 	}
@@ -5814,6 +5808,10 @@ bool UEditorEngine::Exec( UWorld* InWorld, const TCHAR* Stream, FOutputDevice& A
 	{
 		return HandleJumpToCommand( Str, Ar );
 	}
+	else if (FParse::Command(&Str, TEXT("BugIt")))
+	{
+		return HandleBugItCommand(Str, Ar);
+	}
 	else if( FParse::Command(&Str,TEXT("BugItGo")) )
 	{
 		return HandleBugItGoCommand( Str, Ar );
@@ -6288,6 +6286,25 @@ bool UEditorEngine::HandleJumpToCommand( const TCHAR* Str, FOutputDevice& Ar )
 	return true;
 }
 
+
+bool UEditorEngine::HandleBugItCommand(const TCHAR* Str, FOutputDevice& Ar)
+{
+	if(GCurrentLevelEditingViewportClient && !PlayWorld)
+	{
+		FVector ViewLocation = GCurrentLevelEditingViewportClient->GetViewLocation();
+		FRotator ViewRotation = GCurrentLevelEditingViewportClient->GetViewRotation();
+
+		FString GoString = FString::Printf(TEXT("BugItGo %f %f %f %f %f %f"), ViewLocation.X, ViewLocation.Y, ViewLocation.Z, ViewRotation.Pitch, ViewRotation.Yaw, ViewRotation.Roll);
+		UE_LOG(LogEditorServer, Log, TEXT("%s"), *GoString);
+
+		FPlatformApplicationMisc::ClipboardCopy(*GoString);
+
+		return true;
+	}
+
+	return false;
+}
+
 bool UEditorEngine::HandleBugItGoCommand( const TCHAR* Str, FOutputDevice& Ar )
 {
 	if (PlayWorld)
@@ -6322,6 +6339,8 @@ bool UEditorEngine::HandleBugItGoCommand( const TCHAR* Str, FOutputDevice& Ar )
 	Stream = GetFROTATORSpaceDelimited( Stream, Rot, 1.0f );
 	if( Stream != NULL )
 	{
+		// Zero out roll as the editor camera should not roll 
+		Rot.Roll = 0;
 		for(FLevelEditorViewportClient* ViewportClient : GetLevelViewportClients())
 		{
 			ViewportClient->SetViewRotation( Rot );

@@ -5,7 +5,7 @@
 #include "BlueprintNodes/K2Node_DataprepAction.h"
 #include "DataPrepEditorModule.h"
 #include "DataPrepRecipe.h"
-#include "DataprepEditorActions.h"
+#include "DataPrepEditorActions.h"
 #include "SchemaActions/DataprepAllMenuActionCollector.h"
 #include "SchemaActions/IDataprepMenuActionCollector.h"
 #include "Widgets/SDataprepActionMenu.h"
@@ -23,6 +23,7 @@
 #include "Framework/Commands/UICommandList.h"
 #include "GraphEditor.h"
 #include "GraphEditorActions.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "IMessageLogListing.h"
 #include "K2Node_AddComponent.h"
 #include "K2Node_Event.h"
@@ -45,7 +46,6 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SConstraintCanvas.h"
 #include "Widgets/Notifications/SErrorText.h"
-#include "Windows/WindowsPlatformApplicationMisc.h"
 
 #define LOCTEXT_NAMESPACE "DataprepPipelineEditor"
 
@@ -626,6 +626,8 @@ void FDataprepEditor::OnPipelineChanged(UBlueprint* InBlueprint)
 // Inspired by FBlueprintEditor::Compile
 void FDataprepEditor::OnCompile()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDataprepEditor::OnCompile);
+
 	if (DataprepRecipeBPPtr.IsValid())
 	{
 		FMessageLog BlueprintLog("BlueprintLog");

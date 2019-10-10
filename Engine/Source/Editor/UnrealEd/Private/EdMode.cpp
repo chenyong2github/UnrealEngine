@@ -589,16 +589,16 @@ void FEdMode::Enter()
 
 	bPendingDeletion = false;
 
-	FEditorDelegates::EditorModeEnter.Broadcast( this );
+	FEditorDelegates::EditorModeIDEnter.Broadcast( GetID() );
 	const bool bIsEnteringMode = true;
-	Owner->BroadcastEditorModeChanged( this, bIsEnteringMode );
+	Owner->BroadcastEditorModeIDChanged( GetID(), bIsEnteringMode );
 }
 
 void FEdMode::Exit()
 {
 	const bool bIsEnteringMode = false;
-	Owner->BroadcastEditorModeChanged( this, bIsEnteringMode );
-	FEditorDelegates::EditorModeExit.Broadcast( this );
+	Owner->BroadcastEditorModeIDChanged( GetID(), bIsEnteringMode );
+	FEditorDelegates::EditorModeIDExit.Broadcast(GetID());
 }
 
 void FEdMode::SetCurrentTool( EModeTools InID )

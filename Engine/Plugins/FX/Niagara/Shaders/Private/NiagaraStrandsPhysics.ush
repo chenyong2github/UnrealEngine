@@ -11,14 +11,14 @@
  * -----------------------------------------------------------------
  */
 
-groupshared float3 SharedLocalPosition[THREADGROUP_SIZE];
-groupshared float4 SharedLocalQuaternion[THREADGROUP_SIZE];
+groupshared float3 SharedNodePosition[THREADGROUP_SIZE];
+groupshared float4 SharedNodeOrientation[THREADGROUP_SIZE];
 
 groupshared float SharedInverseMass[THREADGROUP_SIZE];
 groupshared float SharedInverseInertia[THREADGROUP_SIZE];
 
-groupshared float3 SharedLocalVelocity[THREADGROUP_SIZE];
-groupshared float3 SharedLocalOmega[THREADGROUP_SIZE];
+groupshared float3 SharedPreviousPosition[THREADGROUP_SIZE];
+groupshared float4 SharedPreviousOrientation[THREADGROUP_SIZE];
 
 /* -----------------------------------------------------------------
  * Get the strand parent position
@@ -27,7 +27,7 @@ groupshared float3 SharedLocalOmega[THREADGROUP_SIZE];
 
 void GetParentPosition(const bool IsMobile, out float3 ParentPosition)
 {	
-	ParentPosition = SharedLocalPosition[IsMobile ? GGroupThreadId.x-1 : GGroupThreadId.x];
+	ParentPosition = SharedNodePosition[IsMobile ? GGroupThreadId.x-1 : GGroupThreadId.x];
 }
 
 /* -----------------------------------------------------------------
@@ -37,8 +37,8 @@ void GetParentPosition(const bool IsMobile, out float3 ParentPosition)
 
 void ExtractPositionSharedDatas(const bool IsMobile, const float3 InParticlePosition, const float3 InParticleVelocity, const float InParticleMass)
 {	
-	SharedLocalPosition[GGroupThreadId.x] = InParticlePosition;
-	SharedLocalVelocity[GGroupThreadId.x] = InParticleVelocity;
+	SharedNodePosition[GGroupThreadId.x] = InParticlePosition;
+	//SharedLocalVelocity[GGroupThreadId.x] = InParticleVelocity;
 	SharedInverseMass[GGroupThreadId.x] = (InParticleMass != 0.0 && IsMobile) ? 1.0/InParticleMass : 0.0;
 
 	GroupMemoryBarrier(); 
@@ -46,8 +46,8 @@ void ExtractPositionSharedDatas(const bool IsMobile, const float3 InParticlePosi
 
 void ExtractOrientationSharedDatas(const bool IsMobile, const float4 InParticleQuaternion, const float3 InParticleOmega, const float InParticleInertia)
 {
-	SharedLocalQuaternion[GGroupThreadId.x] = InParticleQuaternion;
-	SharedLocalOmega[GGroupThreadId.x] = InParticleOmega;
+	SharedNodeOrientation[GGroupThreadId.x] = InParticleQuaternion;
+	//SharedLocalOmega[GGroupThreadId.x] = InParticleOmega;
 	SharedInverseInertia[GGroupThreadId.x] = (InParticleInertia != 0.0 && IsMobile) ? 1.0/InParticleInertia : 0.0;
 
 	GroupMemoryBarrier(); 
@@ -58,25 +58,25 @@ void ExtractOrientationSharedDatas(const bool IsMobile, const float4 InParticleQ
  * -----------------------------------------------------------------
  */
 
-void ReportPositionSharedDatas(const float InDeltaTime, inout float3 OutParticleVelocity, inout float3 OutParticlePosition)
+void ReportPositionSharedDatas(const float InDeltaTime, inout float3 OutParticleVelocity, out float3 OutParticlePosition)
 {
-	const float3 CurrentPosition = SharedLocalPosition[GGroupThreadId.x];
-	OutParticleVelocity += (CurrentPosition-OutParticlePosition) / InDeltaTime;
+	const float3 CurrentPosition = SharedNodePosition[GGroupThreadId.x];
+	//OutParticleVelocity += (CurrentPosition-OutParticlePosition) / InDeltaTime;
 	OutParticlePosition = CurrentPosition;
 }
 
-void ReportOrientationSharedDatas(const float InDeltaTime, inout float3 OutParticleOmega, inout float4 OutParticleQuaternion)
+void ReportOrientationSharedDatas(const float InDeltaTime, inout float3 OutParticleOmega, out float4 OutParticleQuaternion)
 {
-	const float4 CurrentQuaternion = SharedLocalQuaternion[GGroupThreadId.x];
-	const float4 DeltaQuat = float4(
-			-OutParticleQuaternion.xyz * CurrentQuaternion.w + CurrentQuaternion.xyz * OutParticleQuaternion.w + cross(CurrentQuaternion.xyz, -OutParticleQuaternion.xyz),
-			CurrentQuaternion.w * OutParticleQuaternion.w - dot(CurrentQuaternion.xyz, -OutParticleQuaternion.xyz));
+	const float4 CurrentQuaternion = SharedNodeOrientation[GGroupThreadId.x];
+	//const float4 DeltaQuat = float4(
+	//		-OutParticleQuaternion.xyz * CurrentQuaternion.w + CurrentQuaternion.xyz * OutParticleQuaternion.w + cross(CurrentQuaternion.xyz, -OutParticleQuaternion.xyz),
+	//		CurrentQuaternion.w * OutParticleQuaternion.w - dot(CurrentQuaternion.xyz, -OutParticleQuaternion.xyz));
 
 	OutParticleQuaternion = CurrentQuaternion;
 
-	const float AxisLength = length( DeltaQuat.xyz );
-	const float QuatAngle = 2.0 * atan2(AxisLength,DeltaQuat.w );
-	OutParticleOmega += DeltaQuat.xyz * QuatAngle / (AxisLength*InDeltaTime);
+	//const float AxisLength = length( DeltaQuat.xyz );
+	//const float QuatAngle = 2.0 * atan2(AxisLength,DeltaQuat.w );
+	//OutParticleOmega += DeltaQuat.xyz * QuatAngle / (AxisLength*InDeltaTime);
 }
 
 /* -----------------------------------------------------------------
@@ -108,7 +108,7 @@ void AdvectOrientationSharedDatas(const float3 InParticleOmega, const float InDe
 void StoreHookeSpringConfig(const bool IsMobile, const float InMaterialCompliance, out float OutRestLength)
 {
 	if (!IsMobile){
-		const float3 EdgeDirection = SharedLocalPosition[GGroupThreadId.x] - SharedLocalPosition[GGroupThreadId.x-1];
+		const float3 EdgeDirection = SharedNodePosition[GGroupThreadId.x] - SharedNodePosition[GGroupThreadId.x-1];
 		OutRestLength = length(EdgeDirection);
 	}
 	else
@@ -138,7 +138,7 @@ void ResetHookeSpringMultiplier(out float OutMaterialMultiplier)
 
 void UpdateHookeSpringMultiplier(const float InMaterialCompliance, const float InMaterialWeight, const float InRestLength, inout float OutMaterialMultiplier)
 {
-	float3 EdgeDirection = SharedLocalPosition[GGroupThreadId.x] - SharedLocalPosition[GGroupThreadId.x-1];
+	float3 EdgeDirection = SharedNodePosition[GGroupThreadId.x] - SharedNodePosition[GGroupThreadId.x-1];
 	const float EdgeLength = length(EdgeDirection);
 	EdgeDirection /= EdgeLength;
 
@@ -152,8 +152,8 @@ void UpdateHookeSpringMultiplier(const float InMaterialCompliance, const float I
 	const float3 PositionDelta = EdgeDirection * DeltaLambda;
 
 	// dX += dX
-	SharedLocalPosition[GGroupThreadId.x] += PositionDelta * SharedInverseMass[GGroupThreadId.x];
-	SharedLocalPosition[GGroupThreadId.x-1] -= PositionDelta * SharedInverseMass[GGroupThreadId.x-1];
+	SharedNodePosition[GGroupThreadId.x] += PositionDelta * SharedInverseMass[GGroupThreadId.x];
+	SharedNodePosition[GGroupThreadId.x-1] -= PositionDelta * SharedInverseMass[GGroupThreadId.x-1];
 }
 
 void SolveHookeSpringMaterial(const float InMaterialCompliance, const float InMaterialWeight, const float InRestLength, const bool InIsRed, inout float OutMaterialMultiplier)
@@ -202,13 +202,13 @@ void ResetStretchShearMultiplier(out float3 OutMaterialMultiplier)
 void UpdateStretchShearMultiplier(const float InMaterialCompliance, const float InMaterialWeight, const float InRestLength,  inout float3 OutMaterialMultiplier)
 {
 	float3 EdgeDirection;
-	float4 q0 = SharedLocalQuaternion[GGroupThreadId.x-1];
+	float4 q0 = SharedNodeOrientation[GGroupThreadId.x-1];
 	EdgeDirection[0] = 2.0 * (q0.x * q0.z + q0.w * q0.y);
 	EdgeDirection[1] = 2.0 * (q0.y * q0.z - q0.w * q0.x);
 	EdgeDirection[2] = q0.w * q0.w - q0.x * q0.x - q0.y * q0.y + q0.z * q0.z;
 
 	// XPBD lagrange multiplier update : dL = -(C+compliance*L) / (dC * invM * dCt + alpha)
-	const float3 DeltaLambda = -((SharedLocalPosition[GGroupThreadId.x] - SharedLocalPosition[GGroupThreadId.x-1]) / InRestLength - EdgeDirection + 
+	const float3 DeltaLambda = -((SharedNodePosition[GGroupThreadId.x] - SharedNodePosition[GGroupThreadId.x-1]) / InRestLength - EdgeDirection + 
 					OutMaterialMultiplier * InMaterialCompliance) * InMaterialWeight;
 
 	// L += dL
@@ -218,15 +218,15 @@ void UpdateStretchShearMultiplier(const float InMaterialCompliance, const float 
 	const float3 PositionDelta  = DeltaLambda/InRestLength;
 
 	// dX += dX
-	SharedLocalPosition[GGroupThreadId.x] += PositionDelta * SharedInverseMass[GGroupThreadId.x];
-	SharedLocalPosition[GGroupThreadId.x-1] -= PositionDelta * SharedInverseMass[GGroupThreadId.x-1];
+	SharedNodePosition[GGroupThreadId.x] += PositionDelta * SharedInverseMass[GGroupThreadId.x];
+	SharedNodePosition[GGroupThreadId.x-1] -= PositionDelta * SharedInverseMass[GGroupThreadId.x-1];
 
 	const float4 qebar = float4(-q0.y, q0.x, -q0.w, q0.z);	
 	const float4 QuaternionDelta = -2.0 * float4( DeltaLambda.xyz * qebar.w + cross(DeltaLambda.xyz, qebar.xyz),
 					- dot(DeltaLambda.xyz, qebar.xyz) );
 
 	q0 += QuaternionDelta * SharedInverseInertia[GGroupThreadId.x-1];
-	SharedLocalQuaternion[GGroupThreadId.x-1] = normalize(q0);
+	SharedNodeOrientation[GGroupThreadId.x-1] = normalize(q0);
 }
 
 void SolveStretchShearMaterial(const float InMaterialCompliance, const float InMaterialWeight, const float InRestLength, const bool InIsRed, inout float3 OutMaterialMultiplier)
@@ -274,13 +274,13 @@ void ResetAngularSpringMultiplier(out float3 OutMaterialMultiplier)
 void UpdateAngularSpringMultiplier(const float InMaterialCompliance, const float InMaterialWeight, const float InRestLength,  inout float3 OutMaterialMultiplier)
 {
 	float3 EdgeDirection;
-	float4 q0 = SharedLocalQuaternion[GGroupThreadId.x-1];
+	float4 q0 = SharedNodeOrientation[GGroupThreadId.x-1];
 	EdgeDirection[0] = 2.0 * (q0.x * q0.z + q0.w * q0.y);
 	EdgeDirection[1] = 2.0 * (q0.y * q0.z - q0.w * q0.x);
 	EdgeDirection[2] = q0.w * q0.w - q0.x * q0.x - q0.y * q0.y + q0.z * q0.z;
 
 	// XPBD lagrange multiplier update : dL = -(C+compliance*L) / (dC * invM * dCt + alpha)
-	const float3 DeltaLambda = -((SharedLocalPosition[GGroupThreadId.x] - SharedLocalPosition[GGroupThreadId.x-1]) / InRestLength - EdgeDirection + 
+	const float3 DeltaLambda = -((SharedNodePosition[GGroupThreadId.x] - SharedNodePosition[GGroupThreadId.x-1]) / InRestLength - EdgeDirection + 
 					OutMaterialMultiplier * InMaterialCompliance) * InMaterialWeight;
 
 	// L += dL
@@ -291,7 +291,7 @@ void UpdateAngularSpringMultiplier(const float InMaterialCompliance, const float
 					- dot(DeltaLambda.xyz, qebar.xyz) );
 
 	q0 += QuaternionDelta * SharedInverseInertia[GGroupThreadId.x-1];
-	SharedLocalQuaternion[GGroupThreadId.x-1] = normalize(q0);
+	SharedNodeOrientation[GGroupThreadId.x-1] = normalize(q0);
 }
 
 void SolveAngularSpringMaterial(const float InMaterialCompliance, const float InMaterialWeight, const float InRestLength, const bool InIsRed, inout float3 OutMaterialMultiplier)
@@ -317,12 +317,12 @@ void SolveAngularSpringMaterial(const float InMaterialCompliance, const float In
 
 void UpdateBendSpringMultiplier(const float InMaterialCompliance, const float InMaterialWeight, const float InRestLength, const float3 InRestDirection, inout float3 OutMaterialMultiplier, const bool IsFirst)
 {
-	float4 ParentFrame = (IsFirst) ? SharedLocalQuaternion[GGroupThreadId.x-1] : SharedLocalQuaternion[GGroupThreadId.x-2];
+	float4 ParentFrame = (IsFirst) ? SharedNodeOrientation[GGroupThreadId.x-1] : SharedNodeOrientation[GGroupThreadId.x-2];
 	float3 CrossProduct = 2.0 * cross(ParentFrame.xyz,InRestDirection);
 	float3 EdgeDirection = InRestDirection + ParentFrame.w * CrossProduct + cross(ParentFrame.xyz,CrossProduct);
 
 	// XPBD lagrange multiplier update : dL = -(C+compliance*L) / (dC * invM * dCt + alpha)
-	const float3 DeltaLambda = -((SharedLocalPosition[GGroupThreadId.x] - SharedLocalPosition[GGroupThreadId.x-1]) / InRestLength - EdgeDirection / InRestLength + 
+	const float3 DeltaLambda = -((SharedNodePosition[GGroupThreadId.x] - SharedNodePosition[GGroupThreadId.x-1]) / InRestLength - EdgeDirection / InRestLength + 
 					OutMaterialMultiplier * InMaterialCompliance) * InMaterialWeight;
 
 	// L += dL
@@ -332,8 +332,8 @@ void UpdateBendSpringMultiplier(const float InMaterialCompliance, const float In
 	const float3 PositionDelta  = DeltaLambda/InRestLength;
 
 	// dX += dX
-	SharedLocalPosition[GGroupThreadId.x] += PositionDelta * SharedInverseMass[GGroupThreadId.x];
-	SharedLocalPosition[GGroupThreadId.x-1] -= PositionDelta * SharedInverseMass[GGroupThreadId.x-1];
+	SharedNodePosition[GGroupThreadId.x] += PositionDelta * SharedInverseMass[GGroupThreadId.x];
+	SharedNodePosition[GGroupThreadId.x-1] -= PositionDelta * SharedInverseMass[GGroupThreadId.x-1];
 }
 
 void SolveBendSpringMaterial(const float InMaterialCompliance, const float InMaterialWeight, const float InRestLength, const float3 InRestDirection, const bool InIsRed, inout float3 OutMaterialMultiplier, const int InStrandSize)
@@ -379,22 +379,22 @@ float4 FindQuatBetweenHelper_tmp(in float3 A, in float3 B, in float NormAB)
 	const bool IsMobile = (GGroupThreadId.x % StrandSize) != 0;
 	if (!IsMobile)
 	{
-		float4 NodeQuaternion = float4(0,0,0,1);//SharedLocalQuaternion[GGroupThreadId.x];
+		float4 NodeQuaternion = float4(0,0,0,1);//SharedNodeOrientation[GGroupThreadId.x];
 		float3 TangentNext = float3(0,0,1);
 		float3 TangentPrev = TangentNext;
 
-		float3 PositionNext = SharedLocalPosition[GGroupThreadId.x];
+		float3 PositionNext = SharedNodePosition[GGroupThreadId.x];
 		float3 PositionPrev = PositionNext;
 
 		for (int EdgeIndex = 0, EdgeEnd = StrandSize-1; EdgeIndex < EdgeEnd; ++EdgeIndex)
 		{
 			PositionPrev = PositionNext;
-			PositionNext = SharedLocalPosition[GGroupThreadId.x+EdgeIndex+1];
+			PositionNext = SharedNodePosition[GGroupThreadId.x+EdgeIndex+1];
 
 			TangentPrev = TangentNext;
 			TangentNext = normalize(PositionNext - PositionPrev);
 			NodeQuaternion = normalize( MultiplyQuat_tmp( FindQuatBetweenHelper_tmp(TangentPrev,TangentNext,1.0), NodeQuaternion ) );
-			SharedLocalQuaternion[GGroupThreadId.x+EdgeIndex] = NodeQuaternion;
+			SharedNodeOrientation[GGroupThreadId.x+EdgeIndex] = NodeQuaternion;
 		}
 	}
 	GroupMemoryBarrier(); 
@@ -425,8 +425,8 @@ void ResetBendTwistMultiplier(out float3 OutMaterialMultiplier)
 
 void UpdateBendTwistMultiplier(const float InMaterialCompliance, const float InMaterialWeight, const float InRestLength, const float4 InRestDarboux, inout float3 OutMaterialMultiplier)
 {
-	float4 q0 = SharedLocalQuaternion[GGroupThreadId.x-1];
-	float4 q1 = SharedLocalQuaternion[GGroupThreadId.x];
+	float4 q0 = SharedNodeOrientation[GGroupThreadId.x-1];
+	float4 q1 = SharedNodeOrientation[GGroupThreadId.x];
 	const float4 CurrentDarboux = float4(
 			q1.xyz * q0.w - q0.xyz * q1.w + cross(-q0.xyz, q1.xyz),
 			q0.w * q1.w - dot(-q0.xyz, q1.xyz));
@@ -442,19 +442,19 @@ void UpdateBendTwistMultiplier(const float InMaterialCompliance, const float InM
 
 	OutMaterialMultiplier -= DeltaOmega.xyz;
 
-	SharedLocalQuaternion[GGroupThreadId.x-1] += SharedInverseInertia[GGroupThreadId.x-1] *  float4(
+	SharedNodeOrientation[GGroupThreadId.x-1] += SharedInverseInertia[GGroupThreadId.x-1] *  float4(
 			DeltaOmega.xyz * q1.w + cross(q1.xyz, DeltaOmega.xyz), - dot(q1.xyz, DeltaOmega.xyz)) * InverseRestLength;
-	SharedLocalQuaternion[GGroupThreadId.x] -= SharedInverseInertia[GGroupThreadId.x] *  float4(
+	SharedNodeOrientation[GGroupThreadId.x] -= SharedInverseInertia[GGroupThreadId.x] *  float4(
 			DeltaOmega.xyz * q0.w + cross(q0.xyz, DeltaOmega.xyz), - dot(q0.xyz, DeltaOmega.xyz)) * InverseRestLength;
 
-	SharedLocalQuaternion[GGroupThreadId.x-1] = normalize(SharedLocalQuaternion[GGroupThreadId.x-1]);
-	SharedLocalQuaternion[GGroupThreadId.x] = normalize(SharedLocalQuaternion[GGroupThreadId.x]);
+	SharedNodeOrientation[GGroupThreadId.x-1] = normalize(SharedNodeOrientation[GGroupThreadId.x-1]);
+	SharedNodeOrientation[GGroupThreadId.x] = normalize(SharedNodeOrientation[GGroupThreadId.x]);
 }
 
 /*void UpdateBendTwistMultiplier(const float InMaterialCompliance, const float InMaterialWeight, const float InRestLength, const float4 InRestDarboux, inout float3 OutMaterialMultiplier)
 {
-	float4 q0 = SharedLocalQuaternion[GGroupThreadId.x-1];
-	float4 q1 = SharedLocalQuaternion[GGroupThreadId.x];
+	float4 q0 = SharedNodeOrientation[GGroupThreadId.x-1];
+	float4 q1 = SharedNodeOrientation[GGroupThreadId.x];
 	const float4 CurrentDarboux = float4(
 			q1.xyz * q0.w - q0.xyz * q1.w + cross(-q0.xyz, q1.xyz),
 			q0.w * q1.w - dot(-q0.xyz, q1.xyz));
@@ -476,13 +476,13 @@ void UpdateBendTwistMultiplier(const float InMaterialCompliance, const float InM
 
 	const float afac = dot(CurrentDarboux.xyz,DeltaOmega);
 
-	SharedLocalQuaternion[GGroupThreadId.x-1] += SharedInverseInertia[GGroupThreadId.x-1] * ( float4(
+	SharedNodeOrientation[GGroupThreadId.x-1] += SharedInverseInertia[GGroupThreadId.x-1] * ( float4(
 			DeltaOmega.xyz * q1tmp.w + cross(q1tmp.xyz, DeltaOmega.xyz), - dot(q1tmp.xyz, DeltaOmega.xyz)) + dto * q1) * InverseRestLength;
-	SharedLocalQuaternion[GGroupThreadId.x] -= SharedInverseInertia[GGroupThreadId.x] *  ( float4(
+	SharedNodeOrientation[GGroupThreadId.x] -= SharedInverseInertia[GGroupThreadId.x] *  ( float4(
 			DeltaOmega.xyz * q0tmp.w + cross(q0tmp.xyz, DeltaOmega.xyz), - dot(q0tmp.xyz, DeltaOmega.xyz)) - dto * q0) * InverseRestLength;
 
-	SharedLocalQuaternion[GGroupThreadId.x-1] = normalize(SharedLocalQuaternion[GGroupThreadId.x-1]);
-	SharedLocalQuaternion[GGroupThreadId.x] = normalize(SharedLocalQuaternion[GGroupThreadId.x]);
+	SharedNodeOrientation[GGroupThreadId.x-1] = normalize(SharedNodeOrientation[GGroupThreadId.x-1]);
+	SharedNodeOrientation[GGroupThreadId.x] = normalize(SharedNodeOrientation[GGroupThreadId.x]);
 }*/
 
 void SolveBendTwistMaterial(const float InMaterialCompliance, const float InMaterialWeight, const float InRestLength, const float4 InRestDarboux, const bool InIsRed, inout float3 OutMaterialMultiplier)
@@ -516,7 +516,7 @@ void SolveBendTwistMaterial(const float InMaterialCompliance, const float InMate
 		{
 			if (i > GGroupThreadId.x+1)
 			{
-				float3 EdgeDirection = SharedLocalPosition[i] - SharedLocalPosition[i-2];
+				float3 EdgeDirection = SharedNodePosition[i] - SharedNodePosition[i-2];
 				const float EdgeLength = length(EdgeDirection);
 				EdgeDirection /= EdgeLength;
 				if (EdgeLength<=BendingLimit)
@@ -526,19 +526,19 @@ void SolveBendTwistMaterial(const float InMaterialCompliance, const float InMate
 					const float3 DeltaPosition = EdgeDirection * DeltaLambda;
 
 					// dX += dX
-					SharedLocalPosition[i] += DeltaPosition;
+					SharedNodePosition[i] += DeltaPosition;
 
 					const float3 DeltaVelocity = DeltaPosition / InDeltaTime;
 
 					// dV += dV
-					SharedLocalVelocity[i] += SharedInverseMass[i] * DeltaVelocity / ( SharedInverseMass[i] + InDampening * SharedInverseMass[i-2]);
-					SharedLocalVelocity[i-2] -= InDampening * SharedInverseMass[i-2] * DeltaVelocity / ( SharedInverseMass[i] + InDampening * SharedInverseMass[i-2]);
+					//SharedLocalVelocity[i] += SharedInverseMass[i] * DeltaVelocity / ( SharedInverseMass[i] + InDampening * SharedInverseMass[i-2]);
+					//SharedLocalVelocity[i-2] -= InDampening * SharedInverseMass[i-2] * DeltaVelocity / ( SharedInverseMass[i] + InDampening * SharedInverseMass[i-2]);
 				}
 				GroupMemoryBarrier(); 
 			}
 
 
-			float3 EdgeDirection = SharedLocalPosition[i] - SharedLocalPosition[i-1];
+			float3 EdgeDirection = SharedNodePosition[i] - SharedNodePosition[i-1];
 			const float EdgeLength = length(EdgeDirection);
 			EdgeDirection /= EdgeLength;
 
@@ -547,16 +547,16 @@ void SolveBendTwistMaterial(const float InMaterialCompliance, const float InMate
 			const float3 DeltaPosition = EdgeDirection * DeltaLambda;
 
 			// dX += dX
-			SharedLocalPosition[i] += DeltaPosition;
+			SharedNodePosition[i] += DeltaPosition;
 
-			//SharedLocalPosition[i] += SharedInverseMass[i] * DeltaPosition / ( SharedInverseMass[i] + InDampening * SharedInverseMass[i-1]);
-			//SharedLocalPosition[i-1] -= InDampening * SharedInverseMass[i-1] * DeltaPosition / ( SharedInverseMass[i] + InDampening * SharedInverseMass[i-1]);
+			//SharedNodePosition[i] += SharedInverseMass[i] * DeltaPosition / ( SharedInverseMass[i] + InDampening * SharedInverseMass[i-1]);
+			//SharedNodePosition[i-1] -= InDampening * SharedInverseMass[i-1] * DeltaPosition / ( SharedInverseMass[i] + InDampening * SharedInverseMass[i-1]);
 
 			const float3 DeltaVelocity = DeltaPosition / InDeltaTime;
 
 			// dV += dV
-			SharedLocalVelocity[i] += SharedInverseMass[i] * DeltaVelocity / ( SharedInverseMass[i] + InDampening * SharedInverseMass[i-1]);
-			SharedLocalVelocity[i-1] -= InDampening * SharedInverseMass[i-1] * DeltaVelocity / ( SharedInverseMass[i] + InDampening * SharedInverseMass[i-1]);
+			//SharedLocalVelocity[i] += SharedInverseMass[i] * DeltaVelocity / ( SharedInverseMass[i] + InDampening * SharedInverseMass[i-1]);
+			//SharedLocalVelocity[i-1] -= InDampening * SharedInverseMass[i-1] * DeltaVelocity / ( SharedInverseMass[i] + InDampening * SharedInverseMass[i-1]);
 
 			GroupMemoryBarrier(); 
 		}

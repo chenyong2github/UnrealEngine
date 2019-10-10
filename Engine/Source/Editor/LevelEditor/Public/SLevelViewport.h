@@ -17,7 +17,8 @@
 #include "Settings/LevelEditorViewportSettings.h"
 #include "SEditorViewport.h"
 #include "EditorModeManager.h"
-#include "ILevelViewport.h"
+#include "IAssetViewport.h"
+#include "LevelEditorViewport.h"
 
 class FLevelEditorViewportClient;
 class FLevelViewportLayout;
@@ -33,7 +34,7 @@ enum class EMapChangeType : uint8;
 /**
  * Encapsulates an SViewport and an SLevelViewportToolBar
  */
-class LEVELEDITOR_API SLevelViewport : public SEditorViewport, public ILevelViewport
+class LEVELEDITOR_API SLevelViewport : public SEditorViewport, public IAssetViewport
 {
 public:
 	SLATE_BEGIN_ARGS( SLevelViewport )
@@ -88,8 +89,13 @@ public:
 		return *LevelViewportClient;
 	}
 
-	virtual FLevelEditorViewportClient& GetLevelViewportClient() override
+	FLevelEditorViewportClient& GetLevelViewportClient() 
 	{		
+		return *LevelViewportClient;
+	}
+
+	virtual FEditorViewportClient& GetAssetViewportClient() override
+	{
 		return *LevelViewportClient;
 	}
 
@@ -106,7 +112,7 @@ public:
 	/** Saves this viewport's config to ULevelEditorViewportSettings */
 	void SaveConfig(const FString& ConfigName) const;
 
-	/** ILevelViewport Interface */
+	/** IAssetViewport Interface */
 	virtual void StartPlayInEditorSession( UGameViewportClient* PlayClient, const bool bInSimulateInEditor ) override;
 	virtual void EndPlayInEditorSession() override;
 	virtual void SwapViewportsForSimulateInEditor() override;
@@ -352,8 +358,14 @@ public:
 	/** For the specified actor, toggle Pinned/Unpinned of it's ActorPreview */
 	void ToggleActorPreviewIsPinned(TWeakObjectPtr<AActor> PreviewActor);
 
+	/** For the specified actor, toggle whether the panel is detached from it*/
+	void ToggleActorPreviewIsPanelDetached(TWeakObjectPtr<AActor> PreviewActor);
+
 	/** See if the specified actor's ActorPreview is pinned or not */
 	bool IsActorPreviewPinned(TWeakObjectPtr<AActor> PreviewActor);
+
+	/** See if the specified actor's ActorPreview is detached from actor */
+	bool IsActorPreviewDetached(TWeakObjectPtr<AActor> PreviewActor);
 
 	/** Actions to perform whenever the viewports floating buttons are pressed */
 	void OnFloatingButtonClicked();
@@ -818,12 +830,18 @@ private:
 	public:
 
 		FViewportActorPreview() 
-			: bIsPinned(false) 
+			: bIsPinned(false)
+			, bIsPanelDetached(false)
 		{}
 
 		void ToggleIsPinned()
 		{
 			bIsPinned = !bIsPinned;
+		}
+
+		void ToggleIsPanelDetached()
+		{
+			bIsPanelDetached = !bIsPanelDetached;
 		}
 
 		/** The Actor that is the center of attention. */
@@ -839,7 +857,10 @@ private:
 		TSharedPtr< SActorPreview > PreviewWidget;
 
 		/** Whether or not this actor preview will remain on screen if the actor is deselected */
-		bool bIsPinned;		
+		bool bIsPinned;	
+
+		/** Whether this actor preview is displayed in a detached panel */
+		bool bIsPanelDetached;
 	};
 
 	/** List of actor preview objects */

@@ -80,11 +80,13 @@ public:
 	 */
 	void Construct(const FArguments& InArgs);
 
+	void Reset();
+
 	/**
 	 * Rebuilds the tree (if necessary).
 	 * @param bResync - If true, it forces a resync with list of stats counters from Analysis, even if the list did not changed since last sync.
 	 */
-	void RebuildTree(bool bResync = true);
+	void RebuildTree(bool bResync);
 	void UpdateStats(double StartTime, double EndTime);
 
 	void SelectStatsNode(uint64 Id);
@@ -153,7 +155,7 @@ protected:
 	EHorizontalAlignment TableRow_GetColumnOutlineHAlignment(const FName ColumnId) const;
 
 	FText TableRow_GetHighlightText() const;
-	FName TableRow_GetHighlightedStatsName() const;
+	FName TableRow_GetHighlightedNodeName() const;
 
 	bool TableRow_ShouldBeEnabled(const uint32 StatsId) const;
 
@@ -162,6 +164,9 @@ protected:
 
 	/** Populates the group and stat tree with items based on the current data. */
 	void ApplyFiltering();
+
+	void FilterOutZeroCountStats_OnCheckStateChanged(ECheckBoxState NewRadioState);
+	ECheckBoxState FilterOutZeroCountStats_IsChecked() const;
 
 	TSharedRef<SWidget> GetToggleButtonForStatsType(const EStatsNodeType StatType);
 	void FilterByStatsType_OnCheckStateChanged(ECheckBoxState NewRadioState, const EStatsNodeType InStatType);
@@ -240,6 +245,10 @@ protected:
 	bool ContextMenu_ResetColumns_CanExecute() const;
 	void ContextMenu_ResetColumns_Execute();
 
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	void UpdateStatsNode(FStatsNodePtr StatsNode);
+
 protected:
 	/** A weak pointer to the profiler session used to populate this widget. */
 	TSharedPtr<const Trace::IAnalysisSession>/*Weak*/ Session;
@@ -272,7 +281,7 @@ protected:
 	FStatsNodePtr HoveredStatsNodePtr;
 
 	/** Name of the stats that should be drawn as highlighted. */
-	FName HighlightedStatsName;
+	FName HighlightedNodeName;
 
 	//////////////////////////////////////////////////
 	// Stats Nodes
@@ -312,6 +321,9 @@ protected:
 
 	/** Holds the visibility of each stats type. */
 	bool bStatsNodeIsVisible[static_cast<int>(EStatsNodeType::InvalidOrMax)];
+
+	/** Filter out the stats counters having zero total instance count (aggregated stats). */
+	bool bFilterOutZeroCountStats;
 
 	//////////////////////////////////////////////////
 	// Grouping

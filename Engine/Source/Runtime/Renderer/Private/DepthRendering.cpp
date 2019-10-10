@@ -804,7 +804,7 @@ void FDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch,
 		const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
 
 		if (!bIsTranslucent
-			&& (!PrimitiveSceneProxy || PrimitiveSceneProxy->ShouldRenderInMainPass())
+			&& (!PrimitiveSceneProxy || PrimitiveSceneProxy->ShouldRenderInDepthPass())
 			&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain())
 			&& ShouldIncludeMaterialInDefaultOpaquePass(Material))
 		{

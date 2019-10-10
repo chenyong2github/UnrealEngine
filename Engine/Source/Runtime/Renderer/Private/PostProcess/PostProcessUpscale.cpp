@@ -238,7 +238,7 @@ FScreenPassTexture AddUpscalePass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 		{
 			TShaderMapRef<FUpscaleVS> TypedVertexShader(View.ShaderMap);
 			SetScreenPassPipelineState(RHICmdList, FScreenPassPipelineState(*TypedVertexShader, *PixelShader));
-			SetShaderParameters(RHICmdList, *TypedVertexShader, VertexShader->GetVertexShader(), *PassParameters);
+			SetShaderParameters(RHICmdList, *TypedVertexShader, TypedVertexShader->GetVertexShader(), *PassParameters);
 			VertexShader = *TypedVertexShader;
 		}
 		else
@@ -247,6 +247,7 @@ FScreenPassTexture AddUpscalePass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 			SetScreenPassPipelineState(RHICmdList, FScreenPassPipelineState(*TypedVertexShader, *PixelShader));
 			VertexShader = *TypedVertexShader;
 		}
+		check(VertexShader != nullptr);
 
 		SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), *PassParameters);
 

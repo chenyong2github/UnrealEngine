@@ -6,9 +6,7 @@
 
 #include "AssetRegistryModule.h"
 #include "Engine/StaticMesh.h"
-#include "MeshAttributeArray.h"
-#include "MeshAttributes.h"
-#include "MeshDescription.h"
+#include "StaticMeshAttributes.h"
 #include "PackageTools.h"
 
 namespace GLTF
@@ -182,7 +180,6 @@ namespace GLTF
 		// GLTF currently only supports LODs via MSFT_lod, for now use always 0
 		const int32 LODIndex = 0;
 		FMeshDescription* MeshDescription = StaticMesh->CreateMeshDescription(LODIndex);
-		StaticMesh->RegisterMeshAttributes(*MeshDescription);
 
 		FillMeshDescription(Mesh, MeshDescription);
 
@@ -218,23 +215,16 @@ namespace GLTF
 	{
 		const int32 NumUVs = FMath::Max(1, GetNumUVs(Mesh));
 
-		TVertexAttributesRef<FVector> VertexPositions =
-			MeshDescription->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
-		TEdgeAttributesRef<bool>  EdgeHardnesses = MeshDescription->EdgeAttributes().GetAttributesRef<bool>(MeshAttribute::Edge::IsHard);
-		TEdgeAttributesRef<float> EdgeCreaseSharpnesses =
-			MeshDescription->EdgeAttributes().GetAttributesRef<float>(MeshAttribute::Edge::CreaseSharpness);
-		TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames =
-			MeshDescription->PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::ImportedMaterialSlotName);
-		TVertexInstanceAttributesRef<FVector> VertexInstanceNormals =
-			MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
-		TVertexInstanceAttributesRef<FVector> VertexInstanceTangents =
-			MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
-		TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns =
-			MeshDescription->VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign);
-		TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs =
-			MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
-		TVertexInstanceAttributesRef<FVector4> VertexInstanceColors =
-			MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color);
+		FStaticMeshAttributes StaticMeshAttributes(*MeshDescription);
+		TVertexAttributesRef<FVector> VertexPositions = StaticMeshAttributes.GetVertexPositions();
+		TEdgeAttributesRef<bool>  EdgeHardnesses = StaticMeshAttributes.GetEdgeHardnesses();
+		TEdgeAttributesRef<float> EdgeCreaseSharpnesses = StaticMeshAttributes.GetEdgeCreaseSharpnesses();
+		TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = StaticMeshAttributes.GetPolygonGroupMaterialSlotNames();
+		TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = StaticMeshAttributes.GetVertexInstanceNormals();
+		TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = StaticMeshAttributes.GetVertexInstanceTangents();
+		TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = StaticMeshAttributes.GetVertexInstanceBinormalSigns();
+		TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = StaticMeshAttributes.GetVertexInstanceUVs();
+		TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = StaticMeshAttributes.GetVertexInstanceColors();
 		VertexInstanceUVs.SetNumIndices(NumUVs);
 
 		MaterialIndicesUsed.Empty(10);

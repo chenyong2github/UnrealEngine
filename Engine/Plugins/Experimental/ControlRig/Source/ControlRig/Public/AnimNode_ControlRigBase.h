@@ -30,6 +30,10 @@ struct CONTROLRIG_API FAnimNode_ControlRigBase : public FAnimNode_CustomProperty
 	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
 
 protected:
+
+	UPROPERTY(EditAnywhere, Category = Links)
+	FPoseLink Source;
+
 	/** Rig Hierarchy bone name to required array index mapping */
 	UPROPERTY(transient)
 	TMap<FName, uint16> ControlRigBoneMapping;
@@ -51,10 +55,16 @@ protected:
 	UPROPERTY(transient)
 	bool bExecute;
 
+	// The below is alpha value support for control rig
+	float InternalBlendAlpha;
+
 	// update input/output to control rig
 	virtual void UpdateInput(UControlRig* ControlRig, const FPoseContext& InOutput);
 	virtual void UpdateOutput(UControlRig* ControlRig, FPoseContext& InOutput);
 	virtual UClass* GetTargetClass() const override;
+	
+	// execute control rig on the input pose and outputs the result
+	void ExecuteControlRig(FPoseContext& InOutput);
 
 	friend struct FControlRigSequencerAnimInstanceProxy;
 };

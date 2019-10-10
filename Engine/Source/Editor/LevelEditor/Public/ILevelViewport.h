@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -13,7 +13,7 @@ class FSceneViewport;
 /**
  * Public interface to SLevelViewport
  */
-class ILevelViewport
+class UE_DEPRECATED(4.24, "Moved to IAssetViewport") ILevelViewport
 {
 
 public:

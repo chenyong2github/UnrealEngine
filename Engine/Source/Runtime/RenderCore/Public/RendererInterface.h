@@ -69,6 +69,7 @@ public:
 		, DebugName(TEXT("UnknownTexture"))
 		, AutoWritable(true)
 		, bCreateRenderTargetWriteMask(false)
+		, bCreateRenderTargetFmask(false)
 	{
 		check(!IsValid());
 	}
@@ -86,7 +87,8 @@ public:
 		bool bInForceSeparateTargetAndShaderResource,
 		uint16 InNumMips = 1,
 		bool InAutowritable = true,
-		bool InCreateRTWriteMask = false)
+		bool InCreateRTWriteMask = false,
+		bool InCreateFmask = false)
 	{
 		check(InExtent.X);
 		check(InExtent.Y);
@@ -107,6 +109,7 @@ public:
 		NewDesc.DebugName = TEXT("UnknownTexture2D");
 		NewDesc.AutoWritable = InAutowritable;
 		NewDesc.bCreateRenderTargetWriteMask = InCreateRTWriteMask;
+		NewDesc.bCreateRenderTargetFmask = InCreateFmask;
 		check(NewDesc.Is2DTexture());
 		return NewDesc;
 	}
@@ -335,7 +338,7 @@ public:
 		bForceSharedTargetAndShaderResource = false;
 		AutoWritable = true;
 
-		// Remove UAV flag for render targets that don't need it (some formats are incompatible)
+		// Remove UAV flag for rendertargets that don't need it (some formats are incompatible)
 		TargetableFlags |= TexCreate_RenderTargetable;
 		TargetableFlags &= (~TexCreate_UAV);
 	}
@@ -374,6 +377,8 @@ public:
 	bool AutoWritable;
 	/** create render target write mask (supported only on specific platforms) */
 	bool bCreateRenderTargetWriteMask;
+	/** create render target fmask (supported only on specific platforms) */
+	bool bCreateRenderTargetFmask;
 };
 
 
@@ -426,8 +431,8 @@ struct FSceneRenderTargetItem
 	/** All SRVs that has been created on for that ShaderResourceTexture.  */
 	TMap<FRHITextureSRVCreateInfo, FShaderResourceViewRHIRef> SRVs;
 
-	FShaderResourceViewRHIRef RTWriteMaskBufferRHI_SRV;
-	FStructuredBufferRHIRef RTWriteMaskDataBufferRHI;
+	FShaderResourceViewRHIRef RTWriteMaskSRV;
+	FShaderResourceViewRHIRef FmaskSRV;
 
 	/** only created if requested through meta data access flags */
 	FUnorderedAccessViewRHIRef HTileUAV;
@@ -581,6 +586,14 @@ public:
 	float PreExposure;
 };
 
+class IPersistentViewUniformBufferExtension
+{
+public:
+	virtual void BeginFrame() {}
+	virtual void PrepareView(const FSceneView* View) {}
+	virtual void BeginRenderView(const FSceneView* View) {}
+};
+
 /**
  * The public interface of the renderer module.
  */
@@ -713,5 +726,7 @@ public:
 
 	/** Evict all data from virtual texture caches*/
 	virtual void FlushVirtualTextureCache() = 0;
+
+	virtual void RegisterPersistentViewUniformBufferExtension(IPersistentViewUniformBufferExtension* Extension) = 0;
 };
 

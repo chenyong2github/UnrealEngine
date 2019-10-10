@@ -238,7 +238,8 @@ protected:
 	FTrackRecorderSettings GetTrackRecorderSettings() const override;
 	/** Returns offset that may get set when recording a skeletal mesh animation. Needed to correctly transform attached children*/
 	FTransform GetRecordedActorAnimationInitialRootTransform(class AActor* OtherActor) const override;
-
+	/** Returns the master level sequence being recorded into */
+	ULevelSequence* GetMasterLevelSequence() const override { return MasterLevelSequence; };
 	// ~IMovieSceneTrackRecorderHost Interface
 	
 	/** Initializes an instance of the specified class if we don't already have it in our Settings array. */

@@ -245,6 +245,8 @@ struct APPLEARKIT_API FAppleARKitConversion
 #endif
 
 	static ARConfiguration* ToARConfiguration( UARSessionConfig* SessionConfig, TMap< FString, UARCandidateImage* >& CandidateImages, TMap< FString, CGImageRef >& ConvertedCandidateImages, TMap< FString, UARCandidateObject* >& CandidateObjects );
+	
+	static void ConfigureSessionTrackingFeatures(UARSessionConfig* SessionConfig, ARConfiguration* SessionConfiguration);
 
 	#pragma clang diagnostic pop
 #endif

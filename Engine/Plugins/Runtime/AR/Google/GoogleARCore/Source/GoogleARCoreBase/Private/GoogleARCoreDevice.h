@@ -155,7 +155,7 @@ private:
 	void OnModuleLoaded();
 	void OnModuleUnloaded();
 
-	void OnWorldTickStart(ELevelTick TickType, float DeltaTime);
+	void OnWorldTickStart(UWorld* World, ELevelTick TickType, float DeltaTime);
 
 	void CheckAndRequrestPermission(const UARSessionConfig& ConfigurationData);
 

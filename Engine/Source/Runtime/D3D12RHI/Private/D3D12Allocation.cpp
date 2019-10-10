@@ -1496,42 +1496,14 @@ void FD3D12FastAllocatorPagePool::Destroy()
 	Pool.Empty();
 }
 
-FD3D12FastConstantAllocator::FD3D12FastConstantAllocator(FD3D12Device* Parent, FRHIGPUMask VisibiltyMask, uint32 InPageSize)
+FD3D12FastConstantAllocator::FD3D12FastConstantAllocator(FD3D12Device* Parent, FRHIGPUMask VisibiltyMask)
 	: FD3D12DeviceChild(Parent)
 	, FD3D12MultiNodeGPUObject(Parent->GetGPUMask(), VisibiltyMask)
 	, UnderlyingResource(Parent)
-	, PageSize(InPageSize)
-	, RingBuffer(PageSize / D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT)
+	, Offset(64 * 1024) // Initial offset is at end of page so that first Allocate() call triggers a page allocation
+	, PageSize(64 * 1024)
 {
 	check(PageSize % D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT == 0);
-}
-
-void FD3D12FastConstantAllocator::Init()
-{
-	FD3D12Device* Device = GetParentDevice();
-	FD3D12Adapter* Adapter = Device->GetParentAdapter();
-	ReallocBuffer();
-
-	RingBuffer.SetFence(&Adapter->GetFrameFence());
-}
-
-void FD3D12FastConstantAllocator::ReallocBuffer()
-{
-	check(PageSize % D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT == 0);
-
-	FD3D12Device* Device = GetParentDevice();
-	FD3D12Adapter* Adapter = Device->GetParentAdapter();
-
-	UnderlyingResource.Clear();
-	
-	FD3D12Resource* NewBuffer = nullptr;
-	VERIFYD3D12RESULT(Adapter->CreateBuffer(D3D12_HEAP_TYPE_UPLOAD,
-		GetGPUMask(),
-		GetVisibilityMask(),
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		PageSize, &NewBuffer, TEXT("FastConstantAllocator")));
-
-	UnderlyingResource.AsStandAlone(NewBuffer, PageSize);
 }
 
 #if USE_STATIC_ROOT_SIGNATURE
@@ -1542,56 +1514,18 @@ void* FD3D12FastConstantAllocator::Allocate(uint32 Bytes, FD3D12ResourceLocation
 {
 	check(Bytes <= PageSize);
 
-	// Check to make sure our assumption that we don't need a OutLocation.Clear() here is valid.
-	checkf(!OutLocation.IsValid(), TEXT("The supplied resource location already has a valid resource. You should Clear() it first or it may leak."));
-
-	// Align to a constant buffer block size
 	const uint32 AlignedSize = Align(Bytes, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
-	const uint64 Location = RingBuffer.Allocate(AlignedSize / D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
-	if (Location == FD3D12AbstractRingBuffer::FailedReturnValue)
+
+	if (Offset + AlignedSize > PageSize)
 	{
-		PageSize = Align(PageSize + (PageSize / 2), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
-		ReallocBuffer();
-		RingBuffer.Reset(PageSize / D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+		Offset = 0;
 
-		UE_LOG(LogD3D12RHI, Warning, TEXT("Constant Allocator had to grow! Consider making it larger to begin with. New size: %d bytes"), PageSize);
+		FD3D12Device* Device = GetParentDevice();
+		FD3D12Adapter* Adapter = Device->GetParentAdapter();
 
-#if USE_STATIC_ROOT_SIGNATURE
-		return Allocate(Bytes, OutLocation, OutCBView);
-#else
-		return Allocate(Bytes, OutLocation);
-#endif
+		FD3D12DynamicHeapAllocator& Allocator = Adapter->GetUploadHeapAllocator(Device->GetGPUIndex());
+		Allocator.AllocUploadResource(PageSize, DEFAULT_CONTEXT_UPLOAD_POOL_ALIGNMENT, UnderlyingResource);
 	}
-
-	// Useful when trying to tweak initial size
-	//UE_LOG(LogD3D12RHI, Warning, TEXT("Space Left. %d"), RingBuffer.GetSpaceLeft() * D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
-
-	const uint64 Offset = Location * D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
-
-#if 0  // used to detect problems with fencing 
-	static FThreadSafeCounter Cnt;
-	if (Cnt.Increment() % 1000 == 0)
-	{
-		uint64 Block1Start = 0;
-		uint64 Block1Size = 0;
-		uint64 Block2Start = 0;
-		uint64 Block2Size = 0;
-		RingBuffer.GetOverwritableBlocks(Block1Start, Block1Size, Block2Start, Block2Size);
-		Block1Start *= D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
-		Block1Size *= D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
-		Block2Start *= D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
-		Block2Size *= D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
-
-		if (Block1Size)
-		{
-			FMemory::Memset((uint8*)UnderlyingResource.GetMappedBaseAddress() + Block1Start, 0xff, Block1Size);
-		}
-		if (Block2Size)
-		{
-			FMemory::Memset((uint8*)UnderlyingResource.GetMappedBaseAddress() + Block2Start, 0xff, Block2Size);
-		}
-	}
-#endif
 
 	OutLocation.AsFastAllocation(UnderlyingResource.GetResource(),
 		AlignedSize,
@@ -1605,6 +1539,9 @@ void* FD3D12FastConstantAllocator::Allocate(uint32 Bytes, FD3D12ResourceLocation
 		OutCBView->Create(UnderlyingResource.GetGPUVirtualAddress() + Offset, AlignedSize);
 	}
 #endif
+
+	Offset += AlignedSize;
+
 	return OutLocation.GetMappedBaseAddress();
 }
 

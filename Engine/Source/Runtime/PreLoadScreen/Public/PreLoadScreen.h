@@ -6,6 +6,7 @@
 
 enum class EPreLoadScreenTypes : uint8
 {
+	CustomSplashScreen,
     EarlyStartupScreen,
     EngineLoadingScreen
 };

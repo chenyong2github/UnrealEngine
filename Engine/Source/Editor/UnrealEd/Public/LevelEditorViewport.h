@@ -515,10 +515,11 @@ public:
 	 * @param	bSelectActors	If true, select the newly dropped actors (defaults: true)
 	 * @param	ObjectFlags		The flags to place on the actor when it is spawned
 	 * @param	FactoryToUse	The preferred actor factory to use (optional)
+	 * @param	Cursor			Optional pre-calculated cursor location
 	 *
 	 * @return	true if the object was successfully used to place an actor; false otherwise
 	 */
-	static TArray<AActor*> TryPlacingActorFromObject( ULevel* InLevel, UObject* ObjToUse, bool bSelectActors, EObjectFlags ObjectFlags, UActorFactory* FactoryToUse, const FName Name = NAME_None );
+	static TArray<AActor*> TryPlacingActorFromObject( ULevel* InLevel, UObject* ObjToUse, bool bSelectActors, EObjectFlags ObjectFlags, UActorFactory* FactoryToUse, const FName Name = NAME_None, const FViewportCursorLocation* Cursor = nullptr);
 
 	/** 
 	 * Returns true if creating a preview actor in the viewport. 

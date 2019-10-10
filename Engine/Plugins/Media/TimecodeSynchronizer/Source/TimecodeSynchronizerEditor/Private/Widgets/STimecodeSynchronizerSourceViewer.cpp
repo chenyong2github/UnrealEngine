@@ -5,9 +5,6 @@
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Notifications/NotificationManager.h"
-#include "MediaPlayer.h"
-#include "MediaPlayerTimeSynchronizationSource.h"
-#include "MediaTexture.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"

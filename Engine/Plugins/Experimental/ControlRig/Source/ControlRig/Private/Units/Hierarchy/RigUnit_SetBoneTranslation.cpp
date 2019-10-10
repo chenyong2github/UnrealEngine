@@ -30,14 +30,34 @@ FRigUnit_SetBoneTranslation_Execute()
 						case EBoneGetterSetterMode::GlobalSpace:
 						{
 							FTransform Transform = Hierarchy->GetGlobalTransform(CachedBoneIndex);
-							Transform.SetTranslation(Translation);
+
+							if (FMath::IsNearlyEqual(Weight, 1.f))
+							{
+								Transform.SetTranslation(Translation);
+							}
+							else
+							{
+								float T = FMath::Clamp<float>(Weight, 0.f, 1.f);
+								Transform.SetTranslation(FMath::Lerp<FVector>(Transform.GetTranslation(), Translation, T));
+							}
+
 							Hierarchy->SetGlobalTransform(CachedBoneIndex, Transform, bPropagateToChildren);
 							break;
 						}
 						case EBoneGetterSetterMode::LocalSpace:
 						{
 							FTransform Transform = Hierarchy->GetLocalTransform(CachedBoneIndex);
-							Transform.SetTranslation(Translation);
+
+							if (FMath::IsNearlyEqual(Weight, 1.f))
+							{
+								Transform.SetTranslation(Translation);
+							}
+							else
+							{
+								float T = FMath::Clamp<float>(Weight, 0.f, 1.f);
+								Transform.SetTranslation(FMath::Lerp<FVector>(Transform.GetTranslation(), Translation, T));
+							}
+
 							Hierarchy->SetLocalTransform(CachedBoneIndex, Transform, bPropagateToChildren);
 							break;
 						}

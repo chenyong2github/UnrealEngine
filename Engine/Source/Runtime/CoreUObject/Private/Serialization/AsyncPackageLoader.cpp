@@ -1,0 +1,679 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "Serialization/AsyncPackageLoader.h"
+#include "Serialization/AsyncLoadingThread.h"
+#include "Serialization/AsyncLoading2.h"
+#include "UObject/GCObject.h"
+#include "UObject/LinkerLoad.h"
+#include "Misc/CoreDelegates.h"
+
+volatile int32 GIsLoaderCreated;
+TUniquePtr<IAsyncPackageLoader> GPackageLoader;
+
+const FName PrestreamPackageClassNameLoad = FName("PrestreamPackage");
+
+struct FEDLBootObjectState
+{
+	ENotifyRegistrationType NotifyRegistrationType;
+	ENotifyRegistrationPhase LastNotifyRegistrationPhase;
+	UObject *(*Register)();
+	bool bDynamic;
+};
+
+struct FEDLBootWaitingPackage
+{
+	FGCObject* Package;
+	FPackageIndex Import;
+};
+
+struct FEDLBootNotificationManager
+	: public IEDLBootNotificationManager
+{
+	TMap<FName, FEDLBootObjectState> PathToState;
+	TMultiMap<FName, FEDLBootWaitingPackage> PathToWaitingPackageNodes;
+	TArray<FName> PathsToFire;
+	TArray<UClass*> CDORecursiveStack;
+	TArray<UClass*> CDORecursives;
+	FCriticalSection EDLBootNotificationManagerLock;
+
+	// return true if you are waiting for this compiled in object
+	bool AddWaitingPackage(FGCObject* Pkg, FName PackageName, FName ObjectName, FPackageIndex Import) override
+	{
+		if (PackageName == GLongCoreUObjectPackageName)
+		{
+			return false; // We assume nothing in coreuobject ever loads assets in a constructor
+		}
+		FScopeLock Lock(&EDLBootNotificationManagerLock);
+		check(GIsInitialLoad);
+		check(Import.IsImport()); // compiled in exports make no sense
+		FString ObjectNameString = ObjectName.ToString();
+		FName LongFName(*(PackageName.ToString() / ObjectNameString));
+		check(LongFName != NAME_None);
+		FName WaitName = LongFName;
+		FEDLBootObjectState* ExistingState = PathToState.Find(LongFName);
+		if (!ExistingState)
+		{
+			//if (ObjectName.ToString().EndsWith(HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX))
+			// there are also some arg structs and other things that are just part of the package with no registration
+			{
+				ExistingState = PathToState.Find(PackageName);
+				WaitName = PackageName;
+			}
+			if (!ExistingState)
+			{
+				UE_LOG(LogStreaming, Fatal, TEXT("Compiled in export %s not found; it was never registered."), *LongFName.ToString());
+				return false;
+			}
+		}
+		if (ExistingState->LastNotifyRegistrationPhase == ENotifyRegistrationPhase::NRP_Finished)
+		{
+			return false;
+		}
+		FEDLBootWaitingPackage WaitingPackage;
+		WaitingPackage.Package = Pkg;
+		WaitingPackage.Import = Import;
+
+		PathToWaitingPackageNodes.Add(WaitName, WaitingPackage);
+
+		return true;
+	}
+
+	void NotifyRegistrationEvent(const TCHAR* PackageName, const TCHAR* Name, ENotifyRegistrationType NotifyRegistrationType, ENotifyRegistrationPhase NotifyRegistrationPhase, UObject *(*InRegister)(), bool InbDynamic)
+	{
+		if (!GIsInitialLoad)
+		{
+			return;
+		}
+		static FName LongCoreUObjectPackageName(TEXT("/Script/CoreUObject")); // can't use the global here because it may not be initialized yet
+		FName PackageFName(PackageName);
+		if (PackageFName == LongCoreUObjectPackageName)
+		{
+			return; // We assume nothing in coreuobject ever loads assets in a constructor
+		}
+
+		FScopeLock Lock(&EDLBootNotificationManagerLock);
+
+		FName LongFName(*(FString(PackageName) / Name));
+
+		//FPlatformMisc::LowLevelOutputDebugStringf(TEXT("NotifyRegistrationEvent %s %d %d\r\n"), *LongFName.ToString(), int32(NotifyRegistrationType), int32(NotifyRegistrationPhase));
+
+		// some things, like delegate signatures, are not registered; rather they are part of the package singleton, so we track the package state as being the max of any member of that package
+		FEDLBootObjectState* ExistingPackageState = PathToState.Find(PackageFName);
+		FEDLBootObjectState* ExistingState = PathToState.Find(LongFName);
+
+		if (!ExistingState)
+		{
+			if (NotifyRegistrationPhase != ENotifyRegistrationPhase::NRP_Added)
+			{
+				UE_LOG(LogStreaming, Fatal, TEXT("Attempt to process %s before it has been added."), *LongFName.ToString());
+			}
+			FEDLBootObjectState NewState;
+			NewState.LastNotifyRegistrationPhase = NotifyRegistrationPhase;
+			NewState.NotifyRegistrationType = NotifyRegistrationType;
+			NewState.Register = InRegister;
+			NewState.bDynamic = InbDynamic;
+			PathToState.Add(LongFName, NewState);
+
+			if (!ExistingPackageState)
+			{
+				NewState.NotifyRegistrationType = ENotifyRegistrationType::NRT_Package;
+				PathToState.Add(PackageFName, NewState);
+			}
+		}
+		else
+		{
+			if (int32(ExistingState->LastNotifyRegistrationPhase) + 1 != int32(NotifyRegistrationPhase))
+			{
+				UE_CLOG(GEventDrivenLoaderEnabled, LogStreaming, Fatal, TEXT("Invalid state transition %d %d with %s when it has already been processed."), int32(ExistingState->LastNotifyRegistrationPhase), int32(NotifyRegistrationPhase), *LongFName.ToString());
+			}
+			if (ExistingState->NotifyRegistrationType != (NotifyRegistrationType))
+			{
+				UE_CLOG(GEventDrivenLoaderEnabled, LogStreaming, Fatal, TEXT("Multiple types %d %d with %s when it has already been processed."), int32(ExistingState->NotifyRegistrationType), int32(NotifyRegistrationType), *LongFName.ToString());
+			}
+			ExistingState->LastNotifyRegistrationPhase = NotifyRegistrationPhase;
+			if (NotifyRegistrationPhase == ENotifyRegistrationPhase::NRP_Finished)
+			{
+				ExistingState->Register = nullptr; // we don't need to do this in ConstructWaitingBootObjects
+				PathsToFire.Add(LongFName);
+			}
+			check(ExistingPackageState); // if we have an existing state for the thing, we should also have a 
+			if (ExistingPackageState && int32(NotifyRegistrationPhase) > int32(ExistingPackageState->LastNotifyRegistrationPhase))
+			{
+				ExistingPackageState->LastNotifyRegistrationPhase = NotifyRegistrationPhase;
+				if (NotifyRegistrationPhase == ENotifyRegistrationPhase::NRP_Finished)
+				{
+					//FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Fired package %s %d %d\r\n"), *PackageFName.ToString(), int32(NotifyRegistrationType), int32(NotifyRegistrationPhase));
+					PathsToFire.Add(PackageFName);
+				}
+			}
+		}
+	}
+
+	void NotifyRegistrationComplete()
+	{
+#if USE_EVENT_DRIVEN_ASYNC_LOAD_AT_BOOT_TIME
+		FireCompletedCompiledInImports(true);
+		FlushAsyncLoading();
+		GPackageLoader->StartThread();
+#endif
+#if !HACK_HEADER_GENERATOR
+		check(!GIsInitialLoad && IsInGameThread());
+		FScopeLock Lock(&EDLBootNotificationManagerLock);
+		for (auto& Pair : PathToState)
+		{
+			if (Pair.Value.LastNotifyRegistrationPhase != ENotifyRegistrationPhase::NRP_Finished && !Pair.Value.bDynamic)
+			{
+#if USE_EVENT_DRIVEN_ASYNC_LOAD_AT_BOOT_TIME
+				UE_CLOG(GEventDrivenLoaderEnabled, LogStreaming, Fatal, TEXT("%s (%d) was not complete (%d) after registration was complete."), *Pair.Key.ToString(), int32(Pair.Value.NotifyRegistrationType), int32(Pair.Value.LastNotifyRegistrationPhase));
+#else
+				UE_LOG(LogStreaming, Warning, TEXT("%s was not complete (%d) after registration was complete."), *Pair.Key.ToString(), int32(Pair.Value.LastNotifyRegistrationPhase));
+#endif
+			}
+		}
+		if (PathToWaitingPackageNodes.Num())
+		{
+			UE_LOG(LogStreaming, Fatal, TEXT("Initial load is complete, but we still have %d waiting packages."), PathToWaitingPackageNodes.Num());
+		}
+		if (GEventDrivenLoaderEnabled && PathsToFire.Num() && USE_EVENT_DRIVEN_ASYNC_LOAD_AT_BOOT_TIME)
+		{
+			for (FName Path : PathsToFire)
+			{
+				UE_LOG(LogStreaming, Error, TEXT("%s was not fired."), *Path.ToString());
+			}
+			UE_LOG(LogStreaming, Fatal, TEXT("Initial load is complete, but we still have %d imports to fire (listed above)."), PathsToFire.Num());
+		}
+#endif
+		PathToState.Empty();
+		PathsToFire.Empty();
+	}
+
+	bool ConstructWaitingBootObjects() override
+	{
+		static struct FFixedBootOrder
+		{
+			TArray<FName> Array;
+			FFixedBootOrder()
+			{
+				// look for any packages that we want to force preload at startup
+				FConfigSection* BootObjects = GConfig->GetSectionPrivate(TEXT("/Script/Engine.StreamingSettings"), false, true, GEngineIni);
+				if (BootObjects)
+				{
+					// go through list and add to the array
+					for (FConfigSectionMap::TIterator It(*BootObjects); It; ++It)
+					{
+						if (It.Key() == TEXT("FixedBootOrder"))
+						{
+							// add this package to the list to be fully loaded later
+							Array.Add(FName(*It.Value().GetValue()));
+						}
+					}
+				}
+			}
+
+		} FixedBootOrder;
+
+		check(GIsInitialLoad && IsInGameThread());
+		UObject *(*BootObjectRegister)() = nullptr;
+		UObject *(*BootPackageObjectRegister)() = nullptr;
+		FName WaitingPackage;
+		bool bIsCDO = false;
+
+		while (FixedBootOrder.Array.Num())
+		{
+			FName ThisItem = FixedBootOrder.Array.Pop();
+			FScopeLock Lock(&EDLBootNotificationManagerLock);
+			FEDLBootObjectState* ExistingState = PathToState.Find(ThisItem);
+
+			if (!ExistingState)
+			{
+				UE_LOG(LogStreaming, Fatal, TEXT("%s was listed as a fixed load order but was not found,"), *ThisItem.ToString());
+			}
+			else if (!ExistingState->Register)
+			{
+				UE_LOG(LogStreaming, Log, TEXT("%s was listed as a fixed load order but was already processed"), *ThisItem.ToString());
+			}
+			else
+			{
+				//FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Booting Fixed %s %d\r\n"), *ThisItem.ToString(), int32(ExistingState->NotifyRegistrationType));
+				BootObjectRegister = ExistingState->Register;
+				ExistingState->Register = nullptr; // we don't need to do this more than once
+				bIsCDO = ExistingState->NotifyRegistrationType == ENotifyRegistrationType::NRT_ClassCDO;
+				break;
+			}
+		}
+
+		if (!BootObjectRegister)
+		{
+			FScopeLock Lock(&EDLBootNotificationManagerLock);
+			for (auto& Pair : PathToWaitingPackageNodes)
+			{
+				FEDLBootObjectState* ExistingState = PathToState.Find(Pair.Key);
+				if (ExistingState)
+				{
+					if (ExistingState->Register)
+					{
+						//FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Booting %s %d\r\n"), *Pair.Key.ToString(), int32(ExistingState->NotifyRegistrationType));
+						BootObjectRegister = ExistingState->Register;
+						ExistingState->Register = nullptr; // we don't need to do this more than once
+						bIsCDO = ExistingState->NotifyRegistrationType == ENotifyRegistrationType::NRT_ClassCDO;
+						break;
+					}
+				}
+			}
+		}
+		if (BootObjectRegister)
+		{
+			UObject* BootObject = BootObjectRegister();
+			check(BootObject);
+			UObjectForceRegistration(BootObject);
+			if (bIsCDO)
+			{
+				UClass* Class = CastChecked<UClass>(BootObject);
+				bool bAnyParentOnStack = false;
+				UClass* Super = Class;
+				while (Super)
+				{
+					if (CDORecursiveStack.Contains(Super))
+					{
+						bAnyParentOnStack = true;
+						break;
+					}
+					Super = Super->GetSuperClass();
+				}
+
+				if (!bAnyParentOnStack)
+				{
+					CDORecursiveStack.Push(Class);
+					//FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Create CDO %s\r\n"), *BootObject->GetName());
+					Class->GetDefaultObject();
+					verify(CDORecursiveStack.Pop() == Class);
+				}
+				else
+				{
+					//FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Recursive Deferred %s\r\n"), *BootObject->GetName());
+					CDORecursives.Add(Class);
+				}
+			}
+			return true;
+		}
+		if (CDORecursives.Num())
+		{
+			UClass* OkToRun = nullptr;
+			for (UClass* Class : CDORecursives)
+			{
+				bool bAnyParentOnStack = false;
+				UClass* Super = Class;
+				while (Super)
+				{
+					if (CDORecursiveStack.Contains(Super))
+					{
+						bAnyParentOnStack = true;
+						break;
+					}
+					Super = Super->GetSuperClass();
+				}
+				if (!bAnyParentOnStack)
+				{
+					OkToRun = Class;
+					break;
+				}
+			}
+			if (OkToRun)
+			{
+				//FPlatformMisc::LowLevelOutputDebugStringf(TEXT("CDORecursives %s\r\n"), *OkToRun->GetName());
+				CDORecursives.Remove(OkToRun);
+				CDORecursiveStack.Push(OkToRun);
+				OkToRun->GetDefaultObject();
+				verify(CDORecursiveStack.Pop() == OkToRun);
+			}
+			else
+			{
+				FPlatformProcess::Sleep(.001f);
+			}
+			return true; // even if we didn't do anything we need to return true to avoid checking for cycles
+		}
+		return false;
+	}
+
+	bool IsWaitingForSomething() override
+	{
+		FScopeLock Lock(&EDLBootNotificationManagerLock);
+		return PathToWaitingPackageNodes.Num() > 0;
+	}
+
+	bool IsObjComplete(UObject* Obj)
+	{
+		static FName LongCoreUObjectPackageName(TEXT("/Script/CoreUObject")); // can't use the global here because it may not be initialized yet
+		FName PackageName = Obj->GetOutermost()->GetFName();
+		if (PackageName == LongCoreUObjectPackageName)
+		{
+			return true; // We assume nothing in coreuobject ever loads assets in a constructor, therefore it can be considered complete
+		}
+		FScopeLock Lock(&EDLBootNotificationManagerLock);
+		FName LongFName(*(PackageName.ToString() / Obj->GetName()));
+
+		FEDLBootObjectState* ExistingState = PathToState.Find(LongFName);
+
+		if (!ExistingState || ExistingState->LastNotifyRegistrationPhase == ENotifyRegistrationPhase::NRP_Finished)
+		{
+			return true;
+		}
+		return false;
+	}
+
+	bool FireCompletedCompiledInImports(bool bFinalRun) override
+	{
+#if USE_EVENT_DRIVEN_ASYNC_LOAD_AT_BOOT_TIME
+		FScopeLock Lock(&EDLBootNotificationManagerLock);
+		check(bFinalRun || GIsInitialLoad);
+		bool bResult = !!PathsToFire.Num();
+		for (FName LongName : PathsToFire)
+		{
+			for (auto It = PathToWaitingPackageNodes.CreateKeyIterator(LongName); It; ++It)
+			{
+				FEDLBootWaitingPackage& WaitingPackage = It.Value();
+				GPackageLoader->FireCompletedCompiledInImport(WaitingPackage.Package, WaitingPackage.Import);
+			}
+			PathToWaitingPackageNodes.Remove(LongName);
+		}
+		PathsToFire.Empty();
+		return bResult;
+#else
+		return false;
+#endif
+	}
+};
+
+static FEDLBootNotificationManager& GetGEDLBootNotificationManager()
+{
+	static FEDLBootNotificationManager Singleton;
+	return Singleton;
+}
+
+bool IsEventDrivenLoaderEnabledInCookedBuilds()
+{
+	static struct FEventDrivenLoaderEnabledInCookedBuildsInit
+	{
+		bool bEventDrivenLoaderEnabled;
+		FEventDrivenLoaderEnabledInCookedBuildsInit()
+			: bEventDrivenLoaderEnabled(false)
+		{
+			SetEventDrivenLoaderEnabled();
+		}
+
+		void SetEventDrivenLoaderEnabled()
+		{
+			check(GConfig || IsEngineExitRequested());
+			if (GConfig)
+			{
+				GConfig->GetBool(TEXT("/Script/Engine.StreamingSettings"), TEXT("s.EventDrivenLoaderEnabled"), bEventDrivenLoaderEnabled, GEngineIni);
+#if !UE_BUILD_SHIPPING
+				if (FParse::Param(FCommandLine::Get(), TEXT("NOEDL")))
+				{
+					bEventDrivenLoaderEnabled = false;
+				}
+#endif
+			}
+		}
+	} EventDrivenLoaderEnabledInCookedBuilds;
+
+#if WITH_EDITOR	
+	// when building from the UE4 Editor, s.EventDrivenLoaderEnabled can be changed from Project Settings, so we need to test it at every call
+	if (GIsEditor)
+	{
+		EventDrivenLoaderEnabledInCookedBuilds.SetEventDrivenLoaderEnabled();
+	}
+#endif
+	return EventDrivenLoaderEnabledInCookedBuilds.bEventDrivenLoaderEnabled;
+}
+
+bool IsEventDrivenLoaderEnabled()
+{
+	static struct FEventDrivenLoaderEnabledInit
+	{
+		FEventDrivenLoaderEnabledInit()
+		{
+			GEventDrivenLoaderEnabled = IsEventDrivenLoaderEnabledInCookedBuilds() && FPlatformProperties::RequiresCookedData();
+		}
+	} EventDrivenLoaderEnabledInit;
+	return GEventDrivenLoaderEnabled;
+}
+
+bool IsFullyLoadedObj(UObject* Obj)
+{
+	if (!Obj)
+	{
+		return false;
+	}
+	if (Obj->HasAllFlags(RF_WasLoaded | RF_LoadCompleted)
+		|| Obj->IsA(UPackage::StaticClass())) // packages are never really loaded, so if it exists, it is loaded
+	{
+		return true;
+	}
+	if (Obj->HasAnyFlags(RF_WasLoaded | RF_NeedLoad | RF_WillBeLoaded))
+	{
+		return false;
+	}
+	if (GIsInitialLoad && Obj->GetOutermost()->HasAnyPackageFlags(PKG_CompiledIn))
+	{
+		return GetGEDLBootNotificationManager().IsObjComplete(Obj);
+	}
+	//native blueprint 
+	UDynamicClass* UD = Cast<UDynamicClass>(Obj);
+	if (!UD)
+	{
+		return true;
+	}
+
+	if (GEventDrivenLoaderEnabled && EVENT_DRIVEN_ASYNC_LOAD_ACTIVE_AT_RUNTIME)
+	{
+		if (0 != (UD->ClassFlags & CLASS_Constructed))
+		{
+			return true;
+		}
+	}
+	else
+	{
+		if (UD->GetDefaultObject(false))
+		{
+			UE_CLOG(!UD->HasAnyClassFlags(CLASS_TokenStreamAssembled), LogStreaming, Fatal, TEXT("Class %s is fully loaded, but does not have its token stream assembled."), *UD->GetFullName());
+			return true;
+		}
+	}
+	return false;
+}
+
+bool IsNativeCodePackage(UPackage* Package)
+{
+	if (!Package || !Package->HasAnyPackageFlags(PKG_CompiledIn))
+	{
+		return false;
+	}
+
+	// Make sure it isn't a dynamically loaded one, this check is slower
+	return !GetConvertedDynamicPackageNameToTypeName().Contains(Package->GetFName());
+}
+
+/** Checks if the object can have PostLoad called on the Async Loading Thread */
+bool CanPostLoadOnAsyncLoadingThread(UObject* Object)
+{
+	if (Object->IsPostLoadThreadSafe())
+	{
+		bool bCanPostLoad = true;
+		// All outers should also be safe to call PostLoad on ALT
+		for (UObject* Outer = Object->GetOuter(); Outer && bCanPostLoad; Outer = Outer->GetOuter())
+		{
+			bCanPostLoad = !Outer->HasAnyFlags(RF_NeedPostLoad) || Outer->IsPostLoadThreadSafe();
+		}
+		return bCanPostLoad;
+	}
+	return false;
+}
+
+IAsyncPackageLoader& GetAsyncPackageLoader()
+{
+	check(GPackageLoader.Get());
+	return *GPackageLoader;
+}
+
+void InitAsyncThread()
+{
+	if (FParse::Param(FCommandLine::Get(), TEXT("zenloader")))
+	{
+		GPackageLoader = MakeUnique<FAsyncLoadingThread2>(GetGEDLBootNotificationManager());
+	}
+	else
+	{
+		GPackageLoader = MakeUnique<FAsyncLoadingThread>(/** ThreadIndex = */ 0, GetGEDLBootNotificationManager());
+	}
+
+	FPlatformAtomics::InterlockedIncrement(&GIsLoaderCreated);
+
+	FCoreDelegates::OnSyncLoadPackage.AddStatic([](const FString&) { GSyncLoadCount++; });
+ 
+	GPackageLoader->InitializeLoading();
+}
+
+void ShutdownAsyncThread()
+{
+	if (GPackageLoader)
+	{
+		GPackageLoader->ShutdownLoading();
+		GPackageLoader.Reset(nullptr);
+	}
+}
+
+bool IsInAsyncLoadingThreadCoreUObjectInternal()
+{
+	if (GPackageLoader)
+	{
+		return GPackageLoader->IsInAsyncLoadThread();
+	}
+	else
+	{
+		return false;
+	}
+}
+
+void FlushAsyncLoading(int32 PackageID /* = INDEX_NONE */)
+{
+#if defined(WITH_CODE_GUARD_HANDLER) && WITH_CODE_GUARD_HANDLER
+	void CheckImageIntegrityAtRuntime();
+	CheckImageIntegrityAtRuntime();
+#endif
+	checkf(IsInGameThread(), TEXT("Unable to FlushAsyncLoading from any thread other than the game thread."));
+	if (GPackageLoader)
+	{
+		GPackageLoader->FlushLoading(PackageID);
+	}
+}
+
+EAsyncPackageState::Type ProcessAsyncLoadingUntilComplete(TFunctionRef<bool()> CompletionPredicate, float TimeLimit)
+{
+	return GetAsyncPackageLoader().ProcessLoadingUntilComplete(CompletionPredicate, TimeLimit);
+}
+
+int32 GetNumAsyncPackages()
+{
+	return GetAsyncPackageLoader().GetNumAsyncPackages();
+}
+
+EAsyncPackageState::Type ProcessAsyncLoading(bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit)
+{
+	return GetAsyncPackageLoader().ProcessLoading(bUseTimeLimit, bUseFullTimeLimit, TimeLimit);
+}
+
+bool IsAsyncLoadingCoreUObjectInternal()
+{
+	// GIsInitialLoad guards the async loading thread from being created too early
+	return GetAsyncPackageLoader().IsAsyncLoadingPackages();
+}
+
+bool IsAsyncLoadingMultithreadedCoreUObjectInternal()
+{
+	// GIsInitialLoad guards the async loading thread from being created too early
+	return GetAsyncPackageLoader().IsMultithreaded();
+}
+
+void SuspendAsyncLoadingInternal()
+{
+	check(IsInGameThread() && !IsInSlateThread());
+	GetAsyncPackageLoader().SuspendLoading();
+}
+
+void ResumeAsyncLoadingInternal()
+{
+	check(IsInGameThread() && !IsInSlateThread());
+	GetAsyncPackageLoader().ResumeLoading();
+}
+
+bool IsAsyncLoadingSuspendedInternal()
+{
+	return GetAsyncPackageLoader().IsAsyncLoadingSuspended();
+}
+
+int32 LoadPackageAsync(const FString& InName, const FGuid* InGuid /*= nullptr*/, const TCHAR* InPackageToLoadFrom /*= nullptr*/, FLoadPackageAsyncDelegate InCompletionDelegate /*= FLoadPackageAsyncDelegate()*/, EPackageFlags InPackageFlags /*= PKG_None*/, int32 InPIEInstanceID /*= INDEX_NONE*/, int32 InPackagePriority /*= 0*/)
+{
+	return GetAsyncPackageLoader().LoadPackage(InName, InGuid, InPackageToLoadFrom, InCompletionDelegate, InPackageFlags, InPIEInstanceID, InPackagePriority);
+}
+
+int32 LoadPackageAsync(const FString& PackageName, FLoadPackageAsyncDelegate CompletionDelegate, int32 InPackagePriority /*= 0*/, EPackageFlags InPackageFlags /*= PKG_None*/, int32 InPIEInstanceID /*= INDEX_NONE*/)
+{
+	const FGuid* Guid = nullptr;
+	const TCHAR* PackageToLoadFrom = nullptr;
+	return LoadPackageAsync(PackageName, Guid, PackageToLoadFrom, CompletionDelegate, InPackageFlags, InPIEInstanceID, InPackagePriority );
+}
+
+void CancelAsyncLoading()
+{
+	// Cancelling async loading while loading is suspend will result in infinite stall
+	UE_CLOG(GetAsyncPackageLoader().IsAsyncLoadingSuspended(), LogStreaming, Fatal, TEXT("Cannot Cancel Async Loading while async loading is suspended."));
+	GetAsyncPackageLoader().CancelLoading();
+
+	if (!IsEngineExitRequested())
+	{
+		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS, true);
+	}
+
+	const EInternalObjectFlags AsyncFlags = EInternalObjectFlags::Async | EInternalObjectFlags::AsyncLoading;
+	for (int32 ObjectIndex = 0; ObjectIndex < GUObjectArray.GetObjectArrayNum(); ++ObjectIndex)
+	{
+		FUObjectItem* ObjectItem = &GUObjectArray.GetObjectItemArrayUnsafe()[ObjectIndex];
+		if (UObject* Obj = static_cast<UObject*>(ObjectItem->Object))
+		{
+			check(!Obj->HasAnyInternalFlags(AsyncFlags));
+		}
+	}
+}
+
+float GetAsyncLoadPercentage(const FName& PackageName)
+{
+	return GetAsyncPackageLoader().GetAsyncLoadPercentage(PackageName);
+}
+
+void NotifyRegistrationEvent(const TCHAR* PackageName, const TCHAR* Name, ENotifyRegistrationType NotifyRegistrationType, ENotifyRegistrationPhase NotifyRegistrationPhase, UObject *(*InRegister)(), bool InbDynamic)
+{
+	GetGEDLBootNotificationManager().NotifyRegistrationEvent(PackageName, Name, NotifyRegistrationType, NotifyRegistrationPhase, InRegister, InbDynamic);
+}
+
+void NotifyRegistrationComplete()
+{
+	GetGEDLBootNotificationManager().NotifyRegistrationComplete();
+}
+
+void NotifyConstructedDuringAsyncLoading(UObject* Object, bool bSubObject)
+{
+	GetAsyncPackageLoader().NotifyConstructedDuringAsyncLoading(Object, bSubObject);
+}
+
+double GFlushAsyncLoadingTime = 0.0;
+uint32 GFlushAsyncLoadingCount = 0;
+uint32 GSyncLoadCount = 0;
+
+void ResetAsyncLoadingStats()
+{
+	check(IsInGameThread());
+	GFlushAsyncLoadingTime = 0.0;
+	GFlushAsyncLoadingCount = 0;
+	GSyncLoadCount = 0;
+}

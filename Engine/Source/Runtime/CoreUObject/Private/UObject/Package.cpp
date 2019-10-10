@@ -61,8 +61,8 @@ void UPackage::SetDirtyFlag( bool bIsDirty )
 	if ( GetOutermost() != GetTransientPackage() )
 	{
 		if ( GUndo != NULL
-		// PIE world objects should never end up in the transaction buffer as we cannot undo during gameplay.
-		&& !GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor|PKG_ContainsScript) )
+		// PIE and script/class packages should never end up in the transaction buffer as we cannot undo during gameplay.
+		&& !GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor|PKG_ContainsScript|PKG_CompiledIn) )
 		{
 			// make sure we're marked as transactional
 			SetFlags(RF_Transactional);

@@ -37,6 +37,7 @@ typedef TMap<FCollectionNameType, TSharedRef<FCollection>> FAvailableCollections
 typedef TMap<FGuid, FCollectionNameType> FGuidToCollectionNamesMap;
 typedef TMap<FName, TArray<FObjectCollectionInfo>> FCollectionObjectsMap;
 typedef TMap<FGuid, TArray<FGuid>> FCollectionHierarchyMap;
+typedef TArray<FLinearColor> FCollectionColorArray;
 
 /** Wraps up the lazy caching of the collection manager */
 class FCollectionManagerCache
@@ -61,6 +62,9 @@ public:
 
 	/** Access the CachedHierarchy map, ensuring that it is up-to-date */
 	const FCollectionHierarchyMap& GetCachedHierarchy() const;
+
+	/** Access the CachedColors array, ensuring that it is up-to-date */
+	const FCollectionColorArray& GetCachedColors() const;
 
 	enum class ERecursiveWorkerFlowControl : uint8
 	{
@@ -87,6 +91,9 @@ private:
 	/** A map of parent collection GUIDs to their child collection GUIDs - only collections that have children will appear in here */
 	mutable FCollectionHierarchyMap CachedHierarchy_Internal;
 
+	/** An array of all unique colors currently used by collections */
+	mutable FCollectionColorArray CachedColors_Internal;
+
 	/** Flag to say whether the CachedCollectionNamesFromGuids map is dirty */
 	mutable bool bIsCachedCollectionNamesFromGuidsDirty : 1;
 
@@ -95,6 +102,9 @@ private:
 
 	/** Flag to say whether the CachedHierarchy map is dirty */
 	mutable bool bIsCachedHierarchyDirty : 1;
+
+	/** Flag to say whether the CachedColors array is dirty */
+	mutable bool bIsCachedColorsDirty : 1;
 };
 
 class FCollectionManager : public ICollectionManager
@@ -106,6 +116,7 @@ public:
 	// ICollectionManager implementation
 	virtual bool HasCollections() const override;
 	virtual void GetCollections(TArray<FCollectionNameType>& OutCollections) const override;
+	virtual void GetCollections(FName CollectionName, TArray<FCollectionNameType>& OutCollections) const override;
 	virtual void GetCollectionNames(ECollectionShareType::Type ShareType, TArray<FName>& CollectionNames) const override;
 	virtual void GetRootCollections(TArray<FCollectionNameType>& OutCollections) const override;
 	virtual void GetRootCollectionNames(ECollectionShareType::Type ShareType, TArray<FName>& CollectionNames) const override;
@@ -137,6 +148,9 @@ public:
 	virtual bool SaveCollection(FName CollectionName, ECollectionShareType::Type ShareType) override;
 	virtual bool UpdateCollection(FName CollectionName, ECollectionShareType::Type ShareType) override;
 	virtual bool GetCollectionStatusInfo(FName CollectionName, ECollectionShareType::Type ShareType, FCollectionStatusInfo& OutStatusInfo) const override;
+	virtual bool HasCollectionColors(TArray<FLinearColor>* OutColors = nullptr) const override;
+	virtual bool GetCollectionColor(FName CollectionName, ECollectionShareType::Type ShareType, TOptional<FLinearColor>& OutColor) const override;
+	virtual bool SetCollectionColor(FName CollectionName, ECollectionShareType::Type ShareType, const TOptional<FLinearColor>& NewColor) override;
 	virtual bool GetCollectionStorageMode(FName CollectionName, ECollectionShareType::Type ShareType, ECollectionStorageMode::Type& OutStorageMode) const override;
 	virtual bool IsObjectInCollection(FName ObjectPath, FName CollectionName, ECollectionShareType::Type ShareType, ECollectionRecursionFlags::Flags RecursionMode = ECollectionRecursionFlags::Self) const override;
 	virtual bool IsValidParentCollection(FName CollectionName, ECollectionShareType::Type ShareType, FName ParentCollectionName, ECollectionShareType::Type ParentShareType) const override;

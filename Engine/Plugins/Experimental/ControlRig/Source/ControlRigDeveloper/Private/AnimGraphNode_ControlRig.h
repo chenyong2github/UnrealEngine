@@ -24,6 +24,7 @@ class UAnimGraphNode_ControlRig : public UAnimGraphNode_CustomProperty
 private:
 	// UEdGraphNode interface
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
+	virtual void CustomizePinData(UEdGraphPin* Pin, FName SourcePropertyName, int32 ArrayIndex) const override;
 	virtual FText GetTooltipText() const override;
 
 	virtual FAnimNode_CustomProperty* GetCustomPropertyNode() override { return &Node; }
@@ -37,6 +38,7 @@ private:
 	virtual void GetExposableProperties(TArray<UProperty*>& OutExposableProperties) const override;
 	virtual void RebuildExposedProperties() override;
 	virtual void ReallocatePinsDuringReconstruction(TArray<UEdGraphPin*>& OldPins) override;
+	virtual void ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog) override;
 
 	TMap<FName, FControlRigIOVariable> InputVariables;
 	TMap<FName, FControlRigIOVariable> OutputVariables;

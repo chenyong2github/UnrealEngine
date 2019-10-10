@@ -221,7 +221,7 @@ void FAssetTypeActions_CameraAnim::OpenAssetEditor( const TArray<UObject*>& InOb
 				GEditor->OpenMatinee(PreviewMatineeActor.Get());
 
 				// install our delegate so we can clean up when finished
-				OnMatineeEditorClosedDelegateHandle = FEditorDelegates::EditorModeExit.AddSP(this, &FAssetTypeActions_CameraAnim::OnMatineeEditorClosed);
+				OnMatineeEditorClosedDelegateHandle = FEditorDelegates::EditorModeIDExit.AddSP(this, &FAssetTypeActions_CameraAnim::OnMatineeEditorClosed);
 			}
 			else
 			{
@@ -231,10 +231,9 @@ void FAssetTypeActions_CameraAnim::OpenAssetEditor( const TArray<UObject*>& InOb
 	}
 }
 
-void FAssetTypeActions_CameraAnim::OnMatineeEditorClosed(FEdMode* InEditorMode)
+void FAssetTypeActions_CameraAnim::OnMatineeEditorClosed(const FEditorModeID& InEditorModeID)
 {
-	check(InEditorMode);
-	if(InEditorMode->GetID() == FBuiltinEditorModes::EM_InterpEdit)
+	if(InEditorModeID == FBuiltinEditorModes::EM_InterpEdit)
 	{
 		// clean up our preview actors if they are still present
 		if(PreviewCamera.IsValid())
@@ -256,7 +255,7 @@ void FAssetTypeActions_CameraAnim::OnMatineeEditorClosed(FEdMode* InEditorMode)
 		}
 
 		// remove our delegate
-		FEditorDelegates::EditorModeExit.Remove(OnMatineeEditorClosedDelegateHandle);
+		FEditorDelegates::EditorModeIDExit.Remove(OnMatineeEditorClosedDelegateHandle);
 	}
 }
 

@@ -267,13 +267,13 @@ FText UNiagaraNodeEmitter::GetNameFromEmitter()
 		{
 			if (EmitterHandle.GetId() == EmitterHandleId)
 			{
-				return FText::FromName(EmitterHandle.GetName());
+				return FText::AsCultureInvariant(EmitterHandle.GetName().ToString());
 			}
 		}
 	}
 	else if (CachedUniqueName.IsValid())
 	{
-		return FText::FromName(CachedUniqueName);
+		return FText::AsCultureInvariant(CachedUniqueName.ToString());
 	}
 	return FText();
 }

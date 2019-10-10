@@ -79,4 +79,10 @@ private:
 
 	/** Array of views that may need their height updating on tick. */
 	TArray<TSharedPtr<SCurveEditorView>> Views;
+
+	/** 
+	 * Whether or not this widget caught an OnMouseDown notification 
+	 * Used to check if the selection should be cleared
+	 */
+	bool bCaughtMouseDown;
 };

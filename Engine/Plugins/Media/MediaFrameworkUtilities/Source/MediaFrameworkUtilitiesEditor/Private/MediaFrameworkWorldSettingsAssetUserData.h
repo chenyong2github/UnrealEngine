@@ -89,7 +89,7 @@ struct FMediaFrameworkCaptureRenderTargetCameraOutputInfo
 /**
  * UMediaFrameworkCaptureCameraViewportAssetUserData
  */
-UCLASS(MinimalAPI)
+UCLASS(MinimalAPI, config = Editor)
 class UMediaFrameworkWorldSettingsAssetUserData : public UAssetUserData
 {
 	GENERATED_BODY()
@@ -97,10 +97,10 @@ class UMediaFrameworkWorldSettingsAssetUserData : public UAssetUserData
 public:
 	UMediaFrameworkWorldSettingsAssetUserData();
 
-	UPROPERTY(EditAnywhere, Category="Media Render Target Capture", meta=(ShowOnlyInnerProperties))
+	UPROPERTY(EditAnywhere, config, Category="Media Render Target Capture", meta=(ShowOnlyInnerProperties))
 	TArray<FMediaFrameworkCaptureRenderTargetCameraOutputInfo> RenderTargetCaptures;
 
-	UPROPERTY(EditAnywhere, Category="Media Viewport Capture", meta=(ShowOnlyInnerProperties))
+	UPROPERTY(EditAnywhere, config, Category="Media Viewport Capture", meta=(ShowOnlyInnerProperties))
 	TArray<FMediaFrameworkCaptureCameraViewportCameraOutputInfo> ViewportCaptures;
 
 	/**
@@ -108,7 +108,7 @@ public:
 	 * @note The behavior is different from MediaCapture.CaptureActiveSceneViewport. Here we can capture the editor viewport (since we are in the editor).
 	 * @note If the viewport is the level editor active viewport, then all inputs will be disabled and the viewport will always rendered.
 	 */
-	UPROPERTY(EditAnywhere, Category="Media Current Viewport Capture", meta=(DisplayName="Current Viewport"))
+	UPROPERTY(EditAnywhere, config, Category="Media Current Viewport Capture", meta=(DisplayName="Current Viewport"))
 	FMediaFrameworkCaptureCurrentViewportOutputInfo CurrentViewportMediaOutput;
 
 public:

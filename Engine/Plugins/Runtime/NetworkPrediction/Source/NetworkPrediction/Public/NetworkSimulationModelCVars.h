@@ -38,6 +38,7 @@ struct FConditionalAutoConsoleRegister
 #if NETSIM_CONST_CVARS
 #define NETSIM_DEVCVAR_SHIPCONST_INT(Var,Value,VarName,Help) \
 	inline int32 Var() { return Value; }
+	inline void Set##Var(int32 V) { }
 #else
 #define NETSIM_DEVCVAR_SHIPCONST_INT(Var,Value,VarName,Help) \
 	static FConditionalAutoConsoleRegister Var##Auto(TEXT(VarName),(int32)Value,TEXT(Help)); \
@@ -46,12 +47,19 @@ struct FConditionalAutoConsoleRegister
 		static const auto* Existing = IConsoleManager::Get().FindConsoleVariable(TEXT(VarName), false); \
 		check(Existing) \
 		return Existing->GetInt(); \
+	} \
+	inline void Set##Var(int32 V) \
+	{ \
+		static auto* Existing = IConsoleManager::Get().FindConsoleVariable(TEXT(VarName), false); \
+		check(Existing) \
+		Existing->Set(V, ECVF_SetByConsole); \
 	}
 #endif
 
 #if NETSIM_CONST_CVARS
 #define NETSIM_DEVCVAR_SHIPCONST_FLOAT(Var,Value,VarName,Help) \
 	inline float Var() { return Value; }
+	inline void Set##Vat() { }
 #else
 #define NETSIM_DEVCVAR_SHIPCONST_FLOAT(Var,Value,VarName,Help) \
 	static FConditionalAutoConsoleRegister Var##Auto(TEXT(VarName),(float)Value,TEXT(Help)); \
@@ -60,5 +68,11 @@ struct FConditionalAutoConsoleRegister
 		static const auto* Existing = IConsoleManager::Get().FindConsoleVariable(TEXT(VarName), false); \
 		check(Existing) \
 		return Existing->GetFloat(); \
+	} \
+	inline void Set##Var(float V) \
+	{ \
+		static auto* Existing = IConsoleManager::Get().FindConsoleVariable(TEXT(VarName), false); \
+		check(Existing) \
+		Existing->Set(V, ECVF_SetByConsole); \
 	}
 #endif

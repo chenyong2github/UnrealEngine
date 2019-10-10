@@ -40,6 +40,21 @@ void PropertyToTextHelper(FString& OutString, FPropertyNode* InPropertyNode, UPr
 	}
 }
 
+void PropertyToTextHelper(FString& OutString, FPropertyNode* InPropertyNode, UProperty* Property, const FObjectBaseAddress& ObjectAddress, EPropertyPortFlags PortFlags)
+{
+	if (!InPropertyNode->HasNodeFlags(EPropertyNodeFlags::IsSparseClassData))
+	{
+		PropertyToTextHelper(OutString, InPropertyNode, Property, ObjectAddress.BaseAddress, PortFlags);
+	}
+	else
+	{
+// FRED_TODO: change this to call PropertyToTextHelper with the new base address and verify it is doing the right thing
+		void* BaseAddress = ObjectAddress.Object->GetClass()->GetOrCreateSparseClassData();
+		void* ValueAddress = Property->ContainerPtrToValuePtr<void>(BaseAddress);
+		Property->ExportText_Direct(OutString, ValueAddress, ValueAddress, nullptr, PortFlags);
+	}
+}
+
 void TextToPropertyHelper(const TCHAR* Buffer, FPropertyNode* InPropertyNode, UProperty* Property, uint8* ValueAddress, UObject* Object)
 {
 	if (InPropertyNode->GetArrayIndex() != INDEX_NONE || Property->ArrayDim == 1)
@@ -50,6 +65,13 @@ void TextToPropertyHelper(const TCHAR* Buffer, FPropertyNode* InPropertyNode, UP
 	{
 		UArrayProperty::ImportTextInnerItem(Buffer, Property, ValueAddress, 0, Object);
 	}
+}
+
+void TextToPropertyHelper(const TCHAR* Buffer, FPropertyNode* InPropertyNode, UProperty* Property, const FObjectBaseAddress& ObjectAddress)
+{
+
+	uint8* BaseAddress = InPropertyNode ? InPropertyNode->GetValueBaseAddressFromObject(ObjectAddress.Object) : ObjectAddress.BaseAddress;
+	TextToPropertyHelper(Buffer, InPropertyNode, Property, BaseAddress, ObjectAddress.Object);
 }
 
 FPropertyValueImpl::FPropertyValueImpl( TSharedPtr<FPropertyNode> InPropertyNode, FNotifyHook* InNotifyHook, TSharedPtr<IPropertyUtilities> InPropertyUtilities )
@@ -72,7 +94,7 @@ void FPropertyValueImpl::EnumerateObjectsToModify( FPropertyNode* InPropertyNode
 		for (int32 Index = 0; Index < NumInstances; ++Index)
 		{
 			UObject*	Object = ComplexNode->GetInstanceAsUObject(Index).Get();
-			uint8*		Addr = InPropertyNode->GetValueBaseAddress(ComplexNode->GetMemoryOfInstance(Index));
+			uint8* Addr = Object ? InPropertyNode->GetValueBaseAddressFromObject(Object) : InPropertyNode->GetValueBaseAddress(ComplexNode->GetMemoryOfInstance(Index), false);
 			if (!InObjectsToModifyCallback(FObjectBaseAddress(Object, Addr, bIsStruct), Index, NumInstances))
 			{
 				break;
@@ -429,7 +451,7 @@ FPropertyAccess::Result FPropertyValueImpl::ImportText( const TArray<FObjectBase
 
 			// Cache the value of the property before modifying it.
 			FString PreviousValue;
-			PropertyToTextHelper(PreviousValue, InPropertyNode, NodeProperty, Cur.BaseAddress, PPF_None);
+			PropertyToTextHelper(PreviousValue, InPropertyNode, NodeProperty, Cur, PPF_None);
 
 			// If this property is the inner-property of a container, cache the current value as well
 			FString PreviousContainerValue;
@@ -451,7 +473,7 @@ FPropertyAccess::Result FPropertyValueImpl::ImportText( const TArray<FObjectBase
 
 					if (bIsInContainer)
 					{
-						FScriptSetHelper SetHelper(SetProp, ParentNode->GetValueBaseAddress((uint8*)Cur.Object));
+						FScriptSetHelper SetHelper(SetProp, ParentNode->GetValueBaseAddressFromObject(Cur.Object));
 
 						if (SetHelper.HasElement(Cur.BaseAddress, InValues[ObjectIndex]) &&
 							(Flags & EPropertyValueSetFlags::InteractiveChange) == 0)
@@ -469,7 +491,7 @@ FPropertyAccess::Result FPropertyValueImpl::ImportText( const TArray<FObjectBase
 
 					if (bIsInContainer)
 					{
-						FScriptMapHelper MapHelper(MapProperty, ParentNode->GetValueBaseAddress((uint8*)Cur.Object));
+						FScriptMapHelper MapHelper(MapProperty, ParentNode->GetValueBaseAddressFromObject(Cur.Object));
 						if (MapHelper.HasKey(Cur.BaseAddress, InValues[ObjectIndex]) && 
 							(Flags & EPropertyValueSetFlags::InteractiveChange) == 0)
 						{
@@ -487,7 +509,7 @@ FPropertyAccess::Result FPropertyValueImpl::ImportText( const TArray<FObjectBase
 
 				if (bIsInContainer)
 				{
-					uint8* Addr = ParentNode->GetValueBaseAddress((uint8*)Cur.Object);
+					uint8* Addr = ParentNode->GetValueBaseAddressFromObject(Cur.Object);
 					Property->ExportText_Direct(PreviousContainerValue, Addr, Addr, nullptr, 0);
 				}
 			}
@@ -517,19 +539,23 @@ FPropertyAccess::Result FPropertyValueImpl::ImportText( const TArray<FObjectBase
 
 			// Set the new value.
 			const TCHAR* NewValue = *InValues[ObjectIndex];
-			TextToPropertyHelper(NewValue, InPropertyNode, NodeProperty, Cur.BaseAddress, Cur.Object);
+			TextToPropertyHelper(NewValue, InPropertyNode, NodeProperty, Cur);
 
 			if (Cur.Object)
 			{
 				// Cache the value of the property after having modified it.
 				FString ValueAfterImport;
-				PropertyToTextHelper(ValueAfterImport, InPropertyNode, NodeProperty, Cur.BaseAddress, PPF_None);
+				PropertyToTextHelper(ValueAfterImport, InPropertyNode, NodeProperty, Cur, PPF_None);
 
 				if ((Cur.Object->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) ||
 					(Cur.Object->HasAnyFlags(RF_DefaultSubObject) && Cur.Object->GetOuter()->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))) &&
 					!bIsGameWorld)
 				{
-					InPropertyNode->PropagatePropertyChange(Cur.Object, NewValue, PreviousContainerValue.IsEmpty() ? PreviousValue : PreviousContainerValue);
+					// propagate the changes to instances unless we're modifying class shared data
+					if (!(InPropertyNode->HasNodeFlags(EPropertyNodeFlags::IsSparseClassData)))
+					{
+						InPropertyNode->PropagatePropertyChange(Cur.Object, NewValue, PreviousContainerValue.IsEmpty() ? PreviousValue : PreviousContainerValue);
+					}
 				}
 
 				// If the values before and after setting the property differ, mark the object dirty.
@@ -540,13 +566,13 @@ FPropertyAccess::Result FPropertyValueImpl::ImportText( const TArray<FObjectBase
 					// For TMap and TSet, we need to rehash it in case a key was modified
 					if (NodeProperty->GetOuter()->IsA<UMapProperty>())
 					{
-						uint8* Addr = InPropertyNode->GetParentNode()->GetValueBaseAddress((uint8*)Cur.Object);
+						uint8* Addr = InPropertyNode->GetParentNode()->GetValueBaseAddressFromObject(Cur.Object);
 						FScriptMapHelper MapHelper(Cast<UMapProperty>(NodeProperty->GetOuter()), Addr);
 						MapHelper.Rehash();
 					}
 					else if (NodeProperty->GetOuter()->IsA<USetProperty>())
 					{
-						uint8* Addr = InPropertyNode->GetParentNode()->GetValueBaseAddress((uint8*)Cur.Object);
+						uint8* Addr = InPropertyNode->GetParentNode()->GetValueBaseAddressFromObject(Cur.Object);
 						FScriptSetHelper SetHelper(Cast<USetProperty>(NodeProperty->GetOuter()), Addr);
 						SetHelper.Rehash();
 					}
@@ -2652,12 +2678,12 @@ void FPropertyHandleBase::SetToolTipText( const FText& ToolTip )
 	}
 }
 
-uint8* FPropertyHandleBase::GetValueBaseAddress( uint8* Base )
+uint8* FPropertyHandleBase::GetValueBaseAddress(uint8* Base)
 {
 	TSharedPtr<FPropertyNode> PropertyNode = Implementation->GetPropertyNode();
 	if (PropertyNode.IsValid())
 	{
-		return PropertyNode->GetValueBaseAddress(Base);
+		return PropertyNode->GetValueBaseAddress(Base, PropertyNode->HasNodeFlags(EPropertyNodeFlags::IsSparseClassData) != 0);
 	}
 
 	return nullptr;
@@ -4497,7 +4523,7 @@ bool FPropertyHandleSet::HasDefaultElement()
 		if (Addresses.Num() > 0)
 		{
 			USetProperty* SetProperty = CastChecked<USetProperty>(PropNode->GetProperty());
-			FScriptSetHelper SetHelper(SetProperty, PropNode->GetValueBaseAddress((uint8*)Addresses[0].Object));
+			FScriptSetHelper SetHelper(SetProperty, PropNode->GetValueBaseAddressFromObject(Addresses[0].Object));
 
 			FDefaultConstructedPropertyElement DefaultElement(SetHelper.ElementProp);
 
@@ -4596,7 +4622,8 @@ bool FPropertyHandleMap::HasDefaultKey()
 		if (Addresses.Num() > 0)
 		{
 			UMapProperty* MapProperty = CastChecked<UMapProperty>(PropNode->GetProperty());
-			FScriptMapHelper MapHelper(MapProperty, PropNode->GetValueBaseAddress((uint8*)Addresses[0].Object));
+
+			FScriptMapHelper MapHelper(MapProperty, PropNode->GetValueBaseAddressFromObject(Addresses[0].Object));
 
 			FDefaultConstructedPropertyElement DefaultKey(MapHelper.KeyProp);
 

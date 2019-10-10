@@ -17,8 +17,9 @@ public class VPUtilitiesEditor : ModuleRules
 				"EditorSubsystem",
 				"VPUtilities",                
 				"VREditor",
+				"Blutility",
             }
-		);
+        );
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[]

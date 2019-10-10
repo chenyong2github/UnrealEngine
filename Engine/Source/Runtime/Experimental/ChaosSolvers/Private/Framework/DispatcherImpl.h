@@ -1,7 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#if INCLUDE_CHAOS
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -60,9 +58,60 @@ namespace Chaos
 		TQueue<TUniquePtr<FCommandListData>, EQueueMode::Mpsc> CommandLists;
 	};
 
+	////////////////////////////////////////////////////////////////////////////
+
+	template<>
+	void FDispatcher<EThreadingMode::DedicatedThread>::EnqueueCommandImmediate(FPhysicsSolver* InSolver, FSolverCommand InCommand);
+
+	template<>
+	void FDispatcher<EThreadingMode::DedicatedThread>::EnqueueCommandImmediate(FTaskCommand InCommand);
+
+	template<>
+	void FDispatcher<EThreadingMode::DedicatedThread>::EnqueueCommandImmediate(FGlobalCommand InCommand);
+
+	template<>
+	void FDispatcher<EThreadingMode::DedicatedThread>::SubmitCommandList(TUniquePtr<FCommandListData>&& InCommandData);
+
+	template<>
+	void FDispatcher<EThreadingMode::DedicatedThread>::Execute();
+
+	////////////////////////////////////////////////////////////////////////////
+
+	template<>
+	void FDispatcher<EThreadingMode::SingleThread>::EnqueueCommandImmediate(FPhysicsSolver* InSolver, FSolverCommand InCommand);
+
+	template<>
+	void FDispatcher<EThreadingMode::SingleThread>::EnqueueCommandImmediate(FTaskCommand InCommand);
+
+	template<>
+	void FDispatcher<EThreadingMode::SingleThread>::EnqueueCommandImmediate(FGlobalCommand InCommand);
+
+	template<>
+	void FDispatcher<EThreadingMode::SingleThread>::SubmitCommandList(TUniquePtr<FCommandListData>&& InCommandData);
+
+	template<>
+	void FDispatcher<EThreadingMode::SingleThread>::Execute();
+
+	////////////////////////////////////////////////////////////////////////////
+
+	template<>
+	void FDispatcher<EThreadingMode::TaskGraph>::EnqueueCommandImmediate(FPhysicsSolver* InSolver, FSolverCommand InCommand);
+
+	template<>
+	void FDispatcher<EThreadingMode::TaskGraph>::EnqueueCommandImmediate(FTaskCommand InCommand);
+
+	template<>
+	void FDispatcher<EThreadingMode::TaskGraph>::EnqueueCommandImmediate(FGlobalCommand InCommand);
+
+	template<>
+	void FDispatcher<EThreadingMode::TaskGraph>::SubmitCommandList(TUniquePtr<FCommandListData>&& InCommandData);
+
+	template<>
+	void FDispatcher<EThreadingMode::TaskGraph>::Execute();
+
+	//////////////////////////////////////////////////////////////////////////
+
 	extern template class FDispatcher<EThreadingMode::DedicatedThread>;
 	extern template class FDispatcher<EThreadingMode::SingleThread>;
 	extern template class FDispatcher<EThreadingMode::TaskGraph>;
 }
-
-#endif

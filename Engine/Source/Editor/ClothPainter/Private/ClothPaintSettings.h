@@ -7,9 +7,9 @@
 
 #include "ClothPaintSettings.generated.h"
 
-class UClothingAsset;
+class UClothingAssetCommon;
 
-DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnClothingAssetSelectionChangedMulticaster, UClothingAsset*, int32, int32);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnClothingAssetSelectionChangedMulticaster, UClothingAssetCommon*, int32, int32);
 typedef FOnClothingAssetSelectionChangedMulticaster::FDelegate FOnClothingAssetSelectionChanged;
 
 UENUM()
@@ -84,7 +84,7 @@ public:
 
 	/** Array of Clothing assets */
 	UPROPERTY()
-	TArray<UClothingAsset*> ClothingAssets;
+	TArray<UClothingAssetCommon*> ClothingAssets;
 
 	/** Whether to flip normals on the mesh preview */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = View)

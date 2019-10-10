@@ -18,9 +18,33 @@ class UTextAssetCommandlet
 
 public:
 
+	enum class EProcessingMode
+	{
+		ResaveText,
+		ResaveBinary,
+		RoundTrip,
+		LoadBinary,
+		LoadText,
+		FindMismatchedSerializers,
+	};
+
+	struct FProcessingArgs
+	{
+		EProcessingMode ProcessingMode = EProcessingMode::ResaveText;
+		int32 NumSaveIterations = 1;
+		bool bIncludeEngineContent = false;
+		bool bFilenameIsFilter = true;
+		FString Filename;
+		FString CSVFilename;
+		FString OutputPath;
+		bool bVerifyJson = true;
+	};
+
 	//~ Begin UCommandlet Interface
 
 	virtual int32 Main(const FString& CmdLineParams) override;
 	
 	//~ End UCommandlet Interface
+	static UNREALED_API bool DoTextAssetProcessing(const FString& InCommandLine);
+	static UNREALED_API bool DoTextAssetProcessing(const FProcessingArgs& InArgs);
 };

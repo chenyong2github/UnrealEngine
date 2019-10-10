@@ -41,9 +41,7 @@
 #include "MaterialBakingStructures.h"
 #include "MaterialOptions.h"
 
-#include "MeshDescription.h"
-#include "MeshAttributes.h"
-#include "MeshAttributeArray.h"
+#include "StaticMeshAttributes.h"
 #include "MeshDescriptionOperations.h"
 
 #if WITH_EDITOR

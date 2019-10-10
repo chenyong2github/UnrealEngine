@@ -803,6 +803,30 @@ bool FSequencerNodeTree::GetDefaultExpansionState( const FSequencerDisplayNode& 
 	return false;
 }
 
+void FSequencerNodeTree::SavePinnedState(const FSequencerDisplayNode& Node, bool bPinned)
+{
+	UMovieScene* MovieScene = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene();
+	FMovieSceneEditorData& EditorData = MovieScene->GetEditorData();
+
+	if (bPinned)
+	{
+		EditorData.PinnedNodes.AddUnique(Node.GetPathName());
+	}
+	else
+	{
+		EditorData.PinnedNodes.RemoveSingle(Node.GetPathName());
+	}
+}
+
+
+bool FSequencerNodeTree::GetSavedPinnedState(const FSequencerDisplayNode& Node) const
+{
+	UMovieScene* MovieScene = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene();
+	FMovieSceneEditorData& EditorData = MovieScene->GetEditorData();
+	bool bPinned = EditorData.PinnedNodes.Contains(Node.GetPathName());
+
+	return bPinned;
+}
 
 bool FSequencerNodeTree::IsNodeFiltered(const TSharedRef<const FSequencerDisplayNode> Node) const
 {

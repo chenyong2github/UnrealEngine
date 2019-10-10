@@ -20,6 +20,8 @@ void UInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* QueriesAPI, I
 
 	GizmoManager = NewObject<UInteractiveGizmoManager>(this);
 	GizmoManager->Initialize(QueriesAPI, TransactionsAPI, InputRouter);
+
+	GizmoManager->RegisterDefaultGizmos();
 }
 
 
@@ -35,4 +37,72 @@ void UInteractiveToolsContext::Shutdown()
 
 	ToolManager->Shutdown();
 	ToolManager = nullptr;
+}
+
+void UInteractiveToolsContext::DeactivateActiveTool(EToolSide WhichSide, EToolShutdownType ShutdownType)
+{
+	ToolManager->DeactivateTool(WhichSide, ShutdownType);
+}
+
+void UInteractiveToolsContext::DeactivateAllActiveTools()
+{
+	if (ToolManager->HasActiveTool(EToolSide::Left))
+	{
+		EToolShutdownType ShutdownType = ToolManager->CanAcceptActiveTool(EToolSide::Left) ?
+			EToolShutdownType::Accept : EToolShutdownType::Cancel;
+		ToolManager->DeactivateTool(EToolSide::Left, ShutdownType);
+	}
+	if (ToolManager->HasActiveTool(EToolSide::Right))
+	{
+		EToolShutdownType ShutdownType = ToolManager->CanAcceptActiveTool(EToolSide::Right) ?
+			EToolShutdownType::Accept : EToolShutdownType::Cancel;
+		ToolManager->DeactivateTool(EToolSide::Right, ShutdownType);
+	}
+}
+
+
+bool UInteractiveToolsContext::CanStartTool(EToolSide WhichSide, const FString& ToolTypeIdentifier) const
+{
+	return (ToolManager->HasActiveTool(WhichSide) == false) &&
+		(ToolManager->CanActivateTool(WhichSide, ToolTypeIdentifier) == true);
+}
+
+bool UInteractiveToolsContext::ActiveToolHasAccept(EToolSide WhichSide) const
+{
+	return ToolManager->HasActiveTool(WhichSide) &&
+		ToolManager->GetActiveTool(WhichSide)->HasAccept();
+}
+
+bool UInteractiveToolsContext::CanAcceptActiveTool(EToolSide WhichSide) const
+{
+	return ToolManager->CanAcceptActiveTool(WhichSide);
+}
+
+bool UInteractiveToolsContext::CanCancelActiveTool(EToolSide WhichSide) const
+{
+	return ToolManager->CanCancelActiveTool(WhichSide);
+}
+
+bool UInteractiveToolsContext::CanCompleteActiveTool(EToolSide WhichSide) const
+{
+	return ToolManager->HasActiveTool(WhichSide) && CanCancelActiveTool(WhichSide) == false;
+}
+
+bool UInteractiveToolsContext::StartTool(EToolSide WhichSide, const FString& ToolTypeIdentifier)
+{
+	if (ToolManager->SelectActiveToolType(WhichSide, ToolTypeIdentifier) == false)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("ToolManager: Unknown Tool Type %s"), *ToolTypeIdentifier);
+		return false;
+	}
+	else
+	{
+		ToolManager->ActivateTool(WhichSide);
+		return true;
+	}
+}
+
+void UInteractiveToolsContext::EndTool(EToolSide WhichSide, EToolShutdownType ShutdownType)
+{
+	DeactivateActiveTool(WhichSide, ShutdownType);
 }

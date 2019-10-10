@@ -11,6 +11,8 @@
 #include "LiveLinkRefSkeleton.h"
 #include "LiveLinkTypes.h"
 #include "LiveLinkVirtualSubject.h"
+#include "Misc/FrameRate.h"
+#include "Misc/Timecode.h"
 #include "Tickable.h"
 #include "UObject/GCObject.h"
 
@@ -73,6 +75,7 @@ public:
 	virtual FGuid AddSource(TSharedPtr<ILiveLinkSource> Source) override;
 	virtual bool CreateSource(const FLiveLinkSourcePreset& SourcePreset) override;
 	virtual void RemoveSource(TSharedPtr<ILiveLinkSource> Source) override;
+	virtual void RemoveSource(FGuid InEntryGuid) override;
 	virtual bool HasSourceBeenAdded(TSharedPtr<ILiveLinkSource> Source) const override;
 	virtual TArray<FGuid> GetSources() const override;
 	virtual FLiveLinkSourcePreset GetSourcePreset(FGuid SourceGuid, UObject* DuplicatedObjectOuter) const override;
@@ -92,7 +95,7 @@ public:
 
 	virtual bool IsSubjectValid(const FLiveLinkSubjectKey& SubjectKey) const override;
 	virtual bool IsSubjectValid(FLiveLinkSubjectName SubjectName) const override;
-	virtual bool IsSubjectEnabled(const FLiveLinkSubjectKey& SubjectKey, bool bUseSnapshot) const override;
+	virtual bool IsSubjectEnabled(const FLiveLinkSubjectKey& SubjectKey, bool bForThisFrame) const override;
 	virtual bool IsSubjectEnabled(FLiveLinkSubjectName SubjectName) const override;
 	virtual void SetSubjectEnabled(const FLiveLinkSubjectKey& SubjectKey, bool bEnabled) override;
 	virtual bool IsSubjectTimeSynchronized(const FLiveLinkSubjectKey& SubjectKey) const override;
@@ -102,7 +105,10 @@ public:
 	virtual TSubclassOf<ULiveLinkRole> GetSubjectRole(FLiveLinkSubjectName SubjectName) const override;
 	virtual TArray<FLiveLinkSubjectKey> GetSubjectsSupportingRole(TSubclassOf<ULiveLinkRole> SupportedRole, bool bIncludeDisabledSubject, bool bIncludeVirtualSubject) const override;
 	virtual bool DoesSubjectSupportsRole(const FLiveLinkSubjectKey& SubjectKey, TSubclassOf<ULiveLinkRole> SupportedRole) const override;
+	virtual TArray<FLiveLinkTime> GetSubjectFrameTimes(const FLiveLinkSubjectKey& SubjectKey) const override;
+	virtual TArray<FLiveLinkTime> GetSubjectFrameTimes(FLiveLinkSubjectName SubjectName) const override;
 
+	virtual bool EvaluateFrameFromSource_AnyThread(const FLiveLinkSubjectKey& SubjectKey, TSubclassOf<ULiveLinkRole> Role, FLiveLinkSubjectFrameData& OutFrame) override;
 	virtual bool EvaluateFrame_AnyThread(FLiveLinkSubjectName SubjectName, TSubclassOf<ULiveLinkRole> Role, FLiveLinkSubjectFrameData& OutFrame) override;
 	virtual bool EvaluateFrameAtWorldTime_AnyThread(FLiveLinkSubjectName SubjectName, double WorldTime, TSubclassOf<ULiveLinkRole> DesiredRole, FLiveLinkSubjectFrameData& OutFrame) override;
 	virtual bool EvaluateFrameAtSceneTime_AnyThread(FLiveLinkSubjectName SubjectName, const FTimecode& SceneTime, TSubclassOf<ULiveLinkRole> DesiredRole, FLiveLinkSubjectFrameData& OutFrame) override;
@@ -113,6 +119,9 @@ public:
 	virtual FOnLiveLinkSourceChangedDelegate& OnLiveLinkSourceRemoved() override;
 	virtual FOnLiveLinkSubjectChangedDelegate& OnLiveLinkSubjectAdded() override;
 	virtual FOnLiveLinkSubjectChangedDelegate& OnLiveLinkSubjectRemoved() override;
+#if WITH_EDITOR
+	virtual FOnLiveLinkSubjectEvaluated& OnLiveLinkSubjectEvaluated() override;
+#endif
 
 	virtual bool RegisterForSubjectFrames(FLiveLinkSubjectName SubjectName, const FOnLiveLinkSubjectStaticDataReceived::FDelegate& OnStaticDataReceived, const FOnLiveLinkSubjectFrameDataReceived::FDelegate& OnFrameDataReceived, FDelegateHandle& OutStaticDataReceivedHandle, FDelegateHandle& OutFrameDataReceivedHandle, TSubclassOf<ULiveLinkRole>& OutSubjectRole, FLiveLinkStaticDataStruct* OutStaticData = nullptr) override;
 	virtual void UnregisterSubjectFramesHandle(FLiveLinkSubjectName InSubjectName, FDelegateHandle InStaticDataReceivedHandle, FDelegateHandle InFrameDataReceivedHandle) override;
@@ -120,9 +129,6 @@ public:
 
 	/** The tick callback to update the pending work and clear the subject's snapshot*/
 	void Tick();
-
-	/** Remove the specified source from the live link client */
-	void RemoveSource(FGuid InEntryGuid);
 
 	/** Remove all sources from the live link client */
 	void RemoveAllSources();
@@ -146,6 +152,7 @@ public:
 
 	FText GetSourceMachineName(FGuid EntryGuid) const;
 	FText GetSourceStatus(FGuid EntryGuid) const;
+	bool IsSourceStillValid(FGuid EntryGuid) const;
 	UE_DEPRECATED(4.23, "FLiveLinkClient::GetSourceTypeForEntry is deprecated. Please use GetSourceType instead!")
 	FText GetSourceTypeForEntry(FGuid EntryGuid) const { return GetSourceType(EntryGuid); }
 	UE_DEPRECATED(4.23, "FLiveLinkClient::GetMachineNameForEntry is deprecated. Please use GetSourceMachineName instead!")
@@ -186,6 +193,7 @@ private:
 	};
 
 private:
+
 	/** Remove old sources & subject,  */
 	void DoPendingWork();
 
@@ -197,6 +205,9 @@ private:
 	 * thread locking or mem copying
 	 */
 	void BuildThisTicksSubjectSnapshot();
+
+	/** Cache the game thread values to be reused on any thread */
+	void CacheValues();
 
 	/** Registered with each subject and called when it changes */
 	void OnSubjectChangedHandler();
@@ -223,9 +234,6 @@ private:
 	/** Lock to stop multiple threads accessing the CurrentPreset at the same time */
 	mutable FCriticalSection CollectionAccessCriticalSection;
 
-	/** Delegate the preset has changed */
-	FSimpleMulticastDelegate OnLiveLinkPresetChanged;
-
 	struct FSubjectFramesReceivedHandles
 	{
 		FOnLiveLinkSubjectStaticDataReceived OnStaticDataReceived;
@@ -234,4 +242,14 @@ private:
 
 	/** Map of delegates to notify interested parties when the client receives a static or data frame for each subject */
 	TMap<FLiveLinkSubjectName, FSubjectFramesReceivedHandles> SubjectFrameReceivedHandles;
+
+#if WITH_EDITOR
+	/** Delegate when a subject is evaluated. */
+	FOnLiveLinkSubjectEvaluated OnLiveLinkSubjectEvaluatedDelegate;
+
+	/** Cached value of the engine timecode and frame rate*/
+	double CachedEngineTime;
+	FTimecode CachedEngineTimecode;
+	FFrameRate CachedEngineTimecodeFrameRate;
+#endif
 };

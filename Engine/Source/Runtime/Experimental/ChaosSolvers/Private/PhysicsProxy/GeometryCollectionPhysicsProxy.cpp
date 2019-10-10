@@ -20,11 +20,8 @@
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "GeometryCollection/GeometryCollectionUtility.h"
 #include "GeometryCollection/GeometryCollectionSimulationTypes.h"
-#include "GeometryCollection/GeometryCollectionSimulationTypes.h"
 #include "GeometryCollection/GeometryDynamicCollection.h"
 #include "Modules/ModuleManager.h"
-
-#if INCLUDE_CHAOS
 
 float CollisionParticlesPerObjectFractionDefault = 1.0f;
 FAutoConsoleVariableRef CVarCollisionParticlesPerObjectFractionDefault(TEXT("p.CollisionParticlesPerObjectFractionDefault"), CollisionParticlesPerObjectFractionDefault, TEXT("Fraction of verts"));
@@ -3457,6 +3454,3 @@ void BuildSimulationData(Chaos::FErrorReporter& ErrorReporter, FGeometryCollecti
 	IdentifySimulatableElements(ErrorReporter, GeometryCollection);
 	FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(ErrorReporter, GeometryCollection, SharedParams);
 }
-
-#endif
-

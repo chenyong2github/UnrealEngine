@@ -41,7 +41,7 @@ public:
 	virtual bool CanCycleWidgetMode() const override;
 	virtual FVector GetWidgetLocation() const override;
 	virtual FMatrix GetWidgetCoordSystem() const override;
-	virtual ECoordSystem GetWidgetCoordSystemSpace() const override { return COORD_Local; }
+	virtual ECoordSystem GetWidgetCoordSystemSpace() const override;
 	virtual bool ShouldOrbitCamera() const override;
 
 	/** 
@@ -146,6 +146,8 @@ protected:
 	/** Used to (re)-set the viewport show flags related to post processing*/
 	void SetAdvancedShowFlagsForScene(const bool bAdvancedShowFlags);
 private:
+	bool IsCustomModeUsingWidget() const;
+
 	/** The Simplygon logo to be drawn when Simplygon has been used on the static mesh. */
 	UTexture2D* SimplygonLogo;
 

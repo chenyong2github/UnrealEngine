@@ -5,9 +5,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "GameFramework/Actor.h"
-#include "MeshAttributeArray.h"
-#include "MeshAttributes.h"
-#include "MeshDescription.h"
+#include "StaticMeshAttributes.h"
 #include "Misc/Optional.h"
 #include "UObject/Object.h"
 
@@ -24,7 +22,8 @@ float UDataprepFloatBoundingVolumeFetcher::Fetch_Implementation(const UObject* O
 					FBox Box(ForceInit);
 					if ( const FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription( 0 ) )
 					{
-						TVertexAttributesConstRef<FVector> VertexPositions = MeshDescription->VertexAttributes().GetAttributesRef<FVector>( MeshAttribute::Vertex::Position );
+						FStaticMeshConstAttributes Attributes(*MeshDescription);
+						TVertexAttributesConstRef<FVector> VertexPositions = Attributes.GetVertexPositions();
 						for ( const FVertexID VertexID : MeshDescription->Vertices().GetElementIDs() )
 						{
 							if ( !MeshDescription->IsVertexOrphaned( VertexID ) )

@@ -83,6 +83,8 @@ void FAnimNode_MultiWayBlend::UpdateCachedAlphas()
 			}
 		}
 	}
+
+	ensure(Poses.Num() == CachedAlphas.Num());
 }
 
 void FAnimNode_MultiWayBlend::Update_AnyThread(const FAnimationUpdateContext& Context)

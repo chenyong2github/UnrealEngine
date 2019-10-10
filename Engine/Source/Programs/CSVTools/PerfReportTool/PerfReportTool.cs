@@ -19,7 +19,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "3.86";
+        private static string VersionString = "3.87";
 
         public static string Get() { return VersionString; }
     };
@@ -670,8 +670,11 @@ namespace PerfReportTool
             List<string> statsToSummariseList = null;
             if ( reportTypeInfo.summaries.Count >0 )
             {
-                // TODO: multiple summaries
-                statsToSummariseList = reportTypeInfo.summaries[0].GetUniqueStatNames().ToList();
+				statsToSummariseList = new List<string>();
+				foreach (var summary in reportTypeInfo.summaries)
+				{
+					statsToSummariseList.AddRange(summary.GetUniqueStatNames());
+				}
                 for (int i = 0; i < statsToSummariseList.Count; i++)
                 {
                     // Remove all Min/max sort tags before checking stats against existing stats.

@@ -41,6 +41,12 @@ public:
 	/** Toggles visibility for the Timers View. Global and custom command. */
 	TSharedPtr<FUICommandInfo> ToggleTimersViewVisibility;
 
+	/** Toggles visibility for the Callers Tree View. Global and custom command. */
+	TSharedPtr<FUICommandInfo> ToggleCallersTreeViewVisibility;
+
+	/** Toggles visibility for the Callees Tree View. Global and custom command. */
+	TSharedPtr<FUICommandInfo> ToggleCalleesTreeViewVisibility;
+
 	/** Toggles visibility for the Stats Counters View. Global and custom command. */
 	TSharedPtr<FUICommandInfo> ToggleStatsCountersViewVisibility;
 
@@ -120,6 +126,8 @@ protected:\
 	DECLARE_TOGGLE_COMMAND(ToggleGraphTrackVisibility)
 	DECLARE_TOGGLE_COMMAND(ToggleTimingViewVisibility)
 	DECLARE_TOGGLE_COMMAND(ToggleTimersViewVisibility)
+	DECLARE_TOGGLE_COMMAND(ToggleCallersTreeViewVisibility)
+	DECLARE_TOGGLE_COMMAND(ToggleCalleesTreeViewVisibility)
 	DECLARE_TOGGLE_COMMAND(ToggleStatsCountersViewVisibility)
 	DECLARE_TOGGLE_COMMAND(ToggleLogViewVisibility)
 #undef DECLARE_TOGGLE_COMMAND

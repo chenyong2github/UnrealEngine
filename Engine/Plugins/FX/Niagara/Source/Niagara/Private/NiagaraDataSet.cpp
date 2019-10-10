@@ -67,11 +67,7 @@ static FAutoConsoleVariableRef CVarNiagaraRenderBufferShrinkFactor(
 );
 
 FNiagaraDataSet::FNiagaraDataSet()
-	: TotalFloatComponents(0)
-	, TotalInt32Components(0)
-	, SimTarget(ENiagaraSimTarget::CPUSim)
-	, bFinalized(0)
-	, bNeedsPersistentIDs(0)
+	: CompiledData(&FNiagaraDataSetCompiledData::DummyCompiledData)
 	, NumFreeIDs(0)
 	, MaxUsedID(0)
 	, IDAcquireTag(0)
@@ -87,69 +83,22 @@ FNiagaraDataSet::~FNiagaraDataSet()
 	ReleaseBuffers();
 }
 
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-void FNiagaraDataSet::Init(FNiagaraDataSetID InID, ENiagaraSimTarget InSimTarget, const FString& InDebugName)
-{
-	Reset();
-	ID = InID;
-	SimTarget = InSimTarget;
-	DebugName = InDebugName;
-}
-
-void FNiagaraDataSet::InitFromCompiledData(const FNiagaraDataSetCompiledData& InDataSetCompiledData, const FString& InDebugName)
-{
-	Variables = InDataSetCompiledData.Variables;
-	VariableLayouts = InDataSetCompiledData.VariableLayouts;
-	TotalFloatComponents = InDataSetCompiledData.TotalFloatComponents;
-	TotalInt32Components = InDataSetCompiledData.TotalInt32Components;
-	bNeedsPersistentIDs = InDataSetCompiledData.bNeedsPersistentIDs;
-	ID = InDataSetCompiledData.ID;
-	SimTarget = InDataSetCompiledData.SimTarget;
-	DebugName = InDebugName;
-	bFinalized = true;
-}
-#else
-void FNiagaraDataSet::Init(FNiagaraDataSetID InID, ENiagaraSimTarget InSimTarget)
-{
-	Reset();
-	ID = InID;
-	SimTarget = InSimTarget;
-}
-
-void FNiagaraDataSet::InitFromCompiledData(const FNiagaraDataSetCompiledData& InDataSetCompiledData)
-{
-	Variables = InDataSetCompiledData.Variables;
-	VariableLayouts = InDataSetCompiledData.VariableLayouts;
-	TotalFloatComponents = InDataSetCompiledData.TotalFloatComponents;
-	TotalInt32Components = InDataSetCompiledData.TotalInt32Components;
-	bNeedsPersistentIDs = InDataSetCompiledData.bNeedsPersistentIDs;
-	ID = InDataSetCompiledData.ID;
-	SimTarget = InDataSetCompiledData.SimTarget;
-	bFinalized = true;
-}
-#endif
-
 void FNiagaraDataSet::Reset()
 {
 	ResetBuffers();
-
-	Variables.Empty();
-	VariableLayouts.Empty();
-	bFinalized = false;
-	TotalFloatComponents = 0;
-	TotalInt32Components = 0;
-	bNeedsPersistentIDs = 0;
 }
 
 void FNiagaraDataSet::ResetBuffers()
 {
-	if (SimTarget == ENiagaraSimTarget::CPUSim)
+	checkSlow(CompiledData);
+	
+	if (GetSimTarget() == ENiagaraSimTarget::CPUSim)
 	{
 		ResetBuffersInternal();
 	}
 	else
 	{
-		check(SimTarget == ENiagaraSimTarget::GPUComputeSim);
+		checkSlow(GetSimTarget() == ENiagaraSimTarget::GPUComputeSim);
 		ENQUEUE_RENDER_COMMAND(ResetBuffersCommand)([=](FRHICommandListImmediate& RHICmdList)
 		{
 			ResetBuffersInternal();
@@ -171,6 +120,11 @@ void FNiagaraDataSet::ResetBuffersInternal()
 	//Ensure we have a valid current buffer
 	BeginSimulate();
 	EndSimulate();
+
+	if (GetSimTarget() == ENiagaraSimTarget::CPUSim)
+	{
+		GetCurrentDataChecked().BuildRegisterTable();
+	}
 }
 
 void FNiagaraDataSet::ReleaseBuffers()
@@ -207,8 +161,8 @@ FNiagaraDataBuffer& FNiagaraDataSet::BeginSimulate()
 	{
 		Data.Add(new FNiagaraDataBuffer(this));
 		DestinationData = Data.Last();
-		verify(DestinationData->TryLock());
-		check(DestinationData->IsBeingWritten());
+		verifySlow(DestinationData->TryLock());
+		checkSlow(DestinationData->IsBeingWritten());
 	}
 
 	DestinationData->SetNumInstances(0);
@@ -222,7 +176,7 @@ void FNiagaraDataSet::EndSimulate(bool SetCurrentData)
 	//CheckCorrectThread();
 	//Destination is now complete so make it the current simulation state.
 	DestinationData->Unlock();
-	check(!DestinationData->IsInUse());
+	checkSlow(!DestinationData->IsInUse());
 
 	if (SetCurrentData)
 	{
@@ -235,9 +189,9 @@ void FNiagaraDataSet::EndSimulate(bool SetCurrentData)
 
 void FNiagaraDataSet::Allocate(int32 NumInstances, bool bMaintainExisting)
 {
-	check(bFinalized);
+	checkSlow(IsInitialized());
 	CheckCorrectThread();
-	check(DestinationData);
+	checkSlow(DestinationData);
 
 	DestinationData->GetIDTable().Reset();
 	if (bMaintainExisting)
@@ -251,7 +205,7 @@ void FNiagaraDataSet::Allocate(int32 NumInstances, bool bMaintainExisting)
 	CheckForNaNs();
 #endif
 
-	if (bNeedsPersistentIDs)
+	if (GetNeedsPersistentIDs())
 	{
 		TArray<int32>& CurrentIDTable = CurrentData->GetIDTable();
 		TArray<int32>& DestinationIDTable = DestinationData->GetIDTable();
@@ -382,57 +336,10 @@ void FNiagaraDataSet::ReleaseGPUInstanceCounts(FNiagaraGPUInstanceCountManager& 
 	}
 }
 
-// note, this method is also implemented in FNiagaraDataSetCompiledData::BuildLayout()
-void FNiagaraDataSet::BuildLayout()
-{
-	VariableLayouts.Empty();
-	TotalFloatComponents = 0;
-	TotalInt32Components = 0;
-
-	VariableLayouts.Reserve(Variables.Num());
-	for (FNiagaraVariable& Var : Variables)
-	{
-		FNiagaraVariableLayoutInfo& VarInfo = VariableLayouts[VariableLayouts.AddDefaulted()];
-		FNiagaraTypeLayoutInfo::GenerateLayoutInfo(VarInfo.LayoutInfo, Var.GetType().GetScriptStruct());
-		VarInfo.FloatComponentStart = TotalFloatComponents;
-		VarInfo.Int32ComponentStart = TotalInt32Components;
-		TotalFloatComponents += VarInfo.GetNumFloatComponents();
-		TotalInt32Components += VarInfo.GetNumInt32Components();
-	}
-}
-
-void FNiagaraDataSet::AddVariable(FNiagaraVariable& Variable)
-{
-	check(!bFinalized);
-	Variables.AddUnique(Variable);
-}
-
-void FNiagaraDataSet::AddVariables(const TArray<FNiagaraVariable>& Vars)
-{
-	check(!bFinalized);
-	for (const FNiagaraVariable& Var : Vars)
-	{
-		Variables.AddUnique(Var);
-	}
-}
-
-void FNiagaraDataSet::Finalize()
-{
-	check(!bFinalized);
-	bFinalized = true;
-	BuildLayout();
-
-	ResetBuffers();
-	if (SimTarget == ENiagaraSimTarget::CPUSim)
-	{
-		GetCurrentDataChecked().BuildRegisterTable();
-	}
-}
-
 const FNiagaraVariableLayoutInfo* FNiagaraDataSet::GetVariableLayout(const FNiagaraVariable& Var)const
 {
-	int32 VarLayoutIndex = Variables.IndexOfByKey(Var);
-	return VarLayoutIndex != INDEX_NONE ? &VariableLayouts[VarLayoutIndex] : nullptr;
+	int32 VarLayoutIndex = GetVariables().IndexOfByKey(Var);
+	return VarLayoutIndex != INDEX_NONE ? &CompiledData->VariableLayouts[VarLayoutIndex] : nullptr;
 }
 
 bool FNiagaraDataSet::GetVariableComponentOffsets(const FNiagaraVariable& Var, int32 &FloatStart, int32 &IntStart) const
@@ -452,20 +359,18 @@ bool FNiagaraDataSet::GetVariableComponentOffsets(const FNiagaraVariable& Var, i
 
 void FNiagaraDataSet::CopyTo(FNiagaraDataSet& Other, int32 StartIdx, int32 NumInstances, bool bResetOther)const
 {
+	check(CompiledData);
+
 	CheckCorrectThread();
 
 	if (bResetOther)
 	{
+		Other.CompiledData = CompiledData;
 		Other.Reset();
-		Other.Variables = Variables;
-		Other.VariableLayouts = VariableLayouts;
-		Other.TotalFloatComponents = TotalFloatComponents;
-		Other.TotalInt32Components = TotalInt32Components;
-		Other.Finalize();
 	}
 	else
 	{
-		checkSlow(Other.GetVariables() == Variables);
+		checkSlow(Other.GetVariables() == GetVariables());
 	}
 
 	//Read the most current data. Even if it's possibly partially complete simulation data.
@@ -510,7 +415,7 @@ void FNiagaraDataSet::CopyTo(FNiagaraDataSet& Other, int32 StartIdx, int32 NumIn
 void FNiagaraDataSet::CopyFromGPUReadback(float* GPUReadBackFloat, int* GPUReadBackInt, int32 StartIdx /* = 0 */, int32 NumInstances /* = INDEX_NONE */, uint32 FloatStride, uint32 IntStride)
 {
 	check(IsInRenderingThread());
-	check(bFinalized);//We should be finalized with proper layout information already.
+	check(IsInitialized());//We should be finalized with proper layout information already.
 
 	FNiagaraDataBuffer& DestBuffer = BeginSimulate();
 	DestBuffer.GPUCopyFrom(GPUReadBackFloat, GPUReadBackInt, StartIdx, NumInstances, FloatStride, IntStride);
@@ -555,13 +460,15 @@ int32 FNiagaraDataBuffer::TransferInstance(FNiagaraDataBuffer& SourceBuffer, int
 		SetNumInstances(OldNumInstances + 1);
 
 		/** Copy the instance data. */
-		for (int32 CompIdx = (int32)Owner->TotalFloatComponents - 1; CompIdx >= 0; --CompIdx)
+		int32 FloatComponents = Owner->GetNumFloatComponents();
+		for (int32 CompIdx = FloatComponents - 1; CompIdx >= 0; --CompIdx)
 		{
 			float* Src = SourceBuffer.GetInstancePtrFloat(CompIdx, InstanceIndex);
 			float* Dst = GetInstancePtrFloat(CompIdx, OldNumInstances);
 			*Dst = *Src;
 		}
-		for (int32 CompIdx = (int32)Owner->TotalInt32Components - 1; CompIdx >= 0; --CompIdx)
+		int32 IntComponents = Owner->GetNumInt32Components();
+		for (int32 CompIdx = IntComponents - 1; CompIdx >= 0; --CompIdx)
 		{
 			int32* Src = SourceBuffer.GetInstancePtrInt32(CompIdx, InstanceIndex);
 			int32* Dst = GetInstancePtrInt32(CompIdx, OldNumInstances);
@@ -599,7 +506,7 @@ bool FNiagaraDataBuffer::CheckForNaNs()const
 void FNiagaraDataBuffer::Allocate(uint32 InNumInstances, bool bMaintainExisting)
 {
 	//CheckUsage(false);
-	check(Owner->SimTarget == ENiagaraSimTarget::CPUSim);
+	checkSlow(Owner->GetSimTarget() == ENiagaraSimTarget::CPUSim);
 
 	NumInstancesAllocated = InNumInstances;
 	NumInstances = 0;
@@ -639,18 +546,21 @@ void FNiagaraDataBuffer::Allocate(uint32 InNumInstances, bool bMaintainExisting)
 	{
 		if (FloatStride != OldFloatStride && FloatStride > 0 && OldFloatStride > 0)
 		{
+			int32 FloatComponents = Owner->GetNumFloatComponents();
 			const uint32 BytesToCopy = FMath::Min(OldFloatStride, FloatStride);
-			for (int32 CompIdx = (int32)Owner->TotalFloatComponents-1; CompIdx >= 0; --CompIdx)
+			for (int32 CompIdx = FloatComponents - 1; CompIdx >= 0; --CompIdx)
 			{
 				uint8* Src = OldFloatData.GetData() + OldFloatStride * CompIdx;
 				uint8* Dst = FloatData.GetData() + FloatStride * CompIdx;
 				FMemory::Memcpy(Dst, Src, BytesToCopy);
 			}
 		}
+
 		if (Int32Stride != OldInt32Stride && Int32Stride > 0 && OldInt32Stride > 0)
 		{
+			int32 IntComponents = Owner->GetNumInt32Components();
 			const uint32 BytesToCopy = FMath::Min(OldInt32Stride, Int32Stride);
-			for (int32 CompIdx = (int32)Owner->TotalInt32Components - 1; CompIdx >= 0; --CompIdx)
+			for (int32 CompIdx = IntComponents - 1; CompIdx >= 0; --CompIdx)
 			{
 				uint8* Src = OldIntData.GetData() + OldInt32Stride * CompIdx;
 				uint8* Dst = Int32Data.GetData() + Int32Stride * CompIdx;
@@ -671,7 +581,7 @@ void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceC
 {
 	CheckUsage(false);
 
-	check(Owner->SimTarget == ENiagaraSimTarget::GPUComputeSim);
+	checkSlow(Owner->GetSimTarget() == ENiagaraSimTarget::GPUComputeSim);
 
 	// Release previous entry if any.
 	GPUInstanceCountManager.FreeEntry(GPUInstanceCountBufferOffset);
@@ -707,11 +617,8 @@ void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceC
 			{
 				GPUBufferFloat.Release();
 			}
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST 
-			GPUBufferFloat.Initialize(sizeof(float), NumElementsToAlloc * Owner->GetNumFloatComponents(), EPixelFormat::PF_R32_FLOAT, BUF_Static, *Owner->DebugName );
-#else
 			GPUBufferFloat.Initialize(sizeof(float), NumElementsToAlloc * Owner->GetNumFloatComponents(), EPixelFormat::PF_R32_FLOAT, BUF_Static);
-#endif
+
 		}
 		if (Owner->GetNumInt32Components())
 		{
@@ -719,11 +626,7 @@ void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceC
 			{
 				GPUBufferInt.Release();
 			}
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST 
-			GPUBufferInt.Initialize(sizeof(int32), NumElementsToAlloc * Owner->GetNumInt32Components(), EPixelFormat::PF_R32_SINT, BUF_Static, *Owner->DebugName);
-#else
 			GPUBufferInt.Initialize(sizeof(int32), NumElementsToAlloc * Owner->GetNumInt32Components(), EPixelFormat::PF_R32_SINT, BUF_Static);
-#endif
 		}
 	}
 }
@@ -732,7 +635,8 @@ void FNiagaraDataBuffer::SwapInstances(uint32 OldIndex, uint32 NewIndex)
 {
 	CheckUsage(false);
 
-	for (uint32 CompIdx = 0; CompIdx < Owner->TotalFloatComponents; ++CompIdx)
+	uint32 FloatComponents = Owner->GetNumFloatComponents();
+	for (uint32 CompIdx = 0; CompIdx < FloatComponents; ++CompIdx)
 	{
 		float* Src = GetInstancePtrFloat(CompIdx, OldIndex);
 		float* Dst = GetInstancePtrFloat(CompIdx, NewIndex);
@@ -740,7 +644,8 @@ void FNiagaraDataBuffer::SwapInstances(uint32 OldIndex, uint32 NewIndex)
 		*Dst = *Src;
 		*Src = Temp;
 	}
-	for (uint32 CompIdx = 0; CompIdx < Owner->TotalInt32Components; ++CompIdx)
+	uint32 IntComponents = Owner->GetNumInt32Components();
+	for (uint32 CompIdx = 0; CompIdx < IntComponents; ++CompIdx)
 	{
 		int32* Src = GetInstancePtrInt32(CompIdx, OldIndex);
 		int32* Dst = GetInstancePtrInt32(CompIdx, NewIndex);
@@ -756,13 +661,15 @@ void FNiagaraDataBuffer::KillInstance(uint32 InstanceIdx)
 	check(InstanceIdx < NumInstances);
 	--NumInstances;
 
-	for (uint32 CompIdx = 0; CompIdx < Owner->TotalFloatComponents; ++CompIdx)
+	uint32 FloatComponents = Owner->GetNumFloatComponents();
+	for (uint32 CompIdx = 0; CompIdx < FloatComponents; ++CompIdx)
 	{
 		float* Src = GetInstancePtrFloat(CompIdx, NumInstances);
 		float* Dst = GetInstancePtrFloat(CompIdx, InstanceIdx);
 		*Dst = *Src;
 	}
-	for (uint32 CompIdx = 0; CompIdx < Owner->TotalInt32Components; ++CompIdx)
+	uint32 IntComponents = Owner->GetNumInt32Components();
+	for (uint32 CompIdx = 0; CompIdx < IntComponents; ++CompIdx)
 	{
 		int32* Src = GetInstancePtrInt32(CompIdx, NumInstances);
 		int32* Dst = GetInstancePtrInt32(CompIdx, InstanceIdx);
@@ -798,7 +705,8 @@ void FNiagaraDataBuffer::CopyTo(FNiagaraDataBuffer& DestBuffer, int32 StartIdx, 
 		}
 		DestBuffer.SetNumInstances(NewNumInstances);
 
-		for (uint32 CompIdx = 0; CompIdx < Owner->TotalFloatComponents; ++CompIdx)
+		uint32 FloatComponents = Owner->GetNumFloatComponents();
+		for (uint32 CompIdx = 0; CompIdx < FloatComponents; ++CompIdx)
 		{
 			const float* SrcStart = GetInstancePtrFloat(CompIdx, StartIdx);
 			const float* SrcEnd = GetInstancePtrFloat(CompIdx, StartIdx + InstancesToCopy);
@@ -814,7 +722,8 @@ void FNiagaraDataBuffer::CopyTo(FNiagaraDataBuffer& DestBuffer, int32 StartIdx, 
 				}
 			}
 		}
-		for (uint32 CompIdx = 0; CompIdx < Owner->TotalInt32Components; ++CompIdx)
+		uint32 IntComponents = Owner->GetNumInt32Components();
+		for (uint32 CompIdx = 0; CompIdx < IntComponents; ++CompIdx)
 		{
 			const int32* SrcStart = GetInstancePtrInt32(CompIdx, StartIdx);
 			const int32* SrcEnd = GetInstancePtrInt32(CompIdx, StartIdx + InstancesToCopy);
@@ -847,7 +756,8 @@ void FNiagaraDataBuffer::GPUCopyFrom(float* GPUReadBackFloat, int* GPUReadBackIn
 
 	if (GPUReadBackFloat)
 	{
-		for (uint32 CompIdx = 0; CompIdx < Owner->TotalFloatComponents; ++CompIdx)
+		uint32 FloatComponents = Owner->GetNumFloatComponents();
+		for (uint32 CompIdx = 0; CompIdx < FloatComponents; ++CompIdx)
 		{
 			// We have to reimplement the logic from GetInstancePtrFloat here because the incoming stride may be different than this 
 			// data buffer's stride.
@@ -868,7 +778,8 @@ void FNiagaraDataBuffer::GPUCopyFrom(float* GPUReadBackFloat, int* GPUReadBackIn
 	}
 	if (GPUReadBackInt)
 	{
-		for (uint32 CompIdx = 0; CompIdx < Owner->TotalInt32Components; ++CompIdx)
+		uint32 IntComponents = Owner->GetNumInt32Components();
+		for (uint32 CompIdx = 0; CompIdx < IntComponents; ++CompIdx)
 		{
 			// We have to reimplement the logic from GetInstancePtrInt here because the incoming stride may be different than this 
 			// data buffer's stride.
@@ -904,7 +815,7 @@ void FNiagaraDataBuffer::CopyTo(FNiagaraDataBuffer& DestBuffer)const
 
 void FNiagaraDataBuffer::Dump(int32 StartIndex, int32 InNumInstances, const FString& Label)const
 {
-	TArray<FNiagaraVariable>& Variables = Owner->GetVariables();
+	TArray<FNiagaraVariable> Variables = Owner->GetVariables();
 	FNiagaraDataVariableIterator Itr(this, StartIndex);
 	Itr.AddVariables(Variables);
 
@@ -922,7 +833,7 @@ void FNiagaraDataBuffer::Dump(int32 StartIndex, int32 InNumInstances, const FStr
 		Itr.Get();
 
 		FString Line = TEXT("| ");
-		for (FNiagaraVariable& Var : Owner->GetVariables())
+		for (const FNiagaraVariable& Var : Owner->GetVariables())
 		{
 			Line += Var.ToString() + TEXT(" | ");
 		}
@@ -1120,7 +1031,7 @@ void FNiagaraDataBuffer::BuildRegisterTable()
 	RegisterTable.Reset();
 	RegisterTable.SetNumUninitialized(TotalRegisters);
 	int32 NumRegisters = 0;
-	for (FNiagaraVariableLayoutInfo& VarLayout : Owner->VariableLayouts)
+	for (const FNiagaraVariableLayoutInfo& VarLayout : Owner->GetVariableLayouts())
 	{
 		int32 NumFloats = VarLayout.GetNumFloatComponents();
 		int32 NumInts = VarLayout.GetNumInt32Components();
@@ -1140,6 +1051,10 @@ void FNiagaraDataBuffer::BuildRegisterTable()
 	}
 }
 
+//////////////////////////////////////////////////////////////////////////
+
+FNiagaraDataSetCompiledData FNiagaraDataSetCompiledData::DummyCompiledData;
+
 // note, this method is also implemented in FNiagaraDataSet::BuildLayout()
 void FNiagaraDataSetCompiledData::BuildLayout()
 {
@@ -1157,6 +1072,11 @@ void FNiagaraDataSetCompiledData::BuildLayout()
 		TotalFloatComponents += VarInfo.GetNumFloatComponents();
 		TotalInt32Components += VarInfo.GetNumInt32Components();
 	}
+}
+
+FNiagaraDataSetCompiledData::FNiagaraDataSetCompiledData()
+{
+	Empty();
 }
 
 void FNiagaraDataSetCompiledData::Empty()

@@ -20,11 +20,11 @@ class FTimingTrackViewport;
 class FTimingViewDrawHelper
 {
 public:
-	enum class EHighlightMode
+	enum class EHighlightMode : uint32
 	{
-		Hovered,
-		Selected,
-		SelectedAndHovered
+		Hovered = 1,
+		Selected = 2,
+		SelectedAndHovered = 3
 	};
 
 private:
@@ -74,8 +74,6 @@ private:
 		int32 NumMergedBoxes;
 		int32 NumDrawBorders;
 		int32 NumDrawTexts;
-		int32 NumDrawTimeMarkerBoxes;
-		int32 NumDrawTimeMarkerTexts;
 
 		FStats()
 			: NumEvents(0)
@@ -83,13 +81,11 @@ private:
 			, NumMergedBoxes(0)
 			, NumDrawBorders(0)
 			, NumDrawTexts(0)
-			, NumDrawTimeMarkerBoxes(0)
-			, NumDrawTimeMarkerTexts(0)
 		{}
 	};
 
 public:
-	FTimingViewDrawHelper(const FDrawContext& InDrawContext, const FTimingTrackViewport& InViewport, const FTimingEventsTrackLayout& InLayout);
+	explicit FTimingViewDrawHelper(const FDrawContext& InDrawContext, const FTimingTrackViewport& InViewport, const FTimingEventsTrackLayout& InLayout);
 	~FTimingViewDrawHelper();
 
 	/**
@@ -102,13 +98,14 @@ public:
 	const FTimingTrackViewport& GetViewport() const { return Viewport; }
 	const FTimingEventsTrackLayout& GetLayout() const { return Layout; }
 
-	int32 GetNumEvents() const              { return Stats.NumEvents; }
-	int32 GetNumDrawBoxes() const           { return Stats.NumDrawBoxes; }
-	int32 GetNumMergedBoxes() const         { return Stats.NumMergedBoxes; }
-	int32 GetNumDrawBorders() const         { return Stats.NumDrawBorders; }
-	int32 GetNumDrawTexts() const           { return Stats.NumDrawTexts; }
-	int32 GetNumDrawTimeMarkerBoxes() const { return Stats.NumDrawTimeMarkerBoxes; }
-	int32 GetNumDrawTimeMarkerTexts() const { return Stats.NumDrawTimeMarkerTexts; }
+	const FSlateBrush* GetWhiteBrush() const { return WhiteBrush; }
+	const FSlateFontInfo& GetEventFont() const { return EventFont; }
+
+	int32 GetNumEvents() const      { return Stats.NumEvents; }
+	int32 GetNumDrawBoxes() const   { return Stats.NumDrawBoxes; }
+	int32 GetNumMergedBoxes() const { return Stats.NumMergedBoxes; }
+	int32 GetNumDrawBorders() const { return Stats.NumDrawBorders; }
+	int32 GetNumDrawTexts() const   { return Stats.NumDrawTexts; }
 
 	void DrawBackground() const;
 	void DrawTimingEventHighlight(double StartTime, double EndTime, float Y, EHighlightMode Mode);
@@ -129,18 +126,20 @@ private:
 	const FTimingEventsTrackLayout& Layout;
 
 	const FSlateBrush* WhiteBrush;
-	const FSlateBrush* BorderBrush;
-	const FSlateBrush* EventsBorderBrush;
+	const FSlateBrush* EventBorderBrush;
+	const FSlateBrush* HoveredEventBorderBrush;
+	const FSlateBrush* SelectedEventBorderBrush;
 	const FSlateBrush* BackgroundAreaBrush;
 	const FLinearColor ValidAreaColor;
 	const FLinearColor InvalidAreaColor;
+	const FLinearColor EdgeColor;
 	const FSlateFontInfo EventFont;
 
-	//static const FSlateColorBrush SolidWhiteBrush = FSlateColorBrush(FColorList::White);
-	//static const FSlateBrush BorderBrush = FSlateBorderBrush(NAME_None, FMargin(1.0f));
+	mutable float ValidAreaX;
+	mutable float ValidAreaW;
 
-	mutable float ValidX0;
-	mutable float ValidX1;
+	//////////////////////////////////////////////////
+	// Builder state
 
 	float TimelineTopY;
 	float TimelineY;
@@ -149,6 +148,8 @@ private:
 
 	TArray<float> LastEventX2; // X2 value for last event on each depth, for current timeline
 	TArray<FBoxData> LastBox;
+
+	//////////////////////////////////////////////////
 
 	/** Debug stats */
 	mutable FStats Stats;

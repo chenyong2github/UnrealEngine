@@ -47,7 +47,7 @@ namespace UnrealVS
 		public override bool DynamicItemMatch(int cmdId)
 		{
 			// Call the supplied predicate to test whether the given cmdId is a match.
-			// If it is, store the command id in MatchedCommandid 
+			// If it is, store the command id in MatchedCommandid
 			// for use by any BeforeQueryStatus handlers, and then return that it is a match.
 			// Otherwise clear any previously stored matched cmdId and return that it is not a match.
 			if (OnMatchItem(cmdId))
@@ -92,7 +92,7 @@ namespace UnrealVS
 
 		/// <summary>
 		/// The callback function passed to this object's QuickBuildMenuCommand, used to select the range of commands handled by this object
-		/// It uses the cached list of solution configs in QuickBuild to determine how many commands should be in the menu. 
+		/// It uses the cached list of solution configs in QuickBuild to determine how many commands should be in the menu.
 		/// </summary>
 		/// <param name="cmdId">Command id the validate</param>
 		/// <returns>True, if the command is valid for this menu</returns>
@@ -100,7 +100,7 @@ namespace UnrealVS
 		{
 			int ConfigCount = QuickBuild.CachedSolutionConfigNames.Length;
 
-			// The match is valid if the command ID is >= the id of our root dynamic start item 
+			// The match is valid if the command ID is >= the id of our root dynamic start item
 			// and the command ID minus the ID of our root dynamic start item
 			// is less than or equal to the number of projects in the solution.
 			return (cmdId >= DynamicStartCommandId) && ((cmdId - DynamicStartCommandId) < ConfigCount);
@@ -195,7 +195,6 @@ namespace UnrealVS
 				new SubMenu {Name = "Android", SubMenuId = 0x1B00, DynamicStartCommandId = 0x1B30},
 				new SubMenu {Name = "WinRT", SubMenuId = 0x1C00, DynamicStartCommandId = 0x1C30},
 				new SubMenu {Name = "WinRT_ARM", SubMenuId = 0x1D00, DynamicStartCommandId = 0x1D30},
-				new SubMenu {Name = "HTML5", SubMenuId = 0x1E00, DynamicStartCommandId = 0x1E30},
 				new SubMenu {Name = "Linux", SubMenuId = 0x1F00, DynamicStartCommandId = 0x1F30},
 				new SubMenu {Name = "Switch", SubMenuId = 0x2000, DynamicStartCommandId = 0x2030},
 			};

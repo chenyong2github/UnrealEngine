@@ -2,6 +2,7 @@
 
 #pragma once
 
+#import <UIKit/UIKit.h>
 #import <GameKit/GKLocalPlayer.h>
 
 #include "Interfaces/OnlineSessionInterface.h"

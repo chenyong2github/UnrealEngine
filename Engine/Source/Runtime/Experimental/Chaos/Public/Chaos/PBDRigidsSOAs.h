@@ -2,7 +2,6 @@
 #pragma once
 
 #include "Chaos/ParticleHandle.h"
-#include "Chaos/Framework/PhysicsProxy.h"
 
 namespace Chaos
 {
@@ -17,7 +16,17 @@ public:
 		BiggestParticleID = 0;
 #endif
 
-		ClusteredParticles.RemoveParticleBehavior() = ERemoveParticleBehavior::Remove;	//clustered particles maintain relative ordering
+		StaticParticles = MakeUnique<TGeometryParticles<T, d>>();
+		StaticDisabledParticles = MakeUnique <TGeometryParticles<T, d>>();
+
+		KinematicParticles = MakeUnique < TKinematicGeometryParticles<T, d>>();
+		KinematicDisabledParticles = MakeUnique < TKinematicGeometryParticles<T, d>>();
+
+		DynamicDisabledParticles = MakeUnique<TPBDRigidParticles<T, d>>();
+		DynamicParticles = MakeUnique<TPBDRigidParticles<T, d>>();
+
+		ClusteredParticles = MakeUnique< TPBDRigidClusteredParticles<T, d>>();
+		ClusteredParticles->RemoveParticleBehavior() = ERemoveParticleBehavior::Remove;	//clustered particles maintain relative ordering
 		UpdateViews();
 	}
 
@@ -102,17 +111,17 @@ public:
 			}
 			else
 			{
-				Particle->MoveToSOA(DynamicDisabledParticles);
+				Particle->MoveToSOA(*DynamicDisabledParticles);
 			}
 			RemoveFromMapAndArray(PBDRigid, ActiveParticlesToIndex, ActiveParticlesArray);
 		}
 		else if (Particle->AsKinematic())
 		{
-			Particle->MoveToSOA(KinematicDisabledParticles);
+			Particle->MoveToSOA(*KinematicDisabledParticles);
 		}
 		else
 		{
-			Particle->MoveToSOA(StaticDisabledParticles);
+			Particle->MoveToSOA(*StaticDisabledParticles);
 		}
 		UpdateViews();
 	}
@@ -131,7 +140,7 @@ public:
 			}
 			else
 			{
-				Particle->MoveToSOA(DynamicParticles);
+				Particle->MoveToSOA(*DynamicParticles);
 			}
 
 			if (!PBDRigid->Sleeping())
@@ -143,11 +152,11 @@ public:
 		}
 		else if (Particle->AsKinematic())
 		{
-			Particle->MoveToSOA(KinematicParticles);
+			Particle->MoveToSOA(*KinematicParticles);
 		}
 		else
 		{
-			Particle->MoveToSOA(StaticParticles);
+			Particle->MoveToSOA(*StaticParticles);
 		}
 		UpdateViews();
 	}
@@ -192,37 +201,63 @@ public:
 		}
 	}
 
+	void Serialize(FChaosArchive& Ar)
+	{
+		static const FName SOAsName = TEXT("PBDRigidsSOAs");
+		FChaosArchiveScopedMemory ScopedMemory(Ar, SOAsName, false);
+
+		ParticleHandles.Serialize(Ar);
+
+		Ar << StaticParticles;
+		Ar << StaticDisabledParticles;
+		Ar << KinematicParticles;
+		Ar << KinematicDisabledParticles;
+		Ar << DynamicParticles;
+		Ar << DynamicDisabledParticles;
+		ensure(ClusteredParticles->Size() == 0);	//not supported yet
+		//Ar << ClusteredParticles;
+
+		SerializeMapAndArray(Ar, ActiveParticlesToIndex, ActiveParticlesArray);
+		//SerializeMapAndArray(Ar, ActiveClusteredToIndex, ActiveClusteredArray);
+		//SerializeMapAndArray(Ar, NonDisabledClusteredToIndex, NonDisabledClusteredArray);
+
+		//todo: update deterministic ID
+
+		UpdateViews();
+	}
+
 
 	const TParticleView<TGeometryParticles<T, d>>& GetNonDisabledView() const { return NonDisabledView; }
 
 	const TParticleView<TPBDRigidParticles<T, d>>& GetNonDisabledDynamicView() const { return NonDisabledDynamicView; }
 
 	const TParticleView<TPBDRigidParticles<T, d>>& GetActiveParticlesView() const { return ActiveParticlesView; }
+	TParticleView<TPBDRigidParticles<T, d>>& GetActiveParticlesView() { return ActiveParticlesView; }
 
 	const TParticleView<TGeometryParticles<T, d>>& GetAllParticlesView() const { return AllParticlesView; }
 
 	const TGeometryParticleHandles<T, d>& GetParticleHandles() const { return ParticleHandles; }
 	TGeometryParticleHandles<T, d>& GetParticleHandles() { return ParticleHandles; }
 
-	const TPBDRigidParticles<T, d>& GetDynamicParticles() const { return DynamicParticles; }
-	TPBDRigidParticles<T, d>& GetDynamicParticles() { return DynamicParticles; }
+	const TPBDRigidParticles<T, d>& GetDynamicParticles() const { return *DynamicParticles; }
+	TPBDRigidParticles<T, d>& GetDynamicParticles() { return *DynamicParticles; }
 
-	const TGeometryParticles<T, d>& GetNonDisabledStaticParticles() const { return StaticParticles; }
-	TGeometryParticles<T, d>& GetNonDisabledStaticParticles() { return StaticParticles; }
+	const TGeometryParticles<T, d>& GetNonDisabledStaticParticles() const { return *StaticParticles; }
+	TGeometryParticles<T, d>& GetNonDisabledStaticParticles() { return *StaticParticles; }
 
 	//TEMP: only needed while clustering code continues to use direct indices
 	const auto& GetActiveClusteredArray() const { return ActiveClusteredArray; }
 	const auto& GetNonDisabledClusteredArray() const { return NonDisabledClusteredArray; }
 
-	const auto& GetClusteredParticles() const { return ClusteredParticles; }
-	auto& GetClusteredParticles() { return ClusteredParticles; }
+	const auto& GetClusteredParticles() const { return *ClusteredParticles; }
+	auto& GetClusteredParticles() { return *ClusteredParticles; }
 
 private:
 	template <typename TParticleHandleType, typename TParticles>
-	TArray<TParticleHandleType*> CreateParticlesHelper(int32 NumParticles, TParticles& Particles, const TGeometryParticleParameters<T, d>& Params)
+	TArray<TParticleHandleType*> CreateParticlesHelper(int32 NumParticles, TUniquePtr<TParticles>& Particles, const TGeometryParticleParameters<T, d>& Params)
 	{
-		const int32 ParticlesStartIdx = Particles.Size();
-		Particles.AddParticles(NumParticles);
+		const int32 ParticlesStartIdx = Particles->Size();
+		Particles->AddParticles(NumParticles);
 		TArray<TParticleHandleType*> ReturnHandles;
 		ReturnHandles.AddUninitialized(NumParticles);
 
@@ -234,12 +269,12 @@ private:
 			const int32 ParticleIdx = Count + ParticlesStartIdx;
 			const int32 HandleIdx = Count + HandlesStartIdx;
 
-			TParticleHandleType* NewParticleHandle = new TParticleHandleType(&Particles, ParticleIdx, HandleIdx);
+			TUniquePtr<TParticleHandleType> NewParticleHandle = TParticleHandleType::CreateParticleHandle(MakeSerializable(Particles), ParticleIdx, HandleIdx);
 #if CHAOS_DETERMINISTIC
 			NewParticleHandle->ParticleID() = BiggestParticleID++;
 #endif
-			ParticleHandles.Handle(HandleIdx).Reset(NewParticleHandle);
-			ReturnHandles[Count] = NewParticleHandle;
+			ReturnHandles[Count] = NewParticleHandle.Get();
+			ParticleHandles.Handle(HandleIdx) = MoveTemp(NewParticleHandle);
 		}
 
 		return ReturnHandles;
@@ -282,16 +317,29 @@ private:
 		}
 	}
 
+	template <typename TParticle>
+	void SerializeMapAndArray(FChaosArchive& Ar, TMap<TParticle*, int32>& ParticleToIndex, TArray<TParticle*>& ParticleArray)
+	{
+		TArray<TSerializablePtr<TParticle>>& SerializableArray = AsAlwaysSerializableArray(ParticleArray);
+		Ar << SerializableArray;
+
+		int32 Idx = 0;
+		for (auto Particle : ParticleArray)
+		{
+			ParticleToIndex.Add(Particle, Idx++);
+		}
+	}
+	
 	//should be called whenever particles are added / removed / reordered
 	void UpdateViews()
 	{
 		//build various views. Group SOA types together for better branch prediction
 		{
-			TArray<TSOAView<TGeometryParticles<T, d>>> TmpArray = { &StaticParticles, &KinematicParticles, &DynamicParticles, {&NonDisabledClusteredArray} };
+			TArray<TSOAView<TGeometryParticles<T, d>>> TmpArray = { StaticParticles.Get(), KinematicParticles.Get(), DynamicParticles.Get(), {&NonDisabledClusteredArray} };
 			NonDisabledView = MakeParticleView(MoveTemp(TmpArray));
 		}
 		{
-			TArray<TSOAView<TPBDRigidParticles<T, d>>> TmpArray = { &DynamicParticles, {&NonDisabledClusteredArray} };
+			TArray<TSOAView<TPBDRigidParticles<T, d>>> TmpArray = { DynamicParticles.Get(), {&NonDisabledClusteredArray} };
 			NonDisabledDynamicView = MakeParticleView(MoveTemp(TmpArray));
 		}
 		{
@@ -300,23 +348,23 @@ private:
 		}
 
 		{
-			TArray<TSOAView<TGeometryParticles<T, d>>> TmpArray = { &StaticParticles, &StaticDisabledParticles, &KinematicParticles, &KinematicDisabledParticles,
-			&DynamicParticles, &DynamicDisabledParticles, &ClusteredParticles };
+			TArray<TSOAView<TGeometryParticles<T, d>>> TmpArray = { StaticParticles.Get(), StaticDisabledParticles.Get(), KinematicParticles.Get(), KinematicDisabledParticles.Get(),
+				DynamicParticles.Get(), DynamicDisabledParticles.Get(), ClusteredParticles.Get() };
 			AllParticlesView = MakeParticleView(MoveTemp(TmpArray));
 		}
 	}
 
 	//Organized by SOA type
-	TGeometryParticles<T, d> StaticParticles;
-	TGeometryParticles<T, d> StaticDisabledParticles;
+	TUniquePtr<TGeometryParticles<T, d>> StaticParticles;
+	TUniquePtr<TGeometryParticles<T, d>> StaticDisabledParticles;
 
-	TKinematicGeometryParticles<T, d> KinematicParticles;
-	TKinematicGeometryParticles<T, d> KinematicDisabledParticles;
+	TUniquePtr<TKinematicGeometryParticles<T, d>> KinematicParticles;
+	TUniquePtr<TKinematicGeometryParticles<T, d>> KinematicDisabledParticles;
 
-	TPBDRigidParticles<T, d> DynamicParticles;
-	TPBDRigidParticles<T, d> DynamicDisabledParticles;
-	
-	TPBDRigidClusteredParticles<T, d> ClusteredParticles;
+	TUniquePtr<TPBDRigidParticles<T, d>> DynamicParticles;
+	TUniquePtr<TPBDRigidParticles<T, d>> DynamicDisabledParticles;
+
+	TUniquePtr<TPBDRigidClusteredParticles<T, d>> ClusteredParticles;
 
 	//Utility structures for maintaining an Active particles view
 	TMap<TPBDRigidParticleHandle<T, d>*, int32> ActiveParticlesToIndex;
@@ -336,11 +384,6 @@ private:
 
 	//Auxiliary data synced with particle handles
 	TGeometryParticleHandles<T, d> ParticleHandles;
-	TSet<TGeometryParticleHandle<T, d>*> ActiveParticles;
-	TSet<TPBDRigidClusteredParticleHandle<T, d>*> NonDisabledRigidClustered;
-	TArray<TPBDRigidClusteredParticleHandle<T,d>*> NonDisabledRigidClusteredArray;
-	TSet<TPBDRigidClusteredParticleHandle<T, d>*> ActiveRigidClustered;
-	TArray<TPBDRigidClusteredParticleHandle<T, d>*> ActiveRigidClusteredArray;
 
 #if CHAOS_DETERMINISTIC
 	int32 BiggestParticleID;

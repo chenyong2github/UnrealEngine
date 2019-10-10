@@ -56,6 +56,7 @@ namespace NewProjectWizardDefs
 	const float ThumbnailSize = 64.f, ThumbnailPadding = 5.f;
 	const float ItemWidth = ThumbnailSize + 2*ThumbnailPadding;
 	const float ItemHeight = ItemWidth + 30;
+	const FName DefaultCategoryName = "Games";
 }
 
 /**
@@ -419,7 +420,7 @@ void SNewProjectWizard::Construct( const FArguments& InArgs )
 								SNew(STextBlock)
 								.AutoWrapText(true)
 								.TextStyle(FEditorStyle::Get(), "GameProjectDialog.FeatureText")
-								.Text(this, &SNewProjectWizard::GetSelectedTemplateProperty<FText>, &FTemplateItem::Name)
+								.Text(this, &SNewProjectWizard::GetSelectedTemplateProperty, &FTemplateItem::Name)
 							]
 						
 							// Template Description
@@ -427,7 +428,7 @@ void SNewProjectWizard::Construct( const FArguments& InArgs )
 							[
 								SNew(STextBlock)
 								.AutoWrapText(true)
-								.Text(this, &SNewProjectWizard::GetSelectedTemplateProperty<FText>, &FTemplateItem::Description)
+								.Text(this, &SNewProjectWizard::GetSelectedTemplateProperty, &FTemplateItem::Description)
 							]
 											
 							// Asset types
@@ -527,8 +528,8 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 bool SNewProjectWizard::ShouldShowProjectSettingsPage() const
 {
-	bool bSkipSettings = GetSelectedTemplateProperty<bool>(&FTemplateItem::bSkipProjectSettings);
-	return !bSkipSettings;
+	const TArray<ETemplateSetting>& HiddenSettings = GetSelectedTemplateProperty(&FTemplateItem::HiddenSettings);
+	return !HiddenSettings.Contains(ETemplateSetting::All);
 }
 
 void SNewProjectWizard::OnSetCopyStarterContent(int32 InCopyStarterContent)
@@ -538,8 +539,8 @@ void SNewProjectWizard::OnSetCopyStarterContent(int32 InCopyStarterContent)
 
 EVisibility SNewProjectWizard::GetTemplateListLocationBoxVisibility() const
 {
-	bool bSkipSettings = GetSelectedTemplateProperty<bool>(&FTemplateItem::bSkipProjectSettings);
-	return bSkipSettings ? EVisibility::Visible : EVisibility::Collapsed;
+	bool bShowSettings = ShouldShowProjectSettingsPage();
+	return bShowSettings ? EVisibility::Collapsed : EVisibility::Visible;
 }
 
 EVisibility SNewProjectWizard::GetStarterContentWarningVisibility() const
@@ -573,6 +574,14 @@ void SNewProjectWizard::Tick( const FGeometry& AllottedGeometry, const double In
 void SNewProjectWizard::HandleTemplateListViewSelectionChanged(TSharedPtr<FTemplateItem> TemplateItem, ESelectInfo::Type SelectInfo)
 {
 	UpdateProjectFileValidity();
+
+	if (TemplateItem.IsValid())
+	{
+		if (TemplateItem->HiddenSettings.Contains(ETemplateSetting::StarterContent))
+		{
+			bCopyStarterContent = false;
+		}
+	}
 }
 
 TSharedPtr<FTemplateItem> SNewProjectWizard::GetSelectedTemplateItem() const
@@ -588,22 +597,22 @@ TSharedPtr<FTemplateItem> SNewProjectWizard::GetSelectedTemplateItem() const
 
 FText SNewProjectWizard::GetSelectedTemplateClassTypes() const
 {
-	return FText::FromString(GetSelectedTemplateProperty<FString>(&FTemplateItem::ClassTypes));
+	return FText::FromString(GetSelectedTemplateProperty(&FTemplateItem::ClassTypes));
 }
 
 EVisibility SNewProjectWizard::GetSelectedTemplateClassVisibility() const
 {
-	return GetSelectedTemplateProperty<FString>(&FTemplateItem::ClassTypes).IsEmpty() == false? EVisibility::Visible : EVisibility::Collapsed;
+	return GetSelectedTemplateProperty(&FTemplateItem::ClassTypes).IsEmpty() == false? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 FText SNewProjectWizard::GetSelectedTemplateAssetTypes() const
 {
-	return FText::FromString(GetSelectedTemplateProperty<FString>(&FTemplateItem::AssetTypes));
+	return FText::FromString(GetSelectedTemplateProperty(&FTemplateItem::AssetTypes));
 }
 
 EVisibility SNewProjectWizard::GetSelectedTemplateAssetVisibility() const
 {
-	return GetSelectedTemplateProperty<FString>(&FTemplateItem::AssetTypes).IsEmpty() == false ? EVisibility::Visible : EVisibility::Collapsed;
+	return GetSelectedTemplateProperty(&FTemplateItem::AssetTypes).IsEmpty() == false ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 const FSlateBrush* SNewProjectWizard::GetSelectedTemplatePreviewImage() const
@@ -889,7 +898,7 @@ TMap<FName, TArray<TSharedPtr<FTemplateItem>> >& SNewProjectWizard::FindTemplate
 					TArray<FName> TemplateCategories = TemplateDefs->Categories;
 					if (TemplateCategories.Num() == 0)
 					{
-						TemplateCategories.Add("Game");
+						TemplateCategories.Add(NewProjectWizardDefs::DefaultCategoryName);
 					}
 
 					FString TemplateKey = Root;
@@ -921,7 +930,6 @@ TMap<FName, TArray<TSharedPtr<FTemplateItem>> >& SNewProjectWizard::FindTemplate
 					Template->Description = TemplateDefs->GetLocalizedDescription();
 					Template->ClassTypes = TemplateDefs->ClassTypes;
 					Template->AssetTypes = TemplateDefs->AssetTypes;
-					Template->bSkipProjectSettings = TemplateDefs->bSkipProjectSettings;
 					Template->HiddenSettings = TemplateDefs->HiddenSettings;
 					Template->bIsEnterprise = TemplateDefs->bIsEnterprise;
 
@@ -995,6 +1003,7 @@ TMap<FName, TArray<TSharedPtr<FTemplateItem>> >& SNewProjectWizard::FindTemplate
 		Templates.Add(DefaultCategory);
 	}
 
+	// add blank template to empty categories
 	{
 		TSharedPtr<FTemplateItem> BlankTemplate = MakeShareable(new FTemplateItem());
 		BlankTemplate->Name = LOCTEXT("BlankProjectName", "Blank");
@@ -1005,12 +1014,18 @@ TMap<FName, TArray<TSharedPtr<FTemplateItem>> >& SNewProjectWizard::FindTemplate
 		BlankTemplate->PreviewImage = MakeShareable(new FSlateBrush(*FEditorStyle::GetBrush("GameProjectDialog.BlankProjectPreview")));
 		BlankTemplate->BlueprintProjectFile = TEXT("");
 		BlankTemplate->CodeProjectFile = TEXT("");
-		BlankTemplate->bSkipProjectSettings = false;
 		BlankTemplate->bIsEnterprise = false;
 
-		for (auto& Pair : Templates)
+		TArray<TSharedPtr<FTemplateCategory>> AllTemplateCategories;
+		FGameProjectGenerationModule::Get().GetAllTemplateCategories(AllTemplateCategories);
+
+		for (const TSharedPtr<FTemplateCategory>& Category : AllTemplateCategories)
 		{
-			Pair.Value.Add(BlankTemplate);
+			const TArray<TSharedPtr<FTemplateItem>>* CategoryEntry = Templates.Find(Category->Key);
+			if (CategoryEntry == nullptr)
+			{
+				Templates.Add(Category->Key).Add(BlankTemplate);
+			}
 		}
 	}
 
@@ -1185,7 +1200,8 @@ bool SNewProjectWizard::CreateProject( const FString& ProjectFile )
 	ProjectInfo.TargetedHardware = SelectedHardwareClassTarget;
 	ProjectInfo.DefaultGraphicsPerformance = SelectedGraphicsPreset;
 	ProjectInfo.bForceExtendedLuminanceRange = ProjectInfo.TemplateFile.IsEmpty();
-	ProjectInfo.bEnableVR = bEnableVR;
+	ProjectInfo.bEnableXR = bEnableXR;
+	ProjectInfo.bEnableRaytracing = bEnableRaytracing;
 	ProjectInfo.bIsEnterpriseProject = SelectedTemplate->bIsEnterprise;
 
 	if (!GameProjectUtils::CreateProject(ProjectInfo, FailReason, FailLog))
@@ -1573,7 +1589,7 @@ TSharedRef<SWidget> SNewProjectWizard::MakeProjectSettingsOptionsBox()
 		.FillColumn(1, 1.0f)
 		.FillColumn(3, 1.0f);
 
-	TArray<ETemplateSetting> HiddenSettings = GetSelectedTemplateProperty(&FTemplateItem::HiddenSettings);
+	const TArray<ETemplateSetting>& HiddenSettings = GetSelectedTemplateProperty(&FTemplateItem::HiddenSettings);
 
 	if (!HiddenSettings.Contains(ETemplateSetting::Languages))
 	{
@@ -1623,7 +1639,7 @@ TSharedRef<SWidget> SNewProjectWizard::MakeProjectSettingsOptionsBox()
 			Orient_Vertical);
 		
 		TSharedRef<SRichTextBlock> Description = SNew(SRichTextBlock)
-			.Text(LOCTEXT("HardwareClassTargetDescription", "Choose the closest equivalent target platform. Don't worry, you can change this later in the <RichTextBlock.BoldHighlight>Target Hardware</> section of <RichTextBlock.BoldHighlight>Project Settings</>."))
+			.Text(LOCTEXT("ProjectDialog_HardwareClassTargetDescription", "Choose the closest equivalent target platform. Don't worry, you can change this later in the <RichTextBlock.BoldHighlight>Target Hardware</> section of <RichTextBlock.BoldHighlight>Project Settings</>."))
 			.AutoWrapText(true)
 			.DecoratorStyleSet(&FEditorStyle::Get());
 
@@ -1638,7 +1654,7 @@ TSharedRef<SWidget> SNewProjectWizard::MakeProjectSettingsOptionsBox()
 			Orient_Vertical);
 
 		TSharedRef<SRichTextBlock> Description = SNew(SRichTextBlock)
-			.Text(LOCTEXT("GraphicsPresetDescription", "Choose the performance characteristics of your project."))
+			.Text(LOCTEXT("ProjectDialog_GraphicsPresetDescription", "Choose the performance characteristics of your project."))
 			.AutoWrapText(true)
 			.DecoratorStyleSet(&FEditorStyle::Get());
 
@@ -1649,12 +1665,17 @@ TSharedRef<SWidget> SNewProjectWizard::MakeProjectSettingsOptionsBox()
 	{
 		TArray<SDecoratedEnumCombo<int32>::FComboOption> StarterContentOptions;
 		StarterContentOptions.Add(SDecoratedEnumCombo<int32>::FComboOption(
-			0, FSlateIcon(FEditorStyle::GetStyleSetName(), "GameProjectDialog.NoStarterContent"), LOCTEXT("NoStarterContent", "No Starter Content")));
+			0,
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "GameProjectDialog.NoStarterContent"),
+			LOCTEXT("NoStarterContent", "No Starter Content")));
 
 		// Only add the option to add starter content if its there to add !
 		bool bIsStarterAvailable = GameProjectUtils::IsStarterContentAvailableForNewProjects();
 		StarterContentOptions.Add(SDecoratedEnumCombo<int32>::FComboOption(
-			1, FSlateIcon(FEditorStyle::GetStyleSetName(), "GameProjectDialog.IncludeStarterContent"), LOCTEXT("IncludeStarterContent", "With Starter Content"), bIsStarterAvailable));
+			1,
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "GameProjectDialog.IncludeStarterContent"),
+			LOCTEXT("IncludeStarterContent", "With Starter Content"),
+			bIsStarterAvailable));
 
 		TSharedRef<SWidget> Enum = SNew(SOverlay)
 			+ SOverlay::Slot()
@@ -1685,23 +1706,50 @@ TSharedRef<SWidget> SNewProjectWizard::MakeProjectSettingsOptionsBox()
 		AddToProjectSettingsGrid(GridPanel, Enum, Description, CurrentSlot);
 	}
 
-	if (!HiddenSettings.Contains(ETemplateSetting::VR))
+	if (!HiddenSettings.Contains(ETemplateSetting::XR))
 	{
-		TArray<SDecoratedEnumCombo<int32>::FComboOption> VREnabledOptions;
-		VREnabledOptions.Add(SDecoratedEnumCombo<int32>::FComboOption(
-			0, FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.ToggleVR"/*"GameProjectDialog.VRDisabled"*/), LOCTEXT("VRDisabled", "VR Disabled")));
+		TArray<SDecoratedEnumCombo<int32>::FComboOption> VirtualRealityOptions;
+		VirtualRealityOptions.Add(SDecoratedEnumCombo<int32>::FComboOption(
+			0, FSlateIcon(FEditorStyle::GetStyleSetName(), "GameProjectDialog.XRDisabled"),
+			LOCTEXT("XRDisabled", "XR Disabled")));
 
-		VREnabledOptions.Add(SDecoratedEnumCombo<int32>::FComboOption(
-			1, FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.ToggleVR"/*"GameProjectDialog.VREnabled"*/), LOCTEXT("VREnabled", "VR Enabled")));
+		VirtualRealityOptions.Add(SDecoratedEnumCombo<int32>::FComboOption(
+			1, 
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "GameProjectDialog.XREnabled"),
+			LOCTEXT("XREnabled", "XR Enabled")));
 
-		TSharedRef<SDecoratedEnumCombo<int32>> Enum = SNew(SDecoratedEnumCombo<int32>, MoveTemp(VREnabledOptions))
-			.SelectedEnum(this, &SNewProjectWizard::OnGetVREnabled)
-			.OnEnumChanged(this, &SNewProjectWizard::OnSetVREnabled)
-			.Orientation(Orient_Vertical)
-			.ToolTipText(LOCTEXT("EnableVR_Tooltip", "Enable to to add VR support to the created project."));
+		TSharedRef<SDecoratedEnumCombo<int32>> Enum = SNew(SDecoratedEnumCombo<int32>, MoveTemp(VirtualRealityOptions))
+			.SelectedEnum(this, &SNewProjectWizard::OnGetXREnabled)
+			.OnEnumChanged(this, &SNewProjectWizard::OnSetXREnabled)
+			.Orientation(Orient_Vertical);
 
 		TSharedRef<SRichTextBlock> Description = SNew(SRichTextBlock)
-			.Text(LOCTEXT("VREnabledDescription", "Choose if VR should be enabled in the new project."))
+			.Text(LOCTEXT("ProjectDialog_XREnabledDescription", "Choose if XR should be enabled in the new project."))
+			.AutoWrapText(true)
+			.DecoratorStyleSet(&FEditorStyle::Get());
+
+		AddToProjectSettingsGrid(GridPanel, Enum, Description, CurrentSlot);
+	}
+
+	if (!HiddenSettings.Contains(ETemplateSetting::Raytracing))
+	{
+		TArray<SDecoratedEnumCombo<int32>::FComboOption> RaytracingOptions;
+		RaytracingOptions.Add(SDecoratedEnumCombo<int32>::FComboOption(
+			0, FSlateIcon(FEditorStyle::GetStyleSetName(), "GameProjectDialog.RaytracingDisabled"),
+			LOCTEXT("ProjectDialog_RaytracingDisabled", "Raytracing Disabled")));
+
+		RaytracingOptions.Add(SDecoratedEnumCombo<int32>::FComboOption(
+			1,
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "GameProjectDialog.RaytracingEnabled"),
+			LOCTEXT("ProjectDialog_RaytracingEnabled", "Raytracing Enabled")));
+
+		TSharedRef<SDecoratedEnumCombo<int32>> Enum = SNew(SDecoratedEnumCombo<int32>, MoveTemp(RaytracingOptions))
+			.SelectedEnum(this, &SNewProjectWizard::OnGetRaytracingEnabled)
+			.OnEnumChanged(this, &SNewProjectWizard::OnSetRaytracingEnabled)
+			.Orientation(Orient_Vertical);
+
+		TSharedRef<SRichTextBlock> Description = SNew(SRichTextBlock)
+			.Text(LOCTEXT("ProjectDialog_RaytracingDescription", "Choose if real-time raytracing should be enabled in the new project."))
 			.AutoWrapText(true)
 			.DecoratorStyleSet(&FEditorStyle::Get());
 

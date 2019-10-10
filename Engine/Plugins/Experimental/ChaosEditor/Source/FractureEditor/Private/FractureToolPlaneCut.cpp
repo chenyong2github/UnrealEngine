@@ -91,6 +91,7 @@ void UFractureToolPlaneCut::Render(const FSceneView* View, FViewport* Viewport, 
 TArray<UObject*> UFractureToolPlaneCut::GetSettingsObjects() const
 {
 	TArray<UObject*> Settings;
+	Settings.Add(GetMutableDefault<UFractureCommonSettings>());
 	Settings.Add(GetMutableDefault<UFracturePlaneCutSettings>());
 	return Settings;
 }
@@ -159,6 +160,11 @@ void UFractureToolPlaneCut::ExecuteFracture(const FFractureContext& FractureCont
 			CutMultipleWithMultiplePlanes(CuttingPlanes, InternalSurfaceMaterials, *GeometryCollection, FractureContext.SelectedBones);
 		}
 	}
+}
+
+bool UFractureToolPlaneCut::CanExecuteFracture() const
+{
+	return FFractureEditorModeToolkit::IsLeafBoneSelected();
 }
 
 #if WITH_EDITOR

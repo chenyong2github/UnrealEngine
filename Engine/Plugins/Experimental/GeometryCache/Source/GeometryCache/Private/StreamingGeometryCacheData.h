@@ -7,8 +7,8 @@
 #include "Containers/Array.h"
 #include "Containers/Queue.h"
 
-class IAsyncReadFileHandle;
 class IAsyncReadRequest;
+struct FBulkDataIORequest;
 class UGeometryCacheTrackStreamable;
 class UGeometryCacheComponent;
 struct FStreamedGeometryCacheChunk;
@@ -21,7 +21,7 @@ struct FResidentChunk
 	void* Memory;
 	int32 DataSize;
 	int32 Refcount;
-	IAsyncReadRequest* IORequest; //null when resident, nonnull when being loaded
+	FBulkDataIORequest* IORequest; //null when resident, nonnull when being loaded
 };
 
 /**
@@ -68,8 +68,6 @@ private:
 
 	// The track we are associated with
 	UGeometryCacheTrackStreamable *Track;
-
-	IAsyncReadFileHandle* IORequestHandle;
 
 	// Chunks that ideally would be loaded at this point in time
 	// There may be more or less actual chunks loaded (more = cached chunks, less = we're still waiting for the disc)

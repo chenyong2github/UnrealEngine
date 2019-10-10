@@ -61,6 +61,16 @@ namespace AssetSelectionUtils
 			&& Class->IsChildOf( AActor::StaticClass() );
 		return bIsAddable;
 	}
+
+	// Blueprints handle their own Abstract flag, but we should check for deprecation and NotPlaceable here
+	bool IsChildBlueprintPlaceable(const UClass* Class)
+	{
+		const bool bIsAddable =
+			Class
+			&& !(Class->HasAnyClassFlags(CLASS_NotPlaceable | CLASS_Deprecated))
+			&& Class->IsChildOf(AActor::StaticClass());
+		return bIsAddable;
+	}
 	
 	void GetSelectedAssets( TArray<FAssetData>& OutSelectedAssets )
 	{

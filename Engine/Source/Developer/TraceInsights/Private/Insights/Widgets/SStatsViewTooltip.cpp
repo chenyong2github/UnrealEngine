@@ -4,7 +4,7 @@
 
 #include "EditorStyleSet.h"
 #include "SlateOptMacros.h"
-#include "Widgets/Images/SImage.h"
+#include "TraceServices/Model/AnalysisSession.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/SBoxPanel.h"
@@ -115,6 +115,7 @@ TSharedPtr<SToolTip> SStatsViewTooltip::GetTableCellTooltip(const TSharedPtr<FSt
 					// Id: [Id]
 					+SGridPanel::Slot(0, 0)
 					.Padding(2.0f)
+					//.HAlign(HAlign_Right)
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("TT_Id", "Id:"))
@@ -122,6 +123,7 @@ TSharedPtr<SToolTip> SStatsViewTooltip::GetTableCellTooltip(const TSharedPtr<FSt
 					]
 					+SGridPanel::Slot(1, 0)
 					.Padding(2.0f)
+					.HAlign(HAlign_Left)
 					[
 						SNew(STextBlock)
 						.Text(FText::AsNumber(StatsNodePtr->GetId()))
@@ -131,6 +133,7 @@ TSharedPtr<SToolTip> SStatsViewTooltip::GetTableCellTooltip(const TSharedPtr<FSt
 					// Name: [Name]
 					+SGridPanel::Slot(0, 1)
 					.Padding(2.0f)
+					//.HAlign(HAlign_Right)
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("TT_Name", "Name:"))
@@ -138,6 +141,7 @@ TSharedPtr<SToolTip> SStatsViewTooltip::GetTableCellTooltip(const TSharedPtr<FSt
 					]
 					+SGridPanel::Slot(1, 1)
 					.Padding(2.0f)
+					.HAlign(HAlign_Left)
 					[
 						SNew(STextBlock)
 						.Text(FText::FromName(StatsNodePtr->GetName()))
@@ -147,6 +151,7 @@ TSharedPtr<SToolTip> SStatsViewTooltip::GetTableCellTooltip(const TSharedPtr<FSt
 					//// Group: [MetaGroupName]
 					//+SGridPanel::Slot(0, 2)
 					//.Padding(2.0f)
+					////.HAlign(HAlign_Right)
 					//[
 					//	SNew(STextBlock)
 					//	.Text(LOCTEXT("TT_Group", "Group:"))
@@ -154,6 +159,7 @@ TSharedPtr<SToolTip> SStatsViewTooltip::GetTableCellTooltip(const TSharedPtr<FSt
 					//]
 					//+SGridPanel::Slot(1, 2)
 					//.Padding(2.0f)
+					//.HAlign(HAlign_Left)
 					//[
 					//	SNew(STextBlock)
 					//	.Text(FText::FromName(StatsNodePtr->GetMetaGroupName()))
@@ -163,6 +169,7 @@ TSharedPtr<SToolTip> SStatsViewTooltip::GetTableCellTooltip(const TSharedPtr<FSt
 					// Type: [Type]
 					+ SGridPanel::Slot(0, 3)
 					.Padding(2.0f)
+					//.HAlign(HAlign_Right)
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("TT_Type", "Type:"))
@@ -170,6 +177,7 @@ TSharedPtr<SToolTip> SStatsViewTooltip::GetTableCellTooltip(const TSharedPtr<FSt
 					]
 					+ SGridPanel::Slot(1, 3)
 					.Padding(2.0f)
+					.HAlign(HAlign_Left)
 					[
 						SNew(STextBlock)
 						.Text(StatsNodeTypeHelper::ToName(StatsNodePtr->GetType()))
@@ -193,6 +201,7 @@ TSharedPtr<SToolTip> SStatsViewTooltip::GetTableCellTooltip(const TSharedPtr<FSt
 
 					+ SGridPanel::Slot(0, 0)
 					.Padding(2.0f)
+					//.HAlign(HAlign_Right)
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("TT_NumInstances", "Num Instances:"))
@@ -200,6 +209,7 @@ TSharedPtr<SToolTip> SStatsViewTooltip::GetTableCellTooltip(const TSharedPtr<FSt
 					]
 					+ SGridPanel::Slot(1, 0)
 					.Padding(2.0f)
+					.HAlign(HAlign_Left)
 					[
 						SNew(STextBlock)
 						.Text(InstanceCountText)
@@ -501,6 +511,7 @@ void SStatsViewTooltip::AddAggregatedStatsRow(TSharedPtr<SGridPanel> Grid, int32
 {
 	Grid->AddSlot(0, Row)
 		.Padding(2.0f)
+		//.HAlign(HAlign_Right)
 		[
 			SNew(STextBlock)
 			.Text(Name)

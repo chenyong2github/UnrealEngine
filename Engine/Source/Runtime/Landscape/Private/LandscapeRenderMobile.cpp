@@ -45,6 +45,7 @@ public:
 	virtual void Bind(const FShaderParameterMap& ParameterMap) override
 	{
 		LodValuesParameter.Bind(ParameterMap,TEXT("LodValues"));
+		ForcedLodParameter.Bind(ParameterMap,TEXT("ForcedLod"));
 		LodTessellationParameter.Bind(ParameterMap, TEXT("LodTessellationParams"));
 		NeighborSectionLodParameter.Bind(ParameterMap,TEXT("NeighborSectionLod"));
 		LodBiasParameter.Bind(ParameterMap,TEXT("LodBias"));
@@ -58,6 +59,7 @@ public:
 	virtual void Serialize(FArchive& Ar) override
 	{
 		Ar << LodValuesParameter;
+		Ar << ForcedLodParameter;
 		Ar << LodTessellationParameter;
 		Ar << NeighborSectionLodParameter;
 		Ar << LodBiasParameter;
@@ -108,63 +110,23 @@ public:
 			ShaderBindings.Add(LodBiasParameter, LodBias);
 		}
 
-		FLandscapeComponentSceneProxy::FViewCustomDataLOD* LODData = (FLandscapeComponentSceneProxy::FViewCustomDataLOD*)InView->GetCustomData(SceneProxy->GetPrimitiveSceneInfo()->GetIndex());
-		int32 SubSectionIndex = BatchElementParams->SubX + BatchElementParams->SubY * SceneProxy->NumSubsections;
-
-		if (LODData != nullptr)
+		if (SceneProxy->bRegistered)
 		{
-			SceneProxy->PostInitViewCustomData(*InView, LODData);
+			ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeSectionLODUniformParameters>(), LandscapeRenderSystems.FindChecked(SceneProxy->LandscapeKey)->UniformBuffer);
+		}
+		else
+		{
+			ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeSectionLODUniformParameters>(), GNullLandscapeRenderSystemResources.UniformBuffer);
+		}
 
-			if (LodTessellationParameter.IsBound())
-			{
-				ShaderBindings.Add(LodTessellationParameter, LODData->LodTessellationParams);
-			}
-
-			if (SectionLodsParameter.IsBound())
-			{
-				if (LODData->UseCombinedMeshBatch)
-				{
-					ShaderBindings.Add(SectionLodsParameter, LODData->ShaderCurrentLOD);
-				}
-				else // in non combined, only the one representing us as we'll be called 4 times (once per sub section)
-				{
-					check(SubSectionIndex >= 0);
-					FVector4 ShaderCurrentLOD(ForceInitToZero);
-					ShaderCurrentLOD.Component(SubSectionIndex) = LODData->ShaderCurrentLOD.Component(SubSectionIndex);
-
-					ShaderBindings.Add(SectionLodsParameter, ShaderCurrentLOD);
-				}
-			}
-
-			if (NeighborSectionLodParameter.IsBound())
-			{
-				FVector4 ShaderCurrentNeighborLOD[FLandscapeComponentSceneProxy::NEIGHBOR_COUNT] = { FVector4(ForceInitToZero), FVector4(ForceInitToZero), FVector4(ForceInitToZero), FVector4(ForceInitToZero) };
-
-				if (LODData->UseCombinedMeshBatch)
-				{
-					int32 SubSectionCount = SceneProxy->NumSubsections == 1 ? 1 : FLandscapeComponentSceneProxy::MAX_SUBSECTION_COUNT;
-
-					for (int32 NeighborSubSectionIndex = 0; NeighborSubSectionIndex < SubSectionCount; ++NeighborSubSectionIndex)
-					{
-						ShaderCurrentNeighborLOD[NeighborSubSectionIndex] = LODData->SubSections[NeighborSubSectionIndex].ShaderCurrentNeighborLOD;
-						check(ShaderCurrentNeighborLOD[NeighborSubSectionIndex].X != -1.0f); // they should all match so only check the 1st one for simplicity
-					}
-
-					ShaderBindings.Add(NeighborSectionLodParameter, ShaderCurrentNeighborLOD);
-				}
-				else // in non combined, only the one representing us as we'll be called 4 times (once per sub section)
-				{
-					check(SubSectionIndex >= 0);
-					ShaderCurrentNeighborLOD[SubSectionIndex] = LODData->SubSections[SubSectionIndex].ShaderCurrentNeighborLOD;
-					check(ShaderCurrentNeighborLOD[SubSectionIndex].X != -1.0f); // they should all match so only check the 1st one for simplicity
-
-					ShaderBindings.Add(NeighborSectionLodParameter, ShaderCurrentNeighborLOD);
-				}
-			}
+		if (ForcedLodParameter.IsBound())
+		{
+			ShaderBindings.Add(ForcedLodParameter, BatchElementParams->ForcedLOD);
 		}
 	}
 protected:
 	FShaderParameter LodValuesParameter;
+	FShaderParameter ForcedLodParameter;
 	FShaderParameter LodTessellationParameter;
 	FShaderParameter NeighborSectionLodParameter;
 	FShaderParameter LodBiasParameter;
@@ -383,6 +345,8 @@ void FLandscapeComponentSceneProxyMobile::CreateRenderThreadResources()
 
 	if (IsComponentLevelVisible())
 	{
+		OriginAndSphereRadius = FVector4(GetBounds().Origin, GetBounds().SphereRadius);
+		LandscapeSceneProxy = this;
 		RegisterNeighbors();
 	}
 	

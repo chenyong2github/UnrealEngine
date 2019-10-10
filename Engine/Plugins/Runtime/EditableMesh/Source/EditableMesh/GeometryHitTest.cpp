@@ -2,7 +2,7 @@
 
 #include "GeometryHitTest.h"
 #include "EditableMesh.h"
-#include "MeshAttributes.h"
+#include "StaticMeshAttributes.h"
 #include "MeshElement.h"
 
 namespace GeometryTest

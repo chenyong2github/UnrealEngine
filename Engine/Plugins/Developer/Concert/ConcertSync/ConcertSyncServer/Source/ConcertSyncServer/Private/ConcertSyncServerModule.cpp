@@ -44,9 +44,9 @@ public:
 		return ServerConfig;
 	}
 
-	virtual TSharedRef<IConcertSyncServer> CreateServer(const FString& InRole) override
+	virtual TSharedRef<IConcertSyncServer> CreateServer(const FString& InRole, const FConcertSessionFilter& InAutoArchiveSessionFilter) override
 	{
-		return MakeShared<FConcertSyncServer>(InRole);
+		return MakeShared<FConcertSyncServer>(InRole, InAutoArchiveSessionFilter);
 	}
 };
 

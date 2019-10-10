@@ -700,6 +700,12 @@ public:
 		return ClearValue;
 	}
 
+	virtual void GetWriteMaskProperties(void*& OutData, uint32& OutSize)
+	{
+		OutData = nullptr;
+		OutSize = 0;
+	}
+
 private:
 	FClearValueBinding ClearValue;
 	uint32 NumMips;
@@ -1304,9 +1310,17 @@ public:
 	{
 		return ExtractDepth() == DepthWrite;
 	}
+	inline bool IsDepthRead() const
+	{
+		return ExtractDepth() == DepthRead;
+	}
 	inline bool IsStencilWrite() const
 	{
 		return ExtractStencil() == StencilWrite;
+	}
+	inline bool IsStencilRead() const
+	{
+		return ExtractStencil() == StencilRead;
 	}
 
 	inline bool IsAnyWrite() const
@@ -1362,6 +1376,42 @@ public:
 		}
 
 		return true;
+	}
+
+	/**
+	* Returns a new FExclusiveDepthStencil to be used to transition a depth stencil resource to readable.
+	* If the depth or stencil is already in a readable state, that particular component is returned as Nop,
+	* to avoid unnecessary subresource transitions.
+	*/
+	inline FExclusiveDepthStencil GetReadableTransition() const 
+	{
+		FExclusiveDepthStencil::Type NewDepthState = IsDepthWrite()
+			? FExclusiveDepthStencil::DepthRead
+			: FExclusiveDepthStencil::DepthNop;
+
+		FExclusiveDepthStencil::Type NewStencilState = IsStencilWrite()
+			? FExclusiveDepthStencil::StencilRead
+			: FExclusiveDepthStencil::StencilNop;
+
+		return (FExclusiveDepthStencil::Type)(NewDepthState | NewStencilState);
+	}
+
+	/**
+	* Returns a new FExclusiveDepthStencil to be used to transition a depth stencil resource to readable.
+	* If the depth or stencil is already in a readable state, that particular component is returned as Nop,
+	* to avoid unnecessary subresource transitions.
+	*/
+	inline FExclusiveDepthStencil GetWritableTransition() const
+	{
+		FExclusiveDepthStencil::Type NewDepthState = IsDepthRead()
+			? FExclusiveDepthStencil::DepthWrite
+			: FExclusiveDepthStencil::DepthNop;
+
+		FExclusiveDepthStencil::Type NewStencilState = IsStencilRead()
+			? FExclusiveDepthStencil::StencilWrite
+			: FExclusiveDepthStencil::StencilNop;
+
+		return (FExclusiveDepthStencil::Type)(NewDepthState | NewStencilState);
 	}
 
 	uint32 GetIndex() const
@@ -1517,6 +1567,8 @@ public:
 	bool bClearDepth;
 	bool bClearStencil;
 
+	FRHITexture* FoveationTexture;
+
 	// UAVs info.
 	FUnorderedAccessViewRHIRef UnorderedAccessView[MaxSimultaneousUAVs];
 	int32 NumUAVs;
@@ -1527,6 +1579,7 @@ public:
 		bHasResolveAttachments(false),
 		bClearDepth(false),
 		bClearStencil(false),
+		FoveationTexture(nullptr),
 		NumUAVs(0)
 	{}
 
@@ -1537,6 +1590,7 @@ public:
 		DepthStencilRenderTarget(InDepthStencilRenderTarget),		
 		bClearDepth(InDepthStencilRenderTarget.Texture && InDepthStencilRenderTarget.DepthLoadAction == ERenderTargetLoadAction::EClear),
 		bClearStencil(InDepthStencilRenderTarget.Texture && InDepthStencilRenderTarget.StencilLoadAction == ERenderTargetLoadAction::EClear),
+		FoveationTexture(nullptr),
 		NumUAVs(0)
 	{
 		check(InNumColorRenderTargets <= 0 || InColorRenderTargets);
@@ -1565,8 +1619,8 @@ public:
 		// Need a separate struct so we can memzero/remove dependencies on reference counts
 		struct FHashableStruct
 		{
-			// Depth goes in the last slot
-			FRHITexture* Texture[MaxSimultaneousRenderTargets*2 + 1];
+			// *2 for color and resolves, depth goes in the second-to-last slot, fixed foveation goes in the last slot
+			FRHITexture* Texture[MaxSimultaneousRenderTargets*2 + 2];
 			uint32 MipIndex[MaxSimultaneousRenderTargets];
 			uint32 ArraySliceIndex[MaxSimultaneousRenderTargets];
 			ERenderTargetLoadAction LoadAction[MaxSimultaneousRenderTargets];
@@ -1598,6 +1652,7 @@ public:
 				}
 
 				Texture[MaxSimultaneousRenderTargets] = RTInfo.DepthStencilRenderTarget.Texture;
+				Texture[MaxSimultaneousRenderTargets + 1] = RTInfo.FoveationTexture;
 				DepthLoadAction = RTInfo.DepthStencilRenderTarget.DepthLoadAction;
 				DepthStoreAction = RTInfo.DepthStencilRenderTarget.DepthStoreAction;
 				StencilLoadAction = RTInfo.DepthStencilRenderTarget.StencilLoadAction;
@@ -2419,6 +2474,10 @@ struct FRHIRenderPassInfo
 
 	FResolveParams ResolveParameters;
 
+	// Some RHIs can use a texture to control the sampling and/or shading resolution of different areas 
+	// (@todo: This implementation is specific to fixed foveated rendering, and will be updated or replaced as a more general pathway comes online)
+	FTextureRHIRef FoveationTexture = nullptr;
+
 	// Some RHIs require a hint that occlusion queries will be used in this render pass
 	uint32 NumOcclusionQueries = 0;
 	bool bOcclusionQueries = false;
@@ -2613,6 +2672,27 @@ struct FRHIRenderPassInfo
 		DepthStencilRenderTarget.ResolveTarget = ResolveDepthRT;
 		DepthStencilRenderTarget.Action = DepthActions;
 		DepthStencilRenderTarget.ExclusiveDepthStencil = InEDS;
+		FMemory::Memzero(&ColorRenderTargets[1], sizeof(FColorEntry) * (MaxSimultaneousRenderTargets - 1));
+	}
+
+	// Color and depth with resolve and optional sample density
+	explicit FRHIRenderPassInfo(FRHITexture* ColorRT, ERenderTargetActions ColorAction, FRHITexture* ResolveColorRT,
+		FRHITexture* DepthRT, EDepthStencilTargetActions DepthActions, FRHITexture* ResolveDepthRT, FRHITexture* InFoveationTexture,
+		FExclusiveDepthStencil InEDS = FExclusiveDepthStencil::DepthWrite_StencilWrite)
+	{
+		check(ColorRT);
+		ColorRenderTargets[0].RenderTarget = ColorRT;
+		ColorRenderTargets[0].ResolveTarget = ResolveColorRT;
+		ColorRenderTargets[0].ArraySlice = -1;
+		ColorRenderTargets[0].MipIndex = 0;
+		ColorRenderTargets[0].Action = ColorAction;
+		bIsMSAA = ColorRT->GetNumSamples() > 1;
+		check(DepthRT);
+		DepthStencilRenderTarget.DepthStencilTarget = DepthRT;
+		DepthStencilRenderTarget.ResolveTarget = ResolveDepthRT;
+		DepthStencilRenderTarget.Action = DepthActions;
+		DepthStencilRenderTarget.ExclusiveDepthStencil = InEDS;
+		FoveationTexture = InFoveationTexture;
 		FMemory::Memzero(&ColorRenderTargets[1], sizeof(FColorEntry) * (MaxSimultaneousRenderTargets - 1));
 	}
 

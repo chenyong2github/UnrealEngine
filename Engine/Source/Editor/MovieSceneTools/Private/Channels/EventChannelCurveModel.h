@@ -46,8 +46,6 @@ public:
 	virtual void CreateKeyProxies(TArrayView<const FKeyHandle> InKeyHandles, TArrayView<UObject*> OutObjects) override;
 
 private:
-	void FeaturePointMethod(double StartTime, double EndTime, double StartValue, double Mu, int Depth, int MaxDepth, double& MaxV, double& MinVal) const;
-private:
 
 	TMovieSceneChannelHandle<FMovieSceneEventChannel> ChannelHandle;
 	TWeakObjectPtr<UMovieSceneSection> WeakSection;

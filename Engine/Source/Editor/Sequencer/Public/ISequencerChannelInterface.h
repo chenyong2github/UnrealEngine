@@ -137,9 +137,10 @@ struct ISequencerChannelInterface
 	 *
 	 * @param Channel               The channel to query
 	 * @param InKeyHandles          Array of handles to duplicate
+	 * @param InOwner               The section that owns the channel
 	 * @param OutKeyDrawParams      Pre-sized array to receive key draw parameters. Invalid key handles will not be assigned to this array. Must match size of InKeyHandles.
 	 */
-	virtual void DrawKeys_Raw(FMovieSceneChannel* Channel, TArrayView<const FKeyHandle> InKeyHandles, TArrayView<FKeyDrawParams> OutKeyDrawParams) const = 0;
+	virtual void DrawKeys_Raw(FMovieSceneChannel* Channel, TArrayView<const FKeyHandle> InKeyHandles, const UMovieSceneSection* InOwner, TArrayView<FKeyDrawParams> OutKeyDrawParams) const = 0;
 
 	/**
 	 * Whether this channel supports curve models

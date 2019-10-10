@@ -234,7 +234,7 @@ public class Launch : ModuleRules
 				DynamicallyLoadedModuleNames.Add("LuminRuntimeSettings");
 			}
 		}
-		
+
 		if (Target.Platform == UnrealTargetPlatform.IOS || Target.Platform == UnrealTargetPlatform.TVOS)
 		{
 			PrivateDependencyModuleNames.AddRange(new string[] {
@@ -242,7 +242,7 @@ public class Launch : ModuleRules
 				"IOSAudio",
 				"LaunchDaemonMessages",
 			});
-			
+
 			DynamicallyLoadedModuleNames.AddRange(new string[] {
 				"IOSLocalNotification",
 				"IOSRuntimeSettings",
@@ -260,21 +260,8 @@ public class Launch : ModuleRules
 			DynamicallyLoadedModuleNames.Add("OpenGLDrv");
 		}
 
-		if (Target.Platform == UnrealTargetPlatform.HTML5 )
-		{
-			PrivateDependencyModuleNames.AddRange(
-				new string[] {
-					"ALAudio",
-					"AudioMixerSDL",
-					"Analytics",
-					"AnalyticsET"
-				}
-			);
-            AddEngineThirdPartyPrivateStaticDependencies(Target, "SDL2");
-		}
-
-		// @todo ps4 clang bug: this works around a PS4/clang compiler bug (optimizations)
-		if (Target.Platform == UnrealTargetPlatform.PS4)
+        // @todo ps4 clang bug: this works around a PS4/clang compiler bug (optimizations)
+        if (Target.Platform == UnrealTargetPlatform.PS4)
 		{
 			bUseUnity = true;
 		}

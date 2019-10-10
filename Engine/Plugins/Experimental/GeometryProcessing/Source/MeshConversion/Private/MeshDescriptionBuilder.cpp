@@ -1,12 +1,14 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "MeshDescriptionBuilder.h"
-#include "MeshAttributes.h"
+#include "StaticMeshAttributes.h"
 #include "VectorTypes.h"
 #include "BoxTypes.h"
 
 #include "DynamicMesh3.h"
 #include "DynamicMeshAttributeSet.h"
+
+#include "MeshNormals.h"
 
 namespace ExtendedMeshAttribute
 {
@@ -114,6 +116,24 @@ void FMeshDescriptionBuilder::SetInstanceNormal(const FVertexInstanceID& Instanc
 }
 
 
+void FMeshDescriptionBuilder::SetInstanceUV(const FVertexInstanceID& InstanceID, const FVector2D& InstanceUV, int32 UVLayerIndex)
+{
+	if (InstanceUVs.IsValid() && ensure(UVLayerIndex < InstanceUVs.GetNumIndices()))
+	{
+		InstanceUVs.Set(InstanceID, UVLayerIndex, InstanceUV); 
+	}
+}
+
+
+void FMeshDescriptionBuilder::SetNumUVLayers(int32 NumUVLayers)
+{
+	if (ensure(InstanceUVs.IsValid()))
+	{
+		InstanceUVs.SetNumIndices(NumUVLayers);
+	}
+}
+
+
 void FMeshDescriptionBuilder::SetInstanceColor(const FVertexInstanceID& InstanceID, const FVector4& Color)
 {
 	if (InstanceColors.IsValid())
@@ -212,6 +232,8 @@ void FMeshDescriptionBuilder::SetPolyGroupID(const FPolygonID& PolygonID, int Gr
 
 void FMeshDescriptionBuilder::AppendMesh(const FDynamicMesh3* Mesh, bool bSetPolyGroups)
 {
+	// TODO: update to support multiple UV layers; & combine w/ extremely similar code in DynamicMeshToMeshDescription.cpp
+
 	// create vertices
 	TArray<FVertexID> MapV;
 	MapV.SetNum(Mesh->MaxVertexID());
@@ -312,52 +334,6 @@ void FMeshDescriptionBuilder::SetAllEdgesHardness(bool bHard)
 	}
 }
 
-
-
-void FMeshDescriptionBuilder::RecalculateInstanceNormals()
-{
-	for (int k = 0; k < InstanceNormals.GetNumElements(); ++k)
-	{
-		InstanceNormals.Set(FVertexInstanceID(k), 0, FVector::ZeroVector);
-	}
-
-	const FPolygonArray& Polygons = MeshDescription->Polygons();
-	for (const FPolygonID PolygonID : Polygons.GetElementIDs())
-	{
-		const TArray<FTriangleID>& TriangleIDs = MeshDescription->GetPolygonTriangleIDs(PolygonID);
-		for (const FTriangleID TriangleID : TriangleIDs)
-		{
-			TArrayView<const FVertexInstanceID> TriangleVertexInstanceIDs = MeshDescription->GetTriangleVertexInstances(TriangleID);
-			FVector3d A = GetPosition(TriangleVertexInstanceIDs[0]);
-			FVector3d B = GetPosition(TriangleVertexInstanceIDs[1]);
-			FVector3d C = GetPosition(TriangleVertexInstanceIDs[2]);
-			double Area = 1.0;
-			FVector FaceNormal = VectorUtil::FastNormalArea(A, B, C, Area);
-			if (Area > FMathf::ZeroTolerance)
-			{
-				FaceNormal *= Area;
-				InstanceNormals.Set(TriangleVertexInstanceIDs[0],
-					InstanceNormals.Get(TriangleVertexInstanceIDs[0], 0) + FaceNormal);
-				InstanceNormals.Set(TriangleVertexInstanceIDs[1],
-					InstanceNormals.Get(TriangleVertexInstanceIDs[1], 0) + FaceNormal);
-				InstanceNormals.Set(TriangleVertexInstanceIDs[2],
-					InstanceNormals.Get(TriangleVertexInstanceIDs[2], 0) + FaceNormal);
-			}
-		}
-	}
-
-
-	for (int k = 0; k < InstanceNormals.GetNumElements(); ++k)
-	{
-		FVector SumNormal = InstanceNormals.Get(FVertexInstanceID(k), 0);
-		SumNormal.Normalize();
-		if ( SumNormal.Size() < 0.99 )
-		{ 
-			SumNormal = FVector(1, 0, 0);
-		}
-		InstanceNormals.Set(FVertexInstanceID(k), 0, SumNormal);
-	}
-}
 
 
 

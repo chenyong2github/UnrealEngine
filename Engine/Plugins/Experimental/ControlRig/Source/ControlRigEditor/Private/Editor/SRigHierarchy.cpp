@@ -31,6 +31,7 @@
 #include "ControlRig.h"
 #include "ControlRigEditorStyle.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Dialogs/Dialogs.h"
 
 #define LOCTEXT_NAMESPACE "SRigHierarchy"
 
@@ -114,9 +115,36 @@ void SRigHierarchyItem::Construct(const FArguments& InArgs, TSharedPtr<FControlR
 			Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.Space");
 			break;
 		}
+		case ERigElementType::Bone:
+		{
+			ERigBoneType BoneType = ERigBoneType::User;
+
+			int32 BoneIndex = InHierarchy->ControlRigBlueprint->HierarchyContainer.GetIndex(InRigTreeElement->Key);
+			if (BoneIndex != INDEX_NONE)
+			{
+				BoneType = InHierarchy->ControlRigBlueprint->HierarchyContainer.BoneHierarchy[BoneIndex].Type;
+			}
+
+			switch (BoneType)
+			{
+				case ERigBoneType::Imported:
+				{
+					Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.BoneImported");
+					break;
+				}
+				case ERigBoneType::User:
+				default:
+				{
+					Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.BoneUser");
+					break;
+				}
+			}
+
+			break;
+		}
 		default:
 		{
-			Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.Bone");
+			Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.BoneUser");
 			break;
 		}
 	}
@@ -568,10 +596,14 @@ void SRigHierarchy::AddElement(FRigElementKey InKey, FRigElementKey InParentKey)
 			RootElements.Add(NewItem);
 		}
 	}
-	else if (InKey.Name.ToString().Contains(FilteredString))
+	else
 	{
-		TSharedPtr<FRigTreeElement> NewItem = MakeShared<FRigTreeElement>(InKey, SharedThis(this));
-		RootElements.Add(NewItem);
+		FString FilteredStringUnderScores = FilteredString.Replace(TEXT(" "), TEXT("_"));
+		if (InKey.Name.ToString().Contains(FilteredString) || InKey.Name.ToString().Contains(FilteredStringUnderScores))	
+		{
+			TSharedPtr<FRigTreeElement> NewItem = MakeShared<FRigTreeElement>(InKey, SharedThis(this));
+			RootElements.Add(NewItem);
+		}
 	}
 }
 
@@ -827,19 +859,7 @@ void SRigHierarchy::RefreshHierarchy(const FAssetData& InAssetData)
 		ControlRigBlueprint->Modify();
 
 		const FReferenceSkeleton& RefSkeleton = Mesh->RefSkeleton;
-		const TArray<FMeshBoneInfo>& BoneInfos = RefSkeleton.GetRefBoneInfo();
-		const TArray<FTransform>& BonePoses = RefSkeleton.GetRefBonePose();
-
-		for (int32 Index = 0; Index < RefSkeleton.GetNum(); ++Index)
-		{
-			// only add if you don't have it. This may change in the future
-			int32 RigIndex = Hierarchy->BoneHierarchy.GetIndex(BoneInfos[Index].Name);
-			if (RigIndex != INDEX_NONE)
-			{
-				// @todo: add optimized version without sorting, but if no sort, we should make sure not to use find index function
-				Hierarchy->BoneHierarchy.SetInitialTransform(RigIndex, FAnimationRuntime::GetComponentSpaceTransform(RefSkeleton, BonePoses, Index));
-			}
-		}
+		Hierarchy->BoneHierarchy.ImportSkeleton(RefSkeleton, NAME_None, true, true, true);
 	}
 }
 void SRigHierarchy::CreateImportMenu(FMenuBuilder& MenuBuilder)
@@ -879,28 +899,7 @@ void SRigHierarchy::ImportHierarchy(const FAssetData& InAssetData)
 		ControlRigBlueprint->Modify();
 
 		const FReferenceSkeleton& RefSkeleton = Mesh->RefSkeleton;
-		const TArray<FMeshBoneInfo>& BoneInfos = RefSkeleton.GetRefBoneInfo();
-		const TArray<FTransform>& BonePoses = RefSkeleton.GetRefBonePose();
-
-		Hierarchy->ClearSelection();
-
-		TArray<FName> AddedBones;
-		for (int32 Index = 0; Index < RefSkeleton.GetNum(); ++Index)
-		{
-			// only add if you don't have it. This may change in the future
-			if (Hierarchy->BoneHierarchy.GetIndex(BoneInfos[Index].Name) == INDEX_NONE)
-			{
-				// @todo: add optimized version without sorting, but if no sort, we should make sure not to use find index function
-				FName ParentName = (BoneInfos[Index].ParentIndex != INDEX_NONE) ? BoneInfos[BoneInfos[Index].ParentIndex].Name : NAME_None;
-				Hierarchy->BoneHierarchy.Add(BoneInfos[Index].Name, ParentName, FAnimationRuntime::GetComponentSpaceTransform(RefSkeleton, BonePoses, Index));
-				AddedBones.Add(BoneInfos[Index].Name);
-			}
-		}
-
-		for (const FName& AddedBone : AddedBones)
-		{
-			Hierarchy->BoneHierarchy.Select(AddedBone);
-		}
+		Hierarchy->BoneHierarchy.ImportSkeleton(RefSkeleton, NAME_None, false, false, true);
 
 		FSlateApplication::Get().DismissAllMenus();
 		RefreshTreeView();
@@ -959,6 +958,9 @@ void SRigHierarchy::HandleDeleteItem()
 		// clear detail view display
 		ControlRigEditor.Pin()->ClearDetailObject();
 
+		bool bConfirmedByUser = false;
+		bool bDeleteImportedBones = false;
+
 		TArray<TSharedPtr<FRigTreeElement>> SelectedItems = TreeView->GetSelectedItems();
 		for (int32 ItemIndex = 0; ItemIndex < SelectedItems.Num(); ++ItemIndex)
 		{
@@ -969,8 +971,31 @@ void SRigHierarchy::HandleDeleteItem()
 			{
 				case ERigElementType::Bone:
 				{
-					if (Hierarchy->BoneHierarchy.GetIndex(SelectedKey.Name) != INDEX_NONE)
+					int32 BoneIndex = Hierarchy->BoneHierarchy.GetIndex(SelectedKey.Name);
+					if (BoneIndex != INDEX_NONE)
 					{
+						const FRigBone& Bone = Hierarchy->BoneHierarchy[BoneIndex];
+						if (Bone.Type == ERigBoneType::Imported && Bone.ParentIndex != INDEX_NONE)
+						{
+							if (!bConfirmedByUser)
+							{
+								FText ConfirmDelete = LOCTEXT("ConfirmDeleteBoneHierarchy",
+									"Deleting imported(white) bones can cause issues with animation - are you sure ?");
+
+								FSuppressableWarningDialog::FSetupInfo Info(ConfirmDelete, LOCTEXT("DeleteImportedBone", "Delete Imported Bone"), "DeleteImportedBoneHierarchy_Warning");
+								Info.ConfirmText = LOCTEXT("DeleteImportedBoneHierarchy_Yes", "Yes");
+								Info.CancelText = LOCTEXT("DeleteImportedBoneHierarchy_No", "No");
+
+								FSuppressableWarningDialog DeleteImportedBonesInHierarchy(Info);
+								bDeleteImportedBones = DeleteImportedBonesInHierarchy.ShowModal() != FSuppressableWarningDialog::Cancel;
+								bConfirmedByUser = true;
+							}
+
+							if (!bDeleteImportedBones)
+							{
+								break;
+							}
+						}
 						Hierarchy->BoneHierarchy.Remove(SelectedKey.Name);
 					}
 					break;
@@ -1040,7 +1065,7 @@ void SRigHierarchy::HandleNewItem(ERigElementType InElementType)
 				{
 					FName ParentName = ParentKey.Type == ERigElementType::Bone ? ParentKey.Name : NAME_None;
 					ParentTransform = ParentName == NAME_None ? FTransform::Identity : ParentTransform;
-					Hierarchy->BoneHierarchy.Add(NewElementName, ParentName, ParentTransform);
+					Hierarchy->BoneHierarchy.Add(NewElementName, ParentName, ERigBoneType::User, ParentTransform);
 					break;
 				}
 				case ERigElementType::Control:
@@ -1147,7 +1172,7 @@ void SRigHierarchy::HandleDuplicateItem()
 					FName ParentName = Hierarchy->BoneHierarchy[Key.Name].ParentName;
 
 					const FName NewName = CreateUniqueName(Key.Name, Key.Type);
-					FRigBone& NewBone = Hierarchy->BoneHierarchy.Add(NewName, ParentName, Transform);
+					FRigBone& NewBone = Hierarchy->BoneHierarchy.Add(NewName, ParentName, ERigBoneType::User, Transform);
 					NewKeys.Add(NewBone.GetElementKey());
 					break;
 				}
@@ -1205,6 +1230,29 @@ void SRigHierarchy::HandleRenameItem()
 		TArray<TSharedPtr<FRigTreeElement>> SelectedItems = TreeView->GetSelectedItems();
 		if (SelectedItems.Num() == 1)
 		{
+			if (SelectedItems[0]->Key.Type == ERigElementType::Bone)
+			{
+				int32 BoneIndex = Hierarchy->GetIndex(SelectedItems[0]->Key);
+				if (BoneIndex != INDEX_NONE)
+				{
+					const FRigBone& Bone = Hierarchy->BoneHierarchy[BoneIndex];
+					if (Bone.Type == ERigBoneType::Imported)
+					{
+						FText ConfirmRename = LOCTEXT("RenameDeleteBoneHierarchy",
+							"Renaming imported(white) bones can cause issues with animation - are you sure ?");
+
+						FSuppressableWarningDialog::FSetupInfo Info(ConfirmRename, LOCTEXT("RenameImportedBone", "Rename Imported Bone"), "RenameImportedBoneHierarchy_Warning");
+						Info.ConfirmText = LOCTEXT("RenameImportedBoneHierarchy_Yes", "Yes");
+						Info.CancelText = LOCTEXT("RenameImportedBoneHierarchy_No", "No");
+
+						FSuppressableWarningDialog RenameImportedBonesInHierarchy(Info);
+						if (RenameImportedBonesInHierarchy.ShowModal() == FSuppressableWarningDialog::Cancel)
+						{
+							return;
+						}
+					}
+				}
+			}
 			SelectedItems[0]->RequestRename();
 		}
 	}
@@ -1354,7 +1402,7 @@ FReply SRigHierarchy::OnDragDetected(const FGeometry& MyGeometry, const FPointer
 		DraggedElements.Add(SelectedItem->Key);
 	}
 
-	if (MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
+	if (MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton) && DraggedElements.Num() > 0)
 	{
 		if (ControlRigEditor.IsValid())
 		{
@@ -1451,7 +1499,31 @@ FReply SRigHierarchy::OnAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDro
 					DraggedKey.Type,
 					Container->GetIndex(DraggedKey)))
 				{
-					return FReply::Unhandled();;
+					return FReply::Unhandled();
+				}
+
+				if (DraggedKey.Type == ERigElementType::Bone)
+				{
+					int32 BoneIndex = Container->BoneHierarchy.GetIndex(DraggedKey.Name);
+					if (BoneIndex != INDEX_NONE)
+					{
+						const FRigBone& Bone = Container->BoneHierarchy[BoneIndex];
+						if (Bone.Type == ERigBoneType::Imported && Bone.ParentIndex != INDEX_NONE)
+						{
+							FText ConfirmReparent = LOCTEXT("ConfirmReparentBoneHierarchy",
+								"Reparenting imported(white) bones can cause issues with animation - are you sure ?");
+
+							FSuppressableWarningDialog::FSetupInfo Info(ConfirmReparent, LOCTEXT("ReparentImportedBone", "Reparent Imported Bone"), "ReparentImportedBoneHierarchy_Warning");
+							Info.ConfirmText = LOCTEXT("ReparentImportedBoneHierarchy_Yes", "Yes");
+							Info.CancelText = LOCTEXT("ReparentImportedBoneHierarchy_No", "No");
+
+							FSuppressableWarningDialog ReparentImportedBonesInHierarchy(Info);
+							if (ReparentImportedBonesInHierarchy.ShowModal() == FSuppressableWarningDialog::Cancel)
+							{
+								return FReply::Unhandled();
+							}
+						}
+					}
 				}
 			}
 

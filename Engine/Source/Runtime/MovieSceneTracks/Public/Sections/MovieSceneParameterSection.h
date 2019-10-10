@@ -8,6 +8,7 @@
 #include "Curves/RichCurve.h"
 #include "MovieSceneSection.h"
 #include "Channels/MovieSceneFloatChannel.h"
+#include "Sections/MovieScene3DTransformSection.h"
 #include "MovieSceneParameterSection.generated.h"
 
 struct FMovieSceneParameterPropertyInterface;
@@ -31,7 +32,6 @@ struct FScalarParameterNameAndValue
 	/** The animated value of the scalar parameter. */
 	float Value;
 };
-
 
 /**
  * Structure representing the animated value of a vector parameter.
@@ -72,12 +72,31 @@ struct FColorParameterNameAndValue
 	FLinearColor Value;
 };
 
+struct FTransformParameterNameAndValue
+{
+
+	/** The name of the transform  parameter. */
+	FName ParameterName;
+	/** Translation component */
+	FVector Translation;
+	/** Rotation component */
+	FRotator Rotation;
+	/** Scale component */
+	FVector Scale;
+
+	FTransformParameterNameAndValue(FName InParameterName,const FVector& InTranslation,
+		const FRotator& InRotation, const FVector& InScale) : Translation(InTranslation),
+		Rotation(InRotation), Scale(InScale)
+	{
+		ParameterName = InParameterName;	
+	}
+};
 
 /**
  * Structure representing an animated scalar parameter and it's associated animation curve.
  */
 USTRUCT()
-struct FScalarParameterNameAndCurve
+struct MOVIESCENETRACKS_API FScalarParameterNameAndCurve
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -101,7 +120,7 @@ struct FScalarParameterNameAndCurve
  * Structure representing an animated vector parameter and it's associated animation curve.
  */
 USTRUCT()
-struct FVectorParameterNameAndCurves
+struct MOVIESCENETRACKS_API FVectorParameterNameAndCurves
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -130,10 +149,10 @@ struct FVectorParameterNameAndCurves
 
 
 /**
-* Structure representing an animated vector parameter and it's associated animation curve.
+* Structure representing an animated color parameter and it's associated animation curve.
 */
 USTRUCT()
-struct FColorParameterNameAndCurves
+struct MOVIESCENETRACKS_API FColorParameterNameAndCurves
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -143,7 +162,7 @@ struct FColorParameterNameAndCurves
 	/** Creates a new FVectorParameterNameAndCurve for a specific color parameter. */
 	FColorParameterNameAndCurves(FName InParameterName);
 
-	/** The name of the vector parameter which is being animated. */
+	/** The name of the color parameter which is being animated. */
 	UPROPERTY()
 	FName ParameterName;
 
@@ -164,25 +183,57 @@ struct FColorParameterNameAndCurves
 	FMovieSceneFloatChannel AlphaCurve;
 };
 
+/**
+* Structure representing an animated transform parameter and it's associated animation curve.
+*/
+USTRUCT()
+struct MOVIESCENETRACKS_API FTransformParameterNameAndCurves
+{
+	GENERATED_USTRUCT_BODY()
 
+	FTransformParameterNameAndCurves()
+	{}
+
+	/** Creates a new FVectorParameterNameAndCurve for a specific color parameter. */
+	FTransformParameterNameAndCurves(FName InParameterName);
+
+	/** The name of the transform  parameter which is being animated. */
+	UPROPERTY()
+	FName ParameterName;
+
+	/** Translation curves */
+	UPROPERTY()
+	FMovieSceneFloatChannel Translation[3];
+
+	/** Rotation curves */
+	UPROPERTY()
+	FMovieSceneFloatChannel Rotation[3];
+
+	/** Scale curves */
+	UPROPERTY()
+	FMovieSceneFloatChannel Scale[3];
+};
 /**
  * A single movie scene section which can contain data for multiple named parameters.
  */
-UCLASS(MinimalAPI)
-class UMovieSceneParameterSection
+UCLASS()
+class MOVIESCENETRACKS_API UMovieSceneParameterSection
 	: public UMovieSceneSection
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 	/** Adds a a key for a specific scalar parameter at the specified time with the specified value. */
-	MOVIESCENETRACKS_API void AddScalarParameterKey(FName InParameterName, FFrameNumber InTime, float InValue);
+	 void AddScalarParameterKey(FName InParameterName, FFrameNumber InTime, float InValue);
 
 	/** Adds a a key for a specific vector parameter at the specified time with the specified value. */
-	MOVIESCENETRACKS_API void AddVectorParameterKey(FName InParameterName, FFrameNumber InTime, FVector InValue);
+	 void AddVectorParameterKey(FName InParameterName, FFrameNumber InTime, FVector InValue);
 
 	/** Adds a a key for a specific color parameter at the specified time with the specified value. */
-	MOVIESCENETRACKS_API void AddColorParameterKey(FName InParameterName, FFrameNumber InTime, FLinearColor InValue);
+	 void AddColorParameterKey(FName InParameterName, FFrameNumber InTime, FLinearColor InValue);
+
+	/** Adds a a key for a specific color parameter at the specified time with the specified value. */
+	 void AddTransformParameterKey(FName InParameterName, FFrameNumber InTime, const FTransform& InValue);
 
 	/** 
 	 * Removes a scalar parameter from this section. 
@@ -190,7 +241,7 @@ public:
 	 * @param InParameterName The name of the scalar parameter to remove.
 	 * @returns True if a parameter with that name was found and removed, otherwise false.
 	 */
-	MOVIESCENETRACKS_API bool RemoveScalarParameter(FName InParameterName);
+	 bool RemoveScalarParameter(FName InParameterName);
 
 	/**
 	 * Removes a vector parameter from this section.
@@ -198,7 +249,7 @@ public:
 	 * @param InParameterName The name of the vector parameter to remove.
 	 * @returns True if a parameter with that name was found and removed, otherwise false.
 	 */
-	MOVIESCENETRACKS_API bool RemoveVectorParameter(FName InParameterName);
+	 bool RemoveVectorParameter(FName InParameterName);
 
 	/**
 	 * Removes a color parameter from this section.
@@ -206,32 +257,43 @@ public:
 	 * @param InParameterName The name of the color parameter to remove.
 	 * @returns True if a parameter with that name was found and removed, otherwise false.
 	 */
-	MOVIESCENETRACKS_API bool RemoveColorParameter(FName InParameterName);
+	 bool RemoveColorParameter(FName InParameterName);
+
+	/**
+	 * Removes a transform parameter from this section.
+	 *
+	 * @param InParameterName The name of the transform parameter to remove.
+	 * @returns True if a parameter with that name was found and removed, otherwise false.
+	 */
+	 bool RemoveTransformParameter(FName InParameterName);
 
 	/** Gets the animated scalar parameters and their associated curves. */
-	MOVIESCENETRACKS_API TArray<FScalarParameterNameAndCurve>& GetScalarParameterNamesAndCurves();
-	MOVIESCENETRACKS_API const TArray<FScalarParameterNameAndCurve>& GetScalarParameterNamesAndCurves() const;
+	 TArray<FScalarParameterNameAndCurve>& GetScalarParameterNamesAndCurves();
+	 const TArray<FScalarParameterNameAndCurve>& GetScalarParameterNamesAndCurves() const;
 
 	/** Gets the animated vector parameters and their associated curves. */
-	MOVIESCENETRACKS_API TArray<FVectorParameterNameAndCurves>& GetVectorParameterNamesAndCurves();
-	MOVIESCENETRACKS_API const TArray<FVectorParameterNameAndCurves>& GetVectorParameterNamesAndCurves() const;
+	 TArray<FVectorParameterNameAndCurves>& GetVectorParameterNamesAndCurves();
+	 const TArray<FVectorParameterNameAndCurves>& GetVectorParameterNamesAndCurves() const;
 
 	/** Gets the animated color parameters and their associated curves. */
-	MOVIESCENETRACKS_API TArray<FColorParameterNameAndCurves>& GetColorParameterNamesAndCurves();
-	MOVIESCENETRACKS_API const TArray<FColorParameterNameAndCurves>& GetColorParameterNamesAndCurves() const;
+	 TArray<FColorParameterNameAndCurves>& GetColorParameterNamesAndCurves();
+	 const TArray<FColorParameterNameAndCurves>& GetColorParameterNamesAndCurves() const;
+
+	/** Gets the animated transform parameters and their associated curves. */
+	 TArray<FTransformParameterNameAndCurves>& GetTransformParameterNamesAndCurves();
+     const TArray<FTransformParameterNameAndCurves>& GetTransformParameterNamesAndCurves() const;
 
 	/** Gets the set of all parameter names used by this section. */
-	MOVIESCENETRACKS_API void GetParameterNames(TSet<FName>& ParameterNames) const;
+	void GetParameterNames(TSet<FName>& ParameterNames) const;
 
 protected:
 
 	//~ UMovieSceneSection interface
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostEditImport() override;
+	virtual void ReconstructChannelProxy();
 
-	void ReconstructChannelProxy();
-
-private:
+protected:
 
 	/** The scalar parameter names and their associated curves. */
 	UPROPERTY()
@@ -244,4 +306,8 @@ private:
 	/** The vector parameter names and their associated curves. */
 	UPROPERTY()
 	TArray<FColorParameterNameAndCurves> ColorParameterNamesAndCurves;
+
+	/** The vector parameter names and their associated curves. */
+	UPROPERTY()
+	TArray<FTransformParameterNameAndCurves> TransformParameterNamesAndCurves;
 };

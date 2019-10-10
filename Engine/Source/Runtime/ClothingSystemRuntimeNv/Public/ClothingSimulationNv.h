@@ -5,10 +5,11 @@
 #if WITH_NVCLOTH
 
 #include "ClothingSimulation.h"
-#include "ClothingActor.h"
 #include "ClothingSimulationContext.h"
+#include "ClothingActor.h"
 
-#include "Assets/ClothingAsset.h"
+#include "Assets/ClothingAssetNv.h"
+
 
 namespace nv
 {
@@ -51,6 +52,7 @@ struct FClothingActorScratchData
 class FClothingActorNv final : public FClothingActorBase
 {
 public:
+	using FClothingActorBase::AssetCreatedFrom;
 
 	FClothingActorNv();
 
@@ -251,11 +253,11 @@ private:
 
 	// Given a clothing config from an asset, apply it to the provided actor. Currently
 	// this is only used from CreateActor, but could be exposed for runtime changes
-	void ApplyClothConfig(FClothConfig &Config, FClothingActorNv &InActor);
+	void ApplyClothConfig(UClothConfigBase *BaseConfig, FClothingActorNv &InActor);
 
 	// Extract collisions from the physics asset inside Asset and apply them to InActor
 	// Not safe to call from workers (i.e. inside the simulation).
-	void ExtractActorCollisions(UClothingAsset* Asset, FClothingActorNv &InActor);
+	void ExtractActorCollisions(UClothingAssetCommon* Asset, FClothingActorNv &InActor);
 
 	// The current LOD index for the owning skeletal mesh component
 	int32 CurrentMeshLodIndex;

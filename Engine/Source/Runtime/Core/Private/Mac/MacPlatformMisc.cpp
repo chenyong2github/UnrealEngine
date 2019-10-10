@@ -1627,7 +1627,7 @@ static void GracefulTerminationHandler(int32 Signal, siginfo_t* Info, void* Cont
 	}
 	else
 	{
-		_Exit(0);
+		_Exit(1);
 	}
 }
 
@@ -1986,7 +1986,7 @@ void FMacCrashContext::GenerateCrashInfoAndLaunchReporter() const
 		raise(Signal);
 	}
 	
-	_Exit(0);
+	_Exit(1);
 }
 
 void FMacCrashContext::GenerateEnsureInfoAndLaunchReporter() const

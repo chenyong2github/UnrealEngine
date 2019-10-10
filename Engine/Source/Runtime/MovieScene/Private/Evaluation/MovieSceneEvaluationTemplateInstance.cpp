@@ -156,6 +156,7 @@ FMovieSceneRootEvaluationTemplateInstance::FMovieSceneRootEvaluationTemplateInst
 	: RootSequence(nullptr)
 	, RootID(MovieSceneSequenceID::Root)
 	, TemplateStore(MakeShared<FMovieSceneSequencePrecompiledTemplateStore>())
+	, bEvaluating(false)
 {
 }
 
@@ -215,7 +216,11 @@ void FMovieSceneRootEvaluationTemplateInstance::Finish(IMovieScenePlayer& Player
 
 void FMovieSceneRootEvaluationTemplateInstance::Evaluate(FMovieSceneContext Context, IMovieScenePlayer& Player, FMovieSceneSequenceID InOverrideRootID)
 {
+	ensureMsgf(!bEvaluating, TEXT("Movie scene evaluation caused a re-entrant evaluation"));
+
 	SCOPE_CYCLE_COUNTER(MovieSceneEval_EntireEvaluationCost);
+
+	TGuardValue<bool> Guard(bEvaluating, true);
 
 	Swap(ThisFrameMetaData, LastFrameMetaData);
 	ThisFrameMetaData.Reset();

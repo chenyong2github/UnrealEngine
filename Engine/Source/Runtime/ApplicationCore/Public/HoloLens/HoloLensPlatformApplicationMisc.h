@@ -12,6 +12,13 @@ struct APPLICATIONCORE_API FHoloLensPlatformApplicationMisc : public FGenericPla
 	static float GetDPIScaleFactorAtPoint(float X, float Y);
 	static void ClipboardCopy(const TCHAR* Str);
 	static void ClipboardPaste(class FString& Dest);
+
+	static bool AnchorWindowWindowPositionTopLeft()
+	{
+		// UE expects mouse coordinates in screen space. HoloLens provides in client space. 
+		// Also note comments in FDisplayMetrics::GetDisplayMetrics for HoloLens.
+		return true;
+	}
 };
 
 typedef FHoloLensPlatformApplicationMisc FPlatformApplicationMisc;

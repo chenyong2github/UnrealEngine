@@ -18,6 +18,8 @@ class UEdGraph;
 class UEdGraphPin;
 class UEdGraphSchema;
 
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnUserDefinedPinRenamed, UK2Node*, FName, FName);
+
 /** Helper structure to cache old data for optional pins so the data can be restored during reconstruction */
 struct FOldOptionalPinSettings
 {
@@ -315,14 +317,17 @@ class UK2Node : public UEdGraphNode
 	// Can this node be created under the specified schema
 	BLUEPRINTGRAPH_API virtual bool CanCreateUnderSpecifiedSchema(const UEdGraphSchema* DesiredSchema) const override;
 
-	// Renames an existing pin on the node.
-	BLUEPRINTGRAPH_API virtual ERenamePinResult RenameUserDefinedPin(const FName OldName, const FName NewName, bool bTest = false);
-
 	// Returns which dynamic binding class (if any) to use for this node
 	BLUEPRINTGRAPH_API virtual UClass* GetDynamicBindingClass() const { return NULL; }
 
 	// Puts information about this node into the dynamic binding object
 	BLUEPRINTGRAPH_API virtual void RegisterDynamicBinding(UDynamicBlueprintBinding* BindingObject) const { };
+
+	// Renames a user defined pin and broadcasts the result to any OnUserDefinedPinRenamed listeners on success (if bTest is false)
+	BLUEPRINTGRAPH_API ERenamePinResult RenameUserDefinedPin(const FName OldName, const FName NewName, bool bTest = false);
+
+	/** Retrieves a delegate that is called when a user-defined pin on this node is renamed */
+	BLUEPRINTGRAPH_API FOnUserDefinedPinRenamed& OnUserDefinedPinRenamed();
 
 	/**
 	 * Handles inserting the node between the FromPin and what the FromPin was original connected to
@@ -425,6 +430,12 @@ protected:
 
 	/** Determines what the possible redirect pin names are **/
 	BLUEPRINTGRAPH_API virtual void GetRedirectPinNames(const UEdGraphPin& Pin, TArray<FString>& RedirectPinNames) const;
+
+	// Implementation function that renames an existing pin on the node. Does not broadcast notifications.
+	BLUEPRINTGRAPH_API virtual ERenamePinResult RenameUserDefinedPinImpl(const FName OldName, const FName NewName, bool bTest);
+
+	/** Attempt to broadcast an event for a user-defined pin being renamed on this node */
+	BLUEPRINTGRAPH_API void BroadcastUserDefinedPinRenamed(FName OldName, FName NewName);
 
 	/** 
 	 * Searches ParamRedirect Map and find if there is matching new param

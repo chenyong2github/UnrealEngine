@@ -1364,7 +1364,7 @@ void UOvrAvatar::LoadMesh(USkeletalMesh* SkeletalMesh, const ovrAvatarMeshAssetD
 	LodInfo.LODHysteresis = 0.2f;
 
 	SkeletalMesh->RefSkeleton.Empty(data->skinnedBindPose.jointCount);
-	SkeletalMesh->bUseFullPrecisionUVs = true;
+	LodInfo.BuildSettings.bUseFullPrecisionUVs = true;
 	SkeletalMesh->bHasBeenSimplified = false;
 	SkeletalMesh->bHasVertexColors = true;
 
@@ -2020,6 +2020,7 @@ ovrAvatarControllerType UOvrAvatar::GetControllerTypeByHardware()
 		controllerType = ovrAvatarControllerType_Go;
 		break;
 	case ovrpSystemHeadset_Oculus_Quest:
+	case ovrpSystemHeadset_Rift_S:
 		controllerType = ovrAvatarControllerType_Quest;
 		break;
 	case ovrpSystemHeadset_Rift_DK1:
@@ -2069,17 +2070,19 @@ bool UOvrAvatar::Is3DOFHardware()
 	return false;
 }
 
-void UOvrAvatar::UpdateVisemeValues(const TArray<float>& visemes)
+void UOvrAvatar::UpdateVisemeValues(const TArray<float>& visemes, const float laughterScore)
 {
 	FScopeLock Lock(&VisemeMutex);
 
-	const int32 VisemeCount = FMath::Min(OVR_AVATAR_MAXIMUM_VISEME_PARAM_COUNT, visemes.Num());
+	int32 VisemeCount = FMath::Min(OVR_AVATAR_MAXIMUM_VISEME_PARAM_COUNT - 1, visemes.Num());
 
-	VisemeValues.visemeParamCount = VisemeCount;
 	for (int i = 0; i < VisemeCount; i++)
 	{
 		VisemeValues.visemeParams[i] = visemes[i] * GAvatarVisemeMultiplier;
 	}
+
+	VisemeValues.visemeParams[VisemeCount] = laughterScore * GAvatarVisemeMultiplier;
+	VisemeValues.visemeParamCount = VisemeCount + 1;
 }
 
 void UOvrAvatar::UpdateHeadGazeTarget()
@@ -2128,7 +2131,7 @@ void UOvrAvatar::LoadCombinedMesh(USkeletalMesh* SkeletalMesh, const ovrAvatarMe
 	LodInfo.LODHysteresis = 0.2f;
 	SkeletalMesh->RefSkeleton.Empty(data->skinnedBindPose.jointCount);
 
-	SkeletalMesh->bUseFullPrecisionUVs = true;
+	LodInfo.BuildSettings.bUseFullPrecisionUVs = true;
 	SkeletalMesh->bHasBeenSimplified = false;
 	SkeletalMesh->bHasVertexColors = true;
 
@@ -2379,9 +2382,9 @@ void UOvrAvatar::LoadCombinedMesh(USkeletalMesh* SkeletalMesh, const ovrAvatarMe
 	FSkeletalMeshLODInfo& LodInfo = SkeletalMesh->AddLODInfo();
 	LodInfo.ScreenSize = 0.3f;
 	LodInfo.LODHysteresis = 0.2f;
+	LodInfo.BuildSettings.bUseFullPrecisionUVs = true;
 
 	SkeletalMesh->RefSkeleton.Empty(data->skinnedBindPose.jointCount);
-	SkeletalMesh->bUseFullPrecisionUVs = true;
 	SkeletalMesh->bHasBeenSimplified = false;
 	SkeletalMesh->bHasVertexColors = true;
 

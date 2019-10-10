@@ -4,6 +4,7 @@
 
 #include "RemoteSessionXRTrackingChannel.h"
 #include "ARSystem.h"
+#include "ARTraceResult.h"
 
 /**
  * This class acts as if there is a AR system present on the desktop that is receiving data from a remote device
@@ -142,4 +143,11 @@ private:
 	FDelegateHandle OnTrackableAddedDelegateHandle;
 	FDelegateHandle OnTrackableUpdatedDelegateHandle;
 	FDelegateHandle OnTrackableRemovedDelegateHandle;
+};
+
+class REMOTESESSION_API FRemoteSessionARSystemChannelFactoryWorker : public IRemoteSessionChannelFactoryWorker
+{
+public:
+	virtual const TCHAR* GetType() const override { return FRemoteSessionARSystemChannel::StaticType(); }
+	virtual TSharedPtr<IRemoteSessionChannel> Construct(ERemoteSessionChannelMode InMode, TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection) const override;
 };

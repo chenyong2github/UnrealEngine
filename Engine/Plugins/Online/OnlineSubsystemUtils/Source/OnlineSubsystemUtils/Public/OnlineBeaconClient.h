@@ -76,6 +76,7 @@ class ONLINESUBSYSTEMUTILS_API AOnlineBeaconClient : public AOnlineBeacon
 	 *
 	 * @param EncryptionToken the token to use
 	 */
+	UE_DEPRECATED(4.24, "Use SetEncryptionData instead")
 	void SetEncryptionToken(const FString& InEncryptionToken);
 
 	/**
@@ -83,7 +84,15 @@ class ONLINESUBSYSTEMUTILS_API AOnlineBeaconClient : public AOnlineBeacon
 	 *
 	 * @param EncryptionKey the key to use
 	 */
+	UE_DEPRECATED(4.24, "Use SetEncryptionData instead")
 	void SetEncryptionKey(TArrayView<uint8> InEncryptionKey);
+
+	/**
+	 * Sets the encryption data that will be used for server connections.
+	 *
+	 * @param InEncryptionData the encryption data to use, including key and identifier
+	 */
+	void SetEncryptionData(const FEncryptionData& InEncryptionData);
 
 	/**
 	 * Send the packet for triggering the initial join
@@ -178,11 +187,8 @@ protected:
 
 private:
 
-	/** Token sent to servers when connecting with an NMT_Hello message. */
-	FString EncryptionToken;
-
-	/** Key used when connecting to servers. */
-	TArray<uint8> EncryptionKey;
+	/** Encryption data used when connecting to servers. */
+	FEncryptionData EncryptionData;
 
 	/**
 	 * Setup the connection for encryption with a given key

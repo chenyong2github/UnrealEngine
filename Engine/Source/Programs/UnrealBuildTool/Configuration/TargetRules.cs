@@ -201,7 +201,12 @@ namespace UnrealBuildTool
 		/// Specifies the engine version to maintain backwards-compatible default build settings with (eg. DefaultSettingsVersion.Release_4_23, DefaultSettingsVersion.Release_4_24). Specify DefaultSettingsVersion.Latest to always
 		/// use defaults for the current engine version, at the risk of introducing build errors while upgrading.
 		/// </summary>
-		public BuildSettingsVersion DefaultBuildSettings = BuildSettingsVersion.V1;
+		public BuildSettingsVersion DefaultBuildSettings
+		{
+			get { return DefaultBuildSettingsPrivate ?? BuildSettingsVersion.V1; }
+			set { DefaultBuildSettingsPrivate = value; }
+		}
+		private BuildSettingsVersion? DefaultBuildSettingsPrivate; // Cannot be initialized inline; potentially overridden before the constructor is called.
 
 		/// <summary>
 		/// Tracks a list of config values read while constructing this target
@@ -224,7 +229,7 @@ namespace UnrealBuildTool
 		public bool bUsesSlate = true;
 
 		/// <summary>
-		/// Forces linking against the static CRT. This is not fully supported across the engine due to the need for allocator implementations to be shared (for example), and TPS 
+		/// Forces linking against the static CRT. This is not fully supported across the engine due to the need for allocator implementations to be shared (for example), and TPS
 		/// libraries to be consistent with each other, but can be used for utility programs.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
@@ -242,7 +247,7 @@ namespace UnrealBuildTool
 		public bool bDebugBuildsActuallyUseDebugCRT = false;
 
 		/// <summary>
-		/// Whether the output from this target can be publicly distributed, even if it has dependencies on modules that are in folders 
+		/// Whether the output from this target can be publicly distributed, even if it has dependencies on modules that are in folders
 		/// with special restrictions (eg. CarefullyRedist, NotForLicensees, NoRedist).
 		/// </summary>
 		public bool bLegalToDistributeBinary = false;
@@ -264,7 +269,7 @@ namespace UnrealBuildTool
 		public UnrealTargetConfiguration UndecoratedConfiguration = UnrealTargetConfiguration.Development;
 
 		/// <summary>
-		/// Build all the plugins that we can find, even if they're not enabled. This is particularly useful for content-only projects, 
+		/// Build all the plugins that we can find, even if they're not enabled. This is particularly useful for content-only projects,
 		/// where you're building the UE4Editor target but running it with a game that enables a plugin.
 		/// </summary>
 		[Obsolete("bBuildAllPlugins has been deprecated. Use bPrecompile to build all modules which are not part of the target.")]
@@ -326,7 +331,7 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		[CommandLine("-CompileAsDll")]
 		public bool bShouldCompileAsDLL = false;
-		
+
 		/// <summary>
 		/// Subfolder to place executables in, relative to the default location.
 		/// </summary>
@@ -363,6 +368,12 @@ namespace UnrealBuildTool
 		public bool bUseChaosChecked = false;
 
 		/// <summary>
+		/// Whether to compile in chaos memory tracking features
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bUseChaosMemoryTracking = false;
+
+		/// <summary>
 		/// Whether scene query acceleration is done by UE4. The physx scene query structure is still created, but we do not use it.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
@@ -386,7 +397,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
 		public bool bCompileNvCloth = true;
-        
+
 		/// <summary>
 		/// Whether to include ICU unicode/i18n support in Core.
 		/// </summary>
@@ -474,18 +485,18 @@ namespace UnrealBuildTool
 			set { bBuildDeveloperTools = !value; }
 		}
 
-        /// <summary>
+		/// <summary>
 		/// Whether to utilize cache freed OS allocs with MallocBinned
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/BuildSettings.BuildSettings", "bUseCacheFreedOSAllocs")]
-        public bool bUseCacheFreedOSAllocs = true;
+		public bool bUseCacheFreedOSAllocs = true;
 
-        /// <summary>
-        /// Enabled for all builds that include the engine project.  Disabled only when building standalone apps that only link with Core.
-        /// </summary>
+		/// <summary>
+		/// Enabled for all builds that include the engine project.  Disabled only when building standalone apps that only link with Core.
+		/// </summary>
 		[RequiresUniqueBuildEnvironment]
-        public bool bCompileAgainstEngine = true;
+		public bool bCompileAgainstEngine = true;
 
 		/// <summary>
 		/// Enabled for all builds that include the CoreUObject project.  Disabled only when building standalone apps that only link with Core.
@@ -629,7 +640,7 @@ namespace UnrealBuildTool
 		/// Whether to turn on logging for test/shipping builds.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
-        public bool bUseLoggingInShipping = false;
+		public bool bUseLoggingInShipping = false;
 
 		/// <summary>
 		/// Whether to turn on logging to memory for test/shipping builds.
@@ -640,7 +651,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Whether to check that the process was launched through an external launcher.
 		/// </summary>
-        public bool bUseLauncherChecks = false;
+		public bool bUseLauncherChecks = false;
 
 		/// <summary>
 		/// Whether to turn on checks (asserts) for test/shipping builds.
@@ -662,15 +673,15 @@ namespace UnrealBuildTool
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/BuildSettings.BuildSettings", "bCompileForSize")]
 		public bool bCompileForSize = false;
 
-        /// <summary>
-        /// Whether to compile development automation tests.
-        /// </summary>
-        public bool bForceCompileDevelopmentAutomationTests = false;
+		/// <summary>
+		/// Whether to compile development automation tests.
+		/// </summary>
+		public bool bForceCompileDevelopmentAutomationTests = false;
 
-        /// <summary>
-        /// Whether to compile performance automation tests.
-        /// </summary>
-        public bool bForceCompilePerformanceAutomationTests = false;
+		/// <summary>
+		/// Whether to compile performance automation tests.
+		/// </summary>
+		public bool bForceCompilePerformanceAutomationTests = false;
 
 		/// <summary>
 		/// If true, event driven loader will be used in cooked builds. @todoio This needs to be replaced by a runtime solution after async loading refactor.
@@ -935,25 +946,25 @@ namespace UnrealBuildTool
 		[XmlConfigFile(Category = "BuildConfiguration")]
 		public bool bAllowLTCG = false;
 
-        /// <summary>
-        /// Whether to enable Profile Guided Optimization (PGO) instrumentation in this build.
-        /// </summary>
-        [CommandLine("-PGOProfile", Value = "true")]
-        [XmlConfigFile(Category = "BuildConfiguration")]
-        public bool bPGOProfile = false;
+		/// <summary>
+		/// Whether to enable Profile Guided Optimization (PGO) instrumentation in this build.
+		/// </summary>
+		[CommandLine("-PGOProfile", Value = "true")]
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public bool bPGOProfile = false;
 
-        /// <summary>
-        /// Whether to optimize this build with Profile Guided Optimization (PGO).
-        /// </summary>
-        [CommandLine("-PGOOptimize", Value = "true")]
-        [XmlConfigFile(Category = "BuildConfiguration")]
-        public bool bPGOOptimize = false;
+		/// <summary>
+		/// Whether to optimize this build with Profile Guided Optimization (PGO).
+		/// </summary>
+		[CommandLine("-PGOOptimize", Value = "true")]
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public bool bPGOOptimize = false;
 
-        /// <summary>
-        /// Whether to allow the use of ASLR (address space layout randomization) if supported. Only
-        /// applies to shipping builds.
-        /// </summary>
-        [XmlConfigFile(Category = "BuildConfiguration")]
+		/// <summary>
+		/// Whether to allow the use of ASLR (address space layout randomization) if supported. Only
+		/// applies to shipping builds.
+		/// </summary>
+		[XmlConfigFile(Category = "BuildConfiguration")]
 		public bool bAllowASLRInShipping = true;
 
 		/// <summary>
@@ -1008,11 +1019,11 @@ namespace UnrealBuildTool
 		[XmlConfigFile(Category = "BuildConfiguration")]
 		public bool bUseShippingPhysXLibraries = false;
 
-        /// <summary>
-        /// True if Development and Release builds should use the checked configuration of PhysX/APEX. if bUseShippingPhysXLibraries is true this is ignored.
-        /// </summary>
+		/// <summary>
+		/// True if Development and Release builds should use the checked configuration of PhysX/APEX. if bUseShippingPhysXLibraries is true this is ignored.
+		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
-        public bool bUseCheckedPhysXLibraries = false;
+		public bool bUseCheckedPhysXLibraries = false;
 
 		/// <summary>
 		/// Tells the UBT to check if module currently being built is violating EULA.
@@ -1072,7 +1083,7 @@ namespace UnrealBuildTool
 
 		/// <summary>
 		/// Indicates that this is a formal build, intended for distribution. This flag is automatically set to true when Build.version has a changelist set.
-		/// The only behavior currently bound to this flag is to compile the default resource file separately for each binary so that the OriginalFilename field is set correctly. 
+		/// The only behavior currently bound to this flag is to compile the default resource file separately for each binary so that the OriginalFilename field is set correctly.
 		/// By default, we only compile the resource once to reduce build times.
 		/// </summary>
 		[CommandLine("-Formal")]
@@ -1265,9 +1276,9 @@ namespace UnrealBuildTool
 					return TargetBuildEnvironment.Unique;
 				}
 			}
-			set 
-			{ 
-				BuildEnvironmentOverride = value; 
+			set
+			{
+				BuildEnvironmentOverride = value;
 			}
 		}
 
@@ -1279,14 +1290,14 @@ namespace UnrealBuildTool
 
 		/// <summary>
 		/// Specifies a list of steps which should be executed before this target is built, in the context of the host platform's shell.
-		/// The following variables will be expanded before execution: 
+		/// The following variables will be expanded before execution:
 		/// $(EngineDir), $(ProjectDir), $(TargetName), $(TargetPlatform), $(TargetConfiguration), $(TargetType), $(ProjectFile).
 		/// </summary>
 		public List<string> PreBuildSteps = new List<string>();
 
 		/// <summary>
 		/// Specifies a list of steps which should be executed after this target is built, in the context of the host platform's shell.
-		/// The following variables will be expanded before execution: 
+		/// The following variables will be expanded before execution:
 		/// $(EngineDir), $(ProjectDir), $(TargetName), $(TargetPlatform), $(TargetConfiguration), $(TargetType), $(ProjectFile).
 		/// </summary>
 		public List<string> PostBuildSteps = new List<string>();
@@ -1339,12 +1350,6 @@ namespace UnrealBuildTool
 		/// </summary>
 		[ConfigSubObject]
 		public AndroidTargetRules AndroidPlatform = new AndroidTargetRules();
-
-		/// <summary>
-		/// HTML5-specific target settings.
-		/// </summary>
-		[ConfigSubObject]
-		public HTML5TargetRules HTML5Platform = new HTML5TargetRules();
 
 		/// <summary>
 		/// IOS-specific target settings.
@@ -1414,7 +1419,7 @@ namespace UnrealBuildTool
 			this.WindowsPlatform = new WindowsTargetRules(this);
 
 			// Read settings from config files
-			foreach(object ConfigurableObject in GetConfigurableObjects())
+			foreach (object ConfigurableObject in GetConfigurableObjects())
 			{
 				ConfigCache.ReadSettings(DirectoryReference.FromFile(ProjectFile), Platform, ConfigurableObject, ConfigValueTracker);
 				XmlConfig.ApplyTo(ConfigurableObject);
@@ -1701,7 +1706,6 @@ namespace UnrealBuildTool
 		{
 			this.Inner = Inner;
 			AndroidPlatform = new ReadOnlyAndroidTargetRules(Inner.AndroidPlatform);
-			HTML5Platform = new ReadOnlyHTML5TargetRules(Inner.HTML5Platform);
 			IOSPlatform = new ReadOnlyIOSTargetRules(Inner.IOSPlatform);
 			LuminPlatform = new ReadOnlyLuminTargetRules(Inner.LuminPlatform);
 			LinuxPlatform = new ReadOnlyLinuxTargetRules(Inner.LinuxPlatform);
@@ -1716,7 +1720,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Accessors for fields on the inner TargetRules instance
 		/// </summary>
-		#region Read-only accessor properties 
+		#region Read-only accessor properties
 		#if !__MonoCS__
 		#pragma warning disable CS1591
 		#endif
@@ -1871,6 +1875,11 @@ namespace UnrealBuildTool
 			get { return Inner.bUseChaos; }
 		}
 
+		public bool bUseChaosMemoryTracking
+		{
+			get { return Inner.bUseChaosMemoryTracking; }
+		}
+
 		public bool bUseChaosChecked
 		{
 			get { return Inner.bUseChaosChecked; }
@@ -1947,12 +1956,12 @@ namespace UnrealBuildTool
 			get { return Inner.bCompileLeanAndMeanUE; }
 		}
 
-        public bool bUseCacheFreedOSAllocs
-        {
-            get { return Inner.bUseCacheFreedOSAllocs; }
-        }
+		public bool bUseCacheFreedOSAllocs
+		{
+			get { return Inner.bUseCacheFreedOSAllocs; }
+		}
 
-        public bool bCompileAgainstEngine
+		public bool bCompileAgainstEngine
 		{
 			get { return Inner.bCompileAgainstEngine; }
 		}
@@ -2052,7 +2061,7 @@ namespace UnrealBuildTool
 			get { return Inner.bLoggingToMemoryEnabled; }
 		}
 
-        public bool bUseLauncherChecks
+		public bool bUseLauncherChecks
 		{
 			get { return Inner.bUseLauncherChecks; }
 		}
@@ -2072,12 +2081,12 @@ namespace UnrealBuildTool
 			get { return Inner.bCompileForSize; }
 		}
 
-        public bool bForceCompileDevelopmentAutomationTests
+		public bool bForceCompileDevelopmentAutomationTests
 		{
 			get { return Inner.bForceCompileDevelopmentAutomationTests; }
 		}
 
-        public bool bForceCompilePerformanceAutomationTests
+		public bool bForceCompilePerformanceAutomationTests
 		{
 			get { return Inner.bForceCompilePerformanceAutomationTests; }
 		}
@@ -2134,7 +2143,7 @@ namespace UnrealBuildTool
 		{
 			get { return Inner.bBuildAdditionalConsoleApp; }
 		}
-		
+
 		public bool bDisableSymbolCache
 		{
 			get { return Inner.bDisableSymbolCache; }
@@ -2259,17 +2268,17 @@ namespace UnrealBuildTool
 		{
 			get { return Inner.bAllowLTCG; }
 		}
-        public bool bPGOProfile
-        {
-            get { return Inner.bPGOProfile; }
-        }
+		public bool bPGOProfile
+		{
+			get { return Inner.bPGOProfile; }
+		}
 
-        public bool bPGOOptimize
-        {
-            get { return Inner.bPGOOptimize; }
-        }
+		public bool bPGOOptimize
+		{
+			get { return Inner.bPGOOptimize; }
+		}
 
-        public bool bAllowASLRInShipping
+		public bool bAllowASLRInShipping
 		{
 			get { return Inner.bAllowASLRInShipping; }
 		}
@@ -2305,7 +2314,7 @@ namespace UnrealBuildTool
 			get { return Inner.bUseShippingPhysXLibraries; }
 		}
 
-        public bool bUseCheckedPhysXLibraries
+		public bool bUseCheckedPhysXLibraries
 		{
 			get { return Inner.bUseCheckedPhysXLibraries; }
 		}
@@ -2509,12 +2518,6 @@ namespace UnrealBuildTool
 		}
 
 		public ReadOnlyLinuxTargetRules LinuxPlatform
-		{
-			get;
-			private set;
-		}
-
-		public ReadOnlyHTML5TargetRules HTML5Platform
 		{
 			get;
 			private set;

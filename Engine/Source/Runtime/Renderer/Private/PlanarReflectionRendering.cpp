@@ -235,6 +235,8 @@ void PrefilterPlanarReflection(FRHICommandListImmediate& RHICmdList, FViewInfo& 
 		// Workaround for a possible driver bug on S7 Adreno, missing planar reflections
 		ERenderTargetLoadAction RTLoadAction = IsVulkanMobilePlatform(View.GetShaderPlatform()) ?  ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ENoAction;
 
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, Target->GetRenderTargetTexture());
+
 		FRHIRenderPassInfo RPInfo(Target->GetRenderTargetTexture(), MakeRenderTargetActions(RTLoadAction, ERenderTargetStoreAction::EStore));
 		RHICmdList.BeginRenderPass(RPInfo, TEXT("PrefilterPlanarReflections"));
 		{

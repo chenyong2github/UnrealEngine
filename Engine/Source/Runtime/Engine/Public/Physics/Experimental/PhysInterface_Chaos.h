@@ -6,17 +6,8 @@
 
 #include "ChaosInterfaceWrapper.h"
 #include "Engine/Engine.h"
-#include "Chaos/ArrayCollection.h"
-#include "Chaos/ArrayCollectionArray.h"
 #include "Chaos/Declares.h"
-#include "Chaos/Capsule.h"
-#include "Chaos/ImplicitObject.h"
-#include "Chaos/Pair.h"
-#include "Chaos/Transform.h"
-#include "PhysicsEngine/ConstraintDrives.h"
 #include "PhysicsEngine/ConstraintTypes.h"
-#include "PhysicsPublic.h"
-#include "PhysicsReplication.h"
 #include "PhysicsInterfaceWrapperShared.h"
 #include "Physics/PhysicsInterfaceDeclares.h"
 #include "Physics/PhysicsInterfaceTypes.h"
@@ -32,6 +23,10 @@ class FPhysInterface_Chaos;
 struct FBodyInstance;
 struct FPhysxUserData;
 class IPhysicsReplicationFactory;
+struct FConstraintDrive;
+struct FLinearDriveConstraint;
+struct FAngularDriveConstraint;
+
 
 class AWorldSettings;
 
@@ -56,6 +51,21 @@ namespace Chaos
 
 	template <typename T, int>
 	class TConvex;
+
+	template <typename T>
+	class TCapsule;
+
+	template <typename T, int>
+	class TBox;
+
+	template <typename T, int>
+	class TSphere;
+
+	template <typename T, int>
+	class TPerShapeData;
+
+	template <typename T, int d>
+	using TShapesArray = TArray<TUniquePtr<TPerShapeData<T, d>>, TInlineAllocator<1>>;
 }
 
 class FPhysicsConstraintReference_Chaos
@@ -89,7 +99,7 @@ public:
 	bool Equals(const FPhysicsShapeReference_Chaos& Other) const { return Shape == Other.Shape; }
     bool operator==(const FPhysicsShapeReference_Chaos& Other) const { return Equals(Other); }
 	
-	const Chaos::TImplicitObject<float, 3>& GetGeometry() const { check(IsValid()); return *Shape->Geometry; }
+	const Chaos::TImplicitObject<float, 3>& GetGeometry() const;
 
 
 	Chaos::TPerShapeData<float, 3>* Shape;
@@ -104,7 +114,7 @@ public:
 	FPhysicsShapeAdapter_Chaos(const FQuat& Rot, const FCollisionShape& CollisionShape);
 
 	const FPhysicsGeometry& GetGeometry() const;
-	FTransform GetGeometryPose(const FVector& Pos) const;
+	FTransform GetGeomPose(const FVector& Pos) const;
 	const FQuat& GetGeomOrientation() const;
 
 private:
@@ -269,8 +279,8 @@ public:
 	static float GetSleepEnergyThreshold_AssumesLocked(const FPhysicsActorHandle& InActorReference);
 	static void SetSleepEnergyThreshold_AssumesLocked(const FPhysicsActorHandle& InActorReference, float InEnergyThreshold);
 
-	static void SetMass_AssumesLocked(const FPhysicsActorHandle& InHandle, float InMass);
-	static void SetMassSpaceInertiaTensor_AssumesLocked(const FPhysicsActorHandle& InHandle, const FVector& InTensor);
+	static void SetMass_AssumesLocked(FPhysicsActorHandle& InHandle, float InMass);
+	static void SetMassSpaceInertiaTensor_AssumesLocked(FPhysicsActorHandle& InHandle, const FVector& InTensor);
 	static void SetComLocalPose_AssumesLocked(const FPhysicsActorHandle& InHandle, const FTransform& InComLocalPose);
 
 	static float GetStabilizationEnergyThreshold_AssumesLocked(const FPhysicsActorHandle& InHandle);
@@ -332,113 +342,20 @@ public:
     /////////////////////////////////////////////
 
     // Interface needed for cmd
-    static bool ExecuteRead(const FPhysicsActorHandle& InActorReference, TFunctionRef<void(const FPhysicsActorHandle& Actor)> InCallable)
-    {
-		if (InActorReference)
-		{
-			InCallable(InActorReference);
-			return true;
-		}
-		return false;
-    }
+    static bool ExecuteRead(const FPhysicsActorHandle& InActorReference, TFunctionRef<void(const FPhysicsActorHandle& Actor)> InCallable);
+    static bool ExecuteRead(USkeletalMeshComponent* InMeshComponent, TFunctionRef<void()> InCallable);
+    static bool ExecuteRead(const FPhysicsActorHandle& InActorReferenceA, const FPhysicsActorHandle& InActorReferenceB, TFunctionRef<void(const FPhysicsActorHandle& ActorA, const FPhysicsActorHandle& ActorB)> InCallable);
+    static bool ExecuteRead(const FPhysicsConstraintReference_Chaos& InConstraintRef, TFunctionRef<void(const FPhysicsConstraintReference_Chaos& Constraint)> InCallable);
+    static bool ExecuteRead(FPhysScene* InScene, TFunctionRef<void()> InCallable);
 
-    static bool ExecuteRead(USkeletalMeshComponent* InMeshComponent, TFunctionRef<void()> InCallable)
-    {
-        InCallable();
-        return true;
-    }
+    static bool ExecuteWrite(const FPhysicsActorHandle& InActorReference, TFunctionRef<void(const FPhysicsActorHandle& Actor)> InCallable);
+	static bool ExecuteWrite(FPhysicsActorHandle& InActorReference, TFunctionRef<void(FPhysicsActorHandle& Actor)> InCallable);
+    static bool ExecuteWrite(USkeletalMeshComponent* InMeshComponent, TFunctionRef<void()> InCallable);
+    static bool ExecuteWrite(const FPhysicsActorHandle& InActorReferenceA, const FPhysicsActorHandle& InActorReferenceB, TFunctionRef<void(const FPhysicsActorHandle& ActorA, const FPhysicsActorHandle& ActorB)> InCallable);
+    static bool ExecuteWrite(const FPhysicsConstraintReference_Chaos& InConstraintRef, TFunctionRef<void(const FPhysicsConstraintReference_Chaos& Constraint)> InCallable);
+    static bool ExecuteWrite(FPhysScene* InScene, TFunctionRef<void()> InCallable);
 
-    static bool ExecuteRead(const FPhysicsActorHandle& InActorReferenceA, const FPhysicsActorHandle& InActorReferenceB, TFunctionRef<void(const FPhysicsActorHandle& ActorA, const FPhysicsActorHandle& ActorB)> InCallable)
-    {
-		InCallable(InActorReferenceA, InActorReferenceB);
-		return true;
-    }
-
-    static bool ExecuteRead(const FPhysicsConstraintReference_Chaos& InConstraintRef, TFunctionRef<void(const FPhysicsConstraintReference_Chaos& Constraint)> InCallable)
-    {
-		if(InConstraintRef.IsValid())
-		{
-			InCallable(InConstraintRef);
-			return true;
-		}
-
-		return false;
-    }
-
-    static bool ExecuteRead(FPhysScene* InScene, TFunctionRef<void()> InCallable)
-    {
-		if(InScene)
-		{
-			InCallable();
-			return true;
-		}
-
-		return false;
-    }
-
-    static bool ExecuteWrite(const FPhysicsActorHandle& InActorReference, TFunctionRef<void(const FPhysicsActorHandle& Actor)> InCallable)
-    {
-		//why do we have a write that takes in a const handle?
-		if (InActorReference)
-		{
-			InCallable(InActorReference);
-			return true;
-		}
-		return false;
-    }
-
-	static bool ExecuteWrite(FPhysicsActorHandle& InActorReference, TFunctionRef<void(FPhysicsActorHandle& Actor)> InCallable)
-	{
-		if (InActorReference)
-		{
-			InCallable(InActorReference);
-			return true;
-		}
-
-		return false;
-	}
-
-    static bool ExecuteWrite(USkeletalMeshComponent* InMeshComponent, TFunctionRef<void()> InCallable)
-    {
-        InCallable();
-        return true;
-    }
-
-    static bool ExecuteWrite(const FPhysicsActorHandle& InActorReferenceA, const FPhysicsActorHandle& InActorReferenceB, TFunctionRef<void(const FPhysicsActorHandle& ActorA, const FPhysicsActorHandle& ActorB)> InCallable)
-    {
-		InCallable(InActorReferenceA, InActorReferenceB);
-		return true;
-    }
-
-    static bool ExecuteWrite(const FPhysicsConstraintReference_Chaos& InConstraintRef, TFunctionRef<void(const FPhysicsConstraintReference_Chaos& Constraint)> InCallable)
-    {
-		if(InConstraintRef.IsValid())
-		{
-			InCallable(InConstraintRef);
-			return true;
-		}
-
-		return false;
-    }
-	
-    static bool ExecuteWrite(FPhysScene* InScene, TFunctionRef<void()> InCallable)
-    {
-		if(InScene)
-		{
-			InCallable();
-			return true;
-		}
-
-		return false;
-    }
-
-    static void ExecuteShapeWrite(FBodyInstance* InInstance, FPhysicsShapeHandle& InShape, TFunctionRef<void(FPhysicsShapeHandle& InShape)> InCallable)
-    {
-		if(InInstance && InShape.IsValid())
-        {
-			InCallable(InShape);
-		}
-    }
+    static void ExecuteShapeWrite(FBodyInstance* InInstance, FPhysicsShapeHandle& InShape, TFunctionRef<void(FPhysicsShapeHandle& InShape)> InCallable);
 
 	// Misc
 
@@ -451,6 +368,7 @@ public:
 	// Shape interface functions
 	static FPhysicsShapeHandle CreateShape(physx::PxGeometry* InGeom, bool bSimulation = true, bool bQuery = true, UPhysicalMaterial* InSimpleMaterial = nullptr, TArray<UPhysicalMaterial*>* InComplexMaterials = nullptr);
 	
+	static void CreateGeometry(const FGeometryAddParams& InParams, TArray<TUniquePtr<Chaos::TImplicitObject<float, 3>>>& OutGeoms, Chaos::TShapesArray<float, 3>& OutShapes, TArray<FPhysicsShapeHandle>* OutOptShapes);
 	static void AddGeometry(FPhysicsActorHandle& InActor, const FGeometryAddParams& InParams, TArray<FPhysicsShapeHandle>* OutOptShapes = nullptr);
 	static FPhysicsShapeHandle CloneShape(const FPhysicsShapeHandle& InShape);
 	static FPhysicsGeometryCollection_Chaos GetGeometryCollection(const FPhysicsShapeHandle& InShape);
@@ -460,7 +378,7 @@ public:
 	static bool IsSimulationShape(const FPhysicsShapeHandle& InShape);
 	static bool IsQueryShape(const FPhysicsShapeHandle& InShape);
 	static bool IsShapeType(const FPhysicsShapeHandle& InShape, ECollisionShapeType InType);
-	static ECollisionShapeType GetShapeType(const FPhysicsShapeHandle& InShape);
+	static ECollisionShapeType GetShapeType(const FPhysicsShapeHandle& InShape, bool GetInnerType = false);
 	static FTransform GetLocalTransform(const FPhysicsShapeHandle& InShape);
     static void* GetUserData(const FPhysicsShapeHandle& InShape) { return nullptr; }
 
@@ -502,10 +420,7 @@ FORCEINLINE ECollisionShapeType GetType(const Chaos::TImplicitObject<float, 3>& 
 	return ECollisionShapeType::None;
 }
 */
-FORCEINLINE ECollisionShapeType GetGeometryType(const Chaos::TPerShapeData<float, 3>& Shape)
-{
-	return GetType(*Shape.Geometry);
-}
+ECollisionShapeType GetGeometryType(const Chaos::TPerShapeData<float, 3>& Shape);
 
 /*
 FORCEINLINE float GetRadius(const Chaos::TCapsule<float>& Capsule)

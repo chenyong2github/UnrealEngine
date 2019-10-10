@@ -398,6 +398,11 @@ void FCollection::Empty()
 
 bool FCollection::AddObjectToCollection(FName ObjectPath)
 {
+	if (ObjectPath.IsNone())
+	{
+		return false;
+	}
+
 	if (StorageMode == ECollectionStorageMode::Static)
 	{
 		bool bAlreadyInSet = false;
@@ -410,6 +415,11 @@ bool FCollection::AddObjectToCollection(FName ObjectPath)
 
 bool FCollection::RemoveObjectFromCollection(FName ObjectPath)
 {
+	if (ObjectPath.IsNone())
+	{
+		return false;
+	}
+
 	if (StorageMode == ECollectionStorageMode::Static)
 	{
 		return ObjectSet.Remove(ObjectPath) > 0;
@@ -542,6 +552,11 @@ bool FCollection::IsDirty() const
 		return true;
 	}
 	
+	if (CollectionColor != DiskSnapshot.CollectionColor)
+	{
+		return true;
+	}
+
 	bool bHasChanges = false;
 
 	if (StorageMode == ECollectionStorageMode::Static)
@@ -603,6 +618,10 @@ void FCollection::SaveHeaderPairs(TMap<FString,FString>& OutHeaderPairs) const
 	OutHeaderPairs.Add(TEXT("Type"), ECollectionStorageMode::ToString(StorageMode));
 	OutHeaderPairs.Add(TEXT("Guid"), CollectionGuid.ToString(EGuidFormats::DigitsWithHyphens));
 	OutHeaderPairs.Add(TEXT("ParentGuid"), ParentCollectionGuid.ToString(EGuidFormats::DigitsWithHyphens));
+	if (CollectionColor)
+	{
+		OutHeaderPairs.Add(TEXT("Color"), CollectionColor->ToString());
+	}
 }
 
 bool FCollection::LoadHeaderPairs(const TMap<FString,FString>& InHeaderPairs)
@@ -640,6 +659,17 @@ bool FCollection::LoadHeaderPairs(const TMap<FString,FString>& InHeaderPairs)
 		if ( !ParentGuidStr || !FGuid::Parse(*ParentGuidStr, ParentCollectionGuid) )
 		{
 			ParentCollectionGuid = FGuid();
+		}
+	}
+
+	// Load the optional color
+	CollectionColor.Reset();
+	if (const FString* ColorStr = InHeaderPairs.Find(TEXT("Color")))
+	{
+		FLinearColor NewColor;
+		if (NewColor.InitFromString(*ColorStr))
+		{
+			CollectionColor = MoveTemp(NewColor);
 		}
 	}
 
@@ -958,6 +988,12 @@ bool FCollection::CheckinCollection(const TArray<FText>& AdditionalChangelistTex
 		if (DiskSnapshot.ParentCollectionGuid != ParentCollectionGuid)
 		{
 			ChangelistDescBuilder.AppendLineFormat(LOCTEXT("CollectionChangedParentDesc", "Changed the parent of collection '{0}'"), CollectionNameText);
+		}
+
+		// Color change?
+		if (DiskSnapshot.CollectionColor != CollectionColor)
+		{
+			ChangelistDescBuilder.AppendLineFormat(LOCTEXT("CollectionChangedColorDesc", "Changed the color of collection '{0}'"), CollectionNameText);
 		}
 
 		// Version bump?

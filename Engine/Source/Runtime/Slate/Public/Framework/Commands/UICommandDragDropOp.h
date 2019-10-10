@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Input/DragAndDrop.h"
 #include "Framework/Commands/UICommandInfo.h"
+#include "Framework/MultiBox/MultiBoxDefs.h"
 
 class SWidget;
 
@@ -18,10 +19,12 @@ public:
 
 	DRAG_DROP_OPERATOR_TYPE(FUICommandDragDropOp, FDragDropOperation)
 
-	static TSharedRef<FUICommandDragDropOp> New( TSharedRef<const FUICommandInfo> InCommandInfo, FName InOriginMultiBox, TSharedPtr<SWidget> CustomDectorator, FVector2D DecoratorOffset );
+	static TSharedRef<FUICommandDragDropOp> New( FName InItemName, EMultiBlockType InBlockType, bool bInIsDraggingSection, FName InOriginMultiBox, TSharedPtr<SWidget> CustomDectorator, FVector2D DecoratorOffset );
 
-	FUICommandDragDropOp( TSharedRef<const FUICommandInfo> InUICommand, FName InOriginMultiBox, TSharedPtr<SWidget> InCustomDecorator, FVector2D DecoratorOffset )
-		: UICommand( InUICommand )
+	FUICommandDragDropOp( FName InItemName, EMultiBlockType InBlockType, bool bInIsDraggingSection, FName InOriginMultiBox, TSharedPtr<SWidget> InCustomDecorator, FVector2D DecoratorOffset )
+		: ItemName( InItemName )
+		, BlockType( InBlockType )
+		, bIsDraggingSection(bInIsDraggingSection)
 		, OriginMultiBox( InOriginMultiBox )
 		, CustomDecorator( InCustomDecorator )
 		, Offset( DecoratorOffset )
@@ -39,8 +42,14 @@ public:
 
 public:
 
-	/** UI command being dragged */
-	TSharedPtr< const FUICommandInfo > UICommand;
+	/** UI entry being dragged */
+	FName ItemName;
+
+	/** UI entry type being dragged */
+	EMultiBlockType BlockType;
+
+	/** UI entry being dragged is a section header or section separator */
+	bool bIsDraggingSection;
 
 	/** Multibox the UI command was dragged from if any*/
 	FName OriginMultiBox;

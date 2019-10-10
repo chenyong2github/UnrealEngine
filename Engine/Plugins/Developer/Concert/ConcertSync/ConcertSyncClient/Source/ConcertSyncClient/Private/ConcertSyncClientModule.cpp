@@ -63,6 +63,9 @@ public:
 			ClientConfig->bAutoConnect |= FParse::Param(CommandLine, TEXT("CONCERTAUTOCONNECT"));
 			FParse::Bool(CommandLine, TEXT("-CONCERTAUTOCONNECT="), ClientConfig->bAutoConnect);
 
+			ClientConfig->bRetryAutoConnectOnError |= FParse::Param(CommandLine, TEXT("CONCERTRETRYAUTOCONNECTONERROR"));
+			FParse::Bool(CommandLine, TEXT("-CONCERTRETRYAUTOCONNECTONERROR="), ClientConfig->bRetryAutoConnectOnError);
+
 			// CONCERTTAGS
 			{
 				FString CmdTags;
@@ -85,7 +88,14 @@ public:
 
 	virtual TSharedRef<IConcertSyncClient> CreateClient(const FString& InRole) override
 	{
-		return MakeShared<FConcertSyncClient>(InRole, PackageBridge.Get(), TransactionBridge.Get());
+		// Remove dead clients.
+		Clients.RemoveAll([](TWeakPtr<IConcertSyncClient> WeakClient) { return !WeakClient.IsValid(); });
+
+		TSharedRef<IConcertSyncClient> NewClient = MakeShared<FConcertSyncClient>(InRole, PackageBridge.Get(), TransactionBridge.Get());
+		Clients.Add(NewClient);
+		OnClientCreated().Broadcast(NewClient);
+
+		return NewClient;
 	}
 
 	virtual IConcertClientPackageBridge& GetPackageBridge() override
@@ -98,9 +108,30 @@ public:
 		return *TransactionBridge;
 	}
 
+	virtual TArray<TSharedRef<IConcertSyncClient>> GetClients() const override
+	{
+		TArray<TSharedRef<IConcertSyncClient>> ActiveClients;
+		for (TWeakPtr<IConcertSyncClient> WeakClient : Clients)
+		{
+			if (TSharedPtr<IConcertSyncClient> Client = WeakClient.Pin())
+			{
+				ActiveClients.Add(Client.ToSharedRef());
+			}
+		}
+
+		return ActiveClients;
+	}
+
+	virtual FOnConcertClientCreated& OnClientCreated() override
+	{
+		return OnClientCreatedDelegate;
+	}
+
 private:
 	TUniquePtr<FConcertClientPackageBridge> PackageBridge;
 	TUniquePtr<FConcertClientTransactionBridge> TransactionBridge;
+	TArray<TWeakPtr<IConcertSyncClient>> Clients;
+	FOnConcertClientCreated OnClientCreatedDelegate;
 };
 
 IMPLEMENT_MODULE(FConcertSyncClientModule, ConcertSyncClient);

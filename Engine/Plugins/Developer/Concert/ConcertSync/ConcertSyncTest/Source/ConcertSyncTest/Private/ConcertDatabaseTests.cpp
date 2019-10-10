@@ -6,7 +6,7 @@
 #include "Misc/Paths.h"
 #include "HAL/FileManager.h"
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FConcertSessionDatabaseTest, "Concert.SessionDatabase", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FConcertSessionDatabaseTest, "Editor.Concert.SessionDatabase", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FConcertSessionDatabaseTest::RunTest(const FString& Parameters)
 {

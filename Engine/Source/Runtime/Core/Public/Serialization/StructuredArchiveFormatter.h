@@ -14,15 +14,13 @@
 		explicit FArchiveFieldName(const TCHAR* InName) : Name(InName){ }
 	};
 
-	#define FIELD_NAME_TEXT(x) FArchiveFieldName(TEXT(x))
-	#define FIELD_NAME(x) FArchiveFieldName(x)
+	#define SA_FIELD_NAME(x) FArchiveFieldName(x)
 #else
 	struct FArchiveFieldName
 	{
 	};
 
-	#define FIELD_NAME_TEXT(x) FArchiveFieldName()
-	#define FIELD_NAME(x) FArchiveFieldName()
+	#define SA_FIELD_NAME(x) FArchiveFieldName()
 #endif
 
 /**
@@ -55,6 +53,8 @@ enum class EArchiveValueType
 	SoftObjectPath,
 	LazyObjectPtr,
 	RawData,
+	AttributedValue,
+	Attribute,
 };
 
 /**
@@ -102,6 +102,14 @@ public:
 	virtual void EnterMapElement(FString& Name) = 0;
 	virtual void EnterMapElement_TextOnly(FString& Name, EArchiveValueType& OutType) = 0;
 	virtual void LeaveMapElement() = 0;
+
+	virtual void EnterAttributedValue() = 0;
+	virtual void EnterAttribute(FArchiveFieldName AttributeName) = 0;
+	virtual void EnterAttributedValueValue() = 0;
+	virtual void LeaveAttribute() = 0;
+	virtual void LeaveAttributedValue() = 0;
+	virtual bool TryEnterAttribute(FArchiveFieldName AttributeName, bool bEnterWhenWriting) = 0;
+	virtual bool TryEnterAttributedValueValue() = 0;
 
 	virtual void Serialize(uint8& Value) = 0;
 	virtual void Serialize(uint16& Value) = 0;

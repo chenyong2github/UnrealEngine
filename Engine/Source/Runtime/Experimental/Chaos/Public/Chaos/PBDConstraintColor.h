@@ -1,8 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/PBDCollisionTypes.h"
-#include "Chaos/PBDConstraintGraph.h"
 #include "Chaos/ParticleHandle.h"
 
 // @todo(ccaulfield): can we get rid of this now?
@@ -10,12 +8,18 @@
 
 namespace Chaos
 {
+	template<typename T, int d>
+	class TPBDConstraintGraph;
+
+	template<typename T, int d>
+	class TConstraintHandle;
+
 	/**
 	 * Generates color information for a single constraint rule in a connection graph.
 	 * Edges with the same color are non-interacting and can safely be processed in parallel.
 	 */
 	template<typename T, int d>
-	class TPBDConstraintColor
+	class CHAOS_API TPBDConstraintColor
 	{
 	public:
 		typedef TPBDConstraintGraph<T, d> FConstraintGraph;

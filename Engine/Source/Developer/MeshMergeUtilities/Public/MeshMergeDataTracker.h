@@ -4,9 +4,7 @@
 
 #include "StaticMeshResources.h"
 #include "Materials/MaterialInstance.h"
-#include "MeshDescription.h"
-#include "MeshAttributes.h"
-#include "MeshAttributeArray.h"
+#include "StaticMeshAttributes.h"
 #include "MeshDescriptionOperations.h"
 
 typedef TPair<uint32, uint32> MeshLODPair;

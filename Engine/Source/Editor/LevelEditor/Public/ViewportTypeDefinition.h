@@ -5,18 +5,18 @@
 #include "CoreMinimal.h"
 
 class FUICommandInfo;
-class IViewportLayoutEntity;
+class ILevelViewportLayoutEntity;
 struct FViewportConstructionArgs;
 
 /** Definition of a custom viewport */
 struct FViewportTypeDefinition
 {
-	typedef TFunction<TSharedRef<IViewportLayoutEntity>(const FViewportConstructionArgs&)> FFactoryFunctionType;
+	typedef TFunction<TSharedRef<ILevelViewportLayoutEntity>(const FViewportConstructionArgs&)> FFactoryFunctionType;
 
 	template<typename T>
 	static FViewportTypeDefinition FromType(const TSharedPtr<FUICommandInfo>& ActivationCommand)
 	{
-		return FViewportTypeDefinition([](const FViewportConstructionArgs& Args) -> TSharedRef<IViewportLayoutEntity> {
+		return FViewportTypeDefinition([](const FViewportConstructionArgs& Args) -> TSharedRef<ILevelViewportLayoutEntity> {
 			return MakeShareable(new T(Args));
 		}, ActivationCommand);
 	}

@@ -115,6 +115,8 @@ public:
 	EPixelFormat GetLayerFormat(int32 LayerIndex) const;
 	/** Return true if the virtual texture layer should be sampled as sRGB */
 	bool IsLayerSRGB(int32 LayerIndex) const;
+	/** Return true if the virtual texture layer should be sampled as YCoCg */
+	bool IsLayerYCoCg(int32 LayerIndex) const;
 	/** Returns true if texture pages should be cleared before render */
 	bool GetClearTextures() const { return bClearTextures; }
 

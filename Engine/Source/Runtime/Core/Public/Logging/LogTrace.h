@@ -4,10 +4,12 @@
 
 #include "CoreTypes.h"
 
-#if !IS_PROGRAM && !UE_BUILD_SHIPPING && (PLATFORM_WINDOWS || PLATFORM_UNIX || PLATFORM_MAC || PLATFORM_PS4 || PLATFORM_XBOXONE)
+#if !defined(LOGTRACE_ENABLED)
+#if !IS_PROGRAM && !UE_BUILD_SHIPPING && (PLATFORM_WINDOWS || PLATFORM_PS4 || PLATFORM_UNIX || PLATFORM_XBOXONE)
 #define LOGTRACE_ENABLED 1
 #else
 #define LOGTRACE_ENABLED 0
+#endif
 #endif
 
 #if LOGTRACE_ENABLED
@@ -23,7 +25,7 @@ struct FLogTrace
 	template <typename... Types>
 	static void OutputLogMessage(const void* LogPoint, Types... FormatArgs)
 	{
-		uint8 FormatArgsBuffer[4096];
+		uint8 FormatArgsBuffer[3072];
 		uint16 FormatArgsSize = FFormatArgsTrace::EncodeArguments(FormatArgsBuffer, FormatArgs...);
 		if (FormatArgsSize)
 		{

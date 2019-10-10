@@ -170,7 +170,7 @@ public:
 		OutUAVs[3] = GAOCulledObjectBuffers.Buffers.BoxBounds.UAV;
 		OutUAVs[4] = Scene->DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.UAV;
 		OutUAVs[5] = Scene->DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.UAV;		
-		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, UE_ARRAY_COUNT(OutUAVs));
+		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, OutUAVs, UE_ARRAY_COUNT(OutUAVs));
 	}
 
 	virtual bool Serialize(FArchive& Ar)

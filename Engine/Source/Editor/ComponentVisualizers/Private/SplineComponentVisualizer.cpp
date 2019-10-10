@@ -55,6 +55,7 @@ public:
 		UI_COMMAND(SetKeyToCurve, "Curve", "Set spline point to Curve type", EUserInterfaceActionType::RadioButton, FInputChord());
 		UI_COMMAND(SetKeyToLinear, "Linear", "Set spline point to Linear type", EUserInterfaceActionType::RadioButton, FInputChord());
 		UI_COMMAND(SetKeyToConstant, "Constant", "Set spline point to Constant type", EUserInterfaceActionType::RadioButton, FInputChord());
+		UI_COMMAND(FocusViewportToSelection, "Focus Selected", "Moves the camera in front of the selection", EUserInterfaceActionType::Button, FInputChord(EKeys::F));
 		UI_COMMAND(SnapToNearestSplinePoint, "Snap to Nearest Spline Point", "Snap to nearest spline point.", EUserInterfaceActionType::Button, FInputChord());
 		UI_COMMAND(AlignToNearestSplinePoint, "Align to Nearest Spline Point", "Align to nearest spline point.", EUserInterfaceActionType::Button, FInputChord());
 		UI_COMMAND(AlignPerpendicularToNearestSplinePoint, "Align Perpendicular to Nearest Spline Point", "Align perpendicular to nearest spline point.", EUserInterfaceActionType::Button, FInputChord());
@@ -97,6 +98,9 @@ public:
 
 	/** Set spline key to Constant type */
 	TSharedPtr<FUICommandInfo> SetKeyToConstant;
+
+	/** Focus on selection */
+	TSharedPtr<FUICommandInfo> FocusViewportToSelection;
 
 	/** Snap to nearest spline point on another spline component */
 	TSharedPtr<FUICommandInfo> SnapToNearestSplinePoint;
@@ -212,6 +216,11 @@ void FSplineComponentVisualizer::OnRegister()
 		FExecuteAction::CreateSP(this, &FSplineComponentVisualizer::OnSetKeyType, CIM_Constant),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateSP(this, &FSplineComponentVisualizer::IsKeyTypeSet, CIM_Constant));
+
+	SplineComponentVisualizerActions->MapAction(
+		Commands.FocusViewportToSelection,
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("CAMERA ALIGN ACTIVEVIEWPORTONLY") ) )
+	);
 
 	SplineComponentVisualizerActions->MapAction(
 		Commands.SnapToNearestSplinePoint,
@@ -342,6 +351,10 @@ void FSplineComponentVisualizer::DrawVisualization(const UActorComponent* Compon
 		const float GrabHandleSize = 10.0f;
 		const float TangentHandleSize = 8.0f;
 
+		static const float HitTestLineTolerance = 20.0f;
+
+		const float DefaultLineThickness = (bIsSplineEditable && PDI->IsHitTesting()) ? HitTestLineTolerance : 0.0f;
+
 		// Draw the tangent handles before anything else so they will not overdraw the rest of the spline
 		if (SplineComp == EditedSplineComp)
 		{
@@ -464,16 +477,16 @@ void FSplineComponentVisualizer::DrawVisualization(const UActorComponent* Compon
 						const FVector NewRightVector = SplineComp->GetRightVectorAtSplineInputKey(Key, ESplineCoordinateSpace::World);
 						const FVector NewScale = SplineComp->GetScaleAtSplineInputKey(Key) * DefaultScale;
 
-						PDI->DrawLine(OldPos, NewPos, LineColor, SDPG_Foreground);
+						PDI->DrawLine(OldPos, NewPos, LineColor, SDPG_Foreground, DefaultLineThickness);
 						if (bShouldVisualizeScale)
 						{
-							PDI->DrawLine(OldPos - OldRightVector * OldScale.Y, NewPos - NewRightVector * NewScale.Y, LineColor, SDPG_Foreground);
-							PDI->DrawLine(OldPos + OldRightVector * OldScale.Y, NewPos + NewRightVector * NewScale.Y, LineColor, SDPG_Foreground);
+							PDI->DrawLine(OldPos - OldRightVector * OldScale.Y, NewPos - NewRightVector * NewScale.Y, LineColor, SDPG_Foreground, DefaultLineThickness);
+							PDI->DrawLine(OldPos + OldRightVector * OldScale.Y, NewPos + NewRightVector * NewScale.Y, LineColor, SDPG_Foreground, DefaultLineThickness);
 
 							#if VISUALIZE_SPLINE_UPVECTORS
 							const FVector NewUpVector = SplineComp->GetUpVectorAtSplineInputKey(Key, ESplineCoordinateSpace::World);
-							PDI->DrawLine(NewPos, NewPos + NewUpVector * SplineComp->ScaleVisualizationWidth * 0.5f, LineColor, SDPG_Foreground);
-							PDI->DrawLine(NewPos, NewPos + NewRightVector * SplineComp->ScaleVisualizationWidth * 0.5f, LineColor, SDPG_Foreground);
+							PDI->DrawLine(NewPos, NewPos + NewUpVector * SplineComp->ScaleVisualizationWidth * 0.5f, LineColor, SDPG_Foreground, DefaultLineThickness);
+							PDI->DrawLine(NewPos, NewPos + NewRightVector * SplineComp->ScaleVisualizationWidth * 0.5f, LineColor, SDPG_Foreground, DefaultLineThickness);
 							#endif
 						}
 
@@ -1850,7 +1863,7 @@ void FSplineComponentVisualizer::SplitSegment(const FVector& InWorldPos, int32 I
 
 	if (SplineMetadata)
 	{
-		SplineMetadata->DuplicatePoint(SegmentEndIndex);
+		SplineMetadata->InsertPoint(SegmentEndIndex, t, SplineComp->IsClosedLoop());
 	}
 
 	// Adjust input keys of subsequent points
@@ -2507,7 +2520,7 @@ void FSplineComponentVisualizer::GenerateContextMenuSections(FMenuBuilder& InMen
 
 	InMenuBuilder.BeginSection("Transform");
 	{
-		InMenuBuilder.AddMenuEntry(FEditorViewportCommands::Get().FocusViewportToSelection);
+		InMenuBuilder.AddMenuEntry(FSplineComponentVisualizerCommands::Get().FocusViewportToSelection);
 
 		InMenuBuilder.AddSubMenu(
 			LOCTEXT("SnapAlign", "Snap/Align"),

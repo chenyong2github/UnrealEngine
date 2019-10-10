@@ -5,7 +5,6 @@
 #include "CoreTypes.h"
 #include "Internationalization/TextNamespaceFwd.h"
 #include "Serialization/Archive.h"
-#include "Containers/UnrealString.h"
 
 /**
  * Base class for archive proxies.

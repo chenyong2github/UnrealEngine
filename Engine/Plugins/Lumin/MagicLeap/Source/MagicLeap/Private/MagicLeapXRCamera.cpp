@@ -16,17 +16,17 @@ void FMagicLeapXRCamera::PreRenderView_RenderThread(FRHICommandListImmediate& RH
 {
 #if WITH_MLSDK
 	// this needs to happen before the FDefaultXRCamera call, because UpdateProjectionMatrix is somewhat destructive. 
-	if (View.StereoPass != eSSP_FULL)
+	
+	if (MagicLeapSystem.IsStereoEyePass(View.StereoPass))
 	{
-		const int EyeIdx = (View.StereoPass == eSSP_LEFT_EYE) ? 0 : 1;
+		const int EyeIdx = IStereoRendering::IsAPrimaryView(View, MagicLeapSystem.AsShared()) ? 0 : 1;
+
 		const FTrackingFrame& Frame = MagicLeapSystem.GetCurrentFrame();
 
 		// update to use render projection matrix
-		// #todo: Roll UpdateProjectionMatrix into UpdateViewMatrix?
-		FMatrix RenderInfoProjectionMatrix = MagicLeap::ToFMatrix(Frame.RenderInfoArray.virtual_cameras[EyeIdx].projection);
-
 		// Set the near clipping plane to GNearClippingPlane which is clamped to the minimum value allowed for the device. (ref: MLGraphicsGetRenderTargets())
-		RenderInfoProjectionMatrix.M[3][2] = GNearClippingPlane;
+		// #todo: Roll UpdateProjectionMatrix into UpdateViewMatrix?
+		FMatrix RenderInfoProjectionMatrix = MagicLeap::ToUEProjectionMatrix(Frame.FrameInfo.virtual_camera_info_array.virtual_cameras[EyeIdx].projection, GNearClippingPlane);
 
 		View.UpdateProjectionMatrix(RenderInfoProjectionMatrix);
 	}

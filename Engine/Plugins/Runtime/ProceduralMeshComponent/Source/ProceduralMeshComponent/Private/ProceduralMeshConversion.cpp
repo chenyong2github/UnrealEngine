@@ -3,96 +3,9 @@
 #include "ProceduralMeshConversion.h"
 #include "Engine/StaticMesh.h"
 #include "ProceduralMeshComponent.h"
-#include "MeshAttributes.h"
+#include "StaticMeshAttributes.h"
 #include "MeshDescription.h"
 
-struct FProceduralMeshDescriptionAttributeGetter
-{
-	FProceduralMeshDescriptionAttributeGetter(FMeshDescription* InMeshDescription)
-		: Mesh(InMeshDescription)
-	{}
-
-	FMeshDescription* Mesh;
-
-	TVertexAttributesRef<FVector>
-	GetPositions() const
-	{
-		return Mesh->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
-	}
-	TVertexInstanceAttributesRef<FVector>
-	GetNormals() const
-	{
-		return Mesh->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
-	}
-	TVertexInstanceAttributesRef<FVector>
-	GetTangents() const
-	{
-		return Mesh->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
-	}
-	TVertexInstanceAttributesRef<float>
-	GetBinormalSigns() const {
-		return Mesh->VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign);
-	}
-	TVertexInstanceAttributesRef<FVector4>
-	GetColors() const
-	{
-		return Mesh->VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color);
-	}
-	TVertexInstanceAttributesRef<FVector2D>
-	GetUVs() const
-	{
-		return Mesh->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
-	}
-	TPolygonGroupAttributesRef<FName>
-	GetPolygonGroupImportedMaterialSlotNames()
-	{
-		return Mesh->PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::ImportedMaterialSlotName);
-	}
-};
-
-struct FProceduralMeshDescriptionConstAttributeGetter
-{
-	FProceduralMeshDescriptionConstAttributeGetter(const FMeshDescription* InMeshDescription)
-		: Mesh(InMeshDescription)
-	{}
-
-	const FMeshDescription* Mesh;
-
-	TVertexAttributesConstRef<FVector>
-	GetPositions() const
-	{
-		return Mesh->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
-	}
-	TVertexInstanceAttributesConstRef<FVector>
-	GetNormals() const
-	{
-		return Mesh->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
-	}
-	TVertexInstanceAttributesConstRef<FVector>
-	GetTangents() const
-	{
-		return Mesh->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
-	}
-	TVertexInstanceAttributesConstRef<float>
-	GetBinormalSigns() const {
-		return Mesh->VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign);
-	}
-	TVertexInstanceAttributesConstRef<FVector4>
-	GetColors() const
-	{
-		return Mesh->VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color);
-	}
-	TVertexInstanceAttributesConstRef<FVector2D>
-	GetUVs() const
-	{
-		return Mesh->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
-	}
-	TPolygonGroupAttributesConstRef<FName>
-	GetPolygonGroupImportedMaterialSlotNames()
-	{
-		return Mesh->PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::ImportedMaterialSlotName);
-	}
-};
 
 TMap<UMaterialInterface*, FPolygonGroupID> BuildMaterialMap(UProceduralMeshComponent* ProcMeshComp, FMeshDescription& MeshDescription)
 {
@@ -100,8 +13,8 @@ TMap<UMaterialInterface*, FPolygonGroupID> BuildMaterialMap(UProceduralMeshCompo
 	const int32 NumSections = ProcMeshComp->GetNumSections();
 	UniqueMaterials.Reserve(NumSections);
 
-	FProceduralMeshDescriptionAttributeGetter AttributeGetter(&MeshDescription);
-	TPolygonGroupAttributesRef<FName> PolygonGroupNames = AttributeGetter.GetPolygonGroupImportedMaterialSlotNames();
+	FStaticMeshAttributes AttributeGetter(MeshDescription);
+	TPolygonGroupAttributesRef<FName> PolygonGroupNames = AttributeGetter.GetPolygonGroupMaterialSlotNames();
 	for (int32 SectionIdx = 0; SectionIdx < NumSections; SectionIdx++)
 	{
 		FProcMeshSection *ProcSection =
@@ -135,14 +48,14 @@ void MeshDescriptionToProcMesh( const FMeshDescription& MeshDescription, UProced
 {
 	ProcMeshComp->ClearAllMeshSections();
 
-	FProceduralMeshDescriptionConstAttributeGetter AttributeGetter(&MeshDescription);
-	TPolygonGroupAttributesConstRef<FName> PolygonGroupNames = AttributeGetter.GetPolygonGroupImportedMaterialSlotNames();
-	TVertexAttributesConstRef<FVector> VertexPositions = AttributeGetter.GetPositions();
-	TVertexInstanceAttributesConstRef<FVector> Tangents = AttributeGetter.GetTangents();
-	TVertexInstanceAttributesConstRef<float> BinormalSigns = AttributeGetter.GetBinormalSigns();
-	TVertexInstanceAttributesConstRef<FVector> Normals = AttributeGetter.GetNormals();
-	TVertexInstanceAttributesConstRef<FVector4> Colors = AttributeGetter.GetColors();
-	TVertexInstanceAttributesConstRef<FVector2D> UVs = AttributeGetter.GetUVs();
+	FStaticMeshConstAttributes AttributeGetter(MeshDescription);
+	TPolygonGroupAttributesConstRef<FName> PolygonGroupNames = AttributeGetter.GetPolygonGroupMaterialSlotNames();
+	TVertexAttributesConstRef<FVector> VertexPositions = AttributeGetter.GetVertexPositions();
+	TVertexInstanceAttributesConstRef<FVector> Tangents = AttributeGetter.GetVertexInstanceTangents();
+	TVertexInstanceAttributesConstRef<float> BinormalSigns = AttributeGetter.GetVertexInstanceBinormalSigns();
+	TVertexInstanceAttributesConstRef<FVector> Normals = AttributeGetter.GetVertexInstanceNormals();
+	TVertexInstanceAttributesConstRef<FVector4> Colors = AttributeGetter.GetVertexInstanceColors();
+	TVertexInstanceAttributesConstRef<FVector2D> UVs = AttributeGetter.GetVertexInstanceUVs();
 
 	const int32 NumSections = ProcMeshComp->GetNumSections();
 
@@ -188,16 +101,17 @@ void MeshDescriptionToProcMesh( const FMeshDescription& MeshDescription, UProced
 FMeshDescription BuildMeshDescription( UProceduralMeshComponent* ProcMeshComp )
 {
 	FMeshDescription MeshDescription;
-	UStaticMesh::RegisterMeshAttributes(MeshDescription);
 
-	FProceduralMeshDescriptionAttributeGetter AttributeGetter(&MeshDescription);
-	TPolygonGroupAttributesRef<FName> PolygonGroupNames = AttributeGetter.GetPolygonGroupImportedMaterialSlotNames();
-	TVertexAttributesRef<FVector> VertexPositions = AttributeGetter.GetPositions();
-	TVertexInstanceAttributesRef<FVector> Tangents = AttributeGetter.GetTangents();
-	TVertexInstanceAttributesRef<float> BinormalSigns = AttributeGetter.GetBinormalSigns();
-	TVertexInstanceAttributesRef<FVector> Normals = AttributeGetter.GetNormals();
-	TVertexInstanceAttributesRef<FVector4> Colors = AttributeGetter.GetColors();
-	TVertexInstanceAttributesRef<FVector2D> UVs = AttributeGetter.GetUVs();
+	FStaticMeshAttributes AttributeGetter(MeshDescription);
+	AttributeGetter.Register();
+
+	TPolygonGroupAttributesRef<FName> PolygonGroupNames = AttributeGetter.GetPolygonGroupMaterialSlotNames();
+	TVertexAttributesRef<FVector> VertexPositions = AttributeGetter.GetVertexPositions();
+	TVertexInstanceAttributesRef<FVector> Tangents = AttributeGetter.GetVertexInstanceTangents();
+	TVertexInstanceAttributesRef<float> BinormalSigns = AttributeGetter.GetVertexInstanceBinormalSigns();
+	TVertexInstanceAttributesRef<FVector> Normals = AttributeGetter.GetVertexInstanceNormals();
+	TVertexInstanceAttributesRef<FVector4> Colors = AttributeGetter.GetVertexInstanceColors();
+	TVertexInstanceAttributesRef<FVector2D> UVs = AttributeGetter.GetVertexInstanceUVs();
 
 	// Materials to apply to new mesh
 	const int32 NumSections = ProcMeshComp->GetNumSections();

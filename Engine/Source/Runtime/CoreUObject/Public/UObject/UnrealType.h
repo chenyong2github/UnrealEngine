@@ -1115,7 +1115,8 @@ public:
 	// UProperty interface.
 	virtual bool Identical( const void* A, const void* B, uint32 PortFlags=0 ) const override
 	{
-		return TTypeFundamentals::GetPropertyValue(A) == TTypeFundamentals::GetOptionalPropertyValue(B);
+		// RHS is the same as TTypeFundamentals::GetOptionalPropertyValue(B) but avoids an unnecessary copy of B
+		return TTypeFundamentals::GetPropertyValue(A) == (B ? TTypeFundamentals::GetPropertyValue(B) : TTypeFundamentals::GetDefaultPropertyValue());
 	}
 	virtual void SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const override
 	{
@@ -1245,9 +1246,8 @@ private:
 };
 
 template<typename InTCppType>
-class COREUOBJECT_API TProperty_Numeric : public TProperty_WithEqualityAndSerializer<InTCppType, UNumericProperty>
+class TProperty_Numeric : public TProperty_WithEqualityAndSerializer<InTCppType, UNumericProperty>
 {
-
 public:
 	typedef TProperty_WithEqualityAndSerializer<InTCppType, UNumericProperty> Super;
 	typedef InTCppType TCppType;
@@ -1283,89 +1283,116 @@ public:
 
 protected:
 	template <typename OldNumericType>
-	void ConvertFromArithmeticValue(FStructuredArchive::FSlot Slot, void* Obj, const FPropertyTag& Tag)
+	FORCEINLINE void ConvertFromArithmeticValue(FStructuredArchive::FSlot Slot, void* Obj, const FPropertyTag& Tag) const
 	{
-		OldNumericType OldValue;
-		Slot << OldValue;
-		TCppType NewValue = (TCppType)OldValue;
-		this->SetPropertyValue_InContainer(Obj, NewValue, Tag.ArrayIndex);
-
-		UE_CLOG(
-			((TIsSigned<OldNumericType>::Value || TIsFloatingPoint<OldNumericType>::Value) && (!TIsSigned<TCppType>::Value && !TIsFloatingPoint<TCppType>::Value) && OldValue < 0) || ((OldNumericType)NewValue != OldValue),
-			LogClass,
-			Warning,
-			TEXT("Potential data loss during conversion of integer property %s of %s - was (%s) now (%s) - for package: %s"),
-			*this->GetName(),
-			*Slot.GetUnderlyingArchive().GetArchiveName(),
-			*LexToString(OldValue),
-			*LexToString(NewValue),
-			*Slot.GetUnderlyingArchive().GetArchiveName()
-			);
+		TConvertAndSet<OldNumericType, TCppType>(*this, Slot, Obj, Tag);
 	}
+
+private:
+	template <typename FromType, typename ToType>
+	struct TConvertAndSet
+	{
+		TConvertAndSet(const TProperty_Numeric& Property, FStructuredArchive::FSlot Slot, void* Obj, const FPropertyTag& Tag)
+		{
+			FromType OldValue;
+			Slot << OldValue;
+			ToType NewValue = (ToType)OldValue;
+			Property.SetPropertyValue_InContainer(Obj, NewValue, Tag.ArrayIndex);
+
+			UE_CLOG(
+				((TIsSigned<FromType>::Value || TIsFloatingPoint<FromType>::Value) && (!TIsSigned<ToType>::Value && !TIsFloatingPoint<ToType>::Value) && OldValue < 0) || ((FromType)NewValue != OldValue),
+				LogClass,
+				Warning,
+				TEXT("Potential data loss during conversion of integer property %s of %s - was (%s) now (%s) - for package: %s"),
+				*Property.GetName(),
+				*Slot.GetUnderlyingArchive().GetArchiveName(),
+				*LexToString(OldValue),
+				*LexToString(NewValue),
+				*Slot.GetUnderlyingArchive().GetArchiveName()
+			);
+		}
+	};
+
+	template <typename SameType>
+	struct TConvertAndSet<SameType, SameType>
+	{
+		FORCEINLINE TConvertAndSet(const TProperty_Numeric& Property, FStructuredArchive::FSlot Slot, void* Obj, const FPropertyTag& Tag)
+		{
+			SameType Value;
+			Slot << Value;
+			Property.SetPropertyValue_InContainer(Obj, Value, Tag.ArrayIndex);
+		}
+	};
 
 public:
 	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override
 	{
-		if (Tag.Type == NAME_Int8Property)
+		if (const EName * TagType = Tag.Type.ToEName())
 		{
-			ConvertFromArithmeticValue<int8>(Slot, Data, Tag);
-		}
-		else if (Tag.Type == NAME_Int16Property)
-		{
-			ConvertFromArithmeticValue<int16>(Slot, Data, Tag);
-		}
-		else if (Tag.Type == NAME_IntProperty)
-		{
-			ConvertFromArithmeticValue<int32>(Slot, Data, Tag);
-		}
-		else if (Tag.Type == NAME_Int64Property)
-		{
-			ConvertFromArithmeticValue<int64>(Slot, Data, Tag);
-		}
-		else if (Tag.Type == NAME_ByteProperty)
-		{
-			if (Tag.EnumName != NAME_None)
+			switch (*TagType)
+			{
+			case NAME_Int8Property:
+				ConvertFromArithmeticValue<int8>(Slot, Data, Tag);
+				return EConvertFromTypeResult::Converted;
+
+			case NAME_Int16Property:
+				ConvertFromArithmeticValue<int16>(Slot, Data, Tag);
+				return EConvertFromTypeResult::Converted;
+
+			case NAME_IntProperty:
+				ConvertFromArithmeticValue<int32>(Slot, Data, Tag);
+				return EConvertFromTypeResult::Converted;
+
+			case NAME_Int64Property:
+				ConvertFromArithmeticValue<int64>(Slot, Data, Tag);
+				return EConvertFromTypeResult::Converted;
+
+			case NAME_ByteProperty:
+				if (!Tag.EnumName.IsNone())
+				{
+					int64 PreviousValue = this->ReadEnumAsInt64(Slot, DefaultsStruct, Tag);
+					this->SetPropertyValue_InContainer(Data, PreviousValue, Tag.ArrayIndex);
+				}
+				else
+				{
+					ConvertFromArithmeticValue<int8>(Slot, Data, Tag);
+				}
+				return EConvertFromTypeResult::Converted;
+
+			case NAME_EnumProperty:
 			{
 				int64 PreviousValue = this->ReadEnumAsInt64(Slot, DefaultsStruct, Tag);
-				this->SetPropertyValue_InContainer(Data, PreviousValue, Tag.ArrayIndex);
+				this->SetPropertyValue_InContainer(Data, (TCppType)PreviousValue, Tag.ArrayIndex);
+				return EConvertFromTypeResult::Converted;
 			}
-			else
-			{
-				ConvertFromArithmeticValue<int8>(Slot, Data, Tag);
+
+			case NAME_UInt16Property:
+				ConvertFromArithmeticValue<uint16>(Slot, Data, Tag);
+				return EConvertFromTypeResult::Converted;
+
+			case NAME_UInt32Property:
+				ConvertFromArithmeticValue<uint32>(Slot, Data, Tag);
+				return EConvertFromTypeResult::Converted;
+
+			case NAME_UInt64Property:
+				ConvertFromArithmeticValue<uint64>(Slot, Data, Tag);
+				return EConvertFromTypeResult::Converted;
+
+			case NAME_FloatProperty:
+				ConvertFromArithmeticValue<float>(Slot, Data, Tag);
+				return EConvertFromTypeResult::Converted;
+
+			case NAME_DoubleProperty:
+				ConvertFromArithmeticValue<double>(Slot, Data, Tag);
+				return EConvertFromTypeResult::Converted;
+
+			default:
+				// We didn't convert it
+				break;
 			}
-		}
-		else if (Tag.Type == NAME_EnumProperty)
-		{
-			int64 PreviousValue = this->ReadEnumAsInt64(Slot, DefaultsStruct, Tag);
-			this->SetPropertyValue_InContainer(Data, (TCppType)PreviousValue, Tag.ArrayIndex);
-		}
-		else if (Tag.Type == NAME_UInt16Property)
-		{
-			ConvertFromArithmeticValue<uint16>(Slot, Data, Tag);
-		}
-		else if (Tag.Type == NAME_UInt32Property)
-		{
-			ConvertFromArithmeticValue<uint32>(Slot, Data, Tag);
-		}
-		else if (Tag.Type == NAME_UInt64Property)
-		{
-			ConvertFromArithmeticValue<uint64>(Slot, Data, Tag);
-		}
-		else if (Tag.Type == NAME_FloatProperty)
-		{
-			ConvertFromArithmeticValue<float>(Slot, Data, Tag);
-		}
-		else if (Tag.Type == NAME_DoubleProperty)
-		{
-			ConvertFromArithmeticValue<double>(Slot, Data, Tag);
-		}
-		else
-		{
-			// We didn't convert it
-			return EConvertFromTypeResult::UseSerializeItem;
 		}
 
-		return EConvertFromTypeResult::Converted;
+		return EConvertFromTypeResult::UseSerializeItem;
 	}
 	// End of UProperty interface
 
@@ -1726,7 +1753,7 @@ private:
 	uint8 FieldSize;
 	/** Offset from the memeber variable to the byte of the property (0-7). */
 	uint8 ByteOffset;
-	/** Mask of the byte byte with the property value. */
+	/** Mask of the byte with the property value. */
 	uint8 ByteMask;
 	/** Mask of the field with the property value. Either equal to ByteMask or 255 in case of 'bool' type. */
 	uint8 FieldMask;
@@ -3446,6 +3473,50 @@ public:
 			}
 		);
 	}
+
+
+	/**
+	 * Finds or adds a new default-constructed value
+	 *
+	 * No need to rehash after calling. The hash table must be properly hashed before calling.
+	 *
+	 * @return The address to the value, not the pair
+	 **/
+	void* FindOrAdd(const void* KeyPtr)
+	{
+		UProperty* LocalKeyPropForCapture = KeyProp;
+		UProperty* LocalValuePropForCapture = ValueProp;
+		return Map->FindOrAdd(
+			KeyPtr,
+			MapLayout,
+			[LocalKeyPropForCapture](const void* ElementKey) { return LocalKeyPropForCapture->GetValueTypeHash(ElementKey); },
+			[LocalKeyPropForCapture](const void* A, const void* B) { return LocalKeyPropForCapture->Identical(A, B); },
+			[LocalKeyPropForCapture, LocalValuePropForCapture, KeyPtr](void* NewElementKey, void* NewElementValue)
+			{
+				if (LocalKeyPropForCapture->PropertyFlags & CPF_ZeroConstructor)
+				{
+					FMemory::Memzero(NewElementKey, LocalKeyPropForCapture->GetSize());
+				}
+				else
+				{
+					LocalKeyPropForCapture->InitializeValue(NewElementKey);
+				}
+
+				LocalKeyPropForCapture->CopySingleValueToScriptVM(NewElementKey, KeyPtr);
+
+				if (LocalValuePropForCapture->PropertyFlags & CPF_ZeroConstructor)
+				{
+					FMemory::Memzero(NewElementValue, LocalValuePropForCapture->GetSize());
+				}
+				else
+				{
+					LocalValuePropForCapture->InitializeValue(NewElementValue);
+				}
+			}
+		);
+
+	}
+
 
 	/** Removes the key and its associated value from the map */
 	bool RemovePair(const void* KeyPtr)
@@ -5205,7 +5276,7 @@ private:
 	bool bSkipRecursionOnce;
 
 	/** Goes to the next Property/value pair. Returns true if next value is valid */
-	bool NextValue(EPropertyValueIteratorFlags RecursionFlags, bool bReturningFromStruct);
+	bool NextValue(EPropertyValueIteratorFlags RecursionFlags);
 
 	/** Iterates to next property being checked for or until reaching the end of the structure */
 	COREUOBJECT_API void IterateToNext();

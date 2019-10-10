@@ -58,6 +58,9 @@ public:
 	/** Called when the state of a particular Content Browser is being loaded from INI */
 	virtual void LoadSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString) {}
 
+	/** Set this filter as active/inactive */
+	void SetActive(bool bInActive) { SetActiveEvent.Broadcast(bInActive); }
+
 	// IFilter implementation
 	DECLARE_DERIVED_EVENT( FFrontendFilter, IFilter<FAssetFilterType>::FChangedEvent, FChangedEvent );
 	virtual FChangedEvent& OnChanged() override { return ChangedEvent; }
@@ -70,5 +73,11 @@ protected:
 private:
 	FChangedEvent ChangedEvent;
 
+	/** This event is broadcast to set this filter active in the content browser it is being used in */
+	DECLARE_EVENT_OneParam(FFrontendFilter, FSetActiveEvent, bool);
+	FSetActiveEvent SetActiveEvent;
+
 	TSharedPtr<FFrontendFilterCategory> FilterCategory;
+
+	friend struct FFrontendFilterExternalActivationHelper;
 };

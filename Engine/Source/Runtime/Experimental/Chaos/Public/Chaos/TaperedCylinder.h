@@ -328,7 +328,7 @@ namespace Chaos
 		}
 
 		static TRotation<T, 3> GetRotationOfMass()
-		{ return TRotation<T, 3>(TVector<T, 3>(0), 1); }
+		{ return TRotation<T, 3>::FromIdentity(); }
 
 		virtual uint32 GetTypeHash() const override
 		{

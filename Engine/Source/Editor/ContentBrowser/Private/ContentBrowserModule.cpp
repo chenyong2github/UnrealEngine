@@ -38,6 +38,17 @@ IContentBrowserSingleton& FContentBrowserModule::Get() const
 	return *ContentBrowserSingleton;
 }
 
+FDelegateHandle FContentBrowserModule::AddAssetViewExtraStateGenerator(const FAssetViewExtraStateGenerator& Generator)
+{
+	AssetViewExtraStateGenerators.Add(Generator);
+	return Generator.Handle;
+}
+
+void FContentBrowserModule::RemoveAssetViewExtraStateGenerator(const FDelegateHandle& GeneratorHandle)
+{
+	AssetViewExtraStateGenerators.RemoveAll([&GeneratorHandle](const FAssetViewExtraStateGenerator& Generator) { return Generator.Handle == GeneratorHandle; });
+}
+
 void FContentBrowserModule::ResizeRecentAssetList(FName InName)
 {
 	if (InName == NumberOfRecentAssetsName)

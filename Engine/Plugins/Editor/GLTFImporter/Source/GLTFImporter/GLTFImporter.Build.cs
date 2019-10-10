@@ -30,6 +30,7 @@ namespace UnrealBuildTool.Rules
                     "Engine",
                     "UnrealEd",
                     "MeshDescription",
+					"StaticMeshDescription",
                     "MeshUtilities",
                     "MessageLog",
                     "Json",

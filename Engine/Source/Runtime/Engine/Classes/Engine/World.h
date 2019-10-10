@@ -3225,10 +3225,6 @@ private:
 
 	APhysicsVolume* InternalGetDefaultPhysicsVolume() const;
 
-	// Sends the NMT_Challenge message to Connection.
-	void SendChallengeControlMessage(UNetConnection* Connection);
-	void SendChallengeControlMessage(const FEncryptionKeyResponse& Response, TWeakObjectPtr<UNetConnection> WeakConnection);
-
 public:
 
 	/**
@@ -3630,7 +3626,7 @@ public:
 	// delegate for generating world asset registry tags so project/game scope can add additional tags for filtering levels in their UI, etc
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FWorldGetAssetTags, const UWorld*, TArray<UObject::FAssetRegistryTag>&);
 
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnWorldTickStart, ELevelTick, float);
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnWorldTickStart, UWorld*, ELevelTick, float);
 	static FOnWorldTickStart OnWorldTickStart;
 
 	// Delegate called before actors are ticked for each world. Delta seconds is already dilated and clamped.

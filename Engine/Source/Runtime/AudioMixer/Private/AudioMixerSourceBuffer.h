@@ -46,10 +46,10 @@ namespace Audio
 	class FMixerSourceBuffer
 	{
 	public:
-		FMixerSourceBuffer();
+		static TSharedPtr<FMixerSourceBuffer> Create(FMixerBuffer& InBuffer, USoundWave& InWave, ELoopingMode InLoopingMode, bool bInIsSeeking);
+
 		~FMixerSourceBuffer();
 
-		bool PreInit(FMixerBuffer* InBuffer, USoundWave* InWave, ELoopingMode InLoopingMode, bool bInIsSeeking);
 		bool Init();
 
 		// Sets the decoder to use for realtime async decoding
@@ -88,14 +88,12 @@ namespace Audio
 		// Ensures the async task finishes
 		void EnsureAsyncTaskFinishes();
 
-		// Clear the sound wave reference
-		void ClearSoundWave();
-
 		// Begin and end generation on the audio render thread (audio mixer only)
 		void OnBeginGenerate();
 		void OnEndGenerate();
 
 	private:
+		FMixerSourceBuffer(FMixerBuffer& InBuffer, USoundWave& InWave, ELoopingMode InLoopingMode, bool bInIsSeeking);
 
 		void SubmitInitialPCMBuffers();
 		void SubmitInitialRealtimeBuffers();
@@ -127,6 +125,5 @@ namespace Audio
 		uint32 bLoopCallback : 1;
 		uint32 bProcedural : 1;
 		uint32 bIsBus : 1;
-
 	};
 }

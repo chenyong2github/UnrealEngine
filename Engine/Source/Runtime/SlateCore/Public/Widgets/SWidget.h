@@ -991,7 +991,7 @@ public:
 	 *
 	 * @param AccessibleType Whether the widget is being accessed directly or through a summary query.
 	 */
-	virtual void SetDefaultAccessibleText(EAccessibleType AccessibleType = EAccessibleType::Main);
+	virtual TOptional<FText> GetDefaultAccessibleText(EAccessibleType AccessibleType = EAccessibleType::Main) const;
 #endif
 
 	/** Whether or not a widget is volatile and will update every frame without being invalidated */
@@ -1565,6 +1565,13 @@ protected:
 	uint8 bCanTick : 1;
 #endif
 
+#if WITH_ACCESSIBILITY
+	/** All variables surrounding how this widget is exposed to the platform's accessibility API. */
+	uint8 bCanChildrenBeAccessible : 1;
+	EAccessibleBehavior AccessibleBehavior;
+	EAccessibleBehavior AccessibleSummaryBehavior;
+#endif
+
 	/**
 	 * Set to true if all content of the widget should clip to the bounds of this widget.
 	 */
@@ -1632,12 +1639,6 @@ protected:
 
 	/** Render transform pivot of this widget (in normalized local space) */
 	TAttribute< FVector2D > RenderTransformPivot;
-
-
-#if WITH_ACCESSIBILITY
-	/** All variables surrounding how this widget is exposed to the platform's accessibility API. */
-	FAccessibleWidgetData AccessibleData;
-#endif
 
 	/** Debugging information on the type of widget we're creating for the Widget Reflector. */
 	FName TypeOfWidget;

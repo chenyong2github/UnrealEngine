@@ -2,454 +2,273 @@
 
 #include "DataPrepAsset.h"
 
+#include "Blueprint/K2Node_DataprepActionCore.h"
+#include "Blueprint/K2Node_DataprepProducer.h"
+#include "DataPrepContentConsumer.h"
+#include "DataPrepContentProducer.h"
+#include "DataPrepRecipe.h"
 #include "DataprepActionAsset.h"
 #include "DataprepCoreLogCategory.h"
-#include "DataPrepRecipe.h"
+#include "DataprepCorePrivateUtils.h"
+#include "DataprepCoreUtils.h"
+#include "Parameterization/DataprepParameterization.h"
 
 #include "AssetRegistryModule.h"
+#include "BlueprintNodeBinder.h"
+#include "BlueprintNodeSpawner.h"
+#include "Kismet2/BlueprintEditorUtils.h"
+#include "Kismet2/KismetEditorUtilities.h"
+#include "UObject/UObjectGlobals.h"
+
 #ifdef WITH_EDITOR
 #include "Editor.h"
 #endif //WITH_EDITOR
-#include "Kismet2/KismetEditorUtilities.h"
 
-namespace DataprepAssetUtil
-{
-	void DeleteRegisteredAsset(UObject* Asset)
-	{
-		if(Asset != nullptr)
-		{
-			Asset->Rename( nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_NonTransactional );
-
-			Asset->ClearFlags(RF_Standalone | RF_Public);
-			Asset->RemoveFromRoot();
-			Asset->MarkPendingKill();
-
-			FAssetRegistryModule::AssetDeleted( Asset ) ;
-		}
-	}
-}
-
+#define LOCTEXT_NAMESPACE "DataprepAsset"
 
 // UDataprepAsset =================================================================
 
 UDataprepAsset::UDataprepAsset()
 {
-#if WITH_EDITORONLY_DATA
-	Consumer = nullptr;
-#endif
-
 	// Temp code for the nodes development
 	DataprepRecipeBP = nullptr;
+	StartNode = nullptr;
 	// end of temp code for nodes development
 }
 
-void UDataprepAsset::PostInitProperties()
+void UDataprepAsset::PostLoad()
 {
-	Super::PostInitProperties();
+	UDataprepAssetInterface::PostLoad();
 
-	if(HasAnyFlags(RF_ClassDefaultObject | RF_NeedLoad) == false)
+	check(DataprepRecipeBP);
+	DataprepRecipeBP->OnChanged().AddUObject( this, &UDataprepAsset::OnDataprepBlueprintChanged );
+
+	// Move content of deprecated properties to the corresponding new ones.
+	if(HasAnyFlags(RF_WasLoaded))
 	{
-		// Set DataprepAsset's consumer to the first registered consumer
-		for( TObjectIterator< UClass > It ; It ; ++It )
+		bool bMarkDirty = false;
+		if(Producers_DEPRECATED.Num() > 0)
 		{
-			UClass* CurrentClass = (*It);
+			Inputs->AssetProducers.Reserve(Producers_DEPRECATED.Num());
 
-			if ( !CurrentClass->HasAnyClassFlags( CLASS_Abstract ) )
+			while(Producers_DEPRECATED.Num() > 0)
 			{
-				if( CurrentClass->IsChildOf( UDataprepContentConsumer::StaticClass() ) )
+				if(Inputs->AddAssetProducer( Producers_DEPRECATED.Pop(false) ) == INDEX_NONE)
 				{
-					FString BaseName = GetName() + TEXT("_Consumer");
-					FName ConsumerName = MakeUniqueObjectName( this, CurrentClass, *BaseName );
-					Consumer = NewObject< UDataprepContentConsumer >( this, CurrentClass, ConsumerName, RF_Transactional );
-					check( Consumer );
+					// #ueent_todo Log message a producer was not properly restored
+				}
+			}
 
-					FAssetRegistryModule::AssetCreated( Consumer );
-					Consumer->MarkPackageDirty();
+			Producers_DEPRECATED.Empty();
+			bMarkDirty = true;
+		}
 
+		if(Consumer_DEPRECATED)
+		{
+			Output = Consumer_DEPRECATED;
+			Consumer_DEPRECATED = nullptr;
+			bMarkDirty = true;
+		}
+
+		// Most likely a Dataprep asset from 4.23
+		if(StartNode == nullptr)
+		{
+			UEdGraph* PipelineGraph = FBlueprintEditorUtils::FindEventGraph(DataprepRecipeBP);
+			check( PipelineGraph );
+
+			for( UEdGraphNode* GraphNode : PipelineGraph->Nodes )
+			{
+				StartNode = Cast<UK2Node_DataprepProducer>(GraphNode);
+				if( StartNode )
+				{
 					break;
 				}
 			}
-		}
 
-		// Begin: Temp code for the nodes development
-		const FString DesiredName = GetName() + TEXT("_Recipe");
-		FName BlueprintName = MakeUniqueObjectName( GetOutermost(), UBlueprint::StaticClass(), *DesiredName );
-
-		DataprepRecipeBP = FKismetEditorUtilities::CreateBlueprint( UDataprepRecipe::StaticClass(), this, BlueprintName, BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass() );
-		check( DataprepRecipeBP );
-
-		// This blueprint is not the asset of the package
-		DataprepRecipeBP->ClearFlags( RF_Standalone );
-
-		FAssetRegistryModule::AssetCreated( DataprepRecipeBP );
-
-		DataprepRecipeBP->MarkPackageDirty();
-
-		DataprepRecipeBP->OnChanged().AddUObject( this, &UDataprepAsset::OnBlueprintChanged );
-		// End: Temp code for the nodes development
-	}
-}
-
-void UDataprepAsset::Serialize( FArchive& Ar )
-{
-	Super::Serialize( Ar );
-
-	if( Ar.IsLoading() )
-	{
-		if(Consumer != nullptr)
-		{
-			Consumer->GetOnChanged().AddUObject( this, &UDataprepAsset::OnConsumerChanged );
-		}
-
-		check(DataprepRecipeBP);
-		DataprepRecipeBP->OnChanged().AddUObject( this, &UDataprepAsset::OnBlueprintChanged );
-
-		for( FDataprepAssetProducer& Producer : Producers )
-		{
-			if(Producer.Producer)
+			// This Dataprep asset was never opened in the editor
+			if( StartNode == nullptr )
 			{
-				Producer.Producer->GetOnChanged().AddUObject( this, &UDataprepAsset::OnProducerChanged );
+				IBlueprintNodeBinder::FBindingSet Bindings;
+				StartNode = UBlueprintNodeSpawner::Create<UK2Node_DataprepProducer>()->Invoke( PipelineGraph, Bindings, FVector2D(-100,0) );
+				check(Cast<UK2Node_DataprepProducer>(StartNode));
+
+				DataprepRecipeBP->MarkPackageDirty();
 			}
+
+			UpdateActions();
+			bMarkDirty = true;
+		}
+
+		if ( !Parameterization )
+		{
+			Parameterization = NewObject<UDataprepParameterization>( this, FName(), RF_Public | RF_Transactional );
+			bMarkDirty = true;
+		}
+
+		// Mark the asset as dirty to indicate asset's properties have changed
+		if(bMarkDirty)
+		{
+			const FText AssetName = FText::FromString( GetName() );
+			const FText WarningMessage = FText::Format( LOCTEXT( "DataprepAssetOldVersion", "{0} is from an old version and has been updated. Please save asset to complete update."), AssetName );
+			const FText NotificationText = FText::Format( LOCTEXT( "DataprepAssetOldVersionNotif", "{0} is from an old version and has been updated."), AssetName );
+			DataprepCorePrivateUtils::LogMessage( EMessageSeverity::Warning, WarningMessage, NotificationText );
+
+			GetOutermost()->SetDirtyFlag(true);
 		}
 	}
 }
 
-void UDataprepAsset::RunProducers(const UDataprepContentProducer::ProducerContext& InContext, TArray< TWeakObjectPtr< UObject > >& OutAssets)
+bool UDataprepAsset::CreateBlueprint()
 {
-	if( Producers.Num() == 0 )
-	{
-		return;
-	}
+	// Begin: Temp code for the nodes development
+	const FString DesiredName = GetName() + TEXT("_Recipe");
+	FName BlueprintName = MakeUniqueObjectName( GetOutermost(), UBlueprint::StaticClass(), *DesiredName );
 
-	OutAssets.Empty();
+	DataprepRecipeBP = FKismetEditorUtilities::CreateBlueprint( UDataprepRecipe::StaticClass(), this, BlueprintName, BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass() );
+	check( DataprepRecipeBP );
 
-	FDataprepProgressTask Task( *InContext.ProgressReporterPtr, NSLOCTEXT( "DataprepAsset", "ProducerReport_Importing", "Importing ..." ), (float)Producers.Num(), 1.0f );
+	// This blueprint is not the asset of the package
+	DataprepRecipeBP->ClearFlags( RF_Standalone );
 
-	for ( FDataprepAssetProducer& AssetProducer : Producers )
-	{
-		if( UDataprepContentProducer* Producer = AssetProducer.Producer )
-		{
-			Task.ReportNextStep( FText::Format( NSLOCTEXT( "DataprepAsset", "ProducerReport_ImportingX", "Importing {0} ..."), FText::FromString( Producer->GetName() ) ) );
+	FAssetRegistryModule::AssetCreated( DataprepRecipeBP );
 
-			// Run producer if enabled and, if superseded, superseder is disabled
-			const bool bIsOkToRun = AssetProducer.bIsEnabled &&	( AssetProducer.SupersededBy == INDEX_NONE || !Producers[AssetProducer.SupersededBy].bIsEnabled );
+	// Create the start node of the Blueprint
+	UEdGraph* PipelineGraph = FBlueprintEditorUtils::FindEventGraph(DataprepRecipeBP);
+	check( PipelineGraph );
 
-			if ( bIsOkToRun )
-			{
-				FString OutReason;
-				if (Producer->Initialize( InContext, OutReason ))
-				{
-					if ( Producer->Produce() )
-					{
-						const TArray< TWeakObjectPtr< UObject > >& ProducerAssets = Producer->GetAssets();
-						if (ProducerAssets.Num() > 0)
-						{
-							OutAssets.Append( ProducerAssets );
-						}
-					}
-					else
-					{
-						OutReason = FText::Format(NSLOCTEXT("DataprepAsset", "ProducerReport_Failed", "{0} failed to run."), FText::FromString( Producer->GetName() ) ).ToString();
-					}
-				}
+	UEdGraph* EventGraph = FBlueprintEditorUtils::FindEventGraph(DataprepRecipeBP);
+	IBlueprintNodeBinder::FBindingSet Bindings;
 
-				Producer->Reset();
+	StartNode = UBlueprintNodeSpawner::Create<UK2Node_DataprepProducer>()->Invoke( EventGraph, Bindings, FVector2D(-100,0) );
+	check(Cast<UK2Node_DataprepProducer>(StartNode));
 
-				if( !OutReason.IsEmpty() )
-				{
-					// #ueent_todo: Log that producer has failed
-				}
-			}
-		}
-		else
-		{
-			Task.ReportNextStep( NSLOCTEXT( "DataprepAsset", "ProducerReport_Skipped", "Skipped invalid producer ...") );
-		}
-	}
-}
+	DataprepRecipeBP->MarkPackageDirty();
 
-bool UDataprepAsset::RunConsumer( const UDataprepContentConsumer::ConsumerContext& InContext, FString& OutReason)
-{
-	if(Consumer)
-	{
-		if( !Consumer->Initialize( InContext, OutReason ) )
-		{
-			return false;
-		}
+	DataprepRecipeBP->OnChanged().AddUObject( this, &UDataprepAsset::OnDataprepBlueprintChanged );
+	// End: Temp code for the nodes development
 
-		// #ueent_todo: Update state of entry: finalizing
-
-		if ( !Consumer->Run() )
-		{
-			// #ueent_todo: Inform execution has failed
-			return false;
-		}
-
-		Consumer->Reset();
-
-		return true;
-	}
-
-	return false;
-}
-
-bool UDataprepAsset::AddProducer(UClass* ProducerClass)
-{
-	if( ProducerClass && ProducerClass->IsChildOf( UDataprepContentProducer::StaticClass() ) )
-	{
-		UDataprepContentProducer* Producer = NewObject< UDataprepContentProducer >( this, ProducerClass, NAME_None, RF_Transactional );
-		FAssetRegistryModule::AssetCreated( Producer );
-		Producer->MarkPackageDirty();
-
-		int32 ProducerNextIndex = Producers.Num();
-		Producers.Emplace( Producer, true );
-
-		Producer->GetOnChanged().AddUObject(this, &UDataprepAsset::OnProducerChanged);
-		MarkPackageDirty();
-
-		OnChanged.Broadcast( FDataprepAssetChangeType::ProducerAdded, ProducerNextIndex );
-
-		return true;
-	}
-
-	return false;
-}
-
-bool UDataprepAsset::RemoveProducer(int32 IndexToRemove)
-{
-	if( Producers.IsValidIndex( IndexToRemove ) )
-	{
-		if(UDataprepContentProducer* Producer = Producers[IndexToRemove].Producer)
-		{
-			Producer->GetOnChanged().RemoveAll( this );
-
-			DataprepAssetUtil::DeleteRegisteredAsset( Producer );
-		}
-
-		Producers.RemoveAt( IndexToRemove );
-
-		// Array of producers superseded by removed producer
-		TArray<int32> ProducersToRevisit;
-		ProducersToRevisit.Reserve( Producers.Num() );
-
-		if( Producers.Num() == 1 )
-		{
-			Producers[0].SupersededBy = INDEX_NONE;
-		}
-		else if(Producers.Num() > 1)
-		{
-			// Update value stored in SupersededBy property where applicable
-			for( int32 Index = 0; Index < Producers.Num(); ++Index )
-			{
-				FDataprepAssetProducer& AssetProducer = Producers[Index];
-
-				if( AssetProducer.SupersededBy == IndexToRemove )
-				{
-					AssetProducer.SupersededBy = INDEX_NONE;
-					ProducersToRevisit.Add( Index );
-				}
-				else if( AssetProducer.SupersededBy > IndexToRemove )
-				{
-					--AssetProducer.SupersededBy;
-				}
-			}
-		}
-
-		MarkPackageDirty();
-
-		OnChanged.Broadcast( FDataprepAssetChangeType::ProducerRemoved, IndexToRemove );
-
-		// Update superseding status for producers depending on removed producer
-		bool bChangeAll = false;
-
-		for( int32 ProducerIndex : ProducersToRevisit )
-		{
-			bool bLocalChangeAll = false;
-			ValidateProducerChanges( ProducerIndex, bLocalChangeAll );
-			bChangeAll |= bLocalChangeAll;
-		}
-
-		// Notify observes on additional changes
-		if( bChangeAll )
-		{
-			OnChanged.Broadcast( FDataprepAssetChangeType::ProducerModified, INDEX_NONE );
-		}
-		else
-		{
-			for( int32 ProducerIndex : ProducersToRevisit )
-			{
-				OnChanged.Broadcast( FDataprepAssetChangeType::ProducerModified, ProducerIndex );
-			}
-		}
-
-		return true;
-	}
-
-	return false;
-}
-
-void UDataprepAsset::EnableProducer(int32 Index, bool bValue)
-{
-	if( Producers.IsValidIndex( Index ) )
-	{
-		Producers[Index].bIsEnabled = bValue;
-
-		MarkPackageDirty();
-
-		// Relay change notification to observers of this object
-		OnChanged.Broadcast( FDataprepAssetChangeType::ProducerModified, Index );
-	}
-}
-
-bool UDataprepAsset::EnableAllProducers(bool bValue)
-{
-	if( Producers.Num() > 0 )
-	{
-		for( FDataprepAssetProducer& Producer : Producers )
-		{
-			Producer.bIsEnabled = bValue;
-		}
-
-		MarkPackageDirty();
-
-		OnChanged.Broadcast( FDataprepAssetChangeType::ProducerModified, INDEX_NONE );
-
-		return true;
-	}
-
-	return false;
-}
-
-bool UDataprepAsset::ReplaceConsumer(UClass* NewConsumerClass)
-{
-	if( NewConsumerClass && NewConsumerClass->IsChildOf(UDataprepContentConsumer::StaticClass()))
-	{
-		if(Consumer != nullptr)
-		{
-			Consumer->GetOnChanged().RemoveAll( this );
-			DataprepAssetUtil::DeleteRegisteredAsset( Consumer );
-		}
-
-		FString BaseName = GetName() + TEXT("_Consumer");
-		FName ConsumerName = MakeUniqueObjectName( this, NewConsumerClass, *BaseName );
-		Consumer = NewObject< UDataprepContentConsumer >( this, NewConsumerClass, ConsumerName, RF_Transactional );
-		check( Consumer );
-
-		FAssetRegistryModule::AssetCreated( Consumer );
-		Consumer->MarkPackageDirty();
-
-		Consumer->GetOnChanged().AddUObject( this, &UDataprepAsset::OnConsumerChanged );
-		MarkPackageDirty();
-
-		OnChanged.Broadcast( FDataprepAssetChangeType::ConsumerModified, INDEX_NONE );
-
-		return true;
-	}
-
-	return false;
-}
-
-void UDataprepAsset::OnConsumerChanged()
-{
 	MarkPackageDirty();
 
-	// Broadcast change on consumer to observers of this object
-	OnChanged.Broadcast( FDataprepAssetChangeType::ConsumerModified, INDEX_NONE );
+	return true;
 }
 
-void UDataprepAsset::OnProducerChanged( const UDataprepContentProducer* InProducer )
+bool UDataprepAsset::CreateParameterization()
 {
-	int32 FoundIndex = 0;
-	for( FDataprepAssetProducer& AssetProducer : Producers )
+	if( !Parameterization )
 	{
-		if( AssetProducer.Producer == InProducer )
-		{
-			break;
-		}
-
-		++FoundIndex;
-	}
-
-	// Verify found producer is not now superseded by another one
-	if( FoundIndex < Producers.Num() )
-	{
-		bool bChangeAll = false;
-		ValidateProducerChanges( FoundIndex, bChangeAll );
-
+		Parameterization = NewObject<UDataprepParameterization>( this, FName(), RF_Public | RF_Transactional );
 		MarkPackageDirty();
-
-		// Relay change notification to observers of this object
-		OnChanged.Broadcast( FDataprepAssetChangeType::ProducerModified, bChangeAll ? INDEX_NONE : FoundIndex );
+		return true;
 	}
+
+	return false;
 }
 
-void UDataprepAsset::OnBlueprintChanged( UBlueprint* InBlueprint )
+void UDataprepAsset::ExecuteRecipe(const TSharedPtr<FDataprepActionContext>& InActionsContext)
+{
+	ExecuteRecipe_Internal(	InActionsContext, ActionAssets );
+}
+
+TArray<UDataprepActionAsset*> UDataprepAsset::GetCopyOfActions(TMap<UObject*,UObject*>& OutOriginalToCopy) const
+{
+	TArray<UDataprepActionAsset*> CopyOfActionAssets;
+	CopyOfActionAssets.Reserve( ActionAssets.Num() );
+	for ( UDataprepActionAsset* ActionAsset : ActionAssets )
+	{
+		FObjectDuplicationParameters DuplicationParameter( ActionAsset, GetTransientPackage() );
+		DuplicationParameter.CreatedObjects = &OutOriginalToCopy;
+
+		UDataprepActionAsset* CopyOfAction = static_cast<UDataprepActionAsset*>( StaticDuplicateObjectEx( DuplicationParameter ) );
+		check( CopyOfAction );
+
+		OutOriginalToCopy.Add( ActionAsset, CopyOfAction );
+		CopyOfActionAssets.Add( CopyOfAction );
+	}
+
+	return CopyOfActionAssets;
+}
+
+UObject* UDataprepAsset::GetParameterizationObject()
+{
+	return Parameterization->GetDefaultObject();
+}
+
+void UDataprepAsset::BindObjectPropertyToParameterization(UObject* Object, const TArray<FDataprepPropertyLink>& InPropertyChain, FName Name)
+{
+	bool bPassConditionCheck = false;
+
+	if ( InPropertyChain.Num() > 0 )
+	{
+		// Validate that the object is part of this asset
+		UObject* Outer = Object;
+		while ( Outer && !bPassConditionCheck )
+		{
+			Outer =  Outer->GetOuter();
+			bPassConditionCheck = Outer == this;
+		}
+	}
+
+	if ( bPassConditionCheck )
+	{
+		Parameterization->BindObjectProperty( Object, InPropertyChain, Name );
+	}
+
+}
+
+void UDataprepAsset::OnDataprepBlueprintChanged( UBlueprint* InBlueprint )
 {
 	if(InBlueprint == DataprepRecipeBP)
 	{
-		OnChanged.Broadcast( FDataprepAssetChangeType::BlueprintModified, INDEX_NONE );
+		UpdateActions();
+		OnChanged.Broadcast( FDataprepAssetChangeType::RecipeModified );
 	}
 }
 
-void UDataprepAsset::ValidateProducerChanges( int32 InIndex, bool &bChangeAll )
+void UDataprepAsset::UpdateActions()
 {
-	bChangeAll = false;
+	ActionAssets.Empty(ActionAssets.Num());
 
-	if( Producers.IsValidIndex( InIndex ) && Producers.Num() > 1 )
+	UEdGraphPin* StartNodePin = StartNode->FindPin(UEdGraphSchema_K2::PN_Then, EGPD_Output);
+	if( StartNodePin && StartNodePin->LinkedTo.Num() > 0 )
 	{
-		FDataprepAssetProducer& InAssetProducer = Producers[InIndex];
+		TSet<UK2Node_DataprepActionCore*> ActionNodesExecuted;
 
-		// Check if input producer is still superseded if applicable
-		if( InAssetProducer.SupersededBy != INDEX_NONE )
+		for( UEdGraphPin* NextNodeInPin = StartNodePin->LinkedTo[0]; NextNodeInPin != nullptr ; )
 		{
-			FDataprepAssetProducer& SupersedingAssetProducer = Producers[ InAssetProducer.SupersededBy ];
+			UEdGraphNode* NextNode = NextNodeInPin->GetOwningNode();
 
-			if( SupersedingAssetProducer.Producer != nullptr && !SupersedingAssetProducer.Producer->Supersede( InAssetProducer.Producer ) )
+			if(UK2Node_DataprepActionCore* ActionNode = Cast<UK2Node_DataprepActionCore>(NextNode))
 			{
-				InAssetProducer.SupersededBy = INDEX_NONE;
-			}
-		}
-
-		// Check if producer is now superseded by any other producer
-		int32 SupersederIndex = 0;
-		for( FDataprepAssetProducer& AssetProducer : Producers )
-		{
-			if( AssetProducer.Producer != nullptr &&
-				AssetProducer.Producer != InAssetProducer.Producer &&
-				AssetProducer.bIsEnabled == true && 
-				AssetProducer.SupersededBy == INDEX_NONE && 
-				AssetProducer.Producer->Supersede( InAssetProducer.Producer ) )
-			{
-				// Disable found producer if another producer supersedes its production
-				InAssetProducer.SupersededBy = SupersederIndex;
-				break;
-			}
-			SupersederIndex++;
-		}
-
-		// If input producer superseded any other producer, check if this is still valid
-		// Check if input producer does not supersede other producers
-		if( InAssetProducer.Producer != nullptr )
-		{
-			for( FDataprepAssetProducer& AssetProducer : Producers )
-			{
-				if( AssetProducer.Producer != InAssetProducer.Producer )
+				// Break the loop if the node had already been executed
+				if( ActionNodesExecuted.Find( ActionNode ) )
 				{
-					if( AssetProducer.SupersededBy == InIndex )
+					break;
+				}
+
+				if(UDataprepActionAsset* DataprepAction = ActionNode->GetDataprepAction())
+				{
+					ActionAssets.Add( DataprepAction );
+				}
+			}
+
+			UEdGraphPin* NextNodeOutPin = NextNode->FindPin( UEdGraphSchema_K2::PN_Then, EGPD_Output );
+
+			if ( !NextNodeOutPin )
+			{
+				// If we couldn't find a then pin try to get the first output pin as a fallback
+				for ( UEdGraphPin* Pin : NextNode->Pins )
+				{
+					if ( Pin && Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Exec && Pin->Direction == EGPD_Output )
 					{
-						if( !InAssetProducer.Producer->Supersede( AssetProducer.Producer ) )
-						{
-							bChangeAll = true;
-							AssetProducer.SupersededBy = INDEX_NONE;
-						}
-					}
-					else if( InAssetProducer.SupersededBy == INDEX_NONE && InAssetProducer.Producer->Supersede( AssetProducer.Producer ) )
-					{
-						bChangeAll = true;
-						AssetProducer.SupersededBy = InIndex;
+						NextNodeOutPin = Pin;
+						break;
 					}
 				}
 			}
+
+			NextNodeInPin = NextNodeOutPin ? ( NextNodeOutPin->LinkedTo.Num() > 0 ? NextNodeOutPin->LinkedTo[0] : nullptr ) : nullptr;
 		}
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

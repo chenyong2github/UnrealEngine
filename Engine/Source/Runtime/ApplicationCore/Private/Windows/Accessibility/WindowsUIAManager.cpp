@@ -15,6 +15,8 @@
 #include "Windows/Accessibility/WindowsUIAPropertyGetters.h"
 #include "Windows/WindowsApplication.h"
 #include "Windows/WindowsWindow.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Culture.h"
 
 TMap<EAccessibleWidgetType, ULONG> FWindowsUIAManager::WidgetTypeToWindowsTypeMap;
 TMap<EAccessibleWidgetType, FText> FWindowsUIAManager::WidgetTypeToTextMap;
@@ -34,6 +36,8 @@ void EmitPropertyChangedEvent(FWindowsUIAWidgetProvider* Provider, PROPERTYID Pr
 
 FWindowsUIAManager::FWindowsUIAManager(const FWindowsApplication& InApplication)
 	: WindowsApplication(InApplication)
+	, OnCultureChangedHandle()
+	, CachedCurrentLocaleLCID(0)
 {
 	OnAccessibleMessageHandlerChanged();
 
@@ -88,6 +92,12 @@ FWindowsUIAManager::~FWindowsUIAManager()
 		// The UIA Manager may be deleted before the Providers are, and external applications may attempt to call functions on those Providers.
 		Provider->OnUIAManagerDestroyed();
 	}
+
+	if (OnCultureChangedHandle.IsValid()&& FInternationalization::Get().IsAvailable())
+	{
+		FInternationalization::Get().OnCultureChanged().Remove(OnCultureChangedHandle);
+		OnCultureChangedHandle.Reset();
+	}
 }
 
 FWindowsUIAWidgetProvider& FWindowsUIAManager::GetWidgetProvider(TSharedRef<IAccessibleWidget> InWidget)
@@ -112,14 +122,22 @@ FWindowsUIAWindowProvider& FWindowsUIAManager::GetWindowProvider(TSharedRef<FWin
 {
 	if (CachedWidgetProviders.Num() == 0)
 	{
-		// Enable application accessibility if this is the first Provider. The first Get*Provider() request
-		// MUST go through this function since IAccessibleWidgets will not exist until SetActive is called.
-		WindowsApplication.GetAccessibleMessageHandler()->SetActive(true);
+		// The first Get*Provider() request / MUST go through this function since IAccessibleWidgets will not exist untilthe accessible message handler is set active.
+		OnAccessibilityEnabled();
 	}
 
 	TSharedPtr<IAccessibleWidget> AccessibleWindow = WindowsApplication.GetAccessibleMessageHandler()->GetAccessibleWindow(InWindow);
 	checkf(AccessibleWindow.IsValid(), TEXT("%s is not an accessible window. All windows must be accessible."), *InWindow->GetDefinition().Title);
 	return static_cast<FWindowsUIAWindowProvider&>(GetWidgetProvider(AccessibleWindow.ToSharedRef()));
+}
+
+void FWindowsUIAManager::OnAccessibilityEnabled()
+{
+	WindowsApplication.GetAccessibleMessageHandler()->SetActive(true);
+	// Register for language and locale changes for internationalization.
+	// Updates the LCID to be returned in FWindowsUIAWidgetProvider  as a UIA Property 
+	UpdateCachedCurrentLocaleLCID();
+	OnCultureChangedHandle = FInternationalization::Get().OnCultureChanged().AddRaw(this, &FWindowsUIAManager::UpdateCachedCurrentLocaleLCID);
 }
 
 void FWindowsUIAManager::OnWidgetProviderRemoved(TSharedRef<IAccessibleWidget> InWidget)
@@ -135,7 +153,18 @@ void FWindowsUIAManager::OnWidgetProviderRemoved(TSharedRef<IAccessibleWidget> I
 		// Note that there could still be control Providers with valid references. In practice I don't think
 		// this is possible, but if we run into problems then we can simply call AddRef and Release on the
 		// underlying widget Provider whenever a control Provider gets added/removed.
-		WindowsApplication.GetAccessibleMessageHandler()->SetActive(false);
+		OnAccessibilityDisabled();
+	}
+}
+
+void FWindowsUIAManager::OnAccessibilityDisabled()
+{
+	WindowsApplication.GetAccessibleMessageHandler()->SetActive(false);
+	CachedCurrentLocaleLCID = 0;
+	if (OnCultureChangedHandle.IsValid())
+	{
+		FInternationalization::Get().OnCultureChanged().Remove(OnCultureChangedHandle);
+		OnCultureChangedHandle.Reset();
 	}
 }
 
@@ -238,6 +267,16 @@ void FWindowsUIAManager::OnEventRaised(TSharedRef<IAccessibleWidget> Widget, EAc
 	}
 }
 
+void FWindowsUIAManager::UpdateCachedCurrentLocaleLCID()
+{
+	CachedCurrentLocaleLCID = FInternationalization::Get().GetCurrentLocale()->GetLCID();
+	// an LCID of 0 is invalid  and and UIA won't do anything with it.
+	// Get the default OS locale LCID to give to screen readers  in that case
+	if (CachedCurrentLocaleLCID == 0)
+	{
+		CachedCurrentLocaleLCID = FInternationalization::Get().GetDefaultLocale()->GetLCID();
+	}
+}
 #if !UE_BUILD_SHIPPING
 void FWindowsUIAManager::DumpAccessibilityStats() const
 {

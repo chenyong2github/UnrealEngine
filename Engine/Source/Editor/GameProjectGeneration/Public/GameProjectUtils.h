@@ -25,8 +25,9 @@ struct FProjectInformation
 	bool bCopyStarterContent = false;
 	
 	bool bForceExtendedLuminanceRange = false; // See "r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRange"
-	bool bEnableVR = false;
+	bool bEnableXR = false;
 	bool bIsEnterpriseProject = false;
+	bool bEnableRaytracing = false;
 
 	EHardwareClass::Type TargetedHardware = EHardwareClass::Desktop;
 	EGraphicsPreset::Type DefaultGraphicsPerformance = EGraphicsPreset::Maximum;

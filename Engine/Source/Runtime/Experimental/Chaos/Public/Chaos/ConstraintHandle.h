@@ -11,6 +11,7 @@ namespace Chaos
 
 	/**
 	 * Base class for constraint handles.
+	 * @todo(ccaulfield): Add checked down-casting to specific constraint-type handle
 	 */
 	template<class T, int d>
 	class CHAOS_API TConstraintHandle

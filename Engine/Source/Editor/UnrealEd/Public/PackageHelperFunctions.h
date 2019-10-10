@@ -73,7 +73,7 @@ bool UNREALED_API NormalizePackageNames( TArray<FString> PackageNames, TArray<FS
  *
  * @return true if successful
  */
-bool UNREALED_API SavePackageHelper(UPackage* Package, FString Filename,  EObjectFlags KeepObjectFlags = RF_Standalone, FOutputDevice* ErrorDevice=GWarn, FLinkerLoad* LinkerToConformAgainst=NULL, ESaveFlags SaveFlags = SAVE_None);
+bool UNREALED_API SavePackageHelper(UPackage* Package, FString Filename,  EObjectFlags KeepObjectFlags = RF_Standalone, FOutputDevice* ErrorDevice=GWarn, FLinkerNull* LinkerToConformAgainst=NULL, ESaveFlags SaveFlags = SAVE_None);
 
 
 /**

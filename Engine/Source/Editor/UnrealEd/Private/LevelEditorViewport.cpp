@@ -232,7 +232,7 @@ namespace LevelEditorViewportClientHelper
 	}
 }
 
-TArray<AActor*> FLevelEditorViewportClient::TryPlacingActorFromObject( ULevel* InLevel, UObject* ObjToUse, bool bSelectActors, EObjectFlags ObjectFlags, UActorFactory* FactoryToUse, const FName Name )
+TArray<AActor*> FLevelEditorViewportClient::TryPlacingActorFromObject( ULevel* InLevel, UObject* ObjToUse, bool bSelectActors, EObjectFlags ObjectFlags, UActorFactory* FactoryToUse, const FName Name, const FViewportCursorLocation* Cursor )
 {
 	TArray<AActor*> PlacedActors;
 
@@ -267,7 +267,7 @@ TArray<AActor*> FLevelEditorViewportClient::TryPlacingActorFromObject( ULevel* I
 		if ( PlacedActor == NULL && !ObjectClass->HasAnyClassFlags(CLASS_NotPlaceable | CLASS_Abstract) )
 		{
 			// If no actor factory was found or failed, add the actor directly.
-			const FTransform ActorTransform = FActorPositioning::GetCurrentViewportPlacementTransform(*ObjectClass->GetDefaultObject<AActor>());
+			const FTransform ActorTransform = FActorPositioning::GetCurrentViewportPlacementTransform(*ObjectClass->GetDefaultObject<AActor>(), /*bSnap=*/true, Cursor);
 			PlacedActor = GEditor->AddActor( InLevel, ObjectClass, ActorTransform, /*bSilent=*/false, ObjectFlags );
 		}
 
@@ -940,7 +940,7 @@ bool FLevelEditorViewportClient::DropObjectsOnBackground(FViewportCursorLocation
 		ensure( AssetObj );
 
 		// Attempt to create actors from the dropped object
-		TArray<AActor*> NewActors = TryPlacingActorFromObject(GetWorld()->GetCurrentLevel(), AssetObj, bSelectActors, ObjectFlags, FactoryToUse);
+		TArray<AActor*> NewActors = TryPlacingActorFromObject(GetWorld()->GetCurrentLevel(), AssetObj, bSelectActors, ObjectFlags, FactoryToUse, NAME_None, &Cursor);
 
 		if ( NewActors.Num() > 0 )
 		{
@@ -982,7 +982,7 @@ bool FLevelEditorViewportClient::DropObjectsOnActor(FViewportCursorLocation& Cur
 		if (!bAppliedToActor)
 		{
 			// Attempt to create actors from the dropped object
-			TArray<AActor*> NewActors = TryPlacingActorFromObject(GetWorld()->GetCurrentLevel(), DroppedObject, bSelectActors, ObjectFlags, FactoryToUse);
+			TArray<AActor*> NewActors = TryPlacingActorFromObject(GetWorld()->GetCurrentLevel(), DroppedObject, bSelectActors, ObjectFlags, FactoryToUse, NAME_None, &Cursor);
 
 			if ( NewActors.Num() > 0 )
 			{
@@ -1028,7 +1028,7 @@ bool FLevelEditorViewportClient::DropObjectsOnBSPSurface(FSceneView* View, FView
 		if (!bAppliedToActor)
 		{
 			// Attempt to create actors from the dropped object
-			TArray<AActor*> NewActors = TryPlacingActorFromObject(GetWorld()->GetCurrentLevel(), DroppedObject, bSelectActors, ObjectFlags, FactoryToUse);
+			TArray<AActor*> NewActors = TryPlacingActorFromObject(GetWorld()->GetCurrentLevel(), DroppedObject, bSelectActors, ObjectFlags, FactoryToUse, NAME_None, &Cursor);
 
 			if (NewActors.Num() > 0)
 			{
@@ -2617,13 +2617,7 @@ bool FLevelEditorViewportClient::InputWidgetDelta(FViewport* InViewport, EAxisLi
 					bApplyCameraSpeedScaleByDistance = true;
 				}
 
-				TArray<FEdMode*> ActiveModes; 
-				ModeTools->GetActiveModes(ActiveModes);
-
-				for( int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex )
-				{
-					ActiveModes[ModeIndex]->UpdateInternalData();
-				}
+				ModeTools->UpdateInternalData();
 			}
 
 			bHandled = true;
@@ -3147,13 +3141,7 @@ void FLevelEditorViewportClient::TrackingStopped()
 		GEditor->DisableDeltaModification(false);
 	}
 
-	TArray<FEdMode*> ActiveModes; 
-	ModeTools->GetActiveModes(ActiveModes);
-	for( int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex )
-	{
-		// Also notify the current editing modes if they are interested.
-		ActiveModes[ModeIndex]->ActorMoveNotify();
-	}
+	ModeTools->ActorMoveNotify();
 
 	if( bDidAnythingActuallyChange )
 	{
@@ -4726,7 +4714,7 @@ void FLevelEditorViewportClient::SetupViewForRendering( FSceneViewFamily& ViewFa
 void FLevelEditorViewportClient::DrawCanvas( FViewport& InViewport, FSceneView& View, FCanvas& Canvas )
 {
 	// HUD for components visualizers
-	if (GUnrealEd != NULL)
+	if (GUnrealEd != NULL && !IsInGameView())
 	{
 		GUnrealEd->DrawComponentVisualizersHUD(&InViewport, &View, &Canvas);
 	}
@@ -5111,15 +5099,24 @@ bool FLevelEditorViewportClient::GetPivotForOrbit(FVector& Pivot) const
 		USceneComponent* Component = Cast<USceneComponent>(*It);
 		if (Component && Component->IsRegistered())
 		{
-			// It's possible that it doesn't have a bounding box, so just take its position in that case
-			FBox ComponentBBox = Component->Bounds.GetBox();
-			if (ComponentBBox.GetVolume() != 0)
+			TSharedPtr<FComponentVisualizer> Visualizer = GUnrealEd->FindComponentVisualizer(Component->GetClass());
+			FBox FocusOnSelectionBBox;
+			if (Visualizer && Visualizer->HasFocusOnSelectionBoundingBox(FocusOnSelectionBBox))
 			{
-				BoundingBox += ComponentBBox;
+				BoundingBox += FocusOnSelectionBBox;
 			}
 			else
 			{
-				BoundingBox += Component->GetComponentLocation();
+				// It's possible that it doesn't have a bounding box, so just take its position in that case
+				FBox ComponentBBox = Component->Bounds.GetBox();
+				if (ComponentBBox.GetVolume() != 0)
+				{
+					BoundingBox += ComponentBBox;
+				}
+				else
+				{
+					BoundingBox += Component->GetComponentLocation();
+				}
 			}
 			++NumValidComponents;
 		}
@@ -5145,7 +5142,16 @@ bool FLevelEditorViewportClient::GetPivotForOrbit(FVector& Pivot) const
 
 				if (PrimitiveComponent->IsRegistered() && !PrimitiveComponent->IgnoreBoundsForEditorFocus())
 				{
-					BoundingBox += PrimitiveComponent->Bounds.GetBox();
+					TSharedPtr<FComponentVisualizer> Visualizer = GUnrealEd->FindComponentVisualizer(PrimitiveComponent->GetClass());
+					FBox FocusOnSelectionBBox;
+					if (Visualizer && Visualizer->HasFocusOnSelectionBoundingBox(FocusOnSelectionBBox))
+					{
+						BoundingBox += FocusOnSelectionBBox;
+					}
+					else
+					{
+						BoundingBox += PrimitiveComponent->Bounds.GetBox();
+					}
 					++NumSelectedActors;
 				}
 			}

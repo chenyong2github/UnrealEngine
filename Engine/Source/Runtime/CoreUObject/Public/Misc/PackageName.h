@@ -103,6 +103,17 @@ public:
 	 */
 	static bool SplitLongPackageName(const FString& InLongPackageName, FString& OutPackageRoot, FString& OutPackagePath, FString& OutPackageName, const bool bStripRootLeadingSlash = false);
 
+	/**
+	 * Split a full object path (Class /Path/To/A/Package.Object:SubObject) into its constituent pieces
+	 *  
+	 * @param InFullObjectPath			Full object path we want to split
+	 * @param OutClassName				The extracted class name (Class)
+	 * @param OutPackageName			The extracted package name (/Path/To/A/Package)
+	 * @param OutObjectName				The extracted object name (Object)
+	 * @param OutSubObjectName			The extracted subobject name (SubObject)
+	 */
+	static void SplitFullObjectPath(const FString& InFullObjectPath, FString& OutClassName, FString& OutPackageName, FString& OutObjectName, FString& OutSubObjectName);
+
 	/** 
 	 * Returns true if the path starts with a valid root (i.e. /Game/, /Engine/, etc) and contains no illegal characters.
 	 *

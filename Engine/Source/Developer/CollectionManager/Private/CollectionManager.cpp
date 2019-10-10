@@ -16,6 +16,7 @@ FCollectionManagerCache::FCollectionManagerCache(FAvailableCollectionsMap& InAva
 	bIsCachedCollectionNamesFromGuidsDirty = true;
 	bIsCachedObjectsDirty = true;
 	bIsCachedHierarchyDirty = true;
+	bIsCachedColorsDirty = true;
 }
 
 void FCollectionManagerCache::HandleCollectionAdded()
@@ -28,12 +29,14 @@ void FCollectionManagerCache::HandleCollectionRemoved()
 	bIsCachedCollectionNamesFromGuidsDirty = true;
 	bIsCachedObjectsDirty = true;
 	bIsCachedHierarchyDirty = true;
+	bIsCachedColorsDirty = true;
 }
 
 void FCollectionManagerCache::HandleCollectionChanged()
 {
 	bIsCachedObjectsDirty = true;
 	bIsCachedHierarchyDirty = true;
+	bIsCachedColorsDirty = true;
 }
 
 const FGuidToCollectionNamesMap& FCollectionManagerCache::GetCachedCollectionNamesFromGuids() const
@@ -53,7 +56,7 @@ const FGuidToCollectionNamesMap& FCollectionManagerCache::GetCachedCollectionNam
 			CachedCollectionNamesFromGuids_Internal.Add(Collection->GetCollectionGuid(), CollectionKey);
 		}
 
-		UE_LOG(LogCollectionManager, Log, TEXT("Rebuilt the GUID cache for %d collections in %0.6f seconds"), AvailableCollections.Num(), FPlatformTime::Seconds() - CacheStartTime);
+		UE_LOG(LogCollectionManager, Verbose, TEXT("Rebuilt the GUID cache for %d collections in %0.6f seconds"), AvailableCollections.Num(), FPlatformTime::Seconds() - CacheStartTime);
 	}
 
 	return CachedCollectionNamesFromGuids_Internal;
@@ -118,7 +121,7 @@ const FCollectionObjectsMap& FCollectionManagerCache::GetCachedObjects() const
 			}
 		}
 
-		UE_LOG(LogCollectionManager, Log, TEXT("Rebuilt the object cache for %d collections in %0.6f seconds (found %d objects)"), AvailableCollections.Num(), FPlatformTime::Seconds() - CacheStartTime, CachedObjects_Internal.Num());
+		UE_LOG(LogCollectionManager, Verbose, TEXT("Rebuilt the object cache for %d collections in %0.6f seconds (found %d objects)"), AvailableCollections.Num(), FPlatformTime::Seconds() - CacheStartTime, CachedObjects_Internal.Num());
 	}
 
 	return CachedObjects_Internal;
@@ -149,10 +152,40 @@ const FCollectionHierarchyMap& FCollectionManagerCache::GetCachedHierarchy() con
 			}
 		}
 
-		UE_LOG(LogCollectionManager, Log, TEXT("Rebuilt the hierarchy cache for %d collections in %0.6f seconds"), AvailableCollections.Num(), FPlatformTime::Seconds() - CacheStartTime);
+		UE_LOG(LogCollectionManager, Verbose, TEXT("Rebuilt the hierarchy cache for %d collections in %0.6f seconds"), AvailableCollections.Num(), FPlatformTime::Seconds() - CacheStartTime);
 	}
 
 	return CachedHierarchy_Internal;
+}
+
+const FCollectionColorArray& FCollectionManagerCache::GetCachedColors() const
+{
+	if (bIsCachedColorsDirty)
+	{
+		CachedColors_Internal.Reset();
+		bIsCachedColorsDirty = false;
+
+		const double CacheStartTime = FPlatformTime::Seconds();
+
+		for (const auto& AvailableCollection : AvailableCollections)
+		{
+			const TSharedRef<FCollection>& Collection = AvailableCollection.Value;
+
+			if (const TOptional<FLinearColor> CollectionColor = Collection->GetCollectionColor())
+			{
+				// Only add if not already present (ignores near matches too)
+				const bool bExists = CachedColors_Internal.ContainsByPredicate([CurrentColor = CollectionColor.GetValue()](const FLinearColor& Color) { return CurrentColor.Equals(Color); });
+				if (!bExists)
+				{
+					CachedColors_Internal.Add(CollectionColor.GetValue());
+				}
+			}
+		}
+
+		UE_LOG(LogCollectionManager, Verbose, TEXT("Rebuilt the color cache for %d collections in %0.6f seconds"), AvailableCollections.Num(), FPlatformTime::Seconds() - CacheStartTime);
+	}
+
+	return CachedColors_Internal;
 }
 
 void FCollectionManagerCache::RecursionHelper_DoWork(const FCollectionNameType& InCollectionKey, const ECollectionRecursionFlags::Flags InRecursionMode, FRecursiveWorkerFunc InWorkerFunc) const
@@ -278,6 +311,17 @@ void FCollectionManager::GetCollections(TArray<FCollectionNameType>& OutCollecti
 	{
 		const FCollectionNameType& CollectionKey = AvailableCollection.Key;
 		OutCollections.Add(CollectionKey);
+	}
+}
+
+void FCollectionManager::GetCollections(FName CollectionName, TArray<FCollectionNameType>& OutCollections) const
+{
+	for (int32 CacheIdx = 0; CacheIdx < ECollectionShareType::CST_All; ++CacheIdx)
+	{
+		if (AvailableCollections.Contains(FCollectionNameType(CollectionName, ECollectionShareType::Type(CacheIdx))))
+		{
+			OutCollections.Add(FCollectionNameType(CollectionName, ECollectionShareType::Type(CacheIdx)));
+		}
 	}
 }
 
@@ -644,11 +688,6 @@ FString FCollectionManager::GetCollectionsStringForObject(FName ObjectPath, ECol
 
 void FCollectionManager::CreateUniqueCollectionName(const FName& BaseName, ECollectionShareType::Type ShareType, FName& OutCollectionName) const
 {
-	if (!ensure(ShareType != ECollectionShareType::CST_All))
-	{
-		return;
-	}
-
 	int32 IntSuffix = 1;
 	bool CollectionAlreadyExists = false;
 	do
@@ -662,7 +701,7 @@ void FCollectionManager::CreateUniqueCollectionName(const FName& BaseName, EColl
 			OutCollectionName = *FString::Printf(TEXT("%s%d"), *BaseName.ToString(), IntSuffix);
 		}
 
-		CollectionAlreadyExists = AvailableCollections.Contains(FCollectionNameType(OutCollectionName, ShareType));
+		CollectionAlreadyExists = CollectionExists(OutCollectionName, ShareType);
 		++IntSuffix;
 	}
 	while (CollectionAlreadyExists);
@@ -1317,6 +1356,72 @@ bool FCollectionManager::GetCollectionStatusInfo(FName CollectionName, ECollecti
 	{
 		OutStatusInfo = (*CollectionRefPtr)->GetStatusInfo();
 		return true;
+	}
+	else
+	{
+		LastError = LOCTEXT("Error_DoesntExist", "The collection doesn't exist.");
+	}
+
+	return false;
+}
+
+bool FCollectionManager::HasCollectionColors(TArray<FLinearColor>* OutColors) const
+{
+	const FCollectionColorArray& CollectionColors = CollectionCache.GetCachedColors();
+	if (OutColors)
+	{
+		*OutColors = CollectionColors;
+	}
+	return CollectionColors.Num() > 0;
+}
+
+bool FCollectionManager::GetCollectionColor(FName CollectionName, ECollectionShareType::Type ShareType, TOptional<FLinearColor>& OutColor) const
+{
+	if (!ensure(ShareType < ECollectionShareType::CST_All))
+	{
+		// Bad share type
+		LastError = LOCTEXT("Error_Internal", "There was an internal error.");
+		return true;
+	}
+
+	const FCollectionNameType CollectionKey(CollectionName, ShareType);
+	const TSharedRef<FCollection>* const CollectionRefPtr = AvailableCollections.Find(CollectionKey);
+	if (CollectionRefPtr)
+	{
+		OutColor = (*CollectionRefPtr)->GetCollectionColor();
+		return true;
+	}
+	else
+	{
+		LastError = LOCTEXT("Error_DoesntExist", "The collection doesn't exist.");
+	}
+
+	return false;
+}
+
+bool FCollectionManager::SetCollectionColor(FName CollectionName, ECollectionShareType::Type ShareType, const TOptional<FLinearColor>& NewColor)
+{
+	if (!ensure(ShareType < ECollectionShareType::CST_All))
+	{
+		// Bad share type
+		LastError = LOCTEXT("Error_Internal", "There was an internal error.");
+		return true;
+	}
+
+	const FCollectionNameType CollectionKey(CollectionName, ShareType);
+	const TSharedRef<FCollection>* const CollectionRefPtr = AvailableCollections.Find(CollectionKey);
+	if (CollectionRefPtr)
+	{
+		(*CollectionRefPtr)->SetCollectionColor(NewColor);
+
+		if (InternalSaveCollection(*CollectionRefPtr, LastError))
+		{
+			CollectionFileCaches[ShareType]->IgnoreFileModification((*CollectionRefPtr)->GetSourceFilename());
+			
+			CollectionCache.HandleCollectionChanged();
+			CollectionUpdatedEvent.Broadcast(CollectionKey);
+			return true;
+		}
 	}
 	else
 	{

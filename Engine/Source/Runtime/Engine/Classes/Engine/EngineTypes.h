@@ -2675,6 +2675,96 @@ struct FMeshBuildSettings
 	}
 };
 
+/**
+ * Settings applied when building a mesh.
+ */
+USTRUCT()
+struct FSkeletalMeshBuildSettings
+{
+	GENERATED_BODY()
+
+	/** If true, normals in the raw mesh are ignored and recomputed. */
+	UPROPERTY(EditAnywhere, Category=BuildSettings)
+	uint8 bRecomputeNormals:1;
+
+	/** If true, tangents in the raw mesh are ignored and recomputed. */
+	UPROPERTY(EditAnywhere, Category=BuildSettings)
+	uint8 bRecomputeTangents:1;
+	
+	/** If true, degenerate triangles will be removed. */
+	UPROPERTY(EditAnywhere, Category=BuildSettings)
+	uint8 bUseMikkTSpace:1;
+	
+	/** If true, we will use the surface area and the corner angle of the triangle as a ratio when computing the normals. */
+	UPROPERTY(EditAnywhere, Category = BuildSettings)
+	uint8 bComputeWeightedNormals : 1;
+
+	/** If true, degenerate triangles will be removed. */
+	UPROPERTY(EditAnywhere, Category=BuildSettings)
+	uint8 bRemoveDegenerates:1;
+	
+	/** If true, Tangents will be stored at 16 bit vs 8 bit precision. */
+	UPROPERTY(EditAnywhere, Category = BuildSettings)
+	uint8 bUseHighPrecisionTangentBasis:1;
+
+	/** If true, UVs will be stored at full floating point precision. */
+	UPROPERTY(EditAnywhere, Category=BuildSettings)
+	uint8 bUseFullPrecisionUVs:1;
+	
+	/** Required for PNT tessellation but can be slow. Recommend disabling for larger meshes. */
+	UPROPERTY(EditAnywhere, Category=BuildSettings)
+	uint8 bBuildAdjacencyBuffer:1;
+
+	/** Threshold use to decide if two vertex position are equal. */
+	UPROPERTY(EditAnywhere, Category = BuildSettings)
+	float ThresholdPosition;
+
+	/** Threshold use to decide if two normal, tangents or bi-normals are equal. */
+	UPROPERTY(EditAnywhere, Category = BuildSettings)
+	float ThresholdTangentNormal;
+
+	/** Threshold use to decide if two UVs are equal. */
+	UPROPERTY(EditAnywhere, Category = BuildSettings)
+	float ThresholdUV;
+
+	/** Default settings. */
+	FSkeletalMeshBuildSettings()
+		: bRecomputeNormals(true)
+		, bRecomputeTangents(true)
+		, bUseMikkTSpace(true)
+		, bComputeWeightedNormals(false)
+		, bRemoveDegenerates(true)
+		, bUseHighPrecisionTangentBasis(false)
+		, bUseFullPrecisionUVs(false)
+		, bBuildAdjacencyBuffer(true)
+		, ThresholdPosition(0.00002)
+		, ThresholdTangentNormal(0.00002)
+		, ThresholdUV(0.0009765625)
+	{}
+
+	/** Equality operator. */
+	bool operator==(const FSkeletalMeshBuildSettings& Other) const
+	{
+		return bRecomputeNormals == Other.bRecomputeNormals
+			&& bRecomputeTangents == Other.bRecomputeTangents
+			&& bUseMikkTSpace == Other.bUseMikkTSpace
+			&& bComputeWeightedNormals == Other.bComputeWeightedNormals
+			&& bRemoveDegenerates == Other.bRemoveDegenerates
+			&& bUseHighPrecisionTangentBasis == Other.bUseHighPrecisionTangentBasis
+			&& bUseFullPrecisionUVs == Other.bUseFullPrecisionUVs
+			&& bBuildAdjacencyBuffer == Other.bBuildAdjacencyBuffer
+			&& ThresholdPosition == Other.ThresholdPosition
+			&& ThresholdTangentNormal == Other.ThresholdTangentNormal
+			&& ThresholdUV == Other.ThresholdUV;
+	}
+
+	/** Inequality. */
+	bool operator!=(const FSkeletalMeshBuildSettings& Other) const
+	{
+		return !(*this == Other);
+	}
+};
+
 /** Event used by AActor::TakeDamage and related functions */
 USTRUCT(BlueprintType)
 struct ENGINE_API FDamageEvent

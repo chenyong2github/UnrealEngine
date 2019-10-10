@@ -66,10 +66,10 @@ void FSkinWeightProfileHelpers::ImportSkinWeightProfile(USkeletalMesh* InSkeleta
 		
 		if (bShouldImport)
 		{
+			FScopedSkeletalMeshPostEditChange ScopedPostEditChange(InSkeletalMesh);
 			const FName ProfileName(*ImportSettings->ProfileName);			
 			// Try and import the skin weight profile from the provided FBX file path
-			const bool bReregisterComponent = true;
-			const bool bResult = FSkinWeightsUtilities::ImportAlternateSkinWeight(InSkeletalMesh, PickedFileName, ImportSettings->LODIndex, ProfileName, bReregisterComponent);
+			const bool bResult = FSkinWeightsUtilities::ImportAlternateSkinWeight(InSkeletalMesh, PickedFileName, ImportSettings->LODIndex, ProfileName);
 			if (bResult)
 			{
 				FNotificationInfo NotificationInfo(FText::GetEmpty());
@@ -98,7 +98,7 @@ void FSkinWeightProfileHelpers::ImportSkinWeightProfileLOD(USkeletalMesh* InSkel
 		const FString PickedFileName = FSkinWeightsUtilities::PickSkinWeightFBXPath(LODIndex);
 		
 		// Try and import skin weights for a specific mesh LOD
-		const bool bResult = FSkinWeightsUtilities::ImportAlternateSkinWeight(InSkeletalMesh, PickedFileName, LODIndex, ProfileName, true);
+		const bool bResult = FSkinWeightsUtilities::ImportAlternateSkinWeight(InSkeletalMesh, PickedFileName, LODIndex, ProfileName);
 		if (bResult)
 		{
 			FLODUtilities::RegenerateDependentLODs(InSkeletalMesh, LODIndex);
@@ -126,13 +126,14 @@ void FSkinWeightProfileHelpers::ReimportSkinWeightProfileLOD(USkeletalMesh* InSk
 	{
 		if (const FString* PathNamePtr = Profile->PerLODSourceFiles.Find(LODIndex))
 		{
+			FScopedSkeletalMeshPostEditChange ScopedPostEditChange(InSkeletalMesh);
 			bool bResult = false;
 			const FString& PathName = UAssetImportData::ResolveImportFilename(*PathNamePtr, InSkeletalMesh->GetOutermost());
 			
 			// Check to see if the source file is still valid
 			if (FPaths::FileExists(PathName))
 			{
-				bResult = FSkinWeightsUtilities::ImportAlternateSkinWeight(InSkeletalMesh, PathName, LODIndex, InProfileName, true);
+				bResult = FSkinWeightsUtilities::ImportAlternateSkinWeight(InSkeletalMesh, PathName, LODIndex, InProfileName);
 			}
 			else
 			{
@@ -141,7 +142,7 @@ void FSkinWeightProfileHelpers::ReimportSkinWeightProfileLOD(USkeletalMesh* InSk
 				{
 					// Otherwise let the user pick a new path
 					const FString PickedFileName = FSkinWeightsUtilities::PickSkinWeightFBXPath(LODIndex);
-					bResult = FSkinWeightsUtilities::ImportAlternateSkinWeight(InSkeletalMesh, PickedFileName, LODIndex, InProfileName, true);
+					bResult = FSkinWeightsUtilities::ImportAlternateSkinWeight(InSkeletalMesh, PickedFileName, LODIndex, InProfileName);
 				}
 			}
 
@@ -176,6 +177,7 @@ void FSkinWeightProfileHelpers::RemoveSkinWeightProfile(USkeletalMesh* InSkeleta
 	// Check whether or not we actually removed a profile
 	if (NumRemoved)
 	{
+		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(InSkeletalMesh);
 		FSkeletalMeshUpdateContext UpdateContext;
 		UpdateContext.SkeletalMesh = InSkeletalMesh;
 		
@@ -189,7 +191,7 @@ void FSkinWeightProfileHelpers::RemoveSkinWeightProfile(USkeletalMesh* InSkeleta
 				// Delete the alternate influences data
 				LODModel.SkinWeightProfiles.Remove(InProfileName);
 				// Regenerate this generated LOD
-				FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, LODIndex, true);
+				FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, LODIndex);
 				
 				// Goto next LOD
 				continue;
@@ -225,6 +227,8 @@ void FSkinWeightProfileHelpers::RemoveSkinWeightProfileLOD(USkeletalMesh* InSkel
 			return;
 		}
 		
+		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(InSkeletalMesh);
+
 		if (FSkinWeightsUtilities::RemoveSkinnedWeightProfileData(InSkeletalMesh, InProfileName, LODIndex))
 		{
 			FSkinWeightProfileHelpers::ClearSkinWeightProfileInstanceOverrides(InSkeletalMesh, InProfileName);
@@ -249,6 +253,8 @@ void FSkinWeightProfileHelpers::RemoveSkinWeightProfileLOD(USkeletalMesh* InSkel
 
 void FSkinWeightProfileHelpers::ClearSkinWeightProfileInstanceOverrides(USkeletalMesh* InSkeletalMesh, FName InProfileName)
 {
+	//Make sure all component are unregister (world and render data) avoid post edit change
+	FScopedSkeletalMeshPostEditChange ScopedPostEditChange(InSkeletalMesh, false, true);
 	for (TObjectIterator<USkinnedMeshComponent> It; It; ++It)
 	{
 		if (It->SkeletalMesh == InSkeletalMesh)

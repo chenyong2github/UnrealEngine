@@ -371,7 +371,7 @@ void UPendingNetGame::FinalizeEncryptedConnection(const FEncryptionKeyResponse& 
 		{
 			if (Response.Response == EEncryptionResponse::Success)
 			{
-				Connection->EnableEncryptionWithKey(Response.EncryptionKey);
+				Connection->EnableEncryption(Response.EncryptionData);
 			}
 			else
 			{
@@ -415,7 +415,7 @@ void UPendingNetGame::SetEncryptionKey(const FEncryptionKeyResponse& Response)
 			{
 				if (Response.Response == EEncryptionResponse::Success)
 				{
-					Connection->SetEncryptionKey(Response.EncryptionKey);
+					Connection->SetEncryptionData(Response.EncryptionData);
 				}
 				else
 				{

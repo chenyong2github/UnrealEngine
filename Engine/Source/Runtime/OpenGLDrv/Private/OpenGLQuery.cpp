@@ -693,9 +693,7 @@ void FOpenGLEventQuery::IssueEvent()
 		Sync = UGLsync();
 	}
 	Sync = FOpenGL::FenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
-#ifndef __EMSCRIPTEN__ // https://answers.unrealengine.com/questions/409649/html5-opengl-backend-doesnt-need-to-flush-gl-comma.html
 	FOpenGL::Flush();
-#endif
 
 	checkSlow(FOpenGL::IsSync(Sync));
 

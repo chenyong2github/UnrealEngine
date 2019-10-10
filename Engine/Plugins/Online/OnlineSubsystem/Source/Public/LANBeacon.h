@@ -6,6 +6,7 @@
 #include "OnlineSubsystemTypes.h"
 #include "OnlineDelegateMacros.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/Guid.h"
 
 /**
  * This value indicates which packet version the server is sending. Clients with
@@ -13,12 +14,22 @@
  * changing the packet format and there are existing servers on the network
  * Current format:
  *
- *	<Ver byte><Platform byte><Game unique 4 bytes><packet type 2 bytes><nonce 8 bytes><payload>
+ *	<Ver byte><Platform byte><Game unique 4 bytes><packet type 2 bytes><nonce 8 bytes><guid 16 bytes><payload>
  */
-#define LAN_BEACON_PACKET_VERSION (uint8)11
+enum class ELANBeaconVersionHistory : uint8
+{
+	HISTORY_INITIAL				= 11,
+	HISTORY_BEACON_GUID			= 12,	// Lan response packets now contain an instance guid
+	
+	// -----<new versions can be added before this line>-------------------------------------------------
+	HISTORY_PLUS_ONE,
+	HISTORY_LATEST 							= HISTORY_PLUS_ONE - 1
+};
+
+static const uint8 LAN_BEACON_PACKET_VERSION = (uint8)ELANBeaconVersionHistory::HISTORY_LATEST;
 
 /** The size of the header for validation */
-#define LAN_BEACON_PACKET_HEADER_SIZE 16
+#define LAN_BEACON_PACKET_HEADER_SIZE 32
 	
 // Offsets for various fields
 #define LAN_BEACON_VER_OFFSET 0
@@ -27,6 +38,7 @@
 #define LAN_BEACON_PACKETTYPE1_OFFSET 6
 #define LAN_BEACON_PACKETTYPE2_OFFSET 7
 #define LAN_BEACON_NONCE_OFFSET 8
+#define LAN_BEACON_GUID_OFFSET 16
 
 // Packet types in 2 byte readable form
 #define LAN_SERVER_QUERY1 (uint8)'S'
@@ -106,6 +118,7 @@ public:
 #define LAN_ANNOUNCE_PORT 14001
 #define LAN_UNIQUE_ID 9999
 #define LAN_QUERY_TIMEOUT 5
+#define LAN_QUERY_RETRY_TIME 1
 #define LAN_PLATFORMMASK 0xffffffff
 
 /**
@@ -132,7 +145,23 @@ protected:
 	 *
 	 * @return true if the header is valid, false otherwise
 	 */
-	bool IsValidLanResponsePacket(const uint8* Packet, uint32 Length);
+	UE_DEPRECATED(4.24, "IsValidLanResponsePacket now takes an additional guid reference")
+	bool IsValidLanResponsePacket(const uint8* Packet, uint32 Length)
+	{
+		FGuid CompatGuid;
+		return IsValidLanResponsePacket(Packet, Length, CompatGuid);
+	}
+
+	/**
+	 * Determines if the packet header is valid or not
+	 *
+	 * @param Packet the packet data to check
+	 * @param Length the size of the packet buffer
+	 * @param ResponseGuid the beacon guid from the response packet
+	 *
+	 * @return true if the header is valid, false otherwise
+	 */
+	bool IsValidLanResponsePacket(const uint8* Packet, uint32 Length, FGuid& ResponseGuid);
 
 public:
 
@@ -148,6 +177,9 @@ public:
 	/** The amount of time to wait before timing out a LAN query request */
 	float LanQueryTimeout;
 
+	/** The amount of time to wait before resending a LAN query request */
+	float LanQueryRetryTime;
+
 	/** LAN beacon for packet broadcast */
 	class FLanBeacon* LanBeacon;
 
@@ -160,15 +192,29 @@ public:
 	/** The amount of time before the LAN query is considered done */
 	float LanQueryTimeLeft;
 
+	/** The amount of time before the LAN query retry */
+	float LanQueryRetryTimeLeft;
+
+	/** Cached search packet data for retries */
+	TArray<uint8> RetryData;
+
+	/** Unique identifier for this hosting/searching LAN session */
+	FGuid LanBeaconGuid;
+
+	/** Cached guids already received during current search */
+	TSet<FGuid> CachedResponseGuids;
+
 	FLANSession() :
 		LanAnnouncePort(LAN_ANNOUNCE_PORT),
 		LanGameUniqueId(LAN_UNIQUE_ID),
 		LanPacketPlatformMask(LAN_PLATFORMMASK),
 		LanQueryTimeout(LAN_QUERY_TIMEOUT),
-		LanBeacon(NULL),
+		LanQueryRetryTime(LAN_QUERY_RETRY_TIME),
+		LanBeacon(nullptr),
 		LanBeaconState(ELanBeaconState::NotUsingLanBeacon),
 		LanNonce(0),
-		LanQueryTimeLeft(0.0f)
+		LanQueryTimeLeft(0.0f),
+		LanQueryRetryTimeLeft(0.0f)
 	{
 		if (!GConfig->GetInt(TEXT("LANSession"), TEXT("LanAnnouncePort"), LanAnnouncePort, GEngineIni))
 		{

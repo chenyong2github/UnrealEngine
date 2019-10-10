@@ -6,6 +6,7 @@
 #include "MovieSceneSequenceID.h"
 #include "IMovieSceneTrackRecorderHost.generated.h"
 
+class ULevelSequence;
 
 USTRUCT()
 struct FTakeRecorderPropertyTrackSettings
@@ -173,6 +174,9 @@ public:
 	* @return The FTransform applied to the actor when recording animation, that the attached actor may need to apply to themselves to orient correctly.
 	*/
 	virtual FTransform GetRecordedActorAnimationInitialRootTransform(class AActor* OtherActor) const = 0;
+
+	/** Get the master level sequence being recorded into */
+	virtual ULevelSequence* GetMasterLevelSequence() const = 0;
 
 	/**/
 };

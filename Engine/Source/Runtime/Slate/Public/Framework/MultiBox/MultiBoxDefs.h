@@ -69,18 +69,9 @@ public:
 
 	FMultiBoxSettings();
 
-	/** Enables or disables toolbar editing */
-	static void ToggleToolbarEditing();
-
-	/** @return True if in toolbar edit mode */
-	static bool IsInToolbarEditMode() { return bInToolbarEditMode; }
-
 	static TSharedRef< SToolTip > ConstructDefaultToolTip( const TAttribute<FText>& ToolTipText, const TSharedPtr<SWidget>& OverrideContent, const TSharedPtr<const FUICommandInfo>& Action );
 
 	static void ResetToolTipConstructor();
-
-private:
-	static bool bInToolbarEditMode;
 };
 
 struct SLATE_API FMultiBoxCustomization

@@ -42,9 +42,6 @@ public:
 	/** Set the objects to be displayed in the details panel */
 	void SetObjects(const TWeakObjectPtr<>& InSelectedObject, const FGuid& InObjectBinding, UObject* BindingObject);
 
-	/** Set the sequencer we are bound to */
-	void SetSequencer(TSharedPtr<ISequencer> InSequencer);
-
 	/** This edit mode is re-used between the level editor and the control rig editor. Calling this indicates which context we are in */
 	virtual bool IsInLevelEditor() const { return true; }
 
@@ -80,18 +77,6 @@ public:
 	/** FGCObject interface */
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
 
-	/** 
-	 * Lets the edit mode know that an object has just been spawned. 
-	 * Allows us to redisplay different underlying objects in the details panel.
-	 */
-	void HandleObjectSpawned(FGuid InObjectBinding, UObject* SpawnedObject, IMovieScenePlayer& Player);
-
-	/** Re-bind to the current actor - used when sequence, selection etc. changes */
-	void ReBindToActor();
-
-	/** Bind us to an actor for editing */
-	void HandleBindToActor(AActor* InActor, bool bFocus);
-
 	/** Refresh our internal object list (they may have changed) */
 	void RefreshObjects();
 
@@ -121,6 +106,8 @@ public:
 	/** Enable RigElement Editing */
 	void EnableRigElementEditing(bool bEnabled);
 
+	/** Get Control Rig, could be more than one later,  we are animating. Currently used by Sequencer for cross selection.*/
+	UControlRig*  GetControlRig() { return WeakControlRigEditing.IsValid() ? WeakControlRigEditing.Get() : nullptr; }
 protected:
 
 	// Gizmo related functions wrt enable/selection
@@ -139,9 +126,6 @@ protected:
 
 	/** Handle selection internally */
 	void HandleSelectionChanged();
-
-	/** Set keys on all selected manipulators */
-	void SetKeysForSelectedManipulators();
 
 	/** Toggles visibility of manipulators in the viewport */
 	void ToggleManipulators();
@@ -175,9 +159,6 @@ protected:
 
 	/** The draw interface to use for the control rig */
 	FControlRigDrawInterface DrawInterface;
-
-	/** Sequencer we are currently bound to */
-	TWeakPtr<ISequencer> WeakSequencer;
 
 	/** Guard value for selection */
 	bool bSelecting;

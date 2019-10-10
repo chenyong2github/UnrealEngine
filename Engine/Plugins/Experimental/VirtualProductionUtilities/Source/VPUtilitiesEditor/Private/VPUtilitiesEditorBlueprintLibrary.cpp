@@ -5,6 +5,15 @@
 #include "VPUtilitiesEditorModule.h"
 #include "Editor.h"
 
+#include "Misc/FileHelper.h"
+#include "ObjectTools.h"
+#include "PackageTools.h"
+#include "Factories/TextureFactory.h"
+#include "AssetRegistryModule.h"
+#include "EditorFramework/AssetImportData.h"
+#include "FileHelpers.h"
+#include "Engine/Texture2D.h"
+
 AVPEditorTickableActorBase* UVPUtilitiesEditorBlueprintLibrary::SpawnVPEditorTickableActor(UObject* ContextObject, const TSubclassOf<AVPEditorTickableActorBase> ActorClass, const FVector Location, const FRotator Rotation)
 {
 	if (ActorClass.Get() == nullptr)
@@ -45,4 +54,55 @@ AVPTransientEditorTickableActorBase* UVPUtilitiesEditorBlueprintLibrary::SpawnVP
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	AVPTransientEditorTickableActorBase* NewActor = World->SpawnActor<AVPTransientEditorTickableActorBase>(ActorClass.Get(), Location, Rotation, SpawnParams);
 	return NewActor;
+}
+
+UTexture* UVPUtilitiesEditorBlueprintLibrary::ImportSnapshotTexture(FString FileName, FString SubFolderName)
+{
+	UTexture* UnrealTexture = NULL;
+
+	if (FileName.IsEmpty())
+	{
+		return UnrealTexture;
+	}
+
+	FString AbsolutePathPackage = FPaths::ProjectSavedDir() + "VirtualProduction/Snapshots/" + SubFolderName + "/";
+
+	FString TextureName = FPaths::GetBaseFilename(FileName);
+	TextureName = ObjectTools::SanitizeObjectName(TextureName);
+	FString Extension = FPaths::GetExtension(FileName).ToLower();
+
+	FString PackageName = TEXT("/Game/VirtualProduction/Snapshots/" + SubFolderName + "/");
+	PackageName += TextureName;
+	UPackage* Package = CreatePackage(NULL, *PackageName);
+	Package->FullyLoad();
+
+	// try opening from absolute path
+	FileName = AbsolutePathPackage + FileName;
+	TArray<uint8> TextureData;
+	if (!(FFileHelper::LoadFileToArray(TextureData, *FileName) && TextureData.Num() > 0))
+	{
+		UE_LOG(LogVPUtilitiesEditor, Warning, TEXT("Unable to find Texture file %s"), *FileName);
+	}
+	else
+	{
+		UTextureFactory* TextureFactory = NewObject<UTextureFactory>();
+		TextureFactory->AddToRoot();
+		TextureFactory->SuppressImportOverwriteDialog();
+
+		const uint8* PtrTexture = TextureData.GetData();
+		UnrealTexture = Cast<UTexture>(TextureFactory->FactoryCreateBinary(UTexture2D::StaticClass(), Package, *TextureName, RF_Standalone | RF_Public, NULL, *Extension, PtrTexture, PtrTexture + TextureData.Num(), GWarn));
+		if (UnrealTexture != nullptr)
+		{
+			UnrealTexture->AssetImportData->Update(FileName);
+
+			Package->MarkPackageDirty();
+
+			// Notify the asset registry
+			FAssetRegistryModule::AssetCreated(UnrealTexture);
+		}
+
+		TextureFactory->RemoveFromRoot();
+	}
+
+	return UnrealTexture;
 }

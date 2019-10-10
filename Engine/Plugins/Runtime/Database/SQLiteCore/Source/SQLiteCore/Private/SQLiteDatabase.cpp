@@ -117,6 +117,34 @@ FString FSQLiteDatabase::GetFilename() const
 	return FString();
 }
 
+bool FSQLiteDatabase::GetApplicationId(int32& OutApplicationId) const
+{
+	return const_cast<FSQLiteDatabase*>(this)->Execute(TEXT("PRAGMA application_id;"), [&OutApplicationId](const FSQLitePreparedStatement& InStatement)
+	{
+		InStatement.GetColumnValueByIndex(0, OutApplicationId);
+		return ESQLitePreparedStatementExecuteRowResult::Stop;
+	}) == 1;
+}
+
+bool FSQLiteDatabase::SetApplicationId(const int32 InApplicationId)
+{
+	return Execute(*FString::Printf(TEXT("PRAGMA application_id = %d;"), InApplicationId));
+}
+
+bool FSQLiteDatabase::GetUserVersion(int32& OutUserVersion) const
+{
+	return const_cast<FSQLiteDatabase*>(this)->Execute(TEXT("PRAGMA user_version;"), [&OutUserVersion](const FSQLitePreparedStatement& InStatement)
+	{
+		InStatement.GetColumnValueByIndex(0, OutUserVersion);
+		return ESQLitePreparedStatementExecuteRowResult::Stop;
+	}) == 1;
+}
+
+bool FSQLiteDatabase::SetUserVersion(const int32 InUserVersion)
+{
+	return Execute(*FString::Printf(TEXT("PRAGMA user_version = %d;"), InUserVersion));
+}
+
 bool FSQLiteDatabase::Execute(const TCHAR* InStatement)
 {
 	if (!Database)

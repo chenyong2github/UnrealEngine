@@ -15,6 +15,38 @@
 
 class FSkeletalMeshLODModel;
 
+#endif
+
+//////////////////////////////////////////////////////////////////////////
+//uenum class cannot be inside a preprocessor like #if WITH_EDITOR
+
+UENUM()
+enum class ESkeletalMeshGeoImportVersions : uint8
+{
+	Before_Versionning = 0,
+	SkeletalMeshBuildRefactor,
+
+	// -----<new versions can be added above this line>-------------------------------------------------
+	VersionPlusOne,
+	LatestVersion = VersionPlusOne - 1
+};
+
+UENUM()
+enum class ESkeletalMeshSkinningImportVersions : uint8
+{
+	Before_Versionning = 0,
+	SkeletalMeshBuildRefactor,
+
+	// -----<new versions can be added above this line>-------------------------------------------------
+	VersionPlusOne,
+	LatestVersion = VersionPlusOne - 1
+};
+
+// End of enum declaration
+//////////////////////////////////////////////////////////////////////////
+
+#if WITH_EDITOR
+
 namespace SkeletalMeshImportData
 {
 	struct FMeshWedge
@@ -391,10 +423,10 @@ public:
 	ENGINE_API void Serialize(class FArchive& Ar, class UObject* Owner);
 
 	/** Store a new raw mesh in the bulk data. */
-	ENGINE_API void SaveReductionData(FSkeletalMeshLODModel& BaseLODModel, TMap<FString, TArray<FMorphTargetDelta>>& BaseLODMorphTargetData);
+	ENGINE_API void SaveReductionData(FSkeletalMeshLODModel& BaseLODModel, TMap<FString, TArray<FMorphTargetDelta>>& BaseLODMorphTargetData, UObject* Owner);
 
 	/** Load the raw mesh from bulk data. */
-	ENGINE_API void LoadReductionData(FSkeletalMeshLODModel& BaseLODModel, TMap<FString, TArray<FMorphTargetDelta>>& BaseLODMorphTargetData);
+	ENGINE_API void LoadReductionData(FSkeletalMeshLODModel& BaseLODModel, TMap<FString, TArray<FMorphTargetDelta>>& BaseLODMorphTargetData, UObject* Owner);
 
 	ENGINE_API FByteBulkData& GetBulkData() { return BulkData; }
 
@@ -421,6 +453,18 @@ class FRawSkeletalMeshBulkData
 	bool bUseSerializeLoadingCustomVersion = false;
 
 public:
+	/*
+	 * The last geo imported version, we use this flag to know if we have some data or not.
+	 * This flag must be updated every time we import a new geometry
+	 */
+	ESkeletalMeshGeoImportVersions GeoImportVersion;
+
+	/*
+	 * The last skinning imported version, we use this flag to know if we have some data or not.
+	 * This flag must be updated every time we import the skinning
+	 */
+	ESkeletalMeshSkinningImportVersions SkinningImportVersion;
+
 	/** Default constructor. */
 	ENGINE_API FRawSkeletalMeshBulkData();
 
@@ -446,6 +490,13 @@ public:
 
 	/** Returns true if no bulk data is available for this mesh. */
 	FORCEINLINE bool IsEmpty() const { return BulkData.GetBulkDataSize() == 0; }
+
+	/** Returns true if the last import version is enough to use the new build system. WE cannot rebuild asset if we did not previously store the data*/
+	ENGINE_API bool IsBuildDataAvailable() const
+	{
+		return GeoImportVersion >= ESkeletalMeshGeoImportVersions::SkeletalMeshBuildRefactor &&
+			SkinningImportVersion >= ESkeletalMeshSkinningImportVersions::SkeletalMeshBuildRefactor;
+	}
 };
 
 namespace FWedgePositionHelper

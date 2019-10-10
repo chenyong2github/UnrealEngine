@@ -6,7 +6,8 @@
 #include "Animation/AnimNode_LinkedInputPose.h"
 
 FAnimNode_CustomProperty::FAnimNode_CustomProperty()
-	: TargetInstance(nullptr)
+	: FAnimNode_Base()
+	, TargetInstance(nullptr)
 #if WITH_EDITOR
 	, bReinitializeProperties(false)
 #endif // WITH_EDITOR

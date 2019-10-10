@@ -1,16 +1,12 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Fonts/LegacySlateFontInfoCache.h"
-#include "HAL/IConsoleManager.h"
 #include "SlateGlobals.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/FileHelper.h"
 #include "Fonts/FontProviderInterface.h"
 #include "Fonts/UnicodeBlockRange.h"
-
-static int32 GSlateEnableLegacyLocalizedFallbackFont = 0;
-static FAutoConsoleVariableRef CVarSlateEnableLocalizedFallbackFont(TEXT("Slate.EnableLegacyLocalizedFallbackFont"), GSlateEnableLegacyLocalizedFallbackFont, TEXT("Enable the legacy localized fallback fonts? (0/1)."), ECVF_Default);
 
 FString FLegacySlateFontInfoCache::FFallbackContext::ToString() const
 {
@@ -45,16 +41,11 @@ FLegacySlateFontInfoCache& FLegacySlateFontInfoCache::Get()
 	if (!Singleton.IsValid())
 	{
 		Singleton = MakeShareable(new FLegacySlateFontInfoCache());
-
-		FInternationalization::Get().OnCultureChanged().AddSP(Singleton.Get(), &FLegacySlateFontInfoCache::HandleCultureChanged);
 	}
 	return *Singleton;
 }
 
 FLegacySlateFontInfoCache::FLegacySlateFontInfoCache()
-	: LocalizedFallbackFontRevision(0)
-	, LocalizedFallbackFontDataHistoryVersion(0)
-	, LocalizedFallbackFontFrameCounter(0)
 {
 	LastResortFontPath = FPaths::EngineContentDir() / TEXT("SlateDebug/Fonts/LastResort.ttf");
 	bIsLastResortFontAvailable = !FPlatformProperties::RequiresCookedData() && FPaths::FileExists(LastResortFontPath);
@@ -248,54 +239,6 @@ TSharedPtr<const FCompositeFont> FLegacySlateFontInfoCache::GetSystemFont()
 	return SystemFont;
 }
 
-bool FLegacySlateFontInfoCache::IsLocalizedFallbackFontAvailable() const
-{
-	return !!GSlateEnableLegacyLocalizedFallbackFont;
-}
-
-const FFontData& FLegacySlateFontInfoCache::GetLocalizedFallbackFontData(const FFallbackContext& InContext)
-{
-	// GetLocalizedFallbackFontData is called directly from the font cache, so may be called from multiple threads at once
-	FScopeLock Lock(&LocalizedFallbackFontDataCS);
-
-	// The fallback font can change if the active culture is changed
-	const uint16 CurrentHistoryVersion = FTextLocalizationManager::Get().GetTextRevision();
-	const uint64 CurrentFrameCounter = GFrameCounter;
-
-	// Only allow the fallback font to be updated once per-frame, as a culture change mid-frame could cause it to change unexpectedly and invalidate some assumptions that the font cache makes
-	// By only allowing it to update once per-frame, we ensure that the font cache has been flushed (which happens at the end of the frame) before we return a new font
-	if (!LocalizedFallbackFontData.IsValid() || (LocalizedFallbackFontDataHistoryVersion != CurrentHistoryVersion && LocalizedFallbackFontFrameCounter != CurrentFrameCounter))
-	{
-		LocalizedFallbackFontDataHistoryVersion = CurrentHistoryVersion;
-		LocalizedFallbackFontFrameCounter = CurrentFrameCounter;
-
-		TSharedPtr<const FFontData> PreviousLocalizedFallbackFontData = LocalizedFallbackFontData;
-
-		const FString FallbackFontPath = FPaths::EngineContentDir() / TEXT("Slate/Fonts/") / (NSLOCTEXT("Slate", "LegacyFallbackFont", "DroidSansFallback").ToString() + TEXT(".ttf"));
-		LocalizedFallbackFontData = AllLocalizedFallbackFontData.FindRef(FallbackFontPath);
-
-		if (!LocalizedFallbackFontData.IsValid())
-		{
-			LocalizedFallbackFontData = MakeShared<FFontData>(FallbackFontPath, EFontHinting::Default, EFontLoadingPolicy::LazyLoad);
-			AllLocalizedFallbackFontData.Add(FallbackFontPath, LocalizedFallbackFontData);
-			UE_LOG(LogSlate, Warning, TEXT("Legacy localized fallback font '%s' was requested. %s\nLegacy localized fallback fonts were deprecated in 4.22 and will be removed in a future version!\nPlease update your composite fonts to use localized sub-font families: https://docs.unrealengine.com/en-US/Engine/UMG/UserGuide/Fonts/Overview"), *FallbackFontPath, *InContext.ToString());
-		}
-
-		if (LocalizedFallbackFontData != PreviousLocalizedFallbackFontData)
-		{
-			// Only bump the revision if the font has actually changed
-			while (++LocalizedFallbackFontRevision == 0) {} // Zero is special, don't allow an overflow to stay at zero
-		}
-	}
-
-	return *LocalizedFallbackFontData;
-}
-
-uint16 FLegacySlateFontInfoCache::GetLocalizedFallbackFontRevision() const
-{
-	return LocalizedFallbackFontRevision;
-}
-
 bool FLegacySlateFontInfoCache::IsLastResortFontAvailable() const
 {
 	return bIsLastResortFontAvailable;
@@ -331,11 +274,6 @@ const FFontData& FLegacySlateFontInfoCache::GetLastResortFontData(const FFallbac
 
 void FLegacySlateFontInfoCache::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	for (TPair<FString, TSharedPtr<const FFontData>>& Pair : AllLocalizedFallbackFontData)
-	{
-		const_cast<FFontData&>(*Pair.Value).AddReferencedObjects(Collector);
-	}
-
 	if (LocalizedFallbackFontData.IsValid())
 	{
 		const_cast<FFontData&>(*LocalizedFallbackFontData).AddReferencedObjects(Collector);
@@ -352,8 +290,3 @@ FString FLegacySlateFontInfoCache::GetReferencerName() const
 	return TEXT("FLegacySlateFontInfoCache");
 }
 
-void FLegacySlateFontInfoCache::HandleCultureChanged()
-{
-	// We set this to the current frame count, as this will prevent the fallback font being updated for the remainder of this frame (as the culture change may have affected the fallback font used)
-	LocalizedFallbackFontFrameCounter = GFrameCounter;
-}

@@ -564,11 +564,23 @@ int32 FSparseDynamicOctree3::FindNearestHitObject(const FRay3d& Ray,
 {
 	// this should take advantage of raster!
 
+	// always test against all spill objects
 	int32 HitObjectID = -1;
-	TArray<const FSparseOctreeCell*> Queue;
-	Queue.Reserve(32);
+	for (int ObjectID : SpillObjectSet)
+	{
+		double HitDist = HitObjectDistFunc(ObjectID, Ray);
+		if (HitDist < MaxDistance)
+		{
+			MaxDistance = HitDist;
+			HitObjectID = ObjectID;
+		}
+	}
 
-	// start at root cells
+	// we use queue instead of recursion
+	TArray<const FSparseOctreeCell*> Queue;
+	Queue.Reserve(64);
+
+	// push all root cells onto queue if they are hit by ray
 	RootCells.AllocatedIteration([&](const uint32* RootCellID)
 	{
 		const FSparseOctreeCell* RootCell = &Cells[*RootCellID];
@@ -579,7 +591,7 @@ int32 FSparseDynamicOctree3::FindNearestHitObject(const FRay3d& Ray,
 		}
 	});
 
-
+	// test cells until the queue is empty
 	while (Queue.Num() > 0)
 	{
 		const FSparseOctreeCell* CurCell = Queue.Pop(false);
@@ -623,6 +635,12 @@ void FSparseDynamicOctree3::RangeQuery(
 	TFunctionRef<void(int)> ObjectIDFunc) const
 {
 	// todo: this should take advantage of raster!
+
+	// always process spill objects
+	for (int ObjectID : SpillObjectSet)
+	{
+		ObjectIDFunc(ObjectID);
+	}
 
 	TArray<const FSparseOctreeCell*> Queue;
 
@@ -672,6 +690,12 @@ void FSparseDynamicOctree3::RangeQuery(
 	TArray<int>& ObjectIDs) const
 {
 	// todo: this should take advantage of raster!
+
+	// always collect spill objects
+	for (int ObjectID : SpillObjectSet)
+	{
+		ObjectIDs.Add(ObjectID);
+	}
 
 	TArray<const FSparseOctreeCell*> Queue;
 

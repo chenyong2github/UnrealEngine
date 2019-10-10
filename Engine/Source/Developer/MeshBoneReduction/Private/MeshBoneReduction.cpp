@@ -7,7 +7,6 @@
 #include "Engine/SkeletalMesh.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "UObject/UObjectHash.h"
-#include "Templates/ScopedPointer.h"
 #include "ComponentReregisterContext.h"
 #include "Templates/UniquePtr.h"
 #include "Rendering/SkeletalMeshModel.h"
@@ -359,7 +358,7 @@ public:
 		}
 	}
 
-	bool ReduceBoneCounts(USkeletalMesh* SkeletalMesh, int32 DesiredLOD, const TArray<FName>* BoneNamesToRemove) override
+	bool ReduceBoneCounts(USkeletalMesh* SkeletalMesh, int32 DesiredLOD, const TArray<FName>* BoneNamesToRemove, bool bCallPostEditChange /*= true*/) override
 	{
 		check (SkeletalMesh);
 		USkeleton* Skeleton = SkeletalMesh->Skeleton;
@@ -372,7 +371,6 @@ public:
 		// Always restore all previously removed bones if not contained by BonesToRemove
 		SkeletalMesh->CalculateRequiredBones(SkeletalMesh->GetImportedModel()->LODModels[DesiredLOD], SkeletalMesh->RefSkeleton, &BonesToRemove);
 		
-		TComponentReregisterContext<USkinnedMeshComponent> ReregisterContext;
 		SkeletalMesh->ReleaseResources();
 		SkeletalMesh->ReleaseResourcesFence.Wait();
 
@@ -387,11 +385,6 @@ public:
 		{
 			NewModel = new FSkeletalMeshLODModel();
 			LODModels[DesiredLOD] = NewModel;
-			if (SkeletalMeshResource->OriginalReductionSourceMeshData.IsValidIndex(DesiredLOD))
-			{
-				SkeletalMeshResource->OriginalReductionSourceMeshData[DesiredLOD]->EmptyBulkData();
-				SkeletalMeshResource->OriginalReductionSourceMeshData.RemoveAt(DesiredLOD);
-			}
 
 			// Bulk data arrays need to be locked before a copy can be made.
 			SrcModel->RawPointIndices.Lock(LOCK_READ_ONLY);
@@ -484,10 +477,18 @@ public:
 		NewModel->ActiveBoneIndices.Sort();
 		NewModel->RequiredBones.Sort();
 
-		SkeletalMesh->PostEditChange();
-		SkeletalMesh->InitResources();
+		if (bCallPostEditChange)
+		{
+			SkeletalMesh->PostEditChange();
+			SkeletalMesh->InitResources();
+		}
 		SkeletalMesh->MarkPackageDirty();
 		
+		//Reregister skinned mesh component if we call post edit change
+		if (bCallPostEditChange)
+		{
+			TComponentReregisterContext<USkinnedMeshComponent> ReregisterContext;
+		}
 		return true;
 	}
 };

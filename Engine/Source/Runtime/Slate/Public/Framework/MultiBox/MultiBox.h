@@ -22,6 +22,7 @@ class SHorizontalBox;
 class SMultiBoxWidget;
 class STableViewBase;
 class SVerticalBox;
+class UToolMenuBase;
 
 namespace MultiBoxConstants
 {	
@@ -60,12 +61,13 @@ public:
 	 * @param InCommand		The command info that describes what action to take when this block is activated
 	 * @param InCommandList	The list of mappings from command info to delegates so we can find the delegates to process for the provided action
 	 */
-	FMultiBlock( const TSharedPtr< const FUICommandInfo > InCommand, TSharedPtr< const FUICommandList > InCommandList, FName InExtensionHook = NAME_None, EMultiBlockType InType = EMultiBlockType::None )
+	FMultiBlock( const TSharedPtr< const FUICommandInfo > InCommand, TSharedPtr< const FUICommandList > InCommandList, FName InExtensionHook = NAME_None, EMultiBlockType InType = EMultiBlockType::None, bool bInIsPartOfHeading = false)
 		: Action( InCommand )
 		, ActionList( InCommandList )
 		, ExtensionHook( InExtensionHook )
 		, Type( InType )
 		, TutorialHighlightName( NAME_None )
+		, bIsPartOfHeading(bInIsPartOfHeading)
 	{
 	}
 
@@ -74,11 +76,12 @@ public:
 	 *
 	 * @InAction UI action delegates that should be used in place of UI commands (dynamic menu items)
 	 */
-	FMultiBlock( const FUIAction& InAction,  FName InExtensionHook = NAME_None, EMultiBlockType InType = EMultiBlockType::None )
+	FMultiBlock( const FUIAction& InAction,  FName InExtensionHook = NAME_None, EMultiBlockType InType = EMultiBlockType::None, bool bInIsPartOfHeading = false )
 		: DirectActions( InAction )
 		, ExtensionHook( InExtensionHook )
 		, Type( InType )
 		, TutorialHighlightName( NAME_None )
+		, bIsPartOfHeading(bInIsPartOfHeading)
 	{
 	}
 
@@ -148,6 +151,26 @@ public:
 	}
 
 	/**
+	 * Is this block a separator
+	 *
+	 * @return	True if block is a separator
+	 */
+	bool IsSeparator() const
+	{
+		return (Type == EMultiBlockType::MenuSeparator) || (Type == EMultiBlockType::ToolBarSeparator);
+	}
+
+	/**
+	 * Is this block a heading block or a block that belongs to a heading such as a separator
+	 *
+	 * @return	True if block is part of a section heading's blocks
+	 */
+	bool IsPartOfHeading() const
+	{
+		return (Type == EMultiBlockType::Heading) || bIsPartOfHeading;
+	}
+
+	/**
 	* Sets the searchable state of this block
 	*
 	* @param	bSearchable		The searchable state to set
@@ -160,6 +183,9 @@ public:
 	*/
 	bool GetSearchable() const;
 
+	/** Gets the extension hook so users can see what hooks are where */
+	FName GetExtensionHook() const { return ExtensionHook; }
+
 private:
 	/**
 	 * Allocates a widget for this type of MultiBlock.  Override this in derived classes.
@@ -167,9 +193,6 @@ private:
 	 * @return  MultiBlock widget object
 	 */
 	virtual TSharedRef< class IMultiBlockBaseWidget > ConstructWidget() const = 0;
-	
-	/** Gets the extension hook so users can see what hooks are where */
-	FName GetExtensionHook() const {return ExtensionHook;}
 
 private:
 
@@ -196,6 +219,9 @@ private:
 
 	/** Whether this block can be searched */
 	bool bSearchable;
+
+	/** Whether this block is part of the heading blocks for a section */
+	bool bIsPartOfHeading;
 };
 
 
@@ -257,6 +283,13 @@ public:
 
 	DECLARE_DELEGATE_TwoParams( FOnMakeMultiBoxBuilderOverride, const TSharedRef<FMultiBox>&, const TSharedRef<SMultiBoxWidget>& );
 
+	DECLARE_DELEGATE_RetVal_ThreeParams(TSharedRef<SWidget>, FOnModifyBlockWidgetAfterMake, const TSharedRef<SMultiBoxWidget>&, const FMultiBlock&, const TSharedRef<SWidget>& );
+
+	/**
+	 * Allow further modifications to the block's widget after it has been made
+	 */
+	FOnModifyBlockWidgetAfterMake ModifyBlockWidgetAfterMake;
+
 	/**
 	 * Creates a MultiBox widget for this MultiBox
 	 *
@@ -300,16 +333,38 @@ public:
 	TSharedPtr<FMultiBlock> MakeMultiBlockFromCommand( TSharedPtr<const FUICommandInfo> Command, bool bCommandMustBeBound ) const;
 
 	/**
-	 * Finds an existing block that handles the provided command
+	 * Finds an existing block by name and type
 	 *
-	 * @param Command The command to check for
+	 * @param InName The name to search for
+	  * @param InType The type to match during the search
 	 */
-	TSharedPtr<const FMultiBlock> FindBlockFromCommand( TSharedPtr<const FUICommandInfo> Command ) const;
+	TSharedPtr<const FMultiBlock> FindBlockFromNameAndType(const FName InName, const EMultiBlockType InType) const;
 
-	bool IsInEditMode() const { return FMultiBoxSettings::IsInToolbarEditMode() && IsCustomizable(); }
+	/** @return Is being editing */
+	bool IsInEditMode() const;
+
+	/** @return The tool menu associated with this multi box */
+	UToolMenuBase* GetToolMenu() const;
+
+	/**
+	 * Only callable during edit mode
+	 * @return Index of section heading or separator
+	 */
+	int32 GetSectionEditBounds(const int32 Index, int32& OutSectionEndIndex) const;
+
+	DECLARE_DELEGATE_OneParam(FEditSelectionChangedDelegate, TSharedRef<const FMultiBlock>);
+
+	/** Delegate to call while editing when selected block has changed */
+	const FEditSelectionChangedDelegate& OnEditSelectionChanged() const { return EditSelectionChanged; }
+
+	/** Delegate to call while editing when selected block has changed */
+	FEditSelectionChangedDelegate& OnEditSelectionChanged() { return EditSelectionChanged; }
 
 	/* The search widget to be displayed at the top of the multibox */
 	TSharedPtr<STextBlock> SearchTextWidget;
+
+	/** Weak reference to tool menu that created this multibox */
+	TWeakObjectPtr<UToolMenuBase> WeakToolMenu;
 
 private:
 	
@@ -326,14 +381,7 @@ private:
 	 */
 	bool IsCustomizable() const;
 
-	/**
-	 * Applies user customized blocks to the multibox
-	 */
-	void ApplyCustomizedBlocks();
 private:
-
-	/** Saved customization data */
-	TSharedRef< class FMultiBoxCustomizationData > CustomizationData;
 
 	/** All command lists in this box */
 	TArray< TSharedPtr<const FUICommandList> > CommandLists;
@@ -349,6 +397,9 @@ private:
 
 	/** Type of MultiBox */
 	EMultiBoxType Type;
+
+	/** Delegate to call while editing when selected block has changed */
+	FEditSelectionChangedDelegate EditSelectionChanged;
 
 	/** True if window that owns any widgets created from this multibox should be closed automatically after the user commits to a menu choice */
 	bool bShouldCloseWindowAfterMenuSelection;
@@ -417,6 +468,10 @@ public:
 	 */
 	virtual EMultiBlockLocation::Type GetMultiBlockLocation() = 0;
 
+	/**
+	 * Returns true if editing this widget
+	 */
+	virtual bool IsInEditMode() const = 0;
 };
 
 
@@ -438,6 +493,7 @@ public:
 	virtual void SetMultiBlock( TSharedRef< const FMultiBlock > InMultiBlock ) override;
 	virtual void SetMultiBlockLocation( EMultiBlockLocation::Type InLocation, bool bInSectionContainsIcons ) override;
 	virtual EMultiBlockLocation::Type GetMultiBlockLocation() override;
+	virtual bool IsInEditMode() const override;
 
 	/** SWidget Interface */
 	virtual void OnDragEnter( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
@@ -627,34 +683,38 @@ public:
 	*/
 	void AddSearchElement( TSharedPtr<SWidget>, FText );
 
-private:
-	/** Adds a block Widget to this widget */
-	void AddBlockWidget( const FMultiBlock& Block, TSharedPtr<SHorizontalBox> HorizontalBox, TSharedPtr<SVerticalBox> VerticalBox, EMultiBlockLocation::Type InLocation, bool bSectionContainsIcons );
-
 	/**
 	 * @return True if the passed in block is being dragged
 	 */
 	bool IsBlockBeingDragged( TSharedPtr<const FMultiBlock> Block ) const;
 
 	/**
+	 * @return The visibility of customization widgets for a block
+	 */
+	EVisibility GetCustomizationVisibility( TWeakPtr<const FMultiBlock> BlockWeakPtr, TWeakPtr<SWidget> BlockWidgetWeakPtr ) const;
+
+	/**
+	 * @return The visibility of the drop location indicator of a drag and drop for a block
+	 */
+	EVisibility GetCustomizationBorderDragVisibility(const FName InBlockName, const EMultiBlockType InBlockType, bool& bOutInsertAfter) const;
+
+private:
+	/** Adds a block Widget to this widget */
+	void AddBlockWidget( const FMultiBlock& Block, TSharedPtr<SHorizontalBox> HorizontalBox, TSharedPtr<SVerticalBox> VerticalBox, EMultiBlockLocation::Type InLocation, bool bSectionContainsIcons );
+
+	/**
 	 * Updates the preview block being dragged.  The drag area is where the users dragged block will be dropped
 	 */
 	void UpdateDropAreaPreviewBlock( TSharedRef<const FMultiBlock> MultiBlock, TSharedPtr<FUICommandDragDropOp> DragDropContent, const FGeometry& DragArea, const FVector2D& DragPos );
-
-	/**
-   	 * @return The visibility of customization widgets for a block
-	 */
-	EVisibility GetCustomizationVisibility( TWeakPtr<const FMultiBlock> BlockWeakPtr, TWeakPtr<SWidget> BlockWidgetWeakPtr ) const;
-	
-	/** Called when a user clicks the delete button on a block */
-	FReply OnDeleteBlockClicked( TWeakPtr<const FMultiBlock> BlockWeakPtr );
 
 private:
 	/** A preview of a block being dragged */
 	struct FDraggedMultiBlockPreview
 	{
-		/** Command being dragged */
-		TSharedPtr<const FUICommandInfo> UICommand;
+		/** Name of entry being dragged */
+		FName BlockName;
+		/** Type of entry being dragged */
+		EMultiBlockType BlockType;
 		/** Preview block for the command */
 		TSharedPtr<class FDropPreviewBlock> PreviewBlock;
 		/** Index into the block list where the block will be added*/
@@ -663,19 +723,26 @@ private:
 		EOrientation InsertOrientation;
 
 		FDraggedMultiBlockPreview()
-			: InsertIndex( INDEX_NONE )
+			: BlockType(EMultiBlockType::None)
+			, InsertIndex( INDEX_NONE )
 		{}
 
 		void Reset()
 		{
-			UICommand.Reset();
+			BlockName = NAME_None;
+			BlockType = EMultiBlockType::None;
 			PreviewBlock.Reset();
 			InsertIndex = INDEX_NONE;
 		}
 
-		bool IsValid() const { return UICommand.IsValid() && PreviewBlock.IsValid() && InsertIndex != INDEX_NONE; }
+		bool IsSameBlockAs(const FName InName, const EMultiBlockType InType) const
+		{
+			return BlockName == InName && BlockType == InType;
+		}
+
+		bool IsValid() const { return BlockName != NAME_None && BlockType != EMultiBlockType::None && PreviewBlock.IsValid() && InsertIndex != INDEX_NONE; }
 	};
-	
+
 	/** The MultiBox we're associated with */
 	TSharedPtr< FMultiBox > MultiBox;
 

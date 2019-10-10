@@ -40,16 +40,7 @@ const FMovieSceneInterrogationKey FMovieScenePropertySectionTemplate::GetInt32In
 	const static FMovieSceneAnimTypeID TypeID = FMovieSceneAnimTypeID::Unique();
 	return TypeID;
 }
-const FMovieSceneInterrogationKey FMovieScenePropertySectionTemplate::GetTransformInterrogationKey()
-{
-	const static FMovieSceneAnimTypeID TypeID = FMovieSceneAnimTypeID::Unique();
-	return TypeID;
-}
-const FMovieSceneInterrogationKey FMovieScenePropertySectionTemplate::GetEulerTransformInterrogationKey()
-{
-	const static FMovieSceneAnimTypeID TypeID = FMovieSceneAnimTypeID::Unique();
-	return TypeID;
-}
+
 const FMovieSceneInterrogationKey FMovieScenePropertySectionTemplate::GetVector4InterrogationKey()
 {
 	const static FMovieSceneAnimTypeID TypeID = FMovieSceneAnimTypeID::Unique();

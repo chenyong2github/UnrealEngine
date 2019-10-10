@@ -4,6 +4,7 @@
 #include "Chaos/ChaosArchive.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
+#include "Serialization/CustomVersion.h"
 
 #if UE_BUILD_SHIPPING == 0
 namespace Chaos
@@ -66,8 +67,15 @@ namespace Chaos
 					FMemoryReader MemoryAr(Data);
 					FChaosArchive Reader(MemoryAr);
 
+					// Retrieve version and set on archive.
+					FCustomVersionContainer Version;
+					Version.Serialize(*Ar);
+					Reader.SetCustomVersions(Version);
 
+					// Retrieve memory blob from disk.
 					*Ar << Data;
+
+					// Serialize into object.
 					Reader << ReadFromDisk;
 					Ar->Close();
 				}
@@ -94,11 +102,20 @@ namespace Chaos
 				FMemoryWriter MemoryAr(Data);
 				FChaosArchive Writer(MemoryAr);
 
+
 				// Serialize into Data array first, then serialize that to disk.
 				// Cannot use FArchive directly as FChaosArchive's proxy archive because it does not implement
 				// some required serialization functions. (FMemoryArchive does implement these).
 
+
+				// Serialize object to memory buffer
 				Writer << ObjectToSave;
+
+				// Get version from serialization, and serialize to file archive.
+				FCustomVersionContainer Version = Writer.GetCustomVersions();
+				Version.Serialize(*Ar);
+
+				// Serialize object from memory buffer to file archive.
 				*Ar << Data;
 				Ar->Close();
 			}

@@ -21,16 +21,16 @@ FAESHandlerComponent::FAESHandlerComponent()
 	EncryptionContext = IPlatformCrypto::Get().CreateContext();
 }
 
-void FAESHandlerComponent::SetEncryptionKey(TArrayView<const uint8> NewKey)
+void FAESHandlerComponent::SetEncryptionData(const FEncryptionData& EncryptionData)
 {
-	if (NewKey.Num() != KeySizeInBytes)
+	if (EncryptionData.Key.Num() != KeySizeInBytes)
 	{
 		UE_LOG(PacketHandlerLog, Log, TEXT("FAESHandlerComponent::SetEncryptionKey. NewKey is not %d bytes long, ignoring."), KeySizeInBytes);
 		return;
 	}
 
 	Key.Reset(KeySizeInBytes);
-	Key.Append(NewKey.GetData(), NewKey.Num());
+	Key.Append(EncryptionData.Key.GetData(), EncryptionData.Key.Num());
 }
 
 void FAESHandlerComponent::EnableEncryption()

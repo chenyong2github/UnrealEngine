@@ -31,6 +31,7 @@ public class MaterialUtilities : ModuleRules
 			new string [] {
                  "MeshDescription",
                  "MeshDescriptionOperations",
+				 "StaticMeshDescription"
 			}
 		);      
 

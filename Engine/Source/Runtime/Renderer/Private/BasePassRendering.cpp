@@ -483,21 +483,24 @@ void SetupSharedBasePassParameters(
 {
 	SharedParameters.Forward = View.ForwardLightingResources->ForwardLightData;
 
+	SetupFogUniformParameters(View, SharedParameters.Fog);
+
 	if (View.bIsInstancedStereoEnabled && View.StereoPass == EStereoscopicPass::eSSP_LEFT_EYE)
 	{
 		const FSceneView& RightEye = *View.Family->Views[1];
 		SharedParameters.ForwardISR = RightEye.ForwardLightingResources->ForwardLightData;
+		SetupFogUniformParameters((FViewInfo&)RightEye, SharedParameters.FogISR);
 	}
 	else
 	{
 		SharedParameters.ForwardISR = View.ForwardLightingResources->ForwardLightData;
+		SharedParameters.FogISR = SharedParameters.Fog;
 	}
 
 	const FScene* Scene = View.Family->Scene ? View.Family->Scene->GetRenderScene() : nullptr;
 	const FPlanarReflectionSceneProxy* ReflectionSceneProxy = Scene ? Scene->GetForwardPassGlobalPlanarReflection() : nullptr;
 
 	SetupReflectionUniformParameters(View, SharedParameters.Reflection);
-	SetupFogUniformParameters(View, SharedParameters.Fog);
 	SetupPlanarReflectionUniformParameters(View, ReflectionSceneProxy, SharedParameters.PlanarReflection);
 
 	const IPooledRenderTarget* PooledRT = GetSubsufaceProfileTexture_RT(RHICmdList);
@@ -516,7 +519,7 @@ void CreateOpaqueBasePassUniformBuffer(
 	FRHICommandListImmediate& RHICmdList, 
 	const FViewInfo& View,
 	IPooledRenderTarget* ForwardScreenSpaceShadowMask,
-	FVector4* SceneWithoutSingleLayerWaterValidUVRect,
+	FVector2D* SceneWithoutSingleLayerWaterMaxUV,
 	IPooledRenderTarget* SceneColorWithoutSingleLayerWater,
 	IPooledRenderTarget* SceneDepthWithoutSingleLayerWater,
 	TUniformBufferRef<FOpaqueBasePassUniformParameters>& BasePassUniformBuffer)
@@ -572,7 +575,7 @@ void CreateOpaqueBasePassUniformBuffer(
 		BasePassParameters.DBufferBTextureSampler = TStaticSamplerState<>::GetRHI();
 		BasePassParameters.DBufferCTextureSampler = TStaticSamplerState<>::GetRHI();
 
-		if ((GSupportsRenderTargetWriteMask || IsUsingPerPixelDBufferMask(View.GetShaderPlatform())) && SceneRenderTargets.DBufferMask)
+		if ((RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform) || IsUsingPerPixelDBufferMask(View.GetShaderPlatform())) && SceneRenderTargets.DBufferMask)
 		{
 			BasePassParameters.DBufferRenderMask = SceneRenderTargets.DBufferMask->GetRenderTargetItem().TargetableTexture;
 		}
@@ -583,7 +586,7 @@ void CreateOpaqueBasePassUniformBuffer(
 	}
 
 	// Single Layer Water
-	BasePassParameters.SceneWithoutSingleLayerWaterValidUVRect = SceneWithoutSingleLayerWaterValidUVRect ? *SceneWithoutSingleLayerWaterValidUVRect : FVector4(0.0f, 0.0f, 1.0f, 1.0f);
+	BasePassParameters.SceneWithoutSingleLayerWaterMaxUV = SceneWithoutSingleLayerWaterMaxUV ? *SceneWithoutSingleLayerWaterMaxUV : FVector2D(1.0f, 1.0f);
 	BasePassParameters.SceneColorWithoutSingleLayerWaterTexture = (SceneColorWithoutSingleLayerWater ? SceneColorWithoutSingleLayerWater->GetRenderTargetItem().TargetableTexture : GSystemTextures.BlackDummy->GetRenderTargetItem().TargetableTexture);
 	BasePassParameters.SceneColorWithoutSingleLayerWaterSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 	BasePassParameters.SceneDepthWithoutSingleLayerWaterTexture = (SceneDepthWithoutSingleLayerWater ? SceneDepthWithoutSingleLayerWater->GetRenderTargetItem().TargetableTexture : GSystemTextures.BlackDummy->GetRenderTargetItem().TargetableTexture);

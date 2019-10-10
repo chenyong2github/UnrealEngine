@@ -453,8 +453,8 @@ public:
 	void Save();
 
 protected:
-	/** Reads previously set XML file. */
-	void ReadXML( const FString& CrashContextFilepath );
+	/** Reads previously set XML file. Optionally give a buffer to parse from. Any changes will be stored to CrashContextFilePath. */
+	void ReadXML( const FString& CrashContextFilepath, const TCHAR* Buffer = nullptr );
 
 	/** Sets the CrasgGUID based on the report's path. */
 	void SetCrashGUID( const FString& Filepath );
@@ -534,6 +534,14 @@ struct FCrashContext : public FPrimaryCrashProperties
 {
 	/** Initializes instance based on specified Crash Context filepath. */
 	explicit FCrashContext( const FString& CrashContextFilepath );
+
+	/** Initializes an instance based on a in memory buffer. */
+	FCrashContext(const FString& CrashContextFilepath, const TCHAR* Buffer);
+
+private:
+
+	/** Initializes the primary crash property fields from the xml file */
+	void SetupPrimaryCrashProperties();
 };
 
 /** Crash context based on the Window Error Reporting WER files, obsolete, only for backward compatibility. */

@@ -363,7 +363,13 @@ void FLevelEditorModule::AttachSequencer( TSharedPtr<SWidget> SequencerWidget, T
 	LevelEditorInstance->AttachSequencer( SequencerWidget, SequencerAssetEditor );
 }
 
-TSharedPtr<ILevelViewport> FLevelEditorModule::GetFirstActiveViewport()
+TSharedPtr<IAssetViewport> FLevelEditorModule::GetFirstActiveViewport()
+{
+	TSharedPtr<SLevelEditor> LevelEditorInstance = LevelEditorInstancePtr.Pin();
+	return (LevelEditorInstance.IsValid()) ? LevelEditorInstance->GetActiveViewport() : nullptr;
+}
+
+TSharedPtr<SLevelViewport> FLevelEditorModule::GetFirstActiveLevelViewport()
 {
 	TSharedPtr<SLevelEditor> LevelEditorInstance = LevelEditorInstancePtr.Pin();
 	return (LevelEditorInstance.IsValid()) ? LevelEditorInstance->GetActiveViewport() : nullptr;
@@ -380,7 +386,7 @@ void FLevelEditorModule::FocusPIEViewport()
 
 void FLevelEditorModule::FocusViewport()
 {
-	TSharedPtr<ILevelViewport> ActiveLevelViewport = GetFirstActiveViewport();
+	TSharedPtr<IAssetViewport> ActiveLevelViewport = GetFirstActiveViewport();
 	if( ActiveLevelViewport.IsValid() )
 	{
 		TSharedRef< const SWidget > ViewportAsWidget = ActiveLevelViewport->AsWidget();
@@ -478,7 +484,7 @@ void FLevelEditorModule::SetLevelEditorTabManager( const TSharedPtr<SDockTab>& O
 
 void FLevelEditorModule::StartPlayInEditorSession()
 {
-	TSharedPtr<ILevelViewport> ActiveLevelViewport = GetFirstActiveViewport();
+	TSharedPtr<SLevelViewport> ActiveLevelViewport = GetFirstActiveLevelViewport();
 
 	if( ActiveLevelViewport.IsValid() )
 	{
@@ -515,7 +521,7 @@ void FLevelEditorModule::StartPlayInEditorSession()
 
 void FLevelEditorModule::GoImmersiveWithActiveLevelViewport( const bool bForceGameView )
 {
-	TSharedPtr<ILevelViewport> ActiveLevelViewport = GetFirstActiveViewport();
+	TSharedPtr<IAssetViewport> ActiveLevelViewport = GetFirstActiveViewport();
 
 	if( ActiveLevelViewport.IsValid() )
 	{
@@ -544,7 +550,7 @@ void FLevelEditorModule::GoImmersiveWithActiveLevelViewport( const bool bForceGa
 
 void FLevelEditorModule::ToggleImmersiveOnActiveLevelViewport()
 {
-	TSharedPtr< ILevelViewport > ActiveLevelViewport = GetFirstActiveViewport();
+	TSharedPtr< IAssetViewport > ActiveLevelViewport = GetFirstActiveViewport();
 	if( ActiveLevelViewport.IsValid() )
 	{
 		// Toggle immersive mode (with animation!)
@@ -576,7 +582,7 @@ void FLevelEditorModule::RemoveStatusBarItem(FName InStatusBarIdentifier)
 	BroadcastNotificationBarChanged();
 }
 
-TSharedRef<IViewportLayoutEntity> FLevelEditorModule::FactoryViewport(FName InTypeName, const FViewportConstructionArgs& ConstructionArgs) const
+TSharedRef<ILevelViewportLayoutEntity> FLevelEditorModule::FactoryViewport(FName InTypeName, const FViewportConstructionArgs& ConstructionArgs) const
 {
 	const FViewportTypeDefinition* Definition = CustomViewports.Find(InTypeName);
 	if (Definition)
@@ -1831,4 +1837,5 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 		);
 }
 	
+
 #undef LOCTEXT_NAMESPACE

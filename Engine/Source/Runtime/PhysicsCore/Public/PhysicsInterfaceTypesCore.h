@@ -4,9 +4,7 @@
 #include "CoreMinimal.h"
 #include "PhysicsInterfaceDeclaresCore.h"
 
-#if INCLUDE_CHAOS
 #include "Chaos/CollisionFilterData.h"
-#endif
 
 struct FBodyInstance;
 
@@ -30,21 +28,6 @@ struct FActorCreationParams
 	bool bEnableGravity;
 	char* DebugName;
 };
-
-#if !INCLUDE_CHAOS
-struct FCollisionFilterData
-{
-	uint32 Word0;
-	uint32 Word1;
-	uint32 Word2;
-	uint32 Word3;
-
-	FORCEINLINE FCollisionFilterData()
-	{
-		Word0 = Word1 = Word2 = Word3 = 0;
-	}
-};
-#endif
 
 /**
 * Type of query for object type or trace type

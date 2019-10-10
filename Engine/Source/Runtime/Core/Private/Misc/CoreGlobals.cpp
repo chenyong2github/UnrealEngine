@@ -9,7 +9,7 @@
 #include "Misc/CoreStats.h"
 #include "Misc/Compression.h"
 #include "Misc/LazySingleton.h"
-
+#include "ProfilingDebugging/MiscTrace.h"
 
 #ifndef FAST_PATH_UNIQUE_NAME_GENERATION
 #define FAST_PATH_UNIQUE_NAME_GENERATION (!WITH_EDITORONLY_DATA)

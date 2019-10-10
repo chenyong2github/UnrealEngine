@@ -1,7 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#if INCLUDE_CHAOS
-
 #include "PhysicsProxy/FieldSystemPhysicsProxy.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 #include "Field/FieldSystem.h"
@@ -1101,5 +1099,3 @@ TArray<FFieldSystemCommand>* FFieldSystemPhysicsProxy::GetSolverCommandList(cons
 void FFieldSystemPhysicsProxy::OnRemoveFromScene()
 {
 }
-
-#endif 

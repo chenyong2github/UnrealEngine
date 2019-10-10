@@ -18,7 +18,7 @@ public:
 	GENERATED_BODY()
 
 #if WITH_EDITORONLY_DATA
-	virtual void OnBlueprintRecompiled(UBlueprint*) override;
+	virtual TArrayView<FMovieSceneEvent> GetAllEntryPoints() override { return MakeArrayView(&Event, 1); }
 #endif
 
 	/** The event that should be triggered each time this section is evaluated */

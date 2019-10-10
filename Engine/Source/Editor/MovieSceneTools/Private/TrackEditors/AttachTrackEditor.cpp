@@ -910,9 +910,9 @@ void F3DAttachTrackEditor::TrimAndPreserve(FGuid InObjectBinding, UMovieSceneSec
 
 		FLocalTransformEvaluator LocalTransformEval(GetSequencer(), Object, EvalTrack);
 
-		if (AttachSection->ReAttachOnDetach)
+		if (AttachSection->ReAttachOnDetach.IsValid())
 		{
-			FWorldTransformEvaluator ReAttachParentEvaluator(GetSequencer(), AttachSection->ReAttachOnDetach);
+			FWorldTransformEvaluator ReAttachParentEvaluator(GetSequencer(), AttachSection->ReAttachOnDetach.Get());
 
 			CompensateChildTrack(ExcludedRange, Channels, TOptional<TArrayView<FMovieSceneFloatChannel*>>(), ReAttachParentEvaluator, LocalTransformEval, ETransformPreserveType::CurrentKey, RevertModifier);
 		}

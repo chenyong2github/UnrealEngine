@@ -28,9 +28,6 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogBlueprintSupport, Log, All);
 
-// Flag to enable the BlueprintCompilationManager:
-COREUOBJECT_API bool GBlueprintUseCompilationManager = true;
-
 const FName FBlueprintTags::GeneratedClassPath(TEXT("GeneratedClass"));
 const FName FBlueprintTags::ParentClassPath(TEXT("ParentClass"));
 const FName FBlueprintTags::NativeParentClassPath(TEXT("NativeParentClass"));
@@ -116,28 +113,6 @@ bool FBlueprintSupport::IsDeferredCDOInitializationDisabled()
 #else
 	return false;
 #endif
-}
-
-void FBlueprintSupport::InitializeCompilationManager()
-{
-	// 'real' initialization is done lazily because we're in a pretty tough
-	// spot in terms of dependencies:
-	bool bCompilationManagerDisabled = false;
-	bool bCompilationManagerEnabled = true;
-	GConfig->GetBool(TEXT("/Script/UnrealEd.BlueprintEditorProjectSettings"), TEXT("bUseCompilationManager"), bCompilationManagerEnabled, GEditorIni);
-	GConfig->GetBool(TEXT("/Script/UnrealEd.BlueprintEditorProjectSettings"), TEXT("bDisableCompilationManager"), bCompilationManagerDisabled, GEditorIni);
-	if (bCompilationManagerDisabled)
-	{
-		GBlueprintUseCompilationManager = false;
-	}
-	else if(!bCompilationManagerEnabled)
-	{
-		UE_LOG(LogScript, Warning,
-			TEXT("Warning: Compilation manager enabled, compilation manager will be mandatory in 4.21. \
-				Use bDisableCompilationManager to disable the compilation manager as a last resort or remove \
-				bUseCompilationManager from project .ini to fix this warning.")
-		);
-	}
 }
 
 static FFlushReinstancingQueueFPtr FlushReinstancingQueueFPtr = nullptr;
@@ -461,24 +436,7 @@ FScopedClassDependencyGather::~FScopedClassDependencyGather()
 			}
 		};
 
-		if(!GBlueprintUseCompilationManager)
-		{
-			for( ; DependencyIter; ++DependencyIter )
-			{
-				UClass* Dependency = *DependencyIter;
-				if( Dependency->ClassGeneratedBy != BatchMasterClass->ClassGeneratedBy )
-				{
-					RecompileClassLambda(Dependency, LoadContext);
-				}
-			}
-
-			// Finally, recompile the master class to make sure it gets updated too
-			RecompileClassLambda(BatchMasterClass, LoadContext);
-		}
-		else
-		{
-			BatchMasterClass->ConditionalRecompileClass(LoadContext);
-		}
+		BatchMasterClass->ConditionalRecompileClass(LoadContext);
 
 		BatchMasterClass = NULL;
 	}

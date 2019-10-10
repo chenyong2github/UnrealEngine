@@ -111,7 +111,8 @@ static int32 GGPUSkinCacheFlushCounter = 0;
 
 static inline bool DoesPlatformSupportGPUSkinCache(EShaderPlatform Platform)
 {
-	return Platform == SP_PCD3D_SM5 || IsMetalSM5Platform(Platform) || IsVulkanSM5Platform(Platform) || Platform == SP_OPENGL_SM5;
+	return Platform == SP_PCD3D_SM5 || IsMetalSM5Platform(Platform) || IsVulkanSM5Platform(Platform) || Platform == SP_OPENGL_SM5 
+		|| FDataDrivenShaderPlatformInfo::GetInfo(Platform).bSupportsGPUSkinCache;
 }
 
 ENGINE_API bool IsGPUSkinCacheAvailable(EShaderPlatform Platform)
@@ -253,6 +254,22 @@ public:
 	void UpdateVertexFactoryDeclaration(int32 Section)
 	{
 		DispatchData[Section].UpdateVertexFactoryDeclaration();
+	}
+
+	inline FCachedGeometrySection GetCachedGeometry(int32 SectionIndex) const
+	{
+		FCachedGeometrySection MeshSection;
+		const FSkelMeshRenderSection& Section = *DispatchData[SectionIndex].Section;
+		MeshSection.PositionBuffer	= DispatchData[SectionIndex].PositionBuffer->SRV;
+		MeshSection.TotalVertexCount= DispatchData[SectionIndex].PositionBuffer->NumBytes / (sizeof(float)*3);
+		MeshSection.NumPrimitives	= Section.NumTriangles;
+		MeshSection.IndexBaseIndex	= Section.BaseIndex;
+		MeshSection.VertexBaseIndex = Section.BaseVertexIndex;
+		MeshSection.IndexBuffer		= nullptr;
+		MeshSection.TotalIndexCount	= 0;
+		MeshSection.LODIndex		= 0;
+		MeshSection.SectionIndex	= SectionIndex;
+		return MeshSection;
 	}
 
 	bool IsSectionValid(int32 Section) const
@@ -1390,6 +1407,11 @@ void FGPUSkinCache::InvalidateAllEntries()
 	}
 	StagingBuffers.SetNum(0, false);
 	SET_MEMORY_STAT(STAT_GPUSkinCache_TangentsIntermediateMemUsed, 0);
+}
+
+FCachedGeometrySection FGPUSkinCache::GetCachedGeometry(FGPUSkinCacheEntry* InOutEntry, uint32 sectionIndex)
+{
+	return InOutEntry ? InOutEntry->GetCachedGeometry(sectionIndex) : FCachedGeometrySection();
 }
 
 void FGPUSkinCache::CVarSinkFunction()

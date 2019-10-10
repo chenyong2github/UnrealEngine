@@ -149,8 +149,27 @@ public:
 	/** returns the first pin marked as an MapParam, usually returning nullptr */
 	static UEdGraphPin* FindMapParamPin(const UFunction* Function, const UEdGraphNode* Node);
 
-	/** returns the first pin referred to in a , and | deliniated list of pin names */
+	/** returns the first pin referred to in a , and | delineated list of pin names */
 	static UEdGraphPin* FindPinFromMetaData(const UFunction* Function, const UEdGraphNode* Node, FName MetaData );
+
+	/**
+	* Output a map of pin names to a set of connections given a function entry pin
+	* 
+	* @param Node				The entry pin to gather connections from
+	* @param OutPinConnections	Output map of connection data
+	*/
+	static void GetPinConnectionMap(const UEdGraphNode* Node, TMap<FString, TSet<UEdGraphPin*>>& OutPinConnections);
+
+	/**
+	* Reconnect the pin map to the given node
+	* 
+	* @param Node				The node to connect pins to
+	* @param PinConnections		Map of pin connections to set
+	*/
+	static void ReconnectPinMap(UEdGraphNode* Node, const TMap<FString, TSet<UEdGraphPin*>>& PinConnections);
+
+	/** Copy pin default values between nodes for any pins with matching names */
+	static void CopyPinDefaults(const UEdGraphNode* NodeFrom, UEdGraphNode* NodeTo);
 
 private:
 	static TArray< TSharedPtr<FGraphPanelNodeFactory> > VisualNodeFactories;

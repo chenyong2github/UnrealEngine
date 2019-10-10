@@ -811,11 +811,6 @@ public:
 	TArray<FString> GetAvailableFontSubFaces(const FString& InFilename) const;
 
 	/**
-	 * Get the revision index of the currently active localized fallback font.
-	 */
-	uint16 GetLocalizedFallbackFontRevision() const;
-
-	/**
 	 * Issues a request to clear all cached data from the cache
 	 */
 	void RequestFlushCache(const FString& FlushReason);

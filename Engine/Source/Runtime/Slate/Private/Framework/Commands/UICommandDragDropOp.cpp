@@ -8,9 +8,9 @@
 #include "Widgets/Text/STextBlock.h"
 
 
-TSharedRef<FUICommandDragDropOp> FUICommandDragDropOp::New( TSharedRef<const FUICommandInfo> InCommandInfo, FName InOriginMultiBox, TSharedPtr<SWidget> CustomDectorator, FVector2D DecoratorOffset )
+TSharedRef<FUICommandDragDropOp> FUICommandDragDropOp::New( FName InItemName, EMultiBlockType InBlockType, bool bInIsDraggingSection, FName InOriginMultiBox, TSharedPtr<SWidget> CustomDectorator, FVector2D DecoratorOffset )
 {
-	TSharedRef<FUICommandDragDropOp> Operation = MakeShareable(new FUICommandDragDropOp(InCommandInfo, InOriginMultiBox, CustomDectorator, DecoratorOffset));
+	TSharedRef<FUICommandDragDropOp> Operation = MakeShareable(new FUICommandDragDropOp(InItemName, InBlockType, bInIsDraggingSection, InOriginMultiBox, CustomDectorator, DecoratorOffset));
 	Operation->Construct();
 
 	return Operation;
@@ -42,7 +42,7 @@ TSharedPtr<SWidget> FUICommandDragDropOp::GetDefaultDecorator() const
 	else
 	{
 		Content = SNew(STextBlock)
-			.Text(UICommand->GetLabel());
+			.Text(FText::FromName(ItemName));
 	}
 
 	// Create hover widget

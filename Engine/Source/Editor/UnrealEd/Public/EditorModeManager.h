@@ -8,6 +8,7 @@
 #include "UnrealWidget.h"
 #include "Editor.h"
 #include "EditorUndoClient.h"
+#include "EdMode.h"
 
 class FCanvas;
 class FEditorViewportClient;
@@ -20,6 +21,7 @@ class IToolkitHost;
 class USelection;
 struct FConvexVolume;
 struct FViewportClick;
+class UEdMode;
 
 /**
  * A helper class to store the state of the various editor modes.
@@ -95,14 +97,12 @@ protected:
 	
 	/** Deactivates the editor mode at the specified index */
 	void DeactivateModeAtIndex( int32 InIndex );
+	/** Deactivates the editor mode at the specified index */
+	void DeactivateScriptableModeAtIndex(int32 InIndex);
 		
 private:
 	void RebuildModeToolBar();
 	void SpawnOrUpdateModeToolbar();
-
-	/** Updates the widget's position for changes in location during simulation */
-	void UpdateModeWidgetLocation();
-
 public:
 
 	/**
@@ -113,7 +113,10 @@ public:
 	/** 
 	 * Returns the editor mode specified by the passed in ID
 	 */
+	UE_DEPRECATED(4.24, "Use GetActiveMode instead.")
 	FEdMode* FindMode( FEditorModeID InID );
+
+	UEdMode* GetActiveScriptableMode(FEditorModeID InID);
 
 	/**
 	 * Returns true if the current mode is not the specified ModeID.  Also optionally warns the user.
@@ -162,10 +165,11 @@ public:
 	/** 
 	 * Returns an array of all active modes
 	 */
+	UE_DEPRECATED(4.24, "All access to modes now needs to go through the mode manager")
 	void GetActiveModes( TArray<FEdMode*>& OutActiveModes );
 
 	void SetShowWidget( bool InShowWidget )	{ bShowWidget = InShowWidget; }
-	bool GetShowWidget() const				{ return bShowWidget; }
+	bool GetShowWidget() const;
 
 	/** Cycle the widget mode, forwarding queries to modes */
 	void CycleWidgetMode (void);
@@ -419,8 +423,14 @@ public:
 	 * First parameter:  The editor mode that was changed
 	 * Second parameter:  True if entering the mode, or false if exiting the mode
 	 */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	DECLARE_EVENT_TwoParams( FEditorModeTools, FEditorModeChangedEvent, FEdMode*, bool );
+UE_DEPRECATED(4.24, "Use OnEditorModeIDChanged() instead.")
 	FEditorModeChangedEvent& OnEditorModeChanged() { return EditorModeChangedEvent; }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	DECLARE_EVENT_TwoParams(FEditorModeTools, FEditorModeIDChangedEvent, const FEditorModeID&, bool);
+	FEditorModeIDChangedEvent& OnEditorModeIDChanged() { return EditorModeIDChangedEvent; }
 
 	/** delegate type for triggering when widget mode changed */
 	DECLARE_EVENT_OneParam( FEditorModeTools, FWidgetModeChangedEvent, FWidget::EWidgetMode );
@@ -430,7 +440,11 @@ public:
 	void BroadcastWidgetModeChanged(FWidget::EWidgetMode InWidgetMode) { WidgetModeChangedEvent.Broadcast(InWidgetMode); }
 
 	/**	Broadcasts the EditorModeChanged event */
+	UE_DEPRECATED(4.24, "Use BroadcastEditorModeIDChanged() instead.")
 	void BroadcastEditorModeChanged(FEdMode* Mode, bool IsEnteringMode) { EditorModeChangedEvent.Broadcast(Mode, IsEnteringMode); }
+
+	/**	Broadcasts the EditorModeIDChanged event */
+	void BroadcastEditorModeIDChanged(const FEditorModeID& ModeID, bool IsEnteringMode) { EditorModeIDChangedEvent.Broadcast(ModeID, IsEnteringMode); }
 
 	/**
 	 * Returns the current CoordSystem
@@ -502,6 +516,32 @@ public:
 	 * Whether or not the current selection has a scene component selected
  	 */
 	bool SelectionHasSceneComponent() const;
+
+	bool IsSelectionAllowed(AActor* InActor, const bool bInSelected) const;
+
+	bool IsSelectionHandled(AActor* InActor, const bool bInSelected) const;
+
+	bool ProcessEditDuplicate();
+	bool ProcessEditDelete();
+	bool ProcessEditCut();
+	bool ProcessEditCopy();
+	bool ProcessEditPaste();
+	EEditAction::Type  GetActionEditDuplicate();
+	EEditAction::Type  GetActionEditDelete();
+	EEditAction::Type  GetActionEditCut();
+	EEditAction::Type  GetActionEditCopy();
+	EEditAction::Type GetActionEditPaste();
+
+	void DeactivateOtherVisibleModes(FEditorModeID InMode);
+	bool IsSnapRotationEnabled() const;
+	bool SnapRotatorToGridOverride(FRotator& InRotation) const;
+	void ActorsDuplicatedNotify(TArray<AActor*>& InPreDuplicateSelection, TArray<AActor*>& InPostDuplicateSelection, const bool bOffsetLocations);
+	void ActorMoveNotify();
+	void ActorSelectionChangeNotify();
+	void ActorPropChangeNotify();
+	void UpdateInternalData();
+	bool IsOnlyVisibleActiveMode(FEditorModeID InMode) const;
+
 protected:
 	/** 
 	 * Delegate handlers
@@ -515,11 +555,17 @@ protected:
 	/** A list of active editor modes. */
 	TArray< TSharedPtr<FEdMode> > ActiveModes;
 
+	/** A list of active editor modes. */
+	TArray< UEdMode* > ActiveScriptableModes;
+
 	/** The host of the toolkits created by these modes */
 	TWeakPtr<IToolkitHost> ToolkitHost;
 
 	/** A list of previously active editor modes that we will potentially recycle */
 	TMap< FEditorModeID, TSharedPtr<FEdMode> > RecycledModes;
+
+	/** A list of previously active editor modes that we will potentially recycle */
+	TMap< FEditorModeID, UEdMode* > RecycledScriptableModes;
 
 	/** The mode that the editor viewport widget is in. */
 	FWidget::EWidgetMode WidgetMode;
@@ -535,19 +581,18 @@ protected:
 
 	/** if true the current selection has a scene component */
 	bool bSelectionHasSceneComponent;
-
-	/** Compare for transformation of selected actor to mode widget */
-	TWeakObjectPtr<AActor>	LastSelectedActor;
-	FVector					LastSelectedActorLocation;
-
 private:
 	struct FEdModeToolbarRow
 	{
-		FEdModeToolbarRow(TSharedPtr<FEdMode>& InMode, TSharedRef<SWidget>& InToolbarWidget)
-			: Mode(InMode)
+		FEdModeToolbarRow(FName InModeID, FName InPaletteName, FText InDisplayName, TSharedRef<SWidget> InToolbarWidget)
+			: ModeID(InModeID)
+			, PaletteName(InPaletteName)
+			, DisplayName(InDisplayName)
 			, ToolbarWidget(InToolbarWidget)
 		{}
-		TSharedPtr<FEdMode> Mode;
+		FName ModeID;
+		FName PaletteName;
+		FText DisplayName;
 		TSharedPtr<SWidget> ToolbarWidget;
 	};
 
@@ -559,6 +604,9 @@ private:
 
 	/** Multicast delegate that is broadcast when a mode is entered or exited */
 	FEditorModeChangedEvent EditorModeChangedEvent;
+
+	/** Multicast delegate that is broadcast when a mode is entered or exited */
+	FEditorModeIDChangedEvent EditorModeIDChangedEvent;
 
 	/** Multicast delegate that is broadcast when a widget mode is changed */
 	FWidgetModeChangedEvent WidgetModeChangedEvent;

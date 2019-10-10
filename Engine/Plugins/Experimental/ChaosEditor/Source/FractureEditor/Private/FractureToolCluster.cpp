@@ -58,6 +58,7 @@ void UFractureToolCluster::RegisterUICommand( FFractureEditorCommands* BindingCo
 TArray<UObject*> UFractureToolCluster::GetSettingsObjects() const
 {
 	TArray<UObject*> ReturnSettings;
+	ReturnSettings.Add(GetMutableDefault<UFractureCommonSettings>());
 	ReturnSettings.Add(GetMutableDefault<UFractureClusterSettings>());
 	return ReturnSettings;
 }

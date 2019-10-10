@@ -15,8 +15,6 @@
 #include "GeometryCollection/GeometryCollectionActor.h"
 #include "GeometryCollection/GeometryCollectionDebugDrawComponent.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
-#include "Chaos/DebugDrawQueue.h"
-#include "DrawDebugHelpers.h"
 #include "Modules/ModuleManager.h"
 #include "ChaosSolversModule.h"
 #include "ChaosStats.h"
@@ -54,7 +52,7 @@ MSVC_PRAGMA(warning(pop))
 
 DEFINE_LOG_CATEGORY_STATIC(UGCC_LOG, Error, All);
 
-#if INCLUDE_CHAOS && WITH_PHYSX && !WITH_CHAOS_NEEDS_TO_BE_FIXED
+#if WITH_PHYSX && !WITH_CHAOS_NEEDS_TO_BE_FIXED
 FGeometryCollectionSQAccelerator GlobalGeomCollectionAccelerator;	//todo(ocohen): proper lifetime management needed
 
 void HackRegisterGeomAccelerator(UGeometryCollectionComponent& Component)
@@ -157,18 +155,18 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 	SetGenerateOverlapEvents(false);
 }
 
-
-#if INCLUDE_CHAOS
 Chaos::FPhysicsSolver* GetSolver(const UGeometryCollectionComponent& GeometryCollectionComponent)
 {
-	return	GeometryCollectionComponent.ChaosSolverActor != nullptr ? GeometryCollectionComponent.ChaosSolverActor->GetSolver() : GeometryCollectionComponent.GetOwner()->GetWorld()->PhysicsScene_Chaos->GetSolver();
-}
+#if INCLUDE_CHAOS
+	return GeometryCollectionComponent.ChaosSolverActor != nullptr ? GeometryCollectionComponent.ChaosSolverActor->GetSolver() : GeometryCollectionComponent.GetOwner()->GetWorld()->PhysicsScene_Chaos->GetSolver();
+#else
+	return nullptr;
 #endif
+}
 
 void UGeometryCollectionComponent::BeginPlay()
 {
 	Super::BeginPlay();
-#if INCLUDE_CHAOS
 #if WITH_PHYSX && !WITH_CHAOS_NEEDS_TO_BE_FIXED
 	HackRegisterGeomAccelerator(*this);
 #endif
@@ -235,8 +233,6 @@ void UGeometryCollectionComponent::BeginPlay()
 		}
 	}
 	InitializationState = ESimulationInitializationState::Activated;
-
-#endif
 
 	// default current cache time
 	CurrentCacheTime = MAX_flt;
@@ -440,7 +436,6 @@ void UGeometryCollectionComponent::DispatchChaosPhysicsCollisionBlueprintEvents(
 // call when first registering
 void UGeometryCollectionComponent::RegisterForEvents()
 {
-#if INCLUDE_CHAOS
 	if (BodyInstance.bNotifyRigidBodyCollision || bNotifyBreaks || bNotifyCollisions)
 	{
 		if (AChaosSolverActor* const SolverActor = GetPhysicsSolverActor())
@@ -459,12 +454,10 @@ void UGeometryCollectionComponent::RegisterForEvents()
 			}
 		}
 	}
-#endif
 }
 
 void UGeometryCollectionComponent::UpdateRBCollisionEventRegistration()
 {
-#if INCLUDE_CHAOS
 	if (AChaosSolverActor* const SolverActor = GetPhysicsSolverActor())
 	{
 		if (UChaosGameplayEventDispatcher* const EventDispatcher = SolverActor->GetGameplayEventDispatcher())
@@ -479,12 +472,10 @@ void UGeometryCollectionComponent::UpdateRBCollisionEventRegistration()
 			}
 		}
 	}
-#endif
 }
 
 void UGeometryCollectionComponent::UpdateBreakEventRegistration()
 {
-#if INCLUDE_CHAOS
 	if (AChaosSolverActor* const SolverActor = GetPhysicsSolverActor())
 	{
 		if (UChaosGameplayEventDispatcher* const EventDispatcher = SolverActor->GetGameplayEventDispatcher())
@@ -499,7 +490,6 @@ void UGeometryCollectionComponent::UpdateBreakEventRegistration()
 			}
 		}
 	}
-#endif
 }
 
 void UGeometryCollectionComponent::InitConstantData(FGeometryCollectionConstantData* ConstantData) const
@@ -865,7 +855,6 @@ void UGeometryCollectionComponent::InitDynamicData(FGeometryCollectionDynamicDat
 			
 				if(false)
 				{
-#if INCLUDE_CHAOS
 					// clear events on the solver
 					Chaos::FPhysicsSolver *Solver = GetSolver(*this);
 					
@@ -972,7 +961,6 @@ void UGeometryCollectionComponent::InitDynamicData(FGeometryCollectionDynamicDat
 						}
 #endif
 					}
-#endif
 				}								
 			}
 
@@ -1024,54 +1012,6 @@ void UGeometryCollectionComponent::InitDynamicData(FGeometryCollectionDynamicDat
 	}
 }
 
-#if CHAOS_DEBUG_DRAW
-void DebugDrawChaos(UWorld* World)
-{	
-	if (!World->IsGameWorld())
-	{
-		return;
-	}
-
-	using namespace Chaos;
-	TArray<FLatentDrawCommand> LatenetDrawCommands;
-
-	FDebugDrawQueue::GetInstance().ExtractAllElements(LatenetDrawCommands);
-	for (const FLatentDrawCommand& Command : LatenetDrawCommands)
-	{
-		switch (Command.Type)
-		{
-		case FLatentDrawCommand::EDrawType::Point:
-		{
-			DrawDebugPoint(World, Command.LineStart, Command.Thickness, Command.Color, Command.bPersistentLines, Command.LifeTime, Command.DepthPriority);
-			break;
-		}
-		case FLatentDrawCommand::EDrawType::Line:
-		{
-			DrawDebugLine(World, Command.LineStart, Command.LineEnd, Command.Color, Command.bPersistentLines, Command.LifeTime, Command.DepthPriority, Command.Thickness);
-			break;
-		}
-		case FLatentDrawCommand::EDrawType::DirectionalArrow:
-		{
-			DrawDebugDirectionalArrow(World, Command.LineStart, Command.LineEnd, Command.ArrowSize, Command.Color, Command.bPersistentLines, Command.LifeTime, Command.DepthPriority, Command.Thickness);
-			break;
-		}
-		case FLatentDrawCommand::EDrawType::Sphere:
-		{
-			DrawDebugSphere(World, Command.LineStart, Command.Radius, Command.Segments, Command.Color, Command.bPersistentLines, Command.LifeTime, Command.DepthPriority, Command.Thickness);
-			break;
-		}
-		case FLatentDrawCommand::EDrawType::Box:
-		{
-			DrawDebugBox(World, Command.Center, Command.Extent, Command.Rotation, Command.Color, Command.bPersistentLines, Command.LifeTime, Command.DepthPriority, Command.Thickness);
-			break;
-		}
-		default:
-			break;
-		}
-	}
-}
-#endif
-
 void UGeometryCollectionComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
 	//UE_LOG(UGCC_LOG, Log, TEXT("GeometryCollectionComponent[%p]::TickComponent()"), this);
@@ -1099,19 +1039,6 @@ void UGeometryCollectionComponent::TickComponent(float DeltaTime, enum ELevelTic
 // 			}
 		}
 	}
-
-#if CHAOS_DEBUG_DRAW
-	using namespace Chaos;
-
-	// General debug drawing
-	if (FDebugDrawQueue::EnableDebugDrawing)
-	{
-		if (UWorld* World = GetWorld())
-		{
-			DebugDrawChaos(World);
-		}
-	}
-#endif
 }
 
 void UGeometryCollectionComponent::OnRegister()
@@ -1195,7 +1122,6 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 		}
 #endif
 
-#if INCLUDE_CHAOS
 		const bool bValidWorld = GetWorld() && GetWorld()->IsGameWorld();
 		const bool bValidCollection = DynamicCollection && DynamicCollection->Transform.Num() > 0;
 		if (bValidWorld && bValidCollection)
@@ -1420,16 +1346,13 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 
 			RegisterForEvents();
 		}
-#endif
 	}
 
-#if INCLUDE_CHAOS
 #if WITH_PHYSX && !WITH_CHAOS_NEEDS_TO_BE_FIXED
 	if (PhysicsProxy)
 	{
 		GlobalGeomCollectionAccelerator.AddComponent(this);
 	}
-#endif
 #endif
 }
 
@@ -1437,10 +1360,8 @@ void UGeometryCollectionComponent::OnDestroyPhysicsState()
 {
 	UActorComponent::OnDestroyPhysicsState();
 
-#if INCLUDE_CHAOS
 #if WITH_PHYSX && !WITH_CHAOS_NEEDS_TO_BE_FIXED
 	GlobalGeomCollectionAccelerator.RemoveComponent(this);
-#endif
 #endif
 
 #if WITH_PHYSX
@@ -1450,7 +1371,6 @@ void UGeometryCollectionComponent::OnDestroyPhysicsState()
 	}
 #endif
 
-#if INCLUDE_CHAOS
 	if(PhysicsProxy)
 	{
 		TSharedPtr<FPhysScene_Chaos> Scene = GetPhysicsScene();
@@ -1460,7 +1380,6 @@ void UGeometryCollectionComponent::OnDestroyPhysicsState()
 		// Discard the pointer (cleanup happens through the scene or dedicated thread)
 		PhysicsProxy = nullptr;
 	}
-#endif
 }
 
 void UGeometryCollectionComponent::SendRenderDynamicData_Concurrent()
@@ -1974,7 +1893,6 @@ void UGeometryCollectionComponent::ApplyPhysicsField(bool Enabled, EGeometryColl
 
 void UGeometryCollectionComponent::DispatchCommand(const FFieldSystemCommand& InCommand)
 {
-#if INCLUDE_CHAOS
 	if (PhysicsProxy)
 	{
 		FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
@@ -1989,12 +1907,10 @@ void UGeometryCollectionComponent::DispatchCommand(const FFieldSystemCommand& In
 			PhysicsProxy->BufferCommand(nullptr, NewCommand);
 		});
 	}
-#endif
 }
 
 void UGeometryCollectionComponent::GetInitializationCommands(TArray<FFieldSystemCommand>& CombinedCommmands)
 {
-#if INCLUDE_CHAOS
 	CombinedCommmands.Reset();
 	for (const AFieldSystemActor * FieldSystemActor : InitializationFields)
 	{
@@ -2014,11 +1930,9 @@ void UGeometryCollectionComponent::GetInitializationCommands(TArray<FFieldSystem
 			}
 		}
 	}
-#endif
 }
 
 
-#if INCLUDE_CHAOS
 const TSharedPtr<FPhysScene_Chaos> UGeometryCollectionComponent::GetPhysicsScene() const
 {
 	if (ChaosSolverActor)
@@ -2027,12 +1941,16 @@ const TSharedPtr<FPhysScene_Chaos> UGeometryCollectionComponent::GetPhysicsScene
 	}
 	else
 	{
+#if INCLUDE_CHAOS
 		if (ensure(GetOwner()) && ensure(GetOwner()->GetWorld()))
 		{
 			return GetOwner()->GetWorld()->PhysicsScene_Chaos;
 		}
 		check(GWorld);
 		return GWorld->PhysicsScene_Chaos;
+#else
+		return nullptr;
+#endif
 	}
 }
 
@@ -2050,7 +1968,6 @@ AChaosSolverActor* UGeometryCollectionComponent::GetPhysicsSolverActor() const
 
 	return nullptr;
 }
-#endif
 
 void UGeometryCollectionComponent::CalculateLocalBounds()
 {
@@ -2074,7 +1991,6 @@ void UGeometryCollectionComponent::CalculateLocalBounds()
 void UGeometryCollectionComponent::CalculateGlobalMatrices()
 {
 	SCOPE_CYCLE_COUNTER(STAT_GCCUGlobalMatrices);
-#if INCLUDE_CHAOS
 	FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 	Module->LockResultsRead();
 
@@ -2111,7 +2027,6 @@ void UGeometryCollectionComponent::CalculateGlobalMatrices()
 #endif
 
 	Module->UnlockResultsRead();
-#endif
 }
 
 // #todo(dmp): for backwards compatibility with existing maps, we need to have a default of 3 materials.  Otherwise

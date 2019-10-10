@@ -419,7 +419,6 @@ void SAssetView::Construct( const FArguments& InArgs )
 
 	bCanShowDevelopersFolder = InArgs._CanShowDevelopersFolder;
 
-	bCanShowCollections = InArgs._CanShowCollections;
 	bCanShowFavorites = InArgs._CanShowFavorites;
 	bPreloadAssetsForContextMenu = InArgs._PreloadAssetsForContextMenu;
 
@@ -3167,19 +3166,6 @@ TSharedRef<SWidget> SAssetView::GetViewButtonContent()
 		);
 
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ShowCollectionOption", "Show Collections"),
-			LOCTEXT("ShowCollectionOptionToolTip", "Show the collections list in the view?"),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateSP( this, &SAssetView::ToggleShowCollections ),
-				FCanExecuteAction::CreateSP( this, &SAssetView::IsToggleShowCollectionsAllowed ),
-				FIsActionChecked::CreateSP( this, &SAssetView::IsShowingCollections )
-			),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
-
-		MenuBuilder.AddMenuEntry(
 			LOCTEXT("ShowFavoriteOptions", "Show Favorites"),
 			LOCTEXT("ShowFavoriteOptionToolTip", "Show the favorite folders in the view?"),
 			FSlateIcon(),
@@ -3536,24 +3522,6 @@ bool SAssetView::IsShowingLocalizedContent() const
 {
 	return IsToggleShowLocalizedContentAllowed() && GetDefault<UContentBrowserSettings>()->GetDisplayL10NFolder();
 }
-
-void SAssetView::ToggleShowCollections()
-{
-	const bool bDisplayCollections = GetDefault<UContentBrowserSettings>()->GetDisplayCollections();
-	GetMutableDefault<UContentBrowserSettings>()->SetDisplayCollections( !bDisplayCollections );
-	GetMutableDefault<UContentBrowserSettings>()->PostEditChange();
-}
-
-bool SAssetView::IsToggleShowCollectionsAllowed() const
-{
-	return bCanShowCollections;
-}
-
-bool SAssetView::IsShowingCollections() const
-{
-	return IsToggleShowCollectionsAllowed() && GetDefault<UContentBrowserSettings>()->GetDisplayCollections();
-}
-
 
 void SAssetView::ToggleShowFavorites()
 {
@@ -4848,7 +4816,14 @@ FText SAssetView::GetAssetShowWarningText() const
 
 	if ( SourcesData.HasCollections() && !SourcesData.IsDynamicCollection() )
 	{
-		DropText = LOCTEXT( "DragAssetsHere", "Drag and drop assets here to add them to the collection." );
+		if (SourcesData.Collections[0].Name.IsNone())
+		{
+			DropText = LOCTEXT("NoCollectionSelected", "No collection selected.");
+		}
+		else
+		{
+			DropText = LOCTEXT("DragAssetsHere", "Drag and drop assets here to add them to the collection.");
+		}
 	}
 	else if ( OnGetAssetContextMenu.IsBound() )
 	{

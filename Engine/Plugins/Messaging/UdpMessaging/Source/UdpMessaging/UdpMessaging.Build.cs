@@ -6,11 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public UdpMessaging(ReadOnlyTargetRules Target) : base(Target)
 		{
-			DynamicallyLoadedModuleNames.AddRange(
-				new string[] {
-					"Messaging",
-				});
-
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
@@ -22,14 +17,14 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"Json",
 					"Cbor",
-					"Networking",
+                    "Messaging",
+                    "Networking",
 					"Serialization",
 					"Sockets",
 				});
 
 			PrivateIncludePathModuleNames.AddRange(
 				new string[] {
-					"Messaging",
 					"MessagingCommon",
 				});
 
@@ -53,27 +48,6 @@ namespace UnrealBuildTool.Rules
 						"Settings",
 					});
 			}
-
-			//temporary workaround to allow automatic configuration of static endpoints in editor/UFE for certain target devices, pending proper API
-			if (Target.Type == TargetType.Editor || (Target.Type == TargetType.Program && Target.Name == "UnrealFrontend"))
-			{
-				PublicDefinitions.Add("WITH_TARGETPLATFORM_SUPPORT=1");
-
-				DynamicallyLoadedModuleNames.AddRange(
-					new string[] {
-						"TargetPlatform",
-					});
-
-				PrivateIncludePathModuleNames.AddRange(
-					new string[] {
-						"TargetPlatform",
-					});
-			}
-			else
-			{
-				PublicDefinitions.Add("WITH_TARGETPLATFORM_SUPPORT=0");
-			}
-
 		}
 	}
 }

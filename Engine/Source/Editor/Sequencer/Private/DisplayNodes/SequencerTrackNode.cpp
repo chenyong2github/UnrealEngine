@@ -693,15 +693,15 @@ FLinearColor FSequencerTrackNode::GetDisplayNameColor() const
 		return FLinearColor::White;
 	}
 
-	const bool bIsEvalDisabled = Track->IsEvalDisabled();
-
 	// Display track node is red if the property track is not bound to valid property
 	if (UMovieScenePropertyTrack* PropertyTrack = Cast<UMovieScenePropertyTrack>(Track))
 	{
+		const bool bIsDimmed = IsDimmed();
+
 		// 3D transform tracks don't map to property bindings as below
 		if (Track->IsA<UMovieScene3DTransformTrack>() || Track->IsA<UMovieScenePrimitiveMaterialTrack>())
 		{
-			return bIsEvalDisabled ? FLinearColor(0.6f, 0.6f, 0.6f, 0.6f) : FLinearColor::White;
+			return bIsDimmed ? FLinearColor(0.6f, 0.6f, 0.6f, 0.6f) : FLinearColor::White;
 		}
 
 		FGuid ObjectBinding;
@@ -721,16 +721,16 @@ FLinearColor FSequencerTrackNode::GetDisplayNameColor() const
 					FTrackInstancePropertyBindings PropertyBinding(PropertyTrack->GetPropertyName(), PropertyTrack->GetPropertyPath());
 					if (PropertyBinding.GetProperty(*Object))
 					{
-						return bIsEvalDisabled ? FLinearColor(0.6f, 0.6f, 0.6f, 0.6f) : FLinearColor::White;
+						return bIsDimmed ? FLinearColor(0.6f, 0.6f, 0.6f, 0.6f) : FLinearColor::White;
 					}
 				}
 			}
 
-			return bIsEvalDisabled ? FLinearColor(0.6f, 0.0f, 0.0f, 0.6f) : FLinearColor::Red;
+			return bIsDimmed ? FLinearColor(0.6f, 0.0f, 0.0f, 0.6f) : FLinearColor::Red;
 		}
 	}
 
-	return bIsEvalDisabled ? FLinearColor(0.6f, 0.6f, 0.6f, 0.6f) : FLinearColor::White;
+	return FSequencerDisplayNode::GetDisplayNameColor();
 }
 
 float FSequencerTrackNode::GetNodeHeight() const

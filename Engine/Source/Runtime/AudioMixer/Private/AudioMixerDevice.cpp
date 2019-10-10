@@ -228,7 +228,7 @@ namespace Audio
 				}
 
 				// Create a new ambisonics mixer.
-				IAudioSpatializationFactory* SpatializationPluginFactory = AudioPluginUtilities::GetDesiredSpatializationPlugin(AudioPluginUtilities::CurrentPlatform);
+				IAudioSpatializationFactory* SpatializationPluginFactory = AudioPluginUtilities::GetDesiredSpatializationPlugin();
 				if (SpatializationPluginFactory != nullptr)
 				{
 					AmbisonicsMixer = SpatializationPluginFactory->CreateNewAmbisonicsMixer(this);

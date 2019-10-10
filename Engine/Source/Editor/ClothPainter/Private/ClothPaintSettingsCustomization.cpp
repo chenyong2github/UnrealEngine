@@ -6,7 +6,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "DetailLayoutBuilder.h"
 #include "ClothPaintSettings.h"
-#include "Assets/ClothingAsset.h"
+#include "ClothingAsset.h"
 #include "Widgets/Input/SComboBox.h"
 #include "ClothPainter.h"
 #include "ClothPaintToolBase.h"

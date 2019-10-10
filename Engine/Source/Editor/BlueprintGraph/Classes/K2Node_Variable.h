@@ -145,6 +145,9 @@ public:
 	static bool DoesRenamedVariableMatch(FName OldVariableName, FName NewVariableName, UStruct* StructType);
 
 private:
+	/** 
+	 * Gets the property for the variable on the owning class or on the owning class's sparse class data structure.
+	 */
 	UProperty* GetPropertyForVariable_Internal(UClass* OwningClass) const;
 
 public:

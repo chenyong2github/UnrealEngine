@@ -42,7 +42,7 @@
 #include "TimerManager.h"
 #include "Camera/CameraPhotography.h"
 #include "HAL/LowLevelMemTracker.h"
-#if WITH_CHAOS
+#if ENABLE_COLLISION_ANALYZER
 #include "PhysicsEngine/CollisionAnalyzerCapture.h"
 #endif
 
@@ -1241,7 +1241,6 @@ public:
 #if ENABLE_COLLISION_ANALYZER
 #include "ICollisionAnalyzer.h"
 #include "CollisionAnalyzerModule.h"
-extern bool GCollisionAnalyzerIsRecording;
 #endif // ENABLE_COLLISION_ANALYZER
 
 
@@ -1369,7 +1368,7 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 
 	TDrawEvent<FRHICommandList>* TickDrawEvent = BeginTickDrawEvent();
 
-	FWorldDelegates::OnWorldTickStart.Broadcast(TickType, DeltaSeconds);
+	FWorldDelegates::OnWorldTickStart.Broadcast(this, TickType, DeltaSeconds);
 
 	//Tick game and other thread trackers.
 	for (int32 Tracker = 0; Tracker < (int32)EInGamePerfTrackers::Num; ++Tracker)

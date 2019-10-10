@@ -187,3 +187,4 @@ static FAutoConsoleCommand CSetFocusPointForFrameCmd(
 	*LOCTEXT("CVarText_SetFocusPointForFrame",
 		"Set the reference point for the stabilization plane on hololens 2. You must set it each frame to activate the feature for that frame.").ToString(),
 	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateStatic(SetFocusPointForFrame));
+#undef LOCTEXT_NAMESPACE

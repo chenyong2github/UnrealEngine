@@ -4,10 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
-#include "Misc/Change.h"
 #include "InteractiveTool.h"
 #include "InteractiveToolBuilder.h"
 #include "InputRouter.h"
+#include "InteractiveToolChange.h"
 #include "ToolContextInterfaces.h"
 #include "InteractiveToolManager.generated.h"
 
@@ -41,7 +41,7 @@ enum class EToolSide
  *
  */
 UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UInteractiveToolManager : public UObject
+class INTERACTIVETOOLSFRAMEWORK_API UInteractiveToolManager : public UObject, public IToolContextTransactionProvider
 {
 	GENERATED_BODY()
 
@@ -141,10 +141,7 @@ public:
 	//
 	
 	/** Post a message via the Transactions API */
-	virtual void PostMessage(const TCHAR* Message, EToolMessageLevel Level);
-
-	/** Post a message via the Transactions API */
-	virtual void PostMessage(const FString& Message, EToolMessageLevel Level);
+	virtual void DisplayMessage(const FText& Message, EToolMessageLevel Level);
 
 	/** Request an Invalidation via the Transactions API (ie to cause a repaint, etc) */
 	virtual void PostInvalidation();
@@ -164,7 +161,7 @@ public:
 	 * @param Change the change object that the Context should insert into the transaction history
 	 * @param Description text description of this change (this is the string that appears on undo/redo in the UE Editor)
 	 */
-	virtual void EmitObjectChange(UObject* TargetObject, TUniquePtr<FChange> Change, const FText& Description );
+	virtual void EmitObjectChange(UObject* TargetObject, TUniquePtr<FToolCommandChange> Change, const FText& Description );
 
 
 	/**
@@ -192,6 +189,7 @@ public:
 	/** @return current IToolsContextQueriesAPI */
 	virtual IToolsContextQueriesAPI* GetContextQueriesAPI() { return QueriesAPI; }
 
+	UInteractiveGizmoManager* GetPairedGizmoManager();
 
 
 public:
@@ -232,4 +230,45 @@ protected:
 	/** Currently-active Right ToolBuilder */
 	UInteractiveToolBuilder* ActiveRightBuilder;
 
+};
+
+
+
+
+/**
+ * FBeginToolChange is used by UInteractiveToolManager to back out of a Tool on Undo.
+ * No action is taken on Redo, ie we do not re-start the Tool on Redo.
+ */
+class INTERACTIVETOOLSFRAMEWORK_API FBeginToolChange : public FToolCommandChange
+{
+public:
+	virtual void Apply(UObject* Object) override;
+
+	virtual void Revert(UObject* Object) override;
+
+	virtual bool HasExpired(UObject* Object) const override;
+
+	virtual FString ToString() const override;
+};
+
+
+
+/**
+ * FToolChangeWrapperChange wraps an FChange emitted by an InteractiveTool, allowing
+ * us to Expire the change without each FChange implementation needing to handle this explicitly.
+ */
+class INTERACTIVETOOLSFRAMEWORK_API FToolChangeWrapperChange : public FToolCommandChange
+{
+public:
+	TWeakObjectPtr<UInteractiveToolManager> ToolManager;
+	TWeakObjectPtr<UInteractiveTool> ActiveTool;
+	TUniquePtr<FToolCommandChange> ToolChange;
+
+	virtual void Apply(UObject* Object) override;
+
+	virtual void Revert(UObject* Object) override;
+
+	virtual bool HasExpired(UObject* Object) const override;
+
+	virtual FString ToString() const override;
 };

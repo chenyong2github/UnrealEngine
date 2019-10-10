@@ -45,7 +45,9 @@ public class EditorInteractiveToolsFramework : ModuleRules
                 "LevelEditor",
                 "ApplicationCore",
                 "EditorStyle",
-                "InteractiveToolsFramework"
+                "InteractiveToolsFramework",
+				"MeshDescription",
+				"StaticMeshDescription"
 
 				// ... add private dependencies that you statically link with here ...	
 			}

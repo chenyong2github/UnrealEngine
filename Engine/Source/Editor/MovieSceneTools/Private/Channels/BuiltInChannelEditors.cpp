@@ -1,6 +1,10 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "BuiltInChannelEditors.h"
+#include "MovieSceneSequence.h"
+#include "MovieSceneSequenceEditor.h"
+#include "MovieSceneEventUtils.h"
+#include "Sections/MovieSceneEventSectionBase.h"
 #include "ISequencerChannelInterface.h"
 #include "Widgets/SNullWidget.h"
 #include "ISequencer.h"
@@ -339,7 +343,7 @@ void PostConstructKeyInstance(const TMovieSceneChannelHandle<FMovieSceneObjectPa
 	KeyStruct->OnPropertyChangedEvent = CopyInstanceToKeyLambda;
 }
 
-void DrawKeys(FMovieSceneFloatChannel* Channel, TArrayView<const FKeyHandle> InKeyHandles, TArrayView<FKeyDrawParams> OutKeyDrawParams)
+void DrawKeys(FMovieSceneFloatChannel* Channel, TArrayView<const FKeyHandle> InKeyHandles, const UMovieSceneSection* InOwner, TArrayView<FKeyDrawParams> OutKeyDrawParams)
 {
 	static const FName CircleKeyBrushName("Sequencer.KeyCircle");
 	static const FName DiamondKeyBrushName("Sequencer.KeyDiamond");
@@ -403,7 +407,7 @@ void DrawKeys(FMovieSceneFloatChannel* Channel, TArrayView<const FKeyHandle> InK
 	}
 }
 
-void DrawKeys(FMovieSceneParticleChannel* Channel, TArrayView<const FKeyHandle> InKeyHandles, TArrayView<FKeyDrawParams> OutKeyDrawParams)
+void DrawKeys(FMovieSceneParticleChannel* Channel, TArrayView<const FKeyHandle> InKeyHandles, const UMovieSceneSection* InOwner, TArrayView<FKeyDrawParams> OutKeyDrawParams)
 {
 	static const FName KeyLeftBrushName("Sequencer.KeyLeft");
 	static const FName KeyRightBrushName("Sequencer.KeyRight");
@@ -442,8 +446,10 @@ void DrawKeys(FMovieSceneParticleChannel* Channel, TArrayView<const FKeyHandle> 
 	}
 }
 
-void DrawKeys(FMovieSceneEventChannel* Channel, TArrayView<const FKeyHandle> InKeyHandles, TArrayView<FKeyDrawParams> OutKeyDrawParams)
+void DrawKeys(FMovieSceneEventChannel* Channel, TArrayView<const FKeyHandle> InKeyHandles, const UMovieSceneSection* InOwner, TArrayView<FKeyDrawParams> OutKeyDrawParams)
 {
+	UMovieSceneEventSectionBase* EventSection = CastChecked<UMovieSceneEventSectionBase>(const_cast<UMovieSceneSection*>(InOwner));
+
 	FKeyDrawParams ValidEventParams, InvalidEventParams;
 
 	ValidEventParams.BorderBrush   = ValidEventParams.FillBrush   = FEditorStyle::Get().GetBrush("Sequencer.KeyDiamond");
@@ -453,12 +459,17 @@ void DrawKeys(FMovieSceneEventChannel* Channel, TArrayView<const FKeyHandle> InK
 	InvalidEventParams.FillTint    = FLinearColor(1.f,1.f,1.f,.2f);
 
 	TMovieSceneChannelData<FMovieSceneEvent> ChannelData = Channel->GetData();
-	TArrayView<const FMovieSceneEvent>       Events = ChannelData.GetValues();
+	TArrayView<FMovieSceneEvent>             Events = ChannelData.GetValues();
+
+	UMovieSceneSequence*       Sequence           = InOwner->GetTypedOuter<UMovieSceneSequence>();
+	FMovieSceneSequenceEditor* SequenceEditor     = Sequence ? FMovieSceneSequenceEditor::Find(Sequence) : nullptr;
+	UBlueprint*                SequenceDirectorBP = SequenceEditor ? SequenceEditor->FindDirectorBlueprint(Sequence) : nullptr;
 
 	for (int32 Index = 0; Index < InKeyHandles.Num(); ++Index)
 	{
 		int32 KeyIndex = ChannelData.GetIndex(InKeyHandles[Index]);
-		if (KeyIndex != INDEX_NONE && Events[KeyIndex].IsBoundToBlueprint())
+
+		if (KeyIndex != INDEX_NONE && SequenceDirectorBP && FMovieSceneEventUtils::FindEndpoint(&Events[KeyIndex], EventSection, SequenceDirectorBP))
 		{
 			OutKeyDrawParams[Index] = ValidEventParams;
 		}

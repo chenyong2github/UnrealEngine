@@ -77,7 +77,7 @@ private:
 class FConcertServer : public IConcertServer
 {
 public: 
-	FConcertServer(const FString& InRole, IConcertServerEventSink* InEventSink, const TSharedPtr<IConcertEndpointProvider>& InEndpointProvider);
+	FConcertServer(const FString& InRole, const FConcertSessionFilter& InAutoArchiveSessionFilter, IConcertServerEventSink* InEventSink, const TSharedPtr<IConcertEndpointProvider>& InEndpointProvider);
 	virtual ~FConcertServer();
 
 	virtual const FString& GetRole() const override;
@@ -101,6 +101,7 @@ public:
 	virtual TSharedPtr<IConcertServerSession> CreateSession(const FConcertSessionInfo& SessionInfo, FText& OutFailureReason) override;
 	virtual TSharedPtr<IConcertServerSession> RestoreSession(const FGuid& SessionId, const FConcertSessionInfo& SessionInfo, const FConcertSessionFilter& SessionFilter, FText& OutFailureReason) override;
 	virtual FGuid ArchiveSession(const FGuid& SessionId, const FString& ArchiveNameOverride, const FConcertSessionFilter& SessionFilter, FText& OutFailureReason) override;
+	virtual bool ExportSession(const FGuid& SessionId, const FConcertSessionFilter& SessionFilter, const FString& DestDir, bool bAnonymizeData, FText& OutFailureReason) override;
 	virtual bool RenameSession(const FGuid& SessionId, const FString& NewName, FText& OutFailureReason) override;
 	virtual bool DestroySession(const FGuid& SessionId, FText& OutFailureReason) override;
 	virtual TArray<FConcertSessionClientInfo> GetSessionClients(const FGuid& SessionId) const override;
@@ -188,6 +189,9 @@ private:
 
 	/** Cached root paths used by this server */
 	TUniquePtr<const FConcertServerPaths> Paths;
+
+	/** The session filter to apply when auto-archiving sessions */
+	FConcertSessionFilter AutoArchiveSessionFilter;
 
 	/** Sink functions for events that this server can emit */
 	IConcertServerEventSink* EventSink;

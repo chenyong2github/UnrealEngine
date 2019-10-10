@@ -37,9 +37,6 @@ public:
 	virtual void TickGizmo(AControlRigGizmoActor* GizmoActor, const FTransform& ComponentTransform) = 0;
 	virtual bool ModeSupportedByGizmoActor(const AControlRigGizmoActor* GizmoActor, FWidget::EWidgetMode InMode) const = 0;
 
-	// add key of current gizmo actor transform data
-	virtual void AddKey(const AControlRigGizmoActor* GizmoActor, TSharedPtr<ISequencer> Sequencer) = 0;
-
 protected:
 
 	// because manipulatable is created externally often. Manipulation Layer doesn't have any ownership on these object

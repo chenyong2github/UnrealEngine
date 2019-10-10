@@ -3,7 +3,8 @@
 
 #pragma once
 
-#import <GameKit/GKLocalPlayer.h>
+#import <UIKit/UIKit.h>
+#import <GameKit/GameKit.h>
 
 #include "OnlineSubsystemIOSTypes.h"
 #include "Interfaces/OnlineIdentityInterface.h"

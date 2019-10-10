@@ -120,7 +120,7 @@ float4x4 GetScreenToViewDistanceMatrix()
 	float4x4 LocalScreenToView = ScreenToView;
 
 	// Intentionally nullout some values, so the compiler can remove some of the VALU, that is all the point of CONFIG_USE_VIEW_SPACE.
-	// TODO: off axis projection.
+	// TODO(Denoiser): off axis projection.
 	{
 		LocalScreenToView[0][1] = 0.0;
 		LocalScreenToView[0][2] = 0.0;
@@ -220,7 +220,7 @@ FSSDCompressedSceneInfos SampleCompressedSceneMetadata(
 
 	if (bPrevFrame)
 	{
-		// TODO: so what to do with mip level of these guys?
+		// TODO(Denoiser): so what to do with mip level of these guys?
 		float WorldSceneDepth = ConvertFromDeviceZ(PrevDepthBuffer.SampleLevel(GlobalPointClampedSampler, BufferUV, 0).r);
 		float3 WorldNormal = DecodeNormal(PrevGBufferA.SampleLevel(GlobalPointClampedSampler, BufferUV, 0).rgb);
 		float Roughness = PrevGBufferB.SampleLevel(GlobalPointClampedSampler, BufferUV, 0).b;

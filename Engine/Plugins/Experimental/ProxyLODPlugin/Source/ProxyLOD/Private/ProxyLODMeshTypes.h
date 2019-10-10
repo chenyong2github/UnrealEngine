@@ -11,9 +11,7 @@
 #endif
 
 #include "MeshMergeData.h"
-#include "MeshDescription.h"
-#include "MeshAttributes.h"
-#include "MeshAttributeArray.h"
+#include "StaticMeshAttributes.h"
 #include "MeshDescriptionOperations.h"
 
 #include "ProxyLODThreadedWrappers.h"

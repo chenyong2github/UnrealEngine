@@ -724,7 +724,7 @@ void SDetailsView::ReplaceObjects( const TMap<UObject*, UObject*>& OldToNewObjec
 		for ( TPropObjectIterator Itor( CurrentNode->ObjectIterator() ); Itor; ++Itor )
 		{
 			UObject* Replacement = OldToNewObjectMap.FindRef( Itor->Get() );
-			if( Replacement && Replacement->GetClass() == Itor->Get()->GetClass() )
+			if( Replacement )
 			{
 				bObjectsReplaced = true;
 				if( CurrentNode->IsRootNode() )

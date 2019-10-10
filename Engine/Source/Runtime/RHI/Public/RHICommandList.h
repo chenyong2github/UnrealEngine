@@ -469,6 +469,15 @@ public:
 	{
 		return bExecuting;
 	}
+	FORCEINLINE bool IsBottomOfPipe()
+	{
+		return Bypass() || IsExecuting();
+	}
+
+	FORCEINLINE bool IsTopOfPipe()
+	{
+		return !IsBottomOfPipe();
+	}
 
 	bool Bypass();
 
@@ -549,6 +558,7 @@ private:
 
 protected:
 	bool bAsyncPSOCompileAllowed;
+	bool bRecursive;
 	FRHIGPUMask GPUMask;
 	// GPUMask that was set at the time the command list was last Reset. We set
     // this mask on the command contexts immediately before executing the
@@ -1448,6 +1458,19 @@ FRHICOMMAND_MACRO(FRHICommandResummarizeHTile)
 
 	FORCEINLINE_DEBUGGABLE FRHICommandResummarizeHTile(FRHITexture2D* InDepthTexture)
 	: DepthTexture(InDepthTexture)
+	{
+	}
+	RHI_API void Execute(FRHICommandListBase& CmdList);
+};
+
+FRHICOMMAND_MACRO(FRHICommandTransitionTexturesDepth)
+{
+	FExclusiveDepthStencil DepthStencilMode;
+	FRHITexture* DepthTexture;
+
+	FORCEINLINE_DEBUGGABLE FRHICommandTransitionTexturesDepth(FExclusiveDepthStencil InDepthStencilMode, FRHITexture* InDepthTexture)
+		: DepthStencilMode(InDepthStencilMode)
+		, DepthTexture(InDepthTexture)
 	{
 	}
 	RHI_API void Execute(FRHICommandListBase& CmdList);
@@ -2886,6 +2909,16 @@ public:
 		ALLOC_COMMAND(FRHICommandPollOcclusionQueries)();
 	}
 
+	FORCEINLINE_DEBUGGABLE void TransitionResource(FExclusiveDepthStencil DepthStencilMode, FRHITexture* DepthTexture)
+	{
+		if (Bypass())
+		{
+			GetContext().RHITransitionResources(DepthStencilMode, DepthTexture);
+			return;
+		}
+		ALLOC_COMMAND(FRHICommandTransitionTexturesDepth)(DepthStencilMode, DepthTexture);
+	}
+
 	FORCEINLINE_DEBUGGABLE void TransitionResource(EResourceTransitionAccess TransitionType, FRHITexture* InTexture)
 	{
 		FRHITexture* Texture = InTexture;
@@ -4027,18 +4060,12 @@ public:
 	FORCEINLINE void* LockStructuredBuffer(FRHIStructuredBuffer* StructuredBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
 	{
 		LLM_SCOPE(ELLMTag::RHIMisc);
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_LockStructuredBuffer_Flush);
-		ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-
 		return GDynamicRHI->RHILockStructuredBuffer(*this, StructuredBuffer, Offset, SizeRHI, LockMode);
 	}
 	
 	FORCEINLINE void UnlockStructuredBuffer(FRHIStructuredBuffer* StructuredBuffer)
 	{
 		LLM_SCOPE(ELLMTag::RHIMisc);
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_UnlockStructuredBuffer_Flush);
-		ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-
 		GDynamicRHI->RHIUnlockStructuredBuffer(*this, StructuredBuffer);
 	}
 	
@@ -4054,6 +4081,12 @@ public:
 		return GDynamicRHI->RHICreateUnorderedAccessView_RenderThread(*this, Texture, MipLevel);
 	}
 	
+	FORCEINLINE FUnorderedAccessViewRHIRef CreateUnorderedAccessView(FRHITexture* Texture, uint32 MipLevel, uint8 Format)
+	{
+		LLM_SCOPE(ELLMTag::RHIMisc);
+		return GDynamicRHI->RHICreateUnorderedAccessView_RenderThread(*this, Texture, MipLevel, Format);
+	}
+
 	FORCEINLINE FUnorderedAccessViewRHIRef CreateUnorderedAccessView(FRHIVertexBuffer* VertexBuffer, uint8 Format)
 	{
 		LLM_SCOPE(ELLMTag::RHIMisc);
@@ -4084,19 +4117,19 @@ public:
 		return GDynamicRHI->CreateShaderResourceView_RenderThread(*this, Buffer);
 	}
 	
-	FORCEINLINE uint64 CalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, uint32 Flags, uint32& OutAlign)
+	FORCEINLINE uint64 CalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, uint32 Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
 	{
-		return RHICalcTexture2DPlatformSize(SizeX, SizeY, Format, NumMips, NumSamples, Flags, OutAlign);
+		return RHICalcTexture2DPlatformSize(SizeX, SizeY, Format, NumMips, NumSamples, Flags, CreateInfo, OutAlign);
 	}
 	
-	FORCEINLINE uint64 CalcTexture3DPlatformSize(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 Flags, uint32& OutAlign)
+	FORCEINLINE uint64 CalcTexture3DPlatformSize(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
 	{
-		return RHICalcTexture3DPlatformSize(SizeX, SizeY, SizeZ, Format, NumMips, Flags, OutAlign);
+		return RHICalcTexture3DPlatformSize(SizeX, SizeY, SizeZ, Format, NumMips, Flags, CreateInfo, OutAlign);
 	}
 	
-	FORCEINLINE uint64 CalcTextureCubePlatformSize(uint32 Size, uint8 Format, uint32 NumMips, uint32 Flags, uint32& OutAlign)
+	FORCEINLINE uint64 CalcTextureCubePlatformSize(uint32 Size, uint8 Format, uint32 NumMips, uint32 Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
 	{
-		return RHICalcTextureCubePlatformSize(Size, Format, NumMips, Flags, OutAlign);
+		return RHICalcTextureCubePlatformSize(Size, Format, NumMips, Flags, CreateInfo, OutAlign);
 	}
 	
 	FORCEINLINE void GetTextureMemoryStats(FTextureMemoryStats& OutStats)
@@ -4126,12 +4159,6 @@ public:
 	FORCEINLINE FTexture2DRHIRef CreateTextureExternal2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, uint32 Flags, FRHIResourceCreateInfo& CreateInfo)
 	{
 		return GDynamicRHI->RHICreateTextureExternal2D_RenderThread(*this, SizeX, SizeY, Format, NumMips, NumSamples, Flags, CreateInfo);
-	}
-
-	FORCEINLINE FStructuredBufferRHIRef CreateRTWriteMaskBuffer(FTexture2DRHIRef RenderTarget)
-	{
-		LLM_SCOPE(ELLMTag::RenderTargets);
-		return GDynamicRHI->RHICreateRTWriteMaskBuffer(RenderTarget);
 	}
 
 	FORCEINLINE FTexture2DRHIRef AsyncCreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 Flags, void** InitialMipData, uint32 NumInitialMips)
@@ -4197,6 +4224,18 @@ public:
 		LLM_SCOPE(ELLMTag::RHIMisc);
 		const FRHITextureSRVCreateInfo CreateInfo(MipLevel, NumMipLevels, Format);
 		return GDynamicRHI->RHICreateShaderResourceView_RenderThread(*this, Texture, CreateInfo);
+	}
+
+	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceViewWriteMask(FRHITexture2D* Texture2DRHI)
+	{
+		LLM_SCOPE(ELLMTag::RHIMisc);
+		return GDynamicRHI->RHICreateShaderResourceViewWriteMask_RenderThread(*this, Texture2DRHI);
+	}
+
+	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceViewFMask(FRHITexture2D* Texture2DRHI)
+	{
+		LLM_SCOPE(ELLMTag::RHIMisc);
+		return GDynamicRHI->RHICreateShaderResourceViewFMask_RenderThread(*this, Texture2DRHI);
 	}
 
 	//UE_DEPRECATED(4.23, "This function is deprecated and will be removed in future releases. Renderer version implemented.")
@@ -4472,7 +4511,7 @@ public:
 	{
 		return RHIGetViewportBackBuffer(Viewport);
 	}
-
+	
 	FORCEINLINE void AdvanceFrameFence()
 	{
 		RHIAdvanceFrameFence();
@@ -4719,7 +4758,71 @@ public:
 	{
 		SetContext(Context);
 		bAsyncPSOCompileAllowed = false;
+		bRecursive = true;
 	}
+};
+
+// Helper class used internally by RHIs to make use of FRHICommandList_RecursiveHazardous safer.
+// Access to the underlying context is exposed via RunOnContext() to ensure correct ordering of commands.
+template <typename ContextType>
+class TRHICommandList_RecursiveHazardous : public FRHICommandList_RecursiveHazardous
+{
+// There are two possible implementation. The first enqueues tasks as lambda commands, so the command list only needs to be flushed once.
+// The second flushes previous command every time access to the context is required.
+// Enable the first one for now...
+#if 1
+
+	template <typename LAMBDA>
+	struct TRHILambdaCommand final : public FRHICommandBase
+	{
+		LAMBDA Lambda;
+
+		TRHILambdaCommand(LAMBDA&& InLambda)
+			: Lambda(Forward<LAMBDA>(InLambda))
+		{}
+
+		void ExecuteAndDestruct(FRHICommandListBase& CmdList, FRHICommandListDebugContext&) override final
+		{
+			Lambda(static_cast<ContextType&>(CmdList.GetContext()));
+			Lambda.~LAMBDA();
+		}
+	};
+
+public:
+	TRHICommandList_RecursiveHazardous(ContextType *Context)
+		: FRHICommandList_RecursiveHazardous(Context)
+	{}
+
+	template <typename LAMBDA>
+	FORCEINLINE_DEBUGGABLE void RunOnContext(LAMBDA&& Lambda)
+	{
+		if (Bypass())
+		{
+			Lambda(static_cast<ContextType&>(GetContext()));
+		}
+		else
+		{
+			ALLOC_COMMAND(TRHILambdaCommand<LAMBDA>)(Forward<LAMBDA>(Lambda));
+		}
+	}
+
+#else
+
+public:
+	TRHICommandList_RecursiveHazardous(ContextType *Context)
+		: FRHICommandList_RecursiveHazardous(Context)
+	{}
+
+	template <typename LAMBDA>
+	FORCEINLINE_DEBUGGABLE void RunOnContext(LAMBDA&& Lambda)
+	{
+		// Ensure any recorded commands are flushed before allowing access to the context.
+		Flush();
+
+		Lambda(static_cast<ContextType&>(GetContext()));
+	}
+
+#endif
 };
 
 
@@ -4970,6 +5073,11 @@ FORCEINLINE FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHITexture*
 	return FRHICommandListExecutor::GetImmediateCommandList().CreateUnorderedAccessView(Texture, MipLevel);
 }
 
+FORCEINLINE FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHITexture* Texture, uint32 MipLevel, uint8 Format)
+{
+	return FRHICommandListExecutor::GetImmediateCommandList().CreateUnorderedAccessView(Texture, MipLevel, Format);
+}
+
 FORCEINLINE FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHIVertexBuffer* VertexBuffer, uint8 Format)
 {
 	return FRHICommandListExecutor::GetImmediateCommandList().CreateUnorderedAccessView(VertexBuffer, Format);
@@ -5015,11 +5123,6 @@ FORCEINLINE FTexture2DRHIRef RHICreateTexture2D(uint32 SizeX, uint32 SizeY, uint
 	return FRHICommandListExecutor::GetImmediateCommandList().CreateTexture2D(SizeX, SizeY, Format, NumMips, NumSamples, Flags, CreateInfo);
 }
 
-FORCEINLINE FStructuredBufferRHIRef RHICreateRTWriteMaskBuffer(FTexture2DRHIRef RenderTarget)
-{
-	return FRHICommandListExecutor::GetImmediateCommandList().CreateRTWriteMaskBuffer(RenderTarget);
-}
-
 FORCEINLINE FTexture2DRHIRef RHIAsyncCreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 Flags, void** InitialMipData, uint32 NumInitialMips)
 {
 	return FRHICommandListExecutor::GetImmediateCommandList().AsyncCreateTexture2D(SizeX, SizeY, Format, NumMips, Flags, InitialMipData, NumInitialMips);
@@ -5058,6 +5161,16 @@ FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHITexture* T
 FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHITexture* Texture, const FRHITextureSRVCreateInfo& CreateInfo)
 {
 	return FRHICommandListExecutor::GetImmediateCommandList().CreateShaderResourceView(Texture, CreateInfo);
+}
+
+FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceViewWriteMask(FRHITexture2D* Texture2D)
+{
+	return FRHICommandListExecutor::GetImmediateCommandList().CreateShaderResourceViewWriteMask(Texture2D);
+}
+
+FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceViewFMask(FRHITexture2D* Texture2D)
+{
+	return FRHICommandListExecutor::GetImmediateCommandList().CreateShaderResourceViewFMask(Texture2D);
 }
 
 FORCEINLINE FTexture2DRHIRef RHIAsyncReallocateTexture2D(FRHITexture2D* Texture2D, int32 NewMipCount, int32 NewSizeX, int32 NewSizeY, FThreadSafeCounter* RequestStatus)

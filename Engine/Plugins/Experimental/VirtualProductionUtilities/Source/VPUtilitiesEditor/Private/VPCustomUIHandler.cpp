@@ -3,6 +3,7 @@
 #include "VPCustomUIHandler.h"
 
 #include "Blueprint/UserWidget.h"
+#include "EditorUtilityWidget.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "LevelEditorActions.h"

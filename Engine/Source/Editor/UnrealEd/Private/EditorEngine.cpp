@@ -129,7 +129,7 @@
 #include "DirectoryWatcherModule.h"
 
 #include "Slate/SceneViewport.h"
-#include "ILevelViewport.h"
+#include "IAssetViewport.h"
 
 #include "ContentStreaming.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -214,6 +214,7 @@
 #include "RenderTargetPool.h"
 #include "RenderGraphBuilder.h"
 #include "ToolMenus.h"
+#include "IToolMenusEditorModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
 
@@ -784,7 +785,10 @@ void UEditorEngine::InitEditor(IEngineLoop* InEngineLoop)
 
 	if (FSlateApplication::IsInitialized() && UToolMenus::IsToolMenuUIEnabled())
 	{
-		TWeakPtr<FTimerManager> WeakTimerManager;
+		UToolMenus::Get()->EditMenuIcon = FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "MultiBox.GenericToolBarIcon.Small");
+		UToolMenus::Get()->EditToolbarIcon = FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "MultiBox.GenericToolBarIcon");
+
+		TWeakPtr<FTimerManager> WeakTimerManager = TimerManager;
 		UToolMenus::Get()->AssignSetTimerForNextTickDelegate(FSimpleDelegate::CreateLambda([WeakTimerManager]()
 		{
 			if (WeakTimerManager.IsValid())
@@ -792,6 +796,18 @@ void UEditorEngine::InitEditor(IEngineLoop* InEngineLoop)
 				WeakTimerManager.Pin()->SetTimerForNextTick(UToolMenus::Get(), &UToolMenus::HandleNextTick);
 			}
 		}));
+
+		bool bEnableEditToolMenusUI = false;
+		GConfig->GetBool(TEXT("/Script/UnrealEd.EditorExperimentalSettings"), TEXT("bEnableEditToolMenusUI"), bEnableEditToolMenusUI, GEditorPerProjectIni);
+		if (bEnableEditToolMenusUI)
+		{
+			IToolMenusEditorModule::Get().RegisterShowEditMenusModeCheckbox();
+
+			UToolMenus::Get()->EditMenuDelegate.BindLambda([](UToolMenu* InMenu)
+			{
+				IToolMenusEditorModule::Get().OpenEditToolMenuDialog(InMenu);
+			});
+		}
 
 		UToolMenus::Get()->ShouldDisplayExtensionPoints.BindStatic(&GetDisplayMultiboxHooks);
 
@@ -4382,8 +4398,9 @@ void UEditorEngine::CleanupPhysicsSceneThatWasInitializedForSave(UWorld* World, 
 }
 
 FSavePackageResultStruct UEditorEngine::Save( UPackage* InOuter, UObject* InBase, EObjectFlags TopLevelFlags, const TCHAR* Filename,
-				 FOutputDevice* Error, FLinkerLoad* Conform, bool bForceByteSwapping, bool bWarnOfLongFilename, 
-				 uint32 SaveFlags, const class ITargetPlatform* TargetPlatform, const FDateTime& FinalTimeStamp, bool bSlowTask, FArchiveDiffMap* InOutDiffMap)
+				 FOutputDevice* Error, FLinkerNull* Conform, bool bForceByteSwapping, bool bWarnOfLongFilename, 
+				 uint32 SaveFlags, const class ITargetPlatform* TargetPlatform, const FDateTime& FinalTimeStamp, bool bSlowTask, FArchiveDiffMap* InOutDiffMap,
+				 FSavePackageContext* SavePackageContext)
 {
 	FScopedSlowTask SlowTask(100, FText(), bSlowTask);
 
@@ -4428,7 +4445,7 @@ FSavePackageResultStruct UEditorEngine::Save( UPackage* InOuter, UObject* InBase
 	SlowTask.EnterProgressFrame(70);
 
 	UPackage::PreSavePackageEvent.Broadcast(InOuter);
-	const FSavePackageResultStruct Result = UPackage::Save(InOuter, Base, TopLevelFlags, Filename, Error, Conform, bForceByteSwapping, bWarnOfLongFilename, SaveFlags, TargetPlatform, FinalTimeStamp, bSlowTask, InOutDiffMap);
+	const FSavePackageResultStruct Result = UPackage::Save(InOuter, Base, TopLevelFlags, Filename, Error, Conform, bForceByteSwapping, bWarnOfLongFilename, SaveFlags, TargetPlatform, FinalTimeStamp, bSlowTask, InOutDiffMap, SavePackageContext);
 
 	SlowTask.EnterProgressFrame(10);
 
@@ -4479,7 +4496,7 @@ FSavePackageResultStruct UEditorEngine::Save( UPackage* InOuter, UObject* InBase
 }
 
 bool UEditorEngine::SavePackage(UPackage* InOuter, UObject* InBase, EObjectFlags TopLevelFlags, const TCHAR* Filename,
-	FOutputDevice* Error, FLinkerLoad* Conform, bool bForceByteSwapping, bool bWarnOfLongFilename,
+	FOutputDevice* Error, FLinkerNull* Conform, bool bForceByteSwapping, bool bWarnOfLongFilename,
 	uint32 SaveFlags, const class ITargetPlatform* TargetPlatform, const FDateTime& FinalTimeStamp, bool bSlowTask)
 {
 	// Workaround to avoid function signature change while keeping both bool and ESavePackageResult versions of SavePackage
@@ -4698,7 +4715,7 @@ TSharedPtr<SViewport> UEditorEngine::GetGameViewportWidget() const
 			return It.Value().SlatePlayInEditorWindowViewport->GetViewportWidget().Pin();
 		}
 
-		TSharedPtr<ILevelViewport> DestinationLevelViewport = It.Value().DestinationSlateViewport.Pin();
+		TSharedPtr<IAssetViewport> DestinationLevelViewport = It.Value().DestinationSlateViewport.Pin();
 		if (DestinationLevelViewport.IsValid())
 		{
 			return DestinationLevelViewport->GetViewportWidget().Pin();
@@ -5249,23 +5266,31 @@ void UEditorEngine::ReplaceActors(UActorFactory* Factory, const FAssetData& Asse
 	ReattachActorsHelper::ReattachActors(ConvertedMap, AttachmentInfo);
 
 	// Perform reference replacement on all Actors referenced by World
-	UWorld* CurrentEditorWorld = GetEditorWorldContext().World();
-	FArchiveReplaceObjectRef<AActor> Ar(CurrentEditorWorld, ConvertedMap, false, true, false);
+	TArray<UObject*> ReferencedLevels;
 
-	// Go through modified objects, marking their packages as dirty and informing them of property changes
-	for (const auto& MapItem : Ar.GetReplacedReferences())
+	for (const TPair<AActor*, AActor*>& ReplacedObj : ConvertedMap)
 	{
-		UObject* ModifiedObject = MapItem.Key;
+		ReferencedLevels.AddUnique(ReplacedObj.Value->GetLevel());
+	}
 
-		if (!ModifiedObject->HasAnyFlags(RF_Transient) && ModifiedObject->GetOutermost() != GetTransientPackage() && !ModifiedObject->RootPackageHasAnyFlags(PKG_CompiledIn))
-		{
-			ModifiedObject->MarkPackageDirty();
-		}
+	for (UObject* Referencer : ReferencedLevels)
+	{
+		FArchiveReplaceObjectRef<AActor> Ar(Referencer, ConvertedMap, false, true, false);
 
-		for (UProperty* Property : MapItem.Value)
+		for (const auto& MapItem : Ar.GetReplacedReferences())
 		{
-			FPropertyChangedEvent PropertyEvent(Property);
-			ModifiedObject->PostEditChangeProperty(PropertyEvent);
+			UObject* ModifiedObject = MapItem.Key;
+
+			if (!ModifiedObject->HasAnyFlags(RF_Transient) && ModifiedObject->GetOutermost() != GetTransientPackage() && !ModifiedObject->RootPackageHasAnyFlags(PKG_CompiledIn))
+			{
+				ModifiedObject->MarkPackageDirty();
+			}
+
+			for (UProperty* Property : MapItem.Value)
+			{
+				FPropertyChangedEvent PropertyEvent(Property);
+				ModifiedObject->PostEditChangeProperty(PropertyEvent);
+			}
 		}
 	}
 

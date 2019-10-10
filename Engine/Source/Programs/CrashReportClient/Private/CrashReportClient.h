@@ -127,8 +127,13 @@ public:
 	/** Whether the throbber should be visible while processing the callstack. */
 	EVisibility IsThrobberVisible() const;
 
+	/** Returns true if user has elected to restart crashing process, and if it was a success */
+	bool GetIsSuccesfullRestart() const { return bIsSuccesfullRestart; }
+
 	void AllowToBeContacted_OnCheckStateChanged( ECheckBoxState NewRadioState );
 	void SendLogFile_OnCheckStateChanged( ECheckBoxState NewRadioState );
+
+	bool IsUploadComplete() const { return bIsUploadComplete; }
 
 private:
 	/**
@@ -182,6 +187,12 @@ private:
 
 	/** Whether we send the data. */
 	bool bSendData;
+
+	/** Store if user has elected to restart crashing process, and if it was a success.*/
+	bool bIsSuccesfullRestart;
+
+	/** Is the uploading complete. */
+	bool bIsUploadComplete;
 
 };
 

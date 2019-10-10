@@ -14,6 +14,7 @@
 class FMenuBuilder;
 class SFilter;
 class SWrapBox;
+enum class ECheckBoxState : uint8;
 
 /**
  * A list of filters currently applied to an asset view.
@@ -53,7 +54,10 @@ public:
 
 	/** Returns all of the filters combined */
 	FARFilter GetCombinedBackendFilter() const;
-	
+
+	/** Retrieve a specific frontend filter */
+	TSharedPtr<FFrontendFilter> GetFrontendFilter(const FString& InName) const;
+
 	/** Handler for when the floating add filter button was clicked */
 	TSharedRef<SWidget> ExternalMakeAddFilterMenu(EAssetTypeCategories::Type MenuExpansion = EAssetTypeCategories::Basic);
 
@@ -75,9 +79,20 @@ public:
 	/** Loads any settings to config that should be persistent between editor sessions */
 	void LoadSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString);
 
-	virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent );
+	virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
 
+	/** Returns the class filters specified at construction using argument 'InitialClassFilters'. */
 	const TArray<UClass*>& GetInitialClassFilters();
+
+	/** Set the check box state of the specified frontend filter (in the filter drop down) and pin/unpin a filter widget on/from the filter bar. When a filter is pinned (was not already pinned), it is activated and deactivated when unpinned. */
+	void SetFrontendFilterCheckState(const TSharedPtr<FFrontendFilter>& InFrontendFilter, ECheckBoxState CheckState);
+
+	/** Returns the check box state of the specified frontend filter (in the filter drop down). This tells whether the filter is pinned or not on the filter bar, but not if filter is active or not. @see IsFrontendFilterActive(). */
+	ECheckBoxState GetFrontendFilterCheckState(const TSharedPtr<FFrontendFilter>& InFrontendFilter) const;
+
+	/** Returns true if the specified frontend filter is both checked (pinned on the filter bar) and active (contributing to filter the result). */
+	bool IsFrontendFilterActive(const TSharedPtr<FFrontendFilter>& InFrontendFilter) const;
+
 private:
 	/** Sets the active state of a frontend filter. */
 	void SetFrontendFilterActive(const TSharedRef<FFrontendFilter>& Filter, bool bActive);
@@ -131,6 +146,9 @@ private:
 	/** Called when reset filters option is pressed */
 	void OnResetFilters();
 
+	/** Called to set a filter active externally */
+	void OnSetFilterActive(bool bInActive, TWeakPtr<FFrontendFilter> InWeakFilter);
+
 private:
 	/** The horizontal box which contains all the filters */
 	TSharedPtr<SWrapBox> FilterBox;
@@ -155,4 +173,6 @@ private:
 
 	/** Delegate for when filters have changed */
 	FOnFilterChanged OnFilterChanged;
+
+	friend struct FFrontendFilterExternalActivationHelper;
 };

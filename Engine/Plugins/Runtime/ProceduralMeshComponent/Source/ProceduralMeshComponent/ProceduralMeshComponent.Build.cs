@@ -17,7 +17,8 @@ namespace UnrealBuildTool.Rules
 					"InteractiveToolsFramework",
 					"MeshDescription",
 					"RenderCore",
-					"RHI"
+					"RHI",
+					"StaticMeshDescription"
 				}
 				);
 		}

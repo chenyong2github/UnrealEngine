@@ -10,7 +10,8 @@
 SSlider::SSlider()
 {
 #if WITH_ACCESSIBILITY
-	AccessibleData = FAccessibleWidgetData(EAccessibleBehavior::Summary, EAccessibleBehavior::Auto, false);
+	AccessibleBehavior = EAccessibleBehavior::Summary;
+	bCanChildrenBeAccessible = false;
 #endif
 }
 

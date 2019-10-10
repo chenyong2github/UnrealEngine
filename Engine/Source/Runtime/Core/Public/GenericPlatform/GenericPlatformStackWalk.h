@@ -10,6 +10,7 @@
 
 struct FGenericCrashContext;
 struct FProgramCounterSymbolInfoEx;
+struct FProcHandle;
 
 /**
  * This is used to capture all of the module information needed to load pdb's.
@@ -105,6 +106,16 @@ struct CORE_API FGenericPlatformStackWalk
 	static bool InitStackWalking()
 	{
 		return 1;
+	}
+
+	/**
+	 * Like InitStackWalking but initializes stack walking for another process. 
+	 * @param	Process		Process that is going to be queried
+	 * @return				True if successful, false otherwise.
+	 */
+	static bool InitStackWalkingForProcess(const FProcHandle& Process)
+	{
+		return false;
 	}
 
 	/**

@@ -29,12 +29,30 @@ FRigUnit_SetBoneTransform_Execute()
 					{
 						case EBoneGetterSetterMode::GlobalSpace:
 						{
-							Hierarchy->SetGlobalTransform(CachedBoneIndex, Transform, bPropagateToChildren);
+							if (FMath::IsNearlyEqual(Weight, 1.f))
+							{
+								Hierarchy->SetGlobalTransform(CachedBoneIndex, Transform, bPropagateToChildren);
+							}
+							else
+							{
+								float T = FMath::Clamp<float>(Weight, 0.f, 1.f);
+								const FTransform PreviousTransform = Hierarchy->GetGlobalTransform(CachedBoneIndex);
+								Hierarchy->SetGlobalTransform(CachedBoneIndex, FControlRigMathLibrary::LerpTransform(PreviousTransform, Transform, T), bPropagateToChildren);
+							}
 							break;
 						}
 						case EBoneGetterSetterMode::LocalSpace:
 						{
-							Hierarchy->SetLocalTransform(CachedBoneIndex, Transform, bPropagateToChildren);
+							if (FMath::IsNearlyEqual(Weight, 1.f))
+							{
+								Hierarchy->SetLocalTransform(CachedBoneIndex, Transform, bPropagateToChildren);
+							}
+							else
+							{
+								float T = FMath::Clamp<float>(Weight, 0.f, 1.f);
+								const FTransform PreviousTransform = Hierarchy->GetLocalTransform(CachedBoneIndex);
+								Hierarchy->SetLocalTransform(CachedBoneIndex, FControlRigMathLibrary::LerpTransform(PreviousTransform, Transform, T), bPropagateToChildren);
+							}
 							break;
 						}
 						default:
@@ -57,9 +75,9 @@ FRigUnit_SetBoneTransform_Execute()
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetBoneTransform)
 {
-	BoneHierarchy.Add(TEXT("Root"), NAME_None, FTransform(FVector(1.f, 0.f, 0.f)));
-	BoneHierarchy.Add(TEXT("BoneA"), TEXT("Root"), FTransform(FVector(1.f, 2.f, 3.f)));
-	BoneHierarchy.Add(TEXT("BoneB"), TEXT("BoneA"), FTransform(FVector(1.f, 5.f, 3.f)));
+	BoneHierarchy.Add(TEXT("Root"), NAME_None, ERigBoneType::User, FTransform(FVector(1.f, 0.f, 0.f)));
+	BoneHierarchy.Add(TEXT("BoneA"), TEXT("Root"), ERigBoneType::User, FTransform(FVector(1.f, 2.f, 3.f)));
+	BoneHierarchy.Add(TEXT("BoneB"), TEXT("BoneA"), ERigBoneType::User, FTransform(FVector(1.f, 5.f, 3.f)));
 	BoneHierarchy.Initialize();
 	Unit.ExecuteContext.Hierarchy = &HierarchyContainer;
 

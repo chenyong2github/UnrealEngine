@@ -68,9 +68,7 @@
 #include "IMeshMergeExtension.h"
 
 #include "RawMesh.h"
-#include "MeshDescription.h"
-#include "MeshAttributes.h"
-#include "MeshAttributeArray.h"
+#include "StaticMeshAttributes.h"
 #include "MeshDescriptionOperations.h"
 
 #if WITH_EDITOR
@@ -139,7 +137,7 @@ void FMeshMergeUtilities::BakeMaterialsForComponent(TArray<TWeakObjectPtr<UObjec
 		if (bProcessedLOD)
 		{
 			FMeshDescription& RawMesh = RawMeshLODs.Add(LODIndex);
-			UStaticMesh::RegisterMeshAttributes(RawMesh);
+			FStaticMeshAttributes(RawMesh).Register();
 			Adapter->RetrieveRawMeshData(LODIndex, RawMesh, MaterialOptions->bUseMeshData);
 		}
 
@@ -1194,7 +1192,7 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 			// Retrieve mesh data in FMeshDescription form
 			const int32 MeshIndex = MeshDescriptionData.Add(new FMeshDescription());
 			FMeshDescription& MeshDescription = *MeshDescriptionData[MeshIndex];
-			UStaticMesh::RegisterMeshAttributes(MeshDescription);
+			FStaticMeshAttributes(MeshDescription).Register();
 			FMeshMergeHelpers::RetrieveMesh(StaticMeshComponent, LODIndex, MeshDescription, bPropagateVertexColours);
 
 			// Reset section array for reuse
@@ -1722,6 +1720,8 @@ bool RetrieveRawMeshData(FMeshMergeDataTracker& DataTracker
 
 void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveComponent*>& ComponentsToMerge, UWorld* World, const FMeshMergingSettings& InSettings, UMaterialInterface* InBaseMaterial, UPackage* InOuter, const FString& InBasePackageName, TArray<UObject*>& OutAssetsToSync, FVector& OutMergedActorLocation, const float ScreenSize, bool bSilent /*= false*/) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshMergeUtilities::MergeComponentsToStaticMesh);
+
 	// Use first mesh for naming and pivot
 	bool bFirstMesh = true;
 	FString MergedAssetPackageName;
@@ -2510,8 +2510,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 					}
 				}
 
-				FMeshDescription* MeshDescription = StaticMesh->CreateMeshDescription(LODIndex);
-				*MeshDescription = MergedMeshLOD;
+				FMeshDescription* MeshDescription = StaticMesh->CreateMeshDescription(LODIndex, MergedMeshLOD);
 				StaticMesh->CommitMeshDescription(LODIndex);
 			}
 		}
@@ -2637,6 +2636,8 @@ void FMeshMergeUtilities::ExtractImposterToRawMesh(const UStaticMeshComponent* I
 
 void FMeshMergeUtilities::CreateMergedRawMeshes(FMeshMergeDataTracker& InDataTracker, const FMeshMergingSettings& InSettings, const TArray<UStaticMeshComponent*>& InStaticMeshComponentsToMerge, const TArray<UMaterialInterface*>& InUniqueMaterials, const TMap<UMaterialInterface*, UMaterialInterface*>& InCollapsedMaterialMap, const TMultiMap<FMeshLODKey, MaterialRemapPair>& InOutputMaterialsMap, bool bInMergeAllLODs, bool bInMergeMaterialData, const FVector& InMergedAssetPivot, TArray<FMeshDescription>& OutMergedRawMeshes) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshMergeUtilities::CreateMergedRawMeshes)
+
 	if (bInMergeAllLODs)
 	{
 		OutMergedRawMeshes.AddDefaulted(InDataTracker.GetNumLODsForMergedMesh());
@@ -2645,7 +2646,7 @@ void FMeshMergeUtilities::CreateMergedRawMeshes(FMeshMergeDataTracker& InDataTra
 			// Find meshes for each lod
 			const int32 LODIndex = *Iterator;
 			FMeshDescription& MergedMesh = OutMergedRawMeshes[LODIndex];
-			UStaticMesh::RegisterMeshAttributes(MergedMesh);
+			FStaticMeshAttributes(MergedMesh).Register();
 
 			for (int32 ComponentIndex = 0; ComponentIndex < InStaticMeshComponentsToMerge.Num(); ++ComponentIndex)
 			{
@@ -2744,9 +2745,8 @@ void FMeshMergeUtilities::CreateMergedRawMeshes(FMeshMergeDataTracker& InDataTra
 	}
 	else
 	{	
-		OutMergedRawMeshes.AddZeroed(1);
-		FMeshDescription& MergedMesh = OutMergedRawMeshes.Last();
-		UStaticMesh::RegisterMeshAttributes(MergedMesh);
+		FMeshDescription& MergedMesh = OutMergedRawMeshes.AddDefaulted_GetRef();
+		FStaticMeshAttributes(MergedMesh).Register();
 
 		for (int32 ComponentIndex = 0; ComponentIndex < InStaticMeshComponentsToMerge.Num(); ++ComponentIndex)
 		{

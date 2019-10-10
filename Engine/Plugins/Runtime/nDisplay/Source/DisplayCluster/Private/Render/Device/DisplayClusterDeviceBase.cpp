@@ -119,7 +119,7 @@ bool FDisplayClusterDeviceBase::Initialize()
 				TSharedPtr<IDisplayClusterProjectionPolicy> ProjPolicy = ProjPolicyFactory->Create(CfgViewportProjection.Type, RHIName, CfgViewport.Id);
 				if (ProjPolicy.IsValid())
 				{
-					AddViewport(CfgViewport.Id, CfgViewport.Loc, CfgViewport.Size, ProjPolicy, CfgViewport.CameraId);
+					AddViewport(CfgViewport.Id, CfgViewport.Loc, CfgViewport.Size, ProjPolicy, CfgViewport.CameraId, CfgViewport.BufferRatio, CfgViewport.IsRTT);
 				}
 				else
 				{
@@ -187,24 +187,26 @@ void FDisplayClusterDeviceBase::SetViewportCamera(const FString& InCameraId /* =
 	}
 
 	// Ok, we have a request for a particular viewport. Let's find it.
-	FDisplayClusterRenderViewport* DesiredViewport = RenderViewports.FindByPredicate([InViewportId](const FDisplayClusterRenderViewport& ItemViewport)
+	FDisplayClusterRenderViewport* const DesiredViewport = RenderViewports.FindByPredicate([InViewportId](const FDisplayClusterRenderViewport& ItemViewport)
 	{
 		return InViewportId.Compare(ItemViewport.GetId(), ESearchCase::IgnoreCase) == 0;
 	});
-	
-	// Update if found
-	if (DesiredViewport)
+
+	// Check if requested viewport exists
+	if (!DesiredViewport)
 	{
-		UE_LOG(LogDisplayClusterRender, Log, TEXT("Camera '%s' was assigned to '%s' viewport"), *InCameraId, *InViewportId);
-		DesiredViewport->SetCameraId(InCameraId);
+		UE_LOG(LogDisplayClusterRender, Warning, TEXT("Couldn't assign '%s' camera. Viewport '%s' not found"), *InCameraId, *InViewportId);
 		return;
 	}
 
-	UE_LOG(LogDisplayClusterRender, Warning, TEXT("Couldn't assign '%s' camera. Viewport '%s' not found"), *InCameraId, *InViewportId);
+	// Update if found
+	DesiredViewport->SetCameraId(InCameraId);
+
+	UE_LOG(LogDisplayClusterRender, Log, TEXT("Camera '%s' was assigned to '%s' viewport"), *InCameraId, *InViewportId);
 }
 
 void FDisplayClusterDeviceBase::SetStartPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& StartPostProcessingSettings)
-{	
+{
 	for(int ViewportIndex = 0; ViewportIndex < RenderViewports.Num(); ViewportIndex++)
 	{
 		if (RenderViewports[ViewportIndex].GetId() == ViewportID)
@@ -232,7 +234,7 @@ void FDisplayClusterDeviceBase::SetOverridePostProcessingSettings(const FString&
 
 
 void FDisplayClusterDeviceBase::SetFinalPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& FinalPostProcessingSettings)
-	{
+{
 	for (int ViewportIndex = 0; ViewportIndex < RenderViewports.Num(); ViewportIndex++)
 	{
 		if (RenderViewports[ViewportIndex].GetId() == ViewportID)
@@ -245,7 +247,7 @@ void FDisplayClusterDeviceBase::SetFinalPostProcessingSettings(const FString& Vi
 
 bool FDisplayClusterDeviceBase::GetViewportRect(const FString& InViewportID, FIntRect& Rect)
 {
-	FDisplayClusterRenderViewport* DesiredViewport = RenderViewports.FindByPredicate([InViewportID](const FDisplayClusterRenderViewport& ItemViewport)
+	FDisplayClusterRenderViewport* const DesiredViewport = RenderViewports.FindByPredicate([InViewportID](const FDisplayClusterRenderViewport& ItemViewport)
 	{
 		return InViewportID.Equals(ItemViewport.GetId(), ESearchCase::IgnoreCase);
 	});
@@ -259,6 +261,57 @@ bool FDisplayClusterDeviceBase::GetViewportRect(const FString& InViewportID, FIn
 
 	return true;
 }
+
+bool FDisplayClusterDeviceBase::SetBufferRatio(const FString& InViewportID, float InBufferRatio)
+{
+	// Ok, we have a request for a particular viewport. Let's find it.
+	FDisplayClusterRenderViewport* const DesiredViewport = RenderViewports.FindByPredicate([InViewportID](const FDisplayClusterRenderViewport& ItemViewport)
+	{
+		return InViewportID.Compare(ItemViewport.GetId(), ESearchCase::IgnoreCase) == 0;
+	});
+
+	// Update if found
+	if (!DesiredViewport)
+	{
+		return false;
+	}
+
+	UE_LOG(LogDisplayClusterRender, Log, TEXT("Set buffer ratio %f for viewport '%s'"), InBufferRatio, *InViewportID);
+	DesiredViewport->SetBufferRatio(InBufferRatio);
+	return true;
+}
+
+bool FDisplayClusterDeviceBase::GetBufferRatio(const FString& InViewportID, float& OutBufferRatio) const
+{
+	// Ok, we have a request for a particular viewport. Let's find it.
+	FDisplayClusterRenderViewport* const DesiredViewport = RenderViewports.FindByPredicate([InViewportID](const FDisplayClusterRenderViewport& ItemViewport)
+	{
+		return InViewportID.Compare(ItemViewport.GetId(), ESearchCase::IgnoreCase) == 0;
+	});
+
+	// Request data if found
+	if (!DesiredViewport)
+	{
+		return false;
+	}
+
+	OutBufferRatio = DesiredViewport->GetBufferRatio();
+	UE_LOG(LogDisplayClusterRender, Log, TEXT("Viewport '%s' has buffer ratio %f"), *InViewportID, OutBufferRatio);
+	return true;
+}
+
+bool FDisplayClusterDeviceBase::GetBufferRatio(int32 ViewIdx, float& OutBufferRatio) const
+{
+	if (ViewIdx < 0 || ViewIdx >= RenderViewports.Num())
+	{
+		return false;
+	}
+
+	OutBufferRatio = RenderViewports[ViewIdx].GetBufferRatio();
+	UE_LOG(LogDisplayClusterRender, Log, TEXT("Viewport '%s' has buffer ratio %f"), *RenderViewports[ViewIdx].GetId(), OutBufferRatio);
+	return true;
+}
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IStereoRendering
@@ -332,8 +385,7 @@ void FDisplayClusterDeviceBase::CalculateStereoViewOffset(const enum EStereoscop
 	const float CfgEyeDist     = ViewCamera->GetInterpupillaryDistance();
 	const bool  CfgEyeSwap     = ViewCamera->GetEyesSwap();
 	const int   CfgForceOffset = ViewCamera->GetForceEyeOffset();
-	const float CfgNCP         = ViewCamera->GetNearCullingDistance();
-	const float CfgFCP         = ViewCamera->GetFarCullingDistance();
+	const float CfgNCP         = 1.f;
 
 	// Calculate eye offset considering the world scale
 	const float ScaledEyeDist     = CfgEyeDist * WorldToMeters;
@@ -377,7 +429,7 @@ void FDisplayClusterDeviceBase::CalculateStereoViewOffset(const enum EStereoscop
 	}
 
 	// Perform view calculations on a policy side
-	if (!Viewport.GetProjectionPolicy()->CalculateView(ViewIndex, ViewLocation, ViewRotation, ViewOffset, WorldToMeters, CfgNCP, CfgFCP))
+	if (!Viewport.GetProjectionPolicy()->CalculateView(ViewIndex, ViewLocation, ViewRotation, ViewOffset, WorldToMeters, CfgNCP, CfgNCP))
 	{
 		UE_LOG(LogDisplayClusterRender, Warning, TEXT("Couldn't compute view parameters for Viewport %s(%d), ViewIdx: %d"), *Viewport.GetId(), CurrentViewportIndex, int(ViewIndex));
 	}
@@ -387,7 +439,6 @@ void FDisplayClusterDeviceBase::CalculateStereoViewOffset(const enum EStereoscop
 	ViewContext.ViewRotation  = ViewRotation;
 	ViewContext.WorldToMeters = WorldToMeters;
 	ViewContext.ClipPlaneNear = CfgNCP;
-	ViewContext.ClipPlaneFar  = CfgFCP;
 
 	UE_LOG(LogDisplayClusterRender, VeryVerbose, TEXT("NEW ViewLoc: %s, ViewRot: %s"), *ViewLocation.ToString(), *ViewRotation.ToString());
 }
@@ -722,44 +773,42 @@ uint32 FDisplayClusterDeviceBase::GetSwapInt() const
 	return (SyncInterval);
 }
 
-void FDisplayClusterDeviceBase::AddViewport(const FString& InViewportId, const FIntPoint& InViewportLocation, const FIntPoint& InViewportSize, TSharedPtr<IDisplayClusterProjectionPolicy> InProjPolicy, const FString& InCameraId, bool IsRTT /*= false*/)
+void FDisplayClusterDeviceBase::AddViewport(const FString& InViewportId, const FIntPoint& InViewportLocation, const FIntPoint& InViewportSize, TSharedPtr<IDisplayClusterProjectionPolicy> InProjPolicy, const FString& InCameraId, float InBufferRatio /* = 1.f */, bool IsRTT /*= false*/)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 
 	FScopeLock lock(&InternalsSyncScope);
 
+	// Check viewport ID
 	if (InViewportId.IsEmpty())
 	{
 		UE_LOG(LogDisplayClusterRender, Warning, TEXT("Wrong viewport ID"));
 		return;
 	}
 
+	// Check if a viewport with the same ID already exists
 	const bool bAlreadyExists = (nullptr != RenderViewports.FindByPredicate([InViewportId](const FDisplayClusterRenderViewport& ItemViewport)
 	{
 		return ItemViewport.GetId().Compare(InViewportId, ESearchCase::IgnoreCase) == 0;
 	}));
 
+	// ID must be unique
 	if (bAlreadyExists)
 	{
 		UE_LOG(LogDisplayClusterRender, Warning, TEXT("Viewport '%s' already exists"), *InViewportId);
 		return;
 	}
 
-	if (!(IsRTT && bViewportRttAdded))
+	// Initialize the viewport
+	if (InProjPolicy->HandleAddViewport(InViewportSize, ViewsAmountPerViewport))
 	{
-		if (InProjPolicy->HandleAddViewport(InViewportSize, ViewsAmountPerViewport))
-		{
-			UE_LOG(LogDisplayClusterRender, Log, TEXT("A corresponded projection policy object has initialized the viewport '%s'"), *InViewportId);
+		UE_LOG(LogDisplayClusterRender, Log, TEXT("A corresponded projection policy object has initialized the viewport '%s'"), *InViewportId);
 
-			FIntRect ViewportArea = FIntRect(InViewportLocation, InViewportLocation + InViewportSize);
-			FDisplayClusterRenderViewport NewViewport(InViewportId, ViewportArea, InProjPolicy, EDisplayClusterEyeType::COUNT, InCameraId, IsRTT);
-			RenderViewports.Add(NewViewport);
-
-			if (IsRTT)
-			{
-				bViewportRttAdded = true;
-			}
-		}
+		FIntRect ViewportArea = FIntRect(InViewportLocation, InViewportLocation + InViewportSize);
+		FDisplayClusterRenderViewport NewViewport(InViewportId, ViewportArea, InProjPolicy, EDisplayClusterEyeType::COUNT, InCameraId, InBufferRatio, IsRTT);
+		
+		// Store viewport instance
+		RenderViewports.Add(NewViewport);
 	}
 }
 

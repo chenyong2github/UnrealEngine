@@ -21,6 +21,7 @@ namespace UnrealBuildTool.Rules
                     "ProceduralMeshComponent",
                     "MeshDescription",
                     "MeshDescriptionOperations",
+					"StaticMeshDescription",
                     "AssetTools",
                     "AssetRegistry"
                 }

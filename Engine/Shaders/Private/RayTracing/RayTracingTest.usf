@@ -7,8 +7,7 @@ RaytracingAccelerationStructure  TLAS;
 StructuredBuffer<FBasicRayData>  Rays;
 RWStructuredBuffer<uint>         Output;
 
-[shader("raygeneration")]
-void TestMainRGS()
+RAY_TRACING_ENTRY_RAYGEN(TestMainRGS)
 {
 	const uint RayIndex = DispatchRaysIndex().x;
 	FBasicRayData InputRay = Rays[RayIndex];

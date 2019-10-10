@@ -115,6 +115,8 @@ struct FTextureBuildSettings
 	uint32 bBorderColorBlack : 1;
 	/** Whether the green channel should be flipped. Typically only done on normal maps. */
 	uint32 bFlipGreenChannel : 1;
+	/** Calculate and apply a scale for YCoCg textures. This calculates a scale for each 4x4 block, applies it to the red and green channels and stores the scale in the blue channel. */
+	uint32 bApplyYCoCgBlockScale : 1;
 	/** 1:apply mip sharpening/blurring kernel to top mip as well (at half the kernel size), 0:don't */
 	uint32 bApplyKernelToTopMip : 1;
 	/** 1: renormalizes the top mip (only useful for normal maps, prevents artists errors and adds quality) 0:don't */
@@ -187,6 +189,7 @@ struct FTextureBuildSettings
 		, bSharpenWithoutColorShift(false)
 		, bBorderColorBlack(false)
 		, bFlipGreenChannel(false)
+		, bApplyYCoCgBlockScale(false)
 		, bApplyKernelToTopMip(false)
 		, bRenormalizeTopMip(false)
 		, CompositeTextureMode(0 /*CTM_Disabled*/)
@@ -232,13 +235,17 @@ public:
 	 * @param SourceMips - The input mips.
 	 * @param BuildSettings - Build settings.
 	 * @param OutCompressedMips - The compressed mips built by the compressor.
+	 * @param OutNumMipsInTail - The number of mips that are joined into a single mip tail mip
+	 * @param OutCompressedMips - Extra data that the runtime may need
 	 * @returns true on success
 	 */
 	virtual bool BuildTexture(
 		const TArray<struct FImage>& SourceMips,
 		const TArray<struct FImage>& AssociatedNormalSourceMips,
 		const FTextureBuildSettings& BuildSettings,
-		TArray<FCompressedImage2D>& OutTextureMips
+		TArray<FCompressedImage2D>& OutTextureMips,
+		uint32& OutNumMipsInTail,
+		uint32& OutExtData
 		) = 0;
 
 	

@@ -36,7 +36,9 @@ void FMeshVertexPainter::PaintVerticesSingleColor(UStaticMeshComponent* StaticMe
 		LODIndex++;
 	}
 
+#if WITH_EDITORONLY_DATA
 	StaticMeshComponent->CachePaintedDataIfNecessary();
+#endif
 	StaticMeshComponent->MarkRenderStateDirty();
 	StaticMeshComponent->bDisallowMeshPaintPerInstance = true;
 }
@@ -85,7 +87,9 @@ void FMeshVertexPainter::PaintVerticesLerpAlongAxis(UStaticMeshComponent* Static
 		LODIndex++;
 	}
 
+#if WITH_EDITORONLY_DATA
 	StaticMeshComponent->CachePaintedDataIfNecessary();
+#endif
 	StaticMeshComponent->MarkRenderStateDirty();
 	StaticMeshComponent->bDisallowMeshPaintPerInstance = true;
 }

@@ -362,9 +362,11 @@ struct FAudioSectionExecutionToken : IMovieSceneExecutionToken
 
 			float SectionStartTimeSeconds = (AudioSection->HasStartFrame() ? AudioSection->GetInclusiveStartFrame() : 0) / AudioSection->GetTypedOuter<UMovieScene>()->GetTickResolution();
 
-			const float AudioTime = (Context.GetTime() / Context.GetFrameRate()) - SectionStartTimeSeconds + (float)Context.GetFrameRate().AsSeconds(AudioSection->GetStartOffset());
-			if (AudioTime >= 0.f && AudioComponent.Sound && AudioTime < AudioComponent.Sound->GetDuration())
+			float AudioTime = (Context.GetTime() / Context.GetFrameRate()) - SectionStartTimeSeconds + (float)Context.GetFrameRate().AsSeconds(AudioSection->GetStartOffset());
+			if (AudioTime >= 0.f && AudioComponent.Sound)
 			{
+				float Duration = AudioComponent.Sound->GetDuration();
+				AudioTime = FMath::Fmod(AudioTime, Duration/1000.f);
 				AudioComponent.Play(AudioTime);
 			}
 

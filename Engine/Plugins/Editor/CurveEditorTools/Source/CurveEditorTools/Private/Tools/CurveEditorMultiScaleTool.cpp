@@ -22,6 +22,7 @@
 #include "CurveEditorSnapMetrics.h"
 #include "SCurveEditorView.h"
 #include "SCurveEditorPanel.h"
+#include "Algo/MaxElement.h"
 
 #define LOCTEXT_NAMESPACE "CurveEditorToolCommands"
 
@@ -31,6 +32,7 @@ namespace CurveEditorMultiScaleTool
 	constexpr float SliderLength = 30.f;
 	constexpr float SliderPadding = 2.f;
 	constexpr float HighlightAlpha = 0.15f;
+	constexpr float PivotRadius = 16.f;
 }
 
 EMultiScaleAnchorFlags FCurveEditorMultiScaleWidget::GetAnchorFlagsForMousePosition(const FGeometry& InWidgetGeometry, float InXDelta, float InYDelta, const FVector2D& InMouseScreenPosition) const 
@@ -117,7 +119,7 @@ void FCurveEditorMultiScaleTool::OnPaint(const FPaintArgs& Args, const FGeometry
 		FSlateDrawElement::MakeBox(OutDrawElements, PaintOnLayerId, YSliderGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("MarqueeSelection")));
 	}
 
-	// draw Sidebars
+	// Draw Sidebars
 	{
 		FGeometry XSidebarGeometry, YSidebarGeometry;
 		MultiScaleWidget.GetXSidebarGeometry(BoundsGeometry, AllottedGeometry, bXSliderHovered, XSidebarGeometry);
@@ -125,6 +127,61 @@ void FCurveEditorMultiScaleTool::OnPaint(const FPaintArgs& Args, const FGeometry
 		FSlateDrawElement::MakeBox(OutDrawElements, PaintOnLayerId, XSidebarGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("MarqueeSelection")));
 		FSlateDrawElement::MakeBox(OutDrawElements, PaintOnLayerId, YSidebarGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("MarqueeSelection")));
 	}
+
+	// Draw pivots
+	if (DelayedDrag && DelayedDrag->IsDragging())
+	{
+		check(KeysByCurve.Num() == CurveEditor->GetSelection().GetAll().Num());
+	}
+
+	int32 KeysByCurveIdx = 0;
+	for (TPair<FCurveModelID, FKeyHandleSet> Pair : CurveEditor->GetSelection().GetAll())
+	{
+		FCurveModelID CurveID = DelayedDrag.IsSet() && DelayedDrag->IsDragging() ? KeysByCurve[KeysByCurveIdx].CurveID : Pair.Key;
+		FCurveModel*  Curve = CurveEditor->FindCurve(CurveID);
+
+		if (ensureAlways(Curve))
+		{
+			const SCurveEditorView* View = CurveEditor->FindFirstInteractiveView(CurveID);
+			if (!View)
+			{
+				continue;
+			}
+
+			TArrayView<const FKeyHandle> Handles = Pair.Value.AsArray();
+
+			TArray<FKeyPosition> KeyPositions;
+			KeyPositions.SetNumZeroed(Handles.Num());
+			Curve->GetKeyPositions(Handles, KeyPositions);
+
+			const FVector2D Pivot = DelayedDrag.IsSet() && DelayedDrag->IsDragging() ? KeysByCurve[KeysByCurveIdx].Pivot : GetPivot(Curve, KeyPositions);
+
+			FCurveEditorScreenSpace CurveSpace = View->GetCurveSpace(CurveID);
+			const FVector2D ViewSpacePivot = FVector2D(CurveSpace.SecondsToScreen(Pivot.X), CurveSpace.ValueToScreen(Pivot.Y));
+
+			const FLinearColor PivotColor = Curve->GetColor();
+
+			const FVector2D PivotSize = FVector2D(CurveEditorMultiScaleTool::PivotRadius * 2.f, CurveEditorMultiScaleTool::PivotRadius * 2.f);
+			const FVector2D PivotOffset = ViewSpacePivot - (PivotSize * .5f);
+			FGeometry PivotGeometry = AllottedGeometry.MakeChild(PivotSize, FSlateLayoutTransform(PivotOffset));
+
+			// Draw pivot icon lines
+			const double TangentMul = 2.f;
+			const double Thickness = 1.5f;
+			const FVector2D PivotIconOffset = PivotSize * .5f;
+			FSlateDrawElement::MakeSpline(OutDrawElements, PaintOnLayerId, PivotGeometry.ToPaintGeometry(), FVector2D(-CurveEditorMultiScaleTool::PivotRadius, 0.f) + PivotIconOffset, FVector2D(CurveEditorMultiScaleTool::PivotRadius, 0.f) * TangentMul,
+				FVector2D(0.f, -CurveEditorMultiScaleTool::PivotRadius) + PivotIconOffset, FVector2D(0.f, -CurveEditorMultiScaleTool::PivotRadius) * TangentMul, Thickness, ESlateDrawEffect::None, PivotColor);
+			FSlateDrawElement::MakeSpline(OutDrawElements, PaintOnLayerId, PivotGeometry.ToPaintGeometry(), FVector2D(CurveEditorMultiScaleTool::PivotRadius, 0.f) + PivotIconOffset, FVector2D(-CurveEditorMultiScaleTool::PivotRadius, 0.f) * TangentMul,
+				FVector2D(0.f, CurveEditorMultiScaleTool::PivotRadius) + PivotIconOffset, FVector2D(0.f, CurveEditorMultiScaleTool::PivotRadius) * TangentMul, Thickness, ESlateDrawEffect::None, PivotColor);
+			FSlateDrawElement::MakeSpline(OutDrawElements, PaintOnLayerId, PivotGeometry.ToPaintGeometry(), FVector2D(0.f, CurveEditorMultiScaleTool::PivotRadius) + PivotIconOffset, FVector2D(0.f, -CurveEditorMultiScaleTool::PivotRadius) * TangentMul,
+				FVector2D(-CurveEditorMultiScaleTool::PivotRadius, 0.f) + PivotIconOffset, FVector2D(-CurveEditorMultiScaleTool::PivotRadius, 0.f) * TangentMul, Thickness, ESlateDrawEffect::None, PivotColor);
+			FSlateDrawElement::MakeSpline(OutDrawElements, PaintOnLayerId, PivotGeometry.ToPaintGeometry(), FVector2D(0.f, -CurveEditorMultiScaleTool::PivotRadius) + PivotIconOffset, FVector2D(0.f, CurveEditorMultiScaleTool::PivotRadius) * TangentMul,
+				FVector2D(CurveEditorMultiScaleTool::PivotRadius, 0.f) + PivotIconOffset, FVector2D(CurveEditorMultiScaleTool::PivotRadius, 0.f) * TangentMul, Thickness, ESlateDrawEffect::None, PivotColor);
+		}
+
+		KeysByCurveIdx++;
+	}
+
 }
 
 void FCurveEditorMultiScaleTool::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
@@ -364,7 +421,7 @@ void FCurveEditorMultiScaleTool::OnDragStart()
 				}
 			}
 
-			GetPivot(Curve, KeyData);
+			KeyData.Pivot = GetPivot(Curve, KeyData.StartKeyPositions);
 		}
 	}
 
@@ -584,32 +641,43 @@ void FCurveEditorMultiScaleTool::ScaleUnique(const FVector2D& InChangeAmount, co
 	}
 }
 
-void FCurveEditorMultiScaleTool::GetPivot(FCurveModel* InCurve, FKeyData& InOutKeyData)
+FVector2D FCurveEditorMultiScaleTool::GetPivot(FCurveModel* InCurve, const TArray<FKeyPosition>& InKeyPositions) const
 {
+	FVector2D Pivot = FVector2D::ZeroVector;
+	check(InKeyPositions.Num() != 0);
+
 	switch (ToolOptions.PivotType)
 	{
 	case EMultiScalePivotType::Average:
-		InOutKeyData.Pivot = FVector2D::ZeroVector;
-		for (const FKeyPosition& KeyPosition : InOutKeyData.StartKeyPositions)
+		check(InKeyPositions.Num() != 0);
+		Pivot = FVector2D::ZeroVector;
+		for (const FKeyPosition& KeyPosition : InKeyPositions)
 		{
-			InOutKeyData.Pivot += FVector2D(KeyPosition.InputValue, KeyPosition.OutputValue);
+			Pivot += FVector2D(KeyPosition.InputValue, KeyPosition.OutputValue);
 		}
-		InOutKeyData.Pivot /= InOutKeyData.StartKeyPositions.Num();
-		break;
+		Pivot /= InKeyPositions.Num();
+		return Pivot;
 	case EMultiScalePivotType::BoundCenter:
 		double MinTime, MaxTime, MinValue, MaxValue;
-		InCurve->GetTimeRange(MinTime, MaxTime);
-		InCurve->GetValueRange(MinValue, MaxValue);
-		InOutKeyData.Pivot.X = (MinTime + MaxTime) * .5f;
-		InOutKeyData.Pivot.Y = (MinValue + MaxValue) * .5f;
-		break;
+		MinTime = Algo::MinElementBy(InKeyPositions, [](const FKeyPosition& Pos) { return Pos.InputValue; })->InputValue;
+		MaxTime = Algo::MaxElementBy(InKeyPositions, [](const FKeyPosition& Pos) { return Pos.InputValue; })->InputValue;
+		MinValue = Algo::MinElementBy(InKeyPositions, [](const FKeyPosition& Pos) { return Pos.OutputValue; })->OutputValue;
+		MaxValue = Algo::MaxElementBy(InKeyPositions, [](const FKeyPosition& Pos) { return Pos.OutputValue; })->OutputValue;
+		Pivot.X = (MinTime + MaxTime) * .5f;
+		Pivot.Y = (MinValue + MaxValue) * .5f;
+		return Pivot;
 	case EMultiScalePivotType::FirstKey:
-		InOutKeyData.Pivot.X = InOutKeyData.StartKeyPositions[0].InputValue;
-		InOutKeyData.Pivot.Y = InOutKeyData.StartKeyPositions[0].OutputValue;
-		break;
+		const FKeyPosition* FirstKey;
+		FirstKey = Algo::MinElementBy(InKeyPositions, [](const FKeyPosition& Pos) { return Pos.InputValue; });
+		Pivot.X = FirstKey->InputValue;
+		Pivot.Y = FirstKey->OutputValue;
+		return Pivot;
 	case EMultiScalePivotType::LastKey:
-		InOutKeyData.Pivot.X = InOutKeyData.StartKeyPositions.Top().InputValue;
-		InOutKeyData.Pivot.Y = InOutKeyData.StartKeyPositions.Top().OutputValue;
-		break;
+		const FKeyPosition* LastKey;
+		LastKey = Algo::MaxElementBy(InKeyPositions, [](const FKeyPosition& Pos) { return Pos.InputValue; });
+		Pivot.X = LastKey->InputValue;
+		Pivot.Y = LastKey->OutputValue;
+		return Pivot;
 	}
+	return Pivot;
 }

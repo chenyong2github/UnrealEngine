@@ -115,18 +115,12 @@ public:
 	virtual void CollectWantsCapture(const FInputDeviceState& InputState, TArray<FInputCaptureRequest>& ResultOut);
 
 	/**
-	 * Call UInputBehavior::UpdateHover() on each valid Behavior that wants hover events
+	 * Call UInputBehavior::WantsCapture() on each valid Behavior and collect up the requests that indicated a Capture was desired.
 	 * @param InputState current input device state information
-	 * @return true if any InputBehavior indicated that it wants hover events
+	 * @param ResultOut returned set of non-Ignoring FInputCaptureRequests returned by Behaviors
 	 */
-	virtual bool UpdateHover(const FInputDeviceState&  InputState);
+	virtual void CollectWantsHoverCapture(const FInputDeviceState& InputState, TArray<FInputCaptureRequest>& ResultOut);
 
-	/**
-	 * Call UInputBehavior::EndHover() on each valid Behavior that wants hover events
-	 * @param InputState current input device state information
-	 * @return true if any InputBehavior indicated that it wants hover events
-	 */
-	virtual bool EndHover(const FInputDeviceState&  InputState);
 
 
 protected:

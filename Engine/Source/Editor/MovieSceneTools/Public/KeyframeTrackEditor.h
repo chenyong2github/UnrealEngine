@@ -142,7 +142,7 @@ struct TAddKeyImpl<FMovieSceneFloatChannel, float> : IImpl
 		using namespace MovieScene;
 
 		FMovieSceneFloatChannel* Channel = Proxy.GetChannel<FMovieSceneFloatChannel>(ChannelIndex);
-		if (Channel && Channel->GetData().GetTimes().Num() == 0)
+		if (Channel && Channel->GetData().GetTimes().Num() == 0  && Channel->GetDefault() != ValueToSet)
 		{
 			if (Section->TryModify())
 			{
@@ -499,6 +499,7 @@ private:
 		return KeyPropertyResult;
 	}
 
+protected:
 	/* Returns whether a section was added */
 	FKeyPropertyResult AddKeysToSection(UMovieSceneSection* Section, FFrameNumber KeyTime, const FGeneratedTrackKeys& Keys, ESequencerKeyMode KeyMode)
 	{

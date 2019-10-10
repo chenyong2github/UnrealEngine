@@ -143,13 +143,13 @@ FActorPositionTraceResult FActorPositioning::TraceWorldForPosition(const UWorld&
 	return Results;
 }
 
-FTransform FActorPositioning::GetCurrentViewportPlacementTransform(const AActor& Actor, bool bSnap)
+FTransform FActorPositioning::GetCurrentViewportPlacementTransform(const AActor& Actor, bool bSnap, const FViewportCursorLocation* InCursor)
 {
 	FVector Collision = Actor.GetPlacementExtent();
 	const UActorFactory* Factory = GEditor->FindActorFactoryForActorClass(Actor.GetClass());
 
 	// Get cursor origin and direction in world space.
-	FViewportCursorLocation CursorLocation = GCurrentLevelEditingViewportClient->GetCursorWorldLocationFromMousePos();
+	FViewportCursorLocation CursorLocation = InCursor ? *InCursor : GCurrentLevelEditingViewportClient->GetCursorWorldLocationFromMousePos();
 	const auto CursorPos = CursorLocation.GetCursorPos();
 
 	FTransform ActorTransform = FTransform::Identity;

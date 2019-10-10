@@ -27,14 +27,14 @@ class TPerParticlePBDEulerStep : public TPerParticleRule<T, d>
 	inline void Apply(TPBDRigidParticles<T, d>& InParticles, const T Dt, const int32 Index) const override //-V762
 	{
 		ApplyHelper(InParticles, Dt, Index);
-		InParticles.Q(Index) = InParticles.R(Index) + TRotation<T, d>(InParticles.W(Index), 0.f) * InParticles.R(Index) * Dt * T(0.5);
+		InParticles.Q(Index) = InParticles.R(Index) + TRotation<T, d>::FromElements(InParticles.W(Index), 0.f) * InParticles.R(Index) * Dt * T(0.5);
 		InParticles.Q(Index).Normalize();
 	}
 
 	inline void Apply(TTransientPBDRigidParticleHandle<T, d>& Particle, const T Dt) const override
 	{
 		Particle.P() = Particle.X() + Particle.V() * Dt;
-		Particle.Q() = Particle.R() + TRotation<T, d>(Particle.W(), 0.f) * Particle.R() * Dt * T(0.5);
+		Particle.Q() = Particle.R() + TRotation<T, d>::FromElements(Particle.W(), 0.f) * Particle.R() * Dt * T(0.5);
 		Particle.Q().Normalize();
 	}
 };

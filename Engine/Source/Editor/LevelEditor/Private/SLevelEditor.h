@@ -67,8 +67,8 @@ public:
 	virtual void SummonLevelViewportContextMenu() override;
 	virtual void SummonLevelViewportViewOptionMenu(const ELevelViewportType ViewOption) override;
 	virtual const TArray< TSharedPtr< class IToolkit > >& GetHostedToolkits() const override;
-	virtual TArray< TSharedPtr< ILevelViewport > > GetViewports() const override;
-	virtual TSharedPtr<ILevelViewport> GetActiveViewportInterface() override;
+	virtual TArray< TSharedPtr< IAssetViewport > > GetViewports() const override;
+	virtual TSharedPtr<IAssetViewport> GetActiveViewportInterface() override;
 	virtual TSharedPtr< class FAssetThumbnailPool > GetThumbnailPool() const override;
 	virtual void AppendCommands( const TSharedRef<FUICommandList>& InCommandsToAppend ) override;
 	virtual void AddStandaloneLevelViewport( const TSharedRef<SLevelViewport>& LevelViewport ) override;

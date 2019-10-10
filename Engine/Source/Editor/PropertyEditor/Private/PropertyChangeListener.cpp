@@ -39,25 +39,16 @@ void FPropertyChangeListener::SetObject( UObject& Object, const FPropertyListene
 class FValueCache
 {
 public:
-	/**
-	 * A union which allows a single address to be represented as a pointer to a uint8
-	 * or a pointer to a UObject.
-	 */
-	union FPropertyValueRoot
-	{
-		UObject*	OwnerObject;
-		uint8*		ValueAddress;
-	};
 
 	FValueCache( TSharedRef<FPropertyNode> InPropertyNode, UObject* InOwnerObject )
 		: PropertyNode( InPropertyNode )
 	{
-		PropertyValueRoot.OwnerObject = InOwnerObject;
+		OwnerObject = InOwnerObject;
 
 		UProperty* Property = InPropertyNode->GetProperty();
 
 		check(Property);
-		check(PropertyValueRoot.OwnerObject);
+		check(OwnerObject);
 
 		FPropertyNode* ParentNode = InPropertyNode->GetParentNode();
 	}
@@ -196,10 +187,10 @@ private:
 		FPropertyValueAddresses ValueAddresses;
 
 		ValueAddresses.BaseAddress = (OuterArrayProp == NULL && OuterSetProp == NULL && OuterMapProp == NULL)
-			? PropertyNodeRef.GetValueBaseAddress( PropertyValueRoot.ValueAddress )
-			: ParentNode->GetValueBaseAddress( PropertyValueRoot.ValueAddress );
+			? PropertyNodeRef.GetValueBaseAddressFromObject(OwnerObject)
+			: ParentNode->GetValueBaseAddressFromObject(OwnerObject);
 
-		ValueAddresses.Address = PropertyNodeRef.GetValueAddress( PropertyValueRoot.ValueAddress );
+		ValueAddresses.Address = PropertyNodeRef.GetValueAddressFromObject(OwnerObject);
 
 		return ValueAddresses;
 	}
@@ -215,7 +206,7 @@ private:
 	TWeakObjectPtr<UObject> CachedTopLevelObject;
 
 	/** The address of the owning object */
-	FPropertyValueRoot PropertyValueRoot;
+	UObject*	OwnerObject;
 };
 
 

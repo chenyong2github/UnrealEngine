@@ -67,13 +67,18 @@ public:
 	 */
 	int32 Remove( const TSharedPtr< IFilter< ItemType > >& Filter )
 	{
-		if( Filter.IsValid() )
+		if (Filter.IsValid())
 		{
-			Filter->OnChanged().RemoveAll( this );
+			Filter->OnChanged().RemoveAll(this);
 		}
 
 		int32 Result = ChildFilters.Remove( Filter );
-		ChangedEvent.Broadcast();
+
+		// Don't broadcast if the collection didn't change
+		if (Result > 0)
+		{
+			ChangedEvent.Broadcast();
+		}
 
 		return Result;
 	}

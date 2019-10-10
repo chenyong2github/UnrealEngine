@@ -308,7 +308,7 @@ private:
 
 #if WITH_PHYSX
 
-	bool bIsSceneSimulating;
+	bool bIsSceneSimulating = false;
 
 	/** Dispatcher for CPU tasks */
 	class PxCpuDispatcher*			CPUDispatcher;

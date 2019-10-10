@@ -344,14 +344,15 @@ bool SLevelEditor::HasActivePlayInEditorViewport() const
 		if (ViewportTab.IsValid())
 		{
 			// Get all the viewports in the layout
-			const TMap< FName, TSharedPtr< IViewportLayoutEntity > >* LevelViewports = ViewportTab.Pin()->GetViewports();
+			const TMap< FName, TSharedPtr< IAssetViewportLayoutEntity > >* LevelViewports = ViewportTab.Pin()->GetViewports();
 
 			if (LevelViewports != NULL)
 			{
 				// Search for a viewport with a pie session
 				for (auto& Pair : *LevelViewports)
 				{
-					if (Pair.Value->IsPlayInEditorViewportActive())
+					TSharedPtr<ILevelViewportLayoutEntity> ViewportEntity = StaticCastSharedPtr<ILevelViewportLayoutEntity>(Pair.Value);
+					if (ViewportEntity.IsValid() && ViewportEntity->IsPlayInEditorViewportActive())
 					{
 						return true;
 					}
@@ -392,13 +393,13 @@ TSharedPtr<SLevelViewport> SLevelEditor::GetActiveViewport()
 			// Only check the viewports in the tab if its visible
 			if( ViewportTab->IsVisible() )
 			{
-				const TMap< FName, TSharedPtr< IViewportLayoutEntity > >* LevelViewports = ViewportTab->GetViewports();
+				const TMap< FName, TSharedPtr< IAssetViewportLayoutEntity > >* LevelViewports = ViewportTab->GetViewports();
 
-				if (LevelViewports != NULL)
+				if (LevelViewports != nullptr)
 				{
 					for(auto& Pair : *LevelViewports)
 					{
-						TSharedPtr<SLevelViewport> Viewport = Pair.Value->AsLevelViewport();
+						TSharedPtr<SLevelViewport> Viewport = StaticCastSharedPtr<ILevelViewportLayoutEntity>(Pair.Value)->AsLevelViewport();
 						if( Viewport.IsValid() && Viewport->IsInForegroundTab() )
 						{
 							if( &Viewport->GetLevelViewportClient() == GCurrentLevelEditingViewportClient )
@@ -969,13 +970,14 @@ void SLevelEditor::OnViewportTabClosed(TSharedRef<SDockTab> ClosedTab)
 
 void SLevelEditor::SaveViewportTabInfo(TSharedRef<const FLevelViewportTabContent> ViewportTabContent)
 {
-	const TMap<FName, TSharedPtr<IViewportLayoutEntity>>* const Viewports = ViewportTabContent->GetViewports();
+	const TMap<FName, TSharedPtr<IAssetViewportLayoutEntity>>* const Viewports = ViewportTabContent->GetViewports();
 	if(Viewports)
 	{
 		const FString& LayoutId = ViewportTabContent->GetLayoutString();
 		for (auto& Pair : *Viewports)
 		{
-			TSharedPtr<SLevelViewport> Viewport = Pair.Value->AsLevelViewport();
+			TSharedPtr<SLevelViewport> Viewport = StaticCastSharedPtr<ILevelViewportLayoutEntity>(Pair.Value)->AsLevelViewport();
+
 			if( !Viewport.IsValid() )
 			{
 				continue;
@@ -997,13 +999,13 @@ void SLevelEditor::SaveViewportTabInfo(TSharedRef<const FLevelViewportTabContent
 
 void SLevelEditor::RestoreViewportTabInfo(TSharedRef<FLevelViewportTabContent> ViewportTabContent) const
 {
-	const TMap<FName, TSharedPtr<IViewportLayoutEntity>>* const Viewports = ViewportTabContent->GetViewports();
+	const TMap<FName, TSharedPtr<IAssetViewportLayoutEntity>>* const Viewports = ViewportTabContent->GetViewports();
 	if(Viewports)
 	{
 		const FString& LayoutId = ViewportTabContent->GetLayoutString();
 		for (auto& Pair : *Viewports)
 		{
-			TSharedPtr<SLevelViewport> Viewport = Pair.Value->AsLevelViewport();
+			TSharedPtr<SLevelViewport> Viewport = StaticCastSharedPtr<ILevelViewportLayoutEntity>(Pair.Value)->AsLevelViewport();
 			if( !Viewport.IsValid() )
 			{
 				continue;
@@ -1357,37 +1359,12 @@ void SLevelEditor::ToggleEditorMode( FEditorModeID ModeID )
 	GLevelEditorModeTools().ActivateMode( ModeID );
 
 	// Find and disable any other 'visible' modes since we only ever allow one of those active at a time.
-	TArray<FEdMode*> ActiveModes;
-	GLevelEditorModeTools().GetActiveModes( ActiveModes );
-	for ( FEdMode* Mode : ActiveModes )
-	{
-		if ( Mode->GetID() != ModeID && Mode->GetModeInfo().bVisible )
-		{
-			GLevelEditorModeTools().DeactivateMode( Mode->GetID() );
-		}
-	}
+	GLevelEditorModeTools().DeactivateOtherVisibleModes(ModeID);
 
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>( "LevelEditor" );
 	TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
 
 	TSharedRef<SDockTab> ToolboxTab = LevelEditorTabManager->InvokeTab( FTabId("LevelEditorToolBox") );
-
-	//// If it's already active deactivate the mode
-	//if ( GLevelEditorModeTools().IsModeActive( ModeID ) )
-	//{
-	//	//GLevelEditorModeTools().DeactivateAllModes();
-	//	//GLevelEditorModeTools().DeactivateMode( ModeID );
-	//}
-	//else // Activate the mode and create the tab for it.
-	//{
-	//	GLevelEditorModeTools().DeactivateAllModes();
-	//	GLevelEditorModeTools().ActivateMode( ModeID );
-
-	//	//FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>( "LevelEditor" );
-	//	//TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
-
-	//	//TSharedRef<SDockTab> ToolboxTab = LevelEditorTabManager->InvokeTab( GetEditorModeTabId( ModeID ) );
-	//}
 }
 
 bool SLevelEditor::IsModeActive( FEditorModeID ModeID )
@@ -1395,15 +1372,9 @@ bool SLevelEditor::IsModeActive( FEditorModeID ModeID )
 	// The level editor changes the default mode to placement
 	if ( ModeID == FBuiltinEditorModes::EM_Placement )
 	{
-		// Only return true if this is the *only* active mode
-		TArray<FEdMode*> ActiveModes;
-		GLevelEditorModeTools().GetActiveModes(ActiveModes);
-		for( FEdMode* Mode : ActiveModes )
+		if (!GLevelEditorModeTools().IsOnlyVisibleActiveMode(ModeID))
 		{
-			if( Mode->GetModeInfo().bVisible && Mode->GetID() != FBuiltinEditorModes::EM_Placement )
-			{
-				return false;
-			}
+			return false;
 		}
 	}
 	return GLevelEditorModeTools().IsModeActive( ModeID );
@@ -1530,9 +1501,9 @@ const TArray< TSharedPtr< IToolkit > >& SLevelEditor::GetHostedToolkits() const
 	return HostedToolkits;
 }
 
-TArray< TSharedPtr< ILevelViewport > > SLevelEditor::GetViewports() const
+TArray< TSharedPtr< IAssetViewport > > SLevelEditor::GetViewports() const
 {
-	TArray< TSharedPtr<ILevelViewport> > OutViewports;
+	TArray< TSharedPtr<IAssetViewport> > OutViewports;
 
 	for( int32 TabIndex = 0; TabIndex < ViewportTabs.Num(); ++TabIndex )
 	{
@@ -1540,13 +1511,13 @@ TArray< TSharedPtr< ILevelViewport > > SLevelEditor::GetViewports() const
 		
 		if (ViewportTab.IsValid())
 		{
-			const TMap< FName, TSharedPtr< IViewportLayoutEntity > >* LevelViewports = ViewportTab->GetViewports();
+			const TMap< FName, TSharedPtr< IAssetViewportLayoutEntity > >* LevelViewports = ViewportTab->GetViewports();
 
 			if (LevelViewports != NULL)
 			{
 				for (auto& Pair : *LevelViewports)
 				{
-					TSharedPtr<SLevelViewport> Viewport = Pair.Value->AsLevelViewport();
+					TSharedPtr<SLevelViewport> Viewport = StaticCastSharedPtr<ILevelViewportLayoutEntity>(Pair.Value)->AsLevelViewport();
 					if( Viewport.IsValid() )
 					{
 						OutViewports.Add(Viewport);
@@ -1571,7 +1542,7 @@ TArray< TSharedPtr< ILevelViewport > > SLevelEditor::GetViewports() const
 	return OutViewports;
 }
  
-TSharedPtr<ILevelViewport> SLevelEditor::GetActiveViewportInterface()
+TSharedPtr<IAssetViewport> SLevelEditor::GetActiveViewportInterface()
 {
 	return GetActiveViewport();
 }

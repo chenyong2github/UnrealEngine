@@ -75,7 +75,7 @@ namespace VectorUtil
 	 * @return un-normalized direction that is parallel to normal of triangle V0,V1,V2
 	 */
 	template <typename RealType>
-	inline FVector3<RealType> FastNormalDirection(const FVector3<RealType>& V0, const FVector3<RealType>& V1, const FVector3<RealType>& V2)
+	inline FVector3<RealType> NormalDirection(const FVector3<RealType>& V0, const FVector3<RealType>& V1, const FVector3<RealType>& V2)
 	{
 		// Unreal has Left-Hand Coordinate System so we need to reverse this cross-product to get proper triangle normal
 		return (V2 - V0).Cross(V1 - V0);
@@ -123,7 +123,7 @@ namespace VectorUtil
 	 * @return triangle normal
 	 */
 	template <typename RealType>
-	inline FVector3<RealType> FastNormalArea(const FVector3<RealType>& V0, const FVector3<RealType>& V1, const FVector3<RealType>& V2, RealType& AreaOut)
+	inline FVector3<RealType> NormalArea(const FVector3<RealType>& V0, const FVector3<RealType>& V1, const FVector3<RealType>& V2, RealType& AreaOut)
 	{
 		FVector3<RealType> edge1(V1 - V0);
 		FVector3<RealType> edge2(V2 - V0);

@@ -89,6 +89,31 @@ FString FSkeletalMeshModel::GetIdString() const
 	return GuidString;
 }
 
+void FSkeletalMeshModel::SyncronizeLODUserSectionsData()
+{
+	for (int32 LODIndex = 0; LODIndex < LODModels.Num(); ++LODIndex)
+	{
+		FSkeletalMeshLODModel& Model = LODModels[LODIndex];
+		Model.SyncronizeUserSectionsDataArray();
+	}
+}
+
+FString FSkeletalMeshModel::GetLODModelIdString() const
+{
+	FSHA1 Sha;
+	for (int32 LODIndex = 0; LODIndex < LODModels.Num(); ++LODIndex)
+	{
+		const FSkeletalMeshLODModel& Model = LODModels[LODIndex];
+		Model.BuildStringID = Model.GetLODModelDeriveDataKey();
+		TArray<TCHAR> IDArray = Model.BuildStringID.GetCharArray();
+		Sha.Update((uint8*)IDArray.GetData(), IDArray.Num() * IDArray.GetTypeSize());
+	}
+	Sha.Final();
+	// Retrieve the hash and use it to construct a pseudo-GUID. 
+	uint32 Hash[5];
+	Sha.GetHash((uint8*)Hash);
+	return FGuid(Hash[0] ^ Hash[4], Hash[1], Hash[2], Hash[3]).ToString(EGuidFormats::Digits);
+}
 
 void FSkeletalMeshModel::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 {

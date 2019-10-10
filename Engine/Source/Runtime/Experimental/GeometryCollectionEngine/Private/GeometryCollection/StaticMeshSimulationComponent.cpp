@@ -47,7 +47,6 @@ void UStaticMeshSimulationComponent::TickComponent(float DeltaTime, enum ELevelT
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-#if INCLUDE_CHAOS
 	// for kinematic objects, we assume that UE4 can and will move them, so we need to pass the new data to the phys solver
 	if ((ObjectType == EObjectStateTypeEnum::Chaos_Object_Kinematic) && Simulating)
 	{
@@ -72,22 +71,22 @@ void UStaticMeshSimulationComponent::TickComponent(float DeltaTime, enum ELevelT
 			});
 		}
 	}
-#endif
 }
 
-#if INCLUDE_CHAOS
 Chaos::FPhysicsSolver* GetSolver(const UStaticMeshSimulationComponent& StaticMeshSimulationComponent)
 {
+#if INCLUDE_CHAOS
 	return	StaticMeshSimulationComponent.ChaosSolverActor != nullptr ? StaticMeshSimulationComponent.ChaosSolverActor->GetSolver() : StaticMeshSimulationComponent.GetOwner()->GetWorld()->PhysicsScene_Chaos->GetSolver();
-}
+#else
+	return nullptr;
 #endif
+}
 
 void UStaticMeshSimulationComponent::OnCreatePhysicsState()
 {
 	// Skip the chain - don't care about body instance setup
 	UActorComponent::OnCreatePhysicsState();
 
-#if INCLUDE_CHAOS
 	const bool bValidWorld = GetWorld() && GetWorld()->IsGameWorld();
 
 	// Need to see if we actually have a target for the component
@@ -387,14 +386,12 @@ void UStaticMeshSimulationComponent::OnCreatePhysicsState()
 			}
 		}
 	}
-#endif
 }
 
 void UStaticMeshSimulationComponent::OnDestroyPhysicsState()
 {
 	UActorComponent::OnDestroyPhysicsState();
 
-#if INCLUDE_CHAOS
 	TSharedPtr<FPhysScene_Chaos> Scene = GetPhysicsScene();
 	AChaosSolverActor* const SolverActor = Scene ? Cast<AChaosSolverActor>(Scene->GetSolverActor()) : nullptr;
 	UChaosGameplayEventDispatcher* const EventDispatcher = SolverActor ? SolverActor->GetGameplayEventDispatcher() : nullptr;
@@ -422,7 +419,6 @@ void UStaticMeshSimulationComponent::OnDestroyPhysicsState()
 
 	PhysicsProxies.Empty();
 	SimulatedComponents.Empty();
-#endif
 }
 
 bool UStaticMeshSimulationComponent::ShouldCreatePhysicsState() const
@@ -435,7 +431,6 @@ bool UStaticMeshSimulationComponent::HasValidPhysicsState() const
 	return PhysicsProxies.Num() > 0;
 }
 
-#if INCLUDE_CHAOS
 const TSharedPtr<FPhysScene_Chaos> UStaticMeshSimulationComponent::GetPhysicsScene() const
 { 
 	if (ChaosSolverActor)
@@ -444,12 +439,15 @@ const TSharedPtr<FPhysScene_Chaos> UStaticMeshSimulationComponent::GetPhysicsSce
 	}
 	else if (UWorld* W = GetOwner()->GetWorld())
 	{
+#if INCLUDE_CHAOS
 		return W->PhysicsScene_Chaos;
+#else
+		return nullptr;
+#endif
 	}
 
 	return nullptr;
 }
-#endif
 
 void UStaticMeshSimulationComponent::DispatchChaosPhysicsCollisionBlueprintEvents(const FChaosPhysicsCollisionInfo& CollisionInfo)
 {

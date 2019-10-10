@@ -473,33 +473,49 @@ void UNetConnection::NotifyAnalyticsProvider()
 
 void UNetConnection::EnableEncryptionWithKey(TArrayView<const uint8> Key)
 {
+	FEncryptionData EncryptionData;
+	EncryptionData.Key.Append(Key.GetData(), Key.Num());
+
+	EnableEncryption(EncryptionData);
+}
+
+void UNetConnection::EnableEncryption(const FEncryptionData& EncryptionData)
+{
 	if (Handler.IsValid())
 	{
-		UE_LOG(LogNet, Verbose, TEXT("UNetConnection::EnableEncryptionWithKey, %s"), *Describe());
+		UE_LOG(LogNet, Verbose, TEXT("UNetConnection::EnableEncryption, %s"), *Describe());
 
 		TSharedPtr<FEncryptionComponent> EncryptionComponent = Handler->GetEncryptionComponent();
 		if (EncryptionComponent.IsValid())
 		{
-			EncryptionComponent->SetEncryptionKey(Key);
+			EncryptionComponent->SetEncryptionData(EncryptionData);
 			EncryptionComponent->EnableEncryption();
 		}
 		else
 		{
-			UE_LOG(LogNet, Warning, TEXT("UNetConnection::EnableEncryptionWithKey, encryption component not found!"));
+			UE_LOG(LogNet, Warning, TEXT("UNetConnection::EnableEncryption, encryption component not found!"));
 		}
 	}
 }
 
 void UNetConnection::EnableEncryptionWithKeyServer(TArrayView<const uint8> Key)
 {
+	FEncryptionData EncryptionData;
+	EncryptionData.Key.Append(Key.GetData(), Key.Num());
+
+	EnableEncryptionServer(EncryptionData);
+}
+
+void UNetConnection::EnableEncryptionServer(const FEncryptionData& EncryptionData)
+{
 	if (State != USOCK_Invalid && State != USOCK_Closed && Driver)
 	{
 		SendClientEncryptionAck();
-		EnableEncryptionWithKey(Key);
+		EnableEncryption(EncryptionData);
 	}
 	else
 	{
-		UE_LOG(LogNet, Log, TEXT("UNetConnection::EnableEncryptionWithKeyServer, connection in invalid state. %s"), *Describe());
+		UE_LOG(LogNet, Log, TEXT("UNetConnection::EnableEncryptionServer, connection in invalid state. %s"), *Describe());
 	}
 }
 
@@ -518,18 +534,26 @@ void UNetConnection::SendClientEncryptionAck()
 
 void UNetConnection::SetEncryptionKey(TArrayView<const uint8> Key)
 {
+	FEncryptionData EncryptionData;
+	EncryptionData.Key.Append(Key.GetData(), Key.Num());
+
+	SetEncryptionData(EncryptionData);
+}
+
+void UNetConnection::SetEncryptionData(const FEncryptionData& EncryptionData)
+{
 	if (Handler.IsValid())
 	{
-		UE_LOG(LogNet, Verbose, TEXT("UNetConnection::SetEncryptionKey, %s"), *Describe());
+		UE_LOG(LogNet, Verbose, TEXT("UNetConnection::SetEncryptionData, %s"), *Describe());
 
 		TSharedPtr<FEncryptionComponent> EncryptionComponent = Handler->GetEncryptionComponent();
 		if (EncryptionComponent.IsValid())
 		{
-			EncryptionComponent->SetEncryptionKey(Key);
+			EncryptionComponent->SetEncryptionData(EncryptionData);
 		}
 		else
 		{
-			UE_LOG(LogNet, Warning, TEXT("UNetConnection::SetEncryptionKey, encryption component not found!"));
+			UE_LOG(LogNet, Warning, TEXT("UNetConnection::SetEncryptionData, encryption component not found!"));
 		}
 	}
 }
@@ -3681,6 +3705,46 @@ void UNetConnection::TrackReplicationForAnalytics(const bool bWasSaturated)
 {
 	++TickCount;
 	SaturationAnalytics.TrackReplication(bWasSaturated);
+}
+
+void UNetConnection::SendChallengeControlMessage()
+{
+	if (State != USOCK_Invalid && State != USOCK_Closed && Driver)
+	{
+		Challenge = FString::Printf(TEXT("%08X"), FPlatformTime::Cycles());
+		SetExpectedClientLoginMsgType(NMT_Login);
+		FNetControlMessage<NMT_Challenge>::Send(this, Challenge);
+		FlushNet();
+	}
+	else
+	{
+		UE_LOG(LogNet, Log, TEXT("UWorld::SendChallengeControlMessage: connection in invalid state. %s"), *Describe());
+	}
+}
+
+void UNetConnection::SendChallengeControlMessage(const FEncryptionKeyResponse& Response)
+{
+	if (State != USOCK_Invalid && State != USOCK_Closed && Driver)
+	{
+		if (Response.Response == EEncryptionResponse::Success)
+		{
+			EnableEncryptionServer(Response.EncryptionData);
+			SendChallengeControlMessage();
+		}
+		else
+		{
+			FString ResponseStr(LexToString(Response.Response));
+			UE_LOG(LogNet, Warning, TEXT("UWorld::SendChallengeControlMessage: encryption failure [%s] %s"), *ResponseStr, *Response.ErrorMsg);
+			FNetControlMessage<NMT_Failure>::Send(this, ResponseStr);
+			FlushNet();
+			// Can't close the connection here since it will leave the failure message in the send buffer and just close the socket. 
+			// Close();
+		}
+	}
+	else
+	{
+		UE_LOG(LogNet, Warning, TEXT("UNetConnection::SendChallengeControlMessage: connection in invalid state. %s"), *Describe());
+	}
 }
 
 /*-----------------------------------------------------------------------------

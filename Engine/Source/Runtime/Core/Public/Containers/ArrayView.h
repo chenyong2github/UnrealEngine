@@ -3,13 +3,10 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Templates/IsInitializerList.h"
 #include "Templates/PointerIsConvertibleFromTo.h"
 #include "Misc/AssertionMacros.h"
 #include "Templates/UnrealTypeTraits.h"
-#include "Math/NumericLimits.h"
 #include "Containers/Array.h"
-#include "Containers/StaticArray.h"
 
 namespace ArrayViewPrivate
 {
@@ -26,6 +23,23 @@ namespace ArrayViewPrivate
 		 */
 		enum { Value = TPointerIsConvertibleFromTo<T*, ElementType* const>::Value };
 	};
+
+	// Simply forwards to an unqualified GetData(), but can be called from within TArrayView
+	// where GetData() is already a member and so hides any others.
+	template <typename T>
+	FORCEINLINE decltype(auto) GetDataHelper(T&& Arg)
+	{
+		return GetData(Forward<T>(Arg));
+	}
+
+	/**
+	 * Trait testing whether a type is compatible with the view type
+	 */
+	template <typename RangeType, typename ElementType>
+	struct TIsCompatibleRangeType
+	{
+		static constexpr bool Value = TIsCompatibleElementType<typename TRemovePointer<decltype(GetData(DeclVal<RangeType&>()))>::Type, ElementType>::Value;
+	};
 }
 
 /**
@@ -41,16 +55,31 @@ namespace ArrayViewPrivate
  * }
  * 
  * could be called as:
- *     SumAll(MyTArray);
+ *     SumAll(MyTArray);\
  *     SumAll(MyCArray);
- *     SumAll({1, 2, 3});
  *     SumAll(MakeArrayView(Ptr, Num));
- * 
+ *
+ *     auto Values = { 1, 2, 3 };
+ *     SumAll(Values);
+ *
  * Note:
  *   View classes are not const-propagating! If you want a view where the elements are const, you need "TArrayView<const T>" not "const TArrayView<T>"!
+ *   TArrayViews cannot be implicitly constructed from an rvalue initializer lists:
+ *
+ * , as a compile-time guard against :
+ *
+ *   SumAll({ 1, 2, 3 }); // error
  *
  * Caution:
  *   Treat a view like a *reference* to the elements in the array. DO NOT free or reallocate the array while the view exists!
+ *   For this reason, TArrayViews are not constructible from rvalue initializer lists:
+ *
+ *   SumAll({ 1, 2, 3 }); // error
+ *
+ *   This is to avoid this issue:
+ *
+ *   TArrayView<int> View = { 1, 2, 3 }; // construction of array view from rvalue initializer list
+ *   int n = View[0]; // undefined behavior, as the initializer list was destroyed at the end of the previous line
  */
 template<typename InElementType>
 class TArrayView
@@ -71,100 +100,28 @@ private:
 	template <typename T>
 	using TIsCompatibleElementType = ArrayViewPrivate::TIsCompatibleElementType<T, ElementType>;
 
+	template <typename T>
+	using TIsCompatibleRangeType = ArrayViewPrivate::TIsCompatibleRangeType<T, ElementType>;
+
 public:
 	/**
-	 * Copy constructor from another view
+	 * Constructor from another range
 	 *
-	 * @param Other The source array view to copy
+	 * @param Other The source range to copy
 	 */
-	template <typename OtherElementType,
-		typename = typename TEnableIf<TIsCompatibleElementType<OtherElementType>::Value>::Type>
-	FORCEINLINE TArrayView(const TArrayView<OtherElementType>& Other)
-		: DataPtr(Other.GetData())
-		, ArrayNum(Other.Num())
-	{
-	}
-
-	/**
-	 * Construct a view of a C array with a compatible element type
-	 *
-	 * @param Other The source array to view.
-	 */
-	template <typename OtherElementType, size_t Size,
-		typename = typename TEnableIf<TIsCompatibleElementType<OtherElementType>::Value>::Type>
-	FORCEINLINE TArrayView(OtherElementType (&Other)[Size])
-		: DataPtr(Other)
-		, ArrayNum((int32)Size)
-	{
-		static_assert(Size <= MAX_int32, "Array Size too large! Size is only int32 for compatibility with TArray!");
-	}
-
-	/**
-	 * Construct a view of a C array with a compatible element type
-	 *
-	 * @param Other The source array to view.
-	 */
-	template <typename OtherElementType, size_t Size,
-		typename = typename TEnableIf<TIsCompatibleElementType<const OtherElementType>::Value>::Type>
-	FORCEINLINE TArrayView(const OtherElementType (&Other)[Size])
-		: DataPtr(Other)
-		, ArrayNum((int32)Size)
-	{
-		static_assert(Size <= MAX_int32, "Array Size too large! Size is only int32 for compatibility with TArray!");
-	}
-
-	/**
-	 * Construct a view of a TArray with a compatible element type
-	 *
-	 * @param Other The source array to view.
-	 */
-	template <typename OtherElementType, typename OtherAllocator,
-		typename = typename TEnableIf<TIsCompatibleElementType<OtherElementType>::Value>::Type>
-	FORCEINLINE TArrayView(TArray<OtherElementType, OtherAllocator>& Other)
-		: DataPtr(Other.GetData())
-		, ArrayNum(Other.Num())
-	{
-	}
-
-	template <typename OtherElementType, typename OtherAllocator,
-		typename = typename TEnableIf<TIsCompatibleElementType<const OtherElementType>::Value>::Type>
-	FORCEINLINE TArrayView(const TArray<OtherElementType, OtherAllocator>& Other)
-		: DataPtr(Other.GetData())
-		, ArrayNum(Other.Num())
-	{
-	}
-
-	/**
-	 * Construct a view of a TStaticArray with a compatible element type
-	 *
-	 * @param Other The source array to view.
-	 */
-	template <typename OtherElementType, uint32 Size,
-		typename = typename TEnableIf<TIsCompatibleElementType<OtherElementType>::Value>::Type>
-	FORCEINLINE TArrayView(TStaticArray<OtherElementType, Size>& Other)
-		: DataPtr(&Other[0])
-		, ArrayNum((int32)Size)
-	{
-	}
-
-	template <typename OtherElementType, uint32 Size,
-		typename = typename TEnableIf<TIsCompatibleElementType<const OtherElementType>::Value>::Type>
-	FORCEINLINE TArrayView(const TStaticArray<OtherElementType, Size>& Other)
-		: DataPtr(&Other[0])
-		, ArrayNum((int32)Size)
-	{
-	}
-
-	/**
-	 * Construct a view from an initializer list with a compatible element type
-	 *
-	 * @param List The initializer list to view.
-	 */
-	template <typename InitializerListType,
-		typename = typename TEnableIf<TAnd<TIsInitializerList<InitializerListType>, TIsCompatibleElementType<const typename InitializerListType::value_type>>::Value>::Type>
-	FORCEINLINE TArrayView(InitializerListType& List)
-		: DataPtr(&*List.begin())
-		, ArrayNum(List.size())
+	template <
+		typename OtherRangeType,
+		typename CVUnqualifiedOtherRangeType = typename TRemoveCV<typename TRemoveReference<OtherRangeType>::Type>::Type,
+		typename = typename TEnableIf<
+			TAnd<
+				TIsContiguousContainer<CVUnqualifiedOtherRangeType>,
+				TIsCompatibleRangeType<OtherRangeType>
+			>::Value
+		>::Type
+	>
+	FORCEINLINE TArrayView(OtherRangeType&& Other)
+		: DataPtr(ArrayViewPrivate::GetDataHelper(Forward<OtherRangeType>(Other)))
+		, ArrayNum(GetNum(Forward<OtherRangeType>(Other)))
 	{
 	}
 
@@ -181,21 +138,6 @@ public:
 		, ArrayNum(InCount)
 	{
 		check(ArrayNum >= 0);
-	}
-
-	/**
-	 * Assignment operator
-	 *
-	 * @param Other The source array view to assign from
-	 */
-	template <typename OtherElementType,
-		typename = typename TEnableIf<TIsCompatibleElementType<OtherElementType>::Value>::Type>
-	FORCEINLINE TArrayView& operator=(const TArrayView<OtherElementType>& Other)
-	{
-		DataPtr = Other.GetData();
-		ArrayNum = Other.Num();
-
-		return *this;
 	}
 
 public:
@@ -599,35 +541,18 @@ struct TIsContiguousContainer<TArrayView<T>>
 
 //////////////////////////////////////////////////////////////////////////
 
-template <typename ElementType, size_t Size>
-TArrayView<ElementType> MakeArrayView(ElementType(&Other)[Size])
+template <
+	typename OtherRangeType,
+	typename CVUnqualifiedOtherRangeType = typename TRemoveCV<typename TRemoveReference<OtherRangeType>::Type>::Type,
+	typename = typename TEnableIf<TIsContiguousContainer<CVUnqualifiedOtherRangeType>::Value>::Type
+>
+auto MakeArrayView(OtherRangeType&& Other)
 {
-	return TArrayView<ElementType>(Other);
-}
-
-template <typename ElementType, typename Allocator>
-TArrayView<ElementType> MakeArrayView(TArray<ElementType, Allocator>& Other)
-{
-	return TArrayView<ElementType>(Other);
-}
-
-template <typename ElementType, typename Allocator>
-TArrayView<const ElementType> MakeArrayView(const TArray<ElementType, Allocator>& Other)
-{
-	return TArrayView<const ElementType>(Other);
-}
-
-template <typename InitializerListType>
-typename TEnableIf<
-	TIsInitializerList<InitializerListType>::Value,
-	TArrayView<const typename InitializerListType::value_type>
->::Type MakeArrayView(InitializerListType& List)
-{
-	return TArrayView<const typename InitializerListType::value_type>(List);
+	return TArrayView<typename TRemovePointer<decltype(GetData(DeclVal<OtherRangeType&>()))>::Type>(Forward<OtherRangeType>(Other));
 }
 
 template<typename ElementType>
-TArrayView<ElementType> MakeArrayView(ElementType* Pointer, int32 Size)
+auto MakeArrayView(ElementType* Pointer, int32 Size)
 {
 	return TArrayView<ElementType>(Pointer, Size);
 }

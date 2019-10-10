@@ -30,6 +30,7 @@
 #include "AssetViewerSettings.h"
 #include "Engine/PostProcessVolume.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "MaterialEditorSettings.h"
 
 #define LOCTEXT_NAMESPACE "MaterialEditor"
 
@@ -812,7 +813,7 @@ private:
 
 void SMaterialEditorUIPreviewZoomer::Construct( const FArguments& InArgs, UMaterialInterface* InPreviewMaterial )
 {
-	PreviewBrush = MakeShareable( new FSlateMaterialBrush( *InPreviewMaterial, FVector2D(250,250) ) );
+	PreviewBrush = MakeShareable( new FSlateMaterialBrush( *InPreviewMaterial, GetDefault<UMaterialEditorSettings>()->GetPreviewViewportStartingSize() ) );
 
 	ChildSlot
 	[
@@ -992,7 +993,7 @@ void SMaterialEditorUIPreviewViewport::Construct( const FArguments& InArgs, UMat
 		]
 	];
 
-	PreviewSize = FIntPoint(250,250);
+	PreviewSize = GetDefault<UMaterialEditorSettings>()->GetPreviewViewportStartingSize();
 	PreviewZoomer->SetPreviewSize( FVector2D(PreviewSize) );
 }
 

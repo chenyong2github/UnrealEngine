@@ -3,8 +3,6 @@
 #include "ChaosCloth/ChaosClothingSimulationFactory.h"
 #include "ChaosCloth/ChaosClothingSimulation.h"
 
-#include "Assets/ClothingAsset.h"
-
 IClothingSimulation* UChaosClothingSimulationFactory::CreateSimulation()
 {
 	IClothingSimulation* Simulation = new Chaos::ClothingSimulation();

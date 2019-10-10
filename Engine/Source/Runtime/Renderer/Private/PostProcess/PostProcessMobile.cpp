@@ -2952,6 +2952,7 @@ void FRCPassPostProcessAaES2::Process(FRenderingCompositePassContext& Context)
 	check(SrcSize == DestSize);
 
 	ERenderTargetActions LoadStoreAction = ERenderTargetActions::Load_Store;
+	//#todo-rv-vr
 	if (Context.View.StereoPass != eSSP_RIGHT_EYE)
 	{
 		// Full clear to avoid restore

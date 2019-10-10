@@ -42,13 +42,16 @@ public:
 	virtual bool HasLiveTransactionSupport(UPackage* InPackage) const override;
 	virtual bool ShouldIgnorePackageDirtyEvent(class UPackage* InPackage) const override;
 	virtual bool FindTransactionEvent(const int64 TransactionEventId, FConcertSyncTransactionEvent& OutTransactionEvent, const bool bMetaDataOnly) const override;
+	virtual TFuture<TOptional<FConcertSyncTransactionEvent>> FindOrRequestTransactionEvent(const int64 TransactionEventId, const bool bMetaDataOnly) override;
 	virtual bool FindPackageEvent(const int64 PackageEventId, FConcertSyncPackageEvent& OutPackageEvent, const bool bMetaDataOnly) const override;
+	virtual TFuture<TOptional<FConcertSyncPackageEvent>> FindOrRequestPackageEvent(const int64 PackageEventId, const bool bMetaDataOnly) override;
 	virtual void GetActivities(const int64 FirstActivityIdToFetch, const int64 MaxNumActivities, TMap<FGuid, FConcertClientInfo>& OutEndpointClientInfoMap, TArray<FConcertClientSessionActivity>& OutActivities) const override;
 	virtual int64 GetLastActivityId() const override;
 	virtual FOnActivityAddedOrUpdated& OnActivityAddedOrUpdated() override;
 	virtual FOnWorkspaceSynchronized& OnWorkspaceSynchronized() override;
 	virtual IConcertClientDataStore& GetDataStore() override;
 	virtual bool IsAssetModifiedByOtherClients(const FName& AssetName, int32* OutOtherClientsWithModifNum, TArray<FConcertClientInfo>* OutOtherClientsWithModifInfo, int32 OtherClientsWithModifMaxFetchNum) const override;
+	virtual void SetIgnoreOnRestoreFlagForEmittedActivities(bool bIgnore) override;
 
 private:
 	/** Bind the workspace to this session. */
@@ -152,6 +155,20 @@ private:
 	 */
 	void PostActivityUpdated(const FConcertSyncActivity& InActivity);
 
+	/**
+	 * Check whether a package activity is partially synced, i.e. that only the meta data
+	 * was synced because the activity event was superseded by another one and the package data
+	 * wasn't required to reconstruct the state of a level.
+	 */
+	bool IsPackageEventPartiallySynced(const FConcertSyncPackageEvent& PackageEvent) const;
+
+	/**
+	 * Check whether a transaction activity is partially synced, i.e. that only the meta data
+	 * was synced because the activity event was superseded by another one and the transaction data
+	 * wasn't required to reconstruct the state of a level.
+	 */
+	bool IsTransactionEventPartiallySynced(const FConcertSyncTransactionEvent& TransactionEvent) const;
+
 	/** */
 	TUniquePtr<FConcertClientTransactionManager> TransactionManager;
 
@@ -192,4 +209,7 @@ private:
 	
 	/** The session key/value store proxy. The real store is held by the server and shared across all clients. */
 	TUniquePtr<FConcertClientDataStore> DataStore;
+
+	/** True if the client has marked the further transaction as 'non-ignored'. This is sent at the end of the frame. */
+	bool bPendingStopIgnoringActivityOnRestore = false;
 };

@@ -6,6 +6,9 @@
 
 #include "Delegates/IDelegateInstance.h"
 #include "Engine/EngineTypes.h"
+#include "MediaFrameworkWorldSettingsAssetUserData.h"
+#include "Misc/NotifyHook.h"
+#include "PropertyEditorDelegates.h"
 #include "SlateFwd.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
@@ -18,7 +21,6 @@ class SMediaFrameworkCaptureCameraViewportWidget;
 class SMediaFrameworkCaptureCurrentViewportWidget;
 class SMediaFrameworkCaptureRenderTargetWidget;
 class SSplitter;
-class UMediaFrameworkWorldSettingsAssetUserData;
 
 namespace MediaFrameworkUtilities
 {
@@ -37,10 +39,23 @@ public:
 	bool bIsVerticalSplitterOrientation = true;
 };
 
+/**
+ * Settings for the capture that are persistent per users.
+ */
+UCLASS(MinimalAPI, config = Editor)
+class UMediaFrameworkEditorCaptureSettings : public UMediaFrameworkWorldSettingsAssetUserData
+{
+	GENERATED_BODY()
+public:
+	/** Should the Capture setting be saved with the level or should it be saved as a project settings. */
+	UPROPERTY(config)
+	bool bSaveCaptureSetingsInWorld = true;
+};
+
 /*
  * SMediaFrameworkCapture
  */
-class SMediaFrameworkCapture : public SCompoundWidget
+class SMediaFrameworkCapture : public SCompoundWidget, public FNotifyHook
 {
 public:
 	static void RegisterNomadTabSpawner(TSharedRef<FWorkspaceItem> InWorkspaceItem);
@@ -63,6 +78,9 @@ public:
 	UMediaFrameworkWorldSettingsAssetUserData* FindOrAddMediaFrameworkAssetUserData();
 
 private:
+	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged) override;
+	bool IsPropertyReadOnly(const FPropertyAndParent& PropertyAndParent) const;
+
 	void OnMapChange(uint32 InMapFlags);
 	void OnLevelActorsRemoved(AActor* InActor);
 	void OnAssetsDeleted(const TArray<UClass*>& DeletedAssetClasses);

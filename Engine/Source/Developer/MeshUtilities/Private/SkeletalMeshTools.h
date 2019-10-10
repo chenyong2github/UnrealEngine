@@ -51,6 +51,8 @@ struct FSkinnedMeshChunk
 	TArray<uint32> Indices;
 	/** If not empty, contains a map from bones referenced in this chunk to the skeleton. */
 	TArray<FBoneIndexType> BoneMap;
+	/** The parent original section index for which this chunk was generated. INDEX_NONE for parent the value of the parent for BONE child chunked*/
+	int32 ParentChunkSectionIndex;
 };
 
 /**

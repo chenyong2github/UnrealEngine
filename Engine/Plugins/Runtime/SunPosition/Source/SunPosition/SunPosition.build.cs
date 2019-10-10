@@ -11,8 +11,21 @@ namespace UnrealBuildTool.Rules
                     "Core",
                     "CoreUObject",
                     "Engine",
+					"Projects",
+                    "Slate",
+					"SlateCore",
                 }
             );
+
+			if (Target.bBuildEditor)
+			{
+				PrivateDependencyModuleNames.AddRange(
+					new string[] {
+						"UnrealEd",
+						"PlacementMode",
+					}
+				);
+			}
 		}
 	}
 }

@@ -226,12 +226,6 @@ public:
 		/** Exposes a delegate to be invoked when the wizard's 'Back' button is clicked. This button is only visible if this delegate is set and only on the first page. */
 		SLATE_EVENT(FOnClicked, OnFirstPageBackClicked)
 
-		/** Exposes a delegate to be invoked when the wizard's 'Next' button is clicked. */
-		SLATE_EVENT(FOnClicked, OnNextClicked)
-
-		/** Exposes a delegate to be invoked when the wizard's 'Previous' button is clicked. */
-		SLATE_EVENT(FOnClicked, OnPrevClicked)
-
 		/**
 		 * Exposes a delegate to be invoked when the wizard's 'Next' button is clicked.
 		 * Passes in the current page index and expects the next page index to be returned.

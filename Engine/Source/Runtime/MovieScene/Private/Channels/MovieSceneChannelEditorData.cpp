@@ -26,8 +26,8 @@ FMovieSceneChannelMetaData::FMovieSceneChannelMetaData()
 	, Name(NAME_None)
 {}
 
-FMovieSceneChannelMetaData::FMovieSceneChannelMetaData(FName InName, FText InDisplayText, FText InGroup)
-	: bEnabled(true)
+FMovieSceneChannelMetaData::FMovieSceneChannelMetaData(FName InName, FText InDisplayText, FText InGroup, bool bInEnabled)
+	: bEnabled(bInEnabled)
 	, bCanCollapseToTrack(true)
 	, SortOrder(0)
 	, Name(InName)

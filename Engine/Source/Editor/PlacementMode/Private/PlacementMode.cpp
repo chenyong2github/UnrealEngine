@@ -13,7 +13,7 @@
 #include "ScopedTransaction.h"
 
 #include "Toolkits/ToolkitManager.h"
-#include "ILevelViewport.h"
+#include "IAssetViewport.h"
 
 FPlacementMode::FPlacementMode()
 	: AssetsToPlace()
@@ -96,10 +96,10 @@ void FPlacementMode::Tick(FEditorViewportClient* ViewportClient,float DeltaTime)
 			if(LevelEditorModule != NULL)
 			{
 				TSharedPtr<ILevelEditor> LevelEditor = LevelEditorModule->GetFirstLevelEditor();
-				const TArray< TSharedPtr<ILevelViewport> >& LevelViewports = LevelEditor->GetViewports();
+				const TArray< TSharedPtr<IAssetViewport> >& LevelViewports = LevelEditor->GetViewports();
 				for(auto It(LevelViewports.CreateConstIterator()); !HasValidFocusTarget && It; It++)
 				{
-					const TSharedPtr<ILevelViewport>& Viewport = *It;
+					const TSharedPtr<IAssetViewport>& Viewport = *It;
 					const TSharedPtr<const SWidget> ViewportWidget = Viewport->AsWidget();
 					HasValidFocusTarget = ViewportWidget->HasKeyboardFocus() || ViewportWidget->HasFocusedDescendants();
 				}

@@ -353,9 +353,9 @@ void FDynamicMeshAttributeSetChangeTracker::BeginChange()
 	// initialize new attribute set change
 	check(Change == nullptr);
 	Change = new FDynamicMeshAttributeChangeSet();
-	int NumUVLayers = Attribs->GetNumUVLayers();
+	int NumUVLayers = Attribs->NumUVLayers();
 	Change->UVChanges.SetNum(NumUVLayers);
-	int NumNormalLayers = Attribs->GetNumNormalLayers();
+	int NumNormalLayers = Attribs->NumNormalLayers();
 	Change->NormalChanges.SetNum(NumNormalLayers);
 
 	// initialize UV layer state tracking
@@ -406,7 +406,7 @@ TUniquePtr<FDynamicMeshAttributeChangeSet> FDynamicMeshAttributeSetChangeTracker
 
 void FDynamicMeshAttributeSetChangeTracker::SaveInitialTriangle(int TriangleID)
 {
-	int NumUVLayers = Attribs->GetNumUVLayers();
+	int NumUVLayers = Attribs->NumUVLayers();
 	for (int k = 0; k < NumUVLayers; ++k)
 	{
 		FDynamicMeshUVChange& UVChange = Change->UVChanges[k];
@@ -418,7 +418,7 @@ void FDynamicMeshAttributeSetChangeTracker::SaveInitialTriangle(int TriangleID)
 		UVChange.SaveInitialTriangle(UVLayer, TriangleID);
 	}
 
-	int NumNormalLayers = Attribs->GetNumNormalLayers();
+	int NumNormalLayers = Attribs->NumNormalLayers();
 	for (int k = 0; k < NumNormalLayers; ++k)
 	{
 		FDynamicMeshNormalChange& NormalChange = Change->NormalChanges[k];
@@ -437,7 +437,7 @@ void FDynamicMeshAttributeSetChangeTracker::StoreAllFinalTriangles(const TArray<
 	TSet<int> StoredVertices;	// re-used
 	
 	// store final UV elements for all modified triangles, and final triangles
-	int NumUVLayers = Attribs->GetNumUVLayers();
+	int NumUVLayers = Attribs->NumUVLayers();
 	for (int k = 0; k < NumUVLayers; ++k)
 	{
 		FDynamicMeshUVChange& UVChange = Change->UVChanges[k];
@@ -461,7 +461,7 @@ void FDynamicMeshAttributeSetChangeTracker::StoreAllFinalTriangles(const TArray<
 
 
 	// store final Normal elements for all modified triangles, and final triangles
-	int NumNormalLayers = Attribs->GetNumNormalLayers();
+	int NumNormalLayers = Attribs->NumNormalLayers();
 	for (int k = 0; k < NumNormalLayers; ++k)
 	{
 		FDynamicMeshNormalChange& NormalChange = Change->NormalChanges[k];
@@ -488,7 +488,7 @@ void FDynamicMeshAttributeSetChangeTracker::StoreAllFinalTriangles(const TArray<
 
 bool FDynamicMeshAttributeChangeSet::Apply(FDynamicMeshAttributeSet* Attributes, bool bRevert) const
 {
-	int NumUVLayers = Attributes->GetNumUVLayers();
+	int NumUVLayers = Attributes->NumUVLayers();
 	check(NumUVLayers == UVChanges.Num());
 	for (int k = 0; k < NumUVLayers; ++k)
 	{
@@ -496,7 +496,7 @@ bool FDynamicMeshAttributeChangeSet::Apply(FDynamicMeshAttributeSet* Attributes,
 		UVChanges[k].Apply(UVLayer, bRevert);
 	}
 
-	int NumNormalLayers = Attributes->GetNumNormalLayers();
+	int NumNormalLayers = Attributes->NumNormalLayers();
 	check(NumNormalLayers == NormalChanges.Num());
 	for (int k = 0; k < NumNormalLayers; ++k)
 	{

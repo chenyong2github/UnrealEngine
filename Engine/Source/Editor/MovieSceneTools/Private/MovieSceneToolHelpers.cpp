@@ -1946,8 +1946,8 @@ void MovieSceneToolHelpers::CopyKeyDataToMoveAxis(const TMovieSceneChannelData<F
 		MoveAxis->LookupTrack.AddPoint(Time, LookupName);
 
 		FInterpCurvePoint<float>& Point = MoveAxis->FloatTrack.Points[PointIndex];
-		Point.ArriveTangent = Value.Tangent.ArriveTangent;
-		Point.LeaveTangent = Value.Tangent.LeaveTangent;
+		Point.ArriveTangent = Value.Tangent.ArriveTangent * InFrameRate.AsDecimal();
+		Point.LeaveTangent = Value.Tangent.LeaveTangent * InFrameRate.AsDecimal();
 		Point.InterpMode = RichCurveInterpolationToMatineeInterpolation(Value.InterpMode, Value.TangentMode);
 	}
 }
@@ -2090,7 +2090,7 @@ void ExportLevelMesh(UnFbx::FFbxExporter* Exporter, ULevel* Level, IMovieScenePl
 	Exporter->ExportLevelMesh(Level, !bSelectedOnly, ActorToExport, NodeNameAdapter, bSaveAnimSeq);
 }
 
-bool MovieSceneToolHelpers::ExportFBX(UWorld* World, UMovieScene* MovieScene, IMovieScenePlayer* Player, TArray<FGuid>& Bindings, INodeNameAdapter& NodeNameAdapter, FMovieSceneSequenceIDRef& Template, const FString& InFBXFileName)
+bool MovieSceneToolHelpers::ExportFBX(UWorld* World, UMovieScene* MovieScene, IMovieScenePlayer* Player, TArray<FGuid>& Bindings, INodeNameAdapter& NodeNameAdapter, FMovieSceneSequenceIDRef& Template, const FString& InFBXFileName, FMovieSceneSequenceTransform& RootToLocalTransform)
 {
 	UnFbx::FFbxExporter* Exporter = UnFbx::FFbxExporter::GetInstance();
 
@@ -2112,7 +2112,7 @@ bool MovieSceneToolHelpers::ExportFBX(UWorld* World, UMovieScene* MovieScene, IM
 		}
 	}
 
-	Exporter->ExportLevelSequence(MovieScene, Bindings, Player, Template);
+	Exporter->ExportLevelSequence(MovieScene, Bindings, Player, NodeNameAdapter, Template, RootToLocalTransform);
 
 	//Export all master tracks
 
@@ -2120,7 +2120,7 @@ bool MovieSceneToolHelpers::ExportFBX(UWorld* World, UMovieScene* MovieScene, IM
 	{
 		TArray<UMovieSceneTrack*> Tracks;
 		Tracks.Add(MasterTrack);
-		Exporter->ExportLevelSequenceTracks(MovieScene, Player, nullptr, nullptr, Tracks);
+		Exporter->ExportLevelSequenceTracks(MovieScene, Player, nullptr, nullptr, Tracks, RootToLocalTransform);
 	}
 	// Save to disk
 	Exporter->WriteToFile(*InFBXFileName);

@@ -1,31 +1,26 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "MagicLeapScreensPlugin.h"
+#include "Async/Async.h"
 #include "RenderUtils.h"
 #include "IMagicLeapPlugin.h"
 #include "HeadMountedDisplayFunctionLibrary.h"
-#include "MagicLeapScreensWorker.h"
+#include "MagicLeapScreensRunnable.h"
 #include "Misc/CoreDelegates.h"
-#include "MagicLeapHMD.h"
- 
+#include "MagicLeapMath.h"
+#include "MagicLeapHandle.h"
+#include "Misc/CommandLine.h"
+
 #define MAX_TEXTURE_SIZE 450 * 450 * 4 // currently limited by binder implementation
 
 DEFINE_LOG_CATEGORY_STATIC(LogScreensPlugin, Display, All);
 
-#if WITH_MLSDK
-MLImage FMagicLeapScreensPlugin::DefaultThumbnail = MLImage();
-FCriticalSection FMagicLeapScreensPlugin::CriticalSection;
-#endif // WITH_MLSDK
-FScreensWorker *FMagicLeapScreensPlugin::Impl = new FScreensWorker();
-TArray<uint8> FMagicLeapScreensPlugin::PixelDataMemPool = TArray<uint8>();
-
 void FMagicLeapScreensPlugin::StartupModule()
 {
 	IModuleInterface::StartupModule();
-	APISetup.Startup();
-	APISetup.LoadDLL(TEXT("ml_screens"));
 
 #if WITH_MLSDK
+	DefaultThumbnail = MLImage();
 	DefaultThumbnail.width = 2;
 	DefaultThumbnail.height = 2;
 	DefaultThumbnail.image_type = MLImageType_RGBA32;
@@ -35,52 +30,31 @@ void FMagicLeapScreensPlugin::StartupModule()
 	FMemory::Memset(DefaultThumbnail.data, 255, DataSize);
 #endif // WITH_MLSDK
 
+	if (!Runnable)
+	{
+		Runnable = new FScreensRunnable();
+	}
 	TickDelegate = FTickerDelegate::CreateRaw(this, &FMagicLeapScreensPlugin::Tick);
 	TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(TickDelegate);
 
 	PixelDataMemPool.Reserve(MAX_TEXTURE_SIZE);
-	bEngineLoopInitComplete = false;
-	FCoreDelegates::OnFEngineLoopInitComplete.AddRaw(this, &FMagicLeapScreensPlugin::OnEngineLoopInitComplete);
 }
 
 void FMagicLeapScreensPlugin::ShutdownModule()
 {
-	FCoreDelegates::OnFEngineLoopInitComplete.RemoveAll(this);
-	APISetup.Shutdown();
-
-#if PLATFORM_LUMIN
-	if (Impl)
+	FScreensRunnable* RunnableToDestroy = Runnable;
+	Runnable = nullptr;
+	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [RunnableToDestroy]()
 	{
-		Impl->AsyncDestroy();
-		Impl = nullptr;
-	}
-#else
-	delete Impl;
-	Impl = nullptr;
-#endif
-
+		delete RunnableToDestroy;
+	});
 #if WITH_MLSDK
 	delete[] DefaultThumbnail.data;
 	DefaultThumbnail.data = nullptr;
-	MLScreensReleaseWatchHistoryThumbnail(&FMagicLeapScreensPlugin::DefaultThumbnail);
+	MLScreensReleaseWatchHistoryThumbnail(&DefaultThumbnail);
 #endif // WITH_MLSDK
 	FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
 	IModuleInterface::ShutdownModule();
-}
-
-bool FMagicLeapScreensPlugin::IsEngineLoopInitComplete() const
-{
-	return bEngineLoopInitComplete;
-}
-
-void FMagicLeapScreensPlugin::OnEngineLoopInitComplete()
-{
-	if (Impl->Semaphore == nullptr)
-	{
-		Impl->EngineInited();
-	}
-
-	bEngineLoopInitComplete = true;
 }
 
 bool FMagicLeapScreensPlugin::IsSupportedFormat(EPixelFormat InPixelFormat)
@@ -111,9 +85,9 @@ UTexture2D* FMagicLeapScreensPlugin::MLImageToUTexture2D(const MLImage& Source)
 	return Thumbnail;
 }
 
-void FMagicLeapScreensPlugin::MLWatchHistoryEntryToUnreal(const MLScreensWatchHistoryEntry& InEntry, FScreensWatchHistoryEntry& OutEntry)
+void FMagicLeapScreensPlugin::MLWatchHistoryEntryToUnreal(const MLScreensWatchHistoryEntry& InEntry, FMagicLeapScreensWatchHistoryEntry& OutEntry)
 {
-	OutEntry.ID.ID = InEntry.id;
+	OutEntry.ID = MagicLeap::MLHandleToFGuid(InEntry.id);
 	OutEntry.Title = FString(UTF8_TO_TCHAR(InEntry.title));
 	OutEntry.Subtitle = FString(UTF8_TO_TCHAR(InEntry.subtitle));
 	OutEntry.PlaybackPosition = FTimespan(InEntry.playback_position_ms * ETimespan::TicksPerMillisecond);
@@ -125,7 +99,7 @@ void FMagicLeapScreensPlugin::MLWatchHistoryEntryToUnreal(const MLScreensWatchHi
 	if (Result != MLResult_Ok)
 	{
 		UE_LOG(LogScreensPlugin, Log, TEXT("MLScreensGetWatchHistoryThumbnail failed for screen ID %u with error %s!"), (uint32)InEntry.id, UTF8_TO_TCHAR(MLScreensGetResultString(Result)));
-		OutEntry.Thumbnail = MLImageToUTexture2D(FMagicLeapScreensPlugin::DefaultThumbnail);
+		OutEntry.Thumbnail = MLImageToUTexture2D(DefaultThumbnail);
 	}
 	else
 	{
@@ -134,6 +108,39 @@ void FMagicLeapScreensPlugin::MLWatchHistoryEntryToUnreal(const MLScreensWatchHi
 		Result = MLScreensReleaseWatchHistoryThumbnail(&MLThumbnail);
 		UE_CLOG(Result != MLResult_Ok, LogScreensPlugin, Error, TEXT("MLScreensReleaseWatchHistoryThumbnail failed for with error %s!"), UTF8_TO_TCHAR(MLScreensGetResultString(Result)));
 	}
+}
+
+bool FMagicLeapScreensPlugin::MLScreenInfoToUnreal(const MLScreensScreenInfoEx& InInfo, FMagicLeapScreenTransform& OutScreenTransform, const FTransform& TrackingToWorld, const float WorldToMetersScale)
+{
+	FTransform OutTransform(MagicLeap::ToFMatrix2(InInfo.transform, WorldToMetersScale));
+
+	if (OutTransform.ContainsNaN())
+	{
+		UE_LOG(LogScreensPlugin, Error, TEXT("Screens info entry %d transform contains NaN."), InInfo.screen_id);
+		return false;
+	}
+	if (!OutTransform.GetRotation().IsNormalized())
+	{
+		FQuat OutRotation = OutTransform.GetRotation();
+		OutRotation.Normalize();
+		OutTransform.SetRotation(OutRotation);
+	}
+
+	MLVec3f Scale = MagicLeap::ExtractScale3D(InInfo.transform);
+	MLVec3f Dimensions = InInfo.dimensions;
+	Dimensions.x *= Scale.x;
+	Dimensions.y *= Scale.y;
+	Dimensions.z *= Scale.z;
+
+	OutTransform = OutTransform * TrackingToWorld;
+
+	OutScreenTransform.ID = MagicLeap::MLHandleToFGuid(InInfo.screen_id);
+	OutScreenTransform.VersionNumber = InInfo.version;
+	OutScreenTransform.ScreenPosition = OutTransform.GetLocation();
+	OutScreenTransform.ScreenOrientation = OutTransform.Rotator();
+	OutScreenTransform.ScreenDimensions = MagicLeap::ToFVectorExtents(Dimensions, WorldToMetersScale);
+	OutScreenTransform.ScreenScale3D = MagicLeap::ToFVectorNoScale(Scale);
+	return true;
 }
 
 bool FMagicLeapScreensPlugin::UTexture2DToMLImage(const UTexture2D& Source, MLImage& Target)
@@ -176,22 +183,25 @@ bool FMagicLeapScreensPlugin::UTexture2DToMLImage(const UTexture2D& Source, MLIm
 	return bSuccess;
 }
 
-bool FMagicLeapScreensPlugin::ShouldUseDefaultThumbnail(const FScreensWatchHistoryEntry& Entry,  MLImage& MLImage)
+bool FMagicLeapScreensPlugin::ShouldUseDefaultThumbnail(const FMagicLeapScreensWatchHistoryEntry& Entry,  MLImage& MLImage)
 {
 	return ((Entry.Thumbnail == nullptr) ||
-		(FMagicLeapScreensPlugin::IsSupportedFormat(Entry.Thumbnail->GetPixelFormat()) == false) ||
-		(FMagicLeapScreensPlugin::UTexture2DToMLImage(*Entry.Thumbnail, MLImage) == false)) ? true : false;
+		(IsSupportedFormat(Entry.Thumbnail->GetPixelFormat()) == false) ||
+		(UTexture2DToMLImage(*Entry.Thumbnail, MLImage) == false)) ? true : false;
 }
 #endif // WITH_MLSDK
 
-bool FMagicLeapScreensPlugin::RemoveWatchHistoryEntry(const FScreenID& ID)
+bool FMagicLeapScreensPlugin::RemoveWatchHistoryEntry(const FGuid& ID)
 {
 #if WITH_MLSDK
 	MLResult Result = MLResult_UnspecifiedFailure;
 	{
-		FScopeLock Lock(&FMagicLeapScreensPlugin::CriticalSection);
-		Result = MLScreensRemoveWatchHistoryEntry(ID.ID);
-		UE_CLOG(Result != MLResult_Ok, LogScreensPlugin, Error, TEXT("MLScreensRemoveWatchHistoryEntry failed with error %d for entry with id %d!"), Result, ID.ID);
+		// TODO: Remove locks once all code is made async
+		FScopeLock Lock(&CriticalSection);
+
+		const int64 EntryID = MagicLeap::FGuidToMLHandle(ID);
+		Result = MLScreensRemoveWatchHistoryEntry(EntryID);
+		UE_CLOG(Result != MLResult_Ok, LogScreensPlugin, Error, TEXT("MLScreensRemoveWatchHistoryEntry failed with error %s for entry with id %d!"), UTF8_TO_TCHAR(MLGetResultString(Result)), EntryID);
 	}
 	return Result == MLResult_Ok;
 #else
@@ -199,83 +209,92 @@ bool FMagicLeapScreensPlugin::RemoveWatchHistoryEntry(const FScreenID& ID)
 #endif // WITH_MLSDK
 }
 
-void FMagicLeapScreensPlugin::GetWatchHistoryEntriesAsync(const TOptional<FScreensHistoryRequestResultDelegate>& OptionalResultDelegate)
+void FMagicLeapScreensPlugin::GetWatchHistoryEntriesAsync(const TOptional<FMagicLeapScreensHistoryRequestResultDelegate>& OptionalResultDelegate)
 {
-	FScreensMessage Msg;
-	Msg.Type = EScreensMsgType::Request;
-	Msg.TaskType = EScreensTaskType::GetHistory;
+	FScreensTask Task;
+	Task.TaskRequestType = FScreensTask::ETaskRequestType::Request;
+	Task.TaskType = FScreensTask::ETaskType::GetHistory;
 	if (OptionalResultDelegate.IsSet())
 	{
-		Msg.HistoryDelegate = OptionalResultDelegate.GetValue();
+		Task.HistoryRequestDelegate = OptionalResultDelegate.GetValue();
 	}
-	FMagicLeapScreensPlugin::Impl->ProcessMessage(Msg);
+	Runnable->PushNewTask(Task);
 }
 
-void FMagicLeapScreensPlugin::AddToWatchHistoryAsync(const FScreensWatchHistoryEntry& NewEntry, const TOptional<FScreensEntryRequestResultDelegate>& OptionalResultDelegate)
+void FMagicLeapScreensPlugin::AddToWatchHistoryAsync(const FMagicLeapScreensWatchHistoryEntry& NewEntry, const TOptional<FMagicLeapScreensEntryRequestResultDelegate>& OptionalResultDelegate)
 {
-	FScreensMessage Msg;
-	Msg.Type = EScreensMsgType::Request;
-	Msg.TaskType = EScreensTaskType::AddToHistory;
+	FScreensTask Task;
+	Task.TaskRequestType = FScreensTask::ETaskRequestType::Request;
+	Task.TaskType = FScreensTask::ETaskType::AddToHistory;
 	if (OptionalResultDelegate.IsSet())
 	{
-		Msg.EntryDelegate = OptionalResultDelegate.GetValue();
+		Task.EntryRequestDelegate = OptionalResultDelegate.GetValue();
 	}
-	Msg.WatchHistory.Add(NewEntry);
-	FMagicLeapScreensPlugin::Impl->ProcessMessage(Msg);
+	Task.WatchHistory.Add(NewEntry);
+	Runnable->PushNewTask(Task);
 }
 
-void FMagicLeapScreensPlugin::UpdateWatchHistoryEntryAsync(const FScreensWatchHistoryEntry& UpdateEntry, const TOptional<FScreensEntryRequestResultDelegate>& OptionalResultDelegate)
+void FMagicLeapScreensPlugin::UpdateWatchHistoryEntryAsync(const FMagicLeapScreensWatchHistoryEntry& UpdateEntry, const TOptional<FMagicLeapScreensEntryRequestResultDelegate>& OptionalResultDelegate)
 {
-	FScreensMessage Msg;
-	Msg.Type = EScreensMsgType::Request;
-	Msg.TaskType = EScreensTaskType::UpdateEntry;
+	FScreensTask Task;
+	Task.TaskRequestType = FScreensTask::ETaskRequestType::Request;
+	Task.TaskType = FScreensTask::ETaskType::UpdateHistoryEntry;
 	if (OptionalResultDelegate.IsSet())
 	{
-		Msg.EntryDelegate = OptionalResultDelegate.GetValue();
+		Task.EntryRequestDelegate = OptionalResultDelegate.GetValue();
 	}
-	Msg.WatchHistory.Add(UpdateEntry);
-	FMagicLeapScreensPlugin::Impl->ProcessMessage(Msg);
+	Task.WatchHistory.Add(UpdateEntry);
+	Runnable->PushNewTask(Task);
 }
 
-
-FScreensMessage FMagicLeapScreensPlugin::GetWatchHistoryEntries()
+void FMagicLeapScreensPlugin::UpdateScreenTransformAsync(const FMagicLeapScreenTransform& UpdateTransform, const FMagicLeapScreenTransformRequestResultDelegate& ResultDelegate)
 {
-	FScreensMessage Msg;
-	Msg.Type = EScreensMsgType::Response;
-	Msg.TaskType = EScreensTaskType::GetHistory;
-#if WITH_MLSDK
+	FScreensTask Task;
+	Task.TaskRequestType = FScreensTask::ETaskRequestType::Request;
+	Task.TaskType = FScreensTask::ETaskType::UpdateInfoEntry;
+	Task.TransformRequestDelegate = ResultDelegate;
+	Task.ScreenTransform = UpdateTransform;
+	Runnable->PushNewTask(Task);
+}
+
+FScreensTask FMagicLeapScreensPlugin::GetWatchHistoryEntries()
+{
+	FScreensTask Task;
+	Task.TaskRequestType = FScreensTask::ETaskRequestType::Response;
+	Task.TaskType = FScreensTask::ETaskType::GetHistory;
+	#if WITH_MLSDK
 	{
-		FScopeLock Lock(&FMagicLeapScreensPlugin::CriticalSection);
+		FScopeLock Lock(&CriticalSection);
 		MLScreensWatchHistoryList WatchHistoryList;
 		MLResult Result = MLScreensGetWatchHistoryList(&WatchHistoryList);
 		if (Result == MLResult_Ok)
 		{
-			Msg.WatchHistory.Reserve(WatchHistoryList.count);
+			Task.WatchHistory.Reserve(WatchHistoryList.count);
 			for (uint32 i = 0; i < WatchHistoryList.count; ++i)
 			{
-				FScreensWatchHistoryEntry WatchHistoryEntry;
-				FMagicLeapScreensPlugin::MLWatchHistoryEntryToUnreal(WatchHistoryList.entries[i], WatchHistoryEntry);
-				Msg.WatchHistory.Add(WatchHistoryEntry);
+				FMagicLeapScreensWatchHistoryEntry WatchHistoryEntry;
+				MLWatchHistoryEntryToUnreal(WatchHistoryList.entries[i], WatchHistoryEntry);
+				Task.WatchHistory.Add(WatchHistoryEntry);
 			}
 			Result = MLScreensReleaseWatchHistoryList(&WatchHistoryList);
 			UE_CLOG(Result != MLResult_Ok, LogScreensPlugin, Error, TEXT("MLScreensReleaseWatchHistoryList failed with error %s!"), UTF8_TO_TCHAR(MLScreensGetResultString(Result)));
-			Msg.bSuccess = true;
+			Task.bSuccess = true;
 		}
 		else
 		{
-			Msg.bSuccess = false;
+			Task.bSuccess = false;
 			UE_LOG(LogScreensPlugin, Error, TEXT("MLScreensGetWatchHistoryList failed with error %s!"), UTF8_TO_TCHAR(MLScreensGetResultString(Result)));
 		}
 	}
-#endif // WITH_MLSDK
-	return Msg;
+	#endif // WITH_MLSDK
+	return Task;
 }
 
 bool FMagicLeapScreensPlugin::ClearWatchHistory()
 {
 #if WITH_MLSDK
 	{
-		FScopeLock Lock(&FMagicLeapScreensPlugin::CriticalSection);
+		FScopeLock Lock(&CriticalSection);
 		MLScreensWatchHistoryList WatchHistoryList;
 		MLResult Result = MLScreensGetWatchHistoryList(&WatchHistoryList);
 		if (Result == MLResult_Ok)
@@ -303,19 +322,19 @@ bool FMagicLeapScreensPlugin::ClearWatchHistory()
 			return false;
 		}
 	}
-#endif //WITH_MLSDK
-	return true;
+#endif // WITH_MLSDK
+	return false;
 }
 
-FScreensMessage FMagicLeapScreensPlugin::AddToWatchHistory(const FScreensWatchHistoryEntry& WatchHistoryEntry)
+FScreensTask FMagicLeapScreensPlugin::AddToWatchHistory(const FMagicLeapScreensWatchHistoryEntry& WatchHistoryEntry)
 {
-	FScreensMessage Msg;
-	Msg.Type = EScreensMsgType::Response;
-	Msg.TaskType = EScreensTaskType::AddToHistory;
+	FScreensTask Task;
+	Task.TaskRequestType = FScreensTask::ETaskRequestType::Response;
+	Task.TaskType = FScreensTask::ETaskType::AddToHistory;
 
 #if WITH_MLSDK
 	{
-		FScopeLock Lock(&FMagicLeapScreensPlugin::CriticalSection);
+		FScopeLock Lock(&CriticalSection);
 		MLScreensWatchHistoryEntry Entry;
 		Entry.title = TCHAR_TO_UTF8(*WatchHistoryEntry.Title);
 		Entry.subtitle = TCHAR_TO_UTF8(*WatchHistoryEntry.Subtitle);
@@ -324,41 +343,41 @@ FScreensMessage FMagicLeapScreensPlugin::AddToWatchHistory(const FScreensWatchHi
 		Entry.custom_data = TCHAR_TO_UTF8(*WatchHistoryEntry.CustomData);
 		MLImage MLThumbnail;
 
-		if (FMagicLeapScreensPlugin::ShouldUseDefaultThumbnail(WatchHistoryEntry, MLThumbnail))
+		if (ShouldUseDefaultThumbnail(WatchHistoryEntry, MLThumbnail))
 		{
-			MLThumbnail = FMagicLeapScreensPlugin::DefaultThumbnail;
+			MLThumbnail = DefaultThumbnail;
 		}
 
 		MLResult Result = MLScreensInsertWatchHistoryEntry(&Entry, &MLThumbnail);
 		if (Result != MLResult_Ok)
 		{
 			UE_LOG(LogScreensPlugin, Error, TEXT("MLScreensInsertWatchHistoryEntry failed with error %s!"), UTF8_TO_TCHAR(MLScreensGetResultString(Result)));
-			Msg.WatchHistory.Add(WatchHistoryEntry);
-			Msg.bSuccess = false;
+			Task.WatchHistory.Add(WatchHistoryEntry);
+			Task.bSuccess = false;
 		}
 		else
 		{
-			FScreensWatchHistoryEntry NewEntry;
-			FMagicLeapScreensPlugin::MLWatchHistoryEntryToUnreal(Entry, NewEntry);
-			Msg.WatchHistory.Add(NewEntry);
-			Msg.bSuccess = true;
+			FMagicLeapScreensWatchHistoryEntry NewEntry;
+			MLWatchHistoryEntryToUnreal(Entry, NewEntry);
+			Task.WatchHistory.Add(NewEntry);
+			Task.bSuccess = true;
 		}
 	}
 #endif // WITH_MLSDK
-	return Msg;
+	return Task;
 }
 
-FScreensMessage FMagicLeapScreensPlugin::UpdateWatchHistoryEntry(const FScreensWatchHistoryEntry& WatchHistoryEntry)
+FScreensTask FMagicLeapScreensPlugin::UpdateWatchHistoryEntry(const FMagicLeapScreensWatchHistoryEntry& WatchHistoryEntry)
 {
-	FScreensMessage Msg;
-	Msg.Type = EScreensMsgType::Response;
-	Msg.TaskType = EScreensTaskType::UpdateEntry;
+	FScreensTask Task;
+	Task.TaskRequestType = FScreensTask::ETaskRequestType::Response;
+	Task.TaskType = FScreensTask::ETaskType::UpdateHistoryEntry;
 
 #if WITH_MLSDK
 	{
-		FScopeLock Lock(&FMagicLeapScreensPlugin::CriticalSection);
+		FScopeLock Lock(&CriticalSection);
 		MLScreensWatchHistoryEntry Entry;
-		Entry.id = WatchHistoryEntry.ID.ID;
+		Entry.id = MagicLeap::FGuidToMLHandle(WatchHistoryEntry.ID);
 		Entry.title = TCHAR_TO_UTF8(*WatchHistoryEntry.Title);
 		Entry.subtitle = TCHAR_TO_UTF8(*WatchHistoryEntry.Subtitle);
 		Entry.playback_position_ms = static_cast<uint32>(WatchHistoryEntry.PlaybackPosition.GetTotalMilliseconds());
@@ -366,59 +385,82 @@ FScreensMessage FMagicLeapScreensPlugin::UpdateWatchHistoryEntry(const FScreensW
 		Entry.custom_data = TCHAR_TO_UTF8(*WatchHistoryEntry.CustomData);
 		MLImage MLThumbnail;
 
-		if (FMagicLeapScreensPlugin::ShouldUseDefaultThumbnail(WatchHistoryEntry, MLThumbnail))
+		if (ShouldUseDefaultThumbnail(WatchHistoryEntry, MLThumbnail))
 		{
-			MLThumbnail = FMagicLeapScreensPlugin::DefaultThumbnail;
+			MLThumbnail = DefaultThumbnail;
 		}
 
 		MLResult Result = MLScreensUpdateWatchHistoryEntry(&Entry, &MLThumbnail);
 		if (Result != MLResult_Ok)
 		{
 			UE_LOG(LogScreensPlugin, Error, TEXT("MLScreensUpdateWatchHistoryEntry failed with error %s!"), UTF8_TO_TCHAR(MLScreensGetResultString(Result)));
-			Msg.WatchHistory.Add(WatchHistoryEntry);
-			Msg.bSuccess = false;
+			Task.WatchHistory.Add(WatchHistoryEntry);
+			Task.bSuccess = false;
 		}
 		else
 		{
-			FScreensWatchHistoryEntry UpdatedEntry;
+			FMagicLeapScreensWatchHistoryEntry UpdatedEntry;
 			MLWatchHistoryEntryToUnreal(Entry, UpdatedEntry);
-			Msg.WatchHistory.Add(UpdatedEntry);
-			Msg.bSuccess = true;
+			Task.WatchHistory.Add(UpdatedEntry);
+			Task.bSuccess = true;
 		}
 	}
 #endif // WITH_MLSDK
-	return Msg;
+	return Task;
 }
 
 bool FMagicLeapScreensPlugin::Tick(float DeltaTime)
 {
-	if (!FMagicLeapScreensPlugin::Impl->OutgoingMessages.IsEmpty())
+	if (!Runnable->CompletedTaskQueueIsEmpty())
 	{
-		FScreensMessage Msg;
-		FMagicLeapScreensPlugin::Impl->OutgoingMessages.Dequeue(Msg);
-
-		if (Msg.Type == EScreensMsgType::Request)
+		FScreensTask CompletedTask;
+		Runnable->PeekCompletedTasks(CompletedTask);
+		if (!Runnable->TryGetCompletedTask(CompletedTask))
 		{
-			UE_LOG(LogScreensPlugin, Error, TEXT("Unexpected EScreensMsgType::Request received from worker thread!"));
+			return true;
 		}
-		else if (Msg.Type == EScreensMsgType::Response)
+
+		if (CompletedTask.TaskRequestType == FScreensTask::ETaskRequestType::Request)
 		{
-			switch (Msg.TaskType)
+			UE_LOG(LogScreensPlugin, Error, TEXT("Unexpected request received from worker thread!"));
+		}
+		else if (CompletedTask.TaskRequestType == FScreensTask::ETaskRequestType::Response)
+		{
+			switch (CompletedTask.TaskType)
 			{
-			case EScreensTaskType::None: break;
-			case EScreensTaskType::GetHistory:
+			case FScreensTask::ETaskType::None: break;
+			case FScreensTask::ETaskType::GetHistory:
 			{
-				Msg.HistoryDelegate.ExecuteIfBound(Msg.bSuccess, Msg.WatchHistory);
+				CompletedTask.HistoryRequestDelegate.ExecuteIfBound(CompletedTask.bSuccess, CompletedTask.WatchHistory);
 			}
 			break;
-			case EScreensTaskType::AddToHistory:
+			case FScreensTask::ETaskType::AddToHistory:
 			{
-				Msg.EntryDelegate.ExecuteIfBound(Msg.bSuccess, Msg.WatchHistory[0]);
+				if (CompletedTask.WatchHistory.Num() > 0)
+				{
+					CompletedTask.EntryRequestDelegate.ExecuteIfBound(CompletedTask.bSuccess, CompletedTask.WatchHistory[0]);
+				}
+				else
+				{
+					UE_LOG(LogScreensPlugin, Error, TEXT("Unexpected empty watch history in an AddToHistory response from the worker thread!"));
+				}
 			}
 			break;
-			case EScreensTaskType::UpdateEntry:
+			case FScreensTask::ETaskType::UpdateHistoryEntry:
 			{
-				Msg.EntryDelegate.ExecuteIfBound(Msg.bSuccess, Msg.WatchHistory[0]);
+				if (CompletedTask.WatchHistory.Num() > 0)
+				{
+					CompletedTask.EntryRequestDelegate.ExecuteIfBound(CompletedTask.bSuccess, CompletedTask.WatchHistory[0]);
+				}
+				else
+				{
+					UE_LOG(LogScreensPlugin, Error, TEXT("Unexpected empty watch history in an UpdateHistoryEntry response from the worker thread!"));
+				}
+			}
+			break;
+			case FScreensTask::ETaskType::UpdateInfoEntry:
+			{
+				CompletedTask.TransformRequestDelegate.ExecuteIfBound(CompletedTask.bSuccess);
 			}
 			break;
 			}
@@ -427,60 +469,108 @@ bool FMagicLeapScreensPlugin::Tick(float DeltaTime)
 	return true;
 }
 
-bool FMagicLeapScreensPlugin::GetScreensTransforms(TArray<FScreenTransform>& ScreensTransforms)
+FScreensTask FMagicLeapScreensPlugin::UpdateScreensTransform(const FMagicLeapScreenTransform& InScreenTransform)
+{
+	FScreensTask Task;
+	Task.TaskRequestType = FScreensTask::ETaskRequestType::Response;
+	Task.TaskType = FScreensTask::ETaskType::UpdateInfoEntry;
+#if WITH_MLSDK
+	const IMagicLeapPlugin& MLPlugin = IMagicLeapPlugin::GetModuleChecked();
+	if (!MLPlugin.IsMagicLeapHMDValid())
+	{
+		return Task;
+	}
+
+	float WorldToMetersScale = MLPlugin.GetWorldToMetersScale();
+	const FTransform WorldToTracking = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(nullptr).Inverse();
+
+	MLScreensScreenInfoEx ScreensInfo;
+	ScreensInfo.screen_id = MagicLeap::FGuidToMLHandle(InScreenTransform.ID);
+	ScreensInfo.version = InScreenTransform.VersionNumber;
+	ScreensInfo.dimensions = MagicLeap::ToMLVectorExtents(InScreenTransform.ScreenDimensions, WorldToMetersScale);
+	ScreensInfo.transform = MagicLeap::ToMLMat4f(WorldToTracking.TransformPosition(InScreenTransform.ScreenPosition), WorldToTracking.TransformRotation(InScreenTransform.ScreenOrientation.Quaternion()), InScreenTransform.ScreenScale3D, WorldToMetersScale);
+
+	MLResult Result = MLScreensUpdateScreenInfo(&ScreensInfo);
+	UE_CLOG(Result != MLResult_Ok, LogScreensPlugin, Error, TEXT("MLScreensUpdateScreenInfo failed for entry with ID %d with error %s"), ScreensInfo.screen_id, UTF8_TO_TCHAR(MLScreensGetResultString(Result)));
+	Task.ScreenTransform = InScreenTransform;
+	Task.bSuccess = (Result == MLResult_Ok);
+#endif // WITH_MLSDK
+	return Task;
+}
+
+bool FMagicLeapScreensPlugin::GetScreenTransform(FMagicLeapScreenTransform& ScreenTransform)
+{
+	bool bSuccess = false;
+#if WITH_MLSDK
+	const IMagicLeapPlugin& MLPlugin = IMagicLeapPlugin::GetModuleChecked();
+	if (!MLPlugin.IsMagicLeapHMDValid())
+	{
+		return false;
+	}
+
+	float WorldToMetersScale = MLPlugin.GetWorldToMetersScale();
+
+	// ID used to identify a ScreenInfoEx, must be passed via command line
+	FString IDParam;
+	if (!FParse::Value(FCommandLine::Get(), TEXT("screenId="), IDParam))
+	{
+		UE_LOG(LogScreensPlugin, Error, TEXT("A valid Screen ID was not passed via command line!"));
+		return false;
+	}
+
+	uint64 ScreenID = FCString::Strtoui64(*IDParam, nullptr, 10);
+	ensure(ScreenID != 0);
+
+	MLScreensScreenInfoEx OutScreenInfo;
+	MLScreensScreenInfoExInit(&OutScreenInfo);
+	MLResult Result = MLScreensGetScreenInfo(ScreenID, &OutScreenInfo);
+	OutScreenInfo.screen_id = ScreenID;
+	if (Result == MLResult_Ok)
+	{
+		const FTransform TrackingToWorld = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(nullptr);
+		if (!MLScreenInfoToUnreal(OutScreenInfo, ScreenTransform, TrackingToWorld, WorldToMetersScale))
+		{
+			return false;
+		}
+
+		bSuccess = true;
+	}
+	else
+	{
+		UE_LOG(LogScreensPlugin, Error, TEXT("MLScreensGetScreenInfo failed for screen ID %s with error %s"), *IDParam, UTF8_TO_TCHAR(MLScreensGetResultString(Result)));
+	}
+
+#endif // WITH_MLSDK
+	return bSuccess;
+}
+
+bool FMagicLeapScreensPlugin::GetScreensTransforms(TArray<FMagicLeapScreenTransform>& ScreensTransforms)
 {
 #if WITH_MLSDK
 	ScreensTransforms.Empty();
 
-	if (!IMagicLeapPlugin::Get().IsMagicLeapHMDValid())
+	const IMagicLeapPlugin& MLPlugin = IMagicLeapPlugin::GetModuleChecked();
+	if (!MLPlugin.IsMagicLeapHMDValid())
 	{
 		return false;
 	}
 
-	const FAppFramework& AppFramework = static_cast<FMagicLeapHMD*>(GEngine->XRSystem->GetHMDDevice())->GetAppFrameworkConst();
-	if (!AppFramework.IsInitialized())
-	{
-		return false;
-	}
-	float WorldToMetersScale = AppFramework.GetWorldToMetersScale();
+	float WorldToMetersScale = MLPlugin.GetWorldToMetersScale();
 
 	MLScreensScreenInfoListEx ScreensInfoList;
 	MLScreensScreenInfoListExInit(&ScreensInfoList);
 	MLResult Result = MLScreensGetScreenInfoListEx(&ScreensInfoList);
 	if (Result == MLResult_Ok)
 	{
-		// TODO: Param to GetTrackingToWorldTransform is unused (?)
 		const FTransform TrackingToWorld = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(nullptr);
 		for (uint32 i = 0; i < ScreensInfoList.count; ++i)
 		{
 			MLScreensScreenInfoEx& Entry = ScreensInfoList.entries[i];
-			// TODO: Remove this once Screens team fixes setting dimensions when returning the ScreenInfoEx list
-			MLVec3f Scale = MagicLeap::ScaleFromMLMatrix(Entry.transform);
-			Entry.dimensions.x = 0.874f * Scale.x;
-			Entry.dimensions.y = 0.611f * Scale.y;
-			Entry.dimensions.z = 0.5f * Scale.z;
-			FScreenTransform ScreenTransform;
-
-			FTransform EntryTransform = FTransform(FQuat(FVector(0.0, 0.0, 1.0), PI) * MagicLeap::ToFQuat(Entry.transform), MagicLeap::ToFVector(Entry.transform, WorldToMetersScale), FVector(1.0, 1.0, 1.0));
-			if (EntryTransform.ContainsNaN())
+			FMagicLeapScreenTransform ScreenTransform;
+			if (!MLScreenInfoToUnreal(Entry, ScreenTransform, TrackingToWorld, WorldToMetersScale))
 			{
-				UE_LOG(LogScreensPlugin, Error, TEXT("Screens info entry %d transform contains NaN."), Entry.screen_id);
 				continue;
 			}
-			if (!EntryTransform.GetRotation().IsNormalized())
-			{
-				FQuat rotation = EntryTransform.GetRotation();
-				rotation.Normalize();
-				EntryTransform.SetRotation(rotation);
-			}
-			EntryTransform = EntryTransform * TrackingToWorld;
-
-			ScreenTransform.ScreenPosition = EntryTransform.GetLocation();
-			ScreenTransform.ScreenOrientation = EntryTransform.Rotator();
-			ScreenTransform.ScreenDimensions = MagicLeap::ToFVector(Entry.dimensions, WorldToMetersScale);
-			ScreenTransform.ScreenDimensions.X = FMath::Abs<float>(ScreenTransform.ScreenDimensions.X);
-			ScreenTransform.ScreenDimensions.Y = FMath::Abs<float>(ScreenTransform.ScreenDimensions.Y);
-			ScreenTransform.ScreenDimensions.Z = FMath::Abs<float>(ScreenTransform.ScreenDimensions.Z);
 
 			ScreensTransforms.Add(ScreenTransform);
 		}
@@ -498,6 +588,11 @@ bool FMagicLeapScreensPlugin::GetScreensTransforms(TArray<FScreenTransform>& Scr
 	}
 #endif // WITH_MLSDK
 	return true;
+}
+
+FScreensRunnable* FMagicLeapScreensPlugin::GetRunnable() const
+{
+	return Runnable;
 }
 
 IMPLEMENT_MODULE(FMagicLeapScreensPlugin, MagicLeapScreens);

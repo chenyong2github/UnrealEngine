@@ -17,6 +17,7 @@
 #elif WITH_CHAOS
 #include "Physics/Experimental/ChaosInterfaceWrapper.h"
 #include "Physics/Experimental/PhysInterface_Chaos.h"
+#include "Chaos/ParticleHandle.h"
 #endif
 #include "PhysicsEngine/CollisionQueryFilterCallback.h"
 
@@ -381,7 +382,10 @@ EConvertQueryResult ConvertTraceResults(bool& OutHasValidBlockingHit, const UWor
 	const FVector Dir = (EndLoc - StartLoc).GetSafeNormal();
 	if (TIsSame<Hit, FHitSweep>::Value)
 	{
-		SetInternalFaceIndex(Hits[0], FindFaceIndex(Hits[0], Dir));
+		if (!HadInitialOverlap(Hits[0]))
+		{
+			SetInternalFaceIndex(Hits[0], FindFaceIndex(Hits[0], Dir));
+		}
 	}
 	EConvertQueryResult Result = ConvertQueryImpactHit(World, Hits[0], OutHit, CheckLength, QueryFilter, StartLoc, EndLoc, &Geom, QueryTM, bReturnFaceIndex, bReturnPhysMat);
 	OutHasValidBlockingHit = Result == EConvertQueryResult::Valid;
@@ -509,17 +513,13 @@ void ConvertQueryOverlap(const FPhysicsShape& Shape, const FPhysicsActor& Actor,
 	// Try body instance
 	if (const FBodyInstance* BodyInst = GetUserData(Actor))
 	{
-#if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
-        ensure(false);
-#else
-        BodyInst = FPhysicsInterface_PhysX::ShapeToOriginalBodyInstance(BodyInst, &Shape);
+        BodyInst = FPhysicsInterface::ShapeToOriginalBodyInstance(BodyInst, &Shape);
 		if (const UPrimitiveComponent* OwnerComponent = BodyInst->OwnerComponent.Get())
 		{
 			OutOverlap.Actor = OwnerComponent->GetOwner();
 			OutOverlap.Component = BodyInst->OwnerComponent; // Copying weak pointer is faster than assigning raw pointer.
 			OutOverlap.ItemIndex = OwnerComponent->bMultiBodyOverlap ? BodyInst->InstanceBodyIndex : INDEX_NONE;
 		}
-#endif
 	}
 #if PHYSICS_INTERFACE_PHYSX
 	else if(const FCustomPhysXPayload* CustomPayload = GetUserData<FCustomPhysXPayload>(Shape))

@@ -30,15 +30,13 @@ public class MeshUtilities : ModuleRules
 				"HierarchicalLODUtilities",
 				"Landscape",
 				"LevelEditor",
-				"AnimationBlueprintEditor",
-				"AnimationEditor",
-				"SkeletalMeshEditor",
 				"PropertyEditor",
 				"EditorStyle",
                 "GraphColor",
-                "MeshBuilder",
+                "MeshBuilderCommon",
                 "MeshUtilitiesCommon",
                 "MeshDescription",
+				"StaticMeshDescription",
                 "MeshDescriptionOperations"
             }
 		);
@@ -51,15 +49,22 @@ public class MeshUtilities : ModuleRules
 
         PrivateIncludePathModuleNames.AddRange(
           new string[] {
+				"AnimationBlueprintEditor",
+				"AnimationEditor",
                 "MeshMergeUtilities",
                 "MaterialBaking",
+				"Persona",
+				"SkeletalMeshEditor",
           }
       );
 
         DynamicallyLoadedModuleNames.AddRange(
             new string[] {
+				"AnimationBlueprintEditor",
+				"AnimationEditor",
                 "MeshMergeUtilities",
                 "MaterialBaking",
+				"SkeletalMeshEditor",
             }
         );
 

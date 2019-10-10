@@ -13,6 +13,7 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "EngineDefines.h"
 #include "EngineGlobals.h"
+#include "EngineStats.h"
 #include "RHIDefinitions.h"
 #include "SceneTypes.h"
 #include "SceneInterface.h"
@@ -109,7 +110,7 @@ static FAutoConsoleVariableRef CVarAllowSubPrimitiveQueries(
 	ECVF_RenderThreadSafe
 	);
 
-static TAutoConsoleVariable<float> CVarStaticMeshLODDistanceScale(
+RENDERER_API TAutoConsoleVariable<float> CVarStaticMeshLODDistanceScale(
 	TEXT("r.StaticMeshLODDistanceScale"),
 	1.0f,
 	TEXT("Scale factor for the distance used in computing discrete LOD for static meshes. (defaults to 1)\n")
@@ -2230,7 +2231,7 @@ struct FRelevancePacket
 					if (ViewRelevance.bDrawRelevance)
 					{
 						if ((StaticMeshRelevance.bUseForMaterial || StaticMeshRelevance.bUseAsOccluder)
-							&& (ViewRelevance.bRenderInMainPass || ViewRelevance.bRenderCustomDepth) 
+							&& (ViewRelevance.bRenderInMainPass || ViewRelevance.bRenderCustomDepth || ViewRelevance.bRenderInDepthPass)
 							&& !bHiddenByHLODFade)
 						{
 							if (StaticMeshRelevance.bUseForDepthPass && bDrawDepthOnly)
@@ -2239,7 +2240,7 @@ struct FRelevancePacket
 							}
 
 							// Mark static mesh as visible for rendering
-							if (StaticMeshRelevance.bUseForMaterial)
+							if (StaticMeshRelevance.bUseForMaterial && (ViewRelevance.bRenderInMainPass || ViewRelevance.bRenderCustomDepth))
 							{
 								DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::BasePass);
 								MarkMask |= EMarkMaskBits::StaticMeshVisibilityMapMask;
@@ -2289,14 +2290,31 @@ struct FRelevancePacket
 								}
 #endif
 
-								if (ViewRelevance.bVelocityRelevance
-									&& FVelocityRendering::PrimitiveHasVelocity(View.GetFeatureLevel(), PrimitiveSceneInfo)
-									&& FVelocityRendering::PrimitiveHasVelocityForView(View, Bounds.BoxSphereBounds, PrimitiveSceneInfo))
+								if (ViewRelevance.HasVelocity())
 								{
-									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::Velocity);
+									const FPrimitiveSceneProxy* PrimitiveSceneProxy = PrimitiveSceneInfo->Proxy;
+
+									if (FVelocityMeshProcessor::PrimitiveHasVelocityForView(View, PrimitiveSceneProxy))
+									{
+										if (ViewRelevance.bVelocityRelevance &&
+											FOpaqueVelocityMeshProcessor::PrimitiveCanHaveVelocity(View.GetShaderPlatform(), PrimitiveSceneProxy) &&
+											FOpaqueVelocityMeshProcessor::PrimitiveHasVelocityForFrame(PrimitiveSceneProxy))
+										{
+											DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::Velocity);
+										}
+
+										if (ViewRelevance.bTranslucentVelocityRelevance &&
+											FTranslucentVelocityMeshProcessor::PrimitiveCanHaveVelocity(View.GetShaderPlatform(), PrimitiveSceneProxy) &&
+											FTranslucentVelocityMeshProcessor::PrimitiveHasVelocityForFrame(PrimitiveSceneProxy))
+										{
+											DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::TranslucentVelocity);
+										}
+									}
 								}
 
 								++NumVisibleStaticMeshElements;
+
+								INC_DWORD_STAT_BY(STAT_StaticMeshTriangles, StaticMesh.GetNumPrimitives());
 							}
 
 							bNeedsBatchVisibility = true;
@@ -2658,64 +2676,71 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 {
 	const int32 NumElements = MeshBatch.Mesh->Elements.Num();
 
-	if (ViewRelevance.bDrawRelevance && (ViewRelevance.bRenderInMainPass || ViewRelevance.bRenderCustomDepth))
+	if (ViewRelevance.bDrawRelevance && (ViewRelevance.bRenderInMainPass || ViewRelevance.bRenderCustomDepth || ViewRelevance.bRenderInDepthPass))
 	{
 		PassMask.Set(EMeshPass::DepthPass);
 		View.NumVisibleDynamicMeshElements[EMeshPass::DepthPass] += NumElements;
 
-		PassMask.Set(EMeshPass::BasePass);
-		View.NumVisibleDynamicMeshElements[EMeshPass::BasePass] += NumElements;
-
-		if (ShadingPath == EShadingPath::Mobile)
+		if (ViewRelevance.bRenderInMainPass || ViewRelevance.bRenderCustomDepth)
 		{
-			PassMask.Set(EMeshPass::MobileBasePassCSM);
-			View.NumVisibleDynamicMeshElements[EMeshPass::MobileBasePassCSM] += NumElements;
-		}
+			PassMask.Set(EMeshPass::BasePass);
+			View.NumVisibleDynamicMeshElements[EMeshPass::BasePass] += NumElements;
 
-		if (ViewRelevance.bRenderCustomDepth)
-		{
-			PassMask.Set(EMeshPass::CustomDepth);
-			View.NumVisibleDynamicMeshElements[EMeshPass::CustomDepth] += NumElements;
-		}
+			if (ShadingPath == EShadingPath::Mobile)
+			{
+				PassMask.Set(EMeshPass::MobileBasePassCSM);
+				View.NumVisibleDynamicMeshElements[EMeshPass::MobileBasePassCSM] += NumElements;
+			}
 
-		if (bAddLightmapDensityCommands)
-		{
-			PassMask.Set(EMeshPass::LightmapDensity);
-			View.NumVisibleDynamicMeshElements[EMeshPass::LightmapDensity] += NumElements;
-		}
+			if (ViewRelevance.bRenderCustomDepth)
+			{
+				PassMask.Set(EMeshPass::CustomDepth);
+				View.NumVisibleDynamicMeshElements[EMeshPass::CustomDepth] += NumElements;
+			}
+
+			if (bAddLightmapDensityCommands)
+			{
+				PassMask.Set(EMeshPass::LightmapDensity);
+				View.NumVisibleDynamicMeshElements[EMeshPass::LightmapDensity] += NumElements;
+			}
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		else if (View.Family->UseDebugViewPS())
-		{
-			PassMask.Set(EMeshPass::DebugViewMode);
-			View.NumVisibleDynamicMeshElements[EMeshPass::DebugViewMode] += NumElements;
-		}
+			else if (View.Family->UseDebugViewPS())
+			{
+				PassMask.Set(EMeshPass::DebugViewMode);
+				View.NumVisibleDynamicMeshElements[EMeshPass::DebugViewMode] += NumElements;
+			}
 #endif
 
 #if WITH_EDITOR
-		if (View.bAllowTranslucentPrimitivesInHitProxy)
-		{
-			PassMask.Set(EMeshPass::HitProxy);
-			View.NumVisibleDynamicMeshElements[EMeshPass::HitProxy] += NumElements;
-		}
-		else
-		{
-			PassMask.Set(EMeshPass::HitProxyOpaqueOnly);
-			View.NumVisibleDynamicMeshElements[EMeshPass::HitProxyOpaqueOnly] += NumElements;
-		}
+			if (View.bAllowTranslucentPrimitivesInHitProxy)
+			{
+				PassMask.Set(EMeshPass::HitProxy);
+				View.NumVisibleDynamicMeshElements[EMeshPass::HitProxy] += NumElements;
+			}
+			else
+			{
+				PassMask.Set(EMeshPass::HitProxyOpaqueOnly);
+				View.NumVisibleDynamicMeshElements[EMeshPass::HitProxyOpaqueOnly] += NumElements;
+			}
 #endif
 
-		if (ViewRelevance.bVelocityRelevance
-				&& FVelocityRendering::PrimitiveHasVelocity(View.GetFeatureLevel(), PrimitiveSceneInfo)
-				&& FVelocityRendering::PrimitiveHasVelocityForView(View, Bounds.BoxSphereBounds, PrimitiveSceneInfo))
-		{
-			PassMask.Set(EMeshPass::Velocity);
-			View.NumVisibleDynamicMeshElements[EMeshPass::Velocity] += NumElements;
-		}
+			if (ViewRelevance.bVelocityRelevance)
+			{
+				PassMask.Set(EMeshPass::Velocity);
+				View.NumVisibleDynamicMeshElements[EMeshPass::Velocity] += NumElements;
+			}
 
-		if (ViewRelevance.bUsesSingleLayerWaterMaterial)
-		{
-			PassMask.Set(EMeshPass::SingleLayerWaterPass);
-			View.NumVisibleDynamicMeshElements[EMeshPass::SingleLayerWaterPass] += NumElements;
+			if (ViewRelevance.bTranslucentVelocityRelevance)
+			{
+				PassMask.Set(EMeshPass::TranslucentVelocity);
+				View.NumVisibleDynamicMeshElements[EMeshPass::TranslucentVelocity] += NumElements;
+			}
+
+			if (ViewRelevance.bUsesSingleLayerWaterMaterial)
+			{
+				PassMask.Set(EMeshPass::SingleLayerWaterPass);
+				View.NumVisibleDynamicMeshElements[EMeshPass::SingleLayerWaterPass] += NumElements;
+			}
 		}
 	}
 
@@ -2978,11 +3003,20 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 		}
 	}
 
+	RunGPUSkinCacheTransition(RHICmdList, Scene, EGPUSkinCacheTransition::FrameSetup);
+
+	if (IsHairStrandsEnable(Scene->GetShaderPlatform()) && Views.Num() > 0)
+	{
+		const EWorldType::Type WorldType = Views[0].Family->Scene->GetWorld()->WorldType;
+		auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
+		RunHairStrandsInterpolation(RHICmdList, WorldType, ShaderMap, EHairStrandsInterpolationType::SimulationStrands);
+	}
+
 	// Notify the FX system that the scene is about to perform visibility checks.
 
 	if (Scene->FXSystem && Views.IsValidIndex(0))
 	{
-		Scene->FXSystem->PreInitViews(RHICmdList, Views[0].AllowGPUParticleUpdate());
+		Scene->FXSystem->PreInitViews(RHICmdList, Views[0].AllowGPUParticleUpdate() && !ViewFamily.EngineShowFlags.HitProxies);
 	}
 
 	// Draw lines to lights affecting this mesh if its selected.

@@ -60,16 +60,22 @@ public:
 	virtual void DefaultConnect() = 0;
 
 	/**
-	 * Disconnect from the current session if any,
-	 * but prompt the about session changes first
+	 * Disconnect from the current session if any, but prompt the user about session changes first.
+	 * @param bAlwaysAskConfirmation Prompt the user to confirm leaving the session even if they are no changes to persist.
+	 * @return true if the session is disconnected, false if the user declined.
 	 */
-	virtual void DisconnectSession() = 0;
+	virtual bool DisconnectSession(bool bAlwaysAskConfirmation = false) = 0;
 
 	/**
 	 * Launches a server (if none are running) on the local machine. On success, the server is launched. On
 	 * failure, an asynchronous notification (banner) is displayed to the user.
 	 */
 	virtual void LaunchConcertServer() = 0;
+
+	/**
+	 * Shuts down all local servers running. Do nothing if no servers are running.
+	 */
+	virtual void ShutdownConcertServer() = 0;
 
 	/**
 	 * @return true if the Concert server is running on the local machine.

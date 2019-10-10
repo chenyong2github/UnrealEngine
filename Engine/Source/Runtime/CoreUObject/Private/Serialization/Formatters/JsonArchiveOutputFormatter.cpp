@@ -17,9 +17,6 @@ FJsonArchiveOutputFormatter::FJsonArchiveOutputFormatter(FArchive& InInner)
 	, Newline(LINE_TERMINATOR_ANSI, UE_ARRAY_COUNT(LINE_TERMINATOR_ANSI) - 1)
 {
 	Inner.SetIsTextFormat(true);
-
-	bNeedsComma = false;
-	bNeedsNewline = false;
 }
 
 FJsonArchiveOutputFormatter::~FJsonArchiveOutputFormatter()
@@ -43,6 +40,7 @@ void FJsonArchiveOutputFormatter::EnterRecord()
 	Write("{");
 	Newline.Add('\t');
 	bNeedsNewline = true;
+	TextStartPosStack.Push(Inner.Tell());
 }
 
 void FJsonArchiveOutputFormatter::EnterRecord_TextOnly(TArray<FString>& OutFieldNames)
@@ -54,6 +52,10 @@ void FJsonArchiveOutputFormatter::EnterRecord_TextOnly(TArray<FString>& OutField
 void FJsonArchiveOutputFormatter::LeaveRecord()
 {
 	Newline.Pop(false);
+	if (TextStartPosStack.Pop() == Inner.Tell())
+	{
+		bNeedsNewline = false;
+	}
 	WriteOptionalNewline();
 	Write("}");
 	bNeedsComma = true;
@@ -121,6 +123,7 @@ void FJsonArchiveOutputFormatter::EnterStream()
 	Write("[");
 	Newline.Add('\t');
 	bNeedsNewline = true;
+	TextStartPosStack.Push(Inner.Tell());
 }
 
 void FJsonArchiveOutputFormatter::EnterStream_TextOnly(int32& OutNumElements)
@@ -132,6 +135,10 @@ void FJsonArchiveOutputFormatter::EnterStream_TextOnly(int32& OutNumElements)
 void FJsonArchiveOutputFormatter::LeaveStream()
 {
 	Newline.Pop(false);
+	if (TextStartPosStack.Pop() == Inner.Tell())
+	{
+		bNeedsNewline = false;
+	}
 	WriteOptionalNewline();
 	Write("]");
 	bNeedsComma = true;
@@ -182,6 +189,58 @@ void FJsonArchiveOutputFormatter::LeaveMapElement()
 	LeaveField();
 }
 
+void FJsonArchiveOutputFormatter::EnterAttributedValue()
+{
+	NumAttributesStack.Push(0);
+}
+
+void FJsonArchiveOutputFormatter::EnterAttribute(FArchiveFieldName AttributeName)
+{
+	WriteOptionalComma();
+	WriteOptionalNewline();
+	WriteOptionalAttributedBlockOpening();
+	WriteOptionalComma();
+	WriteOptionalNewline();
+	checkf(FCString::Strcmp(AttributeName.Name, TEXT("Value")) != 0, TEXT("Attributes called 'Value' are reserved by the implementation"));
+	WriteFieldName(*FString::Printf(TEXT("_%s"), AttributeName.Name));
+	++NumAttributesStack.Top();
+}
+
+void FJsonArchiveOutputFormatter::LeaveAttribute()
+{
+	bNeedsComma = true;
+	bNeedsNewline = true;
+}
+
+void FJsonArchiveOutputFormatter::LeaveAttributedValue()
+{
+	WriteOptionalAttributedBlockClosing();
+	NumAttributesStack.Pop();
+	bNeedsComma = true;
+	bNeedsNewline = true;
+}
+
+void FJsonArchiveOutputFormatter::EnterAttributedValueValue()
+{
+	WriteOptionalComma();
+	WriteOptionalNewline();
+	WriteOptionalAttributedBlockValue();
+}
+
+bool FJsonArchiveOutputFormatter::TryEnterAttributedValueValue()
+{
+	return false;
+}
+
+bool FJsonArchiveOutputFormatter::TryEnterAttribute(FArchiveFieldName AttributeName, bool bEnterWhenSaving)
+{
+	if (bEnterWhenSaving)
+	{
+		EnterAttribute(AttributeName);
+	}
+	return bEnterWhenSaving;
+}
+
 void FJsonArchiveOutputFormatter::Serialize(uint8& Value)
 {
 	WriteValue(LexToString(Value));
@@ -230,7 +289,7 @@ void FJsonArchiveOutputFormatter::Serialize(float& Value)
 	}
 	else
 	{
-		FString String = FString::Printf(TEXT("%.9g"), Value);
+		FString String = FString::Printf(TEXT("%.17g"), Value);
 #if DO_GUARD_SLOW
 		float RoundTripped;
 		LexFromString(RoundTripped, *String);
@@ -254,7 +313,7 @@ void FJsonArchiveOutputFormatter::Serialize(double& Value)
 		LexFromString(RoundTripped, *String);
 		check(RoundTripped == Value);
 #endif
-		WriteValue(FString::Printf(TEXT("%.17g"), Value));
+		WriteValue(String);
 	}
 }
 
@@ -266,7 +325,7 @@ void FJsonArchiveOutputFormatter::Serialize(bool& Value)
 void FJsonArchiveOutputFormatter::Serialize(FString& Value)
 {
 	// Insert a "String:" prefix to prevent incorrect interpretation as another explicit type
-	if (Value.StartsWith(TEXT("Name:")) || Value.StartsWith(TEXT("Object:")) || Value.StartsWith(TEXT("String:")) || Value.StartsWith(TEXT("Base64:")))
+	if (Value.StartsWith(TEXT("Object:")) || Value.StartsWith(TEXT("String:")) || Value.StartsWith(TEXT("Base64:")))
 	{
 		SerializeStringInternal(FString::Printf(TEXT("String:%s"), *Value));
 	}
@@ -278,18 +337,19 @@ void FJsonArchiveOutputFormatter::Serialize(FString& Value)
 
 void FJsonArchiveOutputFormatter::Serialize(FName& Value)
 {
-	SerializeStringInternal(FString::Printf(TEXT("Name:%s"), *Value.ToString()));
+	SerializeStringInternal(*Value.ToString());
 }
 
 void FJsonArchiveOutputFormatter::Serialize(UObject*& Value)
 {
-	if (Value == nullptr)
+	if (Value != nullptr && IsObjectAllowed(Value))
 	{
-		WriteValue(TEXT("null"));
+		FString FullObjectName = Value->GetFullName(nullptr, EObjectFullNameFlags::IncludeClassPackage);
+		SerializeStringInternal(FString::Printf(TEXT("Object:%s"), *FullObjectName));
 	}
 	else
 	{
-		SerializeStringInternal(FString::Printf(TEXT("Object:%s"), *Value->GetFullName()));
+		WriteValue(TEXT("null"));
 	}
 }
 
@@ -302,9 +362,9 @@ void FJsonArchiveOutputFormatter::Serialize(FText& Value)
 
 void FJsonArchiveOutputFormatter::Serialize(FWeakObjectPtr& Value)
 {
-	if (Value.IsValid())
+	if (Value.IsValid() && IsObjectAllowed(Value.Get()))
 	{
-		SerializeStringInternal(FString::Printf(TEXT("Object:%s"), *Value.Get()->GetFullName()));
+		SerializeStringInternal(FString::Printf(TEXT("Object:%s"), *Value.Get()->GetFullName(nullptr, EObjectFullNameFlags::IncludeClassPackage)));
 	}
 	else
 	{
@@ -322,7 +382,7 @@ void FJsonArchiveOutputFormatter::Serialize(FSoftObjectPath& Value)
 {
 	if (Value.IsValid())
 	{
-		SerializeStringInternal(FString::Printf(TEXT("Object:%s"), *Value.GetAssetPathName().ToString()));
+		SerializeStringInternal(FString::Printf(TEXT("Object:%s"), *Value.ToString()));
 	}
 	else
 	{
@@ -332,7 +392,7 @@ void FJsonArchiveOutputFormatter::Serialize(FSoftObjectPath& Value)
 
 void FJsonArchiveOutputFormatter::Serialize(FLazyObjectPtr& Value)
 {
-	if (Value.IsValid())
+	if (Value.IsValid() && IsObjectAllowed(Value.Get()))
 	{
 		SerializeStringInternal(FString::Printf(TEXT("Lazy:%s"), *Value.GetUniqueID().ToString()));
 	}
@@ -462,6 +522,36 @@ void FJsonArchiveOutputFormatter::WriteOptionalNewline()
 	}
 }
 
+void FJsonArchiveOutputFormatter::WriteOptionalAttributedBlockOpening()
+{
+	if (NumAttributesStack.Top() == 0)
+	{
+		Write('{');
+		Newline.Add('\t');
+		bNeedsNewline = true;
+	}
+}
+
+void FJsonArchiveOutputFormatter::WriteOptionalAttributedBlockValue()
+{
+	if (NumAttributesStack.Top() != 0)
+	{
+		WriteFieldName(TEXT("_Value"));
+	}
+}
+
+void FJsonArchiveOutputFormatter::WriteOptionalAttributedBlockClosing()
+{
+	if (NumAttributesStack.Top() != 0)
+	{
+		Newline.Pop(false);
+		WriteOptionalNewline();
+		Write("}");
+		bNeedsComma                  = true;
+		bNeedsNewline                = true;
+	}
+}
+
 void FJsonArchiveOutputFormatter::SerializeStringInternal(const FString& String)
 {
 	FString Result = TEXT("\"");
@@ -507,6 +597,11 @@ void FJsonArchiveOutputFormatter::SerializeStringInternal(const FString& String)
 	Result += TEXT("\"");
 
 	WriteValue(Result);
+}
+
+bool FJsonArchiveOutputFormatter::IsObjectAllowed(UObject* InObject) const
+{
+	return ObjectIndicesMap == nullptr || ObjectIndicesMap->Contains(InObject);
 }
 
 #endif

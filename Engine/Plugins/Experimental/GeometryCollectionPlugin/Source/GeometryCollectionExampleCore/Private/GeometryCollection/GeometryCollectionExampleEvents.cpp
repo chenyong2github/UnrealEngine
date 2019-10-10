@@ -82,7 +82,6 @@ namespace GeometryCollectionExample
 	template<class T>
 	void Event_Handler()
 	{
-#if INCLUDE_CHAOS
 		Chaos::FEventManager EventManager(Chaos::EMultiBufferMode::Single);
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
 
@@ -169,9 +168,9 @@ namespace GeometryCollectionExample
 		EventManager.FillProducerData(Solver);
 		EventManager.FlipBuffersIfRequired();
 		EventManager.DispatchEvents();
+
 		EXPECT_EQ(HandlerTest.ResultFromHandler2, TestArrayData);
 		EXPECT_EQ(AnotherHandlerTest.ResultFromHandler2, TestArrayData);
-#endif
 	}
 	template void Event_Handler<float>();
 

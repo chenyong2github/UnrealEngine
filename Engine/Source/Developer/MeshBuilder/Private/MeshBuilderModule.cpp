@@ -5,6 +5,8 @@
 
 #include "StaticMeshBuilder.h"
 #include "Engine/StaticMesh.h"
+#include "SkeletalMeshBuilder.h"
+#include "Engine/SkeletalMesh.h"
 
 class FMeshBuilderModule : public IMeshBuilderModule
 {
@@ -26,6 +28,8 @@ public:
 
 	virtual bool BuildMesh(FStaticMeshRenderData& OutRenderData, UObject* Mesh, const FStaticMeshLODGroup& LODGroup) override;
 
+	virtual bool BuildSkeletalMesh(USkeletalMesh* SkeletalMesh, const int32 LODIndex, const bool bRegenDepLODs) override;
+
 private:
 
 };
@@ -41,4 +45,10 @@ bool FMeshBuilderModule::BuildMesh(FStaticMeshRenderData& OutRenderData, class U
 		return FStaticMeshBuilder().Build(OutRenderData, StaticMesh, LODGroup);
 	}
 	return false;
+}
+
+bool FMeshBuilderModule::BuildSkeletalMesh(USkeletalMesh* SkeletalMesh, const int32 LODIndex, const bool bRegenDepLODs)
+{
+	//Call the skeletal mesh builder
+	return FSkeletalMeshBuilder().Build(SkeletalMesh, LODIndex, bRegenDepLODs);
 }

@@ -3,10 +3,11 @@
 #include "LiveLinkClient.h"
 
 #include "Async/Async.h"
-#include "Misc/App.h"
-#include "Misc/Guid.h"
-#include "Misc/ScopeLock.h"
+#include "CoreGlobals.h"
+#include "HAL/PlatformTime.h"
+#include "IMediaModule.h"
 #include "LiveLinkAnimationVirtualSubject.h"
+#include "LiveLinkLog.h"
 #include "LiveLinkPreset.h"
 #include "LiveLinkRole.h"
 #include "LiveLinkRoleTrait.h"
@@ -16,7 +17,11 @@
 #include "LiveLinkSourceSettings.h"
 #include "LiveLinkSubject.h"
 #include "IMediaModule.h"
+#include "Misc/App.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/CoreDelegates.h"
+#include "Misc/Guid.h"
+#include "Misc/ScopeLock.h"
 #include "Modules/ModuleManager.h"
 #include "Roles/LiveLinkAnimationRole.h"
 #include "Roles/LiveLinkAnimationTypes.h"
@@ -40,8 +45,25 @@ DECLARE_CYCLE_STAT(TEXT("LiveLink - EvaluateFrame"), STAT_LiveLink_EvaluateFrame
 
 DEFINE_LOG_CATEGORY(LogLiveLink);
 
+static TAutoConsoleVariable<int32> CVarMaxNewStaticDataPerUpdate(
+	TEXT("LiveLink.Client.MaxNewStaticDataPerUpdate"),
+	64,
+	TEXT("Maximun number of new static data that can be added in a single UE4 frame."),
+	ECVF_Default);
+
+static TAutoConsoleVariable<int32> CVarMaxNewFrameDataPerUpdate(
+	TEXT("LiveLink.Client.MaxNewFrameDataPerUpdate"),
+	64,
+	TEXT("Maximun number of new frame data that can be added in a single UE4 frame."),
+	ECVF_Default);
+
+
 FLiveLinkClient::FLiveLinkClient()
 {
+#if WITH_EDITOR
+	CachedEngineTime = 0.0;
+#endif
+
 	Collection = MakeUnique<FLiveLinkSourceCollection>();
 	FCoreDelegates::OnPreExit.AddRaw(this, &FLiveLinkClient::Shutdown);
 
@@ -61,6 +83,7 @@ void FLiveLinkClient::Tick()
 
 	FScopeLock Lock(&CollectionAccessCriticalSection);
 	DoPendingWork();
+	CacheValues();
 	UpdateSources();
 	BuildThisTicksSubjectSnapshot();
 }
@@ -145,6 +168,15 @@ void FLiveLinkClient::BuildThisTicksSubjectSnapshot()
 	}
 }
 
+void FLiveLinkClient::CacheValues()
+{
+#if WITH_EDITOR
+	CachedEngineTime = FApp::GetCurrentTime();
+	CachedEngineTimecode = FApp::GetTimecode();
+	CachedEngineTimecodeFrameRate = FApp::GetTimecodeFrameRate();
+#endif
+}
+
 void FLiveLinkClient::Shutdown()
 {
 	if(IMediaModule* MediaModule = FModuleManager::GetModulePtr<IMediaModule>("Media"))
@@ -154,8 +186,22 @@ void FLiveLinkClient::Shutdown()
 
 	if (Collection)
 	{
-		FScopeLock Lock(&CollectionAccessCriticalSection);
-		Collection->Shutdown();
+		double Timeout = 2.0;
+		GConfig->GetDouble(TEXT("LiveLink"), TEXT("ClientShutdownTimeout"), Timeout, GGameIni);
+
+		const double StartShutdownSeconds = FPlatformTime::Seconds();
+		bool bContinue = true;
+		while(bContinue)
+		{
+			FScopeLock Lock(&CollectionAccessCriticalSection);
+			bContinue = !Collection->RequestShutdown();
+
+			if (FPlatformTime::Seconds() - StartShutdownSeconds > Timeout)
+			{
+				bContinue = false;
+				UE_LOG(LogLiveLink, Warning, TEXT("Force shutdown LiveLink after %f seconds. One or more sources refused to shutdown."), Timeout);
+			}
+		}
 	}
 }
 
@@ -172,14 +218,8 @@ FGuid FLiveLinkClient::AddSource(TSharedPtr<ILiveLinkSource> InSource)
 		Data.Guid = Guid;
 		Data.Source = InSource;
 		{
-			UClass* CustomSettingsClass = InSource->GetCustomSettingsClass();
-			if (CustomSettingsClass && !CustomSettingsClass->IsChildOf<ULiveLinkSourceSettings>())
-			{
-				UE_LOG(LogLiveLink, Warning, TEXT("Custom Setting Failure: Source '%s' settings class '%s' does not derive from ULiveLinkSourceSettings"), *InSource->GetSourceType().ToString(), *CustomSettingsClass->GetName());
-				CustomSettingsClass = nullptr;
-			}
-
-			UClass* SettingsClass = CustomSettingsClass ? CustomSettingsClass : ULiveLinkSourceSettings::StaticClass();
+			UClass* SourceSettingsClass = InSource->GetSettingsClass().Get();
+			UClass* SettingsClass = SourceSettingsClass ? SourceSettingsClass : ULiveLinkSourceSettings::StaticClass();
 			Data.Setting = NewObject<ULiveLinkSourceSettings>(GetTransientPackage(), SettingsClass);
 		}
 		Collection->AddSource(Data);
@@ -196,31 +236,31 @@ bool FLiveLinkClient::CreateSource(const FLiveLinkSourcePreset& InSourcePreset)
 
 	if (InSourcePreset.Settings == nullptr)
 	{
-		UE_LOG(LogLiveLink, Warning, TEXT("Create Source Failure: The settings are not defined."));
+		FLiveLinkLog::Warning(TEXT("Create Source Failure: The settings are not defined."));
 		return false;
 	}
 
 	if (InSourcePreset.Settings->Factory.Get() == nullptr || InSourcePreset.Settings->Factory.Get() == ULiveLinkSourceFactory::StaticClass())
 	{
-		UE_LOG(LogLiveLink, Warning, TEXT("Create Source Failure: The factory is not defined."));
+		FLiveLinkLog::Warning(TEXT("Create Source Failure: The factory is not defined."));
 		return false;
 	}
 
 	if (InSourcePreset.Guid == FLiveLinkSourceCollection::VirtualSubjectGuid)
 	{
-		UE_LOG(LogLiveLink, Warning, TEXT("Create Source Failure: Can't create a virtual source."));
+		FLiveLinkLog::Warning(TEXT("Create Source Failure: Can't create a virtual source."));
 		return false;
 	}
 
 	if (!InSourcePreset.Guid.IsValid())
 	{
-		UE_LOG(LogLiveLink, Warning, TEXT("Create Source Failure: The guid is invalid."));
+		FLiveLinkLog::Warning(TEXT("Create Source Failure: The guid is invalid."));
 		return false;
 	}
 
 	if (Collection->FindSource(InSourcePreset.Guid) != nullptr)
 	{
-		UE_LOG(LogLiveLink, Warning, TEXT("Create Source Failure: The guid already exist."));
+		FLiveLinkLog::Warning(TEXT("Create Source Failure: The guid already exist."));
 		return false;
 	}
 
@@ -229,17 +269,10 @@ bool FLiveLinkClient::CreateSource(const FLiveLinkSourcePreset& InSourcePreset)
 	Data.Source = InSourcePreset.Settings->Factory.Get()->GetDefaultObject<ULiveLinkSourceFactory>()->CreateSource(InSourcePreset.Settings->ConnectionString);
 	if (!Data.Source.IsValid())
 	{
-		UE_LOG(LogLiveLink, Warning, TEXT("Create Source Failure: The source couldn't be created by the factory."));
+		FLiveLinkLog::Warning(TEXT("Create Source Failure: The source couldn't be created by the factory."));
 		return false;
 	}
 
-	UClass* CustomSettingsClass = Data.Source->GetCustomSettingsClass();
-	UClass* SettingsClass = CustomSettingsClass ? CustomSettingsClass : ULiveLinkSourceSettings::StaticClass();
-	if (!InSourcePreset.Settings->GetClass()->IsChildOf(SettingsClass))
-	{
-		UE_LOG(LogLiveLink, Warning, TEXT("Custom Setting Failure: Settings class does not derive from the source custom settings class."));
-		return false;
-	}
 	Data.Setting = DuplicateObject<ULiveLinkSourceSettings>(InSourcePreset.Settings, GetTransientPackage());
 	
 	Collection->AddSource(Data);
@@ -323,9 +356,25 @@ FLiveLinkSourcePreset FLiveLinkClient::GetSourcePreset(FGuid InSourceGuid, UObje
 void FLiveLinkClient::PushSubjectStaticData_AnyThread(const FLiveLinkSubjectKey& InSubjectKey, TSubclassOf<ULiveLinkRole> InRole, FLiveLinkStaticDataStruct&& InStaticData)
 {
 	FPendingSubjectStatic SubjectStatic{ InSubjectKey, InRole, MoveTemp(InStaticData) };
+	const int32 MaxNumBufferToCached = CVarMaxNewStaticDataPerUpdate.GetValueOnAnyThread();
+	bool bLogError = false;
+	{
+		FScopeLock Lock(&CollectionAccessCriticalSection);
+		if (SubjectStaticToPush.Num() > MaxNumBufferToCached) // Something is wrong somewhere. Warn the user and discard the new Static Data.
+		{
+			bLogError = true;
+		}
+		else
+		{
+			SubjectStaticToPush.Add(MoveTemp(SubjectStatic));
+		}
+	}
 
-	FScopeLock Lock(&CollectionAccessCriticalSection);
-	SubjectStaticToPush.Add(MoveTemp(SubjectStatic));
+	if (bLogError)
+	{
+		static const FName NAME_TooManyStatic = "LiveLinkClient_TooManyStatic";
+		FLiveLinkLog::ErrorOnce(NAME_TooManyStatic, FLiveLinkSubjectKey(), TEXT("Trying to add more than %d static subjects in the same frame. New Subjects will be discarded."), MaxNumBufferToCached);
+	}
 }
 
 void FLiveLinkClient::PushSubjectStaticData_Internal(FPendingSubjectStatic&& SubjectStaticData)
@@ -338,11 +387,21 @@ void FLiveLinkClient::PushSubjectStaticData_Internal(FPendingSubjectStatic&& Sub
 	{
 		if (SubjectStaticData.Role == nullptr)
 		{
-			UE_LOG(LogLiveLink, Warning, TEXT("Trying to add unsupported frame data type."));
+			FLiveLinkLog::Error(TEXT("Trying to add unsupported static data type with subject '%s'."), *SubjectStaticData.SubjectKey.SubjectName.ToString());
 		}
 		else
 		{
-			UE_LOG(LogLiveLink, Warning, TEXT("Trying to add unsupported frame data type to role '%s'."), *SubjectStaticData.Role->GetName());
+			FLiveLinkLog::Error(TEXT("Trying to add unsupported static data type to role '%s' with subject '%s'."), *SubjectStaticData.Role->GetName(), *SubjectStaticData.SubjectKey.SubjectName.ToString());
+		}
+		return;
+	}
+
+	bool bShouldLogIfInvalidStaticData = true;
+	if (!SubjectStaticData.Role.GetDefaultObject()->IsStaticDataValid(SubjectStaticData.StaticData, bShouldLogIfInvalidStaticData))
+	{
+		if (bShouldLogIfInvalidStaticData)
+		{
+			FLiveLinkLog::Error(TEXT("Trying to add static data that is not formatted properly to role '%s' with subject '%s'."), *SubjectStaticData.Role->GetName(), *SubjectStaticData.SubjectKey.SubjectName.ToString());
 		}
 		return;
 	}
@@ -353,6 +412,12 @@ void FLiveLinkClient::PushSubjectStaticData_Internal(FPendingSubjectStatic&& Sub
 		return;
 	}
 
+	if (SourceItem->IsVirtualSource())
+	{
+		FLiveLinkLog::Error(TEXT("Trying to add frame data to the virtual subject '%s'."), *SubjectStaticData.Role->GetName(), *SubjectStaticData.SubjectKey.SubjectName.ToString());
+		return;
+	}
+
 	FLiveLinkSubject* LiveLinkSubject = nullptr;
 	if (FLiveLinkCollectionSubjectItem* SubjectItem = Collection->FindSubject(SubjectStaticData.SubjectKey))
 	{
@@ -360,8 +425,8 @@ void FLiveLinkClient::PushSubjectStaticData_Internal(FPendingSubjectStatic&& Sub
 
 		if (LiveLinkSubject->GetRole() != SubjectStaticData.Role)
 		{
-			UE_LOG(LogLiveLink, Warning, TEXT("Subject '%s' of role '%s' is changing its role to '%s'. Current subject will be removed and a new one will be created"), *SubjectStaticData.SubjectKey.SubjectName.ToString(), *LiveLinkSubject->GetRole().GetDefaultObject()->GetDisplayName().ToString(), *SubjectStaticData.Role.GetDefaultObject()->GetDisplayName().ToString());
-			
+			FLiveLinkLog::Warning(TEXT("Subject '%s' of role '%s' is changing its role to '%s'. Current subject will be removed and a new one will be created"), *SubjectStaticData.SubjectKey.SubjectName.ToString(), *LiveLinkSubject->GetRole().GetDefaultObject()->GetDisplayName().ToString(), *SubjectStaticData.Role.GetDefaultObject()->GetDisplayName().ToString());
+
 			Collection->RemoveSubject(SubjectStaticData.SubjectKey);
 			LiveLinkSubject = nullptr;
 		}
@@ -380,7 +445,7 @@ void FLiveLinkClient::PushSubjectStaticData_Internal(FPendingSubjectStatic&& Sub
 			SubjectFrameToPush.RemoveAtSwap(Index);
 		}
 	}
-	
+
 	if(LiveLinkSubject == nullptr)
 	{
 		const FLiveLinkRoleProjectSetting DefaultSetting = GetDefault<ULiveLinkSettings>()->GetDefaultSettingForRole(SubjectStaticData.Role.Get());
@@ -403,11 +468,11 @@ void FLiveLinkClient::PushSubjectStaticData_Internal(FPendingSubjectStatic&& Sub
 				UClass* InterpolationRole = FrameInterpolationProcessorClass->GetDefaultObject<ULiveLinkFrameInterpolationProcessor>()->GetRole();
 				if (SubjectStaticData.Role->IsChildOf(InterpolationRole))
 				{
-					SubjectSettings->InterpolationProcessor = NewObject<ULiveLinkFrameInterpolationProcessor>(GetTransientPackage(), FrameInterpolationProcessorClass);
+					SubjectSettings->InterpolationProcessor = NewObject<ULiveLinkFrameInterpolationProcessor>(SubjectSettings, FrameInterpolationProcessorClass);
 				}
 				else
 				{
-					UE_LOG(LogLiveLink, Warning, TEXT("The interpolator '%s' is not valid for the Role '%s'"), *FrameInterpolationProcessorClass->GetName(), *SubjectStaticData.Role->GetName());
+					FLiveLinkLog::Warning(TEXT("The interpolator '%s' is not valid for the Role '%s'"), *FrameInterpolationProcessorClass->GetName(), *SubjectStaticData.Role->GetName());
 				}
 			}
 
@@ -418,11 +483,11 @@ void FLiveLinkClient::PushSubjectStaticData_Internal(FPendingSubjectStatic&& Sub
 					UClass* PreProcessorRole = PreProcessor->GetDefaultObject<ULiveLinkFramePreProcessor>()->GetRole();
 					if (SubjectStaticData.Role->IsChildOf(PreProcessorRole))
 					{
-						SubjectSettings->PreProcessors.Add(NewObject<ULiveLinkFramePreProcessor>(GetTransientPackage(), PreProcessor.Get()));
+						SubjectSettings->PreProcessors.Add(NewObject<ULiveLinkFramePreProcessor>(SubjectSettings, PreProcessor.Get()));
 					}
 					else
 					{
-						UE_LOG(LogLiveLink, Warning, TEXT("The pre processor '%s' is not valid for the Role '%s'"), *PreProcessor->GetName(), *SubjectStaticData.Role->GetName());
+						FLiveLinkLog::Warning(TEXT("The pre processor '%s' is not valid for the Role '%s'"), *PreProcessor->GetName(), *SubjectStaticData.Role->GetName());
 					}
 				}
 			}
@@ -451,9 +516,26 @@ void FLiveLinkClient::PushSubjectStaticData_Internal(FPendingSubjectStatic&& Sub
 void FLiveLinkClient::PushSubjectFrameData_AnyThread(const FLiveLinkSubjectKey& InSubjectKey, FLiveLinkFrameDataStruct&& InFrameData)
 {
 	FPendingSubjectFrame SubjectFrame{ InSubjectKey, MoveTemp(InFrameData) };
+	const int32 MaxNumBufferToCached = CVarMaxNewFrameDataPerUpdate.GetValueOnAnyThread();
+	bool bLogError = false;
+	{
+		FScopeLock Lock(&CollectionAccessCriticalSection);
+		if (SubjectFrameToPush.Num() > MaxNumBufferToCached) // Something is wrong somewhere. Warn the user and discard the new Static Data.
+		{
+			bLogError = true;
+			SubjectFrameToPush.RemoveAt(0, SubjectFrameToPush.Num() - MaxNumBufferToCached, false);
+		}
+		else
+		{
+			SubjectFrameToPush.Add(MoveTemp(SubjectFrame));
+		}
+	}
 
-	FScopeLock Lock(&CollectionAccessCriticalSection);
-	SubjectFrameToPush.Add(MoveTemp(SubjectFrame));
+	if (bLogError)
+	{
+		static const FName NAME_TooManyFrame = "LiveLinkClient_TooManyFrame";
+		FLiveLinkLog::InfoOnce(NAME_TooManyFrame, FLiveLinkSubjectKey(), TEXT("Trying to add more than %d frames in the same frame. Oldest frames will be discarded."), MaxNumBufferToCached);
+	}
 }
 
 void FLiveLinkClient::PushSubjectFrameData_Internal(FPendingSubjectFrame&& SubjectFrameData)
@@ -470,24 +552,53 @@ void FLiveLinkClient::PushSubjectFrameData_Internal(FPendingSubjectFrame&& Subje
 
 	//To add a frame data, we need to find our subject but also have a static data associated to it. 
 	//With presets, the subject could exist but no static data received yet.
-	if (FLiveLinkCollectionSubjectItem* SubjectItem = Collection->FindSubject(SubjectFrameData.SubjectKey))
+	FLiveLinkCollectionSubjectItem* SubjectItem = Collection->FindSubject(SubjectFrameData.SubjectKey);
+	if (SubjectItem == nullptr)
 	{
-		if (SubjectItem->bEnabled && !SubjectItem->bPendingKill)
-		{
-			if (FLiveLinkSubject* LinkSubject = SubjectItem->GetLiveSubject())
-			{
-				if (LinkSubject->HasStaticData())
-				{
-					if (const FSubjectFramesReceivedHandles* Handles = SubjectFrameReceivedHandles.Find(SubjectFrameData.SubjectKey.SubjectName))
-					{
-						Handles->OnFrameDataReceived.Broadcast(SubjectItem->Key, SubjectItem->GetSubject()->GetRole(), SubjectFrameData.FrameData);
-					}
-
-					LinkSubject->AddFrameData(MoveTemp(SubjectFrameData.FrameData));
-				}
-			}
-		}
+		return;
 	}
+
+	if (!SubjectItem->bEnabled || SubjectItem->bPendingKill)
+	{
+		return;
+	}
+	
+	FLiveLinkSubject* LinkSubject = SubjectItem->GetLiveSubject();
+	if (LinkSubject == nullptr)
+	{
+		FLiveLinkLog::Error(TEXT("The Subject is not allowed to push to a virtual subject."));
+		return;
+	}
+	
+	
+	if (!LinkSubject->HasStaticData())
+	{
+		return;
+	}
+
+	const TSubclassOf<ULiveLinkRole> Role = LinkSubject->GetRole();
+	if (Role == nullptr)
+	{
+		return;
+	}
+
+	bool bShouldLogWarning = true;
+	if (!Role.GetDefaultObject()->IsFrameDataValid(LinkSubject->GetStaticData(), SubjectFrameData.FrameData, bShouldLogWarning))
+	{
+		if (bShouldLogWarning)
+		{
+			static const FName NAME_InvalidFrameData = "LiveLinkClient_InvalidFrameData";
+			FLiveLinkLog::ErrorOnce(NAME_InvalidFrameData, SubjectFrameData.SubjectKey, TEXT("Trying to add frame data that is not formatted properly to role '%s' with subject '%s'."), *Role->GetName(), *SubjectFrameData.SubjectKey.SubjectName.ToString());
+		}
+		return;
+	}
+
+	if (const FSubjectFramesReceivedHandles* Handles = SubjectFrameReceivedHandles.Find(SubjectFrameData.SubjectKey.SubjectName))
+	{
+		Handles->OnFrameDataReceived.Broadcast(SubjectItem->Key, Role, SubjectFrameData.FrameData);
+	}
+
+	LinkSubject->AddFrameData(MoveTemp(SubjectFrameData.FrameData));
 }
 
 bool FLiveLinkClient::CreateSubject(const FLiveLinkSubjectPreset& InSubjectPreset)
@@ -496,32 +607,32 @@ bool FLiveLinkClient::CreateSubject(const FLiveLinkSubjectPreset& InSubjectPrese
 
 	if (InSubjectPreset.Role.Get() == nullptr || InSubjectPreset.Role.Get() == ULiveLinkRole::StaticClass())
 	{
-		UE_LOG(LogLiveLink, Warning, TEXT("Create Subject Failure: The role is not defined."));
+		FLiveLinkLog::Warning(TEXT("Create Subject Failure: The role is not defined."));
 		return false;
 	}
 
 	if (InSubjectPreset.Key.Source == FLiveLinkSourceCollection::VirtualSubjectGuid && InSubjectPreset.VirtualSubject == nullptr)
 	{
-		UE_LOG(LogLiveLink, Warning, TEXT("Create Source Failure: Can't create an empty virtual source."));
+		FLiveLinkLog::Warning(TEXT("Create Source Failure: Can't create an empty virtual source."));
 		return false;
 	}
 
 	if (InSubjectPreset.Key.Source != FLiveLinkSourceCollection::VirtualSubjectGuid && InSubjectPreset.VirtualSubject != nullptr)
 	{
-		UE_LOG(LogLiveLink, Warning, TEXT("Create Source Failure: Can't create a virtual source in another source."));
+		FLiveLinkLog::Warning(TEXT("Create Source Failure: Can't create a virtual source in another source."));
 		return false;
 	}
 
 	if (InSubjectPreset.Key.SubjectName.IsNone())
 	{
-		UE_LOG(LogLiveLink, Warning, TEXT("Create Subject Failure: The subject name is invalid."));
+		FLiveLinkLog::Warning(TEXT("Create Subject Failure: The subject name is invalid."));
 		return false;
 	}
 
 	FLiveLinkCollectionSourceItem* SourceItem = Collection->FindSource(InSubjectPreset.Key.Source);
 	if (SourceItem == nullptr || SourceItem->bPendingKill)
 	{
-		UE_LOG(LogLiveLink, Warning, TEXT("Create Subject Failure: The source doesn't exist."));
+		FLiveLinkLog::Warning(TEXT("Create Subject Failure: The source doesn't exist."));
 		return false;
 	}
 
@@ -535,7 +646,7 @@ bool FLiveLinkClient::CreateSubject(const FLiveLinkSubjectPreset& InSubjectPrese
 		}
 		else
 		{
-			UE_LOG(LogLiveLink, Warning, TEXT("Create Subject Failure: The subject already exist."));
+			FLiveLinkLog::Warning(TEXT("Create Subject Failure: The subject already exist."));
 			return false;
 		}
 	}
@@ -610,7 +721,7 @@ void FLiveLinkClient::AddVirtualSubject(FLiveLinkSubjectName InNewVirtualSubject
 		}
 		else
 		{
-			UE_LOG(LogLiveLink, Warning, TEXT("The virtual subject '%s' could not be created."), *InNewVirtualSubjectName.Name.ToString());
+			FLiveLinkLog::Warning(TEXT("The virtual subject '%s' could not be created."), *InNewVirtualSubjectName.Name.ToString());
 		}
 	}
 }
@@ -714,9 +825,9 @@ bool FLiveLinkClient::IsSubjectValid(FLiveLinkSubjectName InSubjectName) const
 	return false;
 }
 
-bool FLiveLinkClient::IsSubjectEnabled(const FLiveLinkSubjectKey& InSubjectKey, bool bUseSnapshot) const
+bool FLiveLinkClient::IsSubjectEnabled(const FLiveLinkSubjectKey& InSubjectKey, bool bForThisFrame) const
 {
-	if (bUseSnapshot)
+	if (bForThisFrame)
 	{
 		if (const FLiveLinkSubjectKey* FoundSubjectKey = EnabledSubjects.Find(InSubjectKey.SubjectName))
 		{
@@ -791,6 +902,25 @@ bool FLiveLinkClient::DoesSubjectSupportsRole(const FLiveLinkSubjectKey& InSubje
 	return false;
 }
 
+TArray<FLiveLinkTime> FLiveLinkClient::GetSubjectFrameTimes(const FLiveLinkSubjectKey& InSubjectKey) const
+{
+	if (const FLiveLinkCollectionSubjectItem* SubjectItem = Collection->FindSubject(InSubjectKey))
+	{
+		return SubjectItem->GetSubject()->GetFrameTimes();
+	}
+	return TArray<FLiveLinkTime>();
+}
+
+TArray<FLiveLinkTime> FLiveLinkClient::GetSubjectFrameTimes(FLiveLinkSubjectName InSubjectName) const
+{
+	if (const FLiveLinkCollectionSubjectItem* SubjectItem = Collection->FindEnabledSubject(InSubjectName))
+	{
+		return SubjectItem->GetSubject()->GetFrameTimes();
+	}
+
+	return TArray<FLiveLinkTime>();
+}
+
 TArray<FLiveLinkSubjectKey> FLiveLinkClient::GetSubjectsSupportingRole(TSubclassOf<ULiveLinkRole> InSupportedRole, bool bIncludeDisabledSubject, bool bIncludeVirtualSubject) const
 {
 	TArray<FLiveLinkSubjectKey> SubjectKeys;
@@ -807,26 +937,55 @@ TArray<FLiveLinkSubjectKey> FLiveLinkClient::GetSubjectsSupportingRole(TSubclass
 	return SubjectKeys;
 }
 
+bool FLiveLinkClient::EvaluateFrameFromSource_AnyThread(const FLiveLinkSubjectKey& InSubjectKey, TSubclassOf<ULiveLinkRole> InDesiredRole, FLiveLinkSubjectFrameData& OutFrame)
+{
+	SCOPE_CYCLE_COUNTER(STAT_LiveLink_EvaluateFrame);
+
+	FScopeLock Lock(&CollectionAccessCriticalSection);
+
+	if (const FLiveLinkCollectionSubjectItem* SubjectItem = Collection->FindSubject(InSubjectKey))
+	{
+		return SubjectItem->GetSubject()->EvaluateFrame(InDesiredRole, OutFrame);
+	}
+
+	return false;
+}
+
 bool FLiveLinkClient::EvaluateFrame_AnyThread(FLiveLinkSubjectName InSubjectName, TSubclassOf<ULiveLinkRole> InDesiredRole, FLiveLinkSubjectFrameData& OutFrame)
 {
 	SCOPE_CYCLE_COUNTER(STAT_LiveLink_EvaluateFrame);
 
 	FScopeLock Lock(&CollectionAccessCriticalSection);
 
+	bool bResult = false;
+
 	// Used the cached enabled list
 	if (FLiveLinkSubjectKey* FoundSubjectKey = EnabledSubjects.Find(InSubjectName))
 	{
 		if (const FLiveLinkCollectionSubjectItem* SubjectItem = Collection->FindSubject(*FoundSubjectKey))
 		{
-			return SubjectItem->GetSubject()->EvaluateFrame(InDesiredRole, OutFrame);
+			bResult = SubjectItem->GetSubject()->EvaluateFrame(InDesiredRole, OutFrame);
 		}
+
+#if WITH_EDITOR
+		if (OnLiveLinkSubjectEvaluated().IsBound())
+		{
+			FLiveLinkTime RequestedTime = FLiveLinkTime(CachedEngineTime, FQualifiedFrameTime(CachedEngineTimecode, CachedEngineTimecodeFrameRate));
+			FLiveLinkTime ResultTime;
+			if (bResult)
+			{
+				ResultTime = FLiveLinkTime(OutFrame.FrameData.GetBaseData()->WorldTime.GetOffsettedTime(), OutFrame.FrameData.GetBaseData()->MetaData.SceneTime);
+			}
+			OnLiveLinkSubjectEvaluated().Broadcast(*FoundSubjectKey, InDesiredRole, RequestedTime, bResult, ResultTime);
+		}
+#endif //WITH_EDITOR
 	}
 	else
 	{
 		UE_LOG(LogLiveLink, Verbose, TEXT("Subject '%s' is not enabled or doesn't exist"), *InSubjectName.ToString());
 	}
 
-	return false;
+	return bResult;
 }
 
 bool FLiveLinkClient::EvaluateFrameAtWorldTime_AnyThread(FLiveLinkSubjectName InSubjectName, double InWorldTime, TSubclassOf<ULiveLinkRole> InDesiredRole, FLiveLinkSubjectFrameData& OutFrame)
@@ -835,6 +994,8 @@ bool FLiveLinkClient::EvaluateFrameAtWorldTime_AnyThread(FLiveLinkSubjectName In
 
 	FScopeLock Lock(&CollectionAccessCriticalSection);
 
+	bool bResult = false;
+
 	// Used the cached enabled list
 	if (FLiveLinkSubjectKey* FoundSubjectKey = EnabledSubjects.Find(InSubjectName))
 	{
@@ -842,12 +1003,25 @@ bool FLiveLinkClient::EvaluateFrameAtWorldTime_AnyThread(FLiveLinkSubjectName In
 		{
 			if (FLiveLinkSubject* LinkSubject = SubjectItem->GetLiveSubject())
 			{
-				return LinkSubject->EvaluateFrameAtWorldTime(InWorldTime, InDesiredRole, OutFrame);
+				bResult = LinkSubject->EvaluateFrameAtWorldTime(InWorldTime, InDesiredRole, OutFrame);
 			}
 			else
 			{
-				return SubjectItem->GetSubject()->EvaluateFrame(InDesiredRole, OutFrame);
+				bResult = SubjectItem->GetSubject()->EvaluateFrame(InDesiredRole, OutFrame);
 			}
+
+#if WITH_EDITOR
+			if (OnLiveLinkSubjectEvaluated().IsBound())
+			{
+				FLiveLinkTime RequestedTime = FLiveLinkTime(InWorldTime, FQualifiedFrameTime());
+				FLiveLinkTime ResultTime;
+				if (bResult)
+				{
+					ResultTime = FLiveLinkTime(OutFrame.FrameData.GetBaseData()->WorldTime.GetOffsettedTime(), OutFrame.FrameData.GetBaseData()->MetaData.SceneTime);
+				}
+				OnLiveLinkSubjectEvaluated().Broadcast(*FoundSubjectKey, InDesiredRole, RequestedTime, bResult, ResultTime);
+			}
+#endif //WITH_EDITOR
 		}
 	}
 	else
@@ -855,7 +1029,7 @@ bool FLiveLinkClient::EvaluateFrameAtWorldTime_AnyThread(FLiveLinkSubjectName In
 		UE_LOG(LogLiveLink, Verbose, TEXT("Subject '%s' is not enabled or doesn't exist"), *InSubjectName.ToString());
 	}
 
-	return false;
+	return bResult;
 }
 
 bool FLiveLinkClient::EvaluateFrameAtSceneTime_AnyThread(FLiveLinkSubjectName InSubjectName, const FTimecode& InSceneTime, TSubclassOf<ULiveLinkRole> InDesiredRole, FLiveLinkSubjectFrameData& OutFrame)
@@ -864,6 +1038,8 @@ bool FLiveLinkClient::EvaluateFrameAtSceneTime_AnyThread(FLiveLinkSubjectName In
 
 	FScopeLock Lock(&CollectionAccessCriticalSection);
 
+	bool bResult = false;
+
 	// Used the cached enabled list
 	if (FLiveLinkSubjectKey* FoundSubjectKey = EnabledSubjects.Find(InSubjectName))
 	{
@@ -871,12 +1047,25 @@ bool FLiveLinkClient::EvaluateFrameAtSceneTime_AnyThread(FLiveLinkSubjectName In
 		{
 			if (FLiveLinkSubject* LinkSubject = SubjectItem->GetLiveSubject())
 			{
-				return LinkSubject->EvaluateFrameAtSceneTime(InSceneTime, InDesiredRole, OutFrame);
+				bResult = LinkSubject->EvaluateFrameAtSceneTime(InSceneTime, InDesiredRole, OutFrame);
 			}
 			else
 			{
-				return SubjectItem->GetSubject()->EvaluateFrame(InDesiredRole, OutFrame);
+				bResult = SubjectItem->GetSubject()->EvaluateFrame(InDesiredRole, OutFrame);
 			}
+
+#if WITH_EDITOR
+			if (OnLiveLinkSubjectEvaluated().IsBound())
+			{
+				FLiveLinkTime RequestedTime = FLiveLinkTime(0.0, FQualifiedFrameTime(InSceneTime, CachedEngineTimecodeFrameRate));
+				FLiveLinkTime ResultTime;
+				if (bResult)
+				{
+					ResultTime = FLiveLinkTime(OutFrame.FrameData.GetBaseData()->WorldTime.GetOffsettedTime(), OutFrame.FrameData.GetBaseData()->MetaData.SceneTime);
+				}
+				OnLiveLinkSubjectEvaluated().Broadcast(*FoundSubjectKey, InDesiredRole, RequestedTime, bResult, ResultTime);
+			}
+#endif //WITH_EDITOR
 		}
 	}
 	else
@@ -884,7 +1073,7 @@ bool FLiveLinkClient::EvaluateFrameAtSceneTime_AnyThread(FLiveLinkSubjectName In
 		UE_LOG(LogLiveLink, Verbose, TEXT("Subject '%s' is not enabled or doesn't exist"), *InSubjectName.ToString());
 	}
 
-	return false;
+	return bResult;
 }
 
 TArray<FGuid> FLiveLinkClient::GetDisplayableSources() const
@@ -945,6 +1134,15 @@ FText FLiveLinkClient::GetSourceStatus(FGuid InEntryGuid) const
 		return SourceItem->Source->GetSourceStatus();
 	}
 	return FText(NSLOCTEXT("TempLocTextLiveLink", "InvalidSourceStatus", "Invalid Source Status"));
+}
+
+bool FLiveLinkClient::IsSourceStillValid(FGuid InEntryGuid) const
+{
+	if (const FLiveLinkCollectionSourceItem* SourceItem = Collection->FindSource(InEntryGuid))
+	{
+		return SourceItem->Source->IsSourceStillValid();
+	}
+	return false;
 }
 
 bool FLiveLinkClient::IsVirtualSubject(const FLiveLinkSubjectKey& InSubjectKey) const
@@ -1052,6 +1250,13 @@ FOnLiveLinkSubjectChangedDelegate& FLiveLinkClient::OnLiveLinkSubjectAdded()
 	return Collection->OnLiveLinkSubjectAdded();
 }
 
+#if WITH_EDITOR
+FOnLiveLinkSubjectEvaluated& FLiveLinkClient::OnLiveLinkSubjectEvaluated()
+{
+	return OnLiveLinkSubjectEvaluatedDelegate;
+}
+#endif
+
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 /**
  * Function for Deprecation
@@ -1155,7 +1360,8 @@ void FLiveLinkClient_Base_DEPRECATED::PushSubjectData(FGuid InSourceGuid, FName 
 			NumberOfPropertyNames = AnimationStaticData->PropertyNames.Num();
 			if (NumberOfPropertyNames == 0 && InFrameData.CurveElements.Num() > 0)
 			{
-				UE_LOG(LogLiveLink, Warning, TEXT("Upgrade your code. Curve elements count has changed from the previous frame. That will clear the previous frames of that subject."));
+				static const FName NAME_UpdateYourCode = "LiveLinkClient_PushSubjectData";
+				FLiveLinkLog::WarningOnce(NAME_UpdateYourCode, FLiveLinkSubjectKey(InSourceGuid, InSubjectName), TEXT("Upgrade your code. Curve elements count has changed from the previous frame. That will clear the previous frames of that subject."));
 
 				ClearFrames_Deprecation(SubjectKey);
 				UpdateForAnimationStatic(AnimationStaticData->PropertyNames, InFrameData.CurveElements);
@@ -1218,27 +1424,31 @@ void FLiveLinkClient_Base_DEPRECATED::GetSubjectNames(TArray<FName>& SubjectName
 const FLiveLinkSubjectFrame* FLiveLinkClient_Base_DEPRECATED::GetSubjectData(FName InSubjectName)
 {
 	//Old getters default to Animation role and copies data into old data structure
-	UE_LOG(LogLiveLink, Warning, TEXT("Upgrade your code. There is no way to deprecate GetSubjectData without creating new memory."));
+	static const FName NAME_UpdateYourCode = "LiveLinkClient_GetSubjectData";
+	FLiveLinkLog::WarningOnce(NAME_UpdateYourCode, FLiveLinkSubjectKey(FGuid(), InSubjectName), TEXT("Upgrade your code. There is no way to deprecate GetSubjectData without creating new memory."));
 	return nullptr;
 }
 
 const FLiveLinkSubjectFrame* FLiveLinkClient_Base_DEPRECATED::GetSubjectDataAtWorldTime(FName InSubjectName, double InWorldTime)
 {
 	//Old getters default to Animation role and copies data into old data structure
-	UE_LOG(LogLiveLink, Warning, TEXT("Upgrade your code. There is no way to deprecate GetSubjectDataAtWorldTime without creating new memory."));
+	static const FName NAME_UpdateYourCode = "LiveLinkClient_GetSubjectDataAtWorldTime";
+	FLiveLinkLog::WarningOnce(NAME_UpdateYourCode, FLiveLinkSubjectKey(FGuid(), InSubjectName), TEXT("Upgrade your code. There is no way to deprecate GetSubjectDataAtWorldTime without creating new memory."));
 	return nullptr;
 }
 
 const FLiveLinkSubjectFrame* FLiveLinkClient_Base_DEPRECATED::GetSubjectDataAtSceneTime(FName InSubjectName, const FTimecode& InTimecode)
 {
 	//Old getters default to Animation role and copies data into old data structure
-	UE_LOG(LogLiveLink, Warning, TEXT("Upgrade your code. There is no way to deprecate GetSubjectDataAtSceneTime without creating new memory."));
+	static const FName NAME_UpdateYourCode = "LiveLinkClient_GetSubjectDataAtSceneTime";
+	FLiveLinkLog::WarningOnce(NAME_UpdateYourCode, FLiveLinkSubjectKey(FGuid(), InSubjectName), TEXT("Upgrade your code. There is no way to deprecate GetSubjectDataAtSceneTime without creating new memory."));
 	return nullptr;
 }
 
 const TArray<FLiveLinkFrame>* FLiveLinkClient_Base_DEPRECATED::GetSubjectRawFrames(FName InSubjectName)
 {
-	UE_LOG(LogLiveLink, Warning, TEXT("Upgrade your code. There is no way to deprecate GetSubjectRawFrames without creating new memory."));
+	static const FName NAME_UpdateYourCode = "LiveLinkClient_GetSubjectRawFrames";
+	FLiveLinkLog::WarningOnce(NAME_UpdateYourCode, FLiveLinkSubjectKey(FGuid(), InSubjectName), TEXT("Upgrade your code. There is no way to deprecate GetSubjectRawFrames without creating new memory."));
 	return nullptr;
 }
 

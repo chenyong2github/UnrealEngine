@@ -61,6 +61,32 @@ public:
 	FString GetFilename() const;
 
 	/**
+	 * Get the application ID set in the database header.
+	 * @note A list of assigned application IDs can be seen by consulting the magic.txt file in the SQLite source repository.
+	 * @return true if the get was a success.
+	 */
+	bool GetApplicationId(int32& OutApplicationId) const;
+
+	/**
+	 * Set the application ID in the database header.
+	 * @note A list of assigned application IDs can be seen by consulting the magic.txt file in the SQLite source repository.
+	 * @return true if the set was a success.
+	 */
+	bool SetApplicationId(const int32 InApplicationId);
+
+	/**
+	 * Get the user version set in the database header.
+	 * @return true if the get was a success.
+	 */
+	bool GetUserVersion(int32& OutUserVersion) const;
+
+	/**
+	 * Set the user version in the database header.
+	 * @return true if the set was a success.
+	 */
+	bool SetUserVersion(const int32 InUserVersion);
+
+	/**
 	 * Execute a statement that requires no result state.
 	 * @note For statements that require a result, or that you wish to reuse repeatedly (including using bindings), you should consider using FSQLitePreparedStatement.
 	 * @return true if the execution was a success.

@@ -5,10 +5,9 @@
 #include "ChaosStats.h"
 #include "PhysicsSolver.h"
 
-#if INCLUDE_CHAOS
-
 FSkeletalMeshPhysicsProxy::FSkeletalMeshPhysicsProxy(UObject* InOwner, const FInitFunc& InInitFunc)
 	: Base(InOwner)
+	, JointConstraints(Chaos::TPBDJointSolverSettings<float, 3>())
 	, JointConstraintsRule(JointConstraints)
 	, NextInputProducerBuffer(nullptr)
 	, CurrentOutputConsumerBuffer(nullptr)
@@ -501,5 +500,3 @@ void FSkeletalMeshPhysicsProxy::CaptureInputs(const float Dt, const FInputFunc& 
 		NextInputProducerBuffer = InputBuffers.ExchangeProducerBuffer();
 	}
 }
-
-#endif // INCLUDE_CHAOS

@@ -326,9 +326,6 @@ private:
 	#define DEFINE_LOG_CATEGORY_CLASS(Class, CategoryName) Class::FLogCategory##CategoryName Class::CategoryName;
 
 #endif // NO_LOGGING
-#if PLATFORM_HTML5
-#include "HTML5/HTML5AssertionMacros.h"
-#endif 
 
 #if UE_BUILD_SHIPPING
 #define NOTIFY_CLIENT_OF_SECURITY_EVENT_IF_NOT_SHIPPING(NetConnection, SecurityPrint) ;

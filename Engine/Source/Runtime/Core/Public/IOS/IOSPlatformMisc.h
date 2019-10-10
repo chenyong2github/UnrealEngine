@@ -79,7 +79,7 @@ struct CORE_API FIOSPlatformMisc : public FApplePlatformMisc
 	static void ShareURL(const FString& URL, const FText& Description, int32 LocationHintX, int32 LocationHintY);
 
 	static FString LoadTextFileFromPlatformPackage(const FString& RelativePath);
-	static bool FileExitsInPlatformPackage(const FString& RelativePath);
+	static bool FileExistsInPlatformPackage(const FString& RelativePath);
 
 	static void EnableVoiceChat(bool bEnable);
 	static bool IsVoiceChatEnabled();
@@ -228,6 +228,13 @@ struct CORE_API FIOSPlatformMisc : public FApplePlatformMisc
 
 	static bool RequestDeviceCheckToken(TFunction<void(const TArray<uint8>&)> QuerySucceededFunc, TFunction<void(const FString&, const FString&)> QueryFailedFunc);
     
+	FORCEINLINE static void ChooseHDRDeviceAndColorGamut(uint32 DeviceId, uint32 DisplayNitLevel, int32& OutputDevice, int32& ColorGamut)
+	{
+		// Linear output to Apple's specific format.
+		OutputDevice = 7;
+		ColorGamut = 0;
+	}
+
     // added these for now because Crashlytics doesn't properly break up different callstacks all ending in UE_LOG(LogXXX, Fatal, ...)
     static FORCENOINLINE CA_NO_RETURN void GPUAssert();
     static FORCENOINLINE CA_NO_RETURN void MetalAssert();

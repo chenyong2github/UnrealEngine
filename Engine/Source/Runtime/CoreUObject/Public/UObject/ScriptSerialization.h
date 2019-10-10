@@ -217,6 +217,7 @@
 		case EX_InstanceVariable:
 		case EX_DefaultVariable:
 		case EX_LocalOutVariable:
+		case EX_ClassSparseDataVariable:
 		{
 			XFER_PROP_POINTER;
 			break;

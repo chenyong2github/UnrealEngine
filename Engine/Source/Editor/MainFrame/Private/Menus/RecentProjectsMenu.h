@@ -39,7 +39,7 @@ public:
 			FToolMenuSection& Section = Menu->FindOrAddSection("Recent");
 			const FText DisplayName = FText::FromString( FPaths::GetBaseFilename(*ProjectName) );
 			const FText Tooltip = FText::FromString( IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ProjectName) );
-			Section.AddMenuEntry( FMainFrameCommands::Get().SwitchProjectCommands[ ProjectIndex ], DisplayName, Tooltip );
+			Section.AddMenuEntry( FMainFrameCommands::Get().SwitchProjectCommands[ ProjectIndex ], DisplayName, Tooltip ).Name = NAME_None;
 		}
 	}
 };

@@ -284,7 +284,7 @@ const TCHAR* UMulticastDelegateProperty::ImportText_Remove( const TCHAR* Buffer,
 		return NULL;
 	}
 
-	// Remove this delegate to our multicast delegate's invocation list
+	// Remove this delegate from our multicast delegate's invocation list
 	RemoveDelegate(ImportedDelegate, Parent, PropertyValue);
 
 	SkipWhitespace(Buffer);
@@ -364,7 +364,8 @@ FMulticastScriptDelegate::FInvocationList& UMulticastInlineDelegateProperty::Get
 
 void UMulticastInlineDelegateProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const
 {
-	FArchiveUObjectFromStructuredArchive Ar(Slot);
+	FArchiveUObjectFromStructuredArchive Adapter(Slot);
+	FArchive& Ar = Adapter.GetArchive();
 	Ar << *GetPropertyValuePtr(Value);
 }
 
@@ -390,7 +391,7 @@ void UMulticastInlineDelegateProperty::AddDelegate(FScriptDelegate ScriptDelegat
 
 	FMulticastScriptDelegate& MulticastDelegate = (*(FMulticastScriptDelegate*)PropertyValue);
 
-	// Remove this delegate to our multicast delegate's invocation list
+	// Add this delegate to our multicast delegate's invocation list
 	MulticastDelegate.AddUnique(MoveTemp(ScriptDelegate));
 }
 
@@ -400,7 +401,7 @@ void UMulticastInlineDelegateProperty::RemoveDelegate(const FScriptDelegate& Scr
 
 	FMulticastScriptDelegate& MulticastDelegate = (*(FMulticastScriptDelegate*)PropertyValue);
 
-	// Remove this delegate to our multicast delegate's invocation list
+	// Remove this delegate from our multicast delegate's invocation list
 	MulticastDelegate.Remove(ScriptDelegate);
 }
 
@@ -469,8 +470,8 @@ FMulticastScriptDelegate::FInvocationList& UMulticastSparseDelegateProperty::Get
 
 void UMulticastSparseDelegateProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const
 {
-	FArchiveUObjectFromStructuredArchive Ar(Slot);
-	SerializeItemInternal(Ar, Value, Defaults);
+	FArchiveUObjectFromStructuredArchive Adapter(Slot);
+	SerializeItemInternal(Adapter.GetArchive(), Value, Defaults);
 }
 
 void UMulticastSparseDelegateProperty::SerializeItemInternal(FArchive& Ar, void* Value, void const* Defaults) const

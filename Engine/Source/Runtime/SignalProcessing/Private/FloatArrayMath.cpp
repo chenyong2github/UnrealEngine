@@ -10,10 +10,10 @@ namespace
 
 namespace Audio
 {
-	void ArrayCumulativeSum(const TArray<float>& InData, TArray<float>& OutData)
+	void ArrayCumulativeSum(TArrayView<const float> InView, TArray<float>& OutData)
 	{
 		// Initialize output data
-		int32 Num = InData.Num();
+		int32 Num = InView.Num();
 		OutData.Reset();
 		OutData.AddUninitialized(Num);
 
@@ -23,19 +23,19 @@ namespace Audio
 		}
 
 		float* OutDataPtr = OutData.GetData();
-		const float* InDataPtr = InData.GetData();
+		const float* InViewPtr = InView.GetData();
 
 		// Start summing
-		*OutDataPtr = *InDataPtr++;
+		*OutDataPtr = *InViewPtr++;
 
 		for (int32 i = 1; i < Num; i++)
 		{
-			float Temp = *OutDataPtr++ + *InDataPtr++;
+			float Temp = *OutDataPtr++ + *InViewPtr++;
 			*OutDataPtr = Temp;
 		}
 	}
 
-	void ArrayMeanFilter(const TArray<float>& InData, int32 WindowSize, int32 WindowOrigin, TArray<float>& OutData)
+	void ArrayMeanFilter(TArrayView<const float> InView, int32 WindowSize, int32 WindowOrigin, TArray<float>& OutData)
 	{
 		// a quick but sinful implementation of a mean filter. encourages floating point rounding errors. 
 		check(WindowOrigin < WindowSize);
@@ -43,7 +43,7 @@ namespace Audio
 		check(WindowSize > 0);
 
 		// Initialize output data
-		const int32 Num = InData.Num();
+		const int32 Num = InView.Num();
 		OutData.Reset();
 		OutData.AddUninitialized(Num);
 
@@ -53,11 +53,11 @@ namespace Audio
 		}
 		
 		// Use cumulative sum to avoid multiple summations 
-		// Instead of summing over InData[StartIndex:EndIndex], avoid all that
+		// Instead of summing over InView[StartIndex:EndIndex], avoid all that
 		// calculation by taking difference of cumulative sum at those two points:
 		//  cumsum(X[0:b]) - cumsum(X[0:a]) = sum(X[a:b])
 		TArray<float> SummedData;
-		ArrayCumulativeSum(InData, SummedData);
+		ArrayCumulativeSum(InView, SummedData);
 		const float LastSummedData = SummedData.Last();
 		
 		
@@ -101,7 +101,7 @@ namespace Audio
 		}
 	}
 
-	void ArrayMaxFilter(const TArray<float>& InData, int32 WindowSize, int32 WindowOrigin, TArray<float>& OutData)
+	void ArrayMaxFilter(TArrayView<const float> InView, int32 WindowSize, int32 WindowOrigin, TArray<float>& OutData)
 	{
 		// A reasonable implementation of a max filter for the data we're interested in, though surely not the fastest.
 		check(WindowOrigin < WindowSize);
@@ -112,7 +112,7 @@ namespace Audio
 		int32 EndIndex = StartIndex + WindowSize;
 
 		// Initialize output
-		int32 Num = InData.Num();
+		int32 Num = InView.Num();
 		OutData.Reset();
 		OutData.AddUninitialized(Num);
 
@@ -125,16 +125,16 @@ namespace Audio
 		int32 ActualStartIndex = 0;
 		int32 ActualEndIndex = FMath::Min(EndIndex, Num);
 
-		const float* InDataPtr = InData.GetData();
+		const float* InViewPtr = InView.GetData();
 		float* OutDataPtr = OutData.GetData();
 		int32 MaxIndex = 0;
-		float MaxValue = InData[0];
+		float MaxValue = InView[0];
 
 		for (int32 i = ActualStartIndex; i < ActualEndIndex; i++)
 		{
-			if (InDataPtr[i] > MaxValue)
+			if (InViewPtr[i] > MaxValue)
 			{
-				MaxValue = InDataPtr[i];
+				MaxValue = InViewPtr[i];
 				MaxIndex = i;
 			}		
 		}
@@ -153,23 +153,23 @@ namespace Audio
 			{
 				// We need to evaluate the entire window because the previous maximum value was not in this window.
 				MaxIndex = ActualStartIndex;
-				MaxValue = InDataPtr[MaxIndex];
+				MaxValue = InViewPtr[MaxIndex];
 				for (int32 j = ActualStartIndex + 1; j < ActualEndIndex; j++)
 				{
-					if (InDataPtr[j] > MaxValue)
+					if (InViewPtr[j] > MaxValue)
 					{
 						MaxIndex = j;
-						MaxValue = InDataPtr[MaxIndex];
+						MaxValue = InViewPtr[MaxIndex];
 					}
 				}
 			}
 			else
 			{
 				// We only need to inspect the newest sample because the previous maximum value was in this window.
-				if (InDataPtr[ActualEndIndex - 1] > MaxValue)
+				if (InViewPtr[ActualEndIndex - 1] > MaxValue)
 				{
 					MaxIndex = ActualEndIndex - 1;
-					MaxValue = InDataPtr[MaxIndex];
+					MaxValue = InViewPtr[MaxIndex];
 				}
 			}
 
@@ -180,59 +180,70 @@ namespace Audio
 		}
 	}
 
-	void ArrayGetEuclideanNorm(const TArray<float>& InArray, float& OutEuclideanNorm)
+	void ArrayGetEuclideanNorm(TArrayView<const float> InView, float& OutEuclideanNorm)
 	{
 		// Initialize output.
 		OutEuclideanNorm = 0.0f;
-		const int32 Num = InArray.Num();
-		const float* InArrayData = InArray.GetData();
+		const int32 Num = InView.Num();
+		const float* InViewData = InView.GetData();
 		
 		// Sum it up.
 		for (int32 i = 0; i < Num; i++)
 		{
-			OutEuclideanNorm += InArrayData[i] * InArrayData[i];
+			OutEuclideanNorm += InViewData[i] * InViewData[i];
 		}
 
 		OutEuclideanNorm = FMath::Sqrt(OutEuclideanNorm);
 	}
 
-	void ArrayMultiplyByConstantInPlace(TArray<float>& InArray, float InMultiplier)
+	void ArrayClampInPlace(TArrayView<float> InView, float InMin, float InMax)
 	{
-		const int32 Num = InArray.Num();
-		float* InArrayData = InArray.GetData();
+		const int32 Num = InView.Num();
+		float* Data = InView.GetData();
+
 		for (int32 i = 0; i < Num; i++)
 		{
-			InArrayData[i] *= InMultiplier;
+			Data[i] = FMath::Clamp(Data[i], InMin, InMax);
 		}
 	}
 
-	void ArraySubtractByConstantInPlace(TArray<float>& InArray, float InSubtrahend)
+	void ArrayMultiplyByConstantInPlace(TArrayView<float> InView, float InMultiplier)
 	{
-		const int32 Num = InArray.Num();
-		float* InArrayData = InArray.GetData();
+		const int32 Num = InView.Num();
+		float* InViewData = InView.GetData();
 		for (int32 i = 0; i < Num; i++)
 		{
-			InArrayData[i] -= InSubtrahend;
+			InViewData[i] *= InMultiplier;
 		}
 	}
 
-	void ArrayMagnitudeToDecibelInPlace(TArray<float>& InArray)
+	void ArraySubtractByConstantInPlace(TArrayView<float> InView, float InSubtrahend)
 	{
-		const int32 Num = InArray.Num();
-		float* InArrayData = InArray.GetData();
+		const int32 Num = InView.Num();
+		float* InViewData = InView.GetData();
 		for (int32 i = 0; i < Num; i++)
 		{
-			InArrayData[i] = 20.f * FMath::Loge(InArrayData[i]) / LOGE10;
+			InViewData[i] -= InSubtrahend;
 		}
 	}
 
-	void ArrayPowerToDecibelInPlace(TArray<float>& InArray)
+	void ArrayMagnitudeToDecibelInPlace(TArrayView<float> InView)
 	{
-		const int32 Num = InArray.Num();
-		float* InArrayData = InArray.GetData();
+		const int32 Num = InView.Num();
+		float* InViewData = InView.GetData();
 		for (int32 i = 0; i < Num; i++)
 		{
-			InArrayData[i] = 10.f * FMath::Loge(InArrayData[i]) / LOGE10;
+			InViewData[i] = 20.f * FMath::Loge(InViewData[i]) / LOGE10;
+		}
+	}
+
+	void ArrayPowerToDecibelInPlace(TArrayView<float> InView)
+	{
+		const int32 Num = InView.Num();
+		float* InViewData = InView.GetData();
+		for (int32 i = 0; i < Num; i++)
+		{
+			InViewData[i] = 10.f * FMath::Loge(InViewData[i]) / LOGE10;
 		}
 	}
 
@@ -269,9 +280,9 @@ namespace Audio
 		Kernel[RowIndex].OffsetValues = TArray<float>(OffsetValues.GetData(), OffsetValues.Num());
 	}
 
-	void FContiguousSparse2DKernelTransform::TransformArray(TArrayView<const float> InArray, TArray<float>& OutArray) const
+	void FContiguousSparse2DKernelTransform::TransformArray(TArrayView<const float> InView, TArray<float>& OutArray) const
 	{
-		check(InArray.Num() == NumIn);
+		check(InView.Num() == NumIn);
 
 		// Resize output
 		OutArray.Reset(NumOut);
@@ -280,12 +291,12 @@ namespace Audio
 			OutArray.AddUninitialized(NumOut);
 		}
 
-		TransformArray(InArray.GetData(), OutArray.GetData());
+		TransformArray(InView.GetData(), OutArray.GetData());
 	}
 
-	void FContiguousSparse2DKernelTransform::TransformArray(TArrayView<const float> InArray, AlignedFloatBuffer& OutArray) const
+	void FContiguousSparse2DKernelTransform::TransformArray(TArrayView<const float> InView, AlignedFloatBuffer& OutArray) const
 	{	
-		check(InArray.Num() == NumIn);
+		check(InView.Num() == NumIn);
 
 		// Resize output
 		OutArray.Reset(NumOut);
@@ -294,7 +305,7 @@ namespace Audio
 			OutArray.AddUninitialized(NumOut);
 		}
 
-		TransformArray(InArray.GetData(), OutArray.GetData());
+		TransformArray(InView.GetData(), OutArray.GetData());
 	}
 
 	void FContiguousSparse2DKernelTransform::TransformArray(const float* InArray, float* OutArray) const

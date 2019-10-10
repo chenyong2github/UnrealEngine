@@ -201,6 +201,15 @@ public:
 	 */
 	bool RemoveTriangles(const TArray<int>& Triangles, bool bRemoveIsolatedVerts);
 
+	/**
+	 * Remove a list of triangles from the mesh, and optionally any vertices that are now orphaned
+	 * @param Triangles the triangles to remove
+	 * @param bRemoveIsolatedVerts if true, remove vertices that end up with no triangles
+	 * @param OnRemoveTriFunc called for each triangle to be removed
+	 * @return true if all removes succeeded
+	 */
+	bool RemoveTriangles(const TArray<int>& Triangles, bool bRemoveIsolatedVerts, TFunctionRef<void(int)> OnRemoveTriFunc);
+
 
 	//////////////////////////////////////////////////////////////////////////
 	// Normal utility functions
@@ -256,21 +265,32 @@ public:
 	 * UVs are translated so that their bbox min-corner is at origin, and scaled by given scale factor
 	 * @param QuadTris pair of triangle IDs. If second ID is invalid, it is ignored
 	 * @param ProjectFrame vertices are projected into XY axes of this frame
-	 * @param UVScaleFactor UVs are scaled
+	 * @param UVScaleFactor UVs are scaled by this uniform scale factor
+	 * @param UVTranslation UVs are translated after scaling
 	 * @param UVLayerIndex which UV layer to operate on (must exist)
 	 */
-	void SetQuadUVsFromProjection(const FIndex2i& QuadTris, const FFrame3d& ProjectionFrame, float UVScaleFactor = 1.0f, int UVLayerIndex = 0);
+	void SetQuadUVsFromProjection(const FIndex2i& QuadTris, const FFrame3d& ProjectionFrame, float UVScaleFactor = 1.0f, const FVector2f& UVTranslation = FVector2f::Zero(), int UVLayerIndex = 0);
 
 	/**
 	* Project triangles onto a plane defined by the ProjectionFrame and use that to create/set new shared per-triangle UVs.
 	* UVs are translated so that their bbox min-corner is at origin, and scaled by given scale factor
 	* @param Triangles TArray of triangle IDs
 	* @param ProjectFrame vertices are projected into XY axes of this frame
-	* @param UVScaleFactor UVs are scaled
+	* @param UVScaleFactor UVs are scaled by this uniform scale factor
+	* @param UVTranslation UVs are translated after scaling
 	* @param UVLayerIndex which UV layer to operate on (must exist)
 	*/
-	void SetTriangleUVsFromProjection(const TArray<int>& Triangles, const FFrame3d& ProjectionFrame, float UVScaleFactor, int UVLayerIndex = 0);
+	void SetTriangleUVsFromProjection(const TArray<int>& Triangles, const FFrame3d& ProjectionFrame, float UVScaleFactor = 1.0f, const FVector2f& UVTranslation = FVector2f::Zero(), int UVLayerIndex = 0);
 
+
+	/**
+	 * Rescale UVs for the whole mesh, for the given UV attribute layer
+	 * @param UVScale Scale factor to multiply into UVs.  If in world space, this is in centimeters relative to the average UV scale
+	 * @param bWorldSpace If true, UVs are rescaled relative to an absolute world scale.
+	 * @param UVLayerIndex which UV layer to operate on (must exist)
+	 * @param ToWorld Optionally transform vertices for world space scaling
+	 */
+	void RescaleAttributeUVs(float UVScale = 1.0f, bool bWorldSpace = false, int UVLayerIndex = 0, TOptional<FTransform3d> ToWorld = TOptional<FTransform3d>());
 
 
 	//////////////////////////////////////////////////////////////////////////
@@ -373,6 +393,20 @@ public:
 		const FDynamicMeshUVOverlay* FromUVs, FDynamicMeshUVOverlay* ToUVs,
 		const FIndexMapi& VertexMap, const FIndexMapi& TriangleMap,
 		FIndexMapi& UVMapOut);
+
+
+
+
+	/**
+	 * Append triangles of an existing mesh. This duplicates the current groups and also any attributes existing on the triangles.
+	 * @param SourceMesh the mesh to copy from
+	 * @param SourceTriangles the triangles to copy
+	 * @param IndexMaps returned mappings from old to new triangles/vertices/etc (you may initialize to optimize memory usage, etc)
+	 * @param ResultOut lists of newly created triangles/vertices/etc
+	 */
+	void AppendTriangles(const FDynamicMesh3* SourceMesh, const TArray<int>& SourceTriangles, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult& ResultOut);
+
+
 };
 
 

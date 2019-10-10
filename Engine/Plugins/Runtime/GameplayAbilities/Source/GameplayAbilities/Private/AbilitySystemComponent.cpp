@@ -1164,10 +1164,7 @@ void UAbilitySystemComponent::AddGameplayCue_Internal(const FGameplayTag Gamepla
 				if (GameplayCueContainer.bMinimalReplication)
 				{
 					// For *replicated to sim proxies only* container, Create a Server Initiated PK to avoid double playing on the auto proxy in mixed replication mode (Original Hack)
-					if (ScopedPredictionKey.IsValidKey())
-					{
-						PredictionKeyForRPC = FPredictionKey::CreateNewServerInitiatedKey(this);
-					}
+					PredictionKeyForRPC = FPredictionKey::CreateNewServerInitiatedKey(this);
 				}
 				else
 				{

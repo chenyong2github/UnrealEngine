@@ -3,7 +3,7 @@
 #include "MeshEditorUtilities.h"
 
 #include "EditableMesh.h"
-#include "MeshAttributes.h"
+#include "StaticMeshAttributes.h"
 #include "MeshElement.h"
 #include "Materials/Material.h"
 

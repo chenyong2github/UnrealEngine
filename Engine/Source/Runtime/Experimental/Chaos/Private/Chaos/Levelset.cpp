@@ -9,6 +9,7 @@
 #include <vector>
 #include "Chaos/ErrorReporter.h"
 #include "Chaos/MassProperties.h"
+#include "Chaos/TriangleMesh.h"
 
 int32 OutputFailedLevelSetDebugData = 0;
 FAutoConsoleVariableRef CVarOutputFailedLevelSetDebugData(TEXT("p.LevelSetOutputFailedDebugData"), OutputFailedLevelSetDebugData, TEXT("Output debug obj files for level set and mesh when error tolerances are too high"));

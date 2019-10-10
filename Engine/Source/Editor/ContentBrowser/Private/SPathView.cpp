@@ -19,6 +19,7 @@
 #include "DragDropHandler.h"
 
 #include "PathViewTypes.h"
+#include "SourcesSearch.h"
 #include "SourcesViewWidgets.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "NativeClassHierarchy.h"
@@ -112,6 +113,41 @@ void SPathView::Construct( const FArguments& InArgs )
 			.HighlightParentNodesForSelection(true);
 	}
 
+	SearchPtr = InArgs._ExternalSearch;
+	if (!SearchPtr)
+	{
+		SearchPtr = MakeShared<FSourcesSearch>();
+		SearchPtr->Initialize();
+		SearchPtr->SetHintText(LOCTEXT("AssetTreeSearchBoxHint", "Search Folders"));
+	}
+	SearchPtr->OnSearchChanged().AddSP(this, &SPathView::SetSearchFilterText);
+
+	TSharedRef<SBox> SearchBox = SNew(SBox);
+	if (!InArgs._ExternalSearch)
+	{
+		SearchBox->SetPadding(FMargin(0, 1, 0, 3));
+
+		SearchBox->SetContent(
+			SNew(SHorizontalBox)
+
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				InArgs._SearchContent.Widget
+			]
+
+			+SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			[
+				SNew(SBox)
+				.Visibility(InArgs._SearchBarVisibility)
+				[
+					SearchPtr->GetWidget()
+				]
+			]
+		);
+	}
+
 	ChildSlot
 	[
 		SNew(SVerticalBox)
@@ -119,25 +155,8 @@ void SPathView::Construct( const FArguments& InArgs )
 		// Search
 		+ SVerticalBox::Slot()
 		.AutoHeight()
-		.Padding(0, 1, 0, 3)
 		[
-			SNew(SHorizontalBox)
-
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				InArgs._SearchContent.Widget
-			]
-
-			+ SHorizontalBox::Slot()
-			.FillWidth(1.0f)
-			[
-				SAssignNew(SearchBoxPtr, SSearchBox)
-				.Visibility(InArgs._SearchBarVisibility)
-				.HintText( LOCTEXT( "AssetTreeSearchBoxHint", "Search Folders" ) )
-				.OnTextChanged( this, &SPathView::OnAssetTreeSearchBoxChanged )
-				.OnTextCommitted( this, &SPathView::OnAssetTreeSearchBoxCommitted )
-			]
+			SearchBox
 		]
 
 		// Tree title
@@ -194,11 +213,8 @@ void SPathView::SetSelectedPaths(const TArray<FString>& Paths)
 		return;
 	}
 
-	if ( !SearchBoxPtr->GetText().IsEmpty() )
-	{
-		// Clear the search box so the selected paths will be visible
-		SearchBoxPtr->SetText( FText::GetEmpty() );
-	}
+	// Clear the search box so the selected paths will be visible
+	SearchPtr->ClearSearch();
 
 	// Prevent the selection changed delegate since the invoking code requested it
 	FScopedPreventTreeItemChangedDelegate DelegatePrevention( SharedThis(this) );
@@ -506,7 +522,7 @@ void SPathView::SyncToInternal( const TArray<FAssetData>& AssetDataList, const T
 	TArray<TSharedPtr<FTreeItem>> SyncTreeItems;
 
 	// Clear the filter
-	SearchBoxPtr->SetText(FText::GetEmpty());
+	SearchPtr->ClearSearch();
 
 	TSet<FString> PackagePaths = TSet<FString>(FolderPaths);
 	for (const FAssetData& AssetData : AssetDataList)
@@ -721,7 +737,7 @@ void SPathView::LoadSettings(const FString& IniFilename, const FString& IniSecti
 EActiveTimerReturnType SPathView::SetFocusPostConstruct( double InCurrentTime, float InDeltaTime )
 {
 	FWidgetPath WidgetToFocusPath;
-	FSlateApplication::Get().GeneratePathToWidgetUnchecked( SearchBoxPtr.ToSharedRef(), WidgetToFocusPath );
+	FSlateApplication::Get().GeneratePathToWidgetUnchecked( SearchPtr->GetWidget(), WidgetToFocusPath );
 	FSlateApplication::Get().SetKeyboardFocus( WidgetToFocusPath, EFocusCause::SetDirectly );
 
 	return EActiveTimerReturnType::Stop;
@@ -992,26 +1008,20 @@ void SPathView::TreeExpansionChanged( TSharedPtr< FTreeItem > TreeItem, bool bIs
 	}
 }
 
-void SPathView::OnAssetTreeSearchBoxChanged( const FText& InSearchText )
-{
-	SearchBoxFolderFilter->SetRawFilterText( InSearchText );
-	SearchBoxPtr->SetError( SearchBoxFolderFilter->GetFilterErrorText() );
-}
-
-void SPathView::OnAssetTreeSearchBoxCommitted(const FText& InSearchText, ETextCommit::Type InCommitType)
-{
-	if (InCommitType == ETextCommit::OnCleared)
-	{
-		// Clear the search box and the filters
-		SearchBoxPtr->SetText(FText::GetEmpty());
-		OnAssetTreeSearchBoxChanged(FText::GetEmpty());
-		FSlateApplication::Get().ClearKeyboardFocus(EFocusCause::Cleared);
-	}
-}
-
 void SPathView::FilterUpdated()
 {
 	Populate();
+}
+
+void SPathView::SetSearchFilterText(const FText& InSearchText, TArray<FText>& OutErrors)
+{
+	SearchBoxFolderFilter->SetRawFilterText(InSearchText);
+
+	const FText ErrorText = SearchBoxFolderFilter->GetFilterErrorText();
+	if (!ErrorText.IsEmpty())
+	{
+		OutErrors.Add(ErrorText);
+	}
 }
 
 FText SPathView::GetHighlightText() const
@@ -1749,18 +1759,6 @@ void SFavoritePathView::LoadSettings(const FString& IniFilename, const FString& 
 	}
 }
 
-void SFavoritePathView::OnAssetTreeSearchBoxChanged(const FText& InSearchText)
-{
-	SPathView::OnAssetTreeSearchBoxChanged(InSearchText);
-	OnFavoriteSearchChanged.ExecuteIfBound(InSearchText);
-}
-
-void SFavoritePathView::OnAssetTreeSearchBoxCommitted(const FText& InSearchText, ETextCommit::Type InCommitType)
-{
-	SPathView::OnAssetTreeSearchBoxCommitted(InSearchText, InCommitType);
-	OnFavoriteSearchCommitted.ExecuteIfBound(InSearchText, InCommitType);
-}
-
 void SFavoritePathView::SetSelectedPaths(const TArray<FString>& Paths)
 {
 	if (!ensure(TreeViewPtr.IsValid()))
@@ -1768,11 +1766,8 @@ void SFavoritePathView::SetSelectedPaths(const TArray<FString>& Paths)
 		return;
 	}
 
-	if (!SearchBoxPtr->GetText().IsEmpty())
-	{
-		// Clear the search box so the selected paths will be visible
-		SearchBoxPtr->SetText(FText::GetEmpty());
-	}
+	// Clear the search box so the selected paths will be visible
+	SearchPtr->ClearSearch();
 
 	// Prevent the selection changed delegate since the invoking code requested it
 	FScopedPreventTreeItemChangedDelegate DelegatePrevention(SharedThis(this));

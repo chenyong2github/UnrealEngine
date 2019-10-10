@@ -208,6 +208,9 @@ private:
 
 	/** Execution tokens that are used to apply animated state */
 	FMovieSceneExecutionTokens ExecutionTokens;
+
+	/** True when in Evaluate */
+	bool bEvaluating;
 };
 
 template<>

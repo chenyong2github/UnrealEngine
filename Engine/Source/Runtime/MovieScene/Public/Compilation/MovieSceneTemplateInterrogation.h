@@ -29,6 +29,12 @@ struct FMovieSceneInterrogationKey
 	{
 		return A.AnimTypeID != B.AnimTypeID;
 	}
+
+	/**
+	* Access the interrogation key for transform data - any interrogation data stored with this key is guaranteed to be of type 'FTransform'
+	* to be used by various editors and sections that reference transforms
+	*/
+	MOVIESCENE_API static FMovieSceneInterrogationKey GetTransformInterrogationKey();
 };
 
 /** Tokens that are stored in FMovieSceneInterrogationData */
@@ -161,3 +167,5 @@ private:
 	TOptional<FMovieSceneInterrogationKey> PredicateKey;
 	int32 Index;
 };
+
+

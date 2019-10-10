@@ -349,6 +349,15 @@ public:
 	virtual bool SupportsFeature( ETargetPlatformFeatures Feature ) const = 0;
 
 	/**
+	 * Checks whether the target platform supports the specified value for the specified type of support
+	 *
+	 * @param SupportedType The type of support being queried
+	 * @param RequiredSupportedValue The value of support needed
+	 * @return true if the feature is supported, false otherwise.
+	 */
+	virtual bool SupportsValueForType(FName SupportedType, FName RequiredSupportedValue) const = 0;
+
+	/**
 	 * Gets whether the platform should use forward shading or not.
 	 */
 	virtual bool UsesForwardShading() const = 0;

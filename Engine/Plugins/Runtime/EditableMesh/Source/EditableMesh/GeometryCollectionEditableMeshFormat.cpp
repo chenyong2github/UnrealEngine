@@ -5,7 +5,7 @@
 #include "Engine/StaticMesh.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "EditableGeometryCollectionAdapter.h"
-#include "MeshAttributes.h"
+#include "StaticMeshAttributes.h"
 
 bool FGeometryCollectionEditableMeshFormat::HandlesComponentType(class UPrimitiveComponent& Component)
 {
@@ -123,7 +123,6 @@ void FGeometryCollectionEditableMeshFormat::RegisterMeshAttributes(FMeshDescript
 
 	// Add basic edge attributes
 	MeshDescription->EdgeAttributes().RegisterAttribute<bool>(MeshAttribute::Edge::IsHard, 1, false);
-	MeshDescription->EdgeAttributes().RegisterAttribute<bool>(MeshAttribute::Edge::IsUVSeam, 1, false);
 	MeshDescription->EdgeAttributes().RegisterAttribute<float>(MeshAttribute::Edge::CreaseSharpness, 1, 0.0f, EMeshAttributeFlags::Lerpable);
 
 	// Add basic polygon attributes

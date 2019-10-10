@@ -8,10 +8,7 @@
 #include "IMeshReductionInterfaces.h"
 #include "IMeshReductionManagerModule.h"
 #include "Modules/ModuleManager.h"
-
-#include "MeshDescription.h"
-#include "MeshAttributes.h"
-#include "MeshAttributeArray.h"
+#include "StaticMeshAttributes.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -226,11 +223,9 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 
 		//Commit the FMeshDescription to the source model we just created
 		int32 SourceModelIndex = StaticMesh->GetNumSourceModels() - 1;
-		FMeshDescription* MeshDescription = StaticMesh->CreateMeshDescription(SourceModelIndex);
+		FMeshDescription* MeshDescription = StaticMesh->CreateMeshDescription(SourceModelIndex, Data->RawMesh);
 		if (ensure(MeshDescription))
 		{
-			*MeshDescription = Data->RawMesh;
-
 			// Make sure the Proxy material have a valid ImportedMaterialSlotName
 			//The proxy material must be add only once and is always the first slot of the HLOD mesh
 			FStaticMaterial NewMaterial(ProxyMaterial);
@@ -238,7 +233,7 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 			{
 				NewMaterial.ImportedMaterialSlotName = PolygonGroupMaterialSlotName[MeshDescription->PolygonGroups().GetFirstValidID()];
 			}
-				StaticMesh->StaticMaterials.Add(NewMaterial);
+			StaticMesh->StaticMaterials.Add(NewMaterial);
 
 			StaticMesh->CommitMeshDescription(SourceModelIndex);
 		}

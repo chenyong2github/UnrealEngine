@@ -2,7 +2,7 @@
 
 #pragma once
 
-class UClothingAsset;
+class UClothingAssetCommon;
 
 // Base clothing actor just needs a link back to its parent asset, everything else defined by derived simulation
 class FClothingActorBase
@@ -10,5 +10,5 @@ class FClothingActorBase
 public:
 
 	// Link back to parent asset
-	UClothingAsset* AssetCreatedFrom;
+	UClothingAssetCommon* AssetCreatedFrom;
 };

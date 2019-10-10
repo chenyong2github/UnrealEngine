@@ -159,7 +159,7 @@ public:
 		To access StaticArray at index 2 from Struct2 in MyActor, your path would be MyStruct.StaticArray[2]" and your instance name is "Struct2"
 		To access MyFloat in MyActor you can just pass in "MyFloat" because the name of the property is unambiguous
 	 */
-	virtual TSharedRef<IPropertyHandle> GetProperty( const FName PropertyPath, const UStruct* ClassOutermost = NULL, FName InstanceName = NAME_None )  = 0;
+	virtual TSharedRef<IPropertyHandle> GetProperty( const FName PropertyPath, const UStruct* ClassOutermost = NULL, FName InstanceName = NAME_None ) const = 0;
 
 	/**
 	 * Gets the top level property, for showing the warning for experimental or early access class

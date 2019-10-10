@@ -36,6 +36,7 @@ DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("FindObject"),STAT_FindObject,STATGROUP_O
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("FindObjectFast"),STAT_FindObjectFast,STATGROUP_ObjectVerbose, );
 
 #define	INVALID_OBJECT	(UObject*)-1
+#define PERF_TRACK_DETAILED_ASYNC_STATS (0)
 
 
 // Private system wide variables.

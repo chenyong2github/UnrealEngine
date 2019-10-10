@@ -60,7 +60,7 @@ void FGeometryCollectionSelectRigidBodyEdMode::ActivateMode(TSharedRef<IProperty
 
 		// Activate editor mode
 		GLevelEditorModeTools().ActivateMode(EditorModeID);
-		if (FEdMode* const EdMode = GLevelEditorModeTools().FindMode(EditorModeID))
+		if (FEdMode* const EdMode = GLevelEditorModeTools().GetActiveMode(EditorModeID))
 		{
 			// Set pointers
 			FGeometryCollectionSelectRigidBodyEdMode* const GeometryCollectionSelectRigidBodyEdMode = static_cast<FGeometryCollectionSelectRigidBodyEdMode*>(EdMode);

@@ -15,7 +15,8 @@ struct FRigUnit_SetRelativeBoneTransform : public FRigUnitMutable
 	GENERATED_BODY()
 
 	FRigUnit_SetRelativeBoneTransform()
-		: bPropagateToChildren(false)
+		: Weight(1.f)
+		, bPropagateToChildren(false)
 		, CachedBoneIndex(INDEX_NONE)
 		, CachedSpaceIndex(INDEX_NONE)
 	{}
@@ -41,6 +42,12 @@ struct FRigUnit_SetRelativeBoneTransform : public FRigUnitMutable
 	 */
 	UPROPERTY(meta = (Input))
 	FTransform Transform;
+
+	/**
+	 * The weight of the change - how much the change should be applied
+	 */
+	UPROPERTY(meta = (Input, UIMin = "0.0", UIMax = "1.0"))
+	float Weight;
 
 	/**
 	 * If set to true all of the global transforms of the children 

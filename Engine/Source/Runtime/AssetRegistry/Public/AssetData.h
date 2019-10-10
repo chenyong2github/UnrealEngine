@@ -54,8 +54,15 @@ USTRUCT(BlueprintType)
 struct FAssetData
 {
 	GENERATED_BODY()
-public:
 
+public:
+	/** The prefix used for collection entries inside TagsAndValues */
+	static const TCHAR* GetCollectionTagPrefix()
+	{
+		return TEXT("CL_");
+	}
+
+public:
 	/** The object path for the asset in the form PackageName.AssetName. Only top level objects in a package can have AssetData */
 	UPROPERTY(BlueprintReadOnly, Category=AssetData, transient)
 	FName ObjectPath;
@@ -356,7 +363,12 @@ public:
 	/** Returns true if the asset is loaded */
 	bool IsAssetLoaded() const
 	{
-		return IsValid() && FindObjectSafe<UObject>(NULL, *ObjectPath.ToString()) != NULL;
+		if (IsValid())
+		{
+			UPackage* Package = FindObjectFast<UPackage>(nullptr, PackageName);
+			return (Package != NULL) && (FindObjectFast<UObject>(Package, AssetName) != NULL);
+		}
+		return false;
 	}
 
 	/** Prints the details of the asset to the log */
@@ -597,6 +609,53 @@ public:
 		Ar << CookedHash;
 	}
 };
+
+/**
+ * Helper struct for FAssetIdentifier (e.g., for the FOnViewAssetIdentifiersInReferenceViewer delegate and Reference Viewer functions).
+ */
+#ifdef WITH_EDITORONLY_DATA
+struct FReferenceViewerParams
+{
+	FReferenceViewerParams()
+		// Displayed-on-graph options
+		: bShowReferencers(true)
+		, bShowDependencies(true)
+		// Slider-based options
+		, FixAndHideSearchDepthLimit(0)
+		, FixAndHideSearchBreadthLimit(0)
+		, bShowCollectionFilter(true)
+		// Checkbox options
+		, bShowShowReferencesOptions(true)
+		, bShowShowSearchableNames(true)
+		, bShowShowNativePackages(true)
+	{}
+
+	/* Whether to display the Referencers */
+	bool bShowReferencers;
+	/* Whether to display the Dependencies */
+	bool bShowDependencies;
+	/**
+	 * Whether to visually show to the user the option of "Search Depth Limit" or hide it and fix it to a default value:
+	 * - If 0 or negative, it will show to the user the option of "Search Depth Limit".
+	 * - If >0, it will hide that option and fix the Depth value to this value.
+	 */
+	int32 FixAndHideSearchDepthLimit;
+	/**
+	 * Whether to visually show to the user the option of "Search Breadth Limit" or hide it and fix it to a default value:
+	 * - If 0 or negative, it will show to the user the option of "Search Breadth Limit".
+	 * - If >0, it will hide that option and fix the Breadth value to this value.
+	 */
+	int32 FixAndHideSearchBreadthLimit;
+	/** Whether to visually show to the user the option of "Collection Filter" */
+	bool bShowCollectionFilter;
+	/** Whether to visually show to the user the options of "Show Soft/Hard/Management References" */
+	bool bShowShowReferencesOptions;
+	/** Whether to visually show to the user the option of "Show Searchable Names" */
+	bool bShowShowSearchableNames;
+	/** Whether to visually show to the user the option of "Show Native Packages" */
+	bool bShowShowNativePackages;
+};
+#endif // WITH_EDITORONLY_DATA
 
 /** A structure defining a thing that can be reference by something else in the asset registry. Represents either a package of a primary asset id */
 struct FAssetIdentifier

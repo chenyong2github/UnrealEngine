@@ -93,13 +93,13 @@ bool IsAudioPluginEnabled(EAudioPlugin PluginType)
 	switch (PluginType)
 	{
 	case EAudioPlugin::SPATIALIZATION:
-		return AudioPluginUtilities::GetDesiredSpatializationPlugin(AudioPluginUtilities::CurrentPlatform) != nullptr;
+		return AudioPluginUtilities::GetDesiredSpatializationPlugin() != nullptr;
 	case EAudioPlugin::REVERB:
-		return AudioPluginUtilities::GetDesiredReverbPlugin(AudioPluginUtilities::CurrentPlatform) != nullptr;
+		return AudioPluginUtilities::GetDesiredReverbPlugin() != nullptr;
 	case EAudioPlugin::OCCLUSION:
-		return AudioPluginUtilities::GetDesiredOcclusionPlugin(AudioPluginUtilities::CurrentPlatform) != nullptr;
+		return AudioPluginUtilities::GetDesiredOcclusionPlugin() != nullptr;
 	case EAudioPlugin::MODULATION:
-		return AudioPluginUtilities::GetDesiredModulationPlugin(AudioPluginUtilities::CurrentPlatform) != nullptr;
+		return AudioPluginUtilities::GetDesiredModulationPlugin() != nullptr;
 	default:
 		return false;
 		break;
@@ -112,7 +112,7 @@ UClass* GetAudioPluginCustomSettingsClass(EAudioPlugin PluginType)
 	{
 		case EAudioPlugin::SPATIALIZATION:
 		{
-			if (IAudioSpatializationFactory* Factory = AudioPluginUtilities::GetDesiredSpatializationPlugin(AudioPluginUtilities::CurrentPlatform))
+			if (IAudioSpatializationFactory* Factory = AudioPluginUtilities::GetDesiredSpatializationPlugin())
 			{
 				return Factory->GetCustomSpatializationSettingsClass();
 			}
@@ -121,7 +121,7 @@ UClass* GetAudioPluginCustomSettingsClass(EAudioPlugin PluginType)
 
 		case EAudioPlugin::REVERB:
 		{
-			if (IAudioReverbFactory* Factory = AudioPluginUtilities::GetDesiredReverbPlugin(AudioPluginUtilities::CurrentPlatform))
+			if (IAudioReverbFactory* Factory = AudioPluginUtilities::GetDesiredReverbPlugin())
 			{
 				return Factory->GetCustomReverbSettingsClass();
 			}
@@ -130,7 +130,7 @@ UClass* GetAudioPluginCustomSettingsClass(EAudioPlugin PluginType)
 
 		case EAudioPlugin::OCCLUSION:
 		{
-			if (IAudioOcclusionFactory* Factory = AudioPluginUtilities::GetDesiredOcclusionPlugin(AudioPluginUtilities::CurrentPlatform))
+			if (IAudioOcclusionFactory* Factory = AudioPluginUtilities::GetDesiredOcclusionPlugin())
 			{
 				return Factory->GetCustomOcclusionSettingsClass();
 			}
@@ -139,7 +139,7 @@ UClass* GetAudioPluginCustomSettingsClass(EAudioPlugin PluginType)
 
 		case EAudioPlugin::MODULATION:
 		{
-			if (IAudioModulationFactory* Factory = AudioPluginUtilities::GetDesiredModulationPlugin(AudioPluginUtilities::CurrentPlatform))
+			if (IAudioModulationFactory* Factory = AudioPluginUtilities::GetDesiredModulationPlugin())
 			{
 				return Factory->GetCustomModulationSettingsClass();
 			}

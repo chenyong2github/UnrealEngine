@@ -40,6 +40,7 @@ public class ContentBrowser : ModuleRules
 				"AddContentDialog",
 				"DesktopPlatform",
 				"AssetRegistry",
+				"AssetTagsEditor",
 				"ToolMenus",
 			}
 		);

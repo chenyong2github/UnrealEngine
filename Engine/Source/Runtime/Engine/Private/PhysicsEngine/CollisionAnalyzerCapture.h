@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Collision.h"
+
 #if ENABLE_COLLISION_ANALYZER
 
 #include "ICollisionAnalyzer.h"
@@ -9,8 +11,11 @@
 #include "Physics/PhysicsInterfaceCore.h"
 #include "Physics/PhysicsInterfaceUtils.h"
 
-bool bSkipCapture = false;
-bool GCollisionAnalyzerIsRecording = false;
+#include "Chaos/Capsule.h"
+#include "Chaos/Sphere.h"
+
+extern bool bSkipCapture;
+extern bool GCollisionAnalyzerIsRecording;
 
 /** Util to convert from PhysX shape and rotation to unreal shape enum, dimension vector and rotation */
 inline static void ConvertGeometryCollection(const FPhysicsGeometryCollection& GeomCollection, FQuat& InOutRot, ECAQueryShape::Type& OutQueryShape, FVector& OutDims)

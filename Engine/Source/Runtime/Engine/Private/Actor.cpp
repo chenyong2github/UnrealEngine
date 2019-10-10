@@ -1,7 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "GameFramework/Actor.h"
-#include "Serialization/AsyncLoading.h"
 #include "EngineDefines.h"
 #include "EngineStats.h"
 #include "EngineGlobals.h"
@@ -2831,6 +2830,24 @@ TArray<UActorComponent*> AActor::GetComponentsByTag(TSubclassOf<UActorComponent>
 	}
 
 	return MoveTemp(ComponentsByTag);
+}
+
+TArray<UActorComponent*> AActor::GetComponentsByInterface(TSubclassOf<UInterface> Interface) const
+{
+	TArray<UActorComponent*> Components;
+
+	if (Interface)
+	{
+		for (UActorComponent* Component : GetComponents())
+		{
+			if (Component && Component->GetClass()->ImplementsInterface(Interface))
+			{
+				Components.Add(Component);
+			}
+		}
+	}
+
+	return Components;
 }
 
 void AActor::DisableComponentsSimulatePhysics()

@@ -19,6 +19,19 @@ struct FManifestModule;
 class FUnrealSourceFile;
 class FUnrealTypeDefinitionInfo;
 
+enum class ESerializerArchiveType
+{
+	None,
+	Archive,
+	StructuredArchiveRecord
+};
+
+struct FArchiveTypeDefinePair
+{
+	ESerializerArchiveType ArchiveType;
+	FString EnclosingDefine;
+};
+
 extern TMap<FString, TSharedRef<FUnrealSourceFile> > GUnrealSourceFilesMap;
 extern TMap<UField*, TSharedRef<FUnrealTypeDefinitionInfo> > GTypeDefinitionInfoMap;
 extern TMap<const UPackage*, TArray<UField*>> GPackageSingletons;
@@ -33,6 +46,7 @@ extern TMap<FName, TSharedRef<FClassDeclarationMetaData> > GClassDeclarations;
 extern TSet<UProperty*> GUnsizedProperties;
 extern TSet<UField*> GEditorOnlyDataTypes;
 extern TMap<UStruct*, TTuple<TSharedRef<FUnrealSourceFile>, int32>> GStructToSourceLine;
+extern TMap<UClass*, FArchiveTypeDefinePair> GClassSerializerMap;
 
 /** Types access specifiers. */
 enum EAccessSpecifier

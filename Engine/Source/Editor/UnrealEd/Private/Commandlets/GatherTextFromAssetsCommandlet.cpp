@@ -17,7 +17,6 @@
 #include "UObject/PackageFileSummary.h"
 #include "Framework/Commands/Commands.h"
 #include "Commandlets/GatherTextFromSourceCommandlet.h"
-#include "Templates/ScopedPointer.h"
 #include "AssetData.h"
 #include "Sound/DialogueWave.h"
 #include "ARFilter.h"

@@ -2,9 +2,6 @@
 
 #include "STimingView.h"
 
-#include "Brushes/SlateBorderBrush.h"
-#include "Brushes/SlateBoxBrush.h"
-#include "Brushes/SlateColorBrush.h"
 #include "Containers/ArrayBuilder.h"
 #include "Containers/MapBuilder.h"
 #include "EditorStyleSet.h"
@@ -13,12 +10,14 @@
 #include "Framework/Application/MenuStack.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "HAL/PlatformTime.h"
 #include "Layout/WidgetPath.h"
 #include "Misc/Paths.h"
 #include "Rendering/DrawElements.h"
 #include "SlateOptMacros.h"
 #include "Styling/CoreStyle.h"
+#include "Styling/SlateBrush.h"
 #include "TraceServices/AnalysisService.h"
 #include "TraceServices/SessionService.h"
 #include "Widgets/Input/SButton.h"
@@ -34,9 +33,17 @@
 #include "Insights/Common/TimeUtils.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/InsightsStyle.h"
+#include "Insights/LoadingProfiler/LoadingProfilerManager.h"
+#include "Insights/LoadingProfiler/Widgets/SLoadingProfilerWindow.h"
+#include "Insights/Table/Widgets/STableTreeView.h"
 #include "Insights/TimingProfilerCommon.h"
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/ViewModels/BaseTimingTrack.h"
+#include "Insights/ViewModels/FileActivityTimingTrack.h"
+#include "Insights/ViewModels/LoadingTimingTrack.h"
+#include "Insights/ViewModels/ThreadTimingTrack.h"
+#include "Insights/ViewModels/TimingGraphTrack.h"
+#include "Insights/ViewModels/DrawHelpers.h"
 #include "Insights/ViewModels/TimingViewDrawHelper.h"
 #include "Insights/Widgets/SStatsView.h"
 #include "Insights/Widgets/STimersView.h"
@@ -55,16 +62,19 @@ uint64 FBaseTimingTrack::IdGenerator = (1ULL << 63);
 const TCHAR* GetName(ELoadTimeProfilerPackageEventType Type);
 const TCHAR* GetName(ELoadTimeProfilerObjectEventType Type);
 
+const TCHAR* GetFileActivityTypeName(Trace::EFileActivityType Type);
+uint32 GetFileActivityTypeColor(Trace::EFileActivityType Type);
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 STimingView::STimingView()
-	: bAssetLoadingMode(false)
+	: LoadingSharedState(MakeShareable(new FLoadingSharedState()))
+	, bAssetLoadingMode(false)
+	, FileActivitySharedState(MakeShareable(new FFileActivitySharedState()))
 	, TimeRulerTrack(FBaseTimingTrack::GenerateId())
 	, MarkersTrack(FBaseTimingTrack::GenerateId())
-	, GraphTrack(FBaseTimingTrack::GenerateId())
-	, TooltipWidth(MinTooltipWidth)
-	, TooltipAlpha(0.0f)
-	, WhiteBrush(FCoreStyle::Get().GetBrush("WhiteBrush"))
+	, GraphTrack(MakeShareable(new FTimingGraphTrack(FBaseTimingTrack::GenerateId())))
+	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
 	, MainFont(FCoreStyle::GetDefaultFontStyle("Regular", 8))
 {
 	Reset();
@@ -200,7 +210,7 @@ void STimingView::Reset()
 
 	bAreTimingEventsTracksDirty = true;
 
-	bUseDownSampling = true;
+	FTimingEventsTrack::bUseDownSampling = true;
 
 	//////////////////////////////////////////////////
 
@@ -211,34 +221,29 @@ void STimingView::Reset()
 
 	//////////////////////////////////////////////////
 
+	LoadingSharedState->Reset();
+
 	LoadingMainThreadTrack = nullptr;
 	LoadingAsyncThreadTrack = nullptr;
 
 	LoadingMainThreadId = 0;
 	LoadingAsyncThreadId = 0;
 
-	LoadingGetEventNameFn = FLoadingTrackGetEventNameDelegate::CreateRaw(this, &STimingView::GetLoadTimeProfilerEventName);
+	//////////////////////////////////////////////////
 
-	EventAggregationTotalCount = 0;
-	EventAggregation.Reset();
-	ObjectTypeAggregationTotalCount = 0;
-	ObjectTypeAggregation.Reset();
-
+	FileActivitySharedState->Reset();
 	IoOverviewTrack = nullptr;
 	IoActivityTrack = nullptr;
-
-	bForceIoEventsUpdate = true;
-	bMergeIoLanes = true;
-	AllIoEvents.Reset();
-	//AllIoEvents.Reserve(1000000);
 
 	//////////////////////////////////////////////////
 
 	TimeRulerTrack.Reset();
 	MarkersTrack.Reset();
 
-	GraphTrack.Reset();
-	GraphTrack.SetVisibilityFlag(false);
+	GraphTrack->Reset();
+	GraphTrack->SetHeight(200.0f);
+	GraphTrack->AddDefaultFrameSeries();
+	GraphTrack->SetVisibilityFlag(false);
 
 	//////////////////////////////////////////////////
 
@@ -260,12 +265,12 @@ void STimingView::Reset()
 	PanningMode = EPanningMode::None;
 
 	bIsSelecting = false;
-
 	SelectionStartTime = 0.0;
 	SelectionEndTime = 0.0;
 
 	HoveredTimingEvent.Reset();
 	SelectedTimingEvent.Reset();
+	Tooltip.Reset();
 
 	LastSelectionType = ESelectionType::None;
 
@@ -307,6 +312,11 @@ void STimingView::EnableAssetLoadingMode()
 
 void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
+	//SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+
+	//FStopwatch TickStopwatch;
+	//TickStopwatch.Start();
+
 	ThisGeometry = AllottedGeometry;
 
 	const float ViewWidth = AllottedGeometry.GetLocalSize().X;
@@ -331,13 +341,12 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		MarkersTrack.SetPosY(TopOffset);
 		TopOffset += MarkersTrack.GetHeight();
 	}
-	if (GraphTrack.IsVisible())
+	if (GraphTrack->IsVisible())
 	{
-		GraphTrack.SetPosY(TopOffset);
-		GraphTrack.SetHeight(200.0f);
-		TopOffset += GraphTrack.GetHeight();
+		GraphTrack->SetPosY(TopOffset);
+		TopOffset += GraphTrack->GetHeight();
 	}
-	Viewport.TopOffset = TopOffset;
+	Viewport.SetTopOffset(TopOffset);
 
 	//////////////////////////////////////////////////
 
@@ -347,10 +356,10 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		// Elastic snap to vertical scroll limits.
 
 		const float MinY = 0.0f;// -0.5f * Viewport.Height;
-		const float MaxY = Viewport.ScrollHeight - Viewport.Height + TopOffset + 7.0f;
+		const float MaxY = Viewport.GetScrollHeight() - Viewport.GetHeight() + TopOffset + 7.0f;
 		const float U = 0.5f;
 
-		float ScrollPosY = Viewport.ScrollPosY;
+		float ScrollPosY = Viewport.GetScrollPosY();
 		if (ScrollPosY < MinY)
 		{
 			ScrollPosY = ScrollPosY * U + (1.0f - U) * MinY;
@@ -372,12 +381,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 			}
 		}
 
-		if (Viewport.ScrollPosY != ScrollPosY)
-		{
-			Viewport.ScrollPosY = ScrollPosY;
-			UpdateVerticalScrollBar();
-			bIsVerticalViewportDirty = true;
-		}
+		ScrollAtPosY(ScrollPosY);
 
 		//////////////////////////////////////////////////
 		// Elastic snap to horizontal time limits.
@@ -389,6 +393,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		}
 	}
 
+	//TODO: Move this check into STimersView/SStatsView or in STimingProfilerWindow or in FTimingProfilerManager.
 	// We need to check if TimersView or StatsView needs to update their lists of timers / counters.
 	// But, ensure we do not check too often.
 	static uint64 NextTimestamp = 0;
@@ -401,18 +406,20 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
 		if (Wnd)
 		{
-			if (Wnd->TimersView)
+			TSharedPtr<STimersView> TimersView = Wnd->GetTimersView();
+			if (TimersView)
 			{
-				Wnd->TimersView->RebuildTree(false);
+				TimersView->RebuildTree(false);
 			}
-			if (Wnd->StatsView)
+			TSharedPtr<SStatsView> StatsView = Wnd->GetStatsView();
+			if (StatsView)
 			{
-				Wnd->StatsView->RebuildTree(false);
+				StatsView->RebuildTree(false);
 			}
 		}
 	}
 
-	UpdateIo();
+	FileActivitySharedState->Update();
 
 	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	if (Session)
@@ -421,16 +428,16 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 		// Check if horizontal scroll area has changed.
 		double SessionTime = Session->GetDurationSeconds();
-		if (SessionTime > Viewport.MaxValidTime &&
+		if (SessionTime > Viewport.GetMaxValidTime() &&
 			SessionTime != DBL_MAX &&
 			SessionTime != std::numeric_limits<double>::infinity())
 		{
 			//UE_LOG(TimingProfiler, Log, TEXT("Session Duration: %g"), DT);
-			Viewport.MaxValidTime = SessionTime;
+			Viewport.SetMaxValidTime(SessionTime);
 			UpdateHorizontalScrollBar();
 			//bIsMaxValidTimeDirty = true;
 
-			if (SessionTime >= Viewport.StartTime && SessionTime <= Viewport.EndTime)
+			if (SessionTime >= Viewport.GetStartTime() && SessionTime <= Viewport.GetEndTime())
 			{
 				bAreTimingEventsTracksDirty = true;
 				MarkersTrack.SetDirtyFlag();
@@ -449,16 +456,20 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 			if (LoadingMainThreadTrack == nullptr)
 			{
 				uint64 TrackId = FBaseTimingTrack::GenerateId();
-				LoadingMainThreadTrack = AddTimingEventsTrack(TrackId, ETimingEventsTrackType::Loading, TEXT("Loading - Main Thread"), nullptr, -3);
+				LoadingMainThreadTrack = new FLoadingMainThreadTimingTrack(TrackId, LoadingSharedState);
+				LoadingMainThreadTrack->SetOrder(-3);
 				LoadingMainThreadTrack->SetVisibilityFlag(bShowHideAllLoadingTracks);
+				AddTimingEventsTrack(LoadingMainThreadTrack);
 				bIsTimingEventsTrackDirty = true;
 			}
 
 			if (LoadingAsyncThreadTrack == nullptr)
 			{
 				uint64 TrackId = FBaseTimingTrack::GenerateId();
-				LoadingAsyncThreadTrack = AddTimingEventsTrack(TrackId, ETimingEventsTrackType::Loading, TEXT("Loading - Async Thread"), nullptr, -2);
+				LoadingAsyncThreadTrack = new FLoadingAsyncThreadTimingTrack(TrackId, LoadingSharedState);
+				LoadingMainThreadTrack->SetOrder(-2);
 				LoadingAsyncThreadTrack->SetVisibilityFlag(bShowHideAllLoadingTracks);
+				AddTimingEventsTrack(LoadingAsyncThreadTrack);
 				bIsTimingEventsTrackDirty = true;
 			}
 		}
@@ -469,8 +480,10 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 			{
 				// Note: The I/O timelines are just prototypes for now (will be removed once the functionality is moved in analyzer).
 				const uint64 TrackId = FBaseTimingTrack::GenerateId();
-				IoOverviewTrack = AddTimingEventsTrack(TrackId, ETimingEventsTrackType::Io, TEXT("I/O Overview"), nullptr, -1);
+				IoOverviewTrack = new FOverviewFileActivityTimingTrack(TrackId, FileActivitySharedState);
+				IoOverviewTrack->SetOrder(-1);
 				IoOverviewTrack->SetVisibilityFlag(bShowHideAllIoTracks);
+				AddTimingEventsTrack(IoOverviewTrack);
 				bIsTimingEventsTrackDirty = true;
 			}
 		}
@@ -486,8 +499,10 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 				const uint64 TrackId = static_cast<uint64>(GpuTimelineIndex);
 				if (!CachedTimelines.Contains(TrackId))
 				{
-					GpuTrack = AddTimingEventsTrack(TrackId, ETimingEventsTrackType::Gpu, TEXT("GPU"), nullptr, 0);
+					GpuTrack = new FGpuTimingTrack(TrackId, TEXT("GPU"), nullptr);
+					GpuTrack->SetOrder(0);
 					GpuTrack->SetVisibilityFlag(bShowHideAllGpuTracks);
+					AddTimingEventsTrack(GpuTrack);
 					bIsTimingEventsTrackDirty = true;
 				}
 			}
@@ -508,6 +523,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 				{
 					if (!ThreadGroups.Contains(GroupName))
 					{
+						UE_LOG(TimingProfiler, Log, TEXT("New CPU Thread Group (%d) : \"%s\""), ThreadGroups.Num() + 1, GroupName);
 						ThreadGroups.Add(GroupName, { GroupName, bIsGroupVisible, 0, Order });
 					}
 					else
@@ -529,9 +545,9 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 						FString TrackName(ThreadInfo.Name && *ThreadInfo.Name ? ThreadInfo.Name : FString::Printf(TEXT("Thread %u"), ThreadInfo.Id));
 
 						// Create new Timing Events track for the CPU thread.
-						Track = AddTimingEventsTrack(TrackId, ETimingEventsTrackType::Cpu, TrackName, GroupName, Order);
-
-						Track->SetThreadId(ThreadInfo.Id);
+						Track = new FCpuTimingTrack(TrackId, TrackName, GroupName);
+						Track->SetOrder(Order);
+						((FCpuTimingTrack*)Track)->SetThreadId(ThreadInfo.Id);
 						CpuTracks.Add(ThreadInfo.Id, Track);
 
 						FThreadGroup& ThreadGroup = ThreadGroups[GroupName];
@@ -547,6 +563,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 							Track->SetVisibilityFlag(bIsGroupVisible);
 						}
 
+						AddTimingEventsTrack(Track);
 						bIsTimingEventsTrackDirty = true;
 					}
 					else
@@ -571,8 +588,10 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 			{
 				// Note: The I/O timelines are just prototypes for now (will be removed once the functionality is moved in analyzer).
 				uint64 TrackId = FBaseTimingTrack::GenerateId();
-				IoActivityTrack = AddTimingEventsTrack(TrackId, ETimingEventsTrackType::Io, TEXT("I/O Activity"), nullptr, 999999);
+				IoActivityTrack = new FDetailedFileActivityTimingTrack(TrackId, FileActivitySharedState);
+				IoActivityTrack->SetOrder(999999);
 				IoActivityTrack->SetVisibilityFlag(bShowHideAllIoTracks);
+				AddTimingEventsTrack(IoActivityTrack);
 				bIsTimingEventsTrackDirty = true;
 			}
 		}
@@ -617,9 +636,9 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 	MarkersTrack.Tick(InCurrentTime, InDeltaTime);
 
 	// Check if vertical scroll area has changed.
-	if (TotalScrollHeight != Viewport.ScrollHeight)
+	if (TotalScrollHeight != Viewport.GetScrollHeight())
 	{
-		Viewport.ScrollHeight = TotalScrollHeight;
+		Viewport.SetScrollHeight(TotalScrollHeight);
 		UpdateVerticalScrollBar();
 		bIsVerticalViewportDirty = true;
 	}
@@ -670,13 +689,10 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 	{
 		bAreTimingEventsTracksDirty = false;
 
+		GraphTrack->SetDirtyFlag();
+
 		FStopwatch Stopwatch;
 		Stopwatch.Start();
-
-		if (GraphTrack.IsVisible())
-		{
-			GraphTrack.Update(Viewport);
-		}
 
 		for (int32 TrackIndex = 0; TrackIndex < TimingEventsTracks.Num(); ++TrackIndex)
 		{
@@ -686,6 +702,20 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		Stopwatch.Stop();
 		TimelineCacheUpdateDurationHistory.AddValue(Stopwatch.AccumulatedTime);
 	}
+
+	if (GraphTrack->IsVisible())
+	{
+		GraphTrack->Update(Viewport);
+	}
+
+	Tooltip.Update();
+	if (!MousePosition.IsZero())
+	{
+		Tooltip.SetPosition(MousePosition, 0.0f, Viewport.GetWidth() - 12.0f, 0.0f, Viewport.GetHeight() - 12.0f); // -12.0f is to avoid overlaping the scrollbars
+	}
+
+	//TickStopwatch.Stop();
+	//TODO: TotalUpdateDurationHistory.AddValue(TickStopwatch.AccumulatedTime);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -746,39 +776,11 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			FTimingEventsTrack& Track = *TimingEventsTracks[TrackIndex];
 			if (Track.IsVisible())
 			{
-				//TODO: Track.Draw(Helper);
-				if (Track.GetType() == ETimingEventsTrackType::Cpu)
-				{
-					DrawTimingProfilerTrack(Helper, Track);
-				}
-				else if (Track.GetType() == ETimingEventsTrackType::Gpu)
-				{
-					DrawTimingProfilerTrack(Helper, Track);
-				}
-				else if (Track.GetType() == ETimingEventsTrackType::Loading)
-				{
-					DrawLoadTimeProfilerTrack(Helper, Track);
-				}
-				else if (Track.GetType() == ETimingEventsTrackType::Io)
-				{
-					if (&Track == IoOverviewTrack)
-					{
-						DrawIoOverviewTrack(Helper, Track);
-					}
-					else if (&Track == IoActivityTrack)
-					{
-						DrawIoActivityTrack(Helper, Track);
-					}
-				}
+				Track.Draw(Helper);
 			}
 		}
 
 		Helper.EndTimelines();
-	}
-
-	if (GraphTrack.IsVisible())
-	{
-		GraphTrack.Draw(DrawContext, Viewport);
 	}
 
 	if (!FTimingEvent::AreEquals(SelectedTimingEvent, HoveredTimingEvent))
@@ -807,6 +809,11 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		}
 	}
 
+	if (GraphTrack->IsVisible())
+	{
+		GraphTrack->Draw(DrawContext, Viewport, MousePosition);
+	}
+
 	if (MarkersTrack.IsVisible())
 	{
 		// Draw the time markers (vertical lines + category & message texts).
@@ -827,16 +834,16 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 	//////////////////////////////////////////////////
 
 	// Draw the time range selection.
-	DrawTimeRangeSelection(DrawContext);
+	FDrawHelpers::DrawTimeRangeSelection(DrawContext, Viewport, SelectionStartTime, SelectionEndTime, WhiteBrush, MainFont);
 
 	//////////////////////////////////////////////////
 
 	// Draw the time marker (orange vertical line).
 	//DrawTimeMarker(OnPaintState);
 	float TimeMarkerX = Viewport.TimeToSlateUnitsRounded(TimeMarker);
-	if (TimeMarkerX >= 0.0f && TimeMarkerX < Viewport.Width)
+	if (TimeMarkerX >= 0.0f && TimeMarkerX < Viewport.GetWidth())
 	{
-		DrawContext.DrawBox(TimeMarkerX, 0.0f, 1.0f, Viewport.Height, WhiteBrush, FLinearColor(0.85f, 0.5f, 0.03f, 0.5f));
+		DrawContext.DrawBox(TimeMarkerX, 0.0f, 1.0f, Viewport.GetHeight(), WhiteBrush, FLinearColor(0.85f, 0.5f, 0.03f, 0.5f));
 		DrawContext.LayerId++;
 	}
 
@@ -858,7 +865,7 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		const float DbgW = 320.0f;
 		const float DbgH = DbgDY * 9 + 3.0f;
 		const float DbgX = ViewWidth - DbgW - 20.0f;
-		float DbgY = Viewport.TopOffset + 10.0f;
+		float DbgY = Viewport.GetTopOffset() + 10.0f;
 
 		DrawContext.LayerId++;
 
@@ -969,10 +976,10 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			DbgX, DbgY,
 			FString::Format(TEXT("{0} events : {1} points, {2} lines, {3} boxes"),
 				{
-					FText::AsNumber(GraphTrack.GetNumAddedEvents()).ToString(),
-					FText::AsNumber(GraphTrack.GetNumDrawPoints()).ToString(),
-					FText::AsNumber(GraphTrack.GetNumDrawLines()).ToString(),
-					FText::AsNumber(GraphTrack.GetNumDrawBoxes()).ToString(),
+					FText::AsNumber(GraphTrack->GetNumAddedEvents()).ToString(),
+					FText::AsNumber(GraphTrack->GetNumDrawPoints()).ToString(),
+					FText::AsNumber(GraphTrack->GetNumDrawLines()).ToString(),
+					FText::AsNumber(GraphTrack->GetNumDrawBoxes()).ToString(),
 				}),
 				SummaryFont, DbgTextColor
 				);
@@ -984,7 +991,10 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		DrawContext.DrawText
 		(
 			DbgX, DbgY,
-			FString::Printf(TEXT("SX: %g, ST: %g, ET: %s"), Viewport.ScaleX, Viewport.StartTime, *TimeUtils::FormatTimeAuto(Viewport.MaxValidTime)),
+			FString::Printf(TEXT("SX: %g, ST: %g, ET: %s"),
+				Viewport.GetScaleX(),
+				Viewport.GetStartTime(),
+				*TimeUtils::FormatTimeAuto(Viewport.GetMaxValidTime())),
 			SummaryFont, DbgTextColor
 		);
 		DbgY += DbgDY;
@@ -995,7 +1005,10 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		DrawContext.DrawText
 		(
 			DbgX, DbgY,
-			FString::Printf(TEXT("Y: %.2f, H: %g, VH: %g"), Viewport.ScrollPosY, Viewport.ScrollHeight, Viewport.Height),
+			FString::Printf(TEXT("Y: %.2f, H: %g, VH: %g"),
+				Viewport.GetScrollPosY(),
+				Viewport.GetScrollHeight(),
+				Viewport.GetHeight()),
 			SummaryFont, DbgTextColor
 		);
 		DbgY += DbgDY;
@@ -1020,252 +1033,15 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		// Draw info about selected event (bottom-right corner).
 		if (SelectedTimingEvent.IsValid())
 		{
-			if (SelectedTimingEvent.Track->GetType() == ETimingEventsTrackType::Cpu ||
-				SelectedTimingEvent.Track->GetType() == ETimingEventsTrackType::Gpu)
-			{
-				const FTimerNodePtr TimerNodePtr = GetTimerNode(SelectedTimingEvent.TypeId);
-
-				FString Str = FString::Printf(TEXT("%s (Incl.: %s, Excl.: %s)"),
-					TimerNodePtr ? *(TimerNodePtr->GetName().ToString()) : TEXT("N/A"),
-					*TimeUtils::FormatTimeAuto(SelectedTimingEvent.Duration()),
-					*TimeUtils::FormatTimeAuto(SelectedTimingEvent.ExclusiveTime));
-
-				const FVector2D Size = FontMeasureService->Measure(Str, MainFont);
-				const float X = Viewport.Width - Size.X - 23.0f;
-				const float Y = Viewport.Height - Size.Y - 18.0f;
-
-				const FLinearColor BackgroundColor(0.05f, 0.05f, 0.05f, 1.0f);
-				const FLinearColor TextColor(0.7f, 0.7f, 0.7f, 1.0f);
-
-				DrawContext.DrawBox(X - 8.0f, Y - 2.0f, Size.X + 16.0f, Size.Y + 4.0f, WhiteBrush, BackgroundColor);
-				DrawContext.LayerId++;
-
-				DrawContext.DrawText(X, Y, Str, MainFont, TextColor);
-				DrawContext.LayerId++;
-			}
-			else if (SelectedTimingEvent.Track->GetType() == ETimingEventsTrackType::Loading)
-			{
-				//TODO: ...
-			}
+			SelectedTimingEvent.Track->DrawSelectedEventInfo(SelectedTimingEvent, Viewport, DrawContext, WhiteBrush, MainFont);
 		}
 
-		// Draw info about hovered event (like a tooltip at mouse position).
-		if (HoveredTimingEvent.IsValid() && !MousePosition.IsZero())
+		// Draw tooltip with info about hovered event.
+		Tooltip.Draw(DrawContext);
+
+		if (GraphTrack->IsVisible())
 		{
-			if (HoveredTimingEvent.Track->GetType() == ETimingEventsTrackType::Cpu ||
-				HoveredTimingEvent.Track->GetType() == ETimingEventsTrackType::Gpu)
-			{
-				const FTimerNodePtr TimerNodePtr = GetTimerNode(HoveredTimingEvent.TypeId);
-				FString Name = TimerNodePtr ? TimerNodePtr->GetName().ToString() : TEXT("N/A");
-
-				float W = FontMeasureService->Measure(Name, MainFont).X;
-
-				if (W < MinTooltipWidth)
-				{
-					W = MinTooltipWidth;
-				}
-				if (TooltipWidth != W)
-				{
-					TooltipWidth = TooltipWidth * 0.75f + W * 0.25f;
-				}
-
-				const float MaxX = FMath::Max(0.0f, Viewport.Width - TooltipWidth - 21.0f);
-				const float X = FMath::Clamp<float>(MousePosition.X + 18.0f, 0.0f, MaxX);
-
-				constexpr float LineH = 14.0f;
-				constexpr float H = 4 * LineH;
-				const float MaxY = FMath::Max(0.0f, Viewport.Height - H - 18.0f);
-				float Y = FMath::Clamp<float>(MousePosition.Y + 18.0f, 0.0f, MaxY);
-
-				const float Alpha = 1.0f - FMath::Abs(TooltipWidth - W) / W;
-				if (TooltipAlpha < Alpha)
-				{
-					TooltipAlpha = TooltipAlpha * 0.9f + Alpha * 0.1f;
-				}
-				else
-				{
-					TooltipAlpha = Alpha;
-				}
-
-				const FLinearColor BackgroundColor(0.05f, 0.05f, 0.05f, TooltipAlpha);
-				const FLinearColor NameColor(0.9f, 0.9f, 0.5f, TooltipAlpha);
-				const FLinearColor TextColor(0.6f, 0.6f, 0.6f, TooltipAlpha);
-				const FLinearColor ValueColor(1.0f, 1.0f, 1.0f, TooltipAlpha);
-
-				DrawContext.DrawBox(X - 6.0f, Y - 3.0f, TooltipWidth + 12.0f, H + 6.0f, WhiteBrush, BackgroundColor);
-				DrawContext.LayerId++;
-
-				DrawContext.DrawText(X, Y, Name, MainFont, NameColor);
-				Y += LineH;
-
-				const float ValueX = X + 58.0f;
-
-				DrawContext.DrawText(X + 3.0f, Y, TEXT("Incl. Time:"), MainFont, TextColor);
-				FString InclStr = TimeUtils::FormatTimeAuto(HoveredTimingEvent.Duration());
-				DrawContext.DrawText(ValueX, Y, InclStr, MainFont, ValueColor);
-				Y += LineH;
-
-				DrawContext.DrawText(X, Y, TEXT("Excl. Time:"), MainFont, TextColor);
-				FString ExclStr = TimeUtils::FormatTimeAuto(HoveredTimingEvent.ExclusiveTime);
-				DrawContext.DrawText(ValueX, Y, ExclStr, MainFont, ValueColor);
-				Y += LineH;
-
-				DrawContext.DrawText(X + 24.0f, Y, TEXT("Depth:"), MainFont, TextColor);
-				FString DepthStr = FString::Printf(TEXT("%d"), HoveredTimingEvent.Depth);
-				DrawContext.DrawText(ValueX, Y, DepthStr, MainFont, ValueColor);
-				Y += LineH;
-
-				DrawContext.LayerId++;
-			}
-			else if (HoveredTimingEvent.Track->GetType() == ETimingEventsTrackType::Loading)
-			{
-				FString Name(LoadingGetEventNameFn.Execute(HoveredTimingEvent.Depth, HoveredTimingEvent.LoadingInfo));
-
-				const Trace::FPackageInfo* Package = HoveredTimingEvent.LoadingInfo.Package;
-				const Trace::FPackageExportInfo* Export = HoveredTimingEvent.LoadingInfo.Export;
-
-				FString PackageName = Package ? Package->Name : TEXT("N/A");
-
-				constexpr float ValueOffsetX = 100.0f;
-				constexpr float MinValueTextWidth = 220.0f;
-
-				float W = FontMeasureService->Measure(Name, MainFont).X;
-
-				float PackageNameW = ValueOffsetX + FontMeasureService->Measure(PackageName, MainFont).X;
-				if (W < PackageNameW)
-				{
-					W = PackageNameW;
-				}
-				if (W < ValueOffsetX + MinValueTextWidth)
-				{
-					W = ValueOffsetX + MinValueTextWidth;
-				}
-				if (W < MinTooltipWidth)
-				{
-					W = MinTooltipWidth;
-				}
-				if (TooltipWidth != W)
-				{
-					TooltipWidth = TooltipWidth * 0.75f + W * 0.25f;
-				}
-
-				const float MaxX = FMath::Max(0.0f, Viewport.Width - TooltipWidth - 21.0f);
-				const float X = FMath::Clamp<float>(MousePosition.X + 18.0f, 0.0f, MaxX);
-				const float ValueX = X + ValueOffsetX;
-
-				constexpr float LineH = 14.0f;
-				float H = 5 * LineH;
-				if (Package)
-				{
-					H += 3 * LineH;
-				}
-				if (Export)
-				{
-					H += 2 * LineH;
-				}
-				const float MaxY = FMath::Max(0.0f, Viewport.Height - H - 18.0f);
-				float Y = FMath::Clamp<float>(MousePosition.Y + 18.0f, 0.0f, MaxY);
-
-				const float Alpha = 1.0f - FMath::Abs(TooltipWidth - W) / W;
-				if (TooltipAlpha < Alpha)
-				{
-					TooltipAlpha = TooltipAlpha * 0.9f + Alpha * 0.1f;
-				}
-				else
-				{
-					TooltipAlpha = Alpha;
-				}
-
-				const FLinearColor BackgroundColor(0.05f, 0.05f, 0.05f, TooltipAlpha);
-				const FLinearColor NameColor(0.9f, 0.9f, 0.5f, TooltipAlpha);
-				const FLinearColor TextColor(0.6f, 0.6f, 0.6f, TooltipAlpha);
-				const FLinearColor ValueColor(1.0f, 1.0f, 1.0f, TooltipAlpha);
-
-				DrawContext.DrawBox(X - 6.0f, Y - 3.0f, TooltipWidth + 12.0f, H + 6.0f, WhiteBrush, BackgroundColor);
-				DrawContext.LayerId++;
-
-				DrawContext.DrawText(X, Y, Name, MainFont, NameColor);
-				Y += LineH;
-
-				DrawContext.DrawText(X, Y, TEXT("Duration:"), MainFont, TextColor);
-				FString InclStr = TimeUtils::FormatTimeAuto(HoveredTimingEvent.Duration());
-				DrawContext.DrawText(ValueX, Y, InclStr, MainFont, ValueColor);
-				Y += LineH;
-
-				DrawContext.DrawText(X, Y, TEXT("Depth:"), MainFont, TextColor);
-				FString DepthStr = FString::Printf(TEXT("%d"), HoveredTimingEvent.Depth);
-				DrawContext.DrawText(ValueX, Y, DepthStr, MainFont, ValueColor);
-				Y += LineH;
-
-				DrawContext.DrawText(X, Y, TEXT("Package Event:"), MainFont, TextColor);
-				DrawContext.DrawText(ValueX, Y, GetName(HoveredTimingEvent.LoadingInfo.PackageEventType), MainFont, ValueColor);
-				Y += LineH;
-
-				if (Package)
-				{
-					DrawContext.DrawText(X, Y, TEXT("Package Name:"), MainFont, TextColor);
-					DrawContext.DrawText(ValueX, Y, PackageName, MainFont, ValueColor);
-					Y += LineH;
-
-					DrawContext.DrawText(X, Y, TEXT("Header Size:"), MainFont, TextColor);
-					FString HeaderSizeStr = FString::Printf(TEXT("%d bytes"), Package->Summary.TotalHeaderSize);
-					DrawContext.DrawText(ValueX, Y, HeaderSizeStr, MainFont, ValueColor);
-					Y += LineH;
-
-					DrawContext.DrawText(X, Y, TEXT("Package Summary:"), MainFont, TextColor);
-					FString SummaryStr = FString::Printf(TEXT("%d names, %d imports, %d exports"), Package->Summary.NameCount, Package->Summary.ImportCount, Package->Summary.ExportCount);
-					DrawContext.DrawText(ValueX, Y, SummaryStr, MainFont, ValueColor);
-					Y += LineH;
-				}
-
-				{
-					DrawContext.DrawText(X, Y, TEXT("Export Event:"), MainFont, TextColor);
-					FString ExportTypeStr = FString::Printf(TEXT("%s%s"), GetName(HoveredTimingEvent.LoadingInfo.ExportEventType), Export && Export->IsAsset ? TEXT(" [asset]") : TEXT(""));
-					DrawContext.DrawText(ValueX, Y, ExportTypeStr, MainFont, ValueColor);
-					Y += LineH;
-				}
-
-				if (Export)
-				{
-					DrawContext.DrawText(X, Y, TEXT("Export Class:"), MainFont, TextColor);
-					FString ClassStr = FString::Printf(TEXT("%s"), Export->Class ? Export->Class->Name : TEXT("N/A"));
-					DrawContext.DrawText(ValueX, Y, ClassStr, MainFont, ValueColor);
-					Y += LineH;
-
-					DrawContext.DrawText(X, Y, TEXT("Serial:"), MainFont, TextColor);
-					FString SerialStr = FString::Printf(TEXT("Offset: %llu, Size: %llu%s"), Export->SerialOffset, Export->SerialSize);
-					DrawContext.DrawText(ValueX, Y, SerialStr, MainFont, ValueColor);
-					Y += LineH;
-				}
-
-				DrawContext.LayerId++;
-			}
-		}
-		else
-		{
-			TooltipWidth = MinTooltipWidth;
-			TooltipAlpha = 0.0f;
-		}
-	}
-
-	if (bAssetLoadingMode)
-	{
-		constexpr float MarginX = 8.0f;
-		constexpr float MarginY = 8.0f;
-
-		const float X = ViewWidth - MarginX;
-		float Y = ViewHeight;
-
-		if (ObjectTypeAggregation.Num() > 0)
-		{
-			Y -= MarginY;
-			Y -= DrawAssetLoadingAggregationTable(DrawContext, X, Y, TEXT("Object Type Aggregation"), ObjectTypeAggregation, ObjectTypeAggregationTotalCount);
-		}
-
-		if (EventAggregation.Num() > 0)
-		{
-			Y -= MarginY;
-			Y -= DrawAssetLoadingAggregationTable(DrawContext, X, Y, TEXT("Event Aggregation"), EventAggregation, EventAggregationTotalCount);
+			GraphTrack->PostDraw(DrawContext, Viewport, MousePosition);
 		}
 	}
 
@@ -1274,176 +1050,16 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-float STimingView::DrawAssetLoadingAggregationTable(FDrawContext& DrawContext, float RightX, float BottomY, const TCHAR* TableName, const TArray<FAssetLoadingEventAggregationRow>& Aggregation, int32 TotalRowCount) const
+void STimingView::AddTimingEventsTrack(FTimingEventsTrack* Track)
 {
-	const FLinearColor BackgroundColor(0.01f, 0.01f, 0.01f, 0.9f);
-	const FLinearColor TextColorHeader(0.5f, 0.5f, 0.5f, 0.9f);
-	const FLinearColor TextColor(1.0f, 1.0f, 1.0f, 0.9f);
+	UE_LOG(TimingProfiler, Log, TEXT("New Timing Events Track (%d) : %s - %s (\"%s\")"),
+		TimingEventsTracks.Num() + 1,
+		*Track->GetType().ToString(),
+		*Track->GetSubType().ToString(),
+		*Track->GetName());
 
-	constexpr float BorderX = 4.0f;
-	constexpr float BorderY = 4.0f;
-
-	constexpr float LineH = 14.0f;
-
-	float TableHeight = (2 + Aggregation.Num()) * LineH;
-	if (Aggregation.Num() < TotalRowCount)
-	{
-		TableHeight += LineH; // for the "[...]" line
-	}
-
-	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-	float MaxNameWidth = 140.0f;
-	for (const FAssetLoadingEventAggregationRow& Row : Aggregation)
-	{
-		float NameWidth = FontMeasureService->Measure(Row.Name, MainFont).X;
-		if (NameWidth > MaxNameWidth)
-		{
-			MaxNameWidth = NameWidth;
-		}
-	}
-	float NameColumnWidth = MaxNameWidth + 5.0f;
-
-	constexpr float RowNumberColumnWidth = 20.0f;
-	constexpr float CountColumnWidth = 50.0f;
-	constexpr float TotalColumnWidth = 65.0f;
-	constexpr float MinColumnWidth = 60.0f;
-	constexpr float MaxColumnWidth = 60.0f;
-	constexpr float AvgColumnWidth = 60.0f;
-	constexpr float MedColumnWidth = 60.0f;
-
-	const float TableWidth = RowNumberColumnWidth
-						   + NameColumnWidth
-						   + CountColumnWidth
-						   + TotalColumnWidth
-						   + MaxColumnWidth
-						   + AvgColumnWidth
-						   + MedColumnWidth
-						   + MinColumnWidth;
-
-	float W = TableWidth + 2 * BorderX;
-	float H = TableHeight + 2 * BorderY;
-
-	float Y = BottomY - H;
-
-	DrawContext.DrawBox(RightX - W, Y, W, H, WhiteBrush, BackgroundColor);
-	DrawContext.LayerId++;
-	Y += BorderY;
-
-	const float TableX = RightX - W + BorderX;
-
-	// Table name
-	{
-		FString TableNameRow = FString::Printf(TEXT("%s (%d records, sorted by Total time)"), TableName, TotalRowCount);
-		DrawContext.DrawText(TableX, Y, TableNameRow, MainFont, TextColor);
-		Y += LineH;
-	}
-
-	// Column names
-	{
-		float X = TableX;
-
-		X += RowNumberColumnWidth;
-
-		DrawContext.DrawText(X, Y, TEXT("Name"), MainFont, TextColorHeader);
-		X += NameColumnWidth;
-
-		X += CountColumnWidth;
-		DrawContext.DrawTextAligned(HAlign_Right, X, Y, TEXT("Count"), MainFont, TextColorHeader);
-
-		X += TotalColumnWidth;
-		DrawContext.DrawTextAligned(HAlign_Right, X, Y, TEXT("Total"), MainFont, TextColorHeader);
-
-		X += MaxColumnWidth;
-		DrawContext.DrawTextAligned(HAlign_Right, X, Y, TEXT("Max [ms]"), MainFont, TextColorHeader);
-
-		X += AvgColumnWidth;
-		DrawContext.DrawTextAligned(HAlign_Right, X, Y, TEXT("Avg [ms]"), MainFont, TextColorHeader);
-
-		X += MedColumnWidth;
-		DrawContext.DrawTextAligned(HAlign_Right, X, Y, TEXT("Med [ms]"), MainFont, TextColorHeader);
-
-		X += MinColumnWidth;
-		DrawContext.DrawTextAligned(HAlign_Right, X, Y, TEXT("Min [ms]"), MainFont, TextColorHeader);
-
-		Y += LineH;
-	}
-
-	// Records
-	for (int32 Index = 0; Index < Aggregation.Num(); ++Index)
-	{
-		constexpr int32 NumDigits = 2;
-		constexpr bool bAddTimeUnit = false;
-
-		const FAssetLoadingEventAggregationRow& Row = Aggregation[Index];
-
-		float X = TableX;
-
-		X += RowNumberColumnWidth;
-		DrawContext.DrawTextAligned(HAlign_Right, X - 4.0f, Y, FString::Printf(TEXT("%d."), Index + 1), MainFont, TextColorHeader);
-
-		DrawContext.DrawText(X, Y, Row.Name, MainFont, TextColor);
-		X += NameColumnWidth;
-
-		X += CountColumnWidth;
-		DrawContext.DrawTextAligned(HAlign_Right, X, Y, FText::AsNumber(Row.Count).ToString(), MainFont, TextColor);
-
-		X += TotalColumnWidth;
-		DrawContext.DrawTextAligned(HAlign_Right, X, Y, TimeUtils::FormatTimeAuto(Row.Total), MainFont, TextColor);
-
-		X += MaxColumnWidth;
-		DrawContext.DrawTextAligned(HAlign_Right, X, Y, TimeUtils::FormatTimeMs(Row.Max, NumDigits, bAddTimeUnit), MainFont, TextColor);
-
-		X += AvgColumnWidth;
-		DrawContext.DrawTextAligned(HAlign_Right, X, Y, TimeUtils::FormatTimeMs(Row.Avg, NumDigits, bAddTimeUnit), MainFont, TextColor);
-
-		X += MedColumnWidth;
-		DrawContext.DrawTextAligned(HAlign_Right, X, Y, TimeUtils::FormatTimeMs(Row.Med, NumDigits, bAddTimeUnit), MainFont, TextColor);
-
-		X += MinColumnWidth;
-		DrawContext.DrawTextAligned(HAlign_Right, X, Y, TimeUtils::FormatTimeMs(Row.Min, NumDigits, bAddTimeUnit), MainFont, TextColor);
-
-		Y += LineH;
-	}
-
-	if (Aggregation.Num() < TotalRowCount)
-	{
-		DrawContext.DrawText(TableX, Y, TEXT("[...]"), MainFont, TextColorHeader);
-		Y += LineH;
-	}
-
-	DrawContext.LayerId++;
-
-	return H;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-const TCHAR* GetName(ETimingEventsTrackType Type)
-{
-	switch (Type)
-	{
-		case ETimingEventsTrackType::Gpu:		return TEXT("GPU");
-		case ETimingEventsTrackType::Cpu:		return TEXT("CPU");
-		case ETimingEventsTrackType::Loading:	return TEXT("Loading");
-		case ETimingEventsTrackType::Io:		return TEXT("I/O");
-		default:								return TEXT("unknown");
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FTimingEventsTrack* STimingView::AddTimingEventsTrack(uint64 TrackId, ETimingEventsTrackType TrackType, const FString& TrackName, const TCHAR* GroupName, int32 Order)
-{
-	FTimingEventsTrack* Track = new FTimingEventsTrack(TrackId, TrackType, TrackName, GroupName);
-
-	Track->SetOrder(Order);
-
-	UE_LOG(TimingProfiler, Log, TEXT("New Timing Events Track (%d) : %s (\"%s\")"), TimingEventsTracks.Num() + 1, GetName(TrackType), *TrackName);
-
-	CachedTimelines.Add(TrackId, Track);
+	CachedTimelines.Add(Track->GetId(), Track);
 	TimingEventsTracks.Add(Track);
-
-	return Track;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1462,686 +1078,15 @@ bool STimingView::IsCpuTrackVisible(uint32 ThreadId) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimingView::DrawTimingProfilerTrack(FTimingViewDrawHelper& Helper, FTimingEventsTrack& Track) const
-{
-	if (Helper.BeginTimeline(Track))
-	{
-		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-		if (Session.IsValid() && Trace::ReadTimingProfilerProvider(*Session.Get()))
-		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-
-			const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
-
-			TimingProfilerProvider.ReadTimers([this, &Helper, &Track, &TimingProfilerProvider](const Trace::FTimingProfilerTimer* Timers, uint64 TimersCount)
-			{
-				TimingProfilerProvider.ReadTimeline(Track.GetId(), [this, &Helper, &Track, Timers](const Trace::ITimingProfilerProvider::Timeline& Timeline)
-				{
-					if (bUseDownSampling)
-					{
-						const double SecondsPerPixel = 1.0 / Helper.GetViewport().ScaleX;
-						Timeline.EnumerateEventsDownSampled(Helper.GetViewport().StartTime, Helper.GetViewport().EndTime, SecondsPerPixel, [this, &Helper, Timers](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
-						{
-							Helper.AddEvent(StartTime, EndTime, Depth, Timers[Event.TimerIndex].Name);
-						});
-					}
-					else
-					{
-						Timeline.EnumerateEvents(Helper.GetViewport().StartTime, Helper.GetViewport().EndTime, [this, &Helper, Timers](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
-						{
-							Helper.AddEvent(StartTime, EndTime, Depth, Timers[Event.TimerIndex].Name);
-						});
-					}
-				});
-			});
-
-			Helper.EndTimeline(Track);
-		}
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-const TCHAR* GetName(ELoadTimeProfilerPackageEventType Type)
-{
-	switch (Type)
-	{
-		case LoadTimeProfilerPackageEventType_CreateLinker:				return TEXT("CreateLinker");
-		case LoadTimeProfilerPackageEventType_FinishLinker:				return TEXT("FinishLinker");
-		case LoadTimeProfilerPackageEventType_StartImportPackages:		return TEXT("StartImportPackages");
-		case LoadTimeProfilerPackageEventType_SetupImports:				return TEXT("SetupImports");
-		case LoadTimeProfilerPackageEventType_SetupExports:				return TEXT("SetupExports");
-		case LoadTimeProfilerPackageEventType_ProcessImportsAndExports:	return TEXT("ProcessImportsAndExports");
-		case LoadTimeProfilerPackageEventType_ExportsDone:				return TEXT("ExportsDone");
-		case LoadTimeProfilerPackageEventType_PostLoadWait:				return TEXT("PostLoadWait");
-		case LoadTimeProfilerPackageEventType_StartPostLoad:			return TEXT("StartPostLoad");
-		case LoadTimeProfilerPackageEventType_Tick:						return TEXT("Tick");
-		case LoadTimeProfilerPackageEventType_Finish:					return TEXT("Finish");
-		case LoadTimeProfilerPackageEventType_DeferredPostLoad:			return TEXT("DeferredPostLoad");
-		case LoadTimeProfilerPackageEventType_None:						return TEXT("None");
-		default:														return TEXT("");
-	}
-}
-
-const TCHAR* GetName(ELoadTimeProfilerObjectEventType Type)
-{
-	switch (Type)
-	{
-		case LoadTimeProfilerObjectEventType_Create:	return TEXT("Create");
-		case LoadTimeProfilerObjectEventType_Serialize:	return TEXT("Serialize");
-		case LoadTimeProfilerObjectEventType_PostLoad:	return TEXT("PostLoad");
-		case LoadTimeProfilerObjectEventType_None:		return TEXT("None");
-		default:										return TEXT("");
-	};
-}
-
-const TCHAR* STimingView::GetLoadTimeProfilerEventNameByPackageEventType(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const
-{
-	return GetName(Event.PackageEventType);
-}
-
-const TCHAR* STimingView::GetLoadTimeProfilerEventNameByExportEventType(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const
-{
-	return GetName(Event.ExportEventType);
-}
-
-const TCHAR* STimingView::GetLoadTimeProfilerEventNameByPackageName(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const
-{
-	return Event.Package ?  Event.Package->Name : TEXT("");
-}
-
-const TCHAR* STimingView::GetLoadTimeProfilerEventNameByExportClassName(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const
-{
-	return Event.Export && Event.Export->Class ? Event.Export->Class->Name : TEXT("");
-}
-
-const TCHAR* STimingView::GetLoadTimeProfilerEventName(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const
-{
-	if (Depth == 0)
-	{
-		if (Event.Package)
-		{
-			return Event.Package->Name;
-		}
-	}
-
-	if (Event.Export && Event.Export->Class)
-	{
-		return Event.Export->Class->Name;
-	}
-
-	return TEXT("");
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STimingView::DrawLoadTimeProfilerTrack(FTimingViewDrawHelper& Helper, FTimingEventsTrack& Track) const
-{
-	if (Helper.BeginTimeline(Track))
-	{
-		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-		if (Session.IsValid() && Trace::ReadLoadTimeProfilerProvider(*Session.Get()))
-		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-
-			const Trace::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *Trace::ReadLoadTimeProfilerProvider(*Session.Get());
-
-			if (&Track == LoadingMainThreadTrack)
-			{
-				LoadTimeProfilerProvider.ReadMainThreadCpuTimeline([this, &Helper, &Track](const Trace::ILoadTimeProfilerProvider::CpuTimeline& Timeline)
-				{
-					if (bUseDownSampling)
-					{
-						const double SecondsPerPixel = 1.0 / Helper.GetViewport().ScaleX;
-						Timeline.EnumerateEventsDownSampled(Helper.GetViewport().StartTime, Helper.GetViewport().EndTime, SecondsPerPixel, [this, &Helper](double StartTime, double EndTime, uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event)
-						{
-							const TCHAR* Name = LoadingGetEventNameFn.Execute(Depth, Event);
-							Helper.AddEvent(StartTime, EndTime, Depth, Name);
-						});
-					}
-					else
-					{
-						Timeline.EnumerateEvents(Helper.GetViewport().StartTime, Helper.GetViewport().EndTime, [this, &Helper](double StartTime, double EndTime, uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event)
-						{
-							const TCHAR* Name = LoadingGetEventNameFn.Execute(Depth, Event);
-							Helper.AddEvent(StartTime, EndTime, Depth, Name);
-						});
-					}
-				});
-			}
-			else if (&Track == LoadingAsyncThreadTrack)
-			{
-				LoadTimeProfilerProvider.ReadAsyncLoadingThreadCpuTimeline([this, &Helper, &Track](const Trace::ILoadTimeProfilerProvider::CpuTimeline& Timeline)
-				{
-					if (bUseDownSampling)
-					{
-						const double SecondsPerPixel = 1.0 / Helper.GetViewport().ScaleX;
-						Timeline.EnumerateEventsDownSampled(Helper.GetViewport().StartTime, Helper.GetViewport().EndTime, SecondsPerPixel, [this, &Helper](double StartTime, double EndTime, uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event)
-						{
-							const TCHAR* Name = LoadingGetEventNameFn.Execute(Depth, Event);
-							Helper.AddEvent(StartTime, EndTime, Depth, Name);
-						});
-					}
-					else
-					{
-						Timeline.EnumerateEvents(Helper.GetViewport().StartTime, Helper.GetViewport().EndTime, [this, &Helper](double StartTime, double EndTime, uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event)
-						{
-							const TCHAR* Name = LoadingGetEventNameFn.Execute(Depth, Event);
-							Helper.AddEvent(StartTime, EndTime, Depth, Name);
-						});
-					}
-				});
-			}
-		}
-
-		Helper.EndTimeline(Track);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// "I/O - File Activity" prototype
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// The I/O timelines are just prototypes for now.
-// Below code will be removed once the functionality is moved in analyzer.
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-const TCHAR* GetFileActivityTypeName(Trace::EFileActivityType Type)
-{
-	static_assert(Trace::FileActivityType_Open == 0, "Trace::EFileActivityType enum has changed!?");
-	static_assert(Trace::FileActivityType_Close == 1, "Trace::EFileActivityType enum has changed!?");
-	static_assert(Trace::FileActivityType_Read == 2, "Trace::EFileActivityType enum has changed!?");
-	static_assert(Trace::FileActivityType_Write == 3, "Trace::EFileActivityType enum has changed!?");
-	static_assert(Trace::FileActivityType_Count == 4, "Trace::EFileActivityType enum has changed!?");
-	static const TCHAR* GFileActivityTypeNames[] =
-	{
-		TEXT("Open"),
-		TEXT("Close"),
-		TEXT("Read"),
-		TEXT("Write"),
-		TEXT("Idle"), // virtual events added for cases where Close event is more than 1s away from last Open/Read/Write event.
-		TEXT("NotClosed") // virtual events added when an Open activity never closes
-	};
-	return GFileActivityTypeNames[Type];
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-uint32 GetFileActivityTypeColor(Trace::EFileActivityType Type)
-{
-	static const uint32 GFileActivityTypeColors[] =
-	{
-		0xFFCCAA33, // open
-		0xFF33AACC, // close
-		0xFF33AA33, // read
-		0xFFDD33CC, // write
-		0x55333333, // idle
-		0x55553333, // close
-	};
-	return GFileActivityTypeColors[Type];
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STimingView::DrawIoOverviewTrack(FTimingViewDrawHelper& Helper, FTimingEventsTrack& Track) const
-{
-	if (Helper.BeginTimeline(Track))
-	{
-		// Draw the IO Overiew track using cached events (as those are sorted by Start Time).
-		for (const FIoTimingEvent& Event : AllIoEvents)
-		{
-			const Trace::EFileActivityType ActivityType = static_cast<Trace::EFileActivityType>(Event.Type & 0x0F);
-
-			if (ActivityType >= Trace::FileActivityType_Count)
-			{
-				// Ignore "Idle" and "NotClosed" events.
-				continue;
-			}
-			if (Event.EndTime <= Helper.GetViewport().StartTime)
-			{
-				continue;
-			}
-			if (Event.StartTime >= Helper.GetViewport().EndTime)
-			{
-				break;
-			}
-
-			uint32 Color = GetFileActivityTypeColor(ActivityType);
-
-			const bool bHasFailed = ((Event.Type & 0xF0) != 0);
-
-			if (bHasFailed)
-			{
-				FString Name = TEXT("Failed ");
-				Name += GetFileActivityTypeName(ActivityType);
-				Name += " [";
-				Name += Event.Path;
-				Name += "]";
-				Color = 0xFFAA0000;
-				Helper.AddEvent(Event.StartTime, Event.EndTime, 0, *Name, Color);
-			}
-			else if (ActivityType == Trace::FileActivityType_Open)
-			{
-				FString Name = GetFileActivityTypeName(ActivityType);
-				Name += " [";
-				Name += Event.Path;
-				Name += "]";
-				Helper.AddEvent(Event.StartTime, Event.EndTime, 0, *Name, Color);
-			}
-			else
-			{
-				Helper.AddEvent(Event.StartTime, Event.EndTime, 0, GetFileActivityTypeName(ActivityType), Color);
-			}
-		}
-
-		Helper.EndTimeline(Track);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STimingView::UpdateIo()
-{
-	if (bForceIoEventsUpdate)
-	{
-		bForceIoEventsUpdate = false;
-
-		AllIoEvents.Reset();
-
-		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-		if (Session.IsValid() && Trace::ReadFileActivityProvider(*Session.Get()))
-		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-
-			const Trace::IFileActivityProvider& FileActivityProvider = *Trace::ReadFileActivityProvider(*Session.Get());
-
-			// Enumerate all IO events and cache them.
-			FileActivityProvider.EnumerateFileActivity([this](const Trace::FFileInfo& FileInfo, const Trace::IFileActivityProvider::Timeline& Timeline)
-			{
-				Timeline.EnumerateEvents(-std::numeric_limits<double>::infinity(), +std::numeric_limits<double>::infinity(),
-					[this, &FileInfo, &Timeline](double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FFileActivity& FileActivity)
-				{
-					if (bMergeIoLanes)
-					{
-						EventDepth = static_cast<uint32>(FileInfo.Id); // used by MergeLanes algorithm
-					}
-					else
-					{
-						EventDepth = FileInfo.Id % 32; // simple layout
-					}
-					uint32 Type = ((uint32)FileActivity.ActivityType & 0x0F) | (FileActivity.Failed ? 0x80 : 0);
-					AllIoEvents.Add(FIoTimingEvent{ EventStartTime, EventEndTime, EventDepth, Type, FileInfo.Path });
-				});
-
-				return true;
-			});
-		}
-
-		// Sort cached IO events by Start Time.
-		AllIoEvents.Sort([](const FIoTimingEvent& A, const FIoTimingEvent& B) { return A.StartTime < B.StartTime; });
-
-		if (bMergeIoLanes)
-		{
-			struct FIoLane
-			{
-				uint32 FileId;
-				const TCHAR* Path;
-				double LastEndTime;
-				double EndTime;
-			};
-			TArray<FIoLane> Lanes;
-
-			TArray<FIoTimingEvent> IoEventsToAdd;
-
-			for (FIoTimingEvent& Event : AllIoEvents)
-			{
-				uint64 TimelineId = Event.Depth;
-
-				int32 Depth = -1;
-
-				bool bIsCloseEvent = false;
-
-				const Trace::EFileActivityType ActivityType = static_cast<Trace::EFileActivityType>(Event.Type & 0x0F);
-
-				if (ActivityType == Trace::FileActivityType_Open)
-				{
-					// Find lane (avoiding overlaps with other opened files).
-					for (int32 LaneIndex = 0; LaneIndex < Lanes.Num(); ++LaneIndex)
-					{
-						FIoLane& Lane = Lanes[LaneIndex];
-						if (Event.StartTime >= Lane.EndTime)
-						{
-							Depth = LaneIndex;
-							break;
-						}
-					}
-
-					if (Depth < 0)
-					{
-						// Add new lane.
-						Depth = Lanes.AddDefaulted();
-					}
-
-					const bool bHasFailed = ((Event.Type & 0xF0) != 0);
-
-					FIoLane& Lane = Lanes[Depth];
-					Lane.FileId = TimelineId;
-					Lane.Path = Event.Path;
-					Lane.LastEndTime = Event.EndTime;
-					Lane.EndTime = bHasFailed ? Event.EndTime : std::numeric_limits<double>::infinity();
-				}
-				else if (ActivityType == Trace::FileActivityType_Close)
-				{
-					bIsCloseEvent = true;
-
-					// Find lane with same id.
-					for (int32 LaneIndex = 0; LaneIndex < Lanes.Num(); ++LaneIndex)
-					{
-						FIoLane& Lane = Lanes[LaneIndex];
-						if (Lane.FileId == TimelineId)
-						{
-							// Adds an Idle event, but only if has passed at least 1s since last open/read/write activity.
-							if (Event.StartTime - Lane.LastEndTime > 1.0)
-							{
-								IoEventsToAdd.Add(FIoTimingEvent{ Lane.LastEndTime, Event.StartTime, static_cast<uint32>(LaneIndex), Trace::FileActivityType_Count, Event.Path });
-							}
-							Lane.LastEndTime = Event.EndTime;
-							Lane.EndTime = Event.EndTime;
-							Depth = LaneIndex;
-							break;
-						}
-					}
-					ensure(Depth >= 0);
-				}
-				else
-				{
-					// All other events should be inside the virtual Open-Close event.
-					// Find lane with same id.
-					for (int32 LaneIndex = 0; LaneIndex < Lanes.Num(); ++LaneIndex)
-					{
-						FIoLane& Lane = Lanes[LaneIndex];
-						if (Lane.FileId == TimelineId)
-						{
-							Lane.LastEndTime = Event.EndTime;
-							Depth = LaneIndex;
-							break;
-						}
-					}
-					ensure(Depth >= 0);
-				}
-
-				if (Depth < 0) // just in case
-				{
-					// Add new lane.
-					Depth = Lanes.AddDefaulted();
-					FIoLane& Lane = Lanes[Depth];
-					Lane.FileId = TimelineId;
-					Lane.Path = Event.Path;
-					Lane.LastEndTime = Event.EndTime;
-					Lane.EndTime = bIsCloseEvent ? Event.EndTime : std::numeric_limits<double>::infinity();
-				}
-
-				Event.Depth = Depth;
-			}
-
-			for (int32 LaneIndex = 0; LaneIndex < Lanes.Num(); ++LaneIndex)
-			{
-				FIoLane& Lane = Lanes[LaneIndex];
-				if (Lane.EndTime == std::numeric_limits<double>::infinity())
-				{
-					IoEventsToAdd.Add(FIoTimingEvent{ Lane.LastEndTime, Lane.EndTime, static_cast<uint32>(LaneIndex), Trace::FileActivityType_Count + 1, Lane.Path });
-				}
-			}
-
-			for (const FIoTimingEvent& Event : IoEventsToAdd)
-			{
-				AllIoEvents.Add(Event);
-			}
-
-			// Sort cached IO events one more time, also by Start Time.
-			AllIoEvents.Sort([](const FIoTimingEvent& A, const FIoTimingEvent& B) { return A.StartTime < B.StartTime; });
-
-			//// Sort cached IO events again, by Depth and then by Start Time.
-			//AllIoEvents.Sort([](const FIoTimingEvent& A, const FIoTimingEvent& B)
-			//{
-			//	return A.Depth == B.Depth ? A.StartTime < B.StartTime : A.Depth < B.Depth;
-			//});
-		}
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STimingView::DrawIoActivityTrack(FTimingViewDrawHelper& Helper, FTimingEventsTrack& Track) const
-{
-	if (Helper.BeginTimeline(Track))
-	{
-		// Draw IO track using cached events.
-		for (const FIoTimingEvent& Event : AllIoEvents)
-		{
-			if (Event.EndTime <= Helper.GetViewport().StartTime)
-			{
-				continue;
-			}
-			if (Event.StartTime >= Helper.GetViewport().EndTime)
-			{
-				break;
-			}
-
-			const Trace::EFileActivityType ActivityType = static_cast<Trace::EFileActivityType>(Event.Type & 0x0F);
-
-			uint32 Color = GetFileActivityTypeColor(ActivityType);
-
-			if (ActivityType < Trace::FileActivityType_Count)
-			{
-				const bool bHasFailed = ((Event.Type & 0xF0) != 0);
-
-				if (bHasFailed)
-				{
-					FString Name = TEXT("Failed ");
-					Name += GetFileActivityTypeName(ActivityType);
-					Name += " [";
-					Name += Event.Path;
-					Name += "]";
-					Color = 0xFFAA0000;
-					Helper.AddEvent(Event.StartTime, Event.EndTime, Event.Depth, *Name, Color);
-				}
-				else if (ActivityType == Trace::FileActivityType_Open)
-				{
-					FString Name = GetFileActivityTypeName(ActivityType);
-					Name += " [";
-					Name += Event.Path;
-					Name += "]";
-					Helper.AddEvent(Event.StartTime, Event.EndTime, Event.Depth, *Name, Color);
-				}
-				else
-				{
-					Helper.AddEvent(Event.StartTime, Event.EndTime, Event.Depth, GetFileActivityTypeName(ActivityType), Color);
-				}
-			}
-			else
-			{
-				FString Name = GetFileActivityTypeName(ActivityType);
-				Name += " [";
-				Name += Event.Path;
-				Name += "]";
-				Helper.AddEvent(Event.StartTime, Event.EndTime, Event.Depth, *Name, Color);
-			}
-		}
-
-		Helper.EndTimeline(Track);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// end of "I/O - File Activity" prototype
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STimingView::DrawTimeRangeSelection(FDrawContext& DrawContext) const
-{
-	if (SelectionEndTime > SelectionStartTime)
-	{
-		float SelectionX1 = Viewport.TimeToSlateUnitsRounded(SelectionStartTime);
-		float SelectionX2 = Viewport.TimeToSlateUnitsRounded(SelectionEndTime);
-
-		if (SelectionX1 <= Viewport.Width &&
-			SelectionX2 >= 0)
-		{
-			float ClipLeft = 0.0f;
-			float ClipRight = 0.0f;
-			if (SelectionX1 < 0.0f)
-			{
-				ClipLeft = -SelectionX1;
-				SelectionX1 = 0.0f;
-			}
-			if (SelectionX2 > Viewport.Width)
-			{
-				ClipRight = SelectionX2 - Viewport.Width;
-				SelectionX2 = Viewport.Width;
-			}
-
-			// Draw selection area.
-			DrawContext.DrawBox(SelectionX1, 0.0f, SelectionX2 - SelectionX1, Viewport.Height, WhiteBrush, FLinearColor(0.25f, 0.5f, 1.0f, 0.25f));
-			DrawContext.LayerId++;
-
-			FColor ArrowFillColor(32, 64, 128, 255);
-			FLinearColor ArrowColor(ArrowFillColor);
-
-			if (SelectionX1 > 0.0f)
-			{
-				// Draw left side (vertical line).
-				DrawContext.DrawBox(SelectionX1 - 1.0f, 0.0f, 1.0f, Viewport.Height, WhiteBrush, ArrowColor);
-			}
-
-			if (SelectionX2 < Viewport.Width)
-			{
-				// Draw right side (vertical line).
-				DrawContext.DrawBox(SelectionX2, 0.0f, 1.0f, Viewport.Height, WhiteBrush, ArrowColor);
-			}
-
-			DrawContext.LayerId++;
-
-			const float ArrowSize = 6.0f;
-			const float ArrowY = 6.0f;
-
-			if (SelectionX2 - SelectionX1 > 2 * ArrowSize)
-			{
-				// Draw horizontal line.
-				float HorizLineX1 = SelectionX1;
-				if (ClipLeft == 0.0f)
-				{
-					HorizLineX1 += 1.0f;
-				}
-				float HorizLineX2 = SelectionX2;
-				if (ClipRight == 0.0f)
-				{
-					HorizLineX2 -= 1.0f;
-				}
-				DrawContext.DrawBox(HorizLineX1, ArrowY - 1.0f, HorizLineX2 - HorizLineX1, 3.0f, WhiteBrush, ArrowColor);
-
-				if (ClipLeft < ArrowSize)
-				{
-					// Draw left arrow.
-					for (float AH = 0.0f; AH < ArrowSize; AH += 1.0f)
-					{
-						DrawContext.DrawBox(SelectionX1 - ClipLeft + AH, ArrowY - AH, 1.0f, 2.0f * AH + 1.0f, WhiteBrush, ArrowColor);
-					}
-				}
-
-				if (ClipRight < ArrowSize)
-				{
-					// Draw right arrow.
-					for (float AH = 0.0f; AH < ArrowSize; AH += 1.0f)
-					{
-						DrawContext.DrawBox(SelectionX2 + ClipRight - AH - 1.0f, ArrowY - AH, 1.0f, 2.0f * AH + 1.0f, WhiteBrush, ArrowColor);
-					}
-				}
-
-				DrawContext.LayerId++;
-
-#if 0
-				//im: This should be a more efficeint way top draw the arrows, but it renders them with artifacts (missing vertical lines; shader bug?)!
-
-				const FSlateBrush* MyBrush = WhiteBrush;
-				FSlateShaderResourceProxy* ResourceProxy = FSlateDataPayload::ResourceManager->GetShaderResource(*MyBrush);
-				FSlateResourceHandle ResourceHandle = FSlateApplication::Get().GetRenderer()->GetResourceHandle(*MyBrush);
-
-				FVector2D AtlasOffset = ResourceProxy ? ResourceProxy->StartUV : FVector2D(0.0f, 0.0f);
-				FVector2D AtlasUVSize = ResourceProxy ? ResourceProxy->SizeUV : FVector2D(1.0f, 1.0f);
-
-				const FVector2D Pos = AllottedGeometry.GetAbsolutePosition() + FVector2D(0.0f, 40.0f);
-				const float Scale = AllottedGeometry.Scale;
-
-				FSlateRenderTransform RenderTransform;
-
-				TArray<FSlateVertex> Verts;
-				Verts.Reserve(6);
-				Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, Pos + FVector2D(0.5f + SelectionX1 + ArrowSize, 0.5f + ArrowY + ArrowSize) * Scale, AtlasOffset + FVector2D(0.0f, 1.0f) * AtlasUVSize, ArrowFillColor));
-				Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, Pos + FVector2D(0.5f + SelectionX1,             0.5f + ArrowY            ) * Scale, AtlasOffset + FVector2D(1.0f, 0.5f) * AtlasUVSize, ArrowFillColor));
-				Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, Pos + FVector2D(0.5f + SelectionX1 + ArrowSize, 0.5f + ArrowY - ArrowSize) * Scale, AtlasOffset + FVector2D(0.0f, 0.0f) * AtlasUVSize, ArrowFillColor));
-				Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, Pos + FVector2D(0.5f + SelectionX2 - ArrowSize, 0.5f + ArrowY - ArrowSize) * Scale, AtlasOffset + FVector2D(0.0f, 0.0f) * AtlasUVSize, ArrowFillColor));
-				Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, Pos + FVector2D(0.5f + SelectionX2,             0.5f + ArrowY            ) * Scale, AtlasOffset + FVector2D(1.0f, 0.5f) * AtlasUVSize, ArrowFillColor));
-				Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, Pos + FVector2D(0.5f + SelectionX2 - ArrowSize, 0.5f + ArrowY + ArrowSize) * Scale, AtlasOffset + FVector2D(0.0f, 1.0f) * AtlasUVSize, ArrowFillColor));
-
-				TArray<SlateIndex> Indices;
-				Indices.Reserve(6);
-				if (ClipLeft < ArrowSize)
-				{
-					Indices.Add(0);
-					Indices.Add(1);
-					Indices.Add(2);
-				}
-				if (ClipRight < ArrowSize)
-				{
-					Indices.Add(3);
-					Indices.Add(4);
-					Indices.Add(5);
-				}
-
-				FSlateDrawElement::MakeCustomVerts(
-					OutDrawElements,
-					LayerId,
-					ResourceHandle,
-					Verts,
-					Indices,
-					nullptr,
-					0,
-					0,
-					ESlateDrawEffect::PreMultipliedAlpha);
-
-				DrawContext.LayerId++;
-#endif
-			}
-
-			//////////////////////////////////////////////////
-			// Draw duration for selected time interval.
-
-			double Duration = SelectionEndTime - SelectionStartTime;
-			FString Text = TimeUtils::FormatTimeAuto(Duration);
-
-			const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-			const float TextWidth = FontMeasureService->Measure(Text, MainFont).X;
-
-			const float CenterX = (SelectionX1 + SelectionX2) / 2.0f;
-
-			DrawContext.DrawBox(CenterX - TextWidth / 2 - 2.0, ArrowY - 6.0f, TextWidth + 4.0f, 13.0f, WhiteBrush, ArrowColor);
-			DrawContext.LayerId++;
-
-			DrawContext.DrawText(CenterX - TextWidth / 2, ArrowY - 6.0f, Text, MainFont, FLinearColor::White);
-			DrawContext.LayerId++;
-		}
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 FReply STimingView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	FReply Reply = FReply::Unhandled();
+
 	MousePositionOnButtonDown = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
+	MousePosition = MousePositionOnButtonDown;
 
 	bool bStartPanning = false;
+	bool bStartSelecting = false;
 
 	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
@@ -2154,21 +1099,15 @@ FReply STimingView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 		{
 			bIsLMB_Pressed = true;
 
-			if (bIsSpaceBarKeyPressed || MousePositionOnButtonDown.Y > TimeRulerTrack.GetHeight())
+			if (!bIsSpaceBarKeyPressed &&
+				(MousePositionOnButtonDown.Y < TimeRulerTrack.GetHeight() ||
+				 (MouseEvent.GetModifierKeys().IsControlDown() && MouseEvent.GetModifierKeys().IsShiftDown())))
 			{
-				bStartPanning = true;
+				bStartSelecting = true;
 			}
 			else
 			{
-				bIsSelecting = true;
-				bIsDragging = false;
-
-				SelectionStartTime = Viewport.SlateUnitsToTime(MousePositionOnButtonDown.X);
-				SelectionEndTime = SelectionStartTime;
-				LastSelectionType = ESelectionType::None;
-				//TODO: SelectionChangingEvent.Broadcast(SelectionStartTime, SelectionEndTime);
-				EventAggregation.Reset();
-				ObjectTypeAggregation.Reset();
+				bStartPanning = true;
 			}
 
 			// Capture mouse, so we can drag outside this widget.
@@ -2181,7 +1120,16 @@ FReply STimingView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 		{
 			bIsRMB_Pressed = true;
 
-			bStartPanning = true;
+			if (!bIsSpaceBarKeyPressed &&
+				(MousePositionOnButtonDown.Y < TimeRulerTrack.GetHeight() ||
+				(MouseEvent.GetModifierKeys().IsControlDown() && MouseEvent.GetModifierKeys().IsShiftDown())))
+			{
+				bStartSelecting = true;
+			}
+			else
+			{
+				bStartPanning = true;
+			}
 
 			// Capture mouse, so we can drag outside this widget.
 			Reply = FReply::Handled().CaptureMouse(SharedThis(this));
@@ -2193,8 +1141,8 @@ FReply STimingView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 		bIsPanning = true;
 		bIsDragging = false;
 
-		ViewportStartTimeOnButtonDown = Viewport.StartTime;
-		ViewportScrollPosYOnButtonDown = Viewport.ScrollPosY;
+		ViewportStartTimeOnButtonDown = Viewport.GetStartTime();
+		ViewportScrollPosYOnButtonDown = Viewport.GetScrollPosY();
 
 		if (MouseEvent.GetModifierKeys().IsControlDown())
 		{
@@ -2212,6 +1160,16 @@ FReply STimingView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 			PanningMode = EPanningMode::HorizontalAndVertical;
 		}
 	}
+	else if (bStartSelecting)
+	{
+		bIsSelecting = true;
+		bIsDragging = false;
+
+		SelectionStartTime = Viewport.SlateUnitsToTime(MousePositionOnButtonDown.X);
+		SelectionEndTime = SelectionStartTime;
+		LastSelectionType = ESelectionType::None;
+		RaiseSelectionChanging();
+	}
 
 	return Reply;
 }
@@ -2221,7 +1179,9 @@ FReply STimingView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 FReply STimingView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	FReply Reply = FReply::Unhandled();
+
 	MousePositionOnButtonUp = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
+	MousePosition = MousePositionOnButtonUp;
 
 	const bool bIsValidForMouseClick = MousePositionOnButtonUp.Equals(MousePositionOnButtonDown, 2.0f);
 
@@ -2237,9 +1197,7 @@ FReply STimingView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 			}
 			else if (bIsSelecting)
 			{
-				//TODO: SelectionChangedEvent.Broadcast(SelectionStartTime, SelectionEndTime);
-				UpdateAggregatedStats();
-
+				RaiseSelectionChanged();
 				bIsSelecting = false;
 			}
 
@@ -2255,9 +1213,7 @@ FReply STimingView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 					// ...reset selection.
 					SelectionEndTime = SelectionStartTime = 0.0;
 					LastSelectionType = ESelectionType::None;
-					//TODO: SelectionChangedEvent.Broadcast(SelectionStartTime, SelectionEndTime);
-					EventAggregation.Reset();
-					ObjectTypeAggregation.Reset();
+					RaiseSelectionChanged();
 				}
 			}
 
@@ -2279,11 +1235,15 @@ FReply STimingView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 
 				bIsPanning = false;
 			}
-
-			if (!bIsDragging && !bIsSpaceBarKeyPressed && bIsValidForMouseClick)
+			else if (bIsSelecting)
 			{
-				ShowContextMenu(MouseEvent.GetScreenSpacePosition(), MouseEvent);
-				Reply = FReply::Handled();
+				RaiseSelectionChanged();
+				bIsSelecting = false;
+			}
+
+			if (bIsValidForMouseClick)
+			{
+				ShowContextMenu(MouseEvent);
 			}
 
 			bIsDragging = false;
@@ -2330,67 +1290,70 @@ FReply STimingView::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent
 
 	MousePosition = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
 
-	if (bIsPanning)
+	if (!MouseEvent.GetCursorDelta().IsZero())
 	{
-		if (HasMouseCapture() && !MouseEvent.GetCursorDelta().IsZero())
+		if (bIsPanning)
 		{
-			bIsDragging = true;
-
-			if ((int32)PanningMode & (int32)EPanningMode::Horizontal)
+			if (HasMouseCapture())
 			{
-				ScrollAtTime(ViewportStartTimeOnButtonDown + static_cast<double>(MousePositionOnButtonDown.X - MousePosition.X) / Viewport.ScaleX);
+				bIsDragging = true;
+
+				if ((int32)PanningMode & (int32)EPanningMode::Horizontal)
+				{
+					const double StartTime = ViewportStartTimeOnButtonDown + static_cast<double>(MousePositionOnButtonDown.X - MousePosition.X) / Viewport.GetScaleX();
+					ScrollAtTime(StartTime);
+				}
+
+				if ((int32)PanningMode & (int32)EPanningMode::Vertical)
+				{
+					const float ScrollPosY = ViewportScrollPosYOnButtonDown + (MousePositionOnButtonDown.Y - MousePosition.Y);
+					ScrollAtPosY(ScrollPosY);
+				}
+			}
+		}
+		else if (bIsSelecting)
+		{
+			if (HasMouseCapture())
+			{
+				bIsDragging = true;
+
+				SelectionStartTime = Viewport.SlateUnitsToTime(MousePositionOnButtonDown.X);
+				SelectionEndTime = Viewport.SlateUnitsToTime(MousePosition.X);
+				if (SelectionStartTime > SelectionEndTime)
+				{
+					double Temp = SelectionStartTime;
+					SelectionStartTime = SelectionEndTime;
+					SelectionEndTime = Temp;
+				}
+				LastSelectionType = ESelectionType::TimeRange;
+				RaiseSelectionChanging();
+			}
+		}
+		else
+		{
+			if (MarkersTrack.IsVisible())
+			{
+				MarkersTrack.UpdateHoveredState(MousePosition.X, MousePosition.Y, Viewport);
 			}
 
-			if ((int32)PanningMode & (int32)EPanningMode::Vertical)
+			if (GraphTrack->IsVisible())
 			{
-				Viewport.ScrollPosY = ViewportScrollPosYOnButtonDown + (MousePositionOnButtonDown.Y - MousePosition.Y);
-				UpdateVerticalScrollBar();
-				bIsVerticalViewportDirty = true;
+				GraphTrack->UpdateHoveredState(MousePosition.X, MousePosition.Y, Viewport);
 			}
+
+			UpdateHoveredTimingEvent(MousePosition.X, MousePosition.Y);
 		}
 
 		Reply = FReply::Handled();
 	}
-	else if (bIsSelecting)
-	{
-		if (HasMouseCapture() && !MouseEvent.GetCursorDelta().IsZero())
-		{
-			bIsDragging = true;
 
-			SelectionStartTime = Viewport.SlateUnitsToTime(MousePositionOnButtonDown.X);
-			SelectionEndTime = Viewport.SlateUnitsToTime(MousePosition.X);
-			if (SelectionStartTime > SelectionEndTime)
-			{
-				double Temp = SelectionStartTime;
-				SelectionStartTime = SelectionEndTime;
-				SelectionEndTime = Temp;
-			}
-			LastSelectionType = ESelectionType::TimeRange;
-			//TODO: SelectionChangingEvent.Broadcast(SelectionStartTime, SelectionEndTime);
-			EventAggregation.Reset();
-			ObjectTypeAggregation.Reset();
-		}
-
-		Reply = FReply::Handled();
-	}
-	else
-	{
-		if (MarkersTrack.IsVisible())
-		{
-			MarkersTrack.UpdateHoveredState(MousePosition.X, MousePosition.Y, Viewport);
-		}
-
-		UpdateHoveredTimingEvent(MousePosition.X, MousePosition.Y);
-	}
-
-	return Reply; // SAssetViewItem::CreateToolTipWidget
+	return Reply;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STimingView::OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2408,6 +1371,19 @@ void STimingView::OnMouseLeave(const FPointerEvent& MouseEvent)
 		bIsRMB_Pressed = false;
 
 		MousePosition = FVector2D::ZeroVector;
+
+		if (MarkersTrack.IsVisible())
+		{
+			MarkersTrack.UpdateHoveredState(MousePosition.X, MousePosition.Y, Viewport);
+		}
+
+		if (GraphTrack->IsVisible())
+		{
+			GraphTrack->UpdateHoveredState(MousePosition.X, MousePosition.Y, Viewport);
+		}
+
+		HoveredTimingEvent.Reset();
+		Tooltip.SetDesiredOpacity(0.0f);
 	}
 }
 
@@ -2417,38 +1393,53 @@ FReply STimingView::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEven
 {
 	if (MouseEvent.GetModifierKeys().IsShiftDown())
 	{
-		// Scroll vertically.
-		constexpr float ScrollSpeedY = 16.0f * 3;
-		Viewport.ScrollPosY -= ScrollSpeedY * MouseEvent.GetWheelDelta();
-		UpdateVerticalScrollBar();
-		bIsVerticalViewportDirty = true;
+		if (GraphTrack->IsVisible() &&
+			MousePosition.Y >= GraphTrack->GetPosY() &&
+			MousePosition.Y < GraphTrack->GetPosY() + GraphTrack->GetHeight())
+		{
+			for (const TSharedPtr<FGraphSeries>& Series : GraphTrack->GetSeries())
+			{
+				if (Series->IsVisible() && !Series->IsAutoZoomEnabled())
+				{
+					// Zoom in/out vertically.
+					const double Delta = MouseEvent.GetWheelDelta();
+					constexpr double ZoomStep = 0.25; // as percent
+					double ScaleY;
+
+					if (Delta > 0)
+					{
+						ScaleY = Series->GetScaleY() * FMath::Pow(1.0 + ZoomStep, Delta);
+					}
+					else
+					{
+						ScaleY = Series->GetScaleY() * FMath::Pow(1.0 / (1.0 + ZoomStep), -Delta);
+					}
+
+					Series->SetScaleY(ScaleY);
+					Series->SetDirtyFlag();
+				}
+			}
+		}
+		else
+		{
+			// Scroll vertically.
+			constexpr float ScrollSpeedY = 16.0f * 3;
+			const float ScrollPosY = Viewport.GetScrollPosY() - ScrollSpeedY * MouseEvent.GetWheelDelta();
+			ScrollAtPosY(ScrollPosY);
+		}
 	}
 	else if (MouseEvent.GetModifierKeys().IsControlDown())
 	{
 		// Scroll horizontally.
 		const double ScrollSpeedX = Viewport.GetDurationForViewportDX(16.0 * 3);
-		ScrollAtTime(Viewport.StartTime - ScrollSpeedX * MouseEvent.GetWheelDelta());
+		ScrollAtTime(Viewport.GetStartTime() - ScrollSpeedX * MouseEvent.GetWheelDelta());
 	}
 	else
 	{
 		// Zoom in/out horizontally.
 		const double Delta = MouseEvent.GetWheelDelta();
-		constexpr double ZoomStep = 0.25; // as percent
-		double ScaleX;
-
-		if (Delta > 0)
-		{
-			ScaleX = Viewport.ScaleX * FMath::Pow(1.0 + ZoomStep, Delta);
-		}
-		else
-		{
-			ScaleX = Viewport.ScaleX * FMath::Pow(1.0 / (1.0 + ZoomStep), -Delta);
-		}
-
-		//UE_LOG(TimingProfiler, Log, TEXT("%.2f, %.2f, %.2f"), Delta, Viewport.ScaleX, ScaleX);
 		MousePosition = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
-
-		if (Viewport.ZoomWithFixedX(ScaleX, MousePosition.X))
+		if (Viewport.RelativeZoomWithFixedX(Delta, MousePosition.X))
 		{
 			//Viewport.EnforceHorizontalScrollLimits(1.0);
 			UpdateHorizontalScrollBar();
@@ -2586,9 +1577,24 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 	}
 	else if (InKeyEvent.GetKey() == EKeys::C)
 	{
-		Layout.bIsCompactMode = !Layout.bIsCompactMode;
-		bAreTimingEventsTracksDirty = true;
-		return FReply::Handled();
+		if (InKeyEvent.GetModifierKeys().IsControlDown())
+		{
+			if (SelectedTimingEvent.IsValid())
+			{
+				const FTimerNodePtr TimerNodePtr = FTimingProfilerManager::Get()->GetTimerNode(SelectedTimingEvent.TypeId);
+				if (TimerNodePtr.IsValid())
+				{
+					// Copy name of selected timing event to clipboard.
+					FPlatformApplicationMisc::ClipboardCopy(*TimerNodePtr->GetName().ToString());
+				}
+			}
+		}
+		else
+		{
+			Layout.bIsCompactMode = !Layout.bIsCompactMode;
+			bAreTimingEventsTracksDirty = true;
+			return FReply::Handled();
+		}
 	}
 	else if (InKeyEvent.GetKey() == EKeys::V)
 	{
@@ -2599,8 +1605,8 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 			 InKeyEvent.GetKey() == EKeys::Add)
 	{
 		// Zoom In
-		double ScaleX = Viewport.ScaleX * 1.25;
-		if (Viewport.ZoomWithFixedX(ScaleX, Viewport.Width/2))
+		const double ScaleX = Viewport.GetScaleX() * 1.25;
+		if (Viewport.ZoomWithFixedX(ScaleX, Viewport.GetWidth() / 2))
 		{
 			//Viewport.EnforceHorizontalScrollLimits(1.0);
 			UpdateHorizontalScrollBar();
@@ -2612,8 +1618,8 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 			 InKeyEvent.GetKey() == EKeys::Subtract)
 	{
 		// Zoom Out
-		double ScaleX = Viewport.ScaleX / 1.25;
-		if (Viewport.ZoomWithFixedX(ScaleX, Viewport.Width / 2))
+		const double ScaleX = Viewport.GetScaleX() / 1.25;
+		if (Viewport.ZoomWithFixedX(ScaleX, Viewport.GetWidth() / 2))
 		{
 			//Viewport.EnforceHorizontalScrollLimits(1.0);
 			UpdateHorizontalScrollBar();
@@ -2626,9 +1632,9 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 		if (InKeyEvent.GetModifierKeys().IsControlDown())
 		{
 			// Scroll Left
-			double DT = Viewport.EndTime - Viewport.StartTime;
-			//ScrollAtTime(Viewport.StartTime - DT * 0.05);
-			if (Viewport.ScrollAtTime(Viewport.StartTime - DT * 0.05))
+			const double DT = Viewport.GetDuration();
+			//ScrollAtTime(Viewport.GetStartTime() - DT * 0.05);
+			if (Viewport.ScrollAtTime(Viewport.GetStartTime() - DT * 0.05))
 			{
 				//Viewport.EnforceHorizontalScrollLimits(1.0);
 				UpdateHorizontalScrollBar();
@@ -2646,9 +1652,9 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 		if (InKeyEvent.GetModifierKeys().IsControlDown())
 		{
 			// Scroll Right
-			double DT = Viewport.EndTime - Viewport.StartTime;
-			//ScrollAtTime(Viewport.StartTime + DT * 0.05);
-			if (Viewport.ScrollAtTime(Viewport.StartTime + DT * 0.05))
+			const double DT = Viewport.GetDuration();
+			//ScrollAtTime(Viewport.GetStartTime() + DT * 0.05);
+			if (Viewport.ScrollAtTime(Viewport.GetStartTime() + DT * 0.05))
 			{
 				//Viewport.EnforceHorizontalScrollLimits(1.0);
 				UpdateHorizontalScrollBar();
@@ -2666,10 +1672,7 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 		if (InKeyEvent.GetModifierKeys().IsControlDown())
 		{
 			// Scroll Up
-			Viewport.ScrollPosY -= 16.0 * 3;
-			//Viewport.EnforceVerticalScrollLimits(1.0);
-			UpdateVerticalScrollBar();
-			bIsVerticalViewportDirty = true;
+			ScrollAtPosY(Viewport.GetScrollPosY() - 16.0f * 3);
 		}
 		else
 		{
@@ -2682,10 +1685,7 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 		if (InKeyEvent.GetModifierKeys().IsControlDown())
 		{
 			// Scroll Down
-			Viewport.ScrollPosY += 16.0 * 3;
-			//Viewport.EnforceVerticalScrollLimits(1.0);
-			UpdateVerticalScrollBar();
-			bIsVerticalViewportDirty = true;
+			ScrollAtPosY(Viewport.GetScrollPosY() + 16.0f * 3);
 		}
 		else
 		{
@@ -2710,14 +1710,13 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 	}
 	else if (InKeyEvent.GetKey() == EKeys::D) // debug: toggles down-sampling on/off
 	{
-		bUseDownSampling = !bUseDownSampling;
+		FTimingEventsTrack::bUseDownSampling = !FTimingEventsTrack::bUseDownSampling;
 		bAreTimingEventsTracksDirty = true;
 		return FReply::Handled();
 	}
 	else if (InKeyEvent.GetKey() == EKeys::G) // debug: toggles Graph track on/off
 	{
-		GraphTrack.ToggleVisibility();
-		bAreTimingEventsTracksDirty = true;
+		ShowHideGraphTrack_Execute();
 		return FReply::Handled();
 	}
 	else if (InKeyEvent.GetKey() == EKeys::Y) // debug: toggles GPU track on/off
@@ -2742,33 +1741,34 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 	}
 	else if (InKeyEvent.GetKey() == EKeys::O)  // debug: toggles IO merge lanes algorithm
 	{
-		bMergeIoLanes = !bMergeIoLanes;
-		bForceIoEventsUpdate = true;
+		//FileActivitySharedState->ToggleMergeLanes();
+		//FileActivitySharedState->RequestUpdate();
+		FileActivitySharedState->ToggleBackgroundEvents();
 		return FReply::Handled();
 	}
 	else if (InKeyEvent.GetKey() == EKeys::One)
 	{
-		LoadingGetEventNameFn = FLoadingTrackGetEventNameDelegate::CreateRaw(this, &STimingView::GetLoadTimeProfilerEventNameByPackageEventType);
+		LoadingSharedState->SetColorSchema(0);
 		return FReply::Handled();
 	}
 	else if (InKeyEvent.GetKey() == EKeys::Two)
 	{
-		LoadingGetEventNameFn = FLoadingTrackGetEventNameDelegate::CreateRaw(this, &STimingView::GetLoadTimeProfilerEventNameByExportEventType);
+		LoadingSharedState->SetColorSchema(1);
 		return FReply::Handled();
 	}
 	else if (InKeyEvent.GetKey() == EKeys::Three)
 	{
-		LoadingGetEventNameFn = FLoadingTrackGetEventNameDelegate::CreateRaw(this, &STimingView::GetLoadTimeProfilerEventNameByPackageName);
+		LoadingSharedState->SetColorSchema(2);
 		return FReply::Handled();
 	}
 	else if (InKeyEvent.GetKey() == EKeys::Four)
 	{
-		LoadingGetEventNameFn = FLoadingTrackGetEventNameDelegate::CreateRaw(this, &STimingView::GetLoadTimeProfilerEventNameByExportClassName);
+		LoadingSharedState->SetColorSchema(3);
 		return FReply::Handled();
 	}
 	else if (InKeyEvent.GetKey() == EKeys::Five)
 	{
-		LoadingGetEventNameFn = FLoadingTrackGetEventNameDelegate::CreateRaw(this, &STimingView::GetLoadTimeProfilerEventName);
+		LoadingSharedState->SetColorSchema(4);
 		return FReply::Handled();
 	}
 
@@ -2791,30 +1791,90 @@ FReply STimingView::OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyE
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimingView::ShowContextMenu(const FVector2D& ScreenSpacePosition, const FPointerEvent& MouseEvent)
+void STimingView::ShowContextMenu(const FPointerEvent& MouseEvent)
 {
-	/* TODO
-	TSharedPtr<FUICommandList> ProfilerCommandList = FTimingProfilerManager::Get()->GetCommandList();
-	const FTimingProfilerCommands& ProfilerCommands = FTimingProfilerManager::GetCommands();
-	const FTimingViewCommands& Commands = FTimingViewCommands::Get();
+	//TSharedPtr<FUICommandList> ProfilerCommandList = FTimingProfilerManager::Get()->GetCommandList();
+	//const FTimingProfilerCommands& ProfilerCommands = FTimingProfilerManager::GetCommands();
+	//const FTimingViewCommands& Commands = FTimingViewCommands::Get();
 
 	const bool bShouldCloseWindowAfterMenuSelection = true;
-	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, ProfilerCommandList);
+	//FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, ProfilerCommandList);
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, NULL);
 
-	MenuBuilder.BeginSection(TEXT("Misc"), LOCTEXT("Miscellaneous", "Miscellaneous"));
+	if (GraphTrack->IsVisible() &&
+		MousePosition.Y >= GraphTrack->GetPosY() &&
+		MousePosition.Y < GraphTrack->GetPosY() + GraphTrack->GetHeight())
 	{
-		MenuBuilder.AddMenuEntry(Commands.ShowAllGpuTracks);
-		MenuBuilder.AddMenuEntry(Commands.ShowAllCpuTracks);
-		MenuBuilder.AddMenuEntry(ProfilerCommands.ToggleTimersViewVisibility);
-		MenuBuilder.AddMenuEntry(ProfilerCommands.ToggleStatsCountersViewVisibility);
+		//GraphTrack->BuildContextMenu(MenuBuilder);
+		MenuBuilder.AddSubMenu
+		(
+			LOCTEXT("ContextMenu_Header_GraphTrack", "Graph Track"),
+			TAttribute<FText>(), // no tooltip
+			FNewMenuDelegate::CreateSP(GraphTrack.Get(), &FBaseTimingTrack::BuildContextMenu),
+			false,
+			FSlateIcon()
+		);
 	}
-	MenuBuilder.EndSection();
+	else
+	{
+		MenuBuilder.BeginSection(TEXT("Empty"));
+		{
+			struct FLocal
+			{
+				static bool ReturnFalse()
+				{
+					return false;
+				}
+			};
+
+			FUIAction DummyUIAction;
+			DummyUIAction.CanExecuteAction = FCanExecuteAction::CreateStatic(&FLocal::ReturnFalse);
+
+			FText Title;
+			if (HoveredTimingEvent.Track != nullptr)
+			{
+				if (HoveredTimingEvent.Track->GetType() == FName(TEXT("Thread")) &&
+					((FThreadTimingTrack*)HoveredTimingEvent.Track)->GetGroupName() != nullptr)
+				{
+					Title = FText::Format(LOCTEXT("TrackTitleGroupFmt", "{0} (Group: {1})"), FText::FromString(HoveredTimingEvent.Track->GetName()), FText::FromString(((FThreadTimingTrack*)HoveredTimingEvent.Track)->GetGroupName()));
+				}
+				else
+				{
+					Title = FText::FromString(HoveredTimingEvent.Track->GetName());
+				}
+			}
+			else
+			{
+				Title = LOCTEXT("ContextMenu_NA", "N/A");
+			}
+
+			MenuBuilder.AddMenuEntry
+			(
+				Title,
+				LOCTEXT("ContextMenu_NA_Desc", "No actions available."),
+				FSlateIcon(),
+				DummyUIAction,
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+		}
+		MenuBuilder.EndSection();
+	}
+
+	//MenuBuilder.BeginSection(TEXT("Misc"), LOCTEXT("Miscellaneous", "Miscellaneous"));
+	//{
+	//	MenuBuilder.AddMenuEntry(Commands.ShowAllGpuTracks);
+	//	MenuBuilder.AddMenuEntry(Commands.ShowAllCpuTracks);
+	//	MenuBuilder.AddMenuEntry(ProfilerCommands.ToggleTimersViewVisibility);
+	//	MenuBuilder.AddMenuEntry(ProfilerCommands.ToggleStatsCountersViewVisibility);
+	//}
+	//MenuBuilder.EndSection();
 
 	TSharedRef<SWidget> MenuWidget = MenuBuilder.MakeWidget();
 
 	FWidgetPath EventPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
+	const FVector2D ScreenSpacePosition = MouseEvent.GetScreenSpacePosition();
 	FSlateApplication::Get().PushMenu(SharedThis(this), EventPath, MenuWidget, ScreenSpacePosition, FPopupTransitionEffect::ContextMenu);
-	*/
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2843,62 +1903,47 @@ void STimingView::BindCommands()
 
 void STimingView::HorizontalScrollBar_OnUserScrolled(float ScrollOffset)
 {
-	const double SX = 1.0 / (Viewport.MaxValidTime - Viewport.MinValidTime);
-	const float ThumbSizeFraction = FMath::Clamp<float>((Viewport.EndTime - Viewport.StartTime) * SX, 0.0f, 1.0f);
-	const float OffsetFraction = FMath::Clamp<float>(ScrollOffset, 0.0f, 1.0f - ThumbSizeFraction);
-
-	const double Time = Viewport.MinValidTime + static_cast<double>(OffsetFraction) * (Viewport.MaxValidTime - Viewport.MinValidTime);
-	if (Viewport.StartTime != Time)
+	if (Viewport.OnUserScrolled(HorizontalScrollBar, ScrollOffset))
 	{
-		Viewport.ScrollAtTime(Time);
 		bIsViewportDirty = true;
 	}
-
-	HorizontalScrollBar->SetState(OffsetFraction, ThumbSizeFraction);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STimingView::UpdateHorizontalScrollBar()
 {
-	const double SX = 1.0 / (Viewport.MaxValidTime - Viewport.MinValidTime);
-	const float ThumbSizeFraction = FMath::Clamp<float>((Viewport.EndTime - Viewport.StartTime) * SX, 0.0f, 1.0f);
-	const float ScrollOffset = static_cast<float>((Viewport.StartTime - Viewport.MinValidTime) * SX);
-	const float OffsetFraction = FMath::Clamp<float>(ScrollOffset, 0.0f, 1.0f - ThumbSizeFraction);
-
-	HorizontalScrollBar->SetState(OffsetFraction, ThumbSizeFraction);
+	Viewport.UpdateScrollBar(HorizontalScrollBar);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STimingView::VerticalScrollBar_OnUserScrolled(float ScrollOffset)
 {
-	const float SY = 1.0 / Viewport.ScrollHeight;
-	const float H = Viewport.Height - Viewport.TopOffset;
-	const float ThumbSizeFraction = FMath::Clamp<float>(H * SY, 0.0f, 1.0f);
-	const float OffsetFraction = FMath::Clamp<float>(ScrollOffset, 0.0f, 1.0f - ThumbSizeFraction);
-
-	const float ScrollPosY = OffsetFraction * Viewport.ScrollHeight;
-	if (Viewport.ScrollPosY != ScrollPosY)
+	if (Viewport.OnUserScrolledY(VerticalScrollBar, ScrollOffset))
 	{
-		Viewport.ScrollPosY = ScrollPosY;
 		bIsVerticalViewportDirty = true;
 	}
-
-	VerticalScrollBar->SetState(OffsetFraction, ThumbSizeFraction);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STimingView::UpdateVerticalScrollBar()
 {
-	const float SY = 1.0 / Viewport.ScrollHeight;
-	const float H = Viewport.Height - Viewport.TopOffset;
-	const float ThumbSizeFraction = FMath::Clamp<float>(H * SY, 0.0f, 1.0f);
-	const float ScrollOffset = Viewport.ScrollPosY * SY;
-	float OffsetFraction = FMath::Clamp<float>(ScrollOffset, 0.0f, 1.0f - ThumbSizeFraction);
+	Viewport.UpdateScrollBarY(VerticalScrollBar);
+}
 
-	VerticalScrollBar->SetState(OffsetFraction, ThumbSizeFraction);
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::ScrollAtPosY(float ScrollPosY)
+{
+	if (ScrollPosY != Viewport.GetScrollPosY())
+	{
+		Viewport.SetScrollPosY(ScrollPosY);
+
+		UpdateVerticalScrollBar();
+		bIsVerticalViewportDirty = true;
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2931,16 +1976,16 @@ void STimingView::BringIntoView(double StartTime, double EndTime)
 {
 	EndTime = Viewport.RestrictEndTime(EndTime);
 
-	// Increase interval with 8% on each side.
-	const double DT = (Viewport.EndTime - Viewport.StartTime) * 0.08;
+	// Increase interval with 8% (of view size) on each side.
+	const double DT = Viewport.GetDuration() * 0.08;
 	StartTime -= DT;
 	EndTime += DT;
 
-	double NewStartTime = Viewport.StartTime;
+	double NewStartTime = Viewport.GetStartTime();
 
-	if (EndTime > Viewport.EndTime)
+	if (EndTime > Viewport.GetEndTime())
 	{
-		NewStartTime += EndTime - Viewport.EndTime;
+		NewStartTime += EndTime - Viewport.GetEndTime();
 	}
 
 	if (StartTime < NewStartTime)
@@ -2958,123 +2003,81 @@ void STimingView::SelectTimeInterval(double IntervalStartTime, double IntervalDu
 	SelectionStartTime = IntervalStartTime;
 	SelectionEndTime = IntervalStartTime + IntervalDuration;
 	LastSelectionType = ESelectionType::TimeRange;
+	RaiseSelectionChanged();
+}
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::RaiseSelectionChanging()
+{
+	//TODO: SelectionChangingEvent.Broadcast(SelectionStartTime, SelectionEndTime);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::RaiseSelectionChanged()
+{
 	//TODO: SelectionChangedEvent.Broadcast(SelectionStartTime, SelectionEndTime);
-	UpdateAggregatedStats();
+
+	FTimingProfilerManager::Get()->SetSelectedTimeRange(SelectionStartTime, SelectionEndTime);
+
+	if (SelectionStartTime < SelectionEndTime)
+	{
+		UpdateAggregatedStats();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STimingView::UpdateAggregatedStats()
 {
-	TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
-	if (Wnd)
-	{
-		if (Wnd->TimersView)
-		{
-			Wnd->TimersView->UpdateStats(SelectionStartTime, SelectionEndTime);
-		}
-		if (Wnd->StatsView)
-		{
-			Wnd->StatsView->UpdateStats(SelectionStartTime, SelectionEndTime);
-		}
-	}
-
 	if (bAssetLoadingMode)
 	{
-		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-		if (Session.IsValid() && Trace::ReadLoadTimeProfilerProvider(*Session.Get()))
+		TSharedPtr<SLoadingProfilerWindow> LoadingProfilerWnd = FLoadingProfilerManager::Get()->GetProfilerWindow();
+		if (LoadingProfilerWnd.IsValid())
 		{
-			auto ReadTable = [](Trace::ITable<Trace::FLoadTimeProfilerAggregatedStats>* Table, TArray<FAssetLoadingEventAggregationRow>& Aggregation, int32& TotalRowCount)
+			TSharedPtr<Insights::STableTreeView> EventAggregationTreeView = LoadingProfilerWnd->GetEventAggregationTreeView();
+			TSharedPtr<Insights::STableTreeView> ObjectTypeAggregationTreeView = LoadingProfilerWnd->GetObjectTypeAggregationTreeView();
+			TSharedPtr<Insights::STableTreeView> PackageDetailsTreeView = LoadingProfilerWnd->GetPackageDetailsTreeView();
+			TSharedPtr<Insights::STableTreeView> ExportDetailsTreeView = LoadingProfilerWnd->GetExportDetailsTreeView();
+
+			TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+			if (Session.IsValid() && Trace::ReadLoadTimeProfilerProvider(*Session.Get()))
 			{
-				TotalRowCount = Table->GetRowCount();
+				Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+				const Trace::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *Trace::ReadLoadTimeProfilerProvider(*Session.Get());
 
-				constexpr int32 MaxRowCount = 10; // only get first 10 records
-				const int32 RowCount = FMath::Min(TotalRowCount, MaxRowCount);
-
-				const Trace::ITableLayout& TableLayout = Table->GetLayout();
-				const int32 ColumnCount = TableLayout.GetColumnCount();
-
-				Trace::ITableReader<Trace::FLoadTimeProfilerAggregatedStats>* Reader = Table->CreateReader();
-
-				//////////////////////////////////////////////////
-
-				struct FSortedIndexEntry
+				if (EventAggregationTreeView.IsValid())
 				{
-					int32 RowIndex;
-					double Value;
-				};
-
-				TArray<FSortedIndexEntry> SortedIndex;
-				SortedIndex.Reserve(TotalRowCount);
-
-				constexpr int32 TotalTimeColumnIndex = 2;
-				ensure(TableLayout.GetColumnType(TotalTimeColumnIndex) == Trace::ETableColumnType::TableColumnType_Double);
-
-				for (int32 RowIndex = 0; RowIndex < TotalRowCount; ++RowIndex)
-				{
-					Reader->SetRowIndex(RowIndex);
-					double Value = Reader->GetValueDouble(TotalTimeColumnIndex);
-					SortedIndex.Add({ RowIndex, Value });
+					//TODO: LoadTimeProfilerProvider.UpdateEventAggregation(EventAggregationTreeView->GetTable(), SelectionStartTime, SelectionEndTime)
+					Trace::ITable<Trace::FLoadTimeProfilerAggregatedStats>* EventAggregationTable = LoadTimeProfilerProvider.CreateEventAggregation(SelectionStartTime, SelectionEndTime);
+					EventAggregationTreeView->GetTable()->UpdateSourceTable(MakeShareable(EventAggregationTable));
+					EventAggregationTreeView->RebuildTree(true);
 				}
 
-				SortedIndex.Sort([](const FSortedIndexEntry& A, const FSortedIndexEntry& B) { return A.Value > B.Value; });
-
-				//////////////////////////////////////////////////
-
-				Aggregation.Reset();
-				Aggregation.AddDefaulted(RowCount);
-
-				for (int32 Index = 0; Index < RowCount; ++Index)
+				if (ObjectTypeAggregationTreeView.IsValid())
 				{
-					FAssetLoadingEventAggregationRow& Row = Aggregation[Index];
-
-					int32 RowIndex = SortedIndex[Index].RowIndex;
-					Reader->SetRowIndex(RowIndex);
-
-					ensure(ColumnCount == 7);
-					for (int32 ColumnIndex = 0; ColumnIndex < ColumnCount; ++ColumnIndex)
-					{
-						ensure(TableLayout.GetColumnType(0) == Trace::ETableColumnType::TableColumnType_CString);
-						Row.Name = Reader->GetValueCString(0);
-
-						ensure(TableLayout.GetColumnType(1) == Trace::ETableColumnType::TableColumnType_Int);
-						Row.Count = Reader->GetValueInt(1);
-
-						ensure(TableLayout.GetColumnType(2) == Trace::ETableColumnType::TableColumnType_Double);
-						Row.Total = Reader->GetValueDouble(2);
-
-						ensure(TableLayout.GetColumnType(3) == Trace::ETableColumnType::TableColumnType_Double);
-						Row.Min = Reader->GetValueDouble(3);
-
-						ensure(TableLayout.GetColumnType(4) == Trace::ETableColumnType::TableColumnType_Double);
-						Row.Max = Reader->GetValueDouble(4);
-
-						ensure(TableLayout.GetColumnType(5) == Trace::ETableColumnType::TableColumnType_Double);
-						Row.Avg = Reader->GetValueDouble(5);
-
-						ensure(TableLayout.GetColumnType(6) == Trace::ETableColumnType::TableColumnType_Double);
-						Row.Med = Reader->GetValueDouble(6);
-					}
+					//TODO: LoadTimeProfilerProvider.UpdateObjectTypeAggregation(ObjectTypeAggregationTreeView->GetTable(), SelectionStartTime, SelectionEndTime)
+					Trace::ITable<Trace::FLoadTimeProfilerAggregatedStats>* ObjectTypeAggregationTable = LoadTimeProfilerProvider.CreateObjectTypeAggregation(SelectionStartTime, SelectionEndTime);
+					ObjectTypeAggregationTreeView->GetTable()->UpdateSourceTable(MakeShareable(ObjectTypeAggregationTable));
+					ObjectTypeAggregationTreeView->RebuildTree(true);
 				}
 
-				delete Reader;
-			};
+				if (PackageDetailsTreeView.IsValid())
+				{
+					//TODO: LoadTimeProfilerProvider.UpdatePackageDetails(PackageDetailsTreeView->GetTable(), SelectionStartTime, SelectionEndTime)
+					Trace::ITable<Trace::FPackagesTableRow>* PackageDetailsTable = LoadTimeProfilerProvider.CreatePackageDetailsTable(SelectionStartTime, SelectionEndTime);
+					PackageDetailsTreeView->GetTable()->UpdateSourceTable(MakeShareable(PackageDetailsTable));
+					PackageDetailsTreeView->RebuildTree(true);
+				}
 
-			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-
-			const Trace::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *Trace::ReadLoadTimeProfilerProvider(*Session.Get());
-
-			{
-				Trace::ITable<Trace::FLoadTimeProfilerAggregatedStats>* EventAggregationTable = LoadTimeProfilerProvider.CreateEventAggregation(SelectionStartTime, SelectionEndTime);
-				ReadTable(EventAggregationTable, EventAggregation, EventAggregationTotalCount);
-				delete EventAggregationTable;
-			}
-
-			{
-				Trace::ITable<Trace::FLoadTimeProfilerAggregatedStats>* ObjectTypeAggregationTable = LoadTimeProfilerProvider.CreateObjectTypeAggregation(SelectionStartTime, SelectionEndTime);
-				ReadTable(ObjectTypeAggregationTable, ObjectTypeAggregation, ObjectTypeAggregationTotalCount);
-				delete ObjectTypeAggregationTable;
+				if (ExportDetailsTreeView.IsValid())
+				{
+					//TODO: LoadTimeProfilerProvider.UpdateExportDetails(ExportDetailsTreeView->GetTable(), SelectionStartTime, SelectionEndTime)
+					Trace::ITable<Trace::FExportsTableRow>* ExportDetailsTable = LoadTimeProfilerProvider.CreateExportDetailsTable(SelectionStartTime, SelectionEndTime);
+					ExportDetailsTreeView->GetTable()->UpdateSourceTable(MakeShareable(ExportDetailsTable));
+					ExportDetailsTreeView->RebuildTree(true);
+				}
 			}
 		}
 	}
@@ -3088,7 +2091,7 @@ void STimingView::SetAndCenterOnTimeMarker(double Time)
 
 	double MinT, MaxT;
 	Viewport.GetHorizontalScrollLimits(MinT, MaxT);
-	const double ViewportDuration = static_cast<double>(Viewport.Width) / Viewport.ScaleX;
+	const double ViewportDuration = Viewport.GetDuration();
 	MinT += ViewportDuration / 2;
 	MaxT += ViewportDuration / 2;
 	Time = FMath::Clamp<double>(Time, MinT, MaxT);
@@ -3123,16 +2126,16 @@ void STimingView::SetTimeMarkersVisible(bool bIsMarkersTrackVisible)
 
 		if (MarkersTrack.IsVisible())
 		{
-			if (Viewport.ScrollPosY != 0.0f)
+			if (Viewport.GetScrollPosY() != 0.0f)
 			{
-				Viewport.ScrollPosY += MarkersTrack.GetHeight();
+				Viewport.SetScrollPosY(Viewport.GetScrollPosY() + MarkersTrack.GetHeight());
 			}
 
 			MarkersTrack.SetDirtyFlag();
 		}
 		else
 		{
-			Viewport.ScrollPosY -= MarkersTrack.GetHeight();
+			Viewport.SetScrollPosY(Viewport.GetScrollPosY() - MarkersTrack.GetHeight());
 		}
 	}
 }
@@ -3148,9 +2151,9 @@ void STimingView::SetDrawOnlyBookmarks(bool bIsBookmarksTrack)
 
 		if (MarkersTrack.IsVisible())
 		{
-			if (Viewport.ScrollPosY != 0.0f)
+			if (Viewport.GetScrollPosY() != 0.0f)
 			{
-				Viewport.ScrollPosY += MarkersTrack.GetHeight() - PrevHeight;
+				Viewport.SetScrollPosY(Viewport.GetScrollPosY() + MarkersTrack.GetHeight() - PrevHeight);
 			}
 
 			MarkersTrack.SetDirtyFlag();
@@ -3162,260 +2165,76 @@ void STimingView::SetDrawOnlyBookmarks(bool bIsBookmarksTrack)
 
 void STimingView::UpdateHoveredTimingEvent(float MX, float MY)
 {
-	HoveredTimingEvent.Track = nullptr;
-	HoveredTimingEvent.TypeId = FTimerNode::InvalidId;
+	FTimingEvent TimingEvent;
 
-	if (MY >= Viewport.TopOffset && MY < Viewport.Height)
+	if (MY >= Viewport.GetTopOffset() && MY < Viewport.GetHeight())
 	{
 		for (const auto& KV : CachedTimelines)
 		{
 			const FTimingEventsTrack& Track = *KV.Value;
 			if (Track.IsVisible())
 			{
-				const float Y = Viewport.TopOffset + Track.GetPosY() - Viewport.ScrollPosY;
+				const float Y = Viewport.GetTopOffset() + Track.GetPosY() - Viewport.GetScrollPosY();
 				if (MY >= Y && MY < Y + Track.GetHeight())
 				{
-					HoveredTimingEvent.Track = &Track;
+					TimingEvent.Track = &Track;
 					break;
 				}
 			}
 		}
 
-		if (HoveredTimingEvent.Track)
+		if (TimingEvent.Track)
 		{
-			const float Y0 = Viewport.TopOffset + HoveredTimingEvent.Track->GetPosY() - Viewport.ScrollPosY + 1.0f + Layout.TimelineDY;
+			const float Y0 = Viewport.GetTopOffset() + TimingEvent.Track->GetPosY() - Viewport.GetScrollPosY() + 1.0f + Layout.TimelineDY;
 
 			// If mouse is not above first sub-track or below last sub-track...
-			if (MY >= Y0 && MY < Y0 + HoveredTimingEvent.Track->GetHeight() + Layout.TimelineDY)
+			if (MY >= Y0 && MY < Y0 + TimingEvent.Track->GetHeight() + Layout.TimelineDY)
 			{
 				int32 Depth = (MY - Y0) / (Layout.EventDY + Layout.EventH);
 				float EventMY = (MY - Y0) - Depth * (Layout.EventDY + Layout.EventH);
 
 				const double StartTime = Viewport.SlateUnitsToTime(MX);
-				const double EndTime = StartTime + 2.0 / Viewport.ScaleX; // +2px
+				const double EndTime = StartTime + 2.0 / Viewport.GetScaleX(); // +2px
 				constexpr bool bStopAtFirstMatch = true; // get first one matching
 				constexpr bool bSearchForLargestEvent = false;
-				SearchTimingEvent(StartTime, EndTime,
-					[Depth](double, double, uint32 EventDepth, uint32)
+				TimingEvent.Track->SearchTimingEvent(StartTime, EndTime,
+					[Depth](double, double, uint32 EventDepth)
 					{
 						return EventDepth == Depth;
 					},
-					HoveredTimingEvent, bStopAtFirstMatch, bSearchForLargestEvent);
-
-				//TODO: ComputeSingleTimingEventStats(HoveredTimingEvent) --> compute ExclusiveTime
-			}
-		}
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool STimingView::SearchTimingEvent(const double InStartTime,
-									const double InEndTime,
-									TFunctionRef<bool(double, double, uint32, uint32)> InPredicate,
-									FTimingEvent& InOutTimingEvent,
-									bool bInStopAtFirstMatch,
-									bool bInSearchForLargestEvent) const
-{
-	struct FSearchTimingEventContext
-	{
-		const double StartTime;
-		const double EndTime;
-		TFunctionRef<bool(double, double, uint32, uint32)> Predicate;
-		FTimingEvent& TimingEvent;
-		const bool bStopAtFirstMatch;
-		const bool bSearchForLargestEvent;
-		mutable bool bFound;
-		mutable bool bContinueSearching;
-		mutable double LargestDuration;
-
-		FSearchTimingEventContext(const double InStartTime, const double InEndTime, TFunctionRef<bool(double, double, uint32, uint32)> InPredicate, FTimingEvent& InOutTimingEvent, bool bInStopAtFirstMatch, bool bInSearchForLargestEvent)
-			: StartTime(InStartTime)
-			, EndTime(InEndTime)
-			, Predicate(InPredicate)
-			, TimingEvent(InOutTimingEvent)
-			, bStopAtFirstMatch(bInStopAtFirstMatch)
-			, bSearchForLargestEvent(bInSearchForLargestEvent)
-			, bFound(false)
-			, bContinueSearching(true)
-			, LargestDuration(-1.0)
-		{
-		}
-
-		void CheckEvent(double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FTimingProfilerEvent& Event)
-		{
-			if (bContinueSearching && Predicate(EventStartTime, EventEndTime, EventDepth, Event.TimerIndex))
-			{
-				if (!bSearchForLargestEvent || EventEndTime - EventStartTime > LargestDuration)
-				{
-					LargestDuration = EventEndTime - EventStartTime;
-
-					TimingEvent.TypeId = Event.TimerIndex;
-					TimingEvent.Depth = EventDepth;
-					TimingEvent.StartTime = EventStartTime;
-					TimingEvent.EndTime = EventEndTime;
-
-					bFound = true;
-					bContinueSearching = !bStopAtFirstMatch || bSearchForLargestEvent;
-				}
-			}
-		}
-
-		void CheckEvent(double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FLoadTimeProfilerCpuEvent& Event)
-		{
-			if (bContinueSearching && Predicate(EventStartTime, EventEndTime, EventDepth, 0))
-			{
-				if (!bSearchForLargestEvent || EventEndTime - EventStartTime > LargestDuration)
-				{
-					LargestDuration = EventEndTime - EventStartTime;
-
-					TimingEvent.TypeId = 0;
-					TimingEvent.Depth = EventDepth;
-					TimingEvent.StartTime = EventStartTime;
-					TimingEvent.EndTime = EventEndTime;
-
-					TimingEvent.LoadingInfo = Event;
-
-					bFound = true;
-					bContinueSearching = !bStopAtFirstMatch || bSearchForLargestEvent;
-				}
-			}
-		}
-	};
-
-	FSearchTimingEventContext Ctx(InStartTime, InEndTime, InPredicate, InOutTimingEvent, bInStopAtFirstMatch, bInSearchForLargestEvent);
-
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-	if (Session.IsValid())
-	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-
-		const FTimingEventsTrack* Track = Ctx.TimingEvent.Track;
-
-		if (Track->GetType() == ETimingEventsTrackType::Cpu ||
-			Track->GetType() == ETimingEventsTrackType::Gpu)
-		{
-			if (Trace::ReadTimingProfilerProvider(*Session.Get()))
-			{
-				const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
-
-				TimingProfilerProvider.ReadTimeline(Track->GetId(), [&Ctx](const Trace::ITimingProfilerProvider::Timeline& Timeline)
-				{
-					Timeline.EnumerateEvents(Ctx.StartTime, Ctx.EndTime, [&Ctx](double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FTimingProfilerEvent& Event)
-					{
-						Ctx.CheckEvent(EventStartTime, EventEndTime, EventDepth, Event);
-					});
-				});
-
-				if (Ctx.bFound)
-				{
-					// Compute Exclusive Time.
-					TimingProfilerProvider.ReadTimeline(Track->GetId(), [&Ctx](const Trace::ITimingProfilerProvider::Timeline& Timeline)
-					{
-						struct FEnumerationState
-						{
-							double EventStartTime;
-							double EventEndTime;
-							uint64 EventDepth;
-
-							uint64 CurrentDepth;
-							double LastTime;
-							double ExclusiveTime;
-							bool IsInEventScope;
-						};
-						FEnumerationState State;
-
-						State.EventStartTime = Ctx.TimingEvent.StartTime;
-						State.EventEndTime = Ctx.TimingEvent.EndTime;
-						State.EventDepth = Ctx.TimingEvent.Depth;
-
-						State.CurrentDepth = 0;
-						State.LastTime = 0.0;
-						State.ExclusiveTime = 0.0;
-						State.IsInEventScope = false;
-
-						Timeline.EnumerateEvents(Ctx.TimingEvent.StartTime, Ctx.TimingEvent.EndTime, [&State](bool IsEnter, double Time, const Trace::FTimingProfilerEvent& Event)
-						{
-							if (IsEnter)
-							{
-								if (State.IsInEventScope && State.CurrentDepth == State.EventDepth + 1)
-								{
-									State.ExclusiveTime += Time - State.LastTime;
-								}
-								if (State.CurrentDepth == State.EventDepth && Time == State.EventStartTime)
-								{
-									State.IsInEventScope = true;
-								}
-								++State.CurrentDepth;
-							}
-							else
-							{
-								--State.CurrentDepth;
-								if (State.CurrentDepth == State.EventDepth && Time == State.EventEndTime)
-								{
-									State.IsInEventScope = false;
-									State.ExclusiveTime += Time - State.LastTime;
-								}
-							}
-							State.LastTime = Time;
-						});
-
-						Ctx.TimingEvent.ExclusiveTime = State.ExclusiveTime;
-					});
-				}
-			}
-		}
-		else if (Track->GetType() == ETimingEventsTrackType::Loading)
-		{
-			if (Trace::ReadLoadTimeProfilerProvider(*Session.Get()))
-			{
-				const Trace::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *Trace::ReadLoadTimeProfilerProvider(*Session.Get());
-
-				if (Track == LoadingMainThreadTrack)
-				{
-					LoadTimeProfilerProvider.ReadMainThreadCpuTimeline([&Ctx](const Trace::ILoadTimeProfilerProvider::CpuTimeline& Timeline)
-					{
-						Timeline.EnumerateEvents(Ctx.StartTime, Ctx.EndTime, [&Ctx](double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FLoadTimeProfilerCpuEvent& Event)
-						{
-							Ctx.CheckEvent(EventStartTime, EventEndTime, EventDepth, Event);
-						});
-					});
-				}
-				else if (Track == LoadingAsyncThreadTrack)
-				{
-					LoadTimeProfilerProvider.ReadAsyncLoadingThreadCpuTimeline([&Ctx](const Trace::ILoadTimeProfilerProvider::CpuTimeline& Timeline)
-					{
-						Timeline.EnumerateEvents(Ctx.StartTime, Ctx.EndTime, [&Ctx](double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FLoadTimeProfilerCpuEvent& Event)
-						{
-							Ctx.CheckEvent(EventStartTime, EventEndTime, EventDepth, Event);
-						});
-					});
-				}
+					TimingEvent, bStopAtFirstMatch, bSearchForLargestEvent);
 			}
 		}
 	}
 
-	return Ctx.bFound;
+	if (TimingEvent.IsValid())
+	{
+		if (!TimingEvent.Equals(HoveredTimingEvent))
+		{
+			HoveredTimingEvent = TimingEvent;
+			HoveredTimingEvent.Track->ComputeTimingEventStats(HoveredTimingEvent);
+			HoveredTimingEvent.Track->InitTooltip(Tooltip, HoveredTimingEvent);
+		}
+		Tooltip.SetDesiredOpacity(1.0f);
+	}
+	else
+	{
+		HoveredTimingEvent.Reset();
+		Tooltip.SetDesiredOpacity(0.0f);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STimingView::OnSelectedTimingEventChanged()
 {
-	// Select the timer node coresponding to timing event type of selected timing event.
-	if (!bAssetLoadingMode &&
-		SelectedTimingEvent.IsValid() &&
-		(SelectedTimingEvent.Track->GetType() == ETimingEventsTrackType::Cpu ||
-		 SelectedTimingEvent.Track->GetType() == ETimingEventsTrackType::Gpu))
+	if (!bAssetLoadingMode)
 	{
-		//TODO: make this a more generic (i.e. no hardocdings on TimingProfilerManager)
-		TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
-		if (Wnd)
+		if (SelectedTimingEvent.IsValid() &&
+			SelectedTimingEvent.Track->GetType() == FName(TEXT("Thread")))
 		{
-			if (Wnd->TimersView)
-			{
-				Wnd->TimersView->SelectTimerNode(SelectedTimingEvent.TypeId);
-			}
+			// Select the timer node coresponding to timing event type of selected timing event.
+			FTimingProfilerManager::Get()->SetSelectedTimer(SelectedTimingEvent.TypeId);
 		}
 	}
 }
@@ -3444,14 +2263,15 @@ void STimingView::SelectLeftTimingEvent()
 		const double EndTime = SelectedTimingEvent.EndTime;
 		const bool bStopAtFirstMatch = false; // get last one matching
 		const bool bSearchForLargestEvent = false;
-		if (SearchTimingEvent(0.0, StartTime,
-			[Depth, StartTime, EndTime](double EventStartTime, double EventEndTime, uint32 EventDepth, uint32 EventTypeId)
+		if (SelectedTimingEvent.Track->SearchTimingEvent(0.0, StartTime,
+			[Depth, StartTime, EndTime](double EventStartTime, double EventEndTime, uint32 EventDepth)
 			{
 				return EventDepth == Depth &&
 					(EventStartTime < StartTime || EventEndTime < EndTime);
 			},
 			SelectedTimingEvent, bStopAtFirstMatch, bSearchForLargestEvent))
 		{
+			SelectedTimingEvent.Track->ComputeTimingEventStats(SelectedTimingEvent);
 			BringIntoView(SelectedTimingEvent.StartTime, SelectedTimingEvent.EndTime);
 			OnSelectedTimingEventChanged();
 		}
@@ -3469,14 +2289,15 @@ void STimingView::SelectRightTimingEvent()
 		const double EndTime = SelectedTimingEvent.EndTime;
 		const bool bStopAtFirstMatch = true; // get first one matching
 		const bool bSearchForLargestEvent = false;
-		if (SearchTimingEvent(EndTime, Viewport.MaxValidTime,
-			[Depth, StartTime, EndTime](double EventStartTime, double EventEndTime, uint32 EventDepth, uint32 EventTypeId)
+		if (SelectedTimingEvent.Track->SearchTimingEvent(EndTime, Viewport.GetMaxValidTime(),
+			[Depth, StartTime, EndTime](double EventStartTime, double EventEndTime, uint32 EventDepth)
 			{
 				return EventDepth == Depth &&
 					(EventStartTime > StartTime || EventEndTime > EndTime);
 			},
 			SelectedTimingEvent, bStopAtFirstMatch, bSearchForLargestEvent))
 		{
+			SelectedTimingEvent.Track->ComputeTimingEventStats(SelectedTimingEvent);
 			BringIntoView(SelectedTimingEvent.StartTime, SelectedTimingEvent.EndTime);
 			OnSelectedTimingEventChanged();
 		}
@@ -3495,8 +2316,8 @@ void STimingView::SelectUpTimingEvent()
 		double EndTime = SelectedTimingEvent.EndTime;
 		const bool bStopAtFirstMatch = true; // get first one matching
 		const bool bSearchForLargestEvent = false;
-		if (SearchTimingEvent(StartTime, EndTime,
-			[Depth, StartTime, EndTime](double EventStartTime, double EventEndTime, uint32 EventDepth, uint32 EventTypeId)
+		if (SelectedTimingEvent.Track->SearchTimingEvent(StartTime, EndTime,
+			[Depth, StartTime, EndTime](double EventStartTime, double EventEndTime, uint32 EventDepth)
 			{
 				return EventDepth == Depth
 					&& EventStartTime <= EndTime
@@ -3504,6 +2325,7 @@ void STimingView::SelectUpTimingEvent()
 			},
 			SelectedTimingEvent, bStopAtFirstMatch, bSearchForLargestEvent))
 		{
+			SelectedTimingEvent.Track->ComputeTimingEventStats(SelectedTimingEvent);
 			BringIntoView(SelectedTimingEvent.StartTime, SelectedTimingEvent.EndTime);
 			OnSelectedTimingEventChanged();
 		}
@@ -3521,8 +2343,8 @@ void STimingView::SelectDownTimingEvent()
 		double EndTime = SelectedTimingEvent.EndTime;
 		const bool bStopAtFirstMatch = false; // check all timing events
 		const bool bSearchForLargestEvent = true; // get largest timing event
-		if (SearchTimingEvent(StartTime, EndTime,
-			[Depth, StartTime, EndTime](double EventStartTime, double EventEndTime, uint32 EventDepth, uint32 EventTypeId)
+		if (SelectedTimingEvent.Track->SearchTimingEvent(StartTime, EndTime,
+			[Depth, StartTime, EndTime](double EventStartTime, double EventEndTime, uint32 EventDepth)
 			{
 				return EventDepth == Depth
 					&& EventStartTime <= EndTime
@@ -3530,6 +2352,7 @@ void STimingView::SelectDownTimingEvent()
 			},
 			SelectedTimingEvent, bStopAtFirstMatch, bSearchForLargestEvent))
 		{
+			SelectedTimingEvent.Track->ComputeTimingEventStats(SelectedTimingEvent);
 			BringIntoView(SelectedTimingEvent.StartTime, SelectedTimingEvent.EndTime);
 			OnSelectedTimingEventChanged();
 		}
@@ -3588,7 +2411,7 @@ void STimingView::FrameSelection()
 		EndTime = Viewport.RestrictEndTime(SelectedTimingEvent.EndTime);
 		if (EndTime == StartTime)
 		{
-			EndTime += 1.0 / Viewport.ScaleX; // +1px
+			EndTime += 1.0 / Viewport.GetScaleX(); // +1px
 		}
 	}
 	else
@@ -3611,26 +2434,6 @@ void STimingView::FrameSelection()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const FTimerNodePtr STimingView::GetTimerNode(uint64 TypeId) const
-{
-	const FTimerNodePtr* TimerNodePtrPtr = nullptr;
-	TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
-	if (Wnd && Wnd->TimersView)
-	{
-		TimerNodePtrPtr = Wnd->TimersView->GetTimerNode(TypeId);
-		if (TimerNodePtrPtr == nullptr)
-		{
-			// List of timers in TimersView not up to date?
-			// Refresh and try again.
-			Wnd->TimersView->RebuildTree(false);
-			TimerNodePtrPtr = Wnd->TimersView->GetTimerNode(TypeId);
-		}
-	}
-	return TimerNodePtrPtr ? *TimerNodePtrPtr : nullptr;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 TSharedRef<SWidget> STimingView::MakeTracksFilterMenu()
 {
 	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, nullptr);
@@ -3638,6 +2441,17 @@ TSharedRef<SWidget> STimingView::MakeTracksFilterMenu()
 	MenuBuilder.BeginSection("QuickFilter", LOCTEXT("TracksFilterHeading", "Quick Filter"));
 	{
 		const FTimingViewCommands& Commands = FTimingViewCommands::Get();
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ShowGraphTrack", "Graph Track - G"),
+			LOCTEXT("ShowGraphTrack_Tooltip", "Show/hide the Graph track"),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &STimingView::ShowHideGraphTrack_Execute),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &STimingView::ShowHideGraphTrack_IsChecked)),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
 
 		//TODO: MenuBuilder.AddMenuEntry(Commands.ShowAllGpuTracks);
 		MenuBuilder.AddMenuEntry(
@@ -3770,6 +2584,21 @@ void STimingView::CreateTracksMenu(FMenuBuilder& MenuBuilder)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+bool STimingView::ShowHideGraphTrack_IsChecked() const
+{
+	return GraphTrack->IsVisible();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::ShowHideGraphTrack_Execute()
+{
+	GraphTrack->ToggleVisibility();
+	bAreTimingEventsTracksDirty = true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 bool STimingView::ShowHideAllCpuTracks_IsChecked() const
 {
 	return bShowHideAllCpuTracks;
@@ -3784,7 +2613,7 @@ void STimingView::ShowHideAllCpuTracks_Execute()
 	for (int32 TrackIndex = 0; TrackIndex < TimingEventsTracks.Num(); ++TrackIndex)
 	{
 		FTimingEventsTrack& Track = *TimingEventsTracks[TrackIndex];
-		if (Track.GetType() == ETimingEventsTrackType::Cpu)
+		if (Track.GetType() == FName(TEXT("Thread")) && Track.GetSubType() == FName(TEXT("CPU")))
 		{
 			Track.SetVisibilityFlag(bShowHideAllCpuTracks);
 		}
@@ -3795,10 +2624,7 @@ void STimingView::ShowHideAllCpuTracks_Execute()
 		KV.Value.bIsVisible = bShowHideAllCpuTracks;
 	}
 
-	HoveredTimingEvent.Reset();
-	SelectedTimingEvent.Reset();
-
-	bAreTimingEventsTracksDirty = true;
+	OnTimingEventsTrackVisibilityChanged();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3817,16 +2643,13 @@ void STimingView::ShowHideAllGpuTracks_Execute()
 	for (int32 TrackIndex = 0; TrackIndex < TimingEventsTracks.Num(); ++TrackIndex)
 	{
 		FTimingEventsTrack& Track = *TimingEventsTracks[TrackIndex];
-		if (Track.GetType() == ETimingEventsTrackType::Gpu)
+		if (Track.GetType() == FName(TEXT("Thread")) && Track.GetSubType() == FName(TEXT("GPU")))
 		{
 			Track.SetVisibilityFlag(bShowHideAllGpuTracks);
 		}
 	}
 
-	HoveredTimingEvent.Reset();
-	SelectedTimingEvent.Reset();
-
-	bAreTimingEventsTracksDirty = true;
+	OnTimingEventsTrackVisibilityChanged();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3845,13 +2668,13 @@ void STimingView::ShowHideAllLoadingTracks_Execute()
 	for (int32 TrackIndex = 0; TrackIndex < TimingEventsTracks.Num(); ++TrackIndex)
 	{
 		FTimingEventsTrack& Track = *TimingEventsTracks[TrackIndex];
-		if (Track.GetType() == ETimingEventsTrackType::Loading)
+		if (Track.GetType() == FName(TEXT("Loading")))
 		{
 			Track.SetVisibilityFlag(bShowHideAllLoadingTracks);
 		}
 	}
 
-	bAreTimingEventsTracksDirty = true;
+	OnTimingEventsTrackVisibilityChanged();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3870,17 +2693,17 @@ void STimingView::ShowHideAllIoTracks_Execute()
 	for (int32 TrackIndex = 0; TrackIndex < TimingEventsTracks.Num(); ++TrackIndex)
 	{
 		FTimingEventsTrack& Track = *TimingEventsTracks[TrackIndex];
-		if (Track.GetType() == ETimingEventsTrackType::Io)
+		if (Track.GetType() == FName(TEXT("FileActivity")))
 		{
 			Track.SetVisibilityFlag(bShowHideAllIoTracks);
 		}
 	}
 
-	bAreTimingEventsTracksDirty = true;
+	OnTimingEventsTrackVisibilityChanged();
 
 	if (bShowHideAllIoTracks)
 	{
-		bForceIoEventsUpdate = true;
+		FileActivitySharedState->RequestUpdate();
 	}
 }
 
@@ -3911,9 +2734,7 @@ void STimingView::ToggleAutoHideEmptyTracks()
 		CachedTimelineKV.Value->SetHeight(0.0f);
 	}
 
-	Viewport.ScrollPosY = 0.0f;
-	UpdateVerticalScrollBar();
-	bIsVerticalViewportDirty = true;
+	ScrollAtPosY(0.0f);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3937,8 +2758,7 @@ void STimingView::ToggleTrackVisibility_Execute(uint64 InTrackId)
 		FTimingEventsTrack* Track = CachedTimelines[InTrackId];
 		Track->ToggleVisibility();
 
-		HoveredTimingEvent.Reset();
-		SelectedTimingEvent.Reset();
+		OnTimingEventsTrackVisibilityChanged();
 	}
 }
 
@@ -3966,16 +2786,35 @@ void STimingView::ToggleTrackVisibilityByGroup_Execute(const TCHAR* InGroupName)
 		for (auto& KV : CachedTimelines)
 		{
 			FTimingEventsTrack& Track = *KV.Value;
-			if (Track.GetType() == ETimingEventsTrackType::Cpu &&
-				Track.GetGroupName() == InGroupName)
+			if (Track.GetType() == FName(TEXT("Thread")) && Track.GetSubType() == FName(TEXT("CPU")) &&
+				((FCpuTimingTrack*)&Track)->GetGroupName() == InGroupName)
 			{
 				Track.SetVisibilityFlag(ThreadGroup.bIsVisible);
 			}
 		}
 
-		HoveredTimingEvent.Reset();
-		SelectedTimingEvent.Reset();
+		OnTimingEventsTrackVisibilityChanged();
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::OnTimingEventsTrackVisibilityChanged()
+{
+	HoveredTimingEvent.Reset();
+	SelectedTimingEvent.Reset();
+	Tooltip.SetDesiredOpacity(0.0f);
+
+	//TODO: ThreadFilterChangedEvent.Broadcast();
+
+	FTimingProfilerManager::Get()->OnThreadFilterChanged();
+
+	if (SelectionStartTime < SelectionEndTime)
+	{
+		UpdateAggregatedStats();
+	}
+
+	bAreTimingEventsTracksDirty = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

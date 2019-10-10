@@ -47,7 +47,6 @@
 DECLARE_CYCLE_STAT(TEXT("Choose Terminal Scope"), EKismetCompilerStats_ChooseTerminalScope, STATGROUP_KismetCompiler);
 DECLARE_CYCLE_STAT(TEXT("Resolve compiled statements"), EKismetCompilerStats_ResolveCompiledStatements, STATGROUP_KismetCompiler );
 
-
 //////////////////////////////////////////////////////////////////////////
 // FKismetCompilerUtilities
 
@@ -519,8 +518,9 @@ void FKismetCompilerUtilities::RemoveObjectRedirectorIfPresent(UObject* Package,
 }
 
 /** Finds a property by name, starting in the specified scope; Validates property type and returns NULL along with emitting an error if there is a mismatch. */
-UProperty* FKismetCompilerUtilities::FindPropertyInScope(UStruct* Scope, UEdGraphPin* Pin, FCompilerResultsLog& MessageLog, const UEdGraphSchema_K2* Schema, UClass* SelfClass)
+UProperty* FKismetCompilerUtilities::FindPropertyInScope(UStruct* Scope, UEdGraphPin* Pin, FCompilerResultsLog& MessageLog, const UEdGraphSchema_K2* Schema, UClass* SelfClass, bool& bIsSparseProperty)
 {
+	bIsSparseProperty = false;
 	UStruct* InitialScope = Scope;
 	while (Scope != NULL)
 	{
@@ -542,6 +542,22 @@ UProperty* FKismetCompilerUtilities::FindPropertyInScope(UStruct* Scope, UEdGrap
 			}
 		}
 
+		// If this is a class, check the sparse data for the property
+		UClass* Class = Cast<UClass>(Scope);
+		if (Class)
+		{
+			UStruct* SparseData = Class->GetSparseClassDataStruct();
+			if (SparseData)
+			{
+				UProperty* Prop = FindPropertyInScope(SparseData, Pin, MessageLog, Schema, SelfClass, bIsSparseProperty);
+				if (Prop)
+				{
+					bIsSparseProperty = true;
+					return Prop;
+				}
+			}
+		}
+
 		// Functions don't automatically check their class when using a field iterator
 		UFunction* Function = Cast<UFunction>(Scope);
 		Scope = (Function != NULL) ? Cast<UStruct>(Function->GetOuter()) : NULL;
@@ -556,8 +572,9 @@ UProperty* FKismetCompilerUtilities::FindPropertyInScope(UStruct* Scope, UEdGrap
 }
 
 // Finds a property by name, starting in the specified scope, returning NULL if it's not found
-UProperty* FKismetCompilerUtilities::FindNamedPropertyInScope(UStruct* Scope, FName PropertyName)
+UProperty* FKismetCompilerUtilities::FindNamedPropertyInScope(UStruct* Scope, FName PropertyName, bool& bIsSparseProperty)
 {
+	bIsSparseProperty = false;
 	while (Scope != NULL)
 	{
 		for (TFieldIterator<UProperty> It(Scope, EFieldIteratorFlags::IncludeSuper); It; ++It)
@@ -568,6 +585,22 @@ UProperty* FKismetCompilerUtilities::FindNamedPropertyInScope(UStruct* Scope, FN
 			if (Property->GetFName() == PropertyName && !Property->HasAllPropertyFlags(CPF_Deprecated))
 			{
 				return Property;
+			}
+		}
+
+		// If this is a class, check the sparse data for the property
+		UClass* Class = Cast<UClass>(Scope);
+		if (Class)
+		{
+			UStruct* SparseData = Class->GetSparseClassDataStruct();
+			if (SparseData)
+			{
+				UProperty* Prop = FindNamedPropertyInScope(SparseData, PropertyName, bIsSparseProperty);
+				if (Prop)
+				{
+					bIsSparseProperty = true;
+					return Prop;
+				}
 			}
 		}
 
@@ -1594,7 +1627,8 @@ void FNodeHandlingFunctor::ResolveAndRegisterScopedTerm(FKismetFunctionContext& 
 	}
 
 	// Find the variable in the search scope
-	UProperty* BoundProperty = FKismetCompilerUtilities::FindPropertyInScope(SearchScope, Net, CompilerContext.MessageLog, CompilerContext.GetSchema(), Context.NewClass);
+	bool bIsSparseProperty;
+	UProperty* BoundProperty = FKismetCompilerUtilities::FindPropertyInScope(SearchScope, Net, CompilerContext.MessageLog, CompilerContext.GetSchema(), Context.NewClass, bIsSparseProperty);
 	if (BoundProperty != NULL)
 	{
 		UBlueprintEditorSettings* Settings = GetMutableDefault<UBlueprintEditorSettings>();
@@ -1615,6 +1649,11 @@ void FNodeHandlingFunctor::ResolveAndRegisterScopedTerm(FKismetFunctionContext& 
 		{
 			// Read-only variables and variables in const classes are both const
 			Term->bIsConst = true;
+		}
+
+		if (bIsSparseProperty)
+		{
+			Term->SetVarTypeSparseClassData();
 		}
 
 		// Resolve the context term

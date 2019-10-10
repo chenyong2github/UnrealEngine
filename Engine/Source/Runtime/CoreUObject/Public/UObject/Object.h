@@ -541,6 +541,16 @@ public:
 	/** Return a one line description of an object for viewing in the thumbnail view of the generic browser */
 	virtual FString GetDesc() { return TEXT( "" ); }
 
+	/** Allocates the sidecar data structure that stores data that is constant for all instances of this class. */
+	virtual void* CreateSparseClassData();
+
+	/** Return the UStruct corresponding to the sidecar data structure that stores data that is constant for all instances of this class. */
+	virtual UScriptStruct* GetSparseClassDataStruct() const;
+
+#if WITH_EDITOR
+	virtual void MoveDataToSparseClassDataStruct() const {}
+#endif
+
 #if WITH_ENGINE
 	/** 
 	 * Returns what UWorld this object is contained within. 
@@ -1243,6 +1253,7 @@ public:
 	DECLARE_FUNCTION(execDefaultVariable);
 	DECLARE_FUNCTION(execLocalOutVariable);
 	DECLARE_FUNCTION(execInterfaceVariable);
+	DECLARE_FUNCTION(execClassSparseDataVariable);
 	DECLARE_FUNCTION(execInterfaceContext);
 	DECLARE_FUNCTION(execArrayElement);
 	DECLARE_FUNCTION(execBoolVariable);

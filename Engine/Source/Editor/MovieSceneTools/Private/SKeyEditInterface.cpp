@@ -90,6 +90,12 @@ void SKeyEditInterface::Initialize()
 	];
 }
 
+FVector2D SKeyEditInterface::ComputeDesiredSize(float LayoutScaleMultiplier) const
+{
+	FVector2D ChildSize = SCompoundWidget::ComputeDesiredSize(LayoutScaleMultiplier);
+	return FVector2D::Max(ChildSize, FVector2D(350.f, 0.f));
+}
+
 TSharedRef<IPropertyTypeCustomization> SKeyEditInterface::CreateBindingIDCustomization()
 {
 	TSharedPtr<ISequencer> SequencerPtr = WeakSequencer.Pin();

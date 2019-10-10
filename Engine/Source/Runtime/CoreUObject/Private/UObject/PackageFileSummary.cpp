@@ -2,7 +2,7 @@
 
 #include "UObject/PackageFileSummary.h"
 #include "UObject/Linker.h"
-#include "Serialization/ArchiveFromStructuredArchive.h"
+#include "Serialization/StructuredArchive.h"
 #include "UObject/UObjectGlobals.h"
 
 FPackageFileSummary::FPackageFileSummary()
@@ -50,7 +50,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 
 	if (bCanStartSerializing)
 	{
-		Record << NAMED_ITEM("Tag", Sum.Tag);
+		Record << SA_VALUE(TEXT("Tag"), Sum.Tag);
 	}
 	// only keep loading if we match the magic
 	if (Sum.Tag == PACKAGE_FILE_TAG || Sum.Tag == PACKAGE_FILE_TAG_SWAPPED)
@@ -86,7 +86,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 		*/
 		const int32 CurrentLegacyFileVersion = -7;
 		int32 LegacyFileVersion = CurrentLegacyFileVersion;
-		Record << NAMED_ITEM("LegacyFileVersion", LegacyFileVersion);
+		Record << SA_VALUE(TEXT("LegacyFileVersion"), LegacyFileVersion);
 
 		if (BaseArchive.IsLoading())
 		{
@@ -104,14 +104,14 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 				if (LegacyFileVersion != -4)
 				{
 					int32 LegacyUE3Version = 0;
-					Record << NAMED_ITEM("LegacyUE3Version", LegacyUE3Version);
+					Record << SA_VALUE(TEXT("LegacyUE3Version"), LegacyUE3Version);
 				}
-				Record << NAMED_ITEM("FileVersionUE4", Sum.FileVersionUE4);
-				Record << NAMED_ITEM("FileVersionLicenseeUE4", Sum.FileVersionLicenseeUE4);
+				Record << SA_VALUE(TEXT("FileVersionUE4"), Sum.FileVersionUE4);
+				Record << SA_VALUE(TEXT("FileVersionLicenseeUE4"), Sum.FileVersionLicenseeUE4);
 
 				if (LegacyFileVersion <= -2)
 				{
-					Sum.CustomVersionContainer.Serialize(Record.EnterField(FIELD_NAME_TEXT("CustomVersions")), GetCustomVersionFormatForArchive(LegacyFileVersion));
+					Sum.CustomVersionContainer.Serialize(Record.EnterField(SA_FIELD_NAME(TEXT("CustomVersions"))), GetCustomVersionFormatForArchive(LegacyFileVersion));
 				}
 
 				if (!Sum.FileVersionUE4 && !Sum.FileVersionLicenseeUE4)
@@ -128,7 +128,6 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 					Sum.bUnversioned = true;
 					Sum.FileVersionUE4 = GPackageFileUE4Version;
 					Sum.FileVersionLicenseeUE4 = GPackageFileLicenseeUE4Version;
-					Sum.CustomVersionContainer = FCustomVersionContainer::GetRegistered();
 				}
 			}
 			else
@@ -143,28 +142,28 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 			if (Sum.bUnversioned)
 			{
 				int32 Zero = 0;
-				Record << NAMED_ITEM("LegacyUE3version", Zero); // LegacyUE3version
-				Record << NAMED_ITEM("FileVersionUE4", Zero); // VersionUE4
-				Record << NAMED_ITEM("FileVersionLicenseeUE4", Zero); // VersionLicenseeUE4
+				Record << SA_VALUE(TEXT("LegacyUE3version"), Zero); // LegacyUE3version
+				Record << SA_VALUE(TEXT("FileVersionUE4"), Zero); // VersionUE4
+				Record << SA_VALUE(TEXT("FileVersionLicenseeUE4"), Zero); // VersionLicenseeUE4
 
 				FCustomVersionContainer NoCustomVersions;
-				NoCustomVersions.Serialize(Record.EnterField(FIELD_NAME_TEXT("CustomVersions")));
+				NoCustomVersions.Serialize(Record.EnterField(SA_FIELD_NAME(TEXT("CustomVersions"))));
 			}
 			else
 			{
 				// Must write out the last UE3 engine version, so that older versions identify it as new
 				int32 LegacyUE3Version = 864;
-				Record << NAMED_ITEM("LegacyUE3Version", LegacyUE3Version);
-				Record << NAMED_ITEM("FileVersionUE4", Sum.FileVersionUE4);
-				Record << NAMED_ITEM("FileVersionLicenseeUE4", Sum.FileVersionLicenseeUE4);
+				Record << SA_VALUE(TEXT("LegacyUE3Version"), LegacyUE3Version);
+				Record << SA_VALUE(TEXT("FileVersionUE4"), Sum.FileVersionUE4);
+				Record << SA_VALUE(TEXT("FileVersionLicenseeUE4"), Sum.FileVersionLicenseeUE4);
 
 				// Serialise custom version map.
-				Sum.CustomVersionContainer.Serialize(Record.EnterField(FIELD_NAME_TEXT("CustomVersions")));
+				Sum.CustomVersionContainer.Serialize(Record.EnterField(SA_FIELD_NAME(TEXT("CustomVersions"))));
 			}
 		}
-		Record << NAMED_ITEM("TotalHeaderSize", Sum.TotalHeaderSize);
-		Record << NAMED_ITEM("FolderName", Sum.FolderName);
-		Record << NAMED_ITEM("PackageFlags", Sum.PackageFlags);
+		Record << SA_VALUE(TEXT("TotalHeaderSize"), Sum.TotalHeaderSize);
+		Record << SA_VALUE(TEXT("FolderName"), Sum.FolderName);
+		Record << SA_VALUE(TEXT("PackageFlags"), Sum.PackageFlags);
 
 #if WITH_EDITOR
 		if (BaseArchive.IsLoading())
@@ -178,21 +177,21 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 		{
 			BaseArchive.SetFilterEditorOnly(true);
 		}
-		Record << NAMED_ITEM("NameCount", Sum.NameCount) << NAMED_ITEM("NameOffset", Sum.NameOffset);
+		Record << SA_VALUE(TEXT("NameCount"), Sum.NameCount) << SA_VALUE(TEXT("NameOffset"), Sum.NameOffset);
 		if (!BaseArchive.IsFilterEditorOnly())
 		{
 			if (BaseArchive.IsSaving() || Sum.FileVersionUE4 >= VER_UE4_ADDED_PACKAGE_SUMMARY_LOCALIZATION_ID)
 			{
-				Record << NAMED_ITEM("LocalizationId", Sum.LocalizationId);
+				Record << SA_VALUE(TEXT("LocalizationId"), Sum.LocalizationId);
 			}
 		}
 		if (Sum.FileVersionUE4 >= VER_UE4_SERIALIZE_TEXT_IN_PACKAGES)
 		{
-			Record << NAMED_ITEM("GatherableTextDataCount", Sum.GatherableTextDataCount) << NAMED_ITEM("GatherableTextDataOffset", Sum.GatherableTextDataOffset);
+			Record << SA_VALUE(TEXT("GatherableTextDataCount"), Sum.GatherableTextDataCount) << SA_VALUE(TEXT("GatherableTextDataOffset"), Sum.GatherableTextDataOffset);
 		}
-		Record << NAMED_ITEM("ExportCount", Sum.ExportCount) << NAMED_ITEM("ExportOffset", Sum.ExportOffset);
-		Record << NAMED_ITEM("ImportCount", Sum.ImportCount) << NAMED_ITEM("ImportOffset", Sum.ImportOffset);
-		Record << NAMED_ITEM("DependsOffset", Sum.DependsOffset);
+		Record << SA_VALUE(TEXT("ExportCount"), Sum.ExportCount) << SA_VALUE(TEXT("ExportOffset"), Sum.ExportOffset);
+		Record << SA_VALUE(TEXT("ImportCount"), Sum.ImportCount) << SA_VALUE(TEXT("ImportOffset"), Sum.ImportOffset);
+		Record << SA_VALUE(TEXT("DependsOffset"), Sum.DependsOffset);
 
 		if (BaseArchive.IsLoading() && (Sum.FileVersionUE4 < VER_UE4_OLDEST_LOADABLE_PACKAGE || Sum.FileVersionUE4 > GPackageFileUE4Version))
 		{
@@ -201,28 +200,28 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 
 		if (BaseArchive.IsSaving() || Sum.FileVersionUE4 >= VER_UE4_ADD_STRING_ASSET_REFERENCES_MAP)
 		{
-			Record << NAMED_ITEM("SoftPackageReferencesCount", Sum.SoftPackageReferencesCount) << NAMED_ITEM("SoftPackageReferencesOffset", Sum.SoftPackageReferencesOffset);
+			Record << SA_VALUE(TEXT("SoftPackageReferencesCount"), Sum.SoftPackageReferencesCount) << SA_VALUE(TEXT("SoftPackageReferencesOffset"), Sum.SoftPackageReferencesOffset);
 		}
 
 		if (BaseArchive.IsSaving() || Sum.FileVersionUE4 >= VER_UE4_ADDED_SEARCHABLE_NAMES)
 		{
-			Record << NAMED_ITEM("SearchableNamesOffset", Sum.SearchableNamesOffset);
+			Record << SA_VALUE(TEXT("SearchableNamesOffset"), Sum.SearchableNamesOffset);
 		}
 
-		Record << NAMED_ITEM("ThumbnailTableOffset", Sum.ThumbnailTableOffset);
+		Record << SA_VALUE(TEXT("ThumbnailTableOffset"), Sum.ThumbnailTableOffset);
 
-		Record << NAMED_ITEM("Guid", Sum.Guid);
+		Record << SA_VALUE(TEXT("Guid"), Sum.Guid);
 
 		if (BaseArchive.IsSaving() || Sum.FileVersionUE4 >= VER_UE4_ADDED_PACKAGE_OWNER)
 		{
 			if (!BaseArchive.IsFilterEditorOnly())
 			{
 #if WITH_EDITORONLY_DATA
-				Record << NAMED_ITEM("PersistentGuid", Sum.PersistentGuid) << NAMED_ITEM("OwnerPersistentGuid", Sum.OwnerPersistentGuid);
+				Record << SA_VALUE(TEXT("PersistentGuid"), Sum.PersistentGuid) << SA_VALUE(TEXT("OwnerPersistentGuid"), Sum.OwnerPersistentGuid);
 #else
 				FGuid PersistentGuid;
 				FGuid OwnerPersistentGuid;
-				Record << NAMED_ITEM("PersistentGuid", PersistentGuid) << NAMED_ITEM("OwnerPersistentGuid", OwnerPersistentGuid);
+				Record << SA_VALUE(TEXT("PersistentGuid"), PersistentGuid) << SA_VALUE(TEXT("OwnerPersistentGuid"), OwnerPersistentGuid);
 #endif
 			}
 		}
@@ -235,14 +234,14 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 #endif
 
 		int32 GenerationCount = Sum.Generations.Num();
-		Record << NAMED_ITEM("GenerationCount", GenerationCount);
+		Record << SA_VALUE(TEXT("GenerationCount"), GenerationCount);
 		if (BaseArchive.IsLoading() && GenerationCount > 0)
 		{
 			Sum.Generations.Reset(GenerationCount);
 			Sum.Generations.AddZeroed(GenerationCount);
 		}
 
-		FStructuredArchive::FStream GenerationsStream = Record.EnterStream(FIELD_NAME_TEXT("Generations"));
+		FStructuredArchive::FStream GenerationsStream = Record.EnterStream(SA_FIELD_NAME(TEXT("Generations")));
 		for (int32 i = 0; i<GenerationCount; i++)
 		{
 			Sum.Generations[i].Serialize(GenerationsStream.EnterElement(), Sum);
@@ -257,17 +256,17 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 			if (BaseArchive.IsCooking() || (BaseArchive.IsSaving() && !FEngineVersion::Current().HasChangelist()))
 			{
 				FEngineVersion EmptyEngineVersion;
-				Record << NAMED_ITEM("SavedByEngineVersion", EmptyEngineVersion);
+				Record << SA_VALUE(TEXT("SavedByEngineVersion"), EmptyEngineVersion);
 			}
 			else
 			{
-				Record << NAMED_ITEM("SavedByEngineVersion", Sum.SavedByEngineVersion);
+				Record << SA_VALUE(TEXT("SavedByEngineVersion"), Sum.SavedByEngineVersion);
 			}
 		}
 		else
 		{
 			int32 EngineChangelist = 0;
-			Record << NAMED_ITEM("EngineChangelist", EngineChangelist);
+			Record << SA_VALUE(TEXT("EngineChangelist"), EngineChangelist);
 
 			if (BaseArchive.IsLoading() && EngineChangelist != 0)
 			{
@@ -280,11 +279,11 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 			if (BaseArchive.IsCooking() || (BaseArchive.IsSaving() && !FEngineVersion::Current().HasChangelist()))
 			{
 				FEngineVersion EmptyEngineVersion;
-				Record << NAMED_ITEM("CompatibleWithEngineVersion", EmptyEngineVersion);
+				Record << SA_VALUE(TEXT("CompatibleWithEngineVersion"), EmptyEngineVersion);
 			}
 			else
 			{
-				Record << NAMED_ITEM("CompatibleWithEngineVersion", Sum.CompatibleWithEngineVersion);
+				Record << SA_VALUE(TEXT("CompatibleWithEngineVersion"), Sum.CompatibleWithEngineVersion);
 			}
 		}
 		else
@@ -295,7 +294,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 			}
 		}
 
-		Record << NAMED_ITEM("CompressionFlags", Sum.CompressionFlags);
+		Record << SA_VALUE(TEXT("CompressionFlags"), Sum.CompressionFlags);
 		if (!FCompression::VerifyCompressionFlagsValid(Sum.CompressionFlags))
 		{
 			UE_LOG(LogLinker, Warning, TEXT("Failed to read package file summary, the file \"%s\" has invalid compression flags (%d)."), *BaseArchive.GetArchiveName(), Sum.CompressionFlags);
@@ -304,7 +303,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 		}
 
 		TArray<FCompressedChunk> CompressedChunks;
-		Record << NAMED_ITEM("CompressedChunks", CompressedChunks);
+		Record << SA_VALUE(TEXT("CompressedChunks"), CompressedChunks);
 
 		if (CompressedChunks.Num())
 		{
@@ -314,32 +313,32 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 			return; // we can't safely load more than this because we just changed the version to something it is not.
 		}
 
-		Record << NAMED_ITEM("PackageSource", Sum.PackageSource);
+		Record << SA_VALUE(TEXT("PackageSource"), Sum.PackageSource);
 
 		// No longer used: List of additional packages that are needed to be cooked for this package (ie streaming levels)
 		// Keeping the serialization code for backwards compatibility without bumping the package version
 		TArray<FString>	AdditionalPackagesToCook;
-		Record << NAMED_ITEM("AdditionalPackagesToCook", AdditionalPackagesToCook);
+		Record << SA_VALUE(TEXT("AdditionalPackagesToCook"), AdditionalPackagesToCook);
 
 		if (LegacyFileVersion > -7)
 		{
 			int32 NumTextureAllocations = 0;
-			Record << NAMED_ITEM("NumTextureAllocations", NumTextureAllocations);
+			Record << SA_VALUE(TEXT("NumTextureAllocations"), NumTextureAllocations);
 			// We haven't used texture allocation info for ages and it's no longer supported anyway
 			check(NumTextureAllocations == 0);
 		}
 
-		Record << NAMED_ITEM("AssetRegistryDataOffset", Sum.AssetRegistryDataOffset);
-		Record << NAMED_ITEM("BulkDataStartOffset", Sum.BulkDataStartOffset);
+		Record << SA_VALUE(TEXT("AssetRegistryDataOffset"), Sum.AssetRegistryDataOffset);
+		Record << SA_VALUE(TEXT("BulkDataStartOffset"), Sum.BulkDataStartOffset);
 
 		if (Sum.GetFileVersionUE4() >= VER_UE4_WORLD_LEVEL_INFO)
 		{
-			Record << NAMED_ITEM("WorldTileInfoDataOffset", Sum.WorldTileInfoDataOffset);
+			Record << SA_VALUE(TEXT("WorldTileInfoDataOffset"), Sum.WorldTileInfoDataOffset);
 		}
 
 		if (Sum.GetFileVersionUE4() >= VER_UE4_CHANGED_CHUNKID_TO_BE_AN_ARRAY_OF_CHUNKIDS)
 		{
-			Record << NAMED_ITEM("ChunkIDs", Sum.ChunkIDs);
+			Record << SA_VALUE(TEXT("ChunkIDs"), Sum.ChunkIDs);
 		}
 		else if (Sum.GetFileVersionUE4() >= VER_UE4_ADDED_CHUNKID_TO_ASSETDATA_AND_UPACKAGE)
 		{
@@ -347,7 +346,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 			if (BaseArchive.IsLoading())
 			{
 				int ChunkID = -1;
-				Record << NAMED_ITEM("ChunkID", ChunkID);
+				Record << SA_VALUE(TEXT("ChunkID"), ChunkID);
 
 				// don't load <0 entries since an empty array represents the same thing now
 				if (ChunkID >= 0)
@@ -358,7 +357,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 		}
 		if (BaseArchive.IsSaving() || Sum.FileVersionUE4 >= VER_UE4_PRELOAD_DEPENDENCIES_IN_COOKED_EXPORTS)
 		{
-			Record << NAMED_ITEM("PreloadDependencyCount", Sum.PreloadDependencyCount) << NAMED_ITEM("PreloadDependencyOffset", Sum.PreloadDependencyOffset);
+			Record << SA_VALUE(TEXT("PreloadDependencyCount"), Sum.PreloadDependencyCount) << SA_VALUE(TEXT("PreloadDependencyOffset"), Sum.PreloadDependencyOffset);
 		}
 		else
 		{
@@ -372,6 +371,14 @@ FArchive& operator<<( FArchive& Ar, FPackageFileSummary& Sum )
 {
 	FStructuredArchiveFromArchive(Ar).GetSlot() << Sum;
 	return Ar;
+}
+
+const FCustomVersionContainer& FPackageFileSummary::GetCustomVersionContainer() const
+{
+	return
+		(bUnversioned && CustomVersionContainer.GetAllVersions().Num() == 0) ?
+		FCustomVersionContainer::GetRegistered() :
+		CustomVersionContainer;
 }
 
 void FPackageFileSummary::SetCustomVersionContainer(const FCustomVersionContainer& InContainer)

@@ -321,6 +321,35 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathVectorUnit)
 	return true;
 }
 
+IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathVectorSetLength)
+{
+	Unit.Value = FVector(4.f, 0.f, 0.f);
+	Unit.Length = 2.f;
+	InitAndExecute();
+	AddErrorIfFalse(FRigUnit_MathVectorTest_Utils::IsNearlyEqual(Unit.Result, FVector(2.f, 0.f, 0.f), 0.001f), TEXT("unexpected result (0)"));
+	Unit.Value = FVector(0.f, 5.f, 0.f);
+	Unit.Length = 3.f;
+	InitAndExecute();
+	AddErrorIfFalse(FRigUnit_MathVectorTest_Utils::IsNearlyEqual(Unit.Result, FVector(0.f, 3.f, 0.f), 0.001f), TEXT("unexpected result (1)"));
+	return true;
+}
+
+IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathVectorClampLength)
+{
+	Unit.Value = FVector(4.f, 0.f, 0.f);
+	Unit.MinimumLength = 2.f;
+	Unit.MaximumLength = 6.f;
+	InitAndExecute();
+	AddErrorIfFalse(FRigUnit_MathVectorTest_Utils::IsNearlyEqual(Unit.Result, FVector(4.f, 0.f, 0.f), 0.001f), TEXT("unexpected result (0)"));
+	Unit.Value = FVector(1.f, 0.f, 0.f);
+	InitAndExecute();
+	AddErrorIfFalse(FRigUnit_MathVectorTest_Utils::IsNearlyEqual(Unit.Result, FVector(2.f, 0.f, 0.f), 0.001f), TEXT("unexpected result (1)"));
+	Unit.Value = FVector(8.f, 0.f, 0.f);
+	InitAndExecute();
+	AddErrorIfFalse(FRigUnit_MathVectorTest_Utils::IsNearlyEqual(Unit.Result, FVector(6.f, 0.f, 0.f), 0.001f), TEXT("unexpected result (1)"));
+	return true;
+}
+
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathVectorMirror)
 {
 	Unit.Value = FVector(1.f, 2.f, 3.f);

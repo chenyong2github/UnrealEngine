@@ -54,37 +54,11 @@ public class zlib : ModuleRules
 			PublicIncludePaths.Add(OldzlibPath + "/Inc");
 			PublicSystemLibraries.Add("z");
 		}
-		else if (Target.Platform == UnrealTargetPlatform.HTML5)
-		{
-			string OpimizationSuffix = "";
-			if (Target.bCompileForSize)
-			{
-				OpimizationSuffix = "_Oz";
-			}
-			else
-			{
-				if (Target.Configuration == UnrealTargetConfiguration.Development)
-				{
-					OpimizationSuffix = "_O2";
-				}
-				else if (Target.Configuration == UnrealTargetConfiguration.Shipping)
-				{
-					OpimizationSuffix = "_O3";
-				}
-			}
-			PublicIncludePaths.Add(OldzlibPath + "/Inc");
-			PublicAdditionalLibraries.Add(OldzlibPath + "/Lib/HTML5/zlib" + OpimizationSuffix + ".bc");
-		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
 			string platform = "/Linux/" + Target.Architecture;
 			PublicIncludePaths.Add(zlibPath + "/include" + platform);
 			PublicAdditionalLibraries.Add(zlibPath + "/lib/" + platform + "/libz_fPIC.a");
-		}
-		else if (Target.Platform == UnrealTargetPlatform.PS4)
-		{
-			PublicIncludePaths.Add(OldzlibPath + "/Inc");
-			PublicAdditionalLibraries.Add(OldzlibPath + "/Lib/PS4/libz.a");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.XboxOne)
 		{

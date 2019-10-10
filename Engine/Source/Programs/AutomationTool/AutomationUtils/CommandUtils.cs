@@ -2098,17 +2098,17 @@ namespace AutomationTool
 		/// <param name="Files">Files to include in the archive</param>
 		public static void ZipFiles(FileReference ZipFile, DirectoryReference BaseDirectory, IEnumerable<FileReference> Files)
 		{
-			using(Ionic.Zip.ZipFile Zip = new Ionic.Zip.ZipFile(Encoding.UTF8))
-			{
-				Zip.UseZip64WhenSaving = Ionic.Zip.Zip64Option.AsNecessary;
-				foreach(FileReference File in Files)
+				using(Ionic.Zip.ZipFile Zip = new Ionic.Zip.ZipFile(Encoding.UTF8))
 				{
-					Zip.AddFile(File.FullName, Path.GetDirectoryName(File.MakeRelativeTo(BaseDirectory)));
+				Zip.UseZip64WhenSaving = Ionic.Zip.Zip64Option.AsNecessary;
+					foreach(FileReference File in Files)
+					{
+						Zip.AddFile(File.FullName, Path.GetDirectoryName(File.MakeRelativeTo(BaseDirectory)));
+					}
+					CommandUtils.CreateDirectory(ZipFile.Directory);
+					Zip.Save(ZipFile.FullName);
 				}
-				CommandUtils.CreateDirectory(ZipFile.Directory);
-				Zip.Save(ZipFile.FullName);
 			}
-		}
 
 		/// <summary>
 		/// Extracts the contents of a zip file
@@ -2365,6 +2365,7 @@ namespace AutomationTool
 		Minutes,
 		Bytes,
 		Megabytes,
+		Percentage,
 	}
 
 	/// <summary>
@@ -2413,6 +2414,7 @@ namespace AutomationTool
 		{
 			Samples.RemoveAll(x => x.Name == Name);
 			Samples.Add(new TelemetrySample() { Name = Name, Value = Value, Units = Units });
+			Log.TraceLog("Added telemetry value: {0} = {1} ({2})", Name, Value, Units);
 		}
 
 		/// <summary>
@@ -2475,6 +2477,7 @@ namespace AutomationTool
 		/// <param name="FileName"></param>
 		public void Write(string FileName)
 		{
+			Log.TraceLog("Writing telemetry to {0}...", FileName);
 			using (JsonWriter Writer = new JsonWriter(FileName))
 			{
 				Writer.WriteObjectStart();

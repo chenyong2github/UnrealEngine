@@ -436,7 +436,7 @@ bool FDeferredShadingSceneRenderer::RenderHzb(FRHICommandListImmediate& RHICmdLi
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 	SCOPED_GPU_STAT(RHICmdList, HZB);
 
-	RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, SceneContext.GetSceneDepthSurface());
+	RHICmdList.TransitionResource(FExclusiveDepthStencil::DepthRead_StencilRead, SceneContext.GetSceneDepthSurface());
 
 	static const auto ICVarHZBOcc = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HZBOcclusion"));
 	bool bHZBOcclusion = ICVarHZBOcc->GetInt() != 0;
@@ -612,6 +612,13 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 		}
 
 		FViewInfo& ReferenceView = Views[0];
+
+		extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
+
+		for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
+		{
+			Extension->BeginRenderView(&ReferenceView);
+		}
 
 		ReferenceView.RayTracingMeshResourceCollector = MakeUnique<FRayTracingMeshResourceCollector>(
 			Scene->GetFeatureLevel(),
@@ -1075,6 +1082,16 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		}	
 	}
 
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
+
+		for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
+		{
+			Extension->PrepareView(&Views[ViewIndex]);
+		}
+	}
+
 	if (GDoPrepareDistanceFieldSceneAfterRHIFlush && (GRHINeedsExtraDeletionLatency || !GRHICommandList.Bypass()))
 	{
 		// we will probably stall on occlusion queries, so might as well have the RHI thread and GPU work while we wait.
@@ -1225,12 +1242,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_FXPreRender));
 		Scene->FXSystem->PreRender(RHICmdList, &Views[0].GlobalDistanceFieldInfo.ParameterData, Views[0].AllowGPUParticleUpdate());
 	}
-
-	if (IsHairStrandsEnable(Scene->GetShaderPlatform()))
-	{
-		RunHairStrandsInterpolation(RHICmdList);
-	}
-
+	
 	bool bDidAfterTaskWork = false;
 	auto AfterTasksAreStarted = [&bDidAfterTaskWork, bDoInitViewAftersPrepass, this, &RHICmdList, &ILCTaskData, &UpdateViewCustomDataEvents]()
 	{
@@ -1255,9 +1267,15 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		}
 	};
 
-	if (FGPUSkinCache* GPUSkinCache = Scene->GetGPUSkinCache())
+	RunGPUSkinCacheTransition(RHICmdList, Scene, EGPUSkinCacheTransition::Renderer);
+
+	// Interpolation needs to happen after the skin cache run as there is a dependency 
+	// on the skin cache output.
+	if (IsHairStrandsEnable(Scene->GetShaderPlatform()) && Views.Num() > 0)
 	{
-		GPUSkinCache->TransitionAllToReadable(RHICmdList);
+		const EWorldType::Type WorldType = Views[0].Family->Scene->GetWorld()->WorldType;
+		auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
+		RunHairStrandsInterpolation(RHICmdList, WorldType, ShaderMap, EHairStrandsInterpolationType::RenderStrands);
 	}
 
 	// Before starting the render, all async task for the Custom data must be completed
@@ -1596,7 +1614,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_Resolve_After_Basepass);
 		// Will early return if simple forward
-		SceneContext.FinishGBufferPassAndResolve(RHICmdList);
+		SceneContext.FinishGBufferPassAndResolve(RHICmdList, BasePassDepthStencilAccess);
 	}
 
 	if (!bAllowReadonlyDepthBasePass)
@@ -1694,9 +1712,12 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// If bBasePassCanOutputVelocity is set, basepass fully writes the velocity buffer unless bUseSelectiveBasePassOutputs is enabled.
 	if (bShouldRenderVelocities && (!bBasePassCanOutputVelocity || bUseSelectiveBasePassOutputs))
 	{
+		// We only need to clear if the base pass didn't already render velocities.
+		const bool bClearVelocityRT = !bBasePassCanOutputVelocity;
+
 		// Render the velocities of movable objects
 		RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_Velocity));
-		RenderVelocities(RHICmdList, SceneContext.SceneVelocity);
+		RenderVelocities(RHICmdList, SceneContext.SceneVelocity, EVelocityPass::Opaque, bClearVelocityRT);
 		RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_AfterVelocity));
 		ServiceLocalQueue();
 	}
@@ -1782,10 +1803,13 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		FRHIRenderPassInfo RPInfo(SceneContext.GetSceneDepthSurface(),
 			EDepthStencilTargetActions::ClearStencilDontLoadDepth_StoreStencilNotDepth);
 		RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthNop_StencilWrite;
+
+		RHICmdList.TransitionResource(FExclusiveDepthStencil::DepthNop_StencilWrite, SceneContext.GetSceneDepthSurface());
+
 		RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearStencilFromBasePass"));
 		RHICmdList.EndRenderPass();
 
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, SceneContext.GetSceneDepthSurface());
+		RHICmdList.TransitionResource(FExclusiveDepthStencil::DepthNop_StencilRead, SceneContext.GetSceneDepthSurface());
 	}
 
 	checkSlow(RHICmdList.IsOutsideRenderPass());
@@ -1936,7 +1960,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		{
 			BeginRenderingWaterGBuffer(RHICmdList, WaterPassDepthStencilAccess, ViewFamily.EngineShowFlags.ShaderComplexity, ShaderPlatform);
 		}
-        FinishWaterGBufferPassAndResolve(RHICmdList);
+        FinishWaterGBufferPassAndResolve(RHICmdList, WaterPassDepthStencilAccess);
 
 		// Resolves the depth texture back to readable for SSR and later passes.1
 		SceneContext.ResolveSceneDepthTexture(RHICmdList, FResolveRect(0, 0, FamilySize.X, FamilySize.Y));
@@ -2040,6 +2064,9 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		SetupSceneTextureUniformParameters(SceneContext, FeatureLevel, ESceneTextureSetupMode::SceneDepth | ESceneTextureSetupMode::GBuffers, SceneTextureParameters);
 		TUniformBufferRef<FSceneTexturesUniformParameters> SceneTextureUniformBuffer = TUniformBufferRef<FSceneTexturesUniformParameters>::CreateUniformBufferImmediate(SceneTextureParameters, UniformBuffer_SingleFrame);
 
+		// SceneDepthZ needs to be readable for the particle depth-buffer collision.
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, SceneContext.GetSceneDepthTexture());
+
 		Scene->FXSystem->PostRenderOpaque(
 			RHICmdList,
 			Views[0].ViewUniformBuffer,
@@ -2127,17 +2154,18 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_AfterTranslucency));
 		}
 
-		/*if (bShouldRenderVelocities)
+		if (bShouldRenderVelocities)
 		{
+			const bool bClearVelocityRT = false;
+
 			// Render the velocities of movable objects
 			RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_TranslucentVelocity));
-			RenderVelocities(RHICmdList, VelocityRT);
+			RenderVelocities(RHICmdList, SceneContext.SceneVelocity, EVelocityPass::Translucent, bClearVelocityRT);
 			RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_AfterTranslucentVelocity));
 			ServiceLocalQueue();
-		}*/
+		}
 
 		checkSlow(RHICmdList.IsOutsideRenderPass());
-
 	}
 
 	if (HairDatas)

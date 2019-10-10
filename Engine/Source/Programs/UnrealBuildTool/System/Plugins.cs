@@ -299,6 +299,32 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Determines whether the given suffix is valid for a child plugin
+		/// </summary>
+		/// <param name="Suffix"></param>
+		/// <returns>Whether the suffix is appopriate</returns>
+		private static bool IsValidChildPluginSuffix(string Suffix)
+		{
+			foreach (UnrealPlatformGroup Group in UnrealPlatformGroup.GetValidGroups())
+			{
+				if (Group.ToString().Equals(Suffix, StringComparison.InvariantCultureIgnoreCase))
+				{
+					return true;
+				}
+			}
+
+			foreach (UnrealTargetPlatform Platform in UnrealTargetPlatform.GetValidPlatforms())
+			{
+				if (Platform.ToString().Equals(Suffix, StringComparison.InvariantCultureIgnoreCase))
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		/// <summary>
 		///  Attempt to merge a child plugin up into a parent plugin (via file naming scheme). Very little merging happens
 		///  but it does allow for platform extensions to extend a plugin with module files
 		/// </summary>
@@ -323,23 +349,29 @@ namespace UnrealBuildTool
 				}
 			}
 
-
 			// did we find a parent plugin?
 			if (Parent == null)
 			{
 				throw new BuildException("Child plugin {0} was not named properly. It should be in the form <ParentPlugin>_<Platform>.uplugin", Filename);
 			}
 
+			// validate child plugin file name
+			string PlatformName = Tokens[1];
+			if (!IsValidChildPluginSuffix(PlatformName))
+			{
+				Log.TraceWarning("Ignoring child plugin: {0} - Unknown suffix \"{1}\". Expected valid platform or group", Child.File.GetFileName(), PlatformName);
+				return;
+			}
+
 			// add our uplugin file to the existing plugin to be used to search for modules later
 			Parent.ChildFiles.Add(Child.File);
+
+			// merge the supported platforms
+			Parent.Descriptor.MergeSupportedTargetPlatforms(Child.Descriptor.SupportedTargetPlatforms);
 
 			// make sure we are whitelisted for any modules we list, if the parent had a whitelist
 			if (Child.Descriptor.Modules != null)
 			{
-				// get the part after last underscore, which is the platform name
-				string DirectoryName = Child.File.GetFileNameWithoutExtension();
-				string PlatformName = DirectoryName.Split("_".ToCharArray()).LastOrDefault();
-
 				// this should cause an error if it's invalid platform name
 				UnrealTargetPlatform Platform = UnrealTargetPlatform.Parse(PlatformName);
 

@@ -24,7 +24,9 @@ namespace UnrealBuildTool.Rules
 					"Landscape",
 					"LevelSequence",
 					"MeshDescription",
-					"Projects"
+					"Projects",
+					"StaticMeshDescription",
+					"VariantManagerContent",
 				}
 			);
 

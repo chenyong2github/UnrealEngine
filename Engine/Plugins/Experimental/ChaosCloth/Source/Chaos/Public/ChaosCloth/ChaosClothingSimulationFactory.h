@@ -4,7 +4,7 @@
 
 #include "ClothingSimulationFactory.h"
 
-#include "ChaosClothingSimulationFactory.generated.h" // Ryan - really???
+#include "ChaosClothingSimulationFactory.generated.h"
 
 UCLASS()
 class CHAOSCLOTH_API UChaosClothingSimulationFactory : public UClothingSimulationFactory

@@ -53,6 +53,7 @@ public:
 	}
 
 	FToolMenuEntry* FindEntry(const FName InName);
+	const FToolMenuEntry* FindEntry(const FName InName) const;
 
 private:
 

@@ -852,9 +852,8 @@ public:
 		@param NewInstanceComponent	(In) The component being added to the actor instance
 		@param InParentNodePtr (In) The node this component will be added to
 		@param Asset (In) Optional asset to assign to the component
-		@param bSetFocusToNewItem (In) Select the new item and activate the inline rename widget (default is true)
-		@return The reference of the newly created ActorComponent */
-	UActorComponent* AddNewNodeForInstancedComponent(TUniquePtr<FScopedTransaction> OngoingCreateTransaction, UActorComponent* NewInstanceComponent, FSCSEditorTreeNodePtrType InParentNodePtr, UObject* Asset, bool bSetFocusToNewItem = true);
+		@param bSetFocusToNewItem (In) Select the new item and activate the inline rename widget (default is true) */
+	void AddNewNodeForInstancedComponent(TUniquePtr<FScopedTransaction> OngoingCreateTransaction, UActorComponent* NewInstanceComponent, FSCSEditorTreeNodePtrType InParentNodePtr, UObject* Asset, bool bSetFocusToNewItem = true);
 	
 	/** Returns true if the specified component is currently selected */
 	bool IsComponentSelected(const UPrimitiveComponent* PrimComponent) const;

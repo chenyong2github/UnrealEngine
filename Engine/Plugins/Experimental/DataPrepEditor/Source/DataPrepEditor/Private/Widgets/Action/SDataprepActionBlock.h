@@ -36,28 +36,28 @@ protected:
 	/**
 	 * Return the title widget
 	 */
- 	virtual TSharedRef<SWidget> GetTitleWidget() const;
+ 	virtual TSharedRef<SWidget> GetTitleWidget();
 
 	/**
 	 * Get title background widget
 	 */
-	virtual TSharedRef<SWidget> GetTitleBackgroundWidget() const;
+	virtual TSharedRef<SWidget> GetTitleBackgroundWidget();
 
 	/**
 	 * Return the content widget
 	 */
-	virtual TSharedRef<SWidget> GetContentWidget() const;
+	virtual TSharedRef<SWidget> GetContentWidget();
 
 	/**
 	 * Get content background widget
 	 */
-	virtual TSharedRef<SWidget> GetContentBackgroundWidget() const;
+	virtual TSharedRef<SWidget> GetContentBackgroundWidget();
 
 	/**
 	 * Populate the right click menu by overriding this function.
 	 * Call the parent implementation if you want the full menu.
 	 */
-	virtual void PopulateMenuBuilder(class FMenuBuilder& MenuBuilder) const;
+	virtual void PopulateMenuBuilder(class FMenuBuilder& MenuBuilder);
 
 private:
 

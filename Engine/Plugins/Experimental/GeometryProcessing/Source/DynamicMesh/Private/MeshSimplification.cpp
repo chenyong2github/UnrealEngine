@@ -406,6 +406,14 @@ void TMeshSimplification<QuadricErrorType>::DoSimplify()
 				break;
 			}
 		}
+		else if (SimplifyMode == ETargetModes::MaxError)
+		{
+			float qe = EdgeQueue.GetFirstNodePriority();
+			if (FMath::Abs(qe) > MaxErrorAllowed)
+			{
+				break;
+			}
+		}
 		else
 		{
 			if (Mesh->TriangleCount() <= TargetCount)
@@ -413,7 +421,7 @@ void TMeshSimplification<QuadricErrorType>::DoSimplify()
 				break;
 			}
 		}
-
+		
 		COUNT_ITERATIONS++;
 		int eid = EdgeQueue.Dequeue();
 		if (Mesh->IsEdge(eid) == false)
@@ -459,6 +467,7 @@ void TMeshSimplification<QuadricErrorType>::SimplifyToTriangleCount(int nCount)
 	SimplifyMode = ETargetModes::TriangleCount;
 	TargetCount = FMath::Max(1, nCount);
 	MinEdgeLength = FMathd::MaxReal;
+	MaxErrorAllowed = FMathf::MaxReal;
 	DoSimplify();
 }
 
@@ -468,6 +477,7 @@ void TMeshSimplification<QuadricErrorType>::SimplifyToVertexCount(int nCount)
 	SimplifyMode = ETargetModes::VertexCount;
 	TargetCount = FMath::Max(3, nCount);
 	MinEdgeLength = FMathd::MaxReal;
+	MaxErrorAllowed = FMathf::MaxReal;
 	DoSimplify();
 }
 
@@ -477,8 +487,20 @@ void TMeshSimplification<QuadricErrorType>::SimplifyToEdgeLength(double minEdgeL
 	SimplifyMode = ETargetModes::MinEdgeLength;
 	TargetCount = 1;
 	MinEdgeLength = minEdgeLen;
+	MaxErrorAllowed = FMathf::MaxReal;
 	DoSimplify();
 }
+
+template <typename QuadricErrorType>
+void TMeshSimplification<QuadricErrorType>::SimplifyToMaxError(double MaxError)
+{
+	SimplifyMode = ETargetModes::MaxError;
+	TargetCount = 1;
+	MinEdgeLength = FMathd::MaxReal;
+	MaxErrorAllowed = MaxError;
+	DoSimplify();
+}
+
 
 
 

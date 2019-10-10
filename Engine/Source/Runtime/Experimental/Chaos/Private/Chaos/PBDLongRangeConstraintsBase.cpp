@@ -3,6 +3,7 @@
 
 #include "Chaos/Map.h"
 #include "Chaos/Vector.h"
+#include "Chaos/Framework/Parallel.h"
 
 #include <queue>
 #include <unordered_map>
@@ -204,7 +205,7 @@ void TPBDLongRangeConstraintsBase<T, d>::ComputeGeodesicConstraints(
 		{
 			if (i != Element)
 			{
-				GeodesicPaths[TVector<int32, 2>(Element, i)] = {FLT_MAX, {}};
+				GeodesicPaths[TVector<uint32, 2>(Element, i)] = {FLT_MAX, {}};
 			}
 		}
 	}

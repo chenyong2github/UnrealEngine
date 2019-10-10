@@ -10,7 +10,6 @@
 #include "Containers/LockFreeList.h"
 #include "ProfilingDebugging/ResourceSize.h"
 #include "Engine/EngineTypes.h"
-#include "Templates/ScopedPointer.h"
 #include "UObject/GCObject.h"
 #include "RenderResource.h"
 #include "RenderingThread.h"
@@ -221,7 +220,7 @@ public:
 
 	ENGINE_API virtual ~FDistanceFieldAsyncQueue();
 
-	/** Adds a new build task. */
+	/** Adds a new build task. (Thread-Safe) */
 	ENGINE_API void AddTask(FAsyncDistanceFieldTask* Task);
 
 	/** Blocks the main thread until the async build of the specified mesh is complete. */
@@ -267,6 +266,8 @@ private:
 	TLockFreePointerListLIFO<FAsyncDistanceFieldTask> CompletedTasks;
 
 	class IMeshUtilities* MeshUtilities;
+
+	FCriticalSection CriticalSection;
 
 	friend class FBuildDistanceFieldThreadRunnable;
 };

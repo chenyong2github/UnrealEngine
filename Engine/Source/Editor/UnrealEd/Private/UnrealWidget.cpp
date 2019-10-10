@@ -254,27 +254,9 @@ void FWidget::Render( const FSceneView* View,FPrimitiveDrawInterface* PDI, FEdit
 {
 	check(ViewportClient);
 
-	TArray<FEdMode*> ActiveModes;
-	if( EditorModeTools )
-	{
-		EditorModeTools->GetActiveModes( ActiveModes );
-	}
 
 	//reset HUD text
 	HUDString.Empty();
-
-	bool bDrawModeSupportsWidgetDrawing = bDefaultVisibility;
-
-	if( EditorModeTools && ActiveModes.Num() > 0)
-	{
-		bDrawModeSupportsWidgetDrawing = false;
-		// Check to see of any active modes support widget drawing
-		for( int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex )
-		{
-			bDrawModeSupportsWidgetDrawing |= ActiveModes[ModeIndex]->ShouldDrawWidget();
-		}
-	}
-
 
 	const bool bShowFlagsSupportsWidgetDrawing = View->Family->EngineShowFlags.ModeWidgets;
 	const bool bEditorModeToolsSupportsWidgetDrawing = EditorModeTools ? EditorModeTools->GetShowWidget() : true;
@@ -284,7 +266,7 @@ void FWidget::Render( const FSceneView* View,FPrimitiveDrawInterface* PDI, FEdit
 	// editor object movement, we need to still run through the Render routine even though widget drawing may be
 	// disabled.  So we keep a flag that is used to determine whether or not to actually render anything.  This way
 	// we can still update the widget axis' based on the Context's transform matrices, even though drawing is disabled.
-	if(bDrawModeSupportsWidgetDrawing && bShowFlagsSupportsWidgetDrawing && bEditorModeToolsSupportsWidgetDrawing)
+	if(bDefaultVisibility && bShowFlagsSupportsWidgetDrawing && bEditorModeToolsSupportsWidgetDrawing)
 	{
 		bDrawWidget = true;
 

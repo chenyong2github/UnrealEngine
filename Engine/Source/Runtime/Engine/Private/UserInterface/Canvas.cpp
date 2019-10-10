@@ -809,7 +809,7 @@ void FCanvas::Flush_GameThread(bool bForce)
 	bool bEmitCanvasDrawEvents = GetEmitDrawEvents();
 
 	// Only create these render commands if we actually have something to draw.
-	if(SortedElements.Num() > 0)
+	if(SortedElements.Num() > 0 && !GUsingNullRHI)
 	{
 		FRenderThreadScope RenderThreadScope;
 		RenderThreadScope.EnqueueRenderCommand(

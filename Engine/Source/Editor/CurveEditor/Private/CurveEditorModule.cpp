@@ -12,7 +12,11 @@ class FCurveEditorModule : public ICurveEditorModule
 public:
 	virtual void StartupModule() override
 	{
-		FCurveEditorCommands::Register();
+		if (GIsEditor)
+		{
+			FModuleManager::Get().LoadModule("EditorStyle");
+			FCurveEditorCommands::Register();
+		}
 	}
 
 	virtual void ShutdownModule() override

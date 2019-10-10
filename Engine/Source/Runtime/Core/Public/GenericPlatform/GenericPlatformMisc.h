@@ -558,6 +558,15 @@ struct CORE_API FGenericPlatformMisc
 		return true;
 	}
 
+	static bool AllowLocalCaching()
+	{
+#if PLATFORM_DESKTOP
+		return true;
+#else
+		return false;
+#endif
+	}
+
 	/** Platform can generate a full-memory crashdump during crash handling. */
 	static bool SupportsFullCrashDumps()
 	{
@@ -1121,7 +1130,30 @@ public:
 		return false;
 	}
 
-	/** 
+	static bool ShouldDisplayTouchInterfaceOnFakingTouchEvents()
+	{	// FSlateApplication::Get().IsFakingTouchEvents() will trigger to display the Touch Interface
+		// on some platforms, we want to ignore that condition
+		return true;
+	}
+
+	static bool DesktopTouchScreen()
+	{
+#if PLATFORM_DESKTOP
+		return true;
+#else
+		return false;
+#endif
+	}
+
+	static bool FullscreenSameAsWindowedFullscreen()
+	{
+		// On some platforms, Fullscreen and WindowedFullscreen behave the same.
+		//     e.g. On Linux, see FLinuxWindow::ReshapeWindow()/SetWindowMode()
+		//          Allowing Fullscreen window mode confuses higher level code (see UE-19996).
+		return false;
+	}
+
+	/**
 	 * Returns whether this is a 'stereo only' platform. In general, stereo only platforms will not 
 	 * support on-screen touch input nor require virtual joysticks (though you should use those query 
 	 * functions to verify). The screen is always used for stereo output, and isn't a mode that is 
@@ -1297,12 +1329,6 @@ public:
 	}
 
 	/**
-	 * Returns a list of platforms that are confidential in nature. To avoid hardcoding the list, this
-	 * looks on disk the first time for special files, so it is non-instant.
-	 */
-	static const TArray<FString>& GetConfidentialPlatforms();
-	
-	/**
 	 * For mobile devices, this will crank up a haptic engine for the specified type to be played later with TriggerMobileHaptics
 	 * If this is called again before Release, it will switch to this type
 	 */
@@ -1349,7 +1375,7 @@ public:
 	*/
 	static FString LoadTextFileFromPlatformPackage(const FString& RelativePath);
 
-	static bool FileExitsInPlatformPackage(const FString& RelativePath);
+	static bool FileExistsInPlatformPackage(const FString& RelativePath);
 
 	/**
 	 * Frees any memory retained by FGenericPlatformMisc.
@@ -1365,6 +1391,15 @@ public:
 	static void HidePlatformStartupScreen()
 	{
 
+	}
+
+	FORCEINLINE static bool UseHDRByDefault()
+	{
+		return false;
+	}
+
+	FORCEINLINE static void ChooseHDRDeviceAndColorGamut(uint32 DeviceId, uint32 DisplayNitLevel, int32& OutputDevice, int32& ColorGamut)
+	{
 	}
 
 #if !UE_BUILD_SHIPPING

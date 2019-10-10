@@ -17,6 +17,7 @@
 #include "SceneManagement.h"
 #include "EditorComponents.h"
 #include "Framework/Commands/Commands.h"
+#include "Editor.h"
 
 struct FAssetData;
 class FCachedJoystickState;
@@ -458,7 +459,9 @@ public:
 	void TakeHighResScreenShot();
 
 	/** Called when an editor mode has been (de)activated */
+	UE_DEPRECATED(4.24, "Use OnEditorModeIDChanged() instead.")
 	void OnEditorModeChanged(FEdMode* EditorMode, bool bIsEntering);
+	void OnEditorModeIDChanged(const FEditorModeID& EditorModeID, bool bIsEntering);
 
 	/** FViewElementDrawer interface */
 	virtual void Draw(const FSceneView* View,FPrimitiveDrawInterface* PDI) override;

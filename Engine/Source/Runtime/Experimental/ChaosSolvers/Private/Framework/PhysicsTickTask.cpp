@@ -1,7 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#if INCLUDE_CHAOS
-
 #include "Framework/PhysicsTickTask.h"
 
 #include "ChaosSolversModule.h"
@@ -215,5 +213,3 @@ void FPhysicsTickCompleteTask::DoTask(ENamedThreads::Type CurrentThread, const F
 }
 
 //////////////////////////////////////////////////////////////////////////
-
-#endif

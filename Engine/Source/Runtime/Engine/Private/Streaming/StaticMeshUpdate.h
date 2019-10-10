@@ -183,9 +183,7 @@ protected:
 	/** Called by FAsyncCancelIORequestsTask to cancel inflight IO request if any */
 	void CancelIORequest();
 
-	TArray<uint8> LODData;
-	IAsyncReadFileHandle* IOFileHandle;
-	IAsyncReadRequest* IORequest;
+	struct FBulkDataIORequest* IORequest;
 	FAsyncFileCallBack AsyncFileCallback;
 	bool bHighPrioIORequest;
 };

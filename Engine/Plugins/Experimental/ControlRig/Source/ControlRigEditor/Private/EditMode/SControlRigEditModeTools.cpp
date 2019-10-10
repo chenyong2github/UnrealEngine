@@ -73,7 +73,7 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, UWorld* InWor
 		+ SScrollBox::Slot()
 		[
 			SNew(SVerticalBox)
-
+			/*
 			+ SVerticalBox::Slot()
 			.AutoHeight()
 			[
@@ -87,6 +87,7 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, UWorld* InWor
 					SAssignNew(ControlPicker, SControlPicker, InWorld)
 				]
 			]
+			*/
 
 			+SVerticalBox::Slot()
 			.AutoHeight()
@@ -112,10 +113,8 @@ void SControlRigEditModeTools::SetDetailsObjects(const TArray<TWeakObjectPtr<>>&
 		}
 	}
 
-	ControlPicker->SetControlRig(Rig);
+	//ControlPicker->SetControlRig(Rig);
 
-	// Expand when you have a rig, collapse when set to null
-	PickerExpander->SetExpanded(Rig != nullptr);
 }
 
 void SControlRigEditModeTools::SetSequencer(TSharedPtr<ISequencer> InSequencer)

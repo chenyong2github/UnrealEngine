@@ -44,7 +44,7 @@ public:
 	bool bFullRevertOnDetach;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Attach")
-	AActor* ReAttachOnDetach;
+	TSoftObjectPtr<AActor> ReAttachOnDetach;
 
 #endif
 

@@ -14,6 +14,7 @@
 #include "CollectionViewTypes.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Editor/ContentBrowser/Private/SPathView.h"
+#include "SAssetTagItem.h"
 
 class SEditableTextBox;
 struct FTreeItem;
@@ -175,6 +176,7 @@ public:
 	SLATE_BEGIN_ARGS( SCollectionTreeItem )
 		: _CollectionItem( TSharedPtr<FCollectionItem>() )
 		, _ParentWidget()
+		, _ViewMode(EAssetTagItemViewMode::Standard)
 	{}
 
 		/** Data for the collection this item represents */
@@ -182,6 +184,9 @@ public:
 
 		/** The parent widget */
 		SLATE_ARGUMENT( TSharedPtr<SWidget>, ParentWidget )
+
+		/** Should this collection item use the standard or compact view? */
+		SLATE_ARGUMENT( EAssetTagItemViewMode, ViewMode )
 
 		/** Delegate for when the user begins to rename the item */
 		SLATE_EVENT( FOnBeginNameChange, OnBeginNameChange )
@@ -221,13 +226,17 @@ public:
 	/** Constructs this widget with InArgs */
 	void Construct( const FArguments& InArgs );
 
-	~SCollectionTreeItem();
-
 	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
 	virtual void OnDragEnter( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
 	virtual void OnDragLeave( const FDragDropEvent& DragDropEvent ) override;
 	virtual FReply OnDragOver( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
 	virtual FReply OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
+
+	/** True when a drag is over this item with a drag operation that we know how to handle. The operation itself may not be valid to drop. */
+	bool IsDraggedOver() const
+	{
+		return bDraggedOver;
+	}
 
 private:
 	/** Used by OnDragEnter, OnDragOver, and OnDrop to check and update the validity of the drag operation */
@@ -246,22 +255,16 @@ private:
 	FText GetNameText() const;
 
 	/** Returns the color of the collection name */
-	FSlateColor GetCollectionColor() const;
+	FLinearColor GetCollectionColor() const;
 
-	/** Returns the image for the border around this item. Used for drag/drop operations */
-	const FSlateBrush* GetBorderImage() const;
+	/** Get the object count text for the current collection item */
+	FText GetCollectionObjectCountText() const;
 
-	/** Get the FontAwesome icon corresponding to the current collection storage mode */
-	FText GetCollectionStorageModeIconText() const;
+	/** Get the warning message for the current collection item */
+	FText GetCollectionWarningText() const;
 
-	/** Get the tooltip corresponding to the current collection storage mode */
-	FText GetCollectionStorageModeToolTipText() const;
-
-	/** Get the color to use for the collection item status */
-	FSlateColor GetCollectionStatusColor() const;
-
-	/** Get the tooltip corresponding to the current collection item status */
-	FText GetCollectionStatusToolTipText() const;
+	/** Build the tooltip info for this collection */
+	void BuildToolTipInfo(const FOnBuildAssetTagItemToolTipInfoEntry& InCallback) const;
 
 private:
 	/** A shared pointer to the parent widget. */
@@ -293,10 +296,4 @@ private:
 
 	/** Delegate for when a collection name has been entered for an item to verify the name before commit */
 	FOnVerifyRenameCommit OnVerifyRenameCommit;
-
-	/** Widget to display the name of the collection item and allows for renaming */
-	TSharedPtr< SInlineEditableTextBlock > InlineRenameWidget;
-
-	/** Handle to the registered EnterEditingMode delegate. */
-	FDelegateHandle EnterEditingModeDelegateHandle;
 };

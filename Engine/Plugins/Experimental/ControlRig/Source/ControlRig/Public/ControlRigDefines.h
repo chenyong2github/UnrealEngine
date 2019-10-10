@@ -8,8 +8,8 @@
 #include "Stats/StatsHierarchical.h"
 #include "ControlRigDefines.generated.h"
 
-#define DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT() \
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+#define DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+//	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 USTRUCT()
 struct FControlRigExecuteContext
@@ -78,6 +78,17 @@ enum class ETransformSpaceMode : uint8
 	/** MAX - invalid */
 	Max UMETA(Hidden),
 };
+
+UENUM()
+namespace EControlRigClampSpatialMode
+{
+	enum Type
+	{
+		Plane,
+		Cylinder,
+		Sphere
+	};
+}
 
 UENUM()
 enum class ETransformGetterType : uint8

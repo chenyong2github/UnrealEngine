@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "DSP/Encoders/IAudioEncoder.h"
 
-#if !PLATFORM_HTML5 && !PLATFORM_TVOS
+#if !PLATFORM_TVOS
 
 struct FOggVorbisEncoderPrivateState;
 
@@ -34,4 +34,4 @@ private:
 	// This must be a raw pointer because it has a non-default destructor that isn't public.
 	FOggVorbisEncoderPrivateState* PrivateState;
 };
-#endif // !PLATFORM_HTML5 && !PLATFORM_TVOS
+#endif // !PLATFORM_TVOS

@@ -15,7 +15,12 @@
 #endif
 
 FAnimNode_ControlRig::FAnimNode_ControlRig()
-	: ControlRig(nullptr)
+	: FAnimNode_ControlRigBase()
+	, ControlRig(nullptr)
+	, Alpha(1.f)
+	, AlphaInputType(EAnimAlphaInputType::Float)
+	, bAlphaBoolEnabled(true)
+	, AlphaCurveName(NAME_None)
 {
 }
 
@@ -49,6 +54,7 @@ FAnimNode_ControlRig::~FAnimNode_ControlRig()
 	}
 #endif // WITH_EDITOR
 }
+
 void FAnimNode_ControlRig::GatherDebugData(FNodeDebugData& DebugData)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
@@ -65,6 +71,28 @@ void FAnimNode_ControlRig::Update_AnyThread(const FAnimationUpdateContext& Conte
 
 	FAnimNode_ControlRigBase::Update_AnyThread(Context);
 	GetEvaluateGraphExposedInputs().Execute(Context);
+
+	// alpha handlers
+	InternalBlendAlpha = 0.f;
+	switch (AlphaInputType)
+	{
+	case EAnimAlphaInputType::Float:
+		InternalBlendAlpha = AlphaScaleBias.ApplyTo(AlphaScaleBiasClamp.ApplyTo(Alpha, Context.GetDeltaTime()));
+		break;
+	case EAnimAlphaInputType::Bool:
+		InternalBlendAlpha = AlphaBoolBlend.ApplyTo(bAlphaBoolEnabled, Context.GetDeltaTime());
+		break;
+	case EAnimAlphaInputType::Curve:
+		if (UAnimInstance* AnimInstance = Cast<UAnimInstance>(Context.AnimInstanceProxy->GetAnimInstanceObject()))
+		{
+			InternalBlendAlpha = AlphaScaleBiasClamp.ApplyTo(AnimInstance->GetCurveValue(AlphaCurveName), Context.GetDeltaTime());
+		}
+		break;
+	};
+
+	// Make sure Alpha is clamped between 0 and 1.
+	InternalBlendAlpha = FMath::Clamp<float>(InternalBlendAlpha, 0.f, 1.f);
+
 	PropagateInputProperties(Context.AnimInstanceProxy->GetAnimInstanceObject());
 	Source.Update(Context);
 }
@@ -76,6 +104,9 @@ void FAnimNode_ControlRig::Initialize_AnyThread(const FAnimationInitializeContex
 	FAnimNode_ControlRigBase::Initialize_AnyThread(Context);
 
 	Source.Initialize(Context);
+
+	AlphaBoolBlend.Reinitialize();
+	AlphaScaleBiasClamp.Reinitialize();
 }
 
 void FAnimNode_ControlRig::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)

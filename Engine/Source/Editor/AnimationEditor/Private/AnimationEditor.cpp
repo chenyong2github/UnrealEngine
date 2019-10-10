@@ -460,6 +460,11 @@ void FAnimationEditor::SetAnimationAsset(UAnimationAsset* AnimAsset)
 	HandleOpenNewAsset(AnimAsset);
 }
 
+IAnimationSequenceBrowser* FAnimationEditor::GetAssetBrowser() const
+{
+	return SequenceBrowser.Pin().Get();
+}
+
 void FAnimationEditor::HandleOpenNewAsset(UObject* InNewAsset)
 {
 	if (UAnimationAsset* NewAnimationAsset = Cast<UAnimationAsset>(InNewAsset))

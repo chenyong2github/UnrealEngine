@@ -22,8 +22,10 @@
 
 #include "CollectionAssetManagement.h"
 #include "CollectionContextMenu.h"
+#include "CollectionViewUtils.h"
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "DragAndDrop/CollectionDragDropOp.h"
+#include "SourcesSearch.h"
 #include "SourcesViewWidgets.h"
 #include "ContentBrowserModule.h"
 #include "Widgets/Layout/SExpandableArea.h"
@@ -119,6 +121,47 @@ void SCollectionView::Construct( const FArguments& InArgs )
 		CollectionListContextMenuOpening = FOnContextMenuOpening::CreateSP( this, &SCollectionView::MakeCollectionTreeContextMenu );
 	}
 
+	SearchPtr = InArgs._ExternalSearch;
+	if (!SearchPtr)
+	{
+		SearchPtr = MakeShared<FSourcesSearch>();
+		SearchPtr->Initialize();
+		SearchPtr->SetHintText(LOCTEXT("CollectionsViewSearchBoxHint", "Search Collections"));
+	}
+	SearchPtr->OnSearchChanged().AddSP(this, &SCollectionView::SetCollectionsSearchFilterText);
+
+	TSharedRef<SHorizontalBox> TitleContent = SNew(SHorizontalBox);
+	if (InArgs._ExternalSearch)
+	{
+		// If using an external search then just show the title and don't hide it when collapsing
+		TitleContent->AddSlot()
+		[
+			SNew(STextBlock)
+			.Font(FEditorStyle::GetFontStyle("ContentBrowser.SourceTitleFont"))
+			.Text(LOCTEXT("CollectionsListTitle", "Collections"))
+		];
+	}
+	else
+	{
+		// If using an internal search then show the title or search box depending on whether we're collapsed or not
+		TitleContent->AddSlot()
+		[
+			SNew(STextBlock)
+			.Font(FEditorStyle::GetFontStyle("ContentBrowser.SourceTitleFont"))
+			.Text(LOCTEXT("CollectionsListTitle", "Collections"))
+			.Visibility(this, &SCollectionView::GetCollectionsTitleTextVisibility)
+		];
+
+		TitleContent->AddSlot()
+		[
+			SNew(SBox)
+			.Visibility(this, &SCollectionView::GetCollectionsSearchBoxVisibility)
+			[
+				SearchPtr->GetWidget()
+			]
+		];
+	}
+
 	PreventSelectionChangedDelegateCount = 0;
 
 	TSharedRef< SWidget > HeaderContent = SNew(SHorizontalBox)
@@ -126,22 +169,24 @@ void SCollectionView::Construct( const FArguments& InArgs )
 			.FillWidth(1.0f)
 			.Padding(0.0f)
 			[
-				SNew(SHorizontalBox)
+				TitleContent
+			]
 
-				+ SHorizontalBox::Slot()
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(2.0f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+				.ToolTipText(this, &SCollectionView::GetSwitchCollectionViewModeToolTipText)
+				.OnClicked(this, &SCollectionView::OnSwitchCollectionViewMode)
+				.ContentPadding(FMargin(2, 2))
+				.ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
+				.Visibility(this, &SCollectionView::GetCollectionButtonsVisibility)
 				[
-					SNew(STextBlock)
-					.Font( FEditorStyle::GetFontStyle("ContentBrowser.SourceTitleFont") )
-					.Text( LOCTEXT("CollectionsListTitle", "Collections") )
-					.Visibility( this, &SCollectionView::GetCollectionsTitleTextVisibility )
-				]
-
-				+ SHorizontalBox::Slot()
-				[
-					SAssignNew(SearchBoxPtr, SSearchBox)
-					.HintText( LOCTEXT( "CollectionsViewSearchBoxHint", "Search Collections" ) )
-					.OnTextChanged( this, &SCollectionView::SetCollectionsSearchFilterText )
-					.Visibility( this, &SCollectionView::GetCollectionsSearchBoxVisibility )
+					SNew(SImage)
+					.Image(this, &SCollectionView::GetSwitchCollectionViewModeIcon)
 				]
 			]
 
@@ -155,9 +200,10 @@ void SCollectionView::Construct( const FArguments& InArgs )
 				.ToolTipText(LOCTEXT("AddCollectionButtonTooltip", "Add a collection."))
 				.OnClicked(this, &SCollectionView::MakeAddCollectionMenu)
 				.ContentPadding( FMargin(2, 2) )
-				.Visibility(this, &SCollectionView::GetAddCollectionButtonVisibility)
+				.Visibility(this, &SCollectionView::GetCollectionButtonsVisibility)
 				[
-					SNew(SImage) .Image( FEditorStyle::GetBrush("ContentBrowser.AddCollectionButtonIcon") )
+					SNew(SImage)
+					.Image( FEditorStyle::GetBrush("ContentBrowser.AddCollectionButtonIcon") )
 				]
 			];
 
@@ -165,8 +211,10 @@ void SCollectionView::Construct( const FArguments& InArgs )
 			// Separator
 			+SVerticalBox::Slot()
 			.AutoHeight()
+			.Padding(0, 0, 0, 1)
 			[
 				SNew(SSeparator)
+				.Visibility(InArgs._ShowSeparator ? EVisibility::Visible : EVisibility::Collapsed)
 			]
 
 			// Collections tree
@@ -211,6 +259,7 @@ void SCollectionView::Construct( const FArguments& InArgs )
 		Content = SNew( SVerticalBox )
 		+SVerticalBox::Slot()
 		.AutoHeight()
+		.Padding(FMargin(12.0f, 0.0f, 0.0f, 0.0f))
 		[
 			HeaderContent
 		]
@@ -285,6 +334,7 @@ void SCollectionView::HandleCollectionUpdated( const FCollectionNameType& Collec
 	if (CollectionItemToUpdate.IsValid())
 	{
 		bQueueSCCRefresh = true;
+		CollectionItemToUpdate->CollectionColor = CollectionViewUtils::ResolveColor(Collection.Name, Collection.Type);
 		UpdateCollectionItemStatus(CollectionItemToUpdate.ToSharedRef());
 	}
 }
@@ -319,6 +369,7 @@ void SCollectionView::HandleSourceControlStateChanged()
 
 void SCollectionView::UpdateCollectionItemStatus( const TSharedRef<FCollectionItem>& CollectionItem )
 {
+	int32 NewObjectCount = 0;
 	TOptional<ECollectionItemStatus> NewStatus;
 
 	// Check IsModuleAvailable as we might be in the process of shutting down, and were notified due to the SCC provider being nulled out...
@@ -329,6 +380,8 @@ void SCollectionView::UpdateCollectionItemStatus( const TSharedRef<FCollectionIt
 		FCollectionStatusInfo StatusInfo;
 		if (CollectionManagerModule.Get().GetCollectionStatusInfo(CollectionItem->CollectionName, CollectionItem->CollectionType, StatusInfo))
 		{
+			NewObjectCount = StatusInfo.NumObjects;
+
 			// Test the SCC state first as this should take priority when reporting the status back to the user
 			if (StatusInfo.bUseSCC)
 			{
@@ -376,6 +429,7 @@ void SCollectionView::UpdateCollectionItemStatus( const TSharedRef<FCollectionIt
 		}
 	}
 
+	CollectionItem->NumObjects = NewObjectCount;
 	CollectionItem->CurrentStatus = NewStatus.Get(ECollectionItemStatus::IsUpToDateAndEmpty);
 }
 
@@ -420,6 +474,7 @@ void SCollectionView::UpdateCollectionItems()
 				OutAvailableCollections.Add(Collection, CollectionItem);
 
 				CollectionManagerModule.Get().GetCollectionStorageMode(Collection.Name, Collection.Type, CollectionItem->StorageMode);
+				CollectionItem->CollectionColor = CollectionViewUtils::ResolveColor(Collection.Name, Collection.Type);
 
 				SCollectionView::UpdateCollectionItemStatus(CollectionItem);
 
@@ -532,10 +587,15 @@ void SCollectionView::UpdateFilteredCollectionItems()
 	CollectionTreePtr->RequestTreeRefresh();
 }
 
-void SCollectionView::SetCollectionsSearchFilterText( const FText& InSearchText )
+void SCollectionView::SetCollectionsSearchFilterText( const FText& InSearchText, TArray<FText>& OutErrors )
 {
 	CollectionItemTextFilter->SetRawFilterText( InSearchText );
-	SearchBoxPtr->SetError( CollectionItemTextFilter->GetFilterErrorText() );
+	
+	const FText ErrorText = CollectionItemTextFilter->GetFilterErrorText();
+	if (!ErrorText.IsEmpty())
+	{
+		OutErrors.Add(ErrorText);
+	}
 }
 
 FText SCollectionView::GetCollectionsSearchFilterText() const
@@ -573,7 +633,7 @@ void SCollectionView::SetSelectedCollections(const TArray<FCollectionNameType>& 
 			// If the selected collection doesn't pass our current filter, we need to clear it
 			if (bEnsureVisible && !CollectionItemTextFilter->PassesFilter(*CollectionItemToSelect))
 			{
-				SearchBoxPtr->SetText(FText::GetEmpty());
+				SearchPtr->ClearSearch();
 			}
 		}
 	}
@@ -672,6 +732,8 @@ void SCollectionView::SaveSettings(const FString& IniFilename, const FString& In
 		CollectionTreePtr->GetExpandedItems(ExpandedCollectionItems);
 		SaveCollectionsArrayToIni(TEXT(".ExpandedCollections"), ExpandedCollectionItems.Array());
 	}
+
+	GConfig->SetInt(*IniSection, *(SettingsString + TEXT(".ViewMode")), (int32)CollectionViewMode, IniFilename);
 }
 
 void SCollectionView::LoadSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString)
@@ -729,6 +791,15 @@ void SCollectionView::LoadSettings(const FString& IniFilename, const FString& In
 	if (NewExpandedCollections.Num() > 0)
 	{
 		SetExpandedCollections(NewExpandedCollections);
+	}
+
+	// View Mode
+	{
+		int32 CollectionViewModeInt = 0;
+		GConfig->GetInt(*IniSection, *(SettingsString + TEXT(".ViewMode")), CollectionViewModeInt, IniFilename);
+		CollectionViewMode = (EAssetTagItemViewMode)CollectionViewModeInt;
+
+		CollectionTreePtr->RebuildList();
 	}
 }
 
@@ -896,9 +967,64 @@ EVisibility SCollectionView::GetCollectionsSearchBoxVisibility() const
 	return (!CollectionsExpandableAreaPtr.IsValid() || CollectionsExpandableAreaPtr->IsExpanded()) ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
-EVisibility SCollectionView::GetAddCollectionButtonVisibility() const
+EVisibility SCollectionView::GetCollectionButtonsVisibility() const
 {
 	return (bAllowCollectionButtons && ( !CollectionsExpandableAreaPtr.IsValid() || CollectionsExpandableAreaPtr->IsExpanded() ) ) ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+const FSlateBrush* SCollectionView::GetSwitchCollectionViewModeIcon() const
+{
+	switch (CollectionViewMode)
+	{
+	case EAssetTagItemViewMode::Standard:
+		return FEditorStyle::GetBrush("ContentBrowser.Sources.Collections.Compact");
+
+	case EAssetTagItemViewMode::Compact:
+		return FEditorStyle::GetBrush("ContentBrowser.Sources.Collections");
+
+	default:
+		break;
+	}
+	check(false);
+	return nullptr;
+}
+
+FText SCollectionView::GetSwitchCollectionViewModeToolTipText() const
+{
+	switch (CollectionViewMode)
+	{
+	case EAssetTagItemViewMode::Standard:
+		return LOCTEXT("SwitchToCompactView_ToolTip", "Switch to compact view");
+
+	case EAssetTagItemViewMode::Compact:
+		return LOCTEXT("SwitchToStanardView_ToolTip", "Switch to standard view");
+
+	default:
+		break;
+	}
+	check(false);
+	return FText();
+}
+
+FReply SCollectionView::OnSwitchCollectionViewMode()
+{
+	switch (CollectionViewMode)
+	{
+	case EAssetTagItemViewMode::Standard:
+		CollectionViewMode = EAssetTagItemViewMode::Compact;
+		break;
+
+	case EAssetTagItemViewMode::Compact:
+		CollectionViewMode = EAssetTagItemViewMode::Standard;
+		break;
+
+	default:
+		check(false);
+		break;
+	}
+
+	CollectionTreePtr->RebuildList();
+	return FReply::Handled();
 }
 
 void SCollectionView::CreateCollectionItem( ECollectionShareType::Type CollectionType, ECollectionStorageMode::Type StorageMode, const FCreateCollectionPayload& InCreationPayload )
@@ -909,12 +1035,12 @@ void SCollectionView::CreateCollectionItem( ECollectionShareType::Type Collectio
 
 		const FName BaseCollectionName = *LOCTEXT("NewCollectionName", "NewCollection").ToString();
 		FName CollectionName;
-		CollectionManagerModule.Get().CreateUniqueCollectionName(BaseCollectionName, CollectionType, CollectionName);
+		CollectionManagerModule.Get().CreateUniqueCollectionName(BaseCollectionName, ECollectionShareType::CST_All, CollectionName);
 		TSharedPtr<FCollectionItem> NewItem = MakeShareable(new FCollectionItem(CollectionName, CollectionType));
 		NewItem->StorageMode = StorageMode;
 
 		// Adding a new collection now, so clear any filter we may have applied
-		SearchBoxPtr->SetText(FText::GetEmpty());
+		SearchPtr->ClearSearch();
 
 		if ( InCreationPayload.ParentCollection.IsSet() )
 		{
@@ -1115,14 +1241,17 @@ TSharedRef<ITableRow> SCollectionView::GenerateCollectionRow( TSharedPtr<FCollec
 		}
 	}
 
-	TSharedPtr< STableRow< TSharedPtr<FCollectionItem> > > TableRow = SNew( STableRow< TSharedPtr<FCollectionItem> >, OwnerTable )
+	TSharedPtr< SAssetTagItemTableRow< TSharedPtr<FCollectionItem> > > TableRow = SNew( SAssetTagItemTableRow< TSharedPtr<FCollectionItem> >, OwnerTable )
 		.OnDragDetected(this, &SCollectionView::OnCollectionDragDetected);
+
+	TSharedPtr<SCollectionTreeItem> CollectionTreeItem;
 
 	TableRow->SetContent
 		(
-			SNew(SCollectionTreeItem)
+			SAssignNew(CollectionTreeItem, SCollectionTreeItem)
 			.ParentWidget(SharedThis(this))
 			.CollectionItem(CollectionItem)
+			.ViewMode(CollectionViewMode)
 			.OnNameChangeCommit(this, &SCollectionView::CollectionNameChangeCommit)
 			.OnVerifyRenameCommit(this, &SCollectionView::CollectionVerifyRenameCommit)
 			.OnValidateDragDrop(this, &SCollectionView::ValidateDragDropOnCollectionItem)
@@ -1134,6 +1263,8 @@ TSharedRef<ITableRow> SCollectionView::GenerateCollectionRow( TSharedPtr<FCollec
 			.IsCollectionChecked(IsCollectionCheckedAttribute)
 			.OnCollectionCheckStateChanged(OnCollectionCheckStateChangedDelegate)
 		);
+
+	TableRow->SetIsDropTarget(MakeAttributeSP(CollectionTreeItem.Get(), &SCollectionTreeItem::IsDraggedOver));
 
 	return TableRow.ToSharedRef();
 }
@@ -1508,7 +1639,7 @@ bool SCollectionView::CollectionNameChangeCommit( const TSharedPtr< FCollectionI
 		// If the new name doesn't pass our current filter, we need to clear it
 		if ( !CollectionItemTextFilter->PassesFilter( FCollectionItem(NewNameFinal, CollectionItem->CollectionType) ) )
 		{
-			SearchBoxPtr->SetText(FText::GetEmpty());
+			SearchPtr->ClearSearch();
 		}
 
 		// Otherwise perform the rename
@@ -1552,7 +1683,7 @@ bool SCollectionView::CollectionVerifyRenameCommit(const TSharedPtr< FCollection
 
 	FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
 
-	if (!CollectionManagerModule.Get().IsValidCollectionName(NewName, ECollectionShareType::CST_Shared))
+	if (!CollectionManagerModule.Get().IsValidCollectionName(NewName, ECollectionShareType::CST_All))
 	{
 		OutErrorMessage = CollectionManagerModule.Get().GetLastError();
 		return false;

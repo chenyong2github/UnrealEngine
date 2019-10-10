@@ -342,28 +342,6 @@ FFreeTypeFaceGlyphData FSlateFontRenderer::GetFontFaceForCodepoint(const FFontDa
 		}
 	}
 
-	// If the requested glyph doesn't exist, use the localization fallback font
-	if (!ReturnVal.FaceAndMemory.IsValid() || (InCodepoint != 0 && ReturnVal.GlyphIndex == 0))
-	{
-		const bool bCanFallback = bOverrideFallback || MaxFallbackLevel >= EFontFallback::FF_LocalizedFallback;
-
-		if (bCanFallback && FLegacySlateFontInfoCache::Get().IsLocalizedFallbackFontAvailable())
-		{
-			ReturnVal.FaceAndMemory = CompositeFontCache->GetFontFace(FLegacySlateFontInfoCache::Get().GetLocalizedFallbackFontData(FLegacySlateFontInfoCache::FFallbackContext(&InFontData, InCodepoint)));
-
-			if (ReturnVal.FaceAndMemory.IsValid())
-			{	
-				ReturnVal.GlyphIndex = FT_Get_Char_Index(ReturnVal.FaceAndMemory->GetFace(), InCodepoint);
-
-				if (ReturnVal.GlyphIndex != 0)
-				{
-					ReturnVal.CharFallbackLevel = EFontFallback::FF_LocalizedFallback;
-					ReturnVal.GlyphFlags |= FT_LOAD_FORCE_AUTOHINT;
-				}
-			}
-		}
-	}
-
 	// If the requested glyph doesn't exist, use the last resort fallback font
 	if (!ReturnVal.FaceAndMemory.IsValid() || (InCodepoint != 0 && ReturnVal.GlyphIndex == 0))
 	{

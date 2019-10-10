@@ -187,12 +187,9 @@ protected:
 
 	void DispatchCommand(const FFieldSystemCommand& InCommand);
 
-#if INCLUDE_CHAOS
-
 	FFieldSystemPhysicsProxy* PhysicsProxy;
 	FChaosSolversModule* ChaosModule;
 
-#endif
 	bool bHasPhysicsState;
 
 };

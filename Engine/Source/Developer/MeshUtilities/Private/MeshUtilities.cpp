@@ -94,7 +94,7 @@
 #include "OverlappingCorners.h"
 #include "MeshUtilitiesCommon.h"
 
-#include "MeshDescription.h"
+#include "StaticMeshAttributes.h"
 #include "MeshDescriptionOperations.h"
 
 #if WITH_EDITOR
@@ -644,6 +644,9 @@ void FMeshUtilities::BuildSkeletalModelFromChunks(FSkeletalMeshLODModel& LODMode
 		FSkelMeshSection& Section = *new(LODModel.Sections) FSkelMeshSection();
 		Section.MaterialIndex = SrcChunk->MaterialIndex;
 		Exchange(Section.BoneMap, SrcChunk->BoneMap);
+
+		Section.OriginalDataSectionIndex = SrcChunk->OriginalSectionIndex;
+		Section.ChunkedParentSectionIndex = SrcChunk->ParentChunkSectionIndex;
 
 		// Update the active bone indices on the LOD model.
 		for (int32 BoneIndex = 0; BoneIndex < Section.BoneMap.Num(); ++BoneIndex)
@@ -2629,10 +2632,13 @@ public:
 				FRawMesh& DestMesh = LODMeshes[NumValidLODs];
 				FOverlappingCorners& InOverlappingCorners = LODOverlappingCorners[ReductionSettings.BaseLODModel];
 				FOverlappingCorners& DestOverlappingCorners = LODOverlappingCorners[NumValidLODs];
+
 				FMeshDescription SrcMeshdescription;
-				UStaticMesh::RegisterMeshAttributes(SrcMeshdescription);
+				FStaticMeshAttributes(SrcMeshdescription).Register();
+
 				FMeshDescription DestMeshdescription;
-				UStaticMesh::RegisterMeshAttributes(DestMeshdescription);
+				FStaticMeshAttributes(DestMeshdescription).Register();
+
 				TMap<int32, FName> FromMaterialMap;
 				FMeshDescriptionOperations::ConvertFromRawMesh(InMesh, SrcMeshdescription, FromMaterialMap);
 				MeshReduction->ReduceMeshDescription(DestMeshdescription, LODMaxDeviation[NumValidLODs], SrcMeshdescription, InOverlappingCorners, ReductionSettings);
@@ -3450,342 +3456,6 @@ public:
 		}
 	}
 
-	void Skeletal_ComputeTangents(
-		IMeshBuildData* BuildData,
-		const FOverlappingCorners& OverlappingCorners
-		)
-	{
-		bool bBlendOverlappingNormals = true;
-		bool bIgnoreDegenerateTriangles = BuildData->BuildOptions.bRemoveDegenerateTriangles;
-		bool bComputeWeightedNormals = BuildData->BuildOptions.bComputeWeightedNormals;
-		
-		// Compute per-triangle tangents.
-		TArray<FVector> TriangleTangentX;
-		TArray<FVector> TriangleTangentY;
-		TArray<FVector> TriangleTangentZ;
-
-		Skeletal_ComputeTriangleTangents(
-			TriangleTangentX,
-			TriangleTangentY,
-			TriangleTangentZ,
-			BuildData,
-			bIgnoreDegenerateTriangles ? SMALL_NUMBER : FLT_MIN
-			);
-
-		TArray<FVector>& WedgeTangentX = BuildData->GetTangentArray(0);
-		TArray<FVector>& WedgeTangentY = BuildData->GetTangentArray(1);
-		TArray<FVector>& WedgeTangentZ = BuildData->GetTangentArray(2);
-
-		// Declare these out here to avoid reallocations.
-		TArray<FFanFace> RelevantFacesForCorner[3];
-		TArray<int32> AdjacentFaces;
-
-		int32 NumFaces = BuildData->GetNumFaces();
-		int32 NumWedges = BuildData->GetNumWedges();
-		check(NumFaces * 3 <= NumWedges);
-
-		// Allocate storage for tangents if none were provided.
-		if (WedgeTangentX.Num() != NumWedges)
-		{
-			WedgeTangentX.Empty(NumWedges);
-			WedgeTangentX.AddZeroed(NumWedges);
-		}
-		if (WedgeTangentY.Num() != NumWedges)
-		{
-			WedgeTangentY.Empty(NumWedges);
-			WedgeTangentY.AddZeroed(NumWedges);
-		}
-		if (WedgeTangentZ.Num() != NumWedges)
-		{
-			WedgeTangentZ.Empty(NumWedges);
-			WedgeTangentZ.AddZeroed(NumWedges);
-		}
-
-		for (int32 FaceIndex = 0; FaceIndex < NumFaces; FaceIndex++)
-		{
-			int32 WedgeOffset = FaceIndex * 3;
-			FVector CornerPositions[3];
-			FVector CornerTangentX[3];
-			FVector CornerTangentY[3];
-			FVector CornerTangentZ[3];
-
-			for (int32 CornerIndex = 0; CornerIndex < 3; CornerIndex++)
-			{
-				CornerTangentX[CornerIndex] = FVector::ZeroVector;
-				CornerTangentY[CornerIndex] = FVector::ZeroVector;
-				CornerTangentZ[CornerIndex] = FVector::ZeroVector;
-				CornerPositions[CornerIndex] = BuildData->GetVertexPosition(FaceIndex, CornerIndex);
-				RelevantFacesForCorner[CornerIndex].Reset();
-			}
-
-			// Don't process degenerate triangles.
-			if (PointsEqual(CornerPositions[0], CornerPositions[1], BuildData->BuildOptions.OverlappingThresholds)
-				|| PointsEqual(CornerPositions[0], CornerPositions[2], BuildData->BuildOptions.OverlappingThresholds)
-				|| PointsEqual(CornerPositions[1], CornerPositions[2], BuildData->BuildOptions.OverlappingThresholds))
-			{
-				continue;
-			}
-
-			// No need to process triangles if tangents already exist.
-			bool bCornerHasTangents[3] = { 0 };
-			for (int32 CornerIndex = 0; CornerIndex < 3; CornerIndex++)
-			{
-				bCornerHasTangents[CornerIndex] = !WedgeTangentX[WedgeOffset + CornerIndex].IsZero()
-					&& !WedgeTangentY[WedgeOffset + CornerIndex].IsZero()
-					&& !WedgeTangentZ[WedgeOffset + CornerIndex].IsZero();
-			}
-			if (bCornerHasTangents[0] && bCornerHasTangents[1] && bCornerHasTangents[2])
-			{
-				continue;
-			}
-
-			// Calculate smooth vertex normals.
-			float Determinant = FVector::Triple(
-				TriangleTangentX[FaceIndex],
-				TriangleTangentY[FaceIndex],
-				TriangleTangentZ[FaceIndex]
-				);
-
-			// Start building a list of faces adjacent to this face.
-			AdjacentFaces.Reset();
-			for (int32 CornerIndex = 0; CornerIndex < 3; CornerIndex++)
-			{
-				int32 ThisCornerIndex = WedgeOffset + CornerIndex;
-				const TArray<int32>& DupVerts = OverlappingCorners.FindIfOverlapping(ThisCornerIndex);
-				if (DupVerts.Num() == 0)
-				{
-					AdjacentFaces.AddUnique(ThisCornerIndex / 3); // I am a "dup" of myself
-				}
-				for (int32 k = 0; k < DupVerts.Num(); k++)
-				{
-					AdjacentFaces.AddUnique(DupVerts[k] / 3);
-				}
-			}
-
-			// We need to sort these here because the criteria for point equality is
-			// exact, so we must ensure the exact same order for all dups.
-			AdjacentFaces.Sort();
-
-			// Process adjacent faces
-			for (int32 AdjacentFaceIndex = 0; AdjacentFaceIndex < AdjacentFaces.Num(); AdjacentFaceIndex++)
-			{
-				int32 OtherFaceIndex = AdjacentFaces[AdjacentFaceIndex];
-				for (int32 OurCornerIndex = 0; OurCornerIndex < 3; OurCornerIndex++)
-				{
-					if (bCornerHasTangents[OurCornerIndex])
-						continue;
-
-					FFanFace NewFanFace;
-					int32 CommonIndexCount = 0;
-
-					// Check for vertices in common.
-					if (FaceIndex == OtherFaceIndex)
-					{
-						CommonIndexCount = 3;
-						NewFanFace.LinkedVertexIndex = OurCornerIndex;
-					}
-					else
-					{
-						// Check matching vertices against main vertex .
-						for (int32 OtherCornerIndex = 0; OtherCornerIndex < 3; OtherCornerIndex++)
-						{
-							if (PointsEqual(
-								CornerPositions[OurCornerIndex],
-								BuildData->GetVertexPosition(OtherFaceIndex, OtherCornerIndex),
-								BuildData->BuildOptions.OverlappingThresholds
-								))
-							{
-								CommonIndexCount++;
-								NewFanFace.LinkedVertexIndex = OtherCornerIndex;
-							}
-						}
-					}
-
-					// Add if connected by at least one point. Smoothing matches are considered later.
-					if (CommonIndexCount > 0)
-					{
-						NewFanFace.FaceIndex = OtherFaceIndex;
-						NewFanFace.bFilled = (OtherFaceIndex == FaceIndex); // Starter face for smoothing floodfill.
-						NewFanFace.bBlendTangents = NewFanFace.bFilled;
-						NewFanFace.bBlendNormals = NewFanFace.bFilled;
-						RelevantFacesForCorner[OurCornerIndex].Add(NewFanFace);
-					}
-				}
-			}
-
-			// Find true relevance of faces for a vertex normal by traversing
-			// smoothing-group-compatible connected triangle fans around common vertices.
-			for (int32 CornerIndex = 0; CornerIndex < 3; CornerIndex++)
-			{
-				if (bCornerHasTangents[CornerIndex])
-					continue;
-
-				int32 NewConnections;
-				do
-				{
-					NewConnections = 0;
-					for (int32 OtherFaceIdx = 0; OtherFaceIdx < RelevantFacesForCorner[CornerIndex].Num(); OtherFaceIdx++)
-					{
-						FFanFace& OtherFace = RelevantFacesForCorner[CornerIndex][OtherFaceIdx];
-						// The vertex' own face is initially the only face with bFilled == true.
-						if (OtherFace.bFilled)
-						{
-							for (int32 NextFaceIndex = 0; NextFaceIndex < RelevantFacesForCorner[CornerIndex].Num(); NextFaceIndex++)
-							{
-								FFanFace& NextFace = RelevantFacesForCorner[CornerIndex][NextFaceIndex];
-								if (!NextFace.bFilled) // && !NextFace.bBlendTangents)
-								{
-									if ((NextFaceIndex != OtherFaceIdx)
-										&& (BuildData->GetFaceSmoothingGroups(NextFace.FaceIndex) & BuildData->GetFaceSmoothingGroups(OtherFace.FaceIndex)))
-									{
-										int32 CommonVertices = 0;
-										int32 CommonTangentVertices = 0;
-										int32 CommonNormalVertices = 0;
-										for (int32 OtherCornerIndex = 0; OtherCornerIndex < 3; OtherCornerIndex++)
-										{
-											for (int32 NextCornerIndex = 0; NextCornerIndex < 3; NextCornerIndex++)
-											{
-												int32 NextVertexIndex = BuildData->GetVertexIndex(NextFace.FaceIndex, NextCornerIndex);
-												int32 OtherVertexIndex = BuildData->GetVertexIndex(OtherFace.FaceIndex, OtherCornerIndex);
-												if (PointsEqual(
-													BuildData->GetVertexPosition(NextFace.FaceIndex, NextCornerIndex),
-													BuildData->GetVertexPosition(OtherFace.FaceIndex, OtherCornerIndex),
-													BuildData->BuildOptions.OverlappingThresholds))
-												{
-													CommonVertices++;
-
-
-													if (UVsEqual(
-														BuildData->GetVertexUV(NextFace.FaceIndex, NextCornerIndex, 0),
-														BuildData->GetVertexUV(OtherFace.FaceIndex, OtherCornerIndex, 0),
-														BuildData->BuildOptions.OverlappingThresholds))
-													{
-														CommonTangentVertices++;
-													}
-													if (bBlendOverlappingNormals
-														|| NextVertexIndex == OtherVertexIndex)
-													{
-														CommonNormalVertices++;
-													}
-												}
-											}
-										}
-										// Flood fill faces with more than one common vertices which must be touching edges.
-										if (CommonVertices > 1)
-										{
-											NextFace.bFilled = true;
-											NextFace.bBlendNormals = (CommonNormalVertices > 1);
-											NewConnections++;
-
-											// Only blend tangents if there is no UV seam along the edge with this face.
-											if (OtherFace.bBlendTangents && CommonTangentVertices > 1)
-											{
-												float OtherDeterminant = FVector::Triple(
-													TriangleTangentX[NextFace.FaceIndex],
-													TriangleTangentY[NextFace.FaceIndex],
-													TriangleTangentZ[NextFace.FaceIndex]
-													);
-												if ((Determinant * OtherDeterminant) > 0.0f)
-												{
-													NextFace.bBlendTangents = true;
-												}
-											}
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-				while (NewConnections > 0);
-			}
-
-			// Vertex normal construction.
-			for (int32 CornerIndex = 0; CornerIndex < 3; CornerIndex++)
-			{
-				if (bCornerHasTangents[CornerIndex])
-				{
-					CornerTangentX[CornerIndex] = WedgeTangentX[WedgeOffset + CornerIndex];
-					CornerTangentY[CornerIndex] = WedgeTangentY[WedgeOffset + CornerIndex];
-					CornerTangentZ[CornerIndex] = WedgeTangentZ[WedgeOffset + CornerIndex];
-				}
-				else
-				{
-					for (int32 RelevantFaceIdx = 0; RelevantFaceIdx < RelevantFacesForCorner[CornerIndex].Num(); RelevantFaceIdx++)
-					{
-						FFanFace const& RelevantFace = RelevantFacesForCorner[CornerIndex][RelevantFaceIdx];
-						if (RelevantFace.bFilled)
-						{
-							int32 OtherFaceIndex = RelevantFace.FaceIndex;
-							float CornerWeight = 1.0f;
-							if (bComputeWeightedNormals)
-							{
-
-								FVector OtherFacePoint[3] = { BuildData->GetVertexPosition(OtherFaceIndex, 0), BuildData->GetVertexPosition(OtherFaceIndex, 1), BuildData->GetVertexPosition(OtherFaceIndex, 2) };
-								float OtherFaceArea = TriangleUtilities::ComputeTriangleArea(OtherFacePoint[0], OtherFacePoint[1], OtherFacePoint[2]);
-								int32 OtherFaceCornerIndex = RelevantFace.LinkedVertexIndex;
-								float OtherFaceAngle = TriangleUtilities::ComputeTriangleCornerAngle(OtherFacePoint[OtherFaceCornerIndex], OtherFacePoint[(OtherFaceCornerIndex + 1) % 3], OtherFacePoint[(OtherFaceCornerIndex + 2) % 3]);
-								//Get the CornerWeight
-								CornerWeight = OtherFaceArea * OtherFaceAngle;
-							}
-
-							if (RelevantFace.bBlendTangents)
-							{
-								CornerTangentX[CornerIndex] += CornerWeight * TriangleTangentX[OtherFaceIndex];
-								CornerTangentY[CornerIndex] += CornerWeight * TriangleTangentY[OtherFaceIndex];
-							}
-							if (RelevantFace.bBlendNormals)
-							{
-								CornerTangentZ[CornerIndex] += CornerWeight * TriangleTangentZ[OtherFaceIndex];
-							}
-						}
-					}
-					if (!WedgeTangentX[WedgeOffset + CornerIndex].IsZero())
-					{
-						CornerTangentX[CornerIndex] = WedgeTangentX[WedgeOffset + CornerIndex];
-					}
-					if (!WedgeTangentY[WedgeOffset + CornerIndex].IsZero())
-					{
-						CornerTangentY[CornerIndex] = WedgeTangentY[WedgeOffset + CornerIndex];
-					}
-					if (!WedgeTangentZ[WedgeOffset + CornerIndex].IsZero())
-					{
-						CornerTangentZ[CornerIndex] = WedgeTangentZ[WedgeOffset + CornerIndex];
-					}
-				}
-			}
-
-			// Normalization.
-			for (int32 CornerIndex = 0; CornerIndex < 3; CornerIndex++)
-			{
-				CornerTangentX[CornerIndex].Normalize();
-				CornerTangentY[CornerIndex].Normalize();
-				CornerTangentZ[CornerIndex].Normalize();
-
-				// Gram-Schmidt orthogonalization
-				CornerTangentY[CornerIndex] -= CornerTangentX[CornerIndex] * (CornerTangentX[CornerIndex] | CornerTangentY[CornerIndex]);
-				CornerTangentY[CornerIndex].Normalize();
-
-				CornerTangentX[CornerIndex] -= CornerTangentZ[CornerIndex] * (CornerTangentZ[CornerIndex] | CornerTangentX[CornerIndex]);
-				CornerTangentX[CornerIndex].Normalize();
-				CornerTangentY[CornerIndex] -= CornerTangentZ[CornerIndex] * (CornerTangentZ[CornerIndex] | CornerTangentY[CornerIndex]);
-				CornerTangentY[CornerIndex].Normalize();
-			}
-
-			// Copy back to the mesh.
-			for (int32 CornerIndex = 0; CornerIndex < 3; CornerIndex++)
-			{
-				WedgeTangentX[WedgeOffset + CornerIndex] = CornerTangentX[CornerIndex];
-				WedgeTangentY[WedgeOffset + CornerIndex] = CornerTangentY[CornerIndex];
-				WedgeTangentZ[WedgeOffset + CornerIndex] = CornerTangentZ[CornerIndex];
-			}
-		}
-
-		check(WedgeTangentX.Num() == NumWedges);
-		check(WedgeTangentY.Num() == NumWedges);
-		check(WedgeTangentZ.Num() == NumWedges);
-	}
-
 	bool IsTriangleMirror(IMeshBuildData* BuildData, const TArray<FVector>& TriangleTangentZ, const uint32 FaceIdxA, const uint32 FaceIdxB)
 	{
 		if (FaceIdxA == FaceIdxB)
@@ -3819,7 +3489,7 @@ public:
 		return false;
 	}
 
-	void Skeletal_ComputeTangents_MikkTSpace(
+	void Skeletal_ComputeTangents(
 		IMeshBuildData* BuildData,
 		const FOverlappingCorners& OverlappingCorners
 		)
@@ -3827,6 +3497,7 @@ public:
 		bool bBlendOverlappingNormals = true;
 		bool bIgnoreDegenerateTriangles = BuildData->BuildOptions.bRemoveDegenerateTriangles;
 		bool bComputeWeightedNormals = BuildData->BuildOptions.bComputeWeightedNormals;
+		bool bUseMikktSpace = BuildData->BuildOptions.bUseMikkTSpace && (BuildData->BuildOptions.bComputeNormals || BuildData->BuildOptions.bComputeTangents);
 		
 		int32 NumFaces = BuildData->GetNumFaces();
 		int32 NumWedges = BuildData->GetNumWedges();
@@ -3859,25 +3530,23 @@ public:
 		TArray<FFanFace> RelevantFacesForCorner[3];
 		TArray<int32> AdjacentFaces;
 
-		bool bWedgeTSpace = false;
-
-		if (WedgeTangentX.Num() > 0 && WedgeTangentY.Num() > 0)
+		// Allocate storage for tangents and normal if none were provided.
+		if (WedgeTangentX.Num() != NumWedges)
 		{
-			bWedgeTSpace = true;
-			for (int32 WedgeIdx = 0; WedgeIdx < WedgeTangentX.Num()
-				&& WedgeIdx < WedgeTangentY.Num(); ++WedgeIdx)
-			{
-				bWedgeTSpace = bWedgeTSpace && (!WedgeTangentX[WedgeIdx].IsNearlyZero()) && (!WedgeTangentY[WedgeIdx].IsNearlyZero());
-			}
+			WedgeTangentX.Empty(NumWedges);
+			WedgeTangentX.AddZeroed(NumWedges);
 		}
-
-		// Allocate storage for tangents if none were provided, and calculate normals for MikkTSpace.
+		if (WedgeTangentY.Num() != NumWedges)
+		{
+			WedgeTangentY.Empty(NumWedges);
+			WedgeTangentY.AddZeroed(NumWedges);
+		}
 		if (WedgeTangentZ.Num() != NumWedges)
 		{
-			// normals are not included, so we should calculate them
 			WedgeTangentZ.Empty(NumWedges);
 			WedgeTangentZ.AddZeroed(NumWedges);
 		}
+
 		bool bIsZeroLengthNormalErrorMessageDisplayed = false;
 		// we need to calculate normals for MikkTSpace
 		for (int32 FaceIndex = 0; FaceIndex < NumFaces; FaceIndex++)
@@ -3885,10 +3554,14 @@ public:
 			int32 PatchIndex = FaceIndexToPatchIndex[FaceIndex];
 			int32 WedgeOffset = FaceIndex * 3;
 			FVector CornerPositions[3];
+			FVector CornerTangentX[3];
+			FVector CornerTangentY[3];
 			FVector CornerNormal[3];
 
 			for (int32 CornerIndex = 0; CornerIndex < 3; CornerIndex++)
 			{
+				CornerTangentX[CornerIndex] = FVector::ZeroVector;
+				CornerTangentY[CornerIndex] = FVector::ZeroVector;
 				CornerNormal[CornerIndex] = FVector::ZeroVector;
 				CornerPositions[CornerIndex] = BuildData->GetVertexPosition(FaceIndex, CornerIndex);
 				RelevantFacesForCorner[CornerIndex].Reset();
@@ -3904,14 +3577,30 @@ public:
 
 			// No need to process triangles if tangents already exist.
 			bool bCornerHasNormal[3] = { 0 };
+			bool bCornerHasTangents[3] = { 0 };
+			bool bSkipNTB = true;
 			for (int32 CornerIndex = 0; CornerIndex < 3; CornerIndex++)
 			{
 				bCornerHasNormal[CornerIndex] = !WedgeTangentZ[WedgeOffset + CornerIndex].IsZero();
+				bCornerHasTangents[CornerIndex] = !WedgeTangentX[WedgeOffset + CornerIndex].IsZero() && !WedgeTangentY[WedgeOffset + CornerIndex].IsZero();
+
+				//If we want to compute mikkt we dont check tangents to skip this corner
+				if (!bCornerHasNormal[CornerIndex] || (!bUseMikktSpace && !bCornerHasTangents[CornerIndex]))
+				{
+					bSkipNTB = false;
+				}
 			}
-			if (bCornerHasNormal[0] && bCornerHasNormal[1] && bCornerHasNormal[2])
+			if (bSkipNTB)
 			{
 				continue;
 			}
+
+			// Calculate smooth vertex normals.
+			float Determinant = FVector::Triple(
+				TriangleTangentX[FaceIndex],
+				TriangleTangentY[FaceIndex],
+				TriangleTangentZ[FaceIndex]
+			);
 
 			// Start building a list of faces adjacent to this face.
 			AdjacentFaces.Reset();
@@ -3946,7 +3635,7 @@ public:
 				int32 OtherFaceIndex = AdjacentFaces[AdjacentFaceIndex];
 				for (int32 OurCornerIndex = 0; OurCornerIndex < 3; OurCornerIndex++)
 				{
-					if (bCornerHasNormal[OurCornerIndex])
+					if (bCornerHasNormal[OurCornerIndex] && (bUseMikktSpace || bCornerHasTangents[OurCornerIndex]))
 						continue;
 
 					FFanFace NewFanFace;
@@ -3991,7 +3680,7 @@ public:
 			// smoothing-group-compatible connected triangle fans around common vertices.
 			for (int32 CornerIndex = 0; CornerIndex < 3; CornerIndex++)
 			{
-				if (bCornerHasNormal[CornerIndex])
+				if (bCornerHasNormal[CornerIndex] && (bUseMikktSpace || bCornerHasTangents[CornerIndex]))
 					continue;
 
 				int32 NewConnections;
@@ -4013,6 +3702,7 @@ public:
 											&& (BuildData->GetFaceSmoothingGroups(NextFace.FaceIndex) & BuildData->GetFaceSmoothingGroups(OtherFace.FaceIndex)))
 									{
 										int32 CommonVertices = 0;
+										int32 CommonTangentVertices = 0;
 										int32 CommonNormalVertices = 0;
 										for (int32 OtherCornerIndex = 0; OtherCornerIndex < 3; OtherCornerIndex++)
 										{
@@ -4026,6 +3716,13 @@ public:
 													BuildData->BuildOptions.OverlappingThresholds))
 												{
 													CommonVertices++;
+													if (!bUseMikktSpace && UVsEqual(
+														BuildData->GetVertexUV(NextFace.FaceIndex, NextCornerIndex, 0),
+														BuildData->GetVertexUV(OtherFace.FaceIndex, OtherCornerIndex, 0),
+														BuildData->BuildOptions.OverlappingThresholds))
+													{
+														CommonTangentVertices++;
+													}
 													if (bBlendOverlappingNormals
 														|| NextVertexIndex == OtherVertexIndex)
 													{
@@ -4040,6 +3737,19 @@ public:
 											NextFace.bFilled = true;
 											NextFace.bBlendNormals = (CommonNormalVertices > 1);
 											NewConnections++;
+											// Only blend tangents if there is no UV seam along the edge with this face.
+											if (!bUseMikktSpace && OtherFace.bBlendTangents && CommonTangentVertices > 1)
+											{
+												float OtherDeterminant = FVector::Triple(
+													TriangleTangentX[NextFace.FaceIndex],
+													TriangleTangentY[NextFace.FaceIndex],
+													TriangleTangentZ[NextFace.FaceIndex]
+												);
+												if ((Determinant * OtherDeterminant) > 0.0f)
+												{
+													NextFace.bBlendTangents = true;
+												}
+											}
 										}
 									}
 								}
@@ -4053,11 +3763,19 @@ public:
 			// Vertex normal construction.
 			for (int32 CornerIndex = 0; CornerIndex < 3; CornerIndex++)
 			{
-				if (bCornerHasNormal[CornerIndex])
+				bool bUseProvidedNormal = bCornerHasNormal[CornerIndex];
+				bool bUseProvidedTangents = !bUseMikktSpace && bCornerHasTangents[CornerIndex];
+				if (bUseProvidedNormal)
 				{
 					CornerNormal[CornerIndex] = WedgeTangentZ[WedgeOffset + CornerIndex];
 				}
-				else
+				if (bUseProvidedTangents)
+				{
+					CornerTangentX[CornerIndex] = WedgeTangentX[WedgeOffset + CornerIndex];
+					CornerTangentY[CornerIndex] = WedgeTangentY[WedgeOffset + CornerIndex];
+				}
+
+				if (!bUseProvidedNormal || !bUseProvidedTangents)
 				{
 					for (int32 RelevantFaceIdx = 0; RelevantFaceIdx < RelevantFacesForCorner[CornerIndex].Num(); RelevantFaceIdx++)
 					{
@@ -4075,12 +3793,24 @@ public:
 								//Get the CornerWeight
 								CornerWeight = OtherFaceArea * OtherFaceAngle;
 							}
-							
-							if (RelevantFace.bBlendNormals)
+							if (!bUseProvidedTangents && RelevantFace.bBlendTangents)
+							{
+								CornerTangentX[CornerIndex] += CornerWeight * TriangleTangentX[OtherFaceIndex];
+								CornerTangentY[CornerIndex] += CornerWeight * TriangleTangentY[OtherFaceIndex];
+							}
+							if (!bUseProvidedNormal && RelevantFace.bBlendNormals)
 							{
 								CornerNormal[CornerIndex] += CornerWeight * TriangleTangentZ[OtherFaceIndex];
 							}
 						}
+					}
+					if (!WedgeTangentX[WedgeOffset + CornerIndex].IsZero())
+					{
+						CornerTangentX[CornerIndex] = WedgeTangentX[WedgeOffset + CornerIndex];
+					}
+					if (!WedgeTangentY[WedgeOffset + CornerIndex].IsZero())
+					{
+						CornerTangentY[CornerIndex] = WedgeTangentY[WedgeOffset + CornerIndex];
 					}
 					if (!WedgeTangentZ[WedgeOffset + CornerIndex].IsZero())
 					{
@@ -4093,15 +3823,27 @@ public:
 			for (int32 CornerIndex = 0; CornerIndex < 3; CornerIndex++)
 			{
 				CornerNormal[CornerIndex].Normalize();
+				if (!bUseMikktSpace)
+				{
+					CornerTangentX[CornerIndex].Normalize();
+					CornerTangentY[CornerIndex].Normalize();
+
+					// Gram-Schmidt orthogonalization
+					CornerTangentY[CornerIndex] -= CornerTangentX[CornerIndex] * (CornerTangentX[CornerIndex] | CornerTangentY[CornerIndex]);
+					CornerTangentY[CornerIndex].Normalize();
+
+					CornerTangentX[CornerIndex] -= CornerNormal[CornerIndex] * (CornerNormal[CornerIndex] | CornerTangentX[CornerIndex]);
+					CornerTangentX[CornerIndex].Normalize();
+					CornerTangentY[CornerIndex] -= CornerNormal[CornerIndex] * (CornerNormal[CornerIndex] | CornerTangentY[CornerIndex]);
+					CornerTangentY[CornerIndex].Normalize();
+				}
 			}
 
-			// Copy back to the mesh.
-			for (int32 CornerIndex = 0; CornerIndex < 3; CornerIndex++)
+			auto VerifyTangentSpace = [&bIsZeroLengthNormalErrorMessageDisplayed, &BuildData](FVector& NormalizedVector)
 			{
-				//Make sure the normal do not contain nan, if it contain nan change it to a valid zero vector
-				if (CornerNormal[CornerIndex].IsNearlyZero() || CornerNormal[CornerIndex].ContainsNaN())
+				if (NormalizedVector.IsNearlyZero() || NormalizedVector.ContainsNaN())
 				{
-					CornerNormal[CornerIndex] = FVector::ZeroVector;
+					NormalizedVector = FVector::ZeroVector;
 					//We also notify the log that we compute a zero length normals, so the user is aware of it
 					if (!bIsZeroLengthNormalErrorMessageDisplayed)
 					{
@@ -4122,22 +3864,26 @@ public:
 						}
 					}
 				}
+			};
+
+			// Copy back to the mesh.
+			for (int32 CornerIndex = 0; CornerIndex < 3; CornerIndex++)
+			{
+				VerifyTangentSpace(CornerNormal[CornerIndex]);
 				WedgeTangentZ[WedgeOffset + CornerIndex] = CornerNormal[CornerIndex];
+
+				if (!bUseMikktSpace)
+				{
+					VerifyTangentSpace(CornerTangentX[CornerIndex]);
+					WedgeTangentX[WedgeOffset + CornerIndex] = CornerTangentX[CornerIndex];
+
+					VerifyTangentSpace(CornerTangentY[CornerIndex]);
+					WedgeTangentY[WedgeOffset + CornerIndex] = CornerTangentY[CornerIndex];
+				}
 			}
 		}
 
-		if (WedgeTangentX.Num() != NumWedges)
-		{
-			WedgeTangentX.Empty(NumWedges);
-			WedgeTangentX.AddZeroed(NumWedges);
-		}
-		if (WedgeTangentY.Num() != NumWedges)
-		{
-			WedgeTangentY.Empty(NumWedges);
-			WedgeTangentY.AddZeroed(NumWedges);
-		}
-
-		//if (!bWedgeTSpace)
+		if (bUseMikktSpace)
 		{
 			// we can use mikktspace to calculate the tangents		
 			SMikkTSpaceContext MikkTContext;
@@ -4190,15 +3936,8 @@ public:
 			TangentZ.AddZeroed(NumWedges);
 		}
 
-		// Compute any missing tangents. MikkTSpace should be use only when the user want to recompute the normals or tangents otherwise should always fallback on builtin
-		if (BuildData->BuildOptions.bUseMikkTSpace && (BuildData->BuildOptions.bComputeNormals || BuildData->BuildOptions.bComputeTangents))
-		{
-			Skeletal_ComputeTangents_MikkTSpace(BuildData, OverlappingCorners);
-		}
-		else
-		{
-			Skeletal_ComputeTangents(BuildData, OverlappingCorners);
-		}
+		// Compute any missing tangents. MikkTSpace should be use only when the user want to recompute the normals or tangents otherwise should always fallback on builtin tangent
+		Skeletal_ComputeTangents(BuildData, OverlappingCorners);
 
 		// At this point the mesh will have valid tangents.
 		BuildData->ValidateTangentArraySize();
@@ -4476,18 +4215,6 @@ bool FMeshUtilities::BuildSkeletalMesh(FSkeletalMeshLODModel& LODModel, const FR
 			}
 		}
 	};
-
-	// Temporarily supporting both import paths
-	if (!BuildOptions.bUseMikkTSpace)
-	{
-		bool bBuildSuccess = BuildSkeletalMesh_Legacy(LODModel, RefSkeleton, Influences, Wedges, Faces, Points, PointToOriginalMap, BuildOptions.OverlappingThresholds, BuildOptions.bComputeNormals, BuildOptions.bComputeTangents, BuildOptions.bComputeWeightedNormals, OutWarningMessages, OutWarningNames);
-		if (bBuildSuccess)
-		{
-			UpdateOverlappingVertices(LODModel);
-		}
-
-		return bBuildSuccess;
-	}
 
 	SkeletalMeshBuildData BuildData(
 		LODModel,

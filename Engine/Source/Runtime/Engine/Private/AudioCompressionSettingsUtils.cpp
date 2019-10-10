@@ -76,6 +76,8 @@ void CacheCurrentPlatformAudioCookOverrides(FPlatformAudioCookOverrides& OutOver
 {
 #if PLATFORM_ANDROID && !PLATFORM_LUMIN
 	const TCHAR* CategoryName = TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings");
+#elif PLATFORM_MAC
+	const TCHAR* CategoryName = TEXT("/Script/MacTargetPlatform.MacTargetSettings");
 #elif PLATFORM_IOS
 	const TCHAR* CategoryName = TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings");
 #elif PLATFORM_SWITCH
@@ -264,7 +266,7 @@ float FPlatformCompressionUtilities::GetCompressionDurationForCurrentPlatform()
 	return Threshold;
 }
 
-float FPlatformCompressionUtilities::GetTargetSampleRateForPlatform(ESoundwaveSampleRateSettings InSampleRateLevel /*= ESoundwaveSampleRateSettings::High*/, EAudioPlatform SpecificPlatform /*= AudioPluginUtilities::CurrentPlatform*/)
+float FPlatformCompressionUtilities::GetTargetSampleRateForPlatform(ESoundwaveSampleRateSettings InSampleRateLevel /*= ESoundwaveSampleRateSettings::High*/)
 {
 	float SampleRate = -1.0f;
 	const FPlatformAudioCookOverrides* Settings = GetCookOverridesForCurrentPlatform();

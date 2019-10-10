@@ -30,6 +30,16 @@ public:
 	/** Shutdown Context by destroying InputRouter and ToolManager */
 	virtual void Shutdown();
 
+	virtual void DeactivateActiveTool(EToolSide WhichSide, EToolShutdownType ShutdownType);
+	virtual void DeactivateAllActiveTools();
+
+	bool CanStartTool(EToolSide WhichSide, const FString& ToolTypeIdentifier) const;
+	bool ActiveToolHasAccept(EToolSide WhichSide) const;
+	bool CanAcceptActiveTool(EToolSide WhichSide) const;
+	bool CanCancelActiveTool(EToolSide WhichSide) const;
+	bool CanCompleteActiveTool(EToolSide WhichSide) const;
+	bool StartTool(EToolSide WhichSide, const FString& ToolTypeIdentifier);
+	void EndTool(EToolSide WhichSide, EToolShutdownType ShutdownType);
 public:
 	/** current UInputRouter for this Context */
 	UPROPERTY()

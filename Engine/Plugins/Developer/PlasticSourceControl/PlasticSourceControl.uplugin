@@ -1,0 +1,24 @@
+{
+	"FileVersion": 3,
+	"Version": 40,
+	"VersionName": "1.4.6",
+	"FriendlyName": "Plastic SCM",
+	"Description": "Plastic source control management",
+	"Category": "Source Control",
+	"CreatedBy": "SRombauts for Codice Software.",
+	"CreatedByURL": "http://srombauts.github.com",
+	"DocsURL": "https://www.plasticscm.com/documentation.html",
+	"MarketplaceURL": "",
+	"SupportURL": "https://www.plasticscm.com/support.html",
+	"EnabledByDefault": true,
+	"CanContainContent": false,
+	"IsBetaVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "PlasticSourceControl",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		}
+	]
+}

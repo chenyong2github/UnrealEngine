@@ -38,40 +38,13 @@ UObject const* FMergeToolUtils::LoadRevision(const FString& AssetName, const ISo
 {
 	FSlateNotificationManager& NotificationManager = FSlateNotificationManager::Get();
 
+	const UObject* AssetRevision = nullptr;
+
 	// Get the head revision of this package from source control
 	FString TempFileName;
 	if (DesiredRevision.Get(TempFileName))
 	{
-		// Try and load that package
-		UPackage* TempPackage = LoadPackage(NULL, *TempFileName, LOAD_ForDiff|LOAD_DisableCompileOnLoad);
-		if (TempPackage != NULL)
-		{
-			// Grab the old asset from that old package
-			UObject* OldObject = FindObject<UObject>(TempPackage, *AssetName);
-			if (OldObject)
-			{
-				return OldObject;
-			}
-			else
-			{
-				NotificationManager.AddNotification(
-					FText::Format(
-						LOCTEXT("MergedFailedToFindObject", "Aborted Load of {0} because we could not find an object named {1}" )
-						, FText::FromString(TempFileName)
-						, FText::FromString(AssetName) 
-					)
-				);
-			}
-		}
-		else
-		{
-			NotificationManager.AddNotification(
-				FText::Format(
-					LOCTEXT("MergedFailedToLoadPackage", "Aborted Load of {0} because we could not load the package")
-					, FText::FromString(TempFileName)
-				)
-			);
-		}
+		AssetRevision = LoadAssetFromPackage(TempFileName, AssetName);
 	}
 	else
 	{
@@ -82,7 +55,8 @@ UObject const* FMergeToolUtils::LoadRevision(const FString& AssetName, const ISo
 			)
 		);
 	}
-	return NULL;
+
+	return AssetRevision;
 }
 
 //------------------------------------------------------------------------------
@@ -134,6 +108,47 @@ UObject const* FMergeToolUtils::LoadRevision(const UObject* AssetObject, const F
 	}
 
 	return AssetRevision;
+}
+
+//------------------------------------------------------------------------------
+UObject const* FMergeToolUtils::LoadAssetFromPackage(const FString& PackageFileName, const FString& AssetName)
+{
+	FSlateNotificationManager& NotificationManager = FSlateNotificationManager::Get();
+	
+	const UObject* Object = nullptr;
+
+	// Try and load that package
+	UPackage* TempPackage = LoadPackage(NULL, *PackageFileName, LOAD_ForDiff | LOAD_DisableCompileOnLoad);
+	if (TempPackage != NULL)
+	{
+		// Grab the old asset from that old package
+		UObject* FoundObject = FindObject<UObject>(TempPackage, *AssetName);
+		if (FoundObject)
+		{
+			Object = FoundObject;
+		}
+		else
+		{
+			NotificationManager.AddNotification(
+				FText::Format(
+					LOCTEXT("MergedFailedToFindObject", "Aborted Load of {0} because we could not find an object named {1}")
+					, FText::FromString(PackageFileName)
+					, FText::FromString(AssetName)
+				)
+			);
+		}
+	}
+	else
+	{
+		NotificationManager.AddNotification(
+			FText::Format(
+				LOCTEXT("MergedFailedToLoadPackage", "Aborted Load of {0} because we could not load the package")
+				, FText::FromString(PackageFileName)
+			)
+		);
+	}
+
+	return Object;
 }
 
 #undef LOCTEXT_NAMESPACE

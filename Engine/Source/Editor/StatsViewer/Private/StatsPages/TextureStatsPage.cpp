@@ -30,22 +30,25 @@ FTextureStatsPage& FTextureStatsPage::Get()
 /** Helper class to generate statistics */
 struct TextureStatsGenerator : public FFindReferencedAssets
 {
+	TextureStatsGenerator(UWorld* InWorld)
+	{
+		World = InWorld != nullptr ? InWorld : GWorld;
+	}
+
+	UWorld* World;
+
 	/** Textures that should be ignored when taking stats */
 	TArray<TWeakObjectPtr<const UTexture>> TexturesToIgnore;
 
 	/** Map so we can track usage per-actor */
 	TMap<FString, UTextureStats*> EntryMap;
 
-	UWorld* GetWorld() const
-	{
-		return GWorld;
-	}
 	void GetObjectsForListMode( const ETextureObjectSets InObjectSet, TArray<UObject*>& OutObjectsToSearch )
 	{
 		if( InObjectSet == TextureObjectSet_SelectedActors )
 		{
 			// In this mode only get selected actors
-			for( AActor* Actor : FSelectedActorRange(GetWorld()) )
+			for( AActor* Actor : FSelectedActorRange(World) )
 			{
 				OutObjectsToSearch.Add( Actor );
 			}
@@ -71,17 +74,17 @@ struct TextureStatsGenerator : public FFindReferencedAssets
 		else if( InObjectSet == TextureObjectSet_CurrentStreamingLevel )
 		{
 			// In this mode get all actors in the current level
-			for (int32 ActorIdx = 0; ActorIdx < GetWorld()->GetCurrentLevel()->Actors.Num(); ++ActorIdx )
+			for (int32 ActorIdx = 0; ActorIdx < World->GetCurrentLevel()->Actors.Num(); ++ActorIdx )
 			{
-				OutObjectsToSearch.Add( GetWorld()->GetCurrentLevel()->Actors[ActorIdx] );
+				OutObjectsToSearch.Add( World->GetCurrentLevel()->Actors[ActorIdx] );
 			}
 		}
 		else if( InObjectSet == TextureObjectSet_AllStreamingLevels )
 		{
 			// In this mode get all actors in all levels
-			for( int32 LevelIdx = 0; LevelIdx < GetWorld()->GetNumLevels(); ++LevelIdx )
+			for( int32 LevelIdx = 0; LevelIdx < World->GetNumLevels(); ++LevelIdx )
 			{
-				const ULevel* CurrentLevel = GetWorld()->GetLevel( LevelIdx );
+				const ULevel* CurrentLevel = World->GetLevel( LevelIdx );
 				for (int32 ActorIdx = 0; ActorIdx < CurrentLevel->Actors.Num(); ++ActorIdx )
 				{
 					OutObjectsToSearch.Add( CurrentLevel->Actors[ActorIdx] );
@@ -118,23 +121,29 @@ struct TextureStatsGenerator : public FFindReferencedAssets
 		{
 			TSet<UObject*> BspMats;
 			// materials to a temp list
-			for (int32 Index = 0; Index < GetWorld()->GetModel()->Surfs.Num(); Index++)
+			for (int32 Index = 0; Index < World->GetModel()->Surfs.Num(); Index++)
 			{
 				// No point showing the default material
-				if (GetWorld()->GetModel()->Surfs[Index].Material != NULL)
+				if (World->GetModel()->Surfs[Index].Material != NULL)
 				{
-					BspMats.Add(GetWorld()->GetModel()->Surfs[Index].Material);
+					BspMats.Add(World->GetModel()->Surfs[Index].Material);
 				}
 			}
 			// If any BSP surfaces are selected
 			if (BspMats.Num() > 0)
 			{
-				FReferencedAssets* Referencer = new(Referencers) FReferencedAssets(GetWorld()->GetModel());
+				FReferencedAssets* Referencer = new(Referencers) FReferencedAssets(World->GetModel());
 
 				// Now copy the array
 				Referencer->AssetList = BspMats;
-				ReferenceGraph.Add(GetWorld()->GetModel(), BspMats);
+				ReferenceGraph.Add(World->GetModel(), BspMats);
 			}
+		}
+
+		if (World->GetOutermost() == GetTransientPackage())
+		{
+			// Do not ignore the transient package as our world lives there.
+			IgnorePackages.Remove(GetTransientPackage());
 		}
 
 		// this is the maximum depth to use when searching for references
@@ -331,7 +340,7 @@ struct TextureStatsGenerator : public FFindReferencedAssets
 
 void FTextureStatsPage::Generate( TArray< TWeakObjectPtr<UObject> >& OutObjects ) const
 {
-	TextureStatsGenerator Generator;
+	TextureStatsGenerator Generator( GetWorld() );
 
 	Generator.BuildReferencingData( (ETextureObjectSets)ObjectSetIndex );
 	Generator.Generate( OutObjects );

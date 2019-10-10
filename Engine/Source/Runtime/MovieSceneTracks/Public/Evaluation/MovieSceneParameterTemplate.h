@@ -36,6 +36,8 @@ struct FEvaluatedParameterSectionValues
 	TArray<FVectorParameterNameAndValue, TInlineAllocator<2>> VectorValues;
 	/** Array of evaluated color values */
 	TArray<FColorParameterNameAndValue, TInlineAllocator<2>> ColorValues;
+	/** Array of evaluated transform values */
+	TArray<FTransformParameterNameAndValue, TInlineAllocator<2>> TransformValues;
 };
 
 /** Template that performs evaluation of parameter sections */
@@ -54,7 +56,7 @@ protected:
 	/** Evaluate our curves, outputting evaluated values into the specified container */
 	MOVIESCENETRACKS_API void EvaluateCurves(const FMovieSceneContext& Context, FEvaluatedParameterSectionValues& OutValues) const;
 
-private:
+protected:
 
 	/** The scalar parameter names and their associated curves. */
 	UPROPERTY()
@@ -67,6 +69,9 @@ private:
 	/** The color parameter names and their associated curves. */
 	UPROPERTY()
 	TArray<FColorParameterNameAndCurves> Colors;
+
+	UPROPERTY()
+	TArray<FTransformParameterNameAndCurves> Transforms;
 };
 
 /** Default accessor type for use with TMaterialTrackExecutionToken */
@@ -120,12 +125,12 @@ struct TMaterialTrackExecutionToken : IMovieSceneExecutionToken
 				continue;
 			}
 
+			// Save the old instance
+			Player.SavePreAnimatedState(*Object, Accessor.GetAnimTypeID(), FPreAnimatedTokenProducer(Accessor));
+
 			UMaterialInstanceDynamic* DynamicMaterialInstance = Cast<UMaterialInstanceDynamic>(Material);
 			if (!DynamicMaterialInstance)
 			{
-				// Save the old instance
-				Player.SavePreAnimatedState(*Object, Accessor.GetAnimTypeID(), FPreAnimatedTokenProducer(Accessor));
-
 				FString DynamicName = Material->GetName() + "_Animated";
 				FName UniqueDynamicName = MakeUniqueObjectName( Object, UMaterialInstanceDynamic::StaticClass() , *DynamicName );
 				DynamicMaterialInstance = UMaterialInstanceDynamic::Create( Material, Object, UniqueDynamicName );

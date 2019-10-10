@@ -8,9 +8,8 @@
 #include "HAL/RunnableThread.h"
 #include "Misc/ScopeLock.h"
 #include "Serialization/BufferArchive.h"
+#include "Interfaces/IPluginManager.h"
 #include "SocketSubsystem.h"
-
-
 
 #include "IPAddress.h"
 #include "OnlineSubsystemSteamPrivate.h"
@@ -29,8 +28,11 @@
 #include "OnlineExternalUIInterfaceSteam.h"
 #include "OnlineAchievementsInterfaceSteam.h"
 #include "OnlineAuthInterfaceSteam.h"
+#include "OnlineAuthInterfaceUtilsSteam.h"
 #include "OnlineEncryptedAppTicketInterfaceSteam.h"
 #include "VoiceInterfaceSteam.h"
+
+#include "SteamSharedModule.h"
 
 /* Specify this define in your Target.cs for your project
  *
@@ -224,6 +226,20 @@ bool ConfigureSteamInitDevOptions(bool& RequireRelaunch, int32& RelaunchAppId)
 FOnlineAuthSteamPtr FOnlineSubsystemSteam::GetAuthInterface() const
 {
 	return AuthInterface;
+}
+
+FOnlineAuthSteamUtilsPtr FOnlineSubsystemSteam::GetAuthInterfaceUtils() const
+{
+	return AuthInterfaceUtils;
+}
+
+FOnlinePingSteamPtr FOnlineSubsystemSteam::GetPingInterface() const
+{
+	return PingInterface;
+}
+void FOnlineSubsystemSteam::SetPingInterface(FOnlinePingSteamPtr InPingInterface)
+{
+	PingInterface = InPingInterface;
 }
 
 FOnlineEncryptedAppTicketSteamPtr FOnlineSubsystemSteam::GetEncryptedAppTicketInterface() const
@@ -432,7 +448,13 @@ bool FOnlineSubsystemSteam::Init()
 
 	if (bClientInitSuccess && bServerInitSuccess)
 	{
-		CreateSteamSocketSubsystem();
+		TSharedPtr<IPlugin> SocketsPlugin = IPluginManager::Get().FindPlugin(TEXT("SteamSockets"));
+		if (!SocketsPlugin.IsValid() || (SocketsPlugin.IsValid() && !SocketsPlugin->IsEnabled()))
+		{
+			UE_LOG_ONLINE(Log, TEXT("Initializing SteamNetworking Layer"));
+			CreateSteamSocketSubsystem();
+			bUsingSteamNetworking = true;
+		}
 
 		// Create the online async task thread
 		OnlineAsyncTaskThreadRunnable = new FOnlineAsyncTaskManagerSteam(this);
@@ -448,7 +470,8 @@ bool FOnlineSubsystemSteam::Init()
 
 		PresenceInterface = MakeShareable(new FOnlinePresenceSteam(this));
 		
-		AuthInterface = MakeShareable(new FOnlineAuthSteam(this));
+		AuthInterfaceUtils = MakeShareable(new FOnlineAuthUtilsSteam());
+		AuthInterface = MakeShareable(new FOnlineAuthSteam(this, AuthInterfaceUtils));
 
 		if (!bIsServer)
 		{
@@ -524,6 +547,8 @@ bool FOnlineSubsystemSteam::Shutdown()
 	DESTRUCT_INTERFACE(FriendInterface);
 	DESTRUCT_INTERFACE(IdentityInterface);
 	DESTRUCT_INTERFACE(AuthInterface);
+	DESTRUCT_INTERFACE(AuthInterfaceUtils);
+	DESTRUCT_INTERFACE(PingInterface);
 	DESTRUCT_INTERFACE(SessionInterface);
 	DESTRUCT_INTERFACE(PresenceInterface);
 
@@ -531,7 +556,10 @@ bool FOnlineSubsystemSteam::Shutdown()
 
 	ClearUserCloudFiles();
 
-	DestroySteamSocketSubsystem();
+	if (bUsingSteamNetworking)
+	{
+		DestroySteamSocketSubsystem();
+	}
 
 	ShutdownSteamworks();
 
@@ -592,8 +620,9 @@ bool FOnlineSubsystemSteam::InitSteamworksClient(bool bRelaunchInSteam, int32 St
 	// Otherwise initialize as normal
 	else
 	{
+		SteamAPIClientHandle = FSteamSharedModule::Get().ObtainSteamClientInstanceHandle();
 		// Steamworks needs to initialize as close to start as possible, so it can hook its overlay into Direct3D, etc.
-		bSteamworksClientInitialized = (SteamAPI_Init() ? true : false);
+		bSteamworksClientInitialized = (SteamAPIClientHandle.IsValid() ? true : false);
 
 		// Test all the Steam interfaces
 #define GET_STEAMWORKS_INTERFACE(Interface) \
@@ -657,59 +686,16 @@ bool FOnlineSubsystemSteam::InitSteamworksClient(bool bRelaunchInSteam, int32 St
 
 bool FOnlineSubsystemSteam::InitSteamworksServer()
 {
-	bSteamworksGameServerInitialized = false;
-
-	// Initialize the Steam game server interfaces (done regardless of whether or not a server will be setup)
-	// NOTE: The port values specified here, are not changeable once the interface is setup
-	
-	uint32 LocalServerIP = 0;
-	FString MultiHome;
-	if (FParse::Value(FCommandLine::Get(), TEXT("MULTIHOME="), MultiHome) && !MultiHome.IsEmpty())
-	{
-		TSharedRef<FInternetAddr> MultiHomeIP = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
-		bool bIsValidIP = false;
-
-		MultiHomeIP->SetIp(*MultiHome, bIsValidIP);
-		if (bIsValidIP)
-		{
-			MultiHomeIP->GetIp(LocalServerIP);
-		}
-	}
-
-	if (FParse::Value(FCommandLine::Get(), TEXT("Port="), GameServerGamePort) == false)
-	{
-		GConfig->GetInt(TEXT("URL"), TEXT("Port"), GameServerGamePort, GEngineIni);
-	}
-	
-	GameServerSteamPort = GameServerGamePort + 1;
-
-	// Allow the command line to override the default query port
-	if (FParse::Value(FCommandLine::Get(), TEXT("QueryPort="), GameServerQueryPort) == false)
-	{
-		if (!GConfig->GetInt(TEXT("OnlineSubsystemSteam"), TEXT("GameServerQueryPort"), GameServerQueryPort, GEngineIni))
-		{
-			GameServerQueryPort = 27015;
-		}
-	}
-
-	bool bVACEnabled = false;
-	GConfig->GetBool(TEXT("OnlineSubsystemSteam"), TEXT("bVACEnabled"), bVACEnabled, GEngineIni);
-
-	FString GameVersion;
-	GConfig->GetString(TEXT("OnlineSubsystemSteam"), TEXT("GameVersion"), GameVersion, GEngineIni);
-	if (GameVersion.Len() == 0)
-	{
-		UE_LOG_ONLINE(Warning, TEXT("[OnlineSubsystemSteam].GameVersion is not set. Server advertising will fail"));
-	}
-
-	// NOTE: IP of 0 causes SteamGameServer_Init to automatically use the public (external) IP
-	UE_LOG_ONLINE(Verbose, TEXT("Initializing Steam Game Server IP: 0x%08X Port: %d SteamPort: %d QueryPort: %d"), LocalServerIP, GameServerGamePort, GameServerSteamPort, GameServerQueryPort);
-	bSteamworksGameServerInitialized = SteamGameServer_Init(LocalServerIP, GameServerSteamPort, GameServerGamePort, GameServerQueryPort,
-		(bVACEnabled ? eServerModeAuthenticationAndSecure : eServerModeAuthentication),
-		TCHAR_TO_UTF8(*GameVersion));
+	SteamAPIServerHandle = FSteamSharedModule::Get().ObtainSteamServerInstanceHandle();
+	bSteamworksGameServerInitialized = (SteamAPIServerHandle.IsValid());
 
 	if (bSteamworksGameServerInitialized)
 	{
+		// Grab the port values so that we save them.
+		GameServerGamePort = SteamAPIServerHandle->GetGamePort();
+		GameServerSteamPort = SteamAPIServerHandle->GetSteamPort();
+		GameServerQueryPort = SteamAPIServerHandle->GetQueryPort();
+
 		// Test all the Steam interfaces
 		#define GET_STEAMWORKS_INTERFACE(Interface) \
 		if (Interface() == nullptr) \
@@ -741,26 +727,18 @@ void FOnlineSubsystemSteam::ShutdownSteamworks()
 {
 	if (bSteamworksGameServerInitialized)
 	{
-		if (SteamGameServer() != nullptr)
+		SteamAPIServerHandle.Reset();
+		if (SessionInterface.IsValid())
 		{
-			// Since SteamSDK 1.17, LogOff is required to stop the game server advertising after exit; ensure we don't miss this at shutdown
-			if (SteamGameServer()->BLoggedOn())
-			{
-				SteamGameServer()->LogOff();
-			}
-
-			SteamGameServer_Shutdown();
-			if (SessionInterface.IsValid())
-			{
-				SessionInterface->GameServerSteamId = nullptr;
-				SessionInterface->bSteamworksGameServerConnected = false;
-			}	
+			SessionInterface->GameServerSteamId = nullptr;
+			SessionInterface->bSteamworksGameServerConnected = false;
 		}
+		bSteamworksGameServerInitialized = false;
 	}
 
 	if (bSteamworksClientInitialized)
 	{
-		SteamAPI_Shutdown();
+		SteamAPIClientHandle.Reset();
 		bSteamworksClientInitialized = false;
 	}
 }

@@ -35,7 +35,7 @@ static int32 GetFormattingInfo(const WIDECHAR* Format, FFormatInfo& OutInfo)
 
 	// Skip flags
 	while (*Format == LITERAL(WIDECHAR, '#') || *Format == LITERAL(WIDECHAR, '0') || *Format == LITERAL(WIDECHAR, '-')
-		   || *Format == LITERAL(WIDECHAR, ' ') || *Format == LITERAL(WIDECHAR, '+') || *Format == LITERAL(WIDECHAR, '\''))
+		|| *Format == LITERAL(WIDECHAR, ' ') || *Format == LITERAL(WIDECHAR, '+') || *Format == LITERAL(WIDECHAR, '\''))
 	{
 		Format++;
 	}
@@ -96,11 +96,11 @@ static int32 GetFormattingInfo(const WIDECHAR* Format, FFormatInfo& OutInfo)
 
 	// The only valid length modifier for floating point types is L, all other modifiers should be ignored. Length modifier for void pointers should also be ignored.
 	if (OutInfo.LengthModifier != LITERAL(WIDECHAR, 'L') &&
-		  (OutInfo.Type == LITERAL(WIDECHAR, 'f') || OutInfo.Type == LITERAL(WIDECHAR, 'F')
-		|| OutInfo.Type == LITERAL(WIDECHAR, 'e') || OutInfo.Type == LITERAL(WIDECHAR, 'E')
-		|| OutInfo.Type == LITERAL(WIDECHAR, 'g') || OutInfo.Type == LITERAL(WIDECHAR, 'G')
-		|| OutInfo.Type == LITERAL(WIDECHAR, 'a') || OutInfo.Type == LITERAL(WIDECHAR, 'A')
-		|| OutInfo.Type == LITERAL(WIDECHAR, 'p')))
+		(OutInfo.Type == LITERAL(WIDECHAR, 'f') || OutInfo.Type == LITERAL(WIDECHAR, 'F')
+			|| OutInfo.Type == LITERAL(WIDECHAR, 'e') || OutInfo.Type == LITERAL(WIDECHAR, 'E')
+			|| OutInfo.Type == LITERAL(WIDECHAR, 'g') || OutInfo.Type == LITERAL(WIDECHAR, 'G')
+			|| OutInfo.Type == LITERAL(WIDECHAR, 'a') || OutInfo.Type == LITERAL(WIDECHAR, 'A')
+			|| OutInfo.Type == LITERAL(WIDECHAR, 'p')))
 	{
 		OutInfo.LengthModifier = 0;
 	}
@@ -109,23 +109,37 @@ static int32 GetFormattingInfo(const WIDECHAR* Format, FFormatInfo& OutInfo)
 
 	FMemory::Memcpy(OutInfo.Format, FormatStart, FormatLength * sizeof(WIDECHAR));
 	int32 OutInfoFormatLength = FormatLength;
-	if (OutInfo.HasDynamicWidth && FChar::ToLower(OutInfo.Type) == LITERAL(WIDECHAR, 's'))
+	if (OutInfo.HasDynamicWidth)
 	{
-		OutInfo.Format[OutInfoFormatLength - 1] = 'l';
-		OutInfo.Format[OutInfoFormatLength++] = 's';
+		if (OutInfo.Type == LITERAL(WIDECHAR, 's'))
+		{
+			OutInfo.Format[OutInfoFormatLength - 1] = 'l';
+			OutInfo.Format[OutInfoFormatLength++] = 's';
+		}
+		else if (OutInfo.Type == LITERAL(WIDECHAR, 'S'))
+		{
+			OutInfo.Format[OutInfoFormatLength - 1] = 'h';
+			OutInfo.Format[OutInfoFormatLength++] = 's';
+		}
 	}
 	OutInfo.Format[OutInfoFormatLength] = 0;
-	
+
 	// HACKHACKHACK
 	// This formatting function expects to understand %s as a string no matter which char width.
 	// On mac (and possibly others) this must be fixed up to %S for widechars.
 	// So we will do the fixup ONLY if this is a widechar system and the format is given as %s.
 	// BUG: This function still doesn't handle char16_t correctly.
-	if (sizeof(WIDECHAR) == sizeof(wchar_t) &&
-		OutInfo.Type == LITERAL(WIDECHAR, 's'))
+	if (sizeof(WIDECHAR) == sizeof(wchar_t))
 	{
-		checkSlow(OutInfo.Format[OutInfoFormatLength-1] == LITERAL(WIDECHAR, 's'));
-		OutInfo.Format[OutInfoFormatLength-1] = LITERAL(WIDECHAR, 'S');
+		if (OutInfo.Type == LITERAL(WIDECHAR, 's'))
+		{
+			checkSlow(OutInfo.Format[OutInfoFormatLength - 1] == LITERAL(WIDECHAR, 's'));
+			OutInfo.Format[OutInfoFormatLength - 1] = LITERAL(WIDECHAR, 'S');
+		}
+		else if (OutInfo.Type == LITERAL(WIDECHAR, 'S'))
+		{
+			OutInfo.Format[OutInfoFormatLength - 1] = LITERAL(WIDECHAR, 's');
+		}
 	}
 
 	return FormatLength;
@@ -163,8 +177,11 @@ static int32 FormatString(const FFormatInfo& Info, VA_LIST_REF ArgPtr, WIDECHAR*
 	}
 }
 
-static const WIDECHAR* GetFormattedArgument(const FFormatInfo& Info, VA_LIST_REF ArgPtr, WIDECHAR* Formatted, int32 &InOutLength)
+template <typename CallableType>
+static void FormatArgument(const FFormatInfo& Info, VA_LIST_REF ArgPtr, CallableType Callable)
 {
+	WIDECHAR Formatted[1024];
+
 	if (FChar::ToLower(Info.Type) == LITERAL(WIDECHAR, 's'))
 	{
 		if (Info.HasDynamicWidth)
@@ -173,20 +190,28 @@ static const WIDECHAR* GetFormattedArgument(const FFormatInfo& Info, VA_LIST_REF
 			const WIDECHAR* String = va_arg(ArgPtr, WIDECHAR*);
 			if (String)
 			{
-				InOutLength = swprintf(Formatted, InOutLength, Info.Format, Width, String);
-				return Formatted;
+				int32 Length = swprintf(Formatted, UE_ARRAY_COUNT(Formatted), Info.Format, Width, String);
+				Callable(Formatted, Length);
 			}
 			else
 			{
-				return TEXT("(null)");
+				Callable(TEXT("(null)"), UE_ARRAY_COUNT(Formatted));
 			}
+			return;
 		}
 		// Is it a plain string?
-		else if (FChar::ToLower(Info.Format[1]) == LITERAL(WIDECHAR, 's'))
+		else if (Info.Type == LITERAL(WIDECHAR, 's') && Info.Format[1] == LITERAL(WIDECHAR, 'S'))
 		{
 			const WIDECHAR* String = va_arg(ArgPtr, WIDECHAR*);
-			InOutLength = FCString::Strlen(String);
-			return String ? String : TEXT("(null)");
+			int32 Length = FCString::Strlen(String);
+			Callable(String ? String : TEXT("(null)"), Length);
+		}
+		// Is it a wide string?
+		else if (Info.Type == LITERAL(WIDECHAR, 'S') && Info.Format[1] == LITERAL(WIDECHAR, 's'))
+		{
+			const ANSICHAR* String = va_arg(ArgPtr, ANSICHAR*);
+			int32 FormattedLength = FCStringAnsi::Strlen(String);
+			Callable(String ? String : "(null)", FormattedLength);
 		}
 		// Some form of string requiring formatting, such as a left- or right-justified string
 		else
@@ -194,9 +219,10 @@ static const WIDECHAR* GetFormattedArgument(const FFormatInfo& Info, VA_LIST_REF
 			// We call swprintf directly which may expect %S for a widechar string. This will be fixed up
 			// by the time we get here (See above in GetFormattingInfo).
 			const WIDECHAR* String = va_arg(ArgPtr, WIDECHAR*);
-			InOutLength = swprintf(Formatted, InOutLength, Info.Format, String);
-			return Formatted;
+			int32 Length = swprintf(Formatted, UE_ARRAY_COUNT(Formatted), Info.Format, String);
+			Callable(Formatted, Length);
 		}
+		return;
 	}
 
 	if (FChar::ToLower(Info.Type) == LITERAL(WIDECHAR, 'c'))
@@ -204,32 +230,33 @@ static const WIDECHAR* GetFormattedArgument(const FFormatInfo& Info, VA_LIST_REF
 		const WIDECHAR Char = (WIDECHAR)va_arg(ArgPtr, int32);
 		Formatted[0] = Char;
 		Formatted[1] = 0;
-		InOutLength = 1;
-		return Formatted;
+		Callable(Formatted, 1);
+		return;
 	}
 
+	int32 Length = 0;
 	if (FChar::ToLower(Info.Type) == LITERAL(WIDECHAR, 'a') || FChar::ToLower(Info.Type) == LITERAL(WIDECHAR, 'e')
 		|| FChar::ToLower(Info.Type) == LITERAL(WIDECHAR, 'f') || FChar::ToLower(Info.Type) == LITERAL(WIDECHAR, 'g'))
 	{
-		InOutLength = FormatString<long double, double>(Info, ArgPtr, Formatted, InOutLength);
+		Length = FormatString<long double, double>(Info, ArgPtr, Formatted, UE_ARRAY_COUNT(Formatted));
 	}
 	else if (Info.Type == LITERAL(WIDECHAR, 'p'))
 	{
 		void* Value = va_arg(ArgPtr, void*);
-		InOutLength = swprintf(Formatted, InOutLength, Info.Format, Value);
+		Length = swprintf(Formatted, UE_ARRAY_COUNT(Formatted), Info.Format, Value);
 	}
 	else if (FChar::ToLower(Info.Type) == LITERAL(WIDECHAR, 'd') || FChar::ToLower(Info.Type) == LITERAL(WIDECHAR, 'i'))
 	{
-		InOutLength = FormatString<int64, int32>(Info, ArgPtr, Formatted, InOutLength);
+		Length = FormatString<int64, int32>(Info, ArgPtr, Formatted, UE_ARRAY_COUNT(Formatted));
 	}
 	else if (FChar::ToLower(Info.Type) == LITERAL(WIDECHAR, 'o') || FChar::ToLower(Info.Type) == LITERAL(WIDECHAR, 'u') || FChar::ToLower(Info.Type) == LITERAL(WIDECHAR, 'x'))
 	{
-		InOutLength = FormatString<uint64, uint32>(Info, ArgPtr, Formatted, InOutLength);
+		Length = FormatString<uint64, uint32>(Info, ArgPtr, Formatted, UE_ARRAY_COUNT(Formatted));
 	}
 
-	check(InOutLength != -1);
+	check(Length != -1);
 
-	return Formatted;
+	Callable(Formatted, Length);
 }
 
 int32 FStandardPlatformString::GetVarArgs( WIDECHAR* Dest, SIZE_T DestSize, const WIDECHAR*& Fmt, va_list ArgPtr )
@@ -263,24 +290,37 @@ int32 FStandardPlatformString::GetVarArgs( WIDECHAR* Dest, SIZE_T DestSize, cons
 			FFormatInfo Info;
 			Format += GetFormattingInfo(Format, Info);
 
-			WIDECHAR Formatted[1024];
-			int32 Length = UE_ARRAY_COUNT(Formatted);
-			const WIDECHAR* FormattedArg = GetFormattedArgument(Info, ArgPtr, Formatted, Length);
-			if (FormattedArg && Length > 0)
+			bool bLengthExceeded = false;
+			FormatArgument(Info, ArgPtr, [&Dest, &DestSize, &bLengthExceeded](const auto* FormattedArg, int32 Length)
 			{
-				if (Length < DestSize)
+				if (FormattedArg && Length > 0)
 				{
-					FMemory::Memcpy(Dest, FormattedArg, Length * sizeof(WIDECHAR));
+					if (Length > DestSize)
+					{
+						Length = DestSize;
+						bLengthExceeded = true;
+					}
+
+					if (sizeof(*FormattedArg) == sizeof(WIDECHAR))
+					{
+						FMemory::Memcpy(Dest, FormattedArg, Length * sizeof(WIDECHAR));
+					}
+					else
+					{
+						for (int32 Index = 0; Index != Length; ++Index)
+						{
+							Dest[Index] = FormattedArg[Index];
+						}
+					}
+
 					Dest += Length;
 					DestSize -= Length;
 				}
-				else
-				{
-					FMemory::Memcpy(Dest, FormattedArg, DestSize * sizeof(WIDECHAR));
-					Dest += DestSize;
-					*Dest = 0;
-					return -1;
-				}
+			});
+			if (bLengthExceeded)
+			{
+				*Dest = 0;
+				return -1;
 			}
 		}
 		else

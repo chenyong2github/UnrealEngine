@@ -431,7 +431,7 @@ TSharedPtr<IPropertyTypeCustomization> FDetailPropertyRow::GetPropertyCustomizat
 	return CustomInterface;
 }
 
-void FDetailPropertyRow::MakeExternalPropertyRowCustomization(TSharedPtr<FStructOnScope> StructData, FName PropertyName, TSharedRef<FDetailCategoryImpl> ParentCategory, FDetailLayoutCustomization& OutCustomization)
+void FDetailPropertyRow::MakeExternalPropertyRowCustomization(TSharedPtr<FStructOnScope> StructData, FName PropertyName, TSharedRef<FDetailCategoryImpl> ParentCategory, FDetailLayoutCustomization& OutCustomization, const FAddPropertyParams& Parameters)
 {
 	TSharedRef<FStructurePropertyNode> RootPropertyNode = MakeShared<FStructurePropertyNode>();
 
@@ -443,9 +443,12 @@ void FDetailPropertyRow::MakeExternalPropertyRowCustomization(TSharedPtr<FStruct
 	InitParams.Property = nullptr;
 	InitParams.ArrayOffset = 0;
 	InitParams.ArrayIndex = INDEX_NONE;
-	InitParams.bForceHiddenPropertyVisibility = FPropertySettings::Get().ShowHiddenProperties();
+	InitParams.bForceHiddenPropertyVisibility = Parameters.ShouldForcePropertyVisible() || FPropertySettings::Get().ShowHiddenProperties();
 	InitParams.bCreateCategoryNodes = false;
 	InitParams.bAllowChildren = false;
+
+	Parameters.OverrideAllowChildren(InitParams.bAllowChildren);
+	Parameters.OverrideCreateCategoryNodes(InitParams.bCreateCategoryNodes);
 
 	RootPropertyNode->InitNode(InitParams);
 
@@ -460,7 +463,7 @@ void FDetailPropertyRow::MakeExternalPropertyRowCustomization(TSharedPtr<FStruct
 			TSharedPtr< FPropertyNode > PropertyNode = RootPropertyNode->GetChildNode(ChildIdx);
 			if (UProperty* Property = PropertyNode->GetProperty())
 			{
-				if (PropertyName == NAME_None || Property->GetFName() == PropertyName)
+				if (Property->GetFName() == PropertyName)
 				{
 					OutCustomization.PropertyRow = MakeShareable(new FDetailPropertyRow(PropertyNode, ParentCategory, RootPropertyNode));
 					break;
@@ -485,7 +488,7 @@ void FDetailPropertyRow::MakeExternalPropertyRowCustomization(TSharedPtr<FStruct
 		ItemNodeInitParams.ArrayOffset = 0;
 		ItemNodeInitParams.ArrayIndex = INDEX_NONE;
 		ItemNodeInitParams.bAllowChildren = true;
-		ItemNodeInitParams.bForceHiddenPropertyVisibility = FPropertySettings::Get().ShowHiddenProperties();
+		ItemNodeInitParams.bForceHiddenPropertyVisibility = Parameters.ShouldForcePropertyVisible() || FPropertySettings::Get().ShowHiddenProperties();
 		ItemNodeInitParams.bCreateCategoryNodes = false;
 
 		ItemNode->InitNode(ItemNodeInitParams);
@@ -496,7 +499,7 @@ void FDetailPropertyRow::MakeExternalPropertyRowCustomization(TSharedPtr<FStruct
 	}
 }
 
-void FDetailPropertyRow::MakeExternalPropertyRowCustomization(const TArray<UObject*>& InObjects, FName PropertyName, TSharedRef<FDetailCategoryImpl> ParentCategory, struct FDetailLayoutCustomization& OutCustomization, TOptional<bool> bAllowChildrenOverride, TOptional<bool> bCreateCategoryNodesOverride)
+void FDetailPropertyRow::MakeExternalPropertyRowCustomization(const TArray<UObject*>& InObjects, FName PropertyName, TSharedRef<FDetailCategoryImpl> ParentCategory, struct FDetailLayoutCustomization& OutCustomization, const FAddPropertyParams& Parameters)
 {
 	TSharedRef<FObjectPropertyNode> RootPropertyNode = MakeShared<FObjectPropertyNode>();
 
@@ -511,17 +514,11 @@ void FDetailPropertyRow::MakeExternalPropertyRowCustomization(const TArray<UObje
 	InitParams.ArrayOffset = 0;
 	InitParams.ArrayIndex = INDEX_NONE;
 	InitParams.bAllowChildren = false;
-	InitParams.bForceHiddenPropertyVisibility = FPropertySettings::Get().ShowHiddenProperties();
+	InitParams.bForceHiddenPropertyVisibility = Parameters.ShouldForcePropertyVisible() || FPropertySettings::Get().ShowHiddenProperties();
 	InitParams.bCreateCategoryNodes = PropertyName == NAME_None;
 
-	if (bAllowChildrenOverride.IsSet())
-	{
-		InitParams.bAllowChildren = bAllowChildrenOverride.GetValue();
-	}
-	if (bCreateCategoryNodesOverride.IsSet())
-	{
-		InitParams.bCreateCategoryNodes = bCreateCategoryNodesOverride.GetValue();
-	}
+	Parameters.OverrideAllowChildren(InitParams.bAllowChildren);
+	Parameters.OverrideCreateCategoryNodes(InitParams.bCreateCategoryNodes);
 
 	RootPropertyNode->InitNode(InitParams);
 

@@ -9,14 +9,50 @@
 #include "EditorStyleSet.h"
 #include "Widgets/Input/SSearchBox.h"
 
+/** Case sensitive hashing function for TMap */
+template <typename ValueType>
+struct FAssetSearchCategoryKeyMapFuncs : BaseKeyFuncs<ValueType, FText, /*bInAllowDuplicateKeys*/false>
+{
+	static FORCEINLINE const FString& GetSourceString(const FText& InText)
+	{
+		const FString* SourceString = FTextInspector::GetSourceString(InText);
+		check(SourceString);
+		return *SourceString;
+	}
+	static FORCEINLINE const FText& GetSetKey(const TPair<FText, ValueType>& Element)
+	{
+		return Element.Key;
+	}
+	static FORCEINLINE bool Matches(const FText& A, const FText& B)
+	{
+		return GetSourceString(A).Equals(GetSourceString(B), ESearchCase::CaseSensitive);
+	}
+	static FORCEINLINE uint32 GetKeyHash(const FText& Key)
+	{
+		return FLocKey::ProduceHash(GetSourceString(Key));
+	}
+};
+
 void SAssetSearchBox::Construct( const FArguments& InArgs )
 {
 	OnTextChanged = InArgs._OnTextChanged;
 	OnTextCommitted = InArgs._OnTextCommitted;
 	OnKeyDownHandler = InArgs._OnKeyDownHandler;
 	PossibleSuggestions = InArgs._PossibleSuggestions;
+	OnAssetSearchBoxSuggestionFilter = InArgs._OnAssetSearchBoxSuggestionFilter;
+	OnAssetSearchBoxSuggestionChosen = InArgs._OnAssetSearchBoxSuggestionChosen;
 	PreCommittedText = InArgs._InitialText.Get();
 	bMustMatchPossibleSuggestions = InArgs._MustMatchPossibleSuggestions.Get();
+
+	if (!OnAssetSearchBoxSuggestionFilter.IsBound())
+	{
+		OnAssetSearchBoxSuggestionFilter.BindStatic(&SAssetSearchBox::DefaultSuggestionFilterImpl);
+	}
+
+	if (!OnAssetSearchBoxSuggestionChosen.IsBound())
+	{
+		OnAssetSearchBoxSuggestionChosen.BindStatic(&SAssetSearchBox::DefaultSuggestionChosenImpl);
+	}
 
 	ChildSlot
 		[
@@ -39,10 +75,10 @@ void SAssetSearchBox::Construct( const FArguments& InArgs )
 				.Padding( FMargin(2) )
 				[
 					SNew(SBox)
-					.WidthOverride(175)	// to enforce some minimum width, ideally we define the minimum, not a fixed width
-					.HeightOverride(175) // avoids flickering, ideally this would be adaptive to the content without flickering
+					.MinDesiredWidth(175)	// to enforce some minimum width, ideally we define the minimum, not a fixed width
+					.HeightOverride(250)	// avoids flickering, ideally this would be adaptive to the content without flickering
 					[
-						SAssignNew(SuggestionListView, SListView< TSharedPtr<FString> >)
+						SAssignNew(SuggestionListView, SListView< TSharedPtr<FSuggestionListEntry> >)
 						.ListItemsSource(&Suggestions)
 						.SelectionMode( ESelectionMode::Single )							// Ideally the mouse over would not highlight while keyboard controls the UI
 						.OnGenerateRow(this, &SAssetSearchBox::MakeSuggestionListItemWidget)
@@ -89,38 +125,38 @@ FReply SAssetSearchBox::HandleKeyDown( const FGeometry& MyGeometry, const FKeyEv
 	if ( SuggestionBox->IsOpen() && (InKeyEvent.GetKey() == EKeys::Up || InKeyEvent.GetKey() == EKeys::Down) )
 	{
 		const bool bSelectingUp = InKeyEvent.GetKey() == EKeys::Up;
-		TSharedPtr<FString> SelectedSuggestion = GetSelectedSuggestion();
+		TSharedPtr<FSuggestionListEntry> SelectedSuggestion = GetSelectedSuggestion();
 
+		int32 TargetIdx = INDEX_NONE;
 		if ( SelectedSuggestion.IsValid() )
 		{
-			// Find the selection index and select the previous or next one
-			int32 TargetIdx = INDEX_NONE;
-			for ( int32 SuggestionIdx = 0; SuggestionIdx < Suggestions.Num(); ++SuggestionIdx )
-			{
-				if ( Suggestions[SuggestionIdx] == SelectedSuggestion )
-				{
-					if ( bSelectingUp )
-					{
-						TargetIdx = SuggestionIdx - 1;
-					}
-					else
-					{
-						TargetIdx = SuggestionIdx + 1;
-					}
-					break;
-				}
-			}
+			const int32 SelectionDirection = bSelectingUp ? -1 : 1;
 
-			if ( Suggestions.IsValidIndex(TargetIdx) )
+			// Select the next non-header suggestion, based on the direction of travel
+			TargetIdx = Suggestions.IndexOfByKey(SelectedSuggestion);
+			if (Suggestions.IsValidIndex(TargetIdx))
 			{
-				SuggestionListView->SetSelection( Suggestions[TargetIdx] );
-				SuggestionListView->RequestScrollIntoView( Suggestions[TargetIdx] );
+				do
+				{
+					TargetIdx += SelectionDirection;
+				}
+				while (Suggestions.IsValidIndex(TargetIdx) && Suggestions[TargetIdx]->bIsHeader);
 			}
 		}
 		else if ( !bSelectingUp && Suggestions.Num() > 0 )
 		{
-			// Nothing selected and pressed down, select the first item
-			SuggestionListView->SetSelection( Suggestions[0] );
+			// Nothing selected and pressed down, select the first non-header suggestion
+			TargetIdx = 0;
+			while (Suggestions.IsValidIndex(TargetIdx) && Suggestions[TargetIdx]->bIsHeader)
+			{
+				TargetIdx += 1;
+			}
+		}
+
+		if (Suggestions.IsValidIndex(TargetIdx))
+		{
+			SuggestionListView->SetSelection(Suggestions[TargetIdx]);
+			SuggestionListView->RequestScrollIntoView(Suggestions[TargetIdx]);
 		}
 
 		return FReply::Handled();
@@ -159,14 +195,14 @@ void SAssetSearchBox::HandleTextChanged(const FText& NewText)
 
 void SAssetSearchBox::HandleTextCommitted(const FText& NewText, ETextCommit::Type CommitType)
 {
-	TSharedPtr<FString> SelectedSuggestion = GetSelectedSuggestion();
+	TSharedPtr<FSuggestionListEntry> SelectedSuggestion = GetSelectedSuggestion();
 
 	bool bCommitText = true;
 	FText CommittedText;
-	if ( SelectedSuggestion.IsValid() && CommitType != ETextCommit::OnCleared )
+	if ( SelectedSuggestion.IsValid() && !SelectedSuggestion->bIsHeader && CommitType != ETextCommit::OnCleared )
 	{
 		// Pressed selected a suggestion, set the text
-		CommittedText = FText::FromString( *SelectedSuggestion.Get() );
+		CommittedText = OnAssetSearchBoxSuggestionChosen.Execute(NewText, SelectedSuggestion->Suggestion);
 	}
 	else
 	{
@@ -175,7 +211,7 @@ void SAssetSearchBox::HandleTextCommitted(const FText& NewText, ETextCommit::Typ
 			// Clear text when escape is pressed then commit an empty string
 			CommittedText = FText::GetEmpty();
 		}
-		else if( PossibleSuggestions.Get().Contains(NewText.ToString()) )
+		else if (bMustMatchPossibleSuggestions && PossibleSuggestions.Get().ContainsByPredicate([this, NewTextStr = NewText.ToString()](const FAssetSearchBoxSuggestion& InSuggestion) { return InSuggestion.SuggestionString == NewTextStr; }))
 		{
 			// If the text is a suggestion, set the text.
 			CommittedText = NewText;
@@ -203,69 +239,123 @@ void SAssetSearchBox::HandleTextCommitted(const FText& NewText, ETextCommit::Typ
 	}
 }
 
-void SAssetSearchBox::OnSelectionChanged( TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo )
+void SAssetSearchBox::OnSelectionChanged( TSharedPtr<FSuggestionListEntry> NewValue, ESelectInfo::Type SelectInfo )
 {
 	// If the user clicked directly on an item to select it, then accept the choice and close the window
-	if( SelectInfo == ESelectInfo::OnMouseClick )
+	if(SelectInfo == ESelectInfo::OnMouseClick && !NewValue->bIsHeader)
 	{
-		SetText( FText::FromString( *NewValue.Get() ));
+		const FText SearchText = InputText->GetText();
+		const FText NewText = OnAssetSearchBoxSuggestionChosen.Execute(SearchText, NewValue->Suggestion);
+		SetText(NewText);
 		SuggestionBox->SetIsOpen(false, false);
 		FocusEditBox();		
 	}
 }
 
-
-TSharedRef<ITableRow> SAssetSearchBox::MakeSuggestionListItemWidget(TSharedPtr<FString> Text, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SAssetSearchBox::MakeSuggestionListItemWidget(TSharedPtr<FSuggestionListEntry> Suggestion, const TSharedRef<STableViewBase>& OwnerTable)
 {
-	check(Text.IsValid());
+	check(Suggestion.IsValid());
+	check(Suggestions.Num() > 0);
+
+	const bool bIsFirstItem = Suggestions[0] == Suggestion;
+	const bool bIdentItems = Suggestions[0]->bIsHeader;
+
+	TSharedPtr<SWidget> RowWidget;
+	if (Suggestion->bIsHeader)
+	{
+		TSharedRef<SVerticalBox> HeaderVBox = SNew(SVerticalBox);
+
+		if (!bIsFirstItem)
+		{
+			HeaderVBox->AddSlot()
+			.AutoHeight()
+			.Padding(0.0f, 4.0f, 0.0f, 2.0f) // Add some empty space before the line, and a tiny bit after it
+			[
+				SNew(SBorder)
+				.Padding(FEditorStyle::GetMargin("Menu.Separator.Padding")) // We'll use the border's padding to actually create the horizontal line
+				.BorderImage(FEditorStyle::GetBrush("Menu.Separator"))
+			];
+		}
+
+		HeaderVBox->AddSlot()
+		.AutoHeight()
+		[
+			SNew(STextBlock)
+			.Text(Suggestion->DisplayName)
+			.TextStyle(FEditorStyle::Get(), "Menu.Heading")
+		];
+
+		RowWidget = HeaderVBox;
+	}
+	else
+	{
+		RowWidget =
+			SNew(SBox)
+			.Padding(FEditorStyle::GetMargin(bIdentItems ? "Menu.Block.IndentedPadding" : "Menu.Block.Padding"))
+			[
+				SNew(STextBlock)
+				.Text(Suggestion->DisplayName)
+				.HighlightText(this, &SAssetSearchBox::GetHighlightText)
+			];
+	}
 
 	return
 		SNew(STableRow< TSharedPtr<FString> >, OwnerTable)
 		[
-			SNew(STextBlock)
-			.Text(FText::FromString(*Text.Get()))
-			.HighlightText(this, &SAssetSearchBox::GetHighlightText)
+			RowWidget.ToSharedRef()
 		];
 }
 
 FText SAssetSearchBox::GetHighlightText() const
 {
-	return InputText->GetText();
+	return SuggestionHighlightText;
 }
 
 void SAssetSearchBox::UpdateSuggestionList()
 {
-	const FString TypedText = InputText->GetText().ToString();
+	const FText SearchText = InputText->GetText();
 
-	Suggestions.Empty();
+	Suggestions.Reset();
+	SuggestionHighlightText = FText::GetEmpty();
 
-	if ( TypedText.Len() > 0 )
+	if (!SearchText.IsEmpty())
 	{
-		TArray<FString> AllSuggestions = PossibleSuggestions.Get();
+		typedef TMap<FText, TArray<TSharedPtr<FSuggestionListEntry>>, FDefaultSetAllocator, FAssetSearchCategoryKeyMapFuncs<TArray<TSharedPtr<FSuggestionListEntry>>>> FCategorizedSuggestionsMap;
 
-		for ( auto SuggestionIt = AllSuggestions.CreateConstIterator(); SuggestionIt; ++SuggestionIt )
+		// Get the potential suggestions and run them through the filter
+		TArray<FAssetSearchBoxSuggestion> FilteredSuggestions = PossibleSuggestions.Get();
+		OnAssetSearchBoxSuggestionFilter.Execute(SearchText, FilteredSuggestions, SuggestionHighlightText);
+
+		// Split the suggestions list into categories
+		FCategorizedSuggestionsMap CategorizedSuggestions;
+		for (const FAssetSearchBoxSuggestion& Suggestion : FilteredSuggestions)
 		{
-			const FString& Suggestion = *SuggestionIt;
-			if ( Suggestion.Contains(TypedText))
+			TArray<TSharedPtr<FSuggestionListEntry>>& CategorySuggestions = CategorizedSuggestions.FindOrAdd(Suggestion.CategoryName);
+			CategorySuggestions.Add(MakeShared<FSuggestionListEntry>(FSuggestionListEntry{ Suggestion.SuggestionString, Suggestion.DisplayName, false }));
+		}
+
+		// Rebuild the flat list in categorized groups
+		// If there is only one category, and that category is empty (undefined), then skip adding the category headers
+		const bool bSkipCategoryHeaders = CategorizedSuggestions.Num() == 1 && CategorizedSuggestions.Contains(FText::GetEmpty());
+		for (const auto& CategorySuggestionsPair : CategorizedSuggestions)
+		{
+			if (!bSkipCategoryHeaders)
 			{
-				Suggestions.Add( MakeShareable(new FString(Suggestion)) );
+				const FText CategoryDisplayName = CategorySuggestionsPair.Key.IsEmpty() ? NSLOCTEXT("AssetSearchBox", "UndefinedCategory", "Undefined") : CategorySuggestionsPair.Key;
+				Suggestions.Add(MakeShared<FSuggestionListEntry>(FSuggestionListEntry{ TEXT(""), CategoryDisplayName, true }));
 			}
+			Suggestions.Append(CategorySuggestionsPair.Value);
 		}
+	}
 
-		if ( Suggestions.Num() > 0 )
-		{
-			// At least one suggestion was found, open the menu
-			SuggestionBox->SetIsOpen(true, false);
-		}
-		else
-		{
-			// No suggestions were found, close the menu
-			SuggestionBox->SetIsOpen(false, false);
-		}
+	if (Suggestions.Num() > 0)
+	{
+		// At least one suggestion was found, open the menu
+		SuggestionBox->SetIsOpen(true, false);
 	}
 	else
 	{
-		// No text was typed, close the menu
+		// No suggestions were found, close the menu
 		SuggestionBox->SetIsOpen(false, false);
 	}
 
@@ -279,12 +369,12 @@ void SAssetSearchBox::FocusEditBox()
 	FSlateApplication::Get().SetKeyboardFocus( WidgetToFocusPath, EFocusCause::SetDirectly );
 }
 
-TSharedPtr<FString> SAssetSearchBox::GetSelectedSuggestion()
+TSharedPtr<SAssetSearchBox::FSuggestionListEntry> SAssetSearchBox::GetSelectedSuggestion() const
 {
-	TSharedPtr<FString> SelectedSuggestion;
+	TSharedPtr<FSuggestionListEntry> SelectedSuggestion;
 	if ( SuggestionBox->IsOpen() )
 	{
-		const TArray< TSharedPtr<FString> >& SelectedSuggestionList = SuggestionListView->GetSelectedItems();
+		const TArray< TSharedPtr<FSuggestionListEntry> >& SelectedSuggestionList = SuggestionListView->GetSelectedItems();
 		if ( SelectedSuggestionList.Num() > 0 )
 		{
 			// Selection mode is Single, so there should only be one suggestion at the most
@@ -293,4 +383,21 @@ TSharedPtr<FString> SAssetSearchBox::GetSelectedSuggestion()
 	}
 
 	return SelectedSuggestion;
+}
+
+void SAssetSearchBox::DefaultSuggestionFilterImpl(const FText& SearchText, TArray<FAssetSearchBoxSuggestion>& PossibleSuggestions, FText& SuggestionHighlightText)
+{
+	// Default implementation just filters against the current search text
+	PossibleSuggestions.RemoveAll([SearchStr = SearchText.ToString()](const FAssetSearchBoxSuggestion& InSuggestion)
+	{
+		return !InSuggestion.SuggestionString.Contains(SearchStr);
+	});
+
+	SuggestionHighlightText = SearchText;
+}
+
+FText SAssetSearchBox::DefaultSuggestionChosenImpl(const FText& SearchText, const FString& Suggestion)
+{
+	// Default implementation just uses the suggestion as the search text
+	return FText::FromString(Suggestion);
 }

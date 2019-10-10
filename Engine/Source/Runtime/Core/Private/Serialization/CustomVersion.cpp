@@ -5,7 +5,7 @@
 =============================================================================*/
 
 #include "Serialization/CustomVersion.h"
-#include "Serialization/StructuredArchiveFromArchive.h"
+#include "Serialization/StructuredArchive.h"
 #include "Algo/Sort.h"
 #include "Containers/Map.h"
 
@@ -35,8 +35,8 @@ namespace
 	{
 		// Serialize keys
 		FStructuredArchive::FRecord Record = Slot.EnterRecord();
-		Record << NAMED_ITEM("Tag", Version.Tag);
-		Record << NAMED_ITEM("Version", Version.Version);
+		Record << SA_VALUE(TEXT("Tag"), Version.Tag);
+		Record << SA_VALUE(TEXT("Version"), Version.Version);
 	}
 
 	FArchive& operator<<(FArchive& Ar, FEnumCustomVersion_DEPRECATED& Version)
@@ -61,9 +61,9 @@ namespace
 	void operator<<(FStructuredArchive::FSlot Slot, FGuidCustomVersion_DEPRECATED& Version)
 	{
 		FStructuredArchive::FRecord Record = Slot.EnterRecord();
-		Record << NAMED_ITEM("Key", Version.Key);
-		Record << NAMED_ITEM("Version", Version.Version);
-		Record << NAMED_ITEM("FriendlyName", Version.FriendlyName);
+		Record << SA_VALUE(TEXT("Key"), Version.Key);
+		Record << SA_VALUE(TEXT("Version"), Version.Version);
+		Record << SA_VALUE(TEXT("FriendlyName"), Version.FriendlyName);
 	}
 
 	FArchive& operator<<(FArchive& Ar, FGuidCustomVersion_DEPRECATED& Version)
@@ -213,8 +213,8 @@ FArchive& operator<<(FArchive& Ar, FCustomVersion& Version)
 void operator<<(FStructuredArchive::FSlot Slot, FCustomVersion& Version)
 {
 	FStructuredArchive::FRecord Record = Slot.EnterRecord();
-	Record << NAMED_ITEM("Key", Version.Key);
-	Record << NAMED_ITEM("Version", Version.Version);
+	Record << SA_VALUE(TEXT("Key"), Version.Key);
+	Record << SA_VALUE(TEXT("Version"), Version.Version);
 }
 
 void FCustomVersionContainer::Serialize(FArchive& Ar, ECustomVersionSerializationFormat::Type Format)

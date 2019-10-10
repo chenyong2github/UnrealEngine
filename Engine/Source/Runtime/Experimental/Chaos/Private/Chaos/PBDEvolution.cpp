@@ -40,6 +40,11 @@ TPBDEvolution<T, d>::TPBDEvolution(TPBDParticles<T, d>&& InParticles, TKinematic
 					PBDUpdateRule.Apply(MParticlesInput, Dt, Index);
 				}, NonParallelUpdate);
 			});
+			
+	AddForceFunction([this](TPBDParticles<T, d>& ParticlesInput, const T Dt, const int Index)
+	{
+		GravityForces.Apply(ParticlesInput, Dt, Index);
+	});
 }
 
 template<class T, int d>

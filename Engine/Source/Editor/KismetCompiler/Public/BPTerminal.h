@@ -79,6 +79,16 @@ struct FBPTerminal
 		VarType = bIsLocal ? EVarType_Local : EVarType_Instanced;
 	}
 
+	bool IsSparseClassDataVarTerm() const
+	{
+		return !bIsLiteral && VarType == EVarType_SparseClassData;
+	}
+
+	void SetVarTypeSparseClassData()
+	{
+		VarType = EVarType_SparseClassData;
+	}
+
 	bool IsDefaultVarTerm() const
 	{
 		return !bIsLiteral && VarType == EVarType_Default;
@@ -125,7 +135,8 @@ private:
 	{
 		EVarType_Local,
 		EVarType_Default,
-		EVarType_Instanced
+		EVarType_Instanced,
+		EVarType_SparseClassData,
 	};
 
 	// For non-literal terms, this is set to the type of variable reference

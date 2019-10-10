@@ -706,6 +706,79 @@ void FAssetRegistryGenerator::UpdateKeptPackagesAssetData()
 	}
 }
 
+void FAssetRegistryGenerator::UpdateCollectionAssetData()
+{
+	// Read out the per-platform settings use to build the list of collections to tag
+	bool bTagAllCollections = false;
+	TArray<FString> CollectionsToIncludeOrExclude;
+	{
+		const FString PlatformIniName = TargetPlatform->IniPlatformName();
+
+		FConfigFile PlatformEngineIni;
+		FConfigCacheIni::LoadLocalIniFile(PlatformEngineIni, TEXT("Engine"), true, (!PlatformIniName.IsEmpty() ? *PlatformIniName : ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName())));
+
+		// The list of collections will either be a inclusive or a exclusive depending on the value of bTagAllCollections
+		PlatformEngineIni.GetBool(TEXT("AssetRegistry"), TEXT("bTagAllCollections"), bTagAllCollections);
+		PlatformEngineIni.GetArray(TEXT("AssetRegistry"), bTagAllCollections ? TEXT("CollectionsToExcludeAsTags") : TEXT("CollectionsToIncludeAsTags"), CollectionsToIncludeOrExclude);
+	}
+
+	// Build the list of collections we should tag for each asset
+	TMap<FName, TArray<FName>> AssetPathNamesToCollectionTags;
+	{
+		ICollectionManager& CollectionManager = FCollectionManagerModule::GetModule().Get();
+
+		TArray<FCollectionNameType> CollectionNamesToTag;
+		CollectionManager.GetCollections(CollectionNamesToTag);
+		if (bTagAllCollections)
+		{
+			CollectionNamesToTag.RemoveAll([&CollectionsToIncludeOrExclude](const FCollectionNameType& CollectionNameAndType)
+			{
+				return CollectionsToIncludeOrExclude.Contains(CollectionNameAndType.Name.ToString());
+			});
+		}
+		else
+		{
+			CollectionNamesToTag.RemoveAll([&CollectionsToIncludeOrExclude](const FCollectionNameType& CollectionNameAndType)
+			{
+				return !CollectionsToIncludeOrExclude.Contains(CollectionNameAndType.Name.ToString());
+			});
+		}
+		
+		TArray<FName> TmpAssetPathNames;
+		for (const FCollectionNameType& CollectionNameToTag : CollectionNamesToTag)
+		{
+			const FName CollectionTagName = *FString::Printf(TEXT("%s%s"), FAssetData::GetCollectionTagPrefix(), *CollectionNameToTag.Name.ToString());
+
+			TmpAssetPathNames.Reset();
+			CollectionManager.GetAssetsInCollection(CollectionNameToTag.Name, CollectionNameToTag.Type, TmpAssetPathNames);
+
+			for (const FName AssetPathName : TmpAssetPathNames)
+			{
+				TArray<FName>& CollectionTagsForAsset = AssetPathNamesToCollectionTags.FindOrAdd(AssetPathName);
+				CollectionTagsForAsset.AddUnique(CollectionTagName);
+			}
+		}
+	}
+
+	// Apply the collection tags to the asset registry state
+	for (const auto& AssetPathNameToCollectionTagsPair : AssetPathNamesToCollectionTags)
+	{
+		const FName AssetPathName = AssetPathNameToCollectionTagsPair.Key;
+		const TArray<FName>& CollectionTagsForAsset = AssetPathNameToCollectionTagsPair.Value;
+
+		const FAssetData* AssetData = State.GetAssetByObjectPath(AssetPathName);
+		if (AssetData)
+		{
+			FAssetDataTagMap TagsAndValues = AssetData->TagsAndValues.GetMap();
+			for (const FName CollectionTagName : CollectionTagsForAsset)
+			{
+				TagsAndValues.Add(CollectionTagName, FString()); // TODO: Does this need a value to avoid being trimmed?
+			}
+			State.UpdateAssetData(FAssetData(AssetData->PackageName, AssetData->PackagePath, AssetData->AssetName, AssetData->AssetClass, TagsAndValues, AssetData->ChunkIDs, AssetData->PackageFlags));
+		}
+	}
+}
+
 void FAssetRegistryGenerator::Initialize(const TArray<FName> &InStartupPackages)
 {
 	StartupPackages.Append(InStartupPackages);
@@ -1045,6 +1118,7 @@ bool FAssetRegistryGenerator::SaveAssetRegistry(const FString& SandboxPath, bool
 	AssetRegistry.InitializeTemporaryAssetRegistryState(State, SaveOptions, true);
 	// Then possibly apply AssetData with TagsAndValues from a previous AssetRegistry for packages kept from a previous cook
 	UpdateKeptPackagesAssetData();
+	UpdateCollectionAssetData();
 
 	if (DevelopmentSaveOptions.bSerializeAssetRegistry && bSerializeDevelopmentAssetRegistry)
 	{
@@ -1074,68 +1148,90 @@ bool FAssetRegistryGenerator::SaveAssetRegistry(const FString& SandboxPath, bool
 		const int32 GenericChunkBucket = -1;
 		ChunkBucketNames.Add(GenericChunkBucket, FString());
 
-		// Pass over all chunks and build a mapping of chunk index to asset registry name. All chunks that don't have a unique registry are assigned to the "generic bucket"
-		// which will be written to the master asset registry in chunk 0
-		for (int32 PakchunkIndex = 0; PakchunkIndex < FinalChunkManifests.Num(); ++PakchunkIndex)
+		// When chunk manifests have been generated (e.g. cook by the book) serialize 
+		// an asset registry for each chunk.
+		if (FinalChunkManifests.Num() > 0)
 		{
-			FChunkPackageSet* Manifest = FinalChunkManifests[PakchunkIndex];
-			if (Manifest == nullptr)
+			// Pass over all chunks and build a mapping of chunk index to asset registry name. All chunks that don't have a unique registry are assigned to the "generic bucket"
+			// which will be written to the master asset registry in chunk 0
+			for (int32 PakchunkIndex = 0; PakchunkIndex < FinalChunkManifests.Num(); ++PakchunkIndex)
 			{
-				continue;
-			}
-
-			bool bAddToGenericBucket = true;
-
-			if (bUseAssetManager)
-			{
-				// For chunks with unique asset registry name, pakchunkIndex should equal chunkid
-				FName RegistryName = UAssetManager::Get().GetUniqueAssetRegistryName(PakchunkIndex);
-				if (RegistryName != NAME_None)
+				FChunkPackageSet* Manifest = FinalChunkManifests[PakchunkIndex];
+				if (Manifest == nullptr)
 				{
-					ChunkBuckets.FindOrAdd(PakchunkIndex).Add(PakchunkIndex);
-					ChunkBucketNames.FindOrAdd(PakchunkIndex) = RegistryName.ToString();
-					bAddToGenericBucket = false;
+					continue;
+				}
+
+				bool bAddToGenericBucket = true;
+
+				if (bUseAssetManager)
+				{
+					// For chunks with unique asset registry name, pakchunkIndex should equal chunkid
+					FName RegistryName = UAssetManager::Get().GetUniqueAssetRegistryName(PakchunkIndex);
+					if (RegistryName != NAME_None)
+					{
+						ChunkBuckets.FindOrAdd(PakchunkIndex).Add(PakchunkIndex);
+						ChunkBucketNames.FindOrAdd(PakchunkIndex) = RegistryName.ToString();
+						bAddToGenericBucket = false;
+					}
+				}
+
+				if (bAddToGenericBucket)
+				{
+					ChunkBuckets.FindOrAdd(GenericChunkBucket).Add(PakchunkIndex);
 				}
 			}
 
-			if (bAddToGenericBucket)
+			FString SandboxPathWithoutExtension = FPaths::ChangeExtension(SandboxPath, TEXT(""));
+			FString SandboxPathExtension = FPaths::GetExtension(SandboxPath);
+
+			for (TMap<int32, TSet<int32>>::ElementType& ChunkBucketElement : ChunkBuckets)
 			{
-				ChunkBuckets.FindOrAdd(GenericChunkBucket).Add(PakchunkIndex);
+				// Prune out the development only packages, and any assets that belong in a different chunk asset registry
+				FAssetRegistryState NewState;
+				NewState.InitializeFromExistingAndPrune(State, CookedPackages, TSet<FName>(), ChunkBucketElement.Value, SaveOptions);
+
+				InjectEncryptionData(NewState);
+
+				// Create runtime registry data
+				FArrayWriter SerializedAssetRegistry;
+				SerializedAssetRegistry.SetFilterEditorOnly(true);
+
+				NewState.Serialize(SerializedAssetRegistry, SaveOptions);
+
+				// Save the generated registry
+				FString PlatformSandboxPath = SandboxPathWithoutExtension.Replace(TEXT("[Platform]"), *TargetPlatform->PlatformName());
+				PlatformSandboxPath += ChunkBucketNames[ChunkBucketElement.Key] + TEXT(".") + SandboxPathExtension;
+
+				FFileHelper::SaveArrayToFile(SerializedAssetRegistry, *PlatformSandboxPath);
+
+				FString FilenameForLog;
+				if (ChunkBucketElement.Key != GenericChunkBucket)
+				{
+					check(ChunkBucketElement.Key < FinalChunkManifests.Num());
+					FChunkPackageSet* ChunkPackageSet = FinalChunkManifests[ChunkBucketElement.Key];
+					check(ChunkPackageSet);
+					FilenameForLog = FString::Printf(TEXT("[chunkbucket %i] "), ChunkBucketElement.Key);
+				}
+				UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Generated asset registry %snum assets %d, size is %5.2fkb"), *FilenameForLog, NewState.GetNumAssets(), (float)SerializedAssetRegistry.Num() / 1024.f);
 			}
 		}
-
-		FString SandboxPathWithoutExtension = FPaths::ChangeExtension(SandboxPath, TEXT(""));
-		FString SandboxPathExtension = FPaths::GetExtension(SandboxPath);
-
-		for (TMap<int32, TSet<int32>>::ElementType& ChunkBucketElement : ChunkBuckets)
+		// If no chunk manifests have been generated (e.g. cook on the fly)
+		else
 		{
-			// Prune out the development only packages, and any assets that belong in a different chunk asset registry
-			FAssetRegistryState NewState;
-			NewState.InitializeFromExistingAndPrune(State, CookedPackages, TSet<FName>(), ChunkBucketElement.Value, SaveOptions);
-
-			InjectEncryptionData(NewState);
+			// Prune out the development only packages
+			State.PruneAssetData(CookedPackages, TSet<FName>(), SaveOptions);
 
 			// Create runtime registry data
 			FArrayWriter SerializedAssetRegistry;
 			SerializedAssetRegistry.SetFilterEditorOnly(true);
 
-			NewState.Serialize(SerializedAssetRegistry, SaveOptions);
+			State.Serialize(SerializedAssetRegistry, SaveOptions);
 
 			// Save the generated registry
-			FString PlatformSandboxPath = SandboxPathWithoutExtension.Replace(TEXT("[Platform]"), *TargetPlatform->PlatformName());
-			PlatformSandboxPath += ChunkBucketNames[ChunkBucketElement.Key] + TEXT(".") + SandboxPathExtension;
-
+			FString PlatformSandboxPath = SandboxPath.Replace(TEXT("[Platform]"), *TargetPlatform->PlatformName());
 			FFileHelper::SaveArrayToFile(SerializedAssetRegistry, *PlatformSandboxPath);
-
-			FString FilenameForLog;
-			if (ChunkBucketElement.Key != GenericChunkBucket)
-			{
-				check(ChunkBucketElement.Key < FinalChunkManifests.Num());
-				FChunkPackageSet* ChunkPackageSet = FinalChunkManifests[ChunkBucketElement.Key];
-				check(ChunkPackageSet);
-				FilenameForLog = FString::Printf(TEXT("[chunkbucket %i] "), ChunkBucketElement.Key);
-			}
-			UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Generated asset registry %snum assets %d, size is %5.2fkb"), *FilenameForLog, NewState.GetNumAssets(), (float)SerializedAssetRegistry.Num() / 1024.f);
+			UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Generated asset registry num assets %d, size is %5.2fkb"), ObjectToDataMap.Num(), (float)SerializedAssetRegistry.Num() / 1024.f);
 		}
 	}
 

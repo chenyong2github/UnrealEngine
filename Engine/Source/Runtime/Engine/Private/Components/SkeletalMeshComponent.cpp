@@ -179,7 +179,7 @@ USkeletalMeshComponent::USkeletalMeshComponent(const FObjectInitializer& ObjectI
 	ClothTickFunction.EndTickGroup = TG_PostPhysics;
 	ClothTickFunction.bCanEverTick = true;
 
-#if WITH_APEX_CLOTHING
+#if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 	ClothMaxDistanceScale = 1.0f;
 	bResetAfterTeleport = true;
 	TeleportDistanceThreshold = 300.0f;
@@ -196,7 +196,7 @@ USkeletalMeshComponent::USkeletalMeshComponent(const FObjectInitializer& ObjectI
 	bBindClothToMasterComponent = false;
 	bClothingSimulationSuspended = false;
 
-#endif//#if WITH_APEX_CLOTHING
+#endif//#if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 
 	MassMode = EClothMassMode::Density;
 	UniformMass = 1.f;
@@ -233,17 +233,14 @@ USkeletalMeshComponent::USkeletalMeshComponent(const FObjectInitializer& ObjectI
 	ResetRootBodyIndex();
 
 	TArray<IClothingSimulationFactoryClassProvider*> ClassProviders = IModularFeatures::Get().GetModularFeatureImplementations<IClothingSimulationFactoryClassProvider>(IClothingSimulationFactoryClassProvider::FeatureName);
-	if(ClassProviders.Num() > 0)
+
+	ClothingSimulationFactory = nullptr;
+	for (int32 Index = ClassProviders.Num() - 1; Index >= 0 && !*ClothingSimulationFactory; --Index)  // We use the last provider in the list so plugins/modules can override ours
 	{
-		// We use the last provider in the list so plugins/modules can override ours
-		IClothingSimulationFactoryClassProvider* Provider = ClassProviders.Last();
+		IClothingSimulationFactoryClassProvider* const Provider = ClassProviders[Index];
 		check(Provider);
 
 		ClothingSimulationFactory = Provider->GetDefaultSimulationFactoryClass();
-	}
-	else
-	{
-		ClothingSimulationFactory = nullptr;
 	}
 
 	ClothingSimulation = nullptr;
@@ -532,16 +529,15 @@ void USkeletalMeshComponent::OnRegister()
 		SetComponentTickEnabled(false);
 	}
 
-#if WITH_APEX_CLOTHING
+#if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 	
 	// If we don't have a valid simulation factory - check to see if we have an available default to use instead
 	if(*ClothingSimulationFactory == nullptr)
 	{
 		TArray<IClothingSimulationFactoryClassProvider*> ClassProviders = IModularFeatures::Get().GetModularFeatureImplementations<IClothingSimulationFactoryClassProvider>(IClothingSimulationFactoryClassProvider::FeatureName);
-		if(ClassProviders.Num() > 0)
+		for (int32 Index = ClassProviders.Num() - 1; Index >= 0 && !*ClothingSimulationFactory; --Index)  // We use the last provider in the list so plugins/modules can override ours
 		{
-			// We use the last provider in the list so plugins/modules can override ours
-			IClothingSimulationFactoryClassProvider* Provider = ClassProviders.Last();
+			IClothingSimulationFactoryClassProvider* const Provider = ClassProviders[Index];
 			check(Provider);
 
 			ClothingSimulationFactory = Provider->GetDefaultSimulationFactoryClass();
@@ -802,7 +798,7 @@ bool USkeletalMeshComponent::InitializeAnimScriptInstance(bool bForceReinit, boo
 
 bool USkeletalMeshComponent::IsWindEnabled() const
 {
-#if WITH_APEX_CLOTHING
+#if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 	// Wind is enabled in game worlds
 	return GetWorld() && GetWorld()->IsGameWorld();
 #else
@@ -2542,9 +2538,9 @@ FBoxSphereBounds USkeletalMeshComponent::CalcBounds(const FTransform& LocalToWor
 			NewBounds = NewBounds + FBoxSphereBounds(ComponentLocation, FVector(1.0f), 1.0f);
 		}
 
-#if WITH_APEX_CLOTHING
+#if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 		AddClothingBounds(NewBounds, LocalToWorld);
-#endif// #if WITH_APEX_CLOTHING
+#endif// #if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 
 		bCachedLocalBoundsUpToDate = true;
 		CachedWorldSpaceBounds = NewBounds;
@@ -2599,7 +2595,7 @@ void USkeletalMeshComponent::SetSkeletalMesh(USkeletalMesh* InSkelMesh, bool bRe
 
 		InitAnim(bReinitPose);
 
-#if WITH_APEX_CLOTHING
+#if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 		RecreateClothingActors();
 #endif
 	}

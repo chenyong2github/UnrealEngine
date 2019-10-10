@@ -348,7 +348,7 @@ EReimportResult::Type UCSVImportFactory::Reimport(UObject* Obj, const FString& P
 		FString FilePath = IFileManager::Get().ConvertToRelativePath(*Path);
 
 		FString Data;
-		if ( FFileHelper::LoadFileToString( Data, *FilePath) )
+		if ( FFileHelper::LoadFileToString( Data, *FilePath, FFileHelper::EHashOptions::None, FILEREAD_AllowWrite) )
 		{
 			const TCHAR* Ptr = *Data;
 			CurrentFilename = FilePath; //not thread safe but seems to be how it is done..

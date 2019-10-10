@@ -22,7 +22,7 @@
 #include "SkeletalSimplifier.h"
 #include "SkeletalMeshReductionSkinnedMesh.h"
 #include "Stats/StatsMisc.h"
-#include "Assets/ClothingAsset.h"
+#include "ClothingAsset.h"
 #include "Factories/FbxSkeletalMeshImportData.h"
 #include "LODUtilities.h"
 
@@ -100,8 +100,7 @@ public:
 	* @returns true if reduction was successful.
 	*/
 	virtual bool ReduceSkeletalMesh( class USkeletalMesh* SkeletalMesh,
-		                             int32 LODIndex,
-		                             bool bReregisterComponent = true
+		                             int32 LODIndex		                             
 	                                ) override ;
 
 
@@ -170,7 +169,8 @@ private:
 		                         FSkeletalMeshOptimizationSettings Settings,
 								 const FImportantBones& ImportantBones,
 		                         const TArray<FMatrix>& BoneMatrices,
-		                         const int32 LODIndex ) const;
+		                         const int32 LODIndex,
+								 const bool bReducingSourceModel) const;
 
 	/**
 	* Remove the specified section from the mesh.
@@ -204,7 +204,8 @@ private:
 		                                 const FSkeletalMeshLODModel& SrcLODModel,
 		                                 const SkeletalSimplifier::FSkinnedSkeletalMesh& SkinnedMesh,
 		                                 const FReferenceSkeleton& RefSkeleton,
-		                                 FSkeletalMeshLODModel& NewModel ) const;
+		                                 FSkeletalMeshLODModel& NewModel,
+										 const bool bReducingSourceModel) const;
 
 	/**
 	* Add the SourceModelInflunces to the LODModel in the case that alternate weights exists.
@@ -359,10 +360,7 @@ void FSkeletalMeshReduction::ShutdownModule()
 
 }
 
-
-
-
-bool FQuadricSkeletalMeshReduction::ReduceSkeletalMesh( USkeletalMesh* SkeletalMesh, int32 LODIndex, bool bReregisterComponent )
+bool FQuadricSkeletalMeshReduction::ReduceSkeletalMesh( USkeletalMesh* SkeletalMesh, int32 LODIndex )
 {
 	check(SkeletalMesh);
 	check(LODIndex >= 0);
@@ -372,21 +370,8 @@ bool FQuadricSkeletalMeshReduction::ReduceSkeletalMesh( USkeletalMesh* SkeletalM
 	check(SkeletalMeshResource);
 	check(LODIndex <= SkeletalMeshResource->LODModels.Num());
 
-	if (bReregisterComponent)
-	{
-		TComponentReregisterContext<USkinnedMeshComponent> ReregisterContext;
-		SkeletalMesh->ReleaseResources();
-		SkeletalMesh->ReleaseResourcesFence.Wait();
-
-		ReduceSkeletalMesh(*SkeletalMesh, *SkeletalMeshResource, LODIndex);
-
-		SkeletalMesh->PostEditChange();
-		SkeletalMesh->InitResources();
-	}
-	else
-	{
-		ReduceSkeletalMesh(*SkeletalMesh, *SkeletalMeshResource, LODIndex);
-	}
+	FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkeletalMesh);
+	ReduceSkeletalMesh(*SkeletalMesh, *SkeletalMeshResource, LODIndex);
 
 	return true;
 }
@@ -1541,8 +1526,8 @@ void FQuadricSkeletalMeshReduction::ConvertToFSkeletalMeshLODModel( const int32 
 	                                                                const FSkeletalMeshLODModel& SrcLODModel,
 	                                                                const SkeletalSimplifier::FSkinnedSkeletalMesh& SkinnedMesh,
 	                                                                const FReferenceSkeleton& RefSkeleton,
-	                                                                FSkeletalMeshLODModel& NewModel
-                                                                   ) const
+	                                                                FSkeletalMeshLODModel& NewModel,	
+																	const bool bReducingSourceModel) const
 {
 	// We might be re-using this model - so clear it.
 
@@ -1553,11 +1538,14 @@ void FQuadricSkeletalMeshReduction::ConvertToFSkeletalMeshLODModel( const int32 
 	FSkeletalMeshData SkeletalMeshData;
 	ExtractFSkeletalData(SkinnedMesh, SkeletalMeshData);
 
-	// Add alternate weight data to the NewModel.  Note, this has to be done before we "BuildSkeletalMesh" to insure
-	// that the bone-based vertex chunking respects the alternate weights.
-	// NB: this only prepares the NewModel, but BuildSkeletalMesh is only 1/2-aware of this, so we will have to do some additional work after.
-	
-	AddSourceModelInfluences(SrcLODModel, SkinnedMesh, NewModel);
+	//if (!bReducingSourceModel)
+	{
+		// Add alternate weight data to the NewModel.  Note, this has to be done before we "BuildSkeletalMesh" to insure
+		// that the bone-based vertex chunking respects the alternate weights.
+		// NB: this only prepares the NewModel, but BuildSkeletalMesh is only 1/2-aware of this, so we will have to do some additional work after.
+
+		AddSourceModelInfluences(SrcLODModel, SkinnedMesh, NewModel);
+	}
 	
 
 
@@ -1576,6 +1564,7 @@ void FQuadricSkeletalMeshReduction::ConvertToFSkeletalMeshLODModel( const int32 
 	Options.bComputeNormals = false;
 	Options.bComputeTangents = false;
 	Options.bUseMikkTSpace = true; //Avoid builtin build by specifying true for mikkt space
+	Options.bComputeWeightedNormals = false;
 	Options.OverlappingThresholds.ThresholdPosition = 0.0f;
 	Options.OverlappingThresholds.ThresholdTangentNormal = 0.0f;
 	Options.OverlappingThresholds.ThresholdUV = 0.0f;
@@ -1595,15 +1584,19 @@ void FQuadricSkeletalMeshReduction::ConvertToFSkeletalMeshLODModel( const int32 
 		Options
 	);
 
+	//Re-Apply the user section changes, the UserSectionsData is map to original section and should match the builded LODModel
+	NewModel.SyncronizeUserSectionsDataArray();
+
 	// Set texture coordinate count on the new model.
 	NewModel.NumTexCoords = SkeletalMeshData.TexCoordCount;
 
 
+	//if (!bReducingSourceModel)
+	{
+		// Update the alternate weights
 
-	// Update the alternate weights
-	
-	UpdateAlternateWeights(MaxBonesPerVertex, NewModel);
-
+		UpdateAlternateWeights(MaxBonesPerVertex, NewModel);
+	}
 }
 
 bool FQuadricSkeletalMeshReduction::ReduceSkeletalLODModel( const FSkeletalMeshLODModel& SrcModel,
@@ -1613,7 +1606,8 @@ bool FQuadricSkeletalMeshReduction::ReduceSkeletalLODModel( const FSkeletalMeshL
 	                                                        FSkeletalMeshOptimizationSettings Settings,
 															const FImportantBones& ImportantBones,
 	                                                        const TArray<FMatrix>& BoneMatrices,
-	                                                        const int32 LODIndex
+	                                                        const int32 LODIndex,
+															const bool bReducingSourceModel
                                                            ) const
 {
 
@@ -1682,7 +1676,7 @@ bool FQuadricSkeletalMeshReduction::ReduceSkeletalLODModel( const FSkeletalMeshL
 
 		// Convert to SkeletalMeshLODModel. 
 
-		ConvertToFSkeletalMeshLODModel(Settings.MaxBonesPerVertex, SrcModel, SkinnedSkeletalMesh, RefSkeleton, OutSkeletalMeshLODModel);
+		ConvertToFSkeletalMeshLODModel(Settings.MaxBonesPerVertex, SrcModel, SkinnedSkeletalMesh, RefSkeleton, OutSkeletalMeshLODModel, bReducingSourceModel);
 
 		// We may need to do additional simplification if the user specified a hard number limit for verts and
 		// the internal chunking during conversion split some verts.
@@ -1804,13 +1798,26 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 	struct FSectionData
 	{
 		uint16 MaterialIndex;
+		int32 MaterialMap;
 		bool bCastShadow;
 		bool bRecomputeTangent;
+		bool bDisabled;
+		int32 GenerateUpToLodIndex;
+		int32 ChunkedParentSectionIndex;
+		int32 OriginalDataSectionIndex;
 	};
 
 	TMap<int32, FSectionData> BackupSectionIndexToSectionData;
+	TMap<int32, FSkelMeshSourceSectionUserData> BackupUserSectionsData;
+	FString BackupLodModelBuildStringID = TEXT("");
 	//Store the section data. Store the source LOD model in case we add a LOD, or the target LOD model in case the LOD already exist
 	FSkeletalMeshLODModel& BackupSectionLODModel = bLODModelAdded ? SkeletalMeshResource.LODModels[Settings.BaseLOD] : SkeletalMeshResource.LODModels[LODIndex];
+	if (!bLODModelAdded)
+	{
+		BackupLodModelBuildStringID = BackupSectionLODModel.BuildStringID;
+		BackupUserSectionsData = BackupSectionLODModel.UserSectionsData;
+	}
+
 	BackupSectionIndexToSectionData.Reserve(BackupSectionLODModel.Sections.Num());
 
 	for (int32 SectionIndex = 0; SectionIndex < BackupSectionLODModel.Sections.Num(); ++SectionIndex)
@@ -1825,23 +1832,27 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 		SectionData.MaterialIndex = BackupSectionLODModel.Sections[SectionIndex].MaterialIndex;
 		SectionData.bCastShadow = BackupSectionLODModel.Sections[SectionIndex].bCastShadow;
 		SectionData.bRecomputeTangent = BackupSectionLODModel.Sections[SectionIndex].bRecomputeTangent;
+		SectionData.bDisabled = BackupSectionLODModel.Sections[SectionIndex].bDisabled;
+		SectionData.GenerateUpToLodIndex = BackupSectionLODModel.Sections[SectionIndex].GenerateUpToLodIndex;
+		SectionData.ChunkedParentSectionIndex = BackupSectionLODModel.Sections[SectionIndex].ChunkedParentSectionIndex;
+		SectionData.OriginalDataSectionIndex = BackupSectionLODModel.Sections[SectionIndex].OriginalDataSectionIndex;
+		SectionData.MaterialMap = LODInfo->LODMaterialMap.IsValidIndex(SectionIndex) ? LODInfo->LODMaterialMap[SectionIndex] : INDEX_NONE;
+		if (SectionData.MaterialMap == SectionData.MaterialIndex)
+		{
+			//Remove any override if the value is the same
+			SectionData.MaterialMap = INDEX_NONE;
+		}
 	}
 
-	auto FillClothingData = [&SkeletalMeshResource, &LODIndex, bLODModelAdded](int32 &EnableSectionNumber, TArray<bool> &SectionStatus)
+	auto FillSectionMaterialSlot = [&SkeletalMeshResource, &LODIndex, bLODModelAdded](TArray<int32>& SectionMaterialSlot)
 	{
-		EnableSectionNumber = 0;
-		SectionStatus.Empty();
+		SectionMaterialSlot.Empty();
 		if (!bLODModelAdded && SkeletalMeshResource.LODModels.IsValidIndex(LODIndex))
 		{
 			int32 SectionNumber = SkeletalMeshResource.LODModels[LODIndex].Sections.Num();
-			SectionStatus.Reserve(SectionNumber);
 			for (int32 SectionIndex = 0; SectionIndex < SectionNumber; ++SectionIndex)
 			{
-				SectionStatus.Add(!SkeletalMeshResource.LODModels[LODIndex].Sections[SectionIndex].bDisabled);
-				if (SectionStatus[SectionIndex])
-				{
-					EnableSectionNumber++;
-				}
+				SectionMaterialSlot.Add(SkeletalMeshResource.LODModels[LODIndex].Sections[SectionIndex].OriginalDataSectionIndex);
 			}
 		}
 	};
@@ -1849,31 +1860,20 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 	// Unbind any existing clothing assets before we reimport the geometry
 	TArray<ClothingAssetUtils::FClothingAssetMeshBinding> ClothingBindings;
 	//Get a map of enable/disable sections
-	int32 OriginalSectionNumberBeforeReduction = 0;
-	TArray<bool> OriginalSectionEnableBeforeReduction;
+	TArray<int32> OriginalSectionMaterialSlot;
 
 	//Do not play with cloth if the LOD is added
 	if (!bLODModelAdded)
 	{
-		//Store the clothBinding
-		ClothingAssetUtils::GetMeshClothingAssetBindings(&SkeletalMesh, ClothingBindings, LODIndex);
-		FillClothingData(OriginalSectionNumberBeforeReduction, OriginalSectionEnableBeforeReduction);
-		//Unbind the Cloth for this LOD before we reduce it, we will put back the cloth after the reduction, if it still match the sections
-		for (ClothingAssetUtils::FClothingAssetMeshBinding& Binding : ClothingBindings)
-		{
-			if (Binding.LODIndex == LODIndex)
-			{
-				Binding.Asset->UnbindFromSkeletalMesh(&SkeletalMesh, Binding.LODIndex);
-			}
-		}
+		FLODUtilities::UnbindClothingAndBackup(&SkeletalMesh, ClothingBindings, LODIndex);
 	}
 
 	bool bReducingSourceModel = false;
-	//Reducing Base LOD, we need to use the temporary data so it can be iterative
-	if (BaseLOD == LODIndex && SkelResource->OriginalReductionSourceMeshData.IsValidIndex(BaseLOD) && !SkelResource->OriginalReductionSourceMeshData[BaseLOD]->IsEmpty())
+	//Reducing source LOD, we need to use the temporary data so it can be iterative
+	if (BaseLOD == LODIndex && (SkelResource->OriginalReductionSourceMeshData.IsValidIndex(BaseLOD) && !SkelResource->OriginalReductionSourceMeshData[BaseLOD]->IsEmpty()))
 	{
 		TMap<FString, TArray<FMorphTargetDelta>> TempLODMorphTargetData;
-		SkelResource->OriginalReductionSourceMeshData[BaseLOD]->LoadReductionData(*SrcModel, TempLODMorphTargetData);
+		SkelResource->OriginalReductionSourceMeshData[BaseLOD]->LoadReductionData(*SrcModel, TempLODMorphTargetData, &SkeletalMesh);
 		bReducingSourceModel = true;
 	}
 	else
@@ -1955,6 +1955,8 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 
 	// Swap out the old model.  
 	FSkeletalMeshImportData RawMesh;
+	ESkeletalMeshGeoImportVersions GeoImportVersion = ESkeletalMeshGeoImportVersions::Before_Versionning;
+	ESkeletalMeshSkinningImportVersions SkinningImportVersion = ESkeletalMeshSkinningImportVersions::Before_Versionning;
 	{
 		FSkeletalMeshLODModel* Old = LODModels[LODIndex];
 
@@ -1962,12 +1964,21 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 
 		if (!bReducingSourceModel && Old)
 		{
+			//We need to backup the original RawSkeletalMeshBulkData in case it was an imported LOD
+			if (!bLODModelAdded && !Old->RawSkeletalMeshBulkData.IsEmpty())
+			{
+				Old->RawSkeletalMeshBulkData.LoadRawMesh(RawMesh);
+				GeoImportVersion = Old->RawSkeletalMeshBulkData.GeoImportVersion;
+				SkinningImportVersion = Old->RawSkeletalMeshBulkData.SkinningImportVersion;
+			}
 			delete Old;
 		}
 		else if(bReducingSourceModel)
 		{
 			//In case we reduce the source model we want to keep the original import data
 			SrcModel->RawSkeletalMeshBulkData.LoadRawMesh(RawMesh);
+			GeoImportVersion = SrcModel->RawSkeletalMeshBulkData.GeoImportVersion;
+			SkinningImportVersion = SrcModel->RawSkeletalMeshBulkData.SkinningImportVersion;
 		}
 	}
 
@@ -1975,8 +1986,10 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 
 	// Reduce LOD model with SrcMesh
 
-	if (ReduceSkeletalLODModel(*SrcModel, *NewModel, SkeletalMesh.GetImportedBounds(), SkeletalMesh.RefSkeleton, Settings, ImportantBones, RelativeToRefPoseMatrices, LODIndex))
+	if (ReduceSkeletalLODModel(*SrcModel, *NewModel, SkeletalMesh.GetImportedBounds(), SkeletalMesh.RefSkeleton, Settings, ImportantBones, RelativeToRefPoseMatrices, LODIndex, bReducingSourceModel))
 	{
+		FSkeletalMeshLODInfo* ReducedLODInfoPtr = SkeletalMesh.GetLODInfo(LODIndex);
+		check(ReducedLODInfoPtr);
 		// Do any joint-welding / bone removal.
 
 		if (MeshBoneReductionInterface != NULL && MeshBoneReductionInterface->GetBoneReductionData(&SkeletalMesh, LODIndex, BonesToRemove))
@@ -1990,35 +2003,22 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 
 		if (bOldLodWasFromFile)
 		{
-			SkeletalMesh.GetLODInfo(LODIndex)->LODMaterialMap.Empty();
+			ReducedLODInfoPtr->LODMaterialMap.Empty();
 		}
-
-		// If base lod has a customized LODMaterialMap and this LOD doesn't (could have if changes are applied instead of freshly generated, copy over the data into new new LOD
-
-		if (SkeletalMesh.GetLODInfo(LODIndex)->LODMaterialMap.Num() == 0 && SkeletalMesh.GetLODInfo(BaseLOD)->LODMaterialMap.Num() != 0)
-		{
-			SkeletalMesh.GetLODInfo(LODIndex)->LODMaterialMap = SkeletalMesh.GetLODInfo(BaseLOD)->LODMaterialMap;
-		}
-		else
-		{
-			// Assuming the reducing step has set all material indices correctly, we double check if something went wrong
-			// make sure we don't have more materials
-			int32 TotalSectionCount = NewModel->Sections.Num();
-			if (SkeletalMesh.GetLODInfo(LODIndex)->LODMaterialMap.Num() > TotalSectionCount)
-			{
-				SkeletalMesh.GetLODInfo(LODIndex)->LODMaterialMap = SkeletalMesh.GetLODInfo(BaseLOD)->LODMaterialMap;
-				// Something went wrong during the reduce step during regenerate 					
-				check(SkeletalMesh.GetLODInfo(BaseLOD)->LODMaterialMap.Num() == TotalSectionCount || SkeletalMesh.GetLODInfo(BaseLOD)->LODMaterialMap.Num() == 0);
-			}
-		}
-
 		// Flag this LOD as having been simplified.
-		SkeletalMesh.GetLODInfo(LODIndex)->bHasBeenSimplified = true;
+		ReducedLODInfoPtr->bHasBeenSimplified = true;
 		SkeletalMesh.bHasBeenSimplified = true;
 		//Restore section data
 		FSkeletalMeshLODModel& ImportedModelLOD = SkeletalMesh.GetImportedModel()->LODModels[LODIndex];
 		TArray<bool> SectionMatched;
 		SectionMatched.AddZeroed(ImportedModelLOD.Sections.Num());
+		
+		if (!bLODModelAdded)
+		{
+			ImportedModelLOD.UserSectionsData = BackupUserSectionsData;
+			ImportedModelLOD.BuildStringID = BackupLodModelBuildStringID;
+		}
+
 		for (auto Kvp : BackupSectionIndexToSectionData)
 		{
 			const int32 SourceSectionIndex = Kvp.Key;
@@ -2031,10 +2031,24 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 				{
 					continue;
 				}
-				if (SectionData.MaterialIndex == ImportedModelLOD.Sections[SectionIndex].MaterialIndex)
+				if (SectionData.OriginalDataSectionIndex == ImportedModelLOD.Sections[SectionIndex].OriginalDataSectionIndex)
 				{
+					//Restore the LOD material map for this section
+					if (SectionData.MaterialMap != INDEX_NONE)
+					{
+						while (ReducedLODInfoPtr->LODMaterialMap.Num() <= SectionIndex)
+						{
+							ReducedLODInfoPtr->LODMaterialMap.Add(INDEX_NONE);
+						}
+						ReducedLODInfoPtr->LODMaterialMap[SectionIndex] = SectionData.MaterialMap;
+					}
+					//Restore the LODModel Section
 					ImportedModelLOD.Sections[SectionIndex].bCastShadow = SectionData.bCastShadow;
 					ImportedModelLOD.Sections[SectionIndex].bRecomputeTangent = SectionData.bRecomputeTangent;
+					ImportedModelLOD.Sections[SectionIndex].bDisabled = SectionData.bDisabled;
+					ImportedModelLOD.Sections[SectionIndex].GenerateUpToLodIndex = SectionData.GenerateUpToLodIndex;
+					ImportedModelLOD.Sections[SectionIndex].ChunkedParentSectionIndex = SectionData.ChunkedParentSectionIndex;
+					ImportedModelLOD.Sections[SectionIndex].OriginalDataSectionIndex = SectionData.OriginalDataSectionIndex;
 					SectionMatched[SectionIndex] = true;
 					break;
 				}
@@ -2087,47 +2101,22 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 	if (!bLODModelAdded)
 	{
 		//Get the number of enabled section
-		int32 SectionNumberAfterReduction = 0;
-		TArray<bool> SectionEnableAfterReduction;
-		FillClothingData(SectionNumberAfterReduction, SectionEnableAfterReduction);
+		TArray<int32> SectionMaterialSlotAfterReduction;
+		FillSectionMaterialSlot(SectionMaterialSlotAfterReduction);
 
-		//Put back the clothing for this newly reduce LOD only if the section count match.
-		if (ClothingBindings.Num() > 0 && OriginalSectionNumberBeforeReduction == SectionNumberAfterReduction)
+		//Put back the clothing for this newly reduce LOD
+		if (ClothingBindings.Num() > 0)
 		{
-			TArray<int32> RemapSectionIndex;
-			int32 SectionIndexTest = 0;
-			for (int32 SectionIndexRef = 0; SectionIndexRef < OriginalSectionEnableBeforeReduction.Num(); SectionIndexRef++)
-			{
-				int32& RemapValue = RemapSectionIndex.Add_GetRef(INDEX_NONE);
-				if (!OriginalSectionEnableBeforeReduction[SectionIndexRef])
-				{
-					continue;
-				}
-				for (; SectionIndexTest <= SectionIndexRef; SectionIndexTest++)
-				{
-					if (SectionEnableAfterReduction.IsValidIndex(SectionIndexTest) && SectionEnableAfterReduction[SectionIndexTest])
-					{
-						RemapValue = SectionIndexTest++;
-						break;
-					}
-				}
-			}
-
-			for (ClothingAssetUtils::FClothingAssetMeshBinding& Binding : ClothingBindings)
-			{
-				int32 RemapBindingSectionIndex = RemapSectionIndex[Binding.SectionIndex];
-				if (RemapBindingSectionIndex != INDEX_NONE && Binding.LODIndex == LODIndex && NewModel->Sections.IsValidIndex(RemapBindingSectionIndex))
-				{
-					Binding.Asset->BindToSkeletalMesh(&SkeletalMesh, Binding.LODIndex, RemapBindingSectionIndex, Binding.AssetInternalLodIndex, false);
-				}
-			}
+			FLODUtilities::RestoreClothingFromBackup(&SkeletalMesh, ClothingBindings, LODIndex);
 		}
 	}
 
-	if (bReducingSourceModel && RawMesh.Points.Num() > 0)
+	if ((bReducingSourceModel || !bLODModelAdded ) && RawMesh.Points.Num() > 0)
 	{
 		//Put back the original import data, we need it to allow inline reduction and skeletal mesh split workflow
 		SkeletalMeshResource.LODModels[LODIndex].RawSkeletalMeshBulkData.SaveRawMesh(RawMesh);
+		SkeletalMeshResource.LODModels[LODIndex].RawSkeletalMeshBulkData.GeoImportVersion = GeoImportVersion;
+		SkeletalMeshResource.LODModels[LODIndex].RawSkeletalMeshBulkData.SkinningImportVersion = SkinningImportVersion;
 	}
 
 	SkeletalMesh.CalculateRequiredBones(SkeletalMeshResource.LODModels[LODIndex], SkeletalMesh.RefSkeleton, &BonesToRemove);

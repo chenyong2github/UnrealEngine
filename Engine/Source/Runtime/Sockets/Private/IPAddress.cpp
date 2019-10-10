@@ -60,6 +60,10 @@ void FResolveInfoAsync::DoWork()
 
 			return;
 		}
+		else
+		{
+			ErrorCode = SE_NO_DATA;
+		}
 
 		AttemptCount++;
 	}

@@ -11,6 +11,10 @@
 #include "HAL/ThreadManager.h"
 #include "Misc/Parse.h"
 #include "Misc/CommandLine.h"
+#include "CoreGlobals.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/OutputDeviceRedirector.h"
+#include "Misc/FeedbackContext.h"
 
 TMap<FName, FEmbeddedDelegates::FEmbeddedCommunicationParamsDelegate> FEmbeddedDelegates::NativeToEmbeddedDelegateMap;
 TMap<FName, FEmbeddedDelegates::FEmbeddedCommunicationParamsDelegate> FEmbeddedDelegates::EmbeddedToNativeDelegateMap;

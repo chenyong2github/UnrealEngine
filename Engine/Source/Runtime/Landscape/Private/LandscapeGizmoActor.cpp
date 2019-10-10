@@ -666,20 +666,23 @@ void ALandscapeGizmoActiveActor::SetTargetLandscape(ULandscapeInfo* LandscapeInf
 		TargetLandscapeInfo = LandscapeInfo;
 	}
 
-	// if there's no copied data, try to move somewhere useful
-	if (TargetLandscapeInfo && TargetLandscapeInfo != PrevInfo && DataType == LGT_None)
+	if (TargetLandscapeInfo != PrevInfo)
 	{
-		MarginZ = TargetLandscapeInfo->DrawScale.Z * 3;
-		Width = Height = TargetLandscapeInfo->DrawScale.X * (TargetLandscapeInfo->ComponentSizeQuads+1);
+		// if there's no copied data, try to move somewhere useful
+		if (TargetLandscapeInfo && DataType == LGT_None)
+		{
+			MarginZ = TargetLandscapeInfo->DrawScale.Z * 3;
+			Width = Height = TargetLandscapeInfo->DrawScale.X * (TargetLandscapeInfo->ComponentSizeQuads + 1);
 
-		float NewLengthZ;
-		FVector NewLocation = TargetLandscapeInfo->GetLandscapeCenterPos(NewLengthZ);
-		SetLength(NewLengthZ);
-		SetActorLocation( NewLocation, false );
-		SetActorRotation(FRotator::ZeroRotator);
+			float NewLengthZ;
+			FVector NewLocation = TargetLandscapeInfo->GetLandscapeCenterPos(NewLengthZ);
+			SetLength(NewLengthZ);
+			SetActorLocation(NewLocation, false);
+			SetActorRotation(FRotator::ZeroRotator);
+		}
+
+		ReregisterAllComponents();
 	}
-
-	ReregisterAllComponents();
 }
 
 void ALandscapeGizmoActiveActor::ClearGizmoData()

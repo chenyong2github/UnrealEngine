@@ -4,7 +4,7 @@
 
 #include "EditorStyleSet.h"
 #include "SlateOptMacros.h"
-#include "Widgets/Images/SImage.h"
+#include "TraceServices/Model/AnalysisSession.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/SBoxPanel.h"
@@ -13,19 +13,20 @@
 
 // Insights
 #include "Insights/Common/TimeUtils.h"
+#include "Insights/Table/ViewModels/Table.h"
+#include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/ViewModels/TimerNode.h"
-#include "Insights/ViewModels/TimersViewColumn.h"
 #include "Insights/ViewModels/TimerNodeHelper.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define LOCTEXT_NAMESPACE "STimersViewTooltip"
+#define LOCTEXT_NAMESPACE "STimersView"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
-TSharedPtr<SToolTip> STimersViewTooltip::GetColumnTooltip(const FTimersViewColumn& Column)
+TSharedPtr<SToolTip> STimersViewTooltip::GetTableTooltip(const Insights::FTable& Table)
 {
 	TSharedPtr<SToolTip> ColumnTooltip =
 		SNew(SToolTip)
@@ -37,7 +38,7 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetColumnTooltip(const FTimersViewColum
 			.Padding(2.0f)
 			[
 				SNew(STextBlock)
-				.Text(Column.TitleName)
+				.Text(Table.GetDisplayName())
 				.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
 			]
 
@@ -46,7 +47,7 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetColumnTooltip(const FTimersViewColum
 			.Padding(2.0f)
 			[
 				SNew(STextBlock)
-				.Text(Column.Description)
+				.Text(Table.GetDescription())
 				.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
 			]
 		];
@@ -56,28 +57,53 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetColumnTooltip(const FTimersViewColum
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedPtr<SToolTip> STimersViewTooltip::GetTableCellTooltip(const TSharedPtr<FTimerNode> TimerNodePtr)
+TSharedPtr<SToolTip> STimersViewTooltip::GetColumnTooltip(const Insights::FTableColumn& Column)
 {
-	//const FSlateFontInfo TitleFont = FCoreStyle::GetDefaultFontStyle("Bold", 10);
-	//const FSlateFontInfo DescriptionFont = FCoreStyle::GetDefaultFontStyle("Regular", 8);
-	//const FSlateFontInfo DescriptionFontB = FCoreStyle::GetDefaultFontStyle("Bold", 8);
+	TSharedPtr<SToolTip> ColumnTooltip =
+		SNew(SToolTip)
+		[
+			SNew(SVerticalBox)
 
-	const FLinearColor DefaultColor(1.0f,1.0f,1.0f,1.0f);
-	const FLinearColor ThreadColor(5.0f, 0.0f, 0.0f, 1.0f);
-	const float Alpha = 0.0f;//TimerNodePtr->_FramePct * 0.01f;
-	const FLinearColor ColorAndOpacity = FMath::Lerp(DefaultColor, ThreadColor,Alpha);
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(2.0f)
+			[
+				SNew(STextBlock)
+				.Text(Column.GetTitleName())
+				.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+			]
 
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(2.0f)
+			[
+				SNew(STextBlock)
+				.Text(Column.GetDescription())
+				.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+			]
+		];
+
+	return ColumnTooltip;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedPtr<SToolTip> STimersViewTooltip::GetCellTooltip(const TSharedPtr<FTimerNode> TimerNodePtr, const TSharedPtr<Insights::FTableColumn> ColumnPtr)
+{
 	const Trace::FAggregatedTimingStats& Stats = TimerNodePtr->GetAggregatedStats();
 
 	const int32 NumDigits = 5;
 
-	const FText TotalInclusiveTimeText = FText::FromString(TimeUtils::FormatTimeAuto(Stats.TotalInclusiveTime));
+	TCHAR FormatString[32];
+	FCString::Snprintf(FormatString, sizeof(FormatString), TEXT("%%.%dfs (%%s)"), NumDigits);
+
+	const FText TotalInclusiveTimeText = FText::FromString(FString::Printf(FormatString, Stats.TotalInclusiveTime, *TimeUtils::FormatTimeAuto(Stats.TotalInclusiveTime, 2)));
 	const FText MinInclusiveTimeText = FText::FromString(TimeUtils::FormatTimeMs(Stats.MinInclusiveTime, NumDigits, true));
 	const FText MaxInclusiveTimeText = FText::FromString(TimeUtils::FormatTimeMs(Stats.MaxInclusiveTime, NumDigits, true));
 	const FText AvgInclusiveTimeText = FText::FromString(TimeUtils::FormatTimeMs(Stats.AverageInclusiveTime, NumDigits, true));
 	const FText MedInclusiveTimeText = FText::FromString(TimeUtils::FormatTimeMs(Stats.MedianInclusiveTime, NumDigits, true));
 
-	const FText TotalExclusiveTimeText = FText::FromString(TimeUtils::FormatTimeAuto(Stats.TotalExclusiveTime));
+	const FText TotalExclusiveTimeText = FText::FromString(FString::Printf(FormatString, Stats.TotalExclusiveTime, *TimeUtils::FormatTimeAuto(Stats.TotalExclusiveTime, 2)));
 	const FText MinExclusiveTimeText = FText::FromString(TimeUtils::FormatTimeMs(Stats.MinExclusiveTime, NumDigits, true));
 	const FText MaxExclusiveTimeText = FText::FromString(TimeUtils::FormatTimeMs(Stats.MaxExclusiveTime, NumDigits, true));
 	const FText AvgExclusiveTimeText = FText::FromString(TimeUtils::FormatTimeMs(Stats.AverageExclusiveTime, NumDigits, true));
@@ -85,7 +111,6 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetTableCellTooltip(const TSharedPtr<FT
 
 	const FText InstanceCountText = FText::AsNumber(Stats.InstanceCount);
 
-	//TSharedPtr<SHorizontalBox> HBoxCaption;
 	TSharedPtr<SGridPanel> GridPanel;
 	TSharedPtr<SHorizontalBox> HBox;
 
@@ -94,19 +119,12 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetTableCellTooltip(const TSharedPtr<FT
 		[
 			SAssignNew(HBox, SHorizontalBox)
 
-			+SHorizontalBox::Slot()
+			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			[
 				SNew(SVerticalBox)
 
-				//+SVerticalBox::Slot()
-				//.AutoHeight()
-				//.Padding(2.0f)
-				//[
-				//	SAssignNew(HBoxCaption, SHorizontalBox)
-				//]
-
-				+SVerticalBox::Slot()
+				+ SVerticalBox::Slot()
 				.AutoHeight()
 				.Padding(2.0f)
 				[
@@ -114,21 +132,21 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetTableCellTooltip(const TSharedPtr<FT
 					.Orientation(Orient_Horizontal)
 				]
 
-				+SVerticalBox::Slot()
+				+ SVerticalBox::Slot()
 				.AutoHeight()
 				.Padding(2.0f)
 				[
 					SNew(SGridPanel)
 
 					// Id: [Id]
-					+SGridPanel::Slot(0, 0)
+					+ SGridPanel::Slot(0, 0)
 					.Padding(2.0f)
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("TT_Id", "Id:"))
 						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
 					]
-					+SGridPanel::Slot(1, 0)
+					+ SGridPanel::Slot(1, 0)
 					.Padding(2.0f)
 					[
 						SNew(STextBlock)
@@ -137,14 +155,14 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetTableCellTooltip(const TSharedPtr<FT
 					]
 
 					// Name: [Name]
-					+SGridPanel::Slot(0, 1)
+					+ SGridPanel::Slot(0, 1)
 					.Padding(2.0f)
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("TT_Name", "Name:"))
 						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
 					]
-					+SGridPanel::Slot(1, 1)
+					+ SGridPanel::Slot(1, 1)
 					.Padding(2.0f)
 					[
 						SNew(STextBlock)
@@ -153,14 +171,14 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetTableCellTooltip(const TSharedPtr<FT
 					]
 
 					//// Group: [MetaGroupName]
-					//+SGridPanel::Slot(0, 2)
+					//+ SGridPanel::Slot(0, 2)
 					//.Padding(2.0f)
 					//[
 					//	SNew(STextBlock)
 					//	.Text(LOCTEXT("TT_Group", "Group:"))
 					//	.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
 					//]
-					//+SGridPanel::Slot(1, 2)
+					//+ SGridPanel::Slot(1, 2)
 					//.Padding(2.0f)
 					//[
 					//	SNew(STextBlock)
@@ -168,7 +186,7 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetTableCellTooltip(const TSharedPtr<FT
 					//	.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
 					//]
 
-					// Type: [Type]
+					// Timer Type: [Type]
 					+ SGridPanel::Slot(0, 3)
 					.Padding(2.0f)
 					[
@@ -180,12 +198,12 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetTableCellTooltip(const TSharedPtr<FT
 					.Padding(2.0f)
 					[
 						SNew(STextBlock)
-						.Text(TimerNodeTypeHelper::ToName(TimerNodePtr->GetType()))
+						.Text(TimerNodeTypeHelper::ToText(TimerNodePtr->GetType()))
 						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
 					]
 				]
 
-				+SVerticalBox::Slot()
+				+ SVerticalBox::Slot()
 				.AutoHeight()
 				.Padding(2.0f)
 				[
@@ -215,7 +233,7 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetTableCellTooltip(const TSharedPtr<FT
 					]
 				]
 
-				+SVerticalBox::Slot()
+				+ SVerticalBox::Slot()
 				.AutoHeight()
 				.Padding(2.0f)
 				[
@@ -238,7 +256,7 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetTableCellTooltip(const TSharedPtr<FT
 						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
 					]
 					+ SGridPanel::Slot(2, 0)
-					.Padding(2.0f)
+					.Padding(FMargin(8.0f, 2.0f, 2.0f, 2.0f))
 					.HAlign(HAlign_Right)
 					[
 						SNew(STextBlock)
@@ -249,7 +267,7 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetTableCellTooltip(const TSharedPtr<FT
 					// Stats are added here.
 				]
 
-				+SVerticalBox::Slot()
+				+ SVerticalBox::Slot()
 				.AutoHeight()
 				.Padding(2.0f)
 				[
@@ -266,256 +284,7 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetTableCellTooltip(const TSharedPtr<FT
 	AddStatsRow(GridPanel, Row, LOCTEXT("TT_MedianTime",  "Median Time:"),  MedInclusiveTimeText,   MedExclusiveTimeText);
 	AddStatsRow(GridPanel, Row, LOCTEXT("TT_MinTime",     "Min Time:"),     MinInclusiveTimeText,   MinExclusiveTimeText);
 
-	/*
-	//TODO: We need Stats hierarchy (not the grouping hierarchy)!
-	const bool bHasParent = TimerNodePtr->GetStats()->GetParent().IsValid();
-	const bool bHasChildren = TimerNodePtr->GetStats()->GetChildren().Num() > 0;
-
-	if (bHasParent)
-	{
-		const FText ParentName = FText::FromName(TimerNodePtr->GetGroupPtr()->GetName());
-		HBoxCaption->AddSlot()
-			.AutoWidth()
-			[
-				SNew(STextBlock)
-				.Text(ParentName)
-				.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Caption"))
-			];
-
-		HBoxCaption->AddSlot()
-			.AutoWidth()
-			[
-				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("BreadcrumbTrail.Delimiter"))
-			];
-	}
-
-	const FText TimerName = FText::FromName(TimerNodePtr->GetName());
-	HBoxCaption->AddSlot()
-		.AutoWidth()
-		[
-			SNew(STextBlock)
-			.Text(TimerName)
-			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.CaptionBold"))
-		];
-
-	if (bHasChildren)
-	{
-		typedef TKeyValuePair<float, FName> FEventNameAndPct;
-		TArray<FEventNameAndPct> MinimalChildren;
-
-		const TArray<FTimerNodePtr>& Children = TimerNodePtr->GetChildren();
-		for(int32 ChildIndex = 0; ChildIndex < Children.Num(); ChildIndex++)
-		{
-			const FTimerNodePtr Child = Children[ChildIndex];
-			float Percent = static_cast<float>(Child->GetStats().TotalInclusiveTime / TimerNodePtr->GetStats().TotalInclusiveTime * 100.0);
-			MinimalChildren.Add(FEventNameAndPct(Child->GetStats().TotalInclusiveTime, Child->GetName()));
-		}
-
-		struct FCompareByFloatDescending
-		{
-			FORCEINLINE bool operator()(const FEventNameAndPct& A, const FEventNameAndPct& B) const
-			{
-				return A.Key > B.Key;
-			}
-		};
-		MinimalChildren.Sort(FCompareByFloatDescending());
-
-		FString ChildrenNames;
-		const int32 NumChildrenToDisplay = FMath::Min(MinimalChildren.Num(), 3);
-		for(int32 SortedChildIndex = 0; SortedChildIndex < NumChildrenToDisplay; SortedChildIndex++)
-		{
-			const FEventNameAndPct& MinimalChild = MinimalChildren[SortedChildIndex];
-			ChildrenNames += FString::Printf(TEXT("%s (%.1f %%)"), *MinimalChild.Value.ToString(), MinimalChild.Key);
-
-			const bool bAddDelimiter = SortedChildIndex < NumChildrenToDisplay - 1;
-			if (bAddDelimiter)
-			{
-				ChildrenNames += TEXT(", ");
-			}
-		}
-
-		HBoxCaption->AddSlot()
-			.AutoWidth()
-			[
-				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("BreadcrumbTrail.Delimiter"))
-			];
-
-		HBoxCaption->AddSlot()
-			.AutoWidth()
-			[
-				SNew(STextBlock)
-				.Text(FText::FromString(ChildrenNames))
-				.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Caption"))
-			];
-	}
-	*/
-
 	return TableCellTooltip;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-TSharedRef<SToolTip> STimersViewTooltip::GetTooltip()
-{
-	if (Session.IsValid())
-	{
-		const TSharedRef<SGridPanel> ToolTipGrid = SNew(SGridPanel);
-		int32 CurrentRowPos = 0;
-
-		AddHeader(ToolTipGrid, CurrentRowPos);
-		AddDescription(ToolTipGrid, CurrentRowPos);
-
-		AddNoDataInformation(ToolTipGrid, CurrentRowPos);
-
-		return SNew(SToolTip)
-			[
-				ToolTipGrid
-			];
-	}
-	else
-	{
-		return SNew(SToolTip)
-			.Text(LOCTEXT("NotImplemented", "Tooltip for multiple profiler instances has not been implemented yet"));
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STimersViewTooltip::AddNoDataInformation(const TSharedRef<SGridPanel>& Grid, int32& RowPos)
-{
-	Grid->AddSlot(0, RowPos)
-		.Padding(2.0f)
-		.ColumnSpan(3)
-		[
-			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
-			.Text(LOCTEXT("NoDataAvailable", "N/A"))
-		];
-	RowPos++;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STimersViewTooltip::AddHeader(const TSharedRef<SGridPanel>& Grid, int32& RowPos)
-{
-	const FString InstanceName = Session->GetName();
-
-	Grid->AddSlot(0, RowPos++)
-		.Padding(2.0f)
-		.ColumnSpan(3)
-		[
-			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
-			.Text(LOCTEXT("StatInstance", "Stat information for profiler instance"))
-		];
-
-	Grid->AddSlot(0, RowPos++)
-		.Padding(2.0f)
-		.ColumnSpan(3)
-		[
-			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
-			.Text(FText::FromString(InstanceName))
-		];
-
-	AddSeparator(Grid, RowPos);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STimersViewTooltip::AddDescription(const TSharedRef<SGridPanel>& Grid, int32& RowPos)
-{
-	/*
-	const FProfilerStat& ProfilerStat = Session->GetMetaData()->GetTimerById(TimerId);
-	const ETimerNodeType SampleType = Session->GetMetaData()->GetSampleTypeForTimerId(TimerId);
-	const FSlateBrush* const StatIcon = STimersViewHelper::GetIconForStatType(SampleType);
-
-	Grid->AddSlot(0, RowPos)
-	.Padding(2.0f)
-	[
-		SNew(STextBlock)
-		.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
-		.Text(LOCTEXT("GroupDesc","Group:"))
-	];
-
-	Grid->AddSlot(1, RowPos)
-	.Padding(2.0f)
-	.ColumnSpan(2)
-	[
-		SNew(STextBlock)
-		.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
-		.Text(FText::FromName(ProfilerStat.OwningGroup().Name()))
-	];
-	RowPos++;
-
-	Grid->AddSlot(0, RowPos)
-	.Padding(2.0f)
-	[
-		SNew(STextBlock)
-		.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
-		.Text(LOCTEXT("NameDesc","Name:"))
-	];
-
-	Grid->AddSlot(1, RowPos)
-	.Padding(2.0f)
-	.ColumnSpan(2)
-	[
-		SNew(STextBlock)
-		.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
-		.Text(FText::FromName(ProfilerStat.Name()))
-	];
-	RowPos++;
-
-	Grid->AddSlot(0, RowPos)
-	.Padding(2.0f)
-	[
-		SNew(STextBlock)
-		.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
-		.Text(LOCTEXT("TypeDesc","Type:"))
-	];
-
-	Grid->AddSlot(1, RowPos)
-	.Padding(2.0f)
-	.ColumnSpan(2)
-	[
-		SNew(SHorizontalBox)
-
-		+SHorizontalBox::Slot()
-		.AutoWidth()
-		[
-			SNew(SImage)
-			.Image(StatIcon)
-		]
-
-		+SHorizontalBox::Slot()
-		.AutoWidth()
-		.HAlign(HAlign_Left)
-		.VAlign(VAlign_Center)
-		[
-			SNew(STextBlock)
-			.Text(FText::FromString(ETimerNodeType::ToDescription(SampleType)))
-			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
-		]
-	];
-	RowPos++;
-
-	AddSeparator(Grid, RowPos);
-	*/
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STimersViewTooltip::AddSeparator(const TSharedRef<SGridPanel>& Grid, int32& RowPos)
-{
-	Grid->AddSlot(0, RowPos++)
-		.Padding(2.0f)
-		.ColumnSpan(3)
-		[
-			SNew(SSeparator)
-			.Orientation(Orient_Horizontal)
-		];
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -540,7 +309,7 @@ void STimersViewTooltip::AddStatsRow(TSharedPtr<SGridPanel> Grid, int32& Row, co
 		];
 
 	Grid->AddSlot(2, Row)
-		.Padding(2.0f)
+		.Padding(FMargin(8.0f, 2.0f, 2.0f, 2.0f))
 		.HAlign(HAlign_Right)
 		[
 			SNew(STextBlock)

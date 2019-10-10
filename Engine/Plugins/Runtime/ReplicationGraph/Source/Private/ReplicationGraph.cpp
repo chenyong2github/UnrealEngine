@@ -2740,14 +2740,9 @@ bool UReplicationGraphNode_ActorList::NotifyRemoveNetworkActor(const FNewReplica
 
 	if (ActorInfo.StreamingLevelName == NAME_None)
 	{
-		if (!ReplicationActorList.Remove(ActorInfo.Actor) && bWarnIfNotFound)
-		{
-			UE_LOG(LogReplicationGraph, Warning, TEXT("Attempted to remove %s from list %s but it was not found. (StreamingLevelName == NAME_None)"), *GetActorRepListTypeDebugString(ActorInfo.Actor), *GetFullName());
-		}
-		else
-		{
-			bRemovedSomething = true;
-		}
+		bRemovedSomething = ReplicationActorList.Remove(ActorInfo.Actor);
+
+		UE_CLOG(!bRemovedSomething && bWarnIfNotFound, LogReplicationGraph, Warning, TEXT("Attempted to remove %s from list %s but it was not found. (StreamingLevelName == NAME_None)"), *GetActorRepListTypeDebugString(ActorInfo.Actor), *GetFullName());
 
 		if (CVar_RepGraph_Verify)
 		{

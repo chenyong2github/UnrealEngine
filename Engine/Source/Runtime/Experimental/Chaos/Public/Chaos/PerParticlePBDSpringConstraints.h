@@ -2,7 +2,6 @@
 #pragma once
 
 #include "Chaos/Array.h"
-#include "Chaos/Map.h"
 #include "Chaos/PBDParticles.h"
 #include "Chaos/PBDSpringConstraintsBase.h"
 #include "Chaos/PerParticleRule.h"

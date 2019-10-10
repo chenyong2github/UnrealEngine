@@ -184,14 +184,10 @@ public:
 	uint32 numCopies;
 	uint32 otherWorkCounter;
 
-	bool HasDoneWork()
+	bool HasDoneWork() const
 	{
 		return (numDraws + numDispatches + numClears + numBarriers + numCopies + otherWorkCounter) > 0;
 	}
-
-	/** Dynamic vertex and index buffers. */
-	FD3D12DynamicBuffer DynamicVB;
-	FD3D12DynamicBuffer DynamicIB;
 
 	/** Constant buffers for Set*ShaderParameter calls. */
 	FD3D12ConstantBuffer VSConstantBuffer;

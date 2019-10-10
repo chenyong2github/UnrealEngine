@@ -11,7 +11,6 @@
 #include "Misc/Guid.h"
 #include "Engine/EngineTypes.h"
 #include "Templates/RefCounting.h"
-#include "Templates/ScopedPointer.h"
 #include "Templates/UniquePtr.h"
 #include "Misc/SecureHash.h"
 #include "RHI.h"
@@ -1561,9 +1560,10 @@ public:
 	/** Returns whether this material should be considered for casting dynamic shadows. */
 	inline bool ShouldCastDynamicShadows() const
 	{
-		return (GetBlendMode() == BLEND_Opaque ||
-		        GetBlendMode() == BLEND_Masked ||
-		       (GetBlendMode() == BLEND_Translucent && GetCastDynamicShadowAsMasked()));
+		return !GetShadingModels().HasOnlyShadingModel(MSM_SingleLayerWater) &&
+				(GetBlendMode() == BLEND_Opaque
+ 				 || GetBlendMode() == BLEND_Masked
+  				 || (GetBlendMode() == BLEND_Translucent && GetCastDynamicShadowAsMasked()));
 	}
 
 
@@ -2113,7 +2113,7 @@ public:
 	/** Initialization constructor. */
 	FOverrideSelectionColorMaterialRenderProxy(const FMaterialRenderProxy* InParent, const FLinearColor& InSelectionColor) :
 		Parent(InParent),
-		SelectionColor(InSelectionColor)
+		SelectionColor(FLinearColor(InSelectionColor.R, InSelectionColor.G, InSelectionColor.B, 1))
 	{
 	}
 

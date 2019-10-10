@@ -34,6 +34,12 @@ public:
 	/** The asset registry tag that contains the timestamp for this meta-data */
 	static const FName AssetRegistryTag_Timestamp;
 
+	/** The asset registry tag that contains the timecode in for this meta-data */
+	static const FName AssetRegistryTag_TimecodeIn;
+
+	/** The asset registry tag that contains the timecode out for this meta-data */
+	static const FName AssetRegistryTag_TimecodeOut;
+
 	/** The asset registry tag that contains the user-description for this meta-data */
 	static const FName AssetRegistryTag_Description;
 
@@ -97,6 +103,18 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Take")
 	FDateTime GetTimestamp() const;
+
+	/**
+	 * @return The timecode in for this take
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Take")
+	FTimecode GetTimecodeIn() const;
+
+	/**
+	 * @return The timecode out for this take
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Take")
+	FTimecode GetTimecodeOut() const;
 
 	/**
 	 * @return The duration for this take
@@ -178,6 +196,20 @@ public:
 	void SetTimestamp(FDateTime InTimestamp);
 
 	/**
+	 * Set this take's timecode in
+	 * @note: Only valid for takes that have not been locked
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Take")
+	void SetTimecodeIn(FTimecode InTimecodeIn);
+
+	/**
+	 * Set this take's timecode out
+	 * @note: Only valid for takes that have not been locked
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Take")
+	void SetTimecodeOut(FTimecode InTimecodeOut);
+
+	/**
 	 * Set this take's duration
 	 * @note: Only valid for takes that have not been locked
 	 */
@@ -228,6 +260,14 @@ private:
 	/** The timestamp at which the take was initiated */
 	UPROPERTY()
 	FDateTime Timestamp;
+
+	/** The timecode at the start of recording */
+	UPROPERTY()
+	FTimecode TimecodeIn;
+
+	/** The timecode at the end of recording */
+	UPROPERTY()
+	FTimecode TimecodeOut;
 
 	/** The desired duration for the take */
 	UPROPERTY(config)

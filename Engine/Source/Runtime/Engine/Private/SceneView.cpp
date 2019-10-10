@@ -47,6 +47,16 @@ static TAutoConsoleVariable<float> CVarSSRMaxRoughness(
 	TEXT(" -1: no override (default)"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
+
+static TAutoConsoleVariable<float> CVarGlobalMinRoughnessOverride(
+	TEXT("r.MinRoughnessOverride"),
+	0.0f,
+	TEXT("WARNING: This is an experimental feature that may change at any time.\n")
+	TEXT("Sets a global limit for roughness when used in the direct lighting calculations.\n")
+	TEXT("This can be used to limit the amount of fireflies caused by low roughness, in particular when AA is not in use.\n")
+	TEXT(" 0.0: no change (default)"),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 static TAutoConsoleVariable<int32> CVarFreezeMouseCursor(
@@ -2319,6 +2329,7 @@ void FSceneView::SetupCommonViewUniformBufferParameters(
 	ViewUniformShaderParameters.CameraCut = bCameraCut ? 1 : 0;
 
 	ViewUniformShaderParameters.VirtualTextureParams = FVector4(ForceInitToZero);
+	ViewUniformShaderParameters.MinRoughness = FMath::Clamp(CVarGlobalMinRoughnessOverride.GetValueOnRenderThread(), 0.02f, 1.0f);
 
 	//to tail call keep the order and number of parameters of the caller function
 	SetupViewRectUniformBufferParameters(ViewUniformShaderParameters, BufferSize, EffectiveViewRect, InViewMatrices, InPrevViewMatrices);
@@ -2454,11 +2465,10 @@ bool FSceneViewFamily::SupportsScreenPercentage() const
 	}
 
 	// Mobile renderer does not support screen percentage with LDR.
-	if ((GetFeatureLevel() <= ERHIFeatureLevel::ES3_1 && !IsMobileHDR()) || IsHTML5Platform())
+	if ((GetFeatureLevel() <= ERHIFeatureLevel::ES3_1 && !IsMobileHDR()) || (GetShaderPlatform() == SP_OPENGL_ES2_WEBGL))
 	{
 		return false;
 	}
-
 	return true;
 }
 

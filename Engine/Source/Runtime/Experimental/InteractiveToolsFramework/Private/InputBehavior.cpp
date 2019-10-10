@@ -65,12 +65,24 @@ bool UInputBehavior::WantsHoverEvents()
 	return false;
 }
 
-void UInputBehavior::UpdateHover(const FInputDeviceState& input)
+FInputCaptureRequest UInputBehavior::WantsHoverCapture(const FInputDeviceState& input)
 {
-	return;
+	return FInputCaptureRequest::Ignore();
 }
 
-void UInputBehavior::EndHover(const FInputDeviceState& input)
+
+FInputCaptureUpdate UInputBehavior::BeginHoverCapture(const FInputDeviceState& input, EInputCaptureSide eSide)
+{
+	return FInputCaptureUpdate::Ignore();
+}
+
+
+FInputCaptureUpdate UInputBehavior::UpdateHoverCapture(const FInputDeviceState& input)
+{
+	return FInputCaptureUpdate::End();
+}
+
+void UInputBehavior::EndHoverCapture()
 {
 	return;
 }
