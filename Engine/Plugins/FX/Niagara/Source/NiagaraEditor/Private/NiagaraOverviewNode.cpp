@@ -2,8 +2,16 @@
 
 #include "NiagaraOverviewNode.h"
 #include "NiagaraSystem.h"
+#include "NiagaraEditorModule.h"
+#include "ViewModels/Stack/NiagaraStackEntry.h"
+
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewNodeStackItem"
+
+bool UNiagaraOverviewNode::bColorsAreInitialized = false;
+FLinearColor UNiagaraOverviewNode::EmitterColor;
+FLinearColor UNiagaraOverviewNode::SystemColor;
 
 UNiagaraOverviewNode::UNiagaraOverviewNode()
 	: OwningSystem(nullptr)
@@ -50,6 +58,17 @@ FText UNiagaraOverviewNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 	{
 		return FText::FromString(OwningSystem->GetName());
 	}
+}
+
+FLinearColor UNiagaraOverviewNode::GetNodeTitleColor() const
+{
+	if (bColorsAreInitialized == false)
+	{
+		FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
+		EmitterColor = NiagaraEditorModule.GetWidgetProvider()->GetColorForExecutionCategory(UNiagaraStackEntry::FExecutionCategoryNames::Emitter);
+		SystemColor = NiagaraEditorModule.GetWidgetProvider()->GetColorForExecutionCategory(UNiagaraStackEntry::FExecutionCategoryNames::System);
+	}
+	return EmitterHandleGuid.IsValid() ? EmitterColor : SystemColor;
 }
 
 bool UNiagaraOverviewNode::CanUserDeleteNode() const

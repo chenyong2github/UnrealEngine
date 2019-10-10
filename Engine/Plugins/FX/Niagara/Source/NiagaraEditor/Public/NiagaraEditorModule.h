@@ -29,8 +29,9 @@ DECLARE_STATS_GROUP(TEXT("Niagara Editor"), STATGROUP_NiagaraEditor, STATCAT_Adv
 class NIAGARAEDITOR_API INiagaraEditorWidgetProvider
 {
 public:
-	virtual TSharedRef<SWidget> CreateStackView(UNiagaraStackViewModel& StackViewModel) = 0;
-	virtual TSharedRef<SWidget> CreateSystemOverview(TSharedRef<FNiagaraSystemViewModel> SystemViewModel) = 0;
+	virtual TSharedRef<SWidget> CreateStackView(UNiagaraStackViewModel& StackViewModel) const = 0;
+	virtual TSharedRef<SWidget> CreateSystemOverview(TSharedRef<FNiagaraSystemViewModel> SystemViewModel) const = 0;
+	virtual FLinearColor GetColorForExecutionCategory(FName ExecutionCategory) const = 0;
 };
 
 /** Niagara Editor module */

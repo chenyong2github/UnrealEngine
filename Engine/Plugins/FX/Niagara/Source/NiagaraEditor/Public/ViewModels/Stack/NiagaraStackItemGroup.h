@@ -7,6 +7,8 @@
 #include "Layout/Visibility.h"
 #include "NiagaraStackItemGroup.generated.h"
 
+class FNiagaraEmitterHandleViewModel;
+
 UCLASS()
 class NIAGARAEDITOR_API UNiagaraStackItemGroup : public UNiagaraStackEntry
 {
@@ -22,6 +24,8 @@ public:
 
 	virtual bool CanDelete() const { return false; }
 	virtual bool Delete() { return false; }
+
+	virtual bool GetIsEnabled() const override;
 
 	INiagaraStackItemGroupAddUtilities* GetAddUtilities() const;
 
@@ -47,4 +51,6 @@ private:
 	mutable TOptional<uint32> RecursiveStackIssuesCount;
 	/** The highest severity of issues along this entry's tree. */
 	mutable TOptional<EStackIssueSeverity> HighestIssueSeverity;
+
+	TSharedPtr<FNiagaraEmitterHandleViewModel> OwningEmitterHandleViewModel;
 };

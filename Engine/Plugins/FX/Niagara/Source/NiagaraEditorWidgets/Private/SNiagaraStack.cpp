@@ -254,28 +254,23 @@ void SNiagaraStack::Construct(const FArguments& InArgs, UNiagaraStackViewModel* 
 		SNew(SVerticalBox)
 		+ SVerticalBox::Slot()
 		.AutoHeight()
-		.Padding(0, 0, 0, 3)
-		[
-			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-			.Padding(3)
-			[
-				ConstructHeaderWidget()
-			]
-		]
-		+ SVerticalBox::Slot()
-		.Padding(0)
+		.Padding(1, 1, 1, 4)
 		[
 			SNew(SBorder)
 			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Padding(5)
 			[
-				SAssignNew(StackTree, STreeView<UNiagaraStackEntry*>)
-				.OnGenerateRow(this, &SNiagaraStack::OnGenerateRowForStackItem)
-				.OnGetChildren(this, &SNiagaraStack::OnGetChildren)
-				.TreeItemsSource(&StackViewModel->GetRootEntries())
-				.OnTreeViewScrolled(this, &SNiagaraStack::StackTreeScrolled)
+				ConstructHeaderWidget()
 			]
+		]
+		+ SVerticalBox::Slot()
+		.Padding(1)
+		[
+			SAssignNew(StackTree, STreeView<UNiagaraStackEntry*>)
+			.OnGenerateRow(this, &SNiagaraStack::OnGenerateRowForStackItem)
+			.OnGetChildren(this, &SNiagaraStack::OnGetChildren)
+			.TreeItemsSource(&StackViewModel->GetRootEntries())
+			.OnTreeViewScrolled(this, &SNiagaraStack::StackTreeScrolled)
 		]
 	];
 
@@ -824,7 +819,7 @@ TSharedRef<SNiagaraStackTableRow> SNiagaraStack::ConstructContainerForItem(UNiag
 		bShowExecutionCategoryIcon = false;
 		break;
 	case UNiagaraStackEntry::EStackRowStyle::GroupHeader:
-		ContentPadding = FMargin(LeftContentPadding, 4, 0, 0);
+		ContentPadding = FMargin(LeftContentPadding, 2, 0, 2);
 		ItemBackgroundColor = FLinearColor::Transparent;
 		ItemForegroundColor = FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.GroupForegroundColor");
 		bIsCategoryIconHighlighted = true;
@@ -977,7 +972,8 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 			.ToolTipText_UObject(Item, &UNiagaraStackEntry::GetTooltipText)
 			.Text_UObject(Item, &UNiagaraStackEntry::GetDisplayName)
 			.ColorAndOpacity(this, &SNiagaraStack::GetTextColorForItem, Item)
-			.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText),
+			.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
+			.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetOwnerIsEnabled),
 			SNullWidget::NullWidget);
 	}
 	else if (Item->IsA<UNiagaraStackModuleItemOutput>())
@@ -989,12 +985,14 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 			.ToolTipText_UObject(Item, &UNiagaraStackEntry::GetTooltipText)
 			.Text_UObject(Item, &UNiagaraStackEntry::GetDisplayName)
 			.ColorAndOpacity(this, &SNiagaraStack::GetTextColorForItem, Item)
-			.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText),
+			.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
+			.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetOwnerIsEnabled),
 			SNew(STextBlock)
 			.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.ParameterText")
 			.Text_UObject(ModuleItemOutput, &UNiagaraStackModuleItemOutput::GetOutputParameterHandleText)
 			.ColorAndOpacity(this, &SNiagaraStack::GetTextColorForItem, Item)
-			.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText));
+			.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
+			.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetOwnerIsEnabled));
 	}
 	else if (Item->IsA<UNiagaraStackFunctionInputCollection>() ||
 		Item->IsA<UNiagaraStackModuleItemOutputCollection>() ||
@@ -1006,17 +1004,21 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 			.ToolTipText_UObject(Item, &UNiagaraStackEntry::GetTooltipText)
 			.Text_UObject(Item, &UNiagaraStackEntry::GetDisplayName)
 			.ColorAndOpacity(this, &SNiagaraStack::GetTextColorForItem, Item)
-			.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText),
+			.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
+			.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetOwnerIsEnabled),
 			SNullWidget::NullWidget);
 	}
 	else if (Item->IsA<UNiagaraStackPropertyRow>())
 	{
 		UNiagaraStackPropertyRow* PropertyRow = CastChecked<UNiagaraStackPropertyRow>(Item);
 		FNodeWidgets PropertyRowWidgets = PropertyRow->GetDetailTreeNode()->CreateNodeWidgets();
+		TAttribute<bool> IsEnabled;
+		IsEnabled.BindUObject(Item, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled);
 		if (PropertyRowWidgets.WholeRowWidget.IsValid())
 		{
 			Container->SetOverrideNameWidth(PropertyRowWidgets.WholeRowWidgetLayoutData.MinWidth, PropertyRowWidgets.WholeRowWidgetLayoutData.MaxWidth);
 			Container->SetOverrideNameAlignment(PropertyRowWidgets.WholeRowWidgetLayoutData.HorizontalAlignment, PropertyRowWidgets.WholeRowWidgetLayoutData.VerticalAlignment);
+			PropertyRowWidgets.WholeRowWidget->SetEnabled(IsEnabled);
 			return FRowWidgets(PropertyRowWidgets.WholeRowWidget.ToSharedRef());
 		}
 		else
@@ -1025,6 +1027,8 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 			Container->SetOverrideNameAlignment(PropertyRowWidgets.NameWidgetLayoutData.HorizontalAlignment, PropertyRowWidgets.NameWidgetLayoutData.VerticalAlignment);
 			Container->SetOverrideValueWidth(PropertyRowWidgets.ValueWidgetLayoutData.MinWidth, PropertyRowWidgets.ValueWidgetLayoutData.MaxWidth);
 			Container->SetOverrideValueAlignment(PropertyRowWidgets.ValueWidgetLayoutData.HorizontalAlignment, PropertyRowWidgets.ValueWidgetLayoutData.VerticalAlignment);
+			PropertyRowWidgets.NameWidget->SetEnabled(IsEnabled);
+			PropertyRowWidgets.ValueWidget->SetEnabled(IsEnabled);
 			return FRowWidgets(PropertyRowWidgets.NameWidget.ToSharedRef(), PropertyRowWidgets.ValueWidget.ToSharedRef());
 		}
 	}

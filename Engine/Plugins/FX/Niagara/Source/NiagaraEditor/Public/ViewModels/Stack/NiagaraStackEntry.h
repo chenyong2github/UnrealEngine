@@ -198,6 +198,10 @@ public:
 
 	virtual bool GetIsEnabled() const;
 
+	bool GetOwnerIsEnabled() const;
+
+	bool GetIsEnabledAndOwnerIsEnabled() const { return GetIsEnabled() && GetOwnerIsEnabled(); }
+
 	FName GetExecutionCategoryName() const;
 
 	FName GetExecutionSubcategoryName() const;
@@ -345,4 +349,6 @@ private:
 	bool bIsSearchResult;
 
 	mutable TOptional<bool> bHasBaseEmitterCache;
+
+	bool bOwnerIsEnabled;
 };

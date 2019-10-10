@@ -6,9 +6,10 @@
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "SNiagaraOverviewStack.h"
 #include "NiagaraEditorModule.h"
-#include "Widgets/Layout/SBox.h"
+#include "NiagaraEditorWidgetsStyle.h"
 
 #include "Modules/ModuleManager.h"
+#include "Widgets/Layout/SBox.h"
 
 void SNiagaraOverviewStackNode::Construct(const FArguments& InArgs, UNiagaraOverviewNode* InNode)
 {
@@ -26,16 +27,36 @@ void SNiagaraOverviewStackNode::Construct(const FArguments& InArgs, UNiagaraOver
 			}
 			else
 			{
-				TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleviewModel = OwningSystemViewModel->GetEmitterHandleViewModelById(OverviewStackNode->GetEmitterHandleGuid());
-				if (EmitterHandleviewModel.IsValid())
+				EmitterHandleViewModelWeak = OwningSystemViewModel->GetEmitterHandleViewModelById(OverviewStackNode->GetEmitterHandleGuid());
+				if (EmitterHandleViewModelWeak.IsValid())
 				{
-					StackViewModel = EmitterHandleviewModel->GetEmitterStackViewModel();
+					StackViewModel = EmitterHandleViewModelWeak.Pin()->GetEmitterStackViewModel();
 				}
 			}
 			OverviewSelectionViewModel = OwningSystemViewModel->GetSelectionViewModel();
 		}
 	}
 	UpdateGraphNode();
+}
+
+TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateTitleWidget(TSharedPtr<SNodeTitle> NodeTitle)
+{
+	TSharedRef<SWidget> DefaultTitle = SGraphNode::CreateTitleWidget(NodeTitle);
+	
+	return SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(0, 0, 5, 0)
+		[
+			SNew(SCheckBox)
+			.Visibility(this, &SNiagaraOverviewStackNode::GetEnabledCheckBoxVisibility)
+			.IsChecked(this, &SNiagaraOverviewStackNode::GetEnabledCheckState)
+			.OnCheckStateChanged(this, &SNiagaraOverviewStackNode::OnEnabledCheckStateChanged)
+		]
+		+ SHorizontalBox::Slot()
+		[
+			DefaultTitle
+		];
 }
 
 TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
@@ -56,10 +77,10 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
 
 	// NODE CONTENT AREA
 	return SNew(SBorder)
-		.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
 		.HAlign(HAlign_Fill)
 		.VAlign(VAlign_Fill)
-		.Padding( FMargin(0,3) )
+		.Padding(FMargin(2, 3, 2, 2))
 		[
 			SNew(SHorizontalBox)
 			+SHorizontalBox::Slot()
@@ -71,7 +92,15 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
 			]
 			+SHorizontalBox::Slot()
 			[
-				ContentWidget.ToSharedRef()
+				SNew(SBorder)
+				.BorderImage(FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.SystemOverview.NodeBackgroundBorder"))
+				.BorderBackgroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.SystemOverview.BackgroundColor"))
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Fill)
+				.Padding(FMargin(0, 0, 0, 4))
+				[
+					ContentWidget.ToSharedRef()
+				]
 			]
 			+SHorizontalBox::Slot()
 			.AutoWidth()
@@ -81,4 +110,23 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
 				SAssignNew(RightNodeBox, SVerticalBox)
 			]
 		];
+}
+
+EVisibility SNiagaraOverviewStackNode::GetEnabledCheckBoxVisibility() const
+{
+	return EmitterHandleViewModelWeak.IsValid() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+ECheckBoxState SNiagaraOverviewStackNode::GetEnabledCheckState() const
+{
+	return EmitterHandleViewModelWeak.IsValid() && EmitterHandleViewModelWeak.Pin()->GetIsEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void SNiagaraOverviewStackNode::OnEnabledCheckStateChanged(ECheckBoxState InCheckState)
+{
+	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = EmitterHandleViewModelWeak.Pin();
+	if (EmitterHandleViewModel.IsValid())
+	{
+		EmitterHandleViewModel->SetIsEnabled(InCheckState == ECheckBoxState::Checked);
+	}
 }
