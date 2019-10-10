@@ -7,6 +7,7 @@
 #include "ChaosArchive.h"
 #include "Templates/ChooseClass.h"
 #include "Templates/EnableIf.h"
+#include "Math/NumericLimits.h"
 
 namespace Chaos
 {
@@ -90,7 +91,7 @@ public:
 		const TVector<T, d> UnscaledStart = MInvScale * StartPoint;
 		const TVector<T, d> UnscaledDirDenorm = MScale * Dir;
 		const T LengthScale = UnscaledDirDenorm.Size();
-		if (ensure(LengthScale > TNumericLimits::Min()))
+		if (ensure(LengthScale > TNumericLimits<T>::Min()))
 		{
 			const T LengthScaleInv = 1.f / LengthScale;
 			const T UnscaledLength = Length * LengthScaleInv;
@@ -109,7 +110,7 @@ public:
 				return true;
 			}
 		}
-		
+			
 		return false;
 	}
 
@@ -123,7 +124,7 @@ public:
 
 		const TVector<T, d> UnscaledDirDenorm = OwningScaled.MScale * LocalDir;
 		const T LengthScale = UnscaledDirDenorm.Size();
-		if (ensure(LengthScale > TNumericLimits::Min()))
+		if (ensure(LengthScale > TNumericLimits<T>::Min()))
 		{
 			const T LengthScaleInv = 1.f / LengthScale;
 			const T UnscaledLength = Length * LengthScaleInv;
