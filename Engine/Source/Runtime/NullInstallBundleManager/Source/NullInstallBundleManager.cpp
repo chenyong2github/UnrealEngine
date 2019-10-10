@@ -11,11 +11,20 @@ class FNullInstallBundleManager : public IInstallBundleManager
 		return false;
 	}
 
-	virtual void PushInitErrorCallback(FInstallBundleManagerInitErrorHandler Callback) override
+	virtual FDelegateHandle PushInitErrorCallback(FInstallBundleManagerInitErrorHandler Callback) override
 	{
+		return FDelegateHandle();
 	}
 
 	virtual void PopInitErrorCallback() override
+	{
+	}
+
+	void PopInitErrorCallback(FDelegateHandle Handle) override
+	{
+	}
+
+	virtual void PopInitErrorCallback(const void* InUserObject) override
 	{
 	}
 
