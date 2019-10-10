@@ -1509,11 +1509,15 @@ struct FNameHelper
 		{
 			return FName();
 		}
-
-		using CharType = typename ViewType::CharType;
-		const CharType* Name = View.Str;
-		const int32 Len = View.Len;
 		
+		uint32 InternalNumber = ParseNumber(View.Str, /* may be shortened */ View.Len);
+		return MakeWithNumber(View, FindType, InternalNumber);
+	}
+
+	template<typename CharType>
+	static uint32 ParseNumber(const CharType* Name, int32& InOutLen)
+	{
+		const int32 Len = InOutLen;
 		int32 Digits = 0;
 		for (const CharType* It = Name + Len - 1; It >= Name && *It >= '0' && *It <= '9'; --It)
 		{
@@ -1533,13 +1537,13 @@ struct FNameHelper
 				int64 Number = TCString<CharType>::Atoi64(Name + Len - Digits);
 				if (Number < MAX_int32)
 				{
-					View.Len -= 1 + Digits;
-					return MakeWithNumber(View, FindType, static_cast<uint32>(NAME_EXTERNAL_TO_INTERNAL(Number)));
+					InOutLen -= 1 + Digits;
+					return static_cast<uint32>(NAME_EXTERNAL_TO_INTERNAL(Number));
 				}
 			}
 		}
 
-		return MakeWithNumber(View, FindType, NAME_NO_NUMBER_INTERNAL);
+		return NAME_NO_NUMBER_INTERNAL;
 	}
 
 	static FName MakeWithNumber(FNameAnsiStringView	 View, EFindName FindType, int32 InternalNumber)
@@ -1629,7 +1633,6 @@ struct FNameHelper
 			: FNameStringView(LoadedEntry.AnsiName, FCStringAnsi::Strlen(LoadedEntry.AnsiName));
 
 		return Make(View, FNAME_Add, NAME_NO_NUMBER_INTERNAL);
-
 	}
 
 	template<class CharType>
@@ -2075,6 +2078,16 @@ void FName::AutoTest()
 	check(Names[5] == "FooC");
 	check(Names[6] == FooWide);
 
+	check(FLazyName("Hej") == FName("Hej"));
+	check(FLazyName("Hej_0") == FName("Hej_0"));
+	check(FLazyName("Hej_00") == FName("Hej_00"));
+	check(FLazyName("Hej_1") == FName("Hej_1"));
+	check(FLazyName("Hej_01") == FName("Hej_01"));
+	check(FLazyName("Hej_-1") == FName("Hej_-1"));
+	check(FLazyName("Hej__0") == FName("Hej__0"));
+	check(FLazyName("Hej_2147483647") == FName("Hej_2147483647"));
+	check(FLazyName("Hej_123") == FLazyName(FName("Hej_123")));
+
 #if 0
 	// Check hash table growth still yields the same unique FName ids
 	static int32 OverflowAtLeastTwiceCount = 4 * FNamePoolInitialSlotsPerShard * FNamePoolShards;
@@ -2219,6 +2232,11 @@ void FName::TearDown()
 		bNamePoolInitialized = false;
 	
 	}
+}
+
+uint32 FLazyName::ParseNumber(const TCHAR* Str, int32 Len)
+{
+	return FNameHelper::ParseNumber(Str, Len);
 }
 
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
