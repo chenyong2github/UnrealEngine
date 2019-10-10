@@ -1636,24 +1636,32 @@ void SNetStatsView::UpdateStatsInternal()
 
 	if (Session.IsValid())
 	{
-		TUniquePtr<Trace::ITable<Trace::FNetProfilerAggregatedStats>> AggregatedStatsTable;
+		TUniquePtr<Trace::ITable<Trace::FNetProfilerAggregatedStats>> AggregationResultTable;
 
 		{
 			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 			const Trace::INetProfilerProvider& NetProfilerProvider = Trace::ReadNetProfilerProvider(*Session.Get());
-			AggregatedStatsTable.Reset(NetProfilerProvider.CreateAggregation(ConnectionIndex, ConnectionMode, StatsPacketStartIndex, StatsPacketEndIndex - 1, StatsStartPosition, StatsEndPosition));
+			AggregationResultTable.Reset(NetProfilerProvider.CreateAggregation(ConnectionIndex, ConnectionMode, StatsPacketStartIndex, StatsPacketEndIndex - 1, StatsStartPosition, StatsEndPosition));
 		}
 
-		if (AggregatedStatsTable.IsValid())
+		if (AggregationResultTable.IsValid())
 		{
-			TUniquePtr<Trace::ITableReader<Trace::FNetProfilerAggregatedStats>> TableReader(AggregatedStatsTable->CreateReader());
+			TUniquePtr<Trace::ITableReader<Trace::FNetProfilerAggregatedStats>> TableReader(AggregationResultTable->CreateReader());
 			while (TableReader->IsValid())
 			{
 				const Trace::FNetProfilerAggregatedStats* Row = TableReader->GetCurrentRow();
 				FNetEventNodePtr* NetEventNodePtrPtr = NetEventNodesIdMap.Find(static_cast<uint64>(Row->EventTypeIndex));
 				if (NetEventNodePtrPtr != nullptr)
 				{
-					(*NetEventNodePtrPtr)->SetAggregatedStats(*Row);
+					FNetEventNodePtr NetEventNodePtr = *NetEventNodePtrPtr;
+					NetEventNodePtr->SetAggregatedStats(*Row);
+
+					TSharedPtr<ITableRow> TableRowPtr = TreeView->WidgetFromItem(NetEventNodePtr);
+					if (TableRowPtr.IsValid())
+					{
+						TSharedPtr<SNetStatsTableRow> RowPtr = StaticCastSharedPtr<SNetStatsTableRow, ITableRow>(TableRowPtr);
+						RowPtr->InvalidateContent();
+					}
 				}
 				TableReader->NextRow();
 			}
