@@ -81,7 +81,7 @@ void FRemesher::BasicRemeshPass()
 	}
 
 	ProfileBeginSmooth();
-	if (bEnableSmoothing && SmoothSpeedT > 0)
+	if (bEnableSmoothing && (SmoothSpeedT > 0 || CustomSmoothSpeedF) )
 	{
 		if (bEnableSmoothInPlace) 
 		{
@@ -558,6 +558,12 @@ FVector3d FRemesher::ComputeSmoothedVertexPos(int vID,
 	}
 	EVertexControl vControl = (VertexControlF == nullptr) ? EVertexControl::AllowAll : VertexControlF(vID);
 	if (((int)vControl & (int)EVertexControl::NoSmooth) != 0)
+	{
+		return Mesh->GetVertex(vID);
+	}
+
+	double UseSmoothSpeed = (CustomSmoothSpeedF) ? CustomSmoothSpeedF(*Mesh, vID) : SmoothSpeedT;
+	if (UseSmoothSpeed <= 0)
 	{
 		return Mesh->GetVertex(vID);
 	}
