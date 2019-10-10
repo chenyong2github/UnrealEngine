@@ -611,6 +611,8 @@ void UpdateHistory(
 					AllocateOrReuseAORenderTarget(RHICmdList, *BentNormalHistoryState, BentNormalHistoryRTName, PF_FloatRGBA);
 				}
 
+				RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, (*BentNormalHistoryState)->GetRenderTargetItem().TargetableTexture);
+
 				FRHIRenderPassInfo RPInfo((*BentNormalHistoryState)->GetRenderTargetItem().TargetableTexture, ERenderTargetActions::Load_Store);
 				RHICmdList.BeginRenderPass(RPInfo, TEXT("UpdateHistoryStability"));
 				{

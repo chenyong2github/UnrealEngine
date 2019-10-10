@@ -1400,16 +1400,30 @@ namespace UnrealBuildTool
 				if(EnabledPlugin.bDescriptorNeededAtRuntime || EnabledPlugin.bDescriptorReferencedExplicitly)
 				{
 					Receipt.RuntimeDependencies.Add(EnabledPlugin.File, StagedFileType.UFS);
+
+					// Only add child plugins that are named for the current Platform or Groups that it's part of
+					if (EnabledPlugin.ChildFiles.Count > 0)
+					{
+						List<string> ValidFileNames = new List<string>();
+						ValidFileNames.Add(EnabledPlugin.Name + "_" + Platform.ToString());
+
+						foreach (UnrealPlatformGroup Group in UnrealPlatformGroup.GetValidGroups())
+						{
+							if (UEBuildPlatform.IsPlatformInGroup(Platform, Group))
+							{
+								ValidFileNames.Add(EnabledPlugin.Name + "_" + Group.ToString());
+							}
+						}
+
 					foreach (FileReference ChildFile in EnabledPlugin.ChildFiles)
 					{
-						// only want to stage plugin extensions for the running platform, not host type platforms as well
-						// we have a naming convention that can assume this is the suffix of the filename
-						if (ChildFile.GetFileNameWithoutAnyExtensions().EndsWith("_" + Receipt.Platform.ToString()))
+							if (ValidFileNames.Contains(ChildFile.GetFileNameWithoutExtension(), StringComparer.InvariantCultureIgnoreCase))
 						{
 							Receipt.RuntimeDependencies.Add(ChildFile, StagedFileType.UFS);
 						}
 					}
 				}
+			}
 			}
 
 			// Add all the other runtime dependencies
@@ -1987,7 +2001,7 @@ namespace UnrealBuildTool
 			}
 
 			// Find the restricted folders under the base directory
-			return RestrictedFolders.FindRestrictedFolders(BaseDir, File.Directory);
+			return RestrictedFolders.FindPermittedRestrictedFolderReferences(BaseDir, File.Directory);
 		}
 
 		/// <summary>
@@ -2620,15 +2634,15 @@ namespace UnrealBuildTool
 				List<DirectoryReference> Directories = new List<DirectoryReference>();
 				if (TargetType == TargetType.Editor)
 				{
-					Directories.Add(UnrealBuildTool.EngineSourceEditorDirectory);
+					Directories.AddRange(UnrealBuildTool.GetAllEngineDirectories("Source/Editor"));
 				}
-				Directories.Add(UnrealBuildTool.EngineSourceRuntimeDirectory);
+				Directories.AddRange(UnrealBuildTool.GetAllEngineDirectories("Source/Runtime"));
 
 				// Also allow anything in the developer directory in non-shipping configurations (though we blacklist by default unless the PrecompileForTargets
 				// setting indicates that it's actually useful at runtime).
 				if(Rules.bBuildDeveloperTools)
 				{
-					Directories.Add(UnrealBuildTool.EngineSourceDeveloperDirectory);
+					Directories.AddRange(UnrealBuildTool.GetAllEngineDirectories("Source/Developer"));
 					Directories.Add(DirectoryReference.Combine(UnrealBuildTool.EnterpriseSourceDirectory, "Developer"));
 				}
 
@@ -2636,12 +2650,14 @@ namespace UnrealBuildTool
 				foreach (string ModuleName in ModuleNames)
 				{
 					FileReference ModuleFileName = RulesAssembly.GetModuleFileName(ModuleName);
-					foreach(DirectoryReference BaseDir in Directories)
-					{
-						if(ModuleFileName.IsUnderDirectory(BaseDir))
+					if (Directories.Any(BaseDir => ModuleFileName.IsUnderDirectory(BaseDir)))
 						{
 							Type RulesType = RulesAssembly.GetModuleRulesType(ModuleName);
 
+						// Skip platform extension modules. We only care about the base modules, not the platform overrides.
+						// The platform overrides get applied at a later stage when we actually come to build the module.
+						if (!UEBuildPlatform.GetPlatformFolderNames().Any(Name => RulesType.Name.EndsWith("_" + Name)))
+						{
 							SupportedPlatformsAttribute SupportedPlatforms = RulesType.GetCustomAttribute<SupportedPlatformsAttribute>();
 							if(SupportedPlatforms != null)
 							{
@@ -2652,7 +2668,7 @@ namespace UnrealBuildTool
 							}
 							else
 							{
-								if(!ModuleFileName.ContainsAnyNames(ExcludeFolders, BaseDir))
+								if (!ModuleFileName.ContainsAnyNames(ExcludeFolders, UnrealBuildTool.EngineDirectory))
 								{
 									FilteredModuleNames.Add(ModuleName);
 								}

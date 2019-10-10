@@ -5,14 +5,16 @@ using System.IO;
 
 public class libOpus : ModuleRules
 {
+	/** Mark the current version of the library */
+	protected virtual string OpusVersion { get { return "opus-1.1"; } }
+
 	public libOpus(ReadOnlyTargetRules Target) : base(Target)
 	{
-		/** Mark the current version of the library */
-		string OpusVersion = "1.1";
 		Type = ModuleType.External;
 
-		PublicIncludePaths.Add(Target.UEThirdPartySourceDirectory + "libOpus/opus-" + OpusVersion + "/include");
-		string LibraryPath = Target.UEThirdPartySourceDirectory + "libOpus/opus-" + OpusVersion + "/";
+		PublicIncludePaths.Add(Path.Combine(ModuleDirectory, OpusVersion, "include"));
+
+		string LibraryPath = Path.Combine(ModuleDirectory, OpusVersion) + "/";
 
 		if ((Target.Platform == UnrealTargetPlatform.Win64) ||
 			(Target.Platform == UnrealTargetPlatform.Win32))
@@ -131,10 +133,6 @@ public class libOpus : ModuleRules
             PublicAdditionalLibraries.Add(LibraryPath + "celt.lib");
             PublicAdditionalLibraries.Add(LibraryPath + "opus.lib");
             PublicAdditionalLibraries.Add(LibraryPath + "speex_resampler.lib");
-        }
-		else if (Target.Platform == UnrealTargetPlatform.PS4)
-        {
-            PublicAdditionalLibraries.Add(LibraryPath + "PS4/ORBIS_Release/" + "OpusLibrary.a");
         }
         else if (Target.Platform == UnrealTargetPlatform.Switch)
         {

@@ -612,8 +612,8 @@ namespace UnrealBuildTool
 					continue;
 				}
 
-				// Find the restricted folders under the base directory
-				List<RestrictedFolder> BinaryFolders = RestrictedFolders.FindRestrictedFolders(BaseDir, OutputFilePath.Directory);
+				// Find the permitted restricted folder references under the base directory
+				List<RestrictedFolder> BinaryFolders = RestrictedFolders.FindPermittedRestrictedFolderReferences(BaseDir, OutputFilePath.Directory);
 
 				// Check all the dependent modules
 				foreach(UEBuildModule Module in ModuleReferencedBy.Keys)
@@ -636,7 +636,7 @@ namespace UnrealBuildTool
 							{
 								ReferenceChain.Insert(0, ReferencedModule.Name);
 							}
-							Log.TraceError("ERROR: Output binary \"{0}\" is not in a {1} folder, but references \"{2}\" via {3}.", OutputFilePath, Pair.Key.ToString(), Pair.Value, String.Join(" -> ", ReferenceChain));
+							Log.TraceError("Output binary \"{0}\" is not in a {1} folder, but references \"{2}\" via {3}.", OutputFilePath, Pair.Key.ToString(), Pair.Value, String.Join(" -> ", ReferenceChain));
 							bResult = false;
 						}
 					}

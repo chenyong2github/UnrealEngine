@@ -700,6 +700,12 @@ public:
 		return ClearValue;
 	}
 
+	virtual void GetWriteMaskProperties(void*& OutData, uint32& OutSize)
+	{
+		OutData = nullptr;
+		OutSize = 0;
+	}
+
 private:
 	FClearValueBinding ClearValue;
 	uint32 NumMips;
@@ -1304,9 +1310,17 @@ public:
 	{
 		return ExtractDepth() == DepthWrite;
 	}
+	inline bool IsDepthRead() const
+	{
+		return ExtractDepth() == DepthRead;
+	}
 	inline bool IsStencilWrite() const
 	{
 		return ExtractStencil() == StencilWrite;
+	}
+	inline bool IsStencilRead() const
+	{
+		return ExtractStencil() == StencilRead;
 	}
 
 	inline bool IsAnyWrite() const
@@ -1362,6 +1376,42 @@ public:
 		}
 
 		return true;
+	}
+
+	/**
+	* Returns a new FExclusiveDepthStencil to be used to transition a depth stencil resource to readable.
+	* If the depth or stencil is already in a readable state, that particular component is returned as Nop,
+	* to avoid unnecessary subresource transitions.
+	*/
+	inline FExclusiveDepthStencil GetReadableTransition() const 
+	{
+		FExclusiveDepthStencil::Type NewDepthState = IsDepthWrite()
+			? FExclusiveDepthStencil::DepthRead
+			: FExclusiveDepthStencil::DepthNop;
+
+		FExclusiveDepthStencil::Type NewStencilState = IsStencilWrite()
+			? FExclusiveDepthStencil::StencilRead
+			: FExclusiveDepthStencil::StencilNop;
+
+		return (FExclusiveDepthStencil::Type)(NewDepthState | NewStencilState);
+	}
+
+	/**
+	* Returns a new FExclusiveDepthStencil to be used to transition a depth stencil resource to readable.
+	* If the depth or stencil is already in a readable state, that particular component is returned as Nop,
+	* to avoid unnecessary subresource transitions.
+	*/
+	inline FExclusiveDepthStencil GetWritableTransition() const
+	{
+		FExclusiveDepthStencil::Type NewDepthState = IsDepthRead()
+			? FExclusiveDepthStencil::DepthWrite
+			: FExclusiveDepthStencil::DepthNop;
+
+		FExclusiveDepthStencil::Type NewStencilState = IsStencilRead()
+			? FExclusiveDepthStencil::StencilWrite
+			: FExclusiveDepthStencil::StencilNop;
+
+		return (FExclusiveDepthStencil::Type)(NewDepthState | NewStencilState);
 	}
 
 	uint32 GetIndex() const

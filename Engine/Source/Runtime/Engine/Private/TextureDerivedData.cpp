@@ -47,11 +47,11 @@
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID and set this new
 // guid as version
 
-#define TEXTURE_DERIVEDDATA_VER		TEXT("68A083899C6F4316B8CE0E2958EDE2C2")
+#define TEXTURE_DERIVEDDATA_VER		TEXT("EA79170AE1CF49D5BB1C1CE2FC472B16")
 
 // This GUID is mixed into DDC version for virtual textures only, this allows updating DDC version for VT without invalidating DDC for all textures
 // This is useful during development, but once large numbers of VT are present in shipped content, it will have the same problem as TEXTURE_DERIVEDDATA_VER
-#define TEXTURE_VT_DERIVEDDATA_VER	TEXT("91E2F0C570CD44AAB33CFA9D000BEFAC")
+#define TEXTURE_VT_DERIVEDDATA_VER	TEXT("D778766A0580478F9AA19D184C0BDB27")
 
 #if ENABLE_COOK_STATS
 namespace TextureCookStats
@@ -572,8 +572,9 @@ uint32 PutDerivedDataInCache(FTexturePlatformData* DerivedData, const FString& D
 	// Write out individual mips to the derived data cache.
 	const int32 MipCount = DerivedData->Mips.Num();
 	const bool bIsCubemap = (DerivedData->NumSlices > 0);
-	const int32 FirstInlineMip = bIsCubemap ? 0 : FMath::Max(0, MipCount - NUM_INLINE_DERIVED_MIPS);
-	for (int32 MipIndex = 0; MipIndex < MipCount; ++MipIndex)
+	const int32 FirstInlineMip = bIsCubemap ? 0 : FMath::Max(0, MipCount - FMath::Max((int32)NUM_INLINE_DERIVED_MIPS, (int32)DerivedData->NumMipsInTail));
+	const int32 WritableMipCount = MipCount - ((DerivedData->NumMipsInTail > 0) ? (DerivedData->NumMipsInTail - 1) : 0);
+	for (int32 MipIndex = 0; MipIndex < WritableMipCount; ++MipIndex)
 	{
 		FString MipDerivedDataKey;
 		FTexture2DMipMap& Mip = DerivedData->Mips[MipIndex];
@@ -1011,6 +1012,8 @@ FTexturePlatformData::FTexturePlatformData()
 	, SizeY(0)
 	, NumSlices(0)
 	, PixelFormat(PF_Unknown)
+	, ExtData(0)
+	, NumMipsInTail(0)
 	, VTData(nullptr)
 #if WITH_EDITORONLY_DATA
 	, AsyncTask(NULL)
@@ -1047,6 +1050,7 @@ bool FTexturePlatformData::IsReadyForAsyncPostLoad() const
 bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData)
 {
 	int32 NumMipsCached = 0;
+	const int32 LoadableMips = Mips.Num() - ((NumMipsInTail > 0) ? (NumMipsInTail - 1) : 0);
 
 #if WITH_EDITOR
 	TArray<uint8> TempData;
@@ -1057,7 +1061,7 @@ bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData)
 
 	// Handle the case where we inlined more mips than we intend to keep resident
 	// Discard unneeded mips
-	for (int32 MipIndex = 0; MipIndex < FirstMipToLoad && MipIndex < Mips.Num(); ++MipIndex)
+	for (int32 MipIndex = 0; MipIndex < FirstMipToLoad && MipIndex < LoadableMips; ++MipIndex)
 	{
 		FTexture2DMipMap& Mip = Mips[MipIndex];
 		if (Mip.BulkData.IsBulkDataLoaded())
@@ -1068,7 +1072,7 @@ bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData)
 	}
 
 	// Load remaining mips (if any) from bulk data.
-	for (int32 MipIndex = FirstMipToLoad; MipIndex < Mips.Num(); ++MipIndex)
+	for (int32 MipIndex = FirstMipToLoad; MipIndex < LoadableMips; ++MipIndex)
 	{
 		FTexture2DMipMap& Mip = Mips[MipIndex];
 		if (Mip.BulkData.GetBulkDataSize() > 0)
@@ -1094,7 +1098,7 @@ bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData)
 
 #if WITH_EDITOR
 	// Wait for async DDC gets.
-	for (int32 MipIndex = FirstMipToLoad; MipIndex < Mips.Num(); ++MipIndex)
+	for (int32 MipIndex = FirstMipToLoad; MipIndex < LoadableMips; ++MipIndex)
 	{
 		FTexture2DMipMap& Mip = Mips[MipIndex];
 		if (Mip.DerivedDataKey.IsEmpty() == false)
@@ -1120,10 +1124,10 @@ bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData)
 	}
 #endif // #if WITH_EDITOR
 
-	if (NumMipsCached != (Mips.Num() - FirstMipToLoad))
+	if (NumMipsCached != (LoadableMips - FirstMipToLoad))
 	{
 		// Unable to cache all mips. Release memory for those that were cached.
-		for (int32 MipIndex = FirstMipToLoad; MipIndex < Mips.Num(); ++MipIndex)
+		for (int32 MipIndex = FirstMipToLoad; MipIndex < LoadableMips; ++MipIndex)
 		{
 			if (OutMipData && OutMipData[MipIndex - FirstMipToLoad])
 			{
@@ -1164,7 +1168,8 @@ int32 FTexturePlatformData::GetNumNonStreamingMips() const
 		int32 NumNonStreamingMips = 1;
 
 		// Take in to account the min resident limit.
-		NumNonStreamingMips = FMath::Max(NumNonStreamingMips, UTexture2D::GetMinTextureResidentMipCount());
+		NumNonStreamingMips = FMath::Max(NumNonStreamingMips, (int32)NumMipsInTail);
+		NumNonStreamingMips = FMath::Max(NumNonStreamingMips, UTexture2D::GetStaticMinTextureResidentMipCount());
 		NumNonStreamingMips = FMath::Min(NumNonStreamingMips, MipCount);
 		int32 BlockSizeX = GPixelFormats[PixelFormat].BlockSizeX;
 		int32 BlockSizeY = GPixelFormats[PixelFormat].BlockSizeY;
@@ -1257,7 +1262,9 @@ static void SerializePlatformData(
 		FString PixelFormatString = PixelFormatEnum->GetNameByValue(PlatformData->PixelFormat).GetPlainNameString();
 		Ar << PixelFormatString;
 	}
-	
+ 	Ar << PlatformData->ExtData;
+ 	Ar << PlatformData->NumMipsInTail;
+
 	int32 NumMips = PlatformData->Mips.Num();
 	int32 FirstMipToSerialize = 0;
 
@@ -1286,12 +1293,15 @@ static void SerializePlatformData(
 			const int32 LODBias = Texture->LODBias;
 			const int32 NumCinematicMipLevels = Texture->NumCinematicMipLevels;
 			const TextureMipGenSettings MipGenSetting = Texture->MipGenSettings;
+			const int32 LastMip = FMath::Max(NumMips - 1, 0);
+			check(NumMips >= (int32)PlatformData->NumMipsInTail);
+			const int32 FirstMipTailMip = NumMips - (int32)PlatformData->NumMipsInTail;
 
 			FirstMipToSerialize = Ar.CookingTarget()->GetTextureLODSettings().CalculateLODBias(Width, Height, Texture->MaxTextureSize, LODGroup, LODBias, 0, MipGenSetting, bIsVirtual);
 			if (!bIsVirtual)
 			{
-				FirstMipToSerialize = FMath::Clamp(FirstMipToSerialize, 0, FMath::Max(NumMips - 1, 0));
-				NumMips -= FirstMipToSerialize;
+				FirstMipToSerialize = FMath::Clamp(FirstMipToSerialize, 0, PlatformData->NumMipsInTail > 0 ? FirstMipTailMip : LastMip);
+				NumMips = FMath::Max(1, NumMips - FirstMipToSerialize);
 			}
 			else
 			{
@@ -1374,6 +1384,7 @@ static void SerializePlatformData(
 		}
 	}
 	Ar << NumMips;
+	check(NumMips >= (int32)PlatformData->NumMipsInTail);
 	if (Ar.IsLoading())
 	{
 		check(FirstMipToSerialize == 0);

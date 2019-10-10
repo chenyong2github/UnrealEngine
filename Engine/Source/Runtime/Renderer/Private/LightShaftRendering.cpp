@@ -503,6 +503,7 @@ void DownsamplePass(FRHICommandListImmediate& RHICmdList, const FViewInfo& View,
 
 	FRHIRenderPassInfo RPInfo(LightShaftsDest->GetRenderTargetItem().TargetableTexture, ERenderTargetActions::Load_Store);
 	TransitionRenderPassTargets(RHICmdList, RPInfo);
+	RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, FSceneRenderTargets::Get(RHICmdList).GetSceneColorTexture());
 	RHICmdList.BeginRenderPass(RPInfo, TEXT("DownsampleLightshaftMask"));
 	{
 		RHICmdList.SetViewport(DownSampledXY.X, DownSampledXY.Y, 0.0f, DownSampledXY.X + DownsampledSizeX, DownSampledXY.Y + DownsampledSizeY, 1.0f);

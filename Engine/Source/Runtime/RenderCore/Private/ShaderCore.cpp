@@ -177,11 +177,11 @@ public:
 	{
 		// Ignore only platform specific files, which won't be used by the target platform.
 		if (VirtualFilePath.StartsWith(TEXT("/Engine/Private/Platform/"))
-			|| VirtualFilePath.StartsWith(TEXT("/Engine/Public/Platform/")))
+			|| VirtualFilePath.StartsWith(TEXT("/Engine/Public/Platform/"))
+			|| VirtualFilePath.StartsWith(TEXT("/Platform/")))
 		{
 			const FString& PlatformIncludeDirectory = GetPlatformIncludeDirectory(ShaderPlatform);
-
-			if (PlatformIncludeDirectory.IsEmpty() || !VirtualFilePath.Contains(PlatformIncludeDirectory))
+			if (PlatformIncludeDirectory.IsEmpty() || !(VirtualFilePath.Contains(PlatformIncludeDirectory)))
 			{
 				return true;
 			}
@@ -198,6 +198,13 @@ public:
 		}
 	}
 
+	const FString& GetPlatformIncludeDirectory(EShaderPlatform ShaderPlatform)
+	{
+		check(ShaderPlatform < EShaderPlatform::SP_NumPlatforms);
+		checkf(bInitialized, TEXT("GShaderHashCache::Initialize needs to be called before GShaderHashCache::GetPlatformIncludeDirectory."));
+
+		return Platforms[ShaderPlatform].IncludeDirectory;
+	}
 
 private:
 
@@ -213,16 +220,7 @@ private:
 	};
 
 	FPlatform Platforms[EShaderPlatform::SP_NumPlatforms];
-	bool bInitialized;
-
-
-	const FString& GetPlatformIncludeDirectory(EShaderPlatform ShaderPlatform)
-	{
-		check(ShaderPlatform < EShaderPlatform::SP_NumPlatforms);
-		checkf(bInitialized, TEXT("GShaderHashCache::Initialize needs to be called before GShaderHashCache::GetPlatformIncludeDirectory."));
-
-		return Platforms[ShaderPlatform].IncludeDirectory;
-	}
+	bool bInitialized;	
 };
 
 FShaderHashCache GShaderHashCache;
@@ -459,6 +457,10 @@ bool CheckVirtualShaderFilePath(const FString& VirtualFilePath, TArray<FShaderCo
 			bSuccess = false;
 		}	
 	}
+	else if (VirtualFilePath.StartsWith(TEXT("/ThirdParty/")))
+	{
+		// Third party includes don't have naming convention restrictions
+	}
 	else
 	{
 		if ((Extension != TEXT("usf") && Extension != TEXT("ush")) || VirtualFilePath.EndsWith(TEXT(".usf.usf")))
@@ -546,7 +548,7 @@ void VerifyShaderSourceFiles(EShaderPlatform ShaderPlatform)
 		{
 			SlowTask.EnterProgressFrame(1);
 			// load each shader source file. This will cache the shader source data after it has been verified
-			LoadShaderSourceFile(*VirtualShaderSourcePaths[ShaderFileIdx], nullptr, nullptr);
+			LoadShaderSourceFile(*VirtualShaderSourcePaths[ShaderFileIdx], ShaderPlatform, nullptr, nullptr);
 		}
 	}
 }
@@ -661,7 +663,50 @@ FString ParseVirtualShaderFilename(const FString& InFilename)
 	return OutputFilename;
 }
 
-bool LoadShaderSourceFile(const TCHAR* VirtualFilePath, FString* OutFileContents, TArray<FShaderCompilerError>* OutCompileErrors) // TODO: const FString&
+bool ReplaceVirtualFilePathForShaderPlatform(FString& InOutVirtualFilePath, EShaderPlatform ShaderPlatform)
+{
+	const FString& PlatformIncludeDirectory = GShaderHashCache.GetPlatformIncludeDirectory(ShaderPlatform);
+	if (PlatformIncludeDirectory.IsEmpty())
+	{
+		return false;
+	}
+
+	struct FEntry
+	{
+		const TCHAR* Prefix;
+		const TCHAR* Visibility;
+	};
+	const FEntry VirtualPlatformPrefixes[] =
+	{
+		{TEXT("/Platform/Private/"), TEXT("Private")},
+		{TEXT("/Platform/Public/"),  TEXT("Public")}
+	};
+
+	for (const FEntry& Entry : VirtualPlatformPrefixes)
+	{
+		if (InOutVirtualFilePath.StartsWith(Entry.Prefix))
+		{
+			// PlatformIncludeDirectory already contains leading and trailing slash (which we need to remove)
+			FString CandidatePath = FString::Printf(TEXT("/Platform%s"), *PlatformIncludeDirectory);
+			CandidatePath.RemoveFromEnd(TEXT("/"));
+
+			// If a directory mapping exists for the candidate path, then commit the replacement
+			if (GShaderSourceDirectoryMappings.Contains(CandidatePath))
+			{
+				InOutVirtualFilePath = FString::Printf(TEXT("/Platform%s%s/%s"),
+					*PlatformIncludeDirectory, // This already contains leading and trailing slash
+					Entry.Visibility,
+					*InOutVirtualFilePath.RightChop(FCString::Strlen(Entry.Prefix)));
+
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+bool LoadShaderSourceFile(const TCHAR* InVirtualFilePath, EShaderPlatform ShaderPlatform, FString* OutFileContents, TArray<FShaderCompilerError>* OutCompileErrors) // TODO: const FString&
 {
 	// it's not expected that cooked platforms get here, but if they do, this is the final out
 	if (FPlatformProperties::RequiresCookedData())
@@ -674,6 +719,11 @@ bool LoadShaderSourceFile(const TCHAR* VirtualFilePath, FString* OutFileContents
 	STAT(double ShaderFileLoadingTime = 0);
 	{
 		SCOPE_SECONDS_COUNTER(ShaderFileLoadingTime);
+
+		FString VirtualFilePath(InVirtualFilePath);
+
+		// Always substitute virtual platform path before accessing GShaderFileCache to get platform-specific file.
+		ReplaceVirtualFilePathForShaderPlatform(VirtualFilePath, ShaderPlatform);
 
 		// Protect GShaderFileCache from simultaneous access by multiple threads
 		FScopeLock ScopeLock(&FileCacheCriticalSection);
@@ -713,9 +763,9 @@ bool LoadShaderSourceFile(const TCHAR* VirtualFilePath, FString* OutFileContents
 	return bResult;
 }
 
-void LoadShaderSourceFileChecked(const TCHAR* VirtualFilePath, FString& OutFileContents)
+void LoadShaderSourceFileChecked(const TCHAR* VirtualFilePath, EShaderPlatform ShaderPlatform, FString& OutFileContents)
 {
-	if (!LoadShaderSourceFile(VirtualFilePath, &OutFileContents, nullptr))
+	if (!LoadShaderSourceFile(VirtualFilePath, ShaderPlatform, &OutFileContents, nullptr))
 	{
 		UE_LOG(LogShaders, Fatal, TEXT("Couldn't find source file of virtual shader path \'%s\'"), VirtualFilePath);
 	}
@@ -747,7 +797,7 @@ const TCHAR* SkipToCharOnCurrentLine(const TCHAR* InStr, TCHAR TargetChar)
 static void GetShaderIncludes(const TCHAR* EntryPointVirtualFilePath, const TCHAR* VirtualFilePath, TArray<FString>& IncludeVirtualFilePaths, EShaderPlatform ShaderPlatform, uint32 DepthLimit, bool AddToIncludeFile)
 {
 	FString FileContents;
-	LoadShaderSourceFile(VirtualFilePath, &FileContents, nullptr);
+	LoadShaderSourceFile(VirtualFilePath, ShaderPlatform, &FileContents, nullptr);
 
 	//avoid an infinite loop with a 0 length string
 	if (FileContents.Len() > 0)
@@ -792,6 +842,8 @@ static void GetShaderIncludes(const TCHAR* EntryPointVirtualFilePath, const TCHA
 					{
 						ExtractedIncludeFilename = TEXT("/Engine/Private/MaterialTemplate.ush");
 					}
+
+					ReplaceVirtualFilePathForShaderPlatform(ExtractedIncludeFilename, ShaderPlatform);
 
 					// Ignore uniform buffer, vertex factory and instanced stereo includes
 					bool bIgnoreInclude = ExtractedIncludeFilename.StartsWith(TEXT("/Engine/Generated/"));
@@ -855,7 +907,7 @@ static void UpdateSingleShaderFilehash(FSHA1& InOutHashState, const TCHAR* Virtu
 	{
 		// Load the include file and hash it
 		FString IncludeFileContents;
-		LoadShaderSourceFileChecked(*IncludeVirtualFilePaths[IncludeIndex], IncludeFileContents);
+		LoadShaderSourceFileChecked(*IncludeVirtualFilePaths[IncludeIndex], ShaderPlatform, IncludeFileContents);
 		InOutHashState.UpdateWithString(*IncludeFileContents, IncludeFileContents.Len());
 #if WITH_EDITOR &&  !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		if (UE_LOG_ACTIVE(LogTemp, Verbose))
@@ -870,7 +922,7 @@ static void UpdateSingleShaderFilehash(FSHA1& InOutHashState, const TCHAR* Virtu
 
 	// Load the source file and hash it
 	FString FileContents;
-	LoadShaderSourceFileChecked(VirtualFilePath, FileContents);
+	LoadShaderSourceFileChecked(VirtualFilePath, ShaderPlatform, FileContents);
 	InOutHashState.UpdateWithString(*FileContents, FileContents.Len());
 }
 
@@ -990,7 +1042,7 @@ void BuildShaderFileToUniformBufferMap(TMap<FString, TArray<const TCHAR*> >& Sha
 			SlowTask.EnterProgressFrame(1);
 
  			FString ShaderFileContents;
-			LoadShaderSourceFileChecked(*ShaderSourceFiles[FileIndex], ShaderFileContents);
+			LoadShaderSourceFileChecked(*ShaderSourceFiles[FileIndex], GMaxRHIShaderPlatform, ShaderFileContents);
 
 			// To allow case sensitive search which is way faster on some platforms (no need to look up locale, etc)
 			ShaderFileContents.ToUpperInline();

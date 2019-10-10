@@ -60,8 +60,7 @@ void GenerateCosineNormalRay(
 	RayPdf = Direction_Tangent.w;
 }
 
-[shader("raygeneration")]
-void RayTracingCreateGatherPointsRGS()
+RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsRGS)
 {
 	uint2 DispatchThreadId = DispatchRaysIndex().xy + View.ViewRectMin + uint2(TileOffsetX, TileOffsetY);
 	uint GatherPointsIndex = DispatchThreadIdToLinearIndex(DispatchThreadId);

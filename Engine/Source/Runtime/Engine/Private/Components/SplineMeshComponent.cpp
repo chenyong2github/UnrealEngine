@@ -34,7 +34,8 @@ static FAutoConsoleVariableRef CVarNoRecreateSplineMeshProxy(
 
 void FSplineMeshVertexFactoryShaderParameters::Bind(const FShaderParameterMap& ParameterMap)
 {
-	SplineMeshParams.Bind(ParameterMap, TEXT("SplineParams"), SPF_Mandatory);
+	// @todo: fix the shader compile errors and restore the mandatory flag
+	SplineMeshParams.Bind(ParameterMap, TEXT("SplineParams")/*, SPF_Mandatory*/);
 }
 
 void FSplineMeshVertexFactoryShaderParameters::GetElementShaderBindings(
@@ -47,7 +48,7 @@ void FSplineMeshVertexFactoryShaderParameters::GetElementShaderBindings(
 	const FMeshBatchElement& BatchElement,
 	class FMeshDrawSingleShaderBindings& ShaderBindings,
 	FVertexInputStreamArray& VertexStreams
-	) const 
+) const
 {
 	if (BatchElement.bUserDataIsColorVertexBuffer)
 	{
@@ -58,7 +59,7 @@ void FSplineMeshVertexFactoryShaderParameters::GetElementShaderBindings(
 		if (!LocalVertexFactory->SupportsManualVertexFetch(FeatureLevel))
 		{
 			LocalVertexFactory->GetColorOverrideStream(OverrideColorVertexBuffer, VertexStreams);
-		}	
+		}
 	}
 
 	checkSlow(BatchElement.bIsSplineProxy);
@@ -124,8 +125,8 @@ void FSplineMeshSceneProxy::InitVertexFactory(USplineMeshComponent* InComponent,
 
 	// Initialize the static mesh's vertex factory.
 	ENQUEUE_RENDER_COMMAND(InitSplineMeshVertexFactory)(
-		[VertexFactories,RenderData2, Parent, bOverrideColorVertexBuffer, FeatureLevel](FRHICommandListImmediate& RHICmdList)
-		{
+		[VertexFactories, RenderData2, Parent, bOverrideColorVertexBuffer, FeatureLevel](FRHICommandListImmediate& RHICmdList)
+	{
 
 		if ((VertexFactories->SplineVertexFactory && !bOverrideColorVertexBuffer) || (VertexFactories->SplineVertexFactoryOverrideColorVertexBuffer && bOverrideColorVertexBuffer))
 		{
@@ -147,8 +148,8 @@ void FSplineMeshSceneProxy::InitVertexFactory(USplineMeshComponent* InComponent,
 		RenderData2->VertexBuffers.StaticMeshVertexBuffer.BindTangentVertexBuffer(VertexFactory, Data);
 		RenderData2->VertexBuffers.StaticMeshVertexBuffer.BindPackedTexCoordVertexBuffer(VertexFactory, Data);
 		RenderData2->VertexBuffers.StaticMeshVertexBuffer.BindLightMapVertexBuffer(VertexFactory, Data, Parent->LightMapCoordinateIndex);
-		if(bOverrideColorVertexBuffer)
-		{ 
+		if (bOverrideColorVertexBuffer)
+		{
 			FColorVertexBuffer::BindDefaultColorVertexBuffer(VertexFactory, Data, FColorVertexBuffer::NullBindStride::FColorSizeForComponentOverride);
 		}
 		else
@@ -475,13 +476,13 @@ void USplineMeshComponent::UpdateRenderStateAndCollision_Internal(bool bConcurre
 
 		ENQUEUE_RENDER_COMMAND(UpdateSplineParamsRTCommand)(
 			[SplineProxy, this, SplineMeshScaleZ, SplineMeshMinZ](FRHICommandList&)
-			{
-				SplineProxy->SplineParams = SplineParams;
-				SplineProxy->ForwardAxis = ForwardAxis;
-				SplineProxy->SplineUpDir = SplineUpDir;
-				SplineProxy->SplineMeshScaleZ = SplineMeshScaleZ;
-				SplineProxy->SplineMeshMinZ = SplineMeshMinZ;
-			});
+		{
+			SplineProxy->SplineParams = SplineParams;
+			SplineProxy->ForwardAxis = ForwardAxis;
+			SplineProxy->SplineUpDir = SplineUpDir;
+			SplineProxy->SplineMeshScaleZ = SplineMeshScaleZ;
+			SplineProxy->SplineMeshMinZ = SplineMeshMinZ;
+		});
 	}
 	else
 	{
@@ -544,7 +545,7 @@ bool USplineMeshComponent::Modify(bool bAlwaysMarkDirty)
 FPrimitiveSceneProxy* USplineMeshComponent::CreateSceneProxy()
 {
 	// Verify that the mesh is valid before using it.
-	const bool bMeshIsValid = 
+	const bool bMeshIsValid =
 		// make sure we have an actual staticmesh
 		GetStaticMesh() &&
 		GetStaticMesh()->HasValidRenderData();
@@ -580,7 +581,7 @@ static float SmoothStep(float A, float B, float X)
 
 static FVector SplineEvalPos(const FVector& StartPos, const FVector& StartTangent, const FVector& EndPos, const FVector& EndTangent, float A)
 {
-	const float A2 = A  * A;
+	const float A2 = A * A;
 	const float A3 = A2 * A;
 
 	return (((2 * A3) - (3 * A2) + 1) * StartPos) + ((A3 - (2 * A2) + A) * StartTangent) + ((A3 - A2) * EndTangent) + (((-2 * A3) + (3 * A2)) * EndPos);
@@ -592,7 +593,7 @@ static FVector SplineEvalDir(const FVector& StartPos, const FVector& StartTangen
 	const FVector D = (-6 * StartPos) - (4 * StartTangent) - (2 * EndTangent) + (6 * EndPos);
 	const FVector E = StartTangent;
 
-	const float A2 = A  * A;
+	const float A2 = A * A;
 
 	return ((C * A2) + (D * A) + E).GetSafeNormal();
 }
@@ -769,8 +770,8 @@ FTransform USplineMeshComponent::CalcSliceTransformAtSplineOffset(const float Al
 	const float HermiteAlpha = bSmoothInterpRollScale ? SmoothStep(0.0, 1.0, Alpha) : Alpha;
 
 	// Then find the point and direction of the spline at this point along
-	FVector SplinePos = SplineEvalPos( SplineParams.StartPos, SplineParams.StartTangent, SplineParams.EndPos, SplineParams.EndTangent, Alpha );
-	const FVector SplineDir = SplineEvalDir( SplineParams.StartPos, SplineParams.StartTangent, SplineParams.EndPos, SplineParams.EndTangent, Alpha );
+	FVector SplinePos = SplineEvalPos(SplineParams.StartPos, SplineParams.StartTangent, SplineParams.EndPos, SplineParams.EndTangent, Alpha);
+	const FVector SplineDir = SplineEvalDir(SplineParams.StartPos, SplineParams.StartTangent, SplineParams.EndPos, SplineParams.EndTangent, Alpha);
 
 	// Find base frenet frame
 	const FVector BaseXVec = (SplineUpDir ^ SplineDir).GetSafeNormal();
@@ -822,7 +823,7 @@ bool USplineMeshComponent::GetPhysicsTriMeshData(struct FTriMeshCollisionData* C
 	{
 		GetStaticMesh()->GetPhysicsTriMeshData(CollisionData, InUseAllTriData);
 
-		FVector Mask = FVector(1,1,1);
+		FVector Mask = FVector(1, 1, 1);
 		GetAxisValue(Mask, ForwardAxis) = 0;
 
 		for (FVector& CollisionVert : CollisionData->Vertices)
@@ -929,7 +930,7 @@ bool USplineMeshComponent::DoCustomNavigableGeometryExport(FNavigableGeometryExp
 	if (GetStaticMesh() != nullptr && GetStaticMesh()->NavCollision != nullptr)
 	{
 		UNavCollisionBase* NavCollision = GetStaticMesh()->NavCollision;
-		
+
 		if (ensure(!NavCollision->IsDynamicObstacle()))
 		{
 			if (NavCollision->HasConvexGeometry())
@@ -1044,14 +1045,14 @@ void USplineMeshComponent::RecreateCollision()
 				const FVector Radii = FVector(BoxElem.X / 2, BoxElem.Y / 2, BoxElem.Z / 2).ComponentMax(FVector(1.0f));
 				const FTransform ElementTM = BoxElem.GetTransform();
 				ConvexElem.VertexData.Empty(8);
-				ConvexElem.VertexData.Add(ElementTM.TransformPosition(Radii * FVector(-1,-1,-1)));
-				ConvexElem.VertexData.Add(ElementTM.TransformPosition(Radii * FVector(-1,-1, 1)));
-				ConvexElem.VertexData.Add(ElementTM.TransformPosition(Radii * FVector(-1, 1,-1)));
+				ConvexElem.VertexData.Add(ElementTM.TransformPosition(Radii * FVector(-1, -1, -1)));
+				ConvexElem.VertexData.Add(ElementTM.TransformPosition(Radii * FVector(-1, -1, 1)));
+				ConvexElem.VertexData.Add(ElementTM.TransformPosition(Radii * FVector(-1, 1, -1)));
 				ConvexElem.VertexData.Add(ElementTM.TransformPosition(Radii * FVector(-1, 1, 1)));
-				ConvexElem.VertexData.Add(ElementTM.TransformPosition(Radii * FVector( 1,-1,-1)));
-				ConvexElem.VertexData.Add(ElementTM.TransformPosition(Radii * FVector( 1,-1, 1)));
-				ConvexElem.VertexData.Add(ElementTM.TransformPosition(Radii * FVector( 1, 1,-1)));
-				ConvexElem.VertexData.Add(ElementTM.TransformPosition(Radii * FVector( 1, 1, 1)));
+				ConvexElem.VertexData.Add(ElementTM.TransformPosition(Radii * FVector(1, -1, -1)));
+				ConvexElem.VertexData.Add(ElementTM.TransformPosition(Radii * FVector(1, -1, 1)));
+				ConvexElem.VertexData.Add(ElementTM.TransformPosition(Radii * FVector(1, 1, -1)));
+				ConvexElem.VertexData.Add(ElementTM.TransformPosition(Radii * FVector(1, 1, 1)));
 
 				ConvexElem.UpdateElemBox();
 			}
@@ -1124,7 +1125,7 @@ class FSplineStaticLightingMesh : public FStaticMeshStaticLightingMesh
 {
 public:
 
-	FSplineStaticLightingMesh(const USplineMeshComponent* InPrimitive,int32 InLODIndex,const TArray<ULightComponent*>& InRelevantLights):
+	FSplineStaticLightingMesh(const USplineMeshComponent* InPrimitive, int32 InLODIndex, const TArray<ULightComponent*>& InRelevantLights) :
 		FStaticMeshStaticLightingMesh(InPrimitive, InLODIndex, InRelevantLights),
 		SplineComponent(InPrimitive)
 	{
@@ -1182,9 +1183,9 @@ void USplineMeshComponent::PostEditChangeProperty(FPropertyChangedEvent& Propert
 	{
 		SetEndTangent(SplineParams.EndTangent, false);
 	}
-	
+
 	UStaticMeshComponent::PostEditChangeProperty(PropertyChangedEvent);
-	
+
 	// If the spline params were changed the actual geometry is, so flag the owning HLOD cluster as dirty
 	if (bIsSplineParamsChange)
 	{

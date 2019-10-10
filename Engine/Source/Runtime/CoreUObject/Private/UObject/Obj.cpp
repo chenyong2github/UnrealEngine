@@ -2552,10 +2552,15 @@ FString UObject::GetDefaultConfigFilename() const
 	FString OverridePlatform = GetFinalOverridePlatform(this);
 	if (OverridePlatform.Len())
 	{
-		// use platform extension path if it exists
-		FString PlatformExtPath = FString::Printf(TEXT("%s%s/Config/%s%s.ini"), *FPaths::ProjectPlatformExtensionsDir(), *OverridePlatform, *OverridePlatform, *GetClass()->ClassConfigName.ToString());
-		return FPaths::FileExists(*PlatformExtPath) ? PlatformExtPath : 
-			FString::Printf(TEXT("%s%s/%s%s.ini"), *FPaths::SourceConfigDir(), *OverridePlatform, *OverridePlatform, *GetClass()->ClassConfigName.ToString());
+		FString PlatformExtPath = FString::Printf(TEXT("%s%s/Config"), *FPaths::ProjectPlatformExtensionsDir(), *OverridePlatform);
+		FString RegularPath = FString::Printf(TEXT("%s%s"), *FPaths::SourceConfigDir(), *OverridePlatform, *OverridePlatform, *GetClass()->ClassConfigName.ToString());
+
+		// prefer the platform extension path if it exists, or if the regular path does not exist.
+		FString SelectedPath = (FPaths::DirectoryExists(*PlatformExtPath) || !FPaths::DirectoryExists(*RegularPath))
+			? PlatformExtPath
+			: RegularPath;
+
+		return FString::Printf(TEXT("%s/%s%s.ini"), *SelectedPath, *OverridePlatform, *GetClass()->ClassConfigName.ToString());
 	}
 	return FString::Printf(TEXT("%sDefault%s.ini"), *FPaths::SourceConfigDir(), *GetClass()->ClassConfigName.ToString());
 }

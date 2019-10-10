@@ -902,15 +902,15 @@ void FPostProcessPassParameters::SetPS(TRHICmdList& RHICmdList, FRHIPixelShader*
 	Set(RHICmdList, ShaderRHI, Context, Filter, FallbackColor, FilterOverrideArray);
 }
 
-template void FPostProcessPassParameters::SetPS(FRHICommandList& RHICmdList, FRHIPixelShader* ShaderRHI, const FRenderingCompositePassContext& Context, FRHISamplerState* Filter, EFallbackColor FallbackColor, FRHISamplerState** FilterOverrideArray);
-template void FPostProcessPassParameters::SetPS(FRHICommandListImmediate& RHICmdList, FRHIPixelShader* ShaderRHI, const FRenderingCompositePassContext& Context, FRHISamplerState* Filter, EFallbackColor FallbackColor, FRHISamplerState** FilterOverrideArray);
+template RENDERER_API void FPostProcessPassParameters::SetPS(FRHICommandList& RHICmdList, FRHIPixelShader* ShaderRHI, const FRenderingCompositePassContext& Context, FRHISamplerState* Filter, EFallbackColor FallbackColor, FRHISamplerState** FilterOverrideArray);
+template RENDERER_API void FPostProcessPassParameters::SetPS(FRHICommandListImmediate& RHICmdList, FRHIPixelShader* ShaderRHI, const FRenderingCompositePassContext& Context, FRHISamplerState* Filter, EFallbackColor FallbackColor, FRHISamplerState** FilterOverrideArray);
 
 template< typename TRHICmdList >
 void FPostProcessPassParameters::SetCS(FRHIComputeShader* ShaderRHI, const FRenderingCompositePassContext& Context, TRHICmdList& RHICmdList, FRHISamplerState* Filter, EFallbackColor FallbackColor, FRHISamplerState** FilterOverrideArray)
 {
 	Set(RHICmdList, ShaderRHI, Context, Filter, FallbackColor, FilterOverrideArray);
 }
-template void FPostProcessPassParameters::SetCS< FRHICommandListImmediate >(
+template RENDERER_API void FPostProcessPassParameters::SetCS< FRHICommandListImmediate >(
 	FRHIComputeShader* ShaderRHI,
 	const FRenderingCompositePassContext& Context,
 	FRHICommandListImmediate& RHICmdList,
@@ -919,7 +919,7 @@ template void FPostProcessPassParameters::SetCS< FRHICommandListImmediate >(
 	FRHISamplerState** FilterOverrideArray
 	);
 
-template void FPostProcessPassParameters::SetCS< FRHIAsyncComputeCommandListImmediate >(
+template RENDERER_API void FPostProcessPassParameters::SetCS< FRHIAsyncComputeCommandListImmediate >(
 	FRHIComputeShader* ShaderRHI,
 	const FRenderingCompositePassContext& Context,
 	FRHIAsyncComputeCommandListImmediate& RHICmdList,
@@ -1074,7 +1074,7 @@ void FPostProcessPassParameters::Set(
 }
 
 #define IMPLEMENT_POST_PROCESS_PARAM_SET( TRHIShader, TRHICmdList ) \
-	template void FPostProcessPassParameters::Set< TRHIShader >( \
+	template RENDERER_API void FPostProcessPassParameters::Set< TRHIShader >( \
 		TRHICmdList& RHICmdList,						\
 		TRHIShader* ShaderRHI,			\
 		const FRenderingCompositePassContext& Context,	\

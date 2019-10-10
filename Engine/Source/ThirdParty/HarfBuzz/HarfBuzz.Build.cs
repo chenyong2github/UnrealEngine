@@ -124,23 +124,23 @@ public class HarfBuzz : ModuleRules
 		{
 			HarfBuzzLibPath += "HTML5/";
 
-			string OpimizationSuffix = "_Oz"; // i.e. bCompileForSize
+			string OptimizationSuffix = "_Oz"; // i.e. bCompileForSize
 			if (!Target.bCompileForSize)
 			{
 				switch (Target.Configuration)
 				{
 					case UnrealTargetConfiguration.Development:
-						OpimizationSuffix = "_O2";
+						OptimizationSuffix = "_O2";
 						break;
 					case UnrealTargetConfiguration.Shipping:
-						OpimizationSuffix = "_O3";
+						OptimizationSuffix = "_O3";
 						break;
 					default:
-						OpimizationSuffix = "";
+						OptimizationSuffix = "";
 						break;
 				}
 			}
-			PublicAdditionalLibraries.Add(HarfBuzzLibPath + "libharfbuzz" + OpimizationSuffix + ".bc");
+			PublicAdditionalLibraries.Add(HarfBuzzLibPath + "libharfbuzz" + OptimizationSuffix + ".bc");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.PS4)
 		{

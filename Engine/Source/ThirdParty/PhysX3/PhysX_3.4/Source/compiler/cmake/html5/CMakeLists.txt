@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.3)
 
-MESSAGE("[PhysX]cmake/html5/CMakeList.txt")
+MESSAGE(STATUS "[PhysX]cmake/html5/CMakeList.txt")
 #set(CMAKE_VERBOSE_MAKEFILE ON)
 include(../common/CMakeLists.txt)
 

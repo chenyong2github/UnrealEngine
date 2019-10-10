@@ -68,8 +68,8 @@ FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexI
 {
 	FVertexFactoryInput Input;
 	
-	FTriangleBaseAttributes Triangle = LoadTriangleBaseAttributes(TriangleIndex);
-	uint VertexId = Triangle.Indices[VertexIndex];
+	FTriangleBaseAttributes Tri = LoadTriangleBaseAttributes(TriangleIndex);
+	uint VertexId = Tri.Indices[VertexIndex];
 	
 	Input.Position.x = GeomCacheMVF.Position[VertexId * 3 + 0];
 	Input.Position.y = GeomCacheMVF.Position[VertexId * 3 + 1];

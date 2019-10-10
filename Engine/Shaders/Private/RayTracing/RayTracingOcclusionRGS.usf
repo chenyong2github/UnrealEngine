@@ -115,10 +115,7 @@ bool GenerateOcclusionRay(
 	return true;
 }
 
-
-
-[shader("raygeneration")]
-void OcclusionRGS()
+RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 {
 	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin.xy + PixelOffset;
 

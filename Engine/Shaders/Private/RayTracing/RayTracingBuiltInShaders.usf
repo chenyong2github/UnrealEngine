@@ -1,5 +1,9 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+#ifdef PLATFORM_RAY_TRACING_BUILTIN_SHADERS_USH
+#include "/Platform/Private/RayTracingBuiltInShaders.usf"
+#else // PLATFORM_RAY_TRACING_BUILTIN_SHADERS_USH
+
 #include "../Common.ush"
 #include "RayTracingCommon.ush"
 
@@ -16,8 +20,7 @@ RWStructuredBuffer<FIntersectionPayload>      IntersectionOutput : RT_REGISTER(u
 #undef RT_CONCATENATE
 #undef RT_CONCATENATE2
 
-[shader("raygeneration")]
-void OcclusionMainRG()
+RAY_TRACING_ENTRY_RAYGEN(OcclusionMainRG)
 {
 	const uint RayIndex = DispatchRaysIndex().x;
 	FBasicRayData InputRay = Rays[RayIndex];
@@ -49,8 +52,7 @@ void OcclusionMainRG()
 	OcclusionOutput[RayIndex] = Payload.IsHit() ? ~0 : 0;
 }
 
-[shader("raygeneration")]
-void IntersectionMainRG()
+RAY_TRACING_ENTRY_RAYGEN(IntersectionMainRG)
 {
 	const uint RayIndex = DispatchRaysIndex().x;
 	FBasicRayData InputRay = Rays[RayIndex];
@@ -79,8 +81,9 @@ void IntersectionMainRG()
 	IntersectionOutput[RayIndex] = Payload;
 }
 
-[shader("closesthit")]
-void IntersectionMainCHS(inout FIntersectionPayload Payload, in FDefaultAttributes Attributes)
+RAY_TRACING_ENTRY_CLOSEST_HIT(IntersectionMainCHS,
+	FIntersectionPayload, Payload,
+	FDefaultAttributes, Attributes)
 {
 	Payload.HitT = RayTCurrent();
 	Payload.Barycentrics = Attributes.Barycentrics;
@@ -88,8 +91,9 @@ void IntersectionMainCHS(inout FIntersectionPayload Payload, in FDefaultAttribut
 	Payload.PrimitiveIndex = PrimitiveIndex();
 }
 
-[shader("closesthit")]
-void DefaultMainCHS(inout FDefaultPayload Payload, in FDefaultAttributes Attributes)
+RAY_TRACING_ENTRY_CLOSEST_HIT(DefaultMainCHS,
+	FDefaultPayload, Payload,
+	FDefaultAttributes, Attributes)
 {
 	Payload.Barycentrics = Attributes.Barycentrics;
 	Payload.InstanceID = InstanceID();
@@ -98,10 +102,16 @@ void DefaultMainCHS(inout FDefaultPayload Payload, in FDefaultAttributes Attribu
 	Payload.HitT = RayTCurrent();
 }
 
+RAY_TRACING_ENTRY_ANY_HIT(DefaultOpaqueAHS,
+	FDefaultPayload, Payload,
+	FDefaultAttributes, Attributes)
+{
+}
+
 // Default miss shader that can be used in all ray tracing pipelines that use payloads derived from FMinimalPayload.
-[shader("miss")]
-void DefaultMainMS(inout FMinimalPayload Payload)
+RAY_TRACING_ENTRY_MISS(DefaultMainMS, FMinimalPayload, Payload)
 {
 	Payload.SetMiss();
 }
 
+#endif // PLATFORM_RAY_TRACING_BUILTIN_SHADERS_USH

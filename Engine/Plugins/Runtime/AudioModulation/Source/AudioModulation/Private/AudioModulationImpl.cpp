@@ -87,7 +87,9 @@ namespace
 namespace AudioModulation
 {
 	FAudioModulationImpl::FAudioModulationImpl()
+#if !UE_BUILD_SHIPPING
 		: PreviewSound(nullptr)
+#endif
 	{
 	}
 
@@ -170,11 +172,13 @@ namespace AudioModulation
 		const USoundModulationSettings* Settings = CastChecked<USoundModulationSettings>(&InSettings);
 		const uint32 SoundId = InSound.GetObjectId();
 
+#if !UE_BUILD_SHIPPING
 		if (InSound.IsPreviewSound())
 		{
 			PreviewSound = &InSound;
 			PreviewSettings = FModulationSettingsProxy(*Settings);
 		}
+#endif
 
 		if (!SoundSettings.Contains(SoundId))
 		{
@@ -283,12 +287,14 @@ namespace AudioModulation
 			DeactivateBus(Input.BusId, &InSound);
 		}
 
+#if !UE_BUILD_SHIPPING
 		if (InSound.IsPreviewSound())
 		{
 			check(&InSound == PreviewSound);
 			PreviewSound = nullptr;
 			PreviewSettings = FModulationSettingsProxy();
 		}
+#endif
 	}
 
 #if !UE_BUILD_SHIPPING

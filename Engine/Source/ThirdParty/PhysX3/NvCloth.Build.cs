@@ -7,111 +7,50 @@ using System.Collections.Generic;
 
 public class NvCloth : ModuleRules
 {
-	enum NvClothLibraryMode
-	{
-		Debug,
-		Profile,
-		Checked,
-		Shipping
-	}
+    protected virtual string IncRootDirectory { get { return ModuleDirectory; } }
+    protected virtual string LibRootDirectory { get { return ModuleDirectory; } }
 
-	NvClothLibraryMode GetNvClothLibraryMode(UnrealTargetConfiguration Config)
-	{
-		switch (Config)
-		{
-			case UnrealTargetConfiguration.Debug:
-                if (Target.bDebugBuildsActuallyUseDebugCRT)
-                {
-                    return NvClothLibraryMode.Debug;
-                }
-                else
-                {
-                    return NvClothLibraryMode.Checked;
-                }
-			case UnrealTargetConfiguration.Shipping:
-				return NvClothLibraryMode.Shipping;
-			case UnrealTargetConfiguration.Test:
-				return NvClothLibraryMode.Profile;
-			case UnrealTargetConfiguration.Development:
-			case UnrealTargetConfiguration.DebugGame:
-			case UnrealTargetConfiguration.Unknown:
-			default:
-                if(Target.bUseShippingPhysXLibraries)
-                {
-                    return NvClothLibraryMode.Shipping;
-                }
-                else if (Target.bUseCheckedPhysXLibraries)
-                {
-                    return NvClothLibraryMode.Checked;
-                }
-                else
-                {
-                    return NvClothLibraryMode.Profile;
-                }
-		}
-	}
+    protected virtual string PxSharedDir      { get { return Path.Combine(IncRootDirectory, "PxShared"); } }
+    protected virtual string NvClothDir       { get { return Path.Combine(IncRootDirectory, "NvCloth"); } }
+    protected virtual string NvClothLibDir_Default { get { return Path.Combine(LibRootDirectory, "Lib"); } }
 
-	static string GetNvClothLibrarySuffix(NvClothLibraryMode Mode)
-	{
-		switch (Mode)
-		{
-			case NvClothLibraryMode.Debug:
-				return "DEBUG";
-			case NvClothLibraryMode.Checked:
-				return "CHECKED";
-			case NvClothLibraryMode.Profile:
-				return "PROFILE";
-            case NvClothLibraryMode.Shipping:
-            default:
-				return "";	
-		}
-	}
+	protected virtual PhysXLibraryMode LibraryMode { get { return Target.GetPhysXLibraryMode(); } }
+    protected virtual string LibrarySuffix         { get { return LibraryMode.AsSuffix(); } }
 
-	public NvCloth(ReadOnlyTargetRules Target) : base(Target)
+    protected virtual string LibraryFormatString_Default { get { return null; } }
+
+    public NvCloth(ReadOnlyTargetRules Target) : base(Target)
 	{
 		Type = ModuleType.External;
 
-		// Determine which kind of libraries to link against
-		NvClothLibraryMode LibraryMode = GetNvClothLibraryMode(Target.Configuration);
-		string LibrarySuffix = GetNvClothLibrarySuffix(LibraryMode);
-
 		PublicDefinitions.Add("WITH_NVCLOTH=1");
 
-        string NvClothDir = Target.UEThirdPartySourceDirectory + "PhysX3/NvCloth/";
-
-		string NvClothLibDir = Target.UEThirdPartySourceDirectory + "PhysX3/Lib";
-
-        string PxSharedVersion = "PxShared";
-        string PxSharedDir = Target.UEThirdPartySourceDirectory + "PhysX3/" + PxSharedVersion + "/";
-        string PxSharedIncludeDir = PxSharedDir + "include/";
-
-        PublicSystemIncludePaths.AddRange(
-			new string[] {
-                NvClothDir + "include",
-                NvClothDir + "extensions/include",
-
-                PxSharedIncludeDir,
-                PxSharedIncludeDir + "filebuf",
-                PxSharedIncludeDir + "foundation",
-                PxSharedIncludeDir + "pvd",
-                PxSharedIncludeDir + "task",
-                PxSharedDir + "src/foundation/include"
-			}
-            );
+		PublicSystemIncludePaths.AddRange(new string[]
+		{
+			Path.Combine(NvClothDir, "include"),
+			Path.Combine(NvClothDir, "extensions/include"),
+            Path.Combine(PxSharedDir, "include"),
+            Path.Combine(PxSharedDir, "include", "filebuf"),
+			Path.Combine(PxSharedDir, "include", "foundation"),
+			Path.Combine(PxSharedDir, "include", "pvd"),
+			Path.Combine(PxSharedDir, "include", "task"),
+			Path.Combine(PxSharedDir, "src", "foundation", "include")
+		});
 
 		// List of default library names (unused unless LibraryFormatString is non-null)
 		List<string> NvClothLibraries = new List<string>();
-		NvClothLibraries.AddRange(
-			new string[]
-			{
-				"NvCloth{0}"
-			});
-		string LibraryFormatString = null;
+		NvClothLibraries.AddRange(new string[]
+		{
+            "NvCloth{0}"
+        });
+
+		string LibraryFormatString = LibraryFormatString_Default;
+		string NvClothLibDir = NvClothLibDir_Default;
 
 		// Libraries and DLLs for windows platform
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			NvClothLibDir += "/Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
+			NvClothLibDir = Path.Combine(NvClothLibDir, "Win64", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
             
             string[] StaticLibrariesX64 = new string[]
             {
@@ -130,7 +69,7 @@ public class NvCloth : ModuleRules
 
             foreach(string Lib in StaticLibrariesX64)
             {
-                PublicAdditionalLibraries.Add(NvClothLibDir + String.Format(Lib, LibrarySuffix));
+                PublicAdditionalLibraries.Add(Path.Combine(NvClothLibDir, String.Format(Lib, LibrarySuffix)));
             }
 
             foreach(string DLL in DelayLoadDLLsX64)
@@ -153,7 +92,7 @@ public class NvCloth : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win32)
 		{
-            NvClothLibDir += "/Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
+			NvClothLibDir = Path.Combine(NvClothLibDir, "Win32", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
 
             string[] StaticLibrariesX64 = new string[]
             {
@@ -172,7 +111,7 @@ public class NvCloth : ModuleRules
 
             foreach (string Lib in StaticLibrariesX64)
             {
-                PublicAdditionalLibraries.Add(NvClothLibDir + String.Format(Lib, LibrarySuffix));
+                PublicAdditionalLibraries.Add(Path.Combine(NvClothLibDir, String.Format(Lib, LibrarySuffix)));
             }
 
             foreach (string DLL in DelayLoadDLLsX64)
@@ -195,9 +134,8 @@ public class NvCloth : ModuleRules
         }
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
-            NvClothLibDir += "/Mac";
-
-            LibraryFormatString = NvClothLibDir + "/lib{0}" + ".a";
+			NvClothLibDir = Path.Combine(NvClothLibDir, "Mac");
+			LibraryFormatString = "lib{0}.a";
 
             NvClothLibraries.Clear();
 
@@ -224,24 +162,14 @@ public class NvCloth : ModuleRules
 		{
             if (Target.Architecture != "arm-unknown-linux-gnueabihf")
             {
-                NvClothLibDir += "/Linux/" + Target.Architecture + "/";
-
                 NvClothLibraries.Add("NvCloth{0}");
-
-                LibraryFormatString = "lib{0}" + ".a";
+				NvClothLibDir = Path.Combine(NvClothLibDir, "Linux", Target.Architecture);
+				LibraryFormatString = "lib{0}.a";
             }
         }
-		else if (Target.Platform == UnrealTargetPlatform.PS4)
-		{
-			NvClothLibDir += "/PS4/";
-
-            NvClothLibraries.Add("NvCloth{0}");
-
-			LibraryFormatString = "lib{0}.a";
-		}
         else if (Target.Platform == UnrealTargetPlatform.Switch)
         {
-            NvClothLibDir += "/Switch/";
+			NvClothLibDir = Path.Combine(NvClothLibDir, "Switch");
 
             NvClothLibraries.Add("NvCloth{0}");
 
@@ -254,7 +182,8 @@ public class NvCloth : ModuleRules
 			// This MUST be defined for XboxOne!
 			PublicDefinitions.Add("PX_HAS_SECURE_STRCPY=1");
 
-			NvClothLibDir += "/XboxOne/VS2015/";
+			NvClothLibDir = Path.Combine(NvClothLibDir, "XboxOne", "VS2015");
+
             NvClothLibraries.Add("NvCloth{0}");
 
 			LibraryFormatString = "{0}.lib";
@@ -267,7 +196,7 @@ public class NvCloth : ModuleRules
 			{
 				string ConfiguredLib = String.Format(Lib, LibrarySuffix);
 				string FinalLib = String.Format(LibraryFormatString, ConfiguredLib);
-				PublicAdditionalLibraries.Add(NvClothLibDir + FinalLib);
+				PublicAdditionalLibraries.Add(Path.Combine(NvClothLibDir, FinalLib));
 			}
 		}
 	}

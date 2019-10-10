@@ -309,7 +309,7 @@ namespace
 #elif defined(MEMPRO_PLATFORM_PS4)
 
 	#ifdef __UNREAL__
-		#include "PS4/MemProPS4.h"
+		#include "MemPro/MemProPS4.h"
 	#else
 		#include "MemProPS4.hpp"			// contact slynch@puredevsoftware.com for this platform
 	#endif

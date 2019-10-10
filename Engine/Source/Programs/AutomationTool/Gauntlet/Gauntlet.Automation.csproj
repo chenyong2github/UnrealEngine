@@ -245,18 +245,6 @@
     </When>
   </Choose>
   <Choose>
-    <When Condition="Exists('Platform\PS4\Gauntlet.TargetDevicePS4.cs')">
-      <ItemGroup>
-        <Compile Include="Platform\PS4\Gauntlet.TargetDevicePS4.cs" />
-        <Compile Include="Platform\PS4\Gauntlet.PS4BuildSources.cs" />
-        <Compile Include="Platform\PS4\Gauntlet.SelfTest.TestUnrealInstallAndRunPS4.cs" />
-        <Compile Include="Platform\PS4\Gauntlet.SelfTest.TestTargetDevicePS4.cs" />
-        <Compile Include="Platform\PS4\Gauntlet.PS4PGO.cs" />
-        <Compile Include="Platform\PS4\Gauntlet.PS4Utils.cs" />
-      </ItemGroup>
-    </When>
-  </Choose>
-  <Choose>
     <When Condition="Exists('Platform\Switch\Gauntlet.TargetDeviceSwitch.cs')">
       <ItemGroup>
         <Compile Include="Platform\Switch\Gauntlet.TargetDeviceSwitch.cs" />
@@ -286,5 +274,16 @@
       </ItemGroup>
     </When>
   </Choose>
+
+  <!-- The following will glob all platform extensions' Gauntlet source
+  files and include them in the build. They will also appear in VisualStudio -->
+  <ItemGroup>
+    <PlatformExtensions Include="../../../../Platforms/*/Source/Programs/AutomationTool/Gauntlet/**/*.cs" />
+    <Compile Include="@(PlatformExtensions)">
+      <Link>Platform/$([System.Text.RegularExpressions.Regex]::Split(`%(Identity)`, `[\\/]`)[5])/_</Link>
+    </Compile>
+  </ItemGroup>
+  
+  
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

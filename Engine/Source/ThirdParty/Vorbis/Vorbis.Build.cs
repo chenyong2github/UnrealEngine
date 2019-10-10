@@ -1,31 +1,40 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 using UnrealBuildTool;
+using System.IO;
 
 public class Vorbis : ModuleRules
 {
-	public Vorbis(ReadOnlyTargetRules Target) : base(Target)
+	protected virtual string VorbisVersion { get { return "libvorbis-1.3.2"; } }
+
+    protected virtual string IncRootDirectory { get { return ModuleDirectory; } }
+    protected virtual string LibRootDirectory { get { return ModuleDirectory; } }
+
+    protected virtual string VorbisIncPath { get { return Path.Combine(IncRootDirectory, VorbisVersion, "include"); } }
+    protected virtual string VorbisLibPath_Default { get { return Path.Combine(LibRootDirectory, VorbisVersion, "lib"); } }
+
+    public Vorbis(ReadOnlyTargetRules Target) : base(Target)
 	{
-		Type = ModuleType.External;
-
-		string VorbisPath = Target.UEThirdPartySourceDirectory + "Vorbis/libvorbis-1.3.2/";
-
-		PublicIncludePaths.Add(VorbisPath + "include");
+        Type = ModuleType.External;
+		
+		PublicIncludePaths.Add(VorbisIncPath);
 		PublicDefinitions.Add("WITH_OGGVORBIS=1");
+
+		string VorbisLibPath = VorbisLibPath_Default;
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			string VorbisLibPath = VorbisPath + "Lib/win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
+			VorbisLibPath = Path.Combine(VorbisLibPath, "Win64", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
 
-			PublicAdditionalLibraries.Add(VorbisLibPath + "libvorbis_64.lib");
+			PublicAdditionalLibraries.Add(Path.Combine(VorbisLibPath, "libvorbis_64.lib"));
 			PublicDelayLoadDLLs.Add("libvorbis_64.dll");
 
 			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Vorbis/Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/libvorbis_64.dll");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win32)
 		{
-			string VorbisLibPath = VorbisPath + "Lib/win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
+			VorbisLibPath = Path.Combine(VorbisLibPath, "Win32", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
 
-			PublicAdditionalLibraries.Add(VorbisLibPath + "libvorbis.lib");
+            PublicAdditionalLibraries.Add(Path.Combine(VorbisLibPath, "libvorbis.lib"));
 			PublicDelayLoadDLLs.Add("libvorbis.dll");
 
 			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Vorbis/Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/libvorbis.dll");
@@ -39,12 +48,11 @@ public class Vorbis : ModuleRules
                 LibFileName += "_64";
             }
 
-			string LibDir;
             if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
             {
-                LibDir = System.String.Format("{0}lib/{1}/VS{2}/{3}/", VorbisPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.WindowsPlatform.GetArchitectureSubpath() + "/");
+				VorbisLibPath = Path.Combine(VorbisLibPath, PlatformSubpath, "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.WindowsPlatform.GetArchitectureSubpath());
                 RuntimeDependencies.Add(
-					System.String.Format("$(EngineDir)/Binaries/ThirdParty/Vorbis/{0}/VS{1}/{2}/{3}.dll",
+					string.Format("$(EngineDir)/Binaries/ThirdParty/Vorbis/{0}/VS{1}/{2}/{3}.dll",
                         Target.Platform,
 						Target.WindowsPlatform.GetVisualStudioCompilerVersionName(),
                         Target.WindowsPlatform.GetArchitectureSubpath(),
@@ -52,15 +60,15 @@ public class Vorbis : ModuleRules
             }
             else
             {
-                LibDir = System.String.Format("{0}lib/{1}/VS{2}/", VorbisPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/");
+				VorbisLibPath = Path.Combine(VorbisLibPath, PlatformSubpath, "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
                 RuntimeDependencies.Add(
-                    System.String.Format("$(EngineDir)/Binaries/ThirdParty/Vorbis/{0}/VS{1}/{2}.dll",
+                    string.Format("$(EngineDir)/Binaries/ThirdParty/Vorbis/{0}/VS{1}/{2}.dll",
                         Target.Platform,
                         Target.WindowsPlatform.GetVisualStudioCompilerVersionName(),
                         LibFileName));
             }
 
-            PublicAdditionalLibraries.Add(LibDir + LibFileName + ".lib");
+            PublicAdditionalLibraries.Add(Path.Combine(VorbisLibPath, LibFileName + ".lib"));
 			PublicDelayLoadDLLs.Add(LibFileName + ".dll");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
@@ -71,25 +79,23 @@ public class Vorbis : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.HTML5)
 		{
-			string VorbisLibPath = VorbisPath + "lib/HTML5/";
-
-			string OpimizationSuffix = "";
+			string OptimizationSuffix = "";
 			if (Target.bCompileForSize)
 			{
-				OpimizationSuffix = "_Oz";
+				OptimizationSuffix = "_Oz";
 			}
 			else
 			{
 				if (Target.Configuration == UnrealTargetConfiguration.Development)
 				{
-					OpimizationSuffix = "_O2";
+					OptimizationSuffix = "_O2";
 				}
 				else if (Target.Configuration == UnrealTargetConfiguration.Shipping)
 				{
-					OpimizationSuffix = "_O3";
+					OptimizationSuffix = "_O3";
 				}
 			}
-			PublicAdditionalLibraries.Add(VorbisLibPath + "libvorbis" + OpimizationSuffix + ".bc");
+			PublicAdditionalLibraries.Add(Path.Combine(VorbisLibPath, "HTML5", "libvorbis" + OptimizationSuffix + ".bc"));
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
 		{
@@ -101,21 +107,21 @@ public class Vorbis : ModuleRules
 				"x64",
 			};
 
-			foreach(string Architecture in Architectures)
+			foreach (string Architecture in Architectures)
 			{
-				PublicAdditionalLibraries.Add(VorbisPath + "lib/Android/" + Architecture + "/libvorbis.a");
+				PublicAdditionalLibraries.Add(Path.Combine(VorbisLibPath, "Android", Architecture, "libvorbis.a"));
 			}
-			PublicAdditionalLibraries.Add(VorbisPath + "lib/Android/ARMv7/libvorbisenc.a");
-        }
+			PublicAdditionalLibraries.Add(Path.Combine(VorbisLibPath, "Android", "ARMv7", "libvorbisenc.a"));
+		}
 		else if (Target.Platform == UnrealTargetPlatform.IOS)
         {
-            PublicAdditionalLibraries.Add(VorbisPath + "lib/IOS/libvorbis.a");
-            PublicAdditionalLibraries.Add(VorbisPath + "lib/IOS/libvorbisenc.a");
-            PublicAdditionalLibraries.Add(VorbisPath + "lib/IOS/libvorbisfile.a");
+            PublicAdditionalLibraries.Add(Path.Combine(VorbisLibPath, "IOS", "libvorbis.a"));
+            PublicAdditionalLibraries.Add(Path.Combine(VorbisLibPath, "IOS", "libvorbisenc.a"));
+            PublicAdditionalLibraries.Add(Path.Combine(VorbisLibPath, "IOS", "libvorbisfile.a"));
         }
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			PublicAdditionalLibraries.Add(VorbisPath + "lib/Linux/" + Target.Architecture + "/libvorbis.a");
+			PublicAdditionalLibraries.Add(Path.Combine(VorbisLibPath, "Linux", Target.Architecture, "libvorbis.a"));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.XboxOne)
 		{
@@ -124,16 +130,12 @@ public class Vorbis : ModuleRules
 			if (XboxOnePlatformType != null)
 			{
 				System.Object VersionName = XboxOnePlatformType.GetMethod("GetVisualStudioCompilerVersionName").Invoke(null, null);
-				PublicAdditionalLibraries.Add(VorbisPath + "lib/XboxOne/VS" + VersionName.ToString() + "/libvorbis_static.lib");
+				PublicAdditionalLibraries.Add(Path.Combine(VorbisLibPath, "XboxOne", "VS" + VersionName.ToString(), "libvorbis_static.lib"));
 			}
 		}
-		else if (Target.Platform == UnrealTargetPlatform.PS4)
-        {
-            PublicAdditionalLibraries.Add(VorbisPath + "lib/PS4/" + "libvorbis-1.3.2_PS4_static.a");
-        }
 		else if (Target.Platform == UnrealTargetPlatform.Switch)
         {
-            PublicAdditionalLibraries.Add(VorbisPath + "lib/Switch/Release/" + "Switch_Static_Vorbis.a");
+            PublicAdditionalLibraries.Add(Path.Combine(VorbisLibPath, "Switch", "Release", "Switch_Static_Vorbis.a"));
         }
 	}
 }

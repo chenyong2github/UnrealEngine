@@ -575,7 +575,7 @@ void CreateOpaqueBasePassUniformBuffer(
 		BasePassParameters.DBufferBTextureSampler = TStaticSamplerState<>::GetRHI();
 		BasePassParameters.DBufferCTextureSampler = TStaticSamplerState<>::GetRHI();
 
-		if ((GSupportsRenderTargetWriteMask || IsUsingPerPixelDBufferMask(View.GetShaderPlatform())) && SceneRenderTargets.DBufferMask)
+		if ((RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform) || IsUsingPerPixelDBufferMask(View.GetShaderPlatform())) && SceneRenderTargets.DBufferMask)
 		{
 			BasePassParameters.DBufferRenderMask = SceneRenderTargets.DBufferMask->GetRenderTargetItem().TargetableTexture;
 		}

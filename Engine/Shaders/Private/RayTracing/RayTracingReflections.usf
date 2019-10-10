@@ -141,8 +141,7 @@ void FixSampleDirectionIfNeeded(float3 SmoothSurfaceNormal, inout float3 SampleD
 	}
 }
 
-[shader("raygeneration")]
-void RayTracingReflectionsRGS()
+RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 {
 	const float ClearCoatSpecularColor = 0.04; // See ReflectionEnvironmentPixelShader.usf
 

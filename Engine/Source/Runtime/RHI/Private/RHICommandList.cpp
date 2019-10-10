@@ -859,6 +859,7 @@ FRHICommandListBase::FRHICommandListBase(FRHIGPUMask InGPUMask)
 	, ComputeContext(nullptr)
 	, MemManager(0)
 	, bAsyncPSOCompileAllowed(true)
+	, bRecursive(false)
 	, GPUMask(InGPUMask)
 	, InitialGPUMask(InGPUMask)
 {
@@ -885,15 +886,18 @@ void FRHICommandListBase::Reset()
 	NumCommands = 0;
 	Root = nullptr;
 	CommandLink = &Root;
-	Context = GDynamicRHI ? RHIGetDefaultContext() : nullptr;
+	if (!bRecursive)
+	{
+		Context = GDynamicRHI ? RHIGetDefaultContext() : nullptr;
 
-	if (GEnableAsyncCompute)
-	{
-		ComputeContext = GDynamicRHI ? RHIGetDefaultAsyncComputeContext() : nullptr;
-	}
-	else
-	{
-		ComputeContext = Context;
+		if (GEnableAsyncCompute)
+		{
+			ComputeContext = GDynamicRHI ? RHIGetDefaultAsyncComputeContext() : nullptr;
+		}
+		else
+		{
+			ComputeContext = Context;
+		}
 	}
 	
 	UID = GRHICommandList.UIDCounter.Increment();
@@ -2533,6 +2537,20 @@ FShaderResourceViewRHIRef FDynamicRHI::RHICreateShaderResourceView_RenderThread(
 	CSV_SCOPED_TIMING_STAT(RHITStalls, RHICreateShaderResourceView_RenderThread_SB);
 	FScopedRHIThreadStaller StallRHIThread(RHICmdList);
 	return GDynamicRHI->RHICreateShaderResourceView(StructuredBuffer);
+}
+
+FShaderResourceViewRHIRef FDynamicRHI::RHICreateShaderResourceViewWriteMask_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2DRHI)
+{
+	CSV_SCOPED_TIMING_STAT(RHITStalls, RHICreateShaderResourceView_RenderThread_Tex2DWriteMask);
+	FScopedRHIThreadStaller StallRHIThread(RHICmdList);
+	return GDynamicRHI->RHICreateShaderResourceViewWriteMask(Texture2DRHI);
+}
+
+FShaderResourceViewRHIRef FDynamicRHI::RHICreateShaderResourceViewFMask_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2DRHI)
+{
+	CSV_SCOPED_TIMING_STAT(RHITStalls, RHICreateShaderResourceView_RenderThread_Tex2DFMask);
+	FScopedRHIThreadStaller StallRHIThread(RHICmdList);
+	return GDynamicRHI->RHICreateShaderResourceViewFMask(Texture2DRHI);
 }
 
 FTextureCubeRHIRef FDynamicRHI::RHICreateTextureCube_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, uint8 Format, uint32 NumMips, uint32 Flags, FRHIResourceCreateInfo& CreateInfo)

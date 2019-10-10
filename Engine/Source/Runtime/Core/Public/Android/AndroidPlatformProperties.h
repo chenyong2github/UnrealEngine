@@ -39,6 +39,11 @@ struct FAndroidPlatformProperties
 		return "Android";
 	}
 
+	static FORCEINLINE const TCHAR* GetRuntimeSettingsClassName()
+	{
+		return TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings");
+	}
+
 	static FORCEINLINE bool IsGameOnly( )
 	{
 		return true;

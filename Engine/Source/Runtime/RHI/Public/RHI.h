@@ -202,7 +202,7 @@ inline bool RHISupportsAbsoluteVertexID(EShaderPlatform InShaderPlatform)
  **/
 inline RHI_API bool RHISupportsRayTracingShaders(EShaderPlatform Platform)
 {
-	return Platform == SP_PCD3D_SM5;
+	return FDataDrivenShaderPlatformInfo::GetInfo(Platform).bSupportsRayTracing;
 }
 
 /** Can this platform compile shaders that use shader model 6.0 wave intrinsics.
@@ -214,6 +214,14 @@ inline RHI_API bool RHISupportsWaveOperations(EShaderPlatform Platform)
 	return Platform == SP_PCD3D_SM5;
 }
 
+/** True if the given shader platform supports a render target write mask */
+inline bool RHISupportsRenderTargetWriteMask(EShaderPlatform Platform)
+{
+	return
+		Platform == SP_PS4 ||
+		Platform == SP_XBOXONE_D3D12 ||
+		FDataDrivenShaderPlatformInfo::GetInfo(Platform).bSupportsRenderTargetWriteMask;
+}
 
 // Wrapper for GRHI## global variables, allows values to be overridden for mobile preview modes.
 template <typename TValueType>
@@ -345,9 +353,6 @@ extern RHI_API bool GSupportsWideMRT;
 
 /** True if the RHI and current hardware supports supports depth bounds testing */
 extern RHI_API bool GSupportsDepthBoundsTest;
-
-/** True if the RHI and current hardware supports a render target write mask */
-extern RHI_API bool GSupportsRenderTargetWriteMask;
 
 /** True if the RHI supports explicit access to depth target HTile meta data. */
 extern RHI_API bool GRHISupportsExplicitHTile;
@@ -1232,46 +1237,39 @@ struct FRHIResourceCreateInfo
 		, GPUMask(FRHIGPUMask::All())
 		, bWithoutNativeResource(false)
 		, DebugName(nullptr)
+		, ExtData(0)
 	{}
 
 	// for CreateTexture calls
 	FRHIResourceCreateInfo(FResourceBulkDataInterface* InBulkData)
-		: BulkData(InBulkData)
-		, ResourceArray(nullptr)
-		, ClearValueBinding(FLinearColor::Transparent)
-		, GPUMask(FRHIGPUMask::All())
-		, bWithoutNativeResource(false)
-		, DebugName(nullptr)
-	{}
+		: FRHIResourceCreateInfo()
+	{
+		BulkData = InBulkData;
+	}
 
 	// for CreateVertexBuffer/CreateStructuredBuffer calls
 	FRHIResourceCreateInfo(FResourceArrayInterface* InResourceArray)
-		: BulkData(nullptr)
-		, ResourceArray(InResourceArray)
-		, ClearValueBinding(FLinearColor::Transparent)
-		, GPUMask(FRHIGPUMask::All())
-		, bWithoutNativeResource(false)
-		, DebugName(nullptr)
-	{}
+		: FRHIResourceCreateInfo()
+	{
+		ResourceArray = InResourceArray;
+	}
 
 	FRHIResourceCreateInfo(const FClearValueBinding& InClearValueBinding)
-		: BulkData(nullptr)
-		, ResourceArray(nullptr)
-		, ClearValueBinding(InClearValueBinding)
-		, GPUMask(FRHIGPUMask::All())
-		, bWithoutNativeResource(false)
-		, DebugName(nullptr)
+		: FRHIResourceCreateInfo()
 	{
+		ClearValueBinding = InClearValueBinding;
 	}
 
 	FRHIResourceCreateInfo(const TCHAR* InDebugName)
-		: BulkData(nullptr)
-		, ResourceArray(nullptr)
-		, ClearValueBinding(FLinearColor::Transparent)
-		, GPUMask(FRHIGPUMask::All())
-		, bWithoutNativeResource(false)
-		, DebugName(InDebugName)
+		: FRHIResourceCreateInfo()
 	{
+		DebugName = InDebugName;
+	}
+
+	FRHIResourceCreateInfo(uint32 InExtData)
+		: FRHIResourceCreateInfo()
+	{
+		ExtData = InExtData;
 	}
 
 	// for CreateTexture calls
@@ -1288,6 +1286,9 @@ struct FRHIResourceCreateInfo
 	// whether to create an RHI object with no underlying resource
 	bool bWithoutNativeResource;
 	const TCHAR* DebugName;
+
+	// optional data that would have come from an offline cooker or whatever - general purpose
+	uint32 ExtData;
 };
 
 enum ERHITextureSRVOverrideSRGBType
