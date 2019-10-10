@@ -80,7 +80,7 @@ protected:
     FOnKeyDown OnKeyDownHandler;
 };
 
-bool FPreLoadMoviePlayerScreenBase::Init(TFunctionRef<TSharedPtr<IAnalyticsProviderET>()> AnalyticsFactory)
+void FPreLoadMoviePlayerScreenBase::Init()
 {
     if (!bInitialized)
     {
@@ -119,8 +119,6 @@ bool FPreLoadMoviePlayerScreenBase::Init(TFunctionRef<TSharedPtr<IAnalyticsProvi
             FSlateApplication::Get().RegisterGameViewport(MovieViewport.ToSharedRef());
         }
     }
-
-	return true;
 }
 
 void FPreLoadMoviePlayerScreenBase::OnPlay(TWeakPtr<SWindow> TargetWindow)
