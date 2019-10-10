@@ -778,6 +778,25 @@ void UNiagaraStackModuleItem::SetIsEnabled(bool bInIsEnabled)
 	OnRequestFullRefresh().Broadcast();
 }
 
+bool UNiagaraStackModuleItem::TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const
+{
+	if (GetOwnerIsEnabled() == false)
+	{
+		OutCanDeleteMessage = LOCTEXT("CantDeleteOwnerDisabledToolTip", "This module can not be deleted because its owner is disabled.");
+		return false;
+	}
+	else if (CanMoveAndDelete())
+	{
+		OutCanDeleteMessage = LOCTEXT("DeleteToolTip", "Delete this module.");
+		return true;
+	}
+	else
+	{
+		OutCanDeleteMessage = LOCTEXT("CantDeleteToolTip", "This module can not be deleted becaue it is inherited.");
+		return false;
+	}
+}
+
 void UNiagaraStackModuleItem::Delete()
 {
 	checkf(CanMoveAndDelete(), TEXT("This module can't be deleted"));

@@ -24,9 +24,9 @@ public:
 
 	virtual FText GetDisplayName() const override;
 
-	bool CanDelete() const;
-
-	void Delete();
+	virtual bool SupportsDelete() const override { return true; }
+	virtual bool TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const;
+	virtual void Delete() override;
 
 	bool HasBaseRenderer() const;
 
@@ -34,7 +34,7 @@ public:
 
 	void ResetToBase();
 
-	virtual bool CanChangeEnabled() const override { return true; }
+	virtual bool SupportsChangeEnabled() const override { return true; }
 	virtual bool GetIsEnabled() const override;
 	virtual void SetIsEnabled(bool bInIsEnabled) override;
 
