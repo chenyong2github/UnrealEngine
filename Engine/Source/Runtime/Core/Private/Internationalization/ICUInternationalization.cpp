@@ -32,6 +32,14 @@ DEFINE_LOG_CATEGORY_STATIC(LogICUInternationalization, Log, All);
 static_assert(sizeof(UChar) == 2, "UChar (from ICU) is assumed to always be 2-bytes!");
 static_assert(PLATFORM_LITTLE_ENDIAN, "ICU data is only built for little endian platforms. You'll need to rebuild the data for your platform and update this code!");
 
+#if WITH_ICU_V64 && PLATFORM_WINDOWS
+	#if PLATFORM_32BITS
+		static_assert(sizeof(icu::Calendar) == 608, "icu::Calendar should be 608-bytes! Ensure relevant includes are wrapped in PRAGMA_PUSH_PLATFORM_DEFAULT_PACKING and PRAGMA_POP_PLATFORM_DEFAULT_PACKING.");
+	#else
+		static_assert(sizeof(icu::Calendar) == 616, "icu::Calendar should be 616-bytes! Ensure relevant includes are wrapped in PRAGMA_PUSH_PLATFORM_DEFAULT_PACKING and PRAGMA_POP_PLATFORM_DEFAULT_PACKING.");
+	#endif
+#endif
+
 namespace
 {
 	struct FICUOverrides
