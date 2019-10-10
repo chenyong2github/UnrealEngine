@@ -955,3 +955,5 @@ void FGroomBuilder::GenerateGuides(const FHairStrandsDatas& InData, float Decima
 
 	HairStrandsBuilder::BuildInternalData(OutData, false);
 }
+
+#undef LOCTEXT_NAMESPACE
