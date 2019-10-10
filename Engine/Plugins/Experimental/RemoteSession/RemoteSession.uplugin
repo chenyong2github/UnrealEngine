@@ -21,7 +21,6 @@
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
 			"BlacklistPlatforms": [
-				"HTML5",
 				"TVOS"
 			]
 		},
@@ -30,7 +29,6 @@
 			"Type": "Editor",
 			"LoadingPhase": "Default",
 			"BlacklistPlatforms": [
-				"HTML5",
 				"TVOS"
 			]
 		}
