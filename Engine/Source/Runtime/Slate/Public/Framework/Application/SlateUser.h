@@ -138,6 +138,7 @@ SLATE_SCOPE:
 	void ProcessCursorReply(const FCursorReply& CursorReply);
 	void RequestCursorQuery() { bQueryCursorRequested = true; }
 	void QueryCursor();
+	void OverrideCursor(const TSharedPtr<ICursor> InCursor) { Cursor = InCursor; }
 	
 	void SetFocusPath(const FWidgetPath& NewFocusPath, EFocusCause InFocusCause, bool bInShowFocus);
 	
