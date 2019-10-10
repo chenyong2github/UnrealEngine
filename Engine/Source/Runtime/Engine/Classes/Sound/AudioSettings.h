@@ -183,6 +183,9 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 public:
 	// Get the quality level settings at the provided level index
 	const FAudioQualitySettings& GetQualityLevelSettings(int32 QualityLevel) const;
+	
+	// Get the quality name level for a given index
+	FString FindQualityNameByIndex(int32 Index) const;
 
 	// Get the total number of quality level settings
 	int32 GetQualityLevelSettingsNum() const;
