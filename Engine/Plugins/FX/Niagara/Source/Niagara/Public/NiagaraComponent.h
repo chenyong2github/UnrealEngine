@@ -58,6 +58,10 @@ private:
 	UPROPERTY(EditAnywhere, Category="Niagara", meta = (DisplayName = "Niagara System Asset"))
 	UNiagaraSystem* Asset;
 
+	/** Allows you to control how Niagara selects the tick group, changing this while an instance is active will result in not change as it is cached. */
+	UPROPERTY(EditAnywhere, Category = "Niagara", meta = (DisplayName = "Niagara Tick Behavior"))
+	ENiagaraTickBehavior TickBehavior = ENiagaraTickBehavior::UsePrereqs;
+
 	/** Initial values for parameter overrides. 
 	TODO: This should be a minimal set of explicitly override parameters similar to how parameter collection instances override their collections store. 
 	Should expose anything in the "User" namespace.
@@ -227,6 +231,8 @@ public:
 	void SetAutoDestroy(bool bInAutoDestroy) { bAutoDestroy = bInAutoDestroy; }
 
 	FNiagaraSystemInstance* GetSystemInstance() const;
+
+	ENiagaraTickBehavior GetTickBehavior() const { return TickBehavior; }
 
 	/** Returns true if this component forces it's instances to run in "Solo" mode. A sub optimal path required in some situations. */
 	bool ForcesSolo()const;
