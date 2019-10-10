@@ -31,14 +31,6 @@
 
 #include "Misc/CommandLine.h"
 
-static int32 BypassPlayWhenSilentCVar = 0;
-FAutoConsoleVariableRef CVarBypassPlayWhenSilent(
-	TEXT("au.BypassPlayWhenSilent"),
-	BypassPlayWhenSilentCVar,
-	TEXT("When set to 1, ignores the Play When Silent flag for non-procedural sources.\n")
-	TEXT("0: Honor the Play When Silent flag, 1: stop all silent non-procedural sources."),
-	ECVF_Default);
-
 static int32 LoadIntoCacheOnPostLoadCVar = 0;
 FAutoConsoleVariableRef CVarLoadIntoCacheOnPostLoad(
 	TEXT("au.streamcache.LoadIntoCacheOnPostLoad"),
@@ -1795,13 +1787,7 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 
 	WaveInstance->bIsAmbisonics = bIsAmbisonics;
 
-	const float WaveInstanceVolume = WaveInstance->GetVolumeWithDistanceAttenuation() * WaveInstance->GetDynamicVolume();
-
-	// When the BypassVirtualizeWhenSilent cvar is enabled, we should only honor bVirtualizeWhenSilent for procedural sounds:
-	const bool bHasSubtitles = ActiveSound.bHandleSubtitles && (ActiveSound.bHasExternalSubtitles || (Subtitles.Num() > 0));
-	const bool bStarted = WaveInstanceVolume > KINDA_SMALL_NUMBER || ActiveSound.ComponentVolumeFader.IsFadingIn();
-	const bool bCanPlayWhenSilent = ActiveSound.IsPlayWhenSilent() && (!BypassPlayWhenSilentCVar || bProcedural);
-	if (bStarted || bCanPlayWhenSilent || bHasSubtitles)
+	if (WaveInstance->IsPlaying())
 	{
 		WaveInstances.Add(WaveInstance);
 		ActiveSound.bFinished = false;

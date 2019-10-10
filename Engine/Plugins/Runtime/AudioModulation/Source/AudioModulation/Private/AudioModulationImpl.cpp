@@ -87,7 +87,9 @@ namespace
 namespace AudioModulation
 {
 	FAudioModulationImpl::FAudioModulationImpl()
+#if WITH_EDITOR
 		: PreviewSound(nullptr)
+#endif // WITH_EDITOR
 	{
 	}
 
@@ -103,7 +105,7 @@ namespace AudioModulation
 		// This informs user that modifying sound's settings does not translate to
 		// currently playing sound.
 		const uint32 SettingsId = InSettings.GetUniqueID();
-		auto UpdateSettings = [this, SettingsId]()
+		RunCommandOnAudioThread([this, SettingsId]()
 		{
 			if (PreviewSound)
 			{
@@ -157,9 +159,7 @@ namespace AudioModulation
 					}
 				}
 			}
-		};
-
-		IsInAudioThread() ? UpdateSettings() : FAudioThread::RunCommandOnAudioThread(UpdateSettings);
+		});
 	}
 #endif // WITH_EDITOR
 
@@ -168,14 +168,16 @@ namespace AudioModulation
 		check(IsInAudioThread());
 
 		const USoundModulationSettings* Settings = CastChecked<USoundModulationSettings>(&InSettings);
-		const uint32 SoundId = InSound.GetObjectId();
 
+#if WITH_EDITOR
 		if (InSound.IsPreviewSound())
 		{
 			PreviewSound = &InSound;
 			PreviewSettings = FModulationSettingsProxy(*Settings);
 		}
+#endif // WITH_EDITOR
 
+		const uint32 SoundId = InSound.GetObjectId();
 		if (!SoundSettings.Contains(SoundId))
 		{
 			SoundSettings.Add(SoundId, FModulationSettingsProxy(*Settings));
@@ -257,38 +259,42 @@ namespace AudioModulation
 		check(IsInAudioThread());
 		check(InSound.GetObjectId() != INDEX_NONE);
 
-		const FModulationSettingsProxy& Settings = SoundSettings.FindChecked(InSound.GetObjectId());
-		for (FBusMixId MixId : Settings.Mixes)
+		// Settings can be null if sound settings were modified via the editor while auditioning or in PIE
+		if (const FModulationSettingsProxy* Settings = SoundSettings.Find(InSound.GetObjectId()))
 		{
-			DeactivateBusMix(MixId, &InSound);
+			for (FBusMixId MixId : Settings->Mixes)
+			{
+				DeactivateBusMix(MixId, &InSound);
+			}
+
+			for (const FModulationInputProxy& Input : Settings->Volume.InputProxies)
+			{
+				DeactivateBus(Input.BusId, &InSound);
+			}
+
+			for (const FModulationInputProxy& Input : Settings->Pitch.InputProxies)
+			{
+				DeactivateBus(Input.BusId, &InSound);
+			}
+
+			for (const FModulationInputProxy& Input : Settings->Lowpass.InputProxies)
+			{
+				DeactivateBus(Input.BusId, &InSound);
+			}
+
+			for (const FModulationInputProxy& Input : Settings->Highpass.InputProxies)
+			{
+				DeactivateBus(Input.BusId, &InSound);
+			}
 		}
 
-		for (const FModulationInputProxy& Input : Settings.Volume.InputProxies)
+#if WITH_EDITOR
+		if (InSound.IsPreviewSound() && &InSound == PreviewSound)
 		{
-			DeactivateBus(Input.BusId, &InSound);
-		}
-
-		for (const FModulationInputProxy& Input : Settings.Pitch.InputProxies)
-		{
-			DeactivateBus(Input.BusId, &InSound);
-		}
-
-		for (const FModulationInputProxy& Input : Settings.Lowpass.InputProxies)
-		{
-			DeactivateBus(Input.BusId, &InSound);
-		}
-
-		for (const FModulationInputProxy& Input : Settings.Highpass.InputProxies)
-		{
-			DeactivateBus(Input.BusId, &InSound);
-		}
-
-		if (InSound.IsPreviewSound())
-		{
-			check(&InSound == PreviewSound);
 			PreviewSound = nullptr;
 			PreviewSettings = FModulationSettingsProxy();
 		}
+#endif // WITH_EDITOR
 	}
 
 #if !UE_BUILD_SHIPPING
@@ -455,9 +461,19 @@ namespace AudioModulation
 		return OutValue;
 	}
 
+	float FAudioModulationImpl::CalculateInitialVolume(const USoundModulationPluginSourceSettingsBase& SettingsBase) const
+	{
+		check(IsInAudioThread());
+
+		const USoundModulationSettings* Settings = CastChecked<USoundModulationSettings>(&SettingsBase);
+		FModulationPatchProxy VolumePatch(Settings->Volume);
+
+		return CalculateModulationValue(VolumePatch);
+	}
+
 	void FAudioModulationImpl::DeactivateBusMix(const FBusMixId InBusMixId, const ISoundModulatable* InSound)
 	{
-		auto DeactivateMix = [this, InBusMixId, InSound]()
+		RunCommandOnAudioThread([this, InBusMixId, InSound]()
 		{
 			check(IsInAudioThread());
 
@@ -478,9 +494,7 @@ namespace AudioModulation
 					}
 				}
 			}
-		};
-
-		IsInAudioThread() ? DeactivateMix() : FAudioThread::RunCommandOnAudioThread(DeactivateMix);
+		});
 	}
 
 	void FAudioModulationImpl::DeactivateBus(const FBusId InBusId, const ISoundModulatable* InSound)
@@ -596,7 +610,7 @@ namespace AudioModulation
 			Pair.Value.Update(Elapsed, ActiveBuses);
 			if (Pair.Value.CanDestroy())
 			{
-				UE_LOG(LogAudioModulation, Log, TEXT("Audio modulation mix '%u' stopped."), static_cast<uint32>(Pair.Key));
+				UE_LOG(LogAudioModulation, Log, TEXT("Audio modulation mix '%s' stopped."), *Pair.Value.GetName());
 				MixesToDeactivate.Add(Pair.Key);
 			}
 		}
