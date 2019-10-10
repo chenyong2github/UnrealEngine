@@ -110,7 +110,7 @@ static FAutoConsoleVariableRef CVarAllowSubPrimitiveQueries(
 	ECVF_RenderThreadSafe
 	);
 
-static TAutoConsoleVariable<float> CVarStaticMeshLODDistanceScale(
+RENDERER_API TAutoConsoleVariable<float> CVarStaticMeshLODDistanceScale(
 	TEXT("r.StaticMeshLODDistanceScale"),
 	1.0f,
 	TEXT("Scale factor for the distance used in computing discrete LOD for static meshes. (defaults to 1)\n")
