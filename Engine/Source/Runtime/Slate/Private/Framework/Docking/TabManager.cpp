@@ -838,7 +838,7 @@ void FTabManager::UnregisterAllTabSpawners()
 	TabSpawner.Empty();
 }
 
-TSharedPtr<SWidget> FTabManager::RestoreFrom(const TSharedRef<FLayout>& Layout, const TSharedPtr<SWindow>& ParentWindow, const bool bEmbedTitleAreaContent, const bool bCanRestoreAreaOutputBeNullptr)
+TSharedPtr<SWidget> FTabManager::RestoreFrom(const TSharedRef<FLayout>& Layout, const TSharedPtr<SWindow>& ParentWindow, const bool bEmbedTitleAreaContent, const EOutputCanBeNullptr RestoreAreaOutputCanBeNullptr)
 {
 	ActiveLayoutName = Layout->LayoutName;
 
@@ -858,7 +858,7 @@ TSharedPtr<SWidget> FTabManager::RestoreFrom(const TSharedRef<FLayout>& Layout, 
 
 			if ( bHasOpenTabs )
 			{
-				RestoredDockArea = RestoreArea(ThisArea, ParentWindow, bEmbedTitleAreaContent, bCanRestoreAreaOutputBeNullptr);
+				RestoredDockArea = RestoreArea(ThisArea, ParentWindow, bEmbedTitleAreaContent, RestoreAreaOutputCanBeNullptr);
 				// Invalidate all tabs in ThisArea because they were not recognized
 				if (!RestoredDockArea)
 				{
@@ -1334,9 +1334,9 @@ FTabManager::FTabManager( const TSharedPtr<SDockTab>& InOwnerTab, const TSharedR
 }
 
 TSharedPtr<SDockingArea> FTabManager::RestoreArea(
-	const TSharedRef<FArea>& AreaToRestore, const TSharedPtr<SWindow>& InParentWindow, const bool bEmbedTitleAreaContent, const bool bCanOutputBeNullptr)
+	const TSharedRef<FArea>& AreaToRestore, const TSharedPtr<SWindow>& InParentWindow, const bool bEmbedTitleAreaContent, const EOutputCanBeNullptr OutputCanBeNullptr)
 {
-	if (TSharedPtr<SDockingNode> RestoredNode = RestoreArea_Helper(AreaToRestore, InParentWindow, bEmbedTitleAreaContent, bCanOutputBeNullptr))
+	if (TSharedPtr<SDockingNode> RestoredNode = RestoreArea_Helper(AreaToRestore, InParentWindow, bEmbedTitleAreaContent, OutputCanBeNullptr))
 	{
 		TSharedRef<SDockingArea> RestoredArea = StaticCastSharedRef<SDockingArea>(RestoredNode->AsShared());
 		RestoredArea->CleanUp(SDockingNode::TabRemoval_None);
@@ -1344,32 +1344,59 @@ TSharedPtr<SDockingArea> FTabManager::RestoreArea(
 	}
 	else
 	{
-		check(bCanOutputBeNullptr);
+		check(OutputCanBeNullptr != EOutputCanBeNullptr::Never);
 		return nullptr;
 	}
 }
 
 TSharedPtr<SDockingNode> FTabManager::RestoreArea_Helper(
-	const TSharedRef<FLayoutNode>& LayoutNode, const TSharedPtr<SWindow>& ParentWindow, const bool bEmbedTitleAreaContent, const bool bCanOutputBeNullptr)
+	const TSharedRef<FLayoutNode>& LayoutNode, const TSharedPtr<SWindow>& ParentWindow, const bool bEmbedTitleAreaContent, const EOutputCanBeNullptr OutputCanBeNullptr)
 {
 	TSharedPtr<FTabManager::FStack> NodeAsStack = LayoutNode->AsStack();
 	TSharedPtr<FTabManager::FSplitter> NodeAsSplitter = LayoutNode->AsSplitter();
 	TSharedPtr<FTabManager::FArea> NodeAsArea = LayoutNode->AsArea();
+	const bool bCanOutputBeNullptr = (OutputCanBeNullptr != EOutputCanBeNullptr::Never);
 
 	if (NodeAsStack.IsValid())
 	{
 		TSharedPtr<SDockTab> WidgetToActivate;
 
 		TSharedPtr<SDockingTabStack> NewStackWidget;
-		if (!bCanOutputBeNullptr)
+		// Should we init NewStackWidget before the for loop? It depends on OutputCanBeNullptr
+		bool bIsNewStackWidgetInit = false;
+		// 1. If EOutputCanBeNullptr::Never, function cannot return nullptr
+		if (OutputCanBeNullptr == EOutputCanBeNullptr::Never)
+		{
+			bIsNewStackWidgetInit = true;
+		}
+		// 2. If EOutputCanBeNullptr::IfNoTabValid, we must init the SWidget as soon as any tab is valid for spawning
+		else if (OutputCanBeNullptr == EOutputCanBeNullptr::IfNoTabValid)
+		{
+			// Note: IsValidTabForSpawning does not check whether SpawnTab() will return nullptr
+			for (const FTab& SomeTab : NodeAsStack->Tabs)
+			{
+				if (IsValidTabForSpawning(SomeTab))
+				{
+					bIsNewStackWidgetInit = true;
+					break;
+				}
+			}
+		}
+		// 3. If EOutputCanBeNullptr::IfNoOpenTabValid, we must init the SWidget as soon as any open tab is valid for spawning. For efficiency, done in the for loop
+		// 4. Else, case not handled --> error
+		else if (OutputCanBeNullptr != EOutputCanBeNullptr::IfNoOpenTabValid)
+		{
+			check(false);
+		}
+		// Initialize the SWidget already?
+		if (bIsNewStackWidgetInit)
 		{
 			NewStackWidget = SNew(SDockingTabStack, NodeAsStack.ToSharedRef());
 			NewStackWidget->SetSizeCoefficient(LayoutNode->GetSizeCoefficient());
 		}
-		for (int32 TabIndex=0; TabIndex < NodeAsStack->Tabs.Num(); ++TabIndex )
+		// Open Tabs
+		for (const FTab& SomeTab : NodeAsStack->Tabs)
 		{
-			const FTab& SomeTab = NodeAsStack->Tabs[ TabIndex ];
-
 			if (SomeTab.TabState == ETabState::OpenedTab && IsValidTabForSpawning(SomeTab))
 			{
 				const TSharedPtr<SDockTab> NewTabWidget = SpawnTab(SomeTab.TabId, ParentWindow, bCanOutputBeNullptr);
@@ -1438,7 +1465,7 @@ TSharedPtr<SDockingNode> FTabManager::RestoreArea_Helper(
 			NewWindow->SetTitle(FGlobalTabmanager::Get()->GetApplicationTitle());
 
 			TArray<TSharedRef<SDockingNode>> DockingNodes;
-			if (!bCanOutputBeNullptr || CanRestoreSplitterContent(DockingNodes, NodeAsArea.ToSharedRef(), NewWindow))
+			if (CanRestoreSplitterContent(DockingNodes, NodeAsArea.ToSharedRef(), NewWindow, OutputCanBeNullptr))
 			{
 				// Create SplitterWidget only if it will be filled with at least 1 DockingNodes
 				// Any windows that were "pulled out" of a dock area should be children of the window in which the parent dock area resides.
@@ -1468,7 +1495,7 @@ TSharedPtr<SDockingNode> FTabManager::RestoreArea_Helper(
 		else
 		{
 			TArray<TSharedRef<SDockingNode>> DockingNodes;
-			if (!bCanOutputBeNullptr || CanRestoreSplitterContent(DockingNodes, NodeAsArea.ToSharedRef(), ParentWindow))
+			if (CanRestoreSplitterContent(DockingNodes, NodeAsArea.ToSharedRef(), ParentWindow, OutputCanBeNullptr))
 			{
 				SAssignNew(NewDockAreaWidget, SDockingArea, SharedThis(this), NodeAsArea.ToSharedRef())
 					// We only want to set a parent window on this dock area, if we need to have title area content
@@ -1496,14 +1523,14 @@ TSharedPtr<SDockingNode> FTabManager::RestoreArea_Helper(
 	else if ( NodeAsSplitter.IsValid() ) 
 	{
 		TArray<TSharedRef<SDockingNode>> DockingNodes;
-		if (!bCanOutputBeNullptr || CanRestoreSplitterContent(DockingNodes, NodeAsSplitter.ToSharedRef(), ParentWindow))
+		if (CanRestoreSplitterContent(DockingNodes, NodeAsSplitter.ToSharedRef(), ParentWindow, OutputCanBeNullptr))
 		{
 			TSharedRef<SDockingSplitter> NewSplitterWidget = SNew( SDockingSplitter, NodeAsSplitter.ToSharedRef() );
 			NewSplitterWidget->SetSizeCoefficient(LayoutNode->GetSizeCoefficient());
 			// Restore content
 			if (!bCanOutputBeNullptr)
 			{
-				RestoreSplitterContent( NodeAsSplitter.ToSharedRef(), NewSplitterWidget, ParentWindow );
+				RestoreSplitterContent(NodeAsSplitter.ToSharedRef(), NewSplitterWidget, ParentWindow);
 			}
 			else
 			{
@@ -1525,8 +1552,12 @@ TSharedPtr<SDockingNode> FTabManager::RestoreArea_Helper(
 	}
 }
 
-bool FTabManager::CanRestoreSplitterContent( TArray<TSharedRef<SDockingNode>>& DockingNodes, const TSharedRef<FSplitter>& SplitterNode, const TSharedPtr<SWindow>& ParentWindow )
+bool FTabManager::CanRestoreSplitterContent(TArray<TSharedRef<SDockingNode>>& DockingNodes, const TSharedRef<FSplitter>& SplitterNode, const TSharedPtr<SWindow>& ParentWindow, const EOutputCanBeNullptr OutputCanBeNullptr)
 {
+	if (OutputCanBeNullptr == EOutputCanBeNullptr::Never)
+	{
+		return true;
+	}
 	DockingNodes.Empty();
 	// Restore the contents of this splitter.
 	for ( int32 ChildNodeIndex = 0; ChildNodeIndex < SplitterNode->ChildNodes.Num(); ++ChildNodeIndex )
@@ -1534,8 +1565,7 @@ bool FTabManager::CanRestoreSplitterContent( TArray<TSharedRef<SDockingNode>>& D
 		const TSharedRef<FLayoutNode> ThisChildNode = SplitterNode->ChildNodes[ChildNodeIndex];
 
 		const bool bEmbedTitleAreaContent = false;
-		const bool bCanOutputBeNullptr = true;
-		const TSharedPtr<SDockingNode> ThisChildNodeWidget = RestoreArea_Helper(ThisChildNode, ParentWindow, bEmbedTitleAreaContent, bCanOutputBeNullptr);
+		const TSharedPtr<SDockingNode> ThisChildNodeWidget = RestoreArea_Helper(ThisChildNode, ParentWindow, bEmbedTitleAreaContent, OutputCanBeNullptr);
 		if (ThisChildNodeWidget)
 		{
 			const TSharedRef<SDockingNode> ThisChildNodeWidgetRef = StaticCastSharedRef<SDockingNode>(ThisChildNodeWidget->AsShared());

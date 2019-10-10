@@ -1320,8 +1320,8 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 	Layout->ProcessExtensions(LayoutExtender);
 
 	const bool bEmbedTitleAreaContent = false;
-	const bool bCanRestoreAreaOutputBeNullptr = true;
-	return LevelEditorTabManager->RestoreFrom(Layout, OwnerWindow, bEmbedTitleAreaContent, bCanRestoreAreaOutputBeNullptr).ToSharedRef();
+	const EOutputCanBeNullptr OutputCanBeNullptr = EOutputCanBeNullptr::IfNoTabValid;
+	return LevelEditorTabManager->RestoreFrom(Layout, OwnerWindow, bEmbedTitleAreaContent, OutputCanBeNullptr).ToSharedRef();
 }
 
 void SLevelEditor::HandleExperimentalSettingChanged(FName PropertyName)
