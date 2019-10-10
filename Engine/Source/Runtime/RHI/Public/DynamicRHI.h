@@ -944,6 +944,11 @@ public:
 		return nullptr;
 	}
 
+	virtual FTexture2DRHIRef RHIGetStencilTexture(FRHITexture* SourceTextureRHI)
+	{
+		return nullptr;
+	}
+
 	virtual void RHIAliasTextureResources(FRHITexture* DestTexture, FRHITexture* SrcTexture)
 	{
 		checkNoEntry();
@@ -1400,6 +1405,11 @@ FORCEINLINE FTexture2DRHIRef RHIGetViewportBackBuffer(FRHIViewport* Viewport)
 FORCEINLINE FTexture2DRHIRef RHIGetFMaskTexture(FRHITexture* SourceTextureRHI)
 {
 	return GDynamicRHI->RHIGetFMaskTexture(SourceTextureRHI);
+}
+
+FORCEINLINE FTexture2DRHIRef RHIGetStencilTexture(FRHITexture* SourceTextureRHI)
+{
+	return GDynamicRHI->RHIGetStencilTexture(SourceTextureRHI);
 }
 
 FORCEINLINE void RHIAdvanceFrameFence()
