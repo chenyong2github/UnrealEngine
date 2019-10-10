@@ -243,6 +243,11 @@ namespace Chaos
 			}
 		}
 
+		virtual void RemoveConstraints(const TSet<TGeometryParticleHandle<T, d>*>& InConstraints)
+		{
+			Constraints.RemoveConstraints(InConstraints);
+		}
+
 		virtual void ApplyPushOut(const T Dt, int32 Island) override
 		{
 			const typename FConstraintColor::FLevelToColorToConstraintListMap& LevelToColorToConstraintListMap = GraphColor.GetIslandLevelToColorToConstraintListMap(Island);

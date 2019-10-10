@@ -160,6 +160,11 @@ public:
 	void RemoveConstraint(int32 Idx);
 
 	/**
+	* Remove the constraints associated with the ParticleHandle.
+	*/
+	void RemoveConstraints(const TSet<TGeometryParticleHandle<T, d>*>&  ParticleHandle);
+
+	/**
 	 * Apply a modifier to the constraints and specify which constraints should be disabled.
 	 * You would probably call this in the PostComputeCallback. Prefer this to calling RemoveConstraints in a loop, 
 	 * so you don't have to worry about constraint iterator/indices changing.
