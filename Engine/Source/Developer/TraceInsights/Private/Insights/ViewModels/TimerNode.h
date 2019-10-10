@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "TraceServices/Containers/Timelines.h"
+#include "TraceServices/Model/TimingProfiler.h"
 
 // Insights
 #include "Insights/Table/ViewModels/BaseTreeNode.h"
@@ -89,10 +90,10 @@ public:
 	/**
 	 * @return the aggregated stats for this timer.
 	 */
-	const Trace::FAggregatedTimingStats& GetAggregatedStats() const { return AggregatedStats; }
+	const Trace::FTimingProfilerAggregatedStats& GetAggregatedStats() const { return AggregatedStats; }
 
 	void ResetAggregatedStats();
-	void SetAggregatedStats(const Trace::FAggregatedTimingStats& AggregatedStats);
+	void SetAggregatedStats(const Trace::FTimingProfilerAggregatedStats& AggregatedStats);
 
 	bool IsHotPath() const { return bIsHotPath; }
 	void SetIsHotPath(bool bOnOff) { bIsHotPath = bOnOff; }
@@ -105,7 +106,7 @@ private:
 	const ETimerNodeType Type;
 
 	/** Aggregated stats. */
-	Trace::FAggregatedTimingStats AggregatedStats;
+	Trace::FTimingProfilerAggregatedStats AggregatedStats;
 
 	/** True if this tree node is on the hot path. */
 	bool bIsHotPath;

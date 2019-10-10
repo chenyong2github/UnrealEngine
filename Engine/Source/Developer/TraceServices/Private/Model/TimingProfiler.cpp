@@ -209,8 +209,19 @@ ITable<FTimingProfilerAggregatedStats>* FTimingProfilerProvider::CreateAggregati
 	for (const auto& KV : Aggregation)
 	{
 		FTimingProfilerAggregatedStats& Row = Table->AddRow();
-		*static_cast<FAggregatedTimingStats*>(&Row) = KV.Value;
 		Row.Timer = KV.Key;
+		const FAggregatedTimingStats& Stats = KV.Value;
+		Row.InstanceCount = Stats.InstanceCount;
+		Row.TotalInclusiveTime = Stats.TotalExclusiveTime;
+		Row.MinInclusiveTime = Stats.MinExclusiveTime;
+		Row.MaxInclusiveTime = Stats.MaxExclusiveTime;
+		Row.AverageInclusiveTime = Stats.AverageExclusiveTime;
+		Row.MedianInclusiveTime = Stats.MedianInclusiveTime;
+		Row.TotalExclusiveTime = Stats.TotalExclusiveTime;
+		Row.MinExclusiveTime = Stats.MinExclusiveTime;
+		Row.MaxExclusiveTime = Stats.MaxExclusiveTime;
+		Row.AverageExclusiveTime = Stats.AverageExclusiveTime;
+		Row.MedianExclusiveTime = Stats.MedianExclusiveTime;
 	}
 	return Table;
 }
