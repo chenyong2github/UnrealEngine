@@ -104,24 +104,28 @@ void TPBDCollisionConstraint<T, d>::Reset(/*const TPBDRigidParticles<T, d>& InPa
 {
 	SCOPE_CYCLE_COUNTER(STAT_CollisionConstraintsReset);
 
-	int32 LowestRemovedConstraintIndex = INT_MAX;
 	int32 Threshold = LifespanCounter - 1; // Maybe this should be solver time?
 	for (int32 Idx = Constraints.Num() - 1; Idx >= 0; Idx--)
 	{
 		if (Constraints[Idx].Lifespan < Threshold)
 		{
-			HandleAllocator.FreeHandle(Handles.FindAndRemoveChecked(GetConstraintHandleID(Idx)));
-			Constraints.RemoveAtSwap(Idx);
-			LowestRemovedConstraintIndex = Idx;
+			RemoveConstraint(Idx);
 		}
-	}
-	for (int32 Idx = LowestRemovedConstraintIndex; Idx < Constraints.Num(); Idx++)
-	{
-		Handles[GetConstraintHandleID(Idx)]->SetConstraintIndex(Idx);
 	}
 
 	MAngularFriction = 0;
 	bUseCCD = false;
+}
+
+template<typename T, int d>
+void TPBDCollisionConstraint<T, d>::RemoveConstraint(int32 Idx)
+{
+	HandleAllocator.FreeHandle(Handles.FindAndRemoveChecked(GetConstraintHandleID(Idx)));
+	Constraints.RemoveAtSwap(Idx);
+	if (Idx < Constraints.Num())
+	{
+		Handles[GetConstraintHandleID(Idx)]->SetConstraintIndex(Idx);
+	}
 }
 
 template<typename T, int d>
@@ -226,28 +230,6 @@ void TPBDCollisionConstraint<T, d>::ComputeConstraints(const FAccelerationStruct
 	}
 }
 
-template<typename T, int d>
-void TPBDCollisionConstraint<T, d>::RemoveConstraints(const TSet<TGeometryParticleHandle<T, d>*>& RemovedParticles)
-{
-#if CHAOS_PARTICLEHANDLE_TODO
-	SpatialAccelerationResource.GetWritable().RemoveElements(RemovedParticles.Array());
-	for (int32 i = 0; i < Constraints.Num(); ++i)
-	{
-		const auto& Constraint = Constraints[i];
-		if (RemovedParticles.Contains(Constraint.ParticleIndex) || RemovedParticles.Contains(Constraint.LevelsetIndex))
-		{
-			Constraints.RemoveAtSwap(i);
-			HandleAllocator.FreeHandle(Handles[i]);
-			Handles.RemoveAtSwap(i);
-			if (i < Handles.Num())
-			{
-				SetConstraintIndex(Handles[i], i);
-			}
-			i--;
-		}
-	}
-#endif
-}
 
 DECLARE_CYCLE_STAT(TEXT("UpdateConstraints"), STAT_UpdateConstraints, STATGROUP_Chaos);
 

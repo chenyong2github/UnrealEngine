@@ -150,8 +150,7 @@ public:
 		return Handles[ GetConstraintHandleID(ConstraintIndex) ];
 	}
 
-	// @todo(ccaulfield): rename/remove
-	void RemoveConstraints(const TSet<TGeometryParticleHandle<T, d>*>& RemovedParticles);
+	void RemoveConstraint(int32 Idx);
 
 	/**
 	 * Set the callback used just after contacts are generated at the start of a frame tick.
