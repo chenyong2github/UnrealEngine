@@ -175,6 +175,7 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 			SwapChainDesc.SwapEffect = GSwapEffect;
 			SwapChainDesc.BufferCount = BackBufferCount;
 			SwapChainDesc.Flags = GSwapChainFlags;
+			SwapChainDesc.Scaling = DXGI_SCALING_NONE;
 
 			IDXGISwapChain1* SwapChain1 = nullptr;
 			IDXGIFactory2* Factory2 = (IDXGIFactory2*)D3DRHI->GetFactory();
