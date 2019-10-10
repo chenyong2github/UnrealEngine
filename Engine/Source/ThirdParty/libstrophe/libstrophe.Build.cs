@@ -13,7 +13,7 @@ public class libstrophe : ModuleRules
 
 	protected virtual string ConfigName { get { return (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT) ? "Debug" : "Release"; } }
 
-	protected virtual bool bRequireExpat { get { return !Target.IsInPlatformGroup(UnrealPlatformGroup.Unix); } }
+	protected virtual bool bRequireExpat { get { return true; } }
 
 	public libstrophe(ReadOnlyTargetRules Target) : base(Target)
 	{
