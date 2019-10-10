@@ -17,7 +17,7 @@ public:
 	
     /*** IPreLoadScreen Implementation ***/
 	virtual void Tick(float DeltaTime) override;
-    virtual bool Init() override;
+    virtual void Init() override;
 
     //Override to make sure this is always an EarlyStartupScreen
     virtual EPreLoadScreenTypes GetPreLoadScreenType() const override { return EPreLoadScreenTypes::CustomSplashScreen; }

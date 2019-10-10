@@ -166,6 +166,19 @@ img#playButton{
 	cursor: pointer;
 }
 
+#hiddenInput{
+	position: absolute;
+	left: -10%;   /* Although invisible, push off-screen to prevent user interaction. */
+	width: 0px;
+	opacity: 0;
+}
+
+#editTextButton{
+	position: absolute;
+	height: 40px;
+	width: 40px;
+}
+
 .settings-text{
 	color: var(--colour4);
 	vertical-align: middle;

@@ -79,13 +79,13 @@ public:
 	bool IsMuteSoundWave(FName InName) const  { return DebugNames.MuteSoundWave.Contains(InName); }
 	bool IsMuteSoundCue(FName InName) const   { return DebugNames.MuteSoundCue.Contains(InName); }
 		
-	// Mute/Solos toggles. (any thread).
-	void ToggleSoloSoundClass(FName InName) { ToggleNameArray(InName, DebugNames.SoloSoundClass); }
-	void ToggleSoloSoundWave(FName InName)  { ToggleNameArray(InName, DebugNames.SoloSoundWave); }
-	void ToggleSoloSoundCue(FName InName)   { ToggleNameArray(InName, DebugNames.SoloSoundCue); }
-	void ToggleMuteSoundClass(FName InName) { ToggleNameArray(InName, DebugNames.MuteSoundClass); }
-	void ToggleMuteSoundWave(FName InName)  { ToggleNameArray(InName, DebugNames.MuteSoundWave); }
-	void ToggleMuteSoundCue(FName InName)   { ToggleNameArray(InName, DebugNames.MuteSoundCue); }
+	// Mute/Solos toggles. (any thread). (If exclusive, toggle-on will clear everything first, and toggle-off will clear all).
+	void ToggleSoloSoundClass(FName InName, bool bExclusive = false) { ToggleNameArray(InName, DebugNames.SoloSoundClass, bExclusive); }
+	void ToggleSoloSoundWave(FName InName, bool bExclusive = false)  { ToggleNameArray(InName, DebugNames.SoloSoundWave, bExclusive); }
+	void ToggleSoloSoundCue(FName InName, bool bExclusive = false)   { ToggleNameArray(InName, DebugNames.SoloSoundCue, bExclusive); }
+	void ToggleMuteSoundClass(FName InName, bool bExclusive = false) { ToggleNameArray(InName, DebugNames.MuteSoundClass, bExclusive); }
+	void ToggleMuteSoundWave(FName InName, bool bExclusive = false)  { ToggleNameArray(InName, DebugNames.MuteSoundWave, bExclusive); }
+	void ToggleMuteSoundCue(FName InName, bool bExclusive = false)   { ToggleNameArray(InName, DebugNames.MuteSoundCue,	bExclusive); }
 
 	// Set Mute/Solo. (any thread).
 	void SetMuteSoundCue(FName InName, bool bInOnOff)  { SetNameArray(InName, DebugNames.MuteSoundCue, bInOnOff); }
@@ -100,7 +100,7 @@ public:
 	bool GetAudioDebugSound(FString& OutDebugSound);	  	
 private:
 	void SetNameArray(FName InName, TArray<FName>& InNameArray, bool bOnOff);
-	void ToggleNameArray(FName InName, TArray<FName>& NameArray);
+	void ToggleNameArray(FName InName, TArray<FName>& NameArray, bool bExclusive);
 	void ExecuteCmdOnAudioThread(TFunction<void()> Cmd);
 	
 	void GetDebugSoloMuteStateX(

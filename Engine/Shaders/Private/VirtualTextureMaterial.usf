@@ -102,6 +102,7 @@ void FPixelShaderInOut_MainPS(
 #endif
 }
 
+
 #define PIXELSHADEROUTPUT_INTERPOLANTS 1
 
 #if defined(OUT_BASECOLOR)

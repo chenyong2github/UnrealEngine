@@ -119,6 +119,7 @@ namespace Chaos
 		int32 FrozenIterations;
 
 		// @todo(ccaulfield): remove these TEMP overrides for testing
+		bool bEnableLinearLimits;
 		bool bEnableTwistLimits;
 		bool bEnableSwingLimits;
 		bool bEnableDrives;

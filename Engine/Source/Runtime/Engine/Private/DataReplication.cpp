@@ -1647,6 +1647,27 @@ void FObjectReplicator::PostSendBunch( FPacketIdRange & PacketRange, uint8 bReli
 			}
 		}
 
+		// bPausedUntilReliableAck won't have been set until *after* we generated a changelist and tried to send
+		// data. Therefore, there may be a changelist already created, and we need to remove it from the history.
+		else
+		{
+			// We won't try to replicate again until this bunch has been acked, so there should only ever possibly
+			// be a single unset history item, and that should correspond to the one that is in this bunch.
+			// However, PostSendBunch will be called on all subobject replicators when we replicate an Actor, so it's
+			// possible that we either didn't send anything, or the last thing we sent wasn't reliable.
+			if (SendingRepState->HistoryEnd > SendingRepState->HistoryStart)
+			{
+				const int32 HistoryIndex = (SendingRepState->HistoryEnd - 1) % FSendingRepState::MAX_CHANGE_HISTORY;
+				FRepChangedHistory& HistoryItem = SendingRepState->ChangeHistory[HistoryIndex];
+	
+				if (!HistoryItem.WasSent())
+				{
+					HistoryItem.Reset();
+					--SendingRepState->HistoryEnd;
+				}
+			}
+		}
+
 		for (FPropertyRetirement& Retirement : SendingRepState->Retirement)
 		{
 			FPropertyRetirement* Next = Retirement.Next;

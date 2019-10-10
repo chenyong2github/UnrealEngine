@@ -220,10 +220,15 @@ public:
 	static constexpr int D = 3;
 	using TType = T;
 	static constexpr T DefaultMaxPayloadBounds = 100000;
+	static constexpr int32 DefaultMaxChildrenInLeaf = 12;
+	static constexpr int32 DefaultMaxTreeDepth = 16;
 	static constexpr ESpatialAcceleration StaticType = TIsSame<TAABBTreeLeafArray<TPayloadType, T>, TLeafType>::Value ? ESpatialAcceleration::AABBTree : 
 		(TIsSame<TBoundingVolume<TPayloadType, T, 3>, TLeafType>::Value ? ESpatialAcceleration::AABBTreeBV : ESpatialAcceleration::Unknown);
 	TAABBTree()
 		: ISpatialAcceleration<TPayloadType, T, 3>(StaticType)
+		, MaxChildrenInLeaf(DefaultMaxChildrenInLeaf)
+		, MaxTreeDepth(DefaultMaxTreeDepth)
+		, MaxPayloadBounds(DefaultMaxPayloadBounds)
 	{
 	}
 
@@ -244,40 +249,87 @@ public:
 		return TUniquePtr<ISpatialAcceleration<TPayloadType, T, 3>>(new TAABBTree<TPayloadType, TLeafType, T>(*this));
 	}
 
-	virtual void Raycast(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const T OriginalLength, ISpatialVisitor<TPayloadType, T>& Visitor) const override
+	virtual void Raycast(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const T Length, ISpatialVisitor<TPayloadType, T>& Visitor) const override
 	{
 		TSpatialVisitor<TPayloadType, T> ProxyVisitor(Visitor);
-		Raycast(Start, Dir, OriginalLength, ProxyVisitor);
+		Raycast(Start, Dir, Length, ProxyVisitor);
 	}
 
 	template <typename SQVisitor>
-	void Raycast(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const T OriginalLength, SQVisitor& Visitor) const
+	void Raycast(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const T Length, SQVisitor& Visitor) const
 	{
-		QueryImp<EAABBQueryType::Raycast>(Start, Dir, OriginalLength, TVector<T,3>(), TBox<T,3>(), Visitor);
-	}
+		ensure(Length);
+		T CurLength = Length;
+		bool bParallel[3];
+		TVector<T, 3> InvDir;
 
-	void Sweep(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, T OriginalLength, const TVector<T, 3> QueryHalfExtents, ISpatialVisitor<TPayloadType, T>& Visitor) const override
-	{
-		TSpatialVisitor<TPayloadType, T> ProxyVisitor(Visitor);
-		Sweep(Start, Dir, OriginalLength, QueryHalfExtents, ProxyVisitor);
+		T InvLength = 1 / Length;
+		for (int Axis = 0; Axis < 3; ++Axis)
+		{
+			bParallel[Axis] = Dir[Axis] == 0;
+			InvDir[Axis] = bParallel[Axis] ? 0 : 1 / Dir[Axis];
+		}
+
+		QueryImp<EAABBQueryType::Raycast>(Start, Dir, InvDir, bParallel, CurLength, InvLength, TVector<T,3>(), TBox<T,3>(), Visitor);
 	}
 
 	template <typename SQVisitor>
-	void Sweep(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const T OriginalLength, const TVector<T, 3> QueryHalfExtents, SQVisitor& Visitor) const
+	bool RaycastFast(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const TVector<T,3>& InvDir, const bool* bParallel, T& CurLength, T& InvLength, SQVisitor& Visitor) const
 	{
-		QueryImp<EAABBQueryType::Sweep>(Start, Dir, OriginalLength, QueryHalfExtents, TBox<T, 3>(), Visitor);
+		return QueryImp<EAABBQueryType::Raycast>(Start, Dir, InvDir, bParallel, CurLength, InvLength, TVector<T, 3>(), TBox<T, 3>(), Visitor);
+	}
+
+	void Sweep(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const T Length, const TVector<T, 3> QueryHalfExtents, ISpatialVisitor<TPayloadType, T>& Visitor) const override
+	{
+		TSpatialVisitor<TPayloadType, T> ProxyVisitor(Visitor);
+		Sweep(Start, Dir, Length, QueryHalfExtents, ProxyVisitor);
+	}
+
+	template <typename SQVisitor>
+	void Sweep(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const T Length, const TVector<T, 3> QueryHalfExtents, SQVisitor& Visitor) const
+	{
+		bool bParallel[3];
+		TVector<T, 3> InvDir;
+
+		ensure(Length);
+		T CurLength = Length;
+		T InvLength = 1 / Length;
+		for (int Axis = 0; Axis < 3; ++Axis)
+		{
+			bParallel[Axis] = Dir[Axis] == 0;
+			InvDir[Axis] = bParallel[Axis] ? 0 : 1 / Dir[Axis];
+		}
+
+		QueryImp<EAABBQueryType::Sweep>(Start, Dir, InvDir, bParallel, CurLength, InvLength, QueryHalfExtents, TBox<T, 3>(), Visitor);
+	}
+
+	template <typename SQVisitor>
+	bool SweepFast(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const TVector<T,3>& InvDir, const bool* bParallel, T& CurLength, T& InvLength, const TVector<T, 3> QueryHalfExtents, SQVisitor& Visitor) const
+	{
+		return QueryImp<EAABBQueryType::Sweep>(Start, Dir, InvDir, bParallel, CurLength, InvLength, QueryHalfExtents, TBox<T, 3>(), Visitor);
 	}
 
 	void Overlap(const TBox<T, 3>& QueryBounds, ISpatialVisitor<TPayloadType, T>& Visitor) const override
 	{
 		TSpatialVisitor<TPayloadType, T> ProxyVisitor(Visitor);
-		return Overlap(QueryBounds, ProxyVisitor);
+		Overlap(QueryBounds, ProxyVisitor);
 	}
 
 	template <typename SQVisitor>
 	void Overlap(const TBox<T,3>& QueryBounds, SQVisitor& Visitor) const
 	{
-		QueryImp<EAABBQueryType::Overlap>(TVector<T,3>(), TVector<T, 3>(), 0, TVector<T,3>(), QueryBounds, Visitor);
+		OverlapFast(QueryBounds, Visitor);
+	}
+
+	template <typename SQVisitor>
+	bool OverlapFast(const TBox<T, 3>& QueryBounds, SQVisitor& Visitor) const
+	{
+		//dummy variables to reuse templated path
+		T Length;
+		T InvLength;
+		TVector<T, 3> InvDir;
+		bool bParallel;
+		return QueryImp<EAABBQueryType::Overlap>(TVector<T, 3>(), TVector<T, 3>(), InvDir, &bParallel, Length, InvLength, TVector<T, 3>(), QueryBounds, Visitor);
 	}
 
 	virtual void RemoveElement(const TPayloadType& Payload)
@@ -403,25 +455,8 @@ private:
 	using FNode = TAABBTreeNode<T>;
 
 	template <EAABBQueryType Query, typename SQVisitor>
-	void QueryImp(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const T OriginalLength, const TVector<T, 3> QueryHalfExtents, const TBox<T,3>& QueryBounds, SQVisitor& Visitor) const
+	bool QueryImp(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const TVector<T,3>& InvDir, const bool* bParallel, T& CurrentLength, T& InvCurrentLength, const TVector<T, 3> QueryHalfExtents, const TBox<T,3>& QueryBounds, SQVisitor& Visitor) const
 	{
-		T CurrentLength = OriginalLength;
-
-		bool bParallel[3];
-		TVector<T, 3> InvDir;
-
-		T InvCurrentLength;
-
-		if (Query != EAABBQueryType::Overlap)
-		{
-			InvCurrentLength = 1 / CurrentLength;
-			for (int Axis = 0; Axis < 3; ++Axis)
-			{
-				bParallel[Axis] = Dir[Axis] == 0;
-				InvDir[Axis] = bParallel[Axis] ? 0 : 1 / Dir[Axis];
-			}
-		}
-
 		TVector<T, 3> TmpPosition;
 		T TOI = 0;
 
@@ -444,7 +479,7 @@ private:
 
 				if (!bContinue)
 				{
-					return;
+					return false;
 				}
 
 				if (Query != EAABBQueryType::Overlap)
@@ -474,7 +509,7 @@ private:
 				
 				if (!bContinue)
 				{
-					return;
+					return false;
 				}
 
 				if (Query != EAABBQueryType::Overlap)
@@ -495,9 +530,12 @@ private:
 		while (NodeStack.Num())
 		{
 			const FNodeQueueEntry NodeEntry = NodeStack.Pop(false);
-			if (NodeEntry.TOI > CurrentLength)
+			if (Query != EAABBQueryType::Overlap)
 			{
-				continue;
+				if (NodeEntry.TOI > CurrentLength)
+				{
+					continue;
+				}
 			}
 
 			const FNode& Node = Nodes[NodeEntry.NodeIdx];
@@ -508,19 +546,19 @@ private:
 				{
 					if (Leaf.OverlapFast(QueryBounds, Visitor) == false)
 					{
-						return;
+						return false;
 					}
 				}
 				else if (Query == EAABBQueryType::Sweep)
 				{
 					if (Leaf.SweepFast(Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, QueryHalfExtents, Visitor) == false)
 					{
-						return;
+						return false;
 					}
 				}
 				else if (Leaf.RaycastFast(Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, Visitor) == false)
 				{
-					return;
+					return false;
 				}
 			}
 			else
@@ -537,6 +575,8 @@ private:
 				}
 			}
 		}
+
+		return true;
 	}
 
 	template <typename TParticles>

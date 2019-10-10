@@ -116,7 +116,7 @@ bool FVirtualTextureFeedback::Map(FRHICommandListImmediate& RHICmdList, MapResul
 		OutResult.Rect = FeedbackEntryCPU.Rect;
 
 		int32 LockHeight = 0;
-		RHICmdList.MapStagingSurface(FeedbackEntryCPU.TextureCPU->GetRenderTargetItem().ShaderResourceTexture, *(void**)&OutResult.Buffer, OutResult.Pitch, LockHeight);
+		RHICmdList.MapStagingSurface(FeedbackEntryCPU.TextureCPU->GetRenderTargetItem().ShaderResourceTexture, FeedbackEntryCPU.GPUFenceRHI, *(void**)&OutResult.Buffer, OutResult.Pitch, LockHeight);
 
 		check(PendingTargetCount > 0u);
 		--PendingTargetCount;

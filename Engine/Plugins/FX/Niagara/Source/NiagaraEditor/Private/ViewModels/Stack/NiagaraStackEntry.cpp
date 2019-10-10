@@ -130,6 +130,7 @@ UNiagaraStackEntry::UNiagaraStackEntry()
 	: IndentLevel(0)
 	, bIsFinalized(false)
 	, bIsSearchResult(false)
+	, bOwnerIsEnabled(true)
 {
 }
 
@@ -228,6 +229,11 @@ void UNiagaraStackEntry::SetIsExpanded(bool bInExpanded)
 bool UNiagaraStackEntry::GetIsEnabled() const
 {
 	return true;
+}
+
+bool UNiagaraStackEntry::GetOwnerIsEnabled() const
+{
+	return bOwnerIsEnabled;
 }
 
 FName UNiagaraStackEntry::GetExecutionCategoryName() const
@@ -476,7 +482,9 @@ void UNiagaraStackEntry::RefreshChildren()
 
 	for (UNiagaraStackEntry* Child : Children)
 	{
+		UNiagaraStackEntry* OuterOwner = Cast<UNiagaraStackEntry>(Child->GetOuter());
 		Child->IndentLevel = GetChildIndentLevel();
+		Child->bOwnerIsEnabled = OuterOwner == nullptr || (OuterOwner->GetIsEnabled() && OuterOwner->GetOwnerIsEnabled());
 		Child->RefreshChildren();
 		Child->OnStructureChanged().AddUObject(this, &UNiagaraStackEntry::ChildStructureChanged);
 		Child->OnDataObjectModified().AddUObject(this, &UNiagaraStackEntry::ChildDataObjectModified);

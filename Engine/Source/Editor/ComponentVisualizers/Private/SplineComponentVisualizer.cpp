@@ -2482,7 +2482,7 @@ void FSplineComponentVisualizer::GenerateContextMenuSections(FMenuBuilder& InMen
 
 			InMenuBuilder.AddSubMenu(
 				LOCTEXT("SplinePointType", "Spline Point Type"),
-				LOCTEXT("KeyTypeTooltip", "Define the type of the spline point."),
+				LOCTEXT("SplinePointTypeTooltip", "Define the type of the spline point."),
 				FNewMenuDelegate::CreateSP(this, &FSplineComponentVisualizer::GenerateSplinePointTypeSubMenu));
 
 			// Only add the Automatic Tangents submenu if any of the keys is a curve type
@@ -2524,13 +2524,13 @@ void FSplineComponentVisualizer::GenerateContextMenuSections(FMenuBuilder& InMen
 
 		InMenuBuilder.AddSubMenu(
 			LOCTEXT("SnapAlign", "Snap/Align"),
-			LOCTEXT("KeyTypeTooltip", "Snap align options."),
+			LOCTEXT("SnapAlignTooltip", "Snap align options."),
 			FNewMenuDelegate::CreateSP(this, &FSplineComponentVisualizer::GenerateSnapAlignSubMenu));
 
 		/* temporarily disabled
 		InMenuBuilder.AddSubMenu(
 			LOCTEXT("LockAxis", "Lock Axis"),
-			LOCTEXT("KeyTypeTooltip", "Axis to lock when adding new spline points."),
+			LOCTEXT("LockAxisTooltip", "Axis to lock when adding new spline points."),
 			FNewMenuDelegate::CreateSP(this, &FSplineComponentVisualizer::GenerateLockAxisSubMenu));
 			*/
 	}

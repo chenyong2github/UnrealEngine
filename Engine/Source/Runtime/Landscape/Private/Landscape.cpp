@@ -1978,6 +1978,8 @@ void ALandscapeProxy::PreSave(const class ITargetPlatform* TargetPlatform)
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
 		bHasLandscapeGrass = LandscapeComponents.ContainsByPredicate([](ULandscapeComponent* Component) { return Component->MaterialHasGrass(); });
+
+		UpdateGrassData();
 	}
 
 	if (ALandscape* Landscape = GetLandscapeActor())
@@ -3029,6 +3031,11 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 	{
 		RegisterActorComponent(Proxy->LandscapeComponents[CompIdx], bMapCheck);
 	}
+
+	for (ULandscapeHeightfieldCollisionComponent* CollComp: Proxy->CollisionComponents)
+	{
+		RegisterCollisionComponent(CollComp);
+	}
 }
 
 void ULandscapeInfo::UnregisterActor(ALandscapeProxy* Proxy)
@@ -3070,10 +3077,52 @@ void ULandscapeInfo::UnregisterActor(ALandscapeProxy* Proxy)
 	}
 	XYtoComponentMap.Compact();
 
+	for (ULandscapeHeightfieldCollisionComponent* CollComp : Proxy->CollisionComponents)
+	{
+		if (CollComp)
+		{
+			UnregisterCollisionComponent(CollComp);
+		}
+	}
+	XYtoCollisionComponentMap.Compact();
+
 #if WITH_EDITOR
 	UpdateLayerInfoMap();
 	UpdateAllAddCollisions();
 #endif
+}
+
+void ULandscapeInfo::RegisterCollisionComponent(ULandscapeHeightfieldCollisionComponent* Component)
+{
+	if (Component == nullptr || !Component->IsRegistered())
+	{
+		return;
+	}
+
+	FIntPoint ComponentKey = Component->GetSectionBase() / Component->CollisionSizeQuads;
+	auto RegisteredComponent = XYtoCollisionComponentMap.FindRef(ComponentKey);
+
+	if (RegisteredComponent != Component)
+	{
+		if (RegisteredComponent == nullptr)
+		{
+			XYtoCollisionComponentMap.Add(ComponentKey, Component);
+		}
+	}
+}
+
+void ULandscapeInfo::UnregisterCollisionComponent(ULandscapeHeightfieldCollisionComponent* Component)
+{
+	if (ensure(Component))
+	{
+		FIntPoint ComponentKey = Component->GetSectionBase() / Component->CollisionSizeQuads;
+		auto RegisteredComponent = XYtoCollisionComponentMap.FindRef(ComponentKey);
+
+		if (RegisteredComponent == Component)
+		{
+			XYtoCollisionComponentMap.Remove(ComponentKey);
+		}
+	}
 }
 
 void ULandscapeInfo::RegisterActorComponent(ULandscapeComponent* Component, bool bMapCheck)

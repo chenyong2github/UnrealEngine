@@ -18,6 +18,8 @@ void SNiagaraStackFunctionInputName::Construct(const FArguments& InArgs, UNiagar
 	ChildSlot
 	[
 		SNew(SHorizontalBox)
+		.IsEnabled_UObject(FunctionInput, &UNiagaraStackEntry::GetOwnerIsEnabled)
+
 		// Edit condition checkbox
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
@@ -28,6 +30,7 @@ void SNiagaraStackFunctionInputName::Construct(const FArguments& InArgs, UNiagar
 			.IsChecked(this, &SNiagaraStackFunctionInputName::GetEditConditionCheckState)
 			.OnCheckStateChanged(this, &SNiagaraStackFunctionInputName::OnEditConditionCheckStateChanged)
 		]
+
 		// Name Label
 		+ SHorizontalBox::Slot()
 		.VAlign(VAlign_Center)
@@ -83,7 +86,7 @@ bool SNiagaraStackFunctionInputName::GetIsNameWidgetSelected() const
 
 bool SNiagaraStackFunctionInputName::GetIsEnabled() const
 {
-	return FunctionInput->GetHasEditCondition() == false || FunctionInput->GetEditConditionEnabled();
+	return FunctionInput->GetOwnerIsEnabled() && (FunctionInput->GetHasEditCondition() == false || FunctionInput->GetEditConditionEnabled());
 }
 
 void SNiagaraStackFunctionInputName::OnNameTextCommitted(const FText& InText, ETextCommit::Type InCommitType)

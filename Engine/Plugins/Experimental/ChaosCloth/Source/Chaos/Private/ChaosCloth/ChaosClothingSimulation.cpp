@@ -23,6 +23,7 @@
 #include "Chaos/PerParticleGravity.h"
 #include "Chaos/PerParticlePBDLongRangeConstraints.h"
 #include "Chaos/PerParticlePBDShapeConstraints.h"
+#include "Chaos/PBDSphericalConstraint.h"
 #include "Chaos/Plane.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/TaperedCylinder.h"
@@ -34,7 +35,6 @@
 #include "PhysXIncludes.h"
 #endif
 
-#include <functional>
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
@@ -373,29 +373,57 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
         else
         {
             TArray<Chaos::TVector<int32, 3>> SurfaceConstraints = SurfaceElements;
-            Evolution->AddPBDConstraintFunction(std::bind(&Chaos::TPBDVolumeConstraint<float>::Apply,
-                                                          Chaos::TPBDVolumeConstraint<float>(Evolution->Particles(), MoveTemp(SurfaceConstraints), VolumeStiffness), std::placeholders::_1, std::placeholders::_2));
+			Chaos::TPBDVolumeConstraint<float> PBDVolumeConstraint (Evolution->Particles(), MoveTemp(SurfaceConstraints));
+			Evolution->AddPBDConstraintFunction([PBDVolumeConstraint](TPBDParticles<float, 3>& InParticles, const float Dt)
+			{
+				PBDVolumeConstraint.Apply(InParticles, Dt);
+			});            
         }
     }
     if (StrainLimitingStiffness)
     {
 		check(Mesh->GetNumElements() > 0);
-        Evolution->AddPBDConstraintFunction(
-			std::bind(
-				static_cast
-				<
-					void (Chaos::TPerParticlePBDLongRangeConstraints<float, 3>::*)(
-						TPBDParticles<float, 3> & InParticles,
-						const float Dt) const
-				>(&Chaos::TPerParticlePBDLongRangeConstraints<float, 3>::Apply),
-				Chaos::TPerParticlePBDLongRangeConstraints<float, 3>(
-					Evolution->Particles(),
-					Mesh->GetPointToNeighborsMap(),
-					10, // The max number of connected neighbors per particle.  ryan - What should this be?  Was k...
-					StrainLimitingStiffness),
-				std::placeholders::_1,
-				std::placeholders::_2));
-    }
+		Chaos::TPerParticlePBDLongRangeConstraints<float, 3> PerParticlePBDLongRangeConstraints(
+			Evolution->Particles(),
+			Mesh->GetPointToNeighborsMap(),
+			10, // The max number of connected neighbors per particle.  ryan - What should this be?  Was k...
+			StrainLimitingStiffness);
+
+		Evolution->AddPBDConstraintFunction([PerParticlePBDLongRangeConstraints](TPBDParticles<float, 3>& InParticles, const float Dt)
+		{
+			PerParticlePBDLongRangeConstraints.Apply(InParticles, Dt);
+		});
+	}
+
+	// Maximum Distance Constraints
+	const UEnum* const MeshTargets = PhysMesh->GetFloatArrayTargets();	
+	const uint32 PhysMeshMaxDistanceIndex = MeshTargets->GetValueByName(TEXT("MaxDistance"));
+	if (PhysMesh->GetFloatArray(PhysMeshMaxDistanceIndex)->Num() > 0)
+	{
+		check(Mesh->GetNumElements() > 0);
+		Chaos::PBDSphericalConstraint<float, 3> SphericalContraint(Offset, PhysMesh->GetFloatArray(PhysMeshMaxDistanceIndex)->Num(), true, &AnimationPositions, PhysMesh->GetFloatArray(PhysMeshMaxDistanceIndex));
+		Evolution->AddPBDConstraintFunction([SphericalContraint](TPBDParticles<float, 3>& InParticles, const float Dt)
+		{
+			SphericalContraint.Apply(InParticles, Dt);
+		});
+	}
+
+	// Backstop Constraints
+	const uint32 PhysMeshBackstopDistanceIndex = MeshTargets->GetValueByName(TEXT("BackstopDistance"));
+	const uint32 PhysMeshBackstopRadiusIndex = MeshTargets->GetValueByName(TEXT("BackstopRadius"));
+	if (PhysMesh->GetFloatArray(PhysMeshBackstopRadiusIndex)->Num() > 0 && PhysMesh->GetFloatArray(PhysMeshBackstopDistanceIndex)->Num() > 0)
+	{
+		check(Mesh->GetNumElements() > 0);
+		check(PhysMesh->GetFloatArray(PhysMeshBackstopRadiusIndex)->Num() == PhysMesh->GetFloatArray(PhysMeshBackstopDistanceIndex)->Num());
+
+		Chaos::PBDSphericalConstraint<float, 3> SphericalContraint(Offset, PhysMesh->GetFloatArray(PhysMeshBackstopRadiusIndex)->Num(), false, &AnimationPositions, 
+			PhysMesh->GetFloatArray(PhysMeshBackstopRadiusIndex), PhysMesh->GetFloatArray(PhysMeshBackstopDistanceIndex), &AnimationNormals);
+		Evolution->AddPBDConstraintFunction([SphericalContraint](TPBDParticles<float, 3>& InParticles, const float Dt)
+		{
+			SphericalContraint.Apply(InParticles, Dt);
+		});		
+	}
+
     // Add Self Collisions
     if (bUseSelfCollisions)
     {

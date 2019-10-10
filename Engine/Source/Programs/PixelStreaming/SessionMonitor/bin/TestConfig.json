@@ -1,0 +1,14 @@
+{
+	"apps": [
+		{
+			"name": "Cirrus",
+			"executable": "node.exe",
+			"parameters" :  "cirrus.js",
+			"working_directory" :  "..\\..\\WebServers\\SignallingWebServer",
+			"initial_timeout": 10000,
+			"shutdown_timeout": 10000,
+			"parameter_prefix" :  "--",
+			"oncrash" :  "RestartSession"
+		}
+	]
+}

@@ -5420,7 +5420,7 @@ void FBlueprintEditor::OnConvertFunctionToEvent()
 
 		FFormatNamedArguments Arguments;
 		Arguments.Add(TEXT("SpecificErrorMessage"), SpecificErrorMessage);
-		MessageLog.Notify(FText::Format(LOCTEXT("OnConvertEventToFunctionError", "Convert Event to Function Failed!\n{SpecificErrorMessage}"), Arguments));
+		MessageLog.Notify(FText::Format(LOCTEXT("OnConvertEventToFunctionErrorMsg", "Convert Event to Function Failed!\n{SpecificErrorMessage}"), Arguments));
 	}
 }
 
@@ -5602,7 +5602,7 @@ void FBlueprintEditor::OnConvertEventToFunction()
 		// Format the title node
 		FFormatNamedArguments Arguments;
 		Arguments.Add(TEXT("SpecificErrorMessage"), SpecificErrorMessage);
-		MessageLog.Notify(FText::Format(LOCTEXT("OnConvertEventToFunctionError", "Convert Event to Function Failed!\n{SpecificErrorMessage}"), Arguments));
+		MessageLog.Notify(FText::Format(LOCTEXT("OnConvertEventToFunctionErrorMsg", "Convert Event to Function Failed!\n{SpecificErrorMessage}"), Arguments));
 	}
 }
 

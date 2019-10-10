@@ -851,6 +851,7 @@ void FEdModeLandscape::Exit()
 
 	LandscapeList.Empty();
 	LandscapeTargetList.Empty();
+	TargetLayerStartingIndex = 0;
 
 	// Save UI settings to config file
 	UISettings->Save();
@@ -2668,6 +2669,7 @@ bool FEdModeLandscape::CanEditCurrentTarget(FText* Reason) const
 void FEdModeLandscape::UpdateTargetList()
 {
 	LandscapeTargetList.Empty();
+	TargetLayerStartingIndex = 0;
 
 	if (CurrentToolTarget.LandscapeInfo.IsValid())
 	{
@@ -4597,6 +4599,27 @@ TArray<ALandscapeBlueprintBrushBase*> FEdModeLandscape::GetBrushesForCurrentLaye
 		Brushes = Landscape->GetBrushesForLayer(GetCurrentLayerIndex());
 	}
 	return Brushes;
+}
+
+void FEdModeLandscape::ShowOnlySelectedBrush(class ALandscapeBlueprintBrushBase* InBrush)
+{
+	if (ALandscape * Landscape = GetLandscape())
+	{
+		int32 BrushLayer = Landscape->GetBrushLayer(InBrush);
+		TArray<ALandscapeBlueprintBrushBase*> Brushes = Landscape->GetBrushesForLayer(BrushLayer);
+		for (ALandscapeBlueprintBrushBase* Brush : Brushes)
+		{
+			Brush->SetIsVisible(Brush == InBrush);
+		}
+	}
+}
+
+void FEdModeLandscape::DuplicateBrush(class ALandscapeBlueprintBrushBase* InBrush)
+{
+	GEditor->SelectNone(false, true);
+	GEditor->SelectActor(InBrush, true, false, false);
+
+	GEditor->edactDuplicateSelected(InBrush->GetLevel(), false);
 }
 
 bool FEdModeLandscape::IsCurrentLayerBlendSubstractive(const TWeakObjectPtr<ULandscapeLayerInfoObject>& InLayerInfoObj) const

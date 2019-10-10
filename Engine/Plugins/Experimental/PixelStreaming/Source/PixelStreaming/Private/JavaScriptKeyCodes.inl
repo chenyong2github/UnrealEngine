@@ -5,11 +5,15 @@
 #include "InputCoreTypes.h"
 
 /**
+ * An array which will convert JavaScript key codes into FKeys. The JavaScript
+ * key code should be used as an index into the array to perform the lookup.
  * https://www.cambiaresearch.com/articles/15/javascript-char-codes-key-codes
  * http://keycode.info/
+ * Most key codes use the standard values given in the links above, but some
+ * have been choosen specially for 'right' versions of the same key.
  */
 
-static const FKey* AgnosticKeys[256] =
+static const FKey* JavaScriptKeyCodeToFKey[256] =
 {
 	/*   0 */ &EKeys::Invalid,
 	/*   1 */ &EKeys::Invalid,
@@ -234,7 +238,7 @@ static const FKey* AgnosticKeys[256] =
 	/* 220 */ &EKeys::Backslash,
 	/* 221 */ &EKeys::RightBracket,
 	/* 222 */ &EKeys::Apostrophe,
-	/* 223 */ &EKeys::Quote,
+	/* 223 */ &EKeys::Tilde,
 	/* 224 */ &EKeys::Invalid,
 	/* 225 */ &EKeys::Invalid,
 	/* 226 */ &EKeys::Invalid,
@@ -264,7 +268,10 @@ static const FKey* AgnosticKeys[256] =
 	/* 250 */ &EKeys::Invalid,
 	/* 251 */ &EKeys::Invalid,
 	/* 252 */ &EKeys::Invalid,
-	/* 253 */ &EKeys::Invalid,
-	/* 254 */ &EKeys::Invalid,
-	/* 255 */ &EKeys::Invalid
+
+	// Special key codes.
+
+	/* 253 */ &EKeys::RightShift,
+	/* 254 */ &EKeys::RightControl,
+	/* 255 */ &EKeys::RightAlt
 };

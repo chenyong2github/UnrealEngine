@@ -6178,8 +6178,25 @@ bool ALandscape::ReorderLayerBrush(int32 InLayerIndex, int32 InStartingLayerBrus
 	return false;
 }
 
+int32 ALandscape::GetBrushLayer(class ALandscapeBlueprintBrushBase* InBrush) const
+{
+	for (int32 LayerIndex = 0; LayerIndex < LandscapeLayers.Num(); ++LayerIndex)
+	{
+		for (const FLandscapeLayerBrush& Brush : LandscapeLayers[LayerIndex].Brushes)
+		{
+			if (Brush.GetBrush() == InBrush)
+			{
+				return LayerIndex;
+			}
+		}
+	}
+
+	return INDEX_NONE;
+}
+
 void ALandscape::AddBrushToLayer(int32 InLayerIndex, ALandscapeBlueprintBrushBase* InBrush)
 {
+	check(GetBrushLayer(InBrush) == INDEX_NONE);
 	if (FLandscapeLayer* Layer = GetLayer(InLayerIndex))
 	{
 		Modify();
@@ -6191,7 +6208,8 @@ void ALandscape::AddBrushToLayer(int32 InLayerIndex, ALandscapeBlueprintBrushBas
 
 void ALandscape::RemoveBrush(ALandscapeBlueprintBrushBase* InBrush)
 {
-	for (int32 LayerIndex = 0; LayerIndex < LandscapeLayers.Num(); ++LayerIndex)
+	int32 LayerIndex = GetBrushLayer(InBrush);
+	if (LayerIndex != INDEX_NONE)
 	{
 		RemoveBrushFromLayer(LayerIndex, InBrush);
 	}

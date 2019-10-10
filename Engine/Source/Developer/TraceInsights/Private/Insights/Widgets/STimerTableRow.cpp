@@ -5,12 +5,14 @@
 #include "EditorStyleSet.h"
 #include "SlateOptMacros.h"
 #include "Widgets/SOverlay.h"
+#include "Widgets/SToolTip.h"
 #include "Widgets/Images/SImage.h"
 
 // Insights
 #include "Insights/Common/TimeUtils.h"
 #include "Insights/Table/ViewModels/Table.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
+#include "Insights/Widgets/STimersViewTooltip.h"
 #include "Insights/Widgets/STimerTableCell.h"
 
 #define LOCTEXT_NAMESPACE "STimersView"
@@ -23,14 +25,16 @@ void STimerTableRow::Construct(const FArguments& InArgs, const TSharedRef<STable
 {
 	OnShouldBeEnabled = InArgs._OnShouldBeEnabled;
 	IsColumnVisibleDelegate = InArgs._OnIsColumnVisible;
-	SetHoveredCellDelegate = InArgs._OnSetHoveredCell;
 	GetColumnOutlineHAlignmentDelegate = InArgs._OnGetColumnOutlineHAlignmentDelegate;
+	SetHoveredCellDelegate = InArgs._OnSetHoveredCell;
 
 	HighlightText = InArgs._HighlightText;
 	HighlightedNodeName = InArgs._HighlightedNodeName;
 
 	TablePtr = InArgs._TablePtr;
 	TimerNodePtr = InArgs._TimerNodePtr;
+
+	RowToolTip = MakeShareable(new STimerTableRowToolTip(TimerNodePtr));
 
 	SetEnabled(TAttribute<bool>(this, &STimerTableRow::HandleShouldBeEnabled));
 
@@ -111,10 +115,23 @@ FReply STimerTableRow::OnDragDetected(const FGeometry& MyGeometry, const FPointe
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+TSharedRef<IToolTip> STimerTableRow::GetRowToolTip() const
+{
+	return RowToolTip.ToSharedRef();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimerTableRow::InvalidateContent()
+{
+	RowToolTip->InvalidateWidget();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 FSlateColor STimerTableRow::GetBackgroundColorAndOpacity() const
 {
 	return GetBackgroundColorAndOpacity(TimerNodePtr->GetAggregatedStats().TotalInclusiveTime);
-	//return FLinearColor(0.0f, 0.0f, 0.0f, 1.0f)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -124,7 +141,7 @@ FSlateColor STimerTableRow::GetBackgroundColorAndOpacity(double Time) const
 	const FLinearColor Color =	Time > TimeUtils::Second      ? FLinearColor(0.3f, 0.0f, 0.0f, 1.0f) :
 								Time > TimeUtils::Milisecond  ? FLinearColor(0.3f, 0.1f, 0.0f, 1.0f) :
 								Time > TimeUtils::Microsecond ? FLinearColor(0.0f, 0.1f, 0.0f, 1.0f) :
-																FLinearColor(0.0f, 0.0f, 0.0f, 1.0f);
+								                                FLinearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	return Color;
 }
 

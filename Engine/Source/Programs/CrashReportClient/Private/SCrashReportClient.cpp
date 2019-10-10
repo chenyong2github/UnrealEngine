@@ -63,9 +63,8 @@ void SCrashReportClient::Construct(const FArguments& InArgs, const TSharedRef<FC
 		LOCTEXT( "CrashedAppNotFound", "An unknown process has crashed" ) :
 		LOCTEXT( "CrashedAppUnreal", "An Unreal process has crashed: " );
 
-	const FText CrashReportDataText = FText::Format( LOCTEXT(
-		"CrashReportData",
-		"Crash reports comprise diagnostics files (<a id=\"browser\" href=\"{0}\" style=\"Richtext.Hyperlink\">click here to view directory</>) and the following summary information: " ),
+	const FText CrashReportDataText = FText::Format( 
+		LOCTEXT( "CrashReportData", "Crash reports comprise diagnostics files (<a id=\"browser\" href=\"{0}\" style=\"Richtext.Hyperlink\">click here to view directory</>) and the following summary information: " ),
 		FText::FromString( CrashReportClient->GetCrashDirectory()) );
 
 	ChildSlot

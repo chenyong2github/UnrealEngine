@@ -90,6 +90,7 @@
 #include "Customizations/NiagaraComponentDetails.h"
 #include "Customizations/NiagaraTypeCustomizations.h"
 #include "Customizations/NiagaraEventScriptPropertiesCustomization.h"
+#include "Customizations/NiagaraScriptVariableCustomization.h"
 #include "HAL/IConsoleManager.h"
 #include "NiagaraHlslTranslator.h"
 #include "NiagaraThumbnailRenderer.h"
@@ -611,6 +612,8 @@ void FNiagaraEditorModule::StartupModule()
 
 	PropertyModule.RegisterCustomClassLayout("NiagaraNodeStaticSwitch", FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraStaticSwitchNodeDetails::MakeInstance));
 
+	PropertyModule.RegisterCustomClassLayout("NiagaraScriptVariable", FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraScriptVariableDetails::MakeInstance));
+
 	PropertyModule.RegisterCustomClassLayout("NiagaraNodeFunctionCall", FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraFunctionCallNodeDetails::MakeInstance));
 	
 	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraFloat",
@@ -641,7 +644,7 @@ void FNiagaraEditorModule::StartupModule()
 	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraVariableAttributeBinding",
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraVariableAttributeBindingCustomization::MakeInstance)
 	);
-
+	
 	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraUserParameterBinding",
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraUserParameterBindingCustomization::MakeInstance)
 	);

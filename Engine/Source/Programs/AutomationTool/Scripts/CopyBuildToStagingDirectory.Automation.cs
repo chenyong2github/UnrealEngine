@@ -1245,7 +1245,7 @@ public partial class Project : CommandUtils
 		}
 	}
 
-	public static void CopyManifestFilesToStageDir(Dictionary<StagedFileReference, FileReference> Mapping, DirectoryReference StageDir, DirectoryReference ManifestDir, string ManifestName, HashSet<StagedFileReference> CRCFiles, string PlatformName)
+	public static void CopyManifestFilesToStageDir(Dictionary<StagedFileReference, FileReference> Mapping, DirectoryReference StageDir, DirectoryReference ManifestDir, string ManifestName, HashSet<StagedFileReference> CRCFiles, string PlatformName, List<string> IniKeyBlacklist, List<string> IniSectionBlacklist)
 	{
 		LogInformation("Copying {0} to staging directory: {1}", ManifestName, StageDir);
 		FileReference ManifestPath = null;
@@ -1262,7 +1262,7 @@ public partial class Project : CommandUtils
 			FileReference Dest = FileReference.Combine(StageDir, Pair.Key.Name);
 			if (Src != Dest)  // special case for things created in the staging directory, like the pak file
 			{
-				CopyFileIncremental(Src, Dest, bFilterSpecialLinesFromIniFiles: true);
+				CopyFileIncremental(Src, Dest, IniKeyBlacklist:IniKeyBlacklist, IniSectionBlacklist:IniSectionBlacklist);
 			}
 		}
 		if (ManifestPath != null && Mapping.Count > 0)
@@ -1301,7 +1301,7 @@ public partial class Project : CommandUtils
 
 	public static void CopyUsingStagingManifest(ProjectParams Params, DeploymentContext SC)
 	{
-		CopyManifestFilesToStageDir(SC.FilesToStage.NonUFSFiles, SC.StageDirectory, SC.DebugStageDirectory, "NonUFSFiles", SC.StageTargetPlatform.GetFilesForCRCCheck(), SC.StageTargetPlatform.PlatformType.ToString());
+		CopyManifestFilesToStageDir(SC.FilesToStage.NonUFSFiles, SC.StageDirectory, SC.DebugStageDirectory, "NonUFSFiles", SC.StageTargetPlatform.GetFilesForCRCCheck(), SC.StageTargetPlatform.PlatformType.ToString(), SC.IniKeyBlacklist, SC.IniSectionBlacklist);
 
 		bool bStageUnrealFileSystemFiles = !Params.CookOnTheFly && !Params.UsePak(SC.StageTargetPlatform) && !Params.FileServer;
 		if (bStageUnrealFileSystemFiles)
@@ -1319,14 +1319,14 @@ public partial class Project : CommandUtils
 					throw new AutomationException("File '{0}' is set to be staged from '{1}' for project and '{2}' for crash reporter", Pair.Key, ExistingLocation, Pair.Value);
 				}
 			}
-			CopyManifestFilesToStageDir(UFSFiles, SC.StageDirectory, SC.DebugStageDirectory, "UFSFiles", SC.StageTargetPlatform.GetFilesForCRCCheck(), SC.StageTargetPlatform.PlatformType.ToString());
+			CopyManifestFilesToStageDir(UFSFiles, SC.StageDirectory, SC.DebugStageDirectory, "UFSFiles", SC.StageTargetPlatform.GetFilesForCRCCheck(), SC.StageTargetPlatform.PlatformType.ToString(), SC.IniKeyBlacklist, SC.IniSectionBlacklist);
 		}
 
 		// Copy debug files last
 		// they do not respect the DeployLowerCaseFilenames() setting, but if copied to a case-insensitive staging directory first they determine the casing for outer directories (like Engine/Content) 
 		if (!Params.NoDebugInfo)
 		{
-			CopyManifestFilesToStageDir(SC.FilesToStage.NonUFSDebugFiles, SC.DebugStageDirectory, SC.DebugStageDirectory, "DebugFiles", SC.StageTargetPlatform.GetFilesForCRCCheck(), SC.StageTargetPlatform.PlatformType.ToString());
+			CopyManifestFilesToStageDir(SC.FilesToStage.NonUFSDebugFiles, SC.DebugStageDirectory, SC.DebugStageDirectory, "DebugFiles", SC.StageTargetPlatform.GetFilesForCRCCheck(), SC.StageTargetPlatform.PlatformType.ToString(), SC.IniKeyBlacklist, SC.IniSectionBlacklist);
 		}
 	}
 
@@ -1518,7 +1518,7 @@ public partial class Project : CommandUtils
 	/// </summary>
 	/// <param name="Params"></param>
 	/// <param name="SC"></param>
-	private static void ApplyPakFileRules(List<PakFileRules> RulesList, KeyValuePair<string, string> StagingFile, List<string> ModifyPakList, out bool bExcludeFromPaks)
+	private static void ApplyPakFileRules(List<PakFileRules> RulesList, KeyValuePair<string, string> StagingFile, HashSet<ChunkDefinition> ModifyPakList, Dictionary<string, ChunkDefinition> ChunkNameToDefinition, out bool bExcludeFromPaks)
 	{
 		bExcludeFromPaks = false;
 
@@ -1532,7 +1532,7 @@ public partial class Project : CommandUtils
 		{
 			if (PakRules.Filter.Matches(StagingFile.Key))
 			{
-				if (ModifyPakList.Count > 0)
+				if (ModifyPakList != null && ModifyPakList.Count > 0)
 				{
 					// Only override the existing list if bOverrideChunkManifest is set
 					if (!PakRules.bOverrideChunkManifest)
@@ -1551,10 +1551,10 @@ public partial class Project : CommandUtils
 				}
 
 				bExcludeFromPaks = PakRules.bExcludeFromPaks;
-				if (PakRules.OverridePaks != null)
+				if (PakRules.OverridePaks != null && ModifyPakList != null && ChunkNameToDefinition != null)
 				{
 					ModifyPakList.Clear();
-					PakRules.OverridePaks.ForEach(val => { ModifyPakList.Add(val); });
+					ModifyPakList.UnionWith(PakRules.OverridePaks.Select(x => ChunkNameToDefinition[x]));
 					//LogInformation("Setting pak assignment for file {0} to {1}", StagingFile.Key, string.Join(", ", PakRules.OverridePaks));
 				}
 				else if (bExcludeFromPaks)
@@ -1588,10 +1588,8 @@ public partial class Project : CommandUtils
 		// Apply the pak file rules, this can remove things but will not override the pak file name
 		foreach (var StagingFile in UnrealPakResponseFile)
 		{
-			List<string> PakList = new List<string>();
-
 			bool bExcludeFromPaks = false;
-			ApplyPakFileRules(PakRulesList, StagingFile, PakList, out bExcludeFromPaks);
+			ApplyPakFileRules(PakRulesList, StagingFile, null, null, out bExcludeFromPaks);
 
 			if (bExcludeFromPaks)
 			{
@@ -1691,7 +1689,7 @@ public partial class Project : CommandUtils
 				string SubFolder = Pair.Key.Name.Replace('/', Path.DirectorySeparatorChar);
 				FileReference NewIniFilename = FileReference.Combine(SC.ProjectRoot, "Saved", "Temp", SC.PlatformDir, SubFolder);
 				InternalUtils.SafeCreateDirectory(NewIniFilename.Directory.FullName, true);
-				InternalUtils.SafeCopyFile(Src.FullName, NewIniFilename.FullName, bFilterSpecialLinesFromIniFiles: true);
+				InternalUtils.SafeCopyFile(Src.FullName, NewIniFilename.FullName, IniKeyBlacklist:SC.IniKeyBlacklist, IniSectionBlacklist:SC.IniSectionBlacklist);
 				Src = NewIniFilename;
 			}
 
@@ -2468,11 +2466,32 @@ public partial class Project : CommandUtils
 			Dictionary<string, ChunkDefinition> OptionalChunks = new Dictionary<string, ChunkDefinition>();
 			ChunkDefinition DefaultChunk = ChunkDefinitions[DefaultChunkIndex];
 
+			Dictionary<string, List<ChunkDefinition>> FileNameToChunks = new Dictionary<string, List<ChunkDefinition>>();
+			foreach (ChunkDefinition Chunk in ChunkDefinitions)
+			{
+				foreach (string FileName in Chunk.Manifest)
+				{
+					List<ChunkDefinition> Chunks;
+					if (!FileNameToChunks.TryGetValue(FileName, out Chunks))
+					{
+						Chunks = new List<ChunkDefinition>();
+						FileNameToChunks.Add(FileName, Chunks);
+					}
+					Chunks.Add(Chunk);
+				}
+			}
+
+			Dictionary<string, ChunkDefinition> ChunkNameToDefinition = new Dictionary<string, ChunkDefinition>();
+			foreach (ChunkDefinition Chunk in ChunkDefinitions)
+			{
+				ChunkNameToDefinition.Add(Chunk.ChunkName, Chunk);
+			}
+
 			foreach (var StagingFile in StagingManifestResponseFile)
 			{
 				bool bAddedToChunk = false;
 				bool bExcludeFromPaks = false;
-				List<string> PakList = new List<string>();
+				HashSet<ChunkDefinition> PakList = new HashSet<ChunkDefinition>();
 
 				string OriginalFilename = StagingFile.Key;
 				string NoExtension = CombinePaths(Path.GetDirectoryName(OriginalFilename), Path.GetFileNameWithoutExtension(OriginalFilename));
@@ -2485,21 +2504,26 @@ public partial class Project : CommandUtils
 				string NoExtensionReplaceSlashes = NoExtension.Replace('/', '\\');
 
 				// First read manifest
-				for (int ChunkIndex = 0; ChunkIndex < ChunkDefinitions.Count; ++ChunkIndex)
+				List<ChunkDefinition> Chunks;
+				if (FileNameToChunks.TryGetValue(OriginalFilename, out Chunks))
 				{
-					ChunkDefinition Chunk = ChunkDefinitions[ChunkIndex];
-
-					if (Chunk.Manifest.Contains(OriginalFilename) ||
-						Chunk.Manifest.Contains(OriginalReplaceSlashes) ||
-						Chunk.Manifest.Contains(NoExtension) ||
-						Chunk.Manifest.Contains(NoExtensionReplaceSlashes))
-					{
-						PakList.Add(Chunk.ChunkName);
-					}
+					PakList.UnionWith(Chunks);
+				}
+				if (FileNameToChunks.TryGetValue(OriginalReplaceSlashes, out Chunks))
+				{
+					PakList.UnionWith(Chunks);
+				}
+				if (FileNameToChunks.TryGetValue(NoExtension, out Chunks))
+				{
+					PakList.UnionWith(Chunks);
+				}
+				if (FileNameToChunks.TryGetValue(NoExtensionReplaceSlashes, out Chunks))
+				{
+					PakList.UnionWith(Chunks);
 				}
 
 				// Now run through the pak rules which may override things
-				ApplyPakFileRules(PakRulesList, StagingFile, PakList, out bExcludeFromPaks);
+				ApplyPakFileRules(PakRulesList, StagingFile, PakList, ChunkNameToDefinition, out bExcludeFromPaks);
 
 				if (bExcludeFromPaks)
 				{
@@ -2507,36 +2531,31 @@ public partial class Project : CommandUtils
 				}
 
 				// Actually add to chunk
-				for (int ChunkIndex = 0; ChunkIndex < ChunkDefinitions.Count; ++ChunkIndex)
+				foreach (ChunkDefinition Chunk in PakList)
 				{
-					ChunkDefinition Chunk = ChunkDefinitions[ChunkIndex];
+					ChunkDefinition TargetChunk = Chunk;
 
-					if (PakList.Contains(Chunk.ChunkName))
+					string OrigExt = Path.GetExtension(OriginalFilename);
+					if (OrigExt.Equals(OptionalBulkDataFileExtension))
 					{
-						ChunkDefinition TargetChunk = Chunk;
-
-						string OrigExt = Path.GetExtension(OriginalFilename);
-						if (OrigExt.Equals(OptionalBulkDataFileExtension))
+						// any optional files encountered we want to put in a separate pak file
+						string OptionalChunkName = Chunk.ChunkName + "optional";
+						if (!OptionalChunks.TryGetValue(OptionalChunkName, out TargetChunk))
 						{
-							// any optional files encountered we want to put in a separate pak file
-							string OptionalChunkName = Chunk.ChunkName + "optional";
-							if (!OptionalChunks.TryGetValue(OptionalChunkName, out TargetChunk))
-							{
-								TargetChunk = new ChunkDefinition(OptionalChunkName);
-								TargetChunk.RequestedEncryptionKeyGuid = Chunk.RequestedEncryptionKeyGuid;
-								TargetChunk.EncryptionKeyGuid = Chunk.EncryptionKeyGuid;
-								OptionalChunks.Add(OptionalChunkName, TargetChunk);
-							}
+							TargetChunk = new ChunkDefinition(OptionalChunkName);
+							TargetChunk.RequestedEncryptionKeyGuid = Chunk.RequestedEncryptionKeyGuid;
+							TargetChunk.EncryptionKeyGuid = Chunk.EncryptionKeyGuid;
+							OptionalChunks.Add(OptionalChunkName, TargetChunk);
 						}
+					}
 
-						TargetChunk.ResponseFile.Add(StagingFile.Key, StagingFile.Value);
-						bAddedToChunk = true;
+					TargetChunk.ResponseFile.Add(StagingFile.Key, StagingFile.Value);
+					bAddedToChunk = true;
 
-						if (bForceOneChunkPerFile)
-						{
-							// Files are only allowed to be in a single chunk
-							break;
-						}
+					if (bForceOneChunkPerFile)
+					{
+						// Files are only allowed to be in a single chunk
+						break;
 					}
 				}
 				if (!bAddedToChunk)
