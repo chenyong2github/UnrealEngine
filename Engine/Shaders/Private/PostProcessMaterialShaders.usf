@@ -249,7 +249,7 @@ uint bFlipYAxis;
 //
 // Mobile version
 //
-void MainVS_ES2(
+void MainVS(
 	in float4 InPosition : ATTRIBUTE0,
 	in float2 InTexCoord : ATTRIBUTE1,
 	out FPostProcessMaterialVSToPS Output,
@@ -286,7 +286,7 @@ void MainVS_ES2(
 #endif
 }
 
-void MainPS_ES2(
+void MainPS(
 	in FPostProcessMaterialVSToPS Input,
 	in float2 InViewportUV : TEXCOORD8,
 	out half4 OutColor : SV_Target0
