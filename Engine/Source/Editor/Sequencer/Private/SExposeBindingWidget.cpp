@@ -206,7 +206,7 @@ FReply SExposeBindingWidget::RemoveFromExposedName(FName InNameToRemove)
 	UMovieSceneSequence*   Sequence   = Sequencer ? Sequencer->GetFocusedMovieSceneSequence() : nullptr;
 	UMovieScene*           MovieScene = Sequence  ? Sequence->GetMovieScene()                 : nullptr;
 
-	FScopedTransaction Transaction(FText::Format(LOCTEXT("ExposeBinding_Transaction", "Stop exposing binding as {0}"), FText::FromName(InNameToRemove)));
+	FScopedTransaction Transaction(FText::Format(LOCTEXT("StopExposingBinding_Transaction", "Stop exposing binding as {0}"), FText::FromName(InNameToRemove)));
 
 	MovieScene->Modify();
 

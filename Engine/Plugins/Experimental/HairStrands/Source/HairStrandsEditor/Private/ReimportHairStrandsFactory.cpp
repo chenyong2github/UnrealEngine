@@ -142,3 +142,5 @@ EReimportResult::Type UReimportHairStrandsFactory::Reimport(UObject* Obj)
 
 	return EReimportResult::Succeeded;
 }
+
+#undef LOCTEXT_NAMESPACE
