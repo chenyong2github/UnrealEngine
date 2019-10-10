@@ -174,6 +174,46 @@ static FString GetHFDDCKeyString(const FName& Format, bool bDefMaterial, const F
 	return FDerivedDataCacheInterface::BuildCacheKey(*KeyPrefix, LANDSCAPE_COLLISION_DERIVEDDATA_VER, *CombinedStateId.ToString());
 }
 
+void ULandscapeHeightfieldCollisionComponent::OnRegister()
+{
+	Super::OnRegister();
+
+	if (GetLandscapeProxy())
+	{
+		// AActor::GetWorld checks for Unreachable and BeginDestroyed
+		UWorld* World = GetLandscapeProxy()->GetWorld();
+		if (World)
+		{
+			ULandscapeInfo* Info = GetLandscapeInfo();
+			if (Info)
+			{
+				Info->RegisterCollisionComponent(this);
+			}
+		}
+	}
+}
+
+void ULandscapeHeightfieldCollisionComponent::OnUnregister()
+{
+	Super::OnUnregister();
+
+	if (GetLandscapeProxy())
+	{
+		// AActor::GetWorld checks for Unreachable and BeginDestroyed
+		UWorld* World = GetLandscapeProxy()->GetWorld();
+
+		// Game worlds don't have landscape infos
+		if (World)
+		{
+			ULandscapeInfo* Info = GetLandscapeInfo();
+			if (Info)
+			{
+				Info->UnregisterCollisionComponent(this);
+			}
+		}
+	}
+}
+
 ECollisionEnabled::Type ULandscapeHeightfieldCollisionComponent::GetCollisionEnabled() const
 {
 	if (!HasAnyFlags(RF_ClassDefaultObject))
@@ -2275,12 +2315,12 @@ void ULandscapeMeshCollisionComponent::ImportCustomProperties(const TCHAR* Sourc
 	}
 }
 
+#endif // WITH_EDITOR
+
 ULandscapeInfo* ULandscapeHeightfieldCollisionComponent::GetLandscapeInfo() const
 {
 	return GetLandscapeProxy()->GetLandscapeInfo();
 }
-
-#endif // WITH_EDITOR
 
 ALandscapeProxy* ULandscapeHeightfieldCollisionComponent::GetLandscapeProxy() const
 {
@@ -2341,17 +2381,14 @@ LANDSCAPE_API TOptional<float> ALandscapeProxy::GetHeightAtLocation(FVector Loca
 	ULandscapeInfo* Info = GetLandscapeInfo();
 	const FVector ActorSpaceLocation = LandscapeActorToWorld().InverseTransformPosition(Location);
 	const FIntPoint Key = FIntPoint(FMath::FloorToInt(ActorSpaceLocation.X / ComponentSizeQuads), FMath::FloorToInt(ActorSpaceLocation.Y / ComponentSizeQuads));
-	ULandscapeComponent* Component = Info->XYtoComponentMap.FindRef(Key);
+	ULandscapeHeightfieldCollisionComponent* Component = Info->XYtoCollisionComponentMap.FindRef(Key);
 	if (Component)
 	{
-		if (ULandscapeHeightfieldCollisionComponent* CollisionComp = Component->CollisionComponent.Get())
+		const FVector ComponentSpaceLocation = Component->GetComponentToWorld().InverseTransformPosition(Location);
+		const TOptional<float> LocalHeight = Component->GetHeight(ComponentSpaceLocation.X, ComponentSpaceLocation.Y);
+		if (LocalHeight.IsSet())
 		{
-			const FVector ComponentSpaceLocation = CollisionComp->GetComponentToWorld().InverseTransformPosition(Location);
-			const TOptional<float> LocalHeight = CollisionComp->GetHeight(ComponentSpaceLocation.X, ComponentSpaceLocation.Y);
-			if (LocalHeight.IsSet())
-			{
-				Height = CollisionComp->GetComponentToWorld().TransformPositionNoScale(FVector(0, 0, LocalHeight.GetValue())).Z;
-			}
+			Height = Component->GetComponentToWorld().TransformPositionNoScale(FVector(0, 0, LocalHeight.GetValue())).Z;
 		}
 	}
 	return Height;
