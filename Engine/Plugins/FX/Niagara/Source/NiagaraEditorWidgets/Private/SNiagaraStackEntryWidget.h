@@ -26,6 +26,8 @@ private:
 
 	void StackViewModelStructureChanged();
 
+	bool GetIsEnabled() const;
+
 private:
 	UNiagaraStackEntry* StackEntry;
 	UNiagaraStackViewModel* StackViewModel;

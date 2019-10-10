@@ -7,6 +7,7 @@
 class UNiagaraOverviewNode;
 class UNiagaraStackViewModel;
 class UNiagaraSystemSelectionViewModel;
+class FNiagaraEmitterHandleViewModel;
 
 class SNiagaraOverviewStackNode : public SGraphNode
 {
@@ -18,12 +19,17 @@ public:
 	void Construct(const FArguments& InArgs, UNiagaraOverviewNode* InNode);
 
 protected:
+	virtual TSharedRef<SWidget> CreateTitleWidget(TSharedPtr<SNodeTitle> NodeTitle) override;
 	virtual TSharedRef<SWidget> CreateNodeContentArea() override;
 
 private:
+	EVisibility GetEnabledCheckBoxVisibility() const;
+	ECheckBoxState GetEnabledCheckState() const;
+	void OnEnabledCheckStateChanged(ECheckBoxState InCheckState);
 
 private:
 	UNiagaraOverviewNode* OverviewStackNode;
 	UNiagaraStackViewModel* StackViewModel;
 	UNiagaraSystemSelectionViewModel* OverviewSelectionViewModel;
+	TWeakPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModelWeak;
 };

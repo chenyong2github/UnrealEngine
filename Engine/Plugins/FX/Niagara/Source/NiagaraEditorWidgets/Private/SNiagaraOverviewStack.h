@@ -9,6 +9,7 @@
 #include "UObject/ObjectKey.h"
 
 class UNiagaraStackEntry;
+class UNiagaraStackItem;
 class UNiagaraStackViewModel;
 class UNiagaraSystemSelectionViewModel;
 
@@ -33,6 +34,8 @@ private:
 	void EntryStructureChanged();
 
 	TSharedRef<ITableRow> OnGenerateRowForEntry(UNiagaraStackEntry* Item, const TSharedRef<STableViewBase>& OwnerTable);
+
+	EVisibility GetEnabledCheckBoxVisibility(UNiagaraStackItem* Item) const;
 
 	void OnSelectionChanged(UNiagaraStackEntry* InNewSelection, ESelectInfo::Type SelectInfo);
 
