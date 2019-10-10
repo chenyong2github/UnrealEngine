@@ -26,44 +26,44 @@ class TFunction;
 #define UE_DEBUG_BREAK() ((void)(FPlatformMisc::IsDebuggerPresent() && ([] () { UE_DEBUG_BREAK_IMPL(); } (), 1)))
 #endif
 
-/**
+	/**
  * Available build configurations. Mirorred from UnrealTargetConfiguration.
- */
+	 */
 enum class EBuildConfiguration : uint8
-{
-	/** Unknown build configuration. */
-	Unknown,
+	{
+		/** Unknown build configuration. */
+		Unknown,
 
-	/** Debug build. */
-	Debug,
+		/** Debug build. */
+		Debug,
 
-	/** DebugGame build. */
-	DebugGame,
+		/** DebugGame build. */
+		DebugGame,
 
-	/** Development build. */
-	Development,
+		/** Development build. */
+		Development,
 
-	/** Shipping build. */
-	Shipping,
+		/** Shipping build. */
+		Shipping,
 
-	/** Test build. */
-	Test
-};
+		/** Test build. */
+		Test
+	};
 
-/**
- * Returns the string representation of the specified EBuildConfiguration value.
- *
+	/**
+	 * Returns the string representation of the specified EBuildConfiguration value.
+	 *
  * @param Configuration The string to get the EBuildConfiguration for.
  * @return An EBuildConfiguration value.
- */
+	 */
 CORE_API bool LexTryParseString(EBuildConfiguration& OutConfiguration, const TCHAR* Configuration);
 
-/**
- * Returns the string representation of the specified EBuildConfiguration value.
- *
- * @param Configuration The value to get the string for.
- * @return The string representation.
- */
+	/**
+	 * Returns the string representation of the specified EBuildConfiguration value.
+	 *
+	 * @param Configuration The value to get the string for.
+	 * @return The string representation.
+	 */
 CORE_API const TCHAR* LexToString(EBuildConfiguration Configuration);
 
 namespace EBuildConfigurations
@@ -116,18 +116,18 @@ namespace EBuildConfigurations
 	CORE_API FText ToText( EBuildConfiguration Configuration );
 }
 
-/**
+	/**
  * Enumerates build target types.
- */
+	 */
 enum class EBuildTargetType : uint8
-{
-	/** Unknown build target. */
-	Unknown,
+	{
+		/** Unknown build target. */
+		Unknown,
 
-	/** Game target. */
-	Game,
+		/** Game target. */
+		Game,
 
-	/** Server target. */
+		/** Server target. */
 	Server,
 
 	/** Client target. */
@@ -138,23 +138,23 @@ enum class EBuildTargetType : uint8
 
 	/** Program target. */
 	Program,
-};
+	};
 
-/**
- * Returns the string representation of the specified EBuildTarget value.
- *
+	/**
+	 * Returns the string representation of the specified EBuildTarget value.
+	 *
  * @param OutType The value to get the string for.
  * @param Text The text to parse.
  * @return The string representation.
- */
+	 */
 CORE_API bool LexTryParseString(EBuildTargetType& OutType, const TCHAR* Text);
 
-/**
+	/**
  * Returns the string representation of the specified EBuildTargetType value.
- *
+	 *
  * @param Target The string to get the EBuildTargetType for.
  * @return An EBuildTarget::Type value.
- */
+	 */
 CORE_API const TCHAR* LexToString(EBuildTargetType Type);
 
 namespace EBuildTargets
@@ -874,7 +874,7 @@ public:
 	static const TCHAR* RootDir();
 
 	/** get additional directories which can be considered as root directories */
-	static const TArray<FString>& GetAdditionalRootDirectories();
+	static TArray<FString> GetAdditionalRootDirectories();
 	/** add an additional root directory */
 	static void AddAdditionalRootDirectory(const FString& RootDir);
 
