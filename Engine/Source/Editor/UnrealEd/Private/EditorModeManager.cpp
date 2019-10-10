@@ -1448,8 +1448,6 @@ void FEditorModeTools::Tick( FEditorViewportClient* ViewportClient, float DeltaT
 		UEdMode* Mode = ActiveScriptableModes[ModeIndex];
 		Mode->Tick(ViewportClient, DeltaTime);
 	}
-
-	UpdateModeWidgetLocation();
 }
 
 /** Notifies all active modes of any change in mouse movement */
