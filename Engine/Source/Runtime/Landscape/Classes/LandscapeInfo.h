@@ -17,6 +17,7 @@ class ULandscapeLayerInfoObject;
 class ULevel;
 class UMaterialInstanceConstant;
 struct FLandscapeEditorLayerSettings;
+class ULandscapeHeightfieldCollisionComponent;
 
 /** Structure storing Collision for LandscapeComponent Add */
 #if WITH_EDITORONLY_DATA
@@ -120,6 +121,8 @@ class ULandscapeInfo : public UObject
 public:
 	/** Map of the offsets (in component space) to the component. Valid in editor only. */
 	TMap<FIntPoint, ULandscapeComponent*> XYtoComponentMap;
+    /** Map of the offsets (in component space) to the collision components. Should always be valid. */
+	TMap<FIntPoint, ULandscapeHeightfieldCollisionComponent*> XYtoCollisionComponentMap;
 
 #if WITH_EDITORONLY_DATA
 	/** Lookup map used by the "add component" tool. Only available near valid LandscapeComponents.
@@ -260,4 +263,8 @@ public:
 
 	/** Deassociates passed landscape component with this info object*/
 	LANDSCAPE_API void UnregisterActorComponent(ULandscapeComponent* Component);
+
+	/** Server doesn't have ULandscapeComponent use CollisionComponents instead to get height on landscape */
+	LANDSCAPE_API void RegisterCollisionComponent(ULandscapeHeightfieldCollisionComponent* Component);
+	LANDSCAPE_API void UnregisterCollisionComponent(ULandscapeHeightfieldCollisionComponent* Component);
 };
