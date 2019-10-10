@@ -131,7 +131,7 @@ bool ShouldRenderSingleLayerWaterSkippedRenderEditorNotification(const TArray<FV
 bool UseSingleLayerWaterIndirectDraw(EShaderPlatform ShaderPlatform)
 {
 	return IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::SM5)
-		&& !IsSwitchPlatform(ShaderPlatform) && !IsVulkanPlatform(ShaderPlatform); // Switch does not use tiling and Vulkan gives error with WaterTileCatergorisationCS usage of atomic.
+		&& !IsSwitchPlatform(ShaderPlatform) && !IsVulkanPlatform(ShaderPlatform) && !IsMetalPlatform(ShaderPlatform); // Switch does not use tiling, Vulkan gives error with WaterTileCatergorisationCS usage of atomic, and Metal does not play nice, either.
 }
 
 
