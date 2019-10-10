@@ -13,9 +13,9 @@
 #define CONFIG_BASENAME TEXT("PostSplashScreen")
 FString GPostSplashScreenIni;
 
-bool FCustomSplashScreen::Init()
+bool FCustomSplashScreen::Init(TFunctionRef<TSharedPtr<IAnalyticsProviderET>()> AnalyticsFactory)
 {
-	FPreLoadScreenBase::Init();
+	FPreLoadScreenBase::Init(AnalyticsFactory);
 	
 	SetPluginName("PostSplashScreen");
 	InitSettingsFromConfig("PostSplashScreen");
