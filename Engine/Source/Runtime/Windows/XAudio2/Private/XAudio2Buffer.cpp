@@ -526,6 +526,10 @@ FXAudio2SoundBuffer* FXAudio2SoundBuffer::Init( FAudioDevice* AudioDevice, USoun
 		return( NULL );
 	}
 
+#if WITH_EDITOR
+	Wave->InvalidateSoundWaveIfNeccessary();
+#endif // WITH_EDITOR
+
 	FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
 
 	FXAudio2Device* XAudio2Device = ( FXAudio2Device* )AudioDevice;
