@@ -710,12 +710,16 @@ FByteBulkData* USoundWave::GetCompressedData(FName Format, const FPlatformAudioC
 	return Result->GetBulkDataSize() > 0 ? Result : NULL; // we don't return empty bulk data...but we save it to avoid thrashing the DDC
 }
 
-void USoundWave::InvalidateCompressedData()
+void USoundWave::InvalidateCompressedData(bool bFreeResources)
 {
 	CompressedDataGuid = FGuid::NewGuid();
 	ZerothChunkData.Reset();
 	CompressedFormatData.FlushData();
-	FreeResources(false);
+
+	if (bFreeResources)
+	{
+		FreeResources(false);
+	}
 }
 
 void USoundWave::PostLoad()
@@ -995,7 +999,7 @@ void USoundWave::InvalidateSoundWaveIfNeccessary()
 	const bool bIsStreamCachingEnabled = FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching();
 	if (bWasStreamCachingEnabledOnLastCook != bIsStreamCachingEnabled)
 	{
-		InvalidateCompressedData();
+		InvalidateCompressedData(true);
 		bWasStreamCachingEnabledOnLastCook = bIsStreamCachingEnabled;
 		
 		// If stream caching is now turned on, recook the streaming audio if neccessary.
