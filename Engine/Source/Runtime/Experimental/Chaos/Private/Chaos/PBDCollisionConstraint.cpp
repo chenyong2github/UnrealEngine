@@ -107,7 +107,7 @@ void TPBDCollisionConstraint<T, d>::Reset(/*const TPBDRigidParticles<T, d>& InPa
 	int32 Threshold = LifespanCounter - 1; // Maybe this should be solver time?
 	for (int32 Idx = Constraints.Num() - 1; Idx >= 0; Idx--)
 	{
-		if (Constraints[Idx].Lifespan < Threshold)
+		if ((Constraints[Idx].Lifespan < Threshold) || !bEnableCollisions)
 		{
 			RemoveConstraint(Idx);
 		}
