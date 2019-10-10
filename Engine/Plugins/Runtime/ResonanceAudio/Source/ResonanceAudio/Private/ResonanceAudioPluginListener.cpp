@@ -125,7 +125,7 @@ namespace ResonanceAudio
 			else
 			{
 				ReverbPtr->SetPreset(nullptr);
-				UE_LOG(LogResonanceAudio, Display, TEXT("Set reverb preset to nullptr"));
+				UE_LOG(LogResonanceAudio, Verbose, TEXT("Set reverb preset to nullptr"));
 			}
 		}
 	}

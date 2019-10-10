@@ -839,6 +839,7 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	ViewState.viewStateFlags = 0;
 
 	bNeedReAllocatedDepth = bDepthExtensionSupported = Extensions.Contains(XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME);
+	bHiddenAreaMaskSupported = Extensions.Contains(XR_KHR_VISIBILITY_MASK_EXTENSION_NAME);
 
 	{
 		// Enumerate the viewport configurations
@@ -882,15 +883,6 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 
 	// The HMD device does not have an action associated with it
 	ensure(ActionSpaces.Emplace(XR_NULL_HANDLE) == HMDDeviceId);
-
-	if (Extensions.Contains(XR_KHR_VISIBILITY_MASK_EXTENSION_NAME))
-	{
-		FOpenXRHMD* const Self = this;
-		ENQUEUE_RENDER_COMMAND(SetupOpenXROcclusionMeshesCmd)([Self](FRHICommandListImmediate& RHICmdList)
-		{
-			Self->BuildOcclusionMeshes();
-		});
-	}
 }
 
 FOpenXRHMD::~FOpenXRHMD()
@@ -1018,6 +1010,11 @@ bool FOpenXRHMD::OnStereoStartup()
 		SessionInfo.createFlags = 0;
 		SessionInfo.systemId = Self->System;
 		XR_ENSURE(xrCreateSession(Self->Instance, &SessionInfo, &Self->Session));
+
+		if (Self->bHiddenAreaMaskSupported)
+		{
+			Self->BuildOcclusionMeshes();
+		}
 	});
 
 	FlushRenderingCommands();
@@ -1194,6 +1191,9 @@ bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 
 {
 	check(IsInRenderingThread());
 
+	// We need to ensure we can sample from the texture in CopyTexture
+	Flags |= TexCreate_ShaderResource;
+
 	Swapchain = RenderBridge->CreateSwapchain(Session, Format, SizeX, SizeY, NumMips, NumSamples, Flags, TargetableTextureFlags);
 	if (!Swapchain)
 	{
@@ -1283,7 +1283,7 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 		XrCompositionLayerDepthInfoKHR& DepthLayer = DepthLayersRHI[ViewIndex];
 
 		Projection.type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW;
-		Projection.next = nullptr; // &DepthLayer;
+		Projection.next = bDepthExtensionSupported ? &DepthLayer : nullptr;
 		Projection.fov = View.fov;
 		Projection.pose = ToXrPose(ViewTransform * BaseTransform, GetWorldToMetersScale());
 		Projection.subImage.swapchain = static_cast<FOpenXRSwapchain*>(GetSwapchain())->GetHandle();
@@ -1303,10 +1303,10 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 			DepthLayer.subImage.swapchain = static_cast<FOpenXRSwapchain*>(GetDepthSwapchain())->GetHandle();
 			DepthLayer.subImage.imageArrayIndex = 0;
 			DepthLayer.subImage.imageRect = Projection.subImage.imageRect;
-			DepthLayer.minDepth = 1.0f;
-			DepthLayer.maxDepth = 0.0f;
-			DepthLayer.nearZ = NearZ;
-			DepthLayer.farZ = FLT_MAX;
+			DepthLayer.minDepth = 0.0f;
+			DepthLayer.maxDepth = 1.0f;
+			DepthLayer.nearZ = FLT_MAX;
+			DepthLayer.farZ = NearZ;
 		}
 
 		OffsetX += Config.recommendedImageRectWidth;

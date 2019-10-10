@@ -70,7 +70,7 @@
             console.info('ice gathering state change:', state)
         };
 
-        handleOnTrack = function(e){
+        handleOnTrack = function(e) {
             console.log('handleOnTrack', e.streams);
             if (self.video.srcObject !== e.streams[0]) {
                 console.log('setting video stream from ontrack');
@@ -108,22 +108,21 @@
         }
 
         onicecandidate = function (e) {
-            console.log('ICE candidate', e)
-            if (e.candidate && e.candidate.candidate) {
-                self.onWebRtcCandidate(JSON.stringify(e.candidate));
+			console.log('ICE candidate', e)
+			if (e.candidate && e.candidate.candidate) {
+                self.onWebRtcCandidate(e.candidate);
             }
         };
 
         handleCreateOffer = function (pc) {
-            pc.createOffer(self.sdpConstraints).then(function (offerDesc) {
-            	pc.setLocalDescription(offerDesc);
+            pc.createOffer(self.sdpConstraints).then(function (offer) {
+            	pc.setLocalDescription(offer);
             	if (self.onWebRtcOffer) {
             		// (andriy): increase start bitrate from 300 kbps to 20 mbps and max bitrate from 2.5 mbps to 100 mbps
                     // (100 mbps means we don't restrict encoder at all)
-                    // after we `setLocalDescription` because other browsers are not so happy to see google-specific config
-            		offerDesc.sdp = offerDesc.sdp.replace(/(a=fmtp:\d+ .*level-asymmetry-allowed=.*)\r\n/gm, "$1;x-google-start-bitrate=20000;x-google-max-bitrate=100000\r\n");
-            		//console.log('Sending offer: ', offerDesc)
-            		self.onWebRtcOffer(JSON.stringify(offerDesc));
+                    // after we `setLocalDescription` because other browsers are not c happy to see google-specific config
+            		offer.sdp = offer.sdp.replace(/(a=fmtp:\d+ .*level-asymmetry-allowed=.*)\r\n/gm, "$1;x-google-start-bitrate=10000;x-google-max-bitrate=20000\r\n");
+            		self.onWebRtcOffer(offer);
                 }
             },
             function () { console.warn("Couldn't create offer") });
@@ -150,8 +149,9 @@
                 //console.log('Printing Stats');
 
                 let newStat = {};
+                console.log('----------------------------- Stats start -----------------------------');
                 stats.forEach(stat => {
-                    //console.log(JSON.stringify(stat))
+//                    console.log(JSON.stringify(stat, undefined, 4));
                     if (stat.type == 'inbound-rtp' 
                         && !stat.isRemote 
                         && (stat.mediaType == 'video' || stat.id.toLowerCase().includes('video'))) {
@@ -195,7 +195,7 @@
                     }
 
                     //Read video track stats
-                    if(stat.type == 'track' && stat.trackIdentifier == 'video_label'){
+                    if(stat.type == 'track' && (stat.trackIdentifier == 'video_label' || stat.kind == 'video')) {
                         newStat.framesDropped = stat.framesDropped;
                         newStat.framesReceived = stat.framesReceived;
                         newStat.framesDroppedPercentage = stat.framesDropped / stat.framesReceived * 100;
@@ -205,7 +205,7 @@
                         newStat.frameWidthStart = self.aggregatedStats && self.aggregatedStats.frameWidthStart ? self.aggregatedStats.frameWidthStart : stat.frameWidth;
                     }
 
-                    if(stat.type =='candidate-pair' && stat.hasOwnProperty('currentRoundTripTime')){
+                    if(stat.type =='candidate-pair' && stat.hasOwnProperty('currentRoundTripTime') && stat.currentRoundTripTime != 0){
                         newStat.currentRoundTripTime = stat.currentRoundTripTime;
                     }
                 });
@@ -247,7 +247,7 @@
 
         //Called externaly when an answer is received from the server
         this.receiveAnswer = function(answer) {
-            console.log('Received answer', answer);
+            console.log(`Received answer:\n${answer}`);
             var answerDesc = new RTCSessionDescription(answer);
             self.pcClient.setRemoteDescription(answerDesc);
         };
@@ -272,7 +272,9 @@
 
         this.getStats = function(onStats){
             if(self.pcClient && onStats){
-                self.pcClient.getStats(null).then((stats) => { onStats(stats); });
+                self.pcClient.getStats(null).then((stats) => { 
+                    onStats(stats); 
+                });
             }
         }
 

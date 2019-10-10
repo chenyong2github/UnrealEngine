@@ -323,6 +323,7 @@ bool FDeferredShadingSceneRenderer::RenderPrePassViewParallel(const FViewInfo& V
 class FDitheredTransitionStencilPS : public FGlobalShader
 {
 	DECLARE_SHADER_TYPE(FDitheredTransitionStencilPS, Global);
+
 public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -333,7 +334,7 @@ public:
 	FDitheredTransitionStencilPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 	: FGlobalShader(Initializer)
 	{
-		DitheredTransitionFactorParameter.Bind(Initializer.ParameterMap, TEXT("DitheredTransitionFactor"));
+		DitheredTransitionFactorParameter.Bind(Initializer.ParameterMap, TEXT("DitheredTransitionFactor"), EShaderParameterFlags::SPF_Mandatory);
 	}
 
 	FDitheredTransitionStencilPS()
@@ -357,27 +358,161 @@ public:
 
 	FShaderParameter DitheredTransitionFactorParameter;
 };
-
 IMPLEMENT_SHADER_TYPE(, FDitheredTransitionStencilPS, TEXT("/Engine/Private/DitheredTransitionStencil.usf"), TEXT("Main"), SF_Pixel);
+
+/** A compute shader used to fill the stencil buffer with the current dithered transition mask. */
+class FDitheredTransitionStencilCS : public FGlobalShader
+{
+	DECLARE_SHADER_TYPE(FDitheredTransitionStencilCS, Global);
+
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+
+	FDitheredTransitionStencilCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{
+		DitheredTransitionFactorParameter.Bind(Initializer.ParameterMap, TEXT("DitheredTransitionFactor"), EShaderParameterFlags::SPF_Mandatory);
+		StencilOffsetAndValuesParameter.Bind(Initializer.ParameterMap, TEXT("StencilOffsetAndValues"), EShaderParameterFlags::SPF_Mandatory);
+		StencilOutputParameter.Bind(Initializer.ParameterMap, TEXT("StencilOutput"), EShaderParameterFlags::SPF_Mandatory);
+	}
+
+	FDitheredTransitionStencilCS()
+	{
+	}
+
+	template <typename TRHICmdList>
+	void SetParameters(TRHICmdList& RHICmdList, const FSceneView& View, FRHIUnorderedAccessView* StencilOutputUAV, FIntPoint BufferSizeXY, FIntPoint ViewOffsetXY, uint32 StencilValue)
+	{
+		FRHIComputeShader* ComputeShader = GetComputeShader();
+
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ComputeShader, View.ViewUniformBuffer);
+
+		const float DitherFactor = View.GetTemporalLODTransition();
+		SetShaderValue(RHICmdList, ComputeShader, DitheredTransitionFactorParameter, DitherFactor);
+
+		const uint32 MaskedValue = (StencilValue & 0xFF);
+		const uint32 ClearedValue = 0;
+
+		const FIntVector4 StencilOffsetAndValues(
+			ViewOffsetXY.X,
+			ViewOffsetXY.Y,
+			int32(MaskedValue),
+			int32(ClearedValue));
+
+		SetShaderValue(RHICmdList, ComputeShader, StencilOffsetAndValuesParameter, StencilOffsetAndValues);
+		SetUAVParameter(RHICmdList, ComputeShader, StencilOutputParameter, StencilOutputUAV);
+	}
+
+	template <typename TRHICmdList>
+	void UnsetParameters(TRHICmdList& RHICmdList)
+	{
+		FRHIComputeShader* ComputeShader = GetComputeShader();
+		if (StencilOutputParameter.IsBound())
+		{
+			RHICmdList.SetUAVParameter(ComputeShader, StencilOutputParameter.GetBaseIndex(), nullptr);
+		}
+	}
+
+	virtual bool Serialize(FArchive& Ar) override
+	{
+		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
+		Ar << DitheredTransitionFactorParameter << StencilOffsetAndValuesParameter << StencilOutputParameter;
+		return bShaderHasOutdatedParameters;
+	}
+
+	FShaderParameter DitheredTransitionFactorParameter;
+	FShaderParameter StencilOffsetAndValuesParameter;
+	FShaderResourceParameter StencilOutputParameter;
+};
+IMPLEMENT_SHADER_TYPE(, FDitheredTransitionStencilCS, TEXT("/Engine/Private/DitheredTransitionStencil.usf"), TEXT("MainCS"), SF_Compute);
 
 /** Possibly do the FX prerender and setup the prepass*/
 bool FDeferredShadingSceneRenderer::PreRenderPrePass(FRHICommandListImmediate& RHICmdList)
 {
 	// This can be called from within RenderPrePassViewParallel, so we need to reset
 	// the current GPU mask to the AllViews mask before iterating over Views again.
+	// Otherwise emulate stereo gets broken.
 	SCOPED_GPU_MASK(RHICmdList, AllViewsGPUMask);
 
 	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_PrePass));
+
 	// RenderPrePassHMD clears the depth buffer. If this changes we must change RenderPrePass to maintain the correct behavior!
 	bool bDepthWasCleared = RenderPrePassHMD(RHICmdList);
 
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 
-	SceneContext.BeginRenderingPrePass(RHICmdList, !bDepthWasCleared);
+	// Both compute approaches run earlier, so skip clearing stencil here, just load existing.
+	const bool bNoStencilClear = bDitheredLODTransitionsUseStencil && (StencilLODMode == 1 || StencilLODMode == 2);
+
+	SceneContext.BeginRenderingPrePass(RHICmdList, !bDepthWasCleared, !bNoStencilClear);
 	bDepthWasCleared = true;
 
-	// Dithered transition stencil mask fill
-	if (bDitheredLODTransitionsUseStencil)
+	// Dithered transition stencil mask fill (graphics path)
+	if (bDitheredLODTransitionsUseStencil && StencilLODMode == 0)
+	{
+		PreRenderDitherFill(RHICmdList, SceneContext, nullptr);
+	}
+
+	// Need to close the render pass here since we may call BeginRenderingPrePass later
+	RHICmdList.EndRenderPass();
+
+	return bDepthWasCleared;
+}
+
+void FDeferredShadingSceneRenderer::PreRenderDitherFill(FRHIAsyncComputeCommandListImmediate& RHICmdList, FSceneRenderTargets& SceneContext, FRHIUnorderedAccessView* StencilTextureUAV)
+{
+	SCOPED_GPU_EVENT(RHICmdList, DitheredStencilPrePass);
+
+	FIntPoint BufferSizeXY = SceneContext.GetBufferSizeXY();
+
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+	{
+		SCOPED_CONDITIONAL_GPU_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
+
+		FViewInfo& View = Views[ViewIndex];
+
+		TShaderMapRef<FDitheredTransitionStencilCS> ComputeShader(View.ShaderMap);
+		RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
+		ComputeShader->SetParameters(RHICmdList, View, StencilTextureUAV, BufferSizeXY, View.ViewRect.Min, STENCIL_SANDBOX_MASK);
+		const int32 SubWidth = FMath::Min(BufferSizeXY.X, View.ViewRect.Width());
+		const int32 SubHeight = FMath::Min(BufferSizeXY.Y, View.ViewRect.Height());
+		check(SubWidth > 0 && SubHeight > 0);
+
+		DispatchComputeShader(RHICmdList, *ComputeShader, FMath::DivideAndRoundUp(SubWidth, 8), FMath::DivideAndRoundUp(SubHeight, 8), 1);
+		ComputeShader->UnsetParameters(RHICmdList);
+	}
+}
+
+
+void FDeferredShadingSceneRenderer::PreRenderDitherFill(FRHICommandListImmediate& RHICmdList, FSceneRenderTargets& SceneContext, FRHIUnorderedAccessView* StencilTextureUAV)
+{
+	SCOPED_DRAW_EVENT(RHICmdList, DitheredStencilPrePass);
+
+	FIntPoint BufferSizeXY = SceneContext.GetBufferSizeXY();
+	if (StencilLODMode == 1 || StencilLODMode == 2)
+	{
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+		{
+			SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
+
+			FViewInfo& View = Views[ViewIndex];
+
+			TShaderMapRef<FDitheredTransitionStencilCS> ComputeShader(View.ShaderMap);
+			RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
+			ComputeShader->SetParameters(RHICmdList, View, StencilTextureUAV, BufferSizeXY, View.ViewRect.Min, STENCIL_SANDBOX_MASK);
+			const int32 SubWidth = FMath::Min(BufferSizeXY.X, View.ViewRect.Width());
+			const int32 SubHeight = FMath::Min(BufferSizeXY.Y, View.ViewRect.Height());
+			check(SubWidth > 0 && SubHeight > 0);
+
+			DispatchComputeShader(RHICmdList, *ComputeShader, FMath::DivideAndRoundUp(SubWidth, 8), FMath::DivideAndRoundUp(SubHeight, 8), 1);
+			ComputeShader->UnsetParameters(RHICmdList);
+		}
+	}
+	else
 	{
 		FGraphicsPipelineStateInitializer GraphicsPSOInit;
 		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -387,9 +522,6 @@ bool FDeferredShadingSceneRenderer::PreRenderPrePass(FRHICommandListImmediate& R
 			true, CF_Always, SO_Keep, SO_Keep, SO_Replace,
 			false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
 			STENCIL_SANDBOX_MASK, STENCIL_SANDBOX_MASK>::GetRHI();
-
-		SCOPED_DRAW_EVENT(RHICmdList, DitheredStencilPrePass);
-		FIntPoint BufferSizeXY = SceneContext.GetBufferSizeXY();
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 		{
@@ -427,10 +559,6 @@ bool FDeferredShadingSceneRenderer::PreRenderPrePass(FRHICommandListImmediate& R
 				EDRF_UseTriangleOptimization);
 		}
 	}
-	// Need to close the renderpass here since we may call BeginRenderingPrePass later
-	RHICmdList.EndRenderPass();
-
-	return bDepthWasCleared;
 }
 
 void FDeferredShadingSceneRenderer::RenderPrePassEditorPrimitives(FRHICommandList& RHICmdList, const FViewInfo& View, const FMeshPassProcessorRenderState& DrawRenderState, EDepthDrawingMode DepthDrawingMode, bool bRespectUseAsOccluderFlag) 

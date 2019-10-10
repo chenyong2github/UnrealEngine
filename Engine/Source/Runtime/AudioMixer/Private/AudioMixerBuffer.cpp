@@ -177,6 +177,10 @@ namespace Audio
 			return nullptr;
 		}
 
+#if WITH_EDITOR
+		InWave->InvalidateSoundWaveIfNeccessary();
+#endif // WITH_EDITOR
+
 		FAudioDeviceManager* AudioDeviceManager = FAudioDevice::GetAudioDeviceManager();
 
 		FMixerBuffer* Buffer = nullptr;

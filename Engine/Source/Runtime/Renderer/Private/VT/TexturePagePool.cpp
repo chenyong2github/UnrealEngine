@@ -75,7 +75,6 @@ void FTexturePagePool::UnmapAllPagesForSpace(FVirtualTextureSystem* System, uint
 
 void FTexturePagePool::EvictPages(FVirtualTextureSystem* System, const FVirtualTextureProducerHandle& ProducerHandle)
 {
-
 	for (uint32 pAddress = 0u; pAddress < NumPages; ++pAddress)
 	{
 		const FPageEntry& PageEntry = Pages[pAddress];
@@ -279,6 +278,29 @@ void FTexturePagePool::UpdateUsage(uint32 Frame, uint16 pAddress)
 		const FPageEntry& PageEntry = Pages[pAddress];
 		FreeHeap.Update((Frame << 4) + PageEntry.Local_vLevel, pAddress);
 	}
+}
+
+uint32 FTexturePagePool::GetNumVisiblePages(uint32 Frame) const
+{
+	uint32 Count = 0;
+	for (uint32 i = 0; i < NumPages; ++i)
+	{
+		if (FreeHeap.IsPresent(i))
+		{
+			uint32 Key = FreeHeap.GetKey(i);
+			if ((Key >> 4) > Frame)
+			{
+				Count ++;
+			}
+		}
+		else
+		{
+			// Consider all locked pages as visible
+			Count++;
+		}
+	}
+
+	return Count;
 }
 
 void FTexturePagePool::MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysicalSpace* PhysicalSpace, uint8 PageTableLayerIndex, uint8 vLogSize, uint32 vAddress, uint8 vLevel, uint16 pAddress)

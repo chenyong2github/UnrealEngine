@@ -268,7 +268,7 @@ public:
 	
 	void ResolveSceneDepthTexture(FRHICommandList& RHICmdList, const FResolveRect& ResolveRect);
 
-	void BeginRenderingPrePass(FRHICommandList& RHICmdList, bool bPerformClear);
+	void BeginRenderingPrePass(FRHICommandList& RHICmdList, bool bPerformClear, bool bStencilClear = true);
 	void FinishRenderingPrePass(FRHICommandListImmediate& RHICmdList);
 
 	void BeginRenderingSceneAlphaCopy(FRHICommandListImmediate& RHICmdList);

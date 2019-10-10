@@ -12,20 +12,23 @@
 // Insights
 #include "Insights/ViewModels/StatsNodeHelper.h"
 
+class IToolTip;
+class SStatsCounterTableRowToolTip;
+
 DECLARE_DELEGATE_RetVal_OneParam(bool, FShouldBeEnabledDelegate, const uint32 /*StatsId*/);
 DECLARE_DELEGATE_RetVal_OneParam(bool, FIsColumnVisibleDelegate, const FName /*ColumnId*/);
-DECLARE_DELEGATE_TwoParams(FSetHoveredStatsTableCell, const FName /*ColumnId*/, const FStatsNodePtr /*StatsNodePtr*/);
 DECLARE_DELEGATE_RetVal_OneParam(EHorizontalAlignment, FGetColumnOutlineHAlignmentDelegate, const FName /*ColumnId*/);
+DECLARE_DELEGATE_TwoParams(FSetHoveredStatsTableCell, const FName /*ColumnId*/, const FStatsNodePtr /*StatsNodePtr*/);
 
-/** Widget that represents a table row in the stats' tree control. Generates widgets for each column on demand. */
+/** Widget that represents a table row in the Stats Counters' tree control. Generates widgets for each column on demand. */
 class SStatsTableRow : public SMultiColumnTableRow<FStatsNodePtr>
 {
 public:
 	SLATE_BEGIN_ARGS(SStatsTableRow) {}
 		SLATE_EVENT(FShouldBeEnabledDelegate, OnShouldBeEnabled)
 		SLATE_EVENT(FIsColumnVisibleDelegate, OnIsColumnVisible)
-		SLATE_EVENT(FSetHoveredStatsTableCell, OnSetHoveredTableCell)
 		SLATE_EVENT(FGetColumnOutlineHAlignmentDelegate, OnGetColumnOutlineHAlignmentDelegate)
+		SLATE_EVENT(FSetHoveredStatsTableCell, OnSetHoveredTableCell)
 		SLATE_ATTRIBUTE(FText, HighlightText)
 		SLATE_ATTRIBUTE(FName, HighlightedNodeName)
 		SLATE_ARGUMENT(FStatsNodePtr, StatsNodePtr)
@@ -52,6 +55,9 @@ public:
 	 */
 	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 
+	TSharedRef<IToolTip> GetRowToolTip() const;
+	void InvalidateContent();
+
 protected:
 	FSlateColor GetBackgroundColorAndOpacity() const;
 	FSlateColor GetBackgroundColorAndOpacity(double Time) const;
@@ -70,9 +76,11 @@ protected:
 	FSetHoveredStatsTableCell SetHoveredTableCellDelegate;
 	FGetColumnOutlineHAlignmentDelegate GetColumnOutlineHAlignmentDelegate;
 
-	/** Text to be highlighted on stats name. */
+	/** Text to be highlighted on stats counter name. */
 	TAttribute<FText> HighlightText;
 
-	/** Name of the stats node that should be drawn as highlighted. */
+	/** Name of the stats counter node that should be drawn as highlighted. */
 	TAttribute<FName> HighlightedNodeName;
+
+	TSharedPtr<SStatsCounterTableRowToolTip> RowToolTip;
 };

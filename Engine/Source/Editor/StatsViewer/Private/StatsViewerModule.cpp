@@ -130,7 +130,7 @@ void FStatsViewerModule::Clear()
 {
 	for( int32 PageIndex = 0; PageIndex < FStatsPageManager::Get().NumPages(); PageIndex++ )
 	{
-		FStatsPageManager::Get().GetPage(PageIndex)->Clear();
+		FStatsPageManager::Get().GetPageByIndex(PageIndex)->Clear();
 	}
 }
 

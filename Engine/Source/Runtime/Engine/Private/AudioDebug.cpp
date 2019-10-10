@@ -232,18 +232,31 @@ void FAudioDebugger::SetNameArray(FName InName, TArray<FName>& InNameArray, bool
 	});
 }
 
-void FAudioDebugger::ToggleNameArray(FName InName, TArray<FName>& InNameArray )
+void FAudioDebugger::ToggleNameArray(FName InName, TArray<FName>& InNameArray, bool bExclusive )
 {
-	ExecuteCmdOnAudioThread([InName, &InNameArray]
+	ExecuteCmdOnAudioThread([InName, &InNameArray, bExclusive]
 	{ 
 		// On already?
 		int32 IndexOf = InNameArray.IndexOfByKey(InName);
 		if (IndexOf != INDEX_NONE)
-		{
-			InNameArray.RemoveAtSwap(IndexOf);
-		}			
+		{			
+			if (bExclusive)
+			{
+				// Turn off everything if we are exclusive.
+				InNameArray.Empty();
+			}
+			else
+			{
+				InNameArray.RemoveAtSwap(IndexOf);
+			}
+		}
 		else // Add it.
 		{
+			// If we are exclusive, turn off everything else first.
+			if (bExclusive)
+			{
+				InNameArray.Empty();
+			}
 			InNameArray.Add(InName);
 		}
 	});

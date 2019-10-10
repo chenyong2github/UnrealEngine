@@ -107,7 +107,7 @@ void TPBDCollisionConstraint<T, d>::Reset(/*const TPBDRigidParticles<T, d>& InPa
 	int32 Threshold = LifespanCounter - 1; // Maybe this should be solver time?
 	for (int32 Idx = Constraints.Num() - 1; Idx >= 0; Idx--)
 	{
-		if (Constraints[Idx].Lifespan < Threshold)
+		if ((Constraints[Idx].Lifespan < Threshold) || !bEnableCollisions)
 		{
 			RemoveConstraint(Idx);
 		}
@@ -125,6 +125,20 @@ void TPBDCollisionConstraint<T, d>::RemoveConstraint(int32 Idx)
 	if (Idx < Constraints.Num())
 	{
 		Handles[GetConstraintHandleID(Idx)]->SetConstraintIndex(Idx);
+	}
+}
+
+template<typename T, int d>
+void TPBDCollisionConstraint<T, d>::ApplyCollisionModifier(const TFunction<ECollisionModifierResult(FRigidBodyContactConstraint& Constraint)>& CollisionModifier)
+{
+	for (int ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
+	{
+		ECollisionModifierResult Result = CollisionModifier(Constraints[ConstraintIndex]);
+		if (Result == ECollisionModifierResult::Disabled)
+		{
+			RemoveConstraint(ConstraintIndex);
+			--ConstraintIndex;
+		}
 	}
 }
 
@@ -226,7 +240,7 @@ void TPBDCollisionConstraint<T, d>::ComputeConstraints(const FAccelerationStruct
 	
 	if (PostComputeCallback != nullptr)
 	{
-		PostComputeCallback(Constraints);
+		PostComputeCallback();
 	}
 }
 

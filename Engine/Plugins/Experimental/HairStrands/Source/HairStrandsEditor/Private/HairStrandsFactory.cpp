@@ -142,3 +142,5 @@ TSharedPtr<IHairStrandsTranslator> UHairStrandsFactory::GetTranslator(const FStr
 	}
 	return {};
 }
+
+#undef LOCTEXT_NAMESPACE

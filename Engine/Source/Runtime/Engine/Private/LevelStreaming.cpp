@@ -898,9 +898,12 @@ bool ULevelStreaming::RequestLevel(UWorld* PersistentWorld, bool bAllowLevelLoad
 	EPackageFlags PackageFlags = PKG_ContainsMap;
 	int32 PIEInstanceID = INDEX_NONE;
 
+	// Try to find the [to be] loaded package.
+	UPackage* LevelPackage = (UPackage*)StaticFindObjectFast(UPackage::StaticClass(), nullptr, DesiredPackageName, 0, 0, RF_NoFlags, EInternalObjectFlags::PendingKill);
+
 	// copy streaming level on demand if we are in PIE
 	// (the world is already loaded for the editor, just find it and copy it)
-	if ( PersistentWorld->IsPlayInEditor() )
+	if ( LevelPackage == nullptr && PersistentWorld->IsPlayInEditor() )
 	{
 		if (PersistentWorld->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor))
 		{
@@ -942,9 +945,6 @@ bool ULevelStreaming::RequestLevel(UWorld* PersistentWorld, bool bAllowLevelLoad
 			}
 		}
 	}
-
-	// Try to find the [to be] loaded package.
-	UPackage* LevelPackage = (UPackage*)StaticFindObjectFast(UPackage::StaticClass(), nullptr, DesiredPackageName, 0, 0, RF_NoFlags, EInternalObjectFlags::PendingKill);
 
 	// Package is already or still loaded.
 	if (LevelPackage)
@@ -1023,7 +1023,7 @@ bool ULevelStreaming::RequestLevel(UWorld* PersistentWorld, bool bAllowLevelLoad
 			// Kick off async load request.
 			STAT_ADD_CUSTOMMESSAGE_NAME( STAT_NamedMarker, *(FString( TEXT( "RequestLevel - " ) + DesiredPackageName.ToString() )) );
 			TRACE_BOOKMARK(TEXT("RequestLevel - %s"), *DesiredPackageName.ToString());
-			LoadPackageAsync(DesiredPackageName.ToString(), nullptr, *PackageNameToLoadFrom, FLoadPackageAsyncDelegate::CreateUObject(this, &ULevelStreaming::AsyncLevelLoadComplete), PackageFlags, PIEInstanceID);
+			LoadPackageAsync(DesiredPackageName.ToString(), nullptr, *PackageNameToLoadFrom, FLoadPackageAsyncDelegate::CreateUObject(this, &ULevelStreaming::AsyncLevelLoadComplete), PackageFlags, PIEInstanceID, GetPriority());
 
 			// streamingServer: server loads everything?
 			// Editor immediately blocks on load and we also block if background level streaming is disabled.

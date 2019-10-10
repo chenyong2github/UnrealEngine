@@ -61,7 +61,7 @@ static FAutoConsoleVariableRef CVarRayTracingGlobalIlluminationNextEventEstimati
 	TEXT("NOTE: This parameter is experimental")
 );
 
-static float GRayTracingGlobalIlluminationDiffuseThreshold = 0.05;
+static float GRayTracingGlobalIlluminationDiffuseThreshold = 0.01;
 static FAutoConsoleVariableRef CVarRayTracingGlobalIlluminationDiffuseThreshold(
 	TEXT("r.RayTracing.GlobalIllumination.DiffuseThreshold"),
 	GRayTracingGlobalIlluminationDiffuseThreshold,

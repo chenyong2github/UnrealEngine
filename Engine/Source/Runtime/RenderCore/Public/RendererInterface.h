@@ -591,7 +591,8 @@ class IPersistentViewUniformBufferExtension
 public:
 	virtual void BeginFrame() {}
 	virtual void PrepareView(const FSceneView* View) {}
-	virtual void BeginRenderView(const FSceneView* View) {}
+	virtual void BeginRenderView(const FSceneView* View, bool bShouldWaitForJobs = true) {}
+	virtual void EndFrame() {}
 };
 
 /**

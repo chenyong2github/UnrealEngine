@@ -13,7 +13,7 @@
 #define CONFIG_BASENAME TEXT("PostSplashScreen")
 FString GPostSplashScreenIni;
 
-bool FCustomSplashScreen::Init()
+void FCustomSplashScreen::Init()
 {
 	FPreLoadScreenBase::Init();
 	
@@ -28,8 +28,6 @@ bool FCustomSplashScreen::Init()
 	MaxTimeToDisplay = 0.f;
 	FConfigCacheIni::LoadGlobalIniFile(GPostSplashScreenIni, CONFIG_BASENAME);
 	GConfig->GetFloat(TEXT("PreLoadScreen.UISettings"), TEXT("PostSplashScreenLength"), MaxTimeToDisplay, GPostSplashScreenIni);
-
-	return true;
 }
 
 void FCustomSplashScreen::Tick(float DeltaTime)
@@ -49,3 +47,5 @@ float FCustomSplashScreen::GetAddedTickDelay()
 	const float DefaultTickTime = 0.03f;
 	return FMath::Min(MaxTimeToDisplay, DefaultTickTime);
 }
+
+#undef LOCTEXT_NAMESPACE

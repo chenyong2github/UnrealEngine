@@ -1080,7 +1080,7 @@ void FDatasmithImporter::ImportTextures(FDatasmithImportContext& ImportContext)
 
 	const int32 TexturesCount = ImportContext.FilteredScene->GetTexturesCount();
 
-	FScopedSlowTask Progress((float)TexturesCount, LOCTEXT("ImportSlowTask", "Importing Textures..."), true, *ImportContext.Warn);
+	FScopedSlowTask Progress( (float)TexturesCount, LOCTEXT("ImportingTextures", "Importing Textures..."), true, *ImportContext.Warn );
 	Progress.MakeDialog(true);
 
 	if (ImportContext.Options->TextureConflictPolicy != EDatasmithImportAssetConflictPolicy::Ignore && TexturesCount > 0)
@@ -1807,7 +1807,7 @@ void FDatasmithImporter::ImportLevelSequences(FDatasmithImportContext& ImportCon
 		return;
 	}
 
-	FScopedSlowTask Progress((float)SequencesCount, LOCTEXT("ImportSlowTask", "Importing Level Sequences..."), true, *ImportContext.Warn);
+	FScopedSlowTask Progress( (float)SequencesCount, LOCTEXT("ImportingLevelSequences", "Importing Level Sequences..."), true, *ImportContext.Warn );
 	Progress.MakeDialog(true);
 
 	// We can only parse a IDatasmithLevelSequenceElement with IDatasmithSubsequenceAnimationElements if their target
@@ -1908,7 +1908,7 @@ void FDatasmithImporter::ImportLevelVariantSets(FDatasmithImportContext& ImportC
 		return;
 	}
 
-	FScopedSlowTask Progress((float)LevelVariantSetsCount, LOCTEXT("ImportSlowTask", "Importing Level Variant Sets..."), true, *ImportContext.Warn);
+	FScopedSlowTask Progress( (float)LevelVariantSetsCount, LOCTEXT("ImportingLevelVariantSets", "Importing Level Variant Sets..."), true, *ImportContext.Warn );
 	Progress.MakeDialog(true);
 
 	for (int32 LevelVariantSetIndex = 0; LevelVariantSetIndex < LevelVariantSetsCount && !ImportContext.bUserCancelled; ++LevelVariantSetIndex)

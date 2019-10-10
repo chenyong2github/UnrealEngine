@@ -122,6 +122,114 @@ namespace Chaos
 			return TTriangleMesh<T>(MoveTemp(Indices));
 		}
 
+		static CHAOS_API bool IsPerformanceWarning(int32 NumPlanes, int32 NumParticles)
+		{
+			if (!PerformGeometryCheck)
+			{
+				return false;
+			}
+
+			return (NumParticles > ParticlesThreshold);
+		}
+
+		static CHAOS_API bool IsGeometryReductionEnabled()
+		{
+			return (PerformGeometryReduction>0)?true:false;
+		}
+
+		static FString PerformanceWarningString(int32 NumPlanes, int32 NumParticles)
+		{
+			return FString::Printf(TEXT("Planes %d, SurfaceParticles %d"), NumPlanes, NumParticles);
+		}
+
+		static CHAOS_API void Simplify(TArray <TPlane<T, 3>>& InOutPlanes, TParticles<T, 3>& InOutParticles, TBox<T, 3>& InOutLocalBounds)
+		{
+			struct TPair
+			{
+				TPair() : A(-1), B(-1) {}
+				uint32 A;
+				uint32 B;
+			};
+
+			uint32 NumberOfParticlesRequired = ParticlesThreshold;
+			uint32 NumberOfParticlesWeHave = InOutParticles.Size();
+			int32 NumToDelete = NumberOfParticlesWeHave - NumberOfParticlesRequired;
+
+			uint32 Size = InOutParticles.Size();
+			TArray<TVector<T, 3>> Particles;
+			Particles.AddUninitialized(Size);
+			for (uint32 A = 0; A < Size; A++)
+			{
+				Particles[A] = InOutParticles.X(A);
+			}
+
+			TArray<bool> IsDeleted;
+			IsDeleted.Reset();
+			IsDeleted.Init(false, Size);
+
+			if (NumToDelete > 0)
+			{
+				for (uint32 Iteration = 0; Iteration < (uint32)NumToDelete; Iteration++)
+				{
+					TPair ClosestPair;
+					float ClosestDistSqr = FLT_MAX;
+
+					for (uint32 A = 0; A < (Size - 1); A++)
+					{
+						if (!IsDeleted[A])
+						{
+							for (uint32 B = A + 1; B < Size; B++)
+							{
+								if (!IsDeleted[B])
+								{
+									TVector<T, 3> Vec = Particles[A] - Particles[B];
+									float LengthSqr = Vec.SizeSquared();
+									if (LengthSqr < ClosestDistSqr)
+									{
+										ClosestDistSqr = LengthSqr;
+										ClosestPair.A = A;
+										ClosestPair.B = B;
+									}
+								}
+							}
+						}
+					}
+
+					if (ClosestPair.A != -1)
+					{
+						// merge to mid point
+						Particles[ClosestPair.A] = Particles[ClosestPair.A] + (Particles[ClosestPair.B] - Particles[ClosestPair.A]) * 0.5f;
+						IsDeleted[ClosestPair.B] = true;
+					}
+				}
+			}
+
+			TParticles<T, 3> TmpParticles;
+			for (int Idx = 0; Idx < Particles.Num(); Idx++)
+			{
+				// Only add particles that have not been merged away
+				if (!IsDeleted[Idx])
+				{
+					TmpParticles.AddParticles(1);
+					TmpParticles.X(TmpParticles.Size() - 1) = Particles[Idx];
+				}
+			}
+
+			Build(TmpParticles, InOutPlanes, InOutParticles, InOutLocalBounds);
+			check(InOutParticles.Size() > 3);
+		}
+
+		// CVars variables for controlling geometry complexity checking and simplification
+#if PLATFORM_MAC
+		static CHAOS_API int32 PerformGeometryCheck;
+		static CHAOS_API int32 PerformGeometryReduction;
+		static CHAOS_API int32 ParticlesThreshold;
+#else
+		static int32 PerformGeometryCheck;
+		static int32 PerformGeometryReduction;
+		static int32 ParticlesThreshold;
+#endif
+
 	private:
 
 		struct FHalfEdge;
@@ -575,5 +683,6 @@ namespace Chaos
 			//todo(ocohen): need to explicitly test for merge failures. Coplaner, nonconvex, etc...
 			//getting this in as is for now to unblock other systems
 		}
+
 	};
 }

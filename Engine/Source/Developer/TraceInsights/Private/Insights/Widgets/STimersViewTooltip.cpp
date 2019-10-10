@@ -88,9 +88,11 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetColumnTooltip(const Insights::FTable
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedPtr<SToolTip> STimersViewTooltip::GetCellTooltip(const TSharedPtr<FTimerNode> TimerNodePtr, const TSharedPtr<Insights::FTableColumn> ColumnPtr)
+TSharedPtr<SToolTip> STimersViewTooltip::GetRowTooltip(const TSharedPtr<FTimerNode> TimerNodePtr)
 {
 	const Trace::FAggregatedTimingStats& Stats = TimerNodePtr->GetAggregatedStats();
+
+	const FText InstanceCountText = FText::AsNumber(Stats.InstanceCount);
 
 	const int32 NumDigits = 5;
 
@@ -108,8 +110,6 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetCellTooltip(const TSharedPtr<FTimerN
 	const FText MaxExclusiveTimeText = FText::FromString(TimeUtils::FormatTimeMs(Stats.MaxExclusiveTime, NumDigits, true));
 	const FText AvgExclusiveTimeText = FText::FromString(TimeUtils::FormatTimeMs(Stats.AverageExclusiveTime, NumDigits, true));
 	const FText MedExclusiveTimeText = FText::FromString(TimeUtils::FormatTimeMs(Stats.MedianExclusiveTime, NumDigits, true));
-
-	const FText InstanceCountText = FText::AsNumber(Stats.InstanceCount);
 
 	TSharedPtr<SGridPanel> GridPanel;
 	TSharedPtr<SHorizontalBox> HBox;

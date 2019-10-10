@@ -147,8 +147,8 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 
 uint VertexCountPerInstanceIndirect;
 
-RWStructuredBuffer<uint> DispatchIndirectDataUAV;
-RWStructuredBuffer<uint> WaterTileListDataUAV;
+RWBuffer<uint> DispatchIndirectDataUAV;
+RWBuffer<uint> WaterTileListDataUAV;
 
 groupshared bool ContainsWater[WORK_TILE_SIZE*WORK_TILE_SIZE];
 
@@ -247,7 +247,7 @@ void WaterTileCatergorisationCS(uint3 ThreadId : SV_DispatchThreadID, uint3 Grou
 #elif defined(TILE_VERTEX_SHADER)
 
 
-StructuredBuffer<uint> TileListData; //
+Buffer<uint> TileListData;
 
 void WaterTileVS(
 	in uint InstanceId : SV_InstanceID,
