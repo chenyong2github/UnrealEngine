@@ -52,7 +52,6 @@
 #if WITH_CHAOS
 #include "PhysXToChaosUtil.h"
 #include "Chaos/ParticleHandle.h"
-#include "Chaos/HeightField.h"
 #include "Chaos/Vector.h"
 #endif
 
