@@ -14,7 +14,7 @@
 // Insights
 #include "Insights/Table/ViewModels/Table.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
-#include "Insights/Table/Widgets/STableTreeViewTooltip.h"
+#include "Insights/Table/Widgets/STableTreeViewRow.h"
 
 #define LOCTEXT_NAMESPACE "STableTreeView"
 
@@ -81,7 +81,7 @@ TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForNameColumn(const FArgum
 			SNew(SImage)
 			.Visibility(this, &STableTreeViewCell::GetHintIconVisibility)
 			.Image(FEditorStyle::GetBrush("Profiler.Tooltip.HintIcon10"))
-			.ToolTip(STableTreeViewTooltip::GetCellTooltip(TableTreeNodePtr, ColumnPtr))
+			.ToolTip(GetRowToolTip(TableRow))
 		]
 
 		// Name
@@ -103,8 +103,26 @@ TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForNameColumn(const FArgum
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+TSharedPtr<IToolTip> STableTreeViewCell::GetRowToolTip(const TSharedRef<ITableRow>& TableRow) const
+{
+	TSharedRef<STableTreeViewRow> Row = StaticCastSharedRef<STableTreeViewRow, ITableRow>(TableRow);
+	return Row->GetRowToolTip();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText STableTreeViewCell::GetValueAsText() const
+{
+	return ColumnPtr->GetValueAsText(*TableTreeNodePtr);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForTableColumn(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow)
 {
+	// Note: For performance reason, init the cell text (value) only once.
+	//       If we'll need to update values without recreating the table row/cell widgets, bind .Text to STableTreeViewCell::GetValueAsText
+	//       or add API to explicitly update the text block.
 	const FText CellText = ColumnPtr->GetValueAsText(*TableTreeNodePtr);
 
 	return

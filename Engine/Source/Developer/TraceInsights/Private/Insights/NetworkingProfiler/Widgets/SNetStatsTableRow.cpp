@@ -12,6 +12,7 @@
 #include "Insights/Table/ViewModels/Table.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/NetworkingProfiler/Widgets/SNetStatsTableCell.h"
+#include "Insights/NetworkingProfiler/Widgets/SNetStatsViewTooltip.h"
 
 #define LOCTEXT_NAMESPACE "SNetStatsView"
 
@@ -23,14 +24,16 @@ void SNetStatsTableRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 {
 	OnShouldBeEnabled = InArgs._OnShouldBeEnabled;
 	IsColumnVisibleDelegate = InArgs._OnIsColumnVisible;
-	SetHoveredCellDelegate = InArgs._OnSetHoveredCell;
 	GetColumnOutlineHAlignmentDelegate = InArgs._OnGetColumnOutlineHAlignmentDelegate;
+	SetHoveredCellDelegate = InArgs._OnSetHoveredCell;
 
 	HighlightText = InArgs._HighlightText;
 	HighlightedNodeName = InArgs._HighlightedNodeName;
 
 	TablePtr = InArgs._TablePtr;
 	NetEventNodePtr = InArgs._NetEventNodePtr;
+
+	RowToolTip = MakeShareable(new SNetEventTableRowToolTip(NetEventNodePtr));
 
 	SetEnabled(TAttribute<bool>(this, &SNetStatsTableRow::HandleShouldBeEnabled));
 
@@ -82,31 +85,21 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 FReply SNetStatsTableRow::OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	//im:TODO
-	//if (MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
-	//{
-	//	if (NetEventNode->IsGroup())
-	//	{
-	//		// Add all timer Ids for the group.
-	//		TArray<int32> NetEventIds;
-	//		const TArray<FNetEventNodePtr>& FilteredChildren = NetEventNode->GetFilteredChildren();
-	//		const int32 NumFilteredChildren = FilteredChildren.Num();
-	//
-	//		NetEventIds.Reserve(NumFilteredChildren);
-	//		for (int32 Nx = 0; Nx < NumFilteredChildren; ++Nx)
-	//		{
-	//			NetEventIds.Add(FilteredChildren[Nx]->GetId());
-	//		}
-	//
-	//		return FReply::Handled().BeginDragDrop(FStatIDDragDropOp::NewGroup(NetEventIds, NetEventNode->GetName().GetPlainNameString()));
-	//	}
-	//	else
-	//	{
-	//		return FReply::Handled().BeginDragDrop(FStatIDDragDropOp::NewSingle(NetEventNode->GetId(), NetEventNode->GetName().GetPlainNameString()));
-	//	}
-	//}
-
 	return SMultiColumnTableRow<FNetEventNodePtr>::OnDragDetected(MyGeometry, MouseEvent);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<IToolTip> SNetStatsTableRow::GetRowToolTip() const
+{
+	return RowToolTip.ToSharedRef();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SNetStatsTableRow::InvalidateContent()
+{
+	RowToolTip->InvalidateWidget();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -114,7 +107,6 @@ FReply SNetStatsTableRow::OnDragDetected(const FGeometry& MyGeometry, const FPoi
 FSlateColor SNetStatsTableRow::GetBackgroundColorAndOpacity() const
 {
 	return GetBackgroundColorAndOpacity(NetEventNodePtr->GetAggregatedStats().TotalInclusive);
-	//return FLinearColor(0.0f, 0.0f, 0.0f, 1.0f)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
