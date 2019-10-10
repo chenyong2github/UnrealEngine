@@ -10,6 +10,7 @@ public:
 	virtual TOptional<bool> GetBoolValue(const FString& PropertyName) const = 0;
 	virtual TOptional<double> GetNumericValue(const FString& PropertyName) const = 0;
 	virtual TOptional<FString> GetEnumValue(const FString& PropertyName) const = 0;
+	virtual TOptional<UObject*> GetPointerValue(const FString& PropertyName) const = 0;
 	virtual TOptional<FString> GetTypeName(const FString& PropertyName) const = 0;
 };
 
@@ -27,6 +28,7 @@ public:
 	virtual TOptional<bool> GetBoolValue(const FString& PropertyName) const override;
 	virtual TOptional<double> GetNumericValue(const FString& PropertyName) const override;
 	virtual TOptional<FString> GetEnumValue(const FString& PropertyName) const override;
+	virtual TOptional<UObject*> GetPointerValue(const FString& PropertyName) const override;
 	virtual TOptional<FString> GetTypeName(const FString& PropertyName) const override;
 
 	/**

@@ -267,6 +267,52 @@ TOptional<FString> FEditConditionContext::GetEnumValue(const FString& PropertyNa
 	return TOptional<FString>();
 }
 
+TOptional<UObject*> FEditConditionContext::GetPointerValue(const FString& PropertyName) const
+{
+	const UProperty* Property = FindTypedField<UProperty>(PropertyNode, PropertyName);
+	if (Property == nullptr)
+	{
+		return TOptional<UObject*>();
+	}
+
+	const UObjectPropertyBase* ObjectProperty = Cast<UObjectPropertyBase>(Property);
+	if (ObjectProperty == nullptr)
+	{
+		return TOptional<UObject*>();
+	}
+
+	TSharedPtr<FPropertyNode> PinnedNode = PropertyNode.Pin();
+	FPropertyNode* ParentNode = GetEditConditionParentNode(PinnedNode);
+	FComplexPropertyNode* ComplexParentNode = PinnedNode->FindComplexParent();
+
+	TOptional<UObject*> Result;
+	for (int32 Index = 0; Index < ComplexParentNode->GetInstancesNum(); ++Index)
+	{
+		uint8* BasePtr = ComplexParentNode->GetMemoryOfInstance(Index);
+		if (BasePtr == nullptr)
+		{
+			// deleted or not fully loaded yet
+			return TOptional<UObject*>();
+		}
+
+		uint8* ParentPtr = ParentNode->GetValueAddress(BasePtr, PinnedNode->HasNodeFlags(EPropertyNodeFlags::IsSparseClassData) != 0);
+		uint8* ValuePtr = ComplexParentNode->GetValuePtrOfInstance(Index, Property, ParentNode);
+
+		UObject* Value = ObjectProperty->GetObjectPropertyValue(ValuePtr);
+		if (!Result.IsSet())
+		{
+			Result = Value;
+		}
+		else if (Result.GetValue() != Value)
+		{
+			// all values aren't the same
+			return TOptional<UObject*>();
+		}
+	}
+
+	return Result;
+}
+
 TOptional<FString> FEditConditionContext::GetTypeName(const FString& PropertyName) const
 {
 	const UProperty* Property = FindTypedField<UProperty>(PropertyNode, PropertyName);

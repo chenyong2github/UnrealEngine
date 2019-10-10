@@ -44,6 +44,13 @@ namespace EditConditionParserTokens
 		FString Type;
 		FString Value;
 	};
+
+	struct FNullPtrToken
+	{
+		FNullPtrToken() = default;
+		FNullPtrToken(const FNullPtrToken&) = default;
+		FNullPtrToken& operator=(const FNullPtrToken&) = default;
+	};
 }
 
 #define DEFINE_EDIT_CONDITION_NODE(TYPE, ...) \
@@ -69,6 +76,7 @@ namespace EditConditionParserTokens
 	DEFINE_EXPRESSION_NODE_TYPE(bool, 0xCACBC715, 0x505A6B4A, 0x8808809F, 0x897AA5F6)
 	DEFINE_EXPRESSION_NODE_TYPE(EditConditionParserTokens::FPropertyToken, 0x9A3FAF6F, 0xB2E45E4D, 0xA80A70C6, 0x47A89BD7)
 	DEFINE_EXPRESSION_NODE_TYPE(EditConditionParserTokens::FEnumToken, 0xC9A35C24, 0x21FC904B, 0x9F1B2B6A, 0xDF6F4BC4)
+	DEFINE_EXPRESSION_NODE_TYPE(EditConditionParserTokens::FNullPtrToken, 0xC3E91735, 0xB3B90C4D, 0x99BA3DCA, 0xC6CC6231)
 
 #undef DEFINE_EDIT_CONDITION_NODE
 

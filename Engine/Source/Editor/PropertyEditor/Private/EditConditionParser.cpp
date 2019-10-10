@@ -29,44 +29,27 @@ static const TCHAR PropertyBreakingChars[] = { '|', '=', '&', '>', '<', '!', '+'
 
 static TOptional<FExpressionError> ConsumeBool(FExpressionTokenConsumer& Consumer)
 {
-	int TrueChars = 0;
-	int FalseChars = 0;
-	TOptional<FStringToken> StringToken = Consumer.GetStream().ParseToken([&TrueChars, &FalseChars](TCHAR InC)
+	TOptional<FStringToken> TrueToken = Consumer.GetStream().ParseToken(TEXT("true"));
+	if (TrueToken.IsSet())
 	{
-		if (TEXT("true")[TrueChars] == InC)
-		{
-			++TrueChars;
-			if (TrueChars == 4)
-			{
-				return EParseState::StopAfter;
-			}
-			else
-			{
-				return EParseState::Continue;
-			}
-		}
-		else if (TEXT("false")[FalseChars] == InC)
-		{
-			++FalseChars;
-			if (FalseChars == 5)
-			{
-				return EParseState::StopAfter;
-			}
-			else
-			{
-				return EParseState::Continue;
-			}
-		}
-		return EParseState::Cancel;
-	});
+		Consumer.Add(TrueToken.GetValue(), true);
+	}
 
-	if (StringToken.IsSet())
+	TOptional<FStringToken> FalseToken = Consumer.GetStream().ParseToken(TEXT("false"));
+	if (FalseToken.IsSet())
 	{
-		bool bIsTrue = TrueChars == 4;
-		bool bIsFalse = FalseChars == 5;
-		ensure(bIsTrue || bIsFalse);
+		Consumer.Add(FalseToken.GetValue(), false);
+	}
 
-		Consumer.Add(StringToken.GetValue(), bIsTrue);
+	return TOptional<FExpressionError>();
+}
+
+static TOptional<FExpressionError> ConsumeNullPtr(FExpressionTokenConsumer& Consumer)
+{
+	TOptional<FStringToken> NullToken = Consumer.GetStream().ParseToken(TEXT("nullptr"));
+	if (NullToken.IsSet())
+	{
+		Consumer.Add(NullToken.GetValue(), EditConditionParserTokens::FNullPtrToken());
 	}
 
 	return TOptional<FExpressionError>();
@@ -203,8 +186,41 @@ FExpressionResult ApplyBinary(TOperand<T> A, TOperand<T> B, Function Apply)
 	return MakeValue(Apply(ValueA.GetValue(), ValueB.GetValue()));
 }
 
+static FExpressionResult ApplyPropertyIsNull(const EditConditionParserTokens::FPropertyToken& Property, const IEditConditionContext& Context, bool bNegate)
+{
+	TOptional<FString> TypeName = Context.GetTypeName(Property.PropertyName);
+	if (!TypeName.IsSet())
+	{
+		return MakeError(FText::Format(LOCTEXT("InvalidOperand", "EditCondition attempted to use an invalid operand \"{0}\"."), FText::FromString(Property.PropertyName)));
+	}
+
+	const FString& TypeNameValue = TypeName.GetValue();
+	
+	TOptional<UObject*> Ptr = Context.GetPointerValue(Property.PropertyName);
+	if (!Ptr.IsSet())
+	{
+		return MakeError(FText::Format(LOCTEXT("InvalidOperand", "EditCondition attempted to use an invalid operand \"{0}\"."), FText::FromString(Property.PropertyName)));
+	}
+
+	bool bIsNull = Ptr.GetValue() == nullptr;
+	if (bNegate)
+	{
+		bIsNull = !bIsNull;
+	}
+
+	return MakeValue(bIsNull);
+}
+
 static FExpressionResult ApplyPropertiesEqual(const EditConditionParserTokens::FPropertyToken& A, const EditConditionParserTokens::FPropertyToken& B, const IEditConditionContext& Context, bool bNegate)
 {
+	TOptional<UObject*> PtrA = Context.GetPointerValue(A.PropertyName);
+	TOptional<UObject*> PtrB = Context.GetPointerValue(B.PropertyName);
+	if (PtrA.IsSet() && PtrB.IsSet())
+	{
+		const bool bAreEqual = PtrA.GetValue() == PtrB.GetValue();
+		return MakeValue(bNegate ? !bAreEqual : bAreEqual);
+	}
+
 	TOptional<FString> TypeNameA = Context.GetTypeName(A.PropertyName);
 	TOptional<FString> TypeNameB = Context.GetTypeName(B.PropertyName);
 	if (!TypeNameA.IsSet())
@@ -596,6 +612,7 @@ FEditConditionParser::FEditConditionParser()
 	TokenDefinitions.DefineToken(&ExpressionParser::ConsumeSymbol<FMultiply>);
 	TokenDefinitions.DefineToken(&ExpressionParser::ConsumeSymbol<FDivide>);
 	TokenDefinitions.DefineToken(&ExpressionParser::ConsumeNumber);
+	TokenDefinitions.DefineToken(&ConsumeNullPtr);
 	TokenDefinitions.DefineToken(&ConsumeBool);
 	TokenDefinitions.DefineToken(&ConsumePropertyName);
 				
@@ -621,6 +638,16 @@ FEditConditionParser::FEditConditionParser()
 	OperatorJumpTable.MapBinary<FNotEqual>([](const FPropertyToken& A, const FPropertyToken& B, const IEditConditionContext* Context) -> FExpressionResult
 	{
 		return ApplyPropertiesEqual(A, B, *Context, true);
+	});
+
+	OperatorJumpTable.MapBinary<FEqual>([](const FPropertyToken& A, const FNullPtrToken& B, const IEditConditionContext* Context) -> FExpressionResult
+	{
+		return ApplyPropertyIsNull(A, *Context, false);
+	});
+
+	OperatorJumpTable.MapBinary<FNotEqual>([](const FPropertyToken& A, const FNullPtrToken& B, const IEditConditionContext* Context) -> FExpressionResult
+	{
+		return ApplyPropertyIsNull(A, *Context, true);
 	});
 
 	CreateBooleanOperators(OperatorJumpTable);

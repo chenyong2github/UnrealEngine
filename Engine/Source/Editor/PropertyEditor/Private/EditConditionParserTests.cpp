@@ -52,6 +52,11 @@ struct FTestEditConditionContext : IEditConditionContext
 		return Result;
 	}
 
+	virtual TOptional<UObject*> GetPointerValue(const FString& PropertyName) const override
+	{
+		return TOptional<UObject*>();
+	}
+
 	virtual TOptional<FString> GetTypeName(const FString& PropertyName) const override
 	{
 		TOptional<FString> Result;
@@ -114,8 +119,7 @@ static bool CanParse(const FEditConditionParser& Parser, const FString& Expressi
 		}
 	 }
 
-	 return Parsed->Tokens.Num() == ExpectedTokens &&
-		 PropertyCount == ExpectedProperties;
+	 return Parsed->Tokens.Num() == ExpectedTokens && PropertyCount == ExpectedProperties;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditConditionParser_Parse, "EditConditionParser.Parse", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -148,6 +152,8 @@ bool FEditConditionParser_Parse::RunTest(const FString& Parameters)
 	bResult &= CanParse(Parser, TEXT("Enum != EType::Value || BoolProperty == bFoo"), 7, 3);
 	bResult &= CanParse(Parser, TEXT("Enum == EType::Value && Foo != 5"), 7, 2);
 	bResult &= CanParse(Parser, TEXT("Enum != EType::Value && Foo == Bar"), 7, 3);
+	bResult &= CanParse(Parser, TEXT("PointerProperty == nullptr"), 3, 1);
+	bResult &= CanParse(Parser, TEXT("PointerProperty != nullptr"), 3, 1);
 
 	return bResult;
 }
@@ -404,6 +410,85 @@ bool FEditConditionParser_EvaluateUObject::RunTest(const FString& Parameters)
 	return bAllResults;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditConditionParser_EvaluatePointers, "EditConditionParser.EvaluatePointers", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FEditConditionParser_EvaluatePointers::RunTest(const FString& Parameters)
+{
+	UEditConditionTestObject* TestObject = NewObject<UEditConditionTestObject>();
+	TestObject->AddToRoot();
+
+	TSharedPtr<FObjectPropertyNode> ObjectNode(new FObjectPropertyNode);
+	ObjectNode->AddObject(TestObject);
+
+	FPropertyNodeInitParams InitParams;
+	ObjectNode->InitNode(InitParams);
+
+	static const FName BoolPropertyName(TEXT("BoolProperty"));
+	TSharedPtr<FPropertyNode> PropertyNode = ObjectNode->FindChildPropertyNode(BoolPropertyName, true);
+	FEditConditionContext Context(*PropertyNode.Get());
+
+	bool bAllResults = true;
+
+	FEditConditionParser Parser;
+
+	{
+		TestObject->UObjectPtr = nullptr;
+
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("UObjectPtr != nullptr"), false);
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("UObjectPtr == nullptr"), true);
+
+		TestObject->UObjectPtr = TestObject;
+
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("UObjectPtr != nullptr"), true);
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("UObjectPtr == nullptr"), false);
+	}
+
+	{
+		TestObject->SoftClassPtr = nullptr;
+
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("SoftClassPtr != nullptr"), false);
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("SoftClassPtr == nullptr"), true);
+
+		TestObject->SoftClassPtr = TestObject;
+
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("SoftClassPtr != nullptr"), true);
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("SoftClassPtr == nullptr"), false);
+	}
+
+	{
+		TestObject->WeakObjectPtr = nullptr;
+
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("WeakObjectPtr != nullptr"), false);
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("WeakObjectPtr == nullptr"), true);
+
+		TestObject->WeakObjectPtr = TestObject;
+
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("WeakObjectPtr != nullptr"), true);
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("WeakObjectPtr == nullptr"), false);
+	}
+
+	{
+		// equality & inequality
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("UObjectPtr == SoftClassPtr"), true);
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("SoftClassPtr == UObjectPtr"), true);
+
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("WeakObjectPtr != UObjectPtr"), false);
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("UObjectPtr != WeakObjectPtr"), false);
+
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("SoftClassPtr == WeakObjectPtr"), true);
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("WeakObjectPtr == UObjectPtr"), true);
+
+		TestObject->UObjectPtr = nullptr;
+
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("UObjectPtr != SoftClassPtr"), true);
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("WeakObjectPtr != UObjectPtr"), true);
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("WeakObjectPtr == UObjectPtr"), false);
+	}
+
+	TestObject->RemoveFromRoot();
+
+	return bAllResults;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditConditionParser_SingleBool, "EditConditionParser.SingleBool", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FEditConditionParser_SingleBool::RunTest(const FString& Parameters)
 {
@@ -433,6 +518,8 @@ bool FEditConditionParser_SingleBool::RunTest(const FString& Parameters)
 		const UBoolProperty* Property = Context.GetSingleBoolProperty(Expression);
 		TestNotNull(TEXT("Uint Bitfield"), Property);
 	}
+
+	TestObject->RemoveFromRoot();
 
 	return true;
 }
