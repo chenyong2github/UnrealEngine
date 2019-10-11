@@ -84,7 +84,6 @@
     <Compile Include="Framework\Utils\Gauntlet.IniConfigUtil.cs" />
     <Compile Include="Framework\Utils\Gauntlet.MarkdownBuilder.cs" />
     <Compile Include="Framework\Utils\Gauntlet.HtmlBuilder.cs" />
-    <Compile Include="Platform\Null\Gauntlet.TargetDeviceNull.cs" />
     <Compile Include="SelfTest\Unreal\Gauntlet.SelfTest.TestUnrealBuildParsing.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
@@ -208,82 +207,17 @@
     <Content Include="SelfTest\TestData\LogParser\OrionPS4ClientLogWithPerf.txt" />
     <Content Include="SelfTest\TestData\LogParser\Win64FatalError.txt" />
   </ItemGroup>
-  <ItemGroup />
-  <ItemGroup />
-  <Choose>
-    <When Condition="Exists('Platform\Android\Gauntlet.TargetDeviceAndroid.cs')">
-      <ItemGroup>
-        <Compile Include="Platform\Android\Gauntlet.TargetDeviceAndroid.cs" />
-        <Compile Include="Platform\Android\Gauntlet.AndroidBuildSource.cs" />
-      </ItemGroup>
-    </When>
-  </Choose>
-  <Choose>
-    <When Condition="Exists('Platform\IOS\Gauntlet.TargetDeviceIOS.cs')">
-      <ItemGroup>
-        <Compile Include="Platform\IOS\Gauntlet.TargetDeviceIOS.cs" />
-        <Compile Include="Platform\IOS\Gauntlet.IOSBuildSource.cs" />
-      </ItemGroup>
-    </When>
-  </Choose>
-  <Choose>
-    <When Condition="Exists('Platform\Lumin\Gauntlet.TargetDeviceLumin.cs')">
-      <ItemGroup>
-        <Compile Include="Platform\Lumin\Gauntlet.TargetDeviceLumin.cs" />
-        <Compile Include="Platform\Lumin\Gauntlet.LuminBuildSource.cs" />
-      </ItemGroup>
-    </When>
-  </Choose>
-  <Choose>
-    <When Condition="Exists('Platform\Mac\Gauntlet.TargetDeviceMac.cs')">
-      <ItemGroup>
-        <Compile Include="Platform\Mac\Gauntlet.TargetDeviceMac.cs" />
-        <Compile Include="Platform\Mac\Gauntlet.MacBuildSource.cs" />
-        <Compile Include="Platform\Mac\Gauntlet.SelfTest.TestUnrealInstallAndRunMac.cs" />
-        <Compile Include="Platform\Mac\Gauntlet.SelfTest.TestTargetDeviceMac.cs" />
-      </ItemGroup>
-    </When>
-  </Choose>
-  <Choose>
-    <When Condition="Exists('Platform\Switch\Gauntlet.TargetDeviceSwitch.cs')">
-      <ItemGroup>
-        <Compile Include="Platform\Switch\Gauntlet.TargetDeviceSwitch.cs" />
-        <Compile Include="Platform\Switch\Gauntlet.SwitchBuildSource.cs" />
-        <Compile Include="Platform\Switch\Gauntlet.SwitchPGO.cs" />
-      </ItemGroup>
-    </When>
-  </Choose>
-  <Choose>
-    <When Condition="Exists('Platform\Windows\Gauntlet.TargetDeviceWindows.cs')">
-      <ItemGroup>
-        <Compile Include="Platform\Windows\Gauntlet.TargetDeviceWindows.cs" />
-        <Compile Include="Platform\Windows\Gauntlet.WindowsBuildSources.cs" />
-        <Compile Include="Platform\Windows\Gauntlet.WindowsPGO.cs" />
-        <Compile Include="Platform\Windows\Gauntlet.SelfTest.TestTargetDeviceWindows.cs" />
-      </ItemGroup>
-    </When>
-  </Choose>
-  <Choose>
-    <When Condition="Exists('Platform\XboxOne\Gauntlet.TargetDeviceXboxOne.cs')">
-      <ItemGroup>
-        <Compile Include="Platform\XboxOne\Gauntlet.TargetDeviceXboxOne.cs" />
-        <Compile Include="Platform\XboxOne\Gauntlet.XboxOneBuildSource.cs" />
-        <Compile Include="Platform\XboxOne\Gauntlet.SelfTest.TestUnrealInstallAndRunXboxOne.cs" />
-        <Compile Include="Platform\XboxOne\Gauntlet.SelfTest.TestTargetDeviceXboxOne.cs" />
-        <Compile Include="Platform\XboxOne\Gauntlet.XboxOnePGO.cs" />
-      </ItemGroup>
-    </When>
-  </Choose>
+  <ItemGroup>
+        <Compile Include="Platform\**\*.cs" />
+  </ItemGroup>
 
   <!-- The following will glob all platform extensions' Gauntlet source
   files and include them in the build. They will also appear in VisualStudio -->
   <ItemGroup>
-    <PlatformExtensions Include="../../../../Platforms/*/Source/Programs/AutomationTool/Gauntlet/**/*.cs" />
-    <Compile Include="@(PlatformExtensions)">
+    <Compile Include="../../../../Platforms/*/Source/Programs/AutomationTool/Gauntlet/**/*.cs">
       <Link>Platform/$([System.Text.RegularExpressions.Regex]::Split(`%(Identity)`, `[\\/]`)[5])/_</Link>
     </Compile>
   </ItemGroup>
-  
   
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
