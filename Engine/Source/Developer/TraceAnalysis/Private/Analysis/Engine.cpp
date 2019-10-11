@@ -358,8 +358,7 @@ FAnalysisEngine::FAnalysisEngine(TArray<IAnalyzer*>&& InAnalyzers)
 	// Add a dispatch for special events
 	FDispatchBuilder Builder;
 	Builder.SetUid(uint16(FNewEventEvent::Uid));
-	Dispatches.Add(Builder.Finalize());
-	Dispatches[0]->FirstRoute = 0;
+	AddDispatch(Builder.Finalize());
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -561,14 +560,31 @@ void FAnalysisEngine::OnNewEventInternal(const FOnEventContext& Context)
 	// Get the dispatch and add it into the dispatch table. Fail gently if there
 	// is the dispatch table unexpetedly already has an entry.
 	FDispatch* Dispatch = Builder.Finalize();
+	if (!AddDispatch(Dispatch))
+	{
+		return;
+	}
 
+	// Inform routes that a new event has been declared.
+	ForEachRoute(Dispatch, [&] (IAnalyzer* Analyzer, uint16 RouteId)
+	{
+		if (!Analyzer->OnNewEvent(RouteId, *(FEventTypeInfo*)Dispatch))
+		{
+			RetireAnalyzer(Analyzer);
+		}
+	});
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool FAnalysisEngine::AddDispatch(FDispatch* Dispatch)
+{
 	uint16 Uid = Dispatch->Uid;
 	if (Uid < Dispatches.Num())
  	{
 		if (Dispatches[Uid] != nullptr)
  		{
 			FMemory::Free(Dispatch);
-			return;
+			return false;
  		}
  	}
 	else
@@ -588,14 +604,7 @@ void FAnalysisEngine::OnNewEventInternal(const FOnEventContext& Context)
 		}
 	}
 
-	// Inform routes that a new event has been declared.
-	ForEachRoute(Dispatch, [&] (IAnalyzer* Analyzer, uint16 RouteId)
-	{
-		if (!Analyzer->OnNewEvent(RouteId, *(FEventTypeInfo*)Dispatch))
-		{
-			RetireAnalyzer(Analyzer);
-		}
-	});
+	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
