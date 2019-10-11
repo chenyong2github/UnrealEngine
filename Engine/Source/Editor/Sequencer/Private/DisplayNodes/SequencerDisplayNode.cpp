@@ -73,7 +73,31 @@ namespace SequencerNodeConstants
 		// For nodes of the same bias, sort by name
 		if (BiasA == BiasB)
 		{
-			return A->GetDisplayName().CompareToCaseIgnored(B->GetDisplayName()) < 0;
+			const int32 Compare = A->GetDisplayName().CompareToCaseIgnored(B->GetDisplayName());
+
+			if (Compare != 0)
+			{
+				return Compare < 0;
+			}
+
+			// If the nodes have the same name, try to maintain current sorting order
+			const int32 SortA = A->GetSortingOrder();
+			const int32 SortB = B->GetSortingOrder();
+
+			if (SortA >= 0 && SortB >= 0)
+			{
+				// Both nodes have persistent sort orders, use those
+				return SortA < SortB;
+			}
+			else if (SortA >= 0 || SortB >= 0)
+			{
+				// Only one nodes has a persistent sort order, list it first
+				return SortA > SortB;
+			}
+			
+			// If same name and neither has a persistent sort order, then report them as equal
+			return false;
+
 		}
 		return BiasA < BiasB;
 	}

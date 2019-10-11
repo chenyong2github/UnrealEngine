@@ -165,6 +165,9 @@ protected:
 	/** What was the time of the mouse for the previous frame? Used to calculate a per-frame delta. */
 	FFrameTime MouseTimePrev;
 
+	/** The position of the mouse when the last section move occurred */
+	TOptional<float> PrevMousePosY;
+
 	struct FRelativeOffset
 	{
 		FRelativeOffset()
