@@ -6,6 +6,9 @@
 
 #pragma once
 
+#include "Common.ush"
+
+
 // Return far plane when scene textures are disabled in order not to break depthfade
 #define SCENE_TEXTURES_DISABLED_SCENE_DEPTH_VALUE 1e6
 

@@ -14,6 +14,7 @@
 #include "../SceneTextureParameters.ush"
 #include "../ColorSpace.ush"
 #include "../SphericalGaussian.ush"
+#include "/Engine/Public/WaveBroadcastIntrinsics.ush"
 
 #if SPHERICAL_HARMONIC_ORDER > 0
 	#include "../SHCommon.ush"
@@ -21,6 +22,7 @@
 
 #include "SSDPublic.ush"
 #include "SSDDefinitions.ush"
+#include "SSDMetadata.ush"
 
 
 //------------------------------------------------------- SHARED CONSTANTS DEPENDING ON CONFIG OF SHADER
@@ -37,7 +39,7 @@
 #if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS
 	#define TARGETED_SAMPLE_COUNT 128
 
-#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_MONOCHROMATIC_PENUMBRA
+#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK
 	// A gray scale valued encoded into a 16bit float only have 10bits mantissa.
 	#define TARGETED_SAMPLE_COUNT 1024
 
@@ -52,9 +54,26 @@
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_SPHERICAL_HARMONIC
 	#define TARGETED_SAMPLE_COUNT 128
 
+#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SSGI
+	#define TARGETED_SAMPLE_COUNT 128
+	#define CONFIG_METADATA_BUFFER_LAYOUT METADATA_BUFFER_LAYOUT_DEPTH_VIEWNORMAL
+	#define CONFIG_USE_VIEW_SPACE 1
+
 #else
 	#error Unconfigured TARGETED_SAMPLE_COUNT
 
+#endif
+
+#ifndef CONFIG_METADATA_BUFFER_LAYOUT
+	#define CONFIG_METADATA_BUFFER_LAYOUT METADATA_BUFFER_LAYOUT_DISABLED
+#endif
+
+#ifndef CONFIG_USE_VIEW_SPACE
+	#define CONFIG_USE_VIEW_SPACE 0
+#endif
+
+#if CONFIG_USE_VIEW_SPACE && CONFIG_METADATA_BUFFER_LAYOUT != METADATA_BUFFER_LAYOUT_DEPTH_VIEWNORMAL
+	#error The all point of using view space is to avoid matrix view -> world computation of the metadata.
 #endif
 
 
@@ -62,12 +81,28 @@
 
 uint2 ViewportMin;
 uint2 ViewportMax;
+float4 ThreadIdToBufferUV;
 float4 BufferBilinearUVMinMax;
+float2 BufferUVToOutputPixelPosition;
+float4 BufferUVToScreenPosition;
+float4x4 ScreenToView;
 
-float4x4  PrevScreenToTranslatedWorld;
+float WorldDepthToPixelWorldRadius;
+
 Texture2D PrevDepthBuffer;
 Texture2D PrevGBufferA;
 Texture2D PrevGBufferB;
+// There is intentionally no PrevScreenToView, because the all point of is to avoid full matrix computation in inner loops.
+
+Texture2D<uint> CompressedMetadata_0;
+Texture2D<uint> CompressedMetadata_1;
+
+Texture2D<uint> PrevCompressedMetadata_0;
+Texture2D<uint> PrevCompressedMetadata_1;
+
+#if DEBUG_OUTPUT
+RWTexture2D<float4> DebugOutput;
+#endif
 
 
 //------------------------------------------------------- SHARED FUNCTION
@@ -79,25 +114,36 @@ float SafeRcp(float x)
 	return 0;
 }
 
-uint CompressN(float3 N)
+#if CONFIG_USE_VIEW_SPACE
+float4x4 GetScreenToViewDistanceMatrix()
 {
-	// matches 8bits GBuffer A to be lossless.
-	uint3 K = uint3(saturate(N * 0.5 + 0.5) * 255.0);
+	float4x4 LocalScreenToView = ScreenToView;
 
-	// TODO: K.x is stored in << 24 instead of << 0 to work arround a shader compiler bug.
-	return uint(K.x << 24 | K.y << 8 | K.z << 16);
+	// Intentionally nullout some values, so the compiler can remove some of the VALU, that is all the point of CONFIG_USE_VIEW_SPACE.
+	// TODO(Denoiser): off axis projection.
+	{
+		LocalScreenToView[0][1] = 0.0;
+		LocalScreenToView[0][2] = 0.0;
+		LocalScreenToView[0][3] = 0.0;
+		
+		LocalScreenToView[1][0] = 0.0;
+		LocalScreenToView[1][2] = 0.0;
+		LocalScreenToView[1][3] = 0.0;
+		
+		LocalScreenToView[2][0] = 0.0;
+		LocalScreenToView[2][1] = 0.0;
+		LocalScreenToView[2][2] = 1.0;
+		LocalScreenToView[2][3] = 0.0;
+
+		LocalScreenToView[3][0] = 0.0;
+		LocalScreenToView[3][1] = 0.0;
+		LocalScreenToView[3][2] = 0.0;
+		LocalScreenToView[3][3] = 1.0;
+	}
+
+	return LocalScreenToView;
 }
-
-float3 DecompressN(uint EncodedN)
-{
-	uint3 K;
-	K.x = (EncodedN >> 24) & 0xFF;
-	K.y = (EncodedN >>  8) & 0xFF;
-	K.z = (EncodedN >> 16) & 0xFF;
-
-	return float3(K) * (2.0 / 255.0) - 1.0;
-}
-
+#endif
 
 //------------------------------------------------------- SPHERICAL HARMONIC INTERFACE
 
@@ -118,101 +164,6 @@ typedef FThreeBandSHVectorRGB FSSDSphericalHarmonicRGB;
 #endif
 
 
-//------------------------------------------------------- COMMON SCENE INFOS
-
-/** olds commonly used information of the scene of a given sample. */
-struct FSSDSampleSceneInfos
-{
-	/** Normal of the pixel in world space. */
-	float3 WorldNormal;
-
-	/** Compressed form of the world normal. */
-	uint CompressedWorldNormal;
-
-	/** The position of the pixel in the translated world frame. */
-	float3 TranslatedWorldPosition;
-
-	/** Pixel depth in world space. */
-	float WorldDepth;
-
-	/** Roughness of the pixel. */
-	float Roughness;
-};
-
-FSSDSampleSceneInfos CreateSampleSceneInfos()
-{
-	FSSDSampleSceneInfos Infos;
-	Infos.WorldNormal             = 0;
-	Infos.CompressedWorldNormal   = 0;
-	Infos.TranslatedWorldPosition = 0;
-	Infos.WorldDepth              = 0;
-	Infos.Roughness               = 0;
-	return Infos;
-}
-
-FSSDSampleSceneInfos InitSampleSceneInfos(
-	float4x4 ScreenToTranslatedWorld,
-	float2 ScreenPosition, float WorldDepth, float3 WorldNormal, float Roughness)
-{
-	FSSDSampleSceneInfos Infos;
-
-	float2 ClipPosition = ScreenPosition * (View.ViewToClip[3][3] < 1.0f ? WorldDepth : 1.0f);
-	Infos.TranslatedWorldPosition = mul(float4(ClipPosition, WorldDepth, 1), ScreenToTranslatedWorld).xyz;
-	Infos.WorldDepth = WorldDepth;
-	Infos.WorldNormal = WorldNormal;
-	Infos.CompressedWorldNormal = CompressN(WorldNormal); // TODO: directly fetch CompressedWorldNormal from the sample 
-	Infos.Roughness = Roughness;
-	return Infos;
-}
-
-FSSDSampleSceneInfos FetchCurrentSceneInfos(float2 ScreenPosition, float2 BufferUV)
-{
-	FGBufferData GBufferData = GetGBufferDataFromSceneTextures(BufferUV);
-	return InitSampleSceneInfos(
-		View.ScreenToTranslatedWorld,
-		ScreenPosition, GBufferData.Depth, GBufferData.WorldNormal, GBufferData.Roughness);
-}
-
-FSSDSampleSceneInfos FetchPrevSceneInfos(float2 ScreenPosition, float2 BufferUV)
-{
-	// TODO: so what to do with mip level of these guys?
-	float WorldSceneDepth = ConvertFromDeviceZ(PrevDepthBuffer.SampleLevel(GlobalPointClampedSampler, BufferUV, 0).r);
-	float3 WorldNormal = DecodeNormal(PrevGBufferA.SampleLevel(GlobalPointClampedSampler, BufferUV, 0).rgb);
-	float Roughness = PrevGBufferB.SampleLevel(GlobalPointClampedSampler, BufferUV, 0).b;
-
-	FSSDSampleSceneInfos OutMetadata;
-	OutMetadata = InitSampleSceneInfos(
-		View.PrevScreenToTranslatedWorld,
-		ScreenPosition, WorldSceneDepth, WorldNormal, Roughness);
-
-	// TODO: PrevScreenToCurrentTranslatedWorld
-	OutMetadata.TranslatedWorldPosition += -View.PrevPreViewTranslation.xyz + View.PreViewTranslation.xyz;
-	return OutMetadata;
-}
-
-ISOLATE
-float3 GetWorldNormal(FSSDSampleSceneInfos SceneMetadata)
-#if CONFIG_COMPRESS_WORLD_NORMAL
-{
-	return DecompressN(SceneMetadata.CompressedWorldNormal);
-}
-#else
-{
-	return SceneMetadata.WorldNormal;
-}
-#endif
-
-float ProjectWorldDistanceToScreenDistance(FSSDSampleSceneInfos SceneMetadata, float WorldDistance)
-{
-	float4 ClipDistance = mul(View.ViewToClipNoAA, float4(WorldDistance, 0, SceneMetadata.WorldDepth, 1));
-	return ClipDistance.x / ClipDistance.w;
-}
-
-float ProjectWorldDistanceToPixelDistance(FSSDSampleSceneInfos SceneMetadata, float WorldDistance)
-{
-	return WorldDistance * View.ViewSizeAndInvSize.x * 0.5 / (SceneMetadata.WorldDepth * GetTanHalfFieldOfView().x);
-}
-
 /** Compute the anisotropy value. The lower the value is, the more anysotropic the sample is. */
 float ComputeAnisotropyInvFactor(FSSDSampleSceneInfos SceneMetadata)
 {
@@ -226,40 +177,11 @@ float ComputeAnisotropyInvFactor(FSSDSampleSceneInfos SceneMetadata)
 	return max(Anysotropy, rcp(8));
 }
 
-/** Return whether this signal should store in given mip level. */
-float ComputeSignalMipLevel(FSSDSampleSceneInfos SceneMetadata, float WorldBluringRadius)
-{
-	if (WorldBluringRadius == WORLD_RADIUS_INVALID)
-	{
-		return MIP_LEVEL_INVALID;
-	}
-	else if (WorldBluringRadius == WORLD_RADIUS_MISS)
-	{
-		return MIP_LEVEL_MISS;
-	}
-	else if (DEBUG_MIP_LEVEL != MIP_LEVEL_INVALID)
-	{
-		return DEBUG_MIP_LEVEL;
-	}
-
-	// Compute how much the pixel can be blured on screen
-	// TODO: anysotopy with scene bent normals?
-	float SmallestPixelBlurRadius = ProjectWorldDistanceToPixelDistance(SceneMetadata, WorldBluringRadius);
-
-	// Take into account the spatial bluring radius that may also happen when not enough temporal samples.
-	SmallestPixelBlurRadius *= rcp(BLURING_ESTIMATION_MULTIPLIER);
-
-	// Compute on what mip level this signal can be denoised.
-	return clamp(log2(SmallestPixelBlurRadius), 0, MAX_MIP_LEVEL_COUNT - 1);
-}
-
 /** Returns the radius of a pixel in world space. */
-// TODO: move that to CPU
 float ComputeWorldBluringRadiusCausedByPixelSize(FSSDSampleSceneInfos SceneMetadata)
 {
 	// Should be multiplied 0.5* for the diameter to radius, and by 2.0 because GetTanHalfFieldOfView() cover only half of the pixels.
-	// TODO: should do shader parameter.
-	return ToScalarMemory(View.ViewSizeAndInvSize.z * GetTanHalfFieldOfView().x) * SceneMetadata.WorldDepth;
+	return WorldDepthToPixelWorldRadius * GetWorldDepth(SceneMetadata);
 }
 
 /** Convert to bilateral world distance. */
@@ -278,3 +200,60 @@ float WorldBluringRadiusToBilateralWorldDistance(float WorldBluringRadius)
 
 	return WorldBluringRadius * Multiplier;
 }
+
+uint2 BufferUVToBufferPixelCoord(float2 SceneBufferUV)
+{
+	return uint2(SceneBufferUV * BufferUVToOutputPixelPosition);
+}
+
+float2 DenoiserBufferUVToScreenPosition(float2 SceneBufferUV)
+{
+	return SceneBufferUV * BufferUVToScreenPosition.xy + BufferUVToScreenPosition.zw;
+}
+
+FSSDCompressedSceneInfos SampleCompressedSceneMetadata(
+	const bool bPrevFrame,
+	float2 BufferUV, uint2 PixelCoord)
+#if CONFIG_METADATA_BUFFER_LAYOUT == METADATA_BUFFER_LAYOUT_DISABLED
+{
+	FSSDCompressedSceneInfos CompressedMetadata = CreateCompressedSceneInfos();
+
+	if (bPrevFrame)
+	{
+		// TODO(Denoiser): so what to do with mip level of these guys?
+		float WorldSceneDepth = ConvertFromDeviceZ(PrevDepthBuffer.SampleLevel(GlobalPointClampedSampler, BufferUV, 0).r);
+		float3 WorldNormal = DecodeNormal(PrevGBufferA.SampleLevel(GlobalPointClampedSampler, BufferUV, 0).rgb);
+		float Roughness = PrevGBufferB.SampleLevel(GlobalPointClampedSampler, BufferUV, 0).b;
+
+		CompressedMetadata.VGPR[0] = asuint(WorldSceneDepth);
+		CompressedMetadata.VGPR[1] = asuint(WorldNormal.x);
+		CompressedMetadata.VGPR[2] = asuint(WorldNormal.y);
+		CompressedMetadata.VGPR[3] = asuint(WorldNormal.z);
+		CompressedMetadata.VGPR[4] = asuint(Roughness);
+	}
+	else
+	{
+		float DeviceZ = SampleDeviceZFromSceneTextures(BufferUV);
+		FGBufferData GBufferData = GetGBufferDataFromSceneTextures(BufferUV);
+		
+		CompressedMetadata.VGPR[0] = asuint(GBufferData.Depth);
+		CompressedMetadata.VGPR[1] = asuint(GBufferData.WorldNormal.x);
+		CompressedMetadata.VGPR[2] = asuint(GBufferData.WorldNormal.y);
+		CompressedMetadata.VGPR[3] = asuint(GBufferData.WorldNormal.z);
+		CompressedMetadata.VGPR[4] = asuint(GBufferData.Roughness);
+	}
+
+	return CompressedMetadata;
+}
+#else
+{
+	FSSDCompressedSceneInfos CompressedMetadata = CreateCompressedSceneInfos();
+
+	Texture2D<uint> CompressedMetadata0 = bPrevFrame ? PrevCompressedMetadata_0 : CompressedMetadata_0; 
+
+	int3 Coord = int3(PixelCoord, /* MipLevel = */ 0);
+	CompressedMetadata.VGPR[0] = CompressedMetadata0.Load(Coord);
+	
+	return CompressedMetadata;
+}
+#endif

@@ -21,6 +21,7 @@ UStereoLayerComponent::UStereoLayerComponent(const FObjectInitializer& ObjectIni
 	, CylinderRadius(100)
 	, CylinderOverlayArc(100)
 	, CylinderHeight(50)
+	, EquirectProps()
 	, StereoLayerType(SLT_FaceLocked)
 	, StereoLayerShape(SLSH_QuadLayer)
 	, Priority(0)
@@ -51,7 +52,7 @@ void UStereoLayerComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 	Super::TickComponent( DeltaTime, TickType, ThisTickFunction );
 
 	IStereoLayers* StereoLayers;
-	if (!GEngine->StereoRenderingDevice.IsValid() || (StereoLayers = GEngine->StereoRenderingDevice->GetStereoLayers()) == nullptr || !Texture )
+	if (!GEngine->StereoRenderingDevice.IsValid() || (StereoLayers = GEngine->StereoRenderingDevice->GetStereoLayers()) == nullptr)
 	{
 		return;
 	}
@@ -80,78 +81,77 @@ void UStereoLayerComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 
 	if (bIsDirty)
 	{
-		if (!bCurrVisible)
+		IStereoLayers::FLayerDesc LayerDsec;
+		LayerDsec.Priority = Priority;
+		LayerDsec.QuadSize = QuadSize;
+		LayerDsec.UVRect = UVRect;
+		LayerDsec.Transform = Transform;
+
+		if (Texture)
 		{
-			if (LayerId)
-			{
-				StereoLayers->DestroyLayer(LayerId);
-				LayerId = 0;
-			}
+			LayerDsec.Texture = Texture->Resource->TextureRHI;
+			LayerDsec.Flags |= (Texture->GetMaterialType() == MCT_TextureExternal) ? IStereoLayers::LAYER_FLAG_TEX_EXTERNAL : 0;
+		}
+		if (LeftTexture)
+		{
+			LayerDsec.LeftTexture = LeftTexture->Resource->TextureRHI;
+		}
+				
+		LayerDsec.Flags |= (bLiveTexture) ? IStereoLayers::LAYER_FLAG_TEX_CONTINUOUS_UPDATE : 0;
+		LayerDsec.Flags |= (bNoAlphaChannel) ? IStereoLayers::LAYER_FLAG_TEX_NO_ALPHA_CHANNEL : 0;
+		LayerDsec.Flags |= (bQuadPreserveTextureRatio) ? IStereoLayers::LAYER_FLAG_QUAD_PRESERVE_TEX_RATIO : 0;
+		LayerDsec.Flags |= (bSupportsDepth) ? IStereoLayers::LAYER_FLAG_SUPPORT_DEPTH : 0;
+		LayerDsec.Flags |= (!bCurrVisible) ? IStereoLayers::LAYER_FLAG_HIDDEN : 0;
+
+		switch (StereoLayerType)
+		{
+		case SLT_WorldLocked:
+			LayerDsec.PositionType = IStereoLayers::WorldLocked;
+			break;
+		case SLT_TrackerLocked:
+			LayerDsec.PositionType = IStereoLayers::TrackerLocked;
+			break;
+		case SLT_FaceLocked:
+			LayerDsec.PositionType = IStereoLayers::FaceLocked;
+			break;
+		}
+
+		switch (StereoLayerShape)
+		{
+		case SLSH_QuadLayer:
+			LayerDsec.ShapeType = IStereoLayers::QuadLayer;
+			break;
+
+		case SLSH_CylinderLayer:
+			LayerDsec.ShapeType = IStereoLayers::CylinderLayer;
+			LayerDsec.CylinderRadius = CylinderRadius;
+			LayerDsec.CylinderOverlayArc = CylinderOverlayArc;
+			LayerDsec.CylinderHeight = CylinderHeight;
+			break;
+
+		case SLSH_CubemapLayer:
+			LayerDsec.ShapeType = IStereoLayers::CubemapLayer;
+			break;
+
+		case SLSH_EquirectLayer:
+			LayerDsec.ShapeType = IStereoLayers::EquirectLayer;
+			LayerDsec.EquirectProps = { EquirectProps.LeftUVRect, EquirectProps.RightUVRect, EquirectProps.LeftScale, EquirectProps.RightScale, EquirectProps.LeftBias, EquirectProps.RightBias };
+			break;
+
+		default:
+			break;
+		}
+
+
+		if (LayerId)
+		{
+			StereoLayers->SetLayerDesc(LayerId, LayerDsec);
 		}
 		else
 		{
-			IStereoLayers::FLayerDesc LayerDsec;
-			LayerDsec.Priority = Priority;
-			LayerDsec.QuadSize = QuadSize;
-			LayerDsec.UVRect = UVRect;
-			LayerDsec.Transform = Transform;
-			if (Texture)
-			{
-				LayerDsec.Texture = Texture->Resource->TextureRHI;
-			}
-			if (LeftTexture)
-			{
-				LayerDsec.LeftTexture = LeftTexture->Resource->TextureRHI;
-			}
-			LayerDsec.CylinderRadius = CylinderRadius; 
-			LayerDsec.CylinderOverlayArc = CylinderOverlayArc;
-			LayerDsec.CylinderHeight = CylinderHeight;
-			
-			LayerDsec.Flags |= (bLiveTexture) ? IStereoLayers::LAYER_FLAG_TEX_CONTINUOUS_UPDATE : 0;
-			LayerDsec.Flags |= (bNoAlphaChannel) ? IStereoLayers::LAYER_FLAG_TEX_NO_ALPHA_CHANNEL : 0;
-			LayerDsec.Flags |= (bQuadPreserveTextureRatio) ? IStereoLayers::LAYER_FLAG_QUAD_PRESERVE_TEX_RATIO : 0;
-			LayerDsec.Flags |= (bSupportsDepth) ? IStereoLayers::LAYER_FLAG_SUPPORT_DEPTH : 0;
-			LayerDsec.Flags |= (Texture->GetMaterialType() == MCT_TextureExternal) ? IStereoLayers::LAYER_FLAG_TEX_EXTERNAL : 0;
-
-			switch (StereoLayerType)
-			{
-			case SLT_WorldLocked:
-				LayerDsec.PositionType = IStereoLayers::WorldLocked;
-				break;
-			case SLT_TrackerLocked:
-				LayerDsec.PositionType = IStereoLayers::TrackerLocked;
-				break;
-			case SLT_FaceLocked:
-				LayerDsec.PositionType = IStereoLayers::FaceLocked;
-				break;
-			}
-
-			switch (StereoLayerShape)
-			{
-			case SLSH_QuadLayer:
-				LayerDsec.ShapeType = IStereoLayers::QuadLayer;
-				break;
-
-			case SLSH_CylinderLayer:
-				LayerDsec.ShapeType = IStereoLayers::CylinderLayer;
-				break;
-
-			case SLSH_CubemapLayer:
-				LayerDsec.ShapeType = IStereoLayers::CubemapLayer;
-				break;
-			default:
-				break;
-			}
-
-			if (LayerId)
-			{
-				StereoLayers->SetLayerDesc(LayerId, LayerDsec);
-			}
-			else
-			{
-				LayerId = StereoLayers->CreateLayer(LayerDsec);
-			}
+			LayerId = StereoLayers->CreateLayer(LayerDsec);
 		}
+		
 		LastTransform = Transform;
 		bLastVisible = bCurrVisible;
 		bIsDirty = false;
@@ -205,6 +205,16 @@ void UStereoLayerComponent::SetUVRect(FBox2D InUVRect)
 	}
 
 	UVRect = InUVRect;
+	bIsDirty = true;
+}
+
+void UStereoLayerComponent::SetEquirectProps(FEquirectProps InEquirectProps)
+{
+	if (EquirectProps == InEquirectProps)
+	{
+		return;
+	}
+	EquirectProps = InEquirectProps;
 	bIsDirty = true;
 }
 

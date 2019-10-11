@@ -1,52 +1,48 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	PostProcessVisualizeBuffer.h: Post processing buffer visualization
-=============================================================================*/
-
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RendererInterface.h"
-#include "PostProcess/RenderingCompositionGraph.h"
+#include "OverridePassSequence.h"
 
-// derives from TRenderingCompositePassBase<InputCount, OutputCount>
-// ePId_Input0: SceneColor
-// ePId_Input1: SeparateTranslucency
-class FRCPassPostProcessVisualizeBuffer : public TRenderingCompositePassBase<2, 1>
+// Returns whether the gbuffer visualization pass needs to render on screen.
+bool IsVisualizeGBufferOverviewEnabled(const FViewInfo& View);
+
+// Returns whether the gubffer visualization pass needs to dump targets to files.
+bool IsVisualizeGBufferDumpToFileEnabled(const FViewInfo& View);
+
+// Returns whether the gbuffer visualization pass needs to dump to a pipe.
+bool IsVisualizeGBufferDumpToPipeEnabled(const FViewInfo& View);
+
+// Returns whether the gbuffer visualization pass should output in floating point format.
+bool IsVisualizeGBufferInFloatFormat();
+
+struct FVisualizeGBufferOverviewInputs
 {
-public:
+	FScreenPassRenderTarget OverrideOutput;
 
-	/** Data for a single buffer overview tile **/
-	struct TileData
-	{
-		FRenderingCompositeOutputRef Source;
-		FString Name;
-		bool bIsSelected;
+	// The current scene color being processed.
+	FScreenPassTexture SceneColor;
 
-		TileData(FRenderingCompositeOutputRef InSource, const FString& InName, bool bSelected)
-		: Source (InSource)
-		, Name (InName)
-		, bIsSelected(bSelected)
-		{
+	// The HDR scene color immediately before tonemapping is applied.
+	FScreenPassTexture SceneColorBeforeTonemap;
 
-		}
-	};
+	// The scene color immediately after tonemapping is applied.
+	FScreenPassTexture SceneColorAfterTonemap;
 
-	// constructor
-	void AddVisualizationBuffer(FRenderingCompositeOutputRef InSource, const FString& InName, bool bIsSelected = false);
+	// The separate translucency texture to composite.
+	FScreenPassTexture SeparateTranslucency;
 
-	// interface FRenderingCompositePass ---------
+	// The original scene velocity texture to composite.
+	FScreenPassTexture Velocity;
 
-	virtual void Process(FRenderingCompositePassContext& Context) override;
-	virtual void Release() override { delete this; }
-	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
+	// Dump targets to files on disk.
+	bool bDumpToFile = false;
 
-private:
+	// Render an overview of the GBuffer targets.
+	bool bOverview = false;
 
-	// @return VertexShader
-	template <bool bDrawTileTemplate>
-	FShader* SetShaderTempl(const FRenderingCompositePassContext& Context);
-
-	TArray<TileData> Tiles;
+	// Whether to emit outputs in HDR.
+	bool bOutputInHDR = false;
 };
+
+FScreenPassTexture AddVisualizeGBufferOverviewPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FVisualizeGBufferOverviewInputs& Inputs);

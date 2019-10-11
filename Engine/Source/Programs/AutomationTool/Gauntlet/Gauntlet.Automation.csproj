@@ -157,6 +157,10 @@
       <Name>Localization.Automation</Name>
       <Private>False</Private>
     </ProjectReference>
+    <ProjectReference Include="..\Lumin\Lumin.Automation.csproj">
+      <Project>{17779110-5cab-43a0-9dfb-4df67df29b42}</Project>
+      <Name>Lumin.Automation</Name>
+    </ProjectReference>
     <ProjectReference Include="..\XLocLocalization\XLocLocalization.Automation.csproj">
       <Project>{7e2d6784-c9b7-40c6-a89b-0a8afddce60d}</Project>
       <Name>XLocLocalization.Automation</Name>
@@ -206,5 +210,14 @@
   <ItemGroup>
         <Compile Include="Platform\**\*.cs" />
   </ItemGroup>
+
+  <!-- The following will glob all platform extensions' Gauntlet source
+  files and include them in the build. They will also appear in VisualStudio -->
+  <ItemGroup>
+    <Compile Include="../../../../Platforms/*/Source/Programs/AutomationTool/Gauntlet/**/*.cs">
+      <Link>Platform/$([System.Text.RegularExpressions.Regex]::Split(`%(Identity)`, `[\\/]`)[5])/_</Link>
+    </Compile>
+  </ItemGroup>
+  
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

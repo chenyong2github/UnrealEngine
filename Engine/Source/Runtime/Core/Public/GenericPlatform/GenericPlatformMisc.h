@@ -1329,12 +1329,6 @@ public:
 	}
 
 	/**
-	 * Returns a list of platforms that are confidential in nature. To avoid hardcoding the list, this
-	 * looks on disk the first time for special files, so it is non-instant.
-	 */
-	static const TArray<FString>& GetConfidentialPlatforms();
-	
-	/**
 	 * For mobile devices, this will crank up a haptic engine for the specified type to be played later with TriggerMobileHaptics
 	 * If this is called again before Release, it will switch to this type
 	 */
@@ -1397,6 +1391,15 @@ public:
 	static void HidePlatformStartupScreen()
 	{
 
+	}
+
+	FORCEINLINE static bool UseHDRByDefault()
+	{
+		return false;
+	}
+
+	FORCEINLINE static void ChooseHDRDeviceAndColorGamut(uint32 DeviceId, uint32 DisplayNitLevel, int32& OutputDevice, int32& ColorGamut)
+	{
 	}
 
 #if !UE_BUILD_SHIPPING

@@ -144,17 +144,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(FRH
 		}
 		else if (bApplySSGI)
 		{
-			static bool bWarnExperimental = false;
-			if (!bWarnExperimental)
-			{
-				UE_LOG(LogRenderer, Warning, TEXT("SSGI is experimental."));
-				bWarnExperimental = true;
-			}
-
-			RenderScreenSpaceDiffuseIndirect(GraphBuilder, SceneTextures, SceneColor, View, /* out */ &DenoiserInputs);
-			
-			// TODO: Denoise.
-			DenoiseMode = 0;
+			RenderScreenSpaceDiffuseIndirect(GraphBuilder, SceneTextures, SceneColor, View, /* out */ &RayTracingConfig, /* out */ &DenoiserInputs);
 		}
 		else
 		{
@@ -173,6 +163,8 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(FRH
 				DenoiserToUse->GetDebugName(),
 				View.ViewRect.Width(), View.ViewRect.Height());
 
+			if (bApplyRTGI)
+			{
 				DenoiserOutputs = DenoiserToUse->DenoiseDiffuseIndirect(
 					GraphBuilder,
 					View,
@@ -183,6 +175,17 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(FRH
 			}
 			else
 			{
+				DenoiserOutputs = DenoiserToUse->DenoiseScreenSpaceDiffuseIndirect(
+					GraphBuilder,
+					View,
+					&View.PrevViewInfo,
+					SceneTextures,
+					DenoiserInputs,
+					RayTracingConfig);
+			}
+		}
+		else
+		{
 			DenoiserOutputs.Color = DenoiserInputs.Color;
 			DenoiserOutputs.AmbientOcclusionMask = DenoiserInputs.AmbientOcclusionMask;
 		}

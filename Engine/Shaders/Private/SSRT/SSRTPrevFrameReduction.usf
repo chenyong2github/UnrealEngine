@@ -50,53 +50,53 @@ void MainCS(
 	float2 PrevScreen;
 	bool bIsSky = false;
 
+	float4 PrevSceneColor;
+
 	#if DIM_LOWER_MIPS
 	{
 		PrevFrameUV = TexelSize * (float2(DispatchThreadId) + 0.5) * View.BufferSizeAndInvSize.zw;
 		PrevScreen = 0.0; // unused.
+		
+		PrevSceneColor = HigherMipTexture.SampleLevel(HigherMipTextureSampler, PrevFrameUV, 0);
 	}
 	#else
-	if (bIsTemporalAAHistory)
-    {
-		float DeviceZ = SceneDepthBuffer.SampleLevel(SceneDepthBufferSampler, BufferUV, 0).r;
-
-		// Camera motion for pixel (in ScreenPos space).
-		float4 ThisClip = float4(ScreenPosition, DeviceZ, 1);
-		float4 PrevClip = mul(ThisClip, View.ClipToPrevClip);
-		PrevScreen = PrevClip.xy / PrevClip.w;
-
-		bIsSky = ConvertFromDeviceZ(DeviceZ) > 100 * 1000;
-
-		float2 EncodedVelocity = SceneVelocityBuffer.SampleLevel(SceneVelocityBufferSampler, BufferUV, 0).xy;
-		if (EncodedVelocity.x > 0.0)
-		{
-			PrevScreen = ThisClip.xy - DecodeVelocityFromTexture(EncodedVelocity);
-		}
-
-		PrevFrameUV = PrevScreen.xy * PrevScreenPositionScaleBias.xy + PrevScreenPositionScaleBias.zw;
-    }
-	else
-    {
-		PrevFrameUV = BufferUV;
-		PrevScreen = ScreenPosition;
-    }
-	#endif
-	
-	// Fetch color.
-	#if DIM_LOWER_MIPS
-		float4 PrevSceneColor = HigherMipTexture.SampleLevel(HigherMipTextureSampler, PrevFrameUV, 0);
-	#else
-		float4 PrevSceneColor = float4(
-			PrevTemporalAAHistory.SampleLevel(PrevTemporalAAHistorySampler, PrevFrameUV, 0).rgb, 1.0);
-	#endif
-		
-	#if CONFIG_COLOR_TILE_CLASSIFICATION
-		if (bIsSky)
-			PrevSceneColor = 0;
-	#endif
-
-	#if DIM_LOWER_MIPS == 0
 	{
+		if (bIsTemporalAAHistory)
+		{
+			float DeviceZ = SceneDepthBuffer.SampleLevel(SceneDepthBufferSampler, BufferUV, 0).r;
+
+			// Camera motion for pixel (in ScreenPos space).
+			float4 ThisClip = float4(ScreenPosition, DeviceZ, 1);
+			float4 PrevClip = mul(ThisClip, View.ClipToPrevClip);
+			PrevScreen = PrevClip.xy / PrevClip.w;
+
+			bIsSky = ConvertFromDeviceZ(DeviceZ) > 100 * 1000;
+
+			float2 EncodedVelocity = SceneVelocityBuffer.SampleLevel(SceneVelocityBufferSampler, BufferUV, 0).xy;
+			if (EncodedVelocity.x > 0.0)
+			{
+				PrevScreen = ThisClip.xy - DecodeVelocityFromTexture(EncodedVelocity);
+			}
+
+			PrevFrameUV = PrevScreen.xy * PrevScreenPositionScaleBias.xy + PrevScreenPositionScaleBias.zw;
+		}
+		else
+		{
+			PrevFrameUV = BufferUV;
+			PrevScreen = ScreenPosition;
+		}
+		
+		// Fetch color.
+		PrevSceneColor = float4(
+			PrevTemporalAAHistory.SampleLevel(PrevTemporalAAHistorySampler, PrevFrameUV, 0).rgb, 1.0);
+		
+		#if CONFIG_COLOR_TILE_CLASSIFICATION
+		{
+			if (bIsSky)
+				PrevSceneColor = 0;
+		}
+		#endif
+
 		// Correct scene color exposure.
 		#if USE_PREEXPOSURE
 			PrevSceneColor.rgb *= PrevSceneColorPreExposureCorrection;
@@ -119,10 +119,14 @@ void MainCS(
 		#endif
 	}
 	#endif
-
-	// Output mip 0
-	ReducedSceneColorOutput_0[DispatchThreadId] = PrevSceneColor;
 	
+	// Output mip 0
+	#if DIM_LOWER_MIPS
+	{
+		ReducedSceneColorOutput_0[DispatchThreadId] = PrevSceneColor;
+	}
+	#endif
+
 	// Reduce lower mip levels.
 	{
 		// Store to LDS

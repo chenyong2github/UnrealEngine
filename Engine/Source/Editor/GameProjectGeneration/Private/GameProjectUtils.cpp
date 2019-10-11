@@ -100,12 +100,12 @@ bool GameProjectUtils::bUseAudioMixerForAllPlatforms = false;
 struct FAudioDefaultPlatformSettings
 {
 	FString Name;
-	EAudioPlatform Platform;
 	FAudioPlatformSettings Settings;
+	const TCHAR* ConfigSectionName;
 	bool bUseAudioMixer;
 
-	FAudioDefaultPlatformSettings(EAudioPlatform InPlatform)
-		: Platform(InPlatform)
+	FAudioDefaultPlatformSettings(const TCHAR* InConfigSectionName)
+		: ConfigSectionName(InConfigSectionName)
 		, bUseAudioMixer(false)
 	{
 	}
@@ -121,37 +121,37 @@ namespace
 		// the new audio mixer on specific platform. Ex. for Windows:
 		// WindowsSettings.bUseAudioMixer = true;
 
-		FAudioDefaultPlatformSettings AndroidSettings(EAudioPlatform::Android);
+		FAudioDefaultPlatformSettings AndroidSettings(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"));
 		AndroidSettings.Settings.MaxChannels = 12;
 		DefaultProjectSettings.Add(TEXT("Android"), AndroidSettings);
 
-		FAudioDefaultPlatformSettings IOSSettings(EAudioPlatform::IOS);
+		FAudioDefaultPlatformSettings IOSSettings(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"));
 		IOSSettings.Settings.MaxChannels = 16;
 		DefaultProjectSettings.Add(TEXT("IOS"), IOSSettings);
 
-		FAudioDefaultPlatformSettings LinuxSettings(EAudioPlatform::Linux);
+		FAudioDefaultPlatformSettings LinuxSettings(TEXT("/Script/LinuxTargetPlatform.LinuxTargetSettings"));
 		LinuxSettings.Settings.MaxChannels = 16;
 		DefaultProjectSettings.Add(TEXT("Linux"), LinuxSettings);
 
-		FAudioDefaultPlatformSettings MacSettings(EAudioPlatform::Mac);
+		FAudioDefaultPlatformSettings MacSettings(TEXT("/Script/MacTargetPlatform.MacTargetSettings"));
 		DefaultProjectSettings.Add(TEXT("Mac"), MacSettings);
 
-		FAudioDefaultPlatformSettings PS4Settings(EAudioPlatform::Playstation4);
+		FAudioDefaultPlatformSettings PS4Settings(TEXT("/Script/PS4PlatformEditor.PS4TargetSettings"));
 		PS4Settings.Settings.CallbackBufferFrameSize = 256;
 		PS4Settings.Settings.NumBuffers = 7;
 		PS4Settings.Settings.NumSourceWorkers = 4;
 		DefaultProjectSettings.Add(TEXT("PS4"), PS4Settings);
 
-		FAudioDefaultPlatformSettings SwitchSettings(EAudioPlatform::Switch);
+		FAudioDefaultPlatformSettings SwitchSettings(TEXT("/Script/SwitchRuntimeSettings.SwitchRuntimeSettings"));
 		SwitchSettings.Settings.MaxChannels = 16;
 		DefaultProjectSettings.Add(TEXT("Switch"), SwitchSettings);
 
-		FAudioDefaultPlatformSettings WindowsSettings(EAudioPlatform::Windows);
+		FAudioDefaultPlatformSettings WindowsSettings(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"));
 		WindowsSettings.Settings.CallbackBufferFrameSize = 256;
 		WindowsSettings.Settings.NumBuffers = 7;
 		DefaultProjectSettings.Add(TEXT("Windows"), WindowsSettings);
 
-		FAudioDefaultPlatformSettings XBoxSettings(EAudioPlatform::XboxOne);
+		FAudioDefaultPlatformSettings XBoxSettings(TEXT("/Script/XboxOnePlatformEditor.XboxOneTargetSettings"));
 		XBoxSettings.Settings.CallbackBufferFrameSize = 256;
 		XBoxSettings.Settings.NumBuffers = 7;
 		DefaultProjectSettings.Add(TEXT("XboxOne"), XBoxSettings);
@@ -2118,7 +2118,7 @@ bool GameProjectUtils::GeneratePlatformConfigFiles(const FProjectInformation& In
 		const FString& PlatformName = SettingsPair.Key;
 		const FAudioPlatformSettings& PlatformSettings = SettingsPair.Value.Settings;
 
-		FileContents += TEXT("[") + FString(AudioPluginUtilities::GetPlatformConfigSection(SettingsPair.Value.Platform)) + TEXT("]") + LINE_TERMINATOR;
+		FileContents += TEXT("[") + FString(SettingsPair.Value.ConfigSectionName) + TEXT("]") + LINE_TERMINATOR;
 
 		if (DefaultSettings.SampleRate == PlatformSettings.SampleRate)
 		{

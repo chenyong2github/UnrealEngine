@@ -653,7 +653,7 @@ static FORCEINLINE bool SupportsBokehSimmulation(EShaderPlatform ShaderPlatform)
 static FORCEINLINE bool SupportsRGBColorBuffer(EShaderPlatform ShaderPlatform)
 {
 	// There is no point when alpha channel is supported because needs 4 channel anyway for fast gathering tiles.
-	if (FPostProcessing::HasAlphaChannelSupport())
+	if (IsPostProcessingWithAlphaChannelSupported())
 	{
 		return false;
 	}
@@ -1274,7 +1274,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 	EPixelFormat SceneColorFormat = InputSceneColor->Desc.Format;
 	
 	// Whether should process alpha channel of the scene or not.
-	const bool bProcessSceneAlpha = FPostProcessing::HasAlphaChannelSupport();
+	const bool bProcessSceneAlpha = IsPostProcessingWithAlphaChannelSupported();
 
 	const EShaderPlatform ShaderPlatform = View.GetShaderPlatform();
 
@@ -1966,11 +1966,13 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			TEXT("DOFGatherBokehLUT"),
 		};
 
-		FRDGTextureDesc BokehLUTDesc;
-		BokehLUTDesc.NumMips = 1;
-		BokehLUTDesc.Format = LUTFormat == EDiaphragmDOFBokehLUTFormat::GatherSamplePos ? PF_G16R16F : PF_R16F;
-		BokehLUTDesc.Extent = FIntPoint(32, 32);
-		BokehLUTDesc.TargetableFlags |= TexCreate_UAV;
+		FRDGTextureDesc BokehLUTDesc = FRDGTextureDesc::Create2DDesc(
+			FIntPoint(32, 32),
+			LUTFormat == EDiaphragmDOFBokehLUTFormat::GatherSamplePos ? PF_G16R16F : PF_R16F,
+			FClearValueBinding::None,
+			/* InFlags = */ TexCreate_None,
+			/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
+			/* bInForceSeparateTargetAndShaderResource = */ false);
 
 		FRDGTextureRef BokehLUT = GraphBuilder.CreateTexture(BokehLUTDesc, DebugNames[int32(LUTFormat)]);
 

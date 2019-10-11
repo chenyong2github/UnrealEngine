@@ -27,8 +27,8 @@ float MaxRayDistanceForGI;
 float MaxRayDistanceForAO;
 float NextEventEstimationSamples;
 float DiffuseThreshold;
-bool EvalSkyLight;
-bool UseRussianRoulette;
+uint EvalSkyLight;
+uint UseRussianRoulette;
 float MaxNormalBias;
 uint TileOffsetX;
 uint TileOffsetY;
@@ -55,8 +55,7 @@ void GenerateCosineNormalRay(
 	RayPdf = Direction_Tangent.w;
 }
 
-[shader("raygeneration")]
-void GlobalIlluminationRGS()
+RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 {
 	uint2 DispatchThreadId = DispatchRaysIndex().xy + View.ViewRectMin + uint2(TileOffsetX, TileOffsetY);
 	RWGlobalIlluminationUAV[DispatchThreadId] = 0.0;

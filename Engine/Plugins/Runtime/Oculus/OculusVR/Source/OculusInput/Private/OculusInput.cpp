@@ -4,6 +4,7 @@
 
 #if OCULUS_INPUT_SUPPORTED_PLATFORMS
 #include "OculusHMD.h"
+#include "OculusMRFunctionLibrary.h"
 #include "Misc/CoreDelegates.h"
 #include "Features/IModularFeatures.h"
 #include "Misc/ConfigCacheIni.h"
@@ -194,7 +195,7 @@ void FOculusInput::SendControllerEvents()
 		if (MessageHandler.IsValid() && GEngine->XRSystem->GetHMDDevice())
 		{
 			OculusHMD::FOculusHMD* OculusHMD = static_cast<OculusHMD::FOculusHMD*>(GEngine->XRSystem->GetHMDDevice());
-			ovrp_Update3(ovrpStep_Render, OculusHMD->GetNextFrameNumber(), 0.0);
+			OculusHMD->StartGameFrame_GameThread();
 
 			ovrpControllerState4 OvrpControllerState;
 			
@@ -374,10 +375,11 @@ void FOculusInput::SendControllerEvents()
 							ovrpNode OvrpNode = (HandIndex == (int32)EControllerHand::Left) ? ovrpNode_HandLeft : ovrpNode_HandRight;
 
 							State.bIsConnected = true;
-							ovrpBool NodePositionTracked;
-							State.bIsPositionTracked = OVRP_SUCCESS(ovrp_GetNodePositionTracked2(OvrpNode, &NodePositionTracked)) && NodePositionTracked;
-							ovrpBool NodeOrientationTracked;
-							State.bIsOrientationTracked = OVRP_SUCCESS(ovrp_GetNodeOrientationTracked2(OvrpNode, &NodeOrientationTracked)) && NodeOrientationTracked;
+							ovrpBool bResult = true;
+							State.bIsPositionTracked = OVRP_SUCCESS(ovrp_GetNodePositionTracked2(OvrpNode, &bResult)) && bResult;
+							State.bIsPositionValid = OVRP_SUCCESS(ovrp_GetNodePositionValid(OvrpNode, &bResult)) && bResult;
+							State.bIsOrientationTracked = OVRP_SUCCESS(ovrp_GetNodeOrientationTracked2(OvrpNode, &bResult)) && bResult;
+							State.bIsOrientationValid = OVRP_SUCCESS(ovrp_GetNodeOrientationValid(OvrpNode, &bResult)) && bResult;
 
 							const float OvrTriggerAxis = OvrpControllerState.IndexTrigger[HandIndex];
 							const float OvrGripAxis = OvrpControllerState.HandTrigger[HandIndex];
@@ -742,60 +744,67 @@ FName FOculusInput::GetMotionControllerDeviceTypeName() const
 
 bool FOculusInput::GetControllerOrientationAndPosition( const int32 ControllerIndex, const EControllerHand DeviceHand, FRotator& OutOrientation, FVector& OutPosition, float WorldToMetersScale) const
 {
-	for( const FOculusTouchControllerPair& ControllerPair : ControllerPairs )
+	// Don't do renderthread pose update if MRC is active due to controller jitter issues with SceneCaptures
+	if (IsInGameThread() || !UOculusMRFunctionLibrary::IsMrcActive())
 	{
-		if( ControllerPair.UnrealControllerIndex == ControllerIndex )
+		for (const FOculusTouchControllerPair& ControllerPair : ControllerPairs)
 		{
-			if( (DeviceHand == EControllerHand::Left) || (DeviceHand == EControllerHand::Right) )
+			if (ControllerPair.UnrealControllerIndex == ControllerIndex)
 			{
-				if (IOculusHMDModule::IsAvailable() && ovrp_GetInitialized())
+				if ((DeviceHand == EControllerHand::Left) || (DeviceHand == EControllerHand::Right))
 				{
-					OculusHMD::FOculusHMD* OculusHMD = static_cast<OculusHMD::FOculusHMD*>(GEngine->XRSystem->GetHMDDevice());
-					ovrpNode Node = DeviceHand == EControllerHand::Left ? ovrpNode_HandLeft : ovrpNode_HandRight;
-					ovrpBool bOrientationTracked;
-					ovrpBool bPositionTracked;
-
-					if (OVRP_SUCCESS(ovrp_GetNodeOrientationTracked2(Node, &bOrientationTracked)) &&
-						OVRP_SUCCESS(ovrp_GetNodePositionTracked2(Node, &bPositionTracked)) &&
-						(bOrientationTracked || bPositionTracked))
+					if (IOculusHMDModule::IsAvailable() && ovrp_GetInitialized())
 					{
-						OculusHMD::FSettings* Settings;
-						OculusHMD::FGameFrame* CurrentFrame;
+						OculusHMD::FOculusHMD* OculusHMD = static_cast<OculusHMD::FOculusHMD*>(GEngine->XRSystem->GetHMDDevice());
+						ovrpNode Node = DeviceHand == EControllerHand::Left ? ovrpNode_HandLeft : ovrpNode_HandRight;
 
-						if (IsInGameThread())
-						{
-							Settings = OculusHMD->GetSettings();
-							CurrentFrame = OculusHMD->GetNextFrameToRender();
-						}
-						else
-						{
-							Settings = OculusHMD->GetSettings_RenderThread();
-							CurrentFrame = OculusHMD->GetFrame_RenderThread();
-						}
+						ovrpBool bResult = true;
+						bool bIsPositionValid = OVRP_SUCCESS(ovrp_GetNodePositionValid(Node, &bResult)) && bResult;
+						bool bIsOrientationValid = OVRP_SUCCESS(ovrp_GetNodeOrientationValid(Node, &bResult)) && bResult;
 
-						if (Settings && CurrentFrame)
+						if (bIsPositionValid || bIsOrientationValid)
 						{
-							ovrpPoseStatef InPoseState;
-							OculusHMD::FPose OutPose;
+							OculusHMD::FSettings* Settings;
+							OculusHMD::FGameFrame* CurrentFrame;
 
-							if (OVRP_SUCCESS(ovrp_GetNodePoseState3(ovrpStep_Render, CurrentFrame->FrameNumber, Node, &InPoseState)) &&
-								OculusHMD->ConvertPose_Internal(InPoseState.Pose, OutPose, Settings, WorldToMetersScale))
+							if (IsInGameThread())
 							{
-								if (bOrientationTracked)
+								Settings = OculusHMD->GetSettings();
+								CurrentFrame = OculusHMD->GetNextFrameToRender();
+							}
+							else
+							{
+								Settings = OculusHMD->GetSettings_RenderThread();
+								CurrentFrame = OculusHMD->GetFrame_RenderThread();
+							}
+
+							if (Settings && CurrentFrame)
+							{
+								ovrpPoseStatef InPoseState;
+								OculusHMD::FPose OutPose;
+
+								if (OVRP_SUCCESS(ovrp_GetNodePoseState3(ovrpStep_Render, CurrentFrame->FrameNumber, Node, &InPoseState)) &&
+									OculusHMD->ConvertPose_Internal(InPoseState.Pose, OutPose, Settings, WorldToMetersScale))
 								{
-									OutOrientation = OutPose.Orientation.Rotator();
+									if (bIsPositionValid)
+									{
+										OutPosition = OutPose.Position;
+									}
+
+									if (bIsOrientationValid)
+									{
+										OutOrientation = OutPose.Orientation.Rotator();
+									}
+
+									return true;
 								}
-
-								OutPosition = OutPose.Position;
-
-								return true;
 							}
 						}
 					}
 				}
-			}
 
-			break;
+				break;
+			}
 		}
 	}
 
@@ -817,9 +826,13 @@ ETrackingStatus FOculusInput::GetControllerTrackingStatus(const int32 Controller
 		{
 			const FOculusTouchControllerState& ControllerState = ControllerPair.ControllerStates[ (int32)DeviceHand ];
 
-			if( ControllerState.bIsOrientationTracked )
+			if( ControllerState.bIsPositionTracked && ControllerState.bIsOrientationTracked )
 			{
-				TrackingStatus = ControllerState.bIsPositionTracked ? ETrackingStatus::Tracked : ETrackingStatus::InertialOnly;
+				TrackingStatus = ETrackingStatus::Tracked;
+			}
+			else if( ControllerState.bIsPositionValid && ControllerState.bIsOrientationValid )
+			{
+				TrackingStatus = ETrackingStatus::InertialOnly;
 			}
 
 			break;

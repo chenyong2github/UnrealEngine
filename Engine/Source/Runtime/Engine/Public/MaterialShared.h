@@ -1619,6 +1619,9 @@ public:
 	/** Does the material have a runtime virtual texture output node. */
 	ENGINE_API bool HasRuntimeVirtualTextureOutput_RenderThread() const;
 
+	/** Does the material use CustomDepth or CustomStencil lookup */
+	ENGINE_API bool UsesCustomDepthStencil_GameThread() const;
+
 	/** Note: This function is only intended for use in deciding whether or not shader permutations are required before material translation occurs. */
 	ENGINE_API bool MaterialMayModifyMeshPosition() const;
 
@@ -2110,7 +2113,7 @@ public:
 	/** Initialization constructor. */
 	FOverrideSelectionColorMaterialRenderProxy(const FMaterialRenderProxy* InParent, const FLinearColor& InSelectionColor) :
 		Parent(InParent),
-		SelectionColor(InSelectionColor)
+		SelectionColor(FLinearColor(InSelectionColor.R, InSelectionColor.G, InSelectionColor.B, 1))
 	{
 	}
 

@@ -41,7 +41,7 @@ public:
 
 	struct FEvent
 	{
-		const char* Name;
+		FName Name;
 		uint32 FrameNumber;
 		uint32 SessionId;
 		EEventType Type;
@@ -67,7 +67,7 @@ public:
 
 	RENDERCORE_API void Init();
 
-	uint32 AddCPUEvent(const char* Name,
+	uint32 AddCPUEvent(FName Name,
 		uint64 TimestampBeginCycles,
 		uint64 TimestempEndCycles,
 		uint32 ThreadId,
@@ -84,7 +84,7 @@ public:
 		return AddEvent(Event);
 	}
 
-	uint32 AddGPUEvent(const char* Name,
+	uint32 AddGPUEvent(FName Name,
 		uint64 TimestempBeginMicroseconds,
 		uint64 TimestampEndMicroseconds,
 		uint64 GPUIndex,

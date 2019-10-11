@@ -14,6 +14,7 @@ Texture2D EyeAdaptation;
 //Provides access to the EyeAdaptation RT. Only available in SM5.
 float EyeAdaptationLookup()
 {
+	// TODO: scalar load from structured buffer 
 	return EyeAdaptation.Load(int3(0, 0, 0)).x;
 }
 #else

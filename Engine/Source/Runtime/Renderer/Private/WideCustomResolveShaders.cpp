@@ -46,8 +46,9 @@ static void ResolveColorWideInternal2(
 	FGraphicsPipelineStateInitializer& GraphicsPSOInit,
 	const ERHIFeatureLevel::Type CurrentFeatureLevel,
 	const FTextureRHIRef& SrcTexture,
-	const FTexture2DRHIRef& FMaskTexture,
-	const FIntPoint& SrcOrigin)
+	FRHIShaderResourceView* FmaskSRV,
+	const FIntPoint& SrcOrigin,
+	FRHIVertexBuffer* DummyVB)
 {
 	auto ShaderMap = GetGlobalShaderMap(CurrentFeatureLevel);
 
@@ -61,8 +62,9 @@ static void ResolveColorWideInternal2(
 
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 	
-	PixelShader->SetParameters(RHICmdList, SrcTexture, FMaskTexture, SrcOrigin);
+	PixelShader->SetParameters(RHICmdList, SrcTexture, FmaskSRV, SrcOrigin);
 
+	RHICmdList.SetStreamSource(0, DummyVB, 0);
 	RHICmdList.DrawPrimitive(0, 1, 1);
 }
 
@@ -72,16 +74,17 @@ static void ResolveColorWideInternal(
 	FGraphicsPipelineStateInitializer& GraphicsPSOInit,
 	const ERHIFeatureLevel::Type CurrentFeatureLevel,
 	const FTextureRHIRef& SrcTexture,
-	const FTexture2DRHIRef& FMaskTexture,
+	FRHIShaderResourceView* FmaskSRV,
 	const FIntPoint& SrcOrigin, 
-	int32 WideFilterWidth)
+	int32 WideFilterWidth,
+	FRHIVertexBuffer* DummyVB)
 {
 	switch (WideFilterWidth)
 	{
-	case 0: ResolveColorWideInternal2<0, MSAA, UseFMask>(RHICmdList, GraphicsPSOInit, CurrentFeatureLevel, SrcTexture, FMaskTexture, SrcOrigin); break;
-	case 1: ResolveColorWideInternal2<1, MSAA, UseFMask>(RHICmdList, GraphicsPSOInit, CurrentFeatureLevel, SrcTexture, FMaskTexture, SrcOrigin); break;
-	case 2: ResolveColorWideInternal2<2, MSAA, UseFMask>(RHICmdList, GraphicsPSOInit, CurrentFeatureLevel, SrcTexture, FMaskTexture, SrcOrigin); break;
-	case 3: ResolveColorWideInternal2<3, MSAA, UseFMask>(RHICmdList, GraphicsPSOInit, CurrentFeatureLevel, SrcTexture, FMaskTexture, SrcOrigin); break;
+	case 0: ResolveColorWideInternal2<0, MSAA, UseFMask>(RHICmdList, GraphicsPSOInit, CurrentFeatureLevel, SrcTexture, FmaskSRV, SrcOrigin, DummyVB); break;
+	case 1: ResolveColorWideInternal2<1, MSAA, UseFMask>(RHICmdList, GraphicsPSOInit, CurrentFeatureLevel, SrcTexture, FmaskSRV, SrcOrigin, DummyVB); break;
+	case 2: ResolveColorWideInternal2<2, MSAA, UseFMask>(RHICmdList, GraphicsPSOInit, CurrentFeatureLevel, SrcTexture, FmaskSRV, SrcOrigin, DummyVB); break;
+	case 3: ResolveColorWideInternal2<3, MSAA, UseFMask>(RHICmdList, GraphicsPSOInit, CurrentFeatureLevel, SrcTexture, FmaskSRV, SrcOrigin, DummyVB); break;
 	}
 }
 
@@ -90,28 +93,29 @@ void ResolveFilterWide(
 	FGraphicsPipelineStateInitializer& GraphicsPSOInit,
 	const ERHIFeatureLevel::Type CurrentFeatureLevel,
 	const FTextureRHIRef& SrcTexture,
-	const FTexture2DRHIRef& FMaskTexture,
+	FRHIShaderResourceView* FmaskSRV,
 	const FIntPoint& SrcOrigin, 
 	int32 NumSamples,
-	int32 WideFilterWidth)
+	int32 WideFilterWidth,
+	FRHIVertexBuffer* DummyVB)
 {	
-	if (FMaskTexture.IsValid())
+	if (FmaskSRV)
 	{
 		if (NumSamples <= 1)
 		{
-			ResolveColorWideInternal2<1, 0, true>(RHICmdList, GraphicsPSOInit, CurrentFeatureLevel, SrcTexture, FMaskTexture, SrcOrigin);
+			ResolveColorWideInternal2<1, 0, true>(RHICmdList, GraphicsPSOInit, CurrentFeatureLevel, SrcTexture, FmaskSRV, SrcOrigin, DummyVB);
 		}
 		else if (NumSamples == 2)
 		{
-			ResolveColorWideInternal<2, true>(RHICmdList, GraphicsPSOInit, CurrentFeatureLevel, SrcTexture, FMaskTexture, SrcOrigin, WideFilterWidth);
+			ResolveColorWideInternal<2, true>(RHICmdList, GraphicsPSOInit, CurrentFeatureLevel, SrcTexture, FmaskSRV, SrcOrigin, WideFilterWidth, DummyVB);
 		}
 		else if (NumSamples == 4)
 		{
-			ResolveColorWideInternal<4, true>(RHICmdList, GraphicsPSOInit, CurrentFeatureLevel, SrcTexture, FMaskTexture, SrcOrigin, WideFilterWidth);
+			ResolveColorWideInternal<4, true>(RHICmdList, GraphicsPSOInit, CurrentFeatureLevel, SrcTexture, FmaskSRV, SrcOrigin, WideFilterWidth, DummyVB);
 		}
 		else if (NumSamples == 8)
 		{
-			ResolveColorWideInternal<8, true>(RHICmdList, GraphicsPSOInit, CurrentFeatureLevel, SrcTexture, FMaskTexture, SrcOrigin, WideFilterWidth);
+			ResolveColorWideInternal<8, true>(RHICmdList, GraphicsPSOInit, CurrentFeatureLevel, SrcTexture, FmaskSRV, SrcOrigin, WideFilterWidth, DummyVB);
 		}
 		else
 		{
@@ -123,19 +127,19 @@ void ResolveFilterWide(
 	{
 		if (NumSamples <= 1)
 		{
-			ResolveColorWideInternal2<1, 0, false>(RHICmdList, GraphicsPSOInit, CurrentFeatureLevel, SrcTexture, FMaskTexture, SrcOrigin);
+			ResolveColorWideInternal2<1, 0, false>(RHICmdList, GraphicsPSOInit, CurrentFeatureLevel, SrcTexture, FmaskSRV, SrcOrigin, DummyVB);
 		}
 		else if (NumSamples == 2)
 		{
-			ResolveColorWideInternal<2, false>(RHICmdList, GraphicsPSOInit, CurrentFeatureLevel, SrcTexture, FMaskTexture, SrcOrigin, WideFilterWidth);
+			ResolveColorWideInternal<2, false>(RHICmdList, GraphicsPSOInit, CurrentFeatureLevel, SrcTexture, FmaskSRV, SrcOrigin, WideFilterWidth, DummyVB);
 		}
 		else if (NumSamples == 4)
 		{
-			ResolveColorWideInternal<4, false>(RHICmdList, GraphicsPSOInit, CurrentFeatureLevel, SrcTexture, FMaskTexture, SrcOrigin, WideFilterWidth);
+			ResolveColorWideInternal<4, false>(RHICmdList, GraphicsPSOInit, CurrentFeatureLevel, SrcTexture, FmaskSRV, SrcOrigin, WideFilterWidth, DummyVB);
 		}
 		else if (NumSamples == 8)
 		{
-			ResolveColorWideInternal<8, false>(RHICmdList, GraphicsPSOInit, CurrentFeatureLevel, SrcTexture, FMaskTexture, SrcOrigin, WideFilterWidth);
+			ResolveColorWideInternal<8, false>(RHICmdList, GraphicsPSOInit, CurrentFeatureLevel, SrcTexture, FmaskSRV, SrcOrigin, WideFilterWidth, DummyVB);
 		}
 		else
 		{

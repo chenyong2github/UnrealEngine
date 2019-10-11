@@ -28,7 +28,7 @@ limitations under the License.
 #endif
 
 #define OVRP_MAJOR_VERSION 1
-#define OVRP_MINOR_VERSION 37
+#define OVRP_MINOR_VERSION 40
 #define OVRP_PATCH_VERSION 0
 
 #define OVRP_VERSION OVRP_MAJOR_VERSION, OVRP_MINOR_VERSION, OVRP_PATCH_VERSION
@@ -382,6 +382,22 @@ typedef enum {
   ovrpTiledMultiResLevel_LMSHighTop = 4,
   ovrpTiledMultiResLevel_EnumSize = 0x7fffffff
 } ovrpTiledMultiResLevel;
+
+/// Control the activation of mixed reality capture
+typedef enum {
+  ovrpMediaMrcActivationMode_Automatic = 0,
+  ovrpMediaMrcActivationMode_Disabled = 1,
+  ovrpMediaMrcActivationMode_EnumSize = 0x7fffffff
+} ovrpMediaMrcActivationMode;
+
+/// Media encoder input buffer types
+typedef enum {
+  /// raw memory. pixel format in RGBA
+  ovrpMediaInputVideoBufferType_Memory = 0,
+  /// texture handle (e.g. texId if GLES)
+  ovrpMediaInputVideoBufferType_TextureHandle = 1,
+  ovrpMediaInputVideoBufferType_EnumSize = 0x7fffffff
+} ovrpMediaInputVideoBufferType;
 
 #if defined(__arm__)
 typedef void(* ovrpLogCallback)(ovrpLogLevel, const char*);
@@ -864,6 +880,8 @@ typedef enum {
   ovrpLayerSubmitFlag_PositionalTimeWarp = (1 << 6),
   /// Enable Space warp on Fov layer
   ovrpLayerSubmitFlag_SpaceWarp = (1 << 7),
+  /// Enable VrApi "Expensive" SuperSample Flag.
+  ovrpLayerSubmitFlag_ExpensiveSuperSample = (1 << 8),
 } ovrpLayerSubmitFlags;
 
 /// Layer state to submit to ovrp_EndFrame

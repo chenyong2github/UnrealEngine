@@ -172,7 +172,6 @@ UStaticMeshComponent::UStaticMeshComponent(const FObjectInitializer& ObjectIniti
 	bForceNavigationObstacle = true;
 	bDisallowMeshPaintPerInstance = false;
 	DistanceFieldIndirectShadowMinVisibility = .1f;
-
 	GetBodyInstance()->bAutoWeld = true;	//static mesh by default has auto welding
 
 #if WITH_EDITORONLY_DATA

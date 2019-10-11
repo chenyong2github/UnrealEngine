@@ -50,45 +50,45 @@ FText FMagicLeapHandTracking::GetSourceType() const
 #define MLHTBONE(keyenum, name, parent) BoneKeypoints.Add(keyenum); StaticData.BoneNames.Add(name); StaticData.BoneParents.Add(parent);
 void FMagicLeapHandTracking::SetupLiveLinkData(FLiveLinkSkeletonStaticData& StaticData)
 {
-	StaticData.BoneNames.Reserve(EHandTrackingKeypointCount);
+	StaticData.BoneNames.Reserve(EMagicLeapHandTrackingKeypointCount);
 
 	// Array of bone indices to parent bone index
-	StaticData.BoneParents.Reserve(EHandTrackingKeypointCount);
+	StaticData.BoneParents.Reserve(EMagicLeapHandTrackingKeypointCount);
 
-	BoneKeypoints.Reserve(EHandTrackingKeypointCount);
+	BoneKeypoints.Reserve(EMagicLeapHandTrackingKeypointCount);
 
 	// Only one can be the root (-1 parent)!
 
-	MLHTBONE(EHandTrackingKeypoint::Thumb_Tip, ThumbTip_Name,			1);
-	MLHTBONE(EHandTrackingKeypoint::Thumb_IP,	ThumbIP_Name,			2);
-	MLHTBONE(EHandTrackingKeypoint::Thumb_MCP, ThumbMCP_Name,			3);
-	MLHTBONE(EHandTrackingKeypoint::Thumb_CMC, ThumbCMC_Name,			23); //3
+	MLHTBONE(EMagicLeapHandTrackingKeypoint::Thumb_Tip, ThumbTip_Name,			1);
+	MLHTBONE(EMagicLeapHandTrackingKeypoint::Thumb_IP,	ThumbIP_Name,			2);
+	MLHTBONE(EMagicLeapHandTrackingKeypoint::Thumb_MCP, ThumbMCP_Name,			3);
+	MLHTBONE(EMagicLeapHandTrackingKeypoint::Thumb_CMC, ThumbCMC_Name,			23); //3
 
-	MLHTBONE(EHandTrackingKeypoint::Index_Tip, IndexFingerTip_Name,		5);
-	MLHTBONE(EHandTrackingKeypoint::Index_DIP, IndexFingerDIP_Name,		6);
-	MLHTBONE(EHandTrackingKeypoint::Index_PIP, IndexFingerPIP_Name,		7);
-	MLHTBONE(EHandTrackingKeypoint::Index_MCP, IndexFingerMCP_Name,		23); //7
+	MLHTBONE(EMagicLeapHandTrackingKeypoint::Index_Tip, IndexFingerTip_Name,		5);
+	MLHTBONE(EMagicLeapHandTrackingKeypoint::Index_DIP, IndexFingerDIP_Name,		6);
+	MLHTBONE(EMagicLeapHandTrackingKeypoint::Index_PIP, IndexFingerPIP_Name,		7);
+	MLHTBONE(EMagicLeapHandTrackingKeypoint::Index_MCP, IndexFingerMCP_Name,		23); //7
 
-	MLHTBONE(EHandTrackingKeypoint::Middle_Tip, MiddleFingerTip_Name,	9);
-	MLHTBONE(EHandTrackingKeypoint::Middle_DIP, MiddleFingerDIP_Name,	10);
-	MLHTBONE(EHandTrackingKeypoint::Middle_PIP, MiddleFingerPIP_Name,	11);
-	MLHTBONE(EHandTrackingKeypoint::Middle_MCP, MiddleFingerMCP_Name,	23); //11
+	MLHTBONE(EMagicLeapHandTrackingKeypoint::Middle_Tip, MiddleFingerTip_Name,	9);
+	MLHTBONE(EMagicLeapHandTrackingKeypoint::Middle_DIP, MiddleFingerDIP_Name,	10);
+	MLHTBONE(EMagicLeapHandTrackingKeypoint::Middle_PIP, MiddleFingerPIP_Name,	11);
+	MLHTBONE(EMagicLeapHandTrackingKeypoint::Middle_MCP, MiddleFingerMCP_Name,	23); //11
 
-	MLHTBONE(EHandTrackingKeypoint::Ring_Tip, RingFingerTip_Name,		13);
-	MLHTBONE(EHandTrackingKeypoint::Ring_DIP, RingFingerDIP_Name,		14);
-	MLHTBONE(EHandTrackingKeypoint::Ring_PIP, RingFingerPIP_Name,		15);
-	MLHTBONE(EHandTrackingKeypoint::Ring_MCP, RingFingerMCP_Name,		23); //15
+	MLHTBONE(EMagicLeapHandTrackingKeypoint::Ring_Tip, RingFingerTip_Name,		13);
+	MLHTBONE(EMagicLeapHandTrackingKeypoint::Ring_DIP, RingFingerDIP_Name,		14);
+	MLHTBONE(EMagicLeapHandTrackingKeypoint::Ring_PIP, RingFingerPIP_Name,		15);
+	MLHTBONE(EMagicLeapHandTrackingKeypoint::Ring_MCP, RingFingerMCP_Name,		23); //15
 
-	MLHTBONE(EHandTrackingKeypoint::Pinky_Tip, PinkyFingerTip_Name,		17);
-	MLHTBONE(EHandTrackingKeypoint::Pinky_DIP, PinkyFingerDIP_Name,		18);
-	MLHTBONE(EHandTrackingKeypoint::Pinky_PIP, PinkyFingerPIP_Name,		19);
-	MLHTBONE(EHandTrackingKeypoint::Pinky_MCP, PinkyFingerMCP_Name,		23); //19
+	MLHTBONE(EMagicLeapHandTrackingKeypoint::Pinky_Tip, PinkyFingerTip_Name,		17);
+	MLHTBONE(EMagicLeapHandTrackingKeypoint::Pinky_DIP, PinkyFingerDIP_Name,		18);
+	MLHTBONE(EMagicLeapHandTrackingKeypoint::Pinky_PIP, PinkyFingerPIP_Name,		19);
+	MLHTBONE(EMagicLeapHandTrackingKeypoint::Pinky_MCP, PinkyFingerMCP_Name,		23); //19
 
-	MLHTBONE(EHandTrackingKeypoint::Wrist_Center,	WristCenter_Name,	23);
-	MLHTBONE(EHandTrackingKeypoint::Wrist_Ulnar,	WristUlnar_Name,	23);
-	MLHTBONE(EHandTrackingKeypoint::Wrist_Radial,	WristRadial_Name,	23);
+	MLHTBONE(EMagicLeapHandTrackingKeypoint::Wrist_Center,	WristCenter_Name,	23);
+	MLHTBONE(EMagicLeapHandTrackingKeypoint::Wrist_Ulnar,	WristUlnar_Name,	23);
+	MLHTBONE(EMagicLeapHandTrackingKeypoint::Wrist_Radial,	WristRadial_Name,	23);
 
-	MLHTBONE(EHandTrackingKeypoint::Hand_Center, HandCenter_Name,		-1); //23 //Root
+	MLHTBONE(EMagicLeapHandTrackingKeypoint::Hand_Center, HandCenter_Name,		-1); //23 //Root
 }
 #undef MLHTBONE
 
@@ -99,12 +99,12 @@ void FMagicLeapHandTracking::UpdateLiveLinkTransforms(TArray<FTransform>& OutTra
 	// Sadly hand tracking transforms can be unused, and contain only an identity matrix.  So we do some weird stuff to keep those
 	// identity in the hierarchical skeleton.
 
-	if (EHandTrackingKeypointCount != BoneKeypoints.Num())
+	if (EMagicLeapHandTrackingKeypointCount != BoneKeypoints.Num())
 	{
 		return;
 	}
 
-	for (int32 i = 0; i < EHandTrackingKeypointCount; ++i)
+	for (int32 i = 0; i < EMagicLeapHandTrackingKeypointCount; ++i)
 	{
 		const FTransformRecord& TransformRecord = HandState.GetTransform(BoneKeypoints[i]);
 		bool bWritten = TransformRecord.bWritten;
@@ -173,9 +173,9 @@ void FMagicLeapHandTracking::UpdateLiveLink()
 				LiveLinkRightFrame.InitializeWith(FLiveLinkAnimationFrameData::StaticStruct(), nullptr);
 				FLiveLinkAnimationFrameData* LiveLinkLeftFramePtr = LiveLinkLeftFrame.Cast<FLiveLinkAnimationFrameData>();
 				FLiveLinkAnimationFrameData* LiveLinkRightFramePtr = LiveLinkRightFrame.Cast<FLiveLinkAnimationFrameData>();
-				LiveLinkLeftFramePtr->Transforms.Reserve(EHandTrackingKeypointCount);
-				LiveLinkRightFramePtr->Transforms.Reserve(EHandTrackingKeypointCount);
-				for (size_t i = 0; i < EHandTrackingKeypointCount; ++i)
+				LiveLinkLeftFramePtr->Transforms.Reserve(EMagicLeapHandTrackingKeypointCount);
+				LiveLinkRightFramePtr->Transforms.Reserve(EMagicLeapHandTrackingKeypointCount);
+				for (size_t i = 0; i < EMagicLeapHandTrackingKeypointCount; ++i)
 				{
 					LiveLinkRightFramePtr->Transforms.Add(FTransform::Identity);
 					LiveLinkRightFramePtr->Transforms.Add(FTransform::Identity);

@@ -359,30 +359,44 @@ void Main(
 	OutputVertexID( OutParameters );
 }
 
+#if IS_FOR_GEOMETRY_SHADER
+
+// Vertex shader exports must match GS inputs.
+// This is a requirement on some platforms.
 void MainForGS(
+	OPTIONAL_VertexID
 	FVertexFactoryInput Input,
 #if USING_TESSELLATION
-	out FShadowDepthVSToDS OutParameters,
+	out FShadowDepthVSToDS OutParameters
 #elif ONEPASS_POINTLIGHT_SHADOW
-	out FShadowDepthVSToGS OutParameters,
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && USING_VERTEX_SHADER_LAYER
-	out uint LayerIndex : SV_RenderTargetArrayIndex,
-#endif
+	out FShadowDepthVSToGS OutParameters
+	#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && USING_VERTEX_SHADER_LAYER
+		, out uint LayerIndex : SV_RenderTargetArrayIndex
+	#endif
 #else
-	out FShadowDepthVSToPS OutParameters,
+	#error Invalid permutation for MainForGS
 #endif
-	OPTIONAL_VertexID
-	out float4 OutPosition : SV_POSITION
+#if COMPILER_METAL
+#define SKIP_UNUSED_POSITION
+	// Metal needs a position output
+	, out float4 UnusedPosition : SV_POSITION
+#endif
 	)
 {
+#ifndef SKIP_UNUSED_POSITION
+	float4 UnusedPosition;
+#endif
+
 	Main(Input,
 		OutParameters,
 		OPTIONAL_VertexID_PARAM
 #if !USING_TESSELLATION && (FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && ONEPASS_POINTLIGHT_SHADOW && USING_VERTEX_SHADER_LAYER)
 		LayerIndex,
 #endif
-		OutPosition);
+		UnusedPosition);
 }
+
+#endif // IS_FOR_GEOMETRY_SHADER
 
 #define USING_ONEPASS_POINT_VERTEX_LAYER	(FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && ONEPASS_POINTLIGHT_SHADOW && USING_VERTEX_SHADER_LAYER)
 
@@ -448,24 +462,40 @@ void PositionOnlyMain(
 }
 
 
+#if IS_FOR_GEOMETRY_SHADER
+
+// Vertex shader exports must match GS inputs.
+// This is a requirement on some platforms.
 void PositionOnlyMainForGS(
 	in FPositionAndNormalOnlyVertexFactoryInput Input,
 #if USING_ONEPASS_POINT_VERTEX_LAYER
 	out uint LayerIndex : SV_RenderTargetArrayIndex,
 #endif
 #if ONEPASS_POINTLIGHT_SHADOW
-	out FShadowDepthVSToGS OutParameters,
+	out FShadowDepthVSToGS OutParameters
 #else
-	out FShadowDepthVSToPS OutParameters,
+	#error Invalid permutation for PositionOnlyMainForGS
 #endif
-	out float4 OutPosition : SV_POSITION
+#if COMPILER_METAL
+	#ifndef SKIP_UNUSED_POSITION
+		#define SKIP_UNUSED_POSITION
+	#endif
+	// Metal needs a position output
+	, out float4 UnusedPosition : SV_POSITION
+#endif
 	)
 {
+#ifndef SKIP_UNUSED_POSITION
+	float4 UnusedPosition;
+#endif
+
 	PositionOnlyMain(Input,
 #if USING_ONEPASS_POINT_VERTEX_LAYER
 		LayerIndex,
 #endif
-		OutParameters, OutPosition);
+		OutParameters, UnusedPosition);
 }
+
+#endif // IS_FOR_GEOMETRY_SHADER
 
 #endif

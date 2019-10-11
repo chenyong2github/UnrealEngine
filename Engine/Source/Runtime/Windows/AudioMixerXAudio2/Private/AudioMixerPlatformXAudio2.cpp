@@ -1027,8 +1027,7 @@ namespace Audio
 	FAudioPlatformSettings FMixerPlatformXAudio2::GetPlatformSettings() const
 	{
 #if WITH_ENGINE
-		const TCHAR* ConfigSection = AudioPluginUtilities::GetPlatformConfigSection(EAudioPlatform::Windows);
-		return FAudioPlatformSettings::GetPlatformSettings(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"));
+		return FAudioPlatformSettings::GetPlatformSettings(FPlatformProperties::GetRuntimeSettingsClassName());
 #else
 		return FAudioPlatformSettings();
 #endif // WITH_ENGINE

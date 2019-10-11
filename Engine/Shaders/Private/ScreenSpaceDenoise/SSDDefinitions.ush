@@ -17,7 +17,7 @@
 #define DEBUG_ENABLE_TILE_CLASSIFICATION 1
 
 /** Should output invalid data when know there is a need. */
-// TODO: there is an artifact in temporal reprojection.
+// TODO(Denoiser): there is an artifact in temporal reprojection.
 #define DEBUG_WASTFUL_OUTPUT 1
 
 /** Force the signal to a specific mip level. */
@@ -39,6 +39,9 @@
 
 /** Disable any VGPR compression of the signal. */
 #define DEBUG_DISABLE_SIGNAL_COMPRESSION 0
+
+/** Enables debugging output from shaders. */
+#define DEBUG_OUTPUT 1
 
 
 //------------------------------------------------------- SHARED CONSTANTS
@@ -65,19 +68,25 @@
 
 //------------------------------------------------------- ENUMS
 
+/** Layouts of the metadata buffer */
+	/** Uses standard depth buffer and gbuffer. */
+	#define METADATA_BUFFER_LAYOUT_DISABLED 0
+
+	/** Compress depth and world normal. */
+	#define METADATA_BUFFER_LAYOUT_DEPTH_NORMAL 1
+
+	/** Compress depth and view normal. */
+	#define METADATA_BUFFER_LAYOUT_DEPTH_VIEWNORMAL 2
+
+
+
 /** Layouts of the signal buffer. */
 	/** Buffer layout for the shadow penumbra given as input. */
 	#define SIGNAL_BUFFER_LAYOUT_UNINITIALIZED 0xDEAD
 
 
-	/** Buffer layout for the shadow penumbra given as input, assuming there is only one spp. */
-	#define SIGNAL_BUFFER_LAYOUT_PENUMBRA_INPUT_1SPP 10
-
 	/** Buffer layout for the shadow penumbra given as input. */
 	#define SIGNAL_BUFFER_LAYOUT_PENUMBRA_INPUT_NSPP 15
-
-	/** Internal buffer layout for the shadow penumbra, but using world bluring radius. */
-	#define SIGNAL_BUFFER_LAYOUT_PENUMBRA_INJESTION_1SPP 14
 
 	/** Buffer layout for the shadow penumbra given as input. */
 	#define SIGNAL_BUFFER_LAYOUT_PENUMBRA_INJESTION_NSPP 16
@@ -138,9 +147,17 @@
 	#define SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_HARMONIC 0xD200
 
 
+	/** Buffer layout given by SSGI. */
+	#define SIGNAL_BUFFER_LAYOUT_SSGI_INPUT 0xD300
+
+	#define SIGNAL_BUFFER_LAYOUT_SSGI_HISTORY_R11G11B10 0xD301
+
+
+
+
 /** Defines how the signal is being processed. Matches C++'s ESignalProcessing. */
 	/** Shadow penumbra denoising. */
-	#define SIGNAL_PROCESSING_MONOCHROMATIC_PENUMBRA 0
+	#define SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK 0
 
 	/** Shadow penumbra denoising. */
 	#define SIGNAL_PROCESSING_POLYCHROMATIC_PENUMBRA_HARMONIC 1
@@ -156,6 +173,9 @@
 
 	/** Diffuse indirect using spherical harmonic. */
 	#define SIGNAL_PROCESSING_DIFFUSE_SPHERICAL_HARMONIC 5
+
+	/** Diffuse indirect using spherical harmonic. */
+	#define SIGNAL_PROCESSING_SSGI 6
 
 
 
@@ -182,6 +202,9 @@
 	// Filtering
 	#define SAMPLE_SET_2X2_BILINEAR 1
 
+	// Stocastic 2x2 that only take one sample.
+	#define SAMPLE_SET_2X2_STOCASTIC 13
+
 	// Square kernel
 	#define SAMPLE_SET_3X3 2
 	#define SAMPLE_SET_3X3_SOBEK2018 3
@@ -198,6 +221,8 @@
 	#define SAMPLE_SET_HEXAWEB 11
 
 	#define SAMPLE_SET_STOCASTIC_HIERARCHY 12
+
+	#define SAMPLE_SET_DIRECTIONAL_RECT 14
 
 
 /** Compression of signal for VGPR occupency. */
@@ -221,13 +246,16 @@
 	#define NEIGHBOR_TO_REF_CACHE_WORLD_POSITION 0
 
 	// Compute by deriving the information of the reference pixel last minute from kernel configuration, trading VALU to save VGPR.
-	// TODO: does not work with previous frame reprojection.
+	// Caution: does not work with previous frame reprojection.
 	#define NEIGHBOR_TO_REF_LOWEST_VGPR_PRESSURE 1
 
 
 /** Type to use for texture sampling. */
 	#define SIGNAL_TEXTURE_TYPE_FLOAT4 0
-	#define SIGNAL_TEXTURE_TYPE_UINT2 1
+	#define SIGNAL_TEXTURE_TYPE_UINT1 1
+	#define SIGNAL_TEXTURE_TYPE_UINT2 2
+	#define SIGNAL_TEXTURE_TYPE_UINT3 3
+	#define SIGNAL_TEXTURE_TYPE_UINT4 4
 
 
 /** Bilateral settings bitfield. */
@@ -259,7 +287,7 @@
 //------------------------------------------------------- GLOBAL CONFIGURATION OF ALL DENOISER SHADERS
 
 /** Do normal based anysotropy. */
-// TODO: the hierarchical denoiser needs that.
+// TODO(Denoiser): the hierarchical denoiser needs that.
 #define CONFIG_NORMAL_ANISOTROPY 0
 
 /** Whether should enable VGPR optimizations in the entry point of the shaders. */
@@ -269,11 +297,14 @@
 #define CONFIG_VALU_OPTIMIZATIONS 1
 
 /** Whether should compile hint to the shader compiler to force shift some variable to SGPR. */
-// TODO: the shader compiler is not doing the right thing.
+// TODO(Denoiser): the shader compiler is not doing the right thing.
 #define CONFIG_SGPR_HINT_OPTIMIZATION 0
 
 /** Configures whether the world normal should be compressed in FSSDSampleSceneInfos. */
 #define CONFIG_COMPRESS_WORLD_NORMAL 1
+
+/** Configures whether the world position should be compressed in FSSDSampleSceneInfos. */
+#define CONFIG_COMPRESS_WORLD_POSITION 1
 
 /** By default, the color space stored into intermediary buffer is linear premultiplied RGBA. */
 #define STANDARD_BUFFER_COLOR_SPACE COLOR_SPACE_RGB
@@ -282,5 +313,5 @@
 #define REFLECTIONS_REJECTION_COLOR_SPACE (COLOR_SPACE_LCOCG | COLOR_SPACE_UNPREMULTIPLY)
 
 /** Defines the order of the spherical harmonic to denoise. */
-// TODO: quality permutation instead?
+// TODO(Denoiser): quality permutation instead?
 #define SPHERICAL_HARMONIC_ORDER 2

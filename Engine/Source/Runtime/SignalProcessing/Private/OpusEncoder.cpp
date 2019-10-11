@@ -2,7 +2,7 @@
 
 #include "DSP/Encoders/OpusEncoder.h"
 
-#if !PLATFORM_TVOS
+#if PLATFORM_SUPPORTS_OPUS_CODEC 
 
 THIRD_PARTY_INCLUDES_START
 #include "opus.h"

@@ -60,9 +60,9 @@ struct FRHICommandSetStereoViewport;
 struct FRHICommandSetStreamSource;
 struct FRHICommandSetViewport;
 struct FRHICommandTransitionTextures;
+struct FRHICommandTransitionTexturesDepth;
 struct FRHICommandTransitionTexturesArray;
 struct FRHICommandUpdateTextureReference;
-struct FRHICommandBuildAccelerationStructure;
 struct FRHICommandClearRayTracingBindings;
 struct FRHICommandRayTraceOcclusion;
 struct FRHICommandRayTraceIntersection;
@@ -95,6 +95,25 @@ void FRHICommandEndUpdateMultiFrameUAV::Execute(FRHICommandListBase& CmdList)
 	RHISTAT(EndUpdateMultiFrameUAV);
 	INTERNAL_DECORATOR(RHIEndUpdateMultiFrameResource)(UAV);
 }
+
+#if WITH_MGPU
+void FRHICommandSetGPUMask::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(SetGPUMask);
+	INTERNAL_DECORATOR(RHISetGPUMask)(GPUMask);
+}
+void FRHICommandWaitForTemporalEffect::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(WaitForTemporalEffect);
+	INTERNAL_DECORATOR(RHIWaitForTemporalEffect)(EffectName);
+}
+
+void FRHICommandBroadcastTemporalEffect::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(BroadcastTemporalEffect);
+	INTERNAL_DECORATOR(RHIBroadcastTemporalEffect)(EffectName, { Textures, NumTextures });
+}
+#endif // WITH_MGPU
 
 void FRHICommandSetStencilRef::Execute(FRHICommandListBase& CmdList)
 {
@@ -403,10 +422,22 @@ void FRHICommandCopyTexture::Execute(FRHICommandListBase& CmdList)
 	INTERNAL_DECORATOR(RHICopyTexture)(SourceTexture, DestTexture, CopyInfo);
 }
 
+void FRHICommandResummarizeHTile::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(ResummarizeHTile);
+	INTERNAL_DECORATOR(RHIResummarizeHTile)(DepthTexture);
+}
+
 void FRHICommandTransitionTextures::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(TransitionTextures);
 	INTERNAL_DECORATOR(RHITransitionResources)(TransitionType, &Textures[0], NumTextures);
+}
+
+void FRHICommandTransitionTexturesDepth::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(TransitionTextures);
+	INTERNAL_DECORATOR(RHITransitionResources)(DepthStencilMode, DepthTexture);
 }
 
 void FRHICommandTransitionTexturesArray::Execute(FRHICommandListBase& CmdList)
@@ -533,18 +564,22 @@ void FRHICommandCopyBufferRegions::Execute(FRHICommandListBase& CmdList)
 	INTERNAL_DECORATOR(RHICopyBufferRegions)(Params);
 }
 
-void FRHICommandBuildAccelerationStructure::Execute(FRHICommandListBase& CmdList)
+template<ECmdList CmdListType>
+void FRHICommandBuildAccelerationStructure<CmdListType>::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(BuildAccelerationStructure);
 	if (Geometry)
 	{
-		INTERNAL_DECORATOR(RHIBuildAccelerationStructure)(Geometry);
+		INTERNAL_DECORATOR_CONTEXT(RHIBuildAccelerationStructure)(Geometry);
 	}
 	else
 	{
-		INTERNAL_DECORATOR(RHIBuildAccelerationStructure)(Scene);
+		INTERNAL_DECORATOR_CONTEXT(RHIBuildAccelerationStructure)(Scene);
 	}
 }
+
+template struct FRHICommandBuildAccelerationStructure<ECmdList::EGfx>;
+template struct FRHICommandBuildAccelerationStructure<ECmdList::ECompute>;
 
 void FRHICommandClearRayTracingBindings::Execute(FRHICommandListBase& CmdList)
 {
@@ -552,17 +587,25 @@ void FRHICommandClearRayTracingBindings::Execute(FRHICommandListBase& CmdList)
 	INTERNAL_DECORATOR(RHIClearRayTracingBindings)(Scene);
 }
 
-void FRHICommandUpdateAccelerationStructures::Execute(FRHICommandListBase& CmdList)
+template<ECmdList CmdListType>
+void FRHICommandUpdateAccelerationStructures<CmdListType>::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(UpdateAccelerationStructure);
-	INTERNAL_DECORATOR(RHIUpdateAccelerationStructures)(UpdateParams);
+	INTERNAL_DECORATOR_CONTEXT(RHIUpdateAccelerationStructures)(UpdateParams);
 }
 
-void FRHICommandBuildAccelerationStructures::Execute(FRHICommandListBase& CmdList)
+template struct FRHICommandUpdateAccelerationStructures<ECmdList::EGfx>;
+template struct FRHICommandUpdateAccelerationStructures<ECmdList::ECompute>;
+
+template<ECmdList CmdListType>
+void FRHICommandBuildAccelerationStructures<CmdListType>::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(BuildAccelerationStructure);
-	INTERNAL_DECORATOR(RHIBuildAccelerationStructures)(UpdateParams);
+	INTERNAL_DECORATOR_CONTEXT(RHIBuildAccelerationStructures)(UpdateParams);
 }
+
+template struct FRHICommandBuildAccelerationStructures<ECmdList::EGfx>;
+template struct FRHICommandBuildAccelerationStructures<ECmdList::ECompute>;
 
 void FRHICommandRayTraceOcclusion::Execute(FRHICommandListBase& CmdList)
 {

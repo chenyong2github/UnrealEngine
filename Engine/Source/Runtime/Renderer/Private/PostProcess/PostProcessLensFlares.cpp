@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "PostProcessLensFlares.h"
+#include "PostProcessDownsample.h"
 
 namespace
 {
@@ -105,15 +106,13 @@ ELensFlareQuality GetLensFlareQuality()
 		static_cast<int32>(ELensFlareQuality::MAX) - 1));
 }
 
-FRDGTextureRef AddLensFlaresPass(
+FScreenPassTexture AddLensFlaresPass(
 	FRDGBuilder& GraphBuilder,
-	const FScreenPassViewInfo& ScreenPassView,
+	const FViewInfo& View,
 	const FLensFlareInputs& Inputs)
 {
-	check(Inputs.FlareTexture);
-	check(!Inputs.FlareViewRect.IsEmpty());
-	check(Inputs.BloomTexture);
-	check(!Inputs.BloomViewRect.IsEmpty());
+	check(Inputs.Flare.IsValid());
+	check(Inputs.Bloom.IsValid());
 	check(Inputs.BokehShapeTexture);
 	check(Inputs.LensFlareCount <= FLensFlareInputs::LensFlareCountMax);
 	check(Inputs.TintColorsPerFlare.Num() == Inputs.LensFlareCount);
@@ -131,9 +130,9 @@ FRDGTextureRef AddLensFlaresPass(
 	// behavior is also affected by this constant.
 	const float GuardBandScale = 2.0f;
 
-	const FScreenPassTextureViewport BloomViewport(Inputs.BloomViewRect, Inputs.BloomTexture);
+	const FScreenPassTextureViewport BloomViewport(Inputs.Bloom);
 	const FIntPoint BloomViewportSize(BloomViewport.Rect.Size());
-	const FScreenPassTextureViewport FlareViewport(Inputs.FlareViewRect, Inputs.FlareTexture);
+	const FScreenPassTextureViewport FlareViewport(Inputs.Flare);
 	const FIntPoint FlareViewSize = FlareViewport.Rect.Size();
 
 	FRHIBlendState* AdditiveBlendState = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_One>::GetRHI();
@@ -143,7 +142,7 @@ FRDGTextureRef AddLensFlaresPass(
 
 	// Initialize the blur output texture.
 	{
-		FRDGTextureDesc BlurOutputDesc = Inputs.FlareTexture->Desc;
+		FRDGTextureDesc BlurOutputDesc = Inputs.Flare.Texture->Desc;
 		BlurOutputDesc.Reset();
 
 		// More precision for additive blend.
@@ -162,7 +161,7 @@ FRDGTextureRef AddLensFlaresPass(
 		const float KernelSize = (Inputs.BokehSizePercent * static_cast<float>(FlareViewSize.X)) * PercentToScale;
 
 		FLensFlarePassParameters* PassParameters = GraphBuilder.AllocParameters<FLensFlarePassParameters>();
-		PassParameters->InputTexture = Inputs.FlareTexture;
+		PassParameters->InputTexture = Inputs.Flare.Texture;
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(BlurOutputTexture, ERenderTargetLoadAction::EClear);
 
 		// Setup vertex shader parameters.
@@ -182,15 +181,14 @@ FRDGTextureRef AddLensFlaresPass(
 		PixelParameters.BokehTexture = Inputs.BokehShapeTexture;
 		PixelParameters.BokehSampler = BilinearClampSampler;
 
-		TShaderMapRef<FLensFlareBlurVS> VertexShader(ScreenPassView.View.ShaderMap);
-		TShaderMapRef<FLensFlareBlurPS> PixelShader(ScreenPassView.View.ShaderMap);
+		TShaderMapRef<FLensFlareBlurVS> VertexShader(View.ShaderMap);
+		TShaderMapRef<FLensFlareBlurPS> PixelShader(View.ShaderMap);
 
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("LensFlareBlur %dx%d", FlareViewSize.X, FlareViewSize.Y),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[VertexShader, PixelShader, VertexParameters, PixelParameters, AdditiveBlendState, FlareViewport, TileCount]
-		(FRHICommandListImmediate& RHICmdList)
+			[VertexShader, PixelShader, VertexParameters, PixelParameters, AdditiveBlendState, FlareViewport, TileCount] (FRHICommandListImmediate& RHICmdList)
 		{
 			// Viewport is the same as the input.
 			RHICmdList.SetViewport(
@@ -226,7 +224,7 @@ FRDGTextureRef AddLensFlaresPass(
 
 	// Initialize the lens flare output texture.
 	{
-		FRDGTextureDesc LensFlareTextureDesc = Inputs.BloomTexture->Desc;
+		FRDGTextureDesc LensFlareTextureDesc = Inputs.Bloom.Texture->Desc;
 		LensFlareTextureDesc.Reset();
 		LensFlareTextureDesc.ClearValue = FClearValueBinding(FLinearColor::Transparent);
 
@@ -239,11 +237,11 @@ FRDGTextureRef AddLensFlaresPass(
 	{
 		AddCopyTexturePass(
 			GraphBuilder,
-			Inputs.BloomTexture,
+			Inputs.Bloom.Texture,
 			LensFlareTexture,
-			Inputs.BloomViewRect.Min,
-			Inputs.BloomViewRect.Min,
-			Inputs.BloomViewRect.Size());
+			Inputs.Bloom.ViewRect.Min,
+			Inputs.Bloom.ViewRect.Min,
+			Inputs.Bloom.ViewRect.Size());
 	}
 	else
 	{
@@ -282,20 +280,21 @@ FRDGTextureRef AddLensFlaresPass(
 
 		const FVector2D QuadOffset = OutputCenter - 0.5f * QuadSize;
 
-		TShaderMapRef<FLensFlareCompositePS> PixelShader(ScreenPassView.View.ShaderMap);
+		TShaderMapRef<FScreenPassVS> VertexShader(View.ShaderMap);
+		TShaderMapRef<FLensFlareCompositePS> PixelShader(View.ShaderMap);
 
-		const FScreenPassDrawInfo ScreenPassDraw(*ScreenPassView.ScreenPassVS, *PixelShader, AdditiveBlendState);
+		const FScreenPassPipelineState PipelineState(*VertexShader, *PixelShader, AdditiveBlendState);
 
 		// This pass rasterizes the lens flare quad scaled and centered within the viewport.
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("LensFlare%d", LensFlareIndex),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[PixelShader, PassParameters, OutputViewRect, FlareViewport, QuadSize, QuadOffset, ScreenPassDraw] (FRHICommandListImmediate& RHICmdList)
+			[PixelShader, PassParameters, OutputViewRect, FlareViewport, QuadSize, QuadOffset, PipelineState] (FRHICommandListImmediate& RHICmdList)
 		{
 			RHICmdList.SetViewport(OutputViewRect.Min.X, OutputViewRect.Min.Y, 0.0f, OutputViewRect.Max.X, OutputViewRect.Max.Y, 1.0f);
 
-			SetScreenPassPipelineState(RHICmdList, ScreenPassDraw);
+			SetScreenPassPipelineState(RHICmdList, PipelineState);
 
 			SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), *PassParameters);
 
@@ -311,7 +310,7 @@ FRDGTextureRef AddLensFlaresPass(
 				FlareViewport.Rect.Height(),
 				OutputViewRect.Size(),
 				FlareViewport.Extent,
-				ScreenPassDraw.VertexShader,
+				PipelineState.VertexShader,
 				EDRF_Default);
 		});
 
@@ -319,5 +318,69 @@ FRDGTextureRef AddLensFlaresPass(
 		LensFlareLoadAction = ERenderTargetLoadAction::ELoad;
 	}
 
-	return LensFlareTexture;
+	return FScreenPassTexture(LensFlareTexture, OutputViewRect);
+}
+
+FScreenPassTexture AddLensFlaresPass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	FScreenPassTexture Bloom,
+	const FSceneDownsampleChain& SceneDownsampleChain)
+{
+	const ELensFlareQuality LensFlareQuality = GetLensFlareQuality();
+
+	const FPostProcessSettings& Settings = View.FinalPostProcessSettings;
+
+	if (LensFlareQuality != ELensFlareQuality::Disabled &&
+		!Settings.LensFlareTint.IsAlmostBlack() &&
+		Settings.LensFlareBokehSize > SMALL_NUMBER &&
+		Settings.LensFlareIntensity > SMALL_NUMBER)
+	{
+		FRHITexture* BokehTextureRHI = GWhiteTexture->TextureRHI;
+
+		if (GEngine->DefaultBokehTexture)
+		{
+			FTextureResource* BokehTextureResource = GEngine->DefaultBokehTexture->Resource;
+
+			if (BokehTextureResource && BokehTextureResource->TextureRHI)
+			{
+				BokehTextureRHI = BokehTextureResource->TextureRHI;
+			}
+		}
+
+		if (Settings.LensFlareBokehShape)
+		{
+			FTextureResource* BokehTextureResource = Settings.LensFlareBokehShape->Resource;
+
+			if (BokehTextureResource && BokehTextureResource->TextureRHI)
+			{
+				BokehTextureRHI = BokehTextureResource->TextureRHI;
+			}
+		}
+
+		// The quality level controls which downsample stage we use as the flare input texture.
+		const uint32 LensFlareDownsampleStageIndex = static_cast<uint32>(ELensFlareQuality::MAX) - static_cast<uint32>(LensFlareQuality) - 1;
+
+		FLensFlareInputs LensFlareInputs;
+		LensFlareInputs.Bloom = Bloom;
+		LensFlareInputs.Flare = SceneDownsampleChain.GetTexture(LensFlareDownsampleStageIndex);
+		LensFlareInputs.BokehShapeTexture = BokehTextureRHI;
+		LensFlareInputs.TintColorsPerFlare = Settings.LensFlareTints;
+		LensFlareInputs.TintColor = Settings.LensFlareTint;
+		LensFlareInputs.BokehSizePercent = Settings.LensFlareBokehSize;
+		LensFlareInputs.Intensity = Settings.LensFlareIntensity;
+		LensFlareInputs.Threshold = Settings.LensFlareThreshold;
+
+		// If a bloom output texture isn't available, substitute the half resolution scene color instead, but disable bloom
+		// composition. The pass needs a primary input in order to access the image descriptor and viewport for output.
+		if (!Bloom.IsValid())
+		{
+			LensFlareInputs.Bloom = SceneDownsampleChain.GetFirstTexture();
+			LensFlareInputs.bCompositeWithBloom = false;
+		}
+
+		return AddLensFlaresPass(GraphBuilder, View, LensFlareInputs);
+	}
+
+	return FScreenPassTexture();
 }

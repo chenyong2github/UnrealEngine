@@ -9,9 +9,7 @@
 #include "Lumin/LuminPlatformAffinity.h"
 #endif // PLATFORM_LUMIN
 
-#if WITH_MLSDK
-#include <ml_purchase.h>
-#endif //WITH_MLSDK
+#include "Lumin/CAPIShims/LuminAPIPurchase.h"
 
 DEFINE_LOG_CATEGORY(LogInAppPurchase);
 

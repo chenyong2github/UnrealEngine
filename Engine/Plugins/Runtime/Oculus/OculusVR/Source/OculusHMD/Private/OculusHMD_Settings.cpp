@@ -18,7 +18,7 @@ FSettings::FSettings() :
 	, PixelDensityMin(0.5f)
 	, PixelDensityMax(1.0f)
 	, SystemHeadset(ovrpSystemHeadset_None)
-	, MultiResLevel(ETiledMultiResLevel::ETiledMultiResLevel_Off)
+	, FFRLevel(EFixedFoveatedRenderingLevel::FFR_Off)
 	, CPULevel(2)
 	, GPULevel(3)
 	, ColorScale(ovrpVector4f{1,1,1,1})

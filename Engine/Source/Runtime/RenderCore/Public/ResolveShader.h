@@ -257,7 +257,7 @@ public:
 	}
 	FResolveVS() {}
 
-	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, FVector4 PositionMinMax, FVector4 UVMinMax);
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, const FResolveRect& SrcBounds, const FResolveRect& DstBounds, uint32 DstSurfaceWidth, uint32 DstSurfaceHeight);
 
 	virtual bool Serialize(FArchive& Ar) override
 	{
@@ -270,14 +270,3 @@ public:
 	FShaderParameter PositionMinMax;
 	FShaderParameter UVMinMax;
 };
-
-struct FResolveVertexBuffer : public FRenderResource
-{
-	FVertexBufferRHIRef VertexBufferRHI;
-	FVertexDeclarationRHIRef VertexDeclarationRHI;
-
-	virtual void InitDynamicRHI() override;
-	virtual void ReleaseDynamicRHI() override;
-};
-
-extern RENDERCORE_API TGlobalResource<FResolveVertexBuffer> GResolveVertexBuffer;

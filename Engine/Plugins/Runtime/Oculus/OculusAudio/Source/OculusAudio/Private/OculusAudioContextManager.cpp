@@ -56,7 +56,7 @@ void FOculusAudioContextManager::OnListenerInitialize(FAudioDevice* AudioDevice,
 	}
 
 	FString OculusSpatializerPluginName = Plugin->GetSpatializationPluginFactory()->GetDisplayName();
-	FString CurrentSpatializerPluginName = AudioPluginUtilities::GetDesiredPluginName(EAudioPlugin::SPATIALIZATION, AudioPluginUtilities::CurrentPlatform);
+	FString CurrentSpatializerPluginName = AudioPluginUtilities::GetDesiredPluginName(EAudioPlugin::SPATIALIZATION);
 	if (CurrentSpatializerPluginName.Equals(OculusSpatializerPluginName)) // we have a match!
 	{
 		OculusAudioSpatializationAudioMixer* Spatializer = 
@@ -65,7 +65,7 @@ void FOculusAudioContextManager::OnListenerInitialize(FAudioDevice* AudioDevice,
 	}
 
 	FString OculusReverbPluginName = Plugin->GetReverbPluginFactory()->GetDisplayName();
-	FString CurrentReverbPluginName = AudioPluginUtilities::GetDesiredPluginName(EAudioPlugin::REVERB, AudioPluginUtilities::CurrentPlatform);
+	FString CurrentReverbPluginName = AudioPluginUtilities::GetDesiredPluginName(EAudioPlugin::REVERB);
 	if (CurrentReverbPluginName.Equals(OculusReverbPluginName))
 	{
 		OculusAudioReverb* Reverb = static_cast<OculusAudioReverb*>(AudioDevice->ReverbPluginInterface.Get());
@@ -79,7 +79,7 @@ void FOculusAudioContextManager::OnListenerShutdown(FAudioDevice* AudioDevice)
 	check(Plugin != nullptr);
 
 	FString OculusSpatializerPluginName = Plugin->GetSpatializationPluginFactory()->GetDisplayName();
-	FString CurrentSpatializerPluginName = AudioPluginUtilities::GetDesiredPluginName(EAudioPlugin::SPATIALIZATION, AudioPluginUtilities::CurrentPlatform);
+	FString CurrentSpatializerPluginName = AudioPluginUtilities::GetDesiredPluginName(EAudioPlugin::SPATIALIZATION);
 	if (CurrentSpatializerPluginName.Equals(OculusSpatializerPluginName))
 	{
 		OculusAudioSpatializationAudioMixer* Spatializer =
@@ -88,7 +88,7 @@ void FOculusAudioContextManager::OnListenerShutdown(FAudioDevice* AudioDevice)
 	}
 
 	FString OculusReverbPluginName = Plugin->GetReverbPluginFactory()->GetDisplayName();
-	FString CurrentReverbPluginName = AudioPluginUtilities::GetDesiredPluginName(EAudioPlugin::REVERB, AudioPluginUtilities::CurrentPlatform);
+	FString CurrentReverbPluginName = AudioPluginUtilities::GetDesiredPluginName(EAudioPlugin::REVERB);
 	if (CurrentReverbPluginName.Equals(OculusReverbPluginName))
 	{
 		OculusAudioReverb* Reverb = static_cast<OculusAudioReverb*>(AudioDevice->ReverbPluginInterface.Get());

@@ -2492,11 +2492,6 @@ void UEditorEngine::PlayInEditor( UWorld* InWorld, bool bInSimulateInEditor, FPl
 		OutputLogErrorsToMessageLogProxyPtr = MakeShareable(new FOutputLogErrorsToMessageLogProxy());
 	}
 
-	if (GEngine->XRSystem.IsValid() && !bInSimulateInEditor)
-	{
-		GEngine->XRSystem->OnBeginPlay(*GEngine->GetWorldContextFromWorld(InWorld));
-	}
-
 	// remember old GWorld
 	EditorWorld = InWorld;
 

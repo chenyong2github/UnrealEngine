@@ -205,7 +205,7 @@ struct FMetalHelperFunctions
 			ns::AutoReleasedError Error;
 			
 			CopyIndexLib = GetMetalDeviceContext().GetDevice().NewLibrary(GMetalCopyIndexComputeShader, CompileOptions, &Error);
-			CopyIndex32Func = CopyIndexLib.NewFunction(@"Main_CopyIndex16");
+			CopyIndex32Func = CopyIndexLib.NewFunction(@"Main_CopyIndex32");
 			CopyIndex16Func = CopyIndexLib.NewFunction(@"Main_CopyIndex16");
 			CopyIndex32State = GetMetalDeviceContext().GetDevice().NewComputePipelineState(CopyIndex32Func, &Error);
 			CopyIndex16State = GetMetalDeviceContext().GetDevice().NewComputePipelineState(CopyIndex16Func, &Error);
@@ -658,6 +658,12 @@ APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FMetalShaderPipeline)
 	{
 		MTLArgument* Arg = [Arguments objectAtIndex:i];
 		check(Arg);
+
+		if (!Arg.active)
+		{
+			continue;
+		}
+
 		switch(Arg.type)
 		{
 			case MTLArgumentTypeBuffer:

@@ -123,8 +123,6 @@ FSSDRWTexture2D	SignalOutput_UAVs_3;
 #define SignalOutput_UAVs_3 SignalOutput_UAVs_0
 #endif
 
-FSSDRWTexture2D DebugOutput;
-
 
 //------------------------------------------------------- ENTRY POINT
 
@@ -136,15 +134,14 @@ void MainCS(
 	uint GroupThreadIndex : SV_GroupIndex)
 {
 	// Find out scene buffer UV.
-	float2 SceneBufferUV = (ViewportMin + DispatchThreadId + 0.5) * View.BufferSizeAndInvSize.zw;
+	float2 SceneBufferUV = DispatchThreadId * ThreadIdToBufferUV.xy + ThreadIdToBufferUV.zw;
 	if (true)
 	{
 		SceneBufferUV = clamp(SceneBufferUV, BufferBilinearUVMinMax.xy, BufferBilinearUVMinMax.zw);
 	}
 	
 	// Read reference meta data.
-	float2 ScreenPosition = ViewportUVToScreenPos(BufferUVToViewportUV(SceneBufferUV));
-	FSSDSampleSceneInfos RefSceneMetadata = FetchCurrentSceneInfos(ScreenPosition, SceneBufferUV);
+	float2 ScreenPosition = DenoiserBufferUVToScreenPosition(SceneBufferUV);
 
 	// Sample the harmonics.
 	FSSDSignalArray MultiplexedHarmonics[4];
@@ -237,7 +234,7 @@ void MainCS(
 			float3 Outgoing = NormalizedSample.ColorArray[1].rgb;
 			float3 Stoped = Incoming - Outgoing;
 
-			// TODO.
+			// TODO(Denoiser).
 			float3 HarmonicMask;
 			HarmonicMask.r = Incoming.r > 0 ? saturate(Outgoing.r / Incoming.r) : 1.0;
 			HarmonicMask.g = Incoming.g > 0 ? saturate(Outgoing.g / Incoming.g) : 1.0;
@@ -282,7 +279,7 @@ void MainCS(
 	
 	#if CONFIG_VGPR_OPTIMIZATION
 		// No need to keep DispatchThreadId, while SceneBufferUV is arround at highest VGPR peak because center of the unique pixel to sample.
-		uint2 OutputPixelPostion = uint2(SceneBufferUV * View.BufferSizeAndInvSize.xy);
+		uint2 OutputPixelPostion = BufferUVToBufferPixelCoord(SceneBufferUV);
 	#else
 		uint2 OutputPixelPostion = ViewportMin + DispatchThreadId;
 	#endif 

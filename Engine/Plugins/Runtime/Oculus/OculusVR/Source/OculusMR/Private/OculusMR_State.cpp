@@ -9,4 +9,5 @@ UOculusMR_State::UOculusMR_State(const FObjectInitializer& ObjectInitializer)
 	, CurrentCapturingCamera(ovrpCameraDevice_None)
 	, ChangeCameraStateRequested(false)
 	, BindToTrackedCameraIndexRequested(false)
-{}
+{
+}

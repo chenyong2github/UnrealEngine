@@ -25,6 +25,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "VRNotificationsComponent.h"
 #include "RenderUtils.h"
+#include "AudioDevice.h"
 
 #define LOCTEXT_NAMESPACE "OculusMR_CastingCameraActor"
 
@@ -101,7 +102,7 @@ AOculusMR_CastingCameraActor::AOculusMR_CastingCameraActor(const FObjectInitiali
 	, TrackedCameraCalibrationRequired(false)
 	, HasTrackedCameraCalibrationCalibrated(false)
 	, RefreshBoundaryMeshCounter(3)
-	, ForegroundLayerBackgroundColor(FLinearColor::Green)
+	, ForegroundLayerBackgroundColor(FColor::Green)
 	, ForegroundMaxDistance(300.0f)
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -109,10 +110,12 @@ AOculusMR_CastingCameraActor::AOculusMR_CastingCameraActor(const FObjectInitiali
 
 	VRNotificationComponent = CreateDefaultSubobject<UVRNotificationsComponent>(TEXT("VRNotificationComponent"));
 
+#if PLATFORM_WINDOWS
 	PlaneMeshComponent = CreateDefaultSubobject<UOculusMR_PlaneMeshComponent>(TEXT("PlaneMeshComponent"));
 	PlaneMeshComponent->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 	PlaneMeshComponent->ResetRelativeTransform();
 	PlaneMeshComponent->SetVisibility(false);
+#endif
 
 	ChromaKeyMaterial = Cast<UMaterial>(StaticLoadObject(UMaterial::StaticClass(), NULL, TEXT("/OculusVR/Materials/OculusMR_ChromaKey")));
 	if (!ChromaKeyMaterial)
@@ -136,11 +139,9 @@ AOculusMR_CastingCameraActor::AOculusMR_CastingCameraActor(const FObjectInitiali
 	struct FConstructorStatics
 	{
 		ConstructorHelpers::FObjectFinder<UTexture2D> WhiteSquareTexture;
-		ConstructorHelpers::FObjectFinder<UTextureRenderTarget2D> RenderTarget;
 
 		FConstructorStatics()
 			: WhiteSquareTexture(TEXT("/Engine/EngineResources/WhiteSquareTexture"))
-			, RenderTarget(TEXT("/OculusVR/OculusMR_RenderTarget"))
 		{
 		}
 	};
@@ -148,10 +149,45 @@ AOculusMR_CastingCameraActor::AOculusMR_CastingCameraActor(const FObjectInitiali
 
 	DefaultTexture_White = ConstructorStatics.WhiteSquareTexture.Object;
 	check(DefaultTexture_White);
-	
+
+	BoundarySceneCaptureActor = nullptr;
+	ForegroundCaptureActor = nullptr;
+
 	// Set the render targets for background and foreground to copies of the default texture
-	BackgroundRenderTarget = DuplicateObject<UTextureRenderTarget2D>(ConstructorStatics.RenderTarget.Object, NULL);
-	ForegroundRenderTarget = DuplicateObject<UTextureRenderTarget2D>(ConstructorStatics.RenderTarget.Object, NULL);
+#if PLATFORM_WINDOWS
+	BackgroundRenderTargets.SetNum(1);
+	ForegroundRenderTargets.SetNum(1);
+
+	BackgroundRenderTargets[0] = NewObject<UTextureRenderTarget2D>();
+	BackgroundRenderTargets[0]->RenderTargetFormat = RTF_RGB10A2;
+	BackgroundRenderTargets[0]->TargetGamma = 2.2;
+
+	ForegroundRenderTargets[0] = NewObject<UTextureRenderTarget2D>();
+	ForegroundRenderTargets[0]->RenderTargetFormat = RTF_RGB10A2;
+	ForegroundRenderTargets[0]->TargetGamma = 2.2;
+#elif PLATFORM_ANDROID
+	BackgroundRenderTargets.SetNum(NumRTs);
+	ForegroundRenderTargets.SetNum(NumRTs);
+	AudioBuffers.SetNum(NumRTs);
+	AudioTimes.SetNum(NumRTs);
+
+	for (unsigned int i = 0; i < NumRTs; ++i)
+	{
+		BackgroundRenderTargets[i] = NewObject<UTextureRenderTarget2D>();
+		BackgroundRenderTargets[i]->RenderTargetFormat = RTF_RGBA8;
+		BackgroundRenderTargets[i]->TargetGamma = 2.2;
+
+		ForegroundRenderTargets[i] = NewObject<UTextureRenderTarget2D>();
+		ForegroundRenderTargets[i]->RenderTargetFormat = RTF_RGBA8;
+		ForegroundRenderTargets[i]->TargetGamma = 2.2;
+
+		AudioTimes[i] = 0.0;
+	}
+
+	SyncId = -1;
+	RenderedRTs = 0;
+	CaptureIndex = 0;
+#endif
 }
 
 void AOculusMR_CastingCameraActor::BeginDestroy()
@@ -205,8 +241,9 @@ void AOculusMR_CastingCameraActor::BeginPlay()
 
 	SetupTrackedCamera();
 	RequestTrackedCameraCalibration();
-	SetupSpectatorScreen();
+	SetupMRCScreen();
 
+#if PLATFORM_WINDOWS
 	BoundaryActor = GetWorld()->SpawnActor<AOculusMR_BoundaryActor>(AOculusMR_BoundaryActor::StaticClass());
 	BoundaryActor->SetActorTransform(FTransform::Identity);
 
@@ -230,25 +267,46 @@ void AOculusMR_CastingCameraActor::BeginPlay()
 	}
 
 	RefreshBoundaryMesh();
+#endif
 
 	FScriptDelegate Delegate;
 	Delegate.BindUFunction(this, FName(TEXT("OnHMDRecentered")));
 	VRNotificationComponent->HMDRecenteredDelegate.Add(Delegate);
+
+#if PLATFORM_ANDROID
+	FAudioDevice* AudioDevice = FAudioDevice::GetMainAudioDevice();
+	AudioDevice->StartRecording(nullptr, 0.1);
+#endif
 }
 
 void AOculusMR_CastingCameraActor::EndPlay(EEndPlayReason::Type Reason)
 {
+#if PLATFORM_ANDROID
+	FAudioDevice* AudioDevice = FAudioDevice::GetMainAudioDevice();
+	float NumChannels = 2;
+	float SampleRate = AudioDevice->GetSampleRate();
+	AudioDevice->StopRecording(nullptr, NumChannels, SampleRate);
+#endif
+
 	VRNotificationComponent->HMDRecenteredDelegate.Remove(this, FName(TEXT("OnHMDRecentered")));
 
-	BoundarySceneCaptureActor->Destroy();
-	BoundarySceneCaptureActor = NULL;
+#if PLATFORM_WINDOWS
+	if (BoundarySceneCaptureActor)
+	{
+		BoundarySceneCaptureActor->Destroy();
+		BoundarySceneCaptureActor = NULL;
+	}
 
-	BoundaryActor->Destroy();
-	BoundaryActor = NULL;
+	if (BoundaryActor)
+	{
+		BoundaryActor->Destroy();
+		BoundaryActor = NULL;
+	}
+#endif
 
 	MRState->TrackingReferenceComponent = nullptr;
 
-	CloseSpectatorScreen();
+	CloseMRCScreen();
 
 	CloseTrackedCamera();
 	Super::EndPlay(Reason);
@@ -282,12 +340,34 @@ void AOculusMR_CastingCameraActor::Tick(float DeltaTime)
 	if (MRState->ChangeCameraStateRequested)
 	{
 		CloseTrackedCamera();
-		CloseSpectatorScreen();
+		CloseMRCScreen();
 		SetupTrackedCamera();
-		SetupSpectatorScreen();
+		SetupMRCScreen();
 	}
 
-	if (MRSettings->GetCompositionMethod() == EOculusMR_CompositionMethod::DirectComposition)
+#if PLATFORM_WINDOWS
+	if (MRSettings->GetCompositionMethod() == EOculusMR_CompositionMethod::ExternalComposition)
+#endif
+	{
+		if (ForegroundLayerBackgroundColor != MRSettings->BackdropColor)
+		{
+			ForegroundLayerBackgroundColor = MRSettings->BackdropColor;
+			SetBackdropMaterialColor();
+		}
+		// Enable external composition post process based on setting
+		bool bPostProcess = MRSettings->ExternalCompositionPostProcessEffects != EOculusMR_PostProcessEffects::PPE_Off;
+		if (COverrideMixedRealityParametersVar.GetValueOnAnyThread() > 0)
+		{
+			bPostProcess = CEnableExternalCompositionPostProcess.GetValueOnAnyThread() > 0;
+		}
+		GetCaptureComponent2D()->ShowFlags.PostProcessing = bPostProcess;
+		if (ForegroundCaptureActor)
+		{
+			ForegroundCaptureActor->GetCaptureComponent2D()->ShowFlags.PostProcessing = bPostProcess;
+		}
+	}
+#if PLATFORM_WINDOWS
+	else if (MRSettings->GetCompositionMethod() == EOculusMR_CompositionMethod::DirectComposition)
 	{
 		SetupCameraFrameMaterialInstance();
 
@@ -304,17 +384,7 @@ void AOculusMR_CastingCameraActor::Tick(float DeltaTime)
 			}
 		}
 	}
-	else if(MRSettings->GetCompositionMethod() == EOculusMR_CompositionMethod::ExternalComposition)
-	{
-		// Enable external composition post process based on setting
-		bool bPostProcess = MRSettings->ExternalCompositionPostProcessEffects != EOculusMR_PostProcessEffects::PPE_Off;
-		if (COverrideMixedRealityParametersVar.GetValueOnAnyThread() > 0)
-		{
-			bPostProcess = CEnableExternalCompositionPostProcess.GetValueOnAnyThread() > 0;
-		}
-		GetCaptureComponent2D()->ShowFlags.PostProcessing = bPostProcess;
-		ForegroundCaptureActor->GetCaptureComponent2D()->ShowFlags.PostProcessing = bPostProcess;
-	}
+#endif
 
 	if (MRState->CurrentCapturingCamera != ovrpCameraDevice_None)
 	{
@@ -350,8 +420,10 @@ void AOculusMR_CastingCameraActor::Tick(float DeltaTime)
 	{
 		CalibrateTrackedCameraPose();
 	}
+
 	UpdateTrackedCameraPosition();
 
+#if PLATFORM_WINDOWS
 	if (MRSettings->GetCompositionMethod() == EOculusMR_CompositionMethod::DirectComposition)
 	{
 		UpdateBoundaryCapture();
@@ -365,8 +437,71 @@ void AOculusMR_CastingCameraActor::Tick(float DeltaTime)
 	{
 		UE_LOG(LogMR, Warning, TEXT("ovrp_SetHandNodePoseStateLatency(%f) failed, result %d"), HandPoseStateLatencyToSet, (int)result);
 	}
-		
+#endif
+
 	UpdateRenderTargetSize();
+
+#if PLATFORM_ANDROID
+	// Alternate foreground and background captures by nulling the capture component texture target
+	if (GetCaptureComponent2D()->IsVisible())
+	{
+		GetCaptureComponent2D()->SetVisibility(false);
+
+		// Encode a texture the frame before we render to it again to ensure completed render at the cost of latency
+		unsigned int EncodeIndex = (CaptureIndex + 1) % NumRTs;
+
+		// Skip encoding for the first few frames before they have completed rendering
+		if (RenderedRTs > EncodeIndex)
+		{
+			ovrp_Media_SyncMrcFrame(SyncId);
+
+			int NumChannels = 2;
+			double AudioTime = AudioTimes[EncodeIndex];
+			void* BackgroundTexture;
+			void* ForegroundTexture;
+
+			if (IsVulkanPlatform(GMaxRHIShaderPlatform))
+			{
+				// The Vulkan RHI's implementation of GetNativeResource is different and returns the VkImage cast
+				// as a void* instead of a pointer to the VkImage, so we need this workaround
+				BackgroundTexture = (void*)BackgroundRenderTargets[EncodeIndex]->Resource->TextureRHI->GetNativeResource();
+				ForegroundTexture = (void*)ForegroundRenderTargets[EncodeIndex]->Resource->TextureRHI->GetNativeResource();
+			}
+			else
+			{
+				BackgroundTexture = *((void**)BackgroundRenderTargets[EncodeIndex]->Resource->TextureRHI->GetNativeResource());
+				ForegroundTexture = *((void**)ForegroundRenderTargets[EncodeIndex]->Resource->TextureRHI->GetNativeResource());
+			}
+			ovrp_Media_EncodeMrcFrameWithDualTextures(BackgroundTexture, ForegroundTexture, AudioBuffers[EncodeIndex].GetData(), AudioBuffers[EncodeIndex].Num() * sizeof(float), NumChannels, AudioTime, &SyncId);
+		}
+		ForegroundCaptureActor->GetCaptureComponent2D()->SetVisibility(true);
+	}
+	else if (ForegroundCaptureActor && ForegroundCaptureActor->GetCaptureComponent2D()->IsVisible())
+	{
+		ForegroundCaptureActor->GetCaptureComponent2D()->SetVisibility(false);
+
+		// Increment scene captures to next texture
+		CaptureIndex = (CaptureIndex + 1) % NumRTs;
+		GetCaptureComponent2D()->TextureTarget = BackgroundRenderTargets[CaptureIndex];
+		ForegroundCaptureActor->GetCaptureComponent2D()->TextureTarget = ForegroundRenderTargets[CaptureIndex];
+		GetCaptureComponent2D()->SetVisibility(true);
+
+		FAudioDevice* AudioDevice = FAudioDevice::GetMainAudioDevice();
+		float NumChannels, SampleRate;
+		NumChannels = 2;
+		SampleRate = AudioDevice->GetSampleRate();
+		AudioBuffers[CaptureIndex] = AudioDevice->StopRecording(nullptr, NumChannels, SampleRate);
+		AudioTimes[CaptureIndex] = AudioDevice->GetAudioTime();
+		//UE_LOG(LogMR, Error, TEXT("SampleRate: %f, NumChannels: %f, Time: %f, Buffer Length: %d, Buffer: %p"), SampleRate, NumChannels, AudioDevice->GetAudioTime(), AudioBuffers[EncodeIndex].Num(), AudioBuffers[EncodeIndex].GetData());
+		AudioDevice->StartRecording(nullptr, 0.1);
+
+		// Increment this counter for the initial cycle through "swapchain"
+		if (RenderedRTs < NumRTs)
+		{
+			RenderedRTs++;
+		}
+	}
+#endif
 }
 
 void AOculusMR_CastingCameraActor::UpdateBoundaryCapture()
@@ -708,7 +843,16 @@ void AOculusMR_CastingCameraActor::UpdateTrackedCameraPosition()
 		return;
 	}
 
-	FPose CameraPose = CameraTrackedObjectPose * FPose(MRState->TrackedCamera.CalibratedRotation.Quaternion(), MRState->TrackedCamera.CalibratedOffset);
+	FPose CameraTrackingSpacePose = FPose(MRState->TrackedCamera.CalibratedRotation.Quaternion(), MRState->TrackedCamera.CalibratedOffset);
+#if PLATFORM_ANDROID
+	ovrpPosef OvrpPose;
+	ovrp_GetTrackingTransformRawPose(&OvrpPose);
+	FPose RawPose;
+	OculusHMD->ConvertPose(OvrpPose, RawPose);
+	FPose CalibrationRawPose = FPose(MRState->TrackedCamera.RawRotation.Quaternion(), MRState->TrackedCamera.RawOffset);
+	CameraTrackingSpacePose = RawPose * (CalibrationRawPose.Inverse() * CameraTrackingSpacePose);
+#endif
+	FPose CameraPose = CameraTrackedObjectPose * CameraTrackingSpacePose;
 	CameraPose = CameraPose * FPose(MRState->TrackedCamera.UserRotation.Quaternion(), MRState->TrackedCamera.UserOffset);
 
 	float Distance = 0.0f;
@@ -747,7 +891,6 @@ void AOculusMR_CastingCameraActor::UpdateTrackedCameraPosition()
 	TROrientation = TRRotation.Quaternion();
 	FinalPose = FPose(TROrientation, TRLocation) * CameraPose;
 
-
 	FTransform FinalTransform(FinalPose.Orientation, FinalPose.Position);
 	RootComponent->SetWorldTransform(FinalTransform);
 	GetCaptureComponent2D()->FOVAngle = MRState->TrackedCamera.FieldOfView;
@@ -776,6 +919,7 @@ void AOculusMR_CastingCameraActor::SetupTrackedCamera()
 	// Unset this flag before we can return
 	MRState->ChangeCameraStateRequested = false;
 
+#if PLATFORM_WINDOWS
 	// Set the plane mesh to the camera stream in direct composition or static background for external composition
 	if (MRSettings->GetCompositionMethod() == EOculusMR_CompositionMethod::DirectComposition)
 	{
@@ -802,6 +946,7 @@ void AOculusMR_CastingCameraActor::SetupTrackedCamera()
 	}
 
 	RepositionPlaneMesh();
+#endif
 }
 
 void AOculusMR_CastingCameraActor::SetupCameraFrameMaterialInstance()
@@ -837,17 +982,23 @@ void AOculusMR_CastingCameraActor::SetupCameraFrameMaterialInstance()
 	}
 }
 
+void AOculusMR_CastingCameraActor::SetBackdropMaterialColor()
+{
+	if (BackdropMaterialInstance)
+	{
+		BackdropMaterialInstance->SetVectorParameterValue(FName(TEXT("Color")), GetForegroundLayerBackgroundColor());
+	}
+}
+
 void AOculusMR_CastingCameraActor::SetupBackdropMaterialInstance()
 {
 	if (!BackdropMaterialInstance && OpaqueColoredMaterial)
 	{
 		BackdropMaterialInstance = UMaterialInstanceDynamic::Create(OpaqueColoredMaterial, this);
+		BackdropMaterialInstance->SetScalarParameterValue(FName("Opacity"), 0.0f);
 	}
 	PlaneMeshComponent->SetMaterial(0, BackdropMaterialInstance);
-	if (BackdropMaterialInstance)
-	{
-		BackdropMaterialInstance->SetVectorParameterValue(FName(TEXT("Color")), GetForegroundLayerBackgroundColor());
-	}
+	SetBackdropMaterialColor();
 }
 
 void AOculusMR_CastingCameraActor::RepositionPlaneMesh()
@@ -873,7 +1024,10 @@ void AOculusMR_CastingCameraActor::RepositionPlaneMesh()
 
 void AOculusMR_CastingCameraActor::OnHMDRecentered()
 {
+#if PLATFORM_WINDOWS
 	RefreshBoundaryMesh();
+#endif
+	RequestTrackedCameraCalibration();
 }
 
 void AOculusMR_CastingCameraActor::RefreshBoundaryMesh()
@@ -881,20 +1035,83 @@ void AOculusMR_CastingCameraActor::RefreshBoundaryMesh()
 	RefreshBoundaryMeshCounter = 3;
 }
 
+void BuildProjectionMatrix(float YMultiplier, float FOV, float FarClipPlane, FMatrix& ProjectionMatrix)
+{
+	if (FarClipPlane < GNearClippingPlane)
+	{
+		FarClipPlane = GNearClippingPlane;
+	}
+
+	if ((int32)ERHIZBuffer::IsInverted)
+	{
+		ProjectionMatrix = FReversedZPerspectiveMatrix(
+			FOV,
+			FOV,
+			1.0f,
+			YMultiplier,
+			GNearClippingPlane,
+			FarClipPlane
+		);
+	}
+	else
+	{
+		ProjectionMatrix = FPerspectiveMatrix(
+			FOV,
+			FOV,
+			1.0f,
+			YMultiplier,
+			GNearClippingPlane,
+			FarClipPlane
+		);
+	}
+}
+
 void AOculusMR_CastingCameraActor::UpdateRenderTargetSize()
 {
 	int ViewWidth = MRSettings->bUseTrackedCameraResolution ? MRState->TrackedCamera.SizeX : MRSettings->WidthPerView;
 	int ViewHeight = MRSettings->bUseTrackedCameraResolution ? MRState->TrackedCamera.SizeY : MRSettings->HeightPerView;
-	BackgroundRenderTarget->ResizeTarget(ViewWidth, ViewHeight);
-	if (ForegroundRenderTarget)
+
+#if PLATFORM_WINDOWS
+	BackgroundRenderTargets[0]->ResizeTarget(ViewWidth, ViewHeight);
+	if (ForegroundRenderTargets[0])
 	{
-		ForegroundRenderTarget->ResizeTarget(ViewWidth, ViewHeight);
+		ForegroundRenderTargets[0]->ResizeTarget(ViewWidth, ViewHeight);
 	}
+#endif
+#if PLATFORM_ANDROID
+	FIntPoint CameraTargetSize = FIntPoint(ViewWidth, ViewHeight);
+	float FOV = GetCaptureComponent2D()->FOVAngle * (float)PI / 360.0f;
+
+	if (OVRP_SUCCESS(ovrp_Media_GetMrcFrameSize(&ViewWidth, &ViewHeight)))
+	{
+		// Frame size is doublewide, so divide by 2
+		ViewWidth /= 2;
+
+		for (unsigned int i = 0; i < NumRTs; ++i)
+		{
+			BackgroundRenderTargets[i]->ResizeTarget(ViewWidth, ViewHeight);
+			if (ForegroundRenderTargets[i])
+			{
+				ForegroundRenderTargets[i]->ResizeTarget(ViewWidth, ViewHeight);
+			}
+		}
+
+		// Use custom projection matrix for far clip plane and to use camera aspect ratio instead of rendertarget aspect ratio
+		float YMultiplier = (float)CameraTargetSize.X / (float)CameraTargetSize.Y;
+		GetCaptureComponent2D()->bUseCustomProjectionMatrix = true;
+		BuildProjectionMatrix(YMultiplier, FOV, GNearClippingPlane, GetCaptureComponent2D()->CustomProjectionMatrix);
+		if (ForegroundCaptureActor)
+		{
+			ForegroundCaptureActor->GetCaptureComponent2D()->bUseCustomProjectionMatrix = true;
+			BuildProjectionMatrix(YMultiplier, FOV, ForegroundMaxDistance, ForegroundCaptureActor->GetCaptureComponent2D()->CustomProjectionMatrix);
+		}
+	}
+#endif
 }
 
-void AOculusMR_CastingCameraActor::SetupSpectatorScreen()
+void AOculusMR_CastingCameraActor::SetupMRCScreen()
 {
-
+#if PLATFORM_WINDOWS
 	OculusHMD::FSpectatorScreenController* SpecScreen = nullptr;
 	IHeadMountedDisplay* HMD = GEngine->XRSystem.IsValid() ? GEngine->XRSystem->GetHMDDevice() : nullptr;
 	if (HMD)
@@ -902,52 +1119,69 @@ void AOculusMR_CastingCameraActor::SetupSpectatorScreen()
 		SpecScreen = (OculusHMD::FSpectatorScreenController*)HMD->GetSpectatorScreenController();
 	}
 	if (SpecScreen) {
+#endif
 		UpdateRenderTargetSize();
 
 		// LDR for gamma correction and post process
 		GetCaptureComponent2D()->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
 
 		// Render scene capture 2D output to spectator screen
-		GetCaptureComponent2D()->TextureTarget = BackgroundRenderTarget;
+		GetCaptureComponent2D()->TextureTarget = BackgroundRenderTargets[0];
 
+#if PLATFORM_WINDOWS
 		if (MRSettings->GetCompositionMethod() == EOculusMR_CompositionMethod::ExternalComposition)
+#endif
 		{
 			ForegroundCaptureActor = GetWorld()->SpawnActor<ASceneCapture2D>();
 
 			// LDR for gamma correction and post process
 			ForegroundCaptureActor->GetCaptureComponent2D()->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
+#if PLATFORM_ANDROID
+			// Start with foreground capture actor off on android
+			ForegroundCaptureActor->GetCaptureComponent2D()->SetVisibility(false);
+#endif
 
 			// Don't render anything past the foreground for performance
 			ForegroundCaptureActor->GetCaptureComponent2D()->MaxViewDistanceOverride = ForegroundMaxDistance;
 
+			ForegroundCaptureActor->GetCaptureComponent2D()->TextureTarget = ForegroundRenderTargets[0];
+#if PLATFORM_WINDOWS
 			// Render use split foreground/background rendering to spectator screen
-			ForegroundCaptureActor->GetCaptureComponent2D()->TextureTarget = ForegroundRenderTarget;
-			SpecScreen->SetMRForeground(ForegroundRenderTarget);
-			SpecScreen->SetMRBackground(BackgroundRenderTarget);
+			SpecScreen->SetMRForeground(ForegroundRenderTargets[0]);
+			SpecScreen->SetMRBackground(BackgroundRenderTargets[0]);
 			SpecScreen->SetMRSpectatorScreenMode(OculusHMD::EMRSpectatorScreenMode::ExternalComposition);
 
+			// Set the plane mesh to only render to foreground target
+			PlaneMeshComponent->SetPlaneRenderTarget(ForegroundRenderTargets[0]);
+#endif
 			// Set foreground capture to match background capture
 			ForegroundCaptureActor->AttachToActor(this, FAttachmentTransformRules(EAttachmentRule::SnapToTarget, true));
-
-			// Set the plane mesh to only render to foreground target
-			PlaneMeshComponent->SetPlaneRenderTarget(ForegroundRenderTarget);
 		}
+#if PLATFORM_WINDOWS
 		else if (MRSettings->GetCompositionMethod() == EOculusMR_CompositionMethod::DirectComposition)
 		{
-			SpecScreen->SetMRBackground(BackgroundRenderTarget);
+			SpecScreen->SetMRBackground(BackgroundRenderTargets[0]);
 			SpecScreen->SetMRSpectatorScreenMode(OculusHMD::EMRSpectatorScreenMode::DirectComposition);
 			// Set the plane mesh to only render to MRC capture target
-			PlaneMeshComponent->SetPlaneRenderTarget(BackgroundRenderTarget);
+			PlaneMeshComponent->SetPlaneRenderTarget(BackgroundRenderTargets[0]);
+
+			if (ForegroundCaptureActor)
+			{
+				ForegroundCaptureActor->Destroy();
+				ForegroundCaptureActor = nullptr;
+			}
 		}
 	}
 	else
 	{
 		UE_LOG(LogMR, Error, TEXT("Cannot find spectator screen"));
 	}
+#endif
 }
 
-void AOculusMR_CastingCameraActor::CloseSpectatorScreen()
+void AOculusMR_CastingCameraActor::CloseMRCScreen()
 {
+#if PLATFORM_WINDOWS
 	OculusHMD::FSpectatorScreenController* SpecScreen = nullptr;
 	IHeadMountedDisplay* HMD = GEngine->XRSystem.IsValid() ? GEngine->XRSystem->GetHMDDevice() : nullptr;
 	if (HMD)
@@ -959,6 +1193,12 @@ void AOculusMR_CastingCameraActor::CloseSpectatorScreen()
 		SpecScreen->SetMRSpectatorScreenMode(OculusHMD::EMRSpectatorScreenMode::Default);
 		SpecScreen->SetMRForeground(nullptr);
 		SpecScreen->SetMRBackground(nullptr);
+	}
+#endif
+	if (ForegroundCaptureActor)
+	{
+		ForegroundCaptureActor->Destroy();
+		ForegroundCaptureActor = nullptr;
 	}
 }
 

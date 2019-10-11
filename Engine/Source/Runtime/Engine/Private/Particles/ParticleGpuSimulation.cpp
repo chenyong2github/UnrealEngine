@@ -4931,7 +4931,19 @@ void FFXSystem::SimulateGPUParticles(
 			Simulation->PerFrameSimulationParameters.ResetDeltaSeconds();
 		}
 	}
-	
+
+#if WITH_MGPU
+	static const FName NameForTemporalEffect("SimulateGPUParticles");
+	if (Phase == PhaseToWaitForTemporalEffect)
+	{
+		RHICmdList.WaitForTemporalEffect(NameForTemporalEffect);
+	}
+
+	TArray<FRHITexture*, SceneRenderingAllocator> TexturesToCopyForTemporalEffect;
+	TexturesToCopyForTemporalEffect.Add(CurrentStateRenderTargets[0]);
+	TexturesToCopyForTemporalEffect.Add(CurrentStateRenderTargets[1]);
+#endif
+
 	RHICmdList.BeginUpdateMultiFrameResource(CurrentStateRenderTargets[0]);
 	RHICmdList.BeginUpdateMultiFrameResource(CurrentStateRenderTargets[1]);
 	
@@ -5030,12 +5042,22 @@ void FFXSystem::SimulateGPUParticles(
 			);
 		}
 
-		if (GNumAlternateFrameRenderingGroups > 1 && CVarGPUParticleAFRReinject.GetValueOnRenderThread() == 1)
-		{			
-			ensureMsgf(GNumAlternateFrameRenderingGroups == 2, TEXT("GPU Particles running on an AFR depth > 2 not supported.  Currently: %i"), GNumAlternateFrameRenderingGroups);
+		if (GNumAlternateFrameRenderingGroups > 1)
+		{
+			if (CVarGPUParticleAFRReinject.GetValueOnRenderThread() == 1)
+			{
+				ensureMsgf(GNumAlternateFrameRenderingGroups == 2, TEXT("GPU Particles running on an AFR depth > 2 not supported.  Currently: %i"), GNumAlternateFrameRenderingGroups);
 
-			// Place these particles into the multi-gpu update queue
-			LastFrameNewParticles.Append(NewParticles);
+				// Place these particles into the multi-gpu update queue
+				LastFrameNewParticles.Append(NewParticles);
+			}
+			else
+			{
+#if WITH_MGPU
+				TexturesToCopyForTemporalEffect.Add(ParticleSimulationResources->RenderAttributesTexture.TextureTargetRHI);
+				TexturesToCopyForTemporalEffect.Add(ParticleSimulationResources->SimulationAttributesTexture.TextureTargetRHI);
+#endif
+			}
 		}
 		RHICmdList.EndUpdateMultiFrameResource(ParticleSimulationResources->RenderAttributesTexture.TextureTargetRHI);
 		RHICmdList.EndUpdateMultiFrameResource(ParticleSimulationResources->SimulationAttributesTexture.TextureTargetRHI);
@@ -5045,6 +5067,13 @@ void FFXSystem::SimulateGPUParticles(
 	RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, CurrentStateRenderTargets, 2);
 	RHICmdList.EndUpdateMultiFrameResource(CurrentStateRenderTargets[0]);
 	RHICmdList.EndUpdateMultiFrameResource(CurrentStateRenderTargets[1]);
+
+#if WITH_MGPU
+	if (Phase == PhaseToBroadcastTemporalEffect)
+	{
+		RHICmdList.BroadcastTemporalEffect(NameForTemporalEffect, TexturesToCopyForTemporalEffect);
+	}
+#endif
 
 	if (SimulationCommands.Num() && FixDeltaSeconds > 0)
 	{
@@ -5130,6 +5159,21 @@ void FFXSystem::UpdateMultiGPUResources(FRHICommandListImmediate& RHICmdList)
 
 	// Clear out particles from last frame
 	LastFrameNewParticles.Reset();
+
+#if WITH_MGPU
+	if (IsParticleCollisionModeSupported(GetShaderPlatform(), PCM_DepthBuffer))
+	{
+		PhaseToBroadcastTemporalEffect = EParticleSimulatePhase::CollisionDepthBuffer;
+	}
+	else if (IsParticleCollisionModeSupported(GetShaderPlatform(), PCM_DistanceField))
+	{
+		PhaseToBroadcastTemporalEffect = EParticleSimulatePhase::CollisionDistanceField;
+	}
+	else
+	{
+		PhaseToBroadcastTemporalEffect = EParticleSimulatePhase::Main;
+	}
+#endif
 }
 
 void FFXSystem::VisualizeGPUParticles(FCanvas* Canvas)

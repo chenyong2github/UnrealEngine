@@ -5,6 +5,7 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "IMediaModule.h"
+#include "IMediaOptions.h"
 #include "IMagicLeapMediaModule.h"
 #include "MagicLeapMediaFactoryPrivate.h"
 #include "IMediaPlayerFactory.h"
@@ -21,7 +22,7 @@ class FMagicLeapMediaFactoryModule : public IMediaPlayerFactory, public IModuleI
 public:
 
 	/** IMediaPlayerFactory interface */
-	virtual bool CanPlayUrl(const FString& Url, const IMediaOptions* /*Options*/, TArray<FText>* /*OutWarnings*/, TArray<FText>* OutErrors) const override
+	virtual bool CanPlayUrl(const FString& Url, const IMediaOptions* Options, TArray<FText>* OutWarnings, TArray<FText>* OutErrors) const override
 	{
 		FString Scheme;
 		FString Location;
@@ -60,6 +61,15 @@ public:
 				}
 
 				return false;
+			}
+		}
+
+		// check options
+		if ((OutWarnings != nullptr) && (Options != nullptr))
+		{
+			if (Options->GetMediaOption("PrecacheFile", false))
+			{
+				OutWarnings->Add(LOCTEXT("PrecachingNotSupported", "Precaching is not supported in Magic Leap Media. Use Magic Leap Media Codec instead if this feature is necessarry."));
 			}
 		}
 
@@ -102,10 +112,14 @@ public:
 	virtual void StartupModule() override
 	{
 		// supported file extensions
+		SupportedFileExtensions.Add(TEXT("3gp"));
 		SupportedFileExtensions.Add(TEXT("mp4"));
-		SupportedFileExtensions.Add(TEXT("3gpp"));
+		SupportedFileExtensions.Add(TEXT("mp4a"));
 		SupportedFileExtensions.Add(TEXT("aac"));
-		SupportedFileExtensions.Add(TEXT("m3u8"));
+		SupportedFileExtensions.Add(TEXT("ts"));
+		SupportedFileExtensions.Add(TEXT("mkv"));
+		SupportedFileExtensions.Add(TEXT("webm"));
+		SupportedFileExtensions.Add(TEXT("m4v"));
 
     	// supported platforms
     	SupportedPlatforms.Add(TEXT("Lumin"));
@@ -115,6 +129,8 @@ public:
 		SupportedUriSchemes.Add(TEXT("http"));
 		SupportedUriSchemes.Add(TEXT("https"));
 		SupportedUriSchemes.Add(TEXT("rtsp"));
+		// custom schema for user shared files
+		SupportedUriSchemes.Add(TEXT("mlshared"));
 		// Not supporting streaming right now.
 		// SupportedUriSchemes.Add(TEXT("httpd"));
 		// SupportedUriSchemes.Add(TEXT("mms"));
