@@ -595,6 +595,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Widget")
 	bool HasUserFocusedDescendants(APlayerController* PlayerController) const;
 	
+	/** Sets the focus to this widget for the owning user */
+	UFUNCTION(BlueprintCallable, Category = "Widget")
+	void SetFocus();
+
 	/** Sets the focus to this widget for a specific user */
 	UFUNCTION(BlueprintCallable, Category="Widget")
 	void SetUserFocus(APlayerController* PlayerController);
