@@ -148,10 +148,6 @@ private:
 	/** The archive that actually reads the raw data from disk.																*/
 	FArchive*				Loader;
 
-	int32* LocalImportIndices = nullptr;
-	UObject** GlobalImportObjects = nullptr;
-	const TArray<FNameEntryId>* ActiveNameMap = &NameMap;
-
 protected:
 
 	void SetLoader(FArchive* InLoader);
@@ -823,10 +819,10 @@ private:
 		int32 Number = 0;
 		Ar << Number;
 
-		if (ActiveNameMap->IsValidIndex(NameIndex))
+		if (NameMap.IsValidIndex(NameIndex))
 		{
 			// if the name wasn't loaded (because it wasn't valid in this context)
-			FNameEntryId MappedName = (*ActiveNameMap)[NameIndex];
+			FNameEntryId MappedName = NameMap[NameIndex];
 
 			// simply create the name from the NameMap's name and the serialized instance number
 			Name = FName::CreateFromDisplayId(MappedName, Number);

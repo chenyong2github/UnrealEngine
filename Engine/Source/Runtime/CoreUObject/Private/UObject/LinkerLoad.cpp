@@ -5021,27 +5021,14 @@ FArchive& FLinkerLoad::operator<<( UObject*& Object )
 		{
 			Object = nullptr;
 		}
+		else if (Index.IsExport())
+		{
+			Object = Exp(Index).Object;
+		}
 		else
 		{
-			if (Index.IsExport())
-			{
-				Object = Exp(Index).Object;
-			}
-			else // Index.IsImport()
-			{
-				if (LocalImportIndices)
-				{
-					check(GlobalImportObjects);
-					Object = GlobalImportObjects[LocalImportIndices[Index.ToImport()]];
-				}
-				else
-				{
-					Object = Imp(Index).XObject;
-				}
-			}
+			Object = Imp(Index).XObject;
 		}
-
-		//Object = ((FAsyncPackage*)AsyncRoot)->EventDrivenIndexToObject(Index, false);
 
 		return *this;
 	}

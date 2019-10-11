@@ -981,11 +981,27 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 			// determine whether the payload is stored inline or at the end of the file
 			const bool bPayloadInline = !(BulkDataFlags&BULKDATA_PayloadAtEndOfFile);
 
+			// GetLinker
+#if WITH_EDITOR
+			if (Owner != nullptr)
+			{
+				Linker = Owner->GetLinker();
+			}
+#else
+			FLinker* Linker = nullptr;
+			if (Owner != nullptr)
+			{
+				Package = Owner->GetOutermost();
+				check(Package.IsValid());
+				Linker = FLinkerLoad::FindExistingLinkerForPackage(Package.Get());
+			}
+#endif
+
 			// fix up the file offset, but only if not stored inline
 			int64 OffsetInFileFixup = 0;
-			if (Owner != NULL && Owner->GetLinker() && !bPayloadInline)
+			if (Owner != NULL && Linker && !bPayloadInline)
 			{
-				OffsetInFileFixup = Owner->GetLinker()->Summary.BulkDataStartOffset;
+				OffsetInFileFixup = Linker->Summary.BulkDataStartOffset;
 			}
 			BulkDataOffsetInFile += OffsetInFileFixup;
 
@@ -994,20 +1010,16 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 			if (Ar.IsAllowingLazyLoading() && Owner != NULL && CacheableArchive)
 			{				
 #if WITH_EDITOR
-				Linker = Owner->GetLinker();
 				check(Linker);
 				CacheableArchive->AttachBulkData(Owner, this);
 				check(!CacheableArchive->IsTextFormat());
 				AttachedAr = CacheableArchive;
 				Filename = Linker->Filename;
 #else
-				Package = Owner->GetOutermost();
-				check(Package.IsValid());
-				auto Linker = FLinkerLoad::FindExistingLinkerForPackage(Package.Get());
 				check(Linker);
 				Filename = Linker->Filename;
 
-				check(Owner->GetLinker() == Linker);
+				check(!Owner->GetLinker() || Owner->GetLinker() == Linker);
 #endif // WITH_EDITOR
 
 				if (bPayloadInline)

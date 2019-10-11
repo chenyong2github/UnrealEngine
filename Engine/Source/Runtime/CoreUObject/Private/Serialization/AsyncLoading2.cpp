@@ -52,6 +52,9 @@
 #define ALT2_VERIFY_ASYNC_FLAGS
 #endif
 
+struct FAsyncPackage2;
+class FAsyncLoadingThread2Impl;
+
 class FSimpleArchive
 	: public FArchive
 {
@@ -105,8 +108,109 @@ public:
 	}
 };
 
-struct FAsyncPackage2;
-class FAsyncLoadingThread2Impl;
+class FSimpleExportArchive
+	: public FSimpleArchive
+{
+public:
+	FSimpleExportArchive(const uint8* BufferPtr, uint64 BufferSize) : FSimpleArchive(BufferPtr, BufferSize) {}
+
+	using FArchive::operator<<; // For visibility of the overloads we don't override
+
+	//~ Begin FArchive::FArchiveUObject Interface
+	virtual FArchive& operator<<(FSoftObjectPath& Value) override { return FArchiveUObject::SerializeSoftObjectPath(*this, Value); }
+	virtual FArchive& operator<<(FWeakObjectPtr& Value) override { return FArchiveUObject::SerializeWeakObjectPtr(*this, Value); }
+	//~ End FArchive::FArchiveUObject Interface
+
+	//~ Begin FArchive::FLinkerLoad Interface
+	UObject* GetArchetypeFromLoader(const UObject* Obj) { return TemplateForGetArchetypeFromLoader; }
+
+	virtual bool AttachExternalReadDependency(FExternalReadCallback& ReadCallback) override
+	{
+		ExternalReadDependencies->Add(ReadCallback);
+		return true;
+	}
+
+	virtual FArchive& operator<<( UObject*& Object ) override
+	{
+		FPackageIndex Index;
+		FArchive& Ar = *this;
+		Ar << Index;
+
+		if (Index.IsNull())
+		{
+			Object = nullptr;
+		}
+		else if (Index.IsExport())
+		{
+			Object = (*ExportMap)[Index.ToExport()].Object;
+		}
+		else
+		{
+			Object = GlobalImportObjects[LocalImportIndices[Index.ToImport()]];
+		}
+		return *this;
+	}
+
+	inline virtual FArchive& operator<<(FLazyObjectPtr& LazyObjectPtr) override
+	{
+		FArchive& Ar = *this;
+		FUniqueObjectGuid ID;
+		Ar << ID;
+		LazyObjectPtr = ID;
+		return Ar;
+	}
+
+	inline virtual FArchive& operator<<(FSoftObjectPtr& Value) override
+	{
+		FArchive& Ar = *this;
+		FSoftObjectPath ID;
+		ID.Serialize(Ar);
+		Value = ID;
+		return Ar;
+	}
+
+	void BadNameIndexError(int32 NameIndex)
+	{
+		UE_LOG(LogLinker, Error, TEXT("Bad name index %i/%i"), NameIndex, NameMap->Num());
+	}
+
+	inline virtual FArchive& operator<<(FName& Name) override
+	{
+		FArchive& Ar = *this;
+		int32 NameIndex;
+		Ar << NameIndex;
+		int32 Number = 0;
+		Ar << Number;
+
+		if (NameMap->IsValidIndex(NameIndex))
+		{
+			// if the name wasn't loaded (because it wasn't valid in this context)
+			FNameEntryId MappedName = (*NameMap)[NameIndex];
+
+			// simply create the name from the NameMap's name and the serialized instance number
+			Name = FName::CreateFromDisplayId(MappedName, Number);
+		}
+		else
+		{
+			Name = FName();
+			BadNameIndexError(NameIndex);
+			ArIsError = true;
+			ArIsCriticalError = true;
+		}
+		return *this;
+	}
+	//~ End FArchive::FLinkerLoad Interface
+
+private:
+	friend FAsyncPackage2;
+
+	UObject* TemplateForGetArchetypeFromLoader = nullptr;
+	int32* LocalImportIndices = nullptr;
+	UObject** GlobalImportObjects = nullptr;
+	const TArray<FNameEntryId>* NameMap = nullptr;
+	const TArray<FObjectExport>* ExportMap = nullptr;
+	TArray<FExternalReadCallback>* ExternalReadDependencies;
+};
 
 struct FPackageStoreEntryRuntime
 {
@@ -1019,6 +1123,8 @@ private:
 	TUniquePtr<uint8[]> PackageSummaryBuffer;
 	TArray<FIoBuffer> ExportIoBuffers;
 
+	// FZenLinkerLoad
+	TArray<FObjectExport> ExportMap;
 	int32 GlobalImportCount = 0;
 	int32 LocalImportCount = 0;
 	int32* LocalImportIndices = nullptr;
@@ -2503,7 +2609,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_SetupExports(FAsyncPackage2* Pack
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(Event_SetupExports);
 
-	Package->ExportIndex = Package->Linker->ExportMap.Num();
+	Package->ExportIndex = Package->ExportMap.Num();
 	check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::SetupExports);
 	Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::ProcessNewImportsAndExports;
 	return EAsyncPackageState::Complete;
@@ -2548,7 +2654,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_SerializeExport(FAsyncPackage2* P
 	FScopedAsyncPackageEvent2 Scope(Package);
 
 	Package->EventDrivenSerializeExport(LocalExportIndex);
-	FObjectExport& Export = Package->Linker->ExportMap[LocalExportIndex];
+	FObjectExport& Export = Package->ExportMap[LocalExportIndex];
 	UObject* Object = Export.Object;
 	check(!Object || !Object->HasAnyFlags(RF_NeedLoad));
 	return EAsyncPackageState::Complete;
@@ -2617,7 +2723,7 @@ UObject* FAsyncPackage2::EventDrivenIndexToObject(FPackageIndex Index, bool bChe
 	}
 	if (Index.IsExport())
 	{
-		Result = Linker->Exp(Index).Object;
+		Result = ExportMap[Index.ToExport()].Object;
 	}
 	else if (Index.IsImport())
 	{
@@ -2652,7 +2758,7 @@ UObject* FAsyncPackage2::EventDrivenIndexToObject(FPackageIndex Index, bool bChe
 void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 {
 	//SCOPED_LOADTIMER(Package_CreateExports);
-	FObjectExport& Export = Linker->ExportMap[LocalExportIndex];
+	FObjectExport& Export = ExportMap[LocalExportIndex];
 
 	TRACE_LOADTIME_CREATE_EXPORT_SCOPE(Linker, &Export.Object, Export.SerialOffset, Export.SerialSize, Export.bIsAsset);
 
@@ -2775,7 +2881,7 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 				if (Export.Object)
 				{
 					check(!Export.bForcedExport);
-					Export.Object->SetLinker(Linker, LocalExportIndex);
+					//Export.Object->SetLinker(Linker, LocalExportIndex);
 
 					// If this object was allocated but never loaded (components created by a constructor, CDOs, etc) make sure it gets loaded
 					// Do this for all subobjects created in the native constructor.
@@ -2916,7 +3022,7 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 					}
 
 					AddOwnedObjectWithAsyncFlag(Export.Object, /*bForceAdd*/ false);
-					Export.Object->SetLinker(Linker, LocalExportIndex);
+					//Export.Object->SetLinker(Linker, LocalExportIndex);
 					check(Export.Object->GetClass() == LoadClass);
 					check(NewName == Export.ObjectName);
 				}
@@ -2934,7 +3040,7 @@ void FAsyncPackage2::EventDrivenSerializeExport(int32 LocalExportIndex)
 {
 	//SCOPED_LOADTIMER(Package_PreLoadObjects);
 
-	FObjectExport& Export = Linker->ExportMap[LocalExportIndex];
+	FObjectExport& Export = ExportMap[LocalExportIndex];
 
 	LLM_SCOPE(ELLMTag::UObject);
 	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(GetLinkerRoot(), ELLMTagSet::Assets);
@@ -2956,8 +3062,8 @@ void FAsyncPackage2::EventDrivenSerializeExport(int32 LocalExportIndex)
 	}
 	else if (Object && Object->HasAnyFlags(RF_NeedLoad))
 	{
-		check(Object->GetLinker() == Linker);
-		check(Object->GetLinkerIndex() == LocalExportIndex);
+		//check(Object->GetLinker() == Linker);
+		//check(Object->GetLinkerIndex() == LocalExportIndex);
 		UClass* Cls = nullptr;
 
 		// If this is a struct, make sure that its parent struct is completely loaded
@@ -2988,14 +3094,25 @@ void FAsyncPackage2::EventDrivenSerializeExport(int32 LocalExportIndex)
 		const FPackageFileSummary& Summary = Linker->Summary;
 		const FCustomVersionContainer& SummaryVersions = Summary.GetCustomVersionContainer();
 
-		FSimpleArchive Ar(ExportIoBuffers[LocalExportIndex].Data(), ExportIoBuffers[LocalExportIndex].DataSize());
-		Ar.SetUE4Ver(Linker->Summary.GetFileVersionUE4());
-		Ar.SetLicenseeUE4Ver(Linker->Summary.GetFileVersionLicenseeUE4());
-		Ar.SetEngineVer(Linker->Summary.SavedByEngineVersion);
+		FSimpleExportArchive Ar(ExportIoBuffers[LocalExportIndex].Data(), ExportIoBuffers[LocalExportIndex].DataSize());
+		Ar.SetUE4Ver(Summary.GetFileVersionUE4());
+		Ar.SetLicenseeUE4Ver(Summary.GetFileVersionLicenseeUE4());
+		Ar.SetEngineVer(Summary.SavedByEngineVersion);
 		Ar.SetCustomVersions(SummaryVersions);
+		Ar.SetIsLoading(true);
+		Ar.SetIsPersistent(true);
+		if (Summary.PackageFlags & PKG_FilterEditorOnly)
+		{
+			Ar.SetFilterEditorOnly(true);
+		}
+		Ar.ArAllowLazyLoading = true;
 
-		FArchive* OldLoader = Linker->Loader;
-		Linker->Loader = &Ar;
+		// FSimpleExportArchive special fields
+		Ar.NameMap = &AsyncLoadingThread.GlobalNameMap.GetNameEntries();
+		Ar.LocalImportIndices = LocalImportIndices;
+		Ar.GlobalImportObjects = GlobalImportObjects;
+		Ar.ExportMap = &ExportMap;
+		Ar.ExternalReadDependencies = &Linker->ExternalReadDependencies;
 
 		Object->ClearFlags(RF_NeedLoad);
 
@@ -3011,27 +3128,21 @@ void FAsyncPackage2::EventDrivenSerializeExport(int32 LocalExportIndex)
 		UObject* Template = EventDrivenIndexToObject(Export.TemplateIndex, true);
 		check(Template);
 
-		check(!Linker->TemplateForGetArchetypeFromLoader);
-		Linker->TemplateForGetArchetypeFromLoader = Template;
+		Ar.TemplateForGetArchetypeFromLoader = Template;
 
 		if (Object->HasAnyFlags(RF_ClassDefaultObject))
 		{
-			Object->GetClass()->SerializeDefaultObject(Object, *Linker);
+			Object->GetClass()->SerializeDefaultObject(Object, Ar);
 		}
 		else
 		{
-			Object->Serialize(*Linker);
+			Object->Serialize(Ar);
 		}
-		check(Linker->TemplateForGetArchetypeFromLoader == Template);
-		Linker->TemplateForGetArchetypeFromLoader = nullptr;
 
 		Object->SetFlags(RF_LoadCompleted);
 		LoadContext->SerializedObject = PrevSerializedObject;
-		Linker->bForceSimpleIndexToObject = false;
 
 		//UE_CLOG(Ar.Tell() != Export.SerialSize, LogStreaming, Warning, TEXT("Serialize mismatch, ObjectName='%s'"), *Object->GetFullName());
-
-		Linker->Loader = OldLoader;
 
 #if DO_CHECK
 		if (Object->HasAnyFlags(RF_ClassDefaultObject) && Object->GetClass()->HasAnyClassFlags(CLASS_CompiledFromBlueprint))
@@ -3051,7 +3162,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_StartIO(FAsyncPackage2* Package, 
 	TRACE_CPUPROFILER_EVENT_SCOPE(Event_StartIO);
 
 	check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::ProcessNewImportsAndExports);
-	FObjectExport& Export = Package->Linker->ExportMap[LocalExportIndex];
+	FObjectExport& Export = Package->ExportMap[LocalExportIndex];
 	if (Package->Linker->bDynamicClassLinker || //native blueprint, there is no IO for these
 		(Export.Object && !Export.Object->HasAnyFlags(RF_NeedLoad)))
 	{
@@ -3083,10 +3194,10 @@ EAsyncPackageState::Type FAsyncPackage2::Event_StartPostload(FAsyncPackage2* Pac
 	check(Package->bAllExportsSerialized);
 	{
 		check(Package->PackageObjLoaded.Num() == 0);
-		Package->PackageObjLoaded.Reserve(Package->Linker->ExportMap.Num());
-		for (int32 LocalExportIndex = 0; LocalExportIndex < Package->Linker->ExportMap.Num(); LocalExportIndex++)
+		Package->PackageObjLoaded.Reserve(Package->ExportMap.Num());
+		for (int32 LocalExportIndex = 0; LocalExportIndex < Package->ExportMap.Num(); LocalExportIndex++)
 		{
-			FObjectExport& Export = Package->Linker->ExportMap[LocalExportIndex];
+			FObjectExport& Export = Package->ExportMap[LocalExportIndex];
 			UObject* Object = Export.Object;
 			if (Object && (Object->HasAnyFlags(RF_NeedPostLoad) || Package->Linker->bDynamicClassLinker || Object->HasAnyInternalFlags(EInternalObjectFlags::AsyncLoading)))
 			{
@@ -3355,7 +3466,7 @@ bool FAsyncPackage2::AreAllDependenciesFullyLoadedInternal(FAsyncPackage2* Packa
 					OutError = FString::Printf(TEXT("%s Doesn't have all objects processed by DeferredPostLoad"), *Package->GetPackageName().ToString());
 					return false;
 				}
-				for (FObjectExport& Export : ImportPackageLinker->ExportMap)
+				for (FObjectExport& Export : AsyncRoot->ExportMap)
 				{
 					if (Export.Object && Export.Object->HasAnyFlags(RF_NeedPostLoad|RF_NeedLoad))
 					{
@@ -4511,73 +4622,54 @@ EAsyncPackageState::Type FAsyncPackage2::FinishLinker()
 {
 	LLM_SCOPE(ELLMTag::AsyncLoading);
 
-	//SCOPED_LOADTIMER(FinishLinkerTime);
+	SCOPED_LOADTIMER(LinkerLoad_FinalizeCreation);
+
+	const FGlobalNameMap& GlobalNameMap = AsyncLoadingThread.GlobalNameMap;
+	const FPackageSummary* PackageSummary = reinterpret_cast<const FPackageSummary*>(PackageSummaryBuffer.Get());
+	const int32 ExportCount = AsyncLoadingThread.GetPackageExportCount(GlobalPackageId);
+	check(ExportCount);
+
 	{
-		SCOPED_LOADTIMER(LinkerLoad_FinalizeCreation);
+		SCOPED_LOADTIMER(LinkerLoad_SerializePackageFileSummary);
 
-		const FGlobalNameMap& GlobalNameMap = AsyncLoadingThread.GlobalNameMap;
-		const FPackageSummary* PackageSummary = reinterpret_cast<const FPackageSummary*>(PackageSummaryBuffer.Get());
-		const int32 ExportCount = AsyncLoadingThread.GetPackageExportCount(GlobalPackageId);
-		check(ExportCount);
-
-		{
-			SCOPED_LOADTIMER(LinkerLoad_SerializePackageFileSummary);
-
-			FPackageFileSummary& Summary	= Linker->Summary;
-			Summary.PackageFlags			= PackageSummary->PackageFlags;
-			Summary.BulkDataStartOffset		= PackageSummary->BulkDataStartOffset;
-			Summary.SetFileVersions(GPackageFileUE4Version, GPackageFileLicenseeUE4Version, /*unversioned*/true);
-			Linker->UpdateFromPackageFileSummary();
-		}
-
-		// TODO: FLinker should not be a FArchive - NameMap is only required for operator<<(FName& Name)
-		{
-			SCOPED_LOADTIMER(LinkerLoad_SerializeNameMap);
-			Linker->ActiveNameMap = &AsyncLoadingThread.GlobalNameMap.GetNameEntries();
-		}
-
-		// TODO: FLinker should not be a FArchive - Slimports are only required for operator<<( UObject*& Object )
-		{
-			SCOPED_LOADTIMER(LinkerLoad_SerializeImportMap);
-			int32 TmpImportCount = 0;
-			int32 TmpGlobalImportCount = 0;
-			Linker->LocalImportIndices = AsyncLoadingThread.GetPackageSlimports(GlobalPackageId, TmpImportCount);
-			Linker->GlobalImportObjects = AsyncLoadingThread.GetGlobalImportObjects(TmpGlobalImportCount);
-		}
-
-		{
-			SCOPED_LOADTIMER(LinkerLoad_SerializeExportMap);
-			const uint8* ZenExportData = PackageSummaryBuffer.Get() + PackageSummary->ExportMapOffset;
-			FSimpleArchive ZenExportMapArchive(ZenExportData, PackageSummary->ExportMapSize);
-
-			TArray<FObjectExport>& ExportMap = Linker->ExportMap;
-			ExportMap.AddZeroed(ExportCount);
-			for (int32 LocalExportIndex = 0; LocalExportIndex < ExportCount; ++LocalExportIndex)
-			{
-				FPackageIndex Index = FPackageIndex::FromExport(LocalExportIndex);
-				FObjectExport& Export = ExportMap[LocalExportIndex];
-				int32 ObjectNameIndex;
-				int32 ObjectNameNumber;
-				int32 GlobalImportIndex;
-
-				ZenExportMapArchive << ObjectNameIndex << ObjectNameNumber;
-				ZenExportMapArchive << Export.OuterIndex;
-				ZenExportMapArchive << Export.ClassIndex;
-				ZenExportMapArchive << Export.SuperIndex;
-				ZenExportMapArchive << Export.TemplateIndex;
-				ZenExportMapArchive << (uint32&)Export.ObjectFlags;
-				ZenExportMapArchive << GlobalImportIndex;
-
-				Export.ObjectName = GlobalNameMap.GetName(ObjectNameIndex, ObjectNameNumber);
-				Export.ThisIndex = Index;
-			}
-
-			ExportIoBuffers.SetNum(ExportCount);
-		}
-
-		// Add this linker to the object manager's linker array.
-		// FLinkerManager::Get().AddLoader(Linker);
+		FPackageFileSummary& Summary	= Linker->Summary;
+		Summary.PackageFlags			= PackageSummary->PackageFlags;
+		Summary.BulkDataStartOffset		= PackageSummary->BulkDataStartOffset;
+		Summary.SetFileVersions(GPackageFileUE4Version, GPackageFileLicenseeUE4Version, /*unversioned*/true);
+		Linker->UpdateFromPackageFileSummary();
 	}
+
+	{
+		SCOPED_LOADTIMER(LinkerLoad_SerializeExportMap);
+		const uint8* ZenExportData = PackageSummaryBuffer.Get() + PackageSummary->ExportMapOffset;
+		FSimpleArchive ZenExportMapArchive(ZenExportData, PackageSummary->ExportMapSize);
+
+		ExportMap.AddZeroed(ExportCount);
+		for (int32 LocalExportIndex = 0; LocalExportIndex < ExportCount; ++LocalExportIndex)
+		{
+			FPackageIndex Index = FPackageIndex::FromExport(LocalExportIndex);
+			FObjectExport& Export = ExportMap[LocalExportIndex];
+			int32 ObjectNameIndex;
+			int32 ObjectNameNumber;
+			int32 GlobalImportIndex;
+
+			ZenExportMapArchive << ObjectNameIndex << ObjectNameNumber;
+			ZenExportMapArchive << Export.OuterIndex;
+			ZenExportMapArchive << Export.ClassIndex;
+			ZenExportMapArchive << Export.SuperIndex;
+			ZenExportMapArchive << Export.TemplateIndex;
+			ZenExportMapArchive << (uint32&)Export.ObjectFlags;
+			ZenExportMapArchive << GlobalImportIndex;
+
+			Export.ObjectName = GlobalNameMap.GetName(ObjectNameIndex, ObjectNameNumber);
+			Export.ThisIndex = Index;
+		}
+
+		ExportIoBuffers.SetNum(ExportCount);
+	}
+
+	// Add this linker to the object manager's linker array.
+	// FLinkerManager::Get().AddLoader(Linker);
 
 	return EAsyncPackageState::Complete;
 }
@@ -4593,7 +4685,9 @@ EAsyncPackageState::Type FAsyncPackage2::FinishExternalReadDependencies()
 	while (FinishExternalReadDependenciesIndex < PackageObjLoaded.Num())
 	{
 		UObject* Obj = PackageObjLoaded[FinishExternalReadDependenciesIndex];
-		FLinkerLoad* LinkerLoad = Obj ? Obj->GetLinker() : nullptr;
+		//FLinkerLoad* LinkerLoad = Obj ? Obj->GetLinker() : nullptr;
+		UPackage* Package = Obj ? Obj->GetOutermost() : nullptr;
+		FLinkerLoad* LinkerLoad = Package ? FLinkerLoad::FindExistingLinkerForPackage(Package) : nullptr;
 		if (LinkerLoad && LinkerLoad != VisitedLinkerLoad)
 		{
 			if (!LinkerLoad->FinishExternalReadDependencies(0.0) || FAsyncLoadingThreadState2::Get().IsTimeLimitExceeded())
