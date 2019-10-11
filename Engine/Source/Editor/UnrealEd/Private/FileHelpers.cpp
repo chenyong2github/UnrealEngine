@@ -1251,6 +1251,8 @@ bool FEditorFileUtils::SaveLevelAs(ULevel* InLevel, FString* OutSavedFilename)
  */
 void FEditorFileUtils::Import()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorFileUtils::Import);
+
 	TArray<FString> OpenedFiles;
 	FString DefaultLocation(GetDefaultDirectory());
 

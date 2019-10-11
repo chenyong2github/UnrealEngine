@@ -141,4 +141,7 @@ public:
 	static bool HasVertexColor(const FMeshDescription& MeshDescription);
 
 	static void BuildWeldedVertexIDRemap(const FMeshDescription& MeshDescription, const float WeldingThreshold, TMap<FVertexID, FVertexID>& OutVertexIDRemap);
+
+	/** Computes the SHA hash of all the attributes values in the MeshDescription. */
+	static FSHAHash ComputeSHAHash(const FMeshDescription& MeshDescription);
 };

@@ -62,7 +62,7 @@ void FConcertServerInfo::Initialize()
 	ServerName = FPlatformProcess::ComputerName();
 	InstanceInfo.Initialize();
 	InstanceInfo.InstanceType = TEXT("Server");
-	ServerFlags = EConcertSeverFlags::None;
+	ServerFlags = EConcertServerFlags::None;
 }
 
 FText FConcertServerInfo::ToDisplayString() const

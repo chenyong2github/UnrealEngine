@@ -11,6 +11,16 @@ void FLiveLinkInstanceProxy::Initialize(UAnimInstance* InAnimInstance)
 	PoseNode.Initialize_AnyThread(InitContext);
 }
 
+void FLiveLinkInstanceProxy::PreUpdate(UAnimInstance* InAnimInstance, float DeltaSeconds)
+{
+	Super::PreUpdate(InAnimInstance, DeltaSeconds);
+
+	if (PoseNode.HasPreUpdate())
+	{
+		PoseNode.PreUpdate(InAnimInstance);
+	}
+}
+
 bool FLiveLinkInstanceProxy::Evaluate(FPoseContext& Output)
 {
 	PoseNode.Evaluate_AnyThread(Output);

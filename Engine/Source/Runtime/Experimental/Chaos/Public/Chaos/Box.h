@@ -187,6 +187,11 @@ namespace Chaos
 			AABB.ThickenSymmetrically(Thickness);
 		}
 
+		FORCEINLINE void Scale(const TVector<T, d>& InScale)
+		{
+			AABB.Scale(InScale);
+		}
+
 		FORCEINLINE TVector<T, d> Center() const { return AABB.Center(); }
 		FORCEINLINE TVector<T, d> GetCenter() const { return AABB.GetCenter(); }
 		FORCEINLINE TVector<T, d> GetCenterOfMass() const { return AABB.GetCenterOfMass(); }

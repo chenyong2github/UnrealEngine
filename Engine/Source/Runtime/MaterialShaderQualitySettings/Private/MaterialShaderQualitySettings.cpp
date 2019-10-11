@@ -5,6 +5,8 @@
 #include "ShaderPlatformQualitySettings.h"
 #include "Misc/SecureHash.h"
 #include "RHI.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
 
 UMaterialShaderQualitySettings* UMaterialShaderQualitySettings::RenderQualitySingleton = nullptr;
 
@@ -51,14 +53,18 @@ UShaderPlatformQualitySettings* UMaterialShaderQualitySettings::GetOrCreatePlatf
 	{
 		FString ObjectName("ForwardShadingQuality_");
 		ShaderPlatformName.AppendString(ObjectName);
-		FName PlatformName = ShaderPlatformToPlatformName(ShaderFormatToLegacyShaderPlatform(ShaderPlatformName));
 
 		auto* ForwardQualitySettings = FindObject<UShaderPlatformQualitySettings>(this, *ObjectName);
 		if (ForwardQualitySettings == nullptr)
 		{
+		
 			FName ForwardSettingsName(*ObjectName);
 			ForwardQualitySettings = NewObject<UShaderPlatformQualitySettings>(this, UShaderPlatformQualitySettings::StaticClass(), FName(*ObjectName));
-			ForwardQualitySettings->ConfigPlatformName = PlatformName.ToString();
+// if we aren't running in the editor, then we will only want to use our own settings
+#if WITH_EDITOR
+			ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatformWithSupport(TEXT("ShaderFormat"), ShaderPlatformName);
+			ForwardQualitySettings->ConfigPlatformName = TargetPlatform ? TargetPlatform->IniPlatformName() : FString();
+#endif
 			ForwardQualitySettings->LoadConfig();
 		}
 
@@ -82,7 +88,7 @@ bool UMaterialShaderQualitySettings::HasPlatformQualitySettings(EShaderPlatform 
 const UShaderPlatformQualitySettings* UMaterialShaderQualitySettings::GetShaderPlatformQualitySettings(EShaderPlatform ShaderPlatform)
 {
  #if WITH_EDITORONLY_DATA
-	// TODO: discuss this, in order to preview render quality settings we override the 
+	// TODO: discuss this, in order to preview render quality settings we override the
 	// requested platform's settings.
 	// However we do not know if we are asking for the editor preview window (override able) or for thumbnails, cooking purposes etc.. (Must not override)
 	// The code below 'works' because desktop platforms do not cook for ES2/ES31 preview.

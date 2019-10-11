@@ -339,39 +339,93 @@ bool FConcertSyncServer::RestoreSession(const IConcertServer& InServer, const FG
 	return false;
 }
 
-bool FConcertSyncServer::GetSessionActivities(const IConcertServer& InServer, const FGuid& SessionId, int64 FromActivityId, int64 ActivityCount, TArray<FConcertSessionSerializedPayload>& Activities)
+bool FConcertSyncServer::GetSessionActivities(const IConcertServer& InServer, const FGuid& SessionId, int64 FromActivityId, int64 ActivityCount, TArray<FConcertSessionSerializedPayload>& Activities, TMap<FGuid, FConcertClientInfo>& OutEndpointClientInfoMap, bool bIncludeDetails)
 {
 	if (TSharedPtr<FConcertSyncServerLiveSession> LiveSession = LiveSessions.FindRef(SessionId))
 	{
-		return GetSessionActivities(LiveSession->GetSessionDatabase(), FromActivityId, ActivityCount, Activities);
+		return GetSessionActivities(LiveSession->GetSessionDatabase(), FromActivityId, ActivityCount, Activities, OutEndpointClientInfoMap, bIncludeDetails);
 	}
 	else if (TSharedPtr<FConcertSyncServerArchivedSession> ArchivedSession = ArchivedSessions.FindRef(SessionId))
 	{
-		return GetSessionActivities(ArchivedSession->GetSessionDatabase(), FromActivityId, ActivityCount, Activities);
+		return GetSessionActivities(ArchivedSession->GetSessionDatabase(), FromActivityId, ActivityCount, Activities, OutEndpointClientInfoMap, bIncludeDetails);
 	}
 
 	return false; // Not Found.
 }
 
-bool FConcertSyncServer::GetSessionActivities(const FConcertSyncSessionDatabase& Database, int64 FromActivityId, int64 ActivityCount, TArray<FConcertSessionSerializedPayload>& OutActivities)
+bool FConcertSyncServer::GetSessionActivities(const FConcertSyncSessionDatabase& Database, int64 FromActivityId, int64 ActivityCount, TArray<FConcertSessionSerializedPayload>& OutActivities, TMap<FGuid, FConcertClientInfo>& OutEndpointClientInfoMap, bool bIncludeDetails)
 {
 	int64 MaxActivityId;
 	Database.GetActivityMaxId(MaxActivityId);
 
-	if (ActivityCount < 0)
+	if (ActivityCount < 0) // Client requested the 'ActivityCount' last activities?
 	{
 		ActivityCount = FMath::Abs(ActivityCount);
-		FromActivityId = FMath::Max(1ll, MaxActivityId - ActivityCount + 1); // Note: Activity ID are 1-based, not 0-based.
+		FromActivityId = FMath::Max(1ll, MaxActivityId - ActivityCount + 1); // Note: Activity IDs are 1-based, not 0-based.
 	}
 
-	OutActivities.Reserve(FMath::Min(ActivityCount, MaxActivityId));
+	OutEndpointClientInfoMap.Reset();
+	OutActivities.Reset(FMath::Min(ActivityCount, MaxActivityId));
 
 	// Retrieve the generic part of activities.
-	Database.EnumerateActivitiesInRange(FromActivityId, ActivityCount, [&OutActivities](FConcertSyncActivity&& InActivity)
+	Database.EnumerateActivityIdsAndEventTypesInRange(FromActivityId, ActivityCount, [&Database, &OutActivities, &OutEndpointClientInfoMap, bIncludeDetails](const int64 InActivityId, const EConcertSyncActivityEventType InEventType)
 	{
-		FConcertSessionSerializedPayload Payload;
-		Payload.SetTypedPayload(InActivity);
-		OutActivities.Add(MoveTemp(Payload));
+		// Maps endpoint client id to the client info.
+		auto UpdateEndpointMap = [](const FConcertSyncSessionDatabase& Database, FGuid EndpointId, TMap<FGuid, FConcertClientInfo>& OutEndpointClientInfoMap)
+		{
+			FConcertSyncEndpointData EndpointData;
+			if (Database.GetEndpoint(EndpointId, EndpointData))
+			{
+				OutEndpointClientInfoMap.Add(EndpointId, EndpointData.ClientInfo);
+			}
+		};
+
+		FConcertSessionSerializedPayload SerializedSyncActivityPayload;
+
+		if (InEventType == EConcertSyncActivityEventType::Transaction)
+		{
+			FConcertSyncTransactionActivity SyncActivity;
+			if (Database.GetActivity(InActivityId, SyncActivity)) // Get the generic part of the activity.
+			{
+				UpdateEndpointMap(Database, SyncActivity.EndpointId, OutEndpointClientInfoMap);
+
+				// If the details are requested, get the transaction data, to inspect what properties were affected by this transaction.
+				if (bIncludeDetails)
+				{
+					Database.GetTransactionEvent(SyncActivity.EventId, SyncActivity.EventData, /*bMetaDataOnly*/false); // Transaction data is required to inspect what property changed.
+				}
+
+				SerializedSyncActivityPayload.SetTypedPayload(SyncActivity);
+			}
+		}
+		else if (InEventType == EConcertSyncActivityEventType::Package)
+		{
+			FConcertSyncPackageActivity SyncActivity;
+			if (Database.GetActivity(InActivityId, SyncActivity)) // Get the generic part of the activity.
+			{
+				UpdateEndpointMap(Database, SyncActivity.EndpointId, OutEndpointClientInfoMap);
+
+				// If the details are requested, get the package event meta-data, which contain extra info about the package name/version, etc.
+				if (bIncludeDetails)
+				{
+					Database.GetPackageEvent(SyncActivity.EventId, SyncActivity.EventData, true/*bMetaDataOnly*/); // Just get the package event meta-data, the package data is not required to display details.
+				}
+
+				SerializedSyncActivityPayload.SetTypedPayload(SyncActivity);
+			}
+		}
+		else // Connection/lock -> Don't have interesting info to display outside the generic activity info.
+		{
+			FConcertSyncActivity SyncActivity;
+			if (Database.GetActivity(InActivityId, SyncActivity)) // Get the generic part of the activity.
+			{
+				UpdateEndpointMap(Database, SyncActivity.EndpointId, OutEndpointClientInfoMap);
+				SerializedSyncActivityPayload.SetTypedPayload(SyncActivity);
+			}
+		}
+
+		OutActivities.Add(MoveTemp(SerializedSyncActivityPayload));
+
 		return true; // Continue until 'ActivityCount' is fetched or the last activity is reached.
 	});
 

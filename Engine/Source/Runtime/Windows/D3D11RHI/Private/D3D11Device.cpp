@@ -227,12 +227,6 @@ FD3D11DynamicRHI::FD3D11DynamicRHI(IDXGIFactory1* InDXGIFactory1,D3D_FEATURE_LEV
 	// Initialize the constant buffers.
 	InitConstantBuffers();
 
-	// Create the dynamic vertex and index buffers used for Draw[Indexed]PrimitiveUP.
-	uint32 DynamicVBSizes[] = {128,1024,64*1024,1024*1024,0};
-	DynamicVB = new FD3D11DynamicBuffer(this,D3D11_BIND_VERTEX_BUFFER,DynamicVBSizes);
-	uint32 DynamicIBSizes[] = {128,1024,64*1024,1024*1024,0};
-	DynamicIB = new FD3D11DynamicBuffer(this,D3D11_BIND_INDEX_BUFFER,DynamicIBSizes);
-
 	for (int32 Frequency = 0; Frequency < SF_NumStandardFrequencies; ++Frequency)
 	{
 		DirtyUniformBuffers[Frequency] = 0;
@@ -500,10 +494,6 @@ void FD3D11DynamicRHI::CleanupD3DDevice()
 
 		extern void EmptyD3DSamplerStateCache();
 		EmptyD3DSamplerStateCache();
-
-		// release our dynamic VB and IB buffers
-		DynamicVB = NULL;
-		DynamicIB = NULL;
 
 		// Release references to bound uniform buffers.
 		for (int32 Frequency = 0; Frequency < SF_NumStandardFrequencies; ++Frequency)

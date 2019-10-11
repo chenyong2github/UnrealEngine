@@ -23,7 +23,8 @@ public:
 		: NumReceivedMessages(0)
 		, Test(InTest)
 	{
-		Transport = MakeShareable(new FUdpMessageTransport(UnicastEndpoint, MulticastEndpoint, MulticastTimeToLive));
+		TArray<FIPv4Endpoint> StaticEndpoints;
+		Transport = MakeShared<FUdpMessageTransport, ESPMode::ThreadSafe>(UnicastEndpoint, MulticastEndpoint, MoveTemp(StaticEndpoints), MulticastTimeToLive);
 	}
 
 public:

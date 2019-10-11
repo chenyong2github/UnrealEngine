@@ -2414,6 +2414,7 @@ namespace AutomationTool
 		{
 			Samples.RemoveAll(x => x.Name == Name);
 			Samples.Add(new TelemetrySample() { Name = Name, Value = Value, Units = Units });
+			Log.TraceLog("Added telemetry value: {0} = {1} ({2})", Name, Value, Units);
 		}
 
 		/// <summary>
@@ -2476,6 +2477,7 @@ namespace AutomationTool
 		/// <param name="FileName"></param>
 		public void Write(string FileName)
 		{
+			Log.TraceLog("Writing telemetry to {0}...", FileName);
 			using (JsonWriter Writer = new JsonWriter(FileName))
 			{
 				Writer.WriteObjectStart();

@@ -589,28 +589,27 @@ namespace AutomationTool
 			if((PrintOptions & GraphPrintOptions.ShowCommandLineOptions) != 0)
 			{
 				// Get the list of messages
-				List<string> Messages = new List<string>();
+				List<KeyValuePair<string, string>> Parameters = new List<KeyValuePair<string, string>>();
 				foreach(GraphOption Option in Options)
 				{
-					StringBuilder Message = new StringBuilder();
-					Message.AppendFormat("-set:{0}=... {1}", Option.Name, Option.Description);
+					string Name = String.Format("-set:{0}=...", Option.Name);
+
+					StringBuilder Description = new StringBuilder(Option.Description);
 					if(!String.IsNullOrEmpty(Option.DefaultValue))
 					{
-						Message.AppendFormat(" (Default: {0})", Option.DefaultValue);
+						Description.AppendFormat(" (Default: {0})", Option.DefaultValue);
 					}
-					Messages.Add(Message.ToString());
+
+					Parameters.Add(new KeyValuePair<string, string>(Name, Description.ToString()));
 				}
 
 				// Format them to the log
-				if(Messages.Count > 0)
+				if(Parameters.Count > 0)
 				{
 					CommandUtils.LogInformation("");
 					CommandUtils.LogInformation("Options:");
 					CommandUtils.LogInformation("");
-					foreach(string Line in CommandUtils.FormatParams(Messages, 4, 24))
-					{
-						CommandUtils.LogInformation(Line);
-					}
+					HelpUtils.PrintTable(Parameters, 4, 24);
 				}
 			}
 

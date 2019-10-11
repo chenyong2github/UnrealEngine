@@ -110,7 +110,7 @@ static FAutoConsoleVariableRef CVarAllowSubPrimitiveQueries(
 	ECVF_RenderThreadSafe
 	);
 
-static TAutoConsoleVariable<float> CVarStaticMeshLODDistanceScale(
+RENDERER_API TAutoConsoleVariable<float> CVarStaticMeshLODDistanceScale(
 	TEXT("r.StaticMeshLODDistanceScale"),
 	1.0f,
 	TEXT("Scale factor for the distance used in computing discrete LOD for static meshes. (defaults to 1)\n")
@@ -3003,11 +3003,20 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 		}
 	}
 
+	RunGPUSkinCacheTransition(RHICmdList, Scene, EGPUSkinCacheTransition::FrameSetup);
+
+	if (IsHairStrandsEnable(Scene->GetShaderPlatform()) && Views.Num() > 0)
+	{
+		const EWorldType::Type WorldType = Views[0].Family->Scene->GetWorld()->WorldType;
+		auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
+		RunHairStrandsInterpolation(RHICmdList, WorldType, ShaderMap, EHairStrandsInterpolationType::SimulationStrands);
+	}
+
 	// Notify the FX system that the scene is about to perform visibility checks.
 
 	if (Scene->FXSystem && Views.IsValidIndex(0))
 	{
-		Scene->FXSystem->PreInitViews(RHICmdList, Views[0].AllowGPUParticleUpdate());
+		Scene->FXSystem->PreInitViews(RHICmdList, Views[0].AllowGPUParticleUpdate() && !ViewFamily.EngineShowFlags.HitProxies);
 	}
 
 	// Draw lines to lights affecting this mesh if its selected.

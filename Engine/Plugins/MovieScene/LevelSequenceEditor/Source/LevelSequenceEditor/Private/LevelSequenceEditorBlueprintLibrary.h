@@ -67,6 +67,15 @@ public:
 	static bool IsPlaying();
 
 public:
+	/** Check whether the current level sequence and its descendants are locked for editing. */
+	UFUNCTION(BlueprintPure, Category = "Level Sequence Editor")
+	static bool IsLevelSequenceLocked();
+
+	/** Sets the lock for the current level sequence and its descendants for editing. */
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	static void SetLockLevelSequence(bool bLock);
+
+public:
 
 	/*
 	 * Callbacks

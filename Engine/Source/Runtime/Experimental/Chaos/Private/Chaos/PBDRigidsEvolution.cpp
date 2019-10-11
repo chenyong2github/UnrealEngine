@@ -391,6 +391,7 @@ namespace Chaos
 			AccelerationStructureTaskComplete = nullptr;
 			for (auto& Particle : Particles.GetNonDisabledView())
 			{
+				Particle.SetSpatialIdx(FSpatialAccelerationIdx{ 0,0 });
 				DirtyParticle(Particle);
 			}
 

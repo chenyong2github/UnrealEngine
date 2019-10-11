@@ -669,10 +669,22 @@ class FStaticMeshComponentRecreateRenderStateContext
 public:
 
 	/** Initialization constructor. */
-	FStaticMeshComponentRecreateRenderStateContext( UStaticMesh* InStaticMesh, bool InUnbuildLighting = true, bool InRefreshBounds = false )
-		: bUnbuildLighting( InUnbuildLighting ),
-		  bRefreshBounds( InRefreshBounds )
+	FStaticMeshComponentRecreateRenderStateContext(UStaticMesh* InStaticMesh, bool InUnbuildLighting = true, bool InRefreshBounds = false)
+		: FStaticMeshComponentRecreateRenderStateContext(TArray<UStaticMesh*>{ InStaticMesh }, InUnbuildLighting, InRefreshBounds)
 	{
+	}
+
+	/** Initialization constructor. */
+	FStaticMeshComponentRecreateRenderStateContext(const TArray<UStaticMesh*>& InStaticMeshes, bool InUnbuildLighting = true, bool InRefreshBounds = false)
+		: bUnbuildLighting(InUnbuildLighting)
+		, bRefreshBounds(InRefreshBounds)
+	{
+		StaticMeshComponents.Reserve(InStaticMeshes.Num());
+		for (UStaticMesh* StaticMesh : InStaticMeshes)
+		{
+			StaticMeshComponents.Add(StaticMesh);
+		}
+
 		for (TObjectIterator<UStaticMeshComponent> It; It; ++It)
 		{
 			// First, flush all deferred render updates, as they may depend on InStaticMesh.
@@ -681,15 +693,17 @@ public:
 				It->DoDeferredRenderUpdates_Concurrent();
 			}
 
-			if ( It->GetStaticMesh() == InStaticMesh )
-			{
-				checkf( !It->IsUnreachable(), TEXT("%s"), *It->GetFullName() );
+			UStaticMesh* StaticMesh = It->GetStaticMesh();
 
-				if ( It->bRenderStateCreated )
+			if (StaticMeshComponents.Contains(StaticMesh))
+			{
+				checkf(!It->IsUnreachable(), TEXT("%s"), *It->GetFullName());
+
+				if (It->bRenderStateCreated)
 				{
-					check( It->IsRegistered() );
+					check(It->IsRegistered());
 					It->DestroyRenderState_Concurrent();
-					StaticMeshComponents.Add(*It);
+					StaticMeshComponents[StaticMesh].Add(*It);
 				}
 			}
 		}
@@ -699,35 +713,47 @@ public:
 		FlushRenderingCommands();
 	}
 
+	/**
+	 * Get all static mesh components that are using the provided static mesh.
+	 * @param StaticMesh	The static mesh from which you want to obtain a list of components.
+	 * @return An reference to an array of static mesh components that are using this mesh.
+	 * @note Will only work using the static meshes provided at construction.
+	 */
+	const TArray<UStaticMeshComponent*>& GetComponentsUsingMesh(UStaticMesh* StaticMesh) const
+	{
+		return StaticMeshComponents.FindChecked(StaticMesh);
+	}
+
 	/** Destructor: recreates render state for all components that had their render states destroyed in the constructor. */
 	~FStaticMeshComponentRecreateRenderStateContext()
 	{
-		const int32 ComponentCount = StaticMeshComponents.Num();
-		for( int32 ComponentIndex = 0; ComponentIndex < ComponentCount; ++ComponentIndex )
+		for (const auto& MeshComponents : StaticMeshComponents)
 		{
-			UStaticMeshComponent* Component = StaticMeshComponents[ ComponentIndex ];
-			if ( bUnbuildLighting )
+			for (UStaticMeshComponent * Component : MeshComponents.Value)
 			{
-				// Invalidate the component's static lighting.
-				// This unregisters and reregisters so must not be in the constructor
-				Component->InvalidateLightingCache();
-			}
+				if (bUnbuildLighting)
+				{
+					// Invalidate the component's static lighting.
+					// This unregisters and reregisters so must not be in the constructor
+					Component->InvalidateLightingCache();
+				}
 
-			if( bRefreshBounds )
-			{
-				Component->UpdateBounds();
-			}
+				if (bRefreshBounds)
+				{
+					Component->UpdateBounds();
+				}
 
-			if ( Component->IsRegistered() && !Component->bRenderStateCreated )
-			{
-				Component->CreateRenderState_Concurrent();
+				if (Component->IsRegistered() && !Component->bRenderStateCreated)
+				{
+					Component->CreateRenderState_Concurrent();
+				}
 			}
 		}
 	}
 
 private:
 
-	TArray<UStaticMeshComponent*> StaticMeshComponents;
+	TMap<void*, TArray<UStaticMeshComponent*>> StaticMeshComponents;
 	bool bUnbuildLighting;
 	bool bRefreshBounds;
 };

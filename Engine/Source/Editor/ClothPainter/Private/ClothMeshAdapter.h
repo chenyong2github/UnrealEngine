@@ -37,6 +37,8 @@ protected:
 	};
 public:
 	static void InitializeAdapterGlobals() {}
+	static void AddReferencedObjectsGlobals(FReferenceCollector& Collector) {}
+	static void CleanupGlobals() {}
 
 	virtual bool Construct(UMeshComponent* InComponent, int32 InPaintingMeshLODIndex) override;
 	virtual bool Initialize() override;
@@ -123,4 +125,6 @@ class FClothMeshPaintAdapterFactory : public IMeshPaintGeometryAdapterFactory
 public:
 	virtual TSharedPtr<IMeshPaintGeometryAdapter> Construct(UMeshComponent* InComponent, int32 InPaintingMeshLODIndex) const override;
 	virtual void InitializeAdapterGlobals() override { FClothMeshPaintAdapter::InitializeAdapterGlobals(); }
+	virtual void AddReferencedObjectsGlobals(FReferenceCollector& Collector) override { FClothMeshPaintAdapter::AddReferencedObjectsGlobals(Collector); }
+	virtual void CleanupGlobals() override { FClothMeshPaintAdapter::CleanupGlobals(); }
 };

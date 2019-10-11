@@ -1252,20 +1252,20 @@ TSharedPtr<SWidget> SAutomationWindow::HandleAutomationListContextMenuOpening()
 			FString TestName = Report->GetFullTestPath();
 			if (!TestName.IsEmpty())
 			{
-				TestNames.Add(TestName);
+				TestNames.Add(MoveTemp(TestName));
 			}
 			FString Param = Report->GetTestParameter();
-			if (Param.Len() > 0 && Param.StartsWith(TEXT("/")))
+			if (Param.StartsWith(TEXT("/")))
 			{
 				// Assume that if parameter start with a "/", it should be an asset
-				AssetNames.Add(Param);
+				AssetNames.Add(MoveTemp(Param));
 			}
 		}
 	}		
 	
 	if (AssetNames.Num() || TestNames.Num())
 	{
-		return SNew(SAutomationTestItemContextMenu, AssetNames, FString::Join(TestNames, TEXT("\n")));
+		return SNew(SAutomationTestItemContextMenu, AssetNames, TestNames);
 	}
 
 	return nullptr;

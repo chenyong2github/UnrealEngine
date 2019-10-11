@@ -17,6 +17,7 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Engine",
+					"JsonUtilities",
 					"UnrealEd",
 					"InputCore",
 					"SlateCore",
@@ -26,13 +27,14 @@ namespace UnrealBuildTool.Rules
                     "RawMesh",
                     "GeometryCache",
 					"MeshDescription",
-					"StaticMeshDescription",
+					"MeshDescriptionOperations",
 					"MeshUtilities",
-                    "PythonScriptPlugin",
+					"MessageLog",
+					"PythonScriptPlugin",
                     "RenderCore",
                     "RHI",
-                    "MessageLog",
-					"JsonUtilities",
+					"StaticMeshDescription",
+					"USDUtilities",
                 }
 				);
 

@@ -278,6 +278,8 @@ public:
 	virtual bool IsCPUSkinned() const override { return false; }
 	virtual TArray<FTransform>* GetComponentSpaceTransforms() const override;
 	virtual const TArray<FMatrix>& GetReferenceToLocalMatrices() const override;
+	virtual void SetCallbackData(FSkeletalMeshObjectCallbackData& CallbackData) override;
+	virtual FCachedGeometry GetCachedGeometry() const override { return CachedGeometry; };
 
 #if RHI_RAYTRACING
 	/** Geometry for ray tracing. */
@@ -548,6 +550,12 @@ private:
 
 	/** last updated bone transform revision number */
 	uint32 LastBoneTransformRevisionNumber;
+
+	/** Last cached geometry description */
+	FCachedGeometry CachedGeometry;
+
+	/** Callback for register/unregister/update events */
+	FSkeletalMeshObjectCallbackData CallbackData;
 };
 
 

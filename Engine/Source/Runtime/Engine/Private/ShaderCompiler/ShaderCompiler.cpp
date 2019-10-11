@@ -3335,7 +3335,7 @@ void GlobalBeginCompileShader(
 
 	bool bForwardShading = false;
 	{
-		ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatform(ShaderPlatformToPlatformName(EShaderPlatform(Target.Platform)).ToString());
+		ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatformWithSupport(TEXT("ShaderFormat"), LegacyShaderPlatformToShaderFormat((EShaderPlatform)Target.Platform));
 		if (TargetPlatform)
 		{
 			bForwardShading = TargetPlatform->UsesForwardShading();

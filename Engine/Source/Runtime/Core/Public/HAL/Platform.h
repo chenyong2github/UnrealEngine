@@ -60,9 +60,6 @@
 #if !defined(PLATFORM_APPLE)
 	#define PLATFORM_APPLE 0
 #endif
-#if !defined(PLATFORM_HTML5)
-	#define PLATFORM_HTML5 0
-#endif
 #if !defined(PLATFORM_LINUX)
 	#define PLATFORM_LINUX 0
 #endif
@@ -536,6 +533,10 @@
 	#define PLATFORM_USE_GENERIC_STRING_IMPLEMENTATION			1
 #endif
 
+#ifndef PLATFORM_USE_SHOWFLAGS_ALWAYS_BITFIELD
+	#define	PLATFORM_USE_SHOWFLAGS_ALWAYS_BITFIELD				1
+#endif
+
 #ifndef PLATFORM_SUPPORTS_LLM
 	#define PLATFORM_SUPPORTS_LLM								1
 #endif
@@ -993,13 +994,6 @@ namespace TypeTests
 		#define TEXT_PASTE(x) L ## x
 	#endif
 		#define TEXT(x) TEXT_PASTE(x)
-#endif
-
-// this function is used to suppress static analysis warnings
-#if PLATFORM_HTML5
-FORCEINLINE bool IsHTML5Platform() { return true; }
-#else
-FORCEINLINE bool IsHTML5Platform() { return false; }
 #endif
 
 

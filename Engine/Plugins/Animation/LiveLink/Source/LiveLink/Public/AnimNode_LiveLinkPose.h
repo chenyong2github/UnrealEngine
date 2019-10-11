@@ -5,6 +5,7 @@
 #include "Animation/AnimNodeBase.h"
 
 #include "CoreMinimal.h"
+#include "LiveLinkClientReference.h"
 #include "LiveLinkRetargetAsset.h"
 #include "LiveLinkTypes.h"
 
@@ -48,17 +49,20 @@ public:
 	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext & Context) override;
 	virtual void Update_AnyThread(const FAnimationUpdateContext & Context) override;
 	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
+	virtual bool HasPreUpdate() const { return true; }
+	virtual void PreUpdate(const UAnimInstance* InAnimInstance) override;
 	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	//~ End of FAnimNode_Base interface
 
-	void OnLiveLinkClientRegistered(const FName& Type, class IModularFeature* ModularFeature);
-	void OnLiveLinkClientUnregistered(const FName& Type, class IModularFeature* ModularFeature);
-
 	bool Serialize(FArchive& Ar);
+
+protected:
+	virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;
 
 private:
 
-	ILiveLinkClient* LiveLinkClient;
+	FLiveLinkClientReference LiveLinkClient_GameThread;
+	ILiveLinkClient* LiveLinkClient_AnyThread;
 
 	// Delta time from update so that it can be passed to retargeter
 	float CachedDeltaTime;

@@ -1,0 +1,58 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+//#define SCENE_TEXTURES_DISABLED 1
+
+#include "../Common.ush"
+#include "HairStrandsMeshProjectionCommon.ush"
+
+float4x4 LocalToWorld;
+uint VertexOffset;
+uint IndexOffset;
+uint MaxIndexCount;
+uint MaxVertexCount;
+
+Buffer<float> InputVertexBuffer;
+#if PERMUTATION_INPUT_TYPE == 1
+Buffer<uint> InputIndexBuffer;
+#endif
+
+
+void MainVS(
+	uint VertexId : SV_VertexID,
+	out float3 OutFaceNormal : FACE_NORMAL,
+	out float4 OutPosition : SV_POSITION)
+{
+	ResolvedView = ResolveView();
+
+#if PERMUTATION_INPUT_TYPE == 0
+	const uint VertexIndex = min(VertexOffset + VertexId, MaxVertexCount-1);
+	float3 P = InputVertexBuffer[VertexIndex];
+	OutFaceNormal = float3(0,0,1);
+#endif
+
+#if PERMUTATION_INPUT_TYPE == 1
+	const uint TriangleVertexIndex = (VertexId%3);
+	const uint TriangleIndex = VertexId / 3;
+	const FHairMeshTriangle Tri = GetTriangleData(TriangleIndex, LocalToWorld, InputVertexBuffer, InputIndexBuffer, IndexOffset, MaxIndexCount, MaxVertexCount);
+	OutFaceNormal = Tri.N;
+
+	float3 P = 0;
+	if (TriangleVertexIndex == 0)
+		P = Tri.P0;
+	if (TriangleVertexIndex == 1)
+		P = Tri.P1;
+	if (TriangleVertexIndex == 2)
+		P = Tri.P2;
+#endif
+
+	OutPosition = mul(float4(P,1), View.WorldToClip);
+}
+
+void MainPS(
+	in float3 FaceNormal : FACE_NORMAL,
+	out float4 OutColor : SV_Target0)
+{
+	FaceNormal += float3(1,1,1);
+	FaceNormal *= 0.5f;
+	OutColor = float4(FaceNormal,1);
+}

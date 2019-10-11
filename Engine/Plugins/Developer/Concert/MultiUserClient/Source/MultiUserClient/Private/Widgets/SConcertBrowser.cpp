@@ -4,12 +4,16 @@
 
 #include "IMultiUserClientModule.h"
 #include "IConcertClient.h"
+#include "IConcertClientWorkspace.h"
 #include "IConcertSyncClient.h"
+#include "ConcertActivityStream.h"
 #include "ConcertFrontendStyle.h"
 #include "ConcertFrontendUtils.h"
 #include "SActiveSession.h"
+#include "SConcertSessionRecovery.h"
 #include "ConcertSessionBrowserSettings.h"
 #include "ConcertSettings.h"
+#include "ConcertLogGlobal.h"
 #include "MultiUserClientUtils.h"
 
 #include "Algo/Transform.h"
@@ -17,6 +21,7 @@
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Internationalization/Regex.h"
+#include "Misc/AsyncTaskNotification.h"
 #include "Misc/Char.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/TextFilter.h"
@@ -103,6 +108,27 @@ TSharedRef<SButton> MakeIconButton(const FName& ButtonStyle, const TAttribute<co
 		];
 }
 
+/** Returns the tooltip shown when hovering the triangle with an exclamation icon when a server doesn't validate the version requirements. */
+FText GetServerVersionIgnoredTooltip()
+{
+	return LOCTEXT("ServerIgnoreSessionRequirementsTooltip", "Careful this server won't verify that you have the right requirements before you join a session");
+}
+
+/** Create a widget displaying the triangle with an exclamation icon in case the server flags include IgnoreSessionRequirement. */
+TSharedRef<SWidget> MakeServerVersionIgnoredWidget(EConcertServerFlags InServerFlags)
+{
+	return SNew(SBorder)
+		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+		.ColorAndOpacity(FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("FlatButton.Warning").Normal.TintColor.GetSpecifiedColor())
+		[
+			SNew(STextBlock)
+			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+			.Text(FEditorFontGlyphs::Exclamation_Triangle)
+			.ToolTipText(GetServerVersionIgnoredTooltip())
+			.Visibility((InServerFlags & EConcertServerFlags::IgnoreSessionRequirement) != EConcertServerFlags::None ? EVisibility::Visible : EVisibility::Collapsed)
+		];
+}
+
 } // namespace ConcertSessionBrowserUtils
 
 /** Signal emitted when a session name text field should enter in edit mode. */
@@ -124,12 +150,13 @@ public:
 		ArchivedSession, // Read-only item representing an archived session.
 	};
 
-	FConcertSessionItem(EType Type, const FString& InSessionName, const FGuid& InSessionId, const FString& InServerName, const FGuid& InServerEndpoint)
+	FConcertSessionItem(EType Type, const FString& InSessionName, const FGuid& InSessionId, const FString& InServerName, const FGuid& InServerEndpoint, EConcertServerFlags InServerFlags)
 		: Type(Type)
 		, ServerAdminEndpointId(InServerEndpoint)
 		, SessionId(InSessionId)
 		, SessionName(InSessionName)
 		, ServerName(InServerName)
+		, ServerFlags(InServerFlags)
 	{
 	}
 
@@ -144,6 +171,7 @@ public:
 	FString SessionName;
 	FString ServerName;
 	FOnBeginEditConcertSessionNameRequest OnBeginEditSessionNameRequest; // Emitted when user press 'F2' or select 'Rename' from context menu.
+	EConcertServerFlags ServerFlags;
 };
 
 
@@ -300,7 +328,6 @@ private:
 	bool bInitialActiveSessionQueryResponded = false;
 	bool bInitialArchivedSessionQueryResponded = false;
 
-	// True if a request to create a session is ongoing.
 	TArray<FAsyncRequest> CreateSessionRequests;
 	TArray<FPendingSessionDiscovery> ExpectedSessionsToDiscover;
 	TSet<FString> IgnoredServers; // List of ignored servers (Useful for testing/debugging)
@@ -402,14 +429,103 @@ void FConcertBrowserController::ArchiveSession(const FGuid& ServerAdminEndpointI
 
 void FConcertBrowserController::RestoreSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId, const FString& RestoredName, const FConcertSessionFilter& SessionFilter)
 {
-	// On success, a new session is created from the archive, the client automatically joins it and SConcertBrowser::HandleSessionConnectionChanged() will transit the UI to the SActiveSession.
-	// On failure: An async notification banner will be displayer to the user.
-	FConcertRestoreSessionArgs RestoreSessionArgs;
-	RestoreSessionArgs.bAutoConnect = true;
-	RestoreSessionArgs.SessionId = SessionId;
-	RestoreSessionArgs.SessionName = RestoredName;
-	RestoreSessionArgs.SessionFilter = SessionFilter;
-	ConcertClient->RestoreSession(ServerAdminEndpointId, RestoreSessionArgs);
+	FString ArchivedSessionName;
+	if (const FConcertSessionInfo* SessionInfo = GetArchivedSessionInfo(ServerAdminEndpointId, SessionId))
+	{
+		ArchivedSessionName = SessionInfo->SessionName;
+	}
+
+	TSharedRef<SWindow> NewWindow = SNew(SWindow)
+		.Title(FText::Format(LOCTEXT("RestoreSessionDialogTitle", "Restoring {0}"), FText::AsCultureInvariant(ArchivedSessionName)))
+		.SizingRule(ESizingRule::UserSized)
+		.ClientSize(FVector2D(1200, 800))
+		.IsTopmostWindow(false) // Consider making it always on top?
+		.SupportsMaximize(true)
+		.SupportsMinimize(false);
+
+	// Ask the stream to pull the activity details (for transaction/package) for inspection.
+	constexpr bool bRequestActivityDetails = true;
+
+	// Create a stream of activities (streaming from the most recent to the oldest).
+	TSharedPtr<FConcertActivityStream> ActivityStream = MakeShared<FConcertActivityStream>(ConcertClient, ServerAdminEndpointId, SessionId, bRequestActivityDetails);
+
+	// The UI uses this function to read and consume the activity stream.
+	auto ReadActivitiesFn = [ActivityStream](TArray<TSharedPtr<FConcertClientSessionActivity>>& InOutActivities, int32& OutFetchCount, FText& OutErrorMsg)
+	{
+		return ActivityStream->Read(InOutActivities, OutFetchCount, OutErrorMsg);
+	};
+
+	// The UI uses this function to map an activity ID from the stream to a client info.
+	auto GetActivityClientInfoFn = [ActivityStream](FGuid EndpointID)
+	{
+		return ActivityStream->GetActivityClientInfo(EndpointID);
+	};
+
+	// Invoked if the client selects a point in time to recover.
+	TWeakPtr<IConcertClient, ESPMode::ThreadSafe> WeakClient = ConcertClient;
+	auto OnAcceptRestoreFn = [WeakClient, ServerAdminEndpointId, SessionId, RestoredName, SessionFilter](TSharedPtr<FConcertClientSessionActivity> SelectedRecoveryActivity)
+	{
+		FConcertRestoreSessionArgs RestoreSessionArgs;
+		RestoreSessionArgs.bAutoConnect = true;
+		RestoreSessionArgs.SessionId = SessionId;
+		RestoreSessionArgs.SessionName = RestoredName;
+		RestoreSessionArgs.SessionFilter = SessionFilter;
+		RestoreSessionArgs.SessionFilter.bOnlyLiveData = false;
+
+		// Set which item was selected to recover through.
+		if (SelectedRecoveryActivity)
+		{
+			RestoreSessionArgs.SessionFilter.ActivityIdUpperBound = SelectedRecoveryActivity->Activity.ActivityId;
+		}
+		// else -> Restore the entire session as it.
+
+		bool bDismissRecoveryWindow = true; // Dismiss the window showing the session activities
+
+		if (TSharedPtr<IConcertClient, ESPMode::ThreadSafe> ConcertClientPin = WeakClient.Pin())
+		{
+			// Prompt the user to persist and leave the session.
+			bool bDisconnected = IMultiUserClientModule::Get().DisconnectSession(/*bAlwaysAskConfirmation*/true);
+			if (bDisconnected)
+			{
+				// On success, a new session is created from the archive, the client automatically disconnects from the current session (if any), joins the restored one and SConcertBrowser::HandleSessionConnectionChanged() will transit the UI to the SActiveSession.
+				// On failure: An async notification banner will be displayer to the user.
+				ConcertClientPin->RestoreSession(ServerAdminEndpointId, RestoreSessionArgs);
+			}
+			else // The user declined disconnection.
+			{
+				bDismissRecoveryWindow = false; // Keep the window open, let the client handle it (close/cancel or just restore later).
+			}
+		}
+		else
+		{
+			FAsyncTaskNotificationConfig NotificationConfig;
+			NotificationConfig.bIsHeadless = false;
+			NotificationConfig.bKeepOpenOnFailure = true;
+			NotificationConfig.LogCategory = &LogConcert;
+
+			FAsyncTaskNotification Notification(NotificationConfig);
+			Notification.SetComplete(LOCTEXT("RecoveryError", "Failed to recover the session"), LOCTEXT("ClientUnavailable", "Concert client unavailable"), /*Success*/ false);
+		}
+
+		return bDismissRecoveryWindow;
+	};
+
+	TSharedRef<SConcertSessionRecovery> RestoreWidget = SNew(SConcertSessionRecovery)
+		.ParentWindow(NewWindow)
+		.IntroductionText(LOCTEXT("RecoverSessionIntroductionText", "Select the point in time at which the session should be restored"))
+		.OnFetchActivities(ReadActivitiesFn)
+		.OnMapActivityToClient(GetActivityClientInfoFn)
+		.OnRestore(OnAcceptRestoreFn)
+		.ClientNameColumnVisibility(EVisibility::Visible)
+		.ClientAvatarColorColumnVisibility(EVisibility::Visible)
+		.OperationColumnVisibility(EVisibility::Visible)
+		.PackageColumnVisibility(EVisibility::Hidden) // Even tough the column is not present, the tooltips and summary contains the affected package.
+		.DetailsAreaVisibility(bRequestActivityDetails ? EVisibility::Visible : EVisibility::Collapsed) // The activity stream was configured to pull the activity details.
+		.IsConnectionActivityFilteringEnabled(true)
+		.IsLockActivityFilteringEnabled(true);
+
+	NewWindow->SetContent(RestoreWidget);
+	FSlateApplication::Get().AddWindow(NewWindow, true);
 }
 
 void FConcertBrowserController::JoinSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId)
@@ -980,11 +1096,24 @@ TSharedRef<SWidget> SSessionRow::GenerateWidgetForColumn(const FName& ColumnName
 				.HighlightText(HighlightText)
 				.Font(FCoreStyle::GetDefaultFontStyle("Regular", 9))
 				.ColorAndOpacity(FontColor)
+			]
+			+SHorizontalBox::Slot()
+			[
+				SNew(SSpacer)
+			]
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Right)
+			[
+				ConcertBrowserUtils::MakeServerVersionIgnoredWidget(ItemPin->ServerFlags)
 			];
 	}
 	else
 	{
-		return SNew(SBox)
+		return SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.AutoWidth()
 			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)
@@ -992,6 +1121,17 @@ TSharedRef<SWidget> SSessionRow::GenerateWidgetForColumn(const FName& ColumnName
 				.HighlightText(HighlightText)
 				.Font(FontInfo)
 				.ColorAndOpacity(FontColor)
+			]
+			+SHorizontalBox::Slot()
+			[
+				SNew(SSpacer)
+			]
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Right)
+			[
+				ConcertBrowserUtils::MakeServerVersionIgnoredWidget(ItemPin->ServerFlags)
 			];
 	}
 }
@@ -1064,7 +1204,10 @@ public:
 
 private:
 	TSharedRef<SWidget> OnGenerateServersComboOptionWidget(TSharedPtr<FConcertServerInfo> Item);
+	TSharedRef<SWidget> MakeSelectedServerWidget();
 	FText GetSelectedServerText() const;
+	FText GetSelectedServerIgnoreVersionText() const;
+	FText GetSelectedServerIgnoreVersionTooltip() const;
 	FText GetServerDisplayName(const FString& ServerName) const;
 
 	void OnSessionNameChanged(const FText& NewName);
@@ -1165,9 +1308,7 @@ TSharedRef<SWidget> SNewSessionRow::GenerateWidgetForColumn(const FName& ColumnN
 				.OnGenerateWidget(this, &SNewSessionRow::OnGenerateServersComboOptionWidget)
 				.ToolTipText(LOCTEXT("SelectServerTooltip", "Select the server on which the session should be created"))
 				[
-					SNew(STextBlock)
-					.Text(this, &SNewSessionRow::GetSelectedServerText)
-					.HighlightText(HighlightText)
+					MakeSelectedServerWidget()
 				]
 			]
 
@@ -1233,6 +1374,11 @@ TSharedRef<SWidget> SNewSessionRow::OnGenerateServersComboOptionWidget(TSharedPt
 			SNew(STextBlock)
 			.Font(bIsDefaultServer ? FEditorStyle::GetFontStyle("BoldFont") : FEditorStyle::GetFontStyle("NormalFont"))
 			.Text(GetServerDisplayName(ServerItem->ServerName))
+		]
+		+SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			ConcertBrowserUtils::MakeServerVersionIgnoredWidget(ServerItem->ServerFlags)
 		];
 }
 
@@ -1312,6 +1458,27 @@ void SNewSessionRow::UpdateServerList()
 	ServersComboBox->RefreshOptions();
 }
 
+TSharedRef<SWidget> SNewSessionRow::MakeSelectedServerWidget()
+{
+	return SNew(SHorizontalBox)
+		+SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(STextBlock)
+			.Text(this, &SNewSessionRow::GetSelectedServerText)
+			.HighlightText(HighlightText)
+		]
+		+SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(2, 0, 0, 0)
+		[
+			SNew(STextBlock)
+			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+			.Text(this, &SNewSessionRow::GetSelectedServerIgnoreVersionText)
+			.ToolTipText(this, &SNewSessionRow::GetSelectedServerIgnoreVersionTooltip)
+		];
+}
+
 FText SNewSessionRow::GetSelectedServerText() const
 {
 	TSharedPtr<FConcertServerInfo> SelectedServer = ServersComboBox->GetSelectedItem();
@@ -1334,6 +1501,24 @@ FText SNewSessionRow::GetServerDisplayName(const FString& ServerName) const
 		return FText::Format(LOCTEXT("MyComputer", "{0} (My Computer)"), FText::FromString(FPlatformProcess::ComputerName()));
 	}
 	return FText::FromString(ServerName);
+}
+
+FText SNewSessionRow::GetSelectedServerIgnoreVersionText() const
+{
+	if (ServersComboBox->GetSelectedItem() && (ServersComboBox->GetSelectedItem()->ServerFlags & EConcertServerFlags::IgnoreSessionRequirement) != EConcertServerFlags::None)
+	{
+		return FEditorFontGlyphs::Exclamation_Triangle;
+	}
+	return FText();
+}
+
+FText SNewSessionRow::GetSelectedServerIgnoreVersionTooltip() const
+{
+	if (ServersComboBox->GetSelectedItem() && (ServersComboBox->GetSelectedItem()->ServerFlags & EConcertServerFlags::IgnoreSessionRequirement) != EConcertServerFlags::None)
+	{
+		return ConcertBrowserUtils::GetServerVersionIgnoredTooltip();
+	}
+	return FText();
 }
 
 FReply SNewSessionRow::OnAccept()
@@ -1810,6 +1995,7 @@ private:
 	FReply OnArchiveButtonClicked();
 	FReply OnDeleteButtonClicked();
 	FReply OnLaunchServerButtonClicked();
+	FReply OnShutdownServerButtonClicked();
 	FReply OnAutoJoinButtonClicked();
 	FReply OnCancelAutoJoinButtonClicked();
 	void OnBeginEditingSessionName(TSharedPtr<FConcertSessionItem> Item);
@@ -1831,6 +2017,7 @@ private:
 
 	// Sessions filtering. (Filters the session view)
 	void OnSearchTextChanged(const FText& InFilterText);
+	void OnSearchTextCommitted(const FText& InFilterText, ETextCommit::Type CommitType);
 	void OnFilterMenuChecked(const FName MenuName);
 	void PopulateSearchStrings(const FConcertSessionItem& Item, TArray<FString>& OutSearchStrings) const;
 	bool IsFilteredOut(const FConcertSessionItem& Item) const;
@@ -2134,7 +2321,7 @@ void SConcertSessionBrowser::RefreshSessionList()
 	// Populate the live sessions.
 	for (const TSharedPtr<FConcertBrowserController::FActiveSessionInfo>& ActiveSession : Controller->GetActiveSessions())
 	{
-		FConcertSessionItem NewItem(FConcertSessionItem::EType::ActiveSession, ActiveSession->SessionInfo.SessionName, ActiveSession->SessionInfo.SessionId, ActiveSession->ServerInfo.ServerName, ActiveSession->ServerInfo.AdminEndpointId);
+		FConcertSessionItem NewItem(FConcertSessionItem::EType::ActiveSession, ActiveSession->SessionInfo.SessionName, ActiveSession->SessionInfo.SessionId, ActiveSession->ServerInfo.ServerName, ActiveSession->ServerInfo.AdminEndpointId, ActiveSession->ServerInfo.ServerFlags);
 		if (!IsFilteredOut(NewItem))
 		{
 			Sessions.Emplace(MakeShared<FConcertSessionItem>(MoveTemp(NewItem)));
@@ -2145,7 +2332,7 @@ void SConcertSessionBrowser::RefreshSessionList()
 	// Populate the archived.
 	for (const TSharedPtr<FConcertBrowserController::FArchivedSessionInfo>& ArchivedSession : Controller->GetArchivedSessions())
 	{
-		FConcertSessionItem NewItem(FConcertSessionItem::EType::ArchivedSession, ArchivedSession->SessionInfo.SessionName, ArchivedSession->SessionInfo.SessionId, ArchivedSession->ServerInfo.ServerName, ArchivedSession->ServerInfo.AdminEndpointId);
+		FConcertSessionItem NewItem(FConcertSessionItem::EType::ArchivedSession, ArchivedSession->SessionInfo.SessionName, ArchivedSession->SessionInfo.SessionId, ArchivedSession->ServerInfo.ServerName, ArchivedSession->ServerInfo.AdminEndpointId, ArchivedSession->ServerInfo.ServerFlags);
 		if (!IsFilteredOut(NewItem))
 		{
 			Sessions.Emplace(MakeShared<FConcertSessionItem>(MoveTemp(NewItem)));
@@ -2222,6 +2409,14 @@ void SConcertSessionBrowser::OnSearchTextChanged(const FText& InFilterText)
 	bRefreshSessionFilter = true;
 }
 
+void SConcertSessionBrowser::OnSearchTextCommitted(const FText& InFilterText, ETextCommit::Type CommitType)
+{
+	if (!InFilterText.EqualTo(*SearchedText))
+	{
+		OnSearchTextChanged(InFilterText);
+	}
+}
+
 void SConcertSessionBrowser::PopulateSearchStrings(const FConcertSessionItem& Item, TArray<FString>& OutSearchStrings) const
 {
 	OutSearchStrings.Add(Item.ServerName);
@@ -2262,6 +2457,7 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeControlBar()
 			SAssignNew(SearchBox, SSearchBox)
 			.HintText(LOCTEXT("SearchHint", "Search Session"))
 			.OnTextChanged(this, &SConcertSessionBrowser::OnSearchTextChanged)
+			.OnTextCommitted(this, &SConcertSessionBrowser::OnSearchTextCommitted)
 			.DelayChangeNotificationsWhileTyping(true)
 		]
 
@@ -2340,7 +2536,17 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeButtonBar()
 		[
 			ConcertBrowserUtils::MakeIconButton(TEXT("FlatButton"), FConcertFrontendStyle::Get()->GetBrush("Concert.NewServer"), LOCTEXT("LaunchServerTooltip", "Launch a Multi-User server on your computer unless one is already running"),
 				TAttribute<bool>(this, &SConcertSessionBrowser::IsLaunchServerButtonEnabled),
-				FOnClicked::CreateSP(this, &SConcertSessionBrowser::OnLaunchServerButtonClicked))
+				FOnClicked::CreateSP(this, &SConcertSessionBrowser::OnLaunchServerButtonClicked),
+				TAttribute<EVisibility>::Create([this]() { return IsLaunchServerButtonEnabled() ? EVisibility::Visible : EVisibility::Collapsed; }))
+		]
+
+		// Stop server.
+		+SHorizontalBox::Slot()
+		[
+			ConcertBrowserUtils::MakeIconButton(TEXT("FlatButton"), FConcertFrontendStyle::Get()->GetBrush("Concert.CloseServer"), LOCTEXT("ShutdownServerTooltip", "Shutdown the Multi-User server running on this computer."),
+				true, // Always enabled, but might be collapsed.
+				FOnClicked::CreateSP(this, &SConcertSessionBrowser::OnShutdownServerButtonClicked),
+				TAttribute<EVisibility>::Create([this]() { return IsLaunchServerButtonEnabled() ? EVisibility::Collapsed : EVisibility::Visible; }))
 		]
 
 		// New Session
@@ -2656,19 +2862,19 @@ TSharedRef<ITableRow> SConcertSessionBrowser::MakeRestoreSessionRowWidget(const 
 void SConcertSessionBrowser::InsertNewSessionEditableRow()
 {
 	// Insert a 'new session' editable row.
-	InsertEditableSessionRow(MakeShared<FConcertSessionItem>(FConcertSessionItem::EType::NewSession, FString(), FGuid(), FString(), FGuid()), nullptr);
+	InsertEditableSessionRow(MakeShared<FConcertSessionItem>(FConcertSessionItem::EType::NewSession, FString(), FGuid(), FString(), FGuid(), EConcertServerFlags::None), nullptr);
 }
 
 void SConcertSessionBrowser::InsertRestoreSessionAsEditableRow(const TSharedPtr<FConcertSessionItem>& ArchivedItem)
 {
 	// Insert the 'restore session as ' editable row just below the 'archived' item to restore.
-	InsertEditableSessionRow(MakeShared<FConcertSessionItem>(FConcertSessionItem::EType::RestoreSession, ArchivedItem->SessionName, ArchivedItem->SessionId, ArchivedItem->ServerName, ArchivedItem->ServerAdminEndpointId), ArchivedItem);
+	InsertEditableSessionRow(MakeShared<FConcertSessionItem>(FConcertSessionItem::EType::RestoreSession, ArchivedItem->SessionName, ArchivedItem->SessionId, ArchivedItem->ServerName, ArchivedItem->ServerAdminEndpointId, ArchivedItem->ServerFlags), ArchivedItem);
 }
 
 void SConcertSessionBrowser::InsertArchiveSessionAsEditableRow(const TSharedPtr<FConcertSessionItem>& LiveItem)
 {
 	// Insert the 'save session as' editable row just below the 'active' item to save.
-	InsertEditableSessionRow(MakeShared<FConcertSessionItem>(FConcertSessionItem::EType::SaveSession, LiveItem->SessionName, LiveItem->SessionId, LiveItem->ServerName, LiveItem->ServerAdminEndpointId), LiveItem);
+	InsertEditableSessionRow(MakeShared<FConcertSessionItem>(FConcertSessionItem::EType::SaveSession, LiveItem->SessionName, LiveItem->SessionId, LiveItem->ServerName, LiveItem->ServerAdminEndpointId, LiveItem->ServerFlags), LiveItem);
 }
 
 void SConcertSessionBrowser::InsertEditableSessionRow(TSharedPtr<FConcertSessionItem> EditableItem, TSharedPtr<FConcertSessionItem> ParentItem)
@@ -3329,6 +3535,15 @@ FReply SConcertSessionBrowser::OnLaunchServerButtonClicked()
 {
 	IMultiUserClientModule::Get().LaunchConcertServer();
 	bLocalServerRunning = IMultiUserClientModule::Get().IsConcertServerRunning(); // Immediately update the cache state to avoid showing buttons enabled for a split second.
+	return FReply::Handled();
+}
+
+FReply SConcertSessionBrowser::OnShutdownServerButtonClicked()
+{
+	if (bLocalServerRunning)
+	{
+		IMultiUserClientModule::Get().ShutdownConcertServer();
+	}
 	return FReply::Handled();
 }
 

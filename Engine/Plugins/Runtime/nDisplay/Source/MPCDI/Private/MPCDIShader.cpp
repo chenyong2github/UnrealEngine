@@ -243,6 +243,7 @@ bool FMPCDIShader::ApplyWarpBlend(FRHICommandListImmediate& RHICmdList, IMPCDI::
 
 	case EVarMPCDIShaderType::Disable:
 		return false;
+
 	default:
 		break;
 	};
@@ -259,9 +260,11 @@ bool FMPCDIShader::ApplyWarpBlend(FRHICommandListImmediate& RHICmdList, IMPCDI::
 				ShaderInputData.UVMatrix = StereoMatrix;
 				bIsRenderSuccess = CompleteWarpTempl<EMPCDIShader::Passthrough>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, EColorOPMode::Default);
 				break;
+
 			case EMPCDIShader::ShowWarpTexture:
 				ShaderInputData.UVMatrix = ShaderInputData.Frustum.UVMatrix*MPCDIData->GetTextureMatrix()*MPCDIRegion->GetRegionMatrix()*StereoMatrix;
-				{// WarpAndBlend
+				{
+					// WarpAndBlend
 					if (bIsBlendDisabled)
 					{
 						bIsRenderSuccess = CompleteWarpTempl<EMPCDIShader::Warp>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, EColorOPMode::Default);
@@ -271,6 +274,7 @@ bool FMPCDIShader::ApplyWarpBlend(FRHICommandListImmediate& RHICmdList, IMPCDI::
 						bIsRenderSuccess = CompleteWarpTempl<EMPCDIShader::WarpAndBlend>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, EColorOPMode::Default);
 					}
 				}
+
 				// Overlay
 				bIsRenderSuccess &= CompleteWarpTempl<EMPCDIShader::ShowWarpTexture>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, EColorOPMode::AddAlpha);
 				break;

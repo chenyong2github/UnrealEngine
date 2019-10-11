@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Editor.h"
+#include "Engine/Engine.h"
+#include "Engine/World.h"
 #include "UObject/Class.h"
 #include "IStatsViewer.h"
 #include "IStatsPage.h"
@@ -27,6 +30,8 @@ public:
 		bShow = false;
 		ObjectSetIndex = 0;
 	}
+
+	virtual ~FStatsPage() {}
 
 	/** Begin IStatsPage interface */
 	virtual void Show( bool bInShow = true ) override
@@ -125,6 +130,13 @@ public:
 	virtual void GetCustomColumns(TArray< TSharedRef< class IPropertyTableCustomColumn > >& OutCustomColumns) const override
 	{
 	}
+
+	virtual void SetWorld( UWorld& InWorld ) override
+	{
+		StatsWorld = MakeWeakObjectPtr<UWorld>( &InWorld );
+	}
+
+	virtual UWorld* GetWorld() const override;
 	/** End IStatsPage interface */
 
 protected:
@@ -140,6 +152,39 @@ protected:
 
 	/** Flag to show the page */
 	bool bShow;	
+
+	/**
+	 * The world to use for pages that need to query actors/components.
+	 *  Can be null, in which case GWorld will be used.
+	 */
+	TWeakObjectPtr< UWorld > StatsWorld;
 };
 
+template< typename Entry >
+inline UWorld* FStatsPage< Entry >::GetWorld() const
+{
+	UWorld* World = GWorld;
 
+	if ( StatsWorld.IsValid() )
+	{
+		World = StatsWorld.Get();
+	}
+	else if (GEditor && (GEditor->bIsSimulatingInEditor || GEditor->PlayWorld))
+	{
+		if (GEditor->PlayWorld)
+		{
+			World = GEditor->PlayWorld;
+		}
+		else
+		{
+			FWorldContext* WorldContext = GEngine->GetWorldContextFromPIEInstance(0);
+			UWorld* SIEWorld = WorldContext ? WorldContext->World() : nullptr;
+			if (SIEWorld)
+			{
+				World = SIEWorld;
+			}
+		}
+	}
+
+	return World;
+}

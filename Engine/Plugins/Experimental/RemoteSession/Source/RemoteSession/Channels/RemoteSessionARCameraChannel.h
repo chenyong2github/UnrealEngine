@@ -95,3 +95,10 @@ private:
 	/** So we can manage callback lifetimes properly */
 	FDelegateHandle MessageCallbackHandle;
 };
+
+class REMOTESESSION_API FRemoteSessionARCameraChannelFactoryWorker : public IRemoteSessionChannelFactoryWorker
+{
+public:
+	virtual const TCHAR* GetType() const override { return FRemoteSessionARCameraChannel::StaticType(); }
+	virtual TSharedPtr<IRemoteSessionChannel> Construct(ERemoteSessionChannelMode InMode, TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection) const override;
+};

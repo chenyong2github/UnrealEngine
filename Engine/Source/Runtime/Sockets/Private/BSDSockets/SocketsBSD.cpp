@@ -8,10 +8,6 @@
 #include "BSDSockets/SocketSubsystemBSD.h"
 //#include "Net/NetworkProfiler.h"
 
-#if PLATFORM_HTML5
-	typedef unsigned long u_long;
-#endif
-
 
 /* FSocket overrides
  *****************************************************************************/
@@ -356,15 +352,8 @@ bool FSocketBSD::GetPeerAddress(FInternetAddr& OutAddr)
 
 bool FSocketBSD::SetNonBlocking(bool bIsNonBlocking)
 {
-	u_long Value = bIsNonBlocking ? true : false;
-
-#if PLATFORM_HTML5
-	// can't have blocking sockets.
-	ensureMsgf(bIsNonBlocking, TEXT("Can't have blocking sockets on HTML5"));
-    return true;
-#else
-
 #if PLATFORM_HAS_BSD_SOCKET_FEATURE_WINSOCKETS
+	u_long Value = bIsNonBlocking ? true : false;
 	return ioctlsocket(Socket,FIONBIO,&Value) == 0;
 #else
 	int Flags = fcntl(Socket, F_GETFL, 0);
@@ -372,7 +361,6 @@ bool FSocketBSD::SetNonBlocking(bool bIsNonBlocking)
 	Flags = bIsNonBlocking ? Flags | O_NONBLOCK : Flags ^ (Flags & O_NONBLOCK);
 	int err = fcntl(Socket, F_SETFL, Flags);
 	return (err == 0 ? true : false);
-#endif
 #endif
 }
 

@@ -85,6 +85,20 @@ public:
 
 	TARGETPLATFORM_API virtual bool RequiresTempTarget(bool bProjectHasCode, EBuildConfiguration Configuration, bool bRequiresAssetNativization, FText& OutReason) const override;
 
+	virtual bool SupportsValueForType(FName SupportedType, FName RequiredSupportedValue) const override
+	{
+#if WITH_ENGINE
+		// check if the given shader format is returned by this TargetPlatform
+		if (SupportedType == TEXT("ShaderFormat"))
+		{
+			TArray<FName> AllPossibleShaderFormats;
+			GetAllPossibleShaderFormats(AllPossibleShaderFormats);
+			return AllPossibleShaderFormats.Contains(RequiredSupportedValue);
+		}
+#endif
+		return false;
+	}
+
 	virtual bool SupportsVariants() const override
 	{
 		return false;

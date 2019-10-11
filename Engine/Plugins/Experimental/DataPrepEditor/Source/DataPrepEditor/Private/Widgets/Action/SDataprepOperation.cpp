@@ -21,9 +21,9 @@ FText SDataprepOperation::GetBlockTitle() const
 	return Operation ? Operation->GetDisplayOperationName() : FText::FromString( TEXT("Operation is Nullptr!") ) ;
 }
 
-TSharedRef<SWidget> SDataprepOperation::GetContentWidget() const
+TSharedRef<SWidget> SDataprepOperation::GetContentWidget()
 {
-	return SNew( SDataprepDetailsView ).Object( Operation ).Class( UDataprepOperation::StaticClass() );
+	return SNew( SDataprepDetailsView ).Object( Operation );
 }
 
 void SDataprepOperation::AddReferencedObjects(FReferenceCollector& Collector)

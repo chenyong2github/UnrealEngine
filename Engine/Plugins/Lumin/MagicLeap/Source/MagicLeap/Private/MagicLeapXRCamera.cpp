@@ -16,9 +16,9 @@ void FMagicLeapXRCamera::PreRenderView_RenderThread(FRHICommandListImmediate& RH
 {
 #if WITH_MLSDK
 	// this needs to happen before the FDefaultXRCamera call, because UpdateProjectionMatrix is somewhat destructive. 
-	if (View.StereoPass != eSSP_FULL)
+	if (IStereoRendering::IsStereoEyeView(View.StereoPass))
 	{
-		const int EyeIdx = (View.StereoPass == eSSP_LEFT_EYE) ? 0 : 1;
+		const int EyeIdx = IStereoRendering::IsAPrimaryView(View.StereoPass) ? 0 : 1;
 		const FTrackingFrame& Frame = MagicLeapSystem.GetCurrentFrame();
 
 		// update to use render projection matrix

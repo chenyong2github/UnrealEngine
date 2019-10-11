@@ -69,19 +69,19 @@ public static class PhysXBuildExtensions
 
 public class PhysX : ModuleRules
 {
-	protected virtual string PhysXVersion			{ get { return "PhysX_3.4"; } }
-	protected virtual string PxSharedVersion		{ get { return "PxShared"; } }
+	protected virtual string PhysXVersion { get { return "PhysX_3.4"; } }
+	protected virtual string PxSharedVersion { get { return "PxShared"; } }
 
-	protected virtual string IncRootDirectory		{ get { return ModuleDirectory; } }
-	protected virtual string LibRootDirectory		{ get { return ModuleDirectory; } }
-	
-	protected virtual string PhysXLibDir			{ get { return Path.Combine(LibRootDirectory, "Lib"); } }
-	protected virtual string PxSharedLibDir			{ get { return Path.Combine(LibRootDirectory, "Lib"); } }
-	protected virtual string PhysXIncludeDir		{ get { return Path.Combine(IncRootDirectory, PhysXVersion, "Include"); } }
-	protected virtual string PxSharedIncludeDir		{ get { return Path.Combine(IncRootDirectory, PxSharedVersion, "include"); } }
+	protected virtual string IncRootDirectory { get { return Target.UEThirdPartySourceDirectory; } }
+	protected virtual string LibRootDirectory { get { return Target.UEThirdPartySourceDirectory; } }
 
-	protected virtual PhysXLibraryMode LibraryMode	{ get { return Target.GetPhysXLibraryMode(); } }
-	protected virtual string LibrarySuffix			{ get { return LibraryMode.AsSuffix(); } }
+	protected virtual string PhysXLibDir { get { return Path.Combine(LibRootDirectory, "PhysX3", "Lib"); } }
+	protected virtual string PxSharedLibDir { get { return Path.Combine(LibRootDirectory, "PhysX3", "Lib"); } }
+	protected virtual string PhysXIncludeDir { get { return Path.Combine(IncRootDirectory, "PhysX3", PhysXVersion, "Include"); } }
+	protected virtual string PxSharedIncludeDir { get { return Path.Combine(IncRootDirectory, "PhysX3", PxSharedVersion, "include"); } }
+
+	protected virtual PhysXLibraryMode LibraryMode { get { return Target.GetPhysXLibraryMode(); } }
+	protected virtual string LibrarySuffix { get { return LibraryMode.AsSuffix(); } }
 
 	public PhysX(ReadOnlyTargetRules Target) : base(Target)
 	{
@@ -111,11 +111,11 @@ public class PhysX : ModuleRules
 			Path.Combine(PhysXIncludeDir, "geometry")
 		});
 
+		string EngineBinThirdPartyPath = Path.Combine("$(EngineDir)", "Binaries", "ThirdParty", "PhysX3");
+
 		// Libraries and DLLs for windows platform
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			string PlatformPhysXLibDir = Path.Combine(PhysXLibDir, "Win64", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
-
 			string[] StaticLibrariesX64 = new string[] {
 				"PhysX3{0}_x64.lib",
 				"PhysX3Extensions{0}_x64.lib",
@@ -142,7 +142,7 @@ public class PhysX : ModuleRules
 
 			foreach (string Lib in StaticLibrariesX64)
 			{
-				PublicAdditionalLibraries.Add(Path.Combine(PlatformPhysXLibDir, String.Format(Lib, LibrarySuffix)));
+				PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "Win64", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), String.Format(Lib, LibrarySuffix)));
 			}
 
 			foreach (string DLL in DelayLoadDLLsX64)
@@ -150,10 +150,10 @@ public class PhysX : ModuleRules
 				PublicDelayLoadDLLs.Add(String.Format(DLL, LibrarySuffix));
 			}
 
-			string PhysXBinariesDir = String.Format("$(EngineDir)/Binaries/ThirdParty/PhysX3/Win64/VS{0}/", Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
+			string PhysXBinariesDir = Path.Combine(EngineBinThirdPartyPath, "Win64", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
 			foreach (string DLL in DelayLoadDLLsX64)
 			{
-				string FileName = PhysXBinariesDir + String.Format(DLL, LibrarySuffix);
+				string FileName = Path.Combine(PhysXBinariesDir, String.Format(DLL, LibrarySuffix));
 				RuntimeDependencies.Add(FileName, StagedFileType.NonUFS);
 				RuntimeDependencies.Add(Path.ChangeExtension(FileName, ".pdb"), StagedFileType.DebugNonUFS);
 			}
@@ -163,16 +163,13 @@ public class PhysX : ModuleRules
 				PublicDefinitions.Add("UE_PHYSX_SUFFIX=" + LibrarySuffix);
 			}
 
-			string PxSharedBinariesDir = String.Format("$(EngineDir)/Binaries/ThirdParty/PhysX3/Win64/VS{0}/", Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
 			foreach (string DLL in PxSharedRuntimeDependenciesX64)
 			{
-				RuntimeDependencies.Add(PxSharedBinariesDir + String.Format(DLL, LibrarySuffix));
+				RuntimeDependencies.Add(Path.Combine(PhysXBinariesDir, String.Format(DLL, LibrarySuffix)));
 			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win32)
 		{
-			string PlatformPhysXLibDir = Path.Combine(PhysXLibDir, "Win32", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
-
 			string[] StaticLibrariesX86 = new string[] {
 				"PhysX3{0}_x86.lib",
 				"PhysX3Extensions{0}_x86.lib",
@@ -194,7 +191,7 @@ public class PhysX : ModuleRules
 
 			foreach (string Lib in StaticLibrariesX86)
 			{
-				PublicAdditionalLibraries.Add(Path.Combine(PlatformPhysXLibDir, String.Format(Lib, LibrarySuffix)));
+				PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "Win32", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), String.Format(Lib, LibrarySuffix)));
 			}
 
 			foreach (string DLL in DelayLoadDLLsX86)
@@ -202,10 +199,10 @@ public class PhysX : ModuleRules
 				PublicDelayLoadDLLs.Add(String.Format(DLL, LibrarySuffix));
 			}
 
-			string PhysXBinariesDir = String.Format("$(EngineDir)/Binaries/ThirdParty/PhysX3/Win32/VS{0}/", Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
+			string PhysXBinariesDir = Path.Combine(EngineBinThirdPartyPath, "Win32", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
 			foreach (string DLL in DelayLoadDLLsX86)
 			{
-				string FileName = PhysXBinariesDir + String.Format(DLL, LibrarySuffix);
+				string FileName = Path.Combine(PhysXBinariesDir, String.Format(DLL, LibrarySuffix));
 				RuntimeDependencies.Add(FileName, StagedFileType.NonUFS);
 				RuntimeDependencies.Add(Path.ChangeExtension(FileName, ".pdb"), StagedFileType.DebugNonUFS);
 			}
@@ -220,45 +217,43 @@ public class PhysX : ModuleRules
 		{
             string Arch = Target.WindowsPlatform.GetArchitectureSubpath();
 
-			string PlatformPhysXLibDir = Path.Combine(PhysXLibDir, Target.Platform.ToString(), "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
-
 			string[] StaticLibraries = new string[] {
 				"PhysX3{0}_{1}.lib",
-                "PhysX3Extensions{0}_{1}.lib",
-                "PhysX3Cooking{0}_{1}.lib",
-                "PhysX3Common{0}_{1}.lib",
-                "PsFastXml{0}_{1}.lib",
-                "PxFoundation{0}_{1}.lib",
-                "PxPvdSDK{0}_{1}.lib",
-                "PxTask{0}_{1}.lib",
+				"PhysX3Extensions{0}_{1}.lib",
+				"PhysX3Cooking{0}_{1}.lib",
+				"PhysX3Common{0}_{1}.lib",
+				"PsFastXml{0}_{1}.lib",
+				"PxFoundation{0}_{1}.lib",
+				"PxPvdSDK{0}_{1}.lib",
+				"PxTask{0}_{1}.lib",
 			};
 
 			string[] DelayLoadDLLs = new string[] {
-                "PxFoundation{0}_{1}.dll",
-                "PxPvdSDK{0}_{1}.dll",
-                "PhysX3{0}_{1}.dll",
-                "PhysX3Cooking{0}_{1}.dll",
-                "PhysX3Common{0}_{1}.dll",
+				"PxFoundation{0}_{1}.dll",
+				"PxPvdSDK{0}_{1}.dll",
+				"PhysX3{0}_{1}.dll",
+				"PhysX3Cooking{0}_{1}.dll",
+				"PhysX3Common{0}_{1}.dll",
 			};
 
 			string[] PxSharedRuntimeDependencies = new string[] {
-                "PxFoundation{0}_{1}.dll",
-                "PxPvdSDK{0}_{1}.dll",
+				"PxFoundation{0}_{1}.dll",
+				"PxPvdSDK{0}_{1}.dll",
 			};
 
 			foreach (string Lib in StaticLibraries)
 			{
-				PublicAdditionalLibraries.Add(Path.Combine(PlatformPhysXLibDir, String.Format(Lib, LibrarySuffix, Arch)));
+				PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, Target.Platform.ToString(), "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), String.Format(Lib, LibrarySuffix, Arch)));
 			}
 
 			foreach (string DLL in DelayLoadDLLs)
 			{
 				PublicDelayLoadDLLs.Add(String.Format(DLL, LibrarySuffix, Arch));
 			}
-			string PhysXBinariesDir = String.Format("$(EngineDir)/Binaries/ThirdParty/PhysX3/{1}/VS{0}/", Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.Platform.ToString());
+			string PhysXBinariesDir = Path.Combine(EngineBinThirdPartyPath, Target.Platform.ToString(), "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
 			foreach (string DLL in DelayLoadDLLs)
 			{
-				string FileName = PhysXBinariesDir + String.Format(DLL, LibrarySuffix, Arch);
+				string FileName = Path.Combine(PhysXBinariesDir, String.Format(DLL, LibrarySuffix, Arch));
 				RuntimeDependencies.Add(FileName, StagedFileType.NonUFS);
 				RuntimeDependencies.Add(Path.ChangeExtension(FileName, ".pdb"), StagedFileType.DebugNonUFS);
 			}
@@ -268,25 +263,21 @@ public class PhysX : ModuleRules
 				PublicDefinitions.Add("UE_PHYSX_SUFFIX=" + LibrarySuffix);
 			}
 
-			string PxSharedBinariesDir = String.Format("$(EngineDir)/Binaries/ThirdParty/PhysX3/{1}/VS{0}/", Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.Platform.ToString());
 			foreach (string DLL in PxSharedRuntimeDependencies)
 			{
-				RuntimeDependencies.Add(PxSharedBinariesDir + String.Format(DLL, LibrarySuffix, Arch));
+				RuntimeDependencies.Add(Path.Combine(PhysXBinariesDir, String.Format(DLL, LibrarySuffix, Arch)));
 			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
-			string PhysXLibDirMac = Path.Combine(PhysXLibDir, "Mac");
-			string PxSharedLibDirMac = Path.Combine(PxSharedLibDir, "Mac");
-
 			string[] StaticLibrariesMac = new string[] {
-				PhysXLibDirMac + "/libLowLevel{0}.a",
-				PhysXLibDirMac + "/libLowLevelCloth{0}.a",
-				PhysXLibDirMac + "/libPhysX3Extensions{0}.a",
-				PhysXLibDirMac + "/libSceneQuery{0}.a",
-				PhysXLibDirMac + "/libSimulationController{0}.a",
-				PxSharedLibDirMac + "/libPxTask{0}.a",
-				PxSharedLibDirMac + "/libPsFastXml{0}.a"
+				Path.Combine(PhysXLibDir, "Mac", "libLowLevel{0}.a"),
+				Path.Combine(PhysXLibDir, "Mac", "libLowLevelCloth{0}.a"),
+				Path.Combine(PhysXLibDir, "Mac", "libPhysX3Extensions{0}.a"),
+				Path.Combine(PhysXLibDir, "Mac", "libSceneQuery{0}.a"),
+				Path.Combine(PhysXLibDir, "Mac", "libSimulationController{0}.a"),
+				Path.Combine(PxSharedLibDir, "Mac", "libPxTask{0}.a"),
+				Path.Combine(PxSharedLibDir, "Mac", "libPsFastXml{0}.a")
 			};
 
 			foreach (string Lib in StaticLibrariesMac)
@@ -295,17 +286,17 @@ public class PhysX : ModuleRules
 			}
 
 			string[] DynamicLibrariesMac = new string[] {
-				"/libPhysX3{0}.dylib",
-				"/libPhysX3Cooking{0}.dylib",
-				"/libPhysX3Common{0}.dylib",
-				"/libPxFoundation{0}.dylib",
-				"/libPxPvdSDK{0}.dylib",
+				"libPhysX3{0}.dylib",
+				"libPhysX3Cooking{0}.dylib",
+				"libPhysX3Common{0}.dylib",
+				"libPxFoundation{0}.dylib",
+				"libPxPvdSDK{0}.dylib",
 			};
 
-			string PhysXBinariesDir = Target.UEThirdPartyBinariesDirectory + "PhysX3/Mac";
+			string PhysXBinariesDir = Path.Combine(Target.UEThirdPartyBinariesDirectory, "PhysX3", "Mac");
 			foreach (string Lib in DynamicLibrariesMac)
 			{
-				string LibraryPath = PhysXBinariesDir + String.Format(Lib, LibrarySuffix);
+				string LibraryPath = Path.Combine(PhysXBinariesDir, String.Format(Lib, LibrarySuffix));
 				PublicDelayLoadDLLs.Add(LibraryPath);
 				RuntimeDependencies.Add(LibraryPath);
 			}
@@ -351,8 +342,6 @@ public class PhysX : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			string PlatformPhysXLibDir = Path.Combine(PhysXLibDir, "Linux", Target.Architecture);
-
 			PublicSystemLibraries.Add("rt");
 
 			string[] StaticLibrariesPhysXLinux = new string[] {
@@ -367,13 +356,11 @@ public class PhysX : ModuleRules
 
 			foreach (string Lib in StaticLibrariesPhysXLinux)
 			{
-				PublicAdditionalLibraries.Add(Path.Combine(PlatformPhysXLibDir, "lib" + String.Format(Lib, LibrarySuffix) + ".a"));
+				PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "Linux", Target.Architecture, "lib" + String.Format(Lib, LibrarySuffix) + ".a"));
 			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.IOS)
 		{
-			string PlatformPhysXLibDir = Path.Combine(PhysXLibDir, "IOS");
-
 			string[] PhysXLibs = new string[]
 				{
 					"LowLevel{0}",
@@ -395,13 +382,11 @@ public class PhysX : ModuleRules
 
 			foreach (string PhysXLib in PhysXLibs)
 			{
-				PublicAdditionalLibraries.Add(Path.Combine(PlatformPhysXLibDir, "lib" + String.Format(PhysXLib, LibrarySuffix) + ".a"));
+				PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "IOS", "lib" + String.Format(PhysXLib, LibrarySuffix) + ".a"));
 			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.TVOS)
 		{
-			string PlatformPhysXLibDir = Path.Combine(PhysXLibDir, "TVOS");
-
 			string[] PhysXLibs = new string[]
 				{
 					"LowLevel{0}",
@@ -423,60 +408,13 @@ public class PhysX : ModuleRules
 
 			foreach (string PhysXLib in PhysXLibs)
 			{
-				PublicAdditionalLibraries.Add(Path.Combine(PlatformPhysXLibDir, "lib" + String.Format(PhysXLib, LibrarySuffix) + ".a"));
-			}
-		}
-		else if (Target.Platform == UnrealTargetPlatform.HTML5)
-		{
-			string[] PhysXLibs = new string[]
-			{
-				"LowLevel",
-				"LowLevelAABB",
-				"LowLevelCloth",
-				"LowLevelDynamics",
-				"LowLevelParticles",
-				"PhysX3",
-				"PhysX3CharacterKinematic",
-				"PhysX3Common",
-				"PhysX3Cooking",
-				"PhysX3Extensions",
-				//"PhysXVisualDebuggerSDK",
-				"SceneQuery",
-				"SimulationController",
-				"PxFoundation",
-				"PxTask",
-				"PxPvdSDK",
-				"PsFastXml"
-			};
-
-			string OptimizationSuffix = "";
-			if (Target.bCompileForSize)
-			{
-				OptimizationSuffix = "_Oz";
-			}
-			else
-			{
-				if (Target.Configuration == UnrealTargetConfiguration.Development)
-				{
-					OptimizationSuffix = "_O2";
-				}
-				else if (Target.Configuration == UnrealTargetConfiguration.Shipping)
-				{
-					OptimizationSuffix = "_O3";
-				}
-			}
-
-			foreach (var lib in PhysXLibs)
-			{
-				PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "HTML5", lib + OptimizationSuffix + ".bc"));
+				PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "TVOS", "lib" + String.Format(PhysXLib, LibrarySuffix) + ".a"));
 			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.XboxOne)
 		{
 			PublicDefinitions.Add("PX_PHYSX_STATIC_LIB=1");
 			PublicDefinitions.Add("_XBOX_ONE=1");
-
-			string PlatformPhysXLibDir = Path.Combine(PhysXLibDir, "XboxOne", "VS2015");
 
 			string[] StaticLibrariesXB1 = new string[] {
 				"PhysX3{0}.lib",
@@ -498,13 +436,11 @@ public class PhysX : ModuleRules
 
 			foreach (string Lib in StaticLibrariesXB1)
 			{
-				PublicAdditionalLibraries.Add(Path.Combine(PlatformPhysXLibDir, String.Format(Lib, LibrarySuffix)));
+				PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "XboxOne", "VS2015", String.Format(Lib, LibrarySuffix)));
 			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Switch)
 		{
-			string PlatformPhysXLibDir = Path.Combine(PhysXLibDir, "Switch");
-
 			string[] StaticLibrariesSwitch = new string[] {
 					"LowLevel{0}",
 					"LowLevelAABB{0}",
@@ -525,7 +461,7 @@ public class PhysX : ModuleRules
 
 			foreach (string Lib in StaticLibrariesSwitch)
 			{
-				PublicAdditionalLibraries.Add(Path.Combine(PlatformPhysXLibDir, "lib" + String.Format(Lib, LibrarySuffix) + ".a"));
+				PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "Switch", "lib" + String.Format(Lib, LibrarySuffix) + ".a"));
 			}
 		}
 	}

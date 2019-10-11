@@ -266,12 +266,12 @@ namespace UnrealBuildTool
 			// Maintain the old std::aligned_storage behavior from VS from v15.8 onwards, in case of prebuilt third party libraries are reliant on it
 			AddDefinition(Arguments, "_DISABLE_EXTENDED_ALIGNED_STORAGE");
 
-            // Fix Incredibuild errors with helpers using heterogeneous character sets
-            if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2015_DEPRECATED)
-            {
-                Arguments.Add("/source-charset:utf-8");
+			// Fix Incredibuild errors with helpers using heterogeneous character sets
+			if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2015_DEPRECATED)
+			{
+				Arguments.Add("/source-charset:utf-8");
 				Arguments.Add("/execution-charset:utf-8");
-            }
+			}
 
 			//
 			//	Debug
@@ -375,10 +375,6 @@ namespace UnrealBuildTool
 					// This is required to disable exception handling in VC platform headers.
 					CompileEnvironment.Definitions.Add("_HAS_EXCEPTIONS=0");
 				}
-			}
-			else if (CompileEnvironment.Platform == UnrealTargetPlatform.HTML5)
-			{
-				Arguments.Add("/EHsc");
 			}
 
 			// If enabled, create debug information.
@@ -525,7 +521,7 @@ namespace UnrealBuildTool
 					// Tell Clang to generate a PCH header
 					FileSpecifier += "-header";
 				}
-				
+
 				Arguments.Add(String.Format("-Xclang -x -Xclang \"{0}\"", FileSpecifier));
 			}
 
@@ -589,7 +585,7 @@ namespace UnrealBuildTool
 				// NOTE: These must appear after we set the MSVC warning level
 
 				// @todo clang: Ideally we want as few warnings disabled as possible
-				// 
+				//
 
 				// Treat all warnings as errors by default
 				Arguments.Add("-Werror");
@@ -675,7 +671,7 @@ namespace UnrealBuildTool
 				// @todo clang: The following static libraries aren't linking correctly with Clang:
 				//		tbbmalloc.lib, zlib_64.lib, libpng_64.lib, freetype2412MT.lib, IlmImf.lib
 				//		LLD: Assertion failed: result.size() == 1, file ..\tools\lld\lib\ReaderWriter\FileArchive.cpp, line 71
-				//		
+				//
 
 				// Only omit frame pointers on the PC (which is implied by /Ox) if wanted.
 				if (!LinkEnvironment.bOmitFramePointers)
@@ -827,10 +823,10 @@ namespace UnrealBuildTool
 				Arguments.Add("/INCREMENTAL:NO");
 			}
 
-			// Disable 
+			// Disable
 			//LINK : warning LNK4199: /DELAYLOAD:nvtt_64.dll ignored; no imports found from nvtt_64.dll
-			// type warning as we leverage the DelayLoad option to put third-party DLLs into a 
-			// non-standard location. This requires the module(s) that use said DLL to ensure that it 
+			// type warning as we leverage the DelayLoad option to put third-party DLLs into a
+			// non-standard location. This requires the module(s) that use said DLL to ensure that it
 			// is loaded prior to using it.
 			Arguments.Add("/ignore:4199");
 
@@ -1216,7 +1212,7 @@ namespace UnrealBuildTool
 			CommandArguments.Add(CompileAction.CommandArguments);
 			CommandArguments.Add("/showIncludes");
 			CompileAction.CommandArguments = string.Join(" ", CommandArguments);
-			CompileAction.CommandPath = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Build", "Windows", "cl-filter", "cl-filter.exe");	
+			CompileAction.CommandPath = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Build", "Windows", "cl-filter", "cl-filter.exe");
 		}
 
 		public override void FinalizeOutput(ReadOnlyTargetRules Target, TargetMakefile Makefile)
@@ -1466,7 +1462,7 @@ namespace UnrealBuildTool
 				CompileAction.PrerequisiteItems.Add(ISPCFile);
 
 				Actions.Add(CompileAction);
-				
+
 				Log.TraceVerbose("   ISPC Generating Header " + CompileAction.StatusDescription + ": \"" + CompileAction.CommandPath + "\"" + CompileAction.CommandArguments);
 			}
 
@@ -1478,7 +1474,7 @@ namespace UnrealBuildTool
 			CPPOutput Result = new CPPOutput();
 
 			string[] ISATargets = { "avx512skx-i32x8", "avx2", "avx", "sse4", "sse2" };
-			List<string> CompileTargets = new List<string>(ISATargets);	
+			List<string> CompileTargets = new List<string>(ISATargets);
 
 			foreach (FileItem ISPCFile in InputFiles)
 			{
@@ -1642,7 +1638,7 @@ namespace UnrealBuildTool
 			// Set up the library paths for linking this binary
 			if(bBuildImportLibraryOnly)
 			{
-				// When building an import library, ignore all the libraries included via embedded #pragma lib declarations. 
+				// When building an import library, ignore all the libraries included via embedded #pragma lib declarations.
 				// We shouldn't need them to generate exports.
 				Arguments.Add("/NODEFAULTLIB");
 			}
@@ -1756,13 +1752,13 @@ namespace UnrealBuildTool
 					// Like the export file above, don't add the import library as a produced item when it's cross referenced.
 					if(!LinkEnvironment.bIsCrossReferenced)
 					{
-					    ProducedItems.Add(ImportLibraryFile);
+						ProducedItems.Add(ImportLibraryFile);
 					}
 				}
 
 				if (LinkEnvironment.bCreateDebugInfo)
 				{
-					// Write the PDB file to the output directory.			
+					// Write the PDB file to the output directory.
 					{
 						FileReference PDBFilePath = FileReference.Combine(LinkEnvironment.OutputDirectory, Path.GetFileNameWithoutExtension(OutputFile.AbsolutePath) + ".pdb");
 						FileItem PDBFile = FileItem.GetItemByFileReference(PDBFilePath);
@@ -1770,7 +1766,7 @@ namespace UnrealBuildTool
 						ProducedItems.Add(PDBFile);
 					}
 
-					// Write the MAP file to the output directory.			
+					// Write the MAP file to the output directory.
 					if (LinkEnvironment.bCreateMapFile)
 					{
 						FileReference MAPFilePath = FileReference.Combine(LinkEnvironment.OutputDirectory, Path.GetFileNameWithoutExtension(OutputFile.AbsolutePath) + ".map");
@@ -1938,5 +1934,5 @@ namespace UnrealBuildTool
 				}
 			}
 		}
-    }
+	}
 }

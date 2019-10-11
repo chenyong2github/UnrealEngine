@@ -65,6 +65,9 @@ protected:
 
 private:
 
+	/** Set the static mesh for the main window that backs our content */
+	void SetWindowMesh(UStaticMesh* WindowMesh);
+
 	/** Set the color on the dynamic materials of the selection bar */
 	void SetSelectionBarColor( const FLinearColor& LinearColor );
 

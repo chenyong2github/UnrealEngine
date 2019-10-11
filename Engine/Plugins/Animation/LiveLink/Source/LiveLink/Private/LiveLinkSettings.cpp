@@ -7,7 +7,6 @@
 
 FLiveLinkRoleProjectSetting::FLiveLinkRoleProjectSetting()
 	: SettingClass(ULiveLinkSubjectSettings::StaticClass())
-	, FrameInterpolationProcessor(ULiveLinkBasicFrameInterpolateProcessor::StaticClass())
 {}
 
 
@@ -15,15 +14,13 @@ ULiveLinkSettings::ULiveLinkSettings()
 	: MessageBusPingRequestFrequency(1.0)
 	, MessageBusHeartbeatFrequency(1.0)
 	, MessageBusHeartbeatTimeout(2.0)
+	, MessageBusTimeBeforeRemovingInactiveSource(30.0)
 	, TimeWithoutFrameToBeConsiderAsInvalid(0.5)
 	, ValidColor(FLinearColor::Green)
 	, InvalidColor(FLinearColor::Yellow)
+	, TextSizeSource(16)
+	, TextSizeSubject(12)
 {
-	// Add the role animation default settings
-	FLiveLinkRoleProjectSetting BaseAnimationSetting;
-	BaseAnimationSetting.Role = ULiveLinkAnimationRole::StaticClass();
-	BaseAnimationSetting.FrameInterpolationProcessor = ULiveLinkAnimationFrameInterpolateProcessor::StaticClass();
-	DefaultRoleSettings.Add(BaseAnimationSetting);
 }
 
 FLiveLinkRoleProjectSetting ULiveLinkSettings::GetDefaultSettingForRole(TSubclassOf<ULiveLinkRole> Role) const

@@ -185,6 +185,21 @@ public:
 		return nullptr;
 	}
 
+	virtual ITargetPlatform* FindTargetPlatformWithSupport(FName SupportType, FName RequiredSupportedValue)
+	{
+		const TArray<ITargetPlatform*>& TargetPlatforms = GetTargetPlatforms();
+
+		for (int32 Index = 0; Index < TargetPlatforms.Num(); Index++)
+		{
+			if (TargetPlatforms[Index]->SupportsValueForType(SupportType, RequiredSupportedValue))
+			{
+				return TargetPlatforms[Index];
+			}
+		}
+
+		return nullptr;
+	}
+
 	virtual const TArray<ITargetPlatform*>& GetCookingTargetPlatforms() override
 	{
 		static bool bInitialized = false;

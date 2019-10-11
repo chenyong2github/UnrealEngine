@@ -3,6 +3,8 @@
 #include "DataprepEditorUtils.h"
 
 #include "DataPrepAsset.h"
+
+#include "EditorStyleSet.h"
 #include "Engine/Blueprint.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 
@@ -28,11 +30,16 @@ void FDataprepEditorUtils::NotifySystemOfChangeInPipeline(UObject* SourceObject)
 
 	if ( DataprepAsset )
 	{
-		UDataprepAsset::FDataprepPipelineChangeNotifier::NotifyDataprepOfPipelineChange( *DataprepAsset, SourceObject );
+		UDataprepAsset::FDataprepBlueprintChangeNotifier::NotifyDataprepBlueprintChange( *DataprepAsset, SourceObject );
 	}
 	else if ( Blueprint )
 	{
 		FBlueprintEditorUtils::MarkBlueprintAsModified( Blueprint );
 	}
+}
+
+FSlateFontInfo FDataprepEditorUtils::GetGlyphFont()
+{
+	return FEditorStyle::Get().GetFontStyle( "FontAwesome.11" );
 }
 

@@ -14,23 +14,40 @@
 FAnimNode_LiveLinkPose::FAnimNode_LiveLinkPose() 
 	: RetargetAsset(ULiveLinkRemapAsset::StaticClass())
 	, CurrentRetargetAsset(nullptr)
-	, LiveLinkClient(nullptr)
+	, LiveLinkClient_AnyThread(nullptr)
 	, CachedDeltaTime(0.0f)
 {
 }
 
-void FAnimNode_LiveLinkPose::Initialize_AnyThread(const FAnimationInitializeContext& Context)
+void FAnimNode_LiveLinkPose::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)
 {
-	IModularFeatures& ModularFeatures = IModularFeatures::Get();
-
-	if (ModularFeatures.IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
-	{
-		LiveLinkClient = &IModularFeatures::Get().GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
-	}
-
 	CurrentRetargetAsset = nullptr;
 
+	Super::OnInitializeAnimInstance(InProxy, InAnimInstance);
+}
+
+void FAnimNode_LiveLinkPose::Initialize_AnyThread(const FAnimationInitializeContext& Context)
+{
 	InputPose.Initialize(Context);
+}
+
+void FAnimNode_LiveLinkPose::PreUpdate(const UAnimInstance* InAnimInstance)
+{
+	LiveLinkClient_AnyThread = LiveLinkClient_GameThread.GetClient();
+
+	// Protection as a class graph pin does not honor rules on abstract classes and NoClear
+	UClass* RetargetAssetPtr = RetargetAsset.Get();
+	if (!RetargetAssetPtr || RetargetAssetPtr->HasAnyClassFlags(CLASS_Abstract))
+	{
+		RetargetAssetPtr = ULiveLinkRemapAsset::StaticClass();
+		RetargetAsset = RetargetAssetPtr;
+	}
+
+	if (!CurrentRetargetAsset || RetargetAssetPtr != CurrentRetargetAsset->GetClass())
+	{
+		CurrentRetargetAsset = NewObject<ULiveLinkRetargetAsset>(const_cast<UAnimInstance*>(InAnimInstance), RetargetAssetPtr);
+		CurrentRetargetAsset->Initialize();
+	}
 }
 
 void FAnimNode_LiveLinkPose::Update_AnyThread(const FAnimationUpdateContext & Context)
@@ -41,38 +58,26 @@ void FAnimNode_LiveLinkPose::Update_AnyThread(const FAnimationUpdateContext & Co
 
 	// Accumulate Delta time from update
 	CachedDeltaTime += Context.GetDeltaTime();
-
-	// Protection as a class graph pin does not honour rules on abstract classes and NoClear
-	if (!RetargetAsset.Get() || RetargetAsset.Get()->HasAnyClassFlags(CLASS_Abstract))
-	{
-		RetargetAsset = ULiveLinkRemapAsset::StaticClass();
-	}
-
-	if (!CurrentRetargetAsset || RetargetAsset != CurrentRetargetAsset->GetClass())
-	{
-		CurrentRetargetAsset = NewObject<ULiveLinkRetargetAsset>(Context.AnimInstanceProxy->GetAnimInstanceObject(), *RetargetAsset);
-		CurrentRetargetAsset->Initialize();
-	}
 }
 
 void FAnimNode_LiveLinkPose::Evaluate_AnyThread(FPoseContext& Output)
 {
 	InputPose.Evaluate(Output);
 
-	if (!LiveLinkClient || !CurrentRetargetAsset)
+	if (!LiveLinkClient_AnyThread || !CurrentRetargetAsset)
 	{
 		return;
 	}
 
 	FLiveLinkSubjectFrameData SubjectFrameData;
 
-	TSubclassOf<ULiveLinkRole> SubjectRole = LiveLinkClient->GetSubjectRole(LiveLinkSubjectName);
+	TSubclassOf<ULiveLinkRole> SubjectRole = LiveLinkClient_AnyThread->GetSubjectRole(LiveLinkSubjectName);
 	if (SubjectRole)
 	{
 		if (SubjectRole->IsChildOf(ULiveLinkAnimationRole::StaticClass()))
 		{
 			//Process animation data if the subject is from that type
-			if (LiveLinkClient->EvaluateFrame_AnyThread(LiveLinkSubjectName, ULiveLinkAnimationRole::StaticClass(), SubjectFrameData))
+			if (LiveLinkClient_AnyThread->EvaluateFrame_AnyThread(LiveLinkSubjectName, ULiveLinkAnimationRole::StaticClass(), SubjectFrameData))
 			{
 				FLiveLinkSkeletonStaticData* SkeletonData = SubjectFrameData.StaticData.Cast<FLiveLinkSkeletonStaticData>();
 				FLiveLinkAnimationFrameData* FrameData = SubjectFrameData.FrameData.Cast<FLiveLinkAnimationFrameData>();
@@ -87,7 +92,7 @@ void FAnimNode_LiveLinkPose::Evaluate_AnyThread(FPoseContext& Output)
 		else
 		{
 			//Otherwise, fetch basic data that contains property / curve data
-			if (LiveLinkClient->EvaluateFrame_AnyThread(LiveLinkSubjectName, ULiveLinkBasicRole::StaticClass(), SubjectFrameData))
+			if (LiveLinkClient_AnyThread->EvaluateFrame_AnyThread(LiveLinkSubjectName, ULiveLinkBasicRole::StaticClass(), SubjectFrameData))
 			{
 				FLiveLinkBaseStaticData* BaseStaticData = SubjectFrameData.StaticData.Cast<FLiveLinkBaseStaticData>();
 				FLiveLinkBaseFrameData* BaseFrameData = SubjectFrameData.FrameData.Cast<FLiveLinkBaseFrameData>();
@@ -98,22 +103,6 @@ void FAnimNode_LiveLinkPose::Evaluate_AnyThread(FPoseContext& Output)
 				CachedDeltaTime = 0.f; // Reset so that if we evaluate again we don't "create" time inside of the retargeter
 			}
 		}
-	}
-}
-
-void FAnimNode_LiveLinkPose::OnLiveLinkClientRegistered(const FName& Type, class IModularFeature* ModularFeature)
-{
-	if (Type == ILiveLinkClient::ModularFeatureName && !LiveLinkClient)
-	{
-		LiveLinkClient = static_cast<ILiveLinkClient*>(ModularFeature);
-	}
-}
-
-void FAnimNode_LiveLinkPose::OnLiveLinkClientUnregistered(const FName& Type, class IModularFeature* ModularFeature)
-{
-	if (Type == ILiveLinkClient::ModularFeatureName && ModularFeature == LiveLinkClient)
-	{
-		LiveLinkClient = nullptr;
 	}
 }
 

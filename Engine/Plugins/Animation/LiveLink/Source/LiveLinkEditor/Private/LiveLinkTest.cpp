@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "LiveLinkTest.h"
+#include "InterpolationProcessor/LiveLinkBasicFrameInterpolateProcessor.h"
 #include "Roles/LiveLinkBasicRole.h"
 #include "Misc/AutomationTest.h"
 
@@ -88,15 +89,15 @@ bool FLiveLinkInterpolationTest::RunTest(const FString& Parameters)
 	FrameA.IntArray.Add(IntA + 100);
 	FrameB.IntArray.Add(IntB + 100);
 
-	ULiveLinkBasicFrameInterpolateProcessor* Interpolator = NewObject<ULiveLinkBasicFrameInterpolateProcessor>();
+	ULiveLinkBasicFrameInterpolationProcessor* Interpolator = NewObject<ULiveLinkBasicFrameInterpolationProcessor>();
 	Interpolator->bInterpolatePropertyValues = true;
 
 	ULiveLinkFrameInterpolationProcessor::FWorkerSharedPtr Worker = Interpolator->FetchWorker();
-	TSharedPtr<ULiveLinkBasicFrameInterpolateProcessor::FLiveLinkBasicFrameInterpolateProcessorWorker, ESPMode::ThreadSafe> BasicWorker = StaticCastSharedPtr<ULiveLinkBasicFrameInterpolateProcessor::FLiveLinkBasicFrameInterpolateProcessorWorker>(Worker);
+	TSharedPtr<ULiveLinkBasicFrameInterpolationProcessor::FLiveLinkBasicFrameInterpolationProcessorWorker, ESPMode::ThreadSafe> BasicWorker = StaticCastSharedPtr<ULiveLinkBasicFrameInterpolationProcessor::FLiveLinkBasicFrameInterpolationProcessorWorker>(Worker);
 
 	FLiveLinkFrameDataStruct FrameDataStructR(FLiveLinkTestFrameDataInternal::StaticStruct());
 	double BlendFactor = BasicWorker->GetBlendFactor(2000.0, FrameDataStructA, FrameDataStructB);
-	ULiveLinkBasicFrameInterpolateProcessor::FLiveLinkBasicFrameInterpolateProcessorWorker::FGenericInterpolateOptions InterpolationOptions;
+	ULiveLinkBasicFrameInterpolationProcessor::FLiveLinkBasicFrameInterpolationProcessorWorker::FGenericInterpolateOptions InterpolationOptions;
 	BasicWorker->GenericInterpolate(BlendFactor, InterpolationOptions, FrameDataStructA, FrameDataStructB, FrameDataStructR);
 	const FLiveLinkTestFrameDataInternal& FrameR = *FrameDataStructR.Cast<FLiveLinkTestFrameDataInternal>();
 

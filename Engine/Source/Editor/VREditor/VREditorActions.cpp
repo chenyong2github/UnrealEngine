@@ -158,6 +158,11 @@ void FVREditorActionCallbacks::SetGizmoMode(UVREditorMode* InVRMode, EGizmoHandl
 	}
 }
 
+EGizmoHandleTypes FVREditorActionCallbacks::GetGizmoMode(const UVREditorMode* InVRMode)
+{
+	return InVRMode->GetWorldInteraction().GetCurrentGizmoType();
+}
+
 ECheckBoxState FVREditorActionCallbacks::IsActiveGizmoMode(UVREditorMode* InVRMode, EGizmoHandleTypes InGizmoMode)
 {
 	return (InVRMode->GetWorldInteraction().GetCurrentGizmoType() == InGizmoMode) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;

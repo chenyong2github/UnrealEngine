@@ -3707,6 +3707,46 @@ void UNetConnection::TrackReplicationForAnalytics(const bool bWasSaturated)
 	SaturationAnalytics.TrackReplication(bWasSaturated);
 }
 
+void UNetConnection::SendChallengeControlMessage()
+{
+	if (State != USOCK_Invalid && State != USOCK_Closed && Driver)
+	{
+		Challenge = FString::Printf(TEXT("%08X"), FPlatformTime::Cycles());
+		SetExpectedClientLoginMsgType(NMT_Login);
+		FNetControlMessage<NMT_Challenge>::Send(this, Challenge);
+		FlushNet();
+	}
+	else
+	{
+		UE_LOG(LogNet, Log, TEXT("UWorld::SendChallengeControlMessage: connection in invalid state. %s"), *Describe());
+	}
+}
+
+void UNetConnection::SendChallengeControlMessage(const FEncryptionKeyResponse& Response)
+{
+	if (State != USOCK_Invalid && State != USOCK_Closed && Driver)
+	{
+		if (Response.Response == EEncryptionResponse::Success)
+		{
+			EnableEncryptionServer(Response.EncryptionData);
+			SendChallengeControlMessage();
+		}
+		else
+		{
+			FString ResponseStr(LexToString(Response.Response));
+			UE_LOG(LogNet, Warning, TEXT("UWorld::SendChallengeControlMessage: encryption failure [%s] %s"), *ResponseStr, *Response.ErrorMsg);
+			FNetControlMessage<NMT_Failure>::Send(this, ResponseStr);
+			FlushNet();
+			// Can't close the connection here since it will leave the failure message in the send buffer and just close the socket. 
+			// Close();
+		}
+	}
+	else
+	{
+		UE_LOG(LogNet, Warning, TEXT("UNetConnection::SendChallengeControlMessage: connection in invalid state. %s"), *Describe());
+	}
+}
+
 /*-----------------------------------------------------------------------------
 	USimulatedClientNetConnection.
 -----------------------------------------------------------------------------*/

@@ -23,6 +23,8 @@
 #include "Settings/LevelEditorPlaySettings.h"
 #include "Settings/LevelEditorViewportSettings.h"
 #include "Misc/CompilationResult.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
 
 #include "EditorSubsystem.h"
 #include "Subsystems/SubsystemCollection.h"
@@ -390,9 +392,15 @@ struct FPreviewPlatformInfo
 	/** Convert platform name like "Android", or NAME_None if none is set or the preview feature level is not active */
 	FName GetEffectivePreviewPlatformName() const
 	{
-		return (PreviewShaderPlatformName != NAME_None && bPreviewFeatureLevelActive) ?
-			ShaderPlatformToPlatformName(ShaderFormatToLegacyShaderPlatform(PreviewShaderPlatformName)) :
-			NAME_None;
+		if (PreviewShaderPlatformName != NAME_None && bPreviewFeatureLevelActive)
+		{
+			ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatformWithSupport(TEXT("ShaderFormat"), PreviewShaderPlatformName);
+			if (TargetPlatform)
+			{
+				return FName(*TargetPlatform->IniPlatformName());
+			}
+		}
+		return NAME_None;
 	}
 
 	/** returns the preview feature level if active, or GMaxRHIFeatureLevel otherwise */

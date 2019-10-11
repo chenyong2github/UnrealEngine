@@ -148,7 +148,7 @@
     typedef uint64_t ogg_uint64_t;
 
   
-#elif defined(LINUX)
+#elif defined(LINUX) || defined(__EMSCRIPTEN__)
 
 #   include <sys/types.h>
     typedef short ogg_int16_t;

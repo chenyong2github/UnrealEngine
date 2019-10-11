@@ -487,7 +487,8 @@ void FAutomationTestFramework::BuildTestBlacklistFromConfig()
 
 bool FAutomationTestFramework::IsBlacklisted(const FString& TestName, FString* OutReason, bool *OutWarn) const
 {
-	const FBlacklistEntry* Entry = TestBlacklist.Find(TestName);
+	const FString ListName = TestName.Replace(TEXT(" "), TEXT(""));
+	const FBlacklistEntry* Entry = TestBlacklist.Find(ListName);
 
 	if (Entry)
 	{
@@ -578,14 +579,14 @@ void FAutomationTestFramework::GetValidTestNames( TArray<FAutomationTestInfo>& T
 		{
 			TArray<FAutomationTestInfo> TestsToAdd;
 			CurTest->GenerateTestNames(TestsToAdd);
-			for (FAutomationTestInfo Test : TestsToAdd)
+			for (FAutomationTestInfo& Test : TestsToAdd)
 			{
 				FString BlacklistReason;
 				bool bWarn(false);
 				FString TestName = Test.GetDisplayName();
 				if (!IsBlacklisted(TestName.Replace(TEXT(" "), TEXT("")), &BlacklistReason, &bWarn))
 				{
-					TestInfo.Add(Test);
+					TestInfo.Add(MoveTemp(Test));
 				}
 				else
 				{

@@ -254,6 +254,20 @@ bool UVPBlueprintLibrary::EditorDeleteSelectedObjects()
 	return false;
 }
 
+bool UVPBlueprintLibrary::EditorDuplicate()
+{
+#if WITH_EDITOR
+	FString ErrorText(TEXT("Duplicate did not execute."));
+	if (UViewportWorldInteraction* VPI = VPBlueprintLibrary::GetViewportWorldInteraction(ErrorText))
+	{
+		VPI->Duplicate();
+		return true;
+	}
+#endif
+
+	return false;
+}
+
 void UVPBlueprintLibrary::VPBookmarkSplineMeshIndicatorSetStartAndEnd(USplineMeshComponent* SplineMesh)
 {
 	SplineMesh->SetVisibility(true);

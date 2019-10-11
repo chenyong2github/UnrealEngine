@@ -68,27 +68,27 @@ namespace UnrealGameSync
 			this.groupBox3.SuspendLayout();
 			this.groupBox4.SuspendLayout();
 			this.SuspendLayout();
-			// 
+			//
 			// label1
-			// 
+			//
 			this.label1.AutoSize = true;
 			this.label1.Location = new System.Drawing.Point(17, 21);
 			this.label1.Name = "label1";
 			this.label1.Size = new System.Drawing.Size(70, 15);
 			this.label1.TabIndex = 0;
 			this.label1.Text = "Description:";
-			// 
+			//
 			// DescriptionTextBox
-			// 
-			this.DescriptionTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
+			//
+			this.DescriptionTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
+				| System.Windows.Forms.AnchorStyles.Right)));
 			this.DescriptionTextBox.Location = new System.Drawing.Point(98, 17);
 			this.DescriptionTextBox.Name = "DescriptionTextBox";
 			this.DescriptionTextBox.Size = new System.Drawing.Size(639, 23);
 			this.DescriptionTextBox.TabIndex = 0;
-			// 
+			//
 			// label2
-			// 
+			//
 			this.label2.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
 			this.label2.AutoSize = true;
 			this.label2.Location = new System.Drawing.Point(442, 51);
@@ -96,19 +96,19 @@ namespace UnrealGameSync
 			this.label2.Size = new System.Drawing.Size(181, 15);
 			this.label2.TabIndex = 2;
 			this.label2.Text = "Approximate Duration (minutes):";
-			// 
+			//
 			// DurationTextBox
-			// 
+			//
 			this.DurationTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
 			this.DurationTextBox.Location = new System.Drawing.Point(631, 47);
 			this.DurationTextBox.Name = "DurationTextBox";
 			this.DurationTextBox.Size = new System.Drawing.Size(105, 23);
 			this.DurationTextBox.TabIndex = 2;
-			// 
+			//
 			// groupBox1
-			// 
-			this.groupBox1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
+			//
+			this.groupBox1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
+				| System.Windows.Forms.AnchorStyles.Right)));
 			this.groupBox1.Controls.Add(this.label9);
 			this.groupBox1.Controls.Add(this.label8);
 			this.groupBox1.Controls.Add(this.CompileTargetComboBox);
@@ -120,78 +120,77 @@ namespace UnrealGameSync
 			this.groupBox1.Size = new System.Drawing.Size(729, 110);
 			this.groupBox1.TabIndex = 4;
 			this.groupBox1.TabStop = false;
-			// 
+			//
 			// label9
-			// 
+			//
 			this.label9.AutoSize = true;
 			this.label9.Location = new System.Drawing.Point(28, 66);
 			this.label9.Name = "label9";
 			this.label9.Size = new System.Drawing.Size(69, 15);
 			this.label9.TabIndex = 38;
 			this.label9.Text = "Arguments:";
-			// 
+			//
 			// label8
-			// 
+			//
 			this.label8.AutoSize = true;
 			this.label8.Location = new System.Drawing.Point(28, 38);
 			this.label8.Name = "label8";
 			this.label8.Size = new System.Drawing.Size(43, 15);
 			this.label8.TabIndex = 37;
 			this.label8.Text = "Target:";
-			// 
+			//
 			// CompileTargetComboBox
-			// 
+			//
 			this.CompileTargetComboBox.FormattingEnabled = true;
 			this.CompileTargetComboBox.Location = new System.Drawing.Point(107, 35);
 			this.CompileTargetComboBox.Name = "CompileTargetComboBox";
 			this.CompileTargetComboBox.Size = new System.Drawing.Size(189, 23);
 			this.CompileTargetComboBox.TabIndex = 0;
-			// 
+			//
 			// CompileArgumentsTextBox
-			// 
-			this.CompileArgumentsTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
+			//
+			this.CompileArgumentsTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
+				| System.Windows.Forms.AnchorStyles.Right)));
 			this.CompileArgumentsTextBox.Location = new System.Drawing.Point(107, 62);
 			this.CompileArgumentsTextBox.Name = "CompileArgumentsTextBox";
 			this.CompileArgumentsTextBox.Size = new System.Drawing.Size(585, 23);
 			this.CompileArgumentsTextBox.TabIndex = 3;
-			// 
+			//
 			// CompileConfigComboBox
-			// 
+			//
 			this.CompileConfigComboBox.FormattingEnabled = true;
 			this.CompileConfigComboBox.Items.AddRange(new object[] {
-            "Debug",
-            "DebugGame",
-            "Development",
-            "Test",
-            "Shipping"});
+				"Debug",
+				"DebugGame",
+				"Development",
+				"Test",
+				"Shipping"});
 			this.CompileConfigComboBox.Location = new System.Drawing.Point(502, 35);
 			this.CompileConfigComboBox.Name = "CompileConfigComboBox";
 			this.CompileConfigComboBox.Size = new System.Drawing.Size(189, 23);
 			this.CompileConfigComboBox.TabIndex = 2;
 			this.CompileConfigComboBox.Text = "Debug";
-			// 
+			//
 			// CompilePlatformComboBox
-			// 
+			//
 			this.CompilePlatformComboBox.FormattingEnabled = true;
 			this.CompilePlatformComboBox.Items.AddRange(new object[] {
-            "Win32",
-            "Win64",
-            "Linux",
-            "Android",
-            "iOS",
-            "Mac",
-            "HTML5",
-            "PS4",
-            "XboxOne"});
+				"Win32",
+				"Win64",
+				"Linux",
+				"Android",
+				"iOS",
+				"Mac",
+				"PS4",
+				"XboxOne"});
 			this.CompilePlatformComboBox.Location = new System.Drawing.Point(304, 35);
 			this.CompilePlatformComboBox.Name = "CompilePlatformComboBox";
 			this.CompilePlatformComboBox.Size = new System.Drawing.Size(189, 23);
 			this.CompilePlatformComboBox.TabIndex = 1;
 			this.CompilePlatformComboBox.Text = "Win64";
-			// 
+			//
 			// CompileRadioButton
-			// 
+			//
 			this.CompileRadioButton.AutoSize = true;
 			this.CompileRadioButton.Location = new System.Drawing.Point(26, 85);
 			this.CompileRadioButton.Name = "CompileRadioButton";
@@ -201,36 +200,36 @@ namespace UnrealGameSync
 			this.CompileRadioButton.Text = "Compile";
 			this.CompileRadioButton.UseVisualStyleBackColor = true;
 			this.CompileRadioButton.CheckedChanged += new System.EventHandler(this.CompileRadioButton_CheckedChanged);
-			// 
+			//
 			// label7
-			// 
+			//
 			this.label7.AutoSize = true;
 			this.label7.Location = new System.Drawing.Point(28, 42);
 			this.label7.Name = "label7";
 			this.label7.Size = new System.Drawing.Size(44, 15);
 			this.label7.TabIndex = 36;
 			this.label7.Text = "Profile:";
-			// 
+			//
 			// label6
-			// 
+			//
 			this.label6.AutoSize = true;
 			this.label6.Location = new System.Drawing.Point(28, 39);
 			this.label6.Name = "label6";
 			this.label6.Size = new System.Drawing.Size(66, 15);
 			this.label6.TabIndex = 35;
 			this.label6.Text = "Executable:";
-			// 
+			//
 			// label5
-			// 
+			//
 			this.label5.AutoSize = true;
 			this.label5.Location = new System.Drawing.Point(28, 67);
 			this.label5.Name = "label5";
 			this.label5.Size = new System.Drawing.Size(73, 15);
 			this.label5.TabIndex = 34;
 			this.label5.Text = "Working Dir:";
-			// 
+			//
 			// OtherUseLogWindowCheckBox
-			// 
+			//
 			this.OtherUseLogWindowCheckBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
 			this.OtherUseLogWindowCheckBox.AutoSize = true;
 			this.OtherUseLogWindowCheckBox.Checked = true;
@@ -241,9 +240,9 @@ namespace UnrealGameSync
 			this.OtherUseLogWindowCheckBox.TabIndex = 3;
 			this.OtherUseLogWindowCheckBox.Text = "Use Log Window";
 			this.OtherUseLogWindowCheckBox.UseVisualStyleBackColor = true;
-			// 
+			//
 			// CookFileNameButton
-			// 
+			//
 			this.CookFileNameButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
 			this.CookFileNameButton.Location = new System.Drawing.Point(663, 37);
 			this.CookFileNameButton.Name = "CookFileNameButton";
@@ -252,9 +251,9 @@ namespace UnrealGameSync
 			this.CookFileNameButton.Text = "...";
 			this.CookFileNameButton.UseVisualStyleBackColor = true;
 			this.CookFileNameButton.Click += new System.EventHandler(this.CookFileNameButton_Click);
-			// 
+			//
 			// OtherFileNameButton
-			// 
+			//
 			this.OtherFileNameButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
 			this.OtherFileNameButton.Location = new System.Drawing.Point(663, 36);
 			this.OtherFileNameButton.Name = "OtherFileNameButton";
@@ -263,27 +262,27 @@ namespace UnrealGameSync
 			this.OtherFileNameButton.Text = "...";
 			this.OtherFileNameButton.UseVisualStyleBackColor = true;
 			this.OtherFileNameButton.Click += new System.EventHandler(this.OtherFileNameButton_Click);
-			// 
+			//
 			// OtherFileNameTextBox
-			// 
-			this.OtherFileNameTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
+			//
+			this.OtherFileNameTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
+				| System.Windows.Forms.AnchorStyles.Right)));
 			this.OtherFileNameTextBox.Location = new System.Drawing.Point(107, 36);
 			this.OtherFileNameTextBox.Name = "OtherFileNameTextBox";
 			this.OtherFileNameTextBox.Size = new System.Drawing.Size(548, 23);
 			this.OtherFileNameTextBox.TabIndex = 0;
-			// 
+			//
 			// CookFileNameTextBox
-			// 
-			this.CookFileNameTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
+			//
+			this.CookFileNameTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
+				| System.Windows.Forms.AnchorStyles.Right)));
 			this.CookFileNameTextBox.Location = new System.Drawing.Point(107, 38);
 			this.CookFileNameTextBox.Name = "CookFileNameTextBox";
 			this.CookFileNameTextBox.Size = new System.Drawing.Size(548, 23);
 			this.CookFileNameTextBox.TabIndex = 0;
-			// 
+			//
 			// OtherRadioButton
-			// 
+			//
 			this.OtherRadioButton.AutoSize = true;
 			this.OtherRadioButton.Location = new System.Drawing.Point(26, 302);
 			this.OtherRadioButton.Name = "OtherRadioButton";
@@ -293,9 +292,9 @@ namespace UnrealGameSync
 			this.OtherRadioButton.Text = "Other";
 			this.OtherRadioButton.UseVisualStyleBackColor = true;
 			this.OtherRadioButton.CheckedChanged += new System.EventHandler(this.OtherRadioButton_CheckedChanged);
-			// 
+			//
 			// CookRadioButton
-			// 
+			//
 			this.CookRadioButton.AutoSize = true;
 			this.CookRadioButton.Location = new System.Drawing.Point(26, 202);
 			this.CookRadioButton.Name = "CookRadioButton";
@@ -305,27 +304,27 @@ namespace UnrealGameSync
 			this.CookRadioButton.Text = "Cook";
 			this.CookRadioButton.UseVisualStyleBackColor = true;
 			this.CookRadioButton.CheckedChanged += new System.EventHandler(this.CookRadioButton_CheckedChanged);
-			// 
+			//
 			// StatusTextTextBox
-			// 
-			this.StatusTextTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
+			//
+			this.StatusTextTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
+				| System.Windows.Forms.AnchorStyles.Right)));
 			this.StatusTextTextBox.Location = new System.Drawing.Point(98, 47);
 			this.StatusTextTextBox.Name = "StatusTextTextBox";
 			this.StatusTextTextBox.Size = new System.Drawing.Size(336, 23);
 			this.StatusTextTextBox.TabIndex = 1;
-			// 
+			//
 			// label4
-			// 
+			//
 			this.label4.AutoSize = true;
 			this.label4.Location = new System.Drawing.Point(17, 51);
 			this.label4.Name = "label4";
 			this.label4.Size = new System.Drawing.Size(66, 15);
 			this.label4.TabIndex = 4;
 			this.label4.Text = "Status Text:";
-			// 
+			//
 			// OkButton
-			// 
+			//
 			this.OkButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
 			this.OkButton.Location = new System.Drawing.Point(553, 455);
 			this.OkButton.Name = "OkButton";
@@ -334,9 +333,9 @@ namespace UnrealGameSync
 			this.OkButton.Text = "Ok";
 			this.OkButton.UseVisualStyleBackColor = true;
 			this.OkButton.Click += new System.EventHandler(this.OkButton_Click);
-			// 
+			//
 			// NewCancelButton
-			// 
+			//
 			this.NewCancelButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
 			this.NewCancelButton.DialogResult = System.Windows.Forms.DialogResult.Cancel;
 			this.NewCancelButton.Location = new System.Drawing.Point(655, 455);
@@ -346,11 +345,11 @@ namespace UnrealGameSync
 			this.NewCancelButton.Text = "Cancel";
 			this.NewCancelButton.UseVisualStyleBackColor = true;
 			this.NewCancelButton.Click += new System.EventHandler(this.NewCancelButton_Click);
-			// 
+			//
 			// groupBox3
-			// 
-			this.groupBox3.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
+			//
+			this.groupBox3.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
+				| System.Windows.Forms.AnchorStyles.Right)));
 			this.groupBox3.Controls.Add(this.CookFileNameButton);
 			this.groupBox3.Controls.Add(this.label7);
 			this.groupBox3.Controls.Add(this.CookFileNameTextBox);
@@ -359,11 +358,11 @@ namespace UnrealGameSync
 			this.groupBox3.Size = new System.Drawing.Size(729, 92);
 			this.groupBox3.TabIndex = 6;
 			this.groupBox3.TabStop = false;
-			// 
+			//
 			// groupBox4
-			// 
-			this.groupBox4.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
+			//
+			this.groupBox4.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
+				| System.Windows.Forms.AnchorStyles.Right)));
 			this.groupBox4.Controls.Add(this.OtherWorkingDirButton);
 			this.groupBox4.Controls.Add(this.label3);
 			this.groupBox4.Controls.Add(this.OtherWorkingDirTextBox);
@@ -378,9 +377,9 @@ namespace UnrealGameSync
 			this.groupBox4.Size = new System.Drawing.Size(729, 139);
 			this.groupBox4.TabIndex = 8;
 			this.groupBox4.TabStop = false;
-			// 
+			//
 			// OtherWorkingDirButton
-			// 
+			//
 			this.OtherWorkingDirButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
 			this.OtherWorkingDirButton.Location = new System.Drawing.Point(663, 63);
 			this.OtherWorkingDirButton.Name = "OtherWorkingDirButton";
@@ -389,36 +388,36 @@ namespace UnrealGameSync
 			this.OtherWorkingDirButton.Text = "...";
 			this.OtherWorkingDirButton.UseVisualStyleBackColor = true;
 			this.OtherWorkingDirButton.Click += new System.EventHandler(this.OtherWorkingDirButton_Click);
-			// 
+			//
 			// label3
-			// 
+			//
 			this.label3.AutoSize = true;
 			this.label3.Location = new System.Drawing.Point(28, 94);
 			this.label3.Name = "label3";
 			this.label3.Size = new System.Drawing.Size(69, 15);
 			this.label3.TabIndex = 37;
 			this.label3.Text = "Arguments:";
-			// 
+			//
 			// OtherWorkingDirTextBox
-			// 
-			this.OtherWorkingDirTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
+			//
+			this.OtherWorkingDirTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
+				| System.Windows.Forms.AnchorStyles.Right)));
 			this.OtherWorkingDirTextBox.Location = new System.Drawing.Point(107, 63);
 			this.OtherWorkingDirTextBox.Name = "OtherWorkingDirTextBox";
 			this.OtherWorkingDirTextBox.Size = new System.Drawing.Size(548, 23);
 			this.OtherWorkingDirTextBox.TabIndex = 36;
-			// 
+			//
 			// OtherArgumentsTextBox
-			// 
-			this.OtherArgumentsTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
+			//
+			this.OtherArgumentsTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
+				| System.Windows.Forms.AnchorStyles.Right)));
 			this.OtherArgumentsTextBox.Location = new System.Drawing.Point(107, 90);
 			this.OtherArgumentsTextBox.Name = "OtherArgumentsTextBox";
 			this.OtherArgumentsTextBox.Size = new System.Drawing.Size(452, 23);
 			this.OtherArgumentsTextBox.TabIndex = 2;
-			// 
+			//
 			// VariablesButton
-			// 
+			//
 			this.VariablesButton.Location = new System.Drawing.Point(12, 455);
 			this.VariablesButton.Name = "VariablesButton";
 			this.VariablesButton.Size = new System.Drawing.Size(112, 27);
@@ -426,9 +425,9 @@ namespace UnrealGameSync
 			this.VariablesButton.Text = "Variables";
 			this.VariablesButton.UseVisualStyleBackColor = true;
 			this.VariablesButton.Click += new System.EventHandler(this.VariablesButton_Click);
-			// 
+			//
 			// BuildStepWindow
-			// 
+			//
 			this.AcceptButton = this.OkButton;
 			this.AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
 			this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
@@ -500,9 +499,9 @@ namespace UnrealGameSync
 		private System.Windows.Forms.GroupBox groupBox3;
 		private System.Windows.Forms.GroupBox groupBox4;
 		private System.Windows.Forms.Button VariablesButton;
-        private System.Windows.Forms.Button OtherWorkingDirButton;
-        private System.Windows.Forms.Label label3;
-        private System.Windows.Forms.TextBox OtherWorkingDirTextBox;
-        private System.Windows.Forms.TextBox OtherArgumentsTextBox;
-    }
+		private System.Windows.Forms.Button OtherWorkingDirButton;
+		private System.Windows.Forms.Label label3;
+		private System.Windows.Forms.TextBox OtherWorkingDirTextBox;
+		private System.Windows.Forms.TextBox OtherArgumentsTextBox;
+	}
 }

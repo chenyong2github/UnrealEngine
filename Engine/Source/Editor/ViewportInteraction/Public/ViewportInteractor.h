@@ -14,6 +14,15 @@
 
 class AActor;
 
+/** Filter mode for GetHitResultFromLaserPointer*/
+UENUM(BlueprintType)
+enum class EHitResultGizmoFilterMode : uint8
+{
+	All,
+	NoGizmos,
+	GizmosOnly
+};
+
 /**
  * Represents the interactor in the world
  */
@@ -96,6 +105,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interactor")
 	FTransform GetTransform() const;
 
+	/** Gets the hand transform of the interactor, in the local tracking space */
+	UFUNCTION(BlueprintCallable, Category = "Interactor")
+	FTransform GetRoomSpaceTransform() const;
+
+	/** Gets the last world transform of this interactor */
+	UFUNCTION(BlueprintCallable, Category = "Interactor")
+	FTransform GetLastTransform() const;
+
+	/** Gets the last hand transform of the interactor, in the local tracking space */
+	UFUNCTION(BlueprintCallable, Category = "Interactor")
+	FTransform GetLastRoomSpaceTransform() const;
+
 	/** Gets the current interactor data dragging mode */
 	UFUNCTION(BlueprintCallable, Category = "Interactor")
 	EViewportInteractionDraggingMode GetDraggingMode() const;
@@ -148,9 +169,25 @@ public:
 	 * @param LaserLengthOverride If zero the default laser length (VREdMode::GetLaserLength) is used
 	 *
 	 * @return What the laster pointer hit
+	 * @deprecated bool bIgnoreGizmos replaced with EHitResultGizmoFilterMode GizmoFilterMode
 	 */
-	virtual FHitResult GetHitResultFromLaserPointer( TArray<AActor*>* OptionalListOfIgnoredActors = nullptr, const bool bIgnoreGizmos = false,
-		TArray<UClass*>* ObjectsInFrontOfGizmo = nullptr, const bool bEvenIfBlocked = false, const float LaserLengthOverride = 0.0f );
+	UE_DEPRECATED(4.23, "bool bIgnoreGizmos replaced with EHitResultGizmoFilterMode GizmoFilterMode")
+	virtual FHitResult GetHitResultFromLaserPointer(TArray<AActor*>* OptionalListOfIgnoredActors, const bool bIgnoreGizmos = false, TArray<UClass*>* ObjectsInFrontOfGizmo = nullptr, const bool bEvenIfBlocked = false, const float LaserLengthOverride = 0.0f) 
+	{
+		return GetHitResultFromLaserPointer(OptionalListOfIgnoredActors, bIgnoreGizmos ? EHitResultGizmoFilterMode::All : EHitResultGizmoFilterMode::NoGizmos, ObjectsInFrontOfGizmo, bEvenIfBlocked, LaserLengthOverride);
+	}
+
+	/**
+	 * Traces along the laser pointer vector and returns what it first hits in the world
+	 *
+	 * @param OptionalListOfIgnoredActors Actors to exclude from hit testing
+	 * @param GizmoFilterMode filters the types of gizmos for the hit test
+	 * @param bEvenIfUIIsInFront If true, ignores any UI that might be blocking the ray
+	 * @param LaserLengthOverride If zero the default laser length (VREdMode::GetLaserLength) is used
+	 *
+	 * @return What the laster pointer hit
+	 */
+	virtual FHitResult GetHitResultFromLaserPointer( TArray<AActor*>* OptionalListOfIgnoredActors = nullptr, const EHitResultGizmoFilterMode GizmoFilterMode = EHitResultGizmoFilterMode::All, TArray<UClass*>* ObjectsInFrontOfGizmo = nullptr, const bool bEvenIfBlocked = false, const float LaserLengthOverride = 0.0f );
 
 	/** Reset the values before checking the hover actions */
 	virtual void ResetHoverState();
@@ -207,6 +244,22 @@ public:
 	/** Reset the stored laser end location at the end of tick */
 	void ResetLaserEnd();
 
+	/** Sets the current gizmo filter mode used for Interaction*/
+	UFUNCTION(BlueprintCallable, Category = "Interactor")
+	void SetHitResultGizmoFilterMode(EHitResultGizmoFilterMode newFilter);
+
+	/** Gets current gizmo filter mode used for Interaction*/
+	UFUNCTION(BlueprintCallable, Category = "Interactor")
+	EHitResultGizmoFilterMode GetHitResultGizmoFilterMode() const;
+
+	/** Sets if the interactor can carry an object */
+	UFUNCTION(BlueprintCallable, Category = "Interactor")
+	void SetCanCarry(const bool bInCanCarry);
+
+	/** Gets if the interactor can carry an object */
+	UFUNCTION(BlueprintCallable, Category = "Interactor")
+	bool CanCarry() const;
+
 protected:
 
 	/** To be overridden. Called by HandleInputKey before delegates and default input implementation */
@@ -252,13 +305,21 @@ protected:
 	/** True if this interactor supports 'grabber sphere' interaction.  Usually disabled for mouse cursors */
 	bool bAllowGrabberSphere;
 
+	/** True if this interactor can 'carry' objects in VR, that is, translation and rotation of the interactor is inherited by the object, instead of just translation */
+	bool bCanCarry;
+
 	/** Store end of the laser pointer. This will be returned when calling GetLaserPointer multiple times a tick */
 	TOptional<FVector> SavedLaserPointerEnd;
 
 	/** Store the last hitresult from the laser, to use that when calling GetHitResultFromLaserPointer multiple times in a tick. */
 	TOptional<FHitResult> SavedHitResult;
 
+	/** Store the last hitresult from the laser, to use that when calling GetHitResultFromLaserPointer multiple times in a tick. */
+	TOptional<EHitResultGizmoFilterMode> SavedHitResultFilterMode;
+
 private:
+
+	EHitResultGizmoFilterMode CurrentHitResultGizmoFilterMode;
 
 	/** Smoothing filter for laser */
 	ViewportInteractionUtils::FOneEuroFilter SmoothingOneEuroFilter;

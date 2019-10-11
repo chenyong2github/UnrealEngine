@@ -911,6 +911,15 @@ bool RHIGetPreviewFeatureLevel(ERHIFeatureLevel::Type& PreviewFeatureLevelOUT)
 	return true;
 }
 
+ RHI_API EPixelFormat RHIPreferredPixelFormatHint(EPixelFormat PreferredPixelFormat)
+{
+	if (GDynamicRHI)
+	{
+		return GDynamicRHI->RHIPreferredPixelFormatHint(PreferredPixelFormat);
+	}
+	return PreferredPixelFormat;
+}
+
 void FRHIRenderPassInfo::ConvertToRenderTargetsInfo(FRHISetRenderTargetsInfo& OutRTInfo) const
 {
 	for (int32 Index = 0; Index < MaxSimultaneousRenderTargets; ++Index)

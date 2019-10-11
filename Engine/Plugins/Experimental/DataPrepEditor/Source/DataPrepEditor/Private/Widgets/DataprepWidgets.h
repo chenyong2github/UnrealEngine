@@ -9,34 +9,9 @@
 #include "Widgets/SCompoundWidget.h"
 
 class SEditableTextBox;
+class UDataprepAsset;
 class UDataprepContentConsumer;
-
-class SDataprepConsumerWidget : public SCompoundWidget
-{
-public:
-	SLATE_BEGIN_ARGS(SDataprepConsumerWidget)
-	{}
-
-	SLATE_ARGUMENT(UDataprepContentConsumer*, DataprepConsumer)
-	SLATE_END_ARGS()
-
-public:
-	void Construct(const FArguments& InArgs);
-
-	void SetDataprepConsumer( UDataprepContentConsumer* DataprepConsumer );
-
-private:
-	TSharedRef<SWidget> BuildWidget();
-	TSharedRef<SWidget> BuildNullWidget();
-	void OnLevelNameChanged( const FText& NewLevelName, ETextCommit::Type CommitType );
-	void OnBrowseContentFolder();
-	void UpdateContentFolderText();
-
-private:
-	TWeakObjectPtr<UDataprepContentConsumer> DataprepConsumer;
-	TSharedPtr< SEditableTextBox > ContentFolderTextBox;
-	TSharedPtr< SEditableTextBox > LevelTextBox;
-};
+struct FDataprepPropertyLink;
 
 struct FDataprepDetailsViewColumnSizeData
 {
@@ -47,6 +22,48 @@ struct FDataprepDetailsViewColumnSizeData
 	void SetColumnWidth(float InWidth) { OnWidthChanged.ExecuteIfBound(InWidth); }
 };
 
+class SDataprepConsumerWidget : public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SDataprepConsumerWidget)
+	{}
+
+	SLATE_ARGUMENT(TSharedPtr< FDataprepDetailsViewColumnSizeData >, ColumnSizeData)
+	SLATE_ARGUMENT(UDataprepContentConsumer*, DataprepConsumer)
+	SLATE_END_ARGS()
+
+public:
+	void Construct(const FArguments& InArgs );
+
+	void SetDataprepConsumer( UDataprepContentConsumer* DataprepConsumer );
+
+private:
+	TSharedRef<SWidget> BuildWidget();
+	TSharedRef<SWidget> BuildNullWidget();
+	void OnLevelNameChanged( const FText& NewLevelName, ETextCommit::Type CommitType );
+	void OnBrowseContentFolder();
+	void UpdateContentFolderText();
+
+	void OnLeftColumnResized(float InNewWidth)
+	{
+		// This has to be bound or the splitter will take it upon itself to determine the size
+		// We do nothing here because it is handled by the column size data
+	}
+
+	float OnGetLeftColumnWidth() const { return 1.0f - ColumnWidth; }
+	float OnGetRightColumnWidth() const { return ColumnWidth; }
+	void OnSetColumnWidth(float InWidth) { ColumnWidth = InWidth; }
+
+private:
+	TWeakObjectPtr<UDataprepContentConsumer> DataprepConsumer;
+	TSharedPtr< SEditableTextBox > ContentFolderTextBox;
+	TSharedPtr< SEditableTextBox > LevelTextBox;
+	// Helps sync column resizing with another part of the UI (producers widget).
+	TSharedPtr< FDataprepDetailsViewColumnSizeData > ColumnSizeData;
+	/** Relative width to control splitters. */
+	float ColumnWidth;
+};
+
 class SDataprepDetailsView : public SCompoundWidget
 {
 	using Super = SCompoundWidget;
@@ -54,10 +71,9 @@ class SDataprepDetailsView : public SCompoundWidget
 public:
 	SLATE_BEGIN_ARGS(SDataprepDetailsView)
 		: _Object( nullptr )
-		, _Class( UObject::StaticClass() )
 	{}
-	SLATE_ATTRIBUTE(UObject*, Object)
-	SLATE_ATTRIBUTE(UClass*, Class)
+	SLATE_ARGUMENT(TSharedPtr<FDataprepDetailsViewColumnSizeData>, ColumnSizeData)
+	SLATE_ARGUMENT(UObject*, Object)
 	SLATE_END_ARGS()
 
 public:
@@ -66,6 +82,8 @@ public:
 	~SDataprepDetailsView();
 
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;	
+
+	void SetObjectToDisplay(UObject& Object);
 
 protected:
 	// Begin SWidget overrides.
@@ -86,8 +104,15 @@ private:
 	/** Add widgets held by array of DetailTreeNode objects */
 	void AddWidgets( const TArray< TSharedRef< class IDetailTreeNode > >& DetailTree, TSharedPtr< class SGridPanel >& GridPanel, int32& Index, float LeftPadding);
 
-	/** Create generic widget */
-	TSharedRef< SWidget > CreateDefaultWidget( TSharedPtr< SWidget >& NameWidget, TSharedPtr< SWidget >& ValueWidget, float LeftPadding, EHorizontalAlignment HAlign, EVerticalAlignment VAlign );
+	/**
+	 * Create generic widget for a property row
+	 * @param NameWidget The widget used in the name column
+	 * @param ValueWidget The widget used in the value column
+	 * @param LeftPadding The Padding on the left of the row
+	 * @param PropertyChain The chain to the property from the class of the detailed object
+	 * @return A row for the details view
+	 */
+	TSharedRef< SWidget > CreateDefaultWidget(TSharedPtr< SWidget >& NameWidget, TSharedPtr< SWidget >& ValueWidget, float LeftPadding, EHorizontalAlignment HAlign, EVerticalAlignment VAlign, const TArray<FDataprepPropertyLink>& PropertyChain);
 
 	/** Callback used by all splitters in the details view, so that they move in sync */
 	void OnLeftColumnResized(float InNewWidth)
@@ -95,6 +120,7 @@ private:
 		// This has to be bound or the splitter will take it upon itself to determine the size
 		// We do nothing here because it is handled by the column size data
 	}
+
 	float OnGetLeftColumnWidth() const { return 1.0f - ColumnWidth; }
 	float OnGetRightColumnWidth() const { return ColumnWidth; }
 	void OnSetColumnWidth(float InWidth) { ColumnWidth = InWidth; }
@@ -102,6 +128,9 @@ private:
 	/** Callback to track property changes on array properties */
 	void OnPropertyChanged( const struct FPropertyChangedEvent& InEvent );
 
+	/** Callback used to detect the existence of a new object to display after a reinstancing process */
+	void OnObjectReplaced(const TMap<UObject*, UObject*>& ReplacementObjectMap);
+		
 private:
 	/** Row generator applied on detailed object */
 	TSharedPtr< class IPropertyRowGenerator > Generator;
@@ -109,20 +138,25 @@ private:
 	/** Object to be detailed */
 	UObject* DetailedObject;
 
-	/** Class of the object to be detailed */
-	UClass* DetailedClass;
-
-	TAttribute<UObject*> ObjectAttribute;
-
 	/** Array properties tracked for changes */
-	TSet< class UProperty* > TrackedProperties;
+	TSet< UProperty* > TrackedProperties;
 	
 	/** Delegate handle to track property changes on array properties */
 	FDelegateHandle OnPropertyChangedHandle;
 
-	/** Container used by all splitters in the details view, so that they move in sync */
-	FDataprepDetailsViewColumnSizeData ColumnSizeData;
+	/** Delegate to track new object after a reinstancing process */
+	FDelegateHandle OnObjectReplacedHandle;
 
-	/** Relative width to control splitters */
+	/** Relative width to control splitters. */
 	float ColumnWidth;
+
+	/** Points to the currently used colum size data. Can be provided via argument as well.
+	 */
+	TSharedPtr< FDataprepDetailsViewColumnSizeData > ColumnSizeData;
+
+	// If there is a new object to display on the next tick
+	uint8 bNewObjectToDisplay : 1;
+
+	// This pointer to a dataprep asset is used by the parameterization system. It should be nullptr when the parameterization shouldn't be shown
+	TWeakObjectPtr<UDataprepAsset> DataprepAssetForParameterization;
 };

@@ -22,13 +22,6 @@ static FAutoConsoleVariableRef CVarCommandListBatchingMode(
 	ECVF_RenderThreadSafe
 	);
 
-// These can be overridden with the cvars below
-namespace ConstantAllocatorSizesKB
-{
-	int32 DefaultGraphics = 3072; // x1
-	int32 Graphics = 3072; //x4
- 	int32 AsyncCompute = 3072; // x1
-}
 // We don't yet have a way to auto-detect that the Radeon Developer Panel is running
 // with profiling enabled, so for now, we have to manually toggle this console var.
 // It needs to be set before device creation, so it's read only.
@@ -39,40 +32,6 @@ static FAutoConsoleVariableRef CVarEmitRgpFrameMarkers(
 	TEXT("Enables/Disables frame markers for AMD's RGP tool."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 	);
-
-static FAutoConsoleVariableRef CVarDefaultGfxCommandContextConstantAllocatorSizeKB(
-	TEXT("D3D12.DefaultGfxCommandContextConstantAllocatorSizeKB"),
-	ConstantAllocatorSizesKB::DefaultGraphics,
-	TEXT(""),
-	ECVF_ReadOnly
-);
-
-static FAutoConsoleVariableRef CVarGfxCommandContextConstantAllocatorSizeKB(
-	TEXT("D3D12.GfxCommandContextConstantAllocatorSizeKB"),
-	ConstantAllocatorSizesKB::Graphics,
-	TEXT(""),
-	ECVF_ReadOnly
-);
-
-static FAutoConsoleVariableRef CVarComputeCommandContextConstantAllocatorSizeKB(
-	TEXT("D3D12.ComputeCommandContextConstantAllocatorSizeKB"),
-	ConstantAllocatorSizesKB::AsyncCompute,
-	TEXT(""),
-	ECVF_ReadOnly
-);
-
-static uint32 GetConstantAllocatorSize(bool bIsAsyncComputeContext, bool bIsDefaultContext)
-{
-	if (bIsAsyncComputeContext)
-	{
-		return ConstantAllocatorSizesKB::AsyncCompute * 1024;
-	}
-	if (bIsDefaultContext)
-	{
-		return ConstantAllocatorSizesKB::DefaultGraphics * 1024;
-	}
-	return ConstantAllocatorSizesKB::Graphics * 1024;
-}
 
 FD3D12CommandContextBase::FD3D12CommandContextBase(class FD3D12Adapter* InParentAdapter, FRHIGPUMask InGPUMask, bool InIsDefaultContext, bool InIsAsyncComputeContext)
 	: FD3D12AdapterChild(InParentAdapter)
@@ -87,7 +46,7 @@ FD3D12CommandContextBase::FD3D12CommandContextBase(class FD3D12Adapter* InParent
 FD3D12CommandContext::FD3D12CommandContext(FD3D12Device* InParent, FD3D12SubAllocatedOnlineHeap::SubAllocationDesc& SubHeapDesc, bool InIsDefaultContext, bool InIsAsyncComputeContext) :
 	FD3D12CommandContextBase(InParent->GetParentAdapter(), InParent->GetGPUMask(), InIsDefaultContext, InIsAsyncComputeContext),
 	FD3D12DeviceChild(InParent),
-	ConstantsAllocator(InParent, InParent->GetGPUMask(), GetConstantAllocatorSize(InIsAsyncComputeContext, InIsDefaultContext)),
+	ConstantsAllocator(InParent, InParent->GetGPUMask()),
 	CommandListHandle(),
 	CommandAllocator(nullptr),
 	CommandAllocatorManager(InParent, InIsAsyncComputeContext ? D3D12_COMMAND_LIST_TYPE_COMPUTE : D3D12_COMMAND_LIST_TYPE_DIRECT),
@@ -105,8 +64,6 @@ FD3D12CommandContext::FD3D12CommandContext(FD3D12Device* InParent, FD3D12SubAllo
 #if PLATFORM_SUPPORTS_VIRTUAL_TEXTURES
 	bNeedFlushTextureCache(false),
 #endif
-	DynamicVB(InParent),
-	DynamicIB(InParent),
 	VSConstantBuffer(InParent, ConstantsAllocator),
 	HSConstantBuffer(InParent, ConstantsAllocator),
 	DSConstantBuffer(InParent, ConstantsAllocator),
@@ -126,8 +83,6 @@ FD3D12CommandContext::FD3D12CommandContext(FD3D12Device* InParent, FD3D12SubAllo
 	FMemory::Memzero(CurrentRenderTargets);
 	FMemory::Memzero(CurrentUAVs);
 	StateCache.Init(GetParentDevice(), this, nullptr, SubHeapDesc);
-
-	ConstantsAllocator.Init();
 }
 
 FD3D12CommandContext::~FD3D12CommandContext()

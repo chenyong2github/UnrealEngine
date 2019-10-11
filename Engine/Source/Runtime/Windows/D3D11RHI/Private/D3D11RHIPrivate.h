@@ -879,10 +879,6 @@ protected:
 	/** Set to true when the current shading setup uses tessellation */
 	bool bUsingTessellation;
 
-	/** Dynamic vertex and index buffers. */
-	TRefCountPtr<FD3D11DynamicBuffer> DynamicVB;
-	TRefCountPtr<FD3D11DynamicBuffer> DynamicIB;
-
 	/** A list of all D3D constant buffers RHIs that have been created. */
 	TArray<TRefCountPtr<FD3D11ConstantBuffer> > VSConstantBuffers;
 	TArray<TRefCountPtr<FD3D11ConstantBuffer> > HSConstantBuffers;

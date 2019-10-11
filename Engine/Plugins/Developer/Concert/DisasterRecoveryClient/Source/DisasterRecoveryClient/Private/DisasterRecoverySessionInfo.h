@@ -18,6 +18,14 @@ struct FDisasterRecoverySession
 
 	UPROPERTY()
 	bool bAutoRestoreLastSession = false;
+
+	/** The PID of the last client that write the file for this session. */
+	UPROPERTY()
+	int32 DisasterRecoveryClientPID = 0;
+
+	/** The PID of the disaster recovery service launched by the client for the session. */
+	UPROPERTY()
+	int32 DisasterRecoveryServicePID = 0;
 };
 
 /**

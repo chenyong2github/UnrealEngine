@@ -24,10 +24,7 @@ public class OpenGLDrv : ModuleRules
 		PrivateIncludePathModuleNames.Add("ImageWrapper");
 		DynamicallyLoadedModuleNames.Add("ImageWrapper");
 
-        if (Target.Platform != UnrealTargetPlatform.HTML5)
-		{
-		    AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenGL");
-		}
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenGL");
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
 		{
@@ -35,7 +32,7 @@ public class OpenGLDrv : ModuleRules
 			PublicIncludePaths.Add(GLPath);
 		}
 
-		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux) || Target.Platform == UnrealTargetPlatform.HTML5)
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
 		{
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "SDL2");
 		}
@@ -46,18 +43,18 @@ public class OpenGLDrv : ModuleRules
 				new string[]
 				{
 					"TaskGraph"
-                }
+				}
 			);
 		}
-		
+
 		if ((Target.Platform == UnrealTargetPlatform.Android) || (Target.Platform == UnrealTargetPlatform.Lumin))
-        {
+		{
 			PrivateDependencyModuleNames.Add("detex");
 		}
 
-		if(Target.Platform != UnrealTargetPlatform.Win32 && Target.Platform != UnrealTargetPlatform.Win64 
+		if(Target.Platform != UnrealTargetPlatform.Win32 && Target.Platform != UnrealTargetPlatform.Win64
 			&& Target.Platform != UnrealTargetPlatform.IOS && Target.Platform != UnrealTargetPlatform.Android
-			&& Target.Platform != UnrealTargetPlatform.HTML5 && !Target.IsInPlatformGroup(UnrealPlatformGroup.Linux)
+			&& !Target.IsInPlatformGroup(UnrealPlatformGroup.Linux)
 			&& Target.Platform != UnrealTargetPlatform.TVOS && Target.Platform != UnrealTargetPlatform.Lumin)
 		{
 			PrecompileForTargets = PrecompileTargetsType.None;

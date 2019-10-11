@@ -237,8 +237,6 @@ void UBodySetup::GetCookInfo(FCookBodySetupInfo& OutCookInfo, EPhysXMeshCookFlag
 {
 #if WITH_PHYSX
 
-	check(IsInGameThread());
-
 	OutCookInfo.OuterDebugName = GetOuter()->GetPathName();
 	OutCookInfo.bConvexDeformableMesh = false;
 
@@ -414,6 +412,8 @@ DECLARE_CYCLE_STAT(TEXT("Create Physics Meshes"), STAT_CreatePhysicsMeshes, STAT
 
 void UBodySetup::CreatePhysicsMeshes()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UBodySetup::CreatePhysicsMeshes);
+
 	SCOPE_CYCLE_COUNTER(STAT_CreatePhysicsMeshes);
 
 	// Create meshes from cooked data if not already done
@@ -527,8 +527,9 @@ bool UBodySetup::ProcessFormatData_PhysX(FByteBulkData* FormatData)
 
 void UBodySetup::FinishCreatingPhysicsMeshes_PhysX(const TArray<PxConvexMesh*>& ConvexMeshes, const TArray<PxConvexMesh*>& ConvexMeshesNegX, const TArray<PxTriangleMesh*>& CookedTriMeshes)
 {
-	check(IsInGameThread());
 	ClearPhysicsMeshes();
+
+	FPhysxSharedData::Get().LockAccess();
 
 	const FString FullName = GetFullName();
 	if (GetCollisionTraceFlag() != CTF_UseComplexAsSimple)
@@ -568,6 +569,8 @@ void UBodySetup::FinishCreatingPhysicsMeshes_PhysX(const TArray<PxConvexMesh*>& 
 			FPhysxSharedData::Get().Add(TriMesh, FullName);
 		}
 	}
+
+	FPhysxSharedData::Get().UnlockAccess();
 
 	// Clear the cooked data
 	if (!GIsEditor && !bSharedCookedData)
@@ -713,6 +716,9 @@ void UBodySetup::FinishCreatingPhysicsMeshes_Chaos(FChaosDerivedDataReader<float
 void UBodySetup::ClearPhysicsMeshes()
 {
 #if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
+
+	FPhysxSharedData::Get().LockAccess();
+
 	for(int32 i=0; i<AggGeom.ConvexElems.Num(); i++)
 	{
 		FKConvexElem* ConvexElem = &(AggGeom.ConvexElems[i]);
@@ -740,6 +746,9 @@ void UBodySetup::ClearPhysicsMeshes()
 		FPhysxSharedData::Get().Remove(TriMeshes[ElementIndex]);
 		TriMeshes[ElementIndex] = NULL;
 	}
+
+	FPhysxSharedData::Get().UnlockAccess();
+
 	TriMeshes.Empty();
 
 #elif WITH_CHAOS

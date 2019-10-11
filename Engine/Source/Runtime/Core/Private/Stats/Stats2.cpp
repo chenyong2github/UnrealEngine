@@ -1437,9 +1437,10 @@ void FThreadStats::StopThread()
 
 void FThreadStats::WaitForStats()
 {
-#if PLATFORM_HTML5
-	return;	// even checking FPlatformProcess::SupportsMultithreading() -- CreateTask() is still crashing on HTML5 -- TODO: check back after WASM w/multi-threading is in....
-#endif
+	if (FPlatformProcess::SkipWaitForStats())
+	{
+		return;
+	}
 
 	check(IsInGameThread());
 	if (IsThreadingReady() && !bMasterDisableForever)

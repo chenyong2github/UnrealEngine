@@ -180,13 +180,13 @@ TArray<FLiveLinkSubjectKey> ULiveLinkBlueprintLibrary::GetLiveLinkSubjects(bool 
 	return TArray<FLiveLinkSubjectKey>();
 }
 
-bool ULiveLinkBlueprintLibrary::IsSpecificLiveLinkSubjectEnabled(const FLiveLinkSubjectKey SubjectKey, bool bUseSnapshot)
+bool ULiveLinkBlueprintLibrary::IsSpecificLiveLinkSubjectEnabled(const FLiveLinkSubjectKey SubjectKey, bool bForThisFrame)
 {
 	IModularFeatures& ModularFeatures = IModularFeatures::Get();
 	if (ModularFeatures.IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
 	{
 		ILiveLinkClient& LiveLinkClient = ModularFeatures.GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
-		return LiveLinkClient.IsSubjectEnabled(SubjectKey, bUseSnapshot);
+		return LiveLinkClient.IsSubjectEnabled(SubjectKey, bForThisFrame);
 	}
 	return false;
 }

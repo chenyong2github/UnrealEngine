@@ -282,6 +282,8 @@ private:
 
 	UActorComponent* PrereqComponent;
 
+	ENiagaraTickBehavior TickBehavior;
+
 	/** The age of the System instance. */
 	float Age;
 

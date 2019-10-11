@@ -25,14 +25,14 @@ struct FDIPhysicsAssetContext
 	Buffer<float4>		ElementExtentBuffer;
 }; 
 
-#define DIPhysicsAsset_DECLARE_CONSTANTS(NAME)\
+#define DIPHYSICSASSET_DECLARE_CONSTANTS(NAME)\
 uint4 ElementOffsets_##NAME;\
 Buffer<float4>		CurrentTransformBuffer_##NAME;\
 Buffer<float4>		InverseTransformBuffer_##NAME;\
 Buffer<float4>		PreviousTransformBuffer_##NAME;\
 Buffer<float4>		ElementExtentBuffer_##NAME;\
 
-#define DIPhysicsAsset_MAKE_CONTEXT(NAME)\
+#define DIPHYSICSASSET_MAKE_CONTEXT(NAME)\
 FDIPhysicsAssetContext DIContext; \
 DIContext.ElementOffsets = ElementOffsets_##NAME;\
 DIContext.CurrentTransformBuffer = CurrentTransformBuffer_##NAME;\

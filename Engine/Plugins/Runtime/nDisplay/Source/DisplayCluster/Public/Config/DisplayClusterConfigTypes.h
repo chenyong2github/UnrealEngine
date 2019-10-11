@@ -79,12 +79,13 @@ struct DISPLAYCLUSTER_API FDisplayClusterConfigWindow : public FDisplayClusterCo
 //////////////////////////////////////////////////////////////////////////////////////////////
 struct DISPLAYCLUSTER_API FDisplayClusterConfigViewport : public FDisplayClusterConfigBase
 {
-	FString Id;
-	FString ProjectionId;
-	FString CameraId;
+	FString   Id;
+	FString   ProjectionId;
+	FString   CameraId;
 	FIntPoint Loc  = FIntPoint::ZeroValue;
 	FIntPoint Size = FIntPoint::ZeroValue;
-	bool IsRTT = false;
+	bool      IsRTT = false;
+	float     BufferRatio = 1.f;
 
 	virtual FString ToString() const override;
 	virtual bool    DeserializeFromString(const FString& line) override;

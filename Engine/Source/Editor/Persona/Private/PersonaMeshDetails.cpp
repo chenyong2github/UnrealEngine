@@ -5018,6 +5018,7 @@ void FPersonaMeshDetails::OnGenerateElementForClothingAsset( TSharedRef<IPropert
 		+ SHorizontalBox::Slot()
 		.FillWidth(1)
 
+#if WITH_APEX_CLOTHING
 		// re-import button
 		+ SHorizontalBox::Slot()
 		.VAlign( VAlign_Center )
@@ -5038,6 +5039,7 @@ void FPersonaMeshDetails::OnGenerateElementForClothingAsset( TSharedRef<IPropert
 				.ColorAndOpacity( FSlateColor::UseForeground() )
 			]
 		]
+#endif  // #if WITH_APEX_CLOTHING
 
 		// remove button
 		+ SHorizontalBox::Slot()
@@ -5047,7 +5049,7 @@ void FPersonaMeshDetails::OnGenerateElementForClothingAsset( TSharedRef<IPropert
 		[
 			SNew( SButton )
 			.Text( LOCTEXT("ClearButtonLabel", "Remove") )
-			.OnClicked( this, &FPersonaMeshDetails::OnRemoveApexFileClicked, ElementIndex, DetailLayout )
+			.OnClicked( this, &FPersonaMeshDetails::OnRemoveClothingAssetClicked, ElementIndex, DetailLayout )
 			.IsFocusable( false )
 			.ContentPadding(0)
 			.ForegroundColor( FSlateColor::UseForeground() )
@@ -5252,9 +5254,9 @@ TSharedRef<SUniformGridPanel> FPersonaMeshDetails::MakeClothingDetailsWidget(int
 	return Grid;
 }
 
+#if WITH_APEX_CLOTHING
 FReply FPersonaMeshDetails::OnReimportApexFileClicked(int32 AssetIndex, IDetailLayoutBuilder* DetailLayout)
 {
-#if WITH_APEX_CLOTHING
 	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
 
 	check(SkelMesh && SkelMesh->MeshClothingAssets.IsValidIndex(AssetIndex));
@@ -5305,12 +5307,12 @@ FReply FPersonaMeshDetails::OnReimportApexFileClicked(int32 AssetIndex, IDetailL
 		// Force layout to refresh
 		DetailLayout->ForceRefreshDetails();
 	}
-#endif
 
 	return FReply::Handled();
 }
+#endif
 
-FReply FPersonaMeshDetails::OnRemoveApexFileClicked(int32 AssetIndex, IDetailLayoutBuilder* DetailLayout)
+FReply FPersonaMeshDetails::OnRemoveClothingAssetClicked(int32 AssetIndex, IDetailLayoutBuilder* DetailLayout)
 {
 	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
 	check(SkelMesh);
@@ -5367,9 +5369,9 @@ FReply FPersonaMeshDetails::OnRemoveApexFileClicked(int32 AssetIndex, IDetailLay
 	return FReply::Handled();
 }
 
+#if WITH_APEX_CLOTHING
 FReply FPersonaMeshDetails::OnOpenClothingFileClicked(IDetailLayoutBuilder* DetailLayout)
 {
-#if WITH_APEX_CLOTHING
 	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
 
 	if(SkelMesh)
@@ -5379,10 +5381,10 @@ FReply FPersonaMeshDetails::OnOpenClothingFileClicked(IDetailLayoutBuilder* Deta
 		UpdateClothingEntries();
 		RefreshClothingComboBoxes();
 	}
-#endif
 
 	return FReply::Handled();
 }
+#endif
 
 void FPersonaMeshDetails::UpdateClothingEntries()
 {

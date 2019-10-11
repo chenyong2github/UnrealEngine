@@ -1,0 +1,132 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+#include "HairStrandsMeshProjectionCommon.ush"
+
+uint bClear;
+uint MaxRootCount;
+float DistanceThreshold;
+float4x4 RootLocalToWorld;
+
+float4x4 MeshLocalToWorld;
+uint MeshNumPrimitives;
+uint MeshSectionIndex;
+uint MeshMaxIndexCount;
+uint MeshMaxVertexCount;
+uint MeshIndexOffset;
+uint MaxSpinLockCount;
+Buffer<uint> MeshIndexBuffer;
+Buffer<float> MeshPositionBuffer;
+
+Buffer<float4> RootPositionBuffer;
+Buffer<float4> RootNormalBuffer;
+
+RWBuffer<uint> OutRootTriangleIndex;
+//RWBuffer<uint> OutRootTriangleBarycentrics;
+RWStructuredBuffer<float> OutRootTriangleDistance;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Curve projection onto A mesh
+// The projection is executed by running on curve's root per thread, which test all triangles
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+// Closest point on A triangle from another point
+// Code from the book "Real-Time Collision Detection" by Christer Ericson
+float3 ClosestPoint(const FHairMeshTriangle Tri, const float3 P)
+{
+	const float3 A = Tri.P0;
+	const float3 B = Tri.P1;
+	const float3 C = Tri.P2;
+
+	// Check if P is in vertex region outside A.
+	float3 AB = B - A;
+	float3 AC = C - A;
+	float3 AP = P - A;
+	float D1 = dot(AB, AP);
+	float D2 = dot(AC, AP);
+	if (D1 <= 0.f && D2 <= 0.f)
+		return A; // Barycentric coordinates are (1,0,0).
+
+	// Check if P is in vertex region outside B.
+	float3 BP = P - B;
+	float D3 = dot(AB, BP);
+	float D4 = dot(AC, BP);
+	if (D3 >= 0.f && D4 <= D3)
+		return B; // Barycentric coordinates are (0,1,0).
+
+	// Check if P is in edge region of AB, and if so, return the projection of P onto AB.
+	float VC = D1 * D4 - D3 * D2;
+	if (VC <= 0.f && D1 >= 0.f && D3 <= 0.f)
+	{
+		float V = D1 / (D1 - D3);
+		return A + V * AB; // The barycentric coordinates are (1-V, V, 0).
+	}
+
+	// Check if P is in vertex region outside C.
+	float3 CP = P - C;
+	float D5 = dot(AB, CP);
+	float D6 = dot(AC, CP);
+	if (D6 >= 0.f && D5 <= D6)
+		return C; // The barycentric coordinates are (0,0,1).
+
+	// Check if P is in edge region of AC, and if so, return the projection of P onto AC.
+	float VB = D5 * D2 - D1 * D6;
+	if (VB <= 0.f && D2 >= 0.f && D6 <= 0.f)
+	{
+		float W = D2 / (D2 - D6);
+		return A + W * AC; // The barycentric coordinates are (1-W, 0, W).
+	}
+
+	// Check if P is in edge region of BC, and if so, return the projection of P onto BC.
+	float VA = D3 * D6 - D5 * D4;
+	if (VA <= 0.f && D4 - D3 >= 0.f && D5 - D6 >= 0.f)
+	{
+		float W = (D4 - D3) / (D4 - D3 + D5 - D6);
+		return B + W * (C - B); // The barycentric coordinates are (0, 1-W, W).
+	}
+
+	// P must be inside the face region. Compute the closest point through its barycentric coordinates (u,V,W).
+	float Denom = 1.f / (VA + VB + VC);
+	float V = VB * Denom;
+	float W = VC * Denom;
+	return A + AB * V + AC * W;
+}
+
+[numthreads(32, 1, 1)]
+void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	// Shift root index with thread index to reduce/avoid collisions
+	const uint RootIndex = DispatchThreadId.x;
+
+	if (RootIndex >= MaxRootCount) return;
+
+	float3 RootPosition = RootPositionBuffer[RootIndex].xyz;
+	RootPosition = mul(float4(RootPosition, 1), RootLocalToWorld).xyz;
+
+	const float3 RootNormal = RootNormalBuffer[RootIndex].xyz;
+
+	float MinDistance = bClear ? 999999999 : OutRootTriangleDistance[RootIndex];
+	int TriangleIndex = -1;
+	for (uint PrimitiveIt = 0; PrimitiveIt < MeshNumPrimitives; ++PrimitiveIt)
+	{
+		const FHairMeshTriangle Tri = GetTriangleData(PrimitiveIt, MeshLocalToWorld, MeshPositionBuffer, MeshIndexBuffer, MeshIndexOffset, MeshMaxIndexCount, MeshMaxVertexCount);
+		
+		const float3 B = 0.5f;
+		const float3 C = ClosestPoint(Tri, RootPosition);
+		const float Distance = distance(C, RootPosition);
+		if (abs(Distance) < MinDistance)
+		{			
+			MinDistance = abs(Distance);
+			TriangleIndex = PrimitiveIt;
+		}
+	}
+
+	if (TriangleIndex >= 0)
+	{
+		const uint EncodeIndex = EncodeTriangleIndex(TriangleIndex, MeshSectionIndex);
+		OutRootTriangleIndex[RootIndex] = EncodeIndex;
+		OutRootTriangleDistance[RootIndex] = MinDistance;
+	}
+
+}

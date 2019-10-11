@@ -186,7 +186,7 @@ public:
 		MObject->FindAllIntersectingObjects(Out, SubobjectBounds);
 		if (Out.Num() > NumOut)
 		{
-			Out[NumOut].Second = MTransform * Out[NumOut].Second;
+			Out[NumOut].Second = Out[NumOut].Second * MTransform;
 		}
 	}
 

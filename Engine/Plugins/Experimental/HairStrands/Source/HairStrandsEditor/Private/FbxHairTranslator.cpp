@@ -2,6 +2,7 @@
 
 #include "FbxHairTranslator.h"
 
+#include "GroomImportOptions.h"
 #include "Misc/Paths.h"
 
 #if PLATFORM_WINDOWS
@@ -119,7 +120,7 @@ private:
 	FbxImporter* FileImporter;
 };
 
-static void ParseFbxNode(FbxNode* FileNode, FHairDescription& HairDescription)
+static void ParseFbxNode(FbxNode* FileNode, FHairDescription& HairDescription, const FMatrix& ConversionMatrix, float Scale)
 {
 	if (FileNode->GetNodeAttribute() != NULL && FileNode->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eNurbsCurve)
 	{
@@ -143,8 +144,8 @@ static void ParseFbxNode(FbxNode* FileNode, FHairDescription& HairDescription)
 
 			FVertexID VertexID = HairDescription.AddVertex();
 
-			VertexPositions[VertexID] = Position * FbxHairFormat::UNIT_TO_CM;
-			VertexWidths[VertexID] = Radius * FbxHairFormat::UNIT_TO_CM;
+			VertexPositions[VertexID] = ConversionMatrix.TransformPosition(Position);
+			VertexWidths[VertexID] = Radius * Scale;
 		}
 	}
 	//	#todo_hair
@@ -156,12 +157,12 @@ static void ParseFbxNode(FbxNode* FileNode, FHairDescription& HairDescription)
 	{
 		for (int32 ChildIndex = 0; ChildIndex < FileNode->GetChildCount(); ++ChildIndex)
 		{
-			ParseFbxNode(FileNode->GetChild(ChildIndex), HairDescription);
+			ParseFbxNode(FileNode->GetChild(ChildIndex), HairDescription, ConversionMatrix, Scale);
 		}
 	}
 }
 
-bool FFbxHairTranslator::Translate(const FString& FileName, FHairDescription& HairDescription)
+bool FFbxHairTranslator::Translate(const FString& FileName, FHairDescription& HairDescription, const FGroomConversionSettings& ConversionSettings)
 {
 	// Reuse the FbxHairImporter if there was one created previously by CanTranslate
 	// There could be none if the translator is used for a re-import
@@ -196,9 +197,10 @@ bool FFbxHairTranslator::Translate(const FString& FileName, FHairDescription& Ha
 
 	if (FbxNode* FileNode = FbxHairImporter->GetFbxScene()->GetRootNode())
 	{
+		FMatrix ConversionMatrix = FScaleMatrix::Make(ConversionSettings.Scale) * FRotationMatrix::Make(FQuat::MakeFromEuler(ConversionSettings.Rotation));
 		for (int32 ChildIndex = 0; ChildIndex < FileNode->GetChildCount(); ++ChildIndex)
 		{
-			ParseFbxNode(FileNode->GetChild(ChildIndex), HairDescription);
+			ParseFbxNode(FileNode->GetChild(ChildIndex), HairDescription, ConversionMatrix, ConversionSettings.Scale.X);
 		}
 	}
 

@@ -1639,23 +1639,13 @@ void UEditableMesh::GetPolygonAdjacentPolygons( const FPolygonID PolygonID, TArr
 
 FBox UEditableMesh::ComputeBoundingBox() const
 {
-	FBox BoundingBox;
-	BoundingBox.Init();
-
-	TVertexAttributesConstRef<FVector> VertexPositions = GetMeshDescription()->VertexAttributes().GetAttributesRef<FVector>( MeshAttribute::Vertex::Position );
-
-	for( const FVertexID VertexID : GetMeshDescription()->Vertices().GetElementIDs() )
-	{
-		BoundingBox += VertexPositions[ VertexID ];
-	}
-
-	return BoundingBox;
+	return GetMeshDescription()->ComputeBoundingBox();
 }
 
 
 FBoxSphereBounds UEditableMesh::ComputeBoundingBoxAndSphere() const
 {
-	const FBox BoundingBox = ComputeBoundingBox();
+	const FBox BoundingBox = GetMeshDescription()->ComputeBoundingBox();
 
 	FBoxSphereBounds BoundingBoxAndSphere;
 	BoundingBox.GetCenterAndExtents( /* Out */ BoundingBoxAndSphere.Origin, /* Out */ BoundingBoxAndSphere.BoxExtent );

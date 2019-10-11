@@ -1720,6 +1720,8 @@ bool RetrieveRawMeshData(FMeshMergeDataTracker& DataTracker
 
 void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveComponent*>& ComponentsToMerge, UWorld* World, const FMeshMergingSettings& InSettings, UMaterialInterface* InBaseMaterial, UPackage* InOuter, const FString& InBasePackageName, TArray<UObject*>& OutAssetsToSync, FVector& OutMergedActorLocation, const float ScreenSize, bool bSilent /*= false*/) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshMergeUtilities::MergeComponentsToStaticMesh);
+
 	// Use first mesh for naming and pivot
 	bool bFirstMesh = true;
 	FString MergedAssetPackageName;
@@ -2634,6 +2636,8 @@ void FMeshMergeUtilities::ExtractImposterToRawMesh(const UStaticMeshComponent* I
 
 void FMeshMergeUtilities::CreateMergedRawMeshes(FMeshMergeDataTracker& InDataTracker, const FMeshMergingSettings& InSettings, const TArray<UStaticMeshComponent*>& InStaticMeshComponentsToMerge, const TArray<UMaterialInterface*>& InUniqueMaterials, const TMap<UMaterialInterface*, UMaterialInterface*>& InCollapsedMaterialMap, const TMultiMap<FMeshLODKey, MaterialRemapPair>& InOutputMaterialsMap, bool bInMergeAllLODs, bool bInMergeMaterialData, const FVector& InMergedAssetPivot, TArray<FMeshDescription>& OutMergedRawMeshes) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshMergeUtilities::CreateMergedRawMeshes)
+
 	if (bInMergeAllLODs)
 	{
 		OutMergedRawMeshes.AddDefaulted(InDataTracker.GetNumLODsForMergedMesh());

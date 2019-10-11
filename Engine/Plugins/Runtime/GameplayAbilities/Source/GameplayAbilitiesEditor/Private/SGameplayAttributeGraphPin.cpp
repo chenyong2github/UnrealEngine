@@ -21,7 +21,10 @@ TSharedRef<SWidget>	SGameplayAttributeGraphPin::GetDefaultValueWidget()
 	FGameplayAttribute DefaultAttribute;
 
 	UScriptStruct* PinLiteralStructType = FGameplayAttribute::StaticStruct();
-	PinLiteralStructType->ImportText(*DefaultString, &DefaultAttribute, nullptr, EPropertyPortFlags::PPF_SerializedAsImportText, nullptr, PinLiteralStructType->GetName(), true);
+	if (!DefaultString.IsEmpty())
+	{
+		PinLiteralStructType->ImportText(*DefaultString, &DefaultAttribute, nullptr, EPropertyPortFlags::PPF_SerializedAsImportText, GError, PinLiteralStructType->GetName(), true);
+	}
 
 	//Create widget
 	return SNew(SVerticalBox)

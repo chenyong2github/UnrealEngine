@@ -4,6 +4,11 @@
 
 #include "CoreMinimal.h"
 
+#include "Logging/TokenizedMessage.h"
+
+class AActor;
+class UWorld;
+
 namespace DataprepCorePrivateUtils
 {
 	/**
@@ -37,4 +42,32 @@ namespace DataprepCorePrivateUtils
 
 		return false;
 	}
+
+	/**
+	 * Mark the input object for kill and unregister it
+	 * @param Asset		The object to be deleted
+	 */
+	void DeleteRegisteredAsset(UObject* Asset);
+
+	/**
+	 * Collect on the valid actors in the input World
+	 * @param World			World to parse
+	 * @param OutActors		Actors present in the world
+	 */
+	void GetActorsFromWorld( const UWorld* World, TArray<AActor*>& OutActors );
+
+	/** Returns directory where to store temporary files when running Dataprep asset */
+	const FString& GetRootTemporaryDir();
+
+	/** Returns content folder where to create temporary assets when running Dataprep asset */
+	const FString& GetRootPackagePath();
+
+	/**
+	 * Logs messages in output log and message panel using "Dataprep Core" label
+	 * @param Severity				Severity of the message to log
+	 * @param Message				Message to log
+	 * @param NotificationText		Text of the notification to display to alert the user 
+	 * @remark Notification is only done ifNotificationText is not empty
+	 */
+	void LogMessage(EMessageSeverity::Type Severity, const FText& Message, const FText& NotificationText = FText());
 }

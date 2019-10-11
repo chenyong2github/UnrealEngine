@@ -6,12 +6,11 @@ using System.IO;
 public class UEOgg : ModuleRules
 {
     protected virtual string OggVersion { get { return "libogg-1.2.2"; } }
+	protected virtual string IncRootDirectory { get { return Target.UEThirdPartySourceDirectory; } }
+	protected virtual string LibRootDirectory { get { return Target.UEThirdPartySourceDirectory; } }
 
-    protected virtual string IncRootDirectory { get { return ModuleDirectory; } }
-    protected virtual string LibRootDirectory { get { return ModuleDirectory; } }
-
-    protected virtual string OggIncPath { get { return Path.Combine(IncRootDirectory, OggVersion, "include"); } }
-    protected virtual string OggLibPath { get { return Path.Combine(LibRootDirectory, OggVersion, "lib"); } }
+	protected virtual string OggIncPath { get { return Path.Combine(IncRootDirectory, "Ogg", OggVersion, "include"); } }
+	protected virtual string OggLibPath { get { return Path.Combine(LibRootDirectory, "Ogg", OggVersion, "lib"); } }
 
     public UEOgg(ReadOnlyTargetRules Target) : base(Target)
 	{
@@ -19,9 +18,13 @@ public class UEOgg : ModuleRules
 		
 		PublicSystemIncludePaths.Add(OggIncPath);
 
+		string LibDir;
+
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			PublicAdditionalLibraries.Add(Path.Combine(OggLibPath, "Win64", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), "libogg_64.lib"));
+			LibDir = Path.Combine(OggLibPath, "Win64", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
+
+			PublicAdditionalLibraries.Add(Path.Combine(LibDir, "libogg_64.lib"));
 
 			PublicDelayLoadDLLs.Add("libogg_64.dll");
 
@@ -29,7 +32,9 @@ public class UEOgg : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win32)
 		{
-            PublicAdditionalLibraries.Add(Path.Combine(OggLibPath, "Win32", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), "libogg.lib"));
+			LibDir = Path.Combine(OggLibPath, "Win32", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
+
+			PublicAdditionalLibraries.Add(Path.Combine(LibDir, "libogg.lib"));
 
 			PublicDelayLoadDLLs.Add("libogg.dll");
 
@@ -44,12 +49,11 @@ public class UEOgg : ModuleRules
                 LibFileName += "_64";
             }
 
-			string LibDir;
             if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
             {
-                LibDir = Path.Combine(OggLibPath, PlatformSubpath, "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.WindowsPlatform.GetArchitectureSubpath());
+                LibDir = System.String.Format("{0}/{1}/VS{2}/{3}/", OggLibPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.WindowsPlatform.GetArchitectureSubpath());
                 RuntimeDependencies.Add(
-					string.Format("$(EngineDir)/Binaries/ThirdParty/Ogg/{0}/VS{1}/{2}/{3}.dll",
+					System.String.Format("$(EngineDir)/Binaries/ThirdParty/Ogg/{0}/VS{1}/{2}/{3}.dll",
                         Target.Platform,
 						Target.WindowsPlatform.GetVisualStudioCompilerVersionName(),
                         Target.WindowsPlatform.GetArchitectureSubpath(),
@@ -57,9 +61,9 @@ public class UEOgg : ModuleRules
             }
             else
             {
-                LibDir = Path.Combine(OggLibPath, PlatformSubpath, "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
+                LibDir = System.String.Format("{0}/{1}/VS{2}/", OggLibPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
                 RuntimeDependencies.Add(
-                    string.Format("$(EngineDir)/Binaries/ThirdParty/Ogg/{0}/VS{1}/{2}.dll",
+                    System.String.Format("$(EngineDir)/Binaries/ThirdParty/Ogg/{0}/VS{1}/{2}.dll",
                         Target.Platform,
                         Target.WindowsPlatform.GetVisualStudioCompilerVersionName(),
                         LibFileName));
@@ -70,29 +74,9 @@ public class UEOgg : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
-			string DylibPath = Target.UEThirdPartyBinariesDirectory + "Ogg/Mac/libogg.dylib";
+			string DylibPath = Path.Combine(Target.UEThirdPartyBinariesDirectory, "Ogg", "Mac", "libogg.dylib");
 			PublicDelayLoadDLLs.Add(DylibPath);
 			RuntimeDependencies.Add(DylibPath);
-		}
-		else if (Target.Platform == UnrealTargetPlatform.HTML5)
-		{
-			string OptimizationSuffix = "";
-			if (Target.bCompileForSize)
-			{
-				OptimizationSuffix = "_Oz";
-			}
-			else
-			{
-				if (Target.Configuration == UnrealTargetConfiguration.Development)
-				{
-					OptimizationSuffix = "_O2";
-				}
-				else if (Target.Configuration == UnrealTargetConfiguration.Shipping)
-				{
-					OptimizationSuffix = "_O3";
-				}
-			}
-			PublicAdditionalLibraries.Add(Path.Combine(OggLibPath, "HTML5", "libogg" + OptimizationSuffix + ".bc"));
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
 		{
@@ -103,14 +87,10 @@ public class UEOgg : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			if (Target.LinkType == TargetLinkType.Monolithic)
-			{
-				PublicAdditionalLibraries.Add(Path.Combine(OggLibPath, "Linux", Target.Architecture, "libogg.a"));
-			}
-			else
-			{
-				PublicAdditionalLibraries.Add(Path.Combine(OggLibPath, "Linux", Target.Architecture, "libogg_fPIC.a"));
-			}
+			string fPIC = (Target.LinkType == TargetLinkType.Monolithic)
+				? ""
+				: "_fPIC";
+			PublicAdditionalLibraries.Add(Path.Combine(OggLibPath, "Linux", Target.Architecture, "libogg" + fPIC + ".a"));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.XboxOne)
 		{

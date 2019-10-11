@@ -1127,6 +1127,14 @@ FAutomationScreenshotOptions UAutomationBlueprintFunctionLibrary::GetDefaultScre
 	return Options;
 }
 
+void UAutomationBlueprintFunctionLibrary::AddExpectedLogError(FString ExpectedPatternString, int32 Occurrences, bool ExactMatch)
+{
+	if (FAutomationTestBase* CurrentTest = FAutomationTestFramework::Get().GetCurrentTest())
+	{
+		CurrentTest->AddExpectedError(ExpectedPatternString, ExactMatch? EAutomationExpectedErrorFlags::Exact:EAutomationExpectedErrorFlags::Contains, Occurrences);
+	}
+}
+
 void UAutomationBlueprintFunctionLibrary::SetScalabilityQualityLevelRelativeToMax(UObject* WorldContextObject, int32 Value /*= 1*/)
 {
 	Scalability::FQualityLevels Quality;

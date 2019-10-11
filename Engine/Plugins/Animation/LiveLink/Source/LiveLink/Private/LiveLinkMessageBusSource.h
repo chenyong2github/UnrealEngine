@@ -26,8 +26,6 @@ public:
 		, SourceMachineName(InSourceMachineName)
 		, ConnectionLastActive(0.0)
 		, bIsValid(false)
-		, bInvalidSubjectNameErrorReported(false)
-		, bInvalidRoleErrorReported(false)
 	{}
 
 	virtual void ReceiveClient(ILiveLinkClient* InClient, FGuid InSourceGuid) override;
@@ -81,8 +79,4 @@ private:
 
 	// Critical section to allow for threadsafe updating of the connection time
 	FCriticalSection ConnectionLastActiveSection;
-
-	// Flag to prevent log spamming. Only log an error once.
-	FThreadSafeBool bInvalidSubjectNameErrorReported;
-	FThreadSafeBool bInvalidRoleErrorReported;
 };

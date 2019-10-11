@@ -150,7 +150,7 @@ namespace UnrealBuildTool
 				Event Event = Events[EventIdx];
 
 				// Pop events off the stack
-				for (; OuterEvents.Count > 0; OuterEvents.RemoveAt(OuterEvents.Count - 1))
+				for (; OuterEvents.Count > 1; OuterEvents.RemoveAt(OuterEvents.Count - 1))
 				{
 					Event OuterEvent = OuterEvents.Last();
 					if (Event.StartTime < OuterEvent.FinishTime.Value)

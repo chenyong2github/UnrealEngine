@@ -13,7 +13,6 @@
 #include "StereoLayerManager.h"
 #include "XRRenderTargetManager.h"
 #include "XRRenderBridge.h"
-#include "XRSwapChain.h"
 #include "IHeadMountedDisplayVulkanExtensions.h"
 
 #if PLATFORM_WINDOWS
@@ -65,6 +64,52 @@ struct FSteamVRLayer
 	friend bool GetLayerDescMember(const FSteamVRLayer& Layer, FLayerDesc& OutLayerDesc);
 	friend void SetLayerDescMember(FSteamVRLayer& Layer, const FLayerDesc& InLayerDesc);
 	friend void MarkLayerTextureForUpdate(FSteamVRLayer& Layer);
+};
+
+/**
+ * Render target swap chain
+ */
+class FRHITextureSet2D : public FRHITexture2D
+{
+public:
+	
+	FRHITextureSet2D(const uint32 TextureSetSize, EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, uint32 Flags, const FClearValueBinding& InClearValue)
+	: FRHITexture2D(SizeX, SizeY, NumMips, NumSamples, Format, Flags, InClearValue)
+	, TextureIndex(0)
+	{
+		TextureSet.AddZeroed(TextureSetSize);
+	}
+	
+	virtual ~FRHITextureSet2D()
+	{}
+	
+	void AddTexture(FTexture2DRHIRef& Texture, const uint32 Index)
+	{
+		check(Index < static_cast<uint32>(TextureSet.Num()));
+		// todo: Check texture format to ensure it matches the set
+		TextureSet[Index] = Texture;
+	}
+	
+	void Advance()
+	{
+		TextureIndex = (TextureIndex + 1) % static_cast<uint32>(TextureSet.Num());
+	}
+	
+	virtual void* GetTextureBaseRHI() override
+	{
+		check(TextureSet[TextureIndex].IsValid());
+		return TextureSet[TextureIndex]->GetTextureBaseRHI();
+	}
+	
+	virtual void* GetNativeResource() const override
+	{
+		check(TextureSet[TextureIndex].IsValid());
+		return TextureSet[TextureIndex]->GetNativeResource();
+	}
+	
+private:
+	TArray<FTexture2DRHIRef> TextureSet;
+	uint32 TextureIndex;
 };
 
 /**
@@ -135,6 +180,8 @@ public:
 
 	virtual void UpdateScreenSettings(const FViewport* InViewport) override {}
 	
+	virtual bool AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 InTexFlags, uint32 InTargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples = 1) override;
+
 	virtual bool GetHMDDistortionEnabled(EShadingPath ShadingPath) const override;
 
 	virtual void OnBeginRendering_GameThread() override;
@@ -164,9 +211,6 @@ public:
 	}
 	virtual void CalculateRenderTargetSize(const class FViewport& Viewport, uint32& InOutSizeX, uint32& InOutSizeY) override;
 	virtual bool NeedReAllocateViewportRenderTarget(const class FViewport& Viewport) override;
-	virtual bool NeedReAllocateDepthTexture(const TRefCountPtr<struct IPooledRenderTarget>& DepthTarget) override;
-	virtual bool AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 InTexFlags, uint32 InTargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples = 1) override;
-	virtual bool AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 Flags, uint32 TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples = 1) override;
 
 	// IStereoLayers interface
 	// Create/Set/Get/Destroy inherited from TStereoLayerManager
@@ -211,35 +255,28 @@ public:
 			return bUseExplicitTimingMode;
 		}
 
-		FXRSwapChainPtr GetSwapChain() { return SwapChain; }
-		FXRSwapChainPtr GetDepthSwapChain() { return DepthSwapChain; }
-
 		/** Schedules BeginRendering_RHI on the RHI thread when in explicit timing mode */
 		void BeginRendering_RenderThread(FRHICommandListImmediate& RHICmdList);
 
 		/** Called only when we're in explicit timing mode, which needs to be paired with a call to PostPresentHandoff */
 		void BeginRendering_RHI();
 
-		void CreateSwapChain(const FTextureRHIRef& BindingTexture, TArray<FTextureRHIRef>&& SwapChainTextures);
-		void CreateDepthSwapChain(const FTextureRHIRef& BindingTexture, TArray<FTextureRHIRef>&& SwapChainTextures);
 
 		// Virtual interface implemented by subclasses
 		virtual void Reset() = 0;
-
 	private:
 		virtual void FinishRendering() = 0;
 
 	protected:
 		
 		FSteamVRHMD*			Plugin;
-		FXRSwapChainPtr			SwapChain;
-		FXRSwapChainPtr			DepthSwapChain;
-
 		bool					bInitialized;
 		
 		/** If we use explicit timing mode, we must have matching calls to BeginRendering_RHI and PostPresentHandoff */
 		bool					bUseExplicitTimingMode;
 		bool NeedsPostPresentHandoff() const;
+		
+
 	};
 
 #if PLATFORM_WINDOWS
@@ -248,9 +285,13 @@ public:
 	public:
 		D3D11Bridge(FSteamVRHMD* plugin);
 
+
 		virtual void FinishRendering() override;
 		virtual void UpdateViewport(const FViewport& Viewport, FRHIViewport* InViewportRHI) override;
 		virtual void Reset() override;
+
+	protected:
+		ID3D11Texture2D* RenderTargetTexture = NULL;
 	};
 #endif // PLATFORM_WINDOWS
 
@@ -277,6 +318,10 @@ public:
 		virtual void FinishRendering() override;
 		virtual void UpdateViewport(const FViewport& Viewport, FRHIViewport* InViewportRHI) override;
 		virtual void Reset() override;
+
+	protected:
+
+		FTexture2DRHIRef RenderTargetTexture;
 	};
 
 	class OpenGLBridge : public BridgeBaseImpl
@@ -287,6 +332,10 @@ public:
 		virtual void FinishRendering() override;
 		virtual void UpdateViewport(const FViewport& Viewport, FRHIViewport* InViewportRHI) override;
 		virtual void Reset() override;
+
+	protected:
+		GLuint RenderTargetTexture = 0;
+
 	};
 	
 #elif PLATFORM_MAC
@@ -300,6 +349,8 @@ public:
 		virtual void Reset() override;
 		
 		IOSurfaceRef GetSurface(const uint32 SizeX, const uint32 SizeY);
+		
+		FTexture2DRHIRef TextureSet;
 	};
 #endif // PLATFORM_MAC
 
@@ -390,36 +441,6 @@ public:
 
 		return out;
 	}
-
-	static FORCEINLINE vr::HmdMatrix44_t ToHmdMatrix44(const FMatrix& tm)
-	{
-		// Rows and columns are swapped between vr::HmdMatrix44_t and FMatrix
-		vr::HmdMatrix44_t out;
-
-		out.m[0][0] = tm.M[0][0];
-		out.m[1][0] = tm.M[0][1];
-		out.m[2][0] = tm.M[0][2];
-		out.m[3][0] = tm.M[0][3];
-
-		out.m[0][1] = tm.M[1][0];
-		out.m[1][1] = tm.M[1][1];
-		out.m[2][1] = tm.M[1][2];
-		out.m[3][1] = tm.M[1][3];
-
-		out.m[0][2] = tm.M[2][0];
-		out.m[1][2] = tm.M[2][1];
-		out.m[2][2] = tm.M[2][2];
-		out.m[3][2] = tm.M[2][3];
-
-		out.m[0][3] = tm.M[3][0];
-		out.m[1][3] = tm.M[3][1];
-		out.m[2][3] = tm.M[3][2];
-		out.m[3][3] = tm.M[3][3];
-
-		return out;
-	}
-
-
 private:
 
 	void SetupOcclusionMeshes();

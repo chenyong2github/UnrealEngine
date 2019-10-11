@@ -54,6 +54,11 @@ namespace MPCDI
 			return PixelFormat; 
 		}
 
+		inline bool IsValid() const
+		{
+			return (Width > 0) && (Height > 0);
+		}
+
 		void ReleaseTextureData();
 
 	private:

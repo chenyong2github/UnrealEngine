@@ -806,18 +806,12 @@ inline bool operator!=(const FShaderCodeVendorExtension& A, const FShaderCodeVen
 	return !(A == B);
 }
 
-#ifdef __EMSCRIPTEN__
-// Emscripten asm.js is strict and doesn't support unaligned memory load or stores.
-// When such an unaligned memory access occurs, the compiler needs to know about it,
-// so that it can generate the appropriate unalignment-aware memory load/store instruction.
-typedef int32 __attribute__((aligned(1))) unaligned_int32;
-typedef uint32 __attribute__((aligned(1))) unaligned_uint32;
-#else
-// On x86 etc. unaligned memory accesses are supported by the CPU, so no need to
-// behave specially for them.
-typedef int32 unaligned_int32;
-typedef uint32 unaligned_uint32;
+#ifndef RENDERCORE_ATTRIBUTE_UNALIGNED
+// TODO find out if using GCC_ALIGN(1) instead of this new #define break on all kinds of platforms...
+#define RENDERCORE_ATTRIBUTE_UNALIGNED
 #endif
+typedef int32  RENDERCORE_ATTRIBUTE_UNALIGNED unaligned_int32;
+typedef uint32 RENDERCORE_ATTRIBUTE_UNALIGNED unaligned_uint32;
 
 // later we can transform that to the actual class passed around at the RHI level
 class FShaderCodeReader

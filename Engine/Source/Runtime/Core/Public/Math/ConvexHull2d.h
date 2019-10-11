@@ -100,9 +100,9 @@ namespace ConvexHull2D
 					continue;
 				}
 
-				FVector A = Points[Hull];
-				FVector B = Points[NextPoint];
-				FVector C = Points[j];
+				const FVector & A = Points.GetData()[Hull];
+				const FVector & B = Points.GetData()[NextPoint];
+				const FVector & C = Points.GetData()[j];
 				float Deter = ComputeDeterminant(A, B, C);
 
 				// 0.001 Bias is to stop floating point errors, when comparing points on a straight line; KINDA_SMALL_NUMBER was slightly too small to use.

@@ -1,0 +1,594 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+NiagaraDataInterfacePressureGrid.ush 
+=============================================================================*/
+
+#pragma once
+
+/* -----------------------------------------------------------------
+ * Pressure Grid constants and context
+ * -----------------------------------------------------------------
+ */
+
+static const float FLOAT_PRECISION = 1e+6;
+static const bool FAST_MODE = true;
+
+static const int FLUID_MASS_OFFSET = 0;
+static const int FLUID_VELOCITY_OFFSET = 3;
+static const int FLUID_PRESSURE_OFFSET = 6;
+static const int SOLID_WEIGHT_OFFSET = 7;
+static const int SOLID_VELOCITY_OFFSET = 10;
+static const int SOLID_DISTANCE_OFFSET = 13;
+
+struct FDIPressureGridContext
+{
+	float4x4			WorldTransform;
+	float4x4			WorldInverse;
+	float4				GridOrigin;
+	int4				GridSize;
+	Texture3D<int>		GridCurrentBuffer;
+	RWTexture3D<int>	GridDestinationBuffer;
+}; 
+
+#define DIPRESSUREGRID_DECLARE_CONSTANTS(NAME)\
+float4x4 WorldTransform_##NAME;\
+float4x4 WorldInverse_##NAME;\
+float4 GridOrigin_##NAME;\
+int4 GridSize_##NAME;\
+Texture3D<int> GridCurrentBuffer_##NAME;\
+RWTexture3D<int> GridDestinationBuffer_##NAME;\
+
+#define DIPRESSUREGRID_MAKE_CONTEXT(NAME)\
+FDIPressureGridContext DIContext; \
+DIContext.WorldTransform = WorldTransform_##NAME;\
+DIContext.WorldInverse = WorldInverse_##NAME;\
+DIContext.GridOrigin = GridOrigin_##NAME;\
+DIContext.GridSize = GridSize_##NAME;\
+DIContext.GridCurrentBuffer = GridCurrentBuffer_##NAME;\
+DIContext.GridDestinationBuffer = GridDestinationBuffer_##NAME;\
+
+/* -----------------------------------------------------------------
+ * Grid utilities
+ * -----------------------------------------------------------------
+ */
+
+// Return true if the grid index is in the valid space
+bool DIPressureGrid_IsIndexValid(in int3 GridIndex, in int4 ValidSpace)
+{
+	return ((GridIndex.x < (ValidSpace.x-1)) && (GridIndex.y < (ValidSpace.y-1)) && 
+			(GridIndex.z < (ValidSpace.z-1)) && (GridIndex.x >= 0) && (GridIndex.y >= 0) && (GridIndex.z >= 0));
+}
+
+// Return true if the grid cell index is in any voxel center (0,N-2)
+bool DIPressureGrid_IsCellValid(in FDIPressureGridContext DIContext, in int3 GridIndex)
+{
+	return DIPressureGrid_IsIndexValid(GridIndex,DIContext.GridSize);
+}
+
+// Return true if the grid index is in any voxel face for the component one (0,N-1) and in the voxel center for the others (0,N-2)
+bool DIPressureGrid_IsFaceValid(in FDIPressureGridContext DIContext, in int3 GridIndex, in int ComponentIndex)
+{
+	int4 ValidSpace = DIContext.GridSize; //ValidSpace[ComponentIndex] += 1;
+	if( ComponentIndex == 0 )
+	{
+		ValidSpace.x += 1;
+	}
+	else if( ComponentIndex == 1 )
+	{
+		ValidSpace.y += 1;
+	}
+	else if( ComponentIndex == 2 )
+	{
+		ValidSpace.z += 1;
+	}
+	return DIPressureGrid_IsIndexValid(GridIndex,ValidSpace);
+}
+
+// Transform the node world position in grid space
+float3 DIPressureGrid_GetGridPosition(in FDIPressureGridContext DIContext, in float3 NodePosition)
+{
+	return ( mul(float4( NodePosition, 1.0), DIContext.WorldInverse).xyz - DIContext.GridOrigin.xyz );
+}
+
+// Compute the grid index and fraction given a grid position
+void DIPressureGrid_GetGridIndex(in FDIPressureGridContext DIContext, in float3 GridPosition, in float3 GridOffset, out int3 OutGridIndex, out float3 OutGridFraction)
+{
+	const float3 GridCell = GridPosition / DIContext.GridOrigin.w - GridOffset;
+
+	OutGridIndex = floor(GridCell);
+	OutGridFraction = GridCell - OutGridIndex;
+}
+
+// Compute the data index from agrid index and a data offset
+int3 DIPressureGrid_GetDataIndex( in FDIPressureGridContext DIContext, in int3 GridIndex, in int DataOffset)
+{
+	return int3( GridIndex.x + DataOffset * DIContext.GridSize.x, GridIndex.yz);
+}
+
+/* -----------------------------------------------------------------
+ * Get grid information from hash value
+ * -----------------------------------------------------------------
+ */
+
+// Compute the grid index given a grid hash
+int3 DIPressureGrid_ComputeGridIndex(in FDIPressureGridContext DIContext, in int GridCell)
+{
+	const int GridSizeXY = DIContext.GridSize.y * DIContext.GridSize.z;
+	const int GridCellYZ = GridCell % GridSizeXY;
+
+	return int3(GridCell / GridSizeXY, GridCellYZ / DIContext.GridSize.z,GridCellYZ % DIContext.GridSize.z);
+}
+
+// Compute the grid hash given a grid index
+int DIPressureGrid_ComputeGridCell(in FDIPressureGridContext DIContext, in int3 GridIndex)
+{
+	return GridIndex.x * DIContext.GridSize.y * DIContext.GridSize.z + GridIndex.y * DIContext.GridSize.z + GridIndex.z;
+}
+
+// Compute the world grid position
+void DIPressureGrid_GetCellPosition(in FDIPressureGridContext DIContext, in int GridCell, out float3 OutCellPosition)
+{
+	const int3 GridIndex = DIPressureGrid_ComputeGridIndex(DIContext,GridCell);
+	OutCellPosition = mul(float4((GridIndex+float3(0.5,0.5,0.5))*DIContext.GridOrigin.w+DIContext.GridOrigin.xyz,1.0),DIContext.WorldTransform).xyz;
+}
+
+/* -----------------------------------------------------------------
+ * Transfer the velocity and mass buffer from the current to the destination buffer
+ * -----------------------------------------------------------------
+ */
+
+void DIPressureGrid_TransferGridComponent(in FDIPressureGridContext DIContext, in int3 GridIndex, in int ComponentIndex)
+{
+	const int GridMomentum = DIContext.GridCurrentBuffer[DIPressureGrid_GetDataIndex(DIContext,GridIndex,FLUID_VELOCITY_OFFSET+ComponentIndex)];
+	const int GridMass = DIContext.GridCurrentBuffer[DIPressureGrid_GetDataIndex(DIContext,GridIndex,FLUID_MASS_OFFSET+ComponentIndex)];
+
+	if(GridMass != 0)
+	{
+		if(FAST_MODE)
+		{
+			const float GridMassFloat = float(GridMass) / FLOAT_PRECISION;
+			const float GridVelocityFloat = ( float(GridMomentum) / FLOAT_PRECISION ) / GridMassFloat;
+
+			DIContext.GridDestinationBuffer[DIPressureGrid_GetDataIndex(DIContext,GridIndex,FLUID_VELOCITY_OFFSET+ComponentIndex)] = asint(GridVelocityFloat);
+			DIContext.GridDestinationBuffer[DIPressureGrid_GetDataIndex(DIContext,GridIndex,FLUID_MASS_OFFSET+ComponentIndex)] = asint(GridMassFloat);
+		}
+		else
+		{
+			DIContext.GridDestinationBuffer[DIPressureGrid_GetDataIndex(DIContext,GridIndex,FLUID_VELOCITY_OFFSET+ComponentIndex)] = asint(asfloat(GridMomentum)/asfloat(GridMass));
+			DIContext.GridDestinationBuffer[DIPressureGrid_GetDataIndex(DIContext,GridIndex,FLUID_MASS_OFFSET+ComponentIndex)] = GridMass;
+		}
+	}
+	else
+	{
+		DIContext.GridDestinationBuffer[DIPressureGrid_GetDataIndex(DIContext,GridIndex,FLUID_VELOCITY_OFFSET+ComponentIndex)] = 0;
+		DIContext.GridDestinationBuffer[DIPressureGrid_GetDataIndex(DIContext,GridIndex,FLUID_MASS_OFFSET+ComponentIndex)] = 0;
+	}
+	DeviceMemoryBarrier();
+}
+
+void DIPressureGrid_TransferCellVelocity(in FDIPressureGridContext DIContext, in int GridCell, out bool OutTransferStatus)
+{
+	const int3 GridIndex = DIPressureGrid_ComputeGridIndex(DIContext,GridCell);
+	OutTransferStatus = false;
+	//if(DIPressureGrid_IsFaceValid(DIContext,GridIndex,0))
+	{
+		OutTransferStatus = true;
+		DIPressureGrid_TransferGridComponent(DIContext,GridIndex,0);
+	}
+	//if(DIPressureGrid_IsFaceValid(DIContext,GridIndex,1))
+	{
+		OutTransferStatus = true;
+		DIPressureGrid_TransferGridComponent(DIContext,GridIndex,1);
+	}
+	//if(DIPressureGrid_IsFaceValid(DIContext,GridIndex,2))
+	{
+		OutTransferStatus = true;
+		DIPressureGrid_TransferGridComponent(DIContext,GridIndex,2);
+	}
+}
+
+/* -----------------------------------------------------------------
+ * Interlocked Add Float (slow but accurate version) and Int (fast but approximate version)
+ * -----------------------------------------------------------------
+ */
+
+ void DIPressureGrid_InterlockedAddFloat(in FDIPressureGridContext DIContext, in int3 GridIndex, in int DataOffset, in float FloatValue)
+{
+	int IntValue = asint(FloatValue);
+	int CompareValue = 0;
+	int StoredValue = 0;
+
+	[allow_uav_condition] while(true)
+	{
+		InterlockedCompareExchange(DIContext.GridDestinationBuffer[
+				DIPressureGrid_GetDataIndex(DIContext,GridIndex,DataOffset)],CompareValue,IntValue,StoredValue);
+		if(StoredValue == CompareValue)
+		{
+			break;
+		}
+		CompareValue = StoredValue;
+		IntValue = asint(FloatValue+asfloat(StoredValue));
+	}
+}
+
+void DIPressureGrid_InterlockedAddInt(in FDIPressureGridContext DIContext, in int3 GridIndex, in int DataOffset, in int IntValue)
+{
+	InterlockedAdd(DIContext.GridDestinationBuffer[DIPressureGrid_GetDataIndex(DIContext,GridIndex,DataOffset)], IntValue);
+}
+
+/* -----------------------------------------------------------------
+ * Update the velocity and mass buffer
+ * -----------------------------------------------------------------
+ */
+
+void DIPressureGrid_InterlockedAddScalar(in FDIPressureGridContext DIContext, in int3 GridIndex, in int DataOffset, in float FloatValue)
+{
+	if(FAST_MODE)
+	{
+		const int IntValue = FloatValue * FLOAT_PRECISION;
+		DIPressureGrid_InterlockedAddInt(DIContext,GridIndex,DataOffset,IntValue);
+	}
+	else
+	{
+		DIPressureGrid_InterlockedAddFloat(DIContext,GridIndex,DataOffset,FloatValue);
+	}
+}
+
+void DIPressureGrid_AddGridScalar(in FDIPressureGridContext DIContext, in int3 GridIndex, in int DataOffset, in float FloatValue)
+{
+	const float SumValue = asfloat(DIContext.GridCurrentBuffer[DIPressureGrid_GetDataIndex(DIContext,GridIndex,DataOffset)])+FloatValue;
+	DIContext.GridDestinationBuffer[DIPressureGrid_GetDataIndex(DIContext,GridIndex,DataOffset)] = asint(SumValue);
+}
+
+float DIPressureGrid_GetGridScalar(in FDIPressureGridContext DIContext, in int3 GridIndex, in int DataOffset)
+{
+	return asfloat(DIContext.GridCurrentBuffer[DIPressureGrid_GetDataIndex(DIContext,GridIndex,DataOffset)]);
+}
+
+void DIPressureGrid_SetGridScalar(in FDIPressureGridContext DIContext, in int3 GridIndex, in int DataOffset, in float FloatValue)
+{
+	DIContext.GridDestinationBuffer[DIPressureGrid_GetDataIndex(DIContext,GridIndex,DataOffset)] = asint(FloatValue);
+}
+
+void DIPressureGrid_SetGridVector( in FDIPressureGridContext DIContext, in int3 GridIndex, in int DataOffset, in float3 NodeVector)
+{
+	DIPressureGrid_SetGridScalar(DIContext,GridIndex,DataOffset,NodeVector.x);
+	DIPressureGrid_SetGridScalar(DIContext,GridIndex,DataOffset+1,NodeVector.y);
+	DIPressureGrid_SetGridScalar(DIContext,GridIndex,DataOffset+2,NodeVector.z);
+}
+
+void DIPressureGrid_AddGridVector( in FDIPressureGridContext DIContext, in int3 GridIndex, in int DataOffset, in float3 NodeVector)
+{
+	DIPressureGrid_AddGridScalar(DIContext,GridIndex,DataOffset,NodeVector.x);
+	DIPressureGrid_AddGridScalar(DIContext,GridIndex,DataOffset+1,NodeVector.y);
+	DIPressureGrid_AddGridScalar(DIContext,GridIndex,DataOffset+2,NodeVector.z);
+}
+
+float3 DIPressureGrid_GetGridVector( in FDIPressureGridContext DIContext, in int3 GridIndex, in int DataOffset)
+{
+	return float3(DIPressureGrid_GetGridScalar(DIContext,GridIndex,DataOffset),
+				  DIPressureGrid_GetGridScalar(DIContext,GridIndex,DataOffset+1),
+				  DIPressureGrid_GetGridScalar(DIContext,GridIndex,DataOffset+2));
+}
+
+/* -----------------------------------------------------------------
+ * Build Velocity Field from nodes
+ * -----------------------------------------------------------------
+ */
+
+// Transfer the velocity component from the node to the grid
+void DIPressureGrid_BuildVelocityComponent(in FDIPressureGridContext DIContext, in float3 GridPosition, in float SampleMass, in float SampleMomentum,
+			in float3 MomentumGradient, in float3 ComponentOffset, in int ComponentIndex )
+{
+	int3 GridIndex = int3(0,0,0); float3 GridFraction = float3(0,0,0);
+	DIPressureGrid_GetGridIndex(DIContext,GridPosition,ComponentOffset,GridIndex,GridFraction);
+
+	if(DIPressureGrid_IsFaceValid(DIContext,GridIndex,ComponentIndex) && 
+	   DIPressureGrid_IsFaceValid(DIContext,GridIndex+int3(1,1,1),ComponentIndex))
+	{
+		[unroll]
+		for(int i = 0; i < 2; ++i)
+		{
+			const float GridWeightX = (i == 0) ? 1.0 - GridFraction.x : GridFraction.x;
+			[unroll]
+			for(int j = 0; j < 2; ++j)
+			{
+				const float GridWeightY = (j == 0) ? 1.0 - GridFraction.y : GridFraction.y;
+				[unroll]
+				for(int k = 0; k < 2; ++k)
+				{
+					const float GridWeightZ = (k == 0) ? 1.0 - GridFraction.z : GridFraction.z;
+					const float GridWeightXYZ = GridWeightX*GridWeightY*GridWeightZ;
+
+					const int3 GridLocation = int3(GridIndex.x+i,GridIndex.y+j,GridIndex.z+k);
+					const float3 DeltaPosition = ((GridLocation+ComponentOffset)*DIContext.GridOrigin.w) - GridPosition;
+					const float GridMomentum = SampleMomentum + dot(MomentumGradient, DeltaPosition);
+
+					DIPressureGrid_InterlockedAddScalar(DIContext,GridLocation,FLUID_MASS_OFFSET+ComponentIndex,SampleMass*GridWeightXYZ);
+					DIPressureGrid_InterlockedAddScalar(DIContext,GridLocation,FLUID_VELOCITY_OFFSET+ComponentIndex,GridMomentum*GridWeightXYZ);
+				}
+			}
+		}
+	}
+}
+
+// Transfer the velocity from the node to the grid
+void DIPressureGrid_BuildVelocityField(in FDIPressureGridContext DIContext, in int StrandsSize, in float3 NodePosition, in float NodeMass, in float3 NodeVelocity, 
+			in float3 VelocityGradientX, in float3 VelocityGradientY, in float3 VelocityGradientZ, out bool OutBuildStatus)
+{
+	SharedNodePosition[GGroupThreadId.x] = NodePosition;
+	SharedPreviousPosition[GGroupThreadId.x] = NodeVelocity;
+	SharedInverseMass[GGroupThreadId.x] = NodeMass;
+	GroupMemoryBarrier();
+
+	const int LocalIndex = GGroupThreadId.x % StrandsSize;
+
+	if( LocalIndex > 0 )
+	{
+		const float3 DeltaVelocity = SharedPreviousPosition[GGroupThreadId.x] - SharedPreviousPosition[GGroupThreadId.x-1];
+		const float3 DeltaPosition = SharedNodePosition[GGroupThreadId.x] - SharedNodePosition[GGroupThreadId.x-1];
+
+		const float2 SegmentWeight = (LocalIndex == 1) ? float2(1.0,0.5) : (LocalIndex == (StrandsSize-1) ) ? float2(0.5,1.0) : float2(0.5,0.5);
+		const float SegmentMass =  (SharedInverseMass[GGroupThreadId.x-1] * SegmentWeight.x + SharedInverseMass[GGroupThreadId.x] * SegmentWeight.y);
+		const float SegmentLength = length(DeltaPosition);
+
+		const int NumSamples = ceil(SegmentLength / DIContext.GridOrigin.w);
+
+		const float SampleMass = SegmentMass / NumSamples;
+
+		const float3 MomentumGradientX = VelocityGradientX * SampleMass;
+		const float3 MomentumGradientY = VelocityGradientY * SampleMass;
+		const float3 MomentumGradientZ = VelocityGradientZ * SampleMass;
+
+		for( int SampleIndex = 0; SampleIndex < NumSamples; ++SampleIndex)
+		{
+			const float SampleCoord = (0.5+SampleIndex) / NumSamples;
+			const float3 SamplePosition = SharedNodePosition[GGroupThreadId.x] + SampleCoord * DeltaPosition;
+			const float3 SampleMomentum = (SharedPreviousPosition[GGroupThreadId.x] + SampleCoord * DeltaVelocity) * SampleMass;
+
+			const float3 GridPosition = DIPressureGrid_GetGridPosition(DIContext,SamplePosition);
+
+			DIPressureGrid_BuildVelocityComponent(DIContext,GridPosition,SampleMass,SampleMomentum.x,MomentumGradientX,float3(0.0,0.5,0.5),0);
+			DIPressureGrid_BuildVelocityComponent(DIContext,GridPosition,SampleMass,SampleMomentum.y,MomentumGradientY,float3(0.5,0.0,0.5),1);
+			DIPressureGrid_BuildVelocityComponent(DIContext,GridPosition,SampleMass,SampleMomentum.z,MomentumGradientZ,float3(0.5,0.5,0.0),2);
+		}
+	}
+	OutBuildStatus = true;
+}
+
+/* -----------------------------------------------------------------
+ * Sample Velocity field from grid
+ * -----------------------------------------------------------------
+ */
+
+// Sample the grid velocity field and gradient component at the node local position 
+void DIPressureGrid_SampleVelocityComponent(in FDIPressureGridContext DIContext, in float3 GridPosition, in float3 ComponentOffset, in int ComponentIndex, 
+						out float OutGridVelocity, out float OutGridMass, out float3 OutGridGradient)
+{
+	int3 GridIndex = int3(0,0,0); float3 GridFraction = float3(0,0,0);
+	DIPressureGrid_GetGridIndex(DIContext,GridPosition,ComponentOffset,GridIndex,GridFraction);
+
+	OutGridVelocity = 0.0;
+	OutGridGradient = float3(0,0,0);
+	OutGridMass = 0.0;
+
+	if(DIPressureGrid_IsFaceValid(DIContext,GridIndex,ComponentIndex) && 
+	   DIPressureGrid_IsFaceValid(DIContext,GridIndex+int3(1,1,1),ComponentIndex))
+	{
+		[unroll]
+		for(int i = 0; i < 2; ++i)
+		{
+			const float GridWeightX = (i == 0) ? 1.0 - GridFraction.x : GridFraction.x;
+			const float GridGradientX = (i == 0) ? -1.0: 1.0;
+			[unroll]
+			for(int j = 0; j < 2; ++j)
+			{
+				const float GridWeightY = (j == 0) ? 1.0 - GridFraction.y : GridFraction.y;
+				const float GridGradientY = (j == 0) ? -1.0: 1.0;
+				[unroll]
+				for(int k = 0; k < 2; ++k)
+				{
+					const float GridWeightZ = (k == 0) ? 1.0 - GridFraction.z : GridFraction.z;
+					const float GridGradientZ = (k == 0) ? -1.0: 1.0;
+
+					const float GridWeightXYZ = GridWeightX*GridWeightY*GridWeightZ;
+					const float3 GridGradientXYZ = float3(GridGradientX*GridWeightY*GridWeightZ,
+														  GridWeightX*GridGradientY*GridWeightZ,
+														  GridWeightX*GridWeightY*GridGradientZ) / DIContext.GridOrigin.w;
+
+					const int3 GridLocation = int3(GridIndex.x+i,GridIndex.y+j,GridIndex.z+k);
+					const float GridVelocity = DIPressureGrid_GetGridScalar(DIContext,GridLocation,FLUID_VELOCITY_OFFSET+ComponentIndex);
+					const float GridMass = DIPressureGrid_GetGridScalar(DIContext,GridLocation,FLUID_MASS_OFFSET+ComponentIndex);
+
+					OutGridMass += GridMass * GridWeightXYZ;
+					OutGridVelocity += GridVelocity * GridWeightXYZ;
+					OutGridGradient += GridVelocity * GridGradientXYZ;
+				}
+			}
+		}
+	}
+}
+
+// Sample the grid velocity field and gradient at the node world position 
+void DIPressureGrid_SampleVelocityField(in FDIPressureGridContext DIContext, in float3 NodePosition, out float3 OutGridVelocity, out float OutNodeDensity,
+			out float3 OutGridGradientX, out float3 OutGridGradientY, out float3 OutGridGradientZ)
+{
+	OutGridVelocity = float3(0,0,0);
+	OutGridGradientX = float3(0,0,0);
+	OutGridGradientY = float3(0,0,0);
+	OutGridGradientZ = float3(0,0,0);
+
+	float3 GridMass = float3(0,0,0);
+
+	const float3 GridPosition = DIPressureGrid_GetGridPosition(DIContext,NodePosition);
+	DIPressureGrid_SampleVelocityComponent(DIContext,GridPosition,float3(0.0,0.5,0.5),0,OutGridVelocity.x,GridMass.x,OutGridGradientX);
+	DIPressureGrid_SampleVelocityComponent(DIContext,GridPosition,float3(0.5,0.0,0.5),1,OutGridVelocity.y,GridMass.y,OutGridGradientY);
+	DIPressureGrid_SampleVelocityComponent(DIContext,GridPosition,float3(0.5,0.5,0.0),2,OutGridVelocity.z,GridMass.z,OutGridGradientZ);
+
+	OutNodeDensity = (GridMass.x + GridMass.y + GridMass.z)/(3.0*DIContext.GridOrigin.w*DIContext.GridOrigin.w*DIContext.GridOrigin.w);
+}
+
+/* -----------------------------------------------------------------
+ * Update boundary weights
+ * -----------------------------------------------------------------
+ */
+
+ float DIPressureGrid_GetFractionInside(in float SignedDistanceA, in float SignedDistanceB)
+ {
+	const bool IsInsideA = SignedDistanceA<0.0;
+	const bool IsInsideB = SignedDistanceB<0.0;
+
+	return (IsInsideA && IsInsideB) ? 1.0 : (IsInsideA && !IsInsideB) ? SignedDistanceA / (SignedDistanceA - SignedDistanceB) : 
+		   (!IsInsideA && IsInsideB) ? SignedDistanceB / (SignedDistanceB - SignedDistanceA)  : 0.0;
+ }
+
+ // Update the solid weights and velocities
+void DIPressureGrid_SetSolidBoundary(in FDIPressureGridContext DIContext, in int GridCell, in float SolidDistance,
+																in float3 SolidVelocity, out bool OutBoundaryStatus)
+{
+	int3 GridIndex = DIPressureGrid_ComputeGridIndex(DIContext,GridCell);
+	OutBoundaryStatus = false;
+	if( DIPressureGrid_IsCellValid(DIContext,GridIndex))
+	{
+		OutBoundaryStatus = true;
+		DIPressureGrid_SetGridScalar(DIContext,GridIndex,SOLID_DISTANCE_OFFSET,SolidDistance);
+		DIPressureGrid_SetGridVector(DIContext,GridIndex,SOLID_VELOCITY_OFFSET,SolidVelocity);
+	}
+}
+
+ // Update the solid weights and velocities
+void DIPressureGrid_ComputeBoundaryWeights(in FDIPressureGridContext DIContext, in int GridCell, out bool OutWeightsStatus)
+{
+	int3 GridIndex = DIPressureGrid_ComputeGridIndex(DIContext,GridCell);
+	OutWeightsStatus = false;
+
+	for(int ComponentIndex = 0; ComponentIndex < 3; ++ComponentIndex)
+	{
+		if( DIPressureGrid_IsFaceValid(DIContext,GridIndex,ComponentIndex))
+		{
+			float SolidWeight = 0.0, SolidVelocity = 0.0;
+			if( GridIndex[ComponentIndex] > 0 && GridIndex[ComponentIndex] < (DIContext.GridSize[ComponentIndex]-1) )
+			{
+				OutWeightsStatus = true;
+				const float RightDistance = DIPressureGrid_GetGridScalar(DIContext,GridIndex,SOLID_DISTANCE_OFFSET);
+				const float RightVelocity = DIPressureGrid_GetGridScalar(DIContext,GridIndex,SOLID_VELOCITY_OFFSET+ComponentIndex);
+
+				GridIndex[ComponentIndex] -= 1;
+				const float LeftDistance = DIPressureGrid_GetGridScalar(DIContext,GridIndex,SOLID_DISTANCE_OFFSET);
+				const float LeftVelocity = DIPressureGrid_GetGridScalar(DIContext,GridIndex,SOLID_VELOCITY_OFFSET+ComponentIndex);
+
+				SolidWeight = max(0.0,min(1.0 - DIPressureGrid_GetFractionInside(LeftDistance,RightDistance),1.0));
+				SolidVelocity = 0.5 * (RightVelocity+LeftVelocity);
+			}
+			DIPressureGrid_SetGridScalar(DIContext,GridIndex,SOLID_WEIGHT_OFFSET+ComponentIndex,SolidWeight);
+			DIPressureGrid_SetGridScalar(DIContext,GridIndex,SOLID_VELOCITY_OFFSET+ComponentIndex,SolidVelocity);
+		}
+	}
+}
+
+/* -----------------------------------------------------------------
+ * Sample Velocity field from grid
+ * -----------------------------------------------------------------
+ */
+
+// Compute the grid pressure
+// Mdv/dt = Jt * P with C = Volume * div(V) = 0.0 = ( vnx * wnx * dx * dx - vpx * wpx * dx * dx ) + ... (divergence theorem)
+// -> dv = inv(M) * Jt * P * dt;
+// Jnx = dC/dvnx = wnx * dx * dx, Jpx = dC/dvpx = -wpx * dx * dx
+// since C = C0 + dC/dv * dv = C0 + J * dv = 0 = C0 + J * inv(M) * Jt * P * dt; and M = wnx * mnx
+// the schur complement is J * inv(M) * Jt * P * dt = -C0 -> P * dt = -C0 / (wnx * dx * dx * wnx * dx * dx / ( wnx * mnx) + wpx * ....)
+// P * dt = - sum( vnx * wnx * dx * dx - vpx * wpx * dx * dx ) / sum (wnx * dx * dx * wnx * dx * dx / ( wnx * mnx);
+//        = - sum( vnx * wnx ) / sum( wnx * dx * dx / mnx ) = -sum( vnx * wnx ) / ( dx * dx * sum( wnx / mnx ) )
+float DIPressureGrid_ComputeGridPressure(in FDIPressureGridContext DIContext, in int3 PrevIndex, out float OutCellDivergence)
+{	
+	float GridPressure = 0.0;
+	OutCellDivergence = 5.0;
+
+	if(DIPressureGrid_IsCellValid(DIContext,PrevIndex))
+	{
+		float GridDivergence = 0.0;
+		float GridFraction = 0.0;
+
+		[unroll]
+		for(int ComponentIndex = 0; ComponentIndex < 3; ++ComponentIndex)
+		{
+			int3 NextIndex = PrevIndex; NextIndex[ComponentIndex] += 1;
+
+			const float PrevMass = DIPressureGrid_GetGridScalar(DIContext,PrevIndex,FLUID_MASS_OFFSET+ComponentIndex);
+			const float PrevWeight = DIPressureGrid_GetGridScalar(DIContext,PrevIndex,SOLID_WEIGHT_OFFSET+ComponentIndex);
+			
+			GridDivergence -= DIPressureGrid_GetGridScalar(DIContext,PrevIndex,SOLID_VELOCITY_OFFSET+ComponentIndex) * (1.0-PrevWeight);
+
+			if( PrevMass > 0.)
+			{
+				GridDivergence -= DIPressureGrid_GetGridScalar(DIContext,PrevIndex,FLUID_VELOCITY_OFFSET+ComponentIndex) * PrevWeight;
+				GridFraction += PrevWeight / PrevMass;
+			}
+
+			const float NextMass = DIPressureGrid_GetGridScalar(DIContext,NextIndex,FLUID_MASS_OFFSET+ComponentIndex);
+			const float NextWeight = DIPressureGrid_GetGridScalar(DIContext,NextIndex,SOLID_WEIGHT_OFFSET+ComponentIndex);
+			
+			GridDivergence += DIPressureGrid_GetGridScalar(DIContext,NextIndex,SOLID_VELOCITY_OFFSET+ComponentIndex) * (1.0-NextWeight);
+			if( NextMass > 0.)
+			{
+				GridDivergence += DIPressureGrid_GetGridScalar(DIContext,NextIndex,FLUID_VELOCITY_OFFSET+ComponentIndex) * NextWeight;
+				GridFraction += NextWeight / NextMass;
+			}
+		}
+		if( GridFraction > 0.)
+		{
+			GridPressure = -GridDivergence / ( DIContext.GridOrigin.w * DIContext.GridOrigin.w * GridFraction);
+		}
+		OutCellDivergence = 3.0;//GridDivergence;
+	}
+	return GridPressure;
+}
+
+// Project the pressure grid to be divergence free
+void DIPressureGrid_ProjectVelocityField(in FDIPressureGridContext DIContext, in int GridCell, out bool OutProjectStatus, out float OutCellDivergence)
+{	
+	OutProjectStatus = false;
+	OutCellDivergence = 10.0;
+
+	const int3 PrevIndex = DIPressureGrid_ComputeGridIndex(DIContext,GridCell);
+	if( DIPressureGrid_IsCellValid(DIContext,PrevIndex))
+	{
+		if( (PrevIndex.x+PrevIndex.y+PrevIndex.z+ShaderStageIndex) % 2 == 0)
+		{
+			OutProjectStatus = true;
+			const float GridPressure = DIPressureGrid_ComputeGridPressure(DIContext,PrevIndex,OutCellDivergence) * DIContext.GridOrigin.w * DIContext.GridOrigin.w;
+		
+			for( int ComponentIndex = 0; ComponentIndex < 3; ++ComponentIndex)
+			{
+				int3 NextIndex = PrevIndex; NextIndex[ComponentIndex] += 1;
+
+				const float PrevMass = DIPressureGrid_GetGridScalar(DIContext,PrevIndex,FLUID_MASS_OFFSET+ComponentIndex);
+				const float PrevWeight = DIPressureGrid_GetGridScalar(DIContext,PrevIndex,SOLID_WEIGHT_OFFSET+ComponentIndex);
+
+				if( PrevMass > 0.0)
+				{
+					DIPressureGrid_AddGridScalar(DIContext,PrevIndex,FLUID_VELOCITY_OFFSET+ComponentIndex,-GridPressure*PrevWeight/PrevMass);
+				}
+
+				const float NextMass = DIPressureGrid_GetGridScalar(DIContext,NextIndex,FLUID_MASS_OFFSET+ComponentIndex);
+				const float NextWeight = DIPressureGrid_GetGridScalar(DIContext,NextIndex,SOLID_WEIGHT_OFFSET+ComponentIndex);
+
+				if( NextMass > 0.0)
+				{
+					DIPressureGrid_AddGridScalar(DIContext,NextIndex,FLUID_VELOCITY_OFFSET+ComponentIndex,GridPressure*NextWeight/NextMass);
+				}
+			}
+		}
+	}
+}
+
+
+
+
+
+
+
+
+
+

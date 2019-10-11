@@ -22,7 +22,7 @@ public class UnrealMultiUserServerTarget : TargetRules
 		bCompileWithPluginSupport = true;
 		bBuildDeveloperTools = true;
 
-		// This app is a console application (sets entry point to main(), instead of WinMain())
-		bIsBuildingConsoleApplication = true;
+		// The Multi-User server is meant to be a console application (no window), but on MacOS, to get a proper log console, a full application must be built.
+		bIsBuildingConsoleApplication = Target.Platform != UnrealTargetPlatform.Mac;
 	}
 }

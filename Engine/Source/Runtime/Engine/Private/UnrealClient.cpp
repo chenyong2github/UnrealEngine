@@ -1535,23 +1535,28 @@ void FViewport::Draw( bool bShouldPresent /*= true */)
 
 				// Calculate gamethread time (excluding idle time)
 				{
-					static uint32 Lastimestamp = 0;
-					static bool bStarted = false;
-					uint32 CurrentTime	= FPlatformTime::Cycles();
-					FThreadIdleStats& GameThread = FThreadIdleStats::Get();
-					if (bStarted)
+					static uint64 LastFrameUpdated = MAX_uint64;
+					if (GFrameCounter != LastFrameUpdated)
 					{
-						uint32 ThreadTime	= CurrentTime - Lastimestamp;
-						// add any stalls via sleep or fevent
-						GGameThreadTime		= (ThreadTime > GameThread.Waits) ? (ThreadTime - GameThread.Waits) : ThreadTime;
-					}
-					else
-					{
-						bStarted = true;
-					}
+						static uint32 Lastimestamp = 0;
+						static bool bStarted = false;
+						uint32 CurrentTime	= FPlatformTime::Cycles();
+						FThreadIdleStats& GameThread = FThreadIdleStats::Get();
+						if (bStarted)
+						{
+							uint32 ThreadTime	= CurrentTime - Lastimestamp;
+							// add any stalls via sleep or fevent
+							GGameThreadTime		= (ThreadTime > GameThread.Waits) ? (ThreadTime - GameThread.Waits) : ThreadTime;
+						}
+						else
+						{
+							bStarted = true;
+						}
 
-					Lastimestamp		= CurrentTime;
-					GameThread.Waits = 0;
+						LastFrameUpdated = GFrameCounter;
+						Lastimestamp		= CurrentTime;
+						GameThread.Waits = 0;
+					}
 				}
 
 				UWorld* ViewportWorld = ViewportClient->GetWorld();

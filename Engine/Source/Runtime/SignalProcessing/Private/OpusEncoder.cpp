@@ -455,4 +455,4 @@ bool FOpusEncoder::EndFile(TArray<uint8>& OutBytes)
 }
 
 
-#endif // !PLATFORM_HTML5 && !PLATFORM_TVOS
+#endif // !PLATFORM_TVOS
