@@ -3,6 +3,7 @@
 #include "StereoStaticMeshComponent.h"
 #include "StaticMeshResources.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/Engine.h"
 
 
 class FStereoStaticMeshSceneProxy final
