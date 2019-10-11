@@ -399,6 +399,38 @@ FAnalysisEngine::FDispatch* FAnalysisEngine::AddDispatch(
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+template <typename ImplType>
+void FAnalysisEngine::ForEachRoute(const FDispatch* Dispatch, ImplType&& Impl)
+{
+	uint32 RouteCount = Routes.Num();
+	if (Dispatch->FirstRoute < RouteCount)
+	{
+		const FRoute* Route = Routes.GetData() + Dispatch->FirstRoute;
+		for (uint32 n = Route->Count; n--; ++Route)
+		{
+			IAnalyzer* Analyzer = Analyzers[Route->AnalyzerIndex];
+			if (Analyzer != nullptr)
+			{
+				Impl(Analyzer, Route->Id);
+			}
+		}
+	}
+
+	const FRoute* Route = Routes.GetData() + 1;
+	if (RouteCount > 1 && Route->Hash == RouteHash_AllEvents)
+	{
+		for (uint32 n = Route->Count; n--; ++Route)
+		{
+			IAnalyzer* Analyzer = Analyzers[Route->AnalyzerIndex];
+			if (Analyzer != nullptr)
+			{
+				Impl(Analyzer, Route->Id);
+			}
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
 void FAnalysisEngine::OnNewEventInternal(const FOnEventContext& Context)
 {
 	const FEventDataInfo& EventData = (const FEventDataInfo&)(Context.EventData);
@@ -499,42 +531,13 @@ void FAnalysisEngine::OnNewEventInternal(const FOnEventContext& Context)
 	}
 
 	// Inform routes that a new event has been declared.
-	uint32 RouteCount = Routes.Num();
-	if (Dispatch->FirstRoute < RouteCount)
+	ForEachRoute(Dispatch, [&] (IAnalyzer* Analyzer, uint16 RouteId)
 	{
-		const FRoute* Route = Routes.GetData() + Dispatch->FirstRoute;
-		for (uint32 n = Route->Count; n--; ++Route)
+		if (!Analyzer->OnNewEvent(RouteId, *(FEventTypeInfo*)Dispatch))
 		{
-			IAnalyzer* Analyzer = Analyzers[Route->AnalyzerIndex];
-			if (Analyzer == nullptr)
-			{
-				continue;
-			}
-
-			if (!Analyzer->OnNewEvent(Route->Id, *(FEventTypeInfo*)Dispatch))
-			{
-				RetireAnalyzer(Analyzer);
-			}
+			RetireAnalyzer(Analyzer);
 		}
-	}
-
-	const FRoute* Route = Routes.GetData() + 1;
-	if (RouteCount > 1 && Route->Hash == RouteHash_AllEvents)
-	{
-		for (uint32 n = Route->Count; n--; ++Route)
-		{
-			IAnalyzer* Analyzer = Analyzers[Route->AnalyzerIndex];
-			if (Analyzer == nullptr)
-			{
-				continue;
-			}
-
-			if (!Analyzer->OnNewEvent(Route->Id, *(FEventTypeInfo*)Dispatch))
-			{
-				RetireAnalyzer(Analyzer);
-			}
-		}
-	}
+	});
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -640,48 +643,13 @@ bool FAnalysisEngine::OnData(FStreamReader::FData& Data)
 		FEventDataInfo EventDataInfo = { *Dispatch, Header->EventData, Header->Size };
 		const FEventData& EventData = (FEventData&)EventDataInfo;
 
-		uint32 RouteCount = Routes.Num();
-		if (Dispatch->FirstRoute < RouteCount)
+		ForEachRoute(Dispatch, [&] (IAnalyzer* Analyzer, uint16 RouteId)
 		{
-			const FRoute* Route = Routes.GetData() + Dispatch->FirstRoute;
-			for (uint32 n = Route->Count; n--; ++Route)
+			if (!Analyzer->OnEvent(RouteId, { SessionContext, EventData }))
 			{
-				IAnalyzer* Analyzer = Analyzers[Route->AnalyzerIndex];
-				if (Analyzer == nullptr)
-				{
-					continue;
-				}
-
-				if (!Analyzer->OnEvent(Route->Id, { SessionContext, EventData }))
-				{
-					RetireAnalyzer(Analyzer);
-				}
+				RetireAnalyzer(Analyzer);
 			}
-		}
-
-		// Don't broadcast internal events
-		if (!Uid) // TODO: This makes assumptions about EKnownEventUids::User. Instead we should add this information to the trace.
-		{
-			continue;
-		}
-
-		const FRoute* Route = Routes.GetData() + 1;
-		if (RouteCount > 1 && Route->Hash == RouteHash_AllEvents)
-		{
-			for (uint32 n = Route->Count; n--; ++Route)
-			{
-				IAnalyzer* Analyzer = Analyzers[Route->AnalyzerIndex];
-				if (Analyzer == nullptr)
-				{
-					continue;
-				}
-
-				if (!Analyzer->OnEvent(Route->Id, { SessionContext, EventData }))
-				{
-					RetireAnalyzer(Analyzer);
-				}
-			}
-		}
+		});
 	}
 
 	// If there's no analyzers left we might as well not continue
