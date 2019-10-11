@@ -20,6 +20,7 @@
 #include "Widgets/Input/SButton.h"
 #include "EditorStyleSet.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewStack"
 
