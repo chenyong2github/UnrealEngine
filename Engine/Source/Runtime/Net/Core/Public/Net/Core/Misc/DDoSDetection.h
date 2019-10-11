@@ -19,7 +19,7 @@ DECLARE_DELEGATE_OneParam(FDDoSSeverityEscalation, FString /*SeverityCategory*/)
 /**
  * Struct containing the per-second packet counters
  */
-struct PACKETHANDLER_API FDDoSPacketCounters
+struct NETCORE_API FDDoSPacketCounters
 {
 	/** Counter for non-NetConnection packets received, since the last per second quota period began */
 	int32 NonConnPacketCounter;
@@ -59,7 +59,7 @@ struct PACKETHANDLER_API FDDoSPacketCounters
 /**
  * Stores the DDoS detection state (either settings from the config file, or the active DDoS detection state)
  */
-struct PACKETHANDLER_API FDDoSState
+struct NETCORE_API FDDoSState
 {
 	/** The number of packets/sec before the next stage of DDoS detection is triggered */
 	int32 EscalateQuotaPacketsPerSec;
@@ -119,7 +119,7 @@ struct PACKETHANDLER_API FDDoSState
 /**
  * DDoS detection state, with functions for applying the state to active DDoS detection
  */
-struct PACKETHANDLER_API FDDoSStateConfig : public FDDoSState
+struct NETCORE_API FDDoSStateConfig : public FDDoSState
 {
 	/** The name of the DDoS severity level this config section represents */
 	FString SeverityCategory;
@@ -161,7 +161,7 @@ struct PACKETHANDLER_API FDDoSStateConfig : public FDDoSState
  * The main DDoS detection tracking class, for counting packets and applying restrictions.
  * Implemented separate to the NetDriver, to allow wider use e.g. potentially at socket level, if useful.
  */
-class PACKETHANDLER_API FDDoSDetection : protected FDDoSPacketCounters, protected FDDoSState
+class NETCORE_API FDDoSDetection : protected FDDoSPacketCounters, protected FDDoSState
 {
 public:
 	/**

@@ -11,7 +11,8 @@ public class ReliabilityHandlerComponent : ModuleRules
         PublicDependencyModuleNames.AddRange(
             new string[] {
 				"Core",
-                "PacketHandler",
+				"NetCore",
+                "PacketHandler"
             }
         );
     }
