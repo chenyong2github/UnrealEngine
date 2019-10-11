@@ -2509,7 +2509,7 @@ UObject::UObject()
 	EnsureNotRetrievingVTablePtr();
 
 	FObjectInitializer* ObjectInitializerPtr = FUObjectThreadContext::Get().TopInitializer();
-	UE_CLOG(!ObjectInitializerPtr, LogUObjectGlobals, Fatal, TEXT("%s is not being constructed with either NewObject, NewNamedObject or ConstructObject."), *GetName());
+	UE_CLOG(!ObjectInitializerPtr, LogUObjectGlobals, Fatal, TEXT("%s is not being constructed with NewObject."), *GetName());
 	FObjectInitializer& ObjectInitializer = *ObjectInitializerPtr;
 	UE_CLOG(ObjectInitializer.Obj != nullptr && ObjectInitializer.Obj != this, LogUObjectGlobals, Fatal, TEXT("UObject() constructor called but it's not the object that's currently being constructed with NewObject. Maybe you are trying to construct it on the stack, which is not supported."));
 	const_cast<FObjectInitializer&>(ObjectInitializer).Obj = this;

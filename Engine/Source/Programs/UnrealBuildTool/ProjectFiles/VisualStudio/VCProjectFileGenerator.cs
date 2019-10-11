@@ -58,19 +58,19 @@ namespace UnrealBuildTool
 		protected VCProjectFileFormat ProjectFileFormat = VCProjectFileFormat.Default;
 
 		/// <summary>
-		/// Whether to write a solution option (suo) file for the sln
+		/// Whether to write a solution option (suo) file for the sln.
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
 		protected bool bWriteSolutionOptionFile = true;
 
 		/// <summary>
-		/// Whether to add the -FastPDB option to build command lines by default
+		/// Whether to add the -FastPDB option to build command lines by default.
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
 		bool bAddFastPDBToProjects = false;
 
 		/// <summary>
-		/// Whether to generate per-file intellisense data
+		/// Whether to generate per-file intellisense data.
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
 		bool bUsePerFileIntellisense = false;
