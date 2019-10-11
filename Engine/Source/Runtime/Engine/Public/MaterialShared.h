@@ -2113,7 +2113,7 @@ public:
 	/** Initialization constructor. */
 	FOverrideSelectionColorMaterialRenderProxy(const FMaterialRenderProxy* InParent, const FLinearColor& InSelectionColor) :
 		Parent(InParent),
-		SelectionColor(InSelectionColor)
+		SelectionColor(FLinearColor(InSelectionColor.R, InSelectionColor.G, InSelectionColor.B, 1))
 	{
 	}
 
