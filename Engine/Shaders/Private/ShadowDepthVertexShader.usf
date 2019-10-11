@@ -359,6 +359,8 @@ void Main(
 	OutputVertexID( OutParameters );
 }
 
+#if IS_FOR_GEOMETRY_SHADER
+
 // Vertex shader exports must match GS inputs.
 // This is a requirement on some platforms.
 void MainForGS(
@@ -368,11 +370,11 @@ void MainForGS(
 	out FShadowDepthVSToDS OutParameters
 #elif ONEPASS_POINTLIGHT_SHADOW
 	out FShadowDepthVSToGS OutParameters
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && USING_VERTEX_SHADER_LAYER
-	, out uint LayerIndex : SV_RenderTargetArrayIndex
-#endif
+	#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && USING_VERTEX_SHADER_LAYER
+		, out uint LayerIndex : SV_RenderTargetArrayIndex
+	#endif
 #else
-	out FShadowDepthVSToPS OutParameters
+	#error Invalid permutation for MainForGS
 #endif
 #if COMPILER_METAL
 #define SKIP_UNUSED_POSITION
@@ -393,6 +395,8 @@ void MainForGS(
 #endif
 		UnusedPosition);
 }
+
+#endif // IS_FOR_GEOMETRY_SHADER
 
 #define USING_ONEPASS_POINT_VERTEX_LAYER	(FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && ONEPASS_POINTLIGHT_SHADOW && USING_VERTEX_SHADER_LAYER)
 
@@ -458,6 +462,8 @@ void PositionOnlyMain(
 }
 
 
+#if IS_FOR_GEOMETRY_SHADER
+
 // Vertex shader exports must match GS inputs.
 // This is a requirement on some platforms.
 void PositionOnlyMainForGS(
@@ -468,7 +474,7 @@ void PositionOnlyMainForGS(
 #if ONEPASS_POINTLIGHT_SHADOW
 	out FShadowDepthVSToGS OutParameters
 #else
-	out FShadowDepthVSToPS OutParameters
+	#error Invalid permutation for PositionOnlyMainForGS
 #endif
 #if COMPILER_METAL
 	#ifndef SKIP_UNUSED_POSITION
@@ -489,5 +495,7 @@ void PositionOnlyMainForGS(
 #endif
 		OutParameters, UnusedPosition);
 }
+
+#endif // IS_FOR_GEOMETRY_SHADER
 
 #endif
