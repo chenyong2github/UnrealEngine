@@ -1052,6 +1052,13 @@ namespace UnrealBuildTool
 		public bool bCreateMapFile = false;
 
 		/// <summary>
+		/// True if runtime symbols files should be generated as a post build step for some platforms.
+		/// These files are used by the engine to resolve symbol names of callstack backtraces in logs.
+		/// </summary>
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public bool bAllowRuntimeSymbolFiles = true;
+
+		/// <summary>
 		/// Bundle version for Mac apps.
 		/// </summary>
 		[CommandLine("-BundleVersion")]
@@ -2337,6 +2344,11 @@ namespace UnrealBuildTool
 		public bool bCreateMapFile
 		{
 			get { return Inner.bCreateMapFile; }
+		}
+
+		public bool bAllowRuntimeSymbolFiles
+		{
+			get { return Inner.bAllowRuntimeSymbolFiles; }
 		}
 
 		public string BundleVersion
