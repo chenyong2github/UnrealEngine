@@ -128,6 +128,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 					Sum.bUnversioned = true;
 					Sum.FileVersionUE4 = GPackageFileUE4Version;
 					Sum.FileVersionLicenseeUE4 = GPackageFileLicenseeUE4Version;
+					Sum.CustomVersionContainer = FCustomVersionContainer::GetRegistered();
 				}
 			}
 			else
@@ -371,14 +372,6 @@ FArchive& operator<<( FArchive& Ar, FPackageFileSummary& Sum )
 {
 	FStructuredArchiveFromArchive(Ar).GetSlot() << Sum;
 	return Ar;
-}
-
-const FCustomVersionContainer& FPackageFileSummary::GetCustomVersionContainer() const
-{
-	return
-		(bUnversioned && CustomVersionContainer.GetAllVersions().Num() == 0) ?
-		FCustomVersionContainer::GetRegistered() :
-		CustomVersionContainer;
 }
 
 void FPackageFileSummary::SetCustomVersionContainer(const FCustomVersionContainer& InContainer)
