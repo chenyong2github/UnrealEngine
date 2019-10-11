@@ -1618,12 +1618,12 @@ void FRHICommandList::EndFrame()
 	if (Bypass())
 	{
 		GetContext().RHIEndFrame();
+		GDynamicRHI->RHIAdvanceFrameFence();
 		return;
 	}
 
 	ALLOC_COMMAND(FRHICommandEndFrame)();
-
-	FRHICommandListExecutor::GetImmediateCommandList().AdvanceFrameFence();
+	GDynamicRHI->RHIAdvanceFrameFence();
 
 	if (!IsRunningRHIInSeparateThread())
 	{

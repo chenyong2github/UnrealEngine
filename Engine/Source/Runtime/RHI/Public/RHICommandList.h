@@ -4512,11 +4512,6 @@ public:
 		return RHIGetViewportBackBuffer(Viewport);
 	}
 	
-	FORCEINLINE void AdvanceFrameFence()
-	{
-		RHIAdvanceFrameFence();
-	}
-
 	FORCEINLINE void AdvanceFrameForGetViewportBackBuffer(FRHIViewport* Viewport)
 	{
 		return RHIAdvanceFrameForGetViewportBackBuffer(Viewport);

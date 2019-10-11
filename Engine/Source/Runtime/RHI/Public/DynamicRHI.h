@@ -1414,11 +1414,6 @@ FORCEINLINE FTexture2DRHIRef RHIGetViewportBackBuffer(FRHIViewport* Viewport)
 	return GDynamicRHI->RHIGetViewportBackBuffer(Viewport);
 }
 
-FORCEINLINE void RHIAdvanceFrameFence()
-{
-	return GDynamicRHI->RHIAdvanceFrameFence();
-}
-
 FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceViewHTile(FRHITexture2D* RenderTarget)
 {
 	return GDynamicRHI->RHICreateShaderResourceViewHTile(RenderTarget);

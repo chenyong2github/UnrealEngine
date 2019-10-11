@@ -416,12 +416,12 @@ void FD3D12CommandContextBase::RHIEndFrame()
 		Device->GetCommandListManager().ReleaseResourceBarrierCommandListAllocator();
 	}
 
-		UpdateMemoryStats();
+	UpdateMemoryStats();
 
-	    // Stop Timing at the very last moment
+	// Stop Timing at the very last moment
     
-	    ParentAdapter->GetGPUProfiler().EndFrame(ParentAdapter->GetOwningRHI());
-	}
+	ParentAdapter->GetGPUProfiler().EndFrame(ParentAdapter->GetOwningRHI());
+}
 
 void FD3D12CommandContextBase::UpdateMemoryStats()
 {
