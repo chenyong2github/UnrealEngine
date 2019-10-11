@@ -87,7 +87,7 @@ template<class T=FNetAnalyticsData> using TNetAnalyticsDataWeakPtr = TWeakPtr<T,
 // Globals
 
 /** Counter used to detect when a new FNetAnalyticsAggregator (i.e. new NetDriver) has been created - to trigger cleanup of TLS data */
-extern PACKETHANDLER_API TAtomic<uint8> GNetAnalyticsCounter;
+extern NETCORE_API TAtomic<uint8> GNetAnalyticsCounter;
 
 
 /**
@@ -104,7 +104,7 @@ struct FLocalNetAnalyticsStruct : public FVirtualDestructor
 /**
  * Subclassed struct which holds net analytics data which is aggregated or to-be-aggregated, and dispatched upon SendAnalytics
  */
-struct PACKETHANDLER_API FNetAnalyticsData : public FVirtualDestructor, public TSharedFromThis<FNetAnalyticsData, NetAnalyticsThreadSafety>
+struct NETCORE_API FNetAnalyticsData : public FVirtualDestructor, public TSharedFromThis<FNetAnalyticsData, NetAnalyticsThreadSafety>
 {
 	friend class FNetAnalyticsAggregator;
 	friend struct FNetAnalyticsDataDeleter;
@@ -175,7 +175,7 @@ template<class TDataStruct> struct TBasicNetAnalyticsData : public FNetAnalytics
  *
  * The last thread to release this analytics data, triggers SendAnalytics - thread safety is partially provided by shared pointer atomics.
  */
-struct PACKETHANDLER_API FThreadedNetAnalyticsData : public FNetAnalyticsData
+struct NETCORE_API FThreadedNetAnalyticsData : public FNetAnalyticsData
 {
 	/**
 	 * Default constructor
@@ -320,7 +320,7 @@ struct FNetAnalyticsDataDeleter
 /**
  * Central object (usually within NetDriver) which handles registration/retrieval/type-checking of net analytics data holders.
  */
-class PACKETHANDLER_API FNetAnalyticsAggregator
+class NETCORE_API FNetAnalyticsAggregator
 {
 public:
 	/**

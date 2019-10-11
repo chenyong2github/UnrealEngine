@@ -66,6 +66,7 @@ public class Engine : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
+				"NetCore",
 				"ApplicationCore",
 				"Json",
 				"SlateCore",

@@ -16,7 +16,7 @@ Notes:
 #include "Net/NetworkProfiler.h"
 #include "Net/DataChannel.h"
 
-#include "PacketAudit.h"
+#include "Net/Core/Misc/PacketAudit.h"
 
 /*-----------------------------------------------------------------------------
 	Declarations.
