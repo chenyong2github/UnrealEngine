@@ -1383,7 +1383,7 @@ void UResavePackagesCommandlet::CheckoutAndSavePackage(UPackage* Package, TArray
 	check(Package);
 
 	FString PackageFilename;
-	if (FPackageName::TryConvertLongPackageNameToFilename(Package->GetName(), PackageFilename, FPackageName::GetAssetPackageExtension()))
+	if (FPackageName::TryConvertLongPackageNameToFilename(Package->GetName(), PackageFilename, Package->ContainsMap() ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension()))
 	{
 		if (IFileManager::Get().FileExists(*PackageFilename))
 		{
