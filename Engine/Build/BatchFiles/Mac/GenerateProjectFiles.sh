@@ -21,6 +21,9 @@ fi
 
 . "$BASE_PATH/SetupMono.sh" "$BASE_PATH"
 
+# make sure the UBT project has references to auto-discovered platform extension source files
+"${BASE_PATH}/../FindPlatformExtensionSources.sh"
+
 if [ -f "$BASE_PATH/../../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj" ]; then
 	xbuild "$BASE_PATH/../../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj" /property:Configuration="Development" /verbosity:quiet /nologo /p:NoWarn=1591 |grep -i error
 fi
