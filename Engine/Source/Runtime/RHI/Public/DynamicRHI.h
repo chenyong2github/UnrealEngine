@@ -1419,11 +1419,6 @@ FORCEINLINE FTexture2DRHIRef RHIGetViewportBackBuffer(FRHIViewport* Viewport)
 	return GDynamicRHI->RHIGetViewportBackBuffer(Viewport);
 }
 
-FORCEINLINE void RHIAdvanceFrameFence()
-{
-	return GDynamicRHI->RHIAdvanceFrameFence();
-}
-
 FORCEINLINE FTexture2DRHIRef RHIGetStencilTexture(FRHITexture* SourceTextureRHI)
 {
 	return GDynamicRHI->RHIGetStencilTexture(SourceTextureRHI);
