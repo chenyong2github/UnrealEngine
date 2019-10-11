@@ -161,14 +161,14 @@ public:
 			return EMeshResult::Failed_CannotAllocateVertex;
 		}
 
-		int i = 3 * vid;
+		int i = 3 * VertexID;
 		Vertices.InsertAt(Position[2], i + 2);
 		Vertices.InsertAt(Position[1], i + 1);
 		Vertices.InsertAt(Position[0], i);
 
 		if (GetBaseAttributeSet() != nullptr)
 		{
-			GetBaseAttributeSet()->OnNewVertex(vid, true);
+			GetBaseAttributeSet()->OnNewVertex(VertexID, true);
 		}
 
 		UpdateTimeStamp();
@@ -295,9 +295,8 @@ public:
 		{
 			return EMeshResult::Failed_NotAVertex;
 		}
-		VertexRefCounts.Decrement(vID);
-		check(VertexRefCounts.IsValid(vID) == false);
-		VertexEdgeLists.Clear(vID);
+		VertexRefCounts.Decrement(VertexID);
+		check(VertexRefCounts.IsValid(VertexID) == false);
 
 		if (GetBaseAttributeSet() != nullptr)
 		{

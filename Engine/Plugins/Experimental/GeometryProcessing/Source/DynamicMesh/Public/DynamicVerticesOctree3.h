@@ -162,7 +162,7 @@ public:
 		{
 			FVector3d Point = VertexSource->GetVertex(VertexID);
 			ModifiedBounds.Contain(Point);
-			FSparseDynamicPointOctree3::ReinsertPoint(VertexID, Bounds);
+			FSparseDynamicPointOctree3::ReinsertPoint(VertexID, ModifiedBounds);
 		}
 	}
 
@@ -198,7 +198,7 @@ public:
 		return FSparseDynamicPointOctree3::FindNearestHitPoint(Ray,
 			[this](int vid, const FRay3d& Ray) {
 				FVector3d Point = VertexSource->GetVertex(vid);
-				FLinearIntersection Hit = IntersectionUtil::RaySphereIntersection(Ray.Origin, Ray.Direction, Center, HitSphereRadius);
+				FLinearIntersection Hit = IntersectionUtil::RaySphereIntersection(Ray.Origin, Ray.Direction, Point, HitSphereRadius);
 				return (Hit.intersects) ? Hit.parameter.Min : TNumericLimits<double>::Max();
 			}, MaxDistance);
 	}
