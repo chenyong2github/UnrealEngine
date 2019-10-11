@@ -31,10 +31,10 @@ private:
 		uint16			_Unused0;
 	};
 
+	class				FDispatchBuilder;
 	virtual bool		OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
 
 	bool				EstablishTransport(FStreamReader::FData& Data);
-	FDispatch*			AddDispatch(uint16 Uid, uint16 FieldCount=0, uint16 ExtraData=0);
 	template <typename ImplType>
 	void				ForEachRoute(const FDispatch* Dispatch, ImplType&& Impl);
 	void				AddRoute(uint16 AnalyzerIndex, uint16 Id, const ANSICHAR* Logger, const ANSICHAR* Event);
