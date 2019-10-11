@@ -136,6 +136,7 @@ void SNiagaraStackTableRow::SetNameAndValueContent(TSharedRef<SWidget> InNameWid
 		.VAlign(EVerticalAlignment::VAlign_Center)
 		.ToolTipText(ExecutionCategoryToolTipText)
 		.Visibility(this, &SNiagaraStackTableRow::GetExecutionCategoryIconVisibility)
+		.IsEnabled_UObject(StackEntry, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
 		[
 			SNew(SImage)
 			.Visibility(this, &SNiagaraStackTableRow::GetExecutionCategoryIconVisibility)
