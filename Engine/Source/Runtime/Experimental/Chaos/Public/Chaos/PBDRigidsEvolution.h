@@ -480,7 +480,7 @@ protected:
 
 	int32 NumIterations;
 
-	static ISpatialAccelerationCollection<TAccelerationStructureHandle<T, d>, T, d>* CreateNewSpatialStructure(const TArray<FAccelerationStructureBuilder>& Bounds);
+	static ISpatialAccelerationCollection<TAccelerationStructureHandle<T, d>, T, d>* CreateNewSpatialStructure();
 	void InitializeAccelerationCache();
 };
 
