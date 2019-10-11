@@ -1,4 +1,3 @@
-#pragma once
 /* Copyright (c) 2013-2018 by Mercer Road Corp
  *
  * Permission to use, copy, modify or distribute this software in binary or source form
@@ -13,6 +12,8 @@
  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
  */
+#pragma once
+
 #include "Vxc.h"
 #include "VxcRequests.h"
 
@@ -36,14 +37,21 @@ typedef struct vx_resp_connector_create {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
      * Valid on success,  handle value for this initialized Connector instance
      */
     VX_HANDLE connector_handle;
+
     /**
      * Version number of SDK
      */
     char *version_id;
+
+    /**
+     * Type of backend used.
+     */
+    int backend_type;
 } vx_resp_connector_create_t;
 
 /**
@@ -59,6 +67,7 @@ typedef struct vx_resp_connector_initiate_shutdown {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
      * DEPRECATED
      * @deprecated
@@ -79,30 +88,37 @@ typedef struct vx_resp_account_login {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
-    * Valid on success, handle value for this initialized account login
-    */
+     * Valid on success, handle value for this initialized account login
+     */
     VX_HANDLE account_handle;
+
     /**
-    * The ID of the account
-    */
+     * The ID of the account
+     */
     int account_id;
+
     /**
-    * Display Name of the account, if available
-    */
+     * Display Name of the account, if available
+     */
     char *display_name;
+
     /**
      * The uri of the user
      */
     char *uri;
+
     /**
-    * Number of aliases associated with this account
-    */
+     * Number of aliases associated with this account
+     */
     int num_aliases;
+
     /**
      * the uri for list based buddy presence. Available only in select systems.
      */
     char *buddy_list_uri;
+
     /**
      * The encoded URI for the user with the tag. This uniquely identifies users that might appear multiple times in a channel
      */
@@ -122,34 +138,42 @@ typedef struct vx_resp_account_authtoken_login {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
-    * Valid on success, handle value for this initialized account login
-    */
+     * Valid on success, handle value for this initialized account login
+     */
     VX_HANDLE account_handle;
+
     /**
-    * The ID of the account
-    */
+     * The ID of the account
+     */
     int account_id;
+
     /**
-    * User Name of the account
-    */
+     * User Name of the account
+     */
     char *user_name;
+
     /**
-    * Display Name of the account, if available
-    */
+     * Display Name of the account, if available
+     */
     char *display_name;
+
     /**
      * The uri of the user
      */
     char *uri;
+
     /**
-    * Number of aliases associated with this account
-    */
+     * Number of aliases associated with this account
+     */
     int num_aliases;
+
     /**
      * the uri for list based buddy presence. Available only in select systems.
      */
     char *buddy_list_uri;
+
     /**
      * The encoded URI for the user with the tag. This uniquely identifies users that might appear multiple times in a channel
      */
@@ -169,22 +193,27 @@ typedef struct vx_resp_account_anonymous_login {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
-    * Valid on success, handle value for this initialized account login
-    */
+     * Valid on success, handle value for this initialized account login
+     */
     VX_HANDLE account_handle;
+
     /**
-    * The ID of the account
-    */
+     * The ID of the account
+     */
     int account_id;
+
     /**
-    * Display Name of the account, if available
-    */
+     * Display Name of the account, if available
+     */
     char *displayname;
+
     /**
      * The uri of the user
      */
     char *uri;
+
     /**
      * The encoded URI for the user with the tag. This uniquely identifies users that might appear multiple times in a channel
      */
@@ -234,9 +263,10 @@ typedef struct vx_resp_sessiongroup_create {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
-    * Valid on success, handle value for this created session
-    */
+     * Valid on success, handle value for this created session
+     */
     VX_HANDLE sessiongroup_handle;
 } vx_resp_sessiongroup_create_t;
 
@@ -268,9 +298,10 @@ typedef struct vx_resp_sessiongroup_add_session {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
-    * Valid on success, handle value for this created session
-    */
+     * Valid on success, handle value for this created session
+     */
     VX_HANDLE session_handle;
 } vx_resp_sessiongroup_add_session_t;
 
@@ -288,8 +319,6 @@ typedef struct vx_resp_sessiongroup_remove_session {
      */
     vx_resp_base_t base;
 } vx_resp_sessiongroup_remove_session_t;
-
-#ifndef VX_DISABLE_SESSIONGRP_FOCUS
 
 /**
  * The response for vx_req_sessiongroup_set_focus
@@ -335,7 +364,6 @@ typedef struct vx_resp_sessiongroup_reset_focus {
      */
     vx_resp_base_t base;
 } vx_resp_sessiongroup_reset_focus_t;
-#endif
 
 /**
  * The response for vx_req_sessiongroup_set_tx_session
@@ -425,13 +453,15 @@ typedef struct vx_resp_session_create {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
-    * Valid on success,  handle value for this created session group
-    */
+     * Valid on success,  handle value for this created session group
+     */
     VX_HANDLE sessiongroup_handle;
+
     /**
-    * Valid on success,  handle value for this created session
-    */
+     * Valid on success,  handle value for this created session
+     */
     VX_HANDLE session_handle;
 } vx_resp_session_create_t;
 
@@ -609,7 +639,6 @@ typedef struct vx_resp_session_set_voice_font {
     vx_resp_base_t base;
 } vx_resp_session_set_voice_font_t;
 
-
 /**
  * The response for vx_req_account_channel_get_participants_t
  *
@@ -618,29 +647,35 @@ typedef struct vx_resp_session_set_voice_font {
  */
 typedef struct vx_resp_account_channel_get_participants {
     /**
-    * The common properties for all responses.
-    */
+     * The common properties for all responses.
+     */
     vx_resp_base_t base;
+
     /**
-    * The number of participants active in the channel
-    */
+     * The number of participants active in the channel
+     */
     int participant_count;
+
     /**
-    * The list of participants active in the channel
-    */
+     * The list of participants active in the channel
+     */
     vx_participant_t **participants;
+
     /**
      * The page number of the result set
      */
     int page;
+
     /**
      * The number of the first result returned in this set
      */
     int from;
+
     /**
      * The number of the last result returned in this set
      */
     int to;
+
     /**
      * The total number of results in the result set (not just this page)
      */
@@ -658,6 +693,7 @@ typedef struct vx_resp_account_channel_change_owner {
      */
     vx_resp_base_t base;
 } vx_resp_account_channel_change_owner_t;
+
 /**
  * The response for vx_req_account_send_user_app_data_t
  *
@@ -665,8 +701,8 @@ typedef struct vx_resp_account_channel_change_owner {
  */
 typedef struct vx_resp_account_send_user_app_data {
     /**
-    * The common properties for all responses.
-    */
+     * The common properties for all responses.
+     */
     vx_resp_base_t base;
 } vx_resp_account_send_user_app_data_t;
 /**
@@ -682,9 +718,10 @@ typedef struct vx_resp_account_channel_create {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
-    * If the create call is successful the ChannelURI will be returned
-    */
+     * If the create call is successful the ChannelURI will be returned
+     */
     char *channel_uri;
 } vx_resp_account_channel_create_t;
 
@@ -712,7 +749,6 @@ typedef struct vx_resp_account_channel_delete {
     vx_resp_base_t base;
 } vx_resp_account_channel_delete_t;
 
-
 /**
  * The response for vx_req_account_channel_favorites_get_list_t
  *
@@ -726,21 +762,25 @@ typedef struct vx_resp_account_channel_favorites_get_list {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
-    * The number of favorite groups returned in the result set
-    */
+     * The number of favorite groups returned in the result set
+     */
     int group_count;
+
     /**
-    * The number of favorites returned in the result set
-    */
+     * The number of favorites returned in the result set
+     */
     int favorite_count;
+
     /**
-    * The list of favorite groups returned in the result set
-    */
+     * The list of favorite groups returned in the result set
+     */
     vx_channel_favorite_group_t **groups;
+
     /**
-    * The list of favorites returned in the result set
-    */
+     * The list of favorites returned in the result set
+     */
     vx_channel_favorite_t **favorites;
 } vx_resp_account_channel_favorites_get_list_t;
 
@@ -757,9 +797,10 @@ typedef struct vx_resp_account_channel_favorite_set {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
-    * The ID of the newly created favorite
-    */
+     * The ID of the newly created favorite
+     */
     int channel_favorite_id;
 } vx_resp_account_channel_favorite_set_t;
 
@@ -788,9 +829,10 @@ typedef struct vx_resp_account_channel_favorite_group_set {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
-    * The ID of the newly created favorite
-    */
+     * The ID of the newly created favorite
+     */
     int group_id;
 } vx_resp_account_channel_favorite_group_set_t;
 
@@ -819,9 +861,10 @@ typedef struct vx_resp_account_channel_get_info {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
-    * Structure containing information about the specified channel
-    */
+     * Structure containing information about the specified channel
+     */
     vx_channel_t *channel;
 } vx_resp_account_channel_get_info_t;
 
@@ -838,29 +881,33 @@ typedef struct vx_resp_account_channel_search {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
      * The page number of the result set
      */
     int page;
+
     /**
      * The number of the first result returned in this set
      */
     int from;
+
     /**
      * The number of the last result returned in this set
      */
     int to;
+
     /**
      * The number of channels returned in the channels array
      */
     int channel_count;
+
     /**
-    * The list of channels
-    */
+     * The list of channels
+     */
     vx_channel_t **channels;
 } vx_resp_account_channel_search_t;
 
-#ifndef VX_DISABLE_PRESENCE
 /**
  * The response for vx_req_account_buddy_search_t
  *
@@ -874,28 +921,32 @@ typedef struct vx_resp_account_buddy_search {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
      * The page number of the result set
      */
     int page;
+
     /**
      * The number of the first result returned in this set
      */
     int from;
+
     /**
      * The number of the last result returned in this set
      */
     int to;
+
     /**
      * The number of channels returned in the result set
      */
     int buddy_count;
+
     /**
      * The list of buddies returned from the search
      */
     vx_buddy_t **buddies;
 } vx_resp_account_buddy_search_t;
-#endif
 
 /**
  * The response for vx_req_account_channel_add_moderator_t
@@ -940,17 +991,18 @@ typedef struct vx_resp_account_channel_get_moderators {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
-    * Number of entries in the "participants" array
-    */
+     * Number of entries in the "participants" array
+     */
     int participants_size;
+
     /**
-    * List of moderators for this channel
-    */
+     * List of moderators for this channel
+     */
     vx_participant_t **participants;
 } vx_resp_account_channel_get_moderators_t;
 
-#ifndef VX_DISABLE_ACL
 /**
  * The response for vx_req_account_channel_add_acl_t
  *
@@ -991,18 +1043,18 @@ typedef struct vx_resp_account_channel_get_acl {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
-    * Number of entries in the "participants" array
-    */
+     * Number of entries in the "participants" array
+     */
     int participants_size;
+
     /**
-    * List of users in the Channel's Access Control List.
-    * NOTE: Only the uri field on the Participant structures is guaranteed to be present.
-    */
+     * List of users in the Channel's Access Control List.
+     * NOTE: Only the uri field on the Participant structures is guaranteed to be present.
+     */
     vx_participant_t **participants;
 } vx_resp_account_channel_get_acl_t;
-
-#endif
 
 /**
  * The response for vx_req_channel_mute_user_t
@@ -1044,13 +1096,15 @@ typedef struct vx_resp_channel_get_banned_users {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
-    * Number of entries in the "banned_users" array
-    */
+     * Number of entries in the "banned_users" array
+     */
     int banned_users_count;
+
     /**
-    * List of users banned from the specified channel
-    */
+     * List of users banned from the specified channel
+     */
     vx_participant_t **banned_users;
 } vx_resp_channel_get_banned_users_t;
 
@@ -1166,25 +1220,28 @@ typedef struct vx_resp_connector_get_local_audio_info {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
-    * The level of the audio, a number between 0 and 100 where 50 represents 'normal' speaking volume
-    */
+     * The level of the audio, a number between 0 and 100 where 50 represents 'normal' speaking volume
+     */
     int speaker_volume;
+
     /**
-    * A number, either true (mute) and false (unmute)
-    */
+     * A number, either true (mute) and false (unmute)
+     */
     int is_speaker_muted;
+
     /**
-    * The level of the audio, a number between 0 and 100 where 50 represents 'normal' speaking volume
-    */
+     * The level of the audio, a number between 0 and 100 where 50 represents 'normal' speaking volume
+     */
     int mic_volume;
+
     /**
-    * 1 (mute) or 0 (unmute)
-    */
+     * 1 (mute) or 0 (unmute)
+     */
     int is_mic_muted;
 } vx_resp_connector_get_local_audio_info_t;
 
-#ifndef VX_DISABLE_PRESENCE
 /**
  * The response for vx_req_account_buddy_set_t
  *
@@ -1198,9 +1255,10 @@ typedef struct vx_resp_account_buddy_set {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
-    * The account id of the buddy
-    */
+     * The account id of the buddy
+     */
     int account_id;
 } vx_resp_account_buddy_set_t;
 
@@ -1232,6 +1290,7 @@ typedef struct vx_resp_account_buddygroup_set {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
      * The ID of the group being set (may be updated from 0 value if group is newly created)
      */
@@ -1267,24 +1326,27 @@ typedef struct vx_resp_account_list_buddies_and_groups {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
-    * Number of buddies found in the list
-    */
+     * Number of buddies found in the list
+     */
     int buddy_count;
+
     /**
-    * Number of groups found in the list
-    */
+     * Number of groups found in the list
+     */
     int group_count;
+
     /**
-    * A collection of buddy structures
-    */
+     * A collection of buddy structures
+     */
     vx_buddy_t **buddies;
+
     /**
-    * A collection of group structures
-    */
+     * A collection of group structures
+     */
     vx_group_t **groups;
 } vx_resp_account_list_buddies_and_groups_t;
-#endif
 
 /**
  * The response for vx_req_session_send_message_t
@@ -1301,7 +1363,24 @@ typedef struct vx_resp_session_send_message {
     vx_resp_base_t base;
 } vx_resp_session_send_message_t;
 
-#ifndef VX_DISABLE_PRESENCE
+/**
+ * The response for vx_req_session_archive_query_t.
+ * \see vx_req_session_archive_query
+ * \note V5 only.
+ * \ingroup session
+ */
+typedef struct vx_resp_session_archive_query {
+    /**
+     * The common properties for all responses.
+     */
+    vx_resp_base_t base;
+
+    /**
+     * The id of the started query. Use this id to identify relevant vx_evt_session_archive_message and vx_evt_session_archive_query_end events.
+     */
+    char *query_id;
+} vx_resp_session_archive_query_t;
+
 /**
  * The response for vx_req_account_set_presence_t
  *
@@ -1331,7 +1410,6 @@ typedef struct vx_resp_account_send_subscription_reply {
      */
     vx_resp_base_t base;
 } vx_resp_account_send_subscription_reply_t;
-#endif
 
 /**
  * The response for vx_req_session_send_notification_t
@@ -1363,7 +1441,6 @@ typedef struct vx_resp_session_send_dtmf {
     vx_resp_base_t base;
 } vx_resp_session_send_dtmf_t;
 
-#ifndef VX_DISABLE_PRESENCE
 /**
  * The response for vx_req_account_create_block_rule_t
  *
@@ -1407,13 +1484,15 @@ typedef struct vx_resp_account_list_block_rules {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
-    * Number of block rules returned in the list
-    */
+     * Number of block rules returned in the list
+     */
     int rule_count;
+
     /**
-    * List of block rules for the given account
-    */
+     * List of block rules for the given account
+     */
     vx_block_rule_t **block_rules;
 } vx_resp_account_list_block_rules_t;
 
@@ -1457,16 +1536,17 @@ typedef struct vx_resp_account_list_auto_accept_rules {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
-    * Number of block rules returned in the list
-    */
+     * Number of block rules returned in the list
+     */
     int rule_count;
+
     /**
-    * The list of block rules for the given account
-    */
+     * The list of block rules for the given account
+     */
     vx_auto_accept_rule_t **auto_accept_rules;
 } vx_resp_account_list_auto_accept_rules_t;
-#endif
 
 /**
  * \deprecated - DEPRECATED
@@ -1497,13 +1577,14 @@ typedef struct vx_resp_account_get_account {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
-    * A pointer to a 'vx_account_t' struct, containing information about the account
-    */
+     * A pointer to a 'vx_account_t' struct, containing information about the account
+     */
     vx_account_t *account;
 } vx_resp_account_get_account_t;
 
-/*
+/**
  * The response for vx_req_account_send_sms_t
  *
  * The XML for this response can be found here: \ref Account_SendSMS_1
@@ -1511,12 +1592,11 @@ typedef struct vx_resp_account_get_account {
  * \see vx_req_account_send_sms
  */
 typedef struct vx_resp_account_send_sms {
-    /*
+    /**
      * The common properties for all responses.
      */
     vx_resp_base_t base;
 } vx_resp_account_send_sms_t;
-
 
 /**
  * The response for vx_req_aux_connectivity_info_t
@@ -1531,43 +1611,54 @@ typedef struct vx_resp_aux_connectivity_info {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     int count;
+
     /**
-    * List of the test results for each test
-    */
+     * List of the test results for each test
+     */
     vx_connectivity_test_result_t **test_results;
+
     /**
      * The well known ip address used.
      */
     char *well_known_ip;
+
     /**
      * The stun server used.
      */
     char *stun_server;
+
     /**
      * The echo server used.
      */
     char *echo_server;
+
     /**
      * The echo port used.
      */
     int echo_port;
+
     /**
      * The timeout used.
      */
     int timeout;
+
     /**
      * The first (primary) simulated port for SIP testing
      */
     int first_sip_port;
+
     /**
      * The second (fallback) simulated port for SIP testing
      */
     int second_sip_port;
+
     /**
      * The simulated RTP port
      */
     int rtp_port;
+
     /**
      * The simulated RTCP port
      */
@@ -1587,26 +1678,32 @@ typedef struct vx_resp_aux_get_render_devices {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
-    * The number of render devices found
-    */
+     * The number of render devices found
+     */
     int count;
+
     /**
-    * An array of pointers to 'vx_device_t' structs
-    */
+     * An array of pointers to 'vx_device_t' structs
+     */
     vx_device_t **render_devices;
+
     /**
-    * The render device currently in use by the Vivox SDK.
-    */
+     * The render device currently in use by the Vivox SDK.
+     */
     vx_device_t *current_render_device;
+
     /**
-    * The effective render device
-    */
+     * The effective render device
+     */
     vx_device_t *effective_render_device;
+
     /**
      * The default system render device
      */
     vx_device_t *default_render_device;
+
     /**
      * The default communication render device
      */
@@ -1626,26 +1723,32 @@ typedef struct vx_resp_aux_get_capture_devices {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
-    * The number of capture devices found
-    */
+     * The number of capture devices found
+     */
     int count;
+
     /**
-    * The list of capture devices
-    */
+     * The list of capture devices
+     */
     vx_device_t **capture_devices;
+
     /**
-    * The current capture device
-    */
+     * The current capture device
+     */
     vx_device_t *current_capture_device;
+
     /**
-    * The effective capture device
-    */
+     * The effective capture device
+     */
     vx_device_t *effective_capture_device;
+
     /**
      * The default system capture device
      */
     vx_device_t *default_capture_device;
+
     /**
      * The default communication capture device
      */
@@ -1695,6 +1798,7 @@ typedef struct vx_resp_aux_get_mic_level {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
      * The master 'microphone' level.
      * Non negative integer value between 0 and 100 (inclusive). +6 increase represents a
@@ -1716,11 +1820,12 @@ typedef struct vx_resp_aux_get_speaker_level {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
-    * The master 'speaker' level.
-    * Non negative integer value between 0 and 100 (inclusive). +6 increase represents a doubling of energy,
-    * +20 increase represents a ten fold increase in energy. Default value is 50.
-    */
+     * The master 'speaker' level.
+     * Non negative integer value between 0 and 100 (inclusive). +6 increase represents a doubling of energy,
+     * +20 increase represents a ten fold increase in energy. Default value is 50.
+     */
     int level;
 } vx_resp_aux_get_speaker_level_t;
 
@@ -1763,6 +1868,9 @@ typedef struct vx_resp_aux_set_speaker_level {
  * \ingroup devices
  */
 typedef struct vx_resp_aux_render_audio_start {
+    /**
+     * The common properties for all responses.
+     */
     vx_resp_base_t base;
 } vx_resp_aux_render_audio_start_t;
 
@@ -1771,6 +1879,9 @@ typedef struct vx_resp_aux_render_audio_start {
  *
  */
 typedef struct vx_resp_aux_render_audio_modify {
+    /**
+     * The common properties for all responses.
+     */
     vx_resp_base_t base;
 } vx_resp_aux_render_audio_modify_t;
 
@@ -1781,25 +1892,32 @@ typedef struct vx_resp_aux_render_audio_modify {
  * \ingroup devices
  */
 typedef struct vx_resp_aux_get_vad_properties {
+    /**
+     * The common properties for all responses.
+     */
     vx_resp_base_t base;
+
     /**
-    * The 'Hangover time' - the time (in milliseconds) that it takes for the VAD to switch back to silence
-    * from speech mode after the last speech frame has been detected.
-    */
+     * The 'Hangover time' - the time (in milliseconds) that it takes for the VAD to switch back to silence
+     * from speech mode after the last speech frame has been detected.
+     */
     int vad_hangover;
+
     /**
-    * The 'vad sensitivity' - A dimensionless value between 0 and 100, indicating the 'sensitivity of the VAD'.
-    * Increasing this value corresponds to decreasing the sensitivity of the VAD (i.e. '0' is most
-    * sensitive, while 100 is 'least sensitive').
-    */
+     * The 'vad sensitivity' - A dimensionless value between 0 and 100, indicating the 'sensitivity of the VAD'.
+     * Increasing this value corresponds to decreasing the sensitivity of the VAD (i.e. '0' is most
+     * sensitive, while 100 is 'least sensitive').
+     */
     int vad_sensitivity;
+
     /**
-    * The 'vad noise floor' - A dimensionless value between 0 and 20000 (default 576) that controls how the vad separates speech from background noise
-    */
+     * The 'vad noise floor' - A dimensionless value between 0 and 20000 (default 576) that controls how the vad separates speech from background noise
+     */
     int vad_noise_floor;
+
     /**
-    * VAD Automatic Parameter Selection - If this mode is 1 (enabled), then vad_hangover, vad_sensitivity, and vad_noise_floor will be ignored and the VAD will optimize parameters automatically
-    */
+     * VAD Automatic Parameter Selection - If this mode is 1 (enabled), then vad_hangover, vad_sensitivity, and vad_noise_floor will be ignored and the VAD will optimize parameters automatically
+     */
     int vad_auto;
 } vx_resp_aux_get_vad_properties_t;
 
@@ -1810,6 +1928,9 @@ typedef struct vx_resp_aux_get_vad_properties {
  * \ingroup devices
  */
 typedef struct vx_resp_aux_set_vad_properties {
+    /**
+     * The common properties for all responses.
+     */
     vx_resp_base_t base;
 } vx_resp_aux_set_vad_properties_t;
 
@@ -1822,6 +1943,9 @@ typedef struct vx_resp_aux_set_vad_properties {
  * \ingroup devices
  */
 typedef struct vx_resp_aux_render_audio_stop {
+    /**
+     * The common properties for all responses.
+     */
     vx_resp_base_t base;
 } vx_resp_aux_render_audio_stop_t;
 
@@ -1839,6 +1963,7 @@ typedef struct vx_resp_aux_capture_audio_start {
      */
     vx_resp_base_t base;
 } vx_resp_aux_capture_audio_start_t;
+
 /**
  * The response for vx_req_aux_capture_audio_stop_t
  *
@@ -1852,6 +1977,7 @@ typedef struct vx_resp_aux_capture_audio_stop {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
      * An opaque pointer to the captured audio buffer. This pointer is not marshalled
      * when working with the VivoxVoiceService.
@@ -1960,7 +2086,6 @@ typedef struct vx_resp_aux_reset_password {
     vx_resp_base_t base;
 } vx_resp_aux_reset_password_t;
 
-
 /**
  * The response for vx_req_account_get_session_fonts_t
  *
@@ -1974,13 +2099,15 @@ typedef struct vx_resp_account_get_session_fonts {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
-    * List of session fonts
-    */
+     * List of session fonts
+     */
     vx_voice_font_t **session_fonts;
+
     /**
-    * Number of session fonts
-    */
+     * Number of session fonts
+     */
     int session_font_count;
 } vx_resp_account_get_session_fonts_t;
 
@@ -1998,12 +2125,12 @@ typedef struct vx_resp_account_get_template_fonts {
      */
     vx_resp_base_t base;
     /**
-    * List of session fonts
-    */
+     * List of session fonts
+     */
     vx_voice_font_t **template_fonts;
-    /*
-    * Number of session fonts
-    */
+    /**
+     * Number of session fonts
+     */
     int template_font_count;
 } vx_resp_account_get_template_fonts_t;
 
@@ -2047,29 +2174,35 @@ typedef struct vx_resp_aux_diagnostic_state_dump {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
      * The number of connector objects in the state dump.
      */
     int state_connector_count;
+
     /**
      * Collection of connector objects in the state dump.
      */
     vx_state_connector_t **state_connectors;
+
     /**
-    * The render device currently in use by the Vivox SDK.
-    */
+     * The render device currently in use by the Vivox SDK.
+     */
     vx_device_t *current_render_device;
+
     /**
-    * The effective render device
-    */
+     * The effective render device
+     */
     vx_device_t *effective_render_device;
+
     /**
-    * The current capture device
-    */
+     * The current capture device
+     */
     vx_device_t *current_capture_device;
+
     /**
-    * The effective capture device
-    */
+     * The effective capture device
+     */
     vx_device_t *effective_capture_device;
 } vx_resp_aux_diagnostic_state_dump_t;
 
@@ -2083,14 +2216,17 @@ typedef struct vx_resp_account_web_call {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
     /**
      * The HTTP content type
      */
     char *content_type;
+
     /**
      * The content length
      */
     int content_length;
+
     /**
      * The content
      */
@@ -2107,165 +2243,209 @@ typedef struct vx_resp_sessiongroup_get_stats {
      * The common properties for all responsess.
      */
     vx_resp_base_t base;
+
     /**
      * RESERVED FOR FUTURE USE
      */
     int insufficient_bandwidth;
+
     /**
      * RESERVED FOR FUTURE USE
      */
     int min_bars;
+
     /**
      * RESERVED FOR FUTURE USE
      */
     int max_bars;
+
     /**
      * @deprecated
      * An indication of the network quality in the range of 1-5 with 5 indicating the best quality.
      */
     int current_bars;
+
     /**
      * RESERVED FOR FUTURE USE
      */
     int pk_loss;
+
     /**
      * The number of packets received
      */
     int incoming_received;
+
     /**
-     * RESERVED FOR FUTURE USE
+     * The number of incoming packets expected
      */
     int incoming_expected;
+
     /**
      * The number of packets lost in the network
      */
     int incoming_packetloss;
+
     /**
      * The number of packets received too late to be useful and discarded
      */
     int incoming_out_of_time;
+
     /**
      * The number of packets received but discarded because the local queue overflowed
      */
     int incoming_discarded;
+
     /**
      * The number of packets sent
      */
     int outgoing_sent;
+
     /**
      * The number of render device underruns - mobile platforms only
      */
     int render_device_underruns;
+
     /**
      * The number of render device overruns - mobile platforms only
      */
     int render_device_overruns;
+
     /**
      * The number of render device errors - mobile platforms only
      */
     int render_device_errors;
+
     /**
      * The SIP call ID
      */
     char *call_id;
+
     /**
      * Flag indicating whether Packet Loss Concealment (error correction) has happened
      */
     int plc_on;
+
     /**
      * The number of 10ms synthetic frames generated by Packet Loss Concealment
      */
     int plc_synthetic_frames;
+
     /**
      * Codec negotiated in the current call
      */
     char *codec_name;
+
     /**
      * @deprecated
      */
     int codec_mode;
+
     /**
      * Minimum Network Latency Detected (seconds) - zero if no latency measurements made
      */
     double min_latency;
+
     /**
      * Maximum Network Latency Detected (seconds) - zero if no latency measurements made
      */
     double max_latency;
+
     /**
      * Latency Measurement Count - the number of times latency was measured
      */
     int latency_measurement_count;
+
     /**
      * Latency Sum - total number of seconds of measured network latency
      */
     double latency_sum;
+
     /**
      * Last Latency Measured
      */
     double last_latency_measured;
+
     /**
      * Latency Packets Lost - the number of times we received latency packet where we did not receive the prior expected response.
      */
     int latency_packets_lost;
+
     /**
      * RFactor - computation of quality
      */
     double r_factor;
+
     /**
      * Number of latency measurement request packets sent
      */
     int latency_packets_sent;
+
     /**
      * Number of latency measurement response packets lost
      */
     int latency_packets_dropped;
+
     /**
      * Number of latency measurement packets that were too short or otherwise malformed.
      */
     int latency_packets_malformed;
+
     /**
      * Number of latency measurement packets that arrived before they were sent.
      * This can occur if there are clock adjustments
      */
     int latency_packets_negative_latency;
+
     /**
      * The beginning of the sample period (in fractional seconds since Midnight Jan 1st 1970 GMT)
      */
     double sample_interval_begin;
+
     /**
      * The end of the sample period (in fractional seconds since Midnight Jan 1st 1970 GMT)
      */
     double sample_interval_end;
+
     /**
      * The number of intervals where 0, 1, 2, 3, or 4 or greater audio frames were read from the capture device
      */
     int capture_device_consecutively_read_count[5];
+
     /**
      * OPUS bit rate, that was used for encoding the last transmitted OPUS packet,
      * -1 if no OPUS packets were transmitted
      */
     int current_opus_bit_rate;
+
     /**
      * OPUS complexity, that was used for encoding the last transmitted OPUS packet,
      * -1 if no OPUS packets were transmitted
      */
     int current_opus_complexity;
+
     /**
      * OPUS VBR mode (vx_opus_vbr_mode), that was used for encoding the last transmitted OPUS packet,
      * -1 if no OPUS packets were transmitted
      */
     int current_opus_vbr_mode;
+
     /**
      * OPUS bandwith (vx_opus_bandwidth), that was used for encoding the last transmitted OPUS packet,
      * -1 if no OPUS packets were transmitted
      */
     int current_opus_bandwidth;
+
     /**
      * OPUS max ppcket size limit, that was used for encoding the last transmitted OPUS packet,
      * -1 if no OPUS packets were transmitted
      */
     int current_opus_max_packet_size;
+
+    /**
+     * Is signalling transport secure 1 or not secure 0.
+     * \note V5 only. In V4 always equal 0.
+     */
+    int signal_secure;
 } vx_resp_sessiongroup_get_stats_t;
 
 /**
@@ -2281,7 +2461,33 @@ typedef struct vx_resp_account_send_message {
      * The common properties for all responses.
      */
     vx_resp_base_t base;
+
+    /**
+     * The request id assigned to the message sent. Non-NULL if the message is sent to a server. SDK will raise evt_resp_account_send_message_failed event with this request id if the message send failure will be reported by the server.
+     * \see vx_evt_resp_account_send_message_failed
+     * \note V5 only. In V4 always equal NULL.
+     */
+    char *request_id;
 } vx_resp_account_send_message_t;
+
+/**
+ * The response for vx_req_account_archive_query.
+ *
+ * \see vx_req_account_archive_query
+ * \note V5 only.
+ * \ingroup account
+ */
+typedef struct vx_resp_account_archive_query {
+    /**
+     * The common properties for all responses.
+     */
+
+    vx_resp_base_t base;
+    /**
+     * The id of the started query. Use this id to identify relevant vx_evt_account_archive_message and vx_evt_account_archive_query_end events.
+     */
+    char *query_id;
+} vx_resp_account_archive_query_t;
 
 /**
  * The response for vx_req_aux_notify_application_state_change_t
@@ -2297,7 +2503,6 @@ typedef struct vx_resp_aux_notify_application_state_change {
     vx_resp_base_t base;
 } vx_resp_aux_notify_application_state_change_t;
 
-
 /**
  * The response for vx_req_account_control_communications_t
  *
@@ -2309,12 +2514,27 @@ typedef struct vx_resp_account_control_communications {
     /**
      * The common properties for all responses.
      */
+
     vx_resp_base_t base;
     /**
      * Line feed separated list of blocked URIs (only set for vx_control_communications_operation_list, otherwise null)
      */
     char *blocked_uris;
 } vx_resp_account_control_communications_t;
+
+/**
+ * The response for vx_req_session_transcription_control_t
+ *
+ *
+ * \see vx_req_session_transcription_control
+ * \ingroup session
+ */
+typedef struct vx_resp_session_transcription_control {
+    /**
+     * The common properties for all responses.
+     */
+    vx_resp_base_t base;
+} vx_resp_session_transcription_control_t;
 
 #ifndef VIVOX_TYPES_ONLY
 /**
