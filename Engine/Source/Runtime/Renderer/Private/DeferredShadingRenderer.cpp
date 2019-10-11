@@ -1268,26 +1268,19 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	const bool bStencilLODCompute = (StencilLODMode == 1 || StencilLODMode == 2);
 	const bool bStencilLODComputeAsync = StencilLODMode == 2;
 
-	FComputeFenceRHIRef AsyncDitherLODStartFence;
 	FComputeFenceRHIRef AsyncDitherLODEndFence;
-
-	FTexture2DRHIRef StencilTexture;
-	FUnorderedAccessViewRHIRef StencilTextureUAV;
 	if (bStencilLODCompute && bDitheredLODTransitionsUseStencil)
 	{
 		// Either compute pass will happen prior to the prepass, and the
 		// stencil clear will be skipped there.
-
-		StencilTexture = GDynamicRHI->RHIGetStencilTexture(SceneContext.GetSceneDepthSurface());
-		StencilTextureUAV = GDynamicRHI->RHICreateUnorderedAccessView(StencilTexture, 0 /* Mip Level */);
-
+		FUnorderedAccessViewRHIRef StencilTextureUAV = RHICreateUnorderedAccessViewStencil(SceneContext.GetSceneDepthSurface(), 0 /* Mip Level */);
 		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, StencilTextureUAV);
 
 		if (bStencilLODComputeAsync)
 		{
 			static FName AsyncDitherLODStartFenceName(TEXT("AsyncDitherLODStartFence"));
 			static FName AsyncDitherLODEndFenceName(TEXT("AsyncDitherLODEndFence"));
-			AsyncDitherLODStartFence = RHICmdList.CreateComputeFence(AsyncDitherLODStartFenceName);
+			FComputeFenceRHIRef AsyncDitherLODStartFence = RHICmdList.CreateComputeFence(AsyncDitherLODStartFenceName);
 			AsyncDitherLODEndFence = RHICmdList.CreateComputeFence(AsyncDitherLODEndFenceName);
 
 			FRHIAsyncComputeCommandListImmediate& RHICmdListComputeImmediate = FRHICommandListExecutor::GetImmediateAsyncComputeCommandList();

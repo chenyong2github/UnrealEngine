@@ -979,6 +979,11 @@ public:
 		return RHI->RHICreateUnorderedAccessViewHTile(RenderTarget);
 	}
 
+	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessViewStencil(FRHITexture2D* DepthTarget, int32 MipLevel) override final
+	{
+		return RHI->RHICreateUnorderedAccessViewStencil(DepthTarget, MipLevel);
+	}
+
 	virtual void RHIAliasTextureResources(FRHITexture* DestTexture, FRHITexture* SourceTexture) override final
 	{
 		// Source and target need to be valid objects.
@@ -986,11 +991,6 @@ public:
 		// Source texture must have been created (i.e. have a native resource backing).
 		check(SourceTexture->GetNativeResource() != nullptr);
 		RHI->RHIAliasTextureResources(DestTexture, SourceTexture);
-	}
-
-	virtual FTexture2DRHIRef RHIGetStencilTexture(FRHITexture* SourceTextureRHI) override final
-	{
-		return RHI->RHIGetStencilTexture(SourceTextureRHI);
 	}
 
 	virtual FTextureRHIRef RHICreateAliasedTexture(FRHITexture* SourceTexture) override final
