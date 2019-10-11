@@ -360,7 +360,7 @@ void FLevelModel::MakeLevelCurrent()
 	if (!FLevelUtils::IsLevelLocked(Level))
 	{ 
 		// Make current.
-		if (LevelCollectionModel.GetWorld()->SetCurrentLevel(Level))
+		if (LevelCollectionModel.GetWorld() && LevelCollectionModel.GetWorld()->SetCurrentLevel(Level))
 		{
 			FEditorDelegates::NewCurrentLevel.Broadcast();
 				
