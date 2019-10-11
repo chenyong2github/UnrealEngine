@@ -74,6 +74,13 @@ T_ALIGN static void* volatile		GPoolFreeList;		// = nullptr;
 #undef T_ALIGN
 
 ////////////////////////////////////////////////////////////////////////////////
+uint32 Writer_GetMaxEventSize()
+{
+	// The bais is to allow for some overhead. Its value was chosen arbitrarily.
+	return GPoolBlockSize - 512;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 #if !IS_MONOLITHIC
 UE_TRACE_API FWriteBuffer* Writer_GetBuffer()
 {

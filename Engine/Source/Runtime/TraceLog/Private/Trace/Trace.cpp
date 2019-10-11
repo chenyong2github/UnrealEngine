@@ -12,6 +12,7 @@ namespace Private
 {
 
 ////////////////////////////////////////////////////////////////////////////////
+uint32	Writer_GetMaxEventSize();
 bool	Writer_SendTo(const ANSICHAR*);
 bool	Writer_WriteTo(const ANSICHAR*);
 uint32	Writer_EventToggle(const ANSICHAR*, bool);
@@ -33,6 +34,12 @@ static void ToAnsiCheap(ANSICHAR (&Dest)[DestSize], const WIDECHAR* Src)
 		}
 	}
 };
+
+////////////////////////////////////////////////////////////////////////////////
+uint32 GetMaxEventSize()
+{
+	return Private::Writer_GetMaxEventSize();
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 bool SendTo(const TCHAR* InHost)
