@@ -86,7 +86,7 @@ namespace FastTriWinding
 	/**
 	 *  Evaluate first-order FWN approximation at point Q, relative to Center c
 	 */
-	double EvaluateOrder1Approx(const FVector3d& Center, const FVector3d& Order1Coeff, const FVector3d& Q)
+	inline double EvaluateOrder1Approx(const FVector3d& Center, const FVector3d& Order1Coeff, const FVector3d& Q)
 	{
 		FVector3d dpq = (Center - Q);
 		double len = dpq.Length();
@@ -97,7 +97,7 @@ namespace FastTriWinding
 	/**
 	 *  Evaluate second-order FWN approximation at point Q, relative to Center c
 	 */
-	double EvaluateOrder2Approx(const FVector3d& Center, const FVector3d& Order1Coeff, const FMatrix3d& Order2Coeff, const FVector3d& Q)
+	inline double EvaluateOrder2Approx(const FVector3d& Center, const FVector3d& Order1Coeff, const FMatrix3d& Order2Coeff, const FVector3d& Q)
 	{
 		FVector3d dpq = (Center - Q);
 		double len = dpq.Length();
@@ -125,7 +125,7 @@ namespace FastTriWinding
 	// triangle-winding-number first-order approximation.
 	// T is triangle, P is 'Center' of cluster of dipoles, Q is evaluation point
 	// (This is really just for testing)
-	double Order1Approx(const FTriangle3d& T, const FVector3d& P, const FVector3d& XN, double XA, const FVector3d& Q)
+	inline double Order1Approx(const FTriangle3d& T, const FVector3d& P, const FVector3d& XN, double XA, const FVector3d& Q)
 	{
 		FVector3d at0 = XA * XN;
 
@@ -139,7 +139,7 @@ namespace FastTriWinding
 	// triangle-winding-number second-order approximation
 	// T is triangle, P is 'Center' of cluster of dipoles, Q is evaluation point
 	// (This is really just for testing)
-	double Order2Approx(const FTriangle3d& T, const FVector3d& P, const FVector3d& XN, double XA, const FVector3d& Q)
+	inline double Order2Approx(const FTriangle3d& T, const FVector3d& P, const FVector3d& XN, double XA, const FVector3d& Q)
 	{
 		FVector3d dpq = (P - Q);
 
@@ -199,15 +199,18 @@ public:
 	 */
 	int FWNApproxOrder = 2;
 
-	TFastWindingTree(TMeshAABBTree3<TriangleMeshType>* TreeToRef)
+	TFastWindingTree(TMeshAABBTree3<TriangleMeshType>* TreeToRef, bool bAutoBuild = true)
 	{
-		SetTree(TreeToRef);
+		SetTree(TreeToRef, bAutoBuild);
 	}
 
-	void SetTree(TMeshAABBTree3<TriangleMeshType>* TreeToRef)
+	void SetTree(TMeshAABBTree3<TriangleMeshType>* TreeToRef, bool bAutoBuild = true)
 	{
 		this->Tree = TreeToRef;
-		Build(true);
+		if (bAutoBuild)
+		{
+			Build(true);
+		}
 	}
 
 	void Build(bool bAlwaysBuildRegardlessOfTimestamp = true)
