@@ -11,6 +11,7 @@
 #include "AI/Navigation/NavigationTypes.h"
 #include "Components/PrimitiveComponent.h"
 #include "Serialization/BulkData.h"
+#include "Chaos/HeightField.h"
 #include "LandscapeHeightfieldCollisionComponent.generated.h"
 
 class ALandscapeProxy;
@@ -22,14 +23,6 @@ class UPhysicalMaterial;
 struct FConvexVolume;
 struct FEngineShowFlags;
 struct FNavigableGeometryExport;
-
-#if WITH_CHAOS
-namespace Chaos
-{
-	template<typename T>
-	class THeightField;
-}
-#endif
 
 #if WITH_PHYSX
 namespace physx
