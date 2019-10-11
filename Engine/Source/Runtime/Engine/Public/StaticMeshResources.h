@@ -865,7 +865,7 @@ public:
 	virtual bool IsRayTracingStaticRelevant() const override 
 	{ 
 		const bool bAllowStaticLighting = FReadOnlyCVARCache::Get().bAllowStaticLighting;
-		const bool bIsStaticInstance = RayTracingGeometries.Num() > 0;
+		const bool bIsStaticInstance = !bDynamicRayTracingGeometry;
 		return bIsStaticInstance && IsStaticPathAvailable() && !HasViewDependentDPG() && !(bAllowStaticLighting && HasStaticLighting() && !HasValidSettingsForStaticLighting());
 	}
 #endif // RHI_RAYTRACING
@@ -956,6 +956,7 @@ protected:
 	const FDistanceFieldVolumeData* DistanceFieldData;	
 
 #if RHI_RAYTRACING
+	bool bDynamicRayTracingGeometry;
 	TArray<FRayTracingGeometry, TInlineAllocator<MAX_MESH_LOD_COUNT>> DynamicRayTracingGeometries;
 	TArray<FRWBuffer, TInlineAllocator<MAX_MESH_LOD_COUNT>> DynamicRayTracingGeometryVertexBuffers;
 #endif
