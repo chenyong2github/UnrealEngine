@@ -902,7 +902,7 @@ FVertexFactoryInterpolantsVSToDS VertexFactoryInterpolate(FVertexFactoryInterpol
 #endif
 
 #if INSTANCED_STEREO
-	Interpolants.EyeIndex = 0;
+	O.InterpolantsVSToPS.EyeIndex = 0;
 #endif
 
 	return O;
