@@ -1235,6 +1235,65 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		}
 	}
 
+	StencilLODMode = CVarStencilLODDitherMode.GetValueOnRenderThread();
+	if (!GRHISupportsDepthUAV)
+	{
+		// RHI doesn't support depth/stencil UAVs - enforce graphics path
+		StencilLODMode = 0;
+	}
+	else if (StencilLODMode == 2 && !GSupportsEfficientAsyncCompute)
+	{
+		// Async compute is not supported, fall back to compute path (on graphics queue)
+		StencilLODMode = 1;
+	}
+	else if (IsHMDHiddenAreaMaskActive())
+	{
+		// Unsupported mode for compute path - enforce graphics path on VR
+		StencilLODMode = 0;
+	}
+
+	const bool bStencilLODCompute = (StencilLODMode == 1 || StencilLODMode == 2);
+	const bool bStencilLODComputeAsync = StencilLODMode == 2;
+
+	FComputeFenceRHIRef AsyncDitherLODEndFence;
+	if (bStencilLODCompute && bDitheredLODTransitionsUseStencil)
+	{
+		// Either compute pass will happen prior to the prepass, and the
+		// stencil clear will be skipped there.
+		FUnorderedAccessViewRHIRef StencilTextureUAV = RHICreateUnorderedAccessViewStencil(SceneContext.GetSceneDepthSurface(), 0 /* Mip Level */);
+		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, StencilTextureUAV);
+
+		if (bStencilLODComputeAsync)
+		{
+			static FName AsyncDitherLODStartFenceName(TEXT("AsyncDitherLODStartFence"));
+			static FName AsyncDitherLODEndFenceName(TEXT("AsyncDitherLODEndFence"));
+			FComputeFenceRHIRef AsyncDitherLODStartFence = RHICmdList.CreateComputeFence(AsyncDitherLODStartFenceName);
+			AsyncDitherLODEndFence = RHICmdList.CreateComputeFence(AsyncDitherLODEndFenceName);
+
+			FRHIAsyncComputeCommandListImmediate& RHICmdListComputeImmediate = FRHICommandListExecutor::GetImmediateAsyncComputeCommandList();
+
+			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, nullptr, AsyncDitherLODStartFence);
+			RHICmdListComputeImmediate.WaitComputeFence(AsyncDitherLODStartFence);
+
+			PreRenderDitherFill(RHICmdListComputeImmediate, SceneContext, StencilTextureUAV);
+
+			RHICmdListComputeImmediate.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, nullptr, 0, AsyncDitherLODEndFence);
+			FRHIAsyncComputeCommandListImmediate::ImmediateDispatch(RHICmdListComputeImmediate);
+		}
+		else
+		{
+			PreRenderDitherFill(RHICmdList, SceneContext, StencilTextureUAV);
+		}
+	}
+
+	// TODO: Move to async compute with proper RDG support.
+	const bool bShouldRenderSkyAtmosphere = ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags);
+	if (bShouldRenderSkyAtmosphere)
+	{
+		// Generate the Sky/Atmosphere look up tables
+		RenderSkyAtmosphereLookUpTables(RHICmdList);
+	}
+
 	// Notify the FX system that the scene is about to be rendered.
 	if (Scene->FXSystem && Views.IsValidIndex(0))
 	{

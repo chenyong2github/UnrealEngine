@@ -979,6 +979,11 @@ public:
 		return RHI->RHICreateUnorderedAccessViewHTile(RenderTarget);
 	}
 
+	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessViewStencil(FRHITexture2D* DepthTarget, int32 MipLevel) override final
+	{
+		return RHI->RHICreateUnorderedAccessViewStencil(DepthTarget, MipLevel);
+	}
+
 	virtual void RHIAliasTextureResources(FRHITexture* DestTexture, FRHITexture* SourceTexture) override final
 	{
 		// Source and target need to be valid objects.

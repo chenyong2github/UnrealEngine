@@ -958,6 +958,11 @@ public:
 		return nullptr;
 	}
 
+	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessViewStencil(FRHITexture2D* DepthTarget, int32 MipLevel)
+	{
+		return nullptr;
+	}
+
 	virtual void RHIAliasTextureResources(FRHITexture* DestTexture, FRHITexture* SrcTexture)
 	{
 		checkNoEntry();
@@ -1422,6 +1427,11 @@ FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceViewHTile(FRHITextu
 FORCEINLINE FUnorderedAccessViewRHIRef RHICreateUnorderedAccessViewHTile(FRHITexture2D* RenderTarget)
 {
 	return GDynamicRHI->RHICreateUnorderedAccessViewHTile(RenderTarget);
+}
+
+FORCEINLINE FUnorderedAccessViewRHIRef RHICreateUnorderedAccessViewStencil(FRHITexture2D* DepthTarget, int32 MipLevel)
+{
+	return GDynamicRHI->RHICreateUnorderedAccessViewStencil(DepthTarget, MipLevel);
 }
 
 FORCEINLINE void RHIAdvanceFrameForGetViewportBackBuffer(FRHIViewport* Viewport)
