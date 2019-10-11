@@ -119,15 +119,14 @@ private:
 
 	FStaticShaderPlatformNames()
 	{
+#ifdef DDPI_SHADER_PLATFORM_NAME_MAP
 		struct FStaticNameMapEntry
 		{
 			FName Name;
 			int32 Index;
 		} NameMap[] =
 		{
-#ifdef DDPI_SHADER_PLATFORM_NAME_MAP
 			DDPI_SHADER_PLATFORM_NAME_MAP
-#endif
 		};
 
 		for (int32 MapIndex = 0; MapIndex < UE_ARRAY_COUNT(NameMap); ++MapIndex)
@@ -143,6 +142,7 @@ private:
 			Platform.ShaderPlatform = FName(*FString::Printf(TEXT("SP_%s"), *Entry.Name.ToString()), FNAME_Add);
 			Platform.ShaderFormat = FName(*FString::Printf(TEXT("SF_%s"), *Entry.Name.ToString()), FNAME_Add);
 		}
+#endif
 	}
 
 public:
