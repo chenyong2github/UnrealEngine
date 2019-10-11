@@ -4204,9 +4204,6 @@ void UnFbx::FFbxImporter::ImportMorphTargetsInternal( TArray<FbxNode*>& SkelMesh
 
 	GWarn->BeginSlowTask( NSLOCTEXT("FbxImporter", "BeginGeneratingMorphModelsTask", "Generating Morph Models"), true);
 
-	//Use this TMap to store the name of the blendshape map by the fbx uniqueID. This allow to assign unique name to each blend shape.
-	TMap<uint64, FString> UniqueIDToName;
-
 	// For each morph in FBX geometries, we create one morph target for the Unreal skeletal mesh
 	for (int32 NodeIndex = 0; NodeIndex < SkelMeshNodeArray.Num(); NodeIndex++)
 	{
@@ -4264,36 +4261,6 @@ void UnFbx::FFbxImporter::ImportMorphTargetsInternal( TArray<FbxNode*>& SkelMesh
 									// Maya concatenates the number of the shape to the end of its name, so instead use the name of the channel
 									ShapeName = ChannelName;
 								}
-							}
-
-							uint64 UniqueID = Shape->GetUniqueID();
-							if (UniqueIDToName.Contains(UniqueID))
-							{
-								ShapeName = UniqueIDToName.FindChecked(UniqueID);
-							}
-							else
-							{
-								//In case the shape do not have a unique name
-								//make it unique
-								int32 NameIndex = 0;
-								FString CurrentShapeName = ShapeName;
-								bool bNameNotUnique = ShapeNameToShapeArray.Contains(CurrentShapeName);
-								while(bNameNotUnique)
-								{
-									//Append ShapeX to the shape name (same has Maya)
-									if (NameIndex == 0)
-									{
-										CurrentShapeName = ShapeName + TEXT("Shape");
-										NameIndex++;
-									}
-									else
-									{
-										CurrentShapeName = ShapeName + TEXT("Shape") + FString::FromInt(NameIndex++);
-									}
-									bNameNotUnique = ShapeNameToShapeArray.Contains(CurrentShapeName);
-								}
-								ShapeName = CurrentShapeName;
-								UniqueIDToName.Add(UniqueID, ShapeName);
 							}
 
 							TArray<FbxShape*> & ShapeArray = ShapeNameToShapeArray.FindOrAdd(ShapeName);
