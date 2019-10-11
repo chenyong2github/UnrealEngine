@@ -192,6 +192,11 @@ static TAutoConsoleVariable<int32> CVarViewRectUseScreenBottom(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<float> CVarConstantWaterDepth(
+	TEXT("r.Water.ConstantWaterDepth"),
+	-1.0f,
+	TEXT("Setting this to a negative value means disabled and reading from scene depth texture. Specified in unreal units."),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 static TAutoConsoleVariable<float> CVarGeneralPurposeTweak(
@@ -1491,6 +1496,8 @@ void FViewInfo::SetupUniformBufferParameters(
 
 		ViewUniformShaderParameters.GeneralPurposeTweak = Value;
 	}
+
+	ViewUniformShaderParameters.ConstantWaterDepth = CVarConstantWaterDepth.GetValueOnRenderThread();
 
 	ViewUniformShaderParameters.DemosaicVposOffset = 0.0f;
 	{
