@@ -13,22 +13,6 @@
 DECLARE_LOG_CATEGORY_EXTERN(LogAndroidRuntimeSettings, Log, All);
 
 UENUM()
-namespace EAndroidAntVerbosity
-{
-	enum Type
-	{
-		/** Extra quiet logging (-quiet), errors will be logged by second run at normal verbosity. */
-		Quiet,
-
-		/** Normal logging (no options) */
-		Normal,
-
-		/** Extra verbose logging (-verbose) */
-		Verbose,
-	};
-}
-
-UENUM()
 namespace EAndroidScreenOrientation
 {
 	// IF THIS CHANGES, MAKE SURE TO UPDATE UEDeployAndroid.cs, ConvertOrientationIniValue()!
@@ -286,10 +270,6 @@ public:
 	// Should we restore scheduled local notifications on reboot? This will add a receiver for boot complete and a permission to the manifest.
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Restore scheduled notifications on reboot"))
 	bool bRestoreNotificationsOnReboot;
-
-	// Level of verbosity to use during packaging with Ant
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging")
-	TEnumAsByte<EAndroidAntVerbosity::Type> AntVerbosity;
 
 	// Should the software navigation buttons be hidden or not
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Enable FullScreen Immersive on KitKat and above devices."))
