@@ -68,9 +68,10 @@ bool FSteamVRHMD::IsActiveThisFrame(class FViewport* InViewport) const
 static void DrawOcclusionMesh(FRHICommandList& RHICmdList, EStereoscopicPass StereoPass, const FHMDViewMesh MeshAssets[])
 {
 	check(IsInRenderingThread());
-	check(IStereoRendering::IsStereoEyeView(StereoPass));
+	check(StereoPass == eSSP_LEFT_EYE);
 
-	const uint32 MeshIndex = IStereoRendering::IsAPrimaryView(StereoPass) ? 0 : 1;
+	//#todo-rv-vr
+	const uint32 MeshIndex = /*IStereoRendering::IsAPrimaryView*/(StereoPass == eSSP_FULL || StereoPass == eSSP_LEFT_EYE) ? 0 : 1;
 	const FHMDViewMesh& Mesh = MeshAssets[MeshIndex];
 	check(Mesh.IsValid());
 
