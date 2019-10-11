@@ -7,6 +7,8 @@
 #include "IPropertyUtilities.h"
 #include "EditorUndoClient.h"
  
+class UEdGraphPin;
+
 /** This customization sets up a custom details panel for the static switch Variable in the niagara module graph. */
 class FNiagaraScriptVariableDetails : public IDetailCustomization, public FEditorUndoClient
 {
@@ -21,7 +23,6 @@ public:
 	/** IDetailCustomization interface */
 	virtual void CustomizeDetails( IDetailLayoutBuilder& DetailBuilder ) override;
 	
-	
 	//~ Begin FEditorUndoClient Interface
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
@@ -34,7 +35,7 @@ private:
 	void OnStaticSwitchValueChanged();
 
 	UEdGraphPin* GetDefaultPin();
- 
+
 	TWeakObjectPtr<class UNiagaraScriptVariable> Variable;
 	TSharedPtr<class INiagaraEditorTypeUtilities, ESPMode::ThreadSafe> TypeUtilityValue;
 	TSharedPtr<class INiagaraEditorTypeUtilities, ESPMode::ThreadSafe> TypeUtilityStaticSwitchValue;
