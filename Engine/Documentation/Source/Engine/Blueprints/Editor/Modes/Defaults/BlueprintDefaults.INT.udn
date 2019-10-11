@@ -1,8 +1,0 @@
-Availability:Docs
-Title: Defaults Mode
-Crumbs:%ROOT%, Engine/Blueprints, Engine/Blueprints/Editor
-Description:The Defaults Mode allows you to edit all the default values of the properties inside your Blueprint.
-tags:Blueprints
-topic-image:Engine\Blueprints\UserGuide\defaults_mode_topic.png
-
-[INCLUDE:Globals#bpmodesremoved]

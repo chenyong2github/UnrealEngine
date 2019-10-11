@@ -128,6 +128,26 @@ void TPBDCollisionConstraint<T, d>::RemoveConstraint(int32 Idx)
 	}
 }
 
+
+template<typename T, int d>
+void TPBDCollisionConstraint<T, d>::RemoveConstraints(const TSet<TGeometryParticleHandle<T, d>*>&  InHandleSet)
+{
+	const TArray<TGeometryParticleHandle<T, d>*> HandleArray = InHandleSet.Array();
+	for (auto ParticleHandle : HandleArray)
+	{
+		TArray<FConstraintHandleID> Keys;
+		Handles.GetKeys(Keys);
+		for (FConstraintHandleID Key : Keys)
+		{
+			if (Key.Key == ParticleHandle || Key.Value == ParticleHandle)
+			{
+				RemoveConstraint(Handles[Key]->GetConstraintIndex());
+			}
+		}
+	}
+	Handles.Compact();
+}
+
 template<typename T, int d>
 void TPBDCollisionConstraint<T, d>::ApplyCollisionModifier(const TFunction<ECollisionModifierResult(FRigidBodyContactConstraint& Constraint)>& CollisionModifier)
 {
@@ -501,8 +521,8 @@ TVector<T, d> GetEnergyClampedImpulse(const TRigidBodyContactConstraint<T, d>& C
 template<typename T, int d>
 void TPBDCollisionConstraint<T, d>::Apply(const T Dt, FRigidBodyContactConstraint& Constraint)
 {
-	TGeometryParticleHandle<T, d>* Particle0 = Constraint.Particle;
-	TGeometryParticleHandle<T, d>* Particle1 = Constraint.Levelset;
+	TGenericParticleHandle<T, d> Particle0 = TGenericParticleHandle<T, d>(Constraint.Particle);
+	TGenericParticleHandle<T, d> Particle1 = TGenericParticleHandle<T, d>(Constraint.Levelset);
 	TPBDRigidParticleHandle<T, d>* PBDRigid0 = Particle0->AsDynamic();
 	TPBDRigidParticleHandle<T, d>* PBDRigid1 = Particle1->AsDynamic();
 
@@ -529,14 +549,14 @@ void TPBDCollisionConstraint<T, d>::Apply(const T Dt, FRigidBodyContactConstrain
 
 	// @todo(ccaulfield): CHAOS_PARTICLEHANDLE_TODO split function to avoid ifs
 	const TVector<T, d> ZeroVector = TVector<T, d>(0);
-	const TRotation<T, d>& Q0 = PBDRigid0? PBDRigid0->Q() : Particle0->R();
-	const TRotation<T, d>& Q1 = PBDRigid1? PBDRigid1->Q() : Particle1->R();
-	const TVector<T, d>& P0 = PBDRigid0 ? PBDRigid0->P() : Particle0->X();
-	const TVector<T, d>& P1 = PBDRigid1 ? PBDRigid1->P() : Particle1->X();
-	const TVector<T, d>& V0 = PBDRigid0 ? PBDRigid0->V() : ZeroVector;
-	const TVector<T, d>& V1 = PBDRigid1 ? PBDRigid1->V() : ZeroVector;
-	const TVector<T, d>& W0 = PBDRigid0 ? PBDRigid0->W() : ZeroVector;
-	const TVector<T, d>& W1 = PBDRigid1 ? PBDRigid1->W() : ZeroVector;
+	const TRotation<T, d>& Q0 = Particle0->Q();
+	const TRotation<T, d>& Q1 = Particle1->Q();
+	const TVector<T, d>& P0 = Particle0->P();
+	const TVector<T, d>& P1 = Particle1->P();
+	const TVector<T, d>& V0 = Particle0->V();
+	const TVector<T, d>& V1 = Particle1->V();
+	const TVector<T, d>& W0 = Particle0->W();
+	const TVector<T, d>& W1 = Particle1->W();
 	TSerializablePtr<TChaosPhysicsMaterial<T>> PhysicsMaterial0 = Particle0->AuxilaryValue(MPhysicsMaterials);
 	TSerializablePtr<TChaosPhysicsMaterial<T>> PhysicsMaterial1 = Particle1->AuxilaryValue(MPhysicsMaterials);
 

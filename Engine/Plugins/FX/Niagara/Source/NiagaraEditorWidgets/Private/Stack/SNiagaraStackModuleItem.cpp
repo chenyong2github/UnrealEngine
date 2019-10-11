@@ -20,11 +20,11 @@
 #include "Widgets/Images/SImage.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Application/SlateApplication.h"
-
 #include "SDropTarget.h"
 #include "SNiagaraStackErrorButton.h"
 #include "NiagaraEditorUtilities.h"
 #include "SGraphActionMenu.h"
+#include "NiagaraEditorWidgetsUtilities.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
 
@@ -149,27 +149,8 @@ bool SNiagaraStackModuleItem::CheckEnabledStatus(bool bIsEnabled)
 
 void SNiagaraStackModuleItem::FillRowContextMenu(FMenuBuilder& MenuBuilder)
 {
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("InsertModuleAbove", "Insert Above"),
-		LOCTEXT("InsertModuleAboveToolTip", "Insert a new module above this module in the stack."),
-		FSlateIcon(),
-		FUIAction(FExecuteAction::CreateSP(this, &SNiagaraStackModuleItem::InsertModuleAbove)));
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("InsertModuleBelow", "Insert Below"),
-		LOCTEXT("InsertModuleBelowToolTip", "Insert a new module below this module in the stack."),
-		FSlateIcon(),
-		FUIAction(FExecuteAction::CreateSP(this, &SNiagaraStackModuleItem::InsertModuleBelow)));
-
-	FUIAction Action(FExecuteAction::CreateSP(this, &SNiagaraStackModuleItem::SetEnabled, !ModuleItem->GetIsEnabled()),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(this, &SNiagaraStackModuleItem::CheckEnabledStatus, true));
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("IsEnabled", "Is Enabled"),
-		LOCTEXT("ToggleModuleEnabledToolTip", "Toggle module enabled/disabled state"),
-		FSlateIcon(),
-		Action,
-		NAME_None,
-		EUserInterfaceActionType::Check);
+	FNiagaraStackEditorWidgetsUtilities::AddStackModuleItemContextMenuActions(MenuBuilder, *ModuleItem, this->AsShared());
+	FNiagaraStackEditorWidgetsUtilities::AddStackItemContextMenuActions(MenuBuilder, *ModuleItem);
 }
 
 FReply SNiagaraStackModuleItem::OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
@@ -209,20 +190,15 @@ bool SNiagaraStackModuleItem::GetButtonsEnabled() const
 
 FText SNiagaraStackModuleItem::GetDeleteButtonToolTipText() const
 {
-	if (ModuleItem->CanMoveAndDelete())
-	{
-		return LOCTEXT("DeleteToolTip", "Delete this module");
-	}
-	else
-	{
-		// TODO: This message should be handled by the entry.
-		return LOCTEXT("CantDeleteToolTip", "This module can not be deleted becaue it is inherited.");
-	}
+	FText CanDeleteMessage;
+	ModuleItem->TestCanDeleteWithMessage(CanDeleteMessage);
+	return CanDeleteMessage;
 }
 
 bool SNiagaraStackModuleItem::GetDeleteButtonEnabled() const
 {
-	return ModuleItem->GetOwnerIsEnabled() && ModuleItem->CanMoveAndDelete();
+	FText CanDeleteMessage;
+	return ModuleItem->TestCanDeleteWithMessage(CanDeleteMessage);
 }
 
 bool SNiagaraStackModuleItem::GetEnabledCheckBoxEnabled() const
@@ -292,25 +268,6 @@ FReply SNiagaraStackModuleItem::RefreshClicked()
 {
 	ModuleItem->Refresh();
 	return FReply::Handled();
-}
-
-void SNiagaraStackModuleItem::InsertModuleAbove()
-{
-	ShowInsertModuleMenu(ModuleItem->GetModuleIndex());
-}
-
-void SNiagaraStackModuleItem::InsertModuleBelow()
-{
-	ShowInsertModuleMenu(ModuleItem->GetModuleIndex() + 1);
-}
-
-void SNiagaraStackModuleItem::ShowInsertModuleMenu(int32 InsertIndex)
-{
-	TSharedRef<SWidget> MenuContent = SNew(SNiagaraStackItemGroupAddMenu, ModuleItem->GetGroupAddUtilities(), InsertIndex);
-	FGeometry ThisGeometry = GetCachedGeometry();
-	bool bAutoAdjustForDpiScale = false; // Don't adjust for dpi scale because the push menu command is expecting an unscaled position.
-	FVector2D MenuPosition = FSlateApplication::Get().CalculatePopupWindowPosition(ThisGeometry.GetLayoutBoundingRect(), MenuContent->GetDesiredSize(), bAutoAdjustForDpiScale);
-	FSlateApplication::Get().PushMenu(AsShared(), FWidgetPath(), MenuContent, MenuPosition, FPopupTransitionEffect::ContextMenu);
 }
 
 FReply SNiagaraStackModuleItem::OnModuleItemDrop(TSharedPtr<FDragDropOperation> DragDropOperation)

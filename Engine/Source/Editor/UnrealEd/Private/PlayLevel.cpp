@@ -3547,9 +3547,11 @@ UGameInstance* UEditorEngine::CreatePIEGameInstance(int32 InPIEInstance, bool bI
 	GameInstance->RemoveFromRoot();
 
 	// Start the game instance, make sure to set the PIE instance global as this is basically a tick
-	GPlayInEditorID = InPIEInstance;
-	const FGameInstancePIEResult StartResult = GameInstance->StartPlayInEditorGameInstance(NewLocalPlayer, GameInstanceParams);
-	GPlayInEditorID = -1;
+	FGameInstancePIEResult StartResult = FGameInstancePIEResult::Success();
+	{
+		FTemporaryPlayInEditorIDOverride OverrideIDHelper(InPIEInstance);
+		StartResult = GameInstance->StartPlayInEditorGameInstance(NewLocalPlayer, GameInstanceParams);
+	}
 
 	if (!StartResult.IsSuccess())
 	{
@@ -3872,7 +3874,7 @@ UWorld* UEditorEngine::CreatePIEWorldByDuplication(FWorldContext &WorldContext, 
 	const FScopedBusyCursor BusyCursor;
 
 	// Before loading the map, we need to set these flags to true so that postload will work properly
-	GIsPlayInEditorWorld = true;
+	TGuardValue<bool> OverrideIsPlayWorld(GIsPlayInEditorWorld, true);
 
 	const FName PlayWorldMapFName = FName(*PlayWorldMapName);
 	UWorld::WorldTypePreLoadMap.FindOrAdd(PlayWorldMapFName) = EWorldType::PIE;
@@ -3889,7 +3891,7 @@ UWorld* UEditorEngine::CreatePIEWorldByDuplication(FWorldContext &WorldContext, 
 
 	// check(GPlayInEditorID == -1 || GPlayInEditorID == WorldContext.PIEInstance);
 	// Currently GPlayInEditorID is not correctly reset after map loading, so it's not safe to assert here
-	GPlayInEditorID = WorldContext.PIEInstance;
+	FTemporaryPlayInEditorIDOverride IDHelper(WorldContext.PIEInstance);
 
 	{
 		double SDOStart = FPlatformTime::Seconds();
@@ -3945,14 +3947,10 @@ UWorld* UEditorEngine::CreatePIEWorldByDuplication(FWorldContext &WorldContext, 
 	// Clean up the world type list now that PostLoad has occurred
 	UWorld::WorldTypePreLoadMap.Remove(PlayWorldMapFName);
 
-	GPlayInEditorID = -1;
 	check( NewPIEWorld );
 	NewPIEWorld->FeatureLevel = InWorld->FeatureLevel;
 	PostCreatePIEWorld(NewPIEWorld);
 
-	// After loading the map, reset these so that things continue as normal
-	GIsPlayInEditorWorld = false;
-	
 	UE_LOG(LogPlayLevel, Log, TEXT("PIE: Created PIE world by copying editor world from %s to %s (%fs)"), *InWorld->GetPathName(), *NewPIEWorld->GetPathName(), float(FPlatformTime::Seconds() - StartTime));
 	return NewPIEWorld;
 }

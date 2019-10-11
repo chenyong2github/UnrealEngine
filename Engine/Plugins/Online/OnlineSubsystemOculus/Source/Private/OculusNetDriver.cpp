@@ -239,6 +239,8 @@ void UOculusNetDriver::TickDispatch(float DeltaTime)
 					StatelessConnect->GetChallengeSequence(ServerSequence, ClientSequence);
 
 					Connection->InitSequence(ClientSequence, ServerSequence);
+
+					StatelessConnect->ResetChallengeData();
 				}
 
 				if (Connection->Handler.IsValid())

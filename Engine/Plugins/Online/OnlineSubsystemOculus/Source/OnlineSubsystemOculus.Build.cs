@@ -22,6 +22,7 @@ public class OnlineSubsystemOculus : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
+				"NetCore",
 				"CoreUObject",
 				"Engine",
 				"Sockets",

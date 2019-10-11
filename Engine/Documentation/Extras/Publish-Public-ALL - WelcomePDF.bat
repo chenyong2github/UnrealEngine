@@ -1,1 +1,0 @@
-start /wait %~dp0\..\..\..\..\UnrealDocTool\Binaries\DotNET\unrealdoctool.exe GettingStartedPDF -s=%~dp0\..\Source -pathPrefix=%~dp0\..\Source -o=%~dp0\..\PDF -lang=INT,KOR,JPN,CHN -publish=licensee,docs -v=info -outputFormat=PDF -doxygenCache=%~dp0\..\XML -env=working

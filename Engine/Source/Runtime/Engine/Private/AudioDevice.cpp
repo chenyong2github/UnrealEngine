@@ -4,6 +4,7 @@
 #include "ActiveSound.h"
 #include "AudioCompressionSettingsUtils.h"
 #include "AudioDecompress.h"
+#include "AudioDefines.h"
 #include "AudioEffect.h"
 #include "AudioPluginUtilities.h"
 #include "Audio/AudioDebug.h"

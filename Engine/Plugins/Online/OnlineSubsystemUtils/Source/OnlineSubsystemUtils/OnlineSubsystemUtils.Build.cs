@@ -42,6 +42,7 @@ public class OnlineSubsystemUtils : ModuleRules
 			{
 				"Core",
 				"CoreUObject",
+				"NetCore",
 				"Engine"
 			}
 		);

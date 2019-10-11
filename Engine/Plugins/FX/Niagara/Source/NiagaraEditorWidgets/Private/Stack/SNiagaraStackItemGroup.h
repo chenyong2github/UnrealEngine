@@ -21,15 +21,7 @@ private:
 
 	EVisibility GetDeleteButtonVisibility() const;
 
-	EVisibility GetAddButtonVisibility() const;
-
-	FText GetAddButtonToolTipText() const;
-
-	FReply AddDirectlyButtonClicked();
-
 	FReply DeleteClicked();
-
-	TSharedRef<SWidget> GetAddMenu();
 
 	EVisibility GetStackIssuesWarningVisibility() const;
 
@@ -37,6 +29,4 @@ private:
 
 private:
 	UNiagaraStackItemGroup* Group;
-	TSharedPtr<class SComboButton> AddActionButton; 
-	const float TextIconSize = 16;
 };

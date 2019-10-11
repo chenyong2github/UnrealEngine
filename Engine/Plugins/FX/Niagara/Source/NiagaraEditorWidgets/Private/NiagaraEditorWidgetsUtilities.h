@@ -2,7 +2,14 @@
 
 #pragma once
 
+#include "Templates/SharedPointer.h"
 #include "UObject/NameTypes.h"
+
+class FMenuBuilder;
+class SWidget;
+class UNiagaraStackEntry;
+class UNiagaraStackItem;
+class UNiagaraStackModuleItem;
 
 namespace FNiagaraStackEditorWidgetsUtilities
 {
@@ -11,4 +18,11 @@ namespace FNiagaraStackEditorWidgetsUtilities
 	FName GetIconNameForExecutionSubcategory(FName ExecutionSubcategoryName, bool bIsHighlighted);
 
 	FName GetIconColorNameForExecutionCategory(FName ExecutionCategoryName);
+	
+	bool AddStackEntryAssetContextMenuActions(FMenuBuilder& MenuBuilder, UNiagaraStackEntry& StackEntry);
+
+	bool AddStackItemContextMenuActions(FMenuBuilder& MenuBuilder, UNiagaraStackItem& StackItem);
+
+	bool AddStackModuleItemContextMenuActions(FMenuBuilder& MenuBuilder, UNiagaraStackModuleItem& StackItem, TSharedRef<SWidget> TargetWidget);
+
 }
