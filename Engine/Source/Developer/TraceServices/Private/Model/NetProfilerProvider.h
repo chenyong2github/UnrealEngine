@@ -53,6 +53,8 @@ public:
 	explicit FNetProfilerProvider(IAnalysisSession& InSession);
 	virtual ~FNetProfilerProvider();
 
+	void SetNetTraceVersion(uint32 NetTraceVersion);
+
 	uint32 AddNetProfilerName(const TCHAR* Name);
 
 	uint32 AddNetProfilerEventType(uint32 NameIndex, uint32 Level);
@@ -70,6 +72,8 @@ public:
 	Trace::FNetProfilerObjectInstance* EditObject(uint32 GameInstanceIndex, uint32 ObjectIndex);
 
 	// INetProfilerProvider Interface
+
+	virtual uint32 GetNetTraceVersion() const override;
 
 	// Access Names
 	virtual uint32 GetNameCount() const override { return Names.Num(); }
@@ -115,6 +119,8 @@ private:
 	const FNetProfilerEventType* GetNetProfilerEventType(uint32 ProfilerEventTypeId) const;
 
 	IAnalysisSession& Session;
+
+	uint32 NetTraceVersion;
 
 	TArray<FNetProfilerName> Names;
 
