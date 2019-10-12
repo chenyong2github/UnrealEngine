@@ -1762,6 +1762,21 @@ void UActorComponent::OnRep_IsActive()
 	SetComponentTickEnabled(IsActive());
 }
 
+#if WITH_EDITOR
+bool UActorComponent::CanEditChange(const UProperty* InProperty) const
+{
+	if (Super::CanEditChange(InProperty))
+	{
+		UActorComponent* ComponentArchetype = Cast<UActorComponent>(GetArchetype());
+		if (ComponentArchetype == nullptr || ComponentArchetype->bEditableWhenInherited)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+#endif
+
 bool UActorComponent::IsEditableWhenInherited() const
 {
 	bool bCanEdit = bEditableWhenInherited;
