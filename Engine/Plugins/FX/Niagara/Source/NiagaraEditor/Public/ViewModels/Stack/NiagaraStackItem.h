@@ -28,8 +28,12 @@ public:
 	uint32 GetRecursiveStackIssuesCount() const;
 	EStackIssueSeverity GetHighestStackIssueSeverity() const;
 
-	virtual bool CanChangeEnabled() const { return false; }
+	virtual bool SupportsChangeEnabled() const { return false; }
 	virtual void SetIsEnabled(bool bInIsEnabled) { }
+
+	virtual bool SupportsDelete() const { return false; }
+	virtual bool TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const { return false; }
+	virtual void Delete() { }
 	
 protected:
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
