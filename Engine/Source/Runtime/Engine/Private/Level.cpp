@@ -2047,7 +2047,7 @@ void ULevel::BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPlatfo
 
 void ULevel::FixupForPIE(int32 PIEInstanceID)
 {
-	TGuardValue<int32> SetPlayInEditorID(GPlayInEditorID, PIEInstanceID);
+	FTemporaryPlayInEditorIDOverride SetPlayInEditorID(PIEInstanceID);
 
 	struct FSoftPathPIEFixupSerializer : public FArchiveUObject
 	{
