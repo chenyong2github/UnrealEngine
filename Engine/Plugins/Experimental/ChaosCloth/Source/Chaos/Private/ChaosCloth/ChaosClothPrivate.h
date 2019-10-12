@@ -4,4 +4,4 @@
 
 #include "CoreMinimal.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogChaosCloth, Verbose, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogChaosCloth, Log, All);
