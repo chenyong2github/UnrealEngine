@@ -6,13 +6,12 @@
 #include "CoreMinimal.h"
 
 
-// @todo #JohnB: Create a new CoreNet module, remove conflicts with existing 'CoreNet' files, and begin moving stuff like this into it
 
 
 /**
  * Contains metadata and flags, which provide information on the traits of a packet - what it contains and how to process it.
  */
-struct PACKETHANDLER_API FOutPacketTraits
+struct NETCORE_API FOutPacketTraits
 {
 	/** Flags - may trigger modification of packet and traits */
 

@@ -9,13 +9,14 @@ public class PacketHandler : ModuleRules
     {
         PublicDependencyModuleNames.AddRange
 		(
-            new string[]
+			new string[]
 			{
 				"Core",
 				"CoreUObject",
-                "ReliabilityHandlerComponent",
+				"NetCore",
+				"ReliabilityHandlerComponent",
 				"Sockets",
-            }
+			}
         );
 
         CircularlyReferencedDependentModules.Add("ReliabilityHandlerComponent");

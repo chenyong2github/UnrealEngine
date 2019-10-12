@@ -56,7 +56,7 @@ class FPacketAudit;
 
 #if !UE_BUILD_SHIPPING
 /** The handler for managing packet auditing */
-extern PACKETHANDLER_API FPacketAudit* GPacketAuditor;
+extern NETCORE_API FPacketAudit* GPacketAuditor;
 #endif
 
 
@@ -70,7 +70,7 @@ extern PACKETHANDLER_API FPacketAudit* GPacketAuditor;
  *
  * IMPORTANT: Only supports interaction between a single server, and a single client.
  */
-class PACKETHANDLER_API FPacketAudit
+class NETCORE_API FPacketAudit
 {
 #if !UE_BUILD_SHIPPING
 protected:

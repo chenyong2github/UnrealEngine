@@ -22,7 +22,7 @@
 #include "Containers/CircularBuffer.h"
 #include "ReplicationDriver.h"
 #include "Analytics/EngineNetAnalytics.h"
-#include "PacketTraits.h"
+#include "Net/Core/Misc/PacketTraits.h"
 #include "Net/Util/ResizableCircularQueue.h"
 #include "Net/NetAnalyticsTypes.h"
 

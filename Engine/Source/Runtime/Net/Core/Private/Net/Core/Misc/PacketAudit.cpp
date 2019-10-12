@@ -3,8 +3,8 @@
 /**
  * Includes
  */
-#include "PacketAudit.h"
-#include "PacketHandler.h"
+#include "Net/Core/Misc/PacketAudit.h"
+#include "Net/Core/Misc/NetCoreLog.h"
 
 #include "Misc/CommandLine.h"
 #include "Serialization/BitReader.h"
@@ -296,7 +296,7 @@ void FPacketAudit::Init()
 		}
 		else
 		{
-			UE_LOG(PacketHandlerLog, Log, TEXT("%s"), *(FString(TEXT("Packet auditor already active for a game ")) +
+			UE_LOG(LogNetCore, Log, TEXT("%s"), *(FString(TEXT("Packet auditor already active for a game ")) +
 					(GIsServer ? TEXT("server") : TEXT("client")) + TEXT(", can't start multiple instances.")));
 
 			FPlatformProcess::DeleteInterprocessSynchObject(CurGameMutex);
@@ -481,7 +481,7 @@ void FPacketAudit::DumpAuditData(FScopedAuditAccess& AuditLock, uint32 InPacketC
 
 	FinalLogStr += TEXT(")");
 
-	UE_LOG(PacketHandlerLog, Log, TEXT("%s"), *FinalLogStr);
+	UE_LOG(LogNetCore, Log, TEXT("%s"), *FinalLogStr);
 }
 
 
