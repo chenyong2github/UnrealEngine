@@ -128,6 +128,26 @@ void TPBDCollisionConstraint<T, d>::RemoveConstraint(int32 Idx)
 	}
 }
 
+
+template<typename T, int d>
+void TPBDCollisionConstraint<T, d>::RemoveConstraints(const TSet<TGeometryParticleHandle<T, d>*>&  InHandleSet)
+{
+	const TArray<TGeometryParticleHandle<T, d>*> HandleArray = InHandleSet.Array();
+	for (auto ParticleHandle : HandleArray)
+	{
+		TArray<FConstraintHandleID> Keys;
+		Handles.GetKeys(Keys);
+		for (FConstraintHandleID Key : Keys)
+		{
+			if (Key.Key == ParticleHandle || Key.Value == ParticleHandle)
+			{
+				RemoveConstraint(Handles[Key]->GetConstraintIndex());
+			}
+		}
+	}
+	Handles.Compact();
+}
+
 template<typename T, int d>
 void TPBDCollisionConstraint<T, d>::ApplyCollisionModifier(const TFunction<ECollisionModifierResult(FRigidBodyContactConstraint& Constraint)>& CollisionModifier)
 {
