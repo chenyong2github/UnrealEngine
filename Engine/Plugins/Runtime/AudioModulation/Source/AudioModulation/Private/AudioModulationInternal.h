@@ -30,7 +30,6 @@ namespace AudioModulation
 
 #if WITH_EDITOR
 		void OnEditPluginSettings(const USoundModulationPluginSourceSettingsBase& Settings);
-		void OnExitPIE(bool bSimulating);
 #endif // WITH_EDITOR
 
 		void OnInitSound(ISoundModulatable& InSound, const USoundModulationPluginSourceSettingsBase& Settings);
@@ -42,9 +41,11 @@ namespace AudioModulation
 		void ActivateBusMix(const USoundControlBusMix& InBusMix, const ISoundModulatable* Sound = nullptr);
 		void ActivateLFO(const USoundBusModulatorLFO& InLFO, const ISoundModulatable* Sound = nullptr);
 
+		float CalculateInitialVolume(const USoundModulationPluginSourceSettingsBase& InSettingsBase) const;
+
 		/**
-		 * Deactivates respective type if InSoundId is invalid (default behavior).  Only deactivates type if
-		 * provided a InSoundId that is releasing, type is set to AutoActivate, and sounds are no longer referencing type.
+		 * Deactivates respectively typed (i.e. BusMix, Bus, etc.) object proxy if either Sound is invalid (default behavior),
+		 * or if provided Sound, only deactivates if object is set to AutoActivate and sounds are no longer referencing provided object.
 		 */
 		void DeactivateBusMix(const FBusMixId InBusMixId, const ISoundModulatable* Sound = nullptr);
 		void DeactivateBus(const FBusId InBusId, const ISoundModulatable* Sound = nullptr);
@@ -53,7 +54,6 @@ namespace AudioModulation
 		bool IsBusActive(const FBusId InBusId) const;
 		bool IsLFOActive(const FLFOId InLFOId) const;
 
-		void ProcessAudio(const FAudioPluginSourceInputData& InputData, FAudioPluginSourceOutputData& OutputData);
 		void ProcessControls(const uint32 InSourceId, FSoundModulationControls& OutControls);
 		void ProcessModulators(const float Elapsed);
 
@@ -83,9 +83,13 @@ namespace AudioModulation
 
 	private:
 		FAudioModulationDebugger Debugger;
+#endif // !UE_BUILD_SHIPPING
+
+#if WITH_EDITOR
+	private:
 		ISoundModulatable* PreviewSound;
 		FModulationSettingsProxy PreviewSettings;
-#endif // !UE_BUILD_SHIPPING
+#endif // WITH_EDITOR
 	};
 } // namespace AudioModulation
 
@@ -101,7 +105,6 @@ namespace AudioModulation
 
 #if WITH_EDITOR
 		void OnEditPluginSettings(const USoundModulationPluginSourceSettingsBase& Settings) { }
-		void OnExitPIE(bool bSimulating) { }
 #endif // WITH_EDITOR
 
 		void OnInitSound(ISoundModulatable& InSound, const USoundModulationPluginSourceSettingsBase& Settings) { }
@@ -118,11 +121,13 @@ namespace AudioModulation
 		void ActivateBus(const USoundControlBusBase& InBus, const ISoundModulatable* Sound = nullptr) { }
 		void ActivateBusMix(const USoundControlBusMix& InBusMix, const ISoundModulatable* Sound = nullptr) { }
 		void ActivateLFO(const USoundBusModulatorLFO& InLFO, const ISoundModulatable* Sound = nullptr) { }
+
+		float CalculateInitialVolume(const USoundModulationPluginSourceSettingsBase& InSettingsBase) const { return 1.0f; }
+
 		void DeactivateBusMix(const FBusMixId BusMixId, const ISoundModulatable* Sound = nullptr) { }
 		void DeactivateBus(const FBusId BusId, const ISoundModulatable* Sound = nullptr) { }
 		void DeactivateLFO(const FLFOId LFOId, const ISoundModulatable* Sound = nullptr) { }
 
-		void ProcessAudio(const FAudioPluginSourceInputData& InputData, FAudioPluginSourceOutputData& OutputData) { }
 		void ProcessControls(const uint32 InSourceId, FSoundModulationControls& OutControls) { }
 		void ProcessModulators(const float Elapsed) { }
 
