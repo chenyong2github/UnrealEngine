@@ -39,18 +39,25 @@ struct FSoundModulationInputTransform
 UENUM()
 enum class ESoundModulatorOutputCurve
 {
+	// Expressions
 	Linear		UMETA(DisplayName = "Linear"),
 	Exp			UMETA(DisplayName = "Exponential"),
 	Exp_Inverse UMETA(DisplayName = "Exponential (Inverse)"),
 	Log			UMETA(DisplayName = "Log"),
 	Sin			UMETA(DisplayName = "Sin (Quarter)"),
 	SCurve		UMETA(DisplayName = "Sin (S-Curve)"),
+
+	// Reference a shared curve asset
+	Shared		UMETA(DisplayName = "Shared"),
+
+	// Design a custom curve unique to the owning transform
 	Custom		UMETA(DisplayName = "Custom"),
+
 	Count		UMETA(Hidden),
 };
 
 USTRUCT(BlueprintType)
-struct FSoundModulationOutputTransform
+struct AUDIOMODULATION_API FSoundModulationOutputTransform
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -73,12 +80,16 @@ struct FSoundModulationOutputTransform
 	 *  Exponential (Inverse): y = ((x - 1) * 10^(-bx)) + 1
 	 *  Logarithmic: y = b * log(x) + 1
 	 */
-	UPROPERTY(EditAnywhere, Category = Input, BlueprintReadWrite, meta = (DisplayName = "Exponential Scalar", ClampMin = "0", ClampMax = "10", UIMin = "0", UIMax = "10"))
+	UPROPERTY(EditAnywhere, Category = Input, BlueprintReadWrite, meta = (DisplayName = "Exponential Scalar", ClampMin = "0.1", ClampMax = "10.0", UIMin = "0.1", UIMax = "10.0"))
 	float Scalar;
 
-	/** Custom curve to apply if output curve type is set to custom. */
+	/** Custom curve to apply if output curve type is set to 'Custom.' */
 	UPROPERTY(EditAnywhere, Category = Curve, BlueprintReadWrite)
-	FRuntimeFloatCurve FloatCurve;
+	FRichCurve CurveCustom;
+
+	/** Asset curve reference to apply if output curve type is set to 'Shared.' */
+	UPROPERTY(EditAnywhere, meta = (DisplayName = "Asset"), Category = Curve, BlueprintReadWrite)
+	UCurveFloat* CurveShared;
 
 	/** Minimum value to clamp output to. */
 	UPROPERTY(EditAnywhere, Category = Output, BlueprintReadWrite)
