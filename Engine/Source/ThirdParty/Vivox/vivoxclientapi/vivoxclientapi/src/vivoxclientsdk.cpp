@@ -1860,11 +1860,12 @@ namespace VivoxClientApi {
 			config->pf_on_audio_unit_before_capture_audio_sent = &sOnAudioUnitBeforeCaptureAudioSent;
 			config->pf_on_audio_unit_before_recv_audio_rendered = &sOnAudioUnitBeforeRecvAudioRendered;
 
+            m_app = app;
             retval = vx_initialize3(config, configSize);
             if(retval != 0) {
+                m_app = nullptr;
                 return VCSStatus(retval);
             }
-            m_app = app;
             
             /// Load local cache of audio input and output device member variables
             RequestAudioInputDevices();
@@ -2624,23 +2625,26 @@ namespace VivoxClientApi {
 
         void OnLogMessage(vx_log_level level, const char *source, const char* message)
         {
-            stringstream ss;
-            ss << source << " - " << message;
+            if (m_app)
+            {
+                stringstream ss;
+                ss << source << " - " << message;
 #ifdef WIN32
-            FILETIME ft;
-            GetSystemTimeAsFileTime(&ft);
-            ULARGE_INTEGER ul;
-            ul.HighPart = ft.dwHighDateTime;
-            ul.LowPart = ft.dwLowDateTime;
-            m_app->onLogStatementEmitted((IClientApiEventHandler::LogLevel)level, ul.QuadPart, GetCurrentThreadId(), ss.str().c_str());
+                FILETIME ft;
+                GetSystemTimeAsFileTime(&ft);
+                ULARGE_INTEGER ul;
+                ul.HighPart = ft.dwHighDateTime;
+                ul.LowPart = ft.dwLowDateTime;
+                m_app->onLogStatementEmitted((IClientApiEventHandler::LogLevel)level, ul.QuadPart, GetCurrentThreadId(), ss.str().c_str());
 #else
-            struct timeval tv;
-            gettimeofday(&tv, NULL);
-            long long tmp = tv.tv_sec;
-            tmp *= 1000000;
-            tmp += tv.tv_usec;
-            m_app->onLogStatementEmitted((IClientApiEventHandler::LogLevel)level, tmp, 0, ss.str().c_str());
+                struct timeval tv;
+                gettimeofday(&tv, NULL);
+                long long tmp = tv.tv_sec;
+                tmp *= 1000000;
+                tmp += tv.tv_usec;
+                m_app->onLogStatementEmitted((IClientApiEventHandler::LogLevel)level, tmp, 0, ss.str().c_str());
 #endif
+            }
         }
 
         void OnResponseOrEventFromSdk()
