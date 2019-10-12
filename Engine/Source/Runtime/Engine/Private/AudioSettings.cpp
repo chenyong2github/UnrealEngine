@@ -150,4 +150,11 @@ int32 UAudioSettings::GetHighestMaxChannels() const
 	return HighestMaxChannels;
 }
 
+FString UAudioSettings::FindQualityNameByIndex(int32 Index) const
+{
+	return QualityLevels.IsValidIndex(Index) ?
+		   QualityLevels[Index].DisplayName.ToString() :
+		   TEXT("");
+}
+
 #undef LOCTEXT_NAMESPACE
