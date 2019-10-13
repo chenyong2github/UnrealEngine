@@ -5,6 +5,7 @@
 #if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
 
 #include "Physics/ImmediatePhysics/ImmediatePhysicsPhysX/ImmediatePhysicsSimulation_PhysX.h"
+#include "Physics/ImmediatePhysics/ImmediatePhysicsPhysX/ImmediatePhysicsContactPair_PhysX.h"
 
 namespace ImmediatePhysics_PhysX
 {
