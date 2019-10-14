@@ -18,25 +18,25 @@ namespace BuildGraph.Tasks
 	public class MoveTaskParameters
 	{
 		/// <summary>
-		/// Filter to be applied to the list of input files. Optional.
+		/// Optional filter to be applied to the list of input files.
 		/// </summary>
 		[TaskParameter(Optional = true, ValidationType = TaskParameterValidationType.FileSpec)]
 		public string Files;
 
 		/// <summary>
-		/// The pattern(s) to copy from (eg. Engine/*.txt)
+		/// The pattern(s) to copy from (for example, Engine/*.txt).
 		/// </summary>
 		[TaskParameter(ValidationType = TaskParameterValidationType.FileSpec)]
 		public string From;
 
 		/// <summary>
-		/// The directory or to copy to
+		/// The directory to copy to.
 		/// </summary>
 		[TaskParameter(ValidationType = TaskParameterValidationType.FileSpec)]
 		public string To;
 
 		/// <summary>
-		/// Tag to be applied to build products of this task
+		/// Tag to be applied to build products of this task.
 		/// </summary>
 		[TaskParameter(Optional = true, ValidationType = TaskParameterValidationType.TagList)]
 		public string Tag;

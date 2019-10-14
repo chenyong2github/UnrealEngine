@@ -320,11 +320,10 @@ void FLinkerSave::UsingCustomVersion(const struct FGuid& Guid)
 	// Here we're going to try and dump the callstack that added a new custom version after package summary has been serialized
 	if (Summary.GetCustomVersionContainer().GetVersion(Guid) == nullptr)
 	{
-		const FCustomVersion* RegisteredVersion = FCustomVersionContainer::GetRegistered().GetVersion(Guid);
-		check(RegisteredVersion);
+		FCustomVersion RegisteredVersion = FCurrentCustomVersions::Get(Guid).GetValue();
 
 		FString CustomVersionWarning = FString::Printf(TEXT("Unexpected custom version \"%s\" used after package %s summary has been serialized. Callstack:\n"),
-			*RegisteredVersion->GetFriendlyName().ToString(), *LinkerRoot->GetName());
+			*RegisteredVersion.GetFriendlyName().ToString(), *LinkerRoot->GetName());
 
 		const int32 MaxStackFrames = 100;
 		uint64 StackFrames[MaxStackFrames];
