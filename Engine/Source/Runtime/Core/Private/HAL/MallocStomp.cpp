@@ -48,6 +48,18 @@ FMallocStomp::FMallocStomp(const bool InUseUnderrunMode)
 
 void* FMallocStomp::Malloc(SIZE_T Size, uint32 Alignment)
 {
+	void* Result = TryMalloc(Size, Alignment);
+
+	if (Result == nullptr)
+	{
+		FPlatformMemory::OnOutOfMemory(Size, Alignment);
+	}
+
+	return Result;
+}
+
+void* FMallocStomp::TryMalloc(SIZE_T Size, uint32 Alignment)
+{
 	if (Size == 0U)
 	{
 		Size = 1U;
@@ -93,11 +105,10 @@ void* FMallocStomp::Malloc(SIZE_T Size, uint32 Alignment)
 
 	if (!FullAllocationPointer)
 	{
-		// this is expected not to return
-		FPlatformMemory::OnOutOfMemory(Size, Alignment);
+		return nullptr;
 	}
 
-	void *ReturnedPointer = nullptr;
+	void* ReturnedPointer = nullptr;
 	static const SIZE_T AllocationDataSize = sizeof(FAllocationData);
 
 	const FAllocationData AllocData = { FullAllocationPointer, TotalAllocationSize, AlignedSize, SentinelExpectedValue };
@@ -113,8 +124,8 @@ void* FMallocStomp::Malloc(SIZE_T Size, uint32 Alignment)
 		void* CommittedMemory = VirtualAlloc(AllocDataPointerStart, AllocFullPageSize, MEM_COMMIT, PAGE_READWRITE);
 		if (!CommittedMemory)
 		{
-			// Failed to allocate and commit physical memory pages. Report OOM.
-			FPlatformMemory::OnOutOfMemory(Size, Alignment);
+			// Failed to allocate and commit physical memory pages. 
+			return nullptr;
 		}
 		check(CommittedMemory == AllocDataPointerStart);
 #else
@@ -131,8 +142,8 @@ void* FMallocStomp::Malloc(SIZE_T Size, uint32 Alignment)
 		void* CommittedMemory = VirtualAlloc(FullAllocationPointer, AllocFullPageSize, MEM_COMMIT, PAGE_READWRITE);
 		if (!CommittedMemory)
 		{
-			// Failed to allocate and commit physical memory pages. Report OOM.
-			FPlatformMemory::OnOutOfMemory(Size, Alignment);
+			// Failed to allocate and commit physical memory pages
+			return nullptr;
 		}
 		check(CommittedMemory == FullAllocationPointer);
 #else
@@ -149,24 +160,40 @@ void* FMallocStomp::Malloc(SIZE_T Size, uint32 Alignment)
 
 void* FMallocStomp::Realloc(void* InPtr, SIZE_T NewSize, uint32 Alignment)
 {
-	if(NewSize == 0U)
+	void* Result = TryRealloc(InPtr, NewSize, Alignment);
+
+	if (Result == nullptr && NewSize)
+	{
+		FPlatformMemory::OnOutOfMemory(NewSize, Alignment);
+	}
+
+	return Result;
+}
+
+void* FMallocStomp::TryRealloc(void* InPtr, SIZE_T NewSize, uint32 Alignment)
+{
+	if (NewSize == 0U)
 	{
 		Free(InPtr);
 		return nullptr;
 	}
 
-	void *ReturnPtr = nullptr;
-	if(InPtr != nullptr)
-	{
-		ReturnPtr = Malloc(NewSize, Alignment);
+	void* ReturnPtr = nullptr;
 
-		FAllocationData *AllocDataPtr = reinterpret_cast<FAllocationData*>(reinterpret_cast<uint8*>(InPtr) - sizeof(FAllocationData));
-		FMemory::Memcpy(ReturnPtr, InPtr, FMath::Min(AllocDataPtr->Size, NewSize));
-		Free(InPtr);
+	if (InPtr != nullptr)
+	{
+		ReturnPtr = TryMalloc(NewSize, Alignment);
+
+		if (ReturnPtr != nullptr)
+		{
+			FAllocationData* AllocDataPtr = reinterpret_cast<FAllocationData*>(reinterpret_cast<uint8*>(InPtr) - sizeof(FAllocationData));
+			FMemory::Memcpy(ReturnPtr, InPtr, FMath::Min(AllocDataPtr->Size, NewSize));
+			Free(InPtr);
+		}
 	}
 	else
 	{
-		ReturnPtr = Malloc(NewSize, Alignment);
+		ReturnPtr = TryMalloc(NewSize, Alignment);
 	}
 
 	return ReturnPtr;

@@ -22,7 +22,7 @@
  * - Read or writes off the beginning of an allocation.
  * - Read or writes after freeing an allocation. 
  */
-class FMallocStomp : public FMalloc
+class FMallocStomp final : public FMalloc
 {
 private:
 #if PLATFORM_64BITS
@@ -71,6 +71,8 @@ public:
 	 */
 	virtual void* Malloc(SIZE_T Size, uint32 Alignment) override;
 
+	virtual void* TryMalloc(SIZE_T Size, uint32 Alignment) override;
+
 	/**
 	 * Changes the size of the memory block pointed to by OldPtr.
 	 * The function may move the memory block to a new location.
@@ -81,6 +83,8 @@ public:
 	 * @return A pointer to the reallocated memory block, which may be either the same as ptr or a new location.
 	 */
 	virtual void* Realloc(void* InPtr, SIZE_T NewSize, uint32 Alignment) override;
+
+	virtual void* TryRealloc(void* InPtr, SIZE_T NewSize, uint32 Alignment) override;
 
 	/**
 	 * Frees a memory allocation and verifies the sentinel in the process.
