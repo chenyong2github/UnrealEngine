@@ -703,6 +703,10 @@ void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICm
 			ExecuteAll(RHICmdList, nullptr, !GPUInstanceCounterManager.HasPendingGPUReadback());
 		}
 	}
+	else
+	{
+		GPUInstanceCounterManager.ResizeBuffers(0);
+	}
 }
 
 bool NiagaraEmitterInstanceBatcher::UsesGlobalDistanceField() const
@@ -1087,7 +1091,7 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 	{
 #if !UE_BUILD_SHIPPING
 		SCOPED_DRAW_EVENTF(RHICmdList, NiagaraGPUSimulationCS, TEXT("Niagara Gpu Sim - %s - NumInstances: %u - StageNumber: %u"),
-			*Context->DebugSimName,
+			Context->GetDebugSimName(),
 			TotalNumInstances,
 			ShaderStageIndex);
 #endif
@@ -1214,7 +1218,7 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 	{
 #if !UE_BUILD_SHIPPING
 		SCOPED_DRAW_EVENTF(RHICmdList, NiagaraGPUSimulationCS, TEXT("Niagara Gpu Sim - %s - NumInstances: %u - StageNumber: %u"),
-			*Context->DebugSimName,
+			Context->GetDebugSimName(),
 			TotalNumInstances,
 			ShaderStageIndex);
 #endif

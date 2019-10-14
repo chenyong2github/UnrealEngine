@@ -188,6 +188,9 @@ public:
 #if !UE_BUILD_SHIPPING
 	//Persistent state 
 	FString DebugSimName;
+	FORCEINLINE const TCHAR* GetDebugSimName() const { return *DebugSimName; }
+#else
+	FORCEINLINE const TCHAR* GetDebugSimName() const { TEXT(""); }
 #endif
 
 	class FNiagaraDataSet *MainDataSet;

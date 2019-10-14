@@ -2990,7 +2990,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 
 	if (Scene->FXSystem && Views.IsValidIndex(0))
 	{
-		Scene->FXSystem->PreInitViews(RHICmdList, Views[0].AllowGPUParticleUpdate());
+		Scene->FXSystem->PreInitViews(RHICmdList, Views[0].AllowGPUParticleUpdate() && !ViewFamily.EngineShowFlags.HitProxies);
 	}
 
 	// Draw lines to lights affecting this mesh if its selected.
