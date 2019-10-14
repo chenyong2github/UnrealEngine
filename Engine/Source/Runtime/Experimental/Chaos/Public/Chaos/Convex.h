@@ -213,6 +213,29 @@ namespace Chaos
 			SerializeImp(Ar);
 		}
 
+		virtual bool IsPerformanceWarning() const override
+		{
+			return TConvexBuilder<T>::IsPerformanceWarning(Planes.Num(), SurfaceParticles.Size());
+		}
+
+		virtual FString PerformanceWarningAndSimplifaction() override
+		{
+
+			FString PerformanceWarningString = TConvexBuilder<T>::PerformanceWarningString(Planes.Num(), SurfaceParticles.Size());
+			if (TConvexBuilder<T>::IsGeometryReductionEnabled())
+			{
+				PerformanceWarningString += ", [Simplifying]";
+				SimplifyGeometry();
+			}
+
+			return PerformanceWarningString;
+		}
+
+		void SimplifyGeometry()
+		{
+			TConvexBuilder<T>::Simplify(Planes, SurfaceParticles, LocalBoundingBox);
+		}
+
 	private:
 		TArray<TPlane<T, d>> Planes;
 		TParticles<T, d> SurfaceParticles;	//copy of the vertices that are just on the convex hull boundary
