@@ -227,6 +227,11 @@ namespace Chaos
 			SerializeImp(Ar);
 		}
 
+		virtual bool IsValidGeometry() const override
+		{
+			return (SurfaceParticles.Size() > 0 && Planes.Num() > 0);
+		}
+
 		virtual bool IsPerformanceWarning() const override
 		{
 			return TConvexBuilder<T>::IsPerformanceWarning(Planes.Num(), SurfaceParticles.Size());
