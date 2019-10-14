@@ -30,7 +30,6 @@
 			"LoadingPhase" : "PreDefault",
 			"BlacklistPlatforms" :
 			[
-				"HTML5"
 			],
 			"WhitelistPrograms": [
 				"UnrealFrontend",
