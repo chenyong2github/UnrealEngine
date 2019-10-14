@@ -15,6 +15,7 @@
 
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
 #include "EditorStyleSet.h"
 #include "Framework/Application/SlateApplication.h"
 
