@@ -5,6 +5,9 @@
 #include "EditorFramework/AssetImportData.h"
 #include "HairDescription.h"
 #include "GroomAsset.h"
+#include "GroomAssetImportData.h"
+#include "GroomImportOptions.h"
+#include "GroomImportOptionsWindow.h"
 #include "HairStrandsImporter.h"
 #include "HairStrandsTranslator.h"
 #include "Misc/ScopedSlowTask.h"
@@ -71,6 +74,41 @@ EReimportResult::Type UReimportHairStrandsFactory::Reimport(UObject* Obj)
 
 		CurrentFilename = HairAsset->AssetImportData->GetFirstFilename();
 
+		UGroomAssetImportData* GroomAssetImportData = Cast<UGroomAssetImportData>(HairAsset->AssetImportData);
+		UGroomImportOptions* CurrentOptions = nullptr;
+		if (GroomAssetImportData)
+		{
+			// Duplicate the options to prevent dirtying the asset when they are modified but the re-import is cancelled
+			CurrentOptions = DuplicateObject<UGroomImportOptions>(GroomAssetImportData->ImportOptions, nullptr);
+		}
+		else
+		{
+			// Convert the AssetImportData to a GroomAssetImportData
+			GroomAssetImportData = NewObject<UGroomAssetImportData>(HairAsset);
+			GroomAssetImportData->Update(CurrentFilename);
+			HairAsset->AssetImportData = GroomAssetImportData;
+		}
+
+		if (!CurrentOptions)
+		{
+			// Make sure to have ImportOptions. Could happen if we just converted the AssetImportData
+			CurrentOptions = NewObject<UGroomImportOptions>();
+		}
+
+		if (!GIsRunningUnattendedScript && !IsAutomatedImport())
+		{
+			TSharedPtr<SGroomImportOptionsWindow> GroomOptionWindow = SGroomImportOptionsWindow::DisplayOptions(CurrentOptions, CurrentFilename);
+
+			if (!GroomOptionWindow->ShouldImport())
+			{
+				return EReimportResult::Cancelled;
+			}
+
+			// Move the transient ImportOptions to the asset package and set it on the GroomAssetImportData for serialization
+			CurrentOptions->Rename(nullptr, GroomAssetImportData);
+			GroomAssetImportData->ImportOptions = CurrentOptions;
+		}
+
 		TSharedPtr<IHairStrandsTranslator> SelectedTranslator = GetTranslator(CurrentFilename);
 		if (!SelectedTranslator.IsValid())
 		{
@@ -81,12 +119,12 @@ EReimportResult::Type UReimportHairStrandsFactory::Reimport(UObject* Obj)
 		Progress.MakeDialog(true);
 
 		FHairDescription HairDescription;
-		if (!SelectedTranslator->Translate(CurrentFilename, HairDescription))
+		if (!SelectedTranslator->Translate(CurrentFilename, HairDescription, CurrentOptions->ConversionSettings))
 		{
 			return EReimportResult::Failed;
 		}
 
-		UGroomAsset* ReimportedHair = FHairStrandsImporter::ImportHair(FHairImportContext(), HairDescription, HairAsset);
+		UGroomAsset* ReimportedHair = FHairStrandsImporter::ImportHair(FHairImportContext(CurrentOptions), HairDescription, HairAsset);
 		if (!ReimportedHair)
 		{
 			return EReimportResult::Failed;

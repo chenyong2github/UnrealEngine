@@ -1,0 +1,106 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+struct FHairMeshTriangle
+{
+	float3 P0;
+	float3 P1;
+	float3 P2;
+
+	float3 E0;
+	float3 E1;
+
+	float3 N;
+};
+
+float3 GetVertexPosition(uint VId, Buffer<float> InPositionBuffer, Buffer<uint> InIndexBuffer, uint InIndexOffset, uint InMaxIndexCount, uint InMaxVertexCount)
+{
+	const uint Index = min(InIndexOffset + VId, InMaxIndexCount-1);
+	uint VertexIndex = InIndexBuffer.Load(Index);
+	VertexIndex = min(VertexIndex, InMaxVertexCount-1);
+
+	float3 P = 0;
+	P.x = InPositionBuffer.Load(VertexIndex*3 + 0);
+	P.y = InPositionBuffer.Load(VertexIndex*3 + 1);
+	P.z = InPositionBuffer.Load(VertexIndex*3 + 2);
+	return P;
+}
+
+FHairMeshTriangle GetTriangleData(uint TriangleIndex, float4x4 LocalToWorld, Buffer<float> InPositionBuffer, Buffer<uint> InIndexBuffer, uint InIndexOffset, uint InMaxIndexCount, uint InMaxVertexCount)
+{
+	const uint BaseVertexId = TriangleIndex*3;
+	const uint VId0 = BaseVertexId;
+	const uint VId1 = BaseVertexId+1;
+	const uint VId2 = BaseVertexId+2;
+
+	FHairMeshTriangle Out;
+	Out.P0 = GetVertexPosition(VId0, InPositionBuffer, InIndexBuffer, InIndexOffset, InMaxIndexCount, InMaxVertexCount);
+	Out.P1 = GetVertexPosition(VId1, InPositionBuffer, InIndexBuffer, InIndexOffset, InMaxIndexCount, InMaxVertexCount);
+	Out.P2 = GetVertexPosition(VId2, InPositionBuffer, InIndexBuffer, InIndexOffset, InMaxIndexCount, InMaxVertexCount);
+
+	Out.P0 = mul(float4(Out.P0,1), LocalToWorld).xyz;
+	Out.P1 = mul(float4(Out.P1,1), LocalToWorld).xyz;
+	Out.P2 = mul(float4(Out.P2,1), LocalToWorld).xyz;
+
+	Out.E0 = Out.P1 - Out.P0;
+	Out.E1 = Out.P2 - Out.P0;
+	Out.N = normalize(cross(Out.E0, Out.E1));
+
+	return Out;
+}
+
+struct FHairProjectionData
+{
+	uint TriangleIndex;
+	float2 Barycentrics;
+};
+
+FHairProjectionData DecodeHairProjectionData(uint4 Data)
+{
+	const float B0 = f16tof32(Data.z);
+	const float B1 = f16tof32(Data.w);
+
+	FHairProjectionData Out;
+	Out.Barycentrics = float2(B0, B1);
+	Out.TriangleIndex = (Data.x & 0xFFFF) | ((Data.y & 0xFFFF) << 16);
+	return Out;
+}
+
+uint4 EncodeHairProjectionData(FHairProjectionData Data)
+{
+	uint4 Out;
+	Out.x = Data.TriangleIndex & 0xFFFF;
+	Out.y = (Data.TriangleIndex>>16) & 0xFFFF;
+	Out.z = f32tof16(saturate(Data.Barycentrics.x));
+	Out.w = f32tof16(saturate(Data.Barycentrics.y));
+	return Out;
+}
+
+uint EncodeBarycentrics(float2 B)
+{
+	return f32tof16(B.x) | (f32tof16(B.y) << 16);
+}
+
+float2 DecodeBarycentrics(uint E)
+{
+	return float2(f16tof32(E & 0xFFFF), f16tof32((E>>16) & 0xFFFF));
+}
+
+
+struct FHairTriangleIndex
+{
+	uint TriangleIndex;
+	uint SectionIndex;
+};
+
+uint EncodeTriangleIndex(uint TriangleIndex, uint SectionIndex)
+{
+	return ((SectionIndex & 0x3) <<28) | (TriangleIndex & 0xCFFFFFFF);
+}
+
+FHairTriangleIndex DecodeTriangleIndex(uint Encoded)
+{
+	FHairTriangleIndex Out;
+	Out.SectionIndex = (Encoded>>28) & 0x7;
+	Out.TriangleIndex = Encoded & 0xCFFFFFFF;
+	return Out;
+}

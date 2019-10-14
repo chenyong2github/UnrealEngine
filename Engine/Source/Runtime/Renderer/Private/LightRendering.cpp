@@ -274,6 +274,11 @@ class FDeferredLightPS : public FGlobalShader
 			}
 		}
 
+		if (PermutationVector.Get<FHairLighting>() && !IsHairStrandsSupported(Parameters.Platform))
+		{
+			return false;
+		}
+
 		/*if( PermutationVector.Get< FVisualizeCullingDim >() && (
 			PermutationVector.Get< FSourceShapeDim >() == ELightSourceShape::Rect ||
 			PermutationVector.Get< FIESProfileDim >() ||
