@@ -414,6 +414,8 @@ $ bMasterProjectNameFromFolder : If true, sets the master project name according
 
 ### VSCodeProjectFileGenerator
 
+$ IncludeAllFiles : Includes all files in the generated workspace.
+
 $ bIncludeDocumentation : True if we should include documentation in the generated projects.
 
 $ bUsePrecompiled : True if build targets should pass the -useprecompiled argument.
