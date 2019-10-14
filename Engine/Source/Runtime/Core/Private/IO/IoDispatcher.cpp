@@ -1,20 +1,131 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "IO/IoDispatcher.h"
-#include "HAL/FileManager.h"
 #include "Async/MappedFileHandle.h"
 #include "Containers/ChunkedArray.h"
 #include "HAL/CriticalSection.h"
+#include "HAL/FileManager.h"
+#include "HAL/Runnable.h"
+#include "HAL/RunnableThread.h"
 #include "Logging/LogMacros.h"
+#include "Memory/MemoryArena.h"
 #include "Misc/CString.h"
 #include "Misc/EventPool.h"
 #include "Misc/ScopeRWLock.h"
+#include "Misc/ScopeLock.h"
 #include "Misc/SecureHash.h"
 #include "Misc/StringBuilder.h"
-#include "Memory/MemoryArena.h"
 #include "Misc/LazySingleton.h"
+#include "Misc/CoreDelegates.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogIoDispatch, Log, All);
+
+//////////////////////////////////////////////////////////////////////////
+
+template <typename T, uint32 BlockSize = 128>
+class TBlockAllocator
+{
+public:
+	~TBlockAllocator()
+	{
+		FreeBlocks();
+	}
+
+	FORCEINLINE T* Alloc()
+	{
+		FScopeLock _(&CriticalSection);
+
+		if (!NextFree)
+		{
+			//TODO: Virtual alloc
+			FBlock* Block = new FBlock;
+			
+			for (int32 ElementIndex = 0; ElementIndex < BlockSize; ++ElementIndex)
+			{
+				FElement* Element	= &Block->Elements[ElementIndex];
+				Element->Next		= NextFree;
+				NextFree			= Element;
+			}
+
+			Block->Next	= Blocks;
+			Blocks		= Block;
+		}
+
+		FElement* Element	= NextFree;
+		NextFree			= Element->Next;
+		
+		++NumElements;
+
+		return Element->Buffer.GetTypedPtr();
+	}
+
+	FORCEINLINE void Free(T* Ptr)
+	{
+		FScopeLock _(&CriticalSection);
+
+		FElement* Element	= reinterpret_cast<FElement*>(Ptr);
+		Element->Next		= NextFree;
+		NextFree			= Element;
+
+		--NumElements;
+	}
+
+	template <typename... ArgsType>
+	T* Construct(ArgsType&&... Args)
+	{
+		return new(Alloc()) T(Forward<ArgsType>(Args)...);
+	}
+
+	void Destroy(T* Ptr)
+	{
+		Ptr->~T();
+		Free(Ptr);
+	}
+
+	void Trim()
+	{
+		FScopeLock _(&CriticalSection);
+		if (!NumElements)
+		{
+			FreeBlocks();
+		}
+	}
+
+private:
+	void FreeBlocks()
+	{
+		FBlock* Block = Blocks;
+		while (Block)
+		{
+			FBlock* Tmp = Block;
+			Block = Block->Next;
+			delete Tmp;
+		}
+
+		Blocks		= nullptr;
+		NextFree	= nullptr;
+		NumElements = 0;
+	}
+
+	struct FElement
+	{
+		TTypeCompatibleBytes<T> Buffer;
+		FElement* Next;
+	};
+
+	struct FBlock
+	{
+		FElement Elements[BlockSize];
+		FBlock* Next = nullptr;
+	};
+
+	FBlock*				Blocks		= nullptr;
+	FElement*			NextFree	= nullptr;
+	int32				NumElements = 0;
+	FCriticalSection	CriticalSection;
+};
+
+//////////////////////////////////////////////////////////////////////////
 
 const TCHAR* GetIoErrorText(EIoErrorCode ErrorCode)
 {
@@ -38,23 +149,33 @@ const FIoStatus FIoStatus::Ok		{ EIoErrorCode::Ok,				TEXT("OK")				};
 const FIoStatus FIoStatus::Unknown	{ EIoErrorCode::Unknown,		TEXT("Unknown Status")	};
 const FIoStatus FIoStatus::Invalid	{ EIoErrorCode::InvalidCode,	TEXT("Invalid Code")	};
 
+FIoStatus::FIoStatus()
+{
+}
+
+FIoStatus::~FIoStatus()
+{
+}
+
 FIoStatus::FIoStatus(EIoErrorCode Code)
 :	ErrorCode(Code)
-,	ErrorMessage(GetIoErrorText(Code))
 {
+	ErrorMessage[0] = 0;
 }
 
 FIoStatus::FIoStatus(EIoErrorCode Code, const FStringView& InErrorMessage)
 : ErrorCode(Code)
-, ErrorMessage(InErrorMessage.Data(), InErrorMessage.Len())
 {
+	const int32 ErrorMessageLength = FMath::Min(MaxErrorMessageLength - 1, InErrorMessage.Len());
+	FPlatformString::Convert(ErrorMessage, ErrorMessageLength, InErrorMessage.Data(), ErrorMessageLength);
+	ErrorMessage[ErrorMessageLength] = 0;
 }
 
 FIoStatus& 
 FIoStatus::operator=(const FIoStatus& Other)
 {
 	ErrorCode = Other.ErrorCode;
-	ErrorMessage = Other.ErrorMessage;
+	FMemory::Memcpy(ErrorMessage, Other.ErrorMessage, MaxErrorMessageLength * sizeof(TCHAR));
 
 	return *this;
 }
@@ -62,14 +183,14 @@ FIoStatus::operator=(const FIoStatus& Other)
 bool		
 FIoStatus::operator==(const FIoStatus& Other) const
 {
-	return ErrorCode == Other.ErrorCode
-		&& ErrorMessage == Other.ErrorMessage;
+	return ErrorCode == Other.ErrorCode &&
+		FPlatformString::Stricmp(ErrorMessage, Other.ErrorMessage) == 0;
 }
 
 FString	
 FIoStatus::ToString() const
 {
-	return ErrorMessage;
+	return FString::Format(TEXT("{0} ({1})"), { ErrorMessage, GetIoErrorText(ErrorCode) });
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -140,7 +261,6 @@ public:
 		new(BufCores) FIoBuffer::BufCore;
 	}
 };
-
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -760,25 +880,19 @@ void FIoStoreWriter::FlushMetadata()
 class FIoBatchImpl
 {
 public:
-	uint32			FirstRequest = ~uint32(0);
+	FIoRequestImpl* FirstRequest	= nullptr;
+	FIoBatchImpl*	NextBatch		= nullptr;
 	TAtomic<uint32>	OutstandingRequests { 0 };
-
-	void Reset() 
-	{
-		// TODO: need to release IO requests back to pool
-
-		FirstRequest		= ~uint32(0);
-		OutstandingRequests = 0;
-	}
 };
 
 class FIoRequestImpl
 {
 public:
+	FIoChunkId				ChunkId;
 	FIoReadOptions			Options;
 	TIoStatusOr<FIoBuffer>	Result;
-	uint32					NextRequestId = ~uint32(0);
-	FIoChunkId				ChunkId;
+	uint64					UserData	= 0;
+	FIoRequestImpl*			NextRequest = nullptr;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -861,181 +975,114 @@ public:
 
 //////////////////////////////////////////////////////////////////////////
 
+using FRequestAllocator	= TBlockAllocator<FIoRequestImpl, 4096>;
+using FBatchAllocator	= TBlockAllocator<FIoBatchImpl, 4096>;
+
+//////////////////////////////////////////////////////////////////////////
+
 class FIoDispatcherImpl
 {
-	FIoDispatcher* Owner;
-
-	// Batch allocation - could use something more lightweight but I'm not sure this
-	// is a sufficiently high frequency operation to warrant something lock-free
-
-	FRWLock	RwLockBatchId;
-	uint32	FirstFreeBatchId = 0;
-
-	// Request allocation - could use something more lightweight but I'm not sure this
-	// is a sufficiently high frequency operation to warrant something lock-free
-
-	FRWLock	RwLockRequestId;
-	uint32	FirstFreeRequestId = ~0u;
-
 public:
-	FIoDispatcherImpl(FIoDispatcher* InOwner)
-	:	Owner(InOwner)
+	FIoDispatcherImpl()
 	{
-		for (int i = 0; i < (MaxBatches - 1); ++i)
-		{
-			Batches[i].FirstRequest = i + 1;
-		}
-
-		Batches[MaxBatches - 1].FirstRequest = ~uint32(0);
-
-		for (int i = 0; i < InitialIoRequests; ++i)
-		{
-			ReserveNewRequest();
-		}
-
-		Batches[MaxBatches - 1].FirstRequest = ~uint32(0);
-
 		IoStore = new FIoStoreImpl;
+
+		FCoreDelegates::GetMemoryTrimDelegate().AddLambda([this]()
+		{
+			RequestAllocator.Trim();
+			BatchAllocator.Trim();
+		});
 	}
 
-	static const int	MaxBatches = 65536;
-	FIoBatchImpl		Batches[MaxBatches];
-	int32				NumBatches = 0;
-
-	static const int	MaxIoRequests = 65536;
-	static const int	InitialIoRequests = 1;
-
-	TChunkedArray<FIoRequestImpl, MaxIoRequests> Requests;
-
-	FIoBatchImpl& MapBatch(uint32 BatchId)
+	FIoRequestImpl* AllocRequest(const FIoChunkId& ChunkId, FIoReadOptions Options, uint64 UserData = 0)
 	{
-		return Batches[BatchId];
-	}
+		FIoRequestImpl* Request = RequestAllocator.Construct();
 
-	void ReserveNewRequest()
-	{
-		// NOTE: RwLockRequestId must be held while this is called
-
-		FIoRequestImpl& NewRequest = *new(Requests) FIoRequestImpl;
-		NewRequest.NextRequestId = FirstFreeRequestId;
-		FirstFreeRequestId = Requests.Num() - 1;
-	}
-
-	FIoRequestImpl& AllocRequest(const FIoChunkId& Chunk, FIoReadOptions Options, uint32 BatchId)
-	{
-		const uint32 RequestId = AllocRequestId();
-
-		FIoRequestImpl& Request = Requests[RequestId];
-		FIoBatchImpl& Batch		= MapBatch(BatchId);
-
-		Request.ChunkId			= Chunk;
-		Request.Options			= Options;
-		Request.NextRequestId	= Batch.FirstRequest;
-		Request.Result			= FIoStatus::Unknown;
-
-		Batch.FirstRequest		= RequestId;
+		Request->ChunkId		= ChunkId;
+		Request->Options		= Options;
+		Request->Result			= FIoStatus::Unknown;
+		Request->UserData		= UserData;
+		Request->NextRequest	= nullptr;
 
 		return Request;
 	}
 
-	uint32 AllocRequestId()
+	FIoRequestImpl* AllocRequest(FIoBatchImpl* Batch, const FIoChunkId& ChunkId, FIoReadOptions Options, uint64 UserData = 0)
 	{
-		FWriteScopeLock _(RwLockRequestId);
+		FIoRequestImpl* Request	= AllocRequest(ChunkId, Options, UserData);
 
-		if (FirstFreeRequestId == ~uint32(0))
-		{
-			ReserveNewRequest();
-		}
+		Request->NextRequest	= Batch->FirstRequest;
+		Batch->FirstRequest		= Request;
 
-		const uint32 RequestId	= FirstFreeRequestId;
-
-		FIoRequestImpl& Request	= Requests[RequestId];
-		FirstFreeRequestId		= Request.NextRequestId;
-		Request.NextRequestId	= ~uint32(0);
-
-		return RequestId;
+		return Request;
 	}
 
-	uint32 FreeRequestId(const uint32 RequestId)
+	void FreeRequest(FIoRequestImpl* Request)
 	{
-		FWriteScopeLock _(RwLockRequestId);
-
-		uint32 NextRequestId				= Requests[RequestId].NextRequestId;
-		Requests[RequestId].NextRequestId	= FirstFreeRequestId;
-		FirstFreeRequestId					= RequestId;
-
-		return NextRequestId;
+		RequestAllocator.Destroy(Request);
 	}
 
-	uint32 AllocBatchId()
+	FIoBatchImpl* AllocBatch(FIoRequestImpl* FirstRequest = nullptr)
 	{
-		check(NumBatches < MaxBatches);
+		FIoBatchImpl* Batch			= BatchAllocator.Construct();
 
-		FWriteScopeLock _(RwLockBatchId);
-
-		const uint32 BatchId	= FirstFreeBatchId;
-		FIoBatchImpl& Batch		= Batches[BatchId];
-		FirstFreeBatchId		= Batch.FirstRequest;
-		Batch.FirstRequest		= ~uint32(0);
-
-		NumBatches++;
-
-		return BatchId;
-	}
-
-	void FreeBatchId(const uint32 BatchId)
-	{
-		FIoBatchImpl& Batch = Batches[BatchId];
-
-		uint32 RequestId = Batch.FirstRequest; 
-		while (RequestId != ~uint32(0))
-		{
-			RequestId = FreeRequestId(RequestId);
-		}
+		Batch->FirstRequest			= FirstRequest;
+		Batch->OutstandingRequests	= 0;
 	
-		FWriteScopeLock _(RwLockBatchId);
+		return Batch;
+	}
 
-		Batches[BatchId].FirstRequest	= FirstFreeBatchId;
-		FirstFreeBatchId				= BatchId;
+	void FreeBatch(FIoBatchImpl* Batch)
+	{
+		FIoRequestImpl* Request = Batch->FirstRequest;
 
-		NumBatches--;
-		check(NumBatches >= 0);
+		while (Request)
+		{
+			FIoRequestImpl* Tmp = Request;	
+			Request = Request->NextRequest;
+			FreeRequest(Tmp);
+		}
+
+		BatchAllocator.Destroy(Batch);
 	}
 
 	template<typename Func>
-	void IterateBatch(const uint32 BatchId, Func&& InCallbackFunction)
+	void IterateBatch(const FIoBatchImpl* Batch, Func&& InCallbackFunction)
 	{
-		FIoBatchImpl& Batch = Batches[BatchId];
+		FIoRequestImpl* Request = Batch->FirstRequest;
 
-		uint32 RequestId = Batch.FirstRequest;
-
-		while (RequestId != ~uint32(0))
+		while (Request)
 		{
-			FIoRequestImpl& Request = Requests[RequestId];
+			const bool bDoContinue = InCallbackFunction(Request);
 
-			const bool DoContinue = InCallbackFunction(Request);
-
-			if (!DoContinue)
-			{
-				return;
-			}
-
-			RequestId = Request.NextRequestId;
+			Request = bDoContinue ? Request->NextRequest : nullptr;
 		}
 	}
 
-	void IssueBatch(const uint32 BatchId)
+	void IssueBatch(const FIoBatchImpl* Batch)
 	{
 		// At this point the batch is immutable and we should start
 		// doing the work.
 
-		IterateBatch(BatchId, [this](FIoRequestImpl& Request) {
-			TIoStatusOr<FIoBuffer> Resolved = IoStore->Resolve(Request.ChunkId);
-
-			Request.Result = Resolved;
+		IterateBatch(Batch, [this](FIoRequestImpl* Request)
+		{
+			Request->Result = IoStore->Resolve(Request->ChunkId);
 
 			return true;
 		});
+	}
+
+	bool IsBatchReady(const FIoBatchImpl* Batch)
+	{
+		bool bIsReady = true;
+
+		IterateBatch(Batch, [&bIsReady](FIoRequestImpl* Request)
+		{
+			bIsReady &= Request->Result.Status().IsCompleted();
+			return bIsReady;
+		});
+
+		return bIsReady;
 	}
 
 	void Mount(FIoStoreReader* IoStoreReader)
@@ -1050,17 +1097,20 @@ public:
 
 private:
 	TRefCountPtr<FIoStoreImpl>	IoStore;
+	FRequestAllocator			RequestAllocator;
+	FBatchAllocator				BatchAllocator;
 };
 
 //////////////////////////////////////////////////////////////////////////
 
 FIoDispatcher::FIoDispatcher()
-:	Impl(new FIoDispatcherImpl(this))
+:	Impl(new FIoDispatcherImpl())
 {
 }
 
 FIoDispatcher::~FIoDispatcher()
 {
+	delete Impl;
 }
 
 void		
@@ -1078,34 +1128,34 @@ FIoDispatcher::Unmount(FIoStoreReader* IoStore)
 FIoBatch
 FIoDispatcher::NewBatch()
 {
-	return FIoBatch(Impl, Impl->AllocBatchId());
+	return FIoBatch(Impl, Impl->AllocBatch());
 }
 
 void
 FIoDispatcher::FreeBatch(FIoBatch Batch)
 {
-	Impl->FreeBatchId(Batch.BatchId);
+	Impl->FreeBatch(Batch.Impl);
 }
 
 //////////////////////////////////////////////////////////////////////////
 
-FIoBatch::FIoBatch(FIoDispatcherImpl* OwningIoDispatcher, uint32 InBatchId)
-:	Dispatcher(OwningIoDispatcher)
-,	BatchId(InBatchId)
-,	CompletionEvent(TLazySingleton<FEventPool<EEventPoolTypes::ManualReset>>::Get().GetEventFromPool())
+FIoBatch::FIoBatch(FIoDispatcherImpl* InDispatcher, FIoBatchImpl* InImpl)
+:	Dispatcher(InDispatcher)
+,	Impl(InImpl)
+,	CompletionEvent()
 {
 }
 
 FIoRequest
-FIoBatch::Read(const FIoChunkId& Chunk, FIoReadOptions Options)
+FIoBatch::Read(const FIoChunkId& ChunkId, FIoReadOptions Options)
 {
-	return FIoRequest(Dispatcher->AllocRequest(Chunk, Options, BatchId));
+	return FIoRequest(Dispatcher->AllocRequest(Impl, ChunkId, Options));
 }
 
 void 
 FIoBatch::ForEachRequest(TFunction<bool(FIoRequest&)> Callback)
 {
-	Dispatcher->IterateBatch(BatchId, [&](FIoRequestImpl& InRequest) {
+	Dispatcher->IterateBatch(Impl, [&](FIoRequestImpl* InRequest) {
 		FIoRequest Request(InRequest);
 		return Callback(Request);
 	});
@@ -1114,12 +1164,13 @@ FIoBatch::ForEachRequest(TFunction<bool(FIoRequest&)> Callback)
 void 
 FIoBatch::Issue()
 {
-	Dispatcher->IssueBatch(BatchId);
+	Dispatcher->IssueBatch(Impl);
 }
 
 void 
 FIoBatch::Wait()
 {
+	//TODO: Create synchronization event here when it's actually needed
 	unimplemented();
 }
 
@@ -1153,4 +1204,291 @@ const FIoChunkId&
 FIoRequest::GetChunkId() const
 {
 	return Impl->ChunkId;
+}
+
+const TIoStatusOr<FIoBuffer>&
+FIoRequest::GetResult() const
+{
+	return Impl->Result;
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+class FIoQueueImpl
+	: private FRunnable
+{
+public:
+	FIoQueueImpl(FIoDispatcherImpl& InDispatcher, FIoQueue::FBatchReadyCallback&& InBatchReadyCallback)
+		: Dispatcher(InDispatcher)
+		, BatchReadyCallback(Forward<FIoQueue::FBatchReadyCallback>(InBatchReadyCallback))
+	{
+		WakeUpEvent = FGenericPlatformProcess::GetSynchEventFromPool(true);
+		Thread = FRunnableThread::Create(this, TEXT("IoQueueThread"), 0, TPri_Normal);
+	}
+
+	~FIoQueueImpl()
+	{
+		Stop();
+		Thread->Kill(true);
+		Thread = nullptr;
+		FPlatformProcess::ReturnSynchEventToPool(WakeUpEvent);
+	}
+
+	void Enqueue(const FIoChunkId& ChunkId, FIoReadOptions ReadOptions, uint64 UserData, bool bDeferBatch)
+	{
+		FIoRequestImpl* Request = Dispatcher.AllocRequest(ChunkId, ReadOptions, UserData);
+		check(Request->NextRequest == nullptr);
+
+		{
+			// TODO: CAS
+			FScopeLock _(&QueuedLock);
+
+			Request->NextRequest	= FirstQueuedRequest;
+			FirstQueuedRequest		= Request;
+		}
+
+		if (!bDeferBatch)
+		{
+			IssueBatch();
+		}
+	
+		{
+			FScopeLock _(&NumPendingLock);
+
+			if (0 == NumPending++)
+			{
+				WakeUpEvent->Trigger();
+			}
+		}
+	}
+
+	bool Dequeue(FIoChunkId& ChunkId, TIoStatusOr<FIoBuffer>& Result, uint64& UserData)
+	{
+		FIoRequestImpl* CompletedRequest = nullptr;
+		{
+			// TODO: CAS
+			FScopeLock _(&CompletedLock);
+			
+			CompletedRequest		= FirstCompletedRequest;
+			FirstCompletedRequest	= CompletedRequest ? CompletedRequest->NextRequest : FirstCompletedRequest;
+		}
+
+		if (CompletedRequest)
+		{
+			ChunkId		= CompletedRequest->ChunkId;
+			Result		= CompletedRequest->Result;
+			UserData	= CompletedRequest->UserData;
+
+			Dispatcher.FreeRequest(CompletedRequest);
+
+			{
+				FScopeLock _(&NumPendingLock);
+
+				if (0 == --NumPending)
+				{
+					check(NumPending >= 0);
+					WakeUpEvent->Reset();
+				}
+			}
+
+			return true;
+		}
+
+		return false;
+	}
+
+	void IssueBatch()
+	{
+		FIoRequestImpl* QueuedRequests = nullptr;
+		{
+			// TODO: CAS
+			FScopeLock _(&QueuedLock);
+
+			QueuedRequests 		= FirstQueuedRequest;
+			FirstQueuedRequest	= nullptr;
+		}
+
+		if (QueuedRequests)
+		{
+			FIoBatchImpl* NewBatch = Dispatcher.AllocBatch(QueuedRequests);
+			{
+				// TODO: CAS
+				FScopeLock _(&PendingLock);
+
+				NewBatch->NextBatch	= FirstPendingBatch;
+				FirstPendingBatch	= NewBatch;
+			}
+		}
+	}
+
+	bool IsEmpty() const
+	{
+		FScopeLock _(&NumPendingLock);
+		return NumPending == 0;
+	}
+
+private:
+	
+	uint32 Run() override
+	{
+		bIsRunning = true;
+
+		FBatchQueue IssuedBatches;
+
+		while (bIsRunning)
+		{
+			if (!bIsRunning)
+			{
+				break;
+			}
+
+			// Dispatch pending batch
+			{
+				FIoBatchImpl* PendingBatch = nullptr;
+				{
+					// TODO: CAS
+					FScopeLock _(&PendingLock);
+
+					PendingBatch		= FirstPendingBatch;
+					FirstPendingBatch	= PendingBatch ? PendingBatch->NextBatch : nullptr;
+				}
+
+				if (PendingBatch)
+				{
+					PendingBatch->NextBatch = nullptr;
+					
+					Dispatcher.IssueBatch(PendingBatch);
+					Enqueue(PendingBatch, IssuedBatches);
+				}
+			}
+
+			// Process issued batches
+			if (FIoBatchImpl* IssuedBatch = Peek(IssuedBatches))
+			{
+				if (Dispatcher.IsBatchReady(IssuedBatch))
+				{
+					Dequeue(IssuedBatches);
+
+					FIoRequestImpl* Request = IssuedBatch->FirstRequest;
+					while (Request)
+					{
+						FIoRequestImpl* CompletedRequest	= Request;
+						Request								= Request->NextRequest;
+						
+						{
+							// TODO: CAS
+							FScopeLock _(&CompletedLock);
+
+							CompletedRequest->NextRequest	= FirstCompletedRequest;
+							FirstCompletedRequest			= CompletedRequest;
+						}
+					}
+
+					BatchReadyCallback();
+
+					IssuedBatch->FirstRequest = nullptr;
+					Dispatcher.FreeBatch(IssuedBatch);
+				}
+			}
+			else
+			{
+				WakeUpEvent->Wait();
+			}
+		}
+
+		return 0;
+	}
+
+	void Stop() override
+	{
+		if (bIsRunning)
+		{
+			bIsRunning = false;
+			WakeUpEvent->Trigger();
+		}
+	}
+
+	struct FBatchQueue
+	{
+		FIoBatchImpl* Head = nullptr;
+		FIoBatchImpl* Tail = nullptr;
+	};
+
+	void Enqueue(FIoBatchImpl* Batch, FBatchQueue& Batches)
+	{
+		if (Batches.Tail == nullptr)
+		{
+			Batches.Head = Batches.Tail	= Batch;
+		}
+		else
+		{
+			Batches.Tail->NextBatch	= Batch;
+			Batches.Tail			= Batch;
+		}
+	}
+
+	FIoBatchImpl* Dequeue(FBatchQueue& Batches)
+	{
+		if (FIoBatchImpl* Batch = Batches.Head)
+		{
+			Batches.Head		= Batch->NextBatch;
+			Batches.Tail		= Batches.Head == nullptr ? nullptr : Batches.Tail;
+			Batch->NextBatch	= nullptr;
+
+			return Batch;
+		}
+		
+		return nullptr;
+	}
+
+	FIoBatchImpl* Peek(FBatchQueue& Queue)
+	{
+		return Queue.Head;
+	}
+
+	FIoDispatcherImpl&				Dispatcher;
+	FIoQueue::FBatchReadyCallback	BatchReadyCallback;
+	FRunnableThread*				Thread					= nullptr;
+	FEvent*							WakeUpEvent				= nullptr;
+	bool							bIsRunning				= false;
+	FIoRequestImpl*					FirstQueuedRequest		= nullptr;
+	FIoBatchImpl*					FirstPendingBatch		= nullptr;
+	FIoRequestImpl*					FirstCompletedRequest	= nullptr;
+	int32							NumPending				= 0;
+	FCriticalSection				QueuedLock;
+	FCriticalSection				PendingLock;
+	FCriticalSection				CompletedLock;
+	mutable FCriticalSection		NumPendingLock;
+};
+
+//////////////////////////////////////////////////////////////////////////
+FIoQueue::FIoQueue(FIoDispatcher& IoDispatcher, FBatchReadyCallback BatchReadyCallback)
+: Impl(new FIoQueueImpl(*IoDispatcher.Impl, MoveTemp(BatchReadyCallback)))
+{ 
+}
+
+FIoQueue::~FIoQueue() = default;
+
+void
+FIoQueue::Enqueue(const FIoChunkId& ChunkId, FIoReadOptions ReadOptions, uint64 UserData, bool bDeferBatch)
+{
+	Impl->Enqueue(ChunkId, ReadOptions, UserData, bDeferBatch);
+}
+
+bool
+FIoQueue::Dequeue(FIoChunkId& ChunkId, TIoStatusOr<FIoBuffer>& Result, uint64& UserData)
+{
+	return Impl->Dequeue(ChunkId, Result, UserData);
+}
+
+void
+FIoQueue::IssueBatch()
+{
+	return Impl->IssueBatch();
+}
+
+bool
+FIoQueue::IsEmpty() const
+{
+	return Impl->IsEmpty();
 }

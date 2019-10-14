@@ -43,7 +43,6 @@
 #include "Serialization/AsyncPackage.h"
 #include "Serialization/Zenaphore.h"
 #include "IO/IoDispatcher.h"
-#include "Containers/CircularQueue.h"
 #include "UObject/GCObject.h"
 #include "UObject/ObjectRedirector.h"
 
@@ -409,164 +408,6 @@ uint16 GetChunkIndex(const FIoChunkId& ChunkId)
 	const uint8* Data = reinterpret_cast<const uint8*>(&ChunkId);
 	return *reinterpret_cast<const uint16*>(&Data[8]);
 
-}
-
-class FIoRequestQueue final : private FRunnable
-{
-public:
-	struct FCompletionEvent { FAsyncPackage2* Package; FIoBatch IoBatch; FIoRequest IoRequest; };
-
-	FIoRequestQueue(FIoDispatcher& InIoDispatcher, FZenaphore& InZenaphore, const uint32 InCapacity = 1024);
-	~FIoRequestQueue();
-	void EnqueueRequest(FAsyncPackage2* Package, const FIoChunkId& ChunkId);
-	TOptional<FCompletionEvent> DequeueCompletionEvent();
-	bool HasPendingRequests() const;
-	bool WaitForRequest(float SecondsToWait);
-
-private:
-	struct FSubmissionRequest { FAsyncPackage2* Package; FIoChunkId ChunkId; };
-	using FPendingRequest = FCompletionEvent;
-
-	uint32 Run() override;
-	void Stop() override;
-
-	FIoDispatcher& IoDispatcher;
-	FZenaphore& Zenaphore;
-	FRunnableThread* Thread = nullptr;
-	FEvent* WakeUpEvent = nullptr;
-	bool bIsRunning = false;
-	TCircularQueue<FSubmissionRequest> RequestQueue;
-	FCriticalSection RequestQueueLock;
-	TCircularQueue<FCompletionEvent> CompletionQueue;
-	FCriticalSection CompletionQueueLock;
-	TArray<FPendingRequest> PendingRequests;
-	TAtomic<int32> NumPendingRequests;
-};
-
-FIoRequestQueue::FIoRequestQueue(FIoDispatcher& InIoDispatcher, FZenaphore& InZenaphore, const uint32 InCapacity)
-: IoDispatcher(InIoDispatcher)
-, Zenaphore(InZenaphore)
-, RequestQueue(InCapacity)
-, CompletionQueue(InCapacity)
-, NumPendingRequests(0)
-{
-	WakeUpEvent = FGenericPlatformProcess::GetSynchEventFromPool(false);
-	Thread = FRunnableThread::Create(this, TEXT("IoRequestQueue"), 0, TPri_Normal);
-}
-
-FIoRequestQueue::~FIoRequestQueue()
-{
-	Stop();
-	Thread->Kill(true);
-	Thread = nullptr;
-	FPlatformProcess::ReturnSynchEventToPool(WakeUpEvent);
-}
-
-void FIoRequestQueue::EnqueueRequest(FAsyncPackage2* Package, const FIoChunkId& ChunkId)
-{
-	FScopeLock _(&RequestQueueLock);
-	bool bEnqueued = RequestQueue.Enqueue(FSubmissionRequest { Package, ChunkId });
-	NumPendingRequests++;
-	check(bEnqueued);
-	WakeUpEvent->Trigger();
-}
-
-TOptional<FIoRequestQueue::FCompletionEvent> FIoRequestQueue::DequeueCompletionEvent()
-{
-	TOptional<FCompletionEvent> Out;
-	FScopeLock _(&CompletionQueueLock);
-	if (const FCompletionEvent* CompletionEvent = CompletionQueue.Peek())
-	{
-		Out = *CompletionEvent;
-		CompletionQueue.Dequeue();
-	}
-
-	return Out;
-}
-
-bool FIoRequestQueue::HasPendingRequests() const
-{
-	return NumPendingRequests > 0 || !CompletionQueue.IsEmpty() || !RequestQueue.IsEmpty();
-}
-
-bool FIoRequestQueue::WaitForRequest(float SecondsToWait)
-{
-	return true;
-}
-
-void FIoRequestQueue::Stop()
-{
-	if (bIsRunning)
-	{
-		bIsRunning = false;
-		WakeUpEvent->Trigger();
-	}
-}
-
-uint32 FIoRequestQueue::Run()
-{
-	bIsRunning = true;
-
-	while (bIsRunning)
-	{
-		if (!bIsRunning)
-		{
-			break;
-		}
-
-		// Process incoming
-		{
-			FSubmissionRequest Request;
-			bool bDequeuedRequest = false;
-			{
-				FScopeLock _(&RequestQueueLock);
-				bDequeuedRequest = RequestQueue.Dequeue(Request);
-			}
-			
-			if (bDequeuedRequest)
-			{
-				FIoBatch IoBatch = IoDispatcher.NewBatch();
-				FIoRequest IoRequest = IoBatch.Read(Request.ChunkId, FIoReadOptions());
-				IoBatch.Issue();
-				PendingRequests.Add(FPendingRequest { Request.Package, IoBatch, IoRequest });
-			}
-		}
-
-		// Process pending
-		{
-			int32 NumPending = PendingRequests.Num();
-			for (int32 I = 0; I < PendingRequests.Num();)
-			{
-				FPendingRequest& PendingRequest = PendingRequests[I];
-				if (PendingRequest.IoRequest.Status().IsCompleted())
-				{
-					{
-						FScopeLock _(&CompletionQueueLock);
-						bool bEnqueued = CompletionQueue.Enqueue(PendingRequest);
-						check(bEnqueued);
-					}
-					PendingRequests.RemoveAtSwap(I, 1, false);
-					NumPendingRequests--;
-				}
-				else
-				{
-					++I;
-				}
-			}
-
-			if (NumPending != PendingRequests.Num())
-			{
-				Zenaphore.NotifyOne();
-			}
-		}
-
-		if (PendingRequests.Num() == 0 && NumPendingRequests == 0)
-		{
-			WakeUpEvent->Wait();
-		}
-	}
-
-	return 0;
 }
 
 enum class EAsyncPackageLoadingState2 : uint8
@@ -1169,7 +1010,7 @@ public:
 	static EAsyncPackageState::Type Event_Tick(FAsyncPackage2* Package, int32);
 	static EAsyncPackageState::Type Event_Delete(FAsyncPackage2* Package, int32);
 
-	void ProcessIoRequest(FIoRequest& IoRequest);
+	void ProcessIoRequest(const FIoChunkId& ChunkId, TIoStatusOr<FIoBuffer>& Result);
 
 	void MarkNewObjectForLoadIfItIsAnExport(UObject *Object);
 
@@ -1398,9 +1239,8 @@ private:
 	/** I/O Dispatcher */
 	FGlobalNameMap GlobalNameMap;
 	FIoStoreEnvironment IoStoreEnvironment;
-	TUniquePtr<FIoStoreReader> IoStoreReader;
 	FIoDispatcher IoDispatcher;
-	TUniquePtr<FIoRequestQueue> IoRequestQueue;
+	TUniquePtr<FIoQueue> IoQueue;
 
 	/** Package store */
 	FPackageStoreEntryRuntime* StoreEntriesRuntime = nullptr;
@@ -1804,13 +1644,17 @@ void FAsyncLoadingThread2Impl::InitializeLoading()
 		TRACE_CPUPROFILER_EVENT_SCOPE(InitIoDispatcher);
 
 		IoStoreEnvironment.InitializeFileEnvironment(RootDir);
-		IoStoreReader = MakeUnique<FIoStoreReader>(IoStoreEnvironment);
+		TUniquePtr<FIoStoreReader> IoStoreReader = MakeUnique<FIoStoreReader>(IoStoreEnvironment);
 		FIoStatus ReaderStatus = IoStoreReader->Initialize(TEXT("PackageLoader"));
 
 		UE_CLOG(!ReaderStatus.IsOk(), LogStreaming, Error, TEXT("Failed to initialize I/O dispatcher: '%s'"), *ReaderStatus.ToString());
 
-		IoDispatcher.Mount(IoStoreReader.Get());
-		IoRequestQueue = MakeUnique<FIoRequestQueue>(IoDispatcher, AltZenaphore, 131072);
+		IoDispatcher.Mount(IoStoreReader.Release());
+
+		IoQueue = MakeUnique<FIoQueue>(IoDispatcher, TFunction<void()>([this]()
+		{
+			AltZenaphore.NotifyOne();
+		}));
 	}
 
 	{
@@ -3294,26 +3138,24 @@ EAsyncPackageState::Type FAsyncPackage2::Event_Delete(FAsyncPackage2* Package, i
 	return EAsyncPackageState::Complete;
 }
 
-void FAsyncPackage2::ProcessIoRequest(FIoRequest& IoRequest)
+void FAsyncPackage2::ProcessIoRequest(const FIoChunkId& ChunkId, TIoStatusOr<FIoBuffer>& Result)
 {
-	UE_CLOG(!IoRequest.IsOk(), LogStreaming, Warning, TEXT("I/O Error: '%s', package: '%s'"), *IoRequest.Status().ToString(), *Desc.NameToLoad.ToString()); 
-
-	FIoChunkId ChunkId = IoRequest.GetChunkId();
+	UE_CLOG(!Result.IsOk(), LogStreaming, Warning, TEXT("I/O Error: '%s', package: '%s'"), *Result.Status().ToString(), *Desc.NameToLoad.ToString()); 
+	
+	const FIoBuffer& IoBuffer = Result.ValueOrDie();
 
 	switch (GetChunkType(ChunkId))
 	{
 	case EChunkType::PackageSummary:
 	{
-		FIoBuffer SummaryIoBuffer = IoRequest.GetChunk();
-		PackageSummaryBuffer = MakeUnique<uint8[]>(SummaryIoBuffer.DataSize());
-		FMemory::Memcpy(PackageSummaryBuffer.Get(), SummaryIoBuffer.Data(), SummaryIoBuffer.DataSize());
+		PackageSummaryBuffer = MakeUnique<uint8[]>(IoBuffer.DataSize());
+		FMemory::Memcpy(PackageSummaryBuffer.Get(), IoBuffer.Data(), IoBuffer.DataSize());
 		GetNode(EEventLoadNode2::Package_LoadSummary)->ReleaseBarrier();
 		break;
 	}
 	case EChunkType::ExportData:
 	{
 		const int32 LocalExportIndex = GetChunkIndex(ChunkId);
-		FIoBuffer IoBuffer = IoRequest.GetChunk();
 		check(ExportIoBuffers.Num() > LocalExportIndex);
 		ExportIoBuffers[LocalExportIndex] = IoBuffer;
 		GetNode(EEventLoadNode2::ImportOrExport_Serialize, FPackageIndex::FromExport(LocalExportIndex))->ReleaseBarrier();
@@ -3398,13 +3240,15 @@ EAsyncPackageState::Type FAsyncLoadingThread2Impl::ProcessAsyncLoadingFromGameTh
 			}
 
 			bool bProcessedResourceCompletionEvents = false;
-			TOptional<FIoRequestQueue::FCompletionEvent> IoCompletionEvent = IoRequestQueue->DequeueCompletionEvent();
-			while (IoCompletionEvent)
+			FIoChunkId ChunkId;
+			TIoStatusOr<FIoBuffer> Result;
+			uint64 UserData;
+
+			while(IoQueue->Dequeue(ChunkId, Result, UserData))
 			{
-				FAsyncPackage2* Package = IoCompletionEvent.GetValue().Package;
-				Package->ProcessIoRequest(IoCompletionEvent.GetValue().IoRequest);
-				IoDispatcher.FreeBatch(IoCompletionEvent.GetValue().IoBatch);
-				IoCompletionEvent = IoRequestQueue->DequeueCompletionEvent();
+				FAsyncPackage2* Package = reinterpret_cast<FAsyncPackage2*>(UserData);
+				Package->ProcessIoRequest(ChunkId, Result);
+				bProcessedResourceCompletionEvents = true;
 			}
 			if (bProcessedResourceCompletionEvents)
 			{
@@ -3427,7 +3271,7 @@ EAsyncPackageState::Type FAsyncLoadingThread2Impl::ProcessAsyncLoadingFromGameTh
 				break;
 			}
 
-			if (IoRequestQueue->HasPendingRequests())
+			if (!IoQueue->IsEmpty())
 			{
 				FPlatformProcess::Sleep(0.001f);
 			}
@@ -3957,15 +3801,17 @@ uint32 FAsyncLoadingThread2Impl::Run()
 				do
 				{
 					bDidSomething = false;
+					FIoChunkId ChunkId;
+					TIoStatusOr<FIoBuffer> Result;
+					uint64 UserData;
+
 					for (;;)
 					{
-						TOptional<FIoRequestQueue::FCompletionEvent> IoCompletionEvent = IoRequestQueue->DequeueCompletionEvent();
-						if (IoCompletionEvent)
+						if (IoQueue->Dequeue(ChunkId, Result, UserData))
 						{
 							TRACE_CPUPROFILER_EVENT_SCOPE(ProcessResourceCompletionEvent);
-							FAsyncPackage2* Package = IoCompletionEvent.GetValue().Package;
-							Package->ProcessIoRequest(IoCompletionEvent.GetValue().IoRequest);
-							IoDispatcher.FreeBatch(IoCompletionEvent.GetValue().IoBatch);
+							FAsyncPackage2* Package = reinterpret_cast<FAsyncPackage2*>(UserData);
+							Package->ProcessIoRequest(ChunkId, Result);
 							bDidSomething = true;
 						}
 						else
@@ -4269,7 +4115,7 @@ void FAsyncLoadingThread2Impl::FireCompletedCompiledInImport(FGCObject* AsyncPac
 
 void FAsyncLoadingThread2Impl::EnqueueIoRequest(FAsyncPackage2* Package, const FIoChunkId& ChunkId)
 {
-	IoRequestQueue->EnqueueRequest(Package, ChunkId);
+	IoQueue->Enqueue(ChunkId, FIoReadOptions(), reinterpret_cast<uint64>(Package));
 }
 
 /*-----------------------------------------------------------------------------

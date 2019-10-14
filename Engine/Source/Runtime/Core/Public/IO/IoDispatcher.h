@@ -8,6 +8,7 @@
 #include "Misc/StringBuilder.h"
 #include "Templates/RefCounting.h"
 #include "Templates/UnrealTemplate.h"
+#include "Templates/TypeCompatibleBytes.h"
 #include "HAL/PlatformAtomics.h"
 
 #if __cplusplus >= 201703L
@@ -23,7 +24,9 @@ class FIoDispatcher;
 class FIoStoreReader;
 class FIoStoreWriter;
 
+class FIoQueueImpl;
 class FIoRequestImpl;
+class FIoBatchImpl;
 class FIoDispatcherImpl;
 class FIoStoreReaderImpl;
 class FIoStoreWriterImpl;
@@ -51,8 +54,8 @@ enum class EIoErrorCode
 class FIoStatus
 {
 public:
-						FIoStatus() = default;
-						~FIoStatus() = default;
+	CORE_API			FIoStatus();
+	CORE_API			~FIoStatus();
 
 	CORE_API			FIoStatus(EIoErrorCode Code, const FStringView& InErrorMessage);
 	CORE_API			FIoStatus(EIoErrorCode Code);
@@ -66,13 +69,16 @@ public:
 	inline EIoErrorCode	GetErrorCode() const { return ErrorCode; }
 	CORE_API FString	ToString() const;
 
-	static const FIoStatus Ok;
-	static const FIoStatus Unknown;
-	static const FIoStatus Invalid;
+	CORE_API static const FIoStatus Ok;
+	CORE_API static const FIoStatus Unknown;
+	CORE_API static const FIoStatus Invalid;
 
 private:
+	static constexpr int32 MaxErrorMessageLength = 256;
+	using FErrorMessage = TCHAR[MaxErrorMessageLength];
+
 	EIoErrorCode	ErrorCode = EIoErrorCode::Ok;
-	FString			ErrorMessage;
+	FErrorMessage	ErrorMessage;
 
 	friend class FIoStatusBuilder;
 };
@@ -102,17 +108,28 @@ class TIoStatusOr
 	template<typename U> friend class TIoStatusOr;
 
 public:
-	TIoStatusOr() : StatusValue(FIoStatus::Unknown), Value{} {}
-	TIoStatusOr(const FIoStatus& Status);
+	TIoStatusOr() : StatusValue(FIoStatus::Unknown) { }
+	TIoStatusOr(const TIoStatusOr& Other);
+	explicit TIoStatusOr(TIoStatusOr&& Other);
+
+	TIoStatusOr(FIoStatus Status);
 	TIoStatusOr(const T& Value);
+	explicit TIoStatusOr(T&& Value);
+
+	~TIoStatusOr();
+
+	template <typename... ArgTypes>
+	explicit TIoStatusOr(ArgTypes&&... Args);
 
 	template<typename U>
 	TIoStatusOr(const TIoStatusOr<U>& Other);
 
-	TIoStatusOr<T>& operator=(const TIoStatusOr<T>& other);
+	TIoStatusOr<T>& operator=(const TIoStatusOr<T>& Other);
+	TIoStatusOr<T>& operator=(TIoStatusOr<T>&& Other);
+	TIoStatusOr<T>& operator=(T&& OtherValue);
 
 	template<typename U>
-	TIoStatusOr<T>& operator=(const TIoStatusOr<U>& other);
+	TIoStatusOr<T>& operator=(const TIoStatusOr<U>& Other);
 
 	const FIoStatus&	Status() const;
 	bool				IsOk() const;
@@ -123,8 +140,8 @@ public:
 	void				Reset();
 
 private:
-	FIoStatus	StatusValue;
-	T			Value;
+	FIoStatus				StatusValue;
+	TTypeCompatibleBytes<T>	Value;
 };
 
 CORE_API void StatusOrCrash(const FIoStatus& Status);
@@ -132,8 +149,12 @@ CORE_API void StatusOrCrash(const FIoStatus& Status);
 template<typename T>
 void TIoStatusOr<T>::Reset()
 {
+	if (StatusValue.IsOk())
+	{
+		((T*)&Value)->~T();
+	}
+
 	StatusValue = FIoStatus::Unknown;
-	Value = T();
 }
 
 template<typename T>
@@ -144,7 +165,7 @@ const T& TIoStatusOr<T>::ValueOrDie()
 		StatusOrCrash(StatusValue);
 	}
 
-	return Value;
+	return *Value.GetTypedPtr();
 }
 
 template<typename T>
@@ -155,28 +176,64 @@ T TIoStatusOr<T>::ConsumeValueOrDie()
 		StatusOrCrash(StatusValue);
 	}
 
-	return MoveTemp(Value);
+	StatusValue = FIoStatus::Unknown;
+
+	return MoveTemp(*Value.GetTypedPtr());
 }
 
 template<typename T>
-TIoStatusOr<T>::TIoStatusOr(const FIoStatus& Status)
+TIoStatusOr<T>::TIoStatusOr(const TIoStatusOr& Other)
 {
-	if (Status.IsOk())
+	StatusValue = Other.StatusValue;
+	if (StatusValue.IsOk())
 	{
-		// This doesn't make a whole lot of sense. If everything's ok then
-		// we should be returning a T
-		StatusValue = FIoStatus::Invalid;
+		new(&Value) T(*(const T*)&Other.Value);
 	}
-	else
+}
+
+template<typename T>
+TIoStatusOr<T>::TIoStatusOr(TIoStatusOr&& Other)
+{
+	StatusValue = Other.StatusValue;
+	if (StatusValue.IsOk())
 	{
-		StatusValue = Status;
+		new(&Value) T(MoveTempIfPossible(*(T*)&Other.Value));
 	}
+}
+
+template<typename T>
+TIoStatusOr<T>::TIoStatusOr(FIoStatus Status)
+{
+	check(!Status.IsOk());
+	StatusValue = Status;
 }
 
 template<typename T>
 TIoStatusOr<T>::TIoStatusOr(const T& InValue)
 {
-	Value = InValue;
+	StatusValue = FIoStatus::Ok;
+	new(&Value) T(InValue);
+}
+
+template<typename T>
+TIoStatusOr<T>::TIoStatusOr(T&& Value)
+{
+	StatusValue = FIoStatus::Ok;
+	new(&Value) T(MoveTempIfPossible(Value));
+}
+
+template <typename T>
+template <typename... ArgTypes>
+TIoStatusOr<T>::TIoStatusOr(ArgTypes&&... Args)
+{
+	StatusValue = FIoStatus::Ok;
+	new(&Value) T(Forward<ArgTypes>(Args)...);
+}
+
+template<typename T>
+TIoStatusOr<T>::~TIoStatusOr()
+{
+	Reset();
 }
 
 template<typename T>
@@ -195,28 +252,69 @@ template<typename T>
 TIoStatusOr<T>&
 TIoStatusOr<T>::operator=(const TIoStatusOr<T>& Other)
 {
+	Reset();
 	StatusValue = Other.StatusValue;
-	Value = Other.Value;
+
+	if (StatusValue.IsOk())
+	{
+		new(&Value) T(*(const T*)&Other.Value);
+	}
+
 	return *this;
+}
+
+template<typename T>
+TIoStatusOr<T>&
+TIoStatusOr<T>::operator=(TIoStatusOr<T>&& Other)
+{
+	if (&Other != this)
+	{
+		Reset();
+		StatusValue = Other.StatusValue;
+ 
+		if (StatusValue.IsOk())
+		{
+			new(&Value) T(MoveTempIfPossible(*(T*)&Other.Value));
+		}
+	}
+
+	return *this;
+}
+
+template<typename T>
+TIoStatusOr<T>&
+TIoStatusOr<T>::operator=(T&& OtherValue)
+{
+	Reset();
+	
+	StatusValue = FIoStatus::Ok;
+	new(&Value) T(MoveTempIfPossible(Value));
 }
 
 template<typename T>
 template<typename U>
 TIoStatusOr<T>::TIoStatusOr(const TIoStatusOr<U>& Other)
 :	StatusValue(Other.StatusValue)
-,	Value(Other.StatusValue.IsOk() ? Other.Value : T()) 
 {
+	if (StatusValue.IsOk())
+	{
+		new(&Value) T(*(const U*)&Other.Value);
+	}
 }
 
 template<typename T>
 template<typename U>
 TIoStatusOr<T>& TIoStatusOr<T>::operator=(const TIoStatusOr<U>& Other)
 {
+	Reset();
+
 	StatusValue = Other.StatusValue;
+
 	if (StatusValue.IsOk())
 	{
-		Value = Other.Value;
+		new(&Value) T(*(const U*)&Other.Value);
 	}
+
 	return *this;
 }
 
@@ -435,19 +533,21 @@ public:
 	FIoRequest(const FIoRequest&) = default;
 	FIoRequest& operator=(const FIoRequest&) = default;
 
-	CORE_API bool				IsOk() const;
-	CORE_API FIoStatus			Status() const;
-	CORE_API FIoBuffer			GetChunk();
-	CORE_API const FIoChunkId&	GetChunkId() const;
+	CORE_API bool							IsOk() const;
+	CORE_API FIoStatus						Status() const;
+	CORE_API FIoBuffer						GetChunk();
+	CORE_API const FIoChunkId&				GetChunkId() const;
+	CORE_API const TIoStatusOr<FIoBuffer>&	GetResult() const;
 
 private:
 	FIoRequestImpl* Impl = nullptr;
 
-	explicit FIoRequest(FIoRequestImpl& InImpl)
-	: Impl(&InImpl)
+	explicit FIoRequest(FIoRequestImpl* InImpl)
+	: Impl(InImpl)
 	{
 	}
 
+	friend class FIoDispatcher;
 	friend class FIoDispatcherImpl;
 	friend class FIoBatch;
 };
@@ -461,7 +561,7 @@ class FIoBatch
 {
 	friend class FIoDispatcher;
 
-	FIoBatch(FIoDispatcherImpl* OwningIoDispatcher, uint32 InBatchId);
+	FIoBatch(FIoDispatcherImpl* InDispatcher, FIoBatchImpl* InImpl);
 
 public:
 	CORE_API FIoRequest Read(const FIoChunkId& Chunk, FIoReadOptions Options);
@@ -474,7 +574,7 @@ public:
 
 private:
 	FIoDispatcherImpl*	Dispatcher		= nullptr;
-	uint32				BatchId			= ~uint32(0);
+	FIoBatchImpl*		Impl			= nullptr;
 	FEvent*				CompletionEvent = nullptr;
 };
 
@@ -496,10 +596,11 @@ public:
 	FIoDispatcher& operator=(const FIoDispatcher&) = delete;
 
 private:
-	FIoDispatcherImpl* Impl;
+	FIoDispatcherImpl* Impl = nullptr;
 
 	friend class FIoRequest;
 	friend class FIoBatch;
+	friend class FIoQueue;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -560,3 +661,24 @@ private:
 };
 
 //////////////////////////////////////////////////////////////////////////
+
+class FIoQueue
+{
+public:
+	using FBatchReadyCallback = TFunction<void()>;
+
+	CORE_API		FIoQueue(FIoDispatcher& IoDispatcher, FBatchReadyCallback BatchReadyCallback);
+	CORE_API		~FIoQueue();
+
+					FIoQueue(const FIoQueue&) = delete;
+					FIoQueue(FIoQueue&&) = delete;
+					FIoQueue& operator=(const FIoQueue&) = delete;
+					FIoQueue& operator=(FIoQueue&&) = delete;
+
+	CORE_API void	Enqueue(const FIoChunkId& ChunkId, FIoReadOptions ReadOptions, uint64 UserData, bool bDeferBatch = false);
+	CORE_API bool	Dequeue(FIoChunkId& ChunkId, TIoStatusOr<FIoBuffer>& Result, uint64& UserData);
+	CORE_API void	IssueBatch();
+	CORE_API bool	IsEmpty() const;
+private:
+	TUniquePtr<FIoQueueImpl> Impl;
+};
