@@ -7,6 +7,7 @@ void FClothCollisionData::Reset()
 	Spheres.Reset();
 	SphereConnections.Reset();
 	Convexes.Reset();
+	Boxes.Reset();
 }
 
 void FClothCollisionData::Append(const FClothCollisionData& InOther)
@@ -31,4 +32,6 @@ void FClothCollisionData::Append(const FClothCollisionData& InOther)
 	}
 
 	Convexes.Append(InOther.Convexes);
+
+	Boxes.Append(InOther.Boxes);
 }
