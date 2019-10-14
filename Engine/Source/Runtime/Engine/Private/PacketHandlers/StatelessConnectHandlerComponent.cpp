@@ -6,7 +6,7 @@
 #include "EngineStats.h"
 #include "Misc/SecureHash.h"
 #include "Engine/NetConnection.h"
-#include "PacketAudit.h"
+#include "Net/Core/Misc/PacketAudit.h"
 
 
 

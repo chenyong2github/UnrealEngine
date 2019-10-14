@@ -2,8 +2,8 @@
 
 // Includes
 
-#include "DDoSDetection.h"
-#include "PacketHandler.h"
+#include "Net/Core/Misc/DDoSDetection.h"
+#include "Net/Core/Misc/NetCoreLog.h"
 #include "Misc/ConfigCacheIni.h"
 
 
@@ -113,7 +113,7 @@ void FDDoSDetection::InitConfig()
 
 	DetectionSeverity.Empty();
 
-	UE_LOG(PacketHandlerLog, Log, TEXT("DDoS detection status: detection enabled: %d analytics enabled: %d"), bDDoSDetection, bDDoSAnalytics);
+	UE_LOG(LogNetCore, Log, TEXT("DDoS detection status: detection enabled: %d analytics enabled: %d"), bDDoSDetection, bDDoSAnalytics);
 
 	if (bDDoSDetection)
 	{
@@ -150,7 +150,7 @@ void FDDoSDetection::InitConfig()
 			}
 			else
 			{
-				UE_LOG(PacketHandlerLog, Warning, TEXT("DDoS detection could not find ini section: %s"), *CurSection);
+				UE_LOG(LogNetCore, Warning, TEXT("DDoS detection could not find ini section: %s"), *CurSection);
 			}
 		}
 
@@ -162,7 +162,7 @@ void FDDoSDetection::InitConfig()
 		}
 		else
 		{
-			UE_LOG(PacketHandlerLog, Warning, TEXT("DDoS detection enabled, but no DetectionSeverity states specified! Disabling."));
+			UE_LOG(LogNetCore, Warning, TEXT("DDoS detection enabled, but no DetectionSeverity states specified! Disabling."));
 
 			bDDoSDetection = false;
 		}
@@ -238,7 +238,7 @@ void FDDoSDetection::UpdateSeverity(bool bEscalate)
 		}
 
 
-		UE_LOG(PacketHandlerLog, Warning, TEXT("Updated DDoS detection severity from '%s' to '%s'"),
+		UE_LOG(LogNetCore, Warning, TEXT("Updated DDoS detection severity from '%s' to '%s'"),
 				*OldState.SeverityCategory, *CurState.SeverityCategory);
 
 		if (bEscalate && ActiveState > WorstActiveState)
@@ -268,7 +268,7 @@ void FDDoSDetection::PreFrameReceive(float DeltaTime)
 			{
 				HitchFrameCount++;
 
-				UE_LOG(PacketHandlerLog, Verbose, TEXT("Detected '%i' successive hitches outside NetDriver Tick. Last Hitch: %fms (Max: %ims)"),
+				UE_LOG(LogNetCore, Verbose, TEXT("Detected '%i' successive hitches outside NetDriver Tick. Last Hitch: %fms (Max: %ims)"),
 						HitchFrameCount, HitchTimeMS, HitchTimeQuotaMS);
 			}
 			else
@@ -289,7 +289,7 @@ void FDDoSDetection::PreFrameReceive(float DeltaTime)
 
 		if (((StartFrameRecvTimestamp - LastPerSecQuotaBegin) - 1.0) > 0.0)
 		{
-			UE_CLOG(DroppedPacketCounter > 0, PacketHandlerLog, Warning,
+			UE_CLOG(DroppedPacketCounter > 0, LogNetCore, Warning,
 				TEXT("DDoS Detection dropped '%i' packets during last second (bHitFrameNonConnLimit: %i, bHitFrameNetConnLimit: %i, ")
 				TEXT("DetectionSeverity: %s)."),
 				DroppedPacketCounter, (int32)bHitFrameNonConnLimit, (int32)bHitFrameNetConnLimit,
@@ -318,7 +318,7 @@ void FDDoSDetection::PreFrameReceive(float DeltaTime)
 
 		if (LogHitCounter >= DDoSLogSpamLimit)
 		{
-			UE_LOG(PacketHandlerLog, Warning, TEXT("Previous frame hit DDoS LogHitCounter limit - hit count: %i (Max: %i)"), LogHitCounter,
+			UE_LOG(LogNetCore, Warning, TEXT("Previous frame hit DDoS LogHitCounter limit - hit count: %i (Max: %i)"), LogHitCounter,
 					DDoSLogSpamLimit);
 		}
 

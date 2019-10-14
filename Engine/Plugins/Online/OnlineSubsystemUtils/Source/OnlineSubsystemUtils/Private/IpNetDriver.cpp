@@ -20,7 +20,7 @@ Notes:
 #include "IpConnection.h"
 #include "HAL/LowLevelMemTracker.h"
 
-#include "PacketAudit.h"
+#include "Net/Core/Misc/PacketAudit.h"
 
 #include "IPAddress.h"
 #include "Sockets.h"

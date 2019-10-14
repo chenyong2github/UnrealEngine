@@ -1,9 +1,9 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 // Includes
-#include "NetAnalytics.h"
-#include "PacketHandler.h"
-#include "NetAnalyticsAggregatorConfig.h"
+#include "Net/Core/Analytics/NetAnalytics.h"
+#include "Net/Core/Analytics/NetAnalyticsAggregatorConfig.h"
+#include "Net/Core/Misc/NetCoreLog.h"
 
 
 // Globals
@@ -81,7 +81,7 @@ void FNetAnalyticsAggregator::InitConfig()
 
 	// If the config is hotfixed, make sure no data holders are currently active, as they can't be selectively hotfixed if loaded
 	// (this does seem to happen, frequently - so limits the hotfixability of Net Analytics)
-	UE_CLOG(AnalyticsDataMap.Num() > 0, PacketHandlerLog, Warning,
+	UE_CLOG(AnalyticsDataMap.Num() > 0, LogNetCore, Warning,
 			TEXT("Net Analytics hotfixed while already active. Analytics hotfix changes may not be applied correctly."));
 
 	if (CurConfig != nullptr)
@@ -90,7 +90,7 @@ void FNetAnalyticsAggregator::InitConfig()
 		{
 			AnalyticsDataConfigMap.Add(CurEntry.DataName, CurEntry.bEnabled);
 
-			UE_LOG(PacketHandlerLog, Log, TEXT("Adding NetAnalyticsData: %s, bEnabled: %i"), *CurEntry.DataName.ToString(),
+			UE_LOG(LogNetCore, Log, TEXT("Adding NetAnalyticsData: %s, bEnabled: %i"), *CurEntry.DataName.ToString(),
 					CurEntry.bEnabled);
 		}
 	}
@@ -123,7 +123,7 @@ TNetAnalyticsDataPtr<> FNetAnalyticsAggregator::RegisterAnalyticsData_Internal(T
 	}
 	else if (bEnabled == nullptr)
 	{
-		UE_LOG(PacketHandlerLog, Error, TEXT("NetAnalyticsData type '%s' must be added to NetAnalyticsAggregatorConfig, for NetDriverName: %s."),
+		UE_LOG(LogNetCore, Error, TEXT("NetAnalyticsData type '%s' must be added to NetAnalyticsAggregatorConfig, for NetDriverName: %s."),
 				*InDataName.ToString(), *NetDriverName.ToString());
 	}
 
