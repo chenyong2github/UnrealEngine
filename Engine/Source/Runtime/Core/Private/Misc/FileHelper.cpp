@@ -177,7 +177,7 @@ bool FFileHelper::LoadFileToStringArray( TArray<FString>& Result, const TCHAR* F
 			Pos++;
 		}
 
-		Result.Add(FString(Pos - LineStart, LineStart));
+		Result.Emplace(Pos - LineStart, LineStart);
 
 		if(*Pos == '\r')
 		{
