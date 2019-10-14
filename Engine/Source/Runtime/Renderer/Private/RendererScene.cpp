@@ -1531,7 +1531,10 @@ void FScene::AddLightSceneInfo_RenderThread(FLightSceneInfo* LightSceneInfo)
 
 	if (bDirectionalLight &&
 		// Only use a stationary or movable light
-		!LightSceneInfo->Proxy->HasStaticLighting())
+		!(LightSceneInfo->Proxy->HasStaticLighting() 
+		// if it is a Static DirectionalLight and the light has not been built, add it to MobileDirectionalLights for mobile preview.
+		&& LightSceneInfo->IsPrecomputedLightingValid())
+		)
 	{
 		// Set SimpleDirectionalLight
 		if(!SimpleDirectionalLight)
