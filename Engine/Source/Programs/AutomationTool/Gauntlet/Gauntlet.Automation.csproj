@@ -84,7 +84,6 @@
     <Compile Include="Framework\Utils\Gauntlet.IniConfigUtil.cs" />
     <Compile Include="Framework\Utils\Gauntlet.MarkdownBuilder.cs" />
     <Compile Include="Framework\Utils\Gauntlet.HtmlBuilder.cs" />
-    <Compile Include="Platform\Null\Gauntlet.TargetDeviceNull.cs" />
     <Compile Include="SelfTest\Unreal\Gauntlet.SelfTest.TestUnrealBuildParsing.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
