@@ -7,6 +7,7 @@
 #include "ChaosArchive.h"
 #include "Templates/ChooseClass.h"
 #include "Templates/EnableIf.h"
+#include "Math/NumericLimits.h"
 
 namespace Chaos
 {
@@ -109,7 +110,7 @@ public:
 				return true;
 			}
 		}
-		
+			
 		return false;
 	}
 
@@ -129,12 +130,13 @@ public:
 			const T UnscaledLength = Length * LengthScale;
 			const TVector<T, d> UnscaledDir = UnscaledDirDenorm * LengthScaleInv;
 
-		TVector<T, d> UnscaledPosition;
-		TVector<T, d> UnscaledNormal;
+			TVector<T, d> UnscaledPosition;
+			TVector<T, d> UnscaledNormal;
+			float UnscaledTime;
 
-		TUniquePtr<TImplicitObject<T, d>> HackBPtr(const_cast<TImplicitObject<T,d>*>(&B));	//todo: hack, need scaled object to except raw ptr similar to transformed implicit
-		TImplicitObjectScaled<T, d> ScaledB(MakeSerializable(HackBPtr), OwningScaled.MInvScale);
-		HackBPtr.Release();
+			TUniquePtr<TImplicitObject<T, d>> HackBPtr(const_cast<TImplicitObject<T,d>*>(&B));	//todo: hack, need scaled object to except raw ptr similar to transformed implicit
+			TImplicitObjectScaled<T, d> ScaledB(MakeSerializable(HackBPtr), OwningScaled.MInvScale);
+			HackBPtr.Release();
 
 			TRigidTransform<T, d> BToATMNoScale(BToATM.GetLocation() * OwningScaled.MInvScale, BToATM.GetRotation());
 			

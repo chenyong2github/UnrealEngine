@@ -82,12 +82,6 @@ public:
 	virtual bool Sweep(const TSpatialVisitorData<TPayloadType>& Instance, T& CurLength) = 0;
 };
 
-enum class ESpatialAccelerationType
-{
-	Grid,
-	BVH
-};
-
 /**
  * Can be implemented by external, non-chaos systems to collect / render
  * debug information from spacial structures. When passed to the debug
@@ -113,8 +107,11 @@ enum ESpatialAcceleration
 	AABBTree,
 	AABBTreeBV,
 	Collection,
-	Unknown
+	Unknown,
+	//For custom types continue the enum after ESpatialAcceleration::Unknown
 };
+
+using SpatialAccelerationType = uint8;	//see ESpatialAcceleration. Projects can add their own custom types by using enum values higher than ESpatialAcceleration::Unknown
 
 
 template <typename TPayloadType, typename T>
@@ -149,7 +146,7 @@ class CHAOS_API ISpatialAcceleration
 {
 public:
 
-	ISpatialAcceleration(ESpatialAcceleration InType = ESpatialAcceleration::Unknown)
+	ISpatialAcceleration(SpatialAccelerationType InType = ESpatialAcceleration::Unknown)
 		: Type(InType)
 	{
 	}
@@ -157,8 +154,8 @@ public:
 
 	virtual TArray<TPayloadType> FindAllIntersections(const TBox<T, d>& Box) const { check(false); return TArray<TPayloadType>(); }
 
-	virtual void Raycast(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T OriginalLength, ISpatialVisitor<TPayloadType, T>& Visitor) const { check(false); }
-	virtual void Sweep(const TVector<T, d>& Start, const TVector<T, d>& Dir, T OriginalLength, const TVector<T, d> QueryHalfExtents, ISpatialVisitor<TPayloadType, T>& Visitor) const { check(false); }
+	virtual void Raycast(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T Length, ISpatialVisitor<TPayloadType, T>& Visitor) const { check(false); }
+	virtual void Sweep(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T Length, const TVector<T, d> QueryHalfExtents, ISpatialVisitor<TPayloadType, T>& Visitor) const { check(false);}
 	virtual void Overlap(const TBox<T, d>& QueryBounds, ISpatialVisitor<TPayloadType, T>& Visitor) const { check(false); }
 
 	virtual void RemoveElement(const TPayloadType& Payload)
@@ -227,7 +224,7 @@ public:
 	}
 
 private:
-	ESpatialAcceleration Type;
+	SpatialAccelerationType Type;
 };
 
 template <typename TBase, typename TDerived>

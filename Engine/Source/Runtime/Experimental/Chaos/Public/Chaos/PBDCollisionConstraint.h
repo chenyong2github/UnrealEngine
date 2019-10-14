@@ -45,6 +45,13 @@ enum class ECollisionUpdateType
 	Deepest	//find the deepest penetration. Compute location and normal
 };
 
+/** Return value of the collision modification callback */
+enum class ECollisionModifierResult
+{
+	Unchanged,	/** No change to the collision */
+	Modified,	/** Modified the collision, but want it to remain enabled */
+	Disabled,	/** Collision should be disabled */
+};
 
 template<class T, int d>
 class CHAOS_API TPBDCollisionConstraintHandle : public TContainerConstraintHandle<TPBDCollisionConstraint<T, d>>
@@ -65,7 +72,7 @@ protected:
 };
 
 template<typename T, int d>
-using TRigidBodyContactConstraintsPostComputeCallback = TFunction<void(TArray<TRigidBodyContactConstraint<T, d>>& Constraints)>;
+using TRigidBodyContactConstraintsPostComputeCallback = TFunction<void()>;
 
 template<typename T, int d>
 using TRigidBodyContactConstraintsPostApplyCallback = TFunction<void(const T Dt, const TArray<TPBDCollisionConstraintHandle<T, d>*>& InConstraintHandles)>;
@@ -166,7 +173,7 @@ public:
 
 	/**
 	 * Set the callback used just after contacts are generated at the start of a frame tick.
-	 * This can be used to modify or remove constraints from the system.
+	 * This can be used to modify or disable constraints (via ApplyCollisionModifier).
 	 */
 	void SetPostComputeCallback(const TRigidBodyContactConstraintsPostComputeCallback<T, d>& Callback);
 
