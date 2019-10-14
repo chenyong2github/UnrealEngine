@@ -124,7 +124,23 @@ public:
 		return DetailLevels[0].Events.Num();
 	}
 
-	virtual void EnumerateEventsDownSampled(double IntervalStart, double IntervalEnd, double Resolution, TFunctionRef<void(bool, double, const EventType&)> Callback) const override
+	virtual const EventType& GetEvent(uint64 InIndex) const override 
+	{ 
+		return DetailLevels[0].Events[InIndex]; 
+	}
+
+	virtual double GetStartTime() const override
+	{
+		return DetailLevels[0].ScopeEntries.Num() > 0 ? FMath::Abs(DetailLevels[0].ScopeEntries[0].Time) : 0.0;
+	}
+
+	virtual double GetEndTime() const override
+	{
+		uint64 NumScopeEntries = DetailLevels[0].ScopeEntries.Num();
+		return NumScopeEntries > 0 ? FMath::Abs(DetailLevels[0].ScopeEntries[NumScopeEntries - 1].Time) : 0.0;
+	}
+
+	virtual void EnumerateEventsDownSampled(double IntervalStart, double IntervalEnd, double Resolution, ITimeline::EventCallback Callback) const override
 	{
 		int32 DetailLevelIndex = SettingsType::DetailLevelsCount - 1;
 		for (; DetailLevelIndex > 0; --DetailLevelIndex)
@@ -249,7 +265,7 @@ public:
 		}
 	}
 
-	virtual void EnumerateEventsDownSampled(double IntervalStart, double IntervalEnd, double Resolution, TFunctionRef<void(double, double, uint32, const EventType&)> Callback) const override
+	virtual void EnumerateEventsDownSampled(double IntervalStart, double IntervalEnd, double Resolution, ITimeline::EventRangeCallback Callback) const override
 	{
 		struct FStackEntry
 		{
@@ -299,12 +315,12 @@ public:
 		});
 	}
 
-	virtual void EnumerateEvents(double IntervalStart, double IntervalEnd, TFunctionRef<void(bool, double, const EventType&)> Callback) const override
+	virtual void EnumerateEvents(double IntervalStart, double IntervalEnd, ITimeline::EventCallback Callback) const override
 	{
 		EnumerateEventsDownSampled(IntervalStart, IntervalEnd, 0.0, Callback);
 	}
 
-	virtual void EnumerateEvents(double IntervalStart, double IntervalEnd, TFunctionRef<void(double, double, uint32, const EventType&)> Callback) const override
+	virtual void EnumerateEvents(double IntervalStart, double IntervalEnd, ITimeline::EventRangeCallback Callback) const override
 	{
 		EnumerateEventsDownSampled(IntervalStart, IntervalEnd, 0.0, Callback);
 	}

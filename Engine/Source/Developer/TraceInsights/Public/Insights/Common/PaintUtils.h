@@ -19,7 +19,7 @@ class FSlateWindowElementList;
 /**
  * Holds current state provided by OnPaint function, used to simplify drawing.
  */
-struct FDrawContext
+struct TRACEINSIGHTS_API FDrawContext
 {
 	FDrawContext(const FGeometry& InGeometry,
 				 const FSlateRect& InCullingRect,

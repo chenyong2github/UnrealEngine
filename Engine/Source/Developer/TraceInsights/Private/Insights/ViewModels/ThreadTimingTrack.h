@@ -26,12 +26,14 @@ public:
 	void SetThreadId(uint32 InThreadId) { ThreadId = InThreadId; }
 	uint32 GetThreadId() const { return ThreadId; }
 
-	virtual void Draw(FTimingViewDrawHelper& Helper) const override;
+	virtual void Draw(ITimingViewDrawHelper& Helper) const override;
 	virtual void DrawSelectedEventInfo(const FTimingEvent& SelectedTimingEvent, const FTimingTrackViewport& Viewport, const FDrawContext& DrawContext, const FSlateBrush* WhiteBrush, const FSlateFontInfo& Font) const override;
 	virtual void InitTooltip(FTooltipDrawState& Tooltip, const FTimingEvent& HoveredTimingEvent) const override;
 
 	virtual bool SearchTimingEvent(const double InStartTime, const double InEndTime, TFunctionRef<bool(double, double, uint32)> InPredicate, FTimingEvent& InOutTimingEvent, bool bInStopAtFirstMatch, bool bInSearchForLargestEvent) const override;
 	virtual void ComputeTimingEventStats(FTimingEvent& InOutTimingEvent) const override;
+	virtual void OnEventSelected(const FTimingEvent& SelectedTimingEvent) const override;
+	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
 
 private:
 	void GetParentAndRoot(const FTimingEvent& TimingEvent, FTimingEvent& OutParentTimingEvent, FTimingEvent& OutRootTimingEvent) const;

@@ -495,27 +495,23 @@ bool FFileActivityTimingTrack::SearchEvent(const double InStartTime,
 
 	FSearchTimingEventContext Ctx(InStartTime, InEndTime, InPredicate, InOutTimingEvent, bInStopAtFirstMatch, bInSearchForLargestEvent);
 
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-	if (Session.IsValid())
+	Trace::FAnalysisSessionReadScope SessionReadScope(GetSession());
+
+	const FTimingEventsTrack* Track = Ctx.TimingEvent.Track;
+
+	for (const FFileActivitySharedState::FIoTimingEvent& Event : State->GetAllEvents())
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-
-		const FTimingEventsTrack* Track = Ctx.TimingEvent.Track;
-
-		for (const FFileActivitySharedState::FIoTimingEvent& Event : State->GetAllEvents())
+		if (Event.EndTime <= Ctx.StartTime)
 		{
-			if (Event.EndTime <= Ctx.StartTime)
-			{
-				continue;
-			}
-
-			if (!Ctx.bContinueSearching || Event.StartTime >= Ctx.EndTime)
-			{
-				break;
-			}
-
-			Ctx.CheckEvent(Event, bIgnoreEventDepth ? 0 : Event.Depth);
+			continue;
 		}
+
+		if (!Ctx.bContinueSearching || Event.StartTime >= Ctx.EndTime)
+		{
+			break;
+		}
+
+		Ctx.CheckEvent(Event, bIgnoreEventDepth ? 0 : Event.Depth);
 	}
 
 	return Ctx.bFound;
@@ -525,7 +521,7 @@ bool FFileActivityTimingTrack::SearchEvent(const double InStartTime,
 // FOverviewFileActivityTimingTrack
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FOverviewFileActivityTimingTrack::Draw(FTimingViewDrawHelper& Helper) const
+void FOverviewFileActivityTimingTrack::Draw(ITimingViewDrawHelper& Helper) const
 {
 	FTimingEventsTrack& Track = *const_cast<FOverviewFileActivityTimingTrack*>(this);
 
@@ -579,7 +575,7 @@ void FOverviewFileActivityTimingTrack::Draw(FTimingViewDrawHelper& Helper) const
 // FDetailedFileActivityTimingTrack
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FDetailedFileActivityTimingTrack::Draw(FTimingViewDrawHelper& Helper) const
+void FDetailedFileActivityTimingTrack::Draw(ITimingViewDrawHelper& Helper) const
 {
 	FTimingEventsTrack& Track = *const_cast<FDetailedFileActivityTimingTrack*>(this);
 

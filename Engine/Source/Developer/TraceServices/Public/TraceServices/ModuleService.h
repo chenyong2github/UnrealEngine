@@ -12,7 +12,7 @@ namespace Trace
 
 class IAnalyzer;
 class IAnalysisSession;
-extern const FName ModuleFeatureName;
+extern TRACESERVICES_API const FName ModuleFeatureName;
 
 struct FModuleInfo
 {

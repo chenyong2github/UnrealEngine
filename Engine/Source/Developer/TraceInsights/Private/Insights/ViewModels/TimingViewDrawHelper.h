@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Math/Color.h"
+#include "Insights/ITimingViewDrawHelper.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -17,7 +18,7 @@ class FTimingTrackViewport;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FTimingViewDrawHelper
+class FTimingViewDrawHelper final : public ITimingViewDrawHelper
 {
 public:
 	enum class EHighlightMode : uint32
@@ -94,9 +95,13 @@ public:
 	FTimingViewDrawHelper(const FTimingViewDrawHelper&) = delete;
 	FTimingViewDrawHelper& operator=(const FTimingViewDrawHelper&) = delete;
 
-	const FDrawContext& GetDrawContext() const { return DrawContext; }
-	const FTimingTrackViewport& GetViewport() const { return Viewport; }
-	const FTimingEventsTrackLayout& GetLayout() const { return Layout; }
+	// ITimingViewDrawHelper interface
+	virtual const FDrawContext& GetDrawContext() const override { return DrawContext; }
+	virtual const FTimingTrackViewport& GetViewport() const override { return Viewport; }
+	virtual const FTimingEventsTrackLayout& GetLayout() const override { return Layout; }
+	virtual bool BeginTimeline(FTimingEventsTrack& Track) override;
+	virtual void AddEvent(double StartTime, double EndTime, uint32 Depth, const TCHAR* EventName, uint32 Color = 0) override;
+	virtual void EndTimeline(FTimingEventsTrack& Track) override;
 
 	const FSlateBrush* GetWhiteBrush() const { return WhiteBrush; }
 	const FSlateFontInfo& GetEventFont() const { return EventFont; }
@@ -112,9 +117,6 @@ public:
 
 	//TODO: move the following in a Builder class
 	void BeginTimelines();
-	bool BeginTimeline(FTimingEventsTrack& Track);
-	void AddEvent(double StartTime, double EndTime, uint32 Depth, const TCHAR* EventName, uint32 Color = 0);
-	void EndTimeline(FTimingEventsTrack& Track);
 	void EndTimelines();
 
 private:

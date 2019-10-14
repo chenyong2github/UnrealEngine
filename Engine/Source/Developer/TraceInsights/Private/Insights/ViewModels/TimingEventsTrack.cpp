@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "TimingEventsTrack.h"
+#include "Insights/ViewModels/TimingEventsTrack.h"
 
 #define LOCTEXT_NAMESPACE "TimingEventsTrack"
 
@@ -86,13 +86,8 @@ bool FTimingEventsTrack::bUseDownSampling = true;
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FTimingEventsTrack::FTimingEventsTrack(uint64 InTrackId, const FName& InType, const FName& InSubType, const FString& InName)
-	: FBaseTimingTrack(InTrackId)
-	, Type(InType)
-	, SubType(InSubType)
-	, Name(InName)
-	, Order(0)
+	: FBaseTimingTrack(InTrackId, InType, InSubType, InName)
 	, NumLanes(0)
-	, bIsCollapsed(false)
 {
 }
 
@@ -109,7 +104,6 @@ void FTimingEventsTrack::Reset()
 	FBaseTimingTrack::Reset();
 
 	NumLanes = 0;
-	bIsCollapsed = false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

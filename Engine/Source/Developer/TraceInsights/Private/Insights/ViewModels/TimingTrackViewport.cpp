@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "TimingTrackViewport.h"
+#include "Insights/ViewModels/TimingTrackViewport.h"
 
 #include "Widgets/Layout/SScrollBar.h"
 

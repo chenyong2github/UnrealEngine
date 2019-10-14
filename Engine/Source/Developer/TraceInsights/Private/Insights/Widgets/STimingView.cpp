@@ -26,6 +26,7 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Features/IModularFeatures.h"
 
 // Insights
 #include "Insights/Common/PaintUtils.h"
@@ -48,6 +49,7 @@
 #include "Insights/Widgets/SStatsView.h"
 #include "Insights/Widgets/STimersView.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
+#include "Insights/ITimingViewExtender.h"
 
 #include <limits>
 
@@ -64,6 +66,8 @@ const TCHAR* GetName(ELoadTimeProfilerObjectEventType Type);
 
 const TCHAR* GetFileActivityTypeName(Trace::EFileActivityType Type);
 uint32 GetFileActivityTypeColor(Trace::EFileActivityType Type);
+
+namespace Insights { const FName TimingViewExtenderFeatureName(TEXT("TimingViewExtender")); }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -89,16 +93,17 @@ STimingView::~STimingView()
 		delete KV.Value;
 	}
 	CachedTimelines.Reset();
+
+	for (Insights::ITimingViewExtender* Extender : GetExtenders())
+	{
+		Extender->OnEndSession(*this);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STimingView::Construct(const FArguments& InArgs)
 {
-	OnSelectionChanged = InArgs._OnSelectionChanged;
-	OnHoveredEventChanged = InArgs._OnHoveredEventChanged;
-	OnSelectedEventChanged = InArgs._OnSelectedEventChanged;
-
 	ChildSlot
 	[
 		SNew(SOverlay)
@@ -199,6 +204,14 @@ void STimingView::Reset()
 	}
 	CachedTimelines.Reset();
 
+	//////////////////////////////////////////////////
+
+	for (Insights::ITimingViewExtender* Extender : GetExtenders())
+	{
+		Extender->OnEndSession(*this);
+		Extender->OnBeginSession(*this);
+	}
+
 	//TODO: TopTracks.Reset();
 	//TODO: ScrollableTracks.Reset();
 	//TODO: BottomTracks.Reset();
@@ -208,7 +221,8 @@ void STimingView::Reset()
 
 	TimingEventsTracks.Reset();
 
-	bAreTimingEventsTracksDirty = true;
+	bTimingEventsNeedUpdate = true;
+	bTimingEventsTracksChanged = true;
 
 	FTimingEventsTrack::bUseDownSampling = true;
 
@@ -275,6 +289,7 @@ void STimingView::Reset()
 	LastSelectionType = ESelectionType::None;
 
 	TimeMarker = std::numeric_limits<double>::infinity();
+	bIsScrubbing = false;
 
 	//ThisGeometry
 
@@ -439,12 +454,13 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 			if (SessionTime >= Viewport.GetStartTime() && SessionTime <= Viewport.GetEndTime())
 			{
-				bAreTimingEventsTracksDirty = true;
+				bTimingEventsNeedUpdate = true;
 				MarkersTrack.SetDirtyFlag();
 			}
 		}
 
-		bool bIsTimingEventsTrackDirty = false;
+		// After this point we can add new tracks, so reset the dirty flag
+		bTimingEventsTracksChanged = false;
 
 		if (Trace::ReadLoadTimeProfilerProvider(*Session.Get()))
 		{
@@ -460,7 +476,6 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 				LoadingMainThreadTrack->SetOrder(-3);
 				LoadingMainThreadTrack->SetVisibilityFlag(bShowHideAllLoadingTracks);
 				AddTimingEventsTrack(LoadingMainThreadTrack);
-				bIsTimingEventsTrackDirty = true;
 			}
 
 			if (LoadingAsyncThreadTrack == nullptr)
@@ -470,7 +485,6 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 				LoadingMainThreadTrack->SetOrder(-2);
 				LoadingAsyncThreadTrack->SetVisibilityFlag(bShowHideAllLoadingTracks);
 				AddTimingEventsTrack(LoadingAsyncThreadTrack);
-				bIsTimingEventsTrackDirty = true;
 			}
 		}
 
@@ -484,9 +498,10 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 				IoOverviewTrack->SetOrder(-1);
 				IoOverviewTrack->SetVisibilityFlag(bShowHideAllIoTracks);
 				AddTimingEventsTrack(IoOverviewTrack);
-				bIsTimingEventsTrackDirty = true;
 			}
 		}
+
+		int32 Order = 1;
 
 		if (Trace::ReadTimingProfilerProvider(*Session.Get()))
 		{
@@ -503,14 +518,12 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 					GpuTrack->SetOrder(0);
 					GpuTrack->SetVisibilityFlag(bShowHideAllGpuTracks);
 					AddTimingEventsTrack(GpuTrack);
-					bIsTimingEventsTrackDirty = true;
 				}
 			}
 
 			// Check available CPU tracks.
-			int32 Order = 1;
 			const Trace::IThreadProvider& ThreadProvider = Trace::ReadThreadProvider(*Session.Get());
-			ThreadProvider.EnumerateThreads([this, &Order, &bIsTimingEventsTrackDirty, &TimingProfilerProvider](const Trace::FThreadInfo& ThreadInfo)
+			ThreadProvider.EnumerateThreads([this, &Order, &TimingProfilerProvider](const Trace::FThreadInfo& ThreadInfo)
 			{
 				const TCHAR* GroupName = ThreadInfo.GroupName;
 				if (GroupName == nullptr)
@@ -564,7 +577,6 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 						}
 
 						AddTimingEventsTrack(Track);
-						bIsTimingEventsTrackDirty = true;
 					}
 					else
 					{
@@ -573,7 +585,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 						if (Track->GetOrder() != Order)
 						{
 							Track->SetOrder(Order);
-							bIsTimingEventsTrackDirty = true;
+							bTimingEventsTracksChanged = true;
 						}
 					}
 
@@ -592,14 +604,29 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 				IoActivityTrack->SetOrder(999999);
 				IoActivityTrack->SetVisibilityFlag(bShowHideAllIoTracks);
 				AddTimingEventsTrack(IoActivityTrack);
-				bIsTimingEventsTrackDirty = true;
 			}
 		}
 
-		if (bIsTimingEventsTrackDirty)
+		// Tick plugin extenders
+		for (Insights::ITimingViewExtender* Extender : GetExtenders())
 		{
+			Extender->Tick(*this, *Session.Get());
+		}
+
+		if (bTimingEventsTracksChanged)
+		{
+			// Let extenders re-order their track data
+			for (Insights::ITimingViewExtender* Extender : GetExtenders())
+			{
+				Extender->OnTracksChanged(*this, Order);
+			}
+
 			// The list has changed. Sort the list again.
 			Algo::SortBy(TimingEventsTracks, &FTimingEventsTrack::GetOrder);
+
+			bTimingEventsTracksChanged = false;
+
+			bTimingEventsNeedUpdate = true;
 		}
 	}
 
@@ -655,14 +682,14 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 		//TimeRuler.SetDirtyFlag();
 		MarkersTrack.SetDirtyFlag();
-		bAreTimingEventsTracksDirty = true;
+		bTimingEventsNeedUpdate = true;
 	}
 
 	if (bIsVerticalViewportDirty)
 	{
 		bIsVerticalViewportDirty = false;
 
-		bAreTimingEventsTracksDirty = true;
+		bTimingEventsNeedUpdate = true;
 	}
 
 	//if (TimeRuler.IsVisible() && TimeRuler.IsDirty())
@@ -685,9 +712,9 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		TimeMarkerCacheUpdateDurationHistory.AddValue(Stopwatch.AccumulatedTime);
 	}
 
-	if (bAreTimingEventsTracksDirty)
+	if (bTimingEventsNeedUpdate)
 	{
-		bAreTimingEventsTracksDirty = false;
+		bTimingEventsNeedUpdate = false;
 
 		GraphTrack->SetDirtyFlag();
 
@@ -696,6 +723,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 		for (int32 TrackIndex = 0; TrackIndex < TimingEventsTracks.Num(); ++TrackIndex)
 		{
+			TimingEventsTracks[TrackIndex]->SetSession(Session.Get());
 			TimingEventsTracks[TrackIndex]->Update(Viewport);
 		}
 
@@ -768,6 +796,8 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 	Helper.DrawBackground();
 
 	// Draw scrollable tracks.
+	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	if(Session.IsValid())
 	{
 		Helper.BeginTimelines();
 
@@ -825,7 +855,7 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 	// Draw the time ruler.
 	if (TimeRulerTrack.IsVisible())
 	{
-		TimeRulerTrack.Draw(DrawContext, Viewport, MousePosition, bIsSelecting, SelectionStartTime, SelectionEndTime);
+		TimeRulerTrack.Draw(DrawContext, Viewport, MousePosition, bIsSelecting, SelectionStartTime, SelectionEndTime, TimeMarker);
 	}
 
 	// Fill background for the Tracks filter combobox.
@@ -835,17 +865,6 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 
 	// Draw the time range selection.
 	FDrawHelpers::DrawTimeRangeSelection(DrawContext, Viewport, SelectionStartTime, SelectionEndTime, WhiteBrush, MainFont);
-
-	//////////////////////////////////////////////////
-
-	// Draw the time marker (orange vertical line).
-	//DrawTimeMarker(OnPaintState);
-	float TimeMarkerX = Viewport.TimeToSlateUnitsRounded(TimeMarker);
-	if (TimeMarkerX >= 0.0f && TimeMarkerX < Viewport.GetWidth())
-	{
-		DrawContext.DrawBox(TimeMarkerX, 0.0f, 1.0f, Viewport.GetHeight(), WhiteBrush, FLinearColor(0.85f, 0.5f, 0.03f, 0.5f));
-		DrawContext.LayerId++;
-	}
 
 	//////////////////////////////////////////////////
 
@@ -1060,6 +1079,8 @@ void STimingView::AddTimingEventsTrack(FTimingEventsTrack* Track)
 
 	CachedTimelines.Add(Track->GetId(), Track);
 	TimingEventsTracks.Add(Track);
+
+	bTimingEventsTracksChanged = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1087,6 +1108,7 @@ FReply STimingView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 
 	bool bStartPanning = false;
 	bool bStartSelecting = false;
+	bool bStartScrubbing = false;
 
 	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
@@ -1099,7 +1121,11 @@ FReply STimingView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 		{
 			bIsLMB_Pressed = true;
 
-			if (!bIsSpaceBarKeyPressed &&
+			if(MousePositionOnButtonDown.Y < TimeRulerTrack.GetHeight() && (MouseEvent.GetModifierKeys().IsControlDown() || MouseEvent.GetModifierKeys().IsShiftDown()))
+			{
+				bStartScrubbing = true;
+			}
+			else if (!bIsSpaceBarKeyPressed &&
 				(MousePositionOnButtonDown.Y < TimeRulerTrack.GetHeight() ||
 				 (MouseEvent.GetModifierKeys().IsControlDown() && MouseEvent.GetModifierKeys().IsShiftDown())))
 			{
@@ -1136,10 +1162,17 @@ FReply STimingView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 		}
 	}
 
-	if (bStartPanning)
+	if(bStartScrubbing)
+	{
+		bIsPanning = false;
+		bIsDragging = false;
+		bIsScrubbing = true;
+	}
+	else if (bStartPanning)
 	{
 		bIsPanning = true;
 		bIsDragging = false;
+		bIsScrubbing = false;
 
 		ViewportStartTimeOnButtonDown = Viewport.GetStartTime();
 		ViewportScrollPosYOnButtonDown = Viewport.GetScrollPosY();
@@ -1164,6 +1197,7 @@ FReply STimingView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 	{
 		bIsSelecting = true;
 		bIsDragging = false;
+		bIsScrubbing = false;
 
 		SelectionStartTime = Viewport.SlateUnitsToTime(MousePositionOnButtonDown.X);
 		SelectionEndTime = SelectionStartTime;
@@ -1199,6 +1233,10 @@ FReply STimingView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 			{
 				RaiseSelectionChanged();
 				bIsSelecting = false;
+			}
+			else if(bIsScrubbing)
+			{
+				bIsScrubbing = false;
 			}
 
 			if (bIsValidForMouseClick)
@@ -1239,6 +1277,10 @@ FReply STimingView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 			{
 				RaiseSelectionChanged();
 				bIsSelecting = false;
+			}
+			else if(bIsScrubbing)
+			{
+				bIsScrubbing = false;
 			}
 
 			if (bIsValidForMouseClick)
@@ -1327,6 +1369,16 @@ FReply STimingView::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent
 				}
 				LastSelectionType = ESelectionType::TimeRange;
 				RaiseSelectionChanging();
+			}
+		}
+		else if (bIsScrubbing)
+		{
+			if (HasMouseCapture())
+			{
+				bIsDragging = true;
+
+				TimeMarker = Viewport.SlateUnitsToTime(MousePosition.X);
+				RaiseTimeMarkerChanged();
 			}
 		}
 		else
@@ -1592,7 +1644,7 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 		else
 		{
 			Layout.bIsCompactMode = !Layout.bIsCompactMode;
-			bAreTimingEventsTracksDirty = true;
+			bTimingEventsNeedUpdate = true;
 			return FReply::Handled();
 		}
 	}
@@ -1711,7 +1763,7 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 	else if (InKeyEvent.GetKey() == EKeys::D) // debug: toggles down-sampling on/off
 	{
 		FTimingEventsTrack::bUseDownSampling = !FTimingEventsTrack::bUseDownSampling;
-		bAreTimingEventsTracksDirty = true;
+		bTimingEventsNeedUpdate = true;
 		return FReply::Handled();
 	}
 	else if (InKeyEvent.GetKey() == EKeys::G) // debug: toggles Graph track on/off
@@ -1815,45 +1867,19 @@ void STimingView::ShowContextMenu(const FPointerEvent& MouseEvent)
 			FSlateIcon()
 		);
 	}
+	else if(HoveredTimingEvent.Track != nullptr)
+	{
+		const_cast<FTimingEventsTrack*>(HoveredTimingEvent.Track)->BuildContextMenu(MenuBuilder);
+	}
 	else
 	{
 		MenuBuilder.BeginSection(TEXT("Empty"));
 		{
-			struct FLocal
-			{
-				static bool ReturnFalse()
-				{
-					return false;
-				}
-			};
-
-			FUIAction DummyUIAction;
-			DummyUIAction.CanExecuteAction = FCanExecuteAction::CreateStatic(&FLocal::ReturnFalse);
-
-			FText Title;
-			if (HoveredTimingEvent.Track != nullptr)
-			{
-				if (HoveredTimingEvent.Track->GetType() == FName(TEXT("Thread")) &&
-					((FThreadTimingTrack*)HoveredTimingEvent.Track)->GetGroupName() != nullptr)
-				{
-					Title = FText::Format(LOCTEXT("TrackTitleGroupFmt", "{0} (Group: {1})"), FText::FromString(HoveredTimingEvent.Track->GetName()), FText::FromString(((FThreadTimingTrack*)HoveredTimingEvent.Track)->GetGroupName()));
-				}
-				else
-				{
-					Title = FText::FromString(HoveredTimingEvent.Track->GetName());
-				}
-			}
-			else
-			{
-				Title = LOCTEXT("ContextMenu_NA", "N/A");
-			}
-
-			MenuBuilder.AddMenuEntry
-			(
-				Title,
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("ContextMenu_NA", "N/A"),
 				LOCTEXT("ContextMenu_NA_Desc", "No actions available."),
 				FSlateIcon(),
-				DummyUIAction,
+				FUIAction(FExecuteAction(), FCanExecuteAction::CreateLambda([](){ return false; })),
 				NAME_None,
 				EUserInterfaceActionType::Button
 			);
@@ -2010,14 +2036,14 @@ void STimingView::SelectTimeInterval(double IntervalStartTime, double IntervalDu
 
 void STimingView::RaiseSelectionChanging()
 {
-	//TODO: SelectionChangingEvent.Broadcast(SelectionStartTime, SelectionEndTime);
+	OnSelectionChangedDelegate.Broadcast(LastSelectionType != ESelectionType::None, SelectionStartTime, SelectionEndTime);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STimingView::RaiseSelectionChanged()
 {
-	//TODO: SelectionChangedEvent.Broadcast(SelectionStartTime, SelectionEndTime);
+	OnSelectionChangedDelegate.Broadcast(LastSelectionType != ESelectionType::None, SelectionStartTime, SelectionEndTime);
 
 	FTimingProfilerManager::Get()->SetSelectedTimeRange(SelectionStartTime, SelectionEndTime);
 
@@ -2025,6 +2051,13 @@ void STimingView::RaiseSelectionChanged()
 	{
 		UpdateAggregatedStats();
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::RaiseTimeMarkerChanged()
+{
+	OnTimeMarkerChangedDelegate.Broadcast(TimeMarker != std::numeric_limits<double>::infinity(), TimeMarker);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2214,12 +2247,21 @@ void STimingView::UpdateHoveredTimingEvent(float MX, float MY)
 			HoveredTimingEvent = TimingEvent;
 			HoveredTimingEvent.Track->ComputeTimingEventStats(HoveredTimingEvent);
 			HoveredTimingEvent.Track->InitTooltip(Tooltip, HoveredTimingEvent);
+
+			OnHoveredEventChangedDelegate.Broadcast(HoveredTimingEvent);
 		}
 		Tooltip.SetDesiredOpacity(1.0f);
 	}
 	else
 	{
 		HoveredTimingEvent.Reset();
+
+		if(TimingEvent.Track != nullptr)
+		{
+			HoveredTimingEvent.Track = TimingEvent.Track;
+		}
+
+		OnHoveredEventChangedDelegate.Broadcast(HoveredTimingEvent);
 		Tooltip.SetDesiredOpacity(0.0f);
 	}
 }
@@ -2230,13 +2272,13 @@ void STimingView::OnSelectedTimingEventChanged()
 {
 	if (!bAssetLoadingMode)
 	{
-		if (SelectedTimingEvent.IsValid() &&
-			SelectedTimingEvent.Track->GetType() == FName(TEXT("Thread")))
+		if (SelectedTimingEvent.IsValid())
 		{
-			// Select the timer node coresponding to timing event type of selected timing event.
-			FTimingProfilerManager::Get()->SetSelectedTimer(SelectedTimingEvent.TypeId);
+			SelectedTimingEvent.Track->OnEventSelected(SelectedTimingEvent);
 		}
 	}
+
+	OnSelectedEventChangedDelegate.Broadcast(SelectedTimingEvent);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2512,6 +2554,12 @@ TSharedRef<SWidget> STimingView::MakeTracksFilterMenu()
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);
+
+		// Let any plugins extend the filter menu
+		for (Insights::ITimingViewExtender* Extender : GetExtenders())
+		{
+			Extender->ExtendFilterMenu(*this, MenuBuilder);
+		}
 	}
 	MenuBuilder.EndSection();
 
@@ -2594,7 +2642,7 @@ bool STimingView::ShowHideGraphTrack_IsChecked() const
 void STimingView::ShowHideGraphTrack_Execute()
 {
 	GraphTrack->ToggleVisibility();
-	bAreTimingEventsTracksDirty = true;
+	bTimingEventsNeedUpdate = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2814,9 +2862,22 @@ void STimingView::OnTimingEventsTrackVisibilityChanged()
 		UpdateAggregatedStats();
 	}
 
-	bAreTimingEventsTracksDirty = true;
+	bTimingEventsNeedUpdate = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FTimingEventsTrack* STimingView::FindTimingEventsTrack(uint64 InTrackID)
+{
+	FTimingEventsTrack** TrackPtr = CachedTimelines.Find(InTrackID);
+	return TrackPtr != nullptr ? *TrackPtr : nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TArray<Insights::ITimingViewExtender*> STimingView::GetExtenders() const
+{
+	return IModularFeatures::Get().GetModularFeatureImplementations<Insights::ITimingViewExtender>(Insights::TimingViewExtenderFeatureName);
+}
 
 #undef LOCTEXT_NAMESPACE

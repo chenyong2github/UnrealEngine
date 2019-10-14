@@ -10,6 +10,7 @@
 
 class FTimingTrackViewport;
 class FMenuBuilder;
+namespace Trace { class IAnalysisSession; };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -26,15 +27,20 @@ ENUM_CLASS_FLAGS(ETimingTrackFlags);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FBaseTimingTrack : public TSharedFromThis<FBaseTimingTrack>
+class TRACEINSIGHTS_API FBaseTimingTrack : public TSharedFromThis<FBaseTimingTrack>
 {
 	friend class FTimingViewDrawHelper;
 
 protected:
-	explicit FBaseTimingTrack(uint64 InId)
+	explicit FBaseTimingTrack(uint64 InId, const FName& InType = NAME_None, const FName& InSubType = NAME_None, const FString& InName = FString())
 		: Id(InId)
+		, Type(InType)
+		, SubType(InSubType)
+		, Name(InName)
+		, Order(0)
 		, PosY(0.0f)
 		, Height(0.0f)
+		, Session(nullptr)
 		, Flags(ETimingTrackFlags::IsVisible | ETimingTrackFlags::IsDirty)
 	{}
 
@@ -47,10 +53,19 @@ public:
 		Id = 0;
 		PosY = 0.0f;
 		Height = 0.0f;
+		Session = nullptr;
 		Flags = ETimingTrackFlags::IsVisible | ETimingTrackFlags::IsDirty;
 	}
 
 	uint64 GetId() const { return Id; }
+
+	const FName& GetType() const { return Type; }
+	const FName& GetSubType() const { return SubType; }
+
+	const FString& GetName() const { return Name; }
+
+	void SetOrder(int32 InOrder) { Order = InOrder; }
+	int32 GetOrder() const { return Order; }
 
 	float GetPosY() const { return PosY; }
 	virtual void SetPosY(float InPosY) { PosY = InPosY; }
@@ -88,14 +103,26 @@ public:
 
 	static uint64 GenerateId() { return IdGenerator++; }
 
-	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) {}
+	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder);
+
+	// Check whether the session is currently valid
+	bool IsSessionValid() const { return Session != nullptr; }
+
+	// Access the session that this track is using
+	const Trace::IAnalysisSession& GetSession() const { check(Session); return *Session; }
+
+	// Set the session that this track is using. This is refreshed each tick we have a valid session
+	void SetSession(const Trace::IAnalysisSession* InSession) { Session = InSession; }
 
 private:
 	uint64 Id;
-
+	FName Type; // Thread, Loading, FileActivity
+	FName SubType; // Cpu, Gpu, MainThread, AsyncThread, Overview, Detailed
+	FString Name;
+	int32 Order;
 	float PosY; // y position, in Slate units
 	float Height; // height, in Slate units
-
+	const Trace::IAnalysisSession* Session;
 	ETimingTrackFlags Flags;
 
 	static uint64 IdGenerator;

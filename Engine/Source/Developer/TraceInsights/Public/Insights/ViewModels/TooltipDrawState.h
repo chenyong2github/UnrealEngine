@@ -13,7 +13,7 @@ struct FSlateBrush;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FTooltipDrawState
+class TRACEINSIGHTS_API FTooltipDrawState
 {
 public:
 	static constexpr float BorderX = 6.0f;

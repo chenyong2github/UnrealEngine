@@ -173,7 +173,7 @@ protected:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FGraphTrack : public FBaseTimingTrack
+class TRACEINSIGHTS_API FGraphTrack : public FBaseTimingTrack
 {
 	friend class FGraphTrackBuilder;
 

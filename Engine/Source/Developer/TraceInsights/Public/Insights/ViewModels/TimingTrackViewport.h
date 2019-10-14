@@ -8,7 +8,7 @@ class SScrollBar;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FTimingTrackViewport
+class TRACEINSIGHTS_API FTimingTrackViewport
 {
 public:
 	FTimingTrackViewport()

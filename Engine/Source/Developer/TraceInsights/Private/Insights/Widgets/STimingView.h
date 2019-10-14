@@ -22,6 +22,7 @@
 #include "Insights/ViewModels/TimingTrackViewport.h"
 #include "Insights/ViewModels/TimingViewDrawHelper.h"
 #include "Insights/ViewModels/TooltipDrawState.h"
+#include "Insights/ITimingViewSession.h"
 
 class FFileActivitySharedState;
 class FLoadingSharedState;
@@ -29,18 +30,10 @@ class FMenuBuilder;
 class FTimingGraphTrack;
 class FTimingViewDrawHelper;
 class SScrollBar;
-
-/** The delegate to be invoked when the selection have been changed. */
-DECLARE_DELEGATE_TwoParams(FSelectionChangedDelegate, double /*StartTime*/, double /*EndTime*/);
-
-/** The delegate to be invoked when the timing event being hovered by the mouse has changed. Returns id of timing event or -1 (if no event is hovered). */
-DECLARE_DELEGATE_RetVal(int32, FHoveredEventChangedDelegate);
-
-/** The delegate to be invoked when the selected timing event has changed. Returns id of timing event or -1 (if no event is hovered). */
-DECLARE_DELEGATE_RetVal(int32, FSelectedEventChangedDelegate);
+namespace Insights { class ITimingViewExtender; }
 
 /** A custom widget used to display timing events. */
-class STimingView : public SCompoundWidget
+class STimingView : public SCompoundWidget, public Insights::ITimingViewSession
 {
 protected:
 	struct FAssetLoadingEventAggregationRow
@@ -62,16 +55,10 @@ public:
 	virtual ~STimingView();
 
 	SLATE_BEGIN_ARGS(STimingView)
-		: _OnSelectionChanged()
-		, _OnHoveredEventChanged()
-		, _OnSelectedEventChanged()
 		{
 			_Clipping = EWidgetClipping::ClipToBounds;
 		}
 
-		SLATE_EVENT(FSelectionChangedDelegate, OnSelectionChanged)
-		SLATE_EVENT(FHoveredEventChangedDelegate, OnHoveredEventChanged)
-		SLATE_EVENT(FSelectedEventChangedDelegate, OnSelectedEventChanged)
 	SLATE_END_ARGS()
 
 	/**
@@ -248,6 +235,14 @@ public:
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	// ITimingViewSession interface
+	virtual FTimingEventsTrack* FindTimingEventsTrack(uint64 InTrackID) override;
+	virtual void AddTimingEventsTrack(FTimingEventsTrack* Track) override;
+	virtual Insights::FTimeMarkerChangedDelegate& OnTimeMarkerChanged() override { return OnTimeMarkerChangedDelegate; }
+	virtual Insights::FSelectionChangedDelegate& OnSelectionChanged() override { return OnSelectionChangedDelegate; }
+	virtual Insights::FHoveredEventChangedDelegate& OnHoveredEventChanged() override { return OnHoveredEventChangedDelegate; }
+	virtual Insights::FSelectedEventChangedDelegate& OnSelectedEventChanged() override { return OnSelectedEventChangedDelegate; }
+
 	const FTimingTrackViewport& GetViewport() { return Viewport; }
 
 	double GetSelectionStartTime() const { return SelectionStartTime; }
@@ -280,8 +275,6 @@ protected:
 		return FVector2D(16.0f, 16.0f);
 	}
 
-	void AddTimingEventsTrack(FTimingEventsTrack* Track);
-
 	void ShowContextMenu(const FPointerEvent& MouseEvent);
 
 	/** Binds our UI commands to delegates. */
@@ -309,6 +302,9 @@ protected:
 
 	void RaiseSelectionChanging();
 	void RaiseSelectionChanged();
+
+	void RaiseTimeMarkerChanged();
+
 	void UpdateAggregatedStats();
 
 	void UpdateHoveredTimingEvent(float MX, float MY);
@@ -323,6 +319,9 @@ protected:
 	void FrameSelection();
 
 	void OnTimingEventsTrackVisibilityChanged();
+
+	// Get all the plugin extenders we care about
+	TArray<Insights::ITimingViewExtender*> GetExtenders() const;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// FrameSelectionChanged Event
@@ -377,7 +376,11 @@ protected:
 
 	TArray<FTimingEventsTrack*> TimingEventsTracks; /**< all timing events tracks, in the order to be displayed */
 
-	bool bAreTimingEventsTracksDirty;
+	// Dirty flag that indicates the timing events need updating
+	bool bTimingEventsNeedUpdate;
+
+	// Dirty flag that indicates that the TimingEventsTracks list has changed
+	bool bTimingEventsTracksChanged;
 
 	////////////////////////////////////////////////////////////
 	// Cpu/Gpu
@@ -498,6 +501,9 @@ protected:
 
 	double TimeMarker;
 
+	/** True of the user is currently dragging the time marker */
+	bool bIsScrubbing;
+
 	////////////////////////////////////////////////////////////
 	// Misc
 
@@ -519,7 +525,8 @@ protected:
 	////////////////////////////////////////////////////////////
 	// Delegates
 
-	FSelectionChangedDelegate OnSelectionChanged;
-	FHoveredEventChangedDelegate OnHoveredEventChanged;
-	FSelectedEventChangedDelegate OnSelectedEventChanged;
+	Insights::FSelectionChangedDelegate OnSelectionChangedDelegate;
+	Insights::FHoveredEventChangedDelegate OnHoveredEventChangedDelegate;
+	Insights::FSelectedEventChangedDelegate OnSelectedEventChangedDelegate;
+	Insights::FTimeMarkerChangedDelegate OnTimeMarkerChangedDelegate;
 };

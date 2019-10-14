@@ -136,12 +136,11 @@ void FMarkersTimingTrack::Update(const FTimingTrackViewport& InViewport)
 {
 	FTimeMarkerTrackBuilder Builder(*this, InViewport);
 
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-	if (Session.IsValid())
+	if (IsSessionValid())
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		Trace::FAnalysisSessionReadScope SessionReadScope(GetSession());
 
-		const Trace::ILogProvider& LogProvider = Trace::ReadLogProvider(*Session.Get());
+		const Trace::ILogProvider& LogProvider = Trace::ReadLogProvider(GetSession());
 		Builder.BeginLog(LogProvider);
 
 		LogProvider.EnumerateMessages(
@@ -232,7 +231,7 @@ void FMarkersTimingTrack::Draw(FDrawContext& DrawContext, const FTimingTrackView
 
 void FMarkersTimingTrack::DrawHeader(FDrawContext& DrawContext, bool bFirstDraw) const
 {
-	const FString Name = IsBookmarksTrack() ? TEXT("Bookmarks") : TEXT("Logs");
+	const FString NameString = IsBookmarksTrack() ? TEXT("Bookmarks") : TEXT("Logs");
 	//const float ArrowSize = 6.0f;
 	const float ArrowSizeX = 4.0f;
 	const float ArrowSizeY = 8.0f;
@@ -262,7 +261,7 @@ void FMarkersTimingTrack::DrawHeader(FDrawContext& DrawContext, bool bFirstDraw)
 	}
 
 	// Draw "Bookmarks" or "Logs" text.
-	DrawContext.DrawText(2.0f, GetPosY() + 1.0f, Name, Font, Color);
+	DrawContext.DrawText(2.0f, GetPosY() + 1.0f, NameString, Font, Color);
 
 	if (IsCollapsed())
 	{

@@ -31,12 +31,21 @@ public:
 	virtual ~TIntervalTimeline() = default;
 	virtual uint64 GetModCount() const override { return ModCount; }
 	virtual uint64 GetEventCount() const override { return Events.Num(); }
+	virtual const EventType& GetEvent(uint64 InIndex) const override { return Events[InIndex].Event; }
+	virtual double GetStartTime() const override { return Events.Num() > 0 ? Events[0].StartTime : 0.0; }
+	virtual double GetEndTime() const override { return Events.Num() > 0 ? Events[Events.Num() - 1].EndTime : 0.0; }
+	virtual void EnumerateEventsDownSampled(double IntervalStart, double IntervalEnd, double Resolution, ITimeline::EventCallback Callback) const override { check(false); }
+	virtual void EnumerateEventsDownSampled(double IntervalStart, double IntervalEnd, double Resolution, ITimeline::EventRangeCallback Callback) const override { check(false); }
+	virtual void EnumerateEvents(double IntervalStart, double IntervalEnd, ITimeline::EventCallback Callback) const override
+	{
+		EnumerateEvents(IntervalStart, IntervalEnd, [&Callback](double InStartTime, double InEndTime, uint32 InDepth, const EventType& InEvent)
+		{
+			Callback(true, InStartTime, InEvent);
+			Callback(false, InEndTime, InEvent);
+		});
+	}
 	
-	virtual void EnumerateEventsDownSampled(double IntervalStart, double IntervalEnd, double Resolution, TFunctionRef<void(bool, double, const EventType&)> Callback) const override { check(false); }
-	virtual void EnumerateEventsDownSampled(double IntervalStart, double IntervalEnd, double Resolution, TFunctionRef<void(double, double, uint32, const EventType&)> Callback) const override { check(false); }
-	virtual void EnumerateEvents(double IntervalStart, double IntervalEnd, TFunctionRef<void(bool, double, const EventType&)> Callback) const override { check(false); }
-	
-	virtual void EnumerateEvents(double IntervalStart, double IntervalEnd, TFunctionRef<void(double, double, uint32, const EventType&)> Callback) const override
+	virtual void EnumerateEvents(double IntervalStart, double IntervalEnd, ITimeline::EventRangeCallback Callback) const override
 	{
 		auto EventIterator = Events.GetIteratorFromPage(0);
 		const FEventInternal* Event = EventIterator.GetCurrentItem();

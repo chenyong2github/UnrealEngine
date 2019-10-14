@@ -224,18 +224,17 @@ struct FSearchLoadTimeProfilerCpuEvent
 // FLoadingMainThreadTimingTrack
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FLoadingMainThreadTimingTrack::Draw(FTimingViewDrawHelper& Helper) const
+void FLoadingMainThreadTimingTrack::Draw(ITimingViewDrawHelper& Helper) const
 {
 	FTimingEventsTrack& Track = *const_cast<FLoadingMainThreadTimingTrack*>(this);
 
 	if (Helper.BeginTimeline(Track))
 	{
-		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-		if (Session.IsValid() && Trace::ReadLoadTimeProfilerProvider(*Session.Get()))
+		if (Trace::ReadLoadTimeProfilerProvider(GetSession()))
 		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+			Trace::FAnalysisSessionReadScope SessionReadScope(GetSession());
 
-			const Trace::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *Trace::ReadLoadTimeProfilerProvider(*Session.Get());
+			const Trace::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *Trace::ReadLoadTimeProfilerProvider(GetSession());
 
 			LoadTimeProfilerProvider.ReadMainThreadCpuTimeline([this, &Helper](const Trace::ILoadTimeProfilerProvider::CpuTimeline& Timeline)
 			{
@@ -266,33 +265,29 @@ void FLoadingMainThreadTimingTrack::Draw(FTimingViewDrawHelper& Helper) const
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool FLoadingMainThreadTimingTrack::SearchTimingEvent(const double InStartTime,
-	const double InEndTime,
-	TFunctionRef<bool(double, double, uint32)> InPredicate,
-	FTimingEvent& InOutTimingEvent,
-	bool bInStopAtFirstMatch,
-	bool bInSearchForLargestEvent) const
+													  const double InEndTime,
+													  TFunctionRef<bool(double, double, uint32)> InPredicate,
+													  FTimingEvent& InOutTimingEvent,
+													  bool bInStopAtFirstMatch,
+													  bool bInSearchForLargestEvent) const
 {
 	FSearchLoadTimeProfilerCpuEvent Ctx(InStartTime, InEndTime, InPredicate, InOutTimingEvent, bInStopAtFirstMatch, bInSearchForLargestEvent);
 
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-	if (Session.IsValid())
+	Trace::FAnalysisSessionReadScope SessionReadScope(GetSession());
+
+	const FTimingEventsTrack* Track = Ctx.TimingEvent.Track;
+
+	if (Trace::ReadLoadTimeProfilerProvider(GetSession()))
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const Trace::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *Trace::ReadLoadTimeProfilerProvider(GetSession());
 
-		const FTimingEventsTrack* Track = Ctx.TimingEvent.Track;
-
-		if (Trace::ReadLoadTimeProfilerProvider(*Session.Get()))
+		LoadTimeProfilerProvider.ReadMainThreadCpuTimeline([&Ctx](const Trace::ILoadTimeProfilerProvider::CpuTimeline& Timeline)
 		{
-			const Trace::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *Trace::ReadLoadTimeProfilerProvider(*Session.Get());
-
-			LoadTimeProfilerProvider.ReadMainThreadCpuTimeline([&Ctx](const Trace::ILoadTimeProfilerProvider::CpuTimeline& Timeline)
+			Timeline.EnumerateEvents(Ctx.StartTime, Ctx.EndTime, [&Ctx](double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FLoadTimeProfilerCpuEvent& Event)
 			{
-				Timeline.EnumerateEvents(Ctx.StartTime, Ctx.EndTime, [&Ctx](double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FLoadTimeProfilerCpuEvent& Event)
-				{
-					Ctx.CheckEvent(EventStartTime, EventEndTime, EventDepth, Event);
-				});
+				Ctx.CheckEvent(EventStartTime, EventEndTime, EventDepth, Event);
 			});
-		}
+		});
 	}
 
 	return Ctx.bFound;
@@ -302,18 +297,17 @@ bool FLoadingMainThreadTimingTrack::SearchTimingEvent(const double InStartTime,
 // FLoadingAsyncThreadTimingTrack
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FLoadingAsyncThreadTimingTrack::Draw(FTimingViewDrawHelper& Helper) const
+void FLoadingAsyncThreadTimingTrack::Draw(ITimingViewDrawHelper& Helper) const
 {
 	FTimingEventsTrack& Track = *const_cast<FLoadingAsyncThreadTimingTrack*>(this);
 
 	if (Helper.BeginTimeline(Track))
 	{
-		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-		if (Session.IsValid() && Trace::ReadLoadTimeProfilerProvider(*Session.Get()))
+		if (Trace::ReadLoadTimeProfilerProvider(GetSession()))
 		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+			Trace::FAnalysisSessionReadScope SessionReadScope(GetSession());
 
-			const Trace::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *Trace::ReadLoadTimeProfilerProvider(*Session.Get());
+			const Trace::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *Trace::ReadLoadTimeProfilerProvider(GetSession());
 
 			LoadTimeProfilerProvider.ReadAsyncLoadingThreadCpuTimeline([this, &Helper](const Trace::ILoadTimeProfilerProvider::CpuTimeline& Timeline)
 			{
@@ -352,25 +346,21 @@ bool FLoadingAsyncThreadTimingTrack::SearchTimingEvent(const double InStartTime,
 {
 	FSearchLoadTimeProfilerCpuEvent Ctx(InStartTime, InEndTime, InPredicate, InOutTimingEvent, bInStopAtFirstMatch, bInSearchForLargestEvent);
 
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-	if (Session.IsValid())
+	Trace::FAnalysisSessionReadScope SessionReadScope(GetSession());
+
+	const FTimingEventsTrack* Track = Ctx.TimingEvent.Track;
+
+	if (Trace::ReadLoadTimeProfilerProvider(GetSession()))
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const Trace::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *Trace::ReadLoadTimeProfilerProvider(GetSession());
 
-		const FTimingEventsTrack* Track = Ctx.TimingEvent.Track;
-
-		if (Trace::ReadLoadTimeProfilerProvider(*Session.Get()))
+		LoadTimeProfilerProvider.ReadAsyncLoadingThreadCpuTimeline([&Ctx](const Trace::ILoadTimeProfilerProvider::CpuTimeline& Timeline)
 		{
-			const Trace::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *Trace::ReadLoadTimeProfilerProvider(*Session.Get());
-
-			LoadTimeProfilerProvider.ReadAsyncLoadingThreadCpuTimeline([&Ctx](const Trace::ILoadTimeProfilerProvider::CpuTimeline& Timeline)
+			Timeline.EnumerateEvents(Ctx.StartTime, Ctx.EndTime, [&Ctx](double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FLoadTimeProfilerCpuEvent& Event)
 			{
-				Timeline.EnumerateEvents(Ctx.StartTime, Ctx.EndTime, [&Ctx](double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FLoadTimeProfilerCpuEvent& Event)
-				{
-					Ctx.CheckEvent(EventStartTime, EventEndTime, EventDepth, Event);
-				});
+				Ctx.CheckEvent(EventStartTime, EventEndTime, EventDepth, Event);
 			});
-		}
+		});
 	}
 
 	return Ctx.bFound;

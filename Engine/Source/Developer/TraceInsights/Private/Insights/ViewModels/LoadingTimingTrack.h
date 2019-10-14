@@ -60,7 +60,7 @@ public:
 	{
 	}
 
-	virtual void Draw(FTimingViewDrawHelper& Helper) const override;
+	virtual void Draw(ITimingViewDrawHelper& Helper) const override;
 	virtual bool SearchTimingEvent(const double InStartTime, const double InEndTime, TFunctionRef<bool(double, double, uint32)> InPredicate, FTimingEvent& InOutTimingEvent, bool bInStopAtFirstMatch, bool bInSearchForLargestEvent) const override;
 };
 
@@ -74,7 +74,7 @@ public:
 	{
 	}
 
-	virtual void Draw(FTimingViewDrawHelper& Helper) const override;
+	virtual void Draw(ITimingViewDrawHelper& Helper) const override;
 	virtual bool SearchTimingEvent(const double InStartTime, const double InEndTime, TFunctionRef<bool(double, double, uint32)> InPredicate, FTimingEvent& InOutTimingEvent, bool bInStopAtFirstMatch, bool bInSearchForLargestEvent) const override;
 };
 
