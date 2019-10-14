@@ -23,14 +23,8 @@ public:
 		if (!GIsEditor && FApp::CanEverRender() && FPreLoadScreenManager::Get())
 		{
 			CustomSplashScreen = MakeShared<FCustomSplashScreen>();
-			if (CustomSplashScreen->Init([]()->TSharedPtr<IAnalyticsProviderET>{ return TSharedPtr<IAnalyticsProviderET>(); }))
-			{
-				FPreLoadScreenManager::Get()->RegisterPreLoadScreen(CustomSplashScreen);
-			}
-			else
-			{
-				CustomSplashScreen = nullptr;
-			}
+			CustomSplashScreen->Init();
+			FPreLoadScreenManager::Get()->RegisterPreLoadScreen(CustomSplashScreen);
 
 			FPreLoadScreenManager::Get()->OnPreLoadScreenManagerCleanUp.AddRaw(this, &FPostSplashScreenModule::CleanUpModule);
 		}
