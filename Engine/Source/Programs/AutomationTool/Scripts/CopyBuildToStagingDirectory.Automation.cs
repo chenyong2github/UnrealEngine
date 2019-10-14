@@ -1518,7 +1518,7 @@ public partial class Project : CommandUtils
 	/// </summary>
 	/// <param name="Params"></param>
 	/// <param name="SC"></param>
-	private static void ApplyPakFileRules(List<PakFileRules> RulesList, KeyValuePair<string, string> StagingFile, List<string> ModifyPakList, out bool bExcludeFromPaks)
+	private static void ApplyPakFileRules(List<PakFileRules> RulesList, KeyValuePair<string, string> StagingFile, HashSet<ChunkDefinition> ModifyPakList, Dictionary<string, ChunkDefinition> ChunkNameToDefinition, out bool bExcludeFromPaks)
 	{
 		bExcludeFromPaks = false;
 
@@ -1551,10 +1551,10 @@ public partial class Project : CommandUtils
 				}
 
 				bExcludeFromPaks = PakRules.bExcludeFromPaks;
-				if (PakRules.OverridePaks != null)
+				if (PakRules.OverridePaks != null && ModifyPakList != null)
 				{
 					ModifyPakList.Clear();
-					PakRules.OverridePaks.ForEach(val => { ModifyPakList.Add(val); });
+					ModifyPakList.UnionWith(PakRules.OverridePaks.Select(x => ChunkNameToDefinition[x]));
 					//LogInformation("Setting pak assignment for file {0} to {1}", StagingFile.Key, string.Join(", ", PakRules.OverridePaks));
 				}
 				else if (bExcludeFromPaks)
@@ -1588,10 +1588,8 @@ public partial class Project : CommandUtils
 		// Apply the pak file rules, this can remove things but will not override the pak file name
 		foreach (var StagingFile in UnrealPakResponseFile)
 		{
-			List<string> PakList = new List<string>();
-
 			bool bExcludeFromPaks = false;
-			ApplyPakFileRules(PakRulesList, StagingFile, PakList, out bExcludeFromPaks);
+			ApplyPakFileRules(PakRulesList, StagingFile, null, null, out bExcludeFromPaks);
 
 			if (bExcludeFromPaks)
 			{
@@ -2468,11 +2466,32 @@ public partial class Project : CommandUtils
 			Dictionary<string, ChunkDefinition> OptionalChunks = new Dictionary<string, ChunkDefinition>();
 			ChunkDefinition DefaultChunk = ChunkDefinitions[DefaultChunkIndex];
 
+			Dictionary<string, List<ChunkDefinition>> FileNameToChunks = new Dictionary<string, List<ChunkDefinition>>();
+			foreach (ChunkDefinition Chunk in ChunkDefinitions)
+			{
+				foreach (string FileName in Chunk.Manifest)
+				{
+					List<ChunkDefinition> Chunks;
+					if (!FileNameToChunks.TryGetValue(FileName, out Chunks))
+					{
+						Chunks = new List<ChunkDefinition>();
+						FileNameToChunks.Add(FileName, Chunks);
+					}
+					Chunks.Add(Chunk);
+				}
+			}
+
+			Dictionary<string, ChunkDefinition> ChunkNameToDefinition = new Dictionary<string, ChunkDefinition>();
+			foreach (ChunkDefinition Chunk in ChunkDefinitions)
+			{
+				ChunkNameToDefinition.Add(Chunk.ChunkName, Chunk);
+			}
+
 			foreach (var StagingFile in StagingManifestResponseFile)
 			{
 				bool bAddedToChunk = false;
 				bool bExcludeFromPaks = false;
-				List<string> PakList = new List<string>();
+				HashSet<ChunkDefinition> PakList = new HashSet<ChunkDefinition>();
 
 				string OriginalFilename = StagingFile.Key;
 				string NoExtension = CombinePaths(Path.GetDirectoryName(OriginalFilename), Path.GetFileNameWithoutExtension(OriginalFilename));
@@ -2485,21 +2504,26 @@ public partial class Project : CommandUtils
 				string NoExtensionReplaceSlashes = NoExtension.Replace('/', '\\');
 
 				// First read manifest
-				for (int ChunkIndex = 0; ChunkIndex < ChunkDefinitions.Count; ++ChunkIndex)
+				List<ChunkDefinition> Chunks;
+				if (FileNameToChunks.TryGetValue(OriginalFilename, out Chunks))
 				{
-					ChunkDefinition Chunk = ChunkDefinitions[ChunkIndex];
-
-					if (Chunk.Manifest.Contains(OriginalFilename) ||
-						Chunk.Manifest.Contains(OriginalReplaceSlashes) ||
-						Chunk.Manifest.Contains(NoExtension) ||
-						Chunk.Manifest.Contains(NoExtensionReplaceSlashes))
-					{
-						PakList.Add(Chunk.ChunkName);
-					}
+					PakList.UnionWith(Chunks);
+				}
+				if (FileNameToChunks.TryGetValue(OriginalReplaceSlashes, out Chunks))
+				{
+					PakList.UnionWith(Chunks);
+				}
+				if (FileNameToChunks.TryGetValue(NoExtension, out Chunks))
+				{
+					PakList.UnionWith(Chunks);
+				}
+				if (FileNameToChunks.TryGetValue(NoExtensionReplaceSlashes, out Chunks))
+				{
+					PakList.UnionWith(Chunks);
 				}
 
 				// Now run through the pak rules which may override things
-				ApplyPakFileRules(PakRulesList, StagingFile, PakList, out bExcludeFromPaks);
+				ApplyPakFileRules(PakRulesList, StagingFile, PakList, ChunkNameToDefinition, out bExcludeFromPaks);
 
 				if (bExcludeFromPaks)
 				{
@@ -2507,36 +2531,31 @@ public partial class Project : CommandUtils
 				}
 
 				// Actually add to chunk
-				for (int ChunkIndex = 0; ChunkIndex < ChunkDefinitions.Count; ++ChunkIndex)
+				foreach (ChunkDefinition Chunk in PakList)
 				{
-					ChunkDefinition Chunk = ChunkDefinitions[ChunkIndex];
+					ChunkDefinition TargetChunk = Chunk;
 
-					if (PakList.Contains(Chunk.ChunkName))
+					string OrigExt = Path.GetExtension(OriginalFilename);
+					if (OrigExt.Equals(OptionalBulkDataFileExtension))
 					{
-						ChunkDefinition TargetChunk = Chunk;
-
-						string OrigExt = Path.GetExtension(OriginalFilename);
-						if (OrigExt.Equals(OptionalBulkDataFileExtension))
+						// any optional files encountered we want to put in a separate pak file
+						string OptionalChunkName = Chunk.ChunkName + "optional";
+						if (!OptionalChunks.TryGetValue(OptionalChunkName, out TargetChunk))
 						{
-							// any optional files encountered we want to put in a separate pak file
-							string OptionalChunkName = Chunk.ChunkName + "optional";
-							if (!OptionalChunks.TryGetValue(OptionalChunkName, out TargetChunk))
-							{
-								TargetChunk = new ChunkDefinition(OptionalChunkName);
-								TargetChunk.RequestedEncryptionKeyGuid = Chunk.RequestedEncryptionKeyGuid;
-								TargetChunk.EncryptionKeyGuid = Chunk.EncryptionKeyGuid;
-								OptionalChunks.Add(OptionalChunkName, TargetChunk);
-							}
+							TargetChunk = new ChunkDefinition(OptionalChunkName);
+							TargetChunk.RequestedEncryptionKeyGuid = Chunk.RequestedEncryptionKeyGuid;
+							TargetChunk.EncryptionKeyGuid = Chunk.EncryptionKeyGuid;
+							OptionalChunks.Add(OptionalChunkName, TargetChunk);
 						}
+					}
 
-						TargetChunk.ResponseFile.Add(StagingFile.Key, StagingFile.Value);
-						bAddedToChunk = true;
+					TargetChunk.ResponseFile.Add(StagingFile.Key, StagingFile.Value);
+					bAddedToChunk = true;
 
-						if (bForceOneChunkPerFile)
-						{
-							// Files are only allowed to be in a single chunk
-							break;
-						}
+					if (bForceOneChunkPerFile)
+					{
+						// Files are only allowed to be in a single chunk
+						break;
 					}
 				}
 				if (!bAddedToChunk)
