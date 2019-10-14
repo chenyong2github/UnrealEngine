@@ -252,10 +252,9 @@ TOptional<EItemDropZone> FVariantManagerVariantSetNode::CanDrop(const FDragDropE
 
 		if (NumActorsWeCanAdd > 0 && NumVarsThatCanAccept > 0)
 		{
-			FText NewHoverText = FText::Format( LOCTEXT("CanDropActors", "Bind {0} actor{1} to {2} variants"),
-				FText::FromString(FString::FromInt(NumActorsWeCanAdd)),
-				NumActorsWeCanAdd != 1 ? FText::FromString(TEXT("s")) : FText(),
-				FText::FromString(FString::FromInt(NumVarsThatCanAccept)));
+			FText NewHoverText = FText::Format( LOCTEXT("CanDrop_BindActors", "Bind {0} {0}|plural(one=actor,other=actors) to {1} {1}|plural(one=variant,other=variants)"),
+				NumActorsWeCanAdd,
+				NumVarsThatCanAccept);
 
 			const FSlateBrush* NewHoverIcon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
 
@@ -265,7 +264,7 @@ TOptional<EItemDropZone> FVariantManagerVariantSetNode::CanDrop(const FDragDropE
 		}
 		else if (GetChildNodes().Num() < 1)
 		{
-			FText NewHoverText = FText::Format( LOCTEXT("CanDropActors", "Variant set '{0}' has no variants!"),
+			FText NewHoverText = FText::Format( LOCTEXT("CanDrop_NoVariantsInSet", "Variant set '{0}' has no variants!"),
 				GetVariantSet().GetDisplayText());
 
 			const FSlateBrush* NewHoverIcon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
@@ -276,7 +275,7 @@ TOptional<EItemDropZone> FVariantManagerVariantSetNode::CanDrop(const FDragDropE
 		}
 		else
 		{
-			FText NewHoverText = FText::Format( LOCTEXT("CanDropActors", "Actors already bound to all variants of set '{0}'!"),
+			FText NewHoverText = FText::Format( LOCTEXT("CanDrop_ActorsAlreadyBound", "Actors already bound to all variants of set '{0}'!"),
 				GetVariantSet().GetDisplayText());
 
 			const FSlateBrush* NewHoverIcon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
@@ -360,11 +359,9 @@ TOptional<EItemDropZone> FVariantManagerVariantSetNode::CanDrop(const FDragDropE
 			}
 			else if (NumActorsWeCanAdd > 0)
 			{
-				FText NewHoverText = FText::Format( LOCTEXT("CanDropActors", "Copy {0} actor binding{1} to {2} variant{3}"),
-					FText::FromString(FString::FromInt(NumActorsWeCanAdd)),
-					NumActorsWeCanAdd != 1 ? FText::FromString(TEXT("s")) : FText(),
-					FText::FromString(FString::FromInt(NumVariants)),
-					NumVariants != 1 ? FText::FromString(TEXT("s")) : FText());
+				FText NewHoverText = FText::Format( LOCTEXT("CanDrop_CopyActors", "Copy {0} actor {0}|plural(one=binding,other=bindings) to {1} {1}|plural(one=variant,other=variants)"),
+					NumActorsWeCanAdd,
+					NumVariants);
 
 				const FSlateBrush* NewHoverIcon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
 
@@ -374,7 +371,7 @@ TOptional<EItemDropZone> FVariantManagerVariantSetNode::CanDrop(const FDragDropE
 			}
 			else
 			{
-				FText NewHoverText = FText::Format( LOCTEXT("CanDropActors", "Actors already bound to all variants of set '{0}'!"),
+				FText NewHoverText = FText::Format( LOCTEXT("CanDrop_ActorsAlreadyBound", "Actors already bound to all variants of set '{0}'!"),
 					GetVariantSet().GetDisplayText());
 
 				const FSlateBrush* NewHoverIcon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
@@ -388,10 +385,9 @@ TOptional<EItemDropZone> FVariantManagerVariantSetNode::CanDrop(const FDragDropE
 		{
 			FModifierKeysState ModifierKeysState = FSlateApplication::Get().GetModifierKeys();
 
-			FText NewHoverText = FText::Format( LOCTEXT("CanDropActors", "{0} {1} variant{2} to set '{3}'"),
-				ModifierKeysState.IsControlDown() ? FText::FromString(TEXT("Copy")) : FText::FromString(TEXT("Move")),
-				FText::FromString(FString::FromInt(NumDraggedVariants)),
-				NumDraggedVariants != 1 ? FText::FromString(TEXT("s")) : FText(),
+			FText NewHoverText = FText::Format( LOCTEXT("CanDrop_ApplyVariantsToSet", "{0} {1} {1}|plural(one=variant,other=variants) to set '{3}'"),
+				ModifierKeysState.IsControlDown() ? LOCTEXT("Copy", "Copy") : LOCTEXT("Move", "Move"),
+				NumDraggedVariants,
 				GetVariantSet().GetDisplayText());
 
 			const FSlateBrush* NewHoverIcon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
@@ -404,10 +400,9 @@ TOptional<EItemDropZone> FVariantManagerVariantSetNode::CanDrop(const FDragDropE
 		{
 			FModifierKeysState ModifierKeysState = FSlateApplication::Get().GetModifierKeys();
 
-			FText NewHoverText = FText::Format( LOCTEXT("CanDropActors", "{0} {1} variant set{2}"),
-				ModifierKeysState.IsControlDown() ? FText::FromString(TEXT("Copy")) : FText::FromString(TEXT("Move")),
-				FText::FromString(FString::FromInt(NumDraggedVariants)),
-				NumDraggedVariants != 1 ? FText::FromString(TEXT("s")) : FText());
+			FText NewHoverText = FText::Format( LOCTEXT("CanDrop_ApplyVariantToSets", "{0} {1} variant {1}|plural(one=set,other=sets)"),
+				ModifierKeysState.IsControlDown() ? LOCTEXT("Copy", "Copy") : LOCTEXT("Move", "Move"),
+				NumDraggedVariants);
 
 			const FSlateBrush* NewHoverIcon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
 
@@ -470,8 +465,8 @@ void FVariantManagerVariantSetNode::Drop(const FDragDropEvent& DragDropEvent, EI
 		}
 
 		FScopedTransaction Transaction(FText::Format(
-			LOCTEXT("VariantSetNodeDropSceneActors", "Drop {0} scene actors on variant set '{1}'"),
-			FText::AsNumber(Actors.Num()),
+			LOCTEXT("VariantSetNodeDropSceneActors", "Drop {0} scene {0}|plural(one=actor,other=actors) on variant set '{1}'"),
+			Actors.Num(),
 			GetDisplayName()));
 
 		// Add bindings just once, or else it will spawn multiple popups and trigger multiple refreshes
@@ -529,8 +524,8 @@ void FVariantManagerVariantSetNode::Drop(const FDragDropEvent& DragDropEvent, EI
 		if (NumDraggedBindings > 0)
 		{
 			FScopedTransaction Transaction(FText::Format(
-				LOCTEXT("VariantSetNodeDropBindings", "Drop {0} actor bindings on variant set '{1}'"),
-				FText::AsNumber(NumDraggedBindings),
+				LOCTEXT("VariantSetNodeDropBindings", "Drop {0} actor {0}|plural(one=binding,other=bindings) on variant set '{1}'"),
+				NumDraggedBindings,
 				GetDisplayName()));
 
 			// Copy our bindings to all our children
@@ -565,8 +560,8 @@ void FVariantManagerVariantSetNode::Drop(const FDragDropEvent& DragDropEvent, EI
 		else if (NumDraggedVariants > 0)
 		{
 			FScopedTransaction Transaction(FText::Format(
-				LOCTEXT("VariantSetNodeDropVariants", "Drop {0} variants on variant set '{1}'"),
-				FText::AsNumber(NumDraggedVariants),
+				LOCTEXT("VariantSetNodeDropVariants", "Drop {0} {0}|plural(one=variant,other=variants) on variant set '{1}'"),
+				NumDraggedVariants,
 				GetDisplayName()));
 
 			FModifierKeysState ModifierKeysState = FSlateApplication::Get().GetModifierKeys();
@@ -591,8 +586,8 @@ void FVariantManagerVariantSetNode::Drop(const FDragDropEvent& DragDropEvent, EI
 		else if (NumDraggedVariantSets > 0)
 		{
 			FScopedTransaction Transaction(FText::Format(
-				LOCTEXT("VariantSetNodeDropVariantSets", "Drop {0} variant sets near variant set '{1}'"),
-				FText::AsNumber(NumDraggedVariantSets),
+				LOCTEXT("VariantSetNodeDropVariantSets", "Drop {0} variant {0}|plural(one=set,other=sets) near variant set '{1}'"),
+				NumDraggedVariantSets,
 				GetDisplayName()));
 
 			ULevelVariantSets* ParentLevelVarSet = VarSet->GetParent();
