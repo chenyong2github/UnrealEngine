@@ -23,23 +23,18 @@ namespace UnrealBuildTool
 			/// WinMD type info constructor
 			/// </summary>
 			/// <param name="InTypeName"></param>
-			/// <param name="InThreadingModel"></param>
-			public ActivatableType(string InTypeName, object InThreadingModel)
+			/// <param name="InThreadingModelName"></param>
+			public ActivatableType(string InTypeName, string InThreadingModelName)
 			{
 				TypeName = InTypeName;
-				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
-				{
-#if !__MonoCS__ && !MONO
-					ThreadingModelName = ((Windows.Foundation.Metadata.ThreadingModel)InThreadingModel).ToString().ToLowerInvariant();
-#endif
-				}
+				ThreadingModelName = InThreadingModelName;
 			}
-			
+
 			/// <summary>
 			/// Type Name
 			/// </summary>
 			public string TypeName { get; private set; }
-			
+
 			/// <summary>
 			/// Threading model
 			/// </summary>
@@ -59,30 +54,29 @@ namespace UnrealBuildTool
 			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 			{
 				ActivatableTypesList = new List<ActivatableType>();
-#if !__MonoCS__ && !MONO
-				var DependsOn = Assembly.ReflectionOnlyLoadFrom(InWindMDSourcePath.FullName);
-				foreach (var WinMDType in DependsOn.GetExportedTypes())
+
+				Assembly DependsOn = Assembly.ReflectionOnlyLoadFrom(InWindMDSourcePath.FullName);
+				foreach (Type WinMDType in DependsOn.GetExportedTypes())
 				{
 					bool IsActivatable = false;
-					object ThreadingModel = Windows.Foundation.Metadata.ThreadingModel.Both;
-					foreach (var Attr in WinMDType.CustomAttributes)
+					string ThreadingModelName = "both";
+					foreach (CustomAttributeData Attr in WinMDType.CustomAttributes)
 					{
-						if (Attr.AttributeType.AssemblyQualifiedName == typeof(Windows.Foundation.Metadata.ActivatableAttribute).AssemblyQualifiedName ||
-							Attr.AttributeType.AssemblyQualifiedName == typeof(Windows.Foundation.Metadata.StaticAttribute).AssemblyQualifiedName)
+						if (Attr.AttributeType.FullName == "Windows.Foundation.Metadata.ActivatableAttribute" || Attr.AttributeType.AssemblyQualifiedName == "Windows.Foundation.Metadata.StaticAttribute")
 						{
 							IsActivatable = true;
 						}
-						else if (Attr.AttributeType.AssemblyQualifiedName == typeof(Windows.Foundation.Metadata.ThreadingAttribute).AssemblyQualifiedName)
+						else if (Attr.AttributeType.FullName == "Windows.Foundation.Metadata.ThreadingAttribute")
 						{
-							ThreadingModel = Attr.ConstructorArguments[0].Value;
+							CustomAttributeTypedArgument Argument = Attr.ConstructorArguments[0];
+							ThreadingModelName = Enum.GetName(Argument.ArgumentType, Argument.Value).ToLowerInvariant();
 						}
 					}
 					if (IsActivatable)
 					{
-						ActivatableTypesList.Add(new ActivatableType(WinMDType.FullName, ThreadingModel));
+						ActivatableTypesList.Add(new ActivatableType(WinMDType.FullName, ThreadingModelName));
 					}
 				}
-#endif
 			}
 		}
 
