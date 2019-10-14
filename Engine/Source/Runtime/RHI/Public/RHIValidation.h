@@ -905,9 +905,9 @@ public:
 
 	/** Watch out for OutData to be 0 (can happen on DXGI_ERROR_DEVICE_REMOVED), don't call RHIUnmapStagingSurface in that case. */
 	// FlushType: Flush Immediate (seems wrong)
-	virtual void RHIMapStagingSurface(FRHITexture* Texture, void*& OutData, int32& OutWidth, int32& OutHeight) override final
+	virtual void RHIMapStagingSurface(FRHITexture* Texture, FRHIGPUFence* Fence, void*& OutData, int32& OutWidth, int32& OutHeight) final override
 	{
-		RHI->RHIMapStagingSurface(Texture, OutData, OutWidth, OutHeight);
+		RHI->RHIMapStagingSurface(Texture, Fence, OutData, OutWidth, OutHeight);
 	}
 
 	/** call after a succesful RHIMapStagingSurface() call */

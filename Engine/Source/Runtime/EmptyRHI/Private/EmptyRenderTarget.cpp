@@ -18,7 +18,7 @@ void FEmptyDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rect
 
 }
 
-void FEmptyDynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI,void*& OutData,int32& OutWidth,int32& OutHeight)
+void FEmptyDynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, FRHIGPUFence* FenceRHI, void*& OutData, int32& OutWidth, int32& OutHeight)
 {
 
 }
