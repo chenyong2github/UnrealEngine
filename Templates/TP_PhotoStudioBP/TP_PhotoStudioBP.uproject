@@ -18,6 +18,10 @@
 			"Enabled": true
 		},
 		{
+			"Name": "DatasmithCADImporter",
+			"Enabled": true
+		},
+		{
 			"Name": "VariantManager",
 			"Enabled": True
 		},
