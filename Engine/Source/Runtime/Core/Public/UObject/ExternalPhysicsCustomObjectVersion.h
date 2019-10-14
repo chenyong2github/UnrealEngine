@@ -30,6 +30,9 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 		//SpatialIdx serialized
 		SpatialIdxSerialized,
 
+		//Save out heightfield data
+		HeightfieldData,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
