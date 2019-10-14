@@ -303,6 +303,15 @@ namespace Chaos
 					}
 				}
 			}
+
+			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::SpatialIdxSerialized)
+			{
+				MSpatialIdx.AddZeroed(MGeometry.Num());
+			}
+			else
+			{
+				Ar << MSpatialIdx;
+			}
 		}
 
 		CHAOS_API EParticleType ParticleType() const { return MParticleType; }

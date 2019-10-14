@@ -389,6 +389,9 @@ protected:
 			Ar << AccelerationHandle;
 			Ar << bUpdate;
 			Ar << bDelete;
+
+			Ar << UpdatedSpatialIdx;
+			Ar << DeletedSpatialIdx;
 		}
 	};
 
