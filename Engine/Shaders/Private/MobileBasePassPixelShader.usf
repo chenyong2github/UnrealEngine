@@ -9,6 +9,18 @@
 // Reroute MobileSceneTextures uniform buffer references to the base pass uniform buffer
 #define MobileSceneTextures MobileBasePass.SceneTextures
 
+#ifndef MOBILE_QL_FORCE_DISABLE_PREINTEGRATEDGF
+#define MOBILE_QL_FORCE_DISABLE_PREINTEGRATEDGF 0
+#endif
+
+#define FORWARDSHADING_USE_HQ_ENV_BRDF (MATERIAL_USE_PREINTEGRATED_GF && !MOBILE_QL_FORCE_DISABLE_PREINTEGRATEDGF)
+
+//use preintegrated GF lut for simple IBL
+#if FORWARDSHADING_USE_HQ_ENV_BRDF
+#define PreIntegratedGF			MobileBasePass.PreIntegratedGFTexture
+#define PreIntegratedGFSampler	MobileBasePass.PreIntegratedGFSampler
+#endif
+
 #include "SHCommon.ush"
 #include "MobileBasePassCommon.ush"
 #include "/Engine/Generated/Material.ush"
@@ -463,7 +475,11 @@ void Main(
 	// so this define is safe.
 	SpecularColor = EnvBRDFApproxNonmetal( Roughness, NoV );
 #else
+#if FORWARDSHADING_USE_HQ_ENV_BRDF
+	SpecularColor = EnvBRDF(SpecularColor, Roughness, NoV);
+#else
 	SpecularColor = EnvBRDFApprox( SpecularColor, Roughness, NoV );
+#endif
 #endif
 #endif
 
