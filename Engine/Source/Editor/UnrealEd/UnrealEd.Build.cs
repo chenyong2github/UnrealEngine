@@ -183,8 +183,9 @@ public class UnrealEd : ModuleRules
                 "LandscapeEditorUtilities",
                 "DerivedDataCache",
 				"ScriptDisassembler",
-				"ToolMenus"
-			}
+				"ToolMenus",
+				"FreeImage",
+            }
 		);
 
 		DynamicallyLoadedModuleNames.AddRange(
@@ -343,5 +344,5 @@ public class UnrealEd : ModuleRules
 		{
 			PrivateIncludePathModuleNames.Add("LiveCoding");
 		}
-	}
+    }
 }

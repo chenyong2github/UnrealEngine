@@ -25,7 +25,10 @@ namespace GLTF
 			// Data URIs look like "data:[<mime-type>][;encoding],<data>"
 			// glTF always uses base64 encoding for data URIs
 
-			check(URI.StartsWith(TEXT("data:")));
+			if (!ensure(URI.StartsWith(TEXT("data:"))))
+			{
+				return false;
+			}
 
 			int32      Semicolon, Comma;
 			const bool HasSemicolon = URI.FindChar(TEXT(';'), Semicolon);
@@ -53,7 +56,10 @@ namespace GLTF
 			// Data URIs look like "data:[<mime-type>][;encoding],<data>"
 			// glTF always uses base64 encoding for data URIs
 
-			check(URI.StartsWith(TEXT("data:")));
+			if (!ensure(URI.StartsWith(TEXT("data:"))))
+			{
+				return false;
+			}
 
 			int32      Semicolon, Comma;
 			const bool HasSemicolon = URI.FindChar(TEXT(';'), Semicolon);
@@ -118,8 +124,7 @@ namespace GLTF
 				FString MimeType;
 				uint32  DataSize = 0;
 				bool    bSuccess = DecodeDataURI(URI, MimeType, CurrentBufferOffset, DataSize);
-				check(DataSize == ByteLength);
-				if (!bSuccess || MimeType != TEXT("application/octet-stream"))
+				if (!bSuccess || MimeType != TEXT("application/octet-stream") || !ensure(DataSize == ByteLength))
 				{
 					Messages.Emplace(EMessageSeverity::Error, TEXT("Problem decoding buffer from data URI."));
 				}
@@ -369,13 +374,13 @@ namespace GLTF
 				const FJsonObject& SamplerObject = *Value->AsObject();
 				const int32        Input         = GetIndex(SamplerObject, TEXT("input"));
 				const int32        Output        = GetIndex(SamplerObject, TEXT("output"));
-				check(Input != INDEX_NONE);
-				check(Output != INDEX_NONE);
-
-				FAnimation::FSampler Sampler(Asset->Accessors[Input], Asset->Accessors[Output]);
-				Sampler.Interpolation =
-				    (FAnimation::EInterpolation)GetUnsignedInt(SamplerObject, TEXT("interpolation"), (uint32)Sampler.Interpolation);
-				Animation.Samplers.Add(Sampler);
+				if (ensure((Input != INDEX_NONE) && (Output != INDEX_NONE)))
+				{
+					FAnimation::FSampler Sampler(Asset->Accessors[Input], Asset->Accessors[Output]);
+					Sampler.Interpolation =
+						(FAnimation::EInterpolation)GetUnsignedInt(SamplerObject, TEXT("interpolation"), (uint32)Sampler.Interpolation);
+					Animation.Samplers.Add(Sampler);
+				}
 			}
 		}
 
@@ -387,11 +392,17 @@ namespace GLTF
 			{
 				const FJsonObject& ChannelObject = *Value->AsObject();
 				const int32        Index         = GetIndex(ChannelObject, TEXT("sampler"));
-				check(Index != INDEX_NONE);
+				if (!ensure(Index != INDEX_NONE))
+				{
+					continue;
+				}
 
 				const FJsonObject& TargetObject = *ChannelObject.GetObjectField(TEXT("target"));
 				const int32        NodeIndex    = GetIndex(TargetObject, TEXT("node"));
-				check(NodeIndex != INDEX_NONE);
+				if (!ensure(NodeIndex != INDEX_NONE))
+				{
+					continue;
+				}
 
 				FAnimation::FChannel Channel(Asset->Nodes[NodeIndex]);
 				Channel.Sampler     = Index;
@@ -713,7 +724,7 @@ namespace GLTF
 					const uint32 DataSize = GetDecodedDataSize(URI, MimeType);
 					if (DataSize > 0 && MimeType == TEXT("application/octet-stream"))
 					{
-						check(DataSize == ByteLength);
+						ensure(DataSize == ByteLength);
 						ExtraBufferSize += ByteLength;
 					}
 				}
@@ -864,7 +875,7 @@ namespace GLTF
 			}
 			else
 			{
-				check(Node.Transform.IsValid());
+				ensure(Node.Transform.IsValid());
 				if (!Node.Transform.GetRotation().IsIdentity() || !Node.Transform.GetTranslation().IsZero() ||
 				    !Node.Transform.GetScale3D().Equals(FVector(1.f)))
 				{
@@ -876,7 +887,9 @@ namespace GLTF
 		{
 			for (int32 JointIndex : Skin.Joints)
 			{
-				check(Asset->Nodes[JointIndex].Type == FNode::EType::None || Asset->Nodes[JointIndex].Type == FNode::EType::Transform);
+				ensure(Asset->Nodes[JointIndex].Type == FNode::EType::None 
+					|| Asset->Nodes[JointIndex].Type == FNode::EType::Transform
+					|| Asset->Nodes[JointIndex].Type == FNode::EType::Joint);
 				Asset->Nodes[JointIndex].Type = FNode::EType::Joint;
 			}
 		}

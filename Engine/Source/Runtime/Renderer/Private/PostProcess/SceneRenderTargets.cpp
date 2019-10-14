@@ -379,7 +379,7 @@ FIntPoint FSceneRenderTargets::ComputeDesiredSize(const FSceneViewFamily& ViewFa
 
 		bIsSceneCapture |= View->bIsSceneCapture;
 		bIsReflectionCapture |= View->bIsReflectionCapture;
-		bIsVRScene |= View->StereoPass != EStereoscopicPass::eSSP_FULL;
+		bIsVRScene |= IStereoRendering::IsStereoEyeView(View->StereoPass);
 	}
 
 	if(!FPlatformProperties::SupportsWindowedMode() || (bIsVRScene && !bIsSceneCapture))

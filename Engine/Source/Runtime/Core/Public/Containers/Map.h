@@ -950,6 +950,16 @@ public:
 	}
 
 	/**
+	 * Stable sorts the pairs array using each pair's Key as the sort criteria, then rebuilds the map's hash.
+	 * Invoked using "MyMapVar.KeySort( PREDICATE_CLASS() );"
+	 */
+	template<typename PREDICATE_CLASS>
+	FORCEINLINE void KeyStableSort(const PREDICATE_CLASS& Predicate)
+	{
+		Super::Pairs.StableSort(FKeyComparisonClass<PREDICATE_CLASS>(Predicate));
+	}
+
+	/**
 	 * Sorts the pairs array using each pair's Value as the sort criteria, then rebuilds the map's hash.
 	 * Invoked using "MyMapVar.ValueSort( PREDICATE_CLASS() );"
 	 */
@@ -958,6 +968,17 @@ public:
 	{
 		Super::Pairs.Sort( FValueComparisonClass<PREDICATE_CLASS>( Predicate ) );
 	}
+
+	/**
+	 * Stable sorts the pairs array using each pair's Value as the sort criteria, then rebuilds the map's hash.
+	 * Invoked using "MyMapVar.ValueSort( PREDICATE_CLASS() );"
+	 */
+	template<typename PREDICATE_CLASS>
+	FORCEINLINE void ValueStableSort(const PREDICATE_CLASS& Predicate)
+	{
+		Super::Pairs.StableSort(FValueComparisonClass<PREDICATE_CLASS>(Predicate));
+	}
+
 
 private:
 

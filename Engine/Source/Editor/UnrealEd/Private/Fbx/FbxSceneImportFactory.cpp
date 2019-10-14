@@ -1001,6 +1001,9 @@ FFeedbackContext*	Warn
 	{
 		return nullptr;
 	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(UFbxSceneImportFactory::FactoryCreateBinary);
+
 	NameOptionsMap.Reset();
 	UWorld* World = GWorld;
 	ULevel* CurrentLevel = World->GetCurrentLevel();
@@ -1101,7 +1104,6 @@ FFeedbackContext*	Warn
 	{
 		ChangeFrontAxis(FbxImporter, &SceneInfo, SceneInfoPtr);
 	}
-
 
 	FillSceneHierarchyPath(SceneInfoPtr);
 
@@ -2100,6 +2102,8 @@ void UFbxSceneImportFactory::ImportAllSkeletalMesh(void* VoidRootNodeToImport, v
 
 void UFbxSceneImportFactory::ImportAllStaticMesh(void* VoidRootNodeToImport, void* VoidFbxImporter, EObjectFlags Flags, int32& NodeIndex, int32& InterestingNodeCount, TSharedPtr<FFbxSceneInfo> SceneInfo)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UFbxSceneImportFactory::ImportAllStaticMesh);
+
 	UnFbx::FFbxImporter* FbxImporter = (UnFbx::FFbxImporter*)VoidFbxImporter;
 	FbxNode *RootNodeToImport = (FbxNode *)VoidRootNodeToImport;
 	

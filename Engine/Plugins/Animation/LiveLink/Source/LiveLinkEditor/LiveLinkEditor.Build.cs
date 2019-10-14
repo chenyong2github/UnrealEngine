@@ -33,6 +33,7 @@ namespace UnrealBuildTool.Rules
 					"LiveLinkGraphNode",
 					"LiveLinkMessageBusFramework",
 					"LiveLinkMovieScene",
+					"MessageLog",
 					"Persona",
 					"Projects",
 					"PropertyEditor",

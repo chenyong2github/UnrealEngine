@@ -42,11 +42,8 @@ void AVREditorDockableWindow::PostActorCreated()
 
 	const UVREditorAssetContainer& AssetContainer = UVREditorMode::LoadAssetContainer();
 
-	{
-		UStaticMesh* WindowMesh = AssetContainer.WindowMesh;
-		WindowMeshComponent->SetStaticMesh(WindowMesh);
-		check(WindowMeshComponent != nullptr);
-	}
+	// Note that this might be overridden if the CreationContext defines a mesh. But we don't have the CC yet, so we're setting the default here
+	SetWindowMesh(AssetContainer.WindowMesh);
 
 	UMaterialInterface* HoverMaterial = AssetContainer.WindowMaterial;
 	UMaterialInterface* TranslucentHoverMaterial = AssetContainer.WindowMaterial;
@@ -135,10 +132,22 @@ void AVREditorDockableWindow::PostActorCreated()
 void AVREditorDockableWindow::SetupWidgetComponent()
 {
 	Super::SetupWidgetComponent();
-	// Dockable UIs always have a border so we need to make the background not transparent.
-	WidgetComponent->SetOpacityFromTexture(0.0f);	
-	WidgetComponent->SetBackgroundColor(FLinearColor::Black);
-	WidgetComponent->SetBlendMode(EWidgetBlendMode::Opaque);
+	// In standard UED, dockable UIs always have a border so we need to make the background not transparent unless...
+	// The CreationContext overrides the styling.
+	if (CreationContext.bMaskOutWidgetBackground)
+	{
+		WidgetComponent->SetOpacityFromTexture(1.0f);
+		WidgetComponent->SetBackgroundColor(FLinearColor::Transparent);
+		WidgetComponent->SetBlendMode(EWidgetBlendMode::Transparent);
+
+	}
+	else
+	{
+		WidgetComponent->SetOpacityFromTexture(0.0f);
+		WidgetComponent->SetBackgroundColor(FLinearColor::Black);
+		WidgetComponent->SetBlendMode(EWidgetBlendMode::Opaque);
+
+	}
 	SetSelectionBarColor( GetOwner().GetOwner().GetColor( UVREditorMode::EColors::UISelectionBarColor ) );
 	SetCloseButtonColor( GetOwner().GetOwner().GetColor( UVREditorMode::EColors::UICloseButtonColor ) );
 }
@@ -203,12 +212,29 @@ void AVREditorDockableWindow::TickManually( float DeltaTime )
 		const float AnimationOvershootAmount = 1.0f;	// @todo vreditor tweak
 		float EasedAimingAtMeFadeAlpha = UVREditorMode::OvershootEaseOut( AimingAtMeFadeAlpha, AnimationOvershootAmount );
 
-		// Extra buttons can be completely disabled. 
-		// If enabled: only show our extra buttons and controls if the user is roughly aiming toward us to reduce visual clutter.
-		const bool bIsVisible = CreationContext.bHideWindowHandles ? false : (EasedAimingAtMeFadeAlpha > KINDA_SMALL_NUMBER ? true : false);		
+		// @todo: This should be refactored after Siggraph/Quokka. The VREditorSystem should spawn a VREditorFloatingUI if bHideWindowHandles is 
+
+		// Handles to manipulate this window could be disabled. 		
+		const bool bIsVisible = CreationContext.bHideWindowHandles ? false : (EasedAimingAtMeFadeAlpha > KINDA_SMALL_NUMBER ? true : false); // If enabled: only show our extra buttons and controls if the user is roughly aiming toward us to reduce visual clutter.
+				
 		DockButtonMeshComponent->SetVisibility(bIsVisible);
 		SelectionBarMeshComponent->SetVisibility(bIsVisible);
-		CloseButtonMeshComponent->SetVisibility(bIsVisible);		
+		CloseButtonMeshComponent->SetVisibility(bIsVisible);				
+		
+		// If handles are diabled we don't want to collide with them, of course
+		if (CreationContext.bHideWindowHandles)
+		{
+			DockButtonMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			SelectionBarMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			CloseButtonMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		}
+
+		// The close button can be disabled 
+		if (CreationContext.bNoCloseButton)
+		{
+			CloseButtonMeshComponent->SetVisibility(false);
+			CloseButtonMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		}
 
 		EasedAimingAtMeFadeAlpha = FMath::Max( 0.001f, EasedAimingAtMeFadeAlpha );
 
@@ -276,9 +302,11 @@ void AVREditorDockableWindow::TickManually( float DeltaTime )
 				SelectionBarHoverAlpha -= DeltaTime / VREd::DockUIHoverAnimationDuration->GetFloat();;
 			}
 			SelectionBarHoverAlpha = FMath::Clamp( SelectionBarHoverAlpha, 0.0f, 1.0f );
-
+			
 			// How big the selection bar should be
-			const FVector SelectionBarSize(20.0f, Size.X * 0.7f, Size.X * 0.1f);
+			float SelectionBarWidth = CreationContext.bNoCloseButton ? 0.82f : 0.7f;
+			
+			const FVector SelectionBarSize(20.0f, Size.X * SelectionBarWidth, Size.X * 0.1f);
 			FVector SelectionBarScale = SelectionBarSize * AnimatedScale * CurrentScaleFactor;
 			SelectionBarScale *= FMath::Lerp( 1.0f, VREd::DockUIHoverScale->GetFloat(), SelectionBarHoverAlpha );
 
@@ -429,6 +457,12 @@ void AVREditorDockableWindow::OnDragRelease( UViewportInteractor* Interactor )
 UViewportDragOperationComponent* AVREditorDockableWindow::GetDragOperationComponent()
 {
 	return DragOperationComponent;
+}
+
+void AVREditorDockableWindow::SetWindowMesh(UStaticMesh* WindowMesh)
+{	
+	WindowMeshComponent->SetStaticMesh(WindowMesh);
+	check(WindowMeshComponent != nullptr);
 }
 
 void AVREditorDockableWindow::SetSelectionBarColor( const FLinearColor& LinearColor )

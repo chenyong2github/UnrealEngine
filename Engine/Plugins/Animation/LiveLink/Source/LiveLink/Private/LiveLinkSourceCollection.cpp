@@ -286,22 +286,21 @@ void FLiveLinkSourceCollection::RemovePendingKill()
 	}
 }
 
-void FLiveLinkSourceCollection::Shutdown()
+bool FLiveLinkSourceCollection::RequestShutdown()
 {
 	bool bHadSubject = Subjects.Num() > 0;
 	Subjects.Reset();
 
-	while(Sources.Num())
+	for (int32 SourceIndex = Sources.Num() - 1; SourceIndex >= 0; --SourceIndex)
 	{
-		for (int32 SourceIndex = Sources.Num() - 1; SourceIndex >= 0; --SourceIndex)
+		FLiveLinkCollectionSourceItem& SourceItem = Sources[SourceIndex];
+		if (SourceItem.Source->RequestSourceShutdown())
 		{
-			FLiveLinkCollectionSourceItem& SourceItem = Sources[SourceIndex];
-			if (SourceItem.Source->RequestSourceShutdown())
-			{
-				Sources.RemoveAtSwap(SourceIndex);
-			}
+			Sources.RemoveAtSwap(SourceIndex);
 		}
 	}
 
 	// No callback when we shutdown
+
+	return Sources.Num() == 0;
 }

@@ -19,6 +19,7 @@
 #include "Misc/MessageDialog.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopedSlowTask.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/FileManager.h"
@@ -59,11 +60,34 @@
 	#include "WorkspaceMenuStructureModule.h"
 #endif
 
+#if PLATFORM_MAC || PLATFORM_LINUX // See KillProcess() function below.
+	#include <csignal> // for SIGTERM
+	#include <sys/types.h> // for ::kill()
+#endif
+
 
 static const FName ConcertBrowserTabName("ConcertBrowser");
 static const TCHAR MultiUserServerAppName[] = TEXT("UnrealMultiUserServer");
 
 #define LOCTEXT_NAMESPACE "MultiUserClient"
+
+namespace MultiUserClientUtil
+{
+
+void KillProcess(uint32 ProcessID)
+{
+#if PLATFORM_MAC || PLATFORM_LINUX
+	// NOTE: On Mac OS and Linux, the OpenProcess() function is not implemented properly. On Mac NSTask should be converted to POSIX and on Linux the
+	//       POSIX implementation is incomplete. For the moment, we were recommended to use the POSIX API directly.
+	::kill(static_cast<pid_t>(ProcessID), SIGTERM);
+#else
+	FProcHandle ProcHandle = FPlatformProcess::OpenProcess(ProcessID);
+	FPlatformProcess::TerminateProc(ProcHandle);
+	FPlatformProcess::CloseProc(ProcHandle);
+#endif
+}
+
+}
 
 /**
  * Connection task used to validate that the workspace has no local changes (according to source control) or in-memory changes (dirty packages).
@@ -197,6 +221,7 @@ private:
 							if (FileState.IsValid() && (FileState->IsAdded() || FileState->IsDeleted() || FileState->IsModified() || (SourceControlProvider.UsesCheckout() && FileState->IsCheckedOut()))) // TODO: Include unversioned files?
 							{
 								bHasLocalChanges = true;
+								UE_LOG(LogConcert, Warning, TEXT("%s has local changes before joining a multi-user session."), *FileState->GetFilename());
 								return false; // end iteration
 							}
 						}
@@ -211,7 +236,7 @@ private:
 				if (bHasLocalChanges)
 				{
 					InSharedState->Result = EConcertResponseCode::Failed;
-					InSharedState->ErrorText = LOCTEXT("ValidatingWorkspace_LocalChanges", "This workspace has local changes. Please submit or revert these changes before attempting to connect.");
+					InSharedState->ErrorText = LOCTEXT("ValidatingWorkspace_LocalChanges", "This workspace has local changes. Please submit or revert these changes before attempting to connect. See output log for details.");
 				}
 				else
 				{
@@ -555,7 +580,15 @@ public:
 	/**
 	 * Disconnect from the current session and warn for session changes if session owner.
 	 */
-	virtual void DisconnectSession() override
+	void DisconnectSession()
+	{
+		DisconnectSession(/*bAlwaysAskConfirmation*/false);
+	}
+
+	/**
+	 * Disconnect from the current session and warn for session changes if session owner.
+	 */
+	virtual bool DisconnectSession(bool bAlwaysAskConfirmation) override
 	{
 		IConcertClientRef ConcertClient = MultiUserClient->GetConcertClient();
 		if (TSharedPtr<IConcertClientSession> CurrentSession = ConcertClient->GetCurrentSession())
@@ -571,8 +604,16 @@ public:
 					bool UserCanceledPersist = !WorkspaceFrontend->PromptPersistSessionChanges();
 					if (UserCanceledPersist) // The user changed its mind, he doesn't want to persist.
 					{
-						return; // Cancel the disconnection as well. This is probably what most users would expect.
+						return false; // Cancel the disconnection as well.
 					}
+				}
+			}
+			else if (bAlwaysAskConfirmation) // User was not prompted to persist session change(s), but a confirmation was requested.
+			{
+				RetType = FMessageDialog::Open(EAppMsgType::YesNoCancel, EAppReturnType::No, FText::Format(LOCTEXT("LeaveSessionConfirmation", "You are about to leave {0} session. Do you want to continue?"), FText::AsCultureInvariant(CurrentSession->GetSessionInfo().SessionName)));
+				if (RetType != EAppReturnType::Yes)
+				{
+					return false; // User doesn't want to leave the session.
 				}
 			}
 
@@ -582,6 +623,8 @@ public:
 				ConcertClient->DisconnectSession();
 			}
 		}
+
+		return true; // The client is disconnected.
 	}
 
 	void RegisterTabSpawner(const TSharedPtr<FWorkspaceItem>& WorkspaceGroup)
@@ -672,17 +715,20 @@ private:
 	void RegisterConsoleCommands() // Console commands can be triggered from 'Cmd' text box found at the bottom of the 'Output Log' windows for example.
 	{
 #if WITH_EDITOR
-		OpenBrowserConsoleCommand = MakeUnique<FAutoConsoleCommand>(
-			TEXT("Concert.OpenBrowser"),
-			TEXT("Open the Multi-User session browser"),
-			FExecuteAction::CreateRaw(this, &FMultiUserClientModule::OpenBrowser)
-			);
+		if (!IsRunningGame()) // Prevent user from spawning Concert UI using the console command in -game. The Editor styles are not loaded and this may display incorrectly some UI element.
+		{
+			OpenBrowserConsoleCommand = MakeUnique<FAutoConsoleCommand>(
+				TEXT("Concert.OpenBrowser"),
+				TEXT("Open the Multi-User session browser"),
+				FExecuteAction::CreateRaw(this, &FMultiUserClientModule::OpenBrowser)
+				);
 
-		OpenSettingsConsoleCommand = MakeUnique<FAutoConsoleCommand>(
-			TEXT("Concert.OpenSettings"),
-			TEXT("Open the Multi-User settings"),
-			FExecuteAction::CreateRaw(this, &FMultiUserClientModule::OpenSettings)
-			);
+			OpenSettingsConsoleCommand = MakeUnique<FAutoConsoleCommand>(
+				TEXT("Concert.OpenSettings"),
+				TEXT("Open the Multi-User settings"),
+				FExecuteAction::CreateRaw(this, &FMultiUserClientModule::OpenSettings)
+				);
+		}
 #endif
 
 		DefaultConnectConsoleCommand = MakeUnique<FAutoConsoleCommand>(
@@ -863,11 +909,10 @@ private:
 		return DockTab;
 	}
 
-	virtual bool IsConcertServerRunning() override
+	static FString GetMultiUserServerExePathname()
 	{
-		FString MultiUserServerName(MultiUserServerAppName);
-
 		// Find concert server location for our build configuration
+		FString MultiUserServerName(MultiUserServerAppName);
 		FString ServerPath = FPlatformProcess::GenerateApplicationPath(MultiUserServerName, FApp::GetBuildConfiguration());
 
 		// Validate it exists and fall back to development if it doesn't.
@@ -876,6 +921,12 @@ private:
 			ServerPath = FPlatformProcess::GenerateApplicationPath(MultiUserServerName, EBuildConfiguration::Development);
 		}
 
+		return ServerPath;
+	}
+
+	virtual bool IsConcertServerRunning() override
+	{
+		FString ServerPath = GetMultiUserServerExePathname();
 		return FPlatformProcess::IsApplicationRunning(*FPaths::GetCleanFilename(ServerPath));
 	}
 
@@ -884,8 +935,6 @@ private:
 	 */
 	virtual void LaunchConcertServer() override
 	{
-		FString MultiUserServerName(MultiUserServerAppName);
-
 		FAsyncTaskNotificationConfig NotificationConfig;
 		NotificationConfig.bKeepOpenOnFailure = true;
 		NotificationConfig.TitleText = LOCTEXT("LaunchingUnrealMultiUserServer", "Launching Unreal Multi-User Server...");
@@ -900,14 +949,8 @@ private:
 		}
 
 		// Find concert server location for our build configuration
-		FString ServerPath = FPlatformProcess::GenerateApplicationPath(MultiUserServerName, FApp::GetBuildConfiguration());
+		FString ServerPath = GetMultiUserServerExePathname();
 
-		// Validate it exists and fall back to development if it doesn't
-		if (!IFileManager::Get().FileExists(*ServerPath) && FApp::GetBuildConfiguration() != EBuildConfiguration::Development)
-		{
-			ServerPath = FPlatformProcess::GenerateApplicationPath(MultiUserServerName, EBuildConfiguration::Development);
-		}
-		
 		FText LaunchMultiUserErrorTitle = LOCTEXT("LaunchUnrealMultiUserServerErrorTitle", "Failed to Launch the Unreal Multi-User Server");
 		if (!IFileManager::Get().FileExists(*ServerPath))
 		{
@@ -930,8 +973,9 @@ private:
 				);
 			return;
 		}
-		
-		FProcHandle ProcHandle = FPlatformProcess::CreateProc(*ServerPath, TEXT(""), true, false, false, nullptr, 0, nullptr, nullptr, nullptr);
+
+		FString CmdLineArgs = GenerateConcertServerCommandLine();
+		FProcHandle ProcHandle = FPlatformProcess::CreateProc(*ServerPath, *CmdLineArgs, true, false, false, nullptr, 0, nullptr, nullptr, nullptr);
 		if (ProcHandle.IsValid())
 		{
 			Notification.SetComplete(LOCTEXT("LaunchedUnrealMultiUserServer", "Launched Unreal Multi-User Server"), FText(), true);
@@ -942,6 +986,26 @@ private:
 				LaunchMultiUserErrorTitle,
 				LOCTEXT("LaunchUnrealMultiUserServerError_InvalidHandle", "Failed to create the Multi-User Server process."),
 				false);
+		}
+	}
+
+	void ShutdownConcertServer() override
+	{
+		FString ServerPath = GetMultiUserServerExePathname();
+		ServerPath = FPaths::ConvertRelativePathToFull(ServerPath);
+		FPaths::NormalizeDirectoryName(ServerPath); // Need to have all slashes the same side.
+
+		FPlatformProcess::FProcEnumerator ProcIter;
+		while (ProcIter.MoveNext())
+		{
+			FPlatformProcess::FProcEnumInfo ProcInfo = ProcIter.GetCurrent();
+			FString Candidate = ProcInfo.GetFullPath();
+			FPaths::NormalizeDirectoryName(Candidate);
+			if (Candidate == ServerPath)
+			{
+				MultiUserClientUtil::KillProcess(ProcInfo.GetPID());
+				// Continue -> Will close all servers instances.
+			}
 		}
 	}
 
@@ -1104,6 +1168,42 @@ private:
 #endif
 
 private:
+	FString GenerateConcertServerCommandLine() const
+	{
+		// @note FH: Those settings are UDP Messaging specific
+
+		FString CmdLine;
+		FConfigFile* EngineConfig = GConfig ? GConfig->FindConfigFileWithBaseName(FName(TEXT("Engine"))) : nullptr;
+		if (EngineConfig)
+		{
+			TArray<FString> Settings;
+			FString& Setting = Settings.Emplace_GetRef();
+
+			// Unicast endpoint setting
+			EngineConfig->GetString(TEXT("/Script/UdpMessaging.UdpMessagingSettings"), TEXT("UnicastEndpoint"), Setting);
+			CmdLine = TEXT("-UDPMESSAGING_TRANSPORT_UNICAST=") + Setting;
+
+			// Multicast endpoint setting
+			EngineConfig->GetString(TEXT("/Script/UdpMessaging.UdpMessagingSettings"), TEXT("MulticastEndpoint"), Setting);
+			CmdLine += TEXT(" -UDPMESSAGING_TRANSPORT_MULTICAST=") + Setting;
+
+			// Static endpoints setting
+			Settings.Empty(1);
+			EngineConfig->GetArray(TEXT("/Script/UdpMessaging.UdpMessagingSettings"), TEXT("StaticEndpoints"), Settings);
+			if (Settings.Num() > 0)
+			{
+				CmdLine += TEXT(" -UDPMESSAGING_TRANSPORT_STATIC=");
+				CmdLine += Settings[0];
+				for (int32 i = 1; i < Settings.Num(); ++i)
+				{
+					CmdLine += ',';
+					CmdLine += Settings[i];
+				}
+			}
+		}
+		return CmdLine;
+	}
+
 	TSharedPtr<IConcertSyncClient> MultiUserClient;
 
 	/** True if the tab spawners have been registered for this module */

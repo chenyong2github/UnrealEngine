@@ -24,10 +24,42 @@
 			]
 		},
 		{
-			"Name" : "UnrealUSDWrapper",
-			"Type" : "Editor",
-			"LoadingPhase" : "Default",
-			"WhitelistPlatforms" : [
+			"Name": "UnrealUSDWrapper",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Win64"
+			]
+		},
+		{
+			"Name": "USDUtilities",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Win64"
+			]
+		},
+		{
+			"Name": "USDStage",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Win64"
+			]
+		},
+		{
+			"Name": "USDStageEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Win64"
+			]
+		},
+		{
+			"Name": "USDExporter",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
 				"Win64"
 			]
 		}

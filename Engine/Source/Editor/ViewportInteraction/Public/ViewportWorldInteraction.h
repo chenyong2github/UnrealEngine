@@ -246,6 +246,7 @@ public:
 	float GetMinScale();
 
 	/** Sets GNewWorldToMetersScale */
+	UFUNCTION(BlueprintCallable, Category = "ViewportWorldInteraction")
 	void SetWorldToMetersScale( const float NewWorldToMetersScale, const bool bCompensateRoomWorldScale = false );
 
 	/** Tells the world interaction system to skip updates of world movement this frame.  This is useful if you've called

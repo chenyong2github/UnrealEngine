@@ -153,12 +153,115 @@ bool FConcertClientWorkspace::ShouldIgnorePackageDirtyEvent(class UPackage* InPa
 
 bool FConcertClientWorkspace::FindTransactionEvent(const int64 TransactionEventId, FConcertSyncTransactionEvent& OutTransactionEvent, const bool bMetaDataOnly) const
 {
-	return LiveSession->GetSessionDatabase().GetTransactionEvent(TransactionEventId, OutTransactionEvent, bMetaDataOnly);
+	bool bFound = LiveSession->GetSessionDatabase().GetTransactionEvent(TransactionEventId, OutTransactionEvent, bMetaDataOnly);
+	return bFound && (bMetaDataOnly || !IsTransactionEventPartiallySynced(OutTransactionEvent)); // Avoid succeeding if the event is partially sync but full event data was requested.
+}
+
+TFuture<TOptional<FConcertSyncTransactionEvent>> FConcertClientWorkspace::FindOrRequestTransactionEvent(const int64 TransactionEventId, const bool bMetaDataOnly)
+{
+	FConcertSyncTransactionEvent TransactionEvent;
+
+	// Check if the event exist in the database.
+	if (LiveSession->GetSessionDatabase().GetTransactionEvent(TransactionEventId, TransactionEvent, bMetaDataOnly))
+	{
+		// If the transaction data is required and the event has only the meta data (partially synced, the event was superseded by another).
+		if (!bMetaDataOnly && IsTransactionEventPartiallySynced(TransactionEvent))
+		{
+			FConcertSyncEventRequest SyncEventRequest{EConcertSyncActivityEventType::Transaction, TransactionEventId };
+			TWeakPtr<FConcertSyncClientLiveSession> WeakLiveSession = LiveSession;
+			return LiveSession->GetSession().SendCustomRequest<FConcertSyncEventRequest, FConcertSyncEventResponse>(SyncEventRequest, LiveSession->GetSession().GetSessionServerEndpointId()).Next([WeakLiveSession, TransactionEventId](const FConcertSyncEventResponse& Response)
+			{
+				if (Response.Event.UncompressedPayloadSize > 0) // Some data was sent back?
+				{
+					// Extract the payload as FConcertSyncTransactionEvent.
+					FStructOnScope EventPayload;
+					Response.Event.GetPayload(EventPayload);
+					check(EventPayload.IsValid() && EventPayload.GetStruct()->IsChildOf(FConcertSyncTransactionEvent::StaticStruct()));
+					FConcertSyncTransactionEvent* TransactionEvent = (FConcertSyncTransactionEvent*)EventPayload.GetStructMemory();
+
+					// Update the database, caching the event to avoid syncing again.
+					if (TSharedPtr<FConcertSyncClientLiveSession> LiveSessionPin = WeakLiveSession.Pin())
+					{
+						LiveSessionPin->GetSessionDatabase().UpdateTransactionEvent(TransactionEventId, *TransactionEvent);
+						// NOTE: PostActivityUpdated() could be called, but the activity did not change, more info was simply cached locally. Unless a use case requires it, don't call it.
+					}
+
+					return TOptional<FConcertSyncTransactionEvent>(MoveTemp(*TransactionEvent));
+				}
+				else
+				{
+					return TOptional<FConcertSyncTransactionEvent>(); // The server did not return any data.
+				}
+			});
+		}
+		else
+		{
+			return MakeFulfilledPromise<TOptional<FConcertSyncTransactionEvent>>(MoveTemp(TransactionEvent)).GetFuture(); // All required data was already available locally.
+		}
+	}
+
+	return MakeFulfilledPromise<TOptional<FConcertSyncTransactionEvent>>().GetFuture(); // Not found.
 }
 
 bool FConcertClientWorkspace::FindPackageEvent(const int64 PackageEventId, FConcertSyncPackageEvent& OutPackageEvent, const bool bMetaDataOnly) const
 {
-	return LiveSession->GetSessionDatabase().GetPackageEvent(PackageEventId, OutPackageEvent, bMetaDataOnly);
+	bool bFound = LiveSession->GetSessionDatabase().GetPackageEvent(PackageEventId, OutPackageEvent, bMetaDataOnly);
+	return bFound && (bMetaDataOnly || !IsPackageEventPartiallySynced(OutPackageEvent)); // Avoid succeeding if the event is partially sync but full event data was requested.
+}
+
+TFuture<TOptional<FConcertSyncPackageEvent>> FConcertClientWorkspace::FindOrRequestPackageEvent(const int64 PackageEventId, const bool bMetaDataOnly)
+{
+	// Check if the event exist in the database.
+	FConcertSyncPackageEvent PackageEvent;
+	if (LiveSession->GetSessionDatabase().GetPackageEvent(PackageEventId, PackageEvent, bMetaDataOnly))
+	{
+		// If the package data is required and the event has only the meta data (partially synced, the event was superseded by another).
+		if (!bMetaDataOnly && IsPackageEventPartiallySynced(PackageEvent))
+		{
+			FConcertSyncEventRequest SyncEventRequest{EConcertSyncActivityEventType::Package, PackageEventId };
+			TWeakPtr<FConcertSyncClientLiveSession> WeakLiveSession = LiveSession;
+			return LiveSession->GetSession().SendCustomRequest<FConcertSyncEventRequest, FConcertSyncEventResponse>(SyncEventRequest, LiveSession->GetSession().GetSessionServerEndpointId()).Next([WeakLiveSession, PackageEventId](const FConcertSyncEventResponse& Response)
+			{
+				if (Response.Event.UncompressedPayloadSize > 0) // Some data was sent back?
+				{
+					// Extract the payload as FConcertSyncPackageEvent.
+					FStructOnScope EventPayload;
+					Response.Event.GetPayload(EventPayload);
+					check(EventPayload.IsValid() && EventPayload.GetStruct()->IsChildOf(FConcertSyncPackageEvent::StaticStruct()));
+					FConcertSyncPackageEvent* PackageEvent = (FConcertSyncPackageEvent*)EventPayload.GetStructMemory();
+
+					// Update the database, caching the event to avoid syncing again.
+					if (TSharedPtr<FConcertSyncClientLiveSession> LiveSessionPin = WeakLiveSession.Pin())
+					{
+						LiveSessionPin->GetSessionDatabase().UpdatePackageEvent(PackageEventId, *PackageEvent);
+						// NOTE: PostActivityUpdated() could be called, but the activity did not change, more info was simply cached locally. Unless a use case requires it, don't call it.
+					}
+
+					return TOptional<FConcertSyncPackageEvent>(MoveTemp(*PackageEvent));
+				}
+				else
+				{
+					return TOptional<FConcertSyncPackageEvent>(); // The server did not return any data.
+				}
+			});
+		}
+		else
+		{
+			return MakeFulfilledPromise<TOptional<FConcertSyncPackageEvent>>(MoveTemp(PackageEvent)).GetFuture(); // All required data was already available locally.
+		}
+	}
+
+	return MakeFulfilledPromise<TOptional<FConcertSyncPackageEvent>>().GetFuture(); // Not found.
+}
+
+bool FConcertClientWorkspace::IsPackageEventPartiallySynced(const FConcertSyncPackageEvent& PackageEvent) const
+{
+	return PackageEvent.Package.PackageData.Num() == 0;
+}
+
+bool FConcertClientWorkspace::IsTransactionEventPartiallySynced(const FConcertSyncTransactionEvent& TransactionEvent) const
+{
+	return TransactionEvent.Transaction.ExportedObjects.Num() == 0;
 }
 
 void FConcertClientWorkspace::GetActivities(const int64 FirstActivityIdToFetch, const int64 MaxNumActivities, TMap<FGuid, FConcertClientInfo>& OutEndpointClientInfoMap, TArray<FConcertClientSessionActivity>& OutActivities) const

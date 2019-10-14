@@ -329,8 +329,9 @@ bool FPicpMPCDIShader::ApplyWarpBlend(FRHICommandListImmediate& RHICmdList, IMPC
 			case EPicpShaderType::WarpAndBlend:
 				ShaderInputData.UVMatrix = ShaderInputData.Frustum.UVMatrix*MPCDIData->GetTextureMatrix()*MPCDIRegion->GetRegionMatrix();
 
+				// Use overlay render tricks
 				if (ViewportOverlayData)
-				{// Use overlay render tricks:					
+				{
 					// First pass render bg
 					if (bIsRenderSinglePass)
 					{
@@ -447,8 +448,9 @@ bool FPicpMPCDIShader::ApplyWarpBlend(FRHICommandListImmediate& RHICmdList, IMPC
 						}
 					}
 				}
+				// Use default render
 				else
-				{// Use default render 
+				{
 					if (bIsBlendDisabled)
 					{
 						bIsRenderSuccess = CompleteWarpTempl<EPicpShaderType::Warp>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, MPCDIData, nullptr, 0, EColorOPMode::Default);

@@ -85,7 +85,7 @@ class USimpleConstructionScript : public UObject
 	/** Adds this node to the root set */
 	ENGINE_API void AddNode(USCS_Node* Node);
 
-	/** Remove this node from the script (will take all its children with it) */
+	/** Remove this node from the script */
 	ENGINE_API void RemoveNode(USCS_Node* Node);
 
 	/** Remove this node from the script and if it's the root, promote its first child to replace it */

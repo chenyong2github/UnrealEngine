@@ -583,6 +583,24 @@ public:
 	 */
 	bool IsHeadRevisionPackageEvent(const int64 InPackageEventId, bool& OutIsHeadRevision) const;
 
+	/**
+	 * Update the specified transaction event.
+	 * @note The function is meant to update a transaction event that was partially synced to store the corresponding transaction data.
+	 * @param InTransactionEventId		The ID of the event to update.
+	 * @param InTransactionEvent		The event to store.
+	 * @return True if the transaction was updated.
+	 */
+	bool UpdateTransactionEvent(const int64 InTransactionEventId, const FConcertSyncTransactionEvent& InTransactionEvent);
+
+	/**
+	 * Update the specified package event.
+	 * @note The function is meant to be update a partially synced package event to store the corresponding package data.
+	 * @param InPackageEventId			The ID of the event to update.
+	 * @param InTransactionEvent		The event to store.
+	 * @return True if the transaction was updated.
+	 */
+	bool UpdatePackageEvent(const int64 InPackageEventId, const FConcertSyncPackageEvent& InPackageEvent);
+
 private:
 	/**
 	 * Set the active ignored state for the given activity.

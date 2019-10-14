@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IConcertClientPresenceMode.h"
 #include "IConcertSessionHandler.h"
 #include "ConcertPresenceEvents.h"
 #include "ConcertMessages.h"
@@ -10,44 +11,35 @@
 #include "UObject/Class.h"
 #include "UObject/StrongObjectPtr.h"
 
-enum class EMapChangeType : uint8;
-
 #if WITH_EDITOR
-
-// These "PresenceMode" classes are used to send avatar-specific presence events and cache 
-// avatar-related state for the current client. 
-// 
-// Adding a new presence avatar type requires the following:
-//
-//  1) Add a presence mode class inherited from FConcertClientBasePresenceMode to 
-//     send events and cache state, if needed, for the current client.
-//  2) Add a presence actor class to handle events and display the avatar for
-//     remote clients.
-//  3) Register and unregister event handlers in FConcertClientPresenceManager.
 
 class IConcertClientSession;
 
-class FConcertClientBasePresenceMode
+/**
+ * Implementation of the Base Presence Mode
+ */
+class FConcertClientBasePresenceMode : public IConcertClientBasePresenceMode
 {
 public:
-	explicit FConcertClientBasePresenceMode(class FConcertClientPresenceManager* InManager)
+	explicit FConcertClientBasePresenceMode(class FConcertClientPresenceManager* InManager, FName InVRDeviceType)
 		: LastHeadTransform(FTransform::Identity)
-		, ParentManager(InManager) {}
+		, ParentManager(InManager)
+		, VRDeviceType(InVRDeviceType)
+	{}
 	virtual ~FConcertClientBasePresenceMode() {}
 
-	/** Factory method to create mode based on the avatar class */
-	static TUniquePtr<FConcertClientBasePresenceMode> CreatePresenceMode(const UClass* AvatarActorClass, class FConcertClientPresenceManager* InManager);
-
-	/** Send events for this presence mode */
-	virtual void SendEvents(IConcertClientSession& Session);
-
-	/** Get the current head transformation */
-	FTransform GetHeadTransform();
+	// IConcertClientBasePresenceMode implementation
+	virtual void SendEvents(IConcertClientSession& Session) override;
+	virtual FTransform GetTransform() override;	
+	virtual FName GetVRDeviceType() const override
+	{
+		return VRDeviceType;
+	}
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override {}
 
 protected:
-
 	/** Set event update index on an event, used for out-of-order event handling */
-	virtual void SetUpdateIndex(IConcertClientSession& Session, const FName& InEventName, FConcertClientPresenceEventBase& OutEvent);
+	void SetUpdateIndex(IConcertClientSession& Session, const FName& InEventName, FConcertClientPresenceEventBase& OutEvent);
 
 	class FConcertClientPresenceManager* GetManager() const
 	{
@@ -60,13 +52,15 @@ protected:
 	/** Parent manager */
 	class FConcertClientPresenceManager* ParentManager;
 
+	/** Holds the vr device type name, if any. */
+	FName VRDeviceType;
 };
 
 class FConcertClientDesktopPresenceMode : public FConcertClientBasePresenceMode
 {
 public:
 	explicit FConcertClientDesktopPresenceMode(class FConcertClientPresenceManager* InManager)
-		: FConcertClientBasePresenceMode(InManager) {}
+		: FConcertClientBasePresenceMode(InManager, NAME_None) {}
 	virtual ~FConcertClientDesktopPresenceMode() {}
 
 	/** Send events for this presence mode */
@@ -80,8 +74,8 @@ protected:
 class FConcertClientVRPresenceMode : public FConcertClientBasePresenceMode
 {
 public:
-	explicit FConcertClientVRPresenceMode(class FConcertClientPresenceManager* InManager)
-		: FConcertClientBasePresenceMode(InManager)
+	explicit FConcertClientVRPresenceMode(class FConcertClientPresenceManager* InManager, FName InVRDeviceType)
+		: FConcertClientBasePresenceMode(InManager, MoveTemp(InVRDeviceType))
 		, LastRoomTransform(FTransform::Identity) {}
 	virtual ~FConcertClientVRPresenceMode() {}
 

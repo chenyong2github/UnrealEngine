@@ -9,6 +9,9 @@
 #include "Modules/ModuleManager.h"		// For inline LoadModuleChecked()
 #include "Toolkits/AssetEditorToolkit.h"
 
+class SWidget;
+class UDataprepAssetProducers;
+
 extern const FName DataprepEditorAppIdentifier;
 
 #define DATAPREPEDITOR_MODULE_NAME TEXT("DataprepEditor")
@@ -39,6 +42,6 @@ public:
 		return FModuleManager::Get().IsModuleLoaded(DATAPREPEDITOR_MODULE_NAME);
 	}
 
-	/** Category bit associated with DataPrep related content */
-	static DATAPREPEDITOR_API EAssetTypeCategories::Type DataprepCategoryBit;
+	virtual TSharedRef<SWidget> CreateDataprepProducersWidget(UDataprepAssetProducers* AssetProducers) = 0;
+	virtual TSharedRef<SWidget> CreateDataprepDetailsView(UObject* ObjectToDetail) = 0;
 };

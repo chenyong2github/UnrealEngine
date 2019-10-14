@@ -2952,7 +2952,7 @@ void FRCPassPostProcessAaES2::Process(FRenderingCompositePassContext& Context)
 	check(SrcSize == DestSize);
 
 	ERenderTargetActions LoadStoreAction = ERenderTargetActions::Load_Store;
-	if (Context.View.StereoPass != eSSP_RIGHT_EYE)
+	if (!IStereoRendering::IsASecondaryView(Context.View.StereoPass))
 	{
 		// Full clear to avoid restore
 		LoadStoreAction = ERenderTargetActions::Clear_Store;

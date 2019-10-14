@@ -424,11 +424,12 @@ bool FPackageAutoSaver::CanAutoSave() const
 	const bool bPackagesNeedAutoSave = DoPackagesNeedAutoSave();
 
 	double LastInteractionTime = FSlateApplication::Get().GetLastUserInteractionTime();
-	
-	const float InteractionDelay = 15.0f;
+
+	const UEditorLoadingSavingSettings* LoadingSavingSettings = GetDefault<UEditorLoadingSavingSettings>();
+	const float InteractionDelay = float(LoadingSavingSettings->AutoSaveInteractionDelayInSeconds);
 
 	const bool bDidInteractRecently = (FApp::GetCurrentTime() - LastInteractionTime) < InteractionDelay;
-	const bool bAutosaveEnabled	= GetDefault<UEditorLoadingSavingSettings>()->bAutoSaveEnable && bPackagesNeedAutoSave;
+	const bool bAutosaveEnabled	= LoadingSavingSettings->bAutoSaveEnable && bPackagesNeedAutoSave;
 	const bool bSlowTask = GIsSlowTask;
 	const bool bInterpEditMode = GLevelEditorModeTools().IsModeActive(FBuiltinEditorModes::EM_InterpEdit);
 	const bool bPlayWorldValid = GUnrealEd->PlayWorld != nullptr;

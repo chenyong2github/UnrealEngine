@@ -1,4 +1,4 @@
-﻿{
+{
 	"FileVersion": 3,
 	"Version": 1,
 	"VersionName": "1.0",
@@ -24,6 +24,15 @@
 				"HTML5",
 				"TVOS"
 			]
+		},
+		{
+			"Name": "RemoteSessionEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"BlacklistPlatforms": [
+				"HTML5",
+				"TVOS"
+			]
 		}
 	],
 	"Plugins": [
@@ -34,6 +43,10 @@
 		{
 			"Name": "AppleImageUtils",
 			"Enabled": true
-		}
+		},
+		{
+			"Name": "MediaIOFramework",
+			"Enabled": true
+		},
 	]
 }

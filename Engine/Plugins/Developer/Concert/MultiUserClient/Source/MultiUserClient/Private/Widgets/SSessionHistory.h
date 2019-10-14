@@ -4,23 +4,20 @@
 
 #include "CoreMinimal.h"
 #include "IConcertClientWorkspace.h"
+#include "ConcertSyncSessionTypes.h"
+#include "Async/Future.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SListView.h"
 
 class IConcertSyncClient;
-struct FConcertTransactionEventBase;
-
-class SUndoHistoryDetails;
-class SPackageDetails;
-class SExpandableArea;
-class SScrollBar;
-class SConcertScrollBox;
+class SSearchBox;
+class SConcertSessionActivities;
+class FConcertSessionActivitiesOptions;
 
 class SSessionHistory : public SCompoundWidget
 {
 public:
-
 	SLATE_BEGIN_ARGS(SSessionHistory) {}
 		SLATE_ARGUMENT(FName, PackageFilter)
 	SLATE_END_ARGS()
@@ -38,10 +35,6 @@ public:
 	void Refresh();
 
 private:
-	
-	/** Generates a new event row. */
-	TSharedRef<ITableRow> HandleGenerateRow(TSharedPtr<FConcertClientSessionActivity> InSessionActivity, const TSharedRef<STableViewBase>& OwnerTable) const;
-
 	/** Callback for selecting an activity in the list view. */
 	void HandleSelectionChanged(TSharedPtr<FConcertClientSessionActivity> InSessionActivity, ESelectInfo::Type SelectInfo);
 
@@ -60,17 +53,20 @@ private:
 	/** Registers callbacks with the current workspace. */
 	void RegisterWorkspaceHandler();
 
-	/** Open the details section and display transaction details. */
-	void DisplayTransactionDetails(const FConcertTransactionEventBase& InTransaction, const FString& InTransactionTitle);
+	/** Invoked when the text in the search box widget changes. */
+	void OnSearchTextChanged(const FText& InSearchText);
 
-	/** Open the package details section and display the package details. */
-	void DisplayPackageDetails(const FConcertPackageInfo& InPackageInfo, const int64 InRevision, const FString& InModifiedBy);
+	/** Invoked when the text in the search box widget is committed. */
+	void OnSearchTextCommitted(const FText& InFilterText, ETextCommit::Type CommitType);
 
-	/** Manages how much space is used by the 'Details' area with respect to its expansion state. */
-	SSplitter::ESizeRule GetDetailsAreaSizeRule() const { return bDetailAreaExpanded ? SSplitter::ESizeRule::FractionOfParent : SSplitter::ESizeRule::SizeToContent; }
+	/** Returns the text to highlight when the search bar has a text set. */
+	FText HighlightSearchedText() const;
 
-	/** Invoked when the 'Details' expandable area is expanded/collapsed. Affects how the 'Details' area size is accounted in the splitter. */
-	void OnDetailsAreaExpansionChanged(bool bExpanded) { bDetailAreaExpanded = bExpanded; }
+	/** Returns the specified package event if available. */
+	TFuture<TOptional<FConcertSyncPackageEvent>> GetPackageEvent(const FConcertClientSessionActivity& Activity) const;
+
+	/** Returns the specified package event if available. */
+	TFuture<TOptional<FConcertSyncTransactionEvent>> GetTransactionEvent(const FConcertClientSessionActivity& Activity) const;
 
 private:
 
@@ -83,32 +79,21 @@ private:
 	/** Holds the map of activity IDs to Concert activities. */
 	TMap<int64, TSharedPtr<FConcertClientSessionActivity>> ActivityMap;
 
-	/** Holds the list of Concert activities. */
-	TArray<TSharedPtr<FConcertClientSessionActivity>> Activities;
+	/** Display the activity list. */
+	TSharedPtr<SConcertSessionActivities> ActivityListView;
 
-	/** Holds an instance of an undo history details panel. */
-	TSharedPtr<SUndoHistoryDetails> TransactionDetails;
-
-	TSharedPtr<SPackageDetails> PackageDetails;
-
-	/** Holds activities. */
-	TSharedPtr<SListView<TSharedPtr<FConcertClientSessionActivity>>> ActivityListView;
-
-	/** Holds the expandable area containing details about a given activity. */
-	TSharedPtr<SExpandableArea> ExpandableDetails;
-
-	/** Holds the history log scroll bar. */
-	TSharedPtr<SConcertScrollBox> ScrollBox;
+	/** Controls the activity list view options */
+	TSharedPtr<FConcertSessionActivitiesOptions> ActivityListViewOptions;
 
 	/** Holds a weak pointer to the current workspace. */ 
 	TWeakPtr<IConcertClientWorkspace> Workspace;
 
-	/** Holds the session history scroll bar. */
-	TSharedPtr<SScrollBar> ScrollBar;
+	/** The widget used to enter the text to search. */
+	TSharedPtr<SSearchBox> SearchBox;
 
+	/** The searched text to highlight. */
+	FText SearchedText;
+
+	/** Used to limit activities to a given package only. */
 	FName PackageNameFilter;
-
-	/** Keeps the expand status of the details area. */
-	bool bDetailAreaExpanded = false;
-
 };

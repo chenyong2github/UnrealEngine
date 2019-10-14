@@ -4,54 +4,30 @@
 
 #include "CoreMinimal.h"
 
-#include "DataPrepContentConsumer.h"
-#include "DataPrepContentProducer.h"
+#include "DataprepActionAsset.h"
+#include "DataprepAssetInterface.h"
+#include "DataprepAssetProducers.h"
 
 #include "DataPrepAsset.generated.h"
 
+class UBlueprint;
 class UDataprepActionAsset;
-class UDataprepContentConsumer;
-class UDataprepAsset;
+class UDataprepParameterization;
+class UDataprepProducers;
+class UEdGraphNode;
 
-enum class FDataprepAssetChangeType : uint8
-{
-	ProducerAdded,
-	ProducerRemoved,
-	ProducerModified,
-	ConsumerModified,
-	BlueprintModified,
-};
-
-USTRUCT(Experimental)
-struct FDataprepAssetProducer
-{
-	GENERATED_BODY()
-
-	FDataprepAssetProducer()
-		: Producer(nullptr)
-		, bIsEnabled( true )
-		, SupersededBy( INDEX_NONE )
-	{}
-
-	FDataprepAssetProducer(UDataprepContentProducer* InProducer, bool bInEnabled )
-		: Producer(InProducer)
-		, bIsEnabled( bInEnabled )
-		, SupersededBy( INDEX_NONE )
-	{}
-
-	UPROPERTY()
-	UDataprepContentProducer* Producer;
-
-	UPROPERTY()
-	bool bIsEnabled;
-
-	UPROPERTY()
-	int32 SupersededBy;
-};
+struct FDataprepActionContext;
+struct FDataprepConsumerContext;
+struct FDataprepProducerContext;
 
 
-UCLASS(Experimental)
-class DATAPREPCORE_API UDataprepAsset : public UObject
+/**
+ * A DataprepAsset is an implementation of the DataprepAssetInterface using
+ * a Blueprint as the recipe pipeline. The Blueprint is composed of DataprepAction
+ * nodes linearly connected.
+ */
+UCLASS(Experimental, BlueprintType)
+class DATAPREPCORE_API UDataprepAsset : public UDataprepAssetInterface
 {
 	GENERATED_BODY()
 
@@ -61,157 +37,106 @@ public:
 	virtual ~UDataprepAsset() = default;
 
 	// UObject interface
-	virtual void Serialize( FArchive& Ar ) override;
-	virtual void PostInitProperties() override;
+	virtual void PostLoad() override;
 	// End of UObject interface
 
-	/**
-	 * Add a producer of a given class
-	 * @param ProducerClass Class of the Producer to add
-	 * @return true if addition was successful, false otherwise
-	 */
-	bool AddProducer( UClass* ProducerClass );
+	// UDataprepAssetInterface interface
+	virtual void ExecuteRecipe( const TSharedPtr<FDataprepActionContext>& InActionsContext ) override;
+	virtual bool HasActions() const override { return ActionAssets.Num() > 0; }
+private:
+	virtual TArray<UDataprepActionAsset*> GetCopyOfActions(TMap<UObject*,UObject*>& OutOriginalToCopy) const override;
+	// End of UDataprepAssetInterface interface
 
-	/**
-	 * Remove the producer at a given index
-	 * @param IndexToRemove Index of the producer to remove
-	 * @return true if remove was successful, false otherwise
-	*/
-	bool RemoveProducer( int32 IndexToRemove );
+public:
+	// Temp code for the nodes development
+	bool CreateBlueprint();
 
-	/**
-	 * Enable/Disable the producer at a given index
-	 * @param Index Index of the producer to update
-	 */
-	void EnableProducer(int32 Index, bool bValue);
+	bool CreateParameterization();
 
-	/**
-	 * Enable/Disable the producer at a given index
-	 * @param Index Index of the producer to update
-	 */
-	bool EnableAllProducers(bool bValue);
-
-	/**
-	 * Toggle the producer at a given index
-	 * @param Index Index of the producer to update
-	 */
-	void ToggleProducer( int32 Index )
-	{
-		EnableProducer( Index, !IsProducerEnabled( Index ) );
-	}
-
-	/**
-	 * Replace the current consumer with one of a given class
-	 * @param NewConsumerClass Class of the consumer to replace the current one with
-	 * @return true if replacement was successful, false otherwise
-	 */
-	bool ReplaceConsumer( UClass* NewConsumerClass );
-
-	const UDataprepContentConsumer* GetConsumer() const { return Consumer; }
-
-	UDataprepContentConsumer* GetConsumer() { return Consumer; }
-
-	int32 GetProducersCount() const { return Producers.Num(); }
-
-	/** @return pointer on producer at Index-th position in Producers array. nullptr if Index is invalid */
-	const UDataprepContentProducer* GetProducer(int32 Index) const
+	/** @return pointer on the recipe */
+	const UBlueprint* GetRecipeBP() const
 	{ 
-		return Producers.IsValidIndex(Index) ? Producers[Index].Producer : nullptr;
+		return DataprepRecipeBP;
 	}
 
-	UDataprepContentProducer* GetProducer(int32 Index)
+	UBlueprint* GetRecipeBP()
 	{ 
-		return Producers.IsValidIndex(Index) ? Producers[Index].Producer : nullptr;
+		return DataprepRecipeBP;
 	}
-
-	/** @return True if producer at Index-th position is enabled. Returns false if disabled or Index is invalid */
-	bool IsProducerEnabled(int32 Index) const
-	{ 
-		return Producers.IsValidIndex(Index) ? Producers[Index].bIsEnabled : false;
-	}
-
-	/** @return True if producer at Index-th position is superseded by an enabled producer. Returns false if not superseded or superseder is disabled or Index is invalid */
-	bool IsProducerSuperseded(int32 Index) const
-	{ 
-		return Producers.IsValidIndex(Index) ? Producers[Index].SupersededBy != INDEX_NONE && Producers.IsValidIndex(Producers[Index].SupersededBy) && Producers[Producers[Index].SupersededBy].bIsEnabled : false;
-	}
-
-
-	/**
-	 * Allow an observer to be notified of an change in the pipeline
-	 * return The event that will be broadcasted when a object has receive a modification that might change the result of the pipeline
-	 */
-	DECLARE_EVENT_OneParam(UDataprepAsset, FOnDataprepPipelineChange, UObject* /*The object that was modified*/)
-	FOnDataprepPipelineChange& GetOnPipelineChange() { return OnPipelineChange; }
 
 	// struct to restrict the access scope
-	struct FDataprepPipelineChangeNotifier
+	struct FDataprepBlueprintChangeNotifier
 	{
 	private:
 		friend class FDataprepEditorUtils;
 
-		static void NotifyDataprepOfPipelineChange(UDataprepAsset& DataprepAsset, UObject* ModifiedObject)
+		static void NotifyDataprepBlueprintChange(UDataprepAsset& DataprepAsset, UObject* ModifiedObject)
 		{
-			DataprepAsset.OnPipelineChange.Broadcast( ModifiedObject );
+			// The asset is not complete yet. Skip this change
+			if(!DataprepAsset.HasAnyFlags(RF_NeedLoad | RF_NeedPostLoad | RF_NeedPostLoadSubobjects))
+			{
+				if(UDataprepActionAsset* ActionAsset = Cast<UDataprepActionAsset>(ModifiedObject))
+				{
+					DataprepAsset.UpdateActions();
+				}
+				DataprepAsset.OnBlueprintChanged.Broadcast( ModifiedObject );
+			}
 		}
 	};
 
 	/**
-	 * Allow an observer to be notified when when the consumer or one of the producer has changed
-	 * @return The delegate that will be broadcasted when when the consumer or one of the producer has changed
+	* Allow an observer to be notified of an change in the pipeline
+	* return The event that will be broadcasted when a object has receive a modification that might change the result of the pipeline
+	*/
+	DECLARE_EVENT_OneParam(UDataprepAsset, FOnDataprepBlueprintChange, UObject* /*The object that was modified*/)
+	FOnDataprepBlueprintChange& GetOnBlueprintChanged() { return OnBlueprintChanged; }
+	// end of temp code for nodes development
+
+	/**
+	 * Temporary function to get to allow the editor to view the default parameterization
 	 */
-	DECLARE_EVENT_TwoParams(UDataprepAsset, FOnDataprepAssetChanged, FDataprepAssetChangeType, int32 )
-	FOnDataprepAssetChanged& GetOnChanged() { return OnChanged; }
+	virtual UObject* GetParameterizationObject() override;
 
-	void RunProducers( const UDataprepContentProducer::ProducerContext& InContext, TArray< TWeakObjectPtr< UObject > >& OutAssets );
+	void BindObjectPropertyToParameterization(UObject* Object, const TArray<struct FDataprepPropertyLink>& InPropertyChain, FName Name);
 
-	bool RunConsumer( const UDataprepContentConsumer::ConsumerContext& InContext, FString& OutReason );
+	UDataprepParameterization* GetDataprepParameterization() { return Parameterization; }
 
+protected:
 #if WITH_EDITORONLY_DATA
-
 	// Temp code for the nodes development
 	/** Temporary: Pointer to data preparation pipeline blueprint used to process input data */
 	UPROPERTY()
-	class UBlueprint* DataprepRecipeBP;
+	UBlueprint* DataprepRecipeBP;
 	// end of temp code for nodes development
 
-protected:
-	/** List of producers referenced by the asset */
+	/** DEPRECATED: List of producers referenced by the asset */
 	UPROPERTY()
-	TArray< FDataprepAssetProducer > Producers;
+	TArray< FDataprepAssetProducer > Producers_DEPRECATED;
 
-	/** Consumer referenced by the asset */
+	/** DEPRECATED: COnsumer referenced by the asset */
 	UPROPERTY()
-	UDataprepContentConsumer* Consumer;
+	UDataprepContentConsumer* Consumer_DEPRECATED;
 #endif
 
-protected:
-
-	/**
-	 * Answer notification that the consumer has changed
-	 * @param InProducer Producer which has changed
-	 */
-	void OnProducerChanged( const UDataprepContentProducer* InProducer );
-
-	/** Answer notification that the consumer has changed */
-	void OnConsumerChanged();
-
 	// Temp code for the nodes development
-	void OnBlueprintChanged( class UBlueprint* InBlueprint );
+	void OnDataprepBlueprintChanged( class UBlueprint* InBlueprint );
 	// end of temp code for nodes development
 
+	// Temp code for the nodes development
 private:
-	/**
-	  * Helper to check superseding on all producers after changes made on one producer
-	  * @param Index Index of the producer to validate against
-	  * @param bChangeAll Set to true if changes on input producer implied changes on other producers
-	  */
-	void ValidateProducerChanges( int32 Index, bool &bChangeAll );
+	void UpdateActions();
 
+private:
+	UPROPERTY()
+	UEdGraphNode* StartNode;
 
-	/** Delegate broadcasted when the consumer or one of the producers has changed */
-	FOnDataprepAssetChanged OnChanged;
+	UPROPERTY()
+	UDataprepParameterization* Parameterization;
+
+	UPROPERTY()
+	TArray<UDataprepActionAsset*> ActionAssets;
 
 	/** Event broadcasted when object in the pipeline was modified (Only broadcasted on changes that can affect the result of execution) */
-	FOnDataprepPipelineChange OnPipelineChange;
+	FOnDataprepBlueprintChange OnBlueprintChanged;
+	// end of temp code for nodes development
 };

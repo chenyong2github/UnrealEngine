@@ -12,6 +12,7 @@
 #include "Serialization/ArrayReader.h"
 #include "SocketSubsystem.h"
 #include "Sockets.h"
+#include "Async/Async.h"
 
 #include "Transport/UdpReassembledMessage.h"
 #include "Transport/UdpDeserializedMessage.h"
@@ -22,7 +23,7 @@
 /* FUdpMessageTransport structors
  *****************************************************************************/
 
-FUdpMessageTransport::FUdpMessageTransport(const FIPv4Endpoint& InUnicastEndpoint, const FIPv4Endpoint& InMulticastEndpoint, uint8 InMulticastTtl)
+FUdpMessageTransport::FUdpMessageTransport(const FIPv4Endpoint& InUnicastEndpoint, const FIPv4Endpoint& InMulticastEndpoint, TArray<FIPv4Endpoint> InStaticEndpoints, uint8 InMulticastTtl)
 	: MessageProcessor(nullptr)
 	, MessageProcessorThread(nullptr)
 	, MulticastEndpoint(InMulticastEndpoint)
@@ -36,7 +37,9 @@ FUdpMessageTransport::FUdpMessageTransport(const FIPv4Endpoint& InUnicastEndpoin
 	, UnicastReceiver(nullptr)
 	, UnicastSocket(nullptr)
 #endif
-{ }
+	, StaticEndpoints(MoveTemp(InStaticEndpoints))
+{
+}
 
 
 FUdpMessageTransport::~FUdpMessageTransport()
@@ -47,10 +50,36 @@ FUdpMessageTransport::~FUdpMessageTransport()
 void FUdpMessageTransport::OnAppPreExit()
 {
 	if (MessageProcessor)
-	{
-		MessageProcessor->Stop();
+	{		
 		MessageProcessor->WaitAsyncTaskCompletion();
 	}
+}
+
+void FUdpMessageTransport::AddStaticEndpoint(const FIPv4Endpoint& InEndpoint)
+{
+	bool bAlreadyInSet = false;
+	StaticEndpoints.Add(InEndpoint, &bAlreadyInSet);
+	if (MessageProcessor && !bAlreadyInSet)
+	{
+		MessageProcessor->AddStaticEndpoint(InEndpoint);
+	}
+}
+
+
+void FUdpMessageTransport::RemoveStaticEndpoint(const FIPv4Endpoint& InEndpoint)
+{
+	int32 NbRemoved = StaticEndpoints.Remove(InEndpoint);
+	if (MessageProcessor && NbRemoved > 0)
+	{
+		MessageProcessor->RemoveStaticEndpoint(InEndpoint);
+	}
+}
+
+bool FUdpMessageTransport::RestartTransport()
+{
+	IMessageTransportHandler* Handler = TransportHandler;
+	StopTransport();
+	return StartTransport(*Handler);
 }
 
 /* IMessageTransport interface
@@ -64,10 +93,14 @@ FName FUdpMessageTransport::GetDebugName() const
 
 bool FUdpMessageTransport::StartTransport(IMessageTransportHandler& Handler)
 {
+	// Set the handler even if initialization fails. This allows tries for reinitialization using the same handler.
+	TransportHandler = &Handler;
+
 #if PLATFORM_DESKTOP
 	// create & initialize unicast socket (only on multi-process platforms)
 	UnicastSocket = FUdpSocketBuilder(TEXT("UdpMessageUnicastSocket"))
 		.AsNonBlocking()
+		// Do not bind the unicast socket so it may send to addresses not in its range (i.e other adapters)
 		.BoundToEndpoint(UnicastEndpoint)
 		.WithMulticastLoopback()
 		.WithReceiveBufferSize(UDP_MESSAGING_RECEIVE_BUFFER_SIZE);
@@ -110,8 +143,6 @@ bool FUdpMessageTransport::StartTransport(IMessageTransportHandler& Handler)
 #endif
 	}
 
-	TransportHandler = &Handler;
-
 	// initialize threads
 	FTimespan ThreadWaitTime = FTimespan::FromMilliseconds(100);
 
@@ -121,9 +152,16 @@ bool FUdpMessageTransport::StartTransport(IMessageTransportHandler& Handler)
 	MessageProcessor = new FUdpMessageProcessor(*MulticastSocket, FGuid::NewGuid(), MulticastEndpoint);
 #endif
 	{
+		// Add the static endpoints
+		for (const FIPv4Endpoint& Endpoint : StaticEndpoints)
+		{
+			MessageProcessor->AddStaticEndpoint(Endpoint);
+		}
+
 		MessageProcessor->OnMessageReassembled().BindRaw(this, &FUdpMessageTransport::HandleProcessorMessageReassembled);
 		MessageProcessor->OnNodeDiscovered().BindRaw(this, &FUdpMessageTransport::HandleProcessorNodeDiscovered);
 		MessageProcessor->OnNodeLost().BindRaw(this, &FUdpMessageTransport::HandleProcessorNodeLost);
+		MessageProcessor->OnError().BindRaw(this, &FUdpMessageTransport::HandleProcessorError);
 	}
 
 	if (MulticastSocket != nullptr)
@@ -175,6 +213,7 @@ void FUdpMessageTransport::StopTransport()
 #endif
 
 	TransportHandler = nullptr;
+	ErrorFuture.Reset();
 }
 
 
@@ -218,6 +257,18 @@ void FUdpMessageTransport::HandleProcessorNodeDiscovered(const FGuid& Discovered
 void FUdpMessageTransport::HandleProcessorNodeLost(const FGuid& LostNodeId)
 {
 	TransportHandler->ForgetTransportNode(LostNodeId);
+}
+
+
+void FUdpMessageTransport::HandleProcessorError()
+{
+	if (!ErrorFuture.IsValid() && TransportErrorDelegate.IsBound())
+	{
+		ErrorFuture = Async(EAsyncExecution::TaskGraphMainThread, [ErrorDelegate = TransportErrorDelegate]()
+		{
+			ErrorDelegate.ExecuteIfBound();
+		});
+	}
 }
 
 

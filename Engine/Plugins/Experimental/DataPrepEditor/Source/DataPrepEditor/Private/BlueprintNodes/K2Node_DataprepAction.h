@@ -6,6 +6,8 @@
 #include "K2Node.h"
 #include "Math/Color.h"
 
+#include "Blueprint/K2Node_DataprepActionCore.h"
+
 #include "K2Node_DataprepAction.generated.h"
 
 
@@ -14,14 +16,12 @@ class UDataprepActionAsset;
 class UEdGraphPin;
 
 UCLASS(MinimalAPI)
-class UK2Node_DataprepAction : public UK2Node
+class UK2Node_DataprepAction : public UK2Node_DataprepActionCore
 {
 	GENERATED_BODY()
 
 public:
 	UK2Node_DataprepAction();
-	UDataprepActionAsset* GetDataprepAction() const { return DataprepAction; }
-	void CreateDataprepActionAsset();
 
 	// Begin EdGraphNode interface
 	virtual void AllocateDefaultPins() override;
@@ -39,6 +39,7 @@ public:
 	virtual void GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const override;
 	virtual FText GetMenuCategory() const;
 	virtual void ExpandNode(class FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph) override;
+	virtual void PostReconstructNode() override;
 	// End UK2Node interface.
 
 private:
@@ -50,7 +51,7 @@ protected:
 	FString ActionTitle;
 
 	UPROPERTY()
-	UDataprepActionAsset* DataprepAction;
+	UDataprepActionAsset* DataprepAction_DEPRECATED;
 
 	static const FName ThenPinName;
 	static const FName InObjectsPinName;

@@ -3,17 +3,14 @@
 #include "AssetTypeActions_DataPrep.h"
 
 #include "DataPrepRecipe.h"
-#include "DataPrepEditorModule.h"
-
-#define LOCTEXT_NAMESPACE "AssetTypeActions_Dataprep"
-
+#include "DataPrepCoreModule.h"
 
 /* FAssetTypeActions_Base interface
 *****************************************************************************/
 
 uint32 FAssetTypeActions_Dataprep::GetCategories()
 {
-	return IDataprepEditorModule::DataprepCategoryBit;
+	return IDataprepCoreModule::DataprepCategoryBit;
 }
 
 
@@ -33,6 +30,3 @@ FColor FAssetTypeActions_Dataprep::GetTypeColor() const
 {
 	return FColor::White;
 }
-
-
-#undef LOCTEXT_NAMESPACE

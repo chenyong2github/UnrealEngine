@@ -19,20 +19,34 @@ struct FConcertClientSessionActivity
 {
 	FConcertClientSessionActivity() = default;
 
-	FConcertClientSessionActivity(const FConcertSyncActivity& InActivity, const FStructOnScope& InActivitySummary)
+	FConcertClientSessionActivity(const FConcertSyncActivity& InActivity, const FStructOnScope& InActivitySummary, TUniquePtr<FConcertSessionSerializedPayload> OptionalEventPayload = nullptr)
 		: Activity(InActivity)
+		, EventPayload(MoveTemp(OptionalEventPayload))
 	{
 		ActivitySummary.InitializeFromChecked(InActivitySummary);
 	}
 
-	FConcertClientSessionActivity(FConcertSyncActivity&& InActivity, FStructOnScope&& InActivitySummary)
+	FConcertClientSessionActivity(FConcertSyncActivity&& InActivity, FStructOnScope&& InActivitySummary, TUniquePtr<FConcertSessionSerializedPayload> OptionalEventPayload = nullptr)
 		: Activity(MoveTemp(InActivity))
+		, EventPayload(MoveTemp(OptionalEventPayload))
 	{
 		ActivitySummary.InitializeFromChecked(MoveTemp(InActivitySummary));
 	}
 
+	/** The generic activity part. */
 	FConcertSyncActivity Activity;
+
+	/** Contains the activity summary to display as text. */
 	TStructOnScope<FConcertSyncActivitySummary> ActivitySummary;
+
+	/**
+	 * The activity event payload usable for activity inspection. Might be null if it was not requested or did not provide insightful information.
+	 *   - If the activity type is 'transaction' and EventPayload is not null, it contains a FConcertSyncTransactionEvent with full transaction data.
+	 *   - If the activity type is 'package' and EventPayload is not null, it contains a FConcertSyncPackageEvent with the package meta data only.
+	 *   - Not set for other activity types (connection/lock).
+	 * @see FConcertActivityStream
+	 */
+	TUniquePtr<FConcertSessionSerializedPayload> EventPayload;
 };
 
 class IConcertClientWorkspace
@@ -126,18 +140,50 @@ public:
 	virtual bool ShouldIgnorePackageDirtyEvent(class UPackage* InPackage) const = 0;
 
 	/**
+	 * Lookup the specified transaction event.
 	 * @param[in] TransactionEventId ID of the transaction to look for.
 	 * @param[out] OutTransactionEvent The transaction corresponding to TransactionEventId if found.
-	 * @return whether or not the transaction event was found.
+	 * @param[in] bMetaDataOnly True to extract the event meta-data only (title, ids, etc), false to get the full transaction data (to reapply/inspect it).
+	 * @return Whether the transaction event was found and requested data available. If bMetaDataOnly is false and the event was partially
+	 *         synced (because it was superseded by another one), the function returns false.
+	 * @see FindOrRequestTransactionEvent() if the full transaction data is required.
+	 * @note This function is more efficient to use if only the meta data is required.
 	 */
 	virtual bool FindTransactionEvent(const int64 TransactionEventId, FConcertSyncTransactionEvent& OutTransactionEvent, const bool bMetaDataOnly) const = 0;
 
 	/**
+	 * Lookup the specified transaction events. By default, some transaction activities are partially synced (only the summary) when the system detects that
+	 * the transaction was superseded by another one.
+	 * @param[in] TransactionEventId ID of the transaction to look for.
+	 * @param[in] bMetaDataOnly True to extract the event meta-data only (title, IDs, etc), false to get the full transaction data (to reapply/inspect it).
+	 * @return A future containing the event, if found. If bMetaDataOnly is false and the event was partially synced (because it was superseded
+	 *         by another one) the function will perform an asynchronous server request to get the transaction data.
+	 * @note If only the meta data is required, consider using FindTransactionEvent() as it is more efficient.
+	 */
+	virtual TFuture<TOptional<FConcertSyncTransactionEvent>> FindOrRequestTransactionEvent(const int64 TransactionEventId, const bool bMetaDataOnly) = 0;
+
+	/**
+	 * Lookup the specified package event.
 	 * @param[in] PackageEventId ID of the package to look for.
 	 * @param[out] OutPackageEvent Information about the package.
-	 * @return whether or not the package event was found.
+	 * @param[in] bMetaDataOnly True to extract the event meta-data only (title, ids, etc), false if the package data is also required.
+	 * @return Whether the package event was found and requested data available. If bMetaDataOnly is false and the event was partially
+	 *         synced (because it was superseded by another one), the function returns false.
+	 * @see FindOrRequestPackageEvent() if the package data (not only the activity summary) is required.
+	 * @note This function is more efficient to use if only the meta data is required.
 	 */
 	virtual bool FindPackageEvent(const int64 PackageEventId, FConcertSyncPackageEvent& OutPackageEvent, const bool bMetaDataOnly) const = 0;
+
+	/**
+	 * Lookup the specified package events. By default, some package activities are partially synced (only the summary) when the system detects that
+	 * the package data was superseded by another version.
+	 * @param[in] PackageEventId ID of the package to look for.
+	 * @param[in] bMetaDataOnly True to extract the event meta-data only (title, ids, etc), false if the package data is also required.
+	 * @return A future containing the event, if found. If bMetaDataOnly is false and the event was partially synced (because it was superseded
+	 *         by another one) the function will perform an asynchronous server request to get the package data.
+	 * @note If only the meta data is required, consider using FindPackageEvent() as it is more efficient.
+	 */
+	virtual TFuture<TOptional<FConcertSyncPackageEvent>> FindOrRequestPackageEvent(const int64 PackageEventId, const bool bMetaDataOnly) = 0;
 
 	/**
 	 * @return the delegate called every time the workspace is synced.

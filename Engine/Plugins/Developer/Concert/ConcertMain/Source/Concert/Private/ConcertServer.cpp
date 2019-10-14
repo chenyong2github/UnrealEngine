@@ -140,7 +140,7 @@ void FConcertServer::Configure(const UConcertServerConfig* InSettings)
 
 	if (InSettings->ServerSettings.bIgnoreSessionSettingsRestriction)
 	{
-		ServerInfo.ServerFlags |= EConcertSeverFlags::IgnoreSessionRequirement;
+		ServerInfo.ServerFlags |= EConcertServerFlags::IgnoreSessionRequirement;
 	}
 }
 
@@ -450,7 +450,7 @@ void FConcertServer::RecoverSessions()
 			// Remove the oldest sessions
 			for (const FSavedSessionInfo& SortedSession : SortedSessions)
 			{
-				ConcertUtil::DeleteDirectoryTree(*Paths->GetSessionSavedDir(ArchivedSessionInfos[SortedSession.Key].SessionId), *Paths->GetBaseSavedDir());	
+				ConcertUtil::DeleteDirectoryTree(*Paths->GetSessionSavedDir(ArchivedSessionInfos[SortedSession.Key].SessionId), *Paths->GetBaseSavedDir());
 			}
 
 			// Update the list of sessions to restore
@@ -912,7 +912,7 @@ TFuture<FConcertAdmin_GetSessionActivitiesResponse> FConcertServer::HandleGetSes
 	FConcertAdmin_GetSessionActivitiesResponse ResponseData;
 
 	const FConcertAdmin_GetSessionActivitiesRequest* Message = Context.GetMessage<FConcertAdmin_GetSessionActivitiesRequest>();
-	if (EventSink->GetSessionActivities(*this, Message->SessionId, Message->FromActivityId, Message->ActivityCount, ResponseData.Activities))
+	if (EventSink->GetSessionActivities(*this, Message->SessionId, Message->FromActivityId, Message->ActivityCount, ResponseData.Activities, ResponseData.EndpointClientInfoMap, Message->bIncludeDetails))
 	{
 		ResponseData.ResponseCode = EConcertResponseCode::Success;
 	}

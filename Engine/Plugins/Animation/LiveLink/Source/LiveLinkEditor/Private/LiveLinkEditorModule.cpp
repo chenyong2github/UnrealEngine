@@ -26,6 +26,7 @@
 #include "LiveLinkEditorPrivate.h"
 #include "LiveLinkGraphPanelPinFactory.h"
 #include "LiveLinkSettings.h"
+#include "LiveLinkSourceSettingsDetailCustomization.h"
 #include "LiveLinkSubjectNameDetailCustomization.h"
 #include "LiveLinkSubjectRepresentationDetailCustomization.h"
 #include "LiveLinkTypes.h"
@@ -225,6 +226,7 @@ private:
 		PropertyEditorModule.RegisterCustomClassLayout(ULiveLinkVirtualSubject::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FLiveLinkVirtualSubjectDetailCustomization::MakeInstance));
 		PropertyEditorModule.RegisterCustomPropertyTypeLayout(FLiveLinkSubjectRepresentation::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FLiveLinkSubjectRepresentationDetailCustomization::MakeInstance));
 		PropertyEditorModule.RegisterCustomPropertyTypeLayout(FLiveLinkSubjectName::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FLiveLinkSubjectNameDetailCustomization::MakeInstance));
+		PropertyEditorModule.RegisterCustomClassLayout(ULiveLinkSourceSettings::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FLiveLinkSourceSettingsDetailCustomization::MakeInstance));
 
 		LiveLinkGraphPanelPinFactory = MakeShared<FLiveLinkGraphPanelPinFactory>();
 		FEdGraphUtilities::RegisterVisualPinFactory(LiveLinkGraphPanelPinFactory);
@@ -238,6 +240,7 @@ private:
 			FPropertyEditorModule* PropertyEditorModule = FModuleManager::Get().GetModulePtr<FPropertyEditorModule>("PropertyEditor");
 			if (PropertyEditorModule)
 			{
+				PropertyEditorModule->UnregisterCustomClassLayout(ULiveLinkSourceSettings::StaticClass()->GetFName());
 				PropertyEditorModule->UnregisterCustomPropertyTypeLayout(FLiveLinkSubjectName::StaticStruct()->GetFName());
 				PropertyEditorModule->UnregisterCustomPropertyTypeLayout(FLiveLinkSubjectRepresentation::StaticStruct()->GetFName());
 				PropertyEditorModule->UnregisterCustomClassLayout(ULiveLinkVirtualSubject::StaticClass()->GetFName());

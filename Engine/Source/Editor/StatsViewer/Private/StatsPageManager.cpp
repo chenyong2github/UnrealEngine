@@ -2,6 +2,7 @@
 
 #include "StatsPageManager.h"
 
+const int32 FStatsPageManager::PageIdNone = -1;
 
 FStatsPageManager& FStatsPageManager::Get()
 {
@@ -13,19 +14,34 @@ FStatsPageManager& FStatsPageManager::Get()
 	return *Instance;
 }
 
-void FStatsPageManager::RegisterPage( TSharedRef<IStatsPage> InPage )
+void FStatsPageManager::RegisterPage( int32 PageId, TSharedRef<IStatsPage> InPage )
 {
+	/** Ensure not already added */
+	check(GetPageIndex(PageId) == -1);
+
 	StatsPages.Add( InPage );
+	StatsPageIds.Add( PageId );
+}
+
+void FStatsPageManager::RegisterPage( TSharedRef<class IStatsPage> InPage )
+{
+	StatsPages.Add(InPage);
+	StatsPageIds.Add(PageIdNone);
 }
 
 void FStatsPageManager::UnregisterPage( TSharedRef<IStatsPage> InPage )
 {
-	StatsPages.Remove( InPage );
+	int PageIndex = GetPageIndex( InPage );
+	check(PageIndex >= 0);
+
+	StatsPages.RemoveAt(PageIndex);
+	StatsPageIds.Remove(PageIndex);
 }
 
 void FStatsPageManager::UnregisterAllPages()
 {
 	StatsPages.Empty();
+	StatsPageIds.Empty();
 }
 
 int32 FStatsPageManager::NumPages() const
@@ -33,11 +49,17 @@ int32 FStatsPageManager::NumPages() const
 	return StatsPages.Num();
 }
 
-TSharedRef<IStatsPage> FStatsPageManager::GetPage( int32 InPageIndex )
+TSharedRef<class IStatsPage> FStatsPageManager::GetPageByIndex(int32 InPageIndex)
 {
-	check(StatsPages.IsValidIndex(InPageIndex));
-
+	check(InPageIndex < StatsPages.Num());
 	return StatsPages[InPageIndex];
+}
+
+TSharedRef<IStatsPage> FStatsPageManager::GetPage( int32 InPageId )
+{
+	int PageIndex = GetPageIndex(InPageId);
+	check(PageIndex >= 0);
+	return StatsPages[PageIndex];
 }
 
 TSharedPtr<IStatsPage> FStatsPageManager::GetPage( const FName& InPageName )
@@ -52,4 +74,30 @@ TSharedPtr<IStatsPage> FStatsPageManager::GetPage( const FName& InPageName )
 	}
 
 	return NULL;
+}
+
+int FStatsPageManager::GetPageIndex(TSharedRef<IStatsPage> InPage) const
+{
+	for (int PageIndex = 0; PageIndex < StatsPages.Num(); ++PageIndex)
+	{
+		if (InPage == StatsPages[PageIndex])
+		{
+			return PageIndex;
+		}
+	}
+	
+	return -1;
+}
+
+int FStatsPageManager::GetPageIndex(int32 PageId) const
+{
+	for (int PageIndex = 0; PageIndex < StatsPages.Num(); ++PageIndex)
+	{
+		if (PageId == StatsPageIds[PageIndex])
+		{
+			return PageIndex;
+		}
+	}
+	
+	return -1;
 }

@@ -2,6 +2,7 @@
 
 #include "DisplayClusterGameMode.h"
 
+#include "Cluster/IPDisplayClusterClusterManager.h"
 #include "Game/IPDisplayClusterGameManager.h"
 #include "Input/IPDisplayClusterInputManager.h"
 
@@ -197,6 +198,12 @@ void ADisplayClusterGameMode::Tick(float DeltaSeconds)
 		if (InputMgr)
 		{
 			InputMgr->Update();
+		}
+
+		IPDisplayClusterClusterManager* const ClusterMgr = GDisplayCluster->GetPrivateClusterMgr();
+		if (ClusterMgr)
+		{
+			ClusterMgr->SyncEvents();
 		}
 
 		GDisplayCluster->PreTick(DeltaSeconds);

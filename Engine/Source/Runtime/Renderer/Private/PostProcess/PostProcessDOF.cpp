@@ -190,7 +190,7 @@ void FRCPassPostProcessDOFSetup::Process(FRenderingCompositePassContext& Context
 	FRHIRenderPassInfo RPInfo(NumRenderTargets, RenderTargets, LoadStoreAction);
 	Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("DOFSetup"));
 	{
-		if (View.StereoPass == eSSP_FULL)
+		if (!IStereoRendering::IsStereoEyeView(View.StereoPass))
 		{
 			FLinearColor ClearColors[2] =
 			{
@@ -453,7 +453,7 @@ void FRCPassPostProcessDOFRecombine::Process(FRenderingCompositePassContext& Con
 	{
 		LoadStoreAction = ERenderTargetActions::Clear_Store;
 	}
-	else if (View.StereoPass == eSSP_FULL)
+	else if (!IStereoRendering::IsStereoEyeView(View.StereoPass))
 	{
 		// #todo-renderpasses a possible optimization here is to use DontLoad since we'll clear immediately.
 		LoadStoreAction = ERenderTargetActions::Load_Store;
@@ -462,7 +462,7 @@ void FRCPassPostProcessDOFRecombine::Process(FRenderingCompositePassContext& Con
 	FRHIRenderPassInfo RPInfo(DestRenderTarget.TargetableTexture, LoadStoreAction);
 	Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("DOFRecombine"));
 	{
-		if (View.StereoPass == eSSP_FULL)
+		if (!IStereoRendering::IsStereoEyeView(View.StereoPass))
 		{
 			// is optimized away if possible (RT size=view size, )
 			DrawClearQuad(Context.RHICmdList, true, FLinearColor::Black, false, 0, false, 0, PassOutputs[0].RenderTargetDesc.Extent, View.ViewRect);

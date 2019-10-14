@@ -14,11 +14,11 @@ class FDisplayClusterRenderViewport
 {
 public:
 	FDisplayClusterRenderViewport(const FString& ViewportId, const FIntRect& ViewportArea, TSharedPtr<IDisplayClusterProjectionPolicy> ProjectionPolicy, uint8 ContextsAmount, const FString& InCameraId)
-		: FDisplayClusterRenderViewport(ViewportId, ViewportArea, ProjectionPolicy, ContextsAmount, InCameraId, false)
+		: FDisplayClusterRenderViewport(ViewportId, ViewportArea, ProjectionPolicy, ContextsAmount, InCameraId, 1.f, false)
 	{
 	}
 
-	FDisplayClusterRenderViewport(const FString& ViewportId, const FIntRect& ViewportArea, TSharedPtr<IDisplayClusterProjectionPolicy> ProjectionPolicy, uint8 ContextsAmount, const FString& InCameraId, bool IsRTT)
+	FDisplayClusterRenderViewport(const FString& ViewportId, const FIntRect& ViewportArea, TSharedPtr<IDisplayClusterProjectionPolicy> ProjectionPolicy, uint8 ContextsAmount, const FString& InCameraId, float InBufferRatio, bool IsRTT)
 		: Id(ViewportId)
 		, CameraId(InCameraId)
 		, Area(ViewportArea)
@@ -26,7 +26,10 @@ public:
 		, bRTT(IsRTT)
 	{
 		check(ProjectionPolicy.IsValid());
+		
 		Contexts.AddDefaulted(ContextsAmount);
+		
+		SetBufferRatio(InBufferRatio);
 	}
 
 	virtual ~FDisplayClusterRenderViewport()
@@ -57,6 +60,14 @@ public:
 	bool IsRTT() const
 	{ return bRTT; }
 
+	float GetBufferRatio() const
+	{ return BufferRatio; }
+
+	void SetBufferRatio(float Ratio)
+	{
+		BufferRatio = FMath::Clamp(Ratio, 0.05f, 1.f);
+	}
+
 	FDisplayClusterRenderViewContext& GetContext(uint8 ContextNum)
 	{
 		check(ContextNum < Contexts.Num());
@@ -82,4 +93,6 @@ private:
 	TArray<FDisplayClusterRenderViewContext> Contexts;
 	// Is RTT viewport
 	bool bRTT;
+	// Viewport's buffer ratio
+	float BufferRatio;
 };

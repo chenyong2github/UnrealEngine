@@ -87,11 +87,6 @@ void FMovieSceneLiveLinkTransformHandler::InitializeFromExistingChannels(const U
 		}
 		else
 		{
-			if (ElementCount > 1)
-			{
-				UE_LOG(LogLiveLinkMovieScene, Warning, TEXT("Initializing channels for property '%s' with %d elements. C-Style array aren't supported. Only one element will be used."), *FoundProperty->GetFName().ToString(), ElementCount);
-			}	
-			
 			UStructProperty* StructProperty = CastChecked<UStructProperty>(FoundProperty);
 			check(StructProperty->Struct->GetFName() == NAME_Transform);
 		}
@@ -100,53 +95,23 @@ void FMovieSceneLiveLinkTransformHandler::InitializeFromExistingChannels(const U
 
 void FMovieSceneLiveLinkTransformHandler::FillFrame(int32 InKeyIndex, const FLiveLinkWorldTime& InWorldTime, const TOptional<FQualifiedFrameTime>& InTimecodeTime, const UScriptStruct& InStruct, FLiveLinkBaseFrameData* OutFrame)
 {
-	UProperty* FoundProperty = PropertyBinding.GetProperty(InStruct);
-	if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(FoundProperty))
+	int32 ChannelIndex = 0;
+	for (int32 i = 0; i < ElementCount; ++i)
 	{
-		FScriptArrayHelper ArrayHelper(ArrayProperty, ArrayProperty->ContainerPtrToValuePtr<void>(OutFrame));
-		ArrayHelper.ExpandForIndex(ElementCount - 1);
-
-		int32 ChannelIndex = 0;
-		for (int32 i = 0; i < ElementCount; ++i)
-		{
-			FTransform BuiltTransform;
-			LiveLinkTransformHandlerUtils::FillTransform(InKeyIndex, ChannelIndex, PropertyStorage->FloatChannel, BuiltTransform);
-			PropertyBinding.SetCurrentValueAt<FTransform>(i, InStruct, OutFrame, BuiltTransform);
-		}
-	}
-	else
-	{
-		//C-Style arrays are not supported, only one value is used. 
 		FTransform BuiltTransform;
-		int32 ChannelIndex = 0;
 		LiveLinkTransformHandlerUtils::FillTransform(InKeyIndex, ChannelIndex, PropertyStorage->FloatChannel, BuiltTransform);
-		PropertyBinding.SetCurrentValue<FTransform>(InStruct, OutFrame, BuiltTransform);
+		PropertyBinding.SetCurrentValueAt<FTransform>(i, InStruct, OutFrame, BuiltTransform);
 	}
 }
 
 void FMovieSceneLiveLinkTransformHandler::FillFrameInterpolated(const FFrameTime& InFrameTime, const FLiveLinkWorldTime& InWorldTime, const TOptional<FQualifiedFrameTime>& InTimecodeTime, const UScriptStruct& InStruct, FLiveLinkBaseFrameData* OutFrame)
 {
-	UProperty* FoundProperty = PropertyBinding.GetProperty(InStruct);
-	if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(FoundProperty))
+	int32 ChannelIndex = 0;
+	for (int32 i = 0; i < ElementCount; ++i)
 	{
-		FScriptArrayHelper ArrayHelper(ArrayProperty, ArrayProperty->ContainerPtrToValuePtr<void>(OutFrame));
-		ArrayHelper.ExpandForIndex(ElementCount - 1);
-
-		int32 ChannelIndex = 0;
-		for (int32 i = 0; i < ElementCount; ++i)
-		{
-			FTransform BuiltTransform;
-			LiveLinkTransformHandlerUtils::FillTransformInterpolated(InFrameTime, ChannelIndex, PropertyStorage->FloatChannel, BuiltTransform);
-			PropertyBinding.SetCurrentValueAt<FTransform>(i, InStruct, OutFrame, BuiltTransform);
-		}
-	}
-	else
-	{
-		//C-Style arrays are not supported, only one value is used. 
 		FTransform BuiltTransform;
-		int32 ChannelIndex = 0;
 		LiveLinkTransformHandlerUtils::FillTransformInterpolated(InFrameTime, ChannelIndex, PropertyStorage->FloatChannel, BuiltTransform);
-		PropertyBinding.SetCurrentValue<FTransform>(InStruct, OutFrame, BuiltTransform);
+		PropertyBinding.SetCurrentValueAt<FTransform>(i, InStruct, OutFrame, BuiltTransform);
 	}
 }
 
@@ -164,7 +129,6 @@ void FMovieSceneLiveLinkTransformHandler::CreateChannels(const UScriptStruct& In
 	{
 		UStructProperty* StructProperty = CastChecked<UStructProperty>(Property);
 		check(StructProperty->Struct->GetFName() == NAME_Transform);
-		check(InElementCount == 1);
 	}
 
 	ElementCount = InElementCount;
@@ -176,18 +140,10 @@ void FMovieSceneLiveLinkTransformHandler::RecordFrame(const FFrameNumber& InFram
 {
 	if (InFrameData != nullptr)
 	{
-		if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(PropertyBinding.GetProperty(InStruct)))
+		for (int32 i = 0; i < ElementCount; ++i)
 		{
-			for (int32 i = 0; i < ElementCount; ++i)
-			{
-				FTransform NewValue = PropertyBinding.GetCurrentValueAt<FTransform>(i, InStruct, InFrameData);
-				BufferedTransformsPerElement[i].Add(NewValue, InFrameNumber);
-			}
-		}
-		else
-		{
-			FTransform NewValue = PropertyBinding.GetCurrentValue<FTransform>(InStruct, InFrameData);
-			BufferedTransformsPerElement[0].Add(NewValue, InFrameNumber);
+			FTransform NewValue = PropertyBinding.GetCurrentValueAt<FTransform>(i, InStruct, InFrameData);
+			BufferedTransformsPerElement[i].Add(NewValue, InFrameNumber);
 		}
 	}
 }

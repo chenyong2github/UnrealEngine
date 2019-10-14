@@ -5,16 +5,10 @@
 
 #include "HAL/Event.h"
 #include "HAL/RunnableThread.h"
-#include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "IPAddress.h"
 #include "Serialization/ArrayWriter.h"
 #include "Sockets.h"
-
-#if WITH_TARGETPLATFORM_SUPPORT
-#include "Misc/CoreMisc.h"
-#include "Interfaces/ITargetPlatformManagerModule.h"
-#include "Interfaces/ITargetPlatform.h"
-#endif
+#include "SocketSubsystem.h"
 
 /* FUdpMessageHelloSender static initialization
  *****************************************************************************/
@@ -26,7 +20,7 @@ const FTimespan FUdpMessageBeacon::MinimumInterval = FTimespan::FromMilliseconds
 /* FUdpMessageHelloSender structors
  *****************************************************************************/
 
-FUdpMessageBeacon::FUdpMessageBeacon(FSocket* InSocket, const FGuid& InSocketId, const FIPv4Endpoint& InMulticastEndpoint, const TArray<FIPv4Endpoint>& InStaticEndpoints)
+FUdpMessageBeacon::FUdpMessageBeacon(FSocket* InSocket, const FGuid& InSocketId, const FIPv4Endpoint& InMulticastEndpoint)
 	: BeaconInterval(MinimumInterval)
 	, LastEndpointCount(1)
 	, LastHelloSent(FDateTime::MinValue())
@@ -34,46 +28,11 @@ FUdpMessageBeacon::FUdpMessageBeacon(FSocket* InSocket, const FGuid& InSocketId,
 	, NodeId(InSocketId)
 	, Socket(InSocket)
 	, Stopping(false)
+	, bSocketError(false)
 {
 	EndpointLeftEvent = FPlatformProcess::GetSynchEventFromPool(false);
 	MulticastAddress = InMulticastEndpoint.ToInternetAddr();
-	for (const FIPv4Endpoint& Endpoint : InStaticEndpoints)
-	{
-		StaticAddresses.Add(Endpoint.ToInternetAddr());
-	}
-
-	// if we don't have a local endpoint address in our static discovery endpoint, add one.
-	// this is to properly discover other message bus process bound on the loopback address (i.e for the launcher not to trigger firewall)
-	// note: this will only properly work if the socket is not bound (or bound to the any address)
-	FIPv4Endpoint LocalEndpoint(FIPv4Address(127, 0, 0, 1), InMulticastEndpoint.Port);
-	if (!InStaticEndpoints.Contains(LocalEndpoint))
-	{
-		StaticAddresses.Add(LocalEndpoint.ToInternetAddr());
-	}
-
-#if WITH_TARGETPLATFORM_SUPPORT
-	if( ITargetPlatformManagerModule* TargetPlatformManager = GetTargetPlatformManager() )
-	{
-		TArray<ITargetPlatform*> Platforms = TargetPlatformManager->GetTargetPlatforms();
-		for (ITargetPlatform* Platform : Platforms)
-		{
-			// set up target platform callbacks
-			Platform->OnDeviceDiscovered().AddRaw(this, &FUdpMessageBeacon::HandleTargetPlatformDeviceDiscovered);
-			Platform->OnDeviceLost().AddRaw(this, &FUdpMessageBeacon::HandleTargetPlatformDeviceLost);
-
-			TArray<ITargetDevicePtr> Devices;
-			Platform->GetAllDevices( Devices );
-			for( ITargetDevicePtr Device : Devices )
-			{
-				if (Device.IsValid())
-				{
-					HandleTargetPlatformDeviceDiscovered(Device.ToSharedRef());
-				}
-			}
-		}
-		ProcessPendingEndpoints();
-	}
-#endif //WITH_TARGETPLATFORM_SUPPORT
+	AddLocalEndpoints();
 
 	Thread = FRunnableThread::Create(this, TEXT("FUdpMessageBeacon"), 128 * 1024, TPri_AboveNormal, FPlatformAffinity::GetPoolThreadMask());
 }
@@ -92,22 +51,6 @@ FUdpMessageBeacon::~FUdpMessageBeacon()
 
 	FPlatformProcess::ReturnSynchEventToPool(EndpointLeftEvent);
 	EndpointLeftEvent = nullptr;
-
-#if WITH_TARGETPLATFORM_SUPPORT
-	if( ITargetPlatformManagerModule* TargetPlatformManager = GetTargetPlatformManager() )
-	{
-		TArray<ITargetPlatform*> Platforms = TargetPlatformManager->GetTargetPlatforms();
-
-		for (int32 PlatformIndex = 0; PlatformIndex < Platforms.Num(); ++PlatformIndex)
-		{
-			// set up target platform callbacks
-			ITargetPlatform* Platform = Platforms[PlatformIndex];
-			Platform->OnDeviceDiscovered().RemoveAll(this);
-			Platform->OnDeviceLost().RemoveAll(this);
-
-		}
-	}
-#endif //WITH_TARGETPLATFORM_SUPPORT
 }
 
 
@@ -131,6 +74,21 @@ void FUdpMessageBeacon::SetEndpointCount(int32 EndpointCount)
 	}
 }
 
+
+bool FUdpMessageBeacon::HasSocketError() const
+{
+	return bSocketError;
+}
+
+void FUdpMessageBeacon::AddStaticEndpoint(const FIPv4Endpoint& InEndpoint)
+{
+	StaticEndpointQueue.Enqueue({ InEndpoint, true });
+}
+
+void FUdpMessageBeacon::RemoveStaticEndpoint(const FIPv4Endpoint& InEndpoint)
+{
+	StaticEndpointQueue.Enqueue({ InEndpoint, false });
+}
 
 /* FRunnable interface
  *****************************************************************************/
@@ -197,6 +155,7 @@ bool FUdpMessageBeacon::SendSegment(EUdpMessageSegments SegmentType, const FTime
 
 	if (!Socket->SendTo(Writer.GetData(), Writer.Num(), Sent, *MulticastAddress))
 	{
+		bSocketError = true;
 		return false; // send failed
 	}
 
@@ -232,7 +191,7 @@ bool FUdpMessageBeacon::SendPing(const FTimespan& SocketWaitTime)
 	for (const auto& StaticAddress : StaticAddresses)
 	{
 		if (!Socket->SendTo(Writer.GetData(), Writer.Num(), Sent, *StaticAddress))
-		{
+		{	
 			return false; // send failed
 		}
 
@@ -243,10 +202,7 @@ bool FUdpMessageBeacon::SendPing(const FTimespan& SocketWaitTime)
 
 void FUdpMessageBeacon::Update(const FDateTime& CurrentTime, const FTimespan& SocketWaitTime)
 {
-#if WITH_TARGETPLATFORM_SUPPORT
-	ProcessPendingEndpoints();
-#endif
-
+	ProcessStaticEndpointQueue();
 
 	if (CurrentTime < NextHelloTime)
 	{
@@ -262,64 +218,6 @@ void FUdpMessageBeacon::Update(const FDateTime& CurrentTime, const FTimespan& So
 	SendPing(SocketWaitTime);
 }
 
-
-#if WITH_TARGETPLATFORM_SUPPORT
-void FUdpMessageBeacon::HandleTargetPlatformDeviceDiscovered( TSharedRef<class ITargetDevice, ESPMode::ThreadSafe> DiscoveredDevice)
-{
-	TSharedPtr<const FInternetAddr> DeviceStaticEndpoint = DiscoveredDevice->GetMessagingEndpoint();
-	if (DeviceStaticEndpoint.IsValid() )
-	{
-		FPendingEndpoint PendingEndpoint;
-		PendingEndpoint.StaticAddress = DeviceStaticEndpoint;
-		PendingEndpoint.bAdd = true;
-		PendingEndpoints.Enqueue(PendingEndpoint);
-	}
-}
-#endif //WITH_TARGETPLATFORM_SUPPORT
-
-#if WITH_TARGETPLATFORM_SUPPORT
-void FUdpMessageBeacon::HandleTargetPlatformDeviceLost( TSharedRef<class ITargetDevice, ESPMode::ThreadSafe> LostDevice)
-{
-	TSharedPtr<const FInternetAddr> DeviceStaticEndpoint = LostDevice->GetMessagingEndpoint();
-	if (DeviceStaticEndpoint.IsValid() )
-	{
-		FPendingEndpoint PendingEndpoint;
-		PendingEndpoint.StaticAddress = DeviceStaticEndpoint;
-		PendingEndpoint.bAdd = false;
-		PendingEndpoints.Enqueue(PendingEndpoint);
-	}
-}
-#endif //WITH_TARGETPLATFORM_SUPPORT
-
-#if WITH_TARGETPLATFORM_SUPPORT
-void FUdpMessageBeacon::ProcessPendingEndpoints()
-{
-	// process any pending static endpoint changes from target platform device changes
-	FPendingEndpoint PendingEndpoint;
-	while( PendingEndpoints.Dequeue(PendingEndpoint) )
-	{
-		if( !PendingEndpoint.StaticAddress.IsValid() )
-		{
-			continue;
-		}
-
-		if( PendingEndpoint.bAdd )
-		{
-			StaticAddresses.Add(PendingEndpoint.StaticAddress->Clone());
-		}
-		else
-		{
-			StaticAddresses.RemoveAll([&]( TSharedPtr<FInternetAddr> Addr)
-			{
-				return PendingEndpoint.StaticAddress->CompareEndpoints(*Addr.Get());
-			});
-		}
-	}
-}
-#endif //WITH_TARGETPLATFORM_SUPPORT
-
-
-
 /* FSingleThreadRunnable interface
  *****************************************************************************/
 
@@ -327,3 +225,38 @@ void FUdpMessageBeacon::Tick()
 {
 	Update(FDateTime::UtcNow(), FTimespan::Zero());
 }
+
+/* Private
+ *****************************************************************************/
+
+void FUdpMessageBeacon::ProcessStaticEndpointQueue()
+{
+	FPendingEndpoint PendingEndpoint;
+	while (StaticEndpointQueue.Dequeue(PendingEndpoint))
+	{
+		TSharedRef<FInternetAddr> Address = PendingEndpoint.StaticEndpoint.ToInternetAddr();
+		if (PendingEndpoint.bAdd)
+		{
+			StaticAddresses.Add(Address);
+		}
+		else
+		{
+			StaticAddresses.RemoveAll([Address](TSharedPtr<FInternetAddr> Addr)
+			{
+				return Address->CompareEndpoints(*Addr.Get());
+			});
+		}
+	}
+}
+
+
+void FUdpMessageBeacon::AddLocalEndpoints()
+{
+	// this is to properly discover other message bus process bound on the loopback address (i.e for the launcher not to trigger firewall)
+	// note: this will only properly work if the socket is not bound (or bound to the any address)
+	FIPv4Endpoint LocalEndpoint(FIPv4Address(127, 0, 0, 1), MulticastAddress->GetPort());
+	{
+		StaticAddresses.Add(LocalEndpoint.ToInternetAddr());
+	}
+}
+

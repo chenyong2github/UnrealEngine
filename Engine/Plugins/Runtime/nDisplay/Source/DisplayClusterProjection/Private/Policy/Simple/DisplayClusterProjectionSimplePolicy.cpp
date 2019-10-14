@@ -159,26 +159,19 @@ bool FDisplayClusterProjectionSimplePolicy::GetProjectionMatrix(const uint32 Vie
 	const FVector vc = pc - pe; // camera -> lt
 
 	const float d = -FVector::DotProduct(va, vn); // distance from eye to screen
-	const float ndifd = n / d;
+
+	static const float minScreenDistance = 10; //Minimal distance from eye to screen
+	const float SafeDistance = (fabs(d) < minScreenDistance) ? minScreenDistance : d;
+
+	const float ndifd = n / SafeDistance;
+
 	const float l = FVector::DotProduct(vr, va) * ndifd; // distance to left screen edge
 	const float r = FVector::DotProduct(vr, vb) * ndifd; // distance to right screen edge
 	const float b = FVector::DotProduct(vu, va) * ndifd; // distance to bottom screen edge
 	const float t = FVector::DotProduct(vu, vc) * ndifd; // distance to top screen edge
 
-	const float mx = 2.f * n / (r - l);
-	const float my = 2.f * n / (t - b);
-	const float ma = -(r + l) / (r - l);
-	const float mb = -(t + b) / (t - b);
-	const float mc = f / (f - n);
-	const float md = -(f * n) / (f - n);
-	const float me = 1.f;
-
 	// Normal LHS
-	const FMatrix pm = FMatrix(
-		FPlane(mx, 0, 0, 0),
-		FPlane(0, my, 0, 0),
-		FPlane(ma, mb, mc, me),
-		FPlane(0, 0, md, 0));
+	const FMatrix pm = DisplayClusterHelpers::math::GetSafeProjectionMatrix(l, r, t, b, n, f);
 
 	// Invert Z-axis (UE4 uses Z-inverted LHS)
 	const FMatrix flipZ = FMatrix(

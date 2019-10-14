@@ -710,20 +710,23 @@ const FSlateBrush* SAssetViewItem::GetDirtyImage() const
 
 TSharedRef<SWidget> SAssetViewItem::GenerateExtraStateIconWidget(TAttribute<float> InMaxExtraStateIconWidth) const
 {
-	TArray<FOnGenerateAssetViewExtraStateIndicators>& ExtraStateIconGenerators = FModuleManager::GetModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser")).GetAllAssetViewExtraStateIconGenerators();
-	if (AssetItem->GetType() != EAssetItemType::Folder && ExtraStateIconGenerators.Num() > 0)
+	const TArray<FAssetViewExtraStateGenerator>& Generators = FModuleManager::GetModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser")).GetAllAssetViewExtraStateGenerators();
+
+	if (AssetItem->GetType() != EAssetItemType::Folder && Generators.Num() > 0)
 	{
 		FAssetData& AssetData = StaticCastSharedPtr<FAssetViewAsset>(AssetItem)->Data;
+		// Add extra state icons
 		TSharedPtr<SHorizontalBox> Content = SNew(SHorizontalBox);
-		for (const auto& Generator : ExtraStateIconGenerators)
+		
+		for (const FAssetViewExtraStateGenerator& Generator : Generators)
 		{
-			if (Generator.IsBound())
+			if (Generator.IconGenerator.IsBound())
 			{
 				Content->AddSlot()
 					.HAlign(HAlign_Left)
 					.MaxWidth(InMaxExtraStateIconWidth)
 					[
-						Generator.Execute(AssetData)
+						Generator.IconGenerator.Execute(AssetData)
 					];
 			}
 		}
@@ -734,19 +737,34 @@ TSharedRef<SWidget> SAssetViewItem::GenerateExtraStateIconWidget(TAttribute<floa
 
 TSharedRef<SWidget> SAssetViewItem::GenerateExtraStateTooltipWidget() const
 {
-	TArray<FOnGenerateAssetViewExtraStateIndicators>& ExtraStateTooltipGenerators = FModuleManager::GetModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser")).GetAllAssetViewExtraStateTooltipGenerators();
-	if (AssetItem->GetType() != EAssetItemType::Folder && ExtraStateTooltipGenerators.Num() > 0)
+	const TArray<FAssetViewExtraStateGenerator>& Generators = FModuleManager::GetModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser")).GetAllAssetViewExtraStateGenerators();
+	if (AssetItem->GetType() != EAssetItemType::Folder && Generators.Num() > 0)
 	{
 		FAssetData& AssetData = StaticCastSharedPtr<FAssetViewAsset>(AssetItem)->Data;
 		TSharedPtr<SVerticalBox> Content = SNew(SVerticalBox);
-		for (const auto& Generator : ExtraStateTooltipGenerators)
+		for (const auto& Generator : Generators)
 		{
-			if (Generator.IsBound())
+			if (Generator.ToolTipGenerator.IsBound() && Generator.IconGenerator.IsBound())
 			{
 				Content->AddSlot()
+				.Padding(FMargin(0, 2.0F))
+				.AutoHeight()
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					.Padding(FMargin(0, 0, 2.0f, 0))
+					[ 
+						Generator.IconGenerator.Execute(AssetData)
+					]
+
+					+ SHorizontalBox::Slot()
+					.VAlign(VAlign_Center)
 					[
-						Generator.Execute(AssetData)
-					];
+						Generator.ToolTipGenerator.Execute(AssetData)
+					]
+				];
 			}
 		}
 		return Content.ToSharedRef();

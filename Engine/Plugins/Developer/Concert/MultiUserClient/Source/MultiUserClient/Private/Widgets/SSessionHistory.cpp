@@ -7,23 +7,11 @@
 #include "ConcertWorkspaceData.h"
 #include "ConcertMessageData.h"
 #include "ConcertMessages.h"
-#include "ConcertFrontendStyle.h"
 #include "Editor/Transactor.h"
-#include "Algo/Transform.h"
 #include "EditorStyleSet.h"
-#include "SPackageDetails.h"
-#include "Widgets/SUndoHistoryDetails.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Layout/SExpandableArea.h"
-#include "Widgets/Layout/SScrollBox.h"
-#include "Widgets/Layout/SScrollBar.h"
-#include "Widgets/SOverlay.h"
-#include "Widgets/Docking/SDockTab.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Text/SRichTextBlock.h"
-#include "Widgets/Colors/SColorBlock.h"
-#include "ConcertFrontendUtils.h"
-#include "SConcertScrollBox.h"
+#include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Layout/SSeparator.h"
+#include "SConcertSessionActivities.h"
 #include "EditorStyleSet.h"
 
 #define LOCTEXT_NAMESPACE "SSessionHistory"
@@ -61,76 +49,58 @@ void SSessionHistory::Construct(const FArguments& InArgs, TSharedPtr<IConcertSyn
 	PackageNameFilter = InArgs._PackageFilter;
 
 	ActivityMap.Reserve(MaximumNumberOfActivities);
-	Activities.Reserve(MaximumNumberOfActivities);
+	ActivityListViewOptions = MakeShared<FConcertSessionActivitiesOptions>();
+
+	SAssignNew(ActivityListView, SConcertSessionActivities)
+		.OnGetPackageEvent([this](const FConcertClientSessionActivity& Activity) { return GetPackageEvent(Activity); })
+		.OnGetTransactionEvent([this](const FConcertClientSessionActivity& Activity) { return GetTransactionEvent(Activity); })
+		.OnMapActivityToClient([this](FGuid ClientId){ return EndpointClientInfoMap.Find(ClientId); })
+		.HighlightText(this, &SSessionHistory::HighlightSearchedText)
+		.TimeFormat(ActivityListViewOptions.Get(), &FConcertSessionActivitiesOptions::GetTimeFormat)
+		.ClientNameColumnVisibility(EVisibility::Visible)
+		.ClientAvatarColorColumnVisibility(EVisibility::Visible)
+		.OperationColumnVisibility(EVisibility::Visible)
+		.PackageColumnVisibility(EVisibility::Collapsed)
+		.ConnectionActivitiesVisibility(ActivityListViewOptions.Get(), &FConcertSessionActivitiesOptions::GetConnectionActivitiesVisibility)
+		.LockActivitiesVisibility(ActivityListViewOptions.Get(), &FConcertSessionActivitiesOptions::GetLockActivitiesVisibility)
+		.DetailsAreaVisibility(EVisibility::Visible)
+		.IsAutoScrollEnabled(true);
 
 	ChildSlot
 	[
-		SNew(SSplitter)
-		.Orientation(Orient_Vertical)
-		+SSplitter::Slot()
-		.Value(0.75)
+		SNew(SVerticalBox)
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(1, 1)
 		[
-			SAssignNew(ScrollBox, SConcertScrollBox)
-			+SConcertScrollBox::Slot()
-			[
-				SAssignNew(ActivityListView, SListView<TSharedPtr<FConcertClientSessionActivity>>)
-				.OnGenerateRow(this, &SSessionHistory::HandleGenerateRow)
-				.OnSelectionChanged(this, &SSessionHistory::HandleSelectionChanged)
-				.ListItemsSource(&Activities)
-			]
+			SAssignNew(SearchBox, SSearchBox)
+			.HintText(LOCTEXT("SearchHint", "Search..."))
+			.OnTextChanged(this, &SSessionHistory::OnSearchTextChanged)
+			.OnTextCommitted(this, &SSessionHistory::OnSearchTextCommitted)
+			.DelayChangeNotificationsWhileTyping(true)
 		]
 
-		+SSplitter::Slot()
-		.Value(0.25)
-		.SizeRule(TAttribute<SSplitter::ESizeRule>(this, &SSessionHistory::GetDetailsAreaSizeRule))
+		+SVerticalBox::Slot()
 		[
-			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-			.Padding(0.0f)
-			[
-				SAssignNew(ExpandableDetails, SExpandableArea)
-				.Visibility(EVisibility::Visible)
-				.InitiallyCollapsed(true)
-				.BorderBackgroundColor(FLinearColor(0.6f, 0.6f, 0.6f, 1.0f))
-				.BorderImage_Lambda([this]() { return ConcertFrontendUtils::GetExpandableAreaBorderImage(*ExpandableDetails); })
-				.BodyBorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-				.BodyBorderBackgroundColor(FLinearColor::White)
-				.OnAreaExpansionChanged(this, &SSessionHistory::OnDetailsAreaExpansionChanged)
-				.Padding(0.0f)
-				.HeaderContent()
-				[
-					SNew(STextBlock)
-					.Text(FText::FromString(FString("Details")))
-					.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
-					.ShadowOffset(FVector2D(1.0f, 1.0f))
-				]
-				.BodyContent()
-				[
-					SNew(SScrollBox)
-					.ScrollBarThickness(FVector2D(8.0f, 5.0f)) // To have same thickness than the ListView scroll bar and SConcertScrollBox
-					+SScrollBox::Slot()
-					[
-						SNew(SVerticalBox)
-						+SVerticalBox::Slot()
-						.Padding(0.0f)
-						[
-							SAssignNew(TransactionDetails, SUndoHistoryDetails)
-							.Visibility(EVisibility::Collapsed)
-						]
+			ActivityListView.ToSharedRef()
+		]
 
-						+SVerticalBox::Slot()
-						.Padding(0.0f)
-						[
-							SAssignNew(PackageDetails, SPackageDetails)
-							.Visibility(EVisibility::Collapsed)
-						]
-					]
-				]
-			]
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(4, 3)
+		[
+			SNew(SSeparator)
+		]
+
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(4, 0, 4, 3)
+		[
+			ActivityListViewOptions->MakeStatusBar(
+				TAttribute<int32>(ActivityListView.Get(), &SConcertSessionActivities::GetTotalActivityNum),
+				TAttribute<int32>(ActivityListView.Get(), &SConcertSessionActivities::GetDisplayedActivityNum))
 		]
 	];
-
-	ExpandableDetails->SetEnabled(false);
 
 	if (InConcertSyncClient.IsValid())
 	{
@@ -151,110 +121,30 @@ void SSessionHistory::Refresh()
 	ReloadActivities();
 }
 
-TSharedRef<ITableRow> SSessionHistory::HandleGenerateRow(TSharedPtr<FConcertClientSessionActivity> InSessionActivity, const TSharedRef<STableViewBase>& OwnerTable) const
+void SSessionHistory::OnSearchTextChanged(const FText& InSearchText)
 {
-	FText ActivityText = LOCTEXT("InvalidActivity", "INVALID_ACTIVITY");
-	FText ActivityTooltipText;
-	FLinearColor AvatarColor;
-
-	if (InSessionActivity.IsValid())
-	{
-		const FConcertClientInfo& ClientInfo = EndpointClientInfoMap.FindChecked(InSessionActivity->Activity.EndpointId);
-		
-		ActivityText = FText::Format(INVTEXT("{0}  {1}"), FText::AsDateTime(InSessionActivity->Activity.EventTime), InSessionActivity->ActivitySummary->ToDisplayText(FText::AsCultureInvariant(ClientInfo.DisplayName), true));
-		ActivityTooltipText = InSessionActivity->ActivitySummary->ToDisplayText(FText::AsCultureInvariant(ClientInfo.DisplayName), false);
-
-		AvatarColor = ClientInfo.AvatarColor;
-		if (ClientInfo.DisplayName.IsEmpty())
-		{
-			// The client info is malformed or the user has disconnected.
-			AvatarColor = FConcertFrontendStyle::Get()->GetColor("Concert.DisconnectedColor");
-		}
-	}
-
-	return SNew(STableRow<TSharedPtr<FText>>, OwnerTable)
-		.Padding(2.0)
-		[
-			SNew(SHorizontalBox)
-			+SHorizontalBox::Slot()
-			.Padding(0.f, 0.f, 3.f, 0.f)
-			.AutoWidth()
-			[
-				SNew(SColorBlock)
-				.Color(AvatarColor)
-				.Size(FVector2D(4.f, 20.f))
-			]
-
-			+SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			[
-				SNew(SRichTextBlock)
-				.DecoratorStyleSet(FConcertFrontendStyle::Get().Get())
-				.Text(ActivityText)
-				.ToolTipText(ActivityTooltipText)
-			]
-		];
+	SearchedText = InSearchText;
+	SearchBox->SetError(ActivityListView->UpdateTextFilter(InSearchText));
 }
 
-void SSessionHistory::HandleSelectionChanged(TSharedPtr<FConcertClientSessionActivity> InSessionActivity, ESelectInfo::Type SelectInfo)
+void SSessionHistory::OnSearchTextCommitted(const FText& InSearchText, ETextCommit::Type CommitType)
 {
-	if (!InSessionActivity.IsValid())
+	if (!InSearchText.EqualTo(SearchedText))
 	{
-		return;
+		OnSearchTextChanged(InSearchText);
 	}
+}
 
-	if (TSharedPtr<IConcertClientWorkspace> WorkspacePtr = Workspace.Pin())
-	{
-		switch (InSessionActivity->Activity.EventType)
-		{
-		case EConcertSyncActivityEventType::Transaction:
-		{
-			FConcertSyncTransactionEvent TransactionEvent;
-			if (WorkspacePtr->FindTransactionEvent(InSessionActivity->Activity.EventId, TransactionEvent, /*bMetaDataOnly*/false))
-			{
-				FText TransactionTitle;
-				if (const FConcertSyncTransactionActivitySummary* Summary = InSessionActivity->ActivitySummary.Cast<FConcertSyncTransactionActivitySummary>())
-				{
-					TransactionTitle = Summary->TransactionTitle;
-				}
-
-				// TODO: Request full transaction data if it was only partially synced?
-				DisplayTransactionDetails(TransactionEvent.Transaction, TransactionTitle.ToString());
-				return;
-			}
-		}
-		break;
-
-		case EConcertSyncActivityEventType::Package:
-		{
-			FConcertSyncPackageEvent PackageEvent;
-			if (WorkspacePtr->FindPackageEvent(InSessionActivity->Activity.EventId, PackageEvent, /*bMetaDataOnly*/true))
-			{
-				const FConcertClientInfo& ClientInfo = EndpointClientInfoMap.FindChecked(InSessionActivity->Activity.EndpointId);
-
-				// TODO: Request full package data if it was only partially synced?
-				DisplayPackageDetails(PackageEvent.Package.Info, PackageEvent.PackageRevision, ClientInfo.DisplayName);
-				return;
-			}
-		}
-		break;
-
-		default:
-			break;
-		}
-	}
-
-	TransactionDetails->SetVisibility(EVisibility::Collapsed);
-	PackageDetails->SetVisibility(EVisibility::Collapsed);
-	ExpandableDetails->SetEnabled(false);
-	ExpandableDetails->SetExpanded(false);
+FText SSessionHistory::HighlightSearchedText() const
+{
+	return SearchedText;
 }
 
 void SSessionHistory::ReloadActivities()
 {
 	EndpointClientInfoMap.Reset();
 	ActivityMap.Reset();
-	Activities.Reset();
+	ActivityListView->Reset(); // Careful, don't reset the shared ptr.
 
 	if (TSharedPtr<IConcertClientWorkspace> WorkspacePtr = Workspace.Pin())
 	{
@@ -270,12 +160,10 @@ void SSessionHistory::ReloadActivities()
 			{
 				TSharedRef<FConcertClientSessionActivity> NewActivity = MakeShared<FConcertClientSessionActivity>(MoveTemp(FetchedActivity));
 				ActivityMap.Add(NewActivity->Activity.ActivityId, NewActivity);
-				Activities.Add(NewActivity);
+				ActivityListView->Append(NewActivity);
 			}
 		}
 	}
-
-	ActivityListView->RequestListRefresh();
 }
 
 void SSessionHistory::HandleActivityAddedOrUpdated(const FConcertClientInfo& InClientInfo, const FConcertSyncActivity& InActivity, const FStructOnScope& InActivitySummary)
@@ -291,6 +179,7 @@ void SSessionHistory::HandleActivityAddedOrUpdated(const FConcertClientInfo& InC
 		{
 			ExistingActivity->Activity = InActivity;
 			ExistingActivity->ActivitySummary = MoveTemp(ActivitySummary);
+			ActivityListView->RequestRefresh();
 		}
 		else
 		{
@@ -299,11 +188,9 @@ void SSessionHistory::HandleActivityAddedOrUpdated(const FConcertClientInfo& InC
 			NewActivity->ActivitySummary = MoveTemp(ActivitySummary);
 
 			ActivityMap.Add(NewActivity->Activity.ActivityId, NewActivity);
-			Activities.Add(NewActivity);
+			ActivityListView->Append(NewActivity);
 		}
 	}
-
-	ActivityListView->RequestListRefresh();
 }
 
 void SSessionHistory::HandleWorkspaceStartup(const TSharedPtr<IConcertClientWorkspace>& NewWorkspace)
@@ -331,45 +218,27 @@ void SSessionHistory::RegisterWorkspaceHandler()
 	}
 }
 
-void SSessionHistory::DisplayTransactionDetails(const FConcertTransactionEventBase& InTransaction, const FString& InTransactionTitle)
+TFuture<TOptional<FConcertSyncPackageEvent>> SSessionHistory::GetPackageEvent(const FConcertClientSessionActivity& Activity) const
 {
-	FTransactionDiff TransactionDiff{ InTransaction.TransactionId, InTransactionTitle };
-
-	for (const auto& ExportedObject : InTransaction.ExportedObjects)
+	if (TSharedPtr<IConcertClientWorkspace> WorkspacePtr = Workspace.Pin())
 	{
-		FTransactionObjectDeltaChange DeltaChange;
-
-		Algo::Transform(ExportedObject.PropertyDatas, DeltaChange.ChangedProperties, [](const FConcertSerializedPropertyData& PropertyData) { return PropertyData.PropertyName; });
-
-		DeltaChange.bHasNameChange = ExportedObject.ObjectData.NewOuterPathName != FName();
-		DeltaChange.bHasOuterChange = ExportedObject.ObjectData.NewOuterPathName != FName();
-		DeltaChange.bHasPendingKillChange = ExportedObject.ObjectData.bIsPendingKill;
-
-		FString ObjectPathName = ExportedObject.ObjectId.ObjectOuterPathName.ToString() + TEXT(".") + ExportedObject.ObjectId.ObjectName.ToString();
-
-		TSharedPtr<FTransactionObjectEvent> Event = MakeShared<FTransactionObjectEvent>(InTransaction.TransactionId, InTransaction.OperationId, ETransactionObjectEventType::Finalized, MoveTemp(DeltaChange), nullptr, ExportedObject.ObjectId.ObjectName, FName(*MoveTemp(ObjectPathName)), ExportedObject.ObjectId.ObjectOuterPathName, ExportedObject.ObjectId.ObjectClassPathName);
-
-		TransactionDiff.DiffMap.Emplace(FName(*ObjectPathName), MoveTemp(Event));
+		// Don't request the package data, the widget only display the meta-data.
+		return WorkspacePtr->FindOrRequestPackageEvent(Activity.Activity.EventId, /*bMetaDataOnly*/true);
 	}
 
-	TransactionDetails->SetSelectedTransaction(MoveTemp(TransactionDiff));
-
-	PackageDetails->SetVisibility(EVisibility::Collapsed);
-	TransactionDetails->SetVisibility(EVisibility::Visible);
-
-	ExpandableDetails->SetEnabled(true);
-	ExpandableDetails->SetExpanded(true);
+	return MakeFulfilledPromise<TOptional<FConcertSyncPackageEvent>>().GetFuture(); // The data is not available.
 }
 
-void SSessionHistory::DisplayPackageDetails(const FConcertPackageInfo& InPackageInfo, const int64 InRevision, const FString& InModifiedBy)
+TFuture<TOptional<FConcertSyncTransactionEvent>> SSessionHistory::GetTransactionEvent(const FConcertClientSessionActivity& Activity) const
 {
-	PackageDetails->SetPackageInfo(InPackageInfo, InRevision, InModifiedBy);
+	if (TSharedPtr<IConcertClientWorkspace> WorkspacePtr = Workspace.Pin())
+	{
+		// Ask to get the full transaction to display which properties changed.
+		return WorkspacePtr->FindOrRequestTransactionEvent(Activity.Activity.EventId, /*bMetaDataOnly*/false);
+	}
 
-	TransactionDetails->SetVisibility(EVisibility::Collapsed);
-	PackageDetails->SetVisibility(EVisibility::Visible);
-
-	ExpandableDetails->SetEnabled(true);
-	ExpandableDetails->SetExpanded(true);
+	return MakeFulfilledPromise<TOptional<FConcertSyncTransactionEvent>>().GetFuture();
 }
+
 
 #undef LOCTEXT_NAMESPACE /* SSessionHistory */

@@ -82,6 +82,33 @@ struct FConcertClientDesktopPresenceUpdateEvent : public FConcertClientPresenceE
 };
 
 USTRUCT()
+struct FConcertLaserData
+{
+	GENERATED_BODY()
+
+	FConcertLaserData()
+		: LaserStart(FVector::ZeroVector)
+		, LaserEnd(FVector::ZeroVector)
+	{}
+
+	FConcertLaserData(FVector Start, FVector End)
+		: LaserStart(MoveTemp(Start))
+		, LaserEnd(MoveTemp(End))
+	{}
+
+	bool IsValid() const
+	{
+		return LaserStart != FVector::ZeroVector || LaserEnd != FVector::ZeroVector;
+	}
+
+	UPROPERTY()
+	FVector LaserStart;
+
+	UPROPERTY()
+	FVector LaserEnd;
+};
+
+USTRUCT()
 struct FConcertClientVRPresenceUpdateEvent : public FConcertClientPresenceEventBase
 {
 	GENERATED_BODY()
@@ -91,11 +118,7 @@ struct FConcertClientVRPresenceUpdateEvent : public FConcertClientPresenceEventB
 		, LeftMotionControllerOrientation(FQuat::Identity)
 		, RightMotionControllerPosition(FVector::ZeroVector)
 		, RightMotionControllerOrientation(FQuat::Identity)
-		, LaserStart(FVector::ZeroVector)
-		, LaserEnd(FVector::ZeroVector)
-		, bHasLaser(false)
-	{
-	}
+	{}
 
 	UPROPERTY()
 	FVector LeftMotionControllerPosition;
@@ -110,13 +133,7 @@ struct FConcertClientVRPresenceUpdateEvent : public FConcertClientPresenceEventB
 	FQuat RightMotionControllerOrientation;
 
 	UPROPERTY()
-	FVector LaserStart;
-
-	UPROPERTY()
-	FVector LaserEnd;
-
-	UPROPERTY()
-	bool bHasLaser;
+	FConcertLaserData Lasers[2];
 };
 
 

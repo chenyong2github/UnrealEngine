@@ -118,6 +118,26 @@ private:
 
 
 USTRUCT(BlueprintType)
+struct LIVELINKINTERFACE_API FLiveLinkTime
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category="LiveLink")
+	double WorldTime;
+
+	UPROPERTY(EditAnywhere, Category="LiveLink")
+	FQualifiedFrameTime SceneTime;
+
+	FLiveLinkTime() = default;
+	FLiveLinkTime(double InWorldTime, const FQualifiedFrameTime& InSceneTime)
+		: WorldTime(InWorldTime)
+		, SceneTime(InSceneTime)
+	{
+	}
+};
+
+
+USTRUCT(BlueprintType)
 struct LIVELINKINTERFACE_API FLiveLinkMetaData
 {
 	GENERATED_BODY()

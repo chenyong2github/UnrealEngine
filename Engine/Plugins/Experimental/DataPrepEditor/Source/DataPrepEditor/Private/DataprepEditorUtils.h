@@ -4,8 +4,11 @@
 
 #include "CoreMinimal.h"
 
+#include "Fonts/SlateFontInfo.h"
+
 class FDataprepEditorUtils
 {
 public:
 	static void NotifySystemOfChangeInPipeline(UObject* SourceObject);
+	static FSlateFontInfo GetGlyphFont();
 };

@@ -237,19 +237,18 @@ void ULocalPlayer::PostInitProperties()
 	Super::PostInitProperties();
 	if ( !IsTemplate() )
 	{
-		ViewState.Allocate();
-
-		if( GEngine->StereoRenderingDevice.IsValid() )
+		int32 NumViews = 1;
+		if (GEngine->StereoRenderingDevice.IsValid())
 		{
-			const int32 NumViews = GEngine->StereoRenderingDevice->GetDesiredNumberOfViews(true);
-			check(NumViews > 0);
-			// ViewState is used for eSSP_LEFT_EYE, so we don't create one for that here.
-			StereoViewStates.SetNum(NumViews - 1);
-			for (auto& State : StereoViewStates)
-			{
-				State.Allocate();
-			}
+			NumViews = GEngine->StereoRenderingDevice->GetDesiredNumberOfViews(true);
+			check(NumViews > 0);			
 		}
+				
+		ViewStates.SetNum(NumViews);
+		for (auto& State : ViewStates)
+		{
+			State.Allocate();
+		}		
 	}
 }
 
@@ -388,11 +387,9 @@ void ULocalPlayer::FinishDestroy()
 {
 	if ( !IsTemplate() )
 	{
-		ViewState.Destroy();
-
-		for (FSceneViewStateReference& StereoViewState : StereoViewStates)
+		for (FSceneViewStateReference& ViewState : ViewStates)
 		{
-			StereoViewState.Destroy();
+			ViewState.Destroy();
 		}
 	}
 	Super::FinishDestroy();
@@ -763,23 +760,14 @@ bool ULocalPlayer::CalcSceneViewInitOptions(
 	}
 
 	check(PlayerController && PlayerController->GetWorld());
-	switch (StereoPass)
+
+	int ViewIndex = 0;
+	if (IStereoRendering::IsStereoEyeView(StereoPass))
 	{
-	case eSSP_FULL:
-	case eSSP_LEFT_EYE:
-		ViewInitOptions.SceneViewStateInterface = ViewState.GetReference();
-		break;
-
-	case eSSP_RIGHT_EYE:
-		ViewInitOptions.SceneViewStateInterface = StereoViewStates[0].GetReference();
-		break;
-
-	default:
-		check(StereoPass > eSSP_RIGHT_EYE);
-		ViewInitOptions.SceneViewStateInterface = StereoViewStates[StereoPass - eSSP_RIGHT_EYE].GetReference();
-		break;
+		ViewIndex = StereoPass - 1;
 	}
 
+	ViewInitOptions.SceneViewStateInterface = ViewStates[ViewIndex].GetReference();
 	ViewInitOptions.ViewActor = PlayerController->GetViewTarget();
 	ViewInitOptions.PlayerIndex = GetControllerId();
 	ViewInitOptions.ViewElementDrawer = ViewDrawer;
@@ -1083,7 +1071,7 @@ bool ULocalPlayer::GetProjectionData(FViewport* Viewport, EStereoscopicPass Ster
 	GetViewPoint(/*out*/ ViewInfo, StereoPass);
 
 	// If stereo rendering is enabled, update the size and offset appropriately for this pass
-	const bool bNeedStereo = (StereoPass != eSSP_FULL) && GEngine->IsStereoscopic3D();
+	const bool bNeedStereo = IStereoRendering::IsStereoEyeView(StereoPass) && GEngine->IsStereoscopic3D();
 	const bool bIsHeadTrackingAllowed = GEngine->XRSystem.IsValid() && GEngine->XRSystem->IsHeadTrackingAllowed();
 	if (bNeedStereo)
 	{
@@ -1457,10 +1445,13 @@ bool ULocalPlayer::Exec(UWorld* InWorld, const TCHAR* Cmd,FOutputDevice& Ar)
 	}
 	else if (FParse::Command(&Cmd, TEXT("r.ResetViewState")))
 	{
-		// Reset some state (e.g. TemporalAA index) to make rendering more deterministic (for automated screenshot verification)
-		FSceneViewStateInterface* Ref = ViewState.GetReference();
+		// Reset states (e.g. TemporalAA index) to make rendering more deterministic (for automated screenshot verification)
+		for (auto& State : ViewStates)
+		{
+			FSceneViewStateInterface* Ref = State.GetReference();
+			Ref->ResetViewState();
+		}
 
-		Ref->ResetViewState();
 		return true;
 	}
 #if WITH_PHYSX
@@ -1645,18 +1636,12 @@ void ULocalPlayer::AddReferencedObjects(UObject* InThis, FReferenceCollector& Co
 {
 	ULocalPlayer* This = CastChecked<ULocalPlayer>(InThis);
 
-	FSceneViewStateInterface* Ref = This->ViewState.GetReference();
-	if(Ref)
+	for (FSceneViewStateReference& ViewState : This->ViewStates)
 	{
-		Ref->AddReferencedObjects(Collector);
-	}
-
-	for (FSceneViewStateReference& StereoViewState : This->StereoViewStates)
-	{
-		FSceneViewStateInterface* StereoRef = StereoViewState.GetReference();
-		if (StereoRef)
+		FSceneViewStateInterface* Ref = ViewState.GetReference();
+		if (Ref)
 		{
-			StereoRef->AddReferencedObjects(Collector);
+			Ref->AddReferencedObjects(Collector);
 		}
 	}
 
@@ -1671,9 +1656,13 @@ bool ULocalPlayer::IsPrimaryPlayer() const
 
 void ULocalPlayer::CleanupViewState()
 {
-	if (FSceneViewStateInterface* Ref = ViewState.GetReference())
+	for (FSceneViewStateReference& State : ViewStates)
 	{
-		Ref->ClearMIDPool();
+		FSceneViewStateInterface* Ref = State.GetReference();
+		if (Ref)
+		{
+			Ref->ClearMIDPool();
+		}
 	}
 }
 

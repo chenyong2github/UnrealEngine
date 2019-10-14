@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/CriticalSection.h"
+#include "Layout/WidgetPath.h"
 #include "ProxyMessageHandler.h"
 
 class SWindow;
@@ -58,6 +60,10 @@ public:
 
 	FRecordingMessageHandler(const TSharedPtr<FGenericApplicationMessageHandler>& InTargetHandler);
 
+	void Tick(const float DeltaTime);
+
+	bool PlayMessage(const TCHAR* Message, TArray<uint8> Data);
+
 	void SetRecordingHandler(IRecordingMessageHandlerWriter* InOutputWriter);
 
 	/**
@@ -75,9 +81,17 @@ public:
 	 */
 	bool IsRecording() const {	return OutputWriter != nullptr; }
 
+	/**
+	 * Set the window to which the input should be forward to
+	 */
 	void SetPlaybackWindow(TWeakPtr<SWindow> InWindow, TWeakPtr<FSceneViewport> InViewport);
 
 	void SetInputRect(const FVector2D& TopLeft, const FVector2D& Extents);
+
+	/*
+	 * Send any received touch event from the client to the widget directly bypassing the message handler
+	 */
+	void TryRouteTouchMessageToWidget(bool bInRouteMessageToWidget) { bTryRouteTouchMessageToWidget = bInRouteMessageToWidget; }
 
 public:
 
@@ -112,8 +126,6 @@ public:
 	virtual bool OnControllerButtonPressed(FGamepadKeyNames::Type KeyName, int32 ControllerId, bool IsRepeat) override;
 	virtual bool OnControllerButtonReleased(FGamepadKeyNames::Type KeyName, int32 ControllerId, bool IsRepeat) override;
 
-	bool PlayMessage(const TCHAR* Message, const TArray<uint8>& Data);
-
 protected:
 
 	bool ConvertToNormalizedScreenLocation(const FVector2D& InLocation, FVector2D& OutLocation);
@@ -140,6 +152,13 @@ protected:
 	virtual void PlayOnControllerButtonPressed(FArchive& Ar);
 	virtual void PlayOnControllerButtonReleased(FArchive& Ar);
 
+	FWidgetPath FindRoutingMessageWidget(const FVector2D& Location) const;
+
+	struct FDelayPlayMessage
+	{
+		FRecordedMessageDispatch* Dispatch;
+		TArray<uint8> Data;
+	};
 
 	IRecordingMessageHandlerWriter*		OutputWriter;
 	bool								bConsumeInput;
@@ -148,8 +167,11 @@ protected:
 
 	TMap<FString, FRecordedMessageDispatch> DispatchTable;
 
-	FRect								InputRect;
-    FVector2D                           LastTouchLocation;
-    bool                                bIsTouching;
+	mutable FCriticalSection		MessagesCriticalSection;
+	TArray<FDelayPlayMessage>		DelayMessages;
 
+	FRect								InputRect;
+    FVector2D							LastTouchLocation;
+    bool								bIsTouching;
+	bool								bTryRouteTouchMessageToWidget;
 };

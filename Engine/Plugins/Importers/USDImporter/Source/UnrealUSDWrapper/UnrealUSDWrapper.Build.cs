@@ -40,7 +40,9 @@ namespace UnrealBuildTool.Rules
 					"usd",
 					"usdShade",
 					"usdGeom",
-					"usdLux"
+					"usdLux",
+					"usdSkel",
+					"usdUtils",
 				};
 
 				PublicIncludePaths.AddRange(

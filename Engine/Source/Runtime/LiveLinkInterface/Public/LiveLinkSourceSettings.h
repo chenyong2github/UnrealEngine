@@ -33,34 +33,55 @@ enum class ELiveLinkSourceMode : uint8
 	Timecode,
 };
 
+//~ A customizer will add the properties manually. You'll need to update LiveLinkSourceSettingsDetailCustomization if you add a property here.
 USTRUCT()
 struct FLiveLinkSourceBufferManagementSettings
 {
 	GENERATED_BODY()
 
 	/** If the frame is older than ValidTime, remove it from the buffer list (in seconds). */
-	UPROPERTY(EditAnywhere, Category = "Settings", meta=(ForceUnits=s))
+	UPROPERTY(EditAnywhere, Category = "Settings", meta=(ForceUnits=s, ClampMin=0.5))
 	float ValidEngineTime = 1.0f;
 
 	/** When evaluating with time: how far back from current time should we read the buffer (in seconds) */
 	UPROPERTY(EditAnywhere, Category = "Settings", meta=(ForceUnits=s))
-	float EngineTimeOffset;
+	float EngineTimeOffset = 0.0f;
 
 	/** When evaluating with timecode: what is the expected frame rate of the timecode */
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	FFrameRate TimecodeFrameRate = {24, 1};
 
-	/** If the frame timecode is older than ValidTimecodeFrame, remove it from the buffer list (in TimecodeFrameRate). */
 	UPROPERTY(EditAnywhere, Category = "Settings")
+	bool bGenerateSubFrame = false;
+
+	/**
+	 * What is the source frame rate.
+	 * When the refresh rate of the source is bigger than the timecode frame rate, LiveLink will try to generate sub frame numbers.
+	 * @note The source should generate the sub frame numbers. Use this setting when the source is not able to do so.
+	 * @note The generated sub frame numbers will not be saved by Sequencer.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Settings", meta=(EditCondition="bGenerateSubFrame"))
+	FFrameRate SourceTimecodeFrameRate = { 24, 1 };
+
+	/** If the frame timecode is older than ValidTimecodeFrame, remove it from the buffer list (in TimecodeFrameRate). */
+	UPROPERTY(EditAnywhere, Category = "Settings", meta=(ClampMin=1))
 	int32 ValidTimecodeFrame = 30;
 
 	/** When evaluating with timecode: how far back from current timecode should we read the buffer (in TimecodeFrameRate). */
 	UPROPERTY(EditAnywhere, Category = "Settings")
-	int32 TimecodeFrameOffset;
+	int32 TimecodeFrameOffset = 0;
+
+	/** When evaluating with latest: how far back from latest frame should we read the buffer */
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	int32 LatestOffset = 0;
 
 	/** Maximum number of frame to keep in memory. */
-	UPROPERTY(EditAnywhere, Category = "Settings")
+	UPROPERTY(EditAnywhere, Category = "Settings", meta=(ClampMin=1))
 	int32 MaxNumberOfFrameToBuffered = 10;
+
+	/** When cleaning the buffer keep at least one frame, even if the frame doesn't matches the other options. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Settings")
+	bool bKeepAtLeastOneFrame = true;
 };
 
 USTRUCT()
@@ -93,7 +114,7 @@ public:
 	ELiveLinkSourceMode Mode = ELiveLinkSourceMode::EngineTime;
 
 	/** How the frame buffers are managed. */
-	UPROPERTY(EditAnywhere, Category = "Settings", meta=(ShowOnlyInnerProperties))
+	UPROPERTY(EditAnywhere, Category = "Settings")
 	FLiveLinkSourceBufferManagementSettings BufferSettings;
 
 	/** Connection information that is needed by the factory to recreate the source from a preset. */

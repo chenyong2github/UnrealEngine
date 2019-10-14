@@ -32,11 +32,17 @@ FMeshDescriptionHelper::FMeshDescriptionHelper(FMeshBuildSettings* InBuildSettin
 
 void FMeshDescriptionHelper::GetRenderMeshDescription(UObject* Owner, const FMeshDescription& InOriginalMeshDescription, FMeshDescription& OutRenderMeshDescription)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshDescriptionHelper::GetRenderMeshDescription);
+
 	UStaticMesh* StaticMesh = Cast<UStaticMesh>(Owner);
 	check(StaticMesh);
 
 	//Copy the Original Mesh Description in the render mesh description
-	OutRenderMeshDescription = InOriginalMeshDescription;
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(CloneMeshDescription);
+		OutRenderMeshDescription = InOriginalMeshDescription;
+	}
+
 	float ComparisonThreshold = BuildSettings->bRemoveDegenerates ? THRESH_POINTS_ARE_SAME : 0.0f;
 	
 	//This function make sure the Polygon NTB are compute and also remove degenerated triangle from the render mesh description.

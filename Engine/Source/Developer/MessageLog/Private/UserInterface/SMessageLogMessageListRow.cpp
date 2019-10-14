@@ -232,6 +232,15 @@ void SMessageLogMessageListRow::CreateMessage(const TSharedRef<SHorizontalBox>& 
 	}
 		break;
 
+	case EMessageToken::DynamicText:
+	{
+			const TSharedRef<FDynamicTextToken> TextToken = StaticCastSharedRef<FDynamicTextToken>(InMessageToken);
+			RowContent = SNew(STextBlock)
+				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+				.Text(TextToken->GetTextAttribute());
+	}
+		break;
+
 #if WITH_EDITOR
 	case EMessageToken::Documentation:
 	{

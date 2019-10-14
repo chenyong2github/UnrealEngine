@@ -20,6 +20,7 @@
 #include "PhysicsEngine/SphylElem.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "Engine/StaticMesh.h"
+#include "MeshDescription.h"
 #include "StaticMeshAttributes.h"
 #include "Settings/EditorExperimentalSettings.h"
 
@@ -189,27 +190,11 @@ int32 GenerateKDopAsSimpleCollision(UStaticMesh* StaticMesh, const TArray<FVecto
 
 /* ******************************** BOX ******************************** */
 
-static void CalcBoundingBox(const FMeshDescription* MeshDescription, FVector& Center, FVector& Extents, FVector& LimitVec)
-{
-	FStaticMeshConstAttributes Attributes(*MeshDescription);
-	TVertexAttributesConstRef<FVector> VertexPositions = Attributes.GetVertexPositions();
-
-	FBox Box(ForceInit);
-	for (const FVertexID VertexID : MeshDescription->Vertices().GetElementIDs())
-	{
-		Box += VertexPositions[VertexID] * LimitVec;
-	}
-	Box.GetCenterAndExtents(Center, Extents);
-}
-
 void ComputeBoundingBox(UStaticMesh* StaticMesh, FVector& Center, FVector& Extents)
 {
 	// Calculate bounding Box.
-	
-	FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(0);
-	check(MeshDescription);
-	FVector unitVec = FVector(1.f);
-	CalcBoundingBox(MeshDescription, Center, Extents, unitVec);
+	FBox BoundingBox = StaticMesh->GetMeshDescription(0)->ComputeBoundingBox();
+	BoundingBox.GetCenterAndExtents(Center, Extents);
 }
 
 int32 GenerateBoxAsSimpleCollision(UStaticMesh* StaticMesh)
@@ -222,11 +207,10 @@ int32 GenerateBoxAsSimpleCollision(UStaticMesh* StaticMesh)
 	UBodySetup* bs = StaticMesh->BodySetup;
 
 	// Calculate bounding Box.
-	FVector unitVec = bs->BuildScale3D;
 	FVector Center, Extents;
-	FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(0);
-	check(MeshDescription);
-	CalcBoundingBox(MeshDescription, Center, Extents, unitVec);
+	StaticMesh->GetMeshDescription(0)->ComputeBoundingBox().GetCenterAndExtents(Center, Extents);
+	Extents *= bs->BuildScale3D;
+
 	bs->Modify();
 
 	// Create new GUID
@@ -377,8 +361,7 @@ static void CalcBoundingSphere(const FMeshDescription* MeshDescription, FSphere&
 // Seems to do better with more symmetric input...
 static void CalcBoundingSphere2(const FMeshDescription* MeshDescription, FSphere& sphere, FVector& LimitVec)
 {
-	FVector Center, Extents;
-	CalcBoundingBox(MeshDescription, Center, Extents, LimitVec);
+	FVector Center = MeshDescription->ComputeBoundingBox().GetCenter();
 
 	sphere.Center = Center;
 	sphere.W = 0.0f;
@@ -454,7 +437,8 @@ static void CalcBoundingSphyl(const FMeshDescription* MeshDescription, FSphere& 
 		return;
 
 	FVector Center, Extents;
-	CalcBoundingBox(MeshDescription, Center, Extents, LimitVec);
+	MeshDescription->ComputeBoundingBox().GetCenterAndExtents(Center, Extents);
+	Extents *= LimitVec;
 
 	// @todo sphere.Center could perhaps be adjusted to best fit if model is non-symmetric on it's longest axis
 	sphere.Center = Center;

@@ -755,11 +755,19 @@ void UVREditorMode::RefreshVREditorSequencer(class ISequencer* InCurrentSequence
 	}
 }
 
-void UVREditorMode::RefreshActorPreviewWidget(TSharedRef<SWidget> InWidget, int32 Index, AActor *Actor)
+void UVREditorMode::RefreshActorPreviewWidget(TSharedRef<SWidget> InWidget, int32 Index, AActor *Actor, bool bIsPanelDetached)
 {
 	if (bActuallyUsingVR && UISystem != nullptr)
 	{
-		GetUISystem().UpdateActorPreviewUI(InWidget, Index, Actor);
+		if (bIsPanelDetached)
+		{
+			GetUISystem().UpdateDetachedActorPreviewUI(InWidget, Index);
+		}
+		else
+		{
+			GetUISystem().UpdateActorPreviewUI(InWidget, Index, Actor);
+		}
+		
 	}
 }
 
@@ -1202,20 +1210,24 @@ void UVREditorMode::RestoreWorldToMeters()
 	GNewWorldToMetersScale = 0.0f;
 }
 
-UStaticMeshComponent* UVREditorMode::CreateMotionControllerMesh( AActor* OwningActor, USceneComponent* AttachmentToComponent )
-{
-	UStaticMesh* ControllerMesh = nullptr;
-	if(GetHMDDeviceType() == FName(TEXT("SteamVR")))
+UStaticMeshComponent* UVREditorMode::CreateMotionControllerMesh(AActor* OwningActor, USceneComponent* AttachmentToComponent, UStaticMesh* OptionalControllerMesh)
+{	
+	UStaticMesh* ControllerMesh = OptionalControllerMesh;
+
+	if (ControllerMesh == nullptr)
 	{
-		ControllerMesh = AssetContainer->VivePreControllerMesh;
-	}
-	else if(GetHMDDeviceType() == FName(TEXT("OculusHMD")))
-	{
-		ControllerMesh = AssetContainer->OculusControllerMesh;
-	}
-	else
-	{
-		ControllerMesh = AssetContainer->GenericControllerMesh;
+		if (GetHMDDeviceType() == FName(TEXT("SteamVR")))
+		{
+			ControllerMesh = AssetContainer->VivePreControllerMesh;
+		}
+		else if (GetHMDDeviceType() == FName(TEXT("OculusHMD")))
+		{
+			ControllerMesh = AssetContainer->OculusControllerMesh;
+		}
+		else
+		{
+			ControllerMesh = AssetContainer->GenericControllerMesh;
+		}
 	}
 
 	return CreateMesh(OwningActor, ControllerMesh, AttachmentToComponent);

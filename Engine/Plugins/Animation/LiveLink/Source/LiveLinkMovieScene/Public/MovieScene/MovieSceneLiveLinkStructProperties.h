@@ -17,7 +17,7 @@ class IMovieSceneLiveLinkPropertyHandler;
 
 namespace LiveLinkPropertiesUtils
 {
-	TSharedPtr< IMovieSceneLiveLinkPropertyHandler> CreatePropertyHandler(const UScriptStruct& InStruct, FLiveLinkPropertyData* InPropertyData);
+	LIVELINKMOVIESCENE_API TSharedPtr< IMovieSceneLiveLinkPropertyHandler> CreatePropertyHandler(const UScriptStruct& InStruct, FLiveLinkPropertyData* InPropertyData);
 }
 
 USTRUCT()

@@ -206,6 +206,9 @@ public:
 	/** Function to force an update of the Actor Preview UI based on a change */
 	void UpdateActorPreviewUI(TSharedRef<SWidget> InWidget, int32 Index, AActor *InActor );
 
+	/** Function to force an update of the Actor Preview UI based on a change when the preview is detached from the actor */
+	void UpdateDetachedActorPreviewUI(TSharedRef<SWidget> InWidget, int32 Index);
+	
 	void UpdateExternalUMGUI(const struct FVREditorFloatingUICreationContext& CreationContext);
 
 	void UpdateExternalSlateUI(TSharedRef<SWidget> InWidget, FName Name, FVector2D InSize);
@@ -240,12 +243,12 @@ public:
 	static const VREditorPanelID WorldSettingsPanelID;
 	static const VREditorPanelID ColorPickerPanelID;
 	static const VREditorPanelID SequencerPanelID;
-	static const VREditorPanelID InfoDisplayPanelID;
+	static VREDITOR_API const VREditorPanelID InfoDisplayPanelID;
 	static const VREditorPanelID RadialMenuPanelID;
 	static const VREditorPanelID TabManagerPanelID;
 
 	/** Get UI panel Actor from the passed ID */
-	AVREditorFloatingUI* GetPanel(const VREditorPanelID& InPanelID) const;
+	VREDITOR_API AVREditorFloatingUI* GetPanel(const VREditorPanelID& InPanelID) const;
 
 protected:
 

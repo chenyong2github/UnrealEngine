@@ -246,11 +246,18 @@ public:
 	bool bInstallEditorToolbarButton;
 
 	/** 
-	 * Automatically connect or create default session on default server. 
+	 * Automatically connect or create default session on default server.
 	 * Can be specified on the editor cmd with `-CONCERTAUTOCONNECT` or `-CONCERTAUTOCONNECT=<true/false>`.
 	 */
 	UPROPERTY(config, EditAnywhere, Category="Client Settings")
 	bool bAutoConnect;
+
+	/** 
+	 * If auto-connect is on, retry connecting to the default server/session until it succeeds or the user cancels.
+	 * Can be specified on the editor cmd with `-CONCERTRETRYAUTOCONNECTONERROR` or `-CONCERTRETRYAUTOCONNECTONERROR=<true/false>`.
+	 */
+	UPROPERTY(config, EditAnywhere, Category="Client Settings")
+	bool bRetryAutoConnectOnError = false;
 
 	/** 
 	 * Default server url (just a name for now) to look for on auto or default connect. 

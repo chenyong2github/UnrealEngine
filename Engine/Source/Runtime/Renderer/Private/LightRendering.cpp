@@ -975,7 +975,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 				bool bAnyViewIsStereo = false;
 				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 				{
-					if (Views[ViewIndex].StereoPass != eSSP_FULL)
+					if (IStereoRendering::IsStereoEyeView(Views[ViewIndex].StereoPass))
 					{
 						bAnyViewIsStereo = true;
 						break;

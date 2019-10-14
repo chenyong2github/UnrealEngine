@@ -12,13 +12,13 @@
 class FStructOnScope;
 
 UENUM()
-enum class EConcertSeverFlags : uint8
+enum class EConcertServerFlags : uint8
 {
 	None = 0,
 	//The server will ignore the session requirement when someone try to join a session
 	IgnoreSessionRequirement = 1 << 0,
 };
-ENUM_CLASS_FLAGS(EConcertSeverFlags)
+ENUM_CLASS_FLAGS(EConcertServerFlags)
 
 
 /** Holds info on an instance communicating through concert */
@@ -74,7 +74,7 @@ struct FConcertServerInfo
 
 	/** Contains information on the server settings */
 	UPROPERTY(VisibleAnywhere, Category = "Server Info")
-	EConcertSeverFlags ServerFlags;
+	EConcertServerFlags ServerFlags;
 };
 
 /** Holds info on a client connected through concert */
@@ -290,7 +290,7 @@ struct FConcertSessionSerializedCborPayload
 	CONCERT_API bool GetPayload(const UScriptStruct* InPayloadType, void* InOutPayloadData) const;
 
 	template <typename T>
-	bool GetTypedPayload(T& OutPayloadData)
+	bool GetTypedPayload(T& OutPayloadData) const
 	{
 		return GetPayload(TBaseStructure<T>::Get(), &OutPayloadData);
 	}

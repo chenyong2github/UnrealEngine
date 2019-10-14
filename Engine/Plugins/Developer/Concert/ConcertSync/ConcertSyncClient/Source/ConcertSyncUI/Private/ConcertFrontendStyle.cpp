@@ -46,7 +46,6 @@ void FConcertFrontendStyle::Initialize()
 	const FLinearColor IconColorAndOpacity(FLinearColor(1.f, 1.f, 1.f, 0.8f));
 
 	// 16x16
-	StyleSet->Set("Concert.Concert", new IMAGE_PLUGIN_BRUSH("Icons/icon_Concert_16x", Icon16x16));
 	StyleSet->Set("Concert.Persist", new IMAGE_PLUGIN_BRUSH("Icons/icon_ConcertPersist_16x", Icon16x16));
 	StyleSet->Set("Concert.MyLock", new IMAGE_PLUGIN_BRUSH("Icons/icon_ConcertMyLock_16x", Icon16x16));
 	StyleSet->Set("Concert.OtherLock", new IMAGE_PLUGIN_BRUSH("Icons/icon_ConcertOtherLock_16x", Icon16x16));
@@ -87,6 +86,8 @@ void FConcertFrontendStyle::Initialize()
 	StyleSet->Set("Concert.Sequencer.SyncTimeline.Small", new IMAGE_PLUGIN_BRUSH("Icons/icon_SequencerSyncTimeline_48x", Icon24x24, IconColorAndOpacity));
 	StyleSet->Set("Concert.Sequencer.SyncSequence",       new IMAGE_PLUGIN_BRUSH("Icons/icon_SequencerSyncSequence_48x", Icon48x48, IconColorAndOpacity)); // Allows or not a remote client to open/close sequencer.
 	StyleSet->Set("Concert.Sequencer.SyncSequence.Small", new IMAGE_PLUGIN_BRUSH("Icons/icon_SequencerSyncSequence_48x", Icon24x24, IconColorAndOpacity));
+	StyleSet->Set("Concert.Sequencer.SyncUnrelated",      new IMAGE_PLUGIN_BRUSH("Icons/icon_SequencerSyncUnrelated_48x", Icon48x48, IconColorAndOpacity)); // Enable/disable playback and time scrubbing from a remote client event if this user has a different sequence opened.
+	StyleSet->Set("Concert.Sequencer.SyncUnrelated.Small",new IMAGE_PLUGIN_BRUSH("Icons/icon_SequencerSyncUnrelated_48x", Icon24x24, IconColorAndOpacity));
 
 	// 40x40 -> Editor toolbar large icons.
 	StyleSet->Set("Concert.Browse", new IMAGE_PLUGIN_BRUSH("Icons/icon_MultiUserMenuBrowse_40x", Icon40x40));

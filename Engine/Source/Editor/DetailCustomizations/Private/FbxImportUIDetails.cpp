@@ -491,7 +491,7 @@ void FFbxImportUIDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilder 
 		}
 	}
 
-	if(ImportType == FBXIT_Animation || (ImportType == FBXIT_SkeletalMesh && !bImportGeoOnly))
+	if(ImportType == FBXIT_Animation || (ImportType == FBXIT_SkeletalMesh && !bImportGeoOnly && !ImportUI->bIsReimport))
 	{
 		ExtraProperties.Empty();
 		CollectChildPropertiesRecursive(AnimSequenceDataProp, ExtraProperties);

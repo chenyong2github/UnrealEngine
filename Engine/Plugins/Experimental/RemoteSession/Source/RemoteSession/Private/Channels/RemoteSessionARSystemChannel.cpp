@@ -414,3 +414,17 @@ void FRemoteSessionARSystemChannel::SendRemovedMessage(UARTrackedGeometry* Remov
 
 	UE_LOG(LogRemoteSession, Log, TEXT("Sent trackable removed (%s)"), *Removed->GetName());
 }
+
+TSharedPtr<IRemoteSessionChannel> FRemoteSessionARSystemChannelFactoryWorker::Construct(ERemoteSessionChannelMode InMode, TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection) const
+{
+	bool IsSupported = (InMode == ERemoteSessionChannelMode::Read) || UARBlueprintLibrary::IsSessionTypeSupported(EARSessionType::World);
+	if (IsSupported)
+	{
+		return MakeShared<FRemoteSessionARSystemChannel>(InMode, InConnection);
+	}
+	else
+	{
+		UE_LOG(LogRemoteSession, Warning, TEXT("FRemoteSessionARSystemChannel does not support sending on this platform/device"));
+	}
+	return TSharedPtr<IRemoteSessionChannel>();
+}

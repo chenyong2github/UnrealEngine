@@ -116,8 +116,8 @@ public:
 				SetShaderValue(RHICmdList, ShaderRHI, BCoefficients, BCoefs[i], i);
 			}
 
-			check (StereoPass != eSSP_FULL);
-			if (StereoPass == eSSP_LEFT_EYE)
+			check(IStereoRendering::IsStereoEyeView(StereoPass));
+			if (IStereoRendering::IsAPrimaryView(StereoPass))
 			{
 				SetShaderValue(RHICmdList, ShaderRHI, TextureScale, HMDDevice->GetTextureScaleLeft());
 				SetShaderValue(RHICmdList, ShaderRHI, TextureOffset, HMDDevice->GetTextureOffsetLeft());
@@ -212,7 +212,7 @@ void FRCPassPostProcessMorpheus::Process(FRenderingCompositePassContext& Context
 	// Most VR pathways can send whatever resolution to the api, and it will handle scaling, but here
 	// the output is just regular windows desktop, so we need it to be the right size regardless of pixel density.
 	FIntRect DestRect(0, 0, 960, 1080);
-	if (View.StereoPass == eSSP_RIGHT_EYE)
+	if (IStereoRendering::IsASecondaryView(View.StereoPass))
 	{
 		DestRect.Min.X += 960;
 		DestRect.Max.X += 960;

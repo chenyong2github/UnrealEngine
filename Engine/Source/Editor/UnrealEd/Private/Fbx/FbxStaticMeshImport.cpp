@@ -276,6 +276,8 @@ struct FFBXUVs
 bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh* StaticMesh, TArray<FFbxMaterial>& MeshMaterials, int32 LODIndex,
 	EVertexColorImportOption::Type VertexColorImportOption, const TMap<FVector, FColor>& ExistingVertexColorData, const FColor& VertexOverrideColor)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FFbxImporter::BuildStaticMeshFromGeometry);
+
 	check(StaticMesh->IsSourceModelValid(LODIndex));
 	FbxMesh* Mesh = Node->GetMesh();
 	FString FbxNodeName = UTF8_TO_TCHAR(Node->GetName());
@@ -284,9 +286,6 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 	//The mesh description should have been created before calling BuildStaticMeshFromGeometry
 	check(MeshDescription);
 	FStaticMeshAttributes Attributes(*MeshDescription);
-
-	//remove the bad polygons before getting any data from mesh
-	Mesh->RemoveBadPolygons();
 
 	//Get the base layer of the mesh
 	FbxLayer* BaseLayer = Mesh->GetLayer(0);
@@ -307,79 +306,84 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 	// create materials
 	//
 	int32 MaterialCount = 0;
-	TArray<UMaterialInterface*> Materials;
-	if (ImportOptions->bImportMaterials)
+	int32 MaterialIndexOffset = 0;
 	{
-		bool bForSkeletalMesh = false;
-		CreateNodeMaterials(Node, Materials, FBXUVs.UVSets, bForSkeletalMesh);
-	}
-	else if (ImportOptions->bImportTextures)
-	{
-		ImportTexturesFromNode(Node);
-	}
-
-	MaterialCount = Node->GetMaterialCount();
-	check(!ImportOptions->bImportMaterials || Materials.Num() == MaterialCount);
-	
-	// Used later to offset the material indices on the raw triangle data
-	int32 MaterialIndexOffset = MeshMaterials.Num();
-
-	for (int32 MaterialIndex=0; MaterialIndex<MaterialCount; MaterialIndex++)
-	{
-		FFbxMaterial* NewMaterial = new(MeshMaterials) FFbxMaterial;
-		FbxSurfaceMaterial *FbxMaterial = Node->GetMaterial(MaterialIndex);
-		NewMaterial->FbxMaterial = FbxMaterial;
+		TRACE_CPUPROFILER_EVENT_SCOPE(CreateMaterials);
+		
+		TArray<UMaterialInterface*> Materials;
 		if (ImportOptions->bImportMaterials)
 		{
-			NewMaterial->Material = Materials[MaterialIndex];
+			bool bForSkeletalMesh = false;
+			CreateNodeMaterials(Node, Materials, FBXUVs.UVSets, bForSkeletalMesh);
 		}
-		else
+		else if (ImportOptions->bImportTextures)
 		{
-			FString MaterialFullName = GetMaterialFullName(*FbxMaterial);
-			FString BasePackageName = UPackageTools::SanitizePackageName(FPackageName::GetLongPackagePath(StaticMesh->GetOutermost()->GetName()) / MaterialFullName);
-			FString MaterialPackagePath = BasePackageName + TEXT(".") + MaterialFullName;
-			UMaterialInterface* UnrealMaterialInterface = FindObject<UMaterialInterface>(NULL, *MaterialPackagePath);
-			if (UnrealMaterialInterface == nullptr)
-			{
-				// Try loading the object if its package exists on disk
-				FSoftObjectPath ObjectPath(MaterialPackagePath);
+			ImportTexturesFromNode(Node);
+		}
 
-				FString LongPackageName = ObjectPath.GetAssetName().IsEmpty() ? ObjectPath.ToString() : ObjectPath.GetLongPackageName();
-				if (FPackageName::DoesPackageExist(LongPackageName))
-				{
-					UnrealMaterialInterface = Cast<UMaterialInterface>(ObjectPath.TryLoad());
-				}
-			}
-			if (UnrealMaterialInterface == NULL)
+		MaterialCount = Node->GetMaterialCount();
+		check(!ImportOptions->bImportMaterials || Materials.Num() == MaterialCount);
+	
+		// Used later to offset the material indices on the raw triangle data
+		MaterialIndexOffset = MeshMaterials.Num();
+
+		for (int32 MaterialIndex=0; MaterialIndex<MaterialCount; MaterialIndex++)
+		{
+			FFbxMaterial* NewMaterial = new(MeshMaterials) FFbxMaterial;
+			FbxSurfaceMaterial *FbxMaterial = Node->GetMaterial(MaterialIndex);
+			NewMaterial->FbxMaterial = FbxMaterial;
+			if (ImportOptions->bImportMaterials)
 			{
-				//In case we do not found the material we can see if the material is in the material list of the static mesh material
-				FName MaterialFbxFullName = UTF8_TO_TCHAR(MakeName(FbxMaterial->GetName()));
-				for (const FStaticMaterial &StaticMaterial : StaticMesh->StaticMaterials)
+				NewMaterial->Material = Materials[MaterialIndex];
+			}
+			else
+			{
+				FString MaterialFullName = GetMaterialFullName(*FbxMaterial);
+				FString BasePackageName = UPackageTools::SanitizePackageName(FPackageName::GetLongPackagePath(StaticMesh->GetOutermost()->GetName()) / MaterialFullName);
+				FString MaterialPackagePath = BasePackageName + TEXT(".") + MaterialFullName;
+				UMaterialInterface* UnrealMaterialInterface = FindObject<UMaterialInterface>(NULL, *MaterialPackagePath);
+				if (UnrealMaterialInterface == nullptr)
 				{
-					if (StaticMaterial.ImportedMaterialSlotName == MaterialFbxFullName)
+					// Try loading the object if its package exists on disk
+					FSoftObjectPath ObjectPath(MaterialPackagePath);
+
+					FString LongPackageName = ObjectPath.GetAssetName().IsEmpty() ? ObjectPath.ToString() : ObjectPath.GetLongPackageName();
+					if (FPackageName::DoesPackageExist(LongPackageName))
 					{
-						UnrealMaterialInterface = StaticMaterial.MaterialInterface;
-						break;
+						UnrealMaterialInterface = Cast<UMaterialInterface>(ObjectPath.TryLoad());
 					}
 				}
-				
 				if (UnrealMaterialInterface == NULL)
 				{
-					UnrealMaterialInterface = UMaterial::GetDefaultMaterial(MD_Surface);
+					//In case we do not found the material we can see if the material is in the material list of the static mesh material
+					FName MaterialFbxFullName = UTF8_TO_TCHAR(MakeName(FbxMaterial->GetName()));
+					for (const FStaticMaterial &StaticMaterial : StaticMesh->StaticMaterials)
+					{
+						if (StaticMaterial.ImportedMaterialSlotName == MaterialFbxFullName)
+						{
+							UnrealMaterialInterface = StaticMaterial.MaterialInterface;
+							break;
+						}
+					}
+				
+					if (UnrealMaterialInterface == NULL)
+					{
+						UnrealMaterialInterface = UMaterial::GetDefaultMaterial(MD_Surface);
+					}
 				}
+				NewMaterial->Material = UnrealMaterialInterface;
 			}
-			NewMaterial->Material = UnrealMaterialInterface;
 		}
-	}
 
-	if ( MaterialCount == 0 )
-	{
-		UMaterial* DefaultMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
-		check(DefaultMaterial);
-		FFbxMaterial* NewMaterial = new(MeshMaterials) FFbxMaterial;
-		NewMaterial->Material = DefaultMaterial;
-		NewMaterial->FbxMaterial = NULL;
-		MaterialCount = 1;
+		if ( MaterialCount == 0 )
+		{
+			UMaterial* DefaultMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
+			check(DefaultMaterial);
+			FFbxMaterial* NewMaterial = new(MeshMaterials) FFbxMaterial;
+			NewMaterial->Material = DefaultMaterial;
+			NewMaterial->FbxMaterial = NULL;
+			MaterialCount = 1;
+		}
 	}
 
 	//
@@ -505,413 +509,465 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 	//
 	// build collision
 	//
-	bool bImportedCollision = ImportCollisionModels(StaticMesh, GetNodeNameWithoutNamespace(Node));
-
-	//If we import a collision or we "generate one and remove the degenerates triangles" we will automatically set the section collision boolean.
-	bool bEnableCollision = bImportedCollision || (GBuildStaticMeshCollision && LODIndex == 0 && ImportOptions->bRemoveDegenerates);
-	for(int32 SectionIndex=MaterialIndexOffset; SectionIndex<MaterialIndexOffset+MaterialCount; SectionIndex++)
 	{
-		FMeshSectionInfo Info = StaticMesh->GetSectionInfoMap().Get(LODIndex, SectionIndex);
-		
-		Info.bEnableCollision = bEnableCollision;
-		//Make sure LOD greater then 0 copy the LOD 0 sections collision flags
-		if (LODIndex != 0)
+		TRACE_CPUPROFILER_EVENT_SCOPE(BuildCollision);
+
+		bool bImportedCollision = ImportCollisionModels(StaticMesh, GetNodeNameWithoutNamespace(Node));
+
+		//If we import a collision or we "generate one and remove the degenerates triangles" we will automatically set the section collision boolean.
+		bool bEnableCollision = bImportedCollision || (GBuildStaticMeshCollision && LODIndex == 0 && ImportOptions->bRemoveDegenerates);
+		for(int32 SectionIndex=MaterialIndexOffset; SectionIndex<MaterialIndexOffset+MaterialCount; SectionIndex++)
 		{
-			//Match the material slot index
-			for (int32 LodZeroSectionIndex = 0; LodZeroSectionIndex < StaticMesh->GetSectionInfoMap().GetSectionNumber(0); ++LodZeroSectionIndex)
+			FMeshSectionInfo Info = StaticMesh->GetSectionInfoMap().Get(LODIndex, SectionIndex);
+		
+			Info.bEnableCollision = bEnableCollision;
+			//Make sure LOD greater then 0 copy the LOD 0 sections collision flags
+			if (LODIndex != 0)
 			{
-				FMeshSectionInfo InfoLodZero = StaticMesh->GetSectionInfoMap().Get(0, LodZeroSectionIndex);
-				if (InfoLodZero.MaterialIndex == Info.MaterialIndex)
+				//Match the material slot index
+				for (int32 LodZeroSectionIndex = 0; LodZeroSectionIndex < StaticMesh->GetSectionInfoMap().GetSectionNumber(0); ++LodZeroSectionIndex)
 				{
-					Info.bEnableCollision = InfoLodZero.bEnableCollision;
-					Info.bCastShadow = InfoLodZero.bCastShadow;
-					break;
+					FMeshSectionInfo InfoLodZero = StaticMesh->GetSectionInfoMap().Get(0, LodZeroSectionIndex);
+					if (InfoLodZero.MaterialIndex == Info.MaterialIndex)
+					{
+						Info.bEnableCollision = InfoLodZero.bEnableCollision;
+						Info.bCastShadow = InfoLodZero.bCastShadow;
+						break;
+					}
 				}
 			}
+			StaticMesh->GetSectionInfoMap().Set(LODIndex, SectionIndex, Info);
 		}
-		StaticMesh->GetSectionInfoMap().Set(LODIndex, SectionIndex, Info);
 	}
 
 	//
 	// build un-mesh triangles
 	//
-
-	// Construct the matrices for the conversion from right handed to left handed system
-	FbxAMatrix TotalMatrix;
-	FbxAMatrix TotalMatrixForNormal;
-	TotalMatrix = ComputeTotalMatrix(Node);
-	TotalMatrixForNormal = TotalMatrix.Inverse();
-	TotalMatrixForNormal = TotalMatrixForNormal.Transpose();
-	int32 PolygonCount = Mesh->GetPolygonCount();
-
-	if(PolygonCount == 0)
-	{
-		AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(LOCTEXT("Error_NoPolygonFoundInMesh", "No polygon were found on mesh  '{0}'"), FText::FromString(Mesh->GetName()))), FFbxErrors::StaticMesh_NoTriangles);
-		return false;
-	}
-
-	int32 VertexCount = Mesh->GetControlPointsCount();
-	bool OddNegativeScale = IsOddNegativeScale(TotalMatrix);
 	bool bHasNonDegeneratePolygons = false;
-
-	TVertexAttributesRef<FVector> VertexPositions = Attributes.GetVertexPositions();
-	TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
-	TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
-	TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
-	TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
-	TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
-	TEdgeAttributesRef<bool> EdgeHardnesses = Attributes.GetEdgeHardnesses();
-	TEdgeAttributesRef<float> EdgeCreaseSharpnesses = Attributes.GetEdgeCreaseSharpnesses();
-	TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
-
-	int32 VertexOffset = MeshDescription->Vertices().Num();
-	int32 VertexInstanceOffset = MeshDescription->VertexInstances().Num();
-	int32 PolygonOffset = MeshDescription->Polygons().Num();
-
-	TMap<int32, FPolygonGroupID> PolygonGroupMapping;
-
-	// When importing multiple mesh pieces to the same static mesh.  Ensure each mesh piece has the same number of Uv's
-	int32 ExistingUVCount = VertexInstanceUVs.GetNumIndices();
-
-	int32 NumUVs = FMath::Max(FBXUVs.UniqueUVCount, ExistingUVCount);
-	NumUVs = FMath::Min<int32>(MAX_MESH_TEXTURE_COORDS_MD, NumUVs);
-	// At least one UV set must exist.  
-	NumUVs = FMath::Max(1, NumUVs);
-
-	//Make sure all Vertex instance have the correct number of UVs
-	VertexInstanceUVs.SetNumIndices( NumUVs );
-
-	//Fill the vertex array
-	for (int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
 	{
-		int32 RealVertexIndex = VertexOffset + VertexIndex;
-		FbxVector4 FbxPosition = Mesh->GetControlPoints()[VertexIndex];
-		FbxPosition = TotalMatrix.MultT(FbxPosition);
-		const FVector VertexPosition = Converter.ConvertPos(FbxPosition);
-			
-		FVertexID AddedVertexId = MeshDescription->CreateVertex();
-		VertexPositions[AddedVertexId] = VertexPosition;
-		if (AddedVertexId.GetValue() != RealVertexIndex)
+		TRACE_CPUPROFILER_EVENT_SCOPE(BuildTriangles);
+
+		// Construct the matrices for the conversion from right handed to left handed system
+		FbxAMatrix TotalMatrix;
+		FbxAMatrix TotalMatrixForNormal;
+		TotalMatrix = ComputeTotalMatrix(Node);
+		TotalMatrixForNormal = TotalMatrix.Inverse();
+		TotalMatrixForNormal = TotalMatrixForNormal.Transpose();
+		int32 PolygonCount = Mesh->GetPolygonCount();
+
+		if(PolygonCount == 0)
 		{
-			AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(LOCTEXT("Error_CannotCreateVertex", "Cannot create valid vertex for mesh '{0}'"), FText::FromString(Mesh->GetName()))), FFbxErrors::StaticMesh_BuildError);
+			AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(LOCTEXT("Error_NoPolygonFoundInMesh", "No polygon were found on mesh  '{0}'"), FText::FromString(Mesh->GetName()))), FFbxErrors::StaticMesh_NoTriangles);
 			return false;
 		}
-	}
-		
-	Mesh->BeginGetMeshEdgeVertices();
-	TMap<uint64, int32> RemapEdgeID;
-	//Fill the edge array
-	int32 FbxEdgeCount = Mesh->GetMeshEdgeCount();
-	RemapEdgeID.Reserve(FbxEdgeCount*2);
-	for (int32 FbxEdgeIndex = 0; FbxEdgeIndex < FbxEdgeCount; ++FbxEdgeIndex)
-	{
-		int32 EdgeStartVertexIndex = -1;
-		int32 EdgeEndVertexIndex = -1;
-		Mesh->GetMeshEdgeVertices(FbxEdgeIndex, EdgeStartVertexIndex, EdgeEndVertexIndex);
-		FVertexID EdgeVertexStart(EdgeStartVertexIndex + VertexOffset);
-		check(MeshDescription->Vertices().IsValid(EdgeVertexStart));
-		FVertexID EdgeVertexEnd(EdgeEndVertexIndex + VertexOffset);
-		check(MeshDescription->Vertices().IsValid(EdgeVertexEnd));
-		uint64 CompactedKey = (((uint64)EdgeVertexStart.GetValue()) << 32) | ((uint64)EdgeVertexEnd.GetValue());
-		RemapEdgeID.Add(CompactedKey, FbxEdgeIndex);
-		//Add the other edge side
-		CompactedKey = (((uint64)EdgeVertexEnd.GetValue()) << 32) | ((uint64)EdgeVertexStart.GetValue());
-		RemapEdgeID.Add(CompactedKey, FbxEdgeIndex);
-	}
-	//Call this after all GetMeshEdgeIndexForPolygon call this is for optimization purpose.
-	Mesh->EndGetMeshEdgeVertices();
 
-	//Call this before all GetMeshEdgeIndexForPolygon call this is for optimization purpose.
-	Mesh->BeginGetMeshEdgeIndexForPolygon();
-	int32 CurrentVertexInstanceIndex = 0;
-	int32 SkippedVertexInstance = 0;
-	//Polygons
-	for (int32 PolygonIndex = 0; PolygonIndex < PolygonCount; PolygonIndex++)
-	{
-		int32 PolygonVertexCount = Mesh->GetPolygonSize(PolygonIndex);
-		//Verify if the polygon is degenerate, in this case do not add them
+		int32 VertexCount = Mesh->GetControlPointsCount();
+		bool OddNegativeScale = IsOddNegativeScale(TotalMatrix);
+
+		TVertexAttributesRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+		TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+		TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
+		TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
+		TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
+		TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
+		TEdgeAttributesRef<bool> EdgeHardnesses = Attributes.GetEdgeHardnesses();
+		TEdgeAttributesRef<float> EdgeCreaseSharpnesses = Attributes.GetEdgeCreaseSharpnesses();
+		TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
+
+		int32 VertexOffset = MeshDescription->Vertices().Num();
+		int32 VertexInstanceOffset = MeshDescription->VertexInstances().Num();
+		int32 PolygonOffset = MeshDescription->Polygons().Num();
+
+		TMap<int32, FPolygonGroupID> PolygonGroupMapping;
+
+		// When importing multiple mesh pieces to the same static mesh.  Ensure each mesh piece has the same number of Uv's
+		int32 ExistingUVCount = VertexInstanceUVs.GetNumIndices();
+
+		int32 NumUVs = FMath::Max(FBXUVs.UniqueUVCount, ExistingUVCount);
+		NumUVs = FMath::Min<int32>(MAX_MESH_TEXTURE_COORDS_MD, NumUVs);
+		// At least one UV set must exist.  
+		NumUVs = FMath::Max(1, NumUVs);
+
+		//Make sure all Vertex instance have the correct number of UVs
+		VertexInstanceUVs.SetNumIndices( NumUVs );
+
+		//Fill the vertex array
+		for (int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
 		{
-			float ComparisonThreshold = ImportOptions->bRemoveDegenerates ? SMALL_NUMBER : 0.0f;
-			TArray<FVector> P;
-			P.AddUninitialized(PolygonVertexCount);
-			for (int32 CornerIndex = 0; CornerIndex < PolygonVertexCount; CornerIndex++)
+			int32 RealVertexIndex = VertexOffset + VertexIndex;
+			FbxVector4 FbxPosition = Mesh->GetControlPoints()[VertexIndex];
+			FbxPosition = TotalMatrix.MultT(FbxPosition);
+			const FVector VertexPosition = Converter.ConvertPos(FbxPosition);
+			
+			FVertexID AddedVertexId = MeshDescription->CreateVertex();
+			VertexPositions[AddedVertexId] = VertexPosition;
+			if (AddedVertexId.GetValue() != RealVertexIndex)
 			{
-				const int32 ControlPointIndex = Mesh->GetPolygonVertex(PolygonIndex, CornerIndex);
-				const FVertexID VertexID(VertexOffset + ControlPointIndex);
-				P[CornerIndex] = VertexPositions[VertexID];
-			}
-			check(P.Num() > 2); //triangle is the smallest polygon we can have
-			const FVector Normal = ((P[1] - P[2]) ^ (P[0] - P[2])).GetSafeNormal(ComparisonThreshold);
-			//Check for degenerated polygons, avoid NAN
-			if (Normal.IsNearlyZero(ComparisonThreshold) || Normal.ContainsNaN())
-			{
-				SkippedVertexInstance += PolygonVertexCount;
-				continue;
-			}
-		}
-
-		int32 RealPolygonIndex = PolygonOffset + PolygonIndex;
-		TArray<FVertexInstanceID> CornerInstanceIDs;
-		CornerInstanceIDs.AddUninitialized(PolygonVertexCount);
-		TArray<FVertexID> CornerVerticesIDs;
-		CornerVerticesIDs.AddUninitialized(PolygonVertexCount);
-		for (int32 CornerIndex = 0; CornerIndex < PolygonVertexCount; CornerIndex++, CurrentVertexInstanceIndex++)
-		{
-			int32 VertexInstanceIndex = VertexInstanceOffset + CurrentVertexInstanceIndex;
-			int32 RealFbxVertexIndex = SkippedVertexInstance + CurrentVertexInstanceIndex;
-			const FVertexInstanceID VertexInstanceID(VertexInstanceIndex);
-			CornerInstanceIDs[CornerIndex] = VertexInstanceID;
-			const int32 ControlPointIndex = Mesh->GetPolygonVertex(PolygonIndex, CornerIndex);
-			const FVertexID VertexID(VertexOffset + ControlPointIndex);
-			const FVector VertexPosition = VertexPositions[VertexID];
-			CornerVerticesIDs[CornerIndex] = VertexID;
-
-			FVertexInstanceID AddedVertexInstanceId = MeshDescription->CreateVertexInstance(VertexID);
-				
-			//Make sure the Added vertex instance ID is matching the expected vertex instance ID
-			check(AddedVertexInstanceId == VertexInstanceID);
-				
-			if (AddedVertexInstanceId.GetValue() != VertexInstanceIndex)
-			{
-				AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(LOCTEXT("Error_CannotCreateVertexInstance", "Cannot create valid vertex instance for mesh '{0}'"), FText::FromString(Mesh->GetName()))), FFbxErrors::StaticMesh_BuildError);
+				AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(LOCTEXT("Error_CannotCreateVertex", "Cannot create valid vertex for mesh '{0}'"), FText::FromString(Mesh->GetName()))), FFbxErrors::StaticMesh_BuildError);
 				return false;
 			}
-
-			//UVs attributes
-			for (int32 UVLayerIndex = 0; UVLayerIndex < FBXUVs.UniqueUVCount; UVLayerIndex++)
-			{
-				FVector2D FinalUVVector(0.0f, 0.0f);
-				if (FBXUVs.LayerElementUV[UVLayerIndex] != NULL)
-				{
-					int UVMapIndex = (FBXUVs.UVMappingMode[UVLayerIndex] == FbxLayerElement::eByControlPoint) ? ControlPointIndex : RealFbxVertexIndex;
-					int32 UVIndex = (FBXUVs.UVReferenceMode[UVLayerIndex] == FbxLayerElement::eDirect) ?
-						UVMapIndex : FBXUVs.LayerElementUV[UVLayerIndex]->GetIndexArray().GetAt(UVMapIndex);
-
-					FbxVector2	UVVector = FBXUVs.LayerElementUV[UVLayerIndex]->GetDirectArray().GetAt(UVIndex);
-					FinalUVVector.X = static_cast<float>(UVVector[0]);
-					FinalUVVector.Y = 1.f - static_cast<float>(UVVector[1]);   //flip the Y of UVs for DirectX
-				}
-				VertexInstanceUVs.Set(AddedVertexInstanceId, UVLayerIndex, FinalUVVector);
-			}
-
-			//Color attribute
-			if (VertexColorImportOption == EVertexColorImportOption::Replace)
-			{
-				if (LayerElementVertexColor)
-				{
-					int32 VertexColorMappingIndex = (VertexColorMappingMode == FbxLayerElement::eByControlPoint) ?
-						Mesh->GetPolygonVertex(PolygonIndex, CornerIndex) : (RealFbxVertexIndex);
-
-					int32 VectorColorIndex = (VertexColorReferenceMode == FbxLayerElement::eDirect) ?
-						VertexColorMappingIndex : LayerElementVertexColor->GetIndexArray().GetAt(VertexColorMappingIndex);
-
-					FbxColor VertexColor = LayerElementVertexColor->GetDirectArray().GetAt(VectorColorIndex);
-
-					FColor VertexInstanceColor(
-						uint8(255.f*VertexColor.mRed),
-						uint8(255.f*VertexColor.mGreen),
-						uint8(255.f*VertexColor.mBlue),
-						uint8(255.f*VertexColor.mAlpha)
-					);
-					VertexInstanceColors[AddedVertexInstanceId] = FVector4(FLinearColor(VertexInstanceColor));
-				}
-			}
-			else if (VertexColorImportOption == EVertexColorImportOption::Ignore)
-			{
-				// try to match this triangles current vertex with one that existed in the previous mesh.
-				// This is a find in a tmap which uses a fast hash table lookup.
-				const FColor* PaintedColor = ExistingVertexColorData.Find(VertexPosition);
-				if (PaintedColor)
-				{
-					// A matching color for this vertex was found
-					VertexInstanceColors[AddedVertexInstanceId] = FVector4(FLinearColor(*PaintedColor));
-				}
-			}
-			else
-			{
-				// set the triangle's vertex color to a constant override
-				check(VertexColorImportOption == EVertexColorImportOption::Override);
-				VertexInstanceColors[AddedVertexInstanceId] = FVector4(FLinearColor(VertexOverrideColor));
-			}
-
-			if (LayerElementNormal)
-			{
-				//normals may have different reference and mapping mode than tangents and binormals
-				int NormalMapIndex = (NormalMappingMode == FbxLayerElement::eByControlPoint) ?
-					ControlPointIndex : RealFbxVertexIndex;
-				int NormalValueIndex = (NormalReferenceMode == FbxLayerElement::eDirect) ?
-					NormalMapIndex : LayerElementNormal->GetIndexArray().GetAt(NormalMapIndex);
-					
-				FbxVector4 TempValue = LayerElementNormal->GetDirectArray().GetAt(NormalValueIndex);
-				TempValue = TotalMatrixForNormal.MultT(TempValue);
-				FVector TangentZ = Converter.ConvertDir(TempValue);
-				VertexInstanceNormals[AddedVertexInstanceId] = TangentZ.GetSafeNormal();
-				//tangents and binormals share the same reference, mapping mode and index array
-				if (bHasNTBInformation)
-				{
-					int TangentMapIndex = (TangentMappingMode == FbxLayerElement::eByControlPoint) ?
-						ControlPointIndex : RealFbxVertexIndex;
-					int TangentValueIndex = (TangentReferenceMode == FbxLayerElement::eDirect) ?
-						TangentMapIndex : LayerElementTangent->GetIndexArray().GetAt(TangentMapIndex);
-
-					TempValue = LayerElementTangent->GetDirectArray().GetAt(TangentValueIndex);
-					TempValue = TotalMatrixForNormal.MultT(TempValue);
-					FVector TangentX = Converter.ConvertDir(TempValue);
-					VertexInstanceTangents[AddedVertexInstanceId] = TangentX.GetSafeNormal();
-
-					int BinormalMapIndex = (BinormalMappingMode == FbxLayerElement::eByControlPoint) ?
-						ControlPointIndex : RealFbxVertexIndex;
-					int BinormalValueIndex = (BinormalReferenceMode == FbxLayerElement::eDirect) ?
-						BinormalMapIndex : LayerElementBinormal->GetIndexArray().GetAt(BinormalMapIndex);
-
-					TempValue = LayerElementBinormal->GetDirectArray().GetAt(BinormalValueIndex);
-					TempValue = TotalMatrixForNormal.MultT(TempValue);
-					FVector TangentY = -Converter.ConvertDir(TempValue);
-					VertexInstanceBinormalSigns[AddedVertexInstanceId] = GetBasisDeterminantSign(TangentX.GetSafeNormal(), TangentY.GetSafeNormal(), TangentZ.GetSafeNormal());
-				}
-			}
 		}
-			
-		// Check if the polygon just discovered is non-degenerate if we haven't found one yet
-		//TODO check all polygon vertex, not just the first 3 vertex
-		if (!bHasNonDegeneratePolygons)
+		
+		TMap<uint64, int32> RemapEdgeID;
 		{
-			float TriangleComparisonThreshold = ImportOptions->bRemoveDegenerates ? THRESH_POINTS_ARE_SAME : 0.0f;
-			FVector VertexPosition[3];
-			VertexPosition[0] = VertexPositions[CornerVerticesIDs[0]];
-			VertexPosition[1] = VertexPositions[CornerVerticesIDs[1]];
-			VertexPosition[2] = VertexPositions[CornerVerticesIDs[2]];
-			if (!( VertexPosition[0].Equals(VertexPosition[1], TriangleComparisonThreshold)
-				|| VertexPosition[0].Equals(VertexPosition[2], TriangleComparisonThreshold)
-				|| VertexPosition[1].Equals(VertexPosition[2], TriangleComparisonThreshold)))
+			TRACE_CPUPROFILER_EVENT_SCOPE(BuildMeshEdgeVertices);
+			Mesh->BeginGetMeshEdgeVertices();
+
+			//Fill the edge array
+			int32 FbxEdgeCount = Mesh->GetMeshEdgeCount();
+			RemapEdgeID.Reserve(FbxEdgeCount*2);
+			for (int32 FbxEdgeIndex = 0; FbxEdgeIndex < FbxEdgeCount; ++FbxEdgeIndex)
 			{
-				bHasNonDegeneratePolygons = true;
+				int32 EdgeStartVertexIndex = -1;
+				int32 EdgeEndVertexIndex = -1;
+				Mesh->GetMeshEdgeVertices(FbxEdgeIndex, EdgeStartVertexIndex, EdgeEndVertexIndex);
+				FVertexID EdgeVertexStart(EdgeStartVertexIndex + VertexOffset);
+				check(MeshDescription->Vertices().IsValid(EdgeVertexStart));
+				FVertexID EdgeVertexEnd(EdgeEndVertexIndex + VertexOffset);
+				check(MeshDescription->Vertices().IsValid(EdgeVertexEnd));
+				uint64 CompactedKey = (((uint64)EdgeVertexStart.GetValue()) << 32) | ((uint64)EdgeVertexEnd.GetValue());
+				RemapEdgeID.Add(CompactedKey, FbxEdgeIndex);
+				//Add the other edge side
+				CompactedKey = (((uint64)EdgeVertexEnd.GetValue()) << 32) | ((uint64)EdgeVertexStart.GetValue());
+				RemapEdgeID.Add(CompactedKey, FbxEdgeIndex);
 			}
+			//Call this after all GetMeshEdgeIndexForPolygon call this is for optimization purpose.
+			Mesh->EndGetMeshEdgeVertices();
 		}
 
-		//
-		// material index
-		//
-		int32 MaterialIndex = 0;
-		if (MaterialCount > 0)
 		{
-			if (LayerElementMaterial)
+			TRACE_CPUPROFILER_EVENT_SCOPE(BuildMeshEdgeIndexForPolygon);
+
+			// Compute and reserve memory to be used for vertex instances
 			{
-				switch (MaterialMappingMode)
+				int32 TotalVertexCount = 0;
+				for (int32 PolygonIndex = 0; PolygonIndex < PolygonCount; PolygonIndex++)
 				{
-					// material index is stored in the IndexArray, not the DirectArray (which is irrelevant with 2009.1)
-				case FbxLayerElement::eAllSame:
-				{
-					MaterialIndex = LayerElementMaterial->GetIndexArray().GetAt(0);
+					TotalVertexCount += Mesh->GetPolygonSize(PolygonIndex);
 				}
-				break;
-				case FbxLayerElement::eByPolygon:
-				{
-					MaterialIndex = LayerElementMaterial->GetIndexArray().GetAt(PolygonIndex);
-				}
-				break;
-				}
+
+				MeshDescription->ReserveNewPolygons(PolygonCount);
+				MeshDescription->ReserveNewVertexInstances(TotalVertexCount);
+				MeshDescription->ReserveNewEdges(TotalVertexCount);
 			}
-		}
 
-		if (MaterialIndex >= MaterialCount || MaterialIndex < 0)
-		{
-			AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, LOCTEXT("Error_MaterialIndexInconsistency", "Face material index inconsistency - forcing to 0")), FFbxErrors::Generic_Mesh_MaterialIndexInconsistency);
-			MaterialIndex = 0;
-		}
+			bool  bBeginGetMeshEdgeIndexForPolygonCalled   = false;
+			bool  bBeginGetMeshEdgeIndexForPolygonRequired = true;
+			int32 CurrentVertexInstanceIndex = 0;
+			int32 SkippedVertexInstance = 0;
 
-		//Create a polygon with the 3 vertex intances Add it to the material group
-		int32 RealMaterialIndex = MaterialIndexOffset + MaterialIndex;
-		if (!PolygonGroupMapping.Contains(RealMaterialIndex))
-		{
-			UMaterialInterface* Material = MeshMaterials.IsValidIndex(RealMaterialIndex) ? MeshMaterials[RealMaterialIndex].Material : UMaterial::GetDefaultMaterial(MD_Surface);
-			FName ImportedMaterialSlotName = MeshMaterials.IsValidIndex(RealMaterialIndex) ? FName(*MeshMaterials[RealMaterialIndex].GetName()) : (Material != nullptr ? FName(*Material->GetName()) : NAME_None);
-			FPolygonGroupID ExistingPolygonGroup = FPolygonGroupID::Invalid;
-			for (const FPolygonGroupID PolygonGroupID : MeshDescription->PolygonGroups().GetElementIDs())
+			// keep those for all iterations to avoid heap allocations
+			TArray<FVertexInstanceID> CornerInstanceIDs;
+			TArray<FVertexID> CornerVerticesIDs;
+			TArray<FVector, TInlineAllocator<3>> P;
+
+			//Polygons
+			for (int32 PolygonIndex = 0; PolygonIndex < PolygonCount; PolygonIndex++)
 			{
-				if (PolygonGroupImportedMaterialSlotNames[PolygonGroupID] == ImportedMaterialSlotName)
+				int32 PolygonVertexCount = Mesh->GetPolygonSize(PolygonIndex);
+				//Verify if the polygon is degenerate, in this case do not add them
 				{
-					ExistingPolygonGroup = PolygonGroupID;
-					break;
-				}
-			}
-			if (ExistingPolygonGroup == FPolygonGroupID::Invalid)
-			{
-				ExistingPolygonGroup = MeshDescription->CreatePolygonGroup();
-				PolygonGroupImportedMaterialSlotNames[ExistingPolygonGroup] = ImportedMaterialSlotName;
-			}
-			PolygonGroupMapping.Add(RealMaterialIndex, ExistingPolygonGroup);
-		}
-
-		// Create polygon edges
-		{
-			// Add the edges of this polygon
-			for (uint32 PolygonEdgeNumber = 0; PolygonEdgeNumber < (uint32)PolygonVertexCount; ++PolygonEdgeNumber)
-			{
-				//Find the matching edge ID
-				uint32 CornerIndices[2];
-				CornerIndices[0] = (PolygonEdgeNumber + 0) % PolygonVertexCount;
-				CornerIndices[1] = (PolygonEdgeNumber + 1) % PolygonVertexCount;
-
-				FVertexID EdgeVertexIDs[2];
-				EdgeVertexIDs[0] = CornerVerticesIDs[CornerIndices[0]];
-				EdgeVertexIDs[1] = CornerVerticesIDs[CornerIndices[1]];
-
-				FEdgeID MatchEdgeId = MeshDescription->GetVertexPairEdge(EdgeVertexIDs[0], EdgeVertexIDs[1]);
-				if (MatchEdgeId == FEdgeID::Invalid)
-				{
-					MatchEdgeId = MeshDescription->CreateEdge(EdgeVertexIDs[0], EdgeVertexIDs[1]);
-				}
-
-				//RawMesh do not have edges, so by ordering the edge with the triangle construction we can ensure back and forth conversion with RawMesh
-				//When raw mesh will be completly remove we can create the edges right after the vertex creation.
-				int32 EdgeIndex = INDEX_NONE;
-				uint64 CompactedKey = (((uint64)EdgeVertexIDs[0].GetValue()) << 32) | ((uint64)EdgeVertexIDs[1].GetValue());
-				if (RemapEdgeID.Contains(CompactedKey))
-				{
-					EdgeIndex = RemapEdgeID[CompactedKey];
-				}
-				else
-				{
-					EdgeIndex = Mesh->GetMeshEdgeIndexForPolygon(PolygonIndex, PolygonEdgeNumber);
-				}
-					
-				EdgeCreaseSharpnesses[MatchEdgeId] = (float)Mesh->GetEdgeCreaseInfo(EdgeIndex);
-				if (!EdgeHardnesses[MatchEdgeId])
-				{
-					if (bSmoothingAvailable && SmoothingInfo)
+					float ComparisonThreshold = ImportOptions->bRemoveDegenerates ? SMALL_NUMBER : 0.0f;
+					P.Reset();
+					P.AddUninitialized(PolygonVertexCount);
+					for (int32 CornerIndex = 0; CornerIndex < PolygonVertexCount; CornerIndex++)
 					{
-						if (SmoothingMappingMode == FbxLayerElement::eByEdge)
+						const int32 ControlPointIndex = Mesh->GetPolygonVertex(PolygonIndex, CornerIndex);
+						const FVertexID VertexID(VertexOffset + ControlPointIndex);
+						P[CornerIndex] = VertexPositions[VertexID];
+					}
+					check(P.Num() > 2); //triangle is the smallest polygon we can have
+					const FVector Normal = ((P[1] - P[2]) ^ (P[0] - P[2])).GetSafeNormal(ComparisonThreshold);
+					//Check for degenerated polygons, avoid NAN
+					if (Normal.IsNearlyZero(ComparisonThreshold) || Normal.ContainsNaN())
+					{
+						SkippedVertexInstance += PolygonVertexCount;
+						continue;
+					}
+				}
+
+				int32 RealPolygonIndex = PolygonOffset + PolygonIndex;
+				CornerInstanceIDs.Reset();
+				CornerInstanceIDs.AddUninitialized(PolygonVertexCount);
+				CornerVerticesIDs.Reset();
+				CornerVerticesIDs.AddUninitialized(PolygonVertexCount);
+				for (int32 CornerIndex = 0; CornerIndex < PolygonVertexCount; CornerIndex++, CurrentVertexInstanceIndex++)
+				{
+					int32 VertexInstanceIndex = VertexInstanceOffset + CurrentVertexInstanceIndex;
+					int32 RealFbxVertexIndex = SkippedVertexInstance + CurrentVertexInstanceIndex;
+					const FVertexInstanceID VertexInstanceID(VertexInstanceIndex);
+					CornerInstanceIDs[CornerIndex] = VertexInstanceID;
+					const int32 ControlPointIndex = Mesh->GetPolygonVertex(PolygonIndex, CornerIndex);
+					const FVertexID VertexID(VertexOffset + ControlPointIndex);
+					const FVector VertexPosition = VertexPositions[VertexID];
+					CornerVerticesIDs[CornerIndex] = VertexID;
+
+					FVertexInstanceID AddedVertexInstanceId = MeshDescription->CreateVertexInstance(VertexID);
+				
+					//Make sure the Added vertex instance ID is matching the expected vertex instance ID
+					check(AddedVertexInstanceId == VertexInstanceID);
+				
+					if (AddedVertexInstanceId.GetValue() != VertexInstanceIndex)
+					{
+						AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(LOCTEXT("Error_CannotCreateVertexInstance", "Cannot create valid vertex instance for mesh '{0}'"), FText::FromString(Mesh->GetName()))), FFbxErrors::StaticMesh_BuildError);
+						return false;
+					}
+
+					//UVs attributes
+					for (int32 UVLayerIndex = 0; UVLayerIndex < FBXUVs.UniqueUVCount; UVLayerIndex++)
+					{
+						FVector2D FinalUVVector(0.0f, 0.0f);
+						if (FBXUVs.LayerElementUV[UVLayerIndex] != NULL)
 						{
-							int32 lSmoothingIndex = (SmoothingReferenceMode == FbxLayerElement::eDirect) ? EdgeIndex : SmoothingInfo->GetIndexArray().GetAt(EdgeIndex);
-							//Set the hard edges
-							EdgeHardnesses[MatchEdgeId] = (SmoothingInfo->GetDirectArray().GetAt(lSmoothingIndex) == 0);
+							int UVMapIndex = (FBXUVs.UVMappingMode[UVLayerIndex] == FbxLayerElement::eByControlPoint) ? ControlPointIndex : RealFbxVertexIndex;
+							int32 UVIndex = (FBXUVs.UVReferenceMode[UVLayerIndex] == FbxLayerElement::eDirect) ?
+								UVMapIndex : FBXUVs.LayerElementUV[UVLayerIndex]->GetIndexArray().GetAt(UVMapIndex);
+
+							FbxVector2	UVVector = FBXUVs.LayerElementUV[UVLayerIndex]->GetDirectArray().GetAt(UVIndex);
+							FinalUVVector.X = static_cast<float>(UVVector[0]);
+							FinalUVVector.Y = 1.f - static_cast<float>(UVVector[1]);   //flip the Y of UVs for DirectX
 						}
-						else
+						VertexInstanceUVs.Set(AddedVertexInstanceId, UVLayerIndex, FinalUVVector);
+					}
+
+					//Color attribute
+					if (VertexColorImportOption == EVertexColorImportOption::Replace)
+					{
+						if (LayerElementVertexColor)
 						{
-							AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, FText::Format(LOCTEXT("Error_UnsupportedSmoothingGroup", "Unsupported Smoothing group mapping mode on mesh  '{0}'"), FText::FromString(Mesh->GetName()))), FFbxErrors::Generic_Mesh_UnsupportingSmoothingGroup);
+							int32 VertexColorMappingIndex = (VertexColorMappingMode == FbxLayerElement::eByControlPoint) ?
+								Mesh->GetPolygonVertex(PolygonIndex, CornerIndex) : (RealFbxVertexIndex);
+
+							int32 VectorColorIndex = (VertexColorReferenceMode == FbxLayerElement::eDirect) ?
+								VertexColorMappingIndex : LayerElementVertexColor->GetIndexArray().GetAt(VertexColorMappingIndex);
+
+							FbxColor VertexColor = LayerElementVertexColor->GetDirectArray().GetAt(VectorColorIndex);
+
+							FColor VertexInstanceColor(
+								uint8(255.f*VertexColor.mRed),
+								uint8(255.f*VertexColor.mGreen),
+								uint8(255.f*VertexColor.mBlue),
+								uint8(255.f*VertexColor.mAlpha)
+							);
+							VertexInstanceColors[AddedVertexInstanceId] = FVector4(FLinearColor(VertexInstanceColor));
+						}
+					}
+					else if (VertexColorImportOption == EVertexColorImportOption::Ignore)
+					{
+						// try to match this triangles current vertex with one that existed in the previous mesh.
+						// This is a find in a tmap which uses a fast hash table lookup.
+						const FColor* PaintedColor = ExistingVertexColorData.Find(VertexPosition);
+						if (PaintedColor)
+						{
+							// A matching color for this vertex was found
+							VertexInstanceColors[AddedVertexInstanceId] = FVector4(FLinearColor(*PaintedColor));
 						}
 					}
 					else
 					{
-						//When there is no smoothing group we set all edge to hard (faceted mesh)
-						EdgeHardnesses[MatchEdgeId] = true;
+						// set the triangle's vertex color to a constant override
+						check(VertexColorImportOption == EVertexColorImportOption::Override);
+						VertexInstanceColors[AddedVertexInstanceId] = FVector4(FLinearColor(VertexOverrideColor));
+					}
+
+					if (LayerElementNormal)
+					{
+						//normals may have different reference and mapping mode than tangents and binormals
+						int NormalMapIndex = (NormalMappingMode == FbxLayerElement::eByControlPoint) ?
+							ControlPointIndex : RealFbxVertexIndex;
+						int NormalValueIndex = (NormalReferenceMode == FbxLayerElement::eDirect) ?
+							NormalMapIndex : LayerElementNormal->GetIndexArray().GetAt(NormalMapIndex);
+					
+						FbxVector4 TempValue = LayerElementNormal->GetDirectArray().GetAt(NormalValueIndex);
+						TempValue = TotalMatrixForNormal.MultT(TempValue);
+						FVector TangentZ = Converter.ConvertDir(TempValue);
+						VertexInstanceNormals[AddedVertexInstanceId] = TangentZ.GetSafeNormal();
+						//tangents and binormals share the same reference, mapping mode and index array
+						if (bHasNTBInformation)
+						{
+							int TangentMapIndex = (TangentMappingMode == FbxLayerElement::eByControlPoint) ?
+								ControlPointIndex : RealFbxVertexIndex;
+							int TangentValueIndex = (TangentReferenceMode == FbxLayerElement::eDirect) ?
+								TangentMapIndex : LayerElementTangent->GetIndexArray().GetAt(TangentMapIndex);
+
+							TempValue = LayerElementTangent->GetDirectArray().GetAt(TangentValueIndex);
+							TempValue = TotalMatrixForNormal.MultT(TempValue);
+							FVector TangentX = Converter.ConvertDir(TempValue);
+							VertexInstanceTangents[AddedVertexInstanceId] = TangentX.GetSafeNormal();
+
+							int BinormalMapIndex = (BinormalMappingMode == FbxLayerElement::eByControlPoint) ?
+								ControlPointIndex : RealFbxVertexIndex;
+							int BinormalValueIndex = (BinormalReferenceMode == FbxLayerElement::eDirect) ?
+								BinormalMapIndex : LayerElementBinormal->GetIndexArray().GetAt(BinormalMapIndex);
+
+							TempValue = LayerElementBinormal->GetDirectArray().GetAt(BinormalValueIndex);
+							TempValue = TotalMatrixForNormal.MultT(TempValue);
+							FVector TangentY = -Converter.ConvertDir(TempValue);
+							VertexInstanceBinormalSigns[AddedVertexInstanceId] = GetBasisDeterminantSign(TangentX.GetSafeNormal(), TangentY.GetSafeNormal(), TangentZ.GetSafeNormal());
+						}
 					}
 				}
+			
+				// Check if the polygon just discovered is non-degenerate if we haven't found one yet
+				//TODO check all polygon vertex, not just the first 3 vertex
+				if (!bHasNonDegeneratePolygons)
+				{
+					float TriangleComparisonThreshold = ImportOptions->bRemoveDegenerates ? THRESH_POINTS_ARE_SAME : 0.0f;
+					FVector VertexPosition[3];
+					VertexPosition[0] = VertexPositions[CornerVerticesIDs[0]];
+					VertexPosition[1] = VertexPositions[CornerVerticesIDs[1]];
+					VertexPosition[2] = VertexPositions[CornerVerticesIDs[2]];
+					if (!( VertexPosition[0].Equals(VertexPosition[1], TriangleComparisonThreshold)
+						|| VertexPosition[0].Equals(VertexPosition[2], TriangleComparisonThreshold)
+						|| VertexPosition[1].Equals(VertexPosition[2], TriangleComparisonThreshold)))
+					{
+						bHasNonDegeneratePolygons = true;
+					}
+				}
+
+				//
+				// material index
+				//
+				int32 MaterialIndex = 0;
+				if (MaterialCount > 0)
+				{
+					if (LayerElementMaterial)
+					{
+						switch (MaterialMappingMode)
+						{
+							// material index is stored in the IndexArray, not the DirectArray (which is irrelevant with 2009.1)
+						case FbxLayerElement::eAllSame:
+						{
+							MaterialIndex = LayerElementMaterial->GetIndexArray().GetAt(0);
+						}
+						break;
+						case FbxLayerElement::eByPolygon:
+						{
+							MaterialIndex = LayerElementMaterial->GetIndexArray().GetAt(PolygonIndex);
+						}
+						break;
+						}
+					}
+				}
+
+				if (MaterialIndex >= MaterialCount || MaterialIndex < 0)
+				{
+					AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, LOCTEXT("Error_MaterialIndexInconsistency", "Face material index inconsistency - forcing to 0")), FFbxErrors::Generic_Mesh_MaterialIndexInconsistency);
+					MaterialIndex = 0;
+				}
+
+				//Create a polygon with the 3 vertex instances Add it to the material group
+				int32 RealMaterialIndex = MaterialIndexOffset + MaterialIndex;
+				if (!PolygonGroupMapping.Contains(RealMaterialIndex))
+				{
+					UMaterialInterface* Material = MeshMaterials.IsValidIndex(RealMaterialIndex) ? MeshMaterials[RealMaterialIndex].Material : UMaterial::GetDefaultMaterial(MD_Surface);
+					FName ImportedMaterialSlotName = MeshMaterials.IsValidIndex(RealMaterialIndex) ? FName(*MeshMaterials[RealMaterialIndex].GetName()) : (Material != nullptr ? FName(*Material->GetName()) : NAME_None);
+					FPolygonGroupID ExistingPolygonGroup = FPolygonGroupID::Invalid;
+					for (const FPolygonGroupID PolygonGroupID : MeshDescription->PolygonGroups().GetElementIDs())
+					{
+						if (PolygonGroupImportedMaterialSlotNames[PolygonGroupID] == ImportedMaterialSlotName)
+						{
+							ExistingPolygonGroup = PolygonGroupID;
+							break;
+						}
+					}
+					if (ExistingPolygonGroup == FPolygonGroupID::Invalid)
+					{
+						ExistingPolygonGroup = MeshDescription->CreatePolygonGroup();
+						PolygonGroupImportedMaterialSlotNames[ExistingPolygonGroup] = ImportedMaterialSlotName;
+					}
+					PolygonGroupMapping.Add(RealMaterialIndex, ExistingPolygonGroup);
+				}
+
+				// Create polygon edges
+				{
+					// Add the edges of this polygon
+					for (uint32 PolygonEdgeNumber = 0; PolygonEdgeNumber < (uint32)PolygonVertexCount; ++PolygonEdgeNumber)
+					{
+						//Find the matching edge ID
+						uint32 CornerIndices[2];
+						CornerIndices[0] = (PolygonEdgeNumber + 0) % PolygonVertexCount;
+						CornerIndices[1] = (PolygonEdgeNumber + 1) % PolygonVertexCount;
+
+						FVertexID EdgeVertexIDs[2];
+						EdgeVertexIDs[0] = CornerVerticesIDs[CornerIndices[0]];
+						EdgeVertexIDs[1] = CornerVerticesIDs[CornerIndices[1]];
+
+						FEdgeID MatchEdgeId = MeshDescription->GetVertexPairEdge(EdgeVertexIDs[0], EdgeVertexIDs[1]);
+						if (MatchEdgeId == FEdgeID::Invalid)
+						{
+							MatchEdgeId = MeshDescription->CreateEdge(EdgeVertexIDs[0], EdgeVertexIDs[1]);
+						}
+
+						//RawMesh do not have edges, so by ordering the edge with the triangle construction we can ensure back and forth conversion with RawMesh
+						//When raw mesh will be completely remove we can create the edges right after the vertex creation.
+						int32 EdgeIndex = INDEX_NONE;
+						uint64 CompactedKey = (((uint64)EdgeVertexIDs[0].GetValue()) << 32) | ((uint64)EdgeVertexIDs[1].GetValue());
+						if (RemapEdgeID.Contains(CompactedKey))
+						{
+							EdgeIndex = RemapEdgeID[CompactedKey];
+						}
+						else
+						{
+							// Call BeginGetMeshEdgeIndexForPolygon lazily only if we enter the code path calling GetMeshEdgeIndexForPolygon
+							if (bBeginGetMeshEdgeIndexForPolygonRequired)
+							{
+								//Call this before all GetMeshEdgeIndexForPolygon for optimization purpose.
+								//But do not spend time precomputing stuff if the mesh has no edge since 
+								//GetMeshEdgeIndexForPolygon is going to always returns -1 anyway without going into the slow path.
+								if (Mesh->GetMeshEdgeCount() > 0)
+								{
+									Mesh->BeginGetMeshEdgeIndexForPolygon();
+									bBeginGetMeshEdgeIndexForPolygonCalled = true;
+								}
+								bBeginGetMeshEdgeIndexForPolygonRequired = false;
+							}
+
+							EdgeIndex = Mesh->GetMeshEdgeIndexForPolygon(PolygonIndex, PolygonEdgeNumber);
+						}
+					
+						EdgeCreaseSharpnesses[MatchEdgeId] = (float)Mesh->GetEdgeCreaseInfo(EdgeIndex);
+						if (!EdgeHardnesses[MatchEdgeId])
+						{
+							if (bSmoothingAvailable && SmoothingInfo)
+							{
+								if (SmoothingMappingMode == FbxLayerElement::eByEdge)
+								{
+									int32 lSmoothingIndex = (SmoothingReferenceMode == FbxLayerElement::eDirect) ? EdgeIndex : SmoothingInfo->GetIndexArray().GetAt(EdgeIndex);
+									//Set the hard edges
+									EdgeHardnesses[MatchEdgeId] = (SmoothingInfo->GetDirectArray().GetAt(lSmoothingIndex) == 0);
+								}
+								else
+								{
+									AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, FText::Format(LOCTEXT("Error_UnsupportedSmoothingGroup", "Unsupported Smoothing group mapping mode on mesh  '{0}'"), FText::FromString(Mesh->GetName()))), FFbxErrors::Generic_Mesh_UnsupportingSmoothingGroup);
+								}
+							}
+							else
+							{
+								//When there is no smoothing group we set all edge to hard (faceted mesh)
+								EdgeHardnesses[MatchEdgeId] = true;
+							}
+						}
+					}
+				}
+
+				FPolygonGroupID PolygonGroupID = PolygonGroupMapping[RealMaterialIndex];
+				// Insert a polygon into the mesh
+				TArray<FEdgeID> NewEdgeIDs;
+				const FPolygonID NewPolygonID = MeshDescription->CreatePolygon(PolygonGroupID, CornerInstanceIDs, &NewEdgeIDs);
+				check(NewEdgeIDs.Num() == 0);
+			}
+			//Call this after all GetMeshEdgeIndexForPolygon call this is for optimization purpose.
+			if (bBeginGetMeshEdgeIndexForPolygonCalled)
+			{
+				Mesh->EndGetMeshEdgeIndexForPolygon();
 			}
 		}
-		FPolygonGroupID PolygonGroupID = PolygonGroupMapping[RealMaterialIndex];
-		// Insert a polygon into the mesh
-		TArray<FEdgeID> NewEdgeIDs;
-		const FPolygonID NewPolygonID = MeshDescription->CreatePolygon(PolygonGroupID, CornerInstanceIDs, &NewEdgeIDs);
-		check(NewEdgeIDs.Num() == 0);
 	}
-	//Call this after all GetMeshEdgeIndexForPolygon call this is for optimization purpose.
-	Mesh->EndGetMeshEdgeIndexForPolygon();
+
 	// needed?
 	FBXUVs.Cleanup();
-	
-	
+
 	if (!bHasNonDegeneratePolygons)
 	{
 		CreateTokenizedErrorForDegeneratedPart(this, StaticMesh->GetName(), FbxNodeName);
@@ -924,6 +980,8 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 
 UStaticMesh* UnFbx::FFbxImporter::ReimportSceneStaticMesh(uint64 FbxNodeUniqueId, uint64 FbxUniqueId, UStaticMesh* Mesh, UFbxStaticMeshImportData* TemplateImportData)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FFbxImporter::ReimportSceneStaticMesh);
+
 	TArray<FbxNode*> FbxMeshArray;
 	UStaticMesh* FirstBaseMesh = NULL;
 	FbxNode* Node = NULL;
@@ -1074,6 +1132,8 @@ void UnFbx::FFbxImporter::AddStaticMeshSourceModelGeneratedLOD(UStaticMesh* Stat
 
 UStaticMesh* UnFbx::FFbxImporter::ReimportStaticMesh(UStaticMesh* Mesh, UFbxStaticMeshImportData* TemplateImportData)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FFbxImporter::ReimportStaticMesh);
+
 	TArray<FbxNode*> FbxMeshArray;
 	FbxNode* Node = NULL;
 	UStaticMesh* NewMesh = NULL;
@@ -1311,6 +1371,8 @@ void UnFbx::FFbxImporter::VerifyGeometry(UStaticMesh* StaticMesh)
 
 UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TArray<FbxNode*>& MeshNodeArray, const FName InName, EObjectFlags Flags, UFbxStaticMeshImportData* TemplateImportData, UStaticMesh* InStaticMesh, int LODIndex, void *ExistMeshDataPtr)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FbxImporter::ImportStaticMeshAsSingle);
+
 	struct ExistingStaticMeshData* ExistMeshData = (struct ExistingStaticMeshData*)ExistMeshDataPtr;
 	bool bBuildStatus = true;
 
@@ -1885,6 +1947,8 @@ void UnFbx::FFbxImporter::PostImportStaticMesh(UStaticMesh* StaticMesh, TArray<F
 		return;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(FbxImporter::PostImportStaticMesh);
+
 	// Build the staticmesh, we move the build here because we want to avoid building the staticmesh for every LOD
 	// when we import the mesh.
 	TArray<FText> BuildErrors;
@@ -2393,7 +2457,7 @@ bool UnFbx::FFbxImporter::ImportCollisionModels(UStaticMesh* StaticMesh, const F
 		if (!FbxMesh->IsTriangleMesh())
 		{
 			FString NodeName = UTF8_TO_TCHAR(MakeName(Node->GetName()));
-			UE_LOG(LogFbx, Warning, TEXT("Triangulating mesh %s for collision model"), *NodeName);
+			UE_LOG(LogFbx, Display, TEXT("Triangulating mesh %s for collision model"), *NodeName);
 
 			const bool bReplace = true;
 			FbxNodeAttribute* ConvertedNode = GeometryConverter->Triangulate(FbxMesh, bReplace); // not in place ! the old mesh is still there
