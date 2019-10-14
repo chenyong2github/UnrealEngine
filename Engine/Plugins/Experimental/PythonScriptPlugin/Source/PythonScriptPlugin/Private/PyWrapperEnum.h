@@ -127,8 +127,11 @@ private:
 	/** Definition data for an Unreal enum value generated from a Python type */
 	struct FEnumValueDef
 	{
+		/** Index of the enum value as it was registered with us from the Python */
+		int32 PyIndex = 0;
+
 		/** Numeric value of the enum value */
-		int64 Value;
+		int64 Value = 0;
 
 		/** Name of the enum value */
 		FString Name;
