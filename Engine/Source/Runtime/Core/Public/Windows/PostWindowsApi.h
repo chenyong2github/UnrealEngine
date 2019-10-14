@@ -78,6 +78,11 @@ THIRD_PARTY_INCLUDES_END
 // Restore the struct packing setting
 PRAGMA_POP_PLATFORM_DEFAULT_PACKING
 
+// Restore the warning that the pack size is changed in this header.
+#ifdef __clang__
+	#pragma clang diagnostic pop
+#endif	// __clang__
+
 // Redefine CDECL to our version of the #define.  <AJS> Is this really necessary?
 #define CDECL	    __cdecl					/* Standard C function */
 
