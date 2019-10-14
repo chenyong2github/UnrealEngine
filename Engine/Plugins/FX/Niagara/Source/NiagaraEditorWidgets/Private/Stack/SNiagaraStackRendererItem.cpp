@@ -56,24 +56,6 @@ void SNiagaraStackRendererItem::Construct(const FArguments& InArgs, UNiagaraStac
 			.Visibility(this, &SNiagaraStackRendererItem::GetStackIssuesWarningVisibility)
 			.OnButtonClicked(this, &SNiagaraStackRendererItem::ExpandEntry)
 		]
-		// Delete button
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		[
-			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-			.IsFocusable(false)
-			.ForegroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.ForegroundColor"))
-			.ToolTipText(LOCTEXT("DeleteRendererToolTip", "Delete this Renderer"))
-			.Visibility(this, &SNiagaraStackRendererItem::GetDeleteButtonVisibility)
-			.OnClicked(this, &SNiagaraStackRendererItem::DeleteClicked)
-			.Content()
-			[
-				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-				.Text(FText::FromString(FString(TEXT("\xf1f8"))))
-			]
-		]
 		// Reset to base Button
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
@@ -94,6 +76,24 @@ void SNiagaraStackRendererItem::Construct(const FArguments& InArgs, UNiagaraStac
 				.ColorAndOpacity(FSlateColor(FLinearColor::Green))
 			]
 		]
+		// Delete button
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(SButton)
+			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.IsFocusable(false)
+			.ForegroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.FlatButtonColor"))
+			.ToolTipText(this, &SNiagaraStackRendererItem::GetDeleteButtonToolTipText)
+			.IsEnabled(this, &SNiagaraStackRendererItem::GetDeleteButtonEnabled)
+			.OnClicked(this, &SNiagaraStackRendererItem::DeleteClicked)
+			.Content()
+			[
+				SNew(STextBlock)
+				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+				.Text(FText::FromString(FString(TEXT("\xf1f8"))))
+			]
+		]
 		// Enabled checkbox
 		+ SHorizontalBox::Slot()
 		.Padding(2, 0, 0, 0)
@@ -106,9 +106,17 @@ void SNiagaraStackRendererItem::Construct(const FArguments& InArgs, UNiagaraStac
 	];
 }
 
-EVisibility SNiagaraStackRendererItem::GetDeleteButtonVisibility() const
+FText SNiagaraStackRendererItem::GetDeleteButtonToolTipText() const
 {
-	return RendererItem->CanDelete() ? EVisibility::Visible : EVisibility::Collapsed;
+	FText CanDeleteMessage;
+	RendererItem->TestCanDeleteWithMessage(CanDeleteMessage);
+	return CanDeleteMessage;
+}
+
+bool SNiagaraStackRendererItem::GetDeleteButtonEnabled() const
+{
+	FText CanDeleteMessage;
+	return RendererItem->TestCanDeleteWithMessage(CanDeleteMessage);
 }
 
 FReply SNiagaraStackRendererItem::DeleteClicked()
