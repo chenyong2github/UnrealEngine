@@ -140,13 +140,7 @@ struct FSoundVolumeModulationPatch : public FSoundModulationPatchBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Inputs)
 	TArray<FSoundVolumeModulationInput> Inputs;
 
-	virtual void GenerateProxies(TArray<AudioModulation::FModulationInputProxy>& InputProxies) const
-	{
-		for (const FSoundVolumeModulationInput& Input : Inputs)
-		{
-			InputProxies.Emplace_GetRef(Input);
-		}
-	}
+	virtual void GenerateProxies(TArray<AudioModulation::FModulationInputProxy>& InputProxies) const override;
 };
 
 USTRUCT(BlueprintType)
@@ -158,13 +152,7 @@ struct FSoundPitchModulationPatch : public FSoundModulationPatchBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Inputs)
 	TArray<FSoundPitchModulationInput> Inputs;
 
-	virtual void GenerateProxies(TArray<AudioModulation::FModulationInputProxy>& InputProxies) const
-	{
-		for (const FSoundPitchModulationInput& Input : Inputs)
-		{
-			InputProxies.Emplace_GetRef(Input);
-		}
-	}
+	virtual void GenerateProxies(TArray<AudioModulation::FModulationInputProxy>& InputProxies) const override;
 };
 
 USTRUCT(BlueprintType)
@@ -176,13 +164,7 @@ struct FSoundLPFModulationPatch : public FSoundModulationPatchBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Inputs)
 	TArray<FSoundLPFModulationInput> Inputs;
 
-	virtual void GenerateProxies(TArray<AudioModulation::FModulationInputProxy>& InputProxies) const
-	{
-		for (const FSoundLPFModulationInput& Input : Inputs)
-		{
-			InputProxies.Emplace_GetRef(Input);
-		}
-	}
+	virtual void GenerateProxies(TArray<AudioModulation::FModulationInputProxy>& InputProxies) const override;
 };
 
 USTRUCT(BlueprintType)
@@ -194,16 +176,10 @@ struct FSoundHPFModulationPatch : public FSoundModulationPatchBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Inputs)
 	TArray<FSoundHPFModulationInput> Inputs;
 
-	virtual void GenerateProxies(TArray<AudioModulation::FModulationInputProxy>& InputProxies) const
-	{
-		for (const FSoundHPFModulationInput& Input : Inputs)
-		{
-			InputProxies.Emplace_GetRef(Input);
-		}
-	}
+	virtual void GenerateProxies(TArray<AudioModulation::FModulationInputProxy>& InputProxies) const override;
 };
 
-UCLASS(config = Engine, editinlinenew, BlueprintType, MinimalAPI)
+UCLASS(config = Engine, editinlinenew, BlueprintType, MinimalAPI, autoExpandCategories = (Volume, Pitch, Highpass, Lowpass))
 class USoundModulationSettings : public USoundModulationPluginSourceSettingsBase
 {
 	GENERATED_UCLASS_BODY()
@@ -229,7 +205,7 @@ public:
 	TArray<USoundControlBusMix*> Mixes;
 
 #if WITH_EDITOR
-	void OnPostEditChange(UWorld* World);
+	AUDIOMODULATION_API void OnPostEditChange(UWorld* World);
 
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
