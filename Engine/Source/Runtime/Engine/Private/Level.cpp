@@ -45,6 +45,7 @@ Level.cpp: Level-related functions
 #include "PhysicsEngine/BodySetup.h"
 #include "EngineGlobals.h"
 #include "Engine/LevelBounds.h"
+#include "UnrealEngine.h"
 #if WITH_EDITOR
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/BlueprintEditorUtils.h"
