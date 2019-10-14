@@ -579,13 +579,6 @@ struct CORE_API FGenericPlatformMisc
 	FORCENOINLINE static void MemoryBarrier();
 
 	/**
-	 * Handles IO failure by ending gameplay.
-	 *
-	 * @param Filename	If not nullptr, name of the file the I/O error occured with
-	 */
-	void static HandleIOFailure( const TCHAR* Filename );
-
-	/**
 	 * Set a handler to be called when there is a memory warning from the OS 
 	 *
 	 * @param Handler	The handler to call
