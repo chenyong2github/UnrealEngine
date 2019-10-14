@@ -393,6 +393,8 @@ private:
 
 		while (true)
 		{
+			SCOPE_CYCLE_COUNTER(STAT_IpNetDriver_RecvFromSocket);
+
 			bool bRecvMultiOk = Socket != nullptr ? Socket->RecvMulti(*RMState) : false;
 
 			if (!bRecvMultiOk)
