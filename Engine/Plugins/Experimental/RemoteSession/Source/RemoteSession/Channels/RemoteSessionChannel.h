@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "RemoteSessionRole.h"
+#include "RemoteSession/RemoteSessionRole.h"
 
 class FBackChannelOSCConnection;
 
