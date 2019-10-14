@@ -18,7 +18,7 @@ struct FVirtualTextureSpacePoolConfig
 {
 	GENERATED_USTRUCT_BODY()
 
-	FVirtualTextureSpacePoolConfig() : MinTileSize(0), MaxTileSize(0), SizeInMegabyte(0) {}
+	FVirtualTextureSpacePoolConfig() : MinTileSize(0), MaxTileSize(0), SizeInMegabyte(0), bAllowSizeScale(false) {}
 
 	/** Minimum tile size to match (including tile border). */
 	UPROPERTY()
@@ -36,6 +36,10 @@ struct FVirtualTextureSpacePoolConfig
 	UPROPERTY()
 	int32 SizeInMegabyte;
 
+	/** Allow the size to allocate for the pool to be scaled by some factor. */
+	UPROPERTY()
+	bool bAllowSizeScale;
+
 	/** Is this the default config? Use this setting when we can't find any other match. */
 	bool IsDefault() const { return Formats.Num() == 0; }
 };
@@ -51,12 +55,5 @@ public:
 	UPROPERTY(config)
 	TArray<FVirtualTextureSpacePoolConfig> Pools; // All the VT pools specified in the config
 
-	const FVirtualTextureSpacePoolConfig *FindPoolConfig(TEnumAsByte<EPixelFormat> const* Formats, int32 NumLayers, int32 TileSize);
-
-	virtual ~UVirtualTexturePoolConfig();
-
-	virtual void PostLoad() override;
-
-private:
-	FVirtualTextureSpacePoolConfig DefaultConfig;
+	void FindPoolConfig(TEnumAsByte<EPixelFormat> const* InFormats, int32 InNumLayers, int32 InTileSize, FVirtualTextureSpacePoolConfig& OutConfig) const;
 };
