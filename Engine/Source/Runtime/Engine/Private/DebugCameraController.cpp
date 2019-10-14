@@ -960,7 +960,7 @@ FString ADebugCameraController::GetBufferMaterialName(const FString& InBufferNam
 {
 	if (!InBufferName.IsEmpty())
 	{
-		if (UMaterial* Material = GetBufferVisualizationData().GetMaterial(*InBufferName))
+		if (UMaterialInterface* Material = GetBufferVisualizationData().GetMaterial(*InBufferName))
 		{
 			return Material->GetName();
 		}

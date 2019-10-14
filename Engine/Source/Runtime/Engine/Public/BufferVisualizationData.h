@@ -3,7 +3,7 @@
 
 #include "CoreMinimal.h"
 
-class UMaterial;
+class UMaterialInterface;
 
 class FBufferVisualizationData
 {
@@ -22,14 +22,14 @@ public:
 	bool IsInitialized() const { return bIsInitialized; }
 
 	/** Get a named material from the available material map **/
-	ENGINE_API UMaterial* GetMaterial(FName InMaterialName);
+	ENGINE_API UMaterialInterface* GetMaterial(FName InMaterialName);
 
 	/** We cache the overview material name list from the console command here, so all dynamically created views can re-use the existing cached list of materials */
 	void SetCurrentOverviewMaterialNames(const FString& InNameList);
 	bool IsDifferentToCurrentOverviewMaterialNames(const FString& InNameList);
 
 	/** Access the list of materials currently in use by the buffer visualization overview */
-	TArray<UMaterial*>& GetOverviewMaterials();
+	TArray<UMaterialInterface*>& GetOverviewMaterials();
 
 	/** Iterator function for iterating over available materials */
 	template<class T> void IterateOverAvailableMaterials(T& Iterator) const
@@ -54,7 +54,7 @@ private:
 	{
 		FString Name;
 		FText DisplayName;
-		UMaterial* Material;
+		UMaterialInterface* Material;
 	};
 
 	/** Mapping of FName (first parameter in ini file material list) to a material record */
@@ -67,7 +67,7 @@ private:
 	FString CurrentOverviewMaterialNames;
 
 	/** List of material currently in use by the buffer visualization overview */
-	TArray<UMaterial*> OverviewMaterials;
+	TArray<UMaterialInterface*> OverviewMaterials;
 	
 	/** Storage for console variable documentation strings **/
 	FString ConsoleDocumentationVisualizationMode;

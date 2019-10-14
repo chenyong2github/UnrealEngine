@@ -2068,7 +2068,7 @@ void FSceneView::ConfigureBufferVisualizationSettings()
 
 				// Lookup this material from the list that was parsed out of the global ini file
 				Left.TrimStartInline();
-				UMaterial* Material = BufferVisualizationData.GetMaterial(*Left);
+				UMaterialInterface* Material = BufferVisualizationData.GetMaterial(*Left);
 
 				if (Material == NULL && Left.Len() > 0)
 				{
@@ -2084,7 +2084,7 @@ void FSceneView::ConfigureBufferVisualizationSettings()
 		}
 
 		// Copy current material list into settings material list
-		for (TArray<UMaterial*>::TConstIterator It = BufferVisualizationData.GetOverviewMaterials().CreateConstIterator(); It; ++It)
+		for (TArray<UMaterialInterface*>::TConstIterator It = BufferVisualizationData.GetOverviewMaterials().CreateConstIterator(); It; ++It)
 		{
 			FinalPostProcessSettings.BufferVisualizationOverviewMaterials.Add(*It);
 		}

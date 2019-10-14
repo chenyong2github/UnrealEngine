@@ -31,7 +31,7 @@ struct FBufferVisualizationIterator
 	/** Reference to the post processing settings to add vialization materials to */
 	FFinalPostProcessSettings& FinalPostProcessSettings;
 
-	void ProcessValue(const FString& InName, UMaterial* Material, const FText& InText)
+	void ProcessValue(const FString& InName, UMaterialInterface* Material, const FText& InText)
 	{
 		if (BuffersToCapture.Contains(InName) || BuffersToCapture.Contains(InText.ToString()))
 		{
