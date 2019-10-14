@@ -21,9 +21,10 @@ public:
 	USocialSettings();
 
 	static FString GetUniqueIdEnvironmentPrefix(ESocialSubsystem SubsystemType);
+	static int32 GetDefaultMaxPartySize();
 	static bool ShouldPreferPlatformInvites();
 	static bool MustSendPrimaryInvites();
-	static int32 GetDefaultMaxPartySize();
+	static bool ShouldLeavePartyOnDisconnect();
 	static float GetUserListAutoUpdateRate();
 
 private:
@@ -45,6 +46,10 @@ private:
 
 	UPROPERTY(config)
 	bool bMustSendPrimaryInvites = false;
+
+	/** Should we leave a party when it enters the disconnected state? */
+	UPROPERTY(config)
+	bool bLeavePartyOnDisconnect = true;
 
 	UPROPERTY(config)
 	float UserListAutoUpdateRate = 7.5f;
