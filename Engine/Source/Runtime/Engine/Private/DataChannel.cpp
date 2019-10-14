@@ -2816,7 +2816,7 @@ int64 UActorChannel::ReplicateActor()
 			return 0;
 		}
 		bPausedUntilReliableACK = 0;
-		UE_LOG(LogNet, Log, TEXT("ReplicateActor: bPausedUntilReliableACK is ending now that reliables have been ACK'd. %s"), *Describe());
+		UE_LOG(LogNet, Verbose, TEXT("ReplicateActor: bPausedUntilReliableACK is ending now that reliables have been ACK'd. %s"), *Describe());
 	}
 
 	const TArray<FNetViewer>& NetViewers = ActorWorld->GetWorldSettings()->ReplicationViewers;
