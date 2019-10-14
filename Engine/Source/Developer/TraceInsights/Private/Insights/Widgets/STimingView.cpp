@@ -733,6 +733,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 	if (GraphTrack->IsVisible())
 	{
+		GraphTrack->SetSession(Session.Get());
 		GraphTrack->Update(Viewport);
 	}
 
