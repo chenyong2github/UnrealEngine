@@ -7,8 +7,7 @@
 #include "RHI.h"
 #include "RHIResources.h"
 #include "Containers/CircularQueue.h"
-#include "HAL/RunnableThread.h"
-#include "HAL/Runnable.h"
+#include "HAL/Thread.h"
 #include "HAL/ThreadSafeBool.h"
 
 #include "WmfRingBuffer.h"
