@@ -22,7 +22,7 @@ void USoundNodeWavePlayer::Serialize(FArchive& Ar)
 		}
 		else if (Ar.IsSaving())
 		{
-			USoundWave* HardReference = (ShouldHardReferenceAsset() ? SoundWave : nullptr);
+			USoundWave* HardReference = (ShouldHardReferenceAsset(Ar.CookingTarget()) ? SoundWave : nullptr);
 			Ar << HardReference;
 		}
 	}
@@ -45,6 +45,7 @@ void USoundNodeWavePlayer::LoadAsset(bool bAddToRoot)
 			const FString LongPackageName = SoundWaveAssetPtr.GetLongPackageName();
 			if (!LongPackageName.IsEmpty())
 			{
+				UE_LOG(LogAudio, VeryVerbose, TEXT(" '%s:%s', Async loading..."), *GetNameSafe(GetOuter()), *GetName());
 				bAsyncLoading = true;
 				LoadPackageAsync(LongPackageName, FLoadPackageAsyncDelegate::CreateUObject(this, &USoundNodeWavePlayer::OnSoundWaveLoaded, bAddToRoot));
 			}
@@ -60,6 +61,12 @@ void USoundNodeWavePlayer::LoadAsset(bool bAddToRoot)
 	}
 	else
 	{
+		UE_LOG(LogAudio, VeryVerbose, TEXT("'%s:%s', DOING SYNCRONOUS loading... %s"),
+			*GetNameSafe(GetOuter()),
+			*GetName(),
+			SoundWaveAssetPtr.IsPending() ? TEXT("pending.") : TEXT("not-pending.")
+		);
+
 		SoundWave = SoundWaveAssetPtr.LoadSynchronous();
 		if (SoundWave)
 		{
