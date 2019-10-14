@@ -201,6 +201,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = "Audio")
 	FString OcclusionPlugin;
 
+	/** Quality Level to COOK SoundCues at (if set, all other levels will be stripped by the cooker). */
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Audio|CookOverrides", meta = (DisplayName = "Sound Cue Cook Quality"))
+	int32 SoundCueCookQualityIndex = INDEX_NONE;
+
 	// Strip debug symbols from packaged builds even if they aren't shipping builds.
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = AdvancedBuild, meta = (DisplayName = "Strip debug symbols from packaged builds even if they aren't shipping builds"))
 	bool bRemoveDebugInfo;

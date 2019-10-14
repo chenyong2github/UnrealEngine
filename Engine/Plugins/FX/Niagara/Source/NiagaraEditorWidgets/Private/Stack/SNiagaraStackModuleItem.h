@@ -46,12 +46,6 @@ private:
 
 	FReply RefreshClicked();
 
-	void InsertModuleAbove();
-
-	void InsertModuleBelow();
-
-	void ShowInsertModuleMenu(int32 InsertIndex);
-
 	FReply OnModuleItemDrop(TSharedPtr<class FDragDropOperation> DragDropOperation);
 
 	bool OnModuleItemAllowDrop(TSharedPtr<class FDragDropOperation> DragDropOperation);

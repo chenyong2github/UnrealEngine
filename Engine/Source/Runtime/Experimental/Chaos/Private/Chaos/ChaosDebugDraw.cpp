@@ -218,53 +218,65 @@ namespace Chaos
 		//
 		//
 
-		void DrawParticleShapes(const TRigidTransform<float, 3>& SpaceTransform, const TParticleView<TGeometryParticles<float, 3>>& ParticlesView, float ColorScale)
+		void DrawParticleShapes(const TRigidTransform<float, 3>& SpaceTransform, const TParticleView<TGeometryParticles<float, 3>>& ParticlesView, float ColorScale, bool bDrawKinemtatic, bool bDrawDynamic)
 		{
 #if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (auto& Particle : ParticlesView)
 				{
-					DrawParticleShapesImpl<float, 3>(SpaceTransform, GetHandleHelper<float, 3>(&Particle), ColorScale);
+					if ((bDrawKinemtatic && !Particle.AsDynamic()) || (bDrawDynamic && Particle.AsDynamic()))
+					{
+						DrawParticleShapesImpl<float, 3>(SpaceTransform, GetHandleHelper<float, 3>(&Particle), ColorScale);
+					}
 				}
 			}
 #endif
 		}
 
-		void DrawParticleShapes(const TRigidTransform<float, 3>& SpaceTransform, const TArray<TGeometryParticleHandle<float, 3>*>& Particles, float ColorScale)
+		void DrawParticleShapes(const TRigidTransform<float, 3>& SpaceTransform, const TArray<TGeometryParticleHandle<float, 3>*>& Particles, float ColorScale, bool bDrawKinemtatic, bool bDrawDynamic)
 		{
 #if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (auto& Particle : Particles)
 				{
-					DrawParticleShapesImpl<float, 3>(SpaceTransform, Particle, ColorScale);
+					if ((bDrawKinemtatic && !Particle->AsDynamic()) || (bDrawDynamic && Particle->AsDynamic()))
+					{
+						DrawParticleShapesImpl<float, 3>(SpaceTransform, Particle, ColorScale);
+					}
 				}
 			}
 #endif
 		}
 
-		void DrawParticleTransforms(const TRigidTransform<float, 3>& SpaceTransform, const TParticleView<TGeometryParticles<float, 3>>& ParticlesView, float ColorScale)
+		void DrawParticleTransforms(const TRigidTransform<float, 3>& SpaceTransform, const TParticleView<TGeometryParticles<float, 3>>& ParticlesView, float ColorScale, bool bDrawKinemtatic, bool bDrawDynamic)
 		{
 #if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (auto& Particle : ParticlesView)
 				{
-					DrawParticleTransformImpl<float, 3>(SpaceTransform, GetHandleHelper<float, 3>(&Particle), ColorScale);
+					if ((bDrawKinemtatic && !Particle.AsDynamic()) || (bDrawDynamic && Particle.AsDynamic()))
+					{
+						DrawParticleTransformImpl<float, 3>(SpaceTransform, GetHandleHelper<float, 3>(&Particle), ColorScale);
+					}
 				}
 			}
 #endif
 		}
 
-		void DrawParticleTransforms(const TRigidTransform<float, 3>& SpaceTransform, const TArray<TGeometryParticleHandle<float, 3>*>& Particles, float ColorScale)
+		void DrawParticleTransforms(const TRigidTransform<float, 3>& SpaceTransform, const TArray<TGeometryParticleHandle<float, 3>*>& Particles, float ColorScale, bool bDrawKinemtatic, bool bDrawDynamic)
 		{
 #if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (auto& Particle : Particles)
 				{
-					DrawParticleTransformImpl<float, 3>(SpaceTransform, Particle, ColorScale);
+					if ((bDrawKinemtatic && !Particle->AsDynamic()) || (bDrawDynamic && Particle->AsDynamic()))
+					{
+						DrawParticleTransformImpl<float, 3>(SpaceTransform, Particle, ColorScale);
+					}
 				}
 			}
 #endif

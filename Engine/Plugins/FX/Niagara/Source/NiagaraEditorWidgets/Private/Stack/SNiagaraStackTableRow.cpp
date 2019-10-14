@@ -11,12 +11,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
-#include "IContentBrowserSingleton.h"
-#include "ContentBrowserModule.h"
-
 #include "Framework/Application/SlateApplication.h"
-#include "Subsystems/AssetEditorSubsystem.h"
-#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackTableRow"
 
@@ -140,6 +135,7 @@ void SNiagaraStackTableRow::SetNameAndValueContent(TSharedRef<SWidget> InNameWid
 		.VAlign(EVerticalAlignment::VAlign_Center)
 		.ToolTipText(ExecutionCategoryToolTipText)
 		.Visibility(this, &SNiagaraStackTableRow::GetExecutionCategoryIconVisibility)
+		.IsEnabled_UObject(StackEntry, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
 		[
 			SNew(SImage)
 			.Visibility(this, &SNiagaraStackTableRow::GetExecutionCategoryIconVisibility)
@@ -261,27 +257,13 @@ FReply SNiagaraStackTableRow::OnMouseButtonUp(const FGeometry& MyGeometry, const
 	if (MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
 	{
 		FMenuBuilder MenuBuilder(true, nullptr);
-		MenuBuilder.BeginSection("ModuleActions", LOCTEXT("ModuleActions", "Module Actions"));
 		for (FOnFillRowContextMenu& OnFillRowContextMenuHandler : OnFillRowContextMenuHanders)
 		{
 			OnFillRowContextMenuHandler.ExecuteIfBound(MenuBuilder);
 		}
-		MenuBuilder.EndSection();
-		if (StackEntry->GetExternalAsset() != nullptr)
-		{
-			MenuBuilder.BeginSection("AssetActions", LOCTEXT("AssetActions", "Asset Actions"));
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("OpenAndFocusAsset", "Open and Focus Asset"),
-				FText::Format(LOCTEXT("OpenAndFocusAssetTooltip", "Open {0} in separate editor"), StackEntry->GetDisplayName()),
-				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateSP(this, &SNiagaraStackTableRow::OpenSourceAsset)));
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("ShowAssetInContentBrowser", "Show in Content Browser"),
-				FText::Format(LOCTEXT("ShowAssetInContentBrowserToolTip", "Navigate to {0} in the Content Browser window"), StackEntry->GetDisplayName()),
-				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateSP(this, &SNiagaraStackTableRow::ShowAssetInContentBrowser)));
-			MenuBuilder.EndSection();
-		}
+
+		FNiagaraStackEditorWidgetsUtilities::AddStackEntryAssetContextMenuActions(MenuBuilder, *StackEntry);
+
 		TArray<UNiagaraStackEntry*> EntriesToProcess;
 		TArray<UNiagaraStackEntry*> NavigationEntries;
 		StackViewModel->GetPathForEntry(StackEntry, EntriesToProcess);
@@ -439,19 +421,6 @@ EVisibility SNiagaraStackTableRow::GetSearchResultBorderVisibility() const
 void SNiagaraStackTableRow::NavigateTo(UNiagaraStackEntry* Item)
 {
 	OwnerTree->RequestNavigateToItem(Item, 0);
-}
-
-void SNiagaraStackTableRow::OpenSourceAsset()
-{
-	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(StackEntry->GetExternalAsset());
-}
-
-void SNiagaraStackTableRow::ShowAssetInContentBrowser()
-{
-	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
-	TArray<FAssetData> Assets;
-	Assets.Add(FAssetData(StackEntry->GetExternalAsset()));
-	ContentBrowserModule.Get().SyncBrowserToAssets(Assets);
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -277,7 +277,10 @@ namespace Chaos
 	THeightField<T>::THeightField(TArray<T>&& Height, int32 NumRows, int32 NumCols, const TVector<T, 3>& InScale)
 		: TImplicitObject<T, 3>(EImplicitObject::HasBoundingBox, ImplicitObjectType::HeightField)
 	{
-		//For now just generate a triangle mesh
+		using FDataType = typename THeightField<HeightfieldT>::FDataType;
+
+		using RealType = typename FDataType::RealType;
+
 		const int32 NumCells = NumRows * NumCols;
 		ensure(Height.Num() == NumCells);
 		ensure(NumRows > 1);
@@ -327,11 +330,90 @@ namespace Chaos
 			}
 		}
 
-		// Flatten out the Z axis
-		FlattenedBounds.Min = TVector<T, 2>(LocalBounds.Min()[0], LocalBounds.Min()[1]);
-		FlattenedBounds.Max = TVector<T, 2>(LocalBounds.Max()[0], LocalBounds.Max()[1]);
+	template<typename HeightfieldT, typename BufferType>
+	void EditGeomData(TArrayView<BufferType> BufferView, int32 InBeginRow, int32 InBeginCol, int32 NumRows, int32 NumCols, TUniqueFunction<HeightfieldT(const BufferType)> ToRealFunc, typename THeightField<HeightfieldT>::FDataType& OutData, TBox<HeightfieldT, 3>& OutBounds)
+	{
+		using FDataType = typename THeightField<HeightfieldT>::FDataType;
+		using RealType = typename FDataType::RealType;
 
-		BuildQueryData();
+		RealType MinValue = TNumericLimits<HeightfieldT>::Max();
+		RealType MaxValue = TNumericLimits<HeightfieldT>::Min();
+
+		for(BufferType& Value : BufferView)
+		{
+			MinValue = FMath::Min(MinValue, ToRealFunc(Value));
+			MaxValue = FMath::Max(MaxValue, ToRealFunc(Value));
+		}
+
+		const int32 EndRow = InBeginRow + NumRows;
+		const int32 EndCol = InBeginCol + NumCols;
+
+		// If our range now falls outside of the original ranges we need to resample the whole heightfield to perform the edit.
+		// Here we resample everything outside of the edit and update our ranges
+		const bool bNeedsResample = MinValue < OutData.MinValue || MaxValue > OutData.MaxValue;
+		if(bNeedsResample)
+		{
+			const RealType NewMin = FMath::Min(MinValue, OutData.MinValue);
+			const RealType NewMax = FMath::Max(MaxValue, OutData.MaxValue);
+			const RealType NewRange = NewMax - NewMin;
+			const RealType NewHeightPerUnit = NewRange / FDataType::StorageRange;
+
+			for(int32 RowIdx = 0; RowIdx < OutData.NumRows; ++RowIdx)
+			{
+				for(int32 ColIdx = 0; ColIdx < OutData.NumCols; ++ColIdx)
+				{
+					const int32 HeightIndex = RowIdx * OutData.NumCols + ColIdx;
+
+					if(RowIdx >= InBeginRow && RowIdx < EndRow &&
+						ColIdx >= InBeginCol && ColIdx < EndCol)
+					{
+						// From the new set
+						const int32 NewSetIndex = (RowIdx - InBeginRow) * NumCols + (ColIdx - InBeginCol);
+						OutData.Heights[HeightIndex] = static_cast<typename FDataType::StorageType>((ToRealFunc(BufferView[NewSetIndex]) - NewMin) / NewHeightPerUnit);
+					}
+					else
+					{
+						// Resample existing
+						const RealType ExpandedHeight = OutData.MinValue + OutData.Heights[HeightIndex] * OutData.HeightPerUnit;
+						OutData.Heights[HeightIndex] = static_cast<typename FDataType::StorageType>((ExpandedHeight - NewMin) / NewHeightPerUnit);
+					}
+
+					int32 X = HeightIndex % (OutData.NumCols);
+					int32 Y = HeightIndex / (OutData.NumCols);
+					TVector<HeightfieldT, 3> Position(RealType(X), RealType(Y), NewMin + OutData.Heights[HeightIndex] * NewHeightPerUnit);
+					if(HeightIndex == 0)
+					{
+						OutBounds = TBox<HeightfieldT, 3>(Position, Position);
+					}
+					else
+					{
+						OutBounds.GrowToInclude(Position);
+					}
+				}
+			}
+
+			OutBounds.Thicken(KINDA_SMALL_NUMBER);
+
+			OutData.MinValue = NewMin;
+			OutData.MaxValue = NewMax;
+			OutData.HeightPerUnit = NewHeightPerUnit;
+			OutData.Range = NewRange;
+		}
+		else
+		{
+			// No resample, just push new heights into the data
+			for(int32 RowIdx = InBeginRow; RowIdx < EndRow; ++RowIdx)
+			{
+				for(int32 ColIdx = InBeginCol; ColIdx < EndCol; ++ColIdx)
+				{
+					const int32 HeightIndex = RowIdx * NumCols + ColIdx;
+					const int32 NewSetIndex = (RowIdx - InBeginRow) * NumCols + (ColIdx - InBeginCol);
+					OutData.Heights[HeightIndex] = static_cast<typename FDataType::StorageType>((ToRealFunc(BufferView[NewSetIndex]) - OutData.MinValue) / OutData.HeightPerUnit);
+				}
+			}
+		}
+	}
+
 
 		// Cache per-cell bounds
 		const int32 NumX = GeomData.NumCols - 1;
@@ -346,6 +428,42 @@ namespace Chaos
 				CalcCellBounds3D(Cell, Min, Max);
 				GeomData.CellBounds[YIndex * NumX + XIndex] = TBox<T, 3>(Min, Max);
 			}
+		}
+	}
+
+	template<typename T>
+	void Chaos::THeightField<T>::EditHeights(TArrayView<const uint16> InHeights, int32 InBeginRow, int32 InBeginCol, int32 InNumRows, int32 InNumCols)
+	{
+		const int32 NumExpectedValues = InNumRows * InNumCols;
+		const int32 EndRow = InBeginRow + InNumRows - 1;
+		const int32 EndCol = InBeginCol + InNumCols - 1;
+
+		if(ensure(InHeights.Num() == NumExpectedValues && InBeginRow >= 0 && InBeginCol >= 0 && EndRow < GeomData.NumRows && EndCol < GeomData.NumCols))
+		{
+			TUniqueFunction<T(const uint16)> ConversionFunc = [](const T InVal) -> float
+			{
+				return (float)((int32)InVal - 32768);
+			};
+
+			EditGeomData<T, const uint16>(InHeights, InBeginRow, InBeginCol, InNumRows, InNumCols, MoveTemp(ConversionFunc), GeomData, LocalBounds);
+		}
+	}
+
+	template<typename T>
+	void Chaos::THeightField<T>::EditHeights(TArrayView<T> InHeights, int32 InBeginRow, int32 InBeginCol, int32 InNumRows, int32 InNumCols)
+	{
+		const int32 NumExpectedValues = InNumRows * InNumCols;
+		const int32 EndRow = InBeginRow + InNumRows - 1;
+		const int32 EndCol = InBeginCol + InNumCols - 1;
+
+		if(ensure(InHeights.Num() == NumExpectedValues && InBeginRow >= 0 && InBeginCol >= 0 && EndRow < GeomData.NumRows && EndCol < GeomData.NumCols))
+		{
+			TUniqueFunction<T(T)> ConversionFunc = [](const T InVal) -> float
+			{
+				return InVal;
+			};
+
+			EditGeomData<T, T>(InHeights, InBeginRow, InBeginCol, InNumRows, InNumCols, MoveTemp(ConversionFunc), GeomData, LocalBounds);
 		}
 	}
 
@@ -617,7 +735,7 @@ namespace Chaos
 						TVector<int32, 2> NeighCoord = CellCoord.Index + Neighbor;
 
 						FBounds2D CellBounds;
-						if(!Seen.Contains(NeighCoord) && GetCellBounds3D(NeighCoord, Min, Max, HalfExtents3D))
+						if(GetCellBounds3DScaled(NeighCoord, Min, Max, HalfExtents3D) && !Seen.Contains(NeighCoord))
 						{
 							if(TBox<T, 3>::RaycastFast(Min, Max, StartPoint, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, ToI, HitPoint))
 							{

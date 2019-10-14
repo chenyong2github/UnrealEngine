@@ -91,10 +91,6 @@ private:
 
 	void NavigateTo(UNiagaraStackEntry* Item);
 
-	void OpenSourceAsset();
-
-	void ShowAssetInContentBrowser();
-
 private:
 	UNiagaraStackViewModel* StackViewModel;
 	UNiagaraStackEntry* StackEntry;

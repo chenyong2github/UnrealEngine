@@ -357,11 +357,11 @@ public:
 	bool bInlineEditConditionToggle;
 
 	/** Declares the associated input should be conditionally editable based on the value of another input. */
-	UPROPERTY(EditAnywhere, Category = "Input Conditions", meta = (EditCondition = "!bIsStaticSwitch"))
+	UPROPERTY(EditAnywhere, Category = "Variable")
 	FNiagaraInputConditionMetadata EditCondition;
 
 	/** Declares the associated input should be conditionally visible based on the value of another input. */
-	UPROPERTY(EditAnywhere, Category = "Input Conditions", meta = (EditCondition = "!bIsStaticSwitch"))
+	UPROPERTY(EditAnywhere, Category = "Variable")
 	FNiagaraInputConditionMetadata VisibleCondition;
 
 	UPROPERTY(EditAnywhere, Category = "Variable", DisplayName = "Property Metadata", meta = (ToolTip = "Property Metadata"))

@@ -325,6 +325,7 @@ namespace ImmediatePhysics_Chaos
 	void FActorHandle::SetIsKinematic(bool bKinematic)
 	{
 #if IMMEDIATEPHYSICS_CHAOS_TODO
+		// This needs to destroy and recreate the particle
 #endif
 	}
 
@@ -333,44 +334,40 @@ namespace ImmediatePhysics_Chaos
 		return Handle()->IsKinematic();
 	}
 
-
-#if IMMEDIATEPHYSICS_CHAOS_TODO
-	FImmediateKinematicTarget& FActorHandle::GetKinematicTarget()
+	const FKinematicTarget& FActorHandle::GetKinematicTarget() const
 	{
+		check(ParticleHandle->AsKinematic());
+		return ParticleHandle->AsKinematic()->KinematicTarget();
 	}
-#endif
+
+	FKinematicTarget& FActorHandle::GetKinematicTarget()
+	{
+		check(ParticleHandle->AsKinematic());
+		return ParticleHandle->AsKinematic()->KinematicTarget();
+	}
 
 	void FActorHandle::SetKinematicTarget(const FTransform& WorldTM)
 	{
-		using namespace Chaos;
-
-#if IMMEDIATEPHYSICS_CHAOS_TODO
-		// Proper kinematic targets
-#endif
-		if (TKinematicGeometryParticleHandle<FReal, Dimensions>* KinematicParticleHandle = ParticleHandle->AsKinematic())
+		if (ensure(GetIsKinematic()))
 		{
 			FTransform ParticleTransform = ActorToCoMTransform * WorldTM;
-
-			FMatrix AxesW = FRotationMatrix::Make(WorldTM.GetRotation());
-			FMatrix AxesP = FRotationMatrix::Make(ParticleTransform.GetRotation());
-
-			ParticleHandle->SetX(ParticleTransform.GetTranslation());
-			ParticleHandle->SetR(ParticleTransform.GetRotation());
+			GetKinematicTarget().SetTargetMode(ParticleTransform);
 		}
+
 	}
 
 	bool FActorHandle::HasKinematicTarget() const
 	{
-#if IMMEDIATEPHYSICS_CHAOS_TODO
-#endif
+		if (GetIsKinematic())
+		{
+			return GetKinematicTarget().GetMode() == Chaos::EKinematicTargetMode::Position;
+		}
 		return false;
 	}
 
 	bool FActorHandle::IsSimulated() const
 	{
-#if IMMEDIATEPHYSICS_CHAOS_TODO
-#endif
-		return true;
+		return ParticleHandle->AsDynamic() != nullptr;
 	}
 
 	FTransform FActorHandle::GetWorldTransform() const

@@ -37,21 +37,46 @@ void USoundModulationSettings::OnPostEditChange(UWorld* World)
 
 void USoundModulationSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	if (PropertyChangedEvent.Property)
-	{
-		OnPostEditChange(GetWorld());
-	}
+	OnPostEditChange(GetWorld());
 }
 
 void USoundModulationSettings::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
 {
-	if (PropertyChangedEvent.Property)
-	{
-		OnPostEditChange(GetWorld());
-	}
-
+	OnPostEditChange(GetWorld());
 }
 #endif // WITH_EDITOR
+
+void FSoundVolumeModulationPatch::GenerateProxies(TArray<AudioModulation::FModulationInputProxy>& InputProxies) const
+{
+	for (const FSoundVolumeModulationInput& Input : Inputs)
+	{
+		InputProxies.Emplace_GetRef(Input);
+	}
+}
+
+void FSoundPitchModulationPatch::GenerateProxies(TArray<AudioModulation::FModulationInputProxy>& InputProxies) const
+{
+	for (const FSoundPitchModulationInput& Input : Inputs)
+	{
+		InputProxies.Emplace_GetRef(Input);
+	}
+}
+
+void FSoundHPFModulationPatch::GenerateProxies(TArray<AudioModulation::FModulationInputProxy>& InputProxies) const
+{
+	for (const FSoundHPFModulationInput& Input : Inputs)
+	{
+		InputProxies.Emplace_GetRef(Input);
+	}
+}
+
+void FSoundLPFModulationPatch::GenerateProxies(TArray<AudioModulation::FModulationInputProxy>& InputProxies) const
+{
+	for (const FSoundLPFModulationInput& Input : Inputs)
+	{
+		InputProxies.Emplace_GetRef(Input);
+	}
+}
 
 FSoundModulationOutput::FSoundModulationOutput()
 	: Operator(ESoundModulatorOperator::Multiply)

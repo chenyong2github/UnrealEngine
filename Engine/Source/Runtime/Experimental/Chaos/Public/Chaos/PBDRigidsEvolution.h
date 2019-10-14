@@ -22,6 +22,18 @@ class FChaosArchive;
 template <typename TPayload, typename T, int d>
 class ISpatialAccelerationCollection;
 
+template <typename T, int d>
+struct CHAOS_API ISpatialAccelerationCollectionFactory
+{
+	//Create an empty acceleration collection with the desired buckets. Chaos uses the bucket params inside the collection to add / remove sub-structures as needed
+	virtual TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<T, d>, T, d>> CreateEmptyCollection() = 0;
+
+	//Serialize the collection in and out
+	virtual void Serialize(TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<T, d>, T, d>>& Ptr, FChaosArchive& Ar) = 0;
+
+	virtual ~ISpatialAccelerationCollectionFactory() = default;
+};
+
 struct CHAOS_API FEvolutionStats
 {
 	int32 ActiveCollisionPoints;
@@ -49,6 +61,32 @@ struct CHAOS_API FEvolutionStats
 		ShapesForAllConstraints += Other.ShapesForAllConstraints;
 		CollisionPointsForAllConstraints += Other.CollisionPointsForAllConstraints;
 		return *this;
+	}
+};
+
+/** Used for building an acceleration structure out of cached bounds and payloads */
+template <typename T, int d>
+struct TAccelerationStructureBuilder
+{
+	//todo: should these be arrays instead? might make it easier in some cases
+	bool bHasBoundingBox;
+	TBox<T, d> CachedSpatialBounds;
+	TAccelerationStructureHandle<T, d> CachedSpatialPayload;
+
+	const TBox<T, d>& BoundingBox() const
+	{
+		return CachedSpatialBounds;
+	}
+
+	bool HasBoundingBox() const
+	{
+		return bHasBoundingBox;
+	}
+
+	template <typename TPayloadType>
+	TAccelerationStructureHandle<T, d> GetPayload(int32 Idx) const
+	{
+		return CachedSpatialPayload;
 	}
 };
 
@@ -258,9 +296,64 @@ class TPBDRigidsEvolutionBase
 		}
 	}
 
+	void ApplyKinematicTargets(T Dt)
+	{
+		// @todo(ccaulfield): optimize. Depending on the number of kinematics relative to the number that have 
+		// targets set, it may be faster to process a command list rather than iterate over them all each frame. 
+		const T MinDt = 1e-6f;
+		for (auto& Particle : Particles.GetActiveKinematicParticlesView())
+		{
+			TKinematicTarget<T, d>& KinematicTarget = Particle.KinematicTarget();
+			switch (KinematicTarget.GetMode())
+			{
+			case EKinematicTargetMode::None:
+				// Nothing to do
+				break;
+
+			case EKinematicTargetMode::Zero:
+			{
+				// Reset velocity and then switch to do-nothing mode
+				Particle.V() = TVector<T, d>(0, 0, 0);
+				Particle.W() = TVector<T, d>(0, 0, 0);
+				KinematicTarget.SetMode(EKinematicTargetMode::None);
+				break;
+			}
+
+			case EKinematicTargetMode::Position:
+			{
+				// Move to kinematic target and update velocities to match
+				// Target positions only need to be processed once, and we reset the velocity next frame (if no new target is set)
+				if (Dt > MinDt)
+				{
+					TVector<float, 3> V = TVector<float, 3>::CalculateVelocity(Particle.X(), KinematicTarget.GetTarget().GetLocation(), Dt);
+					Particle.V() = V;
+
+					TVector<float, 3> W = TRotation<float, 3>::CalculateAngularVelocity(Particle.R(), KinematicTarget.GetTarget().GetRotation(), Dt);
+					Particle.W() = W;
+				}
+				Particle.X() = KinematicTarget.GetTarget().GetTranslation();
+				Particle.R() = KinematicTarget.GetTarget().GetRotation();
+				KinematicTarget.SetMode(EKinematicTargetMode::Zero);
+				break;
+			}
+
+			case EKinematicTargetMode::Velocity:
+			{
+				// Move based on velocity
+				Particle.X() = Particle.X() + Particle.V() * Dt;
+				Particle.R() = TRotation<T, d>::IntegrateRotationWithAngularVelocity(Particle.R(), Particle.W(), Dt);
+				break;
+			}
+			}
+		}
+	}
+
 	/** Make a copy of the acceleration structure to allow for external modification. This is needed for supporting sync operations on SQ structure from game thread */
 	CHAOS_API void UpdateExternalAccelerationStructure(TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<T, d>, T, d>>& ExternalStructure);
 	ISpatialAccelerationCollection<TAccelerationStructureHandle<T, d>, T, d>* GetSpatialAcceleration() { return InternalAcceleration.Get(); }
+
+	/** Perform a blocking flush of the spatial acceleration structure for situations where we aren't simulating but must have an up to date structure */
+	CHAOS_API void FlushSpatialAcceleration();
 
 	const auto& GetRigidClustering() const { return Clustering; }
 	auto& GetRigidClustering() { return Clustering; }
@@ -419,43 +512,17 @@ protected:
 		}
 	}
 
-
-	/** Used for building an acceleration structure out of cached bounds and payloads */
-	struct FAccelerationStructureBuilder
-	{
-		//todo: should these be arrays instead? might make it easier in some cases
-		bool bHasBoundingBox;
-		TBox<T, d> CachedSpatialBounds;
-		TAccelerationStructureHandle<T,d> CachedSpatialPayload;
-
-		const TBox<T, d>& BoundingBox() const
-		{
-			return CachedSpatialBounds;
-		}
-
-		bool HasBoundingBox() const
-		{
-			return bHasBoundingBox;
-		}
-
-		template <typename TPayloadType>
-		TAccelerationStructureHandle<T, d> GetPayload(int32 Idx) const
-		{
-			return CachedSpatialPayload;
-		}
-	};
-
 	/** Used for async acceleration rebuild */
 	TMap<TGeometryParticleHandle<T, d>*, int32> ParticleToCacheIdx;
 
 	struct FAccelerationStructBuilderCache
 	{
 		FSpatialAccelerationIdx SpatialIdx;
-		TUniquePtr <TArray<FAccelerationStructureBuilder>> CachedSpatialBuilderData;
+		TUniquePtr <TArray<TAccelerationStructureBuilder<T, d>>> CachedSpatialBuilderData;
 
 		FAccelerationStructBuilderCache(FSpatialAccelerationIdx Idx)
 			: SpatialIdx(Idx)
-			, CachedSpatialBuilderData(MakeUnique<TArray<FAccelerationStructureBuilder>>())
+			, CachedSpatialBuilderData(MakeUnique<TArray<TAccelerationStructureBuilder<T, d>>>())
 		{}
 	};
 	TArray<FAccelerationStructBuilderCache> CachedSpatialBuilderDataMap;
@@ -479,8 +546,8 @@ protected:
 	FGraphEventRef AccelerationStructureTaskComplete;
 
 	int32 NumIterations;
+	TUniquePtr<ISpatialAccelerationCollectionFactory<T, d>> SpatialCollectionFactory;
 
-	static ISpatialAccelerationCollection<TAccelerationStructureHandle<T, d>, T, d>* CreateNewSpatialStructure(const TArray<FAccelerationStructureBuilder>& Bounds);
 	void InitializeAccelerationCache();
 };
 

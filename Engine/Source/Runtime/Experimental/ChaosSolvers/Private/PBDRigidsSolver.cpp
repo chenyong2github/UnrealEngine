@@ -140,6 +140,11 @@ namespace Chaos
 		// Make sure this particle doesn't already have a proxy
 		checkSlow(GTParticle->Proxy == nullptr);
 
+		if (GTParticle->Geometry() && GTParticle->Geometry()->HasBoundingBox() && GTParticle->Geometry()->BoundingBox().Extents().Max() >= 100000)
+		{
+			GTParticle->SetSpatialIdx(FSpatialAccelerationIdx{ 1,0 });
+		}
+
 		// Grab the particle's type
 		const EParticleType InParticleType = GTParticle->ObjectType();
 

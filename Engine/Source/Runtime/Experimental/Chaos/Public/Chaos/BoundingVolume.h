@@ -123,6 +123,7 @@ class TBoundingVolume final : public ISpatialAcceleration<InPayloadType, T,d>
 	static constexpr ESpatialAcceleration StaticType = ESpatialAcceleration::BoundingVolume;
 	TBoundingVolume()
 		: ISpatialAcceleration<InPayloadType, T, d>(StaticType)
+		, MaxPayloadBounds(DefaultMaxPayloadBounds)
 	{
 	}
 
@@ -320,6 +321,11 @@ public:
 			}
 		}
 
+		if (bIsEmpty)
+		{
+			return true;
+		}
+
 		TBox<T, d> GlobalBounds(MGrid.MinCorner(), MGrid.MaxCorner());
 		TVector<T, d> NextStart;
 		TVector<int32, d> CellIdx;
@@ -501,7 +507,7 @@ public:
 			}
 		}
 
-		if (MElements.Num() == 0)
+		if (bIsEmpty)
 		{
 			return true;
 		}
@@ -677,6 +683,11 @@ public:
 					return false;
 				}
 			}
+		}
+
+		if (bIsEmpty)
+		{
+			return true;
 		}
 
 		TBox<T, d> GlobalBounds(MGrid.MinCorner(), MGrid.MaxCorner());

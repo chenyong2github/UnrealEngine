@@ -133,14 +133,28 @@ namespace Chaos
 			return MostOpposingIdx;
 		}
 
-		TVector<T, d> FindGeometryOpposingNormal(const TVector<T, d>& DenormDir, int32 FaceIndex, const TVector<T, d>& OriginalNormal) const
+		TVector<T, d> FindGeometryOpposingNormal(const TVector<T, d>& DenormDir, int32 HintFaceIndex, const TVector<T, d>& OriginalNormal) const
 		{
-			if (ensure(FaceIndex != INDEX_NONE))
+			if (HintFaceIndex != INDEX_NONE)
 			{
-				const TPlane<float, 3>& OpposingFace = GetFaces()[FaceIndex];
+				const TPlane<float, 3>& OpposingFace = GetFaces()[HintFaceIndex];
 				return OpposingFace.Normal();
 			}
-			return FVector(0, 0, 1);
+		
+			// todo: make a way to call FindMostOpposingFace without a search dist
+			int32 MostOpposingIdx = INDEX_NONE;
+			T MostOpposingDot = TNumericLimits<T>::Max();
+			for (int32 Idx = 0; Idx < Planes.Num(); ++Idx)
+			{
+				const T Dot = TVector<T, d>::DotProduct(Planes[Idx].Normal(), DenormDir);
+				if (Dot < MostOpposingDot)
+				{
+					MostOpposingDot = Dot;
+					MostOpposingIdx = Idx;
+				}
+			}
+			ensure(MostOpposingIdx != INDEX_NONE);
+			return Planes[MostOpposingIdx].Normal();
 		}
 
 		virtual TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const override
@@ -211,6 +225,34 @@ namespace Chaos
 		virtual void Serialize(FArchive& Ar) override
 		{
 			SerializeImp(Ar);
+		}
+
+		virtual bool IsValidGeometry() const override
+		{
+			return (SurfaceParticles.Size() > 0 && Planes.Num() > 0);
+		}
+
+		virtual bool IsPerformanceWarning() const override
+		{
+			return TConvexBuilder<T>::IsPerformanceWarning(Planes.Num(), SurfaceParticles.Size());
+		}
+
+		virtual FString PerformanceWarningAndSimplifaction() override
+		{
+
+			FString PerformanceWarningString = TConvexBuilder<T>::PerformanceWarningString(Planes.Num(), SurfaceParticles.Size());
+			if (TConvexBuilder<T>::IsGeometryReductionEnabled())
+			{
+				PerformanceWarningString += ", [Simplifying]";
+				SimplifyGeometry();
+			}
+
+			return PerformanceWarningString;
+		}
+
+		void SimplifyGeometry()
+		{
+			TConvexBuilder<T>::Simplify(Planes, SurfaceParticles, LocalBoundingBox);
 		}
 
 	private:

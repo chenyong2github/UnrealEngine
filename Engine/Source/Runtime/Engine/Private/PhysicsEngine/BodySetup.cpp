@@ -695,7 +695,22 @@ void UBodySetup::FinishCreatingPhysicsMeshes_Chaos(FChaosDerivedDataReader<float
 		for (int32 ElementIndex = 0; ElementIndex < AggGeom.ConvexElems.Num(); ElementIndex++)
 		{
 			FKConvexElem& ConvexElem = AggGeom.ConvexElems[ElementIndex];
-			ConvexElem.SetChaosConvexMesh(MoveTemp(InReader.ConvexImplicitObjects[ElementIndex]));
+
+			if (ensure(InReader.ConvexImplicitObjects[ElementIndex]->IsValidGeometry()))
+			{
+				ConvexElem.SetChaosConvexMesh(MoveTemp(InReader.ConvexImplicitObjects[ElementIndex]));
+
+				if (ConvexElem.GetChaosConvexMesh()->IsPerformanceWarning())
+				{
+					const FString& PerformanceString = ConvexElem.GetChaosConvexMesh()->PerformanceWarningAndSimplifaction();
+					UE_LOG(LogPhysics, Warning, TEXT("TConvex Name:%s, Element [%d], %s"), FullName.GetCharArray().GetData(), ElementIndex, PerformanceString.GetCharArray().GetData());
+				}
+			}
+			else
+			{
+				UE_LOG(LogPhysics, Warning, TEXT("TConvex Name:%s, Element [%d] has no Geometry"), FullName.GetCharArray().GetData(), ElementIndex);
+			}
+
 		}
 		InReader.ConvexImplicitObjects.Reset();
 	}

@@ -198,6 +198,8 @@ public:
 		check(false);
 	}
 
+	SpatialAccelerationType GetType() const { return Type; }
+
 	template <typename TConcrete>
 	TConcrete* As()
 	{

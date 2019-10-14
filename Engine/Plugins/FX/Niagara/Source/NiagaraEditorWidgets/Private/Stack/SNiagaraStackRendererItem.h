@@ -18,7 +18,9 @@ public:
 	void Construct(const FArguments& InArgs, UNiagaraStackRendererItem& InRendererItem, UNiagaraStackViewModel* InStackViewModel);
 	
 private:
-	EVisibility GetDeleteButtonVisibility() const;
+	FText GetDeleteButtonToolTipText() const;
+
+	bool GetDeleteButtonEnabled() const;
 
 	FReply DeleteClicked();
 

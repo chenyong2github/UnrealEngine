@@ -360,6 +360,81 @@ bool GIsTextureMemoryCorrupted = false;
 bool GIsPrepareMapChangeBroken = false;
 #endif
 
+#if WITH_EDITOR
+// A debugging aid set when we switch out different play worlds during Play In Editor / PIE
+ENGINE_API FString GPlayInEditorContextString(TEXT("invalid"));
+#endif
+
+ENGINE_API void UpdatePlayInEditorWorldDebugString(const FWorldContext* WorldContext)
+{
+#if WITH_EDITOR
+	if (WorldContext == nullptr)
+	{
+		ensure(GPlayInEditorID == INDEX_NONE);
+		GPlayInEditorContextString = NSLOCTEXT("Engine", "PlayWorldIsNotActive", "Not in a play world").ToString();
+	}
+	else
+	{
+		FString WorldName;
+		if (UWorld* World = WorldContext->World())
+		{
+			switch (World->GetNetMode())
+			{
+			case NM_Standalone:
+				WorldName = NSLOCTEXT("Engine", "PlayWorldIsStandalone", "Standalone").ToString();
+				break;
+
+			case NM_ListenServer:
+				WorldName = NSLOCTEXT("Engine", "PlayWorldIsListenServer", "Listen Server").ToString();
+				break;
+
+			case NM_DedicatedServer:
+				WorldName = NSLOCTEXT("Engine", "PlayWorldIsDedicatedServer", "Dedicated Server").ToString();
+				break;
+
+			case NM_Client:
+				WorldName = FText::Format(NSLOCTEXT("Engine", "PlayWorldIsClient", "Client {0}"), FText::AsNumber(WorldContext->PIEInstance - 1)).ToString();
+				break;
+
+			default:
+				unimplemented();
+			};
+		}
+		else
+		{
+			WorldName = NSLOCTEXT("Engine", "PlayWorldBeingCreated", "(World Being Created)").ToString();
+		}
+
+		if (!WorldContext->CustomDescription.IsEmpty())
+		{
+			WorldName += TEXT(" ") + WorldContext->CustomDescription;
+		}
+
+		GPlayInEditorContextString = WorldName;
+	}
+#endif
+}
+
+FTemporaryPlayInEditorIDOverride::FTemporaryPlayInEditorIDOverride(int32 NewOverrideID)
+	: PreviousID(GPlayInEditorID)
+{
+	SetID(NewOverrideID);
+}
+
+FTemporaryPlayInEditorIDOverride::~FTemporaryPlayInEditorIDOverride()
+{
+	SetID(PreviousID);
+}
+
+void FTemporaryPlayInEditorIDOverride::SetID(int32 NewID)
+{
+	if (GPlayInEditorID != NewID)
+	{
+		GPlayInEditorID = NewID;
+		UpdatePlayInEditorWorldDebugString(GEngine->GetWorldContextFromPIEInstance(GPlayInEditorID));
+	}
+}
+
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FSimpleMulticastDelegate UEngine::OnPostEngineInit;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -867,6 +942,7 @@ namespace
 		return NewWorld;
 	}
 }
+
 /*-----------------------------------------------------------------------------
 Object class implementation.
 -----------------------------------------------------------------------------*/
@@ -12377,7 +12453,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 
 	MALLOC_PROFILER( FMallocProfiler::SnapshotMemoryLoadMapMid( URL.Map ); )
 
-		WorldContext.OwningGameInstance->PreloadContentForURL(URL);
+	WorldContext.OwningGameInstance->PreloadContentForURL(URL);
 
 	UPackage* WorldPackage = NULL;
 	UWorld*	NewWorld = NULL;
@@ -12400,6 +12476,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 					// We are loading a new world for this context, so clear out PIE fixups that might be lingering.
 					// (note we dont want to do this in DuplicateWorldForPIE, since that is also called on streaming worlds.
 					GPlayInEditorID = WorldContext.PIEInstance;
+					UpdatePlayInEditorWorldDebugString(&WorldContext);
 					FLazyObjectPtr::ResetPIEFixups();
 
 					NewWorld = UWorld::DuplicateWorldForPIE(SourceWorldPackage, nullptr);
@@ -12703,7 +12780,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	TRACE_BOOKMARK(TEXT("LoadMapComplete - %s"), *URL.Map);
 	MALLOC_PROFILER( FMallocProfiler::SnapshotMemoryLoadMapEnd( URL.Map ); )
 
-		double StopTime = FPlatformTime::Seconds();
+	double StopTime = FPlatformTime::Seconds();
 
 	UE_LOG(LogLoad, Log, TEXT("Took %f seconds to LoadMap(%s)"), StopTime - StartTime, *URL.Map);
 	FLoadTimeTracker::Get().DumpRawLoadTimes();

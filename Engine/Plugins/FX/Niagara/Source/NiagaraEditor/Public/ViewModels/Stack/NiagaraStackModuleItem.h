@@ -37,10 +37,13 @@ public:
 	bool CanRefresh() const;
 	void Refresh();
 
+	virtual bool SupportsChangeEnabled() const override { return true; }
 	virtual bool GetIsEnabled() const override;
 	void SetIsEnabled(bool bInIsEnabled);
 
-	void Delete();
+	virtual bool SupportsDelete() const override { return true; }
+	virtual bool TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const override;
+	virtual void Delete() override;
 
 	int32 GetModuleIndex();
 	

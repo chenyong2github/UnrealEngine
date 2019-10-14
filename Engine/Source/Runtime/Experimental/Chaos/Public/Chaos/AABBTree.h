@@ -220,10 +220,15 @@ public:
 	static constexpr int D = 3;
 	using TType = T;
 	static constexpr T DefaultMaxPayloadBounds = 100000;
+	static constexpr int32 DefaultMaxChildrenInLeaf = 12;
+	static constexpr int32 DefaultMaxTreeDepth = 16;
 	static constexpr ESpatialAcceleration StaticType = TIsSame<TAABBTreeLeafArray<TPayloadType, T>, TLeafType>::Value ? ESpatialAcceleration::AABBTree : 
 		(TIsSame<TBoundingVolume<TPayloadType, T, 3>, TLeafType>::Value ? ESpatialAcceleration::AABBTreeBV : ESpatialAcceleration::Unknown);
 	TAABBTree()
 		: ISpatialAcceleration<TPayloadType, T, 3>(StaticType)
+		, MaxChildrenInLeaf(DefaultMaxChildrenInLeaf)
+		, MaxTreeDepth(DefaultMaxTreeDepth)
+		, MaxPayloadBounds(DefaultMaxPayloadBounds)
 	{
 	}
 

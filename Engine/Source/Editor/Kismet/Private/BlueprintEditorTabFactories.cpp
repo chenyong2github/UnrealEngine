@@ -2,6 +2,7 @@
 
 #include "BlueprintEditorTabFactories.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Widgets/Images/SImage.h"
 #include "Editor.h"
 #include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/Notifications/SErrorText.h"
@@ -153,6 +154,7 @@ TSharedRef<SWidget> FDefaultsEditorSummoner::CreateTabBody(const FWorkflowTabSpa
 	TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = StaticCastSharedPtr<FBlueprintEditor>(HostingApp.Pin());
 
 	TSharedRef<SWidget> Message = CreateOptionalDataOnlyMessage();
+	TSharedRef<SWidget> EditableWarning = CreateOptionalEditableWarning();
 
 	return SNew(SVerticalBox)
 
@@ -163,11 +165,72 @@ TSharedRef<SWidget> FDefaultsEditorSummoner::CreateTabBody(const FWorkflowTabSpa
 			Message
 		]
 
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(FMargin(0,0,0,1))
+		[
+			EditableWarning
+		]
+
 		+ SVerticalBox::Slot()
 		.FillHeight(1.0f)
 		[
 			BlueprintEditorPtr->GetDefaultEditor()
 		];
+}
+
+TSharedRef<SWidget> FDefaultsEditorSummoner::CreateOptionalEditableWarning() const
+{
+	TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = StaticCastSharedPtr<FBlueprintEditor>(HostingApp.Pin());
+
+	bool bHasUneditableBlueprintComponent = false;
+	if (UBlueprint* Blueprint = BlueprintEditorPtr->GetBlueprintObj())
+	{
+		if (Blueprint->GeneratedClass && FBlueprintEditorUtils::IsDataOnlyBlueprint(Blueprint))
+		{
+			if (AActor* Actor = Cast<AActor>(Blueprint->GeneratedClass->GetDefaultObject()))
+			{
+				for (UActorComponent* Component : Actor->GetComponents())
+				{
+					if (Component && !Component->IsCreatedByConstructionScript())
+					{
+						UActorComponent* ComponentArchetype = Cast<UActorComponent>(Component->GetArchetype());
+						if (ComponentArchetype && !ComponentArchetype->bEditableWhenInherited)
+						{
+							bHasUneditableBlueprintComponent = true;
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	TSharedRef<SWidget> Message = SNullWidget::NullWidget;
+	if (bHasUneditableBlueprintComponent)
+	{
+		Message = SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.Padding(2)
+			[
+				SNew(SImage)
+				.Image(FEditorStyle::Get().GetBrush("Icons.Warning"))
+			]
+
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.Padding(2)
+			[
+				SNew(STextBlock)
+				.Font(FEditorStyle::GetFontStyle("BoldFont"))
+				.Text(LOCTEXT("BlueprintUneditableInheritedComponentWarning", "Some properties are not editable due to belonging to a Component flagged as not editable when inherited."))
+			];
+	}
+
+	return Message;
 }
 
 TSharedRef<SWidget> FDefaultsEditorSummoner::CreateOptionalDataOnlyMessage() const
