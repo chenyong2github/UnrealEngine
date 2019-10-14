@@ -521,6 +521,8 @@ public:
 
 extern TGlobalResource<FNullLandscapeRenderSystemResources> GNullLandscapeRenderSystemResources;
 
+extern RENDERER_API TAutoConsoleVariable<float> CVarStaticMeshLODDistanceScale;
+
 struct FLandscapeRenderSystem
 {
 	static int8 GetLODFromScreenSize(LODSettingsComponent LODSettings, float InScreenSizeSquared, float InViewLODScale, float& OutFractionalLOD)
@@ -540,7 +542,7 @@ struct FLandscapeRenderSystem
 		else
 		{
 			// No longer linear fraction, but worth the cache misses
-			OutFractionalLOD = 1 + FMath::LogX(LODSettings.LODOnePlusDistributionScalarSquared, LODSettings.LOD1ScreenSizeSquared / InScreenSizeSquared);
+			OutFractionalLOD = 1 + FMath::LogX(LODSettings.LODOnePlusDistributionScalarSquared, LODSettings.LOD1ScreenSizeSquared / ScreenSizeSquared);
 			return (int8)OutFractionalLOD;
 		}
 	}
