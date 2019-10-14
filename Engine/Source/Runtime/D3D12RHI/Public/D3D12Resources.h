@@ -1003,7 +1003,7 @@ private:
 	FD3D12ResourceLocation ResourceLocation;
 };
 
-class FD3D12StagingBuffer : public FRHIStagingBuffer
+class FD3D12StagingBuffer final : public FRHIStagingBuffer
 {
 	friend class FD3D12CommandContext;
 	friend class FD3D12DynamicRHI;
@@ -1014,7 +1014,7 @@ public:
 		, StagedRead(nullptr)
 		, ShadowBufferSize(0)
 	{}
-	virtual ~FD3D12StagingBuffer() final override;
+	~FD3D12StagingBuffer() override;
 
 	void SafeRelease()
 	{
@@ -1025,8 +1025,8 @@ public:
 		}
 	}
 
-	virtual void* Lock(uint32 Offset, uint32 NumBytes) final override;
-	virtual void Unlock() final override;
+	void* Lock(uint32 Offset, uint32 NumBytes) override;
+	void Unlock() override;
 
 private:
 	FD3D12Resource* StagedRead;
