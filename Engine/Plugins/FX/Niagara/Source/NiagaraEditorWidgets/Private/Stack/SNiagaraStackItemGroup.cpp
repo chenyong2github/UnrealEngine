@@ -7,7 +7,8 @@
 #include "Stack/SNiagaraStackItemGroupAddButton.h"
 #include "ViewModels/Stack/NiagaraStackItemGroup.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
-#include "Widgets/Input/SButton.h"
+#include "Widgets/SBoxPanel.h"
+	#include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
 #include "SNiagaraStackErrorButton.h"
 

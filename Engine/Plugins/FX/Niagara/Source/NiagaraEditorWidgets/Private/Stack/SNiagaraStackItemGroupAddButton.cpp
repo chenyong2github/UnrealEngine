@@ -6,8 +6,10 @@
 #include "ViewModels/Stack/NiagaraStackItemGroup.h"
 #include "NiagaraEditorWidgetsUtilities.h"
 #include "NiagaraEditorWidgetsStyle.h"
+#include "EditorStyleSet.h"
 
 #include "Widgets/Input/SComboButton.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"
