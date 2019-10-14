@@ -353,7 +353,7 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 				SCOPED_SCENE_WRITE_LOCK(SyncScene);
 				SyncScene->addActor(*HeightFieldActorSync);
 			}
-			else
+
 #elif WITH_CHAOS
 			{
 				FActorCreationParams Params;
@@ -431,8 +431,8 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 				TArray<FPhysicsActorHandle> Actors;
 				Actors.Add(PhysHandle);
 				PhysScene->AddActorsToScene_AssumesLocked(Actors);
-#endif
 			}
+#endif
 		}
 #endif// WITH_PHYSX
 	}
