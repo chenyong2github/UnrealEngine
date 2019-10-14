@@ -89,8 +89,23 @@ float NormalCurvatureToRoughness(float3 WorldNormal)
 #endif
 
 #if  MATERIAL_SHADINGMODEL_SINGLELAYERWATER
-#include "SingleLayerWaterCommon.ush"
+
+#if SINGLE_LAYER_WATER_SIMPLE_FORWARD
+
+	// Use mobile like simple shading
+	#define SIMPLE_SINGLE_LAYER_WATER 1
+
+	// Change the blend mode here from opaque to pre-multiplied-alpha for simplicity
+	#undef MATERIALBLENDING_ALPHACOMPOSITE
+	#define MATERIALBLENDING_ALPHACOMPOSITE 1
+	#undef MATERIALBLENDING_SOLID
+	#define MATERIALBLENDING_SOLID 0
+
 #endif
+
+#include "SingleLayerWaterCommon.ush"
+
+#endif // MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 
 #if !FORWARD_SHADING
 
@@ -1235,6 +1250,21 @@ ShadingModel);
 		const float3 V = MaterialParameters.CameraVector;
 		const float3 EnvBrdf = EnvBRDF(GBuffer.SpecularColor, GBuffer.Roughness, max(0.0, dot(N, V)));
 
+#if SINGLE_LAYER_WATER_SIMPLE_FORWARD 
+		const float4 NullDistortionParams = 1.0f;
+		WaterVolumeLightingOutput WaterLighting = EvaluateWaterVolumeLighting(
+			MaterialParameters, PixelMaterialInputs, ResolvedView,
+			DirectionalLightShadow,
+			OpaqueBasePass.SceneDepthWithoutSingleLayerWaterTexture, SingleLayerWaterSceneDepthSampler, // Scene depth texture
+			Specular, NullDistortionParams,
+			SunIlluminance, WaterDiffuseIndirectIlluminance, EnvBrdf,
+			CameraIsUnderWater, WaterVisibility);
+
+		// Add water luminance contribution
+		Color += WaterLighting.Luminance;
+		// Combine top layer opacity with water transmittance (grey scale)
+		Opacity = 1.0 - ((1.0 - Opacity) * dot(WaterLighting.WaterToSceneToLightTransmittance, float3(1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0)));
+#else
 		Color += EvaluateWaterVolumeLighting(
 			MaterialParameters, PixelMaterialInputs, ResolvedView,
 			DirectionalLightShadow,
@@ -1244,6 +1274,7 @@ ShadingModel);
 			Specular, OpaqueBasePass.DistortionParams,
 			SunIlluminance, WaterDiffuseIndirectIlluminance, EnvBrdf,
 			CameraIsUnderWater, WaterVisibility).Luminance;
+#endif
 	}
 #endif // MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 
