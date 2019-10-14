@@ -91,6 +91,8 @@ private:
 	void GatherRequestsTask(const FGatherRequestsParameters& Parameters);
 	void FeedbackAnalysisTask(const FFeedbackAnalysisParameters& Parameters);
 
+	void UpdateCSVStats() const;
+
 	uint32	Frame;
 
 	static const uint32 MaxSpaces = 16;
