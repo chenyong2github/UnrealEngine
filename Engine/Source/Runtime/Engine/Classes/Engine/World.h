@@ -3225,10 +3225,6 @@ private:
 
 	APhysicsVolume* InternalGetDefaultPhysicsVolume() const;
 
-	// Sends the NMT_Challenge message to Connection.
-	void SendChallengeControlMessage(UNetConnection* Connection);
-	void SendChallengeControlMessage(const FEncryptionKeyResponse& Response, TWeakObjectPtr<UNetConnection> WeakConnection);
-
 public:
 
 	/**
