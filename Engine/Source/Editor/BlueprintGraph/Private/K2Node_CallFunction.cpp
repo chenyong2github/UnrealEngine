@@ -2057,11 +2057,11 @@ void UK2Node_CallFunction::ValidateNodeDuringCompilation(class FCompilerResultsL
 			{
 				if(bCanTreatAsError)
 				{
-					MessageLog.Error(*LOCTEXT("FunctionPrivateAccessed", "Function '@@' is protected and can't be accessed outside of its hierarchy.").ToString(), this);
+					MessageLog.Error(*LOCTEXT("FunctionProtectedAccessed", "Function '@@' is protected and can't be accessed outside of its hierarchy.").ToString(), this);
 				}
 				else
 				{
-					MessageLog.Note(*LOCTEXT("FunctionPrivateAccessedNote", "Function '@@' is protected and can't be accessed outside of its hierarchy - this will be an error if the asset is resaved.").ToString(), this);
+					MessageLog.Note(*LOCTEXT("FunctionProtectedAccessedNote", "Function '@@' is protected and can't be accessed outside of its hierarchy - this will be an error if the asset is resaved.").ToString(), this);
 				}
 			}
 

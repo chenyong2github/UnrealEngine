@@ -598,11 +598,11 @@ void FPolygonEditingToolbar::OnLODModelChanged()
 	{
 		if (StaticMeshEditor->GetCurrentLODLevel() == 0 && !EditableLODs[0])
 		{
-			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("FPolygonEditingToolbarExitEdit", "LOD Auto is not editable on a static mesh with more than one LOD.\nExiting Edit Mode."));
+			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("FPolygonEditingToolbarExitEdit_LODAutoNotEditable", "LOD Auto is not editable on a static mesh with more than one LOD.\nExiting Edit Mode."));
 		}
 		else
 		{
-			FMessageDialog::Open( EAppMsgType::Ok, LOCTEXT("FPolygonEditingToolbarExitEdit", "Non editable LOD has been selected.\nExiting Edit Mode.") );
+			FMessageDialog::Open( EAppMsgType::Ok, LOCTEXT("FPolygonEditingToolbarExitEdit_NonEditableLOD", "Non editable LOD has been selected.\nExiting Edit Mode.") );
 		}
 		OnToggleEditMode();
 		return;
@@ -629,11 +629,11 @@ void FPolygonEditingToolbar::OnMeshChanged()
 		{
 			if (StaticMeshEditor->GetCurrentLODLevel() == 0 && !EditableLODs[0])
 			{
-				FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("FPolygonEditingToolbarExitEdit", "LOD Auto is not editable on a static mesh with more than one LOD.\nExiting Edit Mode."));
+				FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("FPolygonEditingToolbarExitEdit_LODAutoNotEditable", "LOD Auto is not editable on a static mesh with more than one LOD.\nExiting Edit Mode."));
 			}
 			else
 			{
-				FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("FPolygonEditingToolbarExitEdit", "Selected LOD is not editable anymore.\nExiting Edit Mode."));
+				FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("FPolygonEditingToolbarExitEdit_LODNoLongerEditable", "Selected LOD is not editable anymore.\nExiting Edit Mode."));
 			}
 			OnToggleEditMode();
 		}
