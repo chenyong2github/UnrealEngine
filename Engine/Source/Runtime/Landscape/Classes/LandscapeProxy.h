@@ -841,6 +841,9 @@ public:
 	LANDSCAPE_API void InvalidateGeneratedComponentData();
 
 #if WITH_EDITOR
+	/** Update Grass maps */
+	void UpdateGrassData();
+
 	/** Render grass maps for the specified components */
 	void RenderGrassMaps(const TArray<ULandscapeComponent*>& LandscapeComponents, const TArray<ULandscapeGrassType*>& GrassTypes);
 
@@ -1058,6 +1061,10 @@ protected:
 private:
 	/** Returns Grass Update interval */
 	int32 GetGrassUpdateInterval() const;
+
+#if WITH_EDITOR
+	void UpdateGrassDataStatus(TSet<UTexture2D*>& OutCurrentForcedStreamedTextures, TSet<UTexture2D*>* OutDesiredForcedStreamedTextures, TSet<ULandscapeComponent*>& OutComponentsNeedingGrassMapRender, TSet<ULandscapeComponent*>* OutOutdatedComponents, bool bInEnableForceResidentFlag);
+#endif
 
 #if WITH_EDITORONLY_DATA
 public:
