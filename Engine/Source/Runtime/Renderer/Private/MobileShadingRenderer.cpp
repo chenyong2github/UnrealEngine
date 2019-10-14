@@ -278,14 +278,27 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 	{
 		UploadDynamicPrimitiveShaderDataForView(RHICmdList, *Scene, Views[ViewIndex]);
 	}
-	
+
+	extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
+
+	for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
+	{
+		Extension->BeginFrame();
+
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+		{
+			// Must happen before RHI thread flush so any tasks we dispatch here can land in the idle gap during the flush
+			Extension->PrepareView(&Views[ViewIndex]);
+		}
+	}
 
 	// update buffers used in cached mesh path
 	// in case there are multiple views, these buffers will be updated before rendering each view
 	if (Views.Num() > 0)
 	{
 		const FViewInfo& View = Views[0];
-		Scene->UniformBuffers.UpdateViewUniformBuffer(View);
+		// We want to wait for the extension jobs only when the view is being actually rendered for the first time
+		Scene->UniformBuffers.UpdateViewUniformBuffer(View, false);
 		UpdateOpaqueBasePassUniformBuffer(RHICmdList, View);
 		UpdateTranslucentBasePassUniformBuffer(RHICmdList, View);
 		UpdateDirectionalLightUniformBuffers(RHICmdList, View);
@@ -300,16 +313,6 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 	UpdatePrimitiveIndirectLightingCacheBuffers();
 	
 	OnStartRender(RHICmdList);
-
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-	{
-		extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
-
-		for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
-		{
-			Extension->PrepareView(&Views[ViewIndex]);
-		}
-	}
 }
 
 /** 
