@@ -1335,33 +1335,40 @@ bool FAudioDevice::HandleAudio3dVisualizeCommand(const TCHAR* Cmd, FOutputDevice
 	return true;
 }
 
-bool FAudioDevice::HandleAudioSoloSoundClass(const TCHAR* Cmd, FOutputDevice& Ar)
+void FAudioDevice::HandleAudioSoloCommon(const TCHAR* Cmd, FOutputDevice& Ar, FToggleSoloPtr FPtr)
 {
 	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
 	if (DeviceManager)
 	{
-		DeviceManager->GetDebugger().ToggleSoloSoundClass(Cmd);
+		bool bExclusive = true;
+		if (FParse::Param(Cmd, TEXT("nonexclusive")))
+		{
+			bExclusive = false;
+		}
+		TArray<FString> Args;
+		FString(Cmd).ParseIntoArray(Args, TEXT(" "));
+		if (Args.Num())
+		{
+			(DeviceManager->GetDebugger().*FPtr)(*Args[0], bExclusive);
+		}
 	}
+}
+
+bool FAudioDevice::HandleAudioSoloSoundClass(const TCHAR* Cmd, FOutputDevice& Ar)
+{
+	HandleAudioSoloCommon(Cmd, Ar, &FAudioDebugger::ToggleSoloSoundClass);
 	return true;
 }
 
 bool FAudioDevice::HandleAudioSoloSoundWave(const TCHAR* Cmd, FOutputDevice& Ar)
-{
-	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
-	if (DeviceManager)
-	{
-		DeviceManager->GetDebugger().ToggleSoloSoundWave(Cmd);
-	}
+{	
+	HandleAudioSoloCommon(Cmd, Ar, &FAudioDebugger::ToggleSoloSoundWave);
 	return true;
 }
 
 bool FAudioDevice::HandleAudioSoloSoundCue(const TCHAR* Cmd, FOutputDevice& Ar)
 {
-	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
-	if (DeviceManager)
-	{
-		DeviceManager->GetDebugger().ToggleSoloSoundCue(Cmd);
-	}
+	HandleAudioSoloCommon(Cmd, Ar, &FAudioDebugger::ToggleSoloSoundCue);
 	return true;
 }
 

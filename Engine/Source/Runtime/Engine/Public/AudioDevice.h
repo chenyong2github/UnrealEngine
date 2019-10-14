@@ -25,6 +25,7 @@
  */
 
 class FArchive;
+class FAudioDebugger;
 class FAudioDevice;
 class FAudioEffectsManager;
 class FCanvas;
@@ -413,6 +414,10 @@ private:
 	bool HandleResetDynamicSoundVolumeCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandleGetDynamicSoundVolumeCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandleSetDynamicSoundCommand(const TCHAR* Cmd, FOutputDevice& Ar);
+
+	/** Handles all argument parsing for the solo commands in one place */
+	using FToggleSoloPtr = void (FAudioDebugger::*)(FName InName, bool bExclusive);
+	void HandleAudioSoloCommon(const TCHAR* Cmd, FOutputDevice& Ar, FToggleSoloPtr Funct);
 
 	/**
 	* Lists a summary of loaded sound collated by class
@@ -1552,7 +1557,6 @@ private:
 	int32 GetNumPrecacheFrames() const;
 
 	bool RemoveVirtualLoop(FActiveSound& ActiveSound);
-
 public:
 
 	/** Query if the editor is in VR Preview for the current play world. Returns false for non-editor builds */
