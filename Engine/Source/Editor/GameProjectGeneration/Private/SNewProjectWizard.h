@@ -203,7 +203,6 @@ private:
 	/** Handler for when the selection changes in the template list */
 	void HandleTemplateListViewSelectionChanged( TSharedPtr<FTemplateItem> TemplateItem, ESelectInfo::Type SelectInfo );
 
-	TSharedRef<SRichTextBlock> MakeProjectSettingsDescriptionBox() const;
 	TSharedRef<SWidget> MakeProjectSettingsOptionsBox();
 
 private:

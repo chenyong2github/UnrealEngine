@@ -1,50 +1,50 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-
 #include "SNewProjectWizard.h"
 #include "Brushes/SlateDynamicImageBrush.h"
-#include "HAL/PlatformFilemanager.h"
-#include "Misc/MessageDialog.h"
+#include "DesktopPlatformModule.h"
+#include "Dialogs/SOutputLogDialog.h"
+#include "Editor.h"
+#include "EditorStyleSet.h"
+#include "Framework/Application/SlateApplication.h"
+#include "GameProjectGenerationLog.h"
+#include "GameProjectGenerationModule.h"
+#include "GameProjectUtils.h"
 #include "HAL/FileManager.h"
+#include "HAL/PlatformFilemanager.h"
+#include "HardwareTargetingModule.h"
+#include "IDocumentation.h"
+#include "Interfaces/IPluginManager.h"
+#include "Interfaces/IProjectManager.h"
+#include "Internationalization/BreakIterator.h"
+#include "Layout/WidgetPath.h"
 #include "Misc/App.h"
 #include "Misc/CommandLine.h"
+#include "Misc/MessageDialog.h"
 #include "Misc/Parse.h"
-#include "Widgets/SOverlay.h"
-#include "Layout/WidgetPath.h"
+#include "ProjectDescriptor.h"
+#include "SGameProjectDialog.h"
+#include "SGetSuggestedIDEWidget.h"
+#include "Settings/EditorSettings.h"
 #include "SlateOptMacros.h"
-#include "Framework/Application/SlateApplication.h"
+#include "SourceCodeNavigation.h"
+#include "TemplateCategory.h"
+#include "TemplateItem.h"
+#include "TemplateProjectDefs.h"
 #include "Textures/SlateIcon.h"
-#include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Images/SImage.h"
-#include "Widgets/Text/SRichTextBlock.h"
-#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Layout/SScrollBorder.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SWrapBox.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
-#include "Editor.h"
-#include "Interfaces/IPluginManager.h"
-#include "Interfaces/IProjectManager.h"
-#include "ProjectDescriptor.h"
-#include "GameProjectGenerationLog.h"
-#include "GameProjectGenerationModule.h"
-#include "HardwareTargetingModule.h"
-#include "TemplateProjectDefs.h"
-#include "GameProjectUtils.h"
-#include "SGetSuggestedIDEWidget.h"
-#include "DesktopPlatformModule.h"
-#include "SourceCodeNavigation.h"
-#include "TemplateCategory.h"
+#include "Widgets/SOverlay.h"
 #include "Widgets/SToolTip.h"
+#include "Widgets/Text/SRichTextBlock.h"
 #include "Widgets/Workflow/SWizard.h"
-#include "IDocumentation.h"
-#include "Internationalization/BreakIterator.h"
-#include "Dialogs/SOutputLogDialog.h"
-#include "TemplateItem.h"
-#include "Settings/EditorSettings.h"
 
 #define LOCTEXT_NAMESPACE "NewProjectWizard"
 
@@ -337,17 +337,6 @@ void SNewProjectWizard::Construct( const FArguments& InArgs )
 	.Padding(0)
 	[
 		SNew(SVerticalBox)
-
-		+ SVerticalBox::Slot()
-		.Padding(0, 8, 0, 8)
-		.AutoHeight()
-		[
-			SNew(SRichTextBlock)
-			.Text(LOCTEXT("ProjectTemplateDescription", "Choose a <RichTextBlock.BoldHighlight>template</> to use as a starting point for your new project.  Any of these features can be added later by clicking <RichTextBlock.BoldHighlight>Add Feature or Content Pack</> in <RichTextBlock.BoldHighlight>Content Browser</>."))
-			.AutoWrapText(true)
-			.DecoratorStyleSet(&FEditorStyle::Get())
-			.ToolTip(IDocumentation::Get()->CreateToolTip(LOCTEXT("TemplateChoiceTooltip", "A template consists of a little bit of player control logic (either as a Blueprint or in C++), input bindings, and appropriate prototyping assets."), nullptr, TEXT("Shared/Editor/NewProjectWizard"), TEXT("TemplateChoice")))
-		]
 
 		+ SVerticalBox::Slot()
 		[
@@ -935,7 +924,7 @@ TMap<FName, TArray<TSharedPtr<FTemplateItem>> >& SNewProjectWizard::FindTemplate
 		BlankTemplate->bIsBlankTemplate = true;
 
 		TArray<TSharedPtr<FTemplateCategory>> AllTemplateCategories;
-		FGameProjectGenerationModule::Get().GetAllTemplateCategories(AllTemplateCategories);
+		SGameProjectDialog::GetAllTemplateCategories(AllTemplateCategories);
 
 		for (const TSharedPtr<FTemplateCategory>& Category : AllTemplateCategories)
 		{
@@ -1314,12 +1303,6 @@ TSharedRef<SWidget> SNewProjectWizard::CreateProjectSettingsPage()
 	[
 		SNew(SVerticalBox)
 		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.Padding(0, 8, 0, 8)
-		[
-			MakeProjectSettingsDescriptionBox()
-		]
-		+ SVerticalBox::Slot()
 		.Padding(0)
 		.VAlign(VAlign_Fill)
 		[
@@ -1460,17 +1443,6 @@ int32 SNewProjectWizard::OnGetBlueprintOrCppIndex() const
 void SNewProjectWizard::OnSetBlueprintOrCppIndex(int32 Index)
 {
 	bShouldGenerateCode = Index == 1;
-}
-
-TSharedRef<SRichTextBlock> SNewProjectWizard::MakeProjectSettingsDescriptionBox() const
-{
-	TSharedRef<SRichTextBlock> Widget = SNew(SRichTextBlock)
-		.Text(LOCTEXT("ProjectSettingsDescription", "Choose some <RichTextBlock.BoldHighlight>settings</> for your project."))
-		.AutoWrapText(true)
-		.DecoratorStyleSet(&FEditorStyle::Get())
-		.ToolTip(IDocumentation::Get()->CreateToolTip(LOCTEXT("HardwareTargetTooltip", "These settings will choose good defaults for a number of other settings in the project such as post-processing flags and touch input emulation using the mouse."), nullptr, TEXT("Shared/Editor/NewProjectWizard"), TEXT("TargetHardware")));
-
-	return Widget;
 }
 
 static void AddToProjectSettingsGrid(TSharedRef<SGridPanel> Grid, const TSharedRef<SWidget>& Enum, const TSharedRef<SWidget>& Description, FIntPoint& Slot)
