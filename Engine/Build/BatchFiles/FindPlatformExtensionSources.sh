@@ -20,9 +20,9 @@ echo "<ItemGroup>" >> $REFERENCE_FILE
 
 for PLATFORM in ../../Engine/Platforms/*; do
 	for SOURCE_FILE in ${PLATFORM}/Source/Programs/UnrealBuildTool/*; do
-		echo "<PlatformExtensionCompile Include=\"..\\..\\${SOURCE_FILE//\//\\}\">" >> $REFERENCE_FILE
+		echo "<PlatformExtensionCompile Include=\"..\\..\\${SOURCE_FILE//\//\\}\" >" >> $REFERENCE_FILE
 		echo "    <Link>Platform\${PLATFORM##*/}\${SOURCE_FILE##*/}</Link>" >> $REFERENCE_FILE
-		echo "</PlatformExtensionCompile>" >> %REFERENCE_FILE%
+		echo "</PlatformExtensionCompile>" >> $REFERENCE_FILE
 	done
 done
 
