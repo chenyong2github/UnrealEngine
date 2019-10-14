@@ -189,11 +189,11 @@ TSharedRef< SCompoundWidget > SDatasmithOptionsWindow::ConstructWarningWidget( f
 
 	if ( bIsNewer )
 	{
-		UpdateText = FText::Format( LOCTEXT( "UpdateVersion", "For best results, install Unreal Studio version {0} or later." ), FileSDKVersion );
+		UpdateText = FText::Format( LOCTEXT( "UpdateVersion_UnrealStudio", "For best results, install Unreal Studio version {0} or later." ), FileSDKVersion );
 	}
 	else
 	{
-		UpdateText = LOCTEXT( "UpdateVersion", "For best results, update your Datasmith exporter plugin if possible." );
+		UpdateText = LOCTEXT( "UpdateVersion_Datasmith", "For best results, update your Datasmith exporter plugin if possible." );
 	}
 
 	FText WarningText(
