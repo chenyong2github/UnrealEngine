@@ -42,18 +42,6 @@ public:
 				.Image(FEditorStyle::GetBrush("Icons.Info"))
 				.ToolTipText(this, &SEmitterTrackWidget::GetTrackErrorIconToolTip)
 			]
-			// Enabled checkbox.
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.Padding(3, 0, 0, 0)
-			[
-				SNew(SCheckBox)
-				.ToolTipText(LOCTEXT("EnabledTooltip", "Toggle whether or not this emitter is enabled."))
-				.IsChecked(this, &SEmitterTrackWidget::GetEnabledCheckState)
-				.OnCheckStateChanged(this, &SEmitterTrackWidget::OnEnabledCheckStateChanged)
-				.Visibility(this, &SEmitterTrackWidget::GetEnableCheckboxVisibility)
-			]
 			// Isolate toggle
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
@@ -94,6 +82,19 @@ public:
 					]
 				];
 		}
+
+		// Enabled checkbox.
+		TrackBox->AddSlot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(3, 0, 0, 0)
+			[
+				SNew(SCheckBox)
+				.ToolTipText(LOCTEXT("EnabledTooltip", "Toggle whether or not this emitter is enabled."))
+				.IsChecked(this, &SEmitterTrackWidget::GetEnabledCheckState)
+				.OnCheckStateChanged(this, &SEmitterTrackWidget::OnEnabledCheckStateChanged)
+				.Visibility(this, &SEmitterTrackWidget::GetEnableCheckboxVisibility)
+			];
 
 		ChildSlot
 		[
