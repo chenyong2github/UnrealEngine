@@ -86,6 +86,10 @@ namespace Chaos
 				Ar << FlattenedBounds.Max;
 				Ar << LocalBounds;
 			}
+			else
+			{
+				CalcBounds();
+			}
 			
 
 			if(Ar.IsLoading())
