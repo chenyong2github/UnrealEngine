@@ -41,15 +41,24 @@ namespace VirtualTextureScalability
 		ECVF_RenderThreadSafe | ECVF_Scalability
 	);
 
+	static TAutoConsoleVariable<int32> CVarVTMaxAnisotropy(
+		TEXT("r.VT.MaxAnisotropy"),
+		8,
+		TEXT("MaxAnisotropy setting for Virtual Texture sampling."),
+		ECVF_RenderThreadSafe | ECVF_Scalability
+	);
+	
 
 	/** Track changes and apply to relevant systems. This allows us to dynamically change the scalability settings. */
 	static void OnUpdate()
 	{
 		const float PoolSizeScale = CVarVTPoolSizeScale.GetValueOnGameThread();
 		const float TileCountBias = CVarVTTileCountBias.GetValueOnGameThread();
+		const float MaxAnisotropy = CVarVTMaxAnisotropy.GetValueOnGameThread();
 
 		static float LastPoolSizeScale = PoolSizeScale;
 		static float LastTileCountBias = TileCountBias;
+		static float LastMaxAnisotropy = MaxAnisotropy;
 
 		bool bUpdate = false;
 		if (LastPoolSizeScale != PoolSizeScale)
@@ -60,6 +69,11 @@ namespace VirtualTextureScalability
 		if (LastTileCountBias != TileCountBias)
 		{
 			LastTileCountBias = TileCountBias;
+			bUpdate = true;
+		}
+		if (LastMaxAnisotropy != MaxAnisotropy)
+		{
+			LastMaxAnisotropy = MaxAnisotropy;
 			bUpdate = true;
 		}
 
@@ -118,5 +132,10 @@ namespace VirtualTextureScalability
 	int32 GetRuntimeVirtualTextureSizeBias()
 	{
 		return CVarVTTileCountBias.GetValueOnAnyThread();
+	}
+
+	int32 GetMaxAnisotropy()
+	{
+		return CVarVTMaxAnisotropy.GetValueOnAnyThread();
 	}
 }

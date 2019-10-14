@@ -1,9 +1,10 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AllocatedVirtualTexture.h"
-#include "VirtualTextureSystem.h"
-#include "VirtualTextureSpace.h"
-#include "VirtualTexturePhysicalSpace.h"
+#include "VT/VirtualTextureScalability.h"
+#include "VT/VirtualTextureSystem.h"
+#include "VT/VirtualTextureSpace.h"
+#include "VT/VirtualTexturePhysicalSpace.h"
 
 FAllocatedVirtualTexture::FAllocatedVirtualTexture(FVirtualTextureSystem* InSystem,
 	uint32 InFrame,
@@ -268,8 +269,6 @@ static inline uint32 BitcastFloatToUInt32(float v)
 
 void FAllocatedVirtualTexture::GetPackedPageTableUniform(FUintVector4* OutUniform, bool bApplyBlockScale) const
 {
-	static const auto MaxAnisotropyCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MaxAnisotropy"));
-
 	const uint32 vPageX = FMath::ReverseMortonCode2(VirtualAddress);
 	const uint32 vPageY = FMath::ReverseMortonCode2(VirtualAddress >> 1);
 	const uint32 vPageSize = GetVirtualTileSize();
@@ -278,7 +277,7 @@ void FAllocatedVirtualTexture::GetPackedPageTableUniform(FUintVector4* OutUnifor
 	const uint32 HeightInPages = GetHeightInTiles();
 	const uint32 vPageTableMipBias = FMath::FloorLog2(vPageSize);
 
-	const uint32 MaxAnisotropy = FMath::Clamp<int32>(MaxAnisotropyCVar->GetValueOnRenderThread(), 1, PageBorderSize);
+	const uint32 MaxAnisotropy = FMath::Clamp<int32>(VirtualTextureScalability::GetMaxAnisotropy(), 1, PageBorderSize);
 	const uint32 MaxAnisotropyLog2 = FMath::FloorLog2(MaxAnisotropy);
 
 	// make sure everything fits in the allocated number of bits
