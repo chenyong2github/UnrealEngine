@@ -4498,8 +4498,7 @@ void GetAdditionalCurrentIniVersionStrings( const ITargetPlatform* TargetPlatfor
 	}
 
 
-	static const FCustomVersionContainer& CustomVersionContainer = FCustomVersionContainer::GetRegistered();
-	for (const auto& CustomVersion : CustomVersionContainer.GetAllVersions())
+	for (const FCustomVersion& CustomVersion : FCurrentCustomVersions::GetAll().GetAllVersions())
 	{
 		FString CustomVersionString = FString::Printf(TEXT("%s:%s"), *CustomVersion.GetFriendlyName().ToString(), *CustomVersion.Key.ToString());
 		FString CustomVersionValue = FString::Printf(TEXT("%d"), CustomVersion.Version);

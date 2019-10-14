@@ -117,7 +117,7 @@ void FConcertSessionVersionInfo::Initialize()
 		}
 	}
 
-	for (const FCustomVersion& EngineCustomVersion : FCustomVersionContainer::GetRegistered().GetAllVersions())
+	for (const FCustomVersion& EngineCustomVersion : FCurrentCustomVersions::GetAll().GetAllVersions())
 	{
 		FConcertCustomVersionInfo& CustomVersion = CustomVersions.AddDefaulted_GetRef();
 		CustomVersion.Initialize(EngineCustomVersion);
