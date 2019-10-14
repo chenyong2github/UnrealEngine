@@ -10,7 +10,7 @@ namespace Chaos
 {
 
 /** Used for the creation of different acceleration structures */
-template <typename TPayloadType, typename T, int d>
+template <typename TParticleView, typename TPayloadType, typename T, int d>
 struct CHAOS_API TSpatialAccelerationParams
 {
 	SpatialAccelerationType Type;	//Specifies the acceleration type. Unknown can be used for custom types, see TSpatialAccelerationParams
@@ -22,8 +22,8 @@ struct CHAOS_API TSpatialAccelerationParams
 	int32 MaxChildrenInLeaf; //(tree only) if the tree sees MaxChildrenInLeaf or fewer objects, no more splitting occurs
 	int32 MaxTreeDepth;	//(tree only) if the tree has reached MaxTreeDepth, no more splitting occurs
 
-	typedef ISpatialAcceleration<TPayloadType, T, d> (*ConstructFn)(TSpatialAccelerationParams<TPayloadType, T, d>& Params, int32 ParamIdx);
-	ConstructFn ConstructionFactory;	//if unknown type is specified, use function pointer set by user
+	//typedef ISpatialAcceleration<TPayloadType, T, d> (*ConstructFn)(TSpatialAccelerationParams<TPayloadType, T, d>& Params, int32 ParamIdx);
+	//ConstructFn ConstructionFactory;	//if unknown type is specified, use function pointer set by user
 };
 
 template <typename TPayloadType, typename T, int d>
@@ -66,6 +66,14 @@ struct CHAOS_API TSpatialAccelerationBucketEntry
 	TSpatialAccelerationBucketEntry<TPayloadType, T, d>& operator=(TSpatialAccelerationBucketEntry<TPayloadType, T, d>&& Other) = default;
 	TSpatialAccelerationBucketEntry<TPayloadType, T, d>& operator=(TSpatialAccelerationBucketEntry<TPayloadType, T, d>& Other) = delete;
 };
+
+template <typename TPayloadType, typename T, int d>
+FChaosArchive& operator<<(FChaosArchive& Ar, TSpatialAccelerationBucketEntry<TPayloadType, T, d>& BucketEntry)
+{
+	Ar << BucketEntry.Acceleration;
+	Ar << BucketEntry.TypeInnerIdx;
+	return Ar;
+}
 
 
 template <typename TPayloadType, typename T, int d>
@@ -142,6 +150,14 @@ struct CHAOS_API TSpatialCollectionBucket
 	}
 
 };
+
+template <typename TObj>
+FChaosArchive& operator<<(FChaosArchive& Ar, TSpatialCollectionBucket<TObj>& Bucket)
+{
+	Ar << Bucket.Objects;
+	Ar << Bucket.FreeIndices;
+	return Ar;
+}
 
 template <typename... TRemaining>
 struct CHAOS_API TSpatialTypeTuple
@@ -321,7 +337,7 @@ typename TEnableIf<!TIsSame<typename SpatialAccelerationCollection::TPayloadType
 {
 }
 
-template <typename ... TSpatialAccelerationTypes>
+template <typename TParticleView, typename ... TSpatialAccelerationTypes>
 class CHAOS_API TSpatialAccelerationCollection : public
 	ISpatialAccelerationCollection<typename std::tuple_element<0, std::tuple< TSpatialAccelerationTypes...>>::type::PayloadType,
 	typename std::tuple_element<0, std::tuple< TSpatialAccelerationTypes...>>::type::TType,
@@ -332,8 +348,10 @@ public:
 	using TPayloadType = typename FirstAccelerationType::PayloadType;
 	using T = typename FirstAccelerationType::TType;
 	static constexpr int d = FirstAccelerationType::D;
-	TSpatialAccelerationCollection(const TArray<TSpatialAccelerationParams<TPayloadType, T, d>>& BucketsParams)
-		: NumBuckets(BucketsParams.Num())
+
+	TSpatialAccelerationCollection(TArray<TSpatialAccelerationParams<TParticleView, TPayloadType, T, d>>&& InBucketsParams)
+		: NumBuckets(InBucketsParams.Num())
+		, BucketsParams(MoveTemp(InBucketsParams))
 	{
 		check(NumBuckets < MaxBuckets);
 		int32 ParamIdx = 0;
@@ -503,7 +521,7 @@ public:
 
 	virtual TUniquePtr<ISpatialAcceleration<TPayloadType, T, d>> Copy() const
 	{
-		return TUniquePtr<ISpatialAcceleration<TPayloadType, T, d>>(new TSpatialAccelerationCollection<TSpatialAccelerationTypes...>(*this));
+		return TUniquePtr<ISpatialAcceleration<TPayloadType, T, d>>(new TSpatialAccelerationCollection<TParticleView, TSpatialAccelerationTypes...>(*this));
 	}
 
 	virtual void PBDComputeConstraintsLowLevel_GatherStats(TPBDCollisionConstraint<T, d>& CollisionConstraint, T Dt) const override
@@ -516,9 +534,40 @@ public:
 		PBDComputeConstraintsLowLevel_Helper<false>(CollisionConstraint, *this, Dt);
 	}
 
+	virtual void Serialize(FChaosArchive& Ar)
+	{
+		//todo: let user serialize out bucket params
+
+		//serialize out sub structures
+		for (int BucketIdx = 0; BucketIdx < MaxBuckets; ++BucketIdx)
+		{
+			Ar << Buckets[BucketIdx];
+
+			if (Ar.IsLoading())
+			{
+				for (const TSpatialAccelerationBucketEntry<TPayloadType, T, d>& Entry : Buckets[BucketIdx].Objects)
+				{
+					ISpatialAcceleration<TPayloadType, T, d>* RawPtr = Entry.Acceleration.Get();
+					const int32 TypeIdx = GetTypeIdx(RawPtr);
+					switch (TypeIdx)
+					{
+					case 0: GetAccelerationsPerType<0>(Types).Objects[Entry.TypeInnerIdx] = &RawPtr->template AsChecked<typename std::tuple_element<0, std::tuple<TSpatialAccelerationTypes...>>::type>(); break;
+					case 1: GetAccelerationsPerType<ClampedIdx(1)>(Types).Objects[Entry.TypeInnerIdx] = &RawPtr->template AsChecked<typename std::tuple_element<ClampedIdx(1), std::tuple<TSpatialAccelerationTypes...>>::type>(); break;
+					case 2: GetAccelerationsPerType<ClampedIdx(2)>(Types).Objects[Entry.TypeInnerIdx] = &RawPtr->template AsChecked<typename std::tuple_element<ClampedIdx(2), std::tuple<TSpatialAccelerationTypes...>>::type>(); break;
+					case 3: GetAccelerationsPerType<ClampedIdx(3)>(Types).Objects[Entry.TypeInnerIdx] = &RawPtr->template AsChecked<typename std::tuple_element<ClampedIdx(3), std::tuple<TSpatialAccelerationTypes...>>::type>(); break;
+					case 4: GetAccelerationsPerType<ClampedIdx(4)>(Types).Objects[Entry.TypeInnerIdx] = &RawPtr->template AsChecked<typename std::tuple_element<ClampedIdx(4), std::tuple<TSpatialAccelerationTypes...>>::type>(); break;
+					case 5: GetAccelerationsPerType<ClampedIdx(5)>(Types).Objects[Entry.TypeInnerIdx] = &RawPtr->template AsChecked<typename std::tuple_element<ClampedIdx(5), std::tuple<TSpatialAccelerationTypes...>>::type>(); break;
+					case 6: GetAccelerationsPerType<ClampedIdx(6)>(Types).Objects[Entry.TypeInnerIdx] = &RawPtr->template AsChecked<typename std::tuple_element<ClampedIdx(6), std::tuple<TSpatialAccelerationTypes...>>::type>(); break;
+					case 7: GetAccelerationsPerType<ClampedIdx(7)>(Types).Objects[Entry.TypeInnerIdx] = &RawPtr->template AsChecked<typename std::tuple_element<ClampedIdx(7), std::tuple<TSpatialAccelerationTypes...>>::type>(); break;
+					}
+				}
+			}
+		}
+	}
+
 private:
 
-	TSpatialAccelerationCollection(const TSpatialAccelerationCollection<TSpatialAccelerationTypes...>& Other)
+	TSpatialAccelerationCollection(const TSpatialAccelerationCollection<TParticleView, TSpatialAccelerationTypes...>& Other)
 		: NumBuckets(Other.NumBuckets)
 	{
 		//need to make a deep copy of the unique ptrs and then update raw ptrs
@@ -604,6 +653,7 @@ private:
 	TSpatialTypeTuple< TSpatialAccelerationTypes...> Types;
 	static constexpr uint32 NumTypes = sizeof...(TSpatialAccelerationTypes);
 	uint16 NumBuckets;
+	const TArray<TSpatialAccelerationParams<TParticleView, TPayloadType, T, d>> BucketsParams;
 };
 
 

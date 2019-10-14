@@ -30,6 +30,7 @@ namespace Chaos
 		case ESpatialAcceleration::BoundingVolume: return Ar.IsLoading() ? new TBoundingVolume<TPayloadType, T, d>() : nullptr;
 		case ESpatialAcceleration::AABBTree: return Ar.IsLoading() ? new TAABBTree<TPayloadType, TAABBTreeLeafArray<TPayloadType, T>, T>() : nullptr;
 		case ESpatialAcceleration::AABBTreeBV: return Ar.IsLoading() ? new TAABBTree<TPayloadType, TBoundingVolume<TPayloadType, T, 3>, T>() : nullptr;
+		case ESpatialAcceleration::Collection: check(false);	//Collections must be serialized directly since they are variadic
 		default: check(false); return nullptr;
 		}
 	}

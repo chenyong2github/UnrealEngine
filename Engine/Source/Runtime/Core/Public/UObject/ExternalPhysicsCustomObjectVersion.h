@@ -33,6 +33,9 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 		//Save out heightfield data
 		HeightfieldData,
 
+		//Save out multiple acceleration structures
+		SerializeMultiStructures,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
