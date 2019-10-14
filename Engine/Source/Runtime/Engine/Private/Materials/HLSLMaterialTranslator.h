@@ -1527,7 +1527,10 @@ ResourcesString = TEXT("");
 			{
 				OutEnvironment.SetDefine(TEXT("DISABLE_FORWARD_LOCAL_LIGHTS"), TEXT("1"));
 			}
-			if (ShadingModels.HasShadingModel(MSM_SingleLayerWater) && UMaterial::SingleLayerWaterUsesSimpleShading(InPlatform))
+
+			// This is to have switch use the simple single layer water shading similar to mobile: no dynamic lights, only sun and sky, no distortion, no colored transmittance on background, no custom depth read.
+			const bool bSingleLayerWaterUsesSimpleShading = IsSwitchPlatform(InPlatform) && IsForwardShadingEnabled(InPlatform);
+			if (ShadingModels.HasShadingModel(MSM_SingleLayerWater) && bSingleLayerWaterUsesSimpleShading)
 			{
 				OutEnvironment.SetDefine(TEXT("SINGLE_LAYER_WATER_SIMPLE_FORWARD"), TEXT("1"));
 			}
