@@ -520,46 +520,6 @@ bool FEditorModeTools::IsOnlyVisibleActiveMode(FEditorModeID InMode) const
 	return true;
 }
 
-void FEditorModeTools::UpdateModeWidgetLocation()
-{
-	if (!bIsTracking)
-	{
-		USelection* SelectedActors = GetSelectedActors();
-
-		if (SelectedActors && SelectedActors->Num() > 0)
-		{
-			AActor* Actor = Cast<AActor>(SelectedActors->GetSelectedObject(SelectedActors->Num() - 1));
-
-			if (Actor)
-			{
-				FVector CurrentActorLocation = Actor->GetActorLocation();
-
-				if (Actor == LastSelectedActor)
-				{
-					if (!(LastSelectedActorLocation - CurrentActorLocation).IsNearlyZero())
-					{
-						for (const auto& Mode : ActiveModes)
-						{
-							if (Mode->UsesTransformWidget())
-							{
-								SetPivotLocation(CurrentActorLocation, false);
-								LastSelectedActorLocation = CurrentActorLocation;
-								break;
-							}
-						}
-
-					}
-					// lbarnes: need to handle UEdMode gizmos here
-				}
-				else
-				{
-					LastSelectedActor = Actor;
-				}
-			}
-		}
-	}
-}
-
 void FEditorModeTools::OnEditorSelectionChanged(UObject* NewSelection)
 {
 	if(NewSelection == GetSelectedActors())
