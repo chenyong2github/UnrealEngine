@@ -296,7 +296,8 @@ namespace Chaos
 				//just assume all bounds come from geometry (technically wrong for pbd rigids with only sample points, but backwards compat is not that important right now)
 				for (int32 Idx = 0; Idx < MGeometry.Num(); ++Idx)
 				{
-					if ((MHasBounds[Idx] = MGeometry[Idx] && MGeometry[Idx]->HasBoundingBox()))
+					MHasBounds[Idx] = MGeometry[Idx] && MGeometry[Idx]->HasBoundingBox();
+					if (MHasBounds[Idx])
 					{
 						MLocalBounds[Idx] = MGeometry[Idx]->BoundingBox();
 						MWorldSpaceInflatedBounds[Idx] = MLocalBounds[Idx].TransformedBox(TRigidTransform<T,d>(X(Idx), R(Idx)));	//ignore velocity too, really just trying to get something reasonable
