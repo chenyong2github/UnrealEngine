@@ -2,8 +2,11 @@
 
 #pragma once
 
+#include "Templates/SharedPointer.h"
 #include "UObject/NameTypes.h"
 
+class FMenuBuilder;
+class SWidget;
 class UNiagaraStackEntry;
 class UNiagaraStackItem;
 class UNiagaraStackModuleItem;
