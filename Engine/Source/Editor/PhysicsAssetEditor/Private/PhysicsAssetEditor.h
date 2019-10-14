@@ -222,7 +222,11 @@ private:
 	void ToggleRenderOnlySelectedConstraints();
 	bool IsRenderingOnlySelectedConstraints() const;
 	void ToggleRenderOnlySelectedSolid();
+	void ToggleHideSimulatedBodies();
+	void ToggleHideKinematicBodies();
 	bool IsRenderingOnlySelectedSolid() const;
+	bool IsHidingSimulatedBodies() const;
+	bool IsHidingKinematicBodies() const;
 	void OnToggleMassProperties();
 	bool IsToggleMassProperties() const;
 	void OnSetCollision(bool bEnable);

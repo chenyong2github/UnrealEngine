@@ -966,6 +966,18 @@ void FPhysicsAssetEditor::BindCommands()
 		FIsActionChecked::CreateSP(this, &FPhysicsAssetEditor::IsRenderingOnlySelectedSolid));
 
 	ViewportCommandList->MapAction(
+		Commands.HideSimulatedBodies,
+		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::ToggleHideSimulatedBodies),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FPhysicsAssetEditor::IsHidingSimulatedBodies));
+
+	ViewportCommandList->MapAction(
+		Commands.HideKinematicBodies,
+		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::ToggleHideKinematicBodies),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FPhysicsAssetEditor::IsHidingKinematicBodies));
+
+	ViewportCommandList->MapAction(
 		Commands.DrawConstraintsAsPoints,
 		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::ToggleDrawConstraintsAsPoints),
 		FCanExecuteAction(),
@@ -2031,9 +2043,31 @@ void FPhysicsAssetEditor::ToggleRenderOnlySelectedSolid()
 	SharedData->EditorOptions->SaveConfig();
 }
 
+void FPhysicsAssetEditor::ToggleHideSimulatedBodies()
+{
+	SharedData->EditorOptions->bHideSimulatedBodies = !SharedData->EditorOptions->bHideSimulatedBodies;
+	SharedData->EditorOptions->SaveConfig();
+}
+
+void FPhysicsAssetEditor::ToggleHideKinematicBodies()
+{
+	SharedData->EditorOptions->bHideKinematicBodies = !SharedData->EditorOptions->bHideKinematicBodies;
+	SharedData->EditorOptions->SaveConfig();
+}
+
 bool FPhysicsAssetEditor::IsRenderingOnlySelectedSolid() const
 {
 	return SharedData->EditorOptions->bSolidRenderingForSelectedOnly;
+}
+
+bool FPhysicsAssetEditor::IsHidingSimulatedBodies() const
+{
+	return SharedData->EditorOptions->bHideSimulatedBodies;
+}
+
+bool FPhysicsAssetEditor::IsHidingKinematicBodies() const
+{
+	return SharedData->EditorOptions->bHideKinematicBodies;
 }
 
 bool FPhysicsAssetEditor::IsConstraintRenderingMode(EPhysicsAssetEditorConstraintViewMode Mode, bool bSimulation) const
