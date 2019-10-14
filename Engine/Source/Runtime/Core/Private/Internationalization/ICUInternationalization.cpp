@@ -20,7 +20,9 @@
 #include "Internationalization/ICUBreakIterator.h"
 THIRD_PARTY_INCLUDES_START
 	#include <unicode/locid.h>
-	#include <unicode/timezone.h>
+PRAGMA_PUSH_PLATFORM_DEFAULT_PACKING
+	#include <unicode/timezone.h> // icu::Calendar can be affected by the non-standard packing UE4 uses, so force the platform default
+PRAGMA_POP_PLATFORM_DEFAULT_PACKING
 	#include <unicode/uclean.h>
 	#include <unicode/udata.h>
 THIRD_PARTY_INCLUDES_END
