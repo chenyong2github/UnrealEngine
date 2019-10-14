@@ -13,7 +13,7 @@ void FPreLoadMoviePlayerScreenModuleBase::RegisterMovieStreamer(TSharedPtr<class
     {
         //Pass the streamer to our screen and then init with this new information
         MoviePreLoadScreen->RegisterMovieStreamer(InMovieStreamer);
-        MoviePreLoadScreen->Init();
+        MoviePreLoadScreen->Init([]()->TSharedPtr<IAnalyticsProviderET> { return TSharedPtr<IAnalyticsProviderET>(); });
     }
 }
 
