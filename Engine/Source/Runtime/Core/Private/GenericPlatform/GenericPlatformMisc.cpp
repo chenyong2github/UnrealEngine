@@ -1372,7 +1372,7 @@ FString FGenericPlatformMisc::LoadTextFileFromPlatformPackage(const FString& Rel
 	return Result;
 }
 
-bool FGenericPlatformMisc::FileExistsInPlatformPackage(const FString& RelativePath)
+bool FGenericPlatformMisc::FileExitsInPlatformPackage(const FString& RelativePath)
 {
 	FString Path = RootDir() / RelativePath;
 	return IFileManager::Get().FileExists(*Path);
