@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -15,32 +15,32 @@ namespace AutomationTool.Tasks
 	/// </summary>
 	public class MsBuildTaskParameters
 	{
-		/// <summary>
-		/// The C# project file to be compile. More than one project file can be specified by separating with semicolons.
-		/// </summary>
-		[TaskParameter]
+        /// <summary>
+        /// The C# project file to compile. Using semicolons, more than one project file can be specified.
+        /// </summary>
+        [TaskParameter]
 		public string Project;
 
 		/// <summary>
-		/// The configuration to compile
+		/// The configuration to compile.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public string Configuration;
 
 		/// <summary>
-		/// The platform to compile
+		/// The platform to compile.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public string Platform;
 
 		/// <summary>
-		/// Additional options to pass to the compiler
+		/// Additional options to pass to the compiler.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public string Arguments;
 
 		/// <summary>
-		/// The MSBuild output verbosity
+		/// The MSBuild output verbosity.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public string Verbosity = "minimal";

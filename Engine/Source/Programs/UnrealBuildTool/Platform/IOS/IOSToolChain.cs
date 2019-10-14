@@ -21,14 +21,14 @@ namespace UnrealBuildTool
 	class IOSToolChainSettings : AppleToolChainSettings
 	{
 		/// <summary>
-		/// Which version of the iOS SDK to target at build time
+		/// The version of the iOS SDK to target at build time.
 		/// </summary>
 		[XmlConfigFile(Category = "IOSToolChain")]
 		public string IOSSDKVersion = "latest";
 		public readonly float IOSSDKVersionFloat = 0.0f;
 
 		/// <summary>
-		/// Which version of the iOS to allow at build time
+		/// The version of the iOS to allow at build time.
 		/// </summary>
 		[XmlConfigFile(Category = "IOSToolChain")]
 		public string BuildIOSVersion = "7.0";
@@ -99,7 +99,7 @@ namespace UnrealBuildTool
 		// If you are looking for where to change the remote compile server name, look in RemoteToolChain.cs
 
 		/// <summary>
-		/// If this is set, then we don't do any post-compile steps except moving the executable into the proper spot on the Mac
+		/// If this is set, then we do not do any post-compile steps -- except moving the executable into the proper spot on Mac.
 		/// </summary>
 		[XmlConfigFile]
 		public static bool bUseDangerouslyFastMode = false;

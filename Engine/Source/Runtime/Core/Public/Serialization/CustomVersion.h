@@ -94,7 +94,7 @@ class CORE_API FCustomVersionRegistration;
  */
 class CORE_API FCustomVersionContainer
 {
-	friend class FStaticCustomVersionRegistry;
+	friend struct FStaticCustomVersionRegistry;
 
 public:
 	/** Gets available custom versions in this container. */
@@ -137,6 +137,7 @@ public:
 	 *
 	 * @return The registered version container.
 	 */
+	UE_DEPRECATED(4.24, "Use one of the thread-safe FCurrentCustomVersions methods instead")
 	static const FCustomVersionContainer& GetRegistered();
 
 	/**
@@ -159,6 +160,34 @@ private:
 
 };
 
+enum class ECustomVersionDifference { Missing, Newer, Older };
+
+struct FCustomVersionDifference
+{
+	ECustomVersionDifference Type;
+	const FCustomVersion* Version;
+};
+
+/** Provides access to code-defined custom versions registered via FCustomVersionRegistration. */
+class CORE_API FCurrentCustomVersions
+{
+public:
+	/** Get a copy of all versions that has been statically registered so far in the module loading process. */
+	static FCustomVersionContainer GetAll();
+
+	/** Get a copy of a single statically registered version if it exists. */
+	static TOptional<FCustomVersion> Get(const FGuid& Guid);
+
+	/** Compare a number of versions to current ones and return potential differences. */
+	static TArray<FCustomVersionDifference> Compare(const FCustomVersionArray& CompareVersions);
+
+private:
+	friend class FCustomVersionRegistration;
+
+	static void Register(const FGuid& Key, int32 Version, const TCHAR* FriendlyName);
+	static void Unregister(const FGuid& Key);
+};
+
 
 /**
  * This class will cause the registration of a custom version number and key with the global
@@ -173,14 +202,14 @@ public:
 	FCustomVersionRegistration(FGuid InKey, int32 Version, const TCHAR(&InFriendlyName)[N])
 	: Key(InKey)
 	{
-		QueueRegistration(InKey, Version, InFriendlyName);
+		FCurrentCustomVersions::Register(InKey, Version, InFriendlyName);
 	}
 
-	~FCustomVersionRegistration();
+	~FCustomVersionRegistration()
+	{
+		FCurrentCustomVersions::Unregister(Key);
+	}
 
 private:
 	FGuid Key;
-
-	/** Put registrations in an intermediate queue to avoid allocations and FName creation during static init */
-	static void QueueRegistration(FGuid Key, int32 Version, const TCHAR* FriendlyName);
 };

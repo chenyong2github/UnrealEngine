@@ -18,49 +18,49 @@ namespace BuildGraph.Tasks
 	public class StageTaskParameters
 	{
 		/// <summary>
-		/// The project that this target belongs to
+		/// The project that this target belongs to.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public FileReference Project;
 
 		/// <summary>
-		/// Name of the target to stage
+		/// Name of the target to stage.
 		/// </summary>
 		[TaskParameter]
 		public string Target;
 
 		/// <summary>
-		/// Platform to stage
+		/// Platform to stage.
 		/// </summary>
 		[TaskParameter]
 		public UnrealTargetPlatform Platform;
 
 		/// <summary>
-		/// Configuration to be staged
+		/// Configuration to be staged.
 		/// </summary>
 		[TaskParameter]
 		public UnrealTargetConfiguration Configuration;
 
 		/// <summary>
-		/// Architecture to be staged
+		/// Architecture to be staged.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public string Architecture;
 
 		/// <summary>
-		/// Directory the receipt files should be staged to
+		/// Directory that the receipt files should be staged to.
 		/// </summary>
 		[TaskParameter]
 		public DirectoryReference ToDir;
 
 		/// <summary>
-		/// Whether to overwrite existing files
+		/// Whether to overwrite existing files.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public bool Overwrite;
 
 		/// <summary>
-		/// Tag to be applied to build products of this task
+		/// Tag to be applied to build products of this task.
 		/// </summary>
 		[TaskParameter(Optional = true, ValidationType = TaskParameterValidationType.TagList)]
 		public string Tag;
