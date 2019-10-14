@@ -57,6 +57,7 @@ public:
 	TPBDCollisionConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex);
 
 	const TRigidBodyContactConstraint<T, d>& GetContact() const;
+	void SetConstraintIndex(int32 IndexIn) { ConstraintIndex = IndexIn; }
 
 protected:
 	using Base::ConstraintIndex;
@@ -92,6 +93,7 @@ public:
 	using FConstraintHandle = TPBDCollisionConstraintHandle<T, d>;
 	using FConstraintHandleAllocator = TConstraintHandleAllocator<TPBDCollisionConstraint<T, d>>;
 	using FRigidBodyContactConstraint = TRigidBodyContactConstraint<T, d>;
+	typedef TPair<TGeometryParticleHandle<T, d>*, const TGeometryParticleHandle<T, d>*> FConstraintHandleID;
 
 	TPBDCollisionConstraint(const TPBDRigidsSOAs<T,d>& InParticles, TArrayCollectionArray<bool>& Collided, const TArrayCollectionArray<TSerializablePtr<TChaosPhysicsMaterial<T>>>& PerParticleMaterials, const int32 PairIterations = 1, const T Thickness = (T)0);
 	virtual ~TPBDCollisionConstraint() {}
@@ -123,14 +125,24 @@ public:
 		return Constraints.Num();
 	}
 
+	FConstraintHandleID GetConstraintHandleID(const FRigidBodyContactConstraint & Constraint) const
+	{
+		return  FConstraintHandleID( Constraint.Particle, Constraint.Levelset );
+	}
+
+	FConstraintHandleID GetConstraintHandleID(int32 ConstraintIndex) const
+	{
+		return  FConstraintHandleID( Constraints[ConstraintIndex].Particle, Constraints[ConstraintIndex].Levelset );
+	}
+		
 	const FConstraintHandle* GetConstraintHandle(int32 ConstraintIndex) const
 	{
-		return Handles[ConstraintIndex];
+		return Handles[GetConstraintHandleID(ConstraintIndex)];
 	}
 
 	FConstraintHandle* GetConstraintHandle(int32 ConstraintIndex)
 	{
-		return Handles[ConstraintIndex];
+		return Handles[ GetConstraintHandleID(ConstraintIndex) ];
 	}
 
 	// @todo(ccaulfield): rename/remove
@@ -246,12 +258,13 @@ private:
 	T MThickness;
 	T MAngularFriction;
 	bool bUseCCD;
+	int32 LifespanCounter;
 
 	TRigidBodyContactConstraintsPostComputeCallback<T, d> PostComputeCallback;
 	TRigidBodyContactConstraintsPostApplyCallback<T, d> PostApplyCallback;
 	TRigidBodyContactConstraintsPostApplyPushOutCallback<T, d> PostApplyPushOutCallback;
 
-	TArray<FConstraintHandle*> Handles;
+	TMap<FConstraintHandleID, FConstraintHandle*> Handles;
 	FConstraintHandleAllocator HandleAllocator;
 };
 

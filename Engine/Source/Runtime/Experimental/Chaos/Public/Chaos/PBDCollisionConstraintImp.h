@@ -120,6 +120,7 @@ namespace Chaos
 	DECLARE_CYCLE_STAT_EXTERN(TEXT("ComputeConstraints"), STAT_ComputeConstraints, STATGROUP_Chaos, CHAOS_API);
 	DECLARE_CYCLE_STAT_EXTERN(TEXT("ComputeConstraintsNP"), STAT_ComputeConstraintsNP, STATGROUP_Chaos, CHAOS_API);
 	DECLARE_CYCLE_STAT_EXTERN(TEXT("ComputeConstraintsBP"), STAT_ComputeConstraintsBP, STATGROUP_Chaos, CHAOS_API);
+	DECLARE_CYCLE_STAT_EXTERN(TEXT("ComputeConstraintsSU"), STAT_ComputeConstraintsSU, STATGROUP_Chaos, CHAOS_API);
 
 	template <typename T, int d>
 	template <bool bGatherStats, typename SPATIAL_ACCELERATION>
@@ -281,12 +282,30 @@ namespace Chaos
 				NarrowPhaseRejected.Record(RejectedNP);
 #endif
 			}, bGatherStats || CollisionConstraintsForceSingleThreaded);
-
-			while (!Queue.IsEmpty())
+			
 			{
-				int32 Idx = Constraints.AddUninitialized(1);
-				Queue.Dequeue(Constraints[Idx]);
-				Handles.Add(HandleAllocator.AllocHandle(this, Idx));
+				SCOPE_CYCLE_COUNTER(STAT_ComputeConstraintsSU);
+
+				while (!Queue.IsEmpty())
+				{
+					const TRigidBodyContactConstraint<T, d> * Constraint = Queue.Peek();
+					FConstraintHandleID HandleID = GetConstraintHandleID(*Constraint);
+					if (Handles.Contains(HandleID))
+					{
+						FConstraintHandle* Handle = Handles[HandleID];
+						int32 Idx = Handle->GetConstraintIndex();
+						Queue.Dequeue(Constraints[Idx]);
+						Constraints[Idx].Lifespan = LifespanCounter;
+					}
+					else
+					{
+						int32 Idx = Constraints.AddUninitialized(1);
+						Queue.Dequeue(Constraints[Idx]);
+						Handles.Add(GetConstraintHandleID(Idx), HandleAllocator.AllocHandle(this, Idx));
+						Constraints[Idx].Lifespan = LifespanCounter;
+					}
+				}
+				LifespanCounter++;
 			}
 		}
 

@@ -89,22 +89,35 @@ TPBDCollisionConstraint<T, d>::TPBDCollisionConstraint(const TPBDRigidsSOAs<T,d>
 	, MThickness(Thickness)
 	, MAngularFriction(0)
 	, bUseCCD(false)
+	, LifespanCounter(0)
 	, PostComputeCallback(nullptr)
 	, PostApplyCallback(nullptr)
 	, PostApplyPushOutCallback(nullptr)
 {
 }
 
+DECLARE_CYCLE_STAT(TEXT("CollisionConstraint::Reset"), STAT_CollisionConstraintsReset, STATGROUP_Chaos);
+
 template<typename T, int d>
 void TPBDCollisionConstraint<T, d>::Reset(/*const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices*/)
 {
-	for (FConstraintHandle* Handle : Handles)
-	{
-		HandleAllocator.FreeHandle(Handle);
-	}
-	Handles.Empty();
+	SCOPE_CYCLE_COUNTER(STAT_CollisionConstraintsReset);
 
-	Constraints.Empty();
+	int32 LowestRemovedConstraintIndex = INT_MAX;
+	int32 Threshold = LifespanCounter - 1; // Maybe this should be solver time?
+	for (int32 Idx = Constraints.Num() - 1; Idx >= 0; Idx--)
+	{
+		if (Constraints[Idx].Lifespan < Threshold)
+		{
+			HandleAllocator.FreeHandle(Handles.FindAndRemoveChecked(GetConstraintHandleID(Idx)));
+			Constraints.RemoveAtSwap(Idx);
+			LowestRemovedConstraintIndex = Idx;
+		}
+	}
+	for (int32 Idx = LowestRemovedConstraintIndex; Idx < Constraints.Num(); Idx++)
+	{
+		Handles[GetConstraintHandleID(Idx)]->SetConstraintIndex(Idx);
+	}
 
 	MAngularFriction = 0;
 	bUseCCD = false;
@@ -166,6 +179,7 @@ void TPBDCollisionConstraint<T, d>::UpdatePositionBasedState(/*const TPBDRigidPa
 DEFINE_STAT(STAT_ComputeConstraints);
 DEFINE_STAT(STAT_ComputeConstraintsNP);
 DEFINE_STAT(STAT_ComputeConstraintsBP);
+DEFINE_STAT(STAT_ComputeConstraintsSU);
 
 CHAOS_API int32 CollisionConstraintsForceSingleThreaded = 0;
 FAutoConsoleVariableRef CVarCollisionConstraintsForceSingleThreaded(TEXT("p.Chaos.Collision.ForceSingleThreaded"), CollisionConstraintsForceSingleThreaded, TEXT("CollisionConstraintsForceSingleThreaded"));
@@ -364,12 +378,26 @@ void TPBDCollisionConstraint<T, d>::UpdateConstraintsHelper(/*const TPBDRigidPar
 			}*/
 		}
 	});
-	while(!Queue.IsEmpty())
-	{				
-		int32 Idx = Constraints.AddUninitialized(1);
-		Queue.Dequeue(Constraints[Idx]);
-		Handles.Add(HandleAllocator.AllocHandle(this, Idx));
+	while (!Queue.IsEmpty())
+	{
+		const TRigidBodyContactConstraint<T, d> * Constraint = Queue.Peek();
+		FConstraintHandleID HandleID = GetConstraintHandleID(*Constraint);
+		if (Handles.Contains(HandleID))
+		{
+			FConstraintHandle* Handle = Handles[HandleID];
+			int32 Idx = Handle->GetConstraintIndex();
+			Queue.Dequeue(Constraints[Idx]);
+			Constraints[Idx].Lifespan = LifespanCounter;
+		}
+		else
+		{
+			int32 Idx = Constraints.AddUninitialized(1);
+			Queue.Dequeue(Constraints[Idx]);
+			Handles.Add(GetConstraintHandleID(Idx), HandleAllocator.AllocHandle(this, Idx));
+			Constraints[Idx].Lifespan = LifespanCounter;
+		}
 	}
+	LifespanCounter++;
 
 	Timer.Stop();
 	UE_LOG(LogChaos, Verbose, TEXT("\tPBDCollisionConstraint Update %d Constraints with Potential Collisions %f"), Constraints.Num(), Time);
