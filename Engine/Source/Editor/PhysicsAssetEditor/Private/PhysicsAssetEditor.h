@@ -269,6 +269,9 @@ private:
 
 	//menu commands
 	void OnSelectAllBodies();
+	void OnSelectKinematicBodies();
+	void OnSelectSimulatedBodies();
+	void OnSelectBodies(EPhysicsType PhysicsType = EPhysicsType::PhysType_Simulated);
 	void OnSelectAllConstraints();
 	void OnToggleSelectionType();
 	void OnDeselectAll();
@@ -287,9 +290,13 @@ private:
 
 	/** Filter menu toggles */
 	void HandleToggleShowBodies();
+	void HandleToggleShowSimulatedBodies();
+	void HandleToggleShowKinematicBodies();
 	void HandleToggleShowConstraints();
 	void HandleToggleShowPrimitives();
 	ECheckBoxState GetShowBodiesChecked() const;
+	ECheckBoxState GetShowSimulatedBodiesChecked() const;
+	ECheckBoxState GetShowKinematicBodiesChecked() const;
 	ECheckBoxState GetShowConstraintsChecked() const;
 	ECheckBoxState GetShowPrimitivesChecked() const;
 
