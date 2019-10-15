@@ -4,14 +4,7 @@
 	<!-- init section is always evaluated once per architecture -->
 	<init>
 		<log text="Google SDK Android init"/>
-
-        <!-- check if using Gradle -->
-        <setBoolFromProperty result="bGradle" ini="Engine" section="/Script/AndroidRuntimeSettings.AndroidRuntimeSettings" property="bEnableGradle" default="false"/>
-        <if condition="bGradle">
-            <true>
-                <log text="Google requires minimum SDK of 15"/>
-            </true>
-        </if>
+		<log text="Google requires minimum SDK of 15"/>
         
 		<!-- <trace enable="true"/> -->
 		<!-- get packaging for Google from ini and reset it if architecture not supported -->
@@ -36,20 +29,6 @@
 		</if>
 	</prebuildCopies>
 	
-	<!-- AAR dependencies -->
-	<AARImports>
-		<if condition="bEnabled">
-			<true>
-                <if condition="bGradle">
-                    <false>
-                        <insertValue value="com.google.android.gms,play-services-auth,11.0.4" />
-                        <insertNewline/>
-                    </false>
-                </if>
-			</true>
-		</if>
-	</AARImports>
-
     <buildGradleAdditions>
         <insert>
             dependencies {

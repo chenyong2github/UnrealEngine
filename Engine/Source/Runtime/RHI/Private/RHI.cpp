@@ -451,7 +451,6 @@ bool GIsRHIInitialized = false;
 int32 GMaxTextureMipCount = MAX_TEXTURE_MIP_COUNT;
 bool GRHISupportsCopyToTextureMultipleMips = false;
 bool GSupportsQuadBufferStereo = false;
-bool GSupportsDepthFetchDuringDepthTest = true;
 FString GRHIAdapterName;
 FString GRHIAdapterInternalDriverVersion;
 FString GRHIAdapterUserDriverVersion;
@@ -472,8 +471,10 @@ bool GHardwareHiddenSurfaceRemoval = false;
 bool GRHISupportsAsyncTextureCreation = false;
 bool GRHISupportsQuadTopology = false;
 bool GRHISupportsRectTopology = false;
-bool GRHISupportsDepthUAV = false;
 bool GRHISupportsAtomicUInt64 = false;
+bool GRHISupportsResummarizeHTile = false;
+bool GRHISupportsExplicitHTile = false;
+bool GRHISupportsDepthUAV = false;
 bool GSupportsParallelRenderingTasksWithSeparateRHIThread = true;
 bool GRHIThreadNeedsKicking = false;
 int32 GRHIMaximumReccommendedOustandingOcclusionQueries = MAX_int32;
@@ -521,7 +522,6 @@ bool GRHISupportsRHIOnTaskThread = false;
 bool GRHISupportsParallelRHIExecute = false;
 bool GSupportsHDR32bppEncodeModeIntrinsic = false;
 bool GSupportsParallelOcclusionQueries = false;
-bool GSupportsRenderTargetWriteMask = false;
 bool GSupportsTransientResourceAliasing = false;
 bool GRHIRequiresRenderTargetForPixelShaderUAVs = false;
 bool GRHISupportsUAVFormatAliasing = false;
@@ -692,7 +692,6 @@ static FName NAME_PLATFORM_TVOS(TEXT("TVOS"));
 static FName NAME_PLATFORM_HTML5(TEXT("HTML5"));
 static FName NAME_PLATFORM_LUMIN(TEXT("Lumin"));
 
-
 // @todo platplug: This is still here, only being used now by UMaterialShaderQualitySettings::GetOrCreatePlatformSettings
 // since I have moved the other uses to FindTargetPlatformWithSupport
 // But I'd like to delete it anyway!
@@ -739,8 +738,17 @@ FName ShaderPlatformToPlatformName(EShaderPlatform Platform)
 	case SP_METAL_TVOS:
 	case SP_METAL_MRT_TVOS:
 		return NAME_PLATFORM_TVOS;
+
+
 	default:
-		return NAME_None;
+		if (FStaticShaderPlatformNames::IsStaticPlatform(Platform))
+		{
+			return FStaticShaderPlatformNames::Get().GetPlatformName(Platform);
+		}
+		else
+		{
+			return NAME_None;
+		}
 	}
 }
 
@@ -956,6 +964,8 @@ void FRHIRenderPassInfo::ConvertToRenderTargetsInfo(FRHISetRenderTargetsInfo& Ou
 	OutRTInfo.bClearDepth = (DepthLoadAction == ERenderTargetLoadAction::EClear);
 	OutRTInfo.bClearStencil = (StencilLoadAction == ERenderTargetLoadAction::EClear);
 
+	OutRTInfo.FoveationTexture = FoveationTexture;
+
 	if (NumUAVs > 0)
 	{
 		check(UAVIndex != -1);
@@ -1138,18 +1148,21 @@ FString LexToString(EShaderPlatform Platform)
 	case SP_VULKAN_SM5: return TEXT("VULKAN_SM5");
 	case SP_VULKAN_SM5_LUMIN: return TEXT("VULKAN_SM5_LUMIN");
 
-#ifdef DDPI_EXTRA_SHADERPLATFORM_LEXTOSTRING
-		DDPI_EXTRA_SHADERPLATFORM_LEXTOSTRING
-#endif
-
 	case SP_OPENGL_ES2_IOS_DEPRECATED:
 	case SP_VULKAN_SM4_DEPRECATED:
 	case SP_PCD3D_SM4_DEPRECATED:
 		return TEXT("");
 
 	default:
-		checkf(0, TEXT("Unknown EShaderPlatform %d!"), (int32)Platform);
-		return TEXT("");
+		if (Platform >= SP_StaticPlatform_First && Platform <= SP_StaticPlatform_Last)
+		{
+			return FStaticShaderPlatformNames::Get().GetShaderPlatform(Platform).ToString();
+		}
+		else
+		{
+			checkf(0, TEXT("Unknown EShaderPlatform %d!"), (int32)Platform);
+			return TEXT("");
+		}
 	}
 }
 
@@ -1212,6 +1225,10 @@ inline void ParseDataDrivenShaderInfo(const FConfigSection& Section, FDataDriven
 	Info.bSupportsMultiView = GetSectionBool(Section, "bSupportsMultiView");
 	Info.bSupportsMSAA = GetSectionBool(Section, "bSupportsMSAA");
 	Info.bSupports4ComponentUAVReadWrite = GetSectionBool(Section, "bSupports4ComponentUAVReadWrite");
+	Info.bSupportsRenderTargetWriteMask = GetSectionBool(Section, "bSupportsRenderTargetWriteMask");
+	Info.bSupportsRayTracing = GetSectionBool(Section, "bSupportsRayTracing");
+	Info.bSupportsGPUSkinCache = GetSectionBool(Section, "bSupportsGPUSkinCache");
+
 	Info.bTargetsTiledGPU = GetSectionBool(Section, "bTargetsTiledGPU");
 	Info.bNeedsOfflineCompiler = GetSectionBool(Section, "bNeedsOfflineCompiler");
 }

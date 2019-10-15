@@ -2271,7 +2271,7 @@ LANDSCAPE_API void ALandscapeProxy::Import(const FGuid& InGuid, int32 InMinX, in
 	// Ensure that we don't pack so many heightmaps into a texture that their lowest LOD isn't guaranteed to be resident
 #define MAX_HEIGHTMAP_TEXTURE_SIZE 512
 	const int32 ComponentSizeVerts = NumSubsections * (SubsectionSizeQuads + 1);
-	const int32 ComponentsPerHeightmap = FMath::Min(MAX_HEIGHTMAP_TEXTURE_SIZE / ComponentSizeVerts, 1 << (UTexture2D::GetMinTextureResidentMipCount() - 2));
+	const int32 ComponentsPerHeightmap = FMath::Min(MAX_HEIGHTMAP_TEXTURE_SIZE / ComponentSizeVerts, 1 << (UTexture2D::GetStaticMinTextureResidentMipCount() - 2));
 	check(ComponentsPerHeightmap > 0);
 
 	// Count how many heightmaps we need and the X dimension of the final heightmap

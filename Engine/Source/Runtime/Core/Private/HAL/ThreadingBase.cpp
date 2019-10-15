@@ -502,14 +502,14 @@ protected:
 #if STATS
 			if (FThreadStats::IsCollectingData())
 			{
-				while (bContinueWaiting)
-				{
-					DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FQueuedThread::Run.WaitForWork"), STAT_FQueuedThread_Run_WaitForWork, STATGROUP_ThreadPoolAsyncTasks);
+			while( bContinueWaiting )
+			{				
+				DECLARE_SCOPE_CYCLE_COUNTER( TEXT( "FQueuedThread::Run.WaitForWork" ), STAT_FQueuedThread_Run_WaitForWork, STATGROUP_ThreadPoolAsyncTasks );
 
-					// Wait for some work to do
+				// Wait for some work to do
 
-					bContinueWaiting = !DoWorkEvent->Wait(10);
-				}
+				bContinueWaiting = !DoWorkEvent->Wait( 10 );
+			}
 			}
 #endif
 

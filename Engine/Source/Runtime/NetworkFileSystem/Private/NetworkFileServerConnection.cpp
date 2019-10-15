@@ -19,7 +19,7 @@
 /**
  * Helper function for resolving engine and game sandbox paths
  */
-void GetSandboxRootDirectories(FSandboxPlatformFile* Sandbox, FString& SandboxEngine, FString& SandboxProject, const FString& LocalEngineDir, const FString& LocalProjectDir)
+void GetSandboxRootDirectories(FSandboxPlatformFile* Sandbox, FString& SandboxEngine, FString& SandboxProject, FString& SandboxEnginePlatformExtensions, FString& SandboxProjectPlatformExtensions, const FString& LocalEngineDir, const FString& LocalProjectDir, const FString& LocalEnginePlatformExtensionsDir, const FString& LocalProjectPlatformExtensionsDir)
 {
 	SandboxEngine = Sandbox->ConvertToSandboxPath(*LocalEngineDir);
 	if (SandboxEngine.EndsWith(TEXT("/"), ESearchCase::CaseSensitive) == false)
@@ -30,6 +30,8 @@ void GetSandboxRootDirectories(FSandboxPlatformFile* Sandbox, FString& SandboxEn
 	// we need to add an extra bit to the game path to make the sandbox convert it correctly (investigate?)
 	// @todo: double check this
 	SandboxProject = Sandbox->ConvertToSandboxPath(*(LocalProjectDir + TEXT("a.txt"))).Replace(TEXT("a.txt"), TEXT(""));
+	SandboxEnginePlatformExtensions = Sandbox->ConvertToSandboxPath(*(LocalEnginePlatformExtensionsDir + TEXT("a.txt"))).Replace(TEXT("a.txt"), TEXT(""));
+	SandboxProjectPlatformExtensions = Sandbox->ConvertToSandboxPath(*(LocalProjectPlatformExtensionsDir + TEXT("a.txt"))).Replace(TEXT("a.txt"), TEXT(""));
 }
 
 
@@ -60,6 +62,9 @@ FNetworkFileServerClientConnection::FNetworkFileServerClientConnection( const FN
 
 	LocalEngineDir = FPaths::EngineDir();
 	LocalProjectDir = FPaths::ProjectDir();
+	LocalEnginePlatformExtensionsDir = FPaths::EnginePlatformExtensionsDir();
+	LocalProjectPlatformExtensionsDir = FPaths::ProjectPlatformExtensionsDir();
+
 	if (FPaths::IsProjectFilePathSet())
 	{
 		LocalProjectDir = FPaths::GetPath(FPaths::GetProjectFilePath()) + TEXT("/");
@@ -107,6 +112,14 @@ void FNetworkFileServerClientConnection::ConvertClientFilenameToServerFilename(F
 #endif
 		}
 	}
+	else if (FilenameToConvert.StartsWith(ConnectedEnginePlatformExtensionsDir))
+	{
+		FilenameToConvert = FilenameToConvert.Replace(*ConnectedEnginePlatformExtensionsDir, *(FPaths::EnginePlatformExtensionsDir()));
+	}
+	else if (FilenameToConvert.StartsWith(ConnectedProjectPlatformExtensionsDir))
+	{
+		FilenameToConvert = FilenameToConvert.Replace(*ConnectedProjectPlatformExtensionsDir, *(FPaths::ProjectPlatformExtensionsDir()));
+	}
 }
 
 
@@ -140,6 +153,8 @@ FString FNetworkFileServerClientConnection::FixupSandboxPathForClient(const FStr
 	FString Fixed = Sandbox->ConvertToSandboxPath(*Filename);
 	Fixed = Fixed.Replace(*SandboxEngine, *LocalEngineDir);
 	Fixed = Fixed.Replace(*SandboxProject, *LocalProjectDir);
+	Fixed = Fixed.Replace(*SandboxEnginePlatformExtensions, *LocalEnginePlatformExtensionsDir);
+	Fixed = Fixed.Replace(*SandboxProjectPlatformExtensions, *LocalProjectPlatformExtensionsDir);
 
 	if (bSendLowerCase)
 	{
@@ -717,6 +732,8 @@ bool FNetworkFileServerClientConnection::ProcessGetFileList( FArchive& In, FArch
 	FString GameName;
 	FString EngineRelativePath;
 	FString GameRelativePath;
+	FString EnginePlatformExtensionsRelativePath;
+	FString ProjectPlatformExtensionsRelativePath;
 	TArray<FString> RootDirectories;
 	
 	EConnectionFlags ConnectionFlags;
@@ -727,6 +744,8 @@ bool FNetworkFileServerClientConnection::ProcessGetFileList( FArchive& In, FArch
 	In << GameName;
 	In << EngineRelativePath;
 	In << GameRelativePath;
+	In << EnginePlatformExtensionsRelativePath;
+	In << ProjectPlatformExtensionsRelativePath;
 	In << RootDirectories;
 	In << ConnectionFlags;
 	In << ClientVersionInfo;
@@ -795,11 +814,17 @@ bool FNetworkFileServerClientConnection::ProcessGetFileList( FArchive& In, FArch
 
 	ConnectedEngineDir = EngineRelativePath;
 	ConnectedProjectDir = GameRelativePath;
+	ConnectedEnginePlatformExtensionsDir = EnginePlatformExtensionsRelativePath;
+	ConnectedProjectPlatformExtensionsDir = ProjectPlatformExtensionsRelativePath;
 
-	UE_LOG(LogFileServer, Display, TEXT("    Connected EngineDir = %s"), *ConnectedEngineDir);
-	UE_LOG(LogFileServer, Display, TEXT("        Local EngineDir = %s"), *LocalEngineDir);
-	UE_LOG(LogFileServer, Display, TEXT("    Connected ProjectDir = %s"), *ConnectedProjectDir);
-	UE_LOG(LogFileServer, Display, TEXT("        Local ProjectDir = %s"), *LocalProjectDir);
+	UE_LOG(LogFileServer, Display, TEXT("    Connected EngineDir      = %s"), *ConnectedEngineDir);
+	UE_LOG(LogFileServer, Display, TEXT("        Local EngineDir      = %s"), *LocalEngineDir);
+	UE_LOG(LogFileServer, Display, TEXT("    Connected ProjectDir     = %s"), *ConnectedProjectDir);
+	UE_LOG(LogFileServer, Display, TEXT("        Local ProjectDir     = %s"), *LocalProjectDir);
+	UE_LOG(LogFileServer, Display, TEXT("    Connected EnginePlatformExtDir = %s"), *ConnectedEnginePlatformExtensionsDir);
+	UE_LOG(LogFileServer, Display, TEXT("        Local EnginePlatformExtDir = %s"), *LocalEnginePlatformExtensionsDir);
+	UE_LOG(LogFileServer, Display, TEXT("    Connected ProjectPlatformExtDir = %s"), *ConnectedProjectPlatformExtensionsDir);
+	UE_LOG(LogFileServer, Display, TEXT("        Local ProjectPlatformExtDir = %s"), *LocalProjectPlatformExtensionsDir);
 
 	// Remap the root directories requested...
 	for (int32 RootDirIdx = 0; RootDirIdx < RootDirectories.Num(); RootDirIdx++)
@@ -854,7 +879,7 @@ bool FNetworkFileServerClientConnection::ProcessGetFileList( FArchive& In, FArch
 	Sandbox = new FSandboxPlatformFile(false);
 	Sandbox->Initialize(&FPlatformFileManager::Get().GetPlatformFile(), *FString::Printf(TEXT("-sandbox=\"%s\""), *SandboxDirectory));
 
-	GetSandboxRootDirectories(Sandbox, SandboxEngine, SandboxProject, LocalEngineDir, LocalProjectDir);
+	GetSandboxRootDirectories(Sandbox, SandboxEngine, SandboxProject, SandboxEnginePlatformExtensions, SandboxProjectPlatformExtensions, LocalEngineDir, LocalProjectDir, LocalEnginePlatformExtensionsDir, LocalProjectPlatformExtensionsDir);
 
 
 	// make sure the global shaders are up to date before letting the client read any shaders
@@ -930,6 +955,8 @@ bool FNetworkFileServerClientConnection::ProcessGetFileList( FArchive& In, FArch
 	// Send *our* engine and game dirs
 	Out << LocalEngineDir;
 	Out << LocalProjectDir;
+	Out << LocalEnginePlatformExtensionsDir;
+	Out << LocalProjectPlatformExtensionsDir;
 
 	// return the files and their timestamps
 	TMap<FString, FDateTime> FixedTimes = FixupSandboxPathsForClient(Visitor.FileTimes);
@@ -953,6 +980,8 @@ bool FNetworkFileServerClientConnection::ProcessGetFileList( FArchive& In, FArch
 
 			FString ConnectedContentFolder = ContentFolder;
 			ConnectedContentFolder.ReplaceInline(*LocalEngineDir, *ConnectedEngineDir);
+			ConnectedContentFolder.ReplaceInline(*LocalEnginePlatformExtensionsDir, *ConnectedEnginePlatformExtensionsDir);
+			ConnectedContentFolder.ReplaceInline(*LocalProjectPlatformExtensionsDir, *ConnectedProjectPlatformExtensionsDir);
 
 			int32 ReplaceCount = 0;
 

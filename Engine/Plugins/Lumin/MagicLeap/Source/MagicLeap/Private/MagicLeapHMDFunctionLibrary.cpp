@@ -3,9 +3,7 @@
 #include "MagicLeapHMDFunctionLibrary.h"
 #include "MagicLeapHMD.h"
 #include "Engine/Engine.h"
-#if WITH_MLSDK
-#include "ml_version.h"
-#endif //WITH_MLSDK
+#include "Lumin/CAPIShims/LuminAPILifecycle.h"
 
 static const FName MLDeviceName(TEXT("MagicLeap"));
 
@@ -27,38 +25,29 @@ static FMagicLeapHMD* GetMagicLeapHMD()
 }
 
 void UMagicLeapHMDFunctionLibrary::SetBasePosition(const FVector& InBasePosition)
-{
-	FMagicLeapHMD* const HMD = GetMagicLeapHMD();
-	if (HMD)
-	{
-		HMD->SetBasePosition(InBasePosition);
-	}
-}
+{ /* deprecated */ }
 
 void UMagicLeapHMDFunctionLibrary::SetBaseOrientation(const FQuat& InBaseOrientation)
-{
-	FMagicLeapHMD* const HMD = GetMagicLeapHMD();
-	if (HMD)
-	{
-		HMD->SetBaseOrientation(InBaseOrientation);
-	}
-}
+{ /* deprecated */ }
 
 void UMagicLeapHMDFunctionLibrary::SetBaseRotation(const FRotator& InBaseRotation)
+{ /* deprecated */ }
+
+void UMagicLeapHMDFunctionLibrary::SetFocusActor(const AActor* InFocusActor, bool bSetStabilizationActor)
 {
 	FMagicLeapHMD* const HMD = GetMagicLeapHMD();
 	if (HMD)
 	{
-		HMD->SetBaseRotation(InBaseRotation);
+		HMD->SetFocusActor(InFocusActor, bSetStabilizationActor);
 	}
 }
 
-void UMagicLeapHMDFunctionLibrary::SetFocusActor(const AActor* InFocusActor)
+void UMagicLeapHMDFunctionLibrary::SetStabilizationDepthActor(const AActor* InStabilizationDepthActor, bool bSetFocusActor)
 {
 	FMagicLeapHMD* const HMD = GetMagicLeapHMD();
 	if (HMD)
 	{
-		HMD->SetFocusActor(InFocusActor);
+		HMD->SetStabilizationDepthActor(InStabilizationDepthActor, bSetFocusActor);
 	}
 }
 
@@ -103,11 +92,19 @@ bool UMagicLeapHMDFunctionLibrary::IsRunningOnMagicLeapHMD()
 #if PLATFORM_LUMIN
 	return true;
 #else
+	FMagicLeapHMD* const HMD = GetMagicLeapHMD();
+	if (HMD)
+	{
+		//`IsStereoEnabled` is a strict form of `IsHMDEnabled`. 
+		//	Non-target platforms do not request stereo. 
+		return HMD->IsStereoEnabled();
+	}
+
 	return false;
 #endif
 }
 
-bool UMagicLeapHMDFunctionLibrary::GetHeadTrackingState(FHeadTrackingState& State)
+bool UMagicLeapHMDFunctionLibrary::GetHeadTrackingState(FMagicLeapHeadTrackingState& State)
 {
 	FMagicLeapHMD* const HMD = GetMagicLeapHMD();
 	if (HMD)
@@ -116,4 +113,24 @@ bool UMagicLeapHMDFunctionLibrary::GetHeadTrackingState(FHeadTrackingState& Stat
 	}
 
 	return false;
+}
+
+bool UMagicLeapHMDFunctionLibrary::GetHeadTrackingMapEvents(TSet<EMagicLeapHeadTrackingMapEvent>& MapEvents)
+{
+	FMagicLeapHMD* const HMD = GetMagicLeapHMD();
+	if (HMD)
+	{
+		return HMD->GetHeadTrackingMapEvents(MapEvents);
+	}
+
+	return false;
+}
+
+bool UMagicLeapHMDFunctionLibrary::SetAppReady()
+{
+#if WITH_MLSDK
+	return MLLifecycleSetReadyIndication() == MLResult_Ok;
+#else
+	return true;
+#endif // WITH_MLSDK
 }

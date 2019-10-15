@@ -5,8 +5,7 @@
 #include "AudioMixer.h"
 #include "AudioMixerDevice.h"
 #include "AudioMixerPlatformSDL.h"
-#include "AudioMixerPlatformDefinesSDL.h"
-
+#include COMPILED_PLATFORM_HEADER(AudioMixerSDLDefines.h)
 
 class FAudioMixerModuleSDL : public IAudioDeviceModule
 {

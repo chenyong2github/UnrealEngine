@@ -1,15 +1,59 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	PostProcessing.h: The center for all post processing activities.
-=============================================================================*/
-
 #pragma once
 
-#include "CoreMinimal.h"
-#include "PostProcess/RenderingCompositionGraph.h"
-#include "SceneRendering.h"
 #include "ScreenPass.h"
+#include "PostProcess/RenderingCompositionGraph.h"
+
+class FSceneTextureParameters;
+
+enum class EPostProcessAAQuality : uint32
+{
+	Disabled,
+	// Faster FXAA
+	VeryLow,
+	// FXAA
+	Low,
+	// Faster Temporal AA
+	Medium,
+	// Temporal AA
+	High,
+	VeryHigh,
+	MAX
+};
+
+// Returns the quality of post process anti-aliasing defined by CVar.
+EPostProcessAAQuality GetPostProcessAAQuality();
+
+// Returns whether the full post process pipeline is enabled. Otherwise, the minimal set of operations are performed.
+bool IsPostProcessingEnabled(const FViewInfo& View);
+
+// Returns whether the post process pipeline supports using compute passes.
+bool IsPostProcessingWithComputeEnabled(ERHIFeatureLevel::Type FeatureLevel);
+
+// Returns whether the post process pipeline supports propagating the alpha channel.
+bool IsPostProcessingWithAlphaChannelSupported();
+
+struct FPostProcessingInputs
+{
+	const FSceneTextureParameters* SceneTextures = nullptr;
+	FRDGTextureRef ViewFamilyTexture = nullptr;
+	FRDGTextureRef SceneColor = nullptr;
+	FRDGTextureRef SeparateTranslucency = nullptr;
+	FRDGTextureRef CustomDepth = nullptr;
+
+	void Validate() const
+	{
+		check(ViewFamilyTexture);
+		check(SceneTextures);
+		check(SceneColor);
+		check(SeparateTranslucency);
+	}
+};
+
+void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs);
+
+void AddDebugPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs);
 
 // For compatibility with composition graph passes until they are ported to Render Graph.
 class FPostProcessVS : public FScreenPassVS
@@ -48,13 +92,6 @@ public:
 class FPostProcessing
 {
 public:
-	bool AllowFullPostProcessing(const FViewInfo& View, ERHIFeatureLevel::Type FeatureLevel);
-
-	void RegisterHMDPostprocessPass(FPostprocessContext& Context, const FEngineShowFlags& EngineShowFlags) const;
-
-	// @param VelocityRT only valid if motion blur is supported
-	void Process(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, TRefCountPtr<IPooledRenderTarget>& VelocityRT);
-
 	void ProcessES2(FRHICommandListImmediate& RHICmdList, FScene* Scene, const FViewInfo& View);
 
 	void ProcessPlanarReflection(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, TRefCountPtr<IPooledRenderTarget>& OutFilteredSceneColor);
@@ -66,9 +103,6 @@ public:
 	void AddGammaOnlyTonemapper(FPostprocessContext& Context);
 
 	void OverrideRenderTarget(FRenderingCompositeOutputRef It, TRefCountPtr<IPooledRenderTarget>& RT, FPooledRenderTargetDesc& Desc);
-
-	// Returns whether the scene color's alpha channel is supported within the post processing.
-	static bool HasAlphaChannelSupport();
 };
 
 /** The global used for post processing. */

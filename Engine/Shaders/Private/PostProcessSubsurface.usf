@@ -38,6 +38,7 @@ SamplerState SubsurfaceSampler2;
 SCREEN_PASS_TEXTURE_VIEWPORT(SubsurfaceInput0)
 SCREEN_PASS_TEXTURE_VIEWPORT(SubsurfaceInput1)
 SCREEN_PASS_TEXTURE_VIEWPORT(SubsurfaceInput2)
+SCREEN_PASS_TEXTURE_VIEWPORT(Output)
 
 #define SUBSURFACE_PASS_ONE 0
 #define SUBSURFACE_PASS_TWO 1
@@ -127,6 +128,16 @@ float3 GetSubsurfaceProfileColor(FGBufferData GBufferData)
 
 	return GetSubsurfaceProfileKernel(SSSS_SUBSURFACE_COLOR_OFFSET, SubsurfaceProfileInt).rgb;
 }
+
+float3 GetSubsurfaceProfileNormal(float2 BufferUV)
+{
+
+	BufferUV = clamp(BufferUV, SubsurfaceInput0_UVViewportBilinearMin, SubsurfaceInput0_UVViewportBilinearMax);
+	FGBufferData LocalGBufferData = GetGBufferData(BufferUV);
+
+	return LocalGBufferData.WorldNormal;
+}
+
 
 uint GetSubsurfaceProfileId(float2 BufferUV)
 {
@@ -391,7 +402,7 @@ float4 SetupSubsurfaceForOnePixel(float2 UVSceneColor)
 // Ref: https://graphics.pixar.com/library/ApproxBSSRDF/paper.pdf
 #include "SubsurfaceBurleyNormalized.ush"
 
-#ifdef SUBSURFACE_BURLEY_COMPUTE
+#if SUBSURFACE_BURLEY_COMPUTE
 //-----------------------------------------------------------------------------------
 // Indirect pass
 
@@ -432,16 +443,6 @@ groupshared uint SubsurfaceTypeFlag;
 uint GetSubsurfaceType(uint ProfileId)
 {
 	return GetSubsurfaceProfileUseBurley(ProfileId) ? TYPE_BURLEY : TYPE_SEPARABLE;
-}
-
-bool GetSubsurfaceProfileUseBurleyFromCache(float2 BufferUV)
-{
-#if 0//SUBSURFACE_HALF_RES && !defined(SUBSURFACE_SINGLE_PASS)
-	uint Type = Texture2DSample(SubsurfaceInput2_Texture, SubsurfaceSampler2, BufferUV).g;
-	return Type == TYPE_BURLEY;
-#else
-	return GetSubsurfaceProfileUseBurley(BufferUV);
-#endif
 }
 
 void AddSeparableGroup(uint2 GroupXY)
@@ -509,15 +510,13 @@ void SetupIndirectCS(uint3 DT_ID : SV_DispatchThreadID,
 	}
 	GroupMemoryBarrier();
 
-	uint2 Pos = DT_ID.xy + SubsurfaceInput0_ViewportMin;
+	uint2 Pos = DT_ID.xy + Output_ViewportMin;
 	bool bHasSubsurface = false;
 	float2 BufferUV = ConvertGridPos2UV(Pos);
 	uint Type = 0;
 	float4 OutColor = 0;
 	float4 OutColor2 = 0;
 #if SUBSURFACE_HALF_RES
-	//Since the tiles only covers the half resolution texture size, we need to scale up UV by 2 to match the scene texture.
-	BufferUV *= 2;
 	// order aligned with Gather() hardware implementation
 	// RGB: color*A, A:weight 0 if no subsurface scattering
 
@@ -600,7 +599,7 @@ void SetupIndirectCS(uint3 DT_ID : SV_DispatchThreadID,
 #endif
 	}
 
-	if (all(Pos <= SubsurfaceInput0_ViewportMax))
+	if (all(Pos < Output_ViewportMax))
 	{
 		SetupTexture[Pos] = OutColor;
 	}
@@ -626,7 +625,7 @@ void MainIndirectDispatchCS(
 
 #elif SUBSURFACE_TYPE == SSS_TYPE_SSSS
 
-	uint2 Pos = DT_ID.xy*SUBSURFACE_GROUP_SIZE / THREAD_SIZE_1D + /*viewport offset*/SubsurfaceInput0_ViewportMin;
+	uint2 Pos = DT_ID.xy*SUBSURFACE_GROUP_SIZE / THREAD_SIZE_1D + Output_ViewportMin;
 	float2 BufferUV = ConvertGridPos2UV(Pos);
 
 	// We need to check Burley here because the previous pass might write burley samplings here unless we have SUBSURFACE_FORCE_SEPARABLE to overwrite the setting.
@@ -654,7 +653,7 @@ void MainIndirectDispatchCS(
 	// second pass prepares the setup from the recombine pass which doesn't need depth but wants to reconstruct the color
 	OutColor.a = GetMaskFromDepthInAlpha(OutColor.a);
 #endif
-	if (all(Pos <= SubsurfaceInput0_ViewportMax))
+	if (all(Pos < Output_ViewportMax))
 	{
 		SSSColorUAV[Pos] = OutColor;
 	}
@@ -662,7 +661,7 @@ void MainIndirectDispatchCS(
 }
 
 #endif
-
+ 
 // Recombines the half res Subsurface filtered lighting contribution (upsampled and renormalized with the alpha)
 // with the SceneColor.
 void SubsurfaceRecombinePS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0)
@@ -675,7 +674,7 @@ void SubsurfaceRecombinePS(noperspective float4 UVAndScreenPos : TEXCOORD0, floa
 	{
 		OutColor = Texture2DSample(SubsurfaceInput0_Texture, SharedSubsurfaceSampler0, BufferUV);
 		return;
-	}
+	} 
 
 	float3 SSSColor = float3(0, 0, 0);
 	float LerpFactor = 1;

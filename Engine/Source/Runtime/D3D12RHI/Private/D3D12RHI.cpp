@@ -187,6 +187,9 @@ FD3D12DynamicRHI::FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& Chos
 
 	// Enable async compute by default
 	GEnableAsyncCompute = true;
+
+	// Manually enable Async BVH build for D3D12 RHI
+	GSupportAsyncComputeRaytracingBuildBVH = true;
 }
 
 FD3D12DynamicRHI::~FD3D12DynamicRHI()
@@ -278,22 +281,6 @@ IRHICommandContext* FD3D12DynamicRHI::RHIGetDefaultContext()
 	return DefaultCommandContext;
 }
 
-#if WITH_MGPU
-IRHICommandContext* FD3D12DynamicRHI::RHIGetDefaultContext(FRHIGPUMask GPUMask)
-{
-	FD3D12Adapter& Adapter = GetAdapter();
-
-	if (GNumExplicitGPUsForRendering > 1 && GPUMask == FRHIGPUMask::All())
-	{
-		return static_cast<IRHICommandContext*>(&Adapter.GetDefaultContextRedirector());
-	}
-	else // The next code assumes a single index.
-	{
-		return static_cast<IRHICommandContext*>(&Adapter.GetDevice(GPUMask.ToIndex())->GetDefaultCommandContext());
-	}
-}
-#endif // WITH_MGPU
-
 IRHIComputeContext* FD3D12DynamicRHI::RHIGetDefaultAsyncComputeContext()
 {
 	FD3D12Adapter& Adapter = GetAdapter();
@@ -316,28 +303,6 @@ IRHIComputeContext* FD3D12DynamicRHI::RHIGetDefaultAsyncComputeContext()
 	check(DefaultAsyncComputeContext);
 	return DefaultAsyncComputeContext;
 }
-
-#if WITH_MGPU
-IRHIComputeContext* FD3D12DynamicRHI::RHIGetDefaultAsyncComputeContext(FRHIGPUMask GPUMask)
-{
-	if (GEnableAsyncCompute)
-	{
-		FD3D12Adapter& Adapter = GetAdapter();
-		if (GNumExplicitGPUsForRendering > 1 && GPUMask == FRHIGPUMask::All())
-		{
-			return static_cast<IRHIComputeContext*>(&Adapter.GetDefaultAsyncComputeContextRedirector());
-		}
-		else // Single GPU path.
-		{
-			return static_cast<IRHIComputeContext*>(&Adapter.GetDevice(GPUMask.ToIndex())->GetDefaultAsyncComputeContext());
-		}
-	}
-	else 
-	{
-		return static_cast<IRHIComputeContext*>(RHIGetDefaultContext(GPUMask));
-	}
-}
-#endif // WITH_MGPU
 
 void FD3D12DynamicRHI::UpdateBuffer(FD3D12Resource* Dest, uint32 DestOffset, FD3D12Resource* Source, uint32 SourceOffset, uint32 NumBytes)
 {

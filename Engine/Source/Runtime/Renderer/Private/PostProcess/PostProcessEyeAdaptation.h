@@ -51,23 +51,24 @@ FEyeAdaptationParameters GetEyeAdaptationParameters(const FViewInfo& ViewInfo, E
 // Computes the a fixed exposure to be used to replace the dynamic exposure when it's not supported (< SM5).
 float GetEyeAdaptationFixedExposure(const FViewInfo& View);
 
+// Returns the updated 1x1 eye adaptation texture.
 FRDGTextureRef AddHistogramEyeAdaptationPass(
 	FRDGBuilder& GraphBuilder,
-	const FScreenPassViewInfo& ScreenPassView,
+	const FViewInfo& View,
 	const FEyeAdaptationParameters& EyeAdaptationParameters,
 	FRDGTextureRef HistogramTexture);
 
-FRDGTextureRef AddBasicEyeAdaptationSetupPass(
+// Computes luma of scene color stores in Alpha.
+FScreenPassTexture AddBasicEyeAdaptationSetupPass(
 	FRDGBuilder& GraphBuilder,
-	const FScreenPassViewInfo& ScreenPassView,
+	const FViewInfo& View,
 	const FEyeAdaptationParameters& EyeAdaptationParameters,
-	FRDGTextureRef SceneColorTexture,
-	FIntRect SceneColorViewRect);
+	FScreenPassTexture SceneColor);
 
+// Returns the updated 1x1 eye adaptation texture.
 FRDGTextureRef AddBasicEyeAdaptationPass(
 	FRDGBuilder& GraphBuilder,
-	const FScreenPassViewInfo& ScreenPassView,
+	const FViewInfo& View,
 	const FEyeAdaptationParameters& EyeAdaptationParameters,
-	FRDGTextureRef SceneColorTexture,
-	FIntRect SceneColorViewRect,
+	FScreenPassTexture SceneColor,
 	FRDGTextureRef EyeAdaptationTexture);

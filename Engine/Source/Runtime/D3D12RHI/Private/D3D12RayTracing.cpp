@@ -1237,11 +1237,11 @@ public:
 
 		FRHIResourceCreateInfo CreateInfo;
 		CreateInfo.ResourceArray = &Data;
+		CreateInfo.GPUMask = FRHIGPUMask::FromIndex(Device->GetGPUIndex());
 
 		Buffer = Adapter->CreateRHIBuffer<FD3D12MemBuffer>(
 			nullptr, BufferDesc, BufferDesc.Alignment,
-			0, BufferDesc.Width, BUF_Static, CreateInfo,
-			FRHIGPUMask::FromIndex(Device->GetGPUIndex()));
+			0, BufferDesc.Width, BUF_Static, CreateInfo);
 
 		SetName(Buffer->GetResource(), TEXT("Shader binding table"));
 
@@ -2048,10 +2048,11 @@ static void CreateAccelerationStructureBuffers(TRefCountPtr<FD3D12MemBuffer>& Ac
 	D3D12_RESOURCE_DESC AccelerationStructureBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(
 		PrebuildInfo.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
+	CreateInfo.GPUMask = FRHIGPUMask::FromIndex(GPUIndex);
 	CreateInfo.DebugName = TEXT("AccelerationStructureBuffer");
 	AccelerationStructureBuffer = Adapter->CreateRHIBuffer<FD3D12MemBuffer>(
 		nullptr, AccelerationStructureBufferDesc, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT,
-		0, AccelerationStructureBufferDesc.Width, BUF_AccelerationStructure, CreateInfo, FRHIGPUMask::FromIndex(GPUIndex));
+		0, AccelerationStructureBufferDesc.Width, BUF_AccelerationStructure, CreateInfo);
 
 	SetName(AccelerationStructureBuffer->GetResource(), TEXT("Acceleration structure"));
 
@@ -2059,10 +2060,11 @@ static void CreateAccelerationStructureBuffers(TRefCountPtr<FD3D12MemBuffer>& Ac
 	D3D12_RESOURCE_DESC ScratchBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(
 		FMath::Max(PrebuildInfo.UpdateScratchDataSizeInBytes, PrebuildInfo.ScratchDataSizeInBytes), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
+	CreateInfo.GPUMask = FRHIGPUMask::FromIndex(GPUIndex);
 	CreateInfo.DebugName = TEXT("ScratchBuffer");
 	ScratchBuffer = Adapter->CreateRHIBuffer<FD3D12MemBuffer>(
 		nullptr, ScratchBufferDesc, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT,
-		0, ScratchBufferDesc.Width, BUF_UnorderedAccess, CreateInfo, FRHIGPUMask::FromIndex(GPUIndex));
+		0, ScratchBufferDesc.Width, BUF_UnorderedAccess, CreateInfo);
 
 	SetName(ScratchBuffer->GetResource(), TEXT("Acceleration structure scratch"));
 }
@@ -2337,6 +2339,8 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 	if (Instances.Num())
 	{
 		FRHIResourceCreateInfo CreateInfo;
+		CreateInfo.GPUMask = FRHIGPUMask::FromIndex(GPUIndex);
+
 		D3D12_RESOURCE_DESC InstanceBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(
 			sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * Instances.Num(),
 			D3D12_RESOURCE_FLAG_NONE, D3D12_RAYTRACING_INSTANCE_DESCS_BYTE_ALIGNMENT);
@@ -2346,8 +2350,7 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 		// after the top level acceleration structure build is complete.
 		InstanceBuffer = Adapter->CreateRHIBuffer<FD3D12MemBuffer>(
 			nullptr, InstanceBufferDesc, D3D12_RAYTRACING_INSTANCE_DESCS_BYTE_ALIGNMENT,
-			0, InstanceBufferDesc.Width, BUF_Volatile, CreateInfo,
-			FRHIGPUMask::FromIndex(GPUIndex));
+			0, InstanceBufferDesc.Width, BUF_Volatile, CreateInfo);
 
 		D3D12_RAYTRACING_INSTANCE_DESC* MappedData = (D3D12_RAYTRACING_INSTANCE_DESC*)Adapter->GetOwningRHI()->LockBuffer(
 			nullptr, InstanceBuffer.GetReference(), 0, InstanceBufferDesc.Width, RLM_WriteOnly);

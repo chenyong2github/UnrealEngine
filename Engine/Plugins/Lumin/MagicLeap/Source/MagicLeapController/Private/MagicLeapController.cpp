@@ -2,7 +2,6 @@
 
 #include "MagicLeapController.h"
 #include "IMagicLeapPlugin.h"
-#include "MagicLeapHMD.h"
 #include "MagicLeapMath.h"
 #include "HAL/PlatformProcess.h"
 #include "Misc/App.h"
@@ -10,7 +9,6 @@
 #include "MagicLeapControllerKeys.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Async/Async.h"
-#include "AppFramework.h"
 #include "MagicLeapPluginUtil.h"
 #include "TouchpadGesturesComponent.h"
 #include "AssetData.h"
@@ -23,8 +21,8 @@
 #include "MagicLeapControllerMappings.h"
 
 #if WITH_MLSDK
-static_assert(MLInput_MaxControllerTouchpadTouches == FMagicLeapControllerState::kMaxTouches, "Mismatch in max touch constants");
 
+static_assert(MLInput_MaxControllerTouchpadTouches == FMagicLeapControllerState::kMaxTouches, "Mismatch in max touch constants");
 // Controller Mapper
 FMagicLeapController::FControllerMapper::FControllerMapper()
 {
@@ -270,25 +268,25 @@ uint8 FMagicLeapController::FControllerMapper::GetInputControllerIndexForHand(EC
 	return 0xFF;
 }
 
-EMLControllerType FMagicLeapController::FControllerMapper::MotionSourceToControllerType(FName MotionSource)
+EMagicLeapControllerType FMagicLeapController::FControllerMapper::MotionSourceToControllerType(FName MotionSource)
 {
 	auto MLSourceToControllerType = [](FName InMotionSource)
 	{
 		if (InMotionSource == FMagicLeapMotionSourceNames::Control0 ||
 			InMotionSource == FMagicLeapMotionSourceNames::Control1)
 		{
-			return EMLControllerType::Device;
+			return EMagicLeapControllerType::Device;
 		}
 		if (InMotionSource == FMagicLeapMotionSourceNames::MobileApp)
 		{
-			return EMLControllerType::MobileApp;
+			return EMagicLeapControllerType::MobileApp;
 		}
-		return EMLControllerType::None;
+		return EMagicLeapControllerType::None;
 	};
 
 	// First just see if it's one of ours and can be easily mapped
 	auto ControllerType = MLSourceToControllerType(MotionSource);
-	if (ControllerType == EMLControllerType::None)
+	if (ControllerType == EMagicLeapControllerType::None)
 	{
 		// If not, see if it's a hand mapping
 		auto ControllerHand = EControllerHand::ControllerHand_Count;
@@ -321,7 +319,7 @@ FMagicLeapController::FMagicLeapController(const TSharedRef<FGenericApplicationM
 	, InputTracker(ML_INVALID_HANDLE)
 	, ControllerTracker(ML_INVALID_HANDLE)
 	, ControllerDof(MLInputControllerDof_6)
-	, TrackingMode(EMLControllerTrackingMode::CoordinateFrameUID)
+	, TrackingMode(EMagicLeapControllerTrackingMode::CoordinateFrameUID)
 #endif //WITH_MLSDK
 	, bIsInputStateValid(false)
 	, TriggerKeyIsConsideredPressed(80.0f)
@@ -348,7 +346,7 @@ FMagicLeapController::FMagicLeapController(const TSharedRef<FGenericApplicationM
 
 	// We're implicitly requiring that the MagicLeapPlugin has been loaded and
 	// initialized at this point.
-	IMagicLeapPlugin::Get().RegisterMagicLeapInputDevice(this);
+	IMagicLeapPlugin::Get().RegisterMagicLeapTrackerEntity(this);
 }
 
 FMagicLeapController::~FMagicLeapController()
@@ -357,13 +355,108 @@ FMagicLeapController::~FMagicLeapController()
 	// but it isn't an assumption that we should make.
 	if (IMagicLeapPlugin::IsAvailable())
 	{
-		IMagicLeapPlugin::Get().UnregisterMagicLeapInputDevice(this);
+		IMagicLeapPlugin::Get().UnregisterMagicLeapTrackerEntity(this);
 	}
 
-	Disable();
+	DestroyEntityTracker();
 
 	IModularFeatures::Get().UnregisterModularFeature(GetModularFeatureName(), this);
 }
+
+#if WITH_MLSDK
+FName GetKeyNameFromGesture(const MLInputControllerTouchpadGesture* Gesture)
+{
+	FName KeyName = NAME_None;
+
+	switch(Gesture->type)
+	{
+		case MLInputControllerTouchpadGestureType::MLInputControllerTouchpadGestureType_Tap:
+			KeyName = FMagicLeapControllerKeyNames::TouchpadGesture_Tap_Name;
+			break;
+		case MLInputControllerTouchpadGestureType::MLInputControllerTouchpadGestureType_ForceTapDown:
+			KeyName = FMagicLeapControllerKeyNames::TouchpadGesture_ForceTapDown_Name;
+			break;
+		case MLInputControllerTouchpadGestureType::MLInputControllerTouchpadGestureType_ForceTapUp:
+			KeyName = FMagicLeapControllerKeyNames::TouchpadGesture_ForceTapUp_Name;
+			break;
+		case MLInputControllerTouchpadGestureType::MLInputControllerTouchpadGestureType_ForceDwell:
+			KeyName = FMagicLeapControllerKeyNames::TouchpadGesture_ForceDwell_Name;
+			break;
+		case MLInputControllerTouchpadGestureType::MLInputControllerTouchpadGestureType_SecondForceDown:
+			KeyName = FMagicLeapControllerKeyNames::TouchpadGesture_SecondForceDown_Name;
+			break;
+		case MLInputControllerTouchpadGestureType::MLInputControllerTouchpadGestureType_LongHold:
+			KeyName = FMagicLeapControllerKeyNames::TouchpadGesture_LongHold_Name;
+			break;
+		case MLInputControllerTouchpadGestureType::MLInputControllerTouchpadGestureType_RadialScroll:
+		{
+			switch(Gesture->direction)
+			{
+				case MLInputControllerTouchpadGestureDirection::MLInputControllerTouchpadGestureDirection_Clockwise:
+					KeyName = FMagicLeapControllerKeyNames::TouchpadGesture_RadialScroll_Clockwise_Name;
+					break;
+				case MLInputControllerTouchpadGestureDirection::MLInputControllerTouchpadGestureDirection_CounterClockwise:
+					KeyName = FMagicLeapControllerKeyNames::TouchpadGesture_RadialScroll_CounterClockwise_Name;
+					break;
+			}
+		}
+		break;
+		case MLInputControllerTouchpadGestureType::MLInputControllerTouchpadGestureType_Swipe:
+		{
+			switch(Gesture->direction)
+			{
+				case MLInputControllerTouchpadGestureDirection::MLInputControllerTouchpadGestureDirection_Up:
+					KeyName = FMagicLeapControllerKeyNames::TouchpadGesture_Swipe_Up_Name;
+					break;
+				case MLInputControllerTouchpadGestureDirection::MLInputControllerTouchpadGestureDirection_Down:
+					KeyName = FMagicLeapControllerKeyNames::TouchpadGesture_Swipe_Down_Name;
+					break;
+				case MLInputControllerTouchpadGestureDirection::MLInputControllerTouchpadGestureDirection_Right:
+					KeyName = FMagicLeapControllerKeyNames::TouchpadGesture_Swipe_Right_Name;
+					break;
+				case MLInputControllerTouchpadGestureDirection::MLInputControllerTouchpadGestureDirection_Left:
+					KeyName = FMagicLeapControllerKeyNames::TouchpadGesture_Swipe_Left_Name;
+					break;
+			}
+		}
+		break;
+		case MLInputControllerTouchpadGestureType::MLInputControllerTouchpadGestureType_Scroll:
+		{
+			switch(Gesture->direction)
+			{
+				case MLInputControllerTouchpadGestureDirection::MLInputControllerTouchpadGestureDirection_Up:
+					KeyName = FMagicLeapControllerKeyNames::TouchpadGesture_Scroll_Up_Name;
+					break;
+				case MLInputControllerTouchpadGestureDirection::MLInputControllerTouchpadGestureDirection_Down:
+					KeyName = FMagicLeapControllerKeyNames::TouchpadGesture_Scroll_Down_Name;
+					break;
+				case MLInputControllerTouchpadGestureDirection::MLInputControllerTouchpadGestureDirection_Right:
+					KeyName = FMagicLeapControllerKeyNames::TouchpadGesture_Scroll_Right_Name;
+					break;
+				case MLInputControllerTouchpadGestureDirection::MLInputControllerTouchpadGestureDirection_Left:
+					KeyName = FMagicLeapControllerKeyNames::TouchpadGesture_Scroll_Left_Name;
+					break;
+			}
+		}
+		break;
+		case MLInputControllerTouchpadGestureType::MLInputControllerTouchpadGestureType_Pinch:
+		{
+			switch(Gesture->direction)
+			{
+				case MLInputControllerTouchpadGestureDirection::MLInputControllerTouchpadGestureDirection_In:
+					KeyName = FMagicLeapControllerKeyNames::TouchpadGesture_Pinch_In_Name;
+					break;
+				case MLInputControllerTouchpadGestureDirection::MLInputControllerTouchpadGestureDirection_Out:
+					KeyName = FMagicLeapControllerKeyNames::TouchpadGesture_Pinch_Out_Name;
+					break;
+			}
+		}
+		break;
+	}
+
+	return KeyName;
+}
+#endif // WITH_MLSDK
 
 void FMagicLeapController::InitializeInputCallbacks()
 {
@@ -378,10 +471,10 @@ void FMagicLeapController::InitializeInputCallbacks()
 			const auto& Hand = Controller->ControllerMapper.GetHandForInputControllerIndex(controller_id);
 			if (Hand != EControllerHand::ControllerHand_Count)
 			{
-				auto Gesture = MLToUnrealTouchpadGesture(Hand, FMagicLeapMotionSourceNames::Unknown, *touchpad_gesture);
+				FMagicLeapTouchpadGesture Gesture_DEPRECATED = MLToUnrealTouchpadGesture_DEPRECATED(Hand, FMagicLeapMotionSourceNames::Unknown, *touchpad_gesture);
 				for (IMagicLeapTouchpadGestures* Receiver : Controller->TouchpadGestureReceivers)
 				{
-					Receiver->OnTouchpadGestureStartCallback(Gesture);
+					Receiver->OnTouchpadGestureStartCallback(Gesture_DEPRECATED);
 				}
 			}
 		}
@@ -395,10 +488,10 @@ void FMagicLeapController::InitializeInputCallbacks()
 			const auto& Hand = Controller->ControllerMapper.GetHandForInputControllerIndex(controller_id);
 			if (Hand != EControllerHand::ControllerHand_Count)
 			{
-				auto Gesture = MLToUnrealTouchpadGesture(Hand, FMagicLeapMotionSourceNames::Unknown, *touchpad_gesture);
+				FMagicLeapTouchpadGesture Gesture_DEPRECATED = MLToUnrealTouchpadGesture_DEPRECATED(Hand, FMagicLeapMotionSourceNames::Unknown, *touchpad_gesture);
 				for (IMagicLeapTouchpadGestures* Receiver : Controller->TouchpadGestureReceivers)
 				{
-					Receiver->OnTouchpadGestureContinueCallback(Gesture);
+					Receiver->OnTouchpadGestureContinueCallback(Gesture_DEPRECATED);
 				}
 			}
 		}
@@ -412,10 +505,10 @@ void FMagicLeapController::InitializeInputCallbacks()
 			const auto& Hand = Controller->ControllerMapper.GetHandForInputControllerIndex(controller_id);
 			if (Hand != EControllerHand::ControllerHand_Count)
 			{
-				auto Gesture = MLToUnrealTouchpadGesture(Hand, FMagicLeapMotionSourceNames::Unknown, *touchpad_gesture);
+				FMagicLeapTouchpadGesture Gesture_DEPRECATED = MLToUnrealTouchpadGesture_DEPRECATED(Hand, FMagicLeapMotionSourceNames::Unknown, *touchpad_gesture);
 				for (IMagicLeapTouchpadGestures* Receiver : Controller->TouchpadGestureReceivers)
 				{
-					Receiver->OnTouchpadGestureEndCallback(Gesture);
+					Receiver->OnTouchpadGestureEndCallback(Gesture_DEPRECATED);
 				}
 			}
 		}
@@ -459,7 +552,7 @@ void FMagicLeapController::SendControllerEvents()
 #if WITH_MLSDK
 	if (bIsInputStateValid && MessageHandler.IsValid())
 	{
-		FMagicLeapHMD::EnableInput EnableInputFromHMD;
+		MagicLeap::EnableInput EnableInputFromHMD;
 		// fixes unreferenced parameter error for Windows package builds.
 		(void)EnableInputFromHMD;
 
@@ -510,7 +603,7 @@ void FMagicLeapController::ReadConfigParams()
 #if WITH_MLSDK
 	// Pull hand-mapping preferences from config file. If there are none, the default (legacy)
 	// mapping of device 0 to right and device 1 to left will persist.
-	const UEnum* ControllerHandEnum = StaticEnum<EControllerHand>();
+	const UEnum* ControllerHandEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("EControllerHand"));
 	TArray<FString> ControllerHands;
 	GConfig->GetArray(TEXT("/Script/LuminRuntimeSettings.LuminRuntimeSettings"),
 		TEXT("ControllerHands"), ControllerHands, GEngineIni);
@@ -555,7 +648,7 @@ void FMagicLeapController::ReadConfigParams()
 		TEXT("ControllerTrackingType"), ConfigString, GEngineIni);
 	if (ConfigString.Len() > 0)
 	{
-		const UEnum* TrackingTypeEnum = StaticEnum<ETrackingStatus>();
+		const UEnum* TrackingTypeEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("ETrackingStatus"));
 
 		auto TrackingTypeIndex = TrackingTypeEnum->GetValueByNameString(ConfigString);
 		if (TrackingTypeIndex != INDEX_NONE)
@@ -582,17 +675,17 @@ void FMagicLeapController::ReadConfigParams()
 		}
 	}
 
-	const static UEnum* TrackingModeEnum = StaticEnum<EMLControllerTrackingMode>();
+	const static UEnum* TrackingModeEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("EMagicLeapControllerTrackingMode"));
 	GConfig->GetString(TEXT("/Script/LuminRuntimeSettings.LuminRuntimeSettings"),
 		TEXT("ControllerTrackingMode"), ConfigString, GEngineIni);
 	if (ConfigString.Len() > 0)
 	{
-		TrackingMode = static_cast<EMLControllerTrackingMode>(TrackingModeEnum->GetValueByNameString(ConfigString));
+		TrackingMode = static_cast<EMagicLeapControllerTrackingMode>(TrackingModeEnum->GetValueByNameString(ConfigString));
 	}
 #endif //WITH_MLSDK
 }
 
-void FMagicLeapController::Enable()
+void FMagicLeapController::CreateEntityTracker()
 {
 #if WITH_MLSDK
 	MLResult Result = MLResult_Ok;
@@ -628,7 +721,7 @@ void FMagicLeapController::Enable()
 		ControllerTracker = ML_INVALID_HANDLE;
 
 		// Revert to input
-		TrackingMode = EMLControllerTrackingMode::InputService;
+		TrackingMode = EMagicLeapControllerTrackingMode::InputService;
 	}
 
 #if PLATFORM_LUMIN
@@ -669,12 +762,7 @@ void FMagicLeapController::Enable()
 #endif //WITH_MLSDK
 }
 
-bool FMagicLeapController::SupportsExplicitEnable() const
-{
-	return true;
-}
-
-void FMagicLeapController::Disable()
+void FMagicLeapController::DestroyEntityTracker()
 {
 #if WITH_MLSDK
 #if !PLATFORM_LUMIN
@@ -777,7 +865,7 @@ void FMagicLeapController::EnumerateSources(TArray<FMotionControllerSource>& Sou
 	SourcesOut.Add(FMagicLeapMotionSourceNames::MobileApp);
 }
 
-void FMagicLeapController::UpdateControllerStateFromInputTracker(const FAppFramework& AppFramework, FName MotionSource)
+void FMagicLeapController::UpdateControllerStateFromInputTracker(const IMagicLeapPlugin& MLPlugin, FName MotionSource)
 {
 #if WITH_MLSDK
 	checkf(CurrMotionSourceControllerState.Contains(MotionSource),
@@ -827,7 +915,7 @@ void FMagicLeapController::UpdateControllerStateFromInputTracker(const FAppFrame
 			{
 				CurrControllerState.TrackingStatus = ETrackingStatus::Tracked;
 				CurrControllerState.Transform.SetLocation(MagicLeap::ToFVector(InputState.position,
-					AppFramework.GetWorldToMetersScale()));
+					MLPlugin.GetWorldToMetersScale()));
 				CurrControllerState.Transform.SetRotation(MagicLeap::ToFQuat(InputState.orientation));
 				break;
 			}
@@ -893,7 +981,7 @@ void FMagicLeapController::UpdateControllerStateFromInputTracker(const FAppFrame
 #endif //WITH_MLSDK
 }
 
-void FMagicLeapController::UpdateControllerStateFromControllerTracker(const FAppFramework& AppFramework, FName MotionSource)
+void FMagicLeapController::UpdateControllerStateFromControllerTracker(const IMagicLeapPlugin& MLPlugin, FName MotionSource)
 {
 #if WITH_MLSDK
 	// Index of the stream we're reading
@@ -937,12 +1025,12 @@ void FMagicLeapController::UpdateControllerStateFromControllerTracker(const FApp
 				ControllerState.TrackingStatus = ETrackingStatus::Tracked;
 			}
 
-			EFailReason FailReason = EFailReason::None;
-			if (!AppFramework.GetTransform(ControllerStream.
+			EMagicLeapTransformFailReason FailReason = EMagicLeapTransformFailReason::None;
+			if (!MLPlugin.GetTransform(ControllerStream.
 				coord_frame_controller, ControllerState.Transform, FailReason))
 			{
 				UE_LOG(LogMagicLeapController, Error,
-					TEXT("UpdateControllerStateFromControllerTracker: AppFramework."
+					TEXT("UpdateControllerStateFromControllerTracker: MLPlugin."
 						"GetTransform returned false, fail reason = %d."),
 					static_cast<uint32>(FailReason));
 			}
@@ -963,12 +1051,7 @@ void FMagicLeapController::UpdateTrackerData()
 		return;
 	}
 
-	const FAppFramework& AppFramework = static_cast<FMagicLeapHMD*>
-		(GEngine->XRSystem->GetHMDDevice())->GetAppFrameworkConst();
-	if (!AppFramework.IsInitialized())
-	{
-		return;
-	}
+	const IMagicLeapPlugin& MLPlugin = IMagicLeapPlugin::Get();
 
 	// First pull data from input tracker. Note that this is not conditional based on the tracking
 	// type because we also need to get buttons, touchpad, etc.
@@ -981,9 +1064,9 @@ void FMagicLeapController::UpdateTrackerData()
 			bIsInputStateValid = true;
 
 			ControllerMapper.UpdateMotionSourceInputIndexPairing(InputControllerState);
-			UpdateControllerStateFromInputTracker(AppFramework, FMagicLeapMotionSourceNames::Control0);
-			UpdateControllerStateFromInputTracker(AppFramework, FMagicLeapMotionSourceNames::Control1);
-			UpdateControllerStateFromInputTracker(AppFramework, FMagicLeapMotionSourceNames::MobileApp);
+			UpdateControllerStateFromInputTracker(MLPlugin, FMagicLeapMotionSourceNames::Control0);
+			UpdateControllerStateFromInputTracker(MLPlugin, FMagicLeapMotionSourceNames::Control1);
+			UpdateControllerStateFromInputTracker(MLPlugin, FMagicLeapMotionSourceNames::MobileApp);
 		}
 		else
 		{
@@ -996,7 +1079,7 @@ void FMagicLeapController::UpdateTrackerData()
 	}
 
 	// If mode is set to CFUID tracking overwrite the input system Dof data
-	if (TrackingMode == EMLControllerTrackingMode::CoordinateFrameUID)
+	if (TrackingMode == EMagicLeapControllerTrackingMode::CoordinateFrameUID)
 	{
 		// We need to have valid input state in order to do this, because we need to be sure
 		// what we are polling is a physical control
@@ -1006,8 +1089,8 @@ void FMagicLeapController::UpdateTrackerData()
 
 			if (MLResult_Ok == Result)
 			{
-				UpdateControllerStateFromControllerTracker(AppFramework, FMagicLeapMotionSourceNames::Control0);
-				UpdateControllerStateFromControllerTracker(AppFramework, FMagicLeapMotionSourceNames::Control1);
+				UpdateControllerStateFromControllerTracker(MLPlugin, FMagicLeapMotionSourceNames::Control0);
+				UpdateControllerStateFromControllerTracker(MLPlugin, FMagicLeapMotionSourceNames::Control1);
 			}
 			else
 			{
@@ -1020,7 +1103,7 @@ void FMagicLeapController::UpdateTrackerData()
 #endif //WITH_MLSDK
 }
 
-bool FMagicLeapController::SetControllerTrackingMode(EMLControllerTrackingMode InTrackingMode)
+bool FMagicLeapController::SetControllerTrackingMode(EMagicLeapControllerTrackingMode InTrackingMode)
 {
 #if WITH_MLSDK
 	if (IsGamepadAttached())
@@ -1036,7 +1119,7 @@ bool FMagicLeapController::SetControllerTrackingMode(EMLControllerTrackingMode I
 	return false;
 }
 
-EMLControllerTrackingMode FMagicLeapController::GetControllerTrackingMode()
+EMagicLeapControllerTrackingMode FMagicLeapController::GetControllerTrackingMode()
 {
 #if WITH_MLSDK
 	if (IsGamepadAttached())
@@ -1045,7 +1128,7 @@ EMLControllerTrackingMode FMagicLeapController::GetControllerTrackingMode()
 	}
 #endif //WITH_MLSDK
 
-	return EMLControllerTrackingMode::InputService;
+	return EMagicLeapControllerTrackingMode::InputService;
 }
 
 void FMagicLeapController::RegisterTouchpadGestureReceiver(IMagicLeapTouchpadGestures* Receiver)
@@ -1064,17 +1147,13 @@ void FMagicLeapController::UnregisterTouchpadGestureReceiver(IMagicLeapTouchpadG
 void FMagicLeapController::AddKeys()
 {
 	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::MotionController_Left_Thumbstick_Z, LOCTEXT("MotionController_Left_Thumbstick_Z", "MotionController (L) Thumbstick Z"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis));
-	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Left_MoveButton, LOCTEXT("MagicLeap_Left_MoveButton", "ML (L) Move Button"), FKeyDetails::GamepadKey));
-	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Left_AppButton, LOCTEXT("MagicLeap_Left_AppButton", "ML (L) App Button"), FKeyDetails::GamepadKey));
 	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Left_HomeButton, LOCTEXT("MagicLeap_Left_HomeButton", "ML (L) Home Button"), FKeyDetails::GamepadKey));
 
 	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::MotionController_Right_Thumbstick_Z, LOCTEXT("MotionController_Right_Thumbstick_Z", "MotionController (R) Thumbstick Z"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis));
-	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Right_MoveButton, LOCTEXT("MagicLeap_Right_MoveButton", "ML (R) Move Button"), FKeyDetails::GamepadKey));
-	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Right_AppButton, LOCTEXT("MagicLeap_Right_AppButton", "ML (R) App Button"), FKeyDetails::GamepadKey));
 	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Right_HomeButton, LOCTEXT("MagicLeap_Right_HomeButton", "ML (R) Home Button"), FKeyDetails::GamepadKey));
 }
 
-bool FMagicLeapController::PlayLEDPattern(FName MotionSource, EMLControllerLEDPattern LEDPattern, EMLControllerLEDColor LEDColor, float DurationInSec)
+bool FMagicLeapController::PlayLEDPattern(FName MotionSource, EMagicLeapControllerLEDPattern LEDPattern, EMagicLeapControllerLEDColor LEDColor, float DurationInSec)
 {
 #if WITH_MLSDK
 	if (IsGamepadAttached())
@@ -1111,7 +1190,7 @@ bool FMagicLeapController::PlayLEDPattern(FName MotionSource, EMLControllerLEDPa
 	return false;
 }
 
-bool FMagicLeapController::PlayLEDEffect(FName MotionSource, EMLControllerLEDEffect LEDEffect, EMLControllerLEDSpeed LEDSpeed, EMLControllerLEDPattern LEDPattern, EMLControllerLEDColor LEDColor, float DurationInSec)
+bool FMagicLeapController::PlayLEDEffect(FName MotionSource, EMagicLeapControllerLEDEffect LEDEffect, EMagicLeapControllerLEDSpeed LEDSpeed, EMagicLeapControllerLEDPattern LEDPattern, EMagicLeapControllerLEDColor LEDColor, float DurationInSec)
 {
 #if WITH_MLSDK
 	if (IsGamepadAttached())
@@ -1150,7 +1229,7 @@ bool FMagicLeapController::PlayLEDEffect(FName MotionSource, EMLControllerLEDEff
 	return false;
 }
 
-bool FMagicLeapController::PlayHapticPattern(FName MotionSource, EMLControllerHapticPattern HapticPattern, EMLControllerHapticIntensity Intensity)
+bool FMagicLeapController::PlayHapticPattern(FName MotionSource, EMagicLeapControllerHapticPattern HapticPattern, EMagicLeapControllerHapticIntensity Intensity)
 {
 #if WITH_MLSDK
 	if (IsGamepadAttached())
@@ -1186,6 +1265,16 @@ bool FMagicLeapController::PlayHapticPattern(FName MotionSource, EMLControllerHa
 	return false;
 }
 
+bool FMagicLeapController::IsMLControllerConnected(FName MotionSource) const
+{
+#if WITH_MLSDK
+	const FMagicLeapControllerState* ControllerState = CurrMotionSourceControllerState.Find(MotionSource);
+	return (ControllerState != nullptr) ? ControllerState->bIsConnected : false;
+#else
+	return false;
+#endif //WITH_MLSDK
+}
+
 void FMagicLeapController::SendControllerEventsForHand(EControllerHand Hand)
 {
 #if WITH_MLSDK
@@ -1203,7 +1292,7 @@ void FMagicLeapController::SendControllerEventsForHand(EControllerHand Hand)
 		// Touch 1 is currently not available (we have nothing to map it to)
 		if (CurrControllerState->bTouchActive[0])
 		{
-			FMagicLeapHMD::EnableInput EnableInputFromHMD;
+			MagicLeap::EnableInput EnableInputFromHMD;
 			// fixes unreferenced parameter error for Windows package builds.
 			(void)EnableInputFromHMD;
 
@@ -1216,7 +1305,7 @@ void FMagicLeapController::SendControllerEventsForHand(EControllerHand Hand)
 		}
 		else
 		{
-			FMagicLeapHMD::EnableInput EnableInputFromHMD;
+			MagicLeap::EnableInput EnableInputFromHMD;
 			// fixes unreferenced parameter error for Windows package builds.
 			(void)EnableInputFromHMD;
 
@@ -1228,7 +1317,7 @@ void FMagicLeapController::SendControllerEventsForHand(EControllerHand Hand)
 		// Analog trigger
 		if (CurrControllerState->TriggerAnalog != PrevControllerState->TriggerAnalog)
 		{
-			FMagicLeapHMD::EnableInput EnableInputFromHMD;
+			MagicLeap::EnableInput EnableInputFromHMD;
 			// fixes unreferenced parameter error for Windows package builds.
 			(void)EnableInputFromHMD;
 
@@ -1239,27 +1328,27 @@ void FMagicLeapController::SendControllerEventsForHand(EControllerHand Hand)
 #endif //WITH_MLSDK
 }
 
-EMLControllerType FMagicLeapController::GetMLControllerType(EControllerHand Hand) const
+EMagicLeapControllerType FMagicLeapController::GetMLControllerType(EControllerHand Hand) const
 {
 #if WITH_MLSDK
 	const auto& MotionSource = ControllerMapper.GetMotionSourceForHand(Hand);
 	if (MotionSource == FMagicLeapMotionSourceNames::Control0)
 	{
-		return EMLControllerType::Device;
+		return EMagicLeapControllerType::Device;
 	}
 	if (MotionSource == FMagicLeapMotionSourceNames::Control1)
 	{
-		return EMLControllerType::Device;
+		return EMagicLeapControllerType::Device;
 	}
 	if (MotionSource == FMagicLeapMotionSourceNames::MobileApp)
 	{
-		return EMLControllerType::MobileApp;
+		return EMagicLeapControllerType::MobileApp;
 	}
 #endif //WITH_MLSDK
-	return EMLControllerType::None;
+	return EMagicLeapControllerType::None;
 }
 
-bool FMagicLeapController::PlayControllerLED(EControllerHand Hand, EMLControllerLEDPattern LEDPattern, EMLControllerLEDColor LEDColor, float DurationInSec)
+bool FMagicLeapController::PlayControllerLED(EControllerHand Hand, EMagicLeapControllerLEDPattern LEDPattern, EMagicLeapControllerLEDColor LEDColor, float DurationInSec)
 {
 #if WITH_MLSDK
 	return PlayLEDPattern(ControllerMapper.GetMotionSourceForHand(Hand), LEDPattern, LEDColor, DurationInSec);
@@ -1267,7 +1356,7 @@ bool FMagicLeapController::PlayControllerLED(EControllerHand Hand, EMLController
 	return false;
 }
 
-bool FMagicLeapController::PlayControllerLEDEffect(EControllerHand Hand, EMLControllerLEDEffect LEDEffect, EMLControllerLEDSpeed LEDSpeed, EMLControllerLEDPattern LEDPattern, EMLControllerLEDColor LEDColor, float DurationInSec)
+bool FMagicLeapController::PlayControllerLEDEffect(EControllerHand Hand, EMagicLeapControllerLEDEffect LEDEffect, EMagicLeapControllerLEDSpeed LEDSpeed, EMagicLeapControllerLEDPattern LEDPattern, EMagicLeapControllerLEDColor LEDColor, float DurationInSec)
 {
 #if WITH_MLSDK
 	return PlayLEDEffect(ControllerMapper.GetMotionSourceForHand(Hand), LEDEffect, LEDSpeed, LEDPattern, LEDColor, DurationInSec);
@@ -1276,7 +1365,7 @@ bool FMagicLeapController::PlayControllerLEDEffect(EControllerHand Hand, EMLCont
 	return false;
 }
 
-bool FMagicLeapController::PlayControllerHapticFeedback(EControllerHand Hand, EMLControllerHapticPattern HapticPattern, EMLControllerHapticIntensity Intensity)
+bool FMagicLeapController::PlayControllerHapticFeedback(EControllerHand Hand, EMagicLeapControllerHapticPattern HapticPattern, EMagicLeapControllerHapticIntensity Intensity)
 {
 #if WITH_MLSDK
 	return PlayHapticPattern(ControllerMapper.GetMotionSourceForHand(Hand), HapticPattern, Intensity);

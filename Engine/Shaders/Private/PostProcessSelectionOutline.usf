@@ -1,36 +1,37 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	PostProcessSelectionOutline.usf: Post processing outline effect.
-=============================================================================*/
-
 #include "Common.ush"
-#include "PostProcessCommon.ush"
+#include "ScreenPass.ush"
 
 #if MSAA_SAMPLE_COUNT > 1
-Texture2DMS<float, MSAA_SAMPLE_COUNT> PostprocessInput1MS;
+Texture2DMS<float, MSAA_SAMPLE_COUNT> EditorPrimitivesDepth;
 Texture2DMS<uint2, MSAA_SAMPLE_COUNT> EditorPrimitivesStencil;
 #else
-// note: opengl compiler doesn't like Texture2D<float> so we don't do it
-Texture2D PostprocessInput1MS;
+// Note: opengl compiler doesn't like Texture2D<float>
+Texture2D EditorPrimitivesDepth;
 Texture2D<uint2> EditorPrimitivesStencil;
 #endif
 
-// RGB: selection color, A:SelectionHighlightIntensity
-float4 OutlineColor;
-// RGB:subdued selection color (for inactive selection), A:unused
-float4 SubduedOutlineColor;
+Texture2D ColorTexture;
+SamplerState ColorSampler;
 
+Texture2D DepthTexture;
+SamplerState DepthSampler;
+
+SCREEN_PASS_TEXTURE_VIEWPORT(Color)
+SCREEN_PASS_TEXTURE_VIEWPORT(Depth)
+SCREEN_PASS_TEXTURE_VIEWPORT_TRANSFORM(ColorToDepth)
+
+float3 OutlineColor;
+float3 SubduedOutlineColor;
+float SelectionHighlightIntensity;
 float BSPSelectionIntensity;
-
-// r. value of r.Editor.OpaqueGizmo .g:r.Editor.MovingPattern ba: unused
-float4 EditorRenderParams;
 
 struct FPixelInfo
 {
 	// if there is an selected object
 	bool bObjectMask;
-	// 
+
 	int ObjectId;
 	// if the current pixel is not occluded by some other object in front of it
 	float fVisible;
@@ -44,7 +45,6 @@ float ReconstructDeviceZ(float3 DeviceZPlane, float2 PixelOffset)
 	return dot(DeviceZPlane, float3(PixelOffset.xy, 1));
 }
 
-
 // @param DeviceZPlane plane in screenspace .x: ddx(DeviceZ), y: ddy(DeviceZ) z:DeviceZ
 FPixelInfo GetPixelInfo(int2 PixelPos, int SampleID, int OffsetX, int OffsetY, float3 DeviceZPlane, float2 DeviceZMinMax)
 {
@@ -52,22 +52,20 @@ FPixelInfo GetPixelInfo(int2 PixelPos, int SampleID, int OffsetX, int OffsetY, f
 
 	PixelPos += int2(OffsetX, OffsetY);
 
-	// slightly more flicking artifacts on the silhouette
-//	float2 ReconstructionOffset = int2(OffsetX, OffsetY) + 0.5f - View.TemporalAAParams.zw;
 	// more stable on the silhouette
 	float2 ReconstructionOffset = 0.5f - View.TemporalAAParams.zw;
 
 #if MSAA_SAMPLE_COUNT > 1
-	float DeviceZ = PostprocessInput1MS.Load(PixelPos, SampleID).r;
+	float DeviceZ = EditorPrimitivesDepth.Load(PixelPos, SampleID).r;
 	int Stencil = EditorPrimitivesStencil.Load(PixelPos, SampleID) STENCIL_COMPONENT_SWIZZLE;
 
 #if !COMPILER_GLSL && !PS4_PROFILE && !COMPILER_METAL && !COMPILER_HLSLCC
 	// not yet supported on OpenGL, slightly better quality
-	ReconstructionOffset += PostprocessInput1MS.GetSamplePosition(SampleID);
+	ReconstructionOffset += EditorPrimitivesDepth.GetSamplePosition(SampleID);
 #endif
 
 #else
-	float DeviceZ = PostprocessInput1MS.Load(int3(PixelPos, 0)).r;
+	float DeviceZ = EditorPrimitivesDepth.Load(int3(PixelPos, 0)).r;
 	int Stencil = EditorPrimitivesStencil.Load(int3(PixelPos, 0)) STENCIL_COMPONENT_SWIZZLE;
 #endif
 
@@ -108,7 +106,7 @@ bool BoolXor(bool bA, bool bB)
 	return (a ^ b) != 0;
 }
 
-// computes min and max at once
+// Computes min and max at once.
 void MinMax(inout int2 Var, int Value)
 {
 	Var.x = min(Var.x, Value);
@@ -117,20 +115,19 @@ void MinMax(inout int2 Var, int Value)
 
 float4 PerSample(int2 PixelPos, int SampleID, FPixelInfo CenterPixelInfo, float3 DeviceZPlane, float2 DeviceZMinMax)
 {
-	float4 Ret = 0;
+	float4 Color = 0;
 
 	// [0]:center, [1..4]:borders
 	FPixelInfo PixelInfo[5];
-	
 	PixelInfo[0] = CenterPixelInfo;
 
-	// diagonal cross is thicker than vertical/horizontal cross
+	// Diagonal cross is thicker than vertical/horizontal cross.
 	PixelInfo[1] = GetPixelInfo(PixelPos, SampleID,  1,  1, DeviceZPlane, DeviceZMinMax);
 	PixelInfo[2] = GetPixelInfo(PixelPos, SampleID, -1, -1, DeviceZPlane, DeviceZMinMax);
 	PixelInfo[3] = GetPixelInfo(PixelPos, SampleID,  1, -1, DeviceZPlane, DeviceZMinMax);
 	PixelInfo[4] = GetPixelInfo(PixelPos, SampleID, -1,  1, DeviceZPlane, DeviceZMinMax);
 
-	// with (.x != .y) we can detect a border around and between each object
+	// With (.x != .y) we can detect a border around and between each object.
 	int2 BorderMinMax = int2(255,0);
 	{
 		MinMax(BorderMinMax, PixelInfo[1].ObjectId);
@@ -141,29 +138,25 @@ float4 PerSample(int2 PixelPos, int SampleID, FPixelInfo CenterPixelInfo, float3
 
 	int2 VisibleBorderMinMax = int2(255,0);
 	{
-		FLATTEN	if(PixelInfo[1].bVisible) MinMax(VisibleBorderMinMax, PixelInfo[1].ObjectId);
-		FLATTEN	if(PixelInfo[2].bVisible) MinMax(VisibleBorderMinMax, PixelInfo[2].ObjectId);
-		FLATTEN	if(PixelInfo[3].bVisible) MinMax(VisibleBorderMinMax, PixelInfo[3].ObjectId);
-		FLATTEN	if(PixelInfo[4].bVisible) MinMax(VisibleBorderMinMax, PixelInfo[4].ObjectId);
+		FLATTEN	if (PixelInfo[1].bVisible) MinMax(VisibleBorderMinMax, PixelInfo[1].ObjectId);
+		FLATTEN	if (PixelInfo[2].bVisible) MinMax(VisibleBorderMinMax, PixelInfo[2].ObjectId);
+		FLATTEN	if (PixelInfo[3].bVisible) MinMax(VisibleBorderMinMax, PixelInfo[3].ObjectId);
+		FLATTEN	if (PixelInfo[4].bVisible) MinMax(VisibleBorderMinMax, PixelInfo[4].ObjectId);
 	}
 
 	// this border around the object
 	bool bVisibleBorder = VisibleBorderMinMax.y != 0;
 	bool bBorder = BorderMinMax.x != BorderMinMax.y;
-
 	bool bInnerBorder = BorderMinMax.y == 4;
-	
+
 	// moving diagonal lines
-//	float PatternMask = saturate(sin((PixelPos.x + PixelPos.y) * 0.8f + 8.0f * View.RealTime * EditorRenderParams.g));
 	float PatternMask = ((PixelPos.x/2 + PixelPos.y/2) % 2) * 0.6f;
-	// non moving high frequency pattern
-//	float PatternMask = ((PixelPos.x + PixelPos.y) % 2) * 0.7f;
 
 	// the contants express the two opacity values we see when the primitive is hidden
 	float LowContrastPatternMask = lerp(0.2, 1.0f, PatternMask);
-	
+
 	float3  SelectionColor;
-	FLATTEN if(VisibleBorderMinMax.x >= 128 )
+	FLATTEN if (VisibleBorderMinMax.x >= 128 )
 	{
 		SelectionColor = SubduedOutlineColor.rgb;
 	}
@@ -171,111 +164,93 @@ float4 PerSample(int2 PixelPos, int SampleID, FPixelInfo CenterPixelInfo, float3
 	{
 		SelectionColor = OutlineColor.rgb;
 	}
-	FLATTEN if(bBorder)
+	FLATTEN if (bBorder)
 	{
-		FLATTEN if(bVisibleBorder)
+		FLATTEN if (bVisibleBorder)
 		{
 			// unoccluded border
-			Ret = float4(SelectionColor, 1);
+			Color = float4(SelectionColor, 1);
 		}
 		else
 		{
 			// occluded border
-			Ret = lerp(float4(0, 0, 0, 0), float4(SelectionColor, 1), LowContrastPatternMask);
+			Color = lerp(float4(0, 0, 0, 0), float4(SelectionColor, 1), LowContrastPatternMask);
 		}
 	}
 
-	FLATTEN if(bInnerBorder)
+	FLATTEN if (bInnerBorder)
 	{
 		// even occluded object is filled
 		// occluded object is rendered differently(flickers with TemporalAA)
 		float VisibleMask = lerp(PatternMask, 1.0f, PixelInfo[0].fVisible);
 
-		// occluded parts are more tranparent
-//		Ret = lerp(Ret, float4(SelectionColor.rgb, 1), OutlineColor.a * VisibleMask);
 		// darken occluded parts
-		Ret = lerp(Ret, float4(SelectionColor * VisibleMask, 1), OutlineColor.a );
+		Color = lerp(Color, float4(SelectionColor * VisibleMask, 1), SelectionHighlightIntensity);
 	}
 
 	// highlight inner part of the object
-	if(PixelInfo[0].bObjectMask)
+	if (PixelInfo[0].bObjectMask)
 	{
 		float VisibleMask = lerp(PatternMask, 1.0f, PixelInfo[0].fVisible);
-		float InnerHighlightAmount = PixelInfo[0].ObjectId == 1 ? BSPSelectionIntensity : OutlineColor.a;
-		Ret = lerp(Ret, float4(SelectionColor, 1), VisibleMask * InnerHighlightAmount);
+		float InnerHighlightAmount = PixelInfo[0].ObjectId == 1 ? BSPSelectionIntensity : SelectionHighlightIntensity;
+		Color = lerp(Color, float4(SelectionColor, 1), VisibleMask * InnerHighlightAmount);
 	}
 
-	return Ret;
+	return Color;
 }
-
-#if SHADING_PATH_DEFERRED
-	#define ShadingPathSceneDepthTexture SceneTexturesStruct.SceneDepthTexture
-	#define ShadingPathSceneDepthTextureSampler SceneTexturesStruct.SceneDepthTextureSampler
-#endif
-
-#if SHADING_PATH_MOBILE
-	#define ShadingPathSceneDepthTexture MobileSceneTextures.SceneDepthTexture
-	#define ShadingPathSceneDepthTextureSampler MobileSceneTextures.SceneDepthTextureSampler
-#endif
 
 void MainPS(
 	noperspective float4 UVAndScreenPos : TEXCOORD0,
 	float4 SvPosition : SV_POSITION,
 	out float4 OutColor : SV_Target0)
 {
-	float2 ViewportUV = (SvPosition.xy - float2(ViewportRect.xy)) * ViewportSize.zw;
-	float2 SceneBufferUV = ViewportUVToBufferUV(ViewportUV);
-
-	float2 UV = UVAndScreenPos.xy;
- 	int2 PixelPos = int2(ViewportUVToPostProcessingSceneColorBufferUV(ViewportUV) * PostprocessInput0Size.xy);
-	
-	OutColor = Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, UVAndScreenPos.xy);
+	const float2 ColorUV = UVAndScreenPos.xy;
+	const int2 ColorPixelPos = int2(ColorUV * Color_Extent);
 
 	// Scout outwards from the center pixel to determine if any neighboring pixels are selected
-	int ScountStep = 2;
+	const int ScoutStep = 2;
+
 #if MSAA_SAMPLE_COUNT > 1
-	int4 StencilScout = int4(
-		EditorPrimitivesStencil.Load(PixelPos + int2( ScountStep,  0), 0) STENCIL_COMPONENT_SWIZZLE,
-		EditorPrimitivesStencil.Load(PixelPos + int2(-ScountStep,  0), 0) STENCIL_COMPONENT_SWIZZLE,
-		EditorPrimitivesStencil.Load(PixelPos + int2( 0,  ScountStep), 0) STENCIL_COMPONENT_SWIZZLE,
-		EditorPrimitivesStencil.Load(PixelPos + int2( 0, -ScountStep), 0) STENCIL_COMPONENT_SWIZZLE
+	const int4 StencilScout = int4(
+		EditorPrimitivesStencil.Load(ColorPixelPos + int2( ScoutStep,  0), 0) STENCIL_COMPONENT_SWIZZLE,
+		EditorPrimitivesStencil.Load(ColorPixelPos + int2(-ScoutStep,  0), 0) STENCIL_COMPONENT_SWIZZLE,
+		EditorPrimitivesStencil.Load(ColorPixelPos + int2( 0,  ScoutStep), 0) STENCIL_COMPONENT_SWIZZLE,
+		EditorPrimitivesStencil.Load(ColorPixelPos + int2( 0, -ScoutStep), 0) STENCIL_COMPONENT_SWIZZLE
 	);
 #else
-	int4 StencilScout = int4(
-		EditorPrimitivesStencil.Load(int3(PixelPos + int2( ScountStep,  0), 0)) STENCIL_COMPONENT_SWIZZLE,
-		EditorPrimitivesStencil.Load(int3(PixelPos + int2(-ScountStep,  0), 0)) STENCIL_COMPONENT_SWIZZLE,
-		EditorPrimitivesStencil.Load(int3(PixelPos + int2( 0,  ScountStep), 0)) STENCIL_COMPONENT_SWIZZLE,
-		EditorPrimitivesStencil.Load(int3(PixelPos + int2( 0, -ScountStep), 0)) STENCIL_COMPONENT_SWIZZLE
+	const int4 StencilScout = int4(
+		EditorPrimitivesStencil.Load(int3(ColorPixelPos + int2( ScoutStep,  0), 0)) STENCIL_COMPONENT_SWIZZLE,
+		EditorPrimitivesStencil.Load(int3(ColorPixelPos + int2(-ScoutStep,  0), 0)) STENCIL_COMPONENT_SWIZZLE,
+		EditorPrimitivesStencil.Load(int3(ColorPixelPos + int2( 0,  ScoutStep), 0)) STENCIL_COMPONENT_SWIZZLE,
+		EditorPrimitivesStencil.Load(int3(ColorPixelPos + int2( 0, -ScoutStep), 0)) STENCIL_COMPONENT_SWIZZLE
 	);
 #endif
-	int ScoutSum = dot(saturate(StencilScout), 1);
 
-	// If this sum is zero, none of our neighbors are selected pixels and we can skip all the heavy processing
-	if (ScoutSum > 0) {
-		float SceneDepth = CalcSceneDepth(SceneBufferUV);
+	const int ScoutSum = dot(saturate(StencilScout), 1);
 
-		// This allows to reconstruct depth with a small pixel offset without many tetxure lookups (4xMSAA * 5 neighbors -> 20 samples)
-		// It's an approximation assuming the surface is a plane
+	// If this sum is zero, none of our neighbors are selected pixels and we can skip all the heavy processing.
+	if (ScoutSum > 0)
+	{
+		const float2 DepthUV = ColorUV * ColorToDepth_Scale + ColorToDepth_Bias;
+
+		float Center = Texture2DSampleLevel(DepthTexture, DepthSampler, DepthUV, 0).r;
+		float Left   = Texture2DSampleLevel(DepthTexture, DepthSampler, DepthUV + float2(-1,  0) * Depth_ExtentInverse, 0).r;
+		float Right  = Texture2DSampleLevel(DepthTexture, DepthSampler, DepthUV + float2( 1,  0) * Depth_ExtentInverse, 0).r;
+		float Top    = Texture2DSampleLevel(DepthTexture, DepthSampler, DepthUV + float2( 0, -1) * Depth_ExtentInverse, 0).r;
+		float Bottom = Texture2DSampleLevel(DepthTexture, DepthSampler, DepthUV + float2( 0,  1) * Depth_ExtentInverse, 0).r;
+
+		// This allows to reconstruct depth with a small pixel offset without many texture lookups (4xMSAA * 5 neighbors -> 20 samples)
+		// It's an approximation assuming the surface is a plane.
 		float3 DeviceZPlane;
-		DeviceZPlane.z = Texture2DSampleLevel(ShadingPathSceneDepthTexture, ShadingPathSceneDepthTextureSampler, SceneBufferUV, 0).r;
-
-		float Left = Texture2DSampleLevel(ShadingPathSceneDepthTexture, ShadingPathSceneDepthTextureSampler, SceneBufferUV + float2(-1, 0) * View.BufferSizeAndInvSize.zw, 0).r;
-		float Right= Texture2DSampleLevel(ShadingPathSceneDepthTexture, ShadingPathSceneDepthTextureSampler, SceneBufferUV + float2(1, 0) * View.BufferSizeAndInvSize.zw, 0).r;
-		float Top  = Texture2DSampleLevel(ShadingPathSceneDepthTexture, ShadingPathSceneDepthTextureSampler, SceneBufferUV + float2(0, -1) * View.BufferSizeAndInvSize.zw, 0).r;
-		float Bottom = Texture2DSampleLevel(ShadingPathSceneDepthTexture, ShadingPathSceneDepthTextureSampler, SceneBufferUV + float2(0, 1) * View.BufferSizeAndInvSize.zw, 0).r;
-
-		float2 DeviceZMinMax;
-		DeviceZMinMax.x = min(DeviceZPlane.z, min(min(Left, Right), min(Top, Bottom)));
-		DeviceZMinMax.y = max(DeviceZPlane.z, max(max(Left, Right), max(Top, Bottom)));
-
 		DeviceZPlane.x = (Right - Left) / 2;
 		DeviceZPlane.y = (Bottom - Top) / 2;
+		DeviceZPlane.z = Center;
 
-		// even stronger appromiation (faster but too many artifacts)
-	//	DeviceZPlane.x = ddx(DeviceZPlane.z);
-	//	DeviceZPlane.y = ddy(DeviceZPlane.z);
+		float2 DeviceZMinMax;
+		DeviceZMinMax.x = min(Center, min(min(Left, Right), min(Top, Bottom)));
+		DeviceZMinMax.y = max(Center, max(max(Left, Right), max(Top, Bottom)));
 
-		FPixelInfo CenterPixelInfo = GetPixelInfo(PixelPos, 0, 0,  0, DeviceZPlane, DeviceZMinMax);
+		FPixelInfo CenterPixelInfo = GetPixelInfo(ColorPixelPos, 0, 0,  0, DeviceZPlane, DeviceZMinMax);
 
 		float4 Sum = 0;
 #if COMPILER_GLSL && FEATURE_LEVEL >= FEATURE_LEVEL_SM4
@@ -283,30 +258,19 @@ void MainPS(
 #endif
 		for(int SampleID = 0; SampleID < MSAA_SAMPLE_COUNT; ++SampleID)
 		{
-			Sum += PerSample(PixelPos, SampleID, CenterPixelInfo, DeviceZPlane, DeviceZMinMax);
+			Sum += PerSample(ColorPixelPos, SampleID, CenterPixelInfo, DeviceZPlane, DeviceZMinMax);
 		}
 		float4 Avg = Sum / MSAA_SAMPLE_COUNT;
 
-		OutColor = Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, UVAndScreenPos.xy);
+		OutColor = Texture2DSample(ColorTexture, ColorSampler, ColorUV);
 
-		// Dest color has gamma applied so we need to remove it before applying linear color
-		OutColor.rgb = pow( OutColor.rgb, 2.2f );
-
+		// Scene color has gamma applied. Need to remove and re-apply after linear operation.
+		OutColor.rgb = pow(OutColor.rgb, 2.2f );
 		OutColor.rgb = lerp(OutColor.rgb, Avg.rgb, Avg.a);
-
-		// Re-apply gamma corrrection
-		OutColor.rgb = pow( OutColor.rgb, 1/2.2f );
+		OutColor.rgb = pow(OutColor.rgb, 1.0f / 2.2f);
 	}
-/*
-	if(MSAA_SAMPLE_COUNT == 2)
+	else
 	{
-		OutColor = 1;
+		OutColor = Texture2DSample(ColorTexture, ColorSampler, ColorUV);
 	}
-*/
-
-//	OutColor.rgb = Avg.rgb;
-//	OutColor.rgb = Avg.a;
-
-	// SceneColor from the pass before
-//	OutColor = Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, UVAndScreenPos.xy);
 }

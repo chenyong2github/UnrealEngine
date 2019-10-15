@@ -207,6 +207,7 @@ void FDeferredShadingSceneRenderer::RenderMeshDistanceFieldVisualization(FRHICom
 					uint32 GroupSizeX = FMath::DivideAndRoundUp(ViewInfo.ViewRect.Size().X / GAODownsampleFactor, GDistanceFieldAOTileSizeX);
 					uint32 GroupSizeY = FMath::DivideAndRoundUp(ViewInfo.ViewRect.Size().Y / GAODownsampleFactor, GDistanceFieldAOTileSizeY);
 
+					SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 					SCOPED_DRAW_EVENT(RHICmdList, VisualizeMeshDistanceFieldCS);
 
 					FSceneRenderTargetItem& VisualizeResultRTI = VisualizeResultRT->GetRenderTargetItem();
@@ -250,6 +251,7 @@ void FDeferredShadingSceneRenderer::RenderMeshDistanceFieldVisualization(FRHICom
 				{
 					const FViewInfo& ViewInfo = Views[ViewIndex];
 
+					SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 					SCOPED_DRAW_EVENT(RHICmdList, UpsampleAO);
 
 					RHICmdList.SetViewport(ViewInfo.ViewRect.Min.X, ViewInfo.ViewRect.Min.Y, 0.0f, ViewInfo.ViewRect.Max.X, ViewInfo.ViewRect.Max.Y, 1.0f);

@@ -5,41 +5,19 @@
 #include "Modules/ModuleManager.h"
 #include "HAL/PlatformProcess.h"
 #include "Misc/Paths.h"
-#include "MagicLeapPluginUtil.h"
-
-#if WITH_MLSDK
-#include "ml_identity.h"
-#endif //WITH_MLSDK
+#include "Lumin/CAPIShims/LuminAPIIdentity.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMagicLeapIdentity, Display, All);
 
 class FMagicLeapIdentityPlugin : public IMagicLeapIdentityPlugin
 {
-public:
-	void StartupModule() override
-	{
-		IModuleInterface::StartupModule();
-		APISetup.Startup();
-#if WITH_MLSDK
-		APISetup.LoadDLL(TEXT("ml_identity"));
-#endif //WITH_MLSDK
-	}
-
-	void ShutdownModule() override
-	{
-		APISetup.Shutdown();
-		IModuleInterface::ShutdownModule();
-	}
-
-private:
-	FMagicLeapAPISetup APISetup;
 };
 
 IMPLEMENT_MODULE(FMagicLeapIdentityPlugin, MagicLeapIdentity);
 
 //////////////////////////////////////////////////////////////////////////
 
-class FIdentityImpl
+class FMagicLeapIdentityImpl
 {
 #if WITH_MLSDK
 public:
@@ -149,7 +127,7 @@ public:
 };
 
 UMagicLeapIdentity::UMagicLeapIdentity()
-	: Impl(new FIdentityImpl())
+	: Impl(new FMagicLeapIdentityImpl())
 {}
 
 UMagicLeapIdentity::~UMagicLeapIdentity()
@@ -192,7 +170,7 @@ void UMagicLeapIdentity::GetAllAvailableAttributesAsync(const FAvailableIdentity
 	}
 	else
 	{
-		UE_LOG(LogMagicLeapIdentity, Error, TEXT("MLIdentityGetAttributeNamesAsync failed with error %d!"), Result);
+		UE_LOG(LogMagicLeapIdentity, Error, TEXT("MLIdentityGetAttributeNamesAsync failed with error %s!"), UTF8_TO_TCHAR(MLIdentityGetResultString(Result)));
 	}
 #endif //WITH_MLSDK
 }
@@ -260,11 +238,11 @@ EMagicLeapIdentityError UMagicLeapIdentity::RequestAttributeValueAsync(const TAr
 		MLResult RequestAtrrValRes = MLIdentityRequestAttributeValuesAsync(profile, &InvokeFuture);
 		if (RequestAtrrValRes == MLResult_Ok)
 		{
-			Impl->AllRequestAttribsFutures.Add(InvokeFuture, FIdentityImpl::FRequestAttribData(profile, ResultDelegate));
+			Impl->AllRequestAttribsFutures.Add(InvokeFuture, FMagicLeapIdentityImpl::FRequestAttribData(profile, ResultDelegate));
 		}
 		else
 		{
-			UE_LOG(LogMagicLeapIdentity, Error, TEXT("MLIdentityRequestAttributeValuesAsync failed with error %d!"), RequestAtrrValRes);
+			UE_LOG(LogMagicLeapIdentity, Error, TEXT("MLIdentityRequestAttributeValuesAsync failed with error %s!"), UTF8_TO_TCHAR(MLIdentityGetResultString(RequestAtrrValRes)));
 		}
 	}
 

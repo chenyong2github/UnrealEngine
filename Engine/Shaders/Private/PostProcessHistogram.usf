@@ -72,7 +72,10 @@ void MainCS(
 				float Weight0 = 1.0f - Weight1;
 			
 				// Accumulate the weight to the nearby history buckets.
-				SharedHistogram[Bucket0][GroupThreadId.x][GroupThreadId.y] += Weight0;
+				if (Bucket0 != 0) // Ignore entirely black pixels.
+				{
+					SharedHistogram[Bucket0][GroupThreadId.x][GroupThreadId.y] += Weight0;
+				}
 				SharedHistogram[Bucket1][GroupThreadId.x][GroupThreadId.y] += Weight1;
 			}
 		}

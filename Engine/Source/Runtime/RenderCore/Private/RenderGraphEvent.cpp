@@ -24,15 +24,22 @@ FRDGEventName::FRDGEventName(const TCHAR* InEventFormat, ...)
 
 #endif
 
-FRDGEventScopeGuard::FRDGEventScopeGuard(FRDGBuilder& InGraphBuilder, FRDGEventName&& ScopeName)
+FRDGEventScopeGuard::FRDGEventScopeGuard(FRDGBuilder& InGraphBuilder, FRDGEventName&& ScopeName, bool InbCondition)
 	: GraphBuilder(InGraphBuilder)
+	, bCondition(InbCondition)
 {
-	GraphBuilder.BeginEventScope(MoveTemp(ScopeName));
+	if (bCondition)
+	{
+		GraphBuilder.BeginEventScope(MoveTemp(ScopeName));
+	}
 }
 
 FRDGEventScopeGuard::~FRDGEventScopeGuard()
 {
-	GraphBuilder.EndEventScope();
+	if (bCondition)
+	{
+		GraphBuilder.EndEventScope();
+	}
 }
 
 static void OnPushEvent(FRHICommandListImmediate& RHICmdList, const FRDGEventScope* Scope)

@@ -5,6 +5,26 @@
 
 namespace
 {
+	TAutoConsoleVariable<int32> CVarRDGTransitionLogEnable(
+		TEXT("r.RDG.TransitionLog.Enable"), 0,
+		TEXT("Logs resource transitions to the console.\n"),
+		ECVF_RenderThreadSafe);
+
+	TAutoConsoleVariable<int32> CVarRDGTransitionLogEnableBreakpoint(
+		TEXT("r.RDG.TransitionLog.EnableBreakpoint"), 0,
+		TEXT("Breaks on a transition log event (set filters first!).\n"),
+		ECVF_RenderThreadSafe);
+
+	// TODO: String CVars don't support ECVF_RenderThreadSafe. Use with caution.
+	TAutoConsoleVariable<FString> CVarRDGLogTransitionsPassFilter(
+		TEXT("r.RDG.TransitionLog.PassFilter"), TEXT(""),
+		TEXT("Filters logs to passes with names containing the filter string.\n"),
+		ECVF_Default);
+
+	TAutoConsoleVariable<FString> CVarRDGLogTransitionsResourceFilter(
+		TEXT("r.RDG.TransitionLog.ResourceFilter"), TEXT(""),
+		TEXT("Filters logs to resources with names containing the filter string.\n"),
+		ECVF_Default);
 
 	/** Number of entries to reserve in the batch array. */
 	const uint32 kBatchReservationSize = 8;
@@ -48,6 +68,43 @@ namespace
 		return EResourceTransitionPipeline::EGfxToGfx;
 	}
 
+	inline const TCHAR* GetTransitionPipelineName(EResourceTransitionPipeline Pipeline)
+	{
+		switch (Pipeline)
+		{
+		case EResourceTransitionPipeline::EGfxToCompute:
+			return TEXT("GfxToCompute");
+		case EResourceTransitionPipeline::EComputeToGfx:
+			return TEXT("ComputeToGfx");
+		case EResourceTransitionPipeline::EGfxToGfx:
+			return TEXT("GfxToGfx");
+		case EResourceTransitionPipeline::EComputeToCompute:
+			return TEXT("ComputeToCompute");
+		}
+		check(false);
+		return TEXT("");
+	}
+
+	inline const TCHAR* GetTransitionAccessName(EResourceTransitionAccess Access)
+	{
+		switch (Access)
+		{
+		case EResourceTransitionAccess::EReadable:
+			return TEXT("Readable");
+		case EResourceTransitionAccess::EWritable:
+			return TEXT("Writable");
+		case EResourceTransitionAccess::ERWBarrier:
+			return TEXT("RWBarrier");
+		case EResourceTransitionAccess::ERWNoBarrier:
+			return TEXT("RWNoBarrier");
+		case EResourceTransitionAccess::ERWSubResBarrier:
+			return TEXT("RWSubResBarrier");
+		case EResourceTransitionAccess::EMetaData:
+			return TEXT("MetaData");
+		}
+		check(false);
+		return TEXT("");
+	}
 } //! namespace
 
 FRDGBarrierBatcher::FRDGBarrierBatcher(FRHICommandList& InRHICmdList, const FRDGPass* InPass)
@@ -63,6 +120,16 @@ FRDGBarrierBatcher::FRDGBarrierBatcher(FRHICommandList& InRHICmdList, const FRDG
 
 FRDGBarrierBatcher::~FRDGBarrierBatcher()
 {
+#if WITH_MGPU
+	// Wait for the temporal effect before executing the first pass in the graph. This
+	// will be a no-op for every pass after the first since we don't broadcast in
+	// between passes.
+	if (Pass != nullptr && NameForTemporalEffect != NAME_None)
+	{
+		RHICmdList.WaitForTemporalEffect(NameForTemporalEffect);
+	}
+#endif
+
 	for (FRHITexture* RHITexture : TextureUpdateMultiFrameBegins)
 	{
 		RHICmdList.BeginUpdateMultiFrameResource(RHITexture);
@@ -96,6 +163,14 @@ FRDGBarrierBatcher::~FRDGBarrierBatcher()
 	{
 		RHICmdList.EndUpdateMultiFrameResource(RHIUAV);
 	}
+
+#if WITH_MGPU
+	// Broadcast all multi-frame resources when processing deferred resource queries.
+	if (Pass == nullptr && NameForTemporalEffect != NAME_None)
+	{
+		RHICmdList.BroadcastTemporalEffect(NameForTemporalEffect, TexturesToCopyForTemporalEffect);
+	}
+#endif
 }
 
 void FRDGBarrierBatcher::QueueTransitionTexture(FRDGTexture* Texture, FRDGResourceState::EAccess AccessAfter)
@@ -147,6 +222,8 @@ void FRDGBarrierBatcher::QueueTransitionTexture(FRDGTexture* Texture, FRDGResour
 			}
 			#endif
 
+			LogTransition(Texture, TransitionParameters);
+
 			TextureBatch.Add(RHITexture);
 		}
 
@@ -154,6 +231,14 @@ void FRDGBarrierBatcher::QueueTransitionTexture(FRDGTexture* Texture, FRDGResour
 		{
 			TextureUpdateMultiFrameEnds.AddUnique(RHITexture);
 		}
+
+#if WITH_MGPU
+		// Broadcast all multi-frame resources when processing deferred resource queries.
+		if (bIsMultiFrameResource && Pass == nullptr)
+		{
+			TexturesToCopyForTemporalEffect.AddUnique(RHITexture);
+		}
+#endif
 
 		Texture->State = StateAfter;
 	}
@@ -198,6 +283,8 @@ void FRDGBarrierBatcher::QueueTransitionUAV(
 			}
 			#endif
 
+			LogTransition(ParentResource, TransitionParameters);
+
 			UAVBatch.Add(UAV);
 		}
 
@@ -210,7 +297,7 @@ void FRDGBarrierBatcher::QueueTransitionUAV(
 	}
 }
 
-void FRDGBarrierBatcher::ValidateTransition(const FRDGParentResource* Resource, FRDGResourceState StateBefore, FRDGResourceState StateAfter)
+void FRDGBarrierBatcher::ValidateTransition(const FRDGParentResource* Resource, FRDGResourceState StateBefore, FRDGResourceState StateAfter) const
 {
 #if RDG_ENABLE_DEBUG
 	check(StateAfter.Pipeline != FRDGResourceState::EPipeline::MAX);
@@ -225,6 +312,35 @@ void FRDGBarrierBatcher::ValidateTransition(const FRDGParentResource* Resource, 
 			TEXT("for both read and write at the same time. This can occur if the resource is used as both an SRV and UAV, or\n")
 			TEXT("SRV and Render Target, for example. If this pass is meant to generate mip maps, make sure the GenerateMips flag\n")
 			TEXT("is set.\n"), StateAfter.Pass->GetName(), Resource->Name);
+	}
+#endif
+}
+
+void FRDGBarrierBatcher::LogTransition(const FRDGParentResource* Resource, FTransitionParameters Parameters) const
+{
+#if RDG_ENABLE_DEBUG
+	if (CVarRDGTransitionLogEnable.GetValueOnRenderThread() != 0)
+	{
+		const FString PassName = Pass ? Pass->GetName() : TEXT("None");
+		const FString PassFilterText = CVarRDGLogTransitionsPassFilter.GetValueOnRenderThread();
+
+		if (PassFilterText.IsEmpty() || PassName.Contains(*PassFilterText))
+		{
+			const FString ResourceName = Resource->Name;
+			const FString ResourceFilterText = CVarRDGLogTransitionsResourceFilter.GetValueOnRenderThread();
+
+			if (ResourceFilterText.IsEmpty() || ResourceName.Contains(*ResourceFilterText))
+			{
+				const TCHAR* PipeName = GetTransitionPipelineName(Parameters.TransitionPipeline);
+				const TCHAR* AccessName = GetTransitionAccessName(Parameters.TransitionAccess);
+				UE_LOG(LogRendererCore, Display, TEXT("RDG Transition:\tPass('%s'), Resource('%s'), Access(%s), Pipe(%s)"), *PassName, *ResourceName, AccessName, PipeName);
+
+				if (CVarRDGTransitionLogEnableBreakpoint.GetValueOnRenderThread() != 0)
+				{
+					UE_DEBUG_BREAK();
+				}
+			}
+		}
 	}
 #endif
 }

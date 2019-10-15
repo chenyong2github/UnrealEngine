@@ -31,7 +31,7 @@ float2 DecalParams;
 #endif
 
 #if NUM_VIRTUALTEXTURE_SAMPLES
-	RWTexture2D<uint> VTFeedbackBuffer : register(VT_FEEDBACK_REGISTER); //MUST match FDecalRenderTargetManager::VirtualTextureFeedbackIndex
+	RWTexture2D<uint> VTFeedbackBuffer REGISTER(VT_FEEDBACK_REGISTER); //MUST match FDecalRenderTargetManager::VirtualTextureFeedbackIndex
 #endif
 
 // from component to clip space (for decal frustum)

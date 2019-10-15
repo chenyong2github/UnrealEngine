@@ -15,7 +15,9 @@
 	"IsBetaVersion" : false,
 	"Installed": false,
 	"SupportedTargetPlatforms": [
-		"Lumin"
+		"Lumin",
+		"Mac",
+		"Win64"
 	],
 	"Modules" :
 	[
@@ -34,8 +36,17 @@
 			"Name": "MagicLeapAR",
 			"Type": "Runtime",
 			"LoadingPhase": "PreDefault",
-			"WhitelistPlatforms": 
-			[
+			"WhitelistPlatforms": [
+				"Win64",
+				"Mac",
+				"Lumin"
+			]
+		},
+		{
+			"Name": "MagicLeapARPin",
+			"Type": "Runtime",
+			"LoadingPhase": "PreDefault",
+			"WhitelistPlatforms": [
 				"Win64",
 				"Mac",
 				"Lumin"
@@ -46,6 +57,7 @@
 			"Type" : "Runtime",
 			"WhitelistPlatforms": [
 				"Win64",
+				"Mac",
 				"Lumin"
 			]
 		},
@@ -79,7 +91,29 @@
 			]
 		},
 		{
+			"Name" : "MagicLeapHandMeshing",
+			"Type" : "Runtime",
+			"LoadingPhase" : "PreDefault",
+			"WhitelistPlatforms" :
+			[
+				"Win64",
+				"Mac",
+				"Lumin"
+			]
+		},
+		{
 			"Name" : "MagicLeapHandTracking",
+			"Type" : "Runtime",
+			"LoadingPhase" : "PreDefault",
+			"WhitelistPlatforms" :
+			[
+				"Win64",
+				"Mac",
+				"Lumin"
+			]
+		},
+		{
+			"Name" : "MagicLeapImageTracker",
 			"Type" : "Runtime",
 			"LoadingPhase" : "PreDefault",
 			"WhitelistPlatforms" :
@@ -131,11 +165,31 @@
 				"Lumin"
 			]
 		},
+		{
+			"Name": "MagicLeapPlanes",
+			"Type": "Runtime",
+			"LoadingPhase": "PreDefault",
+			"WhitelistPlatforms": [
+				"Win64",
+				"Mac",
+				"Lumin"
+			]
+		},
+		{
+			"Name": "MagicLeapPrivileges",
+			"Type": "Runtime",
+			"LoadingPhase": "PreDefault",
+			"WhitelistPlatforms": [
+				"Win64",
+				"Mac",
+				"Lumin"
+			]
+		}
 	],
 	"Plugins":
 	[
 		{
-			"Name": "ProceduralMeshComponent",
+			"Name": "MLSDK",
 			"Enabled": true
 		}
 	]

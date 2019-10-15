@@ -36,20 +36,14 @@
 			"Type" : "Editor",
 			"LoadingPhase": "PostEngineInit"
 		},
-        {
-            "Name": "MagicLeapMediaFactory",
-            "Type": "RuntimeNoCommandlet",
-            "LoadingPhase": "PostEngineInit",
-            "WhitelistPlatforms": [ "Lumin", "Mac", "Win64" ]
-        },
-        {
+	        {
+	            "Name": "MagicLeapMediaFactory",
+	            "Type": "RuntimeNoCommandlet",
+	            "LoadingPhase": "PostEngineInit",
+	            "WhitelistPlatforms": [ "Lumin", "Mac", "Win64" ]
+	        },
+	        {
 			"Name" : "MagicLeapMediaCodecFactory",
-			"Type" : "RuntimeNoCommandlet",
-			"LoadingPhase" : "PostEngineInit",
-			"WhitelistPlatforms" : [ "Lumin", "Mac", "Win64" ]
-		},
-        {
-			"Name" : "MagicLeapCameraPreviewFactory",
 			"Type" : "RuntimeNoCommandlet",
 			"LoadingPhase" : "PostEngineInit",
 			"WhitelistPlatforms" : [ "Lumin", "Mac", "Win64" ]
@@ -57,6 +51,10 @@
 	],
 	"Plugins":
 	[
+		{
+			"Name": "MLSDK",
+			"Enabled": true
+		},
 		{
 			"Name": "MagicLeap",
 			"Enabled": true

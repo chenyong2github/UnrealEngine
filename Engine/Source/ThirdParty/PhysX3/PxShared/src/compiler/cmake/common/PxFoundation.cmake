@@ -3,34 +3,34 @@
 #
 
 SET(PXFOUNDATION_HEADERS	
-	${PROJECT_SOURCE_DIR}/../../../../include/foundation/Px.h
-	${PROJECT_SOURCE_DIR}/../../../../include/foundation/PxAllocatorCallback.h
-	${PROJECT_SOURCE_DIR}/../../../../include/foundation/PxAssert.h
-	${PROJECT_SOURCE_DIR}/../../../../include/foundation/PxBitAndData.h
-	${PROJECT_SOURCE_DIR}/../../../../include/foundation/PxBounds3.h
-	${PROJECT_SOURCE_DIR}/../../../../include/foundation/PxErrorCallback.h
-	${PROJECT_SOURCE_DIR}/../../../../include/foundation/PxErrors.h
-	${PROJECT_SOURCE_DIR}/../../../../include/foundation/PxFlags.h
-	${PROJECT_SOURCE_DIR}/../../../../include/foundation/PxFoundation.h
-	${PROJECT_SOURCE_DIR}/../../../../include/foundation/PxFoundationVersion.h
-	${PROJECT_SOURCE_DIR}/../../../../include/foundation/PxIntrinsics.h
-	${PROJECT_SOURCE_DIR}/../../../../include/foundation/PxIO.h
-	${PROJECT_SOURCE_DIR}/../../../../include/foundation/PxMat33.h
-	${PROJECT_SOURCE_DIR}/../../../../include/foundation/PxMat44.h
-	${PROJECT_SOURCE_DIR}/../../../../include/foundation/PxMath.h
-	${PROJECT_SOURCE_DIR}/../../../../include/foundation/PxMathUtils.h
-	${PROJECT_SOURCE_DIR}/../../../../include/foundation/PxMemory.h
-	${PROJECT_SOURCE_DIR}/../../../../include/foundation/PxPlane.h
-	${PROJECT_SOURCE_DIR}/../../../../include/foundation/PxPreprocessor.h
-	${PROJECT_SOURCE_DIR}/../../../../include/foundation/PxProfiler.h
-	${PROJECT_SOURCE_DIR}/../../../../include/foundation/PxQuat.h
-	${PROJECT_SOURCE_DIR}/../../../../include/foundation/PxSimpleTypes.h
-	${PROJECT_SOURCE_DIR}/../../../../include/foundation/PxStrideIterator.h
-	${PROJECT_SOURCE_DIR}/../../../../include/foundation/PxTransform.h
-	${PROJECT_SOURCE_DIR}/../../../../include/foundation/PxUnionCast.h
-	${PROJECT_SOURCE_DIR}/../../../../include/foundation/PxVec2.h
-	${PROJECT_SOURCE_DIR}/../../../../include/foundation/PxVec3.h
-	${PROJECT_SOURCE_DIR}/../../../../include/foundation/PxVec4.h
+	${PXSHARED_ROOT_DIR}/include/foundation/Px.h
+	${PXSHARED_ROOT_DIR}/include/foundation/PxAllocatorCallback.h
+	${PXSHARED_ROOT_DIR}/include/foundation/PxAssert.h
+	${PXSHARED_ROOT_DIR}/include/foundation/PxBitAndData.h
+	${PXSHARED_ROOT_DIR}/include/foundation/PxBounds3.h
+	${PXSHARED_ROOT_DIR}/include/foundation/PxErrorCallback.h
+	${PXSHARED_ROOT_DIR}/include/foundation/PxErrors.h
+	${PXSHARED_ROOT_DIR}/include/foundation/PxFlags.h
+	${PXSHARED_ROOT_DIR}/include/foundation/PxFoundation.h
+	${PXSHARED_ROOT_DIR}/include/foundation/PxFoundationVersion.h
+	${PXSHARED_ROOT_DIR}/include/foundation/PxIntrinsics.h
+	${PXSHARED_ROOT_DIR}/include/foundation/PxIO.h
+	${PXSHARED_ROOT_DIR}/include/foundation/PxMat33.h
+	${PXSHARED_ROOT_DIR}/include/foundation/PxMat44.h
+	${PXSHARED_ROOT_DIR}/include/foundation/PxMath.h
+	${PXSHARED_ROOT_DIR}/include/foundation/PxMathUtils.h
+	${PXSHARED_ROOT_DIR}/include/foundation/PxMemory.h
+	${PXSHARED_ROOT_DIR}/include/foundation/PxPlane.h
+	${PXSHARED_ROOT_DIR}/include/foundation/PxPreprocessor.h
+	${PXSHARED_ROOT_DIR}/include/foundation/PxProfiler.h
+	${PXSHARED_ROOT_DIR}/include/foundation/PxQuat.h
+	${PXSHARED_ROOT_DIR}/include/foundation/PxSimpleTypes.h
+	${PXSHARED_ROOT_DIR}/include/foundation/PxStrideIterator.h
+	${PXSHARED_ROOT_DIR}/include/foundation/PxTransform.h
+	${PXSHARED_ROOT_DIR}/include/foundation/PxUnionCast.h
+	${PXSHARED_ROOT_DIR}/include/foundation/PxVec2.h
+	${PXSHARED_ROOT_DIR}/include/foundation/PxVec3.h
+	${PXSHARED_ROOT_DIR}/include/foundation/PxVec4.h
 )
 SOURCE_GROUP(include FILES ${PXFOUNDATION_HEADERS})
 

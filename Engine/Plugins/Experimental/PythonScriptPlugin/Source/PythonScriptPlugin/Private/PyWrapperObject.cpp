@@ -17,6 +17,7 @@
 #include "UObject/PropertyPortFlags.h"
 #include "Engine/World.h"
 #include "Templates/Casts.h"
+#include "BlueprintActionDatabase.h"
 
 #if WITH_PYTHON
 
@@ -1102,8 +1103,8 @@ public:
 		// Create a new class with a temporary name; we will rename it as part of Finalize
 		const FString NewClassName = MakeUniqueObjectName(ClassOuter, UPythonGeneratedClass::StaticClass(), *FString::Printf(TEXT("%s_NEWINST"), *ClassName)).ToString();
 		NewClass = NewObject<UPythonGeneratedClass>(ClassOuter, *NewClassName, RF_Public | RF_Standalone | RF_Transient);
-		NewClass->SetMetaData(TEXT("BlueprintType"), TEXT("true"));
 		NewClass->SetSuperStruct(InSuperClass);
+		NewClass->ClassFlags |= CLASS_Native;
 	}
 
 	FPythonGeneratedClassBuilder(UPythonGeneratedClass* InOldClass, UClass* InSuperClass)
@@ -1117,8 +1118,8 @@ public:
 		// Create a new class with a temporary name; we will rename it as part of Finalize
 		const FString NewClassName = MakeUniqueObjectName(ClassOuter, UPythonGeneratedClass::StaticClass(), *FString::Printf(TEXT("%s_NEWINST"), *ClassName)).ToString();
 		NewClass = NewObject<UPythonGeneratedClass>(ClassOuter, *NewClassName, RF_Public | RF_Standalone | RF_Transient);
-		NewClass->SetMetaData(TEXT("BlueprintType"), TEXT("true"));
 		NewClass->SetSuperStruct(InSuperClass);
+		NewClass->ClassFlags |= CLASS_Native;
 	}
 
 	~FPythonGeneratedClassBuilder()
@@ -1180,6 +1181,12 @@ public:
 			FPyWrapperTypeReinstancer::Get().AddPendingClass(OldClass, NewClass);
 			UPythonGeneratedClass::ReparentDerivedClasses(OldClass, NewClass);
 		}	
+
+		if (FBlueprintActionDatabase* ActionDB = FBlueprintActionDatabase::TryGet())
+		{
+			// Notify Blueprints that there is a new class to add to the action list
+			ActionDB->RefreshClassActions(NewClass);
+		}
 
 		// Null the NewClass pointer so the destructor doesn't kill it
 		UPythonGeneratedClass* FinalizedClass = NewClass;
@@ -1333,6 +1340,9 @@ public:
 		if (!SuperFunc)
 		{
 			Func->FunctionFlags |= FUNC_Public;
+			// The function is not in the linked list of class fields, insert it so that field iterators & funcs work
+			Func->Next = NewClass->Children;
+			NewClass->Children = Func;
 		}
 		if (EnumHasAllFlags(InPyFuncDef->FuncFlags, EPyUFunctionDefFlags::Static))
 		{
@@ -1359,9 +1369,18 @@ public:
 		NewClass->AddFunctionToFunctionMap(Func, Func->GetFName());
 		if (!Func->HasAnyFunctionFlags(FUNC_Static))
 		{
-			// Strip the zero'th 'self' argument when processing a non-static function
-			FuncArgNames.RemoveAt(0, 1, /*bAllowShrinking*/false);
-			FuncArgDefaults.RemoveAt(0, 1, /*bAllowShrinking*/false);
+			// Check for a malformed function rather than assert in the remove
+			if (FuncArgNames.Num() > 0 && FuncArgDefaults.Num() > 0)
+			{
+				// Strip the zero'th 'self' argument when processing a non-static function
+				FuncArgNames.RemoveAt(0, 1, /*bAllowShrinking*/false);
+				FuncArgDefaults.RemoveAt(0, 1, /*bAllowShrinking*/false);
+			}
+			else
+			{
+				PyUtil::SetPythonError(PyExc_Exception, PyType, *FString::Printf(TEXT("Incorrect number of arguments specified for '%s' (missing self?)"), *InFieldName));
+				return false;
+			}
 		}
 		if (!SuperFunc)
 		{
@@ -1371,6 +1390,24 @@ public:
 			{
 				PyUtil::SetPythonError(PyExc_Exception, PyType, *FString::Printf(TEXT("Incorrect number of arguments specified for '%s' (expected %d, got %d)"), *InFieldName, NumArgTypes, FuncArgNames.Num()));
 				return false;
+			}
+
+			{			
+				// Adding properties to a function inserts them into a linked list, so we loop backwards to get the order right
+				int32 ArgIndex = FuncArgNames.Num() - 1;
+				while (ArgIndex >= 0)
+				{
+					PyObject* ArgTypeObj = PySequence_GetItem(InPyFuncDef->FuncParamTypes, ArgIndex);
+					UProperty* ArgProp = PyUtil::CreateProperty(ArgTypeObj, 1, Func, *FuncArgNames[ArgIndex]);
+					if (!ArgProp)
+					{
+						PyUtil::SetPythonError(PyExc_Exception, PyType, *FString::Printf(TEXT("Failed to create property (%s) for function '%s' argument '%s'"), *PyUtil::GetFriendlyTypename(ArgTypeObj), *InFieldName, *FuncArgNames[ArgIndex]));
+						return false;
+					}
+					ArgProp->PropertyFlags |= CPF_Parm;
+					Func->AddCppProperty(ArgProp);
+					ArgIndex--;
+				}
 			}
 
 			// Build the arguments struct if not overriding a function
@@ -1406,18 +1443,6 @@ public:
 						Func->FunctionFlags |= FUNC_HasOutParms;
 					}
 				}
-			}
-			for (int32 ArgIndex = 0; ArgIndex < FuncArgNames.Num(); ++ArgIndex)
-			{
-				PyObject* ArgTypeObj = PySequence_GetItem(InPyFuncDef->FuncParamTypes, ArgIndex);
-				UProperty* ArgProp = PyUtil::CreateProperty(ArgTypeObj, 1, Func, *FuncArgNames[ArgIndex]);
-				if (!ArgProp)
-				{
-					PyUtil::SetPythonError(PyExc_Exception, PyType, *FString::Printf(TEXT("Failed to create property (%s) for function '%s' argument '%s'"), *PyUtil::GetFriendlyTypename(ArgTypeObj), *InFieldName, *FuncArgNames[ArgIndex]));
-					return false;
-				}
-				ArgProp->PropertyFlags |= CPF_Parm;
-				Func->AddCppProperty(ArgProp);
 			}
 		}
 		// Apply the defaults to the function arguments and build the Python method params

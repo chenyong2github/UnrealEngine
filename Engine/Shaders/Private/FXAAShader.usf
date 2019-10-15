@@ -1,14 +1,12 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	FXAAShader.usf : Postprocess Anti aliasing based on FXAA code from NVIDIA
-=============================================================================*/
-
 #include "Common.ush"
-#include "PostProcessCommon.ush"
+#include "ScreenPass.ush"
 
-// 1/RenderTargetWidth, 1/RenderTargetHeight, see Fxaa.. header for more details (used for VS and PS)
-float2 fxaaQualityRcpFrame;
+SCREEN_PASS_TEXTURE_VIEWPORT(Input)
+
+Texture2D Input_Texture;
+SamplerState Input_Sampler;
 
 // FXAA_PRESET is set on C++ side
 // 0:low quality but fast, .. 5: high quality but slow
@@ -52,7 +50,7 @@ void FxaaVS(
 	)
 {
 	DrawRectangle(InPosition, UV, OutPosition, OutCenterUV);
-	OutCornersUV = float4(OutCenterUV.xy - 0.5f * fxaaQualityRcpFrame, OutCenterUV.xy + 0.5f * fxaaQualityRcpFrame);
+	OutCornersUV = float4(OutCenterUV.xy - 0.5f * Input_ExtentInverse, OutCenterUV.xy + 0.5f * Input_ExtentInverse);
 }
 
 
@@ -88,16 +86,16 @@ void FxaaVS(
 	void FxaaPS(noperspective float2 TexCenter : TEXCOORD0, noperspective float4 TexCorners : TEXCOORD1, out float4 OutColor : SV_Target0)
 	{
 		FxaaTex TextureAndSampler;
-		TextureAndSampler.tex = PostprocessInput0;
-		TextureAndSampler.smpl = PostprocessInput0Sampler;
-		TextureAndSampler.UVMinMax = PostprocessInput0MinMax;
+		TextureAndSampler.tex = Input_Texture;
+		TextureAndSampler.smpl = Input_Sampler;
+		TextureAndSampler.UVMinMax = float4(Input_UVViewportBilinearMin, Input_UVViewportBilinearMax);
 
 		OutColor = FxaaPixelShader(
 			TexCenter, TexCorners,
 			TextureAndSampler,
 			TextureAndSampler,
 			TextureAndSampler,
-			fxaaQualityRcpFrame,
+			Input_ExtentInverse,
 			fxaaConsoleRcpFrameOpt,
 			fxaaConsoleRcpFrameOpt2,
 			fxaaConsole360RcpFrameOpt2,
@@ -112,10 +110,6 @@ void FxaaVS(
 		#if (POST_PROCESS_ALPHA != 2)
 			OutColor.a = 1.0;
 		#endif
-
-//		OutColor = Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, TexCenter.xy);
-//		OutColor = Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, TexCenter.xy + fxaaQualityRcpFrame *0.5f);
-//		OutColor = Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, TexCorners.xy);
 	}
 
 #endif // PIXELSHADER

@@ -1570,10 +1570,7 @@ void FScene::AddLightSceneInfo_RenderThread(FLightSceneInfo* LightSceneInfo)
 	}
 
 	const bool bForwardShading = IsForwardShadingEnabled(GetShaderPlatform());
-	// Need to set shadow map channel for directional light in deferred shading path also.
-	// In translucency pass, TLM_SurfacePerPixelLighting uses forward shading and requires light data set up correctly.
-	// Only done for directional light in deferred path because translucent objects only receive dynamic shadow from directional light
-	if ((bForwardShading || bDirectionalLight) && (LightSceneInfo->Proxy->CastsDynamicShadow() || LightSceneInfo->Proxy->GetLightFunctionMaterial()))
+	if (bForwardShading && (LightSceneInfo->Proxy->CastsDynamicShadow() || LightSceneInfo->Proxy->GetLightFunctionMaterial()))
 	{
 		AssignAvailableShadowMapChannelForLight(LightSceneInfo);
 	}

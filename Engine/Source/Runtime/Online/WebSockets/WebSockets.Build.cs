@@ -1,13 +1,45 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
-		
+
 public class WebSockets : ModuleRules
 {
-  public WebSockets(ReadOnlyTargetRules Target) : base(Target)
+	protected virtual bool PlatformSupportsLibWebsockets
 	{
-		PublicDefinitions.Add("WEBSOCKETS_PACKAGE=1");
+		get
+		{
+			return
+				Target.Platform == UnrealTargetPlatform.Win32 ||
+				Target.Platform == UnrealTargetPlatform.Win64 ||
+				Target.Platform == UnrealTargetPlatform.Android ||
+				Target.Platform == UnrealTargetPlatform.Mac ||
+				Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) ||
+				Target.Platform == UnrealTargetPlatform.IOS ||
+				Target.Platform == UnrealTargetPlatform.Switch;
+		}
+	}
 
+	protected virtual bool UsePlatformSSL
+	{
+		get
+		{
+			return Target.Platform == UnrealTargetPlatform.Switch;
+		}
+	}
+
+	protected virtual bool ShouldUseModule
+	{
+		get
+		{
+			bool bPlatformSupportsXboxWebsockets = Target.Platform == UnrealTargetPlatform.XboxOne;
+			bool bPlatformSupportsWinRTWebsockets = Target.Platform == UnrealTargetPlatform.HoloLens;
+
+			return PlatformSupportsLibWebsockets || bPlatformSupportsXboxWebsockets || bPlatformSupportsWinRTWebsockets;
+		}
+	}
+
+	public WebSockets(ReadOnlyTargetRules Target) : base(Target)
+	{
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
@@ -15,31 +47,12 @@ public class WebSockets : ModuleRules
 			}
 		);
 
-		bool bPlatformSupportsLibWebsockets =
-				Target.Platform == UnrealTargetPlatform.Win32 ||
-				Target.Platform == UnrealTargetPlatform.Win64 ||
-				Target.Platform == UnrealTargetPlatform.Android ||
-				Target.Platform == UnrealTargetPlatform.Mac ||
-				Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) ||
-				Target.Platform == UnrealTargetPlatform.IOS ||
-				Target.Platform == UnrealTargetPlatform.PS4 ||
-				Target.Platform == UnrealTargetPlatform.Switch;
+		bool bWithWebSockets = false;
+		bool bWithLibWebSockets = false;
 
-		bool bUsePlatformSSL = Target.Platform == UnrealTargetPlatform.Switch;
-
-		bool bPlatformSupportsXboxWebsockets = Target.Platform == UnrealTargetPlatform.XboxOne;
-
-		bool bPlatformSupportsWinRTWebsockets =
-			Target.Platform == UnrealTargetPlatform.HoloLens;
-
-		bool bShouldUseModule = 
-				bPlatformSupportsLibWebsockets || 
-					bPlatformSupportsXboxWebsockets ||
-					bPlatformSupportsWinRTWebsockets;
-
-		if (bShouldUseModule)
+		if (ShouldUseModule)
 		{
-			PublicDefinitions.Add("WITH_WEBSOCKETS=1");
+			bWithWebSockets = true;
 
 			PrivateIncludePaths.AddRange(
 				new string[] {
@@ -47,11 +60,11 @@ public class WebSockets : ModuleRules
 				}
 			);
 
-			if (bPlatformSupportsLibWebsockets)
+			if (PlatformSupportsLibWebsockets)
 			{
-				PublicDefinitions.Add("WITH_LIBWEBSOCKETS=1");
+				bWithLibWebSockets = true;
 
-				if (bUsePlatformSSL)
+				if (UsePlatformSSL)
 				{
 					PrivateDefinitions.Add("WITH_SSL=0");
 					AddEngineThirdPartyPrivateStaticDependencies(Target, "libWebSockets");
@@ -63,9 +76,9 @@ public class WebSockets : ModuleRules
 				}
 			}
 		}
-		else
-		{
-			PublicDefinitions.Add("WITH_WEBSOCKETS=0");
-		}
+
+		PublicDefinitions.Add("WEBSOCKETS_PACKAGE=1");
+		PublicDefinitions.Add("WITH_WEBSOCKETS=" + (bWithWebSockets ? "1" : "0"));
+		PublicDefinitions.Add("WITH_LIBWEBSOCKETS=" + (bWithLibWebSockets ? "1" : "0"));
 	}
 }

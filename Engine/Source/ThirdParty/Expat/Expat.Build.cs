@@ -5,29 +5,21 @@ using System.IO;
 
 public class Expat : ModuleRules
 {
+	protected virtual string ExpatVersion			{ get { return "expat-2.2.0"; } }
+
+	protected virtual string IncRootDirectory		{ get { return ModuleDirectory; } }
+	protected virtual string LibRootDirectory		{ get { return ModuleDirectory; } }
+
+	protected virtual string ExpatPackagePath		{ get { return Path.Combine(LibRootDirectory, ExpatVersion); } }
+	protected virtual string ExpatIncludePath		{ get { return Path.Combine(IncRootDirectory, ExpatVersion, "lib"); } }
+
+	protected virtual string ConfigName				{ get {	return (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT) ? "Debug" : "Release"; } }
+
 	public Expat(ReadOnlyTargetRules Target) : base(Target)
 	{
 		Type = ModuleType.External;
 
-		string ExpatPackagePath = Path.Combine(Target.UEThirdPartySourceDirectory, "Expat", "expat-2.2.0");
-
-		if (Target.Platform != UnrealTargetPlatform.XboxOne &&
-			Target.Platform != UnrealTargetPlatform.Android &&
-			Target.Platform != UnrealTargetPlatform.IOS &&
-			Target.Platform != UnrealTargetPlatform.Win64 &&
-			Target.Platform != UnrealTargetPlatform.Win32 &&
-			Target.Platform != UnrealTargetPlatform.PS4 &&
-			Target.Platform != UnrealTargetPlatform.Mac &&
-			Target.Platform != UnrealTargetPlatform.Switch &&
-			!Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
-		{
-			throw new BuildException("Unexpectedly pulled in Expat module. You may need to update Expat.build.cs for platform support");
-		}
-
-		string IncludePath = Path.Combine(ExpatPackagePath, "lib");
-		PublicSystemIncludePaths.Add(IncludePath);
-
-		string ConfigName = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT) ? "Debug" : "Release";
+		PublicSystemIncludePaths.Add(ExpatIncludePath);
 
 		if (Target.Platform == UnrealTargetPlatform.XboxOne)
 		{

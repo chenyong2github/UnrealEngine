@@ -89,5 +89,5 @@ public:
 	virtual UWorld* GetTickableGameObjectWorld() const override;
 
 private:
-	class FIdentityImpl *Impl;
+	class FMagicLeapIdentityImpl *Impl;
 };
