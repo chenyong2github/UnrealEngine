@@ -21,7 +21,7 @@ const TCHAR* FChaosDerivedDataCooker::GetPluginName() const
 
 const TCHAR* FChaosDerivedDataCooker::GetVersionString() const
 {
-	return TEXT("UN4SF7NU5G9O0X2LHNHLBG0R0CIS3TON");
+	return TEXT("DFE79D57413E4527AD10CEEF771A4654");
 }
 
 FString FChaosDerivedDataCooker::GetPluginSpecificCacheKeySuffix() const
