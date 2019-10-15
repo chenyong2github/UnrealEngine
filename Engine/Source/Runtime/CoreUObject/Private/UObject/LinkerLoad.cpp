@@ -1322,9 +1322,6 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::UpdateFromPackageFileSummary()
 				bAllSavedVersionsMatch = false;
 			}
 		}
-
-		const bool bSameNumberOfVersions = (PackageCustomVersions.Num() == LatestCustomVersions.GetAllVersions().Num());
-		bCustomVersionIsLatest = bSameNumberOfVersions && bAllSavedVersionsMatch;
 	}
 
 	const FCustomVersionContainer& SummaryVersions = Summary.GetCustomVersionContainer();
