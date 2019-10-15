@@ -4,6 +4,8 @@
 
 #include "IGameplayProvider.h"
 #include "Model/PointTimeline.h"
+#include "Containers/Map.h"
+#include "Templates/SharedPointer.h"
 
 namespace Trace { class IAnalysisSession; }
 

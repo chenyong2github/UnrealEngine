@@ -4,6 +4,11 @@
 #include "Insights/ITimingViewSession.h"
 #include "GameplaySharedData.h"
 #include "AnimationSharedData.h"
+#include "UObject/WeakObjectPtr.h"
+
+#if WITH_ENGINE
+#include "Engine/World.h"
+#endif
 
 void FGameplayTimingViewExtender::OnBeginSession(Insights::ITimingViewSession& InSession)
 {

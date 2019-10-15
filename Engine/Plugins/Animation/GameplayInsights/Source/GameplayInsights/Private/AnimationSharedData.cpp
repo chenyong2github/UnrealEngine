@@ -10,6 +10,7 @@
 #include "Insights/ViewModels/TimingEvent.h"
 #include "AnimationProvider.h"
 #include "GameplayProvider.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "AnimationSharedData"
 

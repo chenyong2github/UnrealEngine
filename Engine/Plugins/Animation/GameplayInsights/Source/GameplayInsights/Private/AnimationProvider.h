@@ -5,6 +5,7 @@
 #include "IAnimationProvider.h"
 #include "Common/PagedArray.h"
 #include "Model/MonotonicTimeline.h"
+#include "Containers/ArrayView.h"
 
 namespace Trace { class IAnalysisSession; }
 

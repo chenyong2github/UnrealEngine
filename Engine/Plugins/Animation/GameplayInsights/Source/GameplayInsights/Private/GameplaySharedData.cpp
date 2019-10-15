@@ -6,6 +6,7 @@
 #include "Algo/Sort.h"
 #include "GameplayProvider.h"
 #include "Insights/ITimingViewSession.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "GameplaySharedData"
 

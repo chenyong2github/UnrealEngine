@@ -7,6 +7,8 @@
 #include "Insights/ITimingViewExtender.h"
 #include "Containers/Ticker.h"
 #include "Misc/CoreDelegates.h"
+#include "Modules/ModuleManager.h"
+#include "Framework/Multibox/MultiboxBuilder.h"
 
 #if WITH_ENGINE
 #include "Engine/Engine.h"
