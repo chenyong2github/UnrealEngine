@@ -43,6 +43,12 @@ bool USocialSettings::MustSendPrimaryInvites()
 	return SettingsCDO.bMustSendPrimaryInvites;
 }
 
+bool USocialSettings::ShouldLeavePartyOnDisconnect()
+{
+	const USocialSettings& SettingsCDO = *GetDefault<USocialSettings>();
+	return SettingsCDO.bLeavePartyOnDisconnect;
+}
+
 int32 USocialSettings::GetDefaultMaxPartySize()
 {
 #if !UE_BUILD_SHIPPING
