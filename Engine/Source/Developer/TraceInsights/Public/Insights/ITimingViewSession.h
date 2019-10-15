@@ -10,11 +10,21 @@ namespace Insights { class ITimingViewVisualizer; }
 namespace Insights
 {
 
+enum class ETimeChangedFlags : int32
+{
+	None,
+
+	// The event fired in response to an interactive change from the user. Will be followed by a non-interactive change finished.
+	Interactive = (1 << 0)
+};
+
+ENUM_CLASS_FLAGS(ETimeChangedFlags);
+
 /** The delegate to be invoked when the time marker has changed */
-DECLARE_MULTICAST_DELEGATE_TwoParams(FTimeMarkerChangedDelegate, bool /*bValid*/, double /*TimeMarker*/);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FTimeMarkerChangedDelegate, ETimeChangedFlags /*InFlags*/, double /*TimeMarker*/);
 
 /** The delegate to be invoked when the selection have been changed. */
-DECLARE_MULTICAST_DELEGATE_ThreeParams(FSelectionChangedDelegate, bool /*bValid*/, double /*StartTime*/, double /*EndTime*/);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FSelectionChangedDelegate, ETimeChangedFlags /*InFlags*/, double /*StartTime*/, double /*EndTime*/);
 
 /** The delegate to be invoked when the timing event being hovered by the mouse has changed. */
 DECLARE_MULTICAST_DELEGATE_OneParam(FHoveredEventChangedDelegate, const FTimingEvent& /*InEvent*/);

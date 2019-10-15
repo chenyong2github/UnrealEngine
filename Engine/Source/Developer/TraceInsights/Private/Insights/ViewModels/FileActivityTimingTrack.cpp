@@ -495,23 +495,27 @@ bool FFileActivityTimingTrack::SearchEvent(const double InStartTime,
 
 	FSearchTimingEventContext Ctx(InStartTime, InEndTime, InPredicate, InOutTimingEvent, bInStopAtFirstMatch, bInSearchForLargestEvent);
 
-	Trace::FAnalysisSessionReadScope SessionReadScope(GetSession());
-
-	const FTimingEventsTrack* Track = Ctx.TimingEvent.Track;
-
-	for (const FFileActivitySharedState::FIoTimingEvent& Event : State->GetAllEvents())
+	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	if (Session.IsValid())
 	{
-		if (Event.EndTime <= Ctx.StartTime)
-		{
-			continue;
-		}
+		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-		if (!Ctx.bContinueSearching || Event.StartTime >= Ctx.EndTime)
-		{
-			break;
-		}
+		const FTimingEventsTrack* Track = Ctx.TimingEvent.Track;
 
-		Ctx.CheckEvent(Event, bIgnoreEventDepth ? 0 : Event.Depth);
+		for (const FFileActivitySharedState::FIoTimingEvent& Event : State->GetAllEvents())
+		{
+			if (Event.EndTime <= Ctx.StartTime)
+			{
+				continue;
+			}
+
+			if (!Ctx.bContinueSearching || Event.StartTime >= Ctx.EndTime)
+			{
+				break;
+			}
+
+			Ctx.CheckEvent(Event, bIgnoreEventDepth ? 0 : Event.Depth);
+		}
 	}
 
 	return Ctx.bFound;

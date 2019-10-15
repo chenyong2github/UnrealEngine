@@ -115,10 +115,11 @@ TSharedPtr<FTimingGraphSeries> FTimingGraphTrack::AddStatsCounterSeries(uint32 C
 	bool bIsFloatingPoint = false;
 	bool bIsMemory = false;
 
-	if (IsSessionValid())
+	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	if (Session.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(GetSession());
-		const Trace::ICounterProvider& CountersProvider = Trace::ReadCounterProvider(GetSession());
+		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const Trace::ICounterProvider& CountersProvider = Trace::ReadCounterProvider(*Session.Get());
 		if (CounterId < CountersProvider.GetCounterCount())
 		{
 			CountersProvider.ReadCounter(CounterId, [&](const Trace::ICounter& Counter)
@@ -231,10 +232,11 @@ void FTimingGraphTrack::Update(const FTimingTrackViewport& Viewport)
 void FTimingGraphTrack::UpdateFrameSeries(FTimingGraphSeries& Series, const FTimingTrackViewport& Viewport)
 {
 	FGraphTrackBuilder Builder(*this, Series, Viewport);
-	if (IsSessionValid())
+	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	if (Session.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(GetSession());
-		const Trace::IFrameProvider& FramesProvider = ReadFrameProvider(GetSession());
+		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const Trace::IFrameProvider& FramesProvider = ReadFrameProvider(*Session.Get());
 		ETraceFrameType FrameType = static_cast<ETraceFrameType>(Series.Id);
 		uint64 FrameCount = FramesProvider.GetFrameCount(FrameType);
 		FramesProvider.EnumerateFrames(FrameType, 0, FrameCount - 1, [&Builder](const Trace::FFrame& Frame)
@@ -258,10 +260,11 @@ void FTimingGraphTrack::UpdateTimerSeries(FTimingGraphSeries& Series, const FTim
 void FTimingGraphTrack::UpdateStatsCounterSeries(FTimingGraphSeries& Series, const FTimingTrackViewport& Viewport)
 {
 	FGraphTrackBuilder Builder(*this, Series, Viewport);
-	if (IsSessionValid())
+	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	if (Session.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(GetSession());
-		const Trace::ICounterProvider& CountersProvider = Trace::ReadCounterProvider(GetSession());
+		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const Trace::ICounterProvider& CountersProvider = Trace::ReadCounterProvider(*Session.Get());
 		CountersProvider.ReadCounter(Series.Id, [this, &Viewport, &Builder, &Series](const Trace::ICounter& Counter)
 		{
 			if (Series.IsAutoZoomEnabled())

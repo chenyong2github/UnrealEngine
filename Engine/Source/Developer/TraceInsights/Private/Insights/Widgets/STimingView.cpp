@@ -723,7 +723,6 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 		for (int32 TrackIndex = 0; TrackIndex < TimingEventsTracks.Num(); ++TrackIndex)
 		{
-			TimingEventsTracks[TrackIndex]->SetSession(Session.Get());
 			TimingEventsTracks[TrackIndex]->Update(Viewport);
 		}
 
@@ -733,7 +732,6 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 	if (GraphTrack->IsVisible())
 	{
-		GraphTrack->SetSession(Session.Get());
 		GraphTrack->Update(Viewport);
 	}
 
@@ -1237,6 +1235,7 @@ FReply STimingView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 			}
 			else if(bIsScrubbing)
 			{
+				RaiseTimeMarkerChanged();
 				bIsScrubbing = false;
 			}
 
@@ -1281,6 +1280,7 @@ FReply STimingView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 			}
 			else if(bIsScrubbing)
 			{
+				RaiseTimeMarkerChanged();
 				bIsScrubbing = false;
 			}
 
@@ -1379,7 +1379,7 @@ FReply STimingView::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent
 				bIsDragging = true;
 
 				TimeMarker = Viewport.SlateUnitsToTime(MousePosition.X);
-				RaiseTimeMarkerChanged();
+				RaiseTimeMarkerChanging();
 			}
 		}
 		else
@@ -2037,14 +2037,14 @@ void STimingView::SelectTimeInterval(double IntervalStartTime, double IntervalDu
 
 void STimingView::RaiseSelectionChanging()
 {
-	OnSelectionChangedDelegate.Broadcast(LastSelectionType != ESelectionType::None, SelectionStartTime, SelectionEndTime);
+	OnSelectionChangedDelegate.Broadcast(Insights::ETimeChangedFlags::Interactive, SelectionStartTime, SelectionEndTime);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STimingView::RaiseSelectionChanged()
 {
-	OnSelectionChangedDelegate.Broadcast(LastSelectionType != ESelectionType::None, SelectionStartTime, SelectionEndTime);
+	OnSelectionChangedDelegate.Broadcast(Insights::ETimeChangedFlags::None, SelectionStartTime, SelectionEndTime);
 
 	FTimingProfilerManager::Get()->SetSelectedTimeRange(SelectionStartTime, SelectionEndTime);
 
@@ -2056,9 +2056,16 @@ void STimingView::RaiseSelectionChanged()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void STimingView::RaiseTimeMarkerChanging()
+{
+	OnTimeMarkerChangedDelegate.Broadcast(Insights::ETimeChangedFlags::Interactive, TimeMarker);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void STimingView::RaiseTimeMarkerChanged()
 {
-	OnTimeMarkerChangedDelegate.Broadcast(TimeMarker != std::numeric_limits<double>::infinity(), TimeMarker);
+	OnTimeMarkerChangedDelegate.Broadcast(Insights::ETimeChangedFlags::None, TimeMarker);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

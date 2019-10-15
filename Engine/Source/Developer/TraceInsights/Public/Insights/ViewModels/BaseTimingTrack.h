@@ -40,7 +40,6 @@ protected:
 		, Order(0)
 		, PosY(0.0f)
 		, Height(0.0f)
-		, Session(nullptr)
 		, Flags(ETimingTrackFlags::IsVisible | ETimingTrackFlags::IsDirty)
 	{}
 
@@ -53,7 +52,6 @@ public:
 		Id = 0;
 		PosY = 0.0f;
 		Height = 0.0f;
-		Session = nullptr;
 		Flags = ETimingTrackFlags::IsVisible | ETimingTrackFlags::IsDirty;
 	}
 
@@ -105,15 +103,6 @@ public:
 
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder);
 
-	// Check whether the session is currently valid
-	bool IsSessionValid() const { return Session != nullptr; }
-
-	// Access the session that this track is using
-	const Trace::IAnalysisSession& GetSession() const { check(Session); return *Session; }
-
-	// Set the session that this track is using. This is refreshed each tick we have a valid session
-	void SetSession(const Trace::IAnalysisSession* InSession) { Session = InSession; }
-
 private:
 	uint64 Id;
 	FName Type; // Thread, Loading, FileActivity
@@ -122,7 +111,6 @@ private:
 	int32 Order;
 	float PosY; // y position, in Slate units
 	float Height; // height, in Slate units
-	const Trace::IAnalysisSession* Session;
 	ETimingTrackFlags Flags;
 
 	static uint64 IdGenerator;

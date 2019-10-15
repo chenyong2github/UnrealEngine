@@ -303,6 +303,7 @@ protected:
 	void RaiseSelectionChanging();
 	void RaiseSelectionChanged();
 
+	void RaiseTimeMarkerChanging();
 	void RaiseTimeMarkerChanged();
 
 	void UpdateAggregatedStats();

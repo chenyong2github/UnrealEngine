@@ -136,11 +136,12 @@ void FMarkersTimingTrack::Update(const FTimingTrackViewport& InViewport)
 {
 	FTimeMarkerTrackBuilder Builder(*this, InViewport);
 
-	if (IsSessionValid())
+	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	if (Session.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(GetSession());
+		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-		const Trace::ILogProvider& LogProvider = Trace::ReadLogProvider(GetSession());
+		const Trace::ILogProvider& LogProvider = Trace::ReadLogProvider(*Session.Get());
 		Builder.BeginLog(LogProvider);
 
 		LogProvider.EnumerateMessages(
