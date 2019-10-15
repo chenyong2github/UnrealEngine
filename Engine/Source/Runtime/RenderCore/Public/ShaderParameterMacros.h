@@ -335,6 +335,7 @@ struct TShaderParameterTypeInfo
 	static const FShaderParametersMetadata* GetStructMetadata() { return &TypeParameter::StaticStructMetadata; }
 };
 
+// Compile SHADER_PARAMETER(bool, MyBool), just to give good error message to programmer why they shouldn't do that.
 template<>
 struct TShaderParameterTypeInfo<bool>
 {

@@ -138,6 +138,7 @@ IMPLEMENT_SHADER_TYPE(template<>, FMobileSceneCaptureCopyPS##SCENETYPE, TEXT("/E
 IMPLEMENT_SHADER_TYPE(template<>, FMobileSceneCaptureCopyPS_Mosaic##SCENETYPE, TEXT("/Engine/Private/MobileSceneCapture.usf"), TEXT("MainCopyPS"), SF_Pixel);
 
 IMPLEMENT_MOBILE_SCENE_CAPTURECOPY(SCS_SceneColorHDR);
+IMPLEMENT_MOBILE_SCENE_CAPTURECOPY(SCS_FinalColorLDR);
 IMPLEMENT_MOBILE_SCENE_CAPTURECOPY(SCS_SceneColorHDRNoAlpha);
 IMPLEMENT_MOBILE_SCENE_CAPTURECOPY(SCS_SceneColorSceneDepth);
 IMPLEMENT_MOBILE_SCENE_CAPTURECOPY(SCS_SceneDepth);
@@ -171,6 +172,7 @@ static FShader* SetCaptureToTargetShaders(FRHICommandListImmediate& RHICmdList, 
 		case SCS_SceneColorHDR:
 			return SetCaptureToTargetShaders<bDemosaic, SCS_SceneColorHDR>(RHICmdList, GraphicsPSOInit, View, SourceTexSize, SourceTextureRHI);
 		case SCS_FinalColorLDR:
+			return SetCaptureToTargetShaders<bDemosaic, SCS_FinalColorLDR>(RHICmdList, GraphicsPSOInit, View, SourceTexSize, SourceTextureRHI);
 		case SCS_SceneColorHDRNoAlpha:
 			return SetCaptureToTargetShaders<bDemosaic, SCS_SceneColorHDRNoAlpha>(RHICmdList, GraphicsPSOInit, View, SourceTexSize, SourceTextureRHI);
 		case SCS_SceneColorSceneDepth:

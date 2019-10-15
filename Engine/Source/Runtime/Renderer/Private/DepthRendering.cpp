@@ -433,7 +433,10 @@ IMPLEMENT_SHADER_TYPE(, FDitheredTransitionStencilCS, TEXT("/Engine/Private/Dith
 /** Possibly do the FX prerender and setup the prepass*/
 bool FDeferredShadingSceneRenderer::PreRenderPrePass(FRHICommandListImmediate& RHICmdList)
 {
-	SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All()); // Required otherwise emulate stereo gets broken.
+	// This can be called from within RenderPrePassViewParallel, so we need to reset
+	// the current GPU mask to the AllViews mask before iterating over Views again.
+	// Otherwise emulate stereo gets broken.
+	SCOPED_GPU_MASK(RHICmdList, AllViewsGPUMask);
 
 	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_PrePass));
 
@@ -695,9 +698,10 @@ bool FDeferredShadingSceneRenderer::RenderPrePass(FRHICommandListImmediate& RHIC
 
 		for(int32 ViewIndex = 0;ViewIndex < Views.Num();ViewIndex++)
 		{
-			SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
 			const FViewInfo& View = Views[ViewIndex];
+
 			SCOPED_GPU_MASK(RHICmdList, !View.IsInstancedStereoPass() ? View.GPUMask : (Views[0].GPUMask | Views[1].GPUMask));
+			SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
 
 			TUniformBufferRef<FSceneTexturesUniformParameters> PassUniformBuffer;
 			CreateDepthPassUniformBuffer(RHICmdList, View, PassUniformBuffer);
@@ -770,23 +774,12 @@ bool FDeferredShadingSceneRenderer::RenderPrePass(FRHICommandListImmediate& RHIC
 	return bDepthWasCleared;
 }
 
-/**
- * Returns true if there's a hidden area mask available
- */
-static FORCEINLINE bool HasHiddenAreaMask()
-{
-	static const auto* const HiddenAreaMaskCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.HiddenAreaMask"));
-	return (HiddenAreaMaskCVar != nullptr &&
-		HiddenAreaMaskCVar->GetValueOnRenderThread() == 1 &&
-		GEngine &&
-		GEngine->XRSystem.IsValid() && GEngine->XRSystem->GetHMDDevice() &&
-		GEngine->XRSystem->GetHMDDevice()->HasHiddenAreaMesh());
-}
+extern bool IsHMDHiddenAreaMaskActive();
 
 bool FDeferredShadingSceneRenderer::RenderPrePassHMD(FRHICommandListImmediate& RHICmdList)
 {
 	// Early out before we change any state if there's not a mask to render
-	if (!HasHiddenAreaMask())
+	if (!IsHMDHiddenAreaMaskActive())
 	{
 		return false;
 	}
@@ -808,8 +801,9 @@ bool FDeferredShadingSceneRenderer::RenderPrePassHMD(FRHICommandListImmediate& R
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
 		const FViewInfo& View = Views[ViewIndex];
-		if (IStereoRendering::IsStereoEyeView(View.StereoPass))
+		if (View.StereoPass != eSSP_FULL)
 		{
+			SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 			RenderHiddenAreaMaskView(RHICmdList, GraphicsPSOInit, View);
 		}
@@ -938,7 +932,7 @@ void FDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch,
 		const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
 
 		if (!bIsTranslucent
-			&& (!PrimitiveSceneProxy || PrimitiveSceneProxy->ShouldRenderInMainPass())
+			&& (!PrimitiveSceneProxy || PrimitiveSceneProxy->ShouldRenderInDepthPass())
 			&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain())
 			&& ShouldIncludeMaterialInDefaultOpaquePass(Material))
 		{

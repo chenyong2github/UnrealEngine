@@ -1114,7 +1114,7 @@ void FVulkanCommandListContext::RHICopyToStagingBuffer(FRHIVertexBuffer* SourceB
 			Device->GetStagingManager().ReleaseBuffer(nullptr, StagingBuffer->StagingBuffer);
 		}
 
-		VulkanRHI::FStagingBuffer* ReadbackStagingBuffer = Device->GetStagingManager().AcquireBuffer(NumBytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, true);
+		VulkanRHI::FStagingBuffer* ReadbackStagingBuffer = Device->GetStagingManager().AcquireBuffer(NumBytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 		StagingBuffer->StagingBuffer = ReadbackStagingBuffer;
 		StagingBuffer->Device = Device;
 	}

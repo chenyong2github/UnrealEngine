@@ -35,6 +35,11 @@ struct FLinuxPlatformProperties
 		return "Linux";
 	}
 
+	static FORCEINLINE const TCHAR* GetRuntimeSettingsClassName()
+	{
+		return TEXT("/Script/LinuxTargetPlatform.LinuxTargetSettings");
+	}
+
 	static FORCEINLINE bool IsGameOnly( )
 	{
 		return UE_GAME;

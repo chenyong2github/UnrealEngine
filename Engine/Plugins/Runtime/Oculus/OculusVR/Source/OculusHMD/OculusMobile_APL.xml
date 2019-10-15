@@ -143,10 +143,6 @@
 			<copyFile src="$S(EngineDir)/Source/ThirdParty/Oculus/OVRPlugin/OVRPlugin/ExtLibs/armeabi-v7a/libvrapi.so"
 						dst="$S(BuildDir)/libs/armeabi-v7a/libvrapi.so" />
 
-    		<log text="Copying libvrintegrationloader.so"/>
-			<copyFile src="$S(EngineDir)/Source/ThirdParty/Oculus/OVRPlugin/OVRPlugin/ExtLibs/armeabi-v7a/libvrintegrationloader.so"
-						dst="$S(BuildDir)/libs/armeabi-v7a/libvrintegrationloader.so" />
-
     		<log text="Copying libOVRPlugin.so"/>
 			<copyFile src="$S(EngineDir)/Source/ThirdParty/Oculus/OVRPlugin/OVRPlugin/Lib/armeabi-v7a/libOVRPlugin.so"
             			dst="$S(BuildDir)/libs/armeabi-v7a/libOVRPlugin.so" />
@@ -156,10 +152,6 @@
     		<log text="Copying libvrapi.so"/>
 			<copyFile src="$S(EngineDir)/Source/ThirdParty/Oculus/OVRPlugin/OVRPlugin/ExtLibs/arm64-v8a/libvrapi.so"
 						dst="$S(BuildDir)/libs/arm64-v8a/libvrapi.so" />
-
-    		<log text="Copying libvrintegrationloader.so"/>
-			<copyFile src="$S(EngineDir)/Source/ThirdParty/Oculus/OVRPlugin/OVRPlugin/ExtLibs/arm64-v8a/libvrintegrationloader.so"
-						dst="$S(BuildDir)/libs/arm64-v8a/libvrintegrationloader.so" />
 
     		<log text="Copying libOVRPlugin.so"/>
 			<copyFile src="$S(EngineDir)/Source/ThirdParty/Oculus/OVRPlugin/OVRPlugin/Lib/arm64-v8a/libOVRPlugin.so"
@@ -277,7 +269,6 @@
 		<if condition="bSupported">
 			<true>
 				<loadLibrary name="vrapi" failmsg="vrapi library not loaded and required!" />
-				<loadLibrary name="vrintegrationloader" failmsg="vrintegrationloader library not loaded and required!" />
         		<loadLibrary name="OVRPlugin" failmsg="OVRPlugin library not loaded and required!" />
       		</true>
 		</if>

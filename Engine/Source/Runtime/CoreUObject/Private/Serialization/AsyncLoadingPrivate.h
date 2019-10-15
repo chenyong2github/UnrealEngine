@@ -46,7 +46,7 @@ public:
 
 	/** AsyncArchive interface */
 	bool PrecacheWithTimeLimit(int64 PrecacheOffset, int64 PrecacheSize, bool bUseTimeLimit, bool bUseFullTimeLimit, double TickStartTime, float TimeLimit);
-	bool PrecacheForEvent(int64 PrecacheOffset, int64 PrecacheSize);
+	bool PrecacheForEvent(IAsyncReadRequest* Read, int64 PrecacheOffset, int64 PrecacheSize);
 	void FlushPrecacheBlock();
 	bool ReadyToStartReadingHeader(bool bUseTimeLimit, bool bUseFullTimeLimit, double TickStartTime, float TimeLimit);
 	void StartReadingHeader();
@@ -76,7 +76,7 @@ private:
 	void CompleteCancel();
 	bool WaitForIntialPhases(float TimeLimit = 0.0f);
 	void ReadCallback(bool bWasCancelled, IAsyncReadRequest*);
-	bool PrecacheInternal(int64 PrecacheOffset, int64 PrecacheSize, bool bApplyMinReadSize = true);
+	bool PrecacheInternal(int64 PrecacheOffset, int64 PrecacheSize, bool bApplyMinReadSize = true, IAsyncReadRequest* Read = nullptr);
 	
 	FORCEINLINE int64 TotalSizeOrMaxInt64IfNotReady()
 	{

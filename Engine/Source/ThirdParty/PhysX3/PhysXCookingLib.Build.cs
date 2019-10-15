@@ -67,10 +67,6 @@ public class PhysXCookingLib : ModuleRules
         {
             PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "TVOS", String.Format("libPhysX3Cooking{0}.a", LibrarySuffix)));
         }
-        else if (Target.Platform == UnrealTargetPlatform.PS4)
-        {
-            PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "PS4", String.Format("libPhysX3Cooking{0}.a", LibrarySuffix)));
-        }
         else if (Target.Platform == UnrealTargetPlatform.XboxOne)
         {
             // Use reflection to allow type not to exist if console code is not present

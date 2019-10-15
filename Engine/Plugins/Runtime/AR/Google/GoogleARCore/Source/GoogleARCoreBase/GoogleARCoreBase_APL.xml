@@ -4,10 +4,9 @@
   <!-- init section is always evaluated once per architecture -->
   <init>
     <log text="GoogleARCorePlugin APL init"/>
-    <setBoolFromProperty result="bGradle" ini="Engine" section="/Script/AndroidRuntimeSettings.AndroidRuntimeSettings" property="bEnableGradle" default="false"/>
-		<!-- Get the bARCoreRequiredApp setting from the Engine ini. -->
-		<setBoolFromProperty result="bARCoreRequiredApp" ini="Engine" section="/Script/GoogleARCoreBase.GoogleARCoreEditorSettings" property="bARCoreRequiredApp" default="true" />
-	</init>
+	<!-- Get the bARCoreRequiredApp setting from the Engine ini. -->
+	<setBoolFromProperty result="bARCoreRequiredApp" ini="Engine" section="/Script/GoogleARCoreBase.GoogleARCoreEditorSettings" property="bARCoreRequiredApp" default="true" />
+  </init>
 
   <!-- optional files or directories to copy to Intermediate/Android/APK -->
   <resourceCopies>
@@ -117,16 +116,5 @@
         }
       </insert>
   </buildGradleAdditions>
-
-  <AARImports>
-    <insert>repository $(ENGINEDIR)/Source/ThirdParty/GoogleARCore/lib/android-aar</insert>
-    <insertNewline/>
-    <if condition="bGradle">
-      <false>
-        <insert>com.google.ar, core, 1.9.0</insert>
-        <insertNewline/>
-      </false>
-    </if>
-  </AARImports>
 
 </root>

@@ -127,6 +127,14 @@ void FPreviewScene::AddComponent(UActorComponent* Component,const FTransform& Lo
 		}
 	}
 
+	{
+		UStaticMeshComponent* pStaticMesh = Cast<UStaticMeshComponent>(Component);
+		if(pStaticMesh != nullptr)
+		{
+			pStaticMesh->bEvaluateWorldPositionOffset = true;
+		}
+	}
+
 	GetScene()->UpdateSpeedTreeWind(0.0);
 }
 

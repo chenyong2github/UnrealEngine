@@ -11,7 +11,7 @@
  * You can extend this class instead of IHeadMountedDisplay directly when implementing support for new HMD devices.
  */
 
-class HEADMOUNTEDDISPLAY_API FHeadMountedDisplayBase : public FXRTrackingSystemBase, public IHeadMountedDisplay, public IStereoRendering
+class HEADMOUNTEDDISPLAY_API FHeadMountedDisplayBase : public FXRTrackingSystemBase, public IHeadMountedDisplay, public IStereoRendering, public TSharedFromThis<FHeadMountedDisplayBase, ESPMode::ThreadSafe>
 {
 
 public:
@@ -56,6 +56,24 @@ public:
 	virtual FIntRect GetFullFlatEyeRect_RenderThread(FTexture2DRHIRef EyeTexture) const { return FIntRect(0, 0, 1, 1); }
 	// Helper to copy one render target into another for spectator screen display
 	virtual void CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, FIntRect SrcRect, FRHITexture2D* DstTexture, FIntRect DstRect, bool bClearBlack, bool bNoAlpha) const {}
+
+	/**
+	 * Access HMD rendering-related features.
+	 *
+	 * @return a IHeadmountedDisplay pointer or a nullptr if this tracking system does not support head mounted displays.
+	 */
+	virtual class IHeadMountedDisplay* GetHMDDevice() override { return this; }
+
+	/**
+	* Access Stereo rendering device associated with this XR system.
+	* If GetHMDDevice() returns non-null, this method should also return a vaild instance.
+	*
+	* @return a IStereoRendering pointer or a nullptr if this tracking system does not support stereo rendering.
+	*/
+	virtual class TSharedPtr< class IStereoRendering, ESPMode::ThreadSafe > GetStereoRenderingDevice() override
+	{
+		return SharedThis(this);
+	}
 
 protected:
 	/**

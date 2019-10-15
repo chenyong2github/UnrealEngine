@@ -153,7 +153,7 @@ void FRCPassPostProcessNoiseBlur::Process(FRenderingCompositePassContext& Contex
 	Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("NoiseBlur"));
 	{
 		// #todo-renderpasses perhaps an optimization here. Use NoAction if this will clear the whole RT
-		if (!IStereoRendering::IsStereoEyeView(View.StereoPass))
+		if (View.StereoPass == eSSP_FULL)
 		{
 			// is optimized away if possible (RT size=view size, )
 			DrawClearQuad(Context.RHICmdList, true, FLinearColor(0, 0, 0, 0), false, 0, false, 0, PassOutputs[0].RenderTargetDesc.Extent, DestRect);

@@ -707,7 +707,10 @@ FMaterialTessellationParameters GetMaterialTessellationParameters(FVertexFactory
 
 FVertexFactoryInterpolantsVSToDS VertexFactoryInterpolate(FVertexFactoryInterpolantsVSToDS a, float aInterp, FVertexFactoryInterpolantsVSToDS b, float bInterp)
 {
-	FVertexFactoryInterpolantsVSToDS O;
+	// Default initialize. Otherwise, some graphics pipelines that
+	// couple tessellation with geometry shaders won't write to all TEXCOORD semantics,
+	// but read from them when <FVertexFactoryInterpolantsVSToDS> is being copied as a whole.
+	FVertexFactoryInterpolantsVSToDS O = (FVertexFactoryInterpolantsVSToDS)0;
 
 	TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.TangentToWorld0.xyz);
 	TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.TangentToWorld2);

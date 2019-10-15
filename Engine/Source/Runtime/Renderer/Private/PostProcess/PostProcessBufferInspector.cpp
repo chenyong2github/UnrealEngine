@@ -1,89 +1,38 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	PostProcessVisualizeBuffer.cpp: Post processing VisualizeBuffer implementation.
-=============================================================================*/
+#if WITH_EDITOR
 
 #include "PostProcess/PostProcessBufferInspector.h"
-#include "StaticBoundShaderState.h"
-#include "CanvasTypes.h"
-#include "RenderTargetTemp.h"
-#include "SceneUtils.h"
-#include "PostProcess/SceneRenderTargets.h"
-#include "PostProcess/SceneFilterRendering.h"
-#include "CompositionLighting/PostProcessPassThrough.h"
-#include "PostProcess/PostProcessing.h"
-#include "ScenePrivate.h"
-#include "PipelineStateCache.h"
+#include "SceneTextureParameters.h"
 
-FRCPassPostProcessBufferInspector::FRCPassPostProcessBufferInspector(FRHICommandList& RHICmdList)
+BEGIN_SHADER_PARAMETER_STRUCT(FPixelInspectorParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
+	SHADER_PARAMETER_RDG_TEXTURE(, SceneColor)
+	SHADER_PARAMETER_RDG_TEXTURE(, SceneColorBeforeTonemap)
+	SHADER_PARAMETER_RDG_TEXTURE(, OriginalSceneColor)
+END_SHADER_PARAMETER_STRUCT()
+
+void ProcessPixelInspectorRequests(
+	FRHICommandListImmediate& RHICmdList,
+	const FViewInfo& View,
+	const FPixelInspectorParameters& Parameters,
+	const FIntRect SceneColorViewRect)
 {
-	// AdjustGBufferRefCount(-1) call is done when the pass gets executed
-	FSceneRenderTargets::Get(RHICmdList).AdjustGBufferRefCount(RHICmdList, 1);
-}
-
-template <typename TRHICmdList>
-FShader* FRCPassPostProcessBufferInspector::SetShaderTempl(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context)
-{
-	FGraphicsPipelineStateInitializer GraphicsPSOInit;
-	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-
-	// set the state
-	GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-	TShaderMapRef<FPostProcessVS> VertexShader(Context.GetShaderMap());
-	TShaderMapRef<FPostProcessPassThroughPS> PixelShader(Context.GetShaderMap());
-
-	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
-	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-
-	VertexShader->SetParameters(Context);
-	PixelShader->SetParameters(RHICmdList, Context);
-
-	return *VertexShader;
-}
-
-void FRCPassPostProcessBufferInspector::Process(FRenderingCompositePassContext& Context)
-{
-#if !WITH_EDITOR
-	return;
-#else
-	SCOPED_DRAW_EVENT(Context.RHICmdList, BufferInspector);
-	const FPooledRenderTargetDesc* InputDesc = GetInputDesc(ePId_Input0);
-	const FPooledRenderTargetDesc* InputDescHDR = GetInputDesc(ePId_Input1);
-
-	if (!InputDesc)
-	{
-		// input is not hooked up correctly
-		return;
-	}
-
-	FRHICommandListImmediate& RHICmdList = Context.RHICmdList;
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-	const FViewInfo& View = Context.View;
+	const FSceneTextureParameters& SceneTextures = Parameters.SceneTextures;
 	const FSceneViewFamily& ViewFamily = *(View.Family);
+	const int32 ViewUniqueId = View.State->GetViewKey();
 
-	FScene* Scene = (FScene*)View.Family->Scene;
-	int32 ViewUniqueId = View.State->GetViewKey();
+	FPixelInspectorData& PixelInspectorData = static_cast<FScene*>(ViewFamily.Scene)->PixelInspectorData;
 	TArray<FVector2D> ProcessRequests;
 
-
-
-	//Process all request for this view
-	for (auto kvp : Scene->PixelInspectorData.Requests)
+	// Process all request for this view.
+	for (auto KeyValue : PixelInspectorData.Requests)
 	{
-		FPixelInspectorRequest *PixelInspectorRequest = kvp.Value;
+		FPixelInspectorRequest *PixelInspectorRequest = KeyValue.Value;
 		if (PixelInspectorRequest->RequestComplete == true)
 		{
 			PixelInspectorRequest->RenderingCommandSend = true;
-			ProcessRequests.Add(kvp.Key);
+			ProcessRequests.Add(KeyValue.Key);
 		}
 		else if (PixelInspectorRequest->RenderingCommandSend == false && PixelInspectorRequest->ViewId == ViewUniqueId)
 		{
@@ -92,18 +41,18 @@ void FRCPassPostProcessBufferInspector::Process(FRenderingCompositePassContext& 
 
 			//////////////////////////////////////////////////////////////////////////
 			// Pixel Depth
-			if (Scene->PixelInspectorData.RenderTargetBufferDepth[PixelInspectorRequest->BufferIndex] != nullptr)
+			if (PixelInspectorData.RenderTargetBufferDepth[PixelInspectorRequest->BufferIndex] != nullptr)
 			{
 				const FIntVector SourcePoint(
 					FMath::FloorToInt(SourceViewportUV.X * View.ViewRect.Width()),
 					FMath::FloorToInt(SourceViewportUV.Y * View.ViewRect.Height()),
 					0
 				);
-				
-				const FTexture2DRHIRef &DestinationBufferDepth = Scene->PixelInspectorData.RenderTargetBufferDepth[PixelInspectorRequest->BufferIndex]->GetRenderTargetTexture();
+
+				const FTexture2DRHIRef &DestinationBufferDepth = PixelInspectorData.RenderTargetBufferDepth[PixelInspectorRequest->BufferIndex]->GetRenderTargetTexture();
 				if (DestinationBufferDepth.IsValid())
 				{
-					FTexture2DRHIRef SourceBufferSceneDepth = SceneContext.GetSceneDepthTexture();
+					FRHITexture* SourceBufferSceneDepth = SceneTextures.SceneDepthBuffer->GetRHI();
 					if (DestinationBufferDepth->GetFormat() == SourceBufferSceneDepth->GetFormat())
 					{
 						FRHICopyTextureInfo CopyInfo;
@@ -116,56 +65,48 @@ void FRCPassPostProcessBufferInspector::Process(FRenderingCompositePassContext& 
 
 			//////////////////////////////////////////////////////////////////////////
 			// FINAL COLOR
-			const FTexture2DRHIRef &DestinationBufferFinalColor = Scene->PixelInspectorData.RenderTargetBufferFinalColor[PixelInspectorRequest->BufferIndex]->GetRenderTargetTexture();
+			const FTexture2DRHIRef &DestinationBufferFinalColor = PixelInspectorData.RenderTargetBufferFinalColor[PixelInspectorRequest->BufferIndex]->GetRenderTargetTexture();
 			if (DestinationBufferFinalColor.IsValid())
 			{
 				const FIntVector SourcePoint(
-					FMath::FloorToInt(SourceViewportUV.X * Context.SceneColorViewRect.Width()),
-					FMath::FloorToInt(SourceViewportUV.Y * Context.SceneColorViewRect.Height()),
+					FMath::FloorToInt(SourceViewportUV.X * SceneColorViewRect.Width()),
+					FMath::FloorToInt(SourceViewportUV.Y * SceneColorViewRect.Height()),
 					0
 				);
 
-				const FRenderingCompositeOutputRef* OutputRef0 = GetInput(ePId_Input0);
-				if (OutputRef0)
+				FRHITexture* SourceBufferFinalColor = Parameters.SceneColor->GetRHI();
+				if (DestinationBufferFinalColor->GetFormat() == SourceBufferFinalColor->GetFormat())
 				{
-					FRenderingCompositeOutput* Input = OutputRef0->GetOutput();
-					if (Input && Input->PooledRenderTarget.IsValid() && Input->PooledRenderTarget->GetRenderTargetItem().ShaderResourceTexture.IsValid())
+					FRHICopyTextureInfo CopyInfo;
+					CopyInfo.Size = DestinationBufferFinalColor->GetSizeXYZ();
+					CopyInfo.SourcePosition = SourcePoint - CopyInfo.Size / 2;
+
+					const FIntVector OutlineCornerMin(
+						FMath::Min(CopyInfo.SourcePosition.X - SceneColorViewRect.Min.X, 0),
+						FMath::Min(CopyInfo.SourcePosition.Y - SceneColorViewRect.Min.Y, 0),
+						0
+					);
+					CopyInfo.SourcePosition -= OutlineCornerMin;
+					CopyInfo.DestPosition -= OutlineCornerMin;
+					CopyInfo.Size += OutlineCornerMin;
+
+					const FIntVector OutlineCornerMax(
+						FMath::Max(0, CopyInfo.SourcePosition.X + CopyInfo.Size.X - SceneColorViewRect.Max.X),
+						FMath::Max(0, CopyInfo.SourcePosition.Y + CopyInfo.Size.Y - SceneColorViewRect.Max.Y),
+						0
+					);
+					CopyInfo.Size -= OutlineCornerMax;
+
+					if (CopyInfo.Size.X > 0 && CopyInfo.Size.Y > 0)
 					{
-						FTexture2DRHIRef SourceBufferFinalColor = (FRHITexture2D*)(Input->PooledRenderTarget->GetRenderTargetItem().ShaderResourceTexture.GetReference());
-						if (DestinationBufferFinalColor->GetFormat() == SourceBufferFinalColor->GetFormat())
-						{
-							FRHICopyTextureInfo CopyInfo;
-							CopyInfo.Size = DestinationBufferFinalColor->GetSizeXYZ();
-							CopyInfo.SourcePosition = SourcePoint - CopyInfo.Size/2;
-
-							const FIntVector OutlineCornerMin(
-								FMath::Min(CopyInfo.SourcePosition.X - Context.SceneColorViewRect.Min.X, 0),
-								FMath::Min(CopyInfo.SourcePosition.Y - Context.SceneColorViewRect.Min.Y, 0),
-								0
-							);
-							CopyInfo.SourcePosition -= OutlineCornerMin;
-							CopyInfo.DestPosition -= OutlineCornerMin;
-							CopyInfo.Size += OutlineCornerMin;
-
-							const FIntVector OutlineCornerMax(
-								FMath::Max(0, CopyInfo.SourcePosition.X + CopyInfo.Size.X - Context.SceneColorViewRect.Max.X),
-								FMath::Max(0, CopyInfo.SourcePosition.Y + CopyInfo.Size.Y - Context.SceneColorViewRect.Max.Y),
-								0
-							);
-							CopyInfo.Size -= OutlineCornerMax;
-
-							if (CopyInfo.Size.X > 0 && CopyInfo.Size.Y > 0)
-							{
-								RHICmdList.CopyTexture(SourceBufferFinalColor, DestinationBufferFinalColor, CopyInfo);
-							}
-						}
+						RHICmdList.CopyTexture(SourceBufferFinalColor, DestinationBufferFinalColor, CopyInfo);
 					}
 				}
 			}
 
 			//////////////////////////////////////////////////////////////////////////
-			// SCENE COLOR
-			const FTexture2DRHIRef &DestinationBufferSceneColor = Scene->PixelInspectorData.RenderTargetBufferSceneColor[PixelInspectorRequest->BufferIndex]->GetRenderTargetTexture();
+			// ORIGINAL SCENE COLOR
+			const FTexture2DRHIRef& DestinationBufferSceneColor = PixelInspectorData.RenderTargetBufferSceneColor[PixelInspectorRequest->BufferIndex]->GetRenderTargetTexture();
 			if (DestinationBufferSceneColor.IsValid())
 			{
 				const FIntVector SourcePoint(
@@ -174,56 +115,43 @@ void FRCPassPostProcessBufferInspector::Process(FRenderingCompositePassContext& 
 					0
 				);
 
-				const FRenderingCompositeOutputRef* OutputRef0 = GetInput(ePId_Input2);
-				if (OutputRef0)
+				FRHITexture* SourceBufferSceneColor = Parameters.OriginalSceneColor->GetRHI();
+				if (DestinationBufferSceneColor->GetFormat() == SourceBufferSceneColor->GetFormat())
 				{
-					FRenderingCompositeOutput* Input = OutputRef0->GetOutput();
-					if (Input && Input->PooledRenderTarget.IsValid() && Input->PooledRenderTarget->GetRenderTargetItem().ShaderResourceTexture.IsValid())
-					{
-						FTexture2DRHIRef SourceBufferSceneColor = (FRHITexture2D*)(Input->PooledRenderTarget->GetRenderTargetItem().ShaderResourceTexture.GetReference());
-						if (DestinationBufferSceneColor->GetFormat() == SourceBufferSceneColor->GetFormat())
-						{
-							FRHICopyTextureInfo CopyInfo;
-							CopyInfo.SourcePosition = SourcePoint;
-							CopyInfo.Size = FIntVector(1, 1, 1);
-							RHICmdList.CopyTexture(SourceBufferSceneColor, DestinationBufferSceneColor, CopyInfo);
-						}
-					}
+					FRHICopyTextureInfo CopyInfo;
+					CopyInfo.SourcePosition = SourcePoint;
+					CopyInfo.Size = FIntVector(1, 1, 1);
+					RHICmdList.CopyTexture(SourceBufferSceneColor, DestinationBufferSceneColor, CopyInfo);
 				}
 			}
 
 			//////////////////////////////////////////////////////////////////////////
 			// HDR
-			const FTexture2DRHIRef &DestinationBufferHDR = Scene->PixelInspectorData.RenderTargetBufferHDR[PixelInspectorRequest->BufferIndex]->GetRenderTargetTexture();
-			if (InputDescHDR != nullptr && DestinationBufferHDR.IsValid())
+			const FTexture2DRHIRef &DestinationBufferHDR = PixelInspectorData.RenderTargetBufferHDR[PixelInspectorRequest->BufferIndex]->GetRenderTargetTexture();
+			if (DestinationBufferHDR.IsValid())
 			{
 				const FIntVector SourcePoint(
-					FMath::FloorToInt(SourceViewportUV.X * Context.SceneColorViewRect.Width()),
-					FMath::FloorToInt(SourceViewportUV.Y * Context.SceneColorViewRect.Height()),
+					FMath::FloorToInt(SourceViewportUV.X * SceneColorViewRect.Width()),
+					FMath::FloorToInt(SourceViewportUV.Y * SceneColorViewRect.Height()),
 					0
 				);
 
-				const FRenderingCompositeOutputRef* OutputRef1 = GetInput(ePId_Input1);
-				if (OutputRef1)
+				if (Parameters.SceneColorBeforeTonemap)
 				{
-					FRenderingCompositeOutput* Input = OutputRef1->GetOutput();
-					if (Input && Input->PooledRenderTarget.IsValid() && Input->PooledRenderTarget->GetRenderTargetItem().ShaderResourceTexture.IsValid())
+					FRHITexture* SourceBufferHDR = Parameters.SceneColorBeforeTonemap->GetRHI();
+					if (DestinationBufferHDR->GetFormat() == SourceBufferHDR->GetFormat())
 					{
-						FTexture2DRHIRef SourceBufferHDR = (FRHITexture2D*)(Input->PooledRenderTarget->GetRenderTargetItem().ShaderResourceTexture.GetReference());
-						if (SourceBufferHDR.IsValid() && DestinationBufferHDR->GetFormat() == SourceBufferHDR->GetFormat())
-						{
-							FRHICopyTextureInfo CopyInfo;
-							CopyInfo.SourcePosition = SourcePoint;
-							CopyInfo.Size = FIntVector(1, 1, 1);
-							RHICmdList.CopyTexture(SourceBufferHDR, DestinationBufferHDR, CopyInfo);
-						}
+						FRHICopyTextureInfo CopyInfo;
+						CopyInfo.SourcePosition = SourcePoint;
+						CopyInfo.Size = FIntVector(1, 1, 1);
+						RHICmdList.CopyTexture(SourceBufferHDR, DestinationBufferHDR, CopyInfo);
 					}
 				}
 			}
 
 			//////////////////////////////////////////////////////////////////////////
 			// GBuffer A
-			if (Scene->PixelInspectorData.RenderTargetBufferA[PixelInspectorRequest->BufferIndex] != nullptr)
+			if (PixelInspectorData.RenderTargetBufferA[PixelInspectorRequest->BufferIndex] != nullptr)
 			{
 				const FIntVector SourcePoint(
 					FMath::FloorToInt(SourceViewportUV.X * View.ViewRect.Width()),
@@ -231,11 +159,11 @@ void FRCPassPostProcessBufferInspector::Process(FRenderingCompositePassContext& 
 					0
 				);
 
-				const FTexture2DRHIRef &DestinationBufferA = Scene->PixelInspectorData.RenderTargetBufferA[PixelInspectorRequest->BufferIndex]->GetRenderTargetTexture();
-				if (DestinationBufferA.IsValid() && SceneContext.GBufferA.IsValid() && SceneContext.GBufferA->GetRenderTargetItem().ShaderResourceTexture.IsValid())
+				const FTexture2DRHIRef &DestinationBufferA = PixelInspectorData.RenderTargetBufferA[PixelInspectorRequest->BufferIndex]->GetRenderTargetTexture();
+				if (DestinationBufferA.IsValid() && SceneTextures.SceneGBufferA)
 				{
-					FTexture2DRHIRef SourceBufferA = (FRHITexture2D*)(SceneContext.GBufferA->GetRenderTargetItem().ShaderResourceTexture.GetReference());
-					if (SourceBufferA.IsValid() && DestinationBufferA->GetFormat() == SourceBufferA->GetFormat())
+					FRHITexture* SourceBufferA = SceneTextures.SceneGBufferA->GetRHI();
+					if (DestinationBufferA->GetFormat() == SourceBufferA->GetFormat())
 					{
 						FRHICopyTextureInfo CopyInfo;
 						CopyInfo.SourcePosition = SourcePoint;
@@ -247,7 +175,7 @@ void FRCPassPostProcessBufferInspector::Process(FRenderingCompositePassContext& 
 
 			//////////////////////////////////////////////////////////////////////////
 			// GBuffer BCDE
-			const FTexture2DRHIRef &DestinationBufferBCDE = Scene->PixelInspectorData.RenderTargetBufferBCDE[PixelInspectorRequest->BufferIndex]->GetRenderTargetTexture();
+			const FTexture2DRHIRef &DestinationBufferBCDE = PixelInspectorData.RenderTargetBufferBCDE[PixelInspectorRequest->BufferIndex]->GetRenderTargetTexture();
 			if (DestinationBufferBCDE.IsValid())
 			{
 				const FIntVector SourcePoint(
@@ -256,10 +184,10 @@ void FRCPassPostProcessBufferInspector::Process(FRenderingCompositePassContext& 
 					0
 				);
 
-				if (SceneContext.GBufferB.IsValid() && SceneContext.GBufferB->GetRenderTargetItem().ShaderResourceTexture.IsValid())
+				if (SceneTextures.SceneGBufferB)
 				{
-					FTexture2DRHIRef SourceBufferB = (FRHITexture2D*)(SceneContext.GBufferB->GetRenderTargetItem().ShaderResourceTexture.GetReference());
-					if (SourceBufferB.IsValid() && DestinationBufferBCDE->GetFormat() == SourceBufferB->GetFormat())
+					FRHITexture* SourceBufferB = SceneTextures.SceneGBufferB->GetRHI();
+					if (DestinationBufferBCDE->GetFormat() == SourceBufferB->GetFormat())
 					{
 						FRHICopyTextureInfo CopyInfo;
 						CopyInfo.SourcePosition = SourcePoint;
@@ -268,10 +196,10 @@ void FRCPassPostProcessBufferInspector::Process(FRenderingCompositePassContext& 
 					}
 				}
 
-				if (SceneContext.GBufferC.IsValid() && SceneContext.GBufferC->GetRenderTargetItem().ShaderResourceTexture.IsValid())
+				if (SceneTextures.SceneGBufferC)
 				{
-					FTexture2DRHIRef SourceBufferC = (FRHITexture2D*)(SceneContext.GBufferC->GetRenderTargetItem().ShaderResourceTexture.GetReference());
-					if (SourceBufferC.IsValid() && DestinationBufferBCDE->GetFormat() == SourceBufferC->GetFormat())
+					FRHITexture* SourceBufferC = SceneTextures.SceneGBufferC->GetRHI();
+					if (DestinationBufferBCDE->GetFormat() == SourceBufferC->GetFormat())
 					{
 						FRHICopyTextureInfo CopyInfo;
 						CopyInfo.SourcePosition = SourcePoint;
@@ -281,10 +209,10 @@ void FRCPassPostProcessBufferInspector::Process(FRenderingCompositePassContext& 
 					}
 				}
 
-				if (SceneContext.GBufferD.IsValid() && SceneContext.GBufferD->GetRenderTargetItem().ShaderResourceTexture.IsValid())
+				if (SceneTextures.SceneGBufferD)
 				{
-					FTexture2DRHIRef SourceBufferD = (FRHITexture2D*)(SceneContext.GBufferD->GetRenderTargetItem().ShaderResourceTexture.GetReference());
-					if (SourceBufferD.IsValid() && DestinationBufferBCDE->GetFormat() == SourceBufferD->GetFormat())
+					FRHITexture* SourceBufferD = SceneTextures.SceneGBufferD->GetRHI();
+					if (DestinationBufferBCDE->GetFormat() == SourceBufferD->GetFormat())
 					{
 						FRHICopyTextureInfo CopyInfo;
 						CopyInfo.SourcePosition = SourcePoint;
@@ -294,10 +222,10 @@ void FRCPassPostProcessBufferInspector::Process(FRenderingCompositePassContext& 
 					}
 				}
 
-				if (SceneContext.GBufferE.IsValid() && SceneContext.GBufferE->GetRenderTargetItem().ShaderResourceTexture.IsValid())
+				if (SceneTextures.SceneGBufferE)
 				{
-					FTexture2DRHIRef SourceBufferE = (FRHITexture2D*)(SceneContext.GBufferE->GetRenderTargetItem().ShaderResourceTexture.GetReference());
-					if (SourceBufferE.IsValid() && DestinationBufferBCDE->GetFormat() == SourceBufferE->GetFormat())
+					FRHITexture* SourceBufferE = SceneTextures.SceneGBufferE->GetRHI();
+					if (DestinationBufferBCDE->GetFormat() == SourceBufferE->GetFormat())
 					{
 						FRHICopyTextureInfo CopyInfo;
 						CopyInfo.SourcePosition = SourcePoint;
@@ -309,59 +237,69 @@ void FRCPassPostProcessBufferInspector::Process(FRenderingCompositePassContext& 
 			}
 
 			PixelInspectorRequest->RenderingCommandSend = true;
-			ProcessRequests.Add(kvp.Key);
+			ProcessRequests.Add(KeyValue.Key);
 		}
 	}
-	
-	//Remove request we just process
+
+	// Remove request we just processed.
 	for (FVector2D RequestKey : ProcessRequests)
 	{
-		Scene->PixelInspectorData.Requests.Remove(RequestKey);
+		PixelInspectorData.Requests.Remove(RequestKey);
 	}
-
-	const FSceneRenderTargetItem& DestRenderTarget = PassOutputs[0].RequestSurface(Context);
-
-	FRHIRenderPassInfo RPInfo(DestRenderTarget.TargetableTexture, ERenderTargetActions::Load_Store);
-	Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("PostProcessBufferInspector"));
-	{
-		FIntPoint SrcSize = InputDesc->Extent;
-		FIntRect ViewRect = Context.SceneColorViewRect;
-		Context.SetViewportAndCallRHI(ViewRect);
-
-		{
-			FShader* VertexShader = SetShaderTempl(Context.RHICmdList, Context);
-
-			DrawRectangle(
-				Context.RHICmdList,
-				0, 0,
-				ViewRect.Width(), ViewRect.Height(),
-				ViewRect.Min.X, ViewRect.Min.Y,
-				ViewRect.Width(), ViewRect.Height(),
-				ViewRect.Size(),
-				SrcSize,
-				VertexShader,
-				EDRF_UseTriangleOptimization);
-		}
-	}
-	Context.RHICmdList.EndRenderPass();
-
-	FRenderTargetTemp TempRenderTarget(View, (const FTexture2DRHIRef&)DestRenderTarget.TargetableTexture);
-	FCanvas Canvas(&TempRenderTarget, NULL, ViewFamily.CurrentRealTime, ViewFamily.CurrentWorldTime, ViewFamily.DeltaWorldTime, Context.GetFeatureLevel());
-	FLinearColor LabelColor(1, 1, 1);
-	Canvas.DrawShadowedString(100, 50, TEXT("Pixel Inspector On"), GetStatsFont(), LabelColor);
-	Canvas.Flush_RenderThread(Context.RHICmdList);
-
-	Context.RHICmdList.CopyToResolveTarget(DestRenderTarget.TargetableTexture, DestRenderTarget.ShaderResourceTexture, FResolveParams());
-	
-	// AdjustGBufferRefCount(1) call is done in constructor
-	FSceneRenderTargets::Get(Context.RHICmdList).AdjustGBufferRefCount(Context.RHICmdList, -1);
-#endif
 }
 
-FPooledRenderTargetDesc FRCPassPostProcessBufferInspector::ComputeOutputDesc(EPassOutputId InPassOutputId) const
+FScreenPassTexture AddPixelInspectorPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPixelInspectorInputs& Inputs)
 {
-	FPooledRenderTargetDesc Ret = GetInput(ePId_Input0)->GetOutput()->RenderTargetDesc;
-	Ret.Reset();
-	Ret.DebugName = TEXT("BufferInspector");
-	return Ret;
+	check(Inputs.SceneColor.IsValid());
+	check(Inputs.SceneColor.ViewRect == Inputs.SceneColorBeforeTonemap.ViewRect);
+	check(Inputs.OriginalSceneColor.IsValid());
+	check(Inputs.OriginalSceneColor.ViewRect == View.ViewRect);
+	check(Inputs.SceneTextures);
+	check(View.bUsePixelInspector);
+
+	RDG_EVENT_SCOPE(GraphBuilder, "PixelInspector");
+
+	// Perform copies of scene textures data into staging resources for visualization.
+	{
+		FPixelInspectorParameters* PassParameters = GraphBuilder.AllocParameters<FPixelInspectorParameters>();
+		PassParameters->SceneTextures = *Inputs.SceneTextures;
+		PassParameters->SceneColor = Inputs.SceneColor.Texture;
+		PassParameters->SceneColorBeforeTonemap = Inputs.SceneColorBeforeTonemap.Texture;
+		PassParameters->OriginalSceneColor = Inputs.OriginalSceneColor.Texture;
+
+		const FIntRect SceneColorViewRect(Inputs.SceneColor.ViewRect);
+
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("Copy"),
+			PassParameters,
+			ERDGPassFlags::Copy,
+			[PassParameters, &View, SceneColorViewRect](FRHICommandListImmediate& RHICmdList)
+		{
+			ProcessPixelInspectorRequests(RHICmdList, View, *PassParameters, SceneColorViewRect);
+		});
+	}
+
+	FScreenPassRenderTarget Output = Inputs.OverrideOutput;
+
+	// When an output is specified, copy scene color to output before compositing the debug text.
+	if (Output.IsValid())
+	{
+		AddDrawTexturePass(GraphBuilder, View, Inputs.SceneColor, Output);
+	}
+	// Otherwise, re-use the scene color as the output.
+	else
+	{
+		Output = FScreenPassRenderTarget(Inputs.SceneColor, ERenderTargetLoadAction::ELoad);
+	}
+
+	AddDrawCanvasPass(GraphBuilder, RDG_EVENT_NAME("Overlay"), View, FScreenPassRenderTarget(Inputs.SceneColor, ERenderTargetLoadAction::ELoad),
+		[](FCanvas& Canvas)
+	{
+		FLinearColor LabelColor(1, 1, 1);
+		Canvas.DrawShadowedString(100, 50, TEXT("Pixel Inspector On"), GetStatsFont(), LabelColor);
+	});
+
+	return MoveTemp(Output);
 }
+
+#endif

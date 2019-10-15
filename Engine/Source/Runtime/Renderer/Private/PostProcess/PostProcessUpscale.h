@@ -1,90 +1,84 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	PostProcessUpscale.h: Post processing Upscale implementation.
-=============================================================================*/
-
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RendererInterface.h"
+#include "OverridePassSequence.h"
 #include "PostProcess/RenderingCompositionGraph.h"
 
-class FViewInfo;
-
-// derives from TRenderingCompositePassBase<InputCount, OutputCount>
-// ePId_Input0: SceneColor (bilinear)
-// ePId_Input1: SceneColor (point)
-class FRCPassPostProcessUpscale : public TRenderingCompositePassBase<2, 1>
+struct FPaniniProjectionConfig
 {
-public:
-	// Panini configuration
-	//  NOTE: more details in Common.usf
-	struct PaniniParams
+	static const FPaniniProjectionConfig Default;
+
+	FPaniniProjectionConfig() = default;
+	FPaniniProjectionConfig(const FViewInfo& View);
+
+	bool IsEnabled() const
 	{
-		// 0=none..1=full, must be >= 0
-		float D;
+		return D > 0.01f;
+	}
 
-		// Panini hard vertical compression lerp (0=no vertical compresion, 1=hard compression)
-		float S;
+	void Sanitize()
+	{
+		D = FMath::Max(D, 0.0f);
+		ScreenFit = FMath::Max(ScreenFit, 0.0f);
+	}
 
-		// Panini screen fit factor (lerp between vertical and horizontal) 
-		float ScreenFit;
+	// 0=none..1=full, must be >= 0.
+	float D = 0.0f;
 
-		// constructor off
-		PaniniParams()
-			: D(0.0f)
-			, S(0.0f)
-			, ScreenFit(1.0f)
-		{}
+	// Panini hard vertical compression lerp (0=no vertical compression, 1=hard compression).
+	float S = 0.0f;
 
-		PaniniParams(const FViewInfo& View);
-
-		bool IsEnabled() const
-		{
-			return D > 0.01f;
-		}
-
-		static const PaniniParams Default;
-	};
-
-	// constructor
-	// @param InUpscaleQuality - value denoting Upscale method to use:
-	//				0: Nearest
-	//				1: Bilinear
-	//				2: 4 tap Bilinear (with radius adjustment)
-	//				3: Directional blur with unsharp mask upsample.
-	// @param InPaniniConfig - the panini configuration parameter
-	FRCPassPostProcessUpscale(const FViewInfo& InView, uint32 InUpscaleQuality, const PaniniParams& InPaniniConfig = PaniniParams::Default, bool bInIsSecondaryUpscale = false, bool bInIsMobileRenderer = false);
-
-	// interface FRenderingCompositePass ---------
-
-	virtual void Process(FRenderingCompositePassContext& Context) override;
-	virtual void Release() override { delete this; }
-	FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
-
-private:
-	// @param InCylinderDistortion 0=none..1=full in percent, must be in that range
-	template <uint32 Quality, uint32 bTesselatedQuad> static FShader* SetShader(const FRenderingCompositePassContext& Context, const PaniniParams& PaniniConfig, bool ManullyClampUV);
-
-	// 0: Nearest, 1: Bilinear, 2: 4 tap Bilinear (with radius adjustment), 3: Directional blur with unsharp mask upsample.
-	uint32 UpscaleQuality;
-
-	// Panini projection's parameter
-	PaniniParams PaniniConfig;
-
-	const bool bIsSecondaryUpscale;
-	const bool bIsMobileRenderer;
-
-protected:
-	// Extent of upscaled output
-	FIntPoint OutputExtent;
+	// Panini screen fit factor (lerp between vertical and horizontal).
+	float ScreenFit = 1.0f;
 };
 
-// Simple version used for ES2 forcing Bilinear and overriding the output extent
-class FRCPassPostProcessUpscaleES2 : public FRCPassPostProcessUpscale
+enum class EUpscaleMethod : uint8
 {
-public:
-	FRCPassPostProcessUpscaleES2(const FViewInfo& InView);
-	FRCPassPostProcessUpscaleES2(const FViewInfo& InView, uint32 InUpscaleQuality, bool bOverrideOutputExtent);
+	Nearest,
+	Bilinear,
+	Directional,
+	CatmullRom,
+	Lanczos,
+	Gaussian,
+	SmoothStep,
+	MAX
 };
+
+EUpscaleMethod GetUpscaleMethod();
+
+enum class EUpscaleStage
+{
+	// Upscaling from the primary to the secondary view rect. The override output cannot be valid when using this stage.
+	PrimaryToSecondary,
+
+	// Upscaling in one pass to the final target size.
+	PrimaryToOutput,
+
+	// Upscaling from the secondary view rect to the final view size.
+	SecondaryToOutput,
+
+	MAX
+};
+
+struct FUpscaleInputs
+{
+	// [Optional] Render to the specified output. If invalid, a new texture is created and returned.
+	FScreenPassRenderTarget OverrideOutput;
+
+	// [Required] The input scene color and view rect.
+	FScreenPassTexture SceneColor;
+
+	// [Required] The method to use when upscaling.
+	EUpscaleMethod Method = EUpscaleMethod::MAX;
+
+	// [Optional] A configuration used to control Panini projection. Disabled in the default state.
+	FPaniniProjectionConfig PaniniConfig;
+
+	// Whether this is a secondary upscale to the final view family target.
+	EUpscaleStage Stage = EUpscaleStage::MAX;
+};
+
+FScreenPassTexture AddUpscalePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FUpscaleInputs& Inputs);
+
+FRenderingCompositeOutputRef AddUpscalePass(FRenderingCompositionGraph& Graph, FRenderingCompositeOutputRef Input, EUpscaleMethod Method, EUpscaleStage Stage);

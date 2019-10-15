@@ -17,53 +17,34 @@
 			"Name": "WebMMedia",
 			"Type": "RuntimeNoCommandlet",
 			"LoadingPhase": "PostEngineInit",
-			"BlacklistPlatforms" :
-			[
-				"Win32",
-				"XboxOne",
-				"PS4",
-				"IOS",
-				"Android",
-				"TVOS",
-				"Switch",
-				"Lumin",
-				"HoloLens"
+			"WhitelistPlatforms": [
+				"Win64",
+				"Linux"
 			],
-			"BlacklistTargets" :
-			[
-				"Server",
+			"BlacklistTargets": [
+				"Server"
 			]
 		},
 		{
-			"Name" : "WebMMediaEditor",
-			"Type" : "Editor",
-			"LoadingPhase" : "PostEngineInit"
+			"Name": "WebMMediaEditor",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit"
 		},
 		{
 			"Name": "WebMMediaFactory",
-			"Type" : "Editor",
-			"LoadingPhase" : "PostEngineInit"
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit"
 		},
 		{
 			"Name": "WebMMediaFactory",
 			"Type": "RuntimeNoCommandlet",
 			"LoadingPhase": "PostEngineInit",
-			"BlacklistPlatforms" :
-			[
-				"Win32",
-				"Mac",
-				"XboxOne",
-				"PS4",
-				"IOS",
-				"Android",
-				"TVOS",
-				"Switch",
-				"Lumin",
-				"HoloLens"
+			"WhitelistPlatforms": [
+				"Win64",
+				"Linux"
 			],
-			"BlacklistTargets" :
-			[
-				"Server",
+			"BlacklistTargets": [
+				"Server"
 			]
 		}
 	]

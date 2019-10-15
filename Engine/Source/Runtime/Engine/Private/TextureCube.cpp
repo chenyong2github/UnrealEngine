@@ -103,7 +103,7 @@ uint32 UTextureCube::CalcTextureMemorySize( int32 MipCount ) const
 		FIntPoint MipExtents = CalcMipMapExtent(SizeX, SizeY, Format, FirstMip);
 		
 		uint32 TextureAlign = 0;
-		uint64 TextureSize = RHICalcTextureCubePlatformSize(MipExtents.X, Format, MipCount, 0, TextureAlign);
+		uint64 TextureSize = RHICalcTextureCubePlatformSize(MipExtents.X, Format, MipCount, 0, FRHIResourceCreateInfo(PlatformData->ExtData), TextureAlign);
 		Size = (uint32)TextureSize;
 	}
 	return Size;
@@ -148,7 +148,8 @@ public:
 		check(Owner->GetNumMips() > 0);
 
 		TIndirectArray<FTexture2DMipMap>& Mips = InOwner->PlatformData->Mips;
-		for( int32 MipIndex=0; MipIndex<Mips.Num(); MipIndex++ )
+		const int32 FirstMipTailIndex = Mips.Num() - InOwner->PlatformData->NumMipsInTail;
+		for (int32 MipIndex = 0; MipIndex < FirstMipTailIndex; MipIndex++)
 		{
 			FTexture2DMipMap& Mip = Mips[MipIndex];
 			if( Mip.BulkData.GetBulkDataSize() <= 0 )
@@ -206,6 +207,7 @@ public:
 		// Create the RHI texture.
 		uint32 TexCreateFlags = (Owner->SRGB ? TexCreate_SRGB : 0)  | TexCreate_OfflineProcessed;
 		FRHIResourceCreateInfo CreateInfo;
+		CreateInfo.ExtData = Owner->PlatformData ? Owner->PlatformData->ExtData : 0;
 		TextureCubeRHI = RHICreateTextureCube( Owner->GetSizeX(), Owner->GetPixelFormat(), Owner->GetNumMips(), TexCreateFlags, CreateInfo );
 		TextureRHI = TextureCubeRHI;
 		TextureRHI->SetName(Owner->GetFName());

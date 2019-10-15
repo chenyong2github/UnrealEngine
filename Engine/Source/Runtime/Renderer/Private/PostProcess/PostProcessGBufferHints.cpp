@@ -1,180 +1,93 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	PostProcessGBufferHints.cpp: Post processing GBufferHints implementation.
-=============================================================================*/
-
 #include "PostProcess/PostProcessGBufferHints.h"
-#include "EngineGlobals.h"
-#include "StaticBoundShaderState.h"
 #include "CanvasTypes.h"
-#include "UnrealEngine.h"
 #include "RenderTargetTemp.h"
-#include "SceneUtils.h"
-#include "PostProcess/SceneRenderTargets.h"
-#include "PostProcess/SceneFilterRendering.h"
-#include "SceneRenderTargetParameters.h"
-#include "PostProcess/PostProcessing.h"
-#include "PostProcess/PostProcessEyeAdaptation.h"
-#include "PipelineStateCache.h"
+#include "SceneTextureParameters.h"
 
-/** Encapsulates the post processing eye adaptation pixel shader. */
-class FPostProcessGBufferHintsPS : public FGlobalShader
+class FVisualizeGBufferHintsPS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FPostProcessGBufferHintsPS, Global);
+public:
+	DECLARE_GLOBAL_SHADER(FVisualizeGBufferHintsPS);
+	SHADER_USE_PARAMETER_STRUCT(FVisualizeGBufferHintsPS, FGlobalShader);
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters,OutEnvironment);
-	}
-
-	/** Default constructor. */
-	FPostProcessGBufferHintsPS() {}
-
-public:
-	FPostProcessPassParameters PostprocessParameter;
-	FSceneTextureShaderParameters SceneTextureParameters;
-	FShaderResourceParameter MiniFontTexture;
-
-	/** Initialization constructor. */
-	FPostProcessGBufferHintsPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		PostprocessParameter.Bind(Initializer.ParameterMap);
-		SceneTextureParameters.Bind(Initializer);
-		MiniFontTexture.Bind(Initializer.ParameterMap, TEXT("MiniFontTexture"));
-	}
-
-	template <typename TRHICmdList>
-	void SetPS(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context)
-	{
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
-
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
-
-		PostprocessParameter.SetPS(RHICmdList, ShaderRHI, Context, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
-		SceneTextureParameters.Set(RHICmdList, ShaderRHI, Context.View.FeatureLevel, ESceneTextureSetupMode::All);
-
-		SetTextureParameter(RHICmdList, ShaderRHI, MiniFontTexture, GEngine->MiniFontTexture ? GEngine->MiniFontTexture->Resource->TextureRHI : GSystemTextures.WhiteDummy->GetRenderTargetItem().TargetableTexture);
-	}
-	
-	// FShader interface.
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << PostprocessParameter << SceneTextureParameters << MiniFontTexture;
-		return bShaderHasOutdatedParameters;
-	}
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Input)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureSamplerParameters, SceneTextureSamplers)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorSampler)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, OriginalSceneColorTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, OriginalSceneColorSampler)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
 };
 
-IMPLEMENT_SHADER_TYPE(,FPostProcessGBufferHintsPS,TEXT("/Engine/Private/PostProcessGBufferHints.usf"),TEXT("MainPS"),SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FVisualizeGBufferHintsPS, "/Engine/Private/PostProcessGBufferHints.usf", "MainPS", SF_Pixel);
 
-
-FRCPassPostProcessGBufferHints::FRCPassPostProcessGBufferHints(FRHICommandList& RHICmdList)
+FScreenPassTexture AddVisualizeGBufferHintsPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FVisualizeGBufferHintsInputs& Inputs)
 {
-	// AdjustGBufferRefCount(-1) call is done when the pass gets executed
-	FSceneRenderTargets::Get(RHICmdList).AdjustGBufferRefCount(RHICmdList, 1);
-}
+	check(Inputs.SceneTextures);
+	check(Inputs.SceneColor.IsValid());
+	check(Inputs.OriginalSceneColor.IsValid());
 
+	FScreenPassRenderTarget Output = Inputs.OverrideOutput;
 
-void FRCPassPostProcessGBufferHints::Process(FRenderingCompositePassContext& Context)
-{
-	SCOPED_DRAW_EVENT(Context.RHICmdList, GBufferHints);
-	const FPooledRenderTargetDesc* InputDesc = GetInputDesc(ePId_Input0);
-
-	if(!InputDesc)
+	if (!Output.IsValid())
 	{
-		// input is not hooked up correctly
-		return;
+		Output = FScreenPassRenderTarget::CreateFromInput(GraphBuilder, Inputs.SceneColor, View.GetOverwriteLoadAction(), TEXT("VisualizeGBufferHints"));
 	}
 
-	const FViewInfo& View = Context.View;
-	const FSceneViewFamily& ViewFamily = *(View.Family);
-	
-	FIntRect SrcRect = View.ViewRect;
-	FIntRect DestRect = View.ViewRect;
-	FIntPoint SrcSize = InputDesc->Extent;
+	const FScreenPassTextureViewport InputViewport(Inputs.SceneColor);
+	const FScreenPassTextureViewport OutputViewport(Output);
 
-	const FSceneRenderTargetItem& DestRenderTarget = PassOutputs[0].RequestSurface(Context);
+	FRHISamplerState* PointClampSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-	// Set the view family's render target/viewport.
-	FRHIRenderPassInfo RPInfo(DestRenderTarget.TargetableTexture, ERenderTargetActions::Load_Store);
-	Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("GBufferHints"));
+	FVisualizeGBufferHintsPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVisualizeGBufferHintsPS::FParameters>();
+	PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
+	PassParameters->View = View.ViewUniformBuffer;
+	PassParameters->Input = GetScreenPassTextureViewportParameters(InputViewport);
+	PassParameters->SceneTextures = *Inputs.SceneTextures;
+	PassParameters->SceneColorTexture = Inputs.SceneColor.Texture;
+	PassParameters->SceneColorSampler = PointClampSampler;
+	PassParameters->OriginalSceneColorTexture = Inputs.OriginalSceneColor.Texture;
+	PassParameters->OriginalSceneColorSampler = PointClampSampler;
+	SetupSceneTextureSamplers(&PassParameters->SceneTextureSamplers);
+
+	TShaderMapRef<FVisualizeGBufferHintsPS> PixelShader(View.ShaderMap);
+
+	RDG_EVENT_SCOPE(GraphBuilder, "VisualizeGBufferHints");
+
+	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("Visualizer"), View, OutputViewport, InputViewport, *PixelShader, PassParameters);
+
+	Output.LoadAction = ERenderTargetLoadAction::ELoad;
+
+	AddDrawCanvasPass(GraphBuilder, RDG_EVENT_NAME("Overlay"), View, Output, [&View](FCanvas& Canvas)
 	{
-		Context.SetViewportAndCallRHI(DestRect);
+		float X = 30;
+		float Y = 8;
+		const float YStep = 14;
+		const float ColumnWidth = 250;
 
-		FGraphicsPipelineStateInitializer GraphicsPSOInit;
-		Context.RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-		GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+		FString Line;
 
-		TShaderMapRef<FPostProcessVS> VertexShader(Context.GetShaderMap());
-		TShaderMapRef<FPostProcessGBufferHintsPS> PixelShader(Context.GetShaderMap());
+		Line = FString::Printf(TEXT("GBufferHints"));
+		Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), FLinearColor(1, 1, 1));
 
-		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
-		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+		Y += YStep;
 
-		SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
+		Line = FString::Printf(TEXT("Yellow: Unrealistic material (In nature even black materials reflect a small amount of light)"));
+		Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), FLinearColor(0.8f, 0.8f, 0));
 
-		PixelShader->SetPS(Context.RHICmdList, Context);
+		Line = FString::Printf(TEXT("Red: Impossible material (This material emits more light than it receives)"));
+		Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), FLinearColor(1, 0, 0));
+	});
 
-		// Draw a quad mapping scene color to the view's render target
-		DrawRectangle(
-			Context.RHICmdList,
-			0, 0,
-			DestRect.Width(), DestRect.Height(),
-			SrcRect.Min.X, SrcRect.Min.Y,
-			SrcRect.Width(), SrcRect.Height(),
-			DestRect.Size(),
-			SrcSize,
-			*VertexShader,
-			EDRF_UseTriangleOptimization);
-	}
-	Context.RHICmdList.EndRenderPass();
-
-	FRenderTargetTemp TempRenderTarget(View, (const FTexture2DRHIRef&)DestRenderTarget.TargetableTexture);
-	FCanvas Canvas(&TempRenderTarget, NULL, ViewFamily.CurrentRealTime, ViewFamily.CurrentWorldTime, ViewFamily.DeltaWorldTime, View.GetFeatureLevel());
-
-	float X = 30;
-	float Y = 8;
-	const float YStep = 14;
-	const float ColumnWidth = 250;
-
-	FString Line;
-
-	Line = FString::Printf(TEXT("GBufferHints"));
-	Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), FLinearColor(1, 1, 1));
-
-	Y += YStep;
-
-	Line = FString::Printf(TEXT("Yellow: Unrealistic material (In nature even black materials reflect a small amount of light)"));
-	Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), FLinearColor(0.8f, 0.8f, 0));
-
-	Line = FString::Printf(TEXT("Red: Impossible material (This material emits more light than it receives)"));
-	Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), FLinearColor(1, 0, 0));
-
-	Canvas.Flush_RenderThread(Context.RHICmdList);
-
-	Context.RHICmdList.CopyToResolveTarget(DestRenderTarget.TargetableTexture, DestRenderTarget.ShaderResourceTexture, FResolveParams());	
-
-	// AdjustGBufferRefCount(1) call is done in constructor
-	FSceneRenderTargets::Get(Context.RHICmdList).AdjustGBufferRefCount(Context.RHICmdList, -1);
-}
-
-FPooledRenderTargetDesc FRCPassPostProcessGBufferHints::ComputeOutputDesc(EPassOutputId InPassOutputId) const
-{
-	FPooledRenderTargetDesc Ret = GetInput(ePId_Input0)->GetOutput()->RenderTargetDesc;
-
-	Ret.Reset();
-	Ret.DebugName = TEXT("GBufferHints");
-
-	return Ret;
+	return MoveTemp(Output);
 }

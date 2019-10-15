@@ -819,7 +819,7 @@ private:
 	TRefCountPtr<IPooledRenderTarget> CombinedLUTRenderTarget;
 
 	// LUT is only valid after it has been computed, not on allocation of the RT
-	bool bValidTonemappingLUT;
+	bool bValidTonemappingLUT = false;
 
 
 	// used by the Postprocess Material Blending system to avoid recreation and garbage collection of MIDs
@@ -932,10 +932,6 @@ public:
 	TRefCountPtr<FPooledRDGBuffer> GatherPointsBuffer;
 	FIntPoint GatherPointsResolution;
 #endif
-
-	// cache for stencil reads to a avoid reallocations of the SRV, Key is to detect if the object has changed
-	FTextureRHIRef SelectionOutlineCacheKey;
-	TRefCountPtr<FRHIShaderResourceView> SelectionOutlineCacheValue;
 
 	TUniquePtr<FForwardLightingViewResources> ForwardLightingResources;
 
@@ -1213,7 +1209,7 @@ public:
 	}
 
 	// Returns a reference to the render target used for the LUT.  Allocated on the first request.
-	IPooledRenderTarget* GetTonemappingLUTRenderTarget(FRHICommandList& RHICmdList, const int32 LUTSize, const bool bUseVolumeLUT, const bool bNeedUAV, const bool bNeedFloatOutput)
+	IPooledRenderTarget* GetTonemappingLUT(FRHICommandList& RHICmdList, const int32 LUTSize, const bool bUseVolumeLUT, const bool bNeedUAV, const bool bNeedFloatOutput)
 	{
 		if (CombinedLUTRenderTarget.IsValid() == false || 
 			CombinedLUTRenderTarget->GetDesc().Extent.Y != LUTSize ||
@@ -1229,14 +1225,9 @@ public:
 		return CombinedLUTRenderTarget.GetReference();
 	}
 
-	const FTextureRHIRef* GetTonemappingLUTTexture() const
+	IPooledRenderTarget* GetTonemappingLUT() const
 	{
-		const FTextureRHIRef* ShaderResourceTexture = NULL;
-
-		if (CombinedLUTRenderTarget.IsValid()) {
-			ShaderResourceTexture = &CombinedLUTRenderTarget->GetRenderTargetItem().ShaderResourceTexture;
-		}
-		return ShaderResourceTexture;
+		return CombinedLUTRenderTarget.GetReference();
 	}
 
 	// FRenderResource interface.
@@ -2328,7 +2319,7 @@ public:
 	const FViewInfo& GetInstancedView(const FViewInfo& View)
 	{
 		// When drawing the left eye in a stereo scene, copy the right eye view values into the instanced view uniform buffer.
-		const EStereoscopicPass StereoPassIndex = IStereoRendering::IsStereoEyeView(View.StereoPass) ? eSSP_RIGHT_EYE : eSSP_FULL;
+		const EStereoscopicPass StereoPassIndex = (View.StereoPass != eSSP_FULL) ? eSSP_RIGHT_EYE : eSSP_FULL;
 
 		return static_cast<const FViewInfo&>(View.Family->GetStereoEyeView(StereoPassIndex));
 	}
@@ -2423,6 +2414,7 @@ struct FMeshComputeDispatchCommand
 	uint32 NumMaxVertices;
 	uint32 NumCPUVertices;
 	uint32 MinVertexIndex;
+	uint32 PrimitiveId;
 	FRWBuffer* TargetBuffer;
 };
 #endif

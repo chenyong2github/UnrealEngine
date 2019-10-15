@@ -79,7 +79,7 @@ namespace UnrealBuildTool
 
 			MLSDKPath = MLSDKPath.Replace("\"", "");
 
-			string MabuSpec = RunMabuAndReadOutput("-t device --print-spec");
+			string MabuSpec = RunMabuAndReadOutput("-t device --print-spec -q");
 
 			// parse clange version
 			Regex SpecRegex = new Regex("\\s*(?:[a-z]+_lumin_clang-)(\\d)[.](\\d)\\s*");
@@ -95,7 +95,7 @@ namespace UnrealBuildTool
 
 			SetClangVersion(int.Parse(SpecMatch.Groups[1].Value), int.Parse(SpecMatch.Groups[2].Value), 0);
 
-			string MabuTools = RunMabuAndReadOutput("-t device --print-tools");
+			string MabuTools = RunMabuAndReadOutput("-t device --print-tools -q");
 
 			Dictionary<string, string> ToolsDict = new Dictionary<string, string>();
 			using (StringReader Reader = new StringReader(MabuTools))
@@ -114,9 +114,9 @@ namespace UnrealBuildTool
 			}
 
 			// set up the path to our toolchains
-			// Clang path used to be in quotes, but some part of FileReference in AndroidToolChain was choking on the quotes.  Don't put your MLSDK in a directory with spaces for now, I guess.
+			// ClangPath and ArPathArm64 are quoted in SetupActionToExecuteCompilerThroughShell() just before use if path has spaces in it.
 			ClangPath = ToolsDict["CXX"];
-			ArPathArm64 = "\"" + ToolsDict["AR"] + "\"";
+			ArPathArm64 = ToolsDict["AR"];
 			// The strip command does not execute through the shell. Hence we don't quote it.
 			StripPath = ToolsDict["STRIP"];
 			// The objcopy command does not execute through the shell. Hence we don't quote it.
@@ -350,6 +350,24 @@ namespace UnrealBuildTool
 			StartInfo.UseShellExecute = false;
 			StartInfo.CreateNoWindow = true;
 			Utils.RunLocalProcessAndLogOutput(StartInfo);
+		}
+
+		protected override void SetupActionToExecuteCompilerThroughShell(ref Action CompileOrLinkAction, string CommandPath, string CommandArguments, string CommandDescription)
+		{
+			base.SetupActionToExecuteCompilerThroughShell(ref CompileOrLinkAction, CommandPath, CommandArguments, CommandDescription);
+
+			string QuotedCommandPath = CommandPath;
+			if (CommandPath.Contains(' '))
+			{
+				QuotedCommandPath = "'" + CommandPath + "'";
+			}
+			if (BuildHostPlatform.Current.ShellType != ShellType.Cmd)
+			{
+				// When quoting the command for the shell, we also need to escape any quotes. Otherwise
+				// they inadvertently unquote the interior arguments. For example it would unquote the
+				// command itself, if it was quoted to allow for spaces in the path, causing errors.
+				CompileOrLinkAction.CommandArguments = String.Format("-c \'{0} {1}\'", QuotedCommandPath.Replace("\'", "\\\'"), CommandArguments.Replace("\'", "\\\'"));
+			}
 		}
 	};
 }

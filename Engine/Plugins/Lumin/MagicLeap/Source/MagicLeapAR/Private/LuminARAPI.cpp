@@ -7,21 +7,14 @@
 #include "Templates/Casts.h"
 
 #include "IMagicLeapPlugin.h"
-#include "MagicLeapPrivileges.h"
-#include "MagicLeapHMD.h"
-#include "AppFramework.h"
 #include "HeadMountedDisplayFunctionLibrary.h"
 
-#if WITH_MLSDK
-#pragma warning( push )
-#pragma warning( disable : 4201)
-#include "ml_planes.h"
-#pragma warning( pop ) 
-#endif //WITH_MLSDK
+#include "IMagicLeapPlanesModule.h"
+#include "MagicLeapPlanesFunctionLibrary.h"
 
 namespace
 {
-#if PLATFORM_LUMIN
+#if WITH_MLSDK
 	static const FMatrix LuminARToUnrealTransform = FMatrix(
 		FPlane(0.0f, 0.0f, -1.0f, 0.0f),
 		FPlane(1.0f, 0.0f, 0.0f, 0.0f),
@@ -55,7 +48,7 @@ namespace
 		OutPose.Pos = LuminARPoseMatrix.GetOrigin();
 		OutPose.Quat = LuminARPoseMatrix.ToQuat();
 	}
-#endif
+#endif // WITH_MLSDK
 	inline bool CheckIsSessionValid(FString TypeName, const TWeakPtr<FLuminARSession>& SessionPtr)
 	{
 		return true;
@@ -75,10 +68,8 @@ FLuminARSession::FLuminARSession()
 {
 	// Create Lumin ARSession handle.
 	LatestFrame = new FLuminARFrame(this);
-#if PLATFORM_LUMIN
 	InitTracker();
 	LatestFrame->Init();
-#endif
 }
 
 FLuminARSession::~FLuminARSession()
@@ -90,9 +81,7 @@ FLuminARSession::~FLuminARSession()
 
 	delete LatestFrame;
 
-#if PLATFORM_LUMIN
 	DestroyTracker();
-#endif
 }
 
 
@@ -106,29 +95,17 @@ float FLuminARSession::GetWorldToMeterScale()
 	return CachedWorldToMeterScale;
 }
 
-
-#if PLATFORM_ANDROID
-MLHandle FLuminARSession::GetPlaneTrackerHandle()
-{
-	return PlaneTrackerHandle;
-}
-#endif
-
 ELuminARAPIStatus FLuminARSession::Resume()
 {
 	ELuminARAPIStatus ResumeStatus = ELuminARAPIStatus::AR_SUCCESS;
-#if PLATFORM_LUMIN
 	//InitTracker();
-#endif
 	return ResumeStatus;
 }
 
 ELuminARAPIStatus FLuminARSession::Pause()
 {
 	ELuminARAPIStatus PauseStatus = ELuminARAPIStatus::AR_SUCCESS;
-#if PLATFORM_LUMIN
 	//DestroyTracker();
-#endif
 
 	for (UARPin* Anchor : UObjectManager->AllAnchors)
 	{
@@ -167,37 +144,37 @@ uint32 FLuminARSession::GetFrameNum()
 // Anchors and Planes
 ELuminARAPIStatus FLuminARSession::CreateARAnchor(const FTransform& TransfromInTrackingSpace, UARTrackedGeometry* TrackedGeometry, USceneComponent* ComponentToPin, FName InDebugName, UARPin*& OutAnchor)
 {
-	ELuminARAPIStatus AnchorCreateStatus = ELuminARAPIStatus::AR_SUCCESS;
 	OutAnchor = nullptr;
 
-#if PLATFORM_LUMIN
 	TSharedPtr<LuminArAnchor> NewLuminArAnchor;
 	ArPose Pose;
+#if WITH_MLSDK
 	UnrealTransformToLuminARPose(TransfromInTrackingSpace, this, Pose, CachedWorldToMeterScale);
+#endif // WITH_MLSDK
+
 	if (TrackedGeometry == nullptr)
 	{
-		NewLuminArAnchor = MakeShared<LuminArAnchor>(Pose, ML_INVALID_HANDLE);
+#if WITH_MLSDK
+		NewLuminArAnchor = MakeShared<LuminArAnchor>(Pose, MagicLeap::MLHandleToFGuid(ML_INVALID_HANDLE));
+#endif // WITH_MLSDK
 	}
 	else
 	{
 		ensure(TrackedGeometry->GetNativeResource() != nullptr);
-		MLHandle ParentHandle = reinterpret_cast<FLuminARTrackableResource*>(TrackedGeometry->GetNativeResource())->GetNativeHandle();
-		ensure(ParentHandle != ML_INVALID_HANDLE);
+		const FGuid& ParentHandle = static_cast<FLuminARTrackableResource*>(TrackedGeometry->GetNativeResource())->GetNativeHandle();
+		ensure(MagicLeap::FGuidIsValidHandle(ParentHandle));
 		NewLuminArAnchor = MakeShared<LuminArAnchor>(Pose, ParentHandle);
 	}
 
-	if (AnchorCreateStatus == ELuminARAPIStatus::AR_SUCCESS)
-	{
-		OutAnchor = NewObject<UARPin>();
-		OutAnchor->InitARPin(GetARSystem(), ComponentToPin, TransfromInTrackingSpace, TrackedGeometry, InDebugName);
-		OutAnchor->SetNativeResource(reinterpret_cast<void*>(NewLuminArAnchor.Get()));
+	OutAnchor = NewObject<UARPin>();
+	OutAnchor->InitARPin(GetARSystem(), ComponentToPin, TransfromInTrackingSpace, TrackedGeometry, InDebugName);
+	OutAnchor->SetNativeResource(reinterpret_cast<void*>(NewLuminArAnchor.Get()));
 
-		UObjectManager->HandleToLuminAnchorMap.Add(NewLuminArAnchor->Handle, NewLuminArAnchor);
-		UObjectManager->AllAnchors.Add(OutAnchor);
-		UObjectManager->HandleToAnchorMap.Add(NewLuminArAnchor->Handle, OutAnchor);
-	}
-#endif
-	return AnchorCreateStatus;
+	UObjectManager->HandleToLuminAnchorMap.Add(NewLuminArAnchor->Handle, NewLuminArAnchor);
+	UObjectManager->AllAnchors.Add(OutAnchor);
+	UObjectManager->HandleToAnchorMap.Add(NewLuminArAnchor->Handle, OutAnchor);
+
+	return ELuminARAPIStatus::AR_SUCCESS;
 }
 
 void FLuminARSession::DetachAnchor(UARPin* Anchor)
@@ -207,7 +184,6 @@ void FLuminARSession::DetachAnchor(UARPin* Anchor)
 		return;
 	}
 
-#if PLATFORM_LUMIN
 	LuminArAnchor* NativeResource = reinterpret_cast<LuminArAnchor*>(Anchor->GetNativeResource());
 	check(NativeResource);
 	NativeResource->Detach();
@@ -217,7 +193,6 @@ void FLuminARSession::DetachAnchor(UARPin* Anchor)
 
 	UObjectManager->HandleToAnchorMap.Remove(NativeResource->Handle);
 	UObjectManager->HandleToLuminAnchorMap.Remove(NativeResource->Handle);
-#endif
 	UObjectManager->AllAnchors.Remove(Anchor);
 }
 
@@ -228,36 +203,12 @@ void FLuminARSession::GetAllAnchors(TArray<UARPin*>& OutAnchors) const
 
 void FLuminARSession::InitTracker()
 {
-#if PLATFORM_LUMIN
-	if (!MLHandleIsValid(PlaneTrackerHandle))
-	{
-		MLResult PlaneCreateResult = MLPlanesCreate(&PlaneTrackerHandle);
-		if (PlaneCreateResult != MLResult_Ok)
-		{
-			UE_LOG(LogLuminARAPI, Warning, TEXT("Failed to create Plane Tracker for Lumin AR Session Result:%i"), PlaneCreateResult);
-		}
-	}
-	else
-	{
-		UE_LOG(LogLuminARAPI, Warning, TEXT("Tracker already exists"));
-	}
-#endif
+	UMagicLeapPlanesFunctionLibrary::CreateTracker();
 }
 
 void FLuminARSession::DestroyTracker()
 {
-#if PLATFORM_LUMIN
-	if (MLHandleIsValid(PlaneTrackerHandle))
-	{
-		MLResult Result = MLPlanesDestroy(PlaneTrackerHandle);
-		if (Result != MLResult_Ok)
-		{
-			UE_LOG(LogLuminARAPI, Warning, TEXT("Failed to destroy Plane Tracker for Lumin AR Session Result:%i"), Result);
-		}
-
-		PlaneTrackerHandle = ML_INVALID_HANDLE;
-	}
-#endif //WITH_MLSDK
+	UMagicLeapPlanesFunctionLibrary::DestroyTracker();
 }
 
 void FLuminARSession::AddReferencedObjects(FReferenceCollector& Collector)
@@ -277,31 +228,23 @@ FLuminARFrame::FLuminARFrame(FLuminARSession* InSession)
 	, LatestCameraTimestamp(0)
 	, LatestCameraTrackingState(ELuminARTrackingState::StoppedTracking)
 	, LatestARPlaneQueryStatus(ELuminARPlaneQueryStatus::Unknown)
-#if PLATFORM_LUMIN
-	, PlaneTrackerHandle(ML_INVALID_HANDLE)
-#endif
+	, bPlanesQueryPending(false)
 {
+	ResultDelegate.BindRaw(this, &FLuminARFrame::ProcessPlaneQuery);
 }
 
 FLuminARFrame::~FLuminARFrame()
 {
+	// TODO: @njain should we wait here if bPlanesQueryPending is true? Don't want the result delegate to come back to a deleted object.
 }
 
 void FLuminARFrame::Init()
 {
-#if PLATFORM_LUMIN
-	if (Session->GetPlaneTrackerHandle())
-	{
-		PlaneTrackerHandle = Session->GetPlaneTrackerHandle();
 }
-#endif
-}
-
 
 void FLuminARFrame::Update(float WorldToMeterScale)
 {
-#if PLATFORM_LUMIN
-	if (!MLHandleIsValid(PlaneTrackerHandle))
+	if (!UMagicLeapPlanesFunctionLibrary::IsTrackerValid())
 	{
 		LatestCameraTrackingState = ELuminARTrackingState::NotTracking;
 		return;
@@ -309,7 +252,6 @@ void FLuminARFrame::Update(float WorldToMeterScale)
 
 	// Update trackable that is cached in Unreal
 	StartPlaneQuery();
-	ProcessPlaneQuery();
 
 	switch (LatestARPlaneQueryStatus)
 	{
@@ -339,12 +281,12 @@ void FLuminARFrame::Update(float WorldToMeterScale)
 	UpdatedAnchors.Empty();
 	for (auto HandleToAnchorMapPair : Session->GetUObjectManager()->HandleToAnchorMap)
 	{
-		const MLHandle AnchorHandle = HandleToAnchorMapPair.Key;
+		const FGuid AnchorHandle = HandleToAnchorMapPair.Key;
 		UARPin* const AnchorPin = HandleToAnchorMapPair.Value;
 		LuminArAnchor* LuminArAnchor = reinterpret_cast<struct LuminArAnchor*>(AnchorPin->GetNativeResource());
 		check(LuminArAnchor);
-		const MLHandle ParentTrackableHandle = LuminArAnchor->ParentTrackable;
-		if (ParentTrackableHandle != ML_INVALID_HANDLE)
+		const FGuid ParentTrackableHandle = LuminArAnchor->ParentTrackable;
+		if (MagicLeap::FGuidIsValidHandle(ParentTrackableHandle))
 		{
 			UARTrackedGeometry* const ParentTrackable = Session->GetUObjectManager()->GetTrackableFromHandle<UARTrackedGeometry>(ParentTrackableHandle, Session);
 			const EARTrackingState AnchorTrackingState = ParentTrackable->GetTrackingState();
@@ -360,7 +302,6 @@ void FLuminARFrame::Update(float WorldToMeterScale)
 			UpdatedAnchors.Add(AnchorPin);
 		}
 	}
-#endif
 }
 
 //FTransform FLuminARFrame::GetCameraPose() const
@@ -385,7 +326,6 @@ void FLuminARFrame::GetUpdatedAnchors(TArray<UARPin*>& OutUpdatedAnchors) const
 
 void FLuminARFrame::ARLineTrace(FVector2D ScreenPosition, ELuminARLineTraceChannel RequestedTraceChannels, TArray<FARTraceResult>& OutHitResults) const
 {
-#if PLATFORM_LUMIN
 	// Only testing straight forward from a little below the headset... Lumin isn't a handheld, but it's nice to have this do something.
 	IXRTrackingSystem* XRTrackingSystem = Session->GetARSystem()->GetXRTrackingSystem();
 	TArray<int32> Devices;
@@ -397,7 +337,7 @@ void FLuminARFrame::ARLineTrace(FVector2D ScreenPosition, ELuminARLineTraceChann
 		FQuat HMDQuat;
 		FVector HMDPosition;
 		const bool Success = XRTrackingSystem->GetCurrentPose(HMDDeviceID, HMDQuat, HMDPosition);
-		FTransform TrackingToWorldTransform = XRTrackingSystem->GetTrackingToWorldTransform();
+		const FTransform TrackingToWorldTransform = XRTrackingSystem->GetTrackingToWorldTransform();
 		if (Success)
 		{
 			const FVector HMDWorldPosition = TrackingToWorldTransform.TransformPosition(HMDPosition);
@@ -409,12 +349,9 @@ void FLuminARFrame::ARLineTrace(FVector2D ScreenPosition, ELuminARLineTraceChann
 			ARLineTrace(Start, End, RequestedTraceChannels, OutHitResults);
 		}
 	}
-#endif
 }
 void FLuminARFrame::ARLineTrace(FVector Start, FVector End, ELuminARLineTraceChannel RequestedTraceChannels, TArray<FARTraceResult>& OutHitResults) const
 {
-#if PLATFORM_LUMIN
-
 	// Only testing vs planes now, but not the ground plane.
 	ELuminARLineTraceChannel AllPlaneTraceChannels = /*ELuminARLineTraceChannel::InfinitePlane |*/ ELuminARLineTraceChannel::PlaneUsingExtent | ELuminARLineTraceChannel::PlaneUsingBoundaryPolygon;
 	if (!(RequestedTraceChannels & AllPlaneTraceChannels))
@@ -534,7 +471,6 @@ void FLuminARFrame::ARLineTrace(FVector Start, FVector End, ELuminARLineTraceCha
 
 	// Sort closest to furthest
 	OutHitResults.Sort(FARTraceResult::FARTraceResultComparer());
-#endif
 }
 
 
@@ -542,7 +478,6 @@ FMatrix FLuminARFrame::GetProjectionMatrix() const
 {
 	FMatrix ProjectionMatrix;
 
-#if PLATFORM_LUMIN
 	if (Session == nullptr)
 	{
 		return ProjectionMatrix;
@@ -554,260 +489,170 @@ FMatrix FLuminARFrame::GetProjectionMatrix() const
 	ProjectionMatrix.M[2][2] = 0.0f;
 	ProjectionMatrix.M[2][3] = 1.0f;
 	ProjectionMatrix.M[3][2] = GNearClippingPlane;
-#endif
 	return ProjectionMatrix;
 }
 
 void FLuminARFrame::TransformDisplayUvCoords(const TArray<float>& UvCoords, TArray<float>& OutUvCoords) const
 {
-#if PLATFORM_LUMIN
 	OutUvCoords = UvCoords;
-#endif
 }
 
 
 FLuminARLightEstimate FLuminARFrame::GetLightEstimate() const
 {
-#if PLATFORM_LUMIN
+#if WITH_MLSDK
 	//TODO - Fill in light estimate.  See ml_lighting_tracking.h.
 	FLuminARLightEstimate LightEstimate;
 	return LightEstimate;
 #else
 	return FLuminARLightEstimate();
-#endif
+#endif // WITH_MLSDK
 }
 
 void FLuminARFrame::StartPlaneQuery()
 {
-#if PLATFORM_LUMIN
 	//if we haven't queried yet, start one!
-	if (PlaneQueryHandle == ML_INVALID_HANDLE)
+	if (!bPlanesQueryPending)
 	{
 		if (IMagicLeapPlugin::Get().IsMagicLeapHMDValid())
 		{
-			const FAppFramework& AppFramework = static_cast<FMagicLeapHMD*>(GEngine->XRSystem->GetHMDDevice())->GetAppFrameworkConst();
-			float WorldToMetersScale = AppFramework.GetWorldToMetersScale();
-			check(WorldToMetersScale != 0);
-
-			FTransform PoseInverse = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(nullptr).Inverse();
+			// TODO @njain : Since IMagicLeapPlanesModule::QueryBeginAsync() takes in search volume in world space, this is not needed. Remove usage!
+			const FTransform PoseInverse = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(nullptr).Inverse();
 			FPlane plane;
 
 			// Apply Lumin specific AR session config, if available.  Otherwise use default values.
-			MaxPlaneQueryResults = 200;
-			int32 MinPlaneArea = 25;
-			TArray<EPlaneQueryFlags> QueryFlags;
-			FVector SearchVolumeExtents(10000.0f, 10000.0f, 10000.0f);
+			FMagicLeapPlanesQuery Query;
+			Query.Flags = { EMagicLeapPlaneQueryFlags::Polygons };
+			Query.MaxResults = 200;
+			Query.MinHoleLength = 50.0f;
+			Query.MinPlaneArea = 400.0f;
+			Query.MinHoleLength = 50.0f;
+			Query.SearchVolumePosition = PoseInverse.GetTranslation();
+			Query.SearchVolumeOrientation = PoseInverse.GetRotation();
+			Query.SearchVolumeExtents = FVector(10000.0f, 10000.0f, 10000.0f);
 			bDiscardZeroExtentPlanes = false;
 
 			const UARSessionConfig& ARSessionConfig = Session->GetARSystem()->AccessSessionConfig();
 			const ULuminARSessionConfig* LuminARSessionConfig = Cast<ULuminARSessionConfig>(&ARSessionConfig);
 			if (LuminARSessionConfig != nullptr)
 			{
-				MaxPlaneQueryResults = LuminARSessionConfig->MaxPlaneQueryResults;
-				MinPlaneArea = LuminARSessionConfig->MinPlaneArea;
-				if (LuminARSessionConfig->ShouldDoHorizontalPlaneDetection())	{ QueryFlags.Add(EPlaneQueryFlags::Horizontal); }
-				if (LuminARSessionConfig->ShouldDoVerticalPlaneDetection())		{ QueryFlags.Add(EPlaneQueryFlags::Vertical); }
-				if (LuminARSessionConfig->bArbitraryOrientationPlaneDetection)	{ QueryFlags.Add(EPlaneQueryFlags::Arbitrary); }
-				SearchVolumeExtents = LuminARSessionConfig->PlaneSearchExtents;
-				for (EPlaneQueryFlags flag : LuminARSessionConfig->PlaneQueryFlags)
+				Query.MaxResults = LuminARSessionConfig->MaxPlaneQueryResults;
+				Query.MinPlaneArea = LuminARSessionConfig->MinPlaneArea;
+				if (LuminARSessionConfig->ShouldDoHorizontalPlaneDetection())	{ Query.Flags.Add(EMagicLeapPlaneQueryFlags::Horizontal); }
+				if (LuminARSessionConfig->ShouldDoVerticalPlaneDetection())		{ Query.Flags.Add(EMagicLeapPlaneQueryFlags::Vertical); }
+				if (LuminARSessionConfig->bArbitraryOrientationPlaneDetection)	{ Query.Flags.Add(EMagicLeapPlaneQueryFlags::Arbitrary); }
+				for (EMagicLeapPlaneQueryFlags flag : LuminARSessionConfig->PlaneQueryFlags)
 				{
-					QueryFlags.Add(flag);
+					Query.Flags.Add(flag);
 				}
+				Query.SearchVolumeExtents = LuminARSessionConfig->PlaneSearchExtents;
 				bDiscardZeroExtentPlanes = LuminARSessionConfig->bDiscardZeroExtentPlanes;
 			}
 			else
 			{
 				UE_LOG(LogLuminARAPI, Log, TEXT("LuminArSessionConfig not found, using defaults for lumin specific settings."));
-				QueryFlags.Add(EPlaneQueryFlags::Vertical);
-				QueryFlags.Add(EPlaneQueryFlags::Horizontal);
+				Query.Flags.Add(EMagicLeapPlaneQueryFlags::Vertical);
+				Query.Flags.Add(EMagicLeapPlaneQueryFlags::Horizontal);
 			}
 
-			MLPlanesQuery Query;
-			Query.max_results = static_cast<uint32>(MaxPlaneQueryResults);
-			Query.flags = UnrealToMLPlanesQueryFlags(QueryFlags) | MLPlanesQueryFlag_Polygons;
-			Query.min_hole_length = 50.0f / WorldToMetersScale;  // ML docs say this value is deprecated, so presumably it does nothing now.
-			Query.min_plane_area = MinPlaneArea / (WorldToMetersScale * WorldToMetersScale);
-			Query.bounds_center = MagicLeap::ToMLVector(PoseInverse.GetTranslation(), WorldToMetersScale);
-			Query.bounds_rotation = MagicLeap::ToMLQuat(PoseInverse.GetRotation());
-			Query.bounds_extents = MagicLeap::ToMLVector(SearchVolumeExtents, WorldToMetersScale);
-
-			// MagicLeap::ToMLVector() causes the Z component to be negated.
-			// The bounds were thus invalid and resulted in everything being tracked. 
-			// This provides the content devs with an option to ignore the bounding volume at will.
-			{
-				Query.bounds_extents.x = FMath::Abs<float>(Query.bounds_extents.x);
-				Query.bounds_extents.y = FMath::Abs<float>(Query.bounds_extents.y);
-				Query.bounds_extents.z = FMath::Abs<float>(Query.bounds_extents.z);
-			}
-
-			MLResult QueryResult = MLPlanesQueryBegin(PlaneTrackerHandle, &Query, &PlaneQueryHandle);
-			if (QueryResult != MLResult_Ok || !MLHandleIsValid(PlaneQueryHandle))
+			bPlanesQueryPending = IMagicLeapPlanesModule::Get().QueryBeginAsync(Query, ResultDelegate);
+			if (!bPlanesQueryPending)
 			{
 				UE_LOG(LogLuminARAPI, Error, TEXT("LuminARFrame could not request planes."));
 			}
 		}
 	}
-#endif //PLATFORM_LUMIN
 }
 
-void FLuminARFrame::ProcessPlaneQuery()
+void FLuminARFrame::ProcessPlaneQuery(const bool bSuccess, const TArray<FMagicLeapPlaneResult>& Planes, const TArray<FMagicLeapPlaneBoundaries>& Polygons)
 {
-#if PLATFORM_LUMIN
-	if (PlaneQueryHandle != ML_INVALID_HANDLE)
+	if (bSuccess)
 	{
-		FTransform PoseTransform = FTransform::Identity; 
+		const FTransform WorldToTrackingTransform = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(nullptr).Inverse();
+		PlaneResultsMap.Reset();
+		PlaneResultsMap.Reserve(Planes.Num());
 
-		uint32 OutNumResults = 0;
-		TArray<MLPlane> ResultMLPlanes;
-		ResultMLPlanes.AddDefaulted(MaxPlaneQueryResults);
-
-		MLPlaneBoundariesList PlaneBoundariesList;
-		MLPlaneBoundariesListInit(&PlaneBoundariesList);
-
-		MLResult PlaneQueryResult = MLPlanesQueryGetResultsWithBoundaries(PlaneTrackerHandle, PlaneQueryHandle, ResultMLPlanes.GetData(), &OutNumResults, &PlaneBoundariesList);
-		switch (PlaneQueryResult)
+		for (const FMagicLeapPlaneResult& ResultUEPlane : Planes)
 		{
-		case MLResult_Pending:
-			// Intentionally skip. We'll continue to check until it has completed.
-			break;
-		case MLResult_UnspecifiedFailure:
-		{
-			UE_LOG(LogLuminARAPI, Error, TEXT("MLPlanesQueryGetResults MLResult_UnspecifiedFailure."));
-			PlaneQueryHandle = ML_INVALID_HANDLE;
-			LatestARPlaneQueryStatus = ELuminARPlaneQueryStatus::Fail;
-			break;
-		}
-		case MLResult_Ok:
-		{
-			const FAppFramework& AppFramework = static_cast<FMagicLeapHMD*>(GEngine->XRSystem->GetHMDDevice())->GetAppFrameworkConst();
-			float WorldToMetersScale = AppFramework.GetWorldToMetersScale();
-
-			PlaneResultsMap.Reset();
-			PlaneResultsMap.Reserve(OutNumResults);
-
-			// Setup for boundaries, build a map of Handles to Boundaries
-			TMap<uint64, const MLPlaneBoundaries*> HandleToBoundariesMap;
+			if (ResultUEPlane.PlaneDimensions.X == 0.0f || ResultUEPlane.PlaneDimensions.Y == 0.0f)
 			{
-				const uint32 BoundaryCount = PlaneBoundariesList.plane_boundaries_count;
-				for (uint32 b = 0; b < BoundaryCount; ++b)
+				if (bDiscardZeroExtentPlanes)
 				{
-					const MLPlaneBoundaries& Boundaries = PlaneBoundariesList.plane_boundaries[b];
-					HandleToBoundariesMap.Add(Boundaries.id, &Boundaries);
+					if (PlaneResultsMap.Contains(ResultUEPlane.ID))
+					{
+						PlaneResultsMap.Remove(ResultUEPlane.ID);
+					}
+					continue;
 				}
 			}
-			const FRotator RotateToContentOrientation(-90.0f, 0.0f, 0.0f);
-			const FTransform RotateToContentTransform(RotateToContentOrientation);
+			FPlanesAndBoundaries& CachedResult = PlaneResultsMap.FindOrAdd(ResultUEPlane.ID);
+			// TODO: @njain We are only saving 1 boundary per ID :(
+			CachedResult.Plane = ResultUEPlane;
+			CachedResult.Plane.PlanePosition = WorldToTrackingTransform.TransformPosition(CachedResult.Plane.PlanePosition);
+			CachedResult.Plane.ContentOrientation = WorldToTrackingTransform.TransformRotation(CachedResult.Plane.ContentOrientation.Quaternion()).Rotator();
+			const float HalfWidth = CachedResult.Plane.PlaneDimensions.Y * 0.5f;
+			const float HalfHeight = CachedResult.Plane.PlaneDimensions.X * 0.5f;
+			CachedResult.PolygonVerticesLocalSpace = TArray<FVector>( 
+				{ FVector(HalfHeight, HalfWidth, 0)
+				, FVector(-HalfHeight, HalfWidth, 0)
+				, FVector(-HalfHeight, -HalfWidth, 0)
+				, FVector(HalfHeight, -HalfWidth, 0) } );
+		}
 
-			for (uint32 i = 0; i < OutNumResults; ++i)
+		// Setup for boundaries, build a map of Handles to Boundaries
+		for (const FMagicLeapPlaneBoundaries& AllBoundaries : Polygons)
+		{
+			if (AllBoundaries.Boundaries.Num() > 0)
 			{
-				const MLPlane& ResultMLPlane = ResultMLPlanes[i];
-				FPlaneResult ResultUEPlane;
-
-				const uint64_t Mask = TNumericLimits<uint32>::Max();
-				ResultUEPlane.ID.A = ResultMLPlane.id & Mask;
-				ResultUEPlane.ID.B = ResultMLPlane.id >> 32;
-				ResultUEPlane.ID_64 = ResultMLPlane.id;
-
-				// Perception uses all coordinates in RUB so for them X axis is right and corresponds to the width of the plane.
-				// Unreal uses FRU, so the Y-axis is towards the right which makes the Y component of the vector the width.
-				ResultUEPlane.PlaneDimensions = FVector2D(ResultMLPlane.height * WorldToMetersScale, ResultMLPlane.width * WorldToMetersScale);
-				if (ResultUEPlane.PlaneDimensions.X == 0.0f || ResultUEPlane.PlaneDimensions.Y == 0.0f)
-				{
-					if (bDiscardZeroExtentPlanes)
-					{
-						continue;
-					}
-				}
-
-				FTransform planeTransform = FTransform(MagicLeap::ToFQuat(ResultMLPlane.rotation), MagicLeap::ToFVector(ResultMLPlane.position, WorldToMetersScale), FVector(1.0f, 1.0f, 1.0f));
-				if (planeTransform.ContainsNaN())
+				FPlanesAndBoundaries* CachedResult = PlaneResultsMap.Find(AllBoundaries.ID);
+				if (CachedResult == nullptr)
 				{
 					continue;
 				}
-				if (!planeTransform.GetRotation().IsNormalized())
+				const FTransform TrackingToLocalTransform = FTransform(CachedResult->Plane.ContentOrientation, CachedResult->Plane.PlanePosition).Inverse();
+				const FTransform WorldToLocalTransform = WorldToTrackingTransform * TrackingToLocalTransform;
+				// TODO: @njain We are only saving 1 boundary per ID :(
+				CachedResult->PolygonVerticesLocalSpace = AllBoundaries.Boundaries[0].Polygon.Vertices;
+				for (FVector& Vertex : CachedResult->PolygonVerticesLocalSpace)
 				{
-					FQuat rotation = planeTransform.GetRotation();
-					rotation.Normalize();
-					planeTransform.SetRotation(rotation);
-				}
-
-				planeTransform.SetRotation(MagicLeap::ToUERotator(planeTransform.GetRotation()));
-				planeTransform.AddToTranslation(PoseTransform.GetLocation());
-				planeTransform.ConcatenateRotation(PoseTransform.Rotator().Quaternion());
-				ResultUEPlane.PlanePosition = planeTransform.GetLocation();
-				ResultUEPlane.PlaneOrientation = planeTransform.Rotator();
-				// The plane orientation has the forward axis (X) pointing in the direction of the plane's normal.
-				// We are rotating it by 90 degrees clock-wise about the right axis (Y) to get the up vector (Z) to point in the direction of the plane's normal.
-				// ResultPlane we are rotating the axis, the rotation is in the opposite direction of the object i.e. -90 degrees.
-				ResultUEPlane.ContentOrientation = UKismetMathLibrary::Conv_VectorToRotator(UKismetMathLibrary::RotateAngleAxis(UKismetMathLibrary::Conv_RotatorToVector(ResultUEPlane.PlaneOrientation), -90, UKismetMathLibrary::GetRightVector(ResultUEPlane.PlaneOrientation)));
-				MLToUnrealPlanesQueryFlags(ResultMLPlane.flags, ResultUEPlane.PlaneFlags);
-
-				// Boundaries
-				const MLPlaneBoundaries** const BoundariesPtr = HandleToBoundariesMap.Find(ResultMLPlane.id);
-				const MLPlaneBoundaries* const Boundaries = BoundariesPtr ? *BoundariesPtr : nullptr;
-				if (Boundaries && Boundaries->boundaries_count > 0)
-				{
-					FTransform PlaneTransformInverse = planeTransform.Inverse();
-					FTransform BoundaryVertTransform = PlaneTransformInverse * RotateToContentTransform;
-
-					// Seems like there is really only one boundary polygon...
-					const int BoundariesCount = Boundaries->boundaries_count;
-					for (int b = 0; b < BoundariesCount; ++b)
-					{
-						const MLPlaneBoundary& Boundary = Boundaries->boundaries[b];
-						const MLPolygon* Polygon = Boundary.polygon;
-						check(Polygon);
-						const uint32 VertCount = Polygon->vertices_count;
-						for (uint32 v = 0; v < VertCount; ++v)
-						{
-							MLVec3f& Vert = Polygon->vertices[v];
-							FVector LocalVert = BoundaryVertTransform.TransformPosition(MagicLeap::ToFVector(Vert, WorldToMetersScale));
-							ResultUEPlane.BoundaryPolygon.Add(LocalVert);
-						}
-					}
-				}
-
-				PlaneResultsMap.Add(ResultMLPlane.id, ResultUEPlane);
-			}
-
-			PlaneQueryHandle = ML_INVALID_HANDLE;
-
-			// Mark planes that previously existed, but no longer do StoppedTracking.
-			const auto & TrackableHandleMap = Session->GetUObjectManager()->TrackableHandleMap;
-			for (auto TrackablePair : TrackableHandleMap)
-			{
-				uint64 Handle = TrackablePair.Key;
-				if (!PlaneResultsMap.Contains(Handle))
-				{
-					UARTrackedGeometry* ARTrackedGeometry = TrackablePair.Value.Get();
-					if (ARTrackedGeometry)
-					{
-						ARTrackedGeometry->SetTrackingState(EARTrackingState::StoppedTracking);
-					}
+					Vertex = WorldToLocalTransform.TransformPosition(Vertex);
 				}
 			}
-
-			for (auto PlaneResultPair : PlaneResultsMap)
-			{
-				UARTrackedGeometry* ARTrackedGeometry = Session->GetUObjectManager()->GetTrackableFromHandle<UARPlaneGeometry>(PlaneResultPair.Key, Session);
-
-				if (ARTrackedGeometry && ARTrackedGeometry->GetTrackingState() != EARTrackingState::StoppedTracking)
-				{
-					ARTrackedGeometry->SetTrackingState(EARTrackingState::Tracking);
-					FLuminARTrackableResource* TrackableResource = reinterpret_cast<FLuminARTrackableResource*>(ARTrackedGeometry->GetNativeResource());
-					TrackableResource->UpdateGeometryData(Session);
-				}
-			}
-			LatestARPlaneQueryStatus = ELuminARPlaneQueryStatus::Success;
-			break;
 		}
-		default:
-			UE_LOG(LogLuminARAPI, Warning, TEXT("Unexpected return code from MLPlanesQueryGetResults: %d"), PlaneQueryResult);
-			LatestARPlaneQueryStatus = ELuminARPlaneQueryStatus::Fail;
+
+		// Mark planes that previously existed, but no longer do StoppedTracking.
+		const auto & TrackableHandleMap = Session->GetUObjectManager()->TrackableHandleMap;
+		for (auto TrackablePair : TrackableHandleMap)
+		{
+			if (!PlaneResultsMap.Contains(TrackablePair.Key))
+			{
+				UARTrackedGeometry* ARTrackedGeometry = TrackablePair.Value.Get();
+				if (ARTrackedGeometry)
+				{
+					ARTrackedGeometry->SetTrackingState(EARTrackingState::StoppedTracking);
+				}
+			}
 		}
-		MLPlanesReleaseBoundariesList(PlaneTrackerHandle, &PlaneBoundariesList);
+
+		for (auto PlaneResultPair : PlaneResultsMap)
+		{
+			UARTrackedGeometry* ARTrackedGeometry = Session->GetUObjectManager()->GetTrackableFromHandle<UARPlaneGeometry>(PlaneResultPair.Key, Session);
+
+			if (ARTrackedGeometry && ARTrackedGeometry->GetTrackingState() != EARTrackingState::StoppedTracking)
+			{
+				ARTrackedGeometry->SetTrackingState(EARTrackingState::Tracking);
+				FLuminARTrackableResource* TrackableResource = static_cast<FLuminARTrackableResource*>(ARTrackedGeometry->GetNativeResource());
+				TrackableResource->UpdateGeometryData(Session);
+			}
+		}
+		LatestARPlaneQueryStatus = ELuminARPlaneQueryStatus::Success;
 	}
-#endif //PLATFORM_LUMIN
+	else
+	{
+		LatestARPlaneQueryStatus = ELuminARPlaneQueryStatus::Fail;
+	}
+
+	bPlanesQueryPending = false;
 }
 
 
@@ -827,11 +672,10 @@ TSharedPtr<FLuminARSession> FLuminARSession::CreateLuminARSession()
 /************************************************/
 /*       ULuminARTrackableResource         */
 /************************************************/
-#if PLATFORM_LUMIN
 
 EARTrackingState FLuminARTrackableResource::GetTrackingState()
 {
-	if (MLHandleIsValid(TrackableHandle))
+	if (MagicLeap::FGuidIsValidHandle(TrackableHandle))
 	{
 		check(TrackedGeometry);
 		return TrackedGeometry->GetTrackingState();
@@ -847,7 +691,9 @@ void FLuminARTrackableResource::UpdateGeometryData(FLuminARSession* InSession)
 
 void FLuminARTrackableResource::ResetNativeHandle(LuminArTrackable* InTrackableHandle)
 {
-	TrackableHandle = ML_INVALID_HANDLE;
+#if WITH_MLSDK
+	TrackableHandle = MagicLeap::MLHandleToFGuid(ML_INVALID_HANDLE);
+#endif // WITH_MLSDK
 	if (InTrackableHandle != nullptr)
 	{
 		TrackableHandle = InTrackableHandle->Handle;
@@ -874,49 +720,52 @@ void FLuminARTrackedPlaneResource::UpdateGeometryData(FLuminARSession* InSession
 	}
 
 	// PlaneResult is in unreal tracking space, so already scaled and axis corrected
-	const FPlaneResult* PlaneResult = Frame->GetPlaneResult(TrackableHandle);
-	check(PlaneResult);
+	const FPlanesAndBoundaries* Results = Frame->GetPlaneResult(TrackableHandle);
+	check(Results);
+	const FMagicLeapPlaneResult* PlaneResult = &Results->Plane;
 
-	FTransform LocalToTrackingTransform(PlaneResult->ContentOrientation, PlaneResult->PlanePosition);
+	// The ContentOrientation and PlanePosition have been transformed back to Tracking space in ProcessPlanesQuery()
+	const FTransform LocalToTrackingTransform(PlaneResult->ContentOrientation, PlaneResult->PlanePosition);
 	FVector Extent(PlaneResult->PlaneDimensions.X * 0.5f, PlaneResult->PlaneDimensions.Y * 0.5f, 0);  // Extent is half the width and height
 
 	uint32 FrameNum = InSession->GetFrameNum();
 	int64 TimeStamp = InSession->GetLatestFrame()->GetCameraTimestamp();
 
 	UARPlaneGeometry* SubsumedByPlane = nullptr; // ARCore only
-	PlaneGeometry->UpdateTrackedGeometry(InSession->GetARSystem(), FrameNum, static_cast<double>(TimeStamp), LocalToTrackingTransform, InSession->GetARSystem()->GetAlignmentTransform(), FVector::ZeroVector, Extent, PlaneResult->BoundaryPolygon, SubsumedByPlane);
+	// TODO: @njain confirm the space all these coordinates need to be in.
+	PlaneGeometry->UpdateTrackedGeometry(InSession->GetARSystem(), FrameNum, static_cast<double>(TimeStamp), LocalToTrackingTransform, InSession->GetARSystem()->GetAlignmentTransform(), FVector::ZeroVector, Extent, Results->PolygonVerticesLocalSpace, SubsumedByPlane);
 	PlaneGeometry->SetDebugName(FName(TEXT("LuminARPlane")));
 	// Inspect the plane flags and set the scene understanding data based upon them
-	for (EPlaneQueryFlags Flag : PlaneResult->PlaneFlags)
+	for (EMagicLeapPlaneQueryFlags Flag : PlaneResult->PlaneFlags)
 	{
 		switch (Flag)
 		{
-			case EPlaneQueryFlags::Vertical:
+			case EMagicLeapPlaneQueryFlags::Vertical:
 			{
 				PlaneGeometry->SetOrientation(EARPlaneOrientation::Vertical);
 				break;
 			}
-			case EPlaneQueryFlags::Horizontal:
+			case EMagicLeapPlaneQueryFlags::Horizontal:
 			{
 				PlaneGeometry->SetOrientation(EARPlaneOrientation::Horizontal);
 				break;
 			}
-			case EPlaneQueryFlags::Arbitrary:
+			case EMagicLeapPlaneQueryFlags::Arbitrary:
 			{
 				PlaneGeometry->SetOrientation(EARPlaneOrientation::Diagonal);
 				break;
 			}
-			case EPlaneQueryFlags::Ceiling:
+			case EMagicLeapPlaneQueryFlags::Ceiling:
 			{
 				PlaneGeometry->SetObjectClassification(EARObjectClassification::Ceiling);
 				break;
 			}
-			case EPlaneQueryFlags::Floor:
+			case EMagicLeapPlaneQueryFlags::Floor:
 			{
 				PlaneGeometry->SetObjectClassification(EARObjectClassification::Floor);
 				break;
 			}
-			case EPlaneQueryFlags::Wall:
+			case EMagicLeapPlaneQueryFlags::Wall:
 			{
 				PlaneGeometry->SetObjectClassification(EARObjectClassification::Wall);
 				break;
@@ -924,24 +773,21 @@ void FLuminARTrackedPlaneResource::UpdateGeometryData(FLuminARSession* InSession
 		}
 	}
 }
-#endif
 
 
-#if PLATFORM_LUMIN
-void ULuminARUObjectManager::DumpTrackableHandleMap(const MLHandle SessionHandle)
+void ULuminARUObjectManager::DumpTrackableHandleMap(const FGuid& SessionHandle)
 {
 	UE_LOG(LogLuminARAPI, Log, TEXT("ULuminARUObjectManager::DumpTrackableHandleMap"));
 	for (auto KeyValuePair : TrackableHandleMap)
 	{
-		uint64 TrackableHandle = KeyValuePair.Key;
 		TWeakObjectPtr<UARTrackedGeometry> TrackedGeometry = KeyValuePair.Value;
-		UE_LOG(LogLuminARAPI, Log, TEXT("  Trackable Handle %llu"), TrackableHandle);
+		UE_LOG(LogLuminARAPI, Log, TEXT("  Trackable Handle %s"), *KeyValuePair.Key.ToString());
 		if (TrackedGeometry.IsValid())
 		{
 			UARTrackedGeometry* TrackedGeometryObj = TrackedGeometry.Get();
-			FLuminARTrackableResource* NativeResource = reinterpret_cast<FLuminARTrackableResource*>(TrackedGeometryObj->GetNativeResource());
-			UE_LOG(LogLuminARAPI, Log, TEXT("  TrackedGeometry - NativeResource:%p, type: %s, tracking state: %d"),
-				NativeResource->GetNativeHandle(), *TrackedGeometryObj->GetClass()->GetFName().ToString(), (int)TrackedGeometryObj->GetTrackingState());
+			FLuminARTrackableResource* NativeResource = static_cast<FLuminARTrackableResource*>(TrackedGeometryObj->GetNativeResource());
+			UE_LOG(LogLuminARAPI, Log, TEXT("  TrackedGeometry - NativeResource:%s, type: %s, tracking state: %d"),
+				*NativeResource->GetNativeHandle().ToString(), *TrackedGeometryObj->GetClass()->GetFName().ToString(), (int)TrackedGeometryObj->GetTrackingState());
 		}
 		else
 		{
@@ -949,12 +795,11 @@ void ULuminARUObjectManager::DumpTrackableHandleMap(const MLHandle SessionHandle
 		}
 	}
 }
-#endif
 
 ELuminARAPIStatus FLuminARSession::AcquireCameraImage(ULuminARCameraImage *&OutCameraImage)
 {
 	ELuminARAPIStatus ApiStatus = ELuminARAPIStatus::AR_SUCCESS;
-#if PLATFORM_LUMIN
+#if WITH_MLSDK
 	if (LatestFrame == nullptr)
 	{
 		return ELuminARAPIStatus::AR_ERROR_FATAL;
@@ -971,19 +816,15 @@ ELuminARAPIStatus FLuminARSession::AcquireCameraImage(ULuminARCameraImage *&OutC
 	{
 		UE_LOG(LogLuminARAPI, Error, TEXT("AcquireCameraImage failed!"));
 	}
-#endif
+#endif // WITH_MLSDK
 
 	return ApiStatus;
 }
 
 void* FLuminARSession::GetLatestFrameRawPointer()
 {
-#if PLATFORM_LUMIN
+#if WITH_MLSDK
 	//TODO - do we need this?
-#endif
+#endif // WITH_MLSDK
 	return nullptr;
 }
-
-
-
-

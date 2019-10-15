@@ -140,10 +140,6 @@ public class Core : ModuleRules
 			// Core uses dlopen()
 			PublicSystemLibraries.Add("dl");
         }
-        else if (Target.Platform == UnrealTargetPlatform.PS4)
-        {
-            PublicSystemLibraries.Add("SceRtc_stub_weak"); //ORBIS SDK rtc.h, used in PS4Time.cpp
-        }
 
 		if ( Target.bCompileICU == true )
         {

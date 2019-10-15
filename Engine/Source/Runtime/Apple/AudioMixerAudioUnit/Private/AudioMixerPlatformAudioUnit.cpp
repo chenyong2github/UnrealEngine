@@ -399,7 +399,7 @@ namespace Audio
 	
 	FAudioPlatformSettings FMixerPlatformAudioUnit::GetPlatformSettings() const
 	{
-		InternalPlatformSettings = FAudioPlatformSettings::GetPlatformSettings(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"));
+		InternalPlatformSettings = FAudioPlatformSettings::GetPlatformSettings(FPlatformProperties::GetRuntimeSettingsClassName());
 		
 		// Check for command line overrides
 		FString TempString;

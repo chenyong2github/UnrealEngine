@@ -9,25 +9,51 @@
 #define CONFIG_ENCODING_CLAMP_COLOR 1
 
 /** Selects the type that should be used when sampling a buffer */
-#ifndef CONFIG_SIGNAL_TEXTURE_TYPE
-	#define CONFIG_SIGNAL_TEXTURE_TYPE SIGNAL_TEXTURE_TYPE_FLOAT4
+#ifndef CONFIG_SIGNAL_INPUT_TEXTURE_TYPE
+	#define CONFIG_SIGNAL_INPUT_TEXTURE_TYPE SIGNAL_TEXTURE_TYPE_FLOAT4
+#endif
+
+/** Selects the type that should be used when sampling a buffer */
+#ifndef CONFIG_SIGNAL_OUTPUT_TEXTURE_TYPE
+	#define CONFIG_SIGNAL_OUTPUT_TEXTURE_TYPE SIGNAL_TEXTURE_TYPE_FLOAT4
 #endif
 
 
-#if CONFIG_SIGNAL_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_FLOAT4
+#if CONFIG_SIGNAL_INPUT_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_FLOAT4
 	#define FSSDRawSample float4
 	#define FSSDTexture2D Texture2D
-	#define FSSDRWTexture2D RWTexture2D<float4>
-
-#elif CONFIG_SIGNAL_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_UINT2
-	#define FSSDRawSample uint2
-	#define FSSDTexture2D Texture2D<uint2>
-	#define FSSDRWTexture2D RWTexture2D<uint2>
-
+#elif CONFIG_SIGNAL_INPUT_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_UINT1 || CONFIG_SIGNAL_INPUT_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_UINT2 || CONFIG_SIGNAL_INPUT_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_UINT3 || CONFIG_SIGNAL_INPUT_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_UINT4
+	#if CONFIG_SIGNAL_INPUT_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_UINT1
+		#define FSSDRawSample uint
+	#elif CONFIG_SIGNAL_INPUT_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_UINT2
+		#define FSSDRawSample uint2
+	#elif CONFIG_SIGNAL_INPUT_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_UINT3
+		#define FSSDRawSample uint3
+	#elif CONFIG_SIGNAL_INPUT_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_UINT4
+		#define FSSDRawSample uint4
+	#else
+		#error Unknown input type for a signal texture.
+	#endif
+	#define FSSDTexture2D Texture2D<FSSDRawSample>
 #else
-	#error Unknown type for a signal texture.
+	#error Unknown input type for a signal texture.
 #endif
 
+#if CONFIG_SIGNAL_OUTPUT_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_FLOAT4
+	#define FSSDOutputRawSample float4
+#elif CONFIG_SIGNAL_OUTPUT_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_UINT1
+	#define FSSDOutputRawSample uint
+#elif CONFIG_SIGNAL_OUTPUT_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_UINT2
+	#define FSSDOutputRawSample uint2
+#elif CONFIG_SIGNAL_OUTPUT_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_UINT3
+	#define FSSDOutputRawSample uint3
+#elif CONFIG_SIGNAL_OUTPUT_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_UINT4
+	#define FSSDOutputRawSample uint4
+#else
+	#error Unknown output type for a signal texture.
+#endif
+
+#define FSSDRWTexture2D RWTexture2D<FSSDOutputRawSample>
 
 
 float3 ClampColorForEncoding(float3 Color)
@@ -44,14 +70,20 @@ float4 ClampColorForEncoding(float4 Color)
 }
 
 
-/** Decode input signal sample. */
-void DecodeMultiplexedSignals(
+/** Raw data layout when sampling input texture of the denoiser. */
+struct FSSDCompressedMultiplexedSample
+{
+	FSSDRawSample VGPRArray[MAX_MULTIPLEXED_TEXTURES];
+};
+
+
+/** Decode input signal sample from raw float. */
+void DecodeMultiplexedSignalsFromFloat4(
 	const uint SignalBufferLayout,
 	const uint MultiplexedSampleId,
 	const bool bNormalizeSample,
-	FSSDRawSample RawSample[MAX_MULTIPLEXED_TEXTURES],
+	float4 RawSample[MAX_MULTIPLEXED_TEXTURES],
 	out FSSDSignalArray OutSamples)
-#if CONFIG_SIGNAL_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_FLOAT4
 {
 	OutSamples = CreateSignalArrayFromScalarValue(0.0);
 
@@ -65,39 +97,16 @@ void DecodeMultiplexedSignals(
 		// trash out the output sample to identify quickly a miss configured buffer layout.
 		OutSamples = CreateSignalArrayFromScalarValue(-INFINITE_FLOAT);
 	}
-	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_INPUT_1SPP)
-	{
-		UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
-		for (uint BatchSignalId = 0; BatchSignalId < MAX_SIGNAL_BATCH_SIZE; BatchSignalId++)
-		{
-			uint MultiplexId = BatchSignalId;
-			OutSamples.Array[MultiplexId].SampleCount = (RawSample[MultiplexId].r == DENOISER_INVALID_HIT_DISTANCE ? 0.0 : 1.0);
-			OutSamples.Array[MultiplexId].MissCount = OutSamples.Array[MultiplexId].SampleCount * (RawSample[MultiplexId].r > 0.0 ? 0.0 : 1.0);
-			OutSamples.Array[MultiplexId].ClosestHitDistance = OutSamples.Array[MultiplexId].SampleCount * (RawSample[MultiplexId].r == DENOISER_MISS_HIT_DISTANCE ? 1000000 : RawSample[MultiplexId].r);
-		}
-	}
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_INPUT_NSPP)
 	{
 		UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
 		for (uint BatchSignalId = 0; BatchSignalId < MAX_SIGNAL_BATCH_SIZE; BatchSignalId++)
 		{
 			uint MultiplexId = BatchSignalId;
-			// TODO: feed the actual number of sample.
+			// TODO(Denoiser): feed the actual number of sample.
 			OutSamples.Array[MultiplexId].SampleCount = (RawSample[MultiplexId].g == DENOISER_INVALID_HIT_DISTANCE ? 0.0 : 1.0);
 			OutSamples.Array[MultiplexId].MissCount = OutSamples.Array[MultiplexId].SampleCount * RawSample[MultiplexId].r;
 			OutSamples.Array[MultiplexId].ClosestHitDistance = OutSamples.Array[MultiplexId].SampleCount * (RawSample[MultiplexId].g == DENOISER_MISS_HIT_DISTANCE ? 1000000 : RawSample[MultiplexId].g);
-		}
-	}
-	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_INJESTION_1SPP)
-	{
-		UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
-		for (uint BatchSignalId = 0; BatchSignalId < MAX_SIGNAL_BATCH_SIZE; BatchSignalId++)
-		{
-			uint MultiplexId = BatchSignalId;
-			float EncodedWorldBluringRadius = RawSample[MultiplexId / 4][MultiplexId % 4];
-			OutSamples.Array[MultiplexId].SampleCount = (EncodedWorldBluringRadius == -2.0 ? 0.0 : 1.0);
-			OutSamples.Array[MultiplexId].MissCount = OutSamples.Array[MultiplexId].SampleCount * (EncodedWorldBluringRadius > 0.0 ? 0.0 : 1.0);
-			OutSamples.Array[MultiplexId].WorldBluringRadius = OutSamples.Array[MultiplexId].SampleCount * (EncodedWorldBluringRadius == -1 ? WORLD_RADIUS_MISS : EncodedWorldBluringRadius);
 		}
 	}
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_INJESTION_NSPP)
@@ -108,7 +117,7 @@ void DecodeMultiplexedSignals(
 			uint MultiplexId = BatchSignalId;
 			float2 Channels = float2(RawSample[MultiplexId / 2][2 * (MultiplexId % 2)], RawSample[MultiplexId / 2][2 * (MultiplexId % 2) + 1]);
 	
-			// TODO: feed the actual number of sample.
+			// TODO(Denoiser): feed the actual number of sample.
 			OutSamples.Array[MultiplexId].SampleCount = (Channels.g == -2.0 ? 0.0 : 1.0);
 			OutSamples.Array[MultiplexId].MissCount = OutSamples.Array[MultiplexId].SampleCount * Channels.r;
 			OutSamples.Array[MultiplexId].WorldBluringRadius = OutSamples.Array[MultiplexId].SampleCount * (Channels.g == -1 ? WORLD_RADIUS_MISS : Channels.g);
@@ -400,27 +409,74 @@ void DecodeMultiplexedSignals(
 			OutSamples.Array[2].SceneColor.x = OutSamples.Array[2].SampleCount * RawSample[1].b;
 		#endif
 	}
+	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_SSGI_INPUT)
+	{
+		OutSamples.Array[0].SampleCount = RawSample[0].a;
+		OutSamples.Array[0].MissCount = OutSamples.Array[0].SampleCount * RawSample[1].r;
+		OutSamples.Array[0].SceneColor.rgb = OutSamples.Array[0].SampleCount * RawSample[0].rgb;
+	}
+	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_SSGI_HISTORY_R11G11B10)
+	{
+		OutSamples.Array[0].SampleCount = RawSample[1].g * 64.0;
+		OutSamples.Array[0].MissCount = OutSamples.Array[0].SampleCount * RawSample[1].r;
+		OutSamples.Array[0].SceneColor.rgb = OutSamples.Array[0].SampleCount * RawSample[0].rgb;
+	}
 	#endif
-} // DecodeMultiplexedSignals()
-#elif CONFIG_SIGNAL_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_UINT2
-{
-	OutSamples = CreateSignalArrayFromScalarValue(0.0);
+} // DecodeMultiplexedSignalsFromFloat4()
 
+
+/** Decode input signal sample from raw float. */
+FSSDSignalArray DecodeMultiplexedSignals(
+	const uint SignalBufferLayout,
+	const uint MultiplexedSampleId,
+	const bool bNormalizeSample,
+	FSSDCompressedMultiplexedSample CompressedSample)
+#if CONFIG_SIGNAL_INPUT_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_FLOAT4
+{
+	FSSDSignalArray MultiplexedSamples;
+	DecodeMultiplexedSignalsFromFloat4(
+		SignalBufferLayout, MultiplexedSampleId, bNormalizeSample,
+		CompressedSample.VGPRArray, /* out */ MultiplexedSamples);
+	return MultiplexedSamples;
+} // DecodeMultiplexedSignals()
+#elif CONFIG_SIGNAL_INPUT_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_UINT2
+{
+	FSSDSignalArray MultiplexedSamples = CreateSignalArrayFromScalarValue(0.0);
+	
+	if (0)
+	{
+	
+	}
 	#if COMPILE_SIGNAL_COLOR_SH
-	if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_HARMONIC)
+	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_HARMONIC)
 	{
 		const uint DecodeOptions = bNormalizeSample ? SSD_DECODE_NORMALIZE : 0x0;
 
 		DecodeDiffuseSphericalHarmonicTexel(
-			RawSample,
+			CompressedSample.VGPRArray,
 			DecodeOptions,
-			/* out */ OutSamples.Array[0].SampleCount,
-			/* out */ OutSamples.Array[0].MissCount,
-			/* out */ OutSamples.Array[0].ColorSH);
+			/* out */ MultiplexedSamples.Array[0].SampleCount,
+			/* out */ MultiplexedSamples.Array[0].MissCount,
+			/* out */ MultiplexedSamples.Array[0].ColorSH);
 
-		// TODO: SRV on RG F32 and manually decode with f16tof32(), going to reduce VGPR pressure between fetch and result.
+		// TODO(Denoiser): SRV on RG F32 and manually decode with f16tof32(), going to reduce VGPR pressure between fetch and result.
 	}
 	#endif
+	// Uncompress assuming this is packed as 16bit floats.
+	else
+	{
+		float4 FloatVGPRArray[MAX_MULTIPLEXED_TEXTURES];
+		
+		UNROLL_N(MAX_MULTIPLEXED_TEXTURES)
+		for (uint TexId = 0; TexId < MAX_MULTIPLEXED_TEXTURES; TexId++)
+			FloatVGPRArray[TexId] = Uncompress4Floats(CompressedSample.VGPRArray[TexId]);
+		
+		DecodeMultiplexedSignalsFromFloat4(
+			SignalBufferLayout, MultiplexedSampleId, bNormalizeSample,
+			FloatVGPRArray, /* out */ MultiplexedSamples);
+	}
+
+	return MultiplexedSamples;
 } // DecodeMultiplexedSignals()
 #endif
 
@@ -428,9 +484,9 @@ void DecodeMultiplexedSignals(
 void EncodeMultiplexedSignals(
 	const uint SignalBufferLayout, const uint MultiplexCount,
 	FSSDSignalSample Sample[MAX_SIGNAL_MULTIPLEXING],
-	out FSSDRawSample OutRawSample[MAX_MULTIPLEXED_TEXTURES],
+	out FSSDOutputRawSample OutRawSample[MAX_MULTIPLEXED_TEXTURES],
 	out uint OutBufferCount)
-#if CONFIG_SIGNAL_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_FLOAT4
+#if CONFIG_SIGNAL_OUTPUT_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_FLOAT4
 {
 	// Init all raw samples.
 	UNROLL_N(MAX_MULTIPLEXED_TEXTURES)
@@ -445,25 +501,6 @@ void EncodeMultiplexedSignals(
 		// NOP
 	}
 	#if 1
-	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_INJESTION_1SPP)
-	{
-		UNROLL
-		for (uint MultiplexId = 0; MultiplexId < MultiplexCount; MultiplexId++)
-		{
-			float EncodedChannel = Sample[MultiplexId].WorldBluringRadius;
-			if (Sample[MultiplexId].SampleCount == 0)
-			{
-				EncodedChannel = -2;
-			}
-			else if (Sample[MultiplexId].WorldBluringRadius == WORLD_RADIUS_MISS)
-			{
-				EncodedChannel = -1;
-			}
-
-			OutRawSample[MultiplexId / 4][MultiplexId % 4] = EncodedChannel;
-		}
-		OutBufferCount = (MultiplexCount + 3) / 4;
-	}
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_INJESTION_NSPP)
 	{
 		UNROLL
@@ -681,9 +718,18 @@ void EncodeMultiplexedSignals(
 		}
 		#endif
 	}
+	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_SSGI_HISTORY_R11G11B10)
+	{
+		float NormalizationFactor = SafeRcp(Sample[0].SampleCount);
+
+		OutRawSample[0].rgb = ClampColorForEncoding(Sample[0].SceneColor * NormalizationFactor).rgb;
+		OutRawSample[1].g = saturate(Sample[0].SampleCount * rcp(64.0));
+		OutRawSample[1].r = Sample[0].MissCount * NormalizationFactor;
+		OutBufferCount = 2;
+	}
 	#endif
 } // EncodeMultiplexedSignals()
-#elif CONFIG_SIGNAL_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_UINT2
+#elif CONFIG_SIGNAL_OUTPUT_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_UINT2
 {
 	// Init all raw samples.
 	UNROLL_N(MAX_MULTIPLEXED_TEXTURES)
@@ -714,6 +760,42 @@ void EncodeMultiplexedSignals(
 #endif
 
 
+/** Sample the raw of multiple input signals that have been multiplexed. */
+FSSDCompressedMultiplexedSample SampleCompressedMultiplexedSignals(
+	FSSDTexture2D SignalBuffer0, FSSDTexture2D SignalBuffer1, FSSDTexture2D SignalBuffer2, FSSDTexture2D SignalBuffer3,
+	SamplerState Sampler, float2 UV, float Level, uint2 PixelCoord)
+{
+	FSSDCompressedMultiplexedSample CompressedSample;
+
+	// Isolate the texture fetches to force lattency hiding, to outsmart compilers that tries to
+	// discard some of the texture fetches for instance when SampleCount == 0 in another texture.
+	ISOLATE
+	{
+		#if CONFIG_SIGNAL_INPUT_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_FLOAT4
+		{
+			CompressedSample.VGPRArray[0] = SignalBuffer0.SampleLevel(Sampler, UV, Level);
+			CompressedSample.VGPRArray[1] = SignalBuffer1.SampleLevel(Sampler, UV, Level);
+			CompressedSample.VGPRArray[2] = SignalBuffer2.SampleLevel(Sampler, UV, Level);
+			CompressedSample.VGPRArray[3] = SignalBuffer3.SampleLevel(Sampler, UV, Level);
+		}
+		#elif CONFIG_SIGNAL_INPUT_TEXTURE_TYPE >= SIGNAL_TEXTURE_TYPE_UINT1 && CONFIG_SIGNAL_INPUT_TEXTURE_TYPE <= SIGNAL_TEXTURE_TYPE_UINT4
+		{
+			// TODO(Denoiser): Exposed the int3 instead as function parameter.
+			int3 Coord = int3(PixelCoord >> uint(Level), int(Level));
+			CompressedSample.VGPRArray[0] = SignalBuffer0.Load(Coord);
+			CompressedSample.VGPRArray[1] = SignalBuffer1.Load(Coord);
+			CompressedSample.VGPRArray[2] = SignalBuffer2.Load(Coord);
+			CompressedSample.VGPRArray[3] = SignalBuffer3.Load(Coord);
+		}
+		#else
+			#error Unimplemented.
+		#endif
+	}
+
+	return CompressedSample;
+}
+
+
 /** Sample multiple input signals that have been multiplexed. */
 FSSDSignalArray SampleMultiplexedSignals(
 	FSSDTexture2D SignalBuffer0, FSSDTexture2D SignalBuffer1, FSSDTexture2D SignalBuffer2, FSSDTexture2D SignalBuffer3,
@@ -722,37 +804,14 @@ FSSDSignalArray SampleMultiplexedSignals(
 	const bool bNormalizeSample,
 	float2 UV, float Level = 0)
 {
-	FSSDRawSample RawSample[MAX_MULTIPLEXED_TEXTURES];
+	uint2 PixelCoord = BufferUVToBufferPixelCoord(UV);
 
-	#if CONFIG_SIGNAL_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_FLOAT4
-	{
-		RawSample[0] = SignalBuffer0.SampleLevel(Sampler, UV, Level);
-		RawSample[1] = SignalBuffer1.SampleLevel(Sampler, UV, Level);
-		RawSample[2] = SignalBuffer2.SampleLevel(Sampler, UV, Level);
-		RawSample[3] = SignalBuffer3.SampleLevel(Sampler, UV, Level);
-	}
-	#elif CONFIG_SIGNAL_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_UINT2
-	{
-		// TODO: UV * View.BufferSizeAndInvSize.xy could regress in VGPR in inner loops
-		int3 Coord = int3(uint2(UV * View.BufferSizeAndInvSize.xy) >> uint(Level), int(Level));
-		RawSample[0] = SignalBuffer0.Load(Coord);
-		RawSample[1] = SignalBuffer1.Load(Coord);
-		RawSample[2] = SignalBuffer2.Load(Coord);
-		RawSample[3] = SignalBuffer3.Load(Coord);
-	}
-	#else
-		#error Unimplemented.
-	#endif
+	FSSDCompressedMultiplexedSample CompressedSample = SampleCompressedMultiplexedSignals(
+		SignalBuffer0, SignalBuffer1, SignalBuffer2, SignalBuffer3,
+		Sampler, UV, Level, PixelCoord);
 
-	FSSDSignalArray MultiplexedSamples;
-	DecodeMultiplexedSignals(
-		SignalBufferLayout,
-		MultiplexedSampleId,
-		bNormalizeSample,
-		RawSample,
-		/* out */ MultiplexedSamples);
-
-	return MultiplexedSamples;
+	return DecodeMultiplexedSignals(
+		SignalBufferLayout, MultiplexedSampleId, bNormalizeSample, CompressedSample);
 }
 
 
@@ -766,7 +825,7 @@ void OutputMultiplexedSignal(
 	const uint2 PixelPosition, FSSDSignalSample MultiplexedSamples[MAX_SIGNAL_MULTIPLEXING])
 {
 	// Encode the output signal.
-	FSSDRawSample RawSample[MAX_MULTIPLEXED_TEXTURES];
+	FSSDOutputRawSample RawSample[MAX_MULTIPLEXED_TEXTURES];
 	uint BufferCount;
 	EncodeMultiplexedSignals(
 		SignalBufferLayout, MultiplexCount,

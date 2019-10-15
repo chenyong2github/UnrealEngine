@@ -37,6 +37,12 @@
     <ClInclude Include="..\MixedRealityInterop\QRCodeObserver.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\MixedRealityInterop\SceneUnderstandingObserver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\MixedRealityInterop\CxDataFromBuffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\MixedRealityInterop\MixedRealityInterop.cpp">
@@ -58,6 +64,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\MixedRealityInterop\SpatialAudioClientInterop.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+	<ClCompile Include="..\MixedRealityInterop\SceneUnderstandingObserver.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

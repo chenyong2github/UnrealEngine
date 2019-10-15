@@ -10,14 +10,9 @@
 #define CONFIG_SIGNAL_PROCESSING DIM_SIGNAL_PROCESSING
 #define CONFIG_SIGNAL_BATCH_SIZE DIM_SIGNAL_BATCH_SIZE
 
-#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_MONOCHROMATIC_PENUMBRA
-	#if DIM_MULTI_SPP
-		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_PENUMBRA_INPUT_NSPP
-		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_PENUMBRA_INJESTION_NSPP
-	#else
-		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_PENUMBRA_INPUT_1SPP
-		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_PENUMBRA_INJESTION_1SPP
-	#endif
+#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK
+	#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_PENUMBRA_INPUT_NSPP
+	#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_PENUMBRA_INJESTION_NSPP
 	#define CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN 1
 
 	#define CONFIG_INPUT_TEXTURE_COUNT DIM_SIGNAL_BATCH_SIZE
@@ -99,15 +94,25 @@ void MainCS(
 	uint GroupThreadIndex : SV_GroupIndex)
 {
 	// Find out scene buffer UV.
-	float2 SceneBufferUV = (ViewportMin + DispatchThreadId + 0.5) * View.BufferSizeAndInvSize.zw;
+	float2 SceneBufferUV = DispatchThreadId * ThreadIdToBufferUV.xy + ThreadIdToBufferUV.zw;
 	if (true)
 	{
 		SceneBufferUV = clamp(SceneBufferUV, BufferBilinearUVMinMax.xy, BufferBilinearUVMinMax.zw);
 	}
 	
 	// Read reference meta data.
-	float2 ScreenPosition = ViewportUVToScreenPos(BufferUVToViewportUV(SceneBufferUV));
-	FSSDSampleSceneInfos RefSceneMetadata = FetchCurrentSceneInfos(ScreenPosition, SceneBufferUV);
+	FSSDSampleSceneInfos RefSceneMetadata;
+	{
+		FSSDCompressedSceneInfos CompressedRefSceneMetadata = SampleCompressedSceneMetadata(
+			/* bPrevFrame = */ false,
+			SceneBufferUV, BufferUVToBufferPixelCoord(SceneBufferUV));
+		
+		float2 ScreenPosition = DenoiserBufferUVToScreenPosition(SceneBufferUV);
+	
+		RefSceneMetadata = UncompressSampleSceneInfo(
+			CONFIG_METADATA_BUFFER_LAYOUT, /* bPrevFrame = */ false,
+			ScreenPosition, CompressedRefSceneMetadata);
+	}
 
 	// Sample the reference sample.
 	FSSDSignalArray MultiplexedSamples = SampleMultiplexedSignals(
@@ -140,12 +145,8 @@ void MainCS(
 		OutputSamples.Array[MultiplexId] = MultiplexedSamples.Array[MultiplexId];
 	}
 	
-	#if CONFIG_VGPR_OPTIMIZATION
-		// No need to keep DispatchThreadId, while SceneBufferUV is arround at highest VGPR peak because center of the unique pixel to sample.
-		uint2 OutputPixelPostion = uint2(SceneBufferUV * View.BufferSizeAndInvSize.xy);
-	#else
-		uint2 OutputPixelPostion = ViewportMin + DispatchThreadId;
-	#endif 
+	// No need to keep DispatchThreadId, while SceneBufferUV is arround at highest VGPR peak because center of the unique pixel to sample.
+	uint2 OutputPixelPostion = BufferUVToBufferPixelCoord(SceneBufferUV);
 		
 	BRANCH
 	if (all(OutputPixelPostion < ViewportMax))

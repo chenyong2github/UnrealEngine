@@ -48,6 +48,7 @@ private:
 		FIntRect Rect;
 		TRefCountPtr< IPooledRenderTarget > TextureCPU;
 		FGPUFenceRHIRef GPUFenceRHI;
+		FRHIGPUMask GPUMask;
 	};
 
 	FeedBackItem FeedbackTextureCPU[TargetCapacity];

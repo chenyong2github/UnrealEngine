@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Components/SceneComponent.h"
+#include "IStereoLayers.h"
 #include "StereoLayerComponent.generated.h"
 
 class UTexture;
@@ -38,7 +39,73 @@ enum EStereoLayerShape
 	/** Cubemap layer */
 	SLSH_CubemapLayer	UMETA(DisplayName = "Cubemap Layer"),
 
+	/** Equirect layer */
+	SLSH_EquirectLayer	UMETA(DisplayName = "Equirect Layer"),
+
 	SLSH_MAX,
+};
+
+/** Additional properties for equirect layers */
+USTRUCT(BlueprintType)
+struct FEquirectProps
+{
+	GENERATED_USTRUCT_BODY()
+public:
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Equirect Layer Properties")
+		/** Left source texture UVRect, specifying portion of input texture corresponding to left eye. */
+		FBox2D LeftUVRect;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Equirect Layer Properties")
+		/** Right source texture UVRect, specifying portion of input texture corresponding to right eye. */
+		FBox2D RightUVRect;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Equirect Layer Properties")
+		/** Left eye's texture coordinate scale after mapping to 2D. */
+		FVector2D LeftScale;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Equirect Layer Properties")
+		/** Right eye's texture coordinate scale after mapping to 2D. */
+		FVector2D RightScale;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Equirect Layer Properties")
+		/** Left eye's texture coordinate bias after mapping to 2D. */
+		FVector2D LeftBias;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Equirect Layer Properties")
+		/** Right eye's texture coordinate bias after mapping to 2D. */
+		FVector2D RightBias;
+
+public:
+
+	FEquirectProps()
+		: LeftUVRect(FBox2D(FVector2D(0.0f, 0.0f), FVector2D(1.0f, 1.0f)))
+		, RightUVRect(FBox2D(FVector2D(0.0f, 0.0f), FVector2D(1.0f, 1.0f)))
+		, LeftScale(FVector2D(1.0f, 1.0f))
+		, RightScale(FVector2D(1.0f, 1.0f))
+		, LeftBias(FVector2D(0.0f, 0.0f))
+		, RightBias(FVector2D(0.0f, 0.0f))
+	{}
+
+	FEquirectProps(FBox2D InLeftUVRect, FBox2D InRightUVRect, FVector2D InLeftScale, FVector2D InRightScale, FVector2D InLeftBias, FVector2D InRightBias)
+		: LeftUVRect(InLeftUVRect)
+		, RightUVRect(InRightUVRect)
+		, LeftScale(InLeftScale)
+		, RightScale(InRightScale)
+		, LeftBias(InLeftBias)
+		, RightBias(InRightBias)
+	{ }
+
+	/**
+	 * Compares two FEquirectProps for equality.
+	 *
+	 * @param Other The other FEquirectProps to compare with.
+	 * @return true if the are equal, false otherwise.
+	 */
+	bool operator==(const FEquirectProps& Other) const
+	{
+		return (LeftUVRect == Other.LeftUVRect) && (RightUVRect == Other.RightUVRect) && (LeftScale == Other.LeftScale) && (RightScale == Other.RightScale) && (LeftBias == Other.LeftBias) && (RightBias == Other.RightBias);
+	}
 };
 
 /** 
@@ -103,7 +170,17 @@ public:
 	// @return the UV coordinates mapped to the quad face
 	UFUNCTION(BlueprintCallable, Category="Components|Stereo Layer")
 	FBox2D GetUVRect() const { return UVRect; }
-	
+
+	/**
+	 * Set Equirect layer properties: UVRect, Scale, and Bias
+	 * @param	LeftScale: Scale for left eye
+	 * @param	LeftBias: Bias for left eye
+	 * @param	RightScale: Scale for right eye
+	 * @param	RightBias: Bias for right eye
+	 */
+	UFUNCTION(BlueprintCallable, Category="Components|Stereo Layer")
+	void SetEquirectProps(FEquirectProps InScaleBiases);
+
 	/** 
 	 * Change the layer's render priority, higher priorities render on top of lower priorities
 	 * @param	InPriority: Priority value
@@ -165,6 +242,10 @@ protected:
 	/** Height of the stereo layer cylinder **/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Cylinder Overlay Properties")
 	int CylinderHeight;
+
+	/** UVRects, scale, and biases per eye for equirect layers. UVRects are for input texture UVs per eye, and the latter 2 control scale and bias of texture coordinates after mapping to 2D.  **/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Equirect Layer Properties")
+	FEquirectProps EquirectProps;
 
 	/** Specifies how and where the quad is rendered to the screen **/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category="StereoLayer")

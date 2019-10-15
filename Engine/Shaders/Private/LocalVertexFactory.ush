@@ -181,34 +181,59 @@ struct FVertexFactoryInput
 Buffer<float> GPUSkinCachePositionBuffer;
 #endif
 
-FVertexFactoryInput LoadVertexFactoryInput(uint TriangleIndex, int VertexIndex)
+uint GetNumRayTracingDynamicMeshVerticesIndirect()
+{
+	return 0;
+}
+#endif
+
+#if RAYHITGROUPSHADER
+
+FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexIndex)
 {
 	FVertexFactoryInput Input = (FVertexFactoryInput)0;
 
-#if RAYHITGROUPSHADER
-	FTriangleBaseAttributes Triangle = LoadTriangleBaseAttributes(TriangleIndex);
+	FTriangleBaseAttributes Tri = LoadTriangleBaseAttributes(TriangleIndex);
 
-	Input.VertexId = Triangle.Indices[VertexIndex];
-	Input.Position = float4(Triangle.LocalPositions[VertexIndex], 1.0f);
+	Input.VertexId = Tri.Indices[VertexIndex];
+	Input.Position = float4(Tri.LocalPositions[VertexIndex], 1.0f);
 	#if VF_USE_PRIMITIVE_SCENE_DATA
 		Input.PrimitiveId = GetInstanceUserData();
 	#endif
-#elif COMPUTESHADER	
+
+	return Input;
+}
+#endif
+
+
+#if COMPUTESHADER
+
+FVertexFactoryInput LoadVertexFactoryInputForDynamicUpdate(uint TriangleIndex, int VertexIndex, uint PrimitiveId)
+{
+	FVertexFactoryInput Input = (FVertexFactoryInput)0;
+
 	#if GPUSKIN_PASS_THROUGH
 		Input.VertexId = TriangleIndex * 3 + VertexIndex;
 		uint VertexOffset = LocalVF.VertexFetch_Parameters[VF_VertexOffset] + Input.VertexId;
 		Input.Position.x = GPUSkinCachePositionBuffer[VertexOffset * 3 + 0];
 		Input.Position.y = GPUSkinCachePositionBuffer[VertexOffset * 3 + 1];
 		Input.Position.z = GPUSkinCachePositionBuffer[VertexOffset * 3 + 2];
+		#if VF_USE_PRIMITIVE_SCENE_DATA
+			Input.PrimitiveId = PrimitiveId;
+		#endif
+	#else
+		Input.VertexId = TriangleIndex * 3 + VertexIndex;
+		uint VertexOffset = LocalVF.VertexFetch_Parameters[VF_VertexOffset] + Input.VertexId * 3;
+		Input.Position.x = LocalVF.VertexFetch_PositionBuffer[VertexOffset + 0];
+		Input.Position.y = LocalVF.VertexFetch_PositionBuffer[VertexOffset + 1];
+		Input.Position.z = LocalVF.VertexFetch_PositionBuffer[VertexOffset + 2];
+		#if VF_USE_PRIMITIVE_SCENE_DATA
+			Input.PrimitiveId = PrimitiveId;
+		#endif
 	#endif
-#endif
 	return Input;
 }
 
-uint GetNumRayTracingDynamicMeshVerticesIndirect()
-{
-	return 0;
-}
 #endif
 
 /** 

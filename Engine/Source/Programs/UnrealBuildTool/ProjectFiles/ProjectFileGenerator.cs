@@ -2399,7 +2399,7 @@ namespace UnrealBuildTool
 		{
 			// Find all the mods for game projects
 			ModProjects = new List<ProjectFile>();
-			if(GameProjects.Count == 1)
+			if (GameProjects.Count == 1)
 			{
 				ProjectFile GameProject = GameProjects.First();
 				foreach(PluginInfo PluginInfo in Plugins.ReadProjectPlugins(GameProject.BaseDir))

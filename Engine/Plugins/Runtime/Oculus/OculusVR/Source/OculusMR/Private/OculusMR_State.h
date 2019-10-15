@@ -54,6 +54,14 @@ struct FTrackedCamera
 	UPROPERTY()
 	FVector UserOffset;
 
+	/** The raw pose of the camera to the attached tracking device */
+	UPROPERTY()
+	FRotator RawRotation;
+
+	/** The raw pose of the camera to the attached tracking device */
+	UPROPERTY()
+	FVector RawOffset;
+
 	FTrackedCamera()
 		: Index(-1)
 		, Name(TEXT("Unknown"))
@@ -65,6 +73,8 @@ struct FTrackedCamera
 		, CalibratedOffset(EForceInit::ForceInitToZero)
 		, UserRotation(EForceInit::ForceInitToZero)
 		, UserOffset(EForceInit::ForceInitToZero)
+		, RawRotation(EForceInit::ForceInitToZero)
+		, RawOffset(EForceInit::ForceInitToZero)
 	{}
 };
 

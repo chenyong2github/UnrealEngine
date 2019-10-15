@@ -1,20 +1,11 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	PostProcessHMD.cpp: Post processing for HMD devices.
-=============================================================================*/
-
 #include "PostProcess/PostProcessHMD.h"
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
 #include "IHeadMountedDisplay.h"
 #include "IXRTrackingSystem.h"
-#include "SceneUtils.h"
-#include "StaticBoundShaderState.h"
-#include "SceneRenderTargetParameters.h"
-#include "SceneRendering.h"
-#include "PipelineStateCache.h"
-#include "ClearQuad.h"
+#include "RenderingCompositionGraph.h"
 
 /** The filter vertex declaration resource type. */
 class FDistortionVertexDeclaration : public FRenderResource
@@ -47,193 +38,139 @@ public:
 /** The Distortion vertex declaration. */
 TGlobalResource<FDistortionVertexDeclaration> GDistortionVertexDeclaration;
 
-/** Encapsulates the post processing vertex shader. */
-class FPostProcessHMDVS : public FGlobalShader
+BEGIN_SHADER_PARAMETER_STRUCT(FHMDDistortionParameters, )
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, InputSampler)
+	SHADER_PARAMETER(FVector2D, EyeToSrcUVScale)
+	SHADER_PARAMETER(FVector2D, EyeToSrcUVOffset)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
+class FHMDDistortionPS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FPostProcessHMDVS, Global);
-
-	// Distortion parameter values
-	FShaderParameter EyeToSrcUVScale;
-	FShaderParameter EyeToSrcUVOffset;
-
-	// Timewarp-related params
-	FShaderParameter EyeRotationStart;
-	FShaderParameter EyeRotationEnd;
+public:
+	DECLARE_GLOBAL_SHADER(FHMDDistortionPS);
+	SHADER_USE_PARAMETER_STRUCT(FHMDDistortionPS, FGlobalShader);
+	using FParameters = FHMDDistortionParameters;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return true;
 	}
+};
 
-	/** Default constructor. */
-	FPostProcessHMDVS() {}
+IMPLEMENT_GLOBAL_SHADER(FHMDDistortionPS, "/Engine/Private/PostProcessHMD.usf", "MainPS", SF_Pixel);
 
+class FHMDDistortionVS : public FGlobalShader
+{
 public:
+	DECLARE_GLOBAL_SHADER(FHMDDistortionVS);
+	SHADER_USE_PARAMETER_STRUCT(FHMDDistortionVS, FGlobalShader);
+	using FParameters = FHMDDistortionParameters;
 
-	/** Initialization constructor. */
-	FPostProcessHMDVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		EyeToSrcUVScale.Bind(Initializer.ParameterMap, TEXT("EyeToSrcUVScale"));
-		EyeToSrcUVOffset.Bind(Initializer.ParameterMap, TEXT("EyeToSrcUVOffset"));
+		return true;
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FHMDDistortionVS, "/Engine/Private/PostProcessHMD.usf", "MainVS", SF_Vertex);
+
+FScreenPassTexture AddDefaultHMDDistortionPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FHMDDistortionInputs& Inputs)
+{
+	check(Inputs.SceneColor.IsValid());
+
+	FScreenPassRenderTarget Output = Inputs.OverrideOutput;
+
+	if (!Output.IsValid())
+	{
+		Output = FScreenPassRenderTarget::CreateFromInput(GraphBuilder, Inputs.SceneColor, ERenderTargetLoadAction::EClear, TEXT("HMD Distortion"));
 	}
 
-	void SetVS(const FRenderingCompositePassContext& Context)
+	FHMDDistortionParameters* PassParameters = GraphBuilder.AllocParameters<FHMDDistortionParameters>();
+	PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
+	PassParameters->InputTexture = Inputs.SceneColor.Texture;
+	PassParameters->InputSampler = TStaticSamplerState<SF_Bilinear, AM_Border, AM_Border, AM_Border>::GetRHI();
+
+	check(GEngine->XRSystem.IsValid() && GEngine->XRSystem->GetHMDDevice());
+	IHeadMountedDisplay* HMDDevice = GEngine->XRSystem->GetHMDDevice();
+
 	{
-		FRHIVertexShader* ShaderRHI = GetVertexShader();
-
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
-
-		check(GEngine->XRSystem.IsValid() && GEngine->XRSystem->GetHMDDevice());
+		FRenderingCompositePassContext PassContext(GraphBuilder.RHICmdList, View);
 		FVector2D EyeToSrcUVScaleValue;
 		FVector2D EyeToSrcUVOffsetValue;
-		GEngine->XRSystem->GetHMDDevice()->GetEyeRenderParams_RenderThread(Context, EyeToSrcUVScaleValue, EyeToSrcUVOffsetValue);
-		SetShaderValue(Context.RHICmdList, ShaderRHI, EyeToSrcUVScale, EyeToSrcUVScaleValue);
-		SetShaderValue(Context.RHICmdList, ShaderRHI, EyeToSrcUVOffset, EyeToSrcUVOffsetValue);
+		HMDDevice->GetEyeRenderParams_RenderThread(PassContext, EyeToSrcUVScaleValue, EyeToSrcUVOffsetValue);
+		PassParameters->EyeToSrcUVScale = EyeToSrcUVScaleValue;
+		PassParameters->EyeToSrcUVOffset = EyeToSrcUVOffsetValue;
 	}
 
-	// FShader interface.
-	virtual bool Serialize(FArchive& Ar) override
+	TShaderMapRef<FHMDDistortionVS> VertexShader(View.ShaderMap);
+	TShaderMapRef<FHMDDistortionPS> PixelShader(View.ShaderMap);
+
+	const FIntRect OutputViewRect(Output.ViewRect);
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("HMDDistortion"),
+		PassParameters,
+		ERDGPassFlags::Raster,
+		[VertexShader, PixelShader, PassParameters, OutputViewRect, &View, HMDDevice](FRHICommandListImmediate& RHICmdList)
 	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << EyeToSrcUVScale << EyeToSrcUVOffset;
-		return bShaderHasOutdatedParameters;
-	}
-};
+		RHICmdList.SetViewport(OutputViewRect.Min.X, OutputViewRect.Min.Y, 0.0f, OutputViewRect.Max.X, OutputViewRect.Max.Y, 1.0f);
 
-IMPLEMENT_SHADER_TYPE(, FPostProcessHMDVS, TEXT("/Engine/Private/PostProcessHMD.usf"), TEXT("MainVS"), SF_Vertex);
+		SetScreenPassPipelineState(RHICmdList, FScreenPassPipelineState(*VertexShader, *PixelShader));
 
-/** Encapsulates the post processing HMD distortion and correction pixel shader. */
-class FPostProcessHMDPS : public FGlobalShader
-{
-	DECLARE_SHADER_TYPE(FPostProcessHMDPS, Global);
+		SetShaderParameters(RHICmdList, *VertexShader, VertexShader->GetVertexShader(), *PassParameters);
+		SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), *PassParameters);
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return true;
-	}
+		FRenderingCompositePassContext PassContext(RHICmdList, View);
+		HMDDevice->DrawDistortionMesh_RenderThread(PassContext, PassParameters->InputTexture->Desc.Extent);
+	});
 
-	/** Default constructor. */
-	FPostProcessHMDPS() {}
-
-public:
-	FPostProcessPassParameters PostprocessParameter;
-	FSceneTextureShaderParameters SceneTextureParameters;
-
-	/** Initialization constructor. */
-	FPostProcessHMDPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		PostprocessParameter.Bind(Initializer.ParameterMap);
-		SceneTextureParameters.Bind(Initializer);
-
-	}
-
-	template <typename TRHICmdList>
-	void SetPS(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, FIntRect SrcRect, FIntPoint SrcBufferSize, EStereoscopicPass StereoPass, FMatrix& QuadTexTransform)
-	{
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
-
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
-
-		PostprocessParameter.SetPS(RHICmdList, ShaderRHI, Context, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
-		SceneTextureParameters.Set(RHICmdList, ShaderRHI, Context.View.FeatureLevel, ESceneTextureSetupMode::All);
-	}
-
-	// FShader interface.
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << PostprocessParameter << SceneTextureParameters;
-		return bShaderHasOutdatedParameters;
-	}
-};
-
-IMPLEMENT_SHADER_TYPE(, FPostProcessHMDPS, TEXT("/Engine/Private/PostProcessHMD.usf"), TEXT("MainPS"), SF_Pixel);
-
-void FRCPassPostProcessHMD::Process(FRenderingCompositePassContext& Context)
-{
-	SCOPED_DRAW_EVENT(Context.RHICmdList, PostProcessHMD);
-	const FPooledRenderTargetDesc* InputDesc = GetInputDesc(ePId_Input0);
-
-	if(!InputDesc)
-	{
-		// input is not hooked up correctly
-		return;
-	}
-
-	const FSceneRenderTargetItem& DestRenderTarget = PassOutputs[0].RequestSurface(Context);
-
-	bool bUseClearQuad = !(!ensure(DestRenderTarget.TargetableTexture.IsValid()) || DestRenderTarget.TargetableTexture->GetClearColor() == FLinearColor::Black);
-
-	ERenderTargetLoadAction LoadAction = ERenderTargetLoadAction::EClear;
-	if (bUseClearQuad)
-	{
-		LoadAction = ERenderTargetLoadAction::ENoAction;
-	}
-	
-	FRHIRenderPassInfo RPInfo(DestRenderTarget.TargetableTexture, MakeRenderTargetActions(LoadAction, ERenderTargetStoreAction::EStore));
-	Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("PostProcessHMD"));
-	{
-		const FViewInfo& View = Context.View;
-		const FSceneViewFamily& ViewFamily = *(View.Family);
-
-		const FIntRect SrcRect = View.ViewRect;
-		const FIntRect DestRect = View.UnscaledViewRect;
-		const FIntPoint SrcSize = InputDesc->Extent;
-
-		Context.SetViewportAndCallRHI(DestRect);
-
-		if (bUseClearQuad)
-		{
-			DrawClearQuad(Context.RHICmdList, FLinearColor::Black);
-		}
-
-		FGraphicsPipelineStateInitializer GraphicsPSOInit;
-		Context.RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-		GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-
-		FMatrix QuadTexTransform = FMatrix::Identity;
-		FMatrix QuadPosTransform = FMatrix::Identity;
-
-		check(GEngine->XRSystem.IsValid() && GEngine->XRSystem->GetHMDDevice());
-
-		{
-			TShaderMapRef<FPostProcessHMDVS> VertexShader(Context.GetShaderMap());
-			TShaderMapRef<FPostProcessHMDPS> PixelShader(Context.GetShaderMap());
-
-			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GDistortionVertexDeclaration.VertexDeclarationRHI;
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
-			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-			SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
-
-			VertexShader->SetVS(Context);
-			PixelShader->SetPS(Context.RHICmdList, Context, SrcRect, SrcSize, View.StereoPass, QuadTexTransform);
-		}
-		GEngine->XRSystem->GetHMDDevice()->DrawDistortionMesh_RenderThread(Context, SrcSize);
-	}
-	Context.RHICmdList.EndRenderPass();
-	Context.RHICmdList.CopyToResolveTarget(DestRenderTarget.TargetableTexture, DestRenderTarget.ShaderResourceTexture, FResolveParams());
+	return MoveTemp(Output);
 }
 
-FPooledRenderTargetDesc FRCPassPostProcessHMD::ComputeOutputDesc(EPassOutputId InPassOutputId) const
+FScreenPassTexture AddHMDDistortionPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FHMDDistortionInputs& Inputs)
 {
-	FPooledRenderTargetDesc Ret = PassOutputs[0].RenderTargetDesc;
+	check(GEngine && GEngine->XRSystem.IsValid());
+	checkf(GEngine->XRSystem->GetHMDDevice(), TEXT("EngineShowFlags.HMDDistortion can not be true when IXRTrackingSystem::GetHMDDevice returns null"));
 
-	if (const FRenderingCompositeOutputRef* InputPass0 = GetInput(ePId_Input0))
+	// First attempt to use a pass from the HMD system.
+	FScreenPassTexture Output;
+	GEngine->XRSystem->GetHMDDevice()->CreateHMDPostProcessPass_RenderThread(GraphBuilder, View, Inputs, Output);
+
+	if (!Output.IsValid())
 	{
-		if (const FRenderingCompositeOutput* PassInput = InputPass0->GetOutput())
-		{
-			Ret = PassInput->RenderTargetDesc;
-		}
+		Output = AddDefaultHMDDistortionPass(GraphBuilder, View, Inputs);
 	}
 
-	Ret.Reset();
-	Ret.DebugName = TEXT("HMD");
+	return Output;
+}
 
-	return Ret;
+FRenderingCompositeOutputRef AddHMDDistortionPass(FRenderingCompositionGraph& Graph, FRenderingCompositeOutputRef Input)
+{
+	FRenderingCompositePass* Pass = Graph.RegisterPass(
+		new(FMemStack::Get()) TRCPassForRDG<1, 1>(
+			[](FRenderingCompositePass* InPass, FRenderingCompositePassContext& InContext)
+	{
+		FRDGBuilder GraphBuilder(InContext.RHICmdList);
+
+		FHMDDistortionInputs PassInputs;
+		PassInputs.SceneColor.Texture = InPass->CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"));
+		PassInputs.SceneColor.ViewRect = InContext.SceneColorViewRect;
+
+		if (FRDGTextureRef OverrideOutputTexture = InPass->FindRDGTextureForOutput(GraphBuilder, ePId_Output0, TEXT("FrameBuffer")))
+		{
+			PassInputs.OverrideOutput.Texture = OverrideOutputTexture;
+			PassInputs.OverrideOutput.ViewRect = InContext.GetSceneColorDestRect(InPass);
+			PassInputs.OverrideOutput.LoadAction = InContext.View.IsFirstInFamily() ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad;
+		}
+
+		FScreenPassTexture PassOutput = AddHMDDistortionPass(GraphBuilder, InContext.View, PassInputs);
+
+		InPass->ExtractRDGTextureForOutput(GraphBuilder, ePId_Output0, PassOutput.Texture);
+
+		GraphBuilder.Execute();
+	}));
+	Pass->SetInput(ePId_Input0, Input);
+	return FRenderingCompositeOutputRef(Pass);
 }
