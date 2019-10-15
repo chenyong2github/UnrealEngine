@@ -462,33 +462,6 @@ ExistingSkelMeshData* SaveExistingSkelMeshData(USkeletalMesh* ExistingSkelMesh, 
 	return ExistingMeshDataPtr;
 }
 
-void RegenerateDependentLODs(USkeletalMesh* SkelMesh, int32 LODIndex)
-{
-	check(SkelMesh);
-
-	IMeshReductionModule& ReductionModule = FModuleManager::Get().LoadModuleChecked<IMeshReductionModule>("MeshReductionInterface");
-	IMeshReduction* MeshReduction = ReductionModule.GetSkeletalMeshReductionInterface();
-	if (MeshReduction && MeshReduction->IsSupported())
-	{
-		FSkeletalMeshUpdateContext UpdateContext;
-		UpdateContext.SkeletalMesh = SkelMesh;
-		TArray<bool> DependentLODs;
-		DependentLODs.AddZeroed(SkelMesh->GetLODNum());
-		DependentLODs[LODIndex] = true;
-		for (int32 CurrentLODIndex = LODIndex + 1; CurrentLODIndex < DependentLODs.Num(); ++CurrentLODIndex)
-		{
-			FSkeletalMeshLODInfo& CurrentLODInfo = *(SkelMesh->GetLODInfo(CurrentLODIndex));
-			FSkeletalMeshOptimizationSettings& Settings = CurrentLODInfo.ReductionSettings;
-			if (CurrentLODInfo.bHasBeenSimplified && DependentLODs[Settings.BaseLOD])
-			{
-				DependentLODs[CurrentLODIndex] = true;
-				//Regenerate this LOD
-				FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, CurrentLODIndex, false);
-			}
-		}
-	}
-}
-
 void RestoreDependentLODs(ExistingSkelMeshData* MeshData, USkeletalMesh* SkeletalMesh)
 {
 	check(SkeletalMesh != nullptr);

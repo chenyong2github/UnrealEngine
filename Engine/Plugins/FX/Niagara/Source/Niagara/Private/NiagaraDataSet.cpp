@@ -815,9 +815,7 @@ void FNiagaraDataBuffer::CopyTo(FNiagaraDataBuffer& DestBuffer)const
 
 void FNiagaraDataBuffer::Dump(int32 StartIndex, int32 InNumInstances, const FString& Label)const
 {
-	TArray<FNiagaraVariable> Variables = Owner->GetVariables();
 	FNiagaraDataVariableIterator Itr(this, StartIndex);
-	Itr.AddVariables(Variables);
 
 	if (InNumInstances == INDEX_NONE)
 	{
@@ -833,7 +831,7 @@ void FNiagaraDataBuffer::Dump(int32 StartIndex, int32 InNumInstances, const FStr
 		Itr.Get();
 
 		FString Line = TEXT("| ");
-		for (const FNiagaraVariable& Var : Owner->GetVariables())
+		for (const FNiagaraVariable& Var : Itr.GetVariables())
 		{
 			Line += Var.ToString() + TEXT(" | ");
 		}

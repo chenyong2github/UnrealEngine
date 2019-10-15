@@ -193,6 +193,7 @@ UObject* UFbxFactory::FactoryCreateFile
 		{
 			UStaticMesh *ExistingStaticMesh = Cast<UStaticMesh>(ExistingObject);
 			USkeletalMesh *ExistingSkeletalMesh = Cast<USkeletalMesh>(ExistingObject);
+			UAnimSequence* ExistingAnimSequence = Cast<UAnimSequence>(ExistingObject);
 			UObject *ObjectToReimport = nullptr;
 			if (ExistingStaticMesh)
 			{
@@ -201,6 +202,10 @@ UObject* UFbxFactory::FactoryCreateFile
 			else if (ExistingSkeletalMesh)
 			{
 				ObjectToReimport = ExistingSkeletalMesh;
+			}
+			else if (ExistingAnimSequence)
+			{
+				ObjectToReimport = ExistingAnimSequence;
 			}
 
 			if (ObjectToReimport != nullptr)
