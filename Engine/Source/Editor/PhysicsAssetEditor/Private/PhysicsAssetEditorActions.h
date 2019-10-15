@@ -83,6 +83,8 @@ public:
 	TSharedPtr<FUICommandInfo> DeleteBody;
 	TSharedPtr<FUICommandInfo> DeleteAllBodiesBelow;
 	TSharedPtr<FUICommandInfo> SelectAllBodies;
+	TSharedPtr<FUICommandInfo> SelectSimulatedBodies;
+	TSharedPtr<FUICommandInfo> SelectKinematicBodies;
 	TSharedPtr<FUICommandInfo> SelectAllConstraints;
 	TSharedPtr<FUICommandInfo> ToggleSelectionType;
 	TSharedPtr<FUICommandInfo> DeselectAll;
@@ -98,6 +100,8 @@ public:
 	TSharedPtr<FUICommandInfo> AddConstraintToCurrentConstraintProfile;
 	TSharedPtr<FUICommandInfo> RemoveConstraintFromCurrentConstraintProfile;
 	TSharedPtr<FUICommandInfo> ShowBodies;
+	TSharedPtr<FUICommandInfo> ShowSimulatedBodies;
+	TSharedPtr<FUICommandInfo> ShowKinematicBodies;
 	TSharedPtr<FUICommandInfo> ShowConstraints;
 	TSharedPtr<FUICommandInfo> ShowPrimitives;
 
