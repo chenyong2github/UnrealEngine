@@ -62,7 +62,7 @@ static bool ForceMispredict = false;
 
 const FName FMockNetworkSimulation::GroupName(TEXT("Mock"));
 
-void FMockNetworkSimulation::Update(IMockDriver* Driver, const float DeltaTimeSeconds, const FMockInputCmd& InputCmd, const FMockSyncState& InputState, FMockSyncState& OutputState, const FMockAuxState& AuxState)
+void FMockNetworkSimulation::Update(IMockDriver* Driver, const float DeltaTimeSeconds, const FMockInputCmd& InputCmd, const FMockSyncState& InputState, FMockSyncState& OutputState, const FMockAuxState& AuxState, const TLazyStateAccessor<FMockAuxState>& OutAuxStateAccessor)
 {
 	OutputState.Total = InputState.Total + (InputCmd.InputValue * AuxState.Multiplier * DeltaTimeSeconds);
 
@@ -171,7 +171,12 @@ void UMockNetworkSimulationComponent::InitSyncState(FMockSyncState& OutSyncState
 	OutSyncState.Total = MockValue;
 }
 
-void UMockNetworkSimulationComponent::FinalizeFrame(const FMockSyncState& SyncState)
+void UMockNetworkSimulationComponent::InitAuxState(FMockAuxState& OutAuxState) const
+{
+
+}
+
+void UMockNetworkSimulationComponent::FinalizeFrame(const FMockSyncState& SyncState, const FMockAuxState& AuxState)
 {
 	MockValue = SyncState.Total;
 }
