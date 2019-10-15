@@ -236,7 +236,7 @@ void FAnimNode_RigidBody_Chaos::EvaluateSkeletalControl_AnyThread(FComponentSpac
 	const float DeltaSeconds = AccumulatedDeltaTime;
 	AccumulatedDeltaTime = 0.f;
 
-	if (CVarEnableRigidBodyNode.GetValueOnAnyThread() != 0 && PhysicsSimulation)	
+	if (bEnabled && PhysicsSimulation)	
 	{
 		const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
 		const FTransform CompWorldSpaceTM = Output.AnimInstanceProxy->GetComponentTransform();
@@ -572,6 +572,9 @@ void FAnimNode_RigidBody_Chaos::InitPhysics(const UAnimInstance* InAnimInstance)
 {
 	SCOPE_CYCLE_COUNTER(STAT_RigidBodyNodeInitTime);
 
+	delete PhysicsSimulation;
+	PhysicsSimulation = nullptr;
+
 	const USkeletalMeshComponent* SkeletalMeshComp = InAnimInstance->GetSkelMeshComponent();
 	const USkeletalMesh* SkeletalMeshAsset = SkeletalMeshComp->SkeletalMesh;
 
@@ -603,9 +606,9 @@ void FAnimNode_RigidBody_Chaos::InitPhysics(const UAnimInstance* InAnimInstance)
 		bSimulateAnimPhysicsAfterReset = false;
 	}
 
-	if(UsePhysicsAsset)
+	bEnabled = UsePhysicsAsset && SkeletalMeshComp->GetAllowRigidBodyAnimNode() && CVarEnableRigidBodyNode.GetValueOnAnyThread() != 0;
+	if (bEnabled)
 	{
-		delete PhysicsSimulation;
 		PhysicsSimulation = new ImmediatePhysics_Chaos::FSimulation();
 		const int32 NumBodies = UsePhysicsAsset->SkeletalBodySetups.Num();
 		Bodies.Empty(NumBodies);
@@ -876,7 +879,7 @@ DECLARE_CYCLE_STAT(TEXT("RigidBody_PreUpdate_Chaos"), STAT_RigidBody_Chaos_PreUp
 void FAnimNode_RigidBody_Chaos::PreUpdate(const UAnimInstance* InAnimInstance)
 {
 	// Don't update geometry if RBN is disabled
-	if(CVarEnableRigidBodyNode.GetValueOnAnyThread() == 0)
+	if(!bEnabled)
 	{
 		return;
 	}
@@ -935,7 +938,7 @@ DECLARE_CYCLE_STAT(TEXT("RigidBody_Update_Chaos"), STAT_RigidBody_Chaos_Update, 
 void FAnimNode_RigidBody_Chaos::UpdateInternal(const FAnimationUpdateContext& Context)
 {
 	// Avoid this work if RBN is disabled, as the results would be discarded
-	if(CVarEnableRigidBodyNode.GetValueOnAnyThread() == 0)
+	if(!bEnabled)
 	{
 		return;
 	}

@@ -3660,8 +3660,22 @@ void USkeletalMeshComponent::UnbindClothFromMasterPoseComponent(bool bRestoreSim
 		}
 
 		bBindClothToMasterComponent = false;
+	}
+}
+
+void USkeletalMeshComponent::SetAllowRigidBodyAnimNode(bool bInAllow, bool bReinitAnim)
+{
+	if(bDisableRigidBodyAnimNode == bInAllow)
+	{
+		bDisableRigidBodyAnimNode = !bInAllow;
+
+		if(bReinitAnim && bRegistered && SkeletalMesh)
+		{
+			// need to reinitialize rigid body nodes for new setting to take effect
+			InitializeAnimScriptInstance(true);
 		}
 	}
+}
 
 bool USkeletalMeshComponent::DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const
 {
