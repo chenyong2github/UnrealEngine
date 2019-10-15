@@ -11,6 +11,7 @@ namespace Chaos
 {
 	template<typename T, int D> class TImplicitObject;
 	template<typename T, int D> struct TKinematicGeometryParticleParameters;
+	template<typename T, int D> class TKinematicTarget;
 	template<typename P, typename T, int D> class TPBDConstraintIslandRule;
 	template<typename T, int D> class TPBDJointConstraintHandle;
 	template<typename T, int D> class TPBDJointConstraints;
@@ -27,6 +28,8 @@ namespace ImmediatePhysics_Chaos
 
 	using EActorType = ImmediatePhysics_Shared::EActorType;
 	using EForceType = ImmediatePhysics_Shared::EForceType;
+
+	using FKinematicTarget = Chaos::TKinematicTarget<FReal, Dimensions>;
 }
 
 struct FBodyInstance;

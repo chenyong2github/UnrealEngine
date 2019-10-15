@@ -26,6 +26,9 @@ DEFINE_STAT(STAT_RigidBodyNodeInitTime);
 TAutoConsoleVariable<int32> CVarEnableRigidBodyNode(TEXT("p.RigidBodyNode"), 1, TEXT("Enables/disables rigid body node updates and evaluations"), ECVF_ReadOnly);
 TAutoConsoleVariable<int32> CVarRigidBodyLODThreshold(TEXT("p.RigidBodyLODThreshold"), -1, TEXT("Max LOD that rigid body node is allowed to run on. Provides a global threshold that overrides per-node the LODThreshold property. -1 means no override."), ECVF_Scalability);
 
+int32 RBAN_MaxSubSteps = 4;
+FAutoConsoleVariableRef CVarRigidBodyNodeMaxSteps(TEXT("p.RigidBodyNode.MaxSubSteps"), RBAN_MaxSubSteps, TEXT("Set the maximum number of simulation steps in the update loop"), ECVF_ReadOnly);
+
 FAnimNode_RigidBody::FAnimNode_RigidBody():
 	QueryParams(NAME_None, FCollisionQueryParams::GetUnknownStatId())
 {
@@ -455,6 +458,7 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 				}
 			}
 
+			// @todo(ccaulfield): We should be interpolating kinematic targets for each sub-step below
 			for (const FOutputBoneData& OutputData : OutputBoneData)
 			{
 				const int32 BodyIndex = OutputData.BodyIndex;
@@ -472,11 +476,12 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 
 			// Run simulation at a minimum of 30 FPS to prevent system from exploding.
 			// DeltaTime can be higher due to URO, so take multiple iterations in that case.
+			const int32 MaxSteps = RBAN_MaxSubSteps;
 			const float MaxDeltaSeconds = 1.f / 30.f;
-			const int32 NumIterations = FMath::Clamp(FMath::CeilToInt(DeltaSeconds / MaxDeltaSeconds), 1, 4);
-			const float StepDeltaTime = DeltaSeconds / float(NumIterations);
+			const int32 NumSteps = FMath::Clamp(FMath::CeilToInt(DeltaSeconds / MaxDeltaSeconds), 1, MaxSteps);
+			const float StepDeltaTime = DeltaSeconds / float(NumSteps);
 
-			for (int32 Step = 1; Step <= NumIterations; Step++)
+			for (int32 Step = 1; Step <= NumSteps; Step++)
 			{
 				// We call the _AssumesLocked version here without a lock as the simulation is local to this node and we know
 				// we're not going to alter anything while this is running.
