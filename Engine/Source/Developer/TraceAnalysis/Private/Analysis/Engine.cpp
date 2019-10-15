@@ -217,43 +217,43 @@ uint32 IAnalyzer::FEventTypeInfo::GetFieldCount() const
 const IAnalyzer::FEventFieldInfo* IAnalyzer::FEventTypeInfo::GetFieldInfo(uint32 Index) const
 {
 	if (Index >= GetFieldCount())
-	{
+{
 		return nullptr;
-	}
 
 	const auto* Inner = (const FAnalysisEngine::FDispatch*)this;
 	return (const IAnalyzer::FEventFieldInfo*)(Inner->Fields + Index);
 }
+		}
 
 
 
 ////////////////////////////////////////////////////////////////////////////////
 const ANSICHAR* IAnalyzer::FEventFieldInfo::GetName() const
-{
+	{
 	const auto* Inner = (const FAnalysisEngine::FDispatch::FField*)this;
 	return (const ANSICHAR*)(UPTRINT(Inner) + Inner->NameOffset);
-}
+	}
 
 ////////////////////////////////////////////////////////////////////////////////
 uint32 IAnalyzer::FEventFieldInfo::GetOffset() const
-{
+	{
 	const auto* Inner = (const FAnalysisEngine::FDispatch::FField*)this;
 	return Inner->Offset;
-}
+	}
 
 ////////////////////////////////////////////////////////////////////////////////
 uint32 IAnalyzer::FEventFieldInfo::GetSize() const
-{
+	{
 	const auto* Inner = (const FAnalysisEngine::FDispatch::FField*)this;
 	return (Inner->SizeAndType < 0) ? -(Inner->SizeAndType) : Inner->SizeAndType;
-}
+	}
 
 ////////////////////////////////////////////////////////////////////////////////
 IAnalyzer::FEventFieldInfo::EType IAnalyzer::FEventFieldInfo::GetType() const
-{
+	{
 	const auto* Inner = (const FAnalysisEngine::FDispatch::FField*)this;
 	if (Inner->SizeAndType > 0)
-	{
+		{
 		return EType::Integer;
 	}
 
@@ -263,7 +263,7 @@ IAnalyzer::FEventFieldInfo::EType IAnalyzer::FEventFieldInfo::GetType() const
 	}
 
 	return EType::None;
-}
+	}
 
 
 
@@ -271,8 +271,8 @@ IAnalyzer::FEventFieldInfo::EType IAnalyzer::FEventFieldInfo::GetType() const
 struct FAnalysisEngine::FEventDataInfo
 {
 	const FDispatch&	Dispatch;
-	const uint8*		Ptr;
-	uint16				Size;
+	const uint8*			Ptr;
+	uint16					Size;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -368,8 +368,8 @@ FAnalysisEngine::~FAnalysisEngine()
 	{
 		if (Analyzer != nullptr)
 		{
-			Analyzer->OnAnalysisEnd();
-		}
+		Analyzer->OnAnalysisEnd();
+	}
 	}
 
 	for (FDispatch* Dispatch : Dispatches)
@@ -510,7 +510,7 @@ void FAnalysisEngine::ForEachRoute(const FDispatch* Dispatch, ImplType&& Impl)
 
 	const FRoute* Route = Routes.GetData() + 1;
 	if (RouteCount > 1 && Route->Hash == RouteHash_AllEvents)
-	{
+{
 		for (uint32 n = Route->Count; n--; ++Route)
 		{
 			IAnalyzer* Analyzer = Analyzers[Route->AnalyzerIndex];
