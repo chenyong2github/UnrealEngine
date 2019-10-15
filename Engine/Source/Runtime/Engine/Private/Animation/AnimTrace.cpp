@@ -8,6 +8,11 @@
 #include "Animation/AnimationAsset.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "ObjectTrace.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Misc/CommandLine.h"
+#include "Engine/SkeletalMesh.h"
+#include "Math/TransformNonVectorized.h"
+#include "Animation/AnimNodeBase.h"
 
 UE_TRACE_EVENT_BEGIN(Animation, TickRecord)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)

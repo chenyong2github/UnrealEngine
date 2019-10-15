@@ -9,9 +9,14 @@
 
 #if ANIM_TRACE_ENABLED
 
+struct FAnimInstanceProxy;
 struct FAnimTickRecord;
 struct FAnimationBaseContext;
 struct FAnimationUpdateContext;
+class USkeletalMesh;
+class USkeletalMeshComponent;
+struct FAnimationUpdateContext;
+struct FAnimationBaseContext;
 
 struct FAnimTrace
 {

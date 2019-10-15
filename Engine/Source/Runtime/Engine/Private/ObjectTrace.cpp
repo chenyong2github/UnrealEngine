@@ -4,9 +4,13 @@
 
 #if OBJECT_TRACE_ENABLED
 
+#include "CoreMinimal.h"
 #include "Trace/Trace.h"
 #include "UObject/Object.h"
+#include "UObject/Class.h"
 #include "UObject/UObjectAnnotation.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Misc/CommandLine.h"
 
 UE_TRACE_EVENT_BEGIN(Object, Class, Important)
 	UE_TRACE_EVENT_FIELD(uint64, Id)
