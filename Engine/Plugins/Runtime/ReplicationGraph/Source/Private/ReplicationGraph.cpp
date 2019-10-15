@@ -595,7 +595,7 @@ void UReplicationGraph::ForceNetUpdate(AActor* Actor)
 
 void UReplicationGraph::FlushNetDormancy(AActor* Actor, bool bWasDormInitial)
 {
-	RG_QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraph_FlushNetDormancy);
+	QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraph_FlushNetDormancy);
 
 	if (Actor->IsActorInitialized() == false)
 	{
@@ -3383,7 +3383,7 @@ FORCEINLINE void UReplicationGraphNode_DynamicSpatialFrequency::CalcFrequencyFor
 	const FVector DirToActor = (GlobalInfo.WorldLocation - LowestDistanceViewer->ViewLocation);
 	const float DistanceToActor = FMath::Sqrt(SmallestDistanceToActorSq);
 	const FVector NormDirToActor = DistanceToActor > SMALL_NUMBER ? (DirToActor / DistanceToActor) : DirToActor;
-	const float DotP = FVector::DotProduct(NormDirToActor, ConnectionViewDir);
+	const float DotP = FMath::Clamp(FVector::DotProduct(NormDirToActor, ConnectionViewDir), -1.0f, 1.0f);
 
 	const bool ActorSupportsFastShared = (GlobalInfo.Settings.FastSharedReplicationFunc != nullptr);
 	TArrayView<FSpatializationZone>& ZoneList = ActorSupportsFastShared ? MySettings.ZoneSettings : MySettings.ZoneSettings_NonFastSharedActors;

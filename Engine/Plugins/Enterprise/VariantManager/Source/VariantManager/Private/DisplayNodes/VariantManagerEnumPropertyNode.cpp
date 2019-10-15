@@ -185,7 +185,7 @@ FText FVariantManagerEnumPropertyNode::ComboboxGetText(bool bSameValue) const
 	{
 		if (!bSameValue)
 		{
-			return FText::FromString(TEXT("Multiple Values"));
+			return LOCTEXT("MultipleValuesLabel", "Multiple Values");
 		}
 
 		TSharedPtr<FString> SelectedText = Combobox->GetSelectedItem();
@@ -194,7 +194,7 @@ FText FVariantManagerEnumPropertyNode::ComboboxGetText(bool bSameValue) const
 			return FText::FromString(*SelectedText);
 		}
 
-		return FText::FromString(TEXT("(INVALID)"));
+		return LOCTEXT("InvalidLabel", "(INVALID)");
 	}
 
 	return FText();

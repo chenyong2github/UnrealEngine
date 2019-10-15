@@ -182,4 +182,6 @@ void SUsdPrimPropertiesList::SetPrimPath( const TCHAR* InPrimPath )
 	RequestListRefresh();
 }
 
+#undef LOCTEXT_NAMESPACE
+
 #endif // #if USE_USD_SDK

@@ -888,15 +888,6 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 
 	// The HMD device does not have an action associated with it
 	ensure(ActionSpaces.Emplace(XR_NULL_HANDLE) == HMDDeviceId);
-
-	if (Extensions.Contains(XR_KHR_VISIBILITY_MASK_EXTENSION_NAME))
-	{
-		FOpenXRHMD* const Self = this;
-		ENQUEUE_RENDER_COMMAND(SetupOpenXROcclusionMeshesCmd)([Self](FRHICommandListImmediate& RHICmdList)
-		{
-			Self->BuildOcclusionMeshes();
-		});
-	}
 }
 
 FOpenXRHMD::~FOpenXRHMD()
@@ -1024,6 +1015,11 @@ bool FOpenXRHMD::OnStereoStartup()
 		SessionInfo.createFlags = 0;
 		SessionInfo.systemId = Self->System;
 		XR_ENSURE(xrCreateSession(Self->Instance, &SessionInfo, &Self->Session));
+
+		if (Self->bHiddenAreaMaskSupported)
+		{
+			Self->BuildOcclusionMeshes();
+		}
 	});
 
 	FlushRenderingCommands();
@@ -1199,6 +1195,9 @@ IStereoRenderTargetManager* FOpenXRHMD::GetRenderTargetManager()
 bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 Flags, uint32 TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples)
 {
 	check(IsInRenderingThread());
+
+	// We need to ensure we can sample from the texture in CopyTexture
+	Flags |= TexCreate_ShaderResource;
 
 	Swapchain = RenderBridge->CreateSwapchain(Session, Format, SizeX, SizeY, NumMips, NumSamples, Flags, TargetableTextureFlags);
 	if (!Swapchain)

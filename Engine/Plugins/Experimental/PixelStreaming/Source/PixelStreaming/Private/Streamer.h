@@ -2,91 +2,101 @@
 
 #pragma once
 
-#include "VideoEncoder.h"
-#include "AudioEncoder.h"
-#include "RHI.h"
-#include "RHIResources.h"
-#include "Engine/GameViewportClient.h"
+#include "PixelStreamingPrivate.h"
+#include "Codecs/PixelStreamingBaseVideoEncoder.h"
+#include "SignallingServerConnection.h"
 #include "ProtocolDefs.h"
 
-DECLARE_STATS_GROUP(TEXT("PixelStreaming"), STATGROUP_PixelStreaming, STATCAT_Advanced);
+#include "HAL/ThreadSafeBool.h"
 
 class FRenderTarget;
-class FProxyConnection;
 class IFileHandle;
 class FSocket;
 struct ID3D11Device;
+class FThread;
 
-class FStreamer
+class FVideoCapturer;
+class FPlayerSession;
+class FVideoEncoderFactory;
+
+class FStreamer:
+	public FSignallingServerConnectionObserver
 {
-private:
-	FStreamer(const FStreamer&) = delete;
-	FStreamer& operator=(const FStreamer&) = delete;
-
 public:
-	FStreamer(const TCHAR* IP, uint16 Port, const FTexture2DRHIRef& FrameBuffer);
-	virtual ~FStreamer();
-
 	static bool CheckPlatformCompatibility();
 
+	explicit FStreamer(const FString& SignallingServerUrl);
+	~FStreamer() override;
+
+	// data coming from the engine
 	void OnFrameBufferReady(const FTexture2DRHIRef& FrameBuffer);
-	void OnPreResizeWindowBackbuffer();
-	void OnAudioPCMPacketReady(const uint8* Data, int Size);
-	void ForceIdrFrame();
 
-	void StartStreaming()
-	{
-		bStreamingStarted = true;
-		ForceIdrFrame();
-	}
+	void SendPlayerMessage(PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor);
 
-	void StopStreaming()
-	{
-		bStreamingStarted = false;
-	}
-
-	void SetBitrate(uint16 Kbps);
-	void SetFramerate(int32 Fps);
-
-	void SendResponse(const FString& Descriptor);
 	void SendFreezeFrame(const TArray<uint8>& JpegBytes);
-	void SendFreezeFrame();
 	void SendUnfreezeFrame();
 
 private:
-	void CreateVideoEncoder(const FTexture2DRHIRef& FrameBuffer);
-	void SendSpsPpsHeader();
-	void UpdateEncoderSettings(const FTexture2DRHIRef& FrameBuffer, int32 Fps = -1);
-	void Stream(uint64 Timestamp, PixelStreamingProtocol::EToProxyMsg, const uint8* Data, uint32 Size);
-	void SaveEncodedVideoToFile(PixelStreamingProtocol::EToProxyMsg PktType, const uint8* Data, uint32 Size);
-	void SubmitVideoFrame(uint64 Timestamp, bool KeyFrame, const uint8* Data, uint32 Size);
+	// window procedure for WebRTC inter-thread communication
+	void WebRtcSignallingThreadFunc();
+
+	void ConnectToSignallingServer();
+
+	// ISignallingServerConnectionObserver impl
+	void OnConfig(const webrtc::PeerConnectionInterface::RTCConfiguration& Config) override;
+	void OnOffer(FPlayerId PlayerId, TUniquePtr<webrtc::SessionDescriptionInterface> Sdp) override;
+	void OnRemoteIceCandidate(FPlayerId PlayerId, TUniquePtr<webrtc::IceCandidateInterface> Candidate) override;
+	void OnPlayerDisconnected(FPlayerId PlayerId) override;
+	void OnSignallingServerDisconnected() override;
+
+	// own methods
+	void CreatePlayerSession(FPlayerId PlayerId);
+	void DeletePlayerSession(FPlayerId PlayerId);
+	void DeleteAllPlayerSessions();
+	FPlayerSession* GetPlayerSession(FPlayerId PlayerId);
+
+	void AddStreams(FPlayerId PlayerId);
+
+	void OnQualityOwnership(FPlayerId PlayerId);
+
+	void SendResponse(const FString& Descriptor);
+	void SendCachedFreezeFrameTo(FPlayerSession& Player);
+
+	friend FPlayerSession;
 
 private:
-	bool bResizingWindowBackBuffer;
-	FVideoEncoderSettings VideoEncoderSettings;
-	TUniquePtr<IVideoEncoder> VideoEncoder;
-	FAudioEncoder AudioEncoder;
+	FString SignallingServerUrl;
 
-	TUniquePtr<FProxyConnection> ProxyConnection;
-	TArray<uint8> ReceiveBuffer;
+	FVideoCapturer* VideoCapturer = nullptr;
+	FVideoEncoderFactory* VideoEncoderFactory = nullptr;
+	std::unique_ptr<FVideoEncoderFactory> VideoEncoderFactoryStrong;
 
-	FThreadSafeBool bSendSpsPps;
+	// a single instance of the actual hardware encoder is used for multiple streams/players to provide multicasting functionality
+	// for multi-session unicast implementation each instance of `FVideoEncoder` will have own instance of hardware encoder.
+	TUniquePtr<FPixelStreamingBaseVideoEncoder> HWEncoder;
 
-	// we shouldn't start streaming immediately after WebRTC is connected because
-	// encoding pipeline is not ready yet and a couple of first frames can be lost.
-	// instead wait for an explicit command to start streaming
-	FThreadSafeBool bStreamingStarted;
+	TUniquePtr<FThread> WebRtcSignallingThread;
+	DWORD WebRtcSignallingThreadId = 0;
 
-	FCriticalSection AudioVideoStreamSync;
+	TUniquePtr<FSignallingServerConnection> SignallingServerConnection;
+	double LastSignallingServerConnectionAttemptTimestamp = 0;
 
-#if !UE_BUILD_SHIPPING
-	TUniquePtr<IFileHandle> EncodedVideoFile;
-#endif
+	TMap<FPlayerId, TUniquePtr<FPlayerSession>> Players;
+	rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> PeerConnectionFactory;
+	webrtc::PeerConnectionInterface::RTCConfiguration PeerConnectionConfig;
 
-	int32 InitialMaxFPS;
+	bool bPlanB = false;
+
+	// These are used only if using UnifiedPlan semantics
+	rtc::scoped_refptr<webrtc::AudioTrackInterface> AudioTrack;
+	rtc::scoped_refptr<webrtc::VideoTrackInterface> VideoTrack;
+	// This is only used if using PlanB semantics
+	TMap<FString, rtc::scoped_refptr<webrtc::MediaStreamInterface>> Streams;
 
 	// When we send a freeze frame we retain the data to handle connection
 	// scenarios.
 	TArray<uint8> CachedJpegBytes;
+
+	FThreadSafeBool bStreamingStarted = false;
 };
 

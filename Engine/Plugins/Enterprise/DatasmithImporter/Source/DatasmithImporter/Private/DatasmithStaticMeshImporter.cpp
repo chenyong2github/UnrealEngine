@@ -29,7 +29,7 @@
 #include "Templates/UniquePtr.h"
 #include "UObject/Package.h"
 
-#define LOCTEXT_NAMESPACE "DatasmithImporter"
+#define LOCTEXT_NAMESPACE "DatasmithStaticMeshImporter"
 
 namespace DatasmithStaticMeshImporterImpl
 {

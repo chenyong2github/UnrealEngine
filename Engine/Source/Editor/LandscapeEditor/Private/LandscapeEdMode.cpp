@@ -4601,6 +4601,27 @@ TArray<ALandscapeBlueprintBrushBase*> FEdModeLandscape::GetBrushesForCurrentLaye
 	return Brushes;
 }
 
+void FEdModeLandscape::ShowOnlySelectedBrush(class ALandscapeBlueprintBrushBase* InBrush)
+{
+	if (ALandscape * Landscape = GetLandscape())
+	{
+		int32 BrushLayer = Landscape->GetBrushLayer(InBrush);
+		TArray<ALandscapeBlueprintBrushBase*> Brushes = Landscape->GetBrushesForLayer(BrushLayer);
+		for (ALandscapeBlueprintBrushBase* Brush : Brushes)
+		{
+			Brush->SetIsVisible(Brush == InBrush);
+		}
+	}
+}
+
+void FEdModeLandscape::DuplicateBrush(class ALandscapeBlueprintBrushBase* InBrush)
+{
+	GEditor->SelectNone(false, true);
+	GEditor->SelectActor(InBrush, true, false, false);
+
+	GEditor->edactDuplicateSelected(InBrush->GetLevel(), false);
+}
+
 bool FEdModeLandscape::IsCurrentLayerBlendSubstractive(const TWeakObjectPtr<ULandscapeLayerInfoObject>& InLayerInfoObj) const
 {
 	ALandscape* Landscape = GetLandscape();

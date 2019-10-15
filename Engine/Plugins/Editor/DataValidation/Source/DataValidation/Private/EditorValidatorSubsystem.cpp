@@ -230,7 +230,7 @@ int32 UEditorValidatorSubsystem::ValidateAssets(TArray<FAssetData> AssetDataList
 		{
 			if (Result == EDataValidationResult::Invalid)
 			{
-				DataValidationLog.Error()->AddToken(FAssetNameToken::Create(Data.PackageName.ToString()))
+				DataValidationLog.Info()->AddToken(FAssetNameToken::Create(Data.PackageName.ToString()))
 					->AddToken(FTextToken::Create(LOCTEXT("InvalidDataResult", "contains invalid data.")));
 				++NumInvalidFiles;
 			}

@@ -1552,6 +1552,6 @@ bool FOutputLogFilter::IsLogCategoryEnabled(const FName& LogCategory) const
 void FOutputLogFilter::ClearSelectedLogCategories()
 {
 	// No need to churn memory each time the selected categories are cleared
-	SelectedLogCategories.Reset(SelectedLogCategories.GetAllocatedSize());
+	SelectedLogCategories.Reset();
 }
 #undef LOCTEXT_NAMESPACE

@@ -606,9 +606,9 @@ void SVariantManager::AddEditorSelectedActorsToVariant()
 	}
 
 	FScopedTransaction Transaction(FText::Format(
-		LOCTEXT("AddEditorSelectedActorsToVariantTransaction", "Add {0} actor bindings to {1} variants"),
-		FText::FromString(FString::FromInt(Actors.Num())),
-		FText::FromString(FString::FromInt(SelectedVariants.Num()))
+		LOCTEXT("AddEditorSelectedActorsToVariantTransaction", "Add {0} actor {0}|plural(one=binding,other=bindings) to {1} {1}|plural(one=variant,other=variants)"),
+		Actors.Num(),
+		SelectedVariants.Num()
 	));
 
 	VariantManager->CreateObjectBindingsAndCaptures(Actors, SelectedVariants);
@@ -733,9 +733,9 @@ void SVariantManager::CutSelectionVariantTree()
 	// Don't capture CopySelection in the transaction buffer because if we undo we kind of expect
 	// our cut stuff to still be in the clipboard
 	FScopedTransaction Transaction(FText::Format(
-		LOCTEXT("CutSelectionVariantTreeTransaction", "Cut {0} variants and {1} variant sets"),
-		FText::FromString(FString::FromInt(CopiedVariants.Num())),
-		FText::FromString(FString::FromInt(CopiedVariantSets.Num()))
+		LOCTEXT("CutSelectionVariantTreeTransaction", "Cut {0} {0}|plural(one=variant,other=variants) and {1} variant {1}|plural(one=set,other=sets)"),
+		CopiedVariants.Num(),
+		CopiedVariantSets.Num()
 		));
 
 
@@ -782,9 +782,9 @@ void SVariantManager::PasteSelectionVariantTree()
 	const TArray<TStrongObjectPtr<UVariant>>& CopiedVariants = FVariantManagerClipboard::GetVariants();
 
 	FScopedTransaction Transaction(FText::Format(
-		LOCTEXT("PasteSelectionVariantTreeTransaction", "Paste {0} variants and {1} variant sets"),
-		FText::FromString(FString::FromInt(CopiedVariants.Num())),
-		FText::FromString(FString::FromInt(CopiedVariantSets.Num()))
+		LOCTEXT("PasteSelectionVariantTreeTransaction", "Paste {0} {0}|plural(one=variant,other=variants) and {1} variant {1}|plural(one=set,other=sets)"),
+		CopiedVariants.Num(),
+		CopiedVariantSets.Num()
 		));
 
 	// Paste variant sets onto the tree, regardless of where we clicked
@@ -888,9 +888,9 @@ void SVariantManager::DeleteSelectionVariantTree()
 	VariantManager->GetSelection().GetSelectedVariantsAndVariantSets(VariantsToDelete, VariantSetsToDelete);
 
 	FScopedTransaction Transaction(FText::Format(
-		LOCTEXT("DeleteSelectionVariantTreeTransaction", "Delete {0} variants and {1} variant sets"),
-		FText::FromString(FString::FromInt(VariantsToDelete.Num())),
-		FText::FromString(FString::FromInt(VariantSetsToDelete.Num()))
+		LOCTEXT("DeleteSelectionVariantTreeTransaction", "Delete {0} {0}|plural(one=variant,other=variants) and {1} variant {1}|plural(one=set,other=sets)"),
+		VariantsToDelete.Num(),
+		VariantSetsToDelete.Num()
 		));
 
 	VariantManager->RemoveVariantsFromParent(VariantsToDelete);
@@ -922,9 +922,9 @@ void SVariantManager::DuplicateSelectionVariantTree()
 	TArray<UVariant*> NewVariants;
 
 	FScopedTransaction Transaction(FText::Format(
-		LOCTEXT("DuplicateSelectionVariantTreeTransaction", "Duplicate {0} variants and {1} variant sets"),
-		FText::FromString(FString::FromInt(VariantsToDuplicate.Num())),
-		FText::FromString(FString::FromInt(VariantSetsToDuplicate.Num()))
+		LOCTEXT("DuplicateSelectionVariantTreeTransaction", "Duplicate {0} {0}|plural(one=variant,other=variants) and {1} variant {1}|plural(one=set,other=sets)"),
+		VariantsToDuplicate.Num(),
+		VariantSetsToDuplicate.Num()
 		));
 
 	// Duplicate variants
@@ -1237,9 +1237,8 @@ void SVariantManager::CaptureNewPropertiesFromSelectedActors()
 		int32 NumBindings = SelectedBindings.Num();
 
 		FScopedTransaction Transaction(FText::Format(
-			LOCTEXT("ActorNodeCaptureNewPropertiesTransaction", "Capture new properties for {0} actor binding{1}"),
-			FText::FromString(FString::FromInt(NumBindings)),
-			NumBindings != 1 ? FText::FromString(TEXT("s")) : FText()
+			LOCTEXT("ActorNodeCaptureNewPropertiesTransaction", "Capture new properties for {0} actor {0}|plural(one=binding,other=bindings)"),
+			NumBindings
 			));
 
 		PinnedVariantManager->CaptureNewProperties(SelectedBindings);
@@ -1278,9 +1277,8 @@ void SVariantManager::AddFunctionCaller()
 
 	int32 NumNewCallers = SelectedActorNodes.Num();
 	FScopedTransaction Transaction(FText::Format(
-		LOCTEXT("AddFunctionCaller", "Created {0} new function caller{1}"),
-		FText::FromString(FString::FromInt(NumNewCallers)),
-		NumNewCallers != 1 ? FText::FromString(TEXT("s")) : FText()
+		LOCTEXT("AddFunctionCaller", "Created {0} new function {0}|plural(one=caller,other=callers)"),
+		NumNewCallers
 	));
 
 	for (const TSharedPtr<FVariantManagerActorNode>& Node : SelectedActorNodes)
@@ -1330,9 +1328,8 @@ void SVariantManager::RemoveActorBindings()
 		int32 NumBindings = SelectedBindings.Num();
 
 		FScopedTransaction Transaction(FText::Format(
-			LOCTEXT("ActorNodeRemoveTransaction", "Remove {0} actor binding{1}"),
-			FText::FromString(FString::FromInt(NumBindings)),
-			NumBindings != 1 ? FText::FromString(TEXT("s")) : FText()
+			LOCTEXT("ActorNodeRemoveTransaction", "Remove {0} actor {0}|plural(one=binding,other=bindings)"),
+			NumBindings
 		));
 
 		PinnedVariantManager->RemoveObjectBindingsFromParent(SelectedBindings);
@@ -1458,8 +1455,8 @@ void SVariantManager::RemoveCapture()
 	}
 
 	FScopedTransaction Transaction(FText::Format(
-		LOCTEXT("RemoveCaptureTransaction", "Remove {0} property captures"),
-		FText::AsNumber(PropValuesToRemove.Num())));
+		LOCTEXT("RemoveCaptureTransaction", "Remove {0} property {0}|plural(one=capture,other=captures)"),
+		PropValuesToRemove.Num()));
 
 	PinnedVariantManager->RemovePropertyCapturesFromParent(PropValuesToRemove);
 
@@ -1528,8 +1525,8 @@ void SVariantManager::RemoveDirectorFunctionCaller()
 	}
 
 	FScopedTransaction Transaction(FText::Format(
-		LOCTEXT("RemoveCaptureTransaction", "Remove {0} function callers"),
-		FText::AsNumber(NumCallersWellRemove)));
+		LOCTEXT("RemoveCallersTransaction", "Remove {0} function {0}|plural(one=caller,other=callers)"),
+		NumCallersWellRemove));
 
 	for (auto& Pair : FunctionCallers)
 	{
