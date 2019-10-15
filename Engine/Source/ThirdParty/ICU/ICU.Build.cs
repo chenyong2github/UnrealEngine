@@ -1,4 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
 using UnrealBuildTool;
 using System;
 using System.IO;
@@ -12,6 +13,76 @@ public class ICU : ModuleRules
 		Dynamic
 	}
 
+	protected const string ICU53VersionString = "icu4c-53_1";
+	protected const string ICU64VersionString = "icu4c-64_1";
+
+	protected virtual string ICUVersion
+	{
+		get
+		{
+			if (Target.Platform == UnrealTargetPlatform.IOS ||
+				Target.Platform == UnrealTargetPlatform.Mac ||
+				Target.Platform == UnrealTargetPlatform.Switch ||
+				Target.Platform == UnrealTargetPlatform.Win32 ||
+				Target.Platform == UnrealTargetPlatform.Win64 ||
+				Target.Platform == UnrealTargetPlatform.XboxOne ||
+				Target.IsInPlatformGroup(UnrealPlatformGroup.Android) ||
+				Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
+			{
+				return ICU64VersionString;
+			}
+
+			return ICU53VersionString;
+		}
+	}
+
+	protected virtual string ICULibRootPath
+	{
+		get { return ModuleDirectory; }
+	}
+	protected virtual string ICUIncRootPath
+	{
+		get { return ModuleDirectory; }
+	}
+
+	protected virtual string PlatformName
+	{
+		get
+		{
+			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
+			{
+				return "Linux";
+			}
+			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
+			{
+				return "Android";
+			}
+			else
+			{
+				return Target.Platform.ToString();
+			}
+		}
+	}
+
+	protected virtual string ICULibPath
+	{
+		get
+		{
+			switch (ICUVersion)
+			{
+				case ICU53VersionString: return Path.Combine(ICULibRootPath, ICUVersion, PlatformName ?? ".");
+				case ICU64VersionString: return Path.Combine(ICULibRootPath, ICUVersion, "lib", PlatformName ?? ".");
+
+				default: throw new ArgumentException("Invalid ICU version");
+			}
+		}
+	}
+
+	protected virtual bool UseDebugLibs
+	{
+		get { return Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT; }
+	}
+
 	public ICU(ReadOnlyTargetRules Target) : base(Target)
 	{
 		Type = ModuleType.External;
@@ -19,57 +90,25 @@ public class ICU : ModuleRules
 		// Note: If you change the version of ICU used for your platform, you may also need to update the ICU data staging code inside CopyBuildToStagingDirectory.Automation.cs
 
 		bool bNeedsDlls = false;
-
-		string ICUVersion = "icu4c-53_1";
-		string ICULibSubPath = "";
-		if (Target.Platform == UnrealTargetPlatform.IOS ||
-			Target.Platform == UnrealTargetPlatform.Mac ||
-			Target.Platform == UnrealTargetPlatform.PS4 ||
-			Target.Platform == UnrealTargetPlatform.Switch ||
-			Target.Platform == UnrealTargetPlatform.Win32 ||
-			Target.Platform == UnrealTargetPlatform.Win64 ||
-			Target.Platform == UnrealTargetPlatform.XboxOne ||
-			Target.IsInPlatformGroup(UnrealPlatformGroup.Android) ||
-			Target.IsInPlatformGroup(UnrealPlatformGroup.Unix)
-			)
+		
+		if (ICUVersion == ICU64VersionString)
 		{
-			ICUVersion = "icu4c-64_1";
-			ICULibSubPath = "lib/";
 			PublicDefinitions.Add("WITH_ICU_V64=1"); // TODO: Remove this once everything is using ICU 64
 		}
 
-		string ICURootPath = Target.UEThirdPartySourceDirectory + "ICU/" + ICUVersion + "/";
-		string ICUIncludePath = ICURootPath + "include/";
-		string ICULibPath = ICURootPath + ICULibSubPath;
-
 		// Includes
-		PublicSystemIncludePaths.Add(ICUIncludePath);
+		PublicSystemIncludePaths.Add(Path.Combine(ICUIncRootPath, ICUVersion, "include"));
 
 		// Libs
 		if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			string VSVersionFolderName = "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-			ICULibPath += (Target.Platform == UnrealTargetPlatform.Win64) ? "Win64/" : "Win32/";
-			ICULibPath += VSVersionFolderName + "/";
-
-			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
-			{
-				ICULibPath += "Debug";
-			}
-			else
-			{
-				ICULibPath += "Release";
-				//ICULibPath += "RelWithDebInfo";
-			}
-
-			PublicAdditionalLibraries.Add(Path.Combine(ICULibPath, "icu.lib"));
+			PublicAdditionalLibraries.Add(Path.Combine(ICULibPath, VSVersionFolderName, UseDebugLibs ? "Debug" : "Release", "icu.lib"));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
 			string VSVersionFolderName = "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-			ICULibPath += "HoloLens/";
-			ICULibPath += VSVersionFolderName + "/";
-			ICULibPath += Target.WindowsPlatform.GetArchitectureSubpath() + "/";
+			string PlatformICULibPath = Path.Combine(ICULibPath, VSVersionFolderName, Target.WindowsPlatform.GetArchitectureSubpath(), "lib");
 
 			string[] LibraryNameStems =
 			{
@@ -80,42 +119,26 @@ public class ICU : ModuleRules
 				"lx",   // Layout Extensions
 				"io"	// Input/Output
 			};
-			string LibraryNamePostfix = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT) ?
-				"d" : string.Empty;
+			string LibraryNamePostfix = UseDebugLibs ? "d" : string.Empty;
 
 			// Library Paths
-			string LibDir = ICULibPath + "lib" + "/";
 			foreach (string Stem in LibraryNameStems)
 			{
 				string LibraryName = "sicu" + Stem + LibraryNamePostfix + "." + "lib";
-				PublicAdditionalLibraries.Add(Path.Combine(LibDir, LibraryName));
+				PublicAdditionalLibraries.Add(Path.Combine(PlatformICULibPath, LibraryName));
 			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
-			ICULibPath += "Mac/";
-
-			string ICULibName = Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT ? "libicud.a" : "libicu.a";
-			PublicAdditionalLibraries.Add(Path.Combine(ICULibPath, ICULibName));
+			PublicAdditionalLibraries.Add(Path.Combine(ICULibPath, UseDebugLibs ? "libicud.a" : "libicu.a"));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.IOS)
 		{
-			ICULibPath += "IOS/";
-
-			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
-			{
-				ICULibPath += "Debug";
-			}
-			else
-			{
-				ICULibPath += "Release";
-			}
-
-			PublicAdditionalLibraries.Add(Path.Combine(ICULibPath, "libicu.a"));
+			PublicAdditionalLibraries.Add(Path.Combine(ICULibPath, UseDebugLibs ? "Debug" : "Release", "libicu.a"));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.TVOS)
 		{
-			ICULibPath += "TVOS/";
+			string PlatformICULibPath = Path.Combine(ICULibPath, "lib");
 
 			string[] LibraryNameStems =
 			{
@@ -126,27 +149,20 @@ public class ICU : ModuleRules
 				"lx",   // Layout Extensions
 				"io"	// Input/Output
 			};
-			string LibraryNamePostfix = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT) ?
-				"d" : string.Empty;
+			string LibraryNamePostfix = (UseDebugLibs) ? "d" : string.Empty;
 
 			foreach (string Stem in LibraryNameStems)
 			{
 				string LibraryName = "libicu" + Stem + LibraryNamePostfix + ".a";
-				PublicAdditionalLibraries.Add(Path.Combine(ICULibPath, "lib", LibraryName));
+				PublicAdditionalLibraries.Add(Path.Combine(PlatformICULibPath, LibraryName));
 			}
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
 		{
-			ICULibPath += "Android/";
-
-			string ICULibFolder = "Release";
-			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
-			{
-				ICULibFolder = "Debug";
-			}
+			string ICULibName = "libicu.a";
+			string ICULibFolder = UseDebugLibs ? "Debug" : "Release";
 
 			// filtered out in the toolchain
-			string ICULibName = "libicu.a";
 			PublicAdditionalLibraries.Add(Path.Combine(ICULibPath, "ARMv7", ICULibFolder, ICULibName));
 			PublicAdditionalLibraries.Add(Path.Combine(ICULibPath, "ARM64", ICULibFolder, ICULibName));
 			PublicAdditionalLibraries.Add(Path.Combine(ICULibPath, "x86", ICULibFolder, ICULibName));
@@ -154,27 +170,8 @@ public class ICU : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			ICULibPath += "Linux/";
-
-			string ICULibName = Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT ? "libicud_fPIC.a" : "libicu_fPIC.a";
+			string ICULibName = UseDebugLibs ? "libicud_fPIC.a" : "libicu_fPIC.a";
 			PublicAdditionalLibraries.Add(Path.Combine(ICULibPath, Target.Architecture, ICULibName));
-		}
-		else if (Target.Platform == UnrealTargetPlatform.PS4)
-		{
-			PublicSystemIncludePaths.Add(ICUIncludePath + "PS4/");
-
-			ICULibPath += "PS4/";
-
-			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
-			{
-				ICULibPath += "Debug";
-			}
-			else
-			{
-				ICULibPath += "Release";
-			}
-
-			PublicAdditionalLibraries.Add(Path.Combine(ICULibPath, "libicu.a"));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.XboxOne)
 		{
@@ -182,38 +179,17 @@ public class ICU : ModuleRules
 			System.Type XboxOnePlatformType = System.Type.GetType("UnrealBuildTool.XboxOnePlatform,UnrealBuildTool");
 			if (XboxOnePlatformType != null)
 			{
-				System.Object VersionName = XboxOnePlatformType.GetMethod("GetVisualStudioCompilerVersionName").Invoke(null, null);
-
-				ICULibPath += "XboxOne/";
-				ICULibPath += "VS" + VersionName.ToString();
-				ICULibPath += "/";
-
-				if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
-				{
-					ICULibPath += "Debug";
-				}
-				else
-				{
-					ICULibPath += "Release";
-				}
-
-				PublicAdditionalLibraries.Add(Path.Combine(ICULibPath, "icu.lib"));
+				string VersionName = "VS" + (XboxOnePlatformType.GetMethod("GetVisualStudioCompilerVersionName").Invoke(null, null)).ToString();
+				PublicAdditionalLibraries.Add(Path.Combine(ICULibPath, VersionName, UseDebugLibs ? "Debug" : "Release", "icu.lib"));
 			}
+
+			// Definitions
+			PublicDefinitions.Add("ICU_NO_USER_DATA_OVERRIDE=1");
+			PublicDefinitions.Add("U_PLATFORM=U_PF_DURANGO");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Switch)
 		{
-			ICULibPath += "Switch/";
-
-			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
-			{
-				ICULibPath += "Debug";
-			}
-			else
-			{
-				ICULibPath += "Release";
-			}
-
-			PublicAdditionalLibraries.Add(Path.Combine(ICULibPath, "libicu.a"));
+			PublicAdditionalLibraries.Add(Path.Combine(ICULibPath, UseDebugLibs ? "Debug" : "Release", "libicu.a"));
 		}
 
 		// DLL Definitions

@@ -104,8 +104,6 @@
 #define U_PF_SOLARIS 2600
 /** BSD is a UNIX operating system derivative. @internal */
 #define U_PF_BSD 3000
-/** ORBIS is a BSD system derivative. */
-#define U_PF_ORBIS 3001
 /** AIX is based on UNIX System V Releases and 4.3 BSD. @internal */
 #define U_PF_AIX 3100
 /** IRIX is based on UNIX System V with BSD extensions. @internal */
@@ -133,6 +131,10 @@
 #define U_PF_OS390 9000
 /** "IBM i" is the current name of what used to be i5/OS and earlier OS/400. @internal */
 #define U_PF_OS400 9400
+
+#ifdef U_PLATFORM_EXTERNAL
+#	include "icu/ExternalPlatform.h"
+#endif
 
 #ifdef U_PLATFORM
     /* Use the predefined value. */

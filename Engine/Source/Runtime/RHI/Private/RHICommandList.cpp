@@ -132,6 +132,7 @@ uint32 GWorkingRHIThreadStartCycles = 0;
 uint64 GInputLatencyTime = 0;
 
 RHI_API bool GEnableAsyncCompute = true;
+RHI_API bool GSupportAsyncComputeRaytracingBuildBVH = false;
 RHI_API FRHICommandListExecutor GRHICommandList;
 
 static FGraphEventArray AllOutstandingTasks;
@@ -179,15 +180,15 @@ void FRHICommandListImmediate::SetCurrentStat(TStatId Stat)
 	}
 }
 
-void FRHICommandListImmediate::SetGPUMask(FRHIGPUMask InGPUMask)
+void FRHICommandListBase::SetGPUMaskOnContext()
 {
 #if WITH_MGPU
-	if (InGPUMask != GPUMask)
+	if (Bypass())
 	{
-		ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
-		GPUMask = InGPUMask;
-		Reset();
+		GetContext().RHISetGPUMask(GPUMask);
+		return;
 	}
+	ALLOC_COMMAND(FRHICommandSetGPUMask)(GPUMask);
 #endif
 }
 
@@ -247,6 +248,10 @@ void FRHIAsyncComputeCommandListImmediate::ImmediateDispatch(FRHIAsyncComputeCom
 			static_assert(sizeof(FRHICommandList) == sizeof(FRHIAsyncComputeCommandListImmediate), "We are memswapping FRHICommandList and FRHICommandListImmediate; they need to be swappable.");
 			check(RHIComputeCmdList.IsImmediateAsyncCompute());
 			SwapCmdList->ExchangeCmdList(RHIComputeCmdList);
+			RHIComputeCmdList.GPUMask = SwapCmdList->GPUMask;
+			// NB: InitialGPUMask set to GPUMask since exchanging the list
+			// is equivalent to a Reset.
+			RHIComputeCmdList.InitialGPUMask = SwapCmdList->GPUMask;
 			RHIComputeCmdList.PSOContext = SwapCmdList->PSOContext;
 
 			//queue the execution of this async commandlist amongst other commands in the immediate gfx list.
@@ -260,18 +265,15 @@ void FRHIAsyncComputeCommandListImmediate::ImmediateDispatch(FRHIAsyncComputeCom
 	}
 }
 
-void FRHIAsyncComputeCommandListImmediate::SetGPUMask(FRHIGPUMask InGPUMask)
+void FRHICommandListBase::SetGPUMaskOnComputeContext()
 {
 #if WITH_MGPU
-	if (InGPUMask != GPUMask)
+	if (Bypass())
 	{
-		if (HasCommands())
-		{
-			ImmediateDispatch(*this);
-		}
-		GPUMask = InGPUMask;
-		Reset();
+		GetComputeContext().RHISetGPUMask(GPUMask);
+		return;
 	}
+	ALLOC_COMMAND(FRHICommandSetGPUMask)(GPUMask);
 #endif
 }
 
@@ -287,6 +289,20 @@ void FRHICommandListExecutor::ExecuteInner_DoExecute(FRHICommandListBase& CmdLis
 
 	CmdList.bExecuting = true;
 	check(CmdList.Context || CmdList.ComputeContext);
+
+#if WITH_MGPU
+	// Set the initial GPU mask on the contexts before executing any commands.
+    // This avoids having to ensure that every command list has an initial
+    // FRHICommandSetGPUMask at the root.
+	if (CmdList.Context != nullptr)
+	{
+		CmdList.Context->RHISetGPUMask(CmdList.InitialGPUMask);
+	}
+	if (CmdList.ComputeContext != nullptr && CmdList.ComputeContext != CmdList.Context)
+	{
+		CmdList.ComputeContext->RHISetGPUMask(CmdList.InitialGPUMask);
+	}
+#endif
 
 	FRHICommandListDebugContext DebugContext;
 	FRHICommandListIterator Iter(CmdList);
@@ -485,6 +501,10 @@ void FRHICommandListExecutor::ExecuteInner(FRHICommandListBase& CmdList)
 				// we should make command lists virtual and transfer ownership rather than this devious approach
 				static_assert(sizeof(FRHICommandList) == sizeof(FRHICommandListImmediate), "We are memswapping FRHICommandList and FRHICommandListImmediate; they need to be swappable.");
 				SwapCmdList->ExchangeCmdList(CmdList);
+				CmdList.GPUMask = SwapCmdList->GPUMask;
+				// NB: InitialGPUMask set to GPUMask since exchanging the list
+                // is equivalent to a Reset.
+				CmdList.InitialGPUMask = SwapCmdList->GPUMask;
 				CmdList.PSOContext = SwapCmdList->PSOContext;
 				CmdList.Data.bInsideRenderPass = SwapCmdList->Data.bInsideRenderPass;
 				CmdList.Data.bInsideComputePass = SwapCmdList->Data.bInsideComputePass;
@@ -839,7 +859,9 @@ FRHICommandListBase::FRHICommandListBase(FRHIGPUMask InGPUMask)
 	, ComputeContext(nullptr)
 	, MemManager(0)
 	, bAsyncPSOCompileAllowed(true)
+	, bRecursive(false)
 	, GPUMask(InGPUMask)
+	, InitialGPUMask(InGPUMask)
 {
 	GRHICommandList.OutstandingCmdListCount.Increment();
 	Reset();
@@ -864,15 +886,18 @@ void FRHICommandListBase::Reset()
 	NumCommands = 0;
 	Root = nullptr;
 	CommandLink = &Root;
-	Context = GDynamicRHI ? RHIGetDefaultContext(GPUMask) : nullptr;
+	if (!bRecursive)
+	{
+		Context = GDynamicRHI ? RHIGetDefaultContext() : nullptr;
 
-	if (GEnableAsyncCompute)
-	{
-		ComputeContext = GDynamicRHI ? RHIGetDefaultAsyncComputeContext(GPUMask) : nullptr;
-	}
-	else
-	{
-		ComputeContext = Context;
+		if (GEnableAsyncCompute)
+		{
+			ComputeContext = GDynamicRHI ? RHIGetDefaultAsyncComputeContext() : nullptr;
+		}
+		else
+		{
+			ComputeContext = Context;
+		}
 	}
 	
 	UID = GRHICommandList.UIDCounter.Increment();
@@ -881,6 +906,8 @@ void FRHICommandListBase::Reset()
 		RenderThreadContexts[Index] = nullptr;
 	}
 	ExecuteStat = TStatId();
+
+	InitialGPUMask = GPUMask;
 }
 
 void FRHICommandListBase::MaybeDispatchToRHIThreadInner()
@@ -1127,6 +1154,12 @@ public:
 			{
 				FRHICommandListBase* CmdList = RHICmdLists[Index];
 				ALLOC_COMMAND_CL(*RHICmdList, FRHICommandWaitForAndSubmitSubList)(Nothing, CmdList);
+
+#if WITH_MGPU
+				// This will restore the context GPU masks to whatever they were set to
+				// before the sub-list executed.
+				ALLOC_COMMAND_CL(*RHICmdList, FRHICommandSetGPUMask)(RHICmdList->GetGPUMask());
+#endif
 			}
 		}
 		else
@@ -1424,6 +1457,12 @@ void FRHICommandListBase::QueueRenderThreadCommandListSubmit(FGraphEventRef& Ren
 		RTTasks.Add(RenderThreadCompletionEvent);
 	}
 	ALLOC_COMMAND(FRHICommandWaitForAndSubmitRTSubList)(RenderThreadCompletionEvent, CmdList);
+
+#if WITH_MGPU
+	// This will restore the context GPU masks to whatever they were set to
+	// before the sub-list executed.
+	ALLOC_COMMAND(FRHICommandSetGPUMask)(GPUMask);
+#endif
 }
 
 void FRHICommandListBase::AddDispatchPrerequisite(const FGraphEventRef& Prereq)
@@ -1455,6 +1494,12 @@ FRHICOMMAND_MACRO(FRHICommandSubmitSubList)
 void FRHICommandListBase::QueueCommandListSubmit(class FRHICommandList* CmdList)
 {
 	ALLOC_COMMAND(FRHICommandSubmitSubList)(CmdList);
+
+#if WITH_MGPU
+	// This will restore the context GPU masks to whatever they were set to
+	// before the sub-list executed.
+	ALLOC_COMMAND(FRHICommandSetGPUMask)(GPUMask);
+#endif
 }
 
 
@@ -1573,12 +1618,12 @@ void FRHICommandList::EndFrame()
 	if (Bypass())
 	{
 		GetContext().RHIEndFrame();
+		GDynamicRHI->RHIAdvanceFrameFence();
 		return;
 	}
 
 	ALLOC_COMMAND(FRHICommandEndFrame)();
-
-	FRHICommandListExecutor::GetImmediateCommandList().AdvanceFrameFence();
+	GDynamicRHI->RHIAdvanceFrameFence();
 
 	if (!IsRunningRHIInSeparateThread())
 	{
@@ -2494,6 +2539,20 @@ FShaderResourceViewRHIRef FDynamicRHI::RHICreateShaderResourceView_RenderThread(
 	return GDynamicRHI->RHICreateShaderResourceView(StructuredBuffer);
 }
 
+FShaderResourceViewRHIRef FDynamicRHI::RHICreateShaderResourceViewWriteMask_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2DRHI)
+{
+	CSV_SCOPED_TIMING_STAT(RHITStalls, RHICreateShaderResourceView_RenderThread_Tex2DWriteMask);
+	FScopedRHIThreadStaller StallRHIThread(RHICmdList);
+	return GDynamicRHI->RHICreateShaderResourceViewWriteMask(Texture2DRHI);
+}
+
+FShaderResourceViewRHIRef FDynamicRHI::RHICreateShaderResourceViewFMask_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2DRHI)
+{
+	CSV_SCOPED_TIMING_STAT(RHITStalls, RHICreateShaderResourceView_RenderThread_Tex2DFMask);
+	FScopedRHIThreadStaller StallRHIThread(RHICmdList);
+	return GDynamicRHI->RHICreateShaderResourceViewFMask(Texture2DRHI);
+}
+
 FTextureCubeRHIRef FDynamicRHI::RHICreateTextureCube_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, uint8 Format, uint32 NumMips, uint32 Flags, FRHIResourceCreateInfo& CreateInfo)
 {
 	CSV_SCOPED_TIMING_STAT(RHITStalls, RHICreateTextureCube_RenderThread);
@@ -2541,14 +2600,14 @@ void FDynamicRHI::RHIMapStagingSurface_RenderThread(class FRHICommandListImmedia
 	}
 	{
 		FScopedRHIThreadStaller StallRHIThread(RHICmdList);
-		GDynamicRHI->RHIMapStagingSurface(Texture, Fence, OutData, OutWidth, OutHeight);
+		GDynamicRHI->RHIMapStagingSurface(Texture, Fence, OutData, OutWidth, OutHeight, RHICmdList.GetGPUMask().ToIndex());
 	}
 }
 
 void FDynamicRHI::RHIUnmapStagingSurface_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture)
 {
 	FScopedRHIThreadStaller StallRHIThread(RHICmdList);
-	GDynamicRHI->RHIUnmapStagingSurface(Texture);
+	GDynamicRHI->RHIUnmapStagingSurface(Texture, RHICmdList.GetGPUMask().ToIndex());
 }
 
 void FDynamicRHI::RHIReadSurfaceFloatData_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, FIntRect Rect, TArray<FFloat16Color>& OutData, ECubeFace CubeFace, int32 ArrayIndex, int32 MipIndex)

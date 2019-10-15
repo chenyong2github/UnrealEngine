@@ -57,6 +57,8 @@ TUniformBufferRef<FLocalVertexFactoryUniformShaderParameters> CreateLocalVFUnifo
 
 	if (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
 	{
+		UniformParameters.VertexFetch_PositionBuffer = LocalVertexFactory->GetPositionsSRV();
+
 		UniformParameters.VertexFetch_PackedTangentsBuffer = LocalVertexFactory->GetTangentsSRV();
 		UniformParameters.VertexFetch_TexCoordBuffer = LocalVertexFactory->GetTextureCoordinatesSRV();
 
@@ -104,7 +106,7 @@ void FLocalVertexFactoryShaderParametersBase::GetElementShaderBindingsBase(
 	) const
 {
 	const auto* LocalVertexFactory = static_cast<const FLocalVertexFactory*>(VertexFactory);
-	
+
 	if (LocalVertexFactory->SupportsManualVertexFetch(FeatureLevel) || UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel))
 	{
 		if (!VertexFactoryUniformBuffer)
@@ -394,6 +396,10 @@ FVertexFactoryShaderParameters* FLocalVertexFactory::ConstructShaderParameters(E
 
 #if RHI_RAYTRACING
 	if (ShaderFrequency == SF_RayHitGroup)
+	{
+		return new FLocalVertexFactoryShaderParameters();
+	} 
+	else if (ShaderFrequency == SF_Compute)
 	{
 		return new FLocalVertexFactoryShaderParameters();
 	}

@@ -48,7 +48,7 @@ float2 ComputeDOFFocalMask(float SceneDepth, float SkyWithoutHorizonMask)
 {
 	float2 Ret = float2(ComputeDOFFarFocalMask(SceneDepth), ComputeDOFNearFocalMask(SceneDepth));
 
-	float SkyFocusDistance = DepthOfFieldParams[0].x;
+	float SkyFocusDistance = DepthOfFieldParams.x;
 
 	// The skybox should not be faded out, expect in the horizon, this can be optimized
 	if(SceneDepth > SkyFocusDistance)
@@ -125,8 +125,8 @@ void SetupPS(
 
 #if DOF_VIGNETTE
 	{
-		float DepthOfFieldVignetteMul = DepthOfFieldParams[0].y;
-		float DepthOfFieldVignetteAdd = DepthOfFieldParams[0].z;
+		float DepthOfFieldVignetteMul = DepthOfFieldParams.y;
+		float DepthOfFieldVignetteAdd = DepthOfFieldParams.z;
 
 		// todo: we could optimize that multiplication away
 		float InvAspectRatio = View.ViewSizeAndInvSize.y * View.ViewSizeAndInvSize.z;

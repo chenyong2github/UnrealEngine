@@ -281,10 +281,6 @@ FXRSwapChainPtr FCustomPresent::CreateSwapChain_RenderThread(uint32 InSizeX, uin
 	CheckInRenderThread();
 
 	FTextureRHIRef RHITexture;
-	{
-		RHITexture = CreateTexture_RenderThread(InSizeX, InSizeY, InFormat, InBinding, InNumMips, InNumSamples, InNumSamplesTileMem, InResourceType, InTextures[0], InTexCreateFlags);
-	}
-
 	TArray<FTextureRHIRef> RHITextureSwapChain;
 	{
 		for (int32 TextureIndex = 0; TextureIndex < InTextures.Num(); ++TextureIndex)
@@ -292,6 +288,8 @@ FXRSwapChainPtr FCustomPresent::CreateSwapChain_RenderThread(uint32 InSizeX, uin
 			RHITextureSwapChain.Add(CreateTexture_RenderThread(InSizeX, InSizeY, InFormat, InBinding, InNumMips, InNumSamples, InNumSamplesTileMem, InResourceType, InTextures[TextureIndex], InTexCreateFlags));
 		}
 	}
+
+	RHITexture = GDynamicRHI->RHICreateAliasedTexture(RHITextureSwapChain[0]);
 
 	return CreateXRSwapChain(MoveTemp(RHITextureSwapChain), RHITexture);
 }

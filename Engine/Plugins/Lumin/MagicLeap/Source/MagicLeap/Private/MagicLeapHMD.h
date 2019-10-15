@@ -5,7 +5,6 @@
 #include "HeadMountedDisplayBase.h"
 #include "Runtime/Launch/Resources/Version.h"
 #include "IMagicLeapPlugin.h"
-#include "IMagicLeapHMD.h"
 #include "Misc/ScopeLock.h"
 #include "HAL/ThreadSafeBool.h"
 
@@ -14,37 +13,19 @@
 #include "AppFramework.h"
 #include "SceneViewExtension.h"
 #include "MagicLeapMath.h"
-#include "MagicLeapCustomPresent.h"
+#include "MagicLeapCustomPresentGL.h"
+#include "MagicLeapCustomPresentVk.h"
+#include "MagicLeapCustomPresentMetal.h"
 #include "MagicLeapHMDFunctionLibrary.h"
 #include "LuminRuntimeSettings.h"
-#include "MagicLeapPluginUtil.h" // for ML_INCLUDES_START/END
-
-#if WITH_MLSDK
-ML_INCLUDES_START
-#include <ml_head_tracking.h>
-ML_INCLUDES_END
-#endif //WITH_MLSDK
+#include "Lumin/CAPIShims/LuminAPIHeadTracking.h"
 
 class FXRTrackingSystemBase;
 
 /**
- * The public interface to this module.
- */
-class ILuminARModule : public IModuleInterface
-{
-public:
-	//create for mutual connection (regardless of construction order)
-	virtual TSharedPtr<IARSystemSupport, ESPMode::ThreadSafe> CreateARImplementation() = 0;
-	//Now connect (regardless of connection order)
-	virtual void ConnectARImplementationToXRSystem(FXRTrackingSystemBase* InXRTrackingSystem) = 0;
-	//Now initialize fully connected systems
-	virtual void InitializeARImplementation() = 0;
-};
-
-/**
   * MagicLeap Head Mounted Display
   */
-class MAGICLEAP_API FMagicLeapHMD : public IMagicLeapHMD, public FHeadMountedDisplayBase, public FXRRenderTargetManager, public TSharedFromThis<FMagicLeapHMD, ESPMode::ThreadSafe>
+class MAGICLEAP_API FMagicLeapHMD : public FHeadMountedDisplayBase, public FXRRenderTargetManager
 {
 public:
 
@@ -55,8 +36,6 @@ public:
 	virtual bool OnEndGameFrame(FWorldContext& WorldContext) override;
 	virtual void OnBeginRendering_GameThread() override;
 	virtual void OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& ViewFamily) override;
-	virtual class IHeadMountedDisplay* GetHMDDevice() override { return this; }
-	virtual class TSharedPtr< class IStereoRendering, ESPMode::ThreadSafe > GetStereoRenderingDevice() override { return AsShared(); }
 	virtual class TSharedPtr< class IXRCamera, ESPMode::ThreadSafe > GetXRCamera(int32 DeviceId) override;
 	virtual FName GetSystemName() const override;
 	virtual FString GetVersionString() const override;
@@ -72,19 +51,9 @@ public:
 
 	virtual void ResetOrientationAndPosition(float yaw = 0.f) override;
 	virtual void ResetOrientation(float Yaw = 0.f) override;
-	virtual void ResetPosition() override;
 
 	virtual void OnBeginPlay(FWorldContext& InWorldContext) override;
 	virtual void OnEndPlay(FWorldContext& InWorldContext) override;
-
-	void SetBasePosition(const FVector& InBasePosition);
-	FVector GetBasePosition() const;
-
-	virtual void SetBaseRotation(const FRotator& BaseRot) override;
-	virtual FRotator GetBaseRotation() const override;
-
-	virtual void SetBaseOrientation(const FQuat& BaseOrient) override;
-	virtual FQuat GetBaseOrientation() const override;
 
 	float GetWorldToMetersScale() const override;
 
@@ -150,10 +119,10 @@ public:
 	virtual ~FMagicLeapHMD();
 
 	/** FMagicLeapHMDBase interface */
-	virtual bool IsInitialized() const override;
 	bool IsDeviceInitialized() const { return (bDeviceInitialized != 0) ? true : false; }
 
-	bool GetHeadTrackingState(FHeadTrackingState& State) const;
+	bool GetHeadTrackingState(FMagicLeapHeadTrackingState& State) const;
+	bool GetHeadTrackingMapEvents(TSet<EMagicLeapHeadTrackingMapEvent>& MapEvents) const;
 	void UpdateNearClippingPlane();
 	FMagicLeapCustomPresent* GetActiveCustomPresent(const bool bRequireDeviceIsInitialized = true) const;
 	void ShutdownRendering();
@@ -166,32 +135,10 @@ public:
 
 	void PauseRendering(const bool bIsPaused) { bIsRenderingPaused = bIsPaused; }
 
-	/** Utility class to scope guard enabling and disabling game viewport client input processing.
-	* On creation it will enable the input processing, and on exit it will restore it to its
-	* previous state. Usage is:
-	*
-	* { FMagicLeapHMD::EnableInput EnableInput; PostSomeInputToMessageHandlers(); }
-	*/
-	struct EnableInput
-	{
-#if WITH_EDITOR
-		inline EnableInput()
-		{
-			SavedIgnoreInput = FMagicLeapHMD::GetHMD()->SetIgnoreInput(false);
-		}
-		inline ~EnableInput()
-		{
-			FMagicLeapHMD::GetHMD()->SetIgnoreInput(SavedIgnoreInput);
-		}
-
-	private:
-		bool SavedIgnoreInput;
-#endif
-	};
-
 public:
+	IRendererModule* GetRendererModule() { return RendererModule; }
 
-	uint32 GetViewportCount() const { return AppFramework.IsInitialized() ? AppFramework.GetViewportCount() : 0; }
+	uint32 GetViewportCount() const { return AppFramework.GetViewportCount(); }
 
 	// TODO: add const versions
 	FTrackingFrame& GetCurrentFrameMutable();
@@ -209,7 +156,21 @@ public:
 
 	const FAppFramework& GetAppFrameworkConst() const;
 	FAppFramework& GetAppFramework();
-	void SetFocusActor(const AActor* InFocusActor);
+   /**
+	* Set the actor whose location is used as the focus point. The focus distance is the distance from the HMD to the focus point.
+	* 
+	* @param InFocusActor			The actor that will be set as the new focus actor.
+	* @param bSetStabilizationActor  True if the function should set the stabilization depth actor to match the passed in focus actor. (RECOMMENDED TO STAY CHECKED)
+	*/
+	void SetFocusActor(const AActor* InFocusActor, bool bSetStabilizationActor = true);
+	static const float DefaultFocusDistance;
+   /**
+	* Set the actor whose location is used as the depth for timewarp stabilization.
+	* 
+	* @param InStabilizationDepthActor  The actor that will be set as the new stabilization depth actor.
+	* @param bSetFocusActor				True if the function should set the focus actor to match the passed in stabilization depth actor. (RECOMMENDED TO STAY CHECKED)
+	*/
+	void SetStabilizationDepthActor(const AActor* InStabilizationDepthActor, bool bSetFocusActor = true);
 
 	bool IsPerceptionEnabled() const;
 
@@ -251,8 +212,8 @@ private:
 	void EnablePrivileges();
 	void DisablePrivileges();
 
-	void EnableInputDevices();
-	void DisableInputDevices();
+	void EnableTrackerEntities();
+	void DisableTrackerEntities();
 
 	void EnablePerception();
 	void DisablePerception();
@@ -266,18 +227,18 @@ private:
 	void RefreshTrackingFrame();
 
 #if WITH_MLSDK
-	EHeadTrackingError MLToUnrealHeadTrackingError(MLHeadTrackingError error) const;
-	EHeadTrackingMode MLToUnrealHeadTrackingMode(MLHeadTrackingMode mode) const;
+	EMagicLeapHeadTrackingError MLToUnrealHeadTrackingError(MLHeadTrackingError error) const;
+	EMagicLeapHeadTrackingMode MLToUnrealHeadTrackingMode(MLHeadTrackingMode mode) const;
+	EMagicLeapHeadTrackingMapEvent MLToUnrealHeadTrackingMapEvent(MLHeadTrackingMapEvent mapevent) const;
 #endif //WITH_MLSDK
 
 #if !PLATFORM_LUMIN
 	void DisplayWarningIfVDZINotEnabled();
 #endif
 
-#if PLATFORM_LUMIN
-	/** Sets a frame timing hint, which tells the device what your target framerate is, to aid in prediction and jitter */
-	void SetFrameTimingHint(ELuminFrameTimingHint InFrameTimingHint);
-#endif //PLATFORM_LUMIN
+	void GetClipExtents();
+	// Gets the config value, converts to enum and then makes the c-api function call.
+	void SetFrameTimingHint_RenderThread();
 
 private:
 	int32 bDeviceInitialized; // RW on render thread, R on game thread
@@ -305,23 +266,32 @@ private:
 	bool bIsVDZIEnabled;
 	bool bUseVulkanForZI;
 	bool bVDZIWarningDisplayed;
+#if PLATFORM_WINDOWS || PLATFORM_LINUX || PLATFORM_MAC
+	enum class EServerPingState : int32
+	{
+		NotInitialized,
+		AttemptingFirstPing,
+		ServerOnline,
+		ServerOffline,
+	};
+	volatile int32 ZIServerPingState;
+	static constexpr float ServerPingInterval = 5.0f;
+#endif // PLATFORM_WINDOWS || PLATFORM_LINUX || PLATFORM_MAC
 	bool bPrivilegesEnabled;
 
 	/** Current hint to the Lumin system about what our target framerate should be */
 	ELuminFrameTimingHint CurrentFrameTimingHint;
+	float EngineGameThreadFPS;
 
-#if PLATFORM_WINDOWS
-	TRefCountPtr<FMagicLeapCustomPresentD3D11> CustomPresentD3D11;
-#endif // PLATFORM_WINDOWS
-#if PLATFORM_MAC
-	TRefCountPtr<FMagicLeapCustomPresentMetal> CustomPresentMetal;
-#endif // PLATFORM_MAC
 #if PLATFORM_WINDOWS || PLATFORM_LINUX || PLATFORM_LUMIN
 	TRefCountPtr<FMagicLeapCustomPresentOpenGL> CustomPresentOpenGL;
 #endif // PLATFORM_WINDOWS || PLATFORM_LINUX || PLATFORM_LUMIN
 #if PLATFORM_WINDOWS || PLATFORM_LUMIN
 	TRefCountPtr<FMagicLeapCustomPresentVulkan> CustomPresentVulkan;
 #endif // PLATFORM_LUMIN
+#if PLATFORM_MAC
+	TRefCountPtr<FMagicLeapCustomPresentMetal> CustomPresentMetal;
+#endif // PLATFORM_MAC
 
 public:
 	FTrackingFrame GameTrackingFrame;
@@ -331,6 +301,7 @@ public:
 
 private:
 	TWeakObjectPtr<const AActor> FocusActor;
+	TWeakObjectPtr<const AActor> StabilizationDepthActor;
 	FThreadSafeBool bQueuedGraphicsCreateCall;
 
 	struct SavedProfileState
@@ -347,8 +318,11 @@ private:
 	};
 	SavedProfileState BaseProfileState;
 
-	FHeadTrackingState HeadTrackingState;
+	FMagicLeapHeadTrackingState HeadTrackingState;
 	bool bHeadTrackingStateAvailable;
+
+	bool bHeadposeMapEventsAvailable;
+	TSet<EMagicLeapHeadTrackingMapEvent> HeadposeMapEvents;
 
 #if WITH_EDITOR
 	/** The world we are playing. This is valid only within the span of BeginPlay & EndPlay. */
@@ -365,6 +339,9 @@ private:
 	/** Utility to get the MagicLeap specific HMD plugin instance. */
 	static FMagicLeapHMD* GetHMD();
 #endif
+
+	float SavedMaxFPS;
+	FIntPoint DefaultRenderTargetSize;
 };
 
 //DEFINE_LOG_CATEGORY_STATIC(LogHMD, Log, All);

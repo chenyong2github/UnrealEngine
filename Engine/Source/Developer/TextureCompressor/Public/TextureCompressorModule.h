@@ -235,13 +235,17 @@ public:
 	 * @param SourceMips - The input mips.
 	 * @param BuildSettings - Build settings.
 	 * @param OutCompressedMips - The compressed mips built by the compressor.
+	 * @param OutNumMipsInTail - The number of mips that are joined into a single mip tail mip
+	 * @param OutCompressedMips - Extra data that the runtime may need
 	 * @returns true on success
 	 */
 	virtual bool BuildTexture(
 		const TArray<struct FImage>& SourceMips,
 		const TArray<struct FImage>& AssociatedNormalSourceMips,
 		const FTextureBuildSettings& BuildSettings,
-		TArray<FCompressedImage2D>& OutTextureMips
+		TArray<FCompressedImage2D>& OutTextureMips,
+		uint32& OutNumMipsInTail,
+		uint32& OutExtData
 		) = 0;
 
 	

@@ -1099,17 +1099,20 @@ float3 MaterialExpressionSkyAtmosphereLightDirection(FMaterialPixelParameters Pa
 
 float3 MaterialExpressionSkyAtmosphereLightDiskLuminance(FMaterialPixelParameters Parameters, uint LightIndex)
 {
+	float3 LightDiskLuminance = float3(0.0f, 0.0f, 0.0f);
 #if MATERIAL_SKY_ATMOSPHERE && PROJECT_SUPPORT_SKY_ATMOSPHERE
-	const float3 PlanetCenter = float3(0, 0, -ResolvedView.SkyAtmosphereBottomRadius);
-	const float3 PlanetCenterToWorldCameraPos = ResolvedView.SkyWorldCameraOrigin * CM_TO_SKY_UNIT - PlanetCenter;
-	const float3 ViewDir = -Parameters.CameraVector;
+	if (ResolvedView.RenderingReflectionCaptureMask == 0.0f) // Do not render light disk when in reflection capture in order to avoid double specular. The sun contribution is already computed analyticaly.
+	{
+		const float3 PlanetCenter = float3(0, 0, -ResolvedView.SkyAtmosphereBottomRadius);
+		const float3 PlanetCenterToWorldCameraPos = ResolvedView.SkyWorldCameraOrigin * CM_TO_SKY_UNIT - PlanetCenter;
+		const float3 ViewDir = -Parameters.CameraVector;
 
-	return GetLightDiskLuminance(PlanetCenterToWorldCameraPos, ViewDir, ResolvedView.SkyAtmosphereBottomRadius, ResolvedView.SkyAtmosphereTopRadius,
-		View.TransmittanceLutTexture, View.TransmittanceLutTextureSampler,
-		ResolvedView.AtmosphereLightDirection[LightIndex].xyz, ResolvedView.AtmosphereLightDiscCosHalfApexAngle[LightIndex].x, ResolvedView.AtmosphereLightDiscLuminance[LightIndex].xyz);
-#else
-	return float3(0.0f, 0.0f, 0.0f);
+		LightDiskLuminance =  GetLightDiskLuminance(PlanetCenterToWorldCameraPos, ViewDir, ResolvedView.SkyAtmosphereBottomRadius, ResolvedView.SkyAtmosphereTopRadius,
+			View.TransmittanceLutTexture, View.TransmittanceLutTextureSampler,
+			ResolvedView.AtmosphereLightDirection[LightIndex].xyz, ResolvedView.AtmosphereLightDiscCosHalfApexAngle[LightIndex].x, ResolvedView.AtmosphereLightDiscLuminance[LightIndex].xyz);
+	}
 #endif
+	return LightDiskLuminance;
 }
 
 float3 MaterialExpressionSkyAtmosphereViewLuminance(FMaterialPixelParameters Parameters)

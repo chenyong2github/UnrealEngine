@@ -21,13 +21,13 @@
 float ComputeLightSampleWorldBluringRadius(float3 TranslatedWorldPosition, uint LightType, FLightShaderParameters Light, float HitT)
 {
 	// Sometime, artists might put occluder very close to the area light compared to they area, that may lead to negative values.
-	// TODO: the correct way to fix this is to move this world bluring radius computation into the RGS, and have DistanceFromLight = Ray's MaxT.
+	// TODO(Denoiser): the correct way to fix this is to move this world bluring radius computation into the RGS, and have DistanceFromLight = Ray's MaxT.
 	const float ClosestLightDistance = 0.001;
 
 	BRANCH
 	if (LightType == LIGHT_TYPE_DIRECTIONAL)
 	{
-		// TODO: compute this on CPU.
+		// TODO(Denoiser): compute this on CPU.
 		return tan(asin(Light.SourceRadius)) * HitT;
 	}
 	else if (LightType == LIGHT_TYPE_POINT || LightType == LIGHT_TYPE_SPOT)
@@ -50,10 +50,10 @@ float ComputeLightSampleWorldBluringRadius(float3 TranslatedWorldPosition, uint 
 
 		float2 LightDimensions = GetRectLightDimensions(Light);
 
-		// TODO: area light anysotropy.
+		// TODO(Denoiser): area light anysotropy.
 		float SmallestLightDimension = min(LightDimensions.x, LightDimensions.y);
 
-		// TODO: HitT on the direction of the ray, but does not DistanceFromLight, witch is bad for large area light.
+		// TODO(Denoiser): HitT on the direction of the ray, but does not DistanceFromLight, witch is bad for large area light.
 		return SmallestLightDimension * HitT / max(DistanceFromLight - HitT, ClosestLightDistance);
 	}
 }

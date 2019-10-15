@@ -87,7 +87,8 @@ void FPrimitiveComponentDetails::CustomizeDetails( IDetailLayoutBuilder& DetailB
 	}
 
 	AddAdvancedSubCategory( DetailBuilder, "Rendering", "TextureStreaming" );
-	AddAdvancedSubCategory( DetailBuilder, "Rendering", "LOD");
+	AddAdvancedSubCategory( DetailBuilder, "Rendering", "RayTracing");
+	AddAdvancedSubCategory(DetailBuilder, "Rendering", "LOD");
 }
 
 void FPrimitiveComponentDetails::AddMaterialCategory( IDetailLayoutBuilder& DetailBuilder )

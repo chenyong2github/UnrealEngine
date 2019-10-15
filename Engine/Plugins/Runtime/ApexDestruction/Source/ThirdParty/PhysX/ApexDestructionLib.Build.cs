@@ -6,66 +6,21 @@ using System.IO;
 using System.Collections.Generic;
 
 public class ApexDestructionLib : ModuleRules
-{
-    enum APEXLibraryMode
+{	
+	protected virtual string LibraryFormatString_Default
     {
-        Debug,
-        Profile,
-        Checked,
-        Shipping
+		get { return null; }
     }
 
-    APEXLibraryMode GetAPEXLibraryMode(UnrealTargetConfiguration Config)
-    {
-        switch (Config)
-        {
-            case UnrealTargetConfiguration.Debug:
-                if (Target.bDebugBuildsActuallyUseDebugCRT)
-                {
-                    return APEXLibraryMode.Debug;
-                }
-                else
-                {
-                    return APEXLibraryMode.Checked;
-                }
-            case UnrealTargetConfiguration.Shipping:
-				return APEXLibraryMode.Shipping;
-            case UnrealTargetConfiguration.Test:
-                return APEXLibraryMode.Profile;
-            case UnrealTargetConfiguration.Development:
-            case UnrealTargetConfiguration.DebugGame:
-            case UnrealTargetConfiguration.Unknown:
-            default:
-                if (Target.bUseShippingPhysXLibraries)
-                {
-                    return APEXLibraryMode.Shipping;
-                }
-                else if (Target.bUseCheckedPhysXLibraries)
-                {
-                    return APEXLibraryMode.Checked;
-                }
-                else
-                {
-                    return APEXLibraryMode.Profile;
-                }
-        }
-    }
+	protected virtual string IncRootDirectory { get { return Path.Combine(Target.UEThirdPartySourceDirectory, "PhysX3"); } }
+	protected virtual string LibRootDirectory { get { return Path.Combine(Target.UEThirdPartySourceDirectory, "PhysX3"); } }
 
-    static string GetAPEXLibrarySuffix(APEXLibraryMode Mode)
-    {
-        switch (Mode)
-        {
-            case APEXLibraryMode.Debug:
-                return "DEBUG";
-            case APEXLibraryMode.Checked:
-                return "CHECKED";
-            case APEXLibraryMode.Profile:
-                return "PROFILE";
-            case APEXLibraryMode.Shipping:
-            default:
-                return "";
-        }
-    }
+    protected virtual string ApexVersion { get { return "APEX_1.4"; } }
+    protected virtual string ApexDir     { get { return Path.Combine(IncRootDirectory, ApexVersion); } }
+    protected virtual string ApexLibDir  { get { return Path.Combine(LibRootDirectory, "Lib"); } }
+
+	protected virtual PhysXLibraryMode LibraryMode { get { return Target.GetPhysXLibraryMode(); } }
+    protected virtual string LibrarySuffix         { get { return LibraryMode.AsSuffix(); } }
 
     public ApexDestructionLib(ReadOnlyTargetRules Target) : base(Target)
     {
@@ -75,39 +30,24 @@ public class ApexDestructionLib : ModuleRules
         {
             return;
         }
-        
-        // Determine which kind of libraries to link against
-        APEXLibraryMode LibraryMode = GetAPEXLibraryMode(Target.Configuration);
-        string LibrarySuffix = GetAPEXLibrarySuffix(LibraryMode);
 
-        string ApexVersion = "APEX_1.4";
-
-        string APEXDir = Target.UEThirdPartySourceDirectory + "PhysX3/" + ApexVersion + "/";
-
-        string APEXLibDir = Target.UEThirdPartySourceDirectory + "PhysX3/Lib";
-
-        PublicSystemIncludePaths.AddRange(
-            new string[] {
-                APEXDir + "include/destructible",
-            }
-            );
+        PublicSystemIncludePaths.AddRange(new string[]
+		{
+            Path.Combine(ApexDir, "include", "destructible"),
+        });
 
         // List of default library names (unused unless LibraryFormatString is non-null)
         List<string> ApexLibraries = new List<string>();
-        ApexLibraries.AddRange(
-            new string[]
+        ApexLibraries.AddRange(new string[]
             {
                 "APEX_Destructible{0}",
             });
-        string LibraryFormatString = null;
-
+        string LibraryFormatString = LibraryFormatString_Default;
 
         // Libraries and DLLs for windows platform
         if (Target.Platform == UnrealTargetPlatform.Win64)
         {
-            APEXLibDir += "/Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-
-            PublicAdditionalLibraries.Add(Path.Combine(APEXLibDir, String.Format("APEXFramework{0}_x64.lib", LibrarySuffix)));
+            PublicAdditionalLibraries.Add(Path.Combine(ApexLibDir, "Win64", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), String.Format("APEXFramework{0}_x64.lib", LibrarySuffix)));
             PublicDelayLoadDLLs.Add(String.Format("APEXFramework{0}_x64.dll", LibrarySuffix));
 
             string[] RuntimeDependenciesX64 =
@@ -126,9 +66,7 @@ public class ApexDestructionLib : ModuleRules
         }
         else if (Target.Platform == UnrealTargetPlatform.Win32)
         {
-            APEXLibDir += "/Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-
-            PublicAdditionalLibraries.Add(Path.Combine(APEXLibDir, String.Format("APEXFramework{0}_x86.lib", LibrarySuffix)));
+            PublicAdditionalLibraries.Add(Path.Combine(ApexLibDir, "Win32", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), String.Format("APEXFramework{0}_x86.lib", LibrarySuffix)));
             PublicDelayLoadDLLs.Add(String.Format("APEXFramework{0}_x86.dll", LibrarySuffix));
 
             string[] RuntimeDependenciesX86 =
@@ -147,9 +85,8 @@ public class ApexDestructionLib : ModuleRules
         else if (Target.Platform == UnrealTargetPlatform.HoloLens)
         {
             string Arch = Target.WindowsPlatform.GetArchitectureSubpath();
-            APEXLibDir += "/HoloLens/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
 
-            PublicAdditionalLibraries.Add(Path.Combine(APEXLibDir, String.Format("APEXFramework{0}_{1}.lib", LibrarySuffix, Arch)));
+            PublicAdditionalLibraries.Add(Path.Combine(ApexLibDir, "HoloLens", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), String.Format("APEXFramework{0}_{1}.lib", LibrarySuffix, Arch)));
             PublicDelayLoadDLLs.Add(String.Format("APEXFramework{0}_{1}.dll", LibrarySuffix, Arch));
 
             string[] RuntimeDependenciesT =
@@ -168,8 +105,6 @@ public class ApexDestructionLib : ModuleRules
         }
         else if (Target.Platform == UnrealTargetPlatform.Mac)
         {
-            APEXLibDir += "/Mac";
-
             string[] DynamicLibrariesMac = new string[] {
                 "/libAPEX_Destructible{0}.dylib"
             };
@@ -192,33 +127,23 @@ public class ApexDestructionLib : ModuleRules
 				RuntimeDependencies.Add(LibraryPath);
 			}
         }
-        else if (Target.Platform == UnrealTargetPlatform.PS4)
-        {
-            APEXLibDir += "/PS4";
-
-            LibraryFormatString = "lib{0}.a";
-        }
         else if (Target.Platform == UnrealTargetPlatform.XboxOne)
         {
-            APEXLibDir += "/XboxOne/VS2015";
-
-            LibraryFormatString = "{0}.lib";
+			LibraryFormatString = Path.Combine(ApexLibDir, "XboxOne", "VS2015", "{0}.lib");
         }
         else if (Target.Platform == UnrealTargetPlatform.Switch)
         {
-            APEXLibDir += "/Switch";
-
-            LibraryFormatString = "lib{0}.a";
+			LibraryFormatString = Path.Combine(ApexLibDir, "Switch", "lib{0}.a");
         }
-
-        // Add the libraries needed (used for all platforms except Windows and Mac)
-        if (LibraryFormatString != null)
+		
+		// Add the libraries needed (used for all platforms except Windows and Mac)
+		if (LibraryFormatString != null)
         {
             foreach (string Lib in ApexLibraries)
             {
                 string ConfiguredLib = String.Format(Lib, LibrarySuffix);
                 string FinalLib = String.Format(LibraryFormatString, ConfiguredLib);
-                PublicAdditionalLibraries.Add(Path.Combine(APEXLibDir, FinalLib));
+                PublicAdditionalLibraries.Add(FinalLib);
             }
         }
     }

@@ -120,12 +120,16 @@ int32 FMaterialResource::CompilePropertyAndSetMaterialProperty(EMaterialProperty
 	EShaderFrequency ShaderFrequency = Compiler->GetCurrentShaderFrequency();
 	
 	int32 SelectionColorIndex = INDEX_NONE;
+	int32 SelectionColorToggle = INDEX_NONE;
 
 	if (ShaderFrequency == SF_Pixel &&
 		GetMaterialDomain() != MD_Volume &&
 		Compiler->IsDevelopmentFeatureEnabled(NAME_SelectionColor))
 	{
-		SelectionColorIndex = Compiler->ComponentMask(Compiler->VectorParameter(NAME_SelectionColor, FLinearColor::Black), 1, 1, 1, 0);
+		// RGB stores SelectionColor value, A is toggle on/off switch for SelectionColor
+		int32 SelectionColorVector = Compiler->VectorParameter(NAME_SelectionColor, FLinearColor::Transparent);
+		SelectionColorIndex = Compiler->ComponentMask(SelectionColorVector, 1, 1, 1, 0);
+		SelectionColorToggle = Compiler->ComponentMask(SelectionColorVector, 0, 0, 0, 1);
 	}
 
 	//Compile the material instance if we have one.
@@ -138,7 +142,8 @@ int32 FMaterialResource::CompilePropertyAndSetMaterialProperty(EMaterialProperty
 		case MP_EmissiveColor:
 			if (SelectionColorIndex != INDEX_NONE)
 			{
-				Ret = Compiler->Add(MaterialInterface->CompileProperty(Compiler, MP_EmissiveColor, MFCF_ForceCast), SelectionColorIndex);
+				// Alpha channel is used to as toggle between EmissiveColor and SelectionColor
+				Ret = Compiler->Lerp(MaterialInterface->CompileProperty(Compiler, MP_EmissiveColor, MFCF_ForceCast), SelectionColorIndex, SelectionColorToggle);
 			}
 			else
 			{
@@ -4302,7 +4307,8 @@ bool UMaterial::CanEditChange(const UProperty* InProperty) const
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bContactShadows)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bDisableDepthTest)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bUseTranslucencyVertexFog)
-			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bComputeFogPerPixel))
+			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bComputeFogPerPixel)
+			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bOutputTranslucentVelocity))
 		{
 			return MaterialDomain != MD_DeferredDecal && MaterialDomain != MD_RuntimeVirtualTexture && IsTranslucentBlendMode(BlendMode);
 		}

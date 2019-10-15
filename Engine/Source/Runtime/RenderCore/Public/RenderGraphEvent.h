@@ -170,12 +170,13 @@ private:
 class RENDERCORE_API FRDGEventScopeGuard final
 {
 public:
-	FRDGEventScopeGuard(FRDGBuilder& InGraphBuilder, FRDGEventName&& ScopeName);
+	FRDGEventScopeGuard(FRDGBuilder& InGraphBuilder, FRDGEventName&& ScopeName, bool bCondition = true);
 	FRDGEventScopeGuard(const FRDGEventScopeGuard&) = delete;
 	~FRDGEventScopeGuard();
 
 private:
 	FRDGBuilder& GraphBuilder;
+	bool bCondition = true;
 };
 
 /** Macros for create render graph event names and scopes.
@@ -187,9 +188,11 @@ private:
 #if RDG_EVENTS == RDG_EVENTS_STRING_REF || RDG_EVENTS == RDG_EVENTS_STRING_COPY
 	#define RDG_EVENT_NAME(Format, ...) FRDGEventName(TEXT(Format), ##__VA_ARGS__)
 	#define RDG_EVENT_SCOPE(GraphBuilder, Format, ...) FRDGEventScopeGuard PREPROCESSOR_JOIN(__RDG_ScopeRef_,__LINE__) ((GraphBuilder), RDG_EVENT_NAME(Format, ##__VA_ARGS__))
+	#define RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Condition, Format, ...) FRDGEventScopeGuard PREPROCESSOR_JOIN(__RDG_ScopeRef_,__LINE__) ((GraphBuilder), RDG_EVENT_NAME(Format, ##__VA_ARGS__), Condition)
 #elif RDG_EVENTS == RDG_EVENTS_NONE
 	#define RDG_EVENT_NAME(Format, ...) FRDGEventName()
 	#define RDG_EVENT_SCOPE(GraphBuilder, Format, ...) 
+	#define RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Condition, Format, ...)
 #else
 	#error "RDG_EVENTS is not a valid value."
 #endif

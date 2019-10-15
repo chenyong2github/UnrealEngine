@@ -343,7 +343,7 @@ void FMetalDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rect
 	}
 }
 
-void FMetalDynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, FRHIGPUFence* FenceRHI, void*& OutData, int32& OutWidth, int32& OutHeight)
+void FMetalDynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, FRHIGPUFence* FenceRHI, void*& OutData, int32& OutWidth, int32& OutHeight, uint32 GPUIndex)
 {
 	@autoreleasepool {
     FMetalSurface* Surface = GetMetalSurfaceFromRHITexture(TextureRHI);
@@ -356,12 +356,12 @@ void FMetalDynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, FRHIGPUFenc
 	}
 }
 
-void FMetalDynamicRHI::RHIUnmapStagingSurface(FRHITexture* TextureRHI)
+void FMetalDynamicRHI::RHIUnmapStagingSurface(FRHITexture* TextureRHI, uint32 GPUIndex)
 {
 	@autoreleasepool {
-    FMetalSurface* Surface = GetMetalSurfaceFromRHITexture(TextureRHI);
+    	FMetalSurface* Surface = GetMetalSurfaceFromRHITexture(TextureRHI);
 	
-    Surface->Unlock(0, 0);
+    	Surface->Unlock(0, 0, false);
 	}
 }
 

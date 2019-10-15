@@ -255,7 +255,7 @@ void ULocalPlayer::PostInitProperties()
 void ULocalPlayer::PlayerAdded(UGameViewportClient* InViewportClient, int32 InControllerID)
 {
 	ViewportClient = InViewportClient;
-	ControllerId = InControllerID;
+	SetControllerId(InControllerID);
 
 	SubsystemCollection.Initialize(this);
 }
@@ -762,7 +762,7 @@ bool ULocalPlayer::CalcSceneViewInitOptions(
 	check(PlayerController && PlayerController->GetWorld());
 
 	int ViewIndex = 0;
-	if (IStereoRendering::IsStereoEyeView(StereoPass))
+	if (StereoPass != eSSP_FULL)
 	{
 		ViewIndex = StereoPass - 1;
 	}
@@ -1071,7 +1071,7 @@ bool ULocalPlayer::GetProjectionData(FViewport* Viewport, EStereoscopicPass Ster
 	GetViewPoint(/*out*/ ViewInfo, StereoPass);
 
 	// If stereo rendering is enabled, update the size and offset appropriately for this pass
-	const bool bNeedStereo = IStereoRendering::IsStereoEyeView(StereoPass) && GEngine->IsStereoscopic3D();
+	const bool bNeedStereo = (StereoPass != eSSP_FULL) && GEngine->IsStereoscopic3D();
 	const bool bIsHeadTrackingAllowed = GEngine->XRSystem.IsValid() && GEngine->XRSystem->IsHeadTrackingAllowed();
 	if (bNeedStereo)
 	{

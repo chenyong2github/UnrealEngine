@@ -1359,8 +1359,30 @@ inline bool VectorContainsNaNOrInfinite(const VectorRegister& Vec)
 
 	// Mask off Exponent
 	VectorRegister ExpTest = VectorBitwiseAnd(Vec, FloatInfinity);
+
 	// Compare to full exponent & combine resulting flags into lane 0
-	static const int8x16_t Table = {0,4,8,12, 0,0,0,0, 0,0,0,0, 0,0,0,0};
+
+// This is the supported neon implementation, but it generates a lot more assembly instructions than the following compiler-specific implementations
+//#if PLATFORM_LITTLE_ENDIAN
+//	static const int8x8_t High = vcreate_s8(0x000000000C080400ULL);
+//#else
+//	static const int8x8_t High = vcreate_s8(0x0004080C00000000ULL);
+//#endif
+//	static const int8x8_t Low = vcreate_s8(0x0ULL);
+//	static const int8x16_t Table = vcombine_s8(High, Low);
+
+#ifdef _MSC_VER
+	// msvc can only initialize using the first union type which is: n128_u64[2];
+#  if PLATFORM_LITTLE_ENDIAN
+	static const int8x16_t Table = { 0x000000000C080400ULL, 0ULL };
+#  else
+	static const int8x16_t Table = { 0x0004080C00000000ULL, 0ULL };
+#  endif
+#else
+	// clang can initialize with this syntax, but not the msvc one
+	static const int8x16_t Table = { 0,4,8,12, 0,0,0,0, 0,0,0,0, 0,0,0,0 };
+#endif
+
 	uint8x16_t res = (uint8x16_t)VectorCompareEQ(ExpTest, FloatInfinity);
 	// If we have all zeros, all elements are finite
 	return vgetq_lane_u32((uint32x4_t)vqtbx1q_u8(res, res, Table), 0) != 0;

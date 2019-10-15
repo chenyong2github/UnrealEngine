@@ -58,6 +58,9 @@ OVRP_EXPORT ovrpResult ovrp_GetExternalCameraIntrinsics(int cameraId, ovrpCamera
 /// Get extrinsics of an external camera
 OVRP_EXPORT ovrpResult ovrp_GetExternalCameraExtrinsics(int cameraId, ovrpCameraExtrinsics* cameraExtrinsics);
 
+/// Get the raw transform pose when the external camera was calibrated
+OVRP_EXPORT ovrpResult ovrp_GetExternalCameraCalibrationRawPose(int cameraId, ovrpPosef* rawPose);
+
 /// Helper function to get the camera pose in the tracking space
 OVRP_EXPORT ovrpResult ovrp_GetExternalCameraPose(int cameraId, ovrpPosef* cameraPose);
 

@@ -149,7 +149,7 @@ void FVulkanGPUTiming::Initialize()
 	{
 		check(!Pool);
 		Pool = new FVulkanTimingQueryPool(Device, 8);
-		Pool->ResultsBuffer = Device->GetStagingManager().AcquireBuffer(8 * sizeof(uint64), VK_BUFFER_USAGE_TRANSFER_DST_BIT, true);
+		Pool->ResultsBuffer = Device->GetStagingManager().AcquireBuffer(8 * sizeof(uint64), VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 	}
 }
 
@@ -349,16 +349,38 @@ float FVulkanEventNode::GetTiming()
 	return Result;
 }
 
+FVulkanGPUProfiler::FVulkanGPUProfiler(FVulkanCommandListContext* InCmd, FVulkanDevice* InDevice)
+	: bCommandlistSubmitted(false)
+	, Device(InDevice)
+	, CmdContext(InCmd)
+	, LocalTracePointsQueryPool(nullptr)
+	, bBeginFrame(false)
+{
+}
+
+FVulkanGPUProfiler::~FVulkanGPUProfiler()
+{
+	if (LocalTracePointsQueryPool != nullptr)
+	{
+		delete LocalTracePointsQueryPool;
+	}
+}
 
 void FVulkanGPUProfiler::BeginFrame()
 {
 #if VULKAN_SUPPORTS_GPU_CRASH_DUMPS
-	if (GGPUCrashDebuggingEnabled && Device->GetOptionalExtensions().HasGPUCrashDumpExtensions())
+	if (GGPUCrashDebuggingEnabled)
 	{
 		static auto* CrashCollectionEnableCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.gpucrash.collectionenable"));
 		static auto* CrashCollectionDataDepth = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.gpucrash.datadepth"));
 		bTrackingGPUCrashData = CrashCollectionEnableCvar ? CrashCollectionEnableCvar->GetValueOnRenderThread() != 0 : false;
 		GPUCrashDataDepth = CrashCollectionDataDepth ? CrashCollectionDataDepth->GetValueOnRenderThread() : -1;
+
+		// Use local tracepoints if no extension is available
+		if (!Device->GetOptionalExtensions().HasGPUCrashDumpExtensions() && LocalTracePointsQueryPool == nullptr)
+		{
+			LocalTracePointsQueryPool = new FVulkanTimingQueryPool(Device, GMaxCrashBufferEntries);
+		}
 	}
 #endif
 
@@ -366,6 +388,17 @@ void FVulkanGPUProfiler::BeginFrame()
 	CurrentEventNode = NULL;
 	check(!bTrackingEvents);
 	check(!CurrentEventNodeFrame); // this should have already been cleaned up and the end of the previous frame
+
+	if (GGPUCrashDebuggingEnabled && !Device->GetOptionalExtensions().HasGPUCrashDumpExtensions())
+	{
+		VulkanRHI::vkCmdResetQueryPool(Device->GetImmediateContext().GetCommandBufferManager()->GetActiveCmdBuffer()->GetHandle(), LocalTracePointsQueryPool->GetHandle(), 0, GMaxCrashBufferEntries);
+
+		PushPopStack.Reset();
+		CrashMarkers.Reset();
+		CrashMarkers.AddZeroed(GMaxCrashBufferEntries);
+	}
+
+	bBeginFrame = true;
 
 	// latch the bools from the game thread into our private copy
 	bLatchedGProfilingGPU = GTriggerGPUProfile;
@@ -463,11 +496,19 @@ void FVulkanGPUProfiler::EndFrame()
 		delete CurrentEventNodeFrame;
 		CurrentEventNodeFrame = nullptr;
 	}
+
+	bBeginFrame = false;
 }
 
 #if VULKAN_SUPPORTS_GPU_CRASH_DUMPS
 void FVulkanGPUProfiler::PushMarkerForCrash(VkCommandBuffer CmdBuffer, VkBuffer DestBuffer, const TCHAR* Name)
 {
+	if (!Device->GetOptionalExtensions().HasGPUCrashDumpExtensions() && !bBeginFrame)
+	{
+		// If using local trace points, ignore any markers pushed before begin frame or after end frame.
+		return;
+	}
+
 	uint32 CRC = 0;
 	if (GPUCrashDataDepth < 0 || PushPopStack.Num() < GPUCrashDataDepth)
 	{
@@ -491,14 +532,32 @@ void FVulkanGPUProfiler::PushMarkerForCrash(VkCommandBuffer CmdBuffer, VkBuffer 
 
 	PushPopStack.Push(CRC);
 	FVulkanPlatform::WriteCrashMarker(Device->GetOptionalExtensions(), CmdBuffer, DestBuffer, TArrayView<uint32>(PushPopStack), true);
+
+	if (GGPUCrashDebuggingEnabled && !Device->GetOptionalExtensions().HasGPUCrashDumpExtensions())
+	{
+		VulkanRHI::vkCmdWriteTimestamp(CmdBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, LocalTracePointsQueryPool->GetHandle(), PushPopStack.Num() - 1);
+	}
 }
 
 void FVulkanGPUProfiler::PopMarkerForCrash(VkCommandBuffer CmdBuffer, VkBuffer DestBuffer)
 {
+	if (!Device->GetOptionalExtensions().HasGPUCrashDumpExtensions() && !bBeginFrame)
+	{
+		// If using local trace points, ignore any markers popped before begin frame or after end frame.
+		return;
+	}
+
 	if (PushPopStack.Num() > 0)
 	{
-		PushPopStack.Pop(false);
-		FVulkanPlatform::WriteCrashMarker(Device->GetOptionalExtensions(), CmdBuffer, DestBuffer, TArrayView<uint32>(PushPopStack), false);
+		if (Device->GetOptionalExtensions().HasGPUCrashDumpExtensions())
+		{
+			PushPopStack.Pop(false);
+			FVulkanPlatform::WriteCrashMarker(Device->GetOptionalExtensions(), CmdBuffer, DestBuffer, TArrayView<uint32>(PushPopStack), false);
+		}
+		else if (GGPUCrashDebuggingEnabled)
+		{
+			VulkanRHI::vkGetQueryPoolResults(Device->GetInstanceHandle(), LocalTracePointsQueryPool->GetHandle(), 0, PushPopStack.Num(), sizeof(uint64) * GMaxCrashBufferEntries, CrashMarkers.GetData(), sizeof(uint64), VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WITH_AVAILABILITY_BIT);
+		}
 	}
 }
 
@@ -550,6 +609,22 @@ void FVulkanGPUProfiler::DumpCrashMarkers(void* BufferData)
 			}
 		}
 #endif
+	}
+
+	if (!Device->GetOptionalExtensions().HasGPUCrashDumpExtensions())
+	{
+		UE_LOG(LogVulkanRHI, Warning, TEXT("Printing trace points."));
+
+		for (int32 i = 0; i < PushPopStack.Num(); ++i)
+		{
+			const FString* InsertedFrame = CachedStrings.Find(PushPopStack[i]);
+			const FString FrameName = InsertedFrame ? *InsertedFrame : TEXT("<undefined>");
+
+			UE_LOG(LogVulkanRHI, Warning, TEXT("[gpu_crash_markers] %s"), (CrashMarkers[i] != 0) ? *FrameName : TEXT("unavailable"));
+		}
+
+		GLog->PanicFlushThreadedLogs();
+		GLog->Flush();
 	}
 }
 #endif
@@ -672,10 +747,7 @@ namespace VulkanRHI
 		if (GIsGPUCrashed && GGPUCrashDebuggingEnabled)
 		{
 			FVulkanDevice* Device = GVulkanRHI->GetDevice();
-			if (Device->GetOptionalExtensions().HasGPUCrashDumpExtensions())
-			{
-				Device->GetImmediateContext().GetGPUProfiler().DumpCrashMarkers(Device->GetCrashMarkerMappedPointer());
-			}
+			Device->GetImmediateContext().GetGPUProfiler().DumpCrashMarkers(Device->GetCrashMarkerMappedPointer());
 		}
 #endif
 

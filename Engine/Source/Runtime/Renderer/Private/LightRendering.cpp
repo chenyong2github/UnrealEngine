@@ -980,7 +980,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 				bool bAnyViewIsStereo = false;
 				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 				{
-					if (IStereoRendering::IsStereoEyeView(Views[ViewIndex].StereoPass))
+					if (Views[ViewIndex].StereoPass != eSSP_FULL)
 					{
 						bAnyViewIsStereo = true;
 						break;
@@ -1219,7 +1219,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 							!PreprocessedShadowMaskTextures[LightIndex - AttenuationLightStart])
 						{
 							SCOPED_DRAW_EVENT(RHICmdList, ShadowBatch);
-							TStaticArray<IScreenSpaceDenoiser::FShadowParameters, IScreenSpaceDenoiser::kMaxBatchSize> DenoisingQueue;
+							TStaticArray<IScreenSpaceDenoiser::FShadowVisibilityParameters, IScreenSpaceDenoiser::kMaxBatchSize> DenoisingQueue;
 							TStaticArray<int32, IScreenSpaceDenoiser::kMaxBatchSize> LightIndices;
 
 							FRDGBuilder GraphBuilder(RHICmdList);
@@ -1239,7 +1239,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 
 								check(InputParameterCount >= 1);
 
-								TStaticArray<IScreenSpaceDenoiser::FShadowPenumbraOutputs, IScreenSpaceDenoiser::kMaxBatchSize> Outputs;
+								TStaticArray<IScreenSpaceDenoiser::FShadowVisibilityOutputs, IScreenSpaceDenoiser::kMaxBatchSize> Outputs;
 
 								RDG_EVENT_SCOPE(GraphBuilder, "%s%s(Shadow BatchSize=%d) %dx%d",
 									DenoiserToUse != DefaultDenoiser ? TEXT("ThirdParty ") : TEXT(""),
@@ -1247,7 +1247,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 									InputParameterCount,
 									View.ViewRect.Width(), View.ViewRect.Height());
 
-								DenoiserToUse->DenoiseMonochromaticShadows(
+								DenoiserToUse->DenoiseShadowVisibilityMasks(
 									GraphBuilder,
 									View,
 									&View.PrevViewInfo,
@@ -1264,7 +1264,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 									TRefCountPtr<IPooledRenderTarget>* RefDestination = &PreprocessedShadowMaskTextures[LocalLightIndex - AttenuationLightStart];
 									check(*RefDestination == nullptr);
 
-									GraphBuilder.QueueTextureExtraction(Outputs[i].DiffusePenumbra, RefDestination);
+									GraphBuilder.QueueTextureExtraction(Outputs[i].Mask, RefDestination);
 									DenoisingQueue[i].LightSceneInfo = nullptr;
 								}
 							}; // QuickOffDenoisingBatch
@@ -1356,7 +1356,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 										{
 											DenoisingQueue[i].LightSceneInfo = &BatchLightSceneInfo;
 											DenoisingQueue[i].RayTracingConfig = RayTracingConfig;
-											DenoisingQueue[i].InputTextures.Penumbra = ShadowMask;
+											DenoisingQueue[i].InputTextures.Mask = ShadowMask;
 											DenoisingQueue[i].InputTextures.ClosestOccluder = RayHitDistance;
 											LightIndices[i] = LightBatchIndex;
 
@@ -1447,10 +1447,10 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 
 						if (DenoiserRequirements != IScreenSpaceDenoiser::EShadowRequirements::Bailout)
 						{
-							TStaticArray<IScreenSpaceDenoiser::FShadowParameters, IScreenSpaceDenoiser::kMaxBatchSize> InputParameters;
-							TStaticArray<IScreenSpaceDenoiser::FShadowPenumbraOutputs, IScreenSpaceDenoiser::kMaxBatchSize> Outputs;
+							TStaticArray<IScreenSpaceDenoiser::FShadowVisibilityParameters, IScreenSpaceDenoiser::kMaxBatchSize> InputParameters;
+							TStaticArray<IScreenSpaceDenoiser::FShadowVisibilityOutputs, IScreenSpaceDenoiser::kMaxBatchSize> Outputs;
 
-							InputParameters[0].InputTextures.Penumbra = ShadowMask;
+							InputParameters[0].InputTextures.Mask = ShadowMask;
 							InputParameters[0].InputTextures.ClosestOccluder = RayHitDistance;
 							InputParameters[0].LightSceneInfo = &LightSceneInfo;
 							InputParameters[0].RayTracingConfig = RayTracingConfig;
@@ -1463,7 +1463,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 								InputParameterCount,
 								View.ViewRect.Width(), View.ViewRect.Height());
 
-							DenoiserToUse->DenoiseMonochromaticShadows(
+							DenoiserToUse->DenoiseShadowVisibilityMasks(
 								GraphBuilder,
 								View,
 								&View.PrevViewInfo,
@@ -1472,7 +1472,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 								InputParameterCount,
 								Outputs);
 
-							GraphBuilder.QueueTextureExtraction(Outputs[0].DiffusePenumbra, &ScreenShadowMaskTexture);
+							GraphBuilder.QueueTextureExtraction(Outputs[0].Mask, &ScreenShadowMaskTexture);
 						}
 						else
 						{

@@ -66,8 +66,8 @@ def UE4FNameSummaryProvider(valobj,dict):
     else:
         Expr = '(char*)(FName::GetNameTableForDebuggerVisualizers_MT()[%s / 16384][%s %% 16384]->AnsiName)' % (IndexVal, IndexVal)
         FNameRef = valobj.CreateValueFromExpression('%s' % IndexVal, Expr)
+        assert FNameRef != None
         Val = FNameRef.GetSummary()
-        assert Val != None
         if NumberVal != 0:
             return 'name=%s_%s' % (Val, NumberVal-1)
         else:

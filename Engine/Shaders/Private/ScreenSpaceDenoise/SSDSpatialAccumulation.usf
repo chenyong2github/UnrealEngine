@@ -39,7 +39,7 @@
 
 
 // Configures all the pass for each individual signals.
-#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_MONOCHROMATIC_PENUMBRA
+#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK
 	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_MONOCHROMATIC_PENUMBRA
 	#define CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN 1
 
@@ -47,11 +47,7 @@
 
 	#if DIM_STAGE == STAGE_RECONSTRUCTION
 		// Input and output layout.
-		#if DIM_MULTI_SPP
-			#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_PENUMBRA_INJESTION_NSPP
-		#else
-			#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_PENUMBRA_INJESTION_1SPP
-		#endif
+		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_PENUMBRA_INJESTION_NSPP
 		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION
 
 		#define CONFIG_INPUT_TEXTURE_COUNT ((CONFIG_SIGNAL_BATCH_SIZE + 1) / 2)
@@ -159,15 +155,19 @@
 		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_REFLECTIONS_INPUT
 		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_REFLECTIONS_HISTORY
 
-		// Use stackowiak sample set to keep noise in the signal to avoid flicker in history rejection,
-		// and adapt number of samples based on the sample.
-		#define CONFIG_SAMPLE_SET           SAMPLE_SET_STACKOWIAK_4_SETS
-		#define CONFIG_SAMPLE_COUNT_POLICY  SAMPLE_COUNT_POLICY_HIT_DISTANCE_BASED
-
 		// Configure the bilateral therm.
 		#if DIM_MULTI_SPP
+			#define CONFIG_SAMPLE_SET           SAMPLE_SET_DIRECTIONAL_RECT
+
 			#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_REFLECTIONS
+			//#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_REFLECTIONS_1SPP
+			//#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_DISABLED
 		#else
+			// Use stackowiak sample set to keep noise in the signal to avoid flicker in history rejection,
+			// and adapt number of samples based on the sample.
+			#define CONFIG_SAMPLE_SET           SAMPLE_SET_STACKOWIAK_4_SETS
+			#define CONFIG_SAMPLE_COUNT_POLICY  SAMPLE_COUNT_POLICY_HIT_DISTANCE_BASED
+
 			// Reconstruction has 1 ray per input pixel, therefore can use specular ratio estimator instead of Tokoyashi axes bilateral kernel.
 			#define CONFIG_SPECULAR_RATIO_ESTIMATOR 1
 
@@ -177,7 +177,7 @@
 		//#define CONFIG_SAMPLE_COUNT_POLICY  SAMPLE_COUNT_POLICY_DISABLED
 
 		// Do color accumulation with karis weighting to avoid flickering specular highlight to show up the kernel pattern.
-		// TODO: This is a bit agressive.
+		// TODO(Denoiser): This is a bit agressive.
 		#define CONFIG_ACCUMULATION_COLOR_SPACE (COLOR_SPACE_RGB | COLOR_SPACE_KARIS_WEIGHTING)
 
 		#define CONFIG_INPUT_TEXTURE_COUNT 2
@@ -218,8 +218,6 @@
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO
 	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_DIFFUSE
-
-	#define CONFIG_NORMAL_BASED_BILATERAL 1
 
 	#if DIM_STAGE == STAGE_RECONSTRUCTION
 		// Input and output layout.
@@ -264,7 +262,6 @@
 	#define COMPILE_SIGNAL_COLOR 1
 
 	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_DIFFUSE
-	#define CONFIG_NORMAL_BASED_BILATERAL 1
 
 	#define CONFIG_INPUT_TEXTURE_COUNT 2
 	#define CONFIG_OUTPUT_TEXTURE_COUNT 2
@@ -314,11 +311,12 @@
 
 	// Input and output layout.
 	#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_HARMONIC
+	#define CONFIG_SIGNAL_INPUT_TEXTURE_TYPE   SIGNAL_TEXTURE_TYPE_UINT2
 	#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_HARMONIC
-	#define CONFIG_SIGNAL_TEXTURE_TYPE   SIGNAL_TEXTURE_TYPE_UINT2
+	#define CONFIG_SIGNAL_OUTPUT_TEXTURE_TYPE   SIGNAL_TEXTURE_TYPE_UINT2
 
 	// Spherical harmonics are a lot of data, need to shrink VGPR pressure to improve lattency hidding when fetching the buffer.
-	// TODO: some shader compiler completly falls apparts with the current implementation of
+	// TODO(Denoiser): some shader compiler completly falls apparts with the current implementation of
 	//       CONFIG_SIGNAL_VGPR_COMPRESSION and actually drops in occupency.
 	#define CONFIG_SIGNAL_VGPR_COMPRESSION SIGNAL_COMPRESSION_DIFFUSE_INDIRECT_HARMONIC
 
@@ -327,6 +325,31 @@
 		#define CONFIG_SAMPLE_SET           SAMPLE_SET_STACKOWIAK_4_SETS
 
 	#elif DIM_STAGE == STAGE_REJECTION_PRE_CONVOLUTION
+
+	#else
+		#error Unexpected stage.
+	#endif
+
+#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SSGI
+	#define COMPILE_SIGNAL_COLOR 1
+
+	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_DIFFUSE
+	//#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_DISABLED
+	
+	// SSGI doesn't have any bilateral distance computed from hitT, so allow to blur spatially by about the size of the kernel.
+	#define CONFIG_BILATERAL_DISTANCE_MULTIPLIER 3.0
+
+	#define CONFIG_INPUT_TEXTURE_COUNT 2
+	#define CONFIG_OUTPUT_TEXTURE_COUNT 2
+
+	#if DIM_STAGE == STAGE_RECONSTRUCTION
+		// Input and output layout.
+		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_SSGI_INPUT
+		//#define CONFIG_SIGNAL_INPUT_TEXTURE_TYPE   SIGNAL_TEXTURE_TYPE_UINT2
+		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_SSGI_HISTORY_R11G11B10
+
+		#define CONFIG_SAMPLE_SET           SAMPLE_SET_STACKOWIAK_4_SETS
+		//#define CONFIG_SAMPLE_SET           SAMPLE_SET_1X1
 
 	#else
 		#error Unexpected stage.
@@ -416,9 +439,19 @@
 	#define CONFIG_BILATERAL_DISTANCE_COMPUTATION SIGNAL_WORLD_FREQUENCY_MIN_METADATA
 #endif
 
+/** Adds a multiplier on how the distance should be computed. */
+#ifndef CONFIG_BILATERAL_DISTANCE_MULTIPLIER
+	#define CONFIG_BILATERAL_DISTANCE_MULTIPLIER 1.0
+#endif
+
 /** Whether neighbor bilateral distance should be maxed with reference one. */
 #ifndef CONFIG_MAX_WITH_REF_DISTANCE
 	#define CONFIG_MAX_WITH_REF_DISTANCE 0
+#endif
+
+/** Project GGX lobe to compute the kernel. */
+#ifndef CONFIG_PROJECT_GGX_LOBE
+	#define CONFIG_PROJECT_GGX_LOBE 0
 #endif
 
 
@@ -429,6 +462,8 @@
 	#define COMPILE_STACKOWIAK_KERNEL 1
 #elif CONFIG_SAMPLE_SET == SAMPLE_SET_HEXAWEB
 	#define COMPILE_DISK_KERNEL 1
+#elif CONFIG_SAMPLE_SET == SAMPLE_SET_DIRECTIONAL_RECT
+	#define COMPILE_DIRECTIONAL_KERNEL 1
 #else
 	#define COMPILE_BOX_KERNEL 1
 #endif
@@ -469,6 +504,14 @@
 #include "SSDSpatialKernel.ush"
 
 
+//------------------------------------------------------- LATE CONFIG DEFAULTS
+
+/** Choose how the reference metadata should be compressed. */
+#ifndef CONFIG_REF_METADATA_COMPRESSION
+	#define CONFIG_REF_METADATA_COMPRESSION CONFIG_METADATA_BUFFER_LAYOUT
+#endif
+
+
 //------------------------------------------------------- PARAMETERS
 
 uint MaxSampleCount;
@@ -487,24 +530,31 @@ float4 InputBufferUVMinMax[CONFIG_SIGNAL_BATCH_SIZE];
 	#error Missing CONFIG_INPUT_TEXTURE_COUNT
 #endif
 
-FSSDTexture2D SignalInput_Textures_0;
+Texture2D SignalInput_Textures_0;
+FSSDTexture2D SignalInputUint_Textures_0;
 
 #if CONFIG_INPUT_TEXTURE_COUNT > 1
-FSSDTexture2D SignalInput_Textures_1;
+Texture2D SignalInput_Textures_1;
+FSSDTexture2D SignalInputUint_Textures_1;
 #else
 #define SignalInput_Textures_1 SignalInput_Textures_0
+#define SignalInputUint_Textures_1 SignalInputUint_Textures_0
 #endif
 
 #if CONFIG_INPUT_TEXTURE_COUNT > 2
-FSSDTexture2D SignalInput_Textures_2;
+Texture2D SignalInput_Textures_2;
+FSSDTexture2D SignalInputUint_Textures_2;
 #else
 #define SignalInput_Textures_2 SignalInput_Textures_0
+#define SignalInputUint_Textures_2 SignalInputUint_Textures_0
 #endif
 
 #if CONFIG_INPUT_TEXTURE_COUNT > 3
-FSSDTexture2D SignalInput_Textures_3;
+Texture2D SignalInput_Textures_3;
+FSSDTexture2D SignalInputUint_Textures_3;
 #else
 #define SignalInput_Textures_3 SignalInput_Textures_0
+#define SignalInputUint_Textures_3 SignalInputUint_Textures_0
 #endif
 
 
@@ -532,17 +582,15 @@ FSSDRWTexture2D	SignalOutput_UAVs_3;
 #define SignalOutput_UAVs_3 SignalOutput_UAVs_0
 #endif
 
-RWTexture2D<float4>	DebugOutput;
-
 
 //------------------------------------------------------- FUNCTIONS
 
-// TODO: duplicated with reflection code.
+// TODO(Denoiser): duplicated with reflection code.
 uint2 GetPixelCoord(uint2 DispatchThreadId)
 {
 	uint UpscaleFactorPow2 = UpscaleFactor * UpscaleFactor;
 
-	// TODO: find a way to not interfer with TAA's jittering.
+	// TODO(Denoiser): find a way to not interfer with TAA's jittering.
 	uint SubPixelId = View.StateFrameIndex & (UpscaleFactorPow2 - 1);
 
 	return DispatchThreadId * UpscaleFactor + uint2(SubPixelId & (UpscaleFactor - 1), SubPixelId / UpscaleFactor);
@@ -558,24 +606,47 @@ void MainCS(
 	uint2 GroupThreadId : SV_GroupThreadID,
 	uint GroupThreadIndex : SV_GroupIndex)
 {
+#if CONFIG_SIGNAL_INPUT_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_FLOAT4
+	Texture2D Signal_Textures_0 = SignalInput_Textures_0;
+	Texture2D Signal_Textures_1 = SignalInput_Textures_1;
+	Texture2D Signal_Textures_2 = SignalInput_Textures_2;
+	Texture2D Signal_Textures_3 = SignalInput_Textures_3;
+#else
+	FSSDTexture2D Signal_Textures_0 = SignalInputUint_Textures_0;
+	FSSDTexture2D Signal_Textures_1 = SignalInputUint_Textures_1;
+	FSSDTexture2D Signal_Textures_2 = SignalInputUint_Textures_2;
+	FSSDTexture2D Signal_Textures_3 = SignalInputUint_Textures_3;
+#endif
+
 	// Find out scene buffer UV.
-	float2 SceneBufferUV = ((DispatchThreadId + ViewportMin) + 0.5) * View.BufferSizeAndInvSize.zw;
+	float2 SceneBufferUV = DispatchThreadId * ThreadIdToBufferUV.xy + ThreadIdToBufferUV.zw;
 	if (true)
 	{
 		SceneBufferUV = clamp(SceneBufferUV, BufferBilinearUVMinMax.xy, BufferBilinearUVMinMax.zw);
 	}
 	
 	// Read reference meta data.
-	float2 ScreenPosition = ViewportUVToScreenPos(BufferUVToViewportUV(SceneBufferUV));
-	FSSDSampleSceneInfos RefSceneMetadata = FetchCurrentSceneInfos(ScreenPosition, SceneBufferUV);
+	FSSDCompressedSceneInfos CompressedRefSceneMetadata;
+	FSSDSampleSceneInfos RefSceneMetadata;
+	{
+		CompressedRefSceneMetadata = SampleCompressedSceneMetadata(
+			/* bPrevFrame = */ false,
+			SceneBufferUV, BufferUVToBufferPixelCoord(SceneBufferUV));
+		
+		float2 ScreenPosition = DenoiserBufferUVToScreenPosition(SceneBufferUV);
+	
+		RefSceneMetadata = UncompressSampleSceneInfo(
+			CONFIG_METADATA_BUFFER_LAYOUT, /* bPrevFrame = */ false,
+			ScreenPosition, CompressedRefSceneMetadata);
+	}
 
 	// Sample the reference sample.
 	#if !CONFIG_UPSCALE || 1
 		FSSDSignalArray RefSamples = SampleMultiplexedSignals(
-			SignalInput_Textures_0,
-			SignalInput_Textures_1,
-			SignalInput_Textures_2,
-			SignalInput_Textures_3,
+			Signal_Textures_0,
+			Signal_Textures_1,
+			Signal_Textures_2,
+			Signal_Textures_3,
 			GlobalPointClampedSampler,
 			CONFIG_SIGNAL_INPUT_LAYOUT,
 			/* MultiplexedSampleId = */ 0,
@@ -588,6 +659,8 @@ void MainCS(
 			FSSDSignalArray NormalizedRefSamples = NormalizeToOneSample(RefSamples);
 		#endif
 	#endif
+
+	//DebugOutput[DispatchThreadId] = float4(GetWorldNormal(RefSceneMetadata)* 0.5 + 0.5, GetWorldDepth(RefSceneMetadata));
 
 	/** factor by witch should be spread out. */
 	#if CONFIG_UPSCALE
@@ -651,14 +724,23 @@ void MainCS(
 	{
 		FSSDKernelConfig KernelConfig = CreateKernelConfig();
 
+		#if DEBUG_OUTPUT
+		{
+			KernelConfig.DebugPixelPosition = DispatchThreadId;
+			KernelConfig.DebugEventCounter = 0;
+		}
+		#endif
+
 		// Compile time.
 		KernelConfig.SampleSet = CONFIG_SAMPLE_SET;
 		KernelConfig.SampleSubSetId = CONFIG_SAMPLE_SUBSET;
 		KernelConfig.BufferLayout = CONFIG_SIGNAL_INPUT_LAYOUT;
 		KernelConfig.MultiplexedSignalsPerSignalDomain = CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN;
+		KernelConfig.NeighborToRefComputation = NEIGHBOR_TO_REF_LOWEST_VGPR_PRESSURE;
 		KernelConfig.bUnroll = CONFIG_SAMPLE_SET != SAMPLE_SET_STACKOWIAK_4_SETS;
 		KernelConfig.bDescOrder = CONFIG_OUTPUT_MODE == OUTPUT_MODE_DRB;
 		KernelConfig.BilateralDistanceComputation = CONFIG_BILATERAL_DISTANCE_COMPUTATION;
+		KernelConfig.WorldBluringDistanceMultiplier = CONFIG_BILATERAL_DISTANCE_MULTIPLIER;
 		KernelConfig.bNormalizeSample = CONFIG_NORMALIZE_INPUT != 0;
 		KernelConfig.bSampleKernelCenter = CONFIG_UPSCALE;
 		KernelConfig.bForceKernelCenterAccumulation = true;
@@ -695,11 +777,21 @@ void MainCS(
 		}
 		#endif
 
-
 		// VGPRs
-		KernelConfig.BufferUV = SceneBufferUV;
-		KernelConfig.RefSceneMetadata = RefSceneMetadata;
-		
+		KernelConfig.BufferUV = SceneBufferUV; 
+		{
+			#if CONFIG_REF_METADATA_COMPRESSION == CONFIG_METADATA_BUFFER_LAYOUT
+				// Straight up plumb down the compress layout to save any VALU.
+				KernelConfig.CompressedRefSceneMetadata = CompressedRefSceneMetadata;
+			#else
+				// Recompress the reference scene metadata
+				KernelConfig.CompressedRefSceneMetadata = CompressSampleSceneInfo(CONFIG_REF_METADATA_COMPRESSION, RefSceneMetadata);
+			#endif
+			KernelConfig.RefBufferUV = SceneBufferUV;
+			KernelConfig.RefSceneMetadataLayout = CONFIG_REF_METADATA_COMPRESSION;
+		}
+		KernelConfig.HammersleySeed = Rand3DPCG16(int3(SceneBufferUV * BufferUVToOutputPixelPosition, View.StateFrameIndexMod8)).xy;
+
 		// Set up reference distance for all signals.
 		#if CONFIG_MAX_WITH_REF_DISTANCE
 		{
@@ -734,7 +826,7 @@ void MainCS(
 		{
 			KernelConfig.RingCount = 1;
 
-			// TODO: could be improved.
+			// TODO(Denoiser): could be improved.
 			//KernelConfig.bMinSamplePairInvFrequency = true;
 
 			float2 E = float2(
@@ -772,7 +864,7 @@ void MainCS(
 				
 				if (KernelConfig.BilateralDistanceComputation == SIGNAL_WORLD_FREQUENCY_PRECOMPUTED_BLURING_RADIUS)
 				{
-					// TODO: this is ineficient, could fetch the normalised WorldBluringRadius instead of SafeRcp().
+					// TODO(Denoiser): this is ineficient, could fetch the normalised WorldBluringRadius instead of SafeRcp().
 					SampleInfos.InvFrequency = CenterSample.WorldBluringRadius * SafeRcp(CenterSample.SampleCount);
 				}
 
@@ -784,11 +876,11 @@ void MainCS(
 
 		#if CONFIG_SAMPLE_SET == SAMPLE_SET_STACKOWIAK_4_SETS
 		{
-			KernelConfig.SampleCount = clamp(RequestedSampleCount * rcp(kStackowiakSampleSetCount), 1, MaxSampleCount);
+			KernelConfig.SampleCount = clamp(uint(RequestedSampleCount) / kStackowiakSampleSetCount, 1, MaxSampleCount);
 
 			#if CONFIG_UPSCALE
 			{
-				// TODO: could be optimised, but currently reusing same peace of code as reflection for maintainability.
+				// TODO(Denoiser): could be optimised, but currently reusing same peace of code as reflection for maintainability.
 				uint2 RayDispatchThreadId = (DispatchThreadId - UpscaleFactor / 2) / UpscaleFactor;
 				uint2 ClosestRayPixelCoord = GetPixelCoord(RayDispatchThreadId);
 			
@@ -808,7 +900,7 @@ void MainCS(
 			#else
 			{
 				// Put the kernel center at the center of the quad. Half pixel shift is done in the sample offsets.
-				KernelConfig.BufferUV = (ViewportMin + (DispatchThreadId | 1)) * View.BufferSizeAndInvSize.zw;
+				KernelConfig.BufferUV = float2(DispatchThreadId | 1) * ThreadIdToBufferUV.xy + ThreadIdToBufferUV.zw;
 
 				// Id of the pixel in the quad. This is to match hard coded first samples of the sample set.
 				KernelConfig.SampleTrackId = ((DispatchThreadId.x & 1) | ((DispatchThreadId.y & 1) << 1));
@@ -818,7 +910,7 @@ void MainCS(
 			#if CONFIG_VGPR_OPTIMIZATION
 				// Keek sample SampleTrackId & SceneBufferUV arround for computation of pixel output coordinate.
 				// Should be VGPR free given it's curernt is being used in accumulation has well that is highest VGPR pressure of the shader.
-				// TODO: could save 1 VGPR by using 2 SGPR instead of SampleTrackId.
+				// TODO(Denoiser): could save 1 VGPR by using 2 SGPR instead of SampleTrackId.
 				SampleTrackId = KernelConfig.SampleTrackId;
 				KernelBufferUV = KernelConfig.BufferUV;
 			#endif
@@ -838,10 +930,42 @@ void MainCS(
 			#if CONFIG_VGPR_OPTIMIZATION
 				// Keek sample SampleTrackId & SceneBufferUV arround for computation of pixel output coordinate.
 				// Should be VGPR free given it's curernt is being used in accumulation has well that is highest VGPR pressure of the shader.
-				// TODO: could save 1 VGPR by using 2 SGPR instead of SampleTrackId.
+				// TODO(Denoiser): could save 1 VGPR by using 2 SGPR instead of SampleTrackId.
 				SampleTrackId = KernelConfig.SampleTrackId;
 				KernelBufferUV = KernelConfig.BufferUV;
 			#endif
+		}
+		#elif CONFIG_SAMPLE_SET == SAMPLE_SET_DIRECTIONAL_RECT
+		{
+			const float TargetSamplePerPixel = 0.25;
+			const float MinimalPixelRadius = 0.5 * rsqrt(2.0);
+
+			// Project GGX lobe into screen space.
+			float2 NormalizedScreenMajorAxis;
+			float InifinityMajorViewportRadius;
+			float InifinityMinorViewportRadius;
+			ProjectSpecularLobeToScreenSpace(
+				RefSceneMetadata,
+				/* out */ NormalizedScreenMajorAxis,
+				/* out */ InifinityMajorViewportRadius,
+				/* out */ InifinityMinorViewportRadius);
+
+			float OutOfFocus = ComputeBluringOutOfFocusOfNormalizedSample(NormalizedRefSamples.Array[0], RefSceneMetadata);
+
+			KernelConfig.MajorAxis = NormalizedScreenMajorAxis * float2(1, -1);
+			KernelConfig.MajorPixelRadius = InifinityMajorViewportRadius * OutOfFocus * View.ViewSizeAndInvSize.x;
+
+			float AspectRatio = InifinityMinorViewportRadius / InifinityMajorViewportRadius;
+
+			float MaxPixelRadius = sqrt(rcp(TargetSamplePerPixel) * MaxSampleCount / AspectRatio);
+
+
+			KernelConfig.MajorPixelRadius = clamp(KernelConfig.MajorPixelRadius, 0, MaxPixelRadius);
+			KernelConfig.MinorPixelRadius = AspectRatio * KernelConfig.MajorPixelRadius;
+
+			float ConvolutionArea = max(KernelConfig.MajorPixelRadius, MinimalPixelRadius) * max(KernelConfig.MinorPixelRadius, MinimalPixelRadius);
+
+			KernelConfig.SampleCount = clamp(ConvolutionArea * TargetSamplePerPixel, 0, MaxSampleCount);
 		}
 		#endif // CONFIG_SAMPLE_SET == SAMPLE_SET_STOCASTIC_HIERARCHY
 		
@@ -849,10 +973,10 @@ void MainCS(
 
 		AccumulateKernel(
 			KernelConfig,
-			SignalInput_Textures_0,
-			SignalInput_Textures_1,
-			SignalInput_Textures_2,
-			SignalInput_Textures_3,
+			Signal_Textures_0,
+			Signal_Textures_1,
+			Signal_Textures_2,
+			Signal_Textures_3,
 			/* inout */ UncompressedAccumulators,
 			/* inout */ CompressedAccumulators);
 
@@ -869,10 +993,10 @@ void MainCS(
 			
 				AccumulateKernel(
 					KernelConfig,
-					SignalInput_Textures_0,
-					SignalInput_Textures_1,
-					SignalInput_Textures_2,
-					SignalInput_Textures_3,
+					Signal_Textures_0,
+					Signal_Textures_1,
+					Signal_Textures_2,
+					Signal_Textures_3,
 					/* inout */ UncompressedAccumulators,
 					/* inout */ CompressedAccumulators);
 			}
@@ -883,15 +1007,15 @@ void MainCS(
 		if (!KernelConfig.bSampleKernelCenter && KernelConfig.bDescOrder)
 		{
 			// Remove any jitter the kernel may have. Won't have ant VGPR cost when no jittering, because KernelConfig.BufferUV == SceneBufferUV.
-			// TODO: This is costly for VGPR pressure if using KernelConfig.BufferUV was != SceneBufferUV.
+			// TODO(Denoiser): This is costly for VGPR pressure if using KernelConfig.BufferUV was != SceneBufferUV.
 			KernelConfig.BufferUV = SceneBufferUV;
 
 			SampleAndAccumulateCenterSampleAsItsOwnCluster(
 				KernelConfig,
-				SignalInput_Textures_0,
-				SignalInput_Textures_1,
-				SignalInput_Textures_2,
-				SignalInput_Textures_3,
+				Signal_Textures_0,
+				Signal_Textures_1,
+				Signal_Textures_2,
+				Signal_Textures_3,
 				/* inout */ UncompressedAccumulators,
 				/* inout */ CompressedAccumulators);
 		}
@@ -945,7 +1069,7 @@ void MainCS(
 			}
 			#endif // CONFIG_ACCUMULATION_COLOR_SPACE != CONFIG_OUTPUT_COLOR_SPACE
 
-			// TODO: it might be better to just uncompress before this for loop and remain uncompressed,
+			// TODO(Denoiser): it might be better to just uncompress before this for loop and remain uncompressed,
 			// so the color operation get done in practice during the output sample transcoding.
 			CompressSignalAccumulator(/* inout */ SignalAccumulators.Array[MultiplexId]);
 		}
@@ -968,7 +1092,7 @@ void MainCS(
 				OutputSamples.Array[MultiplexId] = SignalAccumulators.Array[MultiplexId].Moment1;
 				
 				// Output the minimal inverse frequency as new world bluring radius for subsequent passes.
-				// TODO: store this in its own signal to avoid *= N; *= rcp(N);
+				// TODO(Denoiser): store this in its own signal to avoid *= N; *= rcp(N);
 				OutputSamples.Array[MultiplexId].WorldBluringRadius = 
 					OutputSamples.Array[MultiplexId].SampleCount * SignalAccumulators.Array[MultiplexId].MinInvFrequency;
 			}
@@ -998,7 +1122,7 @@ void MainCS(
 				OutputSamples.Array[MultiplexId] = SignalAccumulators.Array[MultiplexId].Previous;
 
 				// Output the minimal inverse frequency as new world bluring radius for subsequent passes.
-				// TODO: store this in its own signal to avoid *= N; *= rcp(N);
+				// TODO(Denoiser): store this in its own signal to avoid *= N; *= rcp(N);
 				OutputSamples.Array[MultiplexId].WorldBluringRadius = 
 					OutputSamples.Array[MultiplexId].SampleCount * SignalAccumulators.Array[MultiplexId].MinInvFrequency;
 			
@@ -1028,9 +1152,9 @@ void MainCS(
 	}
 	#endif // DIM_STAGE == STAGE_POST_FILTERING
 
-	// TODO:  LeaveRayCount = (LeaveRayCount - 1) * 9 / (9 - 2) post processing to reject when for history rejection
+	// TODO(Denoiser):  LeaveRayCount = (LeaveRayCount - 1) * 9 / (9 - 2) post processing to reject when for history rejection
 	uint2 OutputPixelPostion;
-	#if CONFIG_VGPR_OPTIMIZATION
+	#if CONFIG_VGPR_OPTIMIZATION && 1 // TODO(Denoiser)
 	{
 		// No need to keep DispatchThreadId, can recompute the output pixel position based on information stored in VGPRs for spatial kernel.
 		#if CONFIG_SAMPLE_SET == SAMPLE_SET_STACKOWIAK_4_SETS || CONFIG_SAMPLE_SET == SAMPLE_SET_STOCASTIC_HIERARCHY
@@ -1041,9 +1165,9 @@ void MainCS(
 			#if CONFIG_UPSCALE
 				SampleTrackId ^= 0x3;
 			#endif
-			OutputPixelPostion = (uint2(KernelBufferUV * View.BufferSizeAndInvSize.xy) & ~0x1) | (uint2(SampleTrackId, SampleTrackId >> 1) & 0x1);
+			OutputPixelPostion = (uint2(KernelBufferUV * BufferUVToOutputPixelPosition) & ~0x1) | (uint2(SampleTrackId, SampleTrackId >> 1) & 0x1);
 		#else
-			OutputPixelPostion = uint2(SceneBufferUV * View.BufferSizeAndInvSize.xy);
+			OutputPixelPostion = BufferUVToBufferPixelCoord(SceneBufferUV);
 		#endif
 	}
 	#else
@@ -1054,7 +1178,7 @@ void MainCS(
 	if (all(OutputPixelPostion < ViewportMax))
 	{
 		// Output the multiplexed signal.
-		#if DIM_STAGE == STAGE_FINAL_OUTPUT && CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_MONOCHROMATIC_PENUMBRA
+		#if DIM_STAGE == STAGE_FINAL_OUTPUT && CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK
 		{
 			UNROLL
 			for (uint MultiplexId = 0; MultiplexId < MultiplexCount; MultiplexId++)

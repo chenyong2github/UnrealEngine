@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.3)
 
-MESSAGE("[NvCloth]cmake/common/CMakeList.txt")
+MESSAGE(STATUS "[NvCloth]cmake/common/CMakeList.txt")
 
 project(NvCloth CXX)
 
@@ -16,7 +16,7 @@ IF(EXISTS $ENV{GW_DEPS_ROOT}/Externals/CMakeModules)
 	SET(CMAKE_MODULE_PATH $ENV{GW_DEPS_ROOT}/Externals/CMakeModules)
 ENDIF()
 
-MESSAGE( "[NvCloth]cmake/common CMAKE_MODULE_PATH = ${CMAKE_MODULE_PATH}")
+MESSAGE(STATUS "[NvCloth]cmake/common CMAKE_MODULE_PATH = ${CMAKE_MODULE_PATH}")
 
 IF(EXISTS $ENV{GW_DEPS_ROOT}/Externals/CMakeModules)
 	SET(CMAKE_MODULE_PATH $ENV{GW_DEPS_ROOT}/Externals/CMakeModules)
@@ -27,8 +27,8 @@ IF(NOT EXISTS ${CMAKE_MODULE_PATH})
 	MESSAGE(FATAL_ERROR "Could not find CMakeModules at ${CMAKE_MODULE_PATH}")
 ENDIF()
 
-MESSAGE("NvCloth Build Platform: " ${TARGET_BUILD_PLATFORM})
-MESSAGE("Using CXX Compiler: " ${CMAKE_CXX_COMPILER})
+MESSAGE(STATUS "NvCloth Build Platform: " ${TARGET_BUILD_PLATFORM})
+MESSAGE(STATUS "Using CXX Compiler: " ${CMAKE_CXX_COMPILER})
 
 # TODO: Fail if we didn't find deps
 
@@ -52,7 +52,7 @@ IF(NOT DEFINED APPEND_CONFIG_NAME)
 ENDIF()
 
 IF (APPEND_CONFIG_NAME)
-	MESSAGE("Appending config to output names")
+	MESSAGE(STATUS "Appending config to output names")
 
 	SET(CMAKE_DEBUG_POSTFIX "DEBUG")
 	SET(CMAKE_PROFILE_POSTFIX "PROFILE")
@@ -60,8 +60,7 @@ IF (APPEND_CONFIG_NAME)
 	SET(CMAKE_RELEASE_POSTFIX "")
 ENDIF()
 
-#SET(PHYSX_ROOT_DIR ${PROJECT_SOURCE_DIR}/../../../../)
-SET(PROJECT_ROOT_DIR ${PROJECT_SOURCE_DIR}/../../../)
+SET(PROJECT_ROOT_DIR ${CMAKE_CURRENT_LIST_DIR}/../../..)
 
 INCLUDE(SetOutputPaths)
 
@@ -88,4 +87,4 @@ IF(USE_RESPONSE_FILES)
 	SET(CMAKE_CXX_USE_RESPONSE_FILE_FOR_INCLUDES 1)
 	SET(CMAKE_CXX_USE_RESPONSE_FILE_FOR_LIBRARIES 1)
 ENDIF()
-MESSAGE("[NvCloth]cmake/common/CMakeList.txt END")
+MESSAGE(STATUS "[NvCloth]cmake/common/CMakeList.txt END")

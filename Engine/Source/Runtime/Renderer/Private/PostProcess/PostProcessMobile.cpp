@@ -284,7 +284,7 @@ FPooledRenderTargetDesc FRCPassPostProcessBloomSetupES2::ComputeOutputDesc(EPass
 	Ret.ArraySize = 1;
 	Ret.bIsArray = false;
 	Ret.NumMips = 1;
-	Ret.TargetableFlags = TexCreate_RenderTargetable;
+	Ret.TargetableFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
 	Ret.bForceSeparateTargetAndShaderResource = false;
 	Ret.Format = GetHDRPixelFormat();
 	Ret.NumSamples = 1;
@@ -498,7 +498,7 @@ FPooledRenderTargetDesc FRCPassPostProcessBloomSetupSmallES2::ComputeOutputDesc(
 	Ret.ArraySize = 1;
 	Ret.bIsArray = false;
 	Ret.NumMips = 1;
-	Ret.TargetableFlags = TexCreate_RenderTargetable;
+	Ret.TargetableFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
 	Ret.bForceSeparateTargetAndShaderResource = false;
 	Ret.Format = GetHDRPixelFormat();
 	Ret.NumSamples = 1;
@@ -677,7 +677,7 @@ FPooledRenderTargetDesc FRCPassPostProcessBloomDownES2::ComputeOutputDesc(EPassO
 	Ret.ArraySize = 1;
 	Ret.bIsArray = false;
 	Ret.NumMips = 1;
-	Ret.TargetableFlags = TexCreate_RenderTargetable;
+	Ret.TargetableFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
 	Ret.bForceSeparateTargetAndShaderResource = false;
 	Ret.Format = GetHDRPixelFormat();
 	Ret.NumSamples = 1;
@@ -864,7 +864,7 @@ FPooledRenderTargetDesc FRCPassPostProcessBloomUpES2::ComputeOutputDesc(EPassOut
 	Ret.ArraySize = 1;
 	Ret.bIsArray = false;
 	Ret.NumMips = 1;
-	Ret.TargetableFlags = TexCreate_RenderTargetable;
+	Ret.TargetableFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
 	Ret.bForceSeparateTargetAndShaderResource = false;
 	Ret.Format = GetHDRPixelFormat();
 	Ret.NumSamples = 1;
@@ -1113,7 +1113,7 @@ FPooledRenderTargetDesc FRCPassPostProcessSunMaskES2::ComputeOutputDesc(EPassOut
 	Ret.ArraySize = 1;
 	Ret.bIsArray = false;
 	Ret.NumMips = 1;
-	Ret.TargetableFlags = TexCreate_RenderTargetable;
+	Ret.TargetableFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
 	Ret.bForceSeparateTargetAndShaderResource = false;
 	Ret.Format = GetHDRPixelFormat();
 	Ret.NumSamples = 1;
@@ -1316,7 +1316,7 @@ FPooledRenderTargetDesc FRCPassPostProcessSunAlphaES2::ComputeOutputDesc(EPassOu
 	Ret.ArraySize = 1;
 	Ret.bIsArray = false;
 	Ret.NumMips = 1;
-	Ret.TargetableFlags = TexCreate_RenderTargetable;
+	Ret.TargetableFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
 	Ret.bForceSeparateTargetAndShaderResource = false;
 	// Only need one 8-bit channel as output (but mobile hardware often doesn't support that as a render target format).
 	// Highlight compression (tonemapping) was used to keep this in 8-bit.
@@ -1494,7 +1494,7 @@ FPooledRenderTargetDesc FRCPassPostProcessSunBlurES2::ComputeOutputDesc(EPassOut
 	Ret.ArraySize = 1;
 	Ret.bIsArray = false;
 	Ret.NumMips = 1;
-	Ret.TargetableFlags = TexCreate_RenderTargetable;
+	Ret.TargetableFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
 	Ret.bForceSeparateTargetAndShaderResource = false;
 	// Only need one 8-bit channel as output (but mobile hardware often doesn't support that as a render target format).
 	// Highlight compression (tonemapping) was used to keep this in 8-bit.
@@ -1741,7 +1741,7 @@ FPooledRenderTargetDesc FRCPassPostProcessSunMergeES2::ComputeOutputDesc(EPassOu
 	Ret.ArraySize = 1;
 	Ret.bIsArray = false;
 	Ret.NumMips = 1;
-	Ret.TargetableFlags = TexCreate_RenderTargetable;
+	Ret.TargetableFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
 	Ret.bForceSeparateTargetAndShaderResource = false;
 	Ret.Format = GetHDRPixelFormat();
 	Ret.NumSamples = 1;
@@ -1947,7 +1947,7 @@ FPooledRenderTargetDesc FRCPassPostProcessSunMergeSmallES2::ComputeOutputDesc(EP
 	Ret.ArraySize = 1;
 	Ret.bIsArray = false;
 	Ret.NumMips = 1;
-	Ret.TargetableFlags = TexCreate_RenderTargetable;
+	Ret.TargetableFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
 	Ret.bForceSeparateTargetAndShaderResource = false;
 	Ret.Format = GetHDRPixelFormat();
 	Ret.NumSamples = 1;
@@ -2177,7 +2177,7 @@ FPooledRenderTargetDesc FRCPassPostProcessDofDownES2::ComputeOutputDesc(EPassOut
 	Ret.ArraySize = 1;
 	Ret.bIsArray = false;
 	Ret.NumMips = 1;
-	Ret.TargetableFlags = TexCreate_RenderTargetable;
+	Ret.TargetableFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
 	Ret.bForceSeparateTargetAndShaderResource = false;
 	Ret.Format = GetHDRPixelFormat();
 	Ret.NumSamples = 1;
@@ -2384,7 +2384,7 @@ FPooledRenderTargetDesc FRCPassPostProcessDofNearES2::ComputeOutputDesc(EPassOut
 	Ret.ArraySize = 1;
 	Ret.bIsArray = false;
 	Ret.NumMips = 1;
-	Ret.TargetableFlags = TexCreate_RenderTargetable;
+	Ret.TargetableFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
 	Ret.bForceSeparateTargetAndShaderResource = false;
 	// Only need one 8-bit channel as output (but mobile hardware often doesn't support that as a render target format).
 	Ret.Format = PF_B8G8R8A8;
@@ -2554,7 +2554,7 @@ FPooledRenderTargetDesc FRCPassPostProcessDofBlurES2::ComputeOutputDesc(EPassOut
 	Ret.ArraySize = 1;
 	Ret.bIsArray = false;
 	Ret.NumMips = 1;
-	Ret.TargetableFlags = TexCreate_RenderTargetable;
+	Ret.TargetableFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
 	Ret.bForceSeparateTargetAndShaderResource = false;
 	Ret.Format = GetHDRPixelFormat();
 	Ret.NumSamples = 1;
@@ -2739,7 +2739,7 @@ FPooledRenderTargetDesc FRCPassPostProcessSunAvgES2::ComputeOutputDesc(EPassOutp
 	Ret.ArraySize = 1;
 	Ret.bIsArray = false;
 	Ret.NumMips = 1;
-	Ret.TargetableFlags = TexCreate_RenderTargetable;
+	Ret.TargetableFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
 	Ret.bForceSeparateTargetAndShaderResource = false;
 	Ret.Format = GetHDRPixelFormat();
 	Ret.NumSamples = 1;
@@ -2952,7 +2952,8 @@ void FRCPassPostProcessAaES2::Process(FRenderingCompositePassContext& Context)
 	check(SrcSize == DestSize);
 
 	ERenderTargetActions LoadStoreAction = ERenderTargetActions::Load_Store;
-	if (!IStereoRendering::IsASecondaryView(Context.View.StereoPass))
+	//#todo-rv-vr
+	if (Context.View.StereoPass != eSSP_RIGHT_EYE)
 	{
 		// Full clear to avoid restore
 		LoadStoreAction = ERenderTargetActions::Clear_Store;
@@ -3011,7 +3012,7 @@ FPooledRenderTargetDesc FRCPassPostProcessAaES2::ComputeOutputDesc(EPassOutputId
 	Ret.ArraySize = 1;
 	Ret.bIsArray = false;
 	Ret.NumMips = 1;
-	Ret.TargetableFlags = TexCreate_RenderTargetable;
+	Ret.TargetableFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
 	Ret.bForceSeparateTargetAndShaderResource = false;
 	Ret.Format = PF_B8G8R8A8;
 	Ret.NumSamples = 1;
