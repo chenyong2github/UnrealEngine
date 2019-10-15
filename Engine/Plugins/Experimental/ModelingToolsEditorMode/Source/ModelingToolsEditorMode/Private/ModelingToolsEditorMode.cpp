@@ -15,6 +15,7 @@
 #include "EditMeshPolygonsTool.h"
 #include "ConvertToPolygonsTool.h"
 #include "AddPrimitiveTool.h"
+#include "AddPatchTool.h"
 #include "SmoothMeshTool.h"
 #include "RemeshMeshTool.h"
 #include "SimplifyMeshTool.h"
@@ -316,6 +317,10 @@ void FModelingToolsEditorMode::Enter()
 	auto AddPrimitiveToolBuilder = NewObject<UAddPrimitiveToolBuilder>();
 	AddPrimitiveToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
 	RegisterToolFunc(ToolManagerCommands.BeginAddPrimitiveTool, TEXT("AddPrimitiveTool"), AddPrimitiveToolBuilder);
+
+	auto AddPatchToolBuilder = NewObject<UAddPatchToolBuilder>();
+	AddPatchToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	RegisterToolFunc(ToolManagerCommands.BeginAddPatchTool, TEXT("AddPatchTool"), AddPatchToolBuilder);
 
 	auto DrawPolygonToolBuilder = NewObject<UDrawPolygonToolBuilder>();
 	DrawPolygonToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();

@@ -16,6 +16,7 @@ public:
 
 
 	TSharedPtr<FUICommandInfo> BeginAddPrimitiveTool;
+	TSharedPtr<FUICommandInfo> BeginAddPatchTool;
 	TSharedPtr<FUICommandInfo> BeginDrawPolygonTool;
 	TSharedPtr<FUICommandInfo> BeginShapeSprayTool;
 

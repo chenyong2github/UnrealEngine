@@ -22,7 +22,7 @@
 // if set to 1, then on mode initialization we include buttons for prototype modeling tools
 static TAutoConsoleVariable<int32> CVarEnablePrototypeModelingTools(
 	TEXT("modeling.EnablePrototypes"),
-	0,
+	1,
 	TEXT("Enable unsupported Experimental prototype Modeling Tools"));
 
 
@@ -227,7 +227,7 @@ UEdModeInteractiveToolsContext* FModelingToolsEditorModeToolkit::GetToolsContext
 
 
 const TArray<FName> FModelingToolsEditorModeToolkit::PaletteNames_Standard = { FName(TEXT("Modeling")), FName(TEXT("Utilities")) };
-const TArray<FName> FModelingToolsEditorModeToolkit::PaletteNames_Experimental = { FName(TEXT("Create")), FName(TEXT("Edit")), FName(TEXT("UVs/Normals")), FName(TEXT("Utilities")) };
+const TArray<FName> FModelingToolsEditorModeToolkit::PaletteNames_Experimental = { FName(TEXT("Create")), FName(TEXT("Edit")), FName(TEXT("UVs/Normals")), FName(TEXT("Utilities")), FName(TEXT("Prototypes")) };
 
 
 void FModelingToolsEditorModeToolkit::GetToolPaletteNames(TArray<FName>& InPaletteName) const
@@ -361,6 +361,10 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Experimental(FName Palett
 		ToolbarBuilder.AddToolBarButton(Commands.BeginWeldEdgesTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshInspectorTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginAttributeEditorTool);
+	}
+	else if (PaletteIndex == FName(TEXT("Prototypes")))
+	{
+		ToolbarBuilder.AddToolBarButton(Commands.BeginAddPatchTool);
 	}
 }
 
