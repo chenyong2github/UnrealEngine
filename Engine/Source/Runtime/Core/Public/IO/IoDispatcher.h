@@ -48,7 +48,9 @@ enum class EIoErrorCode
 	FileNotOpen,
 	WriteError,
 	NotFound,
-	CorruptToc
+	CorruptToc,
+	UnknownChunkID,
+	InvalidParameter
 };
 
 class FIoStatus
@@ -654,6 +656,16 @@ public:
 
 	CORE_API FIoStatus	Initialize();
 	CORE_API void		Append(FIoChunkId ChunkId, FIoBuffer Chunk);
+
+	/**
+	 * Creates an addressable range in an already mapped Chunk.
+	 *
+	 * @param OriginalChunkId The FIoChunkId of the original chunk from which you want to create the range
+	 * @param Offset The number of bytes into the original chunk that the range should start
+	 * @param Length The length of the range in bytes
+	 * @param ChunkIdPartialRange The FIoChunkId that will map to the range
+	 */
+	CORE_API void		MapPartialRange(FIoChunkId OriginalChunkId, uint64 Offset, uint64 Length, FIoChunkId ChunkIdPartialRange);
 	CORE_API void		FlushMetadata();
 
 private:

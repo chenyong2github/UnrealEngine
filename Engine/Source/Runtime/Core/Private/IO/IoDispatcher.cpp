@@ -154,6 +154,8 @@ const TCHAR* GetIoErrorText(EIoErrorCode ErrorCode)
 		TEXT("Write Error"),
 		TEXT("Not Found"),
 		TEXT("Corrupt Toc"),
+		TEXT("Unknown ChunkID")
+		TEXT("Invalid Parameter")
 	};
 
 	return ErrorCodeText[static_cast<uint32>(ErrorCode)];
@@ -825,6 +827,39 @@ public:
 		}
 	}
 
+	UE_NODISCARD FIoStatus MapPartialRange(FIoChunkId OriginalChunkId, uint64 Offset, uint64 Length, FIoChunkId ChunkIdPartialRange)
+	{
+		//TODO: Does RelativeOffset + Length overflow?
+
+		const FIoStoreTocEntry* Entry = Toc.Find(OriginalChunkId);
+		if (Entry == nullptr)
+		{
+			return FIoStatus(EIoErrorCode::UnknownChunkID, TEXT("OriginalChunkId does not exist in the container"));
+		}
+
+		if (Toc.Find(ChunkIdPartialRange) != nullptr)
+		{
+			return FIoStatus(EIoErrorCode::InvalidParameter, TEXT("ChunkIdPartialRange is already mapped"));
+		}
+
+		if (Offset + Length > Entry->GetLength())
+		{
+			return FIoStatus(EIoErrorCode::InvalidParameter, TEXT("The given range (Offset/Length) is not within the bounds of OriginalChunkId's data"));
+		}
+
+		FIoStoreTocEntry TocEntry;
+
+		TocEntry.SetOffset(Entry->GetOffset() + Offset);
+		TocEntry.SetLength(Length);
+		TocEntry.ChunkId = ChunkIdPartialRange;
+
+		Toc.Add(ChunkIdPartialRange, TocEntry);
+
+		IsMetadataDirty = true;
+
+		return FIoStatus::Ok;
+	}
+
 	UE_NODISCARD FIoStatus FlushMetadata()
 	{
 		TocFileHandle->Seek(0);
@@ -882,6 +917,11 @@ FIoStatus FIoStoreWriter::Initialize()
 void FIoStoreWriter::Append(FIoChunkId ChunkId, FIoBuffer Chunk)
 {
 	Impl->Append(ChunkId, Chunk);
+}
+
+void FIoStoreWriter::MapPartialRange(FIoChunkId OriginalChunkId, uint64 Offset, uint64 Length, FIoChunkId ChunkIdPartialRange)
+{
+	Impl->MapPartialRange(OriginalChunkId, Offset, Length, ChunkIdPartialRange);
 }
 
 void FIoStoreWriter::FlushMetadata()
