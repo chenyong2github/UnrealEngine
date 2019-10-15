@@ -2393,9 +2393,10 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		}
 	}
 
+	ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatformWithSupport(TEXT("ShaderFormat"), LegacyShaderPlatformToShaderFormat(Platform));
+
 	{
 		bool bForwardShading = false;
-		ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatformWithSupport(TEXT("ShaderFormat"), LegacyShaderPlatformToShaderFormat(Platform));
 		if (TargetPlatform)
 		{
 			// if there is a specific target platform that matches our shader platform, use that to drive forward shading
@@ -2411,6 +2412,13 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		if (bForwardShading)
 		{
 			KeyString += TEXT("_FS");
+		}
+	}
+
+	{
+		if (UseVirtualTexturing(GetMaxSupportedFeatureLevel(Platform), TargetPlatform))
+		{
+			KeyString += TEXT("_VT");
 		}
 	}
 
@@ -2498,9 +2506,9 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 
 		ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
 		check(TPM);
-		auto TargetPlatform = TPM->GetRunningTargetPlatform();
-		check(TargetPlatform);
-		const bool VTSupported = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::VirtualTextureStreaming);
+		auto RunningTargetPlatform = TPM->GetRunningTargetPlatform();
+		check(RunningTargetPlatform);
+		const bool VTSupported = RunningTargetPlatform->SupportsFeature(ETargetPlatformFeatures::VirtualTextureStreaming);
 
 		auto tt = FString::Printf(TEXT("_VT-%d-%d-%d-%d"), VTLightmaps, VTTextures, VTFeedbackFactor, VTSupported);
  		KeyString += tt;

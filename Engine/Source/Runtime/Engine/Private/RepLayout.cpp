@@ -316,9 +316,10 @@ struct FLifetimeCustomDeltaState
 {
 public:
 
-	FLifetimeCustomDeltaState(uint16 TotalNumberOfLifetimeProperties)
+	FLifetimeCustomDeltaState(int32 HighestCustomDeltaRepIndex)
 	{
-		LifetimeCustomDeltaIndexLookup.Init(static_cast<uint16>(INDEX_NONE), TotalNumberOfLifetimeProperties);
+		check(HighestCustomDeltaRepIndex >= 0);
+		LifetimeCustomDeltaIndexLookup.Init(static_cast<uint16>(INDEX_NONE), HighestCustomDeltaRepIndex + 1);
 	}
 
 	void CountBytes(FArchive& Ar) const
@@ -1522,8 +1523,9 @@ void FRepLayout::UpdateChangelistHistory(
 
 		if (HistoryItem.OutPacketIdRange.First == INDEX_NONE)
 		{
-			//  Hasn't been initialized in PostReplicate yet
-			continue;
+			// Hasn't been initialized in PostReplicate yet
+			// No need to go further, otherwise we'll overwrite entries incorrectly.
+			break;
 		}
 
 		// All active history items should contain a change list
@@ -1538,21 +1540,17 @@ void FRepLayout::UpdateChangelistHistory(
 				TArray<uint16> Temp = MoveTemp(*OutMerged);
 				MergeChangeList(Data, HistoryItem.Changed, Temp, *OutMerged);
 
-				HistoryItem.Changed.Empty();
-
 #ifdef SANITY_CHECK_MERGES
 				SanityCheckChangeList(Data, *OutMerged);
 #endif
 
 				if (HistoryItem.Resend)
 				{
-					HistoryItem.Resend = false;
 					RepState->NumNaks--;
 				}
 			}
 
-			HistoryItem.Changed.Empty();
-			HistoryItem.OutPacketIdRange = FPacketIdRange();
+			HistoryItem.Reset();
 			RepState->HistoryStart++;
 		}
 	}
@@ -1560,7 +1558,7 @@ void FRepLayout::UpdateChangelistHistory(
 	// Remove any tiling in the history markers to keep them from wrapping over time
 	const int32 NewHistoryCount	= RepState->HistoryEnd - RepState->HistoryStart;
 
-	check(NewHistoryCount <= FSendingRepState::MAX_CHANGE_HISTORY);
+	check(NewHistoryCount < FSendingRepState::MAX_CHANGE_HISTORY);
 
 	RepState->HistoryStart = RepState->HistoryStart % FSendingRepState::MAX_CHANGE_HISTORY;
 	RepState->HistoryEnd = RepState->HistoryStart + NewHistoryCount;
@@ -4993,6 +4991,7 @@ void FRepLayout::InitFromClass(
 
 	int32 RelativeHandle = 0;
 	int32 LastOffset = INDEX_NONE;
+	int32 HighestCustomDeltaRepIndex = INDEX_NONE;
 
 	InObjectClass->SetUpRuntimeReplicationData();
 	Parents.Empty(InObjectClass->ClassReps.Num());
@@ -5048,6 +5047,11 @@ void FRepLayout::InitFromClass(
 			    RemoteRoleIndex = ParentHandle;
 		    }
 	    }
+
+		if (EnumHasAnyFlags(Parents[ParentHandle].Flags, ERepParentFlags::IsCustomDelta))
+		{
+			HighestCustomDeltaRepIndex = ParentHandle;
+		}
 	}
 
 	// Make sure it either found both, or didn't find either
@@ -5118,7 +5122,12 @@ void FRepLayout::InitFromClass(
 
 			if (!LifetimeCustomPropertyState)
 			{
-				LifetimeCustomPropertyState.Reset(new FLifetimeCustomDeltaState(LifetimeProps.Num()));
+				// We can't use the number of Lifetime Properties, because that could be smaller than
+				// the highest RepIndex of a Custom Delta Property, because properties may be disabled, removed,
+				// or just never added.
+				// For similar reasons, we don't want to use the total number of replicated properties, especially
+				// if we know we'll never use anything beyond the last Custom Delta Property anyway.
+				LifetimeCustomPropertyState.Reset(new FLifetimeCustomDeltaState(HighestCustomDeltaRepIndex));
 			}
 
 			// If we're a FastArraySerializer, we'll look for our replicated item type.

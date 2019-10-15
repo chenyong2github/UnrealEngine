@@ -35,6 +35,7 @@ void SNiagaraStackTableRow::Construct(const FArguments& InArgs, UNiagaraStackVie
 
 	InactiveItemBackgroundColor = InArgs._ItemBackgroundColor;
 	ActiveItemBackgroundColor = InactiveItemBackgroundColor + FLinearColor(.05f, .05f, .05f, 0.0f);
+	DisabledItemBackgroundColor = InactiveItemBackgroundColor + FLinearColor(.02f, .02f, .02f, 0.0f);
 	ForegroundColor = InArgs._ItemForegroundColor;
 
 	ExecutionCategoryToolTipText = InStackEntry->GetExecutionSubcategoryName() != NAME_None
@@ -202,24 +203,42 @@ void SNiagaraStackTableRow::SetNameAndValueContent(TSharedRef<SWidget> InNameWid
 		];
 	}
 
+	FName AccentColorName = FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForExecutionCategory(StackEntry->GetExecutionCategoryName());
+	FLinearColor AccentColor = AccentColorName != NAME_None ? FNiagaraEditorWidgetsStyle::Get().GetColor(AccentColorName) : FLinearColor::Transparent;
 	ChildSlot
 	[
 		SNew(SOverlay)
 		+ SOverlay::Slot()
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
-			.BorderBackgroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetColorNameForExecutionCategory(StackEntry->GetExecutionCategoryName())))
+			.BorderImage(FEditorStyle::GetBrush("NoBrush"))
 			.Visibility(this, &SNiagaraStackTableRow::GetRowVisibility)
-			.Padding(FMargin(9, 0, 9, 0))
+			.Padding(FMargin(0, 0, 0, 0))
 			[
-				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
-				.BorderBackgroundColor(this, &SNiagaraStackTableRow::GetItemBackgroundColor)
-				.ForegroundColor(ForegroundColor)
-				.Padding(0)
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(1, 0, 6, 0)
 				[
-					ChildContent.ToSharedRef()
+					SNew(SBorder)
+					.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+					.BorderBackgroundColor(AccentColor)
+					.Padding(0)
+					[
+						SNew(SBox)
+						.WidthOverride(4)
+					]
+				]
+				+ SHorizontalBox::Slot()
+				[
+					SNew(SBorder)
+					.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+					.BorderBackgroundColor(this, &SNiagaraStackTableRow::GetItemBackgroundColor)
+					.ForegroundColor(ForegroundColor)
+					.Padding(0)
+					[
+						ChildContent.ToSharedRef()
+					]
 				]
 			]
 		]
@@ -408,7 +427,14 @@ void SNiagaraStackTableRow::OnValueColumnWidthChanged(float Width)
 
 FSlateColor SNiagaraStackTableRow::GetItemBackgroundColor() const
 {
-	return GetIsRowActive() ? ActiveItemBackgroundColor : InactiveItemBackgroundColor;
+	if (StackEntry->GetIsEnabled() && StackEntry->GetOwnerIsEnabled())
+	{
+		return GetIsRowActive() ? ActiveItemBackgroundColor : InactiveItemBackgroundColor;
+	}
+	else
+	{
+		return DisabledItemBackgroundColor;
+	}
 }
 
 EVisibility SNiagaraStackTableRow::GetSearchResultBorderVisibility() const

@@ -418,6 +418,17 @@ void FUECompressedAnimData::ByteSwapData(TArrayView<uint8> CompressedData, TArch
 template void FUECompressedAnimData::ByteSwapData(TArrayView<uint8> CompressedData, FMemoryReader& MemoryStream);
 template void FUECompressedAnimData::ByteSwapData(TArrayView<uint8> CompressedData, FMemoryWriter& MemoryStream);
 
+void ValidateUObjectLoaded(UObject* Obj, UObject* Source)
+{
+#if WITH_EDITOR
+	if (FLinkerLoad* ObjLinker = Obj->GetLinker())
+	{
+		ObjLinker->Preload(Obj);
+	}
+#endif
+	checkf(!Obj->HasAnyFlags(RF_NeedLoad), TEXT("Failed to load %s in %s"), *Obj->GetFullName(), *Source->GetFullName()); // in non editor should have been preloaded by GetPreloadDependencies
+}
+
 void FCompressedAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCData, UObject* DataOwner, USkeleton* Skeleton, UAnimCurveCompressionSettings* CurveCompressionSettings, bool bCanUseBulkData)
 {
 	Ar << CompressedRawDataSize;
@@ -501,6 +512,7 @@ void FCompressedAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCDat
 		FString CurveCodecPath;
 		Ar << CurveCodecPath;
 
+		ValidateUObjectLoaded(CurveCompressionSettings, DataOwner);
 		CurveCompressionCodec = CurveCompressionSettings->GetCodec(CurveCodecPath);
 
 		int32 NumCurveBytes;

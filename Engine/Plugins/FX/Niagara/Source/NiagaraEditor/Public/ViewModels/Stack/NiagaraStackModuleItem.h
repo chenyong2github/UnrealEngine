@@ -39,7 +39,7 @@ public:
 
 	virtual bool SupportsChangeEnabled() const override { return true; }
 	virtual bool GetIsEnabled() const override;
-	void SetIsEnabled(bool bInIsEnabled);
+	virtual void SetIsEnabled(bool bInIsEnabled) override;
 
 	virtual bool SupportsDelete() const override { return true; }
 	virtual bool TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const override;

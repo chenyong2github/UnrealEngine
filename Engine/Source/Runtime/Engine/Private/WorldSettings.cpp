@@ -556,6 +556,12 @@ bool AWorldSettings::CanEditChange(const UProperty* InProperty) const
 				return LightmassSettings.EnvironmentIntensity > 0;
 			}
 		}
+
+		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(AWorldSettings, OverrideBaseMaterial) ||
+			PropertyName == GET_MEMBER_NAME_STRING_CHECKED(AWorldSettings, HierarchicalLODSetup))
+		{
+			return bEnableHierarchicalLODSystem && HLODSetupAsset.IsNull();
+		}
 	}
 
 	return Super::CanEditChange(InProperty);
@@ -700,6 +706,8 @@ void UHierarchicalLODSetup::PostEditChangeProperty(struct FPropertyChangedEvent&
 			}
 		}
 	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif // WITH_EDITOR
 

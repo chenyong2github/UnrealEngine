@@ -80,45 +80,31 @@ class ULandscapeHeightfieldCollisionComponent : public UPrimitiveComponent
 	UFUNCTION(BlueprintCallable, Category = "Landscape")
 	ULandscapeComponent* GetRenderComponent() const;
 
-	struct FPhysXHeightfieldRef : public FRefCountedObject
+	struct FHeightfieldGeometryRef : public FRefCountedObject
 	{
 		FGuid Guid;
 
 #if WITH_PHYSX
 		/** List of PxMaterials used on this landscape */
 		TArray<physx::PxMaterial*> UsedPhysicalMaterialArray;
-		physx::PxHeightField* RBHeightfield;
-		physx::PxHeightField* RBHeightfieldSimple;
+		physx::PxHeightField* RBHeightfield = nullptr;
+		physx::PxHeightField* RBHeightfieldSimple = nullptr;
 #if WITH_EDITOR
-		physx::PxHeightField* RBHeightfieldEd; // Used only by landscape editor, does not have holes in it
+		physx::PxHeightField* RBHeightfieldEd = nullptr; // Used only by landscape editor, does not have holes in it
 #endif	//WITH_EDITOR
 #endif	//WITH_PHYSX
 
-		/** tors **/
-		FPhysXHeightfieldRef()
-#if WITH_PHYSX
-			: RBHeightfield(nullptr)
-			, RBHeightfieldSimple(nullptr)
+#if WITH_CHAOS
+		TUniquePtr<Chaos::THeightField<float>> Heightfield = nullptr;
+	    TUniquePtr<Chaos::THeightField<float>> HeightfieldSimple = nullptr;
 #if WITH_EDITOR
-			, RBHeightfieldEd(nullptr)
-#endif	//WITH_EDITOR
-#endif	//WITH_PHYSX
-		{
-		}
+		TUniquePtr<Chaos::THeightField<float>> EditorHeightfield = nullptr;
+#endif
+#endif
 
-		FPhysXHeightfieldRef(FGuid& InGuid)
-			: Guid(InGuid)
-#if WITH_PHYSX
-			, RBHeightfield(nullptr)
-			, RBHeightfieldSimple(nullptr)
-#if WITH_EDITOR
-			, RBHeightfieldEd(nullptr)
-#endif	//WITH_EDITOR
-#endif	//WITH_PHYSX
-		{
-		}
+		FHeightfieldGeometryRef(FGuid& InGuid);
 
-		virtual ~FPhysXHeightfieldRef();
+		virtual ~FHeightfieldGeometryRef();
 	};
 	
 #if WITH_EDITORONLY_DATA
@@ -161,7 +147,7 @@ class ULandscapeHeightfieldCollisionComponent : public UPrimitiveComponent
 	TArray<UPhysicalMaterial*>					CookedPhysicalMaterials;
 	
 	/** Physics engine version of heightfield data. */
-	TRefCountPtr<FPhysXHeightfieldRef>	HeightfieldRef;
+	TRefCountPtr<FHeightfieldGeometryRef>	HeightfieldRef;
 	
 	/** Cached PxHeightFieldSamples values for navmesh generation. Note that it's being used only if navigation octree is set up for lazy geometry exporting */
 	int32 HeightfieldRowsCount;
@@ -197,6 +183,8 @@ public:
 	virtual ECollisionResponse GetCollisionResponseToChannel(ECollisionChannel Channel) const override;
 	virtual ECollisionChannel GetCollisionObjectType() const override;
 	virtual const FCollisionResponseContainer& GetCollisionResponseToChannels() const override;
+	virtual void OnRegister() override;
+	virtual void OnUnregister() override;
 	//~ End USceneComponent Interface.
 
 	//~ Begin UPrimitiveComponent Interface
@@ -225,10 +213,7 @@ public:
 	virtual void PostEditImport() override;
 	virtual void PostEditUndo() override;
 	//~ End UObject Interface.
-
-	/** Gets the landscape info object for this landscape */
-	ULandscapeInfo* GetLandscapeInfo() const;
-
+		
 	/**  We speculatively async load collision object from DDC to remove hitch when streaming */
 	void SpeculativelyLoadAsyncDDCCollsionData();
 
@@ -243,6 +228,8 @@ public:
 	/** Computes a hash of all the data that will impact final collision */
 	virtual uint32 ComputeCollisionHash() const;
 #endif
+	/** Gets the landscape info object for this landscape */
+	ULandscapeInfo* GetLandscapeInfo() const;
 
 	/** Creates collision object from a cooked collision data */
 	virtual void CreateCollisionObject();

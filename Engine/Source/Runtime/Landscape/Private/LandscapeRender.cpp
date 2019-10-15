@@ -792,10 +792,15 @@ void FLandscapeRenderSystem::PrepareView(const FSceneView* View)
 	}
 }
 
+void FLandscapeRenderSystem::BeginRenderView(const FSceneView* View)
 {
-	if (!CachedSectionLODValues.Contains(View))
+	TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeRenderSystem::BeginRenderView());
+
+	if (FetchHeightmapLODBiasesEventRef.IsValid())
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeRenderSystem::ComputeSectionPerViewParameters());
+		FTaskGraphInterface::Get().WaitUntilTaskCompletes(FetchHeightmapLODBiasesEventRef, ENamedThreads::GetRenderThread_Local());
+		FetchHeightmapLODBiasesEventRef.SafeRelease();
+	}
 
 	if (PerViewParametersTasks.Contains(View))
 	{
@@ -808,7 +813,24 @@ void FLandscapeRenderSystem::PrepareView(const FSceneView* View)
 		Task.AnyThreadTask();
 	}
 
-		if (TessellationFalloffSettings.UseTessellationComponentScreenSizeFalloff)
+	RecreateBuffers(View);
+}
+
+void FLandscapeRenderSystem::ComputeSectionPerViewParameters(
+	const FSceneView* ViewPtrAsIdentifier,
+	bool ViewEngineShowFlagLOD,
+	float ViewLODDistanceFactor,
+	FVector ViewOrigin,
+	FMatrix ViewProjectionMarix
+)
+{
+	bool bValuesCached = false;
+
+	{
+		FScopeLock Lock(&CachedValuesCS);
+		bValuesCached = CachedSectionLODValues.Contains(ViewPtrAsIdentifier);
+
+		if (!bValuesCached)
 		{
 			CachedSectionLODValues.Add(ViewPtrAsIdentifier, TResourceArray<float>{});
 
@@ -818,13 +840,18 @@ void FLandscapeRenderSystem::PrepareView(const FSceneView* View)
 				CachedSectionTessellationFalloffK.Add(ViewPtrAsIdentifier, TResourceArray<float>{});
 			}
 		}
+	}
 
-		int32 ForcedLODLevel = View->Family->EngineShowFlags.LOD ? GetCVarForceLOD() : -1;
-		float LODScale = View->LODDistanceFactor * CVarStaticMeshLODDistanceScale.GetValueOnRenderThread();
+	if (!bValuesCached)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeRenderSystem::ComputeSectionPerViewParameters());
+
+		int32 ForcedLODLevel = ViewEngineShowFlagLOD ? GetCVarForceLOD() : -1;
+		float LODScale = ViewLODDistanceFactor * CVarStaticMeshLODDistanceScale.GetValueOnRenderThread();
 
 		for (int32 EntityIndex = 0; EntityIndex < SectionLODSettings.Num(); EntityIndex++)
 		{
-			float MeshScreenSizeSquared = ComputeBoundsScreenRadiusSquared(FVector(SectionOriginAndRadius[EntityIndex]), SectionOriginAndRadius[EntityIndex].W, *View);
+			float MeshScreenSizeSquared = ComputeBoundsScreenRadiusSquared(FVector(SectionOriginAndRadius[EntityIndex]), SectionOriginAndRadius[EntityIndex].W, ViewOrigin, ViewProjectionMarix);
 
 			float FractionalLOD;
 			GetLODFromScreenSize(SectionLODSettings[EntityIndex], MeshScreenSizeSquared, LODScale * LODScale, FractionalLOD);
@@ -833,11 +860,11 @@ void FLandscapeRenderSystem::PrepareView(const FSceneView* View)
 
 			if (TessellationFalloffSettings.UseTessellationComponentScreenSizeFalloff && NumEntitiesWithTessellation > 0)
 			{
-				float MaxTesselationDistance = ComputeBoundsDrawDistance(FMath::Sqrt(TessellationFalloffSettings.TessellationComponentSquaredScreenSize), SectionOriginAndRadius[EntityIndex].W / 2.0f, View->ViewMatrices.GetProjectionMatrix());
+				float MaxTesselationDistance = ComputeBoundsDrawDistance(FMath::Sqrt(TessellationFalloffSettings.TessellationComponentSquaredScreenSize), SectionOriginAndRadius[EntityIndex].W / 2.0f, ViewProjectionMarix);
 				float FallOffStartingDistance = FMath::Min(
 					ComputeBoundsDrawDistance(FMath::Sqrt(FMath::Min(
 						FMath::Square(TessellationFalloffSettings.TessellationComponentScreenSizeFalloff), 
-						TessellationFalloffSettings.TessellationComponentSquaredScreenSize)), SectionOriginAndRadius[EntityIndex].W / 2.0f, View->ViewMatrices.GetProjectionMatrix()) - MaxTesselationDistance, MaxTesselationDistance);
+						TessellationFalloffSettings.TessellationComponentSquaredScreenSize)), SectionOriginAndRadius[EntityIndex].W / 2.0f, ViewProjectionMarix) - MaxTesselationDistance, MaxTesselationDistance);
 
 				// Calculate the falloff using a = C - K * d by sending C & K into the shader
 				SectionTessellationFalloffC[EntityIndex] = MaxTesselationDistance / (MaxTesselationDistance - FallOffStartingDistance);
@@ -845,9 +872,6 @@ void FLandscapeRenderSystem::PrepareView(const FSceneView* View)
 			}
 		}
 
-		CachedSectionLODValues[View] = SectionLODValues;
-
-		if (TessellationFalloffSettings.UseTessellationComponentScreenSizeFalloff)
 		{
 			FScopeLock Lock(&CachedValuesCS);
 
@@ -862,9 +886,6 @@ void FLandscapeRenderSystem::PrepareView(const FSceneView* View)
 	}
 	else
 	{
-		SectionLODValues = CachedSectionLODValues[View];
-
-		if (TessellationFalloffSettings.UseTessellationComponentScreenSizeFalloff)
 		{
 			FScopeLock Lock(&CachedValuesCS);
 
@@ -1064,8 +1085,13 @@ public:
 		}
 	}
 
-	virtual void BeginRenderView(const FSceneView* View) override
+	virtual void BeginRenderView(const FSceneView* View, bool bShouldWaitForJobs = true) override
 	{
+		if (!bShouldWaitForJobs)
+		{
+			return;
+		}
+
 		for (auto& Pair : LandscapeRenderSystems)
 		{
 			FLandscapeRenderSystem& RenderSystem = *Pair.Value;
@@ -1073,6 +1099,17 @@ public:
 			RenderSystem.BeginRenderView(View);
 		}
 	}
+
+	virtual void EndFrame() override
+	{
+		for (auto& Pair : LandscapeRenderSystems)
+		{
+			FLandscapeRenderSystem& RenderSystem = *Pair.Value;
+
+			RenderSystem.EndFrame();
+		}
+	}
+
 } LandscapePersistentViewUniformBufferExtension;
 
 FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent* InComponent)

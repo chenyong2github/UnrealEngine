@@ -755,6 +755,12 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConfigRestartRequired = true))
 		uint32 bSupportMaterialLayers : 1;
 
+	UPROPERTY(config, EditAnywhere, Category = Lighting, meta = (
+		ConsoleVariable = "r.LightPropagationVolume", DisplayName = "Light Propagation Volumes",
+		ToolTip = "Whether to allow the usage and compilation of Light Propagation Volumes.",
+		ConfigRestartRequired = true))
+		uint32 bLPV : 1;
+
 public:
 
 	//~ Begin UObject Interface

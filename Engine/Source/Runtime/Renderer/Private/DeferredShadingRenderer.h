@@ -47,6 +47,7 @@ public:
 	EDepthDrawingMode EarlyZPassMode;
 	bool bEarlyZPassMovable;
 	bool bDitheredLODTransitionsUseStencil;
+	int32 StencilLODMode = 0;
 	
 	FComputeFenceRHIRef TranslucencyLightingVolumeClearEndFence;
 
@@ -192,6 +193,9 @@ private:
 	* @return true if the depth was cleared
 	*/
 	bool PreRenderPrePass(FRHICommandListImmediate& RHICmdList);
+
+	void PreRenderDitherFill(FRHIAsyncComputeCommandListImmediate& RHICmdList, FSceneRenderTargets& SceneContext, FRHIUnorderedAccessView* StencilTextureUAV);
+	void PreRenderDitherFill(FRHICommandListImmediate& RHICmdList, FSceneRenderTargets& SceneContext, FRHIUnorderedAccessView* StencilTextureUAV);
 
 	void RenderPrePassEditorPrimitives(FRHICommandList& RHICmdList, const FViewInfo& View, const FMeshPassProcessorRenderState& DrawRenderState, EDepthDrawingMode DepthDrawingMode, bool bRespectUseAsOccluderFlag);
 

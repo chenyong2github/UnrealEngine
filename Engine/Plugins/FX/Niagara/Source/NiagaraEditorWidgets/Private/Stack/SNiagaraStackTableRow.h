@@ -106,6 +106,7 @@ private:
 
 	FLinearColor InactiveItemBackgroundColor;
 	FLinearColor ActiveItemBackgroundColor;
+	FLinearColor DisabledItemBackgroundColor;
 	FLinearColor ForegroundColor;
 
 	FText ExecutionCategoryToolTipText;

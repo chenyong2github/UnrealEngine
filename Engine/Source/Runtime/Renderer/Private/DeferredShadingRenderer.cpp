@@ -49,6 +49,15 @@ static TAutoConsoleVariable<int32> CVarStencilForLODDither(
 	TEXT("Forces a full prepass when enabled."),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
+static TAutoConsoleVariable<int32> CVarStencilLODDitherMode(
+	TEXT("r.StencilLODMode"),
+	2,
+	TEXT("Specifies the dither LOD stencil mode.\n")
+	TEXT(" 0: Graphics pass.\n")
+	TEXT(" 1: Compute pass (on supported platforms).\n")
+	TEXT(" 2: Compute async pass (on supported platforms)."),
+	ECVF_RenderThreadSafe);
+
 TAutoConsoleVariable<int32> CVarCustomDepthOrder(
 	TEXT("r.CustomDepth.Order"),
 	1,	
@@ -1045,7 +1054,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	// Find the visible primitives.
 	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
-
+	
 	bool bDoInitViewAftersPrepass = false;
 	{
 		SCOPED_GPU_STAT(RHICmdList, VisibilityCommands);
@@ -1082,12 +1091,15 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		}	
 	}
 
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-	{
-		extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
+	extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
 
-		for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
+	for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
+	{
+		Extension->BeginFrame();
+
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
+			// Must happen before RHI thread flush so any tasks we dispatch here can land in the idle gap during the flush
 			Extension->PrepareView(&Views[ViewIndex]);
 		}
 	}
@@ -1218,6 +1230,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	
 	const bool bIsOcclusionTesting = DoOcclusionQueries(FeatureLevel) && (!bIsWireframe || bIsViewFrozen || bHasViewParent);
+	const bool bNeedsPrePass = NeedsPrePass(this);
 
 	// Dynamic vertex and index buffers need to be committed before rendering.
 	GEngine->GetPreRenderDelegate().Broadcast();
@@ -1301,7 +1314,12 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_FXPreRender));
 		Scene->FXSystem->PreRender(RHICmdList, &Views[0].GlobalDistanceFieldInfo.ParameterData, Views[0].AllowGPUParticleUpdate());
 	}
-	
+
+	if (AsyncDitherLODEndFence)
+	{
+		RHICmdList.WaitComputeFence(AsyncDitherLODEndFence);
+	}
+
 	bool bDidAfterTaskWork = false;
 	auto AfterTasksAreStarted = [&bDidAfterTaskWork, bDoInitViewAftersPrepass, this, &RHICmdList, &ILCTaskData, &UpdateViewCustomDataEvents]()
 	{
@@ -1345,20 +1363,12 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		FTaskGraphInterface::Get().WaitUntilTasksComplete(UpdateViewCustomDataEvents, ENamedThreads::GetRenderThread());
 	}
 
-	// Generate the Sky/Atmosphere look up tables
-	const bool bShouldRenderSkyAtmosphere = ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags);
-	if (bShouldRenderSkyAtmosphere)
-	{
-		RenderSkyAtmosphereLookUpTables(RHICmdList);
-	}
-
 	checkSlow(RHICmdList.IsOutsideRenderPass());
 
 	// The Z-prepass
 
 	// Draw the scene pre-pass / early z pass, populating the scene depth buffer and HiZ
 	GRenderTargetPool.AddPhaseEvent(TEXT("EarlyZPass"));
-	const bool bNeedsPrePass = NeedsPrePass(this);
 	bool bDepthWasCleared;
 	if (bNeedsPrePass)
 	{

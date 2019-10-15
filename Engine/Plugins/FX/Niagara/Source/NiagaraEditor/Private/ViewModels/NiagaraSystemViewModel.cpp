@@ -1227,6 +1227,18 @@ void FNiagaraSystemViewModel::EmitterHandlePropertyChanged(FGuid OwningEmitterHa
 		}
 		Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
 	}
+
+	// Refresh the overview nodes and the emitter stacks just in case the emitter enabled state changed.
+	GetEditorData().SynchronizeOverviewGraphWithSystem(GetSystem());
+	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = GetEmitterHandleViewModelById(OwningEmitterHandleId);
+	if (EmitterHandleViewModel.IsValid())
+	{
+		for (UNiagaraStackEntry* RootEntry : EmitterHandleViewModel->GetEmitterStackViewModel()->GetRootEntries())
+		{
+			RootEntry->RefreshChildren();
+		}
+	}
+
 	ResetSystem(ETimeResetMode::AllowResetTime, EMultiResetMode::ResetThisInstance, EReinitMode::ReinitializeSystem);
 }
 

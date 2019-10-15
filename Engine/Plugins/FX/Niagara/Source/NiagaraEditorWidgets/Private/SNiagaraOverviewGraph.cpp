@@ -185,7 +185,7 @@ FActionMenuContent SNiagaraOverviewGraph::OnCreateGraphActionMenu(UEdGraph* InGr
 		}
 		MenuBuilder.EndSection();
 
-		MenuBuilder.BeginSection(TEXT("NiagaraOverview_View"), LOCTEXT("EditGraph", "View"));
+		MenuBuilder.BeginSection(TEXT("NiagaraOverview_View"), LOCTEXT("View", "View"));
 		{
 			MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ZoomToFit);
 			MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ZoomToFitAll);

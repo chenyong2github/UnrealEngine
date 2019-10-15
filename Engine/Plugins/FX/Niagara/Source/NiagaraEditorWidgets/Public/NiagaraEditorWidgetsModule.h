@@ -47,8 +47,9 @@ private:
 	class FNiagaraEditorWidgetProvider : public INiagaraEditorWidgetProvider
 	{
 	public:
-		virtual TSharedRef<SWidget> CreateStackView(UNiagaraStackViewModel& StackViewModel) override;
-		virtual TSharedRef<SWidget> CreateSystemOverview(TSharedRef<FNiagaraSystemViewModel> SystemViewModel) override;
+		virtual TSharedRef<SWidget> CreateStackView(UNiagaraStackViewModel& StackViewModel) const override;
+		virtual TSharedRef<SWidget> CreateSystemOverview(TSharedRef<FNiagaraSystemViewModel> SystemViewModel) const override;
+		virtual FLinearColor GetColorForExecutionCategory(FName ExecutionCategory) const override;
 	};
 
 public:

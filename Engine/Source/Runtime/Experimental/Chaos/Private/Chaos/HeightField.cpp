@@ -415,21 +415,6 @@ namespace Chaos
 		}
 	}
 
-
-		{
-			// No resample, just push new heights into the data
-			for(int32 RowIdx = InBeginRow; RowIdx < EndRow; ++RowIdx)
-			{
-				for(int32 ColIdx = InBeginCol; ColIdx < EndCol; ++ColIdx)
-				{
-					const int32 HeightIndex = RowIdx * NumCols + ColIdx;
-					const int32 NewSetIndex = (RowIdx - InBeginRow) * NumCols + (ColIdx - InBeginCol);
-					OutData.Heights[HeightIndex] = static_cast<typename FDataType::StorageType>((ToRealFunc(BufferView[NewSetIndex]) - OutData.MinValue) / OutData.HeightPerUnit);
-				}
-			}
-		}
-	}
-
 	template <typename T>
 	THeightField<T>::THeightField(TArray<T>&& Height, int32 NumRows, int32 NumCols, const TVector<T, 3>& InScale)
 		: TImplicitObject<T, 3>(EImplicitObject::HasBoundingBox, ImplicitObjectType::HeightField)

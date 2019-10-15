@@ -70,6 +70,8 @@ USkyAtmosphereComponent::USkyAtmosphereComponent(const FObjectInitializer& Objec
 	AerialPespectiveViewDistanceScale = 1.0f;
 	HeightFogContribution = 1.0f;
 
+	TransmittanceMinLightElevationAngle = -90.0f;
+
 	memset(OverrideAtmosphericLight, 0, sizeof(OverrideAtmosphericLight));
 
 	ValidateStaticLightingGUIDs();

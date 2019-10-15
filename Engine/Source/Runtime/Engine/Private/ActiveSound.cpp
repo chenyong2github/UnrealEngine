@@ -1546,8 +1546,6 @@ void FActiveSound::ParseAttenuation(FSoundParseParameters& OutParseParams, const
 
 void FActiveSound::UpdateAttenuation(float DeltaTime, FSoundParseParameters& ParseParams, const FListener& Listener, const FSoundAttenuationSettings* SettingsAttenuationNode)
 {
-	const FVector& ListenerLocation = Listener.Transform.GetTranslation();
-
 	// Get the attenuation settings to use for this application to the active sound
 	const FSoundAttenuationSettings* Settings = SettingsAttenuationNode ? SettingsAttenuationNode : &AttenuationSettings;
 
@@ -1598,7 +1596,8 @@ void FActiveSound::UpdateAttenuation(float DeltaTime, FSoundParseParameters& Par
 		}
 		else
 		{
-			ParseParams.DistanceAttenuation *= Settings->Evaluate(ParseParams.Transform, ListenerLocation, FocusDataToApply.DistanceScale);
+			const FVector ListenerTranslation = ListenerData.ListenerTransform.GetTranslation();
+			ParseParams.DistanceAttenuation *= Settings->Evaluate(ParseParams.Transform, ListenerTranslation, FocusDataToApply.DistanceScale);
 		}
 	}
 

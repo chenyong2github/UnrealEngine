@@ -30,6 +30,9 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 		//SpatialIdx serialized
 		SpatialIdxSerialized,
 
+		//Save out heightfield data
+		HeightfieldData,
+
 		//Save out multiple acceleration structures
 		SerializeMultiStructures,
 

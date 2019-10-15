@@ -228,6 +228,7 @@ void UNiagaraStackRendererItem::SetIsEnabled(bool bInIsEnabled)
 	RendererProperties->Modify();
 	RendererProperties->SetIsEnabled(bInIsEnabled);
 	OnDataObjectModified().Broadcast(RendererProperties.Get());
+	RefreshChildren();
 }
 
 void UNiagaraStackRendererItem::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
