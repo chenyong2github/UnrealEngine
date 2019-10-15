@@ -8,7 +8,6 @@
 
 namespace ImmediatePhysics_Chaos
 {
-
 	/** handle associated with a physics actor. This is the proper way to read/write to the physics simulation */
 	struct ENGINE_API FActorHandle
 	{
@@ -26,10 +25,8 @@ namespace ImmediatePhysics_Chaos
 		/** Is the actor kinematic */
 		bool GetIsKinematic() const;
 
-#if IMMEDIATEPHYSICS_CHAOS_TODO
 		/** Gets the kinematic target (next transform) for the actor if one is set (check HasKinematicTarget() to see if a target is available) */
-		FImmediateKinematicTarget& GetKinematicTarget();
-#endif
+		const FKinematicTarget& GetKinematicTarget() const;
 
 		/** Sets the kinematic target. This will affect velocities as expected*/
 		void SetKinematicTarget(const FTransform& WorldTM);
@@ -117,6 +114,8 @@ namespace ImmediatePhysics_Chaos
 		void SetLevel(int32 InLevel);
 
 	private:
+		FKinematicTarget& GetKinematicTarget();
+
 		friend struct FSimulation;
 		friend struct FJointHandle;
 
