@@ -525,6 +525,12 @@ namespace Chaos
 			float c = DotProduct(V1, V2);
 			return atan2(s, c);
 		}
+		/** Calculate the velocity to move from P0 to P1 in time Dt. Exists just for symmetry with TRotation::CalculateAngularVelocity! */
+		static TVector<float, 3> CalculateVelocity(const TVector<float, 3>& P0, const TVector<float, 3>& P1, const float Dt)
+		{
+			return (P1 - P0) / Dt;
+		}
+
 	};
 
 	template<>
