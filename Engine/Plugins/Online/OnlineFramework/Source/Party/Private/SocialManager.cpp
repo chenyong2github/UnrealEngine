@@ -1040,7 +1040,7 @@ void USocialManager::HandlePersistentPartyStateChanged(EPartyState NewState, EPa
 		
 		if (PreviousState == EPartyState::Active)
 		{
-			if (bLeavePartyOnDisconnect)
+			if (USocialSettings::ShouldLeavePartyOnDisconnect())
 			{
 				PersistentParty->LeaveParty();
 			}
