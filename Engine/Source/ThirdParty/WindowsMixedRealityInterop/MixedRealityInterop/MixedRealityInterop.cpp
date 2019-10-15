@@ -2487,7 +2487,7 @@ namespace WindowsMixedReality
 			CurrentSelectState[handIndex] = PressStateFromBool(isPressed);
 
 			// HoloLens 2 supports grasp over remoting.
-			if (supportsMotionControllers)
+			if (supportsMotionControllers && !m_isHL1Remoting)
 			{
 				// Grasp
 				isPressed = state.IsGrasped();
@@ -3726,6 +3726,11 @@ namespace WindowsMixedReality
 	)
 	{
 #if PLATFORM_HOLOLENS || HOLO_STREAMING_RENDERING
+		if (m_isHL1Remoting)
+		{
+			return;
+		}
+
 		MeshUpdateObserver& Instance = MeshUpdateObserver::Get();
 		// Pass any logging callback on
 		Instance.SetOnLog(m_logCallback);
@@ -3757,6 +3762,11 @@ namespace WindowsMixedReality
 	void StopMeshObserver()
 	{
 #if PLATFORM_HOLOLENS || HOLO_STREAMING_RENDERING
+		if (m_isHL1Remoting)
+		{
+			return;
+		}
+
 		MeshUpdateObserver& Instance = MeshUpdateObserver::Get();
 		Instance.Release();
 #endif
