@@ -310,6 +310,12 @@ public:
 	/** IMeshReductionModule interface.*/
 	virtual class IMeshReduction* GetSkeletalMeshReductionInterface() override
 	{
+		if (IsInGameThread())
+		{
+			//Load dependent modules in case the reduction is call later during a multi threaded call
+			FModuleManager::Get().LoadModuleChecked<IMeshBoneReductionModule>("MeshBoneReduction");
+			FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
+		}
 		return &SkeletalMeshReducer;
 	}
 
@@ -620,7 +626,7 @@ void FQuadricSkeletalMeshReduction::ConvertToFSkinnedSkeletalMesh( const FSkelet
 			if (bHasBadNTB)
 			{
 				NumBadNTBSpace++;
-		}
+			}
 		}
 
 		// Report any error with invalid bone weights
@@ -1971,7 +1977,18 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 				GeoImportVersion = Old->RawSkeletalMeshBulkData.GeoImportVersion;
 				SkinningImportVersion = Old->RawSkeletalMeshBulkData.SkinningImportVersion;
 			}
-			delete Old;
+			//If the delegate is not bound 
+			if (!Settings.OnDeleteLODModelDelegate.IsBound())
+			{
+				//If not in game thread we should never delete a structure containing bulkdata since it can crash when the bulkdata is detach from the archive
+				//Use the delegate and delete the pointer in the main thread if you reduce in other thread then game thread (main thread).
+				check(IsInGameThread());
+				delete Old;
+			}
+			else
+			{
+				Settings.OnDeleteLODModelDelegate.Execute(Old);
+			}
 		}
 		else if(bReducingSourceModel)
 		{
