@@ -6,6 +6,7 @@
 #include "AnimationProvider.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
 #include "Insights/ViewModels/TimingEvent.h"
+#include "AnimationSharedData.h"
 
 #if WITH_ENGINE
 #include "Components/LineBatchComponent.h"

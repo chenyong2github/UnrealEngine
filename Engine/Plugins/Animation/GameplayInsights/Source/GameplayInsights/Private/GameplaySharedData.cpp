@@ -4,6 +4,8 @@
 #include "TraceServices/Model/AnalysisSession.h"
 #include "ObjectEventsTrack.h"
 #include "Algo/Sort.h"
+#include "GameplayProvider.h"
+#include "Insights/ITimingViewSession.h"
 
 #define LOCTEXT_NAMESPACE "GameplaySharedData"
 

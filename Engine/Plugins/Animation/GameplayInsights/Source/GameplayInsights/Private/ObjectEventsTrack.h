@@ -6,6 +6,8 @@
 #include "Insights/ViewModels/TimingEventsTrack.h"
 #include "Containers/ArrayView.h"
 
+class FGameplaySharedData;
+
 class FObjectEventsTrack : public TGameplayTrackMixin<FTimingEventsTrack>
 {
 public:

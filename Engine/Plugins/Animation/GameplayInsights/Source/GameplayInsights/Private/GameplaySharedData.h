@@ -9,6 +9,7 @@ namespace Insights { class ITimingViewSession; }
 class FObjectEventsTrack;
 class FSkeletalMeshPoseTrack;
 class FAnimationTickRecordsTrack;
+struct FObjectInfo;
 
 class FGameplaySharedData
 {

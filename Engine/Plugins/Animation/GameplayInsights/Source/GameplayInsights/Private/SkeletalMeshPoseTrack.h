@@ -6,6 +6,7 @@
 #include "Insights/ViewModels/TimingEventsTrack.h"
 
 class ULineBatchComponent;
+class FAnimationSharedData;
 
 class FSkeletalMeshPoseTrack : public TGameplayTrackMixin<FTimingEventsTrack>
 {

@@ -4,6 +4,7 @@
 #include "AnimationAnalyzer.h"
 #include "AnimationProvider.h"
 #include "GameplayProvider.h"
+#include "GameplayAnalyzer.h"
 
 FName FGameplayTraceModule::ModuleName("GameplayTrace");
 

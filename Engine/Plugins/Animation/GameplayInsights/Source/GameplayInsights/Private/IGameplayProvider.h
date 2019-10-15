@@ -3,6 +3,7 @@
 #pragma once
 
 #include "TraceServices/Model/AnalysisSession.h"
+#include "TraceServices/Containers/Timelines.h"
 
 struct FClassInfo
 {	

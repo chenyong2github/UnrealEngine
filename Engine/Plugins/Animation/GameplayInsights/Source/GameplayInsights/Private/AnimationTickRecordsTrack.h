@@ -5,6 +5,8 @@
 #include "GameplayTrack.h"
 #include "Insights/ViewModels/TimingEventsTrack.h"
 
+class FAnimationSharedData;
+
 class FAnimationTickRecordsTrack : public TGameplayTrackMixin<FTimingEventsTrack>
 {
 public:

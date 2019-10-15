@@ -6,6 +6,7 @@
 
 class FTimingEventsTrack;
 namespace Insights { class ITimingViewVisualizer; }
+struct FTimingEvent;
 
 namespace Insights
 {

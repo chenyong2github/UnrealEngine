@@ -7,6 +7,7 @@
 #include "Insights/ViewModels/TimingEvent.h"
 #include "Algo/Sort.h"
 #include "Insights/ViewModels/TooltipDrawState.h"
+#include "GameplaySharedData.h"
 
 #define LOCTEXT_NAMESPACE "ObjectEventsTrack"
 

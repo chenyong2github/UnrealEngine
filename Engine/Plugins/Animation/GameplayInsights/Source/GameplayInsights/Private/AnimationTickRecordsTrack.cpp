@@ -7,6 +7,7 @@
 #include "Insights/ViewModels/TimingTrackViewport.h"
 #include "Insights/ViewModels/TimingEvent.h"
 #include "Insights/ViewModels/TooltipDrawState.h"
+#include "AnimationSharedData.h"
 
 #define LOCTEXT_NAMESPACE "AnimationTickRecordsTrack"
 

@@ -8,6 +8,8 @@
 #include "AnimationTickRecordsTrack.h"
 #include "Insights/ITimingViewSession.h"
 #include "Insights/ViewModels/TimingEvent.h"
+#include "AnimationProvider.h"
+#include "GameplayProvider.h"
 
 #define LOCTEXT_NAMESPACE "AnimationSharedData"
 
