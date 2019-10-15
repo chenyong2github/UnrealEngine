@@ -1122,9 +1122,8 @@ public:
 		UE_TRACE_LOG(IoDispatcher, BatchIssued)
 			<< BatchIssued.Cycle(FPlatformTime::Cycles64())
 			<< BatchIssued.BatchId(uint64(Batch));
-		uint64 TotalBatchSize = 0;
 #endif
-
+		uint64 TotalBatchSize = 0;
 		IterateBatch(Batch, [this, &TotalBatchSize](FIoRequestImpl* Request)
 		{
 			Request->Result = IoStore->Resolve(Request->ChunkId);
