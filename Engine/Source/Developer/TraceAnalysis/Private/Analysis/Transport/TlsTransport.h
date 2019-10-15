@@ -17,9 +17,9 @@ public:
 	virtual const uint8*	GetPointerImpl(uint32 BlockSize) override;
 
 private:
-	struct FPayloadNode
+	struct FPacketNode
 	{
-		FPayloadNode*		Next;
+		FPacketNode*		Next;
 		uint32				Cursor;
 		uint16				Serial;
 		uint16				Size;
@@ -27,10 +27,10 @@ private:
 	};
 
 	bool					GetNextBatch();
-	static const uint32		MaxPayloadSize = 8192;
-	FPayloadNode*			ActiveList = nullptr;
-	FPayloadNode*			PendingList = nullptr;
-	FPayloadNode*			FreeList = nullptr;
+	static const uint32		MaxPacketSize = 8192;
+	FPacketNode*			ActiveList = nullptr;
+	FPacketNode*			PendingList = nullptr;
+	FPacketNode*			FreeList = nullptr;
 };
 
 } // namespace Trace

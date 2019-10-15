@@ -352,7 +352,7 @@ static void Writer_ConsumeEvents()
 
 	struct FCollector
 	{
-		struct FPayload
+		struct FPacket
 		{
 			struct FHeader
 			{
@@ -392,23 +392,23 @@ static void Writer_ConsumeEvents()
 
 		void Flush()
 		{
-			if (Cursor == sizeof(FPayload::Data))
+			if (Cursor == sizeof(FPacket::Data))
 			{
 				return;
 			}
 
 			// There will always be space remaining for the header because we've
-			// arranged for that by including the header in FPayload. We'll shift
+			// arranged for that by including the header in FPacket. We'll shift
 			// it forward so it butts up against the event data (at the expense of
 			// some occasional unaligned stores).
-			Cursor -= sizeof(FPayload::FHeader);
+			Cursor -= sizeof(FPacket::FHeader);
 
-			auto* Out = (FPayload::FHeader*)(Payload.Data + Cursor);
+			auto* Out = (FPacket::FHeader*)(Packet.Data + Cursor);
 			Out->Serial = Serial;
-			Out->Size = sizeof(FPayload::Data) - Cursor;
+			Out->Size = sizeof(FPacket::Data) - Cursor;
 			Send(Out, Out->Size);
 
-			Cursor = sizeof(FPayload::Data);
+			Cursor = sizeof(FPacket::Data);
 			Serial++;
 		}
 
@@ -420,12 +420,12 @@ static void Writer_ConsumeEvents()
 			}
 
 			Cursor -= Size;
-			memcpy(Payload.Data + Cursor, Data, Size);
+			memcpy(Packet.Data + Cursor, Data, Size);
 		}
 
-		int16		Cursor = sizeof(FPayload::Data);
+		int16		Cursor = sizeof(FPacket::Data);
 		uint16		Serial = 0;
-		FPayload	Payload;
+		FPacket		Packet;
 	};
 
 	FCollector Collector;

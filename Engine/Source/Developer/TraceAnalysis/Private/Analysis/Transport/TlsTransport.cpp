@@ -8,11 +8,11 @@ namespace Trace
 ////////////////////////////////////////////////////////////////////////////////
 FTlsTransport::~FTlsTransport()
 {
-	for (FPayloadNode* Root : {ActiveList, PendingList, FreeList})
+	for (FPacketNode* Root : {ActiveList, PendingList, FreeList})
 	{
-		for (FPayloadNode* Node = Root; Node != nullptr;)
+		for (FPacketNode* Node = Root; Node != nullptr;)
 		{
-			FPayloadNode* Next = Node->Next;
+			FPacketNode* Next = Node->Next;
 			delete[] Node;
 			Node = Next;
 		}
@@ -39,7 +39,7 @@ const uint8* FTlsTransport::GetPointerImpl(uint32 BlockSize)
 	uint32 NextCursor = ActiveList->Cursor + BlockSize;
 	if (NextCursor > ActiveList->Size)
 	{
-		FPayloadNode* Node = ActiveList;
+		FPacketNode* Node = ActiveList;
 		ActiveList = ActiveList->Next;
 		Node->Next = FreeList;
 		FreeList = Node;
@@ -52,7 +52,7 @@ const uint8* FTlsTransport::GetPointerImpl(uint32 BlockSize)
 ////////////////////////////////////////////////////////////////////////////////
 bool FTlsTransport::GetNextBatch()
 {
-	struct FPayload
+	struct FPacket
 	{
 		int16	Serial;
 		uint16	Size;
@@ -67,29 +67,29 @@ bool FTlsTransport::GetNextBatch()
 
 	while (true)
 	{
-		const auto* Payload = (const FPayload*)FTransport::GetPointerImpl(sizeof(FPayload));
-		if (Payload == nullptr)
+		const auto* Packet = (const FPacket*)FTransport::GetPointerImpl(sizeof(FPacket));
+		if (Packet == nullptr)
 		{
 			return false;
 		}
 
 		// If this new payload is part of the next event batch then we've finished
 		// building the current batch. The current batch can be activated.
-		if (LastSerial >= Payload->Serial)
+		if (LastSerial >= Packet->Serial)
 		{
 			ActiveList = PendingList;
 			PendingList = nullptr;
 			break;
 		}
 
-		if (FTransport::GetPointerImpl(Payload->Size) == nullptr)
+		if (FTransport::GetPointerImpl(Packet->Size) == nullptr)
 		{
 			return false;
 		}
 
-		FTransport::Advance(Payload->Size);
+		FTransport::Advance(Packet->Size);
 
-		FPayloadNode* Node;
+		FPacketNode* Node;
 		if (FreeList != nullptr)
 		{
 			Node = FreeList;
@@ -97,17 +97,17 @@ bool FTlsTransport::GetNextBatch()
 		}
 		else
 		{
-			Node = (FPayloadNode*)GMalloc->Malloc(sizeof(FPayloadNode) + MaxPayloadSize);
+			Node = (FPacketNode*)GMalloc->Malloc(sizeof(FPacketNode) + MaxPacketSize);
 		}
 
-		Node->Serial = Payload->Serial;
+		Node->Serial = Packet->Serial;
 		Node->Cursor = 0;
-		Node->Size = uint16(Payload->Size - sizeof(*Payload));
+		Node->Size = uint16(Packet->Size - sizeof(*Packet));
 		Node->Next = PendingList;
-		FMemory::Memcpy(Node->Data, Payload->Data, Node->Size);
+		FMemory::Memcpy(Node->Data, Packet->Data, Node->Size);
 
 		PendingList = Node;
-		LastSerial = Payload->Serial;
+		LastSerial = Packet->Serial;
 	}
 
 	return true;
