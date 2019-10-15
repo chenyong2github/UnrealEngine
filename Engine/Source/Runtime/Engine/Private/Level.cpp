@@ -58,6 +58,7 @@ Level.cpp: Level-related functions
 #include "ComponentRecreateRenderStateContext.h"
 #include "Algo/Copy.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "ObjectTrace.h"
 
 DEFINE_LOG_CATEGORY(LogLevel);
 
@@ -1803,6 +1804,8 @@ void ULevel::ReleaseRenderingResources()
 
 void ULevel::RouteActorInitialize()
 {
+	TRACE_OBJECT_EVENT(this, RouteActorInitialize);
+
 	// Send PreInitializeComponents and collect volumes.
 	for( int32 Index = 0; Index < Actors.Num(); ++Index )
 	{

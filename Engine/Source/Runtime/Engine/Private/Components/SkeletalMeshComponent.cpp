@@ -39,6 +39,7 @@
 #include "UObject/AnimPhysObjectVersion.h"
 #include "SkeletalRenderPublic.h"
 #include "ContentStreaming.h"
+#include "Animation/AnimTrace.h"
 
 #define LOCTEXT_NAMESPACE "SkeletalMeshComponent"
 
@@ -3705,6 +3706,8 @@ void USkeletalMeshComponent::FinalizeBoneTransform()
 	ConditionallyDispatchQueuedAnimEvents();
 
 	OnBoneTransformsFinalized.Broadcast();
+
+	TRACE_SKELETALMESH_POSE(this);
 }
 
 void USkeletalMeshComponent::GetCurrentRefToLocalMatrices(TArray<FMatrix>& OutRefToLocals, int32 InLodIdx)
