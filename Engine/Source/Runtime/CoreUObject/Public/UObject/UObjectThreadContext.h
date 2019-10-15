@@ -62,7 +62,7 @@ public:
 	FObjectInitializer& TopInitializerChecked()
 	{
 		FObjectInitializer* ObjectInitializerPtr = TopInitializer();
-		UE_CLOG(!ObjectInitializerPtr, LogUObjectThreadContext, Fatal, TEXT("Tried to get the current ObjectInitializer, but none is set. Please use NewObject or NewNamedObject to construct new UObject-derived classes."));
+		UE_CLOG(!ObjectInitializerPtr, LogUObjectThreadContext, Fatal, TEXT("Tried to get the current ObjectInitializer, but none is set. Please use NewObject to construct new UObject-derived classes."));
 		return *ObjectInitializerPtr;
 	}
 

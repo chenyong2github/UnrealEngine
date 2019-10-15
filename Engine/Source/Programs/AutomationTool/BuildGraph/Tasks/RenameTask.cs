@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using AutomationTool;
 using System;
@@ -20,13 +20,13 @@ namespace BuildGraph.Tasks
 	public class RenameTaskParameters
 	{
 		/// <summary>
-		/// The file or files to rename
+		/// The file or files to rename.
 		/// </summary>
 		[TaskParameter(ValidationType = TaskParameterValidationType.FileSpec)]
 		public string Files;
 
 		/// <summary>
-		/// The current file name, or pattern to match (eg. *.txt). Should not include any path separators.
+		/// The current file name, or pattern to match (for example, *.txt). Should not include any path separators.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public string From;
@@ -38,7 +38,7 @@ namespace BuildGraph.Tasks
 		public string To;
 
 		/// <summary>
-		/// Tag to be applied to the renamed files
+		/// Tag to be applied to the renamed files.
 		/// </summary>
 		[TaskParameter(Optional = true, ValidationType = TaskParameterValidationType.TagList)]
 		public string Tag;
