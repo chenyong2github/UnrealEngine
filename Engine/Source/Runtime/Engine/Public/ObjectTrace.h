@@ -12,6 +12,9 @@
 
 #if OBJECT_TRACE_ENABLED
 
+class UClass;
+class UObject;
+
 struct FObjectTrace
 {
 	/** Initialize object tracing */

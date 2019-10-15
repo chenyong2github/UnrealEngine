@@ -10,6 +10,7 @@
 #include "UObject/Class.h"
 #include "UObject/UObjectAnnotation.h"
 #include "UObject/WeakObjectPtrTemplates.h"
+#include "UObject/WeakObjectPtr.h"
 #include "Misc/CommandLine.h"
 
 UE_TRACE_EVENT_BEGIN(Object, Class, Important)

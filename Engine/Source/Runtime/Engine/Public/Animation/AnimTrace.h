@@ -17,6 +17,7 @@ class USkeletalMesh;
 class USkeletalMeshComponent;
 struct FAnimationUpdateContext;
 struct FAnimationBaseContext;
+class FName;
 
 struct FAnimTrace
 {
