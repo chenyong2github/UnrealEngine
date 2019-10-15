@@ -128,7 +128,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 					Sum.bUnversioned = true;
 					Sum.FileVersionUE4 = GPackageFileUE4Version;
 					Sum.FileVersionLicenseeUE4 = GPackageFileLicenseeUE4Version;
-					Sum.CustomVersionContainer = FCustomVersionContainer::GetRegistered();
+					Sum.CustomVersionContainer = FCurrentCustomVersions::GetAll();
 				}
 			}
 			else
