@@ -25,8 +25,7 @@
 				"Mac",
 				"Win32",
 				"Win64",
-				"Linux",
-				"HTML5"
+				"Linux"
 			]
 		}
 	]
