@@ -8,7 +8,7 @@
 #include "Trace/Analyzer.h"
 #include "Trace/Detail/EventDef.h"
 #include "Transport/Transport.h"
-#include "Transport/TlsTransport.h"
+#include "Transport/PayloadTransport.h"
 
 namespace Trace
 {
@@ -642,7 +642,7 @@ bool FAnalysisEngine::EstablishTransport(FStreamReader::FData& Data)
 	switch (Header->Format)
 	{
 	case 1:		Transport = new FTransport(); break;
-	case 2:		Transport = new FTlsTransport(); break;
+	case 2:		Transport = new FPayloadTransport(); break;
 	default:	return false;
 	//case 'E':	/* See the magic above */ break;
 	//case 'T':	/* See the magic above */ break;

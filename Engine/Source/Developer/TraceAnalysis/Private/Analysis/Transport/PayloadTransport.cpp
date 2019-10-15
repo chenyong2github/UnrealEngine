@@ -1,12 +1,12 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "TlsTransport.h"
+#include "PayloadTransport.h"
 
 namespace Trace
 {
 
 ////////////////////////////////////////////////////////////////////////////////
-FTlsTransport::~FTlsTransport()
+FPayloadTransport::~FPayloadTransport()
 {
 	for (FPacketNode* Root : {ActiveList, PendingList, FreeList})
 	{
@@ -20,7 +20,7 @@ FTlsTransport::~FTlsTransport()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void FTlsTransport::Advance(uint32 BlockSize)
+void FPayloadTransport::Advance(uint32 BlockSize)
 {
 	if (ActiveList != nullptr)
 	{
@@ -29,7 +29,7 @@ void FTlsTransport::Advance(uint32 BlockSize)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-const uint8* FTlsTransport::GetPointerImpl(uint32 BlockSize)
+const uint8* FPayloadTransport::GetPointerImpl(uint32 BlockSize)
 {
 	if (ActiveList == nullptr && !GetNextBatch())
 	{
@@ -50,7 +50,7 @@ const uint8* FTlsTransport::GetPointerImpl(uint32 BlockSize)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool FTlsTransport::GetNextBatch()
+bool FPayloadTransport::GetNextBatch()
 {
 	struct FPacket
 	{

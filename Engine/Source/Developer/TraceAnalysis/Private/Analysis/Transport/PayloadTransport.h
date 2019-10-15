@@ -8,11 +8,11 @@ namespace Trace
 {
 
 ////////////////////////////////////////////////////////////////////////////////
-class FTlsTransport
+class FPayloadTransport
 	: public FTransport
 {
 public:
-	virtual					~FTlsTransport();
+	virtual					~FPayloadTransport();
 	virtual void			Advance(uint32 BlockSize) override;
 	virtual const uint8*	GetPointerImpl(uint32 BlockSize) override;
 
