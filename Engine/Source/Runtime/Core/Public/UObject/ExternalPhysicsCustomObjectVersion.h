@@ -38,6 +38,9 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 
 		// Add kinematic targets to TKinematicGeometryParticles
 		KinematicTargets,
+		
+		// Allow trimeshes to serialize their acceleration structure
+		TrimeshSerializesBV,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
