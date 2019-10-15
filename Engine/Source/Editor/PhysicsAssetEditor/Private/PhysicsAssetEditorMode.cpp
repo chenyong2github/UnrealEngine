@@ -84,6 +84,8 @@ FPhysicsAssetEditorMode::FPhysicsAssetEditorMode(TSharedRef<FWorkflowCentricAppl
 					InSubMenuBuilder.BeginSection("PhysicsAssetEditorCollisionRenderSettings", LOCTEXT("CollisionRenderSettingsHeader", "Body Drawing"));
 					{
 						InSubMenuBuilder.AddMenuEntry(Commands.RenderOnlySelectedSolid);
+						InSubMenuBuilder.AddMenuEntry(Commands.HideSimulatedBodies);
+						InSubMenuBuilder.AddMenuEntry(Commands.HideKinematicBodies);
 						InSubMenuBuilder.AddWidget(PhysicsAssetEditorPtr.Pin()->MakeCollisionOpacityWidget(), LOCTEXT("CollisionOpacityLabel", "Collision Opacity"));
 					}
 					InSubMenuBuilder.EndSection();

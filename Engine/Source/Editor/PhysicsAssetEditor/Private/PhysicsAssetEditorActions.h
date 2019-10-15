@@ -50,6 +50,8 @@ public:
 	TSharedPtr<FUICommandInfo> ConstraintRenderingMode_Simulation_AllPositions;
 	TSharedPtr<FUICommandInfo> ConstraintRenderingMode_Simulation_AllLimits;
 	TSharedPtr<FUICommandInfo> RenderOnlySelectedSolid;
+	TSharedPtr<FUICommandInfo> HideSimulatedBodies;
+	TSharedPtr<FUICommandInfo> HideKinematicBodies;
 	TSharedPtr<FUICommandInfo> RenderOnlySelectedConstraints;
 	TSharedPtr<FUICommandInfo> DrawConstraintsAsPoints;
 	TSharedPtr<FUICommandInfo> ToggleMassProperties;
