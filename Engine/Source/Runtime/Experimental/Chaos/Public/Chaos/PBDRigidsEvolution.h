@@ -296,6 +296,58 @@ class TPBDRigidsEvolutionBase
 		}
 	}
 
+	void ApplyKinematicTargets(T Dt)
+	{
+		// @todo(ccaulfield): optimize. Depending on the number of kinematics relative to the number that have 
+		// targets set, it may be faster to process a command list rather than iterate over them all each frame. 
+		const T MinDt = 1e-6f;
+		for (auto& Particle : Particles.GetActiveKinematicParticlesView())
+		{
+			TKinematicTarget<T, d>& KinematicTarget = Particle.KinematicTarget();
+			switch (KinematicTarget.GetMode())
+			{
+			case EKinematicTargetMode::None:
+				// Nothing to do
+				break;
+
+			case EKinematicTargetMode::Zero:
+			{
+				// Reset velocity and then switch to do-nothing mode
+				Particle.V() = TVector<T, d>(0, 0, 0);
+				Particle.W() = TVector<T, d>(0, 0, 0);
+				KinematicTarget.SetMode(EKinematicTargetMode::None);
+				break;
+			}
+
+			case EKinematicTargetMode::Position:
+			{
+				// Move to kinematic target and update velocities to match
+				// Target positions only need to be processed once, and we reset the velocity next frame (if no new target is set)
+				if (Dt > MinDt)
+				{
+					TVector<float, 3> V = TVector<float, 3>::CalculateVelocity(Particle.X(), KinematicTarget.GetTarget().GetLocation(), Dt);
+					Particle.V() = V;
+
+					TVector<float, 3> W = TRotation<float, 3>::CalculateAngularVelocity(Particle.R(), KinematicTarget.GetTarget().GetRotation(), Dt);
+					Particle.W() = W;
+				}
+				Particle.X() = KinematicTarget.GetTarget().GetTranslation();
+				Particle.R() = KinematicTarget.GetTarget().GetRotation();
+				KinematicTarget.SetMode(EKinematicTargetMode::Zero);
+				break;
+			}
+
+			case EKinematicTargetMode::Velocity:
+			{
+				// Move based on velocity
+				Particle.X() = Particle.X() + Particle.V() * Dt;
+				Particle.R() = TRotation<T, d>::IntegrateRotationWithAngularVelocity(Particle.R(), Particle.W(), Dt);
+				break;
+			}
+			}
+		}
+	}
+
 	/** Make a copy of the acceleration structure to allow for external modification. This is needed for supporting sync operations on SQ structure from game thread */
 	CHAOS_API void UpdateExternalAccelerationStructure(TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<T, d>, T, d>>& ExternalStructure);
 	ISpatialAccelerationCollection<TAccelerationStructureHandle<T, d>, T, d>* GetSpatialAcceleration() { return InternalAcceleration.Get(); }

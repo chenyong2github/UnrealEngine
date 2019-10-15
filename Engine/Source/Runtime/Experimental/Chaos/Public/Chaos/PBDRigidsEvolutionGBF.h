@@ -39,6 +39,7 @@ public:
 	using Base::Particles;
 	using Base::ForceRules;
 	using Base::ParticleUpdatePosition;
+	using Base::ApplyKinematicTargets;
 	using Base::SetParticleUpdateVelocityFunction;
 	using Base::SetParticleUpdatePositionFunction;
 	using Base::AddConstraintRule;

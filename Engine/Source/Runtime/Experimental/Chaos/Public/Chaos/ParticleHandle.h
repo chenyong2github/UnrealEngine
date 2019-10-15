@@ -508,6 +508,9 @@ public:
 	TVector<T, d>& W() { return KinematicGeometryParticles->W(ParticleIdx); }
 	void SetW(const TVector<T, d>& InW) { KinematicGeometryParticles->W(ParticleIdx) = InW; }
 
+	const TKinematicTarget<T, d>& KinematicTarget() const { return KinematicGeometryParticles->KinematicTarget(ParticleIdx); }
+	TKinematicTarget<T, d>& KinematicTarget() { return KinematicGeometryParticles->KinematicTarget(ParticleIdx); }
+
 	//Really only useful when using a transient handle
 	const TKinematicGeometryParticleHandleImp<T, d, true>* Handle() const { return KinematicGeometryParticles->Handle(ParticleIdx); }
 	TKinematicGeometryParticleHandleImp<T, d, true>* Handle() { return KinematicGeometryParticles->Handle(ParticleIdx); }
@@ -794,11 +797,23 @@ public:
 		bool IsKinematic() const { return (Handle->ObjectState() == EObjectStateType::Kinematic); }
 		bool IsDynamic() const { return (Handle->ObjectState() == EObjectStateType::Dynamic) || (Handle->ObjectState() == EObjectStateType::Sleeping); }
 
+		const TKinematicGeometryParticleHandle<T, d>* AsKinematic() const { return Handle->AsKinematic(); }
+		TKinematicGeometryParticleHandle<T, d>* AsKinematic() { return Handle->AsKinematic(); }
+		const TPBDRigidParticleHandle<T, d>* AsDynamic() const { return Handle->AsDynamic(); }
+		TPBDRigidParticleHandle<T, d>* AsDynamic() { return Handle->AsDynamic(); }
+
 		// Static Particles
 		const TVector<T, d>& X() const { return Handle->X(); }
 		const TRotation<T, d>& R() const { return Handle->R(); }
 		TSerializablePtr<TImplicitObject<T, d>> Geometry() const { return Handle->Geometry(); }
 		const TUniquePtr<TImplicitObject<T, d>>& DynamicGeometry() const { return Handle->DynamicGeometry(); }
+		bool Sleeping() const { return Handle->Sleeping(); }
+		FString ToString() const { return Handle->ToString(); }
+
+		template <typename Container>
+		const auto& AuxilaryValue(const Container& AuxContainer) const { return Handle->AuxilaryValue(AuxContainer); }
+		template <typename Container>
+		auto& AuxilaryValue(Container& AuxContainer) { return Handle->AuxilaryValue(AuxContainer); }
 
 		// Kinematic Particles
 		const TVector<T, d>& V() const { return (Handle->AsKinematic()) ? Handle->AsKinematic()->V() : ZeroVector; }
