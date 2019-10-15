@@ -69,6 +69,15 @@ enum class EditColor : uint8
 	Cyan
 };
 
+UENUM()
+enum class ETestEnumFlags : uint8
+{
+	None = 0,
+	One = 1 << 0,
+	Two = 1 << 1,
+	Four = 1 << 2
+};
+
 USTRUCT()
 struct FPropertyEditTestTextStruct
 {
@@ -550,6 +559,15 @@ class UPropertyEditorTestObject : public UObject
 
 	UPROPERTY(EditAnywhere, Category = EditCondition, meta = (EditCondition = "bEditConditionForArrays"))
 	TArray<FPropertyEditorTestBasicStruct> ArrayOfStructsWithEditCondition;
+
+	UPROPERTY(EditAnywhere, Category = EditCondition)
+	int64 Flags;
+
+	UPROPERTY(EditAnywhere, Category = EditCondition, meta = (EditCondition = "Flags & ETestEnumFlags::Two || Flags & ETestEnumFlags::Four"))
+	bool bEnabledWhenFlagsHasTwoOrFour;
+
+	UPROPERTY(EditAnywhere, Category = EditCondition, meta = (EditCondition = "Flags & ETestEnumFlags::One == false"))
+	bool bDisabledWhenFlagsIsOdd;
 
 	UPROPERTY(EditAnywhere, Category = OnlyInlineProperty, meta = (InlineCategoryProperty))
 	TEnumAsByte<EComponentMobility::Type> InlineProperty;

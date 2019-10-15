@@ -97,6 +97,25 @@ FPropertyNode* GetEditConditionParentNode(const TSharedPtr<FPropertyNode>& Prope
 	return ParentNode;
 }
 
+static uint8* GetPropertyValuePtr(const UProperty* Property, const TSharedPtr<FPropertyNode>& PropertyNode, FPropertyNode* ParentNode, FComplexPropertyNode* ComplexParentNode, int32 Index)
+{
+	uint8* BasePtr = ComplexParentNode->GetMemoryOfInstance(Index);
+	if (BasePtr == nullptr)
+	{
+		return nullptr;
+	}
+
+	uint8* ParentPtr = ParentNode->GetValueAddress(BasePtr, PropertyNode->HasNodeFlags(EPropertyNodeFlags::IsSparseClassData) != 0);
+	uint8* ValuePtr = ComplexParentNode->GetValuePtrOfInstance(Index, Property, ParentNode);
+
+	// SPARSEDATA_TODO: remove the next three lines once we're sure the pointer math is correct
+	uint8* OldValuePtr = Property->ContainerPtrToValuePtr<uint8>(ParentPtr);
+	check(OldValuePtr == ValuePtr || PropertyNode->HasNodeFlags(EPropertyNodeFlags::IsSparseClassData));
+	ensure(ValuePtr != nullptr);
+
+	return ValuePtr;
+}
+
 TOptional<bool> FEditConditionContext::GetBoolValue(const FString& PropertyName) const
 {
 	const UBoolProperty* BoolProperty = FindTypedField<UBoolProperty>(PropertyNode, PropertyName);
@@ -112,21 +131,11 @@ TOptional<bool> FEditConditionContext::GetBoolValue(const FString& PropertyName)
 	TOptional<bool> Result;
 	for (int32 Index = 0; Index < ComplexParentNode->GetInstancesNum(); ++Index)
 	{
-		uint8* BasePtr = ComplexParentNode->GetMemoryOfInstance(Index);
-		if (BasePtr == nullptr)
+		uint8* ValuePtr = GetPropertyValuePtr(BoolProperty, PinnedNode, ParentNode, ComplexParentNode, Index);
+		if (ValuePtr == nullptr)
 		{
-			// deleted or not fully loaded yet
 			return TOptional<bool>();
 		}
-
-		uint8* ParentPtr = ParentNode->GetValueAddress(BasePtr, PinnedNode->HasNodeFlags(EPropertyNodeFlags::IsSparseClassData) != 0);
-
-		uint8* ValuePtr = ComplexParentNode->GetValuePtrOfInstance(Index, BoolProperty, ParentNode);
-
-		// SPARSEDATA_TODO: remove the next three lines once we're sure the pointer math is correct
-		uint8* OldValuePtr = BoolProperty->ContainerPtrToValuePtr<uint8>(ParentPtr);
-		check(OldValuePtr == ValuePtr || PinnedNode->HasNodeFlags(EPropertyNodeFlags::IsSparseClassData));
-		ensure(ValuePtr != nullptr);
 
 		bool bValue = BoolProperty->GetPropertyValue(ValuePtr);
 		if (!Result.IsSet())
@@ -137,6 +146,47 @@ TOptional<bool> FEditConditionContext::GetBoolValue(const FString& PropertyName)
 		{
 			// all values aren't the same...
 			return TOptional<bool>();
+		}
+	}
+
+	return Result;
+}
+
+TOptional<int64> FEditConditionContext::GetIntegerValue(const FString& PropertyName) const
+{
+	const UNumericProperty* NumericProperty = FindTypedField<UNumericProperty>(PropertyNode, PropertyName);
+	if (NumericProperty == nullptr)
+	{
+		return TOptional<int64>();
+	}
+
+	if (!NumericProperty->IsInteger())
+	{
+		return TOptional<int64>();
+	}
+
+	TSharedPtr<FPropertyNode> PinnedNode = PropertyNode.Pin();
+	FPropertyNode* ParentNode = GetEditConditionParentNode(PinnedNode);
+	FComplexPropertyNode* ComplexParentNode = PinnedNode->FindComplexParent();
+
+	TOptional<int64> Result;
+	for (int32 Index = 0; Index < ComplexParentNode->GetInstancesNum(); ++Index)
+	{
+		uint8* ValuePtr = GetPropertyValuePtr(NumericProperty, PinnedNode, ParentNode, ComplexParentNode, Index);
+		if (ValuePtr == nullptr)
+		{
+			return TOptional<int64>();
+		}
+
+		int64 Value = NumericProperty->GetSignedIntPropertyValue(ValuePtr);
+		if (!Result.IsSet())
+		{
+			Result = Value;
+		}
+		else if (Result.GetValue() != Value)
+		{
+			// all values aren't the same...
+			return TOptional<int64>();
 		}
 	}
 
@@ -158,21 +208,11 @@ TOptional<double> FEditConditionContext::GetNumericValue(const FString& Property
 	TOptional<double> Result;
 	for (int32 Index = 0; Index < ComplexParentNode->GetInstancesNum(); ++Index)
 	{
-		uint8* BasePtr = ComplexParentNode->GetMemoryOfInstance(Index);
-		if (BasePtr == nullptr)
+		uint8* ValuePtr = GetPropertyValuePtr(NumericProperty, PinnedNode, ParentNode, ComplexParentNode, Index);
+		if (ValuePtr == nullptr)
 		{
-			// deleted or not fully loaded yet
 			return TOptional<double>();
 		}
-
-		uint8* ParentPtr = ParentNode->GetValueAddress(BasePtr, PinnedNode->HasNodeFlags(EPropertyNodeFlags::IsSparseClassData) != 0);
-
-		uint8* ValuePtr = ComplexParentNode->GetValuePtrOfInstance(Index, NumericProperty, ParentNode);
-
-		// SPARSEDATA_TODO: remove the next three lines once we're sure the pointer math is correct
-		uint8* OldValuePtr = NumericProperty->ContainerPtrToValuePtr<uint8>(ParentPtr);
-		check(OldValuePtr == ValuePtr || PinnedNode->HasNodeFlags(EPropertyNodeFlags::IsSparseClassData));
-		ensure(ValuePtr != nullptr);
 
 		double Value = 0;
 
@@ -223,7 +263,12 @@ TOptional<FString> FEditConditionContext::GetEnumValue(const FString& PropertyNa
 	{
 		return TOptional<FString>();
 	}
-	
+
+	if (!NumericProperty->IsInteger())
+	{
+		return TOptional<FString>();
+	}
+
 	TSharedPtr<FPropertyNode> PinnedNode = PropertyNode.Pin();
 	FPropertyNode* ParentNode = GetEditConditionParentNode(PinnedNode);
 	FComplexPropertyNode* ComplexParentNode = PinnedNode->FindComplexParent();
@@ -231,21 +276,11 @@ TOptional<FString> FEditConditionContext::GetEnumValue(const FString& PropertyNa
 	TOptional<int64> Result;
 	for (int32 Index = 0; Index < ComplexParentNode->GetInstancesNum(); ++Index)
 	{
-		uint8* BasePtr = ComplexParentNode->GetMemoryOfInstance(Index);
-		if (BasePtr == nullptr)
+		uint8* ValuePtr = GetPropertyValuePtr(Property, PinnedNode, ParentNode, ComplexParentNode, Index);
+		if (ValuePtr == nullptr)
 		{
-			// deleted or not fully loaded yet
 			return TOptional<FString>();
 		}
-
-		uint8* ParentPtr = ParentNode->GetValueAddress(BasePtr, PinnedNode->HasNodeFlags(EPropertyNodeFlags::IsSparseClassData) != 0);
-
-		uint8* ValuePtr = ComplexParentNode->GetValuePtrOfInstance(Index, Property, ParentNode);
-
-		// SPARSEDATA_TODO: remove the next three lines once we're sure the pointer math is correct
-		uint8* OldValuePtr = Property->ContainerPtrToValuePtr<uint8>(ParentPtr);
-		check(OldValuePtr == ValuePtr || PinnedNode->HasNodeFlags(EPropertyNodeFlags::IsSparseClassData));
-		ensure(ValuePtr != nullptr);
 
 		int64 Value = NumericProperty->GetSignedIntPropertyValue(ValuePtr);
 		if (!Result.IsSet())
@@ -259,12 +294,12 @@ TOptional<FString> FEditConditionContext::GetEnumValue(const FString& PropertyNa
 		}
 	}
 
-	if (Result.IsSet())
+	if (!Result.IsSet())
 	{
-		return EnumType->GetNameStringByValue(Result.GetValue());
+		return TOptional<FString>();
 	}
 
-	return TOptional<FString>();
+	return EnumType->GetNameStringByValue(Result.GetValue());
 }
 
 TOptional<UObject*> FEditConditionContext::GetPointerValue(const FString& PropertyName) const
@@ -288,15 +323,11 @@ TOptional<UObject*> FEditConditionContext::GetPointerValue(const FString& Proper
 	TOptional<UObject*> Result;
 	for (int32 Index = 0; Index < ComplexParentNode->GetInstancesNum(); ++Index)
 	{
-		uint8* BasePtr = ComplexParentNode->GetMemoryOfInstance(Index);
-		if (BasePtr == nullptr)
+		uint8* ValuePtr = GetPropertyValuePtr(Property, PinnedNode, ParentNode, ComplexParentNode, Index);
+		if (ValuePtr == nullptr)
 		{
-			// deleted or not fully loaded yet
 			return TOptional<UObject*>();
 		}
-
-		uint8* ParentPtr = ParentNode->GetValueAddress(BasePtr, PinnedNode->HasNodeFlags(EPropertyNodeFlags::IsSparseClassData) != 0);
-		uint8* ValuePtr = ComplexParentNode->GetValuePtrOfInstance(Index, Property, ParentNode);
 
 		UObject* Value = ObjectProperty->GetObjectPropertyValue(ValuePtr);
 		if (!Result.IsSet())
@@ -331,4 +362,21 @@ TOptional<FString> FEditConditionContext::GetTypeName(const FString& PropertyNam
 	}
 
 	return Property->GetCPPType();
+}
+
+TOptional<int64> FEditConditionContext::GetIntegerValueOfEnum(const FString& EnumTypeName, const FString& MemberName) const
+{
+	UEnum* EnumType = FindObject<UEnum>((UObject*) ANY_PACKAGE, *EnumTypeName, true);
+	if (EnumType == nullptr)
+	{
+		return TOptional<int64>();
+	}
+
+	int64 EnumValue = EnumType->GetValueByName(FName(*MemberName));
+	if (EnumValue == INDEX_NONE)
+	{
+		return TOptional<int64>();
+	}
+
+	return EnumValue;
 }

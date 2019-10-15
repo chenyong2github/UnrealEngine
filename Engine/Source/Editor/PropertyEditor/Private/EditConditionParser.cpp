@@ -5,6 +5,7 @@
 
 #include "Math/BasicMathExpressionEvaluator.h"
 #include "Misc/ExpressionParser.h"
+#include "UObject/Class.h"
 
 #define LOCTEXT_NAMESPACE "EditConditionParser"
 
@@ -23,6 +24,7 @@ namespace EditConditionParserTokens
 	const TCHAR* const FSubtract::Moniker = TEXT("-");
 	const TCHAR* const FMultiply::Moniker = TEXT("*");
 	const TCHAR* const FDivide::Moniker = TEXT("/");
+	const TCHAR* const FBitwiseAnd::Moniker = TEXT("&");
 }
 
 static const TCHAR PropertyBreakingChars[] = { '|', '=', '&', '>', '<', '!', '+', '-', '*', '/', ' ', '\t' };
@@ -184,6 +186,23 @@ FExpressionResult ApplyBinary(TOperand<T> A, TOperand<T> B, Function Apply)
 	}
 
 	return MakeValue(Apply(ValueA.GetValue(), ValueB.GetValue()));
+}
+
+static FExpressionResult ApplyBitwiseAnd(const EditConditionParserTokens::FPropertyToken& Property, const EditConditionParserTokens::FEnumToken& Enum, const IEditConditionContext& Context)
+{
+	TOptional<int64> EnumValue = Context.GetIntegerValueOfEnum(Enum.Type, Enum.Value);
+	if (!EnumValue.IsSet())
+	{
+		return MakeError(FText::Format(LOCTEXT("InvalidEnumValue", "EditCondition attempted to use an invalid enum value \"{0}::{1}\"."), FText::FromString(Enum.Type), FText::FromString(Enum.Value)));
+	}
+
+	TOptional<int64> PropertyValue = Context.GetIntegerValue(Property.PropertyName);
+	if (!PropertyValue.IsSet())
+	{
+		return MakeError(FText::Format(LOCTEXT("InvalidOperand", "EditCondition attempted to use an invalid operand \"{0}\"."), FText::FromString(Property.PropertyName)));
+	}
+
+	return MakeValue((PropertyValue.Get(0) & EnumValue.Get(0)) != 0);
 }
 
 static FExpressionResult ApplyPropertyIsNull(const EditConditionParserTokens::FPropertyToken& Property, const IEditConditionContext& Context, bool bNegate)
@@ -611,6 +630,7 @@ FEditConditionParser::FEditConditionParser()
 	TokenDefinitions.DefineToken(&ExpressionParser::ConsumeSymbol<FSubtract>);
 	TokenDefinitions.DefineToken(&ExpressionParser::ConsumeSymbol<FMultiply>);
 	TokenDefinitions.DefineToken(&ExpressionParser::ConsumeSymbol<FDivide>);
+	TokenDefinitions.DefineToken(&ExpressionParser::ConsumeSymbol<FBitwiseAnd>);
 	TokenDefinitions.DefineToken(&ExpressionParser::ConsumeNumber);
 	TokenDefinitions.DefineToken(&ConsumeNullPtr);
 	TokenDefinitions.DefineToken(&ConsumeBool);
@@ -624,12 +644,14 @@ FEditConditionParser::FEditConditionParser()
 	ExpressionGrammar.DefineBinaryOperator<FLessEqual>(3);
 	ExpressionGrammar.DefineBinaryOperator<FGreater>(3);
 	ExpressionGrammar.DefineBinaryOperator<FGreaterEqual>(3);
+	ExpressionGrammar.DefineBinaryOperator<FBitwiseAnd>(2);
 	ExpressionGrammar.DefineBinaryOperator<FAdd>(2);
 	ExpressionGrammar.DefineBinaryOperator<FSubtract>(2);
 	ExpressionGrammar.DefineBinaryOperator<FMultiply>(1);
 	ExpressionGrammar.DefineBinaryOperator<FDivide>(1);
 	ExpressionGrammar.DefinePreUnaryOperator<FNot>();
 
+	// POINTER EQUALITY
 	OperatorJumpTable.MapBinary<FEqual>([](const FPropertyToken& A, const FPropertyToken& B, const IEditConditionContext* Context) -> FExpressionResult
 	{
 		return ApplyPropertiesEqual(A, B, *Context, false);
@@ -640,6 +662,7 @@ FEditConditionParser::FEditConditionParser()
 		return ApplyPropertiesEqual(A, B, *Context, true);
 	});
 
+	// POINTER NULL
 	OperatorJumpTable.MapBinary<FEqual>([](const FPropertyToken& A, const FNullPtrToken& B, const IEditConditionContext* Context) -> FExpressionResult
 	{
 		return ApplyPropertyIsNull(A, *Context, false);
@@ -648,6 +671,12 @@ FEditConditionParser::FEditConditionParser()
 	OperatorJumpTable.MapBinary<FNotEqual>([](const FPropertyToken& A, const FNullPtrToken& B, const IEditConditionContext* Context) -> FExpressionResult
 	{
 		return ApplyPropertyIsNull(A, *Context, true);
+	});
+
+	// BITWISE AND
+	OperatorJumpTable.MapBinary<FBitwiseAnd>([](const FPropertyToken& A, const FEnumToken& B, const IEditConditionContext* Context) -> FExpressionResult
+	{
+		return ApplyBitwiseAnd(A, B, *Context);
 	});
 
 	CreateBooleanOperators(OperatorJumpTable);
