@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using AutomationTool;
 using System;
@@ -19,7 +19,7 @@ namespace BuildGraph.Tasks
 	public class LogTaskParameters
 	{
 		/// <summary>
-		/// Message to print out
+		/// Message to print out.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public string Message;
@@ -38,7 +38,7 @@ namespace BuildGraph.Tasks
 	}
 
 	/// <summary>
-	/// Print a message (and other optional diagnostic information) to the output log
+	/// Print a message (and other optional diagnostic information) to the output log.
 	/// </summary>
 	[TaskElement("Log", typeof(LogTaskParameters))]
 	public class LogTask : CustomTask

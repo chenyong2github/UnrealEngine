@@ -69,35 +69,35 @@ Crumbs:
 [/VAR]
 
 [VAR:MenuWindowDestructibleSettings]
-* **Destructible Settings** - Toggles the display of the **Destructible Settings** panel.
+* **Destructible Settings** - 切换 **Destructible Settings（可破坏物设置）** 面板的显示状态。
 [/VAR]
 
 [VAR:MenuWindowFractureSettings]
-* **Fracture Settings** - Toggles the display of the **Fracture Settings** panel.
+* **Fracture Settings** - 切换 **Fracture Settings（破裂设置）** 面板的显示状态。
 [/VAR]
 
 [VAR:MenuWindowChunkParameters]
-* **Chunk Parameters** - Toggles the display of the **Chunk Parameters** panel.
+* **Chunk Parameters** - 切换 **Chunk Parameters（块状物参数）** 面板的显示状态。
 [/VAR]
 
 [VAR:MenuWindow]
 * **Content Browser（内容浏览器）** - 在一个单独的窗口中打开内容浏览器。
 * **Developer Tools（开发者工具）** - 在单独的视口中打开选中的开发者工具(相机调试器、碰撞分析器、调试工具、模块、控件映射器)
-	* **Blueprint Debugger（蓝图调试器）** - 在一个单独的窗口中打开蓝图调试器。
-	* **Collision Analyzer** - Brings up the **Collision Analyzer** in a separate window.
-	* **Debug Tool** - Brings up the **Debug Tool** in a separate window. 
-	* **Message Log（消息日志）** - 在一个单独的窗口中打开消息日志。
-	* **Output Log（输出日志）** - 在一个单独的窗口中打开输出日志。
-	* **Visual Logger** - Bring up the **Visual Logger** tool in a separate window. 
-	* **Class Viewer（类别查看器）** - 在一个单独的窗口中打开类别查看器。
-	* **Device Manager（设备管理器）** - 在一个单独的窗口中打开设备管理器。
-	* **Device Profiles** - Brings up the **Device Profiles** in a separate window.
-	* **Modules** - Brings up **Modules** in a separate window. 
-	* **Session Frontend（会话前端）** - 在一个单独的窗口中打开Unreal Frontend。
-	* **Widget Reflector** - Brings up **Widget Reflector** in a separate window. 
-* **Undo History** - Brings up the **Undo History** panel in a separate window.
+	* **Blueprint Debugger（蓝图调试器）** - 在一个单独的窗口中打开 **Blueprint Debugger（蓝图调试器）**。
+	* **Collision Analyzer（碰撞分析器）** - 在一个单独的窗口中打开 **Collision Analyzer（碰撞分析器）**。
+	* **Debug Tool（调试工具）** - 在一个单独的窗口中打开 **Debug Tool（调试工具）** 。
+	* **Message Log（消息日志）** - 在一个单独的窗口中打开 **Message Log（消息日志）**。
+	* **Output Log（输出日志）** - 在一个单独的窗口中打开 **Output Log（输出日志）。
+	* **Visual Logger（视觉记录器）** - 在一个单独的窗口中打开 **Visual Logger（视觉记录器）**。 
+	* **Class Viewer（类查看器）** - 在一个单独的窗口中打开 **Class Viewer（类查看器）**。
+	* **Device Manager（设备管理器）** - 在一个单独的窗口中打开 **Device Manager（设备管理器）**。
+	* **Device Profiles（设备配置文件）** - 在一个单独的窗口中打开 **Device Profiles（设备配置文件）**。
+	* **Modules（模块）** - 在一个单独的窗口中打开 **Modules（模块）**。 
+	* **Session Frontend（会话前端）** - 在一个单独的窗口中打开虚幻前端。
+	* **Widget Reflector（控件反射器）** - 在一个单独的窗口中打开 **Widget Reflector（控件反射器）**。 
+* **Undo History（撤销记录）** - 在一个单独的窗口中打开 **Undo History（撤销记录）** 面板。
 * **Plugins（插件）** - 弹出插件窗口。
-* **Reset Layout** - Resets your layout to a default arrangement. Requires the editor to restart after saving your changes and creating a backup of your settings. 
+* **Reset Layout（重置布局）** - 将布局重置为默认参数。需要在保存修改并为设置创建备份后重启编辑器。 
 * **Save Layout（保存布局）** - 将面板的当前布局保存作为新的默认布局。
 * **Enable Fullscreen（启用全屏）** - 为该应用程序启用全屏模式，在整个显示器上展开应用程序。
 [/VAR]
@@ -108,9 +108,9 @@ Crumbs:
 [VAR:MenuHelp]
 [PUBLISH:Rocket]
 * **Browse documentation（浏览文档）** - 打开一个浏览器窗口，并导航到关于该工具的文档处。
-* **Forums** - Opens a browser window to the Unreal Engine Forums where you can discuss the Unreal Engine with other users.
-* **Answer Hub** - Opens a browser window to the Unreal Engine 4 Answer Hub where you can ask questions and find useful answers provided by other users and experts.
-* **Wiki** - Opens a browser window to the official Unreal Engine 4 Wiki where you can find useful tutorials and examples made by both users and experts here at Epic.
+* **Forums** - 打开一个浏览器窗口并导航到虚幻引擎论坛。您可以在这里与其他用户讨论虚幻引擎。
+* **Answer Hub** - 打开一个浏览器窗口并导航到虚幻引擎4问答中心。您可以在这里提问并寻找其他用户和专家提供的有用答案。
+* **Wiki** - 打开一个浏览器并导航到虚幻引擎4官方Wiki。您可以在这里找到用户以及Epic专家制作的实用教程和示例。
 * **Visit EpicGames.com（访问EpicGames.com）** - 在浏览器窗口中打开EpicGames.com。
 * **About Unreal Editor（关于虚幻编辑器）** - 显示应用程序的制作人员、版权信息、及版本信息。
 [/PUBLISH:Rocket]
