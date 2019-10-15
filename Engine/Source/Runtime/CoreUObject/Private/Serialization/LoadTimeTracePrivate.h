@@ -7,6 +7,7 @@
 #if LOADTIMEPROFILERTRACE_ENABLED
 
 class UObject;
+class FGCObject;
 
 struct FLoadTimeProfilerTracePrivate
 {
