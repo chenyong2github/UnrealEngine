@@ -289,17 +289,9 @@ public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		static const auto SupportLPV = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.LightPropagationVolume"));
-		if (SupportLPV && SupportLPV->GetValueOnAnyThread() == 0)
-		{
-			return false;
-		}
-		else
-		{
-			// Re-use ShouldCache from vertex shader
-			return FBaseHS::ShouldCompilePermutation(Parameters)
-				&& TShadowDepthVS<ShaderMode, bRenderReflectiveShadowMap, false>::ShouldCompilePermutation(Parameters);
-		}
+		// Re-use ShouldCache from vertex shader
+		return FBaseHS::ShouldCompilePermutation(Parameters)
+			&& TShadowDepthVS<ShaderMode, bRenderReflectiveShadowMap, false>::ShouldCompilePermutation(Parameters);
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -339,17 +331,9 @@ public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		static const auto SupportLPV = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.LightPropagationVolume"));
-		if (SupportLPV && SupportLPV->GetValueOnAnyThread() == 0)
-		{
-			return false;
-		}
-		else
-		{
-			// Re-use ShouldCache from vertex shader
-			return FBaseDS::ShouldCompilePermutation(Parameters)
-				&& TShadowDepthVS<ShaderMode, bRenderReflectiveShadowMap, false>::ShouldCompilePermutation(Parameters);
-		}
+		// Re-use ShouldCache from vertex shader
+		return FBaseDS::ShouldCompilePermutation(Parameters)
+			&& TShadowDepthVS<ShaderMode, bRenderReflectiveShadowMap, false>::ShouldCompilePermutation(Parameters);
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
