@@ -92,6 +92,7 @@ void UGameplayEffect::PostLoad()
 	UpdateInheritedTagProperties();
 
 	HasGrantedApplicationImmunityQuery = !GrantedApplicationImmunityQuery.IsEmpty();
+	HasRemoveGameplayEffectsQuery = !RemoveGameplayEffectQuery.IsEmpty();
 
 #if WITH_EDITOR
 	GETCURVE_REPORTERROR_WITHPOSTLOAD(Period.Curve);
@@ -156,6 +157,7 @@ void UGameplayEffect::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	}
 
 	HasGrantedApplicationImmunityQuery = !GrantedApplicationImmunityQuery.IsEmpty();
+	HasRemoveGameplayEffectsQuery = !RemoveGameplayEffectQuery.IsEmpty();
 
 	UAbilitySystemGlobals::Get().GameplayEffectPostEditChangeProperty(this, PropertyChangedEvent);
 }
@@ -166,6 +168,7 @@ void UGameplayEffect::PreSave(const class ITargetPlatform* TargetPlatform)
 {
 	Super::PreSave(TargetPlatform);
 	HasGrantedApplicationImmunityQuery = !GrantedApplicationImmunityQuery.IsEmpty();
+	HasRemoveGameplayEffectsQuery = !RemoveGameplayEffectQuery.IsEmpty();
 }
 
 void UGameplayEffect::UpdateInheritedTagProperties()
@@ -1711,6 +1714,18 @@ void FActiveGameplayEffect::CheckOngoingTagRequirements(const FGameplayTagContai
 	}
 }
 
+bool FActiveGameplayEffect::CheckRemovalTagRequirements(const FGameplayTagContainer& OwnerTags, FActiveGameplayEffectsContainer& OwningContainer) const
+{
+	if (!Spec.Def->RemovalTagRequirements.IsEmpty())
+	{
+		if (Spec.Def->RemovalTagRequirements.RequirementsMet(OwnerTags))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 void FActiveGameplayEffect::PreReplicatedRemove(const struct FActiveGameplayEffectsContainer &InArray)
 {
 	if (Spec.Def == nullptr)
@@ -3028,6 +3043,17 @@ void FActiveGameplayEffectsContainer::InternalOnActiveGameplayEffectAdded(FActiv
 		ActiveEffectTagDependencies.FindOrAdd(Tag).Add(Effect.Handle);
 	}
 
+	// Add our removal tag requirements to the dependency map. We will actually check for these tags below.
+	for (const FGameplayTag& Tag : EffectDef->RemovalTagRequirements.IgnoreTags)
+	{
+		ActiveEffectTagDependencies.FindOrAdd(Tag).Add(Effect.Handle);
+	}
+
+	for (const FGameplayTag& Tag : EffectDef->RemovalTagRequirements.RequireTags)
+	{
+		ActiveEffectTagDependencies.FindOrAdd(Tag).Add(Effect.Handle);
+	}
+
 	// Add any external dependencies that might dirty the effect, if necessary
 	AddCustomMagnitudeExternalDependencies(Effect);
 
@@ -3350,6 +3376,8 @@ void FActiveGameplayEffectsContainer::InternalOnActiveGameplayEffectRemoved(FAct
 		// Remove our tag requirements from the dependency map
 		RemoveActiveEffectTagDependency(Effect.Spec.Def->OngoingTagRequirements.IgnoreTags, Effect.Handle);
 		RemoveActiveEffectTagDependency(Effect.Spec.Def->OngoingTagRequirements.RequireTags, Effect.Handle);
+		RemoveActiveEffectTagDependency(Effect.Spec.Def->RemovalTagRequirements.IgnoreTags, Effect.Handle);
+		RemoveActiveEffectTagDependency(Effect.Spec.Def->RemovalTagRequirements.RequireTags, Effect.Handle);
 
 		// Only Need to update tags and modifiers if the gameplay effect is active.
 		if (!Effect.bIsInhibited)
@@ -3642,22 +3670,36 @@ void FActiveGameplayEffectsContainer::RestartActiveGameplayEffectDuration(FActiv
 void FActiveGameplayEffectsContainer::OnOwnerTagChange(FGameplayTag TagChange, int32 NewCount)
 {
 	// It may be beneficial to do a scoped lock on attribute re-evaluation during this function
+	GAMEPLAYEFFECT_SCOPE_LOCK();
 
+	FGameplayTagContainer OwnerTags;
+	if (Owner)
+	{
+		Owner->GetOwnedGameplayTags(OwnerTags);
+	}
+	else
+	{
+		UE_LOG(LogGameplayEffects, Warning, TEXT("No Owner for FActiveGameplayEffectsContainer in OnOwnerTagChange"));
+	}
+
+	// if this tag has any dependencies, we need to evaluate any removals
+	if (ActiveEffectTagDependencies.Contains(TagChange))
+	{
+		for (int32 idx = GetNumGameplayEffects() - 1; idx >= 0; --idx)
+		{
+			const FActiveGameplayEffect& Effect = *GetActiveGameplayEffect(idx);
+			if (Effect.IsPendingRemove == false && Effect.CheckRemovalTagRequirements(OwnerTags, *this))
+			{
+				InternalRemoveActiveGameplayEffect(idx, -1, true);
+			}
+		}
+	}
+
+	// Removing effects could change and/or remove the dependency entries, so find the set after we
+	// perform any removals.
 	auto Ptr = ActiveEffectTagDependencies.Find(TagChange);
 	if (Ptr)
 	{
-		GAMEPLAYEFFECT_SCOPE_LOCK();
-
-		FGameplayTagContainer OwnerTags;
-		if (Owner)
-		{
-			Owner->GetOwnedGameplayTags(OwnerTags);
-		}
-		else
-		{
-			UE_LOG(LogGameplayEffects, Warning, TEXT("No Owner for FActiveGameplayEffectsContainer in OnOwnerTagChange"));
-		}
-
 		TSet<FActiveGameplayEffectHandle>& Handles = *Ptr;
 		for (const FActiveGameplayEffectHandle& Handle : Handles)
 		{
@@ -4133,6 +4175,49 @@ int32 FActiveGameplayEffectsContainer::RemoveActiveEffects(const FGameplayEffect
 		}
 	}
 	return NumRemoved;
+}
+
+void FActiveGameplayEffectsContainer::AttemptRemoveActiveEffectsOnEffectApplication(const FGameplayEffectSpec &InSpec, const FActiveGameplayEffectHandle& InHandle)
+{
+	GAMEPLAYEFFECT_SCOPE_LOCK();
+	if (InSpec.Def)
+	{
+		// Clear tags is always removing all stacks.
+		FGameplayEffectQuery ClearQuery;
+		if (InSpec.Def->RemoveGameplayEffectsWithTags.CombinedTags.Num() > 0)
+		{
+			ClearQuery = FGameplayEffectQuery::MakeQuery_MatchAnyOwningTags(InSpec.Def->RemoveGameplayEffectsWithTags.CombinedTags);
+			if (InHandle.IsValid())
+			{
+				ClearQuery.IgnoreHandles.Add(InHandle);
+			}
+		}
+
+		const FGameplayTagContainer* AggregatedSourceTags = InSpec.CapturedSourceTags.GetAggregatedTags();
+		for (int32 idx = GetNumGameplayEffects() - 1; idx >= 0; --idx)
+		{
+			const FActiveGameplayEffect& ActiveEffect = *GetActiveGameplayEffect(idx);
+			if (!ActiveEffect.IsPendingRemove)
+			{
+				const UGameplayEffect* Effect = ActiveEffect.Spec.Def;
+				// check if the effect has a tag query
+				if (Effect && Effect->HasRemoveGameplayEffectsQuery && Effect->RemoveGameplayEffectQuery.Matches(InSpec))
+				{
+					InternalRemoveActiveGameplayEffect(idx, -1, true);
+				}
+				// check if the effect has removal tag requirements
+				else if (Effect && AggregatedSourceTags && !Effect->RemovalTagRequirements.IsEmpty() && Effect->RemovalTagRequirements.RequirementsMet(*AggregatedSourceTags))
+				{
+					InternalRemoveActiveGameplayEffect(idx, -1, true);
+				}
+				// clear query check
+				else if (!ClearQuery.IsEmpty() && ClearQuery.Matches(ActiveEffect))
+				{
+					InternalRemoveActiveGameplayEffect(idx, -1, true);
+				}
+			}
+		}
+	}
 }
 
 int32 FActiveGameplayEffectsContainer::GetActiveEffectCount(const FGameplayEffectQuery& Query, bool bEnforceOnGoingCheck) const
