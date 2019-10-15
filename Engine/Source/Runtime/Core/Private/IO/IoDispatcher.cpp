@@ -17,10 +17,24 @@
 #include "Misc/StringBuilder.h"
 #include "Misc/LazySingleton.h"
 #include "Misc/CoreDelegates.h"
+#include "Trace/Trace.h"
+
+#define IODISPATCHER_TRACE_ENABLED !UE_BUILD_SHIPPING
 
 DEFINE_LOG_CATEGORY_STATIC(LogIoDispatch, Log, All);
 
 //////////////////////////////////////////////////////////////////////////
+
+UE_TRACE_EVENT_BEGIN(IoDispatcher, BatchIssued, Always)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(uint64, BatchId)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(IoDispatcher, BatchResolved, Always)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(uint64, BatchId)
+	UE_TRACE_EVENT_FIELD(uint64, TotalSize)
+UE_TRACE_EVENT_END()
 
 template <typename T, uint32 BlockSize = 128>
 class TBlockAllocator
@@ -1064,12 +1078,29 @@ public:
 		// At this point the batch is immutable and we should start
 		// doing the work.
 
-		IterateBatch(Batch, [this](FIoRequestImpl* Request)
+#if IODISPATCHER_TRACE_ENABLED
+		UE_TRACE_LOG(IoDispatcher, BatchIssued)
+			<< BatchIssued.Cycle(FPlatformTime::Cycles64())
+			<< BatchIssued.BatchId(uint64(Batch));
+		uint64 TotalBatchSize = 0;
+#endif
+
+		IterateBatch(Batch, [this, &TotalBatchSize](FIoRequestImpl* Request)
 		{
 			Request->Result = IoStore->Resolve(Request->ChunkId);
 
+#if IODISPATCHER_TRACE_ENABLED
+			TotalBatchSize += Request->Result.ValueOrDie().DataSize();
+#endif
 			return true;
 		});
+
+#if IODISPATCHER_TRACE_ENABLED
+		UE_TRACE_LOG(IoDispatcher, BatchResolved)
+			<< BatchResolved.Cycle(FPlatformTime::Cycles64())
+			<< BatchResolved.BatchId(uint64(Batch))
+			<< BatchResolved.TotalSize(TotalBatchSize);
+#endif
 	}
 
 	bool IsBatchReady(const FIoBatchImpl* Batch)

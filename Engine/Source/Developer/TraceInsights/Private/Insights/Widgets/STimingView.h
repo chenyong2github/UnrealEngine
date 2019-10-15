@@ -405,11 +405,7 @@ protected:
 	// Asset Loading
 
 	TSharedPtr<FLoadingSharedState> LoadingSharedState;
-	FTimingEventsTrack* LoadingMainThreadTrack;
-	FTimingEventsTrack* LoadingAsyncThreadTrack;
-
-	uint32 LoadingMainThreadId;
-	uint32 LoadingAsyncThreadId;
+	TMap<uint32, FTimingEventsTrack*> LoadingTracks;
 
 	bool bAssetLoadingMode;
 

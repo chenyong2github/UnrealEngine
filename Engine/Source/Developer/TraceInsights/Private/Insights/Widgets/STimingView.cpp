@@ -61,9 +61,6 @@
 // start auto generated ids from a big number (MSB set to 1) to avoid collisions with ids for gpu/cpu tracks based on 32bit timeline index
 uint64 FBaseTimingTrack::IdGenerator = (1ULL << 63);
 
-const TCHAR* GetName(ELoadTimeProfilerPackageEventType Type);
-const TCHAR* GetName(ELoadTimeProfilerObjectEventType Type);
-
 const TCHAR* GetFileActivityTypeName(Trace::EFileActivityType Type);
 uint32 GetFileActivityTypeColor(Trace::EFileActivityType Type);
 
@@ -237,11 +234,7 @@ void STimingView::Reset()
 
 	LoadingSharedState->Reset();
 
-	LoadingMainThreadTrack = nullptr;
-	LoadingAsyncThreadTrack = nullptr;
-
-	LoadingMainThreadId = 0;
-	LoadingAsyncThreadId = 0;
+	LoadingTracks.Reset();
 
 	//////////////////////////////////////////////////
 
@@ -462,32 +455,6 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		// After this point we can add new tracks, so reset the dirty flag
 		bTimingEventsTracksChanged = false;
 
-		if (Trace::ReadLoadTimeProfilerProvider(*Session.Get()))
-		{
-			const Trace::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *Trace::ReadLoadTimeProfilerProvider(*Session.Get());
-
-			LoadingMainThreadId = LoadTimeProfilerProvider.GetMainThreadId();
-			LoadingAsyncThreadId = LoadTimeProfilerProvider.GetAsyncLoadingThreadId();
-
-			if (LoadingMainThreadTrack == nullptr)
-			{
-				uint64 TrackId = FBaseTimingTrack::GenerateId();
-				LoadingMainThreadTrack = new FLoadingMainThreadTimingTrack(TrackId, LoadingSharedState);
-				LoadingMainThreadTrack->SetOrder(-3);
-				LoadingMainThreadTrack->SetVisibilityFlag(bShowHideAllLoadingTracks);
-				AddTimingEventsTrack(LoadingMainThreadTrack);
-			}
-
-			if (LoadingAsyncThreadTrack == nullptr)
-			{
-				uint64 TrackId = FBaseTimingTrack::GenerateId();
-				LoadingAsyncThreadTrack = new FLoadingAsyncThreadTimingTrack(TrackId, LoadingSharedState);
-				LoadingMainThreadTrack->SetOrder(-2);
-				LoadingAsyncThreadTrack->SetVisibilityFlag(bShowHideAllLoadingTracks);
-				AddTimingEventsTrack(LoadingAsyncThreadTrack);
-			}
-		}
-
 		if (Trace::ReadFileActivityProvider(*Session.Get()))
 		{
 			if (IoOverviewTrack == nullptr)
@@ -503,13 +470,14 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 		int32 Order = 1;
 
-		if (Trace::ReadTimingProfilerProvider(*Session.Get()))
-		{
-			const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
+		const Trace::ITimingProfilerProvider* TimingProfilerProvider = Trace::ReadTimingProfilerProvider(*Session.Get());
+		const Trace::ILoadTimeProfilerProvider* LoadTimeProfilerProvider = Trace::ReadLoadTimeProfilerProvider(*Session.Get());
 
+		if (TimingProfilerProvider || LoadTimeProfilerProvider)
+		{
 			// Check if we have a GPU track.
 			uint32 GpuTimelineIndex;
-			if (TimingProfilerProvider.GetGpuTimelineIndex(GpuTimelineIndex))
+			if (TimingProfilerProvider && TimingProfilerProvider->GetGpuTimelineIndex(GpuTimelineIndex))
 			{
 				const uint64 TrackId = static_cast<uint64>(GpuTimelineIndex);
 				if (!CachedTimelines.Contains(TrackId))
@@ -523,7 +491,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 			// Check available CPU tracks.
 			const Trace::IThreadProvider& ThreadProvider = Trace::ReadThreadProvider(*Session.Get());
-			ThreadProvider.EnumerateThreads([this, &Order, &TimingProfilerProvider](const Trace::FThreadInfo& ThreadInfo)
+			ThreadProvider.EnumerateThreads([this, &Order, TimingProfilerProvider, LoadTimeProfilerProvider](const Trace::FThreadInfo& ThreadInfo)
 			{
 				const TCHAR* GroupName = ThreadInfo.GroupName;
 				if (GroupName == nullptr)
@@ -547,8 +515,26 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 					}
 				}
 
+				bool bIsLoadingThread = false;
+				uint32 LoadingTimelineIndex;
+				if (LoadTimeProfilerProvider && LoadTimeProfilerProvider->GetCpuThreadTimelineIndex(ThreadInfo.Id, LoadingTimelineIndex))
+				{
+					bIsLoadingThread = true;
+					if (!LoadingTracks.Contains(LoadingTimelineIndex))
+					{
+						FString TrackName(ThreadInfo.Name && *ThreadInfo.Name ? FString::Printf(TEXT("Loading - %s"), ThreadInfo.Name) : FString::Printf(TEXT("Loading - Thread %u"), ThreadInfo.Id));
+
+						uint64 TrackId = FBaseTimingTrack::GenerateId();
+						FLoadingTimingTrack* LoadingThreadTrack = new FLoadingTimingTrack(TrackId, LoadingTimelineIndex, GroupName, TrackName, LoadingSharedState);
+						LoadingThreadTrack->SetOrder(-100 + LoadingTracks.Num());
+						LoadingThreadTrack->SetVisibilityFlag(bShowHideAllLoadingTracks);
+						AddTimingEventsTrack(LoadingThreadTrack);
+						LoadingTracks.Add(LoadingTimelineIndex, LoadingThreadTrack);
+					}
+				}
+
 				uint32 CpuTimelineIndex;
-				if (TimingProfilerProvider.GetCpuThreadTimelineIndex(ThreadInfo.Id, CpuTimelineIndex))
+				if (TimingProfilerProvider && TimingProfilerProvider->GetCpuThreadTimelineIndex(ThreadInfo.Id, CpuTimelineIndex))
 				{
 					FTimingEventsTrack* Track = nullptr;
 					const uint64 TrackId = static_cast<uint64>(CpuTimelineIndex);
@@ -566,7 +552,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 						FThreadGroup& ThreadGroup = ThreadGroups[GroupName];
 						ThreadGroup.NumTimelines++;
 
-						if (bAssetLoadingMode && (ThreadInfo.Id == LoadingMainThreadId || ThreadInfo.Id == LoadingAsyncThreadId))
+						if (bAssetLoadingMode && bIsLoadingThread)
 						{
 							Track->SetVisibilityFlag(true);
 							ThreadGroup.bIsVisible = true;
@@ -1817,11 +1803,6 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 	else if (InKeyEvent.GetKey() == EKeys::Four)
 	{
 		LoadingSharedState->SetColorSchema(3);
-		return FReply::Handled();
-	}
-	else if (InKeyEvent.GetKey() == EKeys::Five)
-	{
-		LoadingSharedState->SetColorSchema(4);
 		return FReply::Handled();
 	}
 

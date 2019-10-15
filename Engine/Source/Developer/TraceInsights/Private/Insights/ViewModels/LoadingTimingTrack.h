@@ -18,7 +18,6 @@ class FLoadingSharedState
 public:
 	void Reset();
 
-	const TCHAR* GetEventNameByPackageEventType(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const;
 	const TCHAR* GetEventNameByExportEventType(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const;
 	const TCHAR* GetEventNameByPackageName(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const;
 	const TCHAR* GetEventNameByExportClassName(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const;
@@ -37,45 +36,22 @@ private:
 class FLoadingTimingTrack : public FTimingEventsTrack
 {
 public:
-	explicit FLoadingTimingTrack(uint64 InTrackId, const FName& InSubType, const FString& InName, TSharedPtr<FLoadingSharedState> InState)
+	explicit FLoadingTimingTrack(uint64 InTrackId, uint32 InTimelineIndex, const FName& InSubType, const FString& InName, TSharedPtr<FLoadingSharedState> InState)
 		: FTimingEventsTrack(InTrackId, FName(TEXT("Loading")), InSubType, InName)
 		, State(InState)
+		, TimelineIndex(InTimelineIndex)
 	{
 	}
 	virtual ~FLoadingTimingTrack() {}
 
 	virtual void InitTooltip(FTooltipDrawState& Tooltip, const FTimingEvent& HoveredTimingEvent) const override;
 
+	virtual void Draw(ITimingViewDrawHelper& Helper) const override;
+	virtual bool SearchTimingEvent(const double InStartTime, const double InEndTime, TFunctionRef<bool(double, double, uint32)> InPredicate, FTimingEvent& InOutTimingEvent, bool bInStopAtFirstMatch, bool bInSearchForLargestEvent) const override;
+
 protected:
 	TSharedPtr<FLoadingSharedState> State;
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-class FLoadingMainThreadTimingTrack : public FLoadingTimingTrack
-{
-public:
-	explicit FLoadingMainThreadTimingTrack(uint64 InTrackId, TSharedPtr<FLoadingSharedState> InState)
-		: FLoadingTimingTrack(InTrackId, FName(TEXT("MainThread")), TEXT("Loading - Main Thread"), InState)
-	{
-	}
-
-	virtual void Draw(ITimingViewDrawHelper& Helper) const override;
-	virtual bool SearchTimingEvent(const double InStartTime, const double InEndTime, TFunctionRef<bool(double, double, uint32)> InPredicate, FTimingEvent& InOutTimingEvent, bool bInStopAtFirstMatch, bool bInSearchForLargestEvent) const override;
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-class FLoadingAsyncThreadTimingTrack : public FLoadingTimingTrack
-{
-public:
-	explicit FLoadingAsyncThreadTimingTrack(uint64 InTrackId, TSharedPtr<FLoadingSharedState> InState)
-		: FLoadingTimingTrack(InTrackId, FName(TEXT("AsyncThread")), TEXT("Loading - Async Thread"), InState)
-	{
-	}
-
-	virtual void Draw(ITimingViewDrawHelper& Helper) const override;
-	virtual bool SearchTimingEvent(const double InStartTime, const double InEndTime, TFunctionRef<bool(double, double, uint32)> InPredicate, FTimingEvent& InOutTimingEvent, bool bInStopAtFirstMatch, bool bInSearchForLargestEvent) const override;
+	uint32 TimelineIndex;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -866,12 +866,10 @@ FLinkerLoad::FLinkerLoad(UPackage* InParent, const TCHAR* InFilename, uint32 InL
 #endif
 
 	OwnerThread = FPlatformTLS::GetCurrentThreadId();
-	TRACE_LOADTIME_NEW_LINKER(this);
 }
 
 FLinkerLoad::~FLinkerLoad()
 {
-	TRACE_LOADTIME_DESTROY_LINKER(this);
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 	FLinkerManager::Get().RemoveLiveLinker(this);
 #endif
@@ -1165,8 +1163,6 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummary()
 #endif
 		// Read summary from file.
 		StructuredArchiveRootRecord.GetValue() << SA_VALUE(TEXT("Summary"), Summary);
-
-		TRACE_LOADTIME_PACKAGE_SUMMARY(this, Summary.TotalHeaderSize, Summary.NameCount, Summary.ImportCount, Summary.ExportCount);
 
 		// Check tag.
 		if( Summary.Tag != PACKAGE_FILE_TAG )
@@ -3698,7 +3694,6 @@ void FLinkerLoad::Preload( UObject* Object )
 				Object->ClearFlags ( RF_NeedLoad );
 
 				{
-					TRACE_LOADTIME_OBJECT_SCOPE(Export.Object, LoadTimeProfilerObjectEventType_Serialize);
 					SCOPE_CYCLE_COUNTER(STAT_LinkerSerialize);
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 					// communicate with FLinkerPlaceholderBase, what object is currently serializing in
@@ -4019,8 +4014,6 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 	// Check whether we already loaded the object and if not whether the context flags allow loading it.
 	if( !Export.Object && !FilterExport(Export) ) // for some acceptable position, it was not "not for" 
 	{
-		TRACE_LOADTIME_CREATE_EXPORT_SCOPE(this, &Export.Object, Export.SerialOffset, Export.SerialSize, Export.bIsAsset);
-
 		FUObjectSerializeContext* CurrentLoadContext = GetSerializeContext();
 		check(!GEventDrivenLoaderEnabled || !bLockoutLegacyOperations || !EVENT_DRIVEN_ASYNC_LOAD_ACTIVE_AT_RUNTIME);
 		check(Export.ObjectName!=NAME_None || !(Export.ObjectFlags&RF_Public));

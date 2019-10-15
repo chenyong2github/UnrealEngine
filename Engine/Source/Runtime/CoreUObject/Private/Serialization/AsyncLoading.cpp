@@ -1370,6 +1370,8 @@ FORCEINLINE static bool CanAddWaitingPackages(FAsyncLoadingThread& AsyncLoadingT
 
 void FAsyncLoadingThread::QueueEvent_CreateLinker(FAsyncPackage* Package, int32 EventSystemPriority)
 {
+	TRACE_LOADTIME_BEGIN_LOAD_ASYNC_PACKAGE(Package);
+
 	FileOpenLogActive();  // make sure GRandomizeLoadOrder is set up
 	check(Package);
 	Package->AddNode(EEventLoadNode::Package_LoadSummary);
@@ -1385,7 +1387,6 @@ void FAsyncLoadingThread::QueueEvent_CreateLinker(FAsyncPackage* Package, int32 
 				check(Pkg);
 				if (Pkg)
 				{
-					TRACE_LOADTIME_ASYNC_PACKAGE_SCOPE(Pkg, LoadTimeProfilerPackageEventType_CreateLinker);
 					Pkg->SetTimeLimit(Args, TEXT("Create Linker"));
 					Pkg->Event_CreateLinker();
 					Args.OutLastObjectWorkWasPerformedOn = Pkg->GetLinkerRoot();
@@ -1450,7 +1451,6 @@ void FAsyncLoadingThread::QueueEvent_FinishLinker(FWeakAsyncPackagePtr WeakPtr, 
 			check(PkgInner);
 			if (PkgInner)
 			{
-				TRACE_LOADTIME_ASYNC_PACKAGE_SCOPE(PkgInner, LoadTimeProfilerPackageEventType_FinishLinker);
 				PkgInner->SetTimeLimit(Args, TEXT("Finish Linker"));
 				PkgInner->Event_FinishLinker();
 			}
@@ -1569,6 +1569,8 @@ void FAsyncPackage::Event_FinishLinker()
 			}
 		}
 
+		TRACE_LOADTIME_PACKAGE_SUMMARY(this, Linker->Summary.TotalHeaderSize, Linker->Summary.ImportCount, Linker->Summary.ExportCount);
+
 		check(AsyncPackageLoadingState == EAsyncPackageLoadingState::WaitingForSummary);
 		AsyncPackageLoadingState = EAsyncPackageLoadingState::StartImportPackages;
 		AsyncLoadingThread.QueueEvent_StartImportPackages(this, FAsyncLoadEvent::EventSystemPriority_MAX - 1);
@@ -1597,7 +1599,6 @@ void FAsyncLoadingThread::QueueEvent_StartImportPackages(FAsyncPackage* Package,
 		FAsyncPackage* Pkg = GetPackage(WeakPtr);
 		if (Pkg)
 		{
-			TRACE_LOADTIME_ASYNC_PACKAGE_SCOPE(Pkg, LoadTimeProfilerPackageEventType_StartImportPackages);
 			Pkg->SetTimeLimit(Args, TEXT("Start Import Packages"));
 			Pkg->Event_StartImportPackages();
 		}
@@ -1883,7 +1884,6 @@ void FAsyncLoadingThread::QueueEvent_SetupImports(FAsyncPackage* Package, int32 
 		FAsyncPackage* Pkg = GetPackage(WeakPtr);
 		if (Pkg)
 		{
-			TRACE_LOADTIME_ASYNC_PACKAGE_SCOPE(Pkg, LoadTimeProfilerPackageEventType_SetupImports);
 			Pkg->SetTimeLimit(Args, TEXT("Setup Imports"));
 			Pkg->Event_SetupImports();
 		}
@@ -2245,7 +2245,6 @@ void FAsyncLoadingThread::QueueEvent_SetupExports(FAsyncPackage* Package, int32 
 		FAsyncPackage* Pkg = GetPackage(WeakPtr);
 		if (Pkg)
 		{
-			TRACE_LOADTIME_ASYNC_PACKAGE_SCOPE(Pkg, LoadTimeProfilerPackageEventType_SetupExports);
 			Pkg->SetTimeLimit(Args, TEXT("Setup Exports"));
 			Pkg->Event_SetupExports();
 		}
@@ -2282,7 +2281,6 @@ void FAsyncLoadingThread::QueueEvent_ProcessImportsAndExports(FAsyncPackage* Pac
 		FAsyncPackage* Pkg = GetPackage(WeakPtr);
 		if (Pkg)
 		{
-			TRACE_LOADTIME_ASYNC_PACKAGE_SCOPE(Pkg, LoadTimeProfilerPackageEventType_ProcessImportsAndExports);
 			Pkg->SetTimeLimit(Args, TEXT("ProcessImportsAndExports"));
 			Pkg->Event_ProcessImportsAndExports();
 		}
@@ -2304,7 +2302,6 @@ void FAsyncLoadingThread::QueueEvent_ProcessPostloadWait(FAsyncPackage* Package,
 		FAsyncPackage* Pkg = GetPackage(WeakPtr);
 		if (Pkg)
 		{
-			TRACE_LOADTIME_ASYNC_PACKAGE_SCOPE(Pkg, LoadTimeProfilerPackageEventType_PostLoadWait);
 			Pkg->SetTimeLimit(Args, TEXT("Process Process Postload Wait"));
 			Pkg->Event_ProcessPostloadWait();
 		}
@@ -2326,7 +2323,6 @@ void FAsyncLoadingThread::QueueEvent_ExportsDone(FAsyncPackage* Package, int32 E
 		FAsyncPackage* Pkg = GetPackage(WeakPtr);
 		if (Pkg)
 		{
-			TRACE_LOADTIME_ASYNC_PACKAGE_SCOPE(Pkg, LoadTimeProfilerPackageEventType_ExportsDone);
 			Pkg->SetTimeLimit(Args, TEXT("Exports Done"));
 			Pkg->Event_ExportsDone();
 		}
@@ -2348,7 +2344,6 @@ void FAsyncLoadingThread::QueueEvent_StartPostLoad(FAsyncPackage* Package, int32
 		FAsyncPackage* Pkg = GetPackage(WeakPtr);
 		if (Pkg)
 		{
-			TRACE_LOADTIME_ASYNC_PACKAGE_SCOPE(Pkg, LoadTimeProfilerPackageEventType_StartPostLoad);
 			Pkg->SetTimeLimit(Args, TEXT("Start Post Load"));
 			Pkg->Event_StartPostload();
 		}
@@ -2767,7 +2762,7 @@ void FAsyncPackage::EventDrivenCreateExport(int32 LocalExportIndex)
 	SCOPED_LOADTIMER(Package_CreateExports);
 	FObjectExport& Export = Linker->ExportMap[LocalExportIndex];
 
-	TRACE_LOADTIME_CREATE_EXPORT_SCOPE(Linker, &Export.Object, Export.SerialOffset, Export.SerialSize, Export.bIsAsset);
+	TRACE_LOADTIME_CREATE_EXPORT_SCOPE(this, &Export.Object);
 
 	LLM_SCOPE(ELLMTag::AsyncLoading);
 	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(GetLinkerRoot(), ELLMTagSet::Assets);
@@ -3151,7 +3146,7 @@ void FAsyncPackage::EventDrivenSerializeExport(int32 LocalExportIndex)
 
 		Object->ClearFlags(RF_NeedLoad);
 
-		TRACE_LOADTIME_OBJECT_SCOPE(Object, LoadTimeProfilerObjectEventType_Serialize);
+		TRACE_LOADTIME_SERIALIZE_EXPORT_SCOPE(Object, Export.SerialSize);
 
 		FUObjectSerializeContext* LoadContext = GetSerializeContext();
 		UObject* PrevSerializedObject = LoadContext->SerializedObject;
@@ -4377,6 +4372,8 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadedPackages(bool bUseTim
 				PackagesToDelete.AddUnique(Package);
 				Package->MarkRequestIDsAsComplete();
 
+				TRACE_LOADTIME_END_LOAD_ASYNC_PACKAGE(Package);
+
 				if (IsTimeLimitExceeded(TickStartTime, bUseTimeLimit, TimeLimit, TEXT("ProcessLoadedPackages Misc")) || (FlushTree && !ContainsRequestID(FlushTree->RequestId)))
 				{
 					// The only package we care about has finished loading, so we're good to exit
@@ -5197,7 +5194,6 @@ FAsyncPackage::FAsyncPackage(FAsyncLoadingThread& InThread, const FAsyncPackageD
 
 FAsyncPackage::~FAsyncPackage()
 {
-	TRACE_LOADTIME_DESTROY_ASYNC_PACKAGE(this);
 #if DO_CHECK
 	if (GEventDrivenLoaderEnabled)
 	{
@@ -5224,6 +5220,8 @@ FAsyncPackage::~FAsyncPackage()
 	}
 
 	EmptyReferencedObjects();
+
+	TRACE_LOADTIME_DESTROY_ASYNC_PACKAGE(this);
 }
 
 
@@ -5419,7 +5417,6 @@ EAsyncPackageState::Type FAsyncPackage::TickAsyncPackage(bool InbUseTimeLimit, b
 
 	ReentryCount++;
 
-	TRACE_LOADTIME_ASYNC_PACKAGE_SCOPE(this, LoadTimeProfilerPackageEventType_Tick);
 	SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_Tick);
 	SCOPED_LOADTIMER(Package_Tick);
 
@@ -5786,7 +5783,6 @@ EAsyncPackageState::Type FAsyncPackage::CreateLinker()
 		check(Linker);
 		check(Linker->AsyncRoot == nullptr || Linker->AsyncRoot == this);
 		Linker->AsyncRoot = this;
-		TRACE_LOADTIME_ASYNC_PACKAGE_LINKER_ASSOCIATION(this, Linker);
 
 		UE_LOG(LogStreaming, Verbose, TEXT("FAsyncPackage::CreateLinker for %s finished."), *Desc.NameToLoad.ToString());
 	}
@@ -6351,7 +6347,7 @@ EAsyncPackageState::Type FAsyncPackage::PostLoadObjects()
 
 				ThreadContext.CurrentlyPostLoadedObjectByALT = Object;
 				{
-					TRACE_LOADTIME_OBJECT_SCOPE(Object, LoadTimeProfilerObjectEventType_PostLoad);
+					TRACE_LOADTIME_POSTLOAD_EXPORT_SCOPE(Object);
 					Object->ConditionalPostLoad();
 					Object->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading);
 				}
@@ -6427,7 +6423,7 @@ EAsyncPackageState::Type FAsyncPackage::PostLoadDeferredObjects(double InTickSta
 
 		PackageScope.ThreadContext.CurrentlyPostLoadedObjectByALT = Object;
 		{
-			TRACE_LOADTIME_OBJECT_SCOPE(Object, LoadTimeProfilerObjectEventType_PostLoad);
+			TRACE_LOADTIME_POSTLOAD_EXPORT_SCOPE(Object);
 			Object->ConditionalPostLoad();
 		}
 		PackageScope.ThreadContext.CurrentlyPostLoadedObjectByALT = nullptr;

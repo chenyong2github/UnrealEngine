@@ -57,8 +57,7 @@ struct FTimingEvent
 
 		LoadingInfo.Package = nullptr;
 		LoadingInfo.Export = nullptr;
-		LoadingInfo.PackageEventType = LoadTimeProfilerPackageEventType_None;
-		LoadingInfo.ExportEventType = LoadTimeProfilerObjectEventType_None;
+		LoadingInfo.EventType = Trace::LoadTimeProfilerObjectEventType_None;
 
 		Offset = 0;
 		Size = 0;

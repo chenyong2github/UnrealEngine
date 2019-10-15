@@ -35,7 +35,7 @@ void FLoadTimeProfilerModule::GetModuleInfo(FModuleInfo& OutModuleInfo)
 
 void FLoadTimeProfilerModule::OnAnalysisBegin(IAnalysisSession& Session)
 {
-	FLoadTimeProfilerProvider* LoadTimeProfilerProvider = new FLoadTimeProfilerProvider(Session);
+	FLoadTimeProfilerProvider* LoadTimeProfilerProvider = new FLoadTimeProfilerProvider(Session, EditCounterProvider(Session));
 	Session.AddProvider(LoadTimeProfilerProviderName, LoadTimeProfilerProvider);
 	Session.AddAnalyzer(new FAsyncLoadingTraceAnalyzer(Session, *LoadTimeProfilerProvider));
 	FFileActivityProvider* FileActivityProvider = new FFileActivityProvider(Session);

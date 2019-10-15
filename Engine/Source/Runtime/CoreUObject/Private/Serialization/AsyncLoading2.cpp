@@ -960,7 +960,8 @@ private:
 	FEventLoadNode2* ExportNodes = nullptr;
 	uint32 ImportNodeCount = 0;
 	uint32 ExportNodeCount = 0;
-	
+
+	uint64 PackageSummarySize = 0;
 	FIoBuffer PackageSummaryIoBuffer;
 	TArray<FIoBuffer> ExportIoBuffers;
 
@@ -2106,6 +2107,7 @@ uint32 FAsyncLoadingThreadWorker::Run()
 void FAsyncLoadingThread2Impl::QueueEvent_CreateLinker(FAsyncPackage2* Package)
 {
 	check(Package);
+	TRACE_LOADTIME_BEGIN_LOAD_ASYNC_PACKAGE(Package);
 	Package->GetNode(EEventLoadNode2::Package_CreateLinker)->ReleaseBarrier();
 }
 
@@ -2278,6 +2280,7 @@ void FAsyncPackage2::ImportPackagesRecursive()
 		Info.Priority = Desc.Priority;
 		bool bInserted;
 		FAsyncPackage2* ImportedAsyncPackage = AsyncLoadingThread.FindOrInsertPackage(&Info, bInserted);
+		TRACE_LOADTIME_ASYNC_PACKAGE_IMPORT_DEPENDENCY(this, ImportedAsyncPackage);
 		ImportedAsyncPackage->AddRef();
 		ImportedAsyncPackages.Add(ImportedAsyncPackage);
 		if (bInserted)
@@ -2351,6 +2354,7 @@ void FAsyncPackage2::ImportPackagesRecursive()
 			Info.Priority = Desc.Priority;
 			bool bInserted;
 			FAsyncPackage2* ImportedAsyncPackage = AsyncLoadingThread.FindOrInsertPackage(&Info, bInserted);
+			TRACE_LOADTIME_ASYNC_PACKAGE_IMPORT_DEPENDENCY(this, ImportedAsyncPackage);
 			ImportedAsyncPackage->AddRef();
 			ImportedAsyncPackages.Add(ImportedAsyncPackage);
 			if (bInserted)
@@ -2546,16 +2550,16 @@ void FAsyncPackage2::LinkSlimport(int32 LocalImportIndex, int32 GlobalImportInde
 		check(Outer);
 
 		Object = StaticFindObjectFast(UObject::StaticClass(), Outer, ObjectName, false, true);
-		if (!Object)
+		/*if (!Object)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(LinkImport_SpinWait);
 			while (!Object)
 			{
 				Object = StaticFindObjectFast(UObject::StaticClass(), Outer, ObjectName, false, true);
 			}
-		}
+		}*/
 	}
-	check(Object);
+	//check(Object);
 }
 
 UObject* FAsyncPackage2::EventDrivenIndexToObject(FPackageIndex Index, bool bCheckSerialized)
@@ -2604,7 +2608,7 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 	//SCOPED_LOADTIMER(Package_CreateExports);
 	FObjectExport& Export = ExportMap[LocalExportIndex];
 
-	TRACE_LOADTIME_CREATE_EXPORT_SCOPE(Linker, &Export.Object, Export.SerialOffset, Export.SerialSize, Export.bIsAsset);
+	TRACE_LOADTIME_CREATE_EXPORT_SCOPE(this, &Export.Object);
 
 	LLM_SCOPE(ELLMTag::AsyncLoading);
 	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(GetLinkerRoot(), ELLMTagSet::Assets);
@@ -2960,7 +2964,7 @@ void FAsyncPackage2::EventDrivenSerializeExport(int32 LocalExportIndex)
 
 		Object->ClearFlags(RF_NeedLoad);
 
-		TRACE_LOADTIME_OBJECT_SCOPE(Object, LoadTimeProfilerObjectEventType_Serialize);
+		TRACE_LOADTIME_SERIALIZE_EXPORT_SCOPE(Object, ExportIoBuffers[LocalExportIndex].DataSize());
 
 		FUObjectSerializeContext* LoadContext = GetSerializeContext();
 		UObject* PrevSerializedObject = LoadContext->SerializedObject;
@@ -3148,6 +3152,7 @@ void FAsyncPackage2::ProcessIoRequest(const FIoChunkId& ChunkId, TIoStatusOr<FIo
 	{
 	case EChunkType::PackageSummary:
 	{
+		PackageSummarySize = IoBuffer.DataSize();
 		PackageSummaryIoBuffer = IoBuffer;
 		GetNode(EEventLoadNode2::Package_LoadSummary)->ReleaseBarrier();
 		break;
@@ -3402,6 +3407,8 @@ EAsyncPackageState::Type FAsyncLoadingThread2Impl::ProcessLoadedPackagesFromGame
 			const int32 NewExistingAsyncPackagesCounterValue = ExistingAsyncPackagesCounter.Decrement();
 
 			UE_CLOG(NewExistingAsyncPackagesCounterValue < 0, LogStreaming, Fatal, TEXT("ExistingAsyncPackagesCounter is negative, this means we loaded more packages then requested so there must be a bug in async loading code."));
+
+			TRACE_LOADTIME_END_LOAD_ASYNC_PACKAGE(Package);
 
 			// Call external callbacks
 			const bool bInternalCallbacks = false;
@@ -4152,7 +4159,7 @@ FAsyncPackage2::FAsyncPackage2(const FAsyncPackageDesc& InDesc, int32 InSerialNu
 , bAllExportsSerialized(false)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(NewAsyncPackage);
-	//TRACE_LOADTIME_NEW_ASYNC_PACKAGE(this, *InDesc.Name.ToString());
+	TRACE_LOADTIME_NEW_ASYNC_PACKAGE(this, *InDesc.Name.ToString());
 	AddRequestID(InDesc.RequestID);
 
 	const int32* NameIndex = AsyncLoadingThread.GlobalNameMap.GetIndex(Desc.NameToLoad);
@@ -4246,7 +4253,7 @@ FAsyncPackage2::~FAsyncPackage2()
 
 	FAsyncLoadingThreadState2::Get().DeferredFreeNodes.Add(MakeTuple(PackageNodes, EEventLoadNode2::Package_NumPhases + ImportNodeCount + ExportNodeCount));
 
-	//TRACE_LOADTIME_DESTROY_ASYNC_PACKAGE(this);
+	TRACE_LOADTIME_DESTROY_ASYNC_PACKAGE(this);
 
 	MarkRequestIDsAsComplete();
 	DetachLinker();
@@ -4291,7 +4298,7 @@ void FAsyncPackage2::AddRequestID(int32 Id)
 		}
 		RequestIDs.Add(Id);
 		AsyncLoadingThread.AddPendingRequest(Id);
-		//TRACE_LOADTIME_ASYNC_PACKAGE_REQUEST_ASSOCIATION(this, Id);
+		TRACE_LOADTIME_ASYNC_PACKAGE_REQUEST_ASSOCIATION(this, Id);
 	}
 }
 
@@ -4474,6 +4481,8 @@ EAsyncPackageState::Type FAsyncPackage2::FinishLinker()
 	const int32 ExportCount = AsyncLoadingThread.GetPackageExportCount(GlobalPackageId);
 	check(ExportCount);
 
+	TRACE_LOADTIME_PACKAGE_SUMMARY(this, PackageSummarySize, AsyncLoadingThread.GetPackageImportCount(GlobalPackageId), ExportCount);
+
 	{
 		SCOPED_LOADTIMER(LinkerLoad_SerializePackageFileSummary);
 
@@ -4593,7 +4602,7 @@ EAsyncPackageState::Type FAsyncPackage2::PostLoadObjects()
 
 				ThreadContext.CurrentlyPostLoadedObjectByALT = Object;
 				{
-					TRACE_LOADTIME_OBJECT_SCOPE(Object, LoadTimeProfilerObjectEventType_PostLoad);
+					TRACE_LOADTIME_POSTLOAD_EXPORT_SCOPE(Object);
 					Object->ConditionalPostLoad();
 					Object->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading);
 				}
@@ -4653,7 +4662,7 @@ EAsyncPackageState::Type FAsyncPackage2::PostLoadDeferredObjects()
 
 		PackageScope.ThreadContext.CurrentlyPostLoadedObjectByALT = Object;
 		{
-			TRACE_LOADTIME_OBJECT_SCOPE(Object, LoadTimeProfilerObjectEventType_PostLoad);
+			TRACE_LOADTIME_POSTLOAD_EXPORT_SCOPE(Object);
 			Object->ConditionalPostLoad();
 		}
 		PackageScope.ThreadContext.CurrentlyPostLoadedObjectByALT = nullptr;
