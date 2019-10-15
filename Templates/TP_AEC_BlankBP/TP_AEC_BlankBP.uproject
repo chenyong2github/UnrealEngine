@@ -18,6 +18,10 @@
 			"Enabled": true
 		},
 		{
+			"Name": "DatasmithCADImporter",
+			"Enabled": true
+		},
+		{
 			"Name": "VariantManager",
 			"Enabled": True
 		},
@@ -32,6 +36,10 @@
 		{
 			"Name": "SequencerScripting",
 			"Enabled": false
+		},
+				{
+			"Name": "StaticMeshEditorExtension",
+			"Enabled": true
 		}
 	]
 }
