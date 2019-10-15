@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using AutomationTool;
 using System;
@@ -18,37 +18,37 @@ namespace BuildGraph.Tasks
 	public class CookTaskParameters
 	{
 		/// <summary>
-		/// Project file to be cooked
+		/// Project file to be cooked.
 		/// </summary>
 		[TaskParameter]
 		public string Project;
 
 		/// <summary>
-		/// The cook platform to target (eg. WindowsNoEditor)
+		/// The cook platform to target (for example, WindowsNoEditor).
 		/// </summary>
 		[TaskParameter]
 		public string Platform;
 
 		/// <summary>
-		/// List of maps to be cooked, separated by '+' characters
+		/// List of maps to be cooked, separated by '+' characters.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public string Maps;
 
 		/// <summary>
-		/// Additional arguments to be passed to the cooker
+		/// Additional arguments to be passed to the cooker.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public bool Versioned = false;
 	
 		/// <summary>
-		/// Additional arguments to be passed to the cooker
+		/// Additional arguments to be passed to the cooker.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public string Arguments = "";
 
 		/// <summary>
-		/// Tag to be applied to build products of this task
+		/// Tag to be applied to build products of this task.
 		/// </summary>
 		[TaskParameter(Optional = true, ValidationType = TaskParameterValidationType.TagList)]
 		public string Tag;

@@ -17,50 +17,50 @@ namespace AutomationTool.Tasks
 	public class CsCompileTaskParameters
 	{
 		/// <summary>
-		/// The C# project file to be compile. More than one project file can be specified by separating with semicolons.
+		/// The C# project file to compile. Using semicolons, more than one project file can be specified.
 		/// </summary>
 		[TaskParameter]
 		public string Project;
 
 		/// <summary>
-		/// The configuration to compile
+		/// The configuration to compile.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public string Configuration;
 
 		/// <summary>
-		/// The platform to compile
+		/// The platform to compile.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public string Platform;
 
 		/// <summary>
-		/// The target to build
+		/// The target to build.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public string Target;
 
 		/// <summary>
-		/// Additional options to pass to the compiler
+		/// Additional options to pass to the compiler.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public string Arguments;
 
 		/// <summary>
-		/// Only enumerate build products; do not actually compile the projects.
+		/// Only enumerate build products -- do not actually compile the projects.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public bool EnumerateOnly;
 
 		/// <summary>
-		/// Tag to be applied to build products of this task
+		/// Tag to be applied to build products of this task.
 		/// </summary>
 		[TaskParameter(Optional = true, ValidationType = TaskParameterValidationType.TagList)]
 		public string Tag;
 
 		/// <summary>
-		/// Tag to be applied to any non-private references the projects have
-		/// (i.e. those that are external and not copied into the output dir)
+		/// Tag to be applied to any non-private references the projects have.
+		/// (for example, those that are external and not copied into the output directory).
 		/// </summary>
 		[TaskParameter(Optional = true, ValidationType = TaskParameterValidationType.TagList)]
 		public string TagReferences;

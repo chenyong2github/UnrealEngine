@@ -17,19 +17,19 @@ namespace AutomationTool.Tasks
 	public class SubmitTaskParameters
 	{
 		/// <summary>
-		/// The description for the submitted changelist
+		/// The description for the submitted changelist.
 		/// </summary>
 		[TaskParameter]
 		public string Description;
 
 		/// <summary>
-		/// The files to submit
+		/// The files to submit.
 		/// </summary>
 		[TaskParameter(ValidationType = TaskParameterValidationType.FileSpec)]
 		public string Files;
 
 		/// <summary>
-		/// The Perforce file type for the submitted files (eg. binary+FS32)
+		/// The Perforce file type for the submitted files (for example, binary+FS32).
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public string FileType;
@@ -41,7 +41,7 @@ namespace AutomationTool.Tasks
 		public string Workspace;
 
 		/// <summary>
-		/// The stream for the workspace; defaults to the current stream. Ignored unless the Workspace attribute is also specified.
+		/// The stream for the workspace -- defaults to the current stream. Ignored unless the Workspace attribute is also specified.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public string Stream;
@@ -53,13 +53,13 @@ namespace AutomationTool.Tasks
 		public DirectoryReference RootDir;
 
 		/// <summary>
-		/// Whether to revert unchanged files before attempting to submit
+		/// Whether to revert unchanged files before attempting to submit.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public bool RevertUnchanged;
 
 		/// <summary>
-		/// Force the submit to happen, even if a resolve is needed (always accept current version)
+		/// Force the submit to happen -- even if a resolve is needed (always accept current version).
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public bool Force;
