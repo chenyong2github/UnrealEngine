@@ -2,32 +2,19 @@
 
 #pragma once
 
-#include "SelectionSystem/DataprepFilter.h"
+#include "SelectionSystem/DataprepStringFilter.h"
 
-#include "CoreMinimal.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectMacros.h"
+#include "DataprepStringsArrayFilter.generated.h"
 
-#include "DataprepStringFilter.generated.h"
-
-class UDataprepStringFetcher;
-
-UENUM()
-enum class EDataprepStringMatchType : uint8
-{
-	Contains,
-	MatchesWildcard,
-	ExactMatch
-};
-
+class UDataprepStringsArrayFetcher;
 
 UCLASS()
-class DATAPREPCORE_API UDataprepStringFilter : public UDataprepFilter
+class DATAPREPCORE_API UDataprepStringsArrayFilter : public UDataprepFilter
 {
 	GENERATED_BODY()
 
 public:
-	bool Filter(const FString& String) const;
+	bool Filter(const TArray<FString>& StringArray) const;
 
 	//~ Begin UDataprepFilter Interface
 	virtual TArray<UObject*> FilterObjects(const TArray<UObject*>& Objects) const override;
@@ -55,5 +42,5 @@ private:
 
 	// The source of string selected by the user
 	UPROPERTY()
-	UDataprepStringFetcher* StringFetcher;
+	UDataprepStringsArrayFetcher* StringsArrayFetcher;
 };

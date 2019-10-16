@@ -9,17 +9,17 @@
 #include "Widgets/SCompoundWidget.h"
 
 class SComboButton;
-class UDataprepStringFilter;
 
 template<class t>
 class SComboBox;
 
+template <class FilterType>
 class SDataprepStringFilter : public SCompoundWidget,  public FGCObject
 {
 	SLATE_BEGIN_ARGS(SDataprepStringFilter) {}
 	SLATE_END_ARGS();
 
-	void Construct(const FArguments& InArgs, UDataprepStringFilter& InFilter);
+	void Construct(const FArguments& InArgs, FilterType& InFilter);
 
 private:
 	// The string matching option for the combo box ( Displayed text, Tooltip, mapping for the UEnum)
@@ -43,7 +43,7 @@ private:
 
 	FString OldUserString;
 
-	UDataprepStringFilter* Filter;
+	FilterType* Filter;
 
 	TArray<TSharedPtr<FListEntry>> StringMatchingOptions;
 
