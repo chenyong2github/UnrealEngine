@@ -5,19 +5,17 @@
 #include "CoreMinimal.h"
 
 #include "CADLibraryOptions.h"
-#include "DatasmithImportOptions.h"
 #include "DatasmithCADTranslatorImpl.h"
-#include "Translators/DatasmithTranslator.h"
+#include "DatasmithCoreTechTranslator.h"
 #include "UObject/ObjectMacros.h"
 
-class FDatasmithCADTranslatorImpl;
 
-
-class FDatasmithCADTranslator : public IDatasmithTranslator
+class FDatasmithCADTranslator : public FDatasmithCoreTechTranslator
 {
 public:
 	FDatasmithCADTranslator();
 
+	// Begin IDatasmithTranslator overrides
 	virtual FName GetFName() const override { return "DatasmithCADTranslator"; };
 
 	virtual void Initialize(FDatasmithTranslatorCapabilities& OutCapabilities) override;
@@ -28,12 +26,13 @@ public:
 	virtual void UnloadScene() override;
 
 	virtual bool LoadStaticMesh(const TSharedRef<IDatasmithMeshElement> MeshElement, FDatasmithMeshElementPayload& OutMeshPayload) override;
+	// End IDatasmithTranslator overrides
 
-	virtual void GetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options) override;
+	// Begin ADatasmithCoreTechTranslator overrides
 	virtual void SetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options) override;
+	// End ADatasmithCoreTechTranslator overrides
 
 private:
 	TSharedPtr<FDatasmithCADTranslatorImpl> Translator;
-	FDatasmithTessellationOptions TessellationOptions;
 };
 
