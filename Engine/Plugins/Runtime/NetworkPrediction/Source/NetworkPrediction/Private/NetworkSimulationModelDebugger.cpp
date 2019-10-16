@@ -122,7 +122,7 @@ FAutoConsoleCommandWithWorldAndArgs NetworkSimulationModelDebugClassCmd(TEXT("nm
 
 		for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
 		{
-			if (ClassIt->GetName().Contains(Args[0]))
+			if (ClassIt->IsChildOf(AActor::StaticClass()) && ClassIt->GetName().Contains(Args[0]))
 			{
 				Class = *ClassIt;
 				UE_LOG(LogNetworkSimDebug, Display, TEXT("Found: %s"), *Class->GetName());
@@ -139,6 +139,7 @@ FAutoConsoleCommandWithWorldAndArgs NetworkSimulationModelDebugClassCmd(TEXT("nm
 	}
 
 	// Probably need to do distance based sorting or a way to specify which one you want.
+	bool bFound = false;
 	for (TActorIterator<AActor> It(World); It; ++It)
 	{
 		if (It->GetClass()->IsChildOf(Class))
@@ -147,7 +148,12 @@ FAutoConsoleCommandWithWorldAndArgs NetworkSimulationModelDebugClassCmd(TEXT("nm
 			{
 				UE_LOG(LogNetworkSimDebug, Display, TEXT("Toggling NetworkSim debugger for %s"), *It->GetName());
 				FNetworkSimulationModelDebuggerManager::Get().ToggleDebuggerActive(*It);
+				bFound = true;
 			}
 		}
+	}
+	if (!bFound)
+	{
+		UE_LOG(LogNetworkSimDebug, Display, TEXT("Unable to find actors matching search criteria. Class: %s"), *GetNameSafe(Class));
 	}
 }));

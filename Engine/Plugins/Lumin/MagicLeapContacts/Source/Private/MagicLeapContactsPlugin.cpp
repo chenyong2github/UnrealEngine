@@ -388,6 +388,12 @@ MLContactsSearchField FMagicLeapContactsPlugin::UESearchFieldToMLSearchField(EMa
 	return SearchField;
 }
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:6386) /* Buffer overrun while writing to '<array>': the writable size is '<array size>' bytes, but '<write size>' bytes might be written */
+							  /* After careful code analysis, we've determine this warning is incorrect in this case, do disabling at function scope. */
+#endif
+
 void FMagicLeapContactsPlugin::UEToMLContact(const FMagicLeapContact& InUEContact, MLContactsContact& OutMLContact)
 {
 	MLContactsContactInit(&OutMLContact);
@@ -430,6 +436,10 @@ void FMagicLeapContactsPlugin::UEToMLContact(const FMagicLeapContact& InUEContac
 		MLEmailAddresses[iEmailAddress] = MLEmailAddress;
 	}
 }
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 void FMagicLeapContactsPlugin::DestroyMLContact(MLContactsContact& OutMLContact)
 {

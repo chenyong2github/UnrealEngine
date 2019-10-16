@@ -20,9 +20,9 @@ public class FreeImage : ModuleRules
 			PublicDelayLoadDLLs.Add("FreeImage.dll");
 			PublicDelayLoadDLLs.Add("LibRaw.dll");
 
-			string DllPath = Path.Combine(Target.UEThirdPartyBinariesDirectory, "FreeImage");
-			RuntimeDependencies.Add(DllPath + Target.Platform.ToString() + "/FreeImage.dll");
-			RuntimeDependencies.Add(DllPath + Target.Platform.ToString() + "/LibRaw.dll");
+			string DllPath = Path.Combine(Target.UEThirdPartyBinariesDirectory, "FreeImage", Target.Platform.ToString());
+			RuntimeDependencies.Add(Path.Combine(DllPath, "FreeImage.dll"));
+			RuntimeDependencies.Add(Path.Combine(DllPath, "LibRaw.dll"));
 		}
 	}
 }
