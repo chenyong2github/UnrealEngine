@@ -40,11 +40,6 @@ void SDataprepFloatFilter::Construct(const FArguments& InArgs, UDataprepFloatFil
 				+ SHorizontalBox::Slot()
 				.Padding( 5.f )
 				[
-					SNew( SDataprepFetcherSelector, InFilter )
-				]
-				+ SHorizontalBox::Slot()
-				.Padding( 5.f )
-				[
 					SAssignNew( FloatMatchingCriteriaWidget, SComboBox< TSharedPtr< FListEntry > > )
 					.OptionsSource( &FloatMatchingOptions )
 					.OnGenerateWidget( this, &SDataprepFloatFilter::OnGenerateWidgetForMatchingCriteria )
