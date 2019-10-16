@@ -14,7 +14,6 @@
 #include "Templates/UnrealTemplate.h"
 #include "UObject/Object.h"
 #include "UObject/PropertyPortFlags.h"
-#include "UObject/StructOnScope.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UnrealType.h"
@@ -349,12 +348,12 @@ bool UDataprepParameterizationBindings::ContainsBinding(const TSharedRef<FDatapr
 	return BindingToParameterName.Contains( Binding );
 }
 
-bool UDataprepParameterizationBindings::HasBindingsForParameter(FName ParameterName) const
+bool UDataprepParameterizationBindings::HasBindingsForParameter(const FName& ParameterName) const
 {
 	return NameToBindings.Contains( ParameterName );
 }
 
-void UDataprepParameterizationBindings::Add(const TSharedRef<FDataprepParameterizationBinding>& Binding, FName ParamerterName)
+void UDataprepParameterizationBindings::Add(const TSharedRef<FDataprepParameterizationBinding>& Binding, const FName& ParamerterName)
 {
 	Modify();
 
@@ -420,6 +419,26 @@ FName UDataprepParameterizationBindings::RemoveBinding(const TSharedRef<FDatapre
 	}
 
 	return NAME_None;
+}
+
+TSet<FName> UDataprepParameterizationBindings::RemoveAllBindingsFromObject(UObject* Object)
+{
+	if ( FSetOfBinding* Bindings = ObjectToBindings.Find( Object ) )
+	{
+		Modify();
+
+		// Remove the bindings
+		TSet<FName> ParameterName;
+		TArray<TSharedRef<FDataprepParameterizationBinding>> BindingsToRemove( Bindings->Array() );
+		for ( TSharedRef<FDataprepParameterizationBinding>& Binding : BindingsToRemove )
+		{
+			ParameterName.Add( RemoveBinding( Binding ) );
+		}
+
+		return ParameterName;
+	}
+
+	return {};
 }
 
 const UDataprepParameterizationBindings::FBindingToParameterNameMap& UDataprepParameterizationBindings::GetBindingToParameterName() const
@@ -663,7 +682,7 @@ UObject* UDataprepParameterization::GetDefaultObject()
 	return DefaultParameterisation;
 }
 
-bool UDataprepParameterization::BindObjectProperty(UObject* InObject, const TArray<FDataprepPropertyLink>& InPropertyChain, FName ParameterName)
+bool UDataprepParameterization::BindObjectProperty(UObject* InObject, const TArray<FDataprepPropertyLink>& InPropertyChain, const FName& ParameterName)
 {
 	if ( InObject && InPropertyChain.Num() > 0 && !ParameterName.IsNone() )
 	{
@@ -687,7 +706,6 @@ bool UDataprepParameterization::BindObjectProperty(UObject* InObject, const TArr
 			else
 			{
 				Modify();
-				OnCustomClassAboutToBeUpdated.Broadcast();
 
 				BindingsContainer->Add( Binding, ParameterName );
 			
@@ -725,10 +743,29 @@ void UDataprepParameterization::RemoveBindedObjectProperty(UObject* Object, cons
 	FName ParameterOfRemovedBinding = BindingsContainer->RemoveBinding( Binding );
 	if ( !BindingsContainer->HasBindingsForParameter( ParameterOfRemovedBinding ) )
 	{
-		OnCustomClassAboutToBeUpdated.Broadcast();
 		NameToParameterizationProperty.Remove( ParameterOfRemovedBinding );
 		UpdateClass();
 	}
+}
+
+void UDataprepParameterization::RemoveBindingFromObjects(TArray<UObject*> Objects)
+{
+	Modify();
+	TSet<FName> ParameterPotentiallyRemoved;
+	for ( UObject* Object : Objects )
+	{
+		ParameterPotentiallyRemoved.Append( BindingsContainer->RemoveAllBindingsFromObject( Object ) );
+	}
+
+	for ( const FName& Name : ParameterPotentiallyRemoved )
+	{
+		if ( !BindingsContainer->HasBindingsForParameter( Name ) )
+		{
+			NameToParameterizationProperty.Remove( Name );
+		}
+	}
+
+	UpdateClass();
 }
 
 void UDataprepParameterization::GenerateClass()
@@ -771,15 +808,10 @@ void UDataprepParameterization::GenerateClass()
 
 void UDataprepParameterization::UpdateClass()
 {
+	OnCustomClassAboutToBeUpdated.Broadcast();
+
 	// Move away the old class
-	if ( CustomContainerClass )
-	{
-		const FString OldClassName = MakeUniqueObjectName( CustomContainerClass->GetOuter(), CustomContainerClass->GetClass(), *FString::Printf(TEXT("%s_REINST"), *CustomContainerClass->GetName()) ).ToString();
-		CustomContainerClass->ClassFlags |= CLASS_NewerVersionExists;
-		CustomContainerClass->SetFlags( RF_NewerVersionExists );
-		CustomContainerClass->ClearFlags( RF_Public | RF_Standalone );
-		CustomContainerClass->Rename( *OldClassName, nullptr, REN_DontCreateRedirectors | REN_DoNotDirty );
-	}
+	PrepareCustomClassForNewClassGeneration();
 
 	UClass* OldClass = CustomContainerClass;
 
@@ -803,7 +835,7 @@ void UDataprepParameterization::LoadParameterization()
 
 		for ( const TPair<TSharedRef<FDataprepParameterizationBinding>, FName>& Binding : BindingsContainer->GetBindingToParameterName() )
 		{
-			const FName BindingName = Binding.Value;
+			const FName& BindingName = Binding.Value;
 
 			UProperty* PropertyFromChain = DataprepParameterization::GetPropertyFromBinding( Binding.Key.Get() );
 			UProperty** PropertyFromParameterizationClass = NameToParameterizationProperty.Find( BindingName );
@@ -912,7 +944,7 @@ void UDataprepParameterization::DoReinstancing(UClass* OldClass, bool bMigrateDa
 	}
 }
 
-UProperty* UDataprepParameterization::AddPropertyToClass(FName ParameterisationPropertyName, UProperty& Property)
+UProperty* UDataprepParameterization::AddPropertyToClass(const FName& ParameterisationPropertyName, UProperty& Property)
 {
 	if ( !NameToParameterizationProperty.Find( ParameterisationPropertyName ) )
 	{

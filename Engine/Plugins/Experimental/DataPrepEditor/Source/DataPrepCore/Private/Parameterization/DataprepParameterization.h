@@ -91,8 +91,6 @@ struct FDataprepParametrizationBindingSetKeyFuncs : DefaultKeyFuncs<TSharedRef<F
 	}
 };
 
-
-
 /**
  * Encapsulate the unidirectionality necessary for a constant cost of access to the data related to the bindings
  */
@@ -113,18 +111,25 @@ public:
 	/**
 	 * Does the data structure has some bindings for the parameter name
 	 */
-	bool HasBindingsForParameter(FName ParameterName) const;
+	bool HasBindingsForParameter(const FName& ParameterName) const;
 
 	/**
 	 * Add a binding and map it to the parameter
 	 */
-	void Add(const TSharedRef<FDataprepParameterizationBinding>& Binding, FName ParameterName);
+	void Add(const TSharedRef<FDataprepParameterizationBinding>& Binding, const FName& ParameterName);
 
 	/**
 	 * Remove a binding.
 	 * @return The name of the parameter the binding was associated with
 	 */
 	FName RemoveBinding(const TSharedRef<FDataprepParameterizationBinding>& Binding);
+
+
+	/**
+	 * Remove all the bindings from a object
+	 * @return The name of the parameters that were associated to the binding of the object
+	 */
+	TSet<FName> RemoveAllBindingsFromObject(UObject* Object);
 
 	const FBindingToParameterNameMap& GetBindingToParameterName() const;
 
@@ -179,14 +184,15 @@ public:
 
 	void OnObjectModified(UObject* Object);
 
-
 	UObject* GetDefaultObject();
 
-	bool BindObjectProperty(UObject* Object, const TArray<FDataprepPropertyLink>& PropertyChain, FName Name);
+	bool BindObjectProperty(UObject* Object, const TArray<FDataprepPropertyLink>& PropertyChain, const FName& Name);
 
 	bool IsObjectPropertyBinded(UObject* Object, const TArray<FDataprepPropertyLink>& PropertyChain) const;
 
 	void RemoveBindedObjectProperty(UObject* Object, const TArray<FDataprepPropertyLink>& PropertyChain);
+
+	void RemoveBindingFromObjects(TArray<UObject*> Objects);
 
 private:
 
@@ -199,7 +205,7 @@ private:
 	 * Update the Custom Container Class to a newer version
 	 */
 	void UpdateClass();
-	
+
 	/**
 	 * Do the process of regenerating the Custom Container Class and the data of its default object from the serialized data
 	 */
@@ -221,7 +227,7 @@ private:
 	 * Try adding a binded property to the parameterization class
 	 * @return false if the binding is no more valid
 	 */
-	UProperty* AddPropertyToClass(FName ParameterisationPropertyName, UProperty& Property);
+	UProperty* AddPropertyToClass(const FName& ParameterisationPropertyName, UProperty& Property);
 
 	// The containers for the bindings
 	UPROPERTY()

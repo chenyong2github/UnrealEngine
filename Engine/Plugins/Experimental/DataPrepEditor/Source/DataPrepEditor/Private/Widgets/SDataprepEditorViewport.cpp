@@ -8,11 +8,13 @@
 #include "DataprepEditorLogCategory.h"
 
 #include "ActorEditorUtils.h"
+#include "AssetViewerSettings.h"
 #include "Async/ParallelFor.h"
 #include "ComponentReregisterContext.h"
 #include "Editor.h"
 #include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/TextureCube.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GenericPlatform/GenericPlatformTime.h"
@@ -25,11 +27,13 @@
 #include "MaterialShared.h"
 #include "MeshDescription.h"
 #include "MeshDescriptionOperations.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopedSlowTask.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "SceneInterface.h"
 #include "SEditorViewportToolBarMenu.h"
+#include "Settings/LevelEditorViewportSettings.h"
 #include "Slate/SceneViewport.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/SBoxPanel.h"
@@ -45,8 +49,10 @@ TWeakObjectPtr<UMaterial> SDataprepEditorViewport::XRayMaterial;
 TWeakObjectPtr<UMaterial> SDataprepEditorViewport::BackFaceMaterial;
 TWeakObjectPtr<UMaterial> SDataprepEditorViewport::PerMeshMaterial;
 TWeakObjectPtr<UMaterial> SDataprepEditorViewport::ReflectionMaterial;
-TWeakObjectPtr<UMaterialInstanceConstant> SDataprepEditorViewport::SelectionMaterial;
+TWeakObjectPtr<UMaterialInstanceConstant> SDataprepEditorViewport::TransparentMaterial;
 TArray<TWeakObjectPtr<UMaterialInstanceConstant>> SDataprepEditorViewport::PerMeshMaterialInstances;
+int32 SDataprepEditorViewport::AssetViewerProfileIndex = INDEX_NONE;
+
 
 const FColor PerMeshColor[] =
 {
@@ -222,6 +228,7 @@ SDataprepEditorViewport::SDataprepEditorViewport()
 	, Extender( MakeShareable( new FExtender ) )
 	, WorldToPreview( nullptr )
 	, RenderingMaterialType( ERenderingMaterialType::OriginalRenderingMaterial )
+	, CurrentSelectionMode( ESelectionModeType::OutlineSelectionMode )
 	, bWireframeRenderingMode( false )
 #ifdef VIEWPORT_EXPERIMENTAL
 	, bShowOrientedBox( false )
@@ -471,6 +478,8 @@ void SDataprepEditorViewport::UpdateMeshes()
 							PreviewMeshComponent->SetMaterial( Index, DisplayMaterialsMap[MaterialInterface].Get() );
 						}
 
+						PreviewMeshComponent->SelectionOverrideDelegate = UPrimitiveComponent::FSelectionOverride::CreateRaw( this, &SDataprepEditorViewport::IsComponentSelected );
+
 						PreviewMeshComponents.Emplace( PreviewMeshComponent );
 
 						MeshComponentsMapping.Add( SceneMeshComponent, PreviewMeshComponent );
@@ -699,6 +708,17 @@ void SDataprepEditorViewport::BindCommands()
 		FCanExecuteAction(),
 		FIsActionChecked::CreateSP( this, &SDataprepEditorViewport::IsRenderingMaterialApplied, ERenderingMaterialType::ReflectionRenderingMaterial ) );
 
+	CommandList->MapAction(
+		Commands.ApplyOutlineSelection,
+		FExecuteAction::CreateSP( this, &SDataprepEditorViewport::SetSelectionMode, ESelectionModeType::OutlineSelectionMode ),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP( this, &SDataprepEditorViewport::IsSetSelectionModeApplied, ESelectionModeType::OutlineSelectionMode ) );
+
+	CommandList->MapAction(
+		Commands.ApplyXRaySelection,
+		FExecuteAction::CreateSP( this, &SDataprepEditorViewport::SetSelectionMode, ESelectionModeType::XRaySelectionMode ),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP( this, &SDataprepEditorViewport::IsSetSelectionModeApplied, ESelectionModeType::XRaySelectionMode ) );
 
 	CommandList->MapAction(
 		Commands.ApplyWireframeMode,
@@ -770,20 +790,20 @@ void SDataprepEditorViewport::InitializeDefaultMaterials()
 		Materials.Add( PreviewMaterial.Get() );
 	}
 
-	if(!SelectionMaterial.IsValid())
+	if(!TransparentMaterial.IsValid())
 	{
-		SelectionMaterial = TWeakObjectPtr<UMaterialInstanceConstant>( NewObject<UMaterialInstanceConstant>( GetTransientPackage(), NAME_None, EObjectFlags::RF_Transient) );
-		SelectionMaterial->Parent = PreviewMaterial.Get();
+		TransparentMaterial = TWeakObjectPtr<UMaterialInstanceConstant>( NewObject<UMaterialInstanceConstant>( GetTransientPackage(), NAME_None, EObjectFlags::RF_Transient) );
+		TransparentMaterial->Parent = PreviewMaterial.Get();
 
-		SelectionMaterial->BasePropertyOverrides.bOverride_BlendMode = true;
-		SelectionMaterial->BasePropertyOverrides.BlendMode = BLEND_Translucent;
+		TransparentMaterial->BasePropertyOverrides.bOverride_BlendMode = true;
+		TransparentMaterial->BasePropertyOverrides.BlendMode = BLEND_Translucent;
 
-		SelectionMaterial->SetScalarParameterValueEditorOnly( TEXT("Transparency"), 0.75f );
-		SelectionMaterial->SetVectorParameterValueEditorOnly( TEXT( "DiffuseColor" ), FLinearColor::Gray );
+		TransparentMaterial->SetScalarParameterValueEditorOnly( TEXT("Transparency"), 0.75f );
+		TransparentMaterial->SetVectorParameterValueEditorOnly( TEXT( "DiffuseColor" ), FLinearColor::Gray );
 
-		check( SelectionMaterial.IsValid() );
+		check( TransparentMaterial.IsValid() );
 
-		Materials.Add( SelectionMaterial.Get() );
+		Materials.Add( TransparentMaterial.Get() );
 	}
 
 	if(!XRayMaterial.IsValid())
@@ -1049,20 +1069,6 @@ void SDataprepEditorViewport::UpdateSelection()
 		return;
 	}
 
-	// Set all meshes transparent
-	for( const TWeakObjectPtr< UStaticMeshComponent >& PreviewMeshComponent : PreviewMeshComponents )
-	{
-		if(UStaticMeshComponent* MeshComponent = PreviewMeshComponent.Get())
-		{
-			for(UMaterialInterface*& MaterialInterface : MeshComponent->OverrideMaterials)
-			{
-				MaterialInterface = SelectionMaterial.Get();
-			}
-
-			MeshComponent->MarkRenderStateDirty();
-		}
-	}
-
 	// Apply materials. Only selected ones will be affected
 	ApplyRenderingMaterial();
 
@@ -1082,6 +1088,12 @@ void SDataprepEditorViewport::UpdateSelection()
 	}
 
 	SceneViewport->Invalidate();
+}
+
+bool SDataprepEditorViewport::IsComponentSelected(const UPrimitiveComponent* InPrimitiveComponent)
+{
+	UPrimitiveComponent* PrimitiveComponent = const_cast<UPrimitiveComponent*>(InPrimitiveComponent);
+	return SelectedPreviewComponents.Contains( Cast<UCustomStaticMeshComponent>(PrimitiveComponent) ) && CurrentSelectionMode == ESelectionModeType::OutlineSelectionMode;
 }
 
 void SDataprepEditorViewport::SetRenderingMaterial(ERenderingMaterialType InRenderingMaterialType)
@@ -1107,6 +1119,16 @@ void SDataprepEditorViewport::ToggleWireframeRenderingMode()
 	}
 
 	SceneViewport->Invalidate();
+}
+
+void SDataprepEditorViewport::SetSelectionMode(ESelectionModeType InSelectionMode)
+{
+	if(CurrentSelectionMode != InSelectionMode)
+	{
+		CurrentSelectionMode = InSelectionMode;
+
+		ApplyRenderingMaterial();
+	}
 }
 
 UMaterialInterface* SDataprepEditorViewport::GetRenderingMaterial(UStaticMeshComponent* PreviewMeshComponent)
@@ -1173,9 +1195,46 @@ void SDataprepEditorViewport::ApplyRenderingMaterial()
 
 	if(SelectedPreviewComponents.Num() > 0)
 	{
-		for( UStaticMeshComponent* PreviewMeshComponent : SelectedPreviewComponents )
+		switch(CurrentSelectionMode)
 		{
-			ApplyMaterial( PreviewMeshComponent );
+			case ESelectionModeType::XRaySelectionMode:
+			{
+				// Apply transparent material on all mesh components
+				for( const TWeakObjectPtr< UStaticMeshComponent >& PreviewMeshComponentPtr : PreviewMeshComponents )
+				{
+					if(UStaticMeshComponent* PreviewMeshComponent = PreviewMeshComponentPtr.Get())
+					{
+						UStaticMesh* StaticMesh = PreviewMeshComponent->GetStaticMesh();
+
+						for(int32 Index = 0; Index < StaticMesh->StaticMaterials.Num(); ++Index)
+						{
+							PreviewMeshComponent->SetMaterial( Index, TransparentMaterial.Get() );
+						}
+
+						PreviewMeshComponent->MarkRenderStateDirty();
+					}
+				}
+
+				// Apply rendering material only on selected mesh components
+				for( UStaticMeshComponent* PreviewMeshComponent : SelectedPreviewComponents )
+				{
+					ApplyMaterial( PreviewMeshComponent );
+				}
+			}
+			break;
+
+			default:
+			case ESelectionModeType::OutlineSelectionMode:
+			{
+				for( const TWeakObjectPtr< UStaticMeshComponent >& PreviewMeshComponentPtr : PreviewMeshComponents )
+				{
+					if(UStaticMeshComponent* PreviewMeshComponent = PreviewMeshComponentPtr.Get())
+					{
+						ApplyMaterial( PreviewMeshComponent );
+					}
+				}
+			}
+			break;
 		}
 	}
 	else
@@ -1192,6 +1251,68 @@ void SDataprepEditorViewport::ApplyRenderingMaterial()
 	SceneViewport->Invalidate();
 }
 
+void SDataprepEditorViewport::LoadDefaultSettings()
+{
+	// Find index of Dataprep's viewport's settings
+	const TCHAR* DataprepViewportSettingProfileName = TEXT("DataprepViewportSetting");
+
+	UAssetViewerSettings* DefaultSettings = UAssetViewerSettings::Get();
+	check(DefaultSettings);
+
+	for(int32 Index = 0; Index < DefaultSettings->Profiles.Num(); ++Index)
+	{
+		if(DefaultSettings->Profiles[Index].ProfileName == DataprepViewportSettingProfileName)
+		{
+			AssetViewerProfileIndex = Index;
+			break;
+		}
+	}
+
+	// No profile found, create one
+	if(AssetViewerProfileIndex == INDEX_NONE)
+	{
+		FPreviewSceneProfile Profile = DefaultSettings->Profiles[0];
+
+		Profile.bSharedProfile = false;
+		Profile.ProfileName = DataprepViewportSettingProfileName;
+		AssetViewerProfileIndex = DefaultSettings->Profiles.Num();
+
+		DefaultSettings->Profiles.Add( Profile );
+		DefaultSettings->Save();
+	}
+
+	// Update the profile with the settings for the project
+	FPreviewSceneProfile& DataprepViewportSettingProfile = 	DefaultSettings->Profiles[AssetViewerProfileIndex];
+
+	// Read default settings, tessellation and import, for Datasmith file producer
+	const FString DataprepEditorIni = FString::Printf(TEXT("%s%s/%s.ini"), *FPaths::GeneratedConfigDir(), ANSI_TO_TCHAR(FPlatformProperties::PlatformName()), TEXT("DataprepEditor") );
+
+	const TCHAR* ViewportSectionName = TEXT("ViewportSettings");
+	if(GConfig->DoesSectionExist( ViewportSectionName, DataprepEditorIni ))
+	{
+		FString EnvironmentCubeMapPath = GConfig->GetStr( ViewportSectionName, TEXT("EnvironmentCubeMap"), DataprepEditorIni);
+
+		if(EnvironmentCubeMapPath != DataprepViewportSettingProfile.EnvironmentCubeMapPath)
+		{
+			// Check that the Cube map does exist
+			FSoftObjectPath EnvironmentCubeMap( DataprepViewportSettingProfile.EnvironmentCubeMapPath );
+			UObject* LoadedObject = EnvironmentCubeMap.TryLoad();
+
+			while (UObjectRedirector* Redirector = Cast<UObjectRedirector>( LoadedObject ))
+			{
+				LoadedObject = Redirector->DestinationObject;
+			}
+
+			// Good to go, update the profile's related parameters
+			if( Cast<UTextureCube>( LoadedObject ) != nullptr )
+			{
+				DataprepViewportSettingProfile.EnvironmentCubeMapPath = EnvironmentCubeMapPath;
+				DataprepViewportSettingProfile.EnvironmentCubeMap = EnvironmentCubeMap;
+			}
+		}
+	}
+}
+
 //
 // FDataprepEditorViewportClient Class
 //
@@ -1201,12 +1322,17 @@ FDataprepEditorViewportClient::FDataprepEditorViewportClient(const TSharedRef<SE
 	, AdvancedPreviewScene( nullptr )
 	, DataprepEditorViewport( nullptr )
 {
+	EngineShowFlags.SetSelectionOutline( true );
+
 	if (EditorViewportWidget.IsValid())
 	{
 		DataprepEditorViewport = static_cast<SDataprepEditorViewport*>( EditorViewportWidget.Pin().Get() );
 	}
 
 	AdvancedPreviewScene = static_cast<FAdvancedPreviewScene*>(PreviewScene);
+	check(AdvancedPreviewScene);
+
+	AdvancedPreviewScene->SetProfileIndex( SDataprepEditorViewport::AssetViewerProfileIndex );
 }
 
 bool FDataprepEditorViewportClient::InputKey(FViewport * InViewport, int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed, bool bGamepad)
@@ -1430,9 +1556,15 @@ TSharedRef<SWidget> SDataprepEditorViewportToolbar::GenerateRenderingMenu() cons
 		MenuBuilder.BeginSection("DataprepEditorViewportRenderingMenu", LOCTEXT("DataprepEditor_RenderingMaterial", "Materials"));
 		MenuBuilder.AddMenuEntry(Commands.ApplyOriginalMaterial);
 		MenuBuilder.AddMenuEntry(Commands.ApplyBackFaceMaterial);
+#ifdef VIEWPORT_EXPERIMENTAL
 		MenuBuilder.AddMenuEntry(Commands.ApplyXRayMaterial);
+#endif
 		MenuBuilder.AddMenuEntry(Commands.ApplyPerMeshMaterial);
 		MenuBuilder.AddMenuEntry(Commands.ApplyReflectionMaterial);
+		MenuBuilder.EndSection();
+		MenuBuilder.BeginSection("DataprepEditorViewportRenderingMenu", LOCTEXT("DataprepEditor_SelectionMode", "Selection"));
+		MenuBuilder.AddMenuEntry(Commands.ApplyOutlineSelection);
+		MenuBuilder.AddMenuEntry(Commands.ApplyXRaySelection);
 		MenuBuilder.EndSection();
 		MenuBuilder.BeginSection("DataprepEditorViewportRenderingMenu", LOCTEXT("DataprepEditor_RenderingMode", "Modes"));
 		MenuBuilder.AddMenuEntry(Commands.ApplyWireframeMode);
@@ -1496,6 +1628,10 @@ void FDataprepEditorViewportCommands::RegisterCommands()
 	UI_COMMAND(ApplyXRayMaterial, "XRay", "Use XRay material to render meshes.", EUserInterfaceActionType::RadioButton, FInputChord());
 	UI_COMMAND(ApplyPerMeshMaterial, "MultiColored", "Assign a different color for each rendered mesh.", EUserInterfaceActionType::RadioButton, FInputChord());
 	UI_COMMAND(ApplyReflectionMaterial, "ReflectionLines", "Use reflective material to show lines of reflection.", EUserInterfaceActionType::RadioButton, FInputChord());
+	
+	// Selection Mode
+	UI_COMMAND(ApplyOutlineSelection, "Outline", "Outline selected meshes with a colored contour.", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(ApplyXRaySelection, "XRay", "Use XRay material on non selected meshes.", EUserInterfaceActionType::RadioButton, FInputChord());
 
 	// Rendering Mode
 	UI_COMMAND(ApplyWireframeMode, "Wireframe", "Display all meshes in wireframe.", EUserInterfaceActionType::ToggleButton, FInputChord());
