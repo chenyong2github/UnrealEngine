@@ -18,7 +18,7 @@ public:
 	/**
 	 * Called to enumerate all the sessions under the given root path and retrieve their session info.
 	 */
-	virtual void GetSessionsFromPath(const IConcertServer& InServer, const FString& InPath, TArray<FConcertSessionInfo>& OutSessionInfos, TArray<FDateTime>* OutSessionLastModifiedTimes = nullptr) = 0;
+	virtual void GetSessionsFromPath(const IConcertServer& InServer, const FString& InPath, TArray<FConcertSessionInfo>& OutSessionInfos, TArray<FDateTime>* OutSessionCreationTimes = nullptr) = 0;
 
 	/**
 	 * Called after the session has been created (and before Startup has been called on it).
