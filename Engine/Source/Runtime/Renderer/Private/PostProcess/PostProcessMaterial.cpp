@@ -330,6 +330,12 @@ FScreenPassTexture AddPostProcessMaterialPass(
 	// or we need to retain previously rendered views.
 	const bool bPrimeOutputColor = bIsCompositeWithInput || !View.IsFirstInFamily();
 
+	// Inputs.OverrideOutput is used to force drawing directly to the backbuffer. OpenGL doesn't support using the backbuffer color target with a custom depth/stencil
+	// buffer, so in that case we must draw to an intermediate target and copy to the backbuffer at the end. Ideally, we would test if Inputs.OverrideOutput.Texture
+	// is actually the backbuffer (as returned by AndroidEGL::GetOnScreenColorRenderBuffer() and such), but it's not worth doing all the plumbing and increasing the
+	// RHI surface area just for this hack.
+	const bool bForceIntermediateRT = !GRHISupportsBackBufferWithCustomDepthStencil && (DepthStencilTexture != nullptr) && Inputs.OverrideOutput.IsValid();
+
 	FScreenPassRenderTarget Output = Inputs.OverrideOutput;
 
 	// We can re-use the scene color texture as the render target if we're not simultaneously reading from it.
@@ -342,7 +348,7 @@ FScreenPassTexture AddPostProcessMaterialPass(
 	else
 	{
 		// Allocate new transient output texture if none exists.
-		if (!Output.IsValid())
+		if (!Output.IsValid() || bForceIntermediateRT)
 		{
 			FRDGTextureDesc OutputDesc = SceneColor.Texture->Desc;
 			OutputDesc.Reset();
@@ -356,7 +362,7 @@ FScreenPassTexture AddPostProcessMaterialPass(
 			Output = FScreenPassRenderTarget(GraphBuilder.CreateTexture(OutputDesc, TEXT("PostProcessMaterial")), SceneColor.ViewRect, View.GetOverwriteLoadAction());
 		}
 
-		if (bPrimeOutputColor)
+		if (bPrimeOutputColor || bForceIntermediateRT)
 		{
 			// Copy existing contents to new output and use load-action to preserve untouched pixels.
 			AddDrawTexturePass(GraphBuilder, View, SceneColor.Texture, Output.Texture);
@@ -457,6 +463,14 @@ FScreenPassTexture AddPostProcessMaterialPass(
 			FSceneRenderTargets::Get(RHICmdList).AdjustGBufferRefCount(RHICmdList, -1);
 		}
 	});
+
+	if (bForceIntermediateRT)
+	{
+		// We shouldn't get here unless we had an override target.
+		check(Inputs.OverrideOutput.IsValid());
+		AddDrawTexturePass(GraphBuilder, View, Output.Texture, Inputs.OverrideOutput.Texture);
+		Output = Inputs.OverrideOutput;
+	}
 
 	return MoveTemp(Output);
 }
