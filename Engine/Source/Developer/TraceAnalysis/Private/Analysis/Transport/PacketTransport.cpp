@@ -6,6 +6,16 @@ namespace Trace
 {
 
 ////////////////////////////////////////////////////////////////////////////////
+struct FPayloadTransport::FPacketNode
+{
+	FPacketNode*		Next;
+	uint32				Cursor;
+	uint16				Serial;
+	uint16				Size;
+	uint8				Data[];
+};
+
+////////////////////////////////////////////////////////////////////////////////
 FPayloadTransport::~FPayloadTransport()
 {
 	for (FPacketNode* Root : {ActiveList, PendingList, FreeList})

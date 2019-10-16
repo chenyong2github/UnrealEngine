@@ -17,15 +17,7 @@ public:
 	virtual const uint8*	GetPointerImpl(uint32 BlockSize) override;
 
 private:
-	struct FPacketNode
-	{
-		FPacketNode*		Next;
-		uint32				Cursor;
-		uint16				Serial;
-		uint16				Size;
-		uint8				Data[];
-	};
-
+	struct					FPacketNode;
 	bool					GetNextBatch();
 	static const uint32		MaxPacketSize = 8192;
 	FPacketNode*			ActiveList = nullptr;
