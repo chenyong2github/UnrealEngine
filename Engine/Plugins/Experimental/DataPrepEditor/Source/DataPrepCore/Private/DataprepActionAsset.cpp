@@ -8,6 +8,7 @@
 #include "DataprepCoreLogCategory.h"
 #include "DataprepCorePrivateUtils.h"
 #include "DataprepCoreUtils.h"
+#include "DataprepParameterizableObject.h"
 #include "IDataprepLogger.h"
 #include "IDataprepProgressReporter.h"
 #include "Parameterization/DataprepParameterization.h"
@@ -258,7 +259,17 @@ bool UDataprepActionAsset::RemoveStep(int32 Index)
 			{
 				TArray< UObject* > Objects;
 				GetObjectsWithOuter( Steps[Index], Objects );
-				Parameterization->RemoveBindingFromObjects( Objects );
+				TArray< UDataprepParameterizableObject* > ParameterizableObjects;
+				ParameterizableObjects.Reserve( Objects.Num() );
+				for ( UObject* Object : Objects )
+				{
+					if ( Object->IsA<UDataprepParameterizableObject>() )
+					{
+						ParameterizableObjects.Add( static_cast<UDataprepParameterizableObject*>( Object ) );
+					}
+				}
+
+				Parameterization->RemoveBindingFromObjects( ParameterizableObjects );
 			}
 		}
 
@@ -284,11 +295,20 @@ void UDataprepActionAsset::NotifyDataprepSystemsOfRemoval()
 		if ( UDataprepParameterization * Parameterization = DataprepAsset->GetDataprepParameterization() )
 		{
 			TArray< UObject* > Objects;
+			TArray< UDataprepParameterizableObject* > ParameterizableObjects;
 			for ( UDataprepActionStep* Step : Steps )
 			{
 				GetObjectsWithOuter( Step, Objects );
+				ParameterizableObjects.Reserve( Objects.Num() );
+				for ( UObject* Object : Objects )
+				{
+					if ( Object->IsA<UDataprepParameterizableObject>() )
+					{
+						ParameterizableObjects.Add( static_cast<UDataprepParameterizableObject*>( Object ) );
+					}
+				}
 			}
-			Parameterization->RemoveBindingFromObjects( Objects );
+			Parameterization->RemoveBindingFromObjects( ParameterizableObjects );
 		}
 	}
 }
