@@ -16,7 +16,7 @@ TRACELOG_API int32 Decode(const void*, int32, void*, int32);
 
 
 ////////////////////////////////////////////////////////////////////////////////
-struct FPayloadTransport::FPacketNode
+struct FPacketTransport::FPacketNode
 {
 	FPacketNode*		Next;
 	uint32				Cursor;
@@ -25,8 +25,10 @@ struct FPayloadTransport::FPacketNode
 	uint8				Data[];
 };
 
+
+
 ////////////////////////////////////////////////////////////////////////////////
-FPayloadTransport::~FPayloadTransport()
+FPacketTransport::~FPacketTransport()
 {
 	for (FPacketNode* Root : {ActiveList, PendingList, FreeList})
 	{
@@ -40,7 +42,7 @@ FPayloadTransport::~FPayloadTransport()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void FPayloadTransport::Advance(uint32 BlockSize)
+void FPacketTransport::Advance(uint32 BlockSize)
 {
 	if (ActiveList != nullptr)
 	{
@@ -49,7 +51,7 @@ void FPayloadTransport::Advance(uint32 BlockSize)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-const uint8* FPayloadTransport::GetPointerImpl(uint32 BlockSize)
+const uint8* FPacketTransport::GetPointerImpl(uint32 BlockSize)
 {
 	if (ActiveList == nullptr && !GetNextBatch())
 	{
@@ -70,7 +72,7 @@ const uint8* FPayloadTransport::GetPointerImpl(uint32 BlockSize)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-FPayloadTransport::FPacketNode* FPayloadTransport::AllocateNode()
+FPacketTransport::FPacketNode* FPacketTransport::AllocateNode()
 {
 	FPacketNode* Node;
 	if (FreeList != nullptr)
@@ -88,7 +90,7 @@ FPayloadTransport::FPacketNode* FPayloadTransport::AllocateNode()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool FPayloadTransport::GetNextBatch()
+bool FPacketTransport::GetNextBatch()
 {
 	int16 LastSerial = -1;
 	if (PendingList != nullptr)

@@ -642,7 +642,7 @@ bool FAnalysisEngine::EstablishTransport(FStreamReader::FData& Data)
 	switch (Header->Format)
 	{
 	case 1:		Transport = new FTransport(); break;
-	case 2:		Transport = new FPayloadTransport(); break;
+	case 2:		Transport = new FPacketTransport(); break;
 	default:	return false;
 	//case 'E':	/* See the magic above */ break;
 	//case 'T':	/* See the magic above */ break;
