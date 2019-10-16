@@ -82,7 +82,7 @@ void SPropertyValueWidget::Construct( const FArguments& InArgs, TSharedPtr<FProp
 
 	if ( !ValueEditorWidget->GetToolTip().IsValid() )
 	{
-		ValueEditorWidget->SetToolTipText( PropertyEditor->GetToolTipText() );
+		ValueEditorWidget->SetToolTipText(TAttribute<FText>(PropertyEditor.ToSharedRef(), &FPropertyEditor::GetValueAsText));
 	}
 
 
