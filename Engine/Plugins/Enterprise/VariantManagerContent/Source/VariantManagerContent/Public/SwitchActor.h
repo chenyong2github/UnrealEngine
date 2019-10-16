@@ -37,4 +37,8 @@ public:
 
 private:
 	FOnSwitchActorSwitch OnSwitchActorSwitch;
+
+	// Exposing our root component like this allows manual Mobility control on the details panel
+	UPROPERTY(Category = SwitchActor, VisibleAnywhere)
+	class USceneComponent* SceneComponent;
 };

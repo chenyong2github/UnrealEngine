@@ -1122,15 +1122,24 @@ bool FDatasmithDeltaGenImporter::SendSceneToDatasmith()
 		for (FDeltaGenTmlDataTimeline& Timeline : TmlTimelines)
 		{
 			TSharedPtr<IDatasmithLevelSequenceElement> ConvertedSequence = ConvertAnimationTimeline(Timeline);
-			DatasmithScene->AddLevelSequence(ConvertedSequence.ToSharedRef());
+			if (ConvertedSequence.IsValid())
+			{
+				DatasmithScene->AddLevelSequence(ConvertedSequence.ToSharedRef());
+			}
 		}
 
 		TMap<FName, TArray<TSharedPtr<IDatasmithActorElement>>> ImportedActorsByOriginalName;
 		TMap<FName, TSharedPtr<IDatasmithBaseMaterialElement>> ImportedMaterialsByName;
 		BuildAssetMaps(DatasmithScene, ImportedActorsByOriginalName, ImportedMaterialsByName);
 
-		TSharedPtr<IDatasmithLevelVariantSetsElement> LevelVariantSets = FDeltaGenVariantConverter::ConvertVariants(VariantSwitches, PosStates, ImportedActorsByOriginalName, ImportedMaterialsByName);
-		DatasmithScene->AddLevelVariantSets(LevelVariantSets.ToSharedRef());
+		if (ImportOptions->bImportVar)
+		{
+			TSharedPtr<IDatasmithLevelVariantSetsElement> LevelVariantSets = FDeltaGenVariantConverter::ConvertVariants(VariantSwitches, PosStates, ImportedActorsByOriginalName, ImportedMaterialsByName);
+			if (LevelVariantSets.IsValid())
+			{
+				DatasmithScene->AddLevelVariantSets(LevelVariantSets.ToSharedRef());
+			}
+		}
 	}
 	else
 	{
