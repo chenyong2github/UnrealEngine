@@ -538,13 +538,15 @@ namespace UnrealBuildTool
 			// ASan
 			if (Options.HasFlag(LinuxToolChainOptions.EnableAddressSanitizer))
 			{
-				Result += " -fsanitize=address";
+				// Force using the ANSI allocator if ASan is enabled
+				Result += " -fsanitize=address -DFORCE_ANSI_ALLOCATOR=1";
 			}
 
 			// TSan
 			if (Options.HasFlag(LinuxToolChainOptions.EnableThreadSanitizer))
 			{
-				Result += " -fsanitize=thread";
+				// Force using the ANSI allocator if TSan is enabled
+				Result += " -fsanitize=thread -DFORCE_ANSI_ALLOCATOR=1";
 			}
 
 			// UBSan
@@ -918,7 +920,7 @@ namespace UnrealBuildTool
 
 			if (Options.HasFlag(LinuxToolChainOptions.EnableAddressSanitizer) || Options.HasFlag(LinuxToolChainOptions.EnableThreadSanitizer) || Options.HasFlag(LinuxToolChainOptions.EnableUndefinedBehaviorSanitizer))
 			{
-				Result += " -g";
+				Result += " -g -shared-libsan";
 				if (Options.HasFlag(LinuxToolChainOptions.EnableAddressSanitizer))
 				{
 					Result += " -fsanitize=address";
@@ -930,6 +932,12 @@ namespace UnrealBuildTool
 				else if (Options.HasFlag(LinuxToolChainOptions.EnableUndefinedBehaviorSanitizer))
 				{
 					Result += " -fsanitize=undefined";
+				}
+
+				if (CrossCompiling())
+				{
+					Result += string.Format(" -Wl,-rpath=\"{0}/lib/clang/{1}.{2}.{3}/lib/linux\"",
+							BaseLinuxPath, CompilerVersionMajor, CompilerVersionMinor, CompilerVersionPatch);
 				}
 			}
 
@@ -1140,6 +1148,17 @@ namespace UnrealBuildTool
 				Log.TraceInformation("Using {0} standard C++ library.", ShouldUseLibcxx(CompileEnvironment.Architecture) ? "bundled libc++" : "compiler default (most likely libstdc++)");
 				Log.TraceInformation("Using {0}", UsingLld(CompileEnvironment.Architecture) ? "lld linker" : "default linker (ld)");
 				Log.TraceInformation("Using {0}", !String.IsNullOrEmpty(LlvmArPath) ? String.Format("llvm-ar : {0}", LlvmArPath) : String.Format("ar and ranlib: {0}, {1}", GetArPath(CompileEnvironment.Architecture), GetRanlibPath(CompileEnvironment.Architecture)));
+			}
+
+			if (Options.HasFlag(LinuxToolChainOptions.EnableAddressSanitizer) || Options.HasFlag(LinuxToolChainOptions.EnableThreadSanitizer) || Options.HasFlag(LinuxToolChainOptions.EnableUndefinedBehaviorSanitizer))
+			{
+				string SanitizerInfo = "Building with:";
+
+				SanitizerInfo += Options.HasFlag(LinuxToolChainOptions.EnableAddressSanitizer) ? " AddressSanitizer" : "";
+				SanitizerInfo += Options.HasFlag(LinuxToolChainOptions.EnableThreadSanitizer) ? " ThreadSanitizer" : "";
+				SanitizerInfo += Options.HasFlag(LinuxToolChainOptions.EnableUndefinedBehaviorSanitizer) ? " UndefinedBehaviorSanitizer" : "";
+
+				Log.TraceInformation(SanitizerInfo);
 			}
 
 			// Also print other once-per-build information
