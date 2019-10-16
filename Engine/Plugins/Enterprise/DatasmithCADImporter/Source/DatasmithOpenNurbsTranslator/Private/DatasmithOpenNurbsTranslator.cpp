@@ -1978,7 +1978,9 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 
 	// 	ScalingFactor is defined according to input Rhino file unit. CT don't modify CAD input according to the set file unit.
 	ScalingFactor = 100 / Settings.m_ModelUnitsAndTolerances.Scale(ON::LengthUnitSystem::Meters);
+#ifdef CAD_LIBRARY
 	LocalSession->SetScaleFactor(ScalingFactor);
+#endif
 
 	// Step 4: REQUIRED - Read bitmap table (it can be empty)
 	int Count = 0;

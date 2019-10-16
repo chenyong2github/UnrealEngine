@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "CoreTechParser.h"
 
-#ifndef USE_CORETECH_MT_PARSER
+#if !defined(USE_CORETECH_MT_PARSER) && defined(CAD_LIBRARY)
 
 
 #include "CoreTechHelper.h"
