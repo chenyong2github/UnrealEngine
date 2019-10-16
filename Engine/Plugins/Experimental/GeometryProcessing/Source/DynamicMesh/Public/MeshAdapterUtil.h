@@ -24,6 +24,11 @@ namespace MeshAdapterUtil
 	FTriangleMeshAdapterd DYNAMICMESH_API MakeDynamicMeshAdapter(const FDynamicMesh3* Mesh);
 
 	/**
+	* @return Transformed adapter of a FDynamicMesh
+	*/
+	FTriangleMeshAdapterd DYNAMICMESH_API MakeTransformedDynamicMeshAdapter(const FDynamicMesh3* Mesh, FTransform Transform);
+
+	/**
 	 * @return Mesh vertices as a point set
 	 */
 	FPointSetAdapterd DYNAMICMESH_API MakeVerticesAdapter(const FDynamicMesh3* Mesh);

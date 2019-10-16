@@ -7,21 +7,15 @@
 #include "DynamicMeshEditor.h"
 #include "MeshNormals.h"
 
+#include "MeshAdapter.h"
+
 #include "Async/ParallelFor.h"
 #include "Misc/ScopeLock.h"
 
 
-
-bool FRemoveOccludedTriangles::Apply(FDynamicMeshAABBTree3* Spatial)
+template<typename OccluderTriangleMeshType>
+bool TRemoveOccludedTriangles<OccluderTriangleMeshType>::Apply(FTransform3d MeshLocalToOccluderSpace, TMeshAABBTree3<OccluderTriangleMeshType>* Spatial, TFastWindingTree<OccluderTriangleMeshType>* FastWindingTree)
 {
-	FDynamicMeshAABBTree3 SpatialIfNotPassed;
-	if (!Spatial)
-	{
-		Spatial = &SpatialIfNotPassed;
-		Spatial->SetMesh(Mesh, true);
-	}
-	TFastWindingTree<FDynamicMesh3> FastWinding(Spatial, InsideMode == ECalculationMode::FastWindingNumber);
-
 	if (Cancelled())
 	{
 		return false;
@@ -29,22 +23,29 @@ bool FRemoveOccludedTriangles::Apply(FDynamicMeshAABBTree3* Spatial)
 
 	// ray directions
 	TArray<FVector3d> RayDirs; int NR = 0;
-	if (InsideMode == ECalculationMode::SimpleOcclusionTest)
+	
+	if (InsideMode == EOcclusionCalculationMode::SimpleOcclusionTest)
 	{
 		RayDirs.Add(FVector3d::UnitX()); RayDirs.Add(-FVector3d::UnitX());
 		RayDirs.Add(FVector3d::UnitY()); RayDirs.Add(-FVector3d::UnitY());
 		RayDirs.Add(FVector3d::UnitZ()); RayDirs.Add(-FVector3d::UnitZ());
+
+		for (int AddRayIdx = 0; AddRayIdx < AddRandomRays; AddRayIdx++)
+		{
+			RayDirs.Add(FVector3d(FMath::VRand()));
+		}
 		NR = RayDirs.Num();
 	}
 
-	auto IsOccludedFWN = [this, &FastWinding](const FVector3d& Pt)
+	auto IsOccludedFWN = [this, &FastWindingTree](const FVector3d& Pt)
 	{
-		return FastWinding.FastWindingNumber(Pt) > WindingIsoValue;
+		return FastWindingTree->FastWindingNumber(Pt) > WindingIsoValue;
 	};
 	auto IsOccludedSimple = [this, &Spatial, &RayDirs, &NR](const FVector3d& Pt)
 	{
 		FRay3d Ray;
 		Ray.Origin = Pt;
+		
 		for (int RayIdx = 0; RayIdx < NR; ++RayIdx)
 		{
 			Ray.Direction = RayDirs[RayIdx];
@@ -58,33 +59,31 @@ bool FRemoveOccludedTriangles::Apply(FDynamicMeshAABBTree3* Spatial)
 	};
 
 	TFunctionRef<bool(const FVector3d& Pt)> IsOccludedF =
-			(InsideMode == ECalculationMode::FastWindingNumber) ? 
+			(InsideMode == EOcclusionCalculationMode::FastWindingNumber) ? 
 		(TFunctionRef<bool(const FVector3d& Pt)>)IsOccludedFWN : 
 		(TFunctionRef<bool(const FVector3d& Pt)>)IsOccludedSimple;
 
 	bool bForceSingleThread = false;
 
 	TArray<bool> VertexOccluded;
-	if ( TriangleSamplingMethod == ETriangleSampling::PerVertex )
+	if ( TriangleSamplingMethod == EOcclusionTriangleSampling::Vertices || TriangleSamplingMethod == EOcclusionTriangleSampling::VerticesAndCentroids )
 	{
-		VertexOccluded.SetNum(Mesh->VertexCount());
+		VertexOccluded.SetNum(Mesh->MaxVertexID());
 
+		// do not trust source mesh normals; safer to recompute
 		FMeshNormals Normals(Mesh);
-		if (Mesh->HasVertexNormals() == false)
-		{
-			Normals.ComputeVertexNormals();
-		}
+		Normals.ComputeVertexNormals();
 
-		ParallelFor(Mesh->MaxVertexID(), [this, &Normals, &VertexOccluded, &IsOccludedF](int32 VID)
+		ParallelFor(Mesh->MaxVertexID(), [this, &Normals, &VertexOccluded, &IsOccludedF, &MeshLocalToOccluderSpace](int32 VID)
 		{
 			if (!Mesh->IsVertex(VID))
 			{
 				return;
 			}
 			FVector3d SamplePos = Mesh->GetVertex(VID);
-			FVector3d Normal = Mesh->HasVertexNormals() ? (FVector3d)Mesh->GetVertexNormal(VID) : Normals[VID];
+			FVector3d Normal = Normals[VID];
 			SamplePos += Normal * NormalOffset;
-			VertexOccluded[VID] = IsOccludedF(SamplePos);
+			VertexOccluded[VID] = IsOccludedF(MeshLocalToOccluderSpace.TransformPosition(SamplePos));
 		}, bForceSingleThread);
 	}
 	if (Cancelled())
@@ -94,26 +93,27 @@ bool FRemoveOccludedTriangles::Apply(FDynamicMeshAABBTree3* Spatial)
 
 	RemovedT.Empty();
 	FCriticalSection RemoveTMutex;
-	ParallelFor(Mesh->MaxTriangleID(), [this, &VertexOccluded, &IsOccludedF, &RemoveTMutex](int32 TID)
+	ParallelFor(Mesh->MaxTriangleID(), [this, &VertexOccluded, &IsOccludedF, &RemoveTMutex, &MeshLocalToOccluderSpace](int32 TID)
 	{
 		if (!Mesh->IsTriangle(TID))
 		{
 			return;
 		}
 
-		bool bInside = false;
-		if (TriangleSamplingMethod == ETriangleSampling::PerVertex)
+		bool bInside = true;
+		if (TriangleSamplingMethod == EOcclusionTriangleSampling::Vertices || TriangleSamplingMethod == EOcclusionTriangleSampling::VerticesAndCentroids)
 		{
 			FIndex3i Tri = Mesh->GetTriangle(TID);
-			bInside = VertexOccluded[Tri.A] || VertexOccluded[Tri.B] || VertexOccluded[Tri.C];
+			bInside = VertexOccluded[Tri.A] && VertexOccluded[Tri.B] && VertexOccluded[Tri.C];
 		}
-		else
+		if (bInside && (TriangleSamplingMethod == EOcclusionTriangleSampling::Centroids || TriangleSamplingMethod == EOcclusionTriangleSampling::VerticesAndCentroids))
 		{
 			FVector3d Centroid, Normal;
 			double Area;
 			Mesh->GetTriInfo(TID, Normal, Area, Centroid);
+
 			FVector3d SamplePos = Centroid + Normal * NormalOffset;
-			bInside = IsOccludedF(SamplePos);
+			bInside = IsOccludedF(MeshLocalToOccluderSpace.TransformPosition(SamplePos));
 		}
 		if (bInside)
 		{

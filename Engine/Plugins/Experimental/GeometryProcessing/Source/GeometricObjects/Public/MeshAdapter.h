@@ -59,13 +59,13 @@ inline FTriangleMeshAdapterd GetArrayMesh(TArray<FVector>& Vertices, TArray<FInt
 /**
  * Faster adapter specifically for the common index mesh case
  */
-template<typename IndexType, typename OutRealType>
+template<typename IndexType, typename OutRealType, typename InVectorType=FVector>
 struct TIndexMeshArrayAdapter
 {
-	const TArray<FVector>* SourceVertices;
+	const TArray<InVectorType>* SourceVertices;
 	const TArray<IndexType>* SourceTriangles;
 
-	void SetSources(const TArray<FVector>* SourceVerticesIn, const TArray<uint32>* SourceTrianglesIn)
+	void SetSources(const TArray<InVectorType>* SourceVerticesIn, const TArray<IndexType>* SourceTrianglesIn)
 	{
 		SourceVertices = SourceVerticesIn;
 		SourceTriangles = SourceTrianglesIn;
@@ -75,7 +75,7 @@ struct TIndexMeshArrayAdapter
 	{
 	}
 
-	TIndexMeshArrayAdapter(const TArray<FVector>* SourceVerticesIn, const TArray<uint32>* SourceTrianglesIn) : SourceVertices(SourceVerticesIn), SourceTriangles(SourceTrianglesIn)
+	TIndexMeshArrayAdapter(const TArray<InVectorType>* SourceVerticesIn, const TArray<IndexType>* SourceTrianglesIn) : SourceVertices(SourceVerticesIn), SourceTriangles(SourceTrianglesIn)
 	{
 	}
 

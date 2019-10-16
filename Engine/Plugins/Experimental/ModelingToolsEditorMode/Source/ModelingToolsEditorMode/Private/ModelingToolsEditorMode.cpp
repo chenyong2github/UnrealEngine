@@ -30,6 +30,7 @@
 #include "DisplaceMeshTool.h"
 #include "MeshSpaceDeformerTool.h"
 #include "EditNormalsTool.h"
+#include "RemoveOccludedTrianglesTool.h"
 #include "AttributeEditorTool.h"
 #include "TransformMeshesTool.h"
 #include "MeshSelectionTool.h"
@@ -359,6 +360,10 @@ void FModelingToolsEditorMode::Enter()
 	auto EditNormalsToolBuilder = NewObject<UEditNormalsToolBuilder>();
 	EditNormalsToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
 	RegisterToolFunc(ToolManagerCommands.BeginEditNormalsTool, TEXT("EditNormalsTool"), EditNormalsToolBuilder);
+
+	auto RemoveOccludedTrianglesToolBuilder = NewObject<URemoveOccludedTrianglesToolBuilder>();
+	RemoveOccludedTrianglesToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	RegisterToolFunc(ToolManagerCommands.BeginRemoveOccludedTrianglesTool, TEXT("RemoveOccludedTrianglesTool"), RemoveOccludedTrianglesToolBuilder);
 
 	auto UVProjectionToolBuilder = NewObject<UUVProjectionToolBuilder>();
 	UVProjectionToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
