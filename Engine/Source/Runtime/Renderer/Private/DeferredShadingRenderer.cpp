@@ -131,6 +131,15 @@ static TAutoConsoleVariable<int32> CVarRayTracing(
 	TEXT(" 1: on"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
+int32 GRayTracingUseTextureLod = 0;
+static TAutoConsoleVariable<int32> CVarRayTracingTextureLod(
+	TEXT("r.RayTracing.UseTextureLod"),
+	GRayTracingUseTextureLod,
+	TEXT("Enable automatic texture mip level selection in ray tracing material shaders.\n")
+	TEXT(" 0: highest resolution mip level is used for all texture (default).\n")
+	TEXT(" 1: texture LOD is approximated based on total ray length, output resolution and texel density at hit point (ray cone method)."),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly);
+
 static int32 GForceAllRayTracingEffects = -1;
 static TAutoConsoleVariable<int32> CVarForceAllRayTracingEffects(
 	TEXT("r.RayTracing.ForceAllRayTracingEffects"),
