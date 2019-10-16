@@ -34,6 +34,7 @@ public:
 	 */
 	static void MakeMenu( FMenuBuilder& MenuBuilder )
 	{
+		TArray<FName> AllPlatformSubMenus;
 		const TArray<FString>& ConfidentalPlatforms = FDataDrivenPlatformInfoRegistry::GetConfidentialPlatforms();
 
 		TArray<PlatformInfo::FVanillaPlatformEntry> VanillaPlatforms = PlatformInfo::BuildPlatformHierarchy(PlatformInfo::EPlatformFilter::All);
@@ -67,7 +68,40 @@ public:
 				continue;
 			}
 
-			if (VanillaPlatform.PlatformFlavors.Num())
+			// Check if this platform has a submenu entry
+			if (VanillaPlatform.PlatformInfo->PlatformSubMenu != NAME_None)
+			{
+				TArray<const PlatformInfo::FPlatformInfo*> SubMenuEntries;
+				const FName& PlatformSubMenu = VanillaPlatform.PlatformInfo->PlatformSubMenu;
+
+				// Check if we've already added this submenu
+				if (AllPlatformSubMenus.Find(PlatformSubMenu) != INDEX_NONE)
+					continue;
+				AllPlatformSubMenus.Add(PlatformSubMenu);
+
+				// Go through all vanilla platforms looking for matching submenus
+				for (const PlatformInfo::FVanillaPlatformEntry& SubMenuVanillaPlatform : VanillaPlatforms)
+				{
+					const PlatformInfo::FPlatformInfo* PlatformInfo = SubMenuVanillaPlatform.PlatformInfo;
+
+					if ((PlatformInfo->PlatformType == EBuildTargetType::Game) && (PlatformInfo->PlatformSubMenu == PlatformSubMenu))
+					{
+						SubMenuEntries.Add(PlatformInfo);
+					}
+				}
+
+				if (SubMenuEntries.Num())
+				{
+					const FText DisplayName = FText::FromName(PlatformSubMenu);
+
+					MenuBuilder.AddSubMenu(
+							ProjectTargetPlatformEditorModule.MakePlatformMenuItemWidget(*VanillaPlatform.PlatformInfo, false, DisplayName), 
+							FNewMenuDelegate::CreateStatic(&FPackageProjectMenu::AddPlatformSubPlatformsToMenu, SubMenuEntries),
+							false
+							);
+				}
+			}
+			else if (VanillaPlatform.PlatformFlavors.Num())
 			{
 				MenuBuilder.AddSubMenu(
 					ProjectTargetPlatformEditorModule.MakePlatformMenuItemWidget(*VanillaPlatform.PlatformInfo), 
