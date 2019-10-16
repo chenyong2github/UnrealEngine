@@ -79,7 +79,7 @@ struct FRHIFlipDetails
 struct FRayTracingGeometryInstance
 {
 	FRHIRayTracingGeometry* GeometryRHI = nullptr;
-	FMatrix Transform = FMatrix(EForceInit::ForceInitToZero);
+	TArray<FMatrix, TInlineAllocator<1>> Transforms;
 	uint32 UserData = 0;
 	uint8 Mask = 0xFF;
 
