@@ -237,6 +237,11 @@ private:
 
 	bool IsNeedApplyLODChange() const
 	{
+		if (!BuildAvailable)
+		{
+			return true;
+		}
+
 		TSharedPtr<IPersonaToolkit> SharedToolkit = PersonaToolkit.Pin();
 		if (SharedToolkit.IsValid())
 		{
