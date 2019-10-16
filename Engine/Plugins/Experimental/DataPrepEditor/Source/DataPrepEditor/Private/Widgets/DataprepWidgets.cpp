@@ -724,10 +724,6 @@ void SDataprepDetailsView::Construct(const FArguments& InArgs)
 {
 	bRefreshObjectToDisplay = false;
 	DetailedObject = InArgs._Object;
-	if ( DetailedObject->IsA<UDataprepParameterizableObject>() )
-	{
-		DetailedObjectAsParameterizable = static_cast<UDataprepParameterizableObject*>( DetailedObject );
-	}
 
 	if (InArgs._ColumnSizeData.IsValid())
 	{
@@ -774,6 +770,11 @@ void SDataprepDetailsView::Construct()
 		if ( DataprepAsset )
 		{
 			OnDataprepParameterizationWasModifiedHandle = DataprepAsset->OnParameterizationWasModified.AddSP( this, &SDataprepDetailsView::ForceRefresh );
+		}
+
+		if ( DetailedObject->IsA<UDataprepParameterizableObject>() )
+		{
+			DetailedObjectAsParameterizable = static_cast<UDataprepParameterizableObject*>(DetailedObject);
 		}
 
 		FDataprepParameterizationContext ParameterizationContext;
