@@ -44,8 +44,8 @@ struct FObjectTrace
 
 #else
 
-#define TRACE_CLASS
-#define TRACE_OBJECT
-#define TRACE_OBJECT_EVENT
+#define TRACE_CLASS(Class)
+#define TRACE_OBJECT(Object)
+#define TRACE_OBJECT_EVENT(Object, Event)
 
 #endif
