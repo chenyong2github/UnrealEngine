@@ -145,17 +145,6 @@ void UParametricMovementComponent::BeginPlay()
 	CachedStartingTransform = UpdatedComponent->GetComponentToWorld();
 }
 
-void UParametricMovementComponent::InitSyncState(ParametricMovement::FMoveState& OutSyncState) const
-{
-	// In this case, we just default to the 0 position. Maybe this could be a starting variable set on the component.
-	OutSyncState.Position = 0.f;
-	OutSyncState.PlayRate = 0.f;
-}
-
-void UParametricMovementComponent::InitAuxState(ParametricMovement::FAuxState& OutAuxState) const
-{
-}
-
 void UParametricMovementComponent::FinalizeFrame(const ParametricMovement::FMoveState& SyncState, const ParametricMovement::FAuxState& AuxState)
 {
 	FTransform NewTransform;

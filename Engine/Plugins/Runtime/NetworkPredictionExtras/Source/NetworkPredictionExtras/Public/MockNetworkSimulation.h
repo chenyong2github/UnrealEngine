@@ -171,9 +171,7 @@ public:
 
 	FString GetDebugName() const override;
 	virtual UObject* GetVLogOwner() const override final;
-
-	void InitSyncState(FMockSyncState& OutSyncState) const override;
-	void InitAuxState(FMockAuxState& OutAuxState) const override;
+	
 	void ProduceInput(const FNetworkSimTime SimTime, FMockInputCmd& Cmd);
 	void FinalizeFrame(const FMockSyncState& SyncState, const FMockAuxState& AuxState) override;
 	

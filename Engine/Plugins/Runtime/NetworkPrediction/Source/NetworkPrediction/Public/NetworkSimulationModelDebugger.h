@@ -433,7 +433,7 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 				}
 
 				// Unprocessed InputCmds (above processed)				
-				for (int32 Keyframe = DebugState->LastProcessedKeyframe+1; Keyframe <= DebugState->HeadKeyframe; ++Keyframe)
+				for (int32 Keyframe = DebugState->PendingKeyframe; Keyframe <= DebugState->HeadKeyframe; ++Keyframe)
 				{
 					if (auto* Cmd = InputBuffer[Keyframe])
 					{
@@ -508,7 +508,7 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 					ColumnTime += (float)Cmd->GetFrameDeltaTime().ToRealTimeSeconds();
 				}
 			}
-			for (int32 Keyframe = DebugState->LastProcessedKeyframe+1; Keyframe <= DebugState->HeadKeyframe; ++Keyframe)
+			for (int32 Keyframe = DebugState->PendingKeyframe; Keyframe <= DebugState->HeadKeyframe; ++Keyframe)
 			{
 				if (auto* Cmd = InputBuffer[Keyframe])
 				{
@@ -534,7 +534,7 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 		// ------------------------------------------------------------------------------------------------------------------------------------------------
 
 		Out.Emit(FString::Printf(TEXT("%s - %s"), *Owner->GetName(), *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), Owner->GetLocalRole())), FColor::Yellow);
-		Out.Emit(FString::Printf(TEXT("LastProcessedInputKeyframe: %d (%d Buffered)"), NetworkSim->TickInfo.LastProcessedInputKeyframe, NetworkSim->Buffers.Input.HeadKeyframe() - NetworkSim->TickInfo.LastProcessedInputKeyframe));
+		Out.Emit(FString::Printf(TEXT("PendingKeyframe: %d (%d Buffered)"), NetworkSim->TickInfo.PendingKeyframe, NetworkSim->Buffers.Input.HeadKeyframe() - NetworkSim->TickInfo.PendingKeyframe));
 				
 		if (Owner->GetLocalRole() == ROLE_AutonomousProxy)
 		{			
@@ -567,7 +567,7 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 				*NetworkSim->RepProxy_Autonomous.GetLastSerializedSimTime().ToString(), *(NetworkSim->TickInfo.GetTotalProcessedSimulationTime() - NetworkSim->RepProxy_Autonomous.GetLastSerializedSimTime()).ToString());
 			Out.Emit(*SimulationTimeString, Color);
 
-			FString AllowedSimulationTimeString = FString::Printf(TEXT("Allowed Simulation Time: %s. Keyframe: %d/%d/%d"), *NetworkSim->TickInfo.GetRemainingAllowedSimulationTime().ToString(), NetworkSim->TickInfo.MaxAllowedInputKeyframe, NetworkSim->TickInfo.LastProcessedInputKeyframe, NetworkSim->Buffers.Input.HeadKeyframe());
+			FString AllowedSimulationTimeString = FString::Printf(TEXT("Allowed Simulation Time: %s. Keyframe: %d/%d/%d"), *NetworkSim->TickInfo.GetRemainingAllowedSimulationTime().ToString(), NetworkSim->TickInfo.MaxAllowedKeyframe, NetworkSim->TickInfo.PendingKeyframe, NetworkSim->Buffers.Input.HeadKeyframe());
 			Out.Emit(*AllowedSimulationTimeString, Color);
 		}
 		else if (Owner->GetLocalRole() == ROLE_SimulatedProxy)
