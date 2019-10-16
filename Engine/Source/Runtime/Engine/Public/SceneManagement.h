@@ -1559,7 +1559,7 @@ protected:
 	/** Whether the light affects objects in reflections, when ray-traced reflection is enabled. */
 	const uint8 bAffectReflection : 1;
 
-	/** Whether the light affects objects in reflections, when ray-traced global illumination is enabled. */
+	/** Whether the light affects global illumination, when ray-traced global illumination is enabled. */
 	const uint8 bAffectGlobalIllumination : 1;
 
 	/** Whether the light affects translucency or not.  Disabling this can save GPU time when there are many small lights. */
