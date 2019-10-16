@@ -3065,7 +3065,6 @@ void FOpenNurbsTranslatorImpl::SetTessellationOptions(const FDatasmithTessellati
 FDatasmithOpenNurbsTranslator::FDatasmithOpenNurbsTranslator()
 	: Translator(nullptr)
 {
-	TessellationOptions.StitchingTechnique = EDatasmithCADStitchingTechnique::StitchingNone;
 }
 
 void FDatasmithOpenNurbsTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCapabilities)
@@ -3106,7 +3105,7 @@ bool FDatasmithOpenNurbsTranslator::LoadScene(TSharedRef<IDatasmithScene> OutSce
 	IFileManager::Get().MakeDirectory(*OutputPath, true);
 	Translator->SetOutputPath(OutputPath);
 
-	Translator->SetTessellationOptions(TessellationOptions);
+	Translator->SetTessellationOptions(GetCommonTessellationOptions());
 
 	ON_BinaryFile Archive(ON::archive_mode::read3dm, FileHandle);
 
@@ -3147,7 +3146,7 @@ bool FDatasmithOpenNurbsTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMe
 				CoreTechData->RawData = MoveTemp(ByteArray);
 				CoreTechData->SceneParameters.ModelCoordSys = uint8(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded);
 				CoreTechData->SceneParameters.ScaleFactor = Translator->GetScalingFactor(); // Scale is set according to the Rhino file unit
-				CoreTechData->LastTessellationOptions = TessellationOptions;
+				CoreTechData->LastTessellationOptions = GetCommonTessellationOptions();
 				OutMeshPayload.AdditionalData.Add(CoreTechData);
 			}
 		}
@@ -3160,29 +3159,14 @@ bool FDatasmithOpenNurbsTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMe
 #endif
 }
 
-void FDatasmithOpenNurbsTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options)
-{
-#ifdef CAD_LIBRARY
-	TStrongObjectPtr<UDatasmithCommonTessellationOptions> TessellationOptionsPtr = Datasmith::MakeOptions<UDatasmithCommonTessellationOptions>();
-	TessellationOptionsPtr->Options.StitchingTechnique = EDatasmithCADStitchingTechnique::StitchingNone; // #ueent_todo: workaround for UE-74572
-	Options.Add(TessellationOptionsPtr);
-#endif
-}
-
 void FDatasmithOpenNurbsTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options)
 {
 #ifdef USE_OPENNURBS
-	for (const TStrongObjectPtr<UObject>& OptionPtr : Options)
+	FDatasmithCoreTechTranslator::SetSceneImportOptions(Options);
+
+	if (Translator)
 	{
-		UObject* Option = OptionPtr.Get();
-		if (UDatasmithCommonTessellationOptions* TessellationOptionsObject = Cast<UDatasmithCommonTessellationOptions>(Option))
-		{
-			TessellationOptions = TessellationOptionsObject->Options;
-			if (Translator)
-			{
-				Translator->SetTessellationOptions(TessellationOptions);
-			}
-		}
+		Translator->SetTessellationOptions( GetCommonTessellationOptions() );
 	}
 #endif
 }

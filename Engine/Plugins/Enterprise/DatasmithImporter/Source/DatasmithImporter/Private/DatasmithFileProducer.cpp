@@ -16,6 +16,7 @@
 #include "IDatasmithSceneElements.h"
 #include "Translators/DatasmithTranslatorManager.h"
 #include "Utility/DatasmithImporterUtils.h"
+
 #include "Async/ParallelFor.h"
 #include "Algo/Count.h"
 #include "AssetRegistryModule.h"
@@ -37,6 +38,7 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstance.h"
+#include "Misc/ConfigCacheIni.h"
 #include "ObjectTools.h"
 #include "PropertyHandle.h"
 #include "Widgets/Images/SImage.h"
@@ -59,6 +61,9 @@ const TCHAR* WildCharCriteria = TEXT( "*.*" );
 const TCHAR* ExtensionPrefix = TEXT( "*." );
 
 TSet< FString > UDatasmithDirProducer::SupportedFormats;
+
+FDatasmithTessellationOptions UDatasmithFileProducer::DefaultTessellationOptions( 0.3f, 0.0f, 30.0f, EDatasmithCADStitchingTechnique::StitchingSew );
+FDatasmithImportBaseOptions UDatasmithFileProducer::DefaultImportOptions;
 
 namespace FDatasmithFileProducerUtils
 {
@@ -106,10 +111,35 @@ bool UDatasmithFileProducer::Initialize()
 		return false;
 	}
 
+	// Set all import options to defaults for Dataprep
+	TSharedPtr<IDatasmithTranslator> TranslatorPtr = TranslatableSourcePtr->GetTranslator();
+	if(IDatasmithTranslator* Translator = TranslatorPtr.Get())
+	{
+		TArray< TStrongObjectPtr<UObject> > Options;
+		Translator->GetSceneImportOptions( Options );
+
+		bool bUpdateOptions = false;
+		for(TStrongObjectPtr<UObject>& ObjectPtr : Options)
+		{
+			if(UDatasmithCommonTessellationOptions* TessellationOption = Cast<UDatasmithCommonTessellationOptions>(ObjectPtr.Get()))
+			{
+				bUpdateOptions = true;
+				TessellationOption->Options = DefaultTessellationOptions;
+			}
+		}
+
+		if(bUpdateOptions == true)
+		{
+			Translator->SetSceneImportOptions( Options );
+		}
+	}
+
 	// Create and initialize context
 	ImportContextPtr = MakeUnique< FDatasmithImportContext >( Source.GetSourceFile(), false, TEXT("DatasmithFileProducer"), LOCTEXT("DatasmithFileProducerDescription", "Datasmith File Producer"), TranslatableSourcePtr->GetTranslator() );
 
-	ImportContextPtr->Options->BaseOptions.SceneHandling = EDatasmithImportScene::CurrentLevel;
+	// Set import options to default
+	ImportContextPtr->Options->BaseOptions = DefaultImportOptions;
+
 	ImportContextPtr->SceneAsset = DatasmithScenePtr.Get();
 	ImportContextPtr->ActorsContext.ImportWorld = Context.WorldPtr.Get();
 
@@ -132,6 +162,7 @@ bool UDatasmithFileProducer::Initialize()
 		LogError( LOCTEXT( "DatasmithFileProducer_Initialization", "Initialization of producer failed." ) );
 		return false;
 	}
+
 
 	// Fill up scene element with content of input file
 	if (!TranslatableSourcePtr->Translate( SceneElement ))
@@ -1243,6 +1274,59 @@ void FDatasmithFileProducerUtils::DeletePackagePath( const FString& PathToDelete
 			{
 				AssetRegistryModule.Get().RemovePath(PathToDelete);
 			}
+		}
+	}
+}
+
+void UDatasmithFileProducer::LoadDefaultSettings()
+{
+	// Read default settings, tessellation and import, for Datasmith file producer
+	const FString DatasmithImporterIni = FString::Printf(TEXT("%s%s/%s.ini"), *FPaths::GeneratedConfigDir(), ANSI_TO_TCHAR(FPlatformProperties::PlatformName()), TEXT("DatasmithImporter") );
+
+	const TCHAR* TessellationSectionName = TEXT("FileProducerTessellationOptions");
+	if(GConfig->DoesSectionExist( TessellationSectionName, DatasmithImporterIni ))
+	{
+
+		GConfig->GetFloat( TessellationSectionName, TEXT("ChordTolerance"), DefaultTessellationOptions.ChordTolerance, DatasmithImporterIni);
+		GConfig->GetFloat( TessellationSectionName, TEXT("MaxEdgeLength"), DefaultTessellationOptions.MaxEdgeLength, DatasmithImporterIni);
+		GConfig->GetFloat( TessellationSectionName, TEXT("NormalTolerance"), DefaultTessellationOptions.NormalTolerance, DatasmithImporterIni);
+
+		FString StitchingTechnique = GConfig->GetStr( TessellationSectionName, TEXT("StitchingTechnique"), DatasmithImporterIni);
+		if(StitchingTechnique == TEXT("StitchingHeal"))
+		{
+			DefaultTessellationOptions.StitchingTechnique =  EDatasmithCADStitchingTechnique::StitchingHeal;
+		}
+		else if(StitchingTechnique == TEXT("StitchingSew"))
+		{
+			DefaultTessellationOptions.StitchingTechnique =  EDatasmithCADStitchingTechnique::StitchingSew;
+		}
+		else
+		{
+			DefaultTessellationOptions.StitchingTechnique =  EDatasmithCADStitchingTechnique::StitchingNone;
+		}
+	}
+
+	const TCHAR* ImportSectionName = TEXT("FileProducerImportOptions");
+	if(GConfig->DoesSectionExist( ImportSectionName, DatasmithImporterIni ))
+	{
+		GConfig->GetBool( ImportSectionName, TEXT("IncludeGeometry"), DefaultImportOptions.bIncludeGeometry, DatasmithImporterIni);
+		GConfig->GetBool( ImportSectionName, TEXT("IncludeMaterial"), DefaultImportOptions.bIncludeMaterial, DatasmithImporterIni);
+		GConfig->GetBool( ImportSectionName, TEXT("IncludeLight"), DefaultImportOptions.bIncludeLight, DatasmithImporterIni);
+		GConfig->GetBool( ImportSectionName, TEXT("IncludeCamera"), DefaultImportOptions.bIncludeCamera, DatasmithImporterIni);
+		GConfig->GetBool( ImportSectionName, TEXT("IncludeAnimation"), DefaultImportOptions.bIncludeAnimation, DatasmithImporterIni);
+
+		FString SceneHandling = GConfig->GetStr( ImportSectionName, TEXT("SceneHandling"), DatasmithImporterIni);
+		if(SceneHandling == TEXT("NewLevel"))
+		{
+			DefaultImportOptions.SceneHandling =  EDatasmithImportScene::NewLevel;
+		}
+		else if(SceneHandling == TEXT("AssetsOnly"))
+		{
+			DefaultImportOptions.SceneHandling =  EDatasmithImportScene::AssetsOnly;
+		}
+		else
+		{
+			DefaultImportOptions.SceneHandling =  EDatasmithImportScene::CurrentLevel;
 		}
 	}
 }
