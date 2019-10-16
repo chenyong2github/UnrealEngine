@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	LinuxTargetPlatformModule.cpp: Implements the FLinuxServerTargetPlatformModule class.
+	LinuxAArch64ClientTargetPlatformModule.cpp: Implements the FLinuxAArch64ClientTargetPlatformModule class.
 =============================================================================*/
 
 #include "CoreMinimal.h"
@@ -12,6 +12,7 @@
 #include "LinuxTargetDevice.h"
 #include "LinuxTargetPlatform.h"
 
+
 /**
  * Holds the target platform singleton.
  */
@@ -19,28 +20,28 @@ static ITargetPlatform* Singleton = NULL;
 
 
 /**
- * Module for the Android target platform.
+ * Module for the Linux target platform (without editor).
  */
-class FLinuxServerTargetPlatformModule
+class FLinuxAArch64ClientTargetPlatformModule
 	: public ITargetPlatformModule
 {
 public:
 
-	virtual ~FLinuxServerTargetPlatformModule( )
+	virtual ~FLinuxAArch64ClientTargetPlatformModule( )
 	{
 		Singleton = NULL;
 	}
 
 	virtual ITargetPlatform* GetTargetPlatform( )
 	{
-		if (Singleton == NULL && TLinuxTargetPlatform<FLinuxPlatformProperties<false, false, false, false> >::IsUsable())
+		if (Singleton == NULL && TLinuxTargetPlatform<FLinuxPlatformProperties<false, false, true, true> >::IsUsable())
 		{
-			Singleton = new TLinuxTargetPlatform<FLinuxPlatformProperties<false, true, false, false> >();
+ 			Singleton = new TLinuxTargetPlatform<FLinuxPlatformProperties<false, false, true, true> >();
 		}
-		
+
 		return Singleton;
 	}
 };
 
-
-IMPLEMENT_MODULE( FLinuxServerTargetPlatformModule, LinuxServerTargetPlatform);
+// 
+IMPLEMENT_MODULE(FLinuxAArch64ClientTargetPlatformModule, LinuxAArch64ClientTargetPlatform);
