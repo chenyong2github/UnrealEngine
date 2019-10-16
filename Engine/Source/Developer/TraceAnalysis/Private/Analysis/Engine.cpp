@@ -699,13 +699,13 @@ bool FAnalysisEngine::OnData(FStreamReader::FData& Data)
 			return false;
 		}
 
-		Transport->Advance(BlockSize);
-
 		const FDispatch* Dispatch = Dispatches[Uid];
 		if (Dispatch == nullptr)
 		{
 			return false;
 		}
+
+		Transport->Advance(BlockSize);
 
 		FEventDataInfo EventDataInfo = { *Dispatch, Header->EventData, Header->Size };
 		const FEventData& EventData = (FEventData&)EventDataInfo;
