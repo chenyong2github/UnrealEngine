@@ -74,7 +74,7 @@ uint64 FObjectTrace::GetObjectId(const UObject* InObject)
 	uint64 OuterHash = 0;
 	if(InObject != nullptr)
 	{
-		ObjectHash = GetTypeHash(TWeakObjectPtr<UObject>(InObject));
+		ObjectHash = GetTypeHash(TWeakObjectPtr<const UObject>(InObject));
 		if(UObject* Outer = InObject->GetOuter())
 		{
 			OuterHash = GetTypeHash(TWeakObjectPtr<UObject>(Outer));
