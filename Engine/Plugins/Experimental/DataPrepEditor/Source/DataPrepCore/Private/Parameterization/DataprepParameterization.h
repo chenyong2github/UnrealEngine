@@ -15,6 +15,7 @@
 
 #include "DataprepParameterization.generated.h"
 
+class UDataprepParameterizableObject;
 class UProperty;
 
 USTRUCT()
@@ -28,7 +29,7 @@ struct FDataprepParameterizationBinding
 		, ValueType( nullptr )
 	{}
 
-	FDataprepParameterizationBinding(UObject* InObjectBinded, TArray<FDataprepPropertyLink> InPropertyChain)
+	FDataprepParameterizationBinding(UDataprepParameterizableObject* InObjectBinded, TArray<FDataprepPropertyLink> InPropertyChain)
 		: ObjectBinded( InObjectBinded )
 		, PropertyChain( MoveTemp( InPropertyChain ) )
 		, ValueType( PropertyChain.Last().CachedProperty.Get() ? PropertyChain.Last().CachedProperty.Get()->GetClass() : nullptr )
@@ -42,7 +43,7 @@ struct FDataprepParameterizationBinding
 	bool operator==(const FDataprepParameterizationBinding& Other) const;
 
 	UPROPERTY()
-	UObject* ObjectBinded;
+	UDataprepParameterizableObject* ObjectBinded;
 
 	UPROPERTY()
 	TArray<FDataprepPropertyLink> PropertyChain;
@@ -102,11 +103,28 @@ public:
 	GENERATED_BODY()
 
 	using FBindingToParameterNameMap = TMap<TSharedRef<FDataprepParameterizationBinding>, FName, FDefaultSetAllocator, FDataprepParametrizationBindingMapKeyFuncs>;
+	using FSetOfBinding = TSet<TSharedRef<FDataprepParameterizationBinding>, FDataprepParametrizationBindingSetKeyFuncs>;
 
 	/**
 	 * Does the data structure contains this binding
 	 */
 	bool ContainsBinding(const TSharedRef<FDataprepParameterizationBinding>& Binding) const;
+
+	/**
+	 * Return the name of the parameter for a binding
+	 */
+	FName GetParameterNameForBinding(const TSharedRef<FDataprepParameterizationBinding>& Binding) const;
+
+	/**
+	 * Return a valid ptr if the object had some bindings
+	 */
+	const FSetOfBinding* GetBindingsFromObject(const UDataprepParameterizableObject* Object) const;
+
+	/**
+	 * Get the bindings from a parameter
+	 * Return nullptr if the parameter doesn't exist
+	 */
+	const FSetOfBinding* GetBindingsFromParameter(const FName& ParameterName) const;
 
 	/**
 	 * Does the data structure has some bindings for the parameter name
@@ -124,12 +142,11 @@ public:
 	 */
 	FName RemoveBinding(const TSharedRef<FDataprepParameterizationBinding>& Binding);
 
-
 	/**
 	 * Remove all the bindings from a object
 	 * @return The name of the parameters that were associated to the binding of the object
 	 */
-	TSet<FName> RemoveAllBindingsFromObject(UObject* Object);
+	TSet<FName> RemoveAllBindingsFromObject(UDataprepParameterizableObject* Object);
 
 	const FBindingToParameterNameMap& GetBindingToParameterName() const;
 
@@ -149,17 +166,14 @@ private:
 	 */
 	void Load(FArchive& Ar);
 
-
 	/** Core storage also track a binding to it's parameter name */
 	FBindingToParameterNameMap BindingToParameterName;
-
-	using FSetOfBinding = TSet<TSharedRef<FDataprepParameterizationBinding>, FDataprepParametrizationBindingSetKeyFuncs>;
 
 	/** Track the name usage for parameters */
 	TMap<FName, FSetOfBinding> NameToBindings;
 
 	/** Track which binding a object has */
-	TMap<UObject*, FSetOfBinding> ObjectToBindings;
+	TMap<UDataprepParameterizableObject*, FSetOfBinding> ObjectToBindings;
 };
 
 
@@ -186,13 +200,15 @@ public:
 
 	UObject* GetDefaultObject();
 
-	bool BindObjectProperty(UObject* Object, const TArray<FDataprepPropertyLink>& PropertyChain, const FName& Name);
+	bool BindObjectProperty(UDataprepParameterizableObject* Object, const TArray<FDataprepPropertyLink>& PropertyChain, const FName& Name);
 
-	bool IsObjectPropertyBinded(UObject* Object, const TArray<FDataprepPropertyLink>& PropertyChain) const;
+	bool IsObjectPropertyBinded(UDataprepParameterizableObject* Object, const TArray<FDataprepPropertyLink>& PropertyChain) const;
 
-	void RemoveBindedObjectProperty(UObject* Object, const TArray<FDataprepPropertyLink>& PropertyChain);
+	void RemoveBindedObjectProperty(UDataprepParameterizableObject* Object, const TArray<FDataprepPropertyLink>& PropertyChain);
 
-	void RemoveBindingFromObjects(TArray<UObject*> Objects);
+	void RemoveBindingFromObjects(TArray<UDataprepParameterizableObject*> Objects);
+
+	void OnObjectPostEdit(UDataprepParameterizableObject* Object, const TArray<FDataprepPropertyLink>& PropertyChain, EPropertyChangeType::Type ChangeType);
 
 private:
 
@@ -217,6 +233,11 @@ private:
 	void PrepareCustomClassForNewClassGeneration();
 
 	/**
+	 * Do the actual creation of the class object
+	 */
+	void CreateClassObject();
+
+	/**
 	 * Do reinstancing of the objects created from the Custom Container Class
 	 * @param OldClass The previous Custom Constainer Class
 	 * @param bMigrateData Should we migrate the data from the old instances to the new instances
@@ -228,6 +249,22 @@ private:
 	 * @return false if the binding is no more valid
 	 */
 	UProperty* AddPropertyToClass(const FName& ParameterisationPropertyName, UProperty& Property);
+
+	/**
+	 * Get a new value for the parameterization from it's associated binding
+	 */
+	void UpdateParameterizationFromBinding(const TSharedRef<FDataprepParameterizationBinding>& Binding);
+
+	/**
+	 * Push the value of the parametrization to the bindings
+	 */
+	void PushParametrizationValueToBindings(FName ParameterName);
+
+public:
+
+	static const FName MetadataClassGeneratorName;
+
+private:
 
 	// The containers for the bindings
 	UPROPERTY()

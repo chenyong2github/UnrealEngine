@@ -35,7 +35,7 @@ struct FDataprepPropertyLink
 {
 	GENERATED_BODY()
 
-	FDataprepPropertyLink( UProperty* InCachedProperty, FName InPropertyName, int32 InContenerIndex )
+	FDataprepPropertyLink( UProperty* InCachedProperty, const FName& InPropertyName, int32 InContenerIndex )
 		: CachedProperty( MakeWeakObjectPtr(InCachedProperty) )
 		, PropertyName( InPropertyName )
 		, ContainerIndex( InContenerIndex )
@@ -69,6 +69,12 @@ public:
 	 */
 	static TArray<FDataprepPropertyLink> MakePropertyChain(TSharedPtr<IPropertyHandle> PropertyHandle);
 
+	/**
+	 * Take a Property Changed Event and extract a dataprep property link chain from it
+	 * @param PropertyChangedEvent The event
+	 * @return A non empty array if we were able make a compatible property chain
+	 */
+	static TArray<FDataprepPropertyLink>  MakePropertyChain(FPropertyChangedChainEvent& PropertyChangedEvent);
 
 	/**
 	 * Take a already existing parameterization context and create a new version including the handle.
