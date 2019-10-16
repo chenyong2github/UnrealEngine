@@ -2168,6 +2168,11 @@ bool SaveToTransactionBuffer(UObject* Object, bool bMarkDirty)
 
 void SnapshotTransactionBuffer(UObject* Object)
 {
+	SnapshotTransactionBuffer(Object, TArrayView<const UProperty*>());
+}
+
+void SnapshotTransactionBuffer(UObject* Object, TArrayView<const UProperty*> Properties)
+{
 	// Script packages should not end up in the transaction buffer.
 	// PIE objects should go through however. Additionally, in order
 	// to save a copy of the object, we must have a transactor and the object must be transactional.
@@ -2176,7 +2181,7 @@ void SnapshotTransactionBuffer(UObject* Object)
 
 	if (GUndo && bIsTransactional && bIsNotScriptPackage)
 	{
-		GUndo->SnapshotObject(Object);
+		GUndo->SnapshotObject(Object, Properties);
 	}
 }
 
