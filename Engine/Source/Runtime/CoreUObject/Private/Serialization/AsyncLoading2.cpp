@@ -1735,6 +1735,11 @@ void FAsyncLoadingThread2Impl::InitializeLoading()
 void FAsyncLoadingThread2Impl::QueuePackage(FAsyncPackageDesc& Package)
 {
 	//TRACE_CPUPROFILER_EVENT_SCOPE(QueuePackage);
+	if (!PackageNameToGlobalPackageId.Find(Package.NameToLoad))
+	{
+		UE_LOG(LogStreaming, Warning, TEXT("QueuePackage: Skipping unknown package: %s"), *Package.NameToLoad.ToString());
+		return;
+	}
 	{
 		FScopeLock QueueLock(&QueueCritical);
 		++QueuedPackagesCounter;
