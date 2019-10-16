@@ -24,6 +24,11 @@ namespace Trace {
 namespace Private {
 
 ////////////////////////////////////////////////////////////////////////////////
+int32 Encode(const void*, int32, void*, int32);
+
+
+
+////////////////////////////////////////////////////////////////////////////////
 inline void Writer_Yield()
 {
 	PLATFORM_YIELD();
@@ -350,19 +355,9 @@ static void Writer_ConsumeEvents()
 	FWriteBuffer* RetiredHead = nullptr;
 	FWriteBuffer* RetiredTail = nullptr;
 
+	static const uint32 BufferSize = 8192 - 64; // "-64" is to allow overflow/encoding overhead
 	struct FCollector
 	{
-		struct FPacket
-		{
-			struct FHeader
-			{
-				uint16	Serial;
-				uint16	Size; // including header
-			};
-			FHeader		Header;
-			uint8		Data[8192];
-		};
-
 		void Send(const void* Data, uint32 Size)
 		{
 			if (GDataState == EDataState::Sending)
@@ -392,23 +387,45 @@ static void Writer_ConsumeEvents()
 
 		void Flush()
 		{
-			if (Cursor == sizeof(FPacket::Data))
+			if (Cursor == sizeof(Buffer))
 			{
 				return;
 			}
 
-			// There will always be space remaining for the header because we've
-			// arranged for that by including the header in FPacket. We'll shift
-			// it forward so it butts up against the event data (at the expense of
-			// some occasional unaligned stores).
-			Cursor -= sizeof(FPacket::FHeader);
+			struct FPacketBase
+			{
+				uint16	Serial;
+				uint16	PacketSize;
+			};
 
-			auto* Out = (FPacket::FHeader*)(Packet.Data + Cursor);
-			Out->Serial = Serial;
-			Out->Size = sizeof(FPacket::Data) - Cursor;
-			Send(Out, Out->Size);
+#if 0
+			struct FPacketEncoded
+				: public FPacketBase
+			{
+				uint16	DecodedSize;
+			};
 
-			Cursor = sizeof(FPacket::Data);
+			struct FPacket
+				: public FPacketEncoded
+			{
+				uint8 Data[BufferSize + 64];
+			};
+
+			FPacket Packet;
+			Packet.Serial = Serial | 0x8000; // MSB indicates the packet is encoded
+			Packet.DecodedSize = uint16(sizeof(Buffer) - Cursor);
+			Packet.PacketSize = Encode(Buffer + Cursor, Packet.DecodedSize, Packet.Data, sizeof(Packet.Data));
+			Packet.PacketSize += sizeof(FPacketEncoded);
+			Send(&Packet, Packet.PacketSize);
+#else
+			Cursor -= sizeof(FPacketBase);
+			auto* Packet = (FPacketBase*)(Buffer + Cursor);
+			Packet->Serial = Serial;
+			Packet->PacketSize = uint16(sizeof(Buffer) - Cursor);
+			Send(Packet, Packet->PacketSize);
+#endif
+
+			Cursor = sizeof(Buffer);
 			Serial++;
 		}
 
@@ -420,12 +437,13 @@ static void Writer_ConsumeEvents()
 			}
 
 			Cursor -= Size;
-			memcpy(Packet.Data + Cursor, Data, Size);
+			memcpy(Buffer + Cursor, Data, Size);
 		}
 
-		int16		Cursor = sizeof(FPacket::Data);
-		uint16		Serial = 0;
-		FPacket		Packet;
+		int16	Cursor = sizeof(Buffer);
+		uint16	Serial = 0;
+		uint8	Slack[8];				// Overflow for "Cursor - FPacketBase"
+		uint8	Buffer[BufferSize];
 	};
 
 	FCollector Collector;

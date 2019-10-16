@@ -6,6 +6,16 @@ namespace Trace
 {
 
 ////////////////////////////////////////////////////////////////////////////////
+namespace Private
+{
+
+TRACELOG_API int32 Decode(const void*, int32, void*, int32);
+
+} // namespace Private
+
+
+
+////////////////////////////////////////////////////////////////////////////////
 struct FPayloadTransport::FPacketNode
 {
 	FPacketNode*		Next;
@@ -80,13 +90,6 @@ FPayloadTransport::FPacketNode* FPayloadTransport::AllocateNode()
 ////////////////////////////////////////////////////////////////////////////////
 bool FPayloadTransport::GetNextBatch()
 {
-	struct FPacket
-	{
-		int16	Serial;
-		uint16	Size;
-		uint8	Data[];
-	};
-
 	int16 LastSerial = -1;
 	if (PendingList != nullptr)
 	{
@@ -95,37 +98,74 @@ bool FPayloadTransport::GetNextBatch()
 
 	while (true)
 	{
-		const auto* Packet = (const FPacket*)FTransport::GetPointerImpl(sizeof(FPacket));
-		if (Packet == nullptr)
+		struct FPacketBase
+		{
+			uint16	Serial;
+			uint16	PacketSize;
+		};
+
+		const auto* PacketBase = (const FPacketBase*)FTransport::GetPointerImpl(sizeof(FPacketBase));
+		if (PacketBase == nullptr)
 		{
 			return false;
 		}
 
 		// If this new payload is part of the next event batch then we've finished
 		// building the current batch. The current batch can be activated.
-		if (LastSerial >= Packet->Serial)
+		int16 PacketSerial = (PacketBase->Serial & 0x7fff);
+		if (LastSerial >= PacketSerial)
 		{
 			ActiveList = PendingList;
 			PendingList = nullptr;
 			break;
 		}
 
-		if (FTransport::GetPointerImpl(Packet->Size) == nullptr)
+		if (FTransport::GetPointerImpl(PacketBase->PacketSize) == nullptr)
 		{
 			return false;
 		}
 
-		FTransport::Advance(Packet->Size);
+		FTransport::Advance(PacketBase->PacketSize);
+
+		LastSerial = PacketSerial;
 
 		FPacketNode* Node = AllocateNode();
-		Node->Serial = Packet->Serial;
-		Node->Cursor = 0;
-		Node->Size = uint16(Packet->Size - sizeof(*Packet));
+		Node->Serial = PacketSerial;
 		Node->Next = PendingList;
-		FMemory::Memcpy(Node->Data, Packet->Data, Node->Size);
-
 		PendingList = Node;
-		LastSerial = Packet->Serial;
+
+#if 0
+		bool bEncoded = (PacketBase->Serial != PacketSerial);
+		if (bEncoded)
+		{
+			struct FPacketEncoded
+				: public FPacketBase
+			{
+				uint16	DecodedSize;
+				uint8	Data[];
+			};
+			auto* PacketEncoded = (FPacketEncoded*)PacketBase;
+
+			Node->Size = Private::Decode(
+				PacketEncoded->Data,
+				int32(PacketEncoded->PacketSize - sizeof(FPacketEncoded)),
+				Node->Data,
+				PacketEncoded->DecodedSize
+			);
+		}
+		else
+#endif // 0
+		{
+			struct FPacketRaw
+				: public FPacketBase
+			{
+				uint8 Data[];
+			};
+			auto* PacketRaw = (FPacketRaw*)PacketBase;
+
+			Node->Size = uint16(PacketBase->PacketSize - sizeof(FPacketBase));
+			FMemory::Memcpy(Node->Data, PacketRaw->Data, Node->Size);
+		}
 	}
 
 	return true;
