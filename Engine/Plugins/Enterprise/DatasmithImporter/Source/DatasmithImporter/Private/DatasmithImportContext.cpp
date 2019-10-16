@@ -187,19 +187,19 @@ void FDatasmithImportContext::AddOption(UObject* InOption, bool bLoadConfig)
 	}
 }
 
-void FDatasmithImportContext::LogError(const FText& InErrorMessage)
+TSharedRef<FTokenizedMessage> FDatasmithImportContext::LogError(const FText& InErrorMessage)
 {
-	Logger.Push(EMessageSeverity::Error, InErrorMessage);
+	return Logger.Push(EMessageSeverity::Error, InErrorMessage);
 }
 
-void FDatasmithImportContext::LogWarning(const FText& InWarningMessage, bool bPerformance)
+TSharedRef<FTokenizedMessage> FDatasmithImportContext::LogWarning(const FText& InWarningMessage, bool bPerformance)
 {
-	Logger.Push(bPerformance ? EMessageSeverity::PerformanceWarning : EMessageSeverity::Warning, InWarningMessage);
+	return Logger.Push(bPerformance ? EMessageSeverity::PerformanceWarning : EMessageSeverity::Warning, InWarningMessage);
 }
 
-void FDatasmithImportContext::LogInfo(const FText& InInfoMessage)
+TSharedRef<FTokenizedMessage> FDatasmithImportContext::LogInfo(const FText& InInfoMessage)
 {
-	Logger.Push(EMessageSeverity::Info, InInfoMessage);
+	return Logger.Push(EMessageSeverity::Info, InInfoMessage);
 }
 
 bool FDatasmithImportContext::Init(const FString& InFileName, TSharedRef< IDatasmithScene > InScene, const FString& InImportPath, EObjectFlags InFlags, FFeedbackContext* InWarn, const TSharedPtr<FJsonObject>& ImportSettingsJson, bool bSilent)
