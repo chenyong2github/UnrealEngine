@@ -48,8 +48,6 @@
 #include "Misc/ScopedSlowTask.h"
 #include "Modules/ModuleManager.h"
 #include "ObjectTools.h"
-#include "SceneOutlinerModule.h"
-#include "SceneOutlinerVisitorTypes.h"
 #include "ScopedTransaction.h"
 #include "Templates/UnrealTemplate.h"
 #include "Toolkits/IToolkit.h"
@@ -89,94 +87,6 @@ const FName FDataprepEditor::ParameterizationDefaultTabId(TEXT("DataprepEditor_P
 
 static bool bLogTiming = true;
 
-namespace DataprepEditorUtils
-{
-	/** Specifics for the scene outliner */
-	using namespace SceneOutliner;
-
-	/**
-	 * This struct is used to force the scene outliner to refuse any rename request
-	 */
-	struct FCanRenameItem : public TTreeItemGetter<bool>
-	{
-		virtual bool Get(const SceneOutliner::FActorTreeItem& ActorItem) const override { return false; };
-		virtual bool Get(const SceneOutliner::FWorldTreeItem& WorldItem) const override { return false; }
-		virtual bool Get(const SceneOutliner::FFolderTreeItem& FolderItem) const override { return false; }
-		virtual bool Get(const SceneOutliner::FComponentTreeItem& ComponentItem) const override { return false; }
-		virtual bool Get(const SceneOutliner::FSubComponentTreeItem& SubComponentItem) const override { return false; }
-	};
-
-	/**
-	 * Use this struct to match the scene outliers selection to a dataprep editor selection
-	 */
-	struct FSynchroniseSelectionToSceneOutliner : public TTreeItemGetter<bool>
-	{
-		FSynchroniseSelectionToSceneOutliner(TSharedRef<FDataprepEditor> InDataprepEditor)
-			: DataprepEditorPtr( InDataprepEditor )
-		{};
-
-		virtual bool Get(const FActorTreeItem& ActorItem) const override
-		{
-			if ( const FDataprepEditor* DataprepEditor = DataprepEditorPtr.Pin().Get() )
-			{
-				return DataprepEditor->GetWorldItemsSelection().Contains( ActorItem.Actor );
-			}
-			return false;
-		}
-
-		virtual bool Get(const FWorldTreeItem& WorldItem) const override
-		{
-			return false;
-		}
-		virtual bool Get(const FFolderTreeItem& FolderItem) const override
-		{ 
-			return false;
-		}
-		virtual bool Get(const FComponentTreeItem& ComponentItem) const override
-		{
-			if ( const FDataprepEditor* DataprepEditor = DataprepEditorPtr.Pin().Get() )
-			{
-				return DataprepEditor->GetWorldItemsSelection().Contains( ComponentItem.Component );
-			}
-			return false;
-		}
-		virtual bool Get(const FSubComponentTreeItem& SubComponentItem) const override
-		{
-			// return this for now as it seams that subcomponent Item is broken or doesn't do what want
-			return false;
-		}
-
-	private:
-		TWeakPtr<FDataprepEditor> DataprepEditorPtr;
-	};
-
-
-	/**
-	 * Use this struct to get the selection from the scene outliner
-	 */
-	struct FGetSelectionFromSceneOutliner : public ITreeItemVisitor
-	{
-		mutable TSet<TWeakObjectPtr<UObject>> Selection;
-
-		virtual void Visit(const FActorTreeItem& ActorItem) const override
-		{
-			Selection.Add( ActorItem.Actor );
-		}
-
-		virtual void Visit(const FWorldTreeItem& WorldItem) const override {}
-		virtual void Visit(const FFolderTreeItem& FolderItem) const override {}
-		virtual void Visit(const FComponentTreeItem& ComponentItem) const override
-		{
-			this->Selection.Add( ComponentItem.Component );
-		}
-
-		virtual void Visit(const FSubComponentTreeItem& SubComponentItem) const override {}
-	};
-
-	/** End of specifics for the scene outliner */
-
-}
-
 class FTimeLogger
 {
 public:
@@ -207,7 +117,6 @@ private:
 	uint64 StartTime;
 	FString Text;
 };
-
 
 namespace DataprepEditorUtil
 {
@@ -964,39 +873,6 @@ TSharedRef<SDockTab> FDataprepEditor::SpawnTabPipelineGraph(const FSpawnTabArgs 
 }
 // end of temp code for nodes development
 
-void FDataprepEditor::CreateScenePreviewTab()
-{
-	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::Get().LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
-
-	SceneOutliner::FInitializationOptions SceneOutlinerOptions;
-	SceneOutlinerOptions.SpecifiedWorldToDisplay = PreviewWorld.Get();
-
-	SceneOutliner = SceneOutlinerModule.CreateCustomSceneOutliner( SceneOutlinerOptions );
-
-	SceneOutliner->SetSelectionMode( ESelectionMode::Multi )
-		.SetCanRenameItem( MakeUnique<DataprepEditorUtils::FCanRenameItem>() )
-		.SetShouldSelectItemWhenAdded( MakeUnique<DataprepEditorUtils::FSynchroniseSelectionToSceneOutliner>( StaticCastSharedRef<FDataprepEditor>( AsShared() ) ) )
-		.SetShowActorComponents( false )
-		.SetShownOnlySelected( false )
-		.SetShowOnlyCurrentLevel( false )
-		.SetHideTemporaryActors( false );
-
-	SceneOutliner->GetOnItemSelectionChanged().AddSP( this, &FDataprepEditor::OnSceneOutlinerSelectionChanged );
-
-	SAssignNew(ScenePreviewView, SBorder)
-	.Padding(2.f)
-	.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-	[
-		SNew(SOverlay)
-		+ SOverlay::Slot()
-		.HAlign(HAlign_Fill)
-		.VAlign(VAlign_Fill)
-		[
-			SceneOutliner.ToSharedRef()
-		]
-	];
-}
-
 TSharedRef<SDockTab> FDataprepEditor::SpawnTabScenePreview(const FSpawnTabArgs & Args)
 {
 	check(Args.GetTabId() == ScenePreviewTabId);
@@ -1293,63 +1169,9 @@ bool FDataprepEditor::CanCommitWorld()
 	return bWorldBuilt && DataprepAssetInterfacePtr->GetConsumer() != nullptr;
 }
 
-
 FString FDataprepEditor::GetTransientContentFolder()
 {
 	return FPaths::Combine( GetRootPackagePath(), FString::FromInt( FPlatformProcess::GetCurrentProcessId() ), SessionID );
-}
-
-void FDataprepEditor::OnSceneOutlinerSelectionChanged(SceneOutliner::FTreeItemPtr ItemPtr, ESelectInfo::Type SelectionMode)
-{
-	using namespace SceneOutliner;
-
-	DataprepEditorUtils::FGetSelectionFromSceneOutliner Visitor;
-
-	for ( FTreeItemPtr Item : SceneOutliner->GetTree().GetSelectedItems() )
-	{
-		Item->Visit( Visitor );
-	}
-
-	SetWorldObjectsSelection( MoveTemp(Visitor.Selection), EWorldSelectionFrom::SceneOutliner );
-}
-
-void FDataprepEditor::SetWorldObjectsSelection(TSet<TWeakObjectPtr<UObject>>&& NewSelection, EWorldSelectionFrom SelectionFrom /* = EWorldSelectionFrom::Unknow */)
-{
-	WorldItemsSelection.Empty( NewSelection.Num() );
-	WorldItemsSelection.Append( MoveTemp(NewSelection) );
-
-	if ( SelectionFrom != EWorldSelectionFrom::SceneOutliner )
-	{
-		DataprepEditorUtils::FSynchroniseSelectionToSceneOutliner Selector( StaticCastSharedRef<FDataprepEditor>( AsShared() ) );
-		SceneOutliner->SetSelection( Selector );
-	}
-
-	if ( SelectionFrom != EWorldSelectionFrom::Viewport )
-	{
-		TArray<AActor*> Actors;
-		Actors.Reserve( WorldItemsSelection.Num() );
-
-		for ( TWeakObjectPtr<UObject> ObjectPtr : WorldItemsSelection )
-		{
-			if ( AActor* Actor = Cast<AActor>( ObjectPtr.Get() ) )
-			{
-				Actors.Add( Actor );
-			}
-		}
-
-		SceneViewportView->SelectActors( Actors );
-	}
-
-	{
-		TSet<UObject*> Objects;
-		Objects.Reserve( WorldItemsSelection.Num() );
-		for ( const TWeakObjectPtr<UObject>& ObjectPtr : WorldItemsSelection )
-		{
-			Objects.Add( ObjectPtr.Get() );
-		}
-
-		SetDetailsObjects( Objects, false );
-	}
 }
 
 bool FDataprepEditor::OnCanExecuteNextStep(UDataprepActionAsset* ActionAsset, UDataprepOperation* Operation, UDataprepFilter* Filter)
