@@ -849,9 +849,6 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRHICommandLi
 	bool bAsyncUpdateGeometry = (CVarRayTracingAsyncBuild.GetValueOnRenderThread() != 0)
 							  && GSupportAsyncComputeRaytracingBuildBVH;
 
-	TArrayView<FAccelerationStructureUpdateParams> BuildParams, RefitParams;
-
-
 	if (!bAsyncUpdateGeometry)
 	{
 		SCOPED_GPU_STAT(RHICmdList, RayTracingAS);

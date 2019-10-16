@@ -357,10 +357,21 @@ void FSkeletalMeshObjectGPUSkin::UpdateDynamicData_RenderThread(FGPUSkinCache* G
 		: true);
 
 #if RHI_RAYTRACING
-	bRequireRecreatingRayTracingGeometry = (DynamicData == nullptr || // Newly created
-		RayTracingGeometry.Initializer.PositionVertexBuffer == nullptr ||
+	bRequireRecreatingRayTracingGeometry = (DynamicData == nullptr || RayTracingGeometry.Initializer.Segments.Num() == 0 || // Newly created
 		(DynamicData != nullptr && DynamicData->LODIndex != InDynamicData->LODIndex)); // LOD level changed
-#endif
+	
+	if (!bRequireRecreatingRayTracingGeometry)
+	{
+		for (FRayTracingGeometrySegment& Segment : RayTracingGeometry.Initializer.Segments)
+		{
+			if (Segment.VertexBuffer == nullptr)
+			{
+				bRequireRecreatingRayTracingGeometry = true;
+				break;
+			}
+		}
+	}
+#endif // RHI_RAYTRACING
 
 	WaitForRHIThreadFenceForDynamicData();
 	if (DynamicData)
@@ -403,27 +414,27 @@ void FSkeletalMeshObjectGPUSkin::UpdateDynamicData_RenderThread(FGPUSkinCache* G
 				FRayTracingGeometryInitializer Initializer;
 
 				FRHIResourceCreateInfo CreateInfo;
-				Initializer.PositionVertexBuffer = RHICreateVertexBuffer(LODModel.GetNumVertices() * sizeof(FVector), BUF_ShaderResource, CreateInfo);
-				FGPUSkinCache::CreateMergedPositionVertexBuffer(RHICmdList, SkinCacheEntry, Initializer.PositionVertexBuffer);
+
 				Initializer.IndexBuffer = IndexBufferRHI;
-				Initializer.VertexBufferStride = VertexBufferStride;
-				Initializer.VertexBufferByteOffset = 0;
 				Initializer.TotalPrimitiveCount = TrianglesCount;
-				Initializer.VertexBufferElementType = VET_Float3;
 				Initializer.GeometryType = RTGT_Triangles;
 				Initializer.bFastBuild = true;
 				Initializer.bAllowUpdate = true;
 
-				TArray<FRayTracingGeometrySegment> GeometrySections;
-				GeometrySections.Reserve(LODModel.RenderSections.Num());
+				Initializer.Segments.Reserve(LODModel.RenderSections.Num());
 				for (const FSkelMeshRenderSection& Section : LODModel.RenderSections)
 				{
 					FRayTracingGeometrySegment Segment;
+					Segment.VertexBuffer = nullptr;
+					Segment.VertexBufferElementType = VET_Float3;
+					Segment.VertexBufferStride = VertexBufferStride;
+					Segment.VertexBufferOffset = 0;
 					Segment.FirstPrimitive = Section.BaseIndex / 3;
 					Segment.NumPrimitives = Section.NumTriangles;
-					GeometrySections.Add(Segment);
+					Initializer.Segments.Add(Segment);
 				}
-				Initializer.Segments = GeometrySections;
+
+				FGPUSkinCache::GetRayTracingSegmentVertexBuffers(*SkinCacheEntry, Initializer.Segments);
 
 				RayTracingGeometry.SetInitializer(Initializer);
 				RayTracingGeometry.UpdateRHI();
@@ -434,7 +445,7 @@ void FSkeletalMeshObjectGPUSkin::UpdateDynamicData_RenderThread(FGPUSkinCache* G
 				if (!DynamicData->bAnySegmentUsesWorldPositionOffset)
 				{
 					// Refit BLAS with new vertex buffer data
-					FGPUSkinCache::CreateMergedPositionVertexBuffer(RHICmdList, SkinCacheEntry, RayTracingGeometry.Initializer.PositionVertexBuffer);
+					FGPUSkinCache::GetRayTracingSegmentVertexBuffers(*SkinCacheEntry, RayTracingGeometry.Initializer.Segments);
 					GPUSkinCache->AddRayTracingGeometryToUpdate(&RayTracingGeometry);
 				}
 				else
