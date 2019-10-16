@@ -118,6 +118,9 @@ void UK2Node_DataprepAction::DestroyNode()
 	if ( DataprepActionAsset )
 	{
 		Modify();
+
+		DataprepActionAsset->NotifyDataprepSystemsOfRemoval();
+
 		// Force the transaction system to restore the action
 		DataprepActionAsset = nullptr;
 	}
