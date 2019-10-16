@@ -250,23 +250,25 @@ void UChannel::BeginDestroy()
 
 void UChannel::Serialize(FArchive& Ar)
 {
-	Super::Serialize(Ar);
+	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "UChannel::Serialize");
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Super", Super::Serialize(Ar));
 
 	if (Ar.IsCountingMemory())
 	{
 		if (InRec)
 		{
-			InRec->CountMemory(Ar);
+			GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("InRec", InRec->CountMemory(Ar));
 		}
 
 		if (OutRec)
 		{
-			OutRec->CountMemory(Ar);
+			GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("OutRec", OutRec->CountMemory(Ar));
 		}
 
 		if (InPartialBunch)
 		{
-			InPartialBunch->CountMemory(Ar);
+			GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("InPartialBunch", InPartialBunch->CountMemory(Ar));
 		}
 	}
 }
@@ -3107,12 +3109,12 @@ void UActorChannel::AddReferencedObjects(UObject* InThis, FReferenceCollector& C
 
 void UActorChannel::Serialize(FArchive& Ar)
 {
-	Super::Serialize(Ar);
+	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "UActorChannel::Serialize");
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("UActorChannel::Super", Super::Serialize(Ar));
 
 	if (Ar.IsCountingMemory())
 	{
-		GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "UActorChannel::Serialize");
-
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ReplicationMap",
 			ReplicationMap.CountBytes(Ar);
 
