@@ -12,6 +12,7 @@
 #include "IDetailTreeNode.h"
 #include "K2Node_AddComponent.h"
 #include "PropertyEditorModule.h"
+#include "ScopedTransaction.h"
 
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
@@ -50,6 +51,29 @@ FContentProducerEntry::FContentProducerEntry(int32 InProducerIndex, UDataprepAss
 		}
 	}
 }
+
+
+void FContentProducerEntry::ToggleProducer()
+{
+	if( UDataprepAssetProducers* AssetProducers = AssetProducersPtr.Get() )
+	{
+		const FScopedTransaction Transaction( LOCTEXT("Producers_ToggleProducer", "Toggle Producer") );
+		AssetProducers->EnableProducer(ProducerIndex, !bIsEnabled);
+
+		// #ueent_todo: Cache previous value to report failed enabling/disabling
+		bIsEnabled = AssetProducers->IsProducerEnabled(ProducerIndex);
+	}
+}
+
+void FContentProducerEntry::RemoveProducer()
+{
+	if( UDataprepAssetProducers* AssetProducers = AssetProducersPtr.Get() )
+	{
+		const FScopedTransaction Transaction( LOCTEXT("Producers_RemoveProducer", "Remove Producer") );
+		AssetProducers->RemoveProducer( ProducerIndex );
+	}
+}
+
 
 /** Construct function for this widget */
 void SDataprepProducersTableRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTableView, const TSharedRef<FContentProducerEntry>& InNode, TSharedRef< FDataprepDetailsViewColumnSizeData > InColumnSizeData)
@@ -314,10 +338,7 @@ void SDataprepProducersWidget::Construct(const FArguments & InArgs, UDataprepAss
 
 void SDataprepProducersWidget::OnDataprepProducersChanged(FDataprepAssetChangeType ChangeType, int32 Index)
 {
-	if(ChangeType == FDataprepAssetChangeType::ProducerRemoved)
-	{
-		TreeView->Refresh();
-	}
+	TreeView->Refresh();
 }
 
 TSharedRef<SWidget> SDataprepProducersWidget::CreateAddProducerMenuWidget()
@@ -367,10 +388,11 @@ void SDataprepProducersWidget::OnAddProducer( UClass* ProducerClass )
 {
 	if( UDataprepAssetProducers* AssetProducers = AssetProducersPtr.Get() )
 	{
+		const FScopedTransaction Transaction( LOCTEXT("Producers_AddProducer", "Add Producer") );
 		AssetProducers->AddProducer(ProducerClass);
 	}
-	TreeView->
-	Refresh();
+
+	TreeView->Refresh();
 }
 
 TSharedRef<SWidget> FDataprepAssetProducersDetails::CreateWidget(UDataprepAssetProducers* Producers, TSharedPtr<FUICommandList>& CommandList)

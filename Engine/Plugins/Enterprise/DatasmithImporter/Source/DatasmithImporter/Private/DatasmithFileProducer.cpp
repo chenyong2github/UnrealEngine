@@ -9,6 +9,7 @@
 #include "DatasmithAssetUserData.h"
 #include "DatasmithContentBlueprintLibrary.h"
 #include "DatasmithImportContext.h"
+#include "DatasmithImportOptions.h"
 #include "DatasmithImporter.h"
 #include "DatasmithScene.h"
 #include "DatasmithSceneActor.h"
@@ -41,6 +42,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "ObjectTools.h"
 #include "PropertyHandle.h"
+#include "ScopedTransaction.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SEditableTextBox.h"
@@ -78,6 +80,12 @@ namespace FDatasmithFileProducerUtils
 			DeletePackagePath( PathToDelete );
 		}
 	}
+
+	/** Display OS browser, i.e. Windows explorer, to let user select a file */
+	FString SelectFileToImport();
+
+	/** Display OS browser, i.e. Windows explorer, to let user select a directory */
+	FString SelectDirectory();
 }
 
 bool UDatasmithFileProducer::Initialize()
@@ -162,7 +170,6 @@ bool UDatasmithFileProducer::Initialize()
 		LogError( LOCTEXT( "DatasmithFileProducer_Initialization", "Initialization of producer failed." ) );
 		return false;
 	}
-
 
 	// Fill up scene element with content of input file
 	if (!TranslatableSourcePtr->Translate( SceneElement ))
@@ -542,6 +549,8 @@ FString UDatasmithFileProducer::GetNamespace() const
 
 void UDatasmithFileProducer::SetFilename( const FString& InFilename )
 {
+	Modify();
+
 	FilePath = FPaths::ConvertRelativePathToFull( InFilename );
 
 	// Rename producer to name of file
@@ -574,6 +583,24 @@ bool UDatasmithFileProducer::Supersede(const UDataprepContentProducer* OtherProd
 	return OtherFileProducer != nullptr &&
 		!OtherFileProducer->FilePath.IsEmpty() &&
 		FilePath == OtherFileProducer->FilePath;
+}
+
+void UDatasmithFileProducer::PostEditUndo()
+{
+	UDataprepContentProducer::PostEditUndo();
+
+	OnChanged.Broadcast( this );
+}
+
+void UDatasmithFileProducer::PostInitProperties()
+{
+	UDataprepContentProducer::PostInitProperties();
+
+	// Set FilePath when creating a new producer
+	if( !HasAnyFlags( RF_ClassDefaultObject | RF_WasLoaded | RF_Transient ) )
+	{
+		FilePath = FDatasmithFileProducerUtils::SelectFileToImport();
+	}
 }
 
 UDatasmithDirProducer::UDatasmithDirProducer()
@@ -630,7 +657,7 @@ bool UDatasmithDirProducer::Initialize()
 
 	Context.SetRootPackage( TransientPackage );
 
-	FileProducer = TStrongObjectPtr< UDatasmithFileProducer >( NewObject< UDatasmithFileProducer >() );
+	FileProducer = TStrongObjectPtr< UDatasmithFileProducer >( NewObject< UDatasmithFileProducer >( GetTransientPackage(), NAME_None, RF_Transient ) );
 
 	return true;
 }
@@ -647,7 +674,7 @@ bool UDatasmithDirProducer::Execute(TArray< TWeakObjectPtr< UObject > >& OutAsse
 
 	for( const FString& FileName : FilesToProcess )
 	{
-		FileProducer->SetFilename( FileName );
+		FileProducer->FilePath =  FPaths::ConvertRelativePathToFull( FileName );
 
 		Task.ReportNextStep( FText::Format( LOCTEXT( "DatasmithFileProducer_LoadingFile", "Loading {0} ..."), FText::FromString( FileName ) ) );
 
@@ -694,8 +721,20 @@ void UDatasmithDirProducer::Serialize( FArchive& Ar )
 	}
 }
 
+void UDatasmithDirProducer::PostInitProperties()
+{
+	UDataprepContentProducer::PostInitProperties();
+
+	if( !HasAnyFlags(RF_ClassDefaultObject | RF_NeedLoad) )
+	{
+		FolderPath = FDatasmithFileProducerUtils::SelectDirectory();
+	}
+}
+
 void UDatasmithDirProducer::SetFolderName( const FString& InFolderName )
 {
+	Modify();
+
 	FolderPath = FPaths::ConvertRelativePathToFull( InFolderName );
 
 	FString BaseName = FPaths::IsDrive( InFolderName ) ? TEXT("RootDir") : FPaths::GetBaseFilename( InFolderName );
@@ -867,7 +906,6 @@ TSet<FString> UDatasmithDirProducer::GetSetOfFiles() const
 	return FoundFiles;
 }
 
-
 class SDatasmithFileProducerFileProperty : public SCompoundWidget
 {
 public:
@@ -876,10 +914,6 @@ public:
 
 	SLATE_ARGUMENT(UDatasmithFileProducer*, Producer)
 	SLATE_END_ARGS()
-
-	SDatasmithFileProducerFileProperty()
-		: bIsFirstPaint(true)
-	{}
 
 public:
 	void Construct(const FArguments& InArgs)
@@ -916,29 +950,6 @@ public:
 		];
 	}
 
-	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override
-	{
-		int32 Ret = SCompoundWidget::OnPaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled );
-
-		if( bIsFirstPaint )
-		{
-			bIsFirstPaint = false;
-			if( ProducerPtr->FilePath.IsEmpty() )
-			{
-				// Cache current hit test grid since it will be wiped out by the call to OnChangePathClicked
-				// which trigger a full redraw of all windows using the same hit test grid
-				FHittestGrid CachedHittestGrid = Args.GetHittestGrid();
-
-				OnChangePathClicked();
-
-				// Restore hit test grid
-				Args.GetHittestGrid() = CachedHittestGrid;
-			}
-		}
-
-		return Ret;
-	}
-
 private:
 	FReply OnChangePathClicked() const
 	{
@@ -947,64 +958,12 @@ private:
 			return FReply::Unhandled();
 		}
 
-		const TArray<FString>& Formats = FDatasmithTranslatorManager::Get().GetSupportedFormats();
-
-		FString FileTypes;
-		FString AllExtensions;
-
-		for( const FString& Format : Formats )
+		FString SelectedFile = FDatasmithFileProducerUtils::SelectFileToImport();
+		if(!SelectedFile.IsEmpty())
 		{
-			TArray<FString> FormatComponents;
-			Format.ParseIntoArray( FormatComponents, TEXT( ";" ), false );
+			const FScopedTransaction Transaction( LOCTEXT("Producer_SetFilename", "Set Filename") );
 
-			for ( int32 ComponentIndex = 0; ComponentIndex < FormatComponents.Num(); ComponentIndex += 2 )
-			{
-				check( FormatComponents.IsValidIndex( ComponentIndex + 1 ) );
-				const FString& Extension = FormatComponents[ComponentIndex];
-				const FString& Description = FormatComponents[ComponentIndex + 1];
-
-				if ( !AllExtensions.IsEmpty() )
-				{
-					AllExtensions.AppendChar( TEXT( ';' ) );
-				}
-				AllExtensions.Append( TEXT( "*." ) );
-				AllExtensions.Append( Extension );
-
-				if ( !FileTypes.IsEmpty() )
-				{
-					FileTypes.AppendChar( TEXT( '|' ) );
-				}
-
-				FileTypes.Append( FString::Printf( TEXT( "%s (*.%s)|*.%s" ), *Description, *Extension, *Extension ) );
-			}
-		}
-
-		FString SupportedExtensions( FString::Printf( TEXT( "All Files (%s)|%s|%s" ), *AllExtensions, *AllExtensions, *FileTypes ) );
-
-		TArray<FString> OpenedFiles;
-		FString DefaultLocation( FEditorDirectories::Get().GetLastDirectory( ELastDirectory::GENERIC_IMPORT ) );
-		IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
-
-		bool bOpened = false;
-		if ( DesktopPlatform )
-		{
-			bOpened = DesktopPlatform->OpenFileDialog(
-				FSlateApplication::Get().FindBestParentWindowHandleForDialogs( nullptr ),
-				LOCTEXT( "FileDialogTitle", "Import Datasmith" ).ToString(),
-				DefaultLocation,
-				TEXT( "" ),
-				SupportedExtensions,
-				EFileDialogFlags::None,
-				OpenedFiles
-			);
-		}
-
-		if ( bOpened && OpenedFiles.Num() > 0 )
-		{
-			const FString& OpenedFile = OpenedFiles[0];
-			FEditorDirectories::Get().SetLastDirectory( ELastDirectory::GENERIC_IMPORT, OpenedFile );
-
-			ProducerPtr->SetFilename( OpenedFile );
+			ProducerPtr->SetFilename( SelectedFile );
 			FileName->SetText( GetFilenameText() );
 		}
 
@@ -1019,9 +978,6 @@ private:
 private:
 	TWeakObjectPtr< UDatasmithFileProducer > ProducerPtr;
 	TSharedPtr< SEditableText > FileName;
-
-	// Boolean used to detect first paint and pop up file dialog if file input is empty
-	mutable bool bIsFirstPaint;
 };
 
 void FDatasmithFileProducerDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
@@ -1070,10 +1026,6 @@ public:
 	SLATE_ARGUMENT( UDatasmithDirProducer*, Producer )
 	SLATE_END_ARGS()
 
-		SDatasmithDirProducerFolderProperty()
-		: bIsFirstPaint(true)
-	{}
-
 public:
 	void Construct(const FArguments& InArgs)
 	{
@@ -1109,29 +1061,6 @@ public:
 		];
 	}
 
-	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override
-	{
-		int32 Ret = SCompoundWidget::OnPaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled );
-
-		if( bIsFirstPaint )
-		{
-			bIsFirstPaint = false;
-			if( ProducerPtr->FolderPath.IsEmpty() )
-			{
-				// Cache current hit test grid since it will be wiped out by the call to OnChangePathClicked
-				// which trigger a full redraw of all windows using the same hit test grid
-				FHittestGrid CachedHittestGrid = Args.GetHittestGrid();
-
-				OnChangePathClicked();
-
-				// Restore hit test grid
-				Args.GetHittestGrid() = CachedHittestGrid;
-			}
-		}
-
-		return Ret;
-	}
-
 private:
 	FReply OnChangePathClicked() const
 	{
@@ -1140,29 +1069,13 @@ private:
 			return FReply::Unhandled();
 		}
 
-		if( IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get() )
+		const FString SelectedFolder = FDatasmithFileProducerUtils::SelectDirectory();
+		if( !SelectedFolder.IsEmpty() )
 		{
-			FString DestinationFolder;
-			const void* ParentWindowHandle = FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr);
-			const FString Title = LOCTEXT("DatasmithDirProducerFolderTitle", "Choose a folder").ToString();
-			const FString DefaultLocation( FEditorDirectories::Get().GetLastDirectory( ELastDirectory::GENERIC_IMPORT ) );
+			const FScopedTransaction Transaction( LOCTEXT("Producer_SetFolderName", "Set Folder Name") );
+			ProducerPtr->SetFolderName( SelectedFolder );
 
-			// #ueent_todo: What if the user selects a drive? Shouldn't we ask if this is really what he/she wants?
-			const bool bFolderSelected = DesktopPlatform->OpenDirectoryDialog(
-				ParentWindowHandle,
-				Title,
-				DefaultLocation,
-				DestinationFolder
-			);
-
-			if( bFolderSelected )
-			{
-				FEditorDirectories::Get().SetLastDirectory(ELastDirectory::GENERIC_EXPORT, DestinationFolder);
-				FPaths::NormalizeFilename(DestinationFolder);
-
-				ProducerPtr->SetFolderName( DestinationFolder );
-				FolderName->SetText( GetFilenameText() );
-			}
+			FolderName->SetText( GetFilenameText() );
 		}
 
 		return FReply::Handled();
@@ -1176,9 +1089,6 @@ private:
 private:
 	TWeakObjectPtr< UDatasmithDirProducer > ProducerPtr;
 	TSharedPtr< SEditableText > FolderName;
-
-	// Boolean used to detect first paint and pop up folder dialog if folder input is empty
-	mutable bool bIsFirstPaint;
 };
 
 void FDatasmithDirProducerDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilder )
@@ -1337,6 +1247,99 @@ void UDatasmithFileProducer::LoadDefaultSettings()
 			DefaultImportOptions.SceneHandling =  EDatasmithImportScene::CurrentLevel;
 		}
 	}
+}
+
+FString FDatasmithFileProducerUtils::SelectFileToImport()
+{
+	const TArray<FString>& Formats = FDatasmithTranslatorManager::Get().GetSupportedFormats();
+
+	FString FileTypes;
+	FString AllExtensions;
+
+	for( const FString& Format : Formats )
+	{
+		TArray<FString> FormatComponents;
+		Format.ParseIntoArray( FormatComponents, TEXT( ";" ), false );
+
+		for ( int32 ComponentIndex = 0; ComponentIndex < FormatComponents.Num(); ComponentIndex += 2 )
+		{
+			check( FormatComponents.IsValidIndex( ComponentIndex + 1 ) );
+			const FString& Extension = FormatComponents[ComponentIndex];
+			const FString& Description = FormatComponents[ComponentIndex + 1];
+
+			if ( !AllExtensions.IsEmpty() )
+			{
+				AllExtensions.AppendChar( TEXT( ';' ) );
+			}
+			AllExtensions.Append( TEXT( "*." ) );
+			AllExtensions.Append( Extension );
+
+			if ( !FileTypes.IsEmpty() )
+			{
+				FileTypes.AppendChar( TEXT( '|' ) );
+			}
+
+			FileTypes.Append( FString::Printf( TEXT( "%s (*.%s)|*.%s" ), *Description, *Extension, *Extension ) );
+		}
+	}
+
+	FString SupportedExtensions( FString::Printf( TEXT( "All Files (%s)|%s|%s" ), *AllExtensions, *AllExtensions, *FileTypes ) );
+
+	TArray<FString> OpenedFiles;
+	FString DefaultLocation( FEditorDirectories::Get().GetLastDirectory( ELastDirectory::GENERIC_IMPORT ) );
+	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
+
+	bool bOpened = false;
+	if ( DesktopPlatform )
+	{
+		bOpened = DesktopPlatform->OpenFileDialog(
+			FSlateApplication::Get().FindBestParentWindowHandleForDialogs( nullptr ),
+			LOCTEXT( "FileDialogTitle", "Import Datasmith" ).ToString(),
+			DefaultLocation,
+			TEXT( "" ),
+			SupportedExtensions,
+			EFileDialogFlags::None,
+			OpenedFiles
+		);
+	}
+
+	if ( bOpened && OpenedFiles.Num() > 0 )
+	{
+		const FString& OpenedFile = OpenedFiles[0];
+		FEditorDirectories::Get().SetLastDirectory( ELastDirectory::GENERIC_IMPORT, OpenedFile );
+
+		return FPaths::ConvertRelativePathToFull( OpenedFile );
+	}
+
+	return FString();
+}
+
+FString FDatasmithFileProducerUtils::SelectDirectory()
+{
+	if( IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get() )
+	{
+		FString DestinationFolder;
+		const void* ParentWindowHandle = FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr);
+		const FString Title = LOCTEXT("DatasmithDirProducerFolderTitle", "Choose a folder").ToString();
+		const FString DefaultLocation( FEditorDirectories::Get().GetLastDirectory( ELastDirectory::GENERIC_IMPORT ) );
+
+		// #ueent_todo: What if the user selects a drive? Shouldn't we ask if this is really what he/she wants?
+		const bool bFolderSelected = DesktopPlatform->OpenDirectoryDialog(
+			ParentWindowHandle,
+			Title,
+			DefaultLocation,
+			DestinationFolder
+		);
+
+		if( bFolderSelected )
+		{
+			FEditorDirectories::Get().SetLastDirectory(ELastDirectory::GENERIC_EXPORT, DestinationFolder);
+
+			return FPaths::ConvertRelativePathToFull( DestinationFolder );
+		}
+	}
+
+	return FString();
 }
 
 #undef LOCTEXT_NAMESPACE
