@@ -24,6 +24,10 @@
 void SDataprepFilter::Construct(const FArguments& InArgs, UDataprepFilter& InFilter, const TSharedRef<FDataprepSchemaActionContext>& InDataprepActionContext)
 {
 	Filter = &InFilter;
+
+	TAttribute<FText> TooltipTextAttribute = MakeAttributeSP( this, &SDataprepFilter::GetTooltipText );
+	SetToolTipText( TooltipTextAttribute );
+
 	SDataprepActionBlock::Construct( SDataprepActionBlock::FArguments(), InDataprepActionContext );
 }
 
@@ -164,6 +168,20 @@ void SDataprepFilter::InverseFilter()
 		Filter->SetIsExcludingResult( !Filter->IsExcludingResult() );
 		FDataprepEditorUtils::NotifySystemOfChangeInPipeline( Filter );
 	}
+}
+
+FText SDataprepFilter::GetTooltipText() const
+{
+	FText TooltipText;
+	if ( Filter )
+	{
+		UDataprepFetcher* Fetcher = Filter->GetFetcher();
+		if ( Fetcher )
+		{
+			TooltipText = Fetcher->GetTooltipText();
+		}
+	}
+	return TooltipText;
 }
 
 void SDataprepFilter::AddReferencedObjects(FReferenceCollector& Collector)
