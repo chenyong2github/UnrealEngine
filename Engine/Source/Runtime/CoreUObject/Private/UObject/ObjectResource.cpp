@@ -207,8 +207,8 @@ void operator<<(FStructuredArchive::FSlot Slot, FObjectTextExport& E)
 	}
 
 	Slot << SA_ATTRIBUTE(TEXT("Class"), ClassName);
-	Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("Outer"), OuterName, FString());
-	Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("SuperStruct"), SuperStructName, FString());
+	Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("Outer"), OuterName, FString());
+	Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("SuperStruct"), SuperStructName, FString());
 
 	if (BaseArchive.IsLoading())
 	{
@@ -218,21 +218,21 @@ void operator<<(FStructuredArchive::FSlot Slot, FObjectTextExport& E)
 	}
 
 	uint32 Save = E.Export.ObjectFlags & RF_Load;
-	Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("ObjectFlags"), Save, 0);
+	Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("ObjectFlags"), Save, 0);
 	if (BaseArchive.IsLoading())
 	{
 		E.Export.ObjectFlags = EObjectFlags(Save & RF_Load);
 	}
 
-	Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("bForcedExport"), E.Export.bForcedExport, false);
-	Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("bNotForClient"), E.Export.bNotForClient, false);
-	Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("bNotForServer"), E.Export.bNotForServer, false);
+	Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("bForcedExport"), E.Export.bForcedExport, false);
+	Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("bNotForClient"), E.Export.bNotForClient, false);
+	Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("bNotForServer"), E.Export.bNotForServer, false);
 
-	Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("PackageGuid"), E.Export.PackageGuid, FGuid());
-	Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("PackageFlags"), E.Export.PackageFlags, 0);
+	Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("PackageGuid"), E.Export.PackageGuid, FGuid());
+	Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("PackageFlags"), E.Export.PackageFlags, 0);
 
-	Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("bNotAlwaysLoadedForEditorGame"), E.Export.bNotAlwaysLoadedForEditorGame, false);
-	Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("bIsAsset"), E.Export.bIsAsset, false);
+	Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("bNotAlwaysLoadedForEditorGame"), E.Export.bNotAlwaysLoadedForEditorGame, false);
+	Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("bIsAsset"), E.Export.bIsAsset, false);
 }
 
 /*-----------------------------------------------------------------------------

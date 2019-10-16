@@ -67,7 +67,7 @@ void UArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 	if (UnderlyingArchive.IsTextFormat() && InnerTag.Type == NAME_StructProperty)
 	{
 		Slot << SA_ATTRIBUTE(TEXT("InnerStructName"), InnerTag.StructName);
-		Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("InnerStructGuid"), InnerTag.StructGuid, FGuid());
+		Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("InnerStructGuid"), InnerTag.StructGuid, FGuid());
 	}
 	
 	// Ensure that the Inner itself has been loaded before calling SerializeItem() on it

@@ -124,7 +124,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPropertyTag& Tag)
 			{
 				if (bIsTextFormat)
 				{
-					Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("StructGuid"), Tag.StructGuid, FGuid());
+					Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("StructGuid"), Tag.StructGuid, FGuid());
 				}
 				else
 				{
@@ -150,7 +150,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPropertyTag& Tag)
 		{
 			if (UnderlyingArchive.IsTextFormat())
 			{
-				Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("EnumName"), Tag.EnumName, NAME_None);
+				Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("EnumName"), Tag.EnumName, NAME_None);
 			}
 			else
 			{
@@ -188,7 +188,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPropertyTag& Tag)
 	{
 		if (bIsTextFormat)
 		{
-			Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("PropertyGuid"), Tag.PropertyGuid, FGuid());
+			Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("PropertyGuid"), Tag.PropertyGuid, FGuid());
 			Tag.HasPropertyGuid = Tag.PropertyGuid.IsValid();
 		}
 		else
