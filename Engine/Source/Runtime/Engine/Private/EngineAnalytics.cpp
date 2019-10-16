@@ -209,3 +209,11 @@ void FEngineAnalytics::Tick(float DeltaTime)
 		SessionSummarySender->Tick(DeltaTime);
 	}
 }
+
+void FEngineAnalytics::LowDriveSpaceDetected()
+{
+	if (SessionSummaryWriter.IsValid())
+	{
+		SessionSummaryWriter->LowDriveSpaceDetected();
+	}
+}

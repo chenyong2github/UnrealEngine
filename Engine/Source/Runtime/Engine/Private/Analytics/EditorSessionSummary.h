@@ -15,6 +15,7 @@ public:
 
 	void Initialize();
 	void Tick(float DeltaTime);
+	void LowDriveSpaceDetected();
 	void Shutdown();
 
 private:
