@@ -821,7 +821,13 @@ namespace Audio
 
 		if (AudioDevice->IsModulationPluginEnabled())
 		{
-			AudioDevice->ModulationInterface->ProcessControls(MixerSourceVoice->GetSourceId(), WaveInstance->SoundModulationControls);
+			const int32 SourceId = MixerSourceVoice->GetSourceId();
+			const bool bUpdatePending = AudioDevice->ModulationInterface->ProcessControls(SourceId, WaveInstance->SoundModulationControls);
+
+			if (bUpdatePending)
+			{
+				AudioDevice->UpdateModulationControls(SourceId, WaveInstance->SoundModulationControls);
+			}
 		}
 	}
 

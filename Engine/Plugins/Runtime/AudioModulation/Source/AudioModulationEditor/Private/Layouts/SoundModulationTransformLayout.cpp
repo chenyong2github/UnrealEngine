@@ -38,8 +38,6 @@ bool FSoundModulationOutputTransformLayoutCustomization::IsCurveSet(TSharedPtr<I
 
 void FSoundModulationOutputTransformLayoutCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
-	// Property handle here is the base struct. We are going to hide it since we're showing it's properties directly.
-// 	PropertyHandle->MarkHiddenByCustomization();
 }
 
 void FSoundModulationOutputTransformLayoutCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
@@ -61,21 +59,8 @@ void FSoundModulationOutputTransformLayoutCustomization::CustomizeChildren(TShar
 
 	TSharedRef<IPropertyHandle>InputMaxHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundModulationOutputTransform, InputMax)).ToSharedRef();
 	ChildBuilder.AddProperty(InputMaxHandle);
-
-	TSharedRef<IPropertyHandle>CurveHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundModulationOutputTransform, Curve)).ToSharedRef();
-	ChildBuilder.AddProperty(CurveHandle);
-
-	TSharedRef<IPropertyHandle> FloatCurveHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundModulationOutputTransform, CurveCustom)).ToSharedRef();
-	const TArray<FString> CustomFilters = TArray<FString>({ TEXT("Custom") });
-	ChildBuilder.AddProperty(FloatCurveHandle)
-		.EditCondition(TAttribute<bool>::Create([this, CurveHandle, CustomFilters]() { return IsCurveSet(CurveHandle, CustomFilters); }), nullptr)
-		.Visibility(TAttribute<EVisibility>::Create([this, CurveHandle, CustomFilters]() { return IsCurveSet(CurveHandle, CustomFilters) ? EVisibility::Visible : EVisibility::Hidden; }));
-
 	TSharedRef<IPropertyHandle> ExpScalarHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundModulationOutputTransform, Scalar)).ToSharedRef();
-	const TArray<FString> ScalarFilters = TArray<FString>({ TEXT("Exp"), TEXT("Log") });
-	ChildBuilder.AddProperty(ExpScalarHandle)
-		.EditCondition(TAttribute<bool>::Create([this, CurveHandle, ScalarFilters]() { return IsCurveSet(CurveHandle, ScalarFilters); }), nullptr)
-		.Visibility(TAttribute<EVisibility>::Create([this, CurveHandle, ScalarFilters]() { return IsCurveSet(CurveHandle, ScalarFilters) ? EVisibility::Visible : EVisibility::Hidden; }));
+	ChildBuilder.AddProperty(ExpScalarHandle);
 
 	TSharedRef<IPropertyHandle>OutputMinHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundModulationOutputTransform, OutputMin)).ToSharedRef();
 	ChildBuilder.AddProperty(OutputMinHandle);
