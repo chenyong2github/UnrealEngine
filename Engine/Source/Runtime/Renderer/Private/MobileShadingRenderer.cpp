@@ -88,9 +88,12 @@ TGlobalResource<FGlobalDynamicReadBuffer> FMobileSceneRenderer::DynamicReadBuffe
 
 static bool UsesCustomDepthStencilLookup(const FViewInfo& View)
 {
+	if (View.bUsesCustomDepthStencil)
+	{
+		return true;
+	}
+
 	// Find out whether post-process materials use CustomDepth/Stencil lookups
-	bool bPPUsesCustomDepth = false;
-	bool bPPUsesCustomStencil = false;
 	const FBlendableManager& BlendableManager = View.FinalPostProcessSettings.BlendableManager;
 	FBlendableEntry* BlendableIt = nullptr;
 
@@ -103,15 +106,21 @@ static bool UsesCustomDepthStencilLookup(const FViewInfo& View)
 
 			const FMaterial* Material = Proxy->GetMaterial(View.GetFeatureLevel());
 			check(Material);
-			const FMaterialShaderMap* MaterialShaderMap = Material->GetRenderingThreadShaderMap();
+			if (Material->IsStencilTestEnabled())
+			{
+				return true;
+			}
 
-			bPPUsesCustomDepth|= MaterialShaderMap->UsesSceneTexture(PPI_CustomDepth);
-			bPPUsesCustomStencil|= MaterialShaderMap->UsesSceneTexture(PPI_CustomStencil);
+			const FMaterialShaderMap* MaterialShaderMap = Material->GetRenderingThreadShaderMap();
+			if (MaterialShaderMap->UsesSceneTexture(PPI_CustomDepth) || MaterialShaderMap->UsesSceneTexture(PPI_CustomStencil))
+			{
+				return true;
+			}
 		}
 	}
 
 	//TODO: check if translucency uses CustomDepth
-	return bPPUsesCustomDepth || bPPUsesCustomStencil || View.bUsesCustomDepthStencil;
+	return false;
 }
 
 
@@ -450,7 +459,11 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		bool bUsesCustomDepthStencil = false;
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++) 
 		{
-			bUsesCustomDepthStencil = UsesCustomDepthStencilLookup(Views[ViewIndex]);
+			if (UsesCustomDepthStencilLookup(Views[ViewIndex]))
+			{
+				bUsesCustomDepthStencil = true;
+				break;
+			}
 		}
 
 		if (bUsesCustomDepthStencil)
