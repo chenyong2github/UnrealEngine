@@ -16,6 +16,7 @@
 #include "AnimGraphNode_Root.h"
 #include "ScopedTransaction.h"
 #include "SKismetInspector.h"
+#include "AnimationGraph.h"
 #include "AnimationGraphSchema.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Widgets/Input/SComboButton.h"
@@ -44,6 +45,11 @@ void FAnimGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 
 	Graph = CastChecked<UEdGraph>(Objects[0].Get());
 
+	if(IsInterface())
+	{
+		DetailLayout.HideCategory("GraphBlending");
+	}
+
 	bool const bIsStateMachine = !Graph->GetOuter()->IsA(UAnimBlueprint::StaticClass());
 
 	if(Objects.Num() > 1 || bIsStateMachine)
@@ -53,7 +59,6 @@ void FAnimGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 		return;
 	}
 
-	TSharedPtr<IAnimationBlueprintEditor> AnimBlueprintEditor = AnimBlueprintEditorPtr.Pin();
 	const bool bIsDefaultGraph = Graph->GetFName() == UEdGraphSchema_K2::GN_AnimGraph;
 
 	if(!Graph->bAllowDeletion && !bIsDefaultGraph)
@@ -266,8 +271,7 @@ void FAnimGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 		];
 	}
 
-	bool bIsInterface = AnimBlueprintEditor->GetBlueprintObj()->BlueprintType == BPTYPE_Interface;
-	if(bIsInterface)
+	if(IsInterface())
 	{
 		UAnimationGraphSchema::AutoArrangeInterfaceGraph(*Graph);
 	}
@@ -275,13 +279,10 @@ void FAnimGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 
 FReply FAnimGraphDetails::OnAddNewInputPoseClicked()
 {
-	TSharedPtr<IAnimationBlueprintEditor> AnimBlueprintEditor = AnimBlueprintEditorPtr.Pin();
-
 	EK2NewNodeFlags NewNodeOperation = EK2NewNodeFlags::None;
 	FVector2D NewNodePosition(0.0f, 0.0f);
 
-	bool bIsInterface = AnimBlueprintEditor->GetBlueprintObj()->BlueprintType == BPTYPE_Interface;
-	if(!bIsInterface)
+	if(!IsInterface())
 	{
 		NewNodePosition = UAnimationGraphSchema::GetPositionForNewLinkedInputPoseNode(*Graph);
 	}
@@ -371,6 +372,12 @@ TSharedRef< ITableRow > FAnimGraphDetails::MakeGroupViewWidget( TSharedPtr<FText
 			SNew(STextBlock)
 			.Text(*Item.Get())
 		];
+}
+
+bool FAnimGraphDetails::IsInterface() const
+{
+	TSharedPtr<IAnimationBlueprintEditor> AnimBlueprintEditor = AnimBlueprintEditorPtr.Pin();
+	return AnimBlueprintEditor->GetBlueprintObj()->BlueprintType == BPTYPE_Interface;
 }
 
 void FAnimGraphDetails::RefreshGroupSource()
