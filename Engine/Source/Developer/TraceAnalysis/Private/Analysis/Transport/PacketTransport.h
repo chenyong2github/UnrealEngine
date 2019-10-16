@@ -19,6 +19,7 @@ public:
 private:
 	struct					FPacketNode;
 	bool					GetNextBatch();
+	FPacketNode*			AllocateNode();
 	static const uint32		MaxPacketSize = 8192;
 	FPacketNode*			ActiveList = nullptr;
 	FPacketNode*			PendingList = nullptr;

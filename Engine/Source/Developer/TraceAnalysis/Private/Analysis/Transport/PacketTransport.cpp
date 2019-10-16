@@ -60,6 +60,24 @@ const uint8* FPayloadTransport::GetPointerImpl(uint32 BlockSize)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+FPayloadTransport::FPacketNode* FPayloadTransport::AllocateNode()
+{
+	FPacketNode* Node;
+	if (FreeList != nullptr)
+	{
+		Node = FreeList;
+		FreeList = Node->Next;
+	}
+	else
+	{
+		Node = (FPacketNode*)GMalloc->Malloc(sizeof(FPacketNode) + MaxPacketSize);
+	}
+
+	Node->Cursor = 0;
+	return Node;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 bool FPayloadTransport::GetNextBatch()
 {
 	struct FPacket
@@ -99,17 +117,7 @@ bool FPayloadTransport::GetNextBatch()
 
 		FTransport::Advance(Packet->Size);
 
-		FPacketNode* Node;
-		if (FreeList != nullptr)
-		{
-			Node = FreeList;
-			FreeList = Node->Next;
-		}
-		else
-		{
-			Node = (FPacketNode*)GMalloc->Malloc(sizeof(FPacketNode) + MaxPacketSize);
-		}
-
+		FPacketNode* Node = AllocateNode();
 		Node->Serial = Packet->Serial;
 		Node->Cursor = 0;
 		Node->Size = uint16(Packet->Size - sizeof(*Packet));
