@@ -183,7 +183,11 @@ public:
 		if (!IsRayTracingEnabled() || !RayTracingGeometry || !RayTracingGeometry->RayTracingGeometryRHI.IsValid())
 			return;
 
-		check(RayTracingGeometry->Initializer.PositionVertexBuffer.IsValid());
+		for (const FRayTracingGeometrySegment& Segment : RayTracingGeometry->Initializer.Segments)
+		{
+			check(Segment.VertexBuffer.IsValid());
+		}
+
 		AddOpaqueRaytracingInstance(GetLocalToWorld(), RayTracingGeometry, RaytracingInstanceMask_ThinShadow, OutRayTracingInstances);
 	}
 #endif
