@@ -8,7 +8,7 @@
 #include "Trace/Analyzer.h"
 #include "Trace/Detail/EventDef.h"
 #include "Transport/Transport.h"
-#include "Transport/PayloadTransport.h"
+#include "Transport/PacketTransport.h"
 
 namespace Trace
 {
