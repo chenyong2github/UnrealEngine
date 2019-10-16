@@ -25,8 +25,20 @@ public class FreeImage : ModuleRules
 			RuntimeDependencies.Add(DynLibPath);
 			bWithFreeImage = true;
 		}
+		else if (Target.Platform == UnrealTargetPlatform.Linux)
+		{
+			LibraryFileName = "libfreeimage-3.18.0.so";
+			string DynLibPath = Path.Combine(BinaryLibraryFolder, LibraryFileName);
 
+			PublicRuntimeLibraryPaths.Add(BinaryLibraryFolder);
+			PublicAdditionalLibraries.Add(DynLibPath);
 
+			PublicDelayLoadDLLs.Add(LibraryFileName);
+			RuntimeDependencies.Add(DynLibPath);
+
+			PublicSystemLibraries.Add("stdc++");
+			bWithFreeImage = true;
+		}
 
 		PublicDefinitions.Add("WITH_FREEIMAGE_LIB=" + (bWithFreeImage ? '1' : '0'));
 		if (LibraryFileName != "")
