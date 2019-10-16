@@ -49,6 +49,34 @@ namespace DataprepSnapshotUtil
 {
 	const TCHAR* SnapshotExtension = TEXT(".dpc");
 
+
+	/**
+	 * Extends FObjectAndNameAsStringProxyArchive to support FLazyObjectPtr.
+	 */
+	struct FSnapshotCustomArchive : public FObjectAndNameAsStringProxyArchive
+	{
+		FSnapshotCustomArchive(FArchive& InInnerArchive)
+			:	FObjectAndNameAsStringProxyArchive(InInnerArchive, false)
+		{
+			// Set archive as transacting to persist all data including data in memory
+			SetIsTransacting( true );
+		}
+
+		virtual FArchive& operator<<(FLazyObjectPtr& Obj) override
+		{
+			// Copied from FArchiveUObject::SerializeLazyObjectPtr
+			// Note that archive is transacting
+			if (IsLoading())
+			{
+				// Reset before serializing to clear the internal weak pointer. 
+				Obj.Reset();
+			}
+			InnerArchive << Obj.GetUniqueID();
+
+			return *this;
+		}
+	};
+
 	void RemoveSnapshotFiles(const FString& RootDir)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(DataprepSnapshotUtil::RemoveSnapshotFiles);
@@ -106,8 +134,7 @@ namespace DataprepSnapshotUtil
 		};
 
 		FMemoryWriter MemAr(OutSerializedData);
-		FObjectAndNameAsStringProxyArchive Ar(MemAr, false);
-		Ar.SetIsTransacting(true);
+		FSnapshotCustomArchive Ar(MemAr);
 
 		// Collect sub-objects depending on input object including nested objects
 		TArray< UObject* > SubObjectsArray;
@@ -265,8 +292,7 @@ namespace DataprepSnapshotUtil
 		RemoveDefaultDependencies( Object );
 
 		FMemoryReader MemAr(bUseCompression ? MemoryBuffer : InSerializedData);
-		FObjectAndNameAsStringProxyArchive Ar(MemAr, false);
-		Ar.SetIsTransacting(true);
+		FSnapshotCustomArchive Ar(MemAr);
 
 		// Deserialize count of sub-objects
 		int32 SubObjectsCount = 0;
