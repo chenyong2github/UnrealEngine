@@ -269,41 +269,35 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 
 			uint RayFlags = 0;
 
-	#if !ENABLE_TWO_SIDED_GEOMETRY
+#if !ENABLE_TWO_SIDED_GEOMETRY
 			RayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
-	#endif
-			
+#endif
+
 			if (DIM_DENOISER_OUTPUT == 0)
 			{
 				// Denoiser mode 0 doesn't use depth, so take first hit
 				RayFlags |= RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
 			}
 
-			FPackedMaterialClosestHitPayload Payload = (FPackedMaterialClosestHitPayload)0;
-			Payload.SetMinimalPayloadMode(); // Only HitT will be filled by closest hit shader, skipping full material evaluation.
-		
-			TraceRay(
-				TLAS,      // AccelerationStructure
+			FMinimalPayload MinimalPayload = TraceVisibilityRay(
+				TLAS,
 				RayFlags,
-				RaytracingMask,                 // InstanceInclusionMask
-				RAY_TRACING_SHADER_SLOT_SHADOW, // RayContributionToHitGroupIndex
-				RAY_TRACING_NUM_SHADER_SLOTS,   // MultiplierForGeometryContributionToShaderIndex
-				0,         // MissShaderIndex
-				Ray,       // RayDesc
-				Payload    // Payload
-			);
+				RaytracingMask,
+				Ray);
 
 			RayCount += 1.0;
-			Visibility += Payload.IsMiss() ? 1.0 : 0.0;
-			if (Payload.IsHit())
+			Visibility += MinimalPayload.IsMiss() ? 1.0 : 0.0;
+			if (MinimalPayload.IsHit())
 			{
-				ClosestRayDistance = ClosestRayDistance == DENOISER_INVALID_HIT_DISTANCE || Payload.HitT < ClosestRayDistance ? Payload.HitT : ClosestRayDistance;
-				SumRayDistance += Payload.HitT;
+				ClosestRayDistance =
+					(ClosestRayDistance == DENOISER_INVALID_HIT_DISTANCE) ||
+					(MinimalPayload.HitT < ClosestRayDistance) ? MinimalPayload.HitT : ClosestRayDistance;
+				SumRayDistance += MinimalPayload.HitT;
 				HitCount += 1.0;
 			}
 			else
 			{
-				ClosestRayDistance = ClosestRayDistance == DENOISER_INVALID_HIT_DISTANCE ? DENOISER_MISS_HIT_DISTANCE : ClosestRayDistance;
+				ClosestRayDistance = (ClosestRayDistance == DENOISER_INVALID_HIT_DISTANCE) ? DENOISER_MISS_HIT_DISTANCE : ClosestRayDistance;
 			}
 		}
 	}
