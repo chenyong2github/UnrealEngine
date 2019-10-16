@@ -309,40 +309,53 @@ ULevel * UDatasmithConsumer::FindLevel( const FString& InLevelName )
 
 bool UDatasmithConsumer::SetLevelName( const FString & InLevelName, FText& OutReason )
 {
-	// Update current level
-	if( !InLevelName.IsEmpty() && InLevelName.Compare( TEXT("current"), ESearchCase::IgnoreCase ) != 0 )
+	FString NewLevelName = InLevelName;
+
+	bool bValidLevelName = false;
+	OutReason = FText();
+
+	// Check if a new level can be used with the new name and current limitations
+	if( !NewLevelName.IsEmpty() && NewLevelName.Compare( TEXT("current"), ESearchCase::IgnoreCase ) != 0 )
 	{
-		// #ueent_todo: What about sub-level of sub-level?
+		// Sub-level of sub-level is not supported yet
+		// #ueent_todo: sub-level of sub-level
 		if( InLevelName.Contains( TEXT("/") ) || InLevelName.Contains( TEXT("\\") ))
 		{
 			OutReason = LOCTEXT( "DatasmithConsumer_SubLevel", "Sub-level of sub-levels is not supported yet" );
-			return false;
 		}
-
 		// Try to see if there is any issue to eventually create this level, i.e. name collision
-		if( FindLevel( InLevelName ) == nullptr )
+		else if( FindLevel( InLevelName ) == nullptr )
 		{
 			FSoftObjectPath LevelObjectPath( FPaths::Combine( TargetContentFolder, InLevelName ) );
 
 			if( StaticFindObject( nullptr, ANY_PACKAGE, *LevelObjectPath.ToString(), true) )
 			{
 				OutReason = LOCTEXT( "DatasmithConsumer_LevelExists", "A object with that name already exists. Please choose another name." );
-				return false;
 			}
 
 			// #ueent_todo: Check if persistent level is locked, etc
 		}
 
-		LevelName = InLevelName;
+		// Good to go if no error documented
+		bValidLevelName = OutReason.IsEmpty();
 	}
-	else
+	// New name of level is empty or keyword 'current' used
+	else if( !LevelName.IsEmpty() )
 	{
-		LevelName = TEXT("");
+		NewLevelName = TEXT("");
+		bValidLevelName = true;
 	}
 
-	OnChanged.Broadcast();
+	if(bValidLevelName)
+	{
+		Modify();
 
-	return true;
+		LevelName = NewLevelName;
+
+		OnChanged.Broadcast();
+	}
+
+	return bValidLevelName;
 }
 
 void UDatasmithConsumer::MoveAssets()
