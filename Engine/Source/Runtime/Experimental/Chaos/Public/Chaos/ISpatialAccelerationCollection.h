@@ -9,30 +9,16 @@
 namespace Chaos
 {
 
-/** Used for the creation of different acceleration structures */
-template <typename TPayloadType, typename T, int d>
-struct CHAOS_API TSpatialAccelerationParams
-{
-	ESpatialAcceleration Type;	//Specifies the acceleration type. Unknown can be used for custom types, see TSpatialAccelerationParams
-
-	//Union of all params, some are only applicable to subset of structure types
-	float MaxPayloadBounds;	//max bounds size before inserting into a linear list of "large" objects. This list will always be checked
-
-	int32 MaxCells;	//(grid only) max number of cells in grid structure
-	int32 MaxChildrenInLeaf; //(tree only) if the tree sees MaxChildrenInLeaf or fewer objects, no more splitting occurs
-	int32 MaxTreeDepth;	//(tree only) if the tree has reached MaxTreeDepth, no more splitting occurs
-
-	typedef ISpatialAcceleration<TPayloadType, T, d> (*ConstructFn)(TSpatialAccelerationParams<TPayloadType, T, d>& Params, int32 ParamIdx);
-	ConstructFn ConstructionFactory;	//if unknown type is specified, use function pointer set by user
-};
-
 template <typename TPayloadType, typename T, int d>
 class CHAOS_API ISpatialAccelerationCollection : public ISpatialAcceleration<TPayloadType, T, d>
 {
 public:
-	ISpatialAccelerationCollection() : ISpatialAcceleration<TPayloadType, T, d>(StaticType) {}
+	ISpatialAccelerationCollection()
+	: ISpatialAcceleration<TPayloadType, T, d>(StaticType)
+	, ActiveBucketsMask(0)
+	{}
 	static constexpr ESpatialAcceleration StaticType = ESpatialAcceleration::Collection;
-	virtual FSpatialAccelerationIdx AddSubstructure(TUniquePtr<ISpatialAcceleration<TPayloadType, T, d>>&& Substructure, int32 Bucket) = 0;
+	virtual FSpatialAccelerationIdx AddSubstructure(TUniquePtr<ISpatialAcceleration<TPayloadType, T, d>>&& Substructure, uint16 Bucket) = 0;
 	virtual TUniquePtr<ISpatialAcceleration<TPayloadType, T, d>> RemoveSubstructure(FSpatialAccelerationIdx Idx) = 0;
 	virtual ISpatialAcceleration<TPayloadType, T, d>* GetSubstructure(FSpatialAccelerationIdx Idx) = 0;
 
@@ -40,6 +26,13 @@ public:
 	virtual void PBDComputeConstraintsLowLevel_GatherStats(TPBDCollisionConstraint<T, d>& CollisionConstraint, T Dt) const = 0;
 	virtual void PBDComputeConstraintsLowLevel(TPBDCollisionConstraint<T, d>& CollisionConstraint, T Dt) const = 0;
 	virtual TArray<FSpatialAccelerationIdx> GetAllSpatialIndices() const = 0;
+
+	bool IsBucketActive(uint8 BucketIdx) const
+	{
+		return (1 << BucketIdx) & ActiveBucketsMask;
+	}
+protected:
+	uint8 ActiveBucketsMask;
 };
 
 template <typename T>
@@ -66,6 +59,14 @@ struct CHAOS_API TSpatialAccelerationBucketEntry
 	TSpatialAccelerationBucketEntry<TPayloadType, T, d>& operator=(TSpatialAccelerationBucketEntry<TPayloadType, T, d>&& Other) = default;
 	TSpatialAccelerationBucketEntry<TPayloadType, T, d>& operator=(TSpatialAccelerationBucketEntry<TPayloadType, T, d>& Other) = delete;
 };
+
+template <typename TPayloadType, typename T, int d>
+FChaosArchive& operator<<(FChaosArchive& Ar, TSpatialAccelerationBucketEntry<TPayloadType, T, d>& BucketEntry)
+{
+	Ar << BucketEntry.Acceleration;
+	Ar << BucketEntry.TypeInnerIdx;
+	return Ar;
+}
 
 
 template <typename TPayloadType, typename T, int d>
@@ -142,6 +143,14 @@ struct CHAOS_API TSpatialCollectionBucket
 	}
 
 };
+
+template <typename TObj>
+FChaosArchive& operator<<(FChaosArchive& Ar, TSpatialCollectionBucket<TObj>& Bucket)
+{
+	Ar << Bucket.Objects;
+	Ar << Bucket.FreeIndices;
+	return Ar;
+}
 
 template <typename... TRemaining>
 struct CHAOS_API TSpatialTypeTuple
@@ -289,6 +298,25 @@ struct TSpatialAccelerationCollectionHelper
 			TSpatialAccelerationCollectionHelper < NextType < NumTypes ? NextType : 0, NumTypes, Tuple, TPayloadType, T, d>::SetNumFrom(TypesSrc, TypesDest);
 		}
 	}
+
+	static uint16 FindTypeIdx(const Tuple& Types, SpatialAccelerationType Type)
+	{
+		using AccelType = typename std::remove_pointer<typename decltype(GetAccelerationsPerType<TypeIdx>(Types).Objects)::ElementType>::type;
+		if (AccelType::StaticType == Type)
+		{
+			return TypeIdx;
+		}
+
+		constexpr int NextType = TypeIdx + 1;
+		if (NextType < NumTypes)
+		{
+			return TSpatialAccelerationCollectionHelper < NextType < NumTypes ? NextType : 0, NumTypes, Tuple, TPayloadType, T, d>::FindTypeIdx(Types, Type);
+		}
+		else
+		{
+			return NumTypes;
+		}
+	}
 };
 
 template <bool bGatherStats, typename SpatialAccelerationCollection, typename T, int d>
@@ -313,14 +341,14 @@ public:
 	using TPayloadType = typename FirstAccelerationType::PayloadType;
 	using T = typename FirstAccelerationType::TType;
 	static constexpr int d = FirstAccelerationType::D;
-	TSpatialAccelerationCollection(const TArray<TSpatialAccelerationParams<TPayloadType, T, d>>& BucketsParams)
+
+	TSpatialAccelerationCollection()
 	{
-		//todo: verify params match template args
 	}
 
-	virtual FSpatialAccelerationIdx AddSubstructure(TUniquePtr<ISpatialAcceleration<TPayloadType, T, d>>&& Substructure, int32 BucketIdx) override
+	virtual FSpatialAccelerationIdx AddSubstructure(TUniquePtr<ISpatialAcceleration<TPayloadType, T, d>>&& Substructure, uint16 BucketIdx) override
 	{
-		check(BucketIdx < NumBuckets);
+		check(BucketIdx < MaxBuckets);
 		FSpatialAccelerationIdx Result;
 		Result.Bucket = BucketIdx;
 		
@@ -341,6 +369,8 @@ public:
 		case 7: BucketEntry.TypeInnerIdx = GetAccelerationsPerType<ClampedIdx(7)>(Types).Add(&AccelPtr->template AsChecked<typename std::tuple_element<ClampedIdx(7), std::tuple<TSpatialAccelerationTypes...>>::type>()); break;
 		}
 
+		this->ActiveBucketsMask |= (1 << BucketIdx);
+
 		Result.InnerIdx = Buckets[BucketIdx].Add(MoveTemp(BucketEntry));
 		return Result;
 	}
@@ -348,7 +378,6 @@ public:
 	virtual TUniquePtr <ISpatialAcceleration<TPayloadType, T, d>> RemoveSubstructure(FSpatialAccelerationIdx Idx) override
 	{
 		TUniquePtr <ISpatialAcceleration<TPayloadType, T, d>> Removed;
-		check(Idx.Bucket < NumBuckets);
 		{
 			auto& BucketEntry = Buckets[Idx.Bucket].Objects[Idx.InnerIdx];
 			const int32 TypeIdx = GetTypeIdx(BucketEntry.Acceleration.Get());
@@ -366,12 +395,16 @@ public:
 			Removed = MoveTemp(BucketEntry.Acceleration);
 		}
 		Buckets[Idx.Bucket].Remove(Idx.InnerIdx);
+		if (Buckets[Idx.Bucket].Objects.Num() == 0)
+		{
+			this->ActiveBucketsMask &= ~(1 << Idx.Bucket);
+		}
 		return Removed;
 	}
 
 	virtual ISpatialAcceleration<TPayloadType, T, d>* GetSubstructure(FSpatialAccelerationIdx Idx) override
 	{
-		check(Idx.Bucket < NumBuckets);
+		check(Idx.Bucket < MaxBuckets);
 		return Buckets[Idx.Bucket].Objects[Idx.InnerIdx].Acceleration.Get();
 	}
 
@@ -463,14 +496,14 @@ public:
 
 	virtual void RemoveElementFrom(const TPayloadType& Payload, FSpatialAccelerationIdx SpatialIdx) override
 	{
-		check(SpatialIdx.Bucket < NumBuckets);
-		Buckets[SpatialIdx.Bucket].Objects[SpatialIdx.InnerIdx].Acceleration->RemoveElement(Payload);
+		const uint16 UseBucket = ((1 << SpatialIdx.Bucket) & this->ActiveBucketsMask) ? SpatialIdx.Bucket : 0;
+		Buckets[UseBucket].Objects[SpatialIdx.InnerIdx].Acceleration->RemoveElement(Payload);
 	}
 
 	virtual void UpdateElementIn(const TPayloadType& Payload, const TBox<T, d>& NewBounds, bool bHasBounds, FSpatialAccelerationIdx SpatialIdx)
 	{
-		check(SpatialIdx.Bucket < NumBuckets);
-		Buckets[SpatialIdx.Bucket].Objects[SpatialIdx.InnerIdx].Acceleration->UpdateElement(Payload, NewBounds, bHasBounds);
+		const uint16 UseBucket = ((1 << SpatialIdx.Bucket) & this->ActiveBucketsMask) ? SpatialIdx.Bucket : 0;
+		Buckets[UseBucket].Objects[SpatialIdx.InnerIdx].Acceleration->UpdateElement(Payload, NewBounds, bHasBounds);
 	}
 
 	virtual TUniquePtr<ISpatialAcceleration<TPayloadType, T, d>> Copy() const
@@ -488,15 +521,46 @@ public:
 		PBDComputeConstraintsLowLevel_Helper<false>(CollisionConstraint, *this, Dt);
 	}
 
+	virtual void Serialize(FChaosArchive& Ar)
+	{
+		//todo: let user serialize out bucket params
+
+		//serialize out sub structures
+		for (int BucketIdx = 0; BucketIdx < MaxBuckets; ++BucketIdx)
+		{
+			Ar << Buckets[BucketIdx];
+
+			if (Ar.IsLoading())
+			{
+				for (const TSpatialAccelerationBucketEntry<TPayloadType, T, d>& Entry : Buckets[BucketIdx].Objects)
+				{
+					ISpatialAcceleration<TPayloadType, T, d>* RawPtr = Entry.Acceleration.Get();
+					const int32 TypeIdx = GetTypeIdx(RawPtr);
+					switch (TypeIdx)
+					{
+					case 0: GetAccelerationsPerType<0>(Types).Objects[Entry.TypeInnerIdx] = &RawPtr->template AsChecked<typename std::tuple_element<0, std::tuple<TSpatialAccelerationTypes...>>::type>(); break;
+					case 1: GetAccelerationsPerType<ClampedIdx(1)>(Types).Objects[Entry.TypeInnerIdx] = &RawPtr->template AsChecked<typename std::tuple_element<ClampedIdx(1), std::tuple<TSpatialAccelerationTypes...>>::type>(); break;
+					case 2: GetAccelerationsPerType<ClampedIdx(2)>(Types).Objects[Entry.TypeInnerIdx] = &RawPtr->template AsChecked<typename std::tuple_element<ClampedIdx(2), std::tuple<TSpatialAccelerationTypes...>>::type>(); break;
+					case 3: GetAccelerationsPerType<ClampedIdx(3)>(Types).Objects[Entry.TypeInnerIdx] = &RawPtr->template AsChecked<typename std::tuple_element<ClampedIdx(3), std::tuple<TSpatialAccelerationTypes...>>::type>(); break;
+					case 4: GetAccelerationsPerType<ClampedIdx(4)>(Types).Objects[Entry.TypeInnerIdx] = &RawPtr->template AsChecked<typename std::tuple_element<ClampedIdx(4), std::tuple<TSpatialAccelerationTypes...>>::type>(); break;
+					case 5: GetAccelerationsPerType<ClampedIdx(5)>(Types).Objects[Entry.TypeInnerIdx] = &RawPtr->template AsChecked<typename std::tuple_element<ClampedIdx(5), std::tuple<TSpatialAccelerationTypes...>>::type>(); break;
+					case 6: GetAccelerationsPerType<ClampedIdx(6)>(Types).Objects[Entry.TypeInnerIdx] = &RawPtr->template AsChecked<typename std::tuple_element<ClampedIdx(6), std::tuple<TSpatialAccelerationTypes...>>::type>(); break;
+					case 7: GetAccelerationsPerType<ClampedIdx(7)>(Types).Objects[Entry.TypeInnerIdx] = &RawPtr->template AsChecked<typename std::tuple_element<ClampedIdx(7), std::tuple<TSpatialAccelerationTypes...>>::type>(); break;
+					}
+				}
+			}
+		}
+	}
+
 private:
 
 	TSpatialAccelerationCollection(const TSpatialAccelerationCollection<TSpatialAccelerationTypes...>& Other)
 	{
 		//need to make a deep copy of the unique ptrs and then update raw ptrs
 		TSpatialAccelerationCollectionHelper<0, NumTypes, decltype(Types), TPayloadType, T, d>::SetNumFrom(Other.Types, Types);
-		
+		this->ActiveBucketsMask = Other.ActiveBucketsMask;
 
-		for (int BucketIdx = 0; BucketIdx < NumBuckets; ++BucketIdx)
+		for (int BucketIdx = 0; BucketIdx < MaxBuckets; ++BucketIdx)
 		{
 			Buckets[BucketIdx].CopyFrom(Other.Buckets[BucketIdx]);
 			bool bFirst = true;
@@ -570,8 +634,8 @@ private:
 		return 0;
 	}
 
-	static constexpr uint16 NumBuckets = 8;
-	TSpatialCollectionBucket<TSpatialAccelerationBucketEntry<TPayloadType, T, d>> Buckets[NumBuckets];
+	static constexpr uint16 MaxBuckets = 8;
+	TSpatialCollectionBucket<TSpatialAccelerationBucketEntry<TPayloadType, T, d>> Buckets[MaxBuckets];
 	TSpatialTypeTuple< TSpatialAccelerationTypes...> Types;
 	static constexpr uint32 NumTypes = sizeof...(TSpatialAccelerationTypes);
 };

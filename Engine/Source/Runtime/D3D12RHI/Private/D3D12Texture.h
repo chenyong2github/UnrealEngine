@@ -403,6 +403,11 @@ public:
 		: FRHITexture2D(InSizeX, InSizeY, InNumMips, InNumSamples, InFormat, InFlags, InClearValue)
 	{}
 	uint32 GetSizeZ() const { return 0; }
+
+	virtual void GetWriteMaskProperties(void*& OutData, uint32& OutSize) override final
+	{
+		FD3D12FastClearResource::GetWriteMaskProperties(OutData, OutSize);
+	}
 };
 
 class FD3D12BaseTexture2DArray : public FRHITexture2DArray, public FD3D12FastClearResource

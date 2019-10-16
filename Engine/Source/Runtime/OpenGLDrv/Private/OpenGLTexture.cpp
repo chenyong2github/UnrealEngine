@@ -212,19 +212,19 @@ void OpenGLTextureDeleted( FRHITexture* Texture )
 	}
 }
 
-uint64 FOpenGLDynamicRHI::RHICalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, uint32 Flags, uint32& OutAlign)
+uint64 FOpenGLDynamicRHI::RHICalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, uint32 Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
 {
 	OutAlign = 0;
 	return CalcTextureSize(SizeX, SizeY, (EPixelFormat)Format, NumMips);
 }
 
-uint64 FOpenGLDynamicRHI::RHICalcTexture3DPlatformSize(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 Flags, uint32& OutAlign)
+uint64 FOpenGLDynamicRHI::RHICalcTexture3DPlatformSize(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
 {
 	OutAlign = 0;
 	return CalcTextureSize3D(SizeX, SizeY, SizeZ, (EPixelFormat)Format, NumMips);
 }
 
-uint64 FOpenGLDynamicRHI::RHICalcTextureCubePlatformSize(uint32 Size, uint8 Format, uint32 NumMips, uint32 Flags,	uint32& OutAlign)
+uint64 FOpenGLDynamicRHI::RHICalcTextureCubePlatformSize(uint32 Size, uint8 Format, uint32 NumMips, uint32 Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
 {
 	OutAlign = 0;
 	return CalcTextureSize(Size, Size, (EPixelFormat)Format, NumMips) * 6;
@@ -1664,7 +1664,7 @@ FTexture2DArrayRHIRef FOpenGLDynamicRHI::RHICreateTexture2DArray(uint32 SizeX,ui
 	uint8* Data = Info.BulkData ? (uint8*)Info.BulkData->GetResourceBulkData() : NULL;
 	uint32 MipOffset = 0;
 
-	FOpenGL::TexStorage3D( Target, NumMips, GLFormat.InternalFormat[bSRGB], SizeX, SizeY, SizeZ, GLFormat.Format, GLFormat.Type );
+	FOpenGL::TexStorage3D( Target, NumMips, GLFormat.SizedInternalFormat[bSRGB], SizeX, SizeY, SizeZ, GLFormat.Format, GLFormat.Type );
 
 	if (Data)
 	{
@@ -1781,7 +1781,7 @@ FTexture3DRHIRef FOpenGLDynamicRHI::RHICreateTexture3D(uint32 SizeX,uint32 SizeY
 	uint32 DataSize = CreateInfo.BulkData ? CreateInfo.BulkData->GetResourceBulkDataSize() : 0;
 	uint32 MipOffset = 0;
 
-	FOpenGL::TexStorage3D( Target, NumMips, GLFormat.InternalFormat[bSRGB], SizeX, SizeY, SizeZ, GLFormat.Format, GLFormat.Type );
+	FOpenGL::TexStorage3D( Target, NumMips, GLFormat.SizedInternalFormat[bSRGB], SizeX, SizeY, SizeZ, GLFormat.Format, GLFormat.Type );
 
 	if (Data)
 	{
@@ -2809,6 +2809,75 @@ void FOpenGLDynamicRHI::RHIAliasTextureResources(FRHITexture* DestRHITexture, FR
 	{
 		DestTexture->AliasResources(SrcTexture);
 	}
+}
+
+FRHITexture* FOpenGLDynamicRHI::CreateTexture2DAliased(FOpenGLTexture2D* SourceTexture)
+{
+	SCOPE_CYCLE_COUNTER(STAT_OpenGLCreateTextureTime);
+
+	FRHITexture* Result = new FOpenGLTexture2D(this, 0, SourceTexture->Target, -1, SourceTexture->GetSizeX(), SourceTexture->GetSizeY(), 0, 
+		SourceTexture->GetNumMips(), SourceTexture->GetNumSamples(), SourceTexture->GetNumSamplesTileMem(), 1, SourceTexture->GetFormat(), 
+		false, false, SourceTexture->GetFlags(), nullptr, SourceTexture->GetClearBinding());
+
+	RHIAliasTextureResources(Result, SourceTexture);
+
+	return Result;
+}
+
+FRHITexture* FOpenGLDynamicRHI::CreateTexture2DArrayAliased(FOpenGLTexture2DArray* SourceTexture)
+{
+	SCOPE_CYCLE_COUNTER(STAT_OpenGLCreateTextureTime);
+
+	FRHITexture* Result = new FOpenGLTexture2DArray(this, 0, SourceTexture->Target, -1, SourceTexture->GetSizeX(), SourceTexture->GetSizeY(), SourceTexture->GetSizeZ(),
+		SourceTexture->GetNumMips(), SourceTexture->GetNumSamples(), 1 /* aka check(InNumSamplesTileMem == 1) in OpenGLResource.h FOpenGLBaseTexture2DArray constructor */,
+		1, SourceTexture->GetFormat(), false, false, SourceTexture->GetFlags(), nullptr, SourceTexture->GetClearBinding());
+
+	RHIAliasTextureResources(Result, SourceTexture);
+
+	return Result;
+}
+
+FRHITexture* FOpenGLDynamicRHI::CreateTextureCubeAliased(FOpenGLTextureCube* SourceTexture)
+{
+	SCOPE_CYCLE_COUNTER(STAT_OpenGLCreateTextureTime);
+
+	FRHITexture* Result = new FOpenGLTextureCube(this, 0, SourceTexture->Target, -1, SourceTexture->GetSizeX(), SourceTexture->GetSizeY(), SourceTexture->GetSizeZ(),
+		SourceTexture->GetNumMips(), SourceTexture->GetNumSamples(), 1 /* OpenGL currently doesn't support multisample cube textures, per OpenGLResource.h FOpenGLBaseTextureCube */,
+		1, SourceTexture->GetFormat(), true, false, SourceTexture->GetFlags(), nullptr, SourceTexture->GetClearBinding());
+
+	RHIAliasTextureResources(Result, SourceTexture);
+
+	return Result;
+}
+
+FTextureRHIRef FOpenGLDynamicRHI::RHICreateAliasedTexture(FRHITexture* SourceTexture)
+{
+	FTextureRHIRef AliasedTexture;
+	if (SourceTexture->GetTexture2D() != nullptr)
+	{
+		AliasedTexture = CreateTexture2DAliased(static_cast<FOpenGLTexture2D*>(SourceTexture));
+	}
+	else if (SourceTexture->GetTexture2DArray() != nullptr)
+	{
+		AliasedTexture = CreateTexture2DArrayAliased(static_cast<FOpenGLTexture2DArray*>(SourceTexture));
+	}
+	else if (SourceTexture->GetTextureCube() != nullptr)
+	{
+		AliasedTexture = CreateTextureCubeAliased(static_cast<FOpenGLTextureCube*>(SourceTexture));
+	}
+	else
+	{
+		UE_LOG(LogRHI, Error, TEXT("Currently FOpenGLDynamicRHI::RHICreateAliasedTexture only supports 2D, 2D Array and Cube textures."));
+	}
+
+	if (AliasedTexture)
+	{
+		FOpenGLTextureBase* BaseTexture = GetOpenGLTextureFromRHITexture(AliasedTexture);
+		// Init memory size to zero, since we're aliased.
+		BaseTexture->SetMemorySize(0);
+	}
+
+	return AliasedTexture;
 }
 
 void* FOpenGLDynamicRHI::LockTexture2D_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture, uint32 MipIndex, EResourceLockMode LockMode, uint32& DestStride, bool bLockWithinMiptail, bool bNeedsDefaultRHIFlush)

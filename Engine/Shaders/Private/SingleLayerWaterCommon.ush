@@ -89,6 +89,15 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 			PixelSceneDepth = lerp(PixelSceneDepth, FadeBehindWaterDepth, saturate((WaterDepth - FadeStartDistance) / FadeLenght));
 			PixelSceneDeviceZ = ConvertToDeviceZ(PixelSceneDepth);
 		}
+		
+		// Water depth override hack for Android devices
+	#if !COMPILER_METAL
+		if (View.ConstantWaterDepth >= 0.0f)
+		{
+			PixelSceneDepth = WaterDepth + View.ConstantWaterDepth;
+			PixelSceneDeviceZ = ConvertToDeviceZ(PixelSceneDepth);
+		}
+	#endif
 #endif
 
 		float SceneDeviceZ = PixelSceneDeviceZ;
@@ -137,11 +146,11 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 		
 		float DirLightPhaseValue = 0.0f; // Default when Total Internal Reflection happens.
 		{
+#if SIMPLE_SINGLE_LAYER_WATER
+			DirLightPhaseValue = IsotropicPhase();
+#else
 			float IorFrom = 1.0f; // assumes we come from air
 			float IorTo   = DielectricF0ToIor(DielectricSpecularToF0(Specular)); // Wrong if metal is set to >1. But we still keep refraction on the water surface nonetheless.
-#if 0
-			DirLightPhaseValue = SchlickPhase(PhaseG, dot(-ResolvedView.DirectionalLightDirection.xyz, refract(MaterialParameters.CameraVector, MaterialParameters.WorldNormal, IorFrom / IorTo)));
-#else
 			const float relativeIOR = IorFrom / IorTo;
 			float3 UnderWaterRayDir = 0.0f;
 			if (WaterRefract(MaterialParameters.CameraVector, MaterialParameters.WorldNormal, relativeIOR, UnderWaterRayDir))
@@ -169,11 +178,14 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 		float3 SunScattLuminance = DirLightPhaseValue * SunIlluminance;
 		float3 AmbScattLuminance = IsotropicPhase()   * AmbiantIlluminance;
 
-#if 1 || SIMPLE_SINGLE_LAYER_WATER
+#define VOLUMETRICSHADOW	0
+#if !VOLUMETRICSHADOW || SIMPLE_SINGLE_LAYER_WATER
+
 		const float3 OpticalDepth = ExtinctionCoeff * BehindWaterDeltaDepth;
 		float3 Transmittance = exp(-OpticalDepth);
 		float3 ScatteredLuminance = ScatteringCoeff * (AmbScattLuminance + SunScattLuminance * DirectionalLightShadow);
 		ScatteredLuminance = (ScatteredLuminance - ScatteredLuminance * Transmittance) / ExtinctionCoeffSafe;
+
 #else
 		// TODO Make the volumetric shadow part work again
 		float3 Transmittance = 1.0f;

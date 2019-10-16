@@ -12,6 +12,7 @@ const FName FNetProfilerProvider::ProviderName("NetProfilerProvider");
 
 FNetProfilerProvider::FNetProfilerProvider(IAnalysisSession& InSession)
 	: Session(InSession)
+	, NetTraceVersion(0U)
 	, Connections(InSession.GetLinearAllocator(), 4096)
 	, ConnectionChangeCount(0u)
 {
@@ -21,6 +22,18 @@ FNetProfilerProvider::FNetProfilerProvider(IAnalysisSession& InSession)
 
 FNetProfilerProvider::~FNetProfilerProvider()
 {
+}
+
+void FNetProfilerProvider::SetNetTraceVersion(uint32 Version)
+{
+	Session.WriteAccessCheck();
+
+	NetTraceVersion = Version;
+}
+
+uint32 FNetProfilerProvider::GetNetTraceVersion() const
+{
+	return NetTraceVersion;
 }
 
 uint32 FNetProfilerProvider::AddNetProfilerName(const TCHAR* Name)

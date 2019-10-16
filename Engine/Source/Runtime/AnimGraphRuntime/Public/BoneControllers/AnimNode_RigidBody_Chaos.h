@@ -155,6 +155,7 @@ private:
 
 	ETeleportType ResetSimulatedTeleportType;
 
+	uint8 bEnabled : 1;
 	uint8 bSimulationStarted : 1;
 	uint8 bCheckForBodyTransformInit : 1;
 

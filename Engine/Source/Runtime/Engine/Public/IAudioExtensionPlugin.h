@@ -20,22 +20,6 @@
 
 class FAudioDevice;
 
-enum class EAudioPlatform : uint8
-{
-	Windows,
-	Mac,
-	Linux,
-	IOS,
-	Android,
-	XboxOne,
-	Playstation4,
-	Switch,
-	HTML5,
-	Lumin,
-	HoloLens,
-	Unknown
-};
-
 /**
 * Enumeration of audio plugin types
 *
@@ -199,7 +183,7 @@ public:
 	* @param Platform an enumerated platform (i.e. Windows, Playstation4, etc.)
 	* @return true if this plugin supports use on Platform, false otherwise.
 	*/
-	virtual bool SupportsPlatform(EAudioPlatform Platform) = 0;
+	virtual bool SupportsPlatform(const FString& PlatformName) = 0;
 
 	/*
 	* Returns whether this plugin sends audio to an external renderer.
@@ -557,6 +541,9 @@ class IAudioModulation
 public:
 	/** Virtual destructor */
 	virtual ~IAudioModulation() { }
+
+	/** Calculates initial volume to determine if sound is audible using base settings data */
+	virtual float CalculateInitialVolume(const USoundModulationPluginSourceSettingsBase& InSettingsBase) const { return 1.0f; }
 
 	/** Initialize the modulation plugin with the same rate and number of sources */
 	virtual void Initialize(const FAudioPluginInitializationParams& InitializationParams) { }

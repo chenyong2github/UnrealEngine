@@ -4,8 +4,9 @@
 #include "RayTracingCommon.ush"
 #include "RayTracingHitGroupCommon.ush"
 
-[shader("closesthit")]
-void DeferredMaterialCHS(inout FDeferredMaterialPayload Payload, in FDefaultAttributes Attributes)
+RAY_TRACING_ENTRY_CLOSEST_HIT(DeferredMaterialCHS,
+	FDeferredMaterialPayload, Payload,
+	FDefaultAttributes, Attributes)
 {
 	Payload.SortKey = GetHitGroupUserData();
 	Payload.HitT    = RayTCurrent();

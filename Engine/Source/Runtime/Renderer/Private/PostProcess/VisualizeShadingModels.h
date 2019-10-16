@@ -1,25 +1,22 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	PostProcessVisualizeShadingModels.h: Post processing VisualizeShadingModels implementation.
-=============================================================================*/
-
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RendererInterface.h"
-#include "PostProcess/RenderingCompositionGraph.h"
+#include "ScreenPass.h"
+#include "OverridePassSequence.h"
 
-// derives from TRenderingCompositePassBase<InputCount, OutputCount>
-// ePId_Input0: LDR SceneColor
-class FRCPassPostProcessVisualizeShadingModels : public TRenderingCompositePassBase<1, 1>
+class FSceneTextureParameters;
+
+struct FVisualizeShadingModelInputs
 {
-public:
-	FRCPassPostProcessVisualizeShadingModels(FRHICommandList& RHICmdList);
+	// [Optional] Render to the specified output. If invalid, a new texture is created and returned.
+	FScreenPassRenderTarget OverrideOutput;
 
-	// interface FRenderingCompositePass ---------
-	virtual void Process(FRenderingCompositePassContext& Context) override;
-	virtual void Release() override { delete this; }
-	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
+	// [Required] The scene color to composite with the shading model visualization.
+	FScreenPassTexture SceneColor;
+
+	// [Required] The scene textures used to visualize shading models.
+	const FSceneTextureParameters* SceneTextures = nullptr;
 };
 
+FScreenPassTexture AddVisualizeShadingModelPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FVisualizeShadingModelInputs& Inputs);

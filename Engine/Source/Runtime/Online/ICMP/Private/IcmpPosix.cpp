@@ -6,7 +6,7 @@
 #include "IcmpPrivate.h"
 #include "Icmp.h"
 
-#if PLATFORM_USES_POSIX_IMCP
+#if PLATFORM_USES_POSIX_ICMP
 
 
 #include <arpa/inet.h>
@@ -189,4 +189,4 @@ FIcmpEchoResult IcmpEchoImpl(ISocketSubsystem* SocketSub, const FString& TargetA
 	return Result;
 }
 
-#endif //PLATFORM_USES_POSIX_IMCP
+#endif //PLATFORM_USES_POSIX_ICMP

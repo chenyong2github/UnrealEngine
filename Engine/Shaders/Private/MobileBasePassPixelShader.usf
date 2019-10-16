@@ -37,7 +37,7 @@ int NumDynamicPointLights;
 float4 LightPositionAndInvRadius[MAX_DYNAMIC_POINT_LIGHTS];
 float4 LightColorAndFalloffExponent[MAX_DYNAMIC_POINT_LIGHTS];
 float4 SpotLightAngles[MAX_DYNAMIC_POINT_LIGHTS];
-float4 SpotLightDirection[MAX_DYNAMIC_POINT_LIGHTS]; 
+float4 SpotLightDirectionAndSpecularScale[MAX_DYNAMIC_POINT_LIGHTS];
 #endif
 
 #ifndef PROJECT_MOBILE_ENABLE_MOVABLE_SPOTLIGHTS
@@ -437,7 +437,7 @@ void Main(
 #endif
 	}
 #endif
-
+	
 #if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 	// Fade out diffuse as this will be hanlded by the single scattering lighting. when over the water surface.
 	// We keep the SpecularColor for sun/water interactions
@@ -500,9 +500,10 @@ void Main(
 		IndirectIrradiance *= MaterialAO;
 	#endif
 
+		half Shadow = 1.0f;
 	#if !MATERIAL_SHADINGMODEL_UNLIT
-		half Shadow = GetPrimaryPrecomputedShadowMask(Interpolants).r;
-		#if DIRECTIONAL_LIGHT_CSM && !MOBILE_MULTI_VIEW
+		Shadow = GetPrimaryPrecomputedShadowMask(Interpolants).r;
+		#if DIRECTIONAL_LIGHT_CSM && !MOBILE_MULTI_VIEW && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 		// Cascaded Shadow Map
 		{
 			FPCFSamplerSettings Settings;
@@ -544,7 +545,7 @@ void Main(
 				#endif
 
 				#if FADE_CSM
-					float Fade = saturate(MaterialParameters.ScreenPosition.w * MobileDirectionalLight.DirectionalLightDistanceFadeMAD.x + MobileDirectionalLight.DirectionalLightDistanceFadeMAD.y);
+					float Fade = saturate(MaterialParameters.ScreenPosition.w * MobileDirectionalLight.DirectionalLightDistanceFadeMADAndSpecularScale.x + MobileDirectionalLight.DirectionalLightDistanceFadeMADAndSpecularScale.y);
 					// lerp out shadow based on fade params.
 					ShadowMap = lerp(ShadowMap, 1.0, Fade * Fade);
 				#endif
@@ -566,7 +567,8 @@ void Main(
 		#if FULLY_ROUGH
 			Color += (Shadow * NoL) * MobileDirectionalLight.DirectionalLightColor.rgb * DiffuseColor;
 		#else
-			Color += (Shadow * NoL) * MobileDirectionalLight.DirectionalLightColor.rgb * (DiffuseColor + SpecularColor * CalcSpecular(Roughness, RoL, NoH, H, MaterialParameters.WorldNormal));
+			// MobileDirectionalLight.DirectionalLightDistanceFadeMADAndSpecularScale.z saves SpecularScale for direction light.
+			Color += (Shadow * NoL) * MobileDirectionalLight.DirectionalLightColor.rgb * (DiffuseColor + SpecularColor * MobileDirectionalLight.DirectionalLightDistanceFadeMADAndSpecularScale.z * CalcSpecular(Roughness, RoL, NoH, H, MaterialParameters.WorldNormal));
 			// Environment map has been prenormalized, scale by lightmap luminance
 			half3 SpecularIBL = GetImageBasedReflectionLighting(MaterialParameters, Roughness) * IndirectIrradiance;
 
@@ -592,7 +594,7 @@ void Main(
 			Color += SkyDiffuseLighting * ResolvedView.SkyLightColor.rgb * DiffuseColor * MaterialAO;
 		#endif
 
-		#if MAX_DYNAMIC_POINT_LIGHTS > 0
+		#if MAX_DYNAMIC_POINT_LIGHTS > 0 && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 			#if VARIABLE_NUM_DYNAMIC_POINT_LIGHTS
 			#if WEBGL || ES2_PROFILE || VULKAN_PROFILE
 			// webgl and ES2 needs a constant loop counter
@@ -636,12 +638,12 @@ void Main(
 				#if PROJECT_MOBILE_ENABLE_MOVABLE_SPOTLIGHTS
 				if(SpotLightAngles[i].w > 0.0)
 				{
-					Attenuation *= SpotAttenuation(L, -SpotLightDirection[i].xyz, SpotLightAngles[i].xy);
+					Attenuation *= SpotAttenuation(L, -SpotLightDirectionAndSpecularScale[i].xyz, SpotLightAngles[i].xy);
 				}
 				#endif
 
 				#if !FULLY_ROUGH
-					Color += min(65000.0, (Attenuation * PointNoL) * LightColorAndFalloffExponent[i].rgb * (1.0/PI) * (DiffuseColor + SpecularColor * CalcSpecular(Roughness, PointRoL, PointNoH, H, MaterialParameters.WorldNormal)));
+					Color += min(65000.0, (Attenuation * PointNoL) * LightColorAndFalloffExponent[i].rgb * (1.0/PI) * (DiffuseColor + SpecularColor * SpotLightDirectionAndSpecularScale[i].w * CalcSpecular(Roughness, PointRoL, PointNoH, H, MaterialParameters.WorldNormal)));
 				#else
 					Color += (Attenuation * PointNoL) * LightColorAndFalloffExponent[i].rgb * DiffuseColor;
 				#endif

@@ -33,6 +33,15 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 		//Save out heightfield data
 		HeightfieldData,
 
+		//Save out multiple acceleration structures
+		SerializeMultiStructures,
+
+		// Add kinematic targets to TKinematicGeometryParticles
+		KinematicTargets,
+		
+		// Allow trimeshes to serialize their acceleration structure
+		TrimeshSerializesBV,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

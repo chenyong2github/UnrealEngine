@@ -1090,6 +1090,8 @@ FScene::~FScene()
 
 	BeginReleaseResource(&HaltonPrimesResource);
 #endif
+
+	checkf(RemovedPrimitiveSceneInfos.Num() == 0, TEXT("Leaking %d FPrimitiveSceneInfo instances."), RemovedPrimitiveSceneInfos.Num()); // Ensure UpdateAllPrimitiveSceneInfos() is called before destruction.
 }
 
 void FScene::AddPrimitive(UPrimitiveComponent* Primitive)
@@ -1570,10 +1572,7 @@ void FScene::AddLightSceneInfo_RenderThread(FLightSceneInfo* LightSceneInfo)
 	}
 
 	const bool bForwardShading = IsForwardShadingEnabled(GetShaderPlatform());
-	// Need to set shadow map channel for directional light in deferred shading path also.
-	// In translucency pass, TLM_SurfacePerPixelLighting uses forward shading and requires light data set up correctly.
-	// Only done for directional light in deferred path because translucent objects only receive dynamic shadow from directional light
-	if ((bForwardShading || bDirectionalLight) && (LightSceneInfo->Proxy->CastsDynamicShadow() || LightSceneInfo->Proxy->GetLightFunctionMaterial()))
+	if (bForwardShading && (LightSceneInfo->Proxy->CastsDynamicShadow() || LightSceneInfo->Proxy->GetLightFunctionMaterial()))
 	{
 		AssignAvailableShadowMapChannelForLight(LightSceneInfo);
 	}
@@ -3071,6 +3070,8 @@ void FScene::Release()
 	ENQUEUE_RENDER_COMMAND(FReleaseCommand)(
 		[Scene](FRHICommandListImmediate& RHICmdList)
 		{
+			// Update one more time to clear RemovedPrimitiveSceneInfos and prevent leaking FPrimitiveSceneInfo instances.
+			Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
 			delete Scene;
 		});
 }

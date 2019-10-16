@@ -486,8 +486,12 @@ void FOpenGLDynamicRHI::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI, FR
 
 		const bool bTrueBlit = !SourceTextureRHI->IsMultisampled()
 			&& !DestTextureRHI->IsMultisampled()
-			&& SourceTextureRHI->GetFormat() == DestTextureRHI->GetFormat();
-
+			&& SourceTextureRHI->GetFormat() == DestTextureRHI->GetFormat()
+#if PLATFORM_ANDROID
+			&& SourceTexture->Target == DestTexture->Target // glCopyImageSubData() doesn't like copying from a texture to a renderbuffer on Android
+#endif
+			;
+		
 		if ( !bTrueBlit || !FOpenGL::SupportsCopyImage() )
 		{
 			// Color buffers can be GL_NONE for attachment purposes if they aren't used as render targets
@@ -936,7 +940,7 @@ void FOpenGLDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rec
 	GetContextStateForCurrentContext().Framebuffer = (GLuint)-1;
 }
 
-void FOpenGLDynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, FRHIGPUFence* FenceRHI, void*& OutData, int32& OutWidth, int32& OutHeight)
+void FOpenGLDynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, FRHIGPUFence* FenceRHI, void*& OutData, int32& OutWidth, int32& OutHeight, uint32 GPUIndex)
 {
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
@@ -956,7 +960,7 @@ void FOpenGLDynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, FRHIGPUFen
 	RHITHREAD_GLCOMMAND_EPILOGUE();
 }
 
-void FOpenGLDynamicRHI::RHIUnmapStagingSurface(FRHITexture* TextureRHI)
+void FOpenGLDynamicRHI::RHIUnmapStagingSurface(FRHITexture* TextureRHI, uint32 GPUIndex)
 {
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 

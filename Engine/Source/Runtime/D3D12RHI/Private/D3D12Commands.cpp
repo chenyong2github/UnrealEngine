@@ -95,10 +95,6 @@ void FD3D12CommandContext::RHISetStreamSource(uint32 StreamIndex, FRHIVertexBuff
 
 void FD3D12CommandContext::RHISetComputeShader(FRHIComputeShader* ComputeShaderRHI)
 {
-#if D3D12_RHI_RAYTRACING
-	StateCache.TransitionComputeState(D3D12PT_Compute);
-#endif
-
 	// TODO: Eventually the high-level should just use RHISetComputePipelineState() directly similar to how graphics PSOs are handled.
 	FD3D12ComputePipelineState* const ComputePipelineState = FD3D12DynamicRHI::ResourceCast(RHICreateComputePipelineState(ComputeShaderRHI).GetReference());
 	RHISetComputePipelineState(ComputePipelineState);
@@ -495,6 +491,10 @@ void FD3D12CommandContext::RHISetGraphicsPipelineState(FRHIGraphicsPipelineState
 
 void FD3D12CommandContext::RHISetComputePipelineState(FRHIComputePipelineState* ComputeState)
 {
+#if D3D12_RHI_RAYTRACING
+	StateCache.TransitionComputeState(D3D12PT_Compute);
+#endif
+
 	FD3D12ComputePipelineState* ComputePipelineState = FD3D12DynamicRHI::ResourceCast(ComputeState);
 
 	// TODO: [PSO API] Every thing inside this scope is only necessary to keep the PSO shadow in sync while we convert the high level to only use PSOs
@@ -1745,118 +1745,105 @@ void FD3D12CommandContext::RHISubmitCommandsHint()
 
 void FD3D12CommandContext::RHIWaitForTemporalEffect(const FName& InEffectName)
 {
-#if USE_COPY_QUEUE_FOR_RESOURCE_SYNC
+#if WITH_MGPU
 	check(IsDefaultContext());
-	FD3D12Device* Device = GetParentDevice();
-	FD3D12Adapter* Adapter = Device->GetParentAdapter();
 
-#if 0 // Multi-GPU support : this must depend on whether the current GPUs was also used or for rendering the last frame.
-	if (Adapter->AlternateFrameRenderingEnabled() && AFRSyncTemporalResources)
+	if (GNumAlternateFrameRenderingGroups == 1 || !AFRSyncTemporalResources)
 	{
-		FD3D12TemporalEffect* Effect = Adapter->GetTemporalEffect(InEffectName);
+		return;
+	}
 
+#if USE_COPY_QUEUE_FOR_RESOURCE_SYNC
+	FD3D12Adapter* Adapter = GetParentAdapter();
+	FD3D12TemporalEffect* Effect = Adapter->GetTemporalEffect(InEffectName);
+
+	const uint32 GPUIndex = GetGPUIndex();
+	if (Effect->ShouldWaitForPrevious(GPUIndex))
+	{
 		// Execute the current command list so we can have a point to insert a wait
 		FlushCommands();
 
-		FD3D12CommandListManager& Manager = bIsAsyncComputeContext ? Device->GetAsyncCommandListManager() :
-			Device->GetCommandListManager();
-
-		// Wait for previous copy by splicing in a wait to the queue
-		Effect->WaitForPrevious(Manager.GetD3DCommandQueue());
+		Effect->WaitForPrevious(GPUIndex, bIsAsyncComputeContext ? ED3D12CommandQueueType::Async : ED3D12CommandQueueType::Default);
 	}
 #endif
-#endif
+#endif // WITH_MGPU
 }
 
-void FD3D12CommandContext::RHIBroadcastTemporalEffect(const FName& InEffectName, FRHITexture** InTextures, int32 NumTextures)
+void FD3D12CommandContext::RHIBroadcastTemporalEffect(const FName& InEffectName, const TArrayView<FRHITexture*> InTextures)
 {
+#if WITH_MGPU
 	check(IsDefaultContext());
-	FD3D12Device* Device = GetParentDevice();
-	FD3D12Adapter* Adapter = Device->GetParentAdapter();
+
+	if (GNumAlternateFrameRenderingGroups == 1 || !AFRSyncTemporalResources)
+	{
+		return;
+	}
+
+	const uint32 GPUIndex = GetGPUIndex();
+	TArray<FD3D12TextureBase*, TInlineAllocator<8>> SrcTextures, DstTextures;
+	const int32 NumTextures = InTextures.Num();
+	for (int32 i = 0; i < NumTextures; i++)
+	{
+		SrcTextures.Emplace(RetrieveTextureBase(InTextures[i]));
+		const uint32 NextSiblingGPUIndex = AFRUtils::GetNextSiblingGPUIndex(GPUIndex);
+		DstTextures.Emplace(RetrieveTextureBase(InTextures[i], [NextSiblingGPUIndex](FD3D12Device* Device) { return Device->GetGPUIndex() == NextSiblingGPUIndex; }));
+	}
 
 #if USE_COPY_QUEUE_FOR_RESOURCE_SYNC
-#if 0 // Multi-GPU support : we only need to broadcast to GPUs that will be used to render the next frame.
-	if (Adapter->AlternateFrameRenderingEnabled() && AFRSyncTemporalResources)
+
+	FD3D12Device* Device = GetParentDevice();
+	FD3D12Adapter* Adapter = Device->GetParentAdapter();
+	FD3D12TemporalEffect* Effect = Adapter->GetTemporalEffect(InEffectName);
+
+	for (int32 i = 0; i < NumTextures; i++)
 	{
-		FD3D12TemporalEffect* Effect = Adapter->GetTemporalEffect(InEffectName);
-
-		FD3D12CommandAllocatorManager& TextureStreamingCommandAllocatorManager = Device->GetTextureStreamingCommandAllocatorManager();
-		FD3D12CommandAllocator* CurrentCommandAllocator = TextureStreamingCommandAllocatorManager.ObtainCommandAllocator();
-		FD3D12CommandListManager& CopyManager = Device->GetCopyCommandListManager();
-		FD3D12CommandListHandle hCopyCommandList = CopyManager.ObtainCommandList(*CurrentCommandAllocator);
-		hCopyCommandList.SetCurrentOwningContext(this);
-
-		for (int32 i = 0; i < NumTextures; i++)
-		{
-			// Get the texture for this frame i.e. the one that was just generated
-			FD3D12TextureBase* ThisTexture = RetrieveTextureBase(InTextures[i]);
-			FD3D12TextureBase* OtherTexture = ((FD3D12TextureBase*)InTextures[i]->GetTextureBaseRHI());
-
-			FD3D12DynamicRHI::TransitionResource(CommandListHandle, ThisTexture->GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-
-			// Broadcast this texture to all other GPUs in the LDA chain
-			while (OtherTexture)
-			{
-				if (OtherTexture != ThisTexture)
-				{
-					// Note: We transition on the incomming queue as the copy queue will auto promote from common to whatever the resource is used as.
-					FD3D12DynamicRHI::TransitionResource(CommandListHandle, OtherTexture->GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-
-					hCopyCommandList.GetCurrentOwningContext()->numCopies++;
-					hCopyCommandList->CopyResource(OtherTexture->GetResource()->GetResource(), ThisTexture->GetResource()->GetResource());
-				}
-
-				OtherTexture = OtherTexture->GetNextObject();
-			}
-		}
-
-		// Flush 3D/Compute Queue
-		{
-			CommandListHandle.FlushResourceBarriers();
-			FlushCommands();
-		}
-
-		// Kick off the async copy, signalling when done
-		{
-			// The consuming engine must wait for the producer before executing
-			{
-				FD3D12CommandListManager& ProducerManager = bIsAsyncComputeContext ? Device->GetAsyncCommandListManager() :
-					Device->GetCommandListManager();
-
-				FD3D12Fence& ProducerFence = ProducerManager.GetFence();
-				ProducerFence.GpuWait(CopyManager.GetD3DCommandQueue(), ProducerFence.GetLastSignaledFence());
-			}
-
-			hCopyCommandList.Close();
-			Device->GetCopyCommandListManager().ExecuteCommandList(hCopyCommandList);
-
-			Effect->SignalSyncComplete(Device->GetCopyCommandListManager().GetD3DCommandQueue());
-			TextureStreamingCommandAllocatorManager.ReleaseCommandAllocator(CurrentCommandAllocator);
-		}
+		// Resources must be in the COMMON state before using on the copy queue.
+		FD3D12DynamicRHI::TransitionResource(CommandListHandle, SrcTextures[i]->GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+		FD3D12DynamicRHI::TransitionResource(CommandListHandle, DstTextures[i]->GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 	}
-#endif
+	CommandListHandle.FlushResourceBarriers();
+
+	// Finish rendering on the current queue.
+	FlushCommands();
+
+	// Tell the copy queue to wait for the current queue to finish rendering before starting the copy.
+	Effect->SignalSyncComplete(GPUIndex, bIsAsyncComputeContext ? ED3D12CommandQueueType::Async : ED3D12CommandQueueType::Default);
+	Effect->WaitForPrevious(GPUIndex, ED3D12CommandQueueType::Copy);
+
+	FD3D12CommandAllocatorManager& CopyCommandAllocatorManager = Device->GetTextureStreamingCommandAllocatorManager();
+	FD3D12CommandAllocator* CopyCommandAllocator = CopyCommandAllocatorManager.ObtainCommandAllocator();
+	FD3D12CommandListManager& CopyCommandListManager = Device->GetCopyCommandListManager();
+	FD3D12CommandListHandle hCopyCommandList = CopyCommandListManager.ObtainCommandList(*CopyCommandAllocator);
+	hCopyCommandList.SetCurrentOwningContext(this);
+
+	for (int32 i = 0; i < NumTextures; i++)
+	{
+		// NB: We do not increment numCopies here because the main context isn't doing any work.
+		hCopyCommandList->CopyResource(DstTextures[i]->GetResource()->GetResource(), SrcTextures[i]->GetResource()->GetResource());
+	}
+	hCopyCommandList.Close();
+
+	CopyCommandListManager.ExecuteCommandList(hCopyCommandList);
+	CopyCommandAllocatorManager.ReleaseCommandAllocator(CopyCommandAllocator);
+
+	// Signal again once the copy queue copy is complete.
+	Effect->SignalSyncComplete(GPUIndex, ED3D12CommandQueueType::Copy);
+
 #else
-	for (size_t i = 0; i < NumTextures; i++)
+
+	for (int32 i = 0; i < NumTextures; i++)
 	{
-		// Get the texture for this frame i.e. the one that was just generated
-		FD3D12TextureBase* ThisTexture = RetrieveTextureBase(InTextures[i]);
-		FD3D12TextureBase* OtherTexture = ((FD3D12TextureBase*)InTextures[i]->GetTextureBaseRHI());
-
-		FD3D12DynamicRHI::TransitionResource(CommandListHandle, ThisTexture->GetResource(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-
-		// Broadcast this texture to all other GPUs in the LDA chain
-		while (OtherTexture)
-		{
-			if (OtherTexture != ThisTexture)
-			{
-				FD3D12DynamicRHI::TransitionResource(CommandListHandle, OtherTexture->GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-
-				CommandListHandle.GetCurrentOwningContext()->numCopies++;
-				CommandListHandle->CopyResource(OtherTexture->GetResource()->GetResource(), ThisTexture->GetResource()->GetResource());
-			}
-
-			OtherTexture = OtherTexture->GetNextObject();
-		}
+		FD3D12DynamicRHI::TransitionResource(CommandListHandle, SrcTextures[i]->GetResource(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+		FD3D12DynamicRHI::TransitionResource(CommandListHandle, DstTextures[i]->GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 	}
-#endif
+	CommandListHandle.FlushResourceBarriers();
+
+	for (int32 i = 0; i < NumTextures; i++)
+	{
+		numCopies++;
+		CommandListHandle->CopyResource(DstTextures[i]->GetResource()->GetResource(), SrcTextures[i]->GetResource()->GetResource());
+	}
+
+#endif // USE_COPY_QUEUE_FOR_RESOURCE_SYNC
+#endif // WITH_MGPU
 }

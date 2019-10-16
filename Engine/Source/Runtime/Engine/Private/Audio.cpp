@@ -87,6 +87,14 @@ FAutoConsoleVariableRef CVarOcclusionFilterScaleEnabled(
 	TEXT("0: Not Enabled, 1: Enabled"),
 	ECVF_Default);
 
+static int32 BypassPlayWhenSilentCVar = 0;
+FAutoConsoleVariableRef CVarBypassPlayWhenSilent(
+	TEXT("au.BypassPlayWhenSilent"),
+	BypassPlayWhenSilentCVar,
+	TEXT("When set to 1, ignores the Play When Silent flag for non-procedural sources.\n")
+	TEXT("0: Honor the Play When Silent flag, 1: stop all silent non-procedural sources."),
+	ECVF_Default);
+
 static int32 AllowReverbForMultichannelSources = 1;
 FAutoConsoleVariableRef CvarAllowReverbForMultichannelSources(
 	TEXT("au.AllowReverbForMultichannelSources"),
@@ -101,13 +109,13 @@ bool IsAudioPluginEnabled(EAudioPlugin PluginType)
 	switch (PluginType)
 	{
 	case EAudioPlugin::SPATIALIZATION:
-		return AudioPluginUtilities::GetDesiredSpatializationPlugin(AudioPluginUtilities::CurrentPlatform) != nullptr;
+		return AudioPluginUtilities::GetDesiredSpatializationPlugin() != nullptr;
 	case EAudioPlugin::REVERB:
-		return AudioPluginUtilities::GetDesiredReverbPlugin(AudioPluginUtilities::CurrentPlatform) != nullptr;
+		return AudioPluginUtilities::GetDesiredReverbPlugin() != nullptr;
 	case EAudioPlugin::OCCLUSION:
-		return AudioPluginUtilities::GetDesiredOcclusionPlugin(AudioPluginUtilities::CurrentPlatform) != nullptr;
+		return AudioPluginUtilities::GetDesiredOcclusionPlugin() != nullptr;
 	case EAudioPlugin::MODULATION:
-		return AudioPluginUtilities::GetDesiredModulationPlugin(AudioPluginUtilities::CurrentPlatform) != nullptr;
+		return AudioPluginUtilities::GetDesiredModulationPlugin() != nullptr;
 	default:
 		return false;
 		break;
@@ -120,7 +128,7 @@ UClass* GetAudioPluginCustomSettingsClass(EAudioPlugin PluginType)
 	{
 		case EAudioPlugin::SPATIALIZATION:
 		{
-			if (IAudioSpatializationFactory* Factory = AudioPluginUtilities::GetDesiredSpatializationPlugin(AudioPluginUtilities::CurrentPlatform))
+			if (IAudioSpatializationFactory* Factory = AudioPluginUtilities::GetDesiredSpatializationPlugin())
 			{
 				return Factory->GetCustomSpatializationSettingsClass();
 			}
@@ -129,7 +137,7 @@ UClass* GetAudioPluginCustomSettingsClass(EAudioPlugin PluginType)
 
 		case EAudioPlugin::REVERB:
 		{
-			if (IAudioReverbFactory* Factory = AudioPluginUtilities::GetDesiredReverbPlugin(AudioPluginUtilities::CurrentPlatform))
+			if (IAudioReverbFactory* Factory = AudioPluginUtilities::GetDesiredReverbPlugin())
 			{
 				return Factory->GetCustomReverbSettingsClass();
 			}
@@ -138,7 +146,7 @@ UClass* GetAudioPluginCustomSettingsClass(EAudioPlugin PluginType)
 
 		case EAudioPlugin::OCCLUSION:
 		{
-			if (IAudioOcclusionFactory* Factory = AudioPluginUtilities::GetDesiredOcclusionPlugin(AudioPluginUtilities::CurrentPlatform))
+			if (IAudioOcclusionFactory* Factory = AudioPluginUtilities::GetDesiredOcclusionPlugin())
 			{
 				return Factory->GetCustomOcclusionSettingsClass();
 			}
@@ -147,7 +155,7 @@ UClass* GetAudioPluginCustomSettingsClass(EAudioPlugin PluginType)
 
 		case EAudioPlugin::MODULATION:
 		{
-			if (IAudioModulationFactory* Factory = AudioPluginUtilities::GetDesiredModulationPlugin(AudioPluginUtilities::CurrentPlatform))
+			if (IAudioModulationFactory* Factory = AudioPluginUtilities::GetDesiredModulationPlugin())
 			{
 				return Factory->GetCustomModulationSettingsClass();
 			}
@@ -837,6 +845,57 @@ FWaveInstance::FWaveInstance(const UPTRINT InWaveInstanceHash, FActiveSound& InA
 	TypeHash = ++TypeHashCounter;
 }
 
+bool FWaveInstance::IsPlaying() const
+{
+	check(ActiveSound);
+
+	if (!WaveData)
+	{
+		return false;
+	}
+
+	// TODO: move out of audio.  Subtitle system should be separate and just set VirtualizationMode to PlayWhenSilent
+	const bool bHasSubtitles = ActiveSound->bHandleSubtitles && (ActiveSound->bHasExternalSubtitles || WaveData->Subtitles.Num() > 0);
+	if (bHasSubtitles)
+	{
+		return true;
+	}
+
+	if (ActiveSound->IsPlayWhenSilent() && (!BypassPlayWhenSilentCVar || WaveData->bProcedural))
+	{
+		return true;
+	}
+
+	// Modulation volume check must be performed separately from non-modulation volume check if zeroed as this could cause
+	// sources to stop and not be able to be restarted. Because modulation controls are processed on the source level, this
+	// check enables the modulation plugin to determine voice eligibility without having to process all wave instances not
+	// currently sourcing control data.
+	float ModVolume = SoundModulationControls.Volume;
+	if (ModulationPluginSettings)
+	{
+		check(ActiveSound->AudioDevice);
+		FAudioDevice& AudioDevice = *ActiveSound->AudioDevice;
+		if (AudioDevice.IsModulationPluginEnabled())
+		{
+			check(AudioDevice.ModulationInterface);
+			ModVolume = AudioDevice.ModulationInterface->CalculateInitialVolume(*ModulationPluginSettings);
+		}
+	}
+	
+	const float WaveInstanceVolume = ModVolume * Volume * VolumeMultiplier * DistanceAttenuation * GetDynamicVolume();
+	if (WaveInstanceVolume > KINDA_SMALL_NUMBER)
+	{
+		return true;
+	}
+
+	if (ActiveSound->ComponentVolumeFader.IsFadingIn())
+	{
+		return true;
+	}
+
+	return false;
+}
+
 /**
  * Notifies the wave instance that it has finished.
  */
@@ -975,6 +1034,7 @@ float FWaveInstance::GetVolume() const
 
 bool FWaveInstance::ShouldStopDueToMaxConcurrency() const
 {
+	check(ActiveSound);
 	return ActiveSound->bShouldStopDueToMaxConcurrency;
 }
 

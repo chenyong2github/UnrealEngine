@@ -1,4 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+#pragma once
 
 #if !PLATFORM_LUMINGL4
 
@@ -167,6 +168,11 @@ namespace GL_EXT
 	extern PFNEGLCREATESYNCKHRPROC eglCreateSyncKHR;
 	extern PFNEGLDESTROYSYNCKHRPROC eglDestroySyncKHR;
 	extern PFNEGLCLIENTWAITSYNCKHRPROC eglClientWaitSyncKHR;
+
+	extern PFNEGLCREATEIMAGEKHRPROC eglCreateImageKHR;
+	extern PFNEGLDESTROYIMAGEKHRPROC eglDestroyImageKHR;
+
+	extern PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEGLImageTargetTexture2DOES;
 
 	extern PFNGLREADBUFFERPROC glReadBuffer;
 }

@@ -4,6 +4,8 @@
 
 #include "ScreenPass.h"
 
+class FSceneDownsampleChain;
+
 enum class ELensFlareQuality : uint32
 {
 	Disabled,
@@ -22,16 +24,14 @@ struct FLensFlareInputs
 	// [Required] The bloom convolution texture. If enabled, this will be composited with lens flares. Otherwise,
 	// a transparent black texture is used instead. Either way, the final output texture will use the this texture
 	// descriptor and viewport.
-	FRDGTextureRef BloomTexture = nullptr;
-	FIntRect BloomViewRect;
+	FScreenPassTexture Bloom;
 
 	// [Required] The scene color input, before bloom, which is used as the source of lens flares.
 	// This can be a downsampled input based on the desired quality level.
-	FRDGTextureRef FlareTexture = nullptr;
-	FIntRect FlareViewRect;
+	FScreenPassTexture Flare;
 
 	// [Required] The bokeh shape texture to use to blur the lens flares.
-	FRHITexture* BokehShapeTexture = nullptr;
+	FRHITexture* BokehShapeTexture;
 
 	// The number of lens flares to render.
 	uint32 LensFlareCount = LensFlareCountMax;
@@ -55,4 +55,13 @@ struct FLensFlareInputs
 	bool bCompositeWithBloom = true;
 };
 
-FRDGTextureRef AddLensFlaresPass(FRDGBuilder& GraphBuilder, const FScreenPassViewInfo& ScreenPassView, const FLensFlareInputs& Inputs);
+using FLensFlareOutputs = FScreenPassTexture;
+
+FLensFlareOutputs AddLensFlaresPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FLensFlareInputs& Inputs);
+
+// Helper function which pulls inputs from the post process settings of the view.
+FScreenPassTexture AddLensFlaresPass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	FScreenPassTexture Bloom,
+	const FSceneDownsampleChain& SceneDownsampleChain);

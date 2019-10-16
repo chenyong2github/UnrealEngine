@@ -37,7 +37,7 @@
 #include "GameFramework/WorldSettings.h"
 #include "PacketHandler.h"
 #include "PacketHandlers/StatelessConnectHandlerComponent.h"
-#include "NetAnalytics.h"
+#include "Net/Core/Analytics/NetAnalytics.h"
 #include "Engine/NetDriver.h"
 #include "Engine/LocalPlayer.h"
 #include "Net/DataBunch.h"
@@ -2959,6 +2959,15 @@ void UNetDriver::NotifyActorRenamed(AActor* ThisActor, FName PreviousName)
 	const bool bIsServer = IsServer();
 	const bool bIsActorStatic = !GuidCache->IsDynamicObject(ThisActor);
 	const bool bActorHasRole = ThisActor->GetRemoteRole() != ROLE_None;
+
+#if WITH_EDITOR
+	// When recompiling and reinstancing a Blueprint, we rename the old actor out of the way, which would cause this code to emit a warning during PIE
+	// Since that old actor is about to die (on both client and server) in the reinstancing case, it's safe to skip
+	if (GCompilingBlueprint)
+	{
+		return;
+	}
+#endif
 
 	if (bIsActorStatic && bActorHasRole)
 	{

@@ -30,6 +30,12 @@ bool GenerateRectLightImportanceSampledRay(
 	out float RayPdf
 )
 {
+	RayOrigin = float3(0.0f, 0.0f, 0.0f);
+	RayDirection = float3(0.0f, 0.0f, 0.0f);
+	RayTMin = 0.0f;
+	RayTMax = 0.0f;
+	RayPdf = 0.0f;
+
 	uint MipCount = log2(RectLight.MipTreeDimensions.x);
 	uint2 MipPixel = 0;
 	float MipPdf = 1.0;
@@ -126,7 +132,6 @@ bool GenerateRectLightImportanceSampledRay(
 	// Light-normal culling
 	if (dot(-LightDirection, LightNormal) <= 0.0)
 	{
-		RayPdf = 0.0;
 		return false;
 	}
 
@@ -150,8 +155,7 @@ bool GenerateRectLightImportanceSampledRay(
 	return RayTMax > RayTMin;
 }
 
-[shader("raygeneration")]
-void RectLightRGS()
+RAY_TRACING_ENTRY_RAYGEN(RectLightRGS)
 {
 	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin;
 

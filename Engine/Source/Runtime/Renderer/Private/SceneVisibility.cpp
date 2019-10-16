@@ -769,7 +769,7 @@ static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params, FGloba
 
 	int32 ReadBackLagTolerance = NumBufferedFrames;
 
-	const bool bIsStereoView = IStereoRendering::IsStereoEyeView(View.StereoPass);
+	const bool bIsStereoView = View.StereoPass == eSSP_LEFT_EYE || View.StereoPass == eSSP_RIGHT_EYE;
 	const bool bUseRoundRobinOcclusion = bIsStereoView && !View.bIsSceneCapture && View.ViewState->IsRoundRobinEnabled();
 	if (bUseRoundRobinOcclusion)
 	{
@@ -1637,13 +1637,13 @@ static int32 OcclusionCull(FRHICommandListImmediate& RHICmdList, const FScene* S
 			if (View.ViewState->IsRoundRobinEnabled() &&
 				!View.bIsSceneCapture && // We only round-robin on the main renderer (not scene captures)
 				!View.bIgnoreExistingQueries && // We do not alternate occlusion queries when we want to refresh the occlusion history
-				IStereoRendering::IsStereoEyeView(View.StereoPass)) // Only relevant to stereo views
+				(View.StereoPass == eSSP_LEFT_EYE || View.StereoPass == eSSP_RIGHT_EYE)) // Only relevant to stereo views
 			{
 				// For even frames, prevent left eye from occlusion querying
 				// For odd frames, prevent right eye from occlusion querying
 				const bool FrameParity = ((View.ViewState->PrevFrameNumber & 0x01) == 1);
-				bSubmitQueries &= ( FrameParity && IStereoRendering::IsAPrimaryView(View.StereoPass)) ||
-								  (!FrameParity && IStereoRendering::IsASecondaryView(View.StereoPass));
+				bSubmitQueries &= (FrameParity && View.StereoPass == eSSP_LEFT_EYE) ||
+								  (!FrameParity && View.StereoPass == eSSP_RIGHT_EYE);
 			}
 
 			NumOccludedPrimitives += FetchVisibilityForPrimitives(Scene, View, bSubmitQueries, bHZBOcclusion, DynamicVertexBuffer);
@@ -1893,6 +1893,7 @@ struct FRelevancePacket
 	bool bUsesLightingChannels;
 	bool bTranslucentSurfaceLighting;
 	bool bUsesSceneDepth;
+	bool bUsesCustomDepthStencil;
 	bool bSceneHasSkyMaterial;
 	bool bHasSingleLayerWaterMaterial;
 
@@ -1931,6 +1932,7 @@ struct FRelevancePacket
 		, bUsesLightingChannels(false)
 		, bTranslucentSurfaceLighting(false)
 		, bUsesSceneDepth(false)
+		, bUsesCustomDepthStencil(false)
 		, bSceneHasSkyMaterial(false)
 		, bHasSingleLayerWaterMaterial(false)
 	{
@@ -2051,6 +2053,7 @@ struct FRelevancePacket
 			bUsesLightingChannels |= ViewRelevance.bUsesLightingChannels;
 			bTranslucentSurfaceLighting |= ViewRelevance.bTranslucentSurfaceLighting;
 			bUsesSceneDepth |= ViewRelevance.bUsesSceneDepth;
+			bUsesCustomDepthStencil |= ViewRelevance.bUsesCustomDepthStencil;
 			bSceneHasSkyMaterial |= ViewRelevance.bUsesSkyMaterial;
 			bHasSingleLayerWaterMaterial |= ViewRelevance.bUsesSingleLayerWaterMaterial;
 
@@ -2228,7 +2231,7 @@ struct FRelevancePacket
 					if (ViewRelevance.bDrawRelevance)
 					{
 						if ((StaticMeshRelevance.bUseForMaterial || StaticMeshRelevance.bUseAsOccluder)
-							&& (ViewRelevance.bRenderInMainPass || ViewRelevance.bRenderCustomDepth) 
+							&& (ViewRelevance.bRenderInMainPass || ViewRelevance.bRenderCustomDepth || ViewRelevance.bRenderInDepthPass)
 							&& !bHiddenByHLODFade)
 						{
 							if (StaticMeshRelevance.bUseForDepthPass && bDrawDepthOnly)
@@ -2237,7 +2240,7 @@ struct FRelevancePacket
 							}
 
 							// Mark static mesh as visible for rendering
-							if (StaticMeshRelevance.bUseForMaterial)
+							if (StaticMeshRelevance.bUseForMaterial && (ViewRelevance.bRenderInMainPass || ViewRelevance.bRenderCustomDepth))
 							{
 								DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::BasePass);
 								MarkMask |= EMarkMaskBits::StaticMeshVisibilityMapMask;
@@ -2287,11 +2290,26 @@ struct FRelevancePacket
 								}
 #endif
 
-								if (ViewRelevance.bVelocityRelevance
-									&& FVelocityRendering::PrimitiveHasVelocity(View.GetFeatureLevel(), PrimitiveSceneInfo)
-									&& FVelocityRendering::PrimitiveHasVelocityForView(View, Bounds.BoxSphereBounds, PrimitiveSceneInfo))
+								if (ViewRelevance.HasVelocity())
 								{
-									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::Velocity);
+									const FPrimitiveSceneProxy* PrimitiveSceneProxy = PrimitiveSceneInfo->Proxy;
+
+									if (FVelocityMeshProcessor::PrimitiveHasVelocityForView(View, PrimitiveSceneProxy))
+									{
+										if (ViewRelevance.bVelocityRelevance &&
+											FOpaqueVelocityMeshProcessor::PrimitiveCanHaveVelocity(View.GetShaderPlatform(), PrimitiveSceneProxy) &&
+											FOpaqueVelocityMeshProcessor::PrimitiveHasVelocityForFrame(PrimitiveSceneProxy))
+										{
+											DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::Velocity);
+										}
+
+										if (ViewRelevance.bTranslucentVelocityRelevance &&
+											FTranslucentVelocityMeshProcessor::PrimitiveCanHaveVelocity(View.GetShaderPlatform(), PrimitiveSceneProxy) &&
+											FTranslucentVelocityMeshProcessor::PrimitiveHasVelocityForFrame(PrimitiveSceneProxy))
+										{
+											DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::TranslucentVelocity);
+										}
+									}
 								}
 
 								++NumVisibleStaticMeshElements;
@@ -2402,6 +2420,7 @@ struct FRelevancePacket
 		WriteView.TranslucentPrimCount.Append(TranslucentPrimCount);
 		WriteView.bHasDistortionPrimitives |= bHasDistortionPrimitives;
 		WriteView.bHasCustomDepthPrimitives |= bHasCustomDepthPrimitives;
+		WriteView.bUsesCustomDepthStencil |= bUsesCustomDepthStencil;
 		DirtyIndirectLightingCacheBufferPrimitives.AppendTo(WriteView.DirtyIndirectLightingCacheBufferPrimitives);
 
 		WriteView.MeshDecalBatches.Append(MeshDecalBatches);
@@ -2657,64 +2676,71 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 {
 	const int32 NumElements = MeshBatch.Mesh->Elements.Num();
 
-	if (ViewRelevance.bDrawRelevance && (ViewRelevance.bRenderInMainPass || ViewRelevance.bRenderCustomDepth))
+	if (ViewRelevance.bDrawRelevance && (ViewRelevance.bRenderInMainPass || ViewRelevance.bRenderCustomDepth || ViewRelevance.bRenderInDepthPass))
 	{
 		PassMask.Set(EMeshPass::DepthPass);
 		View.NumVisibleDynamicMeshElements[EMeshPass::DepthPass] += NumElements;
 
-		PassMask.Set(EMeshPass::BasePass);
-		View.NumVisibleDynamicMeshElements[EMeshPass::BasePass] += NumElements;
-
-		if (ShadingPath == EShadingPath::Mobile)
+		if (ViewRelevance.bRenderInMainPass || ViewRelevance.bRenderCustomDepth)
 		{
-			PassMask.Set(EMeshPass::MobileBasePassCSM);
-			View.NumVisibleDynamicMeshElements[EMeshPass::MobileBasePassCSM] += NumElements;
-		}
+			PassMask.Set(EMeshPass::BasePass);
+			View.NumVisibleDynamicMeshElements[EMeshPass::BasePass] += NumElements;
 
-		if (ViewRelevance.bRenderCustomDepth)
-		{
-			PassMask.Set(EMeshPass::CustomDepth);
-			View.NumVisibleDynamicMeshElements[EMeshPass::CustomDepth] += NumElements;
-		}
+			if (ShadingPath == EShadingPath::Mobile)
+			{
+				PassMask.Set(EMeshPass::MobileBasePassCSM);
+				View.NumVisibleDynamicMeshElements[EMeshPass::MobileBasePassCSM] += NumElements;
+			}
 
-		if (bAddLightmapDensityCommands)
-		{
-			PassMask.Set(EMeshPass::LightmapDensity);
-			View.NumVisibleDynamicMeshElements[EMeshPass::LightmapDensity] += NumElements;
-		}
+			if (ViewRelevance.bRenderCustomDepth)
+			{
+				PassMask.Set(EMeshPass::CustomDepth);
+				View.NumVisibleDynamicMeshElements[EMeshPass::CustomDepth] += NumElements;
+			}
+
+			if (bAddLightmapDensityCommands)
+			{
+				PassMask.Set(EMeshPass::LightmapDensity);
+				View.NumVisibleDynamicMeshElements[EMeshPass::LightmapDensity] += NumElements;
+			}
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		else if (View.Family->UseDebugViewPS())
-		{
-			PassMask.Set(EMeshPass::DebugViewMode);
-			View.NumVisibleDynamicMeshElements[EMeshPass::DebugViewMode] += NumElements;
-		}
+			else if (View.Family->UseDebugViewPS())
+			{
+				PassMask.Set(EMeshPass::DebugViewMode);
+				View.NumVisibleDynamicMeshElements[EMeshPass::DebugViewMode] += NumElements;
+			}
 #endif
 
 #if WITH_EDITOR
-		if (View.bAllowTranslucentPrimitivesInHitProxy)
-		{
-			PassMask.Set(EMeshPass::HitProxy);
-			View.NumVisibleDynamicMeshElements[EMeshPass::HitProxy] += NumElements;
-		}
-		else
-		{
-			PassMask.Set(EMeshPass::HitProxyOpaqueOnly);
-			View.NumVisibleDynamicMeshElements[EMeshPass::HitProxyOpaqueOnly] += NumElements;
-		}
+			if (View.bAllowTranslucentPrimitivesInHitProxy)
+			{
+				PassMask.Set(EMeshPass::HitProxy);
+				View.NumVisibleDynamicMeshElements[EMeshPass::HitProxy] += NumElements;
+			}
+			else
+			{
+				PassMask.Set(EMeshPass::HitProxyOpaqueOnly);
+				View.NumVisibleDynamicMeshElements[EMeshPass::HitProxyOpaqueOnly] += NumElements;
+			}
 #endif
 
-		if (ViewRelevance.bVelocityRelevance
-				&& FVelocityRendering::PrimitiveHasVelocity(View.GetFeatureLevel(), PrimitiveSceneInfo)
-				&& FVelocityRendering::PrimitiveHasVelocityForView(View, Bounds.BoxSphereBounds, PrimitiveSceneInfo))
-		{
-			PassMask.Set(EMeshPass::Velocity);
-			View.NumVisibleDynamicMeshElements[EMeshPass::Velocity] += NumElements;
-		}
+			if (ViewRelevance.bVelocityRelevance)
+			{
+				PassMask.Set(EMeshPass::Velocity);
+				View.NumVisibleDynamicMeshElements[EMeshPass::Velocity] += NumElements;
+			}
 
-		if (ViewRelevance.bUsesSingleLayerWaterMaterial)
-		{
-			PassMask.Set(EMeshPass::SingleLayerWaterPass);
-			View.NumVisibleDynamicMeshElements[EMeshPass::SingleLayerWaterPass] += NumElements;
+			if (ViewRelevance.bTranslucentVelocityRelevance)
+			{
+				PassMask.Set(EMeshPass::TranslucentVelocity);
+				View.NumVisibleDynamicMeshElements[EMeshPass::TranslucentVelocity] += NumElements;
+			}
+
+			if (ViewRelevance.bUsesSingleLayerWaterMaterial)
+			{
+				PassMask.Set(EMeshPass::SingleLayerWaterPass);
+				View.NumVisibleDynamicMeshElements[EMeshPass::SingleLayerWaterPass] += NumElements;
+			}
 		}
 	}
 

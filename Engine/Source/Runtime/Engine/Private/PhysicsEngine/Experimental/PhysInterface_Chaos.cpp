@@ -877,7 +877,7 @@ private:
 
 	FPhysScene_ChaosInterface* GetSceneForActor(FPhysicsActorHandle const * InActorHandle)
 	{
-		FBodyInstance* ActorInstance = FPhysicsUserData_Chaos::Get<FBodyInstance>((*InActorHandle)->UserData());
+		FBodyInstance* ActorInstance = (*InActorHandle) ? FPhysicsUserData_Chaos::Get<FBodyInstance>((*InActorHandle)->UserData()) : nullptr;
 
 		if(ActorInstance)
 		{

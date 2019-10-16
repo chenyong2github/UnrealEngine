@@ -174,11 +174,11 @@ public:
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES2);
 	}	
 
-	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS, FRHITexture* FMaskTexure2D)
+	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS, FRHIShaderResourceView* FMaskSRV)
 	{
 		FRHIPixelShader* PixelShaderRHI = GetPixelShader();
 		SetTextureParameter(RHICmdList, PixelShaderRHI, Tex, Texture2DMS);
-		SetTextureParameter(RHICmdList, PixelShaderRHI, FMaskTex, FMaskTexure2D);
+		SetSRVParameter(RHICmdList, PixelShaderRHI, FMaskTex, FMaskSRV);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -218,11 +218,11 @@ public:
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES2);
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS, FRHITexture* FMaskTexure2D)
+	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS, FRHIShaderResourceView* FMaskSRV)
 	{
 		FRHIPixelShader* PixelShaderRHI = GetPixelShader();
 		SetTextureParameter(RHICmdList, PixelShaderRHI, Tex, Texture2DMS);
-		SetTextureParameter(RHICmdList, PixelShaderRHI, FMaskTex, FMaskTexure2D);
+		SetSRVParameter(RHICmdList, PixelShaderRHI, FMaskTex, FMaskSRV);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -263,11 +263,11 @@ public:
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES2);
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS, FRHITexture* FMaskTexure2D)
+	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS, FRHIShaderResourceView* FMaskSRV)
 	{
 		FRHIPixelShader* PixelShaderRHI = GetPixelShader();
 		SetTextureParameter(RHICmdList, PixelShaderRHI, Tex, Texture2DMS);
-		SetTextureParameter(RHICmdList, PixelShaderRHI, FMaskTex, FMaskTexure2D);
+		SetSRVParameter(RHICmdList, PixelShaderRHI, FMaskTex, FMaskSRV);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)

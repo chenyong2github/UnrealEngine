@@ -211,6 +211,9 @@ public:
 		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL"), 1);
 
+		EBlendableLocation Location = EBlendableLocation(Parameters.Material->GetBlendableLocation());
+		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL_BEFORE_TONEMAP"), (Location == BL_AfterTonemapping || Location == BL_ReplacingTonemapper) ? 0 : 1);
+
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 		if (PermutationVector.Get<FMobileDimension>())
 		{
@@ -285,39 +288,24 @@ TGlobalResource<FPostProcessMaterialVertexDeclaration> GPostProcessMaterialVerte
 
 } //! namespace
 
-FPostProcessMaterialInput GetPostProcessMaterialInput(FIntRect ViewportRect, FRDGTextureRef Texture, FRHISamplerState* Sampler)
-{
-	FPostProcessMaterialInput Input;
-	Input.Viewport = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(ViewportRect, Texture));
-	Input.Texture = Texture;
-	Input.Sampler = Sampler;
-	return Input;
-}
-
-FRDGTextureRef ComputePostProcessMaterial(
+FScreenPassTexture AddPostProcessMaterialPass(
 	FRDGBuilder& GraphBuilder,
-	const FScreenPassViewInfo& ScreenPassView,
-	const UMaterialInterface* MaterialInterface,
-	const FPostProcessMaterialInputs& Inputs)
+	const FViewInfo& View,
+	const FPostProcessMaterialInputs& Inputs,
+	const UMaterialInterface* MaterialInterface)
 {
 	Inputs.Validate();
 
-	FRDGTextureRef SceneColorTexture = nullptr;
-	FIntRect SceneColorViewportRect;
-	Inputs.GetInput(EPostProcessMaterialInput::SceneColor, SceneColorTexture, SceneColorViewportRect);
+	const FScreenPassTexture SceneColor = Inputs.GetInput(EPostProcessMaterialInput::SceneColor);
 
-	const FScreenPassTextureViewport SceneColorViewport(SceneColorViewportRect, SceneColorTexture);
-
-	const ERHIFeatureLevel::Type FeatureLevel = ScreenPassView.View.GetFeatureLevel();
+	const ERHIFeatureLevel::Type FeatureLevel = View.GetFeatureLevel();
 
 	const FMaterial* Material = nullptr;
 	const FMaterialRenderProxy* MaterialRenderProxy = nullptr;
 	const FMaterialShaderMap* MaterialShaderMap = nullptr;
-	GetMaterialInfo(MaterialInterface, FeatureLevel, Inputs.OverrideOutputFormat, Material, MaterialRenderProxy, MaterialShaderMap);
+	GetMaterialInfo(MaterialInterface, FeatureLevel, Inputs.OutputFormat, Material, MaterialRenderProxy, MaterialShaderMap);
 
-	RDG_EVENT_SCOPE(GraphBuilder, "PostProcessMaterial %dx%d Material=%s", SceneColorViewport.Rect.Width(), SceneColorViewport.Rect.Height(), *Material->GetFriendlyName());
-
-	FRHIDepthStencilState* DefaultDepthStencilState = FScreenPassDrawInfo::FDefaultDepthStencilState::GetRHI();
+	FRHIDepthStencilState* DefaultDepthStencilState = FScreenPassPipelineState::FDefaultDepthStencilState::GetRHI();
 	FRHIDepthStencilState* DepthStencilState = DefaultDepthStencilState;
 
 	FRDGTextureRef DepthStencilTexture = nullptr;
@@ -332,81 +320,66 @@ FRDGTextureRef ComputePostProcessMaterial(
 		DepthStencilState = GetMaterialStencilState(Material);
 	}
 
-	FRHIBlendState* DefaultBlendState = FScreenPassDrawInfo::FDefaultBlendState::GetRHI();
+	FRHIBlendState* DefaultBlendState = FScreenPassPipelineState::FDefaultBlendState::GetRHI();
 	FRHIBlendState* BlendState = GetMaterialBlendState(Material);
-
-	const FViewInfo& View = ScreenPassView.View;
 
 	// Blend / Depth Stencil usage requires that the render target have primed color data.
 	const bool bIsCompositeWithInput = DepthStencilState != DefaultDepthStencilState || BlendState != DefaultBlendState;
 
-	// Multiple views are composited onto the same target.
-	const bool bIsNotPrimaryView = (&View != View.Family->Views[0]);
-
 	// We only prime color on the output texture if we are using fixed function Blend / Depth-Stencil,
 	// or we need to retain previously rendered views.
-	const bool bPrimeOutputColor = bIsCompositeWithInput || bIsNotPrimaryView;
+	const bool bPrimeOutputColor = bIsCompositeWithInput || !View.IsFirstInFamily();
 
-	FRDGTextureRef OutputTexture = Inputs.OverrideOutputTexture;
+	// Inputs.OverrideOutput is used to force drawing directly to the backbuffer. OpenGL doesn't support using the backbuffer color target with a custom depth/stencil
+	// buffer, so in that case we must draw to an intermediate target and copy to the backbuffer at the end. Ideally, we would test if Inputs.OverrideOutput.Texture
+	// is actually the backbuffer (as returned by AndroidEGL::GetOnScreenColorRenderBuffer() and such), but it's not worth doing all the plumbing and increasing the
+	// RHI surface area just for this hack.
+	const bool bForceIntermediateRT = !GRHISupportsBackBufferWithCustomDepthStencil && (DepthStencilTexture != nullptr) && Inputs.OverrideOutput.IsValid();
+
+	FScreenPassRenderTarget Output = Inputs.OverrideOutput;
 
 	// We can re-use the scene color texture as the render target if we're not simultaneously reading from it.
 	// This is only necessary to do if we're going to be priming content from the render target since it avoids
 	// the copy. Otherwise, we just allocate a new render target.
-	if (!OutputTexture && !MaterialShaderMap->UsesSceneTexture(PPI_PostProcessInput0) && bPrimeOutputColor)
+	if (!Output.IsValid() && !MaterialShaderMap->UsesSceneTexture(PPI_PostProcessInput0) && bPrimeOutputColor)
 	{
-		OutputTexture = SceneColorTexture;
+		Output = FScreenPassRenderTarget(SceneColor, ERenderTargetLoadAction::ELoad);
 	}
 	else
 	{
 		// Allocate new transient output texture if none exists.
-		if (!OutputTexture)
+		if (!Output.IsValid() || bForceIntermediateRT)
 		{
-			const EPixelFormat OverrideOutputFormat = Inputs.OverrideOutputFormat;
-
-			FRDGTextureDesc OutputTextureDesc = SceneColorTexture->Desc;
-			if (OverrideOutputFormat != PF_Unknown)
+			FRDGTextureDesc OutputDesc = SceneColor.Texture->Desc;
+			OutputDesc.Reset();
+			if (Inputs.OutputFormat != PF_Unknown)
 			{
-				OutputTextureDesc.Format = OverrideOutputFormat;
+				OutputDesc.Format = Inputs.OutputFormat;
 			}
-			OutputTextureDesc.Reset();
-			OutputTextureDesc.ClearValue = FClearValueBinding(FLinearColor::Black);
-			OutputTextureDesc.Flags |= GFastVRamConfig.PostProcessMaterial;
+			OutputDesc.ClearValue = FClearValueBinding(FLinearColor::Black);
+			OutputDesc.Flags |= GFastVRamConfig.PostProcessMaterial;
 
-			OutputTexture = GraphBuilder.CreateTexture(OutputTextureDesc, TEXT("PostProcessMaterialOutput"));
+			Output = FScreenPassRenderTarget(GraphBuilder.CreateTexture(OutputDesc, TEXT("PostProcessMaterial")), SceneColor.ViewRect, View.GetOverwriteLoadAction());
 		}
 
-		if (bPrimeOutputColor)
+		if (bPrimeOutputColor || bForceIntermediateRT)
 		{
 			// Copy existing contents to new output and use load-action to preserve untouched pixels.
-			AddDrawTexturePass(GraphBuilder, ScreenPassView, SceneColorTexture, OutputTexture);
+			AddDrawTexturePass(GraphBuilder, View, SceneColor.Texture, Output.Texture);
+			Output.LoadAction = ERenderTargetLoadAction::ELoad;
 		}
 	}
 
-	ERenderTargetLoadAction OutputLoadAction = ERenderTargetLoadAction::ENoAction;
+	const FScreenPassTextureViewport SceneColorViewport(SceneColor);
+	const FScreenPassTextureViewport OutputViewport(Output);
 
-	// We have color data that needs to be loaded.
-	if (bPrimeOutputColor)
-	{
-		OutputLoadAction = ERenderTargetLoadAction::ELoad;
-	}
-	// HMD masks leave unrendered pixels; perform a clear instead.
-	else if (ScreenPassView.bHasHMDMask)
-	{
-		OutputLoadAction = ERenderTargetLoadAction::EClear;
-	}
-
-	if (OutputTexture == SceneColorTexture)
-	{
-		ensureMsgf(OutputLoadAction == ERenderTargetLoadAction::ELoad,
-			TEXT("We only want to re-use the input texture if we're going to load its contents. Otherwise RDG will emit a warning."));
-	}
+	RDG_EVENT_SCOPE(GraphBuilder, "PostProcessMaterial %dx%d Material=%s", SceneColorViewport.Rect.Width(), SceneColorViewport.Rect.Height(), *Material->GetFriendlyName());
 
 	FPostProcessMaterialParameters* PostProcessMaterialParameters = GraphBuilder.AllocParameters<FPostProcessMaterialParameters>();
 
 	PostProcessMaterialParameters->PostProcessOutput = GetScreenPassTextureViewportParameters(SceneColorViewport);
 	PostProcessMaterialParameters->CustomDepth = DepthStencilTexture;
-
-	PostProcessMaterialParameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture, OutputLoadAction);
+	PostProcessMaterialParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 
 	if (DepthStencilTexture)
 	{
@@ -419,33 +392,29 @@ FRDGTextureRef ComputePostProcessMaterial(
 
 	PostProcessMaterialParameters->PostProcessInput_BilinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();;
 
-	FRDGTextureRef BlackTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy, TEXT("BlackDummy"));
+	const FScreenPassTexture BlackDummy(GSystemTextures.GetBlackDummy(GraphBuilder));
 
     // This gets passed in whether or not it's used.
-	GraphBuilder.RemoveUnusedTextureWarning(BlackTexture);
+	GraphBuilder.RemoveUnusedTextureWarning(BlackDummy.Texture);
 
 	FRHISamplerState* PointClampSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 	for (uint32 InputIndex = 0; InputIndex < kPostProcessMaterialInputCountMax; ++InputIndex)
 	{
-		FRDGTextureRef InputTexture = nullptr;
-		FIntRect InputViewportRect;
-		Inputs.GetInput((EPostProcessMaterialInput)InputIndex, InputTexture, InputViewportRect);
+		FScreenPassTexture Input = Inputs.GetInput((EPostProcessMaterialInput)InputIndex);
 
 		// Need to provide valid textures for when shader compilation doesn't cull unused parameters.
-		if (!InputTexture || !MaterialShaderMap->UsesSceneTexture(PPI_PostProcessInput0 + InputIndex))
+		if (!Input.Texture || !MaterialShaderMap->UsesSceneTexture(PPI_PostProcessInput0 + InputIndex))
 		{
-			InputTexture = BlackTexture;
+			Input = BlackDummy;
 		}
 
-		PostProcessMaterialParameters->PostProcessInput[InputIndex] = GetPostProcessMaterialInput(InputViewportRect, InputTexture, PointClampSampler);
+		PostProcessMaterialParameters->PostProcessInput[InputIndex] = GetScreenPassTextureInput(Input, PointClampSampler);
 	}
 
 	const bool bIsMobile = FeatureLevel <= ERHIFeatureLevel::ES3_1;
 
-	const bool bFlipYAxis = Inputs.bFlipYAxis && RHINeedsToSwitchVerticalAxis(GShaderPlatformForFeatureLevel[FeatureLevel]);
-
-	PostProcessMaterialParameters->bFlipYAxis = bFlipYAxis;
+	PostProcessMaterialParameters->bFlipYAxis = Inputs.bFlipYAxis;
 
 	FPostProcessMaterialShader::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FPostProcessMaterialShader::FMobileDimension>(bIsMobile);
@@ -455,22 +424,12 @@ FRDGTextureRef ComputePostProcessMaterial(
 
 	const uint32 MaterialStencilRef = Material->GetStencilRefValue();
 
-	const auto SetupFunction = [VertexShader, PixelShader, &ScreenPassView, MaterialRenderProxy, PostProcessMaterialParameters, MaterialStencilRef]
-		(FRHICommandListImmediate& RHICmdList)
+	EScreenPassDrawFlags ScreenPassFlags = EScreenPassDrawFlags::AllowHMDHiddenAreaMask;
+
+	if (Inputs.bFlipYAxis)
 	{
-		VertexShader->SetParameters(RHICmdList, ScreenPassView.View, MaterialRenderProxy, *PostProcessMaterialParameters);
-		PixelShader->SetParameters(RHICmdList, ScreenPassView.View, MaterialRenderProxy, *PostProcessMaterialParameters);
-		RHICmdList.SetStencilRef(MaterialStencilRef);
-	};
-
-	const FScreenPassDrawInfo ScreenPassDraw(
-		VertexShader,
-		PixelShader,
-		BlendState,
-		DepthStencilState,
-		bFlipYAxis ? FScreenPassDrawInfo::EFlags::FlipYAxis : FScreenPassDrawInfo::EFlags::None);
-
-	ScreenPassDraw.Validate();
+		ScreenPassFlags |= EScreenPassDrawFlags::FlipYAxis;
+	}
 
 	const bool bNeedsGBuffer = Material->NeedsGBuffer();
 
@@ -483,26 +442,37 @@ FRDGTextureRef ComputePostProcessMaterial(
 		RDG_EVENT_NAME("PostProcessMaterial"),
 		PostProcessMaterialParameters,
 		ERDGPassFlags::Raster,
-		[ScreenPassView, SceneColorViewport, ScreenPassDraw, PostProcessMaterialParameters, DepthStencilTexture, SetupFunction, bFlipYAxis, bNeedsGBuffer]
-	(FRHICommandListImmediate& RHICmdList)
+		[&View, OutputViewport, SceneColorViewport, VertexShader, PixelShader, BlendState, DepthStencilState, ScreenPassFlags, MaterialRenderProxy, PostProcessMaterialParameters, MaterialStencilRef, bNeedsGBuffer] (FRHICommandListImmediate& RHICmdList)
 	{
-		FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get(RHICmdList);
-
-		DrawScreenPass<decltype(SetupFunction)>(
+		DrawScreenPass(
 			RHICmdList,
-			ScreenPassView,
+			View,
+			OutputViewport,
 			SceneColorViewport,
-			SceneColorViewport,
-			ScreenPassDraw,
-			SetupFunction);
+			FScreenPassPipelineState(VertexShader, PixelShader, BlendState, DepthStencilState),
+			ScreenPassFlags,
+			[&](FRHICommandListImmediate&)
+		{
+			VertexShader->SetParameters(RHICmdList, View, MaterialRenderProxy, *PostProcessMaterialParameters);
+			PixelShader->SetParameters(RHICmdList, View, MaterialRenderProxy, *PostProcessMaterialParameters);
+			RHICmdList.SetStencilRef(MaterialStencilRef);
+		});
 
 		if (bNeedsGBuffer)
 		{
-			SceneRenderTargets.AdjustGBufferRefCount(RHICmdList, -1);
+			FSceneRenderTargets::Get(RHICmdList).AdjustGBufferRefCount(RHICmdList, -1);
 		}
 	});
 
-	return OutputTexture;
+	if (bForceIntermediateRT)
+	{
+		// We shouldn't get here unless we had an override target.
+		check(Inputs.OverrideOutput.IsValid());
+		AddDrawTexturePass(GraphBuilder, View, Output.Texture, Inputs.OverrideOutput.Texture);
+		Output = Inputs.OverrideOutput;
+	}
+
+	return MoveTemp(Output);
 }
 
 static bool IsPostProcessMaterialsEnabledForView(const FViewInfo& View)
@@ -531,89 +501,76 @@ static FPostProcessMaterialNode* IteratePostProcessMaterialNodes(const FFinalPos
 	}
 }
 
-FRDGTextureRef AddPostProcessMaterialChain(
-	FRDGBuilder& GraphBuilder,
-	const FScreenPassViewInfo& ScreenPassView,
-	const FPostProcessMaterialInputs& Inputs,
-	EBlendableLocation Location)
+FPostProcessMaterialChain GetPostProcessMaterialChain(const FViewInfo& View, EBlendableLocation Location)
 {
-	const FViewInfo& View = ScreenPassView.View;
-
 	if (!IsPostProcessMaterialsEnabledForView(View))
 	{
-		FIntRect Viewport;
-		FRDGTextureRef Texture;
-		Inputs.GetInput(EPostProcessMaterialInput::SceneColor, Texture, Viewport);
-		return Texture;
+		return {};
 	}
 
 	const FSceneViewFamily& ViewFamily = *View.Family;
 
-	// hard coded - this should be a reasonable limit
-	const uint32 MAX_PPMATERIALNODES = 10;
+	TArray<FPostProcessMaterialNode, TInlineAllocator<10>> Nodes;
 	FBlendableEntry* Iterator = nullptr;
-	FPostProcessMaterialNode Nodes[MAX_PPMATERIALNODES];
-	uint32 NodeCount = 0;
-	bool bVisualizingBuffer = false;
 
 	if (ViewFamily.EngineShowFlags.VisualizeBuffer)
 	{
-		// Apply requested material to the full screen
 		UMaterial* Material = GetBufferVisualizationData().GetMaterial(View.CurrentBufferVisualizationMode);
 
 		if (Material && Material->BlendableLocation == Location)
 		{
-			Nodes[0] = FPostProcessMaterialNode(Material, Location, Material->BlendablePriority);
-			++NodeCount;
-			bVisualizingBuffer = true;
+			Nodes.Add(FPostProcessMaterialNode(Material, Location, Material->BlendablePriority));
 		}
 	}
-	for (; NodeCount < MAX_PPMATERIALNODES; ++NodeCount)
+
+	while (FPostProcessMaterialNode* Data = IteratePostProcessMaterialNodes(View.FinalPostProcessSettings, Location, Iterator))
 	{
-		FPostProcessMaterialNode* Data = IteratePostProcessMaterialNodes(View.FinalPostProcessSettings, Location, Iterator);
-
-		if (!Data)
-		{
-			break;
-		}
-
 		check(Data->GetMaterialInterface());
-
-		Nodes[NodeCount] = *Data;
+		Nodes.Add(*Data);
 	}
 
-	::Sort(Nodes, NodeCount, FPostProcessMaterialNode::FCompare());
-
-	const bool bBasePassCanOutputVelocity = FVelocityRendering::BasePassCanOutputVelocity(View.GetFeatureLevel());
-
-	FRDGTextureRef LastSceneColor = nullptr;
-	FIntRect SceneColorViewport;
-	Inputs.GetInput(EPostProcessMaterialInput::SceneColor, LastSceneColor, SceneColorViewport);
-
-	for (uint32 i = 0; i < NodeCount; ++i)
+	if (!Nodes.Num())
 	{
-		const UMaterialInterface* MaterialInterface = Nodes[i].GetMaterialInterface();
-
-		FPostProcessMaterialInputs LocalInputs = Inputs;
-		LocalInputs.SetInput(EPostProcessMaterialInput::SceneColor, LastSceneColor, SceneColorViewport);
-
-		// This input is only needed for visualization and frame dumping
-		if (!bVisualizingBuffer)
-		{
-			LocalInputs.SetInput(EPostProcessMaterialInput::PreTonemapHDRColor, nullptr, FIntRect());
-			LocalInputs.SetInput(EPostProcessMaterialInput::PostTonemapHDRColor, nullptr, FIntRect());
-		}
-
-		// Velocity is only available when not generated from the base pass.
-		if (bBasePassCanOutputVelocity)
-		{
-			LocalInputs.SetInput(EPostProcessMaterialInput::Velocity, nullptr, FIntRect());
-		}
-
-		LastSceneColor = ComputePostProcessMaterial(GraphBuilder, ScreenPassView, MaterialInterface, Inputs);
+		return {};
 	}
 
-	return LastSceneColor;
+	::Sort(Nodes.GetData(), Nodes.Num(), FPostProcessMaterialNode::FCompare());
+
+	FPostProcessMaterialChain OutputChain;
+	OutputChain.Reserve(Nodes.Num());
+
+	for (const FPostProcessMaterialNode& Node : Nodes)
+	{
+		OutputChain.Add(Node.GetMaterialInterface());
+	}
+
+	return OutputChain;
+}
+
+FScreenPassTexture AddPostProcessMaterialChain(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	const FPostProcessMaterialInputs& InputsTemplate,
+	const FPostProcessMaterialChain& Materials)
+{
+	FScreenPassTexture Outputs = InputsTemplate.GetInput(EPostProcessMaterialInput::SceneColor);
+
+	for (const UMaterialInterface* MaterialInterface : Materials)
+	{
+		FPostProcessMaterialInputs Inputs = InputsTemplate;
+		Inputs.SetInput(EPostProcessMaterialInput::SceneColor, Outputs);
+
+		// Certain inputs are only respected by the final post process material in the chain.
+		if (MaterialInterface != Materials.Last())
+		{
+			Inputs.OverrideOutput = FScreenPassRenderTarget();
+			Inputs.bFlipYAxis = false;
+		}
+
+		Outputs = AddPostProcessMaterialPass(GraphBuilder, View, Inputs, MaterialInterface);
+	}
+
+	return Outputs;
 }
 
 FRenderingCompositePass* AddPostProcessMaterialPass(
@@ -641,10 +598,15 @@ FRenderingCompositePass* AddPostProcessMaterialPass(
 		FRDGBuilder GraphBuilder(InContext.RHICmdList);
 
 		FPostProcessMaterialInputs Inputs;
-		Inputs.OverrideOutputFormat = OverrideOutputFormat;
+		Inputs.OutputFormat = OverrideOutputFormat;
 
 		// Either finds the overridden frame buffer target or returns null.
-		Inputs.OverrideOutputTexture = Pass->FindRDGTextureForOutput(GraphBuilder, ePId_Output0, TEXT("FrameBufferOverride"));
+		if (FRDGTextureRef OutputTexture = Pass->FindRDGTextureForOutput(GraphBuilder, ePId_Output0, TEXT("FrameBufferOverride")))
+		{
+			Inputs.OverrideOutput.Texture = OutputTexture;
+			Inputs.OverrideOutput.ViewRect = InContext.GetSceneColorDestRect(Pass);
+			Inputs.OverrideOutput.LoadAction = InContext.View.IsFirstInFamily() ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad;
+		}
 
 		for (uint32 InputIndex = 0; InputIndex < kPostProcessMaterialInputCountMax; ++InputIndex)
 		{
@@ -658,7 +620,7 @@ FRenderingCompositePass* AddPostProcessMaterialPass(
 			 */
 			const FIntRect InputViewportRect = (InputIndex == 0) ? InContext.SceneColorViewRect : InContext.View.ViewRect;
 
-			Inputs.SetInput((EPostProcessMaterialInput)InputIndex, InputTexture, InputViewportRect);
+			Inputs.SetInput((EPostProcessMaterialInput)InputIndex, FScreenPassTexture(InputTexture, InputViewportRect));
 		}
 
 		Inputs.bFlipYAxis = ShouldMobilePassFlipVerticalAxis(Pass);
@@ -668,11 +630,9 @@ FRenderingCompositePass* AddPostProcessMaterialPass(
 			Inputs.CustomDepthTexture = GraphBuilder.RegisterExternalTexture(CustomDepthTarget, TEXT("CustomDepth"));
 		}
 
-		FScreenPassViewInfo ScreenPassView(InContext.View);
+		FScreenPassTexture Outputs = AddPostProcessMaterialPass(GraphBuilder, InContext.View, Inputs, MaterialInterface);
 
-		FRDGTextureRef OutputTexture = ComputePostProcessMaterial(GraphBuilder, ScreenPassView, MaterialInterface, Inputs);
-
-		Pass->ExtractRDGTextureForOutput(GraphBuilder, ePId_Output0, OutputTexture);
+		Pass->ExtractRDGTextureForOutput(GraphBuilder, ePId_Output0, Outputs.Texture);
 
 		GraphBuilder.Execute();
 
@@ -683,49 +643,6 @@ FRenderingCompositePass* AddPostProcessMaterialPass(
 	}));
 }
 
-FRenderingCompositeOutputRef AddPostProcessMaterialReplaceTonemapPass(
-	FPostprocessContext& Context,
-	FRenderingCompositeOutputRef SeparateTranslucency,
-	FRenderingCompositeOutputRef CombinedBloom)
-{
-	if (!Context.View.Family->EngineShowFlags.PostProcessing || !Context.View.Family->EngineShowFlags.PostProcessMaterial)
-	{
-		return Context.FinalOutput;
-	}
-
-	FBlendableEntry* Iterator = nullptr;
-	FPostProcessMaterialNode PPNode;
-	while (FPostProcessMaterialNode* Data = IteratePostProcessMaterialNodes(Context.View.FinalPostProcessSettings, BL_ReplacingTonemapper, Iterator))
-	{
-		check(Data->GetMaterialInterface());
-
-		if (PPNode.IsValid())
-		{
-			FPostProcessMaterialNode::FCompare Dummy;
-
-			// take the one with the highest priority
-			if (!Dummy.operator()(PPNode, *Data))
-			{
-				continue;
-			}
-		}
-
-		PPNode = *Data;
-	}
-
-	if (UMaterialInterface* MaterialInterface = PPNode.GetMaterialInterface())
-	{
-		FRenderingCompositePass* Pass = AddPostProcessMaterialPass(Context, MaterialInterface);
-		Pass->SetInput(EPassInputId(EPostProcessMaterialInput::SceneColor), Context.FinalOutput);
-		Pass->SetInput(EPassInputId(EPostProcessMaterialInput::SeparateTranslucency), SeparateTranslucency);
-		Pass->SetInput(EPassInputId(EPostProcessMaterialInput::CombinedBloom), CombinedBloom);
-
-		return FRenderingCompositeOutputRef(Pass);
-	}
-
-	return Context.FinalOutput;
-}
-
 FRenderingCompositeOutputRef AddPostProcessMaterialChain(
 	FPostprocessContext& Context,
 	EBlendableLocation Location,
@@ -734,65 +651,20 @@ FRenderingCompositeOutputRef AddPostProcessMaterialChain(
 	FRenderingCompositeOutputRef PostTonemapHDRColor,
 	FRenderingCompositeOutputRef PreFlattenVelocity)
 {
-	if (!IsPostProcessMaterialsEnabledForView(Context.View))
-	{
-		return Context.FinalOutput;
-	}
-
-	// hard coded - this should be a reasonable limit
-	const uint32 MAX_PPMATERIALNODES = 10;
-	FBlendableEntry* Iterator = 0;
-	FPostProcessMaterialNode PPNodes[MAX_PPMATERIALNODES];
-	uint32 PPNodeCount = 0;
-	bool bVisualizingBuffer = false;
-
-	if (Context.View.Family->EngineShowFlags.VisualizeBuffer)
-	{
-		// Apply requested material to the full screen
-		UMaterial* Material = GetBufferVisualizationData().GetMaterial(Context.View.CurrentBufferVisualizationMode);
-
-		if (Material && Material->BlendableLocation == Location)
-		{
-			PPNodes[0] = FPostProcessMaterialNode(Material, Location, Material->BlendablePriority);
-			++PPNodeCount;
-			bVisualizingBuffer = true;
-		}
-	}
-	for (; PPNodeCount < MAX_PPMATERIALNODES; ++PPNodeCount)
-	{
-		FPostProcessMaterialNode* Data = IteratePostProcessMaterialNodes(Context.View.FinalPostProcessSettings, Location, Iterator);
-
-		if (!Data)
-		{
-			break;
-		}
-
-		check(Data->GetMaterialInterface());
-
-		PPNodes[PPNodeCount] = *Data;
-	}
-
-	::Sort(PPNodes, PPNodeCount, FPostProcessMaterialNode::FCompare());
+	const FPostProcessMaterialChain MaterialChain = GetPostProcessMaterialChain(Context.View, Location);
 
 	ERHIFeatureLevel::Type FeatureLevel = Context.View.GetFeatureLevel();
 
 	FRenderingCompositeOutputRef LastOutput = Context.FinalOutput;
 
-	for (uint32 i = 0; i < PPNodeCount; ++i)
+	for (const UMaterialInterface* MaterialInterface : MaterialChain)
 	{
-		const UMaterialInterface* MaterialInterface = PPNodes[i].GetMaterialInterface();
-
 		FRenderingCompositePass* Pass = AddPostProcessMaterialPass(Context, MaterialInterface);
 
 		Pass->SetInput(EPassInputId(EPostProcessMaterialInput::SceneColor), LastOutput);
 		Pass->SetInput(EPassInputId(EPostProcessMaterialInput::SeparateTranslucency), SeparateTranslucency);
-
-		// This input is only needed for visualization and frame dumping
-		if (bVisualizingBuffer)
-		{
-			Pass->SetInput(EPassInputId(EPostProcessMaterialInput::PreTonemapHDRColor), PreTonemapHDRColor);
-			Pass->SetInput(EPassInputId(EPostProcessMaterialInput::PostTonemapHDRColor), PostTonemapHDRColor);
-		}
+		Pass->SetInput(EPassInputId(EPostProcessMaterialInput::PreTonemapHDRColor), PreTonemapHDRColor);
+		Pass->SetInput(EPassInputId(EPostProcessMaterialInput::PostTonemapHDRColor), PostTonemapHDRColor);
 
 		if (!FVelocityRendering::BasePassCanOutputVelocity(FeatureLevel))
 		{
@@ -805,38 +677,102 @@ FRenderingCompositeOutputRef AddPostProcessMaterialChain(
 	return LastOutput;
 }
 
+extern void AddDumpToColorArrayPass(FRDGBuilder& GraphBuilder, FScreenPassTexture Input, TArray<FColor>* OutputColorArray);
+
+bool IsHighResolutionScreenshotMaskEnabled(const FViewInfo& View)
+{
+	return View.Family->EngineShowFlags.HighResScreenshotMask || View.FinalPostProcessSettings.HighResScreenshotCaptureRegionMaterial;
+}
+
+FScreenPassTexture AddHighResolutionScreenshotMaskPass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	const FHighResolutionScreenshotMaskInputs& Inputs)
+{
+	check(Inputs.Material || Inputs.MaskMaterial || Inputs.CaptureRegionMaterial);
+
+	enum class EPass
+	{
+		Material,
+		MaskMaterial,
+		CaptureRegionMaterial,
+		MAX
+	};
+
+	const TCHAR* PassNames[]
+	{
+		TEXT("Material"),
+		TEXT("MaskMaterial"),
+		TEXT("CaptureRegionMaterial")
+	};
+
+	static_assert(UE_ARRAY_COUNT(PassNames) == static_cast<uint32>(EPass::MAX), "Pass names array doesn't match pass enum");
+
+	TOverridePassSequence<EPass> PassSequence(Inputs.OverrideOutput);
+	PassSequence.SetEnabled(EPass::Material, Inputs.Material != nullptr);
+	PassSequence.SetEnabled(EPass::MaskMaterial, Inputs.MaskMaterial != nullptr && GIsHighResScreenshot);
+	PassSequence.SetEnabled(EPass::CaptureRegionMaterial, Inputs.CaptureRegionMaterial != nullptr);
+	PassSequence.Finalize();
+
+	FScreenPassTexture Output = Inputs.SceneColor;
+
+	if (PassSequence.IsEnabled(EPass::Material))
+	{
+		FPostProcessMaterialInputs PassInputs;
+		PassSequence.AcceptOverrideIfLastPass(EPass::Material, PassInputs.OverrideOutput);
+		PassInputs.SetInput(EPostProcessMaterialInput::SceneColor, Output);
+
+		Output = AddPostProcessMaterialPass(GraphBuilder, View, PassInputs, Inputs.Material);
+	}
+
+	if (PassSequence.IsEnabled(EPass::MaskMaterial))
+	{
+		FPostProcessMaterialInputs PassInputs;
+		PassSequence.AcceptOverrideIfLastPass(EPass::MaskMaterial, PassInputs.OverrideOutput);
+		PassInputs.SetInput(EPostProcessMaterialInput::SceneColor, Output);
+
+		Output = AddPostProcessMaterialPass(GraphBuilder, View, PassInputs, Inputs.MaskMaterial);
+
+		AddDumpToColorArrayPass(GraphBuilder, Output, FScreenshotRequest::GetHighresScreenshotMaskColorArray());
+	}
+
+	if (PassSequence.IsEnabled(EPass::CaptureRegionMaterial))
+	{
+		FPostProcessMaterialInputs PassInputs;
+		PassSequence.AcceptOverrideIfLastPass(EPass::CaptureRegionMaterial, PassInputs.OverrideOutput);
+		PassInputs.SetInput(EPostProcessMaterialInput::SceneColor, Output);
+
+		Output = AddPostProcessMaterialPass(GraphBuilder, View, PassInputs, Inputs.CaptureRegionMaterial);
+	}
+
+	return Output;
+}
+
 void AddHighResScreenshotMask(FPostprocessContext& Context)
 {
-	if (Context.View.Family->EngineShowFlags.HighResScreenshotMask != 0)
+	FRenderingCompositePass* Pass = Context.Graph.RegisterPass(
+		new(FMemStack::Get()) TRCPassForRDG<1, 1>(
+			[](FRenderingCompositePass* InPass, FRenderingCompositePassContext& InContext)
 	{
-		check(Context.View.FinalPostProcessSettings.HighResScreenshotMaterial);
+		FRDGBuilder GraphBuilder(InContext.RHICmdList);
 
-		FRenderingCompositeOutputRef Input = Context.FinalOutput;
+		FHighResolutionScreenshotMaskInputs PassInputs;
+		PassInputs.SceneColor.Texture = InPass->CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"));
+		PassInputs.SceneColor.ViewRect = InContext.SceneColorViewRect;
 
-		FRenderingCompositePass* CompositePass = AddPostProcessMaterialPass(Context, Context.View.FinalPostProcessSettings.HighResScreenshotMaterial);
-		CompositePass->SetInput(ePId_Input0, FRenderingCompositeOutputRef(Input));
-		Context.FinalOutput = FRenderingCompositeOutputRef(CompositePass);
-
-		if (GIsHighResScreenshot)
+		if (FRDGTextureRef OverrideOutputTexture = InPass->FindRDGTextureForOutput(GraphBuilder, ePId_Output0, TEXT("FrameBuffer")))
 		{
-			check(Context.View.FinalPostProcessSettings.HighResScreenshotMaskMaterial);
-
-			FRenderingCompositePass* MaskPass = AddPostProcessMaterialPass(Context, Context.View.FinalPostProcessSettings.HighResScreenshotMaskMaterial);
-			MaskPass->SetInput(ePId_Input0, FRenderingCompositeOutputRef(Input));
-			CompositePass->AddDependency(MaskPass);
-
-			FString BaseFilename = FString(Context.View.FinalPostProcessSettings.BufferVisualizationDumpBaseFilename);
-			MaskPass->SetOutputColorArray(ePId_Output0, FScreenshotRequest::GetHighresScreenshotMaskColorArray());
+			PassInputs.OverrideOutput.Texture = OverrideOutputTexture;
+			PassInputs.OverrideOutput.ViewRect = InContext.GetSceneColorDestRect(InPass);
+			PassInputs.OverrideOutput.LoadAction = InContext.View.IsFirstInFamily() ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad;
 		}
-	}
 
-	// Draw the capture region if a material was supplied
-	if (Context.View.FinalPostProcessSettings.HighResScreenshotCaptureRegionMaterial)
-	{
-		auto Material = Context.View.FinalPostProcessSettings.HighResScreenshotCaptureRegionMaterial;
+		FScreenPassTexture PassOutput = AddHighResolutionScreenshotMaskPass(GraphBuilder, InContext.View, PassInputs);
 
-		FRenderingCompositePass* CaptureRegionVisualizationPass = AddPostProcessMaterialPass(Context, Material);
-		CaptureRegionVisualizationPass->SetInput(ePId_Input0, FRenderingCompositeOutputRef(Context.FinalOutput));
-		Context.FinalOutput = FRenderingCompositeOutputRef(CaptureRegionVisualizationPass);
-	}
+		InPass->ExtractRDGTextureForOutput(GraphBuilder, ePId_Output0, PassOutput.Texture);
+
+		GraphBuilder.Execute();
+	}));
+	Pass->SetInput(ePId_Input0, Context.FinalOutput);
+	Context.FinalOutput = Pass;
 }

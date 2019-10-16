@@ -513,7 +513,7 @@ void FNiagaraSystemViewModel::Tick(float DeltaTime)
 
 			if (bResetRequestPending)
 			{
-				ResetSystem(ETimeResetMode::AllowResetTime, EMultiResetMode::ResetThisInstance, EReinitMode::ReinitializeSystem);
+				ResetSystem(ETimeResetMode::AllowResetTime, EMultiResetMode::AllowResetAllInstances, EReinitMode::ReinitializeSystem);
 			}
 		}
 	}
@@ -999,7 +999,19 @@ void FNiagaraSystemViewModel::ResetSystem(ETimeResetMode TimeResetMode, EMultiRe
 		}
 	}
 
-	TArray<UNiagaraComponent*> ReferencingComponents = FNiagaraEditorUtilities::GetComponentsThatReferenceSystem(GetSystem());
+	TArray<UNiagaraComponent*> ReferencingComponents;
+	if (MultiResetMode == EMultiResetMode::ResetThisInstance)
+	{
+		if (PreviewComponent != nullptr)
+		{
+			ReferencingComponents.Add(PreviewComponent);
+		}
+	}
+	else
+	{
+		ReferencingComponents = FNiagaraEditorUtilities::GetComponentsThatReferenceSystem(GetSystem());
+	}
+
 	for (auto Component : ReferencingComponents)
 	{
 		if (ReinitMode == EReinitMode::ResetSystem)

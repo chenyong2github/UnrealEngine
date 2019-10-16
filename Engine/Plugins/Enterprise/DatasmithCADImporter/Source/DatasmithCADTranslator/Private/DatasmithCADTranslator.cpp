@@ -2,10 +2,10 @@
 
 #include "DatasmithCADTranslator.h"
 
+#ifdef CAD_LIBRARY
 #include "CADLibraryOptions.h"
 #include "CoreTechParametricSurfaceExtension.h"
 #include "DatasmithCADTranslatorModule.h"
-#include "DatasmithImportOptions.h"
 #include "DatasmithMeshHelper.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithUtils.h"
@@ -89,7 +89,7 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 	IFileManager::Get().MakeDirectory(*OutputPath, true);
 
 	Translator->SetOutputPath(OutputPath);
-	Translator->SetTessellationOptions(TessellationOptions);
+	Translator->SetTessellationOptions(GetCommonTessellationOptions());
 
 	return Translator->Read();
 
@@ -129,7 +129,7 @@ bool FDatasmithCADTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshElem
 				CoreTechData->MeshParameters.SymmetricNormal = MeshParameters.SymmetricNormal;
 				CoreTechData->MeshParameters.SymmetricOrigin = MeshParameters.SymmetricOrigin;
 
-				CoreTechData->LastTessellationOptions = TessellationOptions;
+				CoreTechData->LastTessellationOptions = GetCommonTessellationOptions();
 				OutMeshPayload.AdditionalData.Add(CoreTechData);
 			}
 		}
@@ -137,29 +137,16 @@ bool FDatasmithCADTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshElem
 	return OutMeshPayload.LodMeshes.Num() > 0;
 }
 
-void FDatasmithCADTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options)
-{
-	TStrongObjectPtr<UDatasmithCommonTessellationOptions> TessellationOptionsPtr = Datasmith::MakeOptions<UDatasmithCommonTessellationOptions>();
-	Options.Add(TessellationOptionsPtr);
-}
-
 void FDatasmithCADTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options)
 {
-	for (const TStrongObjectPtr<UObject>& OptionPtr : Options)
+	FDatasmithCoreTechTranslator::SetSceneImportOptions(Options);
+
+	if (Translator)
 	{
-		if (UObject* Option = OptionPtr.Get())
-		{
-			if (UDatasmithCommonTessellationOptions* TessellationOptionsObject = Cast<UDatasmithCommonTessellationOptions>(Option))
-			{
-				TessellationOptions = TessellationOptionsObject->Options;
-				if (Translator)
-				{
-					Translator->SetTessellationOptions(TessellationOptions);
-				}
-			}
-		}
+		Translator->SetTessellationOptions(GetCommonTessellationOptions());
 	}
 }
+#endif
 
 
 

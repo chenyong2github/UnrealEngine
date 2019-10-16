@@ -20,7 +20,7 @@ Notes:
 #include "IpConnection.h"
 #include "HAL/LowLevelMemTracker.h"
 
-#include "PacketAudit.h"
+#include "Net/Core/Misc/PacketAudit.h"
 
 #include "IPAddress.h"
 #include "Sockets.h"
@@ -393,6 +393,8 @@ private:
 
 		while (true)
 		{
+			SCOPE_CYCLE_COUNTER(STAT_IpNetDriver_RecvFromSocket);
+
 			bool bRecvMultiOk = Socket != nullptr ? Socket->RecvMulti(*RMState) : false;
 
 			if (!bRecvMultiOk)

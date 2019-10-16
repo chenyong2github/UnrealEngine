@@ -1,32 +1,35 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	PostProcessAA.h: Post processing anti aliasing implementation.
-=============================================================================*/
-
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RendererInterface.h"
-#include "PostProcess/RenderingCompositionGraph.h"
+#include "ScreenPass.h"
+#include "OverridePassSequence.h"
 
-// derives from TRenderingCompositePassBase<InputCount, OutputCount> 
-class FRCPassPostProcessAA : public TRenderingCompositePassBase<1, 1>
+enum class EFXAAQuality : uint32
 {
-public:
-	// @param InQuality 1..6, larger values are ignored
-	FRCPassPostProcessAA(uint32 InQuality) : Quality(InQuality)
-	{
-		check(InQuality > 0);
-	}
-
-	// interface FRenderingCompositePass ---------
-
-	virtual void Process(FRenderingCompositePassContext& Context) override;
-	virtual void Release() override { delete this; }
-	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
-
-private:
-	// 1..6, larger values are ignored
-	uint32 Quality;
+	// Lowest Quality / Fastest
+	Q0,
+	Q1,
+	Q2,
+	Q3,
+	Q4,
+	Q5,
+	// Highest Quality / Slowest
+	MAX
 };
+
+EFXAAQuality GetFXAAQuality();
+
+struct FFXAAInputs
+{
+	// [Optional] Render to the specified output. If invalid, a new texture is created and returned.
+	FScreenPassRenderTarget OverrideOutput;
+
+	// [Required] HDR scene color to filter.
+	FScreenPassTexture SceneColor;
+
+	// FXAA filter quality.
+	EFXAAQuality Quality = EFXAAQuality::MAX;
+};
+
+FScreenPassTexture AddFXAAPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FFXAAInputs& Inputs);

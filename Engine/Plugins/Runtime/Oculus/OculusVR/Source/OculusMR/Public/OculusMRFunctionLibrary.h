@@ -8,6 +8,7 @@
 class USceneComponent;
 class UOculusMR_Settings;
 struct FTrackedCamera;
+
 namespace OculusHMD
 {
 	class FOculusHMD;
@@ -30,6 +31,10 @@ public:
 	// Set the component for the OculusMR camera to track
 	UFUNCTION(BlueprintCallable, Category = "OculusLibrary|MR")
 	static void SetTrackingReferenceComponent(USceneComponent* Component);
+
+	// Check if MRC is active (enabled and capturing)
+	UFUNCTION(BlueprintCallable, Category = "OculusLibrary|MR")
+	static bool IsMrcActive();
 
 public:
 

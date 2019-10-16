@@ -1,6 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-
 #include "Movement/FlyingMovement.h"
 #include "GameFramework/Actor.h"
 #include "Engine/World.h"
@@ -44,6 +43,12 @@ static FAutoConsoleVariableRef CVarPenetrationOverlapCheckInflation(TEXT("motion
 	TEXT("Distance added to inflation in penetration overlap check."),
 	ECVF_Default);
 
+static float MaxSpeed = 1200.f;
+static FAutoConsoleVariableRef CVarMaxSpeed(TEXT("motion.MaxSpeed"),
+	MaxSpeed,
+	TEXT("Temp value for testing changes to max speed."),
+	ECVF_Default);
+
 static int32 RequestMispredict = 0;
 static FAutoConsoleVariableRef CVarRequestMispredict(TEXT("fp.RequestMispredict"),
 	RequestMispredict, TEXT("Causes a misprediction by inserting random value into stream on authority side"), ECVF_Default);
@@ -64,8 +69,19 @@ UFlyingMovementComponent::UFlyingMovementComponent()
 
 INetworkSimulationModel* UFlyingMovementComponent::InstantiateNetworkSimulation()
 {
-	auto NewSim = new FlyingMovement::FMovementSystem<0>(this);
+	check(UpdatedComponent);
+	
+	FlyingMovement::FMoveState InitialSyncState;
+	InitialSyncState.Location = UpdatedComponent->GetComponentLocation();
+	InitialSyncState.Rotation = UpdatedComponent->GetComponentQuat().Rotator();	
+
+	FlyingMovement::FAuxState InitialAuxState;
+	InitialAuxState.MaxSpeed = FlyingMovementCVars::MaxSpeed;
+
+	auto NewSim = new FlyingMovement::FMovementSystem<0>(this, InitialSyncState, InitialAuxState);
 	DO_NETSIM_MODEL_DEBUG(FNetworkSimulationModelDebuggerManager::Get().RegisterNetworkSimulationModel(NewSim, GetOwner()));
+	MovementSyncState = &NewSim->SyncAccessor;
+	MovementAuxState = &NewSim->AuxAccessor;
 	return NewSim;
 }
 
@@ -94,6 +110,20 @@ void UFlyingMovementComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 		FlyingMovement::FMovementSimulation::ForceMispredict = true;
 		FlyingMovementCVars::RequestMispredict = 0;
 	}
+
+	// Temp
+	/*
+	if (OwnerRole == ROLE_Authority)
+	{
+		if (MovementAuxState->Get()->MaxSpeed != FlyingMovementCVars::MaxSpeed)
+		{
+			MovementAuxState->Modify([](FlyingMovement::FAuxState& Aux)
+			{
+				Aux.MaxSpeed = FlyingMovementCVars::MaxSpeed;
+			});
+		}
+	}
+	*/
 }
 
 // ----------------------------------------------------------------------------------------------------------
@@ -105,13 +135,6 @@ void UFlyingMovementComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 //	layer to do this kind of stuff.
 //
 // ----------------------------------------------------------------------------------------------------------
-
-
-void UFlyingMovementComponent::InitSyncState(FlyingMovement::FMoveState& OutSyncState) const
-{
-	OutSyncState.Location = UpdatedComponent->GetComponentLocation();
-	OutSyncState.Rotation = UpdatedComponent->GetComponentQuat().Rotator();	
-}
 
 void UFlyingMovementComponent::PreSimSync(const FlyingMovement::FMoveState& SyncState)
 {
@@ -131,7 +154,7 @@ void UFlyingMovementComponent::ProduceInput(const FNetworkSimTime SimTime, Flyin
 	ProduceInputDelegate.ExecuteIfBound(SimTime, Cmd);
 }
 
-void UFlyingMovementComponent::FinalizeFrame(const FlyingMovement::FMoveState& SyncState)
+void UFlyingMovementComponent::FinalizeFrame(const FlyingMovement::FMoveState& SyncState, const FlyingMovement::FAuxState& AuxState)
 {
 	PreSimSync(SyncState);
 }

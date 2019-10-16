@@ -38,6 +38,10 @@ SamplerState SceneGBufferESampler;
 
 #endif
 
+float SampleDeviceZFromSceneTextures(float2 UV)
+{
+	return SceneDepthBuffer.SampleLevel(SceneDepthBufferSampler, UV, 0).r;
+}
 
 // @param UV - UV space in the GBuffer textures (BufferSize resolution)
 // TOOD: need to find a way to make this more convenient.
@@ -53,7 +57,7 @@ FGBufferData GetGBufferDataFromSceneTextures(float2 UV, bool bGetNormalizedNorma
 	uint CustomStencil = 0;
 	float CustomNativeDepth = 0;
 
-	float DeviceZ = SceneDepthBuffer.SampleLevel(SceneDepthBufferSampler, UV, 0).r;
+	float DeviceZ = SampleDeviceZFromSceneTextures(UV);
 
 	float SceneDepth = ConvertFromDeviceZ(DeviceZ);
 

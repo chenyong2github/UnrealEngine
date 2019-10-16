@@ -101,10 +101,24 @@ namespace WindowsMixedReality
 		float InVolumeSize,
 		void(*StartFunctionPointer)(),
 		void(*AllocFunctionPointer)(MeshUpdate*),
+		void(*RemovedMeshPointer)(MeshUpdate*),
 		void(*FinishFunctionPointer)()
 	);
 	void UpdateMeshObserverBoundingVolume(winrt::Windows::Perception::Spatial::SpatialCoordinateSystem InCoordinateSystem, winrt::Windows::Foundation::Numerics::float3 Position);
 	void StopMeshObserver();
+
+	void StartSceneUnderstandingObserver(
+		bool bGeneratePlanes,
+		bool bGenerateSceneMeshes,
+		float InVolumeSize,
+		void(*StartFunctionPointer)(),
+		void(*AddPlaneFunctionPointer)(PlaneUpdate*),
+		void(*RemovePlaneFunctionPointer)(PlaneUpdate*),
+		void(*AllocMeshFunctionPointer)(MeshUpdate*),
+		void(*RemoveMeshFunctionPointer)(MeshUpdate*),
+		void(*FinishFunctionPointer)()
+	);
+	void StopSceneUnderstandingObserver();
 
 	void StartQRCodeObserver(void(*AddedFunctionPointer)(QRCodeData*), void(*UpdatedFunctionPointer)(QRCodeData*), void(*RemovedFunctionPointer)(QRCodeData*));
 	void UpdateQRCodeObserverCoordinateSystem(winrt::Windows::Perception::Spatial::SpatialCoordinateSystem InCoordinateSystem);
@@ -2473,7 +2487,7 @@ namespace WindowsMixedReality
 			CurrentSelectState[handIndex] = PressStateFromBool(isPressed);
 
 			// HoloLens 2 supports grasp over remoting.
-			if (supportsMotionControllers)
+			if (supportsMotionControllers && !m_isHL1Remoting)
 			{
 				// Grasp
 				isPressed = state.IsGrasped();
@@ -3638,6 +3652,7 @@ namespace WindowsMixedReality
 		float InVolumeSize,
 		void(*StartFunctionPointer)(),
 		void(*AllocFunctionPointer)(MeshUpdate*),
+		void(*RemovedMeshPointer)(MeshUpdate*),
 		void(*FinishFunctionPointer)()
 	)
 	{
@@ -3646,6 +3661,7 @@ namespace WindowsMixedReality
 			InVolumeSize,
 			StartFunctionPointer,
 			AllocFunctionPointer,
+			RemovedMeshPointer,
 			FinishFunctionPointer
 		);
 	}
@@ -3653,6 +3669,34 @@ namespace WindowsMixedReality
 	void MixedRealityInterop::StopSpatialMapping()
 	{
 		StopMeshObserver();
+	}
+
+	void MixedRealityInterop::StartSceneUnderstanding(
+		bool bGeneratePlanes,
+		bool bGenerateSceneMeshes,
+		float InVolumeSize,
+		void(*StartFunctionPointer)(),
+		void(*AddPlaneFunctionPointer)(PlaneUpdate*),
+		void(*RemovePlaneFunctionPointer)(PlaneUpdate*),
+		void(*AllocMeshFunctionPointer)(MeshUpdate*),
+		void(*RemoveMeshFunctionPointer)(MeshUpdate*),
+		void(*FinishFunctionPointer)()
+	)
+	{
+		StartSceneUnderstandingObserver(bGeneratePlanes,
+			bGenerateSceneMeshes,
+			InVolumeSize,
+			StartFunctionPointer,
+			AddPlaneFunctionPointer,
+			RemovePlaneFunctionPointer,
+			AllocMeshFunctionPointer,
+			RemoveMeshFunctionPointer,
+			FinishFunctionPointer);
+	}
+
+	void MixedRealityInterop::StopSceneUnderstanding()
+	{
+		StopSceneUnderstandingObserver();
 	}
 
 	void MixedRealityInterop::StartQRCodeTracking(void(*AddedFunctionPointer)(QRCodeData*), void(*UpdatedFunctionPointer)(QRCodeData*), void(*RemovedFunctionPointer)(QRCodeData*))
@@ -3677,10 +3721,16 @@ namespace WindowsMixedReality
 		float InVolumeSize,
 		void(*StartFunctionPointer)(),
 		void(*AllocFunctionPointer)(MeshUpdate*),
+		void(*RemovedMeshPointer)(MeshUpdate*),
 		void(*FinishFunctionPointer)()
 	)
 	{
 #if PLATFORM_HOLOLENS || HOLO_STREAMING_RENDERING
+		if (m_isHL1Remoting)
+		{
+			return;
+		}
+
 		MeshUpdateObserver& Instance = MeshUpdateObserver::Get();
 		// Pass any logging callback on
 		Instance.SetOnLog(m_logCallback);
@@ -3690,6 +3740,7 @@ namespace WindowsMixedReality
 			InVolumeSize,
 			StartFunctionPointer,
 			AllocFunctionPointer,
+			RemovedMeshPointer,
 			FinishFunctionPointer
 		);
 #endif
@@ -3711,12 +3762,60 @@ namespace WindowsMixedReality
 	void StopMeshObserver()
 	{
 #if PLATFORM_HOLOLENS || HOLO_STREAMING_RENDERING
+		if (m_isHL1Remoting)
+		{
+			return;
+		}
+
 		MeshUpdateObserver& Instance = MeshUpdateObserver::Get();
 		Instance.Release();
 #endif
 	}
 }
 
+/** Include this down here so there's no confusion between WinRT/C++ and C++/CX types */
+#include "SceneUnderstandingObserver.h"
+
+namespace WindowsMixedReality
+{
+	void StartSceneUnderstandingObserver(
+		bool bGeneratePlanes,
+		bool bGenerateSceneMeshes,
+		float InVolumeSize,
+		void(*StartFunctionPointer)(),
+		void(*AddPlaneFunctionPointer)(PlaneUpdate*),
+		void(*RemovePlaneFunctionPointer)(PlaneUpdate*),
+		void(*AllocMeshFunctionPointer)(MeshUpdate*),
+		void(*RemoveMeshFunctionPointer)(MeshUpdate*),
+		void(*FinishFunctionPointer)()
+	)
+	{
+#if PLATFORM_HOLOLENS
+		SceneUnderstandingObserver& Instance = SceneUnderstandingObserver::Get();
+		// Pass any logging callback on
+		Instance.SetOnLog(m_logCallback);
+
+		Instance.StartSceneUnderstandingObserver(
+			bGeneratePlanes,
+			bGenerateSceneMeshes,
+			InVolumeSize,
+			StartFunctionPointer,
+			AddPlaneFunctionPointer,
+			RemovePlaneFunctionPointer,
+			AllocMeshFunctionPointer,
+			RemoveMeshFunctionPointer,
+			FinishFunctionPointer
+		);
+#endif
+	}
+	void StopSceneUnderstandingObserver()
+	{
+#if PLATFORM_HOLOLENS
+		SceneUnderstandingObserver& Instance = SceneUnderstandingObserver::Get();
+		Instance.StopSceneUnderstandingObserver();
+#endif
+	}
+}
 
 #include "QRCodeObserver.h"
 

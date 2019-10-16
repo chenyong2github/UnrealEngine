@@ -50,6 +50,8 @@ public:
 		((FNiagaraInt32*)Struct->GetStructMemory())->Value = IntValue;
 	}
 
+	virtual bool CanChangeContinuously() const override { return true; }
+
 private:
 	void BeginSliderMovement()
 	{

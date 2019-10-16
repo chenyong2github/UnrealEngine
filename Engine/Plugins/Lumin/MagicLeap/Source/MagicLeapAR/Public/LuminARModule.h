@@ -3,4 +3,3 @@
 #pragma once
 
 #include "Modules/ModuleManager.h"
-#include "MagicLeapHMD.h"

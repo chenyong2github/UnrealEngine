@@ -17,7 +17,6 @@
             "LoadingPhase" : "PostConfigInit",
 			"BlacklistPlatforms" :
 			[
-				"HTML5"
 			]
         }
     ],

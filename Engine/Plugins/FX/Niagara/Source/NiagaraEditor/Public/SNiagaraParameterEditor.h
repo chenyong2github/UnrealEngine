@@ -60,6 +60,8 @@ public:
 	//~ SWidget interface
 	virtual FVector2D ComputeDesiredSize(float LayoutScaleMultiplier) const override;
 
+	/** */
+	virtual bool CanChangeContinuously() const { return false; }
 protected:
 	/** Sets whether this is currently the exclusive editor of this parameter, meaning that the corresponding details view
 		should not be updated.  This hack is necessary because the details view closes all color pickers when

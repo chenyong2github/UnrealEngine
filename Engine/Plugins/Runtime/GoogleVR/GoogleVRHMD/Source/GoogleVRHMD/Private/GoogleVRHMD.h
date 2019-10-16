@@ -664,10 +664,6 @@ public:
 	*/
 	virtual class IXRInput* GetXRInput() { return this; }
 
-	virtual class IHeadMountedDisplay* GetHMDDevice() override { return this; }
-
-	virtual class TSharedPtr< class IStereoRendering, ESPMode::ThreadSafe > GetStereoRenderingDevice() override { return SharedThis(this); }
-
 	//////////////////////////////////////
 	// Begin IXRInput Virtual Interface //
 	//////////////////////////////////////

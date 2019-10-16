@@ -2,13 +2,7 @@
 #pragma once
 
 #include "AudioCaptureCore.h"
-#include "MagicLeapPluginUtil.h"
-
-#if WITH_MLSDK
-ML_INCLUDES_START
-#include <ml_audio.h>
-ML_INCLUDES_END
-#endif //WITH_MLSDK
+#include "Lumin/CAPIShims/LuminAPIAudio.h"
 
 namespace Audio
 {

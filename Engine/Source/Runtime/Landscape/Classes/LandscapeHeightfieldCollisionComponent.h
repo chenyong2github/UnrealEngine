@@ -11,6 +11,7 @@
 #include "AI/Navigation/NavigationTypes.h"
 #include "Components/PrimitiveComponent.h"
 #include "Serialization/BulkData.h"
+#include "Chaos/HeightField.h"
 #include "LandscapeHeightfieldCollisionComponent.generated.h"
 
 class ALandscapeProxy;
@@ -22,14 +23,6 @@ class UPhysicalMaterial;
 struct FConvexVolume;
 struct FEngineShowFlags;
 struct FNavigableGeometryExport;
-
-#if WITH_CHAOS
-namespace Chaos
-{
-	template<typename T>
-	class THeightField;
-}
-#endif
 
 #if WITH_PHYSX
 namespace physx
@@ -172,10 +165,11 @@ class ULandscapeHeightfieldCollisionComponent : public UPrimitiveComponent
 private:
 	bool bEnableCollisionHashOptim = false;
 #endif //WITH_EDITORONLY_DATA
-
+	
 	//~ Begin UActorComponent Interface.
 protected:
 	virtual void OnCreatePhysicsState() override;
+	virtual void OnDestroyPhysicsState() override;
 public:
 
 	virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift) override;
@@ -258,6 +252,7 @@ public:
 
 	LANDSCAPE_API void SnapFoliageInstances();
 #endif
+
 	public:
 	TOptional<float> GetHeight(float X, float Y);
 };

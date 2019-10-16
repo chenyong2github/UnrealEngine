@@ -158,6 +158,10 @@ void UpdateGPUScene(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UpdateGPUScene);
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateGPUScene);
 
+		// Multi-GPU support : Updating on all GPUs is inefficient for AFR. Work is wasted
+		// for any primitives that update on consecutive frames.
+		SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
+
 		if (GGPUSceneUploadEveryFrame || Scene.GPUScene.bUpdateAllPrimitives)
 		{
 			for (int32 Index : Scene.GPUScene.PrimitivesToUpdate)

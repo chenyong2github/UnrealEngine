@@ -15,16 +15,18 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 					"Core",
 					"Engine",
+					"MLSDK",
 					"RHI",
 					"RenderCore",
 					"HeadMountedDisplay"
-                });
+				});
 
 			// TODO: Explore linking Unreal modules against a commong header and
 			// having a runtime dll linking against the library according to the platform.
 			if (Target.Platform != UnrealTargetPlatform.Mac)
 			{
 				PrivateDependencyModuleNames.Add("VulkanRHI");
+				PrivateDefinitions.Add("MLSDK_API_USE_VULKAN=1");
 				string EngineSourceDirectory = "../../../../Source";
 
 				if (Target.Platform == UnrealTargetPlatform.Linux)
@@ -43,7 +45,7 @@ namespace UnrealBuildTool.Rules
 						Path.Combine(EngineSourceDirectory, "Runtime/VulkanRHI/Private", ((Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64) ? "Windows" : Target.Platform.ToString()))
 					});
 
-                AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
 			}
 
 		}

@@ -54,9 +54,9 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Mobile)
 	int GPULevel;
 
-	/** Default Fixed Foveated Rendering level for Oculus Go! */
+	/** Default Fixed Foveated Rendering level for Oculus Go and Quest */
 	UPROPERTY(config, EditAnywhere, Category = Mobile)
-	ETiledMultiResLevel FFRLevel;
+	EFixedFoveatedRenderingLevel FFRLevel;
 
 	/** Compensates in the compositor for chromatic aberration, at a higher GPU cost but without the color fringes on the sides of the lenses */
 	UPROPERTY(config, EditAnywhere, Category = Mobile)

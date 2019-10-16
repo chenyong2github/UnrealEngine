@@ -1,5 +1,10 @@
 #pragma once
-#if !defined(__ORBIS__) && !defined(_XBOX) && !defined(_XBOX_ONE) && !TARGET_OS_IPHONE && !defined(__android__) && !defined(_UAP)
+
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#endif
+
+#if defined(WIN32_ONLY) || (defined(__APPLE__) && !TARGET_OS_IPHONE)
 /* Copyright (c) 2013-2018 by Mercer Road Corp
 *
 * Permission to use, copy, modify or distribute this software in binary or source form
@@ -127,5 +132,5 @@ void vx_test_set_udp_frame_callbacks(vx_sdk_config_t *config)
     config->pf_on_after_udp_frame_transmitted = test_on_after_udp_frame_transmitted;
 }
 // -----------------------------------------------------------------------------------------
-#define VX_HAS_UDP_CALLBACKS
+#define VX_HAS_UDP_CALLBACKS 1
 #endif

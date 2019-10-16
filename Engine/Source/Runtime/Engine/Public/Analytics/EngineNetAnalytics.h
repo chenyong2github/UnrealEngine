@@ -3,7 +3,7 @@
 #pragma once
 
 // Includes
-#include "NetAnalytics.h"
+#include "Net/Core/Analytics/NetAnalytics.h"
 
 
 /**

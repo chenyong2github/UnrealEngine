@@ -1,291 +1,433 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	PostProcessVisualizeBuffer.cpp: Post processing VisualizeBuffer implementation.
-=============================================================================*/
-
 #include "PostProcess/PostProcessVisualizeBuffer.h"
-#include "StaticBoundShaderState.h"
-#include "CanvasTypes.h"
-#include "UnrealEngine.h"
-#include "RenderTargetTemp.h"
-#include "SceneUtils.h"
-#include "PostProcess/SceneFilterRendering.h"
-#include "SceneRenderTargetParameters.h"
-#include "PostProcess/PostProcessing.h"
-#include "PipelineStateCache.h"
+#include "HighResScreenshot.h"
+#include "PostProcessMaterial.h"
+#include "PostProcessDownsample.h"
+#include "ImagePixelData.h"
+#include "ImageWriteStream.h"
+#include "ImageWriteTask.h"
+#include "ImageWriteQueue.h"
+#include "HighResScreenshot.h"
 
-/** Encapsulates the post processing Buffer visualization pixel shader. */
-template<bool bDrawingTile>
-class FPostProcessVisualizeBufferPS : public FGlobalShader
+class FVisualizeBufferPS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FPostProcessVisualizeBufferPS, Global);
+public:
+	DECLARE_GLOBAL_SHADER(FVisualizeBufferPS);
+	SHADER_USE_PARAMETER_STRUCT(FVisualizeBufferPS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Output)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, InputSampler)
+		SHADER_PARAMETER(FLinearColor, SelectionColor)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
 	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("DRAWING_TILE"), bDrawingTile);
-	}
-
-	/** Default constructor. */
-	FPostProcessVisualizeBufferPS() {}
-
-public:
-	FPostProcessPassParameters PostprocessParameter;
-	FSceneTextureShaderParameters SceneTextureParameters;
-	FShaderResourceParameter SourceTexture;
-	FShaderResourceParameter SourceTextureSampler;
-	FShaderParameter SelectionColor;
-
-	/** Initialization constructor. */
-	FPostProcessVisualizeBufferPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		PostprocessParameter.Bind(Initializer.ParameterMap);
-		SceneTextureParameters.Bind(Initializer);
-		SelectionColor.Bind(Initializer.ParameterMap, TEXT("SelectionColor"));
-
-		if (bDrawingTile)
-		{
-			SourceTexture.Bind(Initializer.ParameterMap, TEXT("PostprocessInput0"));
-			SourceTextureSampler.Bind(Initializer.ParameterMap, TEXT("PostprocessInput0Sampler"));
-		}
-	}
-
-	template <typename TRHICmdList>
-	void SetPS(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context)
-	{
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
-
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
-		PostprocessParameter.SetPS(RHICmdList, ShaderRHI, Context, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
-		SceneTextureParameters.Set(RHICmdList, ShaderRHI, Context.View.FeatureLevel, ESceneTextureSetupMode::All);
-	}
-
-	void SetSourceTexture(FRHICommandList& RHICmdList, FTextureRHIRef Texture)
-	{
-		if (bDrawingTile && SourceTexture.IsBound())
-		{
-			FRHIPixelShader* ShaderRHI = GetPixelShader();
-
-			SetTextureParameter(
-				RHICmdList, 
-				ShaderRHI,
-				SourceTexture,
-				SourceTextureSampler,
-				TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI(),
-				Texture);
-		}
-	}
-	
-	void SetSelectionColor(FRHICommandList& RHICmdList, const FVector4& InColor)
-	{
-		SetShaderValue(RHICmdList, GetPixelShader(), SelectionColor, InColor);
-	}
-
-	// FShader interface.
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << PostprocessParameter << SceneTextureParameters << SourceTexture << SourceTextureSampler;
-		Ar << SelectionColor;
-
-		return bShaderHasOutdatedParameters;
-	}
-
-	static const TCHAR* GetSourceFilename()
-	{
-		return TEXT("/Engine/Private/PostProcessVisualizeBuffer.usf");
-	}
-
-	static const TCHAR* GetFunctionName()
-	{
-		return TEXT("MainPS");
-	}
 };
 
-void FRCPassPostProcessVisualizeBuffer::AddVisualizationBuffer(FRenderingCompositeOutputRef InSource, const FString& InName, bool bIsSelected)
-{
-	Tiles.Add(TileData(InSource, InName, bIsSelected));
+IMPLEMENT_GLOBAL_SHADER(FVisualizeBufferPS, "/Engine/Private/PostProcessVisualizeBuffer.usf", "MainPS", SF_Pixel);
 
-	if (InSource.IsValid())
+struct FVisualizeBufferTile
+{
+	// The input texture to visualize.
+	FScreenPassTexture Input;
+
+	// The label of the tile shown on the visualizer.
+	FString Label;
+
+	// Whether the tile is shown as selected.
+	bool bSelected = false;
+};
+
+struct FVisualizeBufferInputs
+{
+	FScreenPassRenderTarget OverrideOutput;
+
+	// The scene color input to propagate.
+	FScreenPassTexture SceneColor;
+
+	// The array of tiles to render onto the scene color texture.
+	TArrayView<const FVisualizeBufferTile> Tiles;
+};
+
+FScreenPassTexture AddVisualizeBufferPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FVisualizeBufferInputs& Inputs)
+{
+	check(Inputs.SceneColor.IsValid());
+
+	FScreenPassRenderTarget Output = Inputs.OverrideOutput;
+
+	RDG_EVENT_SCOPE(GraphBuilder, "VisualizeBuffer");
+
+	// Re-use the scene color as the output if no override was provided.
+	if (Output.IsValid())
 	{
-		AddDependency(InSource);
+		AddDrawTexturePass(GraphBuilder, View, Inputs.SceneColor, Output);
+
+		// All remaining passes are load.
+		Output.LoadAction = ERenderTargetLoadAction::ELoad;
 	}
-}
-
-IMPLEMENT_SHADER_TYPE2(FPostProcessVisualizeBufferPS<true>, SF_Pixel);
-IMPLEMENT_SHADER_TYPE2(FPostProcessVisualizeBufferPS<false>, SF_Pixel);
-
-template <bool bDrawingTile>
-FShader* FRCPassPostProcessVisualizeBuffer::SetShaderTempl(const FRenderingCompositePassContext& Context)
-{
-	FGraphicsPipelineStateInitializer GraphicsPSOInit;
-	Context.RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-	GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-
-	TShaderMapRef<FPostProcessVS> VertexShader(Context.GetShaderMap());
-	TShaderMapRef<FPostProcessVisualizeBufferPS<bDrawingTile> > PixelShader(Context.GetShaderMap());
-
-	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
-	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-	SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
-
-	PixelShader->SetPS(Context.RHICmdList, Context);
-
-	return *VertexShader;
-}
-
-void FRCPassPostProcessVisualizeBuffer::Process(FRenderingCompositePassContext& Context)
-{
-	SCOPED_DRAW_EVENT(Context.RHICmdList, VisualizeBuffer);
-	const FPooledRenderTargetDesc* InputDesc = GetInputDesc(ePId_Input0);
-
-	if(!InputDesc)
+	// Otherwise, reuse the scene color as the output.
+	else
 	{
-		// input is not hooked up correctly
+		Output = FScreenPassRenderTarget(Inputs.SceneColor, ERenderTargetLoadAction::ELoad);
+	}
+
+	struct FTileLabel
+	{
+		FString Label;
+		FIntPoint Location;
+	};
+
+	TArray<FTileLabel> TileLabels;
+	TileLabels.Reserve(Inputs.Tiles.Num());
+
+	const int32 MaxTilesX = 4;
+	const int32 MaxTilesY = 4;
+	const int32 TileWidth = Output.ViewRect.Width() / MaxTilesX;
+	const int32 TileHeight = Output.ViewRect.Height() / MaxTilesY;
+
+	FRHISamplerState* BilinearClampSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+	for (int32 TileIndex = 0; TileIndex < Inputs.Tiles.Num(); ++TileIndex)
+	{
+		const FVisualizeBufferTile& Tile = Inputs.Tiles[TileIndex];
+
+		// The list can contain invalid entries to keep the indices static.
+		if (!Tile.Input.IsValid())
+		{
+			continue;
+		}
+
+		const int32 TileX = TileIndex % MaxTilesX;
+		const int32 TileY = TileIndex / MaxTilesX;
+
+		FScreenPassTextureViewport OutputViewport(Output);
+		OutputViewport.Rect.Min = FIntPoint(TileX * TileWidth, TileY * TileHeight);
+		OutputViewport.Rect.Max = OutputViewport.Rect.Min + FIntPoint(TileWidth, TileHeight);
+
+		const FLinearColor SelectionColor = Tile.bSelected ? FLinearColor::Yellow : FLinearColor::Transparent;
+
+		FVisualizeBufferPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVisualizeBufferPS::FParameters>();
+		PassParameters->Output = GetScreenPassTextureViewportParameters(OutputViewport);
+		PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
+		PassParameters->InputTexture = Tile.Input.Texture;
+		PassParameters->InputSampler = BilinearClampSampler;
+		PassParameters->SelectionColor = SelectionColor;
+
+		TShaderMapRef<FScreenPassVS> VertexShader(View.ShaderMap);
+		TShaderMapRef<FVisualizeBufferPS> PixelShader(View.ShaderMap);
+
+		FRHIBlendState* BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha>::GetRHI();
+
+		AddDrawScreenPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("Tile: %s", *Tile.Label),
+			View,
+			OutputViewport,
+			FScreenPassTextureViewport(Tile.Input),
+			FScreenPassPipelineState(*VertexShader, *PixelShader, BlendState),
+			EScreenPassDrawFlags::None,
+			PassParameters,
+			[PixelShader, PassParameters](FRHICommandList& RHICmdList)
+		{
+			SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), *PassParameters);
+		});
+
+		FTileLabel TileLabel;
+		TileLabel.Label = Tile.Label;
+		TileLabel.Location.X = 8 + TileX * TileWidth;
+		TileLabel.Location.Y = (TileY + 1) * TileHeight - 19;
+		TileLabels.Add(TileLabel);
+	}
+
+	AddDrawCanvasPass(GraphBuilder, RDG_EVENT_NAME("Labels"), View, Output, [LocalTileLabels = MoveTemp(TileLabels)](FCanvas& Canvas)
+	{
+		const FLinearColor LabelColor(1, 1, 0);
+		for (const FTileLabel& TileLabel : LocalTileLabels)
+		{
+			Canvas.DrawShadowedString(TileLabel.Location.X, TileLabel.Location.Y, *TileLabel.Label, GetStatsFont(), LabelColor);
+		}
+	});
+
+	return MoveTemp(Output);
+}
+
+bool IsVisualizeGBufferOverviewEnabled(const FViewInfo& View)
+{
+	return View.Family->EngineShowFlags.VisualizeBuffer && View.CurrentBufferVisualizationMode == NAME_None;
+}
+
+bool IsVisualizeGBufferDumpToFileEnabled(const FViewInfo& View)
+{
+	static const auto CVarDumpFrames = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.BufferVisualizationDumpFrames"));
+
+	const bool bDumpHighResolutionScreenshot = GIsHighResScreenshot && GetHighResScreenshotConfig().bDumpBufferVisualizationTargets;
+
+	const bool bFrameDumpAllowed = CVarDumpFrames->GetValueOnRenderThread() != 0 || bDumpHighResolutionScreenshot;
+
+	const bool bFrameDumpRequested = View.FinalPostProcessSettings.bBufferVisualizationDumpRequired;
+
+	return (bFrameDumpRequested && bFrameDumpAllowed);
+}
+
+bool IsVisualizeGBufferDumpToPipeEnabled(const FViewInfo& View)
+{
+	return View.FinalPostProcessSettings.BufferVisualizationPipes.Num() > 0;
+}
+
+TUniquePtr<FImagePixelData> ReadbackPixelData(FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, FIntRect SourceRect)
+{
+	check(Texture);
+	check(Texture->GetTexture2D());
+
+	const int32 MSAAXSamples = Texture->GetNumSamples();
+	SourceRect.Min.X *= MSAAXSamples;
+	SourceRect.Max.X *= MSAAXSamples;
+
+	switch (Texture->GetFormat())
+	{
+	case PF_FloatRGBA:
+	{
+		TUniquePtr<TImagePixelData<FFloat16Color>> PixelData = MakeUnique<TImagePixelData<FFloat16Color>>(SourceRect.Size());
+		RHICmdList.ReadSurfaceFloatData(Texture, SourceRect, PixelData->Pixels, (ECubeFace)0, 0, 0);
+
+		check(PixelData->IsDataWellFormed());
+		return PixelData;
+	}
+
+	case PF_A32B32G32R32F:
+	{
+		FReadSurfaceDataFlags ReadDataFlags(RCM_MinMax);
+		ReadDataFlags.SetLinearToGamma(false);
+
+		TUniquePtr<TImagePixelData<FLinearColor>> PixelData = MakeUnique<TImagePixelData<FLinearColor>>(SourceRect.Size());
+		RHICmdList.ReadSurfaceData(Texture, SourceRect, PixelData->Pixels, ReadDataFlags);
+
+		check(PixelData->IsDataWellFormed());
+		return PixelData;
+	}
+
+	case PF_R8G8B8A8:
+	case PF_B8G8R8A8:
+	{
+		FReadSurfaceDataFlags ReadDataFlags;
+		ReadDataFlags.SetLinearToGamma(false);
+
+		TUniquePtr<TImagePixelData<FColor>> PixelData = MakeUnique<TImagePixelData<FColor>>(SourceRect.Size());
+		RHICmdList.ReadSurfaceData(Texture, SourceRect, PixelData->Pixels, ReadDataFlags);
+
+		check(PixelData->IsDataWellFormed());
+		return PixelData;
+	}
+	}
+
+	return nullptr;
+}
+
+BEGIN_SHADER_PARAMETER_STRUCT(FReadbackParameters, )
+	SHADER_PARAMETER_RDG_TEXTURE(, Texture)
+END_SHADER_PARAMETER_STRUCT()
+
+void AddDumpToPipePass(FRDGBuilder& GraphBuilder, FScreenPassTexture Input, FImagePixelPipe* OutputPipe)
+{
+	check(Input.IsValid());
+	check(OutputPipe);
+
+	FReadbackParameters* PassParameters = GraphBuilder.AllocParameters<FReadbackParameters>();
+	PassParameters->Texture = Input.Texture;
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("DumpToPipe(%s)", Input.Texture->Name),
+		PassParameters,
+		ERDGPassFlags::Copy,
+		[Input, OutputPipe](FRHICommandListImmediate& RHICmdList)
+	{
+		OutputPipe->Push(ReadbackPixelData(RHICmdList, Input.Texture->GetRHI(), Input.ViewRect));
+	});
+}
+
+void AddDumpToFilePass(FRDGBuilder& GraphBuilder, FScreenPassTexture Input, const FString& Filename)
+{
+	check(Input.IsValid());
+
+	FHighResScreenshotConfig& HighResScreenshotConfig = GetHighResScreenshotConfig();
+
+	if (!ensureMsgf(HighResScreenshotConfig.ImageWriteQueue, TEXT("Unable to write images unless FHighResScreenshotConfig::Init has been called.")))
+	{
 		return;
 	}
 
-	const FViewInfo& View = Context.View;
-	const FSceneViewFamily& ViewFamily = *(View.Family);
-	
-	FIntRect SrcRect = View.ViewRect;
-	FIntRect DestRect = View.ViewRect;
-	FIntPoint SrcSize = InputDesc->Extent;
-
-	// Track the name and position of each tile we draw so we can write text labels over them
-	struct LabelRecord
+	if (GIsHighResScreenshot && HighResScreenshotConfig.CaptureRegion.Area())
 	{
-		FString Label;
-		int32 LocationX;
-		int32 LocationY;
-	};
-	TArray<LabelRecord> Labels;
+		Input.ViewRect = HighResScreenshotConfig.CaptureRegion;
+	}
 
-	const FSceneRenderTargetItem& DestRenderTarget = PassOutputs[0].RequestSurface(Context);
+	FReadbackParameters* PassParameters = GraphBuilder.AllocParameters<FReadbackParameters>();
+	PassParameters->Texture = Input.Texture;
 
-	// Set the view family's render target/viewport.
-	FRHIRenderPassInfo RPInfo(DestRenderTarget.TargetableTexture, ERenderTargetActions::Load_Store);
-	Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("VisualizeBuffer"));
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("DumpToFile(%s)", Input.Texture->Name),
+		PassParameters,
+		ERDGPassFlags::Copy,
+		[&HighResScreenshotConfig, Input, Filename](FRHICommandListImmediate& RHICmdList)
 	{
-		Context.SetViewportAndCallRHI(DestRect);
+		TUniquePtr<FImagePixelData> PixelData = ReadbackPixelData(RHICmdList, Input.Texture->GetRHI(), Input.ViewRect);
 
+		if (!PixelData.IsValid())
 		{
-			FShader* VertexShader = SetShaderTempl<false>(Context);
-
-			// Draw a quad mapping scene color to the view's render target
-			DrawRectangle(
-				Context.RHICmdList,
-				0, 0,
-				DestRect.Width(), DestRect.Height(),
-				SrcRect.Min.X, SrcRect.Min.Y,
-				SrcRect.Width(), SrcRect.Height(),
-				DestRect.Size(),
-				SrcSize,
-				VertexShader,
-				EDRF_UseTriangleOptimization);
+			return;
 		}
 
-		FGraphicsPipelineStateInitializer GraphicsPSOInit;
-		Context.RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-		GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha>::GetRHI();
-		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+		TUniquePtr<FImageWriteTask> ImageTask = MakeUnique<FImageWriteTask>();
+		ImageTask->PixelData = MoveTemp(PixelData);
 
-		TShaderMapRef<FPostProcessVS> VertexShader(Context.GetShaderMap());
-		TShaderMapRef<FPostProcessVisualizeBufferPS<true> > PixelShader(Context.GetShaderMap());
+		HighResScreenshotConfig.PopulateImageTaskParams(*ImageTask);
+		ImageTask->Filename = Filename;
 
-		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
-		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-		SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
-
-		PixelShader->SetPS(Context.RHICmdList, Context);
-
-		const int32 MaxTilesX = 4;
-		const int32 MaxTilesY = 4;
-		const int32 TileWidth = DestRect.Width() / MaxTilesX;
-		const int32 TileHeight = DestRect.Height() / MaxTilesY;
-		int32 CurrentTileIndex = 0;
-
-		for (TArray<TileData>::TConstIterator It = Tiles.CreateConstIterator(); It; ++It, ++CurrentTileIndex)
+		if (ImageTask->PixelData->GetType() == EImagePixelType::Color)
 		{
-			FRenderingCompositeOutputRef Tile = It->Source;
+			// Always write full alpha
+			ImageTask->PixelPreProcessors.Add(TAsyncAlphaWrite<FColor>(255));
 
-			if (Tile.IsValid())
+			if (ImageTask->Format == EImageFormat::EXR)
 			{
-				FTextureRHIRef Texture = Tile.GetOutput()->PooledRenderTarget->GetRenderTargetItem().TargetableTexture;
-
-				int32 TileX = CurrentTileIndex % MaxTilesX;
-				int32 TileY = CurrentTileIndex / MaxTilesX;
-
-				PixelShader->SetSourceTexture(Context.RHICmdList, Texture);
-
-				const FLinearColor SelectedColor = FLinearColor::Yellow;
-				const FLinearColor NotSelectedColor = FLinearColor::Transparent;
-				if (It->bIsSelected)
-				{
-					PixelShader->SetSelectionColor(Context.RHICmdList, SelectedColor);
-				}
-				else
-				{
-					PixelShader->SetSelectionColor(Context.RHICmdList, NotSelectedColor);
-				}
-
-				DrawRectangle(
-					Context.RHICmdList,
-					TileX * TileWidth, TileY * TileHeight,
-					TileWidth, TileHeight,
-					SrcRect.Min.X, SrcRect.Min.Y,
-					SrcRect.Width(), SrcRect.Height(),
-					DestRect.Size(),
-					SrcSize,
-					*VertexShader,
-					EDRF_Default
-				);
-
-				Labels.Add(LabelRecord());
-				Labels.Last().Label = It->Name;
-				Labels.Last().LocationX = 8 + TileX * TileWidth;
-				Labels.Last().LocationY = (TileY + 1) * TileHeight - 19;
+				// Write FColors with a gamma curve. This replicates behavior that previously existed in ExrImageWrapper.cpp (see following overloads) that assumed
+				// any 8 bit output format needed linearizing, but this is not a safe assumption to make at such a low level:
+				// void ExtractAndConvertChannel(const uint8*Src, uint32 SrcChannels, uint32 x, uint32 y, float* ChannelOUT)
+				// void ExtractAndConvertChannel(const uint8*Src, uint32 SrcChannels, uint32 x, uint32 y, FFloat16* ChannelOUT)
+				ImageTask->PixelPreProcessors.Add(TAsyncGammaCorrect<FColor>(2.2f));
 			}
 		}
-	}
-	Context.RHICmdList.EndRenderPass();
 
-	// Draw tile labels
-	FRenderTargetTemp TempRenderTarget(View, (const FTexture2DRHIRef&)DestRenderTarget.TargetableTexture);
-	FCanvas Canvas(&TempRenderTarget, NULL, ViewFamily.CurrentRealTime, ViewFamily.CurrentWorldTime, ViewFamily.DeltaWorldTime, Context.GetFeatureLevel());
-	FLinearColor LabelColor(1, 1, 0);
-	for (auto It = Labels.CreateConstIterator(); It; ++It)
-	{
-		Canvas.DrawShadowedString(It->LocationX, It->LocationY, *It->Label, GetStatsFont(), LabelColor);
-	}
-	Canvas.Flush_RenderThread(Context.RHICmdList);
-
-	Context.RHICmdList.CopyToResolveTarget(DestRenderTarget.TargetableTexture, DestRenderTarget.ShaderResourceTexture, FResolveParams());
-	
+		HighResScreenshotConfig.ImageWriteQueue->Enqueue(MoveTemp(ImageTask));
+	});
 }
 
-FPooledRenderTargetDesc FRCPassPostProcessVisualizeBuffer::ComputeOutputDesc(EPassOutputId InPassOutputId) const
+void AddDumpToColorArrayPass(FRDGBuilder& GraphBuilder, FScreenPassTexture Input, TArray<FColor>* OutputColorArray)
 {
-	FPooledRenderTargetDesc Ret = GetInput(ePId_Input0)->GetOutput()->RenderTargetDesc;
+	check(Input.IsValid());
+	check(OutputColorArray);
 
-	Ret.Reset();
-	Ret.DebugName = TEXT("VisualizeBuffer");
+	FReadbackParameters* PassParameters = GraphBuilder.AllocParameters<FReadbackParameters>();
+	PassParameters->Texture = Input.Texture;
 
-	return Ret;
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("DumpToPipe(%s)", Input.Texture->Name),
+		PassParameters,
+		ERDGPassFlags::Copy,
+		[Input, OutputColorArray](FRHICommandListImmediate& RHICmdList)
+	{
+		RHICmdList.ReadSurfaceData(Input.Texture->GetRHI(), Input.ViewRect, *OutputColorArray, FReadSurfaceDataFlags());
+	});
+}
+
+FScreenPassTexture AddVisualizeGBufferOverviewPass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	const FVisualizeGBufferOverviewInputs& Inputs)
+{
+	check(Inputs.SceneColor.IsValid());
+	check(Inputs.bDumpToFile || Inputs.bOverview);
+
+	const FFinalPostProcessSettings& PostProcessSettings = View.FinalPostProcessSettings;
+
+	FScreenPassTexture Output;
+	const EPixelFormat OutputFormat = Inputs.bOutputInHDR ? PF_FloatRGBA : PF_Unknown;
+
+	TArray<FVisualizeBufferTile> Tiles;
+
+	RDG_EVENT_SCOPE(GraphBuilder, "VisualizeGBufferOverview");
+
+	const FString& BaseFilename = PostProcessSettings.BufferVisualizationDumpBaseFilename;
+
+	for (UMaterialInterface* MaterialInterface : PostProcessSettings.BufferVisualizationOverviewMaterials)
+	{
+		if (!MaterialInterface)
+		{
+			// Add an empty tile to keep the location of each static on the grid.
+			Tiles.Emplace();
+			continue;
+		}
+
+		const FString MaterialName = MaterialInterface->GetName();
+
+		RDG_EVENT_SCOPE(GraphBuilder, "%s", *MaterialName);
+
+		FPostProcessMaterialInputs PostProcessMaterialInputs;
+		PostProcessMaterialInputs.SetInput(EPostProcessMaterialInput::SceneColor, Inputs.SceneColor);
+		PostProcessMaterialInputs.SetInput(EPostProcessMaterialInput::SeparateTranslucency, Inputs.SeparateTranslucency);
+		PostProcessMaterialInputs.SetInput(EPostProcessMaterialInput::Velocity, Inputs.Velocity);
+		PostProcessMaterialInputs.OutputFormat = OutputFormat;
+
+		Output = AddPostProcessMaterialPass(GraphBuilder, View, PostProcessMaterialInputs, MaterialInterface);
+
+		const TSharedPtr<FImagePixelPipe, ESPMode::ThreadSafe>* OutputPipe = PostProcessSettings.BufferVisualizationPipes.Find(MaterialInterface->GetFName());
+
+		if (OutputPipe && OutputPipe->IsValid())
+		{
+			AddDumpToPipePass(GraphBuilder, Output, OutputPipe->Get());
+		}
+
+		if (Inputs.bDumpToFile)
+		{
+			// First off, allow the user to specify the pass as a format arg (using {material})
+			TMap<FString, FStringFormatArg> FormatMappings;
+			FormatMappings.Add(TEXT("material"), MaterialName);
+
+			FString MaterialFilename = FString::Format(*BaseFilename, FormatMappings);
+
+			// If the format made no change to the string, we add the name of the material to ensure uniqueness
+			if (MaterialFilename == BaseFilename)
+			{
+				MaterialFilename = BaseFilename + TEXT("_") + MaterialName;
+			}
+
+			MaterialFilename.Append(TEXT(".png"));
+
+			AddDumpToFilePass(GraphBuilder, Output, MaterialFilename);
+		}
+
+		if (Inputs.bOverview)
+		{
+			FDownsamplePassInputs DownsampleInputs;
+			DownsampleInputs.Name = TEXT("MaterialHalfSize");
+			DownsampleInputs.SceneColor = Output;
+			DownsampleInputs.Flags = EDownsampleFlags::ForceRaster;
+			DownsampleInputs.Quality = EDownsampleQuality::Low;
+
+			FScreenPassTexture HalfSize = AddDownsamplePass(GraphBuilder, View, DownsampleInputs);
+
+			DownsampleInputs.Name = TEXT("MaterialQuarterSize");
+			DownsampleInputs.SceneColor = HalfSize;
+
+			FVisualizeBufferTile Tile;
+			Tile.Input = AddDownsamplePass(GraphBuilder, View, DownsampleInputs);
+			Tile.Label = MaterialName;
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+			Tile.bSelected = 
+				PostProcessSettings.bBufferVisualizationOverviewTargetIsSelected &&
+				PostProcessSettings.BufferVisualizationOverviewSelectedTargetMaterialName == MaterialName;
+#endif
+			Tiles.Add(Tile);
+		}
+	}
+
+	if (Inputs.bOverview)
+	{
+		FVisualizeBufferInputs PassInputs;
+		PassInputs.OverrideOutput = Inputs.OverrideOutput;
+		PassInputs.SceneColor = Inputs.SceneColor;
+		PassInputs.Tiles = Tiles;
+
+		return AddVisualizeBufferPass(GraphBuilder, View, PassInputs);
+	}
+	else
+	{
+		return Inputs.SceneColor;
+	}
 }

@@ -122,6 +122,7 @@ public:
 	inline uint32 GetNumColorAttachments() const { return NumColorAttachments; }
 	inline bool GetHasDepthStencil() const { return bHasDepthStencil != 0; }
 	inline bool GetHasResolveAttachments() const { return bHasResolveAttachments != 0; }
+	inline bool GetHasFragmentDensityAttachment() const { return bHasFragmentDensityAttachment != 0; }
 	inline uint32 GetNumAttachmentDescriptions() const { return NumAttachmentDescriptions; }
 	inline uint32 GetNumSamples() const { return NumSamples; }
 	inline uint32 GetNumUsedClearValues() const { return NumUsedClearValues; }
@@ -130,22 +131,26 @@ public:
 	inline const VkAttachmentReference* GetColorAttachmentReferences() const { return NumColorAttachments > 0 ? ColorReferences : nullptr; }
 	inline const VkAttachmentReference* GetResolveAttachmentReferences() const { return bHasResolveAttachments ? ResolveReferences : nullptr; }
 	inline const VkAttachmentReference* GetDepthStencilAttachmentReference() const { return bHasDepthStencil ? &DepthStencilReference : nullptr; }
+	inline const VkAttachmentReference* GetFragmentDensityAttachmentReference() const { return bHasFragmentDensityAttachment ? &FragmentDensityReference : nullptr; }
 
 	inline const ESubpassHint GetSubpassHint() const { return SubpassHint; }
 
 protected:
 	VkAttachmentReference ColorReferences[MaxSimultaneousRenderTargets];
 	VkAttachmentReference DepthStencilReference;
+	VkAttachmentReference FragmentDensityReference;
 	VkAttachmentReference ResolveReferences[MaxSimultaneousRenderTargets];
 	VkAttachmentReference InputAttachments[MaxSimultaneousRenderTargets + 1];
 
-	VkAttachmentDescription Desc[MaxSimultaneousRenderTargets * 2 + 1];
+	// Depth goes in the "+1" slot and the Fixed Foveation texture goes in the "+2" slot.
+	VkAttachmentDescription Desc[MaxSimultaneousRenderTargets * 2 + 2];
 
 	uint8 NumAttachmentDescriptions;
 	uint8 NumColorAttachments;
 	uint8 NumInputAttachments = 0;
 	uint8 bHasDepthStencil;
 	uint8 bHasResolveAttachments;
+	uint8 bHasFragmentDensityAttachment;
 	uint8 NumSamples;
 	uint8 NumUsedClearValues;
 	ESubpassHint SubpassHint = ESubpassHint::None;
@@ -169,6 +174,7 @@ protected:
 	{
 		FMemory::Memzero(ColorReferences);
 		FMemory::Memzero(DepthStencilReference);
+		FMemory::Memzero(FragmentDensityReference);
 		FMemory::Memzero(ResolveReferences);
 		FMemory::Memzero(InputAttachments);
 		FMemory::Memzero(Desc);
@@ -176,6 +182,7 @@ protected:
 		NumColorAttachments = 0;
 		bHasDepthStencil = 0;
 		bHasResolveAttachments = 0;
+		bHasFragmentDensityAttachment = 0;
 		Extent.Extent3D.width = 0;
 		Extent.Extent3D.height = 0;
 		Extent.Extent3D.depth = 0;
@@ -262,6 +269,7 @@ private:
 	VkImage ColorRenderTargetImages[MaxSimultaneousRenderTargets];
 	VkImage ColorResolveTargetImages[MaxSimultaneousRenderTargets];
 	VkImage DepthStencilRenderTargetImage;
+	VkImage FragmentDensityImage;
 
 	// Predefined set of barriers, when executes ensuring all writes are finished
 	TArray<VkImageMemoryBarrier> WriteBarriers;

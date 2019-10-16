@@ -198,7 +198,6 @@ FMeshBatchAndRelevance::FMeshBatchAndRelevance(const FMeshBatch& InMesh, const F
 	EBlendMode BlendMode = Material->GetBlendMode();
 	bHasOpaqueMaterial = (BlendMode == BLEND_Opaque);
 	bHasMaskedMaterial = (BlendMode == BLEND_Masked);
-	bHasTranslucentMaterialWithVelocity = Material->IsTranslucencyWritingVelocity();
 	bRenderInMainPass = PrimitiveSceneProxy->ShouldRenderInMainPass();
 }
 
@@ -450,7 +449,8 @@ FLightMapInteraction FLightMapInteraction::InitVirtualTexture(
 
 float ComputeBoundsScreenRadiusSquared(const FVector4& BoundsOrigin, const float SphereRadius, const FVector4& ViewOrigin, const FMatrix& ProjMatrix)
 {
-	const float DistSqr = FVector::DistSquared(BoundsOrigin, ViewOrigin);
+	// ignore perspective foreshortening for orthographic projections
+	const float DistSqr = FVector::DistSquared(BoundsOrigin, ViewOrigin) * ProjMatrix.M[2][3];
 
 	// Get projection multiple accounting for view scaling.
 	const float ScreenMultiple = FMath::Max(0.5f * ProjMatrix.M[0][0], 0.5f * ProjMatrix.M[1][1]);
@@ -527,7 +527,7 @@ int8 ComputeTemporalStaticMeshLOD( const FStaticMeshRenderData* RenderData, cons
 // Ensure we always use the left eye when selecting lods to avoid divergent selections in stereo
 const FSceneView& GetLODView(const FSceneView& InView)
 {
-	if (IStereoRendering::IsASecondaryView(InView.StereoPass) && InView.Family)
+	if (InView.StereoPass == EStereoscopicPass::eSSP_RIGHT_EYE && InView.Family)
 	{
 		return *InView.Family->Views[0];
 	}
@@ -661,7 +661,7 @@ FMobileDirectionalLightShaderParameters::FMobileDirectionalLightShaderParameters
 	DirectionalLightShadowTexture = GWhiteTexture->TextureRHI;
 	DirectionalLightShadowSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	DirectionalLightShadowSize = FVector4(EForceInit::ForceInitToZero);
-	DirectionalLightDistanceFadeMAD = FVector4(EForceInit::ForceInitToZero);
+	DirectionalLightDistanceFadeMADAndSpecularScale = FVector4(EForceInit::ForceInitToZero);
 	for (int32 i = 0; i < MAX_MOBILE_SHADOWCASCADES; ++i)
 	{
 		DirectionalLightScreenToShadow[i].SetIdentity();

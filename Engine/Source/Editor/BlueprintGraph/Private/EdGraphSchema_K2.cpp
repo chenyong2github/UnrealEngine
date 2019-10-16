@@ -926,10 +926,6 @@ bool UEdGraphSchema_K2::CanKismetOverrideFunction(const UFunction* Function)
 			&& !Function->HasAllFunctionFlags(FUNC_Delegate) && 
 			!Function->GetBoolMetaData(FBlueprintMetadata::MD_BlueprintInternalUseOnly) && 
 			(!Function->HasMetaData(FBlueprintMetadata::MD_DeprecatedFunction) || GetDefault<UBlueprintEditorSettings>()->bExposeDeprecatedFunctions)
-		) &&
-		(
-			FBlueprintEditorUtils::IsNativeSignature(Function) ||
-			(Function->FunctionFlags & FUNC_Private) == 0
 		);
 }
 

@@ -40,6 +40,7 @@
 #include "Engine/LODActor.h"
 
 #include "UnrealEngine.h"
+#include "RayTracingInstance.h"
 
 /** If true, optimized depth-only index buffers are used for shadow rendering. */
 static bool GUseShadowIndexBuffer = true;
@@ -193,8 +194,32 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 	const bool bLODsShareStaticLighting = RenderData->bLODsShareStaticLighting || bForceLODsShareStaticLighting;
 
 #if RHI_RAYTRACING
-	RayTracingGeometries.AddDefaulted(RenderData->LODResources.Num());
+	bDynamicRayTracingGeometry = InComponent->bEvaluateWorldPositionOffset && MaterialRelevance.bUsesWorldPositionOffset;
+	if (IsRayTracingEnabled())
+	{
+		if(bDynamicRayTracingGeometry)
+		{
+			DynamicRayTracingGeometries.AddDefaulted(RenderData->LODResources.Num());
+			for (int32 LODIndex = 0; LODIndex < RenderData->LODResources.Num(); LODIndex++)
+			{
+				auto& Initializer = DynamicRayTracingGeometries[LODIndex].Initializer;
+				Initializer = RenderData->LODResources[LODIndex].RayTracingGeometry.Initializer;
+				Initializer.PositionVertexBuffer = nullptr;
+				Initializer.bAllowUpdate = true;
+				Initializer.bFastBuild = true;
+			}
+		} 
+		else
+		{
+			RayTracingGeometries.AddDefaulted(RenderData->LODResources.Num());
+			for (int32 LODIndex = 0; LODIndex < RenderData->LODResources.Num(); LODIndex++)
+			{
+				RayTracingGeometries[LODIndex] = &RenderData->LODResources[LODIndex].RayTracingGeometry;
+			}
+		}
+	}
 #endif
+
 	for(int32 LODIndex = 0;LODIndex < RenderData->LODResources.Num();LODIndex++)
 	{
 		FLODInfo* NewLODInfo = new FLODInfo(InComponent, RenderData->LODVertexFactories, LODIndex, ClampedMinLOD, bLODsShareStaticLighting);
@@ -212,10 +237,6 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 				MaterialRelevance |= UMaterial::GetDefaultMaterial(MD_Surface)->GetRelevance(FeatureLevel);
 			}
 		}
-
-	#if RHI_RAYTRACING
-		RayTracingGeometries[LODIndex] = &RenderData->LODResources[LODIndex].RayTracingGeometry;
-	#endif
 	}
 
 	// WPO is typically used for ambient animations, so don't include in cached shadowmaps
@@ -282,6 +303,18 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 
 FStaticMeshSceneProxy::~FStaticMeshSceneProxy()
 {
+#if RHI_RAYTRACING
+	for (auto& Buffer: DynamicRayTracingGeometryVertexBuffers)
+	{
+		Buffer.Release();
+	}
+
+	for (auto& Geometry: DynamicRayTracingGeometries)
+	{
+		Geometry.ReleaseResource();
+	}
+#endif
+
 	RemoveSpeedTreeWind();
 }
 
@@ -519,6 +552,23 @@ int32 FStaticMeshSceneProxy::CollectOccluderElements(FOccluderElementsCollector&
 	}
 	
 	return 0;
+}
+
+void FStaticMeshSceneProxy::CreateRenderThreadResources()
+{
+#if RHI_RAYTRACING
+	if(IsRayTracingEnabled())
+	{
+		DynamicRayTracingGeometryVertexBuffers.AddDefaulted(DynamicRayTracingGeometries.Num());
+		for(int32 i = 0; i < DynamicRayTracingGeometries.Num(); i++)
+		{
+			auto& Geometry = DynamicRayTracingGeometries[i];
+			DynamicRayTracingGeometryVertexBuffers[i]
+				.Initialize(4, 256, PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource, TEXT("RayTracingDynamicVertexBuffer"));
+			Geometry.InitResource();
+		}
+	}
+#endif
 }
 
 /** Sets up a wireframe FMeshBatch for a specific LOD. */
@@ -1472,6 +1522,56 @@ void FStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView
 #endif // STATICMESH_ENABLE_DEBUG_RENDERING
 }
 
+#if RHI_RAYTRACING
+void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances )
+{
+	uint8 PrimitiveDPG = GetStaticDepthPriorityGroup();
+	const uint32 LODIndex = GetLOD(Context.ReferenceView);
+	const FStaticMeshLODResources& LODModel = RenderData->LODResources[LODIndex];
+
+	FRayTracingGeometry& Geometry = DynamicRayTracingGeometries[LODIndex];
+	{
+		FRayTracingInstance RayTracingInstance;
+	
+		const int32 NumBatches = GetNumMeshBatches();
+
+		for (int32 BatchIndex = 0; BatchIndex < NumBatches; BatchIndex++)
+		{
+			RayTracingInstance.Materials.Reserve(LODModel.Sections.Num());
+			for(int SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
+			{
+				FMeshBatch Mesh;
+	
+				bool bResult = GetMeshElement(LODIndex, BatchIndex, SectionIndex, PrimitiveDPG, false, false, Mesh);
+				check(bResult);
+				Mesh.SegmentIndex = SectionIndex;
+				RayTracingInstance.Materials.Add(Mesh);
+			}
+		}
+
+		RayTracingInstance.Geometry = &Geometry;
+		RayTracingInstance.InstanceTransforms.Add(FMatrix::Identity);
+
+		Context.DynamicRayTracingGeometriesToUpdate.Add(
+			FRayTracingDynamicGeometryUpdateParams
+			{
+				RayTracingInstance.Materials,
+				false,
+				(uint32)LODModel.GetNumVertices(),
+				uint32((SIZE_T)LODModel.GetNumVertices() * sizeof(FVector)),
+				Geometry.Initializer.TotalPrimitiveCount,
+				&Geometry,
+				&DynamicRayTracingGeometryVertexBuffers[LODIndex]
+			}
+		);
+		
+		RayTracingInstance.BuildInstanceMaskAndFlags();
+
+		check(RayTracingInstance.Geometry->Initializer.Segments.Num() == RayTracingInstance.Materials.Num());
+		OutRayTracingInstances.Add(RayTracingInstance);
+	}
+}
+#endif
 void FStaticMeshSceneProxy::GetLCIs(FLCIArray& LCIs)
 {
 	for (int32 LODIndex = 0; LODIndex < LODs.Num(); ++LODIndex)

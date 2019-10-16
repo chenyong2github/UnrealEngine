@@ -62,7 +62,7 @@ static bool ForceMispredict = false;
 
 const FName FMockNetworkSimulation::GroupName(TEXT("Mock"));
 
-void FMockNetworkSimulation::Update(IMockDriver* Driver, const float DeltaTimeSeconds, const FMockInputCmd& InputCmd, const FMockSyncState& InputState, FMockSyncState& OutputState, const FMockAuxState& AuxState)
+void FMockNetworkSimulation::Update(IMockDriver* Driver, const float DeltaTimeSeconds, const FMockInputCmd& InputCmd, const FMockSyncState& InputState, FMockSyncState& OutputState, const FMockAuxState& AuxState, const TLazyStateAccessor<FMockAuxState>& OutAuxStateAccessor)
 {
 	OutputState.Total = InputState.Total + (InputCmd.InputValue * AuxState.Multiplier * DeltaTimeSeconds);
 
@@ -134,6 +134,9 @@ UMockNetworkSimulationComponent::UMockNetworkSimulationComponent()
 
 INetworkSimulationModel* UMockNetworkSimulationComponent::InstantiateNetworkSimulation()
 {
+	FMockSyncState InitialSyncState;
+	InitialSyncState.Total = MockValue;
+
 	auto* NewSim = new FMockNetworkModel(this);
 	DO_NETSIM_MODEL_DEBUG(FNetworkSimulationModelDebuggerManager::Get().RegisterNetworkSimulationModel(NewSim, GetOwner()));
 	return NewSim;
@@ -166,12 +169,7 @@ void UMockNetworkSimulationComponent::ProduceInput(const FNetworkSimTime SimTime
 	}
 }
 
-void UMockNetworkSimulationComponent::InitSyncState(FMockSyncState& OutSyncState) const
-{
-	OutSyncState.Total = MockValue;
-}
-
-void UMockNetworkSimulationComponent::FinalizeFrame(const FMockSyncState& SyncState)
+void UMockNetworkSimulationComponent::FinalizeFrame(const FMockSyncState& SyncState, const FMockAuxState& AuxState)
 {
 	MockValue = SyncState.Total;
 }

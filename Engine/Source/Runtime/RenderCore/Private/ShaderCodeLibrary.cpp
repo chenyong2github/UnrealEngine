@@ -548,6 +548,10 @@ public:
 				int64 ReadSize = Entry->Size;
 				int64 ReadOffset = LibraryCodeOffset + Entry->Offset;
 				Entry->LoadedCode.SetNumUninitialized(ReadSize);
+				
+				INC_DWORD_STAT_BY_FName(GetMemoryStatType((EShaderFrequency)Entry->Frequency).GetName(), ReadSize);
+				INC_DWORD_STAT_BY(STAT_Shaders_ShaderResourceMemory, sizeof(FShaderCodeEntry) + ReadSize);
+				
 				EAsyncIOPriorityAndFlags IOPriority = bHiPriSync ? AIOP_CriticalPath : (EAsyncIOPriorityAndFlags)GShaderCodeLibraryAsyncLoadingPriority;
 				LocalReadRequest = MakeShareable(LibraryAsyncFileHandle->ReadRequest(ReadOffset, ReadSize, IOPriority, nullptr, Entry->LoadedCode.GetData()));
 
@@ -598,6 +602,7 @@ public:
 #if DO_CHECK
 		Entry->bReadCompleted = 1;
 #endif
+		
 		return true;
 	}
 
@@ -611,6 +616,9 @@ public:
 			Entry->NumRefs--;
 			if (Entry->NumRefs == 0)
 			{
+				DEC_DWORD_STAT_BY_FName(GetMemoryStatType((EShaderFrequency)Entry->Frequency).GetName(), Entry->LoadedCode.Num());
+				DEC_DWORD_STAT_BY(STAT_Shaders_ShaderResourceMemory, sizeof(FShaderCodeEntry) + Entry->LoadedCode.Num());
+			
 				// should not attempt to release shader code while it's loading
 				check(Entry->ReadRequest.IsValid() == false);
 

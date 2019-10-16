@@ -4497,9 +4497,8 @@ void GetAdditionalCurrentIniVersionStrings( const ITargetPlatform* TargetPlatfor
 		IniVersionMap.Add(TEXT("fastcook"));
 	}
 
-
-	static const FCustomVersionContainer& CustomVersionContainer = FCustomVersionContainer::GetRegistered();
-	for (const auto& CustomVersion : CustomVersionContainer.GetAllVersions())
+	FCustomVersionContainer AllCurrentVersions = FCurrentCustomVersions::GetAll();
+	for (const FCustomVersion& CustomVersion : AllCurrentVersions.GetAllVersions())
 	{
 		FString CustomVersionString = FString::Printf(TEXT("%s:%s"), *CustomVersion.GetFriendlyName().ToString(), *CustomVersion.Key.ToString());
 		FString CustomVersionValue = FString::Printf(TEXT("%d"), CustomVersion.Version);

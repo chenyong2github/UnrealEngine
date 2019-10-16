@@ -960,7 +960,7 @@ void UWorld::PostLoad()
 	RepairWorldSettings();
 #endif
 #if INCLUDE_CHAOS
-	RepairChaosActors();
+	//RepairChaosActors();
 #endif
 
 	for (auto It = StreamingLevels.CreateIterator(); It; ++It)
@@ -1411,7 +1411,7 @@ void UWorld::InitWorld(const InitializationValues IVS)
 	RepairWorldSettings();
 #endif
 #if INCLUDE_CHAOS
-	RepairChaosActors();
+	//RepairChaosActors();
 #endif
 
 	// initialize DefaultPhysicsVolume for the world
@@ -1635,13 +1635,13 @@ void UWorld::InitializeNewWorld(const InitializationValues IVS)
 #endif
 
 #if INCLUDE_CHAOS
-	FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
+	/*FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
 	check(ChaosModule);
 	FActorSpawnParameters ChaosSpawnInfo;
 	ChaosSpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	ChaosSpawnInfo.Name = TEXT("DefaultChaosActor");
 	SpawnActor(ChaosModule->GetSolverActorClass(), nullptr, nullptr, ChaosSpawnInfo);
-	check(PhysicsScene_Chaos);
+	check(PhysicsScene_Chaos);*/
 #endif
 
 	// Initialize the world
@@ -3006,7 +3006,7 @@ UWorld* UWorld::DuplicateWorldForPIE(const FString& PackageName, UWorld* OwningW
 		checkf(false, TEXT("Unable to determine PIEInstanceID to duplicate for PIE."));
 	}
 
-	GPlayInEditorID = PIEInstanceID;
+	FTemporaryPlayInEditorIDOverride IDHelper(PIEInstanceID);
 
 	FString PrefixedLevelName = ConvertToPIEPackageName(PackageName, PIEInstanceID);
 	const FName PrefixedLevelFName = FName(*PrefixedLevelName);
@@ -7223,7 +7223,7 @@ static ULevel* DuplicateLevelWithPrefix(ULevel* InLevel, int32 InstanceID )
 
 	FSoftObjectPath::AddPIEPackageName(NewPackage->GetFName());
 
-	GPlayInEditorID = InstanceID;
+	FTemporaryPlayInEditorIDOverride IDHelper(InstanceID);
 
 	// Create "vestigial" world for the persistent level - it's OwningWorld will still be the main world,
 	// but we're treating it like a streaming level (even though it's a duplicate of the persistent level).
@@ -7267,8 +7267,6 @@ static ULevel* DuplicateLevelWithPrefix(ULevel* InLevel, int32 InstanceID )
 	const float TotalSeconds = ( DuplicateEnd - DuplicateStart );
 
 	UE_LOG( LogNet, Log, TEXT( "DuplicateLevelWithPrefix. TotalSeconds: %2.2f" ), TotalSeconds );
-
-	GPlayInEditorID = -1;
 
 	return NewLevel;
 }

@@ -13,6 +13,10 @@
 #define FILTER_DIRECTIONAL_LIGHT_SHADOWING 1
 #include "ForwardShadowingCommon.ush"
 
+#ifndef DISABLE_FORWARD_DIRECTIONAL_LIGHT_SHADOW
+#define DISABLE_FORWARD_DIRECTIONAL_LIGHT_SHADOW 0
+#endif
+
 float PrevSceneColorPreExposureInv;
 
 void UpdateNearestSample(float Z, float2 UV, float FullResZ, inout float MinDist, inout float2 NearestUV)
@@ -133,7 +137,9 @@ float3 GetForwardDirectLighting(uint GridIndex, float3 WorldPosition, float3 Cam
 		LightData.ShadowMapChannelMask = UnpackShadowMapChannelMask(DirectionalLightData.DirectionalLightShadowMapChannelMask);
 
 		// We want to force the directional light shadow when using water material to see shadow on the water. This could be an option later.
-		#if ((MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED) && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER)
+		#if DISABLE_FORWARD_DIRECTIONAL_LIGHT_SHADOW
+			float4 LightAttenuation = float4(1, 1, 1, 1);
+		#elif ((MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED) && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER)
 			float4 PreviewShadowMapChannelMask = UnpackShadowMapChannelMask(DirectionalLightData.DirectionalLightShadowMapChannelMask >> 4);
 			float DynamicShadowing = dot(PreviewShadowMapChannelMask, DynamicShadowFactors);
 
@@ -145,6 +151,7 @@ float3 GetForwardDirectLighting(uint GridIndex, float3 WorldPosition, float3 Cam
 		
 			float4 LightAttenuation = float4(WholeSceneShadowing.xx, PerObjectShadowing.xx);
 		#else
+			LightData.ShadowedBits = 1;
 			LightData.ShadowMapChannelMask.x = 1;
 			#if TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING
 				GBufferData.PrecomputedShadowFactors.x = ComputeDirectionalLightStaticShadowing(WorldPosition).x;

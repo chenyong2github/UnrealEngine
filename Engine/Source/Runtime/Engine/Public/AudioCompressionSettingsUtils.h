@@ -14,7 +14,7 @@ public:
 	static float GetCompressionDurationForCurrentPlatform();
 
 	// Returns the sample rate for a given platform,
-	static float GetTargetSampleRateForPlatform(ESoundwaveSampleRateSettings InSampleRateLevel = ESoundwaveSampleRateSettings::High, EAudioPlatform SpecificPlatform = AudioPluginUtilities::CurrentPlatform);
+	static float GetTargetSampleRateForPlatform(ESoundwaveSampleRateSettings InSampleRateLevel = ESoundwaveSampleRateSettings::High);
 
 	static int32 GetMaxPreloadedBranchesForCurrentPlatform();
 

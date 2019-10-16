@@ -119,7 +119,7 @@ FSSDSignalAccumulatorArray UncompressAccumulatorArray(in FSSDCompressedSignalAcc
 	#if COMPILE_DRB_ACCUMULATOR && COMPILE_MININVFREQ_ACCUMULATOR
 	else if (CompressionLayout == ACCUMULATOR_COMPRESSION_PENUMBRA_DRB)
 	{
-		// TODO: CONFIG_SIGNAL_BATCH_SIZE?
+		// TODO(Denoiser): CONFIG_SIGNAL_BATCH_SIZE?
 		UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
 		for (uint SignalBatchId = 0; SignalBatchId < MAX_SIGNAL_BATCH_SIZE; SignalBatchId++)
 		{

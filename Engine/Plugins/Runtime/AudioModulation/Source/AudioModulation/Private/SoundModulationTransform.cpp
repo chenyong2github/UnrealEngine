@@ -59,7 +59,7 @@ void FSoundModulationOutputTransform::EvaluateCurve(float& Value) const
 	}
 
 	// Avoid divide-by-zero & return untransformed if limited to single value
-	if (InputMax >= InputMin)
+	if (InputMax <= InputMin)
 	{
 		return;
 	}

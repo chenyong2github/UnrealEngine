@@ -61,6 +61,17 @@ public:
 	/** Enables "Find and Replace All" tool in the MyBlueprint window for variables */
 	UPROPERTY(EditAnywhere, config, Category = Blueprints, meta = (DisplayName = "Find and Replace All References Tool"))
 	bool bEnableFindAndReplaceReferences;
+	
+protected:
+	/** Any blueprint deriving from one of these base classes will be allowed to recompile during Play-in-Editor */
+	UPROPERTY(EditAnywhere, config, Category = Blueprints, meta=(AllowAbstract))
+	TArray<TSoftClassPtr<UObject>> BaseClassesToAllowRecompilingDuringPlayInEditor;
+
+	UPROPERTY(Transient)
+	mutable TArray<UClass*> ResolvedBaseClassesToAllowRecompilingDuringPlayInEditor;
+
+public:
+	bool IsClassAllowedToRecompileDuringPIE(UClass* TestClass) const;
 
 	/** Should arrows indicating data/execution flow be drawn halfway along wires? */
 	UPROPERTY(/*EditAnywhere - deprecated (moved into UBlueprintEditorSettings), */config/*, Category=Blueprints, meta=(DisplayName="Draw midpoint arrows in Blueprints")*/)

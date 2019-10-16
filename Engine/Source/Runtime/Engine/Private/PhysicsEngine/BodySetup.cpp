@@ -21,6 +21,7 @@
 #include "UObject/UObjectIterator.h"
 #include "UObject/PropertyPortFlags.h"
 #include "Components/SplineMeshComponent.h"
+#include "ChaosCheck.h"
 
 #include "PhysXCookHelper.h"
 
@@ -695,12 +696,20 @@ void UBodySetup::FinishCreatingPhysicsMeshes_Chaos(FChaosDerivedDataReader<float
 		for (int32 ElementIndex = 0; ElementIndex < AggGeom.ConvexElems.Num(); ElementIndex++)
 		{
 			FKConvexElem& ConvexElem = AggGeom.ConvexElems[ElementIndex];
-			ConvexElem.SetChaosConvexMesh(MoveTemp(InReader.ConvexImplicitObjects[ElementIndex]));
 
-			if (ConvexElem.GetChaosConvexMesh()->IsPerformanceWarning())
+			if (CHAOS_ENSURE(InReader.ConvexImplicitObjects[ElementIndex]->IsValidGeometry()))
 			{
-				const FString& PerformanceString = ConvexElem.GetChaosConvexMesh()->PerformanceWarningAndSimplifaction();
-				UE_LOG(LogPhysics, Warning, TEXT("TConvex Name:%s, Element [%d], %s"), FullName.GetCharArray().GetData(), ElementIndex, PerformanceString.GetCharArray().GetData());
+				ConvexElem.SetChaosConvexMesh(MoveTemp(InReader.ConvexImplicitObjects[ElementIndex]));
+
+				if (ConvexElem.GetChaosConvexMesh()->IsPerformanceWarning())
+				{
+					const FString& PerformanceString = ConvexElem.GetChaosConvexMesh()->PerformanceWarningAndSimplifaction();
+					UE_LOG(LogPhysics, Warning, TEXT("TConvex Name:%s, Element [%d], %s"), FullName.GetCharArray().GetData(), ElementIndex, PerformanceString.GetCharArray().GetData());
+				}
+			}
+			else
+			{
+				UE_LOG(LogPhysics, Warning, TEXT("TConvex Name:%s, Element [%d] has no Geometry"), FullName.GetCharArray().GetData(), ElementIndex);
 			}
 
 		}

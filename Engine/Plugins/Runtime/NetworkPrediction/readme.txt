@@ -77,8 +77,7 @@ High level focus:
 -We intend to support RootMotion (Animation) / RootMotionSources (non anim) in the new movement system.
 
 Road Map:
--Aux Buffer
--Event System
+-Event System / "Game API"
 -Ability System integration
 -New Movement System
  
@@ -105,6 +104,18 @@ Smoothing: Taking the output of the simulation and applying an additional layer 
 // ----------------------------------------------------------------------------------------------------------
 // Release notes
 // ----------------------------------------------------------------------------------------------------------
+
+
+Update (10-16-19)
+-Cleanup how we advance the simulation and unified which keyframes are accessed across the three main buffers
+-LastProcessedInputKeyframe -> PendingKeyframe. Code is simplified dealing with the "next" keyframe rather than making assumptions based on "last" keyframe.
+-Input/Sync/Aux states @ PendingKeyframe are what gets used as inputs to T::Update. This is more consistent that how it worked previously, where it was essentially (Input+1/Sync) -> (Sync+1).
+-This gets rid of awkward hacks like empty input cmd @ keyframe = 0.
+-Also got rid of InitSync/InitAuxState interface functions. The initial states can now be provided when instantiating the network sim model.
+
+Update (10-15-19)
+-Aux buffer hooked up. Still some decisions to make here, expect a few more refactors.
+-TReplicationBuffer replaced with simpler API.
 
 Update (10-1-19)
 -Forward Predict / Dependent simulation initial check in. This has some limitations and is not final

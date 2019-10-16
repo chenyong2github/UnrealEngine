@@ -14,7 +14,7 @@
 #include "GameFramework/WorldSettings.h"
 #include "PacketHandler.h"
 #include "Channel.h"
-#include "DDoSDetection.h"
+#include "Net/Core/Misc/DDoSDetection.h"
 #include "IPAddress.h"
 #include "Net/NetAnalyticsTypes.h"
 

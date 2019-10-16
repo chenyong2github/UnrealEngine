@@ -21,8 +21,6 @@ public:
 	 */
 	virtual TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> CreatePlayer(class IMediaEventSink& EventSink) = 0;
 
-	virtual TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> CreateCameraPreviewPlayer(class IMediaEventSink& EventSink) = 0;
-
 public:
 	/** Virtual destructor. */
 	virtual ~IMagicLeapMediaModule() { }

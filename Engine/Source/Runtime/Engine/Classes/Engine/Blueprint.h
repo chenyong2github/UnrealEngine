@@ -799,7 +799,7 @@ public:
 	virtual bool AlwaysCompileOnLoad() const { return false; }
 
 	/** Some Blueprints (and classes) can recompile while we are debugging a live session. This function controls whether this can occur. */
-	virtual bool CanRecompileWhilePlayingInEditor() const { return false; }
+	virtual bool CanRecompileWhilePlayingInEditor() const;
 
 	/**
 	 * Check whether this blueprint can be nativized or not

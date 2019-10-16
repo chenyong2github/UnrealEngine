@@ -27,11 +27,12 @@
 
 	// Input and output layout.
 	#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_HARMONIC
+	#define CONFIG_SIGNAL_INPUT_TEXTURE_TYPE   SIGNAL_TEXTURE_TYPE_UINT2
 	#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_HARMONIC
-	#define CONFIG_SIGNAL_TEXTURE_TYPE   SIGNAL_TEXTURE_TYPE_UINT2
+	#define CONFIG_SIGNAL_OUTPUT_TEXTURE_TYPE   SIGNAL_TEXTURE_TYPE_UINT2
 
 	// Spherical harmonics are a lot of data, need to shrink VGPR pressure to improve lattency hidding when fetching the buffer.
-	// TODO: some shader compiler completly falls apparts with the current implementation of
+	// TODO(Denoiser): some shader compiler completly falls apparts with the current implementation of
 	//       CONFIG_SIGNAL_VGPR_COMPRESSION and actually drops in occupency.
 	//#define CONFIG_SIGNAL_VGPR_COMPRESSION SIGNAL_COMPRESSION_DIFFUSE_INDIRECT_HARMONIC
 	//#define CONFIG_NEIGHBOR_TO_REF_COMPUTATION NEIGHBOR_TO_REF_LOWEST_VGPR_PRESSURE
@@ -129,13 +130,6 @@ FSSDRWTexture2D	SignalOutputMips_2_UAVs_3;
 #define SignalOutputMips_2_UAVs_3 SignalOutputMips_2_UAVs_0
 #endif
 
-RWTexture2D<float4>	DebugOutput;
-
-
-//------------------------------------------------------- FUNCTIONS
-
-
-
 
 //------------------------------------------------------- ENTRY POINTS
 
@@ -147,16 +141,12 @@ void MainCS(
 	uint GroupThreadIndex : SV_GroupIndex)
 {
 	// Find out scene buffer UV.
-	float2 SceneBufferUV = (ViewportMin + DispatchThreadId + 0.5) * View.BufferSizeAndInvSize.zw;
+	float2 SceneBufferUV = DispatchThreadId * ThreadIdToBufferUV.xy + ThreadIdToBufferUV.zw;
 	if (true)
 	{
 		SceneBufferUV = clamp(SceneBufferUV, BufferBilinearUVMinMax.xy, BufferBilinearUVMinMax.zw);
 	}
 	
-	// Read reference meta data.
-	float2 ScreenPosition = ViewportUVToScreenPos(BufferUVToViewportUV(SceneBufferUV));
-	FSSDSampleSceneInfos RefSceneMetadata = FetchCurrentSceneInfos(ScreenPosition, SceneBufferUV);
-
 	// Sample the reference sample.
 	FSSDSignalArray RefSamples = SampleMultiplexedSignals(
 		SignalInput_Textures_0,
@@ -181,7 +171,7 @@ void MainCS(
 			OutputSamples.Array[MultiplexId] = RefSamples.Array[MultiplexId];
 		}
 
-		// TODO: TODO: reduce VGPR pressure here
+		// TODO(Denoiser): reduce VGPR pressure here
 		uint2 OutputPixelPostion = ViewportMax + DispatchThreadId;
 
 		OutputMultiplexedSignal(

@@ -89,12 +89,12 @@ public:
 		ensure(Thickness == 0 || (FMath::IsNearlyEqual(MScale[0], MScale[1]) && FMath::IsNearlyEqual(MScale[0], MScale[2])));	//non uniform turns sphere into an ellipsoid so no longer a raycast and requires a more expensive sweep
 
 		const TVector<T, d> UnscaledStart = MInvScale * StartPoint;
-		const TVector<T, d> UnscaledDirDenorm = MScale * Dir;
+		const TVector<T, d> UnscaledDirDenorm = MInvScale * Dir;
 		const T LengthScale = UnscaledDirDenorm.Size();
 		if (ensure(LengthScale > TNumericLimits<T>::Min()))
 		{
 			const T LengthScaleInv = 1.f / LengthScale;
-			const T UnscaledLength = Length * LengthScaleInv;
+			const T UnscaledLength = Length * LengthScale;
 			const TVector<T, d> UnscaledDir = UnscaledDirDenorm * LengthScaleInv;
 			
 			TVector<T, d> UnscaledPosition;
@@ -103,7 +103,7 @@ public:
 
 			if (MObject->Raycast(UnscaledStart, UnscaledDir, UnscaledLength, MInternalThickness + Thickness * MInvScale[0], UnscaledTime, UnscaledPosition, UnscaledNormal, OutFaceIndex))
 			{
-				OutTime = LengthScale * UnscaledTime;
+				OutTime = LengthScaleInv * UnscaledTime;
 				OutPosition = MScale * UnscaledPosition;
 				OutNormal = (MInvScale * UnscaledNormal).GetSafeNormal();
 				ensure(OutTime <= Length);
@@ -122,12 +122,12 @@ public:
 		ensure(FMath::IsNearlyEqual(LocalDir.SizeSquared(), 1, KINDA_SMALL_NUMBER));
 		ensure(Thickness == 0 || (FMath::IsNearlyEqual(OwningScaled.MScale[0], OwningScaled.MScale[1]) && FMath::IsNearlyEqual(OwningScaled.MScale[0], OwningScaled.MScale[2])));
 
-		const TVector<T, d> UnscaledDirDenorm = OwningScaled.MScale * LocalDir;
+		const TVector<T, d> UnscaledDirDenorm = OwningScaled.MInvScale * LocalDir;
 		const T LengthScale = UnscaledDirDenorm.Size();
 		if (ensure(LengthScale > TNumericLimits<T>::Min()))
 		{
 			const T LengthScaleInv = 1.f / LengthScale;
-			const T UnscaledLength = Length * LengthScaleInv;
+			const T UnscaledLength = Length * LengthScale;
 			const TVector<T, d> UnscaledDir = UnscaledDirDenorm * LengthScaleInv;
 
 			TVector<T, d> UnscaledPosition;
@@ -142,7 +142,7 @@ public:
 			
 			if (InternalGeom.SweepGeom(ScaledB, BToATMNoScale, UnscaledDir, UnscaledLength, UnscaledTime, UnscaledPosition, UnscaledNormal, OutFaceIndex, OwningScaled.MInternalThickness + Thickness))
 			{
-				OutTime = LengthScale * UnscaledTime;
+				OutTime = LengthScaleInv * UnscaledTime;
 				LocalPosition = OwningScaled.MScale * UnscaledPosition;
 				LocalNormal = (OwningScaled.MInvScale * UnscaledNormal).GetSafeNormal();
 				ensure(OutTime <= Length);
@@ -174,36 +174,33 @@ public:
 		ensure(FMath::IsNearlyEqual(UnitDir.SizeSquared(), 1, KINDA_SMALL_NUMBER));
 
 		const TVector<T, d> UnscaledPosition = MInvScale * Position;
-		TVector<T, d> UnscaledDir = MInvScale * UnitDir;
-		const T UnscaledLength = UnscaledDir.SafeNormalize();
+		const TVector<T, d> UnscaledDirDenorm = MScale * UnitDir;
+		const float LengthScale = UnscaledDirDenorm.Size();
+		const TVector<T, d> UnscaledDir
+			= ensure(LengthScale > TNumericLimits<T>::Min())
+			? UnscaledDirDenorm / LengthScale
+			: TVector<T, d>(0.f, 0.f, 1.f);
 		const T UnscaledSearchDist = SearchDist * MScale.Max();	//this is not quite right since it's no longer a sphere, but the whole thing is fuzzy anyway
-
 		return MObject->FindMostOpposingFace(UnscaledPosition, UnscaledDir, HintFaceIndex, UnscaledSearchDist);
 	}
 
-	virtual TVector<T, 3> FindGeometryOpposingNormal(const TVector<T, d>& DenormDir, int32 FaceIndex, const TVector<T, d>& OriginalNormal) const override
+	virtual TVector<T, 3> FindGeometryOpposingNormal(const TVector<T, d>& DenormDir, int32 HintFaceIndex, const TVector<T, d>& OriginalNormal) const override
 	{
 		ensure(MInternalThickness == 0);	//not supported: do we care?
-		TVector<T, 3> LocalDenormDir = DenormDir * MInvScale;
-		TVector<T, 3> LocalOriginalNormal = OriginalNormal * MInvScale;
-		
+		ensure(FMath::IsNearlyEqual(OriginalNormal.SizeSquared(), 1, KINDA_SMALL_NUMBER));
 
-		// TODO: Fix and use TVector::SafeNormalize().
-		//We want N / ||N|| and to avoid inf
-		//So we want N / ||N|| < 1 / eps => N eps < ||N||, but this is clearly true for all eps < 1 and N > 0
-		T SizeSqr = LocalOriginalNormal.SizeSquared();
-		if (SizeSqr <= TNumericLimits<T>::Min())
-		{
-			LocalOriginalNormal = TVector<T, 3>(0, 0, 1);
-			ensure(false);
-		}
-		else
-		{
-			LocalOriginalNormal /= sqrt(SizeSqr);
-		}
+		// Get unscaled dir and normal
+		const TVector<T, 3> LocalDenormDir = DenormDir * MScale;
+		const TVector<T, 3> LocalOriginalNormalDenorm = OriginalNormal * MScale;
+		const float NormalLengthScale = LocalOriginalNormalDenorm.Size();
+		const TVector<T, 3> LocalOriginalNormal
+			= ensure(NormalLengthScale > SMALL_NUMBER)
+			? LocalOriginalNormalDenorm / NormalLengthScale
+			: TVector<T, d>(0, 0, 1);
 
-		const TVector<T, d> LocalNormal = MObject->FindGeometryOpposingNormal(LocalDenormDir, FaceIndex, LocalOriginalNormal);
-		TVector<T, d> Normal = LocalNormal * MScale;
+		// Compute final normal
+		const TVector<T, d> LocalNormal = MObject->FindGeometryOpposingNormal(LocalDenormDir, HintFaceIndex, LocalOriginalNormal);
+		TVector<T, d> Normal = LocalNormal * MInvScale;
 		if (ensure(Normal.SafeNormalize()) == 0)
 		{
 			Normal = TVector<T,3>(0,0,1);

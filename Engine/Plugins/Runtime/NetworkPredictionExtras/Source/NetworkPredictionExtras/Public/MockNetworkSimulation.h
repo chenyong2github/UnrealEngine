@@ -137,7 +137,7 @@ class FMockNetworkSimulation
 public:
 
 	/** Main update function */
-	static void Update(IMockDriver* Driver, const float DeltaTimeSeconds, const FMockInputCmd& InputCmd, const FMockSyncState& InputState, FMockSyncState& OutputState, const FMockAuxState& AuxState);
+	static void Update(IMockDriver* Driver, const float DeltaTimeSeconds, const FMockInputCmd& InputCmd, const FMockSyncState& InputState, FMockSyncState& OutputState, const FMockAuxState& AuxState, const TLazyStateAccessor<FMockAuxState>& OutAuxStateAccessor);
 
 	/** Tick group the simulation maps to */
 	static const FName GroupName;
@@ -171,10 +171,11 @@ public:
 
 	FString GetDebugName() const override;
 	virtual UObject* GetVLogOwner() const override final;
-
-	void InitSyncState(FMockSyncState& OutSyncState) const override;
-	void FinalizeFrame(const FMockSyncState& SyncState) override;
+	
 	void ProduceInput(const FNetworkSimTime SimTime, FMockInputCmd& Cmd);
+	void FinalizeFrame(const FMockSyncState& SyncState, const FMockAuxState& AuxState) override;
+	
+
 	virtual UWorld* GetDriverWorld() const override final { return GetWorld(); }
 	virtual FTransform GetDebugWorldTransform() const override final;
 

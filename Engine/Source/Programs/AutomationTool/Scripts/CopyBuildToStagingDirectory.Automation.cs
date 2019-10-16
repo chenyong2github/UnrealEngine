@@ -553,7 +553,7 @@ public partial class Project : CommandUtils
 			{
 				// Work out which ICU data version we use for this platform
 				var ICUDataVersion = "icudt64l";
-				if (SC.StageTargetPlatform.PlatformType == UnrealTargetPlatform.HoloLens || SC.StageTargetPlatform.PlatformType == UnrealTargetPlatform.TVOS || SC.StageTargetPlatform.PlatformType == UnrealTargetPlatform.HTML5)
+				if (SC.StageTargetPlatform.PlatformType == UnrealTargetPlatform.HoloLens || SC.StageTargetPlatform.PlatformType == UnrealTargetPlatform.TVOS)
 				{
 					ICUDataVersion = "icudt53l";
 				}
@@ -568,7 +568,7 @@ public partial class Project : CommandUtils
 				SC.StageFiles(StagedFileType.UFS, DirectoryReference.Combine(SC.LocalRoot, "Engine", "Content", "Internationalization", InternationalizationPreset, ICUDataVersion), StageFilesSearch.AllDirectories, new StagedDirectoryReference(String.Format("Engine/Content/Internationalization/{0}", ICUDataVersion)));
 
 				// Engine ufs (content)
-				StageConfigFiles(SC, DirectoryReference.Combine(SC.LocalRoot, "Engine", "Config"));
+				StageConfigFiles(SC, DirectoryReference.Combine(SC.LocalRoot, "Engine", "Config"), null);
 
 				// Stage the engine localization target
 				if (!SC.BlacklistLocalizationTargets.Contains("Engine"))
@@ -579,8 +579,25 @@ public partial class Project : CommandUtils
 				// Game ufs (content)
 				SC.StageFile(StagedFileType.UFS, SC.RawProjectPath);
 
-				StageConfigFiles(SC, DirectoryReference.Combine(SC.ProjectRoot, "Config"));
+				StageConfigFiles(SC, DirectoryReference.Combine(SC.ProjectRoot, "Config"), null);
+				
+				// Stage platform extension config files
+				{
+					string PlatformExtensionName = SC.StageTargetPlatform.PlatformType.ToString();
 
+					DirectoryReference PlatformEngineConfigDir = DirectoryReference.Combine(SC.LocalRoot, "Engine", "Platforms", PlatformExtensionName, "Config");
+					DirectoryReference PlatformProjectConfigDir = DirectoryReference.Combine(SC.ProjectRoot, "Platforms", PlatformExtensionName, "Config");
+
+					if (DirectoryReference.Exists(PlatformEngineConfigDir))
+					{
+						StageConfigFiles(SC, PlatformEngineConfigDir, PlatformExtensionName);
+					}
+
+					if (DirectoryReference.Exists(PlatformProjectConfigDir))
+					{
+						StageConfigFiles(SC, PlatformProjectConfigDir, PlatformExtensionName);
+					}
+				}
 
 				// Stage plugin config files
 				List<KeyValuePair<StagedFileReference, FileReference>> StagedPlugins = SC.FilesToStage.UFSFiles.Where(x => x.Value.HasExtension(".uplugin")).ToList();
@@ -982,12 +999,13 @@ public partial class Project : CommandUtils
 	/// </summary>
 	/// <param name="SC">The staging context</param>
 	/// <param name="ConfigDir">Directory containing the config files</param>
-	static void StageConfigFiles(DeploymentContext SC, DirectoryReference ConfigDir)
+	/// <param name="PlatformExtensionName">The name of the platform when staging config files from a platform extension</param>
+	static void StageConfigFiles(DeploymentContext SC, DirectoryReference ConfigDir, string PlatformExtensionName)
 	{
 		List<FileReference> ConfigFiles = SC.FindFilesToStage(ConfigDir, "*.ini", StageFilesSearch.AllDirectories);
 		foreach (FileReference ConfigFile in ConfigFiles)
 		{
-			Nullable<bool> ShouldStage = ShouldStageConfigFile(SC, ConfigDir, ConfigFile);
+			Nullable<bool> ShouldStage = ShouldStageConfigFile(SC, ConfigDir, ConfigFile, PlatformExtensionName);
 			if (ShouldStage == null)
 			{
 				CommandUtils.LogWarning("The config file '{0}' will be staged, but is not whitelisted or blacklisted. Add +WhitelistConfigFiles={0} or +BlacklistConfigFiles={0} to the [Staging] section of DefaultGame.ini", SC.GetStagedFileLocation(ConfigFile));
@@ -1011,7 +1029,7 @@ public partial class Project : CommandUtils
 	/// <param name="ConfigDir">Directory containing the config files</param>
 	/// <param name="ConfigFile">The config file to check</param>
 	/// <returns>True if the file should be staged, false otherwise</returns>
-	static Nullable<bool> ShouldStageConfigFile(DeploymentContext SC, DirectoryReference ConfigDir, FileReference ConfigFile)
+	static Nullable<bool> ShouldStageConfigFile(DeploymentContext SC, DirectoryReference ConfigDir, FileReference ConfigFile, string PlatformExtensionName)
 	{
 		StagedFileReference StagedConfigFile = SC.GetStagedFileLocation(ConfigFile);
 		if (SC.WhitelistConfigFiles.Contains(StagedConfigFile))
@@ -1031,13 +1049,37 @@ public partial class Project : CommandUtils
 			const string BasePrefix = "base";
 			if (NormalizedPath.StartsWith(BasePrefix))
 			{
-				return ShouldStageConfigSuffix(SC, ConfigFile, NormalizedPath.Substring(BasePrefix.Length));
+				string ShortName = NormalizedPath.Substring(BasePrefix.Length);
+				if (PlatformExtensionName != null)
+				{
+					if (!ShortName.StartsWith(PlatformExtensionName, StringComparison.InvariantCultureIgnoreCase))
+					{
+						// Ignore config files in the platform directory that don't start with the platform name.
+						return false;
+					}
+
+					ShortName = ShortName.Substring(PlatformExtensionName.Length);
+				}
+
+				return ShouldStageConfigSuffix(SC, ConfigFile, ShortName);
 			}
 
 			const string DefaultPrefix = "default";
 			if (NormalizedPath.StartsWith(DefaultPrefix))
 			{
-				return ShouldStageConfigSuffix(SC, ConfigFile, NormalizedPath.Substring(DefaultPrefix.Length));
+				string ShortName = NormalizedPath.Substring(DefaultPrefix.Length);
+				if (PlatformExtensionName != null)
+				{
+					if (!ShortName.StartsWith(PlatformExtensionName, StringComparison.InvariantCultureIgnoreCase))
+					{
+						// Ignore config files in the platform directory that don't start with the platform name.
+						return false;
+					}
+
+					ShortName = ShortName.Substring(PlatformExtensionName.Length);
+				}
+
+				return ShouldStageConfigSuffix(SC, ConfigFile, ShortName);
 			}
 
 			const string DedicatedServerPrefix = "dedicatedserver";
@@ -1059,6 +1101,20 @@ public partial class Project : CommandUtils
 			if (NormalizedPath == "designertoolsconfig.ini")
 			{
 				return false;
+			}
+
+			if (PlatformExtensionName != null)
+			{
+				if (NormalizedPath.StartsWith(PlatformExtensionName, StringComparison.InvariantCultureIgnoreCase))
+				{
+					string ShortName = NormalizedPath.Substring(PlatformExtensionName.Length);
+					return ShouldStageConfigSuffix(SC, ConfigFile, ShortName);
+				}
+
+				if (NormalizedPath == "datadrivenplatforminfo.ini")
+				{
+					return true;
+				}
 			}
 		}
 		else
@@ -1083,11 +1139,6 @@ public partial class Project : CommandUtils
 			if (NormalizedPath.StartsWith(PlatformBasePrefix))
 			{
 				return ShouldStageConfigSuffix(SC, ConfigFile, NormalizedPath.Substring(PlatformBasePrefix.Length));
-			}
-
-			if (NormalizedPath.EndsWith("/confidentialplatform.ini"))
-			{
-				return false;
 			}
 
 			if (NormalizedPath.EndsWith("/datadrivenplatforminfo.ini"))

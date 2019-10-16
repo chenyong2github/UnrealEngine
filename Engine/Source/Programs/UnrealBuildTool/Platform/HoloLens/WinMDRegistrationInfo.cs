@@ -62,7 +62,7 @@ namespace UnrealBuildTool
 					string ThreadingModelName = "both";
 					foreach (CustomAttributeData Attr in WinMDType.CustomAttributes)
 					{
-						if (Attr.AttributeType.FullName == "Windows.Foundation.Metadata.ActivatableAttribute" || Attr.AttributeType.AssemblyQualifiedName == "Windows.Foundation.Metadata.StaticAttribute")
+						if (Attr.AttributeType.FullName == "Windows.Foundation.Metadata.ActivatableAttribute" || Attr.AttributeType.FullName == "Windows.Foundation.Metadata.StaticAttribute")
 						{
 							IsActivatable = true;
 						}

@@ -5,7 +5,7 @@ D3D12CommandContext.h: D3D12 Command Context Interfaces
 =============================================================================*/
 
 #pragma once
-#define AFR_ENGINE_CHANGES_PRESENT 0
+#define AFR_ENGINE_CHANGES_PRESENT WITH_MGPU
 
 // TODO: Because the upper engine is yet to implement these interfaces we can't 'override' something that doesn't exist.
 //       Remove when upper engine is ready
@@ -331,7 +331,7 @@ public:
 	virtual void RHIWaitForTemporalEffect(const FName& InEffectName) final AFR_API_OVERRIDE;
 
 	// This should be called right after the effect generates the resources which will be used in subsequent frame(s).
-	virtual void RHIBroadcastTemporalEffect(const FName& InEffectName, FRHITexture** InTextures, int32 NumTextures) final AFR_API_OVERRIDE;
+	virtual void RHIBroadcastTemporalEffect(const FName& InEffectName, const TArrayView<FRHITexture*> InTextures) final AFR_API_OVERRIDE;
 
 #if D3D12_RHI_RAYTRACING
 	virtual void RHICopyBufferRegion(FRHIVertexBuffer* DestBuffer, uint64 DstOffset, FRHIVertexBuffer* SourceBuffer, uint64 SrcOffset, uint64 NumBytes) final override;
@@ -422,6 +422,13 @@ public:
 
 	uint32 GetGPUIndex() const { return GPUMask.ToIndex(); }
 
+	virtual void RHISetGPUMask(FRHIGPUMask InGPUMask) final override
+	{
+		// This is a single-GPU context so it doesn't make sense to ever change its GPU
+		// mask. If multiple GPUs are supported we should be using the redirector context.
+		ensure(InGPUMask == GPUMask);
+	}
+
 protected:
 
 	FD3D12CommandContext* GetContext(uint32 InGPUIndex) final override 
@@ -433,7 +440,7 @@ private:
 	void RHIClearMRT(bool bClearColor, int32 NumClearColors, const FLinearColor* ColorArray, bool bClearDepth, float Depth, bool bClearStencil, uint32 Stencil);
 };
 
-// This class is a temporary shim to get AFR working. Currently the upper engine only queries for the 'Immediate Context'
+// This class is a shim to get AFR working. Currently the upper engine only queries for the 'Immediate Context'
 // once. However when in AFR we need to switch which context is active every frame so we return an instance of this class
 // as the default context so that we can control when to swap which device we talk to.
 // Because IRHICommandContext is pure virtual we can return the normal FD3D12CommandContext when not using mGPU thus there
@@ -731,9 +738,9 @@ public:
 		ContextRedirect(RHIWaitForTemporalEffect(InEffectName));
 	}
 
-	FORCEINLINE virtual void RHIBroadcastTemporalEffect(const FName& InEffectName, FRHITexture** InTextures, int32 NumTextures) final AFR_API_OVERRIDE
+	FORCEINLINE virtual void RHIBroadcastTemporalEffect(const FName& InEffectName, const TArrayView<FRHITexture*> InTextures) final AFR_API_OVERRIDE
 	{
-		ContextRedirect(RHIBroadcastTemporalEffect(InEffectName, InTextures, NumTextures));
+		ContextRedirect(RHIBroadcastTemporalEffect(InEffectName, InTextures));
 	}
 
 	virtual void RHIBeginRenderPass(const FRHIRenderPassInfo& InInfo, const TCHAR* InName) final override
@@ -821,6 +828,19 @@ public:
 		ContextRedirect(RHISetRayTracingCallableShader(Scene, ShaderSlotInScene, Pipeline, ShaderIndexInPipeline, NumUniformBuffers, UniformBuffers, UserData));
 	}
 
+	virtual void RHISetGPUMask(FRHIGPUMask InGPUMask) final override
+	{
+		GPUMask = InGPUMask;
+		check(PhysicalGPUMask.ContainsAll(GPUMask));
+	}
+
+	// Sets the mask of which GPUs can be supported, as opposed to the currently active
+	// set. RHISetGPUMask checks that the active mask is a subset of the physical mask.
+	FORCEINLINE void SetPhysicalGPUMask(FRHIGPUMask InGPUMask)
+	{
+		PhysicalGPUMask = InGPUMask;
+	}
+
 	virtual void RHIClearRayTracingBindings(FRHIRayTracingScene* Scene) final override
 	{
 		ContextRedirect(RHIClearRayTracingBindings(Scene));
@@ -829,7 +849,9 @@ public:
 	FORCEINLINE void SetPhysicalContext(FD3D12CommandContext* Context)
 	{
 		check(Context);
-		PhysicalContexts[Context->GetGPUIndex()] = Context;
+		const uint32 GPUIndex = Context->GetGPUIndex();
+		check(PhysicalGPUMask.Contains(GPUIndex));
+		PhysicalContexts[GPUIndex] = Context;
 	}
 
 	FORCEINLINE FD3D12CommandContext* GetContext(uint32 GPUIndex) final override
@@ -837,30 +859,48 @@ public:
 		return PhysicalContexts[GPUIndex];
 	}
 
-	FORCEINLINE void SetGPUMask(const FRHIGPUMask InGPUMask)
-	{
-		GPUMask = InGPUMask;
-	}
-
 private:
 
+	FRHIGPUMask PhysicalGPUMask;
 	FD3D12CommandContext* PhysicalContexts[MAX_NUM_GPUS];
 };
 
 class FD3D12TemporalEffect : public FD3D12AdapterChild
 {
 public:
-	FD3D12TemporalEffect();
 	FD3D12TemporalEffect(FD3D12Adapter* Parent, const FName& InEffectName);
-
-	FD3D12TemporalEffect(const FD3D12TemporalEffect& Other);
 
 	void Init();
 	void Destroy();
 
-	void WaitForPrevious(ED3D12CommandQueueType InQueueType);
-	void SignalSyncComplete(ED3D12CommandQueueType InQueueType);
+	bool ShouldWaitForPrevious(uint32 GPUIndex) const;
+	void WaitForPrevious(uint32 GPUIndex, ED3D12CommandQueueType InQueueType);
+	void SignalSyncComplete(uint32 GPUIndex, ED3D12CommandQueueType InQueueType);
 
 private:
-	FD3D12Fence EffectFence;
+	FName EffectName;
+	struct FCrossGPUFence
+	{
+		FCrossGPUFence(FRHIGPUMask InGPUMask, uint64 InLastSignaledFence, FD3D12FenceCore* InFenceCore)
+			: GPUMask(InGPUMask)
+			, LastSignaledFence(InLastSignaledFence)
+			, LastWaitedFence(InLastSignaledFence)
+			, FenceCore(InFenceCore)
+		{}
+		FRHIGPUMask GPUMask;
+		uint64 LastSignaledFence;
+		uint64 LastWaitedFence;
+		FD3D12FenceCore* FenceCore;
+	};
+	TArray<FCrossGPUFence> EffectFences;
+
+	const FCrossGPUFence* GetFenceForGPU(uint32 GPUIndex) const
+	{
+		return const_cast<FD3D12TemporalEffect*>(this)->GetFenceForGPU(GPUIndex);
+	}
+
+	FCrossGPUFence* GetFenceForGPU(uint32 GPUIndex)
+	{
+		return EffectFences.FindByPredicate([GPUIndex](const auto& Other) { return Other.GPUMask.Contains(GPUIndex); });
+	}
 };

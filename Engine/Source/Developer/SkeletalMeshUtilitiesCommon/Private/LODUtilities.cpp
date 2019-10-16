@@ -29,7 +29,7 @@
 #include "IMeshReductionManagerModule.h"
 #include "Animation/SkinWeightProfile.h"
 
-#include "Modules/ModuleManager.h"
+#include "Async/ParallelFor.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, SkeletalMeshUtilitiesCommon)
 
@@ -232,7 +232,8 @@ bool FLODUtilities::RegenerateLOD(USkeletalMesh* SkeletalMesh, int32 NewLODCount
 		// we need to add more
 		else if (LODCount > CurrentNumLODs)
 		{
-			// Only create new skeletal mesh LOD level entries
+			// Only create new skeletal mesh LOD level entries, we cannot multi thread since the LOD will be create here
+			//TArray are not thread safe.
 			for (int32 LODIdx = CurrentNumLODs; LODIdx < LODCount; LODIdx++)
 			{
 				// if no previous setting found, it will use default setting. 
@@ -968,6 +969,7 @@ void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 
 		return;
 	}
 
+	if (IsInGameThread())
 	{
 		FFormatNamedArguments Args;
 		Args.Add(TEXT("DesiredLOD"), DesiredLOD);
@@ -1079,7 +1081,10 @@ void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 
 		FLODUtilities::RestoreClothingFromBackup(SkeletalMesh, ClothingBindings, DesiredLOD);
 	}
 
-	GWarn->EndSlowTask();
+	if (IsInGameThread())
+	{
+		GWarn->EndSlowTask();
+	}
 }
 
 void FLODUtilities::SimplifySkeletalMeshLOD(FSkeletalMeshUpdateContext& UpdateContext, int32 DesiredLOD, bool bRestoreClothing /*= false*/)
@@ -1942,41 +1947,93 @@ void FLODUtilities::RegenerateAllImportSkinWeightProfileData(FSkeletalMeshLODMod
 
 void FLODUtilities::RegenerateDependentLODs(USkeletalMesh* SkeletalMesh, int32 LODIndex)
 {
-	FSkeletalMeshUpdateContext UpdateContext;
-	UpdateContext.SkeletalMesh = SkeletalMesh;
-
-	//Check the dependencies and regenerate the LODs according to it
-	TArray<bool> LODDependencies;
 	int32 LODNumber = SkeletalMesh->GetLODNum();
-	LODDependencies.AddZeroed(LODNumber);
-	bool bRegenLODs = false;
-	LODDependencies[LODIndex] = true;
+	TMap<int32, TArray<int32>> Dependencies;
+	TBitArray<> DependentLOD;
+	DependentLOD.Init(false, LODNumber);
+	DependentLOD[LODIndex] = true;
 	for (int32 DependentLODIndex = LODIndex + 1; DependentLODIndex < LODNumber; ++DependentLODIndex)
 	{
 		const FSkeletalMeshLODInfo* LODInfo = SkeletalMesh->GetLODInfo(DependentLODIndex);
-		if (LODInfo && LODInfo->bHasBeenSimplified && LODDependencies[LODInfo->ReductionSettings.BaseLOD])
+		//Only add active reduction LOD that are not inline reducted (inline mean they do not depend on LODIndex)
+		if (LODInfo && (SkeletalMesh->IsReductionActive(DependentLODIndex) || LODInfo->bHasBeenSimplified) && DependentLODIndex > LODInfo->ReductionSettings.BaseLOD && DependentLOD[LODInfo->ReductionSettings.BaseLOD])
 		{
-			LODDependencies[DependentLODIndex] = true;
-			bRegenLODs = true;
-
+			TArray<int32>& LODDependencies = Dependencies.FindOrAdd(LODInfo->ReductionSettings.BaseLOD);
+			LODDependencies.Add(DependentLODIndex);
+			DependentLOD[DependentLODIndex] = true;
 		}
 	}
-	if (bRegenLODs)
+	if (Dependencies.Contains(LODIndex))
 	{
+		//Load the necessary module before going multithreaded
+		IMeshReductionModule& ReductionModule = FModuleManager::Get().LoadModuleChecked<IMeshReductionModule>("MeshReductionInterface");
+		//This will load all necessary module before kicking the multi threaded reduction
+		IMeshReduction* MeshReduction = ReductionModule.GetSkeletalMeshReductionInterface();
+		check(MeshReduction && MeshReduction->IsSupported());
+
 		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkeletalMesh);
-		auto SimplifyDependentLODS = [&LODIndex, &LODNumber, &LODDependencies, &UpdateContext]()
 		{
-			for (int32 DependentLODIndex = LODIndex + 1; DependentLODIndex < LODNumber; ++DependentLODIndex)
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("DesiredLOD"), LODIndex);
+			Args.Add(TEXT("SkeletalMeshName"), FText::FromString(SkeletalMesh->GetName()));
+			const FText StatusUpdate = FText::Format(NSLOCTEXT("UnrealEd", "MeshSimp_GeneratingDependentLODs_F", "Generating All Dependent LODs from LOD {DesiredLOD} for {SkeletalMeshName}..."), Args);
+			GWarn->BeginSlowTask(StatusUpdate, true);
+		}
+		for (const auto& Kvp : Dependencies)
+		{
+			SkeletalMesh->Modify();
+			//Use a TQueue which is thread safe, this Queue will be fill by some delegate call from other threads
+			TQueue<FSkeletalMeshLODModel*> LODModelReplaceByReduction;
+
+			const TArray<int32>& DependentLODs = Kvp.Value;
+			//Clothing do not play well with multithread, backup it here. Also bind the LODModel delete delegates
+			TMap<int32, TArray<ClothingAssetUtils::FClothingAssetMeshBinding>> PerLODClothingBindings;
+			for (int32 DependentLODIndex : DependentLODs)
 			{
-				if (LODDependencies[DependentLODIndex])
+				TArray<ClothingAssetUtils::FClothingAssetMeshBinding>& ClothingBindings = PerLODClothingBindings.FindOrAdd(DependentLODIndex);
+				FLODUtilities::UnbindClothingAndBackup(SkeletalMesh, ClothingBindings, DependentLODIndex);
+
+				const FSkeletalMeshLODInfo* LODInfo = SkeletalMesh->GetLODInfo(DependentLODIndex);
+				check(LODInfo);
+				LODInfo->ReductionSettings.OnDeleteLODModelDelegate.BindLambda([&LODModelReplaceByReduction](FSkeletalMeshLODModel* ReplacedLODModel)
 				{
-					FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, DependentLODIndex, true);
+					LODModelReplaceByReduction.Enqueue(ReplacedLODModel);
+				});
+			}
+
+			//Reduce all dependent LOD in same time
+			ParallelFor(DependentLODs.Num(), [&DependentLODs, &SkeletalMesh](int32 IterationIndex)
+			{
+				check(DependentLODs.IsValidIndex(IterationIndex));
+				int32 DependentLODIndex = DependentLODs[IterationIndex];
+				check(SkeletalMesh->GetLODInfo(DependentLODIndex)); //We cannot add a LOD when reducing with multi thread, so check we already have one
+				FLODUtilities::SimplifySkeletalMeshLOD(SkeletalMesh, DependentLODIndex, false);
+			});
+
+			//Restore the clothings and unbind the delegates
+			for (int32 DependentLODIndex : DependentLODs)
+			{
+				TArray<ClothingAssetUtils::FClothingAssetMeshBinding>& ClothingBindings = PerLODClothingBindings.FindChecked(DependentLODIndex);
+				FLODUtilities::RestoreClothingFromBackup(SkeletalMesh, ClothingBindings);
+
+				FSkeletalMeshLODInfo* LODInfo = SkeletalMesh->GetLODInfo(DependentLODIndex);
+				check(LODInfo);
+				LODInfo->ReductionSettings.OnDeleteLODModelDelegate.Unbind();
+			}
+
+			while (!LODModelReplaceByReduction.IsEmpty())
+			{
+				FSkeletalMeshLODModel* ReplacedLODModel = nullptr;
+				LODModelReplaceByReduction.Dequeue(ReplacedLODModel);
+				if (ReplacedLODModel)
+				{
+					delete ReplacedLODModel;
 				}
 			}
-		};
+			check(LODModelReplaceByReduction.IsEmpty());
+		}
 
-		SkeletalMesh->Modify();
-		SimplifyDependentLODS();
+		GWarn->EndSlowTask();
 	}
 }
 

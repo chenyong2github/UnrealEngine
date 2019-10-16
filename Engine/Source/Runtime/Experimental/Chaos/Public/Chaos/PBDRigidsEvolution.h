@@ -52,6 +52,162 @@ struct CHAOS_API FEvolutionStats
 	}
 };
 
+template <typename T, int d>
+struct TSpatialAccelerationCacheHandle;
+
+/** The SOA cache used for a single acceleration structure */
+template <typename T, int d>
+class TSpatialAccelerationCache : public TArrayCollection
+{
+public:
+	using THandleType = TSpatialAccelerationCacheHandle<T, d>;
+
+	TSpatialAccelerationCache()
+	{
+		AddArray(&MHasBoundingBoxes);
+		AddArray(&MBounds);
+		AddArray(&MPayloads);
+
+#if PARTICLE_ITERATOR_RANGED_FOR_CHECK
+		MDirtyValidationCount = 0;
+#endif
+	}
+
+	TSpatialAccelerationCache(const TSpatialAccelerationCache<T, d>&) = delete;
+	TSpatialAccelerationCache(TSpatialAccelerationCache<T, d>&& Other)
+		: TArrayCollection()
+		, MHasBoundingBoxes(MoveTemp(Other.MHasBoundingBoxes))
+		, MBounds(MoveTemp(Other.MBounds))
+		, MPayloads(MoveTemp(Other.MPayloads))
+	{
+		Other.MSize = 0;
+
+		AddArray(&MHasBoundingBoxes);
+		AddArray(&MBounds);
+		AddArray(&MPayloads);
+#if PARTICLE_ITERATOR_RANGED_FOR_CHECK
+		MDirtyValidationCount = 0;
+#endif
+	}
+
+	TSpatialAccelerationCache& operator=(TSpatialAccelerationCache<T, d>&& Other)
+	{
+		if (&Other != this)
+		{
+			MHasBoundingBoxes = MoveTemp(Other.MHasBoundingBoxes);
+			MBounds = MoveTemp(Other.MBounds);
+			MPayloads = MoveTemp(Other.MPayloads);
+			Other.MSize = 0;
+#if PARTICLE_ITERATOR_RANGED_FOR_CHECK
+			MDirtyValidationCount = 0;
+			++Other.MDirtyValidationCount;
+#endif
+		}
+
+		return *this;
+	}
+
+#if PARTICLE_ITERATOR_RANGED_FOR_CHECK
+	int32 DirtyValidationCount() const { return MDirtyValidationCount; }
+#endif
+
+	void AddElements(const int32 Num)
+	{
+		AddElementsHelper(Num);
+		IncrementDirtyValidation();
+	}
+
+	void DestroyElement(const int32 Idx)
+	{
+		RemoveAtSwapHelper(Idx);
+		IncrementDirtyValidation();
+	}
+
+	bool HasBounds(const int32 Idx) const { return MHasBoundingBoxes[Idx]; }
+	bool& HasBounds(const int32 Idx) { return MHasBoundingBoxes[Idx]; }
+
+	const TBox<T,d>& Bounds(const int32 Idx) const { return MBounds[Idx]; }
+	TBox<T, d>& Bounds(const int32 Idx) { return MBounds[Idx]; }
+
+	const TAccelerationStructureHandle<T, d>& Payload(const int32 Idx) const { return MPayloads[Idx]; }
+	TAccelerationStructureHandle<T, d>& Payload(const int32 Idx) { return MPayloads[Idx]; }
+
+private:
+	void IncrementDirtyValidation()
+	{
+#if PARTICLE_ITERATOR_RANGED_FOR_CHECK
+		++MDirtyValidationCount;
+#endif
+	}
+
+	TArrayCollectionArray<bool> MHasBoundingBoxes;
+	TArrayCollectionArray<TBox<T, d>> MBounds;
+	TArrayCollectionArray<TAccelerationStructureHandle<T, d>> MPayloads;
+
+#if PARTICLE_ITERATOR_RANGED_FOR_CHECK
+	int32 MDirtyValidationCount;
+#endif
+};
+
+/** The handle the acceleration structure uses to access the data (similar to particle handle) */
+template <typename T, int d>
+struct TSpatialAccelerationCacheHandle
+{
+	using THandleBase = TSpatialAccelerationCacheHandle<T, d>;
+	using TTransientHandle = TSpatialAccelerationCacheHandle<T, d>;
+
+	TSpatialAccelerationCacheHandle(TSpatialAccelerationCache<T, d>* InCache = nullptr, int32 InEntryIdx = INDEX_NONE)
+		: Cache(InCache)
+		, EntryIdx(InEntryIdx)
+	{}
+
+	template <typename TPayloadType>
+	TPayloadType GetPayload(int32 Idx) const
+	{
+		return Cache->Payload(EntryIdx);
+	}
+
+	bool HasBoundingBox() const
+	{
+		return Cache->HasBounds(EntryIdx);
+	}
+
+	const TBox<T, d>& BoundingBox() const
+	{
+		return Cache->Bounds(EntryIdx);
+	}
+
+	union
+	{
+		TSpatialAccelerationCache<T, d>* GeometryParticles;	//using same name as particles SOA for template reuse, should probably rethink this
+		TSpatialAccelerationCache<T, d>* Cache;
+	};
+
+	union
+	{
+		int32 ParticleIdx;	//same name for template reasons. Not really a particle idx
+		int32 EntryIdx;
+	};
+};
+
+template <typename T, int d>
+struct CHAOS_API ISpatialAccelerationCollectionFactory
+{
+	//Create an empty acceleration collection with the desired buckets. Chaos enqueues acceleration structure operations per bucket
+	virtual TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<T, d>, T, d>> CreateEmptyCollection() = 0;
+
+	//Chaos creates new acceleration structures per bucket. Factory can change underlying type at runtime as well as number of buckets to AB test
+	virtual TUniquePtr<ISpatialAcceleration<TAccelerationStructureHandle<T, d>, T, d>> CreateAccelerationPerBucket_Threaded(const TConstParticleView<TSpatialAccelerationCache<T, d>>& Particles, uint16 BucketIdx) = 0;
+
+	//Mask indicating which bucket is active. Spatial indices in inactive buckets fallback to bucket 0. Bit 0 indicates bucket 0 is active, Bit 1 indicates bucket 1 is active, etc...
+	virtual uint8 GetActiveBucketsMask() const = 0;
+
+	//Serialize the collection in and out
+	virtual void Serialize(TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<T, d>, T, d>>& Ptr, FChaosArchive& Ar) = 0;
+
+	virtual ~ISpatialAccelerationCollectionFactory() = default;
+};
+
 template<class FPBDRigidsEvolution, class FPBDCollisionConstraint, class T, int d>
 class TPBDRigidsEvolutionBase
 {
@@ -258,9 +414,64 @@ class TPBDRigidsEvolutionBase
 		}
 	}
 
+	void ApplyKinematicTargets(T Dt)
+	{
+		// @todo(ccaulfield): optimize. Depending on the number of kinematics relative to the number that have 
+		// targets set, it may be faster to process a command list rather than iterate over them all each frame. 
+		const T MinDt = 1e-6f;
+		for (auto& Particle : Particles.GetActiveKinematicParticlesView())
+		{
+			TKinematicTarget<T, d>& KinematicTarget = Particle.KinematicTarget();
+			switch (KinematicTarget.GetMode())
+			{
+			case EKinematicTargetMode::None:
+				// Nothing to do
+				break;
+
+			case EKinematicTargetMode::Zero:
+			{
+				// Reset velocity and then switch to do-nothing mode
+				Particle.V() = TVector<T, d>(0, 0, 0);
+				Particle.W() = TVector<T, d>(0, 0, 0);
+				KinematicTarget.SetMode(EKinematicTargetMode::None);
+				break;
+			}
+
+			case EKinematicTargetMode::Position:
+			{
+				// Move to kinematic target and update velocities to match
+				// Target positions only need to be processed once, and we reset the velocity next frame (if no new target is set)
+				if (Dt > MinDt)
+				{
+					TVector<float, 3> V = TVector<float, 3>::CalculateVelocity(Particle.X(), KinematicTarget.GetTarget().GetLocation(), Dt);
+					Particle.V() = V;
+
+					TVector<float, 3> W = TRotation<float, 3>::CalculateAngularVelocity(Particle.R(), KinematicTarget.GetTarget().GetRotation(), Dt);
+					Particle.W() = W;
+				}
+				Particle.X() = KinematicTarget.GetTarget().GetTranslation();
+				Particle.R() = KinematicTarget.GetTarget().GetRotation();
+				KinematicTarget.SetMode(EKinematicTargetMode::Zero);
+				break;
+			}
+
+			case EKinematicTargetMode::Velocity:
+			{
+				// Move based on velocity
+				Particle.X() = Particle.X() + Particle.V() * Dt;
+				Particle.R() = TRotation<T, d>::IntegrateRotationWithAngularVelocity(Particle.R(), Particle.W(), Dt);
+				break;
+			}
+			}
+		}
+	}
+
 	/** Make a copy of the acceleration structure to allow for external modification. This is needed for supporting sync operations on SQ structure from game thread */
 	CHAOS_API void UpdateExternalAccelerationStructure(TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<T, d>, T, d>>& ExternalStructure);
 	ISpatialAccelerationCollection<TAccelerationStructureHandle<T, d>, T, d>* GetSpatialAcceleration() { return InternalAcceleration.Get(); }
+
+	/** Perform a blocking flush of the spatial acceleration structure for situations where we aren't simulating but must have an up to date structure */
+	CHAOS_API void FlushSpatialAcceleration();
 
 	const auto& GetRigidClustering() const { return Clustering; }
 	auto& GetRigidClustering() { return Clustering; }
@@ -419,69 +630,34 @@ protected:
 		}
 	}
 
-
-	/** Used for building an acceleration structure out of cached bounds and payloads */
-	struct FAccelerationStructureBuilder
-	{
-		//todo: should these be arrays instead? might make it easier in some cases
-		bool bHasBoundingBox;
-		TBox<T, d> CachedSpatialBounds;
-		TAccelerationStructureHandle<T,d> CachedSpatialPayload;
-
-		const TBox<T, d>& BoundingBox() const
-		{
-			return CachedSpatialBounds;
-		}
-
-		bool HasBoundingBox() const
-		{
-			return bHasBoundingBox;
-		}
-
-		template <typename TPayloadType>
-		TAccelerationStructureHandle<T, d> GetPayload(int32 Idx) const
-		{
-			return CachedSpatialPayload;
-		}
-	};
-
 	/** Used for async acceleration rebuild */
-	TMap<TGeometryParticleHandle<T, d>*, int32> ParticleToCacheIdx;
+	TMap<TGeometryParticleHandle<T, d>*, uint32> ParticleToCacheInnerIdx;
 
-	struct FAccelerationStructBuilderCache
-	{
-		FSpatialAccelerationIdx SpatialIdx;
-		TUniquePtr <TArray<FAccelerationStructureBuilder>> CachedSpatialBuilderData;
-
-		FAccelerationStructBuilderCache(FSpatialAccelerationIdx Idx)
-			: SpatialIdx(Idx)
-			, CachedSpatialBuilderData(MakeUnique<TArray<FAccelerationStructureBuilder>>())
-		{}
-	};
-	TArray<FAccelerationStructBuilderCache> CachedSpatialBuilderDataMap;
+	TMap<FSpatialAccelerationIdx, TSpatialAccelerationCache<T, d>> SpatialAccelerationCache;
 
 	FORCEINLINE_DEBUGGABLE void ApplyParticlePendingData(TGeometryParticleHandle<T, d>* Particle, const FPendingSpatialData& PendingData, FAccelerationStructure& SpatialAcceleration, bool bAsync);
 
 	class FChaosAccelerationStructureTask
 	{
 	public:
-		FChaosAccelerationStructureTask(const TArray<FAccelerationStructBuilderCache>& BuilderCacheMap, TUniquePtr<FAccelerationStructure>& InAccelerationStructure,
-			TUniquePtr<FAccelerationStructure>& InAccelerationStructureCopy);
+		FChaosAccelerationStructureTask(ISpatialAccelerationCollectionFactory<T,d>& InSpatialCollectionFactory
+			, const TMap<FSpatialAccelerationIdx, TSpatialAccelerationCache<T,d>>& InSpatialAccelerationCache
+			, TUniquePtr<FAccelerationStructure>& InAccelerationStructure
+			, TUniquePtr<FAccelerationStructure>& InAccelerationStructureCopy);
 		static FORCEINLINE TStatId GetStatId();
 		static FORCEINLINE ENamedThreads::Type GetDesiredThread();
 		static FORCEINLINE ESubsequentsMode::Type GetSubsequentsMode();
 		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
 
-		const TArray<FAccelerationStructBuilderCache>& BuilderCacheMap;
+		ISpatialAccelerationCollectionFactory<T, d>& SpatialCollectionFactory;
+		const TMap<FSpatialAccelerationIdx, TSpatialAccelerationCache<T, d>>& SpatialAccelerationCache;
 		TUniquePtr<FAccelerationStructure>& AccelerationStructure;
 		TUniquePtr<FAccelerationStructure>& AccelerationStructureCopy;
 	};
 	FGraphEventRef AccelerationStructureTaskComplete;
 
 	int32 NumIterations;
-
-	static ISpatialAccelerationCollection<TAccelerationStructureHandle<T, d>, T, d>* CreateNewSpatialStructure();
-	void InitializeAccelerationCache();
+	TUniquePtr<ISpatialAccelerationCollectionFactory<T, d>> SpatialCollectionFactory;
 };
 
 }

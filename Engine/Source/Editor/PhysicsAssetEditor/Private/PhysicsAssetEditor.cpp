@@ -565,6 +565,8 @@ void FPhysicsAssetEditor::ExtendMenu()
 			const FPhysicsAssetEditorCommands& Commands = FPhysicsAssetEditorCommands::Get();
 			MenuBarBuilder.BeginSection("Selection", LOCTEXT("PhatEditSelection", "Selection"));
 			MenuBarBuilder.AddMenuEntry(Commands.SelectAllBodies);
+			MenuBarBuilder.AddMenuEntry(Commands.SelectSimulatedBodies);
+			MenuBarBuilder.AddMenuEntry(Commands.SelectKinematicBodies);
 			MenuBarBuilder.AddMenuEntry(Commands.SelectAllConstraints);
 			MenuBarBuilder.AddMenuEntry(Commands.ToggleSelectionType);
 			MenuBarBuilder.AddMenuEntry(Commands.DeselectAll);
@@ -805,6 +807,16 @@ void FPhysicsAssetEditor::BindCommands()
 		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::IsNotSimulation));
 
 	ToolkitCommands->MapAction(
+		Commands.SelectSimulatedBodies,
+		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnSelectSimulatedBodies),
+		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::IsNotSimulation));
+
+	ToolkitCommands->MapAction(
+		Commands.SelectKinematicBodies,
+		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnSelectKinematicBodies),
+		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::IsNotSimulation));
+
+	ToolkitCommands->MapAction(
 		Commands.SelectAllConstraints,
 		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnSelectAllConstraints),
 		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::IsNotSimulation));
@@ -966,6 +978,18 @@ void FPhysicsAssetEditor::BindCommands()
 		FIsActionChecked::CreateSP(this, &FPhysicsAssetEditor::IsRenderingOnlySelectedSolid));
 
 	ViewportCommandList->MapAction(
+		Commands.HideSimulatedBodies,
+		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::ToggleHideSimulatedBodies),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FPhysicsAssetEditor::IsHidingSimulatedBodies));
+
+	ViewportCommandList->MapAction(
+		Commands.HideKinematicBodies,
+		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::ToggleHideKinematicBodies),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FPhysicsAssetEditor::IsHidingKinematicBodies));
+
+	ViewportCommandList->MapAction(
 		Commands.DrawConstraintsAsPoints,
 		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::ToggleDrawConstraintsAsPoints),
 		FCanExecuteAction(),
@@ -990,6 +1014,20 @@ void FPhysicsAssetEditor::BindCommands()
 		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::HandleToggleShowBodies),
 		FCanExecuteAction(),
 		FGetActionCheckState::CreateSP(this, &FPhysicsAssetEditor::GetShowBodiesChecked)
+	);
+
+	SkeletonTreeCommandList->MapAction(
+		Commands.ShowSimulatedBodies,
+		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::HandleToggleShowSimulatedBodies),
+		FCanExecuteAction(),
+		FGetActionCheckState::CreateSP(this, &FPhysicsAssetEditor::GetShowSimulatedBodiesChecked)
+	);
+
+	SkeletonTreeCommandList->MapAction(
+		Commands.ShowKinematicBodies,
+		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::HandleToggleShowKinematicBodies),
+		FCanExecuteAction(),
+		FGetActionCheckState::CreateSP(this, &FPhysicsAssetEditor::GetShowKinematicBodiesChecked)
 	);
 
 	SkeletonTreeCommandList->MapAction(
@@ -1202,6 +1240,8 @@ void FPhysicsAssetEditor::BuildMenuWidgetSelection(FMenuBuilder& InMenuBuilder)
 
 		InMenuBuilder.BeginSection( "Selection", LOCTEXT("Selection", "Selection" ) );
 		InMenuBuilder.AddMenuEntry( Commands.SelectAllBodies );
+		InMenuBuilder.AddMenuEntry(Commands.SelectSimulatedBodies);
+		InMenuBuilder.AddMenuEntry(Commands.SelectKinematicBodies);
 		InMenuBuilder.AddMenuEntry( Commands.SelectAllConstraints );
 		InMenuBuilder.AddMenuEntry( Commands.ToggleSelectionType );
 		InMenuBuilder.EndSection();
@@ -1220,6 +1260,8 @@ TSharedRef<ISkeletonTree> FPhysicsAssetEditor::BuildMenuWidgetNewConstraintForBo
 
 	TSharedRef<FPhysicsAssetEditorSkeletonTreeBuilder> Builder = MakeShared<FPhysicsAssetEditorSkeletonTreeBuilder>(SharedData->PhysicsAsset, SkeletonTreeBuilderArgs);
 	Builder->bShowBodies = true;
+	Builder->bShowSimulatedBodies = true;
+	Builder->bShowKinematicBodies = true;
 	Builder->bShowConstraints = false;
 	Builder->bShowPrimitives = false;
 
@@ -1355,6 +1397,10 @@ void FPhysicsAssetEditor::AddNewPrimitive(EAggCollisionShape::Type InPrimitiveTy
 {
 	check(!bCopySelected || SharedData->SelectedBodies.Num() == 1);	//we only support this for one selection
 	int32 NewPrimIndex = 0;
+	if (SharedData->EditorSkelComp)
+	{
+		SharedData->EditorSkelComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	}
 	TArray<FPhysicsAssetEditorSharedData::FSelection> NewSelection;
 	{
 		// Make sure rendering is done - so we are not changing data being used by collision drawing.
@@ -1651,7 +1697,10 @@ void FPhysicsAssetEditor::ResetBoneCollision()
 	{
 		return;
 	}
-
+	if (SharedData->EditorSkelComp)
+	{
+		SharedData->EditorSkelComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	}
 	// Make sure rendering is done - so we are not changing data being used by collision drawing.
 	FlushRenderingCommands();
 
@@ -2024,9 +2073,31 @@ void FPhysicsAssetEditor::ToggleRenderOnlySelectedSolid()
 	SharedData->EditorOptions->SaveConfig();
 }
 
+void FPhysicsAssetEditor::ToggleHideSimulatedBodies()
+{
+	SharedData->EditorOptions->bHideSimulatedBodies = !SharedData->EditorOptions->bHideSimulatedBodies;
+	SharedData->EditorOptions->SaveConfig();
+}
+
+void FPhysicsAssetEditor::ToggleHideKinematicBodies()
+{
+	SharedData->EditorOptions->bHideKinematicBodies = !SharedData->EditorOptions->bHideKinematicBodies;
+	SharedData->EditorOptions->SaveConfig();
+}
+
 bool FPhysicsAssetEditor::IsRenderingOnlySelectedSolid() const
 {
 	return SharedData->EditorOptions->bSolidRenderingForSelectedOnly;
+}
+
+bool FPhysicsAssetEditor::IsHidingSimulatedBodies() const
+{
+	return SharedData->EditorOptions->bHideSimulatedBodies;
+}
+
+bool FPhysicsAssetEditor::IsHidingKinematicBodies() const
+{
+	return SharedData->EditorOptions->bHideKinematicBodies;
 }
 
 bool FPhysicsAssetEditor::IsConstraintRenderingMode(EPhysicsAssetEditorConstraintViewMode Mode, bool bSimulation) const
@@ -2532,6 +2603,70 @@ void FPhysicsAssetEditor::OnSelectAllBodies()
 	}
 }
 
+void FPhysicsAssetEditor::OnSelectKinematicBodies()
+{
+	OnSelectBodies(EPhysicsType::PhysType_Kinematic);
+}
+
+void FPhysicsAssetEditor::OnSelectSimulatedBodies()
+{
+	OnSelectBodies(EPhysicsType::PhysType_Simulated);
+}
+
+void FPhysicsAssetEditor::OnSelectBodies(EPhysicsType PhysicsType)
+{
+	UPhysicsAsset * const PhysicsAsset = SharedData->EditorSkelComp->GetPhysicsAsset();
+
+	// Block selection broadcast until we have selected all, as this can be an expensive operation
+	FScopedBulkSelection BulkSelection(SharedData);
+
+	//Bodies
+	//first deselect everything
+	SharedData->ClearSelectedBody();
+
+	//go through every body and add every geom
+	for (int32 i = 0; i < PhysicsAsset->SkeletalBodySetups.Num(); ++i)
+	{
+		int32 BoneIndex = SharedData->EditorSkelComp->GetBoneIndex(PhysicsAsset->SkeletalBodySetups[i]->BoneName);
+		if (PhysicsAsset->SkeletalBodySetups[i]->PhysicsType == PhysicsType)
+		{
+			// If we found a bone for it, add all geom
+			if (BoneIndex != INDEX_NONE)
+			{
+				FKAggregateGeom* AggGeom = &PhysicsAsset->SkeletalBodySetups[i]->AggGeom;
+				for (int32 j = 0; j < AggGeom->SphereElems.Num(); ++j)
+				{
+					FPhysicsAssetEditorSharedData::FSelection Selection(i, EAggCollisionShape::Sphere, j);
+					SharedData->SetSelectedBody(Selection, true);
+				}
+
+				for (int32 j = 0; j < AggGeom->BoxElems.Num(); ++j)
+				{
+					FPhysicsAssetEditorSharedData::FSelection Selection(i, EAggCollisionShape::Box, j);
+					SharedData->SetSelectedBody(Selection, true);
+				}
+
+				for (int32 j = 0; j < AggGeom->SphylElems.Num(); ++j)
+				{
+					FPhysicsAssetEditorSharedData::FSelection Selection(i, EAggCollisionShape::Sphyl, j);
+					SharedData->SetSelectedBody(Selection, true);
+				}
+
+				for (int32 j = 0; j < AggGeom->ConvexElems.Num(); ++j)
+				{
+					FPhysicsAssetEditorSharedData::FSelection Selection(i, EAggCollisionShape::Convex, j);
+					SharedData->SetSelectedBody(Selection, true);
+				}
+				for (int32 j = 0; j < AggGeom->TaperedCapsuleElems.Num(); ++j)
+				{
+					FPhysicsAssetEditorSharedData::FSelection Selection(i, EAggCollisionShape::TaperedCapsule, j);
+					SharedData->SetSelectedBody(Selection, true);
+				}
+			}
+		}
+	}
+}
+
 void FPhysicsAssetEditor::OnSelectAllConstraints()
 {
 	UPhysicsAsset * const PhysicsAsset = SharedData->EditorSkelComp->GetPhysicsAsset();
@@ -2848,6 +2983,8 @@ void FPhysicsAssetEditor::HandleExtendFilterMenu(FMenuBuilder& InMenuBuilder)
 	InMenuBuilder.BeginSection(TEXT("PhysicsAssetFilters"), LOCTEXT("PhysicsAssetFiltersHeader", "Physics Asset Filters"));
 	{
 		InMenuBuilder.AddMenuEntry(Commands.ShowBodies);
+		InMenuBuilder.AddMenuEntry(Commands.ShowSimulatedBodies);
+		InMenuBuilder.AddMenuEntry(Commands.ShowKinematicBodies);
 		InMenuBuilder.AddMenuEntry(Commands.ShowConstraints);
 		InMenuBuilder.AddMenuEntry(Commands.ShowPrimitives);
 	}
@@ -2858,6 +2995,18 @@ void FPhysicsAssetEditor::HandleExtendFilterMenu(FMenuBuilder& InMenuBuilder)
 void FPhysicsAssetEditor::HandleToggleShowBodies()
 {
 	SkeletonTreeBuilder->bShowBodies = !SkeletonTreeBuilder->bShowBodies;
+	SkeletonTree->RefreshFilter();
+}
+
+void FPhysicsAssetEditor::HandleToggleShowSimulatedBodies()
+{
+	SkeletonTreeBuilder->bShowSimulatedBodies = !SkeletonTreeBuilder->bShowSimulatedBodies;
+	SkeletonTree->RefreshFilter();
+}
+
+void FPhysicsAssetEditor::HandleToggleShowKinematicBodies()
+{
+	SkeletonTreeBuilder->bShowKinematicBodies = !SkeletonTreeBuilder->bShowKinematicBodies;
 	SkeletonTree->RefreshFilter();
 }
 
@@ -2876,6 +3025,16 @@ void FPhysicsAssetEditor::HandleToggleShowPrimitives()
 ECheckBoxState FPhysicsAssetEditor::GetShowBodiesChecked() const
 {
 	return SkeletonTreeBuilder->bShowBodies ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+ECheckBoxState FPhysicsAssetEditor::GetShowSimulatedBodiesChecked() const
+{
+	return SkeletonTreeBuilder->bShowSimulatedBodies ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+ECheckBoxState FPhysicsAssetEditor::GetShowKinematicBodiesChecked() const
+{
+	return SkeletonTreeBuilder->bShowKinematicBodies ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
 ECheckBoxState FPhysicsAssetEditor::GetShowConstraintsChecked() const

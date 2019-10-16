@@ -13,22 +13,6 @@
 DECLARE_LOG_CATEGORY_EXTERN(LogAndroidRuntimeSettings, Log, All);
 
 UENUM()
-namespace EAndroidAntVerbosity
-{
-	enum Type
-	{
-		/** Extra quiet logging (-quiet), errors will be logged by second run at normal verbosity. */
-		Quiet,
-
-		/** Normal logging (no options) */
-		Normal,
-
-		/** Extra verbose logging (-verbose) */
-		Verbose,
-	};
-}
-
-UENUM()
 namespace EAndroidScreenOrientation
 {
 	// IF THIS CHANGES, MAKE SURE TO UPDATE UEDeployAndroid.cs, ConvertOrientationIniValue()!
@@ -287,10 +271,6 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Restore scheduled notifications on reboot"))
 	bool bRestoreNotificationsOnReboot;
 
-	// Level of verbosity to use during packaging with Ant
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging")
-	TEnumAsByte<EAndroidAntVerbosity::Type> AntVerbosity;
-
 	// Should the software navigation buttons be hidden or not
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Enable FullScreen Immersive on KitKat and above devices."))
 	bool bFullScreen;
@@ -520,6 +500,10 @@ public:
 
 	UPROPERTY(config, EditAnywhere, Category = "Audio|CookOverrides")
 	bool bResampleForDevice;
+
+	/** Quality Level to COOK SoundCues at (if set, all other levels will be stripped by the cooker). */
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Audio|CookOverrides", meta = (DisplayName = "Sound Cue Cook Quality"))
+	int32 SoundCueCookQualityIndex = INDEX_NONE;
 
 	// Mapping of which sample rates are used for each sample rate quality for a specific platform.
 

@@ -8,6 +8,9 @@
 #include "Internationalization/Regex.h"
 #include "Misc/MessageDialog.h"
 #include "Widgets/Layout/SExpandableArea.h"
+#include "HAL/FileManagerGeneric.h"
+#include "DOM/JsonObject.h"
+#include "Serialization/JsonSerializer.h"
 
 #define LOCTEXT_NAMESPACE "OculusPlatformToolWidget"
 
@@ -20,12 +23,14 @@ SOculusPlatformToolWidget::SOculusPlatformToolWidget()
 {
 	LogTextUpdated = false;
 	ActiveUploadButton = true;
-
-	LoadConfigSettings();
+	Options2DCollapsed = true;
+	OptionsRedistPackagesCollapsed = true;
 
 	EnableUploadButtonDel.BindRaw(this, &SOculusPlatformToolWidget::EnableUploadButton);
 	UpdateLogTextDel.BindRaw(this, &SOculusPlatformToolWidget::UpdateLogText);
 	SetProcessDel.BindRaw(this, &SOculusPlatformToolWidget::SetPlatformProcess);
+
+	LoadConfigSettings();
 
 	ovrp_SendEvent2("oculus_platform_tool", "show_window", "integration");
 }
@@ -50,9 +55,25 @@ void SOculusPlatformToolWidget::Construct(const FArguments& InArgs)
 
 	auto buttonToolbarBox = SNew(SHorizontalBox);
 	ButtonToolbar = buttonToolbarBox;
-	
+
+	auto optionalSettings = SNew(SVerticalBox);
+	OptionalSettings = optionalSettings;
+
+	auto expansionFilesSettings = SNew(SVerticalBox);
+	ExpansionFilesSettings = expansionFilesSettings;
+
 	BuildGeneralSettingsBox(GeneralSettingsBox);
 	BuildButtonToolbar(ButtonToolbar);
+	BuildExpansionFileBox(ExpansionFilesSettings);
+
+	if (PlatformSettings->GetTargetPlatform() == (uint8)EOculusPlatformTarget::Rift)
+	{
+		BuildRiftOptionalFields(OptionalSettings);
+	}
+	else
+	{
+		OptionalSettings.Get()->ClearChildren();
+	}
 
 	ChildSlot
 	[
@@ -83,6 +104,56 @@ void SOculusPlatformToolWidget::Construct(const FArguments& InArgs)
 					.BodyContent()
 					[
 						mainVerticalBox
+					]
+				]
+				+ SScrollBox::Slot()
+				[
+					SNew(SExpandableArea)
+					.HeaderPadding(5)
+					.Padding(5)
+					.BorderBackgroundColor(FLinearColor(0.4f, 0.4f, 0.4f, 1.0f))
+					.BodyBorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BodyBorderBackgroundColor(FLinearColor::White)
+					.InitiallyCollapsed(true)
+					.HeaderContent()
+					[
+						SNew(SRichTextBlock)
+						.TextStyle(FEditorStyle::Get(), "ToolBar.Heading")
+						.DecoratorStyleSet(&FEditorStyle::Get()).AutoWrapText(true)
+						.Text(LOCTEXT("OptionalSettings", "<RichTextBlock.Bold>Optional Settings</>"))
+					]
+					.BodyContent()
+					[
+						SNew(SVerticalBox)
+						+ SVerticalBox::Slot().AutoHeight()
+						[
+							optionalSettings
+						]
+					]
+				]
+				+ SScrollBox::Slot()
+				[
+					SNew(SExpandableArea)
+					.HeaderPadding(5)
+					.Padding(5)
+					.BorderBackgroundColor(FLinearColor(0.4f, 0.4f, 0.4f, 1.0f))
+					.BodyBorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BodyBorderBackgroundColor(FLinearColor::White)
+					.InitiallyCollapsed(true)
+					.HeaderContent()
+					[
+						SNew(SRichTextBlock)
+						.TextStyle(FEditorStyle::Get(), "ToolBar.Heading")
+						.DecoratorStyleSet(&FEditorStyle::Get()).AutoWrapText(true)
+						.Text(LOCTEXT("ExpansionFileSettings", "<RichTextBlock.Bold>Expansion Files</>"))
+					]
+					.BodyContent()
+					[
+						SNew(SVerticalBox)
+						+ SVerticalBox::Slot().AutoHeight()
+						[
+							expansionFilesSettings
+						]
 					]
 				]
 			]
@@ -213,6 +284,32 @@ void SOculusPlatformToolWidget::BuildTextComboBoxField(TSharedPtr<SVerticalBox> 
 	];
 }
 
+void SOculusPlatformToolWidget::BuildCheckBoxField(TSharedPtr<SVerticalBox> box, FText name, bool check, FText tooltip, PCheckBoxChangedDel deleg)
+{
+	box.Get()->AddSlot()
+	.Padding(1)
+	.AutoHeight()
+	[
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot().Padding(1).AutoWidth()
+		[
+			SNew(SBox)
+			.WidthOverride(250.f)
+			[
+				SNew(SRichTextBlock)
+				.DecoratorStyleSet(&FEditorStyle::Get())
+				.Text(name)
+			]
+		]
+		+ SHorizontalBox::Slot().Padding(1).FillWidth(1.f)
+		[
+			SNew(SCheckBox)
+			.OnCheckStateChanged(this, deleg)
+			.IsChecked(check ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
+		]
+	];
+}
+
 void SOculusPlatformToolWidget::BuildFileDirectoryField(TSharedPtr<SVerticalBox> box, FText name, FText path, FText tooltip, 
 	PButtonClickedDel deleg, PButtonClickedDel clearDeleg)
 {
@@ -279,6 +376,236 @@ void SOculusPlatformToolWidget::BuildButtonToolbar(TSharedPtr<SHorizontalBox> bo
 	box.Get()->AddSlot().FillWidth(1.f);
 }
 
+void SOculusPlatformToolWidget::BuildRiftOptionalFields(TSharedPtr<SVerticalBox> box)
+{
+	box.Get()->ClearChildren();
+
+	// Add Launch Parameter Field
+	BuildTextField(box, LOCTEXT("LaunchParams", "Launch Parameters"), FText::FromString(PlatformSettings->OculusRiftLaunchParams),
+		LOCTEXT("LaunchParamsTT", ""),
+		&SOculusPlatformToolWidget::OnRiftLaunchParamsChanged);
+
+	// Add Firewall Exception Toggle
+	BuildCheckBoxField(box, LOCTEXT("Firewall", "Firewall Exception"), PlatformSettings->OculusRiftFireWallException,
+		LOCTEXT("FirewallTT", ""),
+		&SOculusPlatformToolWidget::OnRiftFirewallChanged);
+
+	// Add Gamepad Emulation Dropdown
+	BuildTextComboBoxField(box, LOCTEXT("GamepadEmu", "Gamepad Emulation"),
+		&RiftGamepadEmulation, RiftGamepadEmulation[(uint8)PlatformSettings->GetRiftGamepadEmulation()],
+		&SOculusPlatformToolWidget::OnRiftGamepadEmulationChanged);
+	
+	// Generate 2D Settings Expandable Area
+	TSharedRef<SVerticalBox> settings2DBox = SNew(SVerticalBox);
+
+	// Add 2D Launch File Field
+	BuildFileDirectoryField(settings2DBox, LOCTEXT("2DLaunch", "2D Launch File"), FText::FromString(PlatformSettings->OculusRift2DLaunchPath),
+		LOCTEXT("2DLaunchPathTT", ""),
+		&SOculusPlatformToolWidget::OnSelect2DLaunchPath, &SOculusPlatformToolWidget::OnClear2DLaunchPath);
+
+	// Add 2D Launch Parameter Field
+	BuildTextField(settings2DBox, LOCTEXT("2DLaunchParams", "2D Launch Parameters"), FText::FromString(PlatformSettings->OculusRift2DLaunchParams),
+		LOCTEXT("2DLaunchParamsTT", ""),
+		&SOculusPlatformToolWidget::On2DLaunchParamsChanged);
+
+	box.Get()->AddSlot().AutoHeight().Padding(1)
+	[
+		SNew(SExpandableArea)
+		.HeaderPadding(5)
+		.Padding(5)
+		.BorderBackgroundColor(FLinearColor(0.4f, 0.4f, 0.4f, 1.0f))
+		.BodyBorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BodyBorderBackgroundColor(FLinearColor::White)
+		.InitiallyCollapsed(Options2DCollapsed)
+		.OnAreaExpansionChanged(this, &SOculusPlatformToolWidget::On2DOptionsExpanded)
+		.HeaderContent()
+		[
+			SNew(SRichTextBlock)
+			.TextStyle(FEditorStyle::Get(), "ToolBar.Heading")
+			.DecoratorStyleSet(&FEditorStyle::Get()).AutoWrapText(true)
+			.Text(LOCTEXT("2DSettings", "<RichTextBlock.Bold>2D Settings</>"))
+		]
+		.BodyContent()
+		[
+			settings2DBox
+		]
+	];
+
+	BuildRedistPackagesBox(box);
+}
+
+void SOculusPlatformToolWidget::BuildRedistPackagesBox(TSharedPtr<SVerticalBox> box)
+{
+	// Create check box toggle for each redistributable package we loaded
+	TSharedRef<SVerticalBox> redistBox = SNew(SVerticalBox);
+	for (int i = 0; i < PlatformSettings->OculusRedistPackages.Num(); i++)
+	{
+		FRedistPackage* Package = &PlatformSettings->OculusRedistPackages[i];
+		redistBox->AddSlot()
+		.Padding(1)
+		.AutoHeight()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().Padding(1).AutoWidth()
+			[
+				SNew(SBox)
+				.WidthOverride(250.f)
+				[
+					SNew(SRichTextBlock)
+					.DecoratorStyleSet(&FEditorStyle::Get())
+					.Text(FText::FromString(Package->Name))
+				]
+			]
+			+ SHorizontalBox::Slot().Padding(1).FillWidth(1.f)
+			[
+				SNew(SCheckBox)
+				.OnCheckStateChanged(this, &SOculusPlatformToolWidget::OnRedistPackageStateChanged, Package)
+				.IsChecked(Package->Included ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
+			]
+		];
+	}
+
+	box.Get()->AddSlot().AutoHeight().Padding(1)
+	[
+		SNew(SExpandableArea)
+		.HeaderPadding(5)
+		.Padding(5)
+		.BorderBackgroundColor(FLinearColor(0.4f, 0.4f, 0.4f, 1.0f))
+		.BodyBorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BodyBorderBackgroundColor(FLinearColor::White)
+		.InitiallyCollapsed(OptionsRedistPackagesCollapsed)
+		.OnAreaExpansionChanged(this, &SOculusPlatformToolWidget::OnRedistPackagesExpanded)
+		.HeaderContent()
+		[
+			SNew(SRichTextBlock)
+			.TextStyle(FEditorStyle::Get(), "ToolBar.Heading")
+			.DecoratorStyleSet(&FEditorStyle::Get()).AutoWrapText(true)
+			.Text(LOCTEXT("RedistPack", "<RichTextBlock.Bold>Redistributable Packages</>"))
+		]
+		.BodyContent()
+		[
+			redistBox
+		]
+	];
+}
+
+void SOculusPlatformToolWidget::BuildExpansionFileBox(TSharedPtr<SVerticalBox> box)
+{
+	ExpansionFilesSettings.Get()->ClearChildren();
+
+	if (PlatformSettings->GetTargetPlatform() == (uint8)EOculusPlatformTarget::Rift)
+	{
+		BuildFileDirectoryField(box, LOCTEXT("LanguagePacks", "Language Packs Directory"), FText::FromString(PlatformSettings->GetLanguagePacksPath()),
+			LOCTEXT("LanguagePacksTT", ""), &SOculusPlatformToolWidget::OnSelectLanguagePacksPath, &SOculusPlatformToolWidget::OnClearLanguagePacksPath);
+	}
+
+	BuildFileDirectoryField(box, LOCTEXT("ExpansionFilesDirectory", "Expansion Files Directory"), FText::FromString(PlatformSettings->GetExpansionFilesPath()),
+		LOCTEXT("ExpansionFilesTT", ""), &SOculusPlatformToolWidget::OnSelectExpansionFilesPath, &SOculusPlatformToolWidget::OnClearExpansionFilesPath);
+
+	TArray<FAssetConfig>* AssetConfigs = PlatformSettings->GetAssetConfigs();
+	if (AssetConfigs)
+	{
+		for (int i = 0; i < AssetConfigs->Num(); i++)
+		{
+			auto AssetConfigBox = SNew(SVerticalBox);
+			BuildAssetConfigBox(AssetConfigBox, (*AssetConfigs)[i], i);
+
+			box.Get()->AddSlot().AutoHeight().Padding(1)
+			[
+				SNew(SExpandableArea)
+				.HeaderPadding(5)
+				.Padding(5)
+				.BorderBackgroundColor(FLinearColor(0.4f, 0.4f, 0.4f, 1.0f))
+				.BodyBorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BodyBorderBackgroundColor(FLinearColor::White)
+				.HeaderContent()
+				[
+					SNew(SRichTextBlock)
+					.TextStyle(FEditorStyle::Get(), "ToolBar.Heading")
+					.DecoratorStyleSet(&FEditorStyle::Get()).AutoWrapText(true)
+					.Text(FText::FromString((*AssetConfigs)[i].Name))
+				]
+				.BodyContent()
+				[
+					AssetConfigBox
+				]
+			];
+		}
+	}
+}
+
+void SOculusPlatformToolWidget::BuildAssetConfigBox(TSharedPtr<SVerticalBox> box, FAssetConfig config, int index)
+{
+	box.Get()->AddSlot()
+	.Padding(1)
+	.AutoHeight()
+	[
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot().Padding(1).AutoWidth()
+		[
+			SNew(SBox)
+			.WidthOverride(250.f)
+			[
+				SNew(SRichTextBlock)
+				.DecoratorStyleSet(&FEditorStyle::Get())
+				.Text(LOCTEXT("AssetType", "Asset Type"))
+			]
+		]
+		+ SHorizontalBox::Slot().Padding(1).FillWidth(1.f)
+		[
+			SNew(STextComboBox)
+			.OptionsSource(&AssetType)
+			.InitiallySelectedItem(AssetType[(uint8)config.AssetType])
+			.OnSelectionChanged(this, &SOculusPlatformToolWidget::OnAssetConfigTypeChanged, index)
+		]
+	];
+
+	box.Get()->AddSlot()
+	.Padding(1)
+	.AutoHeight()
+	[
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot().Padding(1).AutoWidth()
+		[
+			SNew(SBox)
+			.WidthOverride(250.f)
+			[
+				SNew(SRichTextBlock)
+				.DecoratorStyleSet(&FEditorStyle::Get())
+				.Text(LOCTEXT("AssetRequired", "Required"))
+			]
+		]
+		+ SHorizontalBox::Slot().Padding(1).FillWidth(1.f)
+		[
+			SNew(SCheckBox)
+			.OnCheckStateChanged(this, &SOculusPlatformToolWidget::OnAssetConfigRequiredChanged, index)
+			.IsChecked(config.Required ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
+		]
+	];
+
+	box.Get()->AddSlot()
+	.Padding(1)
+	.AutoHeight()
+	[
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot().Padding(1).AutoWidth()
+		[
+			SNew(SBox)
+			.WidthOverride(250.f)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("SKU", "SKU"))
+			]
+		]
+		+ SHorizontalBox::Slot().Padding(1).FillWidth(1.f)
+		[
+			SNew(SEditableTextBox)
+			.Text(FText::FromString(config.Sku))
+			.OnTextCommitted(this, &SOculusPlatformToolWidget::OnAssetConfigSKUChanged, index)
+		]
+	];
+}
+
 bool SOculusPlatformToolWidget::ConstructArguments(FString& args)
 {
 	// Build the args string that will be passed to the CLI. Print all errors that occur to the log.
@@ -341,6 +668,64 @@ bool SOculusPlatformToolWidget::ConstructArguments(FString& args)
 		ValidateTextField(&SOculusPlatformToolWidget::GenericFieldValidator, PlatformSettings->OculusRiftBuildVersion,
 			LOCTEXT("BuildVersion", "Build Version").ToString(), success);
 		args += " --version \"" + PlatformSettings->OculusRiftBuildVersion + "\"";
+
+		// Rift Launch Parameters check and command
+		if (!PlatformSettings->OculusRiftLaunchParams.IsEmpty())
+		{
+			ValidateTextField(&SOculusPlatformToolWidget::LaunchParamValidator, PlatformSettings->OculusRiftLaunchParams,
+				LOCTEXT("LaunchParam", "Launch Parameters").ToString(), success);
+			args += " --launch_params \"" + PlatformSettings->OculusRiftLaunchParams + "\"";
+		}
+
+		// Rift 2D Options checks and commands
+		if (!PlatformSettings->OculusRift2DLaunchPath.IsEmpty())
+		{
+			ValidateTextField(&SOculusPlatformToolWidget::FileFieldValidator, PlatformSettings->OculusRift2DLaunchPath,
+				LOCTEXT("2DLaunchFile", "2D Launch File Path").ToString(), success);
+			args += " --launch_file_2d \"" + PlatformSettings->OculusRift2DLaunchPath + "\"";
+
+			if (!PlatformSettings->OculusRift2DLaunchParams.IsEmpty())
+			{
+				ValidateTextField(&SOculusPlatformToolWidget::LaunchParamValidator, PlatformSettings->OculusRift2DLaunchParams,
+					LOCTEXT("2DLaunchParams", "2D Launch Parameters").ToString(), success);
+				args += " --launch_params_2d \"" + PlatformSettings->OculusRift2DLaunchParams + "\"";
+			}
+		}
+
+		// Rift Firewall Exception command
+		if (PlatformSettings->OculusRiftFireWallException)
+		{
+			args += " --firewall_exceptions true";
+		}
+
+		// Rift Gamepad Emulation command
+		if (PlatformSettings->GetRiftGamepadEmulation() > EOculusGamepadEmulation::Off &&
+			PlatformSettings->GetRiftGamepadEmulation() < EOculusGamepadEmulation::Length)
+		{
+			args += " --gamepad-emulation ";
+			switch (PlatformSettings->GetRiftGamepadEmulation())
+			{
+				case EOculusGamepadEmulation::Twinstick: args += "TWINSTICK";   break;
+				case EOculusGamepadEmulation::RightDPad: args += "RIGHT_D_PAD"; break;
+				case EOculusGamepadEmulation::LeftDPad:  args += "LEFT_D_PAD";  break;
+				default:								 args += "OFF";			break;
+			}
+		}
+
+		// Rift Redistributable Packages commands
+		TArray<FString> IncludedPackages;
+		for (int i = 0; i < PlatformSettings->OculusRedistPackages.Num(); i++)
+		{
+			FRedistPackage Package = PlatformSettings->OculusRedistPackages[i];
+			if (Package.Included)
+			{
+				IncludedPackages.Add(Package.Id);
+			}
+		}
+		if (IncludedPackages.Num() > 0)
+		{
+			args += " --redistributables \"" + FString::Join(IncludedPackages, TEXT(",")) + "\"";
+		}
 	}
 	else
 	{
@@ -350,6 +735,60 @@ bool SOculusPlatformToolWidget::ConstructArguments(FString& args)
 		args += " --apk \"" + PlatformSettings->GetLaunchFilePath() + "\"";
 	}
 
+	if (!PlatformSettings->GetExpansionFilesPath().IsEmpty())
+	{
+		ValidateTextField(&SOculusPlatformToolWidget::DirectoryFieldValidator, PlatformSettings->GetExpansionFilesPath(),
+			LOCTEXT("ExpansionFilesPath", "Expansion Files Path").ToString(), success);
+		args += " --assets-dir \"" + PlatformSettings->GetExpansionFilesPath() + "\"";
+
+		TArray<FAssetConfig>* AssetConfigs = PlatformSettings->GetAssetConfigs();
+		if (AssetConfigs->Num() > 0)
+		{
+			TArray<FString> AssetConfig;
+			for (int i = 0; i < AssetConfigs->Num(); i++)
+			{
+				TArray<FString> ConfigParams;
+				FAssetConfig Config = (*AssetConfigs)[i];
+
+				if (Config.Required)
+				{
+					ConfigParams.Add("\\\"required\\\":true");
+				}
+				if (Config.AssetType > EOculusAssetType::Default && Config.AssetType < EOculusAssetType::Length)
+				{
+					FString command = "\\\"type\\\":";
+					switch (Config.AssetType)
+					{
+						case EOculusAssetType::Store:
+							ConfigParams.Add(command + "\\\"STORE\\\"");
+							break;
+						case EOculusAssetType::Language_Pack:
+							ConfigParams.Add(command + "\\\"LANGUAGE_PACK\\\"");
+							break;
+						default:
+							ConfigParams.Add(command + "\\\"DEFAULT\\\"");
+							break;
+					}
+				}
+				if (!Config.Sku.IsEmpty())
+				{
+					ConfigParams.Add("\\\"sku\\\":\\\"" + Config.Sku + "\\\"");
+				}
+
+				if (ConfigParams.Num() > 0)
+				{
+					FString ConfigCommand = "\\\"" + Config.Name + "\\\":{" + FString::Join(ConfigParams, TEXT(",")) + "}";
+					AssetConfig.Add(ConfigCommand);
+				}
+			}
+
+			if (AssetConfig.Num())
+			{
+				args += " --asset_files_config {" + FString::Join(AssetConfig, TEXT(",")) + "}";
+			}
+		}
+	}
+	UE_LOG(LogTemp, Warning, TEXT("%s"), *args);
 	return success;
 }
 
@@ -363,12 +802,30 @@ void SOculusPlatformToolWidget::LoadConfigSettings()
 {
 	PlatformSettings = GetMutableDefault<UOculusPlatformToolSettings>();
 	PlatformEnum = StaticEnum<EOculusPlatformTarget>();
+	GamepadEmulationEnum = StaticEnum<EOculusGamepadEmulation>();
+	AssetTypeEnum = StaticEnum<EOculusAssetType>();
 
+	RiftGamepadEmulation.Empty();
 	OculusPlatforms.Empty();
 	for (uint8 i = 0; i < (uint8)EOculusPlatformTarget::Length; i++)
 	{
 		OculusPlatforms.Add(MakeShareable(new FString(PlatformEnum->GetDisplayNameTextByIndex((int64)i).ToString())));
 	}
+	for (uint8 i = 0; i < (uint8)EOculusGamepadEmulation::Length; i++)
+	{
+		RiftGamepadEmulation.Add(MakeShareable(new FString(GamepadEmulationEnum->GetDisplayNameTextByIndex((int64)i).ToString())));
+	}
+	for (uint8 i = 0; i < (uint8)EOculusAssetType::Length; i++)
+	{
+		AssetType.Add(MakeShareable(new FString(AssetTypeEnum->GetDisplayNameTextByIndex((int64)i).ToString())));
+	}
+
+	LoadRedistPackages();
+}
+
+void SOculusPlatformToolWidget::LoadRedistPackages()
+{
+	(new FAsyncTask<FPlatformLoadRedistPackagesTask>(UpdateLogTextDel))->StartBackgroundTask();
 }
 
 FReply SOculusPlatformToolWidget::OnStartPlatformUpload()
@@ -403,6 +860,13 @@ void SOculusPlatformToolWidget::OnPlatformSettingChanged(TSharedPtr<FString> Ite
 
 				LoadConfigSettings();
 				BuildGeneralSettingsBox(GeneralSettingsBox);
+				BuildExpansionFileBox(ExpansionFilesSettings);
+
+				OptionalSettings.Get()->ClearChildren();
+				if (i == (uint8)EOculusPlatformTarget::Rift)
+				{
+					BuildRiftOptionalFields(OptionalSettings);
+				}
 				break;
 			}
 		}
@@ -451,6 +915,107 @@ void SOculusPlatformToolWidget::OnRiftBuildVersionChanged(const FText& InText, E
 	{
 		PlatformSettings->OculusRiftBuildVersion = InText.ToString();
 		PlatformSettings->SaveConfig();
+	}
+}
+
+void SOculusPlatformToolWidget::OnRiftLaunchParamsChanged(const FText& InText, ETextCommit::Type InCommitType)
+{
+	if (PlatformSettings != NULL)
+	{
+		PlatformSettings->OculusRiftLaunchParams = InText.ToString();
+		PlatformSettings->SaveConfig();
+	}
+}
+
+void SOculusPlatformToolWidget::On2DLaunchParamsChanged(const FText& InText, ETextCommit::Type InCommitType)
+{
+	if (PlatformSettings != NULL)
+	{
+		PlatformSettings->OculusRift2DLaunchParams = InText.ToString();
+		PlatformSettings->SaveConfig();
+	}
+}
+
+void SOculusPlatformToolWidget::OnRiftFirewallChanged(ECheckBoxState CheckState)
+{
+	if (PlatformSettings != NULL)
+	{
+		PlatformSettings->OculusRiftFireWallException = CheckState == ECheckBoxState::Checked ? true : false;
+		PlatformSettings->SaveConfig();
+	}
+}
+
+void SOculusPlatformToolWidget::OnRedistPackageStateChanged(ECheckBoxState CheckState, FRedistPackage* Package)
+{
+	if (PlatformSettings != NULL)
+	{
+		Package->Included = CheckState == ECheckBoxState::Checked;
+		PlatformSettings->SaveConfig();
+		BuildRiftOptionalFields(OptionalSettings);
+	}
+}
+
+void SOculusPlatformToolWidget::OnAssetConfigTypeChanged(TSharedPtr<FString> ItemSelected, ESelectInfo::Type SelectInfo, int i)
+{
+	if (PlatformSettings != NULL)
+	{
+		TArray<FAssetConfig>* AssetConfigs = PlatformSettings->GetAssetConfigs();
+		for (int e = 0; e < (uint8)EOculusAssetType::Length; e++)
+		{
+			if (AssetTypeEnum->GetDisplayNameTextByIndex(e).ToString().Equals(*ItemSelected.Get()))
+			{
+				(*AssetConfigs)[i].AssetType = (EOculusAssetType)e;
+				break;
+			}
+		}
+
+		PlatformSettings->SaveConfig();
+		BuildExpansionFileBox(ExpansionFilesSettings);
+	}
+}
+
+void SOculusPlatformToolWidget::OnAssetConfigRequiredChanged(ECheckBoxState CheckState, int i)
+{
+	if (PlatformSettings != NULL)
+	{
+		TArray<FAssetConfig>* AssetConfigs = PlatformSettings->GetAssetConfigs();
+		(*AssetConfigs)[i].Required = CheckState == ECheckBoxState::Checked;
+
+		PlatformSettings->SaveConfig();
+		BuildExpansionFileBox(ExpansionFilesSettings);
+	}
+}
+
+void SOculusPlatformToolWidget::OnAssetConfigSKUChanged(const FText& InText, ETextCommit::Type InCommitType, int i)
+{
+	if (PlatformSettings != NULL)
+	{
+		TArray<FAssetConfig>* AssetConfigs = PlatformSettings->GetAssetConfigs();
+		(*AssetConfigs)[i].Sku = InText.ToString();
+
+		PlatformSettings->SaveConfig();
+		BuildExpansionFileBox(ExpansionFilesSettings);
+	}
+}
+
+void SOculusPlatformToolWidget::OnRiftGamepadEmulationChanged(TSharedPtr<FString> ItemSelected, ESelectInfo::Type SelectInfo)
+{
+	if (!ItemSelected.IsValid())
+	{
+		return;
+	}
+
+	for (uint8 i = 0; i < (uint8)EOculusGamepadEmulation::Length; i++)
+	{
+		if (GamepadEmulationEnum->GetDisplayNameTextByIndex(i).EqualTo(FText::FromString(*ItemSelected)))
+		{
+			if (PlatformSettings != NULL)
+			{
+				PlatformSettings->SetRiftGamepadEmulation(i);
+				PlatformSettings->SaveConfig();
+				break;
+			}
+		}
 	}
 }
 
@@ -518,6 +1083,39 @@ FReply SOculusPlatformToolWidget::OnClearLaunchFilePath()
 	return FReply::Handled();
 }
 
+FReply SOculusPlatformToolWidget::OnSelect2DLaunchPath()
+{
+	if (PlatformSettings != NULL)
+	{
+		TSharedPtr<SWindow> parentWindow = FSlateApplication::Get().FindWidgetWindow(AsShared());
+		const void* parentWindowHandle = (parentWindow.IsValid() && parentWindow->GetNativeWindow().IsValid()) ? parentWindow->GetNativeWindow()->GetOSWindowHandle() : nullptr;
+
+		TArray<FString> path;
+		FString defaultPath = PlatformSettings->OculusRift2DLaunchPath.IsEmpty() ? FPaths::ProjectContentDir() : PlatformSettings->OculusRift2DLaunchPath;
+		if (FDesktopPlatformModule::Get()->OpenFileDialog(parentWindowHandle, "Choose 2D Launch File", defaultPath, defaultPath, "Executables (*.exe)|*.exe", EFileDialogFlags::None, path))
+		{
+			if (path.Num() > 0)
+			{
+				PlatformSettings->OculusRift2DLaunchPath = FPaths::ConvertRelativePathToFull(path[0]);
+			}
+			PlatformSettings->SaveConfig();
+			BuildRiftOptionalFields(OptionalSettings);
+		}
+	}
+	return FReply::Handled();
+}
+
+FReply SOculusPlatformToolWidget::OnClear2DLaunchPath()
+{
+	if (PlatformSettings != NULL)
+	{
+		PlatformSettings->OculusRift2DLaunchPath.Empty();
+		PlatformSettings->SaveConfig();
+		BuildRiftOptionalFields(OptionalSettings);
+	}
+	return FReply::Handled();
+}
+
 FReply SOculusPlatformToolWidget::OnCancelUpload()
 {
 	if (FMessageDialog::Open(EAppMsgType::OkCancel, LOCTEXT("CancelUploadWarning", "Are you sure you want to cancel the upload process?")) == EAppReturnType::Ok)
@@ -527,6 +1125,85 @@ FReply SOculusPlatformToolWidget::OnCancelUpload()
 			FPlatformProcess::TerminateProc(PlatformProcess);
 			UpdateLogText(LogText + LOCTEXT("UploadCancel", "Upload process was canceled.").ToString());
 		}
+	}
+	return FReply::Handled();
+}
+
+FReply SOculusPlatformToolWidget::OnSelectLanguagePacksPath()
+{
+	if (PlatformSettings != NULL)
+	{
+		TSharedPtr<SWindow> parentWindow = FSlateApplication::Get().FindWidgetWindow(AsShared());
+		const void* parentWindowHandle = (parentWindow.IsValid() && parentWindow->GetNativeWindow().IsValid()) ? parentWindow->GetNativeWindow()->GetOSWindowHandle() : nullptr;
+
+		FString path;
+		FString defaultPath = PlatformSettings->GetLanguagePacksPath().IsEmpty() ? FPaths::ProjectContentDir() : PlatformSettings->GetLanguagePacksPath();
+		if (FDesktopPlatformModule::Get()->OpenDirectoryDialog(parentWindowHandle, "Choose Language Packs Directory", defaultPath, path))
+		{
+			PlatformSettings->SetLanguagePacksPath(path);
+			PlatformSettings->SaveConfig();
+			BuildExpansionFileBox(ExpansionFilesSettings);
+		}
+	}
+	return FReply::Handled();
+}
+
+FReply SOculusPlatformToolWidget::OnClearLanguagePacksPath()
+{
+	if (PlatformSettings != NULL)
+	{
+		PlatformSettings->SetLanguagePacksPath("");
+		PlatformSettings->SaveConfig();
+		BuildExpansionFileBox(ExpansionFilesSettings);
+	}
+	return FReply::Handled();
+}
+
+FReply SOculusPlatformToolWidget::OnSelectExpansionFilesPath()
+{
+	if (PlatformSettings != NULL)
+	{
+		TSharedPtr<SWindow> parentWindow = FSlateApplication::Get().FindWidgetWindow(AsShared());
+		const void* parentWindowHandle = (parentWindow.IsValid() && parentWindow->GetNativeWindow().IsValid()) ? parentWindow->GetNativeWindow()->GetOSWindowHandle() : nullptr;
+
+		FString path;
+		FString defaultPath = PlatformSettings->GetExpansionFilesPath().IsEmpty() ? FPaths::ProjectContentDir() : PlatformSettings->GetExpansionFilesPath();
+		if (FDesktopPlatformModule::Get()->OpenDirectoryDialog(parentWindowHandle, "Choose Expansion Files Directory", defaultPath, path))
+		{
+			if (!path.Equals(PlatformSettings->GetExpansionFilesPath()))
+			{
+				if (!path.IsEmpty() && FPaths::DirectoryExists(path))
+				{
+					TArray<FString> Files;
+					//FFileManagerGeneric::Get().FindFilesRecursive(Files, *path, TEXT("*.*"), true, false, false);
+					IFileManager::Get().FindFiles(Files, *path);
+
+					TArray<FAssetConfig>* AssetConfigs = PlatformSettings->GetAssetConfigs();
+					for (int i = 0; i < Files.Num(); i++)
+					{
+						FAssetConfig AssetConfig;
+						AssetConfig.Name = Files[i];
+						AssetConfigs->Push(AssetConfig);
+					}
+
+					PlatformSettings->SetExpansionFilesPath(path);
+					PlatformSettings->SaveConfig();
+					BuildExpansionFileBox(ExpansionFilesSettings);
+				}
+			}
+		}
+	}
+	return FReply::Handled();
+}
+
+FReply SOculusPlatformToolWidget::OnClearExpansionFilesPath()
+{
+	if (PlatformSettings != NULL)
+	{
+		PlatformSettings->SetExpansionFilesPath("");
+		PlatformSettings->GetAssetConfigs()->Empty();
+		PlatformSettings->SaveConfig();
+		BuildExpansionFileBox(ExpansionFilesSettings);
 	}
 	return FReply::Handled();
 }
@@ -600,6 +1277,26 @@ bool SOculusPlatformToolWidget::FileFieldValidator(FString text, FString& error)
 		return false;
 	}
 	return true;
+}
+
+bool SOculusPlatformToolWidget::LaunchParamValidator(FString text, FString& error)
+{
+	if (text.Contains("\""))
+	{
+		error = LOCTEXT("LaunchParamError", "The field contains illegal characters.").ToString();
+		return false;
+	}
+	return true;
+}
+
+void SOculusPlatformToolWidget::On2DOptionsExpanded(bool bExpanded)
+{
+	Options2DCollapsed = !bExpanded;
+}
+
+void SOculusPlatformToolWidget::OnRedistPackagesExpanded(bool bExpanded)
+{
+	OptionsRedistPackagesCollapsed = !bExpanded;
 }
 
 void SOculusPlatformToolWidget::UpdateLogText(FString text)
@@ -692,8 +1389,6 @@ void FPlatformDownloadTask::OnDownloadRequestComplete(FHttpRequestPtr HttpReques
 
 FPlatformUploadTask::FPlatformUploadTask(FString args, FEnableUploadButtonDel del, FUpdateLogTextDel textDel, FSetProcessDel procDel)
 {
-	PlatformToolCreatedEvent = FGenericPlatformProcess::GetSynchEventFromPool(false);
-
 	LaunchArgs = args;
 	EnableUploadButton = del;
 	UpdateLogText = textDel;
@@ -707,6 +1402,8 @@ void FPlatformUploadTask::DoWork()
 	// Check if the platform tool exists in the project directory. If not, start process to download it.
 	if (!FPaths::FileExists(FPaths::ProjectContentDir() + ProjectPlatformUtilPath))
 	{
+		FEvent* PlatformToolCreatedEvent = FGenericPlatformProcess::GetSynchEventFromPool(false);
+
 		UpdateLogText.Execute(SOculusPlatformToolWidget::LogText + LOCTEXT("NoCLI", "Unable to find Oculus Platform Tool. Starting download . . .\n").ToString());
 		(new FAsyncTask<FPlatformDownloadTask>(UpdateLogText, PlatformToolCreatedEvent))->StartBackgroundTask();
 
@@ -730,6 +1427,74 @@ void FPlatformUploadTask::DoWork()
 		}
 	}
 	EnableUploadButton.Execute(true);
+}
+
+//=======================================================================================
+//FPlatformLoadRedistPackagesTask
+
+FPlatformLoadRedistPackagesTask::FPlatformLoadRedistPackagesTask(FUpdateLogTextDel textDel)
+{
+	UpdateLogText = textDel;
+}
+
+void FPlatformLoadRedistPackagesTask::DoWork()
+{
+	UOculusPlatformToolSettings* PlatformSettings = GetMutableDefault<UOculusPlatformToolSettings>();
+
+	// Check to see if the CLI exists, we need this to load avalible redist packages
+	if (!FPaths::FileExists(FPaths::ProjectContentDir() + ProjectPlatformUtilPath))
+	{
+		UpdateLogText.Execute(SOculusPlatformToolWidget::LogText + LOCTEXT("LoadRedist", "Loading redistributable packages . . .\n").ToString());
+
+		FEvent* PlatformToolCreatedEvent = FGenericPlatformProcess::GetSynchEventFromPool(false);
+
+		UpdateLogText.Execute(SOculusPlatformToolWidget::LogText + LOCTEXT("NoCLI", "Unable to find Oculus Platform Tool. Starting download . . .\n").ToString());
+		(new FAsyncTask<FPlatformDownloadTask>(UpdateLogText, PlatformToolCreatedEvent))->StartBackgroundTask();
+
+		PlatformToolCreatedEvent->Wait();
+	}
+
+	// Launch CLI and pass command to list out redist packages currently avalible
+	TArray<FRedistPackage> LoadedPackages;
+	FString Args = "list-redists";
+	FPlatformProcess::CreatePipe(ReadPipe, WritePipe);
+	FProcHandle PlatformProcess = FPlatformProcess::CreateProc(*(FPaths::ProjectContentDir() + ProjectPlatformUtilPath), *Args, false, true, true, nullptr, 0, nullptr, WritePipe, ReadPipe);
+
+	// Load redist packages
+	while (FPlatformProcess::IsProcRunning(PlatformProcess))
+	{
+		FString log = FPlatformProcess::ReadPipe(ReadPipe);
+		if (!log.IsEmpty() && !log.Contains("\u001b") && !log.Contains("ID"))
+		{
+			TArray<FString> Packages;
+			log.ParseIntoArrayLines(Packages);
+			if (Packages.Num() > 0)
+			{
+				for (int i = 0; i < Packages.Num(); i++)
+				{
+					FString id, name;
+					Packages[i].Split("|", &id, &name);
+
+					if (!id.IsEmpty() && !name.IsEmpty())
+					{
+						FRedistPackage newPackage;
+						newPackage.Name = name;
+						newPackage.Id = id;
+
+						LoadedPackages.Add(newPackage);
+					}
+				}
+			}
+		}
+	}
+
+	// Check to see if our stored copy of redist packages is outdated
+	if (LoadedPackages.Num() > PlatformSettings->OculusRedistPackages.Num())
+	{
+		PlatformSettings->OculusRedistPackages = LoadedPackages;
+		PlatformSettings->SaveConfig();
+		UpdateLogText.Execute(SOculusPlatformToolWidget::LogText + LOCTEXT("FinishRedistLoad", "Finished updating redistributable packages.\n").ToString());
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

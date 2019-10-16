@@ -102,6 +102,8 @@ float4 HZBUvFactorAndInvFactor;
 
 float4 PrevScreenPositionScaleBias;
 float  PrevSceneColorPreExposureCorrection;
+float PixelPositionToFullResPixel;
+float2 FullResPixelOffset;
 
 RWTexture2D<float4>	IndirectDiffuseOutput;
 RWTexture2D<float>	AmbientOcclusionOutput;
@@ -146,9 +148,11 @@ void UpdateLane2DCoordinateInformations(
 	out float2 BufferUV,
 	out float2 ScreenPos)
 {
+	float2 FullResPixelPosition = PixelPosition * PixelPositionToFullResPixel + FullResPixelOffset;
+
 	// TODO: split screen
-	BufferUV = (PixelPosition + 0.5) * View.BufferSizeAndInvSize.zw;
-    ScreenPos = ViewportUVToScreenPos((PixelPosition + 0.5) * View.ViewSizeAndInvSize.zw);
+	BufferUV = FullResPixelPosition * View.BufferSizeAndInvSize.zw;
+    ScreenPos = ViewportUVToScreenPos(FullResPixelPosition * View.ViewSizeAndInvSize.zw);
 }
 
 float3 ComputeTranslatedWorldPositions(float2 ScreenPos, float SceneDepth)
@@ -335,8 +339,10 @@ void MainCS(
 				uint2 GroupPixelOffset = DecodeGroupPixelOffset(GroupPixelId);
                 uint2 PixelPosition = ComputePixelPosition(GroupId, GroupPixelOffset);
 				
-				float2 BufferUV = (PixelPosition + 0.5) * View.BufferSizeAndInvSize.zw;
-		
+				float2 BufferUV;
+				float2 ScreenPos;
+				UpdateLane2DCoordinateInformations(PixelPosition, /* out */ BufferUV, /* out */ ScreenPos);
+	
 				FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
 				float3 N = mul(float4(GBuffer.WorldNormal, 0), View.TranslatedWorldToView).xyz;
 				float DeviceZ = SceneDepthBuffer.SampleLevel(SceneDepthBufferSampler, BufferUV, 0).r;
@@ -481,8 +487,12 @@ void MainCS(
 			float2 E = Hammersley16(RaySequenceId, CONFIG_RAY_COUNT, RandomSeed);		
 			float3 L = ComputeL(DecompressN(CompressedN), E);
 			
-			float StepOffset = InterleavedGradientNoise(PixelPosition + 0.5, View.StateFrameIndexMod8) - 0.9;
+			float StepOffset = InterleavedGradientNoise(PixelPosition + 0.5, View.StateFrameIndexMod8);
 	
+			#if !SSGI_TRACE_CONE
+				StepOffset -= 0.9;
+			#endif
+
             bool bDebugPrint = all(PixelPosition == uint2(View.ViewSizeAndInvSize.xy) / 2);
 
 			FSSRTRay Ray = InitScreenSpaceRay(ScreenPos, DeviceZ, L);
@@ -638,7 +648,7 @@ void MainCS(
 			uint2 GroupPixelOffset = DecodeGroupPixelOffset(GroupPixelId);
 			uint2 OutputPixelCoordinate = ComputePixelPosition(GroupId, GroupPixelOffset);
 
-			IndirectDiffuseOutput[OutputPixelCoordinate] = float4(DiffuseColor, 0.0);
+			IndirectDiffuseOutput[OutputPixelCoordinate] = float4(DiffuseColor, 1.0);
 			AmbientOcclusionOutput[OutputPixelCoordinate] = AmbientOcclusion;
 			
 			//IndirectDiffuseOutput[OutputPixelCoordinate] = float4(TileInfos.Directionality[2] / PI, 0.0, 0.0, 0.0);

@@ -23,6 +23,7 @@
 #include "PostProcess/RenderingCompositionGraph.h"
 #include "PostProcess/PostProcessEyeAdaptation.h"
 #include "PostProcess/PostProcessSubsurface.h"
+#include "PostProcess/PostProcessing.h"
 #include "CompositionLighting/CompositionLighting.h"
 #include "LegacyScreenPercentageDriver.h"
 #include "SceneViewExtension.h"
@@ -54,6 +55,7 @@
 #include "IXRTrackingSystem.h"
 #include "IXRCamera.h"
 #include "IXRCamera.h"
+#include "IHeadMountedDisplay.h"
 #include "DiaphragmDOF.h" 
 #include "SingleLayerWaterRendering.h" 
 
@@ -192,6 +194,11 @@ static TAutoConsoleVariable<int32> CVarViewRectUseScreenBottom(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<float> CVarConstantWaterDepth(
+	TEXT("r.Water.ConstantWaterDepth"),
+	-1.0f,
+	TEXT("Setting this to a negative value means disabled and reading from scene depth texture. Specified in unreal units."),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 static TAutoConsoleVariable<float> CVarGeneralPurposeTweak(
@@ -597,7 +604,6 @@ FParallelCommandListSet::FParallelCommandListSet(
 	, SceneRenderer(InSceneRenderer)
 	, DrawRenderState(InDrawRenderState)
 	, ParentCmdList(InParentCmdList)
-	, GPUMask(ParentCmdList.GetGPUMask())
 	, Snapshot(nullptr)
 	, ExecuteStat(InExecuteStat)
 	, NumAlloc(0)
@@ -618,9 +624,6 @@ FParallelCommandListSet::FParallelCommandListSet(
 
 FRHICommandList* FParallelCommandListSet::AllocCommandList()
 {
-	// We don't support the mask changing while the parallel commandlists are being generated.
-	ensure(GPUMask == ParentCmdList.GetGPUMask());
-
 	NumAlloc++;
 	return new FRHICommandList(ParentCmdList.GetGPUMask());
 }
@@ -636,9 +639,6 @@ void FParallelCommandListSet::Dispatch(bool bHighPriority)
 	// This is a bit weird since we will (likely) end up opening one in the parallel translate case but until we have
 	// a cleaner way for the RHI to specify parallel passes this is what we've got.
 	check(ParentCmdList.IsOutsideRenderPass());
-
-	// We don't support the mask changing while the parallel commandlists are being processed.
-	ensure(GPUMask == ParentCmdList.GetGPUMask());
 
 	ENamedThreads::Type RenderThread_Local = ENamedThreads::GetRenderThread_Local();
 	if (bSpewBalance)
@@ -769,7 +769,19 @@ void FParallelCommandListSet::WaitForTasksInternal()
 	}
 }
 
+bool IsHMDHiddenAreaMaskActive()
+{
+	// Query if we have a custom HMD post process mesh to use
+	static const auto* const HiddenAreaMaskCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.HiddenAreaMask"));
 
+	return
+		HiddenAreaMaskCVar != nullptr &&
+		// Any thread is used due to FViewInfo initialization.
+		HiddenAreaMaskCVar->GetValueOnAnyThread() == 1 &&
+		GEngine &&
+		GEngine->XRSystem.IsValid() && GEngine->XRSystem->GetHMDDevice() &&
+		GEngine->XRSystem->GetHMDDevice()->HasVisibleAreaMesh();
+}
 
 /*-----------------------------------------------------------------------------
 	FViewInfo
@@ -780,7 +792,6 @@ void FParallelCommandListSet::WaitForTasksInternal()
  */
 FViewInfo::FViewInfo(const FSceneViewInitOptions& InitOptions)
 	:	FSceneView(InitOptions)
-	,	GPUMask(FRHIGPUMask::GPU0())
 	,	IndividualOcclusionQueries((FSceneViewState*)InitOptions.SceneViewStateInterface, 1)	
 	,	GroupedOcclusionQueries((FSceneViewState*)InitOptions.SceneViewStateInterface, FOcclusionQueryBatcher::OccludedPrimitiveQueryBatchSize)
 {
@@ -793,7 +804,6 @@ FViewInfo::FViewInfo(const FSceneViewInitOptions& InitOptions)
  */
 FViewInfo::FViewInfo(const FSceneView* InView)
 	:	FSceneView(*InView)
-	,	GPUMask(FRHIGPUMask::GPU0())
 	,	IndividualOcclusionQueries((FSceneViewState*)InView->State,1)	
 	,	GroupedOcclusionQueries((FSceneViewState*)InView->State,FOcclusionQueryBatcher::OccludedPrimitiveQueryBatchSize)
 	,	CustomVisibilityQuery(nullptr)
@@ -863,9 +873,12 @@ void FViewInfo::Init()
 
 	ViewState = (FSceneViewState*)State;
 	bIsSnapshot = false;
+	bHMDHiddenAreaMaskActive = IsHMDHiddenAreaMaskActive();
+	bUseComputePasses = IsPostProcessingWithComputeEnabled(FeatureLevel);
 	bHasCustomDepthPrimitives = false;
 	bHasDistortionPrimitives = false;
 	bAllowStencilDither = false;
+	bUsesCustomDepthStencil = false;
 
 	ForwardLightingResources = nullptr;
 
@@ -1263,9 +1276,6 @@ void FViewInfo::SetupUniformBufferParameters(
 		}
 		ViewUniformShaderParameters.SkyViewLutSizeAndInvSize = FVector4(SkyViewLutWidth, SkyViewLutHeight, 1.0f / SkyViewLutWidth, 1.0f / SkyViewLutHeight);
 
-		//DistantSkyLightLutTextureFound = SkyAtmosphere->GetDistantSkyLightLutTextureRHI();
-		//ViewUniformShaderParameters.SkyAtmosphereSkyLuminanceFactor = SkyAtmosphere->GetSkyLuminanceFactor();
-
 		// Now initialize remaining view parameters.
 
 		const FAtmosphereSetup& AtmosphereSetup = SkyAtmosphereSceneProxy.GetAtmosphereSetup();
@@ -1441,12 +1451,12 @@ void FViewInfo::SetupUniformBufferParameters(
 	{
 		// If rendering in stereo, the other stereo passes uses the left eye's translucency lighting volume.
 		const FViewInfo* PrimaryView = this;
-		if (IStereoRendering::IsASecondaryView(StereoPass))
+		if (IStereoRendering::IsASecondaryView(*this, GEngine->StereoRenderingDevice))
 		{
 			if (Family->Views.IsValidIndex(0))
 			{
 				const FSceneView* LeftEyeView = Family->Views[0];
-				if (LeftEyeView->bIsViewInfo && IStereoRendering::IsAPrimaryView(LeftEyeView->StereoPass))
+				if (LeftEyeView->bIsViewInfo && LeftEyeView->StereoPass == eSSP_LEFT_EYE)
 				{
 					PrimaryView = static_cast<const FViewInfo*>(LeftEyeView);
 				}
@@ -1491,6 +1501,8 @@ void FViewInfo::SetupUniformBufferParameters(
 
 		ViewUniformShaderParameters.GeneralPurposeTweak = Value;
 	}
+
+	ViewUniformShaderParameters.ConstantWaterDepth = CVarConstantWaterDepth.GetValueOnRenderThread();
 
 	ViewUniformShaderParameters.DemosaicVposOffset = 0.0f;
 	{
@@ -1566,7 +1578,7 @@ void FViewInfo::SetupUniformBufferParameters(
 		GMaxRHIFeatureLevel > ERHIFeatureLevel::ES3_1) ? 1.0f : 0.0f;
 
 	// Padding between the left and right eye may be introduced by an HMD, which instanced stereo needs to account for.
-	if (IStereoRendering::IsStereoEyeView(StereoPass) && (Family->Views.Num() > 1))
+	if ((StereoPass != eSSP_FULL) && (Family->Views.Num() > 1))
 	{
 		check(Family->Views.Num() >= 2);
 
@@ -1801,7 +1813,7 @@ FSceneViewState* FViewInfo::GetEffectiveViewState() const
 	FSceneViewState* EffectiveViewState = ViewState;
 
 	// When rendering in stereo we want to use the same exposure for both eyes.
-	if (IStereoRendering::IsASecondaryView(StereoPass))
+	if (IStereoRendering::IsASecondaryView(*this, GEngine->StereoRenderingDevice))
 	{
 		int32 ViewIndex = Family->Views.Find(this);
 		if (Family->Views.IsValidIndex(ViewIndex))
@@ -1811,7 +1823,7 @@ FSceneViewState* FViewInfo::GetEffectiveViewState() const
 			if (Family->Views.IsValidIndex(ViewIndex))
 			{
 				const FSceneView* PrimaryView = Family->Views[ViewIndex];
-				if (IStereoRendering::IsAPrimaryView(PrimaryView->StereoPass))
+				if (PrimaryView->StereoPass == eSSP_LEFT_EYE)
 				{
 					EffectiveViewState = (FSceneViewState*)PrimaryView->State;
 				}
@@ -1911,29 +1923,35 @@ float FViewInfo::GetLastAverageSceneLuminance() const
 	return 0.f; // Invalid scene luminance
 }
 
-void FViewInfo::SetValidTonemappingLUT() const
+ERenderTargetLoadAction FViewInfo::GetOverwriteLoadAction() const
 {
-	FSceneViewState* EffectiveViewState = GetEffectiveViewState();
-	if (EffectiveViewState) EffectiveViewState->SetValidTonemappingLUT();
+	return bHMDHiddenAreaMaskActive ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ENoAction;
 }
 
-const FTextureRHIRef* FViewInfo::GetTonemappingLUTTexture() const
+void FViewInfo::SetValidTonemappingLUT() const
 {
-	const FTextureRHIRef* TextureRHIRef = NULL;
+	if (FSceneViewState* EffectiveViewState = GetEffectiveViewState())
+	{
+		EffectiveViewState->SetValidTonemappingLUT();
+	}
+}
+
+IPooledRenderTarget* FViewInfo::GetTonemappingLUT() const
+{
 	FSceneViewState* EffectiveViewState = GetEffectiveViewState();
 	if (EffectiveViewState && EffectiveViewState->HasValidTonemappingLUT())
 	{
-		TextureRHIRef = EffectiveViewState->GetTonemappingLUTTexture();
+		return EffectiveViewState->GetTonemappingLUT();
 	}
-	return TextureRHIRef;
+	return nullptr;
 };
 
-IPooledRenderTarget* FViewInfo::GetTonemappingLUTRenderTarget(FRHICommandList& RHICmdList, const int32 LUTSize, const bool bUseVolumeLUT, const bool bNeedUAV, const bool bNeedFloatOutput) const 
+IPooledRenderTarget* FViewInfo::GetTonemappingLUT(FRHICommandList& RHICmdList, const int32 LUTSize, const bool bUseVolumeLUT, const bool bNeedUAV, const bool bNeedFloatOutput) const 
 {
 	FSceneViewState* EffectiveViewState = GetEffectiveViewState();
 	if (EffectiveViewState)
 	{
-		return EffectiveViewState->GetTonemappingLUTRenderTarget(RHICmdList, LUTSize, bUseVolumeLUT, bNeedUAV, bNeedFloatOutput);
+		return EffectiveViewState->GetTonemappingLUT(RHICmdList, LUTSize, bUseVolumeLUT, bNeedUAV, bNeedFloatOutput);
 	}
 	return nullptr;
 }
@@ -2252,7 +2270,7 @@ void FSceneRenderer::PrepareViewRectsForRendering()
 
 		// Fallback to no anti aliasing.
 		{
-			const bool bWillApplyTemporalAA = GPostProcessing.AllowFullPostProcessing(View, FeatureLevel) || (View.bIsPlanarReflection && FeatureLevel >= ERHIFeatureLevel::SM5);
+			const bool bWillApplyTemporalAA = IsPostProcessingEnabled(View) || (View.bIsPlanarReflection && FeatureLevel >= ERHIFeatureLevel::SM5);
 
 			if (!bWillApplyTemporalAA)
 			{
@@ -2287,8 +2305,6 @@ void FSceneRenderer::PrepareViewRectsForRendering()
 		checkf(PrimaryResolutionFraction <= ViewFamily.GetPrimaryResolutionFractionUpperBound(),
 			TEXT("ISceneViewFamilyScreenPercentage::GetPrimaryResolutionFractionUpperBound() should not lie to the renderer."));
 		
-		check(FSceneViewScreenPercentageConfig::IsValidResolutionFraction(PrimaryResolutionFraction));
-
 		check(FSceneViewScreenPercentageConfig::IsValidResolutionFraction(PrimaryResolutionFraction));
 		
 		// Compute final resolution fraction.
@@ -2401,49 +2417,46 @@ void FSceneRenderer::PrepareViewRectsForRendering()
 	}
 }
 
+#if WITH_MGPU
 void FSceneRenderer::ComputeViewGPUMasks(FRHIGPUMask RenderTargetGPUMask)
 {
-#if WITH_MGPU
 	// First check whether we are in multi-GPU and if fork and join cross-gpu transfers are enabled.
 	// Otherwise fallback on rendering the whole view family on each relevant GPU using broadcast logic.
 	if (GNumExplicitGPUsForRendering > 1 && CVarEnableMultiGPUForkAndJoin.GetValueOnAnyThread() != 0)
 	{
 		// Check whether this looks like an AFR setup (note that the logic also applies when there is only one AFR group).
-		FRHIGPUMask UsableGPUMask = RenderTargetGPUMask;
-		if (RenderTargetGPUMask.HasSingleIndex() && RenderTargetGPUMask.ToIndex() < GNumAlternateFrameRenderingGroups)
-		{
 			// Each AFR group uses multiple GPU. AFRGroup(i) = { i, NumAFRGroups + i,  2 * NumAFRGroups + i, ... } up to NumGPUs.
 			// Each view rendered gets assigned to the next GPU in that group. 
-			for (uint32 GPUIndex = RenderTargetGPUMask.ToIndex() + GNumAlternateFrameRenderingGroups; GPUIndex < GNumExplicitGPUsForRendering; GPUIndex += GNumAlternateFrameRenderingGroups)
-			{
-				UsableGPUMask |= FRHIGPUMask::FromIndex(GPUIndex);
-			}
-		}
-
+		FRHIGPUMask UsableGPUMask = AFRUtils::GetGPUMaskForGroup(RenderTargetGPUMask);
 		FRHIGPUMask::FIterator GPUIterator(UsableGPUMask);
 		for (FViewInfo& ViewInfo : Views)
 		{
 			// Only handle views that are to be rendered (this excludes instance stereo).
 			if (ViewInfo.ShouldRenderView())
 			{
-				ViewInfo.GPUMask = FRHIGPUMask::FromIndex(*GPUIterator);
-				ViewFamily.bMultiGPUForkAndJoin |= (ViewInfo.GPUMask != RenderTargetGPUMask);
-					
-				// Increment and wrap around if we reach the last index.
-				++GPUIterator;
-				if (!GPUIterator)
+				// Multi-GPU support : This is inefficient for AFR if the reflection capture
+				// updates every frame. Work is wasted on the GPUs that are not involved in
+				// rendering the current frame.
+				if (ViewInfo.bIsReflectionCapture || ViewInfo.bIsPlanarReflection)
 				{
-					GPUIterator = FRHIGPUMask::FIterator(UsableGPUMask);
+					ViewInfo.GPUMask = FRHIGPUMask::All();
 				}
-			}
-			else
-			{
-				ViewInfo.GPUMask = RenderTargetGPUMask;
+				else
+				{
+					ViewInfo.GPUMask = FRHIGPUMask::FromIndex(*GPUIterator);
+					ViewFamily.bMultiGPUForkAndJoin |= (ViewInfo.GPUMask != RenderTargetGPUMask);
+
+					// Increment and wrap around if we reach the last index.
+					++GPUIterator;
+					if (!GPUIterator)
+					{
+						GPUIterator = FRHIGPUMask::FIterator(UsableGPUMask);
+					}
+				}
 			}
 		}
 	}
 	else
-#endif
 	{
 		for (FViewInfo& ViewInfo : Views)
 		{
@@ -2453,7 +2466,14 @@ void FSceneRenderer::ComputeViewGPUMasks(FRHIGPUMask RenderTargetGPUMask)
 			}
 		}
 	}
+
+	AllViewsGPUMask = Views[0].GPUMask;
+	for (int32 ViewIndex = 1; ViewIndex < Views.Num(); ++ViewIndex)
+	{
+		AllViewsGPUMask |= Views[ViewIndex].GPUMask;
+	}
 }
+#endif // WITH_MGPU
 
 void FSceneRenderer::DoCrossGPUTransfers(FRHICommandListImmediate& RHICmdList, FRHIGPUMask RenderTargetGPUMask)
 {
@@ -2524,7 +2544,7 @@ void FSceneRenderer::ComputeFamilySize()
 		MaxFamilyX = FMath::Max(MaxFamilyX, FinalViewMaxX);
 		MaxFamilyY = FMath::Max(MaxFamilyY, FinalViewMaxY);
 
-		if (!IStereoRendering::IsAnAdditionalView(View.StereoPass))
+		if (!IStereoRendering::IsAnAdditionalView(View, GEngine->StereoRenderingDevice))
 		{
 			InstancedStereoWidth = FPlatformMath::Max(InstancedStereoWidth, static_cast<uint32>(View.ViewRect.Max.X));
 		}
@@ -2689,6 +2709,8 @@ void FSceneRenderer::RenderFinish(FRHICommandListImmediate& RHICmdList)
 					SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
 
 					FRenderTargetTemp TempRenderTarget(View);
+
+					RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, TempRenderTarget.GetRenderTargetTexture());
 
 					// create a temporary FCanvas object with the temp render target
 					// so it can get the screen size
@@ -3092,7 +3114,7 @@ void FSceneRenderer::RenderCustomDepthPass(FRHICommandListImmediate& RHICmdList)
 					{
 						// When drawing the left eye in a stereo scene, set up the instanced custom depth uniform buffer with the right-eye data,
 						// with the TAA jitter removed.
-						const EStereoscopicPass StereoPassIndex = IStereoRendering::IsStereoEyeView(View.StereoPass) ? eSSP_RIGHT_EYE : eSSP_FULL;
+						const EStereoscopicPass StereoPassIndex = (View.StereoPass != eSSP_FULL) ? eSSP_RIGHT_EYE : eSSP_FULL;
 
 						const FViewInfo& InstancedView = static_cast<const FViewInfo&>(View.Family->GetStereoEyeView(StereoPassIndex));
 
@@ -3979,134 +4001,138 @@ void FSceneRenderer::ResolveSceneColor(FRHICommandList& RHICmdList)
 	check(FamilySize.X);
 
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-	auto& CurrentSceneColor = SceneContext.GetSceneColor();
-	uint32 CurrentNumSamples = CurrentSceneColor->GetDesc().NumSamples;
+	auto& SceneColorRT = SceneContext.GetSceneColor();
+	auto& SceneColor = SceneColorRT->GetRenderTargetItem();
+	uint32 CurrentNumSamples = SceneColorRT->GetDesc().NumSamples;
 
 	const EShaderPlatform CurrentShaderPlatform = GShaderPlatformForFeatureLevel[SceneContext.GetCurrentFeatureLevel()];
 	if (CurrentNumSamples <= 1 || !RHISupportsSeparateMSAAAndResolveTextures(CurrentShaderPlatform) || !GAllowCustomMSAAResolves)
 	{
-		RHICmdList.CopyToResolveTarget(SceneContext.GetSceneColorSurface(), SceneContext.GetSceneColorTexture(), FResolveRect(0, 0, FamilySize.X, FamilySize.Y));
+		RHICmdList.CopyToResolveTarget(SceneColor.TargetableTexture, SceneColor.ShaderResourceTexture, FResolveRect(0, 0, FamilySize.X, FamilySize.Y));
 	}
 	else
 	{
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, SceneContext.GetSceneColorSurface());
-
-		FTexture2DRHIRef FMaskTexture = GDynamicRHI->RHIGetFMaskTexture(SceneContext.GetSceneColorSurface());
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, SceneColor.ShaderResourceTexture);
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, SceneColor.TargetableTexture);
 
 		// Custom shader based color resolve for HDR color to emulate mobile.
-		FRHIRenderPassInfo RPInfo(SceneContext.GetSceneColorTexture(), ERenderTargetActions::Load_Store);
+		FRHIRenderPassInfo RPInfo(SceneColor.ShaderResourceTexture, ERenderTargetActions::Load_Store);
 		RHICmdList.BeginRenderPass(RPInfo, TEXT("ResolveColor"));
 		{
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-		{
-			const FViewInfo& View = Views[ViewIndex];
-
-			FGraphicsPipelineStateInitializer GraphicsPSOInit;
-			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-
-			GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-			RHICmdList.SetStreamSource(0, GResolveDummyVertexBuffer.VertexBufferRHI, 0);
-
-			// Resolve views individually
-			// In the case of adaptive resolution, the view family will be much larger than the views individually
-			RHICmdList.SetScissorRect(true, View.ViewRect.Min.X, View.ViewRect.Min.Y, View.ViewRect.Max.X, View.ViewRect.Max.Y);
-
-			int32 ResolveWidth = CVarWideCustomResolve.GetValueOnRenderThread();
-
-			if (CurrentNumSamples <= 1)
+			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 			{
-				ResolveWidth = 0;
-			}
+				const FViewInfo& View = Views[ViewIndex];
 
-			if (ResolveWidth != 0)
-			{
-				ResolveFilterWide(RHICmdList, GraphicsPSOInit, SceneContext.GetCurrentFeatureLevel(), CurrentSceneColor->GetRenderTargetItem().TargetableTexture, FMaskTexture, FIntPoint(0, 0), CurrentNumSamples, ResolveWidth);
-			}
-			else
-			{
-				auto ShaderMap = GetGlobalShaderMap(SceneContext.GetCurrentFeatureLevel());
-				TShaderMapRef<FHdrCustomResolveVS> VertexShader(ShaderMap);
-				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
-				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-				GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+				FGraphicsPipelineStateInitializer GraphicsPSOInit;
+				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
-				if (FMaskTexture.IsValid())
+				GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
+				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+
+				// Resolve views individually
+				// In the case of adaptive resolution, the view family will be much larger than the views individually
+				RHICmdList.SetScissorRect(true, View.ViewRect.Min.X, View.ViewRect.Min.Y, View.ViewRect.Max.X, View.ViewRect.Max.Y);
+
+				int32 ResolveWidth = CVarWideCustomResolve.GetValueOnRenderThread();
+
+				if (CurrentNumSamples <= 1)
 				{
-					if (CurrentNumSamples == 2)
-					{
-						TShaderMapRef<FHdrCustomResolveFMask2xPS> PixelShader(ShaderMap);
-						GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+					ResolveWidth = 0;
+				}
 
-						SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-						PixelShader->SetParameters(RHICmdList, CurrentSceneColor->GetRenderTargetItem().TargetableTexture, FMaskTexture);
-					}
-					else if (CurrentNumSamples == 4)
-					{
-						TShaderMapRef<FHdrCustomResolveFMask4xPS> PixelShader(ShaderMap);
-						GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+				if (ResolveWidth != 0)
+				{
+					ResolveFilterWide(RHICmdList, GraphicsPSOInit, SceneContext.GetCurrentFeatureLevel(), SceneColor.TargetableTexture, SceneColor.FmaskSRV, FIntPoint(0, 0), CurrentNumSamples, ResolveWidth, GResolveDummyVertexBuffer.VertexBufferRHI);
+				}
+				else
+				{
+					auto ShaderMap = GetGlobalShaderMap(SceneContext.GetCurrentFeatureLevel());
+					TShaderMapRef<FHdrCustomResolveVS> VertexShader(ShaderMap);
+					GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
+					GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
+					GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
-						SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-						PixelShader->SetParameters(RHICmdList, CurrentSceneColor->GetRenderTargetItem().TargetableTexture, FMaskTexture);
-					}
-					else if (CurrentNumSamples == 8)
+					if (SceneColor.FmaskSRV)
 					{
-						TShaderMapRef<FHdrCustomResolveFMask8xPS> PixelShader(ShaderMap);
-						GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+						if (CurrentNumSamples == 2)
+						{
+							TShaderMapRef<FHdrCustomResolveFMask2xPS> PixelShader(ShaderMap);
+							GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
 
-						SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-						PixelShader->SetParameters(RHICmdList, CurrentSceneColor->GetRenderTargetItem().TargetableTexture, FMaskTexture);
+							SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+							PixelShader->SetParameters(RHICmdList, SceneColor.TargetableTexture, SceneColor.FmaskSRV);
+						}
+						else if (CurrentNumSamples == 4)
+						{
+							TShaderMapRef<FHdrCustomResolveFMask4xPS> PixelShader(ShaderMap);
+							GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+
+							SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+							PixelShader->SetParameters(RHICmdList, SceneColor.TargetableTexture, SceneColor.FmaskSRV);
+						}
+						else if (CurrentNumSamples == 8)
+						{
+							TShaderMapRef<FHdrCustomResolveFMask8xPS> PixelShader(ShaderMap);
+							GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+
+							SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+							PixelShader->SetParameters(RHICmdList, SceneColor.TargetableTexture, SceneColor.FmaskSRV);
+						}
+						else
+						{
+							// Everything other than 2,4,8 samples is not implemented.
+							check(0);
+							break;
+						}
 					}
 					else
 					{
-						// Everything other than 2,4,8 samples is not implemented.
-						check(0);
-						break;
+						if (CurrentNumSamples == 2)
+						{
+							TShaderMapRef<FHdrCustomResolve2xPS> PixelShader(ShaderMap);
+							GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+
+							SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+							PixelShader->SetParameters(RHICmdList, SceneColor.TargetableTexture);
+						}
+						else if (CurrentNumSamples == 4)
+						{
+							TShaderMapRef<FHdrCustomResolve4xPS> PixelShader(ShaderMap);
+							GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+
+							SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+							PixelShader->SetParameters(RHICmdList, SceneColor.TargetableTexture);
+						}
+						else if (CurrentNumSamples == 8)
+						{
+							TShaderMapRef<FHdrCustomResolve8xPS> PixelShader(ShaderMap);
+							GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+
+							SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+							PixelShader->SetParameters(RHICmdList, SceneColor.TargetableTexture);
+						}
+						else
+						{
+							// Everything other than 2,4,8 samples is not implemented.
+							check(0);
+							break;
+						}
 					}
-				}
-				else
-				{
-				if (CurrentNumSamples == 2)
-				{
-					TShaderMapRef<FHdrCustomResolve2xPS> PixelShader(ShaderMap);
-					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
 
-					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-					PixelShader->SetParameters(RHICmdList, CurrentSceneColor->GetRenderTargetItem().TargetableTexture);
-				}
-				else if (CurrentNumSamples == 4)
-				{
-					TShaderMapRef<FHdrCustomResolve4xPS> PixelShader(ShaderMap);
-					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+					RHICmdList.SetStreamSource(0, GResolveDummyVertexBuffer.VertexBufferRHI, 0);
 
-					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-					PixelShader->SetParameters(RHICmdList, CurrentSceneColor->GetRenderTargetItem().TargetableTexture);
-				}
-				else if (CurrentNumSamples == 8)
-				{
-					TShaderMapRef<FHdrCustomResolve8xPS> PixelShader(ShaderMap);
-					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
-
-					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-					PixelShader->SetParameters(RHICmdList, CurrentSceneColor->GetRenderTargetItem().TargetableTexture);
-				}
-				else
-				{
-					// Everything other than 2,4,8 samples is not implemented.
-					check(0);
-						break;
+					RHICmdList.DrawPrimitive(0, 1, 1);
 				}
 			}
 
-				RHICmdList.DrawPrimitive(0, 1, 1);
-			}
+			RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
 		}
 
-		RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
-	}
-
 		RHICmdList.EndRenderPass();
+
+		// The destination texture must be made readable after the resolve.
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, SceneContext.GetSceneColorTexture());
 	}
 }
 

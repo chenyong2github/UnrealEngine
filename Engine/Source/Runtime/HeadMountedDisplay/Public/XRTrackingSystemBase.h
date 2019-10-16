@@ -138,12 +138,18 @@ public:
 	* @param ExternalTrackingTransform		The transform in world-coordinates, of the reference marker of the external tracking system
 	*/
 	virtual void UpdateExternalTrackingPosition(const FTransform& ExternalTrackingTransform) override;
+	virtual class IXRLoadingScreen* GetLoadingScreen() override final;
 
 
 	TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe> GetARCompositionComponent();
 	const TSharedPtr<const FARSupportInterface , ESPMode::ThreadSafe> GetARCompositionComponent() const;
 
 protected:
+
+	/** Override this method if you need to customize the IXRLoadingScreen implementation.
+	 *  It will be called from GetLoadingScreen() if LoadingScreen is not valid */
+	virtual class IXRLoadingScreen* CreateLoadingScreen();
+
 	/** 
 	 * Meant to be called by sub-classes whenever the tracking origin is altered.
 	 */
@@ -173,6 +179,7 @@ protected:
 	 * will attempt to normalize the internal tracking system to match this calibration when called.
 	 */
 	FTransform CalibratedOffset;
+	mutable class IXRLoadingScreen* LoadingScreen;
 
 private:
 	TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe> ARCompositionComponent;

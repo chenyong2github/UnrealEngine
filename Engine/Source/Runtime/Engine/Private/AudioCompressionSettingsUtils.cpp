@@ -92,6 +92,12 @@ void CacheCurrentPlatformAudioCookOverrides(FPlatformAudioCookOverrides& OutOver
 	const TCHAR* CategoryName = TEXT("");
 #endif
 
+	int32 SoundCueCookQualityIndex = INDEX_NONE;
+	if (GConfig->GetInt(CategoryName, TEXT("SoundCueCookQualityIndex"), SoundCueCookQualityIndex, GEngineIni))
+	{
+		OutOverrides.SoundCueCookQualityIndex = SoundCueCookQualityIndex;
+	}
+	
 	GConfig->GetBool(CategoryName, TEXT("bResampleForDevice"), OutOverrides.bResampleForDevice, GEngineIni);
 
 	GConfig->GetFloat(CategoryName, TEXT("CompressionQualityModifier"), OutOverrides.CompressionQualityModifier, GEngineIni);
@@ -266,7 +272,7 @@ float FPlatformCompressionUtilities::GetCompressionDurationForCurrentPlatform()
 	return Threshold;
 }
 
-float FPlatformCompressionUtilities::GetTargetSampleRateForPlatform(ESoundwaveSampleRateSettings InSampleRateLevel /*= ESoundwaveSampleRateSettings::High*/, EAudioPlatform SpecificPlatform /*= AudioPluginUtilities::CurrentPlatform*/)
+float FPlatformCompressionUtilities::GetTargetSampleRateForPlatform(ESoundwaveSampleRateSettings InSampleRateLevel /*= ESoundwaveSampleRateSettings::High*/)
 {
 	float SampleRate = -1.0f;
 	const FPlatformAudioCookOverrides* Settings = GetCookOverridesForCurrentPlatform();

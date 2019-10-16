@@ -360,6 +360,81 @@ bool GIsTextureMemoryCorrupted = false;
 bool GIsPrepareMapChangeBroken = false;
 #endif
 
+#if WITH_EDITOR
+// A debugging aid set when we switch out different play worlds during Play In Editor / PIE
+ENGINE_API FString GPlayInEditorContextString(TEXT("invalid"));
+#endif
+
+ENGINE_API void UpdatePlayInEditorWorldDebugString(const FWorldContext* WorldContext)
+{
+#if WITH_EDITOR
+	if (WorldContext == nullptr)
+	{
+		ensure(GPlayInEditorID == INDEX_NONE);
+		GPlayInEditorContextString = NSLOCTEXT("Engine", "PlayWorldIsNotActive", "Not in a play world").ToString();
+	}
+	else
+	{
+		FString WorldName;
+		if (UWorld* World = WorldContext->World())
+		{
+			switch (World->GetNetMode())
+			{
+			case NM_Standalone:
+				WorldName = NSLOCTEXT("Engine", "PlayWorldIsStandalone", "Standalone").ToString();
+				break;
+
+			case NM_ListenServer:
+				WorldName = NSLOCTEXT("Engine", "PlayWorldIsListenServer", "Listen Server").ToString();
+				break;
+
+			case NM_DedicatedServer:
+				WorldName = NSLOCTEXT("Engine", "PlayWorldIsDedicatedServer", "Dedicated Server").ToString();
+				break;
+
+			case NM_Client:
+				WorldName = FText::Format(NSLOCTEXT("Engine", "PlayWorldIsClient", "Client {0}"), FText::AsNumber(WorldContext->PIEInstance - 1)).ToString();
+				break;
+
+			default:
+				unimplemented();
+			};
+		}
+		else
+		{
+			WorldName = NSLOCTEXT("Engine", "PlayWorldBeingCreated", "(World Being Created)").ToString();
+		}
+
+		if (!WorldContext->CustomDescription.IsEmpty())
+		{
+			WorldName += TEXT(" ") + WorldContext->CustomDescription;
+		}
+
+		GPlayInEditorContextString = WorldName;
+	}
+#endif
+}
+
+FTemporaryPlayInEditorIDOverride::FTemporaryPlayInEditorIDOverride(int32 NewOverrideID)
+	: PreviousID(GPlayInEditorID)
+{
+	SetID(NewOverrideID);
+}
+
+FTemporaryPlayInEditorIDOverride::~FTemporaryPlayInEditorIDOverride()
+{
+	SetID(PreviousID);
+}
+
+void FTemporaryPlayInEditorIDOverride::SetID(int32 NewID)
+{
+	if (GPlayInEditorID != NewID)
+	{
+		GPlayInEditorID = NewID;
+		UpdatePlayInEditorWorldDebugString(GEngine->GetWorldContextFromPIEInstance(GPlayInEditorID));
+	}
+}
+
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FSimpleMulticastDelegate UEngine::OnPostEngineInit;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -592,6 +667,11 @@ void HDRSettingChangedSinkCallback()
 	static const auto CVarHDROutputEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.EnableHDROutput"));
 	check(CVarHDROutputEnabled);
 	
+	if (GRHIVendorId == 0)
+	{
+		return;
+	}
+
 	bool bIsHDREnabled = CVarHDROutputEnabled->GetValueOnAnyThread() != 0;
 	
 	if(bIsHDREnabled != GRHIIsHDREnabled)
@@ -611,54 +691,14 @@ void HDRSettingChangedSinkCallback()
 		
 		int32 OutputDevice = 0;
 		int32 ColorGamut = 0;
-		bool bNewValuesSet = false;
 		
 		// If we are turning HDR on we must set the appropriate OutputDevice and ColorGamut.
 		// If we are turning it off, we'll reset back to 0/0
 		if(bIsHDREnabled)
 		{
-#if PLATFORM_WINDOWS
-			if (IsRHIDeviceNVIDIA() || IsRHIDeviceAMD())
-			{
-				// ScRGB, 1000 or 2000 nits, Rec2020
-				OutputDevice = (DisplayNitLevel == 1000) ? 5 : 6;
-				ColorGamut = 2;
-				bNewValuesSet = true;
-			}
-#elif PLATFORM_PS4
-			{
-				// PQ, 1000 or 2000 nits, Rec2020
-				OutputDevice = (DisplayNitLevel == 1000) ? 3 : 4;
-				ColorGamut = 2;
-				bNewValuesSet = true;
-			}
-
-#elif PLATFORM_MAC
-			{
-				// ScRGB, 1000 or 2000 nits, DCI-P3
-				OutputDevice = DisplayNitLevel == 1000 ? 5 : 6;
-				ColorGamut = 1;
-				bNewValuesSet = true;
-			}
-#elif PLATFORM_IOS
-			{
-				// Linear output to Apple's specific format.
-				OutputDevice = 7;
-				ColorGamut = 0;
-				bNewValuesSet = true;
-			}
-#elif PLATFORM_XBOXONE
-			{
-				// PQ, 1000 or 2000 nits, Rec2020
-				OutputDevice = (DisplayNitLevel == 1000) ? 3 : 4;
-				ColorGamut = 2;
-				bNewValuesSet = true;
-			}
-#endif
+			FPlatformMisc::ChooseHDRDeviceAndColorGamut(GRHIVendorId, DisplayNitLevel, OutputDevice, ColorGamut);
 		}
 		
-		if (bNewValuesSet)
-		{
 		static IConsoleVariable* CVarHDROutputDevice = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.Display.OutputDevice"));
 		static IConsoleVariable* CVarHDRColorGamut = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.Display.ColorGamut"));
 		check(CVarHDROutputDevice);
@@ -666,7 +706,6 @@ void HDRSettingChangedSinkCallback()
 		
 		CVarHDROutputDevice->Set(OutputDevice, ECVF_SetByDeviceProfile);
 		CVarHDRColorGamut->Set(ColorGamut, ECVF_SetByDeviceProfile);
-		}
 		
 		// Now set the HDR setting.
 		GRHIIsHDREnabled = CVarHDROutputEnabled->GetValueOnAnyThread() != 0;
@@ -903,6 +942,7 @@ namespace
 		return NewWorld;
 	}
 }
+
 /*-----------------------------------------------------------------------------
 Object class implementation.
 -----------------------------------------------------------------------------*/
@@ -2896,10 +2936,24 @@ public:
 
 	virtual bool EnableStereo(bool stereo = true) override { return true; }
 
+	virtual bool DeviceIsAPrimaryView(const FSceneView& View) override
+	{
+#if WITH_MGPU
+		// We have to do all the work for secondary views that are on a different GPU than
+		// the primary view. NB: This assumes that the primary view is assigned to the
+		// first GPU of the AFR group. See FSceneRenderer::ComputeViewGPUMasks.
+		if (View.StereoPass != eSSP_FULL && AFRUtils::GetIndexWithinGroup(View.GPUMask.ToIndex()) != 0)
+		{
+			return true;
+		}
+#endif
+		return IStereoRendering::DeviceIsAPrimaryView(View);
+	}
+
 	virtual void AdjustViewRect(EStereoscopicPass StereoPass, int32& X, int32& Y, uint32& SizeX, uint32& SizeY) const override
 	{
 		SizeX = SizeX / 2;
-		if (IStereoRendering::IsASecondaryView(StereoPass))
+		if (StereoPass == eSSP_RIGHT_EYE)
 		{
 			X += SizeX;
 		}
@@ -2907,10 +2961,10 @@ public:
 
 	virtual void CalculateStereoViewOffset(const enum EStereoscopicPass StereoPassType, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation) override
 	{
-		if (IStereoRendering::IsStereoEyeView(StereoPassType))
+		if (StereoPassType != eSSP_FULL)
 		{
 			float EyeOffset = 3.20000005f;
-			const float PassOffset = IStereoRendering::IsAPrimaryView(StereoPassType) ? EyeOffset : -EyeOffset;
+			const float PassOffset = (StereoPassType == eSSP_LEFT_EYE) ? EyeOffset : -EyeOffset;
 			ViewLocation += ViewRotation.Quaternion().RotateVector(FVector(0,PassOffset,0));
 		}
 	}
@@ -4965,7 +5019,6 @@ bool UEngine::HandleListTexturesCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 			}
 		}
 	}
-	const int32 MinMips = UTexture2D::GetMinTextureResidentMipCount();
 	int32 NumApplicableToMinSize = 0;
 	// Collect textures.
 	TArray<FSortedTexture> SortedTextures;
@@ -5004,7 +5057,7 @@ bool UEngine::HandleListTexturesCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 			UsageCount			= TextureToUsageMap.FindRef(Texture2D);
 			bIsForced			= Texture2D->ShouldMipLevelsBeForcedResident() && bIsStreamingTexture;
 
-			if ((NumMips >= MinMips) && bIsStreamingTexture)
+			if ((NumMips >= Texture2D->GetMinTextureResidentMipCount()) && bIsStreamingTexture)
 			{
 				NumApplicableToMinSize++;
 			}
@@ -12400,7 +12453,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 
 	MALLOC_PROFILER( FMallocProfiler::SnapshotMemoryLoadMapMid( URL.Map ); )
 
-		WorldContext.OwningGameInstance->PreloadContentForURL(URL);
+	WorldContext.OwningGameInstance->PreloadContentForURL(URL);
 
 	UPackage* WorldPackage = NULL;
 	UWorld*	NewWorld = NULL;
@@ -12423,6 +12476,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 					// We are loading a new world for this context, so clear out PIE fixups that might be lingering.
 					// (note we dont want to do this in DuplicateWorldForPIE, since that is also called on streaming worlds.
 					GPlayInEditorID = WorldContext.PIEInstance;
+					UpdatePlayInEditorWorldDebugString(&WorldContext);
 					FLazyObjectPtr::ResetPIEFixups();
 
 					NewWorld = UWorld::DuplicateWorldForPIE(SourceWorldPackage, nullptr);
@@ -12726,7 +12780,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	TRACE_BOOKMARK(TEXT("LoadMapComplete - %s"), *URL.Map);
 	MALLOC_PROFILER( FMallocProfiler::SnapshotMemoryLoadMapEnd( URL.Map ); )
 
-		double StopTime = FPlatformTime::Seconds();
+	double StopTime = FPlatformTime::Seconds();
 
 	UE_LOG(LogLoad, Log, TEXT("Took %f seconds to LoadMap(%s)"), StopTime - StartTime, *URL.Map);
 	FLoadTimeTracker::Get().DumpRawLoadTimes();

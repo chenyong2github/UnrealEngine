@@ -135,7 +135,7 @@ void FIOSTargetSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& Det
 
 	BuildRemoteBuildingSection(DetailLayout);
 
-	AudioPluginWidgetManager.BuildAudioCategory(DetailLayout, EAudioPlatform::IOS);
+	AudioPluginWidgetManager.BuildAudioCategory(DetailLayout, FString(TEXT("IOS")));
 
 }
 
