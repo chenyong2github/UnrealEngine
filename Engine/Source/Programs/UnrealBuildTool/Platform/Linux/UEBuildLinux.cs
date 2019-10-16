@@ -357,7 +357,9 @@ namespace UnrealBuildTool
 							Rules.DynamicallyLoadedModuleNames.Add("LinuxNoEditorTargetPlatform");
 							Rules.DynamicallyLoadedModuleNames.Add("LinuxAArch64NoEditorTargetPlatform");
 							Rules.DynamicallyLoadedModuleNames.Add("LinuxClientTargetPlatform");
+							Rules.DynamicallyLoadedModuleNames.Add("LinuxAArch64ClientTargetPlatform");
 							Rules.DynamicallyLoadedModuleNames.Add("LinuxServerTargetPlatform");
+							Rules.DynamicallyLoadedModuleNames.Add("LinuxAArch64ServerTargetPlatform");
 						}
 					}
 				}
@@ -369,7 +371,9 @@ namespace UnrealBuildTool
 					Rules.DynamicallyLoadedModuleNames.Add("LinuxNoEditorTargetPlatform");
 					Rules.DynamicallyLoadedModuleNames.Add("LinuxAArch64NoEditorTargetPlatform");
 					Rules.DynamicallyLoadedModuleNames.Add("LinuxClientTargetPlatform");
+					Rules.DynamicallyLoadedModuleNames.Add("LinuxAArch64ClientTargetPlatform");
 					Rules.DynamicallyLoadedModuleNames.Add("LinuxServerTargetPlatform");
+					Rules.DynamicallyLoadedModuleNames.Add("LinuxAArch64ServerTargetPlatform");
 				}
 			}
 		}
@@ -402,7 +406,9 @@ namespace UnrealBuildTool
 					Rules.DynamicallyLoadedModuleNames.Add("LinuxNoEditorTargetPlatform");
 					Rules.DynamicallyLoadedModuleNames.Add("LinuxAArch64NoEditorTargetPlatform");
 					Rules.DynamicallyLoadedModuleNames.Add("LinuxClientTargetPlatform");
+					Rules.DynamicallyLoadedModuleNames.Add("LinuxAArch64ClientTargetPlatform");
 					Rules.DynamicallyLoadedModuleNames.Add("LinuxServerTargetPlatform");
+					Rules.DynamicallyLoadedModuleNames.Add("LinuxAArch64ServerTargetPlatform");
 					Rules.DynamicallyLoadedModuleNames.Add("AllDesktopTargetPlatform");
 				}
 
@@ -410,11 +416,12 @@ namespace UnrealBuildTool
 				{
 					Rules.DynamicallyLoadedModuleNames.Add("ShaderFormatOpenGL");
 					Rules.DynamicallyLoadedModuleNames.Add("VulkanShaderFormat");
+					Rules.DynamicallyLoadedModuleNames.Add("ShaderFormatVectorVM");
 				}
 			}
 		}
 
-		public virtual void SetUpSpecificEnvironment(CppCompileEnvironment CompileEnvironment, LinkEnvironment LinkEnvironment)
+		public virtual void SetUpSpecificEnvironment(ReadOnlyTargetRules Target, CppCompileEnvironment CompileEnvironment, LinkEnvironment LinkEnvironment)
 		{
 			CompileEnvironment.Definitions.Add("PLATFORM_LINUX=1");
 			CompileEnvironment.Definitions.Add("PLATFORM_UNIX=1");
@@ -426,6 +433,9 @@ namespace UnrealBuildTool
 
 			// LinuxAArch64 uses only Linux header files
 			CompileEnvironment.Definitions.Add("OVERRIDE_PLATFORM_HEADER_NAME=Linux");
+
+			CompileEnvironment.Definitions.Add("PLATFORM_LINUXAARCH64=" +
+				(Target.Platform == UnrealTargetPlatform.LinuxAArch64 ? "1" : "0"));
 		}
 
 		/// <summary>
@@ -493,7 +503,7 @@ namespace UnrealBuildTool
 			LinkEnvironment.AdditionalLibraries.Add("pthread");
 
 			// let this class or a sub class do settings specific to that class
-			SetUpSpecificEnvironment(CompileEnvironment, LinkEnvironment);
+			SetUpSpecificEnvironment(Target, CompileEnvironment, LinkEnvironment);
 		}
 
 		/// <summary>

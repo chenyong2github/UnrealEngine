@@ -1055,6 +1055,12 @@ protected:
 				else if (PlatformName == TEXT("LinuxAArch64"))
 				{
 					PlatformInfo::UpdatePlatformSDKStatus(PlatformName, Status);
+					PlatformName = TEXT("LinuxAArch64NoEditor");
+					PlatformInfo::UpdatePlatformSDKStatus(PlatformName, Status);
+					PlatformName = TEXT("LinuxAArch64Client");
+					PlatformInfo::UpdatePlatformSDKStatus(PlatformName, Status);
+					PlatformName = TEXT("LinuxAArch64Server");
+					PlatformInfo::UpdatePlatformSDKStatus(PlatformName, Status);
 				}
 				else if (PlatformName == TEXT("Desktop"))
 				{
