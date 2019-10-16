@@ -40,7 +40,7 @@ private:
 
 	void BuildUsdLayersEntries( AUsdStageActor* UsdStageActor );
 
-	TSharedPtr< SWidget > ConstructLayerContextMenu() const;
+	TSharedPtr< SWidget > ConstructLayerContextMenu();
 
 	bool CanEditLayer( FUsdLayersTreeItemRef LayerItem ) const;
 	bool CanEditSelectedLayer() const;
