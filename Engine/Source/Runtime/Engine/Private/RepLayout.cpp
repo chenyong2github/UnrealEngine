@@ -6006,13 +6006,13 @@ FRepStateStaticBuffer FRepLayout::CreateShadowBuffer(const FConstRepObjectDataBu
 	return ShadowData;
 }
 
-TSharedPtr<FReplicationChangelistMgr> FRepLayout::CreateReplicationChangelistMgr(const UObject* InObject) const
+TSharedPtr<FReplicationChangelistMgr> FRepLayout::CreateReplicationChangelistMgr(const UObject* InObject, const ECreateReplicationChangelistMgrFlags CreateFlags) const
 {
 	// ChangelistManager / ChangelistState will hold onto a unique pointer for this
 	// so no need to worry about deleting it here.
 
 	FCustomDeltaChangelistState* DeltaChangelistState = nullptr;
-	if (LifetimeCustomPropertyState && !!LifetimeCustomPropertyState->GetNumFastArrayProperties())
+	if (!EnumHasAnyFlags(CreateFlags, ECreateReplicationChangelistMgrFlags::SkipDeltaCustomState) && LifetimeCustomPropertyState && !!LifetimeCustomPropertyState->GetNumFastArrayProperties())
 	{
 		DeltaChangelistState = new FCustomDeltaChangelistState(LifetimeCustomPropertyState->GetNumFastArrayProperties());
 	}
