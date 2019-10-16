@@ -22,20 +22,18 @@ class FSkeletalMeshLODModel;
 
 struct ExistingMeshLodSectionData
 {
-	ExistingMeshLodSectionData(FName InImportedMaterialSlotName, bool InbCastShadow, bool InbRecomputeTangents, int32 InGenerateUpTo, bool InbDisabled, bool InbBoneChunkedSection)
+	ExistingMeshLodSectionData(FName InImportedMaterialSlotName, bool InbCastShadow, bool InbRecomputeTangents, int32 InGenerateUpTo, bool InbDisabled)
 	: ImportedMaterialSlotName(InImportedMaterialSlotName)
 	, bCastShadow(InbCastShadow)
 	, bRecomputeTangents(InbRecomputeTangents)
 	, GenerateUpTo(InGenerateUpTo)
 	, bDisabled(InbDisabled)
-	, bBoneChunkedSection(InbBoneChunkedSection)
 	{}
 	FName ImportedMaterialSlotName;
 	bool bCastShadow;
 	bool bRecomputeTangents;
 	int32 GenerateUpTo;
 	bool bDisabled;
-	bool bBoneChunkedSection;
 };
 
 struct ExistingSkelMeshData
