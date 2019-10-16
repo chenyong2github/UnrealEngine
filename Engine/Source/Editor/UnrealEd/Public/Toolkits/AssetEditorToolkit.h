@@ -18,6 +18,7 @@
 
 class FAssetEditorModeManager;
 class FMenuBuilder;
+struct FToolMenuContext;
 class SBorder;
 class SStandaloneAssetEditorToolkitHost;
 
@@ -187,6 +188,8 @@ public:
 	void RegenerateMenusAndToolbars();
 
 	/** Get name used by tool menu */
+	virtual FName GetToolMenuToolbarName(FName& OutParentName) const;
+	virtual void InitToolMenuContext(FToolMenuContext& MenuContext);
 	FName GetToolMenuToolbarName() const;
 	FName GetToolMenuAppName() const;
 

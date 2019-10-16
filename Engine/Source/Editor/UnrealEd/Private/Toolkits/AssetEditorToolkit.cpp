@@ -975,6 +975,14 @@ FName FAssetEditorToolkit::GetToolMenuAppName() const
 
 FName FAssetEditorToolkit::GetToolMenuToolbarName() const
 {
+	FName ParentName;
+	return GetToolMenuToolbarName(ParentName);
+}
+
+FName FAssetEditorToolkit::GetToolMenuToolbarName(FName& OutParentName) const
+{
+	static const FName DefaultToolbarName = "AssetEditor.DefaultToolBar";
+	OutParentName = DefaultToolbarName;
 	return *(TEXT("AssetEditor.") + GetToolMenuAppName().ToString() + TEXT(".ToolBar"));
 }
 
@@ -993,18 +1001,24 @@ void FAssetEditorToolkit::RegisterMenus()
 	}
 }
 
+void FAssetEditorToolkit::InitToolMenuContext(FToolMenuContext& MenuContext)
+{
+
+}
+
 void FAssetEditorToolkit::GenerateToolbar()
 {
 	TSharedPtr<FExtender> Extender = FExtender::Combine(ToolbarExtenders);
 
 	RegisterMenus();
 
-	const FName ToolBarName = GetToolMenuToolbarName();
+	FName ParentToolbarName;
+	const FName ToolBarName = GetToolMenuToolbarName(ParentToolbarName);
 	UToolMenus* ToolMenus = UToolMenus::Get();
 	UToolMenu* FoundMenu = ToolMenus->FindMenu(ToolBarName);
 	if (!FoundMenu || !FoundMenu->IsRegistered())
 	{
-		FoundMenu = ToolMenus->RegisterMenu(ToolBarName, "AssetEditor.DefaultToolBar", EMultiBoxType::ToolBar);
+		FoundMenu = ToolMenus->RegisterMenu(ToolBarName, ParentToolbarName, EMultiBoxType::ToolBar);
 	}
 
 	FToolMenuContext MenuContext(GetToolkitCommands(), Extender);
@@ -1012,6 +1026,8 @@ void FAssetEditorToolkit::GenerateToolbar()
 	UAssetEditorToolkitMenuContext* ToolkitMenuContext = NewObject<UAssetEditorToolkitMenuContext>(FoundMenu);
 	ToolkitMenuContext->Toolkit = AsShared();
 	MenuContext.AddObject(ToolkitMenuContext);
+
+	InitToolMenuContext(MenuContext);
 
 	UToolMenu* GeneratedToolbar = ToolMenus->GenerateMenu(ToolBarName, MenuContext);
 	GeneratedToolbar->bToolBarIsFocusable = bIsToolbarFocusable;

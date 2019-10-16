@@ -14,6 +14,8 @@
 #include "IPersonaPreviewScene.h"
 #include "PersonaUtils.h"
 
+#include "ToolMenus.h"
+
 /////////////////////////////////////////////////////
 // FAnimationBlueprintEditorMode
 
@@ -141,10 +143,14 @@ FAnimationBlueprintEditorMode::FAnimationBlueprintEditorMode(const TSharedRef<FA
 	// setup toolbar - clear existing toolbar extender from the BP mode
 	//@TODO: Keep this in sync with BlueprintEditorModes.cpp
 	ToolbarExtender = MakeShareable(new FExtender);
-	InAnimationBlueprintEditor->GetToolbarBuilder()->AddCompileToolbar(ToolbarExtender);
-	InAnimationBlueprintEditor->GetToolbarBuilder()->AddScriptingToolbar(ToolbarExtender);
-	InAnimationBlueprintEditor->GetToolbarBuilder()->AddBlueprintGlobalOptionsToolbar(ToolbarExtender);
-	InAnimationBlueprintEditor->GetToolbarBuilder()->AddDebuggingToolbar(ToolbarExtender);
+
+	if (UToolMenu* Toolbar = InAnimationBlueprintEditor->RegisterModeToolbarIfUnregistered(GetModeName()))
+	{
+		InAnimationBlueprintEditor->GetToolbarBuilder()->AddCompileToolbar(Toolbar);
+		InAnimationBlueprintEditor->GetToolbarBuilder()->AddScriptingToolbar(Toolbar);
+		InAnimationBlueprintEditor->GetToolbarBuilder()->AddBlueprintGlobalOptionsToolbar(Toolbar);
+		InAnimationBlueprintEditor->GetToolbarBuilder()->AddDebuggingToolbar(Toolbar);
+	}
 
 	PersonaModule.OnRegisterTabs().Broadcast(TabFactories, InAnimationBlueprintEditor);
 	LayoutExtender = MakeShared<FLayoutExtender>();

@@ -47,6 +47,7 @@ class UBlueprintEditorOptions;
 struct Rect;
 class UK2Node_FunctionEntry;
 class UK2Node_Event;
+class UToolMenu;
 
 /* Enums to use when grouping the blueprint members in the list panel. The order here will determine the order in the list */
 namespace NodeSectionID
@@ -237,6 +238,17 @@ public:
 	FBlueprintEditor();
 
 	virtual ~FBlueprintEditor();
+
+	/** Add context objects for menus and toolbars */
+	virtual void InitToolMenuContext(FToolMenuContext& MenuContext) override;
+
+	/**
+	* Registers toolbar for a mode if not already registered
+	*
+	* @param InModeName - Name of the mode to register toolbar for
+	* @return nullptr if toolbar already registered.
+	*/
+	UToolMenu* RegisterModeToolbarIfUnregistered(const FName InModeName);
 
 	/** Check the Node Title is visible */
 	bool IsNodeTitleVisible(const UEdGraphNode* Node, bool bRequestRename);

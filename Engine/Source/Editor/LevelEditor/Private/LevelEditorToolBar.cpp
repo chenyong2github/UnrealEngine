@@ -1494,15 +1494,12 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 		}));
 	}
 
-	Toolbar->AddDynamicSection("Game", FNewToolBarDelegateLegacy::CreateLambda([](FToolBarBuilder& InBuilder, UToolMenu* InData)
 	{
-		InBuilder.BeginSection("Game");
+		FToolMenuSection& Section = Toolbar->AddSection("Game");
 
 		// Add the shared play-world commands that will be shown on the Kismet toolbar as well
-		FPlayWorldCommands::BuildToolbar(InBuilder, true);
-
-		InBuilder.EndSection();
-	}));
+		FPlayWorldCommands::BuildToolbar(Section, true);
+	}
 
 #undef LOCTEXT_NAMESPACE
 }

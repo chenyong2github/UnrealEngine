@@ -26,6 +26,22 @@ void FWorkflowCentricApplication::UnregisterTabSpawners(const TSharedRef<class F
 	InTabManager->UnregisterAllTabSpawners();
 }
 
+FName FWorkflowCentricApplication::GetToolMenuToolbarName(FName& OutParentName) const
+{
+	return GetToolMenuToolbarNameForMode(GetCurrentMode(), OutParentName);
+}
+
+FName FWorkflowCentricApplication::GetToolMenuToolbarNameForMode(const FName InModeName, FName& OutParentName) const
+{
+	const FName BaseMenuName = FAssetEditorToolkit::GetToolMenuToolbarName(OutParentName);
+	if (InModeName != NAME_None)
+	{
+		OutParentName = BaseMenuName;
+		return *(BaseMenuName.ToString() + TEXT(".") + InModeName.ToString());
+	}
+
+	return BaseMenuName;
+}
 
 FName FWorkflowCentricApplication::GetCurrentMode() const
 {

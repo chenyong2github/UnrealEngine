@@ -25,7 +25,11 @@ public:
 	
 	// FAssetEditorToolkit interface
 	virtual bool OnRequestClose() override;
+	virtual FName GetToolMenuToolbarName(FName& OutParentName) const override;
 	// End of FAssetEditorToolkit interface
+
+	// Returns the name of the toolbar for the given mode along with the name of the toolbar's parent.
+	FName GetToolMenuToolbarNameForMode(const FName InModeName, FName& OutParentName) const;
 
 	// Returns the current mode of this application
 	FName GetCurrentMode() const;

@@ -14,6 +14,8 @@
 #include "IDocumentation.h"
 #include "BlueprintEditor.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
+#include "BlueprintEditorContext.h"
 
 #include "WidgetBlueprintEditor.h"
 #include "WorkflowOrientedApp/SModeWidget.h"
@@ -123,33 +125,22 @@ void FWidgetBlueprintEditorToolbar::FillWidgetBlueprintEditorModesToolbar(FToolB
 	}
 }
 
-void FWidgetBlueprintEditorToolbar::AddWidgetReflector(TSharedPtr<FExtender> Extender)
+
+void FWidgetBlueprintEditorToolbar::AddWidgetReflector(UToolMenu* InMenu)
 {
-	TSharedPtr<FWidgetBlueprintEditor> BlueprintEditorPtr = WidgetEditor.Pin();
+	FToolMenuSection& Section = InMenu->AddSection("WidgetTools");
+	Section.InsertPosition = FToolMenuInsert("Asset", EToolMenuInsertType::After);
 
-	Extender->AddToolBarExtension(
-		"Asset",
-		EExtensionHook::After,
-		BlueprintEditorPtr->GetToolkitCommands(),
-		FToolBarExtensionDelegate::CreateSP(this, &FWidgetBlueprintEditorToolbar::FillWidgetReflectorToolbar));
-}
-
-void FWidgetBlueprintEditorToolbar::FillWidgetReflectorToolbar(FToolBarBuilder& ToolbarBuilder)
-{
-	ToolbarBuilder.BeginSection("WidgetTools");
-
-	ToolbarBuilder.AddToolBarButton(
+	Section.AddEntry(FToolMenuEntry::InitToolBarButton(
+		"OpenWidgetReflector",
 		FUIAction(
 			FExecuteAction::CreateLambda([=] { FGlobalTabmanager::Get()->InvokeTab(FTabId("WidgetReflector")); }),
 			FCanExecuteAction()
 		)
-		, NAME_None
 		, LOCTEXT("OpenWidgetReflector", "Widget Reflector")
 		, LOCTEXT("OpenWidgetReflectorToolTip", "Opens the Widget Reflector, a handy tool for diagnosing problems with live widgets.")
 		, FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "WidgetReflector.Icon")
-	);
-
-	ToolbarBuilder.EndSection();
+	));
 }
 
 #undef LOCTEXT_NAMESPACE

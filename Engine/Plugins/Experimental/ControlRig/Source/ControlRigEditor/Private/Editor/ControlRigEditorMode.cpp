@@ -9,6 +9,7 @@
 #include "RigHierarchyTabSummoner.h"
 #include "RigStackTabSummoner.h"
 #include "RigCurveContainerTabSummoner.h"
+#include "ToolMenus.h"
 
 FControlRigEditorMode::FControlRigEditorMode(const TSharedRef<FControlRigEditor>& InControlRigEditor)
 	: FBlueprintEditorApplicationMode(InControlRigEditor, FControlRigEditorModes::ControlRigEditorMode, FControlRigEditorModes::GetLocalizedMode, false, false)
@@ -116,12 +117,12 @@ FControlRigEditorMode::FControlRigEditorMode(const TSharedRef<FControlRigEditor>
 			)
 		);
 
-	// setup toolbar - clear existing toolbar extender from the BP mode
-	ToolbarExtender = MakeShareable(new FExtender);
-	InControlRigEditor->GetToolbarBuilder()->AddCompileToolbar(ToolbarExtender);
-	InControlRigEditor->GetToolbarBuilder()->AddScriptingToolbar(ToolbarExtender);
-	InControlRigEditor->GetToolbarBuilder()->AddBlueprintGlobalOptionsToolbar(ToolbarExtender);
-//	InControlRigEditor->GetToolbarBuilder()->AddDebuggingToolbar(ToolbarExtender);
+	if (UToolMenu* Toolbar = InControlRigEditor->RegisterModeToolbarIfUnregistered(GetModeName()))
+	{
+		InControlRigEditor->GetToolbarBuilder()->AddCompileToolbar(Toolbar);
+		InControlRigEditor->GetToolbarBuilder()->AddScriptingToolbar(Toolbar);
+		InControlRigEditor->GetToolbarBuilder()->AddBlueprintGlobalOptionsToolbar(Toolbar);
+	}
 }
 
 void FControlRigEditorMode::RegisterTabFactories(TSharedPtr<FTabManager> InTabManager)
