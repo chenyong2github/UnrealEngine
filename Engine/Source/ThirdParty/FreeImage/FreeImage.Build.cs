@@ -4,26 +4,34 @@ using System.IO;
 
 public class FreeImage : ModuleRules
 {
-    public FreeImage(ReadOnlyTargetRules Target) : base(Target)
+	public FreeImage(ReadOnlyTargetRules Target) : base(Target)
 	{
 		Type = ModuleType.External;
 
-        PublicSystemIncludePaths.Add(Path.Combine(ModuleDirectory, "Source"));
+		PublicSystemIncludePaths.Add(Path.Combine(ModuleDirectory, "Source"));
 
-		string LibPath = Path.Combine(ModuleDirectory, "lib", Target.Platform.ToString());
-
+		string BinaryLibraryFolder = Path.Combine(Target.UEThirdPartyBinariesDirectory, "FreeImage", Target.Platform.ToString());
+		string LibraryFileName = "";
+		bool bWithFreeImage = false;
 		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
 		{
-            PublicAdditionalLibraries.Add(Path.Combine(LibPath, "FreeImage.lib"));
-            PublicAdditionalLibraries.Add(Path.Combine(LibPath, "LibRaw.lib"));
+			LibraryFileName = "FreeImage.dll";
+			string DynLibPath = Path.Combine(BinaryLibraryFolder, LibraryFileName);
 
-			PublicDelayLoadDLLs.Add("FreeImage.dll");
-			PublicDelayLoadDLLs.Add("LibRaw.dll");
+			string LibPath = Path.Combine(ModuleDirectory, "lib", Target.Platform.ToString());
+			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "FreeImage.lib"));
 
-			string DllPath = Path.Combine(Target.UEThirdPartyBinariesDirectory, "FreeImage", Target.Platform.ToString());
-			RuntimeDependencies.Add(Path.Combine(DllPath, "FreeImage.dll"));
-			RuntimeDependencies.Add(Path.Combine(DllPath, "LibRaw.dll"));
+			PublicDelayLoadDLLs.Add(LibraryFileName);
+			RuntimeDependencies.Add(DynLibPath);
+			bWithFreeImage = true;
+		}
+
+
+
+		PublicDefinitions.Add("WITH_FREEIMAGE_LIB=" + (bWithFreeImage ? '1' : '0'));
+		if (LibraryFileName != "")
+		{
+			PublicDefinitions.Add("FREEIMAGE_LIB_FILENAME=\"" + LibraryFileName + "\"");
 		}
 	}
 }
-
