@@ -16,13 +16,12 @@
 #include "VirtualTextureChunkDDCCache.h"
 #endif
 
-static int32 NumTranscodeRequests = 128;
+static int32 NumTranscodeRequests = 32;
 static FAutoConsoleVariableRef CVarNumTranscodeRequests(
 	TEXT("r.VT.NumTranscodeRequests"),
 	NumTranscodeRequests,
-	TEXT("Number of transcode request that can be in flight. default 128\n")
-	, ECVF_ReadOnly
-);
+	TEXT("Number of transcode request that can be in flight. default 32\n"),
+	ECVF_Default);
 
 static FVirtualTextureChunkStreamingManager* VirtualTexturePageStreamingManager = nullptr;
 struct FVirtualTextureChunkStreamingManager& FVirtualTextureChunkStreamingManager::Get()

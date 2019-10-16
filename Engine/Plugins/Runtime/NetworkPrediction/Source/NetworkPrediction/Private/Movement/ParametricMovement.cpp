@@ -42,7 +42,7 @@ namespace ParametricMovement
 {
 	const FName FMovementSimulation::GroupName(TEXT("Parametric"));
 
-	void FMovementSimulation::Update(IMovementDriver* Driver, const float DeltaSeconds, const FInputCmd& InputCmd, const FMoveState& InputState, FMoveState& OutputState, const FAuxState& AuxState)
+	void FMovementSimulation::Update(IMovementDriver* Driver, const float DeltaSeconds, const FInputCmd& InputCmd, const FMoveState& InputState, FMoveState& OutputState, const FAuxState& AuxState, const TLazyStateAccessor<FAuxState>& OutAuxStateAccessor)
 	{
 		IBaseMovementDriver& BaseMovementDriver = Driver->GetBaseMovementDriver();
 		//const float DeltaSeconds = SimTimeDeltaMS.ToRealTimeSeconds();
@@ -114,12 +114,16 @@ INetworkSimulationModel* UParametricMovementComponent::InstantiateNetworkSimulat
 		auto *NewSim = new ParametricMovement::FMovementSystem<16>(this);
 		NewSim->RepProxy_Simulated.bAllowSimulatedExtrapolation = !bEnableInterpolation;
 		DO_NETSIM_MODEL_DEBUG(FNetworkSimulationModelDebuggerManager::Get().RegisterNetworkSimulationModel(NewSim, GetOwner()));
+		MovementSyncState = &NewSim->SyncAccessor;
+		MovementAuxState = &NewSim->AuxAccessor;
 		return NewSim;
 	}
 	
 	auto *NewSim = new ParametricMovement::FMovementSystem<>(this);
 	NewSim->RepProxy_Simulated.bAllowSimulatedExtrapolation = !bEnableInterpolation;
 	DO_NETSIM_MODEL_DEBUG(FNetworkSimulationModelDebuggerManager::Get().RegisterNetworkSimulationModel(NewSim, GetOwner()));
+	MovementSyncState = &NewSim->SyncAccessor;
+	MovementAuxState = &NewSim->AuxAccessor;
 	return NewSim;
 }
 
@@ -148,7 +152,11 @@ void UParametricMovementComponent::InitSyncState(ParametricMovement::FMoveState&
 	OutSyncState.PlayRate = 0.f;
 }
 
-void UParametricMovementComponent::FinalizeFrame(const ParametricMovement::FMoveState& SyncState)
+void UParametricMovementComponent::InitAuxState(ParametricMovement::FAuxState& OutAuxState) const
+{
+}
+
+void UParametricMovementComponent::FinalizeFrame(const ParametricMovement::FMoveState& SyncState, const ParametricMovement::FAuxState& AuxState)
 {
 	FTransform NewTransform;
 	MapTimeToTransform(SyncState.Position, NewTransform);

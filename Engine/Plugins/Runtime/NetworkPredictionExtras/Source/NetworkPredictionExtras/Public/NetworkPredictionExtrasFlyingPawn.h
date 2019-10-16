@@ -31,6 +31,14 @@ class UFlyingMovementComponent;
 //
 // -------------------------------------------------------------------------------------------------------------------------------
 
+UENUM()
+enum class ENetworkPredictionExtrasFlyingInputPreset: uint8
+{
+	/** No input */
+	None,
+	/** Just moves forward */
+	Forward
+};
 
 /** Sample pawn that uses UFlyingMovementComponent. The main thing this provides is actually producing user input for the component/simulation to consume. */
 UCLASS(config = Game)
@@ -38,10 +46,28 @@ class NETWORKPREDICTIONEXTRAS_API ANetworkPredictionExtrasFlyingPawn : public AP
 {
 	GENERATED_BODY()
 
+public:
+
 	ANetworkPredictionExtrasFlyingPawn();
 
+	virtual void BeginPlay() override;
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 	virtual void Tick( float DeltaSeconds) override;
+	virtual UNetConnection* GetNetConnection() const override;
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Automation")
+	ENetworkPredictionExtrasFlyingInputPreset InputPreset;
+
+	/** Actor will behave like autonomous proxy even though not posessed by an APlayercontroller. To be used in conjuction with InputPreset. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Automation")
+	bool bFakeAutonomousProxy = false;
+
+	UFUNCTION(BlueprintCallable, Category="Debug")
+	void PrintDebug();
+
+	UFUNCTION(BlueprintCallable, Category="Gameplay")
+	void SetMaxMoveSpeed(float NewMaxMoveSpeed);
 
 private:
 

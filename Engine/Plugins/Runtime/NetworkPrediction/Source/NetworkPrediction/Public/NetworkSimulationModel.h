@@ -51,18 +51,10 @@ public:
 
 	using TSimTime = FNetworkSimTime;
 	using TRealTime = FNetworkSimTime::FRealTime;
-
-	class IDriver
-	{
-	public:
-		virtual FString GetDebugName() const = 0; // Used for debugging. Recommended to emit the simulation name and the actor name/role.
-
-		virtual void InitSyncState(TSyncState& OutSyncState) const = 0;	// Called to create initial value of the sync state.
-		virtual void ProduceInput(const FNetworkSimTime, typename TUserBufferTypes::TInputCmd&) = 0; // Called when the sim is ready to process new local input
-		virtual void FinalizeFrame(const TSyncState& SyncState) = 0; // Called from the Network Sim at the end of the sim frame when there is new sync data.
-	};
 	
 	TNetworkedSimulationModel(TDriver* InDriver)
+		: SyncAccessor(Buffers.SyncMods, &TickInfo.LastProcessedInputKeyframe)
+		, AuxAccessor(Buffers.AuxMods, &TickInfo.LastProcessedInputKeyframe)
 	{
 		Driver = InDriver;
 	}
@@ -78,7 +70,7 @@ public:
 		// (property replication and ServerRPC get sent after the tick, rather than forcing awkward callback into the NetSim post replication, we can check it here)
 		if (auto* DebugBuffer = GetLocalDebugBuffer())
 		{
-			if (TDebugState* const PrevDebugState = DebugBuffer->FindElementByKeyframe(DebugBuffer->GetHeadKeyframe()))
+			if (TDebugState* const PrevDebugState = DebugBuffer->Get(DebugBuffer->HeadKeyframe()))
 			{
 				if (Parameters.Role == ROLE_AutonomousProxy)
 				{
@@ -133,7 +125,7 @@ public:
 		// -------------------------------------------------------------------------------------------------------------------------------------------------
 		//												Input Processing & Simulation Update
 		// -------------------------------------------------------------------------------------------------------------------------------------------------
-		if (Buffers.Input.GetHeadKeyframe() > Buffers.Sync.GetHeadKeyframe())
+		if (Buffers.Input.HeadKeyframe() > Buffers.Sync.HeadKeyframe())
 		{
 			// -------------------------------------------------------------------------------------------------------------
 			//	
@@ -142,27 +134,32 @@ public:
 			//		-Its HeadKeyframe should be one behind the Keyframe we are about to process.
 			//
 			//	Note, InputCmds start @ Keyframe=1. The first SyncedState that Update produces will go in KeyFrame=1.
-			//	(E.g, InputCmd @ keyframe=X is used to generate MotionState @ keyframe=X)
+			//	(E.g, InputCmd @ keyframe=X is used to generate SyncState @ keyframe=X)
 			//	This means that SyncedState @ keyframe=0 is always created here via InitSyncState.
 			//	This also means that we never actually process InputCmd @ keyframe=0. Which is why LastProcessedInputKeyframe is initialized to 0 ("already processed")
 			//	and the buffer has an empty element inserted in InitializeForNetworkRole.
 			// -------------------------------------------------------------------------------------------------------------
 
-			if (Buffers.Sync.GetHeadKeyframe() != TickInfo.LastProcessedInputKeyframe)
+			if (Buffers.Sync.HeadKeyframe() != TickInfo.LastProcessedInputKeyframe)
 			{
 				if (TickInfo.LastProcessedInputKeyframe != 0)
 				{
 					// This shouldn't happen, but is not fatal. We are reseting the sync state buffer.
-					UE_LOG(LogNetworkSim, Warning, TEXT("%s. Break in SyncState continuity. LastProcessedInputKeyframe: %d. SyncBuffer.GetHeadKeyframe(): %d."), *Driver->GetDebugName() , TickInfo.LastProcessedInputKeyframe, Buffers.Sync.GetHeadKeyframe());
+					UE_LOG(LogNetworkSim, Warning, TEXT("%s. Break in SyncState continuity. LastProcessedInputKeyframe: %d. SyncBuffer.HeadKeyframe(): %d."), *Driver->GetDebugName() , TickInfo.LastProcessedInputKeyframe, Buffers.Sync.HeadKeyframe());
 				}
 
 				// We need an initial/current state. Get this from the sim driver
-				Buffers.Sync.ResetNextHeadKeyframe(TickInfo.LastProcessedInputKeyframe);
-				TSyncState* StartingState = Buffers.Sync.GetWriteNext();
+				TSyncState* StartingState = Buffers.Sync.WriteKeyframe(TickInfo.LastProcessedInputKeyframe);
 				Driver->InitSyncState(*StartingState);
 
 				// Reset time tracking buffer too
-				TickInfo.SetTotalProcessedSimulationTime(TickInfo.GetTotalProcessedSimulationTime(), Buffers.Sync.GetHeadKeyframe());
+				TickInfo.SetTotalProcessedSimulationTime(TickInfo.GetTotalProcessedSimulationTime(), Buffers.Sync.HeadKeyframe());
+			}
+
+			if (Buffers.Aux.Num() == 0)
+			{
+				TAuxState* StartingAuxState = Buffers.Aux.WriteKeyframe(TickInfo.LastProcessedInputKeyframe);
+				Driver->InitAuxState(*StartingAuxState);
 			}
 		
 			// -------------------------------------------------------------------------------------------------------------
@@ -176,7 +173,7 @@ public:
 					break;
 				}
 
-				if (TInputCmd* NextCmd = Buffers.Input.FindElementByKeyframe(Keyframe))
+				if (TInputCmd* NextCmd = Buffers.Input[Keyframe])
 				{
 					// We have an unprocessed command, do we have enough allotted simulation time to process it?
 					if (TickInfo.GetRemainingAllowedSimulationTime() >= NextCmd->GetFrameDeltaTime())
@@ -184,20 +181,20 @@ public:
 						// -------------------------------------------------------------------------------------------------
 						//	The core process input command and call ::Update block!
 						// -------------------------------------------------------------------------------------------------
-						TSyncState* PrevSyncState = Buffers.Sync.FindElementByKeyframe(TickInfo.LastProcessedInputKeyframe);
-						TSyncState* NextSyncState = Buffers.Sync.GetWriteNext();
+						TSyncState* PrevSyncState = Buffers.Sync[TickInfo.LastProcessedInputKeyframe];
+						TSyncState* NextSyncState = Buffers.Sync.WriteKeyframe(Keyframe);
+						TAuxState* AuxState = Buffers.Aux[TickInfo.LastProcessedInputKeyframe];
 
 						check(PrevSyncState != nullptr);
 						check(NextSyncState != nullptr);
-						check(Buffers.Sync.GetHeadKeyframe() == Keyframe);
+						check(Buffers.Sync.HeadKeyframe() == Keyframe);
 				
 						if (DebugState)
 						{
 							DebugState->ProcessedKeyframes.Add(Keyframe);
 						}
-					
-						TAuxState AuxState; // Temp: aux buffer not implemented yet
-						TSimulation::Update(Driver, NextCmd->GetFrameDeltaTime().ToRealTimeSeconds(), *NextCmd, *PrevSyncState, *NextSyncState, AuxState);
+						
+						TSimulation::Update(Driver, NextCmd->GetFrameDeltaTime().ToRealTimeSeconds(), *NextCmd, *PrevSyncState, *NextSyncState, *AuxState, Buffers.Aux.WriteKeyframeFunc(Keyframe+1));
 					
 						TickInfo.IncrementTotalProcessedSimulationTime(NextCmd->GetFrameDeltaTime(), Keyframe);
 						TickInfo.LastProcessedInputKeyframe = Keyframe;
@@ -241,7 +238,7 @@ public:
 		if (DebugState)
 		{
 			DebugState->LastProcessedKeyframe = TickInfo.LastProcessedInputKeyframe;
-			DebugState->HeadKeyframe = Buffers.Input.GetHeadKeyframe();
+			DebugState->HeadKeyframe = Buffers.Input.HeadKeyframe();
 			DebugState->RemainingAllowedSimulationTimeSeconds = (float)TickInfo.GetRemainingAllowedSimulationTime().ToRealTimeSeconds();
 		}
 
@@ -279,26 +276,31 @@ public:
 	
 	void InitializeForNetworkRole(const ENetRole Role, const FNetworkSimulationModelInitParameters& Parameters) final override
 	{
-		Buffers.Input.SetBufferSize(Parameters.InputBufferSize);
-		Buffers.Sync.SetBufferSize(Parameters.SyncedBufferSize);
-		Buffers.Aux.SetBufferSize(Parameters.AuxBufferSize);
+		// FIXME: buffer sizes are now inlined allocated but we want to support role based buffer sizes
+
+		//Buffers.Input.SetBufferSize(Parameters.InputBufferSize);
+		//Buffers.Sync.SetBufferSize(Parameters.SyncedBufferSize);
+		//Buffers.Aux.SetBufferSize(Parameters.AuxBufferSize); AUXFIXME
 
 		if (GetLocalDebugBuffer())
 		{
-			GetLocalDebugBuffer()->SetBufferSize(Parameters.DebugBufferSize);
+			//GetLocalDebugBuffer()->SetBufferSize(Parameters.DebugBufferSize);
 		}
 
 		if (auto* MyHistoricBuffers = GetHistoricBuffers(true))
 		{
-			MyHistoricBuffers->Input.SetBufferSize(Parameters.HistoricBufferSize);
-			MyHistoricBuffers->Sync.SetBufferSize(Parameters.HistoricBufferSize);
-			MyHistoricBuffers->Aux.SetBufferSize(Parameters.HistoricBufferSize);
+			//MyHistoricBuffers->Input.SetBufferSize(Parameters.HistoricBufferSize);
+			//MyHistoricBuffers->Sync.SetBufferSize(Parameters.HistoricBufferSize);
+			//MyHistoricBuffers->Aux.SetBufferSize(Parameters.HistoricBufferSize); AUXFIXME
 		}
 
-		TickInfo.InitSimulationTimeBuffer(Parameters.SyncedBufferSize);
+		//TickInfo.InitSimulationTimeBuffer(Parameters.SyncedBufferSize);
+
+		Buffers.SyncMods.SetIsAuthority(Role == ROLE_Authority);
+		Buffers.AuxMods.SetIsAuthority(Role == ROLE_Authority);
 
 		// We want to start with an empty command in the input buffer. The sync buffer will be populated @ frame 0 with the "current" state when we actually sim. This keeps them in sync
-		*Buffers.Input.GetWriteNext() = TInputCmd();
+		*Buffers.Input.WriteKeyframe(0) = TInputCmd();
 	}
 
 	void NetSerializeProxy(EReplicationProxyTarget Target, const FNetSerializeParams& Params) final override
@@ -418,10 +420,18 @@ public:
 
 	TNetworkSimBufferContainer<TBufferTypes> Buffers;
 
+	TPredictedStateAccessor<TSyncState> SyncAccessor;
+	TPredictedStateAccessor<TAuxState> AuxAccessor;
+
 	TRepProxyServerRPC RepProxy_ServerRPC;
 	TRepProxyAutonomous RepProxy_Autonomous;
 	TRepProxySimulated RepProxy_Simulated;
 	TRepProxyReplay RepProxy_Replay;
+
+	using TInputBuffer = typename TNetworkSimBufferContainer<TBufferTypes>::TInputBuffer;
+	using TSyncBuffer = typename TNetworkSimBufferContainer<TBufferTypes>::TSyncBuffer;
+	using TAuxBuffer = typename TNetworkSimBufferContainer<TBufferTypes>::TAuxBuffer;
+	using TDebugBuffer = typename TNetworkSimBufferContainer<TBufferTypes>::TDebugBuffer;
 
 	// ------------------------------------------------------------------
 	// RPC Sending helper: provides basic send frequency settings for tracking when the Server RPC can be invoked.
@@ -458,20 +468,20 @@ private:
 public:
 
 #if NETSIM_MODEL_DEBUG
-	TReplicationBuffer<TDebugState>* GetLocalDebugBuffer() {	return &Buffers.Debug; }
-	TDebugState* GetNextLocalDebugStateWrite() { return Buffers.Debug.GetWriteNext(); }
+	TDebugBuffer* GetLocalDebugBuffer() {	return &Buffers.Debug; }
+	TDebugState* GetNextLocalDebugStateWrite() { return Buffers.Debug.WriteKeyframe( Buffers.Debug.HeadKeyframe() + 1 ); }
 	TNetworkSimBufferContainer<TBufferTypes>* GetHistoricBuffers(bool bCreate=false)
 	{
 		if (HistoricBuffers.IsValid() == false && bCreate) { HistoricBuffers.Reset(new TNetworkSimBufferContainer<TBufferTypes>()); }
 		return HistoricBuffers.Get();
 	}
 
-	TReplicationBuffer<TDebugState>* GetRemoteDebugBuffer() {	return &RepProxy_Debug.ReceivedBuffer; }
+	TDebugBuffer* GetRemoteDebugBuffer() {	return &RepProxy_Debug.ReceivedBuffer; }
 #else
-	TReplicationBuffer<TDebugState>* GetLocalDebugBuffer() {	return nullptr; }
+	TDebugBuffer* GetLocalDebugBuffer() {	return nullptr; }
 	TDebugState* GetNextLocalDebugStateWrite() { return nullptr; }
 	TNetworkSimBufferContainer<TBufferTypes>* GetHistoricBuffers(bool bCreate=false) { return nullptr; }
-	TReplicationBuffer<TDebugState>* GetRemoteDebugBuffer() {	return nullptr; }
+	TDebugBuffer* GetRemoteDebugBuffer() {	return nullptr; }
 #endif
 
 private:
