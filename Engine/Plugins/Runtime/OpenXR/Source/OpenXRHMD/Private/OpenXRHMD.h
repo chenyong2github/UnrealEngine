@@ -96,7 +96,7 @@ public:
 	}
 	virtual class TSharedPtr< class IStereoRendering, ESPMode::ThreadSafe > GetStereoRenderingDevice() override
 	{
-		return FHeadMountedDisplayBase::SharedThis(static_cast<FHeadMountedDisplayBase*>(this));
+		return SharedThis(this);
 	}
 
 protected:
