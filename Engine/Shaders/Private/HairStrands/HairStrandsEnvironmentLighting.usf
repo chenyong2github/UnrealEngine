@@ -49,6 +49,7 @@ Texture3D<float4>			HairScatteringLUTTexture;
 Texture3D<float4>			HairEnergyLUTTexture;
 SamplerState 				HairLUTSampler;
 
+uint  Voxel_ClusterId;
 float Voxel_TanConeAngle;
 float Voxel_DensityScale;
 float Voxel_DepthBiasScale;
@@ -468,6 +469,7 @@ void MainPS(
 		// * Change this to per sample evaluation once we have better hair transmittance evaluation for sky
 		float Coverage = 1;
 		float ClosestDepth = 0;
+		bool bIsClusterCompatible = false;
 		FGBufferData HairGBuffer = (FGBufferData)0;
 		Coverage = 0;
 
@@ -482,6 +484,7 @@ void MainPS(
 			float			SampleRoughness;
 			float			SampleSpecular;
 			DecodeNodeData(NodeData, SampleDepth, SampleVisData, SampleBaseColor, SampleRoughness, SampleSpecular);
+			bIsClusterCompatible = bIsClusterCompatible || SampleVisData.ClusterId == Voxel_ClusterId;
 
 			// Inject material data from the visibility/mini-gbuffer for hair
 			const float SceneDepth = ConvertFromDeviceZ(SampleDepth);
@@ -509,6 +512,7 @@ void MainPS(
 		// Lit fully covered or partially covered pixel
 		// * Fully covered pixel output their result into the main color target
 		// * Partially covered pixel output their result into the sub pixel color target. the main color target will store the underlying pixel color 
+		if (bIsClusterCompatible)
 		{
 			const float3 SkyLighting = ReflectionEnvironment(HairGBuffer, BufferUV, ScreenPosition, SvPosition);
 
@@ -540,6 +544,7 @@ void MainPS(
 
 	// Trace AO for all pixel which are partially covered or not covered at all.
 	bool bIsValid = false;
+	bool bIsClusterCompatible = false;
 	if (NodeDesc.Count < 255)
 	{
 		float ClosestDepth = 0;
@@ -555,6 +560,8 @@ void MainPS(
 			float			SampleRoughness;
 			float			SampleSpecular;
 			DecodeNodeData(NodeData, SampleDepth, SampleVisData, SampleBaseColor, SampleRoughness, SampleSpecular);
+			bIsClusterCompatible = bIsClusterCompatible || SampleVisData.ClusterId == Voxel_ClusterId;
+
 			const float LocalCoverage = From8bitCoverage(SampleVisData.Coverage8bit);
 			Coverage8Bits += SampleVisData.Coverage8bit;
 		}
@@ -565,7 +572,7 @@ void MainPS(
 		bIsValid = GBuffer.ShadingModelID != SHADINGMODELID_UNLIT;
 	}
 
-	if (bIsValid)
+	if (bIsValid && bIsClusterCompatible)
 	{
 		const float AO = TraceAO(WorldPosition, WorldNormal, SvPosition);
 		OutAO = AO;
