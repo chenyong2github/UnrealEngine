@@ -327,12 +327,12 @@ void FConcertClientSequencerManager::OnOpenEvent(const FConcertSessionContext&, 
 void FConcertClientSequencerManager::ApplyTransportOpenEvent(const FString& SequenceObjectPath)
 {
 	TGuardValue<bool> ReentrancyGuard(bRespondingToTransportEvent, true);
-	if (IsSequencerRemoteOpenEnabled())
-	{
 #if WITH_EDITOR
+	if (IsSequencerRemoteOpenEnabled() && GIsEditor)
+	{
 		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(SequenceObjectPath);
-#endif
 	}
+#endif
 }
 
 void FConcertClientSequencerManager::ApplyCloseToPlayers(const FConcertSequencerCloseEvent& InEvent)
