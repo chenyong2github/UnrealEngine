@@ -23,7 +23,7 @@ enum
 /**
 * Buffer data-types for MetalRHI & MetalSL
 */
-enum EMetalBufferFormat
+enum class EMetalBufferFormat : uint8
 {
 	Unknown					=0,
 	
