@@ -35,7 +35,7 @@ PXR_NAMESPACE_CLOSE_SCOPE
 
 class IUsdPrim;
 
-enum EUsdInterpolationMethod
+enum class EUsdInterpolationMethod
 {
 	/** Each element in a buffer maps directly to a specific vertex */
 	Vertex,
@@ -47,7 +47,7 @@ enum EUsdInterpolationMethod
 	Constant
 };
 
-enum EUsdGeomOrientation
+enum class EUsdGeomOrientation
 {
 	/** Right handed coordinate system */
 	RightHanded,
@@ -55,7 +55,7 @@ enum EUsdGeomOrientation
 	LeftHanded,
 };
 
-enum EUsdSubdivisionScheme
+enum class EUsdSubdivisionScheme
 {
 	None,
 	CatmullClark,
@@ -64,7 +64,7 @@ enum EUsdSubdivisionScheme
 
 };
 
-enum EUsdUpAxis
+enum class EUsdUpAxis
 {
 	XAxis,
 	YAxis,
