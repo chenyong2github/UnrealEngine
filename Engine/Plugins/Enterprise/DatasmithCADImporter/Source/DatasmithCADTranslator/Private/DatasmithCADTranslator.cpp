@@ -2,6 +2,7 @@
 
 #include "DatasmithCADTranslator.h"
 
+#ifdef CAD_LIBRARY
 #include "CADLibraryOptions.h"
 #include "CoreTechParametricSurfaceExtension.h"
 #include "DatasmithCADTranslatorModule.h"
@@ -145,6 +146,7 @@ void FDatasmithCADTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UObj
 		Translator->SetTessellationOptions(GetCommonTessellationOptions());
 	}
 }
+#endif
 
 
 
