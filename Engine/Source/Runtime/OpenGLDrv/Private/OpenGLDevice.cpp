@@ -854,6 +854,9 @@ static void InitRHICapabilitiesForGL()
 	GRHISupportsInstancing = FOpenGL::SupportsInstancing(); // HTML5 supports it with ANGLE_instanced_arrays or WebGL 2.0+. Android supports it with OpenGL ES3.0+
 	GSupportsTimestampRenderQueries = FOpenGL::SupportsTimestampQueries();
 
+	// It's not possible to create a framebuffer with the backbuffer as the color attachment and a custom renderbuffer as the depth/stencil surface.
+	GRHISupportsBackBufferWithCustomDepthStencil = false;
+
 	GSupportsHDR32bppEncodeModeIntrinsic = FOpenGL::SupportsHDR32bppEncodeModeIntrinsic();
 
 	GRHISupportsLazyShaderCodeLoading = true;
