@@ -69,7 +69,16 @@ UFlyingMovementComponent::UFlyingMovementComponent()
 
 INetworkSimulationModel* UFlyingMovementComponent::InstantiateNetworkSimulation()
 {
-	auto NewSim = new FlyingMovement::FMovementSystem<0>(this);
+	check(UpdatedComponent);
+	
+	FlyingMovement::FMoveState InitialSyncState;
+	InitialSyncState.Location = UpdatedComponent->GetComponentLocation();
+	InitialSyncState.Rotation = UpdatedComponent->GetComponentQuat().Rotator();	
+
+	FlyingMovement::FAuxState InitialAuxState;
+	InitialAuxState.MaxSpeed = FlyingMovementCVars::MaxSpeed;
+
+	auto NewSim = new FlyingMovement::FMovementSystem<0>(this, InitialSyncState, InitialAuxState);
 	DO_NETSIM_MODEL_DEBUG(FNetworkSimulationModelDebuggerManager::Get().RegisterNetworkSimulationModel(NewSim, GetOwner()));
 	MovementSyncState = &NewSim->SyncAccessor;
 	MovementAuxState = &NewSim->AuxAccessor;
@@ -126,18 +135,6 @@ void UFlyingMovementComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 //	layer to do this kind of stuff.
 //
 // ----------------------------------------------------------------------------------------------------------
-
-void UFlyingMovementComponent::InitSyncState(FlyingMovement::FMoveState& OutSyncState) const
-{
-	OutSyncState.Location = UpdatedComponent->GetComponentLocation();
-	OutSyncState.Rotation = UpdatedComponent->GetComponentQuat().Rotator();	
-}
-
-void UFlyingMovementComponent::InitAuxState(FlyingMovement::FAuxState& OutAuxState) const
-{
-	OutAuxState = FlyingMovement::FAuxState();
-	OutAuxState.MaxSpeed = FlyingMovementCVars::MaxSpeed;
-}
 
 void UFlyingMovementComponent::PreSimSync(const FlyingMovement::FMoveState& SyncState)
 {

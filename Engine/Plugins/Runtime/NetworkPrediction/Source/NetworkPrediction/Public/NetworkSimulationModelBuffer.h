@@ -10,7 +10,7 @@ struct TNetworkSimBufferIterator
 	ElementType* Element() const { return Buffer.IterElement(CurrentPos); }
 
 	void operator++() { CurrentPos++; }
-	operator bool()	{ return CurrentPos <= Buffer.IterEndPos(); }
+	operator bool()	{ return CurrentPos != INDEX_NONE && CurrentPos <= Buffer.IterEndPos(); }
 
 private:
 	TBuffer& Buffer;
