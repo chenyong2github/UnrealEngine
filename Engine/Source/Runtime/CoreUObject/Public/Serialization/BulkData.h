@@ -51,11 +51,13 @@ enum EBulkDataFlags
 	/** This payload is optional and may not be on device */
 	BULKDATA_OptionalPayload					= 1 << 11,
 	/** This payload will be memory mapped, this requires alignment, no compression etc. */
-	BULKDATA_MemoryMappedPayload = 1 << 12,
+	BULKDATA_MemoryMappedPayload				= 1 << 12,
 	/** Bulk data size is 64 bits long */
 	BULKDATA_Size64Bit							= 1 << 13,
 	/** Duplicate non-optional payload in optional bulk data. */
-	BULKDATA_DuplicateNonOptionalPayload		= 1 << 14
+	BULKDATA_DuplicateNonOptionalPayload		= 1 << 14,
+	/** Indicates that the data was cooked for use with IoDispatcher. */
+	BULKDATA_CookedForIoDispatcher				= 1 << 15
 };
 
 /**
@@ -496,6 +498,15 @@ public:
 	bool InSeperateFile() const
 	{
 		return	(GetBulkDataFlags() & BULKDATA_PayloadInSeperateFile) != 0;
+	}
+
+	/**
+	* Returns whether this bulk data is accessed via the IoDispatcher or not.
+	* @return false as the old BulkData API does not support it
+	*/
+	bool IsUsingIODispatcher() const
+	{
+		return false;
 	}
 
 	/**

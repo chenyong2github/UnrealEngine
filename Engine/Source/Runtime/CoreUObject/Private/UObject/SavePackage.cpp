@@ -567,6 +567,110 @@ void FPackageStoreNameMapSaver::End()
 	}
 }
 
+void FPackageStoreBulkDataManifest::PackageDesc::AddData(uint16 InIndex, uint64 InOffset, uint64 InSize)
+{
+	// The index is supposed to be unique
+	auto func = [=](const BulkDataDesc& Entry) { return Entry.Index == InIndex; };
+	check(Data.FindByPredicate(func) == false);
+
+	BulkDataDesc& Entry = Data.Emplace_GetRef();
+
+	Entry.Index = InIndex;
+	Entry.Offset = InOffset;
+	Entry.Size = InSize;
+}
+
+FPackageStoreBulkDataManifest::FPackageStoreBulkDataManifest(const FString& InRootPath)
+{
+	RootPath = InRootPath;
+	FPaths::NormalizeFilename(RootPath);
+
+	if (!RootPath.EndsWith("/"))
+	{
+		RootPath.Append("/");
+	}
+	
+	Filename = RootPath + "megafile.ubulkmanifest";
+}
+
+FArchive& operator<<(FArchive& Ar, FPackageStoreBulkDataManifest::PackageDesc::BulkDataDesc& Entry)
+{
+	Ar << Entry.Index;
+	Ar << Entry.Offset;
+	Ar << Entry.Size; 
+	
+	return Ar;
+}
+
+FArchive& operator<<(FArchive& Ar, FPackageStoreBulkDataManifest::PackageDesc& Entry)
+{
+	Ar << Entry.Data;
+
+	return Ar;
+}
+
+bool FPackageStoreBulkDataManifest::Load()
+{
+	Data.Empty();
+
+	TUniquePtr<FArchive> BinArchive(IFileManager::Get().CreateFileReader(*Filename));
+	if (BinArchive != nullptr)
+	{
+		*BinArchive << Data;
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+void FPackageStoreBulkDataManifest::Save()
+{
+	TUniquePtr<FArchive> BinArchive(IFileManager::Get().CreateFileWriter(*Filename));
+	*BinArchive << Data;
+}
+
+
+const FPackageStoreBulkDataManifest::PackageDesc* FPackageStoreBulkDataManifest::Find(const FString& PackageFilename) const
+{
+	const  FString NormalizedFilename = FixFilename(PackageFilename);
+	return Data.Find(NormalizedFilename);
+}
+
+void FPackageStoreBulkDataManifest::AddFileAccess(const FString& PackageFilename, uint16 InIndex, uint64 InOffset, uint64 InSize)
+{
+	const FString NormalizedFilename = FixFilename(PackageFilename);
+	
+	PackageDesc& Entry = GetOrCreateFileAccess(NormalizedFilename);
+	Entry.AddData(InIndex, InOffset, InSize);
+}
+
+FPackageStoreBulkDataManifest::PackageDesc& FPackageStoreBulkDataManifest::GetOrCreateFileAccess(const FString& PackageFilename)
+{
+	if (PackageDesc* Entry = Data.Find(PackageFilename))
+	{
+		return *Entry;
+	}
+	else
+	{
+		return Data.Add(PackageFilename);
+	}
+}
+
+FString FPackageStoreBulkDataManifest::FixFilename(const FString& InFilename) const
+{
+	FString OutFilename = InFilename;
+	FPaths::NormalizeFilename(OutFilename);
+
+	if (!FPaths::IsRelative(OutFilename))
+	{
+		FPaths::MakePathRelativeTo(OutFilename, *RootPath);
+	}
+
+	return OutFilename;
+}
+
 #if WITH_EDITOR
 static void AddReplacementsNames(INameMapSaver& NameMapSaver, UObject* Obj, const ITargetPlatform* TargetPlatform)
 {
@@ -3657,6 +3761,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 			FSinglePackageNameMapSaver SinglePackageNameMapSaver;
 			FPackageHeaderSaver LocalSaver(SinglePackageNameMapSaver);
 			FPackageHeaderSaver& PackageHeaderSaver = SavePackageContext ? SavePackageContext->HeaderSaver : LocalSaver;
+
 			INameMapSaver& NameMapSaver = PackageHeaderSaver.NameMapSaver;
 			NameMapSaver.BeginPackage();
 
@@ -6188,8 +6293,9 @@ void SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Fil
 			BulkDataAlignment = TargetPlatform->GetMemoryMappingAlignment();
 		}
 
-		for (FLinkerSave::FBulkDataStorageInfo& BulkDataStorageInfo : Linker->BulkDataToAppend)
+		for (int iBulkDataIndex = 0; iBulkDataIndex < Linker->BulkDataToAppend.Num(); ++iBulkDataIndex)
 		{
+			FLinkerSave::FBulkDataStorageInfo& BulkDataStorageInfo = Linker->BulkDataToAppend[iBulkDataIndex];
 			BulkDataFeedback.EnterProgressFrame();
 
 			// Set bulk data flags to what they were during initial serialization (they might have changed after that)
@@ -6293,6 +6399,21 @@ void SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Fil
 			BulkDataStorageInfo.BulkData->ClearBulkDataFlags(0xFFFFFFFF);
 			BulkDataStorageInfo.BulkData->SetBulkDataFlags(OldBulkDataFlags);
 			BulkDataStorageInfo.BulkData->Unlock();
+
+			if ((BulkDataStorageInfo.BulkDataFlags & BULKDATA_CookedForIoDispatcher) != 0 && SavePackageContext != nullptr)
+			{
+				// TODO: iBulkDataIndex should be based on the number of BulkData objects we are adding to the manifest not
+				// it's position in Linker->BulkDataToAppend so that inlined BulkData objects are ignored and we won't have 
+				// missing index  values. 
+				// We can't do this yet because the BulkData object is writing out its index for runtime in ::Serialize and 
+				// so it's position in Linker->BulkDataToAppend is the only info we have.
+				// This can be fixed by generating the FIoChunkId at this point and writing it back to the bulkdata before it
+				// is written to disk as do for the data values above this point.
+				SavePackageContext->BulkDataManifest.AddFileAccess
+				(
+					Filename, iBulkDataIndex, BulkStartOffset, SizeOnDisk
+				);
+			}
 		}
 
 		if (BulkArchive)

@@ -945,10 +945,10 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 		}
 
 		// We're loading from the persistent archive.
-		if( Ar.IsLoading() )
+		if (Ar.IsLoading())
 		{
 			Filename = TEXT("");
-			
+
 			// @todo when Landscape (and others?) only Lock/Unlock once, we can enable this
 			if (false) // FPlatformProperties::RequiresCookedData())
 			{
@@ -977,6 +977,13 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 			}
 
 			Ar << BulkDataOffsetInFile;
+
+			if ((BulkDataFlags & BULKDATA_CookedForIoDispatcher) != 0)
+			{
+				// Load the ChunkID that will be used by the IoDispatcher, but this version of BulkData will not use it!
+				uint16 ChunkIndex;
+				Ar << ChunkIndex;
+			}
 
 			// determine whether the payload is stored inline or at the end of the file
 			const bool bPayloadInline = !(BulkDataFlags&BULKDATA_PayloadAtEndOfFile);
@@ -1229,7 +1236,6 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 				BulkDataOffsetInFile = INDEX_NONE;
 				// And serialize the placeholder which is going to be overwritten later.
 				Ar << BulkDataOffsetInFile;
-
 			}
 
 				// try to get the linkersave object
@@ -1241,6 +1247,16 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 			if (IsEventDrivenLoaderEnabledInCookedBuilds() && Ar.IsCooking() && !bStoreInline && !(BulkDataFlags&BULKDATA_Force_NOT_InlinePayload))
 			{
 				bStoreInline = true;
+			}
+
+			// Write the ChunkID that will be used by the IoDispatcher
+			{
+				FArchive::FScopeSetDebugSerializationFlags S(Ar, DSF_IgnoreDiff);
+
+				uint16 ChunkIndex = (bStoreInline || !Ar.IsCooking()) ? INDEX_NONE : LinkerSave->BulkDataToAppend.Num();
+				Ar << ChunkIndex;
+
+				BulkDataFlags |= BULKDATA_CookedForIoDispatcher;
 			}
 
 			if (!bStoreInline)
@@ -1535,9 +1551,9 @@ void FUntypedBulkData::SerializeBulkData( FArchive& Ar, void* Data )
 			Ar.Serialize( Data, GetBulkDataSize() );
 		}
 	}
-	// Serialize an element at a time via the virtual SerializeElement function potentialy allowing and dealing with 
+	// Serialize an element at a time via the virtual SerializeElement function potentially allowing and dealing with 
 	// endian conversion. Dealing with compression makes this a bit more complex as SerializeCompressed expects the 
-	// full data to be compresed en block and not piecewise.
+	// full data to be compressed en block and not piecewise.
 	else
 	{
 		// Serialize data compressed.

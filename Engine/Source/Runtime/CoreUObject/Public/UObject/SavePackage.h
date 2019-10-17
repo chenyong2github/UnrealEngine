@@ -68,10 +68,63 @@ private:
 	const FString Filename;
 };
 
+class IBulkDataManifest 
+{
+public:
+	virtual ~IBulkDataManifest() = default;
+
+	virtual void Save() = 0;
+	virtual void AddFileAccess(const FString& PackageFilename, uint16 InIndex, uint64 InOffset, uint64 InSize) = 0;
+};
+
+class FPackageStoreBulkDataManifest : public IBulkDataManifest
+{
+public:
+	COREUOBJECT_API FPackageStoreBulkDataManifest(const FString& InRootPath);
+
+	bool Load();
+	virtual void Save() override;
+	
+	const FString& GetFilename() const { return Filename; }
+
+	class PackageDesc
+	{
+	public:
+		struct BulkDataDesc
+		{
+			uint16 Index;
+			uint64 Offset;
+			uint64 Size;
+		};
+
+		void AddData(uint16 InIndex, uint64 InOffset, uint64 InSize);
+		const TArray<BulkDataDesc>& GetDataArray() const { return Data; }
+	private:
+		friend FArchive& operator<<(FArchive& Ar, PackageDesc& Entry);
+		TArray<BulkDataDesc> Data;
+	};
+
+	const PackageDesc* Find(const FString& PackageName) const;
+
+private:
+	virtual void AddFileAccess(const FString& PackageFilename, uint16 InIndex, uint64 InOffset, uint64 InSize) override;
+
+	PackageDesc& GetOrCreateFileAccess(const FString& PackageFilename);
+
+	FString FixFilename(const FString& InFileName) const;
+
+	FString RootPath;
+	FString Filename;
+	TMap<FString, PackageDesc> Data;
+};
+
 class FPackageHeaderSaver
 {
 public:
-	FPackageHeaderSaver(INameMapSaver& InNameMapSaver) : NameMapSaver(InNameMapSaver) {}
+	FPackageHeaderSaver(INameMapSaver& InNameMapSaver)
+		: NameMapSaver(InNameMapSaver) 
+	{}
+
 	INameMapSaver& NameMapSaver;
 };
 
@@ -138,11 +191,14 @@ private:
 class FSavePackageContext
 {
 public:
-	FSavePackageContext(FPackageHeaderSaver& InHeaderSaver, FPackageStoreWriter& InPackageStoreWriter) 
-	: HeaderSaver(InHeaderSaver), PackageStoreWriter(InPackageStoreWriter) 
+	FSavePackageContext(FPackageHeaderSaver& InHeaderSaver, FPackageStoreWriter& InPackageStoreWriter, IBulkDataManifest& InBulkDataManifest)
+	: HeaderSaver(InHeaderSaver)
+	, PackageStoreWriter(InPackageStoreWriter) 
+	, BulkDataManifest(InBulkDataManifest)
 	{
 	}
 
 	FPackageHeaderSaver& HeaderSaver;
 	FPackageStoreWriter& PackageStoreWriter;
+	IBulkDataManifest& BulkDataManifest;
 };
