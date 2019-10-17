@@ -575,6 +575,12 @@ int32 ReportCrashForMonitor(
 		FGenericCrashContext::DumpLog(CrashDirectoryAbsolute);
 	}
 
+	// Allow the monitor process to take window focus
+	if (const DWORD MonitorProcessId = ::GetProcessId(CrashMonitorHandle.Get()))
+	{
+		::AllowSetForegroundWindow(MonitorProcessId);
+	}
+
 	// Write the shared context to the pipe
 	int32 OutDataWritten = 0;
 	FPlatformProcess::WritePipe(WritePipe, (UINT8*)SharedContext, sizeof(FSharedCrashContext), &OutDataWritten);
