@@ -5,13 +5,18 @@
 #include "/Engine/Generated/Material.ush"
 #include "/Engine/Generated/VertexFactory.ush"
 
+#define RENDER_MODE_MSAA 0
+#define RENDER_MODE_COVERAGE 1
+
 struct FHairVisibilityAccumulateVSToPS
 {
 	FVertexFactoryInterpolantsVSToPS FactoryInterpolants;
 	float4 Position : SV_POSITION;
 	float WorldStrandRadius : TEXCOORD8;
+#if HAIR_RENDER_MODE == RENDER_MODE_MSAA
 	float4 PackedVelocityA : TEXCOORD9;
 	float4 PackedVelocityC : TEXCOORD12;
+#endif
 };
 
 #define VS_OUTPUT_TYPE FHairVisibilityAccumulateVSToPS
@@ -42,6 +47,7 @@ void Main(
 	// The velocity is used to adapt/increase the minimum rasterization size in order to avoid aliasing under heavy-motion.
 	// The higher the velocity, the larger a strand becomes.
 	float VelocityScale = 0;
+	#if HAIR_RENDER_MODE == RENDER_MODE_MSAA
 	{
 		const float4 ScreenPos			= mul(float4(WorldPositionRaw.xyz, 1), ResolvedView.TranslatedWorldToClip);
 		const float4 PrevScreenPosObj	= mul(float4(PrevWorldPosition.xyz, 1), ResolvedView.PrevTranslatedWorldToClip);
@@ -51,6 +57,7 @@ void Main(
 		const float2 ScreenVelocity = Calculate2DVelocity(Output.PackedVelocityA, Output.PackedVelocityC);
 		VelocityScale = saturate(max(abs(ScreenVelocity.x), abs(ScreenVelocity.y)) / HairVisibilityPass.HairStrandsVelocityScale);
 	}
+	#endif
 
 #if VF_STRAND_HAIR
 	float4 WorldPosition = VertexFactoryGetWorldPosition(Input, VFIntermediates, VelocityScale);
