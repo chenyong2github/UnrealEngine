@@ -82,10 +82,11 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		#if PERMUTATION_DYNAMIC_GEOMETRY == 1
 		{
 			const uint RootIndex						= VertexToRootIndexBuffer[VertexIndex];
+			const float3 RootBarycentric				= DecodeBarycentrics(RootBarycentricBuffer[RootIndex]);
 			const FHairMeshTriangle RestTriangle		= GetTriangleTransformation(RootIndex, RestPosition0Buffer, RestPosition1Buffer, RestPosition2Buffer, RestPositionWorldCenter);
 			const FHairMeshTriangle DeformedTriangle	= GetTriangleTransformation(RootIndex, DeformedPosition0Buffer, DeformedPosition1Buffer, DeformedPosition2Buffer, DeformedPositionWorldCenter);
 
-			ControlPoint = TransformPoint(ControlPoint + HairWorldOffset, RestTriangle, DeformedTriangle) - HairWorldOffset;
+			ControlPoint = TransformPoint(ControlPoint + HairWorldOffset, RootBarycentric, RestTriangle, DeformedTriangle) - HairWorldOffset;
 
 			// Debug
 			#if 0
