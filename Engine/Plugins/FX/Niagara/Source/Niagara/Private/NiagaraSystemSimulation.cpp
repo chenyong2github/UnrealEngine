@@ -352,10 +352,10 @@ bool FNiagaraSystemSimulation::Init(UNiagaraSystem* InSystem, UWorld* InWorld, b
 				{
 					FString EmitterName = Emitter->GetUniqueEmitterName();
 					EmitterExecutionStateAccessors.Emplace(MainDataSet, FNiagaraVariable(EnumPtr, *(EmitterName + TEXT(".ExecutionState"))));
-					const TArray<FNiagaraEmitterCompiledData>& EmitterCompiledData = System->GetEmitterCompiledData();
+					const TArray<TSharedRef<const FNiagaraEmitterCompiledData>>& EmitterCompiledData = System->GetEmitterCompiledData();
 
 					check(EmitterCompiledData.Num() == System->GetNumEmitters());
-					for (FName AttrName : EmitterCompiledData[EmitterIdx].SpawnAttributes)
+					for (FName AttrName : EmitterCompiledData[EmitterIdx]->SpawnAttributes)
 					{
 						EmitterSpawnInfoAccessors[EmitterIdx].Emplace(MainDataSet, FNiagaraVariable(FNiagaraTypeDefinition(FNiagaraSpawnInfo::StaticStruct()), AttrName));
 					}

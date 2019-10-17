@@ -22,7 +22,7 @@ struct FNiagaraEmitterHandle;
 class UNiagaraParameterCollection;
 class UNiagaraParameterCollectionInstance;
 class NiagaraEmitterInstanceBatcher;
-
+struct FNiagaraEmitterCompiledData;
 
 /**
 * A Niagara particle simulation.
@@ -244,4 +244,6 @@ private:
 
 	TArray<TNiagaraFastPathAttributeBinding<int32>> FastPathIntAttributeBindings;
 	TArray<TNiagaraFastPathAttributeBinding<float>> FastPathFloatAttributeBindings;
+
+	TSharedPtr<const FNiagaraEmitterCompiledData> CachedEmitterCompiledData;
 };
