@@ -770,7 +770,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 							// When no cached command is found, NewInstanceMask == 0 and the instance is effectively filtered out
 							FRayTracingGeometryInstance RayTracingInstance = { RayTracingGeometryInstance };
 							RayTracingInstance.Transforms.Add(Scene->PrimitiveTransforms[PrimitiveIndex]);
-							RayTracingInstance.UserData = (uint32)PrimitiveIndex;
+							RayTracingInstance.UserData.Add((uint32)PrimitiveIndex);
 							RayTracingInstance.Mask = NewInstanceMask;
 							RayTracingInstance.bForceOpaque = bAllSegmentsOpaque;
 							View.RayTracingGeometryInstances.Add(RayTracingInstance);
@@ -809,7 +809,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 					for (FRayTracingInstance& Instance : RayTracingInstances)
 					{
 						FRayTracingGeometryInstance RayTracingInstance = { Instance.Geometry->RayTracingGeometryRHI };
-						RayTracingInstance.UserData = (uint32)PrimitiveIndex;
+						RayTracingInstance.UserData.Add((uint32)PrimitiveIndex);
 						RayTracingInstance.Mask = Instance.Mask;
 						RayTracingInstance.bForceOpaque = Instance.bForceOpaque;
 

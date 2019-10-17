@@ -79,8 +79,20 @@ struct FRHIFlipDetails
 struct FRayTracingGeometryInstance
 {
 	FRHIRayTracingGeometry* GeometryRHI = nullptr;
+
+	// A physical FRayTracingGeometryInstance may be duplicated many times in the scene with different transforms and user data.
+	// All copies share the same shader binding table entries and therefore will have the same material and shader resources.
 	TArray<FMatrix, TInlineAllocator<1>> Transforms;
-	uint32 UserData = 0;
+
+	// Each geometry copy can receive a user-provided integer, which can be used to retrieve extra shader parameters or customize appearance.
+	// This data can be retrieved using GetInstanceUserData() in closest/any hit shaders.
+	// If UserData is empty, then 0 will be implicitly used for all entries.
+	// If UserData contains a single entry, then it will be applied to all instances/copies.
+	// Otherwise one UserData entry must be provided per entry in Transforms array.
+	TArray<uint32, TInlineAllocator<1>> UserData;
+
+	// Mask that will be tested against one provided to TraceRay() in shader code.
+	// If binary AND of instance mask with ray mask is zero, then the instance is considered not intersected / invisible.
 	uint8 Mask = 0xFF;
 
 	// No any-hit shaders will be invoked for this geometry instance (only closest hit)

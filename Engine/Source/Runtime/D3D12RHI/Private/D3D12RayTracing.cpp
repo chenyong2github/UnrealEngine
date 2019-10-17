@@ -2363,7 +2363,6 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 
 			D3D12_RAYTRACING_INSTANCE_DESC InstanceDesc = {};
 
-			InstanceDesc.InstanceID = Instance.UserData;
 			InstanceDesc.InstanceMask = Instance.Mask;
 			InstanceDesc.InstanceContributionToHitGroupIndex = SegmentPrefixSum[InstanceIndex] * ShaderSlotsPerGeometrySegment;
 			InstanceDesc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_FRONT_COUNTERCLOCKWISE; // #dxr_todo: convert cull mode based on instance mirroring or double-sidedness
@@ -2389,8 +2388,17 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 			}
 
 			const uint32 NumTransforms = Instance.Transforms.Num();
+
+			checkf(Instance.UserData.Num() == 0 || Instance.UserData.Num() == 1 || Instance.UserData.Num() == NumTransforms, 
+				TEXT("User data array must be either be empty (implicit 0 is assumed), contain a single entry (same value applied to all instances) or contain one entry per entry in Transforms array."));
+
+			const bool bUseUniqueUserData = Instance.UserData.Num() > 1;
+			const uint32 CommonUserData = Instance.UserData.Num() == 1 ? Instance.UserData[0] : 0;
+
 			for (uint32 TransformIndex = 0; TransformIndex < NumTransforms; ++TransformIndex)
 			{
+				InstanceDesc.InstanceID = bUseUniqueUserData ? Instance.UserData[TransformIndex] : CommonUserData;
+
 				FMatrix TransformTransposed = Instance.Transforms[TransformIndex].GetTransposed();
 
 				// Ensure the last row of the original Transform is <0,0,0,1>
