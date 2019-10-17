@@ -74,7 +74,16 @@ namespace WindowsMixedReality
 			FVector& CurrentPosition) override;
 		virtual bool GetRelativeEyePose(int32 DeviceId, EStereoscopicPass Eye, FQuat& OutOrientation, FVector& OutPosition) override;
 
-		
+		virtual class IHeadMountedDisplay* GetHMDDevice() override
+		{
+			return this;
+		}
+
+		virtual class TSharedPtr< class IStereoRendering, ESPMode::ThreadSafe > GetStereoRenderingDevice() override
+		{
+			return SharedThis(this);
+		}
+
 		// Tracking status
 		virtual bool DoesSupportPositionalTracking() const override { return true; }
 		virtual bool HasValidTrackingPosition() override;
