@@ -11,6 +11,7 @@
 #include "DataprepCoreLogCategory.h"
 #include "DataprepCorePrivateUtils.h"
 #include "DataprepCoreUtils.h"
+#include "DataprepParameterizableObject.h"
 #include "Parameterization/DataprepParameterization.h"
 
 #include "AssetRegistryModule.h"
@@ -193,7 +194,7 @@ UObject* UDataprepAsset::GetParameterizationObject()
 	return Parameterization->GetDefaultObject();
 }
 
-void UDataprepAsset::BindObjectPropertyToParameterization(UObject* Object, const TArray<FDataprepPropertyLink>& InPropertyChain, const FName& Name)
+void UDataprepAsset::BindObjectPropertyToParameterization(UDataprepParameterizableObject* Object, const TArray<struct FDataprepPropertyLink>& InPropertyChain, const FName& Name)
 {
 	bool bPassConditionCheck = false;
 
@@ -215,12 +216,12 @@ void UDataprepAsset::BindObjectPropertyToParameterization(UObject* Object, const
 
 }
 
-bool UDataprepAsset::IsObjectPropertyBinded(UObject* Object, const TArray<struct FDataprepPropertyLink>& InPropertyChain) const
+bool UDataprepAsset::IsObjectPropertyBinded(UDataprepParameterizableObject* Object, const TArray<struct FDataprepPropertyLink>& InPropertyChain) const
 {
 	return Parameterization->IsObjectPropertyBinded( Object, InPropertyChain );
 }
 
-void UDataprepAsset::RemoveObjectPropertyFromParameterization(UObject* Object, const TArray<struct FDataprepPropertyLink>& InPropertyChain)
+void UDataprepAsset::RemoveObjectPropertyFromParameterization(UDataprepParameterizableObject* Object, const TArray<struct FDataprepPropertyLink>& InPropertyChain)
 {
 	Parameterization->RemoveBindedObjectProperty( Object, InPropertyChain );
 }

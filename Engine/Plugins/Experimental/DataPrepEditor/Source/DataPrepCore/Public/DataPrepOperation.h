@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "DataprepParameterizableObject.h"
 
+#include "CoreMinimal.h"
 #include "Delegates/DelegateCombinations.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
@@ -105,7 +106,7 @@ struct FDataprepOperationContext
 
 // Todo add class wide comment
 UCLASS(Experimental, Abstract, Blueprintable)
-class DATAPREPCORE_API UDataprepOperation : public UObject
+class DATAPREPCORE_API UDataprepOperation : public UDataprepParameterizableObject
 {
 	GENERATED_BODY()
 
