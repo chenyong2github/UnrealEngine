@@ -516,7 +516,7 @@ static void AddHairVisibilityPrimitiveIdCompactionPass(
 		Desc.NumMips = 1;
 		Desc.NumSamples = 1;
 		Desc.Flags = TexCreate_None;
-		Desc.TargetableFlags = TexCreate_UAV;
+		Desc.TargetableFlags = TexCreate_UAV | TexCreate_ShaderResource;
 		Desc.ClearValue = FClearValueBinding(0);
 		CompactCounter = GraphBuilder.CreateTexture(Desc, TEXT("HairVisibilityCompactCounter"));
 	}
@@ -539,7 +539,7 @@ static void AddHairVisibilityPrimitiveIdCompactionPass(
 		OutputDesc.Extent = Resolution;
 		OutputDesc.Format = PF_R16G16B16A16_UINT;
 		OutputDesc.NumMips = 1;
-		OutputDesc.TargetableFlags = TexCreate_UAV;
+		OutputDesc.TargetableFlags = TexCreate_UAV | TexCreate_ShaderResource;
 		OutCategorizationTexture = GraphBuilder.CreateTexture(OutputDesc, TEXT("CategorizationTexture"));
 	}
 	
