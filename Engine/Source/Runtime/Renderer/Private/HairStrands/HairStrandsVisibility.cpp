@@ -52,14 +52,6 @@ enum EHairVisibilityRenderMode
 	HairVisibilityRenderModeCount
 };
 
-enum EHairVisibilityVendor
-{
-	HairVisibilityVendor_AMD,
-	HairVisibilityVendor_NVIDIA,
-	HairVisibilityVendor_INTEL,
-	HairVisibilityVendorCount
-};
-
 EHairVisibilityRenderMode GetHairVisibilityRenderMode()
 {
 	return HairVisibilityRenderMode_MSAA;
@@ -75,32 +67,6 @@ static bool IsCompatibleWithHairVisibility(const FMeshMaterialShaderPermutationP
 	return IsCompatibleWithHairStrands(Parameters.Material, Parameters.Platform);
 }
 
-static EHairVisibilityVendor GetVendor()
-{
-	return IsRHIDeviceAMD() ? HairVisibilityVendor_AMD : (IsRHIDeviceNVIDIA() ? HairVisibilityVendor_NVIDIA : HairVisibilityVendor_INTEL);
-}
-
-static uint32 GetVendorOptimalGroupSize1D()
-{
-	switch (GetVendor())
-	{
-	case HairVisibilityVendor_AMD:		return 64;
-	case HairVisibilityVendor_NVIDIA:	return 32;
-	case HairVisibilityVendor_INTEL:	return 64;
-	default:							return 64;
-	}
-}
-
-static FIntPoint GetVendorOptimalGroupSize2D()
-{
-	switch (GetVendor())
-	{
-	case HairVisibilityVendor_AMD:		return FIntPoint(8, 8);
-	case HairVisibilityVendor_NVIDIA:	return FIntPoint(8, 4);
-	case HairVisibilityVendor_INTEL:	return FIntPoint(8, 8);
-	default:							return FIntPoint(8, 8);
-	}
-}
 
 template<EHairVisibilityRenderMode RenderMode>
 class FHairVisibilityVS : public FMeshMaterialShader
