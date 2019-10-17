@@ -165,6 +165,9 @@ namespace PlatformInfo
 		/** An identifier to group similar platforms together, such as "Mobile" and "Console". Used for Per-Platform Override Properties. */
 		FName PlatformGroupName;
 
+		/** Submenu name to group similar platforms together in menus, such as "Linux" and "LinuxAArch64".  */
+		FName PlatformSubMenu;
+
 		/** Returns true if this platform is vanilla */
 		FORCEINLINE bool IsVanilla() const
 		{
