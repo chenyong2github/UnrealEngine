@@ -508,7 +508,7 @@ const FString& FDataprepEditor::GetRootTemporaryDir()
 
 const FString& FDataprepEditor::GetRootPackagePath()
 {
-	static FString RootPackagePath( TEXT("/DataprepEditor/Transient") );
+	static FString RootPackagePath( TEXT("/Engine/DataprepEditor/Transient") );
 	return RootPackagePath;
 }
 
