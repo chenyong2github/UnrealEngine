@@ -25,7 +25,7 @@ float3 GetVertexPosition(uint VId, Buffer<float> InPositionBuffer, Buffer<uint> 
 	return P;
 }
 
-FHairMeshTriangle GetTriangleData(uint TriangleIndex, float4x4 LocalToWorld, Buffer<float> InPositionBuffer, Buffer<uint> InIndexBuffer, uint InIndexOffset, uint InMaxIndexCount, uint InMaxVertexCount)
+FHairMeshTriangle GetTriangleData(uint TriangleIndex, Buffer<float> InPositionBuffer, Buffer<uint> InIndexBuffer, uint InIndexOffset, uint InMaxIndexCount, uint InMaxVertexCount)
 {
 	const uint BaseVertexId = TriangleIndex*3;
 	const uint VId0 = BaseVertexId;
@@ -36,11 +36,6 @@ FHairMeshTriangle GetTriangleData(uint TriangleIndex, float4x4 LocalToWorld, Buf
 	Out.P0 = GetVertexPosition(VId0, InPositionBuffer, InIndexBuffer, InIndexOffset, InMaxIndexCount, InMaxVertexCount);
 	Out.P1 = GetVertexPosition(VId1, InPositionBuffer, InIndexBuffer, InIndexOffset, InMaxIndexCount, InMaxVertexCount);
 	Out.P2 = GetVertexPosition(VId2, InPositionBuffer, InIndexBuffer, InIndexOffset, InMaxIndexCount, InMaxVertexCount);
-
-	Out.P0 = mul(float4(Out.P0,1), LocalToWorld).xyz;
-	Out.P1 = mul(float4(Out.P1,1), LocalToWorld).xyz;
-	Out.P2 = mul(float4(Out.P2,1), LocalToWorld).xyz;
-
 	Out.E0 = Out.P1 - Out.P0;
 	Out.E1 = Out.P2 - Out.P0;
 	Out.N = normalize(cross(Out.E1, Out.E0));
