@@ -13,18 +13,19 @@
 #include "Dialogs/DlgPickPath.h"
 #include "Editor.h"
 #include "EditorFontGlyphs.h"
+#include "EditorFontGlyphs.h"
 #include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HAL/PlatformProcess.h"
 #include "IContentBrowserSingleton.h"
 #include "IDetailTreeNode.h"
 #include "IPropertyRowGenerator.h"
-#include "EditorFontGlyphs.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyCustomizationHelpers.h"
 #include "PropertyEditorModule.h"
 #include "PropertyEditorModule.h"
+#include "ScopedTransaction.h"
 #include "Styling/CoreStyle.h"
 #include "UObject/StrongObjectPtr.h"
 #include "UObject/UnrealType.h"
@@ -344,37 +345,66 @@ void SDataprepConsumerWidget::UpdateContentFolderText()
 }
 
 
-TSharedRef< SWidget > SDataprepDetailsView::CreateDefaultWidget( TSharedPtr< SWidget >& NameWidget, TSharedPtr< SWidget >& ValueWidget, float LeftPadding, EHorizontalAlignment HAlign, EVerticalAlignment VAlign, const TArray<FDataprepPropertyLink>& InPropertyChain)
+TSharedRef< SWidget > SDataprepDetailsView::CreateDefaultWidget( TSharedPtr< SWidget >& NameWidget, TSharedPtr< SWidget >& ValueWidget, float LeftPadding, EHorizontalAlignment HAlign, EVerticalAlignment VAlign, const FDataprepParameterizationContext& ParameterizationContext)
 {
 	TSharedRef<SHorizontalBox> NameColumn = SNew(SHorizontalBox)
 		.Clipping(EWidgetClipping::OnDemand);
 
 	// Optionally add the parameterization widget
-	if ( DataprepAssetForParameterization.IsValid() && InPropertyChain.Num() > 0 )
+	if ( DataprepAssetForParameterization.IsValid() )
 	{
+		if ( ParameterizationContext.State == EParametrizationState::CanBeParameterized )
+		{
+			NameColumn->AddSlot()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
 
-
-		NameColumn->AddSlot()
-			.HAlign(HAlign_Left)
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			[
-
-				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
-				.Text(FEditorFontGlyphs::Plus_Circle)
-				.Margin(FMargin(5.0f, 5.0f, 0.0f, 0.0f))
-				.ColorAndOpacity(FColor::Blue)
-				.OnDoubleClicked_Lambda([this, PropertyChain = InPropertyChain](const FGeometry&,const FPointerEvent&) -> FReply
-					{
-						if ( UDataprepAsset* DataprepAsset = DataprepAssetForParameterization.Get() )
+					SNew(STextBlock)
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+					.Text(FEditorFontGlyphs::Plus_Circle)
+					.Margin(FMargin(5.0f, 5.0f, 0.0f, 0.0f))
+					.ColorAndOpacity(FColor::Blue)
+					.OnDoubleClicked_Lambda([this, PropertyChain = ParameterizationContext.PropertyChain](const FGeometry&,const FPointerEvent&) -> FReply
 						{
-							DataprepAssetForParameterization->BindObjectPropertyToParameterization( DetailedObject, PropertyChain, *PropertyChain.Last().CachedProperty->GetDisplayNameText().ToString() );
+							if ( UDataprepAsset* DataprepAsset = DataprepAssetForParameterization.Get() )
+							{
+								FScopedTransaction Transaction( LOCTEXT("DataprepBindingToParameterization","Adding Parameter") );
+								DataprepAssetForParameterization->BindObjectPropertyToParameterization( DetailedObject, PropertyChain, *PropertyChain.Last().CachedProperty->GetDisplayNameText().ToString() );
+								bRefreshObjectToDisplay = true;
+							}
+
+							return FReply::Handled();
+						})
+				];
+		}
+		else if ( ParameterizationContext.State == EParametrizationState::IsParameterized )
+		{
+			NameColumn->AddSlot()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+
+					SNew(STextBlock)
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+					.Text(FEditorFontGlyphs::Minus_Circle)
+					.Margin(FMargin(5.0f, 5.0f, 0.0f, 0.0f))
+					.ColorAndOpacity(FColor::Red)
+					.OnDoubleClicked_Lambda([this, PropertyChain = ParameterizationContext.PropertyChain](const FGeometry&, const FPointerEvent&)->FReply
+					{
+						if (UDataprepAsset * DataprepAsset = DataprepAssetForParameterization.Get())
+						{
+							FScopedTransaction Transaction( LOCTEXT("DataprepRemoveBindingFromParameterization","Removing Parameter") );
+							DataprepAssetForParameterization->RemoveObjectPropertyFromParameterization( DetailedObject, PropertyChain );
+							bRefreshObjectToDisplay = true;
 						}
 
 						return FReply::Handled();
 					})
-			];
+				];
+		}
 	}
 
 	// Add the name widget
@@ -432,7 +462,7 @@ void SDataprepDetailsView::OnPropertyChanged(const FPropertyChangedEvent& InEven
 
 	if( TrackedProperties.Contains( InEvent.Property ) )
 	{
-		bNewObjectToDisplay = true;
+		bRefreshObjectToDisplay = true;
 	}
 }
 
@@ -441,11 +471,16 @@ void SDataprepDetailsView::OnObjectReplaced(const TMap<UObject*, UObject*>& Repl
 	if ( UObject * const* ObjectPtr = ReplacementObjectMap.Find( DetailedObject ) )
 	{
 		DetailedObject = *ObjectPtr;
-		bNewObjectToDisplay = true;
+		bRefreshObjectToDisplay = true;
 	}
 }
 
-void SDataprepDetailsView::AddWidgets( const TArray< TSharedRef< IDetailTreeNode > >& DetailTree, TSharedPtr<SGridPanel>& GridPanel, int32& Index, float LeftPadding )
+void SDataprepDetailsView::ForceRefresh()
+{
+	bRefreshObjectToDisplay = true;
+}
+
+void SDataprepDetailsView::AddWidgets( const TArray< TSharedRef< IDetailTreeNode > >& DetailTree, TSharedPtr<SGridPanel>& GridPanel, int32& Index, float LeftPadding, const FDataprepParameterizationContext& InParameterizationContext)
 {
 	auto IsDetailNodeDisplayable = []( const TSharedPtr< IPropertyHandle >& PropertyHandle)
 	{
@@ -493,6 +528,18 @@ void SDataprepDetailsView::AddWidgets( const TArray< TSharedRef< IDetailTreeNode
 	for( const TSharedRef< IDetailTreeNode >& ChildNode : DetailTree )
 	{
 		TSharedPtr< IPropertyHandle > PropertyHandle = ChildNode->CreatePropertyHandle();
+		FDataprepParameterizationContext CurrentParameterizationContext = FDataprepParameterizationUtils::CreateContext( PropertyHandle, InParameterizationContext );
+		if ( CurrentParameterizationContext.State == EParametrizationState::CanBeParameterized )
+		{
+			if ( UDataprepAsset* DataprepAsset = DataprepAssetForParameterization.Get() )
+			{
+				if ( DataprepAsset->IsObjectPropertyBinded( DetailedObject, CurrentParameterizationContext.PropertyChain ) )
+				{
+					CurrentParameterizationContext.State = EParametrizationState::IsParameterized;
+				}
+			}
+		}
+
 
 		if( ChildNode->GetNodeType() == EDetailNodeType::Category )
 		{
@@ -514,7 +561,7 @@ void SDataprepDetailsView::AddWidgets( const TArray< TSharedRef< IDetailTreeNode
 
 			TArray< TSharedRef< IDetailTreeNode > > Children;
 			ChildNode->GetChildren( Children );
-			AddWidgets( Children, GridPanel, Index, LeftPadding );
+			AddWidgets( Children, GridPanel, Index, LeftPadding, CurrentParameterizationContext );
 		}
 		else if( IsDetailNodeDisplayableContainerProperty( PropertyHandle ) )
 		{
@@ -527,7 +574,7 @@ void SDataprepDetailsView::AddWidgets( const TArray< TSharedRef< IDetailTreeNode
 				DetailPropertyRow->GetDefaultWidgets( NameWidget, ValueWidget, Row, true );
 				GridPanel->AddSlot(0, Index)
 				[
-					CreateDefaultWidget( NameWidget, ValueWidget, LeftPadding, Row.ValueWidget.HorizontalAlignment, Row.ValueWidget.VerticalAlignment, FDataprepParameterizationUtils::MakePropertyChain( PropertyHandle ) )
+					CreateDefaultWidget( NameWidget, ValueWidget, LeftPadding, Row.ValueWidget.HorizontalAlignment, Row.ValueWidget.VerticalAlignment, CurrentParameterizationContext )
 				];
 
 				Index++;
@@ -537,7 +584,7 @@ void SDataprepDetailsView::AddWidgets( const TArray< TSharedRef< IDetailTreeNode
 				if( Children.Num() > 0 )
 				{
 					// #ueent_todo: Find a way to add collapse/expand capability for property with children
-					AddWidgets( Children, GridPanel, Index, LeftPadding + 10.f );
+					AddWidgets( Children, GridPanel, Index, LeftPadding + 10.f, CurrentParameterizationContext );
 				}
 
 				TrackedProperties.Add( PropertyHandle->GetProperty() );
@@ -572,7 +619,7 @@ void SDataprepDetailsView::AddWidgets( const TArray< TSharedRef< IDetailTreeNode
 			{
 				GridPanel->AddSlot(0, Index)
 				[
-					CreateDefaultWidget( NameWidget, ValueWidget, LeftPadding, HAlign, VAlign, FDataprepParameterizationUtils::MakePropertyChain( PropertyHandle ) )
+					CreateDefaultWidget( NameWidget, ValueWidget, LeftPadding, HAlign, VAlign, CurrentParameterizationContext )
 				];
 				Index++;
 
@@ -593,7 +640,7 @@ void SDataprepDetailsView::AddWidgets( const TArray< TSharedRef< IDetailTreeNode
 				if( bDisplayChildren && Children.Num() > 0 )
 				{
 					// #ueent_todo: Find a way to add collapse/expand capability for property with children
-					AddWidgets( Children, GridPanel, Index, LeftPadding + 10.f );
+					AddWidgets( Children, GridPanel, Index, LeftPadding + 10.f, CurrentParameterizationContext );
 				}
 			}
 		}
@@ -602,7 +649,7 @@ void SDataprepDetailsView::AddWidgets( const TArray< TSharedRef< IDetailTreeNode
 
 void SDataprepDetailsView::Construct(const FArguments& InArgs)
 {
-	bNewObjectToDisplay = false;
+	bRefreshObjectToDisplay = false;
 	DetailedObject = InArgs._Object;
 
 	if (InArgs._ColumnSizeData.IsValid())
@@ -646,14 +693,21 @@ void SDataprepDetailsView::Construct()
 
 	if ( DetailedObject )
 	{
-		DataprepAssetForParameterization = FDataprepParameterizationUtils::GetDataprepAssetForParameterization( DetailedObject );
+		UDataprepAsset* DataprepAsset = FDataprepParameterizationUtils::GetDataprepAssetForParameterization( DetailedObject );
+		if ( DataprepAsset )
+		{
+			OnDataprepParameterizationWasModifiedHandle = DataprepAsset->OnParameterizationWasModified.AddSP( this, &SDataprepDetailsView::ForceRefresh );
+		}
+
+		FDataprepParameterizationContext ParameterizationContext;
+		ParameterizationContext.State = DataprepAsset ? EParametrizationState::CanBeParameterized : EParametrizationState::InvalidForParameterization;
+		DataprepAssetForParameterization = DataprepAsset;
 
 		TSharedPtr<SGridPanel> GridPanel = SNew(SGridPanel).FillColumn( 0.0f, 1.0f );
-
 		TArray< TSharedRef< IDetailTreeNode > > RootNodes = Generator->GetRootTreeNodes();
 
 		int32 Index = 0;
-		AddWidgets(RootNodes, GridPanel, Index, 0.f);
+		AddWidgets(RootNodes, GridPanel, Index, 0.f, ParameterizationContext);
 
 		ChildSlot
 		[
@@ -700,20 +754,25 @@ SDataprepDetailsView::~SDataprepDetailsView()
 	{
 		GEditor->OnObjectsReplaced().Remove( OnObjectReplacedHandle );
 	}
+
+	if ( UDataprepAsset* DataprepAsset = DataprepAssetForParameterization.Get() )
+	{
+		DataprepAsset->OnParameterizationWasModified.Remove( OnDataprepParameterizationWasModifiedHandle );
+	}
 }
 
 void SDataprepDetailsView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	Super::Tick( AllottedGeometry, InCurrentTime, InDeltaTime );
 
-	if ( bNewObjectToDisplay )
+	if ( bRefreshObjectToDisplay )
 	{
 		TArray< UObject* > Objects;
 		Objects.Add( DetailedObject );
 		Generator->SetObjects( Objects );
 		 
 		Construct();
-		bNewObjectToDisplay = false;
+		bRefreshObjectToDisplay = false;
 	}
 }
 
@@ -723,7 +782,7 @@ void SDataprepDetailsView::SetObjectToDisplay(UObject& Object)
 	if ( DetailedObject != NewObjectToDisplay )
 	{
 		DetailedObject = NewObjectToDisplay;
-		bNewObjectToDisplay = true;
+		bRefreshObjectToDisplay = true;
 	}
 }
 
