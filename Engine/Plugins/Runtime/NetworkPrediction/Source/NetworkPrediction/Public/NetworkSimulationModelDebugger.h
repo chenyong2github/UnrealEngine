@@ -588,6 +588,7 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 
 		EmitBuffer(TEXT("InputBuffer"), NetworkSim->Buffers.Input);
 		EmitBuffer(TEXT("SyncBuffer"), NetworkSim->Buffers.Sync);
+		EmitBuffer(TEXT("AuxBuffer"), NetworkSim->Buffers.Aux);
 
 		// ------------------------------------------------------------------------------------------------------------------------------------------------
 		//	Canvas
