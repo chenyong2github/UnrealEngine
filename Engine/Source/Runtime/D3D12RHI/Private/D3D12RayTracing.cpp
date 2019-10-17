@@ -2291,12 +2291,20 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 	FD3D12Adapter* Adapter = CommandContext.GetParentAdapter();
 	ID3D12Device5* RayTracingDevice = CommandContext.GetParentDevice()->GetRayTracingDevice();
 
+	const uint32 NumSceneInstances = Instances.Num();
+
+	uint32 NumDxrInstances = 0;
+	for (uint32 InstanceIndex = 0; InstanceIndex < NumSceneInstances; ++InstanceIndex)
+	{
+		NumDxrInstances += Instances[InstanceIndex].Transforms.Num();
+	}
+
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS PrebuildDescInputs = {};
 
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO PrebuildInfo = {};
 	PrebuildDescInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
 	PrebuildDescInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-	PrebuildDescInputs.NumDescs = Instances.Num();
+	PrebuildDescInputs.NumDescs = NumDxrInstances;
 	PrebuildDescInputs.Flags = BuildFlags;
 
 	RayTracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(&PrebuildDescInputs, &PrebuildInfo);
@@ -2336,13 +2344,13 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 
 	TotalPrimitiveCount = 0;
 
-	if (Instances.Num())
+	if (NumSceneInstances)
 	{
 		FRHIResourceCreateInfo CreateInfo;
 		CreateInfo.GPUMask = FRHIGPUMask::FromIndex(GPUIndex);
 
 		D3D12_RESOURCE_DESC InstanceBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(
-			sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * Instances.Num(),
+			sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * PrebuildDescInputs.NumDescs,
 			D3D12_RESOURCE_FLAG_NONE, D3D12_RAYTRACING_INSTANCE_DESCS_BYTE_ALIGNMENT);
 
 		// Create a temporary (volatile) buffer to hold instance data that we're about to upload.
@@ -2357,28 +2365,18 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 
 		check(MappedData);
 
-		uint32 InstanceIndex = 0;
-
 		TSet<FD3D12RayTracingGeometry*> UniqueGeometries;
+		uint32 DxrInstanceIndex = 0;
 
-		for (const FRayTracingGeometryInstance& Instance : Instances)
+		for (uint32 InstanceIndex = 0; InstanceIndex < NumSceneInstances; ++InstanceIndex)
 		{
+			const FRayTracingGeometryInstance& Instance = Instances[InstanceIndex];
 			FD3D12RayTracingGeometry* Geometry = FD3D12DynamicRHI::ResourceCast(Instance.GeometryRHI);
 
 			checkf(!Geometry->IsDirty(CommandContext.GetGPUIndex()),
 				TEXT("Acceleration structures for all geometries must be built before building the top level acceleration structure for the scene."));
 
 			D3D12_RAYTRACING_INSTANCE_DESC InstanceDesc = {};
-
-			FMatrix TransformTransposed = Instance.Transform.GetTransposed();
-
-			// Ensure the last row of the original Transform is <0,0,0,1>
-			check((TransformTransposed.M[3][0] == 0)
-				&& (TransformTransposed.M[3][1] == 0)
-				&& (TransformTransposed.M[3][2] == 0)
-				&& (TransformTransposed.M[3][3] == 1));
-
-			FMemory::Memcpy(&InstanceDesc.Transform, &TransformTransposed.M[0][0], sizeof(InstanceDesc.Transform));
 
 			InstanceDesc.InstanceID = Instance.UserData;
 			InstanceDesc.InstanceMask = Instance.Mask;
@@ -2405,10 +2403,22 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 				BottomLevelAccelerationStructureBuffers[GPUIndex].Add(Geometry->AccelerationStructureBuffers[GPUIndex]);
 			}
 
-			MappedData[InstanceIndex] = InstanceDesc;
-			++InstanceIndex;
+			const uint32 NumTransforms = Instance.Transforms.Num();
+			for (uint32 TransformIndex = 0; TransformIndex < NumTransforms; ++TransformIndex)
+			{
+				FMatrix TransformTransposed = Instance.Transforms[TransformIndex].GetTransposed();
 
-			TotalPrimitiveCount += Geometry->TotalPrimitiveCount;
+				// Ensure the last row of the original Transform is <0,0,0,1>
+				check((TransformTransposed.M[3][0] == 0)
+					&& (TransformTransposed.M[3][1] == 0)
+					&& (TransformTransposed.M[3][2] == 0)
+					&& (TransformTransposed.M[3][3] == 1));
+
+				FMemory::Memcpy(&InstanceDesc.Transform, &TransformTransposed.M[0][0], sizeof(InstanceDesc.Transform));
+				MappedData[DxrInstanceIndex++] = InstanceDesc;
+			}
+
+			TotalPrimitiveCount += Geometry->TotalPrimitiveCount * Instance.Transforms.Num();
 		}
 
 		Adapter->GetOwningRHI()->UnlockBuffer(nullptr, InstanceBuffer.GetReference());

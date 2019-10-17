@@ -105,7 +105,7 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 	FRayTracingGeometryRHIRef Geometry = RHICreateRayTracingGeometry(GeometryInitializer);
 
 	FRayTracingGeometryInstance Instances[] = {
-		FRayTracingGeometryInstance { Geometry, FMatrix::Identity, 0, 0xFF }
+		FRayTracingGeometryInstance { Geometry, {FMatrix::Identity}, 0, 0xFF }
 	};
 
 	FRayTracingSceneInitializer Initializer;
