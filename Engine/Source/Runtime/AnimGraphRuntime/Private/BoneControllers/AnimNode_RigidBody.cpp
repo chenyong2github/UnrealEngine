@@ -23,7 +23,7 @@
 
 DEFINE_STAT(STAT_RigidBodyNodeInitTime);
 
-TAutoConsoleVariable<int32> CVarEnableRigidBodyNode(TEXT("p.RigidBodyNode"), 1, TEXT("Enables/disables rigid body node updates and evaluations"), ECVF_ReadOnly);
+TAutoConsoleVariable<int32> CVarEnableRigidBodyNode(TEXT("p.RigidBodyNode"), 1, TEXT("Enables/disables rigid body node updates and evaluations"), ECVF_Default);
 TAutoConsoleVariable<int32> CVarRigidBodyLODThreshold(TEXT("p.RigidBodyLODThreshold"), -1, TEXT("Max LOD that rigid body node is allowed to run on. Provides a global threshold that overrides per-node the LODThreshold property. -1 means no override."), ECVF_Scalability);
 
 int32 RBAN_MaxSubSteps = 4;
@@ -262,7 +262,7 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 	const float DeltaSeconds = AccumulatedDeltaTime;
 	AccumulatedDeltaTime = 0.f;
 
-	if (CVarEnableRigidBodyNode.GetValueOnAnyThread() != 0 && PhysicsSimulation)	
+	if (bEnabled && PhysicsSimulation)	
 	{
 		const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
 		const FTransform CompWorldSpaceTM = Output.AnimInstanceProxy->GetComponentTransform();
@@ -605,6 +605,9 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 {
 	SCOPE_CYCLE_COUNTER(STAT_RigidBodyNodeInitTime);
 
+	delete PhysicsSimulation;
+	PhysicsSimulation = nullptr;
+
 	const USkeletalMeshComponent* SkeletalMeshComp = InAnimInstance->GetSkelMeshComponent();
 	const USkeletalMesh* SkeletalMeshAsset = SkeletalMeshComp->SkeletalMesh;
 
@@ -635,10 +638,10 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 		AnimPhysicsMinDeltaTime = 0.f;
 		bSimulateAnimPhysicsAfterReset = false;
 	}
-
-	if(CVarEnableRigidBodyNode.GetValueOnAnyThread() != 0 && UsePhysicsAsset)
+	
+	bEnabled = UsePhysicsAsset && SkeletalMeshComp->GetAllowRigidBodyAnimNode() && CVarEnableRigidBodyNode.GetValueOnAnyThread() != 0;
+	if(bEnabled)
 	{
-		delete PhysicsSimulation;
 		PhysicsSimulation = new ImmediatePhysics::FSimulation();
 		const int32 NumBodies = UsePhysicsAsset->SkeletalBodySetups.Num();
 		Bodies.Empty(NumBodies);
@@ -915,7 +918,7 @@ DECLARE_CYCLE_STAT(TEXT("RigidBody_PreUpdate"), STAT_RigidBody_PreUpdate, STATGR
 void FAnimNode_RigidBody::PreUpdate(const UAnimInstance* InAnimInstance)
 {
 	// Don't update geometry if RBN is disabled
-	if(CVarEnableRigidBodyNode.GetValueOnAnyThread() == 0)
+	if(!bEnabled)
 	{
 		return;
 	}
@@ -975,7 +978,7 @@ void FAnimNode_RigidBody::UpdateInternal(const FAnimationUpdateContext& Context)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(UpdateInternal)
 	// Avoid this work if RBN is disabled, as the results would be discarded
-	if(CVarEnableRigidBodyNode.GetValueOnAnyThread() == 0)
+	if(!bEnabled)
 	{
 		return;
 	}
