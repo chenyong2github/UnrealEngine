@@ -177,6 +177,8 @@ private:
 
 	void SpawnAndActivateTabs();
 
+	void ActivateTimingInsightsTab();
+
 private:
 	/** The delegate to be invoked when this manager ticks. */
 	FTickerDelegate OnTick;
@@ -211,4 +213,6 @@ private:
 
 	/** A shared pointer to the global instance of the main manager. */
 	static TSharedPtr<FInsightsManager> Instance;
+
+	bool bIsNetworkingProfilerAvailable;
 };
