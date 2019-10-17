@@ -322,6 +322,10 @@ void UDataprepActionAsset::ExecuteAction(const TSharedPtr<FDataprepActionContext
 	{
 		if ( UDataprepOperation* Operation = Step->Operation )
 		{
+			// Cache number of assets and objects before execution
+			int32 AssetsDiffCount = ContextPtr->Assets.Num();
+			int32 ActorsDiffCount = OperationContext->Context->Objects.Num();
+
 			TSharedRef<FDataprepOperationContext> OperationContextPtr = this->OperationContext.ToSharedRef();
 			Operation->ExecuteOperation( OperationContextPtr );
 
@@ -332,7 +336,9 @@ void UDataprepActionAsset::ExecuteAction(const TSharedPtr<FDataprepActionContext
 			}
 
 			// Process the changes in the context if applicable
-			this->ProcessWorkingSetChanged();
+			AssetsDiffCount = ContextPtr->Assets.Num() - AssetsDiffCount;
+			ActorsDiffCount = OperationContext->Context->Objects.Num() - ActorsDiffCount - AssetsDiffCount;
+			this->ProcessWorkingSetChanged( AssetsDiffCount != 0, ActorsDiffCount != 0 );
 		}
 		else if ( UDataprepFilter* Filter = Step->Filter )
 		{
@@ -462,12 +468,12 @@ void UDataprepActionAsset::OnDeleteObjects(TArray<UObject*> Objects)
 	}
 }
 
-void UDataprepActionAsset::ProcessWorkingSetChanged()
+void UDataprepActionAsset::ProcessWorkingSetChanged( bool bAddedAssets, bool bAddedActors )
 {
 	if(bWorkingSetHasChanged && ContextPtr != nullptr)
 	{
-		bool bAssetsChanged = false;
-		bool bWorldChanged = false;
+		bool bAssetsChanged = bAddedAssets;
+		bool bWorldChanged = bAddedActors;
 
 		TSet<UObject*> SelectedObjectSet( OperationContext->Context->Objects );
 
