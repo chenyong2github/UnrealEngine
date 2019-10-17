@@ -983,9 +983,11 @@ FScopedLogger::~FScopedLogger()
 	Dump(true);
 }
 
-void FScopedLogger::Push(EMessageSeverity::Type Severity, const FText& Message)
+TSharedRef<FTokenizedMessage> FScopedLogger::Push(EMessageSeverity::Type Severity, const FText& Message)
 {
 	TokenizedMessages.Add(FTokenizedMessage::Create(Severity, Message));
+	
+	return TokenizedMessages.Last();
 }
 
 void FScopedLogger::Dump(bool bClearPrevious)
