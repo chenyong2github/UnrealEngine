@@ -21,6 +21,7 @@
 #include "DynamicPrimitiveDrawing.h"
 #include "RenderTargetTemp.h"
 #include "CanvasTypes.h"
+#include "ShaderPrintParameters.h"
 
 static int32 GDeepShadowDebugIndex = 0;
 static float GDeepShadowDebugScale = 20;
@@ -112,7 +113,7 @@ static const TCHAR* ToString(EHairDebugMode DebugMode)
 	case EHairDebugMode::DeepOpacityMaps: return TEXT("Deep opacity maps");
 	case EHairDebugMode::SamplePerPixel: return TEXT("Sub-pixel sample count");
 	case EHairDebugMode::TAAResolveType: return TEXT("TAA resolve type (regular/responsive)");
-	case EHairDebugMode::CoverageType: return TEXT("Type of hair coverage (full/partial)");
+	case EHairDebugMode::CoverageType: return TEXT("Type of hair coverage - Fully covered : Green / Partially covered : Red");
 	case EHairDebugMode::VoxelsDensity: return TEXT("Hair density volume");
 	case EHairDebugMode::VoxelsTangent: return TEXT("Hair tangent volume");
 	case EHairDebugMode::VoxelsBaseColor: return TEXT("Hair base color volume");
@@ -155,6 +156,73 @@ static const TCHAR* ToString(EHairStrandsDebugMode DebugMode)
 	};
 }
 
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+class FHairDebugPrintCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FHairDebugPrintCS);
+	SHADER_USE_PARAMETER_STRUCT(FHairDebugPrintCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FIntPoint, PixelCoord)
+		SHADER_PARAMETER(FIntPoint, MaxResolution)
+		SHADER_PARAMETER(uint32, FastResolveMask)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CategorizationTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairVisibilityNodeOffsetAndCount)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, HairVisibilityNodeData)
+		SHADER_PARAMETER_SRV(Texture2D, DepthStencilTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, LinearSampler)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintUniformBuffer)
+	END_SHADER_PARAMETER_STRUCT()
+
+public:
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+};
+
+IMPLEMENT_GLOBAL_SHADER(FHairDebugPrintCS, "/Engine/Private/HairStrands/HairStrandsDebugPrint.usf", "MainCS", SF_Compute);
+
+static void AddDebugHairPrintPass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo* View,
+	const EHairDebugMode InDebugMode,
+	const FHairStrandsVisibilityData& VisibilityData,
+	const FShaderResourceViewRHIRef& InDepthStencilTexture)
+{
+	const TRefCountPtr<IPooledRenderTarget>& InCategorizationTexture = VisibilityData.CategorizationTexture;
+	const TRefCountPtr<IPooledRenderTarget>& InNodeIndex = VisibilityData.NodeIndex;
+	const TRefCountPtr<FPooledRDGBuffer>& InNodeData = VisibilityData.NodeData;
+
+	if (!InCategorizationTexture || !InNodeIndex || !InNodeData || !InDepthStencilTexture) return;
+
+	FRDGTextureRef CategorizationTexture = InCategorizationTexture ? GraphBuilder.RegisterExternalTexture(InCategorizationTexture, TEXT("CategorizationTexture")) : nullptr;
+	FRDGTextureRef NodeIndex = InNodeIndex ? GraphBuilder.RegisterExternalTexture(InNodeIndex, TEXT("NodeIndex")) : nullptr;
+	FRDGBufferRef  NodeData  = InNodeData ? GraphBuilder.RegisterExternalBuffer(InNodeData, TEXT("NodeData")) : nullptr;
+
+	const FIntRect Viewport = View->ViewRect;
+	const FIntPoint Resolution(Viewport.Width(), Viewport.Height());
+
+	FHairDebugPrintCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairDebugPrintCS::FParameters>();
+	Parameters->MaxResolution = CategorizationTexture->Desc.Extent;
+	Parameters->PixelCoord = View->CursorPos;
+	Parameters->FastResolveMask = STENCIL_TEMPORAL_RESPONSIVE_AA_MASK;
+	Parameters->CategorizationTexture = CategorizationTexture;
+	Parameters->HairVisibilityNodeData = GraphBuilder.CreateSRV(NodeData);
+	Parameters->HairVisibilityNodeOffsetAndCount = NodeIndex;
+	Parameters->DepthStencilTexture = InDepthStencilTexture;
+	Parameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	ShaderPrint::SetParameters(*View, Parameters->ShaderPrintUniformBuffer);
+	TShaderMapRef<FHairDebugPrintCS> ComputeShader(View->ShaderMap);
+
+	ClearUnusedGraphResources(*ComputeShader, Parameters);
+
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("HairStrandsDebugPrint"),
+		*ComputeShader,
+		Parameters,
+		FIntVector(1, 1, 1));
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 class FHairDebugPS : public FGlobalShader
@@ -906,6 +974,14 @@ void RenderHairStrandsDebugInfo(FRHICommandListImmediate& RHICmdList, TArray<FVi
 
 	if (HairDebugMode == EHairDebugMode::ClusterData)
 	{
+		if (ViewIndex < uint32(HairDatas->HairVisibilityViews.HairDatas.Num()))
+		{
+			FRDGBuilder GraphBuilder(RHICmdList);
+			const FHairStrandsVisibilityData& VisibilityData = HairDatas->HairVisibilityViews.HairDatas[ViewIndex];
+			AddDebugHairPrintPass(GraphBuilder, &View, HairDebugMode, VisibilityData, SceneTargets.SceneStencilSRV);
+			GraphBuilder.Execute();	
+		}
+
 		// Clusters part of the clusters
 		FViewElementPDI ShadowFrustumPDI(&View, nullptr, nullptr);
 		const FHairStrandsClusterDatas& ClusterDatas = InClusterViews.Views[ViewIndex];
@@ -1031,6 +1107,7 @@ void RenderHairStrandsDebugInfo(FRHICommandListImmediate& RHICmdList, TArray<FVi
 		{
 			const FHairStrandsVisibilityData& VisibilityData = HairDatas->HairVisibilityViews.HairDatas[ViewIndex];
 			AddDebugHairPass(GraphBuilder, &View, HairDebugMode, VisibilityData.CategorizationTexture, SceneTargets.SceneStencilSRV, SceneColorTexture);
+			AddDebugHairPrintPass(GraphBuilder, &View, HairDebugMode, VisibilityData,  SceneTargets.SceneStencilSRV);
 		}
 
 		GraphBuilder.Execute();
