@@ -7,6 +7,9 @@
 #include "IDataprepLogger.h"
 #include "IDataprepProgressReporter.h"
 
+#include "FeedbackContextEditor.h"
+#include "HAL/FeedbackContextAnsi.h"
+
 #include "UObject/Object.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Package.h"
@@ -79,10 +82,38 @@ public:
 
 	};
 
+	class DATAPREPCORE_API FDataprepFeedbackContext : public FFeedbackContextEditor
+	{
+	public:
+		/** 
+		 * We want to override this method in order to cache the cancel result and not clear it,
+		 * so it can be checked multiple times with the correct result!
+		 * (FFeedbackContextEditor::ReceivedUserCancel clears it)
+		 */
+		virtual bool ReceivedUserCancel() override 
+		{ 
+			if ( !bTaskWasCancelledCache )
+			{
+				bTaskWasCancelledCache = FFeedbackContextEditor::ReceivedUserCancel();
+			}
+			return bTaskWasCancelledCache;
+		}
+
+	private:
+		bool bTaskWasCancelledCache = false;
+	};
+
 	class DATAPREPCORE_API FDataprepProgressUIReporter : public IDataprepProgressReporter
 	{
 	public:
 		FDataprepProgressUIReporter()
+			: bIsCancelled(false)
+		{
+		}
+
+		FDataprepProgressUIReporter( TSharedRef<FFeedbackContext> InFeedbackContext )
+			: FeedbackContext(InFeedbackContext)
+			, bIsCancelled(false)
 		{
 		}
 
@@ -94,10 +125,14 @@ public:
 		virtual void BeginWork( const FText& InTitle, float InAmountOfWork ) override;
 		virtual void EndWork() override;
 		virtual void ReportProgress( float Progress, const FText& InMessage ) override;
+		virtual bool IsWorkCancelled() override;
+		virtual FFeedbackContext* GetFeedbackContext() const override;
 		// End IDataprepProgressReporter interface
 
 	private:
 		TArray< TSharedPtr< FScopedSlowTask > > ProgressTasks;
+		TSharedPtr< FFeedbackContext > FeedbackContext;
+		bool bIsCancelled;
 	};
 
 	class DATAPREPCORE_API FDataprepProgressTextReporter : public IDataprepProgressReporter
@@ -105,6 +140,7 @@ public:
 	public:
 		FDataprepProgressTextReporter()
 			: TaskDepth(0)
+			, FeedbackContext( new FFeedbackContextAnsi )
 		{
 		}
 
@@ -116,9 +152,12 @@ public:
 		virtual void BeginWork( const FText& InTitle, float InAmountOfWork ) override;
 		virtual void EndWork() override;
 		virtual void ReportProgress( float Progress, const FText& InMessage ) override;
+		virtual bool IsWorkCancelled() override;
+		virtual FFeedbackContext* GetFeedbackContext() const override;
 
 	private:
 		int32 TaskDepth;
+		TUniquePtr<FFeedbackContextAnsi> FeedbackContext;
 	};
 };
 
