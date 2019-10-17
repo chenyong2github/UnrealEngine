@@ -1090,6 +1090,8 @@ FScene::~FScene()
 
 	BeginReleaseResource(&HaltonPrimesResource);
 #endif
+
+	checkf(RemovedPrimitiveSceneInfos.Num() == 0, TEXT("Leaking %d FPrimitiveSceneInfo instances."), RemovedPrimitiveSceneInfos.Num()); // Ensure UpdateAllPrimitiveSceneInfos() is called before destruction.
 }
 
 void FScene::AddPrimitive(UPrimitiveComponent* Primitive)
@@ -3068,6 +3070,8 @@ void FScene::Release()
 	ENQUEUE_RENDER_COMMAND(FReleaseCommand)(
 		[Scene](FRHICommandListImmediate& RHICmdList)
 		{
+			// Update one more time to clear RemovedPrimitiveSceneInfos and prevent leaking FPrimitiveSceneInfo instances.
+			Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
 			delete Scene;
 		});
 }
