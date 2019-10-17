@@ -77,6 +77,8 @@ public:
 
 	void SetInstigator(const UObject* Object);
 
+	FEQSQueryDoneSignature& GetOnQueryFinishedEvent() { return OnQueryFinishedEvent; }
+
 protected:
 	void OnQueryFinished(TSharedPtr<FEnvQueryResult> Result);
 
