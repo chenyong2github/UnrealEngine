@@ -50,19 +50,25 @@ namespace Chaos
 
 		TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<T, d>, T, d>> CreateEmptyCollection() override
 		{
+			TConstParticleView<TSpatialAccelerationCache<T, d>> Empty;
+
 			const uint16 NumBuckets = ConfigSettings.BroadphaseType == 3 ? 2 : 1;
 			auto Collection = new TSpatialAccelerationCollection<AABBTreeType, BVType, AABBTreeOfGridsType>();
-			const TArray<TAccelerationStructureBuilder<T, d>> Empty;
 
 			for (uint16 BucketIdx = 0; BucketIdx < NumBuckets; ++BucketIdx)
 			{
-				Collection->AddSubstructure(CreateAccelerationPerBucket(Empty, BucketIdx), BucketIdx);
+				Collection->AddSubstructure(CreateAccelerationPerBucket_Threaded(Empty, BucketIdx), BucketIdx);
 			}
 
 			return TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<T, d>, T, d>>(Collection);
 		}
 
-		virtual TUniquePtr<ISpatialAcceleration<TAccelerationStructureHandle<T, d>, T, d>> CreateAccelerationPerBucket(const TArray<TAccelerationStructureBuilder<T, d>>& Particles, uint16 BucketIdx) override
+		virtual uint8 GetActiveBucketsMask() const
+		{
+			return ConfigSettings.BroadphaseType == 3 ? 3 : 1;
+		}
+
+		virtual TUniquePtr<ISpatialAcceleration<TAccelerationStructureHandle<T, d>, T, d>> CreateAccelerationPerBucket_Threaded(const TConstParticleView<TSpatialAccelerationCache<T, d>>& Particles, uint16 BucketIdx) override
 		{
 			switch (BucketIdx)
 			{
@@ -146,11 +152,11 @@ namespace Chaos
 	template<class FPBDRigidsEvolution, class FPBDCollisionConstraint, class T, int d>
 	TPBDRigidsEvolutionBase<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::FChaosAccelerationStructureTask::FChaosAccelerationStructureTask(
 		ISpatialAccelerationCollectionFactory<T, d>& InSpatialCollectionFactory
-		, const TArray<FAccelerationStructBuilderCache>& CacheMap
+		, const TMap<FSpatialAccelerationIdx, TSpatialAccelerationCache<T,d>>& InSpatialAccelerationCache
 		, TUniquePtr<FAccelerationStructure>& InAccelerationStructure
 		, TUniquePtr<FAccelerationStructure>& InAccelerationStructureCopy)
 		: SpatialCollectionFactory(InSpatialCollectionFactory)
-		, BuilderCacheMap(CacheMap)
+		, SpatialAccelerationCache(InSpatialAccelerationCache)
 		, AccelerationStructure(InAccelerationStructure)
 		, AccelerationStructureCopy(InAccelerationStructureCopy)
 	{
@@ -204,13 +210,34 @@ namespace Chaos
 	template<class FPBDRigidsEvolution, class FPBDCollisionConstraint, class T, int d>
 	void TPBDRigidsEvolutionBase<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::FChaosAccelerationStructureTask::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
-		//todo: no reason to do this in serial
-		for (const FAccelerationStructBuilderCache& Cache : BuilderCacheMap)
+		uint8 ActiveBucketsMask = SpatialCollectionFactory.GetActiveBucketsMask();
+		TArray<TSOAView<TSpatialAccelerationCache<T, d>>> ViewsPerBucket[8];
+		
+		//merge buckets. todo: support multiple entries per bucket (i.e. dynamic vs static)
+		for (const auto& Itr : SpatialAccelerationCache)
 		{
-			auto OldStruct = AccelerationStructure->RemoveSubstructure(Cache.SpatialIdx);
-			auto NewStruct = SpatialCollectionFactory.CreateAccelerationPerBucket(*Cache.CachedSpatialBuilderData, Cache.SpatialIdx.Bucket);
-			AccelerationStructure->AddSubstructure(MoveTemp(NewStruct), Cache.SpatialIdx.Bucket);
+			const FSpatialAccelerationIdx SpatialIdx = Itr.Key;
+			const TSpatialAccelerationCache<T, d>& Cache = Itr.Value;
+			const uint8 BucketIdx = (1 << SpatialIdx.Bucket) & ActiveBucketsMask ? SpatialIdx.Bucket : 0;
+			ViewsPerBucket[BucketIdx].Add(const_cast<TSpatialAccelerationCache<T, d>*>(&Cache));
+
+			if (AccelerationStructure->IsBucketActive(SpatialIdx.Bucket))
+			{
+				AccelerationStructure->RemoveSubstructure(SpatialIdx);
+			}
 		}
+
+		//todo: creation can go wide, insertion to collection cannot
+		for (uint8 BucketIdx = 0; BucketIdx < 8; ++BucketIdx)
+		{
+			if (ViewsPerBucket[BucketIdx].Num())
+			{
+				auto ParticleView = MakeConstParticleView(MoveTemp(ViewsPerBucket[BucketIdx]));
+				auto NewStruct = SpatialCollectionFactory.CreateAccelerationPerBucket_Threaded(ParticleView, BucketIdx);
+				AccelerationStructure->AddSubstructure(MoveTemp(NewStruct), BucketIdx);
+			}
+		}
+		
 		AccelerationStructureCopy = AsUniqueSpatialAccelerationChecked<FAccelerationStructure>(AccelerationStructure->Copy());
 	}
 
@@ -230,21 +257,19 @@ namespace Chaos
 
 			if (bAsync)
 			{
-				if (int32* CacheIdxPtr = ParticleToCacheIdx.Find(Particle))
+				if (uint32* InnerIdxPtr = ParticleToCacheInnerIdx.Find(Particle))
 				{
 					const auto SpatialIdx = SpatialData.DeletedSpatialIdx;
-					auto MapFound = CachedSpatialBuilderDataMap.FindByPredicate([SpatialIdx](const auto& Cache) { return Cache.SpatialIdx == SpatialIdx; });
-					TArray<TAccelerationStructureBuilder<T,d>>& CachedSpatialBuilderData = *(MapFound ? MapFound->CachedSpatialBuilderData : CachedSpatialBuilderDataMap.Last().CachedSpatialBuilderData);
-					const int32 CacheIdx = *CacheIdxPtr;
-					if (CacheIdx + 1 < CachedSpatialBuilderData.Num())	//will get swapped with last element, so update it
+					TSpatialAccelerationCache<T, d>& Cache = SpatialAccelerationCache.FindChecked(SpatialIdx);	//can't delete from cache that doesn't exist
+					const uint32 CacheInnerIdx = *InnerIdxPtr;
+					if (CacheInnerIdx + 1 < Cache.Size())	//will get swapped with last element, so update it
 					{
-						//in cached bounds so must be in mapping, update mapping to new position
-						int32& PrevIdx = ParticleToCacheIdx.FindChecked(CachedSpatialBuilderData.Last().CachedSpatialPayload.GetGeometryParticleHandle_PhysicsThread());
-						PrevIdx = CacheIdx;
+						TGeometryParticleHandle<T, d>* LastParticleInCache = Cache.Payload(Cache.Size() - 1).GetGeometryParticleHandle_PhysicsThread();
+						ParticleToCacheInnerIdx.FindChecked(LastParticleInCache) = CacheInnerIdx;
 					}
 
-					CachedSpatialBuilderData.RemoveAtSwap(CacheIdx);
-					ParticleToCacheIdx.Remove(Particle);
+					Cache.DestroyElement(CacheInnerIdx);
+					ParticleToCacheInnerIdx.Remove(Particle);
 				}
 			}
 		}
@@ -255,25 +280,25 @@ namespace Chaos
 			
 			if (bAsync)
 			{
-				const auto SpatialIdx = SpatialData.UpdatedSpatialIdx;
-				auto MapFound = CachedSpatialBuilderDataMap.FindByPredicate([SpatialIdx](const auto& Cache) { return Cache.SpatialIdx == SpatialIdx; });
-				TArray<TAccelerationStructureBuilder<T,d>>& CachedSpatialBuilderData = *(MapFound ? MapFound->CachedSpatialBuilderData : CachedSpatialBuilderDataMap.Last().CachedSpatialBuilderData);
+				TSpatialAccelerationCache<T, d>& Cache = SpatialAccelerationCache.FindOrAdd(SpatialData.UpdatedSpatialIdx);
 
 				//make sure in mapping
-				int32 CacheIdx;
-				if (int32* CacheIdxPtr = ParticleToCacheIdx.Find(Particle))
+				uint32 CacheInnerIdx;
+				if (uint32* CacheInnerIdxPtr = ParticleToCacheInnerIdx.Find(Particle))
 				{
-					CacheIdx = *CacheIdxPtr;
+					CacheInnerIdx = *CacheInnerIdxPtr;
 				}
 				else
 				{
-					CacheIdx = CachedSpatialBuilderData.Num();
-					ParticleToCacheIdx.Add(Particle, CacheIdx);
-					CachedSpatialBuilderData.AddUninitialized();
+					CacheInnerIdx = Cache.Size();
+					Cache.AddElements(1);
+					ParticleToCacheInnerIdx.Add(Particle, CacheInnerIdx);
 				}
 
-				//update cache itself
-				CachedSpatialBuilderData[CacheIdx] = TAccelerationStructureBuilder<T,d>{ Particle->HasBounds(), Particle->WorldSpaceInflatedBounds(), SpatialData.AccelerationHandle };
+				//update cache entry
+				Cache.HasBounds(CacheInnerIdx) = Particle->HasBounds();
+				Cache.Bounds(CacheInnerIdx) = Particle->WorldSpaceInflatedBounds();
+				Cache.Payload(CacheInnerIdx) = SpatialData.AccelerationHandle;
 			}
 		}
 	}
@@ -341,7 +366,6 @@ namespace Chaos
 			FlushInternalAccelerationQueue();
 			FlushExternalAccelerationQueue(*ScratchExternalAcceleration);
 			bExternalReady = true;
-			InitializeAccelerationCache();
 		}
 
 		if (bBlock)
@@ -361,23 +385,11 @@ namespace Chaos
 				bExternalReady = true;
 			}
 
-			AccelerationStructureTaskComplete = TGraphTask<FChaosAccelerationStructureTask>::CreateTask().ConstructAndDispatchWhenReady(*SpatialCollectionFactory, CachedSpatialBuilderDataMap, AsyncInternalAcceleration, AsyncExternalAcceleration);
+			AccelerationStructureTaskComplete = TGraphTask<FChaosAccelerationStructureTask>::CreateTask().ConstructAndDispatchWhenReady(*SpatialCollectionFactory, SpatialAccelerationCache, AsyncInternalAcceleration, AsyncExternalAcceleration);
 		}
 		else
 		{
 			FlushInternalAccelerationQueue();
-		}
-	}
-
-	template<class FPBDRigidsEvolution, class FPBDCollisionConstraint, class T, int d>
-	void TPBDRigidsEvolutionBase<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::InitializeAccelerationCache()
-	{
-		WaitOnAccelerationStructure();
-		CachedSpatialBuilderDataMap.Empty();
-		const auto SpatialIndices = InternalAcceleration->GetAllSpatialIndices();
-		for (const auto& Idx : SpatialIndices)
-		{
-			CachedSpatialBuilderDataMap.Add(Idx);
 		}
 	}
 
@@ -428,7 +440,6 @@ namespace Chaos
 				{
 					Ar << SubStructure;
 					InternalAcceleration = CreateNewSpatialStructureFromSubStructure(MoveTemp(SubStructure));
-					InitializeAccelerationCache();
 				}
 			}
 			else
