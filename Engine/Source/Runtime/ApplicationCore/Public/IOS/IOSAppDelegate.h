@@ -59,6 +59,10 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnWillResignActive);
 	static FOnWillResignActive OnWillResignActive;
 
+	/** INTERNAL - called when becoming active - this is not thread-safe with the game thread or render thread as it is called from the app's Main thread */
+	DECLARE_MULTICAST_DELEGATE(FOnDidBecomeActive);
+	static FOnWillResignActive OnDidBecomeActive;
+	
 private:
 	struct FFilterDelegateAndHandle
 	{
