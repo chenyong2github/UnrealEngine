@@ -20,9 +20,7 @@ class FHairMeshProjectionCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, bClear)
 		SHADER_PARAMETER(uint32, MaxRootCount)
 		SHADER_PARAMETER(uint32, MaxSpinLockCount)
-		SHADER_PARAMETER(FMatrix, RootLocalToWorld)
 
-		SHADER_PARAMETER(FMatrix, MeshLocalToWorld)
 		SHADER_PARAMETER(uint32, MeshNumPrimitives)
 		SHADER_PARAMETER(uint32, MeshSectionIndex)
 		SHADER_PARAMETER(uint32, MeshMaxIndexCount)
@@ -67,21 +65,12 @@ static void AddHairStrandMeshProjectionPass(
 		return;
 	}
 
-	// Change the transform to be just a relative transform from the mesh
-	FTransform RootTranform = RootData.LocalToWorld;
-	FTransform MeshTranform = MeshSectionData.LocalToWorld;
-	RootTranform.SetLocation(RootTranform.GetLocation() - MeshTranform.GetLocation());
-	MeshTranform.SetLocation(FVector(0, 0, 0));
-
 	FHairMeshProjectionCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairMeshProjectionCS::FParameters>();
 	Parameters->bClear				= bClear ? 1 : 0;
 	Parameters->MaxRootCount		= RootData.RootCount;
 	Parameters->MaxSpinLockCount	= FMath::Clamp(GHairProjectionMaxSpinLockCount, 0, 100000);
 	Parameters->RootPositionBuffer	= RootData.RootPositionBuffer;
 	Parameters->RootNormalBuffer	= RootData.RootNormalBuffer;
-	Parameters->RootLocalToWorld	= RootTranform.ToMatrixWithScale();
-
-	Parameters->MeshLocalToWorld	= MeshTranform.ToMatrixWithScale();
 	Parameters->MeshNumPrimitives	= MeshSectionData.NumPrimitives;
 	Parameters->MeshSectionIndex	= MeshSectionData.SectionIndex;
 	Parameters->MeshMaxIndexCount	= MeshSectionData.TotalIndexCount;
@@ -141,9 +130,7 @@ class FHairUpdateMeshTriangleCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FVector, RootTrianglePositionOffset)
 		SHADER_PARAMETER(uint32, MaxRootCount)
-		SHADER_PARAMETER(FMatrix, RootLocalToWorld)
-
-		SHADER_PARAMETER(FMatrix, MeshLocalToWorld)
+		
 		SHADER_PARAMETER(uint32, MeshSectionIndex)
 		SHADER_PARAMETER(uint32, MeshMaxIndexCount)
 		SHADER_PARAMETER(uint32, MeshMaxVertexCount)
@@ -178,18 +165,9 @@ static void AddHairStrandUpdateMeshTrianglesPass(
 	FHairStrandsProjectionHairData::LODData& LODData = RootData.LODDatas[LODIndex];
 	check(LODData.LODIndex == LODIndex);
 
-	// Change the transform to be just a relative transform from the mesh
-	FTransform RootTranform = RootData.LocalToWorld;
-	FTransform MeshTranform = MeshSectionData.LocalToWorld;
-	RootTranform.SetLocation(RootTranform.GetLocation() - MeshTranform.GetLocation());
-	MeshTranform.SetLocation(FVector(0, 0, 0));
-
 	FHairUpdateMeshTriangleCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairUpdateMeshTriangleCS::FParameters>();
 	Parameters->MaxRootCount		= RootData.RootCount;
 	Parameters->RootTriangleIndex	= LODData.RootTriangleIndexBuffer->SRV;
-	Parameters->RootLocalToWorld	= RootTranform.ToMatrixWithScale();
-	
-	Parameters->MeshLocalToWorld	= MeshTranform.ToMatrixWithScale();
 	Parameters->MeshSectionIndex	= MeshSectionData.SectionIndex;
 	Parameters->MeshMaxIndexCount	= MeshSectionData.TotalIndexCount;
 	Parameters->MeshMaxVertexCount	= MeshSectionData.TotalVertexCount;

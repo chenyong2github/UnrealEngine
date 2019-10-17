@@ -6,9 +6,7 @@
 uint bClear;
 uint MaxRootCount;
 float DistanceThreshold;
-float4x4 RootLocalToWorld;
 
-float4x4 MeshLocalToWorld;
 uint MeshNumPrimitives;
 uint MeshSectionIndex;
 uint MeshMaxIndexCount;
@@ -136,9 +134,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 	if (RootIndex >= MaxRootCount) return;
 
-	float3 RootPosition = RootPositionBuffer[RootIndex].xyz;
-	RootPosition = mul(float4(RootPosition, 1), RootLocalToWorld).xyz;
-
+	const float3 RootPosition = RootPositionBuffer[RootIndex].xyz;
 	const float3 RootNormal = RootNormalBuffer[RootIndex].xyz;
 
 	float MinDistance = bClear ? 999999999 : OutRootTriangleDistance[RootIndex];
@@ -146,7 +142,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	float3 TriangleBarycentric = float3(0,0,0);
 	for (uint PrimitiveIt = 0; PrimitiveIt < MeshNumPrimitives; ++PrimitiveIt)
 	{
-		const FHairMeshTriangle Tri = GetTriangleData(PrimitiveIt, MeshLocalToWorld, MeshPositionBuffer, MeshIndexBuffer, MeshIndexOffset, MeshMaxIndexCount, MeshMaxVertexCount);
+		const FHairMeshTriangle Tri = GetTriangleData(PrimitiveIt, MeshPositionBuffer, MeshIndexBuffer, MeshIndexOffset, MeshMaxIndexCount, MeshMaxVertexCount);
 		
 		const float3 B = 0.5f;
 		FTrianglePoint C = ComputeClosestPoint(Tri, RootPosition);
