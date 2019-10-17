@@ -4781,7 +4781,6 @@ void FSkeletalMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialG
 		// #dxr: the only case where RayTracingGeometryRHI is invalid is the very first frame - if that's not the case we have a bug somewhere else
 		if (MeshObject->GetRayTracingGeometry()->RayTracingGeometryRHI.IsValid())
 		{
-			check(MeshObject->GetRayTracingGeometry()->Initializer.PositionVertexBuffer.IsValid());
 			check(MeshObject->GetRayTracingGeometry()->Initializer.IndexBuffer.IsValid());
 			
 			FRayTracingInstance RayTracingInstance;

@@ -380,12 +380,8 @@ void FSkeletalMeshObjectCPUSkin::FSkeletalMeshObjectLOD::InitResources(FSkelMesh
 			[this, VertexBufferRHI, IndexBufferRHI, VertexBufferStride, TrianglesCount, RenderSections](FRHICommandListImmediate& RHICmdList)
 			{
 				FRayTracingGeometryInitializer Initializer;
-				Initializer.PositionVertexBuffer = VertexBufferRHI;
 				Initializer.IndexBuffer = IndexBufferRHI;
-				Initializer.VertexBufferStride = VertexBufferStride;
-				Initializer.VertexBufferByteOffset = 0;
 				Initializer.TotalPrimitiveCount = TrianglesCount;
-				Initializer.VertexBufferElementType = VET_Float3;
 				Initializer.GeometryType = RTGT_Triangles;
 				Initializer.bFastBuild = true;
 
@@ -394,6 +390,10 @@ void FSkeletalMeshObjectCPUSkin::FSkeletalMeshObjectLOD::InitResources(FSkelMesh
 				for (const FSkelMeshRenderSection& Section : *RenderSections)
 				{
 					FRayTracingGeometrySegment Segment;
+					Segment.VertexBuffer = VertexBufferRHI;
+					Segment.VertexBufferStride = VertexBufferStride;
+					Segment.VertexBufferOffset = 0;
+					Segment.VertexBufferElementType = VET_Float3;
 					Segment.FirstPrimitive = Section.BaseIndex / 3;
 					Segment.NumPrimitives = Section.NumTriangles;
 					GeometrySections.Add(Segment);

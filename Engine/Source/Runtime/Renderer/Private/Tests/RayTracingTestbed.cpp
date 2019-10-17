@@ -95,13 +95,12 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 
 	FRayTracingGeometryInitializer GeometryInitializer;
 	GeometryInitializer.IndexBuffer = IndexBuffer;
-	GeometryInitializer.PositionVertexBuffer = VertexBuffer;
-	GeometryInitializer.VertexBufferByteOffset = 0;
-	GeometryInitializer.VertexBufferStride = sizeof(FVector);
-	GeometryInitializer.VertexBufferElementType = VET_Float3;
 	GeometryInitializer.GeometryType = RTGT_Triangles;
-	GeometryInitializer.TotalPrimitiveCount = 1;
 	GeometryInitializer.bFastBuild = false;
+	FRayTracingGeometrySegment Segment;
+	Segment.VertexBuffer = VertexBuffer;
+	Segment.NumPrimitives = 1;
+	GeometryInitializer.Segments.Add(Segment);
 	FRayTracingGeometryRHIRef Geometry = RHICreateRayTracingGeometry(GeometryInitializer);
 
 	FRayTracingGeometryInstance Instances[] = {
