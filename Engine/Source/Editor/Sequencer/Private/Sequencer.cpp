@@ -4320,9 +4320,6 @@ void FSequencer::OnEndScrubbing()
 	AutoscrubOffset.Reset();
 	StopAutoscroll();
 
-	// Force an evaluation in the stopped state
-	ForceEvaluate();
-
 	OnEndScrubbingDelegate.Broadcast();
 }
 
