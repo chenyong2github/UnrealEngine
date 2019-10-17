@@ -590,6 +590,12 @@ uint32 FVoiceEngineImpl::SubmitRemoteVoiceData(const FUniqueNetIdWrapper& Remote
 		}
 
 		QueuedData.VoipSynthComponent->SubmitPacket((float*)DecompressedVoiceBuffer.GetData(), BytesWritten, InSampleCount, EVoipStreamDataFormat::Int16);
+
+		// Try to start the VoipSynthComponent if it has been killed by the audio engine.
+		if (!QueuedData.VoipSynthComponent->IsPlaying())
+		{
+			QueuedData.VoipSynthComponent->Start();
+		}
 	}
 
 	return ONLINE_SUCCESS;
