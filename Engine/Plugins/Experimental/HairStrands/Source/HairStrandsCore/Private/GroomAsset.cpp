@@ -41,8 +41,8 @@ void CreateBuffer(uint32 InVertexCount, FRWBuffer& OutBuffer)
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
-FHairStrandsRestResource::FHairStrandsRestResource(const FHairStrandsDatas::FRenderData& HairStrandRenderData) : 
-	RestPositionBuffer(), AttributeBuffer(), RenderData(HairStrandRenderData)
+FHairStrandsRestResource::FHairStrandsRestResource(const FHairStrandsDatas::FRenderData& HairStrandRenderData, const FVector& InPositionOffset) :
+	RestPositionBuffer(), AttributeBuffer(), RenderData(HairStrandRenderData), PositionOffset(InPositionOffset)
 {}
 
 void FHairStrandsRestResource::InitRHI()
@@ -102,7 +102,6 @@ FHairStrandsRootResource::FHairStrandsRootResource(const FHairStrandsDatas* Hair
 	RootPositions.SetNum(RootCount);
 	RootNormals.SetNum(RootCount);
 
-
 	for (uint32 CurveIndex = 0; CurveIndex < CurveCount; ++CurveIndex)
 	{
 		const uint32 RootIndex = HairStrandsDatas->StrandsCurves.CurvesOffset[CurveIndex];
@@ -145,6 +144,7 @@ FHairStrandsRootResource::FHairStrandsRootResource(const FHairStrandsDatas* Hair
 	for (FMeshProjectionLOD& MeshProjectionLOD : MeshProjectionLODs)
 	{
 		MeshProjectionLOD.Status = FMeshProjectionLOD::EStatus::Invalid;
+		MeshProjectionLOD.RestRootCenter = HairStrandsDatas->BoundingBox.GetCenter();
 		MeshProjectionLOD.LODIndex = LODIndex++;
 	}
 }
@@ -264,11 +264,11 @@ void UGroomAsset::InitResource()
 {
 	for (FHairGroupData& GroupData : HairGroupsData)
 	{
-		GroupData.HairStrandsRestResource = new FHairStrandsRestResource(GroupData.HairRenderData.RenderData);
+		GroupData.HairStrandsRestResource = new FHairStrandsRestResource(GroupData.HairRenderData.RenderData, GroupData.HairRenderData.BoundingBox.GetCenter());
 
 		BeginInitResource(GroupData.HairStrandsRestResource);
 
-		GroupData.HairSimulationRestResource = new FHairStrandsRestResource(GroupData.HairSimulationData.RenderData);
+		GroupData.HairSimulationRestResource = new FHairStrandsRestResource(GroupData.HairSimulationData.RenderData, GroupData.HairSimulationData.BoundingBox.GetCenter());
 
 		BeginInitResource(GroupData.HairSimulationRestResource);
 	}
