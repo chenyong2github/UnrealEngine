@@ -7,18 +7,6 @@
 #include "SoundModulationValue.generated.h"
 
 
-namespace AudioModulation
-{
-	using FBusMixId = uint32;
-	extern const FBusMixId InvalidBusMixId;
-
-	using FBusId = uint32;
-	extern const FBusId InvalidBusId;
-
-	using FLFOId = uint32;
-	extern const FLFOId InvalidLFOId;
-} // namespace AudioModulation
-
 USTRUCT(BlueprintType)
 struct FSoundModulationValue
 {

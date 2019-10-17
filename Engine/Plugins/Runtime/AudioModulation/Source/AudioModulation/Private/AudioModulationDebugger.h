@@ -7,6 +7,7 @@
 #if !UE_BUILD_SHIPPING
 #include "SoundControlBus.h"
 #include "SoundControlBusMix.h"
+#include "SoundModulationProxy.h"
 #include "SoundModulatorLFO.h"
 
 

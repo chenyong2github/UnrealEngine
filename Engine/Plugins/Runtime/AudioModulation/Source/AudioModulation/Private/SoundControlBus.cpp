@@ -8,7 +8,7 @@
 #include "AudioModulationLogging.h"
 #include "Engine/World.h"
 #include "SoundModulatorLFO.h"
-
+#include "SoundModulationProxy.h"
 
 USoundControlBusBase::USoundControlBusBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -22,6 +22,16 @@ USoundControlBusBase::USoundControlBusBase(const FObjectInitializer& ObjectIniti
 }
 
 #if WITH_EDITOR
+void USoundControlBusBase::PostDuplicate(EDuplicateMode::Type DuplicateMode)
+{
+	if (!bOverrideAddress)
+	{
+		Address = GetName();
+	}
+
+	Super::PostDuplicate(DuplicateMode);
+}
+
 void USoundControlBusBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	if (UProperty* Property = PropertyChangedEvent.Property)
@@ -73,6 +83,11 @@ USoundHPFControlBus::USoundHPFControlBus(const FObjectInitializer& ObjectInitial
 	: Super(ObjectInitializer)
 {
 	DefaultValue = 0.0f;
+}
+
+USoundControlBus::USoundControlBus(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
 }
 
 void USoundControlBusBase::BeginDestroy()
