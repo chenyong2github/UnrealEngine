@@ -195,7 +195,7 @@ void UNiagaraSystem::Serialize(FArchive& Ar)
 	{
 		UScriptStruct* NiagaraEmitterCompiledDataStruct = FNiagaraEmitterCompiledData::StaticStruct();
 
-		int32 EmitterCompiledDataNum;
+		int32 EmitterCompiledDataNum = 0;
 		if (Ar.IsSaving())
 		{
 			EmitterCompiledDataNum = EmitterCompiledData.Num();
@@ -208,6 +208,7 @@ void UNiagaraSystem::Serialize(FArchive& Ar)
 			{
 				EmitterCompiledData.Add(MakeShared<FNiagaraEmitterCompiledData>());
 			}
+
 			NiagaraEmitterCompiledDataStruct->SerializeTaggedProperties(Ar, (uint8*)&ConstCastSharedRef<FNiagaraEmitterCompiledData>(EmitterCompiledData[EmitterIndex]).Get(), NiagaraEmitterCompiledDataStruct, nullptr);
 		}
 	}
