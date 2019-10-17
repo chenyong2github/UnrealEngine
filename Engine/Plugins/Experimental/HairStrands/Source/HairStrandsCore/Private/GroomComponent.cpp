@@ -776,6 +776,7 @@ void UGroomComponent::ReleaseResources()
 		SafeRelease(Res.RaytracingResources);
 	#endif
 	}
+	HairGroupResources.Empty();
 
 	// Delay destruction as resources reference by the interpolation 
 	// structs are used on the rendering thread, 
