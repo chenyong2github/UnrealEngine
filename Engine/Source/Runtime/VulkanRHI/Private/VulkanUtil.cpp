@@ -740,6 +740,16 @@ namespace VulkanRHI
 			break;
 		}
 
+#if VULKAN_HAS_DEBUGGING_ENABLED
+		if (Result == VK_ERROR_VALIDATION_FAILED_EXT)
+		{
+			if (GValidationCvar.GetValueOnRenderThread() == 0)
+			{
+				UE_LOG(LogVulkanRHI, Fatal, TEXT("Failed with Validation error. Try running with r.Vulkan.EnableValidation=1 to get information from the driver"));
+			}
+		}
+#endif
+
 		UE_LOG(LogVulkanRHI, Error, TEXT("%s failed, VkResult=%d\n at %s:%u \n with error %s"),
 			ANSI_TO_TCHAR(VkFunction), (int32)Result, ANSI_TO_TCHAR(Filename), Line, *ErrorString);
 

@@ -988,10 +988,6 @@ void FPhysicsAssetEditorSharedData::MakeNewBody(int32 NewBoneIndex, bool bAutoSe
 	{
 		return;
 	}
-	if(EditorSkelComp)
-	{
-		EditorSkelComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	}
 	PhysicsAsset->Modify();
 
 	FName NewBoneName = EditorSkelMesh->RefSkeleton.GetBoneName(NewBoneIndex);

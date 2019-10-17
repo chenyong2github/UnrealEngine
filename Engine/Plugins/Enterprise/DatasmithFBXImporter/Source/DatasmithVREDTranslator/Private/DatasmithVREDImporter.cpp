@@ -2085,14 +2085,17 @@ bool FDatasmithVREDImporter::SendSceneToDatasmith()
 		for (FCombinedAnimBlock& CombinedBlock : CombinedBlocks)
 		{
 			TSharedPtr<IDatasmithLevelSequenceElement> ConvertedBlock = ConvertAnimBlock(CombinedBlock);
-			DatasmithScene->AddLevelSequence(ConvertedBlock.ToSharedRef());
+			if (ConvertedBlock.IsValid())
+			{
+				DatasmithScene->AddLevelSequence(ConvertedBlock.ToSharedRef());
 
-			FImportedAnim NewImportedAnim;
-			NewImportedAnim.Name = FString(ConvertedBlock->GetName());
-			NewImportedAnim.ImportedSequence = ConvertedBlock;
-			NewImportedAnim.OriginalStartSeconds = CombinedBlock.GetStartSeconds();
-			NewImportedAnim.OriginalEndSeconds = CombinedBlock.GetEndSeconds();
-			ImportedAnimElements.Add(NewImportedAnim.Name, NewImportedAnim);
+				FImportedAnim NewImportedAnim;
+				NewImportedAnim.Name = FString(ConvertedBlock->GetName());
+				NewImportedAnim.ImportedSequence = ConvertedBlock;
+				NewImportedAnim.OriginalStartSeconds = CombinedBlock.GetStartSeconds();
+				NewImportedAnim.OriginalEndSeconds = CombinedBlock.GetEndSeconds();
+				ImportedAnimElements.Add(NewImportedAnim.Name, NewImportedAnim);
+			}
 		}
 
 		TArray<TSharedPtr<IDatasmithLevelSequenceElement>> CreatedClips;
@@ -2100,16 +2103,25 @@ bool FDatasmithVREDImporter::SendSceneToDatasmith()
 
 		for (const TSharedPtr<IDatasmithLevelSequenceElement>& CreatedClip : CreatedClips)
 		{
-			UE_LOG(LogDatasmithVREDImport, Verbose, TEXT("Added clip level sequence '%s' to the scene"), CreatedClip->GetName());
-			DatasmithScene->AddLevelSequence(CreatedClip.ToSharedRef());
+			if (CreatedClip.IsValid())
+			{
+				UE_LOG(LogDatasmithVREDImport, Verbose, TEXT("Added clip level sequence '%s' to the scene"), CreatedClip->GetName());
+				DatasmithScene->AddLevelSequence(CreatedClip.ToSharedRef());
+			}
 		}
 
 		FActorMap ImportedActorsByOriginalName;
 		FMaterialMap ImportedMaterialsByName;
 		BuildAssetMaps(DatasmithScene, ImportedActorsByOriginalName, ImportedMaterialsByName);
 
-		TSharedPtr<IDatasmithLevelVariantSetsElement> LevelVariantSets = FVREDVariantConverter::ConvertVariants(ParsedVariants, ImportedActorsByOriginalName, ImportedMaterialsByName);
-		DatasmithScene->AddLevelVariantSets(LevelVariantSets.ToSharedRef());
+		if (ImportOptions->bImportVar)
+		{
+			TSharedPtr<IDatasmithLevelVariantSetsElement> LevelVariantSets = FVREDVariantConverter::ConvertVariants(ParsedVariants, ImportedActorsByOriginalName, ImportedMaterialsByName);
+			if (LevelVariantSets.IsValid())
+			{
+				DatasmithScene->AddLevelVariantSets(LevelVariantSets.ToSharedRef());
+			}
+		}
 	}
 	else
 	{

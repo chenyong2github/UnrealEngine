@@ -264,7 +264,7 @@ void UvToSkyViewLutParams(out float3 ViewDir, in float ViewHeight, in float2 UV)
 
 	float Vhorizon = sqrt(ViewHeight * ViewHeight - Atmosphere.BottomRadius * Atmosphere.BottomRadius);
 	float CosBeta = Vhorizon / ViewHeight;				// cos of zenith angle from horizon to zeniht
-	float Beta = acosFast(CosBeta);
+	float Beta = acosFast4(CosBeta);
 	float ZenithHorizonAngle = PI - Beta;
 
 	float ViewZenithAngle;
@@ -799,8 +799,6 @@ void RenderSkyAtmosphereRayMarchingPS(
 
 #else // FASTAERIALPERSPECTIVE_ENABLED
 
-	WorldPos += WorldDir * AerialPerspectiveStartDepth; // Offset according to start depth
-
 	// Move to top atmosphere as the starting point for ray marching.
 	// This is critical to be after the above to not disrupt above atmosphere tests and voxel selection.
 	if (!MoveToTopAtmosphere(WorldPos, WorldDir, Atmosphere.TopRadius))
@@ -809,6 +807,9 @@ void RenderSkyAtmosphereRayMarchingPS(
 		OutLuminance = PrepareOutput(PreExposedL);
 		return;
 	}
+
+	// Apply the start depth offset after moving to the top of atmosphere for consistency (and to avoid wrong out-of-atmosphere test resulting in black pixels).
+	WorldPos += WorldDir * AerialPerspectiveStartDepth;
 
 	SamplingSetup Sampling;
 	{

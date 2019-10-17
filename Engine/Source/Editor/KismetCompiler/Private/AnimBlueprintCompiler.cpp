@@ -48,6 +48,7 @@
 #include "AnimGraphNode_LinkedAnimGraph.h"
 #include "AnimGraphNode_Slot.h"
 #include "AnimationEditorUtils.h"
+#include "AnimationGraph.h"
 
 #include "AnimBlueprintPostCompileValidation.h" 
 #include "AnimGraphNode_LinkedInputPose.h"
@@ -2238,6 +2239,7 @@ void FAnimBlueprintCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedCla
 	NewAnimBlueprintClass->LinkedAnimLayerNodeProperties.Empty();
 	NewAnimBlueprintClass->EvaluateGraphExposedInputs.Empty();
 	NewAnimBlueprintClass->GraphAssetPlayerInformation.Empty();
+	NewAnimBlueprintClass->GraphBlendOptions.Empty();
 
 	// Copy over runtime data from the blueprint to the class
 	NewAnimBlueprintClass->TargetSkeleton = AnimBlueprint->TargetSkeleton;
@@ -2268,6 +2270,34 @@ void FAnimBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 	{
 		AnimBlueprintGeneratedClass->SyncGroupNames.Add(GroupInfo.Name);
 	}
+
+	// Add graph blend options to class if blend values were actually customized
+	auto AddBlendOptions = [AnimBlueprintGeneratedClass](UEdGraph* Graph)
+	{
+		UAnimationGraph* AnimGraph = Cast<UAnimationGraph>(Graph);
+		if (AnimGraph && (AnimGraph->BlendOptions.BlendInTime >= 0.0f || AnimGraph->BlendOptions.BlendOutTime >= 0.0f))
+		{
+			AnimBlueprintGeneratedClass->GraphBlendOptions.Add(AnimGraph->GetFName(), AnimGraph->BlendOptions);
+		}
+	};
+
+
+	for (UEdGraph* Graph : Blueprint->FunctionGraphs)
+	{
+		AddBlendOptions(Graph);
+	}
+
+	for (FBPInterfaceDescription& InterfaceDesc : Blueprint->ImplementedInterfaces)
+	{
+		if (InterfaceDesc.Interface->IsChildOf<UAnimLayerInterface>())
+		{
+			for (UEdGraph* Graph : InterfaceDesc.Graphs)
+			{
+				AddBlendOptions(Graph);
+			}
+		}
+	}
+
 	Super::FinishCompilingClass(Class);
 }
 

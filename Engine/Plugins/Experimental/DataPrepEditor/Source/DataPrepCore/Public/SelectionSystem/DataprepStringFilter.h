@@ -45,10 +45,6 @@ public:
 	void SetUserString(FString UserString);
 
 private:
-	// The source of string selected by the user
-	UPROPERTY()
-	UDataprepStringFetcher* StringFetcher;
-
 	// The criteria selected by the user
 	UPROPERTY()
 	EDataprepStringMatchType StringMatchingCriteria;
@@ -56,5 +52,8 @@ private:
 	// The string entered by the user
 	UPROPERTY()
 	FString UserString;
-};
 
+	// The source of string selected by the user
+	UPROPERTY()
+	UDataprepStringFetcher* StringFetcher;
+};

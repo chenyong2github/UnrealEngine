@@ -134,7 +134,7 @@ struct DATASMITHCONTENT_API FDatasmithStaticMeshImportOptions
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Lightmap)
 	EDatasmithImportLightmapMax MaxLightmapResolution;
 
-	UPROPERTY(BlueprintReadWrite, Category = Lightmap, Transient)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Lightmap, meta = (DisplayName = "Generate Lightmap UVs"))
 	bool bGenerateLightmapUVs;
 
 	UPROPERTY(BlueprintReadWrite, Category = Mesh, Transient)
@@ -250,7 +250,7 @@ struct DATASMITHCONTENT_API FDatasmithTessellationOptions
 	 * Stitching technique applied on neighbouring surfaces before tessellation.
 	 * None : No stitching applied. This is the default.
 	 * Sewing : Connects surfaces which physically share a boundary but not topologically within a set of objects.
-	 *          This technique can modify the structure of the model by removing and adding objects.  
+	 *          This technique can modify the structure of the model by removing and adding objects.
 	 * Healing : Connects surfaces which physically share a boundary but not topologically within an object.
 	 * The techniques are using the chord tolerance to determine if two surfaces should be stitched.
 	 */
@@ -337,17 +337,17 @@ public:
 	FDatasmithImportBaseOptions BaseOptions;
 
 	/** Options specific to the reimport process */
-	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "NotVisible", meta = (ShowOnlyInnerProperties))
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Reimport", meta = (ShowOnlyInnerProperties))
 	FDatasmithReimportOptions ReimportOptions;
 
 	/** Name of the imported file without its path */
 	UPROPERTY(BlueprintReadWrite, Category = "NotVisible")
 	FString FileName;
-	
+
 	/** Full path of the imported file */
 	UPROPERTY(BlueprintReadWrite, Category = "NotVisible")
 	FString FilePath;
-	
+
 	/** Whether to use or not the same options when loading multiple files. Default false */
 	bool bUseSameOptions;
 

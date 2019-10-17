@@ -346,7 +346,8 @@ void UObject::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent
 	// This allows listeners to be notified of intermediate changes of state
 	if (PropertyChangedEvent.ChangeType == EPropertyChangeType::Interactive)
 	{
-		SnapshotTransactionBuffer(this);
+		const UProperty* ChangedProperty = PropertyChangedEvent.MemberProperty;
+		SnapshotTransactionBuffer(this, TArrayView<const UProperty*>(&ChangedProperty, 1));
 	}
 }
 

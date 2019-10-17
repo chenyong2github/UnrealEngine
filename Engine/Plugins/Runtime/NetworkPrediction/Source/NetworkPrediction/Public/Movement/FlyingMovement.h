@@ -36,6 +36,11 @@ namespace FlyingMovement
 		FRotator RotationInput;
 		FVector MovementInput;
 
+		FInputCmd()
+			: RotationInput(ForceInitToZero)
+			, MovementInput(ForceInitToZero)
+		{ }
+
 		void NetSerialize(const FNetSerializeParams& P)
 		{
 			P.Ar << RotationInput;
@@ -62,6 +67,12 @@ namespace FlyingMovement
 		FVector Location;
 		FVector Velocity;
 		FRotator Rotation;
+
+		FMoveState()
+			: Location(ForceInitToZero)
+			, Velocity(ForceInitToZero)
+			, Rotation(ForceInitToZero)
+		{ }
 
 		void NetSerialize(const FNetSerializeParams& P)
 		{
@@ -117,6 +128,21 @@ namespace FlyingMovement
 			P.Ar << Deceleration;
 			P.Ar << Acceleration;
 		}
+
+		void Log(FStandardLoggingParameters& P) const
+		{
+			if (P.Context == EStandardLoggingContext::HeaderOnly)
+			{
+				P.Ar->Logf(TEXT(" %d "), P.Keyframe);
+			}
+			else if (P.Context == EStandardLoggingContext::Full)
+			{
+				P.Ar->Logf(TEXT("MaxSpeed: %.2f"), MaxSpeed);
+				P.Ar->Logf(TEXT("TurningBoost: %.2f"), TurningBoost);
+				P.Ar->Logf(TEXT("Deceleration: %.2f"), Deceleration);
+				P.Ar->Logf(TEXT("Acceleration: %.2f"), Acceleration);
+			}
+		}
 	};
 
 	using TMovementBufferTypes = TNetworkSimBufferTypes<FInputCmd, FMoveState, FAuxState>;
@@ -153,9 +179,6 @@ namespace FlyingMovement
 	// Actual definition of our network simulation.
 	template<int32 InFixedStepMS=0>
 	using FMovementSystem = TNetworkedSimulationModel<FMovementSimulation, IMovementDriver, TMovementBufferTypes, TNetworkSimTickSettings<InFixedStepMS> >;
-
-	// Simulation time used by the movement system
-	//using TSimTime = FMovementSystem::TSimTime;
 
 	// general tolerance value for rotation checks
 	static const float ROTATOR_TOLERANCE = (1e-3);

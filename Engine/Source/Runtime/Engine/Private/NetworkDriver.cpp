@@ -2316,7 +2316,9 @@ void UNetDriver::FReplicationChangelistMgrWrapper::CountBytes(FArchive& Ar) cons
 
 void UNetDriver::Serialize( FArchive& Ar )
 {
-	Super::Serialize( Ar );
+	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "UNetDriver::Serialize");
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("UNetDriver::Super", Super::Serialize(Ar));
 
 	if (Ar.IsCountingMemory())
 	{
@@ -2329,8 +2331,6 @@ void UNetDriver::Serialize( FArchive& Ar )
 		//		Delegate Handles
 		//		DDoSDetection data
 		// These are probably insignificant, though.
-
-		GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "UNetDriver::Serialize");
 
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("MappedClientConnection", MappedClientConnections.CountBytes(Ar));
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("RecentlyDisconnectedClients", RecentlyDisconnectedClients.CountBytes(Ar));
@@ -5299,7 +5299,7 @@ TSharedPtr< FReplicationChangelistMgr > UNetDriver::GetReplicationChangeListMgr(
 	if (!ReplicationChangeListMgrPtr)
 	{
 		const TSharedPtr<const FRepLayout> RepLayout = GetObjectClassRepLayout(Object->GetClass());
-		FReplicationChangelistMgrWrapper Wrapper(Object, RepLayout->CreateReplicationChangelistMgr(Object));
+		FReplicationChangelistMgrWrapper Wrapper(Object, RepLayout->CreateReplicationChangelistMgr(Object, GetCreateReplicationChangelistMgrFlags()));
 		ReplicationChangeListMgrPtr = &ReplicationChangeListMap.Add(Object, Wrapper);
 	}
 
@@ -5599,6 +5599,11 @@ void UNetDriver::ResetAsyncLoadDelinquencyAnalytics()
 	{
 		LocalGuidCache->ResetAsyncLoadDelinquencyAnalytics();
 	}
+}
+
+ECreateReplicationChangelistMgrFlags UNetDriver::GetCreateReplicationChangelistMgrFlags() const
+{
+	return ECreateReplicationChangelistMgrFlags::None;
 }
 
 FAutoConsoleCommandWithWorld	DumpRelevantActorsCommand(

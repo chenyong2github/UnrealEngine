@@ -49,7 +49,7 @@ static FAutoConsoleVariableRef CVarHairDebugMeshProjection_HairDeformedFrames(TE
 // Helper functions for accessing interpolation data for debug purpose.
 // Definitions is in HairStrandsInterface.cpp
 void GetGroomInterpolationData(const EWorldType::Type WorldType, FHairStrandsProjectionMeshData& OutGeometries);
-void GetGroomInterpolationData(const EWorldType::Type WorldType, FHairStrandsProjectionHairDatas& OutHairData, TArray<int32>& OutLODIndices);
+void GetGroomInterpolationData(const EWorldType::Type WorldType, FHairStrandsProjectionHairData& OutHairData, TArray<int32>& OutLODIndices);
 
 enum class EHairDebugMode : uint8
 {
@@ -554,7 +554,7 @@ static void AddDebugProjectionMeshPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo* View,
 	const bool bClearDepth,
-	FHairStrandsProjectionMeshSection& MeshSectionData,
+	FHairStrandsProjectionMeshData::Section& MeshSectionData,
 	FRDGTextureRef& ColorTexture, 
 	FRDGTextureRef& DepthTexture)
 {	
@@ -634,10 +634,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FHairProjectionHairDebugParameters, )
 	SHADER_PARAMETER(uint32, DeformedFrameEnable)
 	SHADER_PARAMETER(FMatrix, RootLocalToWorld)
 
-	SHADER_PARAMETER_SRV(StructuredBuffer, RootTrianglePosition0)
-	SHADER_PARAMETER_SRV(StructuredBuffer, RootTrianglePosition2)
-	SHADER_PARAMETER_SRV(StructuredBuffer, RootTrianglePosition1)
-
 	SHADER_PARAMETER_SRV(StructuredBuffer, RestPosition0Buffer)
 	SHADER_PARAMETER_SRV(StructuredBuffer, RestPosition1Buffer)
 	SHADER_PARAMETER_SRV(StructuredBuffer, RestPosition2Buffer)
@@ -707,7 +703,7 @@ static void AddDebugProjectionHairPass(
 	const EDebugProjectionHairType GeometryType,
 	const HairStrandsTriangleType PoseType,
 	const int32 LODIndex,
-	const FHairStrandsProjectionHairData& HairData,
+	const FHairStrandsProjectionHairData::HairGroup& HairData,
 	FRDGTextureRef& ColorTarget,
 	FRDGTextureRef& DepthTexture)
 {
@@ -720,25 +716,12 @@ static void AddDebugProjectionHairPass(
 	if (EDebugProjectionHairType::HairFrame == GeometryType && (!HairData.RootPositionBuffer || !HairData.RootNormalBuffer))
 		return;
 
-	if (EDebugProjectionHairType::HairTriangle == GeometryType && HairStrandsTriangleType::RestPose == PoseType && (
-		!HairData.LODDatas[LODIndex].RestRootTrianglePosition0Buffer ||
-		!HairData.LODDatas[LODIndex].RestRootTrianglePosition1Buffer ||
-		!HairData.LODDatas[LODIndex].RestRootTrianglePosition2Buffer))
-		return;
-
-	if (EDebugProjectionHairType::HairTriangle == GeometryType && HairStrandsTriangleType::DeformedPose == PoseType && (
-		!HairData.LODDatas[LODIndex].DeformedRootTrianglePosition0Buffer ||
-		!HairData.LODDatas[LODIndex].DeformedRootTrianglePosition1Buffer ||
-		!HairData.LODDatas[LODIndex].DeformedRootTrianglePosition2Buffer))
-		return;
-
-	if (EDebugProjectionHairType::HairFrame == GeometryType && (
-		!HairData.LODDatas[LODIndex].RestRootTrianglePosition0Buffer ||
+	if (!HairData.LODDatas[LODIndex].RestRootTrianglePosition0Buffer ||
 		!HairData.LODDatas[LODIndex].RestRootTrianglePosition1Buffer ||
 		!HairData.LODDatas[LODIndex].RestRootTrianglePosition2Buffer ||
 		!HairData.LODDatas[LODIndex].DeformedRootTrianglePosition0Buffer ||
 		!HairData.LODDatas[LODIndex].DeformedRootTrianglePosition1Buffer ||
-		!HairData.LODDatas[LODIndex].DeformedRootTrianglePosition2Buffer))
+		!HairData.LODDatas[LODIndex].DeformedRootTrianglePosition2Buffer)
 		return;
 
 	const FIntRect Viewport = View->ViewRect;
@@ -747,41 +730,22 @@ static void AddDebugProjectionHairPass(
 	FHairProjectionHairDebugParameters* Parameters = GraphBuilder.AllocParameters<FHairProjectionHairDebugParameters>();
 	Parameters->OutputResolution = Resolution;
 	Parameters->MaxRootCount = HairData.RootCount;
+	Parameters->RootLocalToWorld = HairData.LocalToWorld.ToMatrixWithScale();
+	Parameters->DeformedFrameEnable = PoseType == HairStrandsTriangleType::DeformedPose;
 
 	if (EDebugProjectionHairType::HairFrame == GeometryType)
 	{
-		Parameters->RootLocalToWorld = HairData.LocalToWorld.ToMatrixWithScale();
 		Parameters->RootPositionBuffer = HairData.RootPositionBuffer;
 		Parameters->RootNormalBuffer = HairData.RootNormalBuffer;
-		Parameters->DeformedFrameEnable = PoseType == HairStrandsTriangleType::DeformedPose;
-		//if (PoseType == HairStrandsTriangleType::DeformedPose)
-		{
-			Parameters->RestPosition0Buffer = HairData.LODDatas[LODIndex].RestRootTrianglePosition0Buffer->SRV;
-			Parameters->RestPosition1Buffer = HairData.LODDatas[LODIndex].RestRootTrianglePosition1Buffer->SRV;
-			Parameters->RestPosition2Buffer = HairData.LODDatas[LODIndex].RestRootTrianglePosition2Buffer->SRV;
-
-			Parameters->DeformedPosition0Buffer = HairData.LODDatas[LODIndex].DeformedRootTrianglePosition0Buffer->SRV;
-			Parameters->DeformedPosition1Buffer = HairData.LODDatas[LODIndex].DeformedRootTrianglePosition1Buffer->SRV;
-			Parameters->DeformedPosition2Buffer = HairData.LODDatas[LODIndex].DeformedRootTrianglePosition2Buffer->SRV;
-		}
 	}
 
-	if (EDebugProjectionHairType::HairTriangle == GeometryType)
-	{
-		if (PoseType == HairStrandsTriangleType::RestPose)
-		{
-			Parameters->RootTrianglePosition0 = HairData.LODDatas[LODIndex].RestRootTrianglePosition0Buffer->SRV;
-			Parameters->RootTrianglePosition1 = HairData.LODDatas[LODIndex].RestRootTrianglePosition1Buffer->SRV;
-			Parameters->RootTrianglePosition2 = HairData.LODDatas[LODIndex].RestRootTrianglePosition2Buffer->SRV;
-		}
-
-		if (PoseType == HairStrandsTriangleType::DeformedPose)
-		{
-			Parameters->RootTrianglePosition0 = HairData.LODDatas[LODIndex].DeformedRootTrianglePosition0Buffer->SRV;
-			Parameters->RootTrianglePosition1 = HairData.LODDatas[LODIndex].DeformedRootTrianglePosition1Buffer->SRV;
-			Parameters->RootTrianglePosition2 = HairData.LODDatas[LODIndex].DeformedRootTrianglePosition2Buffer->SRV;
-		}
-	}
+	Parameters->RestPosition0Buffer = HairData.LODDatas[LODIndex].RestRootTrianglePosition0Buffer->SRV;
+	Parameters->RestPosition1Buffer = HairData.LODDatas[LODIndex].RestRootTrianglePosition1Buffer->SRV;
+	Parameters->RestPosition2Buffer = HairData.LODDatas[LODIndex].RestRootTrianglePosition2Buffer->SRV;
+		
+	Parameters->DeformedPosition0Buffer = HairData.LODDatas[LODIndex].DeformedRootTrianglePosition0Buffer->SRV;
+	Parameters->DeformedPosition1Buffer = HairData.LODDatas[LODIndex].DeformedRootTrianglePosition1Buffer->SRV;
+	Parameters->DeformedPosition2Buffer = HairData.LODDatas[LODIndex].DeformedRootTrianglePosition2Buffer->SRV;
 
 	Parameters->ViewUniformBuffer = View->ViewUniformBuffer;
 	Parameters->RenderTargets[0] = FRenderTargetBinding(ColorTarget, ERenderTargetLoadAction::ELoad, 0);
@@ -911,18 +875,18 @@ void RenderHairStrandsDebugInfo(FRHICommandListImmediate& RHICmdList, TArray<FVi
 			check(ViewFamily.Scene && ViewFamily.Scene->GetWorld());
 			const bool bIsActive = DebugInfo.WorldType == ViewFamily.Scene->GetWorld()->WorldType;
 
-			Line = FString::Printf(TEXT(" * Id:%d | WorldType:%s | Group count : %d"), DebugInfo.Id, ToString(DebugInfo.WorldType), DebugInfo.GroupInfos.Num());
+			Line = FString::Printf(TEXT(" * Id:%d | WorldType:%s | Group count : %d"), DebugInfo.Id, ToString(DebugInfo.WorldType), DebugInfo.HairGroups.Num());
 			Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), bIsActive ? DebugColor : InactiveColor);
 
-			for (const FHairStrandsDebugInfo::FGroupInfo& DebugGroupInfo : DebugInfo.GroupInfos)
+			for (const FHairStrandsDebugInfo::HairGroup& DebugHairGroup : DebugInfo.HairGroups)
 			{
 				Line = FString::Printf(TEXT("        |> CurveCount : %d | VertexCount : %d | MaxRadius : %f | MaxLength : %f | Skinned: %s | LOD count : %d"),
-					DebugGroupInfo.CurveCount,
-					DebugGroupInfo.VertexCount,
-					DebugGroupInfo.MaxRadius,
-					DebugGroupInfo.MaxLength,
-					DebugGroupInfo.bHasSkinInterpolation ? TEXT("True") : TEXT("False"),
-					DebugGroupInfo.LODCount);
+					DebugHairGroup.CurveCount,
+					DebugHairGroup.VertexCount,
+					DebugHairGroup.MaxRadius,
+					DebugHairGroup.MaxLength,
+					DebugHairGroup.bHasSkinInterpolation ? TEXT("True") : TEXT("False"),
+					DebugHairGroup.LODCount);
 				Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), bIsActive ? DebugColor : InactiveColor);
 			}
 		}
@@ -1080,20 +1044,20 @@ void RenderHairStrandsDebugInfo(FRHICommandListImmediate& RHICmdList, TArray<FVi
 
 			if (GHairDebugMeshProjection_SkinCacheMesh > 0)
 			{
-				for (FHairStrandsProjectionMeshSection& Section : MeshProjectionData.Sections)
+				for (FHairStrandsProjectionMeshData::Section& Section : MeshProjectionData.Sections)
 				{
 					AddDebugProjectionMeshPass(GraphBuilder, &View, bClearDepth, Section, SceneColorTexture, DepthTexture);
 					bClearDepth = false;
 				}
 			}
 
-			FHairStrandsProjectionHairDatas HairProjectionDatas;
+			FHairStrandsProjectionHairData HairProjectionDatas;
 			TArray<int32> HairLODIndices;
 			GetGroomInterpolationData(WorldType, HairProjectionDatas, HairLODIndices);
-			check(HairProjectionDatas.HairData.Num() == HairLODIndices.Num());
-			for (int32 HairIndex=0; HairIndex < HairProjectionDatas.HairData.Num(); ++HairIndex)
+			check(HairProjectionDatas.HairGroups.Num() == HairLODIndices.Num());
+			for (int32 HairIndex=0; HairIndex < HairProjectionDatas.HairGroups.Num(); ++HairIndex)
 			{
-				const FHairStrandsProjectionHairData& Data = HairProjectionDatas.HairData[HairIndex];
+				const FHairStrandsProjectionHairData::HairGroup& Data = HairProjectionDatas.HairGroups[HairIndex];
 				const int32 LODIndex = HairLODIndices[HairIndex];
 
 				if (GHairDebugMeshProjection_HairRestTriangles > 0)

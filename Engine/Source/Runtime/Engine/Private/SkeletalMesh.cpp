@@ -3837,14 +3837,17 @@ FGuid FSkeletalMeshLODInfo::ComputeDeriveDataCacheKey(const FSkeletalMeshLODGrou
 	Ar << BonesToRemove;
 	Ar << BonesToPrioritize;
 	Ar << WeightOfPrioritization;
+
+	//TODO: Ask the derivedata key of the UObject reference by FSoftObjectPath. So if someone change the UObject, this LODs will get dirty
+	//and will be rebuild.
 	if (BakePose != nullptr)
 	{
-		FSoftObjectPath BakePosePath(BakePose);
+		FString BakePosePath = BakePose->GetFullName();
 		Ar << BakePosePath;
 	}
 	if (BakePoseOverride != nullptr)
 	{
-		FSoftObjectPath BakePoseOverridePath(BakePoseOverride);
+		FString BakePoseOverridePath = BakePoseOverride->GetFullName();
 		Ar << BakePoseOverridePath;
 	}
 	FArchive_Serialize_BitfieldBool(Ar, bAllowCPUAccess);
@@ -4778,7 +4781,6 @@ void FSkeletalMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialG
 		// #dxr: the only case where RayTracingGeometryRHI is invalid is the very first frame - if that's not the case we have a bug somewhere else
 		if (MeshObject->GetRayTracingGeometry()->RayTracingGeometryRHI.IsValid())
 		{
-			check(MeshObject->GetRayTracingGeometry()->Initializer.PositionVertexBuffer.IsValid());
 			check(MeshObject->GetRayTracingGeometry()->Initializer.IndexBuffer.IsValid());
 			
 			FRayTracingInstance RayTracingInstance;

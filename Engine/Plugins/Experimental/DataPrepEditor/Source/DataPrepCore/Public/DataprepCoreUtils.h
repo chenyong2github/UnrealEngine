@@ -7,15 +7,28 @@
 #include "IDataprepLogger.h"
 #include "IDataprepProgressReporter.h"
 
+#include "FeedbackContextEditor.h"
+#include "HAL/FeedbackContextAnsi.h"
+
 #include "UObject/Object.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Package.h"
+
+class UDataprepAsset;
 
 struct FScopedSlowTask;
 
 class DATAPREPCORE_API FDataprepCoreUtils
 {
 public:
+
+	/**
+	 * Return the dataprep asset that own the object, if the object is part of a dataprep asset
+	 * @return nullptr if the object is not a part of a dataprep asset
+	 */
+	static UDataprepAsset* GetDataprepAssetOfObject(UObject* Object);
+
+	/** Delete the objects and do the manipulation required to safely delete the assets */
 	static void PurgeObjects(TArray<UObject*> Objects);
 
 	/**
@@ -56,6 +69,14 @@ public:
 		}
 	}
 
+	/**
+	 * Helper function to build assets for use in the Dataprep pipeline
+
+	 * @param	Assets					Array of weak pointer on the assets to be build
+	 * @param	ProgressReporterPtr		Pointer to a IDataprepProgressReporter interface. This pointer can be invalid.
+	 */
+	static void BuildAssets(const TArray< TWeakObjectPtr<UObject> >& Assets, const TSharedPtr< IDataprepProgressReporter >& ProgressReporterPtr );
+
 	class DATAPREPCORE_API FDataprepLogger : public IDataprepLogger
 	{
 	public:
@@ -69,10 +90,38 @@ public:
 
 	};
 
+	class DATAPREPCORE_API FDataprepFeedbackContext : public FFeedbackContextEditor
+	{
+	public:
+		/** 
+		 * We want to override this method in order to cache the cancel result and not clear it,
+		 * so it can be checked multiple times with the correct result!
+		 * (FFeedbackContextEditor::ReceivedUserCancel clears it)
+		 */
+		virtual bool ReceivedUserCancel() override 
+		{ 
+			if ( !bTaskWasCancelledCache )
+			{
+				bTaskWasCancelledCache = FFeedbackContextEditor::ReceivedUserCancel();
+			}
+			return bTaskWasCancelledCache;
+		}
+
+	private:
+		bool bTaskWasCancelledCache = false;
+	};
+
 	class DATAPREPCORE_API FDataprepProgressUIReporter : public IDataprepProgressReporter
 	{
 	public:
 		FDataprepProgressUIReporter()
+			: bIsCancelled(false)
+		{
+		}
+
+		FDataprepProgressUIReporter( TSharedRef<FFeedbackContext> InFeedbackContext )
+			: FeedbackContext(InFeedbackContext)
+			, bIsCancelled(false)
 		{
 		}
 
@@ -84,10 +133,14 @@ public:
 		virtual void BeginWork( const FText& InTitle, float InAmountOfWork ) override;
 		virtual void EndWork() override;
 		virtual void ReportProgress( float Progress, const FText& InMessage ) override;
+		virtual bool IsWorkCancelled() override;
+		virtual FFeedbackContext* GetFeedbackContext() const override;
 		// End IDataprepProgressReporter interface
 
 	private:
 		TArray< TSharedPtr< FScopedSlowTask > > ProgressTasks;
+		TSharedPtr< FFeedbackContext > FeedbackContext;
+		bool bIsCancelled;
 	};
 
 	class DATAPREPCORE_API FDataprepProgressTextReporter : public IDataprepProgressReporter
@@ -95,6 +148,7 @@ public:
 	public:
 		FDataprepProgressTextReporter()
 			: TaskDepth(0)
+			, FeedbackContext( new FFeedbackContextAnsi )
 		{
 		}
 
@@ -106,9 +160,12 @@ public:
 		virtual void BeginWork( const FText& InTitle, float InAmountOfWork ) override;
 		virtual void EndWork() override;
 		virtual void ReportProgress( float Progress, const FText& InMessage ) override;
+		virtual bool IsWorkCancelled() override;
+		virtual FFeedbackContext* GetFeedbackContext() const override;
 
 	private:
 		int32 TaskDepth;
+		TUniquePtr<FFeedbackContextAnsi> FeedbackContext;
 	};
 };
 

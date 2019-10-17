@@ -52,7 +52,7 @@ typedef void (*THairStrandsInterpolationFunction)(
 	FRHICommandListImmediate& RHICmdList, 
 	struct FHairStrandsInterpolationInput* Input, 
 	struct FHairStrandsInterpolationOutput* Output, 
-	struct FHairStrandsProjectionHairData& HairData,
+	struct FHairStrandsProjectionHairData& HairProjection,
 	int32 LODIndex);
 
 struct FHairStrandsInterpolationData
@@ -64,16 +64,34 @@ struct FHairStrandsInterpolationData
 
 struct FRWBuffer;
 
+struct FHairStrandsProjectionMeshData
+{
+	struct Section
+	{
+		FTransform LocalToWorld;
+		FRHIShaderResourceView* PositionBuffer = nullptr;
+		FRHIShaderResourceView* IndexBuffer = nullptr;
+		uint32 NumPrimitives = 0;
+		uint32 VertexBaseIndex = 0;
+		uint32 IndexBaseIndex = 0;
+		uint32 TotalVertexCount = 0;
+		uint32 TotalIndexCount = 0;
+		uint32 SectionIndex = 0;
+		int32 LODIndex = 0;
+	};
+
+	TArray<Section> Sections;
+};
+
 struct FHairStrandsProjectionHairData
 {
-	FRHIShaderResourceView* RootPositionBuffer = nullptr;
-	FRHIShaderResourceView* RootNormalBuffer = nullptr;
-	FRWBuffer* VertexToCurveIndexBuffer = nullptr;
-
 	struct LODData
 	{
 		bool bIsValid = false;
 		int32 LODIndex = -1;
+
+		// The index buffers stores the mesh section & the triangle index into a single uint32 
+		// (3 highest bits store the section (up to 8 sections)
 		FRWBuffer* RootTriangleIndexBuffer = nullptr;
 		FRWBuffer* RootTriangleBarycentricBuffer = nullptr;
 
@@ -89,34 +107,20 @@ struct FHairStrandsProjectionHairData
 		FRWBuffer* DeformedRootTrianglePosition1Buffer = nullptr;
 		FRWBuffer* DeformedRootTrianglePosition2Buffer = nullptr;
 	};
-	TArray<LODData> LODDatas;
 
-	uint32 RootCount = 0;
-	FTransform LocalToWorld = FTransform::Identity;
-};
+	struct HairGroup
+	{
+		FRHIShaderResourceView* RootPositionBuffer = nullptr;
+		FRHIShaderResourceView* RootNormalBuffer = nullptr;
+		FRWBuffer* VertexToCurveIndexBuffer = nullptr;
 
-struct FHairStrandsProjectionMeshSection
-{
-	FTransform LocalToWorld;
-	FRHIShaderResourceView* PositionBuffer = nullptr;
-	FRHIShaderResourceView* IndexBuffer = nullptr;
-	uint32 NumPrimitives = 0;
-	uint32 VertexBaseIndex = 0;
-	uint32 IndexBaseIndex = 0;
-	uint32 TotalVertexCount = 0;
-	uint32 TotalIndexCount = 0;
-	uint32 SectionIndex = 0;
-	int32 LODIndex = 0;
-};
+		TArray<LODData> LODDatas;
 
-struct FHairStrandsProjectionMeshData
-{
-	TArray<FHairStrandsProjectionMeshSection> Sections;
-};
+		uint32 RootCount = 0;
+		FTransform LocalToWorld = FTransform::Identity;
+	};
 
-struct FHairStrandsProjectionHairDatas
-{
-	TArray<FHairStrandsProjectionHairData> HairData;
+	TArray<HairGroup> HairGroups;
 };
 
 RENDERER_API void AddHairStrandsProjectionQuery(FRHICommandListImmediate& RHICmdList, uint64 Id, EWorldType::Type WorldType, int32 LODIndex, const FVector& RestRootCenter);
@@ -129,7 +133,7 @@ struct FHairStrandsDebugInfo
 	uint64 Id = 0;
 	EWorldType::Type WorldType = EWorldType::None;
 
-	struct FGroupInfo
+	struct HairGroup
 	{
 		float MaxRadius = 0;
 		float MaxLength = 0;
@@ -139,8 +143,7 @@ struct FHairStrandsDebugInfo
 		bool bHasSkinInterpolation = false;
 		uint32 LODCount = 0;
 	};
-	typedef TArray<FGroupInfo> FGroupInfos;
-	FGroupInfos GroupInfos;
+	TArray<HairGroup> HairGroups;
 };
 
 typedef TArray<FHairStrandsDebugInfo> FHairStrandsDebugInfos;
@@ -155,11 +158,9 @@ RENDERER_API void RegisterHairStrands(
 	const FHairStrandsInterpolationData& E,
 	const FHairStrandsProjectionHairData& RenProjection,
 	const FHairStrandsProjectionHairData& SimProjection,
-	const FHairStrandsDebugInfo::FGroupInfos& GroupInfos);
+	const FHairStrandsDebugInfo& DebugInfo);
 
-RENDERER_API void UnregisterHairStrands(
-	uint64 Id, 
-	EWorldType::Type WorldType);
+RENDERER_API void UnregisterHairStrands(uint64 Id);
 
 RENDERER_API bool UpdateHairStrands(
 	uint64 Id,

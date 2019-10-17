@@ -11,9 +11,10 @@
 
 namespace OSC
 {
-	extern const FString	BundleTag;
-	extern const FString	PathSeparator;
+	extern const FString BundleTag;
+	extern const FString PathSeparator;
 } // namespace OSC
+
 
 USTRUCT(BlueprintType)
 struct OSC_API FOSCAddress

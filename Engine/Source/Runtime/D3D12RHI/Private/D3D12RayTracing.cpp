@@ -1844,29 +1844,6 @@ FRayTracingPipelineStateRHIRef FD3D12DynamicRHI::RHICreateRayTracingPipelineStat
 
 FRayTracingGeometryRHIRef FD3D12DynamicRHI::RHICreateRayTracingGeometry(const FRayTracingGeometryInitializer& Initializer)
 {
-	checkf(Initializer.PositionVertexBuffer, TEXT("Position vertex buffer is required for ray tracing geometry"));
-	checkf(Initializer.VertexBufferStride, TEXT("Position vertex buffer is required for ray tracing geometry"));
-	checkf(Initializer.VertexBufferStride % 4 == 0, TEXT("Position vertex buffer stride must be aligned to 4 bytes for ByteAddressBuffer loads to work"));
-
-	if (Initializer.GeometryType == RTGT_Triangles)
-	{
-		// #dxr_todo UE-72160: VET_Half4 (DXGI_FORMAT_R16G16B16A16_FLOAT) is also supported by DXR. Should we support it?
-		check(Initializer.VertexBufferElementType == VET_Float4 || Initializer.VertexBufferElementType == VET_Float3 || Initializer.VertexBufferElementType == VET_Float2 || Initializer.VertexBufferElementType == VET_Half2);
-
-		// #dxr_todo UE-72160: temporary constraints on vertex and index buffer formats (this will be relaxed when more flexible vertex/index fetching is implemented)
-		checkf(Initializer.VertexBufferElementType == VET_Float3 || Initializer.VertexBufferElementType == VET_Float4, TEXT("Only float3 vertex buffers are currently implemented.")); // #dxr_todo UE-72160: support other vertex buffer formats
-		if (Initializer.VertexBufferElementType == VET_Float3)
-			checkf(Initializer.VertexBufferStride >= 12, TEXT("Only deinterleaved float3 position vertex buffers are currently implemented.")); // #dxr_todo UE-72160: support interleaved vertex buffers
-
-		if (Initializer.VertexBufferElementType == VET_Float4)
-			checkf(Initializer.VertexBufferStride >= 16, TEXT("Only deinterleaved float3 position vertex buffers are currently implemented.")); // #dxr_todo UE-72160: support interleaved vertex buffers
-	}
-
-	if (Initializer.GeometryType == RTGT_Procedural)
-	{
-		checkf(Initializer.VertexBufferStride >= (2 * sizeof(FVector)), TEXT("Procedural geometry vertex buffer must contain at least 2xFloat3 that defines 3D bounding boxes of primitives."));
-	}
-
 	if (Initializer.IndexBuffer)
 	{
 		checkf(Initializer.IndexBuffer->GetStride() == 2 || Initializer.IndexBuffer->GetStride() == 4, TEXT("Index buffer must be 16 or 32 bit."));
@@ -1876,9 +1853,7 @@ FRayTracingGeometryRHIRef FD3D12DynamicRHI::RHICreateRayTracingGeometry(const FR
 
 	uint32 IndexStride = Initializer.IndexBuffer ? Initializer.IndexBuffer->GetStride() : 0; // stride 0 means implicit triangle list for non-indexed geometry
 	Geometry->IndexStride = IndexStride;
-	Geometry->IndexOffsetInBytes = Initializer.IndexBufferByteOffset;
-	Geometry->VertexOffsetInBytes = Initializer.VertexBufferByteOffset;
-	Geometry->VertexStrideInBytes = Initializer.VertexBufferStride;
+	Geometry->IndexOffsetInBytes = Initializer.IndexBufferOffset;
 	Geometry->TotalPrimitiveCount = Initializer.TotalPrimitiveCount;
 
 	switch (Initializer.GeometryType)
@@ -1918,17 +1893,8 @@ FRayTracingGeometryRHIRef FD3D12DynamicRHI::RHICreateRayTracingGeometry(const FR
 		Geometry->BuildFlags &= ~D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD;
 	}
 
-	if (Initializer.Segments.Num())
-	{
-		Geometry->Segments = TArray<FRayTracingGeometrySegment>(Initializer.Segments.GetData(), Initializer.Segments.Num());
-	}
-	else
-	{
-		FRayTracingGeometrySegment DefaultSegment;
-		DefaultSegment.FirstPrimitive = 0;
-		DefaultSegment.NumPrimitives = Initializer.TotalPrimitiveCount;
-		Geometry->Segments.Add(DefaultSegment);
-	}
+	checkf(Initializer.Segments.Num() > 0, TEXT("Ray tracing geometry must be initialized with at least one segment."));
+	Geometry->Segments = TArray<FRayTracingGeometrySegment>(Initializer.Segments.GetData(), Initializer.Segments.Num());
 
 #if DO_CHECK
 	static constexpr uint32 IndicesPerPrimitive = 3; // Only triangle meshes are supported
@@ -1937,6 +1903,22 @@ FRayTracingGeometryRHIRef FD3D12DynamicRHI::RHICreateRayTracingGeometry(const FR
 		uint32 ComputedPrimitiveCountForValidation = 0;
 		for (const FRayTracingGeometrySegment& Segment : Geometry->Segments)
 		{
+			checkf(Segment.VertexBuffer, TEXT("Position vertex buffer is required for ray tracing geometry"));
+			checkf(Segment.VertexBufferStride, TEXT("Position vertex buffer is required for ray tracing geometry"));
+			checkf(Segment.VertexBufferStride % 4 == 0, TEXT("Position vertex buffer stride must be aligned to 4 bytes for ByteAddressBuffer loads to work"));
+
+			if (Initializer.GeometryType == RTGT_Triangles)
+			{
+				// #dxr_todo UE-72160: temporary constraints on vertex and index buffer formats (this will be relaxed when more flexible vertex/index fetching is implemented)
+				checkf(Segment.VertexBufferElementType == VET_Float3 
+					|| Segment.VertexBufferElementType == VET_Float4, TEXT("Only float3/4 vertex buffers are currently implemented.")); // #dxr_todo UE-72160: support other vertex buffer formats
+				checkf(Segment.VertexBufferStride >= 12, TEXT("Only deinterleaved float3 position vertex buffers are currently implemented.")); // #dxr_todo UE-72160: support interleaved vertex buffers
+			}
+			else if (Initializer.GeometryType == RTGT_Procedural)
+			{
+				checkf(Segment.VertexBufferStride >= (2 * sizeof(FVector)), TEXT("Procedural geometry vertex buffer must contain at least 2xFloat3 that defines 3D bounding boxes of primitives."));
+			}
+
 			ComputedPrimitiveCountForValidation += Segment.NumPrimitives;
 			check(Segment.FirstPrimitive + Segment.NumPrimitives <= Initializer.TotalPrimitiveCount);
 			
@@ -1949,12 +1931,9 @@ FRayTracingGeometryRHIRef FD3D12DynamicRHI::RHICreateRayTracingGeometry(const FR
 		check(ComputedPrimitiveCountForValidation == Initializer.TotalPrimitiveCount);
 
 	}
-#endif
-
-	Geometry->VertexElemType = Initializer.VertexBufferElementType;
+#endif // DO_CHECK
 
 	Geometry->RHIIndexBuffer = Initializer.IndexBuffer;
-	Geometry->RHIVertexBuffer = Initializer.PositionVertexBuffer;
 	Geometry->SetDirty(FRHIGPUMask::All(), true);
 
 	INC_DWORD_STAT_BY(STAT_D3D12RayTracingTrianglesBLAS, Initializer.TotalPrimitiveCount);
@@ -2032,10 +2011,14 @@ void FD3D12RayTracingGeometry::TransitionBuffers(FD3D12CommandContext& CommandCo
 		}
 	}
 
-	FD3D12VertexBuffer* VertexBuffer = CommandContext.RetrieveObject<FD3D12VertexBuffer>(RHIVertexBuffer.GetReference());
-	if (VertexBuffer->GetResource()->RequiresResourceStateTracking())
+	for (const FRayTracingGeometrySegment& Segment : Segments)
 	{
-		FD3D12DynamicRHI::TransitionResource(CommandContext.CommandListHandle, VertexBuffer->GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, 0);
+		const FVertexBufferRHIRef& RHIVertexBuffer = Segment.VertexBuffer;
+		FD3D12VertexBuffer* VertexBuffer = CommandContext.RetrieveObject<FD3D12VertexBuffer>(RHIVertexBuffer.GetReference());
+		if (VertexBuffer->GetResource()->RequiresResourceStateTracking())
+		{
+			FD3D12DynamicRHI::TransitionResource(CommandContext.CommandListHandle, VertexBuffer->GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, 0);
+		}
 	}
 }
 
@@ -2069,8 +2052,9 @@ static void CreateAccelerationStructureBuffers(TRefCountPtr<FD3D12MemBuffer>& Ac
 	SetName(ScratchBuffer->GetResource(), TEXT("Acceleration structure scratch"));
 }
 
-void FD3D12RayTracingGeometry::BuildAccelerationStructure(FD3D12CommandContext& CommandContext, bool bIsUpdate)
+void FD3D12RayTracingGeometry::BuildAccelerationStructure(FD3D12CommandContext& CommandContext, EAccelerationStructureBuildMode BuildMode)
 {
+	const bool bIsUpdate = BuildMode == EAccelerationStructureBuildMode::Update;
 	static constexpr uint32 IndicesPerPrimitive = 3; // Only triangle meshes are supported
 
 	// Array of geometry descriptions, one per segment (single-segment geometry is a common case).
@@ -2079,7 +2063,6 @@ void FD3D12RayTracingGeometry::BuildAccelerationStructure(FD3D12CommandContext& 
 	Descs.Reserve(Segments.Num());
 
 	FD3D12IndexBuffer* IndexBuffer = CommandContext.RetrieveObject<FD3D12IndexBuffer>(RHIIndexBuffer.GetReference());
-	FD3D12VertexBuffer* VertexBuffer = CommandContext.RetrieveObject<FD3D12VertexBuffer>(RHIVertexBuffer.GetReference());
 
 	for (const FRayTracingGeometrySegment& Segment : Segments)
 	{
@@ -2100,9 +2083,11 @@ void FD3D12RayTracingGeometry::BuildAccelerationStructure(FD3D12CommandContext& 
 			Desc.Flags |= D3D12_RAYTRACING_GEOMETRY_FLAG_NO_DUPLICATE_ANYHIT_INVOCATION;
 		}
 
+		FD3D12VertexBuffer* VertexBuffer = CommandContext.RetrieveObject<FD3D12VertexBuffer>(Segment.VertexBuffer.GetReference());
+
 		if (GeometryType == D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES)
 		{
-			switch (VertexElemType)
+			switch (Segment.VertexBufferElementType)
 			{
 			case VET_Float4: 
 				// While the DXGI_FORMAT_R32G32B32A32_FLOAT format is not supported by DXR, since we manually load vertex 
@@ -2132,7 +2117,7 @@ void FD3D12RayTracingGeometry::BuildAccelerationStructure(FD3D12CommandContext& 
 											 IndexOffsetInBytes +
 											 IndexStride * Segment.FirstPrimitive * IndicesPerPrimitive;
 
-				Desc.Triangles.VertexCount = VertexBuffer->ResourceLocation.GetSize() / VertexStrideInBytes;
+				Desc.Triangles.VertexCount = VertexBuffer->ResourceLocation.GetSize() / Segment.VertexBufferStride;
 
 				IndexBuffer->GetResource()->UpdateResidency(CommandContext.CommandListHandle);
 			}
@@ -2145,17 +2130,17 @@ void FD3D12RayTracingGeometry::BuildAccelerationStructure(FD3D12CommandContext& 
 
 				checkf(Segments.Num() == 1, TEXT("Non-indexed geometry with multiple segments is not implemented."));
 
-				Desc.Triangles.VertexCount = FMath::Min<uint32>(VertexBuffer->ResourceLocation.GetSize() / VertexStrideInBytes, TotalPrimitiveCount * 3);
+				Desc.Triangles.VertexCount = FMath::Min<uint32>(VertexBuffer->ResourceLocation.GetSize() / Segment.VertexBufferStride, TotalPrimitiveCount * 3);
 			}
 
-			Desc.Triangles.VertexBuffer.StartAddress = VertexBuffer->ResourceLocation.GetGPUVirtualAddress() + VertexOffsetInBytes;
-			Desc.Triangles.VertexBuffer.StrideInBytes = VertexStrideInBytes;
+			Desc.Triangles.VertexBuffer.StartAddress = VertexBuffer->ResourceLocation.GetGPUVirtualAddress() + Segment.VertexBufferOffset;
+			Desc.Triangles.VertexBuffer.StrideInBytes = Segment.VertexBufferStride;
 		}
 		else if (GeometryType == D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS)
 		{
 			Desc.AABBs.AABBCount = Segment.NumPrimitives;
-			Desc.AABBs.AABBs.StartAddress = VertexBuffer->ResourceLocation.GetGPUVirtualAddress() + VertexOffsetInBytes;
-			Desc.AABBs.AABBs.StrideInBytes = VertexStrideInBytes;
+			Desc.AABBs.AABBs.StartAddress = VertexBuffer->ResourceLocation.GetGPUVirtualAddress() + Segment.VertexBufferOffset;
+			Desc.AABBs.AABBs.StrideInBytes = Segment.VertexBufferStride;
 		}
 		else
 		{
@@ -2291,12 +2276,20 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 	FD3D12Adapter* Adapter = CommandContext.GetParentAdapter();
 	ID3D12Device5* RayTracingDevice = CommandContext.GetParentDevice()->GetRayTracingDevice();
 
+	const uint32 NumSceneInstances = Instances.Num();
+
+	uint32 NumDxrInstances = 0;
+	for (uint32 InstanceIndex = 0; InstanceIndex < NumSceneInstances; ++InstanceIndex)
+	{
+		NumDxrInstances += Instances[InstanceIndex].Transforms.Num();
+	}
+
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS PrebuildDescInputs = {};
 
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO PrebuildInfo = {};
 	PrebuildDescInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
 	PrebuildDescInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-	PrebuildDescInputs.NumDescs = Instances.Num();
+	PrebuildDescInputs.NumDescs = NumDxrInstances;
 	PrebuildDescInputs.Flags = BuildFlags;
 
 	RayTracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(&PrebuildDescInputs, &PrebuildInfo);
@@ -2336,13 +2329,13 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 
 	TotalPrimitiveCount = 0;
 
-	if (Instances.Num())
+	if (NumSceneInstances)
 	{
 		FRHIResourceCreateInfo CreateInfo;
 		CreateInfo.GPUMask = FRHIGPUMask::FromIndex(GPUIndex);
 
 		D3D12_RESOURCE_DESC InstanceBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(
-			sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * Instances.Num(),
+			sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * PrebuildDescInputs.NumDescs,
 			D3D12_RESOURCE_FLAG_NONE, D3D12_RAYTRACING_INSTANCE_DESCS_BYTE_ALIGNMENT);
 
 		// Create a temporary (volatile) buffer to hold instance data that we're about to upload.
@@ -2357,12 +2350,12 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 
 		check(MappedData);
 
-		uint32 InstanceIndex = 0;
-
 		TSet<FD3D12RayTracingGeometry*> UniqueGeometries;
+		uint32 DxrInstanceIndex = 0;
 
-		for (const FRayTracingGeometryInstance& Instance : Instances)
+		for (uint32 InstanceIndex = 0; InstanceIndex < NumSceneInstances; ++InstanceIndex)
 		{
+			const FRayTracingGeometryInstance& Instance = Instances[InstanceIndex];
 			FD3D12RayTracingGeometry* Geometry = FD3D12DynamicRHI::ResourceCast(Instance.GeometryRHI);
 
 			checkf(!Geometry->IsDirty(CommandContext.GetGPUIndex()),
@@ -2370,17 +2363,6 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 
 			D3D12_RAYTRACING_INSTANCE_DESC InstanceDesc = {};
 
-			FMatrix TransformTransposed = Instance.Transform.GetTransposed();
-
-			// Ensure the last row of the original Transform is <0,0,0,1>
-			check((TransformTransposed.M[3][0] == 0)
-				&& (TransformTransposed.M[3][1] == 0)
-				&& (TransformTransposed.M[3][2] == 0)
-				&& (TransformTransposed.M[3][3] == 1));
-
-			FMemory::Memcpy(&InstanceDesc.Transform, &TransformTransposed.M[0][0], sizeof(InstanceDesc.Transform));
-
-			InstanceDesc.InstanceID = Instance.UserData;
 			InstanceDesc.InstanceMask = Instance.Mask;
 			InstanceDesc.InstanceContributionToHitGroupIndex = SegmentPrefixSum[InstanceIndex] * ShaderSlotsPerGeometrySegment;
 			InstanceDesc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_FRONT_COUNTERCLOCKWISE; // #dxr_todo: convert cull mode based on instance mirroring or double-sidedness
@@ -2405,10 +2387,31 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 				BottomLevelAccelerationStructureBuffers[GPUIndex].Add(Geometry->AccelerationStructureBuffers[GPUIndex]);
 			}
 
-			MappedData[InstanceIndex] = InstanceDesc;
-			++InstanceIndex;
+			const uint32 NumTransforms = Instance.Transforms.Num();
 
-			TotalPrimitiveCount += Geometry->TotalPrimitiveCount;
+			checkf(Instance.UserData.Num() == 0 || Instance.UserData.Num() == 1 || Instance.UserData.Num() == NumTransforms, 
+				TEXT("User data array must be either be empty (implicit 0 is assumed), contain a single entry (same value applied to all instances) or contain one entry per entry in Transforms array."));
+
+			const bool bUseUniqueUserData = Instance.UserData.Num() > 1;
+			const uint32 CommonUserData = Instance.UserData.Num() == 1 ? Instance.UserData[0] : 0;
+
+			for (uint32 TransformIndex = 0; TransformIndex < NumTransforms; ++TransformIndex)
+			{
+				InstanceDesc.InstanceID = bUseUniqueUserData ? Instance.UserData[TransformIndex] : CommonUserData;
+
+				FMatrix TransformTransposed = Instance.Transforms[TransformIndex].GetTransposed();
+
+				// Ensure the last row of the original Transform is <0,0,0,1>
+				check((TransformTransposed.M[3][0] == 0)
+					&& (TransformTransposed.M[3][1] == 0)
+					&& (TransformTransposed.M[3][2] == 0)
+					&& (TransformTransposed.M[3][3] == 1));
+
+				FMemory::Memcpy(&InstanceDesc.Transform, &TransformTransposed.M[0][0], sizeof(InstanceDesc.Transform));
+				MappedData[DxrInstanceIndex++] = InstanceDesc;
+			}
+
+			TotalPrimitiveCount += Geometry->TotalPrimitiveCount * Instance.Transforms.Num();
 		}
 
 		Adapter->GetOwningRHI()->UnlockBuffer(nullptr, InstanceBuffer.GetReference());
@@ -2527,7 +2530,6 @@ FD3D12RayTracingShaderTable* FD3D12RayTracingScene::FindOrCreateShaderTable(cons
 			const uint32 IndexStride = Geometry->IndexStride;
 
 			FD3D12IndexBuffer* IndexBuffer = FD3D12DynamicRHI::ResourceCast(Geometry->RHIIndexBuffer.GetReference(), GPUIndex);
-			FD3D12VertexBuffer* VertexBuffer = FD3D12DynamicRHI::ResourceCast(Geometry->RHIVertexBuffer.GetReference(), GPUIndex);
 
 			// Here, we directly apply the vertex offset to the address but set the offset for index buffer using a RootConstant instead.
 			// Index Buffer has to be 4 bytes aligned.
@@ -2535,19 +2537,21 @@ FD3D12RayTracingShaderTable* FD3D12RayTracingScene::FindOrCreateShaderTable(cons
 			// ByteAddressBuffer loads must be aligned to DWORD boundary.
 			// which means the alignment can be wrong for index buffer if we directly apply the offset to the address when binding it.
 			const D3D12_GPU_VIRTUAL_ADDRESS IndexBufferAddress = IndexBuffer ? IndexBuffer->ResourceLocation.GetGPUVirtualAddress() : 0;
-			const D3D12_GPU_VIRTUAL_ADDRESS VertexBufferAddress = VertexBuffer->ResourceLocation.GetGPUVirtualAddress() + Geometry->VertexOffsetInBytes;
 
 			if (IndexBuffer)
 			{
 				CreatedShaderTable->AddResourceReference(IndexBuffer->ResourceLocation.GetResource(), IndexBuffer);
 			}
 
-			CreatedShaderTable->AddResourceReference(VertexBuffer->ResourceLocation.GetResource(), VertexBuffer);
-
 			const uint32 NumSegments = Geometry->Segments.Num();
 			for (uint32 SegmentIndex = 0; SegmentIndex < NumSegments; ++SegmentIndex)
 			{
 				const FRayTracingGeometrySegment& Segment = Geometry->Segments[SegmentIndex];
+
+				FD3D12VertexBuffer* VertexBuffer = FD3D12DynamicRHI::ResourceCast(Segment.VertexBuffer.GetReference(), GPUIndex);
+				CreatedShaderTable->AddResourceReference(VertexBuffer->ResourceLocation.GetResource(), VertexBuffer);
+
+				const D3D12_GPU_VIRTUAL_ADDRESS VertexBufferAddress = VertexBuffer->ResourceLocation.GetGPUVirtualAddress() + Segment.VertexBufferOffset;
 
 				const uint32 RecordBaseIndex = GetHitRecordBaseIndex(InstanceIndex, SegmentIndex);
 
@@ -2558,10 +2562,10 @@ FD3D12RayTracingShaderTable* FD3D12RayTracingScene::FindOrCreateShaderTable(cons
 				if (Geometry->GeometryType == D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES)
 				{
 					// #dxr_todo UE-72160: support various vertex buffer layouts (fetch/decode based on vertex stride and format)
-					checkf(Geometry->VertexElemType == VET_Float3 || Geometry->VertexElemType == VET_Float4, TEXT("Only VET_Float3 is currently implemented and tested. Other formats will be supported in the future."));
+					checkf(Segment.VertexBufferElementType == VET_Float3 || Segment.VertexBufferElementType == VET_Float4, TEXT("Only VET_Float3 and Float4 are currently implemented and tested. Other formats will be supported in the future."));
 				}
 
-				SystemParameters.RootConstants.SetVertexAndIndexStride(Geometry->VertexStrideInBytes, IndexStride);
+				SystemParameters.RootConstants.SetVertexAndIndexStride(Segment.VertexBufferStride, IndexStride);
 				SystemParameters.RootConstants.IndexBufferOffsetInBytes = IndexStride * Segment.FirstPrimitive * IndicesPerPrimitive + Geometry->IndexOffsetInBytes;
 
 				for (uint32 SlotIndex = 0; SlotIndex < ShaderSlotsPerGeometrySegment; ++SlotIndex)
@@ -2577,57 +2581,47 @@ FD3D12RayTracingShaderTable* FD3D12RayTracingScene::FindOrCreateShaderTable(cons
 	return CreatedShaderTable;
 }
 
-void FD3D12CommandContext::RHIBuildAccelerationStructure(FRHIRayTracingGeometry* InGeometry)
+void FD3D12CommandContext::RHIBuildAccelerationStructures(const TArrayView<const FAccelerationStructureBuildParams> Params)
 {
-	FD3D12RayTracingGeometry* Geometry = FD3D12DynamicRHI::ResourceCast(InGeometry);
-	Geometry->TransitionBuffers(*this);
-	CommandListHandle.FlushResourceBarriers();
+	// Update geometry vertex buffers
 
-	const bool bIsUpdate = false;
-	Geometry->BuildAccelerationStructure(*this, bIsUpdate);
-}
-
-void FD3D12CommandContext::RHIUpdateAccelerationStructures(const TArrayView<const FAccelerationStructureUpdateParams> Params)
-{
-	// First batch up all barriers
-	for (const FAccelerationStructureUpdateParams P : Params)
+	for (const FAccelerationStructureBuildParams& P : Params)
 	{
 		FD3D12RayTracingGeometry* Geometry = FD3D12DynamicRHI::ResourceCast(P.Geometry.GetReference());
-		Geometry->RHIVertexBuffer = P.VertexBuffer;
+
+		if (P.Segments.Num())
+		{
+			checkf(P.Segments.Num() == Geometry->Segments.Num(),
+				TEXT("If updated segments are provided, they must exactly match existing geometry segments. Only vertex buffer bindings may change."));
+
+			for (int32 i = 0; i < P.Segments.Num(); ++i)
+			{
+				Geometry->Segments[i].VertexBuffer            = P.Segments[i].VertexBuffer;
+				Geometry->Segments[i].VertexBufferElementType = P.Segments[i].VertexBufferElementType;
+				Geometry->Segments[i].VertexBufferStride      = P.Segments[i].VertexBufferStride;
+				Geometry->Segments[i].VertexBufferOffset      = P.Segments[i].VertexBufferOffset;
+			}
+		}
+	}
+
+	// Transition all VBs and IBs to readable state
+
+	for (const FAccelerationStructureBuildParams& P : Params)
+	{
+		FD3D12RayTracingGeometry* Geometry = FD3D12DynamicRHI::ResourceCast(P.Geometry.GetReference());
 		Geometry->TransitionBuffers(*this);
 	}
+
 	CommandListHandle.FlushResourceBarriers();
 
 	// Then do all work
-	for (const FAccelerationStructureUpdateParams P : Params)
+
+	for (const FAccelerationStructureBuildParams& P : Params)
 	{
 		FD3D12RayTracingGeometry* Geometry = FD3D12DynamicRHI::ResourceCast(P.Geometry.GetReference());
 		Geometry->SetDirty(GetGPUMask(), true);
 
-		const bool bIsUpdate = !GRayTracingDebugForceFullBuild;
-		Geometry->BuildAccelerationStructure(*this, bIsUpdate);
-	}
-}
-
-void FD3D12CommandContext::RHIBuildAccelerationStructures(const TArrayView<const FAccelerationStructureUpdateParams> Params)
-{
-	// First batch up all barriers
-	for (const FAccelerationStructureUpdateParams P : Params)
-	{
-		FD3D12RayTracingGeometry* Geometry = FD3D12DynamicRHI::ResourceCast(P.Geometry.GetReference());
-		Geometry->RHIVertexBuffer = P.VertexBuffer;
-		Geometry->TransitionBuffers(*this);
-	}
-	CommandListHandle.FlushResourceBarriers();
-
-	// Then do all work
-	for (const FAccelerationStructureUpdateParams P : Params)
-	{
-		FD3D12RayTracingGeometry* Geometry = FD3D12DynamicRHI::ResourceCast(P.Geometry.GetReference());
-		Geometry->SetDirty(GetGPUMask(), true);
-
-		const bool bIsUpdate = false;
-		Geometry->BuildAccelerationStructure(*this, bIsUpdate);
+		Geometry->BuildAccelerationStructure(*this, P.BuildMode);
 	}
 }
 

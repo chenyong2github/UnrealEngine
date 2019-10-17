@@ -83,9 +83,25 @@ USkyAtmosphereComponent::~USkyAtmosphereComponent()
 
 static bool SkyAtmosphereComponentStaticLightingBuilt(const USkyAtmosphereComponent* Component)
 {
-	// Temporary fix for FORT-213944
-#if 0
-	UMapBuildDataRegistry* Registry = Component->GetOwner() && Component->GetOwner()->GetLevel() ? Component->GetOwner()->GetLevel()->GetOrCreateMapBuildData() : nullptr;
+	AActor* Owner = Component->GetOwner();
+	UMapBuildDataRegistry* Registry = nullptr;
+	if (Owner)
+	{
+		ULevel* OwnerLevel = Owner->GetLevel();
+		if (OwnerLevel && OwnerLevel->OwningWorld)
+		{
+			ULevel* ActiveLightingScenario = OwnerLevel->OwningWorld->GetActiveLightingScenario();
+			if (ActiveLightingScenario && ActiveLightingScenario->MapBuildData)
+			{
+				Registry = ActiveLightingScenario->MapBuildData;
+			}
+			else if (OwnerLevel->MapBuildData)
+			{
+				Registry = OwnerLevel->MapBuildData;
+			}
+		}
+	}
+
 	const FSkyAtmosphereMapBuildData* SkyAtmosphereFogBuildData = Registry ? Registry->GetSkyAtmosphereBuildData(Component->GetStaticLightingBuiltGuid()) : nullptr;
 	UWorld* World = Component->GetWorld();
 	if (World)
@@ -97,7 +113,7 @@ static bool SkyAtmosphereComponentStaticLightingBuilt(const USkyAtmosphereCompon
 		// Built data is available or static lighting does not depend any sun/sky components.
 		return (SkyAtmosphereFogBuildData != nullptr && StaticLightingDependsOnAtmosphere) || !StaticLightingDependsOnAtmosphere;
 	}
-#endif
+
 	return true;	// The component has not been spawned in any world yet so let's mark it as built for now.
 }
 
@@ -232,7 +248,6 @@ void USkyAtmosphereComponent::PostEditChangeProperty(FPropertyChangedEvent& Prop
 		CategoryName == FName(TEXT("Atmosphere - Absorption")) ||
 		CategoryName == FName(TEXT("Art direction")))
 	{
-		UMapBuildDataRegistry* Registry = GetOwner() && GetOwner()->GetLevel() ? GetOwner()->GetLevel()->GetOrCreateMapBuildData() : nullptr;
 		if (SkyAtmosphereComponentStaticLightingBuilt(this))
 		{
 			// If we have changed an atmosphere property and the lighyting has already been built, we need to ask for a rebuild by updating the static lighting GUIDs.

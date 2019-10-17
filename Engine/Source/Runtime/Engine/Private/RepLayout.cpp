@@ -472,11 +472,15 @@ struct FCustomDeltaChangelistState
 
 	void CountBytes(FArchive& Ar) const
 	{
-		ArrayStates.CountBytes(Ar);
-		for (const FDeltaArrayHistoryState& ArrayState : ArrayStates)
-		{
-			ArrayState.CountBytes(Ar);
-		}
+		GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "FCustomDeltaChangelistState::CountBytes");
+
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ArrayStates",
+			ArrayStates.CountBytes(Ar);
+			for (const FDeltaArrayHistoryState& ArrayState : ArrayStates)
+			{
+				ArrayState.CountBytes(Ar);
+			}
+		);
 	}
 };
 
@@ -788,15 +792,17 @@ void FRepStateStaticBuffer::CountBytes(FArchive& Ar) const
 	struct FCountBytesHelper
 	{
 		FCountBytesHelper(
-			FArchive& InAr,
+			FArchiveCountMem& InAr,
 			const FConstRepShadowDataBuffer InShadowData,
+			const uint64 InTotalShadowMemory,
 			const TArray<FRepParentCmd>& InParents,
 			const TArray<FRepLayoutCmd>& InCmds)
 
-			: Ar((FArchiveCountMem&)InAr)
+			: Ar(InAr)
 			, MainShadowData(InShadowData)
 			, Parents(InParents)
 			, Cmds(InCmds)
+			, TotalShadowMemory(InTotalShadowMemory)
 		{
 		}
 
@@ -804,9 +810,12 @@ void FRepStateStaticBuffer::CountBytes(FArchive& Ar) const
 		{
 			uint64 NewMax = Ar.GetMax();
 			uint64 OldMax = 0;
+			uint64 OldShadowOffset = 0u;
 
-			for (const FRepParentCmd& Parent : Parents)
+			for (int32 ParentIndex = 0; ParentIndex < Parents.Num(); ++ParentIndex)
 			{
+				const FRepParentCmd& Parent = Parents[ParentIndex];
+
 				OldMax = NewMax;
 
 				CountBytes_Command(Parent, Parent.CmdStart, Parent.CmdEnd, MainShadowData);
@@ -820,26 +829,25 @@ void FRepStateStaticBuffer::CountBytes(FArchive& Ar) const
 				}
 				else
 				{
+					const uint64 NextShadowOffset = (ParentIndex < Parents.Num() - 1) ? Parents[ParentIndex + 1].ShadowOffset : TotalShadowMemory;
+
 					NonRepMemory += (NewMax - OldMax);
+					NonRepStaticMemory += NextShadowOffset - OldShadowOffset;
 				}
+
+				OldShadowOffset = Parent.ShadowOffset;
 			}
 		}
 
-		void CountBytes_Command(const FRepParentCmd& Parent, const int32 CmdStart, const int32 CmdEnd, const FConstRepShadowDataBuffer ShadowData) const
+		void CountBytes_Command(const FRepParentCmd& Parent, const int32 CmdStart, const int32 CmdEnd, const FConstRepShadowDataBuffer ShadowData)
 		{
 			for (int32 CmdIndex = CmdStart; CmdIndex < CmdEnd; ++CmdIndex)
 			{
-				const FRepLayoutCmd& Cmd = Cmds[CmdIndex];
-				CountBytes_r(Parent, Cmd, CmdIndex, ShadowData);
-
-				if (ERepLayoutCmdType::DynamicArray == Cmd.Type)
-				{
-					CmdIndex = Cmd.EndCmd - 1;
-				}
+				CountBytes_r(Parent, Cmds[CmdIndex], CmdIndex, ShadowData);
 			}
 		}
 
-		void CountBytes_r(const FRepParentCmd& Parent, const FRepLayoutCmd& Cmd, const int32 InCmdIndex, const FConstRepShadowDataBuffer ShadowData) const
+		void CountBytes_r(const FRepParentCmd& Parent, const FRepLayoutCmd& Cmd, int32& InCmdIndex, const FConstRepShadowDataBuffer ShadowData)
 		{
 			if (ERepLayoutCmdType::DynamicArray == Cmd.Type)
 			{
@@ -851,8 +859,10 @@ void FRepStateStaticBuffer::CountBytes(FArchive& Ar) const
 				for (int32 i = 0; i < Array->Num(); ++i)
 				{
 					const int32 ArrayElementOffset = Cmd.ElementSize * i;
-					CountBytes_Command(Parent, InCmdIndex + 1, Cmd.EndCmd, ShadowArrayData + ArrayElementOffset);
+					CountBytes_Command(Parent, InCmdIndex + 1, Cmd.EndCmd - 1, ShadowArrayData + ArrayElementOffset);
 				}
+
+				InCmdIndex = Cmd.EndCmd - 1;
 			}
 			else if (ERepLayoutCmdType::PropertyString == Cmd.Type)
 			{
@@ -865,17 +875,25 @@ void FRepStateStaticBuffer::CountBytes(FArchive& Ar) const
 		const TArray<FRepParentCmd>& Parents;
 		const TArray<FRepLayoutCmd>& Cmds;
 
+		const uint64 TotalShadowMemory;
 		uint64 OnRepMemory = 0;
 		uint64 NonRepMemory = 0;
+		uint64 NonRepStaticMemory = 0u;
 	};
 
-	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Static Memory", Buffer.CountBytes(Ar));
-	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Dynamic Memory (Undercounts!)",
-		// FCountBytesHelper CountBytesHelper(Ar, Buffer.GetData(), RepLayout->Parents, RepLayout->Cmds);
-		// CountBytesHelper.CountBytes();
-		// GRANULAR_NETWORK_MEMORY_TRACKING_CUSTOM_WORK("OnRepMemory", CountBytesHelper.OnRepMemory);
-		// GRANULAR_NETWORK_MEMORY_TRACKING_CUSTOM_WORK("NonRepMemory", CountBytesHelper.NonRepMemory);
-	);
+	FArchiveCountMem LocalAr(nullptr);
+	Buffer.CountBytes(LocalAr);
+	const uint64 StaticTotalMemory = LocalAr.GetMax();
+
+	FCountBytesHelper CountBytesHelper(LocalAr, Buffer.GetData(), StaticTotalMemory, RepLayout->Parents, RepLayout->Cmds);
+	CountBytesHelper.CountBytes();
+
+	const uint64 StaticOnRepMemory = StaticTotalMemory - CountBytesHelper.NonRepStaticMemory;
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Static_OnRep", Ar.CountBytes(StaticTotalMemory, StaticTotalMemory));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Static_NotOnRep", Ar.CountBytes(CountBytesHelper.NonRepStaticMemory, CountBytesHelper.NonRepStaticMemory));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Dynamic_OnRep", Ar.CountBytes(CountBytesHelper.OnRepMemory, CountBytesHelper.OnRepMemory));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Dynamic_NotOnRep", Ar.CountBytes(CountBytesHelper.NonRepMemory, CountBytesHelper.NonRepMemory));
 }
 
 FRepChangelistState::FRepChangelistState(
@@ -892,13 +910,16 @@ FRepChangelistState::FRepChangelistState(
 
 void FRepChangelistState::CountBytes(FArchive& Ar) const
 {
-	StaticBuffer.CountBytes(Ar);
-	SharedSerialization.CountBytes(Ar);
+	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "FRepChangelistState::CountBytes");
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("StaticBuffer", StaticBuffer.CountBytes(Ar));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("SharedSerialization", SharedSerialization.CountBytes(Ar));
 
 	if (CustomDeltaChangelistState)
 	{
-		Ar.CountBytes(sizeof(FCustomDeltaChangelistState), sizeof(FCustomDeltaChangelistState));
-		CustomDeltaChangelistState->CountBytes(Ar);
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("CustomDeltaChangelistState",
+			Ar.CountBytes(sizeof(FCustomDeltaChangelistState), sizeof(FCustomDeltaChangelistState));
+			CustomDeltaChangelistState->CountBytes(Ar);
+		);
 	}
 }
 
@@ -1967,6 +1988,21 @@ void FRepLayout::FilterChangeListToActive(
 	}
 
 	OutProperties.Add(0);
+}
+
+void FRepSerializationSharedInfo::CountBytes(FArchive& Ar) const
+{
+	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "FRepSerializationSharedInfo::CountBytes");
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("SharedPropertyInfo", SharedPropertyInfo.CountBytes(Ar));
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("SerializedProperties",
+		if (FNetBitWriter const* const LocalSerializedProperties = SerializedProperties.Get())
+		{
+			Ar.CountBytes(sizeof(FNetBitWriter), sizeof(FNetBitWriter));
+			LocalSerializedProperties->CountMemory(Ar);
+		}
+	);
 }
 
 const FRepSerializedPropertyInfo* FRepSerializationSharedInfo::WriteSharedProperty(
@@ -5970,13 +6006,13 @@ FRepStateStaticBuffer FRepLayout::CreateShadowBuffer(const FConstRepObjectDataBu
 	return ShadowData;
 }
 
-TSharedPtr<FReplicationChangelistMgr> FRepLayout::CreateReplicationChangelistMgr(const UObject* InObject) const
+TSharedPtr<FReplicationChangelistMgr> FRepLayout::CreateReplicationChangelistMgr(const UObject* InObject, const ECreateReplicationChangelistMgrFlags CreateFlags) const
 {
 	// ChangelistManager / ChangelistState will hold onto a unique pointer for this
 	// so no need to worry about deleting it here.
 
 	FCustomDeltaChangelistState* DeltaChangelistState = nullptr;
-	if (LifetimeCustomPropertyState && !!LifetimeCustomPropertyState->GetNumFastArrayProperties())
+	if (!EnumHasAnyFlags(CreateFlags, ECreateReplicationChangelistMgrFlags::SkipDeltaCustomState) && LifetimeCustomPropertyState && !!LifetimeCustomPropertyState->GetNumFastArrayProperties())
 	{
 		DeltaChangelistState = new FCustomDeltaChangelistState(LifetimeCustomPropertyState->GetNumFastArrayProperties());
 	}
