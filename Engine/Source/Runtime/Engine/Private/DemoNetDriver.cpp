@@ -39,6 +39,7 @@
 #include "Stats/Stats2.h"
 #include "Engine/ChildConnection.h"
 #include "Net/ReplayPlaylistTracker.h"
+#include "Net/NetworkGranularMemoryLogging.h"
 
 DEFINE_LOG_CATEGORY( LogDemo );
 
@@ -6566,7 +6567,9 @@ void UDemoPendingNetGame::LoadMapCompleted(UEngine* Engine, FWorldContext& Conte
 
 void UDemoNetDriver::Serialize(FArchive& Ar)
 {
-	Super::Serialize(Ar);
+	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "UDemoNetDriver::Serialize");
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Super", Super::Serialize(Ar));
 
 	if (Ar.IsCountingMemory())
 	{
@@ -6576,98 +6579,118 @@ void UDemoNetDriver::Serialize(FArchive& Ar)
 		//		QueuedReplayTasks.
 		//		DemoURL
 
-		DeletedNetStartupActors.CountBytes(Ar);
 
-		for (FString& ActorString : DeletedNetStartupActors)
-		{
-			Ar << ActorString;
-		}
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("DeletedNetStartupActors",
+			DeletedNetStartupActors.CountBytes(Ar);
+			for (FString& ActorString : DeletedNetStartupActors)
+			{
+				Ar << ActorString;
+			}
+		);
 
-		DeletedNetStartupActorGUIDs.CountBytes(Ar);
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("DeletedNetStartupActorGUIDs", DeletedNetStartupActorGUIDs.CountBytes(Ar));
 
-		// The map for RollbackNetStartupActors may have already been serialized,
-		// However, that won't capture non-property members or properly count them.
-		for (const auto& RollbackNetStartupActorPair : RollbackNetStartupActors)
-		{
-			RollbackNetStartupActorPair.Value.CountBytes(Ar);
-		}
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("RollbackNetStartupActorsValues",
+			// The map for RollbackNetStartupActors may have already been serialized,
+			// However, that won't capture non-property members or properly count them.
+			for (const auto& RollbackNetStartupActorPair : RollbackNetStartupActors)
+			{
+				RollbackNetStartupActorPair.Value.CountBytes(Ar);
+			}
+		);
 
 
-		ExternalDataToObjectMap.CountBytes(Ar);
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ExternalDataToObjectMap",
+			ExternalDataToObjectMap.CountBytes(Ar);
+			for (const auto& ExternalDataToObjectPair : ExternalDataToObjectMap)
+			{
+				ExternalDataToObjectPair.Value.CountBytes(Ar);
+			}
+		);
 
-		for (const auto& ExternalDataToObjectPair : ExternalDataToObjectMap)
-		{
-			ExternalDataToObjectPair.Value.CountBytes(Ar);
-		}
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("PlaybackPackets",
+			PlaybackPackets.CountBytes(Ar);
+			for (const FPlaybackPacket& Packet : PlaybackPackets)
+			{
+				Packet.CountBytes(Ar);
+			}
+		);
 
-		PlaybackPackets.CountBytes(Ar);
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("UniqueStreamingLevels", UniqueStreamingLevels.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("NewStreamingLevelsThisFrame", NewStreamingLevelsThisFrame.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("NonQueuedGUIDsForScrubbing", NonQueuedGUIDsForScrubbing.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("QueuedReplayTasks", QueuedReplayTasks.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("DemoSessionID", DemoSessionID.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("PlaybackDemoHeader", PlaybackDemoHeader.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("PrioritizedActors", PrioritizedActors.CountBytes(Ar));
 
-		for (const FPlaybackPacket& Packet : PlaybackPackets)
-		{
-			Packet.CountBytes(Ar);
-		}
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("LevelNamesAndTimes",
+			LevelNamesAndTimes.CountBytes(Ar);
+			for (const FLevelNameAndTime& LevelNameAndTime : LevelNamesAndTimes)
+			{
+				LevelNameAndTime.CountBytes(Ar);
+			}
+		);
 
-		UniqueStreamingLevels.CountBytes(Ar);
-		NewStreamingLevelsThisFrame.CountBytes(Ar);
-		NonQueuedGUIDsForScrubbing.CountBytes(Ar);
-		QueuedReplayTasks.CountBytes(Ar);
-		
-		Ar << DemoSessionID;
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("LevelInternals", LevelIntervals.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("TrackedRewindActorsByGUID", TrackedRewindActorsByGUID.CountBytes(Ar));
 
-		PlaybackDemoHeader.CountBytes(Ar);
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("AllLevelStatuses",
+			AllLevelStatuses.CountBytes(Ar);
+			for (const FLevelStatus& LevelStatus : AllLevelStatuses)
+			{
+				LevelStatus.CountBytes(Ar);
+			}
+		);
 
-		PrioritizedActors.CountBytes(Ar);
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("LevelStatusesByName",
+			LevelStatusesByName.CountBytes(Ar);
+			for (const auto& LevelStatusNamePair : LevelStatusesByName)
+			{
+				LevelStatusNamePair.Key.CountBytes(Ar);
+			}
+		);
 
-		LevelNamesAndTimes.CountBytes(Ar);
-		for (const FLevelNameAndTime& LevelNameAndTime : LevelNamesAndTimes)
-		{
-			LevelNameAndTime.CountBytes(Ar);
-		}
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("LevelStatusIndexByLevel", LevelStatusIndexByLevel.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("SeenLevelStatuses", SeenLevelStatuses.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("LevelsPendingFastForward", LevelsPendingFastForward.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ObjectsWithExternalData", ObjectsWithExternalData.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("CheckpointSaveContext", CheckpointSaveContext.CountBytes(Ar));
 
-		LevelIntervals.CountBytes(Ar);
-		TrackedRewindActorsByGUID.CountBytes(Ar);
-		AllLevelStatuses.CountBytes(Ar);
-		for (const FLevelStatus& LevelStatus : AllLevelStatuses)
-		{
-			LevelStatus.CountBytes(Ar);
-		}
 
-		LevelStatusesByName.CountBytes(Ar);
-		for (const auto& LevelStatusNamePair : LevelStatusesByName)
-		{
-			LevelStatusNamePair.Key.CountBytes(Ar);
-		}
-
-		LevelStatusIndexByLevel.CountBytes(Ar);
-		SeenLevelStatuses.CountBytes(Ar);
-		LevelsPendingFastForward.CountBytes(Ar);
-		ObjectsWithExternalData.CountBytes(Ar);
-		CheckpointSaveContext.CountBytes(Ar);
-		QueuedPacketsBeforeTravel.CountBytes(Ar);
-		for (const FQueuedDemoPacket& QueuedPacket : QueuedPacketsBeforeTravel)
-		{
-			QueuedPacket.CountBytes(Ar);
-		}
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("QueuedPacketsBeforeTravel",
+			QueuedPacketsBeforeTravel.CountBytes(Ar);
+			for (const FQueuedDemoPacket& QueuedPacket : QueuedPacketsBeforeTravel)
+			{
+				QueuedPacket.CountBytes(Ar);
+			}
+		);
 	}
 }
 
 void UDemoNetConnection::Serialize(FArchive& Ar)
 {
-	Super::Serialize(Ar);
+	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "UDemoNetConnection::Serialize");
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Super", Super::Serialize(Ar));
 
 	if (Ar.IsCountingMemory())
 	{
-		QueuedDemoPackets.CountBytes(Ar);
-		for (const FQueuedDemoPacket& QueuedPacket : QueuedDemoPackets)
-		{
-			QueuedPacket.CountBytes(Ar);
-		}
-
-		QueuedCheckpointPackets.CountBytes(Ar);
-		for (const FQueuedDemoPacket& QueuedPacket : QueuedCheckpointPackets)
-		{
-			QueuedPacket.CountBytes(Ar);
-		}
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("QueuedDemoPackets",
+			QueuedDemoPackets.CountBytes(Ar);
+			for (const FQueuedDemoPacket& QueuedPacket : QueuedDemoPackets)
+			{
+				QueuedPacket.CountBytes(Ar);
+			}
+		);
+		
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("QueuedCheckpointPackets",
+			QueuedCheckpointPackets.CountBytes(Ar);
+			for (const FQueuedDemoPacket& QueuedPacket : QueuedCheckpointPackets)
+			{
+				QueuedPacket.CountBytes(Ar);
+			}
+		);
 	}
 }
 
