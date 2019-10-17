@@ -55,7 +55,7 @@ struct FNetSimProcessedFrameDebugInfo
 	int32 LocalGFrameNumber; // Local GFrame number
 	float LocalDeltaTimeSeconds; // Local frame time
 	TArray<int32> ProcessedKeyframes; // Which keyframes were processed this frame
-	int32 LastProcessedKeyframe; // What LastProcessedKeyframe was at the end of the frame. Does NOT mean we processed it this frame!
+	int32 PendingKeyframe; // What PendingKeyframe was at the end of the frame. Does NOT mean we processed it this frame!
 	int32 HeadKeyframe; // Head keyframe of the inputbuffer when the frame ended
 
 	float RemainingAllowedSimulationTimeSeconds;
@@ -67,7 +67,7 @@ struct FNetSimProcessedFrameDebugInfo
 	{	
 		P.Ar << LocalGFrameNumber;
 		P.Ar << LocalDeltaTimeSeconds;
-		P.Ar << LastProcessedKeyframe;
+		P.Ar << PendingKeyframe;
 		P.Ar << HeadKeyframe;
 		P.Ar << RemainingAllowedSimulationTimeSeconds;
 
