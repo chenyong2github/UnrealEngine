@@ -212,7 +212,7 @@ void UDataprepMergeActorsOperation::OnExecution_Implementation(const FDataprepCo
 	DataprepEditingOperationTime::FTimeLogger TimeLogger( TEXT("MergeActors"), [&]( FText Text) { this->LogInfo( Text ); });
 #endif
 
-	if(!MergeStaticMeshActors(CurrentWorld, ComponentsToMerge, TEXT("Merged") ))
+	if(!MergeStaticMeshActors(CurrentWorld, ComponentsToMerge, NewActorLabel.IsEmpty() ? TEXT("Merged") : *NewActorLabel ))
 	{
 		return;
 	}
@@ -278,7 +278,7 @@ bool UDataprepMergeActorsOperation::MergeStaticMeshActors(UWorld* World, const T
 	}
 
 	// Add asset to set of assets in Dataprep action working set
-	MergedMesh = Cast<UStaticMesh>( AddAsset( UtilitiesMergedMesh, UStaticMesh::StaticClass(), *(RootName + TEXT("Mesh")) ) );
+	MergedMesh = Cast<UStaticMesh>( AddAsset( UtilitiesMergedMesh, UStaticMesh::StaticClass(), NewActorLabel.IsEmpty() ? TEXT("Merged_Mesh") : *NewActorLabel ) );
 	if (!MergedMesh)
 	{
 		UE_LOG(LogDataprep, Error, TEXT("MergeStaticMeshActors failed. Internal error while creating the merged mesh."));
@@ -288,7 +288,7 @@ bool UDataprepMergeActorsOperation::MergeStaticMeshActors(UWorld* World, const T
 	if(bCreateActor == true)
 	{
 		// Place new mesh in the world
-		MergedActor = Cast<AStaticMeshActor>( CreateActor( AStaticMeshActor::StaticClass(), *(RootName + TEXT("Actor")) ) );
+		MergedActor = Cast<AStaticMeshActor>( CreateActor( AStaticMeshActor::StaticClass(), NewActorLabel.IsEmpty() ? TEXT("Merged_Actor") : *NewActorLabel ) );
 		if (!MergedActor)
 		{
 			UE_LOG(LogDataprep, Error, TEXT("MergeStaticMeshActors failed. Internal error while creating the merged actor."));
