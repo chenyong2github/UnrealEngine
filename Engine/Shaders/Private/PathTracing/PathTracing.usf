@@ -67,19 +67,16 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 		FRayCone RayCone = (FRayCone)0;
 		RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
 
-		uint RayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
-
 		// Cast ray
-		FMaterialClosestHitPayload Payload = TraceRayInternal(
-			TLAS,   // AccelerationStructure
-			RayFlags,
-			RAY_TRACING_MASK_ALL,
-			RAY_TRACING_SHADER_SLOT_MATERIAL, // RayContributionToHitGroupIndex
-			RAY_TRACING_NUM_SHADER_SLOTS,     // MultiplierForGeometryContributionToShaderIndex
-			0,      // MissShaderIndex
-			Ray,    // RayDesc
-			RayCone
-		);
+		const uint InitialRayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+		const uint InitialInstanceInclusionMask = RAY_TRACING_MASK_ALL;
+
+		FMaterialClosestHitPayload Payload = TraceMaterialRay(
+			TLAS,
+			InitialRayFlags,
+			InitialInstanceInclusionMask,
+			Ray,
+			RayCone);
 		RayCounter++;
 
 		float MaterialPdf = 0.0;
@@ -167,23 +164,17 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 				{
 					RayDesc LightRay;
 
-					FRayCone LightRayCone = RayCone;
-
 					GenerateLightRay(Ray, LightId, LightUV, LightRay);
 					ApplyPositionBias(LightRay, Payload.WorldNormal, AdaptiveSamplingData.MaxNormalBias);
-					
-					uint RayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 
-					FMaterialClosestHitPayload NeePayload = TraceRayInternal(
-						TLAS,      // AccelerationStructure
+					const uint RayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+					const uint InstanceInclusionMask = RAY_TRACING_MASK_SHADOW;
+
+					FMinimalPayload NeePayload = TraceVisibilityRay(
+						TLAS,
 						RayFlags,
-						RAY_TRACING_MASK_SHADOW,
-						RAY_TRACING_SHADER_SLOT_SHADOW,   // RayContributionToHitGroupIndex
-						RAY_TRACING_NUM_SHADER_SLOTS,     // MultiplierForGeometryContributionToShaderIndex
-						0,         // MissShaderIndex
-						LightRay,
-						LightRayCone
-					);
+						InstanceInclusionMask,
+						LightRay);
 					RayCounter++;
 
 					if (NeePayload.IsMiss())
@@ -271,15 +262,15 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 			}
 
 			// Trace again
-			Payload = TraceRayInternal(TLAS,
-				RAY_FLAG_CULL_BACK_FACING_TRIANGLES,
-				RAY_TRACING_MASK_ALL,
-				RAY_TRACING_SHADER_SLOT_MATERIAL, // RayContributionToHitGroupIndex
-				RAY_TRACING_NUM_SHADER_SLOTS,     // MultiplierForGeometryContributionToShaderIndex
-				0,    // MissShaderIndex
+			const uint RayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+			const uint InstanceInclusionMask = RAY_TRACING_MASK_ALL;
+
+			Payload = TraceMaterialRay(
+				TLAS,
+				RayFlags,
+				InstanceInclusionMask,
 				Ray,
-				RayCone /* propagated by the material CHS */
-			);
+				RayCone);
 			RayCounter++;
 		}
 

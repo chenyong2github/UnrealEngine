@@ -192,6 +192,8 @@ struct FMaterialClosestHitPayload : FMinimalPayload
 
 	void SetFrontFace() { Flags |= RAY_TRACING_PAYLOAD_FLAG_FRONT_FACE; }
 	bool IsFrontFace() { return (Flags & RAY_TRACING_PAYLOAD_FLAG_FRONT_FACE) != 0; }
+
+	void SetRayCone(FRayCone NewRayCone) { RayCone = NewRayCone; }
 };
 
 #define USE_PACKED_PAYLOAD 1
@@ -229,6 +231,7 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 	void SetMinimalPayloadMode() { IorAndShadingModelIDAndBlendingModeAndFlags |= RAY_TRACING_PAYLOAD_FLAG_MINIMAL_PAYLOAD << 24; }
 	bool IsMinimalPayloadMode() { return ((IorAndShadingModelIDAndBlendingModeAndFlags >> 24) & RAY_TRACING_PAYLOAD_FLAG_MINIMAL_PAYLOAD) != 0; }
 
+	void SetRayCone(FRayCone NewRayCone) { RayCone = NewRayCone; }
 };
 
 FPackedMaterialClosestHitPayload PackRayTracingPayload(FMaterialClosestHitPayload Input, in FRayCone RayCone)
@@ -321,34 +324,6 @@ FMaterialClosestHitPayload UnpackRayTracingPayload(FPackedMaterialClosestHitPayl
 
 #endif // USE_PACKED_PAYLOAD
 
-FMaterialClosestHitPayload TraceRayInternal(in RaytracingAccelerationStructure TLAS,
-											in uint RayFlags,
-											in uint InstanceInclusionMask,
-											in uint RayContributionToHitGroupIndex,
-											in uint MultiplierForGeometryContributionToShaderIndex,
-											in uint MissShaderIndex,
-											in RayDesc Ray,
-											inout FRayCone RayCone)
-{
-	FPackedMaterialClosestHitPayload Payload = (FPackedMaterialClosestHitPayload)0;
-	Payload.RayCone = RayCone;
-
-	TraceRay
-	(
-			TLAS,
-			RayFlags,
-			InstanceInclusionMask,
-			RayContributionToHitGroupIndex,
-			MultiplierForGeometryContributionToShaderIndex,
-			MissShaderIndex,
-			Ray,
-			Payload
-	);
-
-	RayCone = Payload.RayCone;
-	return UnpackRayTracingPayload(Payload, Ray);
-}
-
 // WorldNormal is the vector towards which the ray position will be offseted.
 void ApplyPositionBias(inout RayDesc Ray, const float3 WorldNormal, const float MaxNormalBias)
 {
@@ -379,6 +354,131 @@ void ApplyCameraRelativeDepthBias(inout RayDesc Ray, uint2 PixelCoord, float Dev
 	float RayBias = max(RelativeBias, AbsoluteNormalBias);
 	Ray.Origin -= CameraDirection * RayBias;
 	ApplyPositionBias(Ray, WorldNormal, RayBias);
+}
+
+FMinimalPayload TraceMinimalRayInternal(
+	in RaytracingAccelerationStructure TLAS,
+	in uint RayFlags,
+	in uint InstanceInclusionMask,
+	in uint RayContributionToHitGroupIndex,
+	in uint MultiplierForGeometryContributionToShaderIndex,
+	in uint MissShaderIndex,
+	in RayDesc Ray)
+{
+	FPackedMaterialClosestHitPayload PackedPayload = (FPackedMaterialClosestHitPayload)0;
+
+	// Set payload inputs
+
+	// By enabling minimal payload mode all other payload information is ignored, meaning these functions need no payload inputs
+	PackedPayload.SetMinimalPayloadMode();
+
+	// Trace the ray
+
+	TraceRay(
+		TLAS,
+		RayFlags,
+		InstanceInclusionMask,
+		RayContributionToHitGroupIndex,
+		MultiplierForGeometryContributionToShaderIndex,
+		MissShaderIndex,
+		Ray,
+		PackedPayload);
+
+	// Unpack the payload
+
+	FMinimalPayload MinimalPayload = (FMinimalPayload)0;
+
+	// In theory this unpacking setp is not needed as FPackedMaterialClosestHitPayload derives from FMinimalPayload,
+	// but the compiler currently dislikes a direct cast between them. Additionally in the future if HitT is ever packed
+	// differently and the FMinimalPayload is not directly inherited from this will need to change.
+	MinimalPayload.HitT = PackedPayload.HitT;
+
+	return MinimalPayload;
+}
+
+FMaterialClosestHitPayload TraceRayInternal(
+	in RaytracingAccelerationStructure TLAS,
+	in uint RayFlags,
+	in uint InstanceInclusionMask,
+	in uint RayContributionToHitGroupIndex,
+	in uint MultiplierForGeometryContributionToShaderIndex,
+	in uint MissShaderIndex,
+	in RayDesc Ray,
+	// Payload Inputs
+	in FRayCone RayCone)
+{
+	FPackedMaterialClosestHitPayload PackedPayload = (FPackedMaterialClosestHitPayload)0;
+
+	// Set payload inputs
+
+	PackedPayload.SetRayCone(RayCone);
+
+	// Trace the ray
+
+	TraceRay(
+		TLAS,
+		RayFlags,
+		InstanceInclusionMask,
+		RayContributionToHitGroupIndex,
+		MultiplierForGeometryContributionToShaderIndex,
+		MissShaderIndex,
+		Ray,
+		PackedPayload);
+
+	// Unpack the payload
+
+	FMaterialClosestHitPayload Payload = UnpackRayTracingPayload(PackedPayload, Ray);
+
+	return Payload;
+}
+
+FMinimalPayload TraceVisibilityRay(
+	in RaytracingAccelerationStructure TLAS,
+	in uint RayFlags,
+	in uint InstanceInclusionMask,
+	in RayDesc Ray)
+{
+	const uint RayContributionToHitGroupIndex = RAY_TRACING_SHADER_SLOT_SHADOW;
+	const uint MultiplierForGeometryContributionToShaderIndex = RAY_TRACING_NUM_SHADER_SLOTS;
+	const uint MissShaderIndex = 0;
+
+	FMinimalPayload Payload = TraceMinimalRayInternal(
+		TLAS,
+		RayFlags,
+		InstanceInclusionMask,
+		RayContributionToHitGroupIndex,
+		MultiplierForGeometryContributionToShaderIndex,
+		MissShaderIndex,
+		Ray);
+
+	return Payload;
+}
+
+FMaterialClosestHitPayload TraceMaterialRay(
+	in RaytracingAccelerationStructure TLAS,
+	in uint RayFlags,
+	in uint InstanceInclusionMask,
+	in RayDesc Ray,
+	// Payload Inputs
+	inout FRayCone RayCone)
+{
+	const uint RayContributionToHitGroupIndex = RAY_TRACING_SHADER_SLOT_MATERIAL;
+	const uint MultiplierForGeometryContributionToShaderIndex = RAY_TRACING_NUM_SHADER_SLOTS;
+	const uint MissShaderIndex = 0;
+
+	FMaterialClosestHitPayload Payload = TraceRayInternal(
+		TLAS,
+		RayFlags,
+		InstanceInclusionMask,
+		RayContributionToHitGroupIndex,
+		MultiplierForGeometryContributionToShaderIndex,
+		MissShaderIndex,
+		Ray,
+		RayCone);
+
+	RayCone = Payload.RayCone;
+
+	return Payload;
 }
 
 #endif // !COMPUTESHADER
