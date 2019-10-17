@@ -51,6 +51,9 @@ namespace Audio
 		virtual bool DisablePCMAudioCaching() const override { return true; }
 		
 		//~ End IAudioMixerPlatformInterface
+        
+        static void IncrementSuspendCounter();
+        static void DecrementSuspendCounter();
 		
 	private:
 		AudioStreamBasicDescription OutputFormat;
