@@ -3,8 +3,10 @@
 
 #include "CoreMinimal.h"
 
+#include "AudioDefines.h"
 #include "Features/IModularFeature.h"
 #include "IAmbisonicsMixer.h"
+#include "Math/Interval.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "Sound/SoundSubmix.h"
@@ -456,6 +458,9 @@ public:
 	TArray<USoundModulationPluginSourceSettingsBase*> Settings;
 };
 
+/** Interface to sound that is modulateable, allowing for certain specific 
+  * behaviors to be controlled on the sound level by the modulation system.
+  */
 class ISoundModulatable
 {
 public:
@@ -520,6 +525,10 @@ public:
 };
 
 
+/*
+ * Modulatable controls found on each sound instance
+ * processed by the modulation plugin enabled
+ */
 struct FSoundModulationControls
 {
 	float Volume;
@@ -527,14 +536,125 @@ struct FSoundModulationControls
 	float Lowpass;
 	float Highpass;
 
+	TMap<FName, float> Controls;
+
 	FSoundModulationControls()
 		: Volume(1.0f)
 		, Pitch(1.0f)
-		, Lowpass(20000.0f)
-		, Highpass(20.0f)
+		, Lowpass(MAX_FILTER_FREQUENCY)
+		, Highpass(MIN_FILTER_FREQUENCY)
 	{
 	}
 };
+
+/** Parameter allowing modulation control override for systems opting in to the Modulation System. */
+USTRUCT(BlueprintType)
+struct ENGINE_API FSoundModulationParameter
+{
+	GENERATED_BODY()
+
+public:
+	/** Name of modulation control to drive parameter. Uses value last cached if control is or becomes invalid. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Modulation)
+	FName Control;
+
+	/** Default modulation parameter value. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Modulation)
+	float Value;
+
+private:
+	float ValueMin;
+	float ValueMax;
+
+public:
+	FSoundModulationParameter()
+		: Control(NAME_None)
+		, Value(0.0f)
+		, ValueMin(0.0f)
+		, ValueMax(1.0f)
+	{
+	}
+
+	FSoundModulationParameter(float InValue, float InValueMin = TNumericLimits<float>::Min(), float InValueMax = TNumericLimits<float>::Max())
+		: Control(NAME_None)
+		, ValueMin(InValueMin)
+		, ValueMax(InValueMax)
+	{
+		Value = FMath::Clamp(InValue, ValueMin, ValueMax);
+	}
+
+	FORCEINLINE operator float() const
+	{
+		return Value;
+	}
+
+	FORCEINLINE FSoundModulationParameter& operator= (const FSoundModulationParameter& InParam)
+	{
+		Control = InParam.Control;
+		ValueMin = InParam.ValueMin;
+		ValueMax = InParam.ValueMax;
+		Value = FMath::Clamp(InParam.Value, ValueMin, ValueMax);
+
+		return *this;
+	}
+
+	FORCEINLINE FSoundModulationParameter& operator= (float InValue)
+	{
+		Value = FMath::Clamp(InValue, ValueMin, ValueMax);
+		return *this;
+	}
+
+	FORCEINLINE float operator* (float InValue)
+	{
+		return InValue * Value;
+	}
+
+	FORCEINLINE float operator/ (float InValue)
+	{
+		return InValue / Value;
+	}
+
+	FORCEINLINE float GetValue() const
+	{
+		return Value;
+	}
+
+	FORCEINLINE float GetMinValue() const
+	{
+		return ValueMin;
+	}
+
+	FORCEINLINE float GetMaxValue() const
+	{
+		return ValueMax;
+	}
+
+	FORCEINLINE void SetBounds(float InValueMin, float InValueMax)
+	{
+		ValueMin = InValueMin;
+		ValueMax = InValueMax;
+
+		Value = FMath::Clamp(Value, InValueMin, InValueMax);
+	}
+
+	/* Returns true if updated by control, false if not */
+	bool SetValue(const FSoundModulationControls& InModControls)
+	{
+		if (Control != NAME_None)
+		{
+			if (const float* ControlValue = InModControls.Controls.Find(Control))
+			{
+				Value = FMath::Clamp(*ControlValue, ValueMin, ValueMax);
+				return true;
+			}
+		}
+
+		Value = FMath::Clamp(Value, ValueMin, ValueMax);
+		return false;
+	}
+};
+
+using FSoundModulationControlIndex = uint32;
 
 class IAudioModulation
 {
@@ -574,8 +694,8 @@ public:
 	/** Processes audio with the given input and output data structs.*/
 	virtual void ProcessAudio(const FAudioPluginSourceInputData& InputData, FAudioPluginSourceOutputData& OutputData) { }
 
-	/** Processes modulated sound controls */
-	virtual void ProcessControls(const uint32 SourceId, FSoundModulationControls& Controls) { }
+	/** Processes modulated sound controls, returning whether or not controls were modified and an update is pending. */
+	virtual bool ProcessControls(const uint32 SourceId, FSoundModulationControls& Controls) { return false; }
 
 	/** Processes all modulators */
 	virtual void ProcessModulators(const float Elapsed) { }
