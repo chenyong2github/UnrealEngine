@@ -4,9 +4,10 @@
 
 #include "GameplayTrack.h"
 #include "Insights/ViewModels/TimingEventsTrack.h"
-#include "Containers/ArrayView.h"
 
 class FGameplaySharedData;
+struct FObjectEventMessage;
+class FTimingEventSearchParameters;
 
 class FObjectEventsTrack : public TGameplayTrackMixin<FTimingEventsTrack>
 {
@@ -18,7 +19,11 @@ public:
 
 	virtual void Draw(ITimingViewDrawHelper& Helper) const override;
 	virtual void InitTooltip(FTooltipDrawState& Tooltip, const FTimingEvent& HoveredTimingEvent) const override;
-	virtual bool SearchTimingEvent(const double InStartTime, const double InEndTime, TFunctionRef<bool(double, double, uint32)> InPredicate, FTimingEvent& InOutTimingEvent, bool bInStopAtFirstMatch, bool bInSearchForLargestEvent) const override;
+	virtual bool SearchTimingEvent(const FTimingEventSearchParameters& InSearchParameters, FTimingEvent& InOutTimingEvent) const override;
+
+private:
+	// Helper function used to find an object event
+	bool FindObjectEvent(const FTimingEventSearchParameters& InParameters, TFunctionRef<void(double, double, uint32, const FObjectEventMessage&)> InFoundPredicate) const;
 
 private:
 	const FGameplaySharedData& SharedData;

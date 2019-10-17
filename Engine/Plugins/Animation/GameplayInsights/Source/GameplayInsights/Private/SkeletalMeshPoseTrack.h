@@ -7,6 +7,8 @@
 
 class ULineBatchComponent;
 class FAnimationSharedData;
+class FTimingEventSearchParameters;
+struct FSkeletalMeshPoseMessage;
 
 class FSkeletalMeshPoseTrack : public TGameplayTrackMixin<FTimingEventsTrack>
 {
@@ -19,7 +21,7 @@ public:
 	virtual void Reset() override;
 	virtual void Draw(ITimingViewDrawHelper& Helper) const override;
 	virtual void InitTooltip(FTooltipDrawState& Tooltip, const FTimingEvent& HoveredTimingEvent) const override;
-	virtual bool SearchTimingEvent(const double InStartTime, const double InEndTime, TFunctionRef<bool(double, double, uint32)> InPredicate, FTimingEvent& InOutTimingEvent, bool bInStopAtFirstMatch, bool bInSearchForLargestEvent) const override;
+	virtual bool SearchTimingEvent(const FTimingEventSearchParameters& InSearchParameters, FTimingEvent& InOutTimingEvent) const override;
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
 
 	// Access drawing flags
@@ -32,6 +34,10 @@ public:
 	// Draw poses in the specified time range
 	void DrawPoses(ULineBatchComponent* InLineBatcher, double SelectionStartTime, double SelectionEndTime);
 #endif
+
+private:
+	// Helper function used to find a skeletal mesh pose
+	bool FindSkeletalMeshPoseMessage(const FTimingEventSearchParameters& InParameters, TFunctionRef<void(double, double, uint32, const FSkeletalMeshPoseMessage&)> InFoundPredicate) const;
 
 private:
 	/** The shared data */

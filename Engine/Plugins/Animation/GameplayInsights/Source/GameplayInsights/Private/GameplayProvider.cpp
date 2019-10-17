@@ -128,7 +128,6 @@ void FGameplayProvider::AppendObjectEvent(uint64 InObjectId, double InTime, cons
 	}
 
 	FObjectEventMessage Message;
-	Message.MessageId = Timeline->GetEventCount();
 	Message.Id = InObjectId;
 	Message.Name = Session.StoreString(InEventName);
 

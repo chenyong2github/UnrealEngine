@@ -9,36 +9,27 @@ class FTimingEventsTrack;
 
 struct FTimingEvent
 {
-	static const uint64 InvalidTypeId = uint64(-1);
-
 	const FTimingEventsTrack* Track;
-	uint64 TypeId;
-	uint32 Depth;
 	double StartTime;
 	double EndTime;
 	double ExclusiveTime;
-
-	// For Asset Loading events...
-	Trace::FLoadTimeProfilerCpuEvent LoadingInfo;
-
-	// For I/O events...
-	uint64 Offset;
-	uint64 Size;
-	const TCHAR* Path;
+	uint32 Depth;
 
 	FTimingEvent()
 		: Track(nullptr)
-		, TypeId(InvalidTypeId)
-		, Depth(0)
-		, StartTime(0.0)
-		, EndTime(0.0)
+		, StartTime(0.0f)
+		, EndTime(-1.0)
 		, ExclusiveTime(0.0)
-		, LoadingInfo()
-		, Offset(0)
-		, Size(0)
-		, Path(nullptr)
+		, Depth(0)
 	{
 	}
+
+	FTimingEvent(const FTimingEventsTrack* InTrack, double InStartTime, double InEndTime, uint32 InDepth)
+		: Track(InTrack)
+		, StartTime(InStartTime)
+		, EndTime(InEndTime)
+		, Depth(InDepth)
+	{}
 
 	FTimingEvent(const FTimingEvent&) = default;
 	FTimingEvent& operator=(const FTimingEvent&) = default;
@@ -49,31 +40,21 @@ struct FTimingEvent
 	void Reset()
 	{
 		Track = nullptr;
-		TypeId = InvalidTypeId;
-		Depth = 0;
 		StartTime = 0.0;
-		EndTime = 0.0;
+		EndTime = -1.0;
 		ExclusiveTime = 0.0;
-
-		LoadingInfo.Package = nullptr;
-		LoadingInfo.Export = nullptr;
-		LoadingInfo.EventType = Trace::LoadTimeProfilerObjectEventType_None;
-
-		Offset = 0;
-		Size = 0;
-		Path = nullptr;
+		Depth = 0;
 	}
 
 	bool IsValidTrack() const { return Track != nullptr; }
 
-	bool IsValid() const { return Track != nullptr && TypeId != InvalidTypeId; }
+	bool IsValid() const { return Track != nullptr && StartTime <= EndTime; }
 
 	double Duration() const { return EndTime - StartTime; }
 
 	bool Equals(const FTimingEvent& Other) const
 	{
 		return Track == Other.Track
-			&& TypeId == Other.TypeId
 			&& Depth == Other.Depth
 			&& StartTime == Other.StartTime
 			&& EndTime == Other.EndTime;

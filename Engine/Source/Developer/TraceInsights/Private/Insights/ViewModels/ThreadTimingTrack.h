@@ -7,6 +7,9 @@
 // Insights
 #include "Insights/ViewModels/TimingEventsTrack.h"
 
+namespace Trace { struct FTimingProfilerEvent; }
+class FTimingEventSearchParameters;
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FThreadTimingTrack : public FTimingEventsTrack
@@ -30,13 +33,16 @@ public:
 	virtual void DrawSelectedEventInfo(const FTimingEvent& SelectedTimingEvent, const FTimingTrackViewport& Viewport, const FDrawContext& DrawContext, const FSlateBrush* WhiteBrush, const FSlateFontInfo& Font) const override;
 	virtual void InitTooltip(FTooltipDrawState& Tooltip, const FTimingEvent& HoveredTimingEvent) const override;
 
-	virtual bool SearchTimingEvent(const double InStartTime, const double InEndTime, TFunctionRef<bool(double, double, uint32)> InPredicate, FTimingEvent& InOutTimingEvent, bool bInStopAtFirstMatch, bool bInSearchForLargestEvent) const override;
+	virtual bool SearchTimingEvent(const FTimingEventSearchParameters& InSearchParameters, FTimingEvent& InOutTimingEvent) const override;
 	virtual void ComputeTimingEventStats(FTimingEvent& InOutTimingEvent) const override;
 	virtual void OnEventSelected(const FTimingEvent& SelectedTimingEvent) const override;
+	virtual void OnClipboardCopyEvent(const FTimingEvent& SelectedTimingEvent) const override;
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
 
 private:
-	void GetParentAndRoot(const FTimingEvent& TimingEvent, FTimingEvent& OutParentTimingEvent, FTimingEvent& OutRootTimingEvent) const;
+	bool FindTimingProfilerEvent(const FTimingEvent& InTimingEvent, TFunctionRef<void(double, double, uint32, const Trace::FTimingProfilerEvent&)> InFoundPredicate) const;
+	bool FindTimingProfilerEvent(const FTimingEventSearchParameters& InParameters, TFunctionRef<void(double, double, uint32, const Trace::FTimingProfilerEvent&)> InFoundPredicate) const;
+	void GetParentAndRoot(const FTimingEvent& TimingEvent, FTimingEvent& OutParentTimingEvent, Trace::FTimingProfilerEvent& OutParentEvent, FTimingEvent& OutRootTimingEvent, Trace::FTimingProfilerEvent& OutRootEvent) const;
 
 private:
 	const TCHAR* GroupName;

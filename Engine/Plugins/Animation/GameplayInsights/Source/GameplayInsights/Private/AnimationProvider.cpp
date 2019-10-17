@@ -173,7 +173,6 @@ void FAnimationProvider::AppendTickRecord(uint64 InObjectId, uint64 InSubObjectI
 	}
 
 	FTickRecordMessage Message;
-	Message.MessageId = Timeline->GetEventCount();
 	Message.ComponentId = InObjectId;
 	Message.AnimInstanceId = InSubObjectId;
 	Message.AssetId = InAssetId;
@@ -244,7 +243,6 @@ void FAnimationProvider::AppendSkeletalMeshPose(uint64 InObjectId, uint64 InMesh
 	}
 
 	FSkeletalMeshPoseMessage Message;
-	Message.MessageId = Timeline->GetEventCount();
 	Message.TransformStartIndex = SkeletalMeshPoseTransforms.Num();
 	Message.ComponentId = InObjectId;
 	Message.MeshId = InMeshId;

@@ -8,6 +8,7 @@
 #include "Insights/ViewModels/TimingEvent.h"
 #include "Insights/ViewModels/TooltipDrawState.h"
 #include "AnimationSharedData.h"
+#include "Insights/ViewModels/TimingEventSearch.h"
 
 #define LOCTEXT_NAMESPACE "AnimationTickRecordsTrack"
 
@@ -59,94 +60,71 @@ void FAnimationTickRecordsTrack::Draw(ITimingViewDrawHelper& Helper) const
 
 void FAnimationTickRecordsTrack::InitTooltip(FTooltipDrawState& Tooltip, const FTimingEvent& HoveredTimingEvent) const
 {
-	Tooltip.ResetContent();
+	FTimingEventSearchParameters SearchParameters(HoveredTimingEvent.StartTime, HoveredTimingEvent.EndTime, ETimingEventSearchFlags::StopAtFirstMatch);
 
-	Tooltip.AddTitle(GetName());
-
-	const FAnimationProvider* AnimationProvider = SharedData.GetAnalysisSession().ReadProvider<FAnimationProvider>(FAnimationProvider::ProviderName);
-	if(AnimationProvider)
+	FindTickRecordMessage(SearchParameters, [this, &Tooltip](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const FTickRecordMessage& InMessage)
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
+		Tooltip.ResetContent();
 
-		AnimationProvider->ReadTickRecordMessage(GetGameplayTrack().GetObjectId(), GetAssetId(), HoveredTimingEvent.TypeId, [this, &Tooltip, &HoveredTimingEvent](const FTickRecordMessage& InMessage)
-		{
-			Tooltip.AddNameValueTextLine(LOCTEXT("EventTime", "Time").ToString(), FText::AsNumber(HoveredTimingEvent.StartTime).ToString());
-			Tooltip.AddNameValueTextLine(LOCTEXT("BlendWeight", "Blend Weight").ToString(), FText::AsNumber(InMessage.BlendWeight).ToString());
-			Tooltip.AddNameValueTextLine(LOCTEXT("PlaybackTime", "Playback Time").ToString(), FText::AsNumber(InMessage.PlaybackTime).ToString());
-			Tooltip.AddNameValueTextLine(LOCTEXT("RootMotionWeight", "Root Motion Weight").ToString(), FText::AsNumber(InMessage.RootMotionWeight).ToString());
-			Tooltip.AddNameValueTextLine(LOCTEXT("PlayRate", "Play Rate").ToString(), FText::AsNumber(InMessage.PlayRate).ToString());
-			Tooltip.AddNameValueTextLine(LOCTEXT("Looping", "Looping").ToString(), InMessage.Looping ? LOCTEXT("True", "True").ToString() : LOCTEXT("False", "False").ToString());
-		});
-	}
+		Tooltip.AddTitle(GetName());
 
-	Tooltip.UpdateLayout();
+		Tooltip.AddNameValueTextLine(LOCTEXT("EventTime", "Time").ToString(), FText::AsNumber(InFoundStartTime).ToString());
+		Tooltip.AddNameValueTextLine(LOCTEXT("BlendWeight", "Blend Weight").ToString(), FText::AsNumber(InMessage.BlendWeight).ToString());
+		Tooltip.AddNameValueTextLine(LOCTEXT("PlaybackTime", "Playback Time").ToString(), FText::AsNumber(InMessage.PlaybackTime).ToString());
+		Tooltip.AddNameValueTextLine(LOCTEXT("RootMotionWeight", "Root Motion Weight").ToString(), FText::AsNumber(InMessage.RootMotionWeight).ToString());
+		Tooltip.AddNameValueTextLine(LOCTEXT("PlayRate", "Play Rate").ToString(), FText::AsNumber(InMessage.PlayRate).ToString());
+		Tooltip.AddNameValueTextLine(LOCTEXT("Looping", "Looping").ToString(), InMessage.Looping ? LOCTEXT("True", "True").ToString() : LOCTEXT("False", "False").ToString());
+
+		Tooltip.UpdateLayout();
+	});
 }
 
-bool FAnimationTickRecordsTrack::SearchTimingEvent(const double InStartTime, const double InEndTime, TFunctionRef<bool(double, double, uint32)> InPredicate, FTimingEvent& InOutTimingEvent, bool bInStopAtFirstMatch, bool bInSearchForLargestEvent) const
+bool FAnimationTickRecordsTrack::SearchTimingEvent(const FTimingEventSearchParameters& InSearchParameters, FTimingEvent& InOutTimingEvent) const
 {
-	struct FSearchTimingEventContext
+	return FindTickRecordMessage(InSearchParameters, [this, &InOutTimingEvent](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const FTickRecordMessage& InFoundMessage)
 	{
-		const double StartTime;
-		const double EndTime;
-		TFunctionRef<bool(double, double, uint32)> Predicate;
-		FTimingEvent& TimingEvent;
-		const bool bStopAtFirstMatch;
-		const bool bSearchForLargestEvent;
-		mutable bool bFound;
-		mutable bool bContinueSearching;
-		mutable double LargestDuration;
+		InOutTimingEvent = FTimingEvent(this, InFoundStartTime, InFoundEndTime, InFoundDepth);
+	});
+}
 
-		FSearchTimingEventContext(const double InStartTime, const double InEndTime, TFunctionRef<bool(double, double, uint32)> InPredicate, FTimingEvent& InOutTimingEvent, bool bInStopAtFirstMatch, bool bInSearchForLargestEvent)
-			: StartTime(InStartTime)
-			, EndTime(InEndTime)
-			, Predicate(InPredicate)
-			, TimingEvent(InOutTimingEvent)
-			, bStopAtFirstMatch(bInStopAtFirstMatch)
-			, bSearchForLargestEvent(bInSearchForLargestEvent)
-			, bFound(false)
-			, bContinueSearching(true)
-			, LargestDuration(-1.0)
-		{
-		}
+bool FAnimationTickRecordsTrack::FindTickRecordMessage(const FTimingEventSearchParameters& InParameters, TFunctionRef<void(double, double, uint32, const FTickRecordMessage&)> InFoundPredicate) const
+{
+	// Storage for the message we want to match (payload for an event)
+	FTickRecordMessage MatchedMessage;
 
-		void CheckMessage(double EventStartTime, double EventEndTime, uint32 EventDepth, uint64 InMessageId)
+	return TTimingEventSearch<FTickRecordMessage>::Search(
+		InParameters,
+
+		// Search...
+		[this](TTimingEventSearch<FTickRecordMessage>::FContext& InContext)
 		{
-			if (bContinueSearching && Predicate(EventStartTime, EventEndTime, EventDepth))
+			const FAnimationProvider* AnimationProvider = SharedData.GetAnalysisSession().ReadProvider<FAnimationProvider>(FAnimationProvider::ProviderName);
+
+			if(AnimationProvider)
 			{
-				if (!bSearchForLargestEvent || EventEndTime - EventStartTime > LargestDuration)
+				Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
+
+				AnimationProvider->ReadTickRecordTimeline(GetGameplayTrack().GetObjectId(), GetAssetId(), [this, &InContext](const FAnimationProvider::TickRecordTimeline& InTimeline)
 				{
-					LargestDuration = EventEndTime - EventStartTime;
-
-					TimingEvent.TypeId = InMessageId;
-					TimingEvent.Depth = EventDepth;
-					TimingEvent.StartTime = EventStartTime;
-					TimingEvent.EndTime = EventEndTime;
-
-					bFound = true;
-					bContinueSearching = !bStopAtFirstMatch || bSearchForLargestEvent;
-				}
+					InTimeline.EnumerateEvents(InContext.GetParameters().StartTime, InContext.GetParameters().EndTime, [&InContext](double InEventStartTime, double InEventEndTime, uint32 InDepth, const FTickRecordMessage& InMessage)
+					{
+						InContext.Check(InEventStartTime, InEventEndTime, 0, InMessage);
+					});
+				});
 			}
-		}
-	};
+		},
 
-	const FAnimationProvider* AnimationProvider = SharedData.GetAnalysisSession().ReadProvider<FAnimationProvider>(FAnimationProvider::ProviderName);
-
-	if(AnimationProvider)
-	{
-		FSearchTimingEventContext Context(InStartTime, InEndTime, InPredicate, InOutTimingEvent, bInStopAtFirstMatch, bInSearchForLargestEvent);
-
-		Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
-
-		AnimationProvider->ReadTickRecordTimeline(GetGameplayTrack().GetObjectId(), GetAssetId(), [this, &Context, &InStartTime, &InEndTime](const FAnimationProvider::TickRecordTimeline& InTimeline)
+		// Matched...
+		[&MatchedMessage](double InStartTime, double InEndTime, uint32 InDepth, const FTickRecordMessage& InEvent)
 		{
-			InTimeline.EnumerateEvents(InStartTime, InEndTime, [&Context](double InEventStartTime, double InEventEndTime, uint32 InDepth, const FTickRecordMessage& InMessage)
-			{
-				Context.CheckMessage(InEventStartTime, InEventEndTime, 0, InMessage.MessageId);
-			});
-		});
-	}
+			MatchedMessage = InEvent;
+		},
 
-	return false;
+		// Found!
+		[&InFoundPredicate, &MatchedMessage](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth)
+		{
+			InFoundPredicate(InFoundStartTime, InFoundEndTime, InFoundDepth, MatchedMessage);
+		});
 }
 
 #undef LOCTEXT_NAMESPACE

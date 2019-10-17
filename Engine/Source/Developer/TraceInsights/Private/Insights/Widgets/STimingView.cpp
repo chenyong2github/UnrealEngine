@@ -10,7 +10,6 @@
 #include "Framework/Application/MenuStack.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "HAL/PlatformApplicationMisc.h"
 #include "HAL/PlatformTime.h"
 #include "Layout/WidgetPath.h"
 #include "Misc/Paths.h"
@@ -50,6 +49,7 @@
 #include "Insights/Widgets/STimersView.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
 #include "Insights/ITimingViewExtender.h"
+#include "Insights/ViewModels/TimingEventSearch.h"
 
 #include <limits>
 
@@ -1620,12 +1620,7 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 		{
 			if (SelectedTimingEvent.IsValid())
 			{
-				const FTimerNodePtr TimerNodePtr = FTimingProfilerManager::Get()->GetTimerNode(SelectedTimingEvent.TypeId);
-				if (TimerNodePtr.IsValid())
-				{
-					// Copy name of selected timing event to clipboard.
-					FPlatformApplicationMisc::ClipboardCopy(*TimerNodePtr->GetName().ToString());
-				}
+				SelectedTimingEvent.Track->OnClipboardCopyEvent(SelectedTimingEvent);
 			}
 		}
 		else
@@ -2217,14 +2212,15 @@ void STimingView::UpdateHoveredTimingEvent(float MX, float MY)
 
 				const double StartTime = Viewport.SlateUnitsToTime(MX);
 				const double EndTime = StartTime + 2.0 / Viewport.GetScaleX(); // +2px
-				constexpr bool bStopAtFirstMatch = true; // get first one matching
-				constexpr bool bSearchForLargestEvent = false;
-				TimingEvent.Track->SearchTimingEvent(StartTime, EndTime,
+
+				FTimingEventSearchParameters SearchParameters(StartTime, EndTime, ETimingEventSearchFlags::StopAtFirstMatch,
+					// Filter
 					[Depth](double, double, uint32 EventDepth)
 					{
 						return EventDepth == Depth;
-					},
-					TimingEvent, bStopAtFirstMatch, bSearchForLargestEvent);
+					});
+				
+				TimingEvent.Track->SearchTimingEvent(SearchParameters, TimingEvent);
 			}
 		}
 	}
@@ -2292,15 +2288,16 @@ void STimingView::SelectLeftTimingEvent()
 		const uint32 Depth = SelectedTimingEvent.Depth;
 		const double StartTime = SelectedTimingEvent.StartTime;
 		const double EndTime = SelectedTimingEvent.EndTime;
-		const bool bStopAtFirstMatch = false; // get last one matching
-		const bool bSearchForLargestEvent = false;
-		if (SelectedTimingEvent.Track->SearchTimingEvent(0.0, StartTime,
+
+		FTimingEventSearchParameters SearchParameters(0.0, StartTime, ETimingEventSearchFlags::SearchAll,
+			// Filter
 			[Depth, StartTime, EndTime](double EventStartTime, double EventEndTime, uint32 EventDepth)
 			{
 				return EventDepth == Depth &&
 					(EventStartTime < StartTime || EventEndTime < EndTime);
-			},
-			SelectedTimingEvent, bStopAtFirstMatch, bSearchForLargestEvent))
+			});
+
+		if (SelectedTimingEvent.Track->SearchTimingEvent(SearchParameters, SelectedTimingEvent))
 		{
 			SelectedTimingEvent.Track->ComputeTimingEventStats(SelectedTimingEvent);
 			BringIntoView(SelectedTimingEvent.StartTime, SelectedTimingEvent.EndTime);
@@ -2318,15 +2315,15 @@ void STimingView::SelectRightTimingEvent()
 		const uint32 Depth = SelectedTimingEvent.Depth;
 		const double StartTime = SelectedTimingEvent.StartTime;
 		const double EndTime = SelectedTimingEvent.EndTime;
-		const bool bStopAtFirstMatch = true; // get first one matching
-		const bool bSearchForLargestEvent = false;
-		if (SelectedTimingEvent.Track->SearchTimingEvent(EndTime, Viewport.GetMaxValidTime(),
+		FTimingEventSearchParameters SearchParameters(EndTime, Viewport.GetMaxValidTime(), ETimingEventSearchFlags::StopAtFirstMatch,
+			// Filter
 			[Depth, StartTime, EndTime](double EventStartTime, double EventEndTime, uint32 EventDepth)
 			{
 				return EventDepth == Depth &&
 					(EventStartTime > StartTime || EventEndTime > EndTime);
-			},
-			SelectedTimingEvent, bStopAtFirstMatch, bSearchForLargestEvent))
+			});
+
+		if (SelectedTimingEvent.Track->SearchTimingEvent(SearchParameters,SelectedTimingEvent))
 		{
 			SelectedTimingEvent.Track->ComputeTimingEventStats(SelectedTimingEvent);
 			BringIntoView(SelectedTimingEvent.StartTime, SelectedTimingEvent.EndTime);
@@ -2343,18 +2340,18 @@ void STimingView::SelectUpTimingEvent()
 		SelectedTimingEvent.Depth > 0)
 	{
 		const uint32 Depth = SelectedTimingEvent.Depth - 1;
-		double StartTime = SelectedTimingEvent.StartTime;
-		double EndTime = SelectedTimingEvent.EndTime;
-		const bool bStopAtFirstMatch = true; // get first one matching
-		const bool bSearchForLargestEvent = false;
-		if (SelectedTimingEvent.Track->SearchTimingEvent(StartTime, EndTime,
+		const double StartTime = SelectedTimingEvent.StartTime;
+		const double EndTime = SelectedTimingEvent.EndTime;
+		FTimingEventSearchParameters SearchParameters(StartTime, EndTime, ETimingEventSearchFlags::StopAtFirstMatch,
+			// Filter
 			[Depth, StartTime, EndTime](double EventStartTime, double EventEndTime, uint32 EventDepth)
 			{
 				return EventDepth == Depth
 					&& EventStartTime <= EndTime
 					&& EventEndTime >= StartTime;
-			},
-			SelectedTimingEvent, bStopAtFirstMatch, bSearchForLargestEvent))
+			});
+
+		if (SelectedTimingEvent.Track->SearchTimingEvent(SearchParameters, SelectedTimingEvent))
 		{
 			SelectedTimingEvent.Track->ComputeTimingEventStats(SelectedTimingEvent);
 			BringIntoView(SelectedTimingEvent.StartTime, SelectedTimingEvent.EndTime);
@@ -2370,18 +2367,28 @@ void STimingView::SelectDownTimingEvent()
 	if (SelectedTimingEvent.IsValid())
 	{
 		const uint32 Depth = SelectedTimingEvent.Depth + 1;
-		double StartTime = SelectedTimingEvent.StartTime;
-		double EndTime = SelectedTimingEvent.EndTime;
-		const bool bStopAtFirstMatch = false; // check all timing events
-		const bool bSearchForLargestEvent = true; // get largest timing event
-		if (SelectedTimingEvent.Track->SearchTimingEvent(StartTime, EndTime,
-			[Depth, StartTime, EndTime](double EventStartTime, double EventEndTime, uint32 EventDepth)
-			{
-				return EventDepth == Depth
-					&& EventStartTime <= EndTime
-					&& EventEndTime >= StartTime;
-			},
-			SelectedTimingEvent, bStopAtFirstMatch, bSearchForLargestEvent))
+		const double StartTime = SelectedTimingEvent.StartTime;
+		const double EndTime = SelectedTimingEvent.EndTime;
+		double LargestDuration = 0.0;
+		FTimingEventSearchParameters SearchParameters(StartTime, EndTime, ETimingEventSearchFlags::SearchAll,
+		// Filter
+		[Depth, StartTime, EndTime, &LargestDuration](double EventStartTime, double EventEndTime, uint32 EventDepth)
+		{
+			const double Duration = EventEndTime - EventStartTime;
+
+			return Duration > LargestDuration
+				&& EventDepth == Depth
+				&& EventStartTime <= EndTime
+				&& EventEndTime >= StartTime;
+		},
+		// Matched
+		[&LargestDuration](double EventStartTime, double EventEndTime, uint32 EventDepth)
+		{
+			const double Duration = EventEndTime - EventStartTime;
+			LargestDuration = Duration;
+		});
+		
+		if (SelectedTimingEvent.Track->SearchTimingEvent(SearchParameters, SelectedTimingEvent))
 		{
 			SelectedTimingEvent.Track->ComputeTimingEventStats(SelectedTimingEvent);
 			BringIntoView(SelectedTimingEvent.StartTime, SelectedTimingEvent.EndTime);

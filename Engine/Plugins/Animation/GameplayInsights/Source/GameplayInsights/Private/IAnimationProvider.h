@@ -16,7 +16,6 @@ struct FSkeletalMeshInfo
 
 struct FSkeletalMeshPoseMessage
 {
-	uint64 MessageId = 0;
 	uint64 TransformStartIndex = 0;
 	uint64 ComponentId = 0;	
 	uint64 MeshId = 0;	
@@ -27,7 +26,6 @@ struct FSkeletalMeshPoseMessage
 
 struct FTickRecordMessage
 {
-	uint64 MessageId = 0;
 	uint64 ComponentId = 0;
 	uint64 AnimInstanceId = 0;
 	uint64 AssetId = 0;

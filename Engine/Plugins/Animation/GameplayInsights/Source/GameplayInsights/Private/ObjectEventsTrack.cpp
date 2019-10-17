@@ -8,6 +8,7 @@
 #include "Algo/Sort.h"
 #include "Insights/ViewModels/TooltipDrawState.h"
 #include "GameplaySharedData.h"
+#include "Insights/ViewModels/TimingEventSearch.h"
 
 #define LOCTEXT_NAMESPACE "ObjectEventsTrack"
 
@@ -48,92 +49,65 @@ void FObjectEventsTrack::Draw(ITimingViewDrawHelper& Helper) const
 
 void FObjectEventsTrack::InitTooltip(FTooltipDrawState& Tooltip, const FTimingEvent& HoveredTimingEvent) const
 {
-	Tooltip.ResetContent();
+	FTimingEventSearchParameters SearchParameters(HoveredTimingEvent.StartTime, HoveredTimingEvent.EndTime, ETimingEventSearchFlags::StopAtFirstMatch);
 
-	const FGameplayProvider* GameplayProvider = SharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
-	if(GameplayProvider)
+	FindObjectEvent(SearchParameters, [this, &Tooltip, &HoveredTimingEvent](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const FObjectEventMessage& InMessage)
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
+		Tooltip.ResetContent();
 
-		GameplayProvider->ReadObjectEventsTimeline(GetGameplayTrack().GetObjectId(), [&Tooltip, &HoveredTimingEvent](const FGameplayProvider::ObjectEventsTimeline& InTimeline)
-		{
-			if(HoveredTimingEvent.TypeId < InTimeline.GetEventCount())
-			{
-				const FObjectEventMessage& Message = InTimeline.GetEvent(HoveredTimingEvent.TypeId);
-				Tooltip.AddTitle(FText::FromString(FString(Message.Name)).ToString());
-				Tooltip.AddNameValueTextLine(LOCTEXT("EventTime", "Time").ToString(), FText::AsNumber(HoveredTimingEvent.StartTime).ToString());
-			}
-		});
-	}
+		Tooltip.AddTitle(FText::FromString(FString(InMessage.Name)).ToString());
+		Tooltip.AddNameValueTextLine(LOCTEXT("EventTime", "Time").ToString(), FText::AsNumber(HoveredTimingEvent.StartTime).ToString());
 
-	Tooltip.UpdateLayout();
+		Tooltip.UpdateLayout();
+	});
 }
 
-bool FObjectEventsTrack::SearchTimingEvent(const double InStartTime, const double InEndTime, TFunctionRef<bool(double, double, uint32)> InPredicate, FTimingEvent& InOutTimingEvent, bool bInStopAtFirstMatch, bool bInSearchForLargestEvent) const
+bool FObjectEventsTrack::SearchTimingEvent(const FTimingEventSearchParameters& InSearchParameters, FTimingEvent& InOutTimingEvent) const
 {
-	struct FSearchTimingEventContext
+	return FindObjectEvent(InSearchParameters, [this, &InOutTimingEvent](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const FObjectEventMessage& InFoundMessage)
 	{
-		const double StartTime;
-		const double EndTime;
-		TFunctionRef<bool(double, double, uint32)> Predicate;
-		FTimingEvent& TimingEvent;
-		const bool bStopAtFirstMatch;
-		const bool bSearchForLargestEvent;
-		mutable bool bFound;
-		mutable bool bContinueSearching;
-		mutable double LargestDuration;
+		InOutTimingEvent = FTimingEvent(this, InFoundStartTime, InFoundEndTime, InFoundDepth);
+	});
+}
 
-		FSearchTimingEventContext(const double InStartTime, const double InEndTime, TFunctionRef<bool(double, double, uint32)> InPredicate, FTimingEvent& InOutTimingEvent, bool bInStopAtFirstMatch, bool bInSearchForLargestEvent)
-			: StartTime(InStartTime)
-			, EndTime(InEndTime)
-			, Predicate(InPredicate)
-			, TimingEvent(InOutTimingEvent)
-			, bStopAtFirstMatch(bInStopAtFirstMatch)
-			, bSearchForLargestEvent(bInSearchForLargestEvent)
-			, bFound(false)
-			, bContinueSearching(true)
-			, LargestDuration(-1.0)
-		{
-		}
+bool FObjectEventsTrack::FindObjectEvent(const FTimingEventSearchParameters& InParameters, TFunctionRef<void(double, double, uint32, const FObjectEventMessage&)> InFoundPredicate) const
+{
+	// Storage for the message we want to match (payload for an event)
+	FObjectEventMessage MatchedMessage;
 
-		void CheckMessage(double EventStartTime, double EventEndTime, uint32 EventDepth, uint64 InMessageId)
+	return TTimingEventSearch<FObjectEventMessage>::Search(
+		InParameters,
+
+		// Search...
+		[this](TTimingEventSearch<FObjectEventMessage>::FContext& InContext)
 		{
-			if (bContinueSearching && Predicate(EventStartTime, EventEndTime, EventDepth))
+			const FGameplayProvider* GameplayProvider = SharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
+
+			if(GameplayProvider)
 			{
-				if (!bSearchForLargestEvent || EventEndTime - EventStartTime > LargestDuration)
+				Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
+
+				GameplayProvider->ReadObjectEventsTimeline(GetGameplayTrack().GetObjectId(), [&InContext](const FGameplayProvider::ObjectEventsTimeline& InTimeline)
 				{
-					LargestDuration = EventEndTime - EventStartTime;
-
-					TimingEvent.TypeId = InMessageId;
-					TimingEvent.Depth = EventDepth;
-					TimingEvent.StartTime = EventStartTime;
-					TimingEvent.EndTime = EventEndTime;
-
-					bFound = true;
-					bContinueSearching = !bStopAtFirstMatch || bSearchForLargestEvent;
-				}
+					InTimeline.EnumerateEvents(InContext.GetParameters().StartTime, InContext.GetParameters().EndTime, [&InContext](double InEventStartTime, double InEventEndTime, uint32 InDepth, const FObjectEventMessage& InMessage)
+					{
+						InContext.Check(InEventStartTime, InEventEndTime, 0, InMessage);
+					});
+				});
 			}
-		}
-	};
+		},
 
-	const FGameplayProvider* GameplayProvider = SharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
-
-	if(GameplayProvider)
-	{
-		FSearchTimingEventContext Context(InStartTime, InEndTime, InPredicate, InOutTimingEvent, bInStopAtFirstMatch, bInSearchForLargestEvent);
-
-		Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
-
-		GameplayProvider->ReadObjectEventsTimeline(GetGameplayTrack().GetObjectId(), [&Context, &InStartTime, &InEndTime](const FGameplayProvider::ObjectEventsTimeline& InTimeline)
+		// Matched...
+		[&MatchedMessage](double InStartTime, double InEndTime, uint32 InDepth, const FObjectEventMessage& InEvent)
 		{
-			InTimeline.EnumerateEvents(InStartTime, InEndTime, [&Context](double InEventStartTime, double InEventEndTime, uint32 InDepth, const FObjectEventMessage& InMessage)
-			{
-				Context.CheckMessage(InEventStartTime, InEventEndTime, 0, InMessage.MessageId);
-			});
-		});
-	}
+			MatchedMessage = InEvent;
+		},
 
-	return false;
+		// Found!
+		[&InFoundPredicate, &MatchedMessage](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth)
+		{
+			InFoundPredicate(InFoundStartTime, InFoundEndTime, InFoundDepth, MatchedMessage);
+		});
 }
 
 #undef LOCTEXT_NAMESPACE

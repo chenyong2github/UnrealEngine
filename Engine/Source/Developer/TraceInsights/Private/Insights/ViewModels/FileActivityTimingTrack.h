@@ -7,6 +7,8 @@
 // Insights
 #include "Insights/ViewModels/TimingEventsTrack.h"
 
+class FTimingEventSearchParameters;
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FFileActivitySharedState
@@ -78,7 +80,7 @@ public:
 	virtual void InitTooltip(FTooltipDrawState& Tooltip, const FTimingEvent& HoveredTimingEvent) const override;
 
 protected:
-	bool SearchEvent(const double InStartTime, const double InEndTime, TFunctionRef<bool(double, double, uint32)> InPredicate, FTimingEvent& InOutTimingEvent, bool bInStopAtFirstMatch, bool bInSearchForLargestEvent, bool bIgnoreEventDepth) const;
+	bool FindIoTimingEvent(const FTimingEventSearchParameters& InParameters, bool bIgnoreEventDepth, TFunctionRef<void(double, double, uint32, const FFileActivitySharedState::FIoTimingEvent&)> InFoundPredicate) const;
 
 protected:
 	TSharedPtr<FFileActivitySharedState> State;
@@ -95,11 +97,7 @@ public:
 	}
 
 	virtual void Draw(ITimingViewDrawHelper& Helper) const override;
-	virtual bool SearchTimingEvent(const double InStartTime, const double InEndTime, TFunctionRef<bool(double, double, uint32)> InPredicate, FTimingEvent& InOutTimingEvent, bool bInStopAtFirstMatch, bool bInSearchForLargestEvent) const override
-	{
-		constexpr bool bIgnoreEventDepth = true;
-		return SearchEvent(InStartTime, InEndTime, InPredicate, InOutTimingEvent, bInStopAtFirstMatch, bInSearchForLargestEvent, bIgnoreEventDepth);
-	}
+	virtual bool SearchTimingEvent(const FTimingEventSearchParameters& InSearchParameters,  FTimingEvent& InOutTimingEvent) const override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -113,11 +111,7 @@ public:
 	}
 
 	virtual void Draw(ITimingViewDrawHelper& Helper) const override;
-	virtual bool SearchTimingEvent(const double InStartTime, const double InEndTime, TFunctionRef<bool(double, double, uint32)> InPredicate, FTimingEvent& InOutTimingEvent, bool bInStopAtFirstMatch, bool bInSearchForLargestEvent) const override
-	{
-		constexpr bool bIgnoreEventDepth = false;
-		return SearchEvent(InStartTime, InEndTime, InPredicate, InOutTimingEvent, bInStopAtFirstMatch, bInSearchForLargestEvent, bIgnoreEventDepth);
-	}
+	virtual bool SearchTimingEvent(const FTimingEventSearchParameters& InSearchParameters, FTimingEvent& InOutTimingEvent) const override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

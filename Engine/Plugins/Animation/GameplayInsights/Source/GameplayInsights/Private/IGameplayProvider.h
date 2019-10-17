@@ -24,7 +24,6 @@ struct FObjectInfo
 
 struct FObjectEventMessage
 {
-	uint64 MessageId = 0;
 	uint64 Id = 0;
 	const TCHAR* Name = nullptr;
 };

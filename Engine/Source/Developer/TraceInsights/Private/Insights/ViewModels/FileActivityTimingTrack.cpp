@@ -17,6 +17,7 @@
 #include "Insights/ViewModels/TimingTrackViewport.h"
 #include "Insights/ViewModels/TimingViewDrawHelper.h"
 #include "Insights/ViewModels/TooltipDrawState.h"
+#include "Insights/ViewModels/TimingEventSearch.h"
 
 #include <limits>
 
@@ -396,129 +397,99 @@ void FFileActivitySharedState::Update()
 
 void FFileActivityTimingTrack::InitTooltip(FTooltipDrawState& Tooltip, const FTimingEvent& HoveredTimingEvent) const
 {
-	Tooltip.ResetContent();
+	auto MatchDepth = [&HoveredTimingEvent](double, double, uint32 InDepth)
+	{ 
+		return InDepth == HoveredTimingEvent.Depth; 
+	};
 
-	const Trace::EFileActivityType ActivityType = static_cast<Trace::EFileActivityType>(HoveredTimingEvent.TypeId & 0x0F);
-	const bool bHasFailed = ((HoveredTimingEvent.TypeId & 0xF0) != 0);
-
-	FString TypeStr;
-	uint32 TypeColor;
-	if (bHasFailed)
+	FTimingEventSearchParameters SearchParameters(HoveredTimingEvent.StartTime, HoveredTimingEvent.EndTime, ETimingEventSearchFlags::StopAtFirstMatch, MatchDepth);
+	FindIoTimingEvent(SearchParameters, false, [this, &Tooltip, &HoveredTimingEvent](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const FFileActivitySharedState::FIoTimingEvent& InEvent)
 	{
-		TypeStr = TEXT("Failed ");
-		TypeStr += GetFileActivityTypeName(ActivityType);
-		TypeColor = 0xFFFF3333;
-	}
-	else
-	{
-		TypeStr = GetFileActivityTypeName(ActivityType);
-		TypeColor = GetFileActivityTypeColor(ActivityType);
-	}
-	FLinearColor TypeLinearColor = FLinearColor(FColor(TypeColor));
-	TypeLinearColor.R *= 2.0f;
-	TypeLinearColor.G *= 2.0f;
-	TypeLinearColor.B *= 2.0f;
-	Tooltip.AddTitle(TypeStr, TypeLinearColor);
+		Tooltip.ResetContent();
 
-	Tooltip.AddTitle(HoveredTimingEvent.Path);
+		const Trace::EFileActivityType ActivityType = static_cast<Trace::EFileActivityType>(InEvent.Type & 0x0F);
+		const bool bHasFailed = ((InEvent.Type & 0xF0) != 0);
 
-	Tooltip.AddNameValueTextLine(TEXT("Duration:"), TimeUtils::FormatTimeAuto(HoveredTimingEvent.Duration()));
-	Tooltip.AddNameValueTextLine(TEXT("Depth:"), FString::Printf(TEXT("%d"), HoveredTimingEvent.Depth));
+		FString TypeStr;
+		uint32 TypeColor;
+		if (bHasFailed)
+		{
+			TypeStr = TEXT("Failed ");
+			TypeStr += GetFileActivityTypeName(ActivityType);
+			TypeColor = 0xFFFF3333;
+		}
+		else
+		{
+			TypeStr = GetFileActivityTypeName(ActivityType);
+			TypeColor = GetFileActivityTypeColor(ActivityType);
+		}
+		FLinearColor TypeLinearColor = FLinearColor(FColor(TypeColor));
+		TypeLinearColor.R *= 2.0f;
+		TypeLinearColor.G *= 2.0f;
+		TypeLinearColor.B *= 2.0f;
+		Tooltip.AddTitle(TypeStr, TypeLinearColor);
 
-	if (ActivityType == Trace::FileActivityType_Read || ActivityType == Trace::FileActivityType_Write)
-	{
-		Tooltip.AddNameValueTextLine(TEXT("Offset:"), FText::AsNumber(HoveredTimingEvent.Offset).ToString() + TEXT(" bytes"));
-		Tooltip.AddNameValueTextLine(TEXT("Size:"), FText::AsNumber(HoveredTimingEvent.Size).ToString() + TEXT(" bytes"));
-	}
+		Tooltip.AddTitle(InEvent.FileActivity->Path);
 
-	Tooltip.UpdateLayout();
+		Tooltip.AddNameValueTextLine(TEXT("Duration:"), TimeUtils::FormatTimeAuto(HoveredTimingEvent.Duration()));
+		Tooltip.AddNameValueTextLine(TEXT("Depth:"), FString::Printf(TEXT("%d"), HoveredTimingEvent.Depth));
+
+		if (ActivityType == Trace::FileActivityType_Read || ActivityType == Trace::FileActivityType_Write)
+		{
+			Tooltip.AddNameValueTextLine(TEXT("Offset:"), FText::AsNumber(InEvent.Offset).ToString() + TEXT(" bytes"));
+			Tooltip.AddNameValueTextLine(TEXT("Size:"), FText::AsNumber(InEvent.Size).ToString() + TEXT(" bytes"));
+		}
+
+		Tooltip.UpdateLayout();
+	});
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool FFileActivityTimingTrack::SearchEvent(const double InStartTime,
-										   const double InEndTime,
-										   TFunctionRef<bool(double, double, uint32)> InPredicate,
-										   FTimingEvent& InOutTimingEvent,
-										   bool bInStopAtFirstMatch,
-										   bool bInSearchForLargestEvent,
-										   bool bIgnoreEventDepth) const
+bool FFileActivityTimingTrack::FindIoTimingEvent(const FTimingEventSearchParameters& InParameters, bool bIgnoreEventDepth, TFunctionRef<void(double, double, uint32, const FFileActivitySharedState::FIoTimingEvent&)> InFoundPredicate) const
 {
-	struct FSearchTimingEventContext
-	{
-		const double StartTime;
-		const double EndTime;
-		TFunctionRef<bool(double, double, uint32)> Predicate;
-		FTimingEvent& TimingEvent;
-		const bool bStopAtFirstMatch;
-		const bool bSearchForLargestEvent;
-		mutable bool bFound;
-		mutable bool bContinueSearching;
-		mutable double LargestDuration;
+	// Storage for the event we want to match
+	FFileActivitySharedState::FIoTimingEvent MatchedEvent;
 
-		FSearchTimingEventContext(const double InStartTime, const double InEndTime, TFunctionRef<bool(double, double, uint32)> InPredicate, FTimingEvent& InOutTimingEvent, bool bInStopAtFirstMatch, bool bInSearchForLargestEvent)
-			: StartTime(InStartTime)
-			, EndTime(InEndTime)
-			, Predicate(InPredicate)
-			, TimingEvent(InOutTimingEvent)
-			, bStopAtFirstMatch(bInStopAtFirstMatch)
-			, bSearchForLargestEvent(bInSearchForLargestEvent)
-			, bFound(false)
-			, bContinueSearching(true)
-			, LargestDuration(-1.0)
-		{
-		}
+	return TTimingEventSearch<FFileActivitySharedState::FIoTimingEvent>::Search(
+		InParameters,
 
-		void CheckEvent(const FFileActivitySharedState::FIoTimingEvent& Event, uint32 EventDepth)
+		// Search...
+		[this, bIgnoreEventDepth](TTimingEventSearch<FFileActivitySharedState::FIoTimingEvent>::FContext& InContext)
 		{
-			if (bContinueSearching && Predicate(Event.StartTime, Event.EndTime, EventDepth))
+			TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+			if (Session.IsValid())
 			{
-				if (!bSearchForLargestEvent || Event.EndTime - Event.StartTime > LargestDuration)
+				Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+
+				for (const FFileActivitySharedState::FIoTimingEvent& Event : State->GetAllEvents())
 				{
-					LargestDuration = Event.EndTime - Event.StartTime;
+					if (Event.EndTime <= InContext.GetParameters().StartTime)
+					{
+						continue;
+					}
 
-					TimingEvent.TypeId = Event.Type;
-					TimingEvent.Depth = EventDepth;
-					TimingEvent.StartTime = Event.StartTime;
-					TimingEvent.EndTime = Event.EndTime;
+					if (!InContext.ShouldContinueSearching() || InContext.GetParameters().StartTime >= InContext.GetParameters().EndTime)
+					{
+						break;
+					}
 
-					TimingEvent.Offset = Event.Offset;
-					TimingEvent.Size = Event.Size;
-					TimingEvent.Path = Event.FileActivity->Path;
-
-					bFound = true;
-					bContinueSearching = !bStopAtFirstMatch || bSearchForLargestEvent;
+					InContext.Check(Event.StartTime, Event.EndTime, bIgnoreEventDepth ? 0 : Event.Depth, Event);
 				}
 			}
-		}
-	};
+		},
 
-	FSearchTimingEventContext Ctx(InStartTime, InEndTime, InPredicate, InOutTimingEvent, bInStopAtFirstMatch, bInSearchForLargestEvent);
-
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-	if (Session.IsValid())
-	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-
-		const FTimingEventsTrack* Track = Ctx.TimingEvent.Track;
-
-		for (const FFileActivitySharedState::FIoTimingEvent& Event : State->GetAllEvents())
+		// Matched...
+		[&MatchedEvent](double InStartTime, double InEndTime, uint32 InDepth, const FFileActivitySharedState::FIoTimingEvent& InEvent)
 		{
-			if (Event.EndTime <= Ctx.StartTime)
-			{
-				continue;
-			}
+			MatchedEvent = InEvent;
+		},
 
-			if (!Ctx.bContinueSearching || Event.StartTime >= Ctx.EndTime)
-			{
-				break;
-			}
-
-			Ctx.CheckEvent(Event, bIgnoreEventDepth ? 0 : Event.Depth);
-		}
-	}
-
-	return Ctx.bFound;
+		// Found!
+		[&InFoundPredicate, &MatchedEvent](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth)
+		{
+			InFoundPredicate(InFoundStartTime, InFoundEndTime, InFoundDepth, MatchedEvent);
+		});
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -573,6 +544,15 @@ void FOverviewFileActivityTimingTrack::Draw(ITimingViewDrawHelper& Helper) const
 
 		Helper.EndTimeline(Track);
 	}
+}
+
+bool FOverviewFileActivityTimingTrack::SearchTimingEvent(const FTimingEventSearchParameters& InSearchParameters, FTimingEvent& InOutTimingEvent) const
+{
+	constexpr bool bIgnoreEventDepth = true;
+	return FindIoTimingEvent(InSearchParameters, bIgnoreEventDepth, [this, &InOutTimingEvent](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const FFileActivitySharedState::FIoTimingEvent& InEvent)
+	{
+		InOutTimingEvent = FTimingEvent(this, InFoundStartTime, InFoundEndTime, InFoundDepth);
+	});
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -652,6 +632,15 @@ void FDetailedFileActivityTimingTrack::Draw(ITimingViewDrawHelper& Helper) const
 
 		Helper.EndTimeline(Track);
 	}
+}
+
+bool FDetailedFileActivityTimingTrack::SearchTimingEvent(const FTimingEventSearchParameters& InSearchParameters, FTimingEvent& InOutTimingEvent) const
+{
+	constexpr bool bIgnoreEventDepth = false;
+	return FindIoTimingEvent(InSearchParameters, bIgnoreEventDepth, [this, &InOutTimingEvent](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const FFileActivitySharedState::FIoTimingEvent& InEvent)
+	{
+		InOutTimingEvent = FTimingEvent(this, InFoundStartTime, InFoundEndTime, InFoundDepth);
+	});
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -16,6 +16,7 @@ struct FTimingViewTooltip;
 class ITimingViewDrawHelper;
 class FTooltipDrawState;
 namespace Trace { class IAnalysisSession; }
+class FTimingEventSearchParameters;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -71,11 +72,14 @@ public:
 	virtual void DrawSelectedEventInfo(const FTimingEvent& SelectedTimingEvent, const FTimingTrackViewport& Viewport, const FDrawContext& DrawContext, const FSlateBrush* WhiteBrush, const FSlateFontInfo& Font) const {}
 	virtual void InitTooltip(FTooltipDrawState& Tooltip, const FTimingEvent& HoveredTimingEvent) const {}
 
-	virtual bool SearchTimingEvent(const double InStartTime, const double InEndTime, TFunctionRef<bool(double, double, uint32)> InPredicate, FTimingEvent& InOutTimingEvent, bool bInStopAtFirstMatch, bool bInSearchForLargestEvent) const { return false; }
+	virtual bool SearchTimingEvent(const FTimingEventSearchParameters& InSearchParameters, FTimingEvent& InOutTimingEvent) const { return false; }
 	virtual void ComputeTimingEventStats(FTimingEvent& InOutTimingEvent) const {}
 
 	// Called back from the timing view when an event is selected
 	virtual void OnEventSelected(const FTimingEvent& SelectedTimingEvent) const {}
+
+	// Called back from the timing view when a selected event is copied to the clipboard with Ctrl+C
+	virtual void OnClipboardCopyEvent(const FTimingEvent& SelectedTimingEvent) const {}
 
 private:
 	int32 NumLanes; // number of lanes (sub-tracks)
