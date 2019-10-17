@@ -104,7 +104,7 @@ FTexture2DStreamIn_DDC::FTexture2DStreamIn_DDC(UTexture2D* InTexture, int32 InRe
 	: FTexture2DStreamIn(InTexture, InRequestedMips)
 	, bDDCIsInvalid(false)
 {
-	FMemory::Memzero(DDCHandles, sizeof(DDCHandles));
+	DDCHandles.AddZeroed(InTexture->GetNumMips());
 }
 
 FTexture2DStreamIn_DDC::~FTexture2DStreamIn_DDC()
