@@ -903,6 +903,26 @@ TMap<FName, TArray<TSharedPtr<FTemplateItem>> >& SNewProjectWizard::FindTemplate
 		}
 	}
 
+	TArray<TSharedPtr<FTemplateCategory>> AllTemplateCategories;
+	SGameProjectDialog::GetAllTemplateCategories(AllTemplateCategories);
+
+	// Validate that all our templates have a category defined
+	TArray<FName> CategoryKeys;
+	Templates.GetKeys(CategoryKeys);
+	for (const FName& CategoryKey : CategoryKeys)
+	{
+		bool bCategoryExists = AllTemplateCategories.ContainsByPredicate([&CategoryKey](const TSharedPtr<FTemplateCategory>& Category)
+			{
+				return Category->Key == CategoryKey;
+			});
+
+		if (!bCategoryExists)
+		{
+			UE_LOG(LogGameProjectGeneration, Warning, TEXT("Failed to find category definition named '%s', it is not defined in any TemplateCategories.ini."), *CategoryKey.ToString());
+		}
+	}
+
+
 	if (Templates.Num() == 0)
 	{
 		static const FName DefaultCategory("Default");
@@ -922,9 +942,6 @@ TMap<FName, TArray<TSharedPtr<FTemplateItem>> >& SNewProjectWizard::FindTemplate
 		BlankTemplate->CodeProjectFile = TEXT("");
 		BlankTemplate->bIsEnterprise = false;
 		BlankTemplate->bIsBlankTemplate = true;
-
-		TArray<TSharedPtr<FTemplateCategory>> AllTemplateCategories;
-		SGameProjectDialog::GetAllTemplateCategories(AllTemplateCategories);
 
 		for (const TSharedPtr<FTemplateCategory>& Category : AllTemplateCategories)
 		{
