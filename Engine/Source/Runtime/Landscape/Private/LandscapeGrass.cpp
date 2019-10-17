@@ -2161,6 +2161,7 @@ void ALandscapeProxy::UpdateGrassDataStatus(TSet<UTexture2D*>& OutCurrentForcedS
 
 	// In either case we want to check the Grass textures stream state
 	const bool bCheckStreamingState = OutDesiredForcedStreamedTextures || bInEnableForceResidentFlag;
+	const bool bHasGrassTypes = GetGrassTypes().Num();
 
 	for (auto Component : LandscapeComponents)
 	{
@@ -2187,32 +2188,35 @@ void ALandscapeProxy::UpdateGrassDataStatus(TSet<UTexture2D*>& OutCurrentForcedS
 				OutOutdatedComponents->Add(Component);
 			}
 
-			if (Component->IsGrassMapOutdated() || !Component->GrassData->HasData())
+			if (bHasGrassTypes || bBakeMaterialPositionOffsetIntoCollision)
 			{
-				OutComponentsNeedingGrassMapRender.Add(Component);
-
-				if (bCheckStreamingState && !Component->AreTexturesStreamedForGrassMapRender())
+				if (Component->IsGrassMapOutdated() || !Component->GrassData->HasData())
 				{
-					if (OutDesiredForcedStreamedTextures)
-					{
-						OutDesiredForcedStreamedTextures->Add(Heightmap);
-					}
+					OutComponentsNeedingGrassMapRender.Add(Component);
 
-					if (bInEnableForceResidentFlag)
-					{
-						Heightmap->bForceMiplevelsToBeResident = true;
-					}
-				
-					for (auto WeightmapTexture : ComponentWeightmapTextures)
+					if (bCheckStreamingState && !Component->AreTexturesStreamedForGrassMapRender())
 					{
 						if (OutDesiredForcedStreamedTextures)
 						{
-							OutDesiredForcedStreamedTextures->Add(WeightmapTexture);
+							OutDesiredForcedStreamedTextures->Add(Heightmap);
 						}
-						
+
 						if (bInEnableForceResidentFlag)
 						{
-							WeightmapTexture->bForceMiplevelsToBeResident = true;
+							Heightmap->bForceMiplevelsToBeResident = true;
+						}
+
+						for (auto WeightmapTexture : ComponentWeightmapTextures)
+						{
+							if (OutDesiredForcedStreamedTextures)
+							{
+								OutDesiredForcedStreamedTextures->Add(WeightmapTexture);
+							}
+
+							if (bInEnableForceResidentFlag)
+							{
+								WeightmapTexture->bForceMiplevelsToBeResident = true;
+							}
 						}
 					}
 				}
@@ -2230,12 +2234,6 @@ void ALandscapeProxy::UpdateGrassData()
 	}
 
 	if (!CVarGrassEnable.GetValueOnAnyThread())
-	{
-		return;
-	}
-
-	TArray<ULandscapeGrassType*> GrassTypes = GetGrassTypes();
-	if (GrassTypes.Num() == 0 && !bBakeMaterialPositionOffsetIntoCollision)
 	{
 		return;
 	}
