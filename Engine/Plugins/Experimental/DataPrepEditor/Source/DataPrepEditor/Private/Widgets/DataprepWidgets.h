@@ -11,6 +11,7 @@
 class SEditableTextBox;
 class UDataprepAsset;
 class UDataprepContentConsumer;
+class UDataprepParameterizableObject;
 
 struct FDataprepParameterizationContext;
 struct FDataprepPropertyLink;
@@ -82,7 +83,7 @@ private:
 	float ColumnWidth;
 };
 
-class SDataprepDetailsView : public SCompoundWidget
+class SDataprepDetailsView : public SCompoundWidget, public FGCObject
 {
 	using Super = SCompoundWidget;
 
@@ -102,6 +103,10 @@ public:
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;	
 
 	void SetObjectToDisplay(UObject& Object);
+
+	// FGCObject interface
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	// End of FGCObject interface
 
 protected:
 	// Begin SWidget overrides.
@@ -157,6 +162,9 @@ private:
 
 	/** Object to be detailed */
 	UObject* DetailedObject;
+
+	/** Not null if the detailed object is parameterizable */
+	UDataprepParameterizableObject* DetailedObjectAsParameterizable;
 
 	/** Array properties tracked for changes */
 	TSet< UProperty* > TrackedProperties;
