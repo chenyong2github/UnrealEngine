@@ -2,9 +2,9 @@
 
 #pragma once
 
+#include "ActorFactories/ActorFactory.h"
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
-#include "ActorFactories/ActorFactory.h"
 
 #include "LevelVariantSetsActorFactory.generated.h"
 
