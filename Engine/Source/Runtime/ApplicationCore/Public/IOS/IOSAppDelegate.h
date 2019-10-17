@@ -89,6 +89,8 @@ namespace FAppEntry
     void Suspend(bool bIsInterrupt = false);
     void Resume(bool bIsInterrupt = false);
 	void RestartAudio();
+    void IncrementAudioSuspendCounters();
+    void DecrementAudioSuspendCounters();
 
 	bool IsStartupMoviePlaying();
 
