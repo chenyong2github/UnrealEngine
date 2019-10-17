@@ -353,6 +353,7 @@ public:
 		PREPARE_STATEMENT(Statement_UnmapPackageNameIdsForTransactionEventId);
 		PREPARE_STATEMENT(Statement_GetTransactionEventIdsForPackageNameId);
 		PREPARE_STATEMENT(Statement_GetTransactionEventIdsInRangeForPackageNameId);
+		PREPARE_STATEMENT(Statement_GetPackageNameIdsMaxTransactionId);
 		PREPARE_STATEMENT(Statement_GetPackageNameIdsWithTransactions);
 		PREPARE_STATEMENT(Statement_GetPackageNameIdsForTransactionEventId);
 
@@ -999,6 +1000,22 @@ public:
 			if (InStatement.GetColumnValues(TransactionEventId))
 			{
 				return InCallback(TransactionEventId);
+			}
+			return ESQLitePreparedStatementExecuteRowResult::Error;
+		}) != INDEX_NONE;
+	}
+
+	/** Get the max transaction_event_id for each package_name_ids from package_transactions */
+	SQLITE_PREPARED_STATEMENT_COLUMNS_ONLY(FGetPackageNameIdsMaxTransactionId, "SELECT package_name_id, MAX(transaction_event_id) FROM package_transactions GROUP BY package_name_id;", SQLITE_PREPARED_STATEMENT_COLUMNS(int64, int64));
+	FGetPackageNameIdsMaxTransactionId Statement_GetPackageNameIdsMaxTransactionId;
+	bool GetPackageNameIdsMaxTransactionId(TFunctionRef<ESQLitePreparedStatementExecuteRowResult(int64, int64)> InCallback)
+	{
+		return Statement_GetPackageNameIdsMaxTransactionId.Execute([&InCallback](const FGetPackageNameIdsMaxTransactionId& InStatement)
+		{
+			int64 PackageNameId = 0, MaxTransactionEventId = 0;
+			if (InStatement.GetColumnValues(PackageNameId, MaxTransactionEventId))
+			{
+				return InCallback(PackageNameId, MaxTransactionEventId);
 			}
 			return ESQLitePreparedStatementExecuteRowResult::Error;
 		}) != INDEX_NONE;
@@ -1847,16 +1864,24 @@ bool FConcertSyncSessionDatabase::GetPackageNamesWithLiveTransactions(TArray<FNa
 
 bool FConcertSyncSessionDatabase::EnumeratePackageNamesWithLiveTransactions(TFunctionRef<bool(FName)> InCallback) const
 {
-	return Statements->GetPackageNameIdsWithTransactions([this, &InCallback](const int64 InPackageNameId)
+	return Statements->GetPackageNameIdsMaxTransactionId([this, &InCallback](const int64 InPackageNameId, const int64 InMaxTransactionEventId)
 	{
-		FName PackageName;
-		if (GetPackageName(InPackageNameId, PackageName))
+		// Get the transaction id at last save, if the max transaction id for a package name id is greater than its transaction id at last save, it has live transactions
+		int64 HeadTransactionEventIdAtLastSave = 0;
+		Statements->GetPackageTransactionEventIdAtLastSave(InPackageNameId, HeadTransactionEventIdAtLastSave);
+		
+		if (InMaxTransactionEventId > HeadTransactionEventIdAtLastSave)
 		{
-			return InCallback(PackageName)
-				? ESQLitePreparedStatementExecuteRowResult::Continue
-				: ESQLitePreparedStatementExecuteRowResult::Stop;
+			FName PackageName;
+			if (GetPackageName(InPackageNameId, PackageName))
+			{
+				return InCallback(PackageName)
+					? ESQLitePreparedStatementExecuteRowResult::Continue
+					: ESQLitePreparedStatementExecuteRowResult::Stop;
+			}
+			return ESQLitePreparedStatementExecuteRowResult::Error;
 		}
-		return ESQLitePreparedStatementExecuteRowResult::Error;
+		return ESQLitePreparedStatementExecuteRowResult::Continue;
 	});
 }
 

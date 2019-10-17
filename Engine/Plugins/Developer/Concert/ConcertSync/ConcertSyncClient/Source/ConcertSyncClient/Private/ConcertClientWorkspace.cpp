@@ -524,6 +524,9 @@ void FConcertClientWorkspace::SaveLiveTransactionsToPackages()
 			UPackage* Package = LoadPackage(nullptr, *PackageNameStr, LOAD_None);
 			if (Package)
 			{
+				// Load package will queue live transaction, process them before saving the file
+				TransactionManager->ProcessPending();
+
 				UWorld* World = UWorld::FindWorldInPackage(Package);
 				FString PackageFilename;
 				if (!FPackageName::DoesPackageExist(PackageNameStr, nullptr, &PackageFilename))
