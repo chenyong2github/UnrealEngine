@@ -4680,29 +4680,33 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 	private void LocalNotificationCheckAppOpen()
 	{
+		localNotificationAppLaunched = false;
+		localNotificationLaunchActivationEvent = "";
+		localNotificationLaunchFireDate = 0;
+
 		Intent launchIntent = getIntent();
 		if (launchIntent != null)
 		{	
 			Bundle extrasBundle = launchIntent.getExtras();
 
 			localNotificationAppLaunched = launchIntent.getBooleanExtra("localNotificationAppLaunched", false);
-
-			if(localNotificationAppLaunched)
+			if (localNotificationAppLaunched)
 			{
-				localNotificationLaunchActivationEvent = extrasBundle.get("localNotificationLaunchActivationEvent").toString();
-				int notificationID = extrasBundle.getInt("localNotificationID");
+				localNotificationLaunchActivationEvent = extrasBundle.getString("localNotificationLaunchActivationEvent");
+				if (localNotificationLaunchActivationEvent != null)
+				{
+					int notificationID = extrasBundle.getInt("localNotificationID");
+					LocalNotificationRemoveID(this, notificationID);
 
-				LocalNotificationRemoveID(this, notificationID);
-
-				// TODO
-				localNotificationLaunchFireDate = 0; 
+					// TODO
+					localNotificationLaunchFireDate = 0; 
+				}
+				else
+				{
+					localNotificationAppLaunched = false;
+					localNotificationLaunchActivationEvent = "";
+				}
 			}
-		}
-		else
-		{
-			localNotificationAppLaunched = false;
-			localNotificationLaunchActivationEvent = "";
-			localNotificationLaunchFireDate = 0;
 		}
 	}
 
