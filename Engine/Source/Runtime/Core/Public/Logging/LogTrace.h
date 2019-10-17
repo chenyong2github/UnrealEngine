@@ -23,7 +23,7 @@ struct FLogTrace
 	CORE_API static void OutputLogMessageSpec(const void* LogPoint, const FLogCategoryBase* Category, ELogVerbosity::Type Verbosity, const ANSICHAR* File, int32 Line, const TCHAR* Format);
 
 	template <typename... Types>
-	static void OutputLogMessage(const void* LogPoint, Types... FormatArgs)
+	FORCENOINLINE static void OutputLogMessage(const void* LogPoint, Types... FormatArgs)
 	{
 		uint8 FormatArgsBuffer[3072];
 		uint16 FormatArgsSize = FFormatArgsTrace::EncodeArguments(FormatArgsBuffer, FormatArgs...);
