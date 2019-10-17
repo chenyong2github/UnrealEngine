@@ -14,6 +14,8 @@
 FPhysicsAssetEditorSkeletonTreeBuilder::FPhysicsAssetEditorSkeletonTreeBuilder(UPhysicsAsset* InPhysicsAsset, const FSkeletonTreeBuilderArgs& InSkeletonTreeBuilderArgs)
 	: FSkeletonTreeBuilder(InSkeletonTreeBuilderArgs)
 	, bShowBodies(true)
+	, bShowKinematicBodies(true)
+	, bShowSimulatedBodies(true)
 	, bShowConstraints(true)
 	, bShowPrimitives(true)
 	, PhysicsAsset(InPhysicsAsset)
