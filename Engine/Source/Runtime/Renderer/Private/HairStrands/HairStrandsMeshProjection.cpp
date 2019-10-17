@@ -139,7 +139,7 @@ class FHairUpdateMeshTriangleCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FHairUpdateMeshTriangleCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FVector, RootTriangleWorldCenter)
+		SHADER_PARAMETER(FVector, RootTrianglePositionOffset)
 		SHADER_PARAMETER(uint32, MaxRootCount)
 		SHADER_PARAMETER(FMatrix, RootLocalToWorld)
 
@@ -199,14 +199,14 @@ static void AddHairStrandUpdateMeshTrianglesPass(
 
 	if (Type == HairStrandsTriangleType::RestPose)
 	{
-		Parameters->RootTriangleWorldCenter = FVector::ZeroVector; // TODO  LODData.RestRootCenter;
+		Parameters->RootTrianglePositionOffset = LODData.RestPositionOffset;
 		Parameters->OutRootTrianglePosition0 = LODData.RestRootTrianglePosition0Buffer->UAV;
 		Parameters->OutRootTrianglePosition1 = LODData.RestRootTrianglePosition1Buffer->UAV;
 		Parameters->OutRootTrianglePosition2 = LODData.RestRootTrianglePosition2Buffer->UAV;
 	}
 	else if (Type == HairStrandsTriangleType::DeformedPose)
 	{
-		Parameters->RootTriangleWorldCenter = FVector::ZeroVector; // TODO LODData.DeformedRootCenter;
+		Parameters->RootTrianglePositionOffset = LODData.DeformedPositionOffset;
 		Parameters->OutRootTrianglePosition0 = LODData.DeformedRootTrianglePosition0Buffer->UAV;
 		Parameters->OutRootTrianglePosition1 = LODData.DeformedRootTrianglePosition1Buffer->UAV;
 		Parameters->OutRootTrianglePosition2 = LODData.DeformedRootTrianglePosition2Buffer->UAV;

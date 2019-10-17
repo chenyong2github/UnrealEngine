@@ -149,22 +149,28 @@ struct FHairStrandsWeightFormat
 	static const EPixelFormat Format = PF_R32_FLOAT;
 };
 
-struct FHairStrandsCurveTranslationFormat
+/** 
+ * Skinned mesh triangle vertex position format
+ * Two precision options are available: 4x16bits or 4x32bits
+ * Triangle vertices are relative to their bounding box in order to preserve precision, 
+ * however this is sometime not enough for large asset, this is why by default the format 
+ * use 32bits precision
+*/
+struct FHairStrandsMeshTrianglePositionFormat
 {
+#if 0
+	using Type = FVector4;
+	static const uint32 ComponentCount = 1;
+	static const uint32 SizeInByte = sizeof(Type);
+	static const EVertexElementType VertexElementType = VET_Float4;
+	static const EPixelFormat Format = PF_A32B32G32R32F;
+#else
 	using Type = FVector4_16;
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
 	static const EVertexElementType VertexElementType = VET_Float4;
 	static const EPixelFormat Format = PF_FloatRGBA;
-};
-
-struct FHairStrandsCurveRotationFormat
-{
-	using Type = FVector4_16;
-	static const uint32 ComponentCount = 1;
-	static const uint32 SizeInByte = sizeof(Type);
-	static const EVertexElementType VertexElementType = VET_Float4;
-	static const EPixelFormat Format = PF_FloatRGBA;
+#endif
 };
 
 struct FHairStrandsCurveTriangleIndexFormat
