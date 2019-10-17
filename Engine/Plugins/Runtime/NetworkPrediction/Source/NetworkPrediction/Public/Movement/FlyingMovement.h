@@ -185,9 +185,7 @@ public:
 
 	FString GetDebugName() const override;
 	const UObject* GetVLogOwner() const override;
-
-	void InitSyncState(FlyingMovement::FMoveState& OutSyncState) const override;
-	void InitAuxState(FlyingMovement::FAuxState& OutAuxState) const override;
+	
 	void ProduceInput(const FNetworkSimTime SimTime, FlyingMovement::FInputCmd& Cmd) override;
 	void FinalizeFrame(const FlyingMovement::FMoveState& SyncState, const FlyingMovement::FAuxState& AuxState) override;
 
