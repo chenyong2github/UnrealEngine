@@ -24,8 +24,6 @@ struct FDIHairStrandsContext
 	RWBuffer<uint4>		PointsPositionsBuffer;
 	Buffer<uint>		CurvesOffsetsBuffer;
 	Buffer<uint4>		RestPositionsBuffer;
-	Texture3D<int>		GridCurrentBuffer;
-	RWTexture3D<int>	GridDestinationBuffer;
 	float4x4			WorldTransform;
 	float4x4			WorldInverse;
 	float4				WorldRotation;
@@ -34,16 +32,13 @@ struct FDIHairStrandsContext
 	float				StrandDensity;
 	float				RootThickness;
 	float				TipThickness;
-	float4				GridOrigin;
-	int4				GridSize;
+	float4				BoxOrigin;
 }; 
 
 #define DIHAIRSTRANDS_DECLARE_CONSTANTS(NAME)\
 RWBuffer<uint4> PointsPositionsBuffer_##NAME;\
 Buffer<uint> CurvesOffsetsBuffer_##NAME;\
 Buffer<uint4> RestPositionsBuffer_##NAME;\
-Texture3D<int> GridCurrentBuffer_##NAME;\
-RWTexture3D<int> GridDestinationBuffer_##NAME;\
 float4x4 WorldTransform_##NAME;\
 float4x4 WorldInverse_##NAME;\
 float4 WorldRotation_##NAME;\
@@ -52,8 +47,7 @@ int StrandSize_##NAME;\
 float StrandDensity_##NAME;\
 float RootThickness_##NAME;\
 float TipThickness_##NAME;\
-float4 GridOrigin_##NAME;\
-int4 GridSize_##NAME;\
+float4 BoxOrigin_##NAME;\
 
 #define DIHAIRSTRANDS_MAKE_CONTEXT(NAME)\
 FDIHairStrandsContext DIContext;\
@@ -68,10 +62,7 @@ DIContext.StrandSize = StrandSize_##NAME;\
 DIContext.StrandDensity = StrandDensity_##NAME;\
 DIContext.RootThickness = RootThickness_##NAME;\
 DIContext.TipThickness = TipThickness_##NAME;\
-DIContext.GridOrigin = GridOrigin_##NAME;\
-DIContext.GridSize = GridSize_##NAME;\
-DIContext.GridCurrentBuffer = GridCurrentBuffer_##NAME;\
-DIContext.GridDestinationBuffer = GridDestinationBuffer_##NAME;\
+DIContext.BoxOrigin = BoxOrigin_##NAME;\
 
 /* -----------------------------------------------------------------
  * Box utilities
@@ -87,394 +78,7 @@ void DIHairStrands_GetBoxCenter(in FDIHairStrandsContext DIContext, out float3 O
 // Return the bounding box extent
 void DIHairStrands_GetBoxExtent(in FDIHairStrandsContext DIContext, out float3 OutBoxExtent)
 {
-	OutBoxExtent = -DIContext.GridOrigin.xyz;
-}
-
-/* -----------------------------------------------------------------
- * Grid utilities
- * -----------------------------------------------------------------
- */
-
-// Return true if the grid index is within the domain size
-bool DIHairStrands_IsIndexValid(in FDIHairStrandsContext DIContext, in int3 GridIndex)
-{
-	return ((GridIndex.x < (DIContext.GridSize.x-1)) && (GridIndex.y < (DIContext.GridSize.y-1)) && 
-			(GridIndex.z < (DIContext.GridSize.z-1)) && (GridIndex.x >= 0) && (GridIndex.y >= 0) && (GridIndex.z >= 0));
-}
-
-// Transform the node world position in grid space
-float3 DIHairStrands_GetGridPosition(in FDIHairStrandsContext DIContext, in float3 NodePosition)
-{
-	return ( mul(float4( NodePosition, 1.0), DIContext.WorldInverse).xyz - DIContext.GridOrigin.xyz );
-}
-
-// Return the grid hash given a grid index
-int DIHairStrands_GetGridHash(in FDIHairStrandsContext DIContext, in int3 GridIndex)
-{
-	return GridIndex.z * DIContext.GridSize.y * DIContext.GridSize.x + GridIndex.y * DIContext.GridSize.x + GridIndex.x;
-}
-
-// Compute the grid index and fraction
-void DIHairStrands_ComputeGridIndex(in FDIHairStrandsContext DIContext, in float3 GridPosition, in float3 GridOffset, out int3 OutGridIndex, out float3 OutGridFraction)
-{
-	const float3 GridCell = GridPosition / DIContext.GridOrigin.w - GridOffset;
-
-	OutGridIndex = floor(GridCell);
-	OutGridFraction = GridCell - OutGridIndex;
-}
-
-int3 DIHairStrands_GridNodeIndex( in FDIHairStrandsContext DIContext, in int3 GridIndex, in int DataOffset)
-{
-	return int3( GridIndex.x + DataOffset * DIContext.GridSize.x, GridIndex.yz);
-}
-
-void InterlockedAddFloat(in FDIHairStrandsContext DIContext, in int3 GridIndex, in int DataOffset, in float FloatValue)
-{
-	int IntValue = asint(FloatValue);
-	int CompareValue = 0;
-	int StoredValue = 0;
-
-	[allow_uav_condition] while(true)
-	{
-		InterlockedCompareExchange(DIContext.GridDestinationBuffer[
-				DIHairStrands_GridNodeIndex(DIContext,GridIndex,DataOffset)],CompareValue,IntValue,StoredValue);
-		if(StoredValue == CompareValue)
-		{
-			break;
-		}
-		CompareValue = StoredValue;
-		IntValue = asint(FloatValue+asfloat(StoredValue));
-	}
-}
-
-void DIHairStrands_AddNodeScalar( in FDIHairStrandsContext DIContext, in int3 GridIndex, in int DataOffset, in float NodeScalar, in bool EnableLocking)
-{
-	const int ConvertScalar = NodeScalar * SCALE;
-	if(EnableLocking)
-	{
-		InterlockedAdd(DIContext.GridDestinationBuffer[DIHairStrands_GridNodeIndex(DIContext,GridIndex,DataOffset)], ConvertScalar);
-		//InterlockedAddFloat(DIContext,GridIndex,DataOffset,NodeScalar);
-	}
-	else
-	{
-		DIContext.GridDestinationBuffer[DIHairStrands_GridNodeIndex(DIContext,GridIndex,DataOffset)] += ConvertScalar;
-		//const float FloatValue = asfloat(DIContext.GridDestinationBuffer[DIHairStrands_GridNodeIndex(DIContext,GridIndex,DataOffset)]) + NodeScalar;
-		//DIContext.GridDestinationBuffer[DIHairStrands_GridNodeIndex(DIContext,GridIndex,DataOffset)] = asint(FloatValue);
-	}
-	DeviceMemoryBarrier();
-}
-
-void DIHairStrands_AddNodeVector( in FDIHairStrandsContext DIContext, in int3 GridIndex, in int DataOffset, in float3 NodeVector, in bool EnableLocking)
-{
-	DIHairStrands_AddNodeScalar(DIContext,GridIndex,DataOffset,NodeVector.x,EnableLocking);
-	DIHairStrands_AddNodeScalar(DIContext,GridIndex,DataOffset+1,NodeVector.y,EnableLocking);
-	DIHairStrands_AddNodeScalar(DIContext,GridIndex,DataOffset+2,NodeVector.z,EnableLocking);
-}
-
-float DIHairStrands_GetGridScalar( in FDIHairStrandsContext DIContext, in int3 GridIndex, in int DataOffset)
-{
-	//return asfloat(DIContext.GridCurrentBuffer[DIHairStrands_GridNodeIndex(DIContext,GridIndex,DataOffset)]);
-	return DIContext.GridCurrentBuffer[DIHairStrands_GridNodeIndex(DIContext,GridIndex,DataOffset)] / SCALE;
-}
-
-float3 DIHairStrands_GetGridVector( in FDIHairStrandsContext DIContext, in int3 GridIndex, in int DataOffset)
-{
-	return float3(DIHairStrands_GetGridScalar(DIContext,GridIndex,DataOffset),
-				  DIHairStrands_GetGridScalar(DIContext,GridIndex,DataOffset+1),
-				  DIHairStrands_GetGridScalar(DIContext,GridIndex,DataOffset+2));
-}
-
-// Transfer the velocity from the node to the grid
-void DIHairStrands_BuildCollisionGrid(in FDIHairStrandsContext DIContext, in float3 NodePosition, in float3 NodeVelocity, in float NodeMass, 
-			in float3 NodeGradientX, in float3 NodeGradientY, in float3 NodeGradientZ, out bool OutBuildStatus)
-{
-	SharedNodePosition[GGroupThreadId.x] = NodePosition;
-	SharedPreviousPosition[GGroupThreadId.x] = NodeVelocity;
-	SharedInverseMass[GGroupThreadId.x] = NodeMass;
-	GroupMemoryBarrier(); 
-
-	OutBuildStatus = false;
-
-	const int LocalIndex = GGroupThreadId.x % DIContext.StrandSize;
-	if(LocalIndex != 0)
-	{
-		const float3 DeltaVelocity = SharedPreviousPosition[GGroupThreadId.x] - SharedPreviousPosition[GGroupThreadId.x-1];
-		const float3 DeltaPosition = SharedNodePosition[GGroupThreadId.x] - SharedNodePosition[GGroupThreadId.x-1];
-
-		const float2 SegmentWeight = (LocalIndex == 1) ? float2(1.0,0.5) : (LocalIndex == (DIContext.StrandSize-1) ) ? float2(0.5,1.0) : float2(0.5,0.5);
-		const float SegmentMass =  (SharedInverseMass[GGroupThreadId.x-1] * SegmentWeight.x + SharedInverseMass[GGroupThreadId.x] * SegmentWeight.y);
-		const float SegmentLength = length(DeltaPosition);
-
-		const float3 GridPositionA = DIHairStrands_GetGridPosition(DIContext,SharedNodePosition[GGroupThreadId.x-1]);
-		const float3 GridPositionB = DIHairStrands_GetGridPosition(DIContext,SharedNodePosition[GGroupThreadId.x]);
-		const float3 GridSegment = GridPositionB - GridPositionA;
-
-		const int NumSamples = ceil(SegmentLength / DIContext.GridOrigin.w);
-
-		const float SampleMass = SegmentMass / NumSamples;
-		const float3 SampleTangent = DeltaPosition / SegmentLength;
-
-		for( int SampleIndex = 0; SampleIndex < NumSamples; ++SampleIndex)
-		{
-			const float SampleCoord = (0.5+SampleIndex) / NumSamples;
-			const float3 SamplePosition = GridPositionA + SampleCoord * GridSegment;
-			//const float3 SampleMomentum = NodeVelocity * SampleMass;
-			const float3 SampleMomentum = (SharedPreviousPosition[GGroupThreadId.x-1] + SampleCoord * DeltaVelocity) * SampleMass;
-
-
-			for( int ComponentIndex = 0; ComponentIndex < 3; ++ComponentIndex)
-			{
-				const float3 NodeGradient = (ComponentIndex == 0) ? NodeGradientX : (ComponentIndex == 1) ? NodeGradientY : NodeGradientZ;
-				float3 GridOffset = float3(0.5,0.5,0.5); GridOffset[ComponentIndex] = 0.0;
-				int3 GridIndex = int3(0,0,0);
-				float3 GridFraction = float3(0,0,0);
-				DIHairStrands_ComputeGridIndex(DIContext,SamplePosition,GridOffset,GridIndex,GridFraction);
-
-				if(DIHairStrands_IsIndexValid(DIContext,GridIndex))
-				{
-					OutBuildStatus = true;
-					for(int i = 0; i < 2; ++i)
-					{
-						const float GridWeightX = (i == 0) ? 1.0 - GridFraction.x : GridFraction.x;
-						for(int j = 0; j < 2; ++j)
-						{
-							const float GridWeightY = (j == 0) ? 1.0 - GridFraction.y : GridFraction.y;
-							for(int k = 0; k < 2; ++k)
-							{
-								const float GridWeightZ = (k == 0) ? 1.0 - GridFraction.z : GridFraction.z;
-
-								const float GridWeightXYZ = GridWeightX*GridWeightY*GridWeightZ;
-
-								const int3 GridLocation = int3(GridIndex.x+i,GridIndex.y+j,GridIndex.z+k);
-								const float3 DeltaPosition = ((GridLocation+GridOffset)* DIContext.GridOrigin.w) - SamplePosition;
-								const float ExtendedMomentum = SampleMomentum[ComponentIndex] + dot(NodeGradient, DeltaPosition) * SampleMass;
-
-								DIHairStrands_AddNodeScalar(DIContext,GridLocation,MASS_OFFSET+ComponentIndex,SampleMass * GridWeightXYZ,true);
-								DIHairStrands_AddNodeScalar(DIContext,GridLocation,VELOCITY_OFFSET+ComponentIndex,ExtendedMomentum * GridWeightXYZ,true);
-								//DIHairStrands_AddNodeScalar(DIContext,GridLocation,TANGENT_OFFSET+ComponentIndex,SampleTangent[ComponentIndex] * GridWeightXYZ,true);
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
-
-// Return the velocity from the grid to the node
-void DIHairStrands_QueryCollisionGrid(in FDIHairStrandsContext DIContext, in float3 NodePosition, out float3 OutGridVelocity,
-			out float3 OutGridTangent, out float OutGridMass, out float3 OutGridGradientX, out float3 OutGridGradientY, out float3 OutGridGradientZ)
-{
-	const float3 GridPosition = DIHairStrands_GetGridPosition(DIContext,NodePosition);
-	
-	OutGridVelocity = float3(0,0,0);
-	OutGridMass = 0.0;
-	OutGridTangent = float3(0,0,0);
-	OutGridGradientX = float3(0,0,0);
-	OutGridGradientY = float3(0,0,0);
-	OutGridGradientZ = float3(0,0,0);
-
-	for( int ComponentIndex = 0; ComponentIndex < 3; ++ComponentIndex)
-	{
-		float3 GridOffset = float3(0.5,0.5,0.5); GridOffset[ComponentIndex] = 0.0;
-		int3 GridIndex = int3(0,0,0);
-		float3 GridFraction = float3(0,0,0);
-		DIHairStrands_ComputeGridIndex(DIContext,GridPosition,GridOffset,GridIndex,GridFraction);
-		if(DIHairStrands_IsIndexValid(DIContext,GridIndex))
-		{
-			for(int i = 0; i < 2; ++i)
-			{
-				const float GridWeightX = (i == 0) ? 1.0 - GridFraction.x : GridFraction.x;
-				const float GridGradientX = (i == 0) ? -1.0: 1.0;
-				for(int j = 0; j < 2; ++j)
-				{
-					const float GridWeightY = (j == 0) ? 1.0 - GridFraction.y : GridFraction.y;
-					const float GridGradientY = (j == 0) ? -1.0: 1.0;
-					for(int k = 0; k < 2; ++k)
-					{
-						const float GridWeightZ = (k == 0) ? 1.0 - GridFraction.z : GridFraction.z;
-						const float GridGradientZ = (k == 0) ? -1.0: 1.0;
-
-						const float GridWeightXYZ = GridWeightX*GridWeightY*GridWeightZ;
-						const float3 GridGradientXYZ = float3(GridGradientX*GridWeightY*GridWeightZ,
-															  GridWeightX*GridGradientY*GridWeightZ,
-															  GridWeightX*GridWeightY*GridGradientZ) / DIContext.GridOrigin.w;
-
-						const int3 GridLocation = int3(GridIndex.x+i,GridIndex.y+j,GridIndex.z+k);
-					
-						const float LocalMass = DIHairStrands_GetGridScalar(DIContext,GridLocation,MASS_OFFSET+ComponentIndex);
-						if( LocalMass != 0.0 )
-						{
-							const float LocalVelocity = DIHairStrands_GetGridScalar(DIContext,GridLocation,VELOCITY_OFFSET+ComponentIndex) / LocalMass;
-							OutGridMass += LocalMass * GridWeightXYZ;
-							OutGridVelocity[ComponentIndex] += LocalVelocity * GridWeightXYZ;
-							OutGridTangent[ComponentIndex] += (DIHairStrands_GetGridScalar(DIContext,GridLocation,TANGENT_OFFSET+ComponentIndex) / LocalMass) * GridWeightXYZ;
-							//OutGridTangent[ComponentIndex] += DIHairStrands_GetGridScalar(DIContext,GridLocation,TANGENT_OFFSET+ComponentIndex) * GridWeightXYZ;
-							if( ComponentIndex == 0)
-							{
-								OutGridGradientX +=  GridGradientXYZ * LocalVelocity * GridWeightXYZ;
-							}
-							else if( ComponentIndex == 1)
-							{
-								OutGridGradientY +=  GridGradientXYZ * LocalVelocity * GridWeightXYZ;
-							}
-							else
-							{
-								OutGridGradientZ +=  GridGradientXYZ * LocalVelocity * GridWeightXYZ;
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-	OutGridMass /= (3*DIContext.GridOrigin.w * DIContext.GridOrigin.w * DIContext.GridOrigin.w);
-	//if(OutGridMass!=0.0)
-	//{
-	//	OutGridTangent = normalize(OutGridTangent);
-	//}
-}
-
-// Return the grid index given a grid hash
-int3 DIHairStrands_ComputeGridIndex(in FDIHairStrandsContext DIContext, in int GridHash)
-{
-	const int GridIndexX = GridHash / ( DIContext.GridSize.y * DIContext.GridSize.z);
-	const int GridDummy = GridHash - GridIndexX * DIContext.GridSize.y * DIContext.GridSize.z;
-	const int GridIndexY = GridDummy / (DIContext.GridSize.z);
-	const int GridIndexZ = GridDummy % (DIContext.GridSize.z);
-
-	return int3(GridIndexX,GridIndexY,GridIndexZ);
-}
-
-// Compute the grid pressure
-float DIHairStrands_ComputeGridPressure(in FDIHairStrandsContext DIContext, in int3 PrevIndex)
-{	
-	float GridPressure = 0.0;
-
-	if(DIHairStrands_IsIndexValid(DIContext,PrevIndex))
-	{
-		const float VoxelVolume = DIContext.GridOrigin.w * DIContext.GridOrigin.w * DIContext.GridOrigin.w;
-		float GridDivergence = 0.0;
-		float GridFraction = 0.0;
-
-		[unroll]
-		for(int ComponentIndex = 0; ComponentIndex < 3; ++ComponentIndex)
-		{
-			int3 NextIndex = PrevIndex; NextIndex[ComponentIndex] += 1;
-
-			const float PrevMass = DIHairStrands_GetGridScalar(DIContext,PrevIndex,MASS_OFFSET+ComponentIndex);
-			const float PrevDensity = min(1,max(0,PrevMass / VoxelVolume));
-			
-			if( PrevMass > 0.)
-			{
-				GridDivergence -= DIHairStrands_GetGridScalar(DIContext,PrevIndex,VELOCITY_OFFSET+ComponentIndex) / PrevMass;
-				GridFraction += 1.0 / PrevDensity;
-			}
-
-			const float NextMass = DIHairStrands_GetGridScalar(DIContext,NextIndex,MASS_OFFSET+ComponentIndex);
-			const float NextDensity = min(1,max(0,NextMass / VoxelVolume));
-
-			if( NextMass > 0.)
-			{
-				GridDivergence += DIHairStrands_GetGridScalar(DIContext,NextIndex,VELOCITY_OFFSET+ComponentIndex) / NextMass;
-				GridFraction += 1.0 / NextDensity;
-			}
-		}
-		if( GridFraction > 0.)
-		{
-			GridDivergence *= DIContext.GridOrigin.w;
-			GridPressure = -GridDivergence / GridFraction;
-		}
-	}
-	return GridPressure;
-}
-
-// Return the velocity from the grid to the node
-void DIHairStrands_ProjectCollisionGrid(in FDIHairStrandsContext DIContext, in int GridHash, out bool OutProjectStatus)
-{	
-	OutProjectStatus = false;
-
-	const int3 NextIndex = DIHairStrands_ComputeGridIndex(DIContext,GridHash);
-	const float NextPressure = DIHairStrands_ComputeGridPressure(DIContext,NextIndex);
-	const float VoxelVolume = DIContext.GridOrigin.w * DIContext.GridOrigin.w * DIContext.GridOrigin.w;
-
-	[unroll]
-	for(int ComponentIndex = 0; ComponentIndex < 3; ++ComponentIndex)
-	{
-		int3 PrevIndex = NextIndex; PrevIndex[ComponentIndex] -= 1;
-		const float PrevPressure = DIHairStrands_ComputeGridPressure(DIContext,PrevIndex);
-
-		const float NextMass = DIHairStrands_GetGridScalar(DIContext,NextIndex,MASS_OFFSET+ComponentIndex);
-		const float NextDensity = min(1,max(0,NextMass / VoxelVolume));
-
-		const float PressureGradient = (NextPressure - PrevPressure) / ( DIContext.GridOrigin.w * NextDensity );
-
-		DIHairStrands_AddNodeScalar(DIContext,NextIndex,VELOCITY_OFFSET+ComponentIndex,-PressureGradient*NextMass,false);
-		DIHairStrands_AddNodeScalar(DIContext,NextIndex,TANGENT_OFFSET+ComponentIndex,-PressureGradient*NextMass,false);
-	}
-	return;
-
-
-	const int GridIndexX = GridHash / ( DIContext.GridSize.y * DIContext.GridSize.z);
-	const int GridDummy = GridHash - GridIndexX * DIContext.GridSize.y * DIContext.GridSize.z;
-	const int GridIndexY = GridDummy / (DIContext.GridSize.z);
-	const int GridIndexZ = GridDummy % (DIContext.GridSize.z);
-
-	const bool OddStage = (ShaderStageIndex % 2)  == 0;
-	const bool OddVoxel = ((GridIndexX+GridIndexY+GridIndexZ) % 2) == 0;
-
-	//if( (OddStage && OddVoxel) || (!OddStage && !OddVoxel) )
-	{
-		const float VoxelVolume = DIContext.GridOrigin.w * DIContext.GridOrigin.w * DIContext.GridOrigin.w;
-
-		const int3 PrevIndex = int3(GridIndexX,GridIndexY,GridIndexZ);
-		if(DIHairStrands_IsIndexValid(DIContext,PrevIndex))
-		{
-			OutProjectStatus = true;
-			float GridDivergence = 0.0;
-			float GridFraction = 0.0;
-			for( int ComponentIndex = 0; ComponentIndex < 3; ++ComponentIndex)
-			{
-				int3 NextIndex = PrevIndex; NextIndex[ComponentIndex] += 1;
-
-				const float PrevMass = DIHairStrands_GetGridScalar(DIContext,PrevIndex,MASS_OFFSET+ComponentIndex);
-				const float PrevDensity = min(1,max(0,PrevMass / VoxelVolume));
-				if( PrevMass > 0.)
-				{
-					GridDivergence -= DIHairStrands_GetGridScalar(DIContext,PrevIndex,VELOCITY_OFFSET+ComponentIndex) * PrevDensity / PrevMass;
-					GridFraction += PrevDensity;
-				}
-
-				const float NextMass = DIHairStrands_GetGridScalar(DIContext,NextIndex,MASS_OFFSET+ComponentIndex);
-				const float NextDensity = min(1,max(0,NextMass / VoxelVolume));
-				if( NextMass > 0.)
-				{
-					GridDivergence += DIHairStrands_GetGridScalar(DIContext,NextIndex,VELOCITY_OFFSET+ComponentIndex) * NextDensity / NextMass;
-					GridFraction += NextDensity;
-				}
-			}
-			if( GridFraction > 0.)
-			{
-				GridDivergence *= DIContext.GridOrigin.w;
-				const float GridPressure = -GridDivergence / GridFraction;
-
-				const float PressureGradient = GridPressure / DIContext.GridOrigin.w;
-				for( int ComponentIndexB = 0; ComponentIndexB < 3; ++ComponentIndexB)
-				{
-					int3 NextIndex = PrevIndex; NextIndex[ComponentIndexB] += 1;
-
-					const float PrevMass = DIHairStrands_GetGridScalar(DIContext,PrevIndex,MASS_OFFSET+ComponentIndexB);
-					DIHairStrands_AddNodeScalar(DIContext,PrevIndex,VELOCITY_OFFSET+ComponentIndexB,-PressureGradient*PrevMass,true);
-					DIHairStrands_AddNodeScalar(DIContext,PrevIndex,TANGENT_OFFSET+ComponentIndexB,-PressureGradient*PrevMass,true);
-
-					const float NextMass = DIHairStrands_GetGridScalar(DIContext,NextIndex,MASS_OFFSET+ComponentIndexB);
-					DIHairStrands_AddNodeScalar(DIContext,NextIndex,VELOCITY_OFFSET+ComponentIndexB,PressureGradient*NextMass,true);
-					DIHairStrands_AddNodeScalar(DIContext,NextIndex,TANGENT_OFFSET+ComponentIndexB,PressureGradient*NextMass,true);
-				}
-			}
-		}	
-	}
+	OutBoxExtent = -DIContext.BoxOrigin.xyz;
 }
 
 /* -----------------------------------------------------------------
@@ -560,8 +164,8 @@ void DIHairStrands_ComputeNodeMass(in FDIHairStrandsContext DIContext, in int No
 	const float NextThick = RootThickness * ( 1.0 - NextCoord ) + TipThickness * NextCoord;
 	const float MeanRadius = 0.25 * ( PrevThick + NextThick );
 
-	//OutNodeMass = StrandsDensity * EdgeLength * EdgeScale * M_PI * MeanRadius * MeanRadius;
-	OutNodeMass = StrandsDensity * EdgeLength * EdgeScale * M_PI * (PrevThick * PrevThick + NextThick * PrevThick + NextThick * NextThick) / 12.0;
+	OutNodeMass = StrandsDensity * EdgeLength * EdgeScale * M_PI * MeanRadius * MeanRadius;
+	//OutNodeMass = StrandsDensity * EdgeLength * EdgeScale * M_PI * (PrevThick * PrevThick + NextThick * PrevThick + NextThick * NextThick) / 12.0;
 }
 
 // Compute the node inertia
@@ -583,14 +187,13 @@ void DIHairStrands_ComputeNodeInertia(in FDIHairStrandsContext DIContext, in int
 	const float NextThick = RootThickness * ( 1.0 - NextCoord ) + TipThickness * NextCoord;
 	const float MeanRadius = 0.25 * ( PrevThick + NextThick );
 
-	const float EdgeMass = StrandsDensity * EdgeLength * M_PI * (PrevThick * PrevThick + NextThick * PrevThick + NextThick * NextThick) / 12.0;
-	const float RadialInertia = EdgeMass * ( 3.0 * MeanRadius * MeanRadius + EdgeLength * EdgeLength) / 12.0;
-	//const float RadialInertia = EdgeMass * ( MeanRadius * MeanRadius) / 4.0;
-	OutNodeInertia = float3( RadialInertia, RadialInertia, EdgeMass * MeanRadius * MeanRadius * 0.5 );
+	//const float EdgeMass = StrandsDensity * EdgeLength * M_PI * (PrevThick * PrevThick + NextThick * PrevThick + NextThick * NextThick) / 12.0;
+	//const float RadialInertia = EdgeMass * ( 3.0 * MeanRadius * MeanRadius + EdgeLength * EdgeLength) / 12.0;
+	//OutNodeInertia = float3( RadialInertia, RadialInertia, EdgeMass * MeanRadius * MeanRadius * 0.5 );
 
-	//const float EdgeMass = StrandsDensity * EdgeLength * M_PI * MeanRadius * MeanRadius;
-	//const float RadialInertia = EdgeMass * ( MeanRadius * MeanRadius) / 4.0;
-	//OutNodeInertia = float3( RadialInertia, RadialInertia, 2.0 * RadialInertia );
+	const float EdgeMass = StrandsDensity * EdgeLength * M_PI * MeanRadius * MeanRadius;
+	const float RadialInertia = EdgeMass * ( MeanRadius * MeanRadius) / 4.0;
+	OutNodeInertia = float3( RadialInertia, RadialInertia, 2.0 * RadialInertia );
 }
 
 // Compute the node position by linear interpolation over the points
@@ -673,7 +276,7 @@ void DIHairStrands_ComputeNodeOrientation(in FDIHairStrandsContext DIContext, in
  */
 
 // Compute the edge length value
-void DIHairStrands_ComputeEdgeLength(in FDIHairStrandsContext DIContext, in int NodeIndex, in float3 NodePosition, out float OutEdgeLength)
+void DIHairStrands_ComputeEdgeLength(in FDIHairStrandsContext DIContext, in int NodeIndex, in float3 NodePosition, in int NodeOffset, out float OutEdgeLength)
 {
 	SharedNodePosition[GGroupThreadId.x] = NodePosition;
 	GroupMemoryBarrier(); 
@@ -682,7 +285,7 @@ void DIHairStrands_ComputeEdgeLength(in FDIHairStrandsContext DIContext, in int 
 	DIHairStrands_ComputeNodeIndices(DIContext,NodeIndex,StrandIndex,LocalIndex);
 
 	// L = ||P1-P0||
-	OutEdgeLength = (LocalIndex>0) ? length(SharedNodePosition[GGroupThreadId.x]- SharedNodePosition[GGroupThreadId.x-1]) : 0.0;
+	OutEdgeLength = (LocalIndex>NodeOffset) ? length(SharedNodePosition[GGroupThreadId.x]- SharedNodePosition[GGroupThreadId.x-1-NodeOffset]) : 0.0;
 }
 
 // Compute the edge darboux vector (diff between consecutive edge orientations)
@@ -829,6 +432,50 @@ void DIHairStrands_UpdateAngularVelocity(in FDIHairStrandsContext DIContext, in 
 		const float QuatAngle = 2.0 * atan2(AxisLength,DeltaQuat.w );
 		OutAngularVelocity = DeltaQuat.xyz * QuatAngle / (AxisLength*DeltaTime);
 	}
+}
+
+/* -----------------------------------------------------------------
+ * Compute Air Drag Force
+ * -----------------------------------------------------------------
+ */
+
+// Air Density = 1 kg/m3 = 1e-3 g/cm3
+// Dynamic Viscosity = 1e-5 Pa.s = 1e-6 g/(cm.s)
+// Compute air drag force
+void DIHairStrands_ComputeAirDragForce(in FDIHairStrandsContext DIContext, in float AirDensity, in float AirViscosity, in float AirDrag, 
+	in float3 AirVelocity, in float NodeThickness, in float3 NodePosition, in float3 NodeVelocity, out float3 OutAirDrag)
+{	
+	const float3 DeltaVelocity = NodeVelocity - AirVelocity;
+	const float DeltaVNorm = length(DeltaVelocity);
+
+	SharedNodePosition[GGroupThreadId.x] = NodePosition;
+	GroupMemoryBarrier();
+	
+	float AlignedTangent = 0.0;
+	float TangentLength = 0.0;
+	if( DeltaVNorm > SMALL_NUMBER)
+	{
+		const int LocalIndex = GGroupThreadId.x % DIContext.StrandSize;
+		float3 NodeTangent = (LocalIndex == 0) ? SharedNodePosition[GGroupThreadId.x+1] - SharedNodePosition[GGroupThreadId.x] : 
+												 SharedNodePosition[GGroupThreadId.x] - SharedNodePosition[GGroupThreadId.x-1]; 
+		TangentLength = length(NodeTangent);
+		NodeTangent = normalize(NodeTangent);
+
+		AlignedTangent = abs(dot(NodeTangent,DeltaVelocity)/DeltaVNorm);
+	}
+	const float NodeDiameter = NodeThickness * (1.0 - AlignedTangent) + TangentLength * AlignedTangent;
+	const float NodeArea = NodeDiameter * NodeThickness;
+
+	// V = 4 * PI * R * R * R / 3 = PI * D * D * D / 6 = M / rho 
+	//const float NodeDiameter = pow(6.0 * (NodeMass / StrandsDensity ) / PI, 1.0 / 3.0);
+	//const float NodeArea = PI * NodeDiameter * NodeDiameter / 4.0;
+
+	const float LinearDrag = 3.0 * PI * NodeDiameter * AirViscosity * AirDrag;
+	const float QuadraticDrag = 0.5 * AirDensity * NodeArea * AirDrag;
+
+	const float DragCoeff = LinearDrag + QuadraticDrag * DeltaVNorm;
+
+	OutAirDrag = - DragCoeff * DeltaVelocity;
 }
 
 /* -----------------------------------------------------------------
