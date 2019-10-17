@@ -26,6 +26,12 @@
 namespace ConcertServerUtil
 {
 
+const TCHAR* GetServerSystemMutexName()
+{
+	// A system wide mutex name used by this application instances that will unlikely be found in other applications.
+	return TEXT("Unreal_ConcertServer_67822dAB");
+}
+
 FString GetArchiveName(const FString& SessionName, const FConcertSessionSettings& Settings)
 {
 	if (Settings.ArchiveNameOverride.IsEmpty())
@@ -192,8 +198,8 @@ void FConcertServer::Startup()
 		ServerAdminEndpoint->RegisterRequestHandler<FConcertAdmin_GetSessionClientsRequest, FConcertAdmin_GetSessionClientsResponse>(this, &FConcertServer::HandleGetSessionClientsRequest);
 		ServerAdminEndpoint->RegisterRequestHandler<FConcertAdmin_GetSessionActivitiesRequest, FConcertAdmin_GetSessionActivitiesResponse>(this, &FConcertServer::HandleGetSessionActivitiesRequest);
 
-		// Concurrent server instances may fight to get ownership of the info file. Use a system wide mutex with an arbitrary name that will unlikely be found in other applications.
-		FSystemWideCriticalSection ScopedSystemWideMutex(TEXT("Unreal_ConcertServer_67822dAB"));
+		// Concurrent server instances may fight to get ownership of the info file.
+		FSystemWideCriticalSection ScopedSystemWideMutex(ConcertServerUtil::GetServerSystemMutexName());
 
 		// Load the file containing the instance info.
 		FConcertServerInstanceInfo InstanceInfo;
@@ -201,8 +207,8 @@ void FConcertServer::Startup()
 
 		// Check if the server can scan/load/rotate the existing session files in the configured directories. (The existing session files are not sharable, they can only managed by one instance)
 		int32 ActiveInstanceCount = ConcertServerUtil::RemoveInactiveServerInstances(InstanceInfo);
-		bool bLoadExistingSessions = ActiveInstanceCount == 0 || !ConcertServerUtil::SharesDirectoriesWithOtherInstances(*Paths, InstanceInfo);
-		if (bLoadExistingSessions)
+		bExclusiveAccessToExistingSessionsAtStartup = ActiveInstanceCount == 0 || !ConcertServerUtil::SharesDirectoriesWithOtherInstances(*Paths, InstanceInfo);
+		if (bExclusiveAccessToExistingSessionsAtStartup)
 		{
 			if (Settings->bCleanWorkingDir)
 			{
@@ -228,8 +234,7 @@ void FConcertServer::Startup()
 		ThisInstance.WorkingDirectory = Paths->GetWorkingDir();
 		ThisInstance.ArchiveDirectory = Paths->GetSavedDir();
 		ThisInstance.ProcessId = FPlatformProcess::GetCurrentProcessId();
-		ThisInstance.bEnclaved = !bLoadExistingSessions; // Enclaved means this instance did not scan and load existing sessions to avoid conflict with another running instance(s). It was restricted to work with its own sessions only.
-
+		ThisInstance.bEnclaved = !bExclusiveAccessToExistingSessionsAtStartup; // Enclaved means this instance did not scan and load existing sessions to avoid conflict with another running instance(s). It was restricted to work with its own sessions only.
 		ConcertServerUtil::SaveServerInstanceInfo(Role, InstanceInfo);
 	}
 }
@@ -286,6 +291,22 @@ void FConcertServer::Shutdown()
 		}
 		ArchivedSessions.Reset();
 	}
+
+	// Concurrent server instances may fight to get ownership of the info file.
+	FSystemWideCriticalSection ScopedSystemWideMutex(ConcertServerUtil::GetServerSystemMutexName());
+
+	// Load the file containing the instance info.
+	FConcertServerInstanceInfo InstanceInfo;
+	ConcertServerUtil::LoadServerInstanceInfo(Role, InstanceInfo);
+
+	// Remove this instance form the list of instances.
+	int32 ProcessId = FPlatformProcess::GetCurrentProcessId();
+	InstanceInfo.Instances.RemoveAll([ProcessId](const FConcertServerInstance& Instance)
+	{
+		return Instance.ProcessId == ProcessId;
+	});
+
+	ConcertServerUtil::SaveServerInstanceInfo(Role, InstanceInfo);
 }
 
 FGuid FConcertServer::GetLiveSessionIdByName(const FString& InName) const
@@ -416,9 +437,11 @@ void FConcertServer::RecoverSessions()
 	{
 		// Find any existing archived sessions
 		TArray<FConcertSessionInfo> ArchivedSessionInfos;
-		TArray<FDateTime> ArchivedSessionLastModifiedTimes;
-		EventSink->GetSessionsFromPath(*this, Paths->GetSavedDir(), ArchivedSessionInfos, &ArchivedSessionLastModifiedTimes);
-		check(ArchivedSessionInfos.Num() == ArchivedSessionLastModifiedTimes.Num());
+		TArray<FDateTime> ArchivedSessionCreationTimes;
+
+		// In theory, archives are immutable, but the server will end up touching the files and change the 'modification time'. Ensure to look at 'creation time'.
+		EventSink->GetSessionsFromPath(*this, Paths->GetSavedDir(), ArchivedSessionInfos, &ArchivedSessionCreationTimes);
+		check(ArchivedSessionInfos.Num() == ArchivedSessionCreationTimes.Num());
 
 		// Trim the oldest archived sessions
 		if (Settings->NumSessionsToKeep > 0 && ArchivedSessionInfos.Num() > Settings->NumSessionsToKeep)
@@ -429,7 +452,7 @@ void FConcertServer::RecoverSessions()
 			TArray<FSavedSessionInfo> SortedSessions;
 			for (int32 LiveSessionInfoIndex = 0; LiveSessionInfoIndex < ArchivedSessionInfos.Num(); ++LiveSessionInfoIndex)
 			{
-				SortedSessions.Add(MakeTuple(LiveSessionInfoIndex, ArchivedSessionLastModifiedTimes[LiveSessionInfoIndex]));
+				SortedSessions.Add(MakeTuple(LiveSessionInfoIndex, ArchivedSessionCreationTimes[LiveSessionInfoIndex]));
 			}
 			SortedSessions.Sort([](const FSavedSessionInfo& InOne, const FSavedSessionInfo& InTwo)
 			{
@@ -455,7 +478,7 @@ void FConcertServer::RecoverSessions()
 
 			// Update the list of sessions to restore
 			ArchivedSessionInfos = MoveTemp(ArchivedSessionsToKeep);
-			ArchivedSessionLastModifiedTimes.Reset();
+			ArchivedSessionCreationTimes.Reset();
 		}
 
 		// Create any existing archived sessions
@@ -866,6 +889,7 @@ TFuture<FConcertAdmin_GetAllSessionsResponse> FConcertServer::HandleGetAllSessio
 
 	FConcertAdmin_GetAllSessionsResponse ResponseData;
 	ResponseData.LiveSessions = GetSessionsInfo();
+	ResponseData.bIncludesPreviousInstanceSessions = bExclusiveAccessToExistingSessionsAtStartup;
 	for (const auto& ArchivedSessionPair : ArchivedSessions)
 	{
 		ResponseData.ArchivedSessions.Add(ArchivedSessionPair.Value);
