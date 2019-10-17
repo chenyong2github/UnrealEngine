@@ -378,9 +378,9 @@ UGroomComponent::UGroomComponent(const FObjectInitializer& ObjectInitializer)
 	bAutoActivate = true;
 	bSelectable = true;
 	RegisteredSkeletalMeshComponent = nullptr;
-	HairDensity = 1;
+	HairShadowDensity = 1;
 	HairRaytracingRadiusScale = 1;
-	bSkinGroom = false;
+	bBindGroomToSkeletalMesh = false;
 	InitializedResources = nullptr;
 	Mobility = EComponentMobility::Movable;
 	MeshProjectionTickDelay = 0;
@@ -613,7 +613,7 @@ void UGroomComponent::InitResources()
 	WorldType = WorldType == EWorldType::Inactive ? EWorldType::Editor : WorldType;
 
 	// Insure the ticking of the Groom component always happens after the skeletalMeshComponent.
-	USkeletalMeshComponent* SkeletalMeshComponent = bSkinGroom && GetAttachParent() ? Cast<USkeletalMeshComponent>(GetAttachParent()) : nullptr;
+	USkeletalMeshComponent* SkeletalMeshComponent = bBindGroomToSkeletalMesh && GetAttachParent() ? Cast<USkeletalMeshComponent>(GetAttachParent()) : nullptr;
 	if (SkeletalMeshComponent)
 	{
 		RegisteredSkeletalMeshComponent = SkeletalMeshComponent;
@@ -626,7 +626,7 @@ void UGroomComponent::InitResources()
 	}
 
 	FTransform HairLocalToWorld = GetComponentTransform();
-	FTransform SkinLocalToWorld = bSkinGroom && SkeletalMeshComponent ? SkeletalMeshComponent->GetComponentTransform() : FTransform::Identity;
+	FTransform SkinLocalToWorld = bBindGroomToSkeletalMesh && SkeletalMeshComponent ? SkeletalMeshComponent->GetComponentTransform() : FTransform::Identity;
 	
 	InterpolationOutput = new FHairStrandsInterpolationOutput();
 	InterpolationInput = new FHairStrandsInterpolationInput();
@@ -1005,12 +1005,12 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	//  Init/release resources when setting the GroomAsset (or undoing)
 	const bool bRecreateResources =
 		(PropertyName == GET_MEMBER_NAME_CHECKED(UGroomComponent, GroomAsset) || PropertyThatChanged == nullptr) ||
-		PropertyName == GET_MEMBER_NAME_CHECKED(UGroomComponent, bSkinGroom);
+		PropertyName == GET_MEMBER_NAME_CHECKED(UGroomComponent, bBindGroomToSkeletalMesh);
 
 	const bool bSupportSkinProjection = GetDefault<URendererSettings>()->bSupportSkinCacheShaders && !UAnimationSettings::Get()->bTickAnimationOnSkeletalMeshInit;
 	if (!bSupportSkinProjection)
 	{
-		bSkinGroom = false;
+		bBindGroomToSkeletalMesh = false;
 	}
 
 	if (bRecreateResources)
@@ -1055,7 +1055,7 @@ bool UGroomComponent::CanEditChange(const UProperty* InProperty) const
 			return bIsEditable;
 		}
 
-		if (FCString::Strcmp(*PropertyName, TEXT("bSkinGroom")) == 0)
+		if (FCString::Strcmp(*PropertyName, TEXT("bBindGroomToSkeletalMesh")) == 0)
 		{
 			return GetDefault<URendererSettings>()->bSupportSkinCacheShaders && !UAnimationSettings::Get()->bTickAnimationOnSkeletalMeshInit;
 		}
