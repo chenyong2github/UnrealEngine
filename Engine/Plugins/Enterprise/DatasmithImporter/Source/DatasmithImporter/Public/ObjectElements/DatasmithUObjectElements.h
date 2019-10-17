@@ -5,12 +5,11 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 
+#include "DatasmithDefinitions.h"
 #include "DatasmithVariantElements.h"
 #include "IDatasmithSceneElements.h"
 
 #include "DatasmithUObjectElements.generated.h"
-
-enum class EPropertyValueCategory: uint8;
 
 /*
  * UDatasmithObjectElement
@@ -795,11 +794,11 @@ public:
 
 	/** Sets the category of this property capture */
 	UFUNCTION(BlueprintCallable, Category="Datasmith | Element")
-	void SetCategory(EPropertyValueCategory Category);
+	void SetCategory(EDatasmithPropertyCategory Category);
 
 	/** Gets the category of this property capture */
 	UFUNCTION(BlueprintCallable, Category="Datasmith | Element")
-	EPropertyValueCategory GetCategory() const;
+	EDatasmithPropertyCategory GetCategory() const;
 
 public:
 	TWeakPtr<IDatasmithBasePropertyCaptureElement> GetBasePropertyCaptureElement() const { return DatasmithElement; }

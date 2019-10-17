@@ -2,12 +2,12 @@
 
 #include "ObjectElements/DatasmithUObjectElements.h"
 
+#include "DatasmithDefinitions.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithUElementsUtils.h"
 #include "DatasmithUtils.h"
 #include "IDatasmithSceneElements.h"
 #include "ObjectElements/DatasmithUSceneElement.h"
-#include "PropertyValue.h"
 #include "Utility/DatasmithImporterUtils.h"
 
 #include "Engine/StaticMesh.h"
@@ -1073,15 +1073,15 @@ FString UDatasmithBasePropertyCaptureElement::GetPropertyPath() const
 	return Element->GetPropertyPath();
 }
 
-void UDatasmithBasePropertyCaptureElement::SetCategory(EPropertyValueCategory Category)
+void UDatasmithBasePropertyCaptureElement::SetCategory(EDatasmithPropertyCategory Category)
 {
 	DATASMITHOBJECTELEMENT_GETSHARED_AND_EARLYRETURN(IDatasmithBasePropertyCaptureElement, DatasmithElement, );
 	Element->SetCategory(Category);
 }
 
-EPropertyValueCategory UDatasmithBasePropertyCaptureElement::GetCategory() const
+EDatasmithPropertyCategory UDatasmithBasePropertyCaptureElement::GetCategory() const
 {
-	DATASMITHOBJECTELEMENT_GETSHARED_AND_EARLYRETURN(IDatasmithBasePropertyCaptureElement, DatasmithElement, EPropertyValueCategory::Undefined);
+	DATASMITHOBJECTELEMENT_GETSHARED_AND_EARLYRETURN(IDatasmithBasePropertyCaptureElement, DatasmithElement, EDatasmithPropertyCategory::Undefined);
 	return Element->GetCategory();
 }
 

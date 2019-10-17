@@ -20,7 +20,6 @@ public:
 	// End of IDetailCustomization interface
 
 private:
-
 	FReply OnOpenVariantManagerButtonClicked(ALevelVariantSetsActor* Actor);
 	FReply OnCreateLevelVarSetsButtonClicked();
 };
