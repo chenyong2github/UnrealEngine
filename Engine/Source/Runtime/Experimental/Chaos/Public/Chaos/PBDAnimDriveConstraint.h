@@ -9,18 +9,19 @@ template<typename T, int d>
 class TPBDAnimDriveConstraint : public TParticleRule<T, d>
 {
   public:
-	  TPBDAnimDriveConstraint(
-		  const int InParticleIndexOffset,
-		  const TArray<TVector<T, d>>* const InSpringNeutralPositions,
-		  const TArray<T>* const InSpringStiffnessMultiplier,
-		  float InSpringStiffness) :
-		  ParticleIndexOffset(InParticleIndexOffset),
-		  SpringNeutralPositions(InSpringNeutralPositions),
-		  SpringStiffnessMultiplier(InSpringStiffnessMultiplier),
-		  SpringStiffness(InSpringStiffness)
-	  {
+	TPBDAnimDriveConstraint(
+		const int InParticleIndexOffset
+		, const TArray<TVector<T, d>>* const InSpringNeutralPositions
+		, const TArray<T>* const InSpringStiffnessMultiplier
+		, float InSpringStiffness
+	)
+		: ParticleIndexOffset(InParticleIndexOffset)
+		, SpringNeutralPositions(InSpringNeutralPositions)
+		, SpringStiffnessMultiplier(InSpringStiffnessMultiplier)
+		, SpringStiffness(InSpringStiffness)
+	{
 
-	  }
+	}
 	virtual ~TPBDAnimDriveConstraint() {}
 
 	inline virtual void Apply(TPBDParticles<T, d>& InParticles, const T Dt) const override
