@@ -22,7 +22,7 @@ struct FEDLBootObjectState
 
 struct FEDLBootWaitingPackage
 {
-	FGCObject* Package;
+	void* Package;
 	FPackageIndex Import;
 };
 
@@ -37,7 +37,7 @@ struct FEDLBootNotificationManager
 	FCriticalSection EDLBootNotificationManagerLock;
 
 	// return true if you are waiting for this compiled in object
-	bool AddWaitingPackage(FGCObject* Pkg, FName PackageName, FName ObjectName, FPackageIndex Import) override
+	bool AddWaitingPackage(void* Pkg, FName PackageName, FName ObjectName, FPackageIndex Import) override
 	{
 		if (PackageName == GLongCoreUObjectPackageName)
 		{

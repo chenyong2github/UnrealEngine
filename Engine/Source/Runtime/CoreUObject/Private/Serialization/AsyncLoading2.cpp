@@ -662,7 +662,6 @@ uint32 FAsyncLoadingThreadState2::TlsSlot;
 */
 
 struct FAsyncPackage2
-	: public FGCObject
 {
 	friend struct FScopedAsyncPackageEvent2;
 
@@ -804,13 +803,6 @@ struct FAsyncPackage2
 	bool IsBeingProcessedRecursively() const
 	{
 		return ReentryCount > 1;
-	}
-
-	/** FGCObject Interface */
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override {}
-	virtual FString GetReferencerName() const override
-	{
-		return FString::Printf(TEXT("FAsyncPackage %s"), *GetPackageName().ToString());
 	}
 
 	void AddOwnedObjectFromCallback(UObject* Object, bool bSubObject)
@@ -1405,7 +1397,7 @@ public:
 
 	void NotifyConstructedDuringAsyncLoading(UObject* Object, bool bSubObject);
 
-	void FireCompletedCompiledInImport(FGCObject* AsyncPackage, FPackageIndex Import);
+	void FireCompletedCompiledInImport(void* AsyncPackage, FPackageIndex Import);
 
 	/**
 	* [ASYNC THREAD] Finds an existing async package in the AsyncPackages by its name.
@@ -1584,11 +1576,11 @@ private:
 struct FAsyncPackageScope2
 {
 	/** Outer scope package */
-	FGCObject* PreviousPackage;
+	void* PreviousPackage;
 	/** Cached ThreadContext so we don't have to access it again */
 	FUObjectThreadContext& ThreadContext;
 
-	FAsyncPackageScope2(FGCObject* InPackage)
+	FAsyncPackageScope2(void* InPackage)
 		: ThreadContext(FUObjectThreadContext::Get())
 	{
 		PreviousPackage = ThreadContext.AsyncPackage;
@@ -3118,6 +3110,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_Tick(FAsyncPackage2* Package, int
 
 EAsyncPackageState::Type FAsyncPackage2::Event_Delete(FAsyncPackage2* Package, int32)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(Event_Delete);
 	delete Package;
 	return EAsyncPackageState::Complete;
 }
@@ -4092,7 +4085,7 @@ void FAsyncLoadingThread2Impl::NotifyConstructedDuringAsyncLoading(UObject* Obje
 	AsyncPackage2->AddOwnedObjectFromCallback(Object, /*bForceAdd*/ bSubObject);
 }
 
-void FAsyncLoadingThread2Impl::FireCompletedCompiledInImport(FGCObject* AsyncPackage, FPackageIndex Import)
+void FAsyncLoadingThread2Impl::FireCompletedCompiledInImport(void* AsyncPackage, FPackageIndex Import)
 {
 	static_cast<FAsyncPackage2*>(AsyncPackage)->GetNode(EEventLoadNode2::ImportOrExport_Create, Import)->ReleaseBarrier();
 }
@@ -4306,8 +4299,6 @@ void FAsyncPackage2::ResetLoader()
 	// Reset loader.
 	if (Linker)
 	{
-		check(Linker->AsyncRoot == this || Linker->AsyncRoot == nullptr);
-		Linker->AsyncRoot = nullptr;
 		// Flush cache and queue for delete
 		Linker->FlushCache();
 		Linker->Detach();
@@ -4322,8 +4313,6 @@ void FAsyncPackage2::DetachLinker()
 	{
 		Linker->FlushCache();
 		checkf(bLoadHasFinished || bLoadHasFailed, TEXT("FAsyncPackage::DetachLinker called before load finished on package \"%s\""), *this->GetPackageName().ToString());
-		check(Linker->AsyncRoot == this || Linker->AsyncRoot == nullptr);
-		Linker->AsyncRoot = nullptr;
 		Linker = nullptr;
 	}
 }
@@ -4414,7 +4403,6 @@ EAsyncPackageState::Type FAsyncPackage2::CreateLinker()
 		Linker->bLockoutLegacyOperations = true;
 		Linker->SetIsLoading(true);
 		Linker->SetIsPersistent(true);
-		Linker->AsyncRoot = this;
 	}
 	Package->LinkerLoad = Linker;
 
@@ -4710,24 +4698,6 @@ EAsyncPackageState::Type FAsyncPackage2::FinishObjects()
 
 void FAsyncPackage2::CloseDelayedLinkers()
 {
-	// Close any linkers that have been open as a result of blocking load while async loading
-	for (FLinkerLoad* LinkerToClose : DelayedLinkerClosePackages)
-	{
-		if (LinkerToClose->LinkerRoot != nullptr)
-		{
-			check(LinkerToClose);
-			//check(LinkerToClose->LinkerRoot);
-			FLinkerLoad* LinkerToReset = FLinkerLoad::FindExistingLinkerForPackage(LinkerToClose->LinkerRoot);
-			check(LinkerToReset == LinkerToClose);
-			if (LinkerToReset && LinkerToReset->AsyncRoot)
-			{
-				UE_LOG(LogStreaming, Error, TEXT("Linker cannot be reset right now...leaking %s"), *LinkerToReset->GetArchiveName());
-				continue;
-			}
-		}
-		check(LinkerToClose->LinkerRoot == nullptr);
-		check(LinkerToClose->AsyncRoot == nullptr);
-	}
 }
 
 void FAsyncPackage2::CallCompletionCallbacks(bool bInternal, EAsyncLoadingResult::Type LoadingResult)
@@ -5024,7 +4994,7 @@ void FAsyncLoadingThread2::NotifyConstructedDuringAsyncLoading(UObject* Object, 
 	Impl->NotifyConstructedDuringAsyncLoading(Object, bSubObject);
 }
 
-void FAsyncLoadingThread2::FireCompletedCompiledInImport(FGCObject* AsyncPackage, FPackageIndex Import)
+void FAsyncLoadingThread2::FireCompletedCompiledInImport(void* AsyncPackage, FPackageIndex Import)
 {
 	Impl->FireCompletedCompiledInImport(AsyncPackage, Import);
 }

@@ -119,11 +119,11 @@ static FThreadSafeCounter GPackageRequestID;
 struct FAsyncPackageScope
 {
 	/** Outer scope package */
-	FGCObject* PreviousPackage;
+	void* PreviousPackage;
 	/** Cached ThreadContext so we don't have to access it again */
 	FUObjectThreadContext& ThreadContext;
 
-	FAsyncPackageScope(FGCObject* InPackage)
+	FAsyncPackageScope(void* InPackage)
 		: ThreadContext(FUObjectThreadContext::Get())
 	{
 		PreviousPackage = ThreadContext.AsyncPackage;
@@ -5108,7 +5108,7 @@ void FAsyncLoadingThread::NotifyConstructedDuringAsyncLoading(UObject* Object, b
 		}
 	}
 
-void FAsyncLoadingThread::FireCompletedCompiledInImport(FGCObject* AsyncPackage, FPackageIndex Import)
+void FAsyncLoadingThread::FireCompletedCompiledInImport(void* AsyncPackage, FPackageIndex Import)
 {
 	FEventLoadNodePtr NodeToFire;
 	NodeToFire.WaitingPackage = FCheckedWeakAsyncPackagePtr(static_cast<FAsyncPackage*>(AsyncPackage));

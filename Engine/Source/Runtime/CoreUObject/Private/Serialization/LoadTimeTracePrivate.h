@@ -7,7 +7,6 @@
 #if LOADTIMEPROFILERTRACE_ENABLED
 
 class UObject;
-class FGCObject;
 class FName;
 
 struct FLoadTimeProfilerTracePrivate
@@ -16,21 +15,21 @@ struct FLoadTimeProfilerTracePrivate
 	static void OutputStartAsyncLoading();
 	static void OutputSuspendAsyncLoading();
 	static void OutputResumeAsyncLoading();
-	static void OutputNewAsyncPackage(const FGCObject* AsyncPackage, const FName& PackageName);
-	static void OutputBeginLoadAsyncPackage(const FGCObject* AsyncPackage);
-	static void OutputEndLoadAsyncPackage(const FGCObject* AsyncPackage);
-	static void OutputDestroyAsyncPackage(const FGCObject* AsyncPackage);
+	static void OutputNewAsyncPackage(const void* AsyncPackage, const FName& PackageName);
+	static void OutputBeginLoadAsyncPackage(const void* AsyncPackage);
+	static void OutputEndLoadAsyncPackage(const void* AsyncPackage);
+	static void OutputDestroyAsyncPackage(const void* AsyncPackage);
 	static void OutputBeginRequest(uint64 RequestId);
 	static void OutputEndRequest(uint64 RequestId);
-	static void OutputPackageSummary(const FGCObject* AsyncPackage, uint32 TotalHeaderSize, uint32 ImportCount, uint32 ExportCount);
-	static void OutputAsyncPackageImportDependency(const FGCObject* Package, const FGCObject* ImportedPackage);
-	static void OutputAsyncPackageRequestAssociation(const FGCObject* AsyncPackage, uint64 RequestId);
+	static void OutputPackageSummary(const void* AsyncPackage, uint32 TotalHeaderSize, uint32 ImportCount, uint32 ExportCount);
+	static void OutputAsyncPackageImportDependency(const void* Package, const void* ImportedPackage);
+	static void OutputAsyncPackageRequestAssociation(const void* AsyncPackage, uint64 RequestId);
 	static void OutputClassInfo(const UClass* Class, const FName& Name);
 	static void OutputClassInfo(const UClass* Class, const TCHAR* Name);
 
 	struct FCreateExportScope
 	{
-		FCreateExportScope(const FGCObject* AsyncPackage, const UObject* const* InObject);
+		FCreateExportScope(const void* AsyncPackage, const UObject* const* InObject);
 		~FCreateExportScope();
 
 	private:

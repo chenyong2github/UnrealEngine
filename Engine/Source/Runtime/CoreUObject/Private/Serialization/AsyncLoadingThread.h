@@ -291,7 +291,7 @@ public:
 
 	void NotifyConstructedDuringAsyncLoading(UObject* Object, bool bSubObject) override;
 
-	void FireCompletedCompiledInImport(FGCObject* AsyncPacakge, FPackageIndex Import) override;
+	void FireCompletedCompiledInImport(void* AsyncPacakge, FPackageIndex Import) override;
 
 	/** [EDL] Event queue */
 	FAsyncLoadEventQueue EventQueue;

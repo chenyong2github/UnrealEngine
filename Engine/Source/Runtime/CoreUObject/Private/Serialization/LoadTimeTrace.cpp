@@ -28,7 +28,7 @@ UE_TRACE_EVENT_BEGIN(LoadTime, ResumeAsyncLoading)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(LoadTime, PackageSummary)
-	UE_TRACE_EVENT_FIELD(const FGCObject*, AsyncPackage)
+	UE_TRACE_EVENT_FIELD(const void*, AsyncPackage)
 	UE_TRACE_EVENT_FIELD(uint32, TotalHeaderSize)
 	UE_TRACE_EVENT_FIELD(uint32, ImportCount)
 	UE_TRACE_EVENT_FIELD(uint32, ExportCount)
@@ -36,7 +36,7 @@ UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(LoadTime, BeginCreateExport)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
-	UE_TRACE_EVENT_FIELD(const FGCObject*, AsyncPackage)
+	UE_TRACE_EVENT_FIELD(const void*, AsyncPackage)
 	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
@@ -82,31 +82,31 @@ UE_TRACE_EVENT_BEGIN(LoadTime, EndRequest)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(LoadTime, NewAsyncPackage)
-	UE_TRACE_EVENT_FIELD(const FGCObject*, AsyncPackage)
+	UE_TRACE_EVENT_FIELD(const void*, AsyncPackage)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(LoadTime, BeginLoadAsyncPackage)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
-	UE_TRACE_EVENT_FIELD(const FGCObject*, AsyncPackage)
+	UE_TRACE_EVENT_FIELD(const void*, AsyncPackage)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(LoadTime, EndLoadAsyncPackage)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
-	UE_TRACE_EVENT_FIELD(const FGCObject*, AsyncPackage)
+	UE_TRACE_EVENT_FIELD(const void*, AsyncPackage)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(LoadTime, DestroyAsyncPackage)
-	UE_TRACE_EVENT_FIELD(const FGCObject*, AsyncPackage)
+	UE_TRACE_EVENT_FIELD(const void*, AsyncPackage)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(LoadTime, AsyncPackageRequestAssociation)
-	UE_TRACE_EVENT_FIELD(const FGCObject*, AsyncPackage)
+	UE_TRACE_EVENT_FIELD(const void*, AsyncPackage)
 	UE_TRACE_EVENT_FIELD(uint64, RequestId)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(LoadTime, AsyncPackageImportDependency)
-	UE_TRACE_EVENT_FIELD(const FGCObject*, AsyncPackage)
-	UE_TRACE_EVENT_FIELD(const FGCObject*, ImportedAsyncPackage)
+	UE_TRACE_EVENT_FIELD(const void*, AsyncPackage)
+	UE_TRACE_EVENT_FIELD(const void*, ImportedAsyncPackage)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(LoadTime, ClassInfo, Always)
@@ -177,7 +177,7 @@ void FLoadTimeProfilerTracePrivate::OutputEndRequest(uint64 RequestId)
 		<< EndRequest.RequestId(RequestId);
 }
 
-void FLoadTimeProfilerTracePrivate::OutputNewAsyncPackage(const FGCObject* AsyncPackage, const FName& PackageName)
+void FLoadTimeProfilerTracePrivate::OutputNewAsyncPackage(const void* AsyncPackage, const FName& PackageName)
 {
 	TCHAR Buffer[FName::StringBufferSize];
 	uint16 NameSize = (PackageName.ToString(Buffer) + 1) * sizeof(TCHAR);
@@ -186,27 +186,27 @@ void FLoadTimeProfilerTracePrivate::OutputNewAsyncPackage(const FGCObject* Async
 		<< NewAsyncPackage.Attachment(Buffer, NameSize);
 }
 
-void FLoadTimeProfilerTracePrivate::OutputBeginLoadAsyncPackage(const FGCObject* AsyncPackage)
+void FLoadTimeProfilerTracePrivate::OutputBeginLoadAsyncPackage(const void* AsyncPackage)
 {
 	UE_TRACE_LOG(LoadTime, BeginLoadAsyncPackage)
 		<< BeginLoadAsyncPackage.Cycle(FPlatformTime::Cycles64())
 		<< BeginLoadAsyncPackage.AsyncPackage(AsyncPackage);
 }
 
-void FLoadTimeProfilerTracePrivate::OutputEndLoadAsyncPackage(const FGCObject* AsyncPackage)
+void FLoadTimeProfilerTracePrivate::OutputEndLoadAsyncPackage(const void* AsyncPackage)
 {
 	UE_TRACE_LOG(LoadTime, EndLoadAsyncPackage)
 		<< EndLoadAsyncPackage.Cycle(FPlatformTime::Cycles64())
 		<< EndLoadAsyncPackage.AsyncPackage(AsyncPackage);
 }
 
-void FLoadTimeProfilerTracePrivate::OutputDestroyAsyncPackage(const FGCObject* AsyncPackage)
+void FLoadTimeProfilerTracePrivate::OutputDestroyAsyncPackage(const void* AsyncPackage)
 {
 	UE_TRACE_LOG(LoadTime, DestroyAsyncPackage)
 		<< DestroyAsyncPackage.AsyncPackage(AsyncPackage);
 }
 
-void FLoadTimeProfilerTracePrivate::OutputPackageSummary(const FGCObject* AsyncPackage, uint32 TotalHeaderSize, uint32 ImportCount, uint32 ExportCount)
+void FLoadTimeProfilerTracePrivate::OutputPackageSummary(const void* AsyncPackage, uint32 TotalHeaderSize, uint32 ImportCount, uint32 ExportCount)
 {
 	UE_TRACE_LOG(LoadTime, PackageSummary)
 		<< PackageSummary.AsyncPackage(AsyncPackage)
@@ -215,14 +215,14 @@ void FLoadTimeProfilerTracePrivate::OutputPackageSummary(const FGCObject* AsyncP
 		<< PackageSummary.ExportCount(ExportCount);
 }
 
-void FLoadTimeProfilerTracePrivate::OutputAsyncPackageRequestAssociation(const FGCObject* AsyncPackage, uint64 RequestId)
+void FLoadTimeProfilerTracePrivate::OutputAsyncPackageRequestAssociation(const void* AsyncPackage, uint64 RequestId)
 {
 	UE_TRACE_LOG(LoadTime, AsyncPackageRequestAssociation)
 		<< AsyncPackageRequestAssociation.AsyncPackage(AsyncPackage)
 		<< AsyncPackageRequestAssociation.RequestId(RequestId);
 }
 
-void FLoadTimeProfilerTracePrivate::OutputAsyncPackageImportDependency(const FGCObject* Package, const FGCObject* ImportedPackage)
+void FLoadTimeProfilerTracePrivate::OutputAsyncPackageImportDependency(const void* Package, const void* ImportedPackage)
 {
 	UE_TRACE_LOG(LoadTime, AsyncPackageImportDependency)
 		<< AsyncPackageImportDependency.AsyncPackage(Package)
@@ -246,7 +246,7 @@ void FLoadTimeProfilerTracePrivate::OutputClassInfo(const UClass* Class, const T
 		<< ClassInfo.Attachment(Name, NameSize);
 }
 
-FLoadTimeProfilerTracePrivate::FCreateExportScope::FCreateExportScope(const FGCObject* AsyncPackage, const UObject* const* InObject)
+FLoadTimeProfilerTracePrivate::FCreateExportScope::FCreateExportScope(const void* AsyncPackage, const UObject* const* InObject)
 	: Object(InObject)
 {
 	UE_TRACE_LOG(LoadTime, BeginCreateExport)

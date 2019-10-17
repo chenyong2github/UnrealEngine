@@ -176,7 +176,7 @@ public:
 	}
 
 	/** The async package associated with this linker */
-	class FGCObject* AsyncRoot;
+	struct FAsyncPackage* AsyncRoot;
 #if WITH_EDITOR
 	/** Bulk data that does not need to be loaded when the linker is loaded.												*/
 	TArray<FUntypedBulkData*> BulkDataLoaders;
