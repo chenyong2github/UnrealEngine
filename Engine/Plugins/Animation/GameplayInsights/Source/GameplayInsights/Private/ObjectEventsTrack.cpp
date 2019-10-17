@@ -72,9 +72,6 @@ bool FObjectEventsTrack::SearchTimingEvent(const FTimingEventSearchParameters& I
 
 bool FObjectEventsTrack::FindObjectEvent(const FTimingEventSearchParameters& InParameters, TFunctionRef<void(double, double, uint32, const FObjectEventMessage&)> InFoundPredicate) const
 {
-	// Storage for the message we want to match (payload for an event)
-	FObjectEventMessage MatchedMessage;
-
 	return TTimingEventSearch<FObjectEventMessage>::Search(
 		InParameters,
 
@@ -97,16 +94,10 @@ bool FObjectEventsTrack::FindObjectEvent(const FTimingEventSearchParameters& InP
 			}
 		},
 
-		// Matched...
-		[&MatchedMessage](double InStartTime, double InEndTime, uint32 InDepth, const FObjectEventMessage& InEvent)
-		{
-			MatchedMessage = InEvent;
-		},
-
 		// Found!
-		[&InFoundPredicate, &MatchedMessage](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth)
+		[&InFoundPredicate](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const FObjectEventMessage& InEvent)
 		{
-			InFoundPredicate(InFoundStartTime, InFoundEndTime, InFoundDepth, MatchedMessage);
+			InFoundPredicate(InFoundStartTime, InFoundEndTime, InFoundDepth, InEvent);
 		});
 }
 

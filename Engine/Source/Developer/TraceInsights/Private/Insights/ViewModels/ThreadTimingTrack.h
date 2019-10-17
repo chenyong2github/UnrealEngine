@@ -6,8 +6,9 @@
 
 // Insights
 #include "Insights/ViewModels/TimingEventsTrack.h"
+#include "Insights/ViewModels/TimingEventSearch.h"
+#include "TraceServices/Model/TimingProfiler.h"
 
-namespace Trace { struct FTimingProfilerEvent; }
 class FTimingEventSearchParameters;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -47,6 +48,9 @@ private:
 private:
 	const TCHAR* GroupName;
 	uint32 ThreadId;
+
+	// Search cache
+	mutable TTimingEventSearchCache<Trace::FTimingProfilerEvent> SearchCache;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

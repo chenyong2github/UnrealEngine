@@ -336,6 +336,7 @@ bool FThreadTimingTrack::FindTimingProfilerEvent(const FTimingEvent& InTimingEve
 	};
 
 	FTimingEventSearchParameters SearchParameters(InTimingEvent.StartTime, InTimingEvent.EndTime, ETimingEventSearchFlags::StopAtFirstMatch, MatchDepth);
+	SearchParameters.SearchHandle = &InTimingEvent.SearchHandle;
 	return FindTimingProfilerEvent(SearchParameters, InFoundPredicate);
 }
 
@@ -343,13 +344,9 @@ bool FThreadTimingTrack::FindTimingProfilerEvent(const FTimingEvent& InTimingEve
 
 bool FThreadTimingTrack::FindTimingProfilerEvent(const FTimingEventSearchParameters& InParameters, TFunctionRef<void(double, double, uint32, const Trace::FTimingProfilerEvent&)> InFoundPredicate) const
 {
-	// Storage for the event we want to match
-	Trace::FTimingProfilerEvent MatchedEvent;
-
 	return TTimingEventSearch<Trace::FTimingProfilerEvent>::Search(
 		InParameters,
 
-		// Search...
 		[this](TTimingEventSearch<Trace::FTimingProfilerEvent>::FContext& InContext)
 		{
 			TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
@@ -372,17 +369,12 @@ bool FThreadTimingTrack::FindTimingProfilerEvent(const FTimingEventSearchParamet
 			}
 		},
 
-		// Matched...
-		[&MatchedEvent](double InStartTime, double InEndTime, uint32 InDepth, const Trace::FTimingProfilerEvent& InEvent)
+		[&InFoundPredicate](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const Trace::FTimingProfilerEvent& InEvent)
 		{
-			MatchedEvent = InEvent;
+			InFoundPredicate(InFoundStartTime, InFoundEndTime, InFoundDepth, InEvent);
 		},
-
-		// Found!
-		[&InFoundPredicate, &MatchedEvent](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth)
-		{
-			InFoundPredicate(InFoundStartTime, InFoundEndTime, InFoundDepth, MatchedEvent);
-		});
+		
+		SearchCache);
 }
 
 

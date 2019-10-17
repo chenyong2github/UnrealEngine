@@ -448,9 +448,6 @@ void FFileActivityTimingTrack::InitTooltip(FTooltipDrawState& Tooltip, const FTi
 
 bool FFileActivityTimingTrack::FindIoTimingEvent(const FTimingEventSearchParameters& InParameters, bool bIgnoreEventDepth, TFunctionRef<void(double, double, uint32, const FFileActivitySharedState::FIoTimingEvent&)> InFoundPredicate) const
 {
-	// Storage for the event we want to match
-	FFileActivitySharedState::FIoTimingEvent MatchedEvent;
-
 	return TTimingEventSearch<FFileActivitySharedState::FIoTimingEvent>::Search(
 		InParameters,
 
@@ -479,16 +476,10 @@ bool FFileActivityTimingTrack::FindIoTimingEvent(const FTimingEventSearchParamet
 			}
 		},
 
-		// Matched...
-		[&MatchedEvent](double InStartTime, double InEndTime, uint32 InDepth, const FFileActivitySharedState::FIoTimingEvent& InEvent)
-		{
-			MatchedEvent = InEvent;
-		},
-
 		// Found!
-		[&InFoundPredicate, &MatchedEvent](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth)
+		[&InFoundPredicate](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const FFileActivitySharedState::FIoTimingEvent& InEvent)
 		{
-			InFoundPredicate(InFoundStartTime, InFoundEndTime, InFoundDepth, MatchedEvent);
+			InFoundPredicate(InFoundStartTime, InFoundEndTime, InFoundDepth, InEvent);
 		});
 }
 

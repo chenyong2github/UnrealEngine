@@ -89,13 +89,9 @@ bool FAnimationTickRecordsTrack::SearchTimingEvent(const FTimingEventSearchParam
 
 bool FAnimationTickRecordsTrack::FindTickRecordMessage(const FTimingEventSearchParameters& InParameters, TFunctionRef<void(double, double, uint32, const FTickRecordMessage&)> InFoundPredicate) const
 {
-	// Storage for the message we want to match (payload for an event)
-	FTickRecordMessage MatchedMessage;
-
 	return TTimingEventSearch<FTickRecordMessage>::Search(
 		InParameters,
 
-		// Search...
 		[this](TTimingEventSearch<FTickRecordMessage>::FContext& InContext)
 		{
 			const FAnimationProvider* AnimationProvider = SharedData.GetAnalysisSession().ReadProvider<FAnimationProvider>(FAnimationProvider::ProviderName);
@@ -114,16 +110,9 @@ bool FAnimationTickRecordsTrack::FindTickRecordMessage(const FTimingEventSearchP
 			}
 		},
 
-		// Matched...
-		[&MatchedMessage](double InStartTime, double InEndTime, uint32 InDepth, const FTickRecordMessage& InEvent)
+		[&InFoundPredicate](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const FTickRecordMessage& InEvent)
 		{
-			MatchedMessage = InEvent;
-		},
-
-		// Found!
-		[&InFoundPredicate, &MatchedMessage](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth)
-		{
-			InFoundPredicate(InFoundStartTime, InFoundEndTime, InFoundDepth, MatchedMessage);
+			InFoundPredicate(InFoundStartTime, InFoundEndTime, InFoundDepth, InEvent);
 		});
 }
 

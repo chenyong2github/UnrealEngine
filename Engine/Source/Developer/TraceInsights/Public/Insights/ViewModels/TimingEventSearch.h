@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/Map.h"
 
 // Search behavior flags
 enum class ETimingEventSearchFlags : int32
@@ -16,6 +17,19 @@ enum class ETimingEventSearchFlags : int32
 };
 
 ENUM_CLASS_FLAGS(ETimingEventSearchFlags);
+
+// A handle to a timing event that was previously searched
+struct FTimingEventSearchHandle
+{
+	template<typename T, int32 N>
+	friend struct TTimingEventSearchCache;
+
+	bool IsValid() const { return Id != uint64(-1); }
+	void Reset() { Id = uint64(-1); }
+
+private:
+	uint64 Id = uint64(-1);
+};
 
 // Parameters for a timing event search
 class FTimingEventSearchParameters
@@ -33,6 +47,7 @@ public:
 	FTimingEventSearchParameters(double InStartTime, double InEndTime, ETimingEventSearchFlags Flags, EventFilterPredicate InEventFilter = NoFilter, EventMatchedPredicate InEventMatched = NoMatch)
 		: EventFilter(InEventFilter)
 		, EventMatched(InEventMatched)
+		, SearchHandle(nullptr)
 		, StartTime(InStartTime)
 		, EndTime(InEndTime)
 		, Flags(Flags)
@@ -50,6 +65,9 @@ public:
 	// Predicate called when we get a match
 	EventMatchedPredicate EventMatched;
 
+	// A handle to a previous search. This will be written during a search if a cache is utilized and a hit was not generated
+	FTimingEventSearchHandle* SearchHandle;
+
 	// Start time of the search
 	double StartTime;
 
@@ -58,6 +76,90 @@ public:
 
 	// Search behavior flags
 	ETimingEventSearchFlags Flags;
+};
+
+// Simple acceleration structure used to return previously searched results
+template <typename PayloadType, int32 Size = 3>
+struct TTimingEventSearchCache
+{
+public:
+	TTimingEventSearchCache()
+		: CurrentHandle(0)
+		, WriteIndex(0)
+	{}
+
+	// Write to the cache
+	// @return a handle to the search
+	FTimingEventSearchHandle Write(double InStartTime, double InEndTime, uint32 InDepth, const PayloadType& InPayload)
+	{
+		TPair<FTimingEventSearchHandle, FResultData>& WritePair = CachedValues[WriteIndex];
+
+		WritePair.Key.Id = CurrentHandle++;
+		WritePair.Value.Payload = InPayload;
+		WritePair.Value.StartTime = InStartTime;
+		WritePair.Value.EndTime = InEndTime;
+		WritePair.Value.Depth = InDepth;
+
+		WriteIndex = (WriteIndex + 1) % Size;
+
+		return WritePair.Key;
+	}
+
+	// Attempt to read from the cache.
+	// @return false if the value was not found
+	bool Read(const FTimingEventSearchHandle& InHandle, double& OutStartTime, double& OutEndTime, uint32& OutDepth, PayloadType& OutPayload)
+	{
+		static_assert(Size > 1, "TTimingEventSearchCache only works with caches that have multiple values");
+
+		if(InHandle.IsValid())
+		{
+			// Start read at the previous write, to catch most recently written values
+			for(int32 ReadIndex = (WriteIndex + (Size - 1)) % Size, ReadCount = 0; ReadCount < Size; ReadCount++, ReadIndex = (ReadIndex + 1) % Size)
+			{
+				check(ReadIndex >= 0 && ReadIndex < Size);
+
+				const TPair<FTimingEventSearchHandle, FResultData>& CachedPair = CachedValues[ReadIndex];
+				if(InHandle.Id == CachedPair.Key.Id)
+				{
+					OutStartTime = CachedPair.Value.StartTime;
+					OutEndTime = CachedPair.Value.EndTime;
+					OutDepth = CachedPair.Value.Depth;
+					OutPayload = CachedPair.Value.Payload;
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	// Reset the cache. Any reads after this will return false
+	void Reset()
+	{
+		for(TPair<FTimingEventSearchHandle, FResultData>& CachedPair : CachedValues)
+		{
+			CachedPair.Key.Reset();
+		}
+	}
+
+private:
+	// Current handle
+	uint64 CurrentHandle;
+
+	// Current write index
+	int32 WriteIndex;
+
+	// A cached result
+	struct FResultData
+	{
+		PayloadType Payload;
+		double StartTime;
+		double EndTime;
+		uint32 Depth;
+	};
+
+	// Array of cached searches
+	TPair<FTimingEventSearchHandle, FResultData> CachedValues[Size];
 };
 
 // Helper used to orchestrate a search of a timing event track's events
@@ -96,8 +198,8 @@ public:
 	// Return true to pass the filer
 	typedef TFunctionRef<bool(double /*InStartTime*/, double /*InEndTime*/, uint32 /*InDepth*/, const PayloadType& /*InPayload*/)> PayloadFilterPredicate;
 
-	// Predicate called when a match has been found. Note does not include payload as it is expected this will be captured/stored externally.
-	typedef TFunctionRef<void(double /*InStartTime*/, double /*InEndTime*/, uint32 /*InDepth*/)> FoundPredicate;
+	// Predicate called when a match has been found.
+	typedef TFunctionRef<void(double /*InStartTime*/, double /*InEndTime*/, uint32 /*InDepth*/, const PayloadType& /*InPayload*/)> FoundPredicate;
 
 	// Predicate called to run the search, e.g. iterate over an array of events
 	// It is expected to call FContext::Check on each valid searched event.
@@ -127,6 +229,7 @@ public:
 				Parameters.EventMatched(InEventStartTime, InEventEndTime, InEventDepth);
 				PayloadMatched(InEventStartTime, InEventEndTime, InEventDepth, InEvent);
 
+				FoundPayload = InEvent;
 				FoundDepth = InEventDepth;
 				FoundStartTime = InEventStartTime;
 				FoundEndTime = InEventEndTime;
@@ -140,11 +243,15 @@ public:
 		const FTimingEventSearchParameters& GetParameters() const { return Parameters; }
 
 		// Accessors for read-only results
+		const PayloadType& GetPayloadFound() const { return FoundPayload; }
 		double GetStartTimeFound() const { return FoundStartTime; }
 		double GetEndTimeFound() const { return FoundEndTime; }
 		uint32 GetDepthFound() const { return FoundDepth; }
 		bool IsMatchFound() const { return bFound; }
 		bool ShouldContinueSearching() const { return bContinueSearching; }
+
+		// Allows search to be aborted by predicates
+		void AbortSearch() { bContinueSearching = false; }
 
 	private:
 		// Search parameters
@@ -155,6 +262,9 @@ public:
 
 		// Filter applied to payloads
 		PayloadFilterPredicate PayloadFilter;
+
+		// The payload we have found
+		PayloadType FoundPayload;
 
 		// The start time of the event that was found
 		double FoundStartTime;
@@ -173,23 +283,53 @@ public:
 	};
 
 public:
-	// Search using only the event filter
-	static bool Search(const FTimingEventSearchParameters& InParameters, SearchPredicate InSearchPredicate, PayloadMatchedPredicate InPayloadMatchedPredicate, FoundPredicate InFoundPredicate)
+	// Default predicates
+	static bool NoFilter(double, double, uint32, const PayloadType&) { return true; }
+	static void NoMatch(double, double, uint32, const PayloadType&) {}
+
+public:
+	// Search using only the event filter and no match predicate
+	static bool Search(const FTimingEventSearchParameters& InParameters, SearchPredicate InSearchPredicate, FoundPredicate InFoundPredicate)
 	{
-		auto NoFilter = [](double, double, uint32, const PayloadType&){ return true; };
-		return Search(InParameters, InSearchPredicate, NoFilter, InPayloadMatchedPredicate, InFoundPredicate);
+		return Search(InParameters, InSearchPredicate, NoFilter, InFoundPredicate, NoMatch);
+	}
+
+	// Search using only the event filter, no match predicate and a cache
+	static bool Search(const FTimingEventSearchParameters& InParameters, SearchPredicate InSearchPredicate, FoundPredicate InFoundPredicate, TTimingEventSearchCache<PayloadType>& InCache)
+	{
+		return Search(InParameters, InSearchPredicate, NoFilter, InFoundPredicate, NoMatch, &InCache);
 	}
 
 	// Search using a specific payload filter
-	static bool Search(const FTimingEventSearchParameters& InParameters, SearchPredicate InSearchPredicate, PayloadFilterPredicate InFilterPredicate, PayloadMatchedPredicate InPayloadMatchedPredicate, FoundPredicate InFoundPredicate)
+	static bool Search(const FTimingEventSearchParameters& InParameters, SearchPredicate InSearchPredicate, PayloadFilterPredicate InFilterPredicate, FoundPredicate InFoundPredicate, PayloadMatchedPredicate InPayloadMatchedPredicate, TTimingEventSearchCache<PayloadType>* InCache = nullptr)
 	{
+		if(InCache != nullptr && InParameters.SearchHandle != nullptr)
+		{
+			double StartTime;
+			double EndTime;
+			uint32 Depth;
+			PayloadType Payload;
+			if(InCache->Read(*InParameters.SearchHandle, StartTime, EndTime, Depth, Payload))
+			{
+				InParameters.EventMatched(StartTime, EndTime, Depth);
+				InPayloadMatchedPredicate(StartTime, EndTime, Depth, Payload);
+				InFoundPredicate(StartTime, EndTime, Depth, Payload);
+				return true;
+			}
+		}
+
 		FContext Context(InParameters, InFilterPredicate, InPayloadMatchedPredicate);
 
 		InSearchPredicate(Context);
 
 		if(Context.IsMatchFound())
 		{
-			InFoundPredicate(Context.GetStartTimeFound(), Context.GetEndTimeFound(), Context.GetDepthFound());
+			InFoundPredicate(Context.GetStartTimeFound(), Context.GetEndTimeFound(), Context.GetDepthFound(), Context.GetPayloadFound());
+
+			if(InCache != nullptr && InParameters.SearchHandle != nullptr)
+			{
+				*InParameters.SearchHandle = InCache->Write(Context.GetStartTimeFound(), Context.GetEndTimeFound(), Context.GetDepthFound(), Context.GetPayloadFound());
+			}
 		}
 
 		return Context.IsMatchFound();

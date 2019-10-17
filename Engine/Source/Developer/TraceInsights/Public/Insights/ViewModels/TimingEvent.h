@@ -4,20 +4,33 @@
 
 #include "CoreMinimal.h"
 #include "TraceServices/Model/LoadTimeProfiler.h"
+#include "TimingEventSearch.h"
 
 class FTimingEventsTrack;
 
 struct FTimingEvent
 {
+	// The track this timing event is contained within
 	const FTimingEventsTrack* Track;
+
+	// Handle to a previous search, used to accelerate access to underlying event data
+	mutable FTimingEventSearchHandle SearchHandle;
+
+	// The start time of the event
 	double StartTime;
+
+	// The end time of the event
 	double EndTime;
+
+	// For hierarchical events, the cached exclusive time
 	double ExclusiveTime;
+
+	// The depth of the event
 	uint32 Depth;
 
 	FTimingEvent()
 		: Track(nullptr)
-		, StartTime(0.0f)
+		, StartTime(0.0)
 		, EndTime(-1.0)
 		, ExclusiveTime(0.0)
 		, Depth(0)
@@ -28,6 +41,7 @@ struct FTimingEvent
 		: Track(InTrack)
 		, StartTime(InStartTime)
 		, EndTime(InEndTime)
+		, ExclusiveTime(0.0)
 		, Depth(InDepth)
 	{}
 

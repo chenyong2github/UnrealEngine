@@ -189,13 +189,9 @@ bool FLoadingTimingTrack::SearchTimingEvent(const FTimingEventSearchParameters& 
 
 bool FLoadingTimingTrack::FindLoadTimeProfilerCpuEvent(const FTimingEventSearchParameters& InParameters, TFunctionRef<void(double, double, uint32, const Trace::FLoadTimeProfilerCpuEvent&)> InFoundPredicate) const
 {
-	// Storage for the event we want to match
-	Trace::FLoadTimeProfilerCpuEvent MatchedEvent;
-
 	return TTimingEventSearch<Trace::FLoadTimeProfilerCpuEvent>::Search(
 		InParameters,
 
-		// Search...
 		[this](TTimingEventSearch<Trace::FLoadTimeProfilerCpuEvent>::FContext& InContext)
 		{
 			TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
@@ -218,16 +214,9 @@ bool FLoadingTimingTrack::FindLoadTimeProfilerCpuEvent(const FTimingEventSearchP
 			}
 		},
 
-		// Matched...
-		[&MatchedEvent](double InStartTime, double InEndTime, uint32 InDepth, const Trace::FLoadTimeProfilerCpuEvent& InEvent)
+		[&InFoundPredicate](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const Trace::FLoadTimeProfilerCpuEvent& InEvent)
 		{
-			MatchedEvent = InEvent;
-		},
-
-		// Found!
-		[&InFoundPredicate, &MatchedEvent](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth)
-		{
-			InFoundPredicate(InFoundStartTime, InFoundEndTime, InFoundDepth, MatchedEvent);
+			InFoundPredicate(InFoundStartTime, InFoundEndTime, InFoundDepth, InEvent);
 		});
 }
 

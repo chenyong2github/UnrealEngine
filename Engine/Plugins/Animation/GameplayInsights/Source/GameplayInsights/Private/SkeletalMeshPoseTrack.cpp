@@ -100,13 +100,9 @@ bool FSkeletalMeshPoseTrack::SearchTimingEvent(const FTimingEventSearchParameter
 
 bool FSkeletalMeshPoseTrack::FindSkeletalMeshPoseMessage(const FTimingEventSearchParameters& InParameters, TFunctionRef<void(double, double, uint32, const FSkeletalMeshPoseMessage&)> InFoundPredicate) const
 {
-	// Storage for the message we want to match (payload for an event)
-	FSkeletalMeshPoseMessage MatchedMessage;
-
 	return TTimingEventSearch<FSkeletalMeshPoseMessage>::Search(
 		InParameters,
 
-		// Search...
 		[this](TTimingEventSearch<FSkeletalMeshPoseMessage>::FContext& InContext)
 		{
 			const FAnimationProvider* AnimationProvider = SharedData.GetAnalysisSession().ReadProvider<FAnimationProvider>(FAnimationProvider::ProviderName);
@@ -125,16 +121,9 @@ bool FSkeletalMeshPoseTrack::FindSkeletalMeshPoseMessage(const FTimingEventSearc
 			}
 		},
 
-		// Matched...
-		[&MatchedMessage](double InStartTime, double InEndTime, uint32 InDepth, const FSkeletalMeshPoseMessage& InEvent)
+		[&InFoundPredicate](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const FSkeletalMeshPoseMessage& InEvent)
 		{
-			MatchedMessage = InEvent;
-		},
-
-		// Found!
-		[&InFoundPredicate, &MatchedMessage](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth)
-		{
-			InFoundPredicate(InFoundStartTime, InFoundEndTime, InFoundDepth, MatchedMessage);
+			InFoundPredicate(InFoundStartTime, InFoundEndTime, InFoundDepth, InEvent);
 		});
 }
 
