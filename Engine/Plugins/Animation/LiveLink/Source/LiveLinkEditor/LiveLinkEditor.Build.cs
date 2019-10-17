@@ -30,6 +30,7 @@ namespace UnrealBuildTool.Rules
 					"InputCore",
 					"KismetCompiler",
 					"GraphEditor",
+					"LiveLinkComponents",
 					"LiveLinkGraphNode",
 					"LiveLinkMessageBusFramework",
 					"LiveLinkMovieScene",
