@@ -30,8 +30,6 @@ void FDatasmithCADTranslatorImpl::SetTessellationOptions(const FDatasmithTessell
 
 bool FDatasmithCADTranslatorImpl::Read()
 {
-	CTParser->SetTessellationOptions(TessellationOptions);
-
 #ifdef USE_CORETECH_MT_PARSER
 	CTParser->SetOutputPath(OutputPath);
 	CTParser->Read();
@@ -50,6 +48,10 @@ bool FDatasmithCADTranslatorImpl::Read()
 		return false;
 	}
 #endif
+
+	// Force CoreTech to re-tessellate the model with the translator's tessellation parameters
+	// This call has no effect on the load of the model
+	CTParser->SetTessellationOptions(TessellationOptions);
 
 	return true;
 }

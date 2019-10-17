@@ -212,13 +212,12 @@ struct DATASMITHCONTENT_API FDatasmithTessellationOptions
 {
 	GENERATED_BODY()
 
-	FDatasmithTessellationOptions()
-		: ChordTolerance(0.2f)
-		, MaxEdgeLength(0.0f)
-		, NormalTolerance(20.0f)
-		, StitchingTechnique(EDatasmithCADStitchingTechnique::StitchingSew)
+	FDatasmithTessellationOptions(float InChordTolerance = 0.2f, float InMaxEdgeLength = 0.0f, float InNormalTolerance = 20.0f, EDatasmithCADStitchingTechnique InStitchingTechnique = EDatasmithCADStitchingTechnique::StitchingSew)
+		: ChordTolerance(InChordTolerance)
+		, MaxEdgeLength(InMaxEdgeLength)
+		, NormalTolerance(InNormalTolerance)
+		, StitchingTechnique(InStitchingTechnique)
 	{
-
 	}
 
 	/**
