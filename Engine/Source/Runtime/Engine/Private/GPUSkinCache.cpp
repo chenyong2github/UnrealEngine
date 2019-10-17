@@ -361,25 +361,23 @@ public:
 		}
 	}
 
-	void CreateMergedPositionVertexBuffer(FRHICommandList& RHICmdList, FVertexBufferRHIRef OutVertexBuffer)
+#if RHI_RAYTRACING
+	void GetRayTracingSegmentVertexBuffers(TArrayView<FRayTracingGeometrySegment> OutSegments) const
 	{
-	#if RHI_RAYTRACING
-		TArray<FCopyBufferRegionParams> CopyParams;
+		check(OutSegments.Num() == DispatchData.Num());
 
 		for (int32 SectionIdx = 0; SectionIdx < DispatchData.Num(); SectionIdx++)
 		{
-			CopyParams.Add(FCopyBufferRegionParams {
-				OutVertexBuffer,
-				DispatchData[SectionIdx].OutputStreamStart * sizeof(FVector),
-				DispatchData[SectionIdx].PositionBuffer->Buffer,
-				DispatchData[SectionIdx].OutputStreamStart * sizeof(FVector),
-				DispatchData[SectionIdx].NumVertices * sizeof(FVector) }
-			);
-		}
+			const FSectionDispatchData& SectionData = DispatchData[SectionIdx];
+			FRayTracingGeometrySegment& Segment = OutSegments[SectionIdx];
 
-		RHICmdList.CopyBufferRegions(CopyParams);
-	#endif
+			Segment.VertexBuffer = SectionData.PositionBuffer->Buffer;
+			Segment.VertexBufferOffset = 0;
+
+			check(SectionData.Section->NumTriangles == Segment.NumPrimitives);
+		}
 	}
+#endif // RHI_RAYTRACING
 
 protected:
 	FGPUSkinCache::FRWBuffersAllocation* PositionAllocation;
@@ -629,16 +627,17 @@ void FGPUSkinCache::CommitRayTracingGeometryUpdates(FRHICommandList& RHICmdList)
 
 	if (RayTracingGeometriesToUpdate.Num())
 	{
-		TArray<FAccelerationStructureUpdateParams> Updates;
-		for (const auto& RayTracingGeometry : RayTracingGeometriesToUpdate)
+		TArray<FAccelerationStructureBuildParams> Updates;
+		for (const FRayTracingGeometry* RayTracingGeometry : RayTracingGeometriesToUpdate)
 		{
-			FAccelerationStructureUpdateParams Params;
+			FAccelerationStructureBuildParams Params;
+			Params.BuildMode = EAccelerationStructureBuildMode::Update;
 			Params.Geometry = RayTracingGeometry->RayTracingGeometryRHI;
-			Params.VertexBuffer = RayTracingGeometry->Initializer.PositionVertexBuffer;
+			Params.Segments = RayTracingGeometry->Initializer.Segments;
 			Updates.Add(Params);
 		}
 
-		RHICmdList.UpdateAccelerationStructures(Updates);
+		RHICmdList.BuildAccelerationStructures(Updates);
 		RayTracingGeometriesToUpdate.Reset();
 	}
 }
@@ -1379,10 +1378,12 @@ void FGPUSkinCache::ReleaseSkinCacheEntry(FGPUSkinCacheEntry* SkinCacheEntry)
 	delete SkinCacheEntry;
 }
 
-void FGPUSkinCache::CreateMergedPositionVertexBuffer(FRHICommandList& RHICmdList, FGPUSkinCacheEntry* SkinCacheEntry, FVertexBufferRHIRef OutVertexBuffer)
+#if RHI_RAYTRACING
+void FGPUSkinCache::GetRayTracingSegmentVertexBuffers(const FGPUSkinCacheEntry& SkinCacheEntry, TArrayView<FRayTracingGeometrySegment> OutSegments)
 {
-	SkinCacheEntry->CreateMergedPositionVertexBuffer(RHICmdList, OutVertexBuffer);
+	SkinCacheEntry.GetRayTracingSegmentVertexBuffers(OutSegments);
 }
+#endif // RHI_RAYTRACING
 
 bool FGPUSkinCache::IsEntryValid(FGPUSkinCacheEntry* SkinCacheEntry, int32 Section)
 {

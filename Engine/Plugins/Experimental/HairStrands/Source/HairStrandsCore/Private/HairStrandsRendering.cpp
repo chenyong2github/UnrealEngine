@@ -335,28 +335,30 @@ static void UpdateHairAccelerationStructure(FRHICommandList& RHICmdList, FRayTra
 {
 	SCOPED_DRAW_EVENT(RHICmdList, CommitHairRayTracingGeometryUpdates);
 
-	TArray<FAccelerationStructureUpdateParams> Updates;
-	FAccelerationStructureUpdateParams Params;
+	FAccelerationStructureBuildParams Params;
+	Params.BuildMode = EAccelerationStructureBuildMode::Update;
 	Params.Geometry = RayTracingGeometry->RayTracingGeometryRHI;
-	Params.VertexBuffer = RayTracingGeometry->Initializer.PositionVertexBuffer;
-	Updates.Add(Params);
+	Params.Segments = RayTracingGeometry->Initializer.Segments;
 
-	RHICmdList.UpdateAccelerationStructures(Updates);
+	RHICmdList.BuildAccelerationStructures(MakeArrayView(&Params, 1));
 }
 
 static void BuildHairAccelerationStructure(FRHICommandList& RHICmdList, uint32 RaytracingVertexCount, FVertexBufferRHIRef& PositionBuffer, FRayTracingGeometry* OutRayTracingGeometry)
 {
 	FRayTracingGeometryInitializer Initializer;
-	Initializer.PositionVertexBuffer = PositionBuffer;
-	Initializer.VertexBufferByteOffset = 0;
-	Initializer.VertexBufferStride = FHairStrandsRaytracingFormat::SizeInByte;
-	Initializer.VertexBufferElementType = FHairStrandsRaytracingFormat::VertexElementType;
 	Initializer.IndexBuffer = nullptr;
-	Initializer.IndexBufferByteOffset = 0;
+	Initializer.IndexBufferOffset = 0;
 	Initializer.GeometryType = RTGT_Triangles;
 	Initializer.TotalPrimitiveCount = RaytracingVertexCount;
 	Initializer.bFastBuild = true;
 	Initializer.bAllowUpdate = true;
+
+	FRayTracingGeometrySegment Segment;
+	Segment.VertexBuffer = PositionBuffer;
+	Segment.VertexBufferStride = FHairStrandsRaytracingFormat::SizeInByte;
+	Segment.VertexBufferElementType = FHairStrandsRaytracingFormat::VertexElementType;
+	Segment.NumPrimitives = RaytracingVertexCount;
+	Initializer.Segments.Add(Segment);
 
 	OutRayTracingGeometry->SetInitializer(Initializer);
 	OutRayTracingGeometry->RayTracingGeometryRHI = RHICreateRayTracingGeometry(Initializer);

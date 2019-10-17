@@ -597,7 +597,7 @@ public:
 
 	virtual void InitRHI() override
 	{
-		if (Initializer.IndexBuffer && Initializer.PositionVertexBuffer && IsRayTracingEnabled())
+		if (Initializer.IndexBuffer && IsRayTracingEnabled())
 		{
 			RayTracingGeometryRHI = RHICreateRayTracingGeometry(Initializer);
 			FRHICommandListExecutor::GetImmediateCommandList().BuildAccelerationStructure(RayTracingGeometryRHI);
