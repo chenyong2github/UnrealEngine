@@ -1356,6 +1356,11 @@ TArray<FActiveGameplayEffectHandle> UAbilitySystemComponent::GetActiveEffects(co
 	return ActiveGameplayEffects.GetActiveEffects(Query);
 }
 
+TArray<FActiveGameplayEffectHandle> UAbilitySystemComponent::GetActiveEffectsWithAllTags(FGameplayTagContainer Tags) const
+{
+	return GetActiveEffects(FGameplayEffectQuery::MakeQuery_MatchAllEffectTags(Tags));
+}
+
 float UAbilitySystemComponent::GetActiveEffectsEndTime(const FGameplayEffectQuery& Query) const
 {
 	TArray<AActor*> DummyInstigators;
