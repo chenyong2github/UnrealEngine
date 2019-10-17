@@ -736,7 +736,7 @@ void SAssetView::OnCreateNewFolder(const FString& FolderName, const FString& Fol
 	// Make sure we are showing the location of the new folder (we may have created it in a folder)
 	OnPathSelected.Execute(FolderPath);
 
-	DeferredFolderToCreate = MakeShareable(new FCreateDeferredFolderData());
+	DeferredFolderToCreate = MakeUnique<FCreateDeferredFolderData>();
 	DeferredFolderToCreate->FolderName = FolderName;
 	DeferredFolderToCreate->FolderPath = FolderPath;
 }
@@ -783,7 +783,7 @@ void SAssetView::CreateNewAsset(const FString& DefaultAssetName, const FString& 
 	OnPathSelected.Execute(PackagePath);
 
 	// Defer asset creation until next tick, so we get a chance to refresh the view
-	DeferredAssetToCreate = MakeShareable(new FCreateDeferredAssetData());
+	DeferredAssetToCreate = MakeUnique<FCreateDeferredAssetData>();
 	DeferredAssetToCreate->DefaultAssetName = DefaultAssetName;
 	DeferredAssetToCreate->PackagePath = PackagePath;
 	DeferredAssetToCreate->AssetClass = AssetClass;
@@ -1778,6 +1778,14 @@ FReply SAssetView::OnMouseWheel( const FGeometry& MyGeometry, const FPointerEven
 void SAssetView::OnFocusChanging( const FWeakWidgetPath& PreviousFocusPath, const FWidgetPath& NewWidgetPath, const FFocusEvent& InFocusEvent)
 {
 	ResetQuickJump();
+}
+
+void SAssetView::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	if (DeferredAssetToCreate)
+	{
+		DeferredAssetToCreate->AddReferencedObjects(Collector);
+	}
 }
 
 TSharedRef<SAssetTileView> SAssetView::CreateTileView()
