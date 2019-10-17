@@ -1041,7 +1041,7 @@ int32 SSequencerSection::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 
 	UMovieSceneTrack* Track = SectionObject->GetTypedOuter<UMovieSceneTrack>();
 	const bool bEnabled = bParentEnabled && SectionObject->IsActive() && !(Track && Track->IsEvalDisabled());
-	const bool bLocked = SectionObject->IsLocked();
+	const bool bLocked = SectionObject->IsLocked() || SectionObject->IsReadOnly();
 
 	UMovieScenePropertyTrack* PropertyTrack = Cast<UMovieScenePropertyTrack>(Track);
 	bool bSetSectionToKey = false;
