@@ -22,6 +22,7 @@ public:
 	//~ UDataprepFetcher interface
 	virtual bool IsThreadSafe() const final;
 	virtual FText GetAdditionalKeyword_Implementation() const;
+	virtual FText GetNodeDisplayFetcherName_Implementation() const;
 	//~ End of UDataprepFetcher interface
 
 	// The key for the for the string
@@ -32,21 +33,4 @@ public:
 	bool bShouldIncludeChildClass = true;
 
 	static FText AdditionalKeyword;
-};
-
-UCLASS(BlueprintType, NotBlueprintable, Meta = (DisplayName = "Has Actor Tag", ToolTip = "Return true when a actor has the specified tag."))
-class UDataprepHasActorTagFetcher final : public UDataprepBoolFetcher
-{
-	GENERATED_BODY()
-public:
-	//~ UDataprepBoolFetcher interface
-	virtual bool Fetch_Implementation(const UObject* Object, bool& bOutFetchSucceded) const final;
-	//~ End of UDataprepFloatFetcher interface
-
-	//~ UDataprepFetcher interface
-	virtual bool IsThreadSafe() const final;
-	//~ End of UDataprepFetcher interface
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
-	FName Tag;
 };
