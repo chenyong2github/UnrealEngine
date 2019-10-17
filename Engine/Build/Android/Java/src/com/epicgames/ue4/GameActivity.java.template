@@ -147,6 +147,7 @@ import android.media.AudioManager;
 
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.net.Uri;
 
 import com.google.android.gms.auth.GoogleAuthUtil;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -161,6 +162,7 @@ import com.google.vr.sdk.samples.permission.PermissionHelper;
 import java.nio.charset.StandardCharsets;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.net.URLConnection;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 
@@ -203,6 +205,7 @@ import android.graphics.Color;
 import android.widget.TextView;
 import android.widget.TextView.OnEditorActionListener;
 import android.content.BroadcastReceiver;
+import android.support.v4.content.FileProvider;
 //$${gameActivityImportAdditions}$$
 
 //$${gameActivityPostImportAdditions}$$
@@ -4135,7 +4138,10 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	{
 		Log.debug("[JAVA} AndroidThunkJava_ShareURL: URL = " + URL);
 
-		if (!URL.contains("://"))
+		File SharedFile = new File(URL);
+		boolean bIsFile = SharedFile.exists();
+
+		if (!bIsFile && !URL.contains("://"))
 		{
 			URL = "http://" + URL;
 			Log.debug("[JAVA} AndroidThunkJava_ShareURL: corrected URL = " + URL);
@@ -4144,9 +4150,22 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		try
 		{
 			Intent SendIntent = new Intent(Intent.ACTION_SEND);
-			SendIntent.setType("text/plain");
-			SendIntent.putExtra(Intent.EXTRA_SUBJECT, Description);
-			SendIntent.putExtra(Intent.EXTRA_TEXT, URL);
+			if (bIsFile)
+			{
+				// Note that the ".fileprovider" suffix is hardcoded
+				String Authority = getApplicationContext().getPackageName() + ".fileprovider";
+				Uri FileUri = FileProvider.getUriForFile(this, Authority, SharedFile);
+				
+				SendIntent.putExtra(Intent.EXTRA_STREAM, FileUri);
+				SendIntent.setType(URLConnection.guessContentTypeFromName(URL));
+				SendIntent.putExtra(Intent.EXTRA_TEXT, Description);
+			}
+			else
+			{
+				SendIntent.setType("text/plain");
+				SendIntent.putExtra(Intent.EXTRA_SUBJECT, Description);
+				SendIntent.putExtra(Intent.EXTRA_TEXT, URL);
+			}
 			
 			Log.debug("[JAVA} AndroidThunkJava_ShareURL: Sharing URL");
 			startActivity(Intent.createChooser(SendIntent, Prompt));
