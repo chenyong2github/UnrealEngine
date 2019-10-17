@@ -24,6 +24,9 @@ static int32 GHairStrandsMeshProjectionForceLOD = -1;
 static FAutoConsoleVariableRef CVarHairStrandsMeshProjectionForceRefPoseEnable(TEXT("r.HairStrands.MeshProjection.RefPose"), GHairStrandsMeshProjectionForceRefPoseEnable, TEXT("Enable/Disable reference pose"));
 static FAutoConsoleVariableRef CVarHairStrandsMeshProjectionForceLOD(TEXT("r.HairStrands.MeshProjection.LOD"), GHairStrandsMeshProjectionForceLOD, TEXT("Force a specific LOD"));
 
+static int32 GHairStrandsMeshUseRelativePosition = 1;
+static FAutoConsoleVariableRef CVarHairStrandsMeshUseRelativePosition(TEXT("r.HairStrands.MeshProjection.RelativePosition"), GHairStrandsMeshUseRelativePosition, TEXT("Enable/Disable relative triangle position for improving positions"));
+
 /**
  * An material render proxy which overrides the debug mode parameter.
  */
@@ -378,6 +381,7 @@ UGroomComponent::UGroomComponent(const FObjectInitializer& ObjectInitializer)
 	bAutoActivate = true;
 	bSelectable = true;
 	RegisteredSkeletalMeshComponent = nullptr;
+	SkeletalPreviousPositionOffset = FVector::ZeroVector;
 	HairShadowDensity = 1;
 	HairRaytracingRadiusScale = 1;
 	bBindGroomToSkeletalMesh = false;
@@ -502,12 +506,12 @@ static FHairStrandsProjectionHairData::HairGroup ToProjectionHairData(FHairStran
 		LODData.RootTriangleIndexBuffer = &MeshLODData.RootTriangleIndexBuffer;
 		LODData.RootTriangleBarycentricBuffer = &MeshLODData.RootTriangleBarycentricBuffer;
 		
-		LODData.RestRootCenter					= MeshLODData.RestRootCenter;
+		LODData.RestPositionOffset					= MeshLODData.RestRootCenter;
 		LODData.RestRootTrianglePosition0Buffer = &MeshLODData.RestRootTrianglePosition0Buffer;
 		LODData.RestRootTrianglePosition1Buffer = &MeshLODData.RestRootTrianglePosition1Buffer;
 		LODData.RestRootTrianglePosition2Buffer = &MeshLODData.RestRootTrianglePosition2Buffer;
 
-		LODData.DeformedRootCenter					= MeshLODData.DeformedRootCenter;
+		LODData.DeformedPositionOffset					= MeshLODData.DeformedRootCenter;
 		LODData.DeformedRootTrianglePosition0Buffer = &MeshLODData.DeformedRootTrianglePosition0Buffer;
 		LODData.DeformedRootTrianglePosition1Buffer = &MeshLODData.DeformedRootTrianglePosition1Buffer;
 		LODData.DeformedRootTrianglePosition2Buffer = &MeshLODData.DeformedRootTrianglePosition2Buffer;
@@ -676,11 +680,16 @@ void UGroomComponent::InitResources()
 		BeginInitResource(Res.RenderDeformedResources);
 		BeginInitResource(Res.SimDeformedResources);
 
+		const FVector HairBoundCenter = GroupData.HairRenderData.BoundingBox.GetCenter();
+
 		FHairStrandsInterpolationOutput::HairGroup& InterpolationOutputGroup = InterpolationOutput->HairGroups.AddDefaulted_GetRef();
 		FHairStrandsInterpolationInput::FHairGroup& InterpolationInputGroup = InterpolationInput->HairGroups.AddDefaulted_GetRef();
 		InterpolationInputGroup.HairRadius = GroupData.HairRenderData.StrandsCurves.MaxRadius;
-		InterpolationInputGroup.HairWorldOffset = GroupData.HairRenderData.BoundingBox.GetCenter();
 		InterpolationInputGroup.HairRaytracingRadiusScale = HairRaytracingRadiusScale;
+		InterpolationInputGroup.InHairPositionOffset = HairBoundCenter;
+		// For skinned groom, these value will be updated during TickComponent() call
+		InterpolationInputGroup.OutHairPositionOffset = HairBoundCenter; 
+		InterpolationInputGroup.OutHairPreviousPositionOffset = HairBoundCenter;
 	}
 
 	FHairStrandsInterpolationData Interpolation;
@@ -854,9 +863,13 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 	const uint64 Id = ComponentId.PrimIDValue;
 	const ERHIFeatureLevel::Type FeatureLevel = GetWorld() ? ERHIFeatureLevel::Type(GetWorld()->FeatureLevel) : ERHIFeatureLevel::Num;
 
+	FVector MeshPositionOffset = FVector::ZeroVector;
 	USkeletalMeshComponent* SkeletalMeshComponent = RegisteredSkeletalMeshComponent;	
 	if (SkeletalMeshComponent)
 	{
+		// The offset is based on the center of the skeletal mesh (which is computed based on the physics capsules/boxes/...)
+		MeshPositionOffset = SkeletalMeshComponent->CalcBounds(FTransform::Identity).GetBox().GetCenter();
+
 		const uint32 SkeletalLODCount = SkeletalMeshComponent->GetNumLODs();
 		const uint32 ResourceLODCount = HairGroupResources.Num() > 0 && HairGroupResources[0].RenRootResources ? HairGroupResources[0].RenRootResources->MeshProjectionLODs.Num() : 0;
 		if (SkeletalLODCount != ResourceLODCount)
@@ -911,7 +924,6 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 
 		if (MeshProjectionState != EMeshProjectionState::Completed && MeshProjectionTickDelay == 0)
 		{
-
 			if (MeshProjectionState == EMeshProjectionState::Invalid)
 			{
 				MeshProjectionLODIndex = 0;
@@ -930,7 +942,7 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 				SkeletalMeshComponent->SetForceRefPose(true);
 				SkeletalMeshComponent->SetForcedLOD(MeshProjectionLODIndex + 1);
 
-				const FVector RestRootCenter = SkeletalMeshComponent->Bounds.GetSphere().Center;
+				const FVector RestRootCenter = MeshPositionOffset;
 				const uint32 LODIndex = MeshProjectionLODIndex;
 				ENQUEUE_RENDER_COMMAND(FHairStrandsTick_Projection)(
 					[Id, WorldType, FeatureLevel, LODIndex, RestRootCenter](FRHICommandListImmediate& RHICmdList)
@@ -949,9 +961,29 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 			SkeletalMeshComponent->SetForceRefPose(GHairStrandsMeshProjectionForceRefPoseEnable > 0);
 		}
 
+		// For skinned mesh update the relative center of hair positions after deformation
+		{
+			const FVector OutHairPositionOffset = MeshPositionOffset;
+			const FVector OutHairPreviousPositionOffset = SkeletalPreviousPositionOffset;
+			FHairStrandsInterpolationInput* LocalInterpolationInput = InterpolationInput;
+			ENQUEUE_RENDER_COMMAND(FHairStrandsTick_OutHairPositionOffsetUpdate)(
+				[OutHairPositionOffset, OutHairPreviousPositionOffset, LocalInterpolationInput](FRHICommandListImmediate& RHICmdList)
+			{
+				for (FHairStrandsInterpolationInput::FHairGroup& HairGroup : LocalInterpolationInput->HairGroups)
+				{
+					HairGroup.OutHairPositionOffset = OutHairPositionOffset;
+					HairGroup.OutHairPreviousPositionOffset = OutHairPreviousPositionOffset;
+				}
+			});
+
+			// First frame will be wrong ... 
+			SkeletalPreviousPositionOffset = OutHairPositionOffset;
+		}
+
 		// When a skeletal object with projection is enabled, activate the refresh of the bounding box to 
 		// insure the component/proxy bounding box always lies onto the actual skinned mesh
 		MarkRenderTransformDirty();
+
 	}
 
 	if (MeshProjectionTickDelay > 0)
@@ -959,16 +991,16 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 		MeshProjectionTickDelay--;
 	}
 
-	const FVector WorldsBoundsCenter  = SkeletalMeshComponent ? SkeletalMeshComponent->Bounds.GetSphere().Center : FVector::ZeroVector;
+	const FVector DeformedPositionCenter = GHairStrandsMeshUseRelativePosition > 0 ? MeshPositionOffset : FVector::ZeroVector;
 	const FTransform SkinLocalToWorld = SkeletalMeshComponent ? SkeletalMeshComponent->GetComponentTransform() : FTransform();
 	const FTransform HairLocalToWorld = GetComponentTransform();
 	ENQUEUE_RENDER_COMMAND(FHairStrandsTick_TransformUpdate)(
-		[Id, WorldType, HairLocalToWorld, SkinLocalToWorld, WorldsBoundsCenter, FeatureLevel](FRHICommandListImmediate& RHICmdList)
+		[Id, WorldType, HairLocalToWorld, SkinLocalToWorld, DeformedPositionCenter, FeatureLevel](FRHICommandListImmediate& RHICmdList)
 	{		
 		if (ERHIFeatureLevel::Num == FeatureLevel)
 			return;
 
-		UpdateHairStrands(Id, WorldType, HairLocalToWorld, SkinLocalToWorld, WorldsBoundsCenter);
+		UpdateHairStrands(Id, WorldType, HairLocalToWorld, SkinLocalToWorld, DeformedPositionCenter);
 	});
 }
 

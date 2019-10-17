@@ -20,7 +20,8 @@
 // This is set by compilation enviromenent of the vertex factory
 ///////////////////////////////////////////////////////////////////////////////
 
-float3 HairStrandsVF_WorldOffset; // Vertex position (3x16bits) are relative to this offset for improving precision while keeping vertex footprint low
+float3 HairStrandsVF_PositionOffset;			// Vertex position (3x16bits) are relative to this offset for improving precision while keeping vertex footprint low
+float3 HairStrandsVF_PreviousPositionOffset;	// Vertex position (3x16bits) are relative to this offset for improving precision while keeping vertex footprint low
 float  HairStrandsVF_Density;
 float  HairStrandsVF_Radius;
 float  HairStrandsVF_Length;
@@ -144,7 +145,7 @@ FControlPoint GetVertexPosition(FVertexFactoryInput Input)
 	
 	FControlPoint Output = (FControlPoint)0;
 
-	const float3 ControlPoint	= f16tof32(PackedData.xyz) + HairStrandsVF_WorldOffset;
+	const float3 ControlPoint	= f16tof32(PackedData.xyz) + HairStrandsVF_PositionOffset;
 	const uint PackedAlpha		= asuint(PackedData.a);
 	const uint ControlPointType = PackedAlpha & 0x3;
 	Output.WorldRadius			= ((PackedAlpha & 0x00FC) >> 2) / 63.f * HairStrandsVF_Radius;
@@ -169,7 +170,7 @@ float3 GetVertexPreviousPosition(FVertexFactoryInput Input)
 	const uint OffsetIndex = QuadIndex == 0 || QuadIndex == 2 || QuadIndex == 4 ? 0 : 1;
 	const uint4 PackedData = HairStrandsVF_PreviousPositionBuffer[BaseIndex + OffsetIndex];
 
-	const float3 ControlPoint = f16tof32(PackedData.xyz) + HairStrandsVF_WorldOffset;
+	const float3 ControlPoint = f16tof32(PackedData.xyz) + HairStrandsVF_PreviousPositionOffset;
 	const uint PackedAlpha = asuint(PackedData.a);
 	const uint ControlPointType = PackedAlpha & 0x3;
 
