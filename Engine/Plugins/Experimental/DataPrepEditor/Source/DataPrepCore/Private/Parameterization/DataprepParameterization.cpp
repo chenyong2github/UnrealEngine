@@ -2,7 +2,7 @@
 
 #include "Parameterization/DataprepParameterization.h"
 
-#include "DataprepAsset.h"
+#include "DataPrepAsset.h"
 #include "DataprepParameterizationArchive.h"
 
 #include "CoreGlobals.h"
