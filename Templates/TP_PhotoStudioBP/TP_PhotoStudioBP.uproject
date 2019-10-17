@@ -23,7 +23,7 @@
 		},
 		{
 			"Name": "VariantManager",
-			"Enabled": True
+			"Enabled": true
 		},
 		{
 			"Name": "PythonScriptPlugin",
