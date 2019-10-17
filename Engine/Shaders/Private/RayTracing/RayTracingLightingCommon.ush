@@ -1,5 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+#include "RayTracingCommon.ush"
+
 // Light types: should match SceneTypes.h until there is a common header
 #define LIGHT_TYPE_DIRECTIONAL		0 
 #define LIGHT_TYPE_POINT			1 
@@ -71,31 +73,6 @@ float3 GenerateReflectedRayDirection(
 	}
 
 	return RayDirection;
-}
-
-float TraceShadowRay(
-	in RayDesc Ray,
-	in FRayCone ShadowRayCone,
-	in RaytracingAccelerationStructure TLAS)
-{
-	uint RayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
-
-#if !ENABLE_TWO_SIDED_GEOMETRY
-	RayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
-#endif
-
-	FMaterialClosestHitPayload Payload = TraceRayInternal(
-		TLAS,      // AccelerationStructure
-		RayFlags,
-		RAY_TRACING_MASK_SHADOW,
-		RAY_TRACING_SHADER_SLOT_SHADOW, // RayContributionToHitGroupIndex
-		RAY_TRACING_NUM_SHADER_SLOTS,   // MultiplierForGeometryContributionToShaderIndex
-		0,         // MissShaderIndex
-		Ray,       // RayDesc
-		ShadowRayCone
-	);
-
-	return Payload.HitT;
 }
 
 float3 SampleAreaLightDirection(
@@ -184,34 +161,6 @@ float3 SampleAreaLightDirection(
 	}
 
 	return ShadowRayDirection;
-}
-
-FPackedMaterialClosestHitPayload TraceRayInternalPacked(in RaytracingAccelerationStructure TLAS,
-	in uint RayFlags,
-	in uint InstanceInclusionMask,
-	in uint RayContributionToHitGroupIndex,
-	in uint MultiplierForGeometryContributionToShaderIndex,
-	in uint MissShaderIndex,
-	in RayDesc Ray,
-	inout FRayCone RayCone)
-{
-	FPackedMaterialClosestHitPayload Payload = (FPackedMaterialClosestHitPayload)0;
-	Payload.RayCone = RayCone;
-
-	TraceRay
-	(
-		TLAS,
-		RayFlags,
-		InstanceInclusionMask,
-		RayContributionToHitGroupIndex,
-		MultiplierForGeometryContributionToShaderIndex,
-		MissShaderIndex,
-		Ray,
-		Payload
-	);
-
-	RayCone = Payload.RayCone;
-	return Payload;
 }
 
 uint2 CullDirectLighting(
@@ -458,8 +407,6 @@ float3 ComputeDirectLightingCulled(
 				ShadowRayDirection = SampleAreaLightDirection(LightData, Payload, LightType, RandSequence);
 			}
 
-			FRayCone ShadowRayCone = RayCone;
-
 			RayDesc ShadowRay;
 			ShadowRay.Origin = WorldPosition;
 			ShadowRay.Direction = ShadowRayDirection;
@@ -467,8 +414,19 @@ float3 ComputeDirectLightingCulled(
 			ShadowRay.TMax = Active ? length(ToLight) : ShadowRay.TMin;
 			ApplyPositionBias(ShadowRay, Payload.WorldNormal, ShadowMaxNormalBias);
 
-			float HitT = TraceShadowRay(ShadowRay, ShadowRayCone, TLAS);
-			AmbientOcclusion = HitT < 0.0f && Active;
+			uint RayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
+			const uint InstanceInclusionMask = RAY_TRACING_MASK_SHADOW;
+
+#if !ENABLE_TWO_SIDED_GEOMETRY
+			RayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+#endif
+
+			FMinimalPayload ShadowRayPayload = TraceVisibilityRay(
+				TLAS,
+				RayFlags,
+				InstanceInclusionMask,
+				ShadowRay);
+			AmbientOcclusion = ShadowRayPayload.IsMiss() && Active;
 		}
 
 		if (Active)
@@ -515,38 +473,12 @@ void ComputeBottomLayerMaterialProperties(RayDesc Ray, inout FMaterialClosestHit
 	}
 }
 
-FMaterialClosestHitPayload TraceRayResults(
-	in RayDesc Ray,
-	in RaytracingAccelerationStructure TLAS,
-	in RandomSequence RandSequence,
-	in uint RayFlags,
-	in float ShadowMaxNormalBias,
-	in uint Mask,
-	inout FRayCone RayCone,
-	inout float3 Radiance)
-{
-	FPackedMaterialClosestHitPayload PackedPayload = TraceRayInternalPacked(
-		TLAS,								// AccelerationStructure
-		RayFlags,
-		Mask,
-		RAY_TRACING_SHADER_SLOT_MATERIAL,	// RayContributionToHitGroupIndex
-		RAY_TRACING_NUM_SHADER_SLOTS,		// MultiplierForGeometryContributionToShaderIndex
-		0,									// MissShaderIndex
-		Ray,								// RayDesc
-		RayCone
-	);
-	FMaterialClosestHitPayload Payload = UnpackRayTracingPayload(PackedPayload, Ray);
-	return Payload;
-}
-
 void AccumulateResults(
 	in FMaterialClosestHitPayload Payload,
 	in RayDesc Ray,
 	in RaytracingAccelerationStructure TLAS,
 	in RandomSequence RandSequence,
-	in uint RayFlags,
 	in float ShadowMaxNormalBias,
-	in uint Mask,
 	in uint ReflectedShadowsType,
 	in uint ShouldDoDirectLighting,
 	in uint ShouldDoEmissiveAndIndirectLighting,
@@ -587,35 +519,30 @@ void AccumulateResults(
 
 FMaterialClosestHitPayload TraceRayAndAccumulateResults(
 	in RayDesc Ray,
-	in RaytracingAccelerationStructure TLAS, 
-	in RandomSequence RandSequence,
+	in RaytracingAccelerationStructure TLAS,
 	in uint RayFlags,
+	in uint InstanceInclusionMask,
+	in RandomSequence RandSequence,
 	in float ShadowMaxNormalBias,
-	in uint Mask,
 	in uint ReflectedShadowsType,
 	in uint ShouldDoDirectLighting,
 	in uint ShouldDoEmissiveAndIndirectLighting,
 	inout FRayCone RayCone,
 	inout float3 Radiance)
 {
-	FMaterialClosestHitPayload Payload = TraceRayResults(
-		Ray,
+	FMaterialClosestHitPayload Payload = TraceMaterialRay(
 		TLAS,
-		RandSequence,
 		RayFlags,
-		ShadowMaxNormalBias,
-		Mask,
-		RayCone,
-		Radiance);
+		InstanceInclusionMask,
+		Ray,
+		RayCone);
 
 	AccumulateResults(
 		Payload,
 		Ray,
 		TLAS,
 		RandSequence,
-		RayFlags,
 		ShadowMaxNormalBias,
-		Mask,
 		ReflectedShadowsType,
 		ShouldDoDirectLighting,
 		ShouldDoEmissiveAndIndirectLighting,
@@ -628,25 +555,22 @@ FMaterialClosestHitPayload TraceRayAndAccumulateResults(
 FMaterialClosestHitPayload TraceRayAndAccumulateBottomLayerResults(
 	in RayDesc Ray,
 	in RaytracingAccelerationStructure TLAS,
-	in RandomSequence RandSequence,
 	in uint RayFlags,
+	in uint InstanceInclusionMask,
+	in RandomSequence RandSequence,
 	in float ShadowMaxNormalBias,
-	in uint Mask,
 	in uint ReflectedShadowsType,
 	in uint ShouldDoDirectLighting,
 	in uint ShouldDoEmissiveAndIndirectLighting,
 	inout FRayCone RayCone,
 	inout float3 Radiance)
 {
-	FMaterialClosestHitPayload BottomLayerPayload = TraceRayResults(
-		Ray,
+	FMaterialClosestHitPayload BottomLayerPayload = TraceMaterialRay(
 		TLAS,
-		RandSequence,
 		RayFlags,
-		ShadowMaxNormalBias,
-		Mask,
-		RayCone,
-		Radiance);
+		InstanceInclusionMask,
+		Ray,
+		RayCone);
 
 	ComputeBottomLayerMaterialProperties(Ray, BottomLayerPayload);
 
@@ -655,9 +579,7 @@ FMaterialClosestHitPayload TraceRayAndAccumulateBottomLayerResults(
 		Ray,
 		TLAS,
 		RandSequence,
-		RayFlags,
 		ShadowMaxNormalBias,
-		Mask,
 		ReflectedShadowsType,
 		ShouldDoDirectLighting,
 		ShouldDoEmissiveAndIndirectLighting,
