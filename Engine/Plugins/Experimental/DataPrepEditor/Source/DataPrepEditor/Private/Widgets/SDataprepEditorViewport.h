@@ -86,6 +86,9 @@ public:
 	TSharedPtr<FUICommandInfo> ApplyPerMeshMaterial;
 	TSharedPtr<FUICommandInfo> ApplyReflectionMaterial;
 
+	TSharedPtr<FUICommandInfo> ApplyOutlineSelection;
+	TSharedPtr<FUICommandInfo> ApplyXRaySelection;
+
 	TSharedPtr<FUICommandInfo> ApplyWireframeMode;
 
 #ifdef VIEWPORT_EXPERIMENTAL
@@ -173,6 +176,9 @@ public:
 	/** Change visibility of preview mesh components */
 	void SetActorVisibility(AActor* SceneActor, bool bInVisibility);
 
+	/** Load the settings affecting the viewport, i.e. environment map */
+	static void LoadDefaultSettings();
+
 protected:
 	/** SEditorViewport interface */
 	virtual TSharedRef<FEditorViewportClient> MakeEditorViewportClient() override;
@@ -192,6 +198,13 @@ private:
 		PerMeshRenderingMaterial,
 		ReflectionRenderingMaterial,
 		MaxRenderingMaterial
+	};
+
+	enum class ESelectionModeType : uint8
+	{
+		OutlineSelectionMode,
+		XRaySelectionMode,
+		MaxSelectionMode
 	};
 
 	enum class ERenderingMode : uint8
@@ -277,6 +290,15 @@ private:
 	bool IsShowOrientedBoxOn() { return bShowOrientedBox; }
 #endif
 
+	/** Set the selection mode */
+	void SetSelectionMode(ESelectionModeType InSelectionMode);
+
+	/** Check if a given selection mode is active */
+	bool IsSetSelectionModeApplied(ESelectionModeType InSelectionMode) { return InSelectionMode == CurrentSelectionMode; }
+
+	/** Returns true if the given primitive component is part of the selection set */
+	bool IsComponentSelected(const UPrimitiveComponent* PrimitiveComponent);
+
 private:
 	/** The scene for this viewport */
 	TSharedPtr< FAdvancedPreviewScene > PreviewScene;
@@ -321,6 +343,8 @@ private:
 
 	ERenderingMaterialType RenderingMaterialType;
 
+	ESelectionModeType CurrentSelectionMode;
+
 	/** Indicates if wireframe mode is on or off */
 	bool bWireframeRenderingMode;
 
@@ -334,7 +358,7 @@ private:
 	static TWeakObjectPtr<UMaterial> BackFaceMaterial;
 
 	/** Transparent material instance used to display non-selected meshes */
-	static TWeakObjectPtr<UMaterialInstanceConstant> SelectionMaterial;
+	static TWeakObjectPtr<UMaterialInstanceConstant> TransparentMaterial;
 
 	/** Fully reflective material used to display surface discontinuity */
 	static TWeakObjectPtr<UMaterial> ReflectionMaterial;
@@ -351,7 +375,10 @@ private:
 	/** Pointer to the vertical box into which the overlay text items are added */
 	TSharedPtr<SVerticalBox> OverlayTextVerticalBox;
 	TSharedPtr<STextBlock> ScreenSizeText;
-	
+
+	/** Index of the profile to use in the preview scene */
+	static int32 AssetViewerProfileIndex;
+
 #ifdef VIEWPORT_EXPERIMENTAL
 	bool bShowOrientedBox;
 #endif

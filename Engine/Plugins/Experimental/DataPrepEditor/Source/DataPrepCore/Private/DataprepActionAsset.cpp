@@ -3,12 +3,14 @@
 #include "DataprepActionAsset.h"
 
 // Dataprep include
+#include "DataPrepAsset.h"
 #include "DataPrepOperation.h"
 #include "DataprepCoreLogCategory.h"
 #include "DataprepCorePrivateUtils.h"
 #include "DataprepCoreUtils.h"
 #include "IDataprepLogger.h"
 #include "IDataprepProgressReporter.h"
+#include "Parameterization/DataprepParameterization.h"
 #include "SelectionSystem/DataprepFilter.h"
 
 // Engine include
@@ -21,6 +23,7 @@
 #include "Materials/MaterialInterface.h"
 #include "Templates/SubclassOf.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/UObjectHash.h"
 
 #ifdef WITH_EDITOR
 #include "Editor.h"
@@ -41,10 +44,10 @@ UDataprepActionAsset::UDataprepActionAsset()
 
 		OperationContext->Context = MakeShareable( new FDataprepContext() );
 
-		OperationContext->AddAssetDelegate = FDataprepAddAsset::CreateUObject( this, &UDataprepActionAsset::OnAddAsset);
-		OperationContext->CreateActorDelegate = FDataprepCreateActor::CreateUObject( this, &UDataprepActionAsset::OnCreateActor);
-		OperationContext->RemoveObjectDelegate = FDataprepRemoveObject::CreateUObject( this, &UDataprepActionAsset::OnRemoveObject);
-		OperationContext->DeleteObjectsDelegate = FDataprepDeleteObjects::CreateUObject( this, &UDataprepActionAsset::OnDeleteObjects);
+		OperationContext->AddAssetDelegate = FDataprepAddAsset::CreateUObject( this, &UDataprepActionAsset::OnAddAsset );
+		OperationContext->CreateActorDelegate = FDataprepCreateActor::CreateUObject( this, &UDataprepActionAsset::OnCreateActor );
+		OperationContext->RemoveObjectDelegate = FDataprepRemoveObject::CreateUObject( this, &UDataprepActionAsset::OnRemoveObject );
+		OperationContext->DeleteObjectsDelegate = FDataprepDeleteObjects::CreateUObject( this, &UDataprepActionAsset::OnDeleteObjects );
 	}
 }
 
@@ -248,6 +251,17 @@ bool UDataprepActionAsset::RemoveStep(int32 Index)
 	if ( Steps.IsValidIndex( Index ) )
 	{
 		Modify();
+
+		if ( UDataprepAsset* DataprepAsset = FDataprepCoreUtils::GetDataprepAssetOfObject( this ) )
+		{
+			if ( UDataprepParameterization* Parameterization = DataprepAsset->GetDataprepParameterization() )
+			{
+				TArray< UObject* > Objects;
+				GetObjectsWithOuter( Steps[Index], Objects );
+				Parameterization->RemoveBindingFromObjects( Objects );
+			}
+		}
+
 		Steps.RemoveAt( Index );
 		OnStepsChanged.Broadcast();
 		return true;
@@ -261,6 +275,22 @@ bool UDataprepActionAsset::RemoveStep(int32 Index)
 FOnStepsOrderChanged& UDataprepActionAsset::GetOnStepsOrderChanged()
 {
 	return OnStepsChanged;
+}
+
+void UDataprepActionAsset::NotifyDataprepSystemsOfRemoval()
+{
+	if ( UDataprepAsset* DataprepAsset = FDataprepCoreUtils::GetDataprepAssetOfObject( this ) )
+	{
+		if ( UDataprepParameterization * Parameterization = DataprepAsset->GetDataprepParameterization() )
+		{
+			TArray< UObject* > Objects;
+			for ( UDataprepActionStep* Step : Steps )
+			{
+				GetObjectsWithOuter( Step, Objects );
+			}
+			Parameterization->RemoveBindingFromObjects( Objects );
+		}
+	}
 }
 
 void UDataprepActionAsset::OnClassesRemoved(const TArray<UClass *>& DeletedClasses)
