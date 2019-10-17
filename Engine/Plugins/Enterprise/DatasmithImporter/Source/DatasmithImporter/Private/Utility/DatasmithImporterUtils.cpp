@@ -462,7 +462,15 @@ FName FDatasmithImporterUtils::GetDatasmithElementId( UObject* Object )
 
 FString FDatasmithImporterUtils::GetDatasmithElementIdString(UObject* Object)
 {
-	return UDatasmithAssetUserData::GetDatasmithUserDataValueForKey(Object, UDatasmithAssetUserData::UniqueIdMetaDataKey);
+	FString ElementId = UDatasmithAssetUserData::GetDatasmithUserDataValueForKey(Object, UDatasmithAssetUserData::UniqueIdMetaDataKey);
+
+	if( ElementId.IsEmpty() )
+	{
+		const FString ObjectPath = FPaths::Combine( Object->GetOutermost()->GetName(), Object->GetName() );
+		return FMD5::HashBytes( reinterpret_cast<const uint8*>(*ObjectPath), ObjectPath.Len() * sizeof(TCHAR) );
+	}
+
+	return ElementId;
 }
 
 namespace FDatasmithImporterUtilsHelper
