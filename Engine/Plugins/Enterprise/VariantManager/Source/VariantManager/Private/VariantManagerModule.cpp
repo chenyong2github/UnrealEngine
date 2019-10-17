@@ -32,6 +32,7 @@
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "VariantManagerUtils.h"
 
 #define LOCTEXT_NAMESPACE "VariantManagerModule"
 
@@ -52,6 +53,9 @@ public:
 		{
 			RegisterTabSpawner( LevelEditorModule.GetLevelEditorTabManager() );
 		});
+
+		// Make sure we update the cached UProperty pointers we use for exception properties whenever hot reload happens to a relevant class
+		FVariantManagerUtils::RegisterForHotReload();
 
 		// Register asset actions for the LevelVariantSets asset
 		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools")).Get();
@@ -77,6 +81,8 @@ public:
 			IAssetTools& AssetTools = AssetToolsModule->Get();
 			AssetTools.UnregisterAssetTypeActions(AssetActions.ToSharedRef());
 		}
+
+		FVariantManagerUtils::UnregisterForHotReload();
 
 		FVariantManagerEditorCommands::Unregister();
 

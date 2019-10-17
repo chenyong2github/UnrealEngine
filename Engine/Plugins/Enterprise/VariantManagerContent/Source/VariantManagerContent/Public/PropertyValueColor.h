@@ -18,7 +18,7 @@ class VARIANTMANAGERCONTENT_API UPropertyValueColor : public UPropertyValue
 public:
 
 	// UPropertyValue interface
-	virtual void RecordDataFromResolvedObject() override;
+	TArray<uint8> GetDataFromResolvedObject() const override;
 	virtual UScriptStruct* GetStructPropertyStruct() const override;
 	virtual int32 GetValueSizeInBytes() const override;
 	//~ UPropertyValue interface

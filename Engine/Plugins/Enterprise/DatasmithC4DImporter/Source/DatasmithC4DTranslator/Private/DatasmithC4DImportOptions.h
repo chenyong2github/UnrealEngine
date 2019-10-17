@@ -29,20 +29,20 @@ public:
 	/**
 	 * Import Mesh With No Vertex, false by default
 	 */
-	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = DebugProperty, meta = (DisplayName = "Import Mesh With No Vertex"))
+	UPROPERTY(config, EditAnywhere, Category = DebugProperty, meta = (DisplayName = "Import Mesh With No Vertex"))
 	bool bImportEmptyMesh;
 
 	/**
 	 * Remove empty actors that have only one child, false by default
 	 */
-	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = DebugProperty, meta = (DisplayName = "Clean the Scene of Empty Actors With Only One Child"))
+	UPROPERTY(config, EditAnywhere, Category = DebugProperty, meta = (DisplayName = "Clean the Scene of Empty Actors With Only One Child"))
 	bool bOptimizeEmptySingleChildActors;
 
 	/**
 	* Ignore the normals provided by Melange and let Datasmith generate them
 	* The "if (RawNormal.SizeSquared() < SMALL_NUMBER)" check in see FDatasmithMeshUtils::ToMeshDescription is preventing some meshes to load
 	*/
-	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = DebugProperty, meta = (DisplayName = "Generate the Normals"))
+	UPROPERTY(config, EditAnywhere, Category = DebugProperty, meta = (DisplayName = "Generate the Normals"))
 	bool bAlwaysGenerateNormals;
 
 	/**
@@ -50,13 +50,13 @@ public:
 	* It is needed when scene has too precise meshes because the conversion from double (C4D) to float (UE4)
 	* can "degenerate" the faces
 	*/
-	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = DebugProperty, meta = (DisplayName = "Scale the Entire Scene"))
+	UPROPERTY(config, EditAnywhere, Category = DebugProperty, meta = (DisplayName = "Scale the Entire Scene"))
 	float ScaleVertices;
 
 	/**
 	* Export the imported scene as a .datasmith file, next to the .c4d file.
 	*/
-	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = DebugProperty, meta = (DisplayName = "Export to .udatasmith"))
+	UPROPERTY(config, EditAnywhere, Category = DebugProperty, meta = (DisplayName = "Export to .udatasmith"))
 	bool bExportToUDatasmith;
 };
 
