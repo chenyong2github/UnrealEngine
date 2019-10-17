@@ -1044,7 +1044,7 @@ void FSequencerDisplayNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 		{
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("ToggleNodeSolo", "Solo"),
-				LOCTEXT("ToggleNodeLockTooltip", "Solo or unsolo this node or selected tracks"),
+				LOCTEXT("ToggleNodeSoloTooltip", "Solo or unsolo this node or selected tracks"),
 				FSlateIcon(),
 				FUIAction(
 					FExecuteAction::CreateRaw(&ParentTree, &FSequencerNodeTree::ToggleSelectedNodesSolo),
@@ -1057,7 +1057,7 @@ void FSequencerDisplayNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("ToggleNodeMute", "Mute"),
-				LOCTEXT("ToggleNodeLockTooltip", "Mute or unmute this node or selected tracks"),
+				LOCTEXT("ToggleNodeMuteTooltip", "Mute or unmute this node or selected tracks"),
 				FSlateIcon(),
 				FUIAction(
 					FExecuteAction::CreateRaw(&ParentTree, &FSequencerNodeTree::ToggleSelectedNodesMute),

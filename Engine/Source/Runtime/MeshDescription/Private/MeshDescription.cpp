@@ -2,10 +2,11 @@
 
 #include "MeshDescription.h"
 #include "MeshAttributes.h"
+#include "Algo/Copy.h"
+#include "Misc/SecureHash.h"
 #include "Serialization/BulkDataReader.h"
 #include "Serialization/BulkDataWriter.h"
-#include "Algo/Copy.h"
-
+#include "UObject/EnterpriseObjectVersion.h"
 
 void UDEPRECATED_MeshDescription::Serialize( FArchive& Ar )
 {
@@ -1576,6 +1577,19 @@ float FMeshDescription::GetPolygonCornerAngleForVertex(const FPolygonID PolygonI
 	return 0.0f;
 }
 
+FBox FMeshDescription::ComputeBoundingBox() const
+{
+	FBox BoundingBox(ForceInit);
+
+	TVertexAttributesConstRef<FVector> VertexPositions = VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+
+	for (const FVertexID VertexID : Vertices().GetElementIDs())
+	{
+		BoundingBox += VertexPositions[VertexID];
+	}
+
+	return BoundingBox;
+}
 
 void FMeshDescription::ComputeTangentsAndNormals(const FVertexInstanceID VertexInstanceID
 	, EComputeNTBsOptions ComputeNTBsOptions
@@ -1935,8 +1949,15 @@ void FMeshDescription::ReversePolygonFacing(const FPolygonID PolygonID)
 		Polygon.PerimeterContour.VertexInstanceIDs.Swap(i, Polygon.PerimeterContour.VertexInstanceIDs.Num() - i - 1);
 	}
 
-	// Triangulate the polygon since we reverse the indices
-	ComputePolygonTriangulation(PolygonID);
+	// Update the polygon's triangle vertex instance ids with the reversed ids
+	for (FTriangleID TriangleID : GetPolygonTriangleIDs(PolygonID))
+	{
+		FMeshTriangle& Triangle = TriangleArray[TriangleID];
+		FVertexInstanceID VertexInstanceID0 = Triangle.GetVertexInstanceID(0);
+		FVertexInstanceID VertexInstanceID2 = Triangle.GetVertexInstanceID(2);
+		Triangle.SetVertexInstanceID(0, VertexInstanceID2);
+		Triangle.SetVertexInstanceID(2, VertexInstanceID0);
+	}
 }
 
 
@@ -2001,6 +2022,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 void FMeshDescriptionBulkData::Serialize( FArchive& Ar, UObject* Owner )
 {
 	Ar.UsingCustomVersion( FEditorObjectVersion::GUID );
+	Ar.UsingCustomVersion( FEnterpriseObjectVersion::GUID );
 
 	if( Ar.IsTransacting() )
 	{
@@ -2039,11 +2061,23 @@ void FMeshDescriptionBulkData::Serialize( FArchive& Ar, UObject* Owner )
 	{
 		Ar << Guid;
 	}
+	
+	// MeshDescriptionBulkData contains a bGuidIsHash so we can benefit from DDC caching.
+	if( Ar.IsLoading() && Ar.CustomVer( FEnterpriseObjectVersion::GUID ) < FEnterpriseObjectVersion::MeshDescriptionBulkDataGuidIsHash )
+	{
+		bGuidIsHash = false;
+	}
+	else
+	{
+		Ar << bGuidIsHash;
+	}
 }
 
 
 void FMeshDescriptionBulkData::SaveMeshDescription( FMeshDescription& MeshDescription )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshDescriptionBulkData::SaveMeshDescription);
+
 	BulkData.RemoveBulkData();
 
 	if( !MeshDescription.IsEmpty() )
@@ -2056,7 +2090,14 @@ void FMeshDescriptionBulkData::SaveMeshDescription( FMeshDescription& MeshDescri
 		CustomVersions = Ar.GetCustomVersions();
 	}
 
-	FPlatformMisc::CreateGuid( Guid );
+	if (bGuidIsHash)
+	{
+		UseHashAsGuid();
+	}
+	else
+	{
+		FPlatformMisc::CreateGuid( Guid );
+	}
 
 	// Mark the MeshDescriptionBulkData as having been updated.
 	// This means we know that its version is up-to-date.
@@ -2097,7 +2138,28 @@ void FMeshDescriptionBulkData::Empty()
 
 FString FMeshDescriptionBulkData::GetIdString() const
 {
-	return Guid.ToString();
+	FString GuidString = Guid.ToString();
+	if (bGuidIsHash)
+	{
+		GuidString += TEXT("X");
+	}
+	return GuidString;
+}
+
+
+void FMeshDescriptionBulkData::UseHashAsGuid()
+{
+	uint32 Hash[5] = {};
+
+	if (BulkData.GetBulkDataSize() > 0)
+	{
+		bGuidIsHash = true;
+		void* Buffer = BulkData.Lock(LOCK_READ_ONLY);
+		FSHA1::HashBuffer(Buffer, BulkData.GetBulkDataSize(), (uint8*)Hash);
+		BulkData.Unlock();
+	}
+
+	Guid = FGuid(Hash[0] ^ Hash[4], Hash[1], Hash[2], Hash[3]);
 }
 
 #endif // #if WITH_EDITORONLY_DATA

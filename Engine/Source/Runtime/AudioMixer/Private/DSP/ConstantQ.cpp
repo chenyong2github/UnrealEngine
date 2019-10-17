@@ -61,7 +61,7 @@ namespace Audio
 		check(InSampleRate > 0.f);
 		check(InFFTSize > 0);
 
-		const int32 NumUsefulFFTBins = InFFTSize / 2 + 1;
+		const int32 NumUsefulFFTBins = (InFFTSize / 2) + 1;
 
 		TUniquePtr<FContiguousSparse2DKernelTransform> Transform = MakeUnique<FContiguousSparse2DKernelTransform>(NumUsefulFFTBins, InSettings.NumBands);
 
@@ -73,7 +73,11 @@ namespace Audio
 
 			if ((BandCenter - BandWidth) > InSampleRate)
 			{
-				// TODO: have this check be fore a very large number
+				continue;
+			}
+
+			if (BandCenter > (2.f * InSampleRate))
+			{
 				continue;
 			}
 

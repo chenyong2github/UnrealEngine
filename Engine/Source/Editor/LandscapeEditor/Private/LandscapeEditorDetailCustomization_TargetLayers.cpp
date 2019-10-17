@@ -1384,7 +1384,6 @@ FReply FLandscapeEditorCustomNodeBuilder_TargetLayers::OnTargetLayerDeleteClicke
 		if (LandscapeEdMode)
 		{
 			LandscapeEdMode->UpdateTargetList();
-			LandscapeEdMode->UpdateShownLayerList();
 		}
 	}
 

@@ -87,7 +87,7 @@ public:
 		TArray<FGuid> ObjectBindings;
 		ObjectBindings.Add(ObjectBinding);
 
-		MenuBuilder.BeginSection(NAME_None, LOCTEXT("AttachOptions", "Attach Section Options"));
+		MenuBuilder.BeginSection(NAME_None, LOCTEXT("AttachSectionOptions", "Attach Section Options"));
 
 		MenuBuilder.AddSubMenu(
 			LOCTEXT("SetAttach", "Attach"), LOCTEXT("SetAttachTooltip", "Set attach"),

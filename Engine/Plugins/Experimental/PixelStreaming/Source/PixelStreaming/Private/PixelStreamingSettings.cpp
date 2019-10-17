@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "PixelStreamingSettings.h"
+#include "PixelStreamingPrivate.h"
 
 UPixelStreamingSettings::UPixelStreamingSettings(const FObjectInitializer& ObjectInitlaizer)
 	: Super(ObjectInitlaizer)

@@ -107,6 +107,7 @@ const FName UVREditorInteractor::MotionController_Right_FullyPressedTriggerAxis 
 
 UVREditorInteractor::UVREditorInteractor() :
 	Super(),
+	bIsUndoRedoSwipeEnabled( true ),
 	MotionControllerComponent( nullptr ),
 	HandMeshComponent( nullptr ),
 	LaserSplineComponent( nullptr ),
@@ -183,6 +184,7 @@ void UVREditorInteractor::Init_Implementation( UVREditorMode* InVRMode )
 		{
 			AddKeyAction( EKeys::MotionController_Left_FaceButton1, FViewportActionKeyInput( VRActionTypes::Modifier ) );
 			AddKeyAction( EKeys::MotionController_Left_FaceButton2, FViewportActionKeyInput( VRActionTypes::Modifier2 ) );
+			AddKeyAction( OculusVRControllerKeyNames::OculusTouch_Left_Thumbstick, FViewportActionKeyInput( VRActionTypes::Touch ) );
 
 			AddKeyAction( EKeys::MotionController_Left_Thumbstick_Down, FViewportActionKeyInput( VRActionTypes::TrackpadDown ) ); // down
 			AddKeyAction( EKeys::MotionController_Left_Thumbstick_Up, FViewportActionKeyInput( VRActionTypes::TrackpadUp ) );
@@ -225,14 +227,17 @@ void UVREditorInteractor::Init_Implementation( UVREditorMode* InVRMode )
 	bHaveMotionController = true;
 }
 
+
 void UVREditorInteractor::SetupComponent_Implementation( AActor* OwningActor )
 {
+	OwningAvatar = OwningActor;
+
 	// Setup a motion controller component.  This allows us to take advantage of late frame updates, so
 	// our motion controllers won't lag behind the HMD
 	{
-		MotionControllerComponent = NewObject<UMotionControllerComponent>( OwningActor );
-		OwningActor->AddOwnedComponent( MotionControllerComponent );
-		MotionControllerComponent->SetupAttachment( OwningActor->GetRootComponent() );
+		MotionControllerComponent = NewObject<UMotionControllerComponent>(OwningAvatar);
+		OwningAvatar->AddOwnedComponent( MotionControllerComponent );
+		MotionControllerComponent->SetupAttachment(OwningAvatar->GetRootComponent() );
 		MotionControllerComponent->RegisterComponent();
 
 		MotionControllerComponent->SetMobility( EComponentMobility::Movable );
@@ -248,13 +253,8 @@ void UVREditorInteractor::SetupComponent_Implementation( AActor* OwningActor )
 
 	// Hand mesh
 	{
-		HandMeshComponent = VRMode->CreateMotionControllerMesh( OwningActor, MotionControllerComponent );
-		check( HandMeshComponent != nullptr );
-
-		HandMeshComponent->SetCastShadow( false );
-		HandMeshComponent->SetCollisionEnabled( ECollisionEnabled::PhysicsOnly );
-		HandMeshComponent->SetCollisionResponseToAllChannels( ECR_Overlap );
-		HandMeshComponent->SetGenerateOverlapEvents( true );
+		HandMeshComponent = VRMode->CreateMotionControllerMesh(OwningAvatar, MotionControllerComponent );
+		SetHandMeshComponentProperties();
 
 		UMaterialInterface* HandMeshMaterial = GetVRMode().GetHMDDeviceType() == SteamVRDeviceType ? AssetContainer.VivePreControllerMaterial : AssetContainer.OculusControllerMaterial;
 		check( HandMeshMaterial != nullptr );
@@ -277,9 +277,9 @@ void UVREditorInteractor::SetupComponent_Implementation( AActor* OwningActor )
 
 	// Hover cue for laser pointer
 	{
-		HoverMeshComponent = NewObject<UStaticMeshComponent>( OwningActor );
-		OwningActor->AddOwnedComponent( HoverMeshComponent );
-		HoverMeshComponent->SetupAttachment( OwningActor->GetRootComponent() );
+		HoverMeshComponent = NewObject<UStaticMeshComponent>(OwningAvatar);
+		OwningAvatar->AddOwnedComponent( HoverMeshComponent );
+		HoverMeshComponent->SetupAttachment(OwningAvatar->GetRootComponent() );
 		HoverMeshComponent->RegisterComponent();
 
 		UStaticMesh* HoverMesh = AssetContainer.LaserPointerHoverMesh;
@@ -294,8 +294,8 @@ void UVREditorInteractor::SetupComponent_Implementation( AActor* OwningActor )
 
 		// Add a light!
 		{
-			HoverPointLightComponent = NewObject<UPointLightComponent>( OwningActor );
-			OwningActor->AddOwnedComponent( HoverPointLightComponent );
+			HoverPointLightComponent = NewObject<UPointLightComponent>(OwningAvatar);
+			OwningAvatar->AddOwnedComponent( HoverPointLightComponent );
 			HoverPointLightComponent->SetupAttachment( HoverMeshComponent );
 			HoverPointLightComponent->RegisterComponent();
 
@@ -319,8 +319,8 @@ void UVREditorInteractor::SetupComponent_Implementation( AActor* OwningActor )
 		UStaticMesh* EndSplineMesh = AssetContainer.LaserPointerEndMesh;
 		check( EndSplineMesh != nullptr );
 
-		LaserSplineComponent = NewObject<USplineComponent>( OwningActor );
-		OwningActor->AddOwnedComponent( LaserSplineComponent );
+		LaserSplineComponent = NewObject<USplineComponent>(OwningAvatar);
+		OwningAvatar->AddOwnedComponent( LaserSplineComponent );
 		LaserSplineComponent->SetupAttachment( MotionControllerComponent );
 		LaserSplineComponent->RegisterComponent();
 		LaserSplineComponent->SetVisibility( false );
@@ -328,7 +328,7 @@ void UVREditorInteractor::SetupComponent_Implementation( AActor* OwningActor )
 
 		for (int32 i = 0; i < NumLaserSplinePoints; i++)
 		{
-			USplineMeshComponent* SplineSegment = NewObject<USplineMeshComponent>( OwningActor );
+			USplineMeshComponent* SplineSegment = NewObject<USplineMeshComponent>(OwningAvatar);
 			SplineSegment->SetMobility( EComponentMobility::Movable );
 			SplineSegment->SetCollisionEnabled( ECollisionEnabled::NoCollision );
 			SplineSegment->SetSplineUpDir( FVector::UpVector, false );
@@ -362,6 +362,23 @@ void UVREditorInteractor::SetupComponent_Implementation( AActor* OwningActor )
 }
 
 
+void UVREditorInteractor::ReplaceHandMeshComponent(UStaticMesh* NewMesh)
+{
+	HandMeshComponent->UnregisterComponent();
+	HandMeshComponent->DestroyComponent();
+	HandMeshComponent = VRMode->CreateMotionControllerMesh(OwningAvatar, MotionControllerComponent, NewMesh);
+	SetHandMeshComponentProperties();
+}
+
+void UVREditorInteractor::SetHandMeshComponentProperties()
+{
+	check(HandMeshComponent != nullptr);
+
+	HandMeshComponent->SetCastShadow(false);
+	HandMeshComponent->SetCollisionEnabled(ECollisionEnabled::PhysicsOnly);
+	HandMeshComponent->SetCollisionResponseToAllChannels(ECR_Overlap);
+	HandMeshComponent->SetGenerateOverlapEvents(true);
+}
 
 void UVREditorInteractor::Shutdown_Implementation()
 {
@@ -727,7 +744,7 @@ void UVREditorInteractor::CalculateDragRay( float& InOutDragRayLength, float& In
 	}
 }
 
-FHitResult UVREditorInteractor::GetHitResultFromLaserPointer( TArray<AActor*>* OptionalListOfIgnoredActors /*= nullptr*/, const bool bIgnoreGizmos /*= false*/,
+FHitResult UVREditorInteractor::GetHitResultFromLaserPointer( TArray<AActor*>* OptionalListOfIgnoredActors /*= nullptr*/, const EHitResultGizmoFilterMode GizmoFilterMode /*= false*/,
 	TArray<UClass*>* ObjectsInFrontOfGizmo /*= nullptr */, const bool bEvenIfBlocked /*= false */, const float LaserLengthOverride /*= 0.0f */ )
 {
 	static TArray<AActor*> IgnoredActors;
@@ -756,7 +773,7 @@ FHitResult UVREditorInteractor::GetHitResultFromLaserPointer( TArray<AActor*>* O
 	ObjectsInFrontOfGizmo->Add( AVREditorDockableWindow::StaticClass() );
 	ObjectsInFrontOfGizmo->Add( AVREditorFloatingUI::StaticClass() );
 
-	return UViewportInteractor::GetHitResultFromLaserPointer( OptionalListOfIgnoredActors, bIgnoreGizmos, ObjectsInFrontOfGizmo, bEvenIfBlocked, LaserLengthOverride );
+	return UViewportInteractor::GetHitResultFromLaserPointer( OptionalListOfIgnoredActors, GizmoFilterMode, ObjectsInFrontOfGizmo, bEvenIfBlocked, LaserLengthOverride );
 }
 
 void UVREditorInteractor::PreviewInputKey( class FEditorViewportClient& ViewportClient, FViewportActionKeyInput& Action, const FKey Key, const EInputEvent Event, bool& bOutWasHandled )
@@ -795,12 +812,18 @@ void UVREditorInteractor::PreviewInputKey( class FEditorViewportClient& Viewport
 				if (SwipeDelta.X > 0)
 				{
 					LastSwipe = ETouchSwipeDirection::Right;
-					UndoRedoFromSwipe( LastSwipe );
+					if (bIsUndoRedoSwipeEnabled)
+					{
+						UndoRedoFromSwipe( LastSwipe );
+					}
 				}
 				else if (SwipeDelta.X < 0)
 				{
 					LastSwipe = ETouchSwipeDirection::Left;
-					UndoRedoFromSwipe( LastSwipe );
+					if (bIsUndoRedoSwipeEnabled)
+					{
+						UndoRedoFromSwipe( LastSwipe );
+					}
 				}
 			}
 			else if (!FMath::IsNearlyZero( SwipeDelta.Y, 1.0f ))
@@ -1605,7 +1628,10 @@ void UVREditorInteractor::UpdateRadialMenuInput( const float DeltaTime )
 				bFlickActionExecuted == false &&
 				!IsHoveringOverUI())
 			{
-				VRMode->GetWorldInteraction().Undo();
+				if (bIsUndoRedoSwipeEnabled)
+				{
+					VRMode->GetWorldInteraction().Undo();
+				}
 				bFlickActionExecuted = true;
 			}
 			// Move thumbstick right to redo
@@ -1613,7 +1639,10 @@ void UVREditorInteractor::UpdateRadialMenuInput( const float DeltaTime )
 				bFlickActionExecuted == false &&
 				!IsHoveringOverUI())
 			{
-				VRMode->GetWorldInteraction().Redo();
+				if (bIsUndoRedoSwipeEnabled)
+				{
+					VRMode->GetWorldInteraction().Redo();
+				}
 				bFlickActionExecuted = true;
 			}
 			// Center to reset

@@ -608,6 +608,17 @@ void FSlateApplication::SetPlatformApplication(const TSharedRef<class GenericApp
 void FSlateApplication::OverridePlatformApplication(TSharedPtr<class GenericApplication> InPlatformApplication)
 {
 	PlatformApplication = InPlatformApplication;
+
+	if (PlatformApplication && PlatformApplication->Cursor)
+	{
+		// Update the Slate user who was using the platform application cursor so
+		// they are now using the overridden platform application cursor.
+		GetCursorUser()->OverrideCursor(PlatformApplication->Cursor);
+	}
+	else
+	{
+		UE_LOG(LogSlate, Warning, TEXT("OverridePlatformApplication: Cannot override cursor with invalid value"));
+	}
 }
 
 void FSlateApplication::Create()
@@ -883,21 +894,17 @@ float FSlateApplication::GetSoundDuration(const FSlateSound& Sound) const
 
 FVector2D FSlateApplication::GetCursorPos() const
 {
-	TSharedPtr<const FSlateUser> CursorUser = GetUser(CursorUserIndex);
-	check(CursorUser);
-	return CursorUser->GetCursorPosition();
+	return GetCursorUser()->GetCursorPosition();
 }
 
 FVector2D FSlateApplication::GetLastCursorPos() const
 {
-	TSharedPtr<const FSlateUser> CursorUser = GetUser(CursorUserIndex);
-	check(CursorUser);
-	return CursorUser->GetPreviousCursorPosition();
+	return GetCursorUser()->GetPreviousCursorPosition();
 }
 
 void FSlateApplication::SetCursorPos(const FVector2D& MouseCoordinate)
 {
-	GetOrCreateUser(CursorUserIndex)->SetCursorPosition(MouseCoordinate);
+	GetCursorUser()->SetCursorPosition(MouseCoordinate);
 }
 
 FWidgetPath FSlateApplication::LocateWindowUnderMouse( FVector2D ScreenspaceMouseCoordinate, const TArray< TSharedRef< SWindow > >& Windows, bool bIgnoreEnabledStatus )
@@ -1180,7 +1187,7 @@ void FSlateApplication::PrivateDrawWindows( TSharedPtr<SWindow> DrawOnlyThisWind
 	// Is user expecting visual feedback from the Widget Reflector?
 	if (WidgetReflectorPtr.IsValid() && WidgetReflectorPtr.Pin()->IsVisualizingLayoutUnderCursor())
 	{
-		WidgetsToVisualizeUnderCursor = GetOrCreateUser(CursorUserIndex)->GetLastWidgetsUnderCursor().ToWidgetPath();
+		WidgetsToVisualizeUnderCursor = GetCursorUser()->GetLastWidgetsUnderCursor().ToWidgetPath();
 	}
 #endif
 
@@ -1764,6 +1771,8 @@ void FSlateApplication::AddModalWindow( TSharedRef<SWindow> InSlateWindow, const
 		// Bail out.  The incoming window will never be added, and no native window will be created.
 		return;
 	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(FSlateApplication::AddModalWindow);
 
 	if( GIsRunningUnattendedScript && !bSlowTaskWindow )
 	{
@@ -3169,27 +3178,27 @@ void FSlateApplication::SetLastUserInteractionTime(double InCurrentTime)
 
 void FSlateApplication::QueryCursor()
 {
-	GetOrCreateUser(CursorUserIndex)->QueryCursor();
+	GetCursorUser()->QueryCursor();
 }
 
 void FSlateApplication::ProcessCursorReply(const FCursorReply& CursorReply)
 {
-	GetOrCreateUser(CursorUserIndex)->ProcessCursorReply(CursorReply);
+	GetCursorUser()->ProcessCursorReply(CursorReply);
 }
 
 void FSlateApplication::SpawnToolTip(const TSharedRef<IToolTip>& InToolTip, const FVector2D& InSpawnLocation)
 {
-	GetOrCreateUser(CursorUserIndex)->ShowTooltip(InToolTip, InSpawnLocation);
+	GetCursorUser()->ShowTooltip(InToolTip, InSpawnLocation);
 }
 
 void FSlateApplication::CloseToolTip()
 {
-	GetOrCreateUser(CursorUserIndex)->CloseTooltip();
+	GetCursorUser()->CloseTooltip();
 }
 
 void FSlateApplication::UpdateToolTip(bool bAllowSpawningOfNewToolTips)
 {
-	GetOrCreateUser(CursorUserIndex)->UpdateTooltip(MenuStack, bAllowSpawningOfNewToolTips);
+	GetCursorUser()->UpdateTooltip(MenuStack, bAllowSpawningOfNewToolTips);
 }
 
 TArray< TSharedRef<SWindow> > FSlateApplication::GetInteractiveTopLevelWindows()
@@ -3828,8 +3837,7 @@ TSharedPtr<SWidget> FSlateApplication::GetKeyboardFocusedWidget() const
 
 TSharedPtr<SWidget> FSlateApplication::GetMouseCaptorImpl() const
 {
-	TSharedPtr<const FSlateUser> FoundUser = GetUser(CursorUserIndex);
-	return FoundUser ? FoundUser->GetCursorCaptor() : nullptr;
+	return GetCursorUser()->GetCursorCaptor();
 }
 
 bool FSlateApplication::HasAnyMouseCaptor() const
@@ -4301,10 +4309,10 @@ FKey TranslateMouseButtonToKey( const EMouseButtons::Type Button )
 	return Key;
 }
 
-#if PLATFORM_DESKTOP || PLATFORM_HTML5
-
 void FSlateApplication::SetGameIsFakingTouchEvents(const bool bIsFaking, FVector2D* CursorLocation)
 {
+	// note, this is usually guarded by FPlatformMisc::DesktopTouchScreen()
+	// the only place this is not guarded is in FPIEPreviewDeviceModule::OnWindowReady()
 	if ( bIsGameFakingTouch != bIsFaking )
 	{
 		if (bIsFakingTouched && !bIsFaking && bIsGameFakingTouch && !bIsFakingTouch)
@@ -4315,8 +4323,6 @@ void FSlateApplication::SetGameIsFakingTouchEvents(const bool bIsFaking, FVector
 		bIsGameFakingTouch = bIsFaking;
 	}
 }
-
-#endif
 
 bool FSlateApplication::IsFakingTouchEvents() const
 {
@@ -5364,7 +5370,7 @@ bool FSlateApplication::ProcessMouseMoveEvent( const FPointerEvent& MouseEvent, 
 
 bool FSlateApplication::OnCursorSet()
 {
-	GetOrCreateUser(CursorUserIndex)->RequestCursorQuery();
+	GetCursorUser()->RequestCursorQuery();
 	return true;
 }
 
@@ -6298,8 +6304,7 @@ EDropEffect::Type FSlateApplication::OnDragOver( const TSharedPtr< FGenericWindo
 {
 	EDropEffect::Type Result = EDropEffect::None;
 
-	TSharedRef<FSlateUser> CursorUser = GetOrCreateUser(CursorUserIndex);
-	if (CursorUser->IsDragDropping())
+	if (GetCursorUser()->IsDragDropping())
 	{
 		bool MouseMoveHandled = true;
 		FVector2D CursorMovementDelta( 0, 0 );
@@ -6341,14 +6346,14 @@ EDropEffect::Type FSlateApplication::OnDragOver( const TSharedPtr< FGenericWindo
 
 void FSlateApplication::OnDragLeave( const TSharedPtr< FGenericWindow >& Window )
 {
-	GetOrCreateUser(CursorUserIndex)->ResetDragDropContent();
+	GetCursorUser()->ResetDragDropContent();
 }
 
 EDropEffect::Type FSlateApplication::OnDragDrop(const TSharedPtr< FGenericWindow >& Window)
 {
 	EDropEffect::Type Result = EDropEffect::None;
 
-	if (GetOrCreateUser(CursorUserIndex)->IsDragDropping())
+	if (GetCursorUser()->IsDragDropping())
 	{
 		FPointerEvent MouseEvent(
 			GetUserIndexForMouse(),
@@ -6456,28 +6461,22 @@ void FSlateApplication::SetWidgetReflector(const TSharedRef<IWidgetReflector>& W
 
 bool FSlateApplication::IsDragDropping() const
 {
-	TSharedPtr<const FSlateUser> CursorUser = GetUser(CursorUserIndex);
-	return CursorUser && CursorUser->IsDragDropping();
+	return GetCursorUser()->IsDragDropping();
 }
 
 bool FSlateApplication::IsDragDroppingAffected(const FPointerEvent& InPointerEvent) const
 {
-	TSharedPtr<const FSlateUser> CursorUser = GetUser(CursorUserIndex);
-	return CursorUser && CursorUser->IsDragDroppingAffected(InPointerEvent);
+	return GetCursorUser()->IsDragDroppingAffected(InPointerEvent);
 }
 
 TSharedPtr<FDragDropOperation> FSlateApplication::GetDragDroppingContent() const
 {
-	TSharedPtr<const FSlateUser> CursorUser = GetUser(CursorUserIndex);
-	return CursorUser ? CursorUser->GetDragDropContent() : nullptr;
+	return GetCursorUser()->GetDragDropContent();
 }
 
 void FSlateApplication::CancelDragDrop()
 {
-	if (TSharedPtr<FSlateUser> CursorUser = GetUser(CursorUserIndex))
-	{
-		CursorUser->CancelDragDrop();
-	}
+	GetCursorUser()->CancelDragDrop();
 }
 
 void FSlateApplication::NavigateFromWidgetUnderCursor(const uint32 InUserIndex, EUINavigation InNavigationType, TSharedRef<SWindow> InWindow)

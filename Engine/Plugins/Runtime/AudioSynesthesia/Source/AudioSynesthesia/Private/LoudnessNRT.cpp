@@ -1,0 +1,161 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "LoudnessNRT.h"
+#include "LoudnessNRTFactory.h"
+#include "InterpolateSorted.h"
+
+namespace
+{
+	float InterpolateLoudness(TArrayView<const Audio::FLoudnessDatum> InLoudnessArray, const float InTimestamp)
+	{
+		int32 LowerIndex = INDEX_NONE;
+		int32 UpperIndex = INDEX_NONE;
+		float Alpha = 0.f;
+
+		GetInterpolationParametersAtTimestamp(InLoudnessArray, InTimestamp, LowerIndex, UpperIndex, Alpha);
+
+		if ((INDEX_NONE != LowerIndex) && (INDEX_NONE != UpperIndex))
+		{
+			return FMath::Lerp(InLoudnessArray[LowerIndex].Loudness, InLoudnessArray[UpperIndex].Loudness, Alpha);
+		}
+
+		return 0.f;
+	}
+}
+
+
+/***************************************************************************/
+/**********************    ULoudnessNRTSettings     ************************/
+/***************************************************************************/
+
+ULoudnessNRTSettings::ULoudnessNRTSettings()
+:	AnalysisPeriod(0.01f)	
+,	MinimumFrequency(20.f)
+,	MaximumFrequency(20000.f)
+,	CurveType(ELoudnessNRTCurveTypeEnum::D)
+,	NoiseFloorDb(-60.f)
+{}
+
+TUniquePtr<Audio::IAnalyzerNRTSettings> ULoudnessNRTSettings::GetSettings()
+{
+	TUniquePtr<Audio::FLoudnessNRTSettings> Settings = MakeUnique<Audio::FLoudnessNRTSettings>();
+
+	Settings->AnalysisPeriod = AnalysisPeriod;
+	Settings->MinAnalysisFrequency = MinimumFrequency;
+	Settings->MaxAnalysisFrequency = MaximumFrequency;
+
+	switch (CurveType)
+	{
+		case ELoudnessNRTCurveTypeEnum::A:
+			Settings->LoudnessCurveType = Audio::ELoudnessCurveType::A;
+			break;
+
+		case ELoudnessNRTCurveTypeEnum::B:
+			Settings->LoudnessCurveType = Audio::ELoudnessCurveType::B;
+			break;
+			
+		case ELoudnessNRTCurveTypeEnum::C:
+			Settings->LoudnessCurveType = Audio::ELoudnessCurveType::C;
+			break;
+
+		case ELoudnessNRTCurveTypeEnum::D:
+			Settings->LoudnessCurveType = Audio::ELoudnessCurveType::D;
+			break;
+
+		case ELoudnessNRTCurveTypeEnum::None:
+		default:
+			Settings->LoudnessCurveType = Audio::ELoudnessCurveType::None;
+			break;
+	}
+	
+	return Settings;
+}
+
+/***************************************************************************/
+/**********************        ULoudnessNRT         ************************/
+/***************************************************************************/
+
+ULoudnessNRT::ULoudnessNRT()
+{
+	Settings = CreateDefaultSubobject<ULoudnessNRTSettings>(TEXT("DefaultLoudnessNRTSettings"));
+#if WITH_EDITOR
+	// Bind settings to audio analyze so changes to default settings will trigger analysis.
+	Settings->AnalyzeAudioDelegate.BindUObject(this, &UAudioAnalyzerNRT::AnalyzeAudio);
+#endif
+}
+
+void ULoudnessNRT::GetLoudnessAtTime(const float InSeconds, float& OutLoudness)
+{
+	GetChannelLoudnessAtTime(InSeconds, Audio::FLoudnessNRTResult::ChannelIndexOverall, OutLoudness);
+}
+
+void ULoudnessNRT::GetChannelLoudnessAtTime(const float InSeconds, const int32 InChannel, float& OutLoudness)
+{
+	OutLoudness = 0.0f;
+
+	TSharedPtr<Audio::FLoudnessNRTResult, ESPMode::ThreadSafe> LoudnessResult = GetResult<Audio::FLoudnessNRTResult>();
+
+	if (LoudnessResult.IsValid())
+	{
+		if (!LoudnessResult->IsSortedChronologically())
+		{
+			LoudnessResult->SortChronologically();
+		}
+
+		const TArray<Audio::FLoudnessDatum>& LoudnessArray = LoudnessResult->GetChannelLoudnessArray(InChannel);
+
+		OutLoudness = InterpolateLoudness(LoudnessArray, InSeconds);
+	}
+}
+
+void ULoudnessNRT::GetNormalizedLoudnessAtTime(const float InSeconds, float& OutLoudness)
+{
+	GetNormalizedChannelLoudnessAtTime(InSeconds, Audio::FLoudnessNRTResult::ChannelIndexOverall, OutLoudness);
+}
+
+void ULoudnessNRT::GetNormalizedChannelLoudnessAtTime(const float InSeconds, const int32 InChannel, float& OutLoudness)
+{
+	OutLoudness = 0.0f;
+
+	TSharedPtr<Audio::FLoudnessNRTResult, ESPMode::ThreadSafe> LoudnessResult = GetResult<Audio::FLoudnessNRTResult>();
+
+	if (LoudnessResult.IsValid())
+	{
+		if (!LoudnessResult->IsSortedChronologically())
+		{
+			LoudnessResult->SortChronologically();
+		}
+
+		const TArray<Audio::FLoudnessDatum>& LoudnessArray = LoudnessResult->GetChannelLoudnessArray(InChannel);
+
+		OutLoudness = InterpolateLoudness(LoudnessArray, InSeconds);
+
+		// Subtract offset
+		OutLoudness -= Settings->NoiseFloorDb;
+
+		// Divide by range
+		OutLoudness /= FMath::Max(LoudnessResult->GetChannelLoudnessRange(InChannel, Settings->NoiseFloorDb), SMALL_NUMBER);
+
+		// Clamp to desired range in case value was below noise floor
+		OutLoudness = FMath::Clamp(OutLoudness, 0.f, 1.f);
+	}
+}
+
+TUniquePtr<Audio::IAnalyzerNRTSettings> ULoudnessNRT::GetSettings()
+{
+	TUniquePtr<Audio::IAnalyzerNRTSettings> AnalyzerSettings;
+
+	if (Settings)
+	{
+		AnalyzerSettings = Settings->GetSettings();	
+	}
+
+	return AnalyzerSettings;
+}
+
+FName ULoudnessNRT::GetAnalyzerNRTFactoryName() const
+{
+	static const FName FactoryName(TEXT("LoudnessNRTFactory"));
+	return FactoryName;
+}
+

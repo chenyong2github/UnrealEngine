@@ -9,6 +9,7 @@
 #include "Templates/SharedPointer.h"
 #include "Delegates/Delegate.h"
 #include "Internationalization/Text.h"
+#include "Misc/Attribute.h"
 
 class Error;
 
@@ -43,6 +44,7 @@ namespace EMessageToken
 		Tutorial,
 		URL,
 		EdGraph,
+		DynamicText,
 	};
 }
 
@@ -238,6 +240,45 @@ private:
 	{
 		CachedText = InMessage;
 	}
+};
+
+/** Message token with a localized attribute text payload */
+class FDynamicTextToken : public IMessageToken
+{
+public:
+	/** Factory method, tokens can only be constructed as shared refs */
+	CORE_API static TSharedRef<FDynamicTextToken> Create(const TAttribute<FText>& InMessage)
+	{
+		return MakeShareable(new FDynamicTextToken(InMessage));
+	}
+
+	/** Begin IMessageToken interface */
+	virtual EMessageToken::Type GetType() const override
+	{
+		return EMessageToken::DynamicText;
+	}
+
+	virtual const FText& ToText() const
+	{
+		return Message.Get();
+	}
+	/** End IMessageToken interface */
+
+	const TAttribute<FText>& GetTextAttribute() const
+	{
+		return Message;
+	}
+
+private:
+	/** Private constructor */
+	FDynamicTextToken(const TAttribute<FText>& InMessage)
+		: Message(InMessage)
+	{
+		CachedText = InMessage.Get();
+	}
+
+	/** The attribute text of this message */
+	TAttribute<FText> Message;
 };
 
 /** Basic message token with an icon/image payload */

@@ -3957,10 +3957,7 @@ GameProjectUtils::EAddCodeToProjectResult GameProjectUtils::AddCodeToProject_Int
 		check(ModuleInfo.ModuleName == GameModuleName);
 
 		IHotReloadInterface& HotReloadSupport = FModuleManager::LoadModuleChecked<IHotReloadInterface>("HotReload");
-		const bool bReloadAfterCompiling = true;
-		const bool bForceCodeProject = true;
-		const bool bFailIfGeneratedCodeChanges = false;
-		if (!HotReloadSupport.RecompileModule(*GameModuleName, bReloadAfterCompiling, *GWarn, bFailIfGeneratedCodeChanges, bForceCodeProject))
+		if (!HotReloadSupport.RecompileModule(*GameModuleName, *GWarn, ERecompileModuleFlags::ReloadAfterRecompile | ERecompileModuleFlags::ForceCodeProject))
 		{
 			OutFailReason = LOCTEXT("FailedToCompileNewGameModule", "Failed to compile newly created game module.");
 			return EAddCodeToProjectResult::FailedToHotReload;
@@ -4006,10 +4003,7 @@ GameProjectUtils::EAddCodeToProjectResult GameProjectUtils::AddCodeToProject_Int
 			else
 			{
 				// Perform a regular unload, then reload
-				const bool bReloadAfterRecompile = true;
-				const bool bForceCodeProject = false;
-				const bool bFailIfGeneratedCodeChanges = true;
-				if (!HotReloadSupport.RecompileModule(ModuleFName, bReloadAfterRecompile, *GWarn, bFailIfGeneratedCodeChanges, bForceCodeProject))
+				if (!HotReloadSupport.RecompileModule(ModuleFName, *GWarn, ERecompileModuleFlags::ReloadAfterRecompile | ERecompileModuleFlags::FailIfGeneratedCodeChanges))
 				{
 					OutFailReason = FText::Format(LOCTEXT("FailedToCompileModuleFmt", "Failed to automatically compile the '{0}' module."), FText::FromString(ModuleInfo.ModuleName));
 					return EAddCodeToProjectResult::FailedToHotReload;

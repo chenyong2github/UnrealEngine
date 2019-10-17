@@ -5782,7 +5782,8 @@ void FBlueprintComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLa
 			]
 		];
 
-		UActorComponent* ComponentTemplate = (CachedNodePtr->IsNative() ? CachedNodePtr->GetComponentTemplate() : nullptr);
+		// Remove UI to specify overriden component class until undo/redo can be made to work with crashing
+		/*UActorComponent* ComponentTemplate = (CachedNodePtr->IsNative() ? CachedNodePtr->GetComponentTemplate() : nullptr);
 		if (ComponentTemplate)
 		{
 			UClass* BaseClass = ComponentTemplate->GetClass();
@@ -5814,7 +5815,7 @@ void FBlueprintComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLa
 				.AllowNone(false)
 				.SelectedClass(this, &FBlueprintComponentDetails::GetSelectedEntryClass)
 				.OnSetClass(this, &FBlueprintComponentDetails::HandleNewEntryClassSelected)];
-		}
+		}*/
 
 		IDetailCategoryBuilder& SocketsCategory = DetailLayout.EditCategory("Sockets", LOCTEXT("BlueprintComponentDetailsCategory", "Sockets"), ECategoryPriority::Important);
 
@@ -6112,10 +6113,14 @@ void FBlueprintComponentDetails::HandleNewEntryClassSelected(const UClass* NewEn
 
 		if (UActorComponent* ComponentTemplate = CachedNodePtr->GetComponentTemplate())
 		{
+			const FScopedTransaction Transaction(LOCTEXT("SetComponentClassOverride", "Set Component Class Override"));
+
 			const FName ComponentTemplateName = ComponentTemplate->GetFName();
 
 			UBlueprint* BlueprintObj = GetBlueprintObj();
 			check(BlueprintObj);
+
+			BlueprintObj->Modify();
 
 			if (FBPComponentClassOverride* Override = BlueprintObj->ComponentClassOverrides.FindByKey(ComponentTemplateName))
 			{

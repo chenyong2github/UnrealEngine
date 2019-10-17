@@ -18,7 +18,7 @@
 #include "Math/Vector.h"
 #include "Math/Rotator.h"
 #include "Misc/Paths.h"
-#include "Serialization/StructuredArchiveFromArchive.h"
+#include "Serialization/StructuredArchive.h"
 
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogConfig, Log, All);
 

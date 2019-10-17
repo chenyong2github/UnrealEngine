@@ -1188,6 +1188,14 @@ ULandscapeInfo* ALandscapeProxy::GetLandscapeInfo() const
 	return LandscapeInfo;
 }
 
+FTransform ALandscapeProxy::LandscapeActorToWorld() const
+{
+	FTransform TM = ActorToWorld();
+	// Add this proxy landscape section offset to obtain landscape actor transform
+	TM.AddToTranslation(TM.TransformVector(-FVector(LandscapeSectionOffset)));
+	return TM;
+}
+
 ALandscape* ULandscapeComponent::GetLandscapeActor() const
 {
 	ALandscapeProxy* Landscape = GetLandscapeProxy();
@@ -1418,6 +1426,25 @@ FBoxSphereBounds ULandscapeComponent::CalcBounds(const FTransform& LocalToWorld)
 	return FBoxSphereBounds(MyBounds);
 }
 
+static void OnStaticMeshLODDistanceScaleChanged()
+{
+	extern RENDERER_API TAutoConsoleVariable<float> CVarStaticMeshLODDistanceScale;
+
+	static float LastValue = 1.0f;
+
+	if (LastValue != CVarStaticMeshLODDistanceScale.GetValueOnAnyThread())
+	{
+		LastValue = CVarStaticMeshLODDistanceScale.GetValueOnAnyThread();
+
+		for (auto* LandscapeComponent : TObjectRange<ULandscapeComponent>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::PendingKill))
+		{
+			LandscapeComponent->MarkRenderStateDirty();
+		}
+	}
+}
+
+FAutoConsoleVariableSink OnStaticMeshLODDistanceScaleChangedSink(FConsoleCommandDelegate::CreateStatic(&OnStaticMeshLODDistanceScaleChanged));
+
 void ULandscapeComponent::OnRegister()
 {
 	Super::OnRegister();
@@ -1627,6 +1654,8 @@ void ULandscapeComponent::AddLayerData(const FGuid& InLayerGuid, const FLandscap
 	check(!LandscapeEditingLayer.IsValid());
 	FLandscapeLayerComponentData& Data = LayersData.FindOrAdd(InLayerGuid);
 	Data = InData;
+	CachedEditingLayer.Invalidate();
+	CachedEditingLayerData = nullptr;
 }
 
 void ULandscapeComponent::AddDefaultLayerData(const FGuid& InLayerGuid, const TArray<ULandscapeComponent*>& InComponentsUsingHeightmap, TMap<UTexture2D*, UTexture2D*>& InOutCreatedHeightmapTextures)
@@ -1712,6 +1741,8 @@ void ULandscapeComponent::RemoveLayerData(const FGuid& InLayerGuid)
 	Modify();
 	check(!LandscapeEditingLayer.IsValid());
 	LayersData.Remove(InLayerGuid);
+	CachedEditingLayer.Invalidate();
+	CachedEditingLayerData = nullptr;
 }
 
 void ULandscapeComponent::SetHeightmap(UTexture2D* NewHeightmap)
@@ -1947,6 +1978,8 @@ void ALandscapeProxy::PreSave(const class ITargetPlatform* TargetPlatform)
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
 		bHasLandscapeGrass = LandscapeComponents.ContainsByPredicate([](ULandscapeComponent* Component) { return Component->MaterialHasGrass(); });
+
+		UpdateGrassData();
 	}
 
 	if (ALandscape* Landscape = GetLandscapeActor())
@@ -2526,13 +2559,6 @@ void ALandscapeProxy::FixupSharedData(ALandscape* Landscape)
 	}
 }
 
-FTransform ALandscapeProxy::LandscapeActorToWorld() const
-{
-	FTransform TM = ActorToWorld();
-	// Add this proxy landscape section offset to obtain landscape actor transform
-	TM.AddToTranslation(TM.TransformVector(-FVector(LandscapeSectionOffset)));
-	return TM;
-}
 
 void ALandscapeProxy::SetAbsoluteSectionBase(FIntPoint InSectionBase)
 {
@@ -3005,6 +3031,11 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 	{
 		RegisterActorComponent(Proxy->LandscapeComponents[CompIdx], bMapCheck);
 	}
+
+	for (ULandscapeHeightfieldCollisionComponent* CollComp: Proxy->CollisionComponents)
+	{
+		RegisterCollisionComponent(CollComp);
+	}
 }
 
 void ULandscapeInfo::UnregisterActor(ALandscapeProxy* Proxy)
@@ -3046,10 +3077,52 @@ void ULandscapeInfo::UnregisterActor(ALandscapeProxy* Proxy)
 	}
 	XYtoComponentMap.Compact();
 
+	for (ULandscapeHeightfieldCollisionComponent* CollComp : Proxy->CollisionComponents)
+	{
+		if (CollComp)
+		{
+			UnregisterCollisionComponent(CollComp);
+		}
+	}
+	XYtoCollisionComponentMap.Compact();
+
 #if WITH_EDITOR
 	UpdateLayerInfoMap();
 	UpdateAllAddCollisions();
 #endif
+}
+
+void ULandscapeInfo::RegisterCollisionComponent(ULandscapeHeightfieldCollisionComponent* Component)
+{
+	if (Component == nullptr || !Component->IsRegistered())
+	{
+		return;
+	}
+
+	FIntPoint ComponentKey = Component->GetSectionBase() / Component->CollisionSizeQuads;
+	auto RegisteredComponent = XYtoCollisionComponentMap.FindRef(ComponentKey);
+
+	if (RegisteredComponent != Component)
+	{
+		if (RegisteredComponent == nullptr)
+		{
+			XYtoCollisionComponentMap.Add(ComponentKey, Component);
+		}
+	}
+}
+
+void ULandscapeInfo::UnregisterCollisionComponent(ULandscapeHeightfieldCollisionComponent* Component)
+{
+	if (ensure(Component))
+	{
+		FIntPoint ComponentKey = Component->GetSectionBase() / Component->CollisionSizeQuads;
+		auto RegisteredComponent = XYtoCollisionComponentMap.FindRef(ComponentKey);
+
+		if (RegisteredComponent == Component)
+		{
+			XYtoCollisionComponentMap.Remove(ComponentKey);
+		}
+	}
 }
 
 void ULandscapeInfo::RegisterActorComponent(ULandscapeComponent* Component, bool bMapCheck)

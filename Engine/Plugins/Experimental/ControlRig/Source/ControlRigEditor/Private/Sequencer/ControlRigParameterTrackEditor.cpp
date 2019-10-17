@@ -217,13 +217,11 @@ void FControlRigParameterTrackEditor::OnRelease()
 	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
 	if (ControlRigEditMode)
 	{
-		if (GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName))
+		if (GLevelEditorModeTools().HasToolkitHost())
 		{
-			if (GLevelEditorModeTools().HasToolkitHost())
-			{
-				GLevelEditorModeTools().DeactivateMode(FControlRigEditMode::ModeName);
-			}
+			GLevelEditorModeTools().DeactivateMode(FControlRigEditMode::ModeName);
 		}
+
 		ControlRigEditMode->SetObjects(nullptr, FGuid(), nullptr);
 	}
 
@@ -591,12 +589,9 @@ void FControlRigParameterTrackEditor::OnSequencerDataChanged(EMovieSceneDataChan
 			}
 		}
 		//okay no good track so deactive it and delete it's Control Rig and bingings.
-		if (GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName))
+		if (GLevelEditorModeTools().HasToolkitHost())
 		{
-			if (GLevelEditorModeTools().HasToolkitHost())
-			{
-				GLevelEditorModeTools().DeactivateMode(FControlRigEditMode::ModeName);
-			}
+			GLevelEditorModeTools().DeactivateMode(FControlRigEditMode::ModeName);
 		}
 		ControlRigEditMode->SetObjects(nullptr, FGuid(), nullptr);
 	}
@@ -1124,7 +1119,7 @@ void FControlRigParameterSection::BuildSectionContextMenu(FMenuBuilder& MenuBuil
 			return FUIAction(
 				FExecuteAction::CreateLambda([=]
 			{
-				FScopedTransaction Transaction(LOCTEXT("RigSectionFilter", "Toggle Rig Control Filters"));
+				FScopedTransaction Transaction(LOCTEXT("ToggleRigControlFiltersTransaction", "Toggle Rig Control Filters"));
 				ParameterSection->Modify();
 				if (Index >= 0)
 				{
@@ -1177,7 +1172,7 @@ void FControlRigParameterSection::BuildSectionContextMenu(FMenuBuilder& MenuBuil
 			})
 				);
 		};
-		MenuBuilder.BeginSection(NAME_None, LOCTEXT("RigSectionFilter", "Filter Controls"));
+		MenuBuilder.BeginSection(NAME_None, LOCTEXT("RigSectionFilterControls", "Filter Controls"));
 		{
 			MenuBuilder.AddSubMenu(
 				LOCTEXT("ToggleRigControlsText", "Toggle Rig Controls"), LOCTEXT("ToggleRigControlsText_Tooltip", "Toggle Rig Controls"),

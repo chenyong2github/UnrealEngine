@@ -7,27 +7,35 @@
 #include "ViewModels/Stack/NiagaraStackEntry.h"
 #include "ViewModels/Stack/NiagaraStackItemGroup.h"
 #include "ViewModels/Stack/NiagaraStackItem.h"
+#include "ViewModels/Stack/NiagaraStackModuleItem.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "ViewModels/Stack/NiagaraStackSelection.h"
 #include "NiagaraEditorWidgetsStyle.h"
 #include "NiagaraEditorWidgetsUtilities.h"
 #include "SNiagaraStack.h"
+#include "Stack/SNiagaraStackItemGroupAddButton.h"
 
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
 #include "EditorStyleSet.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+
+#define LOCTEXT_NAMESPACE "NiagaraOverviewStack"
 
 class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 {
-	SLATE_BEGIN_ARGS(SNiagaraSystemOverviewEntryListRow)
-	{}
+	SLATE_BEGIN_ARGS(SNiagaraSystemOverviewEntryListRow) {}
 		SLATE_DEFAULT_SLOT(FArguments, Content)
 	SLATE_END_ARGS();
 
-	void Construct(const FArguments& InArgs, UNiagaraStackEntry* StackEntry, const TSharedRef<STableViewBase>& InOwnerTableView)
+	void Construct(const FArguments& InArgs, UNiagaraStackEntry* InStackEntry, const TSharedRef<STableViewBase>& InOwnerTableView)
 	{
+		StackEntry = InStackEntry;
 		FSlateColor IconColor = FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetColorNameForExecutionCategory(StackEntry->GetExecutionCategoryName()));
+		ItemBackgroundColor = FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Item.HeaderBackgroundColor");
+		DisabledItemBackgroundColor = ItemBackgroundColor + FLinearColor(.02f, .02f, .02f, 0.0f);
 
 		TSharedPtr<SWidget> WrappedContent;
 		if (StackEntry->IsA<UNiagaraStackItem>())
@@ -35,12 +43,12 @@ class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 			WrappedContent =
 				SNew(SBorder)
 				.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
-				.BorderBackgroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Item.HeaderBackgroundColor"))
+				.BorderBackgroundColor(this, &SNiagaraSystemOverviewEntryListRow::GetItemBackgroundColor, StackEntry)
 				.Padding(0)
 				[
 					SNew(SBorder)
 					.BorderImage(this, &SNiagaraSystemOverviewEntryListRow::GetBorder)
-					.Padding(FMargin(8, 4, 8, 4))
+					.Padding(FMargin(6, 4, 3, 4))
 					[
 						InArgs._Content.Widget
 					]
@@ -55,7 +63,7 @@ class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 				[
 					SNew(SBorder)
 					.BorderImage(this, &SNiagaraSystemOverviewEntryListRow::GetBorder)
-					.Padding(FMargin(2, 6, 8, 2))
+					.Padding(FMargin(2, 4, 1, 4))
 					[
 						InArgs._Content.Widget
 					]
@@ -63,39 +71,114 @@ class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 		}
 
 		STableRow<UNiagaraStackEntry*>::Construct(STableRow<UNiagaraStackEntry*>::FArguments()
+			.Style(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.SystemOverview.TableViewRow")
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
-			.BorderBackgroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Item.ContentBackgroundColor"))
-			.Padding(0)
+			.BorderImage(this, &SNiagaraSystemOverviewEntryListRow::GetBorder)
+			.Padding(FMargin(5, 2, 5, 2))
 			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Fill)
-				[
-					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
-					.BorderBackgroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForExecutionCategory(StackEntry->GetExecutionCategoryName())))
-					.Padding(0)
-					[
-						SNew(SBox)
-						.WidthOverride(5)
-					]
-				]
-				+ SHorizontalBox::Slot()
-				[
-					SNew(SBorder)
-					.BorderImage(this, &SNiagaraSystemOverviewEntryListRow::GetBorder)
-					.Padding(FMargin(7, 0, 7, 4))
-					[
-						WrappedContent.ToSharedRef()
-					]
-				]
+				WrappedContent.ToSharedRef()
 			]
 		],
 		InOwnerTableView);
 	}
+
+	// Need to use the mouse down event here since the graph eats the mouse up to show its context menu.
+	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
+	{
+		if (MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
+		{
+			FMenuBuilder MenuBuilder(true, nullptr);
+			bool bMenuItemsAdded = false;
+
+			if (StackEntry->IsA<UNiagaraStackModuleItem>())
+			{
+				bMenuItemsAdded |= FNiagaraStackEditorWidgetsUtilities::AddStackModuleItemContextMenuActions(MenuBuilder, *CastChecked<UNiagaraStackModuleItem>(StackEntry), this->AsShared());
+			}
+
+			if (StackEntry->IsA<UNiagaraStackItem>())
+			{
+				bMenuItemsAdded |= FNiagaraStackEditorWidgetsUtilities::AddStackItemContextMenuActions(MenuBuilder, *CastChecked<UNiagaraStackItem>(StackEntry));
+			}
+
+			bMenuItemsAdded |= FNiagaraStackEditorWidgetsUtilities::AddStackEntryAssetContextMenuActions(MenuBuilder, *StackEntry);
+		
+			if (bMenuItemsAdded)
+			{
+				FWidgetPath WidgetPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
+				FSlateApplication::Get().PushMenu(AsShared(), WidgetPath, MenuBuilder.MakeWidget(), MouseEvent.GetScreenSpacePosition(), FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu));
+				return FReply::Handled();
+			}
+		}
+		return STableRow<UNiagaraStackEntry*>::OnMouseButtonDown(MyGeometry, MouseEvent);
+	}
+
+private:
+	FSlateColor GetItemBackgroundColor(UNiagaraStackEntry* Entry) const
+	{
+		return Entry->GetIsEnabled() && Entry->GetOwnerIsEnabled() ? ItemBackgroundColor : DisabledItemBackgroundColor;
+	}
+
+private:
+	UNiagaraStackEntry* StackEntry;
+	FLinearColor ItemBackgroundColor;
+	FLinearColor DisabledItemBackgroundColor;
+};
+
+class SNiagaraSystemOverviewEnabledCheckBox : public SCompoundWidget
+{
+public:
+	DECLARE_DELEGATE_OneParam(FOnCheckedChanged, bool /*bIsChecked*/);
+
+	SLATE_BEGIN_ARGS(SNiagaraSystemOverviewEnabledCheckBox) {}
+		SLATE_ATTRIBUTE(bool, IsChecked)
+		SLATE_EVENT(FOnCheckedChanged, OnCheckedChanged)
+	SLATE_END_ARGS();
+
+	void Construct(const FArguments& InArgs)
+	{
+		IsChecked = InArgs._IsChecked;
+		OnCheckedChanged = InArgs._OnCheckedChanged;
+
+		ChildSlot
+		[
+			SNew(SBorder)
+			.BorderImage(FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.SystemOverview.CheckBoxBorder"))
+			.BorderBackgroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Item.HeaderBackgroundColor"))
+			.Padding(FMargin(0))
+			[
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.OnClicked(this, &SNiagaraSystemOverviewEnabledCheckBox::OnButtonClicked)
+				.ToolTipText(LOCTEXT("EnableCheckBoxToolTip", "Enable or disable this item."))
+				.ContentPadding(FMargin(3, 2, 3, 2))
+				[
+					SNew(STextBlock)
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+					.Text(this, &SNiagaraSystemOverviewEnabledCheckBox::GetButtonText)
+					.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.SystemOverview.CheckBoxColor"))
+				]
+			]
+		];
+	}
+
+private:
+	FReply OnButtonClicked()
+	{
+		OnCheckedChanged.ExecuteIfBound(IsChecked.IsBound() && !IsChecked.Get());
+		return FReply::Handled();
+	}
+
+	FText GetButtonText() const
+	{
+		return IsChecked.IsBound() && IsChecked.Get()
+			? LOCTEXT("CheckedText", "\xf14a")
+			: LOCTEXT("UncheckedText", "\xf0c8");
+	}
+
+private:
+	TAttribute<bool> IsChecked;
+	FOnCheckedChanged OnCheckedChanged;
 };
 
 void SNiagaraOverviewStack::Construct(const FArguments& InArgs, UNiagaraStackViewModel& InStackViewModel, UNiagaraSystemSelectionViewModel& InOverviewSelectionViewModel)
@@ -189,29 +272,66 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 	TSharedPtr<SWidget> Content;
 	if (Item->IsA<UNiagaraStackItem>())
 	{
-		Content = SNew(STextBlock)
-			.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.SystemOverview.ItemText")
-			.Text_UObject(Item, &UNiagaraStackEntry::GetDisplayName);
-	}
-	else
-	{
+		UNiagaraStackItem* StackItem = CastChecked<UNiagaraStackItem>(Item);
 		Content = SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.SystemOverview.ItemText")
+				.Text_UObject(Item, &UNiagaraStackEntry::GetDisplayName)
+				.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
+			]
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			.Padding(3, 0, 0, 0)
+			[
+				SNew(SNiagaraSystemOverviewEnabledCheckBox)
+				.Visibility(this, &SNiagaraOverviewStack::GetEnabledCheckBoxVisibility, StackItem)
+				.IsEnabled_UObject(StackItem, &UNiagaraStackEntry::GetOwnerIsEnabled)
+				.IsChecked_UObject(StackItem, &UNiagaraStackEntry::GetIsEnabled)
+				.OnCheckedChanged_UObject(StackItem, &UNiagaraStackItem::SetIsEnabled)
+			];
+	}
+	else if (Item->IsA<UNiagaraStackItemGroup>())
+	{
+		UNiagaraStackItemGroup* StackItemGroup = CastChecked<UNiagaraStackItemGroup>(Item);
+		TSharedRef<SHorizontalBox> ContentBox = SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
 			.Padding(2, 0, 6, 0)
 			.VAlign(VAlign_Center)
 			.AutoWidth()
 			[
 				SNew(SImage)
-				//.Visibility(this, &SNiagaraStackTableRow::GetExecutionCategoryIconVisibility)
 				.Image(FNiagaraEditorWidgetsStyle::Get().GetBrush(FNiagaraStackEditorWidgetsUtilities::GetIconNameForExecutionSubcategory(Item->GetExecutionSubcategoryName(), true)))
 				.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForExecutionCategory(Item->GetExecutionCategoryName())))
+				.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
 			]
 			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)
 				.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.SystemOverview.GroupHeaderText")
 				.Text_UObject(Item, &UNiagaraStackEntry::GetDisplayName)
+				.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
 			];
+
+		if (StackItemGroup->GetAddUtilities() != nullptr)
+		{
+			ContentBox->AddSlot()
+			.AutoWidth()
+			[
+				SNew(SNiagaraStackItemGroupAddButton, *StackItemGroup)
+				.Width(22)
+			];
+		}
+
+		Content = ContentBox;
+	}
+	else
+	{
+		Content = SNullWidget::NullWidget;
 	}
 
 
@@ -219,6 +339,11 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 	[
 		Content.ToSharedRef()
 	];
+}
+
+EVisibility SNiagaraOverviewStack::GetEnabledCheckBoxVisibility(UNiagaraStackItem* Item) const
+{
+	return Item->SupportsChangeEnabled() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 void SNiagaraOverviewStack::OnSelectionChanged(UNiagaraStackEntry* InNewSelection, ESelectInfo::Type SelectInfo)
@@ -275,3 +400,5 @@ void SNiagaraOverviewStack::SystemSelectionChanged(UNiagaraSystemSelectionViewMo
 		}
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

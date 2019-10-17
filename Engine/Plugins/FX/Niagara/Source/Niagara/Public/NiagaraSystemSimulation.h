@@ -125,7 +125,7 @@ struct FNiagaraParameterStoreToDataSetBinding
 
 struct FNiagaraSystemSimulationTickContext
 {
-	FNiagaraSystemSimulationTickContext(class FNiagaraSystemSimulation* Owner, TArray<FNiagaraSystemInstance*>& Instances, FNiagaraDataSet& DataSet, float DeltaSeconds, int32 SpawnNum, const FGraphEventRef& MyCompletionGraphEvent);
+	FNiagaraSystemSimulationTickContext(class FNiagaraSystemSimulation* Owner, TArray<FNiagaraSystemInstance*>& Instances, FNiagaraDataSet& DataSet, float DeltaSeconds, int32 SpawnNum, int EffectsQuality, const FGraphEventRef& MyCompletionGraphEvent);
 
 	class FNiagaraSystemSimulation*		Owner;
 	UNiagaraSystem*						System;
@@ -135,6 +135,8 @@ struct FNiagaraSystemSimulationTickContext
 
 	float								DeltaSeconds;
 	int32								SpawnNum;
+
+	int									EffectsQuality;
 
 	FGraphEventRef						MyCompletionGraphEvent;
 	FGraphEventArray*					FinalizeEvents;

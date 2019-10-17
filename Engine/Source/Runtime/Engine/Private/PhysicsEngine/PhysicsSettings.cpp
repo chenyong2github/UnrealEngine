@@ -5,10 +5,8 @@
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "UObject/Package.h"
 
-#if INCLUDE_CHAOS
 #include "Framework/Threading.h"
 #include "ChaosSolversModule.h"
-#endif
 
 UPhysicsSettings::UPhysicsSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -171,10 +169,8 @@ FChaosPhysicsSettings::FChaosPhysicsSettings()
 
 void FChaosPhysicsSettings::OnSettingsUpdated()
 {
-#if INCLUDE_CHAOS
 	if(FChaosSolversModule* SolverModule = FChaosSolversModule::GetModule())
 	{
 		SolverModule->OnSettingsChanged();
 	}
-#endif
 }

@@ -413,16 +413,6 @@ public:
 	}
 
 	/**
-	 * Copy constructor
-	 */
-	FORCEINLINE_STATS FStatNameAndInfo(FStatNameAndInfo const& Other)
-		: NameAndInfo(Other.NameAndInfo)
-	{
-		static_assert(EStatAllFields::StartShift >= 0, "Too many fields.");
-		CheckInvariants();
-	}
-
-	/**
 	 * Build from a raw FName
 	 */
 	FORCEINLINE_STATS FStatNameAndInfo(FName Other, bool bAlreadyHasMeta)
@@ -706,15 +696,6 @@ struct FStatMessage
 	}
 
 	/**
-	* Copy constructor
-	*/
-	FORCEINLINE_STATS FStatMessage(FStatMessage const& Other)
-		: StatData(Other.StatData)
-		, NameAndInfo(Other.NameAndInfo)
-	{
-	}
-	
-	/**
 	* Build a meta data message
 	*/
 	FStatMessage(FName InStatName, EStatDataType::Type InStatType, char const* InGroup, char const* InCategory, TCHAR const* InDescription, bool bShouldClearEveryFrame, bool bCycleStat, bool bSortByName, FPlatformMemory::EMemoryCounterRegion MemoryRegion = FPlatformMemory::MCR_Invalid)
@@ -928,19 +909,6 @@ struct TStatMessage
 		// Reset data type and clear all fields.
 		NameAndInfo.SetField<EStatDataType>( EStatDataType::ST_None );
 		Clear();
-	}
-
-	/**
-	* Copy constructor
-	*/
-	explicit FORCEINLINE_STATS TStatMessage(const TStatMessage& Other)
-		: NameAndInfo(Other.NameAndInfo)
-	{
-		// Copy all fields.
-		for( int32 FieldIndex = 0; FieldIndex < EnumCount; ++FieldIndex )
-		{
-			*((int64*)&StatData+FieldIndex) = *((int64*)&Other.StatData+FieldIndex);
-		}
 	}
 
 	/** Assignment operator for FStatMessage. */

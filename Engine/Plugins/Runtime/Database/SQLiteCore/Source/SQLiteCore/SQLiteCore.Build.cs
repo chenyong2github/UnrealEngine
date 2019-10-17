@@ -15,10 +15,6 @@ namespace UnrealBuildTool.Rules
 			);
 
 			PrivateDefinitions.Add("SQLITE_OMIT_AUTOINIT"); // We call sqlite3_initialize ourselves during module init
-			if (Target.Platform == UnrealTargetPlatform.HTML5)
-			{
-				PrivateDefinitions.Add("SQLITE_THREADSAFE=0"); // No threading on HTML5
-			}
 
 			// Use the math.h version of isnan rather than the SQLite version to avoid a -ffast-math error
 			PrivateDefinitions.Add("SQLITE_HAVE_ISNAN=1");
@@ -41,7 +37,7 @@ namespace UnrealBuildTool.Rules
 			if (Target.bCompileCustomSQLitePlatform)
 			{
 				// Note: The Unreal HAL doesn't provide an implementation of shared memory (as not all platforms implement it),
-				// nor does it provide an implementation of granular file locks. These two things affect the concurrency of an 
+				// nor does it provide an implementation of granular file locks. These two things affect the concurrency of an
 				// SQLite database as only one FSQLiteDatabase can have the file open at the same time.
 				PrivateDefinitions.Add("SQLITE_OS_OTHER=1");			// We are a custom OS
 				PrivateDefinitions.Add("SQLITE_ZERO_MALLOC");			// We provide our own malloc implementation

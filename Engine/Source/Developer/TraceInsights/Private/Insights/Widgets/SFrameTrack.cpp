@@ -2,14 +2,13 @@
 
 #include "SFrameTrack.h"
 
-#include "Brushes/SlateBorderBrush.h"
-#include "Brushes/SlateColorBrush.h"
-#include "EditorStyleSet.h"
 #include "Fonts/FontMeasure.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HAL/PlatformTime.h"
 #include "Rendering/DrawElements.h"
+#include "Styling/CoreStyle.h"
 #include "TraceServices/AnalysisService.h"
 #include "TraceServices/SessionService.h"
 #include "Widgets/Layout/SScrollBar.h"
@@ -19,6 +18,7 @@
 #include "Insights/Common/Stopwatch.h"
 #include "Insights/Common/TimeUtils.h"
 #include "Insights/InsightsManager.h"
+#include "Insights/InsightsStyle.h"
 #include "Insights/TimingProfilerCommon.h"
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/ViewModels/FrameTrackHelper.h"
@@ -34,7 +34,6 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 SFrameTrack::SFrameTrack()
-	: HoveredSample(nullptr, nullptr)
 {
 	Reset();
 }
@@ -50,14 +49,21 @@ SFrameTrack::~SFrameTrack()
 void SFrameTrack::Reset()
 {
 	Viewport.Reset();
+	FAxisViewportDouble& ViewportY = Viewport.GetVerticalAxisViewport();
+	ViewportY.SetScaleLimits(0.01, 1000000.0);
+	ViewportY.SetScale(1500.0);
 	bIsViewportDirty = true;
 
-	CachedTimelines.Reset();
-	TimelinesOrder.Reset();
-	TimelinesOrder.Add(0);
-	TimelinesOrder.Add(1);
-	TimelinesOrder.Add(2);
+	SeriesMap.Reset();
+	SeriesOrder.Reset();
+	SeriesOrder.Add(TraceFrameType_Game);
+	SeriesOrder.Add(TraceFrameType_Rendering);
+
 	bIsStateDirty = true;
+
+	bShowGameFrames = true;
+	bShowRenderingFrames = true;
+	bIsAutoZoomEnabled = true;
 
 	AnalysisSyncNextTimestamp = 0;
 
@@ -65,7 +71,6 @@ void SFrameTrack::Reset()
 
 	MousePositionOnButtonDown = FVector2D::ZeroVector;
 	ViewportPosXOnButtonDown = 0.0f;
-	ViewportPosYOnButtonDown = 0.0f;
 
 	MousePositionOnButtonUp = FVector2D::ZeroVector;
 
@@ -74,15 +79,13 @@ void SFrameTrack::Reset()
 
 	bIsScrolling = false;
 
-	SelectionStartFrameIndex = 0;
-	SelectionEndFrameIndex = 0;
-
-	HoveredSample.Timeline = nullptr;
-	HoveredSample.Sample = nullptr;
+	HoveredSample.Reset();
+	TooltipDesiredOpacity = 0.9f;
+	TooltipOpacity = 0.0f;
 
 	//ThisGeometry
 
-	CursorType = EFrameTrackCursor::Default;
+	CursorType = ECursorType::Default;
 
 	NumUpdatedFrames = 0;
 	UpdateDurationHistory.Reset();
@@ -134,43 +137,13 @@ void SFrameTrack::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 	ThisGeometry = AllottedGeometry;
 
+	FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+
 	if (!bIsScrolling)
 	{
-		// Elastic snap to horizontal limits (+15%).
-
-		float MinX, MaxX;
-		if (Viewport.MaxX - Viewport.MinX < Viewport.Width)
+		// Elastic snap to horizontal limits.
+		if (ViewportX.UpdatePosWithinLimits())
 		{
-			MinX = Viewport.MaxX - Viewport.Width;
-			MaxX = Viewport.MinX;
-		}
-		else
-		{
-			MinX = Viewport.MinX - 0.15f * Viewport.Width;
-			MaxX = Viewport.MaxX - 0.85f * Viewport.Width;
-		}
-		const float U = 0.5f;
-
-		float PosX = Viewport.PosX;
-		if (PosX < MinX)
-		{
-			PosX = PosX * U + (1.0f - U) * MinX;
-			if (FMath::IsNearlyEqual(PosX, MinX, 1.0f))
-				PosX = MinX;
-		}
-		else if (PosX > MaxX)
-		{
-			PosX = PosX * U + (1.0f - U) * MaxX;
-			if (FMath::IsNearlyEqual(PosX, MaxX, 1.0f))
-				PosX = MaxX;
-			if (PosX < MinX)
-				PosX = MinX;
-		}
-
-		if (Viewport.PosX != PosX)
-		{
-			//Viewport.ScrollAtPosX(PosX);
-			Viewport.ScrollAtIndex(Viewport.GetIndexAtPosX(PosX));
 			bIsStateDirty = true;
 		}
 	}
@@ -190,24 +163,32 @@ void SFrameTrack::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 			for (int32 FrameType = 0; FrameType < TraceFrameType_Count; ++FrameType)
 			{
-				FFrameTrackTimeline& CachedTimeline = CachedTimelines.FindOrAdd(FrameType);
-				CachedTimeline.Id = FrameType;
+				TSharedPtr<FFrameTrackSeries> SeriesPtr = FindOrAddSeries(FrameType);
 
 				int32 NumFrames = FramesProvider.GetFrameCount(static_cast<ETraceFrameType>(FrameType));
-				if (NumFrames > Viewport.MaxIndex)
+				if (NumFrames > ViewportX.GetMaxValue())
 				{
-					Viewport.SetMinMaxIndexInterval(0, NumFrames);
+					ViewportX.SetMinMaxInterval(0, NumFrames);
+
+					if (bIsAutoZoomEnabled)
+					{
+						if (ViewportX.GetPos() == 0.0f) // only if the view is unchanged
+						{
+							// Auto zoom out (until entire session time range fits into view).
+							while (ViewportX.GetMaxPos() - ViewportX.GetMinPos() > ViewportX.GetSize())
+							{
+								ZoomHorizontally(-0.1f, 0.0f);
+								ViewportX.ScrollAtPos(0.0f);
+							}
+						}
+						else
+						{
+							bIsAutoZoomEnabled = false;
+						}
+					}
+
 					UpdateHorizontalScrollBar();
 					bIsStateDirty = true;
-
-					// Auto zoom out.
-					float SampleW = Viewport.GetSampleWidth();
-					int32 NumSamples = FMath::CeilToInt(Viewport.Width / SampleW);
-					if (NumFrames > NumSamples * Viewport.GetNumFramesPerSample())
-					{
-						ZoomHorizontally(-0.1f, 0.0f);
-						Viewport.ScrollAtPosX(0.0f);
-					}
 				}
 			}
 		}
@@ -222,16 +203,50 @@ void SFrameTrack::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+TSharedPtr<FFrameTrackSeries> SFrameTrack::FindOrAddSeries(int32 FrameType)
+{
+	TSharedPtr<FFrameTrackSeries>* SeriesPtrPtr = SeriesMap.Find(FrameType);
+	if (SeriesPtrPtr)
+	{
+		ensure((**SeriesPtrPtr).FrameType == FrameType);
+		return *SeriesPtrPtr;
+	}
+	else
+	{
+		TSharedPtr<FFrameTrackSeries> SeriesPtr = MakeShareable(new FFrameTrackSeries(FrameType));
+		SeriesMap.Add(FrameType, SeriesPtr);
+		return SeriesPtr;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedPtr<FFrameTrackSeries> SFrameTrack::FindSeries(int32 FrameType) const
+{
+	const TSharedPtr<FFrameTrackSeries>* SeriesPtrPtr = SeriesMap.Find(FrameType);
+	if (SeriesPtrPtr)
+	{
+		ensure((**SeriesPtrPtr).FrameType == FrameType);
+		return *SeriesPtrPtr;
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void SFrameTrack::UpdateState()
 {
 	FStopwatch Stopwatch;
 	Stopwatch.Start();
 
 	// Reset stats.
-	for (TPair<uint64, FFrameTrackTimeline>& KeyValuePair : CachedTimelines)
+	for (TPair<int32, TSharedPtr<FFrameTrackSeries>>& KeyValuePair : SeriesMap)
 	{
-		FFrameTrackTimeline& Timeline = KeyValuePair.Value;
-		Timeline.NumAggregatedFrames = 0;
+		TSharedPtr<FFrameTrackSeries>& SeriesPtr = KeyValuePair.Value;
+		SeriesPtr->NumAggregatedFrames = 0;
 	}
 	NumUpdatedFrames = 0;
 
@@ -242,15 +257,16 @@ void SFrameTrack::UpdateState()
 
 		const Trace::IFrameProvider& FramesProvider = Trace::ReadFrameProvider(*Session.Get());
 
+		const FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+
+		const uint64 StartIndex = static_cast<uint64>(FMath::Max(0, ViewportX.GetValueAtOffset(0.0f)));
+		const uint64 EndIndex = static_cast<uint64>(ViewportX.GetValueAtOffset(ViewportX.GetSize()));
+
 		for (int32 FrameType = 0; FrameType < TraceFrameType_Count; ++FrameType)
 		{
-			FFrameTrackTimeline& Timeline = CachedTimelines.FindOrAdd(FrameType);
-			Timeline.Id = FrameType;
+			TSharedPtr<FFrameTrackSeries> SeriesPtr = FindOrAddSeries(FrameType);
 
-			FFrameTrackTimelineBuilder Builder(Timeline, Viewport);
-
-			uint64 StartIndex = static_cast<uint64>(FMath::Max(0, Viewport.GetIndexAtViewportX(0.0f)));
-			uint64 EndIndex = static_cast<uint64>(Viewport.GetIndexAtViewportX(Viewport.Width));
+			FFrameTrackSeriesBuilder Builder(*SeriesPtr, Viewport);
 
 			FramesProvider.EnumerateFrames(static_cast<ETraceFrameType>(FrameType), StartIndex, EndIndex, [&Builder](const Trace::FFrame& Frame)
 			{
@@ -267,54 +283,72 @@ void SFrameTrack::UpdateState()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FSampleRef SFrameTrack::GetSampleAtMousePosition(float X, float Y)
+FFrameTrackSampleRef SFrameTrack::GetSampleAtMousePosition(float X, float Y)
 {
-	float SampleW = Viewport.GetSampleWidth();
-	int32 SampleIndex = FMath::FloorToInt(X / SampleW);
-	if (SampleIndex >= 0)
+	if (!bIsStateDirty)
 	{
-		const float ViewportHeight = FMath::RoundToFloat(Viewport.Height);
-		const float SampleY2 = ViewportHeight - FMath::RoundToFloat(Viewport.GetViewportYForValue(0.0));
-
-		// Search in reverse paint order.
-		for (int32 TimelineIndex = TimelinesOrder.Num() - 1; TimelineIndex >= 0; --TimelineIndex)
+		float SampleW = Viewport.GetSampleWidth();
+		int32 SampleIndex = FMath::FloorToInt(X / SampleW);
+		if (SampleIndex >= 0)
 		{
-			int32 TimelineId = TimelinesOrder[TimelineIndex];
-			if (CachedTimelines.Contains(TimelineId))
+			// Search in reverse paint order.
+			for (int32 SeriesIndex = SeriesOrder.Num() - 1; SeriesIndex >= 0; --SeriesIndex)
 			{
-				const FFrameTrackTimeline& CachedTimeline = CachedTimelines[TimelineId];
-				if (CachedTimeline.NumAggregatedFrames > 0 &&
-					SampleIndex < CachedTimeline.Samples.Num())
+				int32 FrameType = SeriesOrder[SeriesIndex];
+
+				if ((FrameType == TraceFrameType_Rendering && !bShowRenderingFrames) ||
+					(FrameType == TraceFrameType_Game && !bShowGameFrames))
 				{
-					const FFrameTrackSample& Sample = CachedTimeline.Samples[SampleIndex];
-					if (Sample.NumFrames > 0)
+					continue;
+				}
+
+				const TSharedPtr<FFrameTrackSeries> SeriesPtr = FindSeries(FrameType);
+				if (SeriesPtr.IsValid())
+				{
+					if (SeriesPtr->NumAggregatedFrames > 0 &&
+						SampleIndex < SeriesPtr->Samples.Num())
 					{
-						float SampleY1;
-						if (Sample.LargestFrameDuration == std::numeric_limits<double>::infinity())
+						const FFrameTrackSample& Sample = SeriesPtr->Samples[SampleIndex];
+						if (Sample.NumFrames > 0)
 						{
-							SampleY1 = 0.0;
-						}
-						else
-						{
-							SampleY1 = ViewportHeight - FMath::RoundToFloat(Viewport.GetViewportYForValue(Sample.LargestFrameDuration));
-						}
-						if (Y >= SampleY1 && Y <= SampleY2)
-						{
-							return FSampleRef(&CachedTimeline, &Sample);
+							const FAxisViewportDouble& ViewportY = Viewport.GetVerticalAxisViewport();
+
+							const float ViewHeight = FMath::RoundToFloat(Viewport.GetHeight());
+							const float BaselineY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(0.0));
+
+							float ValueY;
+							if (Sample.LargestFrameDuration == std::numeric_limits<double>::infinity())
+							{
+								ValueY = ViewHeight;
+							}
+							else
+							{
+								ValueY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(Sample.LargestFrameDuration));
+							}
+
+							constexpr float ToleranceY = 3.0f; // [pixels]
+
+							const float BottomY = FMath::Min(ViewHeight, ViewHeight - BaselineY + ToleranceY);
+							const float TopY = FMath::Max(0.0f, ViewHeight - ValueY - ToleranceY);
+
+							if (Y >= TopY && Y < BottomY)
+							{
+								return FFrameTrackSampleRef(SeriesPtr, MakeShareable(new FFrameTrackSample(Sample)));
+							}
 						}
 					}
 				}
 			}
 		}
 	}
-	return FSampleRef(nullptr, nullptr);
+	return FFrameTrackSampleRef(nullptr, nullptr);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void SFrameTrack::SelectFrameAtMousePosition(float X, float Y)
 {
-	FSampleRef SampleRef = GetSampleAtMousePosition(X, Y);
+	FFrameTrackSampleRef SampleRef = GetSampleAtMousePosition(X, Y);
 	if (!SampleRef.IsValid())
 	{
 		SampleRef = GetSampleAtMousePosition(X - 1.0f, Y);
@@ -329,12 +363,28 @@ void SFrameTrack::SelectFrameAtMousePosition(float X, float Y)
 		TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
 		if (Window.IsValid())
 		{
-			const double StartTime = SampleRef.Sample->LargestFrameStartTime;
-			const double Duration = SampleRef.Sample->LargestFrameDuration;
-			Window->TimingView->CenterOnTimeInterval(StartTime, Duration);
-			Window->TimingView->SelectTimeInterval(StartTime, Duration);
-			FSlateApplication::Get().SetKeyboardFocus(Window->TimingView);
+			TSharedPtr<STimingView> TimingView = Window->GetTimingView();
+			if (TimingView.IsValid())
+			{
+				const double StartTime = SampleRef.Sample->LargestFrameStartTime;
+				const double Duration = SampleRef.Sample->LargestFrameDuration;
+				TimingView->CenterOnTimeInterval(StartTime, Duration);
+				TimingView->SelectTimeInterval(StartTime, Duration);
+				FSlateApplication::Get().SetKeyboardFocus(TimingView);
+			}
 		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const TCHAR* FrameTypeToString(int32 FrameType)
+{
+	switch (FrameType)
+	{
+		case TraceFrameType_Game:      return TEXT("Game");
+		case TraceFrameType_Rendering: return TEXT("Rendering");
+		default:                       return TEXT("Misc");
 	}
 }
 
@@ -347,14 +397,16 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 	FDrawContext DrawContext(AllottedGeometry, MyCullingRect, InWidgetStyle, DrawEffects, OutDrawElements, LayerId);
 
 	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+	FSlateFontInfo SummaryFont = FCoreStyle::GetDefaultFontStyle("Regular", 8);
 
-	const FSlateBrush* WhiteBrush = FCoreStyle::Get().GetBrush("WhiteBrush");
+	const FSlateBrush* WhiteBrush = FInsightsStyle::Get().GetBrush("WhiteBrush");
 
 	const float ViewWidth = AllottedGeometry.Size.X;
 	const float ViewHeight = AllottedGeometry.Size.Y;
 
 	int32 NumDrawSamples = 0;
 
+	//////////////////////////////////////////////////
 	{
 		FStopwatch Stopwatch;
 		Stopwatch.Start();
@@ -363,38 +415,69 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 
 		Helper.DrawBackground();
 
-		// Draw frames, for each visible timeline.
-		for (const TPair<uint64, FFrameTrackTimeline>& KeyValuePair : CachedTimelines)
+		// Draw the horizontal axis grid.
+		DrawHorizontalAxisGrid(DrawContext, WhiteBrush, SummaryFont);
+
+		// Draw frames, for each visible Series.
+		for (int32 SeriesIndex = 0; SeriesIndex < SeriesOrder.Num(); ++SeriesIndex)
 		{
-			const FFrameTrackTimeline& Timeline = KeyValuePair.Value;
-			Helper.DrawCached(Timeline);
+			int32 FrameType = SeriesOrder[SeriesIndex];
+
+			if ((FrameType == TraceFrameType_Rendering && !bShowRenderingFrames) ||
+				(FrameType == TraceFrameType_Game && !bShowGameFrames))
+			{
+				continue;
+			}
+
+			const TSharedPtr<FFrameTrackSeries> SeriesPtr = FindSeries(FrameType);
+			if (SeriesPtr.IsValid())
+			{
+				Helper.DrawCached(*SeriesPtr);
+			}
 		}
+
 		NumDrawSamples = Helper.GetNumDrawSamples();
 
-		// Highlight the mouse hovered sample.
+		// Highlight the mouse hovered sample (frame).
 		if (HoveredSample.IsValid())
 		{
 			Helper.DrawHoveredSample(*HoveredSample.Sample);
+		}
 
-			FString Text = FString::Format(TEXT("{0} frame {1} ({2})"),
+		// Draw the vertical axis grid.
+		DrawVerticalAxisGrid(DrawContext, WhiteBrush, SummaryFont);
+
+		// Draw tooltip for hovered sample (frame).
+		if (HoveredSample.IsValid())
+		{
+			if (TooltipOpacity < TooltipDesiredOpacity)
+			{
+				TooltipOpacity = TooltipOpacity * 0.9f + TooltipDesiredOpacity * 0.1f;
+			}
+			else
+			{
+				TooltipOpacity = TooltipDesiredOpacity;
+			}
+
+			const FString Text = FString::Format(TEXT("{0} frame {1} ({2})"),
 				{
-					(HoveredSample.Timeline->Id == 0) ? TEXT("Game") :
-					(HoveredSample.Timeline->Id == 1) ? TEXT("Render") : TEXT("Misc"),
+					::FrameTypeToString(HoveredSample.Series->FrameType),
 					FText::AsNumber(HoveredSample.Sample->LargestFrameIndex).ToString(),
 					TimeUtils::FormatTimeAuto(HoveredSample.Sample->LargestFrameDuration)
 				});
 
-			FSlateFontInfo SummaryFont = FCoreStyle::GetDefaultFontStyle("Regular", 8);
 			FVector2D TextSize = FontMeasureService->Measure(Text, SummaryFont);
 
 			const float DX = 2.0f;
 			const float W2 = TextSize.X / 2 + DX;
 
-			float X1 = Viewport.GetViewportXForIndex(HoveredSample.Sample->LargestFrameIndex);
+			const FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+
+			float X1 = ViewportX.GetOffsetForValue(HoveredSample.Sample->LargestFrameIndex);
 			float CX = X1 + FMath::RoundToFloat(Viewport.GetSampleWidth() / 2);
-			if (CX + W2 > Viewport.Width)
+			if (CX + W2 > ViewportX.GetSize())
 			{
-				CX = FMath::RoundToFloat(Viewport.Width - W2);
+				CX = FMath::RoundToFloat(ViewportX.GetSize() - W2);
 			}
 			if (CX - W2 < 0)
 			{
@@ -403,48 +486,55 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 
 			const float Y = 10.0f;
 			const float H = 14.0f;
-			DrawContext.DrawBox(CX - W2, Y, 2 * W2, H, WhiteBrush, FLinearColor(0.7, 0.7, 0.7, 0.9));
-			DrawContext.DrawText(CX - W2 + DX, Y + 1.0f, Text, SummaryFont, FLinearColor(0.0, 0.0, 0.0, 0.9));
+			DrawContext.DrawBox(CX - W2, Y, 2 * W2, H, WhiteBrush, FLinearColor(0.7, 0.7, 0.7, TooltipOpacity));
+			DrawContext.LayerId++;
+			DrawContext.DrawText(CX - W2 + DX, Y + 1.0f, Text, SummaryFont, FLinearColor(0.0, 0.0, 0.0, TooltipOpacity));
+			DrawContext.LayerId++;
 		}
 
 		TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
-		if (Window && Window->TimingView && CachedTimelines.Num() > 0)
+		if (Window)
 		{
-			// Highlight the area corresponding to viewport of Timing View.
-			const double StartTime = Window->TimingView->GetViewport().StartTime;
-			const double EndTime = Window->TimingView->GetViewport().EndTime;
-			Helper.DrawHighlightedInterval(CachedTimelines[0], StartTime, EndTime);
+			TSharedPtr<STimingView> TimingView = Window->GetTimingView();
+			if (TimingView)
+			{
+				TSharedPtr<FFrameTrackSeries> SeriesPtr = nullptr;
+				for (const TPair<int32, TSharedPtr<FFrameTrackSeries>>& KeyValuePair : SeriesMap)
+				{
+					SeriesPtr = KeyValuePair.Value;
+					break; // stop at first enumerated Series
+				}
+				if (SeriesPtr.IsValid())
+				{
+					// Highlight the area corresponding to viewport of Timing View.
+					const double StartTime = TimingView->GetViewport().GetStartTime();
+					const double EndTime = TimingView->GetViewport().GetEndTime();
+					Helper.DrawHighlightedInterval(*SeriesPtr, StartTime, EndTime);
+				}
+			}
 		}
 
 		Stopwatch.Stop();
 		DrawDurationHistory.AddValue(Stopwatch.AccumulatedTime);
 	}
-
 	//////////////////////////////////////////////////
 
 	const bool bShouldDisplayDebugInfo = FInsightsManager::Get()->IsDebugInfoEnabled();
 	if (bShouldDisplayDebugInfo)
 	{
-		FSlateFontInfo SummaryFont = FCoreStyle::GetDefaultFontStyle("Regular", 8);
 		const float MaxFontCharHeight = FontMeasureService->Measure(TEXT("!"), SummaryFont).Y;
 		const float DbgDY = MaxFontCharHeight;
 
-		const float DbgW = 240.0f;
+		const float DbgW = 280.0f;
 		const float DbgH = DbgDY * 4 + 3.0f;
 		const float DbgX = ViewWidth - DbgW - 20.0f;
 		float DbgY = 7.0f;
 
-		++LayerId;
-		FSlateDrawElement::MakeBox(
-			OutDrawElements,
-			LayerId,
-			MAKE_PAINT_GEOMETRY_RC(AllottedGeometry, DbgX - 2.0f, DbgY - 2.0f, DbgW, DbgH),
-			WhiteBrush,
-			DrawEffects,
-			FLinearColor(1.0, 1.0, 1.0, 0.9)
-		);
+		DrawContext.LayerId++;
 
-		++LayerId;
+		DrawContext.DrawBox(DbgX - 2.0f, DbgY - 2.0f, DbgW, DbgH, WhiteBrush, FLinearColor(1.0, 1.0, 1.0, 0.9));
+		DrawContext.LayerId++;
+
 		FLinearColor DbgTextColor(0.0, 0.0, 0.0, 0.9);
 
 		// Time interval since last OnPaint call.
@@ -460,67 +550,45 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		const uint64 AvgDrawDurationMs = FStopwatch::Cycles64ToMilliseconds(DrawDurationHistory.ComputeAverage());
 
 		// Draw performance info.
-		FSlateDrawElement::MakeText
+		DrawContext.DrawText
 		(
-			OutDrawElements,
-			LayerId,
-			MAKE_PAINT_GEOMETRY_PT(AllottedGeometry, DbgX, DbgY),
+			DbgX, DbgY,
 			FString::Printf(TEXT("U: %llu ms, D: %llu ms + %llu ms = %llu ms (%d fps)"),
 				AvgUpdateDurationMs, // caching time
 				AvgDrawDurationMs, // drawing time
 				AvgOnPaintDurationMs - AvgDrawDurationMs, // other overhead to OnPaint calls
 				AvgOnPaintDurationMs, // average time between two OnPaint calls
 				FMath::RoundToInt(AvgOnPaintFps)), // framerate of OnPaint calls
-			SummaryFont,
-			DrawEffects,
-			DbgTextColor
+			SummaryFont, DbgTextColor
 		);
 		DbgY += DbgDY;
 
 		// Draw number of draw calls.
-		FSlateDrawElement::MakeText
+		DrawContext.DrawText
 		(
-			OutDrawElements,
-			LayerId,
-			MAKE_PAINT_GEOMETRY_PT(AllottedGeometry, DbgX, DbgY),
-			FString::Format(TEXT("U: {0} frames, D: {1} samples"),
-				{
-					FText::AsNumber(NumUpdatedFrames).ToString(),
-					FText::AsNumber(NumDrawSamples).ToString()
-				}),
-			SummaryFont,
-			DrawEffects,
-			DbgTextColor
+			DbgX, DbgY,
+			FString::Printf(TEXT("U: %s frames, D: %s samples"),
+				*FText::AsNumber(NumUpdatedFrames).ToString(),
+				*FText::AsNumber(NumDrawSamples).ToString()),
+			SummaryFont, DbgTextColor
 		);
 		DbgY += DbgDY;
 
 		// Draw viewport's horizontal info.
-		FSlateDrawElement::MakeText
+		DrawContext.DrawText
 		(
-			OutDrawElements,
-			LayerId,
-			MAKE_PAINT_GEOMETRY_PT(AllottedGeometry, DbgX, DbgY),
-			FString::Printf(TEXT("SX: %.3f (%d %s), X: %.2f"),
-				Viewport.ScaleX,
-				(Viewport.ScaleX >= 1.0f) ? FMath::RoundToInt(Viewport.ScaleX) : FMath::RoundToInt(1.0f / Viewport.ScaleX),
-				(Viewport.ScaleX >= 1.0f) ? TEXT("px/frame") : TEXT("frames/px"),
-				Viewport.PosX),
-			SummaryFont,
-			DrawEffects,
-			DbgTextColor
+			DbgX, DbgY,
+			Viewport.GetHorizontalAxisViewport().ToDebugString(TEXT("X"), TEXT("frame")),
+			SummaryFont, DbgTextColor
 		);
 		DbgY += DbgDY;
 
 		// Draw viewport's vertical info.
-		FSlateDrawElement::MakeText
+		DrawContext.DrawText
 		(
-			OutDrawElements,
-			LayerId,
-			MAKE_PAINT_GEOMETRY_PT(AllottedGeometry, DbgX, DbgY),
-			FString::Printf(TEXT("SY: %g, Y: %.2f"), Viewport.ScaleY, Viewport.PosY),
-			SummaryFont,
-			DrawEffects,
-			DbgTextColor
+			DbgX, DbgY,
+			Viewport.GetVerticalAxisViewport().ToDebugString(TEXT("Y")),
+			SummaryFont, DbgTextColor
 		);
 		DbgY += DbgDY;
 	}
@@ -530,18 +598,176 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void SFrameTrack::DrawVerticalAxisGrid(FDrawContext& DrawContext, const FSlateBrush* Brush, const FSlateFontInfo& Font) const
+{
+	const float ViewWidth = Viewport.GetWidth();
+
+	const FAxisViewportDouble& ViewportY = Viewport.GetVerticalAxisViewport();
+	const float RoundedViewHeight = FMath::RoundToFloat(ViewportY.GetSize());
+
+	constexpr float TextH = 14.0f;
+	constexpr float MinDY = 12.0f; // min vertical distance between horizontal grid lines
+
+	const FLinearColor GridColor(0.0f, 0.0f, 0.0f, 0.1f);
+	const FLinearColor TextBgColor(0.05f, 0.05f, 0.05f, 1.0f);
+	//const FLinearColor TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+
+	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+
+	const double GridValues[] =
+	{
+		0.0,
+		1.0 / 200.0, //    5 ms (200 fps)
+		1.0 / 60.0,  // 16.7 ms (60 fps)
+		1.0 / 30.0,  // 33.3 ms (30 fps)
+		1.0 / 20.0,  //   50 ms (20 fps)
+		1.0 / 15.0,  // 66.7 ms (15 fps)
+		1.0 / 10.0,  //  100 ms (10 fps)
+		1.0 / 5.0,   //  200 ms (5 fps)
+		1.0,   // 1s
+		10.0,  // 10s
+		60.0,  // 1m
+		600.0, // 10m
+		3600.0 // 1h
+	};
+	constexpr int32 NumGridValues = sizeof(GridValues) / sizeof(double);
+
+	double PreviousY = -MinDY;
+
+	for (int32 Index = 0; Index < NumGridValues; ++Index)
+	{
+		const double Value = GridValues[Index];
+
+		constexpr double Time60fps = 1.0 / 60.0;
+		constexpr double Time30fps = 1.0 / 30.0;
+
+		FLinearColor TextColor;
+		if (Value <= Time60fps)
+		{
+			TextColor = FLinearColor(0.5f, 1.0f, 0.5f, 1.0f);
+		}
+		else if (Value <= Time30fps)
+		{
+			TextColor = FLinearColor(1.0f, 1.0f, 0.5f, 1.0f);
+			//const float U = (Value - Time60fps) * 0.5 / (Time30fps - Time60fps);
+			//TextColor = FLinearColor(0.5f + U, 1.0f - U, 0.5f, 1.0f);
+		}
+		else
+		{
+			TextColor = FLinearColor(1.0f, 0.5f, 0.5f, 1.0f);
+		}
+
+		const float Y = RoundedViewHeight - FMath::RoundToFloat(ViewportY.GetOffsetForValue(Value));
+		if (Y < 0)
+		{
+			break;
+		}
+		if (Y > RoundedViewHeight + TextH || FMath::Abs(PreviousY - Y) < MinDY)
+		{
+			continue;
+		}
+		PreviousY = Y;
+
+		// Draw horizontal grid line.
+		DrawContext.DrawBox(0, Y, ViewWidth, 1, Brush, GridColor);
+
+		const FString Text = (Value == 0.0) ? TEXT("0") :
+							 (Value <= 1.0) ? FString::Printf(TEXT("%s (%.0f fps)"), *TimeUtils::FormatTimeAuto(Value), 1.0 / Value) :
+											  TimeUtils::FormatTimeAuto(Value);
+		const FVector2D TextSize = FontMeasureService->Measure(Text, Font);
+
+		// Draw background for value text.
+		DrawContext.DrawBox(ViewWidth - TextSize.X - 4.0f, Y - TextH, TextSize.X + 4.0f, TextH, Brush, TextBgColor);
+
+		// Draw value text.
+		DrawContext.DrawText(ViewWidth - TextSize.X - 2.0f, Y - TextH + 1.0f, Text, Font, TextColor);
+	}
+	DrawContext.LayerId++;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SFrameTrack::DrawHorizontalAxisGrid(FDrawContext& DrawContext, const FSlateBrush* Brush, const FSlateFontInfo& Font) const
+{
+	const FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+
+	const float RoundedViewWidth = FMath::RoundToFloat(ViewportX.GetSize());
+
+	constexpr float MinDX = 125.0f; // min horizontal distance between vertical grid lines
+
+	const int32 LeftIndex = ViewportX.GetValueAtOffset(0.0f);
+	const int32 GridIndex = ViewportX.GetValueAtOffset(MinDX);
+	const int32 RightIndex = ViewportX.GetValueAtOffset(RoundedViewWidth);
+	const int32 Delta = GridIndex - LeftIndex;
+
+	if (Delta > 0)
+	{
+		// Compute rounding based on magnitude of visible range of samples (Delta).
+		int32 Power10 = 1;
+		int32 Delta10 = Delta;
+		while (Delta10 > 0)
+		{
+			Delta10 /= 10;
+			Power10 *= 10;
+		}
+		if (Power10 >= 100)
+		{
+			Power10 /= 100;
+		}
+		else
+		{
+			Power10 = 1;
+		}
+
+		const int32 Grid = ((Delta + Power10 - 1) / Power10) * Power10; // next value divisible with a multiple of 10
+
+		// Skip grid lines for negative indices.
+		double StartIndex = ((LeftIndex + Grid - 1) / Grid) * Grid;
+		while (StartIndex < 0)
+		{
+			StartIndex += Grid;
+		}
+
+		const float ViewHeight = Viewport.GetHeight();
+
+		const FLinearColor GridColor(0.0f, 0.0f, 0.0f, 0.1f);
+		//const FLinearColor TextBgColor(0.05f, 0.05f, 0.05f, 1.0f);
+		//const FLinearColor TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+		const FLinearColor TopTextColor(1.0f, 1.0f, 1.0f, 0.7f);
+
+		//const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+
+		for (int32 Index = StartIndex; Index < RightIndex; Index += Grid)
+		{
+			const float X = FMath::RoundToFloat(ViewportX.GetOffsetForValue(Index));
+
+			// Draw vertical grid line.
+			DrawContext.DrawBox(X, 0, 1, ViewHeight, Brush, GridColor);
+
+			const FString Text = FText::AsNumber(Index).ToString();
+			//const FVector2D TextSize = FontMeasureService->Measure(Text, Font);
+			//constexpr float TextH = 14.0f;
+
+			// Draw background for index text.
+			//DrawContext.DrawBox(X, ViewHeight - TextH, TextSize.X + 4.0f, TextH, Brush, TextBgColor);
+
+			// Draw index text.
+			//DrawContext.DrawText(X + 2.0f, ViewHeight - TextH + 1.0f, Text, Font, TextColor);
+
+			DrawContext.DrawText(X + 2.0f, 10.0f, Text, Font, TopTextColor);
+		}
+		DrawContext.LayerId++;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 FReply SFrameTrack::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	FReply Reply = FReply::Unhandled();
 
-	if (!IsReady())
-	{
-		return Reply;
-	}
-
 	MousePositionOnButtonDown = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
-	ViewportPosXOnButtonDown = Viewport.PosX;
-	ViewportPosYOnButtonDown = Viewport.PosY;
+	ViewportPosXOnButtonDown = Viewport.GetHorizontalAxisViewport().GetPos();
 
 	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
@@ -567,11 +793,6 @@ FReply SFrameTrack::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 {
 	FReply Reply = FReply::Unhandled();
 
-	if (!IsReady())
-	{
-		return Reply;
-	}
-
 	MousePositionOnButtonUp = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
 
 	const bool bIsValidForMouseClick = MousePositionOnButtonUp.Equals(MousePositionOnButtonDown, MOUSE_SNAP_DISTANCE);
@@ -580,13 +801,10 @@ FReply SFrameTrack::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 	{
 		if (bIsLMB_Pressed)
 		{
-			// Release the mouse.
-			Reply = FReply::Handled().ReleaseMouseCapture();
-
 			if (bIsScrolling)
 			{
 				bIsScrolling = false;
-				CursorType = EFrameTrackCursor::Default;
+				CursorType = ECursorType::Default;
 			}
 			else if (bIsValidForMouseClick)
 			{
@@ -594,27 +812,29 @@ FReply SFrameTrack::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 			}
 
 			bIsLMB_Pressed = false;
+
+			// Release the mouse.
+			Reply = FReply::Handled().ReleaseMouseCapture();
 		}
 	}
 	else if (MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
 	{
 		if (bIsRMB_Pressed)
 		{
-			// Release mouse as we no longer scroll.
-			Reply = FReply::Handled().ReleaseMouseCapture();
-
 			if (bIsScrolling)
 			{
 				bIsScrolling = false;
-				CursorType = EFrameTrackCursor::Default;
+				CursorType = ECursorType::Default;
 			}
 			else if (bIsValidForMouseClick)
 			{
-				ShowContextMenu(MouseEvent.GetScreenSpacePosition());
-				Reply = FReply::Handled();
+				ShowContextMenu(MouseEvent);
 			}
 
 			bIsRMB_Pressed = false;
+
+			// Release mouse as we no longer scroll.
+			Reply = FReply::Handled().ReleaseMouseCapture();
 		}
 	}
 
@@ -627,60 +847,48 @@ FReply SFrameTrack::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent
 {
 	FReply Reply = FReply::Unhandled();
 
-	if (!IsReady())
-	{
-		return Reply;
-	}
-
 	MousePosition = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
 
-	if (MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
+	if (!MouseEvent.GetCursorDelta().IsZero())
 	{
-		if (HasMouseCapture() && !MouseEvent.GetCursorDelta().IsZero())
+		if (MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton) ||
+			MouseEvent.IsMouseButtonDown(EKeys::RightMouseButton))
 		{
-			if (!bIsScrolling)
+			if (HasMouseCapture())
 			{
-				bIsScrolling = true;
-				CursorType = EFrameTrackCursor::Hand;
+				if (!bIsScrolling)
+				{
+					bIsScrolling = true;
+					CursorType = ECursorType::Hand;
 
-				HoveredSample.Reset();
+					HoveredSample.Reset();
+				}
+
+				FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+				const float PosX = ViewportPosXOnButtonDown + (MousePositionOnButtonDown.X - MousePosition.X);
+				ViewportX.ScrollAtValue(ViewportX.GetValueAtPos(PosX)); // align viewport position with sample (frame index)
+				UpdateHorizontalScrollBar();
+				bIsStateDirty = true;
 			}
-
-			float PosX = ViewportPosXOnButtonDown + (MousePositionOnButtonDown.X - MousePosition.X);
-			Viewport.ScrollAtIndex(Viewport.GetIndexAtPosX(PosX));
-			UpdateHorizontalScrollBar();
-			bIsStateDirty = true;
-
-			Reply = FReply::Handled();
 		}
-	}
-	else if (MouseEvent.IsMouseButtonDown(EKeys::RightMouseButton))
-	{
-		if (HasMouseCapture() && !MouseEvent.GetCursorDelta().IsZero())
+		else
 		{
-			if (!bIsScrolling)
+			if (!HoveredSample.IsValid())
 			{
-				bIsScrolling = true;
-				CursorType = EFrameTrackCursor::Hand;
-
-				HoveredSample.Reset();
+				TooltipOpacity = 0.0f;
 			}
-
-			float PosX = ViewportPosXOnButtonDown + (MousePositionOnButtonDown.X - MousePosition.X);
-			Viewport.ScrollAtIndex(Viewport.GetIndexAtPosX(PosX));
-			UpdateHorizontalScrollBar();
-			bIsStateDirty = true;
-
-			Reply = FReply::Handled();
+			HoveredSample = GetSampleAtMousePosition(MousePosition.X, MousePosition.Y);
+			if (!HoveredSample.IsValid())
+			{
+				HoveredSample = GetSampleAtMousePosition(MousePosition.X - 1.0f, MousePosition.Y);
+			}
+			if (!HoveredSample.IsValid())
+			{
+				HoveredSample = GetSampleAtMousePosition(MousePosition.X + 1.0f, MousePosition.Y);
+			}
 		}
-	}
-	else
-	{
-		HoveredSample = GetSampleAtMousePosition(MousePosition.X, MousePosition.Y);
-		if (!HoveredSample.IsValid())
-			HoveredSample = GetSampleAtMousePosition(MousePosition.X - 1.0f, MousePosition.Y);
-		if (!HoveredSample.IsValid())
-			HoveredSample = GetSampleAtMousePosition(MousePosition.X + 1.0f, MousePosition.Y);
+
+		Reply = FReply::Handled();
 	}
 
 	return Reply;
@@ -690,7 +898,6 @@ FReply SFrameTrack::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent
 
 void SFrameTrack::OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -704,7 +911,7 @@ void SFrameTrack::OnMouseLeave(const FPointerEvent& MouseEvent)
 
 		HoveredSample.Reset();
 
-		CursorType = EFrameTrackCursor::Default;
+		CursorType = ECursorType::Default;
 	}
 }
 
@@ -716,6 +923,8 @@ FReply SFrameTrack::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEven
 
 	if (MouseEvent.GetModifierKeys().IsShiftDown())
 	{
+		FAxisViewportDouble& ViewportY = Viewport.GetVerticalAxisViewport();
+
 		// Zoom in/out vertically.
 		const float Delta = MouseEvent.GetWheelDelta();
 		constexpr float ZoomStep = 0.25f; // as percent
@@ -723,14 +932,14 @@ FReply SFrameTrack::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEven
 
 		if (Delta > 0)
 		{
-			ScaleY = Viewport.ScaleY * FMath::Pow(1.0f + ZoomStep, Delta);
+			ScaleY = ViewportY.GetScale() * FMath::Pow(1.0f + ZoomStep, Delta);
 		}
 		else
 		{
-			ScaleY = Viewport.ScaleY * FMath::Pow(1.0f / (1.0f + ZoomStep), -Delta);
+			ScaleY = ViewportY.GetScale() * FMath::Pow(1.0f / (1.0f + ZoomStep), -Delta);
 		}
 
-		Viewport.SetScaleY(ScaleY);
+		ViewportY.SetScale(ScaleY);
 		//UpdateVerticalScrollBar();
 	}
 	else //if (MouseEvent.GetModifierKeys().IsControlDown())
@@ -747,38 +956,9 @@ FReply SFrameTrack::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEven
 
 void SFrameTrack::ZoomHorizontally(const float Delta, const float X)
 {
-	constexpr float ZoomStep = 0.25f; // as percent
-	float ScaleX;
-
-	if (Delta > 0)
-	{
-		ScaleX = Viewport.ScaleX * FMath::Pow(1.0f + ZoomStep, Delta);
-	}
-	else
-	{
-		ScaleX = Viewport.ScaleX * FMath::Pow(1.0f / (1.0f + ZoomStep), -Delta);
-	}
-
-	// Snap to integer value of either: "number of frames per pixel (Slate unit)" or "number of pixels per frame".
-	if (ScaleX < 1.0f)
-	{
-		// frames per Slate unit
-		if (Delta > 0)
-			ScaleX = 1.0f / FMath::FloorToFloat(1.0f / ScaleX);
-		else
-			ScaleX = 1.0f / FMath::CeilToFloat(1.0f / ScaleX);
-	}
-	else
-	{
-		// Slate units per frame
-		if (Delta > 0)
-			ScaleX = FMath::CeilToFloat(ScaleX);
-		else
-			ScaleX = FMath::FloorToFloat(ScaleX);
-	}
-
-	//UE_LOG(TimingProfiler, Log, TEXT("%.2f, %.2f, %.2f"), Delta, Viewport.ScaleX, ScaleX);
-	Viewport.ZoomWithFixedViewportX(ScaleX, MousePosition.X);
+	FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+	ViewportX.RelativeZoomWithFixedOffset(Delta, X);
+	ViewportX.ScrollAtValue(ViewportX.GetValueAtPos(ViewportX.GetPos())); // align viewport position with sample (frame index)
 	UpdateHorizontalScrollBar();
 	bIsStateDirty = true;
 }
@@ -796,11 +976,11 @@ FCursorReply SFrameTrack::OnCursorQuery(const FGeometry& MyGeometry, const FPoin
 {
 	FCursorReply CursorReply = FCursorReply::Unhandled();
 
-	if (CursorType == EFrameTrackCursor::Arrow)
+	if (CursorType == ECursorType::Arrow)
 	{
 		CursorReply = FCursorReply::Cursor(EMouseCursor::ResizeLeftRight);
 	}
-	else if (CursorType == EFrameTrackCursor::Hand)
+	else if (CursorType == ECursorType::Hand)
 	{
 		CursorReply = FCursorReply::Cursor(EMouseCursor::GrabHand);
 	}
@@ -810,91 +990,189 @@ FCursorReply SFrameTrack::OnCursorQuery(const FGeometry& MyGeometry, const FPoin
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SFrameTrack::ShowContextMenu(const FVector2D& ScreenSpacePosition)
+void SFrameTrack::ShowContextMenu(const FPointerEvent& MouseEvent)
 {
+	const bool bShouldCloseWindowAfterMenuSelection = true;
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, NULL);
 
+	MenuBuilder.BeginSection("Series", LOCTEXT("ContextMenu_Header_Series", "Series"));
+	{
+		struct FLocal
+		{
+			static bool ReturnFalse()
+			{
+				return false;
+			}
+		};
+
+		FUIAction Action_ShowGameFrames
+		(
+			FExecuteAction::CreateSP(this, &SFrameTrack::ContextMenu_ShowGameFrames_Execute),
+			FCanExecuteAction::CreateSP(this, &SFrameTrack::ContextMenu_ShowGameFrames_CanExecute),
+			FIsActionChecked::CreateSP(this, &SFrameTrack::ContextMenu_ShowGameFrames_IsChecked)
+		);
+		MenuBuilder.AddMenuEntry
+		(
+			LOCTEXT("ContextMenu_ShowGameFrames", "Game Frames"),
+			LOCTEXT("ContextMenu_ShowGameFrames_Desc", "Show/hide the Game frames"),
+			FSlateIcon(),
+			Action_ShowGameFrames,
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		FUIAction Action_ShowRenderingFrames
+		(
+			FExecuteAction::CreateSP(this, &SFrameTrack::ContextMenu_ShowRenderingFrames_Execute),
+			FCanExecuteAction::CreateSP(this, &SFrameTrack::ContextMenu_ShowRenderingFrames_CanExecute),
+			FIsActionChecked::CreateSP(this, &SFrameTrack::ContextMenu_ShowRenderingFrames_IsChecked)
+		);
+		MenuBuilder.AddMenuEntry
+		(
+			LOCTEXT("ContextMenu_ShowRenderingFrames", "Rendering Frames"),
+			LOCTEXT("ContextMenu_ShowRenderingFrames_Desc", "Show/hide the Rendering frames"),
+			FSlateIcon(),
+			Action_ShowRenderingFrames,
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+	}
+	MenuBuilder.EndSection();
+
+	MenuBuilder.BeginSection("Misc");
+	{
+		FUIAction Action_AutoZoom
+		(
+			FExecuteAction::CreateSP(this, &SFrameTrack::ContextMenu_AutoZoom_Execute),
+			FCanExecuteAction::CreateSP(this, &SFrameTrack::ContextMenu_AutoZoom_CanExecute),
+			FIsActionChecked::CreateSP(this, &SFrameTrack::ContextMenu_AutoZoom_IsChecked)
+		);
+		MenuBuilder.AddMenuEntry
+		(
+			LOCTEXT("ContextMenu_AutoZoom", "Auto Zoom"),
+			LOCTEXT("ContextMenu_AutoZoom_Desc", "Enable auto zoom. Makes entire session time range to fit into view."),
+			FSlateIcon(),
+			Action_AutoZoom,
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+	}
+	MenuBuilder.EndSection();
+
+	TSharedRef<SWidget> MenuWidget = MenuBuilder.MakeWidget();
+
+	FWidgetPath EventPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
+	const FVector2D ScreenSpacePosition = MouseEvent.GetScreenSpacePosition();
+	FSlateApplication::Get().PushMenu(SharedThis(this), EventPath, MenuWidget, ScreenSpacePosition, FPopupTransitionEffect::ContextMenu);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SFrameTrack::ContextMenu_ShowGameFrames_Execute()
+{
+	bShowGameFrames = !bShowGameFrames;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool SFrameTrack::ContextMenu_ShowGameFrames_CanExecute()
+{
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool SFrameTrack::ContextMenu_ShowGameFrames_IsChecked()
+{
+	return bShowGameFrames;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SFrameTrack::ContextMenu_ShowRenderingFrames_Execute()
+{
+	bShowRenderingFrames = !bShowRenderingFrames;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool SFrameTrack::ContextMenu_ShowRenderingFrames_CanExecute()
+{
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool SFrameTrack::ContextMenu_ShowRenderingFrames_IsChecked()
+{
+	return bShowRenderingFrames;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SFrameTrack::ContextMenu_AutoZoom_Execute()
+{
+	FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+
+	bIsAutoZoomEnabled = !(bIsAutoZoomEnabled && ViewportX.GetPos() == 0.0f);
+	if (bIsAutoZoomEnabled)
+	{
+		ViewportX.ScrollAtPos(0.0f);
+
+		// Auto zoom in.
+		while (ViewportX.GetMaxPos() - ViewportX.GetMinPos() < ViewportX.GetSize())
+		{
+			ZoomHorizontally(+0.1f, 0.0f);
+			ViewportX.ScrollAtPos(0.0f);
+		}
+
+		// Auto zoom out (until entire session time range fits into view).
+		while (ViewportX.GetMaxPos() - ViewportX.GetMinPos() > ViewportX.GetSize())
+		{
+			ZoomHorizontally(-0.1f, 0.0f);
+			ViewportX.ScrollAtPos(0.0f);
+		}
+
+		UpdateHorizontalScrollBar();
+		bIsStateDirty = true;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool SFrameTrack::ContextMenu_AutoZoom_CanExecute()
+{
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool SFrameTrack::ContextMenu_AutoZoom_IsChecked()
+{
+	return bIsAutoZoomEnabled && Viewport.GetHorizontalAxisViewport().GetPos() == 0.0f;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void SFrameTrack::BindCommands()
 {
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void SFrameTrack::HorizontalScrollBar_OnUserScrolled(float ScrollOffset)
 {
-	const float SX = 1.0 / (Viewport.MaxX - Viewport.MinX);
-	const float ThumbSizeFraction = FMath::Clamp<float>(Viewport.Width * SX, 0.0f, 1.0f);
-	const float OffsetFraction = FMath::Clamp<float>(ScrollOffset, 0.0f, 1.0f - ThumbSizeFraction);
-
-	const float PosX = Viewport.MinX + OffsetFraction * (Viewport.MaxX - Viewport.MinX);
-	Viewport.ScrollAtPosX(PosX);
+	Viewport.GetHorizontalAxisViewport().OnUserScrolled(HorizontalScrollBar, ScrollOffset);
 	bIsStateDirty = true;
-
-	HorizontalScrollBar->SetState(OffsetFraction, ThumbSizeFraction);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void SFrameTrack::UpdateHorizontalScrollBar()
 {
-	const float SX = 1.0 / (Viewport.MaxX - Viewport.MinX);
-	const float ThumbSizeFraction = FMath::Clamp<float>(Viewport.Width * SX, 0.0f, 1.0f);
-	const float ScrollOffset = (Viewport.PosX - Viewport.MinX) * SX;
-	const float OffsetFraction = FMath::Clamp<float>(ScrollOffset, 0.0f, 1.0f - ThumbSizeFraction);
-
-	HorizontalScrollBar->SetState(OffsetFraction, ThumbSizeFraction);
+	Viewport.GetHorizontalAxisViewport().UpdateScrollBar(HorizontalScrollBar);
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-/*
-void SFrameTrack::AddThreadTime(int32 InFrameIndex, const TMap<uint32, float>& InThreadMS, const TSharedRef<FProfilerStatMetaData>& InStatMetaData)
-{
-	FFrameThreadTimes FrameThreadTimes;
-	FrameThreadTimes.FrameNumber = InFrameIndex;
-	FrameThreadTimes.ThreadTimes = InThreadMS;
-	RecentlyAddedFrames.Add(FrameThreadTimes);
-
-	if (!bIsActiveTimerRegistered)
-	{
-		bIsActiveTimerRegistered = true;
-		RegisterActiveTimer(0.f, FWidgetActiveTimerDelegate::CreateSP(this, &SFrameTrack::EnsureDataUpdateDuringPreview));
-	}
-
-	StatMetadata = InStatMetaData;
-}
-*/
-////////////////////////////////////////////////////////////////////////////////////////////////////
-/*
-EActiveTimerReturnType SFrameTrack::EnsureDataUpdateDuringPreview(double InCurrentTime, float InDeltaTime)
-{
-	//if (RecentlyAddedFrames.Num() > 0)
-	//{
-	//	bUpdateData = true;
-	//	return EActiveTimerReturnType::Continue;
-	//}
-
-	bIsActiveTimerRegistered = false;
-	return EActiveTimerReturnType::Stop;
-}
-*/
-////////////////////////////////////////////////////////////////////////////////////////////////////
-/*
-void SFrameTrack::MoveSelectionBox(int32 FrameIndex)
-{
-	const int32 SelectionBoxSize = SelectionBoxFrameEnd - SelectionBoxFrameStart;
-	const int32 SelectionBoxHalfSize = SelectionBoxSize / 2;
-	const int32 CenterFrameIndex = FMath::Clamp(FrameIndex - SelectionBoxHalfSize, 0, Frames.Num() - 1 - SelectionBoxSize);
-
-	// Inform other widgets that we have moved the selection box.
-	SelectionBoxFrameStart = CenterFrameIndex;
-	SelectionBoxFrameEnd = CenterFrameIndex + SelectionBoxSize;
-	SelectionBoxChangedEvent.Broadcast(SelectionBoxFrameStart, SelectionBoxFrameEnd);
-}
-*/
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE

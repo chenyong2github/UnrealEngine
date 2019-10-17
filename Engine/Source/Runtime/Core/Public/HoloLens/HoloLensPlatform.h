@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include "MSVC/MSVCPlatform.h"
+
 /** Define the HoloLens platform to be the active one **/
 #define PLATFORM_HOLOLENS					1
 

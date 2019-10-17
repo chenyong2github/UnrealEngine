@@ -34,7 +34,7 @@ public:
 	 * @param InArgs The declaration data for this widget.
 	 * @param InSessionManager The session to use.
 	 */
-	void Construct( const FArguments& InArgs, const TArray<FString>& InAssetNames, const FString InTestNames )
+	void Construct( const FArguments& InArgs, const TArray<FString>& InAssetNames, const TArray<FString>& InTestNames )
 	{
 		AssetNames = InAssetNames;
 		TestNames = InTestNames;
@@ -63,7 +63,7 @@ protected:
 
 		MenuBuilder.BeginSection("AutomationOptions", LOCTEXT("MenuHeadingText", "Automation Options"));
 		{
-			if (!TestNames.IsEmpty())
+			if (TestNames.Num())
 			{
 				MenuBuilder.AddMenuEntry(LOCTEXT("AutomationMenuEntryCopyTestNameText", "Copy test name(s)"), FText::GetEmpty(), FSlateIcon(), FUIAction(FExecuteAction::CreateRaw(this, &SAutomationTestItemContextMenu::HandleContextItemCopyName)));
 			}
@@ -91,7 +91,7 @@ private:
 	/** Handle the context menu closing down. Copy the test names to clipboard */
 	void HandleContextItemCopyName()
 	{
-		FPlatformApplicationMisc::ClipboardCopy(*TestNames);
+		FPlatformApplicationMisc::ClipboardCopy(*FString::Join(TestNames, TEXT("\n")));
 	}
 
 private:
@@ -100,7 +100,7 @@ private:
 	TArray<FString> AssetNames;
 
 	//** Holds the test names. */
-	FString TestNames;
+	TArray<FString> TestNames;
 };
 
 

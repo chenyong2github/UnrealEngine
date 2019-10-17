@@ -255,6 +255,26 @@ namespace UE4Function_Private
 	{
 	};
 
+#if PLATFORM_COMPILER_HAS_IF_CONSTEXPR
+
+	template <typename T>
+	FORCEINLINE bool IsBound(const T& Func)
+	{
+		if constexpr (TIsNullableBinding<T>::Value)
+		{
+			// Function pointers, data member pointers, member function pointers and TFunctions
+			// can all be null/unbound, so test them using their boolean state.
+			return !!Func;
+		}
+		else
+		{
+			// We can't tell if any other generic callable can be invoked, so just assume they can be.
+			return true;
+		}
+	}
+
+#else
+
 	template <typename T>
 	FORCEINLINE typename TEnableIf<TIsNullableBinding<T>::Value, bool>::Type IsBound(const T& Func)
 	{
@@ -269,6 +289,8 @@ namespace UE4Function_Private
 		// We can't tell if any other generic callable can be invoked, so just assume they can be.
 		return true;
 	}
+
+#endif
 
 	template <typename FunctorType, bool bUnique, bool bOnHeap>
 	struct TStorageOwnerType;
@@ -371,6 +393,44 @@ namespace UE4Function_Private
 		{
 		}
 
+#if PLATFORM_COMPILER_HAS_IF_CONSTEXPR
+
+		template <typename FunctorType>
+		typename TDecay<FunctorType>::Type* Bind(FunctorType&& InFunc)
+		{
+			if (!IsBound(InFunc))
+			{
+				return nullptr;
+			}
+
+#if TFUNCTION_USES_INLINE_STORAGE
+			constexpr bool bUseInline = sizeof(TStorageOwnerTypeT<FunctorType, bUnique, false>) <= TFUNCTION_INLINE_SIZE;
+#else
+			constexpr bool bUseInline = false;
+#endif
+
+			using OwnedType = TStorageOwnerTypeT<FunctorType, bUnique, !bUseInline>;
+
+			void* NewAlloc;
+#if TFUNCTION_USES_INLINE_STORAGE
+			if constexpr (bUseInline)
+			{
+				NewAlloc = &InlineAllocation;
+			}
+			else
+#endif
+			{
+				NewAlloc = FMemory::Malloc(sizeof(OwnedType), alignof(OwnedType));
+				HeapAllocation = NewAlloc;
+			}
+
+			CA_ASSUME(NewAlloc);
+			auto* NewOwned = new (NewAlloc) OwnedType(Forward<FunctorType>(InFunc));
+			return &NewOwned->Obj;
+		}
+
+#else
+
 		#if TFUNCTION_USES_INLINE_STORAGE
 		template <typename FunctorType>
 		typename TEnableIf<
@@ -417,6 +477,8 @@ namespace UE4Function_Private
 
 			return &NewOwned->Obj;
 		}
+
+#endif
 	};
 
 	template <typename T, bool bOnHeap>

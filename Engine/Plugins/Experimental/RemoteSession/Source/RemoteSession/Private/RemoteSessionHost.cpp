@@ -12,6 +12,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Misc/ConfigCacheIni.h"
 #include "RemoteSession.h"
+#include "RemoteSessionModule.h"
 
 #if WITH_EDITOR
 	#include "Editor.h"
@@ -25,14 +26,12 @@ namespace RemoteSessionEd
 };
 
 
-FRemoteSessionHost::FRemoteSessionHost(int32 InQuality, int32 InFramerate, const TMap<FString, ERemoteSessionChannelMode>& InSupportedChannels)
+FRemoteSessionHost::FRemoteSessionHost(TArray<FRemoteSessionChannelInfo> InSupportedChannels)
+	: SupportedChannels(InSupportedChannels)
+	, HostTCPPort(0)
+	, IsListenerConnected(false)
 {
-	HostTCPPort = 0;
-	Quality = InQuality;
-	Framerate = InFramerate;
-    SupportedChannels = InSupportedChannels;
 	SavedEditorDragTriggerDistance = FSlateApplication::Get().GetDragTriggerDistance();
-	IsListenerConnected = false;
 }
 
 FRemoteSessionHost::~FRemoteSessionHost()
@@ -46,7 +45,6 @@ FRemoteSessionHost::~FRemoteSessionHost()
 
 	Close();
 }
-
 
 void FRemoteSessionHost::Close()
 {
@@ -96,71 +94,33 @@ void FRemoteSessionHost::OnCreateChannels()
 	ClearChannels();
 	
 	CreateChannels(SupportedChannels);
-    
+
 	IsListenerConnected = true;
 	
-	TWeakPtr<SWindow> InputWindow;
-	TSharedPtr<FSceneViewport> SceneViewport;
-	
-#if WITH_EDITOR
-	if (GIsEditor)
-	{
-		for (const FWorldContext& Context : GEngine->GetWorldContexts())
-		{
-			if (Context.WorldType == EWorldType::PIE)
-			{
-				FSlatePlayInEditorInfo* SlatePlayInEditorSession = GEditor->SlatePlayInEditorMap.Find(Context.ContextHandle);
-				if (SlatePlayInEditorSession)
-				{
-					if (SlatePlayInEditorSession->DestinationSlateViewport.IsValid())
-					{
-						TSharedPtr<IAssetViewport> DestinationLevelViewport = SlatePlayInEditorSession->DestinationSlateViewport.Pin();
-						SceneViewport = DestinationLevelViewport->GetSharedActiveViewport();
-						InputWindow = FSlateApplication::Get().FindWidgetWindow(DestinationLevelViewport->AsWidget());
-					}
-					else if (SlatePlayInEditorSession->SlatePlayInEditorWindowViewport.IsValid())
-					{
-						SceneViewport = SlatePlayInEditorSession->SlatePlayInEditorWindowViewport;
-						InputWindow = SlatePlayInEditorSession->SlatePlayInEditorWindow;
-					}
-				}
-			}
-		}
-		
-		SavedEditorDragTriggerDistance = FSlateApplication::Get().GetDragTriggerDistance();
-		FSlateApplication::Get().SetDragTriggerDistance(RemoteSessionEd::SlateDragDistanceOverride->GetFloat());
-	}
-	else
-#endif
-	{
-		UGameEngine* GameEngine = Cast<UGameEngine>(GEngine);
-		SceneViewport = GameEngine->SceneViewport;
-		InputWindow = GameEngine->GameViewportWindow;
-	}
-	
-	// setup framebuffer capture
-	TSharedPtr<FRemoteSessionFrameBufferChannel> FBChannel = IRemoteSessionRole::GetChannel<FRemoteSessionFrameBufferChannel>();
-	if (FBChannel.IsValid() && SceneViewport.IsValid())
-	{
-		FBChannel->SetCaptureViewport(SceneViewport.ToSharedRef());
-		FBChannel->SetCaptureQuality(Quality, Framerate);
-	}
-	
-	// setup input playback
-	TSharedPtr<FRemoteSessionInputChannel> InputChannel = IRemoteSessionRole::GetChannel<FRemoteSessionInputChannel>();
-	if (InputChannel.IsValid())
-	{
-		InputChannel->SetPlaybackWindow(InputWindow, SceneViewport);
-	}
-	
 	// now ask the client to start these channels
-	FBackChannelOSCMessage Msg(*GetChannelSelectionEndPoint());
+	FBackChannelOSCMessage Msg(GetChannelSelectionEndPoint());
 	
+	FRemoteSessionModule& RemoteSession = FModuleManager::GetModuleChecked<FRemoteSessionModule>("RemoteSession");
+	const TArray<FRemoteSessionModule::FChannelRedirects>& Redirects = RemoteSession.GetChannelRedirects();
+
 	// send these across as a name/mode pair
-	for (const auto& KP : SupportedChannels)
+	for (const FRemoteSessionChannelInfo& Channel : SupportedChannels)
 	{
-		ERemoteSessionChannelMode ClientMode = (KP.Value == ERemoteSessionChannelMode::Write) ? ERemoteSessionChannelMode::Read : ERemoteSessionChannelMode::Write;
-		Msg.Write(KP.Key);
+		ERemoteSessionChannelMode ClientMode = (Channel.Mode == ERemoteSessionChannelMode::Write) ? ERemoteSessionChannelMode::Read : ERemoteSessionChannelMode::Write;
+
+		// For old version of the app, is there a old name that is compatible with the data that we could used
+		const FRemoteSessionModule::FChannelRedirects* FoundRedirect = Redirects.FindByPredicate(
+			[&Channel](const FRemoteSessionModule::FChannelRedirects& InChannel)
+			{
+				return Channel.Type == InChannel.NewName;
+			});
+		if (FoundRedirect)
+		{
+			Msg.Write(FoundRedirect->OldName);
+			Msg.Write((int32)ClientMode);
+		}
+
+		Msg.Write(Channel.Type);
 		Msg.Write((int32)ClientMode);
 	}
 	

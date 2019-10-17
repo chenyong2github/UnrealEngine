@@ -192,6 +192,11 @@ static TAutoConsoleVariable<int32> CVarViewRectUseScreenBottom(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<float> CVarConstantWaterDepth(
+	TEXT("r.Water.ConstantWaterDepth"),
+	-1.0f,
+	TEXT("Setting this to a negative value means disabled and reading from scene depth texture. Specified in unreal units."),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 static TAutoConsoleVariable<float> CVarGeneralPurposeTweak(
@@ -1305,8 +1310,8 @@ void FViewInfo::SetupUniformBufferParameters(
 		AtmosphereLightDataClearStartIndex = NUM_ATMOSPHERE_LIGHTS;	// Do not clear any atmosphere light data, this component sets everything it needs
 
 		// The constants below should match the one in SkyAtmosphereCommon.ush
-		const float SkyUnitToCm = 1.0f / 0.00001f;
-		const float PlanetRadiusOffset = 0.001f;
+		const float SkyUnitToCm = 1.0f / 0.00001f;	// Kilometers to Centimeters
+		const float PlanetRadiusOffset = 0.01f;		// Always force to be 10 meters above the ground/sea level (to always see the sky and not be under the virtual planet occluding ray tracing)
 
 		const float Offset = PlanetRadiusOffset * SkyUnitToCm;
 		const float BottomRadiusWorld = AtmosphereSetup.BottomRadius * SkyUnitToCm;
@@ -1441,12 +1446,12 @@ void FViewInfo::SetupUniformBufferParameters(
 	{
 		// If rendering in stereo, the other stereo passes uses the left eye's translucency lighting volume.
 		const FViewInfo* PrimaryView = this;
-		if (IStereoRendering::IsASecondaryView(StereoPass, GEngine->StereoRenderingDevice))
+		if (IStereoRendering::IsASecondaryView(StereoPass))
 		{
 			if (Family->Views.IsValidIndex(0))
 			{
 				const FSceneView* LeftEyeView = Family->Views[0];
-				if (LeftEyeView->bIsViewInfo && LeftEyeView->StereoPass == eSSP_LEFT_EYE)
+				if (LeftEyeView->bIsViewInfo && IStereoRendering::IsAPrimaryView(LeftEyeView->StereoPass))
 				{
 					PrimaryView = static_cast<const FViewInfo*>(LeftEyeView);
 				}
@@ -1491,6 +1496,8 @@ void FViewInfo::SetupUniformBufferParameters(
 
 		ViewUniformShaderParameters.GeneralPurposeTweak = Value;
 	}
+
+	ViewUniformShaderParameters.ConstantWaterDepth = CVarConstantWaterDepth.GetValueOnRenderThread();
 
 	ViewUniformShaderParameters.DemosaicVposOffset = 0.0f;
 	{
@@ -1566,7 +1573,7 @@ void FViewInfo::SetupUniformBufferParameters(
 		GMaxRHIFeatureLevel > ERHIFeatureLevel::ES3_1) ? 1.0f : 0.0f;
 
 	// Padding between the left and right eye may be introduced by an HMD, which instanced stereo needs to account for.
-	if ((StereoPass != eSSP_FULL) && (Family->Views.Num() > 1))
+	if (IStereoRendering::IsStereoEyeView(StereoPass) && (Family->Views.Num() > 1))
 	{
 		check(Family->Views.Num() >= 2);
 
@@ -1801,7 +1808,7 @@ FSceneViewState* FViewInfo::GetEffectiveViewState() const
 	FSceneViewState* EffectiveViewState = ViewState;
 
 	// When rendering in stereo we want to use the same exposure for both eyes.
-	if (IStereoRendering::IsASecondaryView(StereoPass, GEngine->StereoRenderingDevice))
+	if (IStereoRendering::IsASecondaryView(StereoPass))
 	{
 		int32 ViewIndex = Family->Views.Find(this);
 		if (Family->Views.IsValidIndex(ViewIndex))
@@ -1811,7 +1818,7 @@ FSceneViewState* FViewInfo::GetEffectiveViewState() const
 			if (Family->Views.IsValidIndex(ViewIndex))
 			{
 				const FSceneView* PrimaryView = Family->Views[ViewIndex];
-				if (PrimaryView->StereoPass == eSSP_LEFT_EYE)
+				if (IStereoRendering::IsAPrimaryView(PrimaryView->StereoPass))
 				{
 					EffectiveViewState = (FSceneViewState*)PrimaryView->State;
 				}
@@ -2524,10 +2531,10 @@ void FSceneRenderer::ComputeFamilySize()
 		MaxFamilyX = FMath::Max(MaxFamilyX, FinalViewMaxX);
 		MaxFamilyY = FMath::Max(MaxFamilyY, FinalViewMaxY);
 
-		if (!IStereoRendering::IsAnAdditionalView(View.StereoPass, GEngine->StereoRenderingDevice))
+		if (!IStereoRendering::IsAnAdditionalView(View.StereoPass))
 		{
-		InstancedStereoWidth = FPlatformMath::Max(InstancedStereoWidth, static_cast<uint32>(View.ViewRect.Max.X));
-	}
+			InstancedStereoWidth = FPlatformMath::Max(InstancedStereoWidth, static_cast<uint32>(View.ViewRect.Max.X));
+		}
 	}
 
 	// We render to the actual position of the viewports so with black borders we need the max.
@@ -2569,6 +2576,13 @@ FSceneRenderer::~FSceneRenderer()
 
 	// Manually release references to TRefCountPtrs that are allocated on the mem stack, which doesn't call dtors
 	SortedShadowsForShadowDepthPass.Release();
+
+	extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
+
+	for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
+	{
+		Extension->EndFrame();
+	}
 
 	Views.Empty();
 }
@@ -3085,7 +3099,7 @@ void FSceneRenderer::RenderCustomDepthPass(FRHICommandListImmediate& RHICmdList)
 					{
 						// When drawing the left eye in a stereo scene, set up the instanced custom depth uniform buffer with the right-eye data,
 						// with the TAA jitter removed.
-						const EStereoscopicPass StereoPassIndex = (View.StereoPass != eSSP_FULL) ? eSSP_RIGHT_EYE : eSSP_FULL;
+						const EStereoscopicPass StereoPassIndex = IStereoRendering::IsStereoEyeView(View.StereoPass) ? eSSP_RIGHT_EYE : eSSP_FULL;
 
 						const FViewInfo& InstancedView = static_cast<const FViewInfo&>(View.Family->GetStereoEyeView(StereoPassIndex));
 
@@ -3117,6 +3131,13 @@ void FSceneRenderer::RenderCustomDepthPass(FRHICommandListImmediate& RHICmdList)
 						// If we don't render this pass in stereo we simply update the buffer with the same view uniform parameters.
 						Scene->UniformBuffers.InstancedCustomDepthViewUniformBuffer.UpdateUniformBufferImmediate(reinterpret_cast<FInstancedViewUniformShaderParameters&>(*View.CachedViewUniformShaderParameters));
 					}
+				}
+
+				extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
+				
+				for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
+				{
+					Extension->BeginRenderView(&View);
 				}
 	
 				View.ParallelMeshDrawCommandPasses[EMeshPass::CustomDepth].DispatchDraw(nullptr, RHICmdList);
@@ -4107,5 +4128,22 @@ FRHITexture* FSceneRenderer::GetMultiViewSceneColor(const FSceneRenderTargets& S
 	else
 	{
 		return static_cast<FTextureRHIRef>(ViewFamily.RenderTarget->GetRenderTargetTexture());
+	}
+}
+
+void RunGPUSkinCacheTransition(FRHICommandList& RHICmdList, FScene* Scene, EGPUSkinCacheTransition Type)
+{
+	// * When hair strands is disabled, the skin cache sync point run later 
+	//   during the deferred render pass
+	// * When hair strands is enabled, the skin cache sync point is run earlier, during 
+	//   the init views pass, as the output of the skin cached is used by Niagara
+	const bool bHairStrandsEnabled = IsHairStrandsEnable(Scene->GetShaderPlatform());
+	const bool bRun = bHairStrandsEnabled && EGPUSkinCacheTransition::FrameSetup == Type;
+	if (bRun)
+	{
+		if (FGPUSkinCache* GPUSkinCache = Scene->GetGPUSkinCache())
+		{
+			GPUSkinCache->TransitionAllToReadable(RHICmdList);
+		}
 	}
 }

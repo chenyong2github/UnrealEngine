@@ -309,23 +309,6 @@ protected:
 	//~ End UDataprepOperation Interface
 };
 
-UCLASS(Experimental, Category = ObjectOperation, Meta = (DisplayName="Remove Objects", ToolTip = "Remove any asset or actor to process") )
-class UDataprepRemoveObjectsOperation : public UDataprepOperation
-{
-	GENERATED_BODY()
-
-		//~ Begin UDataprepOperation Interface
-public:
-	virtual FText GetCategory_Implementation() const override
-	{
-		return FDataprepOperationCategories::ObjectOperation;
-	}
-
-protected:
-	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
-	//~ End UDataprepOperation Interface
-};
-
 // Customization of the details of the Datasmith Scene for the data prep editor.
 class FDataprepSetLOGGroupDetails : public IDetailCustomization
 {
@@ -349,4 +332,96 @@ private:
 	TArray<FName>					LODGroupNames;
 
 	TSharedPtr<IPropertyHandle> LodGroupPropertyHandle;
+};
+
+
+UCLASS(Experimental, Category = ActorOperation, Meta = (DisplayName="Set Mesh", ToolTip = "On each actor to process, replace any meshes used with the specified one") )
+class UDataprepSetMeshOperation : public UDataprepOperation
+{
+	GENERATED_BODY()
+
+	UDataprepSetMeshOperation()
+	: MeshSubstitute(nullptr)
+	{
+	}
+
+public:
+	// Mesh to use as a substitute
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ActorOperation, meta = (ToolTip = "Mesh to use as a substitute"))
+	UStaticMesh* MeshSubstitute;
+
+	//~ Begin UDataprepOperation Interface
+public:
+	virtual FText GetCategory_Implementation() const override
+	{
+		return FDataprepOperationCategories::ActorOperation;
+	}
+
+protected:
+	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
+	//~ End UDataprepOperation Interface
+};
+
+UCLASS(Experimental, Category = ActorOperation, Meta = (DisplayName="Substitute Mesh", ToolTip = "On each actor to process, replace the mesh matching the criteria with the specified one") )
+class UDataprepSubstituteMeshOperation : public UDataprepOperation
+{
+	GENERATED_BODY()
+
+	UDataprepSubstituteMeshOperation()
+	: MeshSearch(TEXT("*"))
+	, StringMatch(EEditorScriptingStringMatchType::MatchesWildcard)
+	, MeshSubstitute(nullptr)
+	{
+	}
+
+public:
+	// Name of the mesh(s) to search for. Wildcard is supported
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ActorOperation, meta = (ToolTip = "Name of the mesh(s) to search for. Wildcard is supported"))
+	FString MeshSearch;
+
+	// Type of matching to perform with MeshSearch string
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ActorOperation, meta = (ToolTip = "Type of matching to perform with MeshSearch string"))
+	EEditorScriptingStringMatchType StringMatch;
+
+	// Mesh to use as a substitute
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ActorOperation, meta = (ToolTip = "Mesh to use as a substitute"))
+	UStaticMesh* MeshSubstitute;
+
+	//~ Begin UDataprepOperation Interface
+public:
+	virtual FText GetCategory_Implementation() const override
+	{
+		return FDataprepOperationCategories::ActorOperation;
+	}
+
+protected:
+	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
+	//~ End UDataprepOperation Interface
+};
+
+UCLASS(Experimental, Category = ActorOperation, Meta = (DisplayName="Substitute Mesh By Table", ToolTip = "On each actor to process, replace the mesh found in the first column of the table with the one from the second column in the same row") )
+class UDataprepSubstituteMeshByTableOperation : public UDataprepOperation
+{
+	GENERATED_BODY()
+
+	UDataprepSubstituteMeshByTableOperation()
+	: MeshDataTable(nullptr)
+	{
+	}
+
+public:
+	// Data table to use for the substitution
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ActorOperation, meta = (ToolTip = "Data table to use for the substitution"))
+	UDataTable* MeshDataTable;
+
+	//~ Begin UDataprepOperation Interface
+public:
+	virtual FText GetCategory_Implementation() const override
+	{
+		return FDataprepOperationCategories::ActorOperation;
+	}
+
+protected:
+	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
+	//~ End UDataprepOperation Interface
 };

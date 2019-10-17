@@ -14,7 +14,8 @@
 #include "DetailCategoryBuilder.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Features/IModularFeatures.h"
-
+#include "PropertyCustomizationHelpers.h"
+#include "Widgets/SToolTip.h"
 
 #if WITH_ENGINE
 #include "AudioDevice.h"
@@ -268,6 +269,47 @@ void FAudioPluginWidgetManager::BuildAudioCategory(IDetailLayoutBuilder& DetailL
 		.MinDesiredWidth(100.0f)
 		[
 			MakeAudioPluginSelectorWidget(AudioOcclusionPropertyHandle, EAudioPlugin::OCCLUSION, AudioPlatform)
+		];
+		
+	
+	// Not really a plugin, but this is common to all TargetPlatforms
+	TSharedPtr<IPropertyHandle> SoundQualityNamePropHandle = DetailLayout.GetProperty("SoundCueCookQualityIndex");
+	ensure(SoundQualityNamePropHandle.IsValid());
+	IDetailPropertyRow& SoundQualityNamePropRow = AudioCategory.AddProperty(SoundQualityNamePropHandle);
+
+	SoundQualityNamePropRow.CustomWidget()
+		.NameContent()
+		[
+			SoundQualityNamePropHandle->CreatePropertyNameWidget()
+		]
+		.ValueContent()
+		.MaxDesiredWidth(500.0f)
+		.MinDesiredWidth(100.0f)		
+		[
+			PropertyCustomizationHelpers::MakePropertyComboBox(
+				SoundQualityNamePropHandle,
+				FOnGetPropertyComboBoxStrings::CreateLambda([](TArray<TSharedPtr<FString>>& OutComboBoxStrings, TArray<TSharedPtr<SToolTip>>& OutToolTips, TArray<bool>& OutRestrictedItems) -> void  
+				{									
+					for (const FAudioQualitySettings& i : GetDefault<UAudioSettings>()->QualityLevels)
+					{
+						OutComboBoxStrings.Add(MakeShared<FString>(i.DisplayName.ToString()));
+						OutRestrictedItems.Add(false);
+						OutToolTips.Add(SNew(SToolTip).Text(i.DisplayName));
+					}
+				}), 
+				FOnGetPropertyComboBoxValue::CreateLambda([SoundQualityNamePropHandle]() -> FString
+				{
+					int32 IndexVal = INDEX_NONE;
+					SoundQualityNamePropHandle->GetValue(IndexVal); 
+					return GetDefault<UAudioSettings>()->FindQualityNameByIndex(IndexVal);
+				}),
+				FOnPropertyComboBoxValueSelected::CreateLambda([SoundQualityNamePropHandle](FString Value) -> void
+				{
+					const TArray<FAudioQualitySettings>& Values = GetDefault<UAudioSettings>()->QualityLevels;
+					int32 Index = Values.IndexOfByPredicate([TextValue = FText::FromString(Value)](const FAudioQualitySettings& i) -> bool { return i.DisplayName.CompareTo(TextValue) == 0; });
+					SoundQualityNamePropHandle->SetValue(Index);
+				})
+			)
 		];
 }
 

@@ -46,6 +46,15 @@ namespace UnrealGameSync
 
 			InitializeComponent();
 
+			using (Graphics Graphics = Graphics.FromHwnd(IntPtr.Zero))
+			{
+				float DpiScaleX = Graphics.DpiX / 96.0f;
+				foreach (ColumnHeader Column in IssueListView.Columns)
+				{
+					Column.Width = (int)(Column.Width * DpiScaleX);
+				}
+			}
+
 			System.Reflection.PropertyInfo DoubleBufferedProperty = typeof(Control).GetProperty("DoubleBuffered", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 			DoubleBufferedProperty.SetValue(IssueListView, true, null);
 		}

@@ -191,31 +191,6 @@ public:
 protected:
 	friend struct FCurrentFrameCalls;
 
-	/** Atomically increment total malloc calls. */
-	FORCEINLINE void IncrementTotalMallocCalls()
-	{
-		++TotalMallocCalls;
-	}
-
-	/** Atomically increment total free calls. */
-	FORCEINLINE void IncrementTotalFreeCalls()
-	{
-		++TotalFreeCalls;
-	}
-
-	/** Atomically increment total realloc calls. */
-	FORCEINLINE void IncrementTotalReallocCalls()
-	{
-		++TotalReallocCalls;
-	}
-
-	/** Total number of calls Malloc, if implemented by derived class. */
-	static TAtomic<uint32> TotalMallocCalls;
-	/** Total number of calls Malloc, if implemented by derived class. */
-	static TAtomic<uint32> TotalFreeCalls;
-	/** Total number of calls Malloc, if implemented by derived class. */
-	static TAtomic<uint32> TotalReallocCalls;
-
 #if !UE_BUILD_SHIPPING
 public:
 	/** Limits the maximum single allocation, to this many bytes, for debugging */

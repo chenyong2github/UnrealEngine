@@ -39,10 +39,7 @@ public:
 	 * Construct from another weak pointer
 	 * @param Other weak pointer to copy from
 	 */
-	FORCEINLINE FWeakObjectPtr(const FWeakObjectPtr& Other)
-	{
-		(*this)=Other;
-	}
+	FWeakObjectPtr(const FWeakObjectPtr& Other) = default;
 
 	/**
 	 * Reset the weak pointer back to the null state
@@ -63,11 +60,7 @@ public:
 	 * Construct from another weak pointer
 	 * @param Other weak pointer to copy from
 	 */
-	FORCEINLINE void operator=(const FWeakObjectPtr& Other)
-	{
-		ObjectIndex = Other.ObjectIndex;
-		ObjectSerialNumber = Other.ObjectSerialNumber;
-	}
+	FWeakObjectPtr& operator=(const FWeakObjectPtr& Other) = default;
 
 	/**  
 	 * Compare weak pointers for equality.

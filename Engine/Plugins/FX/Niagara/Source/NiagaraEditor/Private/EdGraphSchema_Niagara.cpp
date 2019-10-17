@@ -1753,9 +1753,9 @@ void UEdGraphSchema_Niagara::GetContextMenuActions(UToolMenu* Menu, UGraphNodeCo
 			const FName SectionName = "EdGraphSchema_NiagaraNodeActions";
 			FToolMenuSection& Section = Menu->AddSection(SectionName, LOCTEXT("PinConversionMenuHeader", "Convert Pins"));
 			Section.AddSubMenu(
-				"ConvertNumericSpecific",
-				LOCTEXT("ConvertNumericSpecific", "Convert All Numerics To..."),
-				LOCTEXT("ConvertNumericSpecificToolTip", "Convert all Numeric pins to the specific typed pin."),
+				"ConvertAllNumericSpecific",
+				LOCTEXT("ConvertAllNumericSpecific", "Convert All Numerics To..."),
+				LOCTEXT("ConvertAllNumericSpecificToolTip", "Convert all Numeric pins to the specific typed pin."),
 				FNewToolMenuDelegate::CreateUObject((UEdGraphSchema_Niagara*const)this, &UEdGraphSchema_Niagara::GetNumericConversionToSubMenuActionsAll, SectionName, const_cast<UNiagaraNode*>(Node)));
 		}
 		

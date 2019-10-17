@@ -74,7 +74,7 @@ public:
 
 	//void RebindParameterCollection(UNiagaraParameterCollectionInstance* OldInstance, UNiagaraParameterCollectionInstance* NewInstance);
 	void BindParameters();
-	void UnbindParameters();
+	void UnbindParameters(bool bFromComplete = false);
 
 	FORCEINLINE FNiagaraParameterStore& GetInstanceParameters() { return InstanceParameters; }
 	
@@ -115,6 +115,7 @@ public:
 	float GetOwnerLODDistance() const { return OwnerLODDistanceParam.GetValue(); }
 
 	int32 GetNumParticles(int32 EmitterIndex) const { return ParameterNumParticleBindings[EmitterIndex].GetValue(); }
+	float GetSpawnCountScale(int32 EmitterIndex) const { return ParameterSpawnCountScaleBindings[EmitterIndex].GetValue(); }
 
 	FVector GetOwnerVelocity() const { return OwnerVelocityParam.GetValue(); }
 
@@ -281,6 +282,8 @@ private:
 
 	UActorComponent* PrereqComponent;
 
+	ENiagaraTickBehavior TickBehavior;
+
 	/** The age of the System instance. */
 	float Age;
 
@@ -349,6 +352,7 @@ private:
 
 	FNiagaraParameterDirectBinding<int32> OwnerExecutionStateParam;
 
+	TArray<FNiagaraParameterDirectBinding<float>> ParameterSpawnCountScaleBindings;
 	TArray<FNiagaraParameterDirectBinding<int32>> ParameterNumParticleBindings;
 	TArray<FNiagaraParameterDirectBinding<int32>> ParameterTotalSpawnedParticlesBindings;
 
@@ -376,6 +380,8 @@ private:
 	uint32 bNeedsFinalize : 1;
 
 	uint32 bDataInterfacesInitialized : 1;
+
+	uint32 bAlreadyBound : 1;
 
 	/** True if we have async work in flight. */
 	volatile bool bAsyncWorkInProgress;
@@ -419,6 +425,7 @@ public:
 
 		TArray<int32> EmitterNumParticles;
 		TArray<int32> EmitterTotalSpawnedParticles;
+		TArray<float> EmitterSpawnCountScale;
 		int32 NumAlive;
 
 		float SafeTimeSinceRendererd;
@@ -429,6 +436,7 @@ public:
 		{
 			EmitterNumParticles.AddUninitialized(NumEmitters);
 			EmitterTotalSpawnedParticles.AddUninitialized(NumEmitters);
+			EmitterSpawnCountScale.AddUninitialized(NumEmitters);
 		}
 	};
 

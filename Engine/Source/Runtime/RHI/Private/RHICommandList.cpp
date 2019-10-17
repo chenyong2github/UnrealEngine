@@ -2446,6 +2446,13 @@ FUnorderedAccessViewRHIRef FDynamicRHI::RHICreateUnorderedAccessView_RenderThrea
 	return GDynamicRHI->RHICreateUnorderedAccessView(Texture, MipLevel);
 }
 
+FUnorderedAccessViewRHIRef FDynamicRHI::RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, uint32 MipLevel, uint8 Format)
+{
+	CSV_SCOPED_TIMING_STAT(RHITStalls, RHICreateUnorderedAccessView_RenderThread);
+	FScopedRHIThreadStaller StallRHIThread(RHICmdList);
+	return GDynamicRHI->RHICreateUnorderedAccessView(Texture, MipLevel, Format);
+}
+
 FUnorderedAccessViewRHIRef FDynamicRHI::RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBuffer, uint8 Format)
 {
 	CSV_SCOPED_TIMING_STAT(RHITStalls, RHICreateUnorderedAccessView_RenderThread);
@@ -2525,21 +2532,22 @@ void FDynamicRHI::RHIUnlockTextureCubeFace_RenderThread(class FRHICommandListImm
 }
 
 
-void FDynamicRHI::RHIMapStagingSurface_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, void*& OutData, int32& OutWidth, int32& OutHeight)
+void FDynamicRHI::RHIMapStagingSurface_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, FRHIGPUFence* Fence, void*& OutData, int32& OutWidth, int32& OutHeight)
 {
+	if (Fence == nullptr || !Fence->Poll())
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_MapStagingSurface_Flush);
 		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 	}
-	GDynamicRHI->RHIMapStagingSurface(Texture, OutData, OutWidth, OutHeight);
+	{
+		FScopedRHIThreadStaller StallRHIThread(RHICmdList);
+		GDynamicRHI->RHIMapStagingSurface(Texture, Fence, OutData, OutWidth, OutHeight);
+	}
 }
 
 void FDynamicRHI::RHIUnmapStagingSurface_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture)
 {
-	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_MapStagingSurface_Flush);
-		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-	}
+	FScopedRHIThreadStaller StallRHIThread(RHICmdList);
 	GDynamicRHI->RHIUnmapStagingSurface(Texture);
 }
 

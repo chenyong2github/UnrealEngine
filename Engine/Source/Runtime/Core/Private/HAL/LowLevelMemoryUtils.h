@@ -53,7 +53,15 @@ public:
 	void Add(const T& Item)
 	{
 		if (Count == Capacity)
-			Reserve(Capacity ? (150U * Capacity) / 100U : DefaultCapacity);
+		{
+			uint32 NewCapacity = DefaultCapacity;
+			if (Capacity)
+			{
+				NewCapacity = (15U * Capacity) / 10U;
+				ensureMsgf(NewCapacity > Capacity, TEXT("Unsigned integer overflow."));
+			}
+			Reserve(NewCapacity);
+		}
 
 		Array[Count] = Item;
 		++Count;

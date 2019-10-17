@@ -104,6 +104,11 @@ protected:
 		ToolTip = "Enables the event driven loader in cooked builds."))
 	uint32 EventDrivenLoaderEnabled : 1;
 
+	UPROPERTY(EditAnywhere, config, Category = General, meta = (
+		ConsoleVariable = "s.FlushStreamingOnExit", DisplayName = "Flush Streaming when exiting the application",
+		ToolTip = "If enabled, streaming will be flushed when exiting application, otherwise it will be cancelled."))
+	uint32 FlushStreamingOnExit : 1;
+
 	//~ Begin UObject Interface
 	virtual void PostInitProperties() override;
 

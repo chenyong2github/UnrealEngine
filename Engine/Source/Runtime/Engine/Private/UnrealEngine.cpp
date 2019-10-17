@@ -360,6 +360,81 @@ bool GIsTextureMemoryCorrupted = false;
 bool GIsPrepareMapChangeBroken = false;
 #endif
 
+#if WITH_EDITOR
+// A debugging aid set when we switch out different play worlds during Play In Editor / PIE
+ENGINE_API FString GPlayInEditorContextString(TEXT("invalid"));
+#endif
+
+ENGINE_API void UpdatePlayInEditorWorldDebugString(const FWorldContext* WorldContext)
+{
+#if WITH_EDITOR
+	if (WorldContext == nullptr)
+	{
+		ensure(GPlayInEditorID == INDEX_NONE);
+		GPlayInEditorContextString = NSLOCTEXT("Engine", "PlayWorldIsNotActive", "Not in a play world").ToString();
+	}
+	else
+	{
+		FString WorldName;
+		if (UWorld* World = WorldContext->World())
+		{
+			switch (World->GetNetMode())
+			{
+			case NM_Standalone:
+				WorldName = NSLOCTEXT("Engine", "PlayWorldIsStandalone", "Standalone").ToString();
+				break;
+
+			case NM_ListenServer:
+				WorldName = NSLOCTEXT("Engine", "PlayWorldIsListenServer", "Listen Server").ToString();
+				break;
+
+			case NM_DedicatedServer:
+				WorldName = NSLOCTEXT("Engine", "PlayWorldIsDedicatedServer", "Dedicated Server").ToString();
+				break;
+
+			case NM_Client:
+				WorldName = FText::Format(NSLOCTEXT("Engine", "PlayWorldIsClient", "Client {0}"), FText::AsNumber(WorldContext->PIEInstance - 1)).ToString();
+				break;
+
+			default:
+				unimplemented();
+			};
+		}
+		else
+		{
+			WorldName = NSLOCTEXT("Engine", "PlayWorldBeingCreated", "(World Being Created)").ToString();
+		}
+
+		if (!WorldContext->CustomDescription.IsEmpty())
+		{
+			WorldName += TEXT(" ") + WorldContext->CustomDescription;
+		}
+
+		GPlayInEditorContextString = WorldName;
+	}
+#endif
+}
+
+FTemporaryPlayInEditorIDOverride::FTemporaryPlayInEditorIDOverride(int32 NewOverrideID)
+	: PreviousID(GPlayInEditorID)
+{
+	SetID(NewOverrideID);
+}
+
+FTemporaryPlayInEditorIDOverride::~FTemporaryPlayInEditorIDOverride()
+{
+	SetID(PreviousID);
+}
+
+void FTemporaryPlayInEditorIDOverride::SetID(int32 NewID)
+{
+	if (GPlayInEditorID != NewID)
+	{
+		GPlayInEditorID = NewID;
+		UpdatePlayInEditorWorldDebugString(GEngine->GetWorldContextFromPIEInstance(GPlayInEditorID));
+	}
+}
+
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FSimpleMulticastDelegate UEngine::OnPostEngineInit;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -903,6 +978,7 @@ namespace
 		return NewWorld;
 	}
 }
+
 /*-----------------------------------------------------------------------------
 Object class implementation.
 -----------------------------------------------------------------------------*/
@@ -2200,7 +2276,7 @@ void UEngine::UpdateTimecode()
 	const UTimecodeProvider* Provider = GetTimecodeProvider();
 	if (Provider->GetSynchronizationState() == ETimecodeProviderSynchronizationState::Synchronized)
 	{
-		FApp::SetTimecodeAndFrameRate(Provider->GetTimecode(), Provider->GetFrameRate());
+		FApp::SetTimecodeAndFrameRate(Provider->GetDelayedTimecode(), Provider->GetFrameRate());
 	}
 	else
 	{
@@ -2352,6 +2428,7 @@ UEngineCustomTimeStep* InitializeCustomTimeStep(UEngine* InEngine, FSoftClassPat
 */
 void UEngine::InitializeObjectReferences()
 {
+	TRACE_LOADTIME_REQUEST_GROUP_SCOPE(TEXT("UEngine::InitializeObjectReferences"));
 	SCOPED_BOOT_TIMING("UEngine::InitializeObjectReferences");
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UEngine::InitializeObjectReferences"), STAT_InitializeObjectReferences, STATGROUP_LoadTime);
 
@@ -2363,7 +2440,6 @@ void UEngine::InitializeObjectReferences()
 	{
 		// Materials that are needed in-game if debug viewmodes are allowed
 		LoadSpecialMaterial(TEXT("WireframeMaterialName"), WireframeMaterialName, WireframeMaterial, true);
-		LoadSpecialMaterial(TEXT("HairDefaultMaterialName"), HairDefaultMaterialName, HairDefaultMaterial, true);
 		LoadSpecialMaterial(TEXT("HairDebugMaterialName"), HairDebugMaterialName, HairDebugMaterial, true);
 		LoadSpecialMaterial(TEXT("LevelColorationLitMaterialName"), LevelColorationLitMaterialName, LevelColorationLitMaterial, true);
 		LoadSpecialMaterial(TEXT("LevelColorationUnlitMaterialName"), LevelColorationUnlitMaterialName, LevelColorationUnlitMaterial, true);
@@ -2382,6 +2458,7 @@ void UEngine::InitializeObjectReferences()
 	LoadSpecialMaterial(TEXT("RemoveSurfaceMaterialName"), RemoveSurfaceMaterialName.ToString(), RemoveSurfaceMaterial, false);
 
 	// these one's are needed both editor and standalone 
+	LoadSpecialMaterial(TEXT("HairDefaultMaterialName"), HairDefaultMaterialName, HairDefaultMaterial, false);
 	LoadSpecialMaterial(TEXT("DebugMeshMaterialName"), DebugMeshMaterialName.ToString(), DebugMeshMaterial, false);
 	LoadSpecialMaterial(TEXT("EmissiveMeshMaterialName"), EmissiveMeshMaterialName.ToString(), EmissiveMeshMaterial, false);
 	LoadSpecialMaterial(TEXT("InvalidLightmapSettingsMaterialName"), InvalidLightmapSettingsMaterialName.ToString(), InvalidLightmapSettingsMaterial, false);
@@ -2898,7 +2975,7 @@ public:
 	virtual void AdjustViewRect(EStereoscopicPass StereoPass, int32& X, int32& Y, uint32& SizeX, uint32& SizeY) const override
 	{
 		SizeX = SizeX / 2;
-		if (StereoPass == eSSP_RIGHT_EYE)
+		if (IStereoRendering::IsASecondaryView(StereoPass))
 		{
 			X += SizeX;
 		}
@@ -2906,10 +2983,10 @@ public:
 
 	virtual void CalculateStereoViewOffset(const enum EStereoscopicPass StereoPassType, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation) override
 	{
-		if (StereoPassType != eSSP_FULL)
+		if (IStereoRendering::IsStereoEyeView(StereoPassType))
 		{
 			float EyeOffset = 3.20000005f;
-			const float PassOffset = (StereoPassType == eSSP_LEFT_EYE) ? EyeOffset : -EyeOffset;
+			const float PassOffset = IStereoRendering::IsAPrimaryView(StereoPassType) ? EyeOffset : -EyeOffset;
 			ViewLocation += ViewRotation.Quaternion().RotateVector(FVector(0,PassOffset,0));
 		}
 	}
@@ -8075,7 +8152,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 			[](FRHICommandList& RHICmdList)
 			{
 				UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
-				SetCrashType(ECrashType::Debug);
+				FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 				UE_LOG(LogEngine, Fatal, TEXT("Crashing the renderthread at your request"));
 			});
 		return true;
@@ -8087,7 +8164,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 			static void Check()
 			{				
 				UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
-				SetCrashType(ECrashType::Debug);
+				FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 				check(!"Crashing the renderthread via check(0) at your request");
 			}
 		};
@@ -8104,7 +8181,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 			[](FRHICommandList& RHICmdList)
 			{
 				UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
-				SetCrashType(ECrashType::Debug);
+				FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 				*(int32 *)3 = 123;
 			});
 		return true;
@@ -8115,8 +8192,8 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 			[](FRHICommandList& RHICmdList)
 			{
 				UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
-			SetCrashType(ECrashType::Debug);
-			LowLevelFatalError(TEXT("FError::LowLevelFatal test"));
+				FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
+				LowLevelFatalError(TEXT("FError::LowLevelFatal test"));
 			});
 		return true;
 	}
@@ -8140,7 +8217,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 			static void Crash(ENamedThreads::Type, const  FGraphEventRef&)
 			{
 				UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
-				SetCrashType(ECrashType::Debug);
+				FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 				UE_LOG(LogEngine, Fatal, TEXT("Crashing the worker thread at your request"));
 			}
 		};
@@ -8165,7 +8242,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 			static void Check(ENamedThreads::Type, const FGraphEventRef&)
 			{
 				UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
-				SetCrashType(ECrashType::Debug);
+				FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 				check(!"Crashing a worker thread via check(0) at your request");
 			}
 		};
@@ -8190,7 +8267,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 			static void GPF(ENamedThreads::Type, const FGraphEventRef&)
 			{
 				UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
-				SetCrashType(ECrashType::Debug);
+				FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 				*(int32 *)3 = 123;
 			}
 		};
@@ -8230,7 +8307,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 					if (FPlatformTime::Seconds() >= CrashTime)
 					{
 						UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
-						SetCrashType(ECrashType::Debug);
+						FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 						UE_LOG(LogEngine, Fatal, TEXT("Crashing the worker thread at your request"));
 						break;
 					}
@@ -8270,7 +8347,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 					if (FPlatformTime::Seconds() >= CrashTime)
 					{
 						UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
-						SetCrashType(ECrashType::Debug);
+						FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 						*(int32 *)3 = 123;
 						break;
 					}
@@ -8318,7 +8395,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 			static void Fatal(ENamedThreads::Type, const FGraphEventRef&)
 			{
 				UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
-				SetCrashType(ECrashType::Debug);
+				FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 				LowLevelFatalError(TEXT("FError::LowLevelFatal test"));
 			}
 		};
@@ -8338,14 +8415,14 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 	else if (FParse::Command(&Cmd, TEXT("CRASH")))
 	{
 		UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
-		SetCrashType(ECrashType::Debug);
+		FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 		UE_LOG(LogEngine, Fatal, TEXT("%s"), TEXT("Crashing the gamethread at your request"));
 		return true;
 	}
 	else if (FParse::Command(&Cmd, TEXT("CHECK")))
 	{
 		UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
-		SetCrashType(ECrashType::Debug);
+		FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 		check(!"Crashing the game thread via check(0) at your request");
 		return true;
 	}
@@ -8353,7 +8430,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 	{
 		UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
 		Ar.Log(TEXT("Crashing with voluntary GPF"));
-		SetCrashType(ECrashType::Debug);
+		FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 		// changed to 3 from NULL because clang noticed writing to NULL and warned about it
 		*(int32 *)3 = 123;
 		return true;
@@ -8377,7 +8454,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 	else if (FParse::Command(&Cmd, TEXT("FATAL")))
 	{
 		UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
-		SetCrashType(ECrashType::Debug);
+		FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 		LowLevelFatalError(TEXT("FError::LowLevelFatal test"));
 		return true;
 	}
@@ -8385,13 +8462,13 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 	{
 		// stack overflow test - this case should be caught by /GS (Buffer Overflow Check) compile option
 		ANSICHAR SrcBuffer[] = "12345678901234567890123456789012345678901234567890";
-		SetCrashType(ECrashType::Debug);
+		FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 		BufferOverflowFunction(UE_ARRAY_COUNT(SrcBuffer), SrcBuffer);
 		return true;
 	}
 	else if (FParse::Command(&Cmd, TEXT("CRTINVALID")))
 	{
-		SetCrashType(ECrashType::Debug);
+	FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 		FString::Printf(TEXT("%s"), (const char*)nullptr);
 		return true;
 	}
@@ -8460,7 +8537,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 	{
 		Ar.Logf(TEXT("Recursing to create a very deep callstack."));
 		GLog->Flush();
-		SetCrashType(ECrashType::Debug);
+		FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 		InfiniteRecursionFunction(1);
 		Ar.Logf(TEXT("You will never see this log line."));
 		return true;
@@ -8472,7 +8549,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 		{
 			static void InfiniteRecursion(ENamedThreads::Type, const FGraphEventRef&)
 			{
-				SetCrashType(ECrashType::Debug);
+				FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 				InfiniteRecursionFunction(1);
 			}
 		};
@@ -8492,7 +8569,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 	else if (FParse::Command(&Cmd, TEXT("EATMEM")))
 	{
 		Ar.Log(TEXT("Eating up all available memory"));
-		SetCrashType(ECrashType::Debug);
+		FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 		while (1)
 		{
 			void* Eat = FMemory::Malloc(65536);
@@ -8509,7 +8586,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 	else if (FParse::Command(&Cmd, TEXT("STACKOVERFLOW")))
 	{
 		Ar.Log(TEXT("Infinite recursion to cause stack overflow"));
-		SetCrashType(ECrashType::Debug);
+		FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 		StackOverflowFunction(nullptr);
 		return true;
 	}
@@ -8520,7 +8597,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 		{
 			static void StackOverflow(ENamedThreads::Type, const FGraphEventRef&)
 			{
-				SetCrashType(ECrashType::Debug);
+				FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 				StackOverflowFunction(nullptr);
 			}
 		};
@@ -8540,7 +8617,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 	else if (FParse::Command(&Cmd, TEXT("SOFTLOCK")))
 	{
 		Ar.Log(TEXT("Hanging the current thread"));
-		SetCrashType(ECrashType::Debug);
+		FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 		while (1)
 		{
 			FPlatformProcess::Sleep(1.0f);
@@ -8550,7 +8627,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 	else if (FParse::Command(&Cmd, TEXT("INFINITELOOP")))
 	{
 		Ar.Log(TEXT("Hanging the current thread (CPU-intensive)"));
-		SetCrashType(ECrashType::Debug);
+		FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 		for(;;)
 		{
 		}
@@ -11092,11 +11169,11 @@ UNetDriver* CreateNetDriver_Local(UEngine* Engine, FWorldContext& Context, FName
 	*
 	*
 	* Example:
-	*	Use HTML5 for the main game net driver:
-	*		-NetDriverOverrides=/Script/HTML5Networking.WebSocketNetDriver
+	*	Use WebSocket for the main game net driver:
+	*		-NetDriverOverrides=/Script/WebSocketNetworking.WebSocketNetDriver
 	*
-	*	Use HTML5 for the main game net driver, and the party beacon net driver
-	*		-NetDriverOverrides="/Script/HTML5Networking.WebSocketNetDriver;BeaconNetDriver,/Script/HTML5Networking.WebSocketNetDriver"
+	*	Use WebSocket for the main game net driver, and the party beacon net driver
+	*		-NetDriverOverrides="/Script/WebSocketNetworking.WebSocketNetDriver;BeaconNetDriver,/Script/WebSocketNetworking.WebSocketNetDriver"
 	*/
 
 	static TArray<FNetDriverDefinition> NetDriverOverrides = TArray<FNetDriverDefinition>();
@@ -12170,7 +12247,7 @@ void UEngine::TickWorldTravel(FWorldContext& Context, float DeltaSeconds)
 
 bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetGame* Pending, FString& Error )
 {
-	TRACE_LOADTIME_LOAD_MAP_SCOPE(*URL.Map);
+	TRACE_LOADTIME_REQUEST_GROUP_SCOPE(TEXT("LoadMap - %s"), *URL.Map);
 	STAT_ADD_CUSTOMMESSAGE_NAME( STAT_NamedMarker, *(FString( TEXT( "LoadMap - " ) + URL.Map )) );
 	TRACE_BOOKMARK(TEXT("LoadMap - %s"), *URL.Map);
 
@@ -12399,7 +12476,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 
 	MALLOC_PROFILER( FMallocProfiler::SnapshotMemoryLoadMapMid( URL.Map ); )
 
-		WorldContext.OwningGameInstance->PreloadContentForURL(URL);
+	WorldContext.OwningGameInstance->PreloadContentForURL(URL);
 
 	UPackage* WorldPackage = NULL;
 	UWorld*	NewWorld = NULL;
@@ -12422,6 +12499,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 					// We are loading a new world for this context, so clear out PIE fixups that might be lingering.
 					// (note we dont want to do this in DuplicateWorldForPIE, since that is also called on streaming worlds.
 					GPlayInEditorID = WorldContext.PIEInstance;
+					UpdatePlayInEditorWorldDebugString(&WorldContext);
 					FLazyObjectPtr::ResetPIEFixups();
 
 					NewWorld = UWorld::DuplicateWorldForPIE(SourceWorldPackage, nullptr);
@@ -12725,7 +12803,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	TRACE_BOOKMARK(TEXT("LoadMapComplete - %s"), *URL.Map);
 	MALLOC_PROFILER( FMallocProfiler::SnapshotMemoryLoadMapEnd( URL.Map ); )
 
-		double StopTime = FPlatformTime::Seconds();
+	double StopTime = FPlatformTime::Seconds();
 
 	UE_LOG(LogLoad, Log, TEXT("Took %f seconds to LoadMap(%s)"), StopTime - StartTime, *URL.Map);
 	FLoadTimeTracker::Get().DumpRawLoadTimes();
@@ -14291,14 +14369,10 @@ bool AllowHighQualityLightmaps(ERHIFeatureLevel::Type FeatureLevel)
 // Helper function for changing system resolution via the r.setres console command
 void FSystemResolution::RequestResolutionChange(int32 InResX, int32 InResY, EWindowMode::Type InWindowMode)
 {
-#if PLATFORM_UNIX || PLATFORM_HTML5
-	// Fullscreen and WindowedFullscreen behave the same on Linux, see FLinuxWindow::ReshapeWindow()/SetWindowMode().
-	// Allowing Fullscreen window mode confuses higher level code (see UE-19996).
-	if (InWindowMode == EWindowMode::Fullscreen)
+	if (FPlatformMisc::FullscreenSameAsWindowedFullscreen() && (InWindowMode == EWindowMode::Fullscreen))
 	{
 		InWindowMode = EWindowMode::WindowedFullscreen;
 	}
-#endif
 
 	FString WindowModeSuffix;
 	switch (InWindowMode)

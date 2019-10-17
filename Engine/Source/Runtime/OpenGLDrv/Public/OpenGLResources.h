@@ -569,14 +569,7 @@ public:
 		uint8 *Data = NULL;
 
 		// Discard if the input size is the same as the backing store size, regardless of the input argument, as orphaning the backing store will typically be faster.
-		bDiscard = bDiscard || (!bReadOnly && InSize == RealSize);
-
-#if PLATFORM_HTML5
-		// In browsers calling glBufferData() to discard-reupload is slower than calling glBufferSubData(),
-		// because changing glBufferData() with a different size from before incurs security related validation.
-		// Therefore never use the glBufferData() discard trick on HTML5 builds.
-		bDiscard = false;
-#endif
+		bDiscard = (bDiscard || (!bReadOnly && InSize == RealSize)) && FOpenGL::DiscardFrameBufferToResize();
 
 		// Map buffer is faster in some circumstances and slower in others, decide when to use it carefully.
 		bool const bCanUseMapBuffer = FOpenGL::SupportsMapBuffer() && BaseType::GLSupportsType();
@@ -670,14 +663,7 @@ public:
 		uint8 *Data = NULL;
 
 		// Discard if the input size is the same as the backing store size, regardless of the input argument, as orphaning the backing store will typically be faster.
-		bDiscard = bDiscard || InSize == RealSize;
-
-#if PLATFORM_HTML5
-		// In browsers calling glBufferData() to discard-reupload is slower than calling glBufferSubData(),
-		// because changing glBufferData() with a different size from before incurs security related validation.
-		// Therefore never use the glBufferData() discard trick on HTML5 builds.
-		bDiscard = false;
-#endif
+		bDiscard = (bDiscard || InSize == RealSize) && FOpenGL::DiscardFrameBufferToResize();
 
 		// Map buffer is faster in some circumstances and slower in others, decide when to use it carefully.
 		bool const bCanUseMapBuffer = FOpenGL::SupportsMapBuffer() && BaseType::GLSupportsType();
@@ -760,14 +746,14 @@ public:
 					// Check for the typical, optimized case
 					if( LockSize == RealSize )
 					{
-#if PLATFORM_HTML5
-						// In browsers using glBufferData() to upload data is slower
-						// than using glBufferSubData(), because glBufferData()
-						// can resize the buffer storage, and so incurs extra validation.
-						FOpenGL::BufferSubData(Type, 0, LockSize, LockBuffer);
-#else
-						glBufferData(Type, RealSize, LockBuffer, GetAccess());
-#endif
+						if (FOpenGL::DiscardFrameBufferToResize())
+						{
+							glBufferData(Type, RealSize, LockBuffer, GetAccess());
+						}
+						else
+						{
+							FOpenGL::BufferSubData(Type, 0, LockSize, LockBuffer);
+						}
 						check( LockBuffer != NULL );
 					}
 					else

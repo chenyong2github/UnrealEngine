@@ -284,6 +284,10 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 		{
 			Id.AdditionalDefines.Add(TEXT("Emitter.Determinism"));
 		}
+		if (Emitter->bOverrideGlobalSpawnCountScale)
+		{
+			Id.AdditionalDefines.Add(TEXT("Emitter.OverrideGlobalSpawnCountScale"));
+		}
 
 		if (!Emitter->bBakeOutRapidIteration)
 		{
@@ -399,6 +403,7 @@ bool UNiagaraScript::ContainsUsage(ENiagaraScriptUsage InUsage) const
 
 FNiagaraScriptExecutionParameterStore* UNiagaraScript::GetExecutionReadyParameterStore(ENiagaraSimTarget SimTarget)
 {
+#if WITH_EDITORONLY_DATA
 	if (SimTarget == ENiagaraSimTarget::CPUSim && IsReadyToRun(ENiagaraSimTarget::CPUSim))
 	{
 		if (ScriptExecutionParamStoreCPU.IsInitialized() == false)
@@ -419,8 +424,64 @@ FNiagaraScriptExecutionParameterStore* UNiagaraScript::GetExecutionReadyParamete
 	{
 		return nullptr;
 	}
+#else
+	check(GetSimTarget().GetValue() == SimTarget);
+	return &ScriptExecutionParamStore;
+#endif
 }
 
+TOptional<ENiagaraSimTarget> UNiagaraScript::GetSimTarget() const
+{
+	switch (Usage)
+	{
+	case ENiagaraScriptUsage::ParticleSpawnScript:
+	case ENiagaraScriptUsage::ParticleSpawnScriptInterpolated:
+	case ENiagaraScriptUsage::ParticleUpdateScript:
+	case ENiagaraScriptUsage::ParticleEventScript:
+	case ENiagaraScriptUsage::ParticleGPUComputeScript:
+		if (UNiagaraEmitter* OwningEmitter = GetTypedOuter<UNiagaraEmitter>())
+		{
+			if (OwningEmitter->SimTarget != ENiagaraSimTarget::CPUSim || CachedScriptVM.IsValid())
+			{
+				return OwningEmitter->SimTarget;
+			}
+		}
+		break;
+	case ENiagaraScriptUsage::EmitterSpawnScript:
+	case ENiagaraScriptUsage::EmitterUpdateScript:
+	case ENiagaraScriptUsage::SystemSpawnScript:
+	case ENiagaraScriptUsage::SystemUpdateScript:
+		if (CachedScriptVM.IsValid())
+		{
+			return ENiagaraSimTarget::CPUSim;
+		}
+		break;
+	default:
+		break;
+	};
+	return TOptional<ENiagaraSimTarget>();
+}
+
+void UNiagaraScript::PreSave(const class ITargetPlatform* TargetPlatform)
+{
+	Super::PreSave(TargetPlatform);
+
+#if WITH_EDITORONLY_DATA
+	ScriptExecutionParamStore.Empty();
+	ScriptExecutionBoundParameters.Empty();
+
+	if (TargetPlatform && TargetPlatform->RequiresCookedData())
+	{
+		TOptional<ENiagaraSimTarget> SimTarget = GetSimTarget();
+		if (SimTarget)
+		{
+			// Partial execution of InitFromOwningScript()
+			ScriptExecutionParamStore.AddScriptParams(this, SimTarget.GetValue(), false);
+			FNiagaraParameterStoreBinding::GetBindingData(&ScriptExecutionParamStore, &RapidIterationParameters, ScriptExecutionBoundParameters);
+		}
+	}
+#endif
+}
 
 void UNiagaraScript::Serialize(FArchive& Ar)
 {
@@ -434,7 +495,6 @@ void UNiagaraScript::Serialize(FArchive& Ar)
 		bool bUsesRapidIterationParams = true;
 
 #if WITH_EDITORONLY_DATA
-
 		if (UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(GetOuter()))
 		{
 			UNiagaraSystem* EmitterOwner = Cast<UNiagaraSystem>(Emitter->GetOuter());
@@ -598,6 +658,14 @@ void UNiagaraScript::PostLoad()
 	
 	RapidIterationParameters.PostLoad();
 
+	if (FPlatformProperties::RequiresCookedData())
+	{
+		ScriptExecutionParamStore.PostLoad();
+		RapidIterationParameters.Bind(&ScriptExecutionParamStore, &ScriptExecutionBoundParameters);
+		ScriptExecutionParamStore.SetAsInitialized();
+		ScriptExecutionBoundParameters.Empty();
+	}
+
 	bool bNeedsRecompile = false;
 	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
 
@@ -661,7 +729,6 @@ void UNiagaraScript::PostLoad()
 #endif
 
 	//FNiagaraUtilities::DumpHLSLText(RapidIterationParameters.ToString(), *GetPathName());
-
 }
 
 bool UNiagaraScript::IsReadyToRun(ENiagaraSimTarget SimTarget) const
@@ -1074,9 +1141,11 @@ void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& I
 
 void UNiagaraScript::InvalidateExecutionReadyParameterStores()
 {
+#if WITH_EDITORONLY_DATA
 	// Make sure that we regenerate any parameter stores, since they must be kept in sync with the layout from script compilation.
 	ScriptExecutionParamStoreCPU.Empty();
 	ScriptExecutionParamStoreGPU.Empty();
+#endif
 }
 
 void UNiagaraScript::InvalidateCachedCompileIds()

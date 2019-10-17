@@ -6,7 +6,6 @@
 #include "Chaos/BoundingVolumeHierarchy.h"
 #include "Chaos/Defines.h"
 #include "Chaos/Pair.h"
-#include "Chaos/PBDConstraintGraph.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/Transform.h"
 

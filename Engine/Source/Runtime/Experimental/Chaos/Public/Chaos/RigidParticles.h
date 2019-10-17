@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Queue.h"
 #include "Chaos/ArrayCollectionArray.h"
 #include "Chaos/BVHParticles.h"
 #include "Chaos/GeometryParticles.h"
@@ -9,7 +10,6 @@
 #include "Chaos/Matrix.h"
 #include "Chaos/Particles.h"
 #include "Chaos/Rotation.h"
-#include "Chaos/TriangleMesh.h"
 
 namespace Chaos
 {
@@ -47,7 +47,7 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
     using TParticles<T, d>::X;
     using TGeometryParticles<T, d>::R;
 
-	TRigidParticles()
+	CHAOS_API TRigidParticles()
 	    : TKinematicGeometryParticles<T, d>()
 	{
 		TArrayCollection::AddArray(&MF);
@@ -66,7 +66,7 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 		TArrayCollection::AddArray(&MToBeRemovedOnFracture);
 	}
 	TRigidParticles(const TRigidParticles<T, d>& Other) = delete;
-	TRigidParticles(TRigidParticles<T, d>&& Other)
+	CHAOS_API TRigidParticles(TRigidParticles<T, d>&& Other)
 	    : TKinematicGeometryParticles<T, d>(MoveTemp(Other)), MF(MoveTemp(Other.MF)), MT(MoveTemp(Other.MT)), MExternalForce(MoveTemp(Other.MExternalForce)), MExternalTorque(MoveTemp(Other.MExternalTorque)), MI(MoveTemp(Other.MI)), MInvI(MoveTemp(Other.MInvI)), MM(MoveTemp(Other.MM)), MInvM(MoveTemp(Other.MInvM)), MCollisionParticles(MoveTemp(Other.MCollisionParticles)), MCollisionGroup(MoveTemp(Other.MCollisionGroup)), MObjectState(MoveTemp(Other.MObjectState))
 	{
 		TArrayCollection::AddArray(&MF);
@@ -85,70 +85,76 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 		TArrayCollection::AddArray(&MToBeRemovedOnFracture);
 	}
 
-	const TVector<T, d>& Torque(const int32 Index) const { return MT[Index]; }
-	TVector<T, d>& Torque(const int32 Index) { return MT[Index]; }
+	CHAOS_API virtual ~TRigidParticles()
+	{}
 
-	const TVector<T, d>& F(const int32 Index) const { return MF[Index]; }
-	TVector<T, d>& F(const int32 Index) { return MF[Index]; }
+	FORCEINLINE const TVector<T, d>& Torque(const int32 Index) const { return MT[Index]; }
+	FORCEINLINE TVector<T, d>& Torque(const int32 Index) { return MT[Index]; }
 
-	const TVector<T, d>& ExternalTorque(const int32 Index) const { return MExternalTorque[Index]; }
-	TVector<T, d>& ExternalTorque(const int32 Index) { return MExternalTorque[Index]; }
+	FORCEINLINE const TVector<T, d>& F(const int32 Index) const { return MF[Index]; }
+	FORCEINLINE TVector<T, d>& F(const int32 Index) { return MF[Index]; }
 
-	const TVector<T, d>& ExternalForce(const int32 Index) const { return MExternalForce[Index]; }
-	TVector<T, d>& ExternalForce(const int32 Index) { return MExternalForce[Index]; }
+	FORCEINLINE const TVector<T, d>& ExternalTorque(const int32 Index) const { return MExternalTorque[Index]; }
+	FORCEINLINE TVector<T, d>& ExternalTorque(const int32 Index) { return MExternalTorque[Index]; }
 
-	const PMatrix<T, d, d>& I(const int32 Index) const { return MI[Index]; }
-	PMatrix<T, d, d>& I(const int32 Index) { return MI[Index]; }
+	FORCEINLINE const TVector<T, d>& ExternalForce(const int32 Index) const { return MExternalForce[Index]; }
+	FORCEINLINE TVector<T, d>& ExternalForce(const int32 Index) { return MExternalForce[Index]; }
 
-	const PMatrix<T, d, d>& InvI(const int32 Index) const { return MInvI[Index]; }
-	PMatrix<T, d, d>& InvI(const int32 Index) { return MInvI[Index]; }
+	FORCEINLINE const PMatrix<T, d, d>& I(const int32 Index) const { return MI[Index]; }
+	FORCEINLINE PMatrix<T, d, d>& I(const int32 Index) { return MI[Index]; }
 
-	const T M(const int32 Index) const { return MM[Index]; }
-	T& M(const int32 Index) { return MM[Index]; }
+	FORCEINLINE const PMatrix<T, d, d>& InvI(const int32 Index) const { return MInvI[Index]; }
+	FORCEINLINE PMatrix<T, d, d>& InvI(const int32 Index) { return MInvI[Index]; }
 
-	const T InvM(const int32 Index) const { return MInvM[Index]; }
-	T& InvM(const int32 Index) { return MInvM[Index]; }
+	FORCEINLINE const T M(const int32 Index) const { return MM[Index]; }
+	FORCEINLINE T& M(const int32 Index) { return MM[Index]; }
 
-	int32 CollisionParticlesSize(int32 Index) const { return MCollisionParticles[Index] == nullptr ? 0 : MCollisionParticles[Index]->Size(); }
+	FORCEINLINE const T InvM(const int32 Index) const { return MInvM[Index]; }
+	FORCEINLINE T& InvM(const int32 Index) { return MInvM[Index]; }
+
+	FORCEINLINE int32 CollisionParticlesSize(int32 Index) const { return MCollisionParticles[Index] == nullptr ? 0 : MCollisionParticles[Index]->Size(); }
 	void CHAOS_API CollisionParticlesInitIfNeeded(const int32 Index);
 	void CHAOS_API SetCollisionParticles(const int32 Index, TParticles<T, d>&& Particles);
 	
-	const TUniquePtr<TBVHParticles<T, d>>& CollisionParticles(const int32 Index) const { return MCollisionParticles[Index]; }
-	TUniquePtr<TBVHParticles<T, d>>& CollisionParticles(const int32 Index) { return MCollisionParticles[Index]; }
+	FORCEINLINE const TUniquePtr<TBVHParticles<T, d>>& CollisionParticles(const int32 Index) const { return MCollisionParticles[Index]; }
+	FORCEINLINE TUniquePtr<TBVHParticles<T, d>>& CollisionParticles(const int32 Index) { return MCollisionParticles[Index]; }
 
-	const int32 CollisionGroup(const int32 Index) const { return MCollisionGroup[Index]; }
-	int32& CollisionGroup(const int32 Index) { return MCollisionGroup[Index]; }
+	FORCEINLINE const int32 CollisionGroup(const int32 Index) const { return MCollisionGroup[Index]; }
+	FORCEINLINE int32& CollisionGroup(const int32 Index) { return MCollisionGroup[Index]; }
 
-	const bool Disabled(const int32 Index) const { return MDisabled[Index]; }
+	FORCEINLINE const bool Disabled(const int32 Index) const { return MDisabled[Index]; }
 
-	bool& DisabledRef(const int32 Index) { return MDisabled[Index]; }
+	FORCEINLINE bool& DisabledRef(const int32 Index) { return MDisabled[Index]; }
 
 	// DisableParticle/EnableParticle on Evolution should be used. Don't disable particles with this.
     // Using this will break stuff. This is for solver's use only, and possibly some particle construction/copy code.
-	void SetDisabledLowLevel(const int32 Index, bool disabled) { MDisabled[Index] = disabled; }
+	FORCEINLINE void SetDisabledLowLevel(const int32 Index, bool disabled) { MDisabled[Index] = disabled; }
 
-	const bool ToBeRemovedOnFracture(const int32 Index) const { return MToBeRemovedOnFracture[Index]; }
-	bool& ToBeRemovedOnFracture(const int32 Index) { return MToBeRemovedOnFracture[Index]; }
+	FORCEINLINE const bool ToBeRemovedOnFracture(const int32 Index) const { return MToBeRemovedOnFracture[Index]; }
+	FORCEINLINE bool& ToBeRemovedOnFracture(const int32 Index) { return MToBeRemovedOnFracture[Index]; }
 
-	const EObjectStateType ObjectState(const int32 Index) const { return MObjectState[Index]; }
-	EObjectStateType& ObjectState(const int32 Index) { return MObjectState[Index]; }
+	FORCEINLINE TQueue<TGeometryParticleHandle<T, d>*, EQueueMode::Mpsc>& GetSleepData() { return MSleepData; }
+	FORCEINLINE void AddSleepData(TGeometryParticleHandle<T, d>* Particle) { MSleepData.Enqueue(Particle); }
 
-	const bool Dynamic(const int32 Index) const { return ObjectState(Index) == EObjectStateType::Dynamic; }
+	FORCEINLINE const EObjectStateType ObjectState(const int32 Index) const { return MObjectState[Index]; }
+	FORCEINLINE EObjectStateType& ObjectState(const int32 Index) { return MObjectState[Index]; }
 
-	const bool Sleeping(const int32 Index) const { return ObjectState(Index) == EObjectStateType::Sleeping; }
+	FORCEINLINE const bool Dynamic(const int32 Index) const { return ObjectState(Index) == EObjectStateType::Dynamic; }
 
-	const bool HasInfiniteMass(const int32 Index) const { return MInvM[Index] == (T)0; }
+	FORCEINLINE const bool Sleeping(const int32 Index) const { return ObjectState(Index) == EObjectStateType::Sleeping; }
 
-	const int32 Island(const int32 Index) const { return MIsland[Index]; }
-	int32& Island(const int32 Index) { return MIsland[Index]; }
+	FORCEINLINE const bool HasInfiniteMass(const int32 Index) const { return MInvM[Index] == (T)0; }
 
-	FString ToString(int32 index) const
+	FORCEINLINE const int32 Island(const int32 Index) const { return MIsland[Index]; }
+	FORCEINLINE int32& Island(const int32 Index) { return MIsland[Index]; }
+
+	FORCEINLINE FString ToString(int32 index) const
 	{
 		FString BaseString = TKinematicGeometryParticles<T, d>::ToString(index);
 		return FString::Printf(TEXT("%s, MF:%s, MT:%s, MExternalForce:%s, MExternalTorque:%s, MI:%s, MInvI:%s, MM:%f, MInvM:%f, MCollisionParticles(num):%d, MCollisionGroup:%d, MDisabled:%d, MSleepring:%d, MIsland:%d"), *BaseString, *F(index).ToString(), *Torque(index).ToString(), *ExternalForce(index).ToString(), *ExternalTorque(index).ToString(), *I(index).ToString(), *InvI(index).ToString(), M(index), InvM(index), CollisionParticlesSize(index), CollisionGroup(index), Disabled(index), Sleeping(index), Island(index));
 	}
 
-	void Serialize(FChaosArchive& Ar)
+	CHAOS_API virtual void Serialize(FChaosArchive& Ar) override
 	{
 		TKinematicGeometryParticles<T,d>::Serialize(Ar);
 		Ar << MF << MT << MExternalForce << MExternalTorque << MI << MInvI << MM << MInvM;
@@ -170,6 +176,7 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 	TArrayCollectionArray<bool> MDisabled;
 	TArrayCollectionArray<bool> MToBeRemovedOnFracture;
 	TArrayCollectionArray<EObjectStateType> MObjectState;
+	TQueue<TGeometryParticleHandle<T, d>*, EQueueMode::Mpsc> MSleepData;
 };
 
 
@@ -181,6 +188,13 @@ FChaosArchive& operator<<(FChaosArchive& Ar, TRigidParticles<T, d>& Particles)
 	return Ar;
 }
 
+#ifdef __clang__
+#if PLATFORM_WINDOWS
 extern template class TRigidParticles<float, 3>;
-
+#else
+extern template class CHAOS_API TRigidParticles<float, 3>;
+#endif
+#else
+extern template class TRigidParticles<float, 3>;
+#endif
 }

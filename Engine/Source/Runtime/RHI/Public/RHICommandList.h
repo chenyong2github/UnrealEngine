@@ -3873,7 +3873,13 @@ public:
 		LLM_SCOPE(ELLMTag::RHIMisc);
 		return GDynamicRHI->RHICreateUnorderedAccessView_RenderThread(*this, Texture, MipLevel);
 	}
-	
+
+	FORCEINLINE FUnorderedAccessViewRHIRef CreateUnorderedAccessView(FRHITexture* Texture, uint32 MipLevel, uint8 Format)
+	{
+		LLM_SCOPE(ELLMTag::RHIMisc);
+		return GDynamicRHI->RHICreateUnorderedAccessView_RenderThread(*this, Texture, MipLevel, Format);
+	}
+
 	FORCEINLINE FUnorderedAccessViewRHIRef CreateUnorderedAccessView(FRHIVertexBuffer* VertexBuffer, uint8 Format)
 	{
 		LLM_SCOPE(ELLMTag::RHIMisc);
@@ -4169,11 +4175,16 @@ public:
 		GDynamicRHI->RHIReadSurfaceData(Texture, Rect, OutData, InFlags);
 	}
 	
-	FORCEINLINE void MapStagingSurface(FRHITexture* Texture,void*& OutData,int32& OutWidth,int32& OutHeight)
+	FORCEINLINE void MapStagingSurface(FRHITexture* Texture, void*& OutData, int32& OutWidth, int32& OutHeight)
 	{
-		GDynamicRHI->RHIMapStagingSurface_RenderThread(*this, Texture,OutData,OutWidth,OutHeight);
+		GDynamicRHI->RHIMapStagingSurface_RenderThread(*this, Texture, nullptr, OutData, OutWidth, OutHeight);
 	}
-	
+
+	FORCEINLINE void MapStagingSurface(FRHITexture* Texture, FRHIGPUFence* Fence, void*& OutData, int32& OutWidth, int32& OutHeight)
+	{
+		GDynamicRHI->RHIMapStagingSurface_RenderThread(*this, Texture, Fence, OutData, OutWidth, OutHeight);
+	}
+
 	FORCEINLINE void UnmapStagingSurface(FRHITexture* Texture)
 	{
 		GDynamicRHI->RHIUnmapStagingSurface_RenderThread(*this, Texture);
@@ -4779,6 +4790,11 @@ FORCEINLINE FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHIStructur
 FORCEINLINE FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHITexture* Texture, uint32 MipLevel = 0)
 {
 	return FRHICommandListExecutor::GetImmediateCommandList().CreateUnorderedAccessView(Texture, MipLevel);
+}
+
+FORCEINLINE FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHITexture* Texture, uint32 MipLevel, uint8 Format)
+{
+	return FRHICommandListExecutor::GetImmediateCommandList().CreateUnorderedAccessView(Texture, MipLevel, Format);
 }
 
 FORCEINLINE FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHIVertexBuffer* VertexBuffer, uint8 Format)

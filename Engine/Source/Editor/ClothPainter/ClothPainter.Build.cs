@@ -26,6 +26,7 @@ public class ClothPainter : ModuleRules
                 "SkeletalMeshEditor",                
                 "AssetRegistry",
                 "MeshPaint",
+                "ClothingSystemRuntimeCommon",
                 "ClothingSystemRuntimeNv",
                 "ClothingSystemRuntimeInterface",
                 "ClothingSystemEditorInterface",

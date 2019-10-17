@@ -7,13 +7,15 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/SOverlay.h"
+#include "Widgets/SToolTip.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/SExpanderArrow.h"
 
 // Insights
-#include "Insights/ViewModels/TimersViewColumn.h"
-#include "Insights/ViewModels/TimersViewColumnFactory.h"
-#include "Insights/Widgets/STimersViewTooltip.h"
+#include "Insights/Table/ViewModels/Table.h"
+#include "Insights/Table/ViewModels/TableColumn.h"
+#include "Insights/Widgets/STimerTableRow.h"
 
 #define LOCTEXT_NAMESPACE "STimersView"
 
@@ -21,12 +23,17 @@
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
-void STimerTableCell::Construct(const FArguments& InArgs, const TSharedRef<class ITableRow>& TableRow)
+void STimerTableCell::Construct(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow)
 {
-	SetHoveredTableCellDelegate = InArgs._OnSetHoveredTableCell;
+	TablePtr = InArgs._TablePtr;
+	ColumnPtr = InArgs._ColumnPtr;
 	TimerNodePtr = InArgs._TimerNodePtr;
-	ColumnId = InArgs._ColumnId;
-	//HighlightText = InArgs._HighlightText;
+
+	ensure(TablePtr.IsValid());
+	ensure(ColumnPtr.IsValid());
+	ensure(TimerNodePtr.IsValid());
+
+	SetHoveredCellDelegate = InArgs._OnSetHoveredCell;
 
 	ChildSlot
 		[
@@ -36,9 +43,9 @@ void STimerTableCell::Construct(const FArguments& InArgs, const TSharedRef<class
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> STimerTableCell::GenerateWidgetForColumn(const FArguments& InArgs, const TSharedRef<class ITableRow>& TableRow)
+TSharedRef<SWidget> STimerTableCell::GenerateWidgetForColumn(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow)
 {
-	if (InArgs._IsTimerNameColumn)
+	if (InArgs._IsNameColumn)
 	{
 		return GenerateWidgetForNameColumn(InArgs, TableRow);
 	}
@@ -50,10 +57,8 @@ TSharedRef<SWidget> STimerTableCell::GenerateWidgetForColumn(const FArguments& I
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> STimerTableCell::GenerateWidgetForNameColumn(const FArguments& InArgs, const TSharedRef<class ITableRow>& TableRow)
+TSharedRef<SWidget> STimerTableCell::GenerateWidgetForNameColumn(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow)
 {
-	const FTimersViewColumn& Column = *FTimersViewColumnFactory::Get().ColumnIdToPtrMapping.FindChecked(ColumnId);
-
 	return
 		SNew(SHorizontalBox)
 
@@ -65,78 +70,84 @@ TSharedRef<SWidget> STimerTableCell::GenerateWidgetForNameColumn(const FArgument
 			SNew(SExpanderArrow, TableRow)
 		]
 
-		// Event info icon + tooltip.
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
 		[
-			SNew(SImage)
-			.Visibility(this, &STimerTableCell::GetHintIconVisibility)
-			.Image(FEditorStyle::GetBrush("Profiler.Tooltip.HintIcon10"))
-			.ToolTip(STimersViewTooltip::GetTableCellTooltip(TimerNodePtr))
+			SNew(SOverlay)
+
+			// Hot path icon
+			+ SOverlay::Slot()
+			[
+				SNew(SImage)
+				.Visibility(this, &STimerTableCell::GetHotPathIconVisibility)
+				.Image(FEditorStyle::GetBrush(TEXT("Profiler.EventGraph.HotPathSmall")))
+			]
+
+			// Info icon + tooltip
+			+ SOverlay::Slot()
+			[
+				SNew(SImage)
+				.Visibility(this, &STimerTableCell::GetHintIconVisibility)
+				.Image(FEditorStyle::GetBrush("Profiler.Tooltip.HintIcon10"))
+				.ToolTip(GetRowToolTip(TableRow))
+			]
 		]
 
 		// Name
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.VAlign(VAlign_Center)
-		.HAlign(Column.HorizontalAlignment)
+		.HAlign(ColumnPtr->GetHorizontalAlignment())
 		.Padding(FMargin(2.0f, 0.0f))
 		[
 			SNew(STextBlock)
-			//.Text(TimerNodePtr->GetNameEx())
-			.Text(this, &STimerTableCell::GetNameEx)
+			.Text(this, &STimerTableCell::GetDisplayName)
 			.HighlightText(InArgs._HighlightText)
 			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
 			.ColorAndOpacity(this, &STimerTableCell::GetColorAndOpacity)
 			.ShadowColorAndOpacity(this, &STimerTableCell::GetShadowColorAndOpacity)
 		]
-
-		/*
-		// Culled children warning icon + tooltip.
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.HAlign(HAlign_Center)
-		.VAlign(VAlign_Center)
-		[
-			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), TEXT("HoverHintOnly"))
-			.ContentPadding(0.0f)
-			.IsFocusable(false)
-			//.OnClicked(this, &STimerTableCell::ExpandCulledEvents_OnClicked)
-			[
-				SNew(SImage)
-				.Visibility(this, &STimerTableCell::GetCulledEventsIconVisibility)
-				.Image(FEditorStyle::GetBrush("Profiler.EventGraph.HasCulledEventsSmall"))
-				.ToolTipText(LOCTEXT("HasCulledEvents_TT", "This event contains culled children, if you want to see all children, please disable culling or use function details, or press this icon"))
-			]
-		]*/
-		;
+	;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> STimerTableCell::GenerateWidgetForStatsColumn(const FArguments& InArgs, const TSharedRef<class ITableRow>& TableRow)
+TSharedPtr<IToolTip> STimerTableCell::GetRowToolTip(const TSharedRef<ITableRow>& TableRow) const
 {
-	const FTimersViewColumn& Column = *FTimersViewColumnFactory::Get().ColumnIdToPtrMapping.FindChecked(ColumnId);
-	const FText FormattedValue = Column.GetFormattedValue(*TimerNodePtr);
+	TSharedRef<STimerTableRow> Row = StaticCastSharedRef<STimerTableRow, ITableRow>(TableRow);
+	return Row->GetRowToolTip();
+}
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText STimerTableCell::GetValueAsText() const
+{
+	return ColumnPtr->GetValueAsText(*TimerNodePtr);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SWidget> STimerTableCell::GenerateWidgetForStatsColumn(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow)
+{
 	return
 		SNew(SHorizontalBox)
 
+		// Value
 		+ SHorizontalBox::Slot()
 		.FillWidth(1.0f)
 		.VAlign(VAlign_Center)
-		.HAlign(Column.HorizontalAlignment)
+		.HAlign(ColumnPtr->GetHorizontalAlignment())
 		.Padding(FMargin(2.0f, 0.0f))
 		[
 			SNew(STextBlock)
-			.Text(FormattedValue)
+			.Text(this, &STimerTableCell::GetValueAsText)
 			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
 			.ColorAndOpacity(this, &STimerTableCell::GetStatsColorAndOpacity)
 			.ShadowColorAndOpacity(this, &STimerTableCell::GetShadowColorAndOpacity)
-		];
+		]
+	;
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION

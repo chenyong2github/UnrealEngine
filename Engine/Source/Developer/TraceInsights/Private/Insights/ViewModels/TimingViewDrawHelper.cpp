@@ -2,9 +2,6 @@
 
 #include "TimingViewDrawHelper.h"
 
-#include "Brushes/SlateBorderBrush.h"
-#include "Brushes/SlateColorBrush.h"
-#include "EditorStyleSet.h"
 #include "Fonts/FontMeasure.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Framework/Application/SlateApplication.h"
@@ -15,6 +12,8 @@
 // Insights
 #include "Insights/Common/PaintUtils.h"
 #include "Insights/Common/TimeUtils.h"
+#include "Insights/InsightsStyle.h"
+#include "Insights/ViewModels/DrawHelpers.h"
 #include "Insights/ViewModels/MarkersTimingTrack.h"
 #include "Insights/ViewModels/TimingEventsTrack.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
@@ -25,13 +24,23 @@ FTimingViewDrawHelper::FTimingViewDrawHelper(const FDrawContext& InDC, const FTi
 	: DrawContext(InDC)
 	, Viewport(InViewport)
 	, Layout(InLayout)
-	, WhiteBrush(FCoreStyle::Get().GetBrush("WhiteBrush"))
-	, BorderBrush(FEditorStyle::GetBrush("PlainBorder"))
-	, EventsBorderBrush(new FSlateBorderBrush(NAME_None, FMargin(1.0f)))
+	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
+	, EventBorderBrush(FInsightsStyle::Get().GetBrush("EventBorder"))
+	, HoveredEventBorderBrush(FInsightsStyle::Get().GetBrush("HoveredEventBorder"))
+	, SelectedEventBorderBrush(FInsightsStyle::Get().GetBrush("SelectedEventBorder"))
 	, BackgroundAreaBrush(WhiteBrush)
 	, ValidAreaColor(0.07f, 0.07f, 0.07f, 1.0f)
 	, InvalidAreaColor(0.1f, 0.07f, 0.07f, 1.0f)
+	, EdgeColor(0.05f, 0.05f, 0.05f, 1.0f)
 	, EventFont(FCoreStyle::GetDefaultFontStyle("Regular", 8))
+	, ValidAreaX(0.0f)
+	, ValidAreaW(0.0f)
+	, TimelineTopY(0.0f)
+	, TimelineY(0.0f)
+	, MaxDepth(0)
+	, TimelineIndex(0)
+	, LastEventX2()
+	, LastBox()
 	, Stats()
 {
 }
@@ -40,51 +49,15 @@ FTimingViewDrawHelper::FTimingViewDrawHelper(const FDrawContext& InDC, const FTi
 
 FTimingViewDrawHelper::~FTimingViewDrawHelper()
 {
-	delete EventsBorderBrush; //im: is it safe to delete brush (i.e in OnPaint, imediately after use)?
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FTimingViewDrawHelper::DrawBackground() const
 {
-	const float X0 = Viewport.TimeToSlateUnitsRounded(0.0);
-	const float X1 = Viewport.TimeToSlateUnitsRounded(Viewport.MaxValidTime);
-	const float W = FMath::CeilToFloat(Viewport.Width);
-	const float H = FMath::CeilToFloat(Viewport.Height);
-
-	if (X0 >= W || X1 <= 0.0f)
-	{
-		ValidX0 = 0.0f;
-		ValidX1 = W;
-
-		// Draw invalid area (entire view).
-		DrawContext.DrawBox(0.0f, 0.0f, W, H, BackgroundAreaBrush, InvalidAreaColor);
-	}
-	else // X0 < W && X1 > 0
-	{
-		if (X0 > 0.0f)
-		{
-			// Draw invalid area (left).
-			DrawContext.DrawBox(0.0f, 0.0f, X0, H, BackgroundAreaBrush, InvalidAreaColor);
-		}
-
-		if (X1 < W)
-		{
-			// Draw invalid area (right).
-			DrawContext.DrawBox(X1, 0.0f, W - X1, H, BackgroundAreaBrush, InvalidAreaColor);
-		}
-
-		ValidX0 = FMath::Max(X0, 0.0f);
-		ValidX1 = FMath::Min(X1, W);
-
-		if (ValidX1 > ValidX0)
-		{
-			// Draw valid area.
-			DrawContext.DrawBox(ValidX0, 0.0f, ValidX1 - ValidX0, H, BackgroundAreaBrush, ValidAreaColor);
-		}
-	}
-
-	DrawContext.LayerId++;
+	const float Y = 0.0f;
+	const float H = FMath::CeilToFloat(Viewport.GetHeight());
+	FDrawHelpers::DrawBackground(DrawContext, BackgroundAreaBrush, Viewport, Y, H, ValidAreaX, ValidAreaW);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -92,16 +65,16 @@ void FTimingViewDrawHelper::DrawBackground() const
 void FTimingViewDrawHelper::BeginTimelines()
 {
 	TimelineIndex = -1;
-	TimelineTopY = -Viewport.ScrollPosY;
+	TimelineTopY = -Viewport.GetScrollPosY();
 
-	float Y = TimelineTopY + Viewport.TopOffset;
+	float Y = TimelineTopY + Viewport.GetTopOffset();
 
-	if (Y > 0.0f && ValidX1 > ValidX0)
+	if (Y > 0.0f && ValidAreaW > 0.0f)
 	{
-		Y = FMath::Min(Y, Viewport.Height);
+		Y = FMath::Min(Y, Viewport.GetHeight());
 
 		// Draw invalid area (top).
-		DrawContext.DrawBox(DrawContext.LayerId + ToInt32(EDrawLayer::TimelineHeader), ValidX0, 0.0f, ValidX1 - ValidX0, Y, BackgroundAreaBrush, InvalidAreaColor);
+		DrawContext.DrawBox(DrawContext.LayerId + ToInt32(EDrawLayer::TimelineHeader), ValidAreaX, 0.0f, ValidAreaW, Y, BackgroundAreaBrush, InvalidAreaColor);
 	}
 }
 
@@ -111,10 +84,12 @@ bool FTimingViewDrawHelper::BeginTimeline(FTimingEventsTrack& Track)
 {
 	TimelineIndex++;
 
-	Track.SetPosY(TimelineTopY + Viewport.ScrollPosY);
+	Track.SetPosY(TimelineTopY + Viewport.GetScrollPosY());
 
 	if (Track.GetHeight() < Layout.MinTimelineH)
+	{
 		Track.SetHeight(Layout.MinTimelineH);
+	}
 
 	if (TimelineTopY + Track.GetHeight() < -1.0f)
 	{
@@ -122,7 +97,7 @@ bool FTimingViewDrawHelper::BeginTimeline(FTimingEventsTrack& Track)
 		return false;
 	}
 
-	if (TimelineTopY > Viewport.Height - Viewport.TopOffset)
+	if (TimelineTopY > Viewport.GetHeight() - Viewport.GetTopOffset())
 	{
 		return false;
 	}
@@ -130,7 +105,7 @@ bool FTimingViewDrawHelper::BeginTimeline(FTimingEventsTrack& Track)
 	MaxDepth = -1;
 
 	// +1.0f is for horizontal line between timelines
-	TimelineY = Viewport.TopOffset + TimelineTopY + 1.0f + Layout.TimelineDY;
+	TimelineY = Viewport.GetTopOffset() + TimelineTopY + 1.0f + Layout.TimelineDY;
 
 	// Reset "last event X2" for all depths.
 	LastEventX2.Reset();
@@ -156,7 +131,7 @@ void FTimingViewDrawHelper::EndTimeline(FTimingEventsTrack& Track)
 		}
 	}
 
-	Track.Depth = MaxDepth;
+	Track.SetDepth(MaxDepth);
 
 	float NewH;
 	if (MaxDepth < 0)
@@ -203,9 +178,8 @@ void FTimingViewDrawHelper::EndTimeline(FTimingEventsTrack& Track)
 
 	if (Track.GetHeight() > 0)
 	{
-		const float Y = Viewport.TopOffset + TimelineTopY;
+		const float Y = Viewport.GetTopOffset() + TimelineTopY;
 
-		FLinearColor Color(0.05f, 0.05f, 0.05f, 1.0f);
 		FLinearColor TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 
 		if (Track.IsSelected())
@@ -225,13 +199,13 @@ void FTimingViewDrawHelper::EndTimeline(FTimingEventsTrack& Track)
 		}
 
 		// Draw a horizontal line between timelines.
-		DrawContext.DrawBox(DrawContext.LayerId + ToInt32(EDrawLayer::TimelineHeader), 0, Y, Viewport.Width, 1.0f, WhiteBrush, Color);
+		DrawContext.DrawBox(DrawContext.LayerId + ToInt32(EDrawLayer::TimelineHeader), 0, Y, Viewport.GetWidth(), 1.0f, WhiteBrush, EdgeColor);
 
 		// Draw name of timeline.
 		//const FString Name = FString::Printf(TEXT("%d Y: %g, H: %g, VO: %g, VY: %g"), TimelineIndex, Track.Y, Track.H, Viewport.TopOffset, Viewport.ScrollPosY); //debug
 		const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 		float NameWidth = FontMeasureService->Measure(Track.GetName(), EventFont).X;
-		DrawContext.DrawBox(DrawContext.LayerId + ToInt32(EDrawLayer::TimelineHeader), 0.0f, Y + 1.0f, NameWidth + 4.0f, 12.0f, WhiteBrush, Color);
+		DrawContext.DrawBox(DrawContext.LayerId + ToInt32(EDrawLayer::TimelineHeader), 0.0f, Y + 1.0f, NameWidth + 4.0f, 12.0f, WhiteBrush, EdgeColor);
 		DrawContext.DrawText(DrawContext.LayerId + ToInt32(EDrawLayer::TimelineText), 2.0f, Y, Track.GetName(), EventFont, TextColor);
 	}
 
@@ -245,12 +219,12 @@ void FTimingViewDrawHelper::AddEvent(double EventStartTime, double EventEndTime,
 	Stats.NumEvents++;
 
 	float EventX1 = Viewport.TimeToSlateUnitsRounded(EventStartTime);
-	if (EventX1 > Viewport.Width)
+	if (EventX1 > Viewport.GetWidth())
 	{
 		return;
 	}
 
-	double RestrictedEndTime = Viewport.RestrictEndTime(EventEndTime);
+	const double RestrictedEndTime = Viewport.RestrictEndTime(EventEndTime);
 	float EventX2 = Viewport.TimeToSlateUnitsRounded(RestrictedEndTime);
 	if (EventX2 < 0)
 	{
@@ -276,7 +250,7 @@ void FTimingViewDrawHelper::AddEvent(double EventStartTime, double EventEndTime,
 	}
 
 	float EventY = TimelineY + (Layout.EventH + Layout.EventDY) * Depth;
-	if (EventY < -Layout.EventH || EventY > Viewport.Height)
+	if (EventY < -Layout.EventH || EventY > Viewport.GetHeight())
 	{
 		return;
 	}
@@ -296,13 +270,13 @@ void FTimingViewDrawHelper::AddEvent(double EventStartTime, double EventEndTime,
 	}
 
 	// Limit event width on the viewport's right side.
-	const float MaxX = Viewport.Width + 2.0f; // +2 allows event border to remain outside screen
+	const float MaxX = Viewport.GetWidth() + 2.0f; // +2 allows event border to remain outside screen
 	if (EventX2 > MaxX)
 	{
 		EventX2 = MaxX;
 	}
 
-	float EventW = EventX2 - EventX1;
+	const float EventW = EventX2 - EventX1;
 
 	// Optimization...
 	if (EventW == 1.0f && EventX1 == LastEventX2[Depth] - 1.0f)
@@ -415,7 +389,7 @@ void FTimingViewDrawHelper::AddEvent(double EventStartTime, double EventEndTime,
 		}
 
 		const FLinearColor EventColorBorder(EventColorFill.R * BorderColorFactor, EventColorFill.G * BorderColorFactor, EventColorFill.B * BorderColorFactor, 1.0f);
-		DrawContext.DrawBox(DrawContext.LayerId + ToInt32(EDrawLayer::EventBorder), EventX1, EventY, EventW, Layout.EventH, EventsBorderBrush, EventColorBorder);
+		DrawContext.DrawBox(DrawContext.LayerId + ToInt32(EDrawLayer::EventBorder), EventX1, EventY, EventW, Layout.EventH, EventBorderBrush, EventColorBorder);
 		Stats.NumDrawBorders++;
 	}
 	else // 1px or 2px boxes
@@ -487,18 +461,18 @@ void FTimingViewDrawHelper::DrawBox(const FBoxData& Box, const float EventY, con
 
 void FTimingViewDrawHelper::EndTimelines()
 {
-	float Y = Viewport.TopOffset + TimelineTopY;
+	float Y = Viewport.GetTopOffset() + TimelineTopY;
 
 	// Draw a last horizontal line.
-	DrawContext.DrawBox(DrawContext.LayerId + ToInt32(EDrawLayer::TimelineHeader), 0, Y, Viewport.Width, 1.0f, WhiteBrush, FLinearColor(0.05f, 0.05f, 0.05f, 1.0f));
+	DrawContext.DrawBox(DrawContext.LayerId + ToInt32(EDrawLayer::TimelineHeader), 0, Y, Viewport.GetWidth(), 1.0f, WhiteBrush, EdgeColor);
 	Y += 1.0f;
 
-	if (Y < Viewport.Height && ValidX1 > ValidX0)
+	if (Y < Viewport.GetHeight() && ValidAreaW > 0.0f)
 	{
 		Y = FMath::Max(Y, 0.0f);
 
 		// Draw invalid area (bottom).
-		DrawContext.DrawBox(DrawContext.LayerId + ToInt32(EDrawLayer::TimelineHeader), ValidX0, Y, ValidX1 - ValidX0, Viewport.Height - Y, BackgroundAreaBrush, InvalidAreaColor);
+		DrawContext.DrawBox(DrawContext.LayerId + ToInt32(EDrawLayer::TimelineHeader), ValidAreaX, Y, ValidAreaW, Viewport.GetHeight() - Y, BackgroundAreaBrush, InvalidAreaColor);
 	}
 
 	DrawContext.LayerId += ToInt32(EDrawLayer::Count);
@@ -509,7 +483,7 @@ void FTimingViewDrawHelper::EndTimelines()
 void FTimingViewDrawHelper::DrawTimingEventHighlight(double StartTime, double EndTime, float Y, EHighlightMode Mode)
 {
 	float EventX1 = Viewport.TimeToSlateUnitsRounded(StartTime);
-	if (EventX1 > Viewport.Width)
+	if (EventX1 > Viewport.GetWidth())
 	{
 		return;
 	}
@@ -521,6 +495,7 @@ void FTimingViewDrawHelper::DrawTimingEventHighlight(double StartTime, double En
 		return;
 	}
 
+	// Timing events are displayed with minimum 1px (including empty ones).
 	if (EventX1 == EventX2)
 	{
 		EventX2 = EventX1 + 1.0f;
@@ -534,27 +509,23 @@ void FTimingViewDrawHelper::DrawTimingEventHighlight(double StartTime, double En
 	}
 
 	// Limit event width on the viewport's right side.
-	const float MaxX = Viewport.Width + 2.0f; // +2 allows event border to remain outside screen
+	const float MaxX = Viewport.GetWidth() + 2.0f; // +2 allows event border to remain outside screen
 	if (EventX2 > MaxX)
 	{
 		EventX2 = MaxX;
 	}
 
-	float EventW = EventX2 - EventX1;
+	const float EventW = EventX2 - EventX1;
 
 	if (Mode == EHighlightMode::Hovered)
 	{
-		const FSlateBrush* HighlightBrush = BorderBrush;
-
 		const FLinearColor Color(1.0f, 1.0f, 0.0f, 1.0f); // yellow
 
 		// Draw border around the timing event box.
-		DrawContext.DrawBox(EventX1 - 2.0f, Y - 2.0f, EventW + 4.0f, Layout.EventH + 4.0f, HighlightBrush, Color);
+		DrawContext.DrawBox(EventX1 - 2.0f, Y - 2.0f, EventW + 4.0f, Layout.EventH + 4.0f, HoveredEventBorderBrush, Color);
 	}
 	else // EHighlightMode::Selected or EHighlightMode::SelectedAndHovered
 	{
-		const FSlateBrush* SelectedBrush = BorderBrush;
-
 		// Animate color from white (if selected and hovered) or yellow (if only selected) to black, using a squared sine function.
 		const double Time = static_cast<double>(FPlatformTime::Cycles64()) * FPlatformTime::GetSecondsPerCycle64();
 		float S = FMath::Sin(2.0 * Time);
@@ -563,7 +534,7 @@ void FTimingViewDrawHelper::DrawTimingEventHighlight(double StartTime, double En
 		const FLinearColor Color(S, S, Blue, 1.0f);
 
 		// Draw border around the timing event box.
-		DrawContext.DrawBox(EventX1 - 2.0f, Y - 2.0f, EventW + 4.0f, Layout.EventH + 4.0f, SelectedBrush, Color);
+		DrawContext.DrawBox(EventX1 - 2.0f, Y - 2.0f, EventW + 4.0f, Layout.EventH + 4.0f, SelectedEventBorderBrush, Color);
 	}
 	DrawContext.LayerId++;
 }

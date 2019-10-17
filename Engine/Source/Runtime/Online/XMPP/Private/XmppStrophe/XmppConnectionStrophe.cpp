@@ -299,7 +299,7 @@ void FXmppConnectionStrophe::ReceiveStanza(const FStropheStanza& Stanza)
 	UE_LOG(LogXmpp, Verbose, TEXT("Received Strophe XMPP Stanza %s"), *Stanza.GetName());
 
 	// Reset our ping timer now that we've received traffic
-	if (PingStrophe.IsValid())
+	if (PingStrophe.IsValid() && ServerConfiguration.bResetPingTimeoutOnReceiveStanza)
 	{
 		PingStrophe->ResetPingTimer();
 	}

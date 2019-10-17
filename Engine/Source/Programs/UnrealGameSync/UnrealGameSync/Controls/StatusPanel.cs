@@ -175,7 +175,7 @@ namespace UnrealGameSync
 
 		public override Size Measure(Graphics Graphics, StatusElementResources Resources)
 		{
-			return TextRenderer.MeasureText(Graphics, Text, Resources.FindOrAddFont(Style), new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding);
+			return TextRenderer.MeasureText(Graphics, Text, Resources.FindOrAddFont(Style), new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
 		}
 
 		public override void Draw(Graphics Graphics, StatusElementResources Resources)
@@ -189,7 +189,7 @@ namespace UnrealGameSync
 			{
 				TextColor = Color.FromArgb(TextColor.B, TextColor.G, TextColor.R);
 			}
-			TextRenderer.DrawText(Graphics, Text, Resources.FindOrAddFont(Style), Bounds.Location, TextColor, TextFormatFlags.NoPadding);
+			TextRenderer.DrawText(Graphics, Text, Resources.FindOrAddFont(Style), Bounds.Location, TextColor, TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
 		}
 	}
 

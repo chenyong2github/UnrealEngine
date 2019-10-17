@@ -21,6 +21,7 @@
 #include "pxr/usd/usd/modelAPI.h"
 #include "pxr/usd/usd/relationship.h"
 #include "pxr/usd/usd/references.h"
+#include "pxr/usd/usd/stageCacheContext.h"
 #include "pxr/usd/usdGeom/modelAPI.h"
 #include "pxr/usd/usdGeom/mesh.h"
 #include "pxr/usd/usdGeom/xformCommonAPI.h"
@@ -660,7 +661,7 @@ namespace Internal
 
 std::string DiscoverInformationAboutUsdMaterial(const UsdShadeMaterial& ShadeMaterial, const UsdGeomGprim& boundPrim)
 {
-	std::string ShadingEngineName = (ShadeMaterial ? ShadeMaterial.GetPrim() : boundPrim.GetPrim()).GetName().GetString();
+	std::string ShadingEngineName = (ShadeMaterial ? ShadeMaterial.GetPrim() : boundPrim.GetPrim()).GetPrimPath().GetString();
 	return ShadingEngineName;
 }
 
@@ -931,7 +932,7 @@ void UnrealUSDWrapper::Initialize(const std::vector<std::string>& InPluginDirect
 	bInitialized = true;
 }
 
-TUsdStore< pxr::UsdStageRefPtr > UnrealUSDWrapper::ImportUSDFile(const char* Path, const char* Filename)
+TUsdStore< pxr::UsdStageRefPtr > UnrealUSDWrapper::OpenUsdStage(const char* Path, const char* Filename)
 {
 	Errors.clear();
 
@@ -947,7 +948,10 @@ TUsdStore< pxr::UsdStageRefPtr > UnrealUSDWrapper::ImportUSDFile(const char* Pat
 	string PathAndFilename = string(Path) + string(Filename);
 
 	bool bIsSupported = UsdStage::IsSupportedFile(PathAndFilename);
+	
+	FScopedUsdAllocs UsdAllocs;
 
+	pxr::UsdStageCacheContext UsdStageCacheContext( GetUsdStageCache() );
 	UsdStageRefPtr Stage = UsdStage::Open(PathAndFilename);
 
 	if (!ErrorMark.IsClean())
@@ -975,6 +979,11 @@ const char* UnrealUSDWrapper::GetErrors()
 	return Errors.length() > 0 ? Errors.c_str() : nullptr;
 }
 
+pxr::UsdStageCache& UnrealUSDWrapper::GetUsdStageCache()
+{
+	static TUsdStore< pxr::UsdStageCache > UsdStageCache;
+	return UsdStageCache.Get();
+}
 #endif // USE_USD_SDK
 
 class FUnrealUSDWrapperModule : public IUnrealUSDWrapperModule

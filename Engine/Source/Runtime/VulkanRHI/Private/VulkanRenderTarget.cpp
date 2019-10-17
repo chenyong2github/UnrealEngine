@@ -926,14 +926,31 @@ void FVulkanDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rec
 	}
 }
 
-void FVulkanDynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI,void*& OutData,int32& OutWidth,int32& OutHeight)
+void FVulkanDynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, FRHIGPUFence* FenceRHI, void*& OutData, int32& OutWidth, int32& OutHeight)
 {
 	FRHITexture2D* TextureRHI2D = TextureRHI->GetTexture2D();
 	check(TextureRHI2D);
 	FVulkanTexture2D* Texture2D = ResourceCast(TextureRHI2D);
 
+	int32 Pitch = Texture2D->GetSizeX();
+	if (ensureMsgf(Texture2D->Surface.GetTiling() == VK_IMAGE_TILING_LINEAR, TEXT("RHIMapStagingSurface() called with a %d x %d texture in non-linear tiling %d, the result will likely be garbled."), static_cast<int32>(Texture2D->GetSizeX()), static_cast<int32>(Texture2D->GetSizeY()), static_cast<int32>(Texture2D->Surface.GetTiling())))
+	{
+		// Pitch can be only retrieved from linear textures.
+		VkImageSubresource ImageSubResource;
+		FMemory::Memzero(ImageSubResource);
 
-	OutWidth = Texture2D->GetSizeX();
+		ImageSubResource.aspectMask = Texture2D->Surface.GetFullAspectMask();
+		ImageSubResource.mipLevel = 0;
+		ImageSubResource.arrayLayer = 0;
+
+		VkSubresourceLayout SubResourceLayout;
+		VulkanRHI::vkGetImageSubresourceLayout(Device->GetInstanceHandle(), Texture2D->Surface.Image, &ImageSubResource, &SubResourceLayout);
+
+		int32 BytesPerPixel = GetNumBitsPerPixel(Texture2D->Surface.StorageFormat) / 8;
+		Pitch = SubResourceLayout.rowPitch / BytesPerPixel;
+	}
+
+	OutWidth = Pitch;
 	OutHeight = Texture2D->GetSizeY();
 
 	OutData = Texture2D->Surface.GetMappedPointer();
@@ -941,9 +958,9 @@ void FVulkanDynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI,void*& OutD
 }
 
 
-void FVulkanDynamicRHI::RHIMapStagingSurface_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, void*& OutData, int32& OutWidth, int32& OutHeight)
+void FVulkanDynamicRHI::RHIMapStagingSurface_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, FRHIGPUFence* Fence, void*& OutData, int32& OutWidth, int32& OutHeight)
 {
-	RHIMapStagingSurface(Texture, OutData, OutWidth, OutHeight);
+	RHIMapStagingSurface(Texture, Fence, OutData, OutWidth, OutHeight);
 }
 
 void FVulkanDynamicRHI::RHIUnmapStagingSurface_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture)

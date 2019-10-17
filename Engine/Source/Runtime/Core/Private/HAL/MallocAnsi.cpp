@@ -9,9 +9,9 @@
 #include "Math/UnrealMathUtility.h"
 #include "Templates/AlignmentTemplates.h"
 
-#if PLATFORM_UNIX || PLATFORM_HTML5
+#if PLATFORM_UNIX
 	#include <malloc.h>
-#endif // PLATFORM_UNIX || PLATFORM_HTML5
+#endif // PLATFORM_UNIX
 
 #if PLATFORM_IOS
 	#include "mach/mach.h"
@@ -153,8 +153,6 @@ FMallocAnsi::FMallocAnsi()
 
 void* FMallocAnsi::Malloc( SIZE_T Size, uint32 Alignment )
 {
-	IncrementTotalMallocCalls();
-
 #if !UE_BUILD_SHIPPING
 	uint64 LocalMaxSingleAlloc = MaxSingleAlloc.Load(EMemoryOrder::Relaxed);
 	if (LocalMaxSingleAlloc != 0 && Size > LocalMaxSingleAlloc)
@@ -177,8 +175,6 @@ void* FMallocAnsi::Malloc( SIZE_T Size, uint32 Alignment )
 
 void* FMallocAnsi::Realloc( void* Ptr, SIZE_T NewSize, uint32 Alignment )
 {
-	IncrementTotalReallocCalls();
-
 #if !UE_BUILD_SHIPPING
 	uint64 LocalMaxSingleAlloc = MaxSingleAlloc.Load(EMemoryOrder::Relaxed);
 	if (LocalMaxSingleAlloc != 0 && NewSize > LocalMaxSingleAlloc)
@@ -202,7 +198,6 @@ void* FMallocAnsi::Realloc( void* Ptr, SIZE_T NewSize, uint32 Alignment )
 
 void FMallocAnsi::Free( void* Ptr )
 {
-	IncrementTotalFreeCalls();
 	AnsiFree(Ptr);
 }
 

@@ -466,7 +466,7 @@ public:
 	friend void operator<<(FStructuredArchive::FSlot Slot, FBox& Box)
 	{
 		FStructuredArchive::FRecord Record = Slot.EnterRecord();
-		Record << NAMED_ITEM("Min", Box.Min) << NAMED_ITEM("Max", Box.Max) << NAMED_ITEM("IsValid", Box.IsValid);
+		Record << SA_VALUE(TEXT("Min"), Box.Min) << SA_VALUE(TEXT("Max"), Box.Max) << SA_VALUE(TEXT("IsValid"), Box.IsValid);
 	}
 
 	bool Serialize( FArchive& Ar )

@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "PacketHandler.h"
-#include "PacketAudit.h"
+#include "Net/Core/Misc/PacketAudit.h"
 #include "EncryptionComponent.h"
 
 #include "Misc/ConfigCacheIni.h"
@@ -10,7 +10,7 @@
 #include "UObject/Package.h"
 #include "HAL/ConsoleManager.h"
 
-#include "DDoSDetection.h"
+#include "Net/Core/Misc/DDoSDetection.h"
 #include "HandlerComponentFactory.h"
 #include "ReliabilityHandlerComponent.h"
 #include "PacketHandlerProfileConfig.h"
@@ -322,11 +322,12 @@ TSharedPtr<HandlerComponent> PacketHandler::AddHandler(const FString& ComponentS
 			{
 				FPacketHandlerComponentModuleInterface* PacketHandlerInterface = FModuleManager::Get().LoadModulePtr<FPacketHandlerComponentModuleInterface>(FName(*ComponentName));
 
-				if (PacketHandlerInterface)
+				if (PacketHandlerInterface != nullptr)
 				{
 					ReturnVal = PacketHandlerInterface->CreateComponentInstance(ComponentOptions);
 				}
-				else
+
+				if (!ReturnVal.IsValid())
 				{
 					UE_LOG(PacketHandlerLog, Warning, TEXT("Unable to Load Module: %s"), *ComponentName);
 				}

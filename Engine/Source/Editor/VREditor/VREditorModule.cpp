@@ -36,7 +36,7 @@ public:
 	virtual void EnableVREditor( const bool bEnable, const bool bForceWithoutHMD ) override;
 	virtual bool IsVREditorModeActive() override;
 	virtual UVREditorMode* GetVRMode() override;
-	virtual void UpdateActorPreview(TSharedRef<SWidget> InWidget, int32 Index, AActor *Actor) override;
+	virtual void UpdateActorPreview(TSharedRef<SWidget> InWidget, int32 Index, AActor *Actor, bool bIsPanelDetached = false) override;
 	virtual void UpdateExternalUMGUI(const FVREditorFloatingUICreationContext& CreationContext) override;
 	virtual void UpdateExternalSlateUI(TSharedRef<SWidget> InSlateWidget, FName Name, FVector2D InSize) override;
 	virtual TSharedPtr<FExtender> GetRadialMenuExtender() override
@@ -113,9 +113,9 @@ UVREditorMode* FVREditorModule::GetVRMode()
 	return ModeManager.GetCurrentVREditorMode();
 }
 
-void FVREditorModule::UpdateActorPreview(TSharedRef<SWidget> InWidget, int32 Index, AActor* Actor)
+void FVREditorModule::UpdateActorPreview(TSharedRef<SWidget> InWidget, int32 Index, AActor* Actor, bool bIsPanelDetached)
 {
-	GetVRMode()->RefreshActorPreviewWidget(InWidget, Index, Actor);
+	GetVRMode()->RefreshActorPreviewWidget(InWidget, Index, Actor, bIsPanelDetached);
 }
   
 void FVREditorModule::UpdateExternalUMGUI(const FVREditorFloatingUICreationContext& CreationContext)

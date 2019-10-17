@@ -525,12 +525,15 @@ void USkeletalMeshComponent::UpdateKinematicBonesToAnim(const TArray<FTransform>
 	}
 #endif
 
+#if !(WITH_CHAOS) // TODO Deferred update not implemented yet in Chaos.
+
 	// If we are only using bodies for physics, don't need to move them right away, can defer until simulation (unless told not to)
 	if (DeferralAllowed == EAllowKinematicDeferral::AllowDeferral && (bDeferKinematicBoneUpdate || BodyInstance.GetCollisionEnabled() == ECollisionEnabled::PhysicsOnly))
 	{
 		PhysScene->MarkForPreSimKinematicUpdate(this, Teleport, bNeedsSkinning);
 		return;
 	}
+#endif
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	// If desired, draw the skeleton at the point where we pass it to the physics.
@@ -586,9 +589,10 @@ void USkeletalMeshComponent::UpdateKinematicBonesToAnim(const TArray<FTransform>
 						continue;
 					}
 					FPhysicsActorHandle& ActorHandle = BodyInst->ActorHandle;
-					const bool bIsRigidBody = FPhysicsInterface::IsRigidBody(ActorHandle);
 
-					if (FPhysicsInterface::IsValid(ActorHandle) && bIsRigidBody && (bTeleport || !BodyInst->IsInstanceSimulatingPhysics()))	//If we have a body and it's kinematic, or we are teleporting a simulated body
+					if (FPhysicsInterface::IsValid(ActorHandle) &&
+						!FPhysicsInterface::IsStatic(ActorHandle) &&
+						(bTeleport || !BodyInst->IsInstanceSimulatingPhysics()))	//If we have a body and it's kinematic, or we are teleporting a simulated body
 					{
 						const int32 BoneIndex = BodyInst->InstanceBoneIndex;
 

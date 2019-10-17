@@ -10,6 +10,13 @@
 #include "Misc/Paths.h"
 #include <cxxabi.h>
 
+#if PLATFORM_TCHAR_IS_CHAR16
+#define FP_TEXT_PASTE(x) L ## x
+#define WTEXT(x) FP_TEXT_PASTE(x)
+#else
+#define WTEXT TEXT
+#endif
+
 FString ExtractRelativePath( const TCHAR* BaseName, TCHAR const* FullName )
 {
 	FString FullPath = FString( FullName ).ToLower();
@@ -47,7 +54,7 @@ static int32 ParseReportVersion(TCHAR const* CrashLog, int32& OutVersion)
 	TCHAR const* VersionLine = FCStringWide::Strstr(CrashLog, TEXT("Report Version:"));
 	if (VersionLine)
 	{
-		Found = swscanf(VersionLine, TEXT("%*ls %*ls %d"), &OutVersion);
+		Found = swscanf(TCHAR_TO_WCHAR(VersionLine), WTEXT("%*ls %*ls %d"), &OutVersion);
 	}
 	return Found;
 }
@@ -58,10 +65,11 @@ static int32 ParseVersion(TCHAR const* CrashLog, int32& OutMajor, int32& OutMino
 	TCHAR const* VersionLine = FCStringWide::Strstr(CrashLog, TEXT("Version:"));
 	if (VersionLine)
 	{
-		TCHAR Branch[257] = {0};
-		Found = swscanf(VersionLine, TEXT("%*s %d.%d.%d (%*d.%*d.%*d-%d+%256ls)"), &OutMajor, &OutMinor, &OutBuild, &OutChangeList, Branch);
+		wchar_t RawBranch[257] = {0};
+		Found = swscanf(TCHAR_TO_WCHAR(VersionLine), WTEXT("%*s %d.%d.%d (%*d.%*d.%*d-%d+%256ls)"), &OutMajor, &OutMinor, &OutBuild, &OutChangeList, RawBranch);
 		if(Found == 5)
 		{
+			TCHAR* Branch = WCHAR_TO_TCHAR(RawBranch);
 			TCHAR* BranchEnd = FCStringWide::Strchr(Branch, TEXT(')'));
 			if(BranchEnd)
 			{
@@ -79,11 +87,11 @@ static int32 ParseOS(TCHAR const* CrashLog, uint16& OutMajor, uint16& OutMinor, 
 	TCHAR const* VersionLine = FCStringWide::Strstr(CrashLog, TEXT("OS Version:"));
 	if (VersionLine)
 	{
-		Found = swscanf(VersionLine, TEXT("%*s %*s Mac OS X %hd.%hd.%hd (%hxd)"), &OutMajor, &OutMinor, &OutPatch, &OutBuild);
+		Found = swscanf(TCHAR_TO_WCHAR(VersionLine), WTEXT("%*s %*s Mac OS X %hd.%hd.%hd (%hxd)"), &OutMajor, &OutMinor, &OutPatch, &OutBuild);
         if ( Found == 2 )
         {
             OutPatch = 0;
-            Found += swscanf(VersionLine, TEXT("%*s %*s Mac OS X %*hd.%*hd (%hxd)"), &OutBuild) + 1;
+            Found += swscanf(TCHAR_TO_WCHAR(VersionLine), WTEXT("%*s %*s Mac OS X %*hd.%*hd (%hxd)"), &OutBuild) + 1;
         }
 	}
 	return Found;
@@ -205,14 +213,16 @@ static int32 ParseExceptionCode(TCHAR const* CrashLog, uint32& OutExceptionCode)
 	TCHAR const* Line = FCStringWide::Strstr(CrashLog, TEXT("Exception Type:"));
 	if(Line)
 	{
-		TCHAR Buffer[257] = {0};
-		Found = swscanf(Line, TEXT("%*s %*s %*s (%256ls)"), Buffer);
+		wchar_t RawBuffer[257] = {0};
+		Found = swscanf(TCHAR_TO_WCHAR(Line), WTEXT("%*s %*s %*s (%256ls)"), RawBuffer);
 		if(!Found)
 		{
-			Found = swscanf(Line, TEXT("%*s %*s %256ls"), Buffer);
+			Found = swscanf(TCHAR_TO_WCHAR(Line), WTEXT("%*s %*s %256ls"), RawBuffer);
 		}
 		if(Found)
 		{
+			TCHAR* Buffer = WCHAR_TO_TCHAR(RawBuffer);
+
 			TCHAR* End = FCStringWide::Strchr(Buffer, TEXT(')'));
 			if(End)
 			{
@@ -256,7 +266,7 @@ static int32 ParseExceptionCode(TCHAR const* CrashLog, uint32& OutExceptionCode)
 			}
 			else if(FString(Buffer).IsNumeric())
 			{
-				Found = swscanf(Buffer, TEXT("%u"), &OutExceptionCode);
+				Found = swscanf(TCHAR_TO_WCHAR(Buffer), WTEXT("%u"), &OutExceptionCode);
 			}
 			else
 			{
@@ -274,7 +284,7 @@ static int32 ParseCrashedThread(TCHAR const* CrashLog, uint32& OutThreadNumber)
 	TCHAR const* Line = FCStringWide::Strstr(CrashLog, TEXT("Crashed Thread:"));
 	if (Line)
 	{
-		Found = swscanf(Line, TEXT("%*s %*s %u"), &OutThreadNumber);
+		Found = swscanf(TCHAR_TO_WCHAR(Line), WTEXT("%*s %*s %u"), &OutThreadNumber);
 	}
 	return Found;
 }
@@ -285,7 +295,7 @@ static int32 ParseProcessID(TCHAR const* CrashLog, uint32& OutPID)
 	TCHAR const* Line = FCStringWide::Strstr(CrashLog, TEXT("Process:"));
 	if (Line)
 	{
-		Found = swscanf(Line, TEXT("%*s %*s [%u]"), &OutPID);
+		Found = swscanf(TCHAR_TO_WCHAR(Line), WTEXT("%*s %*s [%u]"), &OutPID);
 	}
 	return Found;
 }
@@ -318,18 +328,18 @@ static TCHAR const* FindCrashedThreadStack(TCHAR const* CrashLog)
 
 static int32 ParseThreadStackLine(TCHAR const* StackLine, FString& OutModuleName, uint64& OutProgramCounter, FString& OutFunctionName, FString& OutFileName, int32& OutLineNumber)
 {
-	TCHAR ModuleName[257];
-	TCHAR FunctionName[1025];
-	TCHAR FileName[257];
+	wchar_t RawModuleName[257];
+	wchar_t RawFunctionName[1025];
+	wchar_t RawFileName[257];
 	
-	int32 Found = swscanf(StackLine, TEXT("%*d %256ls 0x%lx"), ModuleName, &OutProgramCounter);
+	int32 Found = swscanf(TCHAR_TO_WCHAR(StackLine), WTEXT("%*d %256ls 0x%lx"), RawModuleName, &OutProgramCounter);
 	if(Found == 2)
 	{
 		uint64 FunctionAddress = 0;
 		uint32 FunctionOffset = 0;
-		if(swscanf(StackLine, TEXT("%*d %*ls %*lx 0x%lx + %d"), &FunctionAddress, &FunctionOffset) == 0)
+		if(swscanf(TCHAR_TO_WCHAR(StackLine), WTEXT("%*d %*ls %*lx 0x%lx + %d"), &FunctionAddress, &FunctionOffset) == 0)
 		{
-			Found += swscanf(StackLine, TEXT("%*d %*ls %*lx %1024ls + %*d (%256ls:%d)"), FunctionName, FileName, &OutLineNumber);
+			Found += swscanf(TCHAR_TO_WCHAR(StackLine), WTEXT("%*d %*ls %*lx %1024ls + %*d (%256ls:%d)"), RawFunctionName, RawFileName, &OutLineNumber);
 		}
 	}
 	
@@ -338,11 +348,12 @@ static int32 ParseThreadStackLine(TCHAR const* StackLine, FString& OutModuleName
 		case 5:
 		case 4:
 		{
-			OutFileName = FileName;
+			OutFileName = WCHAR_TO_TCHAR(RawFileName);
 		}
 		case 3:
 		{
 			int32 Status = -1;
+			const TCHAR* FunctionName = WCHAR_TO_TCHAR(RawFunctionName);
 			ANSICHAR* DemangledName = abi::__cxa_demangle(TCHAR_TO_UTF8(FunctionName), nullptr, nullptr, &Status);
 			if(DemangledName && Status == 0)
 			{
@@ -363,7 +374,7 @@ static int32 ParseThreadStackLine(TCHAR const* StackLine, FString& OutModuleName
 		case 2:
 		case 1:
 		{
-			OutModuleName = ModuleName;
+			OutModuleName = WCHAR_TO_TCHAR(RawModuleName);
 		}
 		default:
 		{
@@ -436,12 +447,12 @@ static TCHAR const* FindModules(TCHAR const* CrashLog)
 static int32 ParseModuleVersion(TCHAR const* Version, uint16& OutMajor, uint16& OutMinor, uint16& OutPatch, uint16& OutBuild)
 {
 	OutMajor = OutMinor = OutPatch = OutBuild = 0;
-	int32 Found = swscanf(Version, TEXT("%hu.%hu.%hu"), &OutMajor, &OutMinor, &OutPatch);
+	int32 Found = swscanf(TCHAR_TO_WCHAR(Version), WTEXT("%hu.%hu.%hu"), &OutMajor, &OutMinor, &OutPatch);
 	TCHAR const* CurrentStart = FCStringWide::Strchr(Version, TEXT('-'));
 	if(CurrentStart)
 	{
 		int32 Components[3] = {0, 0, 0};
-		int32 Result = swscanf(CurrentStart, TEXT("%*ls %d.%d.%d"), &Components[0], &Components[1], &Components[2]);
+		int32 Result = swscanf(TCHAR_TO_WCHAR(CurrentStart), WTEXT("%*ls %d.%d.%d"), &Components[0], &Components[1], &Components[2]);
 		OutBuild = (uint16)(Components[0] * 10000) + (Components[1] * 100) + (Components[2]);
 		Found = 4;
 	}
@@ -451,11 +462,11 @@ static int32 ParseModuleVersion(TCHAR const* Version, uint16& OutMajor, uint16& 
 static bool ParseModuleLine(TCHAR const* ModuleLine, FCrashModuleInfo& OutModule)
 {
 	bool bOK = false;
-	TCHAR ModuleName[257] = {0};
+	wchar_t RawModuleName[257] = {0};
 	uint64 ModuleBase = 0;
 	uint64 ModuleEnd = 0;
 	
-	int32 Found = swscanf(ModuleLine, TEXT("%lx %*ls %lx %256ls"), &ModuleBase, &ModuleEnd, ModuleName);
+	int32 Found = swscanf(TCHAR_TO_WCHAR(ModuleLine), WTEXT("%lx %*ls %lx %256ls"), &ModuleBase, &ModuleEnd, RawModuleName);
 	switch (Found)
 	{
 		case 3:

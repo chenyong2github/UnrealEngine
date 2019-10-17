@@ -316,9 +316,10 @@ struct FLifetimeCustomDeltaState
 {
 public:
 
-	FLifetimeCustomDeltaState(uint16 TotalNumberOfLifetimeProperties)
+	FLifetimeCustomDeltaState(int32 HighestCustomDeltaRepIndex)
 	{
-		LifetimeCustomDeltaIndexLookup.Init(static_cast<uint16>(INDEX_NONE), TotalNumberOfLifetimeProperties);
+		check(HighestCustomDeltaRepIndex >= 0);
+		LifetimeCustomDeltaIndexLookup.Init(static_cast<uint16>(INDEX_NONE), HighestCustomDeltaRepIndex + 1);
 	}
 
 	void CountBytes(FArchive& Ar) const
@@ -1522,8 +1523,9 @@ void FRepLayout::UpdateChangelistHistory(
 
 		if (HistoryItem.OutPacketIdRange.First == INDEX_NONE)
 		{
-			//  Hasn't been initialized in PostReplicate yet
-			continue;
+			// Hasn't been initialized in PostReplicate yet
+			// No need to go further, otherwise we'll overwrite entries incorrectly.
+			break;
 		}
 
 		// All active history items should contain a change list
@@ -1538,21 +1540,17 @@ void FRepLayout::UpdateChangelistHistory(
 				TArray<uint16> Temp = MoveTemp(*OutMerged);
 				MergeChangeList(Data, HistoryItem.Changed, Temp, *OutMerged);
 
-				HistoryItem.Changed.Empty();
-
 #ifdef SANITY_CHECK_MERGES
 				SanityCheckChangeList(Data, *OutMerged);
 #endif
 
 				if (HistoryItem.Resend)
 				{
-					HistoryItem.Resend = false;
 					RepState->NumNaks--;
 				}
 			}
 
-			HistoryItem.Changed.Empty();
-			HistoryItem.OutPacketIdRange = FPacketIdRange();
+			HistoryItem.Reset();
 			RepState->HistoryStart++;
 		}
 	}
@@ -1560,7 +1558,7 @@ void FRepLayout::UpdateChangelistHistory(
 	// Remove any tiling in the history markers to keep them from wrapping over time
 	const int32 NewHistoryCount	= RepState->HistoryEnd - RepState->HistoryStart;
 
-	check(NewHistoryCount <= FSendingRepState::MAX_CHANGE_HISTORY);
+	check(NewHistoryCount < FSendingRepState::MAX_CHANGE_HISTORY);
 
 	RepState->HistoryStart = RepState->HistoryStart % FSendingRepState::MAX_CHANGE_HISTORY;
 	RepState->HistoryEnd = RepState->HistoryStart + NewHistoryCount;
@@ -3437,12 +3435,12 @@ bool FRepLayout::MoveMappedObjectToUnmapped(
 }
 
 void FRepLayout::UpdateUnmappedObjects_r(
-	FReceivingRepState* RESTRICT RepState, 
+	FReceivingRepState* RESTRICT RepState,
 	FGuidReferencesMap* GuidReferencesMap,
 	UObject* OriginalObject,
-	UPackageMap* PackageMap, 
-	FRepShadowDataBuffer ShadowData, 
-	FRepObjectDataBuffer Data, 
+	UPackageMap* PackageMap,
+	FRepShadowDataBuffer ShadowData,
+	FRepObjectDataBuffer Data,
 	const int32 MaxAbsOffset,
 	bool& bCalledPreNetReceive,
 	bool& bOutSomeObjectsWereMapped,
@@ -3464,13 +3462,18 @@ void FRepLayout::UpdateUnmappedObjects_r(
 		const FRepLayoutCmd& Cmd = Cmds[GuidReferences.CmdIndex];
 		const FRepParentCmd& Parent = Parents[GuidReferences.ParentIndex];
 
+		// Make sure if we're touching an array element, we use the correct offset for shadow values.
+		// This should always be safe, because MaxAbsOffset will account for ShadowArray size for arrays.
+		// For non array properties, AbsOffset should always equal Cmd.Offset.
+		const int32 ShadowOffset = (AbsOffset - Cmd.Offset) + Cmd.ShadowOffset;
+
 		if (GuidReferences.Array != nullptr)
 		{
 			check(Cmd.Type == ERepLayoutCmdType::DynamicArray);
-			
+
 			if (ShadowData)
 			{
-				FScriptArray* ShadowArray = (FScriptArray*)(ShadowData + Cmd).Data;
+				FScriptArray* ShadowArray = (FScriptArray*)(ShadowData + ShadowOffset).Data;
 				FScriptArray* Array = (FScriptArray*)(Data + AbsOffset).Data;
 
 				FRepShadowDataBuffer ShadowArrayData(ShadowArray->GetData());
@@ -3494,7 +3497,7 @@ void FRepLayout::UpdateUnmappedObjects_r(
 		bool bMappedSomeGUIDs = false;
 
 		for (auto UnmappedIt = GuidReferences.UnmappedGUIDs.CreateIterator(); UnmappedIt; ++UnmappedIt)
-		{			
+		{
 			const FNetworkGUID& GUID = *UnmappedIt;
 
 			if (PackageMap->IsGUIDBroken(GUID, false))
@@ -3538,7 +3541,7 @@ void FRepLayout::UpdateUnmappedObjects_r(
 			// Copy current value over so we can check to see if it changed
 			if (bUpdateShadowState)
 			{
-				StoreProperty(Cmd, ShadowData + Cmd, Data + AbsOffset);
+				StoreProperty(Cmd, ShadowData + ShadowOffset, Data + AbsOffset);
 			}
 
 			// Initialize the reader with the stored buffer that we need to read from
@@ -3556,7 +3559,7 @@ void FRepLayout::UpdateUnmappedObjects_r(
 				// That could cause us to trigger RepNotifies more often for Dynamic Array properties.
 				// That goes for the above too.
 
-				if (Parent.RepNotifyCondition == REPNOTIFY_Always || !PropertiesAreIdentical(Cmd, ShadowData + Cmd, Data + AbsOffset))
+				if (Parent.RepNotifyCondition == REPNOTIFY_Always || !PropertiesAreIdentical(Cmd, ShadowData + ShadowOffset, Data + AbsOffset))
 				{
 					// If this properties needs an OnRep, queue that up to be handled later
 					RepState->RepNotifies.AddUnique(Parent.Property);
@@ -4988,6 +4991,7 @@ void FRepLayout::InitFromClass(
 
 	int32 RelativeHandle = 0;
 	int32 LastOffset = INDEX_NONE;
+	int32 HighestCustomDeltaRepIndex = INDEX_NONE;
 
 	InObjectClass->SetUpRuntimeReplicationData();
 	Parents.Empty(InObjectClass->ClassReps.Num());
@@ -5043,6 +5047,11 @@ void FRepLayout::InitFromClass(
 			    RemoteRoleIndex = ParentHandle;
 		    }
 	    }
+
+		if (EnumHasAnyFlags(Parents[ParentHandle].Flags, ERepParentFlags::IsCustomDelta))
+		{
+			HighestCustomDeltaRepIndex = ParentHandle;
+		}
 	}
 
 	// Make sure it either found both, or didn't find either
@@ -5113,7 +5122,12 @@ void FRepLayout::InitFromClass(
 
 			if (!LifetimeCustomPropertyState)
 			{
-				LifetimeCustomPropertyState.Reset(new FLifetimeCustomDeltaState(LifetimeProps.Num()));
+				// We can't use the number of Lifetime Properties, because that could be smaller than
+				// the highest RepIndex of a Custom Delta Property, because properties may be disabled, removed,
+				// or just never added.
+				// For similar reasons, we don't want to use the total number of replicated properties, especially
+				// if we know we'll never use anything beyond the last Custom Delta Property anyway.
+				LifetimeCustomPropertyState.Reset(new FLifetimeCustomDeltaState(HighestCustomDeltaRepIndex));
 			}
 
 			// If we're a FastArraySerializer, we'll look for our replicated item type.

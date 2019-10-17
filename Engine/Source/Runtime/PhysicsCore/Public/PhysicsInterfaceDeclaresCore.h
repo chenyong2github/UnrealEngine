@@ -33,6 +33,9 @@ namespace physx
 
 	template<typename T>
 	struct PxHitBuffer;
+	
+	template<typename T>
+	struct PxHitCallback;
 }
 
 namespace PhysXInterface
@@ -54,6 +57,11 @@ using FPhysicsGeometry = physx::PxGeometry;
 using FPhysicsCapsuleGeometry = physx::PxCapsuleGeometry;
 using FPhysicsMaterial = physx::PxMaterial;
 using FPhysicsActor = physx::PxRigidActor;
+
+template <typename T>
+using FPhysicsHitCallback = physx::PxHitCallback<T>;
+
+struct FQueryDebugParams {};
 
 #elif WITH_CHAOS
 

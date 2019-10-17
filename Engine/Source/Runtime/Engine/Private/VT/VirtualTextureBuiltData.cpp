@@ -163,7 +163,7 @@ void FVirtualTextureBuiltData::Serialize(FArchive& Ar, UObject* Owner, int32 Fir
 			Ar << Chunk.CodecPayloadOffset[LayerIndex];
 		}
 
-		Chunk.BulkData.Serialize(Ar, Owner, SerialzeChunkId);
+		Chunk.BulkData.Serialize(Ar, Owner, SerialzeChunkId, false);
 
 #if WITH_EDITORONLY_DATA
 		if (!bCooked)

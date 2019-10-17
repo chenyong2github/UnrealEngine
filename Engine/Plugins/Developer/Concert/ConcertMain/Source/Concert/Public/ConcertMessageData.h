@@ -12,13 +12,13 @@
 class FStructOnScope;
 
 UENUM()
-enum class EConcertSeverFlags : uint8
+enum class EConcertServerFlags : uint8
 {
 	None = 0,
 	//The server will ignore the session requirement when someone try to join a session
 	IgnoreSessionRequirement = 1 << 0,
 };
-ENUM_CLASS_FLAGS(EConcertSeverFlags)
+ENUM_CLASS_FLAGS(EConcertServerFlags)
 
 
 /** Holds info on an instance communicating through concert */
@@ -74,7 +74,7 @@ struct FConcertServerInfo
 
 	/** Contains information on the server settings */
 	UPROPERTY(VisibleAnywhere, Category = "Server Info")
-	EConcertSeverFlags ServerFlags;
+	EConcertServerFlags ServerFlags;
 };
 
 /** Holds info on a client connected through concert */
@@ -199,7 +199,7 @@ struct FConcertSessionFilter
 
 	/**
 	 * Return true if the given activity ID passes the ID tests of this filter.
-	 * @note This function only tests the ID conditions, not any data specific checks like bOnlyLiveData.
+	 * @note This function only tests the ID conditions, not any data specific checks like bOnlyLiveData and bIncludeIgnoredActivities.
 	 */
 	CONCERT_API bool ActivityIdPassesFilter(const int64 InActivityId) const;
 
@@ -222,6 +222,14 @@ struct FConcertSessionFilter
 	/** True if only live data should be included (live transactions and head package revisions) */
 	UPROPERTY()
 	bool bOnlyLiveData = false;
+
+	/** True to export the activity summaries without the package/transaction data to look at the log rather than replaying the activities. */
+	UPROPERTY()
+	bool bMetaDataOnly = false;
+
+	/** True to include ignored activities */
+	UPROPERTY()
+	bool bIncludeIgnoredActivities = false;
 };
 
 USTRUCT()
@@ -282,7 +290,7 @@ struct FConcertSessionSerializedCborPayload
 	CONCERT_API bool GetPayload(const UScriptStruct* InPayloadType, void* InOutPayloadData) const;
 
 	template <typename T>
-	bool GetTypedPayload(T& OutPayloadData)
+	bool GetTypedPayload(T& OutPayloadData) const
 	{
 		return GetPayload(TBaseStructure<T>::Get(), &OutPayloadData);
 	}

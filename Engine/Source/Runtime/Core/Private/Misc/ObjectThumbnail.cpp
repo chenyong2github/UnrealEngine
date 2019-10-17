@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/ObjectThumbnail.h"
-#include "Serialization/StructuredArchiveFromArchive.h"
+#include "Serialization/StructuredArchive.h"
 
 /** Static: Thumbnail compressor */
 FThumbnailCompressionInterface* FObjectThumbnail::ThumbnailCompressor = NULL;
@@ -36,8 +36,8 @@ void FObjectThumbnail::Serialize( FArchive& Ar )
 void FObjectThumbnail::Serialize(FStructuredArchive::FSlot Slot)
 {
 	FStructuredArchive::FRecord Record = Slot.EnterRecord();
-	Record << NAMED_FIELD(ImageWidth);
-	Record << NAMED_FIELD(ImageHeight);
+	Record << SA_VALUE(TEXT("ImageWidth"), ImageWidth);
+	Record << SA_VALUE(TEXT("ImageHeight"), ImageHeight);
 
 	//if the image thinks it's empty, ensure there is no memory waste
 	if ((ImageWidth == 0) || (ImageHeight == 0))
@@ -52,11 +52,11 @@ void FObjectThumbnail::Serialize(FStructuredArchive::FSlot Slot)
 		CompressImageData();
 	}
 
-	Record << NAMED_FIELD(CompressedImageData);
+	Record << SA_VALUE(TEXT("CompressedImageData"), CompressedImageData);
 
 	if (Slot.GetUnderlyingArchive().IsCountingMemory())
 	{
-		Record << NAMED_FIELD(ImageData) << NAMED_FIELD(bIsDirty);
+		Record << SA_VALUE(TEXT("ImageData"), ImageData) << SA_VALUE(TEXT("bIsDirty"), bIsDirty);
 	}
 
 	if (Slot.GetUnderlyingArchive().IsLoading())

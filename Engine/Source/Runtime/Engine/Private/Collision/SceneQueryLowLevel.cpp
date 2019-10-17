@@ -1,7 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #if WITH_PHYSX
-
 #include "PhysXPublic.h"
 #endif
 #include "Physics/PhysicsInterfaceDeclares.h"
@@ -16,12 +15,10 @@
 
 #include "PhysTestSerializer.h"
 
-#if INCLUDE_CHAOS
 #include "SQAccelerator.h"
 #include "SQVerifier.h"
 #include "PBDRigidsSolver.h"
 #include "Chaos/PBDRigidsEvolutionGBF.h"
-#endif
 
 int32 ForceStandardSQ = 0;
 FAutoConsoleVariableRef CVarForceStandardSQ(TEXT("p.ForceStandardSQ"), ForceStandardSQ, TEXT("If enabled, we force the standard scene query even if custom SQ structure is enabled"));
@@ -42,7 +39,7 @@ void FinalizeCapture(FPhysTestSerializer& Serializer)
 	{
 		Serializer.Serialize(TEXT("SQCapture"));
 	}
-#if INCLUDE_CHAOS && WITH_PHYSX
+#if WITH_PHYSX
 	if (ReplaySQs)
 	{
 		const bool bReplaySuccess = SQComparisonHelper(Serializer);
@@ -64,14 +61,28 @@ constexpr int32 ReplaySQs = 0;
 void FinalizeCapture(FPhysTestSerializer& Serializer) {}
 #endif
 
-void LowLevelRaycast(FPhysScene& Scene, const FVector& Start, const FVector& Dir, float DeltaMag, FPhysicsHitCallback<FHitRaycast>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback)
+void LowLevelRaycast(FPhysScene& Scene, const FVector& Start, const FVector& Dir, float DeltaMag, FPhysicsHitCallback<FHitRaycast>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const FQueryDebugParams& DebugParams)
 {
 #if !defined(PHYSICS_INTERFACE_PHYSX) || !PHYSICS_INTERFACE_PHYSX
-	if (const auto& SolverAccelerationStructure = Scene.GetScene().SolverAccelerationStructure)
+	if (const auto& SolverAccelerationStructure = Scene.GetScene().GetSpacialAcceleration())
 	{
-		FChaosSQAccelerator SQAccelerator(*SolverAccelerationStructure.Get());
-		//ISQAccelerator* SQAccelerator = Scene.GetSQAccelerator();
-		SQAccelerator.Raycast(Start, Dir, DeltaMag, HitBuffer, OutputFlags, QueryFilterData, *QueryCallback);
+		FChaosSQAccelerator SQAccelerator(*SolverAccelerationStructure);
+		double Time = 0.0;
+		{
+			FScopedDurationTimer Timer(Time);
+			SQAccelerator.Raycast(Start, Dir, DeltaMag, HitBuffer, OutputFlags, QueryFilterData, *QueryCallback, DebugParams);
+		}
+
+		/*if (((SerializeSQs && Time * 1000.0 * 1000.0 > SerializeSQs) || (false)) && IsInGameThread())
+		{
+			FPhysTestSerializer Serializer;
+			Serializer.SetPhysicsData(*Scene.GetSolver()->GetEvolution());
+			FSQCapture& RaycastCapture = Serializer.CaptureSQ();
+			RaycastCapture.StartCaptureChaosRaycast(*Scene.GetSolver()->GetEvolution(), Start, Dir, DeltaMag, OutputFlags, QueryFilterData, Filter, *QueryCallback);
+			RaycastCapture.EndCaptureChaosRaycast(HitBuffer);
+
+			FinalizeCapture(Serializer);
+		}*/
 	}
 #else
 	if (SerializeSQs | ReplaySQs)
@@ -92,14 +103,53 @@ void LowLevelRaycast(FPhysScene& Scene, const FVector& Start, const FVector& Dir
 #endif
 }
 
-void LowLevelSweep(FPhysScene& Scene, const FPhysicsGeometry& QueryGeom, const FTransform& StartTM, const FVector& Dir, float DeltaMag, FPhysicsHitCallback<FHitSweep>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback)
+void LowLevelSweep(FPhysScene& Scene, const FPhysicsGeometry& QueryGeom, const FTransform& StartTM, const FVector& Dir, float DeltaMag, FPhysicsHitCallback<FHitSweep>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const FQueryDebugParams& DebugParams)
 {
 #if !defined(PHYSICS_INTERFACE_PHYSX) || !PHYSICS_INTERFACE_PHYSX
-	if (const auto& SolverAccelerationStructure = Scene.GetScene().SolverAccelerationStructure)
+	if (const auto& SolverAccelerationStructure = Scene.GetScene().GetSpacialAcceleration())
 	{
-		FChaosSQAccelerator SQAccelerator(*SolverAccelerationStructure.Get());
-		//ISQAccelerator* SQAccelerator = Scene.GetSQAccelerator();
-		SQAccelerator.Sweep(QueryGeom, StartTM, Dir, DeltaMag, HitBuffer, OutputFlags, QueryFilterData, *QueryCallback);
+		FChaosSQAccelerator SQAccelerator(*SolverAccelerationStructure);
+		{
+			//ISQAccelerator* SQAccelerator = Scene.GetSQAccelerator();
+			double Time = 0.0;
+			{
+				FScopedDurationTimer Timer(Time);
+				SQAccelerator.Sweep(QueryGeom, StartTM, Dir, DeltaMag, HitBuffer, OutputFlags, QueryFilterData, *QueryCallback, DebugParams);
+			}
+			
+			if (((SerializeSQs && Time * 1000.0 * 1000.0 > SerializeSQs) || (false)) && IsInGameThread())
+			{
+				FPhysTestSerializer Serializer;
+				Serializer.SetPhysicsData(*Scene.GetSolver()->GetEvolution());
+				FSQCapture& SweepCapture = Serializer.CaptureSQ();
+				SweepCapture.StartCaptureChaosSweep(*Scene.GetSolver()->GetEvolution(), QueryGeom, StartTM, Dir, DeltaMag, OutputFlags, QueryFilterData, Filter, *QueryCallback);
+				SweepCapture.EndCaptureChaosSweep(HitBuffer);
+
+				FinalizeCapture(Serializer);
+			}
+		}
+
+		/*if (SerializeSQs && IsInGameThread())
+		{
+			FPhysTestSerializer Serializer;
+			Serializer.SetPhysicsData(*Scene.GetSolver()->GetEvolution());
+			FSQCapture& SweepCapture = Serializer.CaptureSQ();
+			SweepCapture.StartCaptureChaosSweep(*Scene.GetSolver()->GetEvolution(), QueryGeom, StartTM, Dir, DeltaMag, OutputFlags, QueryFilterData, Filter, *QueryCallback);
+			SQAccelerator.Sweep(QueryGeom, StartTM, Dir, DeltaMag, HitBuffer, OutputFlags, QueryFilterData, *QueryCallback);
+			SweepCapture.EndCaptureChaosSweep(HitBuffer);
+
+			FinalizeCapture(Serializer);
+		}
+		else
+		{
+			//ISQAccelerator* SQAccelerator = Scene.GetSQAccelerator();
+			double Time = 0.0;
+			{
+				FScopedDurationTimer Timer(Time);
+				SQAccelerator.Sweep(QueryGeom, StartTM, Dir, DeltaMag, HitBuffer, OutputFlags, QueryFilterData, *QueryCallback);
+			}
+			if(Time > )
+		}*/
 	}
 #else
 	if (SerializeSQs | ReplaySQs)
@@ -120,14 +170,28 @@ void LowLevelSweep(FPhysScene& Scene, const FPhysicsGeometry& QueryGeom, const F
 #endif
 }
 
-void LowLevelOverlap(FPhysScene& Scene, const FPhysicsGeometry& QueryGeom, const FTransform& GeomPose, FPhysicsHitCallback<FHitOverlap>& HitBuffer, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback)
+void LowLevelOverlap(FPhysScene& Scene, const FPhysicsGeometry& QueryGeom, const FTransform& GeomPose, FPhysicsHitCallback<FHitOverlap>& HitBuffer, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const FQueryDebugParams& DebugParams)
 {
 #if !defined(PHYSICS_INTERFACE_PHYSX) || !PHYSICS_INTERFACE_PHYSX
-	if (const auto& SolverAccelerationStructure = Scene.GetScene().SolverAccelerationStructure)
+	if (const auto& SolverAccelerationStructure = Scene.GetScene().GetSpacialAcceleration())
 	{
-		FChaosSQAccelerator SQAccelerator(*SolverAccelerationStructure.Get());
-		//ISQAccelerator* SQAccelerator = Scene.GetSQAccelerator();
-		SQAccelerator.Overlap(QueryGeom, GeomPose, HitBuffer, QueryFilterData, *QueryCallback);
+		FChaosSQAccelerator SQAccelerator(*SolverAccelerationStructure);
+		if (false && SerializeSQs && IsInGameThread())
+		{
+			FPhysTestSerializer Serializer;
+			Serializer.SetPhysicsData(*Scene.GetSolver()->GetEvolution());
+			FSQCapture& OverlapCapture = Serializer.CaptureSQ();
+			OverlapCapture.StartCaptureChaosOverlap(*Scene.GetSolver()->GetEvolution(), QueryGeom, GeomPose, QueryFilterData, Filter, *QueryCallback);
+			SQAccelerator.Overlap(QueryGeom, GeomPose, HitBuffer, QueryFilterData, *QueryCallback);
+			OverlapCapture.EndCaptureChaosOverlap(HitBuffer);
+
+			FinalizeCapture(Serializer);
+		}
+		else
+		{
+			//ISQAccelerator* SQAccelerator = Scene.GetSQAccelerator();
+			SQAccelerator.Overlap(QueryGeom, GeomPose, HitBuffer, QueryFilterData, *QueryCallback);
+		}
 	}
 #else
 	if (SerializeSQs | ReplaySQs)

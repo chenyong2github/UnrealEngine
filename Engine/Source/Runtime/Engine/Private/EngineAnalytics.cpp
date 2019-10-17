@@ -15,14 +15,23 @@
 #include "EngineSessionManager.h"
 #include "Misc/EngineVersion.h"
 #include "RHI.h"
-#include "Analytics/EditorSessionSummary.h"
+
+#if WITH_EDITOR
+#include "EditorAnalyticsSession.h"
+#include "EditorSessionSummarySender.h"
+#include "Analytics/EditorSessionSummaryWriter.h"
+#endif
+
+#include "GenericPlatform/GenericPlatformCrashContext.h"
 
 bool FEngineAnalytics::bIsInitialized;
 TSharedPtr<IAnalyticsProviderET> FEngineAnalytics::Analytics;
 TSharedPtr<FEngineSessionManager> FEngineAnalytics::SessionManager;
 
+#if WITH_EDITOR
 static TSharedPtr<FEditorSessionSummaryWriter> SessionSummaryWriter;
 static TSharedPtr<FEditorSessionSummarySender> SessionSummarySender;
+#endif
 
 /**
 * Default config func.
@@ -155,6 +164,7 @@ void FEngineAnalytics::Initialize()
 			SessionManager->Initialize();
 		}
 
+#if WITH_EDITOR
 		if (!SessionSummaryWriter.IsValid())
 		{
 			SessionSummaryWriter = MakeShareable(new FEditorSessionSummaryWriter());
@@ -163,17 +173,18 @@ void FEngineAnalytics::Initialize()
 
 		if (!SessionSummarySender.IsValid())
 		{
-			SessionSummarySender = MakeShareable(new FEditorSessionSummarySender());
+			// if we're using out-of-process crash reporting, then we don't need to create a sender in this process.
+			if (!FGenericCrashContext::IsOutOfProcessCrashReporter())
+			{
+				SessionSummarySender = MakeShared<FEditorSessionSummarySender>(FEngineAnalytics::GetProvider(), TEXT("Editor"), FPlatformProcess::GetCurrentProcessId());
+			}
 		}
+#endif
 	}
 }
 
 void FEngineAnalytics::Shutdown(bool bIsEngineShutdown)
 {
-	ensure(!Analytics.IsValid() || Analytics.IsUnique());
-	Analytics.Reset();
-	bIsInitialized = false;
-
 	// Destroy the session manager singleton if it exists
 	if (SessionManager.IsValid() && bIsEngineShutdown)
 	{
@@ -181,13 +192,24 @@ void FEngineAnalytics::Shutdown(bool bIsEngineShutdown)
 		SessionManager.Reset();
 	}
 
+#if WITH_EDITOR
 	if (SessionSummaryWriter.IsValid())
 	{
 		SessionSummaryWriter->Shutdown();
 		SessionSummaryWriter.Reset();
 	}
 
-	SessionSummarySender.Reset();
+	if (SessionSummarySender.IsValid())
+	{
+		SessionSummarySender->Shutdown();
+		SessionSummarySender.Reset();
+	}
+#endif
+
+	bIsInitialized = false;
+
+	ensure(!Analytics.IsValid() || Analytics.IsUnique());
+	Analytics.Reset();
 }
 
 void FEngineAnalytics::Tick(float DeltaTime)
@@ -199,6 +221,7 @@ void FEngineAnalytics::Tick(float DeltaTime)
 		SessionManager->Tick(DeltaTime);
 	}
 
+#if WITH_EDITOR
 	if (SessionSummaryWriter.IsValid())
 	{
 		SessionSummaryWriter->Tick(DeltaTime);
@@ -208,6 +231,7 @@ void FEngineAnalytics::Tick(float DeltaTime)
 	{
 		SessionSummarySender->Tick(DeltaTime);
 	}
+#endif
 }
 
 void FEngineAnalytics::LowDriveSpaceDetected()

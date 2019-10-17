@@ -13,38 +13,130 @@
 using namespace Chaos;
 
 template<typename T, int d>
-TPBDConstraintGraph<T, d>::TPBDConstraintGraph()
+TPBDConstraintGraph<T, d>::TPBDConstraintGraph() : VisitToken(0)
 {
 }
 
 template<typename T, int d>
-TPBDConstraintGraph<T, d>::TPBDConstraintGraph(const TParticleView<TGeometryParticles<T, d>>& Particles)
+TPBDConstraintGraph<T, d>::TPBDConstraintGraph(const TParticleView<TGeometryParticles<T, d>>& Particles) : VisitToken(0)
 {
 	InitializeGraph(Particles);
 }
 
+/**
+ * Bill added this.
+ * Adds new Node to Nodes array when a new particle is created
+ */
+template<typename T, int d>
+void TPBDConstraintGraph<T, d>::ParticleAdd(TGeometryParticleHandle<T, d>* AddedParticle)
+{
+	int32 NewNodeIndex = GetNextNodeIndex();
+
+	FGraphNode& Node = Nodes[NewNodeIndex];
+	ensure(Node.Edges.Num() == 0);
+	ensure(Node.Island == INDEX_NONE);
+	ensure(ParticleToNodeIndex.Find(AddedParticle) == nullptr);
+
+	Node.Particle = AddedParticle->Handle();
+	ParticleToNodeIndex.Add(Node.Particle, NewNodeIndex);
+	Visited.Add(0);
+}
+
+/**
+ * Bill added this
+ * Removes Node from Nodes array - marking it an unused, also clears ParticleToNodeIndex
+ */
+template<typename T, int d>
+void TPBDConstraintGraph<T, d>::ParticleRemove(TGeometryParticleHandle<T, d>* RemovedParticle)
+{
+	if (ParticleToNodeIndex.Contains(RemovedParticle))
+	{
+		int32 NodeIdx = ParticleToNodeIndex[RemovedParticle];
+		FreeIndexList.Push(NodeIdx);
+
+		FGraphNode& NodeRemoved = Nodes[NodeIdx];
+		NodeRemoved.Edges.Empty();
+		NodeRemoved.Particle = nullptr;
+		NodeRemoved.Island = INDEX_NONE;
+
+		Visited[NodeIdx]=0;
+		ParticleToNodeIndex.Remove(RemovedParticle);
+	}
+}
+
+
+template<typename T, int d>
+int32 TPBDConstraintGraph<T, d>::GetNextNodeIndex()
+{
+	int32 NewNodeIndex = Nodes.Num();
+	if (FreeIndexList.Num() > 0)
+	{
+		NewNodeIndex = FreeIndexList.Pop();
+	}
+
+	if (Nodes.Num() <= NewNodeIndex)
+	{
+		Nodes.SetNum(NewNodeIndex + 1);
+	}
+
+	return NewNodeIndex;
+}
+
+/**
+ * Called every frame, it used to clear all Nodes, Edges, ParticleToNodeIndex
+ * then AddToGraph on constraint rules would fill up
+ *
+ * Now clears Edges and attempts to retain Nodes and ParticleToNodeIndex
+ * It is still setting up nodes that don't have a constraint so wasted effort iterating over all nodes, better to iterate over constraints or don't fill out Nodes if they don't have a constraint
+ */
 template<typename T, int d>
 void TPBDConstraintGraph<T, d>::InitializeGraph(const TParticleView<TGeometryParticles<T, d>>& Particles)
 {
 	const int32 NumNonDisabledParticles = Particles.Num();
 
-	Nodes.Reset();
-	Nodes.AddDefaulted(NumNonDisabledParticles);
+	if(NumNonDisabledParticles && Nodes.Num()==0)
+	{
+		ensure(FreeIndexList.Num()==0);
+		Nodes.Reset();
+		Nodes.AddDefaulted(NumNonDisabledParticles);
+
+		ParticleToNodeIndex.Reset();
+		ParticleToNodeIndex.Reserve(NumNonDisabledParticles);
+		{
+			int32 Index = 0;
+			for (auto& Particle : Particles)
+			{
+				FGraphNode& Node = Nodes[Index];
+				Node.Particle = Particle.Handle();
+				ParticleToNodeIndex.Add(Node.Particle, Index);
+				++Index;
+			}
+		}
+
+		Visited.Reset();
+		Visited.AddZeroed(NumNonDisabledParticles);
+	}
+	else
+	{
+		ensure(NumNonDisabledParticles <= Nodes.Num());
+
+		// Update nodes may contain duplicate entries. To process in parallel we either need to prevent that, 
+		// or ensure we only process the first entry of a dupe. We are doing the latter for now...
+		UpdatedNodes.Sort();
+		ParallelFor(UpdatedNodes.Num(), 
+			[&](int32 Index)
+			{
+				if ((Index == 0) || (UpdatedNodes[Index] != UpdatedNodes[Index - 1]))
+				{
+					Nodes[UpdatedNodes[Index]].Island = INDEX_NONE;
+					Nodes[UpdatedNodes[Index]].Edges.Empty();
+				}
+			});
+		UpdatedNodes.Empty();
+
+	}
 
 	Edges.Reset();
-
-	ParticleToNodeIndex.Reset();
-	ParticleToNodeIndex.Reserve(NumNonDisabledParticles);
-	{
-		int32 Index = 0;
-		for (auto& Particle : Particles)
-		{
-			FGraphNode& Node = Nodes[Index];
-			Node.Particle = Particle.Handle();
-			ParticleToNodeIndex.Add(Node.Particle, Index);
-			++Index;
-		}
-	}
 
 	//@todo(ocohen): Should we reset more than just the edges? What about bIsIslandPersistant?
 	for (TArray<int32>& IslandConstraintList : IslandToConstraints)
@@ -93,20 +185,27 @@ void TPBDConstraintGraph<T, d>::AddConstraint(const uint32 InContainerId, TConst
 	FGraphEdge NewEdge;
 	NewEdge.Data = { InContainerId, InConstraintHandle };
 
-	if (ConstrainedParticles[0])
+	int32* PNodeIndex0 = (ConstrainedParticles[0])? ParticleToNodeIndex.Find(ConstrainedParticles[0]) : nullptr;
+	int32* PNodeIndex1 = (ConstrainedParticles[1])? ParticleToNodeIndex.Find(ConstrainedParticles[1]) : nullptr;
+	if (ensure(PNodeIndex0 || PNodeIndex1))
 	{
-		NewEdge.FirstNode = ParticleToNodeIndex[ConstrainedParticles[0]];
-		Nodes[NewEdge.FirstNode].Particle = ConstrainedParticles[0];
-		Nodes[NewEdge.FirstNode].Edges.Add(NewEdgeIndex);
-	}
-	if (ConstrainedParticles[1])
-	{
-		NewEdge.SecondNode = ParticleToNodeIndex[ConstrainedParticles[1]];
-		Nodes[NewEdge.SecondNode].Particle = ConstrainedParticles[1];
-		Nodes[NewEdge.SecondNode].Edges.Add(NewEdgeIndex);
-	}
+		if (PNodeIndex0)
+		{
+			NewEdge.FirstNode = *PNodeIndex0;
+			Nodes[NewEdge.FirstNode].Particle = ConstrainedParticles[0];
+			Nodes[NewEdge.FirstNode].Edges.Add(NewEdgeIndex);
+			UpdatedNodes.Add(NewEdge.FirstNode);
+		}
+		if (PNodeIndex1)
+		{
+			NewEdge.SecondNode = *PNodeIndex1;
+			Nodes[NewEdge.SecondNode].Particle = ConstrainedParticles[1];
+			Nodes[NewEdge.SecondNode].Edges.Add(NewEdgeIndex);
+			UpdatedNodes.Add(NewEdge.SecondNode);
+		}
 
-	Edges.Add(MoveTemp(NewEdge));
+		Edges.Add(MoveTemp(NewEdge));
+	}
 }
 
 template<typename T, int d>
@@ -123,14 +222,14 @@ void TPBDConstraintGraph<T, d>::UpdateIslands(const TParticleView<TPBDRigidParti
 	{
 		PBDRigid.Island() = INDEX_NONE;
 	}
-	ComputeIslands(Particles);
+	ComputeIslands(PBDRigids, Particles);
 }
 
 
 DECLARE_CYCLE_STAT(TEXT("IslandGeneration2"), STAT_IslandGeneration2, STATGROUP_Chaos);
 
 template<typename T, int d>
-void TPBDConstraintGraph<T, d>::ComputeIslands(TPBDRigidsSOAs<T,d>& Particles)
+void TPBDConstraintGraph<T, d>::ComputeIslands(const TParticleView<TPBDRigidParticles<T,d>>& PBDRigids, TPBDRigidsSOAs<T,d>& Particles)
 {
 	SCOPE_CYCLE_COUNTER(STAT_IslandGeneration2);
 
@@ -138,12 +237,34 @@ void TPBDConstraintGraph<T, d>::ComputeIslands(TPBDRigidsSOAs<T,d>& Particles)
 	TArray<TSet<TGeometryParticleHandle<T, d>*>> NewIslandParticles;
 	TArray<int32> NewIslandToSleepCount;
 
-	const int32 NumNodes = Nodes.Num();
-	for (int32 Idx = 0; Idx < NumNodes; ++Idx)
+	VisitToken++;
+	if (VisitToken==0)
 	{
-		TGeometryParticleHandle<T, d>* Particle = Nodes[Idx].Particle;
+		VisitToken++;
+	}
 
-		if (Nodes[Idx].Island >= 0 || Particle->AsDynamic() == nullptr)
+	// Instead of iterating over every node to reset Island, only iterate over the ones we care about for the following ComputeIslands algorithm to work 
+	ParallelFor(Edges.Num(), [&](int32 Idx)
+	{
+		const FGraphEdge& Edge = Edges[Idx];
+		Nodes[Edge.FirstNode].Island = INDEX_NONE;
+		if (Edge.SecondNode != -1)
+		{
+			Nodes[Edge.SecondNode].Island = INDEX_NONE;
+		}
+	});
+
+	for (auto& Particle : PBDRigids)
+	{
+		int32 Idx = ParticleToNodeIndex[Particle.Handle()];
+		// selective reset of islands, don't reset if has been visited due to being edge connected to earlier processed node
+		if (Visited[Idx] && Visited[Idx] != VisitToken)
+		{
+			Nodes[Idx].Island = INDEX_NONE;
+			Visited[Idx] = VisitToken;
+		}
+
+		if (Nodes[Idx].Island >= 0)
 		{
 			// Island is already known - it was visited in ComputeIsland for a previous node
 			continue;
@@ -362,6 +483,7 @@ void TPBDConstraintGraph<T, d>::ComputeIsland(const int32 InNode, const int32 Is
 
 		DynamicParticlesInIsland.Add(Node.Particle);
 		Node.Island = Island;
+		Visited[NodeIndex] = VisitToken;
 
 		for (const int32 EdgeIndex : Node.Edges)
 		{
@@ -518,6 +640,8 @@ void TPBDConstraintGraph<T, d>::EnableParticle(TGeometryParticleHandle<T, d>* Pa
 	{
 		if (const TPBDRigidParticleHandle<T, d>* ParentPBDRigid = ParentParticle->AsDynamic())
 		{
+			ParticleAdd(Particle);
+
 			if (TPBDRigidParticleHandle<T, d>* ChildPBDRigid = Particle->AsDynamic())
 			{
 				const int32 Island = ParentPBDRigid->Island();
@@ -556,6 +680,8 @@ void TPBDConstraintGraph<T, d>::DisableParticle(TGeometryParticleHandle<T, d>* P
 				IslandToParticles[Island].RemoveAtSwap(IslandParticleArrayIdx);
 			}
 		}
+
+		ParticleRemove(Particle);
 	}
 }
 

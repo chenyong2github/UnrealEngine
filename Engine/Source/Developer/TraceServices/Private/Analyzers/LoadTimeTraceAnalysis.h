@@ -27,36 +27,28 @@ public:
 	virtual ~FAsyncLoadingTraceAnalyzer();
 
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
-	virtual void OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
-	virtual void OnAnalysisEnd() override;
+	virtual bool OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
 	
 private:
 	struct FRequestState;
 	struct FAsyncPackageState;
 
-	struct FLoadMapState
+	struct FRequestGroupState
 	{
-		uint64 Id;
 		FString Name;
-		uint64 WallTimeStartCycle;
-		uint64 WallTimeEndCycle;
 		TArray<TSharedRef<FRequestState>> Requests;
-	};
-
-	struct FStreamableHandleState
-	{
-		uint64 Id;
-		FString DebugName;
-		uint64 WallTimeStartCycle;
-		uint64 WallTimeEndCycle;
-		TArray<TSharedRef<FRequestState>> Requests;
+		Trace::FLoadRequest* LoadRequest = nullptr;
+		uint64 LatestEndCycle = 0;
+		uint64 ActiveRequestsCount = 0;
+		bool bIsClosed = false;
 	};
 
 	struct FRequestState
 	{
-		uint64 Id;
 		uint64 WallTimeStartCycle;
 		uint64 WallTimeEndCycle;
+		uint32 ThreadId;
+		TSharedPtr<FRequestGroupState> Group;
 		TArray<TSharedRef<FAsyncPackageState>> AsyncPackages;
 	};
 
@@ -70,7 +62,7 @@ private:
 	{
 		Trace::FPackageInfo* PackageInfo = nullptr;
 		TSharedPtr<FLinkerState> LinkerState;
-		TArray<TSharedRef<FRequestState>> Requests;
+		TSharedPtr<FRequestState> Request;
 	};
 
 	struct FScopeStackEntry
@@ -84,82 +76,17 @@ private:
 		FScopeStackEntry CpuScopeStack[256];
 		uint64 CpuScopeStackDepth = 0;
 		Trace::FLoadTimeProfilerCpuEvent CurrentEvent;
-		uint64 WaitForStreamableHandleStartCycle = 0;
-		TSharedPtr<FStreamableHandleState> WaitForStreamableHandleHandle;
-		TSharedPtr<FLoadMapState> ActiveLoadMap;
+		TArray<TSharedPtr<FRequestGroupState>> RequestGroupStack;
 		
-		TSharedPtr<Trace::FLoadTimeProfilerProvider::CpuTimelineInternal> CpuTimeline;
+		Trace::FLoadTimeProfilerProvider::CpuTimelineInternal* CpuTimeline;
 
-		void EnterPackageScope(double Time, const Trace::FPackageInfo* PackageInfo, ELoadTimeProfilerPackageEventType EventType)
-		{
-			FScopeStackEntry& StackEntry = CpuScopeStack[CpuScopeStackDepth++];
-			StackEntry.Event.Export = CurrentEvent.Export;
-			StackEntry.Event.ExportEventType = CurrentEvent.ExportEventType;
-			StackEntry.Event.Package = PackageInfo;
-			StackEntry.Event.PackageEventType = EventType;
-			if (PackageInfo && CurrentEvent != StackEntry.Event)
-			{
-				CurrentEvent = StackEntry.Event;
-				CpuTimeline->AppendBeginEvent(Time, StackEntry.Event);
-				StackEntry.EnteredEvent = true;
-			}
-			else
-			{
-				StackEntry.EnteredEvent = false;
-			}
-		}
-
-		void EnterExportScope(double Time, const Trace::FPackageExportInfo* ExportInfo, ELoadTimeProfilerObjectEventType EventType)
-		{
-			FScopeStackEntry& StackEntry = CpuScopeStack[CpuScopeStackDepth++];
-			StackEntry.Event.Export = ExportInfo;
-			StackEntry.Event.ExportEventType = EventType;
-			StackEntry.Event.Package = CurrentEvent.Package;
-			StackEntry.Event.PackageEventType = CurrentEvent.PackageEventType;
-
-			if (ExportInfo && CurrentEvent != StackEntry.Event)
-			{
-				CurrentEvent = StackEntry.Event;
-				CpuTimeline->AppendBeginEvent(Time, StackEntry.Event);
-				StackEntry.EnteredEvent = true;
-			}
-			else
-			{
-				StackEntry.EnteredEvent = false;
-			}
-		}
-
-		void LeaveScope(double Time)
-		{
-			FScopeStackEntry& StackEntry = CpuScopeStack[--CpuScopeStackDepth];
-			if (StackEntry.EnteredEvent)
-			{
-				CpuTimeline->AppendEndEvent(Time);
-			}
-			if (CpuScopeStackDepth > 0)
-			{
-				CurrentEvent = CpuScopeStack[CpuScopeStackDepth - 1].Event;
-			}
-			else
-			{
-				CurrentEvent = Trace::FLoadTimeProfilerCpuEvent();
-			}
-		}
-
-		Trace::FPackageExportInfo* GetCurrentExportScope()
-		{
-			if (CpuScopeStackDepth > 0)
-			{
-				FScopeStackEntry& StackEntry = CpuScopeStack[CpuScopeStackDepth - 1];
-				return const_cast<Trace::FPackageExportInfo*>(StackEntry.Event.Export);
-			}
-			else
-			{
-				return nullptr;
-			}
-		}
+		void EnterPackageScope(double Time, const Trace::FPackageInfo* PackageInfo, ELoadTimeProfilerPackageEventType EventType);
+		void EnterExportScope(double Time, const Trace::FPackageExportInfo* ExportInfo, ELoadTimeProfilerObjectEventType EventType);
+		void LeaveScope(double Time);
+		Trace::FPackageExportInfo* GetCurrentExportScope();
 	};
 
+	void PackageRequestAssociation(const FOnEventContext& Context, TSharedRef<FAsyncPackageState> AsyncPackageState, TSharedRef<FRequestState> RequestState);
 	TSharedRef<FThreadState> GetThreadState(uint32 ThreadId);
 	const Trace::FClassInfo* GetClassInfo(uint64 ClassPtr) const;
 
@@ -174,51 +101,40 @@ private:
 		RouteId_DestroyAsyncPackage,
 		RouteId_BeginRequest,
 		RouteId_EndRequest,
-		RouteId_BeginLoadMap,
-		RouteId_EndLoadMap,
-		RouteId_NewStreamableHandle,
-		RouteId_DestroyStreamableHandle,
-		RouteId_BeginLoadStreamableHandle,
-		RouteId_EndLoadStreamableHandle,
-		RouteId_BeginWaitForStreamableHandle,
-		RouteId_EndWaitForStreamableHandle,
+		RouteId_BeginRequestGroup,
+		RouteId_EndRequestGroup,
 		RouteId_PackageSummary,
-		RouteId_StreamableHandleRequestAssociation,
 		RouteId_AsyncPackageRequestAssociation,
 		RouteId_AsyncPackageLinkerAssociation,
-		RouteId_LinkerArchiveAssociation,
+		RouteId_AsyncPackageImportDependency,
 		RouteId_BeginAsyncPackageScope,
 		RouteId_EndAsyncPackageScope,
 		RouteId_BeginCreateExport,
 		RouteId_EndCreateExport,
 		RouteId_BeginObjectScope,
 		RouteId_EndObjectScope,
-		RouteId_BeginFlushAsyncLoading,
-		RouteId_EndFlushAsyncLoading,
 		RouteId_ClassInfo,
 	};
 
+	enum
+	{
+		FormatBufferSize = 65536
+	};
+	TCHAR FormatBuffer[FormatBufferSize];
+	TCHAR TempBuffer[FormatBufferSize];
+
 	Trace::IAnalysisSession& Session;
 	Trace::FLoadTimeProfilerProvider& LoadTimeProfilerProvider;
-	//TSharedPtr<Trace::FMonotonicTimeline<uint64>> BlockingRequestsTimeline;
 
-	TArray<TSharedRef<FLoadMapState>> Maps;
-	TArray<TSharedRef<FStreamableHandleState>> StreamableHandles;
-	TArray<TSharedRef<FRequestState>> Requests;
+	//TArray<TSharedRef<FRequestState>> Requests;
 
 	TMap<uint64, TSharedRef<FLinkerState>> ActiveLinkersMap;
 	TMap<uint64, TSharedRef<FAsyncPackageState>> ActiveAsyncPackagesMap;
 	TMap<uint64, Trace::FPackageExportInfo*> ExportsMap;
-	TMap<uint64, TSharedRef<FStreamableHandleState>> ActiveStreamableHandlesMap;
 	TMap<uint64, TSharedRef<FRequestState>> ActiveRequestsMap;
 	TMap<uint32, TSharedRef<FThreadState>> ThreadStatesMap;
 	TMap<uint64, const Trace::FClassInfo*> ClassInfosMap;
 
-	uint64 FlushAsyncLoadingRequestId;
-	uint64 FlushAsyncLoadingStartCycle;
-
-	uint64 NextMapId = 0;
-	uint64 NextStreamableHandleId = 0;
 	int64 MainThreadId = -1;
 	int64 AsyncLoadingThreadId = -1;
 };

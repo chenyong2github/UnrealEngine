@@ -77,7 +77,7 @@ public:
 	/* Object that is currently being constructed with ObjectInitializer */
 	UObject* ConstructedObject;
 	/** Async Package currently processing objects */
-	struct FAsyncPackage* AsyncPackage;
+	class FGCObject* AsyncPackage;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	/** Stack to ensure that PostInitProperties is routed through Super:: calls. **/

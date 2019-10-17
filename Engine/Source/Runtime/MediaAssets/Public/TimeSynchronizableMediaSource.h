@@ -11,6 +11,8 @@ namespace TimeSynchronizableMedia
 {
 	/** Name of bUseTimeSynchronization media option. */
 	static FName UseTimeSynchronizatioOption("UseTimeSynchronization");
+	static FName FrameDelay("FrameDelay");
+	static FName TimeDelay("TimeDelay");
 }
 
 /**
@@ -35,9 +37,20 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category=Synchronization, meta=(DisplayName="Synchronize with Engine's Timecode"))
 	bool bUseTimeSynchronization;
 
+	/** When using Time Synchronization, how many frame back should it read. */
+	UPROPERTY(EditAnywhere, Category=Synchronization, meta=(EditCondition="bUseTimeSynchronization"))
+	int32 FrameDelay;
+
+	/** When not using Time Synchronization, how far back it time should it read. */
+	UPROPERTY(EditAnywhere, Category=Synchronization, meta=(EditCondition="!bUseTimeSynchronization", ForceUnits=s))
+	double TimeDelay;
+
 public:
 	//~ IMediaOptions interface
 	using Super::GetMediaOption;
 	virtual bool GetMediaOption(const FName& Key, bool DefaultValue) const override;
+	virtual int64 GetMediaOption(const FName& Key, int64 DefaultValue) const override;
+	virtual double GetMediaOption(const FName& Key, double DefaultValue) const override;
+	virtual FString GetMediaOption(const FName& Key, const FString& DefaultValue) const override;
 	virtual bool HasMediaOption(const FName& Key) const override;
 };

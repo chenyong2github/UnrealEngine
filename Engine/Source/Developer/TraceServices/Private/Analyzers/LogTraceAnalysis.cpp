@@ -20,7 +20,7 @@ void FLogTraceAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_LogMessage, "Logging", "LogMessage");
 }
 
-void FLogTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
+bool FLogTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 {
 	Trace::FAnalysisSessionEditScope _(Session);
 
@@ -29,21 +29,21 @@ void FLogTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 	{
 	case RouteId_LogCategory:
 	{
-		uint64 CategoryPointer = EventData.GetValue("CategoryPointer").As<uint64>();
+		uint64 CategoryPointer = EventData.GetValue<uint64>("CategoryPointer");
 		Trace::FLogCategory& Category = LogProvider.GetCategory(CategoryPointer);
 		Category.Name = Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment()));
-		Category.DefaultVerbosity = static_cast<ELogVerbosity::Type>(EventData.GetValue("DefaultVerbosity").As<uint8>());
+		Category.DefaultVerbosity = static_cast<ELogVerbosity::Type>(EventData.GetValue<uint8>("DefaultVerbosity"));
 		break;
 	}
 	case RouteId_LogMessageSpec:
 	{
-		uint64 LogPoint = EventData.GetValue("LogPoint").As<uint64>();
+		uint64 LogPoint = EventData.GetValue<uint64>("LogPoint");
 		Trace::FLogMessageSpec& Spec = LogProvider.GetMessageSpec(LogPoint);
-		uint64 CategoryPointer = EventData.GetValue("CategoryPointer").As<uint64>();
+		uint64 CategoryPointer = EventData.GetValue<uint64>("CategoryPointer");
 		Trace::FLogCategory& Category = LogProvider.GetCategory(CategoryPointer);
 		Spec.Category = &Category;
-		Spec.Line = EventData.GetValue("Line").As<int32>();
-		Spec.Verbosity = static_cast<ELogVerbosity::Type>(EventData.GetValue("Verbosity").As<uint8>());
+		Spec.Line = EventData.GetValue<int32>("Line");
+		Spec.Verbosity = static_cast<ELogVerbosity::Type>(EventData.GetValue<uint8>("Verbosity"));
 		const ANSICHAR* File = reinterpret_cast<const ANSICHAR*>(EventData.GetAttachment());
 		Spec.File = Session.StoreString(ANSI_TO_TCHAR(File));
 		Spec.FormatString = Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment() + strlen(File) + 1));
@@ -51,10 +51,12 @@ void FLogTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 	}
 	case RouteId_LogMessage:
 	{
-		uint64 LogPoint = EventData.GetValue("LogPoint").As<uint64>();
-		uint64 Cycle = EventData.GetValue("Cycle").As<uint64>();
+		uint64 LogPoint = EventData.GetValue<uint64>("LogPoint");
+		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
 		LogProvider.AppendMessage(LogPoint, Context.SessionContext.TimestampFromCycle(Cycle), EventData.GetAttachment());
 		break;
 	}
 	}
+
+	return true;
 }

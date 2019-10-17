@@ -4,12 +4,14 @@
 
 #include "AssetEditor/MediaProfileCommands.h"
 #include "AssetToolsModule.h"
+#include "ClassViewerFilter.h"
 #include "Factories/MediaProfileFactoryNew.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "IAssetTools.h"
+#include "Kismet2/SClassPickerDialog.h"
 #include "LevelEditor.h"
 #include "Misc/FeedbackContext.h"
 #include "Modules/ModuleManager.h"
@@ -68,14 +70,37 @@ struct FMediaProfileMenuEntryImpl
 
 	void CreateNewProfile()
 	{
-		UMediaProfileFactoryNew* FactoryInstance = DuplicateObject<UMediaProfileFactoryNew>(GetDefault<UMediaProfileFactoryNew>(), GetTransientPackage());
-		FAssetToolsModule& AssetToolsModule = FAssetToolsModule::GetModule();
-		UMediaProfile* NewAsset = Cast<UMediaProfile>(FAssetToolsModule::GetModule().Get().CreateAssetWithDialog(FactoryInstance->GetSupportedClass(), FactoryInstance));
-		if (NewAsset != nullptr)
+		class FModifierClassFilter : public IClassViewerFilter
 		{
-			GetMutableDefault<UMediaProfileEditorSettings>()->SetUserMediaProfile(NewAsset);
-			IMediaProfileManager::Get().SetCurrentMediaProfile(NewAsset);
-			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(NewAsset);
+		public:
+			bool IsClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const UClass* InClass, TSharedRef< FClassViewerFilterFuncs > InFilterFuncs) override
+			{
+				return InClass->IsChildOf(UMediaProfile::StaticClass()) && !InClass->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists | CLASS_HideDropDown);
+			}
+
+			virtual bool IsUnloadedClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const TSharedRef< const IUnloadedBlueprintData > InClass, TSharedRef< FClassViewerFilterFuncs > InFilterFuncs) override
+			{
+				return InClass->IsChildOf(UMediaProfile::StaticClass()) && !InClass->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists | CLASS_HideDropDown);
+			}
+		};
+
+		const FText TitleText = LOCTEXT("CreateMediaProfileOptions", "Pick Media Profile Class");
+		FClassViewerInitializationOptions Options;
+		Options.ClassFilter = MakeShared<FModifierClassFilter>();
+		UClass* ChosenClass = nullptr;
+		const bool bPressedOk = SClassPickerDialog::PickClass(TitleText, Options, ChosenClass, UMediaProfile::StaticClass());
+
+		if (bPressedOk && ChosenClass != nullptr)
+		{
+			UMediaProfileFactoryNew* FactoryInstance = DuplicateObject<UMediaProfileFactoryNew>(GetDefault<UMediaProfileFactoryNew>(), GetTransientPackage());
+			FAssetToolsModule& AssetToolsModule = FAssetToolsModule::GetModule();
+			UMediaProfile* NewAsset = Cast<UMediaProfile>(FAssetToolsModule::GetModule().Get().CreateAssetWithDialog(ChosenClass, FactoryInstance));
+			if (NewAsset != nullptr)
+			{
+				GetMutableDefault<UMediaProfileEditorSettings>()->SetUserMediaProfile(NewAsset);
+				IMediaProfileManager::Get().SetCurrentMediaProfile(NewAsset);
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(NewAsset);
+			}
 		}
 	}
 

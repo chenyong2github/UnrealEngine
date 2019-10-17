@@ -18,7 +18,6 @@
 // Insights
 #include "Insights/ViewModels/TimerGroupingAndSorting.h"
 #include "Insights/ViewModels/TimerNode.h"
-#include "Insights/ViewModels/TimersViewColumn.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -27,7 +26,13 @@ class FMenuBuilder;
 namespace Trace
 {
 	class IAnalysisSession;
-	struct FTimelineEvent;
+}
+
+namespace Insights
+{
+	class FTable;
+	class FTableColumn;
+	class ITableCellValueSorter;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -60,11 +65,15 @@ public:
 	 */
 	void Construct(const FArguments& InArgs);
 
+	TSharedPtr<Insights::FTable> GetTable() const { return Table; }
+
+	void Reset();
+
 	/**
 	 * Rebuilds the tree (if necessary).
 	 * @param bResync - If true, it forces a resync with list of timers from Analysis, even if the list did not changed since last sync.
 	 */
-	void RebuildTree(bool bResync = true);
+	void RebuildTree(bool bResync);
 	void UpdateStats(double StartTime, double EndTime);
 
 	void SelectTimerNode(uint64 Id);
@@ -74,7 +83,6 @@ public:
 	const FTimerNodePtr* GetTimerNode(uint64 Id) const { return TimerNodesIdMap.Find(Id); }
 
 protected:
-
 	void UpdateTree();
 
 	/** Called when the analysis session has changed. */
@@ -100,9 +108,10 @@ protected:
 	// Tree View - Columns' Header
 
 	void InitializeAndShowHeaderColumns();
-	void TreeViewHeaderRow_CreateColumnArgs(const int32 ColumnIndex);
-	void TreeViewHeaderRow_ShowColumn(const FName ColumnId);
-	TSharedRef<SWidget> TreeViewHeaderRow_GenerateColumnMenu(const FTimersViewColumn& Column);
+
+	FText GetColumnHeaderText(const FName ColumnId) const;
+
+	TSharedRef<SWidget> TreeViewHeaderRow_GenerateColumnMenu(const Insights::FTableColumn& Column);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Tree View - Misc
@@ -128,12 +137,11 @@ protected:
 	/** Called by STreeView to generate a table row for the specified item. */
 	TSharedRef<ITableRow> TreeView_OnGenerateRow(FTimerNodePtr TreeNode, const TSharedRef<STableViewBase>& OwnerTable);
 
-	bool TableRow_IsColumnVisible(const FName ColumnId) const;
-	void TableRow_SetHoveredTableCell(const FName ColumnId, const FTimerNodePtr TimerNodePtr);
+	void TableRow_SetHoveredCell(TSharedPtr<Insights::FTable> TablePtr, TSharedPtr<Insights::FTableColumn> ColumnPtr, const FTimerNodePtr NodePtr);
 	EHorizontalAlignment TableRow_GetColumnOutlineHAlignment(const FName ColumnId) const;
 
 	FText TableRow_GetHighlightText() const;
-	FName TableRow_GetHighlightedTimerName() const;
+	FName TableRow_GetHighlightedNodeName() const;
 
 	bool TableRow_ShouldBeEnabled(const uint32 TimerId) const;
 
@@ -143,15 +151,18 @@ protected:
 	/** Populates the group and stat tree with items based on the current data. */
 	void ApplyFiltering();
 
-	TSharedRef<SWidget> GetToggleButtonForTimerType(const ETimerNodeType StatType);
-	void FilterByTimerType_OnCheckStateChanged(ECheckBoxState NewRadioState, const ETimerNodeType InStatType);
-	ECheckBoxState FilterByTimerType_IsChecked(const ETimerNodeType InStatType) const;
+	void FilterOutZeroCountTimers_OnCheckStateChanged(ECheckBoxState NewRadioState);
+	ECheckBoxState FilterOutZeroCountTimers_IsChecked() const;
+
+	TSharedRef<SWidget> GetToggleButtonForTimerType(const ETimerNodeType InTimerType);
+	void FilterByTimerType_OnCheckStateChanged(ECheckBoxState NewRadioState, const ETimerNodeType InTimerType);
+	ECheckBoxState FilterByTimerType_IsChecked(const ETimerNodeType InTimerType) const;
 
 	bool SearchBox_IsEnabled() const;
 	void SearchBox_OnTextChanged(const FText& InFilterText);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
-	// GroupBy
+	// Grouping
 
 	void CreateGroups();
 	void CreateGroupByOptionsSources();
@@ -167,16 +178,18 @@ protected:
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Sorting
 
-	static const EColumnSortMode::Type GetDefaultColumnSortMode();
 	static const FName GetDefaultColumnBeingSorted();
+	static const EColumnSortMode::Type GetDefaultColumnSortMode();
 
-	void SortTimers();
+	void CreateSortings();
+
+	void UpdateCurrentSortingByColumn();
+	void SortTreeNodes();
+	void SortTreeNodesRec(FTimerNode& Node, const Insights::ITableCellValueSorter& Sorter);
 
 	EColumnSortMode::Type GetSortModeForColumn(const FName ColumnId) const;
 	void SetSortModeForColumn(const FName& ColumnId, EColumnSortMode::Type SortMode);
 	void OnSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type SortMode);
-
-	//void TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Sorting actions
@@ -199,14 +212,18 @@ protected:
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Column visibility actions
 
-	// HideColumn (HeaderMenu)
-	bool HeaderMenu_HideColumn_CanExecute(const FName ColumnId) const;
-	void HeaderMenu_HideColumn_Execute(const FName ColumnId);
+	// ShowColumn
+	bool CanShowColumn(const FName ColumnId) const;
+	void ShowColumn(const FName ColumnId);
 
-	// ToggleColumn (ContextMenu)
-	bool ContextMenu_ToggleColumn_IsChecked(const FName ColumnId);
-	bool ContextMenu_ToggleColumn_CanExecute(const FName ColumnId) const;
-	void ContextMenu_ToggleColumn_Execute(const FName ColumnId);
+	// HideColumn
+	bool CanHideColumn(const FName ColumnId) const;
+	void HideColumn(const FName ColumnId);
+
+	// ToggleColumnVisibility
+	bool IsColumnVisible(const FName ColumnId);
+	bool CanToggleColumnVisibility(const FName ColumnId) const;
+	void ToggleColumnVisibility(const FName ColumnId);
 
 	// ShowAllColumns (ContextMenu)
 	bool ContextMenu_ShowAllColumns_CanExecute() const;
@@ -220,7 +237,12 @@ protected:
 	bool ContextMenu_ResetColumns_CanExecute() const;
 	void ContextMenu_ResetColumns_Execute();
 
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+
 protected:
+	/** Table view model. */
+	TSharedPtr<Insights::FTable> Table;
+
 	/** A weak pointer to the profiler session used to populate this widget. */
 	TSharedPtr<const Trace::IAnalysisSession>/*Weak*/ Session;
 
@@ -229,12 +251,6 @@ protected:
 
 	/** The tree widget which holds the list of groups and timers corresponding with each group. */
 	TSharedPtr<STreeView<FTimerNodePtr>> TreeView;
-
-	/** Column metadata used to initialize column arguments, stored as PropertyName -> FEventGraphColumn. */
-	TMap<FName, FTimersViewColumn> TreeViewHeaderColumns;
-
-	/** Column arguments used to initialize a new header column in the tree view, stored as column name to column arguments mapping. */
-	TMap<FName, SHeaderRow::FColumn::FArguments> TreeViewHeaderColumnArgs;
 
 	/** Holds the tree view header row widget which display all columns in the tree view. */
 	TSharedPtr<SHeaderRow> TreeViewHeaderRow;
@@ -249,10 +265,10 @@ protected:
 	FName HoveredColumnId;
 
 	/** A shared pointer to the timer node currently being hovered by the mouse. */
-	FTimerNodePtr HoveredTimerNodePtr;
+	FTimerNodePtr HoveredNodePtr;
 
 	/** Name of the timer that should be drawn as highlighted. */
-	FName HighlightedTimerName;
+	FName HighlightedNodeName;
 
 	//////////////////////////////////////////////////
 	// Timer Nodes
@@ -266,9 +282,6 @@ protected:
 	/** All timer nodes. */
 	TSet<FTimerNodePtr> TimerNodes;
 
-	/** All timer nodes, stored as TimerName -> FTimerNodePtr. */
-	//TMap<FName, FTimerNodePtr> TimerNodesMap;
-
 	/** All timer nodes, stored as TimerId -> FTimerNodePtr. */
 	TMap<uint64, FTimerNodePtr> TimerNodesIdMap;
 
@@ -281,6 +294,8 @@ protected:
 	//////////////////////////////////////////////////
 	// Search box and filters
 
+	//bool bUseFiltering;
+
 	/** The search box widget used to filter items displayed in the stats and groups tree. */
 	TSharedPtr<SSearchBox> SearchBox;
 
@@ -291,10 +306,15 @@ protected:
 	TSharedPtr<FTimerNodeFilterCollection> Filters;
 
 	/** Holds the visibility of each timer type. */
-	bool bTimerNodeIsVisible[static_cast<int>(ETimerNodeType::InvalidOrMax)];
+	bool bTimerTypeIsVisible[static_cast<int>(ETimerNodeType::InvalidOrMax)];
+
+	/** Filter out the timers having zero total instance count (aggregated stats). */
+	bool bFilterOutZeroCountTimers;
 
 	//////////////////////////////////////////////////
 	// Grouping
+
+	//bool bUseGrouping;
 
 	TArray<TSharedPtr<ETimerGroupingMode>> GroupByOptionsSource;
 
@@ -306,11 +326,19 @@ protected:
 	//////////////////////////////////////////////////
 	// Sorting
 
-	/** How we sort the timers? */
-	EColumnSortMode::Type ColumnSortMode;
+	//bool bUseSorting;
 
-	/** Name of the column currently being sorted, NAME_None if sorting is disabled. */
+	/** All available sorters. */
+	TArray<TSharedPtr<Insights::ITableCellValueSorter>> AvailableSorters;
+
+	/** Current sorter. It is nullptr if sorting is disabled. */
+	TSharedPtr<Insights::ITableCellValueSorter> CurrentSorter;
+
+	/** Name of the column currently being sorted. Can be NAME_None if sorting is disabled (CurrentSorting == nullptr) or if a complex sorting is used (CurrentSorting != nullptr). */
 	FName ColumnBeingSorted;
+
+	/** How we sort the nodes? Ascending or Descending. */
+	EColumnSortMode::Type ColumnSortMode;
 
 	//////////////////////////////////////////////////
 

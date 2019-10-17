@@ -340,8 +340,8 @@ namespace BuildOptimizationThirdParty
 
 	void CacheOptimizeIndexBuffer(TArray<uint16>& Indices)
 	{
-		bool bDisableTriangleOrderOptimization = (CVarTriangleOrderOptimization.GetValueOnGameThread() == 2);
-		bool bUsingNvTriStrip = !bDisableTriangleOrderOptimization && (CVarTriangleOrderOptimization.GetValueOnGameThread() == 0);
+		bool bDisableTriangleOrderOptimization = (CVarTriangleOrderOptimization.GetValueOnAnyThread(true) == 2);
+		bool bUsingNvTriStrip = !bDisableTriangleOrderOptimization && (CVarTriangleOrderOptimization.GetValueOnAnyThread(true) == 0);
 
 		if (bUsingNvTriStrip)
 		{
@@ -355,8 +355,8 @@ namespace BuildOptimizationThirdParty
 
 	void CacheOptimizeIndexBuffer(TArray<uint32>& Indices)
 	{
-		bool bDisableTriangleOrderOptimization = (CVarTriangleOrderOptimization.GetValueOnGameThread() == 2);
-		bool bUsingNvTriStrip = !bDisableTriangleOrderOptimization && (CVarTriangleOrderOptimization.GetValueOnGameThread() == 0);
+		bool bDisableTriangleOrderOptimization = (CVarTriangleOrderOptimization.GetValueOnAnyThread(true) == 2);
+		bool bUsingNvTriStrip = !bDisableTriangleOrderOptimization && (CVarTriangleOrderOptimization.GetValueOnAnyThread(true) == 0);
 
 		if (bUsingNvTriStrip)
 		{

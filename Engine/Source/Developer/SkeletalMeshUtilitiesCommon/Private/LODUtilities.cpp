@@ -14,8 +14,8 @@
 #include "Engine/SkeletalMesh.h"
 #include "EditorFramework/AssetImportData.h"
 #include "MeshUtilities.h"
+#include "ClothingAsset.h"
 #include "OverlappingCorners.h"
-#include "Assets/ClothingAsset.h"
 #include "Framework/Commands/UIAction.h"
 
 #include "ObjectTools.h"
@@ -869,8 +869,8 @@ void FLODUtilities::ApplyMorphTargetsToLOD(USkeletalMesh* SkeletalMesh, int32 So
 	check(!TargetSectionMatchBaseIndex.Contains(INDEX_NONE));
 	TArray<FSoftSkinVertex> BaseVertices;
 	TArray<FSoftSkinVertex> TargetVertices;
-	BaseLODModel.GetNonClothVertices(BaseVertices);
-	TargetLODModel.GetNonClothVertices(TargetVertices);
+	BaseLODModel.GetVertices(BaseVertices);
+	TargetLODModel.GetVertices(TargetVertices);
 	//Create the base triangle indices per section
 	TArray<TArray<uint32>> BaseTriangleIndices;
 	int32 SectionCount = BaseLODModel.Sections.Num();
@@ -878,16 +878,13 @@ void FLODUtilities::ApplyMorphTargetsToLOD(USkeletalMesh* SkeletalMesh, int32 So
 	for (int32 SectionIndex = 0; SectionIndex < SectionCount; ++SectionIndex)
 	{
 		const FSkelMeshSection& Section = BaseLODModel.Sections[SectionIndex];
-		if (Section.ClothingData.AssetGuid.IsValid())
-		{
-			continue;
-		}
 		uint32 TriangleCount = Section.NumTriangles;
 		for (uint32 TriangleIndex = 0; TriangleIndex < TriangleCount; ++TriangleIndex)
 		{
 			for (uint32 PointIndex = 0; PointIndex < 3; PointIndex++)
 			{
-				BaseTriangleIndices[SectionIndex].Add(BaseLODModel.IndexBuffer[Section.BaseIndex + ((TriangleIndex * 3) + PointIndex)]);
+				uint32 IndexBufferValue = BaseLODModel.IndexBuffer[Section.BaseIndex + ((TriangleIndex * 3) + PointIndex)];
+				BaseTriangleIndices[SectionIndex].Add(IndexBufferValue);
 			}
 		}
 	}

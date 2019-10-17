@@ -17,8 +17,7 @@ class FGpuProfilerAnalyzer
 public:
 	FGpuProfilerAnalyzer(Trace::FAnalysisSession& Session, Trace::FTimingProfilerProvider& TimingProfilerProvider);
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
-	virtual void OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
-	virtual void OnAnalysisEnd() override {};
+	virtual bool OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
 
 private:
 	enum : uint16

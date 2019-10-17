@@ -6,7 +6,7 @@
 #include "Field/FieldSystem.h"
 #include "GeometryCollection/RecordedTransformTrack.h"
 #include "GeometryCollectionSimulationTypes.h"
-#include "Chaos/PBDRigidClustering.h"
+#include "Chaos/ClusterCreationParameters.h"
 
 class FGeometryCollection;
 class FGeometryDynamicCollection;

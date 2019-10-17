@@ -42,7 +42,7 @@
 #include "TimerManager.h"
 #include "Camera/CameraPhotography.h"
 #include "HAL/LowLevelMemTracker.h"
-#if WITH_CHAOS
+#if ENABLE_COLLISION_ANALYZER
 #include "PhysicsEngine/CollisionAnalyzerCapture.h"
 #endif
 
@@ -1241,7 +1241,6 @@ public:
 #if ENABLE_COLLISION_ANALYZER
 #include "ICollisionAnalyzer.h"
 #include "CollisionAnalyzerModule.h"
-extern bool GCollisionAnalyzerIsRecording;
 #endif // ENABLE_COLLISION_ANALYZER
 
 

@@ -1204,6 +1204,8 @@ bool FFbxImporter::ImportFile(FString Filename, bool bPreventMaterialNameClash /
 		return false;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(FFbxImporter::ImportFile);
+
 	bool Result = true;
 	
 	bool bStatus;

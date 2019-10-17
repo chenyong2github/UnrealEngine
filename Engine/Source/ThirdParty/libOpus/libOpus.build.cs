@@ -5,14 +5,19 @@ using System.IO;
 
 public class libOpus : ModuleRules
 {
+	protected virtual string OpusVersion	  { get { return "opus-1.1"; } }
+	protected virtual string IncRootDirectory { get { return Target.UEThirdPartySourceDirectory; } }
+	protected virtual string LibRootDirectory { get { return Target.UEThirdPartySourceDirectory; } }
+
+	protected virtual string OpusIncPath { get { return Path.Combine(IncRootDirectory, "libOpus", OpusVersion, "include"); } }
+	protected virtual string OpusLibPath { get { return Path.Combine(LibRootDirectory, "libOpus", OpusVersion); } }
+
 	public libOpus(ReadOnlyTargetRules Target) : base(Target)
 	{
-		/** Mark the current version of the library */
-		string OpusVersion = "1.1";
 		Type = ModuleType.External;
 
-		PublicIncludePaths.Add(Target.UEThirdPartySourceDirectory + "libOpus/opus-" + OpusVersion + "/include");
-		string LibraryPath = Target.UEThirdPartySourceDirectory + "libOpus/opus-" + OpusVersion + "/";
+		PublicIncludePaths.Add(OpusIncPath);
+		string LibraryPath = OpusLibPath + "/";
 
 		if ((Target.Platform == UnrealTargetPlatform.Win64) ||
 			(Target.Platform == UnrealTargetPlatform.Win32))

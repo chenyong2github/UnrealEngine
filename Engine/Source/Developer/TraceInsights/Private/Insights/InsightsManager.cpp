@@ -4,11 +4,11 @@
 
 #include "Framework/Application/SlateApplication.h"
 #include "Modules/ModuleManager.h"
-#include "Templates/ScopedPointer.h"
 #include "Templates/UniquePtr.h"
 
 // Insights
-#include "Insights/IoProfilerManager.h"
+#include "Insights/LoadingProfiler/LoadingProfilerManager.h"
+#include "Insights/NetworkingProfiler/NetworkingProfilerManager.h"
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/Widgets/SStartPageWindow.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
@@ -19,7 +19,8 @@
 
 const FName FInsightsManagerTabs::StartPageTabId(TEXT("StartPage"));
 const FName FInsightsManagerTabs::TimingProfilerTabId(TEXT("TimingProfiler"));
-const FName FInsightsManagerTabs::IoProfilerTabId(TEXT("IoProfiler"));
+const FName FInsightsManagerTabs::LoadingProfilerTabId(TEXT("LoadingProfiler"));
+const FName FInsightsManagerTabs::NetworkingProfilerTabId(TEXT("NetworkingProfiler"));
 
 TSharedPtr<FInsightsManager> FInsightsManager::Instance = nullptr;
 
@@ -85,6 +86,13 @@ TSharedPtr<const Trace::IAnalysisSession> FInsightsManager::GetSession() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+Trace::FSessionHandle FInsightsManager::GetSessionHandle() const
+{
+	return CurrentSessionHandle;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 const TSharedRef<FUICommandList> FInsightsManager::GetCommandList() const
 {
 	return CommandList;
@@ -127,6 +135,7 @@ void FInsightsManager::ResetSession()
 	if (Session.IsValid())
 	{
 		Session.Reset();
+		CurrentSessionHandle = 0;
 		OnSessionChanged();
 	}
 }
@@ -141,10 +150,16 @@ void FInsightsManager::OnSessionChanged()
 		TimingProfilerManager->OnSessionChanged();
 	}
 
-	if (TSharedPtr<FIoProfilerManager> IoProfilerManager = FIoProfilerManager::Get())
+	if (TSharedPtr<FLoadingProfilerManager> LoadingProfilerManager = FLoadingProfilerManager::Get())
 	{
-		// FIXME: make IoProfilerManager to register to SessionChangedEvent instead
-		IoProfilerManager->OnSessionChanged();
+		// FIXME: make LoadingProfilerManager to register to SessionChangedEvent instead
+		LoadingProfilerManager->OnSessionChanged();
+	}
+
+	if (TSharedPtr<FNetworkingProfilerManager> NetworkingProfilerManager = FNetworkingProfilerManager::Get())
+	{
+		// FIXME: make NetworkingProfilerManager to register to SessionChangedEvent instead
+		NetworkingProfilerManager->OnSessionChanged();
 	}
 
 	SessionChangedEvent.Broadcast();
@@ -159,9 +174,21 @@ void FInsightsManager::SpawnAndActivateTabs()
 	{
 		FGlobalTabmanager::Get()->InvokeTab(FInsightsManagerTabs::TimingProfilerTabId);
 	}
-	if (FGlobalTabmanager::Get()->HasTabSpawner(FInsightsManagerTabs::IoProfilerTabId))
+	if (FGlobalTabmanager::Get()->HasTabSpawner(FInsightsManagerTabs::LoadingProfilerTabId))
 	{
-		FGlobalTabmanager::Get()->InvokeTab(FInsightsManagerTabs::IoProfilerTabId);
+		FGlobalTabmanager::Get()->InvokeTab(FInsightsManagerTabs::LoadingProfilerTabId);
+	}
+	if (FGlobalTabmanager::Get()->HasTabSpawner(FInsightsManagerTabs::NetworkingProfilerTabId))
+	{
+		// Close previous tabs.
+		TSharedPtr<SDockTab> NetworkingProfilerTab;
+		while ((NetworkingProfilerTab = FGlobalTabmanager::Get()->FindExistingLiveTab(FInsightsManagerTabs::NetworkingProfilerTabId)).IsValid())
+		{
+			NetworkingProfilerTab->RequestCloseTab();
+		}
+
+		FGlobalTabmanager::Get()->InvokeTab(FInsightsManagerTabs::NetworkingProfilerTabId);
+		FGlobalTabmanager::Get()->InvokeTab(FInsightsManagerTabs::NetworkingProfilerTabId);
 	}
 
 	// Ensure Timing Insights / Timing View is the active tab / view.
@@ -169,7 +196,7 @@ void FInsightsManager::SpawnAndActivateTabs()
 	{
 		TimingInsightsTab->ActivateInParent(ETabActivationCause::SetDirectly);
 
-		//TOOD: FTimingProfilerManager::Get()->SpawnAndActivateTabs();
+		//TODO: FTimingProfilerManager::Get()->ActivateWindow();
 		TSharedPtr<class STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
 		if (Wnd)
 		{
@@ -269,6 +296,7 @@ void FInsightsManager::LoadSession(Trace::FSessionHandle SessionHandle)
 	if (DataStream)
 	{
 		Session = AnalysisService->StartAnalysis(SessionInfo.Name, MoveTemp(DataStream));
+		CurrentSessionHandle = SessionHandle;
 		SpawnAndActivateTabs();
 		OnSessionChanged();
 	}
@@ -284,6 +312,7 @@ void FInsightsManager::LoadTraceFile(const FString& TraceFilepath)
 	if (DataStream)
 	{
 		Session = AnalysisService->StartAnalysis(*TraceFilepath, MoveTemp(DataStream));
+		CurrentSessionHandle = 0;
 		SpawnAndActivateTabs();
 		OnSessionChanged();
 	}

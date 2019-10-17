@@ -570,7 +570,7 @@ void UNavCollision::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 	if (CookedFormatData.Contains(NAVCOLLISION_FORMAT))
 	{
 		const FByteBulkData& FmtData = CookedFormatData.GetFormat(NAVCOLLISION_FORMAT);
-		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(FmtData.GetElementSize() * FmtData.GetElementCount());
+		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(FmtData.GetBulkDataSize());
 	}
 }
 

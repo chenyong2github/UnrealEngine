@@ -8,7 +8,6 @@
 #include "Misc/Guid.h"
 #include "UObject/Class.h"
 #include "Engine/EngineTypes.h"
-#include "Templates/ScopedPointer.h"
 #include "Engine/TextureStreamingTypes.h"
 #include "Components/MeshComponent.h"
 #include "PackedNormal.h"

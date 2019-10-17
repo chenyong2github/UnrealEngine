@@ -364,7 +364,7 @@ void AOnlineBeaconHost::SendWelcomeControlMessage(const FEncryptionKeyResponse& 
 		{
 			if (Response.Response == EEncryptionResponse::Success)
 			{
-				Connection->EnableEncryptionWithKeyServer(Response.EncryptionKey);
+				Connection->EnableEncryptionServer(Response.EncryptionData);
 				SendWelcomeControlMessage(Connection);
 			}
 			else

@@ -211,7 +211,6 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/IQueuedWork.h"
-#include "Templates/ScopedPointer.h"
 #include "Misc/OutputDeviceError.h"
 #include "Misc/ObjectThumbnail.h"
 #include "Serialization/CustomVersion.h"

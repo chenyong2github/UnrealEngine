@@ -125,7 +125,7 @@ void FConcertSessionCommonImpl::CommonHandleCustomEvent(const FConcertMessageCon
 		}
 		else
 		{
-			UE_LOG(LogConcert, Warning, TEXT("No event handler for '%s' has been registered for session '%s'. This event will be ignored!"), *RawPayload.GetStruct()->GetName(), *SessionInfo.SessionName);
+			UE_LOG(LogConcert, Verbose, TEXT("No event handler for '%s' has been registered for session '%s'. This event will be ignored!"), *RawPayload.GetStruct()->GetName(), *SessionInfo.SessionName);
 		}
 	}
 }

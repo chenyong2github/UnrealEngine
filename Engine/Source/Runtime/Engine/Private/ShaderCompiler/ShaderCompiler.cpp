@@ -3334,7 +3334,7 @@ void GlobalBeginCompileShader(
 
 	bool bForwardShading = false;
 	{
-		ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatform(ShaderPlatformToPlatformName(EShaderPlatform(Target.Platform)).ToString());
+		ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatformWithSupport(TEXT("ShaderFormat"), LegacyShaderPlatformToShaderFormat((EShaderPlatform)Target.Platform));
 		if (TargetPlatform)
 		{
 			bForwardShading = TargetPlatform->UsesForwardShading();
@@ -3377,6 +3377,13 @@ void GlobalBeginCompileShader(
 	{
 		static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.UseLegacyShadingModel"));
 		Input.Environment.SetDefine(TEXT("PROJECT_MOBILE_USE_LEGACY_SHADING"), CVar ? (CVar->GetInt() != 0) : 0);
+	}
+
+	{
+		const ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel((EShaderPlatform)Target.Platform);
+		const ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatform(ShaderPlatformToPlatformName(EShaderPlatform(Target.Platform)).ToString());
+		const bool bVirtualTextureEnabled = UseVirtualTexturing(FeatureLevel, TargetPlatform);
+		Input.Environment.SetDefine(TEXT("PROJECT_SUPPORT_VIRTUAL_TEXTURE"), bVirtualTextureEnabled ? 1 : 0);
 	}
 
 	{

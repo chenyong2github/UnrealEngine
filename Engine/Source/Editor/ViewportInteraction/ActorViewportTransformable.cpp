@@ -130,19 +130,6 @@ bool FActorViewportTransformable::IsPhysicallySimulated() const
 
 bool FActorViewportTransformable::ShouldBeCarried() const
 {
-	// Only cameras should be carried, for now
-	bool bShouldBeCarried = false;
-
-	AActor* Actor = ActorWeakPtr.Get();
-	if (Actor != nullptr)
-	{
-		if (UActorComponent* ActorComponent = FLevelEditorViewportClient::FindViewComponentForActor(Actor))
-		{
-			FMinimalViewInfo MinimalViewInfo;
-			bShouldBeCarried = ActorComponent->GetEditorPreviewInfo(/*DeltaTime =*/0.0f, MinimalViewInfo);
-		}
-	}
-
 	return bShouldBeCarried;
 }
 

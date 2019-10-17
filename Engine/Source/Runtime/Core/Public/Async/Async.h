@@ -25,11 +25,19 @@ enum class EAsyncExecution
 	/** Execute in Task Graph (for short running tasks). */
 	TaskGraph,
 
+	/** Execute in Task Graph on the main thread (for short running tasks). */
+	TaskGraphMainThread,
+
 	/** Execute in separate thread (for long running tasks). */
 	Thread,
 
 	/** Execute in global queued thread pool. */
-	ThreadPool
+	ThreadPool,
+
+#if WITH_EDITOR
+	/** Execute in large global queued thread pool. */
+	LargeThreadPool
+#endif
 };
 
 
@@ -93,9 +101,10 @@ public:
 	 * @param InFunction The function to execute asynchronously.
 	 * @param InPromise The promise object used to return the function's result.
 	 */
-	TAsyncGraphTask(TUniqueFunction<ResultType()>&& InFunction, TPromise<ResultType>&& InPromise)
+	TAsyncGraphTask(TUniqueFunction<ResultType()>&& InFunction, TPromise<ResultType>&& InPromise, ENamedThreads::Type InDesiredThread = ENamedThreads::AnyThread)
 		: Function(MoveTemp(InFunction))
 		, Promise(MoveTemp(InPromise))
+		, DesiredThread(InDesiredThread)
 	{ }
 
 public:
@@ -118,7 +127,7 @@ public:
 	 */
 	ENamedThreads::Type GetDesiredThread()
 	{
-		return ENamedThreads::AnyThread;
+		return DesiredThread;
 	}
 
 	/**
@@ -138,6 +147,9 @@ private:
 
 	/** The promise to assign the result to. */
 	TPromise<ResultType> Promise;
+
+	/** The desired execution thread. */
+	ENamedThreads::Type DesiredThread;
 };
 
 
@@ -288,9 +300,11 @@ auto Async(EAsyncExecution Execution, CallableType&& Callable, TUniqueFunction<v
 
 	switch (Execution)
 	{
+	case EAsyncExecution::TaskGraphMainThread:
+		// fallthrough
 	case EAsyncExecution::TaskGraph:
 		{
-			TGraphTask<TAsyncGraphTask<ResultType>>::CreateTask().ConstructAndDispatchWhenReady(MoveTemp(Function), MoveTemp(Promise));
+			TGraphTask<TAsyncGraphTask<ResultType>>::CreateTask().ConstructAndDispatchWhenReady(MoveTemp(Function), MoveTemp(Promise), Execution == EAsyncExecution::TaskGraph ? ENamedThreads::AnyThread : ENamedThreads::GameThread);
 		}
 		break;
 	
@@ -318,6 +332,14 @@ auto Async(EAsyncExecution Execution, CallableType&& Callable, TUniqueFunction<v
 			GThreadPool->AddQueuedWork(new TAsyncQueuedWork<ResultType>(MoveTemp(Function), MoveTemp(Promise)));
 		}
 		break;
+
+#if WITH_EDITOR
+	case EAsyncExecution::LargeThreadPool:
+		{
+			GLargeThreadPool->AddQueuedWork(new TAsyncQueuedWork<ResultType>(MoveTemp(Function), MoveTemp(Promise)));
+		}
+		break;
+#endif
 
 	default:
 		check(false); // not implemented yet!

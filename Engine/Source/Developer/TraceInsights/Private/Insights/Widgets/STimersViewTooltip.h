@@ -3,51 +3,83 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EditorStyleSet.h"
-#include "SlateOptMacros.h"
-#include "TraceServices/AnalysisService.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Layout/SGridPanel.h"
-#include "Widgets/Layout/SSeparator.h"
+#include "Widgets/IToolTip.h"
 #include "Widgets/SToolTip.h"
-#include "Widgets/Text/STextBlock.h"
 
-// Insights
-#include "Insights/InsightsManager.h"
+class SGridPanel;
 
-// Insights
+namespace Insights
+{
+	class FTable;
+	class FTableColumn;
+}
+
 class FTimerNode;
-class FTimersViewColumn;
 
-#define LOCTEXT_NAMESPACE "STimersView"
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /** Timers View Tooltip */
 class STimersViewTooltip
 {
-	const uint32 TimerId;
-	TSharedPtr<const Trace::IAnalysisSession> Session;
-
 public:
-	STimersViewTooltip(const uint32 InTimerId)
-		: TimerId(InTimerId)
-	{
-		Session = FInsightsManager::Get()->GetSession();
-	}
+	STimersViewTooltip() = delete;
 
-	TSharedRef<SToolTip> GetTooltip();
+	static TSharedPtr<SToolTip> GetTableTooltip(const Insights::FTable& Table);
+	static TSharedPtr<SToolTip> GetColumnTooltip(const Insights::FTableColumn& Column);
+	static TSharedPtr<SToolTip> GetRowTooltip(const TSharedPtr<FTimerNode> TreeNodePtr);
 
-protected:
-	void AddNoDataInformation(const TSharedRef<SGridPanel>& Grid, int32& RowPos);
-	void AddHeader(const TSharedRef<SGridPanel>& Grid, int32& RowPos);
-	void AddDescription(const TSharedRef<SGridPanel>& Grid, int32& RowPos);
-	void AddSeparator(const TSharedRef<SGridPanel>& Grid, int32& RowPos);
-
-public:
-	static TSharedPtr<SToolTip> GetColumnTooltip(const FTimersViewColumn& Column);
-	static TSharedPtr<SToolTip> GetTableCellTooltip(const TSharedPtr<FTimerNode> TimerNodePtr);
-
-protected:
+private:
 	static void AddStatsRow(TSharedPtr<SGridPanel> Grid, int32& Row, const FText& Name, const FText& Value1, const FText& Value2);
 };
 
-#undef LOCTEXT_NAMESPACE
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class STimerTableRowToolTip : public IToolTip
+{
+public:
+	STimerTableRowToolTip(const TSharedPtr<FTimerNode> InTreeNodePtr) : TreeNodePtr(InTreeNodePtr) {}
+	virtual ~STimerTableRowToolTip() { }
+
+	virtual TSharedRef<class SWidget> AsWidget()
+	{
+		CreateToolTipWidget();
+		return ToolTipWidget.ToSharedRef();
+	}
+
+	virtual TSharedRef<SWidget> GetContentWidget()
+	{
+		CreateToolTipWidget();
+		return ToolTipWidget->GetContentWidget();
+	}
+
+	virtual void SetContentWidget(const TSharedRef<SWidget>& InContentWidget)
+	{
+		CreateToolTipWidget();
+		ToolTipWidget->SetContentWidget(InContentWidget);
+	}
+
+	void InvalidateWidget()
+	{
+		ToolTipWidget.Reset();
+	}
+
+	virtual bool IsEmpty() const { return false; }
+	virtual bool IsInteractive() const { return false; }
+	virtual void OnOpening() {}
+	virtual void OnClosed() {}
+
+private:
+	void CreateToolTipWidget()
+	{
+		if (!ToolTipWidget.IsValid())
+		{
+			ToolTipWidget = STimersViewTooltip::GetRowTooltip(TreeNodePtr);
+		}
+	}
+
+private:
+	TSharedPtr<SToolTip> ToolTipWidget;
+	const TSharedPtr<FTimerNode> TreeNodePtr;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////

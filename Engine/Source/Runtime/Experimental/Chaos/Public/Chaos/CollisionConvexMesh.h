@@ -13,6 +13,14 @@ namespace Chaos
 	class TConvexBuilder
 	{
 	public:
+		static bool IsValidTriangle(const TVector<T, 3>& A, const TVector<T, 3>& B, const TVector<T, 3>& C)
+		{
+			const TVector<T, 3> BA = B - A;
+			const TVector<T, 3> CA = C - A;
+			const TVector<T, 3> Cross = TVector<T, 3>::CrossProduct(BA, CA);
+			return Cross.Size() > 1e-4;
+		}
+
 		static void Build(const TParticles<T, 3>& InParticles, TArray <TPlane<T, 3>>& OutPlanes, TParticles<T, 3>& OutSurfaceParticles, TBox<T, 3>& OutLocalBounds)
 		{
 			OutPlanes.Reset();
@@ -58,24 +66,18 @@ namespace Chaos
 			else if(NumParticles == 3)
 			{
 				//special support for triangle
-				TVector<T, 3> Normal = TVector<T, 3>::CrossProduct(InParticles.X(1) - InParticles.X(0), InParticles.X(2) - InParticles.X(0));
-				const T NormalLength = Normal.SafeNormalize();
-
-				TVector<T, 3> A = InParticles.X(1) - InParticles.X(0);
-				TVector<T, 3> B = InParticles.X(2) - InParticles.X(0);
-				TVector<T, 3> CheckNormal = TVector<T, 3>::CrossProduct(A, B);
+				const bool bIsValidTriangle = IsValidTriangle(InParticles.X(0), InParticles.X(1), InParticles.X(2));
 
 				//TODO_SQ_IMPLEMENTATION: should do proper cleanup to avoid this
-				//if(ensure(NormalLength > 1e-4))
-				if (NormalLength > 1e-4)
+				if (ensureMsgf(bIsValidTriangle, TEXT("TConvexBuilder::Build(): Generated invalid triangle!")))
 				{
+					TVector<T, 3> Normal = TVector<T, 3>::CrossProduct(InParticles.X(1) - InParticles.X(0), InParticles.X(2) - InParticles.X(0)).GetSafeNormal();
 					OutPlanes.Add(TPlane<T, 3>(InParticles.X(0), Normal));
 					OutSurfaceParticles.AddParticles(3);
 					OutSurfaceParticles.X(0) = InParticles.X(0);
 					OutSurfaceParticles.X(1) = InParticles.X(1);
 					OutSurfaceParticles.X(2) = InParticles.X(2);
 				}
-
 			}
 		}
 
@@ -120,6 +122,114 @@ namespace Chaos
 			return TTriangleMesh<T>(MoveTemp(Indices));
 		}
 
+		static CHAOS_API bool IsPerformanceWarning(int32 NumPlanes, int32 NumParticles)
+		{
+			if (!PerformGeometryCheck)
+			{
+				return false;
+			}
+
+			return (NumParticles > ParticlesThreshold);
+		}
+
+		static CHAOS_API bool IsGeometryReductionEnabled()
+		{
+			return (PerformGeometryReduction>0)?true:false;
+		}
+
+		static FString PerformanceWarningString(int32 NumPlanes, int32 NumParticles)
+		{
+			return FString::Printf(TEXT("Planes %d, SurfaceParticles %d"), NumPlanes, NumParticles);
+		}
+
+		static CHAOS_API void Simplify(TArray <TPlane<T, 3>>& InOutPlanes, TParticles<T, 3>& InOutParticles, TBox<T, 3>& InOutLocalBounds)
+		{
+			struct TPair
+			{
+				TPair() : A(-1), B(-1) {}
+				uint32 A;
+				uint32 B;
+			};
+
+			uint32 NumberOfParticlesRequired = ParticlesThreshold;
+			uint32 NumberOfParticlesWeHave = InOutParticles.Size();
+			int32 NumToDelete = NumberOfParticlesWeHave - NumberOfParticlesRequired;
+
+			uint32 Size = InOutParticles.Size();
+			TArray<TVector<T, 3>> Particles;
+			Particles.AddUninitialized(Size);
+			for (uint32 A = 0; A < Size; A++)
+			{
+				Particles[A] = InOutParticles.X(A);
+			}
+
+			TArray<bool> IsDeleted;
+			IsDeleted.Reset();
+			IsDeleted.Init(false, Size);
+
+			if (NumToDelete > 0)
+			{
+				for (uint32 Iteration = 0; Iteration < (uint32)NumToDelete; Iteration++)
+				{
+					TPair ClosestPair;
+					float ClosestDistSqr = FLT_MAX;
+
+					for (uint32 A = 0; A < (Size - 1); A++)
+					{
+						if (!IsDeleted[A])
+						{
+							for (uint32 B = A + 1; B < Size; B++)
+							{
+								if (!IsDeleted[B])
+								{
+									TVector<T, 3> Vec = Particles[A] - Particles[B];
+									float LengthSqr = Vec.SizeSquared();
+									if (LengthSqr < ClosestDistSqr)
+									{
+										ClosestDistSqr = LengthSqr;
+										ClosestPair.A = A;
+										ClosestPair.B = B;
+									}
+								}
+							}
+						}
+					}
+
+					if (ClosestPair.A != -1)
+					{
+						// merge to mid point
+						Particles[ClosestPair.A] = Particles[ClosestPair.A] + (Particles[ClosestPair.B] - Particles[ClosestPair.A]) * 0.5f;
+						IsDeleted[ClosestPair.B] = true;
+					}
+				}
+			}
+
+			TParticles<T, 3> TmpParticles;
+			for (int Idx = 0; Idx < Particles.Num(); Idx++)
+			{
+				// Only add particles that have not been merged away
+				if (!IsDeleted[Idx])
+				{
+					TmpParticles.AddParticles(1);
+					TmpParticles.X(TmpParticles.Size() - 1) = Particles[Idx];
+				}
+			}
+
+			Build(TmpParticles, InOutPlanes, InOutParticles, InOutLocalBounds);
+			check(InOutParticles.Size() > 3);
+		}
+
+		// CVars variables for controlling geometry complexity checking and simplification
+#if PLATFORM_MAC || PLATFORM_LINUX
+		static CHAOS_API int32 PerformGeometryCheck;
+		static CHAOS_API int32 PerformGeometryReduction;
+		static CHAOS_API int32 ParticlesThreshold;
+#else
+		static int32 PerformGeometryCheck;
+		static int32 PerformGeometryReduction;
+		static int32 ParticlesThreshold;
+#endif
+
 	private:
 
 		struct FHalfEdge;
@@ -140,8 +250,9 @@ namespace Chaos
 
 		struct FHalfEdge
 		{
-			FHalfEdge(int32 InVertex)
-				: Vertex(InVertex) {}
+			FHalfEdge(int32 InVertex=-1)
+				: Vertex(InVertex) 
+			{}
 			int32 Vertex;
 			FHalfEdge* Prev;
 			FHalfEdge* Next;
@@ -240,7 +351,7 @@ namespace Chaos
 				return nullptr;
 			}
 
-			const T Epsilon = 1e-4;
+			constexpr T Epsilon = 1e-4;
 
 			const int32 NumParticles = InParticles.Size();
 
@@ -251,14 +362,13 @@ namespace Chaos
 			FHalfEdge* A = nullptr; //min x
 			FHalfEdge* B = nullptr; //max x
 			FHalfEdge DummyHalfEdge(-1);
-			DummyHalfEdge.Next = nullptr;
 			DummyHalfEdge.Prev = nullptr;
+			DummyHalfEdge.Next = nullptr;
 			FHalfEdge* Prev = &DummyHalfEdge;
 
 			for(int32 i = 0; i < NumParticles; ++i)
 			{
 				FHalfEdge* VHalf = new FHalfEdge(i); //todo(ocohen): preallocate these
-				VHalf->Vertex = i;
 				Prev->Next = VHalf;
 				VHalf->Prev = Prev;
 				VHalf->Next = nullptr;
@@ -573,5 +683,6 @@ namespace Chaos
 			//todo(ocohen): need to explicitly test for merge failures. Coplaner, nonconvex, etc...
 			//getting this in as is for now to unblock other systems
 		}
+
 	};
 }

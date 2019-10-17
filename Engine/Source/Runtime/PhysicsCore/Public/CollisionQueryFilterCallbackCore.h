@@ -24,13 +24,11 @@ enum class ECollisionQueryHitType : uint8
 	Block = 2
 };
 
-#if INCLUDE_CHAOS
 namespace Chaos
 {
 	template <typename, int>
 	class TImplicitObject;
 }
-#endif
 
 class ICollisionQueryFilterCallbackBase
 #if WITH_PHYSX
@@ -40,10 +38,8 @@ class ICollisionQueryFilterCallbackBase
 public:
 	
 	virtual ~ICollisionQueryFilterCallbackBase() {}
-#if INCLUDE_CHAOS
 	virtual ECollisionQueryHitType PostFilter(const FCollisionFilterData& FilterData, const ChaosInterface::FQueryHit& Hit) = 0;
 	virtual ECollisionQueryHitType PreFilter(const FCollisionFilterData& FilterData, const Chaos::TPerShapeData<float, 3>& Shape, const Chaos::TGeometryParticle<float, 3>& Actor) = 0;
-#endif
 
 #if WITH_PHYSX
 	virtual ECollisionQueryHitType PostFilter(const FCollisionFilterData& FilterData, const physx::PxQueryHit& Hit) = 0;
@@ -55,10 +51,8 @@ class PHYSICSCORE_API FBlockAllQueryCallback : public ICollisionQueryFilterCallb
 {
 public:
 	virtual ~FBlockAllQueryCallback() {}
-#if INCLUDE_CHAOS
 	virtual ECollisionQueryHitType PostFilter(const FCollisionFilterData& FilterData, const ChaosInterface::FQueryHit& Hit) override { return ECollisionQueryHitType::Block; }
 	virtual ECollisionQueryHitType PreFilter(const FCollisionFilterData& FilterData, const Chaos::TPerShapeData<float, 3>& Shape, const Chaos::TGeometryParticle<float, 3>& Actor) override { return ECollisionQueryHitType::Block; }
-#endif
 
 #if WITH_PHYSX
 	virtual ECollisionQueryHitType PostFilter(const FCollisionFilterData& FilterData, const physx::PxQueryHit& Hit) override { return ECollisionQueryHitType::Block; }
@@ -72,10 +66,8 @@ class PHYSICSCORE_API FOverlapAllQueryCallback : public ICollisionQueryFilterCal
 {
 public:
 	virtual ~FOverlapAllQueryCallback() {}
-#if INCLUDE_CHAOS
 	virtual ECollisionQueryHitType PostFilter(const FCollisionFilterData& FilterData, const ChaosInterface::FQueryHit& Hit) override { return ECollisionQueryHitType::Touch; }
 	virtual ECollisionQueryHitType PreFilter(const FCollisionFilterData& FilterData, const Chaos::TPerShapeData<float, 3>& Shape, const Chaos::TGeometryParticle<float, 3>& Actor) override { return ECollisionQueryHitType::Touch; }
-#endif
 
 #if WITH_PHYSX
 	virtual ECollisionQueryHitType PostFilter(const FCollisionFilterData& FilterData, const physx::PxQueryHit& Hit) override { return ECollisionQueryHitType::Touch; }

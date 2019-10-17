@@ -13,7 +13,10 @@
 * alignment isn't handled, assumes FMemory::Malloc will work
 */
 
-#define USE_NIEVE_TLockFreeFixedSizeAllocator_TLSCacheBase (0) // this is useful for find who really leaked
+#ifndef USE_NAIVE_TLockFreeFixedSizeAllocator_TLSCacheBase
+#define USE_NAIVE_TLockFreeFixedSizeAllocator_TLSCacheBase (0) // this is useful for find who really leaked
+#endif
+
 template<int32 SIZE, typename TBundleRecycler, typename TTrackingCounter = FNoopCounter>
 class TLockFreeFixedSizeAllocator_TLSCacheBase : public FNoncopyable
 {
@@ -45,7 +48,7 @@ public:
 	*/
 	FORCEINLINE void* Allocate()
 	{
-#if USE_NIEVE_TLockFreeFixedSizeAllocator_TLSCacheBase || PLATFORM_HTML5
+#if USE_NAIVE_TLockFreeFixedSizeAllocator_TLSCacheBase
 		return FMemory::Malloc(SIZE);
 #else
 		FThreadLocalCache& TLS = GetTLS();
@@ -94,7 +97,7 @@ public:
 	*/
 	FORCEINLINE void Free(void *Item)
 	{
-#if USE_NIEVE_TLockFreeFixedSizeAllocator_TLSCacheBase || PLATFORM_HTML5
+#if USE_NAIVE_TLockFreeFixedSizeAllocator_TLSCacheBase
 		return FMemory::Free(Item);
 #else
 		NumUsed.Decrement();

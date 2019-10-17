@@ -54,10 +54,11 @@ struct FEngineShowFlags
 	// Define the showflags.
 	// A show flag is either an uint32:1 or static const bool (if optimized out according to UE_BUILD_OPTIMIZED_SHOWFLAGS)
 
-#if PLATFORM_HTML5 // TODO: EMSCRITPEN_TOOLCHAIN_UPGRADE_CHECK - broken fit field compiler
-	#define SHOWFLAG_ALWAYS_ACCESSIBLE(a,...) bool a; void Set##a(bool bVal){ a = bVal;}
-#else
+#if PLATFORM_USE_SHOWFLAGS_ALWAYS_BITFIELD
 	#define SHOWFLAG_ALWAYS_ACCESSIBLE(a,...) uint32 a : 1; void Set##a(bool bVal){ a = bVal?1:0;}
+#else
+	// broken bit field compilers will render the background black
+	#define SHOWFLAG_ALWAYS_ACCESSIBLE(a,...) bool a; void Set##a(bool bVal){ a = bVal;}
 #endif
 
 	#if UE_BUILD_OPTIMIZED_SHOWFLAGS 
@@ -302,10 +303,10 @@ private:
 		}
 
 		// Most flags are on by default. With the following line we only need disable flags.
-#if PLATFORM_HTML5 // TODO: EMSCRITPEN_TOOLCHAIN_UPGRADE_CHECK - broken fit field compiler
-		FMemory::Memset(this, uint8(true), sizeof(*this));
-#else
+#if PLATFORM_USE_SHOWFLAGS_ALWAYS_BITFIELD
 		FMemory::Memset(this, 0xff, sizeof(*this));
+#else
+		FMemory::Memset(this, uint8(true), sizeof(*this));
 #endif
 
 		// The following code sets what should be off by default.

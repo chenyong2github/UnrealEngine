@@ -216,4 +216,25 @@ void UVariant::SwitchOn()
 	}
 }
 
+bool UVariant::IsActive()
+{
+	if (ObjectBindings.Num() == 0)
+	{
+		return false;
+	}
+
+	for (UVariantObjectBinding* Binding : ObjectBindings)
+	{
+		for (UPropertyValue* PropCapture : Binding->GetCapturedProperties())
+		{
+			if (!PropCapture->IsRecordedDataCurrent())
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
 #undef LOCTEXT_NAMESPACE

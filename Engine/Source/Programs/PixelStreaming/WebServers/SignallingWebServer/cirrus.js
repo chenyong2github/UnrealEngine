@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-//-- Server side logic. Serves pixel streaming WebRTC-based page, proxies data back to WebRTC proxy --//
+//-- Server side logic. Serves pixel streaming WebRTC-based page, proxies data back to Streamer --//
 
 var express = require('express');
 var app = express();
@@ -26,17 +26,21 @@ const defaultConfig = {
 
 const argv = require('yargs').argv;
 var configFile = (typeof argv.configFile != 'undefined') ? argv.configFile.toString() : '.\\config.json';
-const config = require('./modules/config.js').init(configFile, defaultConfig)
+console.log(`configFile ${configFile}`);
+const config = require('./modules/config.js').init(configFile, defaultConfig);
 
 if (config.LogToFile) {
 	logging.RegisterFileLogger('./logs');
 }
 
-console.log("Config: " + JSON.stringify(config, null, '\t'))
+console.log("Config: " + JSON.stringify(config, null, '\t'));
 
 var http = require('http').Server(app);
 
-if(config.UseHTTPS){
+var sessionMonitor = require('./modules/sessionMonitor.js');
+sessionMonitor.init();
+
+if (config.UseHTTPS) {
 	//HTTPS certificate details
 	const options = {
 		key: fs.readFileSync(path.join(__dirname, './certificates/client-key.pem')),
@@ -44,21 +48,18 @@ if(config.UseHTTPS){
 	};
 
 	var https = require('https').Server(options, app);
-	var io = require('socket.io')(https);
-} else {
-	var io = require('socket.io')(http);
 }
 
 //If not using authetication then just move on to the next function/middleware
-var isAuthenticated = redirectUrl => function(req, res, next){ return next(); }
+var isAuthenticated = redirectUrl => function (req, res, next) { return next(); }
 
-if(config.UseAuthentication && config.UseHTTPS){
+if (config.UseAuthentication && config.UseHTTPS) {
 	var passport = require('passport');
 	require('./modules/authentication').init(app);
 	// Replace the isAuthenticated with the one setup on passport module
 	isAuthenticated = passport.authenticationMiddleware ? passport.authenticationMiddleware : isAuthenticated
-} else if(config.UseAuthentication && !config.UseHTTPS) {
-	console.log('ERROR: Trying to use authentication without using HTTPS, this is not allowed and so authentication will NOT be turned on, please turn on HTTPS to turn on authentication');
+} else if (config.UseAuthentication && !config.UseHTTPS) {
+	console.error('Trying to use authentication without using HTTPS, this is not allowed and so authentication will NOT be turned on, please turn on HTTPS to turn on authentication');
 }
 
 const helmet = require('helmet');
@@ -66,10 +67,10 @@ var hsts = require('hsts');
 var net = require('net');
 
 var FRONTEND_WEBSERVER = 'https://localhost';
-if(config.UseFrontend){
+if (config.UseFrontend) {
 	var httpPort = 3000;
 	var httpsPort = 8000;
-	
+
 	//Required for self signed certs otherwise just get an error back when sending request to frontend see https://stackoverflow.com/a/35633993
 	process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
 
@@ -80,8 +81,7 @@ if(config.UseFrontend){
 	var httpsPort = 443;
 }
 
-var proxyPort = 8888; // port to listen to WebRTC proxy connections
-var proxyBuffer = new Buffer(0);
+var streamerPort = 8888; // port to listen to Streamer connections
 
 var matchmakerAddress = '127.0.0.1';
 var matchmakerPort = 9999;
@@ -90,70 +90,71 @@ var gameSessionId;
 var userSessionId;
 var serverPublicIp;
 
-//Example of STUN server setting
-//let clientConfig = {peerConnectionOptions: { 'iceServers': [{'urls': ['stun:34.250.222.95:19302']}] }};
-var clientConfig = {peerConnectionOptions: {}};
+// `clientConfig` is send to Streamer and Players
+// Example of STUN server setting
+// let clientConfig = {peerConnectionOptions: { 'iceServers': [{'urls': ['stun:34.250.222.95:19302']}] }};
+var clientConfig = { type: 'config', peerConnectionOptions: {} };
 
 // Parse public server address from command line
 // --publicIp <public address>
 try {
-	if(typeof config.publicIp != 'undefined'){
+	if (typeof config.publicIp != 'undefined') {
 		serverPublicIp = config.publicIp.toString();
-    }
-	
-	if(typeof config.httpPort != 'undefined'){
-		httpPort = config.httpPort;
-    }
-	
-	if(typeof config.httpsPort != 'undefined'){
-		httpsPort = config.httpsPort;
-    }
-	
-	if(typeof config.proxyPort != 'undefined'){
-		proxyPort = config.proxyPort;
-    }
+	}
 
-	if(typeof config.frontendUrl != 'undefined'){
+	if (typeof config.httpPort != 'undefined') {
+		httpPort = config.httpPort;
+	}
+
+	if (typeof config.httpsPort != 'undefined') {
+		httpsPort = config.httpsPort;
+	}
+
+	if (typeof config.streamerPort != 'undefined') {
+		streamerPort = config.streamerPort;
+	}
+
+	if (typeof config.frontendUrl != 'undefined') {
 		FRONTEND_WEBSERVER = config.frontendUrl;
-    }
-	
-	if(typeof config.peerConnectionOptions != 'undefined'){
+	}
+
+	if (typeof config.peerConnectionOptions != 'undefined') {
 		clientConfig.peerConnectionOptions = JSON.parse(config.peerConnectionOptions);
 		console.log(`peerConnectionOptions = ${JSON.stringify(clientConfig.peerConnectionOptions)}`);
 	}
-	
+
 	if (typeof config.matchmakerAddress != 'undefined') {
 		matchmakerAddress = config.matchmakerAddress;
 	}
-	
+
 	if (typeof config.matchmakerPort != 'undefined') {
 		matchmakerPort = config.matchmakerPort;
 	}
 } catch (e) {
-    console.error(e);
-    process.exit(2);
+	console.error(e);
+	process.exit(2);
 }
 
-if(config.UseHTTPS){
+if (config.UseHTTPS) {
 	app.use(helmet());
 
 	app.use(hsts({
 		maxAge: 15552000  // 180 days in seconds
 	}));
-	
+
 	//Setup http -> https redirect
 	console.log('Redirecting http->https');
 	app.use(function (req, res, next) {
 		if (!req.secure) {
-			if(req.get('Host')){
+			if (req.get('Host')) {
 				var hostAddressParts = req.get('Host').split(':');
 				var hostAddress = hostAddressParts[0];
-				if(httpsPort != 443) {
+				if (httpsPort != 443) {
 					hostAddress = `${hostAddress}:${httpsPort}`;
 				}
 				return res.redirect(['https://', hostAddress, req.originalUrl].join(''));
 			} else {
-				console.log(`ERROR unable to get host name from header. Requestor ${req.ip}, url path: '${req.originalUrl}', available headers ${JSON.stringify(req.headers)}`);
+				console.error(`unable to get host name from header. Requestor ${req.ip}, url path: '${req.originalUrl}', available headers ${JSON.stringify(req.headers)}`);
 				return res.status(400).send('Bad Request');
 			}
 		}
@@ -162,39 +163,6 @@ if(config.UseHTTPS){
 }
 
 sendGameSessionData();
-
-//Setup folders
-app.use(express.static(path.join(__dirname, '/public')))
-app.use('/images', express.static(path.join(__dirname, './images')))
-app.use('/scripts', [isAuthenticated('/login'), express.static(path.join(__dirname, '/scripts'))]);
-app.use('/', [isAuthenticated('/login'), express.static(path.join(__dirname, '/custom_html'))])
-
-try{
-	for (var property in config.AdditionalRoutes) {
-	    if (config.AdditionalRoutes.hasOwnProperty(property)) {
-	    	console.log(`Adding additional routes "${property}" -> "${config.AdditionalRoutes[property]}"`)
-	    	app.use(property, [isAuthenticated('/login'), express.static(path.join(__dirname, config.AdditionalRoutes[property]))]);
-	    }
-	}
-} catch(err) {
-	console.log(`Error reading config.AdditionalRoutes: ${err}`)
-}
-
-
-app.get('/', isAuthenticated('/login'), function(req, res){
-	homepageFile = (typeof config.HomepageFile != 'undefined' && config.HomepageFile != '') ? config.HomepageFile.toString() : defaultConfig.HomepageFile;
-	homepageFilePath = path.join(__dirname, homepageFile)
-
-	fs.access(homepageFilePath, (err) => {
-		if (err) {
-			console.log('Unable to locate file ' + homepageFilePath)
-			res.status(404).send('Unable to locate file ' + homepageFile);
-		}
-		else {
-			res.sendFile(homepageFilePath);
-		}
-	});
-});
 
 //Setup the login page if we are using authentication
 if(config.UseAuthentication){
@@ -217,6 +185,50 @@ if(config.UseAuthentication){
 			res.redirect(redirectTo);
 		}
 	);
+}
+
+//Setup folders
+app.use(express.static(path.join(__dirname, '/public')))
+app.use('/images', express.static(path.join(__dirname, './images')))
+app.use('/scripts', [isAuthenticated('/login'),express.static(path.join(__dirname, '/scripts'))]);
+app.use('/', [isAuthenticated('/login'), express.static(path.join(__dirname, '/custom_html'))])
+
+try {
+	for (var property in config.AdditionalRoutes) {
+		if (config.AdditionalRoutes.hasOwnProperty(property)) {
+			console.log(`Adding additional routes "${property}" -> "${config.AdditionalRoutes[property]}"`)
+			app.use(property, [isAuthenticated('/login'), express.static(path.join(__dirname, config.AdditionalRoutes[property]))]);
+		}
+	}
+} catch (err) {
+	console.error(`reading config.AdditionalRoutes: ${err}`)
+}
+
+app.get('/', isAuthenticated('/login'), function (req, res) {
+	homepageFile = (typeof config.HomepageFile != 'undefined' && config.HomepageFile != '') ? config.HomepageFile.toString() : defaultConfig.HomepageFile;
+	homepageFilePath = path.join(__dirname, homepageFile)
+
+	fs.access(homepageFilePath, (err) => {
+		if (err) {
+			console.error('Unable to locate file ' + homepageFilePath)
+			res.status(404).send('Unable to locate file ' + homepageFile);
+		}
+		else {
+			res.sendFile(homepageFilePath);
+		}
+	});
+});
+
+
+//Setup http and https servers
+http.listen(httpPort, function () {
+	console.logColor(logging.Green, 'Http listening on *: ' + httpPort);
+});
+
+if (config.UseHTTPS) {
+	https.listen(httpsPort, function () {
+		console.logColor(logging.Green, 'Https listening on *: ' + httpsPort);
+	});
 }
 
 /*
@@ -247,209 +259,158 @@ app.get('/custom_html/:htmlFilename', isAuthenticated('/login'), function(req, r
 });
 */
 
-let clients = []; // either web-browsers or native webrtc receivers
-let nextClientId = 100;
+let WebSocket = require('ws');
 
-let proxySocket;
+let streamerServer = new WebSocket.Server({ port: streamerPort, backlog: 1 });
+console.logColor(logging.Green, `WebSocket listening to Streamer connections on :${streamerPort}`)
+let streamer; // WebSocket connected to Streamer
 
-function cleanUpProxyConnection() {
-	if(proxySocket){
-		proxySocket.end();
-		proxySocket = undefined;
-		proxyBuffer = new Buffer(0);
-		// make a copy of `clients` array as it will be modified in the loop
-		let clientsCopy = clients.slice();
-		clientsCopy.forEach(function (c) {
-			c.ws.disconnect();
-		});
-	}
-}
+streamerServer.on('connection', function (ws, req) {
+	console.logColor(logging.Green, `Streamer connected: ${req.connection.remoteAddress}`);
 
-let proxyListener = net.createServer(function(socket) {
-	// 'connection' listener
-	console.log('proxy connected');
-
-	socket.setNoDelay();
-
-	socket.on('data', function (data) {
-		proxyBuffer = Buffer.concat([proxyBuffer, data]);
-
-		// WebRTC proxy uses json messages instead of binary blob so need to read messages differently
-		while (handleProxyMessage(socket)) { }
-	});
-    
-	socket.on('end', function () {
-		console.log('proxy connection end');
-		cleanUpProxyConnection();
-	});
-
-	socket.on('disconnect', function () {
-		console.log('proxy disconnected');
-		cleanUpProxyConnection();
-	});
-    
-	socket.on('close', function() {
-		sendServerDisconnect();
-		console.log('proxy connection closed');
-		proxySocket = undefined;
-	});
+	ws.on('message', function onStreamerMessage(msg) {
+		console.logColor(logging.Blue, `<- Streamer: ${msg}`);
 	
-	socket.on('error', function (error) {
-		console.log(`proxy connection error ${JSON.stringify(error)}`);
-		cleanUpProxyConnection();
+		try {
+			msg = JSON.parse(msg);
+		} catch(err) {
+			console.error(`cannot parse Streamer message: ${msg}\nError: ${err}`);
+			streamer.close(1008, 'Cannot parse');
+			return;
+		}
+	
+		let playerId = msg.playerId;
+		delete msg.playerId; // no need to send it to the player
+		let player = players.get(playerId);
+		if (!player) {
+			console.log(`dropped message ${msg.type} as the player ${playerId} is not found`);
+			return;
+		}
+
+		if (msg.type == 'answer') {
+			player.ws.send(JSON.stringify(msg));
+		} else if (msg.type == 'iceCandidate') {
+			player.ws.send(JSON.stringify(msg));
+		} else if (msg.type == 'disconnectPlayer') {
+			player.ws.close(msg.reason);
+		} else {
+			console.error(`unsupported Streamer message type: ${msg.type}`);
+			streamer.close(1008, 'Unsupported message type');
+		}
 	});
 
-	proxySocket = socket;
+	function onStreamerDisconnected() {
+		disconnectAllPlayers();
+	}
+	
+	ws.on('close', function(code, reason) {
+		console.error(`streamer disconnected: ${code} - ${reason}`);
+		onStreamerDisconnected();
+	});
 
-	sendConfigToProxy();
+	ws.on('error', function(error) {
+		console.error(`streamer connection error: ${error}`);
+		ws.close(1006 /* abnormal closure */, error);
+		onStreamerDisconnected();
+	});
+
+	streamer = ws;
+
+	streamer.send(JSON.stringify(clientConfig));
 });
-    
-proxyListener.maxConnections = 1;
-proxyListener.listen(proxyPort, () => {
-	console.log('Listening to proxy connections on: ' + proxyPort);
-});
 
-// Must be kept in sync with PixelStreamingProtocol::EProxyToCirrusMsg C++ enum.
-const EProxyToCirrusMsg = {
-	answer: 0, // [msgId:1][clientId:4][size:4][string:size]
-	iceCandidate: 1, // [msgId:1][clientId:4][size:4][string:size]
-	disconnectClient: 2 // [msgId:1][clientId:4]
-}
+let playerServer = new WebSocket.Server({ server: config.UseHTTPS ? https : http});
+console.logColor(logging.Green, `WebSocket listening to Players connections on :${httpPort}`)
 
-// Must be kept in sync with PixelStreamingProtocol::ECirrusToProxyMsg C++ enum.
-const ECirrusToProxyMsg = {
-	offer: 0, // [msgId: 1][clientId:4][size:4][string:size]
-	iceCandidate: 1, // [msgId:1][clientId:4][size:4][string:size]
-	clientDisconnected: 2, // [msgId:1][clientId:4]
-	config: 3 // [msgId:1][size:4][config:size]
-}
+let players = new Map(); // playerId <-> player, where player is either a web-browser or a native webrtc player
+let nextPlayerId = 100;
 
-function readJsonMsg(consumed) {
-	// format: [size:4][string:size]
-	if (proxyBuffer.length < consumed + 4)
-		return [0, ""];
-	let msgSize = proxyBuffer.readUInt32LE(consumed);
-	consumed += 4;
-	if (proxyBuffer.length < consumed + msgSize)
-		return [0, ""];
-	let msg = proxyBuffer.toString('ascii', consumed, consumed + msgSize);
-	consumed += msgSize;
-	return [consumed, JSON.parse(msg)];
-}
-
-function handleProxyMessage(socket) {
-	// msgId
-	if(proxyBuffer.length == 0)
-		return false;
-	let msgId = proxyBuffer.readUInt8(0);
-	let consumed = 1;
-
-	// clientId
-	if (proxyBuffer.length < consumed + 4)
-		return false;
-	let clientId = proxyBuffer.readUInt32LE(consumed);
-	consumed += 4;
-
-	let client = clients.find(function(c) { return c.id == clientId; });
-	if (!client) {
-		// Client is likely no longer connected, but this can also occur if bad data is recieved, this can not be validated as yet so assume former
-		console.error(`proxy message ${msgId}: client ${clientId} not found. Check proxy->cirrus protocol consistency`);
+playerServer.on('connection', function (ws, req) {
+	// Reject connection if streamer is not connected
+	if (!streamer || streamer.readyState != 1 /* OPEN */) {
+		ws.close(1013 /* Try again later */, 'Streamer is not connected');
+		return;
 	}
 
-	switch (msgId) {
-		case EProxyToCirrusMsg.answer: // fall through
-		case EProxyToCirrusMsg.iceCandidate:
-			let [localConsumed, msg] = readJsonMsg(consumed);
-			if (localConsumed == 0)
-				return false;
-			consumed = localConsumed;
+	let playerId = ++nextPlayerId;
+	console.log(`player ${playerId} (${req.connection.remoteAddress}) connected`);
+	players.set(playerId, { ws: ws, id: playerId });
 
-			if(client){
-				switch (msgId)
-				{
-					case EProxyToCirrusMsg.answer:
-						console.log(`answer -> client ${clientId}`);
-						client.ws.emit('webrtc-answer', msg);
-						break;
-					case EProxyToCirrusMsg.iceCandidate:
-						console.log(`ICE candidate -> client ${clientId}`);
-						client.ws.emit('webrtc-ice', msg);
-						break;
-					default:
-						throw "unhandled case, check all \"fall through\" cases from above";
+	function sendPlayersCount() {
+		let playerCountMsg = JSON.stringify({ type: 'playerCount', count: players.size });
+		for (let p of players.values()) {
+			p.ws.send(playerCountMsg);
+		}
+	}
+	
+	ws.on('message', function (msg) {
+		console.logColor(logging.Blue, `<- player ${playerId}: ${msg}`);
+
+		try {
+			msg = JSON.parse(msg);
+		} catch (err) {
+			console.error(`Cannot parse player ${playerId} message: ${err}`);
+			ws.close(1008, 'Cannot parse');
+			return;
+		}
+
+		if (msg.type == 'offer') {
+			console.log(`<- player ${playerId}: offer`);
+			msg.playerId = playerId;
+			streamer.send(JSON.stringify(msg));
+		} else if (msg.type == 'iceCandidate') {
+			console.log(`<- player ${playerId}: iceCandidate`);
+			msg.playerId = playerId;
+			streamer.send(JSON.stringify(msg));
+		} else if (msg.type == 'stats') {
+			console.log(`<- player ${playerId}: stats\n${msg.data}`);
+		} else if (msg.type == 'kick') {
+			let playersCopy = new Map(players);
+			for (let p of playersCopy.values()) {
+				if (p.id != playerId) {
+					console.log(`kicking player ${p.id}`)
+					p.ws.close(4000, 'kicked');
 				}
 			}
+		} else {
+			console.error(`<- player ${playerId}: unsupported message type: ${msg.type}`);
+			ws.close(1008, 'Unsupported message type');
+			return;
+		}
+	});
 
-			break;
-		case EProxyToCirrusMsg.disconnectClient:
-			console.warn(`Proxy instructed to disconnect client ${clientId}`);
-			if(client){
-				client.ws.onclose = function() {};
-				client.ws.disconnect(true);
-				let idx = clients.map(function(p) { return p.id; }).indexOf(clientId);
-				clients.splice(idx, 1); // remove it
-				sendClientDisconnectedToProxy(clientId);
-			}
-			break;
-		default:
-			console.error(`Invalid message id ${msgId} from proxy`);
-			cleanUpProxyConnection();
-			return false;
+	function onPlayerDisconnected() {
+		players.delete(playerId);
+		streamer.send(JSON.stringify({type: 'playerDisconnected', playerId: playerId}));
+		sendPlayerDisconnectedToFrontend();
+		sendPlayerDisconnectedToMatchmaker();
+		sendPlayersCount();
 	}
 
-	proxyBuffer = proxyBuffer.slice(consumed);
-	return true;
-}
+	ws.on('close', function(code, reason) {
+		console.logColor(logging.Yellow, `player ${playerId} connection closed: ${code} - ${reason}`);
+		onPlayerDisconnected();
+	});
 
-function sendConfigToProxy() {
-	// [msgId:1][size:4][string:size]
-	if (!proxySocket)
-		return false;
+	ws.on('error', function(error) {
+		console.error(`player ${playerId} connection error: ${error}`);
+		ws.close(1006 /* abnormal closure */, error);
+		onPlayerDisconnected();
+	});
 
-	let cfg = {};
-	cfg.peerConnectionConfig = clientConfig.peerConnectionOptions;
-	let msg = JSON.stringify(cfg);
-	console.log(`config to Proxy: ${msg}`);
+	sendPlayerConnectedToFrontend();
+	sendPlayerConnectedToMatchmaker();
 
-	let data = new DataView(new ArrayBuffer(1 + 4 + msg.length));
-	data.setUint8(0, ECirrusToProxyMsg.config);
-	data.setUint32(1, msg.length, true);
-	for (let i = 0; i != msg.length; ++i)
-		data.setUint8(1 + 4 + i, msg.charCodeAt(i));
-	proxySocket.write(Buffer.from(data.buffer));
-	return true;
-}
+	ws.send(JSON.stringify(clientConfig));
 
-function sendClientDisconnectedToProxy(clientId) {
-	// [msgId:1][clientId:4]
-	if (!proxySocket)
-		return;
-	let data = new DataView(new ArrayBuffer(1 + 4));
-	data.setUint8(0, ECirrusToProxyMsg.clientDisconnected);
-	data.setUint32(1, clientId, true);
-	proxySocket.write(Buffer.from(data.buffer));
-}
+	sendPlayersCount();
+});
 
-function sendStringMsgToProxy(msgId, clientId, msg) {
-	// [msgId:1][clientId:4][size:4][string:size]
-	if (!proxySocket)
-		return false;
-	let data = new DataView(new ArrayBuffer(1 + 4 + 4 + msg.length));
-	data.setUint8(0, msgId);
-	data.setUint32(1, clientId, true);
-	data.setUint32(1 + 4, msg.length, true);
-	for (let i = 0; i != msg.length; ++i)
-		data.setUint8(1 + 4 + 4 + i, msg.charCodeAt(i));
-	proxySocket.write(Buffer.from(data.buffer));
-	return true;
-}
-
-function sendOfferToProxy(clientId, offer) {
-	sendStringMsgToProxy(ECirrusToProxyMsg.offer, clientId, offer);
-}
-
-function sendIceCandidateToProxy(clientId, iceCandidate) {
-	sendStringMsgToProxy(ECirrusToProxyMsg.iceCandidate, clientId, iceCandidate);
+function disconnectAllPlayers(code, reason) {
+	let clone = new Map(players);
+	for (let player of clone.values()) {
+		player.ws.close(code, reason);
+	}
 }
 
 /**
@@ -468,309 +429,158 @@ if (config.UseMatchmaker) {
 	});
 
 	matchmaker.on('error', () => {
-		console.log('Cirrus disconnected from matchmaker');
-	});
-}
-
-/**
- * Function that handles an incoming client connection.
- */
-function handleNewClient(ws) {
-    // NOTE: This needs to be the first thing to be sent
-    ws.emit('clientConfig', clientConfig);
-
-    var clientId = ++nextClientId;
-    console.log(`client ${clientId} (${ws.request.connection.remoteAddress}) connected`);
-    clients.push({ws: ws, id: clientId});
-
-    // Send client counts to all connected clients
-    ws.emit('clientCount', {count: clients.length - 1});
-	
-	clients.forEach(function(c){
-		if(c.id == clientId)
-			return;
-		c.ws.emit('clientCount', {count: clients.length - 1});
-	});
-
-    ws.on('userConfig', function(userConfig) {
-    	receiveUserConfig(clientId, userConfig, ws);
-    });
-
-    /**
-    * This is where events received from client are translated
-    * and sent on to the proxy socket
-    */
-    
-    ws.on('message', function (msg) {
-    	console.error(`client #${clientId}: unexpected msg "${msg}"`);
-    });
-
-    ws.on('kick', function(msg){
-		// make a copy of `clients` cos the array will be modified in the loop
-    	let clientsCopy = clients.slice();
-    	clientsCopy.forEach(function(c){
-    		if(c.id == clientId)
-    			return;
-    		console.log('Kicking client ' + c.id);
-    		c.ws.disconnect();
-    	})
-    	ws.emit('clientCount', {count: 0});
-    })
-
-    var removeClient = function() {
-    	let idx = clients.map(function(c) { return c.ws; }).indexOf(ws);
-    	let clientId = clients[idx].id;
-    	clients.splice(idx, 1); // remove it
-    	sendClientDisconnectedToProxy(clientId);
-    	sendClientDisconnectedToFrontend();
-		sendClientDisconnectedToMatchmaker();
-    }
-	
-    ws.on('disconnect', function () {
-    	console.log(`client ${clientId} disconnected`);
-        removeClient();
-    });
-    
-    ws.on('close', function (code, reason) {
-    	console.log(`client ${clientId} connection closed: ${code} - ${reason}`);
-        removeClient();
-    });
-    
-    ws.on('error', function (err) {
-    	console.log(`client ${clientId} connection error: ${err}`);
-        removeClient();
-    });
-};
-
-/**
- * Config data received from the web browser or device native client.
- */
-function receiveUserConfig(clientId, userConfigString, ws) {
-	console.log(`client ${clientId}: userConfig = ${userConfigString}`);
-	userConfig = JSON.parse(userConfigString)
-
-	// Check the sort of data the web browser or device native client will send.
-	switch (userConfig.emitData)
-	{
-		case "ArrayBuffer":
-			{
-				ws.on('webrtc-offer', function(offer) {
-					console.log(`offer <- client ${clientId}`);
-					sendOfferToProxy(clientId,  offer);
-				});
-
-				ws.on('webrtc-ice', function(candidate) {
-					console.log(`ICE candidate <- client ${clientId}`);
-					sendIceCandidateToProxy(clientId, candidate);
-				});
-
-				ws.on('webrtc-stats', function(stats){
-					console.log(`Received webRTC stats from player ID: ${clientId} \r\n${JSON.stringify(stats)}`);
-				});
-
-				break;
-			}
-		case "Array":
-			{
-				//TODO: this is untested as requires iOS WebRTC integration
-				ws.on('webrtc-offer', function(offer) {
-					console.log(`offer <- client ${clientId}`);
-					sendOfferToProxy(clientId,  offer);
-				});
-
-				ws.on('webrtc-ice', function(candidate) {
-					console.log(`ICE candidate <- client ${clientId}`);
-					sendIceCandidateToProxy(clientId, candidate);
-				});
-
-				ws.on('webrtc-stats', function(stats){
-					console.log(`Received webRTC stats from player ID: ${clientId} \r\n${JSON.stringify(stats)}`);
-				});
-
-				break;
-			}
-		default:
-			{
-				console.log(`Unknown user config emit data type ${userConfig.emitData}`);
-				break;
-			}
-	}
-}
-
-
-//IO events
-io.on('connection', function (ws) {
-	// Reject connection if proxy is not connected
-	if (!proxySocket) {
-		ws.disconnect();
-		return;
-	}
-
-    handleNewClient(ws);    
-    sendClientConnectedToFrontend();
-	sendClientConnectedToMatchmaker();
-});
-
-//Setup http and https servers
-http.listen(httpPort, function () {
-		console.logColor(logging.Green, 'Http listening on *: ' + httpPort);
-	});
-
-if(config.UseHTTPS){
-	https.listen(httpsPort, function () {
-		console.logColor(logging.Green, 'Https listening on *: ' + httpsPort);
+		console.error('Cirrus disconnected from matchmaker');
 	});
 }
 
 //Keep trying to send gameSessionId in case the server isn't ready yet
-function sendGameSessionData(){
+function sendGameSessionData() {
 	//If we are not using the frontend web server don't try and make requests to it
-	if(!config.UseFrontend)
+	if (!config.UseFrontend)
 		return;
-	
+
 	webRequest.get(`${FRONTEND_WEBSERVER}/server/requestSessionId`,
-		function(response, body) {
-			if(response.statusCode === 200){
+		function (response, body) {
+			if (response.statusCode === 200) {
 				gameSessionId = body;
 				console.log('SessionId: ' + gameSessionId);
 			}
-			else{
-				console.log('Status code: ' + response.statusCode);
-				console.log(body);
+			else {
+				console.error('Status code: ' + response.statusCode);
+				console.error(body);
 			}
 		},
-		function(err){
+		function (err) {
 			//Repeatedly try in cases where the connection timed out or never connected
 			if (err.code === "ECONNRESET") {
 				//timeout
 				sendGameSessionData();
-			} else if(err.code === 'ECONNREFUSED') {
-				console.log('Frontend server not running, unable to setup game session');
+			} else if (err.code === 'ECONNREFUSED') {
+				console.error('Frontend server not running, unable to setup game session');
 			} else {
-				console.log(err);
+				console.error(err);
 			}
 		});
 }
 
-function sendUserSessionData(serverPort){
+function sendUserSessionData(serverPort) {
 	//If we are not using the frontend web server don't try and make requests to it
-	if(!config.UseFrontend)
+	if (!config.UseFrontend)
 		return;
-	
+
 	webRequest.get(`${FRONTEND_WEBSERVER}/server/requestUserSessionId?gameSessionId=${gameSessionId}&serverPort=${serverPort}&appName=${querystring.escape(clientConfig.AppName)}&appDescription=${querystring.escape(clientConfig.AppDescription)}${(typeof serverPublicIp === 'undefined' ? '' : '&serverHost=' + serverPublicIp)}`,
-		function(response, body) {
-			if(response.statusCode === 410){
+		function (response, body) {
+			if (response.statusCode === 410) {
 				sendUserSessionData(serverPort);
-			}else if(response.statusCode === 200){
+			} else if (response.statusCode === 200) {
 				userSessionId = body;
 				console.log('UserSessionId: ' + userSessionId);
 			} else {
-				console.log('Status code: ' + response.statusCode);
-				console.log(body);
+				console.error('Status code: ' + response.statusCode);
+				console.error(body);
 			}
 		},
-		function(err){
+		function (err) {
 			//Repeatedly try in cases where the connection timed out or never connected
 			if (err.code === "ECONNRESET") {
 				//timeout
 				sendUserSessionData(serverPort);
-			} else if(err.code === 'ECONNREFUSED') {
-				console.log('Frontend server not running, unable to setup user session');
+			} else if (err.code === 'ECONNREFUSED') {
+				console.error('Frontend server not running, unable to setup user session');
 			} else {
-				console.log(err);
+				console.error(err);
 			}
 		});
 }
 
-function sendServerDisconnect(){
+function sendServerDisconnect() {
 	//If we are not using the frontend web server don't try and make requests to it
-	if(!config.UseFrontend)
+	if (!config.UseFrontend)
 		return;
-	
+
 	webRequest.get(`${FRONTEND_WEBSERVER}/server/serverDisconnected?gameSessionId=${gameSessionId}&appName=${querystring.escape(clientConfig.AppName)}`,
-		function(response, body) {
-			if(response.statusCode === 200){
+		function (response, body) {
+			if (response.statusCode === 200) {
 				console.log('serverDisconnected acknowledged by Frontend');
 			} else {
-				console.log('Status code: ' + response.statusCode);
-				console.log(body);
+				console.error('Status code: ' + response.statusCode);
+				console.error(body);
 			}
 		},
-		function(err){
+		function (err) {
 			//Repeatedly try in cases where the connection timed out or never connected
 			if (err.code === "ECONNRESET") {
 				//timeout
 				sendServerDisconnect();
-			} else if(err.code === 'ECONNREFUSED') {
-				console.log('Frontend server not running, unable to setup user session');
+			} else if (err.code === 'ECONNREFUSED') {
+				console.error('Frontend server not running, unable to setup user session');
 			} else {
-				console.log(err);
+				console.error(err);
 			}
 		});
 }
 
-function sendClientConnectedToFrontend(){
-    //If we are not using the frontend web server don't try and make requests to it
-    if(!config.UseFrontend)
-        return;
+function sendPlayerConnectedToFrontend() {
+	//If we are not using the frontend web server don't try and make requests to it
+	if (!config.UseFrontend)
+		return;
 
-    webRequest.get(`${FRONTEND_WEBSERVER}/server/clientConnected?gameSessionId=${gameSessionId}&appName=${querystring.escape(clientConfig.AppName)}`,
-		function(response, body) {
-		    if(response.statusCode === 200){
-		        console.log('clientConnected acknowledged by Frontend');
-		    }
-		    else{
-		        console.log('Status code: ' + response.statusCode);
-		        console.log(body);
-		    }
+	webRequest.get(`${FRONTEND_WEBSERVER}/server/clientConnected?gameSessionId=${gameSessionId}&appName=${querystring.escape(clientConfig.AppName)}`,
+		function (response, body) {
+			if (response.statusCode === 200) {
+				console.log('clientConnected acknowledged by Frontend');
+			} else {
+				console.error('Status code: ' + response.statusCode);
+				console.error(body);
+			}
 		},
-		function(err){
-		    //Repeatedly try in cases where the connection timed out or never connected
-		    if (err.code === "ECONNRESET") {
-		        //timeout
-		        sendClientConnectedToFrontend();
-		    } else if(err.code === 'ECONNREFUSED') {
-		        console.log('Frontend server not running, unable to setup game session');
-		    } else {
-		        console.log(err);
-		    }
+		function (err) {
+			//Repeatedly try in cases where the connection timed out or never connected
+			if (err.code === "ECONNRESET") {
+				//timeout
+				sendPlayerConnectedToFrontend();
+			} else if (err.code === 'ECONNREFUSED') {
+				console.error('Frontend server not running, unable to setup game session');
+			} else {
+				console.error(err);
+			}
 		});
 }
 
-function sendClientDisconnectedToFrontend(){
-    //If we are not using the frontend web server don't try and make requests to it
-    if(!config.UseFrontend)
-        return;
+function sendPlayerDisconnectedToFrontend() {
+	//If we are not using the frontend web server don't try and make requests to it
+	if (!config.UseFrontend)
+		return;
 
-    webRequest.get(`${FRONTEND_WEBSERVER}/server/clientDisconnected?gameSessionId=${gameSessionId}&appName=${querystring.escape(clientConfig.AppName)}`,
-		function(response, body) {
-		    if(response.statusCode === 200){
-		        console.log('clientDisconnected acknowledged by Frontend');
-		    }
-		    else{
-		        console.log('Status code: ' + response.statusCode);
-		        console.log(body);
-		    }
+	webRequest.get(`${FRONTEND_WEBSERVER}/server/clientDisconnected?gameSessionId=${gameSessionId}&appName=${querystring.escape(clientConfig.AppName)}`,
+		function (response, body) {
+			if (response.statusCode === 200) {
+				console.log('clientDisconnected acknowledged by Frontend');
+			}
+			else {
+				console.error('Status code: ' + response.statusCode);
+				console.error(body);
+			}
 		},
-		function(err){
-		    //Repeatedly try in cases where the connection timed out or never connected
-		    if (err.code === "ECONNRESET") {
-		        //timeout
-		        sendClientDisconnectedEvent();
-		    } else if(err.code === 'ECONNREFUSED') {
-		        console.log('Frontend server not running, unable to setup game session');
-		    } else {
-		        console.log(err);
-		    }
+		function (err) {
+			//Repeatedly try in cases where the connection timed out or never connected
+			if (err.code === "ECONNRESET") {
+				//timeout
+				sendPlayerDisconnectedToFrontend();
+			} else if (err.code === 'ECONNREFUSED') {
+				console.error('Frontend server not running, unable to setup game session');
+			} else {
+				console.error(err);
+			}
 		});
 }
 
 // The Matchmaker will not re-direct clients to this Cirrus server if any client
 // is connected.
-function sendClientConnectedToMatchmaker() {
+function sendPlayerConnectedToMatchmaker() {
 	if (!config.UseMatchmaker)
 		return;
-	
+
 	message = {
 		type: 'clientConnected'
 	};
@@ -779,7 +589,7 @@ function sendClientConnectedToMatchmaker() {
 
 // The Matchmaker is interested when nobody is connected to a Cirrus server
 // because then it can re-direct clients to this re-cycled Cirrus server.
-function sendClientDisconnectedToMatchmaker() {
+function sendPlayerDisconnectedToMatchmaker() {
 	if (!config.UseMatchmaker)
 		return;
 

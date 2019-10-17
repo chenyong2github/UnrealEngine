@@ -2,10 +2,9 @@
 
 #pragma once
 
-#if INCLUDE_CHAOS
-
 #include "Physics/ImmediatePhysics/ImmediatePhysicsChaos/ImmediatePhysicsCore_Chaos.h"
 
+#include "Chaos/ChaosDebugDrawDeclares.h"
 #include "Engine/EngineTypes.h"
 #include "Templates/UniquePtr.h"
 
@@ -77,11 +76,19 @@ namespace ImmediatePhysics_Chaos
 		//void SetPositionIterationCount(int32 InIterationCount);
 		//void SetVelocityIterationCount(int32 InIterationCount);
 
+		void SetSimulationSpaceTransform(const FTransform& Transform) { SimulationSpaceTransform = Transform; }
+
 	private:
+		void ConditionConstraints();
+
+		void DebugDrawElementsAll(const int32 MinDebugLevel, const int32 MaxDebugLevel, const float ColorScale);
+		void DebugDrawElementsIsland(const int32 Island, const int32 MinDebugLevel, const int32 MaxDebugLevel, const float ColorScale);
+
+		using FParticleHandle = Chaos::TGeometryParticleHandle<FReal, Dimensions>;
 		TUniquePtr<Chaos::TPBDRigidsEvolutionGBF<FReal, Dimensions>> Evolution;
 		TUniquePtr<Chaos::TPBDRigidsSOAs<FReal, Dimensions>> Particles;
-		TUniquePtr<Chaos::TPBD6DJointConstraints<FReal, Dimensions>> Joints;
-		TUniquePtr<Chaos::TPBDConstraintIslandRule<Chaos::TPBD6DJointConstraints<FReal, Dimensions>, FReal, Dimensions>> JointsRule;		// @todo(ccaulfield): Don't need islands for anim node physics...
+		TUniquePtr<Chaos::TPBDJointConstraints<FReal, Dimensions>> Joints;
+		TUniquePtr<Chaos::TPBDConstraintIslandRule<Chaos::TPBDJointConstraints<FReal, Dimensions>, FReal, Dimensions>> JointsRule;		// @todo(ccaulfield): Don't need islands for anim node physics...
 
 		/** Mapping from entity index to handle */
 		// @todo(ccaulfield): we now have handles pointing to handles which is inefficient - we can do better than this, but don't want to change API yet
@@ -91,13 +98,11 @@ namespace ImmediatePhysics_Chaos
 		/** Mapping from constraint index to handle */
 		TArray<FJointHandle*> JointHandles;
 
-		/** Both of these are slow to access. Make sure to use iteration cache when possible */
-		TMap<FActorHandle*, TSet<FActorHandle*>> IgnoreCollisionPairTable;
-		TSet<FActorHandle*> IgnoreCollisionActors;
+		/** Slow to access. */
+		// @todo(ccaulfield): Optimize
+		TMap<const FParticleHandle*, TSet<const FParticleHandle*>> IgnoreCollisionParticlePairTable;
 
-		FVector Gravity;
+		FTransform SimulationSpaceTransform;
 	};
 
 }
-
-#endif // INCLUDE_CHAOS

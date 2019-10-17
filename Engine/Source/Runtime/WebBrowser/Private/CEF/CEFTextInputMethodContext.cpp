@@ -86,7 +86,7 @@ void FCEFTextInputMethodContext::SetSelectionRange(const uint32 BeginIndex, cons
 	SelectionRangeLength = Length;
 	SelectionCaretPosition = CaretPosition;
 
-	CefString Str = *CompositionString;
+	CefString Str = TCHAR_TO_WCHAR(*CompositionString);
 	std::vector<CefCompositionUnderline> underlines;
 	Owner->InternalCefBrowser->GetHost()->ImeSetComposition(
 		Str,
@@ -116,7 +116,7 @@ void FCEFTextInputMethodContext::SetTextInRange(const uint32 BeginIndex, const u
 	}
 	CompositionString = NewString;
 
-	CefString Str = *CompositionString;
+	CefString Str = TCHAR_TO_WCHAR(*CompositionString);
 	std::vector<CefCompositionUnderline> underlines;
 	Owner->InternalCefBrowser->GetHost()->ImeSetComposition(
 		Str,
@@ -241,7 +241,7 @@ void FCEFTextInputMethodContext::EndComposition()
 
 		if (CompositionString.Len() > 0)
 		{
-			CefString Result = *CompositionString;
+			CefString Result = TCHAR_TO_WCHAR(*CompositionString);
 			Owner->InternalCefBrowser->GetHost()->ImeCommitText(Result, CefRange(UINT32_MAX, UINT32_MAX), 0);
 		}
 		else

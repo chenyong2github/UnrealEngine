@@ -36,13 +36,13 @@ static TAutoConsoleVariable<int32> CVarUseUnifiedHeightfield(
 
 bool InitGamePhysCore()
 {
-#if INCLUDE_CHAOS
 	// If we're running with Chaos enabled, load its module
 	FModuleManager::Get().LoadModule("Chaos");
 	FModuleManager::Get().LoadModule("ChaosSolvers");
-#if WITH_ENGINE
+
+#if WITH_ENGINE && WITH_CHAOS
+	// Loading this without Chaos gives warning, as no module depends on it.
 	FModuleManager::Get().LoadModule("ChaosSolverEngine");
-#endif
 #endif
 
 #if WITH_PHYSX

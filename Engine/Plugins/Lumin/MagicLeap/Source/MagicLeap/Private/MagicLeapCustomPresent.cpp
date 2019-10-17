@@ -383,6 +383,7 @@ void FMagicLeapCustomPresentOpenGL::FinishRendering()
 			UE_LOG(LogMagicLeap, Error, TEXT("MLGraphicsEndFrame failed with status %d"), Result);
 		}
 	}
+	Plugin->GetCurrentFrameMutable().bBeginFrameSucceeded = false;
 	Plugin->InitializeOldFrameFromRenderFrame();
 #endif //WITH_MLSDK
 }
@@ -610,7 +611,8 @@ void FMagicLeapCustomPresentVulkan::FinishRendering()
 #endif
 		}
 	}
-  
+
+	Plugin->GetCurrentFrameMutable().bBeginFrameSucceeded = false;
 	Plugin->InitializeOldFrameFromRenderFrame();
 #endif // WITH_MLSDK
 }

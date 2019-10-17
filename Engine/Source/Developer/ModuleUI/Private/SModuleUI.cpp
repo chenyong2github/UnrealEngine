@@ -289,10 +289,7 @@ FReply SModuleUI::FModuleListItem::OnRecompileClicked()
 		else
 		{
 			// Perform a regular unload, then reload
-			const bool bReloadAfterRecompile = true;
-			const bool bForceCodeProject = false;
-			const bool bFailIfGeneratedCodeChanges = true;
-			const bool bRecompileSucceeded = HotReloadSupport.RecompileModule(ModuleName, bReloadAfterRecompile, *GLog, bFailIfGeneratedCodeChanges, bForceCodeProject);
+			const bool bRecompileSucceeded = HotReloadSupport.RecompileModule(ModuleName, *GLog, ERecompileModuleFlags::ReloadAfterRecompile | ERecompileModuleFlags::FailIfGeneratedCodeChanges);
 		}
 	}
 

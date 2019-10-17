@@ -21,6 +21,7 @@
 #include "UObject/LinkerLoad.h"
 #include "Misc/CommandLine.h"
 #include "Interfaces/IPluginManager.h"
+#include "Serialization/LoadTimeTrace.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogUObjectBase, Log, All);
 DEFINE_STAT(STAT_UObjectsStatGroupTester);
@@ -874,6 +875,8 @@ void UClassReplaceHotReloadClasses()
  */
 static void UObjectLoadAllCompiledInDefaultProperties()
 {
+	TRACE_LOADTIME_REQUEST_GROUP_SCOPE(TEXT("UObjectLoadAllCompiledInDefaultProperties"));
+
 	static FName LongEnginePackageName(TEXT("/Script/Engine"));
 
 	TArray<UClass *(*)()>& DeferredCompiledInRegistration = GetDeferredCompiledInRegistration();

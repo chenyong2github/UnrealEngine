@@ -1,4 +1,4 @@
-﻿{
+{
 	"FileVersion": 3,
 	"Version": 1,
 	"VersionName": "1.0",
@@ -21,7 +21,14 @@
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
 			"BlacklistPlatforms": [
-				"HTML5",
+				"TVOS"
+			]
+		},
+		{
+			"Name": "RemoteSessionEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"BlacklistPlatforms": [
 				"TVOS"
 			]
 		}
@@ -34,6 +41,10 @@
 		{
 			"Name": "AppleImageUtils",
 			"Enabled": true
-		}
+		},
+		{
+			"Name": "MediaIOFramework",
+			"Enabled": true
+		},
 	]
 }

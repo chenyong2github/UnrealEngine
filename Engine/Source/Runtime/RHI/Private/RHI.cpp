@@ -472,6 +472,7 @@ bool GHardwareHiddenSurfaceRemoval = false;
 bool GRHISupportsAsyncTextureCreation = false;
 bool GRHISupportsQuadTopology = false;
 bool GRHISupportsRectTopology = false;
+bool GRHISupportsDepthUAV = false;
 bool GRHISupportsAtomicUInt64 = false;
 bool GSupportsParallelRenderingTasksWithSeparateRHIThread = true;
 bool GRHIThreadNeedsKicking = false;
@@ -523,6 +524,7 @@ bool GSupportsParallelOcclusionQueries = false;
 bool GSupportsRenderTargetWriteMask = false;
 bool GSupportsTransientResourceAliasing = false;
 bool GRHIRequiresRenderTargetForPixelShaderUAVs = false;
+bool GRHISupportsUAVFormatAliasing = false;
 
 bool GRHISupportsMSAADepthSampleAccess = false;
 bool GRHISupportsResolveCubemapFaces = false;
@@ -899,6 +901,15 @@ bool RHIGetPreviewFeatureLevel(ERHIFeatureLevel::Type& PreviewFeatureLevelOUT)
 		return false;
 	}
 	return true;
+}
+
+ RHI_API EPixelFormat RHIPreferredPixelFormatHint(EPixelFormat PreferredPixelFormat)
+{
+	if (GDynamicRHI)
+	{
+		return GDynamicRHI->RHIPreferredPixelFormatHint(PreferredPixelFormat);
+	}
+	return PreferredPixelFormat;
 }
 
 void FRHIRenderPassInfo::ConvertToRenderTargetsInfo(FRHISetRenderTargetsInfo& OutRTInfo) const

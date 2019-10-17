@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "StaticMeshEditorViewportClient.h"
+#include "EditorModeManager.h"
 #include "EngineGlobals.h"
 #include "RawIndexBuffer.h"
 #include "Settings/LevelEditorViewportSettings.h"
@@ -27,7 +28,6 @@
 #include "PhysicsEngine/BodySetup.h"
 
 #include "Engine/AssetUserData.h"
-
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "AssetViewerSettings.h"
 
@@ -166,8 +166,9 @@ IMPLEMENT_HIT_PROXY(HSMEVertexProxy, HHitProxy);
 
 bool FStaticMeshEditorViewportClient::InputWidgetDelta( FViewport* InViewport, EAxisList::Type CurrentAxis, FVector& Drag, FRotator& Rot, FVector& Scale )
 {
-	bool bHandled = false;
-	if (bManipulating)
+	bool bHandled = FEditorViewportClient::InputWidgetDelta(InViewport, CurrentAxis, Drag, Rot, Scale);
+
+	if (!bHandled && bManipulating)
 	{
 		if (CurrentAxis != EAxisList::None)
 		{
@@ -246,7 +247,9 @@ bool FStaticMeshEditorViewportClient::InputWidgetDelta( FViewport* InViewport, E
 
 void FStaticMeshEditorViewportClient::TrackingStarted( const struct FInputEventState& InInputState, bool bIsDraggingWidget, bool bNudge )
 {
-	if( !bManipulating && bIsDraggingWidget )
+	const bool bTrackingHandledExternally = ModeTools->StartTracking(this, Viewport);
+
+	if( !bManipulating && bIsDraggingWidget && !bTrackingHandledExternally)
 	{
 		Widget->SetSnapEnabled(true);
 		const UStaticMeshSocket* SelectedSocket = StaticMeshEditorPtr.Pin()->GetSelectedSocket();
@@ -321,14 +324,15 @@ void FStaticMeshEditorViewportClient::TrackingStarted( const struct FInputEventS
 
 FWidget::EWidgetMode FStaticMeshEditorViewportClient::GetWidgetMode() const
 {
-	const UStaticMeshSocket* SelectedSocket = StaticMeshEditorPtr.Pin()->GetSelectedSocket();
-	if( SelectedSocket )
+	if (IsCustomModeUsingWidget())
+	{
+		return ModeTools->GetWidgetMode();
+	}
+	else if(StaticMeshEditorPtr.Pin()->GetSelectedSocket())
 	{
 		return WidgetMode;
 	}
-
-	const bool bSelectedPrim = StaticMeshEditorPtr.Pin()->HasSelectedPrims();
-	if (bSelectedPrim)
+	else if (StaticMeshEditorPtr.Pin()->HasSelectedPrims())
 	{
 		return WidgetMode;
 	}
@@ -338,7 +342,15 @@ FWidget::EWidgetMode FStaticMeshEditorViewportClient::GetWidgetMode() const
 
 void FStaticMeshEditorViewportClient::SetWidgetMode(FWidget::EWidgetMode NewMode)
 {
-	WidgetMode = NewMode;
+	if (IsCustomModeUsingWidget())
+	{
+		ModeTools->SetWidgetMode(NewMode);
+	}
+	else
+	{
+		WidgetMode = NewMode;
+	}
+
 	Invalidate();
 }
 
@@ -346,8 +358,11 @@ bool FStaticMeshEditorViewportClient::CanSetWidgetMode(FWidget::EWidgetMode NewM
 {
 	if (!Widget->IsDragging())
 	{
-		const bool bSelectedPrim = StaticMeshEditorPtr.Pin()->HasSelectedPrims();
-		if (bSelectedPrim)
+		if (IsCustomModeUsingWidget())
+		{
+			return ModeTools->UsesTransformWidget(NewMode);
+		}
+		else if (StaticMeshEditorPtr.Pin()->HasSelectedPrims())
 		{
 			return true;
 		}
@@ -369,7 +384,7 @@ bool FStaticMeshEditorViewportClient::CanCycleWidgetMode() const
 	{
 		const UStaticMeshSocket* SelectedSocket = StaticMeshEditorPtr.Pin()->GetSelectedSocket();
 		const bool bSelectedPrim = StaticMeshEditorPtr.Pin()->HasSelectedPrims();
-		if ((SelectedSocket || bSelectedPrim))
+		if ((SelectedSocket || bSelectedPrim || IsCustomModeUsingWidget()))
 		{
 			return true;
 		}
@@ -379,7 +394,9 @@ bool FStaticMeshEditorViewportClient::CanCycleWidgetMode() const
 
 void FStaticMeshEditorViewportClient::TrackingStopped()
 {
-	if( bManipulating )
+	const bool bTrackingHandledExternally = ModeTools->EndTracking(this, Viewport);
+
+	if( bManipulating && !bTrackingHandledExternally)
 	{
 		bManipulating = false;
 		GEditor->EndTransaction();
@@ -388,8 +405,11 @@ void FStaticMeshEditorViewportClient::TrackingStopped()
 
 FVector FStaticMeshEditorViewportClient::GetWidgetLocation() const
 {
-	const UStaticMeshSocket* SelectedSocket = StaticMeshEditorPtr.Pin()->GetSelectedSocket();
-	if( SelectedSocket )
+	if (IsCustomModeUsingWidget())
+	{
+		return ModeTools->GetWidgetLocation();
+	}
+	else if (const UStaticMeshSocket* SelectedSocket = StaticMeshEditorPtr.Pin()->GetSelectedSocket())
 	{
 		FMatrix SocketTM;
 		SelectedSocket->GetSocketMatrix(SocketTM, StaticMeshComponent);
@@ -409,8 +429,12 @@ FVector FStaticMeshEditorViewportClient::GetWidgetLocation() const
 
 FMatrix FStaticMeshEditorViewportClient::GetWidgetCoordSystem() const 
 {
-	const UStaticMeshSocket* SelectedSocket = StaticMeshEditorPtr.Pin()->GetSelectedSocket();
-	if( SelectedSocket )
+	if (IsCustomModeUsingWidget())
+	{
+		return ModeTools->GetCustomInputCoordinateSystem();
+	}
+
+	if(const UStaticMeshSocket* SelectedSocket = StaticMeshEditorPtr.Pin()->GetSelectedSocket())
 	{
 		//FMatrix SocketTM;
 		//SelectedSocket->GetSocketMatrix(SocketTM, StaticMeshComponent);
@@ -426,6 +450,16 @@ FMatrix FStaticMeshEditorViewportClient::GetWidgetCoordSystem() const
 	}
 
 	return FMatrix::Identity;
+}
+
+ECoordSystem FStaticMeshEditorViewportClient::GetWidgetCoordSystemSpace() const
+{ 
+	if (IsCustomModeUsingWidget())
+	{
+		return ModeTools->GetCoordSystem();
+	}
+
+	return COORD_Local; 
 }
 
 bool FStaticMeshEditorViewportClient::ShouldOrbitCamera() const
@@ -1581,5 +1615,13 @@ void FStaticMeshEditorViewportClient::ResetCamera()
 {
 	FocusViewportOnBox( StaticMeshComponent->Bounds.GetBox() );
 	Invalidate();
+}
+
+bool FStaticMeshEditorViewportClient::IsCustomModeUsingWidget() const
+{
+	const FWidget::EWidgetMode ToolsWidgetMode = ModeTools->GetWidgetMode();
+	const bool bDisplayToolWidget = ModeTools->GetShowWidget();
+
+	return bDisplayToolWidget && ToolsWidgetMode != FWidget::EWidgetMode::WM_None;
 }
 #undef LOCTEXT_NAMESPACE 

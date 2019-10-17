@@ -223,12 +223,20 @@ public:
 		// Compile for special engine materials.
 		if (bRenderReflectiveShadowMap)
 		{
-			// Reflective shadow map shaders must be compiled for every material because they access the material normal
-			return !bUsePositionOnlyStream
-				// Don't render ShadowDepth for translucent unlit materials, unless we're injecting emissive
-				&& (Material->ShouldCastDynamicShadows() || Material->ShouldInjectEmissiveIntoLPV()
-					|| Material->ShouldBlockGI())
-				&& IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5);
+			static const auto SupportLPV = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.LightPropagationVolume"));
+			if (SupportLPV && SupportLPV->GetValueOnAnyThread() == 0)
+			{
+				return false;
+			}
+			else
+			{
+				// Reflective shadow map shaders must be compiled for every material because they access the material normal
+				return !bUsePositionOnlyStream
+					// Don't render ShadowDepth for translucent unlit materials, unless we're injecting emissive
+					&& (Material->ShouldCastDynamicShadows() || Material->ShouldInjectEmissiveIntoLPV()
+						|| Material->ShouldBlockGI())
+					&& IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5);
+			}
 		}
 		else
 		{
@@ -280,9 +288,17 @@ public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		// Re-use ShouldCache from vertex shader
-		return FBaseHS::ShouldCompilePermutation(Parameters)
-			&& TShadowDepthVS<ShaderMode, bRenderReflectiveShadowMap, false>::ShouldCompilePermutation(Parameters);
+		static const auto SupportLPV = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.LightPropagationVolume"));
+		if (SupportLPV && SupportLPV->GetValueOnAnyThread() == 0)
+		{
+			return false;
+		}
+		else
+		{
+			// Re-use ShouldCache from vertex shader
+			return FBaseHS::ShouldCompilePermutation(Parameters)
+				&& TShadowDepthVS<ShaderMode, bRenderReflectiveShadowMap, false>::ShouldCompilePermutation(Parameters);
+		}
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -322,9 +338,17 @@ public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		// Re-use ShouldCache from vertex shader
-		return FBaseDS::ShouldCompilePermutation(Parameters)
-			&& TShadowDepthVS<ShaderMode, bRenderReflectiveShadowMap, false>::ShouldCompilePermutation(Parameters);
+		static const auto SupportLPV = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.LightPropagationVolume"));
+		if (SupportLPV && SupportLPV->GetValueOnAnyThread() == 0)
+		{
+			return false;
+		}
+		else
+		{
+			// Re-use ShouldCache from vertex shader
+			return FBaseDS::ShouldCompilePermutation(Parameters)
+				&& TShadowDepthVS<ShaderMode, bRenderReflectiveShadowMap, false>::ShouldCompilePermutation(Parameters);
+		}
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -485,12 +509,20 @@ public:
 
 		if (bRenderReflectiveShadowMap)
 		{
-			//Note: This logic needs to stay in sync with OverrideWithDefaultMaterialForShadowDepth!
-			// Reflective shadow map shaders must be compiled for every material because they access the material normal
-			return
-				// Only compile one pass point light shaders for feature levels >= SM4
-				(Material->ShouldCastDynamicShadows() || Material->ShouldInjectEmissiveIntoLPV() || Material->ShouldBlockGI())
-				&& IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5);
+			static const auto SupportLPV = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.LightPropagationVolume"));
+			if (SupportLPV && SupportLPV->GetValueOnAnyThread() == 0)
+			{
+				return false;
+			}
+			else
+			{
+				//Note: This logic needs to stay in sync with OverrideWithDefaultMaterialForShadowDepth!
+				// Reflective shadow map shaders must be compiled for every material because they access the material normal
+				return
+					// Only compile one pass point light shaders for feature levels >= SM4
+					(Material->ShouldCastDynamicShadows() || Material->ShouldInjectEmissiveIntoLPV() || Material->ShouldBlockGI())
+					&& IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5);
+			}
 		}
 		else
 		{
@@ -1089,6 +1121,16 @@ void FProjectedShadowInfo::SetupShadowUniformBuffers(FRHICommandListImmediate& R
 		ShadowDepthPassUniformBuffer.UpdateUniformBufferImmediate(ShadowDepthPassParameters);
 
 		UploadDynamicPrimitiveShaderDataForView(RHICmdList, *Scene, *ShadowDepthView);
+
+		if (DependentView)
+		{
+			extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
+
+			for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
+			{
+				Extension->BeginRenderView(DependentView);
+			}
+		}
 	}
 }
 
@@ -1116,6 +1158,16 @@ void FProjectedShadowInfo::RenderDepthInner(FRHICommandListImmediate& RHICmdList
 	{
 		// CSM shadow depth cached mesh draw commands are all referencing the same view uniform buffer.  We need to update it before rendering each cascade.
 		ShadowDepthView->ViewUniformBuffer.UpdateUniformBufferImmediate(*ShadowDepthView->CachedViewUniformShaderParameters);
+		
+		if (DependentView)
+		{
+			extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
+
+			for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
+			{
+				Extension->BeginRenderView(DependentView);
+			}
+		}
 	}
 
 	if (FSceneInterface::GetShadingPath(FeatureLevel) == EShadingPath::Mobile)

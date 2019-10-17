@@ -24,12 +24,13 @@
 #include "Misc/App.h"
 #include "Misc/OutputDeviceConsole.h"
 #include "HAL/PlatformFilemanager.h"
-#include "Templates/ScopedPointer.h"
 #include "HAL/FileManagerGeneric.h"
 #include "HAL/ExceptionHandling.h"
 #include "Stats/StatsMallocProfilerProxy.h"
 #include "Trace/Trace.h"
 #include "ProfilingDebugging/MiscTrace.h"
+#include "ProfilingDebugging/PlatformFileTrace.h"
+#include "ProfilingDebugging/CountersTrace.h"
 #if WITH_ENGINE
 #include "HAL/PlatformSplash.h"
 #endif
@@ -1197,16 +1198,53 @@ namespace AppLifetimeEventCapture
 #endif //WITH_ENGINE
 
 
-DECLARE_CYCLE_STAT( TEXT( "FEngineLoop::PreInit.AfterStats" ), STAT_FEngineLoop_PreInit_AfterStats, STATGROUP_LoadTime );
+DECLARE_CYCLE_STAT(TEXT("FEngineLoop::PreInitPreStartupScreen.AfterStats"), STAT_FEngineLoop_PreInitPreStartupScreen_AfterStats, STATGROUP_LoadTime);
+DECLARE_CYCLE_STAT(TEXT("FEngineLoop::PreInitPostStartupScreen.AfterStats"), STAT_FEngineLoop_PreInitPostStartupScreen_AfterStats, STATGROUP_LoadTime);
 
-int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
+int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 {
 	TRACE_REGISTER_GAME_THREAD(FPlatformTLS::GetCurrentThreadId());
-#if CPUPROFILERTRACE_ENABLED
-	FCpuProfilerTrace::Init(FParse::Param(CmdLine, TEXT("cpuprofilertrace")));
-#endif
+	TRACE_CPUPROFILER_INIT(CmdLine);
+	TRACE_PLATFORMFILE_INIT(CmdLine);
+	TRACE_COUNTERS_INIT(CmdLine);
 
 	SCOPED_BOOT_TIMING("FEngineLoop::PreInit");
+
+	// Trace out information about this session
+	{
+		uint8 Payload[1024];
+		int32 PayloadSize = 0;
+
+		auto AddToPayload = [&] (const TCHAR* String) -> uint8
+		{
+			int32 Length = FCString::Strlen(String);
+			Length = FMath::Min<int32>(Length, sizeof(Payload) - PayloadSize - 1);
+			for (int32 i = 0, n = Length; i < n; ++i)
+			{
+				Payload[PayloadSize] = uint8(String[i] & 0x7f);
+				++PayloadSize;
+			}
+			return uint8(PayloadSize - Length);
+		};
+
+		AddToPayload(FGenericPlatformMisc::GetUBTPlatform());
+		uint8 AppNameOffset = AddToPayload(TEXT(UE_APP_NAME));
+		uint8 CommandLineOffset = AddToPayload(CmdLine);
+
+		UE_TRACE_EVENT_BEGIN(Diagnostics, Session, Important|Always)
+			UE_TRACE_EVENT_FIELD(uint8, AppNameOffset)
+			UE_TRACE_EVENT_FIELD(uint8, CommandLineOffset)
+			UE_TRACE_EVENT_FIELD(uint8, ConfigurationType)
+			UE_TRACE_EVENT_FIELD(uint8, TargetType)
+		UE_TRACE_EVENT_END()
+
+		UE_TRACE_LOG(Diagnostics, Session, PayloadSize)
+			<< Session.AppNameOffset(AppNameOffset)
+			<< Session.CommandLineOffset(CommandLineOffset)
+			<< Session.ConfigurationType(uint8(FApp::GetBuildConfiguration()))
+			<< Session.TargetType(uint8(FApp::GetBuildTargetType()))
+			<< Session.Attachment(Payload, PayloadSize);
+	}
 
 #if PLATFORM_WINDOWS
 	// Register a handler for Ctrl-C so we've effective signal handling from the outset.
@@ -1258,10 +1296,15 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 	}
 
 	{
-		FString TraceHost;
-		if (FParse::Value(CmdLine, TEXT("-tracehost="), TraceHost))
+		FString Parameter;
+		if (FParse::Value(CmdLine, TEXT("-tracehost="), Parameter))
 		{
-			Trace::Connect(*TraceHost);
+			Trace::SendTo(*Parameter);
+		}
+
+		else if (FParse::Value(CmdLine, TEXT("-tracefile="), Parameter))
+		{
+			Trace::WriteTo(*Parameter);
 		}
 
 #if PLATFORM_WINDOWS && !UE_BUILD_SHIPPING
@@ -1271,7 +1314,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 			HANDLE KnownEvent = ::OpenEvent(EVENT_ALL_ACCESS, false, TEXT("Local\\UnrealInsightsRecorder"));
 			if (KnownEvent != nullptr)
 			{
-				Trace::Connect(TEXT("127.0.0.1"));
+				Trace::SendTo(TEXT("127.0.0.1"));
 				::CloseHandle(KnownEvent);
 			}
 		}
@@ -1665,13 +1708,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 	// "-Deterministic" is a shortcut for "-UseFixedTimeStep -FixedSeed"
 	bool bDeterministic = FParse::Param(FCommandLine::Get(), TEXT("Deterministic"));
 
-#if PLATFORM_HTML5
-	bool bUseFixedTimeStep = false;
-	GConfig->GetBool(TEXT("/Script/HTML5PlatformEditor.HTML5TargetSettings"), TEXT("UseFixedTimeStep"), bUseFixedTimeStep, GEngineIni);
-	FApp::SetUseFixedTimeStep(bUseFixedTimeStep);
-#else
 	FApp::SetUseFixedTimeStep(bDeterministic || FParse::Param(FCommandLine::Get(), TEXT("UseFixedTimeStep")));
-#endif
 
 	FApp::bUseFixedSeed = bDeterministic || FApp::IsBenchmarking() || FParse::Param(FCommandLine::Get(), TEXT("FixedSeed"));
 
@@ -1755,7 +1792,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 	FThreadStats::StartThread();
 #endif
 
-	FScopeCycleCounter CycleCount_AfterStats(GET_STATID(STAT_FEngineLoop_PreInit_AfterStats));
+	FScopeCycleCounter CycleCount_AfterStats(GET_STATID(STAT_FEngineLoop_PreInitPreStartupScreen_AfterStats));
 
 	// Load Core modules required for everything else to work (needs to be loaded before InitializeRenderingCVarsCaching)
 	{
@@ -1858,7 +1895,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 				NumThreadsInThreadPool = 1;
 			}
 
-			verify(GBackgroundPriorityThreadPool->Create(NumThreadsInThreadPool, 128 * 1024, TPri_Lowest));
+			verify(GBackgroundPriorityThreadPool->Create(NumThreadsInThreadPool, StackSize * 1024, TPri_Lowest));
 		}
 
 #if WITH_EDITOR
@@ -1869,7 +1906,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 			GLargeThreadPool = FQueuedThreadPool::Allocate();
 			int32 NumThreadsInLargeThreadPool = FMath::Max(FPlatformMisc::NumberOfCoresIncludingHyperthreads() - 2, 2);
 
-			verify(GLargeThreadPool->Create(NumThreadsInLargeThreadPool, 128 * 1024));
+			verify(GLargeThreadPool->Create(NumThreadsInLargeThreadPool, StackSize * 1024));
 		}
 #endif
 	}
@@ -2242,7 +2279,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 
 	FEmbeddedCommunication::ForceTick(3);
 
-	FScopedSlowTask SlowTask(100, NSLOCTEXT("EngineLoop", "EngineLoop_Initializing", "Initializing..."));
+	FScopedSlowTask SlowTask(50, NSLOCTEXT("EngineLoop", "EngineLoop_Initializing_PreInitPreStartupScreen", "PreInitPreStartupScreen..."));
 
 	SlowTask.EnterProgressFrame(10);
 
@@ -2334,10 +2371,10 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 		// if (!IsRunningCommandlet())
 		// hack: don't load global shaders if we are cooking we will load the shaders for the correct platform later
 		if (bEnableShaderCompile &&
-				!IsRunningDedicatedServer() &&
-				Commandline.Contains(TEXT("cookcommandlet")) == false &&
-				Commandline.Contains(TEXT("run=cook")) == false )
-		// if (FParse::Param(FCommandLine::Get(), TEXT("Multiprocess")) == false)
+			!IsRunningDedicatedServer() &&
+			Commandline.Contains(TEXT("cookcommandlet")) == false &&
+			Commandline.Contains(TEXT("run=cook")) == false)
+			// if (FParse::Param(FCommandLine::Get(), TEXT("Multiprocess")) == false)
 		{
 			LLM_SCOPE(ELLMTag::Shaders);
 			SCOPED_BOOT_TIMING("CompileGlobalShaderMap");
@@ -2358,12 +2395,12 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 			CreateMoviePlayer();
 		}
 
-        if (FPreLoadScreenManager::ArePreLoadScreensEnabled())
-        {
+		if (FPreLoadScreenManager::ArePreLoadScreensEnabled())
+		{
 			SCOPED_BOOT_TIMING("FPreLoadScreenManager::Create");
 			FPreLoadScreenManager::Create();
-            ensure(FPreLoadScreenManager::Get());
-        }
+			ensure(FPreLoadScreenManager::Get());
+		}
 
 		// If platforms support early movie playback we have to start the rendering thread much earlier
 #if PLATFORM_SUPPORTS_EARLY_MOVIE_PLAYBACK
@@ -2372,17 +2409,17 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 			PostInitRHI();
 		}
 
-		if(GUseThreadedRendering)
+		if (GUseThreadedRendering)
 		{
-			if(GRHISupportsRHIThread)
+			if (GRHISupportsRHIThread)
 			{
 				const bool DefaultUseRHIThread = true;
 				GUseRHIThread_InternalUseOnly = DefaultUseRHIThread;
-				if(FParse::Param(FCommandLine::Get(), TEXT("rhithread")))
+				if (FParse::Param(FCommandLine::Get(), TEXT("rhithread")))
 				{
 					GUseRHIThread_InternalUseOnly = true;
 				}
-				else if(FParse::Param(FCommandLine::Get(), TEXT("norhithread")))
+				else if (FParse::Param(FCommandLine::Get(), TEXT("norhithread")))
 				{
 					GUseRHIThread_InternalUseOnly = false;
 				}
@@ -2395,26 +2432,115 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 
 		FEmbeddedCommunication::ForceTick(4);
 
-#if !UE_SERVER// && !UE_EDITOR
-		if(!IsRunningDedicatedServer() && !IsRunningCommandlet())
 		{
-			TSharedRef<FSlateRenderer> SlateRenderer = GUsingNullRHI ?
-				FModuleManager::Get().LoadModuleChecked<ISlateNullRendererModule>("SlateNullRenderer").CreateSlateNullRenderer() :
-				FModuleManager::Get().GetModuleChecked<ISlateRHIRendererModule>("SlateRHIRenderer").CreateSlateRHIRenderer();
-
+#if !UE_SERVER// && !UE_EDITOR
+			if (!IsRunningDedicatedServer() && !IsRunningCommandlet())
 			{
-				SCOPED_BOOT_TIMING("CurrentSlateApp.InitializeRenderer");
-				// If Slate is being used, initialize the renderer after RHIInit
-				FSlateApplication& CurrentSlateApp = FSlateApplication::Get();
-				CurrentSlateApp.InitializeRenderer(SlateRenderer);
-			}
+				TSharedPtr<FSlateRenderer> SlateRenderer = GUsingNullRHI ?
+					FModuleManager::Get().LoadModuleChecked<ISlateNullRendererModule>("SlateNullRenderer").CreateSlateNullRenderer() :
+					FModuleManager::Get().GetModuleChecked<ISlateRHIRendererModule>("SlateRHIRenderer").CreateSlateRHIRenderer();
+				TSharedRef<FSlateRenderer> SlateRendererSharedRef = SlateRenderer.ToSharedRef();
 
-			{
-				SCOPED_BOOT_TIMING("FEngineFontServices::Create");
-				// Create the engine font services now that the Slate renderer is ready
-				FEngineFontServices::Create();
-			}
+				{
+					SCOPED_BOOT_TIMING("CurrentSlateApp.InitializeRenderer");
+					// If Slate is being used, initialize the renderer after RHIInit
+					FSlateApplication& CurrentSlateApp = FSlateApplication::Get();
+					CurrentSlateApp.InitializeRenderer(SlateRendererSharedRef);
+				}
 
+				{
+					SCOPED_BOOT_TIMING("FEngineFontServices::Create");
+					// Create the engine font services now that the Slate renderer is ready
+					FEngineFontServices::Create();
+				}
+
+				{
+					SCOPED_BOOT_TIMING("LoadModulesForProject(ELoadingPhase::PostSplashScreen)");
+					// Load up all modules that need to hook into the custom splash screen
+					if (!IProjectManager::Get().LoadModulesForProject(ELoadingPhase::PostSplashScreen) || !IPluginManager::Get().LoadModulesForEnabledPlugins(ELoadingPhase::PostSplashScreen))
+					{
+						return 1;
+					}
+				}
+
+				{
+					SCOPED_BOOT_TIMING("PlayFirstPreLoadScreen");
+
+					if (FPreLoadScreenManager::Get())
+					{
+						SCOPED_BOOT_TIMING("PlayFirstPreLoadScreen - FPreLoadScreenManager::Get()->Initialize");
+						// initialize and present custom splash screen
+						FPreLoadScreenManager::Get()->Initialize(SlateRendererSharedRef.Get());
+
+						if (FPreLoadScreenManager::Get()->HasRegisteredPreLoadScreenType(EPreLoadScreenTypes::CustomSplashScreen))
+						{
+							FPreLoadScreenManager::Get()->PlayFirstPreLoadScreen(EPreLoadScreenTypes::CustomSplashScreen);
+						}
+#if PLATFORM_XBOXONE && ENABLE_XBOXONE_FAST_ACTIVATION
+						else
+						{
+							UE_LOG(LogInit, Warning, TEXT("Enable fast activation without enabling a custom splash screen may cause garbage frame buffer being presented"));
+						}
+#endif
+					}
+				}
+
+				PreInitContext.SlateRenderer = SlateRenderer;
+			}
+#endif // !UE_SERVER
+		}
+	}
+#endif // WITH_ENGINE
+
+	// Save PreInitContext
+	PreInitContext.bDumpEarlyConfigReads = bDumpEarlyConfigReads;
+	PreInitContext.bDumpEarlyPakFileReads = bDumpEarlyPakFileReads;
+	PreInitContext.bForceQuitAfterEarlyReads = bForceQuitAfterEarlyReads;
+	PreInitContext.bWithConfigPatching = bWithConfigPatching;
+	PreInitContext.bHasEditorToken = bHasEditorToken;
+#if WITH_ENGINE
+	PreInitContext.bDisableDisregardForGC = bDisableDisregardForGC;
+	PreInitContext.bIsRegularClient = bIsRegularClient;
+#endif // WITH_ENGINE
+	PreInitContext.bTokenDoesNotHaveDash = bTokenDoesNotHaveDash;
+	PreInitContext.Token = Token;
+#if UE_EDITOR || WITH_ENGINE
+	PreInitContext.CommandletCommandLine = CommandletCommandLine;
+#endif // UE_EDITOR || WITH_ENGINE
+	PreInitContext.CommandLineCopy = CommandLineCopy;
+	
+	return 0;
+}
+
+int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
+{
+	FScopedSlowTask SlowTask(50, NSLOCTEXT("EngineLoop", "EngineLoop_Initializing_PreInitPostStartupScreen", "PreInitPostStartupScreen..."));
+	FScopeCycleCounter CycleCount_AfterStats(GET_STATID(STAT_FEngineLoop_PreInitPostStartupScreen_AfterStats));
+
+	// Restore PreInitContext
+	bool bDumpEarlyConfigReads = PreInitContext.bDumpEarlyConfigReads;
+	bool bDumpEarlyPakFileReads = PreInitContext.bDumpEarlyPakFileReads;
+	bool bForceQuitAfterEarlyReads = PreInitContext.bForceQuitAfterEarlyReads;
+	bool bWithConfigPatching = PreInitContext.bWithConfigPatching;
+	bool bHasEditorToken = PreInitContext.bHasEditorToken;
+#if WITH_ENGINE
+	bool bDisableDisregardForGC = PreInitContext.bDisableDisregardForGC;
+	bool bIsRegularClient = PreInitContext.bIsRegularClient;
+#endif // WITH_ENGINE
+	bool bTokenDoesNotHaveDash = PreInitContext.bTokenDoesNotHaveDash;
+	FString Token = PreInitContext.Token;
+#if UE_EDITOR || WITH_ENGINE
+	const TCHAR* CommandletCommandLine = PreInitContext.CommandletCommandLine;
+#endif // UE_EDITOR || WITH_ENGINE
+	TCHAR* CommandLineCopy = PreInitContext.CommandLineCopy;
+
+#if WITH_ENGINE
+	{
+#if !UE_SERVER// && !UE_EDITOR
+		if (!IsRunningDedicatedServer() && !IsRunningCommandlet())
+		{
+			TSharedPtr<FSlateRenderer> SlateRenderer = PreInitContext.SlateRenderer;
+			TSharedRef<FSlateRenderer> SlateRendererSharedRef = SlateRenderer.ToSharedRef();
 			{
 				SCOPED_BOOT_TIMING("GetMoviePlayer()->SetupLoadingScreenFromIni");
 				// allow the movie player to load a sequence from the .inis (a PreLoadingScreen module could have already initialized a sequence, in which case
@@ -2430,7 +2556,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 					return 1;
 				}
 			}
-			
+
 			IInstallBundleManager* BundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
 			if (BundleManager != nullptr && !BundleManager->IsNullInterface())
 			{
@@ -2442,16 +2568,16 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 			if (GetMoviePlayer()->HasEarlyStartupMovie())
 			{
 				SCOPED_BOOT_TIMING("EarlyStartupMovie");
-				GetMoviePlayer()->Initialize(SlateRenderer.Get());
+				GetMoviePlayer()->Initialize(SlateRendererSharedRef.Get());
 
-                // hide splash screen now before playing any movies
+				// hide splash screen now before playing any movies
 				FPlatformMisc::PlatformHandleSplashScreen(false);
 
 				// only allowed to play any movies marked as early startup.  These movies or widgets can have no interaction whatsoever with uobjects or engine features
 				GetMoviePlayer()->PlayEarlyStartupMovies();
 
-                // display the splash screen again now that early startup movies have played
-                FPlatformMisc::PlatformHandleSplashScreen(true);
+				// display the splash screen again now that early startup movies have played
+				FPlatformMisc::PlatformHandleSplashScreen(true);
 
 #if 0 && PAK_TRACKER// dump the files which have been accessed inside the pak file
 				FPakPlatformFile* PakPlatformFile = (FPakPlatformFile*)(FPlatformFileManager::Get().FindPlatformFile(FPakPlatformFile::GetTypeName()));
@@ -2508,51 +2634,46 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 				}
 #endif
 			}
-            else
-            {
+			else
+			{
 				SCOPED_BOOT_TIMING("PlayFirstPreLoadScreen");
 
-                if (FPreLoadScreenManager::Get())
-                {
+				if (FPreLoadScreenManager::Get())
+				{
 					SCOPED_BOOT_TIMING("PlayFirstPreLoadScreen - FPreLoadScreenManager::Get()->Initialize");
-                    // initialize and play our first Early PreLoad Screen if one is setup
-                    FPreLoadScreenManager::Get()->Initialize(SlateRenderer.Get());
+					// initialize and play our first Early PreLoad Screen if one is setup
+					FPreLoadScreenManager::Get()->Initialize(SlateRendererSharedRef.Get());
 
 					if (FPreLoadScreenManager::Get()->HasRegisteredPreLoadScreenType(EPreLoadScreenTypes::EarlyStartupScreen))
 					{
 						// disable the splash before playing the early startup screen
 						FPreLoadScreenManager::IsResponsibleForRenderingDelegate.AddLambda(
-							[](bool bIsPreloadScreenManResponsibleForRendering) 
-							{
-								FPlatformMisc::PlatformHandleSplashScreen(!bIsPreloadScreenManResponsibleForRendering);
-							}
+							[](bool bIsPreloadScreenManResponsibleForRendering)
+						{
+							FPlatformMisc::PlatformHandleSplashScreen(!bIsPreloadScreenManResponsibleForRendering);
+						}
 						);
-	                    FPreLoadScreenManager::Get()->PlayFirstPreLoadScreen(EPreLoadScreenTypes::EarlyStartupScreen);
-	                }
+						FPreLoadScreenManager::Get()->PlayFirstPreLoadScreen(EPreLoadScreenTypes::EarlyStartupScreen);
+					}
 					else
 					{
 						// no early startup screen, show the splash screen
 						FPlatformMisc::PlatformHandleSplashScreen(true);
 					}
-                }
+				}
 				else
 				{
 					// no preload manager, show the splash screen
 					FPlatformMisc::PlatformHandleSplashScreen(true);
 				}
-            }
-		
-			if (FCoreDelegates::OnInitialLoadingScreenShown.IsBound())
-			{
-				FCoreDelegates::OnInitialLoadingScreenShown.Broadcast();
 			}
 		}
-		else if ( IsRunningCommandlet() )
+		else if (IsRunningCommandlet())
 		{
 			// Create the engine font services now that the Slate renderer is ready
 			FEngineFontServices::Create();
 		}
-#endif
+#endif //!UE_SERVER
 
 		//Now that our EarlyStartupScreen is finished, lets take the necessary steps to mount paks, apply .ini cvars, and open the shader libraries if we installed content we expect to handle
 		//If using a bundle manager, assume its handling all this stuff and that we don't have to do it.
@@ -3176,7 +3297,26 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 
 	FEmbeddedCommunication::ForceTick(9);
 
+	PreInitContext.Cleanup();
+
 	// Note we still have 20% remaining on the slow task: this will be used by the Editor/Engine initialization next
+	return 0;
+}
+
+int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
+{
+	const int32 rv1 = PreInitPreStartupScreen(CmdLine);
+	if (rv1 != 0)
+	{
+		return rv1;
+	}
+
+	const int32 rv2 = PreInitPostStartupScreen(CmdLine);
+	if (rv2 != 0)
+	{
+		return rv2;
+	}
+
 	return 0;
 }
 
@@ -3696,7 +3836,22 @@ void FEngineLoop::Exit()
 
 
 	// Make sure we're not in the middle of loading something.
-	FlushAsyncLoading();
+	{
+		bool bFlushOnExit = true;
+		if (GConfig)
+		{
+			FBoolConfigValueHelper FlushStreamingOnExitHelper(TEXT("/Script/Engine.StreamingSettings"), TEXT("s.FlushStreamingOnExit"), GEngineIni);
+			bFlushOnExit = FlushStreamingOnExitHelper;			
+		}
+		if (bFlushOnExit)
+		{
+			FlushAsyncLoading();
+		}
+		else
+		{
+			CancelAsyncLoading();
+		}
+	}
 
 	// Block till all outstanding resource streaming requests are fulfilled.
 	if (!IStreamingManager::HasShutdown())
@@ -3800,6 +3955,8 @@ void FEngineLoop::Exit()
 	IStreamingManager::Shutdown();
 
 	FPlatformMisc::ShutdownTaggedStorage();
+
+	TRACE_CPUPROFILER_SHUTDOWN();
 }
 
 
@@ -5267,8 +5424,6 @@ void FEngineLoop::AppPreExit( )
 		GShaderCompilingManager = nullptr;
 	}
 #endif
-
-	Trace::Flush();
 }
 
 

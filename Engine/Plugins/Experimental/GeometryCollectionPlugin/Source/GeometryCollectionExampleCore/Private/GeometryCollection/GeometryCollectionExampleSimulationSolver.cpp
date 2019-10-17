@@ -37,7 +37,6 @@ namespace GeometryCollectionExample
 	template<class T>
 	void Solver_AdvanceNoObjects()
 	{
-#if INCLUDE_CHAOS
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
 		Solver->SetHasFloor(false);
 		Solver->SetEnabled(true);
@@ -45,7 +44,6 @@ namespace GeometryCollectionExample
 		FinalizeSolver(*Solver);
 
 		FChaosSolversModule::GetModule()->DestroySolver(Solver);
-#endif
 	}
 	template void Solver_AdvanceNoObjects<float>();
 
@@ -53,7 +51,6 @@ namespace GeometryCollectionExample
 	template<class T>
 	void Solver_AdvanceDisabledObjects()
 	{
-#if INCLUDE_CHAOS
 		TSharedPtr<FGeometryCollection> RestCollection = GeometryCollection::MakeCubeElement(FTransform::Identity, FVector(1.0));
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = GeometryCollectionToGeometryDynamicCollection(RestCollection.Get());
 
@@ -94,14 +91,12 @@ namespace GeometryCollectionExample
 		FChaosSolversModule::GetModule()->DestroySolver(Solver);
 
 		delete PhysObject;
-#endif
 	}
 	template void Solver_AdvanceDisabledObjects<float>();
 
 	template<class T>
 	void Solver_AdvanceDisabledClusteredObjects()
 	{
-#if INCLUDE_CHAOS
 		TSharedPtr<FGeometryCollection> RestCollection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0, 0, 0.)), FVector(0, -10, 10)), FVector(1.0));
 		RestCollection->AppendGeometry(*GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0, 0, 0.)), FVector(0, 10, 10)), FVector(1.0)));
 		EXPECT_EQ(RestCollection->Transform.Num(), 2);
@@ -151,7 +146,6 @@ namespace GeometryCollectionExample
 
 		delete PhysObject;
 
-#endif
 	}
 	template void Solver_AdvanceDisabledClusteredObjects<float>();
 
@@ -159,7 +153,6 @@ namespace GeometryCollectionExample
 	template<class T>
 	void Solver_ValidateReverseMapping()
 	{
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<T>>();
 		InitMaterialToZero(PhysicalMaterial);
 
@@ -215,11 +208,9 @@ namespace GeometryCollectionExample
 
 		FChaosSolversModule::GetModule()->DestroySolver(Solver);
 
-#endif
 	}
 	template void Solver_ValidateReverseMapping<float>();
 
-#if INCLUDE_CHAOS
 	template<class T>
 	void CommonInit(int32 NumObjects, bool UseClusters, Chaos::FPBDRigidsSolver** SolverInOut, TUniquePtr<Chaos::TChaosPhysicsMaterial<T>>& PhysicalMaterial, TArray<TSharedPtr<FGeometryCollection>>& RestArray, TArray<TSharedPtr<FGeometryDynamicCollection>>& DynamicArray)
 	{
@@ -273,13 +264,10 @@ namespace GeometryCollectionExample
 
 		Solver->AdvanceSolverBy(1 / 24.);
 	}
-#endif // INCLUDE_CHAOS
-
 
 	class EventHarvester
 	{
 	public:
-#if INCLUDE_CHAOS
 		EventHarvester(Chaos::FPBDRigidsSolver* Solver)
 		{
 			Solver->GetEventManager()->RegisterHandler<Chaos::FCollisionEventData>(Chaos::EEventType::Collision, this, &EventHarvester::HandleCollisionEvents);
@@ -298,14 +286,11 @@ namespace GeometryCollectionExample
 
 		Chaos::FCollisionEventData CollisionEventData;
 		Chaos::FBreakingEventData BreakingEventData;
-#endif
 	};
 
 	template<class T>
 	void Solver_CollisionEventFilter()
 	{
-#if INCLUDE_CHAOS
-
 		float TestMassThreshold = 6.0f;
 
 		Chaos::FPBDRigidsSolver* Solver;
@@ -362,7 +347,6 @@ namespace GeometryCollectionExample
 
 #endif
 		FChaosSolversModule::GetModule()->DestroySolver(Solver);
-#endif
 
 	}
 	template void Solver_CollisionEventFilter<float>();
@@ -370,8 +354,6 @@ namespace GeometryCollectionExample
 	template<class T>
 	void Solver_BreakingEventFilter()
 	{
-#if INCLUDE_CHAOS
-
 		float TestMass = 6.0f;
 
 		Chaos::FPBDRigidsSolver* Solver;
@@ -434,7 +416,6 @@ namespace GeometryCollectionExample
 
 #endif
 		FChaosSolversModule::GetModule()->DestroySolver(Solver);
-#endif
 	}
 	template void Solver_BreakingEventFilter<float>();
 }

@@ -2831,10 +2831,14 @@ Set("ViewportMenu.Button.End", FButtonStyle(ViewportMenuButton)
 );
 	}
 
-	// Viewport actor preview's pin/unpin buttons
+	// Viewport actor preview's pin/unpin and attach/detach buttons
 	{
 	Set("ViewportActorPreview.Pinned", new IMAGE_BRUSH("Common/PushPin_Down", Icon16x16));
 	Set("ViewportActorPreview.Unpinned", new IMAGE_BRUSH("Common/PushPin_Up", Icon16x16));
+	Set("VRViewportActorPreview.Pinned", new IMAGE_BRUSH("Common/PushPin_Down_VR", Icon64x64));
+	Set("VRViewportActorPreview.Unpinned", new IMAGE_BRUSH("Common/PushPin_Up_VR", Icon64x64));
+	Set("VRViewportActorPreview.Attached", new IMAGE_BRUSH("Common/ScreenAttach_VR", Icon64x64));
+	Set("VRViewportActorPreview.Detached", new IMAGE_BRUSH("Common/ScreenDetach_VR", Icon64x64));
 	}
 }
 

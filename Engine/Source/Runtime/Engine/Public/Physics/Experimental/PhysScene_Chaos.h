@@ -2,8 +2,6 @@
 
 #pragma once
 
-#if INCLUDE_CHAOS
-
 #include "CoreMinimal.h"
 #include "Tickable.h"
 #include "Physics/PhysScene.h"
@@ -12,13 +10,19 @@
 #include "GameFramework/Actor.h"
 #include "PhysicsPublic.h"
 #include "PhysInterface_Chaos.h"
+#include "Physics/PhysicsInterfaceUtils.h"
 #include "Chaos/Transform.h"
+#include "Chaos/ArrayCollectionArray.h"
 #include "Chaos/Declares.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
+#include "Framework/Threading.h"
 
 #ifndef CHAOS_WITH_PAUSABLE_SOLVER
 #define CHAOS_WITH_PAUSABLE_SOLVER 1
 #endif
+
+// Currently compilation issue with Incredibuild when including headers required by event template functions
+#define XGE_FIXED 0
 
 class UPrimitiveComponent;
 
@@ -38,9 +42,8 @@ class IPhysicsProxyBase;
 namespace Chaos
 {
 	class FPhysicsProxy;
-	class IDispatcher;
 
-	enum EEventType;
+	enum EEventType : int32;
 
 	template<typename PayloadType, typename HandlerType>
 	class TRawEventHandler;
@@ -50,6 +53,11 @@ namespace Chaos
 
 	template <typename TPayload, typename T, int d>
 	class ISpatialAcceleration;
+
+	template <typename TPayload, typename T, int d>
+	class ISpatialAccelerationCollection;
+
+	class IDispatcher;
 }
 
 /**
@@ -111,6 +119,7 @@ public:
 
 	void RemoveActorFromAccelerationStructure(FPhysicsActorHandle& Actor);
 
+#if XGE_FIXED
 	template<typename PayloadType>
 	void RegisterEvent(const Chaos::EEventType& EventID, TFunction<void(const Chaos::FPBDRigidsSolver* Solver, PayloadType& EventData)> InLambda);
 	void UnregisterEvent(const Chaos::EEventType& EventID);
@@ -118,6 +127,7 @@ public:
 	template<typename PayloadType, typename HandlerType>
 	void RegisterEventHandler(const Chaos::EEventType& EventID, HandlerType* Handler, typename Chaos::TRawEventHandler<PayloadType, HandlerType>::FHandlerFunction Func);
 	void UnregisterEventHandler(const Chaos::EEventType& EventID, const void* Handler);
+#endif // XGE_FIXED
 
 	void Shutdown();
 
@@ -144,9 +154,18 @@ public:
 		return PhysicsProxyPtr ? *PhysicsProxyPtr : nullptr;
 	}
 
-	TUniquePtr<Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>> SolverAccelerationStructure;
+	const Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>* GetSpacialAcceleration() const;
+	Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>* GetSpacialAcceleration();
+	
+	/**
+	 * Copies the acceleration structure out of the solver, does no thread safety checking so ensure calls
+	 * to this are made at appropriate sync points if required
+	 */
+	void CopySolverAccelerationStructure();
 
 private:
+	TUniquePtr<Chaos::ISpatialAccelerationCollection<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>> SolverAccelerationStructure;
+
 #if CHAOS_WITH_PAUSABLE_SOLVER
 	/** Callback that checks the status of the world settings for this scene before pausing/unpausing its solver. */
 	void OnUpdateWorldPause();
@@ -190,8 +209,16 @@ private:
 	// Cache the state of the game pause in order to avoid sending extraneous commands to the solver.
 	bool bIsWorldPaused;
 #endif
+
+	/** Scene lock object for external threads (non-physics) */
+	Chaos::FPhysicsSceneGuard ExternalDataLock;
+
+	// Allow other code to obtain read-locks when needed
+	friend struct FScopedSceneReadLock;
+	friend struct FScopedSceneLock_Chaos;
 };
 
+#if XGE_FIXED
 template<typename PayloadType>
 void FPhysScene_Chaos::RegisterEvent(const Chaos::EEventType& EventID, TFunction<void(const Chaos::FPBDRigidsSolver* Solver, PayloadType& EventData)> InLambda)
 {
@@ -225,6 +252,7 @@ void FPhysScene_Chaos::RegisterEventHandler(const Chaos::EEventType& EventID, Ha
 		});
 	}
 }
+#endif // XGE_FIXED
 
 class UWorld;
 class AWorldSettings;
@@ -315,6 +343,7 @@ public:
 	ENGINE_API bool ExecPxVis(uint32 SceneType, const TCHAR* Cmd, FOutputDevice* Ar);
 	ENGINE_API bool ExecApexVis(uint32 SceneType, const TCHAR* Cmd, FOutputDevice* Ar);
 
+#if XGE_FIXED
 	template<typename PayloadType>
 	void RegisterEvent(const Chaos::EEventType& EventID, TFunction<void(const Chaos::FPBDRigidsSolver* Solver, PayloadType& EventData)> InLambda)
 	{
@@ -334,10 +363,10 @@ public:
 	{
 		Scene.UnregisterEventHandler(EventID, Handler);
 	}
+#endif // XGE_FIXED
 
 private:
 
-	void SyncBodies();
 	void SyncBodies(Chaos::FPhysicsSolver* Solver);
 
 	void SetKinematicTransform(FPhysicsActorHandle& InActorReference, const Chaos::TRigidTransform<float, 3>& NewTransform)
@@ -345,16 +374,6 @@ private:
 		// #todo : Initialize
 		// Set the buffered kinematic data on the game and render thread
 		// InActorReference.GetPhysicsProxy()->SetKinematicData(...)
-	}
-
-	void Lock()
-	{
-		MCriticalSection.Lock();
-	}
-
-	void Unlock()
-	{
-		MCriticalSection.Unlock();
 	}
 
 	void EnableCollisionPair(const TTuple<int32, int32>& CollisionPair)
@@ -390,8 +409,6 @@ private:
 
 	FPhysScene_Chaos Scene;
 
-	// @todo(mlentine): Locking is very heavy handed right now; need to make less so.
-	FCriticalSection MCriticalSection;
 	float MDeltaTime;
 	//Body Instances
 	Chaos::TArrayCollectionArray<FBodyInstance*> BodyInstances;
@@ -403,7 +420,4 @@ private:
 	FGraphEventRef CompletionEvent;
 	FGraphEventRef PhysicsTickTask;
 };
-
-#endif
-
 #endif

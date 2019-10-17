@@ -859,7 +859,7 @@ void SAnimationEditorViewportTabBody::BindCommands()
 
 	CommandList.EndGroup();
 
-#if WITH_APEX_CLOTHING
+#if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 
 	//Clothing show options
 	CommandList.MapAction( 
@@ -907,7 +907,7 @@ void SAnimationEditorViewportTabBody::BindCommands()
 
 	CommandList.EndGroup();
 
-#endif// #if WITH_APEX_CLOTHING		
+#endif// #if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 
 	GetPreviewScene()->RegisterOnSelectedLODChanged(FOnSelectedLODChanged::CreateSP(this, &SAnimationEditorViewportTabBody::OnLODModelChanged));
 	//Bind LOD preview menu commands
@@ -1840,7 +1840,7 @@ bool SAnimationEditorViewportTabBody::IsPreviewingRootMotion() const
 	return false;
 }
 
-#if WITH_APEX_CLOTHING
+#if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 bool SAnimationEditorViewportTabBody::IsClothSimulationEnabled() const
 {
 	UDebugSkelMeshComponent* PreviewComponent = GetPreviewScene()->GetPreviewMeshComponent();
@@ -2020,7 +2020,7 @@ bool SAnimationEditorViewportTabBody::IsSectionsDisplayMode(ESectionDisplayMode 
 {
 	return SectionsDisplayMode == DisplayMode;
 }
-#endif // #if WITH_APEX_CLOTHING
+#endif // #if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 
 void SAnimationEditorViewportTabBody::AddRecordingNotification()
 {

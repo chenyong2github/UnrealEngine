@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "DataprepFilterLibrary.h"
+#include "DataPrepFilterLibrary.h"
 
 #include "DatasmithContentBlueprintLibrary.h"
 #include "Engine/StaticMesh.h"

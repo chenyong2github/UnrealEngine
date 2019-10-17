@@ -24,6 +24,18 @@ public:
 	virtual void SetSequencerPlaybackSync(bool bEnable) = 0;
 
 	/**
+	 * @return true if unrelated timeline syncing across opened sequencer is enabled
+	 */
+	virtual bool IsUnrelatedSequencerTimelineSyncEnabled() const = 0;
+
+	/**
+	 * Set the unrelated timeline syncing option in Multi-User which syncs time from any remote sequence.
+	 *
+	 * @param bEnable The value to set for unrelated timeline syncing.
+	 */
+	virtual void SetUnrelatedSequencerTimelineSync(bool bEnable) = 0;
+
+	/**
 	 * @return true if the remote open option is enabled.
 	 */
 	virtual bool IsSequencerRemoteOpenEnabled() const = 0;

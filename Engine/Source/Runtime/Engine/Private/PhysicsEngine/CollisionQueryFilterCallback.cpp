@@ -12,10 +12,8 @@
 #include "PhysXInterfaceWrapper.h"
 #endif
 
-#if INCLUDE_CHAOS
 #include "ChaosInterfaceWrapperCore.h"
 #include "Physics/Experimental/ChaosInterfaceWrapper.h"
-#endif
 
 ECollisionQueryHitType FCollisionQueryFilterCallback::CalcQueryHitType(const FCollisionFilterData& QueryFilter, const FCollisionFilterData& ShapeFilter, bool bPreFilter)
 {
@@ -110,7 +108,6 @@ ECollisionQueryHitType FCollisionQueryFilterCallback::PreFilterImp(const FCollis
 }
 #endif
 
-#if INCLUDE_CHAOS
 ECollisionQueryHitType FCollisionQueryFilterCallback::PreFilterImp(const FCollisionFilterData& FilterData, const Chaos::TPerShapeData<float,3>& Shape, const Chaos::TGeometryParticle<float,3>& Actor)
 {
 	SCOPE_CYCLE_COUNTER(STAT_Collision_PreFilter);
@@ -130,7 +127,6 @@ ECollisionQueryHitType FCollisionQueryFilterCallback::PreFilterImp(const FCollis
 
 	return PreFilterImp(FilterData, ShapeFilter, ComponentID, BodyInstance);
 }
-#endif
 
 ECollisionQueryHitType FCollisionQueryFilterCallback::PreFilterImp(const FCollisionFilterData& FilterData, const FCollisionFilterData& ShapeFilter, uint32 ComponentID, const FBodyInstance* BodyInstance)
 {
@@ -271,7 +267,6 @@ ECollisionQueryHitType FCollisionQueryFilterCallback::PostFilterImp(const FColli
 }
 #endif
 
-#if INCLUDE_CHAOS
 ECollisionQueryHitType FCollisionQueryFilterCallback::PostFilterImp(const FCollisionFilterData& FilterData, const ChaosInterface::FQueryHit& Hit)
 {
 	// Unused in non-sweeps
@@ -285,8 +280,6 @@ ECollisionQueryHitType FCollisionQueryFilterCallback::PostFilterImp(const FColli
 
 	return PostFilterImp(FilterData, bIsOverlap);
 }
-#endif
-
 
 #if WITH_PHYSX
 

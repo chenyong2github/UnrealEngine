@@ -132,6 +132,8 @@ bool FLANSession::Host(FOnValidQueryPacketDelegate& QueryDelegate)
 		StopLANSession();
 	}
 
+	LanBeaconGuid = FGuid::NewGuid();
+
 	// Bind a socket for LAN beacon activity
 	LanBeacon = new FLanBeacon();
 	if (LanBeacon->Init(LanAnnouncePort))
@@ -163,6 +165,10 @@ bool FLANSession::Search(FNboSerializeToBuffer& Packet, FOnValidResponsePacketDe
 	{
 		StopLANSession();
 	}
+	
+	LanBeaconGuid = FGuid::NewGuid();
+
+	CachedResponseGuids.Empty();
 
 	// Bind a socket for LAN beacon activity
 	LanBeacon = new FLanBeacon();
@@ -183,6 +189,11 @@ bool FLANSession::Search(FNboSerializeToBuffer& Packet, FOnValidResponsePacketDe
 			LanBeaconState = ELanBeaconState::Searching;
 			// Set the timestamp for timing out a search
 			LanQueryTimeLeft = LanQueryTimeout;
+
+			RetryData.Reset();
+			RetryData.Append(Packet.GetBuffer().GetData(), Packet.GetByteCount());
+
+			LanQueryRetryTimeLeft = LanQueryRetryTime;
 
 			AddOnValidResponsePacketDelegate_Handle(ResponseDelegate);
 			AddOnSearchingTimeoutDelegate_Handle(TimeoutDelegate);
@@ -214,6 +225,10 @@ void FLANSession::StopLANSession()
 	OnValidQueryPacketDelegates.Clear();
 	OnValidResponsePacketDelegates.Clear();
 	OnSearchingTimeoutDelegates.Clear();
+
+	RetryData.Empty();
+
+	CachedResponseGuids.Empty();
 }
 
 void FLANSession::Tick(float DeltaTime)
@@ -244,11 +259,19 @@ void FLANSession::Tick(float DeltaTime)
 			}
 			else if (LanBeaconState == ELanBeaconState::Searching)
 			{
+				FGuid ResponseGuid;
+
 				// We can only accept Server Response packets
-				if (IsValidLanResponsePacket(PacketData, NumRead))
+				if (IsValidLanResponsePacket(PacketData, NumRead, ResponseGuid))
 				{
-					// Strip off the header
-					TriggerOnValidResponsePacketDelegates(&PacketData[LAN_BEACON_PACKET_HEADER_SIZE], NumRead - LAN_BEACON_PACKET_HEADER_SIZE);
+					bool bAlreadySet = false;
+					CachedResponseGuids.Add(ResponseGuid, &bAlreadySet);
+
+					if (!bAlreadySet)
+					{
+						// Strip off the header
+						TriggerOnValidResponsePacketDelegates(&PacketData[LAN_BEACON_PACKET_HEADER_SIZE], NumRead - LAN_BEACON_PACKET_HEADER_SIZE);
+					}
 				}
 			}
 		}
@@ -256,6 +279,22 @@ void FLANSession::Tick(float DeltaTime)
 		{
 			if (LanBeaconState == ELanBeaconState::Searching)
 			{
+				LanQueryRetryTimeLeft -= DeltaTime;
+				
+				if (LanBeacon && (LanQueryRetryTimeLeft <= 0.f) && (LanQueryTimeLeft > LanQueryRetryTime))
+				{
+					if (LanBeacon->BroadcastPacket(RetryData.GetData(), RetryData.Num()))
+					{
+						UE_LOG_ONLINE(Verbose, TEXT("Sent retry query packet..."));
+					}
+					else
+					{
+						UE_LOG_ONLINE(Warning, TEXT("Failed to send retry discovery broadcast %s"), ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetSocketError());
+					}
+
+					LanQueryRetryTimeLeft = LanQueryRetryTime;
+				}
+
 				// Decrement the amount of time remaining
 				LanQueryTimeLeft -= DeltaTime;
 				// Check for a timeout on the search packet
@@ -280,7 +319,9 @@ void FLANSession::CreateHostResponsePacket(FNboSerializeToBuffer& Packet, uint64
 		// Add the packet type
 		<< LAN_SERVER_RESPONSE1 << LAN_SERVER_RESPONSE2
 		// Append the client nonce as a uint64
-		<< ClientNonce;
+		<< ClientNonce
+		// Append the beacon guid
+		<< LanBeaconGuid;
 }
 
 void FLANSession::CreateClientQueryPacket(FNboSerializeToBuffer& Packet, uint64 ClientNonce)
@@ -294,7 +335,9 @@ void FLANSession::CreateClientQueryPacket(FNboSerializeToBuffer& Packet, uint64 
 		// Identify the packet type
 		<< LAN_SERVER_QUERY1 << LAN_SERVER_QUERY2
 		// Append the nonce as a uint64
-		<< ClientNonce;
+		<< ClientNonce
+		// Append the beacon guid
+		<< LanBeaconGuid;
 }
 
 /**
@@ -358,6 +401,10 @@ bool FLANSession::IsValidLanQueryPacket(const uint8* Packet, uint32 Length, uint
 					bIsValid = (SQ1 == LAN_SERVER_QUERY1 && SQ2 == LAN_SERVER_QUERY2);
 					// Read the client nonce as the outvalue
 					PacketReader >> ClientNonce;
+
+					// Read the client's beacon guid 
+					FGuid BeaconGuid;
+					PacketReader >> BeaconGuid;
 				}
 			}
 		}
@@ -370,10 +417,11 @@ bool FLANSession::IsValidLanQueryPacket(const uint8* Packet, uint32 Length, uint
  *
  * @param Packet the packet data to check
  * @param Length the size of the packet buffer
+ * @param ResponseGuid the lan beacon guid in the response packet
  *
  * @return true if the header is valid, false otherwise
  */
-bool FLANSession::IsValidLanResponsePacket(const uint8* Packet, uint32 Length)
+bool FLANSession::IsValidLanResponsePacket(const uint8* Packet, uint32 Length, FGuid& ResponseGuid)
 {
 	bool bIsValid = false;
 	// Serialize out the data if the packet is the right size
@@ -404,7 +452,19 @@ bool FLANSession::IsValidLanResponsePacket(const uint8* Packet, uint32 Length)
 					{
 						uint64 Nonce = 0;
 						PacketReader >> Nonce;
-						bIsValid = (Nonce == LanNonce);
+						
+						if (Nonce == LanNonce)
+						{
+							FGuid BeaconGuid;
+							PacketReader >> BeaconGuid;
+
+							bIsValid = !PacketReader.HasOverflow();
+
+							if (bIsValid)
+							{
+								ResponseGuid = BeaconGuid;
+							}
+						}
 					}
 				}
 			}

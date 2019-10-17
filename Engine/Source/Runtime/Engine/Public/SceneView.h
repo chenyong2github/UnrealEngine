@@ -723,6 +723,8 @@ enum ETranslucencyVolumeCascade
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector4, VirtualTextureParams) \
 	VIEW_UNIFORM_BUFFER_MEMBER_ARRAY(FVector4, XRPassthroughCameraUVs, [2]) \
 	VIEW_UNIFORM_BUFFER_MEMBER(int32, FarShadowStaticMeshLODBias) \
+	VIEW_UNIFORM_BUFFER_MEMBER(float, MinRoughness) \
+	VIEW_UNIFORM_BUFFER_MEMBER(float, ConstantWaterDepth) \
 
 #define VIEW_UNIFORM_BUFFER_MEMBER(type, identifier) \
 	SHADER_PARAMETER(type, identifier)
@@ -1222,7 +1224,7 @@ public:
 	EShaderPlatform GetShaderPlatform() const;
 
 	/** True if the view should render as an instanced stereo pass */
-	bool IsInstancedStereoPass() const { return bIsInstancedStereoEnabled && StereoPass == eSSP_LEFT_EYE; }
+	bool IsInstancedStereoPass() const { return bIsInstancedStereoEnabled && IStereoRendering::IsAPrimaryView(StereoPass); }
 
 	/** Sets up the view rect parameters in the view's uniform shader parameters */
 	void SetupViewRectUniformBufferParameters(FViewUniformShaderParameters& ViewUniformShaderParameters, 

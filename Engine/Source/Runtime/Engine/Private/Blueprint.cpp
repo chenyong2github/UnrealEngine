@@ -21,6 +21,7 @@
 #if WITH_EDITOR
 #include "BlueprintCompilationManager.h"
 #include "Editor/UnrealEd/Classes/Settings/ProjectPackagingSettings.h"
+#include "Editor/UnrealEd/Classes/Settings/EditorExperimentalSettings.h"
 #include "Engine/SimpleConstructionScript.h"
 #include "Engine/SCS_Node.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -887,6 +888,11 @@ void UBlueprint::SetWorldBeingDebugged(UWorld *NewWorld)
 void UBlueprint::GetReparentingRules(TSet< const UClass* >& AllowedChildrenOfClasses, TSet< const UClass* >& DisallowedChildrenOfClasses) const
 {
 
+}
+
+bool UBlueprint::CanRecompileWhilePlayingInEditor() const
+{
+	return GetDefault<UEditorExperimentalSettings>()->IsClassAllowedToRecompileDuringPIE(ParentClass);
 }
 
 void UBlueprint::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const

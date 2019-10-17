@@ -37,7 +37,7 @@
 #include "GameFramework/WorldSettings.h"
 #include "PacketHandler.h"
 #include "PacketHandlers/StatelessConnectHandlerComponent.h"
-#include "NetAnalytics.h"
+#include "Net/Core/Analytics/NetAnalytics.h"
 #include "Engine/NetDriver.h"
 #include "Engine/LocalPlayer.h"
 #include "Net/DataBunch.h"
@@ -3158,6 +3158,7 @@ void UNetDriver::NotifyActorDormancyChange(AActor* Actor, ENetDormancy OldDorman
 
 void UNetDriver::FlushActorDormancyInternal(AActor *Actor)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_NetDriver_FlushActorDormancy);
 	// Go through each connection and remove the actor from the dormancy list
 	for (int32 i=0; i < ClientConnections.Num(); ++i)
 	{

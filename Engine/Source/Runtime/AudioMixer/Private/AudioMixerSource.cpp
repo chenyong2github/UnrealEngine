@@ -28,7 +28,6 @@ namespace Audio
 		: FSoundSource(InAudioDevice)
 		, MixerDevice(static_cast<FMixerDevice*>(InAudioDevice))
 		, MixerBuffer(nullptr)
-		, MixerSourceBuffer(nullptr)
 		, MixerSourceVoice(nullptr)
 		, PreviousAzimuth(-1.0f)
 		, PreviousPlaybackPercent(0.0f)
@@ -430,56 +429,54 @@ namespace Audio
 		//  Reset so next instance will warn if algorithm changes in-flight
 		bEditorWarnedChangedSpatialization = false;
 
+		const bool bIsSeeking = InWaveInstance->StartTime > 0.0f;
+
 		check(InWaveInstance);
-		check(MixerBuffer == nullptr);
 		check(AudioDevice);
 
-		bool bIsSeeking = InWaveInstance->StartTime > 0.0f;
-		MixerBuffer = FMixerBuffer::Init(AudioDevice, InWaveInstance->WaveData, bIsSeeking);
-		if (MixerBuffer)
+		check(!MixerBuffer);
+		MixerBuffer = FMixerBuffer::Init(AudioDevice, InWaveInstance->WaveData, bIsSeeking /* bForceRealtime */);
+
+		if (!MixerBuffer)
 		{
-			Buffer = MixerBuffer;
-			WaveInstance = InWaveInstance;
+			MixerSourceBuffer.Reset();
+			return false;
+		}
 
-			LPFFrequency = MAX_FILTER_FREQUENCY;
-			LastLPFFrequency = FLT_MAX;
+		// WaveData must be valid beyond this point, otherwise MixerBuffer
+		// would have failed to init.
+		check(InWaveInstance->WaveData);
+		USoundWave& SoundWave = *InWaveInstance->WaveData;
 
-			HPFFrequency = 0.0;
-			LastHPFFrequency = FLT_MAX;
+		Buffer = MixerBuffer;
+		WaveInstance = InWaveInstance;
 
-			bIsDone = false;
+		LPFFrequency = MAX_FILTER_FREQUENCY;
+		LastLPFFrequency = FLT_MAX;
 
-			// Not all wave data types have a non-zero duration
-			if (InWaveInstance->WaveData->Duration > 0)
+		HPFFrequency = 0.0f;
+		LastHPFFrequency = FLT_MAX;
+
+		bIsDone = false;
+
+		// Not all wave data types have a non-zero duration
+		if (SoundWave.Duration > 0.0f)
+		{
+			if (!SoundWave.bIsBus)
 			{
-				if (!InWaveInstance->WaveData->bIsBus)
-				{
-					NumTotalFrames = InWaveInstance->WaveData->Duration * InWaveInstance->WaveData->GetSampleRateForCurrentPlatform();
-					check(NumTotalFrames > 0);
-				}
-				else if (!InWaveInstance->WaveData->IsLooping())
-				{
-					NumTotalFrames = InWaveInstance->WaveData->Duration * AudioDevice->GetSampleRate();
-					check(NumTotalFrames > 0);
-				}
+				NumTotalFrames = SoundWave.Duration * SoundWave.GetSampleRateForCurrentPlatform();
+				check(NumTotalFrames > 0);
 			}
-
-			check(!MixerSourceBuffer.IsValid());
-			MixerSourceBuffer = TSharedPtr<FMixerSourceBuffer>(new FMixerSourceBuffer());
-
-			if (MixerSourceBuffer->PreInit(MixerBuffer, InWaveInstance->WaveData, InWaveInstance->LoopingMode, bIsSeeking))
+			else if (!SoundWave.IsLooping())
 			{
-				// We succeeded in preparing the buffer for initialization, but we are not technically initialized yet.
-				// If the buffer is asynchronously preparing a file-handle, we may not yet initialize the source.
-				return true;
+				NumTotalFrames = SoundWave.Duration * AudioDevice->GetSampleRate();
+				check(NumTotalFrames > 0);
 			}
 		}
 
-		// Clear out our mixer source buffer if things failed
-		MixerSourceBuffer = nullptr;
-
-		// Something went wrong with initializing the generator
-		return false;
+		check(!MixerSourceBuffer.IsValid());
+		MixerSourceBuffer = FMixerSourceBuffer::Create(*MixerBuffer, SoundWave, InWaveInstance->LoopingMode, bIsSeeking);
+		return MixerSourceBuffer.IsValid();
 	}
 
 	bool FMixerSource::IsPreparedToInit()
@@ -790,7 +787,7 @@ namespace Audio
 			MixerSourceVoice = nullptr;
 		}
 
-		MixerSourceBuffer = nullptr;
+		MixerSourceBuffer.Reset();
 		Buffer = nullptr;
 		bLoopCallback = false;
 		NumTotalFrames = 0;

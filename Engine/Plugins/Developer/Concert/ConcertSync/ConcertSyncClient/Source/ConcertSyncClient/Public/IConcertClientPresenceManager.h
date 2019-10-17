@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ConcertActionDefinition.h"
+#include "IConcertClientPresenceMode.h"
 
 struct FConcertSessionClientInfo;
 enum class EEditorPlayMode : uint8;
@@ -12,6 +12,13 @@ class IConcertClientPresenceManager
 {
 public:
 	virtual ~IConcertClientPresenceManager() = default;
+
+	/**
+	 * Set the presence mode factory 
+	 * The factory creates the presence mode for the manager
+	 * @param InFactory the factory to use
+	 */
+	virtual void SetPresenceModeFactory(TSharedRef<IConcertClientPresenceModeFactory> InFactory) = 0;
 
 	/** 
 	 * Set whether presence is currently enabled and should be shown (unless hidden by other settings) 

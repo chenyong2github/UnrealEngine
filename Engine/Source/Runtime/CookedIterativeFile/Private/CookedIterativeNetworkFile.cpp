@@ -1,7 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "CookedIterativeNetworkFile.h"
-#include "Templates/ScopedPointer.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ScopeLock.h"
 #include "Modules/ModuleManager.h"

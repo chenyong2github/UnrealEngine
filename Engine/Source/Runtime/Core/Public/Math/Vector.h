@@ -983,20 +983,6 @@ public:
 	static CORE_API void GenerateClusterCenters(TArray<FVector>& Clusters, const TArray<FVector>& Points, int32 NumIterations, int32 NumConnectionsToBeValid);
 
 	/**
-	 * Serializer.
-	 *
-	 * @param Ar Serialization Archive.
-	 * @param V Vector to serialize.
-	 * @return Reference to Archive after serialization.
-	 */
-	friend FArchive& operator<<(FArchive& Ar, FVector& V)
-	{
-		// @warning BulkSerialize: FVector is serialized as memory dump
-		// See TArray::BulkSerialize for detailed description of implied limitations.
-		return Ar << V.X << V.Y << V.Z;
-	}
-
-	/**
 	 * Structured archive slot serializer.
 	 *
 	 * @param Slot Structured archive slot.
@@ -1006,18 +992,12 @@ public:
 	{
 		// @warning BulkSerialize: FVector is serialized as memory dump
 		// See TArray::BulkSerialize for detailed description of implied limitations.
-		FStructuredArchive::FStream Stream = Slot.EnterStream();
-		Stream.EnterElement() << V.X;
-		Stream.EnterElement() << V.Y;
-		Stream.EnterElement() << V.Z;
+		FStructuredArchive::FRecord Record = Slot.EnterRecord();
+		Record << SA_VALUE(TEXT("X"), V.X);
+		Record << SA_VALUE(TEXT("Y"), V.Y);
+		Record << SA_VALUE(TEXT("Z"), V.Z);
 	}
 	
-	bool Serialize(FArchive& Ar)
-	{
-		Ar << *this;
-		return true;
-	}
-
 	bool Serialize(FStructuredArchive::FSlot Slot)
 	{
 		Slot << *this;

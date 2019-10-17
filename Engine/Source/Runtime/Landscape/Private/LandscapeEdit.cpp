@@ -4409,7 +4409,7 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	}
 	else if (PropertyName == FName(TEXT("LOD0ScreenSize")))
 	{
-		LOD0ScreenSize = FMath::Clamp<float>(LOD0ScreenSize, 1.0f, 10.0f);
+		LOD0ScreenSize = FMath::Clamp<float>(LOD0ScreenSize, 0.1f, 10.0f);
 		bPropagateToProxies = true;
 	}
 	else if (PropertyName == FName(TEXT("CollisionMipLevel")))

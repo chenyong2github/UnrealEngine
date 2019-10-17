@@ -12,22 +12,32 @@
 // Insights
 #include "Insights/ViewModels/TimerNodeHelper.h"
 
+class IToolTip;
+class STimerTableRowToolTip;
+
+namespace Insights
+{
+	class FTable;
+	class FTableColumn;
+}
+
 DECLARE_DELEGATE_RetVal_OneParam(bool, FShouldBeEnabledDelegate, const uint32 /*TimerId*/);
 DECLARE_DELEGATE_RetVal_OneParam(bool, FIsColumnVisibleDelegate, const FName /*ColumnId*/);
-DECLARE_DELEGATE_TwoParams(FSetHoveredTimerTableCell, const FName /*ColumnId*/, const FTimerNodePtr /*TimerNodePtr*/);
 DECLARE_DELEGATE_RetVal_OneParam(EHorizontalAlignment, FGetColumnOutlineHAlignmentDelegate, const FName /*ColumnId*/);
+DECLARE_DELEGATE_ThreeParams(FSetHoveredTimerTableCell, TSharedPtr<Insights::FTable> /*TablePtr*/, TSharedPtr<Insights::FTableColumn> /*ColumnPtr*/, const FTimerNodePtr /*TimerNodePtr*/);
 
-/** Widget that represents a table row in the timers' tree control. Generates widgets for each column on demand. */
+/** Widget that represents a table row in the tree control. Generates widgets for each column on demand. */
 class STimerTableRow : public SMultiColumnTableRow<FTimerNodePtr>
 {
 public:
 	SLATE_BEGIN_ARGS(STimerTableRow) {}
 		SLATE_EVENT(FShouldBeEnabledDelegate, OnShouldBeEnabled)
 		SLATE_EVENT(FIsColumnVisibleDelegate, OnIsColumnVisible)
-		SLATE_EVENT(FSetHoveredTimerTableCell, OnSetHoveredTableCell)
 		SLATE_EVENT(FGetColumnOutlineHAlignmentDelegate, OnGetColumnOutlineHAlignmentDelegate)
+		SLATE_EVENT(FSetHoveredTimerTableCell, OnSetHoveredCell)
 		SLATE_ATTRIBUTE(FText, HighlightText)
-		SLATE_ATTRIBUTE(FName, HighlightedTimerName)
+		SLATE_ATTRIBUTE(FName, HighlightedNodeName)
+		SLATE_ARGUMENT(TSharedPtr<Insights::FTable>, TablePtr)
 		SLATE_ARGUMENT(FTimerNodePtr, TimerNodePtr)
 	SLATE_END_ARGS()
 
@@ -52,42 +62,35 @@ public:
 	 */
 	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 
+	TSharedRef<IToolTip> GetRowToolTip() const;
+	void InvalidateContent();
+
 protected:
-	/**
-	 * @return a text which describes this table row, refers to both groups and timers
-	 */
-	FText GetText() const;
-
-	/**
-	 * @return a font style which is used to draw this table row, refers to both groups and timers
-	 */
-	FSlateFontInfo GetFont() const;
-
-	/**
-	 * @return a color and opacity value used to draw this table row, refers to both groups and timers
-	 */
-	FSlateColor GetColorAndOpacity() const;
-
 	FSlateColor GetBackgroundColorAndOpacity() const;
 	FSlateColor GetBackgroundColorAndOpacity(double Time) const;
 	FSlateColor GetOutlineColorAndOpacity() const;
 	const FSlateBrush* GetOutlineBrush(const FName ColumnId) const;
 	bool HandleShouldBeEnabled() const;
 	EVisibility IsColumnVisible(const FName ColumnId) const;
-	void OnSetHoveredTableCell(const FName ColumnId, const FTimerNodePtr SamplePtr);
+	void OnSetHoveredCell(TSharedPtr<Insights::FTable> InTablePtr, TSharedPtr<Insights::FTableColumn> InColumnPtr, const FTimerNodePtr InTimerNodePtr);
 
 protected:
+	/** A shared pointer to the table view model. */
+	TSharedPtr<Insights::FTable> TablePtr;
+
 	/** Data context for this table row. */
 	FTimerNodePtr TimerNodePtr;
 
 	FShouldBeEnabledDelegate OnShouldBeEnabled;
 	FIsColumnVisibleDelegate IsColumnVisibleDelegate;
-	FSetHoveredTimerTableCell SetHoveredTableCellDelegate;
+	FSetHoveredTimerTableCell SetHoveredCellDelegate;
 	FGetColumnOutlineHAlignmentDelegate GetColumnOutlineHAlignmentDelegate;
 
 	/** Text to be highlighted on timer name. */
 	TAttribute<FText> HighlightText;
 
-	/** Name of the timer that should be drawn as highlighted. */
-	TAttribute<FName> HighlightedTimerName;
+	/** Name of the timer node that should be drawn as highlighted. */
+	TAttribute<FName> HighlightedNodeName;
+
+	TSharedPtr<STimerTableRowToolTip> RowToolTip;
 };

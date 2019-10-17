@@ -116,3 +116,4 @@ struct FAddressInfoResult
 	TArray<FAddressInfoResultData> Results;
 };
 
+typedef TFunction<void(FAddressInfoResult)> FAsyncGetAddressInfoCallback;

@@ -117,6 +117,7 @@ public:
 	virtual void GetAddress(FInternetAddr& OutAddr) override;
 	virtual bool GetPeerAddress(FInternetAddr& OutAddr) override;
 	virtual bool SetNonBlocking(bool bIsNonBlocking = true) override;
+	virtual bool SetNoDelay(bool bIsNoDelay = true) override;
 	virtual bool SetBroadcast(bool bAllowBroadcast = true) override;
 	virtual bool JoinMulticastGroup(const FInternetAddr& GroupAddress) override;
 	virtual bool JoinMulticastGroup(const FInternetAddr& GroupAddress, const FInternetAddr& InterfaceAddress) override;

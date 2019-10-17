@@ -3,6 +3,7 @@
 
 #include "Chaos/Box.h"
 #include "Chaos/ImplicitObject.h"
+#include "ChaosArchive.h"
 
 namespace Chaos
 {
@@ -19,7 +20,8 @@ namespace Chaos
 	class TSphere final : public TImplicitObject<T, d>
 	{
 	public:
-		IMPLICIT_OBJECT_SERIALIZER(TSphere)
+
+		using TImplicitObject<T, d>::GetTypeName;
 
 		TSphere(const TVector<T, d>& InCenter, const T InRadius)
 		    : TImplicitObject<T, d>(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Sphere)
@@ -250,7 +252,8 @@ namespace Chaos
 
 		virtual void Serialize(FChaosArchive& Ar) override 
 		{ 
-			SerializeImp(Ar); 
+			FChaosArchiveScopedMemory ScopedMemory(Ar, GetTypeName());
+			SerializeImp(Ar);
 		}
 
 		virtual void Serialize(FArchive& Ar) override
@@ -304,7 +307,7 @@ namespace Chaos
 
 		static TRotation<T, d> GetRotationOfMass()
 		{ 
-			return TRotation<T, d>(TVector<T, d>(0), 1); 
+			return TRotation<T, d>::FromIdentity(); 
 		}
 
 		virtual uint32 GetTypeHash() const override
@@ -313,6 +316,11 @@ namespace Chaos
 			const uint32 RadiusHash = ::GetTypeHash(Radius);
 			const uint32 BoundsHash = LocalBoundingBox.GetTypeHash();
 			return HashCombine(CenterHash, HashCombine(RadiusHash, BoundsHash));
+		}
+
+		virtual TUniquePtr<TImplicitObject<T, d>> Copy() const override
+		{
+			return TUniquePtr<TImplicitObject<T, d>>(new TSphere<T,d>(Center, Radius));
 		}
 
 	private:

@@ -7,7 +7,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Templates/ScopedPointer.h"
 #include "Shader.h"
 #include "Templates/UniquePtr.h"
 #include "RHIResources.h"

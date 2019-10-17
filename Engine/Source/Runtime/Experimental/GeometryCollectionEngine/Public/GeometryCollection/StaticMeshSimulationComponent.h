@@ -88,9 +88,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "ChaosPhysics", meta = (DisplayName = "Chaos Solver"))
 	AChaosSolverActor* ChaosSolverActor;
 
-#if INCLUDE_CHAOS
 	const TSharedPtr<FPhysScene_Chaos> GetPhysicsScene() const;
-#endif
 
 public:
 	UPROPERTY(BlueprintAssignable, Category = "Collision")

@@ -2317,8 +2317,10 @@ public:
 
 	/** Compares the provided view against the cached view and updates the view uniform buffer
 	 *  if the views differ. Returns whether uniform buffer was updated.
+	 *  If bShouldWaitForPersistentViewUniformBufferExtensionsJobs == true, it calls Extension->BeginRenderView() which
+	 *  waits on the potential jobs dispatched in Extension->PrepareView(). Currently it is false only in FMobileSceneRenderer::InitViews()
 	 */
-	bool UpdateViewUniformBuffer(const FViewInfo& View);
+	bool UpdateViewUniformBuffer(const FViewInfo& View, bool bShouldWaitForPersistentViewUniformBufferExtensionsJobs = true);
 
 	/** Updates view uniform buffer and invalidates the internally cached view instance. */
 	void UpdateViewUniformBufferImmediate(const FViewUniformShaderParameters& Parameters);
@@ -2326,7 +2328,7 @@ public:
 	const FViewInfo& GetInstancedView(const FViewInfo& View)
 	{
 		// When drawing the left eye in a stereo scene, copy the right eye view values into the instanced view uniform buffer.
-		const EStereoscopicPass StereoPassIndex = (View.StereoPass != eSSP_FULL) ? eSSP_RIGHT_EYE : eSSP_FULL;
+		const EStereoscopicPass StereoPassIndex = IStereoRendering::IsStereoEyeView(View.StereoPass) ? eSSP_RIGHT_EYE : eSSP_FULL;
 
 		return static_cast<const FViewInfo&>(View.Family->GetStereoEyeView(StereoPassIndex));
 	}

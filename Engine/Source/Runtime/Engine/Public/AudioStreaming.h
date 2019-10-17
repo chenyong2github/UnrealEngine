@@ -102,8 +102,7 @@ struct FWaveRequest
 struct FLoadedAudioChunk
 {
 	uint8*	Data;
-	class IAsyncReadRequest* IORequest;
-	int32	MemorySize; 
+	struct FBulkDataIORequest* IORequest;
 	int32	DataSize;
 	int32	AudioDataSize;
 	uint32	Index;
@@ -111,7 +110,6 @@ struct FLoadedAudioChunk
 	FLoadedAudioChunk()
 		: Data(nullptr)
 		, IORequest(nullptr)
-		, MemorySize(0)
 		, DataSize(0)
 		, AudioDataSize(0)
 		, Index(0)
@@ -121,6 +119,7 @@ struct FLoadedAudioChunk
 	~FLoadedAudioChunk()
 	{
 		checkf(Data == nullptr, TEXT("Audio chunk Data ptr not null (%p), DataSize: %d"), Data, DataSize);
+		checkf(IORequest == nullptr, TEXT("Audio chunk IORequest ptr not null (%p)"), IORequest );
 	}
 };
 
@@ -207,8 +206,6 @@ public:
 
 	/* Contains pointers to Chunks of audio data that have been streamed in */
 	TArray<FLoadedAudioChunk> LoadedChunks;
-
-	class IAsyncReadFileHandle* IORequestHandle;
 
 	/** Indices of chunks that are currently loaded */
 	TArray<uint32>	LoadedChunkIndices;

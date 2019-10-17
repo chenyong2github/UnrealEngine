@@ -400,7 +400,7 @@ namespace Audio
 			 * bDoFlush Controls whether zeros to the final output windows until all possible windows with data from InNewBuffer have been covered.
 			 */
 			TScopedSlidingWindow(TSlidingBuffer<InSampleType>& InSlidingBuffer, TArrayView<const InSampleType> InNewBuffer, bool bDoFlush = false)
-			:	TSlidingWindow(InSlidingBuffer, InNewBuffer, bDoFlush)
+			:	TSlidingWindow<InSampleType>(InSlidingBuffer, InNewBuffer, bDoFlush)
 			,	SlidingBuffer(InSlidingBuffer)
 			{}
 
@@ -409,7 +409,7 @@ namespace Audio
 			 */
 			virtual ~TScopedSlidingWindow()
 			{
-				SlidingBuffer.StoreForFutureWindows(NewBuffer);
+				SlidingBuffer.StoreForFutureWindows(TSlidingWindow<InSampleType>::NewBuffer);
 			}
 	};
 
@@ -450,6 +450,8 @@ namespace Audio
 	{
 		TArray<InSampleType, InAllocator>& WindowBuffer;
 
+		typedef typename TSlidingWindow<InSampleType>::template TSlidingWindowIterator<InAllocator> TAutoSlidingWindowIterator;
+
 		public:
 			/**
 			 * TAutoSlidingWindow constructor
@@ -460,7 +462,7 @@ namespace Audio
 			 * bDoFlush Controls whether zeros to the final output windows until all possible windows with data from InNewBuffer have been covered.
 			 */
 			TAutoSlidingWindow(TSlidingBuffer<InSampleType>& InBuffer, TArrayView<const InSampleType> InNewBuffer, TArray<InSampleType, InAllocator>& OutWindow, bool bDoFlush = false)
-			:	TScopedSlidingWindow(InBuffer, InNewBuffer, bDoFlush)
+			:	TScopedSlidingWindow<InSampleType>(InBuffer, InNewBuffer, bDoFlush)
 			,	WindowBuffer(OutWindow)
 			{}
 
@@ -469,9 +471,9 @@ namespace Audio
 			 *
 			 * This iterator maintains a reference to the OutWindow passed into the constructor. That array will be manipulated when the iterator's * operator is called. 
 			 */
-			TSlidingWindow<InSampleType>::TSlidingWindowIterator<InAllocator> begin() 
+			TAutoSlidingWindowIterator begin() 
 			{
-				return TSlidingWindow<InSampleType>::begin<InAllocator>(WindowBuffer);
+				return TSlidingWindow<InSampleType>::template begin<InAllocator>(WindowBuffer);
 			}
 
 			/**
@@ -479,9 +481,9 @@ namespace Audio
 			 *
 			 * This iterator maintains a reference to the OutWindow passed into the constructor. That array will be manipulated when the iterator's * operator is called. 
 			 */
-			TSlidingWindow<InSampleType>::TSlidingWindowIterator<InAllocator> end()
+			TAutoSlidingWindowIterator end()
 			{
-				return TSlidingWindow<InSampleType>::end<InAllocator>(WindowBuffer);
+				return TSlidingWindow<InSampleType>::template end<InAllocator>(WindowBuffer);
 			}
 	};
 }

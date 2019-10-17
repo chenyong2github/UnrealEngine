@@ -52,6 +52,12 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("Disable collisions"), STAT_DisableCollisions, ST
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Evolution/Kinematic update and forces"), STAT_EvolutionAndKinematicUpdate, STATGROUP_Chaos, CHAOS_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("AdvanceOneTimestep Event Waits"), STAT_AdvanceEventWaits, STATGROUP_Chaos, CHAOS_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Gathering Event Data"), STAT_EventDataGathering, STATGROUP_Chaos, CHAOS_API);
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Fill Event Producer Data"), STAT_FillProducerData, STATGROUP_Chaos, CHAOS_API);
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Flip Event Buffer"), STAT_FlipBuffersIfRequired, STATGROUP_Chaos, CHAOS_API);
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Gathering Collision Event Data"), STAT_GatherCollisionEvent, STATGROUP_Chaos, CHAOS_API);
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Gathering Breaking Event Data"), STAT_GatherBreakingEvent, STATGROUP_Chaos, CHAOS_API);
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Gathering Trailing Event Data"), STAT_GatherTrailingEvent, STATGROUP_Chaos, CHAOS_API);
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Gathering Sleeping Event Data"), STAT_GatherSleepingEvent, STATGROUP_Chaos, CHAOS_API);
 
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Reset Collision Rule"), STAT_ResetCollisionRule, STATGROUP_Chaos, CHAOS_API);
 

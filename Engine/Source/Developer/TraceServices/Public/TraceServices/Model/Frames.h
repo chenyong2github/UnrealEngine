@@ -5,6 +5,7 @@
 #include "TraceServices/Model/AnalysisSession.h"
 #include "ProfilingDebugging/MiscTrace.h"
 #include "Templates/Function.h"
+#include "Delegates/Delegate.h"
 
 namespace Trace
 {
@@ -14,6 +15,7 @@ struct FFrame
 	uint64 Index;
 	double StartTime;
 	double EndTime;
+	ETraceFrameType FrameType;
 };
 
 class IFrameProvider
@@ -23,6 +25,8 @@ public:
 	virtual ~IFrameProvider() = default;
 	virtual uint64 GetFrameCount(ETraceFrameType FrameType) const = 0;
 	virtual void EnumerateFrames(ETraceFrameType FrameType, uint64 Start, uint64 End, TFunctionRef<void(const FFrame&)> Callback) const = 0;
+	virtual const TArray<double>& GetFrameStartTimes(ETraceFrameType FrameType) const = 0;
+	virtual const FFrame* GetFrame(ETraceFrameType FrameType, uint64 Index) const = 0;
 };
 
 TRACESERVICES_API const IFrameProvider& ReadFrameProvider(const IAnalysisSession& Session);

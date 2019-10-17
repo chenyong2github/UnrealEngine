@@ -137,7 +137,7 @@ void TPBDRigidDynamicSpringConstraints<T, d>::ApplySingle(const T Dt, int32 Cons
 		{
 			const TVector<T, d> Radius = WorldSpaceX1 - P0;
 			P0 += PBDRigid0->InvM() * Delta;
-			Q0 += TRotation<T, d>(WorldSpaceInvI1 * TVector<T, d>::CrossProduct(Radius, Delta), 0.f) * Q0 * T(0.5);
+			Q0 += TRotation<T, d>::FromElements(WorldSpaceInvI1 * TVector<T, d>::CrossProduct(Radius, Delta), 0.f) * Q0 * T(0.5);
 			Q0.Normalize();
 		}
 
@@ -145,7 +145,7 @@ void TPBDRigidDynamicSpringConstraints<T, d>::ApplySingle(const T Dt, int32 Cons
 		{
 			const TVector<T, d> Radius = WorldSpaceX2 - P1;
 			P1 -= PBDRigid1->InvM() * Delta;
-			Q1 += TRotation<T, d>(WorldSpaceInvI2 * TVector<T, d>::CrossProduct(Radius, -Delta), 0.f) * Q1 * T(0.5);
+			Q1 += TRotation<T, d>::FromElements(WorldSpaceInvI2 * TVector<T, d>::CrossProduct(Radius, -Delta), 0.f) * Q1 * T(0.5);
 			Q1.Normalize();
 		}
 	}

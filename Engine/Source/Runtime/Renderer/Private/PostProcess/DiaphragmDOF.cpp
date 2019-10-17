@@ -1498,7 +1498,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 		else if (bOutputHalfResolution)
 		{
 			PermutationVector.Set<FDiaphragmDOFSetupCS::FOutputResDivisor>(2);
-			PassViewSize = PreprocessViewSize;
+			PassViewSize = GatheringViewSize;
 			CocRadiusBasis = PreprocessViewSize.X;
 		}
 		else

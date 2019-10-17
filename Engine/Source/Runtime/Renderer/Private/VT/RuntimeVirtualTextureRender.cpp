@@ -120,7 +120,7 @@ namespace RuntimeVirtualTexture
 		static void ModifyCompilationEnvironment(FShaderCompilerEnvironment& OutEnvironment)
 		{
 			OutEnvironment.SetDefine(TEXT("OUT_WORLDHEIGHT"), 1);
-			OutEnvironment.SetRenderTargetOutputFormat(0, PF_G16);
+			OutEnvironment.SetRenderTargetOutputFormat(0, PF_R32_FLOAT);
 		}
 
 		static FRHIBlendState* GetBlendState()
@@ -899,6 +899,8 @@ namespace RuntimeVirtualTexture
 
 			RHICmdList.CopyTexture(GraphOutputTexture2->GetRenderTargetItem().ShaderResourceTexture->GetTexture2D(), OutputTexture2->GetTexture2D(), Info);
 		}
+
+		View->CachedViewUniformShaderParameters.Reset();
 	}
 
 	void RenderPages(FRHICommandListImmediate& RHICmdList, FRenderPageBatchDesc const& InDesc)

@@ -379,7 +379,7 @@ FIntPoint FSceneRenderTargets::ComputeDesiredSize(const FSceneViewFamily& ViewFa
 
 		bIsSceneCapture |= View->bIsSceneCapture;
 		bIsReflectionCapture |= View->bIsReflectionCapture;
-		bIsVRScene |= View->StereoPass != EStereoscopicPass::eSSP_FULL;
+		bIsVRScene |= IStereoRendering::IsStereoEyeView(View->StereoPass);
 	}
 
 	if(!FPlatformProperties::SupportsWindowedMode() || (bIsVRScene && !bIsSceneCapture))
@@ -1454,7 +1454,7 @@ void FSceneRenderTargets::FinishRenderingCustomDepth(FRHICommandListImmediate& R
 	bCustomDepthIsValid = true;
 }
 
-void FSceneRenderTargets::BeginRenderingPrePass(FRHICommandList& RHICmdList, bool bPerformClear)
+void FSceneRenderTargets::BeginRenderingPrePass(FRHICommandList& RHICmdList, bool bPerformClear, bool bStencilClear)
 {
 	check(RHICmdList.IsOutsideRenderPass());
 
@@ -1471,8 +1471,9 @@ void FSceneRenderTargets::BeginRenderingPrePass(FRHICommandList& RHICmdList, boo
 	{				
 		// Clear the depth buffer.
 		// Note, this is a reversed Z depth surface, so 0.0f is the far plane.
-		RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::Clear_Store, ERenderTargetActions::Clear_Store);
-		bSceneDepthCleared = true;	
+		ERenderTargetActions StencilAction = bStencilClear ? ERenderTargetActions::Clear_Store : ERenderTargetActions::Load_Store;
+		RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::Clear_Store, StencilAction);
+		bSceneDepthCleared = true;
 	}
 	else
 	{
@@ -2076,9 +2077,9 @@ void FSceneRenderTargets::AllocateMobileRenderTargets(FRHICommandList& RHICmdLis
 
 	EPixelFormat Format = GetSceneColor()->GetDesc().Format;
 
-#if PLATFORM_HTML5
 	// For 64-bit ES2 without framebuffer fetch, create extra render target for copy of alpha channel.
-	if((Format == PF_FloatRGBA) && (GSupportsShaderFramebufferFetch == false)) 
+	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(CurrentFeatureLevel);
+	if((ShaderPlatform == SP_OPENGL_ES2_WEBGL) && (Format == PF_FloatRGBA) && (GSupportsShaderFramebufferFetch == false))
 	{
 		// creating a PF_R16F (a true one-channel renderable fp texture) is only supported on GL if EXT_texture_rg is available.  It's present
 		// on iOS, but not in WebGL or Android.
@@ -2086,7 +2087,6 @@ void FSceneRenderTargets::AllocateMobileRenderTargets(FRHICommandList& RHICmdLis
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SceneAlphaCopy, TEXT("SceneAlphaCopy"));
 	}
 	else
-#endif
 	{
 		SceneAlphaCopy = GSystemTextures.MaxFP16Depth;
 	}
@@ -2224,8 +2224,11 @@ void FSceneRenderTargets::AllocateCommonDepthTargets(FRHICommandList& RHICmdList
 		FTexture2DRHIRef DepthTex, SRTex;
 		bHMDAllocatedDepthTarget = StereoRenderTargetManager && StereoRenderTargetManager->AllocateDepthTexture(0, BufferSize.X, BufferSize.Y, PF_X24_G8, 0, TexCreate_None, TexCreate_DepthStencilTargetable, DepthTex, SRTex, GetNumSceneColorMSAASamples(CurrentFeatureLevel));
 
+		// Allow UAV depth?
+		const uint32 DepthUAVFlag = GRHISupportsDepthUAV ? TexCreate_UAV : 0;
+
 		// Create a texture to store the resolved scene depth, and a render-targetable surface to hold the unresolved scene depth.
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, PF_DepthStencil, DefaultDepthClear, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead, false));
+		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, PF_DepthStencil, DefaultDepthClear, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead | DepthUAVFlag, false));
 		Desc.NumSamples = GetNumSceneColorMSAASamples(CurrentFeatureLevel);
 		Desc.Flags |= GFastVRamConfig.SceneDepth;
 

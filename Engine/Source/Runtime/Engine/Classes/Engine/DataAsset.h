@@ -19,7 +19,7 @@ class UDataAsset : public UObject
 public:
 	// UObject interface
 #if WITH_EDITORONLY_DATA
-	ENGINE_API virtual void Serialize(FStructuredArchive::FRecord Record) override;
+	ENGINE_API virtual void Serialize(FStructuredArchiveRecord Record) override;
 #endif
 
 private:

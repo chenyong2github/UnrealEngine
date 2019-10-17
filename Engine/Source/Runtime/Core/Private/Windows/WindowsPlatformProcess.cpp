@@ -31,15 +31,6 @@
 	#include <LM.h>
 	#include <Psapi.h>
 	#include <TlHelp32.h>
-
-	namespace ProcessConstants
-	{
-		uint32 WIN_STD_INPUT_HANDLE = STD_INPUT_HANDLE;
-		uint32 WIN_STD_OUTPUT_HANDLE = STD_OUTPUT_HANDLE;
-		uint32 WIN_ATTACH_PARENT_PROCESS = ATTACH_PARENT_PROCESS;		
-		uint32 WIN_STILL_ACTIVE = STILL_ACTIVE;
-	}
-
 #include "Windows/HideWindowsPlatformTypes.h"
 #include "Windows/WindowsPlatformMisc.h"
 
@@ -471,7 +462,16 @@ void FWindowsPlatformProcess::SetThreadAffinityMask( uint64 AffinityMask )
 
 bool FWindowsPlatformProcess::GetProcReturnCode( FProcHandle & ProcHandle, int32* ReturnCode )
 {
-	return ::GetExitCodeProcess( ProcHandle.Get(), (::DWORD *)ReturnCode ) && *((uint32*)ReturnCode) != ProcessConstants::WIN_STILL_ACTIVE;
+	DWORD ExitCode = 0;
+	if (::GetExitCodeProcess(ProcHandle.Get(), &ExitCode) && ExitCode != STILL_ACTIVE)
+	{
+		if (ReturnCode)
+		{
+			*ReturnCode = (int32)ExitCode;
+		}
+		return true;
+	}
+	return false;
 }
 
 bool FWindowsPlatformProcess::GetApplicationMemoryUsage(uint32 ProcessId, SIZE_T* OutMemoryUsage)
@@ -654,13 +654,18 @@ FString FWindowsPlatformProcess::GetApplicationName( uint32 ProcessId )
 		int32 InOutSize = ProcessNameBufferSize;
 		static_assert(sizeof(::DWORD) == sizeof(int32), "DWORD size doesn't match int32. Is it the future or the past?");
 
+		if(
 #if WINVER == 0x0502
-		GetProcessImageFileName(ProcessHandle, ProcessNameBuffer, InOutSize);
+		GetProcessImageFileName(ProcessHandle, ProcessNameBuffer, InOutSize)
 #else
-		QueryFullProcessImageName(ProcessHandle, 0, ProcessNameBuffer, (PDWORD)(&InOutSize));
+		QueryFullProcessImageName(ProcessHandle, 0, ProcessNameBuffer, (PDWORD)(&InOutSize))
 #endif
+			)
+		{
+			// TODO no null termination guarantee on GetProcessImageFileName?  it returns size as well, whereas QueryFullProcessImageName just returns non-zero on success
+			Output = ProcessNameBuffer;
+		}
 
-		Output = ProcessNameBuffer;
 		::CloseHandle(ProcessHandle);
 	}
 
@@ -1273,7 +1278,10 @@ void FWindowsPlatformProcess::SleepNoStats(float Seconds)
 	{
 		::SwitchToThread();
 	}
-	::Sleep(Milliseconds);
+	else
+	{
+		::Sleep(Milliseconds);
+	}
 }
 
 void FWindowsPlatformProcess::SleepInfinite()
@@ -1431,7 +1439,7 @@ bool FWindowsPlatformProcess::WritePipe(void* WritePipe, const FString& Message,
 
 	// Convert input to UTF8CHAR
 	uint32 BytesAvailable = Message.Len();
-	UTF8CHAR * Buffer = new UTF8CHAR[BytesAvailable + 1];
+	UTF8CHAR * Buffer = new UTF8CHAR[BytesAvailable + 2];
 	for (uint32 i = 0; i < BytesAvailable; i++)
 	{
 		Buffer[i] = Message[i];
@@ -1477,9 +1485,15 @@ bool FWindowsPlatformProcess::WritePipe(void* WritePipe, const uint8* Data, cons
 #include "Windows/AllowWindowsPlatformTypes.h"
 
 FWindowsPlatformProcess::FWindowsSemaphore::FWindowsSemaphore(const FString & InName, HANDLE InSemaphore)
-	:	FSemaphore(InName)
-	,	Semaphore(InSemaphore)
+	: FWindowsSemaphore(*InName, InSemaphore)
 {
+}
+
+FWindowsPlatformProcess::FWindowsSemaphore::FWindowsSemaphore(const TCHAR* InName, Windows::HANDLE InSemaphore)
+	: FSemaphore(InName)
+	, Semaphore(InSemaphore)
+{
+
 }
 
 FWindowsPlatformProcess::FWindowsSemaphore::~FWindowsSemaphore()
@@ -1530,19 +1544,24 @@ void FWindowsPlatformProcess::FWindowsSemaphore::Unlock()
 	}
 }
 
-FWindowsPlatformProcess::FSemaphore * FWindowsPlatformProcess::NewInterprocessSynchObject(const FString & Name, bool bCreate, uint32 MaxLocks)
+FWindowsPlatformProcess::FSemaphore* FWindowsPlatformProcess::NewInterprocessSynchObject(const FString & Name, bool bCreate, uint32 MaxLocks)
+{
+	return NewInterprocessSynchObject(*Name, bCreate, MaxLocks);
+}
+
+FWindowsPlatformProcess::FSemaphore* FWindowsPlatformProcess::NewInterprocessSynchObject(const TCHAR* Name, bool bCreate, uint32 MaxLocks)
 {
 	HANDLE Semaphore = NULL;
 	
 	if (bCreate)
 	{
-		Semaphore = CreateSemaphore(NULL, MaxLocks, MaxLocks, *Name);
+		Semaphore = CreateSemaphore(NULL, MaxLocks, MaxLocks, Name);
 		if (NULL == Semaphore)
 		{
 			DWORD ErrNo = GetLastError();
 			UE_LOG(LogHAL, Warning, TEXT("CreateSemaphore(Attrs=NULL, InitialValue=%d, MaxValue=%d, Name='%s') failed with LastError = %d"),
 				MaxLocks, MaxLocks,
-				*Name,
+				Name,
 				ErrNo);
 			return NULL;
 		}
@@ -1550,13 +1569,13 @@ FWindowsPlatformProcess::FSemaphore * FWindowsPlatformProcess::NewInterprocessSy
 	else
 	{
 		DWORD AccessRights = SYNCHRONIZE | SEMAPHORE_MODIFY_STATE;
-		Semaphore = OpenSemaphore(AccessRights, false, *Name);
+		Semaphore = OpenSemaphore(AccessRights, false, Name);
 		if (NULL == Semaphore)
 		{
 			DWORD ErrNo = GetLastError();
 			UE_LOG(LogHAL, Warning, TEXT("OpenSemaphore(AccessRights=0x%08x, bInherit=false, Name='%s') failed with LastError = %d"),
 				AccessRights,
-				*Name,
+				Name,
 				ErrNo);
 			return NULL;
 		}

@@ -11,12 +11,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
-#include "IContentBrowserSingleton.h"
-#include "ContentBrowserModule.h"
-
 #include "Framework/Application/SlateApplication.h"
-#include "Subsystems/AssetEditorSubsystem.h"
-#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackTableRow"
 
@@ -40,6 +35,7 @@ void SNiagaraStackTableRow::Construct(const FArguments& InArgs, UNiagaraStackVie
 
 	InactiveItemBackgroundColor = InArgs._ItemBackgroundColor;
 	ActiveItemBackgroundColor = InactiveItemBackgroundColor + FLinearColor(.05f, .05f, .05f, 0.0f);
+	DisabledItemBackgroundColor = InactiveItemBackgroundColor + FLinearColor(.02f, .02f, .02f, 0.0f);
 	ForegroundColor = InArgs._ItemForegroundColor;
 
 	ExecutionCategoryToolTipText = InStackEntry->GetExecutionSubcategoryName() != NAME_None
@@ -140,6 +136,7 @@ void SNiagaraStackTableRow::SetNameAndValueContent(TSharedRef<SWidget> InNameWid
 		.VAlign(EVerticalAlignment::VAlign_Center)
 		.ToolTipText(ExecutionCategoryToolTipText)
 		.Visibility(this, &SNiagaraStackTableRow::GetExecutionCategoryIconVisibility)
+		.IsEnabled_UObject(StackEntry, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
 		[
 			SNew(SImage)
 			.Visibility(this, &SNiagaraStackTableRow::GetExecutionCategoryIconVisibility)
@@ -206,24 +203,42 @@ void SNiagaraStackTableRow::SetNameAndValueContent(TSharedRef<SWidget> InNameWid
 		];
 	}
 
+	FName AccentColorName = FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForExecutionCategory(StackEntry->GetExecutionCategoryName());
+	FLinearColor AccentColor = AccentColorName != NAME_None ? FNiagaraEditorWidgetsStyle::Get().GetColor(AccentColorName) : FLinearColor::Transparent;
 	ChildSlot
 	[
 		SNew(SOverlay)
 		+ SOverlay::Slot()
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
-			.BorderBackgroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetColorNameForExecutionCategory(StackEntry->GetExecutionCategoryName())))
+			.BorderImage(FEditorStyle::GetBrush("NoBrush"))
 			.Visibility(this, &SNiagaraStackTableRow::GetRowVisibility)
-			.Padding(FMargin(9, 0, 9, 0))
+			.Padding(FMargin(0, 0, 0, 0))
 			[
-				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
-				.BorderBackgroundColor(this, &SNiagaraStackTableRow::GetItemBackgroundColor)
-				.ForegroundColor(ForegroundColor)
-				.Padding(0)
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(1, 0, 6, 0)
 				[
-					ChildContent.ToSharedRef()
+					SNew(SBorder)
+					.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+					.BorderBackgroundColor(AccentColor)
+					.Padding(0)
+					[
+						SNew(SBox)
+						.WidthOverride(4)
+					]
+				]
+				+ SHorizontalBox::Slot()
+				[
+					SNew(SBorder)
+					.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+					.BorderBackgroundColor(this, &SNiagaraStackTableRow::GetItemBackgroundColor)
+					.ForegroundColor(ForegroundColor)
+					.Padding(0)
+					[
+						ChildContent.ToSharedRef()
+					]
 				]
 			]
 		]
@@ -261,27 +276,13 @@ FReply SNiagaraStackTableRow::OnMouseButtonUp(const FGeometry& MyGeometry, const
 	if (MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
 	{
 		FMenuBuilder MenuBuilder(true, nullptr);
-		MenuBuilder.BeginSection("ModuleActions", LOCTEXT("ModuleActions", "Module Actions"));
 		for (FOnFillRowContextMenu& OnFillRowContextMenuHandler : OnFillRowContextMenuHanders)
 		{
 			OnFillRowContextMenuHandler.ExecuteIfBound(MenuBuilder);
 		}
-		MenuBuilder.EndSection();
-		if (StackEntry->GetExternalAsset() != nullptr)
-		{
-			MenuBuilder.BeginSection("AssetActions", LOCTEXT("AssetActions", "Asset Actions"));
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("OpenAndFocusAsset", "Open and Focus Asset"),
-				FText::Format(LOCTEXT("OpenAndFocusAssetTooltip", "Open {0} in separate editor"), StackEntry->GetDisplayName()),
-				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateSP(this, &SNiagaraStackTableRow::OpenSourceAsset)));
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("ShowAssetInContentBrowser", "Show in Content Browser"),
-				FText::Format(LOCTEXT("ShowAssetInContentBrowserToolTip", "Navigate to {0} in the Content Browser window"), StackEntry->GetDisplayName()),
-				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateSP(this, &SNiagaraStackTableRow::ShowAssetInContentBrowser)));
-			MenuBuilder.EndSection();
-		}
+
+		FNiagaraStackEditorWidgetsUtilities::AddStackEntryAssetContextMenuActions(MenuBuilder, *StackEntry);
+
 		TArray<UNiagaraStackEntry*> EntriesToProcess;
 		TArray<UNiagaraStackEntry*> NavigationEntries;
 		StackViewModel->GetPathForEntry(StackEntry, EntriesToProcess);
@@ -426,7 +427,14 @@ void SNiagaraStackTableRow::OnValueColumnWidthChanged(float Width)
 
 FSlateColor SNiagaraStackTableRow::GetItemBackgroundColor() const
 {
-	return GetIsRowActive() ? ActiveItemBackgroundColor : InactiveItemBackgroundColor;
+	if (StackEntry->GetIsEnabled() && StackEntry->GetOwnerIsEnabled())
+	{
+		return GetIsRowActive() ? ActiveItemBackgroundColor : InactiveItemBackgroundColor;
+	}
+	else
+	{
+		return DisabledItemBackgroundColor;
+	}
 }
 
 EVisibility SNiagaraStackTableRow::GetSearchResultBorderVisibility() const
@@ -439,19 +447,6 @@ EVisibility SNiagaraStackTableRow::GetSearchResultBorderVisibility() const
 void SNiagaraStackTableRow::NavigateTo(UNiagaraStackEntry* Item)
 {
 	OwnerTree->RequestNavigateToItem(Item, 0);
-}
-
-void SNiagaraStackTableRow::OpenSourceAsset()
-{
-	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(StackEntry->GetExternalAsset());
-}
-
-void SNiagaraStackTableRow::ShowAssetInContentBrowser()
-{
-	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
-	TArray<FAssetData> Assets;
-	Assets.Add(FAssetData(StackEntry->GetExternalAsset()));
-	ContentBrowserModule.Get().SyncBrowserToAssets(Assets);
 }
 
 #undef LOCTEXT_NAMESPACE

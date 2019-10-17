@@ -1,0 +1,139 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+//#define SCENE_TEXTURES_DISABLED 1
+
+#include "../Common.ush"
+#include "HairStrandsMeshProjectionCommon.ush"
+
+#define INPUT_ROOT_FRAME 0
+#define INPUT_ROOT_TRIANGLE 1
+
+uint MaxRootCount;
+
+#if PERMUTATION_INPUT_TYPE == INPUT_ROOT_FRAME
+float4x4 RootLocalToWorld;
+Buffer<float4> RootPositionBuffer;
+Buffer<float4> RootNormalBuffer;
+
+uint			DeformedFrameEnable;
+Buffer<float4>  RestPosition0Buffer;
+Buffer<float4>  RestPosition1Buffer;
+Buffer<float4>  RestPosition2Buffer;
+
+Buffer<float4>  DeformedPosition0Buffer;
+Buffer<float4>  DeformedPosition1Buffer;
+Buffer<float4>  DeformedPosition2Buffer;
+#endif
+
+#if PERMUTATION_INPUT_TYPE == INPUT_ROOT_TRIANGLE
+Buffer<float4> RootTrianglePosition0;
+Buffer<float4> RootTrianglePosition1;
+Buffer<float4> RootTrianglePosition2;
+#endif
+
+#if PERMUTATION_INPUT_TYPE == INPUT_ROOT_FRAME
+void GetTriangleTransformation(uint RootIndex, out float3 T, out float4 Q)
+{
+	float3 Rest_P1 = RestPosition1Buffer[RootIndex].xyz;
+	float3 Rest_P0 = RestPosition0Buffer[RootIndex].xyz;
+	float3 Rest_P2 = RestPosition2Buffer[RootIndex].xyz;
+	float3 Rest_E0 = Rest_P1 - Rest_P0;
+	float3 Rest_E1 = Rest_P2 - Rest_P0;
+	float3 Rest_N = normalize(cross(Rest_E0, Rest_E1));
+
+	float3 Deformed_P0 = DeformedPosition0Buffer[RootIndex].xyz;
+	float3 Deformed_P1 = DeformedPosition1Buffer[RootIndex].xyz;
+	float3 Deformed_P2 = DeformedPosition2Buffer[RootIndex].xyz;
+	float3 Deformed_E0 = Deformed_P1 - Deformed_P0;
+	float3 Deformed_E1 = Deformed_P2 - Deformed_P0;
+	float3 Deformed_N = normalize(cross(Deformed_E0, Deformed_E1));
+
+	T = Deformed_P0 - Rest_P0;
+	Q = 0;// FindQuatBetweenNormals(Rest_N, Deformed_N);
+}
+#endif
+
+void MainVS(
+	uint VertexId : SV_VertexID,
+	out float3 OutFaceNormal : FACE_NORMAL,
+	out float4 OutPosition : SV_POSITION)
+{
+	ResolvedView = ResolveView();
+
+#if PERMUTATION_INPUT_TYPE == INPUT_ROOT_FRAME  
+	const uint LineVertex = (VertexId%2);
+	const uint LineIndex = VertexId/2;
+
+	OutFaceNormal 	= float3(0,0,1);
+	OutPosition 	= float4(0,0,0,0);
+	if (LineIndex > MaxRootCount) return;
+
+	float3 N;
+	float3 P;
+
+	if (DeformedFrameEnable)
+	{
+		float3 DynTranslation = 0;
+		float4 DynRotation = 0;
+		GetTriangleTransformation(LineIndex, DynTranslation, DynRotation);
+
+		float3 P0 = RootPositionBuffer[LineIndex];
+		P0 = mul(float4(P0, 1), RootLocalToWorld).xyz;
+		P0 += DynTranslation;
+
+		N = RootNormalBuffer[LineIndex];
+		N = mul(float4(N, 0), RootLocalToWorld).xyz;
+
+		const float3 P1 = P0 + N;
+		P = LineVertex == 0 ? P0 : P1;
+	}
+	else
+	{
+		float3 P0 = RootPositionBuffer[LineIndex];
+		P0 = mul(float4(P0,1), RootLocalToWorld).xyz;
+	
+		N  = RootNormalBuffer[LineIndex];
+		N = mul(float4(N, 0), RootLocalToWorld).xyz;
+
+		const float3 P1 = P0 + N;
+
+		P = LineVertex == 0 ? P0 : P1;
+	}
+
+#endif
+
+#if PERMUTATION_INPUT_TYPE == INPUT_ROOT_TRIANGLE
+	const uint TriangleVertex = (VertexId % 3);
+	const uint TriangleIndex = VertexId / 3;
+
+	if (TriangleIndex > MaxRootCount) return;
+
+	const float3 P0 = RootTrianglePosition0[TriangleIndex];
+	const float3 P1 = RootTrianglePosition1[TriangleIndex];
+	const float3 P2 = RootTrianglePosition2[TriangleIndex];
+
+	const float3 E0 = P1 - P0;
+	const float3 E1 = P2 - P0;
+	const float3 N = normalize(cross(E0, E1));
+
+	float3 P = 0;
+	if (TriangleVertex == 0)
+		P = P0;
+	if (TriangleVertex == 1)
+		P = P1;
+	if (TriangleVertex == 2)
+		P = P2;
+#endif
+
+	OutFaceNormal = N;
+	OutPosition = mul(float4(P,1), View.WorldToClip);
+}
+
+void MainPS(
+	in float3 FaceNormal : FACE_NORMAL,
+	out float4 OutColor : SV_Target0)
+{
+	FaceNormal += float3(1,1,1);
+	FaceNormal *= 0.5f;
+	OutColor = float4(FaceNormal,1);
+}

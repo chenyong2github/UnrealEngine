@@ -2,16 +2,16 @@
 
 #pragma once
 
-#include "Private/Trace.h"
-#include "Private/Field.h"
+#include "Detail/Trace.h"
+#include "Detail/Field.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 namespace Trace
 {
 
-UE_TRACE_API bool	Connect(const TCHAR* Host) UE_TRACE_IMPL(false);
+UE_TRACE_API bool	SendTo(const TCHAR* Host) UE_TRACE_IMPL(false);
+UE_TRACE_API bool	WriteTo(const TCHAR* Path) UE_TRACE_IMPL(false);
 UE_TRACE_API uint32 ToggleEvent(const TCHAR* Wildcard, bool bState) UE_TRACE_IMPL(false);
-UE_TRACE_API void	Flush() UE_TRACE_IMPL();
 
 } // namespace Trace
 
@@ -24,5 +24,5 @@ UE_TRACE_API void	Flush() UE_TRACE_IMPL();
 #define UE_TRACE_EVENT_IS_ENABLED(LoggerName, EventName)		TRACE_PRIVATE_EVENT_IS_ENABLED(LoggerName, EventName)
 #define UE_TRACE_LOG(LoggerName, EventName, ...)				TRACE_PRIVATE_LOG(LoggerName, EventName, ##__VA_ARGS__)
 
-#include "Private/Event.inl"
-#include "Private/Writer.inl"
+#include "Detail/EventDef.inl"
+#include "Detail/Writer.inl"

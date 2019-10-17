@@ -50,6 +50,13 @@ struct OutputPS
 };
 
 
+float3 ComposePicpOverlay(float3 OutColor, float4 OverlayColor)
+{
+	float3 FinalColor = OverlayColor.xyz + OutColor * OverlayColor.w;
+	return FinalColor;	
+}
+
+
 /** Used for calculating vertex positions and UVs when drawing with DrawRectangle */
 void DrawRectangle(in float4 InPosition, in float2 InTexCoord, out float4 OutPosition, out float2 OutTexCoord)
 {
@@ -75,7 +82,7 @@ float4 ApplyBlending(float3 color, OutputVS IN, float ColorAlphaValue)
 }
 
 
-OutputVS MainVS( InputVS IN)
+OutputVS MainVS(InputVS IN)
 {
 	OutputVS OUT;
 	DrawRectangle(IN.Position, IN.UV, OUT.Position, OUT.UV.xy);
@@ -84,15 +91,15 @@ OutputVS MainVS( InputVS IN)
 	return OUT;
 }
 
-OutputPS Passthrough_PS( OutputVS IN )
+OutputPS Passthrough_PS(OutputVS IN)
 {
 	OutputPS OUT;
 	float4 UV = mul(IN.UV, MultiViewportMatrix);
 	OUT.Color = PostprocessInput0.Sample(PostprocessInput0Sampler, UV.xy);
-	return OUT; 
+	return OUT;
 }
 
-OutputPS WarpAndBlend_PS( OutputVS IN )
+OutputPS WarpAndBlend_PS(OutputVS IN)
 {
 	OutputPS OUT;
 
@@ -100,10 +107,10 @@ OutputPS WarpAndBlend_PS( OutputVS IN )
 	float4 WarpedUV = WarpMap.Sample(WarpMapSampler, IN.UV.xy);
 
 	// Transform WarpedUV to ScreenSpaceUV
-	float4 UV =  mul(WarpedUV, MultiViewportMatrix);
+	float4 UV = mul(WarpedUV, MultiViewportMatrix);
 
 	// Load from color map
-	float3 Color = PostprocessInput0.Sample(PostprocessInput0Sampler, UV.xy/UV.w).rgb;
+	float3 Color = PostprocessInput0.Sample(PostprocessInput0Sampler, UV.xy / UV.w).rgb;
 
 #if RENDER_CASE_APPLYBLENDING
 	// Apply blending
@@ -164,7 +171,7 @@ OutputPS PicpMPCDIWarpAndBlendOverlay_PS(OutputVS IN)
 	float4 CameraUVW = mul(WarpedUV, CameraProjectionMatrix);
 	float2 CameraUV = CameraUVW.xy / CameraUVW.w;
 	// Load from Cameramap
-	float3 CameraBaseColor        = CameraMap.Sample(CameraMapSampler, CameraUV).rgb;
+	float3 CameraBaseColor = CameraMap.Sample(CameraMapSampler, CameraUV).rgb;
 
 	float4 CameraColor = float4(CameraBaseColor, 0);
 
@@ -183,24 +190,24 @@ OutputPS PicpMPCDIWarpAndBlendOverlay_PS(OutputVS IN)
 
 	OutColor = CameraColor;
 #if RENDER_CASE_VIEWPORT_OVERLAY
-	OutColor.xyz = lerp(OutColor.xyz, ViewportOverlayColor.xyz, saturate(1.0f - ViewportOverlayColor.w));
+	OutColor.xyz = ComposePicpOverlay(OutColor.xyz, ViewportOverlayColor);
 #endif
 
 #else  //NOT CASE CAMERA
 
 #if RENDER_CASE_VIEWPORT_BASE
 	OutColor = ViewportBaseColor;
-	#if RENDER_CASE_VIEWPORT_OVERLAY
-		OutColor.xyz = lerp(OutColor.xyz, ViewportOverlayColor.xyz, saturate(1.0f - ViewportOverlayColor.w));
-	#endif
+#if RENDER_CASE_VIEWPORT_OVERLAY
+	OutColor.xyz = ComposePicpOverlay(OutColor.xyz, ViewportOverlayColor);
+#endif
 #else // NOT VP BASE
-	#if RENDER_CASE_VIEWPORT_OVERLAY
-		OutColor = ViewportOverlayColor;
-	#endif
+#if RENDER_CASE_VIEWPORT_OVERLAY
+	OutColor = ViewportOverlayColor;
+#endif
 #endif
 
 #endif
-	
+
 	//!fixme: add LUT here
 
 
@@ -225,7 +232,7 @@ OutputPS PicpMPCDIWarpAndBlendViewportOverlay_PS(OutputVS IN)
 	// Transform WarpedUV to ScreenSpaceUV
 	float4 OverlayUVW = mul(WarpedUV, TextureProjectionMatrix);
 	float2 OverlayUV = OverlayUVW.xy / OverlayUVW.w;
-	
+
 	float4 ViewportOverlayColor = ViewportOverlayMap.Sample(ViewportOverlayMapSampler, OverlayUV).rgba;
 
 	//!fixme: add LUT here
@@ -290,15 +297,15 @@ OutputPS PicpMPCDIWarpAndBlendOneCameraFull_PS(OutputVS IN)
 	}
 
 	float4 OutColor = ViewportBaseColor;
-	
+
 #if USE_OVERLAY_BACK	
-	OutColor.xyz = lerp(OutColor.xyz, ViewportOverlayBackColor.xyz, saturate(1.0f - ViewportOverlayBackColor.w));
+	OutColor.xyz = ComposePicpOverlay(OutColor.xyz, ViewportOverlayBackColor);
 #endif
 
-	OutColor.xyz = lerp(OutColor.xyz, CameraColor.xyz,  CameraColor.w);
+	OutColor.xyz = lerp(OutColor.xyz, CameraColor.xyz, CameraColor.w);
 
 #if USE_OVERLAY_FRONT
-	OutColor.xyz = lerp(OutColor.xyz, ViewportOverlayColor.xyz, saturate(1.0f - ViewportOverlayColor.w));
+	OutColor.xyz = ComposePicpOverlay(OutColor.xyz, ViewportOverlayColor);
 #endif
 
 	//!fixme: add LUT here

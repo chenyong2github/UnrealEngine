@@ -16,8 +16,7 @@
 #include "PhysicsSolver.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 
-#if INCLUDE_CHAOS && !WITH_CHAOS_NEEDS_TO_BE_FIXED
-
+#if !WITH_CHAOS_NEEDS_TO_BE_FIXED
 
 DECLARE_CYCLE_STAT(TEXT("LowLevelSweep"), STAT_LowLevelSweep, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("LowLevelRaycast"), STAT_LowLevelRaycast, STATGROUP_Chaos);

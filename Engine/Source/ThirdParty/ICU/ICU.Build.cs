@@ -159,46 +159,6 @@ public class ICU : ModuleRules
 			string ICULibName = Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT ? "libicud_fPIC.a" : "libicu_fPIC.a";
 			PublicAdditionalLibraries.Add(Path.Combine(ICULibPath, Target.Architecture, ICULibName));
 		}
-		else if (Target.Platform == UnrealTargetPlatform.HTML5)
-		{
-			ICULibPath += "HTML5/";
-
-			// we don't bother with debug libraries on HTML5. Mainly because debugging isn't viable on html5 currently
-			string StaticLibraryExtension = "bc";
-
-			string[] LibraryNameStems =
-			{
-				"data", // Data
-				"uc",   // Unicode Common
-				"i18n", // Internationalization
-				"le",   // Layout Engine
-				"lx",   // Layout Extensions
-				"io"	// Input/Output
-			};
-
-			string OpimizationSuffix = "";
-			if (Target.bCompileForSize)
-			{
-				OpimizationSuffix = "_Oz";
-			}
-			else
-			{
-				if (Target.Configuration == UnrealTargetConfiguration.Development)
-				{
-					OpimizationSuffix = "_O2";
-				}
-				else if (Target.Configuration == UnrealTargetConfiguration.Shipping)
-				{
-					OpimizationSuffix = "_O3";
-				}
-			}
-
-			foreach (string Stem in LibraryNameStems)
-			{
-				string LibraryName = "libicu" + Stem + OpimizationSuffix + "." + StaticLibraryExtension;
-				PublicAdditionalLibraries.Add(Path.Combine(ICULibPath, LibraryName));
-			}
-		}
 		else if (Target.Platform == UnrealTargetPlatform.PS4)
 		{
 			PublicSystemIncludePaths.Add(ICUIncludePath + "PS4/");

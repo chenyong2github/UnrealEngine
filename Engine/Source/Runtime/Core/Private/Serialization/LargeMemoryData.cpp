@@ -67,11 +67,15 @@ bool FLargeMemoryData::Read(void* OutData, int64 InOffset, int64 InNum) const
 	}
 }
 
-void FLargeMemoryData::ReleaseOwnership()
+uint8* FLargeMemoryData::ReleaseOwnership()
 {
+	uint8* ReturnData = Data;
+
 	Data = nullptr;
 	NumBytes = 0;
 	MaxBytes = 0;
+
+	return ReturnData;
 }
 
 void FLargeMemoryData::Reserve(int64 NewMax)

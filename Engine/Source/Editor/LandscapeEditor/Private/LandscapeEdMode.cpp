@@ -559,7 +559,6 @@ void FEdModeLandscape::SetLandscapeInfo(ULandscapeInfo* InLandscapeInfo)
 			TGuardValue<bool> GuardFlag(bUpdatingLandscapeInfo, true);
 			CurrentToolTarget.LandscapeInfo = InLandscapeInfo;
 			UpdateTargetList();
-			UpdateShownLayerList();
 			UpdateToolModes();
 		}
 		RefreshDetailPanel();
@@ -852,6 +851,7 @@ void FEdModeLandscape::Exit()
 
 	LandscapeList.Empty();
 	LandscapeTargetList.Empty();
+	TargetLayerStartingIndex = 0;
 
 	// Save UI settings to config file
 	UISettings->Save();
@@ -2669,6 +2669,7 @@ bool FEdModeLandscape::CanEditCurrentTarget(FText* Reason) const
 void FEdModeLandscape::UpdateTargetList()
 {
 	LandscapeTargetList.Empty();
+	TargetLayerStartingIndex = 0;
 
 	if (CurrentToolTarget.LandscapeInfo.IsValid())
 	{
@@ -2757,6 +2758,8 @@ void FEdModeLandscape::UpdateTargetList()
 	}
 
 	TargetsListUpdated.Broadcast();
+
+	UpdateShownLayerList();
 }
 
 void FEdModeLandscape::UpdateTargetLayerDisplayOrder(ELandscapeLayerDisplayMode InTargetDisplayOrder)
@@ -2874,7 +2877,6 @@ void FEdModeLandscape::UpdateTargetLayerDisplayOrder(ELandscapeLayerDisplayMode 
 void FEdModeLandscape::OnLandscapeMaterialChangedDelegate()
 {
 	UpdateTargetList();
-	UpdateShownLayerList();
 }
 
 void FEdModeLandscape::RequestUpdateShownLayerList()
@@ -3066,7 +3068,6 @@ void FEdModeLandscape::HandleLevelsChanged(bool ShouldExitMode)
 
 	UpdateLandscapeList();
 	UpdateTargetList();
-	UpdateShownLayerList();
 	UpdateBrushList();
 
 	// if the Landscape is deleted then close the landscape editor
@@ -3092,7 +3093,6 @@ void FEdModeLandscape::OnMaterialCompilationFinished(UMaterialInterface* Materia
 	{
 		CurrentToolTarget.LandscapeInfo->UpdateLayerInfoMap();
 		UpdateTargetList();
-		UpdateShownLayerList();
 	}
 }
 
@@ -4599,6 +4599,27 @@ TArray<ALandscapeBlueprintBrushBase*> FEdModeLandscape::GetBrushesForCurrentLaye
 		Brushes = Landscape->GetBrushesForLayer(GetCurrentLayerIndex());
 	}
 	return Brushes;
+}
+
+void FEdModeLandscape::ShowOnlySelectedBrush(class ALandscapeBlueprintBrushBase* InBrush)
+{
+	if (ALandscape * Landscape = GetLandscape())
+	{
+		int32 BrushLayer = Landscape->GetBrushLayer(InBrush);
+		TArray<ALandscapeBlueprintBrushBase*> Brushes = Landscape->GetBrushesForLayer(BrushLayer);
+		for (ALandscapeBlueprintBrushBase* Brush : Brushes)
+		{
+			Brush->SetIsVisible(Brush == InBrush);
+		}
+	}
+}
+
+void FEdModeLandscape::DuplicateBrush(class ALandscapeBlueprintBrushBase* InBrush)
+{
+	GEditor->SelectNone(false, true);
+	GEditor->SelectActor(InBrush, true, false, false);
+
+	GEditor->edactDuplicateSelected(InBrush->GetLevel(), false);
 }
 
 bool FEdModeLandscape::IsCurrentLayerBlendSubstractive(const TWeakObjectPtr<ULandscapeLayerInfoObject>& InLayerInfoObj) const

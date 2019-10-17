@@ -60,7 +60,7 @@ namespace Chaos
 #endif
 		}
 
-		~TParticles()
+		virtual ~TParticles()
 		{}
 
 		void AddParticles(const int32 Num)

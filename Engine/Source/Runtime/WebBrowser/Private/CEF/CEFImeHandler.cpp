@@ -17,7 +17,7 @@ FCEFImeHandler::FCEFImeHandler(CefRefPtr<CefBrowser> Browser)
 bool FCEFImeHandler::OnProcessMessageReceived(CefRefPtr<CefBrowser> Browser, CefProcessId SourceProcess, CefRefPtr<CefProcessMessage> Message)
 {
 	bool Result = false;
-	FString MessageName = Message->GetName().ToWString().c_str();
+	FString MessageName = WCHAR_TO_TCHAR(Message->GetName().ToWString().c_str());
 	if (MessageName == TEXT("UE::IME::FocusChanged"))
 	{
 		Result = HandleFocusChangedMessage(Message->GetArgumentList());
@@ -135,8 +135,8 @@ bool FCEFImeHandler::HandleFocusChangedMessage(CefRefPtr<CefListValue> MessageAr
 		MessageArguments->GetType(6) == VTYPE_INT &&
 		MessageArguments->GetType(7) == VTYPE_INT)
 	{
-		FString Type = MessageArguments->GetString(0).ToWString().c_str();
-		FString Name = MessageArguments->GetString(1).ToWString().c_str();
+		FString Type = WCHAR_TO_TCHAR(MessageArguments->GetString(0).ToWString().c_str());
+		FString Name = WCHAR_TO_TCHAR(MessageArguments->GetString(1).ToWString().c_str());
 		bool bIsEditable = MessageArguments->GetBool(2);
 
 		if (Type == TEXT("DOM_NODE_TYPE_ELEMENT") && 

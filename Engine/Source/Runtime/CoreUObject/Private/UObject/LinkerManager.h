@@ -91,9 +91,16 @@ public:
 	}
 
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	FORCEINLINE TArray<FLinkerLoad*>& GetLiveLinkers()
+	FORCEINLINE void AddLiveLinker(FLinkerLoad* Linker)
 	{
-		return LiveLinkers;
+		FScopeLock LiveLinkersLock(&LiveLinkersCritical);
+		LiveLinkers.Add(Linker);
+	}
+
+	FORCEINLINE void RemoveLiveLinker(FLinkerLoad* Linker)
+	{
+		FScopeLock LiveLinkersLock(&LiveLinkersCritical);
+		LiveLinkers.Remove(Linker);
 	}
 #endif
 
@@ -130,6 +137,7 @@ private:
 #endif
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 	/** List of all the existing linker loaders **/
+	FCriticalSection LiveLinkersCritical;
 	TArray<FLinkerLoad*> LiveLinkers;
 #endif
 	

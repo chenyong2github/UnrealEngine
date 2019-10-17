@@ -2,7 +2,6 @@
 
 #include "ProfilerRawStatsForThreadView.h"
 #include "HAL/FileManager.h"
-#include "Templates/ScopedPointer.h"
 #include "Serialization/MemoryReader.h"
 #include "ProfilerDataProvider.h"
 

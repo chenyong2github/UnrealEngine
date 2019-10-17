@@ -1,9 +1,0 @@
-﻿INTSourceChangelist:3524231
-Title:アンリアル エンジンの API リファレンス
-Crumbs:%ROOT%, Programming
-Description:アンリアル エンジン C++ ソースコードの API プログラミング リファレンス
-Availability:Public
-
-[PUBLISH:Licensee]
-API リファレンスは `//depot/UE4/Engine/Documentation/Builds/CodeAPI-HTML.tgz` を参照してください。エンジン ドキュメントと統合するために、自身のドキュメントフォルダに API リファレンスのコンテンツを抽出することができます。
-[/PUBLISH]

@@ -571,6 +571,15 @@ public:
 	float PreExposure;
 };
 
+class IPersistentViewUniformBufferExtension
+{
+public:
+	virtual void BeginFrame() {}
+	virtual void PrepareView(const FSceneView* View) {}
+	virtual void BeginRenderView(const FSceneView* View, bool bShouldWaitForJobs = true) {}
+	virtual void EndFrame() {}
+};
+
 /**
  * The public interface of the renderer module.
  */
@@ -703,5 +712,7 @@ public:
 
 	/** Evict all data from virtual texture caches*/
 	virtual void FlushVirtualTextureCache() = 0;
+
+	virtual void RegisterPersistentViewUniformBufferExtension(IPersistentViewUniformBufferExtension* Extension) = 0;
 };
 

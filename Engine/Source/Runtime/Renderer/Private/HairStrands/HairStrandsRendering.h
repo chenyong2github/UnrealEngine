@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "RendererInterface.h"
+#include "Shader.h"
 #include "HairStrandsUtils.h"
 #include "HairStrandsCluster.h"
 #include "HairStrandsLUT.h"
@@ -27,3 +28,15 @@ struct FHairStrandsDatas
 	FHairStrandsVisibilityViews HairVisibilityViews;
 	FHairStrandsClusterViews HairClusterPerViews;
 };
+
+enum class EHairStrandsInterpolationType
+{
+	RenderStrands,
+	SimulationStrands
+};
+
+void RunHairStrandsInterpolation(
+	FRHICommandListImmediate& RHICmdList, 
+	EWorldType::Type WorldType, 
+	TShaderMap<FGlobalShaderType>* ShaderMap, 
+	EHairStrandsInterpolationType Type);

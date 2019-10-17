@@ -33,7 +33,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
-#include "Assets/ClothingAsset.h"
+#include "ClothingAsset.h"
 #include "SkinWeightsUtilities.h"
 #include "LODUtilities.h"
 

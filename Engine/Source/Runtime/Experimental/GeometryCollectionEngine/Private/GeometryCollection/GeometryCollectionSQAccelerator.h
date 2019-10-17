@@ -2,7 +2,7 @@
 #pragma once
 
 
-#if INCLUDE_CHAOS &&  !WITH_CHAOS_NEEDS_TO_BE_FIXED
+#if !WITH_CHAOS_NEEDS_TO_BE_FIXED
 #include "SQAccelerator.h"
 
 class UGeometryCollectionComponent;

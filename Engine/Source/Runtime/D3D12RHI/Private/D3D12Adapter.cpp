@@ -6,13 +6,6 @@ D3D12Adapter.cpp:D3D12 Adapter implementation.
 
 #include "D3D12RHIPrivate.h"
 
-static TAutoConsoleVariable<int32> CVarTransientUniformBufferAllocatorSizeKB(
-	TEXT("D3D12.TransientUniformBufferAllocatorSizeKB"),
-	10 * 1024,
-	TEXT(""),
-	ECVF_ReadOnly
-);
-
 #if ENABLE_RESIDENCY_MANAGEMENT
 bool GEnableResidencyManagement = true;
 static TAutoConsoleVariable<int32> CVarResidencyManagement(
@@ -671,8 +664,7 @@ FD3D12FastConstantAllocator& FD3D12Adapter::GetTransientUniformBufferAllocator()
 	// Multi-GPU support : is using device 0 always appropriate here?
 	return FTransientUniformBufferAllocator::Get([this]() -> FTransientUniformBufferAllocator*
 	{
-		FTransientUniformBufferAllocator* Alloc = new FTransientUniformBufferAllocator(Devices[0], FRHIGPUMask::All(), CVarTransientUniformBufferAllocatorSizeKB.GetValueOnAnyThread() * 1024);
-		Alloc->Init();
+		FTransientUniformBufferAllocator* Alloc = new FTransientUniformBufferAllocator(Devices[0], FRHIGPUMask::All());
 		return Alloc;
 	});
 }

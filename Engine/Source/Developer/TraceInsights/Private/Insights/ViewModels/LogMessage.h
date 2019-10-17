@@ -47,7 +47,7 @@ class FLogMessageCache
 public:
 	FLogMessageCache();
 
-	void SetSession(TSharedPtr<const Trace::IAnalysisSession> InSession) { Session = InSession; }
+	void SetSession(TSharedPtr<const Trace::IAnalysisSession> InSession);
 	void Reset();
 
 	FLogMessageRecord& Get(uint64 Index);

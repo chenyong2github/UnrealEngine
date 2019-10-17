@@ -219,10 +219,9 @@ void UAudioAnalyzerNRT::Serialize(FArchive& Ar)
 			if (nullptr != Factory)
 			{
 				// Create result and worker from factory
-				TUniquePtr<Audio::IAnalyzerNRTResult> NewResult = Factory->NewResult();
 				{
 					FScopeLock ResultLock(&ResultCriticalSection);
-					Result = TSharedPtr<Audio::IAnalyzerNRTResult, ESPMode::ThreadSafe>(NewResult.Release());
+					Result = Factory->NewResultShared<ESPMode::ThreadSafe>();
 				}
 			}
 		}

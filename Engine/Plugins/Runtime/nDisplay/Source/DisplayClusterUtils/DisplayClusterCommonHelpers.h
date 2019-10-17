@@ -457,92 +457,64 @@ namespace DisplayClusterHelpers
 
 			return LocalPath;
 		}
-
-#if 0
-		static TArray<FDisplayClusterConfigScreen> GetLocalScreens()
-		{
-			TArray<FDisplayClusterConfigScreen> LocalScreens;
-
-			static const IDisplayClusterConfigManager* const ConfigMgr = IDisplayCluster::Get().GetConfigMgr();
-			if (!ConfigMgr)
-			{
-				return LocalScreens;
-			}
-
-			TArray<FDisplayClusterConfigViewport> LocalViewports = GetLocalViewports();
-
-			TArray<FDisplayClusterConfigProjection> LocalSimpleProjections;
-			LocalViewports.FilterByPredicate([&LocalSimpleProjections, &ConfigMgr](const FDisplayClusterConfigViewport& ItemViewport)
-			{
-				FDisplayClusterConfigProjection ItemProjection;
-				if (ConfigMgr->GetProjection(ItemViewport.ProjectionId, ItemProjection))
-				{
-					if (ItemProjection.Type.Compare(DisplayClusterStrings::misc::ProjectionTypeSimple, ESearchCase::IgnoreCase) == 0)
-					{
-						LocalSimpleProjections.Add(ItemProjection);
-					}
-				}
-
-				return false;
-			});
-
-
-			LocalScreens = ConfigMgr->GetScreens().FilterByPredicate([&LocalSimpleProjections](const FDisplayClusterConfigScreen& ItemScreen)
-			{
-				return LocalSimpleProjections.ContainsByPredicate([&ItemScreen](const FDisplayClusterConfigProjection& ItemProjection)
-				{
-					FString ProjScreenId;
-					if (DisplayClusterHelpers::str::ExtractValue(ItemProjection.Params, DisplayClusterStrings::cfg::data::projection::Screen, ProjScreenId))
-					{
-						return ItemScreen.Id.Compare(ProjScreenId, ESearchCase::IgnoreCase) == 0;
-					}
-
-					return false;
-				});
-			});
-
-			return LocalScreens;
-		}
-
-		static bool IsLocalScreen(const FString& ScreenId)
-		{
-			return nullptr != GetLocalScreens().FindByPredicate([ScreenId](const FDisplayClusterConfigScreen& Screen)
-			{
-				return Screen.Id == ScreenId;
-			});
-		}
-#endif
 	}
 
-#if 0
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	// Threading helpers
+	// Math helpers
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	namespace thread
+	namespace math
 	{
-		static bool InGameThread()
+		static FMatrix GetSafeProjectionMatrix(float l, float r, float t, float b, float n, float f)
 		{
-			if (GIsGameThreadIdInitialized)
-			{
-				return FPlatformTLS::GetCurrentThreadId() == GGameThreadId;
-			}
-			else
-			{
-				return true;
-			}
-		}
+			const float LeftFOVRad = atan(l / n);
+			const float RightFOVRad = atan(r / n);
+			const float TopFOVRad = atan(t / n);
+			const float BottomFOVRad = atan(b / n);
 
-		static bool InRenderThread()
-		{
-			if (GRenderingThread && !GIsRenderingThreadSuspended.Load(EMemoryOrder::Relaxed))
 			{
-				return FPlatformTLS::GetCurrentThreadId() == GRenderingThread->GetThreadID();
+				const float MinFOVRad = FMath::DegreesToRadians(1.0f);   // min FOV = 1 degree
+				const float MaxFOVRad = FMath::DegreesToRadians(179.0f); // max FOV = 179 degree
+
+				// clamp FOV values:
+				const float FOVRadH = (RightFOVRad - LeftFOVRad);
+				float NewRightFOVRad = (FOVRadH < MinFOVRad) ? (LeftFOVRad + MinFOVRad) : RightFOVRad;
+				NewRightFOVRad = (FOVRadH > MaxFOVRad) ? (LeftFOVRad + MaxFOVRad) : NewRightFOVRad;
+
+				const float FOVRadV = (TopFOVRad - BottomFOVRad);
+				float NewTopFOVRad = (FOVRadV < MinFOVRad) ? (BottomFOVRad + MinFOVRad) : TopFOVRad;
+				NewTopFOVRad = (FOVRadV > MaxFOVRad) ? (BottomFOVRad + MaxFOVRad) : NewTopFOVRad;
+
+				if (RightFOVRad != NewRightFOVRad)
+				{
+					r = float(n*tan(NewRightFOVRad));
+					//! add LOG warning
+				}
+				if (TopFOVRad != NewTopFOVRad)
+				{
+					t = float(n*tan(NewTopFOVRad));
+					//! add LOG warning
+				}
 			}
-			else
-			{
-				return InGameThread();
-			}
+
+			const float mx = 2.f * n / (r - l);
+			const float my = 2.f * n / (t - b);
+			const float ma = -(r + l) / (r - l);
+			const float mb = -(t + b) / (t - b);
+
+			// Support unlimited far plane (f==n)
+			const float mc = (f == n) ? (1.0f - Z_PRECISION) : (f / (f - n));
+			const float md = (f == n) ? -n * (1.0f - Z_PRECISION) : (-(f * n) / (f - n));
+
+			const float me = 1.f;
+
+			// Normal LHS
+			FMatrix ProjectionMatrix = FMatrix(
+				FPlane(mx,  0,  0,  0),
+				FPlane(0,  my,  0,  0),
+				FPlane(ma, mb, mc, me),
+				FPlane(0,  0,  md,  0));
+
+			return ProjectionMatrix;
 		}
 	}
-#endif
 };

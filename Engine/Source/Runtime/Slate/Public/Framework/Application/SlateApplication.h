@@ -876,6 +876,20 @@ public:
 	FORCEINLINE TSharedPtr<const FSlateUser> GetUser(const FInputEvent& InputEvent) const { return GetUser(InputEvent.GetUserIndex()); }
 	FORCEINLINE TSharedPtr<FSlateUser> GetUser(const FInputEvent& InputEvent) { return GetUser(InputEvent.GetUserIndex()); }
 
+	/** Get the standard 'default' user (there's always guaranteed to be at least one). */
+	FORCEINLINE TSharedPtr<const FSlateUser> GetCursorUser() const
+	{
+		TSharedPtr<const FSlateUser> SlateUser = GetUser(CursorUserIndex);
+		check(SlateUser.IsValid());
+		return SlateUser;
+	}
+	FORCEINLINE TSharedPtr<FSlateUser> GetCursorUser()
+	{
+		TSharedPtr<FSlateUser> SlateUser = GetUser(CursorUserIndex);
+		check(SlateUser.IsValid());
+		return SlateUser;
+	}
+
 	/**
 	 * @return a handle for the existing or newly created virtual slate user.  This is handy when you need to create
 	 * virtual hardware users for slate components in the virtual world that may need to be interacted with with virtual hardware.
@@ -1180,12 +1194,8 @@ public:
 	/** @return true if mouse events are being turned into touch events, and touch UI should be forced on */
 	bool IsFakingTouchEvents() const;
 
-#if PLATFORM_DESKTOP || PLATFORM_HTML5
-	
 	/** Sets whether the application is treating mouse events as imitating touch events.  Optional CursorLocation can be supplied to override the platform's belief of where the cursor is */
 	void SetGameIsFakingTouchEvents(const bool bIsFaking, FVector2D* CursorLocation = nullptr);
-
-#endif
 
 	/** Sets the handler for otherwise unhandled key down events. This is used by the editor to provide a global action list, if the key was not consumed by any widget. */
 	void SetUnhandledKeyDownEventHandler( const FOnKeyEvent& NewHandler );

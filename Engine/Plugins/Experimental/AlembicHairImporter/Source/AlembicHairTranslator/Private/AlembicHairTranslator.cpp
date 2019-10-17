@@ -3,6 +3,7 @@
 #include "AlembicHairTranslator.h"
 
 #include "HairDescription.h"
+#include "GroomImportOptions.h"
 #include "Misc/Paths.h"
 
 #if PLATFORM_WINDOWS
@@ -254,6 +255,16 @@ namespace AlembicHairTranslatorUtils
 					ConvertAlembicAttribute<Alembic::AbcGeom::IBoolGeomParam, Alembic::Abc::BoolArraySamplePtr, bool>(HairDescription, StrandID, StartVertexID, NumVertices, Parameters, PropName);
 				}
 				break;
+				case Alembic::Util::kInt8POD:
+				{
+					ConvertAlembicAttribute<Alembic::AbcGeom::ICharGeomParam, Alembic::Abc::CharArraySamplePtr, int>(HairDescription, StrandID, StartVertexID, NumVertices, Parameters, PropName);
+				}
+				break;
+				case Alembic::Util::kInt16POD:
+				{
+					ConvertAlembicAttribute<Alembic::AbcGeom::IInt16GeomParam, Alembic::Abc::Int16ArraySamplePtr, int>(HairDescription, StrandID, StartVertexID, NumVertices, Parameters, PropName);
+				}
+				break;
 				case Alembic::Util::kInt32POD:
 				{
 					ConvertAlembicAttribute<Alembic::AbcGeom::IInt32GeomParam, Alembic::Abc::Int32ArraySamplePtr, int>(HairDescription, StrandID, StartVertexID, NumVertices, Parameters, PropName);
@@ -308,7 +319,7 @@ FMatrix ConvertAlembicMatrix(const Alembic::Abc::M44d& AbcMatrix)
 	return Matrix;
 }
 
-static void ParseObject(const Alembic::Abc::IObject& InObject, FHairDescription& HairDescription, const FMatrix& ParentMatrix, bool bCheckGroomAttributes)
+static void ParseObject(const Alembic::Abc::IObject& InObject, FHairDescription& HairDescription, const FMatrix& ParentMatrix, const FMatrix& ConversionMatrix, float Scale, bool bCheckGroomAttributes)
 {
 	// Get MetaData info from current Alembic Object
 	const Alembic::Abc::MetaData ObjectMetaData = InObject.getMetaData();
@@ -350,6 +361,7 @@ static void ParseObject(const Alembic::Abc::IObject& InObject, FHairDescription&
 			}
 		}
 
+		FMatrix ConvertedMatrix = ParentMatrix * ConversionMatrix;
 		uint32 GlobalIndex = 0;
 		for (uint32 CurveIndex = 0; CurveIndex < NumCurves; ++CurveIndex)
 		{
@@ -366,7 +378,7 @@ static void ParseObject(const Alembic::Abc::IObject& InObject, FHairDescription&
 
 				Alembic::Abc::P3fArraySample::value_type Position = (*Positions)[GlobalIndex];
 
-				FVector ConvertedPosition = ParentMatrix.TransformPosition(FVector(Position.x, Position.y, Position.z)) * AlembicHairFormat::UNIT_TO_CM;
+				FVector ConvertedPosition = ConvertedMatrix.TransformPosition(FVector(Position.x, Position.y, Position.z));
 				SetHairVertexAttribute(HairDescription, VertexID, HairAttribute::Vertex::Position, ConvertedPosition);
 
 				float Width = 0;
@@ -377,7 +389,7 @@ static void ParseObject(const Alembic::Abc::IObject& InObject, FHairDescription&
 					const float CoordU = PointIndex / static_cast<float>(CurveNumVertices - 1);
 					Width = FMath::Lerp(AlembicHairFormat::RootRadius, AlembicHairFormat::TipRadius, CoordU);
 				}
-					break;
+				break;
 				case EAttributeFrequency::CV:
 					Width = (*Widths)[GlobalIndex];
 					break;
@@ -386,7 +398,7 @@ static void ParseObject(const Alembic::Abc::IObject& InObject, FHairDescription&
 				// Per-vertex widths
 				if ((WidthFrequency == EAttributeFrequency::CV || WidthFrequency == EAttributeFrequency::None))
 				{
-					SetHairVertexAttribute(HairDescription, VertexID, HairAttribute::Vertex::Width, Width);
+					SetHairVertexAttribute(HairDescription, VertexID, HairAttribute::Vertex::Width, Width * Scale);
 				}
 			}
 
@@ -405,12 +417,12 @@ static void ParseObject(const Alembic::Abc::IObject& InObject, FHairDescription&
 				if (!StrandWidths.IsValid() && !VertexWidths.IsValid())
 				{
 					const float Width = (*Widths)[CurveIndex];
-					SetHairStrandAttribute(HairDescription, StrandID, HairAttribute::Strand::Width, Width);
+					SetHairStrandAttribute(HairDescription, StrandID, HairAttribute::Strand::Width, Width * Scale);
 				}
 				if (StrandWidths.IsValid() && StrandWidths[StrandID] == 0.f)
 				{
 					const float Width = (*Widths)[CurveIndex];
-					SetHairStrandAttribute(HairDescription, StrandID, HairAttribute::Strand::Width, Width);
+					SetHairStrandAttribute(HairDescription, StrandID, HairAttribute::Strand::Width, Width * Scale);
 				}
 			}
 		}
@@ -442,12 +454,12 @@ static void ParseObject(const Alembic::Abc::IObject& InObject, FHairDescription&
 	{
 		for (uint32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
 		{
-			ParseObject(InObject.getChild(ChildIndex), HairDescription, LocalMatrix, bCheckGroomAttributes);
+			ParseObject(InObject.getChild(ChildIndex), HairDescription, LocalMatrix, ConversionMatrix, Scale, bCheckGroomAttributes);
 		}
 	}
 }
 
-bool FAlembicHairTranslator::Translate(const FString& FileName, FHairDescription& HairDescription)
+bool FAlembicHairTranslator::Translate(const FString& FileName, FHairDescription& HairDescription, const FGroomConversionSettings& ConversionSettings)
 {
 	/** Factory used to generate objects*/
 	Alembic::AbcCoreFactory::IFactory Factory;
@@ -476,8 +488,9 @@ bool FAlembicHairTranslator::Translate(const FString& FileName, FHairDescription
 		return false;
 	}
 
+	FMatrix ConversionMatrix = FScaleMatrix::Make(ConversionSettings.Scale) * FRotationMatrix::Make(FQuat::MakeFromEuler(ConversionSettings.Rotation));
 	FMatrix ParentMatrix = FMatrix::Identity;
-	ParseObject(TopObject, HairDescription, ParentMatrix, true);
+	ParseObject(TopObject, HairDescription, ParentMatrix, ConversionMatrix, ConversionSettings.Scale.X, true);
 
 	return HairDescription.IsValid();
 }

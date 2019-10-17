@@ -4,19 +4,10 @@
 
 #include "CoreMinimal.h"
 
-class FStatsNode;
+// Insights
+#include "Insights/Table/ViewModels/BaseTreeNode.h"
 
-/** Type definition for shared pointers to instances of FStatsNode. */
-typedef TSharedPtr<class FStatsNode> FStatsNodePtr;
-
-/** Type definition for shared references to instances of FStatsNode. */
-typedef TSharedRef<class FStatsNode> FStatsNodeRef;
-
-/** Type definition for shared references to const instances of FStatsNode. */
-typedef TSharedRef<const class FStatsNode> FStatsNodeRefConst;
-
-/** Type definition for weak references to instances of FStatsNode. */
-typedef TWeakPtr<class FStatsNode> FStatsNodeWeak;
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 enum class EStatsNodeType
 {
@@ -32,6 +23,8 @@ enum class EStatsNodeType
 	/** Invalid enum type, may be used as a number of enumerations. */
 	InvalidOrMax,
 };
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 template<typename Type>
 struct TAggregatedStats
@@ -74,59 +67,63 @@ struct TAggregatedStats
 typedef TAggregatedStats<double> FAggregatedStats;
 typedef TAggregatedStats<int64> FAggregatedIntegerStats;
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FStatsNode;
+
+/** Type definition for shared pointers to instances of FStatsNode. */
+typedef TSharedPtr<class FStatsNode> FStatsNodePtr;
+
+/** Type definition for shared references to instances of FStatsNode. */
+typedef TSharedRef<class FStatsNode> FStatsNodeRef;
+
+/** Type definition for shared references to const instances of FStatsNode. */
+typedef TSharedRef<const class FStatsNode> FStatsNodeRefConst;
+
+/** Type definition for weak references to instances of FStatsNode. */
+typedef TWeakPtr<class FStatsNode> FStatsNodeWeak;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
- * Class used to store information about a timer node (used in timers' tree view).
+ * Class used to store information about a stats counter node (used in SStatsView).
  */
-class FStatsNode : public TSharedFromThis<FStatsNode>
+class FStatsNode : public Insights::FBaseTreeNode
 {
 public:
+	static const FName TypeName;
 	static const uint64 InvalidId = -1;
 
 public:
-	/** Initialization constructor for the timer node. */
+	/** Initialization constructor for the stats node. */
 	FStatsNode(uint64 InId, const FName InName, const FName InMetaGroupName, EStatsNodeType InType)
-		: Id(InId)
-		, Name(InName)
+		: FBaseTreeNode(InId, InName, InType == EStatsNodeType::Group)
 		, MetaGroupName(InMetaGroupName)
 		, Type(InType)
-		, bForceExpandGroupNode(false)
+		, bIsAddedToGraph(false)
 	{
+		const uint32 HashColor = GetId() * 0x2c2c57ed;
+		Color.R = ((HashColor >> 16) & 0xFF) / 255.0f;
+		Color.G = ((HashColor >> 8) & 0xFF) / 255.0f;
+		Color.B = ((HashColor) & 0xFF) / 255.0f;
+		Color.A = 1.0;
+
 		ResetAggregatedStats();
 	}
 
 	/** Initialization constructor for the group node. */
 	FStatsNode(const FName InGroupName)
-		: Id(0)
-		, Name(InGroupName)
+		: FBaseTreeNode(0, InGroupName, true)
 		, Type(EStatsNodeType::Group)
-		, bForceExpandGroupNode(false)
+		, Color(0.0, 0.0, 0.0, 1.0)
+		, bIsAddedToGraph(false)
 	{
 		ResetAggregatedStats();
 	}
 
-	/**
-	 * @return an Id of this timer, valid only for timer nodes.
-	 */
-	const uint64 GetId() const
-	{
-		return Id;
-	}
+	virtual const FName& GetTypeName() const override { return TypeName; }
 
 	/**
-	 * @return a name of this node, group or timer.
-	 */
-	const FName& GetName() const
-	{
-		return Name;
-	}
-
-	/**
-	 * @return a name of this node, group or timer + addditional info, to display in Stats tree view.
-	*/
-	const FText GetNameEx() const;
-
-	/**
-	 * @return a name of the group that this timer node belongs to, taken from the metadata.
+	 * @return a name of the meta group that this stats node belongs to, taken from the metadata.
 	 */
 	const FName& GetMetaGroupName() const
 	{
@@ -134,7 +131,7 @@ public:
 	}
 
 	/**
-	 * @return a type of this timer or EStatsNodeType::Group for group nodes.
+	 * @return a type of this stats node or EStatsNodeType::Group for group nodes.
 	 */
 	const EStatsNodeType& GetType() const
 	{
@@ -142,15 +139,15 @@ public:
 	}
 
 	/**
-	 * @return true, if this node is a group node.
+	 * @return color of the node. Used when showing a graph series for a stats counter.
 	 */
-	bool IsGroup() const
+	FLinearColor GetColor() const
 	{
-		return Type == EStatsNodeType::Group;
+		return Color;
 	}
 
 	/**
-	 * @return the aggregated stats of this counter (if counter is a "float number" type).
+	 * @return the aggregated stats of this stats counter (if counter is a "float number" type).
 	 */
 	const FAggregatedStats& GetAggregatedStats() const
 	{
@@ -162,7 +159,7 @@ public:
 	void SetAggregatedStats(FAggregatedStats& AggregatedStats);
 
 	/**
-	 * @return the aggregated stats of this counter  (if counter is an "integer number" type).
+	 * @return the aggregated stats of this stats counter (if counter is an "integer number" type).
 	 */
 	const FAggregatedIntegerStats& GetAggregatedIntegerStats() const
 	{
@@ -186,107 +183,44 @@ public:
 	const FText GetTextForAggregatedStatsLowerQuartile() const;
 	const FText GetTextForAggregatedStatsUpperQuartile() const;
 
-	/**
-	 * @return a const reference to the child nodes of this group.
-	 */
-	FORCEINLINE_DEBUGGABLE const TArray<FStatsNodePtr>& GetChildren() const
-	{
-		return Children;
-	}
-
-	/**
-	 * @return a const reference to the child nodes that should be visible to the UI based on filtering.
-	 */
-	FORCEINLINE_DEBUGGABLE const TArray<FStatsNodePtr>& GetFilteredChildren() const
-	{
-		return FilteredChildren;
-	}
-
-	/**
-	 * @return a weak reference to the group of this timer node, may be invalid.
-	 */
-	FStatsNodeWeak GetGroupPtr() const
-	{
-		return GroupPtr;
-	}
-
-	/**
-	 * @return a name of the fake group that this timer node belongs to.
-	 */
-	const FName& GetGroupName() const
-	{
-		return GroupPtr.Pin()->Name;
-	}
-
-	/**
-	 * @return a name of the fake group that this timer node belongs to.
-	 */
-	//const FName& GetGroupNameSafe() const
-	//{
-	//	return GroupPtr.IsValid() ? GroupPtr.Pin()->Name : NAME_None;
-	//}
-
-	bool IsFiltered() const
-	{
-		return false; // TODO
-	}
-
-public:
 	/** Sorts children using the specified class instance. */
 	template<typename TSortingClass>
 	void SortChildren(const TSortingClass& Instance)
 	{
-		Children.Sort(Instance);
+		auto Projection = [](Insights::FBaseTreeNodePtr Node) -> FStatsNodePtr
+		{
+			return StaticCastSharedPtr<FStatsNode, Insights::FBaseTreeNode>(Node);
+		};
+		Algo::SortBy(GetChildrenMutable(), Projection, Instance);
 	}
 
-	/** Adds specified child to the children and sets group for it. */
-	FORCEINLINE_DEBUGGABLE void AddChildAndSetGroupPtr(const FStatsNodePtr& ChildPtr)
+	bool IsAddedToGraph() const
 	{
-		ChildPtr->GroupPtr = AsShared();
-		Children.Add(ChildPtr);
+		return bIsAddedToGraph;
 	}
 
-	/** Adds specified child to the filtered children. */
-	FORCEINLINE_DEBUGGABLE void AddFilteredChild(const FStatsNodePtr& ChildPtr)
+	void SetAddedToGraphFlag(bool bOnOff)
 	{
-		FilteredChildren.Add(ChildPtr);
+		bIsAddedToGraph = bOnOff;
 	}
 
-	/** Clears filtered children. */
-	void ClearFilteredChildren()
-	{
-		FilteredChildren.Reset();
-	}
-
-protected:
-	/** The Id of this timer or group. */
-	const uint64 Id;
-
-	/** The name of this timer or group. */
-	const FName Name;
-
-	/** The name of the group that this timer belongs to, based on the timer's metadata; only valid for timer nodes. */
+private:
+	/** The name of the meta group that this stats counter belongs to, based on the stats' metadata; only valid for stats counter nodes. */
 	const FName MetaGroupName;
 
-	/** Holds the type of this timer; for the group, this is Group. */
+	/** Holds the type of this stats counter. */
 	const EStatsNodeType Type;
+
+	/** Color of the node. */
+	FLinearColor Color;
+
+	bool bIsAddedToGraph;
 
 	/** Aggregated stats (double). */
 	FAggregatedStats AggregatedStats;
 
 	/** Aggregated stats (int64). */
 	FAggregatedIntegerStats AggregatedIntegerStats;
-
-	/** Children of this node. */
-	TArray<FStatsNodePtr> Children;
-
-	/** Filtered children of this node. */
-	TArray<FStatsNodePtr> FilteredChildren;
-
-	/** A weak pointer to the group/parent of this node. */
-	FStatsNodeWeak GroupPtr;
-
-public:
-	/** Whether this group node should be expanded when the text filtering is enabled. */
-	bool bForceExpandGroupNode;
 };
+
+////////////////////////////////////////////////////////////////////////////////////////////////////

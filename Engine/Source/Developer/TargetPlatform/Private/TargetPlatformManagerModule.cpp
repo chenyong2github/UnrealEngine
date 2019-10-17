@@ -5,7 +5,6 @@
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
 #include "Misc/OutputDeviceRedirector.h"
-#include "Templates/ScopedPointer.h"
 #include "Stats/Stats.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/MonitoredProcess.h"
@@ -178,6 +177,21 @@ public:
 		for (int32 Index = 0; Index < TargetPlatforms.Num(); Index++)
 		{
 			if (TargetPlatforms[Index]->PlatformName() == Name)
+			{
+				return TargetPlatforms[Index];
+			}
+		}
+
+		return nullptr;
+	}
+
+	virtual ITargetPlatform* FindTargetPlatformWithSupport(FName SupportType, FName RequiredSupportedValue)
+	{
+		const TArray<ITargetPlatform*>& TargetPlatforms = GetTargetPlatforms();
+
+		for (int32 Index = 0; Index < TargetPlatforms.Num(); Index++)
+		{
+			if (TargetPlatforms[Index]->SupportsValueForType(SupportType, RequiredSupportedValue))
 			{
 				return TargetPlatforms[Index];
 			}
@@ -613,28 +627,14 @@ protected:
 	/** Discovers the available target platforms. */
 	void DiscoverAvailablePlatforms()
 	{
-		DECLARE_SCOPE_CYCLE_COUNTER( TEXT( "FTargetPlatformManagerModule::DiscoverAvailablePlatforms" ), STAT_FTargetPlatformManagerModule_DiscoverAvailablePlatforms, STATGROUP_TargetPlatform );
+		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FTargetPlatformManagerModule::DiscoverAvailablePlatforms"), STAT_FTargetPlatformManagerModule_DiscoverAvailablePlatforms, STATGROUP_TargetPlatform);
 
 		Platforms.Empty(Platforms.Num());
 
-		TArray<FName> Modules;
-
-		FString ModuleWildCard = TEXT("*TargetPlatform");
-
-#if WITH_EDITOR
-		// if we have the editor and we are using -game
-		// only need to instantiate the current platform 
-#if PLATFORM_WINDOWS
-		if (IsRunningGame())
-		{
-			ModuleWildCard = TEXT("Windows*TargetPlatform");
-		}
-#endif
-#endif
-		FModuleManager::Get().FindModules(*ModuleWildCard, Modules);
-
 #if !IS_MONOLITHIC
 		// Find all module subdirectories and add them so we can load dependent modules for target platform modules
+		// We may not be able to restrict this to subdirectories found in FPlatformInfo because we could have a subdirectory
+		// that is not one of these platforms. Imagine a "Sega" shared directory for the "Genesis" and "Dreamcast" platforms
 		TArray<FString> ModuleSubdirs;
 		IFileManager::Get().FindFilesRecursive(ModuleSubdirs, *FPlatformProcess::GetModulesDirectory(), TEXT("*"), false, true);
 		for (const FString& ModuleSubdir : ModuleSubdirs)
@@ -643,49 +643,101 @@ protected:
 		}
 #endif
 
-		// remove this module from the list
-		Modules.Remove(FName(TEXT("TargetPlatform")));
+		// find a set of valid target platform names (the platform DataDrivenPlatformInfo.ini file was found indicates support for the platform 
+		// exists on disk, so the TP is expected to work)
+		const TArray<PlatformInfo::FPlatformInfo>& PlatformInfos = PlatformInfo::GetPlatformInfoArray();
 
-		if (!Modules.Num())
-		{
-			UE_LOG(LogTargetPlatformManager, Error, TEXT("No target platforms found!"));
-		}
-
-		FScopedSlowTask SlowTask(Modules.Num());
-		for (int32 Index = 0; Index < Modules.Num(); Index++)
+		TSet<ITargetPlatformModule*> ProcessedModules;
+		FScopedSlowTask SlowTask(PlatformInfos.Num());
+		for (const PlatformInfo::FPlatformInfo& PlatInfo : PlatformInfos)
 		{
 			SlowTask.EnterProgressFrame(1);
-			ITargetPlatformModule* Module = FModuleManager::LoadModulePtr<ITargetPlatformModule>(Modules[Index]);
-			if (Module)
+
+			// by defaulty load all PIs we can have
+			bool bLoadTargetPlatform = true;
+
+			// disabled?
+			if (PlatInfo.bEnabledForUse == false)
 			{
-				TArray<ITargetPlatform*> TargetPlatforms = Module->GetTargetPlatforms();
-				for (ITargetPlatform* Platform : TargetPlatforms) 
+				bLoadTargetPlatform = false;
+			}
+
+#if WITH_EDITOR
+			// if we have the editor and we are using -game
+			// only need to instantiate the current platform 
+			if (IsRunningGame())
+			{
+				if (PlatInfo.IniPlatformName != FPlatformProperties::IniPlatformName())
 				{
-					// would like to move this check to GetActiveTargetPlatforms, but too many things cache this result
-					// this setup will become faster after TTP 341897 is complete.
-RETRY_SETUPANDVALIDATE:
-					if (SetupAndValidateAutoSDK(Platform->GetPlatformInfo().AutoSDKPath))
+					bLoadTargetPlatform = false;
+				}
+			}
+#endif
+
+			// now load the TP module
+			if (bLoadTargetPlatform)
+			{
+				// there are two ways targetplatform modules are setup: a single DLL per TargetPlatform, or a DLL for the platform
+				// that returns multiple TargetPlatforms. we try single first, then full platform
+				FName FullPlatformModuleName = *(PlatInfo.IniPlatformName + TEXT("TargetPlatform"));
+				FName SingleTargetPlatformModuleName = *(PlatInfo.TargetPlatformName.ToString() + TEXT("TargetPlatform"));
+
+				ITargetPlatformModule* Module = nullptr;
+				
+				if (FModuleManager::Get().ModuleExists(*SingleTargetPlatformModuleName.ToString()))
+				{
+					Module = FModuleManager::LoadModulePtr<ITargetPlatformModule>(SingleTargetPlatformModuleName);
+				}
+				else if (FModuleManager::Get().ModuleExists(*FullPlatformModuleName.ToString()))
+				{
+					Module = FModuleManager::LoadModulePtr<ITargetPlatformModule>(FullPlatformModuleName);
+				}
+
+				// if we have already processed this module, we can skip it!
+				if (ProcessedModules.Contains(Module))
+				{
+					continue;
+				}
+
+				// original logic for module loading here
+				if (Module)
+				{
+					ProcessedModules.Add(Module);
+
+					TArray<ITargetPlatform*> TargetPlatforms = Module->GetTargetPlatforms();
+					for (ITargetPlatform* Platform : TargetPlatforms)
 					{
-						UE_LOG(LogTemp, Display, TEXT("Module '%s' loaded TargetPlatform '%s'"), *Modules[Index].ToString(), *Platform->PlatformName());
-						Platforms.Add(Platform);
-					}
-					else
-					{
-						// this hack is here because if you try and setup and validate autosdk some times it will fail because shared files are in use by another child cooker
-						static bool bIsChildCooker = FParse::Param(FCommandLine::Get(), TEXT("cookchild"));
-						if (bIsChildCooker)
+						// would like to move this check to GetActiveTargetPlatforms, but too many things cache this result
+						// this setup will become faster after TTP 341897 is complete.
+					RETRY_SETUPANDVALIDATE:
+						if (SetupAndValidateAutoSDK(Platform->GetPlatformInfo().AutoSDKPath))
 						{
-							static int Counter = 0;
-							++Counter;
-							if (Counter < 10)
-							{
-								goto RETRY_SETUPANDVALIDATE;
-							}
+							UE_LOG(LogTargetPlatformManager, Display, TEXT("Loaded TargetPlatform '%s'"), *Platform->PlatformName());
+							Platforms.Add(Platform);
 						}
-						UE_LOG(LogTemp, Display, TEXT("Module '%s' failed to SetupAndValidateAutoSDK for platform '%s'"), *Modules[Index].ToString(), *Platform->PlatformName());
+						else
+						{
+							// this hack is here because if you try and setup and validate autosdk some times it will fail because shared files are in use by another child cooker
+							static bool bIsChildCooker = FParse::Param(FCommandLine::Get(), TEXT("cookchild"));
+							if (bIsChildCooker)
+							{
+								static int Counter = 0;
+								++Counter;
+								if (Counter < 10)
+								{
+									goto RETRY_SETUPANDVALIDATE;
+								}
+							}
+							UE_LOG(LogTargetPlatformManager, Display, TEXT("Failed to SetupAndValidateAutoSDK for platform '%s'"), *Platform->PlatformName());
+						}
 					}
 				}
 			}
+		}
+
+		if (!Platforms.Num())
+		{
+			UE_LOG(LogTargetPlatformManager, Error, TEXT("No target platforms found!"));
 		}
 	}
 

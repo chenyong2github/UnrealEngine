@@ -316,7 +316,9 @@ static const int32 LQ_LIGHTMAP_COEF_INDEX = 2;
 
 /** Compile out low quality lightmaps to save memory */
 // @todo-mobile: Need to fix this!
-#define ALLOW_LQ_LIGHTMAPS (PLATFORM_DESKTOP || PLATFORM_IOS || PLATFORM_ANDROID || PLATFORM_HTML5 || PLATFORM_SWITCH || PLATFORM_LUMIN || PLATFORM_HOLOLENS)
+#ifndef ALLOW_LQ_LIGHTMAPS
+#define ALLOW_LQ_LIGHTMAPS (PLATFORM_DESKTOP || PLATFORM_IOS || PLATFORM_ANDROID || PLATFORM_SWITCH || PLATFORM_LUMIN || PLATFORM_HOLOLENS)
+#endif
 
 /** Compile out high quality lightmaps to save memory */
 #define ALLOW_HQ_LIGHTMAPS 1
@@ -2833,12 +2835,24 @@ float ENGINE_API ComputeBoundsScreenSize(const FVector4& BoundsOrigin, const flo
 /**
  * Computes the screen radius squared of a given sphere bounds in the given view. This is used at
  * runtime instead of ComputeBoundsScreenSize to avoid a square root.
+ * It is a wrapper for the version below that does not take a FSceneView reference but parameters directly
  * @param Origin - Origin of the bounds in world space
  * @param SphereRadius - Radius of the sphere to use to calculate screen coverage
  * @param View - The view to calculate the display factor for
  * @return float - The screen size calculated
  */
 float ENGINE_API ComputeBoundsScreenRadiusSquared(const FVector4& Origin, const float SphereRadius, const FSceneView& View);
+
+/**
+ * Computes the screen radius squared of a given sphere bounds in the given view. This is used at
+ * runtime instead of ComputeBoundsScreenSize to avoid a square root.
+ * @param Origin - Origin of the bounds in world space
+ * @param SphereRadius - Radius of the sphere to use to calculate screen coverage
+ * @param ViewOrigin - The view origin involved in the calculation
+ * @param ProjMatrix - The projection matrix of the view involved in the calculation
+ * @return float - The screen size calculated
+ */
+float ENGINE_API ComputeBoundsScreenRadiusSquared(const FVector4& BoundsOrigin, const float SphereRadius, const FVector4& ViewOrigin, const FMatrix& ProjMatrix);
 
 /**
  * Computes the draw distance of a given sphere bounds in the given view with the specified screen size.

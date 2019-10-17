@@ -18,10 +18,8 @@
 #include "Components/BillboardComponent.h"
 #include "GenericPlatform/GenericPlatformMath.h"
 #include "HAL/IConsoleManager.h"
-#if INCLUDE_CHAOS
 #include "PBDRigidsSolver.h"
 #include "PhysicsSolver.h"  // #if TODO_REIMPLEMENT_GET_RIGID_PARTICLES
-#endif  // #if INCLUDE_CHAOS
 
 DEFINE_LOG_CATEGORY_STATIC(LogGeometryCollectionDebugDrawActor, Log, All);
 
@@ -251,7 +249,7 @@ AGeometryCollectionDebugDrawActor::AGeometryCollectionDebugDrawActor(const FObje
 	, DebugDrawTextDelegateHandle()
 	, DebugDrawTexts()
 	, bNeedsDebugLinesFlush(false)
-#if INCLUDE_CHAOS && WITH_EDITOR
+#if WITH_EDITOR
 	, bWasEditorPaused(false)
 #endif
 {
@@ -311,7 +309,7 @@ void AGeometryCollectionDebugDrawActor::Tick(float DeltaSeconds)
 	Flush();
 
 	UWorld* const World = GetWorld();
-#if INCLUDE_CHAOS && WITH_EDITOR
+#if WITH_EDITOR
 	// Check editor pause status and force a dynamic update on all components to catchup with the physics thread
 	// This can't be done in the GeometryCollectionDebugDrawComponent since it doesn't tick at every frame,
 	// and can't be done in GeometryCollectionComponent either since it doesn't usually tick while paused.
@@ -331,13 +329,12 @@ void AGeometryCollectionDebugDrawActor::Tick(float DeltaSeconds)
 		}
 	}
 	bWasEditorPaused = bIsEditorPaused;
-#endif  // #if INCLUDE_CHAOS && WITH_EDITOR
+#endif  // #if WITH_EDITOR
 
 #if GEOMETRYCOLLECTION_DEBUG_DRAW
 	// Check badly synced collections in case it is still looking for an id match
 	if (World && SelectedRigidBody.Id != INDEX_NONE && !SelectedRigidBody.GeometryCollection)
 	{
-#if INCLUDE_CHAOS
 #if TODO_REIMPLEMENT_GET_RIGID_PARTICLES
 		// Check the id is within the selected solver range
 		const Chaos::FPBDRigidsSolver* const Solver = 
@@ -352,7 +349,6 @@ void AGeometryCollectionDebugDrawActor::Tick(float DeltaSeconds)
 		}
 		else  // Statement continues below...
 #endif  // #if TODO_REIMPLEMENT_GET_RIGID_PARTICLES
-#endif  // #if INCLUDE_CHAOS
 		{
 			UE_LOG(LogGeometryCollectionDebugDrawActor, VeryVerbose, TEXT("The selection couldn't be found. The property update will run on all components still containing any invalid rigid body ids."));
 
@@ -1952,7 +1948,6 @@ void AGeometryCollectionDebugDrawActor::DrawBoundingBox(const TArray<FTransform>
 #endif  // #if ENABLE_DRAW_DEBUG
 }
 
-#if INCLUDE_CHAOS
 FTransform AGeometryCollectionDebugDrawActor::GetParticleTransform(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData)
 {
 #if ENABLE_DRAW_DEBUG
@@ -2929,4 +2924,3 @@ void AGeometryCollectionDebugDrawActor::DrawRigidBodyForceNoChecks(const UGeomet
 	bNeedsDebugLinesFlush = true;
 #endif  // #if ENABLE_DRAW_DEBUG
 }
-#endif  // #if INCLUDE_CHAOS

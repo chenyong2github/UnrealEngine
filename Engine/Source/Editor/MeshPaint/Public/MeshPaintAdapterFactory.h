@@ -7,6 +7,7 @@
 
 class UMeshComponent;
 class IMeshPaintGeometryAdapterFactory;
+class FReferenceCollector;
 
 class MESHPAINT_API FMeshPaintAdapterFactory
 {
@@ -16,4 +17,6 @@ public:
 public:
 	static TSharedPtr<class IMeshPaintGeometryAdapter> CreateAdapterForMesh(UMeshComponent* InComponent, int32 InPaintingMeshLODIndex);
 	static void InitializeAdapterGlobals();
+	static void AddReferencedObjectsGlobals(FReferenceCollector& Collector);
+	static void CleanupGlobals();
 };

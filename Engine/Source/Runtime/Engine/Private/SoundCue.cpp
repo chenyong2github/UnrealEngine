@@ -25,12 +25,15 @@
 #include "DSP/Dsp.h"
 #if WITH_EDITOR
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "Sound/AudioSettings.h"
 #include "SoundCueGraph/SoundCueGraphNode.h"
 #include "SoundCueGraph/SoundCueGraph.h"
 #include "SoundCueGraph/SoundCueGraphNode_Root.h"
 #include "SoundCueGraph/SoundCueGraphSchema.h"
 #endif // WITH_EDITOR
+
+#include "Interfaces/ITargetPlatform.h"
+#include "AudioCompressionSettings.h"
+#include "Sound/AudioSettings.h"
 
 /*-----------------------------------------------------------------------------
 	USoundCue implementation.
@@ -48,6 +51,7 @@ USoundCue::USoundCue(const FObjectInitializer& ObjectInitializer)
 	VolumeMultiplier = 0.75f;
 	PitchMultiplier = 1.0f;
 	SubtitlePriority = DEFAULT_SUBTITLE_PRIORITY;
+	CookedQualityIndex = INDEX_NONE;
 }
 
 #if WITH_EDITOR
@@ -89,7 +93,10 @@ void USoundCue::CacheAggregateValues()
 
 void USoundCue::PrimeSoundCue()
 {
-	FirstNode->PrimeChildWavePlayers(true);
+	if (FirstNode != nullptr)
+	{
+		FirstNode->PrimeChildWavePlayers(true);
+	}
 }
 
 void USoundCue::Serialize(FStructuredArchive::FRecord Record)
@@ -103,22 +110,38 @@ void USoundCue::Serialize(FStructuredArchive::FRecord Record)
 		CacheAggregateValues();
 	}
 
-	Super::Serialize(Record);
+#if WITH_EDITOR
+	// If we are cooking, record our cooked quality before serialize and then undo it.
+	if (UnderlyingArchive.IsCooking() && UnderlyingArchive.IsSaving() && UnderlyingArchive.CookingTarget())
+	{
+		if (const FPlatformAudioCookOverrides* AudioCookOverrides = UnderlyingArchive.CookingTarget()->GetAudioCompressionSettings())
+		{
+			FScopeLock Lock(&EditorOnlyCs);
+			CookedQualityIndex = AudioCookOverrides->SoundCueCookQualityIndex;
+			Super::Serialize(Record);
+			CookedQualityIndex = INDEX_NONE;
+		}
+	}
+	else
+#endif //WITH_EDITOR
+	{
+		Super::Serialize(Record);
+	}
 
 	if (UnderlyingArchive.UE4Ver() >= VER_UE4_COOKED_ASSETS_IN_EDITOR_SUPPORT)
 	{
-		FStripDataFlags StripFlags(Record.EnterField(FIELD_NAME_TEXT("SoundCueStripFlags")));
+		FStripDataFlags StripFlags(Record.EnterField(SA_FIELD_NAME(TEXT("SoundCueStripFlags"))));
 #if WITH_EDITORONLY_DATA
 		if (!StripFlags.IsEditorDataStripped())
 		{
-			Record << NAMED_FIELD(SoundCueGraph);
+			Record << SA_VALUE(TEXT("SoundCueGraph"), SoundCueGraph);
 		}
 #endif // WITH_EDITORONLY_DATA
 	}
 #if WITH_EDITOR
 	else
 	{
-		Record << NAMED_FIELD(SoundCueGraph);
+		Record << SA_VALUE(TEXT("SoundCueGraph"), SoundCueGraph);
 	}
 #endif // WITH_EDITOR
 }
@@ -148,6 +171,17 @@ void USoundCue::PostLoad()
 	}
 	else
 #endif // WITH_EDITOR
+
+	// Warn if the Quality index is set to something that we can't support.
+	UE_CLOG(USoundCue::GetCachedQualityLevel() != CookedQualityIndex && CookedQualityIndex != INDEX_NONE, LogAudio, Warning,
+		TEXT("'%s' is ingoring Quality Setting '%s'(%d) as it was cooked with '%s'(%d)"),
+		*GetFullNameSafe(this),
+		*GetDefault<UAudioSettings>()->FindQualityNameByIndex(USoundCue::GetCachedQualityLevel()),
+		USoundCue::GetCachedQualityLevel(),
+		*GetDefault<UAudioSettings>()->FindQualityNameByIndex(CookedQualityIndex),
+		CookedQualityIndex
+	);
+
 	if (GEngine && *GEngine->GameUserSettingsClass)
 	{
 		EvaluateNodes(false);
@@ -159,7 +193,7 @@ void USoundCue::PostLoad()
 
 	CacheAggregateValues();
 	
-	if (bPrimeOnLoad)
+	if (bPrimeOnLoad && FirstNode != nullptr)
 	{
 		FirstNode->PrimeChildWavePlayers(true);
 	}
@@ -221,7 +255,14 @@ void USoundCue::EvaluateNodes(bool bAddToRoot)
 		}
 	};
 
-	EvaluateNodes_Internal(FirstNode);
+	// Only Evaluate nodes if we haven't been cooked, as cooked builds will hard-ref all SoundAssetReferences.	
+	UE_CLOG(CookedQualityIndex == INDEX_NONE, LogAudio, Verbose, TEXT("'%s', DOING EvaluateNodes as we are *NOT* cooked"), *GetName());
+	UE_CLOG(CookedQualityIndex != INDEX_NONE, LogAudio, Verbose, TEXT("'%s', SKIPPING EvaluateNodes as we *ARE* cooked"), *GetName());
+
+	if (CookedQualityIndex == INDEX_NONE)
+	{		
+		EvaluateNodes_Internal(FirstNode);
+	}
 }
 
 float USoundCue::FindMaxDistanceInternal() const

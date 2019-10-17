@@ -627,9 +627,9 @@ void UK2Node_GetEditorSubsystem::ExpandNode(class FKismetCompilerContext& Compil
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// create 'USubsystemBlueprintLibrary::GetEditorSubsystem' call node
+	// create 'UEditorSubsystemBlueprintLibrary::GetEditorSubsystem' call node
 	UK2Node_CallFunction* CallGetNode = CompilerContext.SpawnIntermediateNode<UK2Node_CallFunction>(GetEditorSubsystemNode, SourceGraph);
-	CallGetNode->FunctionReference.SetExternalMember(Get_FunctionName, USubsystemBlueprintLibrary::StaticClass());
+	CallGetNode->FunctionReference.SetExternalMember(Get_FunctionName, UEditorSubsystemBlueprintLibrary::StaticClass());
 	CallGetNode->AllocateDefaultPins();
 
 	UEdGraphPin* CallCreateClassTypePin = CallGetNode->FindPinChecked(Class_ParamName);
@@ -637,16 +637,16 @@ void UK2Node_GetEditorSubsystem::ExpandNode(class FKismetCompilerContext& Compil
 
 	if (SpawnClassPin && SpawnClassPin->LinkedTo.Num() > 0)
 	{
-		// Copy the 'class' connection from the spawn node to 'USubsystemBlueprintLibrary::GetLocalPlayerSubSystemFromPlayerController'
+		// Copy the 'class' connection from the spawn node to 'USubsystemUEditorSubsystemBlueprintLibraryBlueprintLibrary::GetLocalPlayerSubSystemFromPlayerController'
 		CompilerContext.MovePinLinksToIntermediate(*SpawnClassPin, *CallCreateClassTypePin);
 	}
 	else
 	{
-		// Copy class literal onto 'USubsystemBlueprintLibrary::GetLocalPlayerSubSystemFromPlayerController' call
+		// Copy class literal onto 'UEditorSubsystemBlueprintLibrary::GetLocalPlayerSubSystemFromPlayerController' call
 		CallCreateClassTypePin->DefaultObject = *CustomClass;
 	}
 
-	// Move result connection from spawn node to 'USubsystemBlueprintLibrary::Get[something]Subsystem'
+	// Move result connection from spawn node to 'UEditorSubsystemBlueprintLibrary::Get[something]Subsystem'
 	CallCreateResult->PinType = SpawnNodeResult->PinType;
 	CompilerContext.MovePinLinksToIntermediate(*SpawnNodeResult, *CallCreateResult);
 

@@ -5,6 +5,7 @@
 #include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SlateOptMacros.h"
+#include "Templates/UniquePtr.h"
 #include "TraceServices/AnalysisService.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SScrollBox.h"
@@ -16,6 +17,8 @@
 #include "Widgets/Views/STableViewBase.h"
 
 // Insights
+#include "Insights/Table/ViewModels/Table.h"
+#include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/TimingProfilerCommon.h"
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/ViewModels/TimerNodeHelper.h"
@@ -29,27 +32,19 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const EColumnSortMode::Type STimersView::GetDefaultColumnSortMode()
-{
-	return EColumnSortMode::Descending;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-const FName STimersView::GetDefaultColumnBeingSorted()
-{
-	return FTimersViewColumns::TotalInclusiveTimeColumnID;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 STimersView::STimersView()
-	: bExpansionSaved(false)
+	: Table(MakeShareable(new Insights::FTable()))
+	, bExpansionSaved(false)
+	, bFilterOutZeroCountTimers(false)
 	, GroupingMode(ETimerGroupingMode::ByType)
-	, ColumnSortMode(GetDefaultColumnSortMode())
+	, AvailableSorters()
+	, CurrentSorter(nullptr)
 	, ColumnBeingSorted(GetDefaultColumnBeingSorted())
+	, ColumnSortMode(GetDefaultColumnSortMode())
+	, StatsStartTime(0.0)
+	, StatsEndTime(0.0)
 {
-	FMemory::Memset(bTimerNodeIsVisible, 1);
+	FMemory::Memset(bTimerTypeIsVisible, 1);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -75,7 +70,7 @@ void STimersView::Construct(const FArguments& InArgs)
 	[
 		SNew(SVerticalBox)
 
-		+SVerticalBox::Slot()
+		+ SVerticalBox::Slot()
 		.VAlign(VAlign_Center)
 		.AutoHeight()
 		[
@@ -85,28 +80,57 @@ void STimersView::Construct(const FArguments& InArgs)
 			[
 				SNew(SVerticalBox)
 
-				// Search box
-				+SVerticalBox::Slot()
-				.VAlign(VAlign_Center)
-				.Padding(2.0f)
-				.AutoHeight()
-				[
-					SAssignNew(SearchBox, SSearchBox)
-					.HintText(LOCTEXT("SearchBoxHint", "Search timers or groups"))
-					.OnTextChanged(this, &STimersView::SearchBox_OnTextChanged)
-					.IsEnabled(this, &STimersView::SearchBox_IsEnabled)
-					.ToolTipText(LOCTEXT("FilterSearchHint", "Type here to search timer or group"))
-				]
-
-				// Group by
-				+SVerticalBox::Slot()
+				+ SVerticalBox::Slot()
 				.VAlign(VAlign_Center)
 				.Padding(2.0f)
 				.AutoHeight()
 				[
 					SNew(SHorizontalBox)
 
-					+SHorizontalBox::Slot()
+					// Search box
+					+ SHorizontalBox::Slot()
+					.VAlign(VAlign_Center)
+					.Padding(2.0f)
+					.FillWidth(1.0f)
+					[
+						SAssignNew(SearchBox, SSearchBox)
+						.HintText(LOCTEXT("SearchBoxHint", "Search timers or groups"))
+						.OnTextChanged(this, &STimersView::SearchBox_OnTextChanged)
+						.IsEnabled(this, &STimersView::SearchBox_IsEnabled)
+						.ToolTipText(LOCTEXT("FilterSearchHint", "Type here to search timer or group"))
+					]
+
+					// Filter out timers with zero instance count
+					+ SHorizontalBox::Slot()
+					.VAlign(VAlign_Center)
+					.Padding(2.0f)
+					.AutoWidth()
+					[
+						SNew(SCheckBox)
+						.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+						.HAlign(HAlign_Center)
+						.Padding(2.0f)
+						.OnCheckStateChanged(this, &STimersView::FilterOutZeroCountTimers_OnCheckStateChanged)
+						.IsChecked(this, &STimersView::FilterOutZeroCountTimers_IsChecked)
+						.ToolTipText(LOCTEXT("FilterOutZeroCountTimers_Tooltip", "Filter out the timers having zero total instance count (aggregated stats)."))
+						[
+							//TODO: SNew(SImage)
+							SNew(STextBlock)
+							.Text(LOCTEXT("FilterOutZeroCountTimers_Button", " !0 "))
+							.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Caption"))
+						]
+					]
+				]
+
+				// Group by
+				+ SVerticalBox::Slot()
+				.VAlign(VAlign_Center)
+				.Padding(2.0f)
+				.AutoHeight()
+				[
+					SNew(SHorizontalBox)
+
+					+ SHorizontalBox::Slot()
 					.FillWidth(1.0f)
 					.VAlign(VAlign_Center)
 					[
@@ -114,7 +138,7 @@ void STimersView::Construct(const FArguments& InArgs)
 						.Text(LOCTEXT("GroupByText", "Group by"))
 					]
 
-					+SHorizontalBox::Slot()
+					+ SHorizontalBox::Slot()
 					.FillWidth(2.0f)
 					.VAlign(VAlign_Center)
 					[
@@ -138,21 +162,21 @@ void STimersView::Construct(const FArguments& InArgs)
 				[
 					SNew(SHorizontalBox)
 
-					+SHorizontalBox::Slot()
+					+ SHorizontalBox::Slot()
 					.Padding(FMargin(0.0f,0.0f,1.0f,0.0f))
 					.FillWidth(1.0f)
 					[
 						GetToggleButtonForTimerType(ETimerNodeType::GpuScope)
 					]
 
-					//+SHorizontalBox::Slot()
+					//+ SHorizontalBox::Slot()
 					//.Padding(FMargin(1.0f,0.0f,1.0f,0.0f))
 					//.FillWidth(1.0f)
 					//[
 					//	GetToggleButtonForTimerType(ETimerNodeType::ComputeScope)
 					//]
 
-					+SHorizontalBox::Slot()
+					+ SHorizontalBox::Slot()
 					.Padding(FMargin(1.0f,0.0f,1.0f,0.0f))
 					.FillWidth(1.0f)
 					[
@@ -163,7 +187,7 @@ void STimersView::Construct(const FArguments& InArgs)
 		]
 
 		// Tree view
-		+SVerticalBox::Slot()
+		+ SVerticalBox::Slot()
 		.FillHeight(1.0f)
 		.Padding(0.0f, 6.0f, 0.0f, 0.0f)
 		[
@@ -223,6 +247,7 @@ void STimersView::Construct(const FArguments& InArgs)
 	Filters->Add(TextFilter);
 
 	CreateGroupByOptionsSources();
+	CreateSortings();
 
 	// Register ourselves with the Insights manager.
 	FInsightsManager::Get()->GetSessionChangedEvent().AddSP(this, &STimersView::InsightsManager_OnSessionChanged);
@@ -236,29 +261,28 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 {
-	const TArray<FTimerNodePtr> SelectedTimerNodes = TreeView->GetSelectedItems();
-	const int32 NumSelectedTimerNodes = SelectedTimerNodes.Num();
-	FTimerNodePtr SelectedTimerNode = NumSelectedTimerNodes ? SelectedTimerNodes[0] : nullptr;
+	const TArray<FTimerNodePtr> SelectedNodes = TreeView->GetSelectedItems();
+	const int32 NumSelectedNodes = SelectedNodes.Num();
+	FTimerNodePtr SelectedNode = NumSelectedNodes ? SelectedNodes[0] : nullptr;
 
-	const FTimersViewColumn* const * ColumnPtrPtr = FTimersViewColumnFactory::Get().ColumnIdToPtrMapping.Find(HoveredColumnId);
-	const FTimersViewColumn* const ColumnPtr = (ColumnPtrPtr != nullptr) ? *ColumnPtrPtr : nullptr;
+	const TSharedPtr<Insights::FTableColumn> HoveredColumnPtr = Table->FindColumn(HoveredColumnId);
 
 	FText SelectionStr;
 	FText PropertyName;
 	FText PropertyValue;
 
-	if (NumSelectedTimerNodes == 0)
+	if (NumSelectedNodes == 0)
 	{
 		SelectionStr = LOCTEXT("NothingSelected", "Nothing selected");
 	}
-	else if (NumSelectedTimerNodes == 1)
+	else if (NumSelectedNodes == 1)
 	{
-		if (ColumnPtr != nullptr)
+		if (HoveredColumnPtr != nullptr)
 		{
-			PropertyName = ColumnPtr->ShortName;
-			PropertyValue = ColumnPtr->GetFormattedValue(*SelectedTimerNode);
+			PropertyName = HoveredColumnPtr->GetShortName();
+			PropertyValue = HoveredColumnPtr->GetValueAsTooltipText(*SelectedNode);
 		}
-		SelectionStr = FText::FromName(SelectedTimerNode->GetName());
+		SelectionStr = FText::FromName(SelectedNode->GetName());
 	}
 	else
 	{
@@ -377,22 +401,22 @@ void STimersView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 
 	MenuBuilder.BeginSection("ColumnName", LOCTEXT("ContextMenu_Header_Misc_ColumnName", "Column Name"));
 
-	for (auto It = TreeViewHeaderColumns.CreateConstIterator(); It; ++It)
+	for (const TSharedPtr<Insights::FTableColumn>& ColumnPtr : Table->GetColumns())
 	{
-		const FTimersViewColumn& Column = It.Value();
+		const Insights::FTableColumn& Column = *ColumnPtr;
 
-		if (Column.bIsVisible && Column.bCanBeSorted())
+		if (Column.IsVisible() && Column.CanBeSorted())
 		{
 			FUIAction Action_SortByColumn
 			(
-				FExecuteAction::CreateSP(this, &STimersView::ContextMenu_SortByColumn_Execute, Column.Id),
-				FCanExecuteAction::CreateSP(this, &STimersView::ContextMenu_SortByColumn_CanExecute, Column.Id),
-				FIsActionChecked::CreateSP(this, &STimersView::ContextMenu_SortByColumn_IsChecked, Column.Id)
+				FExecuteAction::CreateSP(this, &STimersView::ContextMenu_SortByColumn_Execute, Column.GetId()),
+				FCanExecuteAction::CreateSP(this, &STimersView::ContextMenu_SortByColumn_CanExecute, Column.GetId()),
+				FIsActionChecked::CreateSP(this, &STimersView::ContextMenu_SortByColumn_IsChecked, Column.GetId())
 			);
 			MenuBuilder.AddMenuEntry
 			(
-				Column.TitleName,
-				Column.Description,
+				Column.GetTitleName(),
+				Column.GetDescription(),
 				FSlateIcon(), Action_SortByColumn, NAME_None, EUserInterfaceActionType::RadioButton
 			);
 		}
@@ -439,20 +463,20 @@ void STimersView::TreeView_BuildViewColumnMenu(FMenuBuilder& MenuBuilder)
 {
 	MenuBuilder.BeginSection("ViewColumn", LOCTEXT("ContextMenu_Header_Columns_View", "View Column"));
 
-	for (auto It = TreeViewHeaderColumns.CreateConstIterator(); It; ++It)
+	for (const TSharedPtr<Insights::FTableColumn>& ColumnPtr : Table->GetColumns())
 	{
-		const FTimersViewColumn& Column = It.Value();
+		const Insights::FTableColumn& Column = *ColumnPtr;
 
 		FUIAction Action_ToggleColumn
 		(
-			FExecuteAction::CreateSP(this, &STimersView::ContextMenu_ToggleColumn_Execute, Column.Id),
-			FCanExecuteAction::CreateSP(this, &STimersView::ContextMenu_ToggleColumn_CanExecute, Column.Id),
-			FIsActionChecked::CreateSP(this, &STimersView::ContextMenu_ToggleColumn_IsChecked, Column.Id)
+			FExecuteAction::CreateSP(this, &STimersView::ToggleColumnVisibility, Column.GetId()),
+			FCanExecuteAction::CreateSP(this, &STimersView::CanToggleColumnVisibility, Column.GetId()),
+			FIsActionChecked::CreateSP(this, &STimersView::IsColumnVisible, Column.GetId())
 		);
 		MenuBuilder.AddMenuEntry
 		(
-			Column.TitleName,
-			Column.Description,
+			Column.GetTitleName(),
+			Column.GetDescription(),
 			FSlateIcon(), Action_ToggleColumn, NAME_None, EUserInterfaceActionType::ToggleButton
 		);
 	}
@@ -464,103 +488,46 @@ void STimersView::TreeView_BuildViewColumnMenu(FMenuBuilder& MenuBuilder)
 
 void STimersView::InitializeAndShowHeaderColumns()
 {
-	const int32 NumColumns = FTimersViewColumnFactory::Get().Collection.Num();
-	for (int32 ColumnIndex = 0; ColumnIndex < NumColumns; ColumnIndex++)
-	{
-		TreeViewHeaderRow_CreateColumnArgs(ColumnIndex);
-	}
+	// Create columns.
+	TArray<TSharedPtr<Insights::FTableColumn>> Columns;
+	FTimersViewColumnFactory::CreateTimersViewColumns(Columns);
+	Table->SetColumns(Columns);
 
-	for (auto It = TreeViewHeaderColumns.CreateConstIterator(); It; ++It)
+	// Show columns.
+	for (const TSharedPtr<Insights::FTableColumn>& ColumnPtr : Table->GetColumns())
 	{
-		const FTimersViewColumn& Column = It.Value();
-
-		if (Column.bIsVisible)
+		if (ColumnPtr->ShouldBeVisible())
 		{
-			TreeViewHeaderRow_ShowColumn(Column.Id);
+			ShowColumn(ColumnPtr->GetId());
 		}
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::TreeViewHeaderRow_CreateColumnArgs(const int32 ColumnIndex)
+FText STimersView::GetColumnHeaderText(const FName ColumnId) const
 {
-	const FTimersViewColumn& Column = *FTimersViewColumnFactory::Get().Collection[ColumnIndex];
-	SHeaderRow::FColumn::FArguments ColumnArgs;
-
-	ColumnArgs
-		.ColumnId(Column.Id)
-		.DefaultLabel(Column.ShortName)
-		.SortMode(EColumnSortMode::None)
-		.HAlignHeader(HAlign_Fill)
-		.VAlignHeader(VAlign_Fill)
-		.HeaderContentPadding(TOptional<FMargin>(2.0f))
-		.HAlignCell(HAlign_Fill)
-		.VAlignCell(VAlign_Fill)
-		.SortMode(this, &STimersView::GetSortModeForColumn, Column.Id)
-		.OnSort(this, &STimersView::OnSortModeChanged)
-		.ManualWidth(Column.InitialColumnWidth)
-		.FixedWidth(Column.bIsFixedColumnWidth() ? Column.InitialColumnWidth : TOptional<float>())
-		.HeaderContent()
-		[
-			SNew(SHorizontalBox)
-			.ToolTip(STimersViewTooltip::GetColumnTooltip(Column))
-
-			+ SHorizontalBox::Slot()
-			.HAlign(Column.HorizontalAlignment)
-			.VAlign(VAlign_Center)
-			[
-				SNew(STextBlock)
-				.Text(Column.ShortName)
-			]
-		]
-		.MenuContent()
-		[
-			TreeViewHeaderRow_GenerateColumnMenu(Column)
-		];
-
-	TreeViewHeaderColumnArgs.Add(Column.Id, ColumnArgs);
-	TreeViewHeaderColumns.Add(Column.Id, Column);
+	const Insights::FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
+	return Column.GetShortName();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::TreeViewHeaderRow_ShowColumn(const FName ColumnId)
-{
-	FTimersViewColumn& Column = TreeViewHeaderColumns.FindChecked(ColumnId);
-	Column.bIsVisible = true;
-	SHeaderRow::FColumn::FArguments& ColumnArgs = TreeViewHeaderColumnArgs.FindChecked(ColumnId);
-
-	const int32 NumColumns = TreeViewHeaderRow->GetColumns().Num();
-	int32 ColumnIndex = 0;
-	for (; ColumnIndex < NumColumns; ColumnIndex++)
-	{
-		const SHeaderRow::FColumn& CurrentColumn = TreeViewHeaderRow->GetColumns()[ColumnIndex];
-		const FTimersViewColumn& CurrentTimersViewColumn = TreeViewHeaderColumns.FindChecked(CurrentColumn.ColumnId);
-		if (Column.Order < CurrentTimersViewColumn.Order)
-			break;
-	}
-
-	TreeViewHeaderRow->InsertColumn(ColumnArgs, ColumnIndex);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-TSharedRef<SWidget> STimersView::TreeViewHeaderRow_GenerateColumnMenu(const FTimersViewColumn& Column)
+TSharedRef<SWidget> STimersView::TreeViewHeaderRow_GenerateColumnMenu(const Insights::FTableColumn& Column)
 {
 	bool bIsMenuVisible = false;
 
 	const bool bShouldCloseWindowAfterMenuSelection = true;
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, NULL);
 	{
-		if (Column.bCanBeHidden())
+		if (Column.CanBeHidden())
 		{
 			MenuBuilder.BeginSection("Column", LOCTEXT("TreeViewHeaderRow_Header_Column", "Column"));
 
 			FUIAction Action_HideColumn
 			(
-				FExecuteAction::CreateSP(this, &STimersView::HeaderMenu_HideColumn_Execute, Column.Id),
-				FCanExecuteAction::CreateSP(this, &STimersView::HeaderMenu_HideColumn_CanExecute, Column.Id)
+				FExecuteAction::CreateSP(this, &STimersView::HideColumn, Column.GetId()),
+				FCanExecuteAction::CreateSP(this, &STimersView::CanHideColumn, Column.GetId())
 			);
 
 			MenuBuilder.AddMenuEntry
@@ -574,15 +541,15 @@ TSharedRef<SWidget> STimersView::TreeViewHeaderRow_GenerateColumnMenu(const FTim
 			MenuBuilder.EndSection();
 		}
 
-		if (Column.bCanBeSorted())
+		if (Column.CanBeSorted())
 		{
 			MenuBuilder.BeginSection("SortMode", LOCTEXT("ContextMenu_Header_Misc_Sort_SortMode", "Sort Mode"));
 
 			FUIAction Action_SortAscending
 			(
-				FExecuteAction::CreateSP(this, &STimersView::HeaderMenu_SortMode_Execute, Column.Id, EColumnSortMode::Ascending),
-				FCanExecuteAction::CreateSP(this, &STimersView::HeaderMenu_SortMode_CanExecute, Column.Id, EColumnSortMode::Ascending),
-				FIsActionChecked::CreateSP(this, &STimersView::HeaderMenu_SortMode_IsChecked, Column.Id, EColumnSortMode::Ascending)
+				FExecuteAction::CreateSP(this, &STimersView::HeaderMenu_SortMode_Execute, Column.GetId(), EColumnSortMode::Ascending),
+				FCanExecuteAction::CreateSP(this, &STimersView::HeaderMenu_SortMode_CanExecute, Column.GetId(), EColumnSortMode::Ascending),
+				FIsActionChecked::CreateSP(this, &STimersView::HeaderMenu_SortMode_IsChecked, Column.GetId(), EColumnSortMode::Ascending)
 			);
 			MenuBuilder.AddMenuEntry
 			(
@@ -593,9 +560,9 @@ TSharedRef<SWidget> STimersView::TreeViewHeaderRow_GenerateColumnMenu(const FTim
 
 			FUIAction Action_SortDescending
 			(
-				FExecuteAction::CreateSP(this, &STimersView::HeaderMenu_SortMode_Execute, Column.Id, EColumnSortMode::Descending),
-				FCanExecuteAction::CreateSP(this, &STimersView::HeaderMenu_SortMode_CanExecute, Column.Id, EColumnSortMode::Descending),
-				FIsActionChecked::CreateSP(this, &STimersView::HeaderMenu_SortMode_IsChecked, Column.Id, EColumnSortMode::Descending)
+				FExecuteAction::CreateSP(this, &STimersView::HeaderMenu_SortMode_Execute, Column.GetId(), EColumnSortMode::Descending),
+				FCanExecuteAction::CreateSP(this, &STimersView::HeaderMenu_SortMode_CanExecute, Column.GetId(), EColumnSortMode::Descending),
+				FIsActionChecked::CreateSP(this, &STimersView::HeaderMenu_SortMode_IsChecked, Column.GetId(), EColumnSortMode::Descending)
 			);
 			MenuBuilder.AddMenuEntry
 			(
@@ -608,12 +575,12 @@ TSharedRef<SWidget> STimersView::TreeViewHeaderRow_GenerateColumnMenu(const FTim
 			MenuBuilder.EndSection();
 		}
 
-		if (Column.bCanBeFiltered())
-		{
-			MenuBuilder.BeginSection("FilterMode", LOCTEXT("ContextMenu_Header_Misc_Filter_FilterMode", "Filter Mode"));
-			bIsMenuVisible = true;
-			MenuBuilder.EndSection();
-		}
+		//if (Column.CanBeFiltered())
+		//{
+		//	MenuBuilder.BeginSection("FilterMode", LOCTEXT("ContextMenu_Header_Misc_Filter_FilterMode", "Filter Mode"));
+		//	bIsMenuVisible = true;
+		//	MenuBuilder.EndSection();
+		//}
 	}
 
 	/*
@@ -637,7 +604,7 @@ void STimersView::InsightsManager_OnSessionChanged()
 	if (NewSession != Session)
 	{
 		Session = NewSession;
-		RebuildTree();
+		Reset();
 	}
 	else
 	{
@@ -649,9 +616,8 @@ void STimersView::InsightsManager_OnSessionChanged()
 
 void STimersView::UpdateTree()
 {
-	// Create groups, sort timers within the group and apply filtering.
 	CreateGroups();
-	SortTimers();
+	SortTreeNodes();
 	ApplyFiltering();
 }
 
@@ -669,14 +635,16 @@ void STimersView::ApplyFiltering()
 		GroupPtr->ClearFilteredChildren();
 		const bool bIsGroupVisible = Filters->PassesAllFilters(GroupPtr);
 
-		const TArray<FTimerNodePtr>& GroupChildren = GroupPtr->GetChildren();
+		const TArray<Insights::FBaseTreeNodePtr>& GroupChildren = GroupPtr->GetChildren();
 		const int32 NumChildren = GroupChildren.Num();
 		int32 NumVisibleChildren = 0;
 		for (int32 Cx = 0; Cx < NumChildren; ++Cx)
 		{
 			// Add a child.
-			const FTimerNodePtr& NodePtr = GroupChildren[Cx];
-			const bool bIsChildVisible = Filters->PassesAllFilters(NodePtr) && bTimerNodeIsVisible[static_cast<int>(NodePtr->GetType())];
+			const FTimerNodePtr& NodePtr = StaticCastSharedPtr<FTimerNode, Insights::FBaseTreeNode>(GroupChildren[Cx]);
+			const bool bIsChildVisible = (!bFilterOutZeroCountTimers || NodePtr->GetAggregatedStats().InstanceCount > 0)
+									  && bTimerTypeIsVisible[static_cast<int>(NodePtr->GetType())]
+									  && Filters->PassesAllFilters(NodePtr);
 			if (bIsChildVisible)
 			{
 				GroupPtr->AddFilteredChild(NodePtr);
@@ -688,11 +656,11 @@ void STimersView::ApplyFiltering()
 		{
 			// Add a group.
 			FilteredGroupNodes.Add(GroupPtr);
-			GroupPtr->bForceExpandGroupNode = true;
+			GroupPtr->SetExpansion(true);
 		}
 		else
 		{
-			GroupPtr->bForceExpandGroupNode = false;
+			GroupPtr->SetExpansion(false);
 		}
 	}
 
@@ -710,7 +678,7 @@ void STimersView::ApplyFiltering()
 		for (int32 Fx = 0; Fx < FilteredGroupNodes.Num(); Fx++)
 		{
 			const FTimerNodePtr& GroupPtr = FilteredGroupNodes[Fx];
-			TreeView->SetItemExpansion(GroupPtr, GroupPtr->bForceExpandGroupNode);
+			TreeView->SetItemExpansion(GroupPtr, GroupPtr->IsExpanded());
 		}
 	}
 	else
@@ -760,12 +728,12 @@ TSharedRef<SWidget> STimersView::GetToggleButtonForTimerType(const ETimerNodeTyp
 						.Image(TimerNodeTypeHelper::GetIconForTimerNodeType(NodeType))
 				]
 
-			+SHorizontalBox::Slot()
+			+ SHorizontalBox::Slot()
 				.Padding(2.0f, 0.0f, 0.0f, 0.0f)
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
-						.Text(TimerNodeTypeHelper::ToName(NodeType))
+						.Text(TimerNodeTypeHelper::ToText(NodeType))
 						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Caption"))
 				]
 		];
@@ -773,9 +741,24 @@ TSharedRef<SWidget> STimersView::GetToggleButtonForTimerType(const ETimerNodeTyp
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void STimersView::FilterOutZeroCountTimers_OnCheckStateChanged(ECheckBoxState NewRadioState)
+{
+	bFilterOutZeroCountTimers = (NewRadioState == ECheckBoxState::Checked);
+	ApplyFiltering();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+ECheckBoxState STimersView::FilterOutZeroCountTimers_IsChecked() const
+{
+	return bFilterOutZeroCountTimers ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void STimersView::FilterByTimerType_OnCheckStateChanged(ECheckBoxState NewRadioState, const ETimerNodeType InStatType)
 {
-	bTimerNodeIsVisible[static_cast<int>(InStatType)] = (NewRadioState == ECheckBoxState::Checked);
+	bTimerTypeIsVisible[static_cast<int>(InStatType)] = (NewRadioState == ECheckBoxState::Checked);
 	ApplyFiltering();
 }
 
@@ -783,7 +766,7 @@ void STimersView::FilterByTimerType_OnCheckStateChanged(ECheckBoxState NewRadioS
 
 ECheckBoxState STimersView::FilterByTimerType_IsChecked(const ETimerNodeType InStatType) const
 {
-	return bTimerNodeIsVisible[static_cast<int>(InStatType)] ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	return bTimerTypeIsVisible[static_cast<int>(InStatType)] ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -805,13 +788,9 @@ void STimersView::TreeView_OnSelectionChanged(FTimerNodePtr SelectedItem, ESelec
 	if (SelectInfo != ESelectInfo::Direct)
 	{
 		TArray<FTimerNodePtr> SelectedItems = TreeView->GetSelectedItems();
-		if (SelectedItems.Num() == 1)
+		if (SelectedItems.Num() == 1 && !SelectedItems[0]->IsGroup())
 		{
-			//HighlightedTimerName = SelectedItems[0]->GetName();
-		}
-		else
-		{
-			//HighlightedTimerName = NAME_None;
+			FTimingProfilerManager::Get()->SetSelectedTimer(SelectedItems[0]->GetId());
 		}
 	}
 }
@@ -820,31 +799,36 @@ void STimersView::TreeView_OnSelectionChanged(FTimerNodePtr SelectedItem, ESelec
 
 void STimersView::TreeView_OnGetChildren(FTimerNodePtr InParent, TArray<FTimerNodePtr>& OutChildren)
 {
-	OutChildren = InParent->GetFilteredChildren();
+	const TArray<Insights::FBaseTreeNodePtr>& Children = InParent->GetFilteredChildren();
+	OutChildren.Reset(Children.Num());
+	for (const Insights::FBaseTreeNodePtr& Child : Children)
+	{
+		OutChildren.Add(StaticCastSharedPtr<FTimerNode, Insights::FBaseTreeNode>(Child));
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::TreeView_OnMouseButtonDoubleClick(FTimerNodePtr TimerNode)
+void STimersView::TreeView_OnMouseButtonDoubleClick(FTimerNodePtr TimerNodePtr)
 {
-	if (!TimerNode->IsGroup())
+	if (TimerNodePtr->IsGroup())
 	{
-		//im:TODO: const bool bIsStatTracked = FTimingProfilerManager::Get()->IsStatTracked(TimerNode->GetId());
-	//	if (!bIsStatTracked)
-	//	{
-	//		// Add a new graph.
-	//		FTimingProfilerManager::Get()->TrackStat(TimerNode->GetId());
-	//	}
-	//	else
-	//	{
-	//		// Remove a graph
-	//		FTimingProfilerManager::Get()->UntrackStat(TimerNode->GetId());
-	//	}
+		const bool bIsGroupExpanded = TreeView->IsItemExpanded(TimerNodePtr);
+		TreeView->SetItemExpansion(TimerNodePtr, !bIsGroupExpanded);
 	}
 	else
 	{
-		const bool bIsGroupExpanded = TreeView->IsItemExpanded(TimerNode);
-		TreeView->SetItemExpansion(TimerNode, !bIsGroupExpanded);
+		//im:TODO: const bool bIsTracked = FTimingProfilerManager::Get()->IsTimerTracked(TimerNodePtr->GetId());
+	//	if (!bIsTracked)
+	//	{
+	//		// Add a new graph series.
+	//		FTimingProfilerManager::Get()->TrackTimer(TimerNodePtr->GetId());
+	//	}
+	//	else
+	//	{
+	//		// Remove the corresponding graph series.
+	//		FTimingProfilerManager::Get()->UntrackTimer(TimerNodePtr->GetId());
+	//	}
 	}
 }
 
@@ -857,11 +841,12 @@ TSharedRef<ITableRow> STimersView::TreeView_OnGenerateRow(FTimerNodePtr TimerNod
 	TSharedRef<ITableRow> TableRow =
 		SNew(STimerTableRow, OwnerTable)
 		.OnShouldBeEnabled(this, &STimersView::TableRow_ShouldBeEnabled)
-		.OnIsColumnVisible(this, &STimersView::TableRow_IsColumnVisible)
-		.OnSetHoveredTableCell(this, &STimersView::TableRow_SetHoveredTableCell)
+		.OnIsColumnVisible(this, &STimersView::IsColumnVisible)
+		.OnSetHoveredCell(this, &STimersView::TableRow_SetHoveredCell)
 		.OnGetColumnOutlineHAlignmentDelegate(this, &STimersView::TableRow_GetColumnOutlineHAlignment)
 		.HighlightText(this, &STimersView::TableRow_GetHighlightText)
-		.HighlightedTimerName(this, &STimersView::TableRow_GetHighlightedTimerName)
+		.HighlightedNodeName(this, &STimersView::TableRow_GetHighlightedNodeName)
+		.TablePtr(Table)
 		.TimerNodePtr(TimerNodePtr);
 
 	return TableRow;
@@ -869,26 +854,22 @@ TSharedRef<ITableRow> STimersView::TreeView_OnGenerateRow(FTimerNodePtr TimerNod
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool STimersView::TableRow_IsColumnVisible(const FName ColumnId) const
+bool STimersView::TableRow_ShouldBeEnabled(const uint32 TimerId) const
 {
-	bool bResult = false;
-	const FTimersViewColumn& ColumnPtr = TreeViewHeaderColumns.FindChecked(ColumnId);
-	return ColumnPtr.bIsVisible;
+	return true;//im:TODO: Session->GetAggregatedStat(TimerId) != nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::TableRow_SetHoveredTableCell(const FName ColumnId, const FTimerNodePtr TimerNodePtr)
+void STimersView::TableRow_SetHoveredCell(TSharedPtr<Insights::FTable> InTablePtr, TSharedPtr<Insights::FTableColumn> InColumnPtr, const FTimerNodePtr InNodePtr)
 {
-	HoveredColumnId = ColumnId;
+	HoveredColumnId = InColumnPtr ? InColumnPtr->GetId() : FName();
 
 	const bool bIsAnyMenusVisible = FSlateApplication::Get().AnyMenusVisible();
 	if (!HasMouseCapture() && !bIsAnyMenusVisible)
 	{
-		HoveredTimerNodePtr = TimerNodePtr;
+		HoveredNodePtr = InNodePtr;
 	}
-
-	//UE_LOG(TimingProfiler, Log, TEXT("%s -> %s"), *HoveredColumnId.GetPlainNameString(), TimerNodePtr.IsValid() ? *TimerNodePtr->GetName().GetPlainNameString() : TEXT("nullptr"));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -923,16 +904,9 @@ FText STimersView::TableRow_GetHighlightText() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FName STimersView::TableRow_GetHighlightedTimerName() const
+FName STimersView::TableRow_GetHighlightedNodeName() const
 {
-	return HighlightedTimerName;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool STimersView::TableRow_ShouldBeEnabled(const uint32 TimerId) const
-{
-	return true;//im:TODO: Session->GetAggregatedStat(TimerId) != nullptr;
+	return HighlightedNodeName;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -954,7 +928,7 @@ bool STimersView::SearchBox_IsEnabled() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// GroupBy
+// Grouping
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STimersView::CreateGroups()
@@ -999,7 +973,7 @@ void STimersView::CreateGroups()
 	{
 		for (const FTimerNodePtr& TimerNodePtr : TimerNodes)
 		{
-			const FName GroupName = *TimerNodeTypeHelper::ToName(TimerNodePtr->GetType()).ToString();
+			const FName GroupName = *TimerNodeTypeHelper::ToText(TimerNodePtr->GetType()).ToString();
 
 			FTimerNodePtr* GroupPtr = GroupNodeSet.Find(GroupName);
 			if (!GroupPtr)
@@ -1044,9 +1018,6 @@ void STimersView::CreateGroups()
 	}
 
 	GroupNodeSet.GenerateValueArray(GroupNodes);
-
-	// Sort by a fake group name.
-	GroupNodes.Sort(TimerNodeSortingHelper::ByNameAscending());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1078,9 +1049,8 @@ void STimersView::GroupBy_OnSelectionChanged(TSharedPtr<ETimerGroupingMode> NewG
 	{
 		GroupingMode = *NewGroupingMode;
 
-		// Create groups, sort timers within the group and apply filtering.
 		CreateGroups();
-		SortTimers();
+		SortTreeNodes();
 		ApplyFiltering();
 	}
 }
@@ -1090,7 +1060,7 @@ void STimersView::GroupBy_OnSelectionChanged(TSharedPtr<ETimerGroupingMode> NewG
 TSharedRef<SWidget> STimersView::GroupBy_OnGenerateWidget(TSharedPtr<ETimerGroupingMode> InGroupingMode) const
 {
 	return SNew(STextBlock)
-		.Text(TimerNodeGroupingHelper::ToName(*InGroupingMode))
+		.Text(TimerNodeGroupingHelper::ToText(*InGroupingMode))
 		.ToolTipText(TimerNodeGroupingHelper::ToDescription(*InGroupingMode));
 }
 
@@ -1098,7 +1068,7 @@ TSharedRef<SWidget> STimersView::GroupBy_OnGenerateWidget(TSharedPtr<ETimerGroup
 
 FText STimersView::GroupBy_GetSelectedText() const
 {
-	return TimerNodeGroupingHelper::ToName(GroupingMode);
+	return TimerNodeGroupingHelper::ToText(GroupingMode);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1109,50 +1079,85 @@ FText STimersView::GroupBy_GetSelectedTooltipText() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// SortBy
+// Sorting
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::SortTimers()
+const FName STimersView::GetDefaultColumnBeingSorted()
 {
-	const int32 NumGroups = GroupNodes.Num();
+	return FTimersViewColumns::TotalInclusiveTimeColumnID;
+}
 
-	#define CHECK_AND_SORT_COLUMN(ColumnId, SortTypeName) \
-		if (ColumnBeingSorted == ColumnId) \
-		{ \
-			if (ColumnSortMode == EColumnSortMode::Type::Descending) \
-			{ \
-				for (int32 ID = 0; ID < NumGroups; ++ID) \
-				{ \
-					GroupNodes[ID]->SortChildren(TimerNodeSortingHelper::SortTypeName##Descending()); \
-				} \
-			} \
-			else /*if (ColumnSortMode == EColumnSortMode::Type::Ascending)*/ \
-			{ \
-				for (int32 ID = 0; ID < NumGroups; ++ID) \
-				{ \
-					GroupNodes[ID]->SortChildren(TimerNodeSortingHelper::SortTypeName##Ascending()); \
-				} \
-			} \
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const EColumnSortMode::Type STimersView::GetDefaultColumnSortMode()
+{
+	return EColumnSortMode::Descending;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimersView::CreateSortings()
+{
+	AvailableSorters.Reset();
+	CurrentSorter = nullptr;
+
+	for (const TSharedPtr<Insights::FTableColumn> ColumnPtr : Table->GetColumns())
+	{
+		if (ColumnPtr->CanBeSorted())
+		{
+			TSharedPtr<Insights::ITableCellValueSorter> SorterPtr = ColumnPtr->GetValueSorter();
+			if (ensure(SorterPtr.IsValid()))
+			{
+				AvailableSorters.Add(SorterPtr);
+			}
 		}
+	}
 
-		 CHECK_AND_SORT_COLUMN(FTimersViewColumns::NameColumnID,          ByName)
-	else CHECK_AND_SORT_COLUMN(FTimersViewColumns::MetaGroupNameColumnID, ByMetaGroupName)
-	else CHECK_AND_SORT_COLUMN(FTimersViewColumns::TypeColumnID,          ByType)
-	else CHECK_AND_SORT_COLUMN(FTimersViewColumns::InstanceCountColumnID, ByInstanceCount)
-	// Inclusive Time columns
-	else CHECK_AND_SORT_COLUMN(FTimersViewColumns::TotalInclusiveTimeColumnID, ByTotalInclusiveTime)
-	else CHECK_AND_SORT_COLUMN(FTimersViewColumns::MaxInclusiveTimeColumnID,     ByMaxInclusiveTime)
-	else CHECK_AND_SORT_COLUMN(FTimersViewColumns::AverageInclusiveTimeColumnID, ByAverageInclusiveTime)
-	else CHECK_AND_SORT_COLUMN(FTimersViewColumns::MedianInclusiveTimeColumnID,  ByMedianInclusiveTime)
-	else CHECK_AND_SORT_COLUMN(FTimersViewColumns::MinInclusiveTimeColumnID,     ByMinInclusiveTime)
-	// Exclusive Time columns
-	else CHECK_AND_SORT_COLUMN(FTimersViewColumns::TotalExclusiveTimeColumnID,   ByTotalExclusiveTime)
-	else CHECK_AND_SORT_COLUMN(FTimersViewColumns::MaxExclusiveTimeColumnID,     ByMaxExclusiveTime)
-	else CHECK_AND_SORT_COLUMN(FTimersViewColumns::AverageExclusiveTimeColumnID, ByAverageExclusiveTime)
-	else CHECK_AND_SORT_COLUMN(FTimersViewColumns::MedianExclusiveTimeColumnID,  ByMedianExclusiveTime)
-	else CHECK_AND_SORT_COLUMN(FTimersViewColumns::MinExclusiveTimeColumnID,     ByMinExclusiveTime)
+	UpdateCurrentSortingByColumn();
+}
 
-	#undef CHECK_AND_SORT_COLUMN
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimersView::UpdateCurrentSortingByColumn()
+{
+	TSharedPtr<Insights::FTableColumn> ColumnPtr = Table->FindColumn(ColumnBeingSorted);
+	CurrentSorter = ColumnPtr.IsValid() ? ColumnPtr->GetValueSorter() : nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimersView::SortTreeNodes()
+{
+	if (CurrentSorter.IsValid())
+	{
+		for (FTimerNodePtr& Root : GroupNodes)
+		{
+			SortTreeNodesRec(*Root, *CurrentSorter);
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimersView::SortTreeNodesRec(FTimerNode& Node, const Insights::ITableCellValueSorter& Sorter)
+{
+	if (ColumnSortMode == EColumnSortMode::Type::Descending)
+	{
+		Node.SortChildrenDescending(Sorter);
+	}
+	else // if (ColumnSortMode == EColumnSortMode::Type::Ascending)
+	{
+		Node.SortChildrenAscending(Sorter);
+	}
+
+	for (Insights::FBaseTreeNodePtr ChildPtr : Node.GetChildren())
+	{
+		//if (ChildPtr->IsGroup())
+		if (ChildPtr->GetChildren().Num() > 0)
+		{
+			SortTreeNodesRec(*StaticCastSharedPtr<FTimerNode>(ChildPtr), Sorter);
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1173,9 +1178,9 @@ void STimersView::SetSortModeForColumn(const FName& ColumnId, const EColumnSortM
 {
 	ColumnBeingSorted = ColumnId;
 	ColumnSortMode = SortMode;
+	UpdateCurrentSortingByColumn();
 
-	// Sort timers and apply filtering.
-	SortTimers();
+	SortTreeNodes();
 	ApplyFiltering();
 }
 
@@ -1200,8 +1205,8 @@ bool STimersView::HeaderMenu_SortMode_IsChecked(const FName ColumnId, const ECol
 
 bool STimersView::HeaderMenu_SortMode_CanExecute(const FName ColumnId, const EColumnSortMode::Type InSortMode) const
 {
-	const FTimersViewColumn& Column = TreeViewHeaderColumns.FindChecked(ColumnId);
-	return Column.bCanBeSorted();
+	const Insights::FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
+	return Column.CanBeSorted();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1261,54 +1266,116 @@ void STimersView::ContextMenu_SortByColumn_Execute(const FName ColumnId)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// HideColumn action (HeaderMenu)
+// ShowColumn action
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool STimersView::HeaderMenu_HideColumn_CanExecute(const FName ColumnId) const
+bool STimersView::CanShowColumn(const FName ColumnId) const
 {
-	const FTimersViewColumn& Column = TreeViewHeaderColumns.FindChecked(ColumnId);
-	return Column.bCanBeHidden();
+	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::HeaderMenu_HideColumn_Execute(const FName ColumnId)
+void STimersView::ShowColumn(const FName ColumnId)
 {
-	FTimersViewColumn& Column = TreeViewHeaderColumns.FindChecked(ColumnId);
-	Column.bIsVisible = false;
+	Insights::FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
+	Column.Show();
+
+	SHeaderRow::FColumn::FArguments ColumnArgs;
+	ColumnArgs
+		.ColumnId(Column.GetId())
+		.DefaultLabel(Column.GetShortName())
+		.HAlignHeader(HAlign_Fill)
+		.VAlignHeader(VAlign_Fill)
+		.HeaderContentPadding(FMargin(2.0f))
+		.HAlignCell(HAlign_Fill)
+		.VAlignCell(VAlign_Fill)
+		.SortMode(this, &STimersView::GetSortModeForColumn, Column.GetId())
+		.OnSort(this, &STimersView::OnSortModeChanged)
+		.ManualWidth(Column.GetInitialWidth())
+		.FixedWidth(Column.IsFixedWidth() ? Column.GetInitialWidth() : TOptional<float>())
+		.HeaderContent()
+		[
+			SNew(SBox)
+			.ToolTip(STimersViewTooltip::GetColumnTooltip(Column))
+			.HAlign(Column.GetHorizontalAlignment())
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(this, &STimersView::GetColumnHeaderText, Column.GetId())
+			]
+		]
+		.MenuContent()
+		[
+			TreeViewHeaderRow_GenerateColumnMenu(Column)
+		];
+
+	int32 ColumnIndex = 0;
+	const int32 NewColumnPosition = Table->GetColumnPositionIndex(ColumnId);
+	const int32 NumColumns = TreeViewHeaderRow->GetColumns().Num();
+	for (; ColumnIndex < NumColumns; ColumnIndex++)
+	{
+		const SHeaderRow::FColumn& CurrentColumn = TreeViewHeaderRow->GetColumns()[ColumnIndex];
+		const int32 CurrentColumnPosition = Table->GetColumnPositionIndex(CurrentColumn.ColumnId);
+		if (NewColumnPosition < CurrentColumnPosition)
+		{
+			break;
+		}
+	}
+
+	TreeViewHeaderRow->InsertColumn(ColumnArgs, ColumnIndex);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// HideColumn action
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimersView::CanHideColumn(const FName ColumnId) const
+{
+	const Insights::FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
+	return Column.CanBeHidden();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimersView::HideColumn(const FName ColumnId)
+{
+	Insights::FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
+	Column.Hide();
+
 	TreeViewHeaderRow->RemoveColumn(ColumnId);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// ToggleColumn action (ContextMenu)
+// ToggleColumn action
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool STimersView::ContextMenu_ToggleColumn_IsChecked(const FName ColumnId)
+bool STimersView::IsColumnVisible(const FName ColumnId)
 {
-	const FTimersViewColumn& Column = TreeViewHeaderColumns.FindChecked(ColumnId);
-	return Column.bIsVisible;
+	const Insights::FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
+	return Column.IsVisible();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool STimersView::ContextMenu_ToggleColumn_CanExecute(const FName ColumnId) const
+bool STimersView::CanToggleColumnVisibility(const FName ColumnId) const
 {
-	const FTimersViewColumn& Column = TreeViewHeaderColumns.FindChecked(ColumnId);
-	return Column.bCanBeHidden();
+	const Insights::FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
+	return !Column.IsVisible() || Column.CanBeHidden();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::ContextMenu_ToggleColumn_Execute(const FName ColumnId)
+void STimersView::ToggleColumnVisibility(const FName ColumnId)
 {
-	FTimersViewColumn& Column = TreeViewHeaderColumns.FindChecked(ColumnId);
-	if (Column.bIsVisible)
+	const Insights::FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
+	if (Column.IsVisible())
 	{
-		HeaderMenu_HideColumn_Execute(ColumnId);
+		HideColumn(ColumnId);
 	}
 	else
 	{
-		TreeViewHeaderRow_ShowColumn(ColumnId);
+		ShowColumn(ColumnId);
 	}
 }
 
@@ -1325,18 +1392,17 @@ bool STimersView::ContextMenu_ShowAllColumns_CanExecute() const
 
 void STimersView::ContextMenu_ShowAllColumns_Execute()
 {
-	ColumnSortMode = GetDefaultColumnSortMode();
 	ColumnBeingSorted = GetDefaultColumnBeingSorted();
+	ColumnSortMode = GetDefaultColumnSortMode();
+	UpdateCurrentSortingByColumn();
 
-	const int32 NumColumns = FTimersViewColumnFactory::Get().Collection.Num();
-	for (int32 ColumnIndex = 0; ColumnIndex < NumColumns; ColumnIndex++)
+	for (const TSharedPtr<Insights::FTableColumn>& ColumnPtr : Table->GetColumns())
 	{
-		const FTimersViewColumn& DefaultColumn = *FTimersViewColumnFactory::Get().Collection[ColumnIndex];
-		const FTimersViewColumn& CurrentColumn = TreeViewHeaderColumns.FindChecked(DefaultColumn.Id);
+		const Insights::FTableColumn& Column = *ColumnPtr;
 
-		if (!CurrentColumn.bIsVisible)
+		if (!Column.IsVisible())
 		{
-			TreeViewHeaderRow_ShowColumn(DefaultColumn.Id);
+			ShowColumn(Column.GetId());
 		}
 	}
 }
@@ -1372,23 +1438,23 @@ void STimersView::ContextMenu_ShowMinMaxMedColumns_Execute()
 		FTimersViewColumns::MinExclusiveTimeColumnID,
 	};
 
-	ColumnSortMode = EColumnSortMode::Descending;
 	ColumnBeingSorted = FTimersViewColumns::TotalInclusiveTimeColumnID;
+	ColumnSortMode = EColumnSortMode::Descending;
+	UpdateCurrentSortingByColumn();
 
-	const int32 NumColumns = FTimersViewColumnFactory::Get().Collection.Num();
-	for (int32 ColumnIndex = 0; ColumnIndex < NumColumns; ColumnIndex++)
+	for (const TSharedPtr<Insights::FTableColumn>& ColumnPtr : Table->GetColumns())
 	{
-		const FTimersViewColumn& DefaultColumn = *FTimersViewColumnFactory::Get().Collection[ColumnIndex];
-		const FTimersViewColumn& CurrentColumn = TreeViewHeaderColumns.FindChecked(DefaultColumn.Id);
+		const Insights::FTableColumn& Column = *ColumnPtr;
 
-		bool bIsVisible = Preset.Contains(DefaultColumn.Id);
-		if (bIsVisible && !CurrentColumn.bIsVisible)
+		const bool bShouldBeVisible = Preset.Contains(Column.GetId());
+
+		if (bShouldBeVisible && !Column.IsVisible())
 		{
-			TreeViewHeaderRow_ShowColumn(DefaultColumn.Id);
+			ShowColumn(Column.GetId());
 		}
-		else if (!bIsVisible && CurrentColumn.bIsVisible)
+		else if (!bShouldBeVisible && Column.IsVisible())
 		{
-			HeaderMenu_HideColumn_Execute(DefaultColumn.Id);
+			HideColumn(Column.GetId());
 		}
 	}
 }
@@ -1406,37 +1472,47 @@ bool STimersView::ContextMenu_ResetColumns_CanExecute() const
 
 void STimersView::ContextMenu_ResetColumns_Execute()
 {
-	ColumnSortMode = GetDefaultColumnSortMode();
 	ColumnBeingSorted = GetDefaultColumnBeingSorted();
+	ColumnSortMode = GetDefaultColumnSortMode();
+	UpdateCurrentSortingByColumn();
 
-	const int32 NumColumns = FTimersViewColumnFactory::Get().Collection.Num();
-	for (int32 ColumnIndex = 0; ColumnIndex < NumColumns; ColumnIndex++)
+	for (const TSharedPtr<Insights::FTableColumn>& ColumnPtr : Table->GetColumns())
 	{
-		const FTimersViewColumn& DefaultColumn = *FTimersViewColumnFactory::Get().Collection[ColumnIndex];
-		const FTimersViewColumn& CurrentColumn = TreeViewHeaderColumns.FindChecked(DefaultColumn.Id);
+		const Insights::FTableColumn& Column = *ColumnPtr;
 
-		if (DefaultColumn.bIsVisible && !CurrentColumn.bIsVisible)
+		if (Column.ShouldBeVisible() && !Column.IsVisible())
 		{
-			TreeViewHeaderRow_ShowColumn(DefaultColumn.Id);
+			ShowColumn(Column.GetId());
 		}
-		else if (!DefaultColumn.bIsVisible && CurrentColumn.bIsVisible)
+		else if (!Column.ShouldBeVisible() && Column.IsVisible())
 		{
-			HeaderMenu_HideColumn_Execute(DefaultColumn.Id);
+			HideColumn(Column.GetId());
 		}
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void STimersView::Reset()
+{
+	StatsStartTime = 0.0;
+	StatsEndTime = 0.0;
+
+	RebuildTree(true);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void STimersView::RebuildTree(bool bResync)
 {
+	TArray<FTimerNodePtr> SelectedItems;
 	bool bListHasChanged = false;
 
 	if (bResync)
 	{
-		TimerNodes.Empty(TimerNodes.Num());
-		//TimerNodesMap.Empty(TimerNodesMap.Num());
-		TimerNodesIdMap.Empty(TimerNodesIdMap.Num());
+		const int32 PreviousNodeCount = TimerNodes.Num();
+		TimerNodes.Empty(PreviousNodeCount);
+		TimerNodesIdMap.Empty(PreviousNodeCount);
 		bListHasChanged = true;
 	}
 
@@ -1446,18 +1522,21 @@ void STimersView::RebuildTree(bool bResync)
 
 		const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
 
-		TimingProfilerProvider.ReadTimers([this, &bResync, &bListHasChanged](const Trace::FTimingProfilerTimer* Timers, uint64 TimersCount)
+		TimingProfilerProvider.ReadTimers([this, &bResync, &SelectedItems, &bListHasChanged](const Trace::FTimingProfilerTimer* Timers, uint64 TimersCount)
 		{
-			if (!bResync)
+			if (TimersCount != TimerNodes.Num())
 			{
-				bResync = (TimersCount != TimerNodes.Num());
+				bResync = true;
 			}
 
 			if (bResync)
 			{
-				TimerNodes.Empty(TimerNodes.Num());
-				//TimerNodesMap.Empty(TimerNodesMap.Num());
-				TimerNodesIdMap.Empty(TimerNodesIdMap.Num());
+				// Save selection.
+				TreeView->GetSelectedItems(SelectedItems);
+
+				const int32 PreviousNodeCount = TimerNodes.Num();
+				TimerNodes.Empty(PreviousNodeCount);
+				TimerNodesIdMap.Empty(PreviousNodeCount);
 				bListHasChanged = true;
 
 				for (uint64 TimerIndex = 0; TimerIndex < TimersCount; ++TimerIndex)
@@ -1466,10 +1545,8 @@ void STimersView::RebuildTree(bool bResync)
 					FName Name(Timer.Name);// +TEXT(" [GPU]")));
 					FName Group(Timer.IsGpuTimer ? TEXT("GPU") : TEXT("CPU"));
 					ETimerNodeType Type = Timer.IsGpuTimer ? ETimerNodeType::GpuScope : ETimerNodeType::CpuScope;
-					FTimerNode* TimerPtr = new FTimerNode(Timer.Id, Name, Group, Type);
-					FTimerNodePtr TimerNodePtr = MakeShareable(TimerPtr);
+					FTimerNodePtr TimerNodePtr = MakeShareable(new FTimerNode(Timer.Id, Name, Group, Type));
 					TimerNodes.Add(TimerNodePtr);
-					//TimerNodesMap.Add(Name, TimerNodePtr);
 					TimerNodesIdMap.Add(Timer.Id, TimerNodePtr);
 				}
 			}
@@ -1480,6 +1557,28 @@ void STimersView::RebuildTree(bool bResync)
 	{
 		UpdateTree();
 		UpdateStats(StatsStartTime, StatsEndTime);
+
+		TreeView->RebuildList();
+
+		// Restore selection.
+		if (SelectedItems.Num() > 0)
+		{
+			TreeView->ClearSelection();
+			TArray<FTimerNodePtr> NewSelectedItems;
+			for (const FTimerNodePtr& TimerNode : SelectedItems)
+			{
+				FTimerNodePtr* TimerNodePtrPtr = TimerNodesIdMap.Find(TimerNode->GetId());
+				if (TimerNodePtrPtr != nullptr)
+				{
+					NewSelectedItems.Add(*TimerNodePtrPtr);
+				}
+			}
+			if (NewSelectedItems.Num() > 0)
+			{
+				TreeView->SetItemSelection(NewSelectedItems, true);
+				TreeView->RequestScrollIntoView(NewSelectedItems[0]);
+			}
+		}
 	}
 }
 
@@ -1487,15 +1586,24 @@ void STimersView::RebuildTree(bool bResync)
 
 void STimersView::UpdateStats(double StartTime, double EndTime)
 {
+	StatsStartTime = StartTime;
+	StatsEndTime = EndTime;
+
+	if (StartTime >= EndTime)
+	{
+		// keep previous aggregated stats
+		return;
+	}
+
 	for (const FTimerNodePtr& TimerNodePtr : TimerNodes)
 	{
 		TimerNodePtr->ResetAggregatedStats();
 	}
 
-	if (Session.IsValid() && StartTime < EndTime && Trace::ReadTimingProfilerProvider(*Session.Get()))
+	if (Session.IsValid() && Trace::ReadTimingProfilerProvider(*Session.Get()))
 	{
 		TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
-		TSharedPtr<STimingView> TimingView = Wnd.IsValid() ? Wnd->TimingView : nullptr;
+		TSharedPtr<STimingView> TimingView = Wnd.IsValid() ? Wnd->GetTimingView() : nullptr;
 
 		auto ThreadFilter = [&TimingView](uint32 ThreadId)
 		{
@@ -1505,42 +1613,51 @@ void STimersView::UpdateStats(double StartTime, double EndTime)
 		const bool bIsGpuTrackVisible = TimingView.IsValid() && TimingView->IsGpuTrackVisible();
 
 		TUniquePtr<Trace::ITable<Trace::FTimingProfilerAggregatedStats>> AggregationResultTable;
+
 		{
 			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 			const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
 			AggregationResultTable.Reset(TimingProfilerProvider.CreateAggregation(StartTime, EndTime, ThreadFilter, bIsGpuTrackVisible));
 		}
 
-		TUniquePtr<Trace::ITableReader<Trace::FTimingProfilerAggregatedStats>> AggregationResultTableReader(AggregationResultTable->CreateReader());
-		while (AggregationResultTableReader->IsValid())
+		if (AggregationResultTable.IsValid())
 		{
-			const Trace::FTimingProfilerAggregatedStats* Row = AggregationResultTableReader->GetCurrentRow();
-			FTimerNodePtr* TimerNodePtrPtr = TimerNodesIdMap.Find(Row->Timer->Id);
-			if (TimerNodePtrPtr != nullptr)
+			TUniquePtr<Trace::ITableReader<Trace::FTimingProfilerAggregatedStats>> TableReader(AggregationResultTable->CreateReader());
+			while (TableReader->IsValid())
 			{
-				(*TimerNodePtrPtr)->SetAggregatedStats(*Row);
+				const Trace::FTimingProfilerAggregatedStats* Row = TableReader->GetCurrentRow();
+				FTimerNodePtr* TimerNodePtrPtr = TimerNodesIdMap.Find(Row->Timer->Id);
+				if (TimerNodePtrPtr != nullptr)
+				{
+					FTimerNodePtr TimerNodePtr = *TimerNodePtrPtr;
+					TimerNodePtr->SetAggregatedStats(*Row);
+
+					TSharedPtr<ITableRow> TableRowPtr = TreeView->WidgetFromItem(TimerNodePtr);
+					if (TableRowPtr.IsValid())
+					{
+						TSharedPtr<STimerTableRow> RowPtr = StaticCastSharedPtr<STimerTableRow, ITableRow>(TableRowPtr);
+						RowPtr->InvalidateContent();
+					}
+				}
+				TableReader->NextRow();
 			}
-			AggregationResultTableReader->NextRow();
 		}
-
-		StatsStartTime = StartTime;
-		StatsEndTime = EndTime;
-
-		UpdateTree();
-		TreeView->RebuildList();
 	}
+
+	UpdateTree();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STimersView::SelectTimerNode(uint64 Id)
 {
-	FTimerNodePtr* TimerNodePtrPtr = TimerNodesIdMap.Find(Id);
-	if (TimerNodePtrPtr != nullptr)
+	FTimerNodePtr* NodePtrPtr = TimerNodesIdMap.Find(Id);
+	if (NodePtrPtr != nullptr)
 	{
-		//UE_LOG(TimingProfiler, Log, TEXT("Select and RequestScrollIntoView %s"), *(*TimerNodePtrPtr)->GetName().ToString());
-		TreeView->SetSelection(*TimerNodePtrPtr);
-		TreeView->RequestScrollIntoView(*TimerNodePtrPtr);
+		FTimerNodePtr NodePtr = *NodePtrPtr;
+
+		TreeView->SetSelection(NodePtr);
+		TreeView->RequestScrollIntoView(NodePtr);
 	}
 }
 

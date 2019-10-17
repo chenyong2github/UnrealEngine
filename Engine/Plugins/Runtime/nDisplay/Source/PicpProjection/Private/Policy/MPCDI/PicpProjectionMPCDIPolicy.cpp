@@ -69,7 +69,8 @@ bool FPicpProjectionMPCDIPolicy::HandleAddViewport(const FIntPoint& InViewportSi
 
 
 	IMPCDI::ConfigParser CfgData;
-	{//Load config:
+	{
+		//Load config:
 		FDisplayClusterConfigProjection CfgProjection;
 		if (!DisplayClusterHelpers::config::GetViewportProjection(GetViewportId(), CfgProjection))
 		{
@@ -157,6 +158,7 @@ bool FPicpProjectionMPCDIPolicy::CalculateView(const uint32 ViewIdx, FVector& In
 		return true;
 	}
 
+	OutFrustum.bIsValid = false;
 	return false;
 }
 
@@ -164,9 +166,13 @@ bool FPicpProjectionMPCDIPolicy::GetProjectionMatrix(const uint32 ViewIdx, FMatr
 {
 	check(IsInGameThread());
 
-	OutPrjMatrix = Views[ViewIdx].Frustum.ProjectionMatrix;
+	if (Views[ViewIdx].Frustum.bIsValid)
+	{
+		OutPrjMatrix = Views[ViewIdx].Frustum.ProjectionMatrix;
+		return true;
+	}
 
-	return true;
+	return false;
 }
 
 bool FPicpProjectionMPCDIPolicy::IsWarpBlendSupported()
@@ -394,7 +400,7 @@ void FPicpProjectionOverlayViewportData::Empty()
 
 namespace // Helpers
 {
-	FMatrix GetProjectionMatrixAssymetric(float l, float r, float t, float b, float n, float f)
+	FMatrix GetProjectionMatrixAssymetric(float l, float r, float t, float b, float zNear, float zFar)
 	{
 		static const FMatrix FlipZAxisToUE4 = FMatrix(
 			FPlane(1, 0, 0, 0),
@@ -402,36 +408,16 @@ namespace // Helpers
 			FPlane(0, 0, -1, 0),
 			FPlane(0, 0, 1, 1));
 
-		const float mx = 2.f * n / (r - l);
-		const float my = 2.f * n / (t - b);
-		const float ma = -(r + l) / (r - l);
-		const float mb = -(t + b) / (t - b);
-		const float mc = f / (f - n);
-		const float md = -(f * n) / (f - n);
-		const float me = 1.f;
-
-		// Normal LHS
-		FMatrix ProjectionMatrix = FMatrix(
-			FPlane(mx, 0, 0, 0),
-			FPlane(0, my, 0, 0),
-			FPlane(ma, mb, mc, me),
-			FPlane(0, 0, md, 0));
-
+		FMatrix ProjectionMatrix = DisplayClusterHelpers::math::GetSafeProjectionMatrix(l, r, t, b, zNear, zFar);
 		return ProjectionMatrix * FlipZAxisToUE4;
-	}
-
-	template<class T>
-	static T degToRad(T degrees)
-	{
-		return degrees * (T)(PI / 180.0);
 	}
 
 	FMatrix GetProjectionMatrix(float Fov, float ZNear, float ZFar)
 	{
-		float l = float(ZNear*tan(degToRad(-Fov / 2)));
-		float r = float(ZNear*tan(degToRad(Fov / 2)));
-		float b = float(ZNear*tan(degToRad(-Fov / 2)));
-		float t = float(ZNear*tan(degToRad(Fov / 2)));
+		float l = float(ZNear*tan(FMath::DegreesToRadians(-Fov / 2)));
+		float r = float(ZNear*tan(FMath::DegreesToRadians(Fov / 2)));
+		float b = float(ZNear*tan(FMath::DegreesToRadians(-Fov / 2)));
+		float t = float(ZNear*tan(FMath::DegreesToRadians(Fov / 2)));
 
 		return GetProjectionMatrixAssymetric(l, r, t, b, ZNear, ZFar);
 	}

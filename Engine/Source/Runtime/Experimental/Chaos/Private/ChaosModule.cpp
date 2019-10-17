@@ -4,12 +4,4 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 
-//#if INCLUDE_CHAOS
-
 IMPLEMENT_MODULE(FChaosEngineModule, Chaos);
-
-//#else
-//
-//IMPLEMENT_MODULE(FDefaultModuleImpl, Chaos);
-//
-//#endif

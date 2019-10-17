@@ -8,7 +8,6 @@
 #include "ChaosSolversModule.h"
 #include "Chaos/DebugDrawQueue.h"
 #include "Chaos/ErrorReporter.h"
-#include "Chaos/TriangleMesh.h"
 
 #include "Components/BoxComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -62,33 +61,29 @@ USkeletalMeshSimulationComponent::USkeletalMeshSimulationComponent(const FObject
 	, InitialVelocityType(EInitialVelocityTypeEnum::Chaos_Initial_Velocity_User_Defined)
 	, InitialLinearVelocity(0.f)
 	, InitialAngularVelocity(0.f)
-
-#if INCLUDE_CHAOS
 	, PhysicsProxy(nullptr)
-#endif // INCLUDE_CHAOS
 {
 	// Enable calls to TickComponent()
 	UActorComponent::PrimaryComponentTick.bCanEverTick = true;	
-#if INCLUDE_CHAOS
 	ChaosMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<float>>();
-#endif
 }
 
-#if INCLUDE_CHAOS
 Chaos::FPhysicsSolver* GetSolver(const USkeletalMeshSimulationComponent& SkeletalMeshSimulationComponent)
 {
+#if INCLUDE_CHAOS
 	return	SkeletalMeshSimulationComponent.ChaosSolverActor != nullptr ?
 		SkeletalMeshSimulationComponent.ChaosSolverActor->GetSolver() :
 		SkeletalMeshSimulationComponent.GetOwner()->GetWorld()->PhysicsScene_Chaos->GetSolver();
+#else
+	return nullptr;
+#endif
 }
-#endif // INCLUDE_CHAOS
 
 void USkeletalMeshSimulationComponent::OnCreatePhysicsState()
 {
 	// Skip the chain - don't care about body instance setup
 	UActorComponent::OnCreatePhysicsState();
 
-#if INCLUDE_CHAOS
 	const bool bValidWorld = GetWorld() && GetWorld()->IsGameWorld();
 
 	AActor* OwningActor = GetOwner();
@@ -174,14 +169,12 @@ void USkeletalMeshSimulationComponent::OnCreatePhysicsState()
 			}
 		}
 	}
-#endif // INCLUDE_CHAOS
 }
 
 void USkeletalMeshSimulationComponent::OnDestroyPhysicsState()
 {
 	UActorComponent::OnDestroyPhysicsState();
 
-#if INCLUDE_CHAOS
 	if (PhysicsProxy)
 	{
 		// Remove our tick dependency on the Skeletal Mesh component.
@@ -196,7 +189,6 @@ void USkeletalMeshSimulationComponent::OnDestroyPhysicsState()
 		// Discard the pointer, the scene will handle destroying it
 		PhysicsProxy = nullptr;
 	}
-#endif // INCLUDE_CHAOS
 }
 
 bool USkeletalMeshSimulationComponent::ShouldCreatePhysicsState() const
@@ -206,14 +198,9 @@ bool USkeletalMeshSimulationComponent::ShouldCreatePhysicsState() const
 
 bool USkeletalMeshSimulationComponent::HasValidPhysicsState() const
 {
-#if INCLUDE_CHAOS
 	return PhysicsProxy != nullptr;
-#else // INCLUDE_CHAOS
-	return false;
-#endif // INCLUDE_CHAOS
 }
 
-#if INCLUDE_CHAOS
 const TSharedPtr<FPhysScene_Chaos> USkeletalMeshSimulationComponent::GetPhysicsScene() const
 {
 	if (ChaosSolverActor)
@@ -222,10 +209,13 @@ const TSharedPtr<FPhysScene_Chaos> USkeletalMeshSimulationComponent::GetPhysicsS
 	}
 	else
 	{
+#if INCLUDE_CHAOS
 		return GetOwner()->GetWorld()->PhysicsScene_Chaos;
+#else
+		return nullptr;
+#endif
 	}
 }
-#endif // INCLUDE_CHAOS
 
 void USkeletalMeshSimulationComponent::DispatchChaosPhysicsCollisionBlueprintEvents(const FChaosPhysicsCollisionInfo& CollisionInfo)
 {
@@ -237,7 +227,6 @@ void USkeletalMeshSimulationComponent::TickComponent(float DeltaTime, enum ELeve
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-#if INCLUDE_CHAOS
 	if (DeltaTime < 1.0e-5f)
 	{
 		return;
@@ -264,6 +253,5 @@ void USkeletalMeshSimulationComponent::TickComponent(float DeltaTime, enum ELeve
 	case ELevelTick::LEVELTICK_PauseTick: // 3
 		break;
 	};
-#endif // INCLUDE_CHAOS
 }
 

@@ -249,6 +249,7 @@ private:
 	void ImportVertexColors();
 	void SavePaintedAssets();
 	void SaveModifiedTextures();
+	void Cleanup();
 protected:	
 	/** Texture paint state */
 	/** Textures eligible for painting retrieved from the current selection */

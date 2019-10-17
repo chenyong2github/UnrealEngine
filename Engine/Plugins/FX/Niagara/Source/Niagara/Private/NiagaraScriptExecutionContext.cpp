@@ -454,7 +454,9 @@ void FNiagaraComputeExecutionContext::Reset(NiagaraEmitterInstanceBatcher* Batch
 
 void FNiagaraComputeExecutionContext::InitParams(UNiagaraScript* InGPUComputeScript, ENiagaraSimTarget InSimTarget, const FString& InDebugSimName, const int32 InMaxUpdateIterations, const TSet<uint32> InSpawnStages)
 {
+#if !UE_BUILD_SHIPPING
 	DebugSimName = InDebugSimName;
+#endif
 	GPUScript = InGPUComputeScript;
 	CombinedParamStore.InitFromOwningContext(InGPUComputeScript, InSimTarget, true);
 	MaxUpdateIterations = InMaxUpdateIterations;

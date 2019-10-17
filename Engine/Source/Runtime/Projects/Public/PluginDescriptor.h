@@ -67,6 +67,9 @@ struct PROJECTS_API FPluginDescriptor
 	/** List of programs that are supported by this plugin. */
 	TArray<FString> SupportedPrograms;
 
+	/** If specified, this is the real plugin that this one is just extending */
+	FString ParentPluginName;
+
 	/** List of all modules associated with this plugin */
 	TArray<FModuleDescriptor> Modules;
 

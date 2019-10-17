@@ -12,7 +12,6 @@
 #include "UObject/ScriptMacros.h"
 #include "Interfaces/Interface_AssetUserData.h"
 #include "RenderCommandFence.h"
-#include "Templates/ScopedPointer.h"
 #include "Components.h"
 #include "Interfaces/Interface_CollisionDataProvider.h"
 #include "Engine/MeshMerging.h"
@@ -29,6 +28,7 @@ class FSpeedTreeWind;
 class UAssetUserData;
 class UMaterialInterface;
 class UNavCollisionBase;
+class UStaticMeshComponent;
 class UStaticMeshDescription;
 class FStaticMeshUpdate;
 struct FMeshDescription;
@@ -377,7 +377,7 @@ struct FAssetEditorOrbitCameraPosition
 #if WITH_EDITOR
 /** delegate type for pre mesh build events */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnPreMeshBuild, class UStaticMesh*);
-/** delegate type for pre mesh build events */
+/** delegate type for post mesh build events */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnPostMeshBuild, class UStaticMesh*);
 #endif
 
@@ -793,7 +793,35 @@ public:
 	ENGINE_API bool IsMeshDescriptionValid(int32 LodIndex) const;
 	ENGINE_API FMeshDescription* CreateMeshDescription(int32 LodIndex);
 	ENGINE_API FMeshDescription* CreateMeshDescription(int32 LodIndex, FMeshDescription MeshDescription);
-	ENGINE_API void CommitMeshDescription(int32 LodIndex);
+
+	/** Structure that defines parameters passed into the commit mesh description function */
+	struct FCommitMeshDescriptionParams
+	{
+		FCommitMeshDescriptionParams()
+			: bMarkPackageDirty(true)
+			, bUseHashAsGuid(false)
+		{}
+
+		/**
+		 * If set to false, the caller can be from any thread but will have the
+		 * responsability to call MarkPackageDirty() from the main thread.
+		 */
+		bool bMarkPackageDirty;
+
+		/**
+		 * Uses a hash as the GUID, useful to prevent recomputing content already in cache.
+		 */
+		bool bUseHashAsGuid;
+	};
+
+	/*
+	 * Serialize the mesh description into its more optimized form.
+	 *
+	 * @param	LodIndex	Index of the StaticMesh LOD.
+	 * @param	Params		Different options to use when committing mesh description
+	 */
+	ENGINE_API void CommitMeshDescription(int32 LodIndex, const FCommitMeshDescriptionParams& Params = FCommitMeshDescriptionParams());
+
 	ENGINE_API void ClearMeshDescription(int32 LodIndex);
 	ENGINE_API void ClearMeshDescriptions();
 
@@ -963,9 +991,19 @@ public:
 
 	/**
 	 * Rebuilds renderable data for this static mesh.
-	 * @param bSilent - If true will not popup a progress dialog.
+	 * @param		bInSilent	If true will not popup a progress dialog.
+	 * @param [out]	OutErrors	If provided, will contain the errors that occurred during this process.
 	 */
-	ENGINE_API void Build(bool bSilent = false, TArray<FText>* OutErrors = nullptr);
+	ENGINE_API void Build(bool bInSilent = false, TArray<FText>* OutErrors = nullptr);
+
+	/**
+	 * Rebuilds renderable data for a batch of static meshes.
+	 * @param		InStaticMeshes		The list of all static meshes to build.
+	 * @param		bInSilent			If true will not popup a progress dialog.
+	 * @param		InProgressCallback	If provided, will be used to abort task and report progress to higher level functions (should return true to continue, false to abort).
+	 * @param [out]	OutErrors			If provided, will contain the errors that occurred during this process.
+	 */
+	ENGINE_API static void BatchBuild(const TArray<UStaticMesh*>& InStaticMeshes, bool bInSilent = false, TFunction<bool(UStaticMesh*)> InProgressCallback = nullptr, TArray<FText>* OutErrors = nullptr);
 
 	/**
 	 * Initialize the static mesh's render resources.
@@ -1241,6 +1279,26 @@ private:
 	* Caches mesh data.
 	*/
 	void CacheMeshData();
+	
+	/**
+	 * Verify if the static mesh can be built.
+	 */
+	bool CanBuild() const;
+
+	/**
+	 * Initial step for the static mesh building process - Can't be done in parallel.
+	 */
+	void PreBuildInternal();
+
+	/**
+	 * Build the static mesh
+	 */
+	bool BuildInternal(bool bSilent, TArray<FText>* OutErrors);
+
+	/**
+	 * Complete the static mesh building process - Can't be done in parallel.
+	 */
+	void PostBuildInternal(const TArray<UStaticMeshComponent*>& InAffectedComponents, bool bHasRenderDataChanged);
 
 public:
 	/**

@@ -8,7 +8,6 @@
 #include "ProfilingDebugging/CookStats.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "Misc/ScopeLock.h"
-#include "Templates/ScopedPointer.h"
 
 class Error;
 

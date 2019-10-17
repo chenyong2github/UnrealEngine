@@ -436,7 +436,7 @@ public:
 	float ComponentScreenSizeToUseSubSections;
 
 	/** This is the starting screen size used to calculate the distribution, by default it's 1, but you can increase the value if you want less LOD0 component, and you use very large landscape component. */
-	UPROPERTY(EditAnywhere, Category = "LOD Distribution", meta = (DisplayName = "LOD 0 Screen Size", ClampMin = "1.0", ClampMax = "10.0", UIMin = "1.0", UIMax = "10.0"))
+	UPROPERTY(EditAnywhere, Category = "LOD Distribution", meta = (DisplayName = "LOD 0 Screen Size", ClampMin = "0.1", ClampMax = "10.0", UIMin = "1.0", UIMax = "10.0"))
 	float LOD0ScreenSize;
 
 	/** The distribution setting used to change the LOD 0 generation, 1.75 is the normal distribution, numbers influence directly the LOD0 proportion on screen. */
@@ -841,6 +841,9 @@ public:
 	LANDSCAPE_API void InvalidateGeneratedComponentData();
 
 #if WITH_EDITOR
+	/** Update Grass maps */
+	void UpdateGrassData();
+
 	/** Render grass maps for the specified components */
 	void RenderGrassMaps(const TArray<ULandscapeComponent*>& LandscapeComponents, const TArray<ULandscapeGrassType*>& GrassTypes);
 
@@ -870,6 +873,9 @@ public:
 
 	LANDSCAPE_API ULandscapeInfo* CreateLandscapeInfo();
 	LANDSCAPE_API ULandscapeInfo* GetLandscapeInfo() const;
+
+	/** Get the LandcapeActor-to-world transform with respect to landscape section offset*/
+	LANDSCAPE_API FTransform LandscapeActorToWorld() const;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -903,10 +909,7 @@ public:
 
 	// Assign only mismatching data and mark proxy package dirty
 	LANDSCAPE_API void FixupSharedData(ALandscape* Landscape);
-	
-	/** Get the LandcapeActor-to-world transform with respect to landscape section offset*/
-	LANDSCAPE_API FTransform LandscapeActorToWorld() const;
-	
+
 	/** Set landscape absolute location in section space */
 	LANDSCAPE_API void SetAbsoluteSectionBase(FIntPoint SectionOffset);
 	
@@ -1058,6 +1061,10 @@ protected:
 private:
 	/** Returns Grass Update interval */
 	int32 GetGrassUpdateInterval() const;
+
+#if WITH_EDITOR
+	void UpdateGrassDataStatus(TSet<UTexture2D*>& OutCurrentForcedStreamedTextures, TSet<UTexture2D*>* OutDesiredForcedStreamedTextures, TSet<ULandscapeComponent*>& OutComponentsNeedingGrassMapRender, TSet<ULandscapeComponent*>* OutOutdatedComponents, bool bInEnableForceResidentFlag);
+#endif
 
 #if WITH_EDITORONLY_DATA
 public:

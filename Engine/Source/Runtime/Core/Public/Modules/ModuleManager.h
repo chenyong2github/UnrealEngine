@@ -498,6 +498,9 @@ private:
 		/** True if this module was unloaded at shutdown time, and we never want it to be loaded again */
 		bool bWasUnloadedAtShutdown;
 
+		/** True if this module is full loaded and ready to be used */
+		TAtomic<bool> bIsReady;
+
 		/** Arbitrary number that encodes the load order of this module, so we can shut them down in reverse order. */
 		int32 LoadOrder;
 
@@ -510,6 +513,7 @@ private:
 		FModuleInfo()
 			: Handle(nullptr)
 			, bWasUnloadedAtShutdown(false)
+			, bIsReady(false)
 			, LoadOrder(CurrentLoadOrder++)
 		{ }
 

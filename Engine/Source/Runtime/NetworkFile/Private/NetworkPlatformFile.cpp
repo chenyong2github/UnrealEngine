@@ -1,7 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "NetworkPlatformFile.h"
-#include "Templates/ScopedPointer.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopedEvent.h"
@@ -17,7 +16,9 @@
 #include "DerivedDataCacheInterface.h"
 #include "Misc/PackageName.h"
 
+#if ENABLE_HTTP_FOR_NETWORK_FILE
 #include "HTTPTransport.h"
+#endif
 #include "TCPTransport.h"
 
 #include "HAL/IPlatformFileModule.h"
@@ -74,7 +75,7 @@ ITransport *CreateTransportForHostAddress(const FString &HostIp )
 
 	if ( HostIp.StartsWith(TEXT("http://")))
 	{
-#if ENABLE_HTTP_FOR_NF
+#if ENABLE_HTTP_FOR_NETWORK_FILE
 		return new FHTTPTransport();
 #endif
 	}

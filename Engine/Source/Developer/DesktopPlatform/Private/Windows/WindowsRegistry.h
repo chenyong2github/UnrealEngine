@@ -6,7 +6,6 @@
 #include "Containers/Array.h"
 #include "Containers/Map.h"
 #include "Containers/UnrealString.h"
-#include "Templates/ScopedPointer.h"
 #include "Windows/WindowsHWrapper.h"
 #include "Templates/UniquePtr.h"
 

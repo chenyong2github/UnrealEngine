@@ -128,7 +128,7 @@ static void AsyncSafeProgramCounterToSymbolInfo( uint64 ProgramCounter, FProgram
 	}
 #else // But on iOS the best we can do is demangle
 	int32 Status = 0;
-	ANSICHAR* DemangledName = NULL;
+	ANSICHAR* DemangledName = nullptr;
 	
 	// Increased the size of the demangle destination to reduce the chances that abi::__cxa_demangle will allocate
 	// this causes the app to hang as malloc isn't signal handler safe. Ideally we wouldn't call this function in a handler.
@@ -180,7 +180,7 @@ uint32 FApplePlatformStackWalk::CaptureStackBackTrace( uint64* BackTrace, uint32
 {
 	// Make sure we have place to store the information before we go through the process of raising
 	// an exception and handling it.
-	if( BackTrace == NULL || MaxDepth == 0 )
+	if( BackTrace == nullptr || MaxDepth == 0 )
 	{
 		return 0;
 	}

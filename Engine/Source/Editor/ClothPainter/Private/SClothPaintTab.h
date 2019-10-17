@@ -4,7 +4,7 @@
 
 #include "Toolkits/AssetEditorToolkit.h"
 
-class UClothingAsset;
+class UClothingAssetCommon;
 class SClothPaintWidget;
 class SClothAssetSelector;
 class IDetailsView;
@@ -38,7 +38,7 @@ protected:
 	void UpdatePaintTools();
 
 	/** Called from the selector when the asset selection changes (Asset, LOD, Mask) */
-	void OnAssetSelectionChanged(TWeakObjectPtr<UClothingAsset> InAssetPtr, int32 InLodIndex, int32 InMaskIndex);
+	void OnAssetSelectionChanged(TWeakObjectPtr<UClothingAssetCommon> InAssetPtr, int32 InLodIndex, int32 InMaskIndex);
 
 	/** Whether or not the asset config section is enabled for editing */
 	bool IsAssetDetailsPanelEnabled();

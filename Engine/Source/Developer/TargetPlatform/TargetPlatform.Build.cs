@@ -58,7 +58,6 @@ public class TargetPlatform : ModuleRules
 					DynamicallyLoadedModuleNames.Add("AndroidTargetPlatform");
 					DynamicallyLoadedModuleNames.Add("IOSTargetPlatform");
 					DynamicallyLoadedModuleNames.Add("TVOSTargetPlatform");
-					DynamicallyLoadedModuleNames.Add("HTML5TargetPlatform");
 					DynamicallyLoadedModuleNames.Add("MacTargetPlatform");
 					DynamicallyLoadedModuleNames.Add("MacNoEditorTargetPlatform");
 					DynamicallyLoadedModuleNames.Add("MacServerTargetPlatform");
@@ -85,7 +84,6 @@ public class TargetPlatform : ModuleRules
 					DynamicallyLoadedModuleNames.Add("AndroidTargetPlatform");
 					DynamicallyLoadedModuleNames.Add("IOSTargetPlatform");
 					DynamicallyLoadedModuleNames.Add("TVOSTargetPlatform");
-					DynamicallyLoadedModuleNames.Add("HTML5TargetPlatform");
 				}
 			}
 			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
@@ -106,7 +104,6 @@ public class TargetPlatform : ModuleRules
 				if (Target.Type == TargetType.Editor || Target.Type == TargetType.Program)
 				{
 					DynamicallyLoadedModuleNames.Add("AndroidTargetPlatform");
-					DynamicallyLoadedModuleNames.Add("HTML5TargetPlatform");
 				}
 			}
 		}

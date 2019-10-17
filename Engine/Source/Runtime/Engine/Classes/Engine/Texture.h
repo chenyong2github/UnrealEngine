@@ -509,6 +509,7 @@ struct FTextureFormatSettings
 		: CompressionSettings(TC_Default)
 		, CompressionNoAlpha(false)
 		, CompressionNone(false)
+		, CompressionYCoCg(false)
 		, SRGB(false)
 	{}
 
@@ -520,6 +521,9 @@ struct FTextureFormatSettings
 
 	UPROPERTY()
 	uint8 CompressionNone : 1;
+
+	UPROPERTY()
+	uint8 CompressionYCoCg : 1;
 
 	UPROPERTY()
 	uint8 SRGB : 1;
@@ -724,6 +728,10 @@ public:
 	/** Is this texture streamed in using VT								*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Texture, AssetRegistrySearchable, AdvancedDisplay)
 	uint8 VirtualTextureStreaming : 1;
+
+	/** If true the texture stores YCoCg. Blue channel will be filled with a precision scale during compression. */
+	UPROPERTY()
+	uint8 CompressionYCoCg : 1;
 
 private:
 	/** Whether the async resource release process has already been kicked off or not */

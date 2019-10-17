@@ -376,6 +376,32 @@ public:
 				EUserInterfaceActionType::ToggleButton
 			);
 
+			// Toggle unrelated timeline sync
+			ToolbarBuilder.AddToolBarButton(
+				FUIAction(
+					FExecuteAction::CreateLambda([SyncClient = WorkspaceFrontend->SyncClient]()
+					{
+						TSharedPtr<IConcertSyncClient> SyncClientPin = SyncClient.Pin();
+						if (SyncClientPin && SyncClientPin->GetSequencerManager())
+						{
+							IConcertClientSequencerManager* SequencerManager = SyncClientPin->GetSequencerManager();
+							SequencerManager->SetUnrelatedSequencerTimelineSync(!SequencerManager->IsUnrelatedSequencerTimelineSyncEnabled());
+						}
+					}),
+					FCanExecuteAction(),
+					FIsActionChecked::CreateLambda([SyncClient = WorkspaceFrontend->SyncClient]()
+					{
+						TSharedPtr<IConcertSyncClient> SyncClientPin = SyncClient.Pin();
+						return SyncClientPin.IsValid() && SyncClientPin->GetSequencerManager() && SyncClientPin->GetSequencerManager()->IsUnrelatedSequencerTimelineSyncEnabled();
+					})
+				),
+				NAME_None,
+				LOCTEXT("ToggleUnrelatedTimelineSyncLabel", "Unrelated Timeline Sync"),
+				LOCTEXT("ToggleUnrelatedTimelineSyncTooltip", "Toggle Multi-User Unrelated Timeline Sync. If the option is enabled, playback and scrubbing of Sequencer will be synchronized when receiving any other user time sync from any sequence."),
+				FSlateIcon(FConcertFrontendStyle::GetStyleSetName(), "Concert.Sequencer.SyncUnrelated", "Concert.Sequencer.SyncUnrelated.Small"),
+				EUserInterfaceActionType::ToggleButton
+			);
+
 			// Toggle remote open
 			ToolbarBuilder.AddToolBarButton(
 				FUIAction(
@@ -434,20 +460,16 @@ FConcertWorkspaceUI::FConcertWorkspaceUI()
 		SConcertWorkspaceModifiedByOtherIndicator::CacheIndicatorBrush();
 
 		// The 'lock' state icon displayed on top of the asset in the editor content browser.
-		ContentBrowserAssetLockStateIconDelegateHandle = ContentBrowserModule->GetAllAssetViewExtraStateIconGenerators()
-			.Add_GetRef(FOnGenerateAssetViewExtraStateIndicators::CreateRaw(this, &FConcertWorkspaceUI::OnGenerateAssetViewLockStateIcons)).GetHandle();
-
-		// The 'Lock' state tooltip displayed when hovering the corresponding icon.
-		ContentBrowserAssetLockStateTooltipDelegateHandle = ContentBrowserModule->GetAllAssetViewExtraStateTooltipGenerators()
-			.Add_GetRef(FOnGenerateAssetViewExtraStateIndicators::CreateRaw(this, &FConcertWorkspaceUI::OnGenerateAssetViewLockStateTooltip)).GetHandle();
+		ContentBrowserAssetExtraStateDelegateHandles.Emplace(ContentBrowserModule->AddAssetViewExtraStateGenerator(FAssetViewExtraStateGenerator(
+			FOnGenerateAssetViewExtraStateIndicators::CreateRaw(this, &FConcertWorkspaceUI::OnGenerateAssetViewLockStateIcons),
+			FOnGenerateAssetViewExtraStateIndicators::CreateRaw(this, &FConcertWorkspaceUI::OnGenerateAssetViewLockStateTooltip)
+		)));
 
 		// The 'Modified by other' icon displayed on top of the asset in the editor content browser.
-		ContentBrowserAssetModifiedByOtherIconDelegateHandle = ContentBrowserModule->GetAllAssetViewExtraStateIconGenerators()
-			.Add_GetRef(FOnGenerateAssetViewExtraStateIndicators::CreateRaw(this, &FConcertWorkspaceUI::OnGenerateAssetViewModifiedByOtherIcon)).GetHandle();
-
-		// The 'Modified by...' tooltip displayed when hovering the 'Modified by other' icon.
-		ContentBrowserAssetModifiedByOtherTooltipDelegateHandle = ContentBrowserModule->GetAllAssetViewExtraStateTooltipGenerators()
-			.Add_GetRef(FOnGenerateAssetViewExtraStateIndicators::CreateRaw(this, &FConcertWorkspaceUI::OnGenerateAssetViewModifiedByOtherTooltip)).GetHandle();
+		ContentBrowserAssetExtraStateDelegateHandles.Emplace(ContentBrowserModule->AddAssetViewExtraStateGenerator(FAssetViewExtraStateGenerator(
+			FOnGenerateAssetViewExtraStateIndicators::CreateRaw(this, &FConcertWorkspaceUI::OnGenerateAssetViewModifiedByOtherIcon),
+			FOnGenerateAssetViewExtraStateIndicators::CreateRaw(this, &FConcertWorkspaceUI::OnGenerateAssetViewModifiedByOtherTooltip)
+		)));
 	}
 
 	// Extend Sequencer toolbars
@@ -473,19 +495,16 @@ FConcertWorkspaceUI::~FConcertWorkspaceUI()
 {
 	// Remove Content Browser Asset Icon extensions
 	FContentBrowserModule* ContentBrowserModule = FModuleManager::Get().GetModulePtr<FContentBrowserModule>(TEXT("ContentBrowser"));
-	if (ContentBrowserAssetLockStateIconDelegateHandle.IsValid() && ContentBrowserModule)
+
+	if (ContentBrowserModule)
 	{
-		ContentBrowserModule->GetAllAssetViewExtraStateIconGenerators().RemoveAll([DelegateHandle = ContentBrowserAssetLockStateIconDelegateHandle](const FOnGenerateAssetViewExtraStateIndicators& Delegate) { return Delegate.GetHandle() == DelegateHandle; });
-		ContentBrowserAssetLockStateIconDelegateHandle.Reset();
-
-		ContentBrowserModule->GetAllAssetViewExtraStateTooltipGenerators().RemoveAll([DelegateHandle = ContentBrowserAssetLockStateTooltipDelegateHandle](const FOnGenerateAssetViewExtraStateIndicators& Delegate) { return Delegate.GetHandle() == DelegateHandle; });
-		ContentBrowserAssetLockStateTooltipDelegateHandle.Reset();
-
-		ContentBrowserModule->GetAllAssetViewExtraStateIconGenerators().RemoveAll([DelegateHandle = ContentBrowserAssetModifiedByOtherIconDelegateHandle](const FOnGenerateAssetViewExtraStateIndicators& Delegate) { return Delegate.GetHandle() == DelegateHandle; });
-		ContentBrowserAssetModifiedByOtherIconDelegateHandle.Reset();
-
-		ContentBrowserModule->GetAllAssetViewExtraStateTooltipGenerators().RemoveAll([DelegateHandle = ContentBrowserAssetModifiedByOtherTooltipDelegateHandle](const FOnGenerateAssetViewExtraStateIndicators& Delegate) { return Delegate.GetHandle() == DelegateHandle; });
-		ContentBrowserAssetModifiedByOtherTooltipDelegateHandle.Reset();
+		for (const FDelegateHandle& DelegateHandle : ContentBrowserAssetExtraStateDelegateHandles)
+		{
+			if (DelegateHandle.IsValid())
+			{
+				ContentBrowserModule->RemoveAssetViewExtraStateGenerator(DelegateHandle);
+			}
+		}
 	}
 
 	// Remove Sequencer preinit hooks for toolbar extenders
@@ -826,7 +845,7 @@ TSharedRef<FExtender> FConcertWorkspaceUI::OnExtendContentBrowserAssetSelectionM
 						FText(),
 						FNewMenuDelegate::CreateSP(PinThis.Get(), &FConcertWorkspaceUI::GenerateConcertAssetContextMenu, MoveTemp(AssetObjectPaths)),
 						false,
-						FSlateIcon(FConcertFrontendStyle::GetStyleSetName(), "Concert.Concert")
+						FSlateIcon(FConcertFrontendStyle::GetStyleSetName(), "Concert.MultiUser")
 					);
 				}
 			}));

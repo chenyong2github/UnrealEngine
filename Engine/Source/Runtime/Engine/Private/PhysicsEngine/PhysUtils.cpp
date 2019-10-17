@@ -16,6 +16,9 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "Physics/PhysicsInterfaceCore.h"
 #include "PhysXSupportCore.h"
+#include "PhysicsSolver.h"
+#include "Chaos/PBDRigidsEvolutionGBF.h"
+#include "Chaos/ChaosArchive.h"
 
 /** Returns false if ModelToHulls operation should halt because of vertex count overflow. */
 static bool AddConvexPrim(FKAggregateGeom* OutGeom, TArray<FPlane> &Planes, UModel* InModel)
@@ -468,8 +471,44 @@ bool FPhysScene::ExecApexVis(const TCHAR* Cmd, FOutputDevice* Ar)
 
 
 #if WITH_CHAOS
-bool FPhysicsInterface::ExecPhysCommands(const TCHAR* Cmd, FOutputDevice* Ar, UWorld* InWorld)
+bool FPhysicsInterface::ExecPhysCommands(const TCHAR* Cmd, FOutputDevice* OutputDevice, UWorld* InWorld)
 {
+
+#if CHAOS_MEMORY_TRACKING
+	if (FParse::Command(&Cmd, TEXT("ChaosMemoryDistribution")))
+	{
+		//
+		// NOTE: This is an awful, awful way to do this.
+		//
+
+		// Make an archive and serialze the whole scene.
+		// TODO: Don't do this!
+		FArchive BaseAr;
+		BaseAr.SetIsLoading(false);
+		BaseAr.SetIsSaving(true);
+		Chaos::FChaosArchive Ar(BaseAr);
+		FPhysScene* PhysScene = InWorld->GetPhysicsScene();
+		Chaos::FPhysicsSolver* Solver = PhysScene->GetSolver();
+		Chaos::TPBDRigidsEvolutionGBF<float, 3>* Evolution = Solver->GetEvolution();
+		Evolution->Serialize(Ar);
+		TUniquePtr<Chaos::FChaosArchiveContext> ArchiveContext = Ar.StealContext();
+
+		// Grab the memory tracking map from the archive context
+		const TMap<FName, Chaos::FChaosArchiveSectionData>& MemoryMap = ArchiveContext->SectionMap;
+
+		OutputDevice->Logf(TEXT("Chaos serialized memory distribution:"));
+		int64 TotalBytes = 0;
+		for (auto It : MemoryMap)
+		{
+			const FName SectionName = It.Key;
+			const Chaos::FChaosArchiveSectionData SectionData = It.Value;
+			TotalBytes += SectionData.SizeExclusive;
+			OutputDevice->Logf(TEXT("%s ~ count: %d, bytes: %d, megabytes: %f"), *SectionName.ToString(), SectionData.Count, SectionData.SizeExclusive, (float)SectionData.SizeExclusive * 10e-7f);
+		}
+		OutputDevice->Logf(TEXT("Total bytes: %d, megabytes: %f"), TotalBytes, (float)TotalBytes * 10e-7f);
+	}
+#endif
+
     return false;
 }
 #else

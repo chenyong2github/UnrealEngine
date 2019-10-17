@@ -169,10 +169,17 @@ void FPrimaryCrashProperties::UpdateIDs()
 	LoginId = FPlatformMisc::GetLoginId();
 }
 
-void FPrimaryCrashProperties::ReadXML( const FString& CrashContextFilepath  )
+void FPrimaryCrashProperties::ReadXML( const FString& CrashContextFilepath, const TCHAR* Buffer  )
 {
 	XmlFilepath = CrashContextFilepath;
-	XmlFile = new FXmlFile( XmlFilepath );
+	if (Buffer)
+	{
+		XmlFile = new FXmlFile(Buffer, EConstructMethod::ConstructFromBuffer);
+	}
+	else
+	{
+		XmlFile = new FXmlFile(XmlFilepath);
+	}
 	if (XmlFile->IsValid())
 	{
 		TimeOfCrash = FDateTime::UtcNow().GetTicks();
@@ -446,10 +453,20 @@ void FPrimaryCrashProperties::Save()
 	FCrashContextReader
 -----------------------------------------------------------------------------*/
 
-FCrashContext::FCrashContext( const FString& CrashContextFilepath )
+FCrashContext::FCrashContext(const FString& CrashContextFilePath, const TCHAR* Buffer)
 {
-	ReadXML( CrashContextFilepath );
+	ReadXML(CrashContextFilePath, Buffer);
+	SetupPrimaryCrashProperties();
+}
 
+FCrashContext::FCrashContext(const FString& CrashContextFilepath)
+{
+	ReadXML(CrashContextFilepath);
+	SetupPrimaryCrashProperties();
+}
+
+void FCrashContext::SetupPrimaryCrashProperties() 
+{
 	const bool bIsValid = XmlFile->IsValid();
 	if (bIsValid)
 	{

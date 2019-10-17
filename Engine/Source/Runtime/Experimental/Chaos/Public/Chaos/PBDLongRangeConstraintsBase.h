@@ -3,7 +3,6 @@
 
 #include "Chaos/Array.h"
 #include "Chaos/PBDParticles.h"
-#include "Chaos/PerParticleRule.h"
 #include "Containers/Map.h"
 #include "Containers/Set.h"
 

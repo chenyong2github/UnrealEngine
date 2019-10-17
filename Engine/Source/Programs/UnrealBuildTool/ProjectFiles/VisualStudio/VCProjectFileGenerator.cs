@@ -486,6 +486,8 @@ namespace UnrealBuildTool
 						};
 					GatherFoldersFunction(RootFolder.SubFolders);
 
+					AllSolutionFolders.Sort((Lhs, Rhs) => Lhs.FolderName.CompareTo(Rhs.FolderName));
+
 					foreach (VisualStudioSolutionFolder CurFolder in AllSolutionFolders)
 					{
 						string FolderGUIDString = CurFolder.FolderGUID.ToString("B").ToUpperInvariant();
@@ -509,6 +511,7 @@ namespace UnrealBuildTool
 
 
 				// Project files
+				List<MSBuildProjectFile> AllProjectFilesSorted = AllProjectFiles.OrderBy((ProjFile) => ProjFile.ProjectFilePath.GetFileNameWithoutExtension()).Cast<MSBuildProjectFile>().ToList();
 				foreach (MSBuildProjectFile CurProject in AllProjectFiles)
 				{
 					// Visual Studio uses different GUID types depending on the project type

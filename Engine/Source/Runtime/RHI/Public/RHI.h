@@ -127,6 +127,9 @@ RHI_API bool RHISupportsIndexBufferUAVs(const EShaderPlatform Platform);
 // helper to check if a preview feature level has been requested.
 RHI_API bool RHIGetPreviewFeatureLevel(ERHIFeatureLevel::Type& PreviewFeatureLevelOUT);
 
+// helper to check if preferred EPixelFormat is supported, return one if it is not
+RHI_API EPixelFormat RHIPreferredPixelFormatHint(EPixelFormat PreferredPixelFormat);
+
 inline bool RHISupportsInstancedStereo(const EShaderPlatform Platform)
 {
 	// Only D3D SM5, PS4 and Metal SM5 supports Instanced Stereo
@@ -216,7 +219,6 @@ inline RHI_API bool RHISupportsWaveOperations(EShaderPlatform Platform)
 	// Currently SM6 shaders are treated as an extension of SM5.
 	return Platform == SP_PCD3D_SM5;
 }
-
 
 // Wrapper for GRHI## global variables, allows values to be overridden for mobile preview modes.
 template <typename TValueType>
@@ -352,6 +354,9 @@ extern RHI_API bool GSupportsDepthBoundsTest;
 /** True if the RHI and current hardware support a render target write mask */
 extern RHI_API bool GSupportsRenderTargetWriteMask;
 
+/** True if the RHI supports depth target unordered access views. */
+extern RHI_API bool GRHISupportsDepthUAV;
+
 /** True if the RHI and current hardware supports efficient AsyncCompute (by default we assume false and later we can enable this for more hardware) */
 extern RHI_API bool GSupportsEfficientAsyncCompute;
 
@@ -366,6 +371,9 @@ extern RHI_API bool GSupportsTransientResourceAliasing;
 
 /** true if the RHI requires a valid RT bound during UAV scatter operation inside the pixel shader */
 extern RHI_API bool GRHIRequiresRenderTargetForPixelShaderUAVs;
+
+/** true if the RHI supports unordered access view format aliasing */
+extern RHI_API bool GRHISupportsUAVFormatAliasing;
 
 /** The minimum Z value in clip space for the RHI. */
 extern RHI_API float GMinClipZ;
@@ -1628,11 +1636,8 @@ struct FTextureMemoryStats
 
 	bool AreHardwareStatsValid() const
 	{
-#if !PLATFORM_HTML5 // TODO: should this be tested with GRHISupportsRHIThread instead? -- seems this would be better done in SynthBenchmarkPrivate.cpp
-		return (DedicatedVideoMemory >= 0 && DedicatedSystemMemory >= 0 && SharedSystemMemory >= 0);
-#else
-		return false;
-#endif
+		// pardon the redundancy, have a broken compiler (__EMSCRIPTEN__) that needs these types spelled out...
+		return ((int64)DedicatedVideoMemory >= 0 && (int64)DedicatedSystemMemory >= 0 && (int64)SharedSystemMemory >= 0);
 	}
 
 	bool IsUsingLimitedPoolSize() const

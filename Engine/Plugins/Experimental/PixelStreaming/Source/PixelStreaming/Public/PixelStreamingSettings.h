@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
 #include "InputCoreTypes.h"
+
 #include "PixelStreamingSettings.generated.h"
 
 UCLASS(config = PixelStreaming, defaultconfig, meta = (DisplayName = "PixelStreaming"))
@@ -14,11 +15,14 @@ class PIXELSTREAMING_API UPixelStreamingSettings : public UDeveloperSettings
 
 public:
 	/**
-	* Pixel streaming always requires a default software cursor as it needs to
-	* be shown on the browser to allow the user to click UI elements.
-	*/
+	 * Pixel streaming always requires various software cursors so they will be
+	 * visible in the video stream sent to the browser to allow the user to
+	 * click and interact with UI elements.
+	 */
 	UPROPERTY(config, EditAnywhere, Category = PixelStreaming)
-	FSoftClassPath PixelStreamingDefaultCursorClassName;
+	FSoftClassPath PixelStreamerDefaultCursorClassName;
+	UPROPERTY(config, EditAnywhere, Category = PixelStreaming)
+	FSoftClassPath PixelStreamerTextEditBeamCursorClassName;
 
 	// Begin UDeveloperSettings Interface
 	virtual FName GetCategoryName() const override;

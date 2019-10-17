@@ -1,7 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "ProfilerManager.h"
-#include "Templates/ScopedPointer.h"
 #include "Modules/ModuleManager.h"
 #include "IProfilerClientModule.h"
 #include "Stats/StatsFile.h"

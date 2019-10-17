@@ -534,6 +534,15 @@ struct FNetDeltaSerializeInfo
 	FString DebugName;
 };
 
+struct FEncryptionData
+{
+	/** Encryption key */
+	TArray<uint8> Key;
+	/** Encryption fingerprint */
+	TArray<uint8> Fingerprint;
+	/** Encryption identifier */
+	FString Identifier;
+};
 
 /**
  * Checksum macros for verifying archives stay in sync

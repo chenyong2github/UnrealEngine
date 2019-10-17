@@ -944,7 +944,7 @@ struct FMath : public FPlatformMath
 	static CORE_API FVector VInterpNormalRotationTo(const FVector& Current, const FVector& Target, float DeltaTime, float RotationSpeedDegrees);
 
 	/** Interpolate vector from Current to Target with constant step */
-	static CORE_API FVector VInterpConstantTo(const FVector Current, const FVector& Target, float DeltaTime, float InterpSpeed);
+	static CORE_API FVector VInterpConstantTo(const FVector& Current, const FVector& Target, float DeltaTime, float InterpSpeed);
 
 	/** Interpolate vector from Current to Target. Scaled by distance to Target, so it has a strong start speed and ease out. */
 	static CORE_API FVector VInterpTo( const FVector& Current, const FVector& Target, float DeltaTime, float InterpSpeed );

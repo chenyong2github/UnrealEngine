@@ -116,11 +116,11 @@ enum EPackageFlags
 //	PKG_Unused						= 0x00001000,
 //	PKG_Unused						= 0x00002000,
 	PKG_ContainsMapData				= 0x00004000,   ///< Contains map data (UObjects only referenced by a single ULevel) but is stored in a different package
-	PKG_Need						= 0x00008000,	///< Client needs to download this package.
+//	PKG_Unused						= 0x00008000,
 	PKG_Compiling					= 0x00010000,	///< package is currently being compiled
 	PKG_ContainsMap					= 0x00020000,	///< Set if the package contains a ULevel/ UWorld object
 	PKG_RequiresLocalizationGather	= 0x00040000,	///< Set if the package contains any data to be gathered by localization
-	PKG_DisallowLazyLoading			= 0x00080000,	///< Set if the archive serializing this package cannot use lazy loading
+//	PKG_Unused						= 0x00080000,
 	PKG_PlayInEditor				= 0x00100000,	///< Set if the package was created for the purpose of PIE
 	PKG_ContainsScript				= 0x00200000,	///< Package is allowed to contain UClass objects
 	PKG_DisallowExport				= 0x00400000,	///< Editor should not export asset in this package
@@ -1420,7 +1420,7 @@ namespace UM
 	}
 
 #define IMPLEMENT_FARCHIVE_SERIALIZER( TClass ) void TClass::Serialize(FArchive& Ar) { TClass::Serialize(FStructuredArchiveFromArchive(Ar).GetSlot().EnterRecord()); }
-#define IMPLEMENT_FSTRUCTUREDARCHIVE_SERIALIZER( TClass ) void TClass::Serialize(FStructuredArchive::FRecord Record) { FArchiveUObjectFromStructuredArchive Ar(Record.EnterField(FIELD_NAME_TEXT("BaseClassAutoGen"))); TClass::Serialize(Ar); }
+#define IMPLEMENT_FSTRUCTUREDARCHIVE_SERIALIZER( TClass ) void TClass::Serialize(FStructuredArchive::FRecord Record) { FArchiveUObjectFromStructuredArchive Ar(Record.EnterField(SA_FIELD_NAME(TEXT("BaseClassAutoGen")))); TClass::Serialize(Ar.GetArchive()); Ar.Close(); }
 #define DECLARE_FARCHIVE_SERIALIZER( TClass, API ) virtual API void Serialize(FArchive& Ar) override;
 #define DECLARE_FSTRUCTUREDARCHIVE_SERIALIZER( TClass, API ) virtual API void Serialize(FStructuredArchive::FRecord Record) override;
 

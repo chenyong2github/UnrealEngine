@@ -3,41 +3,16 @@
 #pragma once 
 
 #include "Factories/SceneImportFactory.h"
-#include "USDImporter.h"
 #include "Editor/EditorEngine.h"
 #include "Factories/ImportSettings.h"
+#include "USDImporter.h"
+
 #include "USDSceneImportFactory.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogUSDSceneImport, Log, All);
 
+class UUSDSceneImportOptions;
 class UWorld;
-
-USTRUCT()
-struct FUSDSceneImportContext : public FUsdImportContext
-{
-	GENERATED_USTRUCT_BODY()
-
-	UPROPERTY()
-	UWorld* World;
-
-	UPROPERTY()
-	TMap<FName, AActor*> ExistingActors;
-
-	UPROPERTY()
-	TArray<FName> ActorsToDestroy;
-
-	UPROPERTY()
-	class UActorFactory* EmptyActorFactory;
-
-	UPROPERTY()
-	TMap<UClass*, UActorFactory*> UsedFactories;
-
-	FCachedActorLabels ActorLabels;
-
-#if USE_USD_SDK
-	virtual void Init(UObject* InParent, const FString& InName, const TUsdStore< pxr::UsdStageRefPtr >& InStage);
-#endif // #if USE_USD_SDK
-};
 
 
 UCLASS(transient)
@@ -54,13 +29,7 @@ public:
 
 	// IImportSettingsParser interface
 	virtual void ParseFromJson(TSharedRef<class FJsonObject> ImportSettingsJson) override;
-private:
-#if USE_USD_SDK
-	void GenerateSpawnables(TArray<FActorSpawnData>& OutRootSpawnData, int32& OutTotalNumSpawnables);
-	void RemoveExistingActors();
-	void SpawnActors(const TArray<FActorSpawnData>& SpawnDatas, FScopedSlowTask& SlowTask);
-	void OnActorSpawned(AActor* SpawnedActor, const FActorSpawnData& SpawnData);
-#endif // #if USE_USD_SDK
+
 private:
 	UPROPERTY()
 	FUSDSceneImportContext ImportContext;

@@ -262,7 +262,7 @@ private:
 	 * This can be removed once we no longer support loading packages older than FEditorObjectVersion::AddedFontFaceAssets (as can UFontBulkData itself).
 	 */
 	UPROPERTY()
-	const UFontBulkData* BulkDataPtr_DEPRECATED;
+	UFontBulkData* BulkDataPtr_DEPRECATED;
 
 	/**
 	 * Legacy font data v1. This used to be where font data was stored prior to font bulk data.

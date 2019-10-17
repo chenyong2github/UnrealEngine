@@ -144,9 +144,23 @@ FText UNiagaraStackRendererItem::GetDisplayName() const
 	}
 }
 
-bool UNiagaraStackRendererItem::CanDelete() const
+bool UNiagaraStackRendererItem::TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const
 {
-	return HasBaseRenderer() == false;
+	if (GetOwnerIsEnabled() == false)
+	{
+		OutCanDeleteMessage = LOCTEXT("CantDeleteOwnerDisabledToolTip", "This renderer can not be deleted because its owner is disabled.");
+		return false;
+	}
+	else if (HasBaseRenderer() == false)
+	{
+		OutCanDeleteMessage = LOCTEXT("DeleteToolTip", "Delete this renderer.");
+		return true;
+	}
+	else
+	{
+		OutCanDeleteMessage = LOCTEXT("CantDeleteToolTip", "This renderer can not be deleted becaue it is inherited.");
+		return false;
+	}
 }
 
 void UNiagaraStackRendererItem::Delete()
@@ -214,6 +228,7 @@ void UNiagaraStackRendererItem::SetIsEnabled(bool bInIsEnabled)
 	RendererProperties->Modify();
 	RendererProperties->SetIsEnabled(bInIsEnabled);
 	OnDataObjectModified().Broadcast(RendererProperties.Get());
+	RefreshChildren();
 }
 
 void UNiagaraStackRendererItem::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)

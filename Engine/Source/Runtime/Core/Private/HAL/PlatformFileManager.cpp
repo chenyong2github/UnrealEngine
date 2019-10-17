@@ -8,7 +8,6 @@
 #include "Misc/AssertionMacros.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "Modules/ModuleManager.h"
-#include "Templates/ScopedPointer.h"
 #include "HAL/IPlatformFileLogWrapper.h"
 #include "HAL/IPlatformFileProfilerWrapper.h"
 #include "HAL/IPlatformFileCachedWrapper.h"

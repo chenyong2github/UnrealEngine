@@ -501,7 +501,7 @@ private:
 } // namespace ConcertDataStoreTestUtils
 
 /** Ensures the Concert data store correctly versions the stored values. */
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FConcertDataStoreValueVersioning, "Concert.DataStore.ValueVersioning", ConcertDataStoreTestFlags)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FConcertDataStoreValueVersioning, "Editor.Concert.DataStore.ValueVersioning", ConcertDataStoreTestFlags)
 
 bool FConcertDataStoreValueVersioning::RunTest(const FString& Parameters)
 {
@@ -587,7 +587,7 @@ bool FConcertDataStoreValueVersioning::RunTest(const FString& Parameters)
 }
 
 /** Ensures the Concert data store correctly handles the common operations. */
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FConcertDataStoreClientServerCommonOperations, ConcertDataStoreTestUtils::FConcertDataStoreClientServerTest, "Concert.DataStore.ClientServer.CommonOperations", ConcertDataStoreTestFlags)
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FConcertDataStoreClientServerCommonOperations, ConcertDataStoreTestUtils::FConcertDataStoreClientServerTest, "Editor.Concert.DataStore.ClientServer.CommonOperations", ConcertDataStoreTestFlags)
 
 bool FConcertDataStoreClientServerCommonOperations::RunTest(const FString& Parameters)
 {
@@ -615,7 +615,7 @@ bool FConcertDataStoreClientServerCommonOperations::RunTest(const FString& Param
 }
 
 /** Ensures the Concert data store correctly handles the "key not found" cases. */
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FConcertDataStoreClientServerKeyNotFound, ConcertDataStoreTestUtils::FConcertDataStoreClientServerTest, "Concert.DataStore.ClientServer.KeyNotFound", ConcertDataStoreTestFlags)
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FConcertDataStoreClientServerKeyNotFound, ConcertDataStoreTestUtils::FConcertDataStoreClientServerTest, "Editor.Concert.DataStore.ClientServer.KeyNotFound", ConcertDataStoreTestFlags)
 
 bool FConcertDataStoreClientServerKeyNotFound::RunTest(const FString& Parameters)
 {
@@ -633,7 +633,7 @@ bool FConcertDataStoreClientServerKeyNotFound::RunTest(const FString& Parameters
 }
 
 /** Ensures the Concert data store correctly handles the "type mismatch" cases. */
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FConcertDataStoreClientServerTypeMismatch, ConcertDataStoreTestUtils::FConcertDataStoreClientServerTest, "Concert.DataStore.ClientServer.TypeMismatch", ConcertDataStoreTestFlags)
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FConcertDataStoreClientServerTypeMismatch, ConcertDataStoreTestUtils::FConcertDataStoreClientServerTest, "Editor.Concert.DataStore.ClientServer.TypeMismatch", ConcertDataStoreTestFlags)
 
 bool FConcertDataStoreClientServerTypeMismatch::RunTest(const FString& Parameters)
 {
@@ -652,7 +652,7 @@ bool FConcertDataStoreClientServerTypeMismatch::RunTest(const FString& Parameter
 }
 
 /** Ensures the Concert data store optimize the "compare and exchange" operation, to avoid sending the payload when using the version is more optimal. */
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FConcertDataStoreClientServerCompareExchangeOptimization, ConcertDataStoreTestUtils::FConcertDataStoreClientServerTest, "Concert.DataStore.ClientServer.CompareExchangeOptimization", ConcertDataStoreTestFlags)
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FConcertDataStoreClientServerCompareExchangeOptimization, ConcertDataStoreTestUtils::FConcertDataStoreClientServerTest, "Editor.Concert.DataStore.ClientServer.CompareExchangeOptimization", ConcertDataStoreTestFlags)
 
 bool FConcertDataStoreClientServerCompareExchangeOptimization::RunTest(const FString& Parameters)
 {
@@ -681,7 +681,7 @@ bool FConcertDataStoreClientServerCompareExchangeOptimization::RunTest(const FSt
 }
 
 /** Ensures the Concert data store client correctly caches the key/values when it receives the response to its requests form the server. */
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FConcertDataStoreClientServerClientCache, ConcertDataStoreTestUtils::FConcertDataStoreClientServerTest, "Concert.DataStore.ClientServer.ClientCache", ConcertDataStoreTestFlags)
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FConcertDataStoreClientServerClientCache, ConcertDataStoreTestUtils::FConcertDataStoreClientServerTest, "Editor.Concert.DataStore.ClientServer.ClientCache", ConcertDataStoreTestFlags)
 
 bool FConcertDataStoreClientServerClientCache::RunTest(const FString& Parameters)
 {
@@ -784,7 +784,7 @@ bool FConcertDataStoreClientServerClientCache::RunTest(const FString& Parameters
 }
 
 /** Ensures the Concert data storeserver correctly push notifications to client and client populate its cache. */
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FConcertDataStoreClientServerChangeNotification, ConcertDataStoreTestUtils::FConcertDataStoreClientServerTest, "Concert.DataStore.ClientServer.ChangeNotification", ConcertDataStoreTestFlags)
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FConcertDataStoreClientServerChangeNotification, ConcertDataStoreTestUtils::FConcertDataStoreClientServerTest, "Editor.Concert.DataStore.ClientServer.ChangeNotification", ConcertDataStoreTestFlags)
 
 bool FConcertDataStoreClientServerChangeNotification::RunTest(const FString& Parameters)
 {
@@ -837,7 +837,7 @@ bool FConcertDataStoreClientServerChangeNotification::RunTest(const FString& Par
 }
 
 /** Ensures the Concert data store client correctly call the change handler. */
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FConcertDataStoreClientServerChangeNotificationHandler, ConcertDataStoreTestUtils::FConcertDataStoreClientServerTest, "Concert.DataStore.ClientServer.ChangeNotificationHandler", ConcertDataStoreTestFlags)
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FConcertDataStoreClientServerChangeNotificationHandler, ConcertDataStoreTestUtils::FConcertDataStoreClientServerTest, "Editor.Concert.DataStore.ClientServer.ChangeNotificationHandler", ConcertDataStoreTestFlags)
 
 bool FConcertDataStoreClientServerChangeNotificationHandler::RunTest(const FString& Parameters)
 {
@@ -956,7 +956,7 @@ bool FConcertDataStoreClientServerChangeNotificationHandler::RunTest(const FStri
 }
 
 /** Ensures the Concert data store blocking API works. */
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FConcertDataStoreClientServerBlockingApi, ConcertDataStoreTestUtils::FConcertDataStoreClientServerTest, "Concert.DataStore.ClientServer.BlockingAPI", ConcertDataStoreTestFlags)
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FConcertDataStoreClientServerBlockingApi, ConcertDataStoreTestUtils::FConcertDataStoreClientServerTest, "Editor.Concert.DataStore.ClientServer.BlockingAPI", ConcertDataStoreTestFlags)
 
 bool FConcertDataStoreClientServerBlockingApi::RunTest(const FString& Parameters)
 {
@@ -1012,7 +1012,7 @@ bool FConcertDataStoreClientServerBlockingApi::RunTest(const FString& Parameters
 }
 
 /** Ensures the Concert data store using continuation API works. */
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FConcertDataStoreClientServerContinuationApi, ConcertDataStoreTestUtils::FConcertDataStoreClientServerTest, "Concert.DataStore.ClientServer.ContinuationAPI", ConcertDataStoreTestFlags)
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FConcertDataStoreClientServerContinuationApi, ConcertDataStoreTestUtils::FConcertDataStoreClientServerTest, "Editor.Concert.DataStore.ClientServer.ContinuationAPI", ConcertDataStoreTestFlags)
 
 bool FConcertDataStoreClientServerContinuationApi::RunTest(const FString& Parameters)
 {
@@ -1070,7 +1070,7 @@ bool FConcertDataStoreClientServerContinuationApi::RunTest(const FString& Parame
 }
 
 /** Ensures the Concert data store local client store works. */
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FConcertDataStoreClientPrivateStore, "Concert.DataStore.ClientPrivateStore", ConcertDataStoreTestFlags)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FConcertDataStoreClientPrivateStore, "Editor.Concert.DataStore.ClientPrivateStore", ConcertDataStoreTestFlags)
 
 bool FConcertDataStoreClientPrivateStore::RunTest(const FString& Parameters)
 {

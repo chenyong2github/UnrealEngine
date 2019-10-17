@@ -757,7 +757,39 @@ int32 FGenericWidePlatformString::GetVarArgs( WIDECHAR* Dest, SIZE_T DestSize, c
 			{
 				Src++;
 				static const TCHAR* Null = TEXT("(null)");
-				const TCHAR *Val = va_arg(ArgPtr, TCHAR *);
+				const TCHAR* Val = va_arg(ArgPtr, TCHAR*);
+				if (Val == nullptr)
+				{
+					Val = Null;
+				}
+
+				int RetCnt = Strlen(Val);
+				int Spaces = FPlatformMath::Max(FPlatformMath::Abs(FieldLen) - RetCnt, 0);
+				if (Spaces > 0 && FieldLen > 0)
+				{
+					DestIter.Write(TEXT(' '), Spaces);
+				}
+				DestIter.Write(Val, RetCnt);
+				if (Spaces > 0 && FieldLen < 0)
+				{
+					DestIter.Write(TEXT(' '), Spaces);
+				}
+				if (!DestIter)
+				{
+					return -1;
+				}
+				break;
+			}
+
+			case 'S':
+			{
+				// The %S format represents a string which is the opposite of %s - wide if TCHAR is narrow, or narrow if TCHAR is wide
+
+				using OtherCharType = TChooseClass<TIsSame<TCHAR, ANSICHAR>::Value, WIDECHAR, ANSICHAR>::Result;
+
+				Src++;
+				static const OtherCharType* Null = LITERAL(OtherCharType, "(null)");
+				const OtherCharType* Val = va_arg(ArgPtr, OtherCharType*);
 				if (Val == nullptr)
 				{
 					Val = Null;

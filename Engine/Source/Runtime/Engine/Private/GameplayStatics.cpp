@@ -44,6 +44,8 @@
 #include "Async/Async.h"
 #include "Engine/SceneCapture2D.h"
 #include "Components/SceneCaptureComponent2D.h"
+#include "Sound/SoundCue.h"
+#include "Sound/SoundWave.h"
 
 #define LOCTEXT_NAMESPACE "GameplayStatics"
 
@@ -1607,6 +1609,26 @@ void UGameplayStatics::PushSoundMixModifier(const UObject* WorldContextObject, U
 	}
 }
 
+void UGameplayStatics::PrimeSound(USoundBase* InSound)
+{
+	if (!InSound || !GEngine || !GEngine->UseSound())
+	{
+		return;
+	}
+
+	if (USoundCue* InSoundCue = Cast<USoundCue>(InSound))
+	{
+		InSoundCue->PrimeSoundCue();
+	}
+	else if (USoundWave* InSoundWave = Cast<USoundWave>(InSound))
+	{
+		if (InSoundWave->GetNumChunks() > 1)
+		{
+			IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(InSoundWave, 1, TFunction<void(EAudioChunkLoadResult)>());
+		}
+	}
+}
+
 void UGameplayStatics::SetSoundMixClassOverride(const UObject* WorldContextObject, class USoundMix* InSoundMixModifier, class USoundClass* InSoundClass, float Volume, float Pitch, float FadeInTime, bool bApplyToChildren)
 {
 	if (!InSoundMixModifier || !GEngine || !GEngine->UseSound())
@@ -2753,6 +2775,12 @@ void UGameplayStatics::CalculateViewProjectionMatricesFromMinimalView(const FMin
 
 	OutViewProjectionMatrix = OutViewMatrix * OutProjectionMatrix;
 	//OutInvViewProjectionMatrix = OutInvProjectionMatrix * OutInvViewMatrix;
+}
+
+void UGameplayStatics::GetViewProjectionMatrix(FMinimalViewInfo DesiredView, FMatrix &ViewMatrix, FMatrix &ProjectionMatrix, FMatrix &ViewProjectionMatrix)
+{
+	TOptional<FMatrix> CustomMatrix;
+	CalculateViewProjectionMatricesFromMinimalView(DesiredView, CustomMatrix, ViewMatrix, ProjectionMatrix, ViewProjectionMatrix);
 }
 
 bool UGameplayStatics::GrabOption( FString& Options, FString& Result )

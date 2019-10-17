@@ -13,6 +13,7 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "EngineDefines.h"
 #include "EngineGlobals.h"
+#include "EngineStats.h"
 #include "RHIDefinitions.h"
 #include "SceneTypes.h"
 #include "SceneInterface.h"
@@ -109,7 +110,7 @@ static FAutoConsoleVariableRef CVarAllowSubPrimitiveQueries(
 	ECVF_RenderThreadSafe
 	);
 
-static TAutoConsoleVariable<float> CVarStaticMeshLODDistanceScale(
+RENDERER_API TAutoConsoleVariable<float> CVarStaticMeshLODDistanceScale(
 	TEXT("r.StaticMeshLODDistanceScale"),
 	1.0f,
 	TEXT("Scale factor for the distance used in computing discrete LOD for static meshes. (defaults to 1)\n")
@@ -768,7 +769,7 @@ static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params, FGloba
 
 	int32 ReadBackLagTolerance = NumBufferedFrames;
 
-	const bool bIsStereoView = View.StereoPass == eSSP_LEFT_EYE || View.StereoPass == eSSP_RIGHT_EYE;
+	const bool bIsStereoView = IStereoRendering::IsStereoEyeView(View.StereoPass);
 	const bool bUseRoundRobinOcclusion = bIsStereoView && !View.bIsSceneCapture && View.ViewState->IsRoundRobinEnabled();
 	if (bUseRoundRobinOcclusion)
 	{
@@ -1636,13 +1637,13 @@ static int32 OcclusionCull(FRHICommandListImmediate& RHICmdList, const FScene* S
 			if (View.ViewState->IsRoundRobinEnabled() &&
 				!View.bIsSceneCapture && // We only round-robin on the main renderer (not scene captures)
 				!View.bIgnoreExistingQueries && // We do not alternate occlusion queries when we want to refresh the occlusion history
-				(View.StereoPass == eSSP_LEFT_EYE || View.StereoPass == eSSP_RIGHT_EYE)) // Only relevant to stereo views
+				IStereoRendering::IsStereoEyeView(View.StereoPass)) // Only relevant to stereo views
 			{
 				// For even frames, prevent left eye from occlusion querying
 				// For odd frames, prevent right eye from occlusion querying
 				const bool FrameParity = ((View.ViewState->PrevFrameNumber & 0x01) == 1);
-				bSubmitQueries &= (FrameParity && View.StereoPass == eSSP_LEFT_EYE) ||
-								  (!FrameParity && View.StereoPass == eSSP_RIGHT_EYE);
+				bSubmitQueries &= ( FrameParity && IStereoRendering::IsAPrimaryView(View.StereoPass)) ||
+								  (!FrameParity && IStereoRendering::IsASecondaryView(View.StereoPass));
 			}
 
 			NumOccludedPrimitives += FetchVisibilityForPrimitives(Scene, View, bSubmitQueries, bHZBOcclusion, DynamicVertexBuffer);
@@ -2294,6 +2295,8 @@ struct FRelevancePacket
 								}
 
 								++NumVisibleStaticMeshElements;
+
+								INC_DWORD_STAT_BY(STAT_StaticMeshTriangles, StaticMesh.GetNumPrimitives());
 							}
 
 							bNeedsBatchVisibility = true;
@@ -2974,11 +2977,20 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 		}
 	}
 
+	RunGPUSkinCacheTransition(RHICmdList, Scene, EGPUSkinCacheTransition::FrameSetup);
+
+	if (IsHairStrandsEnable(Scene->GetShaderPlatform()) && Views.Num() > 0)
+	{
+		const EWorldType::Type WorldType = Views[0].Family->Scene->GetWorld()->WorldType;
+		auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
+		RunHairStrandsInterpolation(RHICmdList, WorldType, ShaderMap, EHairStrandsInterpolationType::SimulationStrands);
+	}
+
 	// Notify the FX system that the scene is about to perform visibility checks.
 
 	if (Scene->FXSystem && Views.IsValidIndex(0))
 	{
-		Scene->FXSystem->PreInitViews(RHICmdList, Views[0].AllowGPUParticleUpdate());
+		Scene->FXSystem->PreInitViews(RHICmdList, Views[0].AllowGPUParticleUpdate() && !ViewFamily.EngineShowFlags.HitProxies);
 	}
 
 	// Draw lines to lights affecting this mesh if its selected.

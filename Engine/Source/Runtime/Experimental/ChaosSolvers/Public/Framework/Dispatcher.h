@@ -1,7 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#if INCLUDE_CHAOS
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -93,5 +91,3 @@ namespace Chaos
 
 void LexFromString(Chaos::EThreadingMode& OutValue, const TCHAR* InString);
 FString LexToString(const Chaos::EThreadingMode InValue); 
-
-#endif

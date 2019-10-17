@@ -18,6 +18,14 @@ struct FSweepHit;
 struct FRaycastHit;
 struct FOverlapHit;
 
+namespace Chaos
+{
+	template <typename T, int d>
+	class TPBDRigidsEvolutionGBF;
+
+	class FChaosArchive;
+}
+
 //Allows us to capture a scene query with either physx or chaos and then load it into either format for testing purposes
 struct PHYSICSCORE_API FSQCapture
 {
@@ -43,14 +51,16 @@ struct PHYSICSCORE_API FSQCapture
 	void EndCapturePhysXOverlap(const PxHitCallback<PxOverlapHit>& Results);
 #endif
 
-#if INCLUDE_CHAOS
-	void StartCaptureChaos(const Chaos::TImplicitObject<float, 3>& InQueryGeom, const FTransform& InStartTM, const FVector& InDir, float InDeltaMag, EHitFlags InOutputFlags);
-	void EndCaptureChaos(const ChaosInterface::FSQHitBuffer<ChaosInterface::FSweepHit>& Results);
-#endif
+	void StartCaptureChaosSweep(const Chaos::TPBDRigidsEvolutionGBF<float, 3>& Evolution, const Chaos::TImplicitObject<float, 3>& InQueryGeom, const FTransform& InStartTM, const FVector& InDir, float InDeltaMag, FHitFlags InOutputFlags, const FQueryFilterData& QueryFilter, const FCollisionFilterData& FilterData, ICollisionQueryFilterCallbackBase& Callback);
+	void EndCaptureChaosSweep(const ChaosInterface::FSQHitBuffer<ChaosInterface::FSweepHit>& Results);
 
-#if INCLUDE_CHAOS
+	void StartCaptureChaosRaycast(const Chaos::TPBDRigidsEvolutionGBF<float,3>& Evolution, const FVector& InStartPoint, const FVector& InDir, float InDeltaMag, FHitFlags InOutputFlags, const FQueryFilterData& QueryFilter, const FCollisionFilterData& FilterData, ICollisionQueryFilterCallbackBase& Callback);
+	void EndCaptureChaosRaycast(const ChaosInterface::FSQHitBuffer<ChaosInterface::FRaycastHit>& Results);
+
+	void StartCaptureChaosOverlap(const Chaos::TPBDRigidsEvolutionGBF<float, 3>& Evolution, const Chaos::TImplicitObject<float, 3>& InQueryGeom, const FTransform& InStartTM, const FQueryFilterData& QueryFilter, const FCollisionFilterData& FilterData, ICollisionQueryFilterCallbackBase& Callback);
+	void EndCaptureChaosOverlap(const ChaosInterface::FSQHitBuffer<ChaosInterface::FOverlapHit>& Results);
+
 	ECollisionQueryHitType GetFilterResult(const Chaos::TPerShapeData<float,3>* Shape, const Chaos::TGeometryParticle<float,3>* Actor) const;
-#endif
 
 #if WITH_PHYSX
 	ECollisionQueryHitType GetFilterResult(const physx::PxShape* Shape, const physx::PxActor* Actor) const;
@@ -72,9 +82,9 @@ struct PHYSICSCORE_API FSQCapture
 	PxGeometryHolder PhysXGeometry;
 #endif
 
-#if INCLUDE_CHAOS
 	TUniquePtr<Chaos::TImplicitObject<float, 3>> ChaosOwnerObject;	//should be private, do not access directly
 	const Chaos::TImplicitObject<float, 3>* ChaosGeometry;
+	TUniquePtr<Chaos::TImplicitObject<float, 3>> SerializableChaosGeometry;
 #if WITH_PHYSX
 	//for now just use physx hit buffer
 	ChaosInterface::FSQHitBuffer<ChaosInterface::FSweepHit> ChaosSweepBuffer;
@@ -86,11 +96,10 @@ struct PHYSICSCORE_API FSQCapture
 	ChaosInterface::FSQHitBuffer<ChaosInterface::FOverlapHit> ChaosOverlapBuffer;
 	TArray<ChaosInterface::FOverlapHit> ChaosOverlapTouches;
 #endif
-#endif
 
 private:
 	FSQCapture(FPhysTestSerializer& OwningPhysSerializer);	//This should be created by PhysTestSerializer
-	void Serialize(FArchive& Ar);
+	void Serialize(Chaos::FChaosArchive& Ar);
 
 #if WITH_PHYSX
 	void SerializeActorToShapeHitsArray(FArchive& Ar);
@@ -101,10 +110,8 @@ private:
 	TArray<uint8> GeomData;
 	TArray<uint8> HitData;
 
-#if INCLUDE_CHAOS
-	void CreateChaosData();
+	void CreateChaosDataFromPhysX();
 	void CreateChaosFilterResults();
-#endif
 
 #if WITH_PHYSX
 
@@ -147,9 +154,15 @@ private:
 
 	FPhysTestSerializer& PhysSerializer;
 
-#if INCLUDE_CHAOS
+	void CaptureChaosFilterResults(const Chaos::TPBDRigidsEvolutionGBF<float,3>& Evolution, const FCollisionFilterData& FilterData, ICollisionQueryFilterCallbackBase& Callback);
+
 	TMap<Chaos::TGeometryParticle<float,3>*, TArray<TPair<Chaos::TPerShapeData<float,3>*, ECollisionQueryHitType>>> ChaosActorToShapeHitsArray;
-#endif
+
+	template <typename THit>
+	void SerializeChaosBuffers(Chaos::FChaosArchive& Ar, int32 Version, ChaosInterface::FSQHitBuffer<THit>& ChaosBuffer);
+
+	void SerializeChaosActorToShapeHitsArray(Chaos::FChaosArchive& Ar);
+
 	bool bDiskDataIsChaos;
 	bool bChaosDataReady;
 	bool bPhysXDataReady;

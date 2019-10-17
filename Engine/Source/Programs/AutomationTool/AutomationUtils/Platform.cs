@@ -181,15 +181,15 @@ namespace AutomationTool
 			LogWarning("{0} does not implement GetConnectedDevices", PlatformType);
 		}
 
-        /// <summary>
-        /// Allow platform specific work prior to touching the staging directory
-        /// </summary>
-        /// <param name="Params"></param>
-        /// <param name="SC"></param>
-        public virtual void PreStage(ProjectParams Params, DeploymentContext SC)
-        {
-            // do nothing on most platforms
-        }
+		/// <summary>
+		/// Allow platform specific work prior to touching the staging directory
+		/// </summary>
+		/// <param name="Params"></param>
+		/// <param name="SC"></param>
+		public virtual void PreStage(ProjectParams Params, DeploymentContext SC)
+		{
+			// do nothing on most platforms
+		}
 
 
 		/// <summary>
@@ -377,14 +377,14 @@ namespace AutomationTool
 		{
 			return LocalPath;
 		}
-        /// <summary>
-        /// Returns a list of the compiler produced debug file extensions
-        /// </summary>
-        /// <returns>a list of the compiler produced debug file extensions</returns>
-        public virtual List<string> GetDebugFileExtensions()
-        {
-            return new List<string>();
-        }
+		/// <summary>
+		/// Returns a list of the compiler produced debug file extensions
+		/// </summary>
+		/// <returns>a list of the compiler produced debug file extensions</returns>
+		public virtual List<string> GetDebugFileExtensions()
+		{
+			return new List<string>();
+		}
 
 		/// <summary>
 		/// UnrealTargetPlatform type for this platform.
@@ -642,10 +642,6 @@ namespace AutomationTool
 			if (Target == UnrealTargetPlatform.Linux || Target == UnrealTargetPlatform.LinuxAArch64)
 			{
 				return "";
-			}
-			if (Target == UnrealTargetPlatform.HTML5)
-			{
-				return ".js";
 			}
 			if (Target == UnrealTargetPlatform.Mac)
 			{

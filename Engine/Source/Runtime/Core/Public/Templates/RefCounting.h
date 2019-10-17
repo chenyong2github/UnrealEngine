@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
 #include "Serialization/Archive.h"
+#include "HAL/PlatformAtomics.h"
 
 /** A virtual interface for ref counted objects to implement. */
 class IRefCountedObject
@@ -16,9 +17,55 @@ public:
 	virtual uint32 GetRefCount() const = 0;
 };
 
+/**
+ * Base class implementing thread-safe reference counting.
+ */
+class FRefCountBase
+{
+public:
+			FRefCountBase() = default;
+	virtual ~FRefCountBase() = default;
+
+	FRefCountBase(const FRefCountBase& Rhs) = delete;
+	FRefCountBase& operator=(const FRefCountBase& Rhs) = delete;
+
+	inline uint32 AddRef() const
+	{
+		return uint32(FPlatformAtomics::InterlockedIncrement(&NumRefs));
+	}
+
+	inline uint32 Release() const
+	{
+#if DO_CHECK
+		CheckRefCount();
+#endif
+
+		const int32 Refs = FPlatformAtomics::InterlockedDecrement(&NumRefs);
+		if (Refs == 0)
+		{
+			delete this;
+		}
+
+		return uint32(Refs);
+	}
+
+	uint32 GetRefCount() const
+	{
+		return uint32(NumRefs);
+	}
+
+private:
+	mutable int32 NumRefs = 0;
+
+	CORE_API void CheckRefCount() const;
+};
 
 /**
  * The base class of reference counted objects.
+ *
+ * This class should not be used for new code as it does not use atomic operations to update 
+ * the reference count.
+ *
  */
 class CORE_API FRefCountedObject
 {

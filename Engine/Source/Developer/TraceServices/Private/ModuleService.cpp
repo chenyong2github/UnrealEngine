@@ -40,8 +40,13 @@ void FModuleService::GetAvailableModules(TArray<FModuleInfo>& OutModules)
 	for (const auto& KV : ModulesMap)
 	{
 		IModule* Module = KV.Value;
-		FModuleInfo& ModuleInfo = OutModules.AddDefaulted_GetRef();
-		Module->GetModuleInfo(ModuleInfo);
+		TArray<const TCHAR*> ModuleLoggers;
+		Module->GetLoggers(ModuleLoggers);
+		if (ModuleLoggers.Num())
+		{
+			FModuleInfo& ModuleInfo = OutModules.AddDefaulted_GetRef();
+			Module->GetModuleInfo(ModuleInfo);
+		}
 	}
 }
 	
@@ -69,18 +74,18 @@ void FModuleService::SetModuleEnabled(const FName& ModuleName, bool bEnabled)
 	}
 }
 
-void FModuleService::OnAnalysisBegin(IAnalysisSession& Session, TArray<IAnalyzer*>& OutAnalyzers)
+void FModuleService::OnAnalysisBegin(IAnalysisSession& Session)
 {
 	FScopeLock Lock(&CriticalSection);
 	Initialize();
 	for (const auto& KV : ModulesMap)
 	{
 		IModule* Module = KV.Value;
-		Module->OnAnalysisBegin(Session, EnabledModules.Contains(Module), OutAnalyzers);
+		Module->OnAnalysisBegin(Session);
 	}
 }
 
-bool FModuleService::GetModuleLoggers(const FName& ModuleName, TArray<const TCHAR *>& OutLoggers)
+bool FModuleService::GetModuleLoggers(const FName& ModuleName, TArray<const TCHAR*>& OutLoggers)
 {
 	FScopeLock Lock(&CriticalSection);
 	Initialize();
@@ -91,6 +96,17 @@ bool FModuleService::GetModuleLoggers(const FName& ModuleName, TArray<const TCHA
 	}
 	(*FindIt)->GetLoggers(OutLoggers);
 	return true;
+}
+
+void FModuleService::GenerateReports(const IAnalysisSession& Session, const TCHAR* CmdLine, const TCHAR* OutputDirectory)
+{
+	FScopeLock Lock(&CriticalSection);
+	Initialize();
+	for (const auto& KV : ModulesMap)
+	{
+		IModule* Module = KV.Value;
+		Module->GenerateReports(Session, CmdLine, OutputDirectory);
+	}
 }
 
 }

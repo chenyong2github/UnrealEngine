@@ -2,8 +2,6 @@
 
 #pragma once
 
-#if INCLUDE_CHAOS
-
 #include "Dispatcher.h"
 #include "Threading.h"
 
@@ -113,5 +111,3 @@ namespace Chaos
 		TUniquePtr<FCommandListData> Data;
 	};
 }
-
-#endif

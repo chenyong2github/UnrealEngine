@@ -12,7 +12,6 @@
 #include "Stats/Stats.h"
 #include "RHI.h"
 #include "RenderResource.h"
-#include "Templates/ScopedPointer.h"
 #include "UniformBuffer.h"
 #include "GlobalDistanceFieldParameters.h"
 #include "SceneView.h"
@@ -1283,11 +1282,11 @@ public:
 		{
 			return true;
 		}
-		else if (bIsInstancedStereoEnabled && StereoPass != eSSP_RIGHT_EYE)
+		else if (bIsInstancedStereoEnabled && !IStereoRendering::IsASecondaryView(StereoPass))
 		{
 			return true;
 		}
-		else if (bIsMobileMultiViewEnabled && StereoPass != eSSP_RIGHT_EYE && Family && Family->Views.Num() > 1)
+		else if (bIsMobileMultiViewEnabled && !IStereoRendering::IsASecondaryView(StereoPass) && Family && Family->Views.Num() > 1)
 		{
 			return true;
 		}
@@ -1991,3 +1990,12 @@ extern FFastVramConfig GFastVRamConfig;
 
 extern bool UseCachedMeshDrawCommands();
 extern bool IsDynamicInstancingEnabled(ERHIFeatureLevel::Type FeatureLevel);
+
+enum class EGPUSkinCacheTransition
+{
+	FrameSetup,
+	Renderer,
+};
+
+/* Run GPU skin cache resource transitions */
+void RunGPUSkinCacheTransition(class FRHICommandList& RHICmdList, class FScene* Scene, EGPUSkinCacheTransition Type);

@@ -183,17 +183,12 @@ void SDeviceOutputLog::Tick(const FGeometry& AllottedGeometry, const double InCu
 	{
 		for (const FBufferedLine& Line : BufferedLines)
 		{
-			MessagesTextMarshaller->AppendMessage(Line.Data, Line.Verbosity, Line.Category);
+			MessagesTextMarshaller->AppendPendingMessage(Line.Data, Line.Verbosity, Line.Category);
 		}
-
-		// Don't scroll to the bottom automatically when the user is scrolling the view or has scrolled it away from the bottom.
-		if (!bIsUserScrolled)
-		{
-			MessagesTextBox->ScrollTo(FTextLocation(MessagesTextMarshaller->GetNumMessages() - 1));
-		}
-
 		BufferedLines.Empty(32);
 	}
+
+	SOutputLog::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 }
 
 void SDeviceOutputLog::Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category)

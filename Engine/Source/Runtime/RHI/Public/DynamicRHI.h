@@ -483,6 +483,10 @@ public:
 	// FlushType: Wait RHI Thread
 	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHITexture* Texture, uint32 MipLevel) = 0;
 
+	/** Creates an unordered access view of the given texture. */
+	// FlushType: Wait RHI Thread
+	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHITexture* Texture, uint32 MipLevel, uint8 Format);
+
 	/** Creates an unordered access view of the given vertex buffer. */
 	// FlushType: Wait RHI Thread
 	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHIVertexBuffer* VertexBuffer, uint8 Format) = 0;
@@ -901,7 +905,7 @@ public:
 
 	/** Watch out for OutData to be 0 (can happen on DXGI_ERROR_DEVICE_REMOVED), don't call RHIUnmapStagingSurface in that case. */
 	// FlushType: Flush Immediate (seems wrong)
-	virtual void RHIMapStagingSurface(FRHITexture* Texture, void*& OutData, int32& OutWidth, int32& OutHeight) = 0;
+	virtual void RHIMapStagingSurface(FRHITexture* Texture, FRHIGPUFence* Fence, void*& OutData, int32& OutWidth, int32& OutHeight) = 0;
 
 	/** call after a succesful RHIMapStagingSurface() call */
 	// FlushType: Flush Immediate (seems wrong)
@@ -936,6 +940,11 @@ public:
 	}
 	
 	virtual FTexture2DRHIRef RHIGetFMaskTexture(FRHITexture* SourceTextureRHI)
+	{
+		return nullptr;
+	}
+
+	virtual FTexture2DRHIRef RHIGetStencilTexture(FRHITexture* SourceTextureRHI)
 	{
 		return nullptr;
 	}
@@ -986,6 +995,12 @@ public:
 
 	// Return what colour space the viewport is in. Used for HDR displays
 	virtual EColorSpaceAndEOTF RHIGetColorSpace(FRHIViewport* Viewport);
+
+	// Return preferred pixel format if given format is unsupported.
+	virtual EPixelFormat RHIPreferredPixelFormatHint(EPixelFormat PreferredPixelFormat)
+	{
+		return PreferredPixelFormat;
+	}
 
 	// Tests the viewport to see if its HDR status has changed. This is usually tested after a window has been moved
 	virtual void RHICheckViewportHDRStatus(FRHIViewport* Viewport);
@@ -1151,6 +1166,7 @@ public:
 	virtual FTexture3DRHIRef RHICreateTexture3D_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 Flags, FRHIResourceCreateInfo& CreateInfo);
 	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIStructuredBuffer* StructuredBuffer, bool bUseUAVCounter, bool bAppendBuffer);
 	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, uint32 MipLevel);
+	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, uint32 MipLevel, uint8 Format);
 	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBuffer, uint8 Format);
 	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* IndexBuffer, uint8 Format);
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, const FRHITextureSRVCreateInfo& CreateInfo);
@@ -1173,7 +1189,7 @@ public:
 	virtual void RHIDiscardTransientResource_RenderThread(FRHIStructuredBuffer* Buffer) { }
 
 
-	virtual void RHIMapStagingSurface_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, void*& OutData, int32& OutWidth, int32& OutHeight);
+	virtual void RHIMapStagingSurface_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, FRHIGPUFence* Fence, void*& OutData, int32& OutWidth, int32& OutHeight);
 	virtual void RHIUnmapStagingSurface_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture);
 	virtual void RHIReadSurfaceFloatData_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, FIntRect Rect, TArray<FFloat16Color>& OutData, ECubeFace CubeFace, int32 ArrayIndex, int32 MipIndex);
 
@@ -1389,6 +1405,11 @@ FORCEINLINE FTexture2DRHIRef RHIGetViewportBackBuffer(FRHIViewport* Viewport)
 FORCEINLINE FTexture2DRHIRef RHIGetFMaskTexture(FRHITexture* SourceTextureRHI)
 {
 	return GDynamicRHI->RHIGetFMaskTexture(SourceTextureRHI);
+}
+
+FORCEINLINE FTexture2DRHIRef RHIGetStencilTexture(FRHITexture* SourceTextureRHI)
+{
+	return GDynamicRHI->RHIGetStencilTexture(SourceTextureRHI);
 }
 
 FORCEINLINE void RHIAdvanceFrameFence()

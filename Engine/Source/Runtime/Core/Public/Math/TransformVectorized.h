@@ -238,19 +238,6 @@ public:
 	}
 
 	/**
-	 * Copy-constructor
-	 *
-	 * @param InTransform The source transform from which all components will be copied
-	 */
-	FORCEINLINE FTransform(const FTransform& InTransform) : 
-		Rotation(InTransform.Rotation), 
-		Translation(InTransform.Translation), 
-		Scale3D(InTransform.Scale3D)
-	{
-		DiagnosticCheckNaN_All();
-	}
-
-	/**
 	 * Constructor for converting a Matrix (including scale) into a FTransform.
 	 */
 	FORCEINLINE explicit FTransform(const FMatrix& InMatrix)

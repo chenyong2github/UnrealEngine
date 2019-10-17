@@ -2,6 +2,7 @@
 
 #include "UObject/ObjectResource.h"
 #include "UObject/Class.h"
+#include "Templates/Casts.h"
 
 /*-----------------------------------------------------------------------------
 	Helper functions.
@@ -109,19 +110,19 @@ void operator<<(FStructuredArchive::FSlot Slot, FObjectExport& E)
 	FArchive& BaseArchive = Slot.GetUnderlyingArchive();
 	FStructuredArchive::FRecord Record = Slot.EnterRecord();
 
-	Record << NAMED_ITEM("ClassIndex", E.ClassIndex);
-	Record << NAMED_ITEM("SuperIndex", E.SuperIndex);
+	Record << SA_VALUE(TEXT("ClassIndex"), E.ClassIndex);
+	Record << SA_VALUE(TEXT("SuperIndex"), E.SuperIndex);
 
 	if (BaseArchive.UE4Ver() >= VER_UE4_TemplateIndex_IN_COOKED_EXPORTS)
 	{
-		Record << NAMED_ITEM("TemplateIndex", E.TemplateIndex);
+		Record << SA_VALUE(TEXT("TemplateIndex"), E.TemplateIndex);
 	}
 
-	Record << NAMED_ITEM("OuterIndex", E.OuterIndex);
-	Record << NAMED_ITEM("ObjectName", E.ObjectName);
+	Record << SA_VALUE(TEXT("OuterIndex"), E.OuterIndex);
+	Record << SA_VALUE(TEXT("ObjectName"), E.ObjectName);
 
 	uint32 Save = E.ObjectFlags & RF_Load;
-	Record << NAMED_ITEM("ObjectFlags", Save);
+	Record << SA_VALUE(TEXT("ObjectFlags"), Save);
 
 	if (BaseArchive.IsLoading())
 	{
@@ -131,44 +132,107 @@ void operator<<(FStructuredArchive::FSlot Slot, FObjectExport& E)
 	if (BaseArchive.UE4Ver() < VER_UE4_64BIT_EXPORTMAP_SERIALSIZES)
 	{
 		int32 SerialSize = E.SerialSize;
-		Record << NAMED_FIELD(SerialSize);
+		Record << SA_VALUE(TEXT("SerialSize"), SerialSize);
 		E.SerialSize = (int64)SerialSize;
 
 		int32 SerialOffset = E.SerialOffset;
-		Record << NAMED_FIELD(SerialOffset);
+		Record << SA_VALUE(TEXT("SerialOffset"), SerialOffset);
 		E.SerialOffset = SerialOffset;
 	}
 	else
 	{
-		Record << NAMED_ITEM("SerialSize", E.SerialSize);
-		Record << NAMED_ITEM("SerialOffset", E.SerialOffset);
+		Record << SA_VALUE(TEXT("SerialSize"), E.SerialSize);
+		Record << SA_VALUE(TEXT("SerialOffset"), E.SerialOffset);
 	}
 
-	Record << NAMED_ITEM("bForcedExport", E.bForcedExport);
-	Record << NAMED_ITEM("bNotForClient", E.bNotForClient);
-	Record << NAMED_ITEM("bNotForServer", E.bNotForServer);
+	Record << SA_VALUE(TEXT("bForcedExport"), E.bForcedExport);
+	Record << SA_VALUE(TEXT("bNotForClient"), E.bNotForClient);
+	Record << SA_VALUE(TEXT("bNotForServer"), E.bNotForServer);
 
-	Record << NAMED_ITEM("PackageGuid", E.PackageGuid);
-	Record << NAMED_ITEM("PackageFlags", E.PackageFlags);
+	Record << SA_VALUE(TEXT("PackageGuid"), E.PackageGuid);
+	Record << SA_VALUE(TEXT("PackageFlags"), E.PackageFlags);
 
 	if (BaseArchive.UE4Ver() >= VER_UE4_LOAD_FOR_EDITOR_GAME)
 	{
-		Record << NAMED_ITEM("bNotAlwaysLoadedForEditorGame", E.bNotAlwaysLoadedForEditorGame);
+		Record << SA_VALUE(TEXT("bNotAlwaysLoadedForEditorGame"), E.bNotAlwaysLoadedForEditorGame);
 	}
 
 	if (BaseArchive.UE4Ver() >= VER_UE4_COOKED_ASSETS_IN_EDITOR_SUPPORT)
 	{
-		Record << NAMED_ITEM("bIsAsset", E.bIsAsset);
+		Record << SA_VALUE(TEXT("bIsAsset"), E.bIsAsset);
 	}
 
 	if (BaseArchive.UE4Ver() >= VER_UE4_PRELOAD_DEPENDENCIES_IN_COOKED_EXPORTS)
 	{
-		Record << NAMED_ITEM("FirstExportDependency", E.FirstExportDependency);
-		Record << NAMED_ITEM("SerializationBeforeSerializationDependencies", E.SerializationBeforeSerializationDependencies);
-		Record << NAMED_ITEM("CreateBeforeSerializationDependencies", E.CreateBeforeSerializationDependencies);
-		Record << NAMED_ITEM("SerializationBeforeCreateDependencies", E.SerializationBeforeCreateDependencies);
-		Record << NAMED_ITEM("CreateBeforeCreateDependencies", E.CreateBeforeCreateDependencies);
+		Record << SA_VALUE(TEXT("FirstExportDependency"), E.FirstExportDependency);
+		Record << SA_VALUE(TEXT("SerializationBeforeSerializationDependencies"), E.SerializationBeforeSerializationDependencies);
+		Record << SA_VALUE(TEXT("CreateBeforeSerializationDependencies"), E.CreateBeforeSerializationDependencies);
+		Record << SA_VALUE(TEXT("SerializationBeforeCreateDependencies"), E.SerializationBeforeCreateDependencies);
+		Record << SA_VALUE(TEXT("CreateBeforeCreateDependencies"), E.CreateBeforeCreateDependencies);
 	}	
+}
+
+/*-----------------------------------------------------------------------------
+	FObjectTextExport.
+-----------------------------------------------------------------------------*/
+
+void operator<<(FStructuredArchive::FSlot Slot, FObjectTextExport& E)
+{
+	FArchive& BaseArchive = Slot.GetUnderlyingArchive();
+	FString ClassName, OuterName, SuperStructName;
+	check(BaseArchive.IsTextFormat());
+
+	if (BaseArchive.IsSaving())
+	{
+		check(E.Export.Object);
+
+		UClass* ObjClass = E.Export.Object->GetClass();
+		if (ObjClass != UClass::StaticClass())
+		{
+			ClassName = ObjClass->GetFullName();
+		}
+
+		if (E.Export.Object->GetOuter() != E.Outer)
+		{
+			OuterName = E.Export.Object->GetOuter() ? E.Export.Object->GetOuter()->GetFullName() : FString();
+		}
+
+		if (UStruct* Struct = Cast<UStruct>(E.Export.Object))
+		{
+			if (Struct->GetSuperStruct() != nullptr)
+			{
+				SuperStructName = Struct->GetSuperStruct()->GetFullName();
+			}
+		}
+	}
+
+	Slot << SA_ATTRIBUTE(TEXT("Class"), ClassName);
+	Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("Outer"), OuterName, FString());
+	Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("SuperStruct"), SuperStructName, FString());
+
+	if (BaseArchive.IsLoading())
+	{
+		E.ClassName = ClassName;
+		E.OuterName = OuterName;
+		E.SuperStructName = SuperStructName;
+	}
+
+	uint32 Save = E.Export.ObjectFlags & RF_Load;
+	Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("ObjectFlags"), Save, 0);
+	if (BaseArchive.IsLoading())
+	{
+		E.Export.ObjectFlags = EObjectFlags(Save & RF_Load);
+	}
+
+	Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("bForcedExport"), E.Export.bForcedExport, false);
+	Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("bNotForClient"), E.Export.bNotForClient, false);
+	Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("bNotForServer"), E.Export.bNotForServer, false);
+
+	Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("PackageGuid"), E.Export.PackageGuid, FGuid());
+	Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("PackageFlags"), E.Export.PackageFlags, 0);
+
+	Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("bNotAlwaysLoadedForEditorGame"), E.Export.bNotAlwaysLoadedForEditorGame, false);
+	Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("bIsAsset"), E.Export.bIsAsset, false);
 }
 
 /*-----------------------------------------------------------------------------
@@ -219,10 +283,10 @@ void operator<<(FStructuredArchive::FSlot Slot, FObjectImport& I)
 {
 	FStructuredArchive::FRecord Record = Slot.EnterRecord();
 
-	Record << NAMED_ITEM("ClassPackage", I.ClassPackage);
-	Record << NAMED_ITEM("ClassName", I.ClassName);
-	Record << NAMED_ITEM("OuterIndex", I.OuterIndex);
-	Record << NAMED_ITEM("ObjectName", I.ObjectName);
+	Record << SA_VALUE(TEXT("ClassPackage"), I.ClassPackage);
+	Record << SA_VALUE(TEXT("ClassName"), I.ClassName);
+	Record << SA_VALUE(TEXT("OuterIndex"), I.OuterIndex);
+	Record << SA_VALUE(TEXT("ObjectName"), I.ObjectName);
 
 	if (Slot.GetUnderlyingArchive().IsLoading())
 	{

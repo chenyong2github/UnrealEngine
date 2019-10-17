@@ -29,7 +29,6 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodiesFallingUnderGravity()
 	{
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
@@ -66,7 +65,6 @@ namespace GeometryCollectionExample
 		FChaosSolversModule::GetModule()->DestroySolver(Solver);
 
 		delete PhysObject;
-#endif
 	}
 	template void RigidBodiesFallingUnderGravity<float>();
 
@@ -75,7 +73,6 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodiesCollidingWithSolverFloor()
 	{
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
@@ -119,7 +116,6 @@ namespace GeometryCollectionExample
 		FChaosSolversModule::GetModule()->DestroySolver(Solver);
 
 		delete PhysObject;
-#endif
 	}
 	template void RigidBodiesCollidingWithSolverFloor<float>();
 
@@ -127,7 +123,6 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodiesSingleSphereCollidingWithSolverFloor()
 	{
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
@@ -181,7 +176,6 @@ namespace GeometryCollectionExample
 		FChaosSolversModule::GetModule()->DestroySolver(Solver);
 
 		delete PhysObject;
-#endif
 	}
 	template void RigidBodiesSingleSphereCollidingWithSolverFloor<float>();
 
@@ -189,7 +183,6 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodiesSingleSphereIntersectingWithSolverFloor()
 	{
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
@@ -236,7 +229,6 @@ namespace GeometryCollectionExample
 
 		delete PhysObject;
 
-#endif
 	}
 	template void RigidBodiesSingleSphereIntersectingWithSolverFloor<float>();
 
@@ -244,7 +236,6 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodiesKinematic()
 	{
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
@@ -283,7 +274,6 @@ namespace GeometryCollectionExample
 
 		delete PhysObject;
 
-#endif
 	}
 	template void RigidBodiesKinematic<float>();
 
@@ -291,7 +281,6 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodiesSleepingActivation()
 	{
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
@@ -301,7 +290,8 @@ namespace GeometryCollectionExample
 		//
 		auto RestInitFunc = [](TSharedPtr<FGeometryCollection>& RestCollection)
 		{
-			RestCollection->AppendGeometry(*RestCollection);
+			RestCollection->AppendGeometry(*GeometryCollection::MakeCubeElement(FTransform(FVector(0, 0, 0)), FVector(100.0)));
+			RestCollection->AppendGeometry(*GeometryCollection::MakeCubeElement(FTransform(FVector(0, 0, 0)), FVector(100.0)));
 			RestCollection->Transform[1].SetTranslation(FVector(0.f, 0.f, 5.f));
 		};
 
@@ -343,14 +333,12 @@ namespace GeometryCollectionExample
 		FChaosSolversModule::GetModule()->DestroySolver(Solver);
 
 		delete PhysObject;
-#endif
 	}
 	template void RigidBodiesSleepingActivation<float>();
 
 	template<class T>
 	void RigidBodies_CollisionGroup()
 	{
-#if INCLUDE_CHAOS
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
@@ -437,7 +425,6 @@ namespace GeometryCollectionExample
 
 		FChaosSolversModule::GetModule()->DestroySolver(Solver);
 		delete PhysObject;
-#endif
 	}
 	template void RigidBodies_CollisionGroup<float>();
 
@@ -446,7 +433,6 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_Initialize_ParticleImplicitCollisionGeometry()
 	{
-#if INCLUDE_CHAOS
 		typedef Chaos::TVector<T, 3> Vec;
 
 		typename SimulationObjects<T>::FParameters P;
@@ -500,7 +486,6 @@ namespace GeometryCollectionExample
 			EXPECT_LT((FMath::Abs(FMath::Abs(Vert.X) + FMath::Abs(Vert.Y) + FMath::Abs(Vert.Z))-1.5), KINDA_SMALL_NUMBER );
 		}
 		delete Object;
-#endif
 	}
 	template void RigidBodies_Initialize_ParticleImplicitCollisionGeometry<float>();
 

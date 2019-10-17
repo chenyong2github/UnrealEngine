@@ -2,6 +2,7 @@
 
 #include "OnlineAuthHandlerSteam.h"
 #include "OnlineAuthInterfaceSteam.h"
+#include "OnlineAuthInterfaceUtilsSteam.h"
 #include "OnlineSubsystemUtils.h"
 
 enum class ESteamAuthMsgType : uint8
@@ -330,7 +331,7 @@ void FSteamAuthHandlerComponent::Incoming(FBitReader& Packet)
 		if (!SteamId.IsValid())
 		{
 			UE_LOG_ONLINE(Error, TEXT("AUTH HANDLER: Got an invalid steamid"));
-			AuthInterface->ExecuteResultDelegate(SteamId, false);
+			AuthInterface->ExecuteResultDelegate(SteamId, false, ESteamAuthResponseCode::NotConnectedToSteam);
 			Packet.SetError();
 			return;
 		}
@@ -339,7 +340,7 @@ void FSteamAuthHandlerComponent::Incoming(FBitReader& Packet)
 		if (!TargetUser.IsValid())
 		{
 			UE_LOG_ONLINE(Error, TEXT("AUTH HANDLER: Could not create user listing for %s"), *SteamId.ToString());
-			AuthInterface->ExecuteResultDelegate(SteamId, false);
+			AuthInterface->ExecuteResultDelegate(SteamId, false, ESteamAuthResponseCode::FailedToCreateUser);
 			Packet.SetError();
 			return;
 		}

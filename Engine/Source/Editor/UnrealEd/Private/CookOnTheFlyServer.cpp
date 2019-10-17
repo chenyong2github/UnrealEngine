@@ -29,6 +29,7 @@
 #include "UObject/Class.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/Package.h"
+#include "UObject/SavePackage.h"
 #include "UObject/MetaData.h"
 #include "UObject/ConstructorHelpers.h"
 #include "UObject/UObjectArray.h"
@@ -311,7 +312,7 @@ void ClearHierarchyTimers()
 
 #define CREATE_TIMER(name, incrementScope) FScopeTimer ScopeTimer##name(__COUNTER__, #name, incrementScope); 
 
-#define SCOPE_TIMER(name)				TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT(#name)); CREATE_TIMER(name, true); ScopeTimer##name.Start();
+#define SCOPE_TIMER(name)				TRACE_CPUPROFILER_EVENT_SCOPE(name); CREATE_TIMER(name, true); ScopeTimer##name.Start();
 
 #else
 #define SCOPE_TIMER(name)
@@ -1422,6 +1423,7 @@ public:
 	bool							bErrorOnEngineContentUse = false;
 	bool							bDisableUnsolicitedPackages = false;
 	bool							bFullLoadAndSave = false;
+	bool							bPackageStore = false;
 	TArray<FName>					TargetPlatformNames;
 	TArray<FName>					StartupPackages;
 
@@ -1464,7 +1466,7 @@ UCookOnTheFlyServer::~UCookOnTheFlyServer()
 // this tick only happens in the editor cook commandlet directly calls tick on the side
 void UCookOnTheFlyServer::Tick(float DeltaTime)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("UCookOnTheFlyServer::Tick"));
+	TRACE_CPUPROFILER_EVENT_SCOPE(UCookOnTheFlyServer::Tick);
 
 	check(IsCookingInEditor());
 
@@ -1980,6 +1982,11 @@ bool UCookOnTheFlyServer::IsRealtimeMode() const
 bool UCookOnTheFlyServer::IsCookByTheBookMode() const
 {
 	return CurrentCookMode == ECookMode::CookByTheBookFromTheEditor || CurrentCookMode == ECookMode::CookByTheBook;
+}
+
+bool UCookOnTheFlyServer::IsUsingPackageStore() const
+{
+	return IsCookByTheBookMode() && CookByTheBookOptions->bPackageStore;
 }
 
 bool UCookOnTheFlyServer::IsCookOnTheFlyMode() const
@@ -3621,13 +3628,6 @@ void UCookOnTheFlyServer::SaveCookedPackage(UPackage* Package, uint32 SaveFlags,
 	return SaveCookedPackage( Package, SaveFlags, TargetPlatformNames, SavePackageResults);
 }
 
-bool UCookOnTheFlyServer::ShouldConsiderCompressedPackageFileLengthRequirements() const
-{
-	bool bConsiderCompressedPackageFileLengthRequirements = true;
-	GConfig->GetBool(TEXT("CookSettings"), TEXT("bConsiderCompressedPackageFileLengthRequirements"), bConsiderCompressedPackageFileLengthRequirements, GEditorIni);
-	return bConsiderCompressedPackageFileLengthRequirements;
-}
-
 bool UCookOnTheFlyServer::MakePackageFullyLoaded(UPackage* Package) const
 {
 	if (Package->IsFullyLoaded())
@@ -3999,15 +3999,11 @@ void UCookOnTheFlyServer::SaveCookedPackage(UPackage* Package, uint32 SaveFlags,
 						World->PersistentLevel->HandleLegacyMapBuildData();
 					}
 
-					// need to subtract 32 because the SavePackage code creates temporary files with longer file names then the one we provide
-					// projects may ignore this restriction if desired
-					static bool bConsiderCompressedPackageFileLengthRequirements = ShouldConsiderCompressedPackageFileLengthRequirements();
-					const int32 CompressedPackageFileLengthRequirement = bConsiderCompressedPackageFileLengthRequirements ? 32 : 0;
 					const FString FullFilename = FPaths::ConvertRelativePathToFull(PlatFilename);
-					if (FullFilename.Len() >= (FPlatformMisc::GetMaxPathLength() - CompressedPackageFileLengthRequirement))
+					if (FullFilename.Len() >= FPlatformMisc::GetMaxPathLength())
 					{
-						LogCookerMessage(FString::Printf(TEXT("Couldn't save package, filename is too long: %s"), *PlatFilename), EMessageSeverity::Error);
-						UE_LOG(LogCook, Error, TEXT("Couldn't save package, filename is too long :%s"), *PlatFilename);
+						LogCookerMessage(FString::Printf(TEXT("Couldn't save package, filename is too long (%d >= %d): %s"), FullFilename.Len(), FPlatformMisc::GetMaxPathLength(), *PlatFilename), EMessageSeverity::Error);
+						UE_LOG(LogCook, Error, TEXT("Couldn't save package, filename is too long (%d >= %d): %s"), FullFilename.Len(), FPlatformMisc::GetMaxPathLength(), *PlatFilename);
 						Result = ESavePackageResult::Error;
 					}
 					else
@@ -4033,7 +4029,12 @@ void UCookOnTheFlyServer::SaveCookedPackage(UPackage* Package, uint32 SaveFlags,
 						}
 						else
 						{
-							Result = GEditor->Save(Package, World, FlagsToCook, *PlatFilename, GError, NULL, bSwap, false, SaveFlags, Target, FDateTime::MinValue(), false);
+							FSavePackageContext* const SavePackageContext = IsUsingPackageStore() ? SavePackageContexts[PlatformIndex] : nullptr;
+
+							Result = GEditor->Save(	Package, World, FlagsToCook, *PlatFilename, 
+													GError, nullptr, bSwap, false, SaveFlags, Target, 
+													FDateTime::MinValue(), false, /*DiffMap*/ nullptr, 
+													SavePackageContext);
 						}
 						GIsCookerLoadingPackage = false;
 						{
@@ -4081,7 +4082,7 @@ void UCookOnTheFlyServer::SaveCookedPackage(UPackage* Package, uint32 SaveFlags,
 
 void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInitializationFlags InCookFlags, const FString &InOutputDirectoryOverride )
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("UCookOnTheFlyServer::Initialize"));
+	TRACE_CPUPROFILER_EVENT_SCOPE(UCookOnTheFlyServer::Initialize);
 
 	OutputDirectoryOverride = InOutputDirectoryOverride;
 	CurrentCookMode = DesiredCookMode;
@@ -5075,7 +5076,7 @@ FName UCookOnTheFlyServer::ConvertCookedPathToUncookedPath(
 
 void UCookOnTheFlyServer::GetAllCookedFiles(TMap<FName, FName>& UncookedPathToCookedPath, const FString& SandboxRootDir)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("UCookOnTheFlyServer::GetAllCookedFiles"));
+	TRACE_CPUPROFILER_EVENT_SCOPE(UCookOnTheFlyServer::GetAllCookedFiles);
 
 	TArray<FString> CookedFiles;
 	{
@@ -5104,7 +5105,7 @@ void UCookOnTheFlyServer::GetAllCookedFiles(TMap<FName, FName>& UncookedPathToCo
 
 void UCookOnTheFlyServer::PopulateCookedPackagesFromDisk(const TArray<ITargetPlatform*>& Platforms)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("UCookOnTheFlyServer::PopulateCookedPackagesFromDisk"));
+	TRACE_CPUPROFILER_EVENT_SCOPE(UCookOnTheFlyServer::PopulateCookedPackagesFromDisk);
 
 	// See what files are out of date in the sandbox folder
 	for (int32 Index = 0; Index < Platforms.Num(); Index++)
@@ -5368,7 +5369,7 @@ const FString ExtractPackageNameFromObjectPath( const FString ObjectPath )
 
 void UCookOnTheFlyServer::CleanSandbox(const bool bIterative)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("UCookOnTheFlyServer::CleanSandbox"));
+	TRACE_CPUPROFILER_EVENT_SCOPE(UCookOnTheFlyServer::CleanSandbox);
 
 	const TArray<ITargetPlatform*>& Platforms = GetCookingTargetPlatforms();
 
@@ -5443,7 +5444,7 @@ void UCookOnTheFlyServer::CleanSandbox(const bool bIterative)
 
 void UCookOnTheFlyServer::GenerateAssetRegistry()
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("UCookOnTheFlyServer::GenerateAssetRegistry"));
+	TRACE_CPUPROFILER_EVENT_SCOPE(UCookOnTheFlyServer::GenerateAssetRegistry);
 
 	// Cache asset registry for later
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
@@ -5582,7 +5583,7 @@ void UCookOnTheFlyServer::AddFileToCook( TArray<FName>& InOutFilesToCook, const 
 
 void UCookOnTheFlyServer::CollectFilesToCook(TArray<FName>& FilesInPath, const TArray<FString>& CookMaps, const TArray<FString>& InCookDirectories, const TArray<FString> &IniMapSections, ECookByTheBookOptions FilesToCookFlags)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("UCookOnTheFlyServer::GenerateAssetRegistry"));
+	TRACE_CPUPROFILER_EVENT_SCOPE(UCookOnTheFlyServer::GenerateAssetRegistry);
 
 #if OUTPUT_TIMING
 	SCOPE_TIMER(CollectFilesToCook);
@@ -6330,6 +6331,8 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 	UE_LOG(LogCook, Display, TEXT("Finishing up..."));
 
 	UPackage::WaitForAsyncFileWrites();
+	
+	FinalizePackageStore();
 
 	GetDerivedDataCacheRef().WaitForQuiescence(true);
 	
@@ -6702,6 +6705,52 @@ void UCookOnTheFlyServer::InitializeSandbox()
 	}
 }
 
+void UCookOnTheFlyServer::InitializePackageStore(const TArray<FName>& TargetPlatformNames)
+{
+	// TODO: should ideally support all cook modes
+	if (!IsUsingPackageStore())
+	{
+		return;
+	}
+
+	const FString NameMapFilename = FPaths::RootDir() / TEXT("megafile.unamemap");
+	const FString NameMapSandboxFilename = ConvertToFullSandboxPath(*NameMapFilename, true);
+
+	FString NameMapCookedSandboxFilename;
+	SavePackageContexts.Reserve(TargetPlatformNames.Num());
+
+	for (const FName PlatformName : TargetPlatformNames)
+	{
+		NameMapCookedSandboxFilename = NameMapSandboxFilename.Replace(TEXT("[Platform]"), *PlatformName.ToString());
+
+		// just leak all memory for now
+		FPackageStoreNameMapSaver* NameMapSaver = new FPackageStoreNameMapSaver(*NameMapCookedSandboxFilename);
+		FPackageHeaderSaver* PackageHeaderSaver = new FPackageHeaderSaver(*NameMapSaver);
+		FLooseFileWriter* LooseFileWriter		= new FLooseFileWriter();
+		FSavePackageContext* SavePackageContext = new FSavePackageContext(*PackageHeaderSaver, *LooseFileWriter);
+
+		SavePackageContexts.Add(SavePackageContext);
+	}
+}
+
+void UCookOnTheFlyServer::FinalizePackageStore()
+{
+	if (!IsUsingPackageStore())
+	{
+		return;
+	}
+
+	SCOPE_TIMER(FinalizePackageStore);
+
+	UE_LOG(LogCook, Display, TEXT("Saving name map(s)..."));
+	const TArray<ITargetPlatform*>& TargetPlatforms = GetCookingTargetPlatforms();
+	for (int32 PlatformIndex = 0; PlatformIndex < TargetPlatforms.Num(); ++PlatformIndex)
+	{
+		INameMapSaver& NameMapSaver = SavePackageContexts[PlatformIndex]->HeaderSaver.NameMapSaver;
+		NameMapSaver.End();
+	}
+	UE_LOG(LogCook, Display, TEXT("Done saving name map(s)"));
+}
 
 void UCookOnTheFlyServer::InitializeTargetPlatforms()
 {
@@ -6811,6 +6860,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	CookByTheBookOptions->CreateReleaseVersion = CreateReleaseVersion;
 	CookByTheBookOptions->bDisableUnsolicitedPackages = !!(CookOptions & ECookByTheBookOptions::DisableUnsolicitedPackages);
 	CookByTheBookOptions->bFullLoadAndSave = !!(CookOptions & ECookByTheBookOptions::FullLoadAndSave);
+	CookByTheBookOptions->bPackageStore = !!(CookOptions & ECookByTheBookOptions::PackageStore);
 	CookByTheBookOptions->bErrorOnEngineContentUse = CookByTheBookStartupOptions.bErrorOnEngineContentUse;
 
 	GenerateAssetRegistry();
@@ -6955,6 +7005,8 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	InitializeSandbox();
 	InitializeTargetPlatforms();
 
+	InitializePackageStore(TargetPlatformNames);
+
 	if (CurrentCookMode == ECookMode::CookByTheBook && !IsCookFlagSet(ECookInitializationFlags::Iterative))
 	{
 		StartSavingEDLCookInfoForVerification();
@@ -7097,8 +7149,10 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 		UE_LOG(LogCook, Warning, TEXT("No files found."));
 	}
 
-	if (FParse::Param(FCommandLine::Get(), TEXT("DIFFONLY")) && !FParse::Param(FCommandLine::Get(), TEXT("DIFFNORANDCOOK")))
+	if (FParse::Param(FCommandLine::Get(), TEXT("RANDOMPACKAGEORDER")) || 
+		(FParse::Param(FCommandLine::Get(), TEXT("DIFFONLY")) && !FParse::Param(FCommandLine::Get(), TEXT("DIFFNORANDCOOK"))))
 	{
+		UE_LOG(LogCook, Log, TEXT("Randomizing package order."));
 		//randomize the array, taking the Array_Shuffle approach, in order to help bring cooking determinism issues to the surface.
 		for (int32 FileIndex = 0; FileIndex < FilesInPath.Num(); ++FileIndex)
 		{

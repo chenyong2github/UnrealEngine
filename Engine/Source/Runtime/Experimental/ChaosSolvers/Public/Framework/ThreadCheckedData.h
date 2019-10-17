@@ -1,5 +1,4 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-#if INCLUDE_CHAOS
 #pragma once
 
 #include "CoreGlobals.h"
@@ -81,5 +80,3 @@ namespace Chaos
 	template <typename T>
 	using TDataPT = TThreadCheckedData<T, FCheckPhysicsThread>;
 }
-
-#endif

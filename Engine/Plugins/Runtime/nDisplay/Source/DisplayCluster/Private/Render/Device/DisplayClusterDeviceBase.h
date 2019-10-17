@@ -43,6 +43,9 @@ public:
 	virtual void SetOverridePostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& OverridePostProcessingSettings, float BlendWeight = 1.0f) override;
 	virtual void SetFinalPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& FinalPostProcessingSettings) override;
 	virtual bool GetViewportRect(const FString& InViewportID, FIntRect& Rect) override;
+	virtual bool SetBufferRatio(const FString& InViewportID, float  InBufferRatio) override;
+	virtual bool GetBufferRatio(const FString& InViewportID, float& OutBufferRatio) const override;
+	virtual bool GetBufferRatio(int32 ViewIdx, float& OutBufferRatio) const override;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -134,7 +137,7 @@ protected:
 	uint32 GetSwapInt() const;
 
 	// Adds a new viewport with specified parameters and projection policy object
-	void AddViewport(const FString& InViewportId, const FIntPoint& InViewportLocation, const FIntPoint& InViewportSize, TSharedPtr<IDisplayClusterProjectionPolicy> InProjPolicy, const FString& InCameraId, bool IsRTT = false);
+	void AddViewport(const FString& InViewportId, const FIntPoint& InViewportLocation, const FIntPoint& InViewportSize, TSharedPtr<IDisplayClusterProjectionPolicy> InProjPolicy, const FString& InCameraId, float InBufferRatio = 1.f, bool IsRTT = false);
 	// Performs copying of render target data to the back buffer
 	virtual void CopyTextureToBackBuffer_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* BackBuffer, FRHITexture2D* SrcTexture, FVector2D WindowSize) const;
 	
@@ -167,7 +170,4 @@ protected:
 
 	// Data access synchronization
 	mutable FCriticalSection InternalsSyncScope;
-
-	// Temporary: don't allow to add more than 1 RTT viewport
-	bool bViewportRttAdded = false;
 };

@@ -1,7 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#if INCLUDE_CHAOS
-
 #include "Framework/CommandBuffer.h"
 #include "ChaosSolversModule.h"
 #include "Framework/Dispatcher.h"
@@ -62,5 +60,3 @@ void Chaos::FCommandList::AllocData()
 
 	Data = MakeUnique<FCommandList_Constructor>();
 }
-
-#endif

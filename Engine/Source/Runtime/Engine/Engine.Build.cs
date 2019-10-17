@@ -41,13 +41,9 @@ public class Engine : ModuleRules
 
 		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
 		{
-			PrivateIncludePathModuleNames.AddRange(new string[] { "TaskGraph" });
-		}
-
-		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
-		{
 			PrivateIncludePathModuleNames.AddRange(
 				new string[] {
+					"TaskGraph",
 					"SlateReflector",
 				}
 			);
@@ -57,12 +53,20 @@ public class Engine : ModuleRules
 					"SlateReflector",
 				}
 			);
+
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"EditorAnalyticsSession",
+				}
+			);
 		}
 
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
 				"CoreUObject",
+				"NetCore",
 				"ApplicationCore",
 				"Json",
 				"SlateCore",
@@ -83,7 +87,7 @@ public class Engine : ModuleRules
 				"MeshDescription",
 				"StaticMeshDescription",
 				"PakFile",
-                "NetworkReplayStreaming",
+				"NetworkReplayStreaming",
 				"PhysicsCore",
                 "SignalProcessing"
 			}
@@ -103,21 +107,17 @@ public class Engine : ModuleRules
 				"AudioMixer",
 				"AudioMixerCore",
 				"SignalProcessing",
-                "CrunchCompression"
-            }
+				"CrunchCompression",
+			}
 		);
 
-		if(Target.Platform != UnrealTargetPlatform.HTML5)
-		{
-			// Cross platform Audio Codecs:
-			AddEngineThirdPartyPrivateStaticDependencies(Target,
-                    "UEOgg",
-                    "Vorbis",
-                    "VorbisFile",
-                    "libOpus"
-                    );
-        }
-        
+		// Cross platform Audio Codecs:
+		AddEngineThirdPartyPrivateStaticDependencies(Target,
+			"UEOgg",
+			"Vorbis",
+			"VorbisFile",
+			"libOpus"
+			);
 
 		DynamicallyLoadedModuleNames.Add("EyeTracker");
 
@@ -200,7 +200,7 @@ public class Engine : ModuleRules
 		// The AnimGraphRuntime module is not needed by Engine proper, but it is loaded in LaunchEngineLoop.cpp,
 		// and needs to be listed in an always-included module in order to be compiled into standalone games
 		DynamicallyLoadedModuleNames.Add("AnimGraphRuntime");
-        
+
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[]
 			{
@@ -373,15 +373,12 @@ public class Engine : ModuleRules
 			DynamicallyLoadedModuleNames.Add("PhysXCooking");
 		}
 
-		if (Target.bCompileChaos || Target.bUseChaos)
-        {
-            PublicDependencyModuleNames.AddRange(
-				new string[] {
-					"PhysicsSQ",
-					"ChaosSolvers"
-				}
-			);
-        }
+        PublicDependencyModuleNames.AddRange(
+			new string[] {
+				"PhysicsSQ",
+				"ChaosSolvers"
+			}
+		);
 
         // Engine public headers need to know about some types (enums etc.)
         PublicIncludePathModuleNames.Add("ClothingSystemRuntimeInterface");
@@ -399,17 +396,6 @@ public class Engine : ModuleRules
 			// Head Mounted Display support
 //			PrivateIncludePathModuleNames.AddRange(new string[] { "HeadMountedDisplay" });
 //			DynamicallyLoadedModuleNames.AddRange(new string[] { "HeadMountedDisplay" });
-		}
-
-		if (Target.Platform == UnrealTargetPlatform.HTML5)
-		{
-			// TODO test this for HTML5 !
-			//AddEngineThirdPartyPrivateStaticDependencies(Target,
-			//		"UEOgg",
-			//		"Vorbis",
-			//		"VorbisFile"
-			//		);
-			PublicDependencyModuleNames.Add("HTML5JS");
 		}
 
 		if (Target.Platform == UnrealTargetPlatform.Mac)

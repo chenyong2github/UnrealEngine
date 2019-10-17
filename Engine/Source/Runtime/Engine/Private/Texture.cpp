@@ -87,6 +87,7 @@ UTexture::UTexture(const FObjectInitializer& ObjectInitializer)
 	ChromaKeyColor = FColorList::Magenta;
 	ChromaKeyThreshold = 1.0f / 255.0f;
 	VirtualTextureStreaming = 0;
+	CompressionYCoCg = 0;
 	
 #endif // #if WITH_EDITORONLY_DATA
 
@@ -1248,6 +1249,7 @@ void UTexture::GetDefaultFormatSettings(FTextureFormatSettings& OutSettings) con
 	OutSettings.CompressionSettings = CompressionSettings;
 	OutSettings.CompressionNone = CompressionNone;
 	OutSettings.CompressionNoAlpha = CompressionNoAlpha;
+	OutSettings.CompressionYCoCg = CompressionYCoCg;
 	OutSettings.SRGB = SRGB;
 }
 
@@ -1273,6 +1275,7 @@ void UTexture::SetLayerFormatSettings(int32 LayerIndex, const FTextureFormatSett
 		CompressionSettings = InSettings.CompressionSettings;
 		CompressionNone = InSettings.CompressionNone;
 		CompressionNoAlpha = InSettings.CompressionNoAlpha;
+		CompressionYCoCg = InSettings.CompressionYCoCg;
 		SRGB = InSettings.SRGB;
 	}
 	else

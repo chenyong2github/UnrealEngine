@@ -403,6 +403,11 @@ public:
 	void SetStopping(const bool bInIsStopping) { bIsStopping = bInIsStopping; }
 	bool IsStopping() const { return bIsStopping; }
 
+	/** Returns whether or not the WaveInstance is actively playing sound or set to
+	  * play when silent.
+	  */
+	bool IsPlaying() const;
+
 	/** Returns the volume multiplier on the wave instance. */
 	float GetVolumeMultiplier() const { return VolumeMultiplier; }
 

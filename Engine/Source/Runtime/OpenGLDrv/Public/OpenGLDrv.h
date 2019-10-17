@@ -16,6 +16,7 @@
 #include "RenderResource.h"
 #include "Templates/EnableIf.h"
 
+// @todo platplug: Replace all of these includes with a call to COMPILED_PLATFORM_HEADER(OpenGLDrvPrivate.h)
 //TODO: Move these to OpenGLDrvPrivate.h
 #if PLATFORM_WINDOWS
 #include "Runtime/OpenGLDrv/Private/Windows/OpenGLWindows.h"
@@ -30,8 +31,8 @@
 #include "Android/AndroidESDeferredOpenGL.h"
 #elif PLATFORM_ANDROID
 #include "Android/AndroidOpenGL.h"
-#elif PLATFORM_HTML5
-#include "HTML5/HTML5OpenGL.h"
+#elif defined(__EMSCRIPTEN__)
+#include "HTML5OpenGL.h"
 #elif PLATFORM_LINUX
 #include "Linux/OpenGLLinux.h"
 #endif
@@ -410,7 +411,7 @@ public:
 	virtual void RHIBindDebugLabelName(FRHITexture* Texture, const TCHAR* Name) final override;
 	virtual void RHIReadSurfaceData(FRHITexture* Texture,FIntRect Rect,TArray<FColor>& OutData,FReadSurfaceDataFlags InFlags) final override;
 	virtual void RHIReadSurfaceData(FRHITexture* Texture, FIntRect Rect, TArray<FLinearColor>& OutData, FReadSurfaceDataFlags InFlags) final override;
-	virtual void RHIMapStagingSurface(FRHITexture* Texture,void*& OutData,int32& OutWidth,int32& OutHeight) final override;
+	virtual void RHIMapStagingSurface(FRHITexture* Texture, FRHIGPUFence* Fence, void*& OutData, int32& OutWidth, int32& OutHeight) final override;
 	virtual void RHIUnmapStagingSurface(FRHITexture* Texture) final override;
 	virtual void RHIReadSurfaceFloatData(FRHITexture* Texture,FIntRect Rect,TArray<FFloat16Color>& OutData,ECubeFace CubeFace,int32 ArrayIndex,int32 MipIndex) final override;
 	virtual void RHIRead3DSurfaceFloatData(FRHITexture* Texture,FIntRect Rect,FIntPoint ZMinMax,TArray<FFloat16Color>& OutData) final override;
@@ -425,6 +426,7 @@ public:
 	virtual uint32 RHIGetGPUFrameCycles() final override;
 	virtual FViewportRHIRef RHICreateViewport(void* WindowHandle, uint32 SizeX, uint32 SizeY, bool bIsFullscreen, EPixelFormat PreferredPixelFormat) final override;
 	virtual void RHIResizeViewport(FRHIViewport* Viewport, uint32 SizeX, uint32 SizeY, bool bIsFullscreen) final override;
+	virtual EPixelFormat RHIPreferredPixelFormatHint(EPixelFormat PreferredPixelFormat) final override;
 	virtual void RHITick(float DeltaTime) final override;
 	virtual void RHIBlockUntilGPUIdle() final override;
 	virtual void RHISubmitCommandsAndFlushGPU() final override;

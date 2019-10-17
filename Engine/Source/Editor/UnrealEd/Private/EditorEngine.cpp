@@ -1637,16 +1637,13 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 		// So we iterate on a local list here instead.
 		for (FWorldContext* PieContextPtr : LocalPieContextPtrs)
 		{
-			FWorldContext &PieContext = *PieContextPtr;
-
-			GPlayInEditorID = PieContext.PIEInstance;
+			FWorldContext& PieContext = *PieContextPtr;
 
 			PlayWorld = PieContext.World();
 			GameViewport = PieContext.GameViewport;
 
-			UWorld* OldGWorld = NULL;
-			// Use the PlayWorld as the GWorld, because who knows what will happen in the Tick.
-			OldGWorld = SetPlayInEditorWorld( PlayWorld );
+			// Switch worlds and set the play world ID
+			UWorld* OldGWorld = SetPlayInEditorWorld(PlayWorld);
 
 			// Transfer debug references to ensure debugging ref's are valid for this tick in case of multiple game instances.
 			if (OldGWorld && OldGWorld != PlayWorld)
@@ -1731,7 +1728,8 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 		bFirstTick = false;
 	}
 
-	GPlayInEditorID = -1;
+	ensure(GPlayInEditorID == INDEX_NONE);
+	GPlayInEditorID = INDEX_NONE;
 
 	// Clean up any game viewports that may have been closed during the level tick (eg by Kismet).
 	CleanupGameViewport();
@@ -1877,11 +1875,10 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 			GameViewport = PieContext.GameViewport;
 
 			// Render playworld. This needs to happen after the other viewports for screenshots to work correctly in PIE.
-			if(PlayWorld && GameViewport && !bIsSimulatingInEditor)
+			if (PlayWorld && GameViewport && !bIsSimulatingInEditor)
 			{
 				// Use the PlayWorld as the GWorld, because who knows what will happen in the Tick.
 				UWorld* OldGWorld = SetPlayInEditorWorld( PlayWorld );
-				GPlayInEditorID = PieContext.PIEInstance;
 
 				// Render everything.
 				GameViewport->LayoutPlayers();
@@ -1890,7 +1887,6 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 
 				// Pop the world
 				RestoreEditorWorld( OldGWorld );
-				GPlayInEditorID = -1;
 			}
 		}
 	}
@@ -4399,8 +4395,9 @@ void UEditorEngine::CleanupPhysicsSceneThatWasInitializedForSave(UWorld* World, 
 }
 
 FSavePackageResultStruct UEditorEngine::Save( UPackage* InOuter, UObject* InBase, EObjectFlags TopLevelFlags, const TCHAR* Filename,
-				 FOutputDevice* Error, FLinkerLoad* Conform, bool bForceByteSwapping, bool bWarnOfLongFilename, 
-				 uint32 SaveFlags, const class ITargetPlatform* TargetPlatform, const FDateTime& FinalTimeStamp, bool bSlowTask, FArchiveDiffMap* InOutDiffMap)
+				 FOutputDevice* Error, FLinkerNull* Conform, bool bForceByteSwapping, bool bWarnOfLongFilename, 
+				 uint32 SaveFlags, const class ITargetPlatform* TargetPlatform, const FDateTime& FinalTimeStamp, bool bSlowTask, FArchiveDiffMap* InOutDiffMap,
+				 FSavePackageContext* SavePackageContext)
 {
 	FScopedSlowTask SlowTask(100, FText(), bSlowTask);
 
@@ -4445,7 +4442,7 @@ FSavePackageResultStruct UEditorEngine::Save( UPackage* InOuter, UObject* InBase
 	SlowTask.EnterProgressFrame(70);
 
 	UPackage::PreSavePackageEvent.Broadcast(InOuter);
-	const FSavePackageResultStruct Result = UPackage::Save(InOuter, Base, TopLevelFlags, Filename, Error, Conform, bForceByteSwapping, bWarnOfLongFilename, SaveFlags, TargetPlatform, FinalTimeStamp, bSlowTask, InOutDiffMap);
+	const FSavePackageResultStruct Result = UPackage::Save(InOuter, Base, TopLevelFlags, Filename, Error, Conform, bForceByteSwapping, bWarnOfLongFilename, SaveFlags, TargetPlatform, FinalTimeStamp, bSlowTask, InOutDiffMap, SavePackageContext);
 
 	SlowTask.EnterProgressFrame(10);
 
@@ -4496,7 +4493,7 @@ FSavePackageResultStruct UEditorEngine::Save( UPackage* InOuter, UObject* InBase
 }
 
 bool UEditorEngine::SavePackage(UPackage* InOuter, UObject* InBase, EObjectFlags TopLevelFlags, const TCHAR* Filename,
-	FOutputDevice* Error, FLinkerLoad* Conform, bool bForceByteSwapping, bool bWarnOfLongFilename,
+	FOutputDevice* Error, FLinkerNull* Conform, bool bForceByteSwapping, bool bWarnOfLongFilename,
 	uint32 SaveFlags, const class ITargetPlatform* TargetPlatform, const FDateTime& FinalTimeStamp, bool bSlowTask)
 {
 	// Workaround to avoid function signature change while keeping both bool and ESavePackageResult versions of SavePackage

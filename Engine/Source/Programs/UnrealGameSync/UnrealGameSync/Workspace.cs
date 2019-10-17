@@ -106,7 +106,6 @@ namespace UnrealGameSync
 			new WorkspaceSyncCategory(new Guid("{6703E989-D912-451D-93AD-B48DE748D282}"), "Content", "*.uasset", "*.umap"),
 			new WorkspaceSyncCategory(new Guid("{6507C2FB-19DD-403A-AFA3-BBF898248D5A}"), "Documentation", "/Engine/Documentation/..."),
 			new WorkspaceSyncCategory(new Guid("{FD7C716E-4BAD-43AE-8FAE-8748EF9EE44D}"), "Platform Support: Android", "/Engine/Source/ThirdParty/.../Android/...", ".../Build/Android/PipelineCaches/..."),
-			new WorkspaceSyncCategory(new Guid("{3299A73D-2176-4C0F-BC99-C1C6631AF6C4}"), "Platform Support: HTML5", "/Engine/Source/ThirdParty/.../HTML5/...", "/Engine/Extras/ThirdPartyNotUE/emsdk/..."),
 			new WorkspaceSyncCategory(new Guid("{176B2EB2-35F7-4E8E-B131-5F1C5F0959AF}"), "Platform Support: iOS", "/Engine/Source/ThirdParty/.../IOS/...", ".../Build/IOS/PipelineCaches/..."),
 			new WorkspaceSyncCategory(new Guid("{F44B2D25-CBC0-4A8F-B6B3-E4A8125533DD}"), "Platform Support: Linux", "/Engine/Source/ThirdParty/.../Linux/..."),
 			new WorkspaceSyncCategory(new Guid("{2AF45231-0D75-463B-BF9F-ABB3231091BB}"), "Platform Support: Mac", "/Engine/Source/ThirdParty/.../Mac/...", ".../Build/Mac/PipelineCaches/..."),
@@ -1240,7 +1239,7 @@ namespace UnrealGameSync
 
 			return SyncPaths;
 		}
-		
+
 		public bool MatchFilter(string FileName, FileFilter Filter)
 		{
 			bool bMatch = true;

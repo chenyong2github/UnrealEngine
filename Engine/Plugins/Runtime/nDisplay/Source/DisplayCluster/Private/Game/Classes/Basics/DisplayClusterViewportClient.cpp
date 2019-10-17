@@ -33,6 +33,7 @@
 #include "DynamicResolutionState.h"
 #include "EngineStats.h"
 
+#include "Render\Device\IDisplayClusterRenderDevice.h"
 
 
 //DECLARE_CYCLE_STAT(TEXT("UI Drawing Time"), STAT_UIDrawingTime, STATGROUP_UI);
@@ -145,10 +146,18 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 	
 	for (int32 viewFamily = 0; viewFamily < NumFamilies; ++viewFamily)
 	{
+		float CustomBufferRatio = 1.f;
+
 		if (nDisplay)
 		{
 			StartViewIndex = viewFamily;
 			NumViews = StartViewIndex + 1;
+
+			IDisplayClusterRenderDevice* DisplayClusterRenderDevice = static_cast<IDisplayClusterRenderDevice*>(GEngine->StereoRenderingDevice.Get());
+			if (DisplayClusterRenderDevice)
+			{
+				DisplayClusterRenderDevice->GetBufferRatio(viewFamily, CustomBufferRatio);
+			}
 		}
 
 		// create the view family for rendering the world scene to the viewport's render target
@@ -489,7 +498,7 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 				AllowPostProcessSettingsScreenPercentage = true;
 
 				// Get global view fraction set by r.ScreenPercentage.
-				GlobalResolutionFraction = FLegacyScreenPercentageDriver::GetCVarResolutionFraction();
+				GlobalResolutionFraction = FLegacyScreenPercentageDriver::GetCVarResolutionFraction() * CustomBufferRatio;
 			}
 
 			ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(

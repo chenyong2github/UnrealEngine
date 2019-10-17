@@ -17,7 +17,7 @@ void FStreamedGeometryCacheChunk::Serialize(FArchive& Ar, UObject* Owner, int32 
 	// We force it not inline that means bulk data won't automatically be loaded when we deserialize
 	// later but only when we explicitly take action to load it
 	BulkData.SetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload);
-	BulkData.Serialize(Ar, Owner, ChunkIndex);
+	BulkData.Serialize(Ar, Owner, ChunkIndex,false);
 	Ar << DataSize;
 	Ar << FirstFrame;
 	Ar << LastFrame;

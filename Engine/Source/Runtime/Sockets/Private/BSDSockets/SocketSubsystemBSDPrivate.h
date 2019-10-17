@@ -22,12 +22,17 @@
 	#include <unistd.h>
 	#include <sys/socket.h>
 #if PLATFORM_HAS_BSD_SOCKET_FEATURE_IOCTL
+	#include <fcntl.h>
+	#include <sys/types.h>
 	#include <sys/ioctl.h>
 #endif
 	#include <netinet/in.h>
 	#include <arpa/inet.h>
 #if PLATFORM_HAS_BSD_SOCKET_FEATURE_GETHOSTNAME
 	#include <netdb.h>
+#endif
+#if PLATFORM_HAS_BSD_SOCKET_FEATURE_NODELAY
+	#include <netinet/tcp.h>
 #endif
 
 	#define ioctlsocket ioctl

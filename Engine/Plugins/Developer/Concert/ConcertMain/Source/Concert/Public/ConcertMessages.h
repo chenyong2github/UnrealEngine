@@ -89,7 +89,7 @@ struct FConcertAdmin_ServerDiscoveredEvent : public FConcertEndpointDiscoveryEve
 
 	/** Contains information on the server settings */
 	UPROPERTY(VisibleAnywhere, Category = "Concert Message")
-	EConcertSeverFlags ServerFlags;
+	EConcertServerFlags ServerFlags;
 };
 
 USTRUCT()
@@ -355,6 +355,9 @@ struct FConcertAdmin_GetSessionActivitiesRequest : public FConcertRequestData
 
 	UPROPERTY(VisibleAnywhere, Category="Concert Message")
 	int64 ActivityCount = 1024;
+
+	UPROPERTY(VisibleAnywhere, Category="Concert Message")
+	bool bIncludeDetails = false;
 };
 
 USTRUCT()
@@ -362,8 +365,13 @@ struct FConcertAdmin_GetSessionActivitiesResponse : public FConcertResponseData
 {
 	GENERATED_BODY()
 
+	/** The list of activities. */
 	UPROPERTY(VisibleAnywhere, Category="Concert Message")
 	TArray<FConcertSessionSerializedPayload> Activities;
+
+	/** Maps each activity endpoint to its client info. */
+	UPROPERTY(VisibleAnywhere, Category="Concert Message")
+	TMap<FGuid, FConcertClientInfo> EndpointClientInfoMap;
 };
 
 USTRUCT()

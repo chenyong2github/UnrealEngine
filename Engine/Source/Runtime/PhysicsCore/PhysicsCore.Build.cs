@@ -24,5 +24,10 @@ public class PhysicsCore: ModuleRules
 			// public files have access to PhysX includes
             PublicDependencyModuleNames.Add("PhysX");
         }
+
+		if(Target.bCompileAPEX)
+        {
+            PublicDependencyModuleNames.Add("APEX");
+        }
 	}
 }

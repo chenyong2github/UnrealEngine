@@ -26,6 +26,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=Transport)
 	bool EnableTransport;
 
+	/** Whether the UDP transport channel should try to auto repair when in error. */
+	UPROPERTY(config, EditAnywhere, Category=Transport, AdvancedDisplay)
+	bool bAutoRepair = true;
+
 	/**
 	 * The IP endpoint to listen to and send packets from.
 	 *

@@ -2,9 +2,9 @@
 #pragma once
 
 #include "Chaos/KinematicGeometryParticles.h"
+#include "Chaos/PerParticleGravity.h"
 #include "Chaos/PBDParticles.h"
-
-#include <unordered_set>
+#include "Chaos/Vector.h"
 
 namespace Chaos
 {
@@ -12,6 +12,8 @@ template<class T, int d>
 class CHAOS_API TPBDEvolution
 {
   public:
+	using FGravityForces = TPerParticleGravity<T, d>;
+
 	// TODO(mlentine): Init particles from some type of input
 	TPBDEvolution(TPBDParticles<T, d>&& InParticles, TKinematicGeometryClothParticles<T, d>&& InGeometryParticles, TArray<TVector<int32, 3>>&& CollisionTriangles, int32 NumIterations = 1, T CollisionThickness = 0, T SelfCollisionsThickness = 0, T CoefficientOfFriction = 0, T Damping = 0.04);
 	~TPBDEvolution() {}
@@ -26,6 +28,9 @@ class CHAOS_API TPBDEvolution
 
 	const TPBDParticles<T, d>& Particles() const { return MParticles; }
 	TPBDParticles<T, d>& Particles() { return MParticles; }
+
+	FGravityForces& GetGravityForces() { return GravityForces; }
+	const FGravityForces& GetGravityForces() const { return GravityForces; }
 
 	const TGeometryClothParticles<T, d>& CollisionParticles() const { return MCollisionParticles; }
 	TGeometryClothParticles<T, d>& CollisionParticles() { return MCollisionParticles; }
@@ -51,6 +56,8 @@ class CHAOS_API TPBDEvolution
 	T MCoefficientOfFriction;
 	T MDamping;
 	T MTime;
+
+	FGravityForces GravityForces;
 
 	TArray<TFunction<void(TPBDParticles<T, d>&, const T, const int32)>> MForceRules;
 	TArray<TFunction<void(TPBDParticles<T, d>&, const T)>> MConstraintRules;

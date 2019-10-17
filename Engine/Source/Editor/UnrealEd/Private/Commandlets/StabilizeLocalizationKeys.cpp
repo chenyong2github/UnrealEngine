@@ -12,7 +12,6 @@
 #include "UObject/Linker.h"
 #include "Internationalization/InternationalizationManifest.h"
 #include "Internationalization/InternationalizationArchive.h"
-#include "Templates/ScopedPointer.h"
 #include "UserDefinedStructure/UserDefinedStructEditorData.h"
 #include "Engine/UserDefinedStruct.h"
 #include "Serialization/JsonInternationalizationManifestSerializer.h"

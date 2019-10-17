@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include "Clang/ClangPlatform.h"
+
 /**
 * iOS specific types
 **/

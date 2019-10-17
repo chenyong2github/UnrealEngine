@@ -3,7 +3,6 @@
 
 #if !COMPILE_WITHOUT_UNREAL_SUPPORT
 #include "Chaos/Array.h"
-#include "Chaos/Map.h"
 #include "Chaos/PBDCollisionSpringConstraintsBase.h"
 #include "Chaos/PBDParticles.h"
 #include "Chaos/PBDConstraintContainer.h"

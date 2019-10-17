@@ -5,19 +5,23 @@
 #include "Chaos/Box.h"
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/Particles.h"
-#include "Chaos/Plane.h"
-#include "Chaos/TriangleMesh.h"
 #include "Chaos/UniformGrid.h"
 
 namespace Chaos { class FErrorReporter; }
 
 namespace Chaos
 {
+
+template<class T>
+class TTriangleMesh;
+
+template<class T, int D>
+class TPlane;
+
 template<class T, int d>
 class CHAOS_API TLevelSet final : public TImplicitObject<T, d>
 {
   public:
-	IMPLICIT_OBJECT_SERIALIZER(TLevelSet)
 	using TImplicitObject<T, d>::SignedDistance;
 
 	TLevelSet(FErrorReporter& ErrorReporter, const TUniformGrid<T, d>& InGrid, const TParticles<T, d>& InParticles, const TTriangleMesh<T>& Mesh, const int32 BandWidth = 0);
@@ -58,13 +62,18 @@ class CHAOS_API TLevelSet final : public TImplicitObject<T, d>
 	FORCEINLINE void SerializeImp(FArchive& Ar)
 	{
 		TImplicitObject<T, d>::SerializeImp(Ar);
-		Ar << MGrid << MPhi << MNormals << MLocalBoundingBox << MOriginalLocalBoundingBox << MBandWidth;
+		Ar << MGrid;
+		Ar << MPhi;
+		Ar << MNormals;
+		Ar << MLocalBoundingBox;
+		Ar << MOriginalLocalBoundingBox;
+		Ar << MBandWidth;
 	}
 
-	virtual void Serialize(FChaosArchive& Ar) override
-	{
-		SerializeImp(Ar);
-	}
+	//virtual void Serialize(FChaosArchive& Ar) override
+	//{
+	//	SerializeImp(Ar);
+	//}
 
 	virtual void Serialize(FArchive& Ar) override
 	{

@@ -3,6 +3,7 @@
 #include "Model/FileActivity.h"
 #include "Model/IntervalTimeline.h"
 #include "AnalysisServicePrivate.h"
+#include <limits>
 
 namespace Trace
 {
@@ -10,54 +11,89 @@ namespace Trace
 FFileActivityProvider::FFileActivityProvider(IAnalysisSession& InSession)
 	: Session(InSession)
 	, Files(InSession.GetLinearAllocator(), 1024)
+	, FileActivities(InSession.GetLinearAllocator(), 1024)
+	, FileActivityTable(FileActivities)
 {
 }
 
-void FFileActivityProvider::EnumerateFileActivity(TFunctionRef<bool(const FFileInfo&, const ITimeline<FFileActivity>&)> Callback) const
+void FFileActivityProvider::EnumerateFileActivity(TFunctionRef<bool(const FFileInfo&, const Timeline&)> Callback) const
 {
 	for (uint64 FileIndex = 0, FileCount = Files.Num(); FileIndex < FileCount; ++FileIndex)
 	{
 		const FFileInfoInternal& FileInfoInternal = Files[FileIndex];
-		FFileInfo FileInfo;
-		FileInfo.Id = FileIndex;
-		FileInfo.Path = *FileInfoInternal.Path;
-		if (!Callback(FileInfo, *FileInfoInternal.ActivityTimeline))
+		if (!Callback(FileInfoInternal.FileInfo, *FileInfoInternal.ActivityTimeline))
 		{
 			return;
 		}
 	}
 }
 
+const ITable<FFileActivity>& FFileActivityProvider::GetFileActivityTable() const
+{
+	return FileActivityTable;
+}
+
 uint32 FFileActivityProvider::GetFileIndex(const TCHAR* Path)
 {
 	uint32 FileIndex = Files.Num();
 	FFileInfoInternal& FileInfo = Files.PushBack();
-	FileInfo.Path = Path;
+	FileInfo.FileInfo.Id = Files.Num() - 1;
+	FileInfo.FileInfo.Path = Session.StoreString(Path);
 	FileInfo.ActivityTimeline = MakeShared<TimelineInternal>(Session.GetLinearAllocator());
 	return FileIndex;
 }
 
-uint64 FFileActivityProvider::BeginActivity(uint32 FileIndex, EFileActivityType Type, uint64 Offset, uint64 Size, double Time)
+uint32 FFileActivityProvider::GetUnknownFileIndex()
 {
-	FFileInfoInternal& FileInfo = Files[FileIndex];
-	FFileActivity FileActivity;
-	FileActivity.ActivityType = Type;
-	FileActivity.Offset = Offset;
-	FileActivity.Size = Size;
-	FileActivity.Failed = false;
-	return FileInfo.ActivityTimeline->AppendBeginEvent(Time, FileActivity);
+	return GetFileIndex(TEXT("Unknown"));
 }
 
-void FFileActivityProvider::EndActivity(uint32 FileIndex, uint64 ActivityIndex, double Time, bool Failed)
+uint64 FFileActivityProvider::BeginActivity(uint32 FileIndex, EFileActivityType Type, uint32 ThreadId, uint64 Offset, uint64 Size, double Time)
 {
 	FFileInfoInternal& FileInfo = Files[FileIndex];
-	FFileActivity& Activity = FileInfo.ActivityTimeline->EndEvent(ActivityIndex, Time);
-	Activity.Failed = Failed;
+	FFileActivity& FileActivity = FileActivities.PushBack();
+	FileActivity.File = &FileInfo.FileInfo;
+	FileActivity.Offset = Offset;
+	FileActivity.Size = Size;
+	FileActivity.StartTime = Time;
+	FileActivity.EndTime = std::numeric_limits<double>::infinity();
+	FileActivity.ThreadId = ThreadId;
+	FileActivity.Failed = false;
+	FileActivity.ActivityType = Type;
+	return FileInfo.ActivityTimeline->AppendBeginEvent(Time, &FileActivity);
+}
+
+void FFileActivityProvider::EndActivity(uint32 FileIndex, uint64 ActivityIndex, uint64 ActualSize, double Time, bool Failed)
+{
+	FFileInfoInternal& FileInfo = Files[FileIndex];
+	FFileActivity* Activity = FileInfo.ActivityTimeline->EndEvent(ActivityIndex, Time);
+	Activity->EndTime = Time;
+	Activity->Failed = Failed;
+	if (!Failed)
+	{
+		Activity->Size = ActualSize;
+	}
 }
 
 const TCHAR* FFileActivityProvider::GetFilePath(uint32 FileIndex) const
 {
-	return *Files[FileIndex].Path;
+	return Files[FileIndex].FileInfo.Path;
+}
+
+const TCHAR* GetFileActivityTypeString(EFileActivityType ActivityType)
+{
+	switch (ActivityType)
+	{
+	case FileActivityType_Open:
+		return TEXT("Open");
+	case FileActivityType_Close:
+		return TEXT("Close");
+	case FileActivityType_Read:
+		return TEXT("Read");
+	case FileActivityType_Write:
+		return TEXT("Write");
+	}
+	return TEXT("Invalid");
 }
 
 }

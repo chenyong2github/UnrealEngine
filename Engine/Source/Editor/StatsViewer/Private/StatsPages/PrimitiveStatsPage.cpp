@@ -59,10 +59,10 @@ struct PrimitiveStatsGenerator
 	}
 
 	/** Add a new statistic to the internal map (or update an existing one) from the supplied component */
-	UPrimitiveStats* Add(UPrimitiveComponent* InPrimitiveComponent, EPrimitiveObjectSets InObjectSet)
+	UPrimitiveStats* Add(UPrimitiveComponent* InPrimitiveComponent, EPrimitiveObjectSets InObjectSet, bool bAllowTransientWorld)
 	{
-		// Objects in transient package or transient objects are not part of level.
-		if( InPrimitiveComponent->GetOutermost() == GetTransientPackage() || InPrimitiveComponent->HasAnyFlags( RF_Transient ) )
+		// Transient objects are not part of level, but if part of transient package, we can allow depending on flag bAllowTransientWorld.
+		if( (!bAllowTransientWorld && InPrimitiveComponent->GetOutermost() == GetTransientPackage()) || InPrimitiveComponent->HasAnyFlags( RF_Transient ) )
 		{
 			return NULL;
 		}
@@ -412,12 +412,18 @@ struct PrimitiveStatsGenerator
 	}
 };
 
-void FPrimitiveStatsPage::Generate( TArray< TWeakObjectPtr<UObject> >& OutObjects ) const
+void FPrimitiveStatsPage::Generate(TArray< TWeakObjectPtr<UObject> >& OutObjects) const
 {
 	PrimitiveStatsGenerator Generator;
 	Generator.Generate();
-	
-	UWorld* World = GEditor->PlayWorld ? GEditor->PlayWorld : GWorld;
+
+	UWorld* World = GetWorld();
+	bool bAllowTransientWorld = false;
+
+	if (StatsWorld.IsValid())
+	{
+		bAllowTransientWorld = (StatsWorld->GetOutermost() == GetTransientPackage());
+	}
 
 	switch ((EPrimitiveObjectSets)ObjectSetIndex)
 	{
@@ -429,7 +435,7 @@ void FPrimitiveStatsPage::Generate( TArray< TWeakObjectPtr<UObject> >& OutObject
 
 				if (Owner != nullptr && !Owner->HasAnyFlags(RF_ClassDefaultObject) && Owner->IsInLevel(World->GetCurrentLevel()))
 				{
-					UPrimitiveStats* StatsEntry = Generator.Add(*It, (EPrimitiveObjectSets)ObjectSetIndex);
+					UPrimitiveStats* StatsEntry = Generator.Add(*It, (EPrimitiveObjectSets)ObjectSetIndex, bAllowTransientWorld);
 
 					if (StatsEntry != nullptr)
 					{
@@ -471,7 +477,7 @@ void FPrimitiveStatsPage::Generate( TArray< TWeakObjectPtr<UObject> >& OutObject
 
 						if (CheckLevel != nullptr && (Levels.Contains(CheckLevel)))
 						{
-							UPrimitiveStats* StatsEntry = Generator.Add(*It, (EPrimitiveObjectSets)ObjectSetIndex);
+							UPrimitiveStats* StatsEntry = Generator.Add(*It, (EPrimitiveObjectSets)ObjectSetIndex, bAllowTransientWorld);
 
 							if (StatsEntry != nullptr)
 							{
@@ -494,7 +500,7 @@ void FPrimitiveStatsPage::Generate( TArray< TWeakObjectPtr<UObject> >& OutObject
 				AActor* Owner = (*It)->GetOwner();
 				if (Owner != nullptr && !Owner->HasAnyFlags(RF_ClassDefaultObject) && SelectedActors.Contains(Owner))
 				{
-					UPrimitiveStats* StatsEntry = Generator.Add(*It, (EPrimitiveObjectSets)ObjectSetIndex);
+					UPrimitiveStats* StatsEntry = Generator.Add(*It, (EPrimitiveObjectSets)ObjectSetIndex, bAllowTransientWorld);
 					if (StatsEntry != nullptr)
 					{
 						OutObjects.Add(StatsEntry);

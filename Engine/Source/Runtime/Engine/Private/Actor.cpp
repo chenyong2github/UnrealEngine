@@ -1,7 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "GameFramework/Actor.h"
-#include "Serialization/AsyncLoading.h"
 #include "EngineDefines.h"
 #include "EngineStats.h"
 #include "EngineGlobals.h"

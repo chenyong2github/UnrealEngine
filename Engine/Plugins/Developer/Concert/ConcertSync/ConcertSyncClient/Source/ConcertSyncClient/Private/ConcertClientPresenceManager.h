@@ -18,7 +18,6 @@
 #include "ViewportWorldInteraction.h"
 
 class IConcertClientSession;
-
 enum class EEditorPlayMode : uint8;
 
 /** Remote client event items */
@@ -105,6 +104,9 @@ public:
 
 	/** Get the active perspective viewport */
 	FLevelEditorViewportClient * GetPerspectiveViewport() const;
+
+	/** Set the presence mode factory. */
+	virtual void SetPresenceModeFactory(TSharedRef<IConcertClientPresenceModeFactory> InFactory) override;
 
 	/** Set whether presence is currently enabled and should be shown (unless hidden by other settings) */
 	virtual void SetPresenceEnabled(const bool bIsEnabled = true) override;
@@ -208,15 +210,6 @@ private:
 	/** Handle a client session disconnect */
 	void OnSessionClientChanged(IConcertClientSession& InSession, EConcertClientStatus InClientStatus, const FConcertSessionClientInfo& InClientInfo);
 
-	/** Handle entering VR */
-	void OnVREditingModeEnter();
-
-	/** Handle exiting VR */
-	void OnVREditingModeExit();
-
-	/** Updates current presence mode based on VR status and avatar classes */
-	void UpdatePresenceMode();
-
 	/** Notifies other clients to update avatar for this client */
 	void SendPresenceInVREvent(const FGuid* InEndpointId = nullptr);
 
@@ -253,14 +246,14 @@ private:
 	/** Handle the show/hide button being clicked for the given endpoint */
 	void OnShowHidePresence(FGuid InEndpointId);
 
-	/** Checks if the local avatar UClass corresponding to specified ones in the session FConcertClientInfo are loaded, if loaded, do nothing and returns false, otherwise, load them and returns true. */
-	bool UpdateLocalUserAvatarClasses();
-
 	/** Session Pointer */
 	TSharedRef<IConcertClientSession> Session;
 
+	/** Factory in charge of creating presence mode and avatar. */
+	TSharedPtr<IConcertClientPresenceModeFactory> PresenceModeFactory;
+
 	/** Presence avatar mode for this client */
-	TUniquePtr<FConcertClientBasePresenceMode> CurrentAvatarMode;
+	TUniquePtr<IConcertClientBasePresenceMode> CurrentAvatarMode;
 
 	/** The asset container path */
 	static const TCHAR* AssetContainerPath;
@@ -270,18 +263,6 @@ private:
 
 	/** True if presence is currently enabled and should be shown (unless hidden by other settings) */
 	bool bIsPresenceEnabled;
-
-	/** NAME_None if not in VR */
-	FName VRDeviceType;
-
-	/** Avatar actor class for this client. */
-	UClass* CurrentAvatarActorClass;
-
-	/** Desktop avatar actor class for this client. */
-	UClass* DesktopAvatarActorClass;
-
-	/** VR avatar actor class for this client*/
-	UClass* VRAvatarActorClass;
 
 	/** The list of loaded classes representing remote clients avatar. */
 	TMap<FString, UClass*> OthersAvatarClasses;
@@ -297,6 +278,35 @@ private:
 
 	/** Time since last location update for this client */
 	double SecondsSinceLastLocationUpdate;
+};
+
+/**
+ * Implementation for the default PresenceMode factory
+ */
+class FConcertClientDefaultPresenceModeFactory : public IConcertClientPresenceModeFactory
+{
+public:
+	FConcertClientDefaultPresenceModeFactory(FConcertClientPresenceManager* InManager);
+	virtual ~FConcertClientDefaultPresenceModeFactory();
+
+	virtual bool ShouldResetPresenceMode() const override;
+	virtual TUniquePtr<IConcertClientBasePresenceMode> CreatePresenceMode() override;
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+private:
+	/** Handle entering VR */
+	void OnVREditingModeEnter();
+
+	/** Handle exiting VR */
+	void OnVREditingModeExit();
+
+	/** Holds the manager. */
+	FConcertClientPresenceManager* Manager;
+
+	/** Holds the vr device type, NAME_None if not in VR. */
+	FName VRDeviceType;
+
+	/** Flag to indicate the presence mode should be recreated from the factory. */
+	bool bShouldResetPresenceMode;
 };
 
 #else

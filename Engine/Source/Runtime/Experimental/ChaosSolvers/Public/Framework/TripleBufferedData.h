@@ -2,7 +2,6 @@
 
 #pragma once
 
-#if INCLUDE_CHAOS
 #include "Templates/Atomic.h"
 #include "Templates/SharedPointer.h"
 
@@ -199,5 +198,3 @@ namespace Chaos
 		uint64 LastId; // Only accessed by consumer thread
 	};
 } // namespace Chaos
-
-#endif // INCLUDE_CHAOS

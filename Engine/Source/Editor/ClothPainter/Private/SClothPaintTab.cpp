@@ -27,7 +27,7 @@
 #include "SClothPaintWidget.h"
 #include "IPersonaToolkit.h"
 #include "SClothAssetSelector.h"
-#include "Assets/ClothingAsset.h"
+#include "ClothingAsset.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "ComponentReregisterContext.h"
 
@@ -51,7 +51,7 @@ SClothPaintTab::~SClothPaintTab()
 
 void SClothPaintTab::Construct(const FArguments& InArgs)
 {
-	// Detail view for UClothingAsset
+	// Detail view for UClothingAssetCommon
 	FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
 	FDetailsViewArgs DetailsViewArgs(
@@ -75,7 +75,7 @@ void SClothPaintTab::Construct(const FArguments& InArgs)
 
 	// Add the CDO by default
 	TArray<UObject*> Objects;
-	Objects.Add(UClothingAsset::StaticClass()->GetDefaultObject());
+	Objects.Add(UClothingAssetCommon::StaticClass()->GetDefaultObject());
 	DetailsView->SetObjects(Objects, true);
 
 	HostingApp = InArgs._InHostingApp;
@@ -165,7 +165,7 @@ void SClothPaintTab::UpdatePaintTools()
 
 			if(SelectorWidget.IsValid())
 			{
-				TWeakObjectPtr<UClothingAsset> WeakAsset = SelectorWidget->GetSelectedAsset();
+				TWeakObjectPtr<UClothingAssetCommon> WeakAsset = SelectorWidget->GetSelectedAsset();
 
 				if(WeakAsset.Get())
 				{
@@ -183,7 +183,7 @@ void SClothPaintTab::UpdatePaintTools()
 	}
 }
 
-void SClothPaintTab::OnAssetSelectionChanged(TWeakObjectPtr<UClothingAsset> InAssetPtr, int32 InLodIndex, int32 InMaskIndex)
+void SClothPaintTab::OnAssetSelectionChanged(TWeakObjectPtr<UClothingAssetCommon> InAssetPtr, int32 InLodIndex, int32 InMaskIndex)
 {
 	if(bPaintModeEnabled)
 	{
@@ -201,7 +201,7 @@ void SClothPaintTab::OnAssetSelectionChanged(TWeakObjectPtr<UClothingAsset> InAs
 		}
 	}
 
-	if(UClothingAsset* Asset = InAssetPtr.Get())
+	if(UClothingAssetCommon* Asset = InAssetPtr.Get())
 	{
 		TArray<UObject*> Objects;
 
@@ -220,7 +220,7 @@ bool SClothPaintTab::IsAssetDetailsPanelEnabled()
 
 		if(SelectedObjects.Num() > 0)
 		{
-			return SelectedObjects[0].Get() != UClothingAsset::StaticClass()->GetDefaultObject();
+			return SelectedObjects[0].Get() != UClothingAssetCommon::StaticClass()->GetDefaultObject();
 		}
 	}
 

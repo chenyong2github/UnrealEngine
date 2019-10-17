@@ -154,6 +154,10 @@ public:
 	UPROPERTY(EditAnywhere, config, Category=AutoSave, meta=(DisplayName="Frequency in Minutes", ClampMin = "1"))
 	int32 AutoSaveTimeMinutes;
 
+	/** The minimum number of seconds to wait after the last user interactions (with the editor) before auto-save can trigger */
+	UPROPERTY(EditAnywhere, Config, Category = AutoSave, meta = (DisplayName = "Interaction Delay in Seconds", ClampMin = "15"))
+	int32 AutoSaveInteractionDelayInSeconds;
+
 	/** The number of seconds warning before an autosave*/
 	UPROPERTY(EditAnywhere, config, Category=AutoSave, meta=(DisplayName="Warning in seconds", ClampMin = "0", UIMin = "0", UIMax = "20"))
 	int32 AutoSaveWarningInSeconds;

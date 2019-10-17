@@ -343,7 +343,8 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 				}
 				else if (bUseStreamCaching)
 				{
-					checkf(MinimumChunkSize != 0, TEXT("To use Load On Demand, please override GetMinimumSizeForInitialChunk"));
+					// Ensure that the minimum chunk size is nonzero if our compressed buffer is not empty.
+					checkf(CompressedBuffer.Num() == 0 || MinimumChunkSize != 0, TEXT("To use Load On Demand, please override GetMinimumSizeForInitialChunk"));
 
 					// Otherwise if we're using Load On Demand, the first chunk should be as small as possible:
 					FirstChunkSize = MinimumChunkSize;
@@ -468,7 +469,7 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 		}
 		else
 		{
-			UE_LOG(LogAudio, Warning, TEXT("Failed to build %s derived data for %s"),
+			UE_LOG(LogAudio, Display, TEXT("Failed to build %s derived data for %s"),
 				*AudioFormatName.GetPlainNameString(),
 				*SoundWave.GetPathName()
 				);
@@ -831,7 +832,7 @@ int32 FStreamedAudioPlatformData::GetChunkFromDDC(int32 ChunkIndex, uint8** OutC
 		if (OutChunkData)
 		{
 			ChunkDataSize = Chunk.BulkData.GetBulkDataSize();
-			Chunk.BulkData.GetCopy((void**)OutChunkData);
+			Chunk.BulkData.GetCopy((void**)OutChunkData, true);
 		}
 	}
 #endif // #if WITH_EDITORONLY_DATA
@@ -1234,7 +1235,7 @@ static void CookSurroundWave( USoundWave* SoundWave, FName FormatName, const IAu
 
 			if (SampleRateOverride > 0 && SampleRateOverride != (float)WaveSampleRate)
 			{
-				for (int ChannelIndex = 1; ChannelIndex < ChannelCount; ChannelIndex++)
+				for (int32 ChannelIndex = 0; ChannelIndex < ChannelCount; ChannelIndex++)
 				{
 					size_t DataSize = SourceBuffers[ChannelIndex].Num();
 					ResampleWaveData(SourceBuffers[ChannelIndex], DataSize, 1, WaveSampleRate, SampleRateOverride);
@@ -1635,7 +1636,7 @@ void USoundWave::ForceRebuildPlatformData()
 {
 	if (RunningPlatformData)
 	{
-		const FPlatformAudioCookOverrides* CompressionOverrides = GetPlatformCompressionOverridesForCurrentPlatform();
+		const FPlatformAudioCookOverrides* CompressionOverrides = GetCookOverridesForRunningPlatform();
 		RunningPlatformData->Cache(
 			*this,
 			CompressionOverrides,

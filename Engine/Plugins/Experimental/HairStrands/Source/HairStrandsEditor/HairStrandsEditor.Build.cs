@@ -14,8 +14,13 @@ namespace UnrealBuildTool.Rules
 				{
 					"Core",
 					"CoreUObject",
+					"EditorStyle",
 					"Engine",
 					"HairStrandsCore",
+					"InputCore",
+					"MainFrame",
+					"Slate",
+					"SlateCore",
 					"UnrealEd",
 					"AssetTools",
 				});

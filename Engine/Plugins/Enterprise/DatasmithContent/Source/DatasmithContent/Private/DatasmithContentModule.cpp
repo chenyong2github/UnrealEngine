@@ -23,10 +23,6 @@ public:
 		// Create temporary directory which will be used by UDatasmithStaticMeshCADImportData to store transient data
 		TempDir = FPaths::Combine(FPaths::ProjectIntermediateDir(), TEXT("DatasmithContentTemp"));
 		IFileManager::Get().MakeDirectory(*TempDir);
-
-		// Maps virtual shader source directory /Plugin/DatasmithContent to the plugin's actual Shaders directory.
-		FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("DatasmithContent"))->GetBaseDir(), TEXT("Shaders"));
-		AddShaderSourceDirectoryMapping(TEXT("/Plugin/DatasmithContent"), PluginShaderDir);
 	}
 
 	virtual void ShutdownModule() override

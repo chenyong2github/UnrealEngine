@@ -1,0 +1,27 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "FriendlyName": "Text 3D",
+  "Description": "3D Text Generator",
+  "Category": "Text",
+  "CreatedBy": "Epic Games Inc.",
+  "CreatedByURL": "",
+  "DocsURL": "",
+  "MarketplaceURL": "",
+  "SupportURL": "",
+  "CanContainContent": false,
+  "IsBetaVersion": true,
+  "Installed": false,
+  "Modules": [
+    {
+      "Name": "Text3D",
+      "Type": "Runtime",
+      "LoadingPhase": "Default",
+      "WhitelistPlatforms": [
+        "Win32",
+        "Win64",
+        "Linux"
+      ]
+    }
+  ]
+}

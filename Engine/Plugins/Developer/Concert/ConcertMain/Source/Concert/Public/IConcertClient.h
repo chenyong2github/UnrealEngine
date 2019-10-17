@@ -345,7 +345,10 @@ public:
 	 * @param SessionId				The Id of the session
 	 * @param FromActivityId		The first activity ID to fetch (1-based) if ActivityCount is positive. Ignored if ActivityCount is negative.
 	 * @param ActivityCount			If positive, request \a ActivityCount starting from \a FromActivityId. If negative, request the Abs(\a ActivityCount) last activities.
-	 * @return A future for FConcertAdmin_GetSessionActivitiesResponse which contains up to Abs(ActivityCount) activities or an error if it fails.
+	 * @param bIncludeDetails		If true, includes extra information for package and transaction activity types. See the return type for more info.
+	 * @return A future for FConcertAdmin_GetSessionActivitiesResponse which contains up to Abs(ActivityCount) activities or an error if it fails. The array of payload in the response can always be
+	 *         decoded as FConcertSyncActivity objects. If bIncludeDetails is true, 'package' and 'transaction' can be decoded respectively as FConcertSyncPackageActivity and FConcertSyncTransactionActivity,
+	 *         providing extra information. The transaction event will contains the full transaction data. The package event contains the package event meta data only.
 	 */
-	virtual TFuture<FConcertAdmin_GetSessionActivitiesResponse> GetSessionActivities(const FGuid& ServerAdminEndpointId, const FGuid& SessionId, int64 FromActivityId, int64 ActivityCount) const = 0;
+	virtual TFuture<FConcertAdmin_GetSessionActivitiesResponse> GetSessionActivities(const FGuid& ServerAdminEndpointId, const FGuid& SessionId, int64 FromActivityId, int64 ActivityCount, bool bIncludeDetails) const = 0;
 };

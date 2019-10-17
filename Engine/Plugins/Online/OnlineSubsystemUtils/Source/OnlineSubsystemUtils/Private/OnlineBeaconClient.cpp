@@ -130,9 +130,9 @@ bool AOnlineBeaconClient::InitClient(FURL& URL)
 					}
 
 #if NETCONNECTION_HAS_SETENCRYPTIONKEY
-					if (EncryptionKey.Num() > 0)
+					if (!EncryptionData.Identifier.IsEmpty())
 					{
-						BeaconConnection->SetEncryptionKey(EncryptionKey);
+						BeaconConnection->SetEncryptionData(EncryptionData);
 					}
 #endif
 
@@ -214,15 +214,23 @@ void AOnlineBeaconClient::Tick(float DeltaTime)
 
 void AOnlineBeaconClient::SetEncryptionToken(const FString& InEncryptionToken)
 {
-	EncryptionToken = InEncryptionToken;
+	EncryptionData.Identifier = InEncryptionToken;
 }
 
 void AOnlineBeaconClient::SetEncryptionKey(TArrayView<uint8> InEncryptionKey)
 {
 	if (CVarNetAllowEncryption.GetValueOnGameThread() != 0)
 	{
-		EncryptionKey.Reset(InEncryptionKey.Num());
-		EncryptionKey.Append(InEncryptionKey.GetData(), InEncryptionKey.Num());
+		EncryptionData.Key.Reset(InEncryptionKey.Num());
+		EncryptionData.Key.Append(InEncryptionKey.GetData(), InEncryptionKey.Num());
+	}
+}
+
+void AOnlineBeaconClient::SetEncryptionData(const FEncryptionData& InEncryptionData)
+{
+	if (CVarNetAllowEncryption.GetValueOnGameThread() != 0)
+	{
+		EncryptionData = InEncryptionData;
 	}
 }
 
@@ -237,10 +245,10 @@ void AOnlineBeaconClient::SendInitialJoin()
 
 		if (CVarNetAllowEncryption.GetValueOnGameThread() == 0)
 		{
-			EncryptionToken.Reset();
+			EncryptionData.Identifier.Empty();
 		}
 
-		FNetControlMessage<NMT_Hello>::Send(NetDriver->ServerConnection, IsLittleEndian, LocalNetworkVersion, EncryptionToken);
+		FNetControlMessage<NMT_Hello>::Send(NetDriver->ServerConnection, IsLittleEndian, LocalNetworkVersion, EncryptionData.Identifier);
 
 		NetDriver->ServerConnection->FlushNet();
 	}
@@ -440,7 +448,7 @@ void AOnlineBeaconClient::FinalizeEncryptedConnection(const FEncryptionKeyRespon
 		{
 			if (Response.Response == EEncryptionResponse::Success)
 			{
-				Connection->EnableEncryptionWithKey(Response.EncryptionKey);
+				Connection->EnableEncryption(Response.EncryptionData);
 			}
 			else
 			{

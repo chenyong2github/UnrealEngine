@@ -446,9 +446,9 @@ void UVREditorPlacement::PlaceDraggedMaterialOrTexture( UViewportInteractor* Int
 		UPrimitiveComponent* HitComponent = nullptr;
 		FVector HitLocation = FVector::ZeroVector;
 		{
-			const bool bIgnoreGizmos = true;	// Never place on top of gizmos, just ignore them
+			const EHitResultGizmoFilterMode GizmoFilterMode = EHitResultGizmoFilterMode::NoGizmos;// Never place on top of gizmos, just ignore them
 			const bool bEvenIfUIIsInFront = true;	// Don't let the UI block placement
-			FHitResult HitResult = Interactor->GetHitResultFromLaserPointer( nullptr, bIgnoreGizmos, nullptr, bEvenIfUIIsInFront );
+			FHitResult HitResult = Interactor->GetHitResultFromLaserPointer( nullptr, GizmoFilterMode, nullptr, bEvenIfUIIsInFront );
 			if( HitResult.Actor.IsValid() )
 			{
 				if( ViewportWorldInteraction->IsInteractableComponent( HitResult.GetComponent() ) )	// @todo vreditor placement: We don't necessarily need to restrict to only VR-interactive components here

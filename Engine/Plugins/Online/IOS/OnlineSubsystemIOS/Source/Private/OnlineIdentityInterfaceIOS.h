@@ -3,6 +3,7 @@
 
 #pragma once
 
+#import <UIKit/UIKit.h>
 #import <GameKit/GameKit.h>
 
 #include "OnlineSubsystemIOSTypes.h"

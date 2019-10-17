@@ -709,7 +709,7 @@ void FProjectedShadowInfo::SetupProjectionStencilMask(
 
 		// If instanced stereo is enabled, we need to render each view of the stereo pair using the instanced stereo transform to avoid bias issues.
 		// TODO: Support instanced stereo properly in the projection stenciling pass.
-		const bool bIsInstancedStereoEmulated = View->bIsInstancedStereoEnabled && !View->bIsMultiViewEnabled && View->StereoPass != eSSP_FULL;
+		const bool bIsInstancedStereoEmulated = View->bIsInstancedStereoEnabled && !View->bIsMultiViewEnabled && IStereoRendering::IsStereoEyeView(View->StereoPass);
 		if (bIsInstancedStereoEmulated)
 		{
 			RHICmdList.SetViewport(0, 0, 0, SceneRender->InstancedStereoWidth, View->ViewRect.Max.Y, 1);
@@ -1697,7 +1697,7 @@ bool FDeferredShadingSceneRenderer::RenderShadowProjections(FRHICommandListImmed
 
 void FMobileSceneRenderer::RenderModulatedShadowProjections(FRHICommandListImmediate& RHICmdList)
 {
-	if (IsSimpleForwardShadingEnabled(ShaderPlatform) || !ViewFamily.EngineShowFlags.DynamicShadows || (!IsMobileHDR() && !IsHTML5Platform()))
+	if (IsSimpleForwardShadingEnabled(ShaderPlatform) || !ViewFamily.EngineShowFlags.DynamicShadows || (!IsMobileHDR() && (ShaderPlatform != SP_OPENGL_ES2_WEBGL)))
 	{
 		return;
 	}

@@ -10,12 +10,13 @@
 
 struct FAssetData;
 class USkeletalMesh;
-class UClothingAsset;
-struct FClothParameterMask_PhysMesh;
+class UClothingAssetCommon;
+class UClothPhysicalMeshDataBase;
+struct FPointWeightMap;
 
 struct FClothingAssetListItem
 {
-	TWeakObjectPtr<UClothingAsset> ClothingAsset;
+	TWeakObjectPtr<UClothingAssetCommon> ClothingAsset;
 };
 
 struct FClothingMaskListItem
@@ -25,10 +26,11 @@ struct FClothingMaskListItem
 		, MaskIndex(INDEX_NONE)
 	{}
 
-	FClothParameterMask_PhysMesh* GetMask();
+	FPointWeightMap* GetMask();
+	UClothPhysicalMeshDataBase* GetMeshData();
 	USkeletalMesh* GetOwningMesh();
 
-	TWeakObjectPtr<UClothingAsset> ClothingAsset;
+	TWeakObjectPtr<UClothingAssetCommon> ClothingAsset;
 	int32 LodIndex;
 	int32 MaskIndex;
 };
@@ -36,7 +38,7 @@ struct FClothingMaskListItem
 typedef SListView<TSharedPtr<FClothingAssetListItem>> SAssetList;
 typedef SListView<TSharedPtr<FClothingMaskListItem>> SMaskList;
 
-DECLARE_DELEGATE_ThreeParams(FOnClothAssetSelectionChanged, TWeakObjectPtr<UClothingAsset>, int32, int32);
+DECLARE_DELEGATE_ThreeParams(FOnClothAssetSelectionChanged, TWeakObjectPtr<UClothingAssetCommon>, int32, int32);
 
 class SClothAssetSelector : public SCompoundWidget, public FEditorUndoClient
 {
@@ -50,7 +52,7 @@ public:
 
 	void Construct(const FArguments& InArgs, USkeletalMesh* InMesh);
 
-	TWeakObjectPtr<UClothingAsset> GetSelectedAsset() const;
+	TWeakObjectPtr<UClothingAssetCommon> GetSelectedAsset() const;
 	int32 GetSelectedLod() const;
 	int32 GetSelectedMask() const;
 
@@ -60,7 +62,9 @@ public:
 
 protected:
 
+#if WITH_APEX_CLOTHING
 	FReply OnImportApexFileClicked();
+#endif
 
 	/* Copies clothing setup from source SkelMesh */
 	void OnCopyClothingAssetSelected(const FAssetData& AssetData);
@@ -92,13 +96,12 @@ protected:
 	void OnClothingLodSelected(int32 InNewLod);
 
 	// Setters for the list selections so we can handle list selections changing properly
-	void SetSelectedAsset(TWeakObjectPtr<UClothingAsset> InSelectedAsset);
+	void SetSelectedAsset(TWeakObjectPtr<UClothingAssetCommon> InSelectedAsset);
 	void SetSelectedLod(int32 InLodIndex, bool bRefreshMasks = true);
 	void SetSelectedMask(int32 InMaskIndex);
 
 	USkeletalMesh* Mesh;
 
-	TSharedPtr<SButton> ImportApexButton;
 	TSharedPtr<SButton> NewMaskButton;
 	TSharedPtr<SAssetList> AssetList;
 	TSharedPtr<SMaskList> MaskList;
@@ -110,7 +113,7 @@ protected:
 	TArray<TSharedPtr<FClothingMaskListItem>> MaskListItems;
 
 	// Currently selected clothing asset, Lod Index and Mask index
-	TWeakObjectPtr<UClothingAsset> SelectedAsset;
+	TWeakObjectPtr<UClothingAssetCommon> SelectedAsset;
 	int32 SelectedLod;
 	int32 SelectedMask;
 

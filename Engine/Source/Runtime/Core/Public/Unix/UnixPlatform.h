@@ -8,6 +8,7 @@
 
 #include <linux/version.h>
 #include <signal.h>
+#include "Clang/ClangPlatform.h"
 
 struct FGenericPlatformTypes;
 

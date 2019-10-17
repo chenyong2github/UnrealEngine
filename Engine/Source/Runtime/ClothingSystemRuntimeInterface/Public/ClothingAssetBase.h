@@ -23,7 +23,7 @@ public:
 	* @param InSubmeshIdx Submesh in this asset to replace section with
 	* @param InAssetLodIndex Internal clothing LOD to use
 	*/
-	virtual bool BindToSkeletalMesh(USkeletalMesh* InSkelMesh, int32 InMeshLodIndex, int32 InSectionIndex, int32 InAssetLodIndex)
+	virtual bool BindToSkeletalMesh(USkeletalMesh* InSkelMesh, const int32 InMeshLodIndex, const int32 InSectionIndex, const int32 InAssetLodIndex)
 	PURE_VIRTUAL(UClothingAssetBase::BindToSkeletalMesh, return false;);
 
 	/**
@@ -38,7 +38,7 @@ public:
 	* @param InSkelMesh skeletal mesh to remove from
 	* @param InMeshLodIndex Mesh LOD to remove this asset from (could still be bound to other LODs)
 	*/
-	virtual void UnbindFromSkeletalMesh(USkeletalMesh* InSkelMesh, int32 InMeshLodIndex)
+	virtual void UnbindFromSkeletalMesh(USkeletalMesh* InSkelMesh, const int32 InMeshLodIndex)
 	PURE_VIRTUAL(UClothingAssetBase::UnbindFromSkeletalMesh,);
 
 	/** 
@@ -65,9 +65,25 @@ public:
 	virtual int32 GetNumLods()
 	PURE_VIRTUAL(UClothingAssetBase::GetNumLods(), return 0;);
 
+	/** Add a new LOD class instance. */
+	virtual int32 AddNewLod()
+	PURE_VIRTUAL(UClothingAssetBase::AddNewLod(), return INDEX_NONE;);
+
+	/** Called from \c FPersonaMeshDetails::OnFinishedChangingClothingProperties(). */
+	virtual void PostPropertyChangeCb(const FPropertyChangedEvent& Event)
+	PURE_VIRTUAL(UClothingAssetBase::PostPropertyChangeCb, );
+
 	/** Builds self collision data */
 	virtual void BuildSelfCollisionData()
 	PURE_VIRTUAL(UClothingAssetBase::BuildSelfCollisionData(), );
+
+	/**
+	*	Builds the LOD transition data
+	*	When we transition between LODs we skin the incoming mesh to the outgoing mesh
+	*	in exactly the same way the render mesh is skinned to create a smooth swap
+	*/
+	virtual void BuildLodTransitionData()
+	PURE_VIRTUAL(UClothingAssetBase::BuildLodTransitionData(), );
 
 	/** Get the guid identifying this asset */
 	const FGuid& GetAssetGuid() const

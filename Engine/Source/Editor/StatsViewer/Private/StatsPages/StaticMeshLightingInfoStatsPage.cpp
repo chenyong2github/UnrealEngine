@@ -39,6 +39,13 @@ FStaticMeshLightingInfoStatsPage& FStaticMeshLightingInfoStatsPage::Get()
 /** Helper class to generate statistics */
 struct StaticMeshLightingInfoStatsGenerator
 {
+	StaticMeshLightingInfoStatsGenerator(UWorld* InWorld)
+	{
+		World = InWorld != nullptr ? InWorld : GWorld;
+	}
+
+	UWorld* World;
+
 	/** The lights in the world which the system is scanning. */
 	TArray<ULightComponent*> AllLights;
 
@@ -168,7 +175,6 @@ struct StaticMeshLightingInfoStatsGenerator
 		/** The levels we are gathering information for. */
 		TArray<ULevel*> Levels;
 
-		UWorld* World = GWorld;
 		// Fill the light list
 		for (TObjectIterator<ULightComponent> LightIt; LightIt; ++LightIt)
 		{
@@ -210,7 +216,7 @@ struct StaticMeshLightingInfoStatsGenerator
 
 void FStaticMeshLightingInfoStatsPage::Generate( TArray< TWeakObjectPtr<UObject> >& OutObjects ) const
 {
-	StaticMeshLightingInfoStatsGenerator Generator;
+	StaticMeshLightingInfoStatsGenerator Generator( GetWorld() );
 	Generator.Generate((EStaticMeshLightingInfoObjectSets)ObjectSetIndex, OutObjects);
 }
 

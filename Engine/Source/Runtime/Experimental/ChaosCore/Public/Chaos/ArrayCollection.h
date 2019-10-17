@@ -13,7 +13,7 @@ public:
 	    : MSize(0) {}
 	TArrayCollection(const TArrayCollection& Other) = delete;
 	TArrayCollection(TArrayCollection&& Other) = delete;
-	~TArrayCollection() {}
+	virtual ~TArrayCollection() {}
 
 	int32 AddArray(TArrayCollectionArrayBase* Array)
 	{

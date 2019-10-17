@@ -195,7 +195,7 @@ static TAutoConsoleVariable<int32> CVarAtmosphereRender(
 // On CPU
 void UAtmosphericFogComponent::InitResource()
 {
-	bool bNewAtmosphere = CVarAtmosphereRender.GetValueOnGameThread() != 0;
+	bool bNewAtmosphere = CVarAtmosphereRender.GetValueOnAnyThread() != 0;
 
 	if(!bNewAtmosphere)
 	{
@@ -205,19 +205,19 @@ void UAtmosphericFogComponent::InitResource()
 	if (PrecomputeCounter >= EValid)
 	{
 		// A little inefficient for thread-safe
-		if (TransmittanceData.GetElementCount() && TransmittanceResource == NULL)
+		if (TransmittanceData.GetBulkDataSize() && TransmittanceResource == NULL)
 		{
 			TransmittanceResource = new FAtmosphereTextureResource( PrecomputeParams, TransmittanceData, FAtmosphereTextureResource::E_Transmittance ); 
 			BeginInitResource( TransmittanceResource );
 		}
 
-		if (IrradianceData.GetElementCount() && IrradianceResource == NULL)
+		if (IrradianceData.GetBulkDataSize() && IrradianceResource == NULL)
 		{
 			IrradianceResource = new FAtmosphereTextureResource( PrecomputeParams, IrradianceData, FAtmosphereTextureResource::E_Irradiance ); 
 			BeginInitResource( IrradianceResource );
 		}
 
-		if (InscatterData.GetElementCount() && InscatterResource == NULL)
+		if (InscatterData.GetBulkDataSize() > 0 && InscatterResource == NULL)
 		{
 			InscatterResource = new FAtmosphereTextureResource( PrecomputeParams, InscatterData, FAtmosphereTextureResource::E_Inscatter ); 
 			BeginInitResource( InscatterResource );
@@ -644,18 +644,18 @@ void UAtmosphericFogComponent::Serialize(FArchive& Ar)
 
 	if (Ar.UE4Ver() >= VER_UE4_ATMOSPHERIC_FOG_CACHE_DATA)
 	{
-		TransmittanceData.Serialize(Ar, this);
-		IrradianceData.Serialize(Ar, this);
+		TransmittanceData.Serialize(Ar, this, INDEX_NONE, false);
+		IrradianceData.Serialize(Ar, this, INDEX_NONE, false);
 	}
 
-	InscatterData.Serialize(Ar,this);
+	InscatterData.Serialize(Ar,this, INDEX_NONE, false);
 
 	if (Ar.IsLoading())
 	{
 		int32 CounterVal;
 		Ar << CounterVal;
 		// Precomputation was not successful, just ignore it
-		if (CounterVal < EValid || !TransmittanceData.GetElementCount())
+		if (CounterVal < EValid || TransmittanceData.GetBulkDataSize() == 0)
 		{
 			CounterVal = EInvalid;
 		}
@@ -684,7 +684,7 @@ TStructOnScope<FActorComponentInstanceData> UAtmosphericFogComponent::GetCompone
 {
 	TStructOnScope<FActorComponentInstanceData> InstanceData;
 
-	if (TransmittanceData.GetElementCount() && IrradianceData.GetElementCount() && InscatterData.GetElementCount() && PrecomputeCounter == EValid)
+	if (TransmittanceData.GetBulkDataSize() > 0 && IrradianceData.GetBulkDataSize() > 0 && InscatterData.GetBulkDataSize() > 0 && PrecomputeCounter == EValid)
 	{
 		// Allocate new struct for holding light map data
 		InstanceData.InitializeAs<FAtmospherePrecomputeInstanceData>(this);

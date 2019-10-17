@@ -2,6 +2,7 @@
 
 #include "Chaos/PBDConstraintColor.h"
 
+#include "Chaos/PBDConstraintGraph.h"
 #include "Chaos/ConstraintHandle.h"
 #include "Chaos/Framework/Parallel.h"
 #include "Chaos/ParticleHandle.h"
@@ -259,11 +260,18 @@ void TPBDConstraintColor<T, d>::ComputeContactGraph(const int32 Island, const FC
 template<typename T, int d>
 void TPBDConstraintColor<T, d>::InitializeColor(const FConstraintGraph& ConstraintGraph)
 {
-	Nodes.Reset();
+
+	// The Number of nodes is large and fairly constant so persist rather than resetting every frame
+	if (Nodes.Num() != ConstraintGraph.Nodes.Num())
+	{
+		// Nodes need to grow when the nodes of the constraint graph grows
+		Nodes.AddDefaulted(ConstraintGraph.Nodes.Num() - Nodes.Num());
+	}
+	
+	// edges are not persistent right now so we still reset them
 	Edges.Reset();
 	IslandData.Reset();
 
-	Nodes.SetNum(ConstraintGraph.Nodes.Num());
 	Edges.SetNum(ConstraintGraph.Edges.Num());
 	IslandData.SetNum(ConstraintGraph.IslandToData.Num());
 }

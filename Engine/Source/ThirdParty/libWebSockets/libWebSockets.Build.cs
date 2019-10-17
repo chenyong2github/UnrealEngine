@@ -10,13 +10,9 @@ public class libWebSockets : ModuleRules
 		string WebsocketPath = Path.Combine(Target.UEThirdPartySourceDirectory, "libWebSockets", "libwebsockets");
 		string PlatformSubdir = Target.Platform.ToString();
 
-        bool bUseDebugBuild = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT);
-        string ConfigurationSubdir = bUseDebugBuild ? "Debug" : "Release";
-		if (Target.Platform == UnrealTargetPlatform.HTML5)
-		{
-			return;
-		}
-		else if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
+		bool bUseDebugBuild = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT);
+		string ConfigurationSubdir = bUseDebugBuild ? "Debug" : "Release";
+		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
 		{
 			PlatformSubdir = Path.Combine(PlatformSubdir, "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
 			PublicAdditionalLibraries.Add(Path.Combine(WebsocketPath, "lib", PlatformSubdir, ConfigurationSubdir, "websockets_static.lib"));
@@ -43,7 +39,7 @@ public class libWebSockets : ModuleRules
 			PublicAdditionalLibraries.Add(Path.Combine(WebsocketPath, "lib", PlatformSubdir, ConfigurationSubdir, "libwebsockets.a"));
 		}
 		else
-		{ 
+		{
 			// unsupported
 			return;
 		}

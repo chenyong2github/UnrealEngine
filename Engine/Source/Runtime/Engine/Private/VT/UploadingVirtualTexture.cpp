@@ -306,7 +306,7 @@ FVTDataAndStatus FUploadingVirtualTexture::ReadData(FGraphEventArray& OutComplet
 {
 	FVirtualTextureDataChunk& Chunk = Data->Chunks[ChunkIndex];
 	FByteBulkData& BulkData = Chunk.BulkData;
-	const TCHAR* ChunkFileName = nullptr;
+	FString ChunkFileName;
 	int64 ChunkOffsetInFile = 0;
 
 #if WITH_EDITOR
@@ -316,7 +316,7 @@ FVTDataAndStatus FUploadingVirtualTexture::ReadData(FGraphEventArray& OutComplet
 	if (BulkData.GetFilename().IsEmpty() == false)
 	{
 		ensure(Size <= (size_t)BulkData.GetBulkDataSize());
-		ChunkFileName = *BulkData.GetFilename();
+		ChunkFileName = BulkData.GetFilename();
 		ChunkOffsetInFile = BulkData.GetBulkDataOffsetInFile();
 	}
 	// It could be that the bulkdata has no file associated yet (aka lightmaps have been build but not saved to disk yet) but still contains valid data
@@ -346,16 +346,16 @@ FVTDataAndStatus FUploadingVirtualTexture::ReadData(FGraphEventArray& OutComplet
 		{
 			return EVTRequestPageStatus::Saturated;
 		}
-		ChunkFileName = *ChunkFileNameDCC;
+		ChunkFileName = ChunkFileNameDCC;
 	}
 #else // WITH_EDITOR
-	ChunkFileName = *BulkData.GetFilename();
+	ChunkFileName = BulkData.GetFilename();
 	ChunkOffsetInFile = BulkData.GetBulkDataOffsetInFile();
 	if (BulkData.GetBulkDataSize() == 0)
 	{
 		if (!InvalidChunks[ChunkIndex])
 		{
-			UE_LOG(LogConsoleResponse, Display, TEXT("BulkData for chunk %d in file '%s' is empty."), ChunkIndex, ChunkFileName);
+			UE_LOG(LogConsoleResponse, Display, TEXT("BulkData for chunk %d in file '%s' is empty."), ChunkIndex, *ChunkFileName);
 			InvalidChunks[ChunkIndex] = true;
 		}
 		return EVTRequestPageStatus::Invalid;
@@ -365,13 +365,13 @@ FVTDataAndStatus FUploadingVirtualTexture::ReadData(FGraphEventArray& OutComplet
 	TUniquePtr<IFileCacheHandle>& Handle = HandlePerChunk[ChunkIndex];
 	if (!Handle)
 	{
-		Handle.Reset(IFileCacheHandle::CreateFileCacheHandle(ChunkFileName));
+		Handle.Reset(IFileCacheHandle::CreateFileCacheHandle(*ChunkFileName));
 		// Don't expect CreateFileCacheHandle() to fail, async files should never fail to open
 		if (!ensure(Handle.IsValid()))
 		{
 			if (!InvalidChunks[ChunkIndex])
 			{
-				UE_LOG(LogConsoleResponse, Display, TEXT("Could not create a file cache for '%s'."), ChunkFileName);
+				UE_LOG(LogConsoleResponse, Display, TEXT("Could not create a file cache for '%s'."), *ChunkFileName);
 				InvalidChunks[ChunkIndex] = true;
 			}
 			return EVTRequestPageStatus::Invalid;

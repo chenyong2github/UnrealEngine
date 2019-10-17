@@ -27,6 +27,7 @@
 #define STEAMKEY_HOSTPORT "HOSTPORT"
 #define STEAMKEY_P2PADDR "P2PADDR"
 #define STEAMKEY_P2PPORT "P2PPORT"
+#define STEAMKEY_P2PPING "P2PPING"
 
 /**
  * Converts an engine key and its data type to an appropriate Steam key for use with lobbies/gameservers

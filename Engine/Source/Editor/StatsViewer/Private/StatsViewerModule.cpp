@@ -25,13 +25,25 @@ static const FName PrimitiveStatsPage = FName("PrimitiveStats");
 static const FName StaticMeshLightingInfoPage = FName("StaticMeshLightingInfo");
 static const FName TextureStatsPage = FName("TextureStats");
 
+namespace StatsViewerModuleUtils
+{
+	// Allocate new page and add it to the specified page manager.
+	template <typename T>
+	void RegisterPageInstance(UWorld& InWorld, int32 PageType, TSharedRef<FStatsPageManager> StatsPageManager)
+	{
+		TSharedPtr< T > PageInstance = MakeShared< T >();
+		PageInstance->SetWorld(InWorld);
+		StatsPageManager->RegisterPage(PageType, PageInstance.ToSharedRef());
+	}
+}
+
 void FStatsViewerModule::StartupModule()
 {
-	FStatsPageManager::Get().RegisterPage( MakeShareable(&FCookerStatsPage::Get()) );
-	FStatsPageManager::Get().RegisterPage( MakeShareable(&FLightingBuildInfoStatsPage::Get()) );
-	FStatsPageManager::Get().RegisterPage( MakeShareable(&FPrimitiveStatsPage::Get()) );
-	FStatsPageManager::Get().RegisterPage( MakeShareable(&FStaticMeshLightingInfoStatsPage::Get()) );
-	FStatsPageManager::Get().RegisterPage( MakeShareable(&FTextureStatsPage::Get()) );
+	FStatsPageManager::Get().RegisterPage( EStatsPage::CookerStats, MakeShareable(&FCookerStatsPage::Get()) );
+	FStatsPageManager::Get().RegisterPage( EStatsPage::LightingBuildInfo, MakeShareable(&FLightingBuildInfoStatsPage::Get()) );
+	FStatsPageManager::Get().RegisterPage( EStatsPage::PrimitiveStats, MakeShareable(&FPrimitiveStatsPage::Get()) );
+	FStatsPageManager::Get().RegisterPage( EStatsPage::StaticMeshLightingInfo, MakeShareable(&FStaticMeshLightingInfoStatsPage::Get()) );
+	FStatsPageManager::Get().RegisterPage( EStatsPage::TextureStats, MakeShareable(&FTextureStatsPage::Get()) );
 }
 
 void FStatsViewerModule::ShutdownModule()
@@ -45,6 +57,36 @@ TSharedRef< IStatsViewer > FStatsViewerModule::CreateStatsViewer() const
 		.IsEnabled( FSlateApplication::Get().GetNormalExecutionAttribute() );
 }
 
+TSharedRef< IStatsViewer > FStatsViewerModule::CreateStatsViewer(UWorld& InWorld, uint32 EnabledDefaultPagesMask, const FName& ViewerName) const
+{
+	TSharedPtr< FStatsPageManager > StatsPageManager = MakeShared< FStatsPageManager >(ViewerName);
+
+	if ((1 << EStatsPage::CookerStats) & EnabledDefaultPagesMask)
+	{
+		StatsViewerModuleUtils::RegisterPageInstance< FCookerStatsPage >(InWorld, EStatsPage::CookerStats, StatsPageManager.ToSharedRef());
+	}
+	if ((1 << EStatsPage::LightingBuildInfo) & EnabledDefaultPagesMask)
+	{
+		StatsViewerModuleUtils::RegisterPageInstance< FLightingBuildInfoStatsPage >(InWorld, EStatsPage::LightingBuildInfo, StatsPageManager.ToSharedRef());
+	}
+	if ((1 << EStatsPage::PrimitiveStats) & EnabledDefaultPagesMask)
+	{
+		StatsViewerModuleUtils::RegisterPageInstance< FPrimitiveStatsPage >(InWorld, EStatsPage::PrimitiveStats, StatsPageManager.ToSharedRef());
+	}
+	if ((1 << EStatsPage::StaticMeshLightingInfo) & EnabledDefaultPagesMask)
+	{
+		StatsViewerModuleUtils::RegisterPageInstance< FStaticMeshLightingInfoStatsPage >(InWorld, EStatsPage::StaticMeshLightingInfo, StatsPageManager.ToSharedRef());
+	}
+	if ((1 << EStatsPage::TextureStats) & EnabledDefaultPagesMask)
+	{
+		StatsViewerModuleUtils::RegisterPageInstance< FTextureStatsPage >(InWorld, EStatsPage::TextureStats, StatsPageManager.ToSharedRef());
+	}
+
+	return SNew(SStatsViewer)
+		.StatsPageManager(StatsPageManager)
+		.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute());
+}
+
 TSharedRef< class IPropertyTableCustomColumn > FStatsViewerModule::CreateObjectCustomColumn(const FObjectHyperlinkColumnInitializationOptions& InOptions) const
 {
 	return MakeShareable(new FObjectHyperlinkColumn(InOptions));
@@ -52,7 +94,7 @@ TSharedRef< class IPropertyTableCustomColumn > FStatsViewerModule::CreateObjectC
 
 void FStatsViewerModule::RegisterPage( TSharedRef< IStatsPage > InPage )
 {
-	FStatsPageManager::Get().RegisterPage(InPage);
+	FStatsPageManager::Get().RegisterPage( InPage);
 }
 
 void FStatsViewerModule::UnregisterPage( TSharedRef< IStatsPage > InPage )
@@ -88,7 +130,7 @@ void FStatsViewerModule::Clear()
 {
 	for( int32 PageIndex = 0; PageIndex < FStatsPageManager::Get().NumPages(); PageIndex++ )
 	{
-		FStatsPageManager::Get().GetPage(PageIndex)->Clear();
+		FStatsPageManager::Get().GetPageByIndex(PageIndex)->Clear();
 	}
 }
 

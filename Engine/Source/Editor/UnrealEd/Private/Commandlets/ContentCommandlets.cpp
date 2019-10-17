@@ -937,6 +937,17 @@ int32 UResavePackagesCommandlet::Main( const FString& Params )
 	bForceEnableHLODForLevel = HLODOptions.Contains("ForceEnableHLOD");
 	bForceSingleClusterForLevel = HLODOptions.Contains("ForceSingleCluster");
 
+	if (bShouldBuildHLOD)
+	{
+		UE_LOG(LogContentCommandlet, Display, TEXT("Rebuilding HLODs... Options are:"));
+		UE_LOG(LogContentCommandlet, Display, TEXT("  [%s] Clusters"), bGenerateClusters ? TEXT("X") : TEXT(" "));
+		UE_LOG(LogContentCommandlet, Display, TEXT("  [%s] Proxies"), bGenerateMeshProxies ? TEXT("X") : TEXT(" "));
+		UE_LOG(LogContentCommandlet, Display, TEXT("  [%s] ForceClusters"), bForceClusterGeneration ? TEXT("X") : TEXT(" "));
+		UE_LOG(LogContentCommandlet, Display, TEXT("  [%s] ForceProxies"), bForceProxyGeneration ? TEXT("X") : TEXT(" "));
+		UE_LOG(LogContentCommandlet, Display, TEXT("  [%s] ForceEnableHLOD"), bForceEnableHLODForLevel ? TEXT("X") : TEXT(" "));
+		UE_LOG(LogContentCommandlet, Display, TEXT("  [%s] ForceSingleCluster"), bForceSingleClusterForLevel ? TEXT("X") : TEXT(" "));
+	}
+
 	ForceHLODSetupAsset = FString();
 	FParse::Value(*Params, TEXT("ForceHLODSetupAsset="), ForceHLODSetupAsset);
 

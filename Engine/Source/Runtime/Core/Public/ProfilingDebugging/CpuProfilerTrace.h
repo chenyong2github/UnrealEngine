@@ -4,7 +4,7 @@
 
 #include "CoreTypes.h"
 
-#if !IS_PROGRAM && !UE_BUILD_SHIPPING && (PLATFORM_WINDOWS || PLATFORM_PS4 || PLATFORM_XBOXONE || PLATFORM_UNIX)
+#if !IS_PROGRAM && !UE_BUILD_SHIPPING && (PLATFORM_WINDOWS || PLATFORM_UNIX || PLATFORM_PS4 || PLATFORM_XBOXONE || PLATFORM_SWITCH || PLATFORM_APPLE || PLATFORM_ANDROID)
 #define CPUPROFILERTRACE_ENABLED 1
 #else
 #define CPUPROFILERTRACE_ENABLED 0
@@ -22,14 +22,18 @@ enum ECpuProfilerGroup
 
 struct FCpuProfilerTrace
 {
-	CORE_API static void Init(bool bStartEnabled);
-	CORE_API static uint16 OutputEventType(const TCHAR* Name, ECpuProfilerGroup Group);
-	CORE_API static void OutputBeginEvent(uint16 SpecId);
+	CORE_API static void Init(const TCHAR* CmdLine);
+	CORE_API static void Shutdown();
+	FORCENOINLINE CORE_API static uint32 OutputEventType(const ANSICHAR* Name, ECpuProfilerGroup Group);
+	FORCENOINLINE CORE_API static uint32 OutputEventType(const TCHAR* Name, ECpuProfilerGroup Group);
+	CORE_API static void OutputBeginEvent(uint32 SpecId);
+	CORE_API static void OutputBeginDynamicEvent(const ANSICHAR* Name, ECpuProfilerGroup Group);
+	CORE_API static void OutputBeginDynamicEvent(const TCHAR* Name, ECpuProfilerGroup Group);
 	CORE_API static void OutputEndEvent();
 
 	struct FEventScope
 	{
-		FEventScope(uint16 InSpecId)
+		FEventScope(uint32 InSpecId)
 		{
 			OutputBeginEvent(InSpecId);
 		}
@@ -39,26 +43,52 @@ struct FCpuProfilerTrace
 			OutputEndEvent();
 		}
 	};
+
+	struct FDynamicEventScope
+	{
+		FDynamicEventScope(const ANSICHAR* InEventName, ECpuProfilerGroup Group)
+		{
+			OutputBeginDynamicEvent(InEventName, Group);
+		}
+
+		FDynamicEventScope(const TCHAR* InEventName, ECpuProfilerGroup Group)
+		{
+			OutputBeginDynamicEvent(InEventName, Group);
+		}
+
+		~FDynamicEventScope()
+		{
+			OutputEndEvent();
+		}
+	};
 };
 
-#define TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_GROUP(Name, Group) \
+#define TRACE_CPUPROFILER_INIT(CmdLine) \
+	FCpuProfilerTrace::Init(CmdLine);
+
+#define TRACE_CPUPROFILER_SHUTDOWN() \
+	FCpuProfilerTrace::Shutdown();
+
+#define TRACE_CPUPROFILER_EVENT_SCOPE_GROUP(Name, Group) \
 	static uint16 PREPROCESSOR_JOIN(__CpuProfilerEventSpecId, __LINE__); \
 	if (PREPROCESSOR_JOIN(__CpuProfilerEventSpecId, __LINE__) == 0) { \
-		PREPROCESSOR_JOIN(__CpuProfilerEventSpecId, __LINE__) = FCpuProfilerTrace::OutputEventType(Name, Group); \
+		PREPROCESSOR_JOIN(__CpuProfilerEventSpecId, __LINE__) = FCpuProfilerTrace::OutputEventType(#Name, Group); \
 	} \
 	FCpuProfilerTrace::FEventScope PREPROCESSOR_JOIN(__CpuProfilerEventScope, __LINE__)(PREPROCESSOR_JOIN(__CpuProfilerEventSpecId, __LINE__));
 
+#define TRACE_CPUPROFILER_EVENT_SCOPE(Name) \
+	TRACE_CPUPROFILER_EVENT_SCOPE_GROUP(Name, CpuProfilerGroup_Default)
+
+#define TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_GROUP(Name, Group) \
+	FCpuProfilerTrace::FDynamicEventScope PREPROCESSOR_JOIN(__CpuProfilerEventScope, __LINE__)(Name, Group);
+	
 #define TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(Name) \
 	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_GROUP(Name, CpuProfilerGroup_Default)
 
-#define TRACE_CPUPROFILER_EVENT_SCOPE_GROUP(Name, Group) \
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_GROUP(TEXT(#Name), Group);
-
-#define TRACE_CPUPROFILER_EVENT_SCOPE(Name) \
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_GROUP(TEXT(#Name), CpuProfilerGroup_Default);
-
 #else
 
+#define TRACE_CPUPROFILER_INIT(CmdLine)
+#define TRACE_CPUPROFILER_SHUTDOWN()
 #define TRACE_CPUPROFILER_EVENT_SCOPE_GROUP(Name, Group)
 #define TRACE_CPUPROFILER_EVENT_SCOPE(Name)
 #define TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_GROUP(Name, Group)

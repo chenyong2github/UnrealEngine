@@ -73,7 +73,7 @@ TArray<int32> MakeNewLeaf(const OBJECT_ARRAY& Objects, const TArray<int32>& AllO
 }
 
 template<class OBJECT_ARRAY, class T, int d, typename TPayloadType>
-TBoundingVolume<OBJECT_ARRAY, TPayloadType, T, d> MakeNewLeaf(const OBJECT_ARRAY& Objects, const TArray<int32>& AllObjects, const TBoundingVolume<OBJECT_ARRAY, TPayloadType, T, d>* /*Type*/)
+TBoundingVolume<TPayloadType, T, d> MakeNewLeaf(const OBJECT_ARRAY& Objects, const TArray<int32>& AllObjects, const TBoundingVolume<TPayloadType, T, d>* /*Type*/)
 {
 #if CHAOS_PARTICLEHANDLE_TODO
 	// @todo(mlentine): This is pretty dirty but should work for now.
@@ -82,7 +82,7 @@ TBoundingVolume<OBJECT_ARRAY, TPayloadType, T, d> MakeNewLeaf(const OBJECT_ARRAY
 	TArray<TSOAView<OBJECT_ARRAY>> SOAs;
 	SOAs.Add(TSOAView<OBJECT_ARRAY>(const_cast<OBJECT_ARRAY*>(&Objects)));	//todo: this const_cast is here because bvh is holding on to things as const but giving it out as non const. Not sure if we should change API or not
 	//return TBoundingVolume<OBJECT_ARRAY, T, d>(MakeParticleView<OBJECT_ARRAY>({ {&Objects} }));
-	return TBoundingVolume<OBJECT_ARRAY, TPayloadType, T, d>(MakeParticleView<OBJECT_ARRAY>(MoveTemp(SOAs)));
+	return TBoundingVolume<TPayloadType, T, d>(MakeParticleView<OBJECT_ARRAY>(MoveTemp(SOAs)));
 #endif
 }
 
@@ -188,7 +188,7 @@ TArray<int32> FindAllIntersectionsLeafHelper(const TArray<int32>& Leaf, const TV
 }
 
 template<class OBJECT_ARRAY,typename TPayloadType, class T, int d>
-TArray<int32> FindAllIntersectionsLeafHelper(const TBoundingVolume<OBJECT_ARRAY, TPayloadType, T, d>& Leaf, const TVector<T, d>& Point)
+TArray<int32> FindAllIntersectionsLeafHelper(const TBoundingVolume<TPayloadType, T, d>& Leaf, const TVector<T, d>& Point)
 {
 #if CHAOS_PARTICLEHANDLE_TODO
 	return Leaf.FindAllIntersections(Point);
@@ -297,7 +297,7 @@ TArray<int32> FindAllIntersectionsLeafHelper(const TArray<int32>& Leaf, const QU
 }
 
 template<class OBJECT_ARRAY, typename TPayloadType, class T, int d, typename QUERY_OBJECT>
-TArray<int32> FindAllIntersectionsLeafHelper(const TBoundingVolume<OBJECT_ARRAY, TPayloadType, T, d>& Leaf, const QUERY_OBJECT& QueryObject)
+TArray<int32> FindAllIntersectionsLeafHelper(const TBoundingVolume<TPayloadType, T, d>& Leaf, const QUERY_OBJECT& QueryObject)
 {
 #if CHAOS_PARTICLEHANDLE_TODO
 	return Leaf.FindAllIntersectionsImp(QueryObject);
@@ -654,7 +654,7 @@ int32 TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>::GenerateNextLevel
 namespace Chaos
 {
 template <typename OBJECT_ARRAY, typename TPayloadType, typename T, int d>
-void FixupLeafObj(const OBJECT_ARRAY& Objects, TArray<TBoundingVolume<OBJECT_ARRAY, TPayloadType, T, d>>& Leafs)
+void FixupLeafObj(const OBJECT_ARRAY& Objects, TArray<TBoundingVolume<TPayloadType, T, d>>& Leafs)
 {
 #if CHAOS_PARTICLEHANDLE_TODO
 	for (TBoundingVolume<OBJECT_ARRAY, TPayloadType, T, d>& Leaf : Leafs)
@@ -680,10 +680,10 @@ void TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>::Serialize(FArchive
 }
 }
 
-template class CHAOS_API Chaos::TBoundingVolume<TArray<Chaos::TSphere<float, 3>*>, int32, float, 3>;
+template class CHAOS_API Chaos::TBoundingVolume<int32, float, 3>;
 template class CHAOS_API Chaos::TBoundingVolumeHierarchy<TArray<Chaos::TSphere<float, 3>*>, TArray<int32>, float, 3>;
 template class CHAOS_API Chaos::TBoundingVolumeHierarchy<Chaos::TPBDRigidParticles<float, 3>, TArray<int32>, float, 3>;
 template class CHAOS_API Chaos::TBoundingVolumeHierarchy<Chaos::TParticles<float, 3>, TArray<int32>, float, 3>;
 template class CHAOS_API Chaos::TBoundingVolumeHierarchy<Chaos::TGeometryParticles<float, 3>, TArray<int32>, float, 3>;
-template class CHAOS_API Chaos::TBoundingVolumeHierarchy<Chaos::TPBDRigidParticles<float, 3>, TBoundingVolume<Chaos::TPBDRigidParticles<float, 3>, TPBDRigidParticleHandle<float,3>*, float, 3>, float, 3>;
-template class CHAOS_API Chaos::TBoundingVolumeHierarchy<Chaos::TGeometryParticles<float, 3>, TBoundingVolume<Chaos::TGeometryParticles<float, 3>, TGeometryParticleHandle<float,3>*, float, 3>, float, 3>;
+template class CHAOS_API Chaos::TBoundingVolumeHierarchy<Chaos::TPBDRigidParticles<float, 3>, TBoundingVolume<TPBDRigidParticleHandle<float,3>*, float, 3>, float, 3>;
+template class CHAOS_API Chaos::TBoundingVolumeHierarchy<Chaos::TGeometryParticles<float, 3>, TBoundingVolume<TGeometryParticleHandle<float,3>*, float, 3>, float, 3>;

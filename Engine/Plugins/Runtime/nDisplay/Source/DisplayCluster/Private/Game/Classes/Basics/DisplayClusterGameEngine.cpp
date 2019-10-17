@@ -19,10 +19,15 @@
 #include "DisplayClusterLog.h"
 #include "DisplayClusterStrings.h"
 
+#include "Stats/Stats.h"
+
 
 void UDisplayClusterGameEngine::Init(class IEngineLoop* InEngineLoop)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterEngine);
+
+	// Instantiate the tickable helper
+	TickableHelper = NewObject<UDisplayClusterGameEngineTickableHelper>();
 
 	// Detect requested operation mode
 	OperationMode = DetectOperationMode();
@@ -200,7 +205,6 @@ void UDisplayClusterGameEngine::Tick(float DeltaSeconds, bool bIdleMode)
 		// Update delta time. Cluster slaves will get this value from the master few steps later
 		ClusterMgr->SetDeltaTime(DeltaSeconds);
 
-
 		//////////////////////////////////////////////////////////////////////////////////////////////
 		// Frame start barrier
 		NodeController->WaitForFrameStart();
@@ -264,3 +268,18 @@ void UDisplayClusterGameEngine::Tick(float DeltaSeconds, bool bIdleMode)
 	}
 }
 
+
+TStatId UDisplayClusterGameEngineTickableHelper::GetStatId() const
+{
+	RETURN_QUICK_DECLARE_CYCLE_STAT(UDisplayClusterGameEngineTickableHelper, STATGROUP_Tickables);
+}
+
+void UDisplayClusterGameEngineTickableHelper::Tick(float DeltaTime)
+{
+	// Sync cluster objects
+	static IPDisplayClusterClusterManager* const ClusterMgr = GDisplayCluster->GetPrivateClusterMgr();
+	if (ClusterMgr)
+	{
+		ClusterMgr->SyncObjects();
+	}
+}

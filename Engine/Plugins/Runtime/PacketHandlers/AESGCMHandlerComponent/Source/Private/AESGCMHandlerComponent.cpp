@@ -17,16 +17,16 @@ FAESGCMHandlerComponent::FAESGCMHandlerComponent()
 	EncryptionContext = IPlatformCrypto::Get().CreateContext();
 }
 
-void FAESGCMHandlerComponent::SetEncryptionKey(TArrayView<const uint8> NewKey)
+void FAESGCMHandlerComponent::SetEncryptionData(const FEncryptionData& EncryptionData)
 {
-	if (NewKey.Num() != KeySizeInBytes)
+	if (EncryptionData.Key.Num() != KeySizeInBytes)
 	{
 		UE_LOG(PacketHandlerLog, Log, TEXT("FAESGCMHandlerComponent::SetEncryptionKey. NewKey is not %d bytes long, ignoring."), KeySizeInBytes);
 		return;
 	}
 
 	Key.Reset(KeySizeInBytes);
-	Key.Append(NewKey.GetData(), NewKey.Num());
+	Key.Append(EncryptionData.Key.GetData(), EncryptionData.Key.Num());
 }
 
 void FAESGCMHandlerComponent::EnableEncryption()

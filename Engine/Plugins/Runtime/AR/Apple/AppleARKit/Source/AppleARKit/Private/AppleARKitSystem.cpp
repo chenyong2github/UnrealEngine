@@ -1341,6 +1341,9 @@ bool FAppleARKitSystem::Run(UARSessionConfig* SessionConfig)
 			UE_LOG(LogAppleARKit, Error, TEXT("The requested session type is not supported by this device"));
 			return false;
 		}
+		
+		// Configure additional tracking features
+		FAppleARKitConversion::ConfigureSessionTrackingFeatures(SessionConfig, Configuration);
 
 		// Create our ARSessionDelegate
 		if (Delegate == nullptr)

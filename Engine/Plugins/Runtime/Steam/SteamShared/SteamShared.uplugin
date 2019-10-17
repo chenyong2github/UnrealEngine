@@ -1,0 +1,27 @@
+{
+	"FileVersion" : 3,
+	"Version" : 1,
+	"VersionName" : "1.0",
+	"FriendlyName" : "Steam Shared Module",
+	"Description" : "Shared module loader for the Steam API",
+	"Category" : "Runtime",
+	"CreatedBy" : "Epic Games, Inc.",
+	"CreatedByURL" : "https://epicgames.com",
+	"EnabledByDefault" : false,
+	"CanContainContent" : false,
+	"Modules" :
+	[
+		{
+			"Name" : "SteamShared",
+			"Type" : "Runtime",
+			"LoadingPhase" : "PreDefault",
+			"WhitelistPlatforms" :
+			[
+                "Win32",
+                "Win64",
+                "Mac",
+                "Linux"
+			]
+		}
+	]
+}

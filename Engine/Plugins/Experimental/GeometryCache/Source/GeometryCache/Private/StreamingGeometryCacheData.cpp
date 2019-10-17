@@ -27,7 +27,7 @@ DECLARE_MEMORY_STAT(TEXT("Streamed Chunks"), STAT_ChunkDataStreamed, STATGROUP_G
 DECLARE_MEMORY_STAT(TEXT("Resident Chunks"), STAT_ChunkDataResident, STATGROUP_GeometryCache);
 
 FStreamingGeometryCacheData::FStreamingGeometryCacheData(UGeometryCacheTrackStreamable* InTrack)
-	: Track(InTrack), IORequestHandle(nullptr)
+	: Track(InTrack)
 {
 }
 
@@ -48,12 +48,6 @@ FStreamingGeometryCacheData::~FStreamingGeometryCacheData()
 		RemoveResidentChunk(Iter.Value());
 	}
 	Chunks.Empty();
-
-	if (IORequestHandle)
-	{
-		delete IORequestHandle;
-		IORequestHandle = nullptr;
-	}
 }
 
 void FStreamingGeometryCacheData::ResetNeededChunks()
@@ -100,7 +94,7 @@ This is called from some random thread when reading is complete.
 void FStreamingGeometryCacheData::OnAsyncReadComplete(int32 LoadedChunkIndex, IAsyncReadRequest* ReadRequest)
 {
 	// We should do the least amount of work possible here as to not stall the async io threads.
-	// We calso cannot take the critical section here as this would lead to a deadlock between the
+	// We also cannot take the critical section here as this would lead to a deadlock between the
 	// our critical section and the async-io internal critical section. 
 	// So we just put this on queue here and then process the results later when we are on a different
 	// thread that already holds our lock.
@@ -182,7 +176,7 @@ void FStreamingGeometryCacheData::PrefetchData(UGeometryCacheComponent *Componen
 		ResidentChunk.Memory = static_cast<uint8*>(FMemory::Malloc(Chunk.DataSize));
 		INC_MEMORY_STAT_BY(STAT_ChunkDataResident, Chunk.DataSize);
 		INC_MEMORY_STAT_BY(STAT_ChunkDataStreamed, Chunk.DataSize);
-		Chunk.BulkData.GetCopy((void**)&ResidentChunk.Memory); //note: This does the actual loading internally...
+		Chunk.BulkData.GetCopy((void**)&ResidentChunk.Memory,true); //note: This does the actual loading internally...
 		ChunksAvailable.Add(ChunkId);
 	}
 }
@@ -207,7 +201,7 @@ void FStreamingGeometryCacheData::UpdateStreamingStatus()
 			// If not requested yet, then request a load
 			if (!ChunksRequested.Contains(NeededIndex))
 			{
-				const FStreamedGeometryCacheChunk& Chunk = Track->GetChunk(NeededIndex);
+				FStreamedGeometryCacheChunk& Chunk = Track->GetChunk(NeededIndex);
 
 				// This can happen in the editor if the asset hasn't been saved yet.
 				if (Chunk.BulkData.IsBulkDataLoaded())
@@ -232,19 +226,14 @@ void FStreamingGeometryCacheData::UpdateStreamingStatus()
 				EAsyncIOPriorityAndFlags AsyncIOPriority = AIOP_BelowNormal;
 
 				// Kick of a load
-				if (!IORequestHandle)
-				{
-					IORequestHandle = FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*Chunk.BulkData.GetFilename());
-					checkf(IORequestHandle, TEXT("Could not opan an async file")); // this generally cannot fail because it is async
-				}
 				check(Chunk.BulkData.GetBulkDataSize() == ResidentChunk.DataSize);
 
 				FAsyncFileCallBack AsyncFileCallBack = [this, NeededIndex](bool bWasCancelled, IAsyncReadRequest* Req)
 				{
 					this->OnAsyncReadComplete(NeededIndex, Req);
 				};
-
-				ResidentChunk.IORequest = IORequestHandle->ReadRequest(Chunk.BulkData.GetBulkDataOffsetInFile(), ResidentChunk.DataSize, AsyncIOPriority, &AsyncFileCallBack);
+				
+				ResidentChunk.IORequest = Chunk.BulkData.CreateStreamingRequest(AsyncIOPriority, &AsyncFileCallBack, nullptr);
 				if (!ResidentChunk.IORequest)
 				{
 					UE_LOG(LogGeoCaStreaming, Error, TEXT("Geometry cache streaming read request failed."));
@@ -339,8 +328,10 @@ void FStreamingGeometryCacheData::ProcessCompletedChunks()
 			return;
 		}
 
-		// Chunks can be queued up multiple times when scrubbing, either the request has already been fulfilled (nullptr) or it could be waiting for a different IO request
-		if (CompletedChunk.ReadRequest == Chunk->IORequest || Chunk->IORequest != nullptr)
+		// Chunks can be queued up multiple times when scrubbing but we can trust the LoadedChunkIndex of the completed chunk
+		// so all we need to check is if the FResidentChunk  has a valid IORequest pointer or not.
+		// If it is nullptr then we already processed a request for the chunk and it can be ignored.
+		if (Chunk->IORequest != nullptr)
 		{
 			// Check to see if we successfully managed to load anything
 			uint8* Mem = CompletedChunk.ReadRequest->GetReadResults();

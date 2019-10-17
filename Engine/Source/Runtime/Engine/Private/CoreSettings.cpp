@@ -132,6 +132,7 @@ UStreamingSettings::UStreamingSettings()
 	LevelStreamingUnregisterComponentsTimeLimit = 1.0f;
 	LevelStreamingComponentsUnregistrationGranularity = 5;
 	EventDrivenLoaderEnabled = false;
+	FlushStreamingOnExit = true;
 }
 
 void UStreamingSettings::PostInitProperties()

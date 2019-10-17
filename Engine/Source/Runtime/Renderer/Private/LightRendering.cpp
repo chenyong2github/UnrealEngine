@@ -274,6 +274,11 @@ class FDeferredLightPS : public FGlobalShader
 			}
 		}
 
+		if (PermutationVector.Get<FHairLighting>() && !IsHairStrandsSupported(Parameters.Platform))
+		{
+			return false;
+		}
+
 		/*if( PermutationVector.Get< FVisualizeCullingDim >() && (
 			PermutationVector.Get< FSourceShapeDim >() == ELightSourceShape::Rect ||
 			PermutationVector.Get< FIESProfileDim >() ||
@@ -975,7 +980,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 				bool bAnyViewIsStereo = false;
 				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 				{
-					if (Views[ViewIndex].StereoPass != eSSP_FULL)
+					if (IStereoRendering::IsStereoEyeView(Views[ViewIndex].StereoPass))
 					{
 						bAnyViewIsStereo = true;
 						break;

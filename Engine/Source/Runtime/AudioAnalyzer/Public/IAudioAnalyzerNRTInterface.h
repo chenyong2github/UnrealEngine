@@ -5,7 +5,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SampleBuffer.h"
 #include "Features/IModularFeature.h"
 
 namespace Audio
@@ -103,6 +102,15 @@ namespace Audio
 
 		// Create a new result.
 		virtual TUniquePtr<IAnalyzerNRTResult> NewResult() = 0;
+
+		// Convenience function to create a new shared result by calling NewResult.
+		template<ESPMode Mode = ESPMode::Fast>
+		TSharedPtr<IAnalyzerNRTResult, Mode> NewResultShared()
+		{
+			TUniquePtr<Audio::IAnalyzerNRTResult> Result = NewResult();
+
+			return TSharedPtr<Audio::IAnalyzerNRTResult, Mode>(Result.Release());
+		}
 
 		// Create a new worker.
 		virtual TUniquePtr<IAnalyzerNRTWorker> NewWorker(const FAnalyzerNRTParameters& InParams, const IAnalyzerNRTSettings* InSettings) = 0;

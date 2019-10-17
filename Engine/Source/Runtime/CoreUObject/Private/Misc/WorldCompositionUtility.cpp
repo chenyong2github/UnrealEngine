@@ -5,7 +5,6 @@
 =============================================================================*/
 #include "Misc/WorldCompositionUtility.h"
 #include "HAL/FileManager.h"
-#include "Templates/ScopedPointer.h"
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/PackageFileSummary.h"
 #include "UObject/Linker.h"
@@ -36,16 +35,16 @@ void operator<<(FStructuredArchive::FSlot Slot, FWorldTileLayer& D)
 	int32 Version = Slot.GetUnderlyingArchive().UE4Ver();
 
 	// Serialized with FPackageFileSummary
-	Record << NAMED_ITEM("Name", D.Name) << NAMED_ITEM("Reserved0", D.Reserved0) << NAMED_ITEM("Reserved1", D.Reserved1);
+	Record << SA_VALUE(TEXT("Name"), D.Name) << SA_VALUE(TEXT("Reserved0"), D.Reserved0) << SA_VALUE(TEXT("Reserved1"), D.Reserved1);
 
 	if (Version >= VER_UE4_WORLD_LEVEL_INFO_UPDATED)
 	{
-		Record << NAMED_ITEM("StreamingDistance", D.StreamingDistance);
+		Record << SA_VALUE(TEXT("StreamingDistance"), D.StreamingDistance);
 	}
 
 	if (Version >= VER_UE4_WORLD_LAYER_ENABLE_DISTANCE_STREAMING)
 	{
-		Record << NAMED_ITEM("DistanceStreamingEnabled", D.DistanceStreamingEnabled);
+		Record << SA_VALUE(TEXT("DistanceStreamingEnabled"), D.DistanceStreamingEnabled);
 	}
 }
 
@@ -65,11 +64,11 @@ void operator<<(FStructuredArchive::FSlot Slot, FWorldTileLODInfo& D)
 	FStructuredArchive::FRecord Record = Slot.EnterRecord();
 
 	// Serialized with FPackageFileSummary
-	Record << NAMED_ITEM("RelativeStreamingDistance", D.RelativeStreamingDistance)
-		<< NAMED_ITEM("Reserved0", D.Reserved0)
-		<< NAMED_ITEM("Reserved1", D.Reserved1)
-		<< NAMED_ITEM("Reserved2", D.Reserved2)
-		<< NAMED_ITEM("Reserved3", D.Reserved3);
+	Record << SA_VALUE(TEXT("RelativeStreamingDistance"), D.RelativeStreamingDistance)
+		<< SA_VALUE(TEXT("Reserved0"), D.Reserved0)
+		<< SA_VALUE(TEXT("Reserved1"), D.Reserved1)
+		<< SA_VALUE(TEXT("Reserved2"), D.Reserved2)
+		<< SA_VALUE(TEXT("Reserved3"), D.Reserved3);
 }
 
 FArchive& operator<<( FArchive& Ar, FWorldTileInfo& D )
@@ -120,26 +119,26 @@ void operator<<(FStructuredArchive::FSlot Slot, FWorldTileInfo& D)
 	int32 ArchiveVersion = Slot.GetUnderlyingArchive().UE4Ver();
 
 	// Serialized with FPackageFileSummary
-	Record << NAMED_ITEM("Position", D.Position) << NAMED_ITEM("Bounds", D.Bounds) << NAMED_ITEM("Layer", D.Layer);
+	Record << SA_VALUE(TEXT("Position"), D.Position) << SA_VALUE(TEXT("Bounds"), D.Bounds) << SA_VALUE(TEXT("Layer"), D.Layer);
 
 	if (ArchiveVersion >= VER_UE4_WORLD_LEVEL_INFO_UPDATED)
 	{
-		Record << NAMED_ITEM("HideInTileView", D.bHideInTileView) << NAMED_ITEM("ParentTilePackageName", D.ParentTilePackageName);
+		Record << SA_VALUE(TEXT("HideInTileView"), D.bHideInTileView) << SA_VALUE(TEXT("ParentTilePackageName"), D.ParentTilePackageName);
 	}
 
 	if (ArchiveVersion >= VER_UE4_WORLD_LEVEL_INFO_LOD_LIST)
 	{
-		Record << NAMED_ITEM("LODList", D.LODList);
+		Record << SA_VALUE(TEXT("LODList"), D.LODList);
 	}
 
 	if (ArchiveVersion >= VER_UE4_WORLD_LEVEL_INFO_ZORDER)
 	{
-		Record << NAMED_ITEM("ZOrder", D.ZOrder);
+		Record << SA_VALUE(TEXT("ZOrder"), D.ZOrder);
 	}
 
 	if (Slot.GetUnderlyingArchive().GetPortFlags() & PPF_DuplicateForPIE)
 	{
-		Record << NAMED_ITEM("AbsolutePosition", D.AbsolutePosition);
+		Record << SA_VALUE(TEXT("AbsolutePosition"), D.AbsolutePosition);
 	}
 }
 

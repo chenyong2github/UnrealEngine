@@ -15,7 +15,6 @@
 #include "Shader.h"
 #include "VertexFactory.h"
 #include "SceneTypes.h"
-#include "Templates/ScopedPointer.h"
 #include "Materials/MaterialInterface.h"
 #include "MaterialShared.h"
 #include "Materials/Material.h"
@@ -121,9 +120,7 @@ void RecompileRendererModule()
 		bool bCompiledSuccessfully = false;
 		do 
 		{
-			const bool bForceCodeProject = false;
-			const bool bFailIfGeneratedCodeChanges = true;
-			bCompiledSuccessfully = HotReload->RecompileModule(RendererModuleName, false, *GLog, bFailIfGeneratedCodeChanges, bForceCodeProject);
+			bCompiledSuccessfully = HotReload->RecompileModule(RendererModuleName, *GLog, ERecompileModuleFlags::FailIfGeneratedCodeChanges);
 
 			if (!bCompiledSuccessfully)
 			{

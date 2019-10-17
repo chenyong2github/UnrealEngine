@@ -79,6 +79,22 @@ FAutoConsoleVariableRef CVarAllowAudioSpatializationCVar(
 	TEXT("0: Disable, >0: Enable"),
 	ECVF_Default);
 
+static int32 OcclusionFilterScaleEnabledCVar = 0;
+FAutoConsoleVariableRef CVarOcclusionFilterScaleEnabled(
+	TEXT("au.EnableOcclusionFilterScale"),
+	OcclusionFilterScaleEnabledCVar,
+	TEXT("Whether or not we scale occlusion by 0.25f to compensate for change in filter cutoff frequencies in audio mixer. \n")
+	TEXT("0: Not Enabled, 1: Enabled"),
+	ECVF_Default);
+
+static int32 BypassPlayWhenSilentCVar = 0;
+FAutoConsoleVariableRef CVarBypassPlayWhenSilent(
+	TEXT("au.BypassPlayWhenSilent"),
+	BypassPlayWhenSilentCVar,
+	TEXT("When set to 1, ignores the Play When Silent flag for non-procedural sources.\n")
+	TEXT("0: Honor the Play When Silent flag, 1: stop all silent non-procedural sources."),
+	ECVF_Default);
+
 static int32 AllowReverbForMultichannelSources = 1;
 FAutoConsoleVariableRef CvarAllowReverbForMultichannelSources(
 	TEXT("au.AllowReverbForMultichannelSources"),
@@ -380,8 +396,15 @@ void FSoundSource::SetFilterFrequency()
 
 		default:
 		{
+			// compensate for filter coefficient calculation error for occlusion
+			float OcclusionFilterScale = 1.0f;
+			if (AudioDevice->IsAudioMixerEnabled() && OcclusionFilterScaleEnabledCVar == 1 && !FMath::IsNearlyEqual(WaveInstance->OcclusionFilterFrequency, MAX_FILTER_FREQUENCY))
+			{
+				OcclusionFilterScale = 0.25f;
+			}
+
 			// Set the LPFFrequency to lowest provided value
-			LPFFrequency = FMath::Min(WaveInstance->OcclusionFilterFrequency, WaveInstance->LowPassFilterFrequency);
+			LPFFrequency = FMath::Min(WaveInstance->OcclusionFilterFrequency * OcclusionFilterScale, WaveInstance->LowPassFilterFrequency);
 			LPFFrequency = FMath::Min(LPFFrequency, WaveInstance->AmbientZoneFilterFrequency);
 			LPFFrequency = FMath::Min(LPFFrequency, WaveInstance->AttenuationLowpassFilterFrequency);
 			LPFFrequency = FMath::Min(LPFFrequency, WaveInstance->SoundModulationControls.Lowpass);
@@ -822,6 +845,57 @@ FWaveInstance::FWaveInstance(const UPTRINT InWaveInstanceHash, FActiveSound& InA
 	TypeHash = ++TypeHashCounter;
 }
 
+bool FWaveInstance::IsPlaying() const
+{
+	check(ActiveSound);
+
+	if (!WaveData)
+	{
+		return false;
+	}
+
+	// TODO: move out of audio.  Subtitle system should be separate and just set VirtualizationMode to PlayWhenSilent
+	const bool bHasSubtitles = ActiveSound->bHandleSubtitles && (ActiveSound->bHasExternalSubtitles || WaveData->Subtitles.Num() > 0);
+	if (bHasSubtitles)
+	{
+		return true;
+	}
+
+	if (ActiveSound->IsPlayWhenSilent() && (!BypassPlayWhenSilentCVar || WaveData->bProcedural))
+	{
+		return true;
+	}
+
+	// Modulation volume check must be performed separately from non-modulation volume check if zeroed as this could cause
+	// sources to stop and not be able to be restarted. Because modulation controls are processed on the source level, this
+	// check enables the modulation plugin to determine voice eligibility without having to process all wave instances not
+	// currently sourcing control data.
+	float ModVolume = SoundModulationControls.Volume;
+	if (ModulationPluginSettings)
+	{
+		check(ActiveSound->AudioDevice);
+		FAudioDevice& AudioDevice = *ActiveSound->AudioDevice;
+		if (AudioDevice.IsModulationPluginEnabled())
+		{
+			check(AudioDevice.ModulationInterface);
+			ModVolume = AudioDevice.ModulationInterface->CalculateInitialVolume(*ModulationPluginSettings);
+		}
+	}
+	
+	const float WaveInstanceVolume = ModVolume * Volume * VolumeMultiplier * DistanceAttenuation * GetDynamicVolume();
+	if (WaveInstanceVolume > KINDA_SMALL_NUMBER)
+	{
+		return true;
+	}
+
+	if (ActiveSound->ComponentVolumeFader.IsFadingIn())
+	{
+		return true;
+	}
+
+	return false;
+}
+
 /**
  * Notifies the wave instance that it has finished.
  */
@@ -960,6 +1034,7 @@ float FWaveInstance::GetVolume() const
 
 bool FWaveInstance::ShouldStopDueToMaxConcurrency() const
 {
+	check(ActiveSound);
 	return ActiveSound->bShouldStopDueToMaxConcurrency;
 }
 

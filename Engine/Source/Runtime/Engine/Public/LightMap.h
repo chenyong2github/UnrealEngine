@@ -395,6 +395,10 @@ struct FQuantizedSimpleLightSample
 	FColor	Coefficients[NUM_LQ_LIGHTMAP_COEF];
 };
 
+// These act like a POD as FColor is also set to act like POD
+template <> struct TIsPODType<FQuantizedDirectionalLightSample> { enum { Value = true }; };
+template <> struct TIsPODType<FQuantizedSimpleLightSample> { enum { Value = true }; };
+
 /**
  * Bulk data array of FQuantizedLightSamples
  */

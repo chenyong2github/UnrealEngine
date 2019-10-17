@@ -32,6 +32,8 @@ namespace FLandscapeCustomVersion
 		AddSplineLayerFalloff,
 		// Spline Layer Width
 		AddSplineLayerWidth,
+		// New LOD distribution and tessellation calculations are introduced, needs parameter conversion
+		NewLandscapeContinuousLOD,
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -19,7 +19,6 @@
 #include "UObject/UObjectAnnotation.h"
 #include "UObject/ReferenceChainSearch.h"
 #include "Misc/PackageName.h"
-#include "Serialization/AsyncLoading.h"
 #include "GameMapsSettings.h"
 #include "TimerManager.h"
 #include "Materials/MaterialInterface.h"
@@ -3007,7 +3006,7 @@ UWorld* UWorld::DuplicateWorldForPIE(const FString& PackageName, UWorld* OwningW
 		checkf(false, TEXT("Unable to determine PIEInstanceID to duplicate for PIE."));
 	}
 
-	GPlayInEditorID = PIEInstanceID;
+	FTemporaryPlayInEditorIDOverride IDHelper(PIEInstanceID);
 
 	FString PrefixedLevelName = ConvertToPIEPackageName(PackageName, PIEInstanceID);
 	const FName PrefixedLevelFName = FName(*PrefixedLevelName);
@@ -3840,7 +3839,7 @@ bool UWorld::HandleDemoPlayCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld*
 
 	if (ErrorString != nullptr)
 	{
-		Ar.Log(ErrorString);
+		UE_SUPPRESS(LogDemo, Error, Ar.Log(ErrorString));
 
 		if (GetGameInstance() != nullptr)
 		{
@@ -4929,14 +4928,13 @@ void UWorld::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType,
 					{
 						if (EncryptionToken.IsEmpty())
 						{
-							SendChallengeControlMessage(Connection);
+							Connection->SendChallengeControlMessage();
 						}
 						else
 						{
 							if (FNetDelegates::OnReceivedNetworkEncryptionToken.IsBound())
 							{
-								TWeakObjectPtr<UNetConnection> WeakConnection = Connection;
-								FNetDelegates::OnReceivedNetworkEncryptionToken.Execute(EncryptionToken, FOnEncryptionKeyResponse::CreateUObject(this, &UWorld::SendChallengeControlMessage, WeakConnection));
+								FNetDelegates::OnReceivedNetworkEncryptionToken.Execute(EncryptionToken, FOnEncryptionKeyResponse::CreateUObject(Connection, &UNetConnection::SendChallengeControlMessage));
 							}
 							else
 							{
@@ -5259,61 +5257,6 @@ void UWorld::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType,
 				break;
 			}
 		}
-	}
-}
-
-void UWorld::SendChallengeControlMessage(UNetConnection* Connection)
-{
-	if (Connection)
-	{
-		if (Connection->State != USOCK_Invalid && Connection->State != USOCK_Closed && Connection->Driver)
-		{
-			Connection->Challenge = FString::Printf(TEXT("%08X"), FPlatformTime::Cycles());
-			Connection->SetExpectedClientLoginMsgType(NMT_Login);
-			FNetControlMessage<NMT_Challenge>::Send(Connection, Connection->Challenge);
-			Connection->FlushNet();
-		}
-		else
-		{
-			UE_LOG(LogNet, Log, TEXT("UWorld::SendChallengeControlMessage: connection in invalid state. %s"), *Connection->Describe());
-		}
-	}
-	else
-	{
-		UE_LOG(LogNet, Log, TEXT("UWorld::SendChallengeControlMessage: Connection is null."));
-	}
-}
-
-void UWorld::SendChallengeControlMessage(const FEncryptionKeyResponse& Response, TWeakObjectPtr<UNetConnection> WeakConnection)
-{
-	UNetConnection* Connection = WeakConnection.Get();
-	if (Connection)
-	{
-		if (Connection->State != USOCK_Invalid && Connection->State != USOCK_Closed && Connection->Driver)
-		{
-			if (Response.Response == EEncryptionResponse::Success)
-			{
-				Connection->EnableEncryptionWithKeyServer(Response.EncryptionKey);
-				SendChallengeControlMessage(Connection);
-			}
-			else
-			{
-				FString ResponseStr(LexToString(Response.Response));
-				UE_LOG(LogNet, Warning, TEXT("UWorld::SendChallengeControlMessage: encryption failure [%s] %s"), *ResponseStr, *Response.ErrorMsg);
-				FNetControlMessage<NMT_Failure>::Send(Connection, ResponseStr);
-				Connection->FlushNet();
-				// Can't close the connection here since it will leave the failure message in the send buffer and just close the socket. 
-				// Connection->Close();
-			}
-		}
-		else
-		{
-			UE_LOG(LogNet, Warning, TEXT("UWorld::SendChallengeControlMessage: connection in invalid state. %s"), *Connection->Describe());
-		}
-	}
-	else
-	{
-		UE_LOG(LogNet, Warning, TEXT("UWorld::SendChallengeControlMessage: Connection is null."));
 	}
 }
 
@@ -7276,7 +7219,7 @@ static ULevel* DuplicateLevelWithPrefix(ULevel* InLevel, int32 InstanceID )
 
 	FSoftObjectPath::AddPIEPackageName(NewPackage->GetFName());
 
-	GPlayInEditorID = InstanceID;
+	FTemporaryPlayInEditorIDOverride IDHelper(InstanceID);
 
 	// Create "vestigial" world for the persistent level - it's OwningWorld will still be the main world,
 	// but we're treating it like a streaming level (even though it's a duplicate of the persistent level).
@@ -7320,8 +7263,6 @@ static ULevel* DuplicateLevelWithPrefix(ULevel* InLevel, int32 InstanceID )
 	const float TotalSeconds = ( DuplicateEnd - DuplicateStart );
 
 	UE_LOG( LogNet, Log, TEXT( "DuplicateLevelWithPrefix. TotalSeconds: %2.2f" ), TotalSeconds );
-
-	GPlayInEditorID = -1;
 
 	return NewLevel;
 }

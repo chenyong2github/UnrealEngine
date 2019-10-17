@@ -10,6 +10,7 @@ public class RSAEncryptionHandlerComponent : ModuleRules
         PublicDependencyModuleNames.AddRange(
             new string[] {
 				"Core",
+				"NetCore",
                 "PacketHandler"
             }
         );

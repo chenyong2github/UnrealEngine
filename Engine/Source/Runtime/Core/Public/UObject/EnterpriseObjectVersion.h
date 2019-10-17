@@ -30,6 +30,12 @@ struct CORE_API FEnterpriseObjectVersion
 		// Addition of pointer to UDatasmithDataPrepRecipe 
 		HasUDataprepRecipe,
 
+		// Addition of UDatatprepAssetInterface and UDatatprepAssetInstance
+		HasUDatatprepAssetInterface,
+		
+		// MeshDescriptionBulkData contains a bGuidIsHash so we can benefit from DDC caching.
+		MeshDescriptionBulkDataGuidIsHash,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

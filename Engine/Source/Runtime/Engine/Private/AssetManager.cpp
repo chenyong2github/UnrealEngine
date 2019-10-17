@@ -3086,7 +3086,10 @@ void UAssetManager::UpdateManagementDatabase(bool bForceRefresh)
 
 
 	TMultiMap<FAssetIdentifier, FAssetIdentifier> PrimaryAssetIdManagementMap;
-	TArray<int32> ChunkList, ExistingChunkList, OverrideChunkList;
+	TArray<int32> ChunkList;
+	TArray<int32> ExistingChunkList;
+
+	CachedChunkMap.Empty(); // Remove previous entries before we start adding to it
 
 	// Update management parent list, which is PrimaryAssetId -> PrimaryAssetId
 	for (const TPair<FName, TSharedRef<FPrimaryAssetTypeData>>& TypePair : AssetTypeMap)
@@ -3149,6 +3152,7 @@ void UAssetManager::UpdateManagementDatabase(bool bForceRefresh)
 	{
 		// Update the editor preview chunk package list for all chunks, but only if we actually care about chunks
 		// bGenerateChunks is settable per platform, but should be enabled on the default platform for preview to work
+		TArray<int32> OverrideChunkList;
 		for (FName PackageName : PackagesToUpdateChunksFor)
 		{
 			ChunkList.Reset();
@@ -3561,9 +3565,14 @@ void UAssetManager::OnInMemoryAssetDeleted(UObject *Object)
 void UAssetManager::OnObjectPreSave(UObject* Object)
 {
 	// If this is in the asset manager dictionary, make sure it actually has a primary asset id that matches
-	FPrimaryAssetId FoundPrimaryAssetId = GetPrimaryAssetIdForPath(FSoftObjectPath(Object));
+	const bool bIsAssetOrClass = Object->IsAsset() || Object->IsA(UClass::StaticClass()); 
+	if (!bIsAssetOrClass)
+	{
+		return;
+	}
 
-	if ((Object->IsAsset() || Object->IsA(UClass::StaticClass())) && FoundPrimaryAssetId.IsValid())
+	FPrimaryAssetId FoundPrimaryAssetId = GetPrimaryAssetIdForPath(*Object->GetPathName());
+	if (FoundPrimaryAssetId.IsValid())
 	{
 		TSharedRef<FPrimaryAssetTypeData>* FoundType = AssetTypeMap.Find(FoundPrimaryAssetId.PrimaryAssetType);
 		FPrimaryAssetId ObjectPrimaryAssetId = Object->GetPrimaryAssetId();

@@ -23,6 +23,7 @@
 #include "UObject/UObjectIterator.h"
 #include "EngineUtils.h"
 #include "Misc/MessageDialog.h"
+#include "UnrealEngine.h"
 
 // needed for the RemotePropagator
 
@@ -807,6 +808,7 @@ UWorld* SetPlayInEditorWorld( UWorld* PlayInEditorWorld )
 	if (FWorldContext* WorldContext = GEngine->GetWorldContextFromWorld(PlayInEditorWorld))
 	{
 		GPlayInEditorID = WorldContext->PIEInstance;
+		UpdatePlayInEditorWorldDebugString(WorldContext);
 	}
 
 	return SavedWorld;
@@ -823,7 +825,8 @@ void RestoreEditorWorld( UWorld* EditorWorld )
 	check(GIsPlayInEditorWorld);
 	GIsPlayInEditorWorld = false;
 	GWorld = EditorWorld;
-	GPlayInEditorID = -1;
+	GPlayInEditorID = INDEX_NONE;
+	UpdatePlayInEditorWorldDebugString(nullptr);
 }
 
 /**

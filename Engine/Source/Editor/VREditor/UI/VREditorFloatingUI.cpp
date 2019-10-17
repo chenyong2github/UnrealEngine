@@ -72,11 +72,20 @@ void AVREditorFloatingUI::SetupWidgetComponent()
 		WidgetComponent->SetBackgroundColor(FLinearColor::Black);
 		WidgetComponent->SetBlendMode(EWidgetBlendMode::Opaque);
 	}
-	else
+	else // UMG UIs
 	{
-		WidgetComponent->SetOpacityFromTexture(1.0f);
-		WidgetComponent->SetBackgroundColor(FLinearColor::Transparent);
-		WidgetComponent->SetBlendMode(EWidgetBlendMode::Masked);
+		if (!CreationContext.bMaskOutWidgetBackground) // Default behavior
+		{
+			WidgetComponent->SetOpacityFromTexture(1.0f);
+			WidgetComponent->SetBackgroundColor(FLinearColor::Transparent);
+			WidgetComponent->SetBlendMode(EWidgetBlendMode::Masked);
+		}
+		else // User override via CreationContext
+		{
+			WidgetComponent->SetOpacityFromTexture(1.0f);
+			WidgetComponent->SetBackgroundColor(FLinearColor::Transparent);
+			WidgetComponent->SetBlendMode(EWidgetBlendMode::Transparent);			
+		}
 	}
 
 	// @todo vreditor: Ideally we use automatic mip map generation, otherwise the UI looks too crunchy at a distance.
@@ -139,7 +148,6 @@ void AVREditorFloatingUI::SetSlateWidget( UVREditorUISystem& InitOwner, const VR
 	InitialScale = Scale;
 
 	SetDockedTo(InitDockedTo);
-
 	SetupWidgetComponent();
 }
 

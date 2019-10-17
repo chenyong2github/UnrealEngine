@@ -4,12 +4,11 @@
 
 #include "CoreMinimal.h"
 
-#if INCLUDE_CHAOS && WITH_PHYSX
+#if WITH_PHYSX
 #include "PhysXIncludes.h"
 #include "PhysXSupportCore.h"
 
-#include "Chaos/PBDRigidsEvolution.h"
-#include "Chaos/PBDRigidParticles.h"
+#include "Chaos/Particles.h"
 #include "Chaos/Box.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/Capsule.h"
@@ -175,7 +174,7 @@ inline TUniquePtr<Chaos::TImplicitObjectTransformed<float, 3>> PxShapeToChaosGeo
 	default: ensure(false); return nullptr;	//missing support for this geometry type
 	}
 
-	return MakeUnique<TImplicitObjectTransformed<float, 3>>(MakeSerializable(InnerObj), MoveTemp(InnerObj), P2UTransform(ShapeTM));
+	return MakeUnique<TImplicitObjectTransformed<float, 3>>(MoveTemp(InnerObj), P2UTransform(ShapeTM));
 }
 
 #endif

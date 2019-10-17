@@ -9,6 +9,7 @@
 // Insights
 #include "Insights/InsightsManager.h"
 #include "Insights/TimingProfilerCommands.h"
+#include "Insights/ViewModels/TimerNode.h"
 
 class STimingProfilerWindow;
 
@@ -63,7 +64,7 @@ protected:
 
 public:
 	/**
-	 * @return the global instance of the Timing Profiler manager (FTimingProfilerManager).
+	 * @return the global instance of the Timing Profiler (Timing Insights) manager.
 	 * This is an internal singleton and cannot be used outside ProfilerModule.
 	 * For external use:
 	 *     IProfilerModule& ProfilerModule = FModuleManager::Get().LoadModuleChecked<IProfilerModule>("Profiler");
@@ -99,37 +100,60 @@ public:
 
 	/** @return true, if Frames Track is visible */
 	const bool IsFramesTrackVisible() const { return bIsFramesTrackVisible; }
-	void SetFramesTrackVisible(const bool bFramesTrackVisibleState) { bIsFramesTrackVisible = bFramesTrackVisibleState; }
-	void ShowHideFramesTrack(const bool bFramesTrackVisibleState);
+	void SetFramesTrackVisible(const bool bIsVisible) { bIsFramesTrackVisible = bIsVisible; }
+	void ShowHideFramesTrack(const bool bIsVisible);
 
 	/** @return true, if Graph Track is visible */
 	const bool IsGraphTrackVisible() const { return bIsGraphTrackVisible; }
-	void SetGraphTrackVisible(const bool bGraphTrackVisibleState) { bIsGraphTrackVisible = bGraphTrackVisibleState; }
-	void ShowHideGraphTrack(const bool bGraphTrackVisibleState);
+	void SetGraphTrackVisible(const bool bIsVisible) { bIsGraphTrackVisible = bIsVisible; }
+	void ShowHideGraphTrack(const bool bIsVisible);
 
 	/** @return true, if Timing View is visible */
 	const bool IsTimingViewVisible() const { return bIsTimingViewVisible; }
-	void SetTimingViewVisible(const bool bTimingViewVisibleState) { bIsTimingViewVisible = bTimingViewVisibleState; }
-	void ShowHideTimingView(const bool bTimingViewVisibleState);
+	void SetTimingViewVisible(const bool bIsVisible) { bIsTimingViewVisible = bIsVisible; }
+	void ShowHideTimingView(const bool bIsVisible);
 
 	/** @return true, if Timers View is visible */
 	const bool IsTimersViewVisible() const { return bIsTimersViewVisible; }
-	void SetTimersViewVisible(const bool bTimersViewVisibleState) { bIsTimersViewVisible = bTimersViewVisibleState; }
-	void ShowHideTimersView(const bool bTimersViewVisibleState);
+	void SetTimersViewVisible(const bool bIsVisible) { bIsTimersViewVisible = bIsVisible; }
+	void ShowHideTimersView(const bool bIsVisible);
+
+	/** @return true, if Callers Tree View is visible */
+	const bool IsCallersTreeViewVisible() const { return bIsCallersTreeViewVisible; }
+	void SetCallersTreeViewVisible(const bool bIsVisible) { bIsCallersTreeViewVisible = bIsVisible; }
+	void ShowHideCallersTreeView(const bool bIsVisible);
+
+	/** @return true, if Callees Tree View is visible */
+	const bool IsCalleesTreeViewVisible() const { return bIsCalleesTreeViewVisible; }
+	void SetCalleesTreeViewVisible(const bool bIsVisible) { bIsCalleesTreeViewVisible = bIsVisible; }
+	void ShowHideCalleesTreeView(const bool bIsVisible);
 
 	/** @return true, if Stats Counters View is visible */
 	const bool IsStatsCountersViewVisible() const { return bIsStatsCountersViewVisible; }
-	void SetStatsCountersViewVisible(const bool bStatsCountersViewVisibleState) { bIsStatsCountersViewVisible = bStatsCountersViewVisibleState; }
-	void ShowHideStatsCountersView(const bool bStatsCountersViewVisibleState);
+	void SetStatsCountersViewVisible(const bool bIsVisible) { bIsStatsCountersViewVisible = bIsVisible; }
+	void ShowHideStatsCountersView(const bool bIsVisible);
 
 	/** @return true, if Log View is visible */
 	const bool IsLogViewVisible() const { return bIsLogViewVisible; }
-	void SetLogViewVisible(const bool bLogViewVisibleState) { bIsLogViewVisible = bLogViewVisibleState; }
-	void ShowHideLogView(const bool bLogViewVisibleState);
+	void SetLogViewVisible(const bool bIsVisible) { bIsLogViewVisible = bIsVisible; }
+	void ShowHideLogView(const bool bIsVisible);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	void OnSessionChanged();
+
+	const FTimerNodePtr GetTimerNode(uint64 TypeId) const;
+
+	void SetSelectedTimeRange(const double InStartTime, const double InEndTime);
+	void SetSelectedTimer(const uint64 InTimerId);
+
+	void OnThreadFilterChanged();
+
+	void ResetCallersAndCallees();
+	void UpdateCallersAndCallees();
+
+	void UpdateAggregatedTimerStats();
+	void UpdateAggregatedCounterStats();
 
 protected:
 	/** Updates this manager, done through FCoreTicker. */
@@ -145,7 +169,7 @@ protected:
 	/** List of UI commands for this manager. This will be filled by this and corresponding classes. */
 	TSharedRef<FUICommandList> CommandList;
 
-	/** An instance of the Timing Manager action manager. */
+	/** An instance of the Timing Profiler action manager. */
 	FTimingProfilerActionManager ActionManager;
 
 	/** A weak pointer to the Timing Profiler window. */
@@ -163,6 +187,12 @@ protected:
 	/** If the Timers View is visible or hidden. */
 	bool bIsTimersViewVisible;
 
+	/** If the Callers Tree View is visible or hidden. */
+	bool bIsCallersTreeViewVisible;
+
+	/** If the Callees Tree View is visible or hidden. */
+	bool bIsCalleesTreeViewVisible;
+
 	/** If the Stats Counters View is visible or hidden. */
 	bool bIsStatsCountersViewVisible;
 
@@ -171,4 +201,12 @@ protected:
 
 	/** A shared pointer to the global instance of the profiler manager. */
 	static TSharedPtr<FTimingProfilerManager> Instance;
+
+	//////////////////////////////////////////////////
+
+	double SelectionStartTime;
+	double SelectionEndTime;
+
+	static const uint64 InvalidTimerId = uint64(-1);
+	uint64 SelectedTimerId;
 };

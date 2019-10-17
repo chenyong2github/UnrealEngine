@@ -7,7 +7,6 @@
 #include "Stats/Stats.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopeLock.h"
-#include "Templates/ScopedPointer.h"
 #include "Templates/UniquePtr.h"
 #include "Math/BigInt.h"
 #include "Misc/AES.h"
@@ -211,7 +210,7 @@ struct FPakInfo
 			if (Ar.IsLoading())
 			{
 				Ar.Serialize(Methods, BufferSize);
-				for (int Index = 0; Index < MaxNumCompressionMethods; Index++)
+				for (int32 Index = 0; Index < MaxNumCompressionMethods; Index++)
 				{
 					ANSICHAR* MethodString = &Methods[Index * CompressionMethodNameLen];
 					if (MethodString[0] != 0)
@@ -225,7 +224,7 @@ struct FPakInfo
 				// we always zero out fully what we write out so that reading in is simple
 				FMemory::Memzero(Methods, BufferSize);
 
-				for (int Index = 1; Index < CompressionMethods.Num(); Index++)
+				for (int32 Index = 1; Index < CompressionMethods.Num(); Index++)
 				{
 					ANSICHAR* MethodString = &Methods[(Index - 1) * CompressionMethodNameLen];
 					FCStringAnsi::Strcpy(MethodString, CompressionMethodNameLen, TCHAR_TO_ANSI(*CompressionMethods[Index].ToString()));

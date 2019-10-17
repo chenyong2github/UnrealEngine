@@ -2,11 +2,9 @@
 
 #pragma once
 
-#if INCLUDE_CHAOS
 namespace ImmediatePhysics_Chaos
 {
 	struct FSimulation;
 	struct FActorHandle;
 	struct FJointHandle;
 }
-#endif

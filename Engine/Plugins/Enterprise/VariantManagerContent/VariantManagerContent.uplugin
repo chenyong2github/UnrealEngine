@@ -4,7 +4,7 @@
 	"VersionName": "1.0",
 	"FriendlyName": "Variant Manager Content",
 	"Description": "Data classes and assets for the Variant Manager enterprise plugin",
-	"Category": "Unreal Studio",
+	"Category": "Editor",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
 	"DocsURL": "https://docs.unrealengine.com/en-US/Studio/Datasmith",
@@ -20,6 +20,6 @@
 			"Name" : "VariantManagerContent",
 			"Type" : "Runtime",
 			"LoadingPhase" : "Default"
-		}		
+		}
 	]
 }

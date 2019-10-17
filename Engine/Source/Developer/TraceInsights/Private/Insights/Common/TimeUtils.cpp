@@ -7,11 +7,38 @@
 
 //#include "TimingProfilerCommon.h" // for UE_LOG(TimingProfiler, ...
 
-namespace TimeUtils {
+namespace TimeUtils
+{
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FString FormatTimeAuto(const double InDuration)
+FString FormatTimeValue(const double Duration, const int32 NumDigits)
+{
+#if !PLATFORM_USE_GENERIC_STRING_IMPLEMENTATION
+	FString Str = FString::Printf(TEXT("%.*f"), NumDigits, Duration);
+#else
+	// proper resolution is tracked as UE-79534
+	TCHAR FormatString[32];
+	FCString::Snprintf(FormatString, sizeof(FormatString), TEXT("%%.%df"), NumDigits);
+	FString Str = FString::Printf(FormatString, Duration);
+#endif
+
+	if (NumDigits == 1)
+	{
+		Str.RemoveFromEnd(TEXT(".0"));
+	}
+	else
+	{
+		while (Str.RemoveFromEnd(TEXT("0"))) { /* keep removing the ending 0 */ }
+		Str.RemoveFromEnd(TEXT("."));
+	}
+
+	return Str;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FString FormatTimeAuto(const double InDuration, const int32 NumDigits)
 {
 	//TestTimeAutoFormatting();
 
@@ -93,9 +120,7 @@ FString FormatTimeAuto(const double InDuration)
 		}
 		else
 		{
-			FString S = FString::Printf(TEXT("%.1f"), Microseconds);
-			S.RemoveFromEnd(TEXT(".0"));
-			Str += S;
+			Str += FormatTimeValue(Microseconds, NumDigits);
 			Str += TEXT(" µs");
 		}
 	}
@@ -109,9 +134,7 @@ FString FormatTimeAuto(const double InDuration)
 		}
 		else
 		{
-			FString S = FString::Printf(TEXT("%.1f"), Miliseconds);
-			S.RemoveFromEnd(TEXT(".0"));
-			Str += S;
+			Str += FormatTimeValue(Miliseconds, NumDigits);
 			Str += TEXT(" ms");
 		}
 	}
@@ -124,9 +147,7 @@ FString FormatTimeAuto(const double InDuration)
 		}
 		else
 		{
-			FString S = FString::Printf(TEXT("%.1f"), Duration);
-			S.RemoveFromEnd(TEXT(".0"));
-			Str += S;
+			Str += FormatTimeValue(Duration, NumDigits);
 			Str += TEXT("s");
 		}
 	}
@@ -136,10 +157,19 @@ FString FormatTimeAuto(const double InDuration)
 		const double Minutes = FMath::FloorToDouble(Duration / TimeUtils::Minute);
 		Str += FString::Printf(TEXT("%dm"), static_cast<int32>(Minutes));
 		Duration -= Minutes * TimeUtils::Minute;
-		const double Seconds = FMath::FloorToDouble(Duration / TimeUtils::Second);
-		if (Seconds > 0.5)
+		if (NumDigits <= 1)
 		{
-			Str += FString::Printf(TEXT(" %ds"), static_cast<int32>(Seconds));
+			const double Seconds = FMath::FloorToDouble(Duration / TimeUtils::Second);
+			if (Seconds > 0.5)
+			{
+				Str += FString::Printf(TEXT(" %ds"), static_cast<int32>(Seconds));
+			}
+		}
+		else
+		{
+			Str += TEXT(" ");
+			Str += FormatTimeValue(Duration, NumDigits - 1);
+			Str += TEXT("s");
 		}
 	}
 	else if (Duration < TimeUtils::Day)

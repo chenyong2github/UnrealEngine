@@ -237,7 +237,7 @@ private:
 
 				FTimecode Timecode = FTimecode::FromFrameNumber(TotalFrames, FrameRate, FTimecode::IsDropFormatTimecodeSupported(FrameRate));
 
-				return FText::Format(LOCTEXT("RecordingText", "Recording...{0}"), FText::FromString(Timecode.ToString()));
+				return FText::Format(LOCTEXT("RecordingTimecodeText", "Recording...{0}"), FText::FromString(Timecode.ToString()));
 			}
 		}
 

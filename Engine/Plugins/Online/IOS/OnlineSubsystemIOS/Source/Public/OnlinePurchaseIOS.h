@@ -104,6 +104,8 @@ public:
 	/** Initialize the FStoreKitHelper for interaction with the app store */
 	void InitStoreKit(FStoreKitHelperV2* InStoreKit);
 	
+	/** Manually iterate the payment transaction queue and fire off appropriate callbacks in StoreKitHelper. */
+	void ManuallyIteratePaymentQueue();
 	
 private:
 	

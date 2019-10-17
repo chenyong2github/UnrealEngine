@@ -14,8 +14,6 @@ UClass* UChaosSolverSettings::GetSolverActorClass() const
 	return (SolverActorClass != nullptr) ? SolverActorClass : AChaosSolverActor::StaticClass();
 }
 
-#if INCLUDE_CHAOS
-
 void UChaosSolverSettings::UpdateProperty(UProperty* InProperty)
 {
 	UpdateAllProperties();
@@ -57,6 +55,3 @@ void UChaosSolverSettings::PostReloadConfig(class UProperty* PropertyThatWasLoad
 
 	UpdateProperty(PropertyThatWasLoaded);
 }
-
-#endif		// INCLUDE_CHAOS
-

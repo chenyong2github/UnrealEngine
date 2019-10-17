@@ -235,17 +235,18 @@ namespace OculusHMD
 			return false;
 		}
 
-		ovrpNode Node;
+		ovrpNode Node = ovrpNode_EyeLeft;
 
-		switch (InEye)
+		if (IStereoRendering::IsAPrimaryView(InEye))
 		{
-		case eSSP_LEFT_EYE:
 			Node = ovrpNode_EyeLeft;
-			break;
-		case eSSP_RIGHT_EYE:
+		}
+		else if (IStereoRendering::IsASecondaryView(InEye))
+		{
 			Node = ovrpNode_EyeRight;
-			break;
-		default:
+		}
+		else
+		{
 			return false;
 		}
 
@@ -1097,9 +1098,9 @@ namespace OculusHMD
 	static void DrawOcclusionMesh_RenderThread(FRHICommandList& RHICmdList, EStereoscopicPass StereoPass, const FHMDViewMesh MeshAssets[])
 	{
 		CheckInRenderThread();
-		check(StereoPass != eSSP_FULL);
+		check(IStereoRendering::IsStereoEyeView(StereoPass));
 
-		const uint32 MeshIndex = (StereoPass == eSSP_LEFT_EYE) ? 0 : 1;
+		const uint32 MeshIndex = IStereoRendering::IsAPrimaryView(StereoPass) ? 0 : 1;
 		const FHMDViewMesh& Mesh = MeshAssets[MeshIndex];
 		check(Mesh.IsValid());
 
@@ -1183,7 +1184,7 @@ namespace OculusHMD
 		else
 		{
 			SizeX = SizeX / 2;
-			if (StereoPass == eSSP_RIGHT_EYE)
+			if (IStereoRendering::IsASecondaryView(StereoPass))
 			{
 				X += SizeX;
 			}
@@ -1216,7 +1217,7 @@ namespace OculusHMD
 	void FOculusHMD::CalculateStereoViewOffset(const enum EStereoscopicPass StereoPassType, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation)
 	{
 		// This method is called from GetProjectionData on a game thread.
-		if (InGameThread() && StereoPassType == eSSP_LEFT_EYE && NextFrameToRender.IsValid())
+		if (InGameThread() && IStereoRendering::IsAPrimaryView(StereoPassType) && NextFrameToRender.IsValid())
 		{
 			// Inverse out GameHeadPose.Rotation since PlayerOrientation already contains head rotation.
 			FQuat HeadOrientation = FQuat::Identity;

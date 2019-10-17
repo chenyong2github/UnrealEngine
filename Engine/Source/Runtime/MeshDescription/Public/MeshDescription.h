@@ -16,6 +16,7 @@
 #include "UObject/ReleaseObjectVersion.h"
 #include "Serialization/BulkData.h"
 #include "Serialization/CustomVersion.h"
+#include "Containers/StaticArray.h"
 #include "MeshDescription.generated.h"
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -1328,11 +1329,13 @@ public:
 	void ReverseAllPolygonFacing();
 
 	float GetPolygonCornerAngleForVertex(const FPolygonID PolygonID, const FVertexID VertexID) const;
-	FPlane ComputePolygonPlane(const FPolygonID PolygonID) const;
-	FVector ComputePolygonNormal(const FPolygonID PolygonID) const;
+
+	FBox ComputeBoundingBox() const;
 
 private:
 
+	FPlane ComputePolygonPlane(const FPolygonID PolygonID) const;
+	FVector ComputePolygonNormal(const FPolygonID PolygonID) const;
 	bool ComputePolygonTangentsAndNormals(
 		  const FPolygonID PolygonID
 		, float ComparisonThreshold
@@ -1400,6 +1403,7 @@ struct MESHDESCRIPTION_API FMeshDescriptionBulkData
 public:
 	FMeshDescriptionBulkData()
 		: bBulkDataUpdated( false )
+		, bGuidIsHash(false)
 	{
 		BulkData.SetBulkDataFlags( BULKDATA_SerializeCompressed | BULKDATA_SerializeCompressedBitWindow );
 	}
@@ -1422,6 +1426,9 @@ public:
 
 	/** Return unique ID string for this bulk data */
 	FString GetIdString() const;
+
+	/** Uses a hash as the GUID, useful to prevent recomputing content already in cache. */
+	void UseHashAsGuid();
 #endif
 
 private:
@@ -1436,6 +1443,9 @@ private:
 
 	/** Whether the bulk data has been written via SaveMeshDescription */
 	bool bBulkDataUpdated;
+
+	/** Uses hash instead of guid to identify content to improve DDC cache hit. */
+	bool bGuidIsHash;
 };
 
 

@@ -65,7 +65,7 @@ ICompressedAudioInfo* FAudioFileReader::GetNewDecompressorForFile(const FString&
 {
 	FString Extension = GetExtensionForFile(InPath);
 
-#if !PLATFORM_TVOS && !PLATFORM_HTML5
+#if !PLATFORM_TVOS
 	static const FString OpusExtension = TEXT("opus");
 	static const FString OggExtension = TEXT("ogg");
 
@@ -85,7 +85,7 @@ ICompressedAudioInfo* FAudioFileReader::GetNewDecompressorForFile(const FString&
 #else
 	UE_LOG(LogTemp, Error, TEXT("FAudioFileReader is not supported on this platform."), *Extension);
 	return nullptr;
-#endif // !PLATFORM_TVOS && !PLATFORM_HTML5
+#endif // !PLATFORM_TVOS
 }
 
 FString FAudioFileReader::GetExtensionForFile(const FString& InPath)

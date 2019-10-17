@@ -39,7 +39,6 @@ public:
 	 */
 	virtual void* Malloc( SIZE_T Size, uint32 Alignment ) override
 	{
-		IncrementTotalMallocCalls();
 		FScopeLock ScopeLock( &SynchronizationObject );
 		return UsedMalloc->Malloc( Size, Alignment );
 	}
@@ -49,7 +48,6 @@ public:
 	 */
 	virtual void* Realloc( void* Ptr, SIZE_T NewSize, uint32 Alignment ) override
 	{
-		IncrementTotalReallocCalls();
 		FScopeLock ScopeLock( &SynchronizationObject );
 		return UsedMalloc->Realloc( Ptr, NewSize, Alignment );
 	}
@@ -61,7 +59,6 @@ public:
 	{
 		if( Ptr )
 		{
-			IncrementTotalFreeCalls();
 			FScopeLock ScopeLock( &SynchronizationObject );
 			UsedMalloc->Free( Ptr );
 		}

@@ -1,7 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/Map.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PerParticleRule.h"
 
@@ -10,7 +9,6 @@ namespace Chaos
 	template<class T, int d>
 	class TPerParticleExternalForces : public TPerParticleRule<T, d>
 	{
-
 	public:
 		TPerParticleExternalForces() {}
 
@@ -21,9 +19,8 @@ namespace Chaos
 			if (TPBDRigidParticleHandleImp<T, d, true>* Handle = HandleIn.Handle())
 			{
 				Handle->F() += Handle->ExternalForce();
-				Handle->Torque() += Handle->ExternalForce();
+				Handle->Torque() += Handle->ExternalTorque();
 			}
-		} 
-
+		}
 	};
 }

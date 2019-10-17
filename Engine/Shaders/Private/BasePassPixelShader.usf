@@ -84,12 +84,30 @@ float NormalCurvatureToRoughness(float3 WorldNormal)
 #define EDITOR_ALPHA2COVERAGE (USE_EDITOR_COMPOSITING && SUPPORTS_PIXEL_COVERAGE)
 #define POST_PROCESS_SUBSURFACE ((MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE || MATERIAL_SHADINGMODEL_EYE) && USES_GBUFFER)
 
-#if TRANSLUCENCY_LIGHTING_SURFACE_LIGHTINGVOLUME || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || FORWARD_SHADING || MATERIAL_SHADINGMODEL_SINGLELAYERWATER
-#include "ForwardLightingCommon.ush"
+#if  MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+
+#if SINGLE_LAYER_WATER_SIMPLE_FORWARD
+
+	// Use mobile like simple shading
+	#define SIMPLE_SINGLE_LAYER_WATER 1
+
+	// Remove forward lighting directional light shadow
+	#define DISABLE_FORWARD_DIRECTIONAL_LIGHT_SHADOW 1
+
+	// Change the blend mode here from opaque to pre-multiplied-alpha for simplicity
+	#undef MATERIALBLENDING_ALPHACOMPOSITE
+	#define MATERIALBLENDING_ALPHACOMPOSITE 1
+	#undef MATERIALBLENDING_SOLID
+	#define MATERIALBLENDING_SOLID 0
+
 #endif
 
-#if  MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 #include "SingleLayerWaterCommon.ush"
+
+#endif // MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+
+#if TRANSLUCENCY_LIGHTING_SURFACE_LIGHTINGVOLUME || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || FORWARD_SHADING || MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+#include "ForwardLightingCommon.ush"
 #endif
 
 #if !FORWARD_SHADING
@@ -1067,6 +1085,7 @@ ShadingModel);
 
 		float IndirectOcclusion = 1.0f;
 		float2 NearestResolvedDepthScreenUV = 0;
+		float DirectionalLightShadow = 1.0f;
 
 		#if FORWARD_SHADING && (MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED)
 			float2 NDC = MaterialParameters.ScreenPosition.xy / MaterialParameters.ScreenPosition.w;
@@ -1107,7 +1126,7 @@ ShadingModel);
 
 				#if FORWARD_SHADING || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 					const float Dither = InterleavedGradientNoise(MaterialParameters.SvPosition.xy, View.StateFrameIndexMod8);
-					float3 ForwardDirectLighting = GetForwardDirectLighting(GridIndex, MaterialParameters.AbsoluteWorldPosition, MaterialParameters.CameraVector, GBuffer, NearestResolvedDepthScreenUV, MaterialParameters.PrimitiveId, EyeIndex, Dither);
+					float3 ForwardDirectLighting = GetForwardDirectLighting(GridIndex, MaterialParameters.AbsoluteWorldPosition, MaterialParameters.CameraVector, GBuffer, NearestResolvedDepthScreenUV, MaterialParameters.PrimitiveId, EyeIndex, Dither, DirectionalLightShadow);
 					Color += ForwardDirectLighting;
 				#endif
 			#endif
@@ -1234,14 +1253,31 @@ ShadingModel);
 		const float3 V = MaterialParameters.CameraVector;
 		const float3 EnvBrdf = EnvBRDF(GBuffer.SpecularColor, GBuffer.Roughness, max(0.0, dot(N, V)));
 
+#if SINGLE_LAYER_WATER_SIMPLE_FORWARD 
+		const float4 NullDistortionParams = 1.0f;
+		WaterVolumeLightingOutput WaterLighting = EvaluateWaterVolumeLighting(
+			MaterialParameters, PixelMaterialInputs, ResolvedView,
+			DirectionalLightShadow,
+			OpaqueBasePass.SceneDepthWithoutSingleLayerWaterTexture, SingleLayerWaterSceneDepthSampler, // Scene depth texture
+			Specular, NullDistortionParams,
+			SunIlluminance, WaterDiffuseIndirectIlluminance, EnvBrdf,
+			CameraIsUnderWater, WaterVisibility);
+
+		// Add water luminance contribution
+		Color += WaterLighting.Luminance;
+		// Combine top layer opacity with water transmittance (grey scale)
+		Opacity = 1.0 - ((1.0 - Opacity) * dot(WaterLighting.WaterToSceneToLightTransmittance, float3(1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0)));
+#else
 		Color += EvaluateWaterVolumeLighting(
 			MaterialParameters, PixelMaterialInputs, ResolvedView,
+			DirectionalLightShadow,
 			OpaqueBasePass.SceneColorWithoutSingleLayerWaterTexture, SingleLayerWaterSceneColorSampler,
 			OpaqueBasePass.SceneDepthWithoutSingleLayerWaterTexture, SingleLayerWaterSceneDepthSampler,
 			OpaqueBasePass.SceneWithoutSingleLayerWaterMaxUV,
 			Specular, OpaqueBasePass.DistortionParams,
 			SunIlluminance, WaterDiffuseIndirectIlluminance, EnvBrdf,
 			CameraIsUnderWater, WaterVisibility).Luminance;
+#endif
 	}
 #endif // MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 

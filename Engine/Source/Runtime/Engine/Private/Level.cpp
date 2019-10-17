@@ -7,10 +7,8 @@ Level.cpp: Level-related functions
 #include "Engine/Level.h"
 #include "Misc/ScopedSlowTask.h"
 #include "UObject/RenderingObjectVersion.h"
-#include "Templates/ScopedPointer.h"
 #include "Templates/UnrealTemplate.h"
 #include "UObject/Package.h"
-#include "Serialization/AsyncLoading.h"
 #include "EngineStats.h"
 #include "Engine/Blueprint.h"
 #include "GameFramework/Actor.h"
@@ -47,6 +45,7 @@ Level.cpp: Level-related functions
 #include "PhysicsEngine/BodySetup.h"
 #include "EngineGlobals.h"
 #include "Engine/LevelBounds.h"
+#include "UnrealEngine.h"
 #if WITH_EDITOR
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -2049,7 +2048,7 @@ void ULevel::BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPlatfo
 
 void ULevel::FixupForPIE(int32 PIEInstanceID)
 {
-	TGuardValue<int32> SetPlayInEditorID(GPlayInEditorID, PIEInstanceID);
+	FTemporaryPlayInEditorIDOverride SetPlayInEditorID(PIEInstanceID);
 
 	struct FSoftPathPIEFixupSerializer : public FArchiveUObject
 	{

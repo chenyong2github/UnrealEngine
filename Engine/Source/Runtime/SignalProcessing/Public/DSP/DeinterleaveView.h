@@ -185,6 +185,8 @@ namespace Audio
 	{
 		TArray<T, InAllocator>& ArrayToFill;
 
+		typedef typename TDeinterleaveView<T>::template TChannelIterator<InAllocator> TAutoChannelIterator;
+
 	public:
 		/** TAutoDeinterleaveView Constructor.
 		 *
@@ -193,20 +195,20 @@ namespace Audio
 		 *  InNumChannels is the number of channels in the deinterleaved array.
 		 */
 		TAutoDeinterleaveView(TArrayView<const T> InInterleavedArray, TArray<T, InAllocator>& InArrayToFill, int32 InNumChannels)
-		:	TDeinterleaveView(InInterleavedArray, InNumChannels)
+		:	TDeinterleaveView<T>(InInterleavedArray, InNumChannels)
 		,	ArrayToFill(InArrayToFill)
 		{}
 
 		/** Return an STL iterator to the first channel. */
-		TChannelIterator<InAllocator> begin() 
+		TAutoChannelIterator begin() 
 		{
-			return TDeinterleaveView<T>::begin<InAllocator>(ArrayToFill);
+			return TDeinterleaveView<T>::template begin<InAllocator>(ArrayToFill);
 		}
 
 		/** Return an STL iterator to the end. */
-		TChannelIterator<InAllocator> end()
+		TAutoChannelIterator end()
 		{
-			return TDeinterleaveView<T>::end<InAllocator>(ArrayToFill);
+			return TDeinterleaveView<T>::template end<InAllocator>(ArrayToFill);
 		}
 	};
 }

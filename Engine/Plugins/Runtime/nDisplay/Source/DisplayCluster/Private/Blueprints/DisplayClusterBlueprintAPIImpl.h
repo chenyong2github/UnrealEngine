@@ -191,7 +191,13 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set viewport camera"), Category = "DisplayCluster|Render")
 	virtual void SetViewportCamera(const FString& InCameraId, const FString& InViewportId) override;
-	
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get viewport's buffer ratio"), Category = "DisplayCluster|Render")
+	virtual void GetBufferRatio(const FString& InViewportId, float& OutBufferRatio) override;
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set viewport's buffer ratio"), Category = "DisplayCluster|Render")
+	virtual void SetBufferRatio(const FString& InViewportId, float InBufferRatio) override;
+
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set start post processing settings for viewport"), Category = "DisplayCluster|Render")
 	virtual void SetStartPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& StartPostProcessingSettings) override;
 

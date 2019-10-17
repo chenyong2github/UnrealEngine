@@ -34,9 +34,7 @@
 #include "ARSessionConfig.h"
 #include "ARBlueprintLibrary.h"
 
-#include "ARBlueprintLibrary.h"
 #include "IAppleImageUtilsPlugin.h"
-
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
 #include "CommonRenderResources.h"
@@ -547,4 +545,21 @@ void FRemoteSessionARCameraChannel::UpdateRenderingTexture()
 			delete InRegions;
 		});
 	} //-V773
+}
+
+
+TSharedPtr<IRemoteSessionChannel> FRemoteSessionARCameraChannelFactoryWorker::Construct(ERemoteSessionChannelMode InMode, TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection) const
+{
+	// Client side sending only works on iOS with Android coming in the future
+	bool bSessionTypeSupported = UARBlueprintLibrary::IsSessionTypeSupported(EARSessionType::World);
+	bool IsSupported = (InMode == ERemoteSessionChannelMode::Read) || (PLATFORM_IOS && bSessionTypeSupported);
+	if (IsSupported)
+	{
+		return MakeShared<FRemoteSessionARCameraChannel>(InMode, InConnection);
+	}
+	else
+	{
+		UE_LOG(LogRemoteSession, Warning, TEXT("FRemoteSessionARCameraChannel does not support sending on this platform/device"));
+	}
+	return TSharedPtr<IRemoteSessionChannel>();
 }

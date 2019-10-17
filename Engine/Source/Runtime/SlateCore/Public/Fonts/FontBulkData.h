@@ -27,12 +27,13 @@ public:
 	const void* Lock(int32& OutFontDataSizeBytes) const;
 
 	/** Unlock the bulk font data, after which point the pointer returned by Lock no longer is valid */
-	void Unlock() const;
+	void Unlock();
 
 	/** Returns the size of the bulk data in bytes */
 	int32 GetBulkDataSize() const;
 
 	/** Returns the size of the bulk data on disk. This can differ from GetBulkDataSize if BULKDATA_SerializeCompressed is set */
+	UE_DEPRECATED(4.24, "This method should no longer be used")
 	int32 GetBulkDataSizeOnDisk() const;
 
 	// UObject interface
