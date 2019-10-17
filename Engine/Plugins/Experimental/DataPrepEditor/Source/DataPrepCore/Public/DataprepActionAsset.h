@@ -293,8 +293,12 @@ private:
 	 */
 	void OnDeleteObjects( TArray<UObject*> Objects);
 
-	/** Executes the deletion and removal requested by an operation after its execution */
-	void ProcessWorkingSetChanged();
+	/**
+	 * Executes the deletion and removal requested by an operation after its execution
+	 * @param bAddedAssets		Indicates that assets have been added during the operation's execution
+	 * @param bAddedActors		Indicates that actors have been added during the operation's execution
+	 */
+	void ProcessWorkingSetChanged(bool bAddedAssets, bool bAddedActors);
 
 	/** Returns the outer to be used according to an asset's class */
 	UObject* GetAssetOuterByClass( UClass* AssetClass );
