@@ -139,7 +139,8 @@ class FHairInterpolationCS : public FGlobalShader
 		SHADER_PARAMETER_SRV(Buffer<float4>, DeformedPosition1Buffer)
 		SHADER_PARAMETER_SRV(Buffer<float4>, DeformedPosition2Buffer)
 
-		SHADER_PARAMETER_SRV(Buffer<uint>,	RootToTriangleIndex)
+		SHADER_PARAMETER_SRV(Buffer<uint>, RootBarycentricBuffer)
+		SHADER_PARAMETER_SRV(Buffer<uint>, RootToTriangleIndex)
 		SHADER_PARAMETER_SRV(Buffer<uint>, VertexToRootIndexBuffer)
 
 		END_SHADER_PARAMETER_STRUCT()
@@ -202,6 +203,7 @@ static void AddHairStrandsInterpolationPass(
 		Parameters->DeformedPosition2Buffer = InHairData.LODDatas[LODIndex].DeformedRootTrianglePosition2Buffer->SRV;
 
 		Parameters->RootToTriangleIndex = InHairData.LODDatas[LODIndex].RootTriangleIndexBuffer->SRV;
+		Parameters->RootBarycentricBuffer = InHairData.LODDatas[LODIndex].RootTriangleBarycentricBuffer->SRV;
 		Parameters->VertexToRootIndexBuffer = InHairData.VertexToCurveIndexBuffer->SRV;
 	}
 
