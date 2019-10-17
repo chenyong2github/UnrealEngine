@@ -82,7 +82,13 @@ void UDataprepSetLODsOperation::OnExecution_Implementation(const FDataprepContex
 #endif
 
 	// Execute operation
-	UDataprepOperationsLibrary::SetLods( InContext.Objects, ReductionOptions );
+	TArray<UObject*> ModifiedStaticMeshes;
+	UDataprepOperationsLibrary::SetLods( InContext.Objects, ReductionOptions, ModifiedStaticMeshes );
+
+	if(ModifiedStaticMeshes.Num() > 0)
+	{
+		AssetsModified( MoveTemp( ModifiedStaticMeshes ) );
+	}
 }
 
 UDataprepSetLODGroupOperation::UDataprepSetLODGroupOperation()
@@ -100,7 +106,13 @@ void UDataprepSetLODGroupOperation::OnExecution_Implementation(const FDataprepCo
 #endif
 
 	// Execute operation
-	UDataprepOperationsLibrary::SetLODGroup( InContext.Objects, GroupName );
+	TArray<UObject*> ModifiedStaticMeshes;
+	UDataprepOperationsLibrary::SetLODGroup( InContext.Objects, GroupName, ModifiedStaticMeshes );
+
+	if(ModifiedStaticMeshes.Num() > 0)
+	{
+		AssetsModified( MoveTemp( ModifiedStaticMeshes ) );
+	}
 }
 
 void UDataprepSetSimpleCollisionOperation::OnExecution_Implementation(const FDataprepContext& InContext)
@@ -110,7 +122,13 @@ void UDataprepSetSimpleCollisionOperation::OnExecution_Implementation(const FDat
 #endif
 
 	// Execute operation
-	UDataprepOperationsLibrary::SetSimpleCollision( InContext.Objects, ShapeType );
+	TArray<UObject*> ModifiedStaticMeshes;
+	UDataprepOperationsLibrary::SetSimpleCollision( InContext.Objects, ShapeType, ModifiedStaticMeshes );
+
+	if(ModifiedStaticMeshes.Num() > 0)
+	{
+		AssetsModified( MoveTemp( ModifiedStaticMeshes ) );
+	}
 }
 
 void UDataprepSetConvexDecompositionCollisionOperation::OnExecution_Implementation(const FDataprepContext& InContext)
@@ -120,7 +138,13 @@ void UDataprepSetConvexDecompositionCollisionOperation::OnExecution_Implementati
 #endif
 
 	// Execute operation
-	UDataprepOperationsLibrary::SetConvexDecompositionCollision( InContext.Objects, HullCount, MaxHullVerts, HullPrecision );
+	TArray<UObject*> ModifiedStaticMeshes;
+	UDataprepOperationsLibrary::SetConvexDecompositionCollision( InContext.Objects, HullCount, MaxHullVerts, HullPrecision, ModifiedStaticMeshes );
+
+	if(ModifiedStaticMeshes.Num() > 0)
+	{
+		AssetsModified( MoveTemp( ModifiedStaticMeshes ) );
+	}
 }
 
 void UDataprepSetGenerateLightmapUVsOperation::OnExecution_Implementation(const FDataprepContext& InContext)
@@ -130,7 +154,13 @@ void UDataprepSetGenerateLightmapUVsOperation::OnExecution_Implementation(const 
 #endif
 
 	// Execute operation
-	UDataprepOperationsLibrary::SetGenerateLightmapUVs( InContext.Objects, bGenerateLightmapUVs );
+	TArray<UObject*> ModifiedStaticMeshes;
+	UDataprepOperationsLibrary::SetGenerateLightmapUVs( InContext.Objects, bGenerateLightmapUVs, ModifiedStaticMeshes );
+
+	if(ModifiedStaticMeshes.Num() > 0)
+	{
+		AssetsModified( MoveTemp( ModifiedStaticMeshes ) );
+	}
 }
 
 void UDataprepSetMobilityOperation::OnExecution_Implementation(const FDataprepContext& InContext)
