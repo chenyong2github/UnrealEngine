@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	LinuxTargetPlatformModule.cpp: Implements the FLinuxServerTargetPlatformModule class.
+	LinuxAArch64TargetPlatformModule.cpp: Implements the FLinuxAArch64ServerTargetPlatformModule class.
 =============================================================================*/
 
 #include "CoreMinimal.h"
@@ -19,23 +19,23 @@ static ITargetPlatform* Singleton = NULL;
 
 
 /**
- * Module for the Android target platform.
+ * Module for the Linux AArch64 Server target platform.
  */
-class FLinuxServerTargetPlatformModule
+class FLinuxAArch64ServerTargetPlatformModule
 	: public ITargetPlatformModule
 {
 public:
 
-	virtual ~FLinuxServerTargetPlatformModule( )
+	virtual ~FLinuxAArch64ServerTargetPlatformModule( )
 	{
 		Singleton = NULL;
 	}
 
 	virtual ITargetPlatform* GetTargetPlatform( )
 	{
-		if (Singleton == NULL && TLinuxTargetPlatform<FLinuxPlatformProperties<false, false, false, false> >::IsUsable())
+		if (Singleton == NULL && TLinuxTargetPlatform<FLinuxPlatformProperties<false, false, false, true> >::IsUsable())
 		{
-			Singleton = new TLinuxTargetPlatform<FLinuxPlatformProperties<false, true, false, false> >();
+			Singleton = new TLinuxTargetPlatform<FLinuxPlatformProperties<false, true, false, true> >();
 		}
 		
 		return Singleton;
@@ -43,4 +43,4 @@ public:
 };
 
 
-IMPLEMENT_MODULE( FLinuxServerTargetPlatformModule, LinuxServerTargetPlatform);
+IMPLEMENT_MODULE( FLinuxAArch64ServerTargetPlatformModule, LinuxAArch64ServerTargetPlatform);
