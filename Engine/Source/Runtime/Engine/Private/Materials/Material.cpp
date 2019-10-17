@@ -3999,7 +3999,7 @@ void UMaterial::PostLoad()
 		}
 #endif
 		//Don't compile shaders in post load for dev overhead materials.
-		if (FApp::CanEverRender() && !bIsMaterialEditorStatsMaterial)
+		if (FApp::CanEverRender() && !bIsMaterialEditorStatsMaterial && GAllowCompilationInPostLoad)
 		{
 			// Before caching shader resources we have to make sure all referenced textures have been post loaded
 			// as we depend on their resources being valid.
