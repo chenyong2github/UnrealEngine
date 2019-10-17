@@ -293,7 +293,9 @@ public class Engine : ModuleRules
 						"LinuxNoEditorTargetPlatform",
 						"LinuxAArch64NoEditorTargetPlatform",
 						"LinuxServerTargetPlatform",
+						"LinuxAArch64ServerTargetPlatform",
 						"LinuxClientTargetPlatform",
+						"LinuxAArch64ClientTargetPlatform",
 						"AllDesktopTargetPlatform",
 						"LinuxPlatformEditor",
 					}
