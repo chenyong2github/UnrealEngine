@@ -194,26 +194,25 @@ void FNDICollisionGridBuffer::ClearBuffers(FRHICommandList& RHICmdList)
 
 //------------------------------------------------------------------------------------------------------------
 
-void FNDIHairStrandsBuffer::SetHairAsset(const FHairStrandsDatas*  HairStrandsDatas, const FHairStrandsResource*  HairStrandsResource)
+void FNDIHairStrandsBuffer::SetHairAsset(const FHairStrandsDatas*  HairStrandsDatas, const FHairStrandsRestResource* HairStrandsRestResource, const FHairStrandsDeformedResource*  HairStrandsDeformedResource)
 {
 	SourceDatas = HairStrandsDatas;
-	SourceResources = HairStrandsResource;
+	SourceRestResources = HairStrandsRestResource;
+	SourceDeformedResources = HairStrandsDeformedResource;
 }
 
 void FNDIHairStrandsBuffer::InitRHI()
 {
-	if (SourceDatas != nullptr && SourceResources != nullptr)
+	if (SourceDatas != nullptr && SourceRestResources != nullptr && SourceDeformedResources != nullptr)
 	{
-		{
-			const uint32 OffsetCount = SourceDatas->GetNumCurves() + 1;
-			const uint32 OffsetBytes = sizeof(uint32)*OffsetCount;
+		const uint32 OffsetCount = SourceDatas->GetNumCurves() + 1;
+		const uint32 OffsetBytes = sizeof(uint32)*OffsetCount;
 
-			CurvesOffsetsBuffer.Initialize(sizeof(uint32), OffsetCount, EPixelFormat::PF_R32_UINT, BUF_Static);
-			void* OffsetBufferData = RHILockVertexBuffer(CurvesOffsetsBuffer.Buffer, 0, OffsetBytes, RLM_WriteOnly);
+		CurvesOffsetsBuffer.Initialize(sizeof(uint32), OffsetCount, EPixelFormat::PF_R32_UINT, BUF_Static);
+		void* OffsetBufferData = RHILockVertexBuffer(CurvesOffsetsBuffer.Buffer, 0, OffsetBytes, RLM_WriteOnly);
 
-			FMemory::Memcpy(OffsetBufferData, SourceDatas->StrandsCurves.CurvesOffset.GetData(), OffsetBytes);
-			RHIUnlockVertexBuffer(CurvesOffsetsBuffer.Buffer);
-		}
+		FMemory::Memcpy(OffsetBufferData, SourceDatas->StrandsCurves.CurvesOffset.GetData(), OffsetBytes);
+		RHIUnlockVertexBuffer(CurvesOffsetsBuffer.Buffer);
 	}
 }
 
@@ -323,9 +322,9 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 			FNDICollisionGridBuffer* CurrentGridBuffer = ProxyData->CurrentGridBuffer;
 			FNDICollisionGridBuffer* DestinationGridBuffer = ProxyData->DestinationGridBuffer;
 
-			SetUAVParameter(RHICmdList, ComputeShaderRHI, PointsPositionsBuffer, HairStrandsBuffer->SourceResources->DeformedPositionBuffer[0].UAV);
+			SetUAVParameter(RHICmdList, ComputeShaderRHI, PointsPositionsBuffer, HairStrandsBuffer->SourceDeformedResources->DeformedPositionBuffer[0].UAV);
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, CurvesOffsetsBuffer, HairStrandsBuffer->CurvesOffsetsBuffer.SRV);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, RestPositionsBuffer, HairStrandsBuffer->SourceResources->RestPositionBuffer.SRV);
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, RestPositionsBuffer, HairStrandsBuffer->SourceRestResources->RestPositionBuffer.SRV);
 
 			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, DestinationGridBuffer->GridDataBuffer.UAV);
 			SetUAVParameter(RHICmdList, ComputeShaderRHI, GridDestinationBuffer, DestinationGridBuffer->GridDataBuffer.UAV);
@@ -531,9 +530,10 @@ bool UNiagaraDataInterfaceHairStrands::InitPerInstanceData(void* PerInstanceData
 	GroomAsset = IsComponentValid() ? SourceComponent->GroomAsset : DefaultSource;
 	const uint32 GroupIndex = 0;
 	FHairStrandsDatas* StrandsDatas = IsComponentValid() ? SourceComponent->GetGuideStrandsDatas(GroupIndex) : (DefaultSource != nullptr && DefaultSource->GetNumHairGroups() > 0) ? &DefaultSource->HairGroupsData[0].HairRenderData : nullptr;
-	FHairStrandsResource* StrandsResource = IsComponentValid() ? SourceComponent->GetGuideStrandsResource(GroupIndex) : (DefaultSource != nullptr && DefaultSource->GetNumHairGroups() > 0) ? DefaultSource->HairGroupsData[0].HairStrandsResource : nullptr;
+	FHairStrandsRestResource* StrandsRestResource = IsComponentValid() ? SourceComponent->GetGuideStrandsRestResource(GroupIndex) : (DefaultSource != nullptr && DefaultSource->GetNumHairGroups() > 0) ? DefaultSource->HairGroupsData[0].HairStrandsRestResource : nullptr;
+	FHairStrandsDeformedResource* StrandsDeformedResource = IsComponentValid() ? SourceComponent->GetGuideStrandsDeformedResource(GroupIndex) : nullptr;
 
-	if (StrandsDatas == nullptr || StrandsResource == nullptr)
+	if (StrandsDatas == nullptr || StrandsRestResource == nullptr || StrandsDeformedResource == nullptr)
 	{
 		UE_LOG(LogHairStrands, Log, TEXT("Hair Strands data interface has no valid asset. Failed InitPerInstanceData - %s %d"), *GetFullName(), DefaultSource);
 		return false;
@@ -543,7 +543,7 @@ bool UNiagaraDataInterfaceHairStrands::InitPerInstanceData(void* PerInstanceData
 		FNDIHairStrandsBuffer* HairStrandsBuffer = new FNDIHairStrandsBuffer;
 		FNDICollisionGridBuffer* CurrentGridBuffer = new FNDICollisionGridBuffer;
 		FNDICollisionGridBuffer* DestinationGridBuffer = new FNDICollisionGridBuffer;
-		HairStrandsBuffer->SetHairAsset(StrandsDatas, StrandsResource);
+		HairStrandsBuffer->SetHairAsset(StrandsDatas, StrandsRestResource, StrandsDeformedResource);
 		
 
 		// Push instance data to RT
