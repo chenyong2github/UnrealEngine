@@ -21,7 +21,8 @@
 			"LoadingPhase": "PreLoadingScreen",
 			"WhitelistPlatforms": [
 				"Win64",
-				"Linux"
+				"Linux",
+				"Mac"
 			],
 			"BlacklistTargets": [
 				"Server"
