@@ -213,4 +213,7 @@ private:
 
 	/** Server settings object we were configured with */
 	TStrongObjectPtr<const UConcertServerConfig> Settings;
+
+	/** Whether the server could scan/rotate/load the existing sessions (not-sharable) at startup because no other concurrent server was running. */
+	bool bExclusiveAccessToExistingSessionsAtStartup = true;
 };
