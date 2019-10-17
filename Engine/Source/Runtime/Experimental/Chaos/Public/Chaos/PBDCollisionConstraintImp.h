@@ -86,6 +86,12 @@ namespace Chaos
 
 #endif
 
+#if UE_BUILD_SHIPPING
+	const bool bDisableCollisionParallelFor = false;
+#else
+	CHAOS_API extern bool bDisableCollisionParallelFor;
+#endif
+
 	template <typename T, int d>
 	struct TSimOverlapVisitor
 	{
@@ -281,7 +287,7 @@ namespace Chaos
 				NarrowPhaseSkipped.Record(NPSkipped);
 				NarrowPhaseRejected.Record(RejectedNP);
 #endif
-			}, bGatherStats || CollisionConstraintsForceSingleThreaded);
+			}, bGatherStats || bDisableCollisionParallelFor);
 			
 			{
 				SCOPE_CYCLE_COUNTER(STAT_ComputeConstraintsSU);
