@@ -60,6 +60,25 @@ namespace DatasmithMeshHelper
 		return NormalLengthSquare < SMALL_NUMBER;
 	}
 
+	void RemoveEmptyPolygonGroups(FMeshDescription& Mesh)
+	{
+		bool bRemovedSection = false;
+		for (const FPolygonGroupID& PolygonGroupID : Mesh.PolygonGroups().GetElementIDs())
+		{
+			if (Mesh.GetNumPolygonGroupPolygons(PolygonGroupID) == 0)
+			{
+				Mesh.DeletePolygonGroup(PolygonGroupID);
+				bRemovedSection = true;
+			}
+		}
+
+		if (bRemovedSection)
+		{
+			FElementIDRemappings Remappings;
+			Mesh.Compact(Remappings);
+		}
+	}
+
 	FMeshDescription* InitMeshDescription(UStaticMesh* StaticMesh, int32 LodIndex)
 	{
 		if (!ensure(StaticMesh))
