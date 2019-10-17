@@ -5,6 +5,7 @@
 #include "DataPrepAsset.h"
 #include "DataPrepContentConsumer.h"
 #include "DataprepAssetView.h"
+#include "DataprepEditorLogCategory.h"
 #include "DataprepEditorUtils.h"
 #include "Parameterization/DataprepParameterizationUtils.h"
 
@@ -70,24 +71,56 @@ public:
 
 void SDataprepConsumerWidget::OnLevelNameChanged( const FText &NewLevelName, ETextCommit::Type CommitType )
 {
+	const FScopedTransaction Transaction( LOCTEXT("Consumer_SetLevelName", "Set Level Name") );
 	FText OutReason;
-	if( !DataprepConsumer->SetLevelName( NewLevelName.ToString(), OutReason ) )
+	if( !DataprepConsumerPtr->SetLevelName( NewLevelName.ToString(), OutReason ) )
 	{
 		// #ueent_todo: Warn user name is wrong
-		LevelTextBox->SetText( FText::FromString( DataprepConsumer->GetLevelName() ) );
+		LevelTextBox->SetText( FText::FromString( DataprepConsumerPtr->GetLevelName() ) );
+	}
+}
+
+void SDataprepConsumerWidget::OnTextCommitted( const FText& NewText, ETextCommit::Type CommitType)
+{
+	if( UDataprepContentConsumer* DataprepConsumer = DataprepConsumerPtr.Get() )
+	{
+		FString NewContentFolder( NewText.ToString() );
+
+		// Replace /Content/ with /Game/ since /Content is only used for display 
+		if( NewContentFolder.StartsWith( TEXT("/Content") ) )
+		{
+			NewContentFolder = NewContentFolder.Replace( TEXT( "/Content" ), TEXT( "/Game" ) );
+		}
+		
+		// Remove ending '/' if applicable
+		if( !NewContentFolder.IsEmpty() && NewContentFolder[ NewContentFolder.Len()-1 ] == TEXT('/') )
+		{
+			NewContentFolder[ NewContentFolder.Len()-1 ] = 0;
+			NewContentFolder = NewContentFolder.LeftChop(1);
+		}
+
+		const FScopedTransaction Transaction( LOCTEXT("Consumer_SetTargetContentFolder", "Set Target Content Folder") );
+
+		FText ErrorReason;
+		if( !DataprepConsumer->SetTargetContentFolder( NewContentFolder, ErrorReason ) )
+		{
+			UE_LOG( LogDataprepEditor, Error, TEXT("%s"), *ErrorReason.ToString() );
+			UpdateContentFolderText();
+		}
 	}
 }
 
 void SDataprepConsumerWidget::OnBrowseContentFolder()
 {
-	FString Path = DataprepConsumer->GetTargetContentFolder();
+	FString Path = DataprepConsumerPtr->GetTargetContentFolder();
 	if( Path.IsEmpty() )
 	{
-		Path = FPaths::GetPath( DataprepConsumer->GetOutermost()->GetPathName() );
+		Path = FPaths::GetPath( DataprepConsumerPtr->GetOutermost()->GetPathName() );
 	}
 	Path += TEXT("/"); // Trailing '/' is needed to set the default path
 
 	//Ask the user for the root path where they want any content to be placed
+	if( UDataprepContentConsumer* DataprepConsumer = DataprepConsumerPtr.Get() )
 	{
 		TSharedRef<SDlgPickPath> PickContentPathDlg =
 			SNew(SDlgPickPath)
@@ -96,8 +129,17 @@ void SDataprepConsumerWidget::OnBrowseContentFolder()
 
 		if ( PickContentPathDlg->ShowModal() == EAppReturnType::Ok )
 		{
-			DataprepConsumer->SetTargetContentFolder( PickContentPathDlg->GetPath().ToString() );
-			UpdateContentFolderText();
+			const FScopedTransaction Transaction( LOCTEXT("Consumer_SetTargetContentFolder", "Set Target Content Folder") );
+
+			FText ErrorReason;
+			if( DataprepConsumer->SetTargetContentFolder( PickContentPathDlg->GetPath().ToString(), ErrorReason ) )
+			{
+				UpdateContentFolderText();
+			}
+			else
+			{
+				UE_LOG( LogDataprepEditor, Error, TEXT("%s"), *ErrorReason.ToString() );
+			}
 		}
 	}
 }
@@ -109,16 +151,23 @@ void SDataprepConsumerWidget::SetDataprepConsumer(UDataprepContentConsumer* InDa
 		return;
 	}
 
-	DataprepConsumer = InDataprepConsumer;
+	if(DataprepConsumerPtr != InDataprepConsumer)
+	{
+		if(DataprepConsumerPtr.IsValid())
+		{
+			DataprepConsumerPtr->GetOnChanged().RemoveAll( this );
+		}
 
-	UpdateContentFolderText();
-	LevelTextBox->SetText( FText::FromString( DataprepConsumer->GetLevelName() ) );
+		DataprepConsumerPtr = InDataprepConsumer;
+
+		InDataprepConsumer->GetOnChanged().AddRaw( this, &SDataprepConsumerWidget::OnConsumerChanged );
+
+		OnConsumerChanged();
+	}
 }
 
 void SDataprepConsumerWidget::Construct(const FArguments& InArgs )
 {
-	DataprepConsumer = InArgs._DataprepConsumer;
-
 	if (InArgs._ColumnSizeData.IsValid())
 	{
 		ColumnSizeData = InArgs._ColumnSizeData;
@@ -132,19 +181,21 @@ void SDataprepConsumerWidget::Construct(const FArguments& InArgs )
 		ColumnSizeData->OnWidthChanged = SSplitter::FOnSlotResized::CreateSP(this, &SDataprepConsumerWidget::OnSetColumnWidth);
 	}
 
+	TSharedPtr<SWidget> InnerWidget = InArgs._DataprepConsumer ? BuildWidget() : BuildNullWidget();
+
 	ChildSlot
 	[
-		BuildWidget()
+		InnerWidget.ToSharedRef()
 	];
+
+	if(InArgs._DataprepConsumer)
+	{
+		SetDataprepConsumer( InArgs._DataprepConsumer );
+	}
 }
 
 TSharedRef<SWidget> SDataprepConsumerWidget::BuildWidget()
 {
-	if(DataprepConsumer == nullptr)
-	{
-		return BuildNullWidget();
-	}
-
 	TSharedRef<SWidget> BrowseButton = PropertyCustomizationHelpers::MakeBrowseButton( FSimpleDelegate::CreateSP( this, &SDataprepConsumerWidget::OnBrowseContentFolder ) );
 
 	TSharedRef<SWidget> Widget = SNew(SBorder)
@@ -199,6 +250,7 @@ TSharedRef<SWidget> SDataprepConsumerWidget::BuildWidget()
 							.Font(IDetailLayoutBuilder::GetDetailFont())
 							.HintText(LOCTEXT("DataprepSlateHelper_ContentFolderHintText", "Set the content folder to save in"))
 							.IsReadOnly(false)
+							.OnTextCommitted(FOnTextCommitted::CreateSP(this, &SDataprepConsumerWidget::OnTextCommitted))
 						]
 					]
 				]
@@ -284,7 +336,6 @@ TSharedRef<SWidget> SDataprepConsumerWidget::BuildWidget()
 						SNew(SConstrainedBox)
 						[
 							SAssignNew(LevelTextBox, SEditableTextBox)
-							.Text(FText::FromString(DataprepConsumer->GetLevelName()))
 							.Font(IDetailLayoutBuilder::GetDetailFont())
 							.HintText(LOCTEXT("DataprepSlateHelper_LevelNameHintText", "Current will be used"))
 							.OnTextCommitted(this, &SDataprepConsumerWidget::OnLevelNameChanged)
@@ -294,8 +345,6 @@ TSharedRef<SWidget> SDataprepConsumerWidget::BuildWidget()
 			]
 		]
 	];
-
-	UpdateContentFolderText();
 
 	return Widget;
 }
@@ -327,7 +376,7 @@ TSharedRef<SWidget> SDataprepConsumerWidget::BuildNullWidget()
 
 void SDataprepConsumerWidget::UpdateContentFolderText()
 {
-	if(UDataprepContentConsumer* Consumer = DataprepConsumer.Get())
+	if(UDataprepContentConsumer* Consumer = DataprepConsumerPtr.Get())
 	{
 		FString TargetContentFolder( Consumer->GetTargetContentFolder() );
 
@@ -341,6 +390,24 @@ void SDataprepConsumerWidget::UpdateContentFolderText()
 		}
 
 		ContentFolderTextBox->SetText( FText::FromString( TargetContentFolder + TEXT( "/" ) ) );
+	}
+	else
+	{
+		ContentFolderTextBox->SetText( TAttribute<FText>() );
+	}
+}
+
+void SDataprepConsumerWidget::OnConsumerChanged()
+{
+	if(DataprepConsumerPtr.IsValid())
+	{
+		UpdateContentFolderText();
+		LevelTextBox->SetText( FText::FromString( DataprepConsumerPtr->GetLevelName() ) );
+	}
+	else
+	{
+		ContentFolderTextBox->SetText( TAttribute<FText>() );
+		LevelTextBox->SetText( TAttribute<FText>() );
 	}
 }
 

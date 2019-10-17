@@ -76,6 +76,10 @@ public:
 
 	UDataprepContentConsumer();
 
+	// UObject interface
+	virtual void PostEditUndo() override;
+	// End of UObject interface
+
 	/**
 	 * Successively calls Initialize, Run and Reset.
 	 * @param InContext : The world the consumer must process on. This world must be assumed to be transient.
@@ -111,7 +115,7 @@ public:
 	 * @return true if the assignment has been successful, false otherwise
 	 * @remark if InPackagePath is empty the package path of the consumer is used
 	 */
-	virtual bool SetTargetContentFolder(const FString& InTargetContentFolder );
+	virtual bool SetTargetContentFolder(const FString& InTargetContentFolder, FText& OutReason );
 
 	const FString& GetLevelName() { return LevelName; }
 
