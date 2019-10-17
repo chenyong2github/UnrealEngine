@@ -6,12 +6,16 @@
 #include "Chaos/PBDJointConstraintUtilities.h"
 #include "Chaos/Utilities.h"
 #include "ChaosLog.h"
+#include "ChaosStats.h"
 
 #include "HAL/IConsoleManager.h"
 
 
 namespace Chaos
 {
+	DECLARE_CYCLE_STAT(TEXT("TPBDJointConstraints::Apply"), STAT_ApplyJointConstraints, STATGROUP_Chaos);
+
+
 	//
 	// Constraint Handle
 	//
@@ -317,6 +321,8 @@ namespace Chaos
 	template<class T, int d>
 	void TPBDJointConstraints<T, d>::Apply(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles, const int32 It, const int32 NumIts)
 	{
+		SCOPE_CYCLE_COUNTER(STAT_ApplyJointConstraints);
+
 		// @todo(ccaulfield): make sorting optional
 		// @todo(ccaulfield): handles should be sorted by level by the constraint rule/graph
 		// @todo(ccaulfield): the best sort order depends on whether we are freezing.

@@ -43,6 +43,9 @@ FAutoConsoleVariableRef CVarDisableThreshold(TEXT("p.DisableThreshold2"), Disabl
 DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::AdvanceOneTimeStep"), STAT_AdvanceOneTimeStep, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::Integrate"), STAT_Integrate, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::KinematicTargets"), STAT_KinematicTargets, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::ApplyConstraints"), STAT_ApplyConstraints, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::UpdateVelocities"), STAT_UpdateVelocites, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::ApplyPushOut"), STAT_ApplyPushOut, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::UpdateConstraintPositionBasedState"), STAT_UpdateConstraintPositionBasedState, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::CreateConstraintGraph"), STAT_CreateConstraintGraph, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::CreateIslands"), STAT_CreateIslands, STATGROUP_Chaos);
@@ -145,16 +148,25 @@ void TPBDRigidsEvolutionGBF<T, d>::AdvanceOneTimeStep(T Dt)
 		PhysicsParallelFor(ConstraintGraph.NumIslands(), [&](int32 Island) {
 			const TArray<TGeometryParticleHandle<T, d>*>& IslandParticles = ConstraintGraph.GetIslandParticles(Island);
 
-			ApplyConstraints(Dt, Island);
+			{
+				SCOPE_CYCLE_COUNTER(STAT_ApplyConstraints);
+				ApplyConstraints(Dt, Island);
+			}
 
 			if (PostApplyCallback != nullptr)
 			{
 				PostApplyCallback(Island);
 			}
 
-			UpdateVelocities(Dt, Island);
+			{
+				SCOPE_CYCLE_COUNTER(STAT_UpdateVelocites);
+				UpdateVelocities(Dt, Island);
+			}
 
-			ApplyPushOut(Dt, Island);
+			{
+				SCOPE_CYCLE_COUNTER(STAT_ApplyPushOut);
+				ApplyPushOut(Dt, Island);
+			}
 
 			if (PostApplyPushOutCallback != nullptr)
 			{
