@@ -463,19 +463,27 @@ void UDatasmithFileProducer::PreventNameCollision()
 						{
 							if( UDatasmithAssetUserData* AssetUserData = UDatasmithContentBlueprintLibrary::GetDatasmithUserData( Actor ) )
 							{
-								if( FString* Value = AssetUserData->MetaData.Find( UDatasmithAssetUserData::UniqueIdMetaDataKey ) )
+								if( FString* ValuePtr = AssetUserData->MetaData.Find( UDatasmithAssetUserData::UniqueIdMetaDataKey ) )
 								{
 									FSoftObjectPath PreviousActorSoftPath(Actor);
+
+									FString& Value = *ValuePtr;
 
 									// Set Actor's name to the one from its old unique Id.
 									// Rationale: The unique Id is used to reconstruct the IDatasmithActorElement in the Datasmith consumer.
 									// Important Note: No need to prefix the actor's name with the namespace, it will be done by the parent class, UDataprepContentProducer
-									Actor->Rename( *(*Value) );
+									// Important Note: Value of unique Id might collide with name of scene actor. See JIRA UE-80831
+									if( !Actor->Rename( *Value, nullptr, REN_Test ) )
+									{
+										Value = MakeUniqueObjectName( Actor->GetOuter(), Actor->GetClass(), *Value ).ToString();
+									}
+
+									Actor->Rename( *Value );
 
 									ActorRedirectorMap.Emplace( PreviousActorSoftPath, Actor );
 
 									// Prefix actor's unique Id with the namespace
-									*Value = Namespace + TEXT("_") + *Value;
+									Value = Namespace + TEXT("_") + Value;
 								}
 							}
 						}

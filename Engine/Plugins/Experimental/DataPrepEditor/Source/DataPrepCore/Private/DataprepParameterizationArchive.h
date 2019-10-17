@@ -22,7 +22,7 @@ public:
 
 		ArIgnoreClassRef = true;
 		ArIgnoreArchetypeRef = true;
-		ArNoDelta = !false;
+		ArNoDelta = true;
 		ArPortFlags |= PPF_ForceTaggedSerialization;
 
 #if USE_STABLE_LOCALIZATION_KEYS
@@ -40,21 +40,21 @@ public:
 
 	virtual FArchive& operator<<(FName& Value) override;
 
-	virtual FArchive& operator <<(UObject*& Value) override;
+	virtual FArchive& operator<<(UObject*& Value) override;
 
-	virtual FArchive& operator <<(FText& Value) override
+	virtual FArchive& operator<<(FText& Value) override
 	{
 		// todo
 		return *this;
 	}
 
-	virtual FArchive& operator <<(struct FLazyObjectPtr& Value) override;
+	virtual FArchive& operator<<(struct FLazyObjectPtr& Value) override;
 
-	virtual FArchive& operator <<(struct FSoftObjectPtr& Value) override;
+	virtual FArchive& operator<<(struct FSoftObjectPtr& Value) override;
 
-	virtual FArchive& operator <<(struct FSoftObjectPath& Value) override;
+	virtual FArchive& operator<<(struct FSoftObjectPath& Value) override;
 
-	virtual FArchive& operator <<(struct FWeakObjectPtr& Value) override;
+	virtual FArchive& operator<<(struct FWeakObjectPtr& Value) override;
 
 	virtual FString GetArchiveName() const override;
 

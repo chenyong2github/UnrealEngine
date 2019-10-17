@@ -11,6 +11,8 @@
 class SEditableTextBox;
 class UDataprepAsset;
 class UDataprepContentConsumer;
+
+struct FDataprepParameterizationContext;
 struct FDataprepPropertyLink;
 
 struct FDataprepDetailsViewColumnSizeData
@@ -102,7 +104,7 @@ private:
 	void Construct();
 
 	/** Add widgets held by array of DetailTreeNode objects */
-	void AddWidgets( const TArray< TSharedRef< class IDetailTreeNode > >& DetailTree, TSharedPtr< class SGridPanel >& GridPanel, int32& Index, float LeftPadding);
+	void AddWidgets( const TArray< TSharedRef< class IDetailTreeNode > >& DetailTree, TSharedPtr< class SGridPanel >& GridPanel, int32& Index, float LeftPadding, const FDataprepParameterizationContext& ParameterizationContext);
 
 	/**
 	 * Create generic widget for a property row
@@ -112,7 +114,7 @@ private:
 	 * @param PropertyChain The chain to the property from the class of the detailed object
 	 * @return A row for the details view
 	 */
-	TSharedRef< SWidget > CreateDefaultWidget(TSharedPtr< SWidget >& NameWidget, TSharedPtr< SWidget >& ValueWidget, float LeftPadding, EHorizontalAlignment HAlign, EVerticalAlignment VAlign, const TArray<FDataprepPropertyLink>& PropertyChain);
+	TSharedRef< SWidget > CreateDefaultWidget(TSharedPtr< SWidget >& NameWidget, TSharedPtr< SWidget >& ValueWidget, float LeftPadding, EHorizontalAlignment HAlign, EVerticalAlignment VAlign, const FDataprepParameterizationContext& ParameterizationContext);
 
 	/** Callback used by all splitters in the details view, so that they move in sync */
 	void OnLeftColumnResized(float InNewWidth)
@@ -130,7 +132,9 @@ private:
 
 	/** Callback used to detect the existence of a new object to display after a reinstancing process */
 	void OnObjectReplaced(const TMap<UObject*, UObject*>& ReplacementObjectMap);
-		
+
+	void ForceRefresh();
+
 private:
 	/** Row generator applied on detailed object */
 	TSharedPtr< class IPropertyRowGenerator > Generator;
@@ -150,13 +154,14 @@ private:
 	/** Relative width to control splitters. */
 	float ColumnWidth;
 
-	/** Points to the currently used colum size data. Can be provided via argument as well.
-	 */
+	// Points to the currently used colum size data. Can be provided via argument as well.
 	TSharedPtr< FDataprepDetailsViewColumnSizeData > ColumnSizeData;
 
 	// If there is a new object to display on the next tick
-	uint8 bNewObjectToDisplay : 1;
+	uint8 bRefreshObjectToDisplay : 1;
 
 	// This pointer to a dataprep asset is used by the parameterization system. It should be nullptr when the parameterization shouldn't be shown
 	TWeakObjectPtr<UDataprepAsset> DataprepAssetForParameterization;
+
+	FDelegateHandle OnDataprepParameterizationWasModifiedHandle;
 };
