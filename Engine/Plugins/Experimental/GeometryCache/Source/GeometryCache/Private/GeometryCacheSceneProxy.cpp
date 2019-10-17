@@ -1040,7 +1040,7 @@ void FGeomCacheIndexBuffer::InitRHI()
 {
 	FRHIResourceCreateInfo CreateInfo;
 	void* Buffer = nullptr;
-	IndexBufferRHI = RHICreateAndLockIndexBuffer(sizeof(uint32), NumIndices * sizeof(uint32), BUF_Static | BUF_ShaderResource, CreateInfo, Buffer);
+	IndexBufferRHI = RHICreateAndLockIndexBuffer(sizeof(uint32), NumIndices * sizeof(uint32), BUF_Dynamic | BUF_ShaderResource, CreateInfo, Buffer);
 	RHIUnlockIndexBuffer(IndexBufferRHI);
 }
 
@@ -1057,7 +1057,7 @@ void FGeomCacheIndexBuffer::Update(const TArray<uint32> &Indices)
 	{
 		NumIndices = Indices.Num();
 		FRHIResourceCreateInfo CreateInfo;
-		IndexBufferRHI = RHICreateAndLockIndexBuffer(sizeof(uint32), NumIndices * sizeof(uint32), BUF_Static | BUF_ShaderResource, CreateInfo, Buffer);
+		IndexBufferRHI = RHICreateAndLockIndexBuffer(sizeof(uint32), NumIndices * sizeof(uint32), BUF_Dynamic | BUF_ShaderResource, CreateInfo, Buffer);
 	}
 	else
 	{
@@ -1077,7 +1077,7 @@ void FGeomCacheIndexBuffer::UpdateSizeOnly(int32 NewNumIndices)
 	if (NewNumIndices > NumIndices)
 	{
 		FRHIResourceCreateInfo CreateInfo;
-		IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint32), NewNumIndices * sizeof(uint32), BUF_Static | BUF_ShaderResource, CreateInfo);
+		IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint32), NewNumIndices * sizeof(uint32), BUF_Dynamic | BUF_ShaderResource, CreateInfo);
 		NumIndices = NewNumIndices;
 	}
 }
