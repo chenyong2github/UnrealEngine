@@ -8,6 +8,7 @@
 
 class UObject;
 class FGCObject;
+class FName;
 
 struct FLoadTimeProfilerTracePrivate
 {
@@ -15,7 +16,7 @@ struct FLoadTimeProfilerTracePrivate
 	static void OutputStartAsyncLoading();
 	static void OutputSuspendAsyncLoading();
 	static void OutputResumeAsyncLoading();
-	static void OutputNewAsyncPackage(const FGCObject* AsyncPackage, const TCHAR* PackageName);
+	static void OutputNewAsyncPackage(const FGCObject* AsyncPackage, const FName& PackageName);
 	static void OutputBeginLoadAsyncPackage(const FGCObject* AsyncPackage);
 	static void OutputEndLoadAsyncPackage(const FGCObject* AsyncPackage);
 	static void OutputDestroyAsyncPackage(const FGCObject* AsyncPackage);
@@ -24,6 +25,7 @@ struct FLoadTimeProfilerTracePrivate
 	static void OutputPackageSummary(const FGCObject* AsyncPackage, uint32 TotalHeaderSize, uint32 ImportCount, uint32 ExportCount);
 	static void OutputAsyncPackageImportDependency(const FGCObject* Package, const FGCObject* ImportedPackage);
 	static void OutputAsyncPackageRequestAssociation(const FGCObject* AsyncPackage, uint64 RequestId);
+	static void OutputClassInfo(const UClass* Class, const FName& Name);
 	static void OutputClassInfo(const UClass* Class, const TCHAR* Name);
 
 	struct FCreateExportScope

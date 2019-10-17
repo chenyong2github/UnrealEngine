@@ -9,6 +9,7 @@
 #include "Misc/CString.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformTLS.h"
+#include "UObject/NameTypes.h"
 #include "UObject/Object.h"
 #include "UObject/UObjectGlobals.h"
 #include "Misc/CommandLine.h"
@@ -176,12 +177,13 @@ void FLoadTimeProfilerTracePrivate::OutputEndRequest(uint64 RequestId)
 		<< EndRequest.RequestId(RequestId);
 }
 
-void FLoadTimeProfilerTracePrivate::OutputNewAsyncPackage(const FGCObject* AsyncPackage, const TCHAR* PackageName)
+void FLoadTimeProfilerTracePrivate::OutputNewAsyncPackage(const FGCObject* AsyncPackage, const FName& PackageName)
 {
-	uint16 NameSize = (FCString::Strlen(PackageName) + 1) * sizeof(TCHAR);
+	TCHAR Buffer[FName::StringBufferSize];
+	uint16 NameSize = (PackageName.ToString(Buffer) + 1) * sizeof(TCHAR);
 	UE_TRACE_LOG(LoadTime, NewAsyncPackage, NameSize)
 		<< NewAsyncPackage.AsyncPackage(AsyncPackage)
-		<< NewAsyncPackage.Attachment(PackageName, NameSize);
+		<< NewAsyncPackage.Attachment(Buffer, NameSize);
 }
 
 void FLoadTimeProfilerTracePrivate::OutputBeginLoadAsyncPackage(const FGCObject* AsyncPackage)
@@ -225,6 +227,15 @@ void FLoadTimeProfilerTracePrivate::OutputAsyncPackageImportDependency(const FGC
 	UE_TRACE_LOG(LoadTime, AsyncPackageImportDependency)
 		<< AsyncPackageImportDependency.AsyncPackage(Package)
 		<< AsyncPackageImportDependency.ImportedAsyncPackage(ImportedPackage);
+}
+
+void FLoadTimeProfilerTracePrivate::OutputClassInfo(const UClass* Class, const FName& Name)
+{
+	TCHAR Buffer[FName::StringBufferSize];
+	uint16 NameSize = (Name.ToString(Buffer) + 1) * sizeof(TCHAR);
+	UE_TRACE_LOG(LoadTime, ClassInfo, NameSize)
+		<< ClassInfo.Class(Class)
+		<< ClassInfo.Attachment(Buffer, NameSize);
 }
 
 void FLoadTimeProfilerTracePrivate::OutputClassInfo(const UClass* Class, const TCHAR* Name)

@@ -4294,11 +4294,7 @@ UClass::UClass(const FObjectInitializer& ObjectInitializer)
 	// If you add properties here, please update the other constructors and PurgeClass()
 
 	SetCppTypeInfoStatic(&DefaultCppClassTypeInfoStatic);
-#if LOADTIMEPROFILERTRACE_ENABLED
-	TCHAR Buffer[NAME_SIZE];
-	GetFName().GetPlainNameString(Buffer);
-	TRACE_LOADTIME_CLASS_INFO(this, Buffer);
-#endif
+	TRACE_LOADTIME_CLASS_INFO(this, GetFName());
 }
 
 /**
