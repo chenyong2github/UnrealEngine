@@ -467,11 +467,11 @@ void MainPS(
 		// Note:
 		// * Currently: compute take the closest sample
 		// * Change this to per sample evaluation once we have better hair transmittance evaluation for sky
-		float Coverage = 1;
+		float Coverage = 0;
 		float ClosestDepth = 0;
 		bool bIsClusterCompatible = false;
 		FGBufferData HairGBuffer = (FGBufferData)0;
-		Coverage = 0;
+		float3 SkyLighting = 0;
 
 		LOOP
 		for (uint SampleIt = 0; SampleIt < NodeDesc.Count; SampleIt++)
@@ -488,7 +488,9 @@ void MainPS(
 
 			// Inject material data from the visibility/mini-gbuffer for hair
 			const float SceneDepth = ConvertFromDeviceZ(SampleDepth);
+			#if PERMUTATION_PER_SAMPLE == 0
 			if (SampleDepth > ClosestDepth)
+			#endif
 			{
 				HairGBuffer.WorldNormal = SampleVisData.Tangent;
 				HairGBuffer.BaseColor = SampleBaseColor;
@@ -503,10 +505,19 @@ void MainPS(
 				HairGBuffer.CustomData = 0;
 				HairGBuffer.IndirectIrradiance = 1000000;
 			}
-			ClosestDepth = max(ClosestDepth, SampleDepth);  // Inverse-Z
 
+			#if PERMUTATION_PER_SAMPLE == 0
+			ClosestDepth = max(ClosestDepth, SampleDepth);  // Inverse-Z
 			const float LocalCoverage = From8bitCoverage(SampleVisData.Coverage8bit);
 			Coverage += LocalCoverage;
+			#else
+			if (bIsClusterCompatible = SampleVisData.ClusterId == Voxel_ClusterId)
+			{
+				const float SampleCoverage = From8bitCoverage(SampleVisData.Coverage8bit);
+				SkyLighting += ReflectionEnvironment(HairGBuffer, BufferUV, ScreenPosition, SvPosition)*SampleCoverage;
+				Coverage += SampleCoverage;
+			}
+			#endif
 		}
 		
 		// Lit fully covered or partially covered pixel
@@ -514,7 +525,9 @@ void MainPS(
 		// * Partially covered pixel output their result into the sub pixel color target. the main color target will store the underlying pixel color 
 		if (bIsClusterCompatible)
 		{
-			const float3 SkyLighting = ReflectionEnvironment(HairGBuffer, BufferUV, ScreenPosition, SvPosition);
+			#if PERMUTATION_PER_SAMPLE == 0
+			SkyLighting = ReflectionEnvironment(HairGBuffer, BufferUV, ScreenPosition, SvPosition) * saturate(Coverage);
+			#endif
 
 			// Scene color alpha is used for ScreenSpaceSubsurfaceScattering (if that is not needed it can be disabled with SUBSURFACE_CHANNEL_MODE)
 			FLightAccumulator LightAccumulator = (FLightAccumulator)0;
@@ -522,13 +535,12 @@ void MainPS(
 			const float4 LocalOutColor = LightAccumulator_GetResult(LightAccumulator);
 			if (Coverage < 1)
 			{
-				OutColorSubPixel = LocalOutColor * Coverage;
+				OutColorSubPixel = LocalOutColor;
 				OutColorSubPixel.a = Coverage;
 			}
 			else
 			{
 				OutColor += LocalOutColor;
-				return;
 			}
 		}
 	}
