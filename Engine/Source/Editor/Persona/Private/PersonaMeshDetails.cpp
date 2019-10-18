@@ -3045,7 +3045,6 @@ void FPersonaMeshDetails::RegenerateOneLOD(int32 LODIndex)
 								break;
 							}
 						}
-						SkelMesh->GetImportedModel()->LODModels[LODIndex].UserSectionsData;
 					}
 				}
 			}
