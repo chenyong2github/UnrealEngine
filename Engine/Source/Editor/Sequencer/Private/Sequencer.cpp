@@ -497,6 +497,8 @@ FSequencer::FSequencer()
 	, LastViewRange(0.f, 5.f)
 	, ViewRangeBeforeZoom(TRange<double>::Empty())
 	, PlaybackState( EMovieScenePlayerStatus::Stopped )
+	, LocalLoopIndexOnBeginScrubbing(FMovieSceneTimeWarping::InvalidWarpCount)
+	, LocalLoopIndexOffsetDuringScrubbing(0)
 	, bPerspectiveViewportPossessionEnabled( true )
 	, bPerspectiveViewportCameraCutEnabled( false )
 	, bIsEditingWithinLevelEditor( false )
@@ -506,8 +508,6 @@ FSequencer::FSequencer()
 	, bUpdatingSequencerSelection( false )
 	, bUpdatingExternalSelection( false )
 	, bNeedsEvaluate(false)
-	, LocalLoopIndexOnBeginScrubbing(FMovieSceneTimeWarping::InvalidWarpCount)
-	, LocalLoopIndexOffsetDuringScrubbing(0)
 {
 	Selection.GetOnOutlinerNodeSelectionChanged().AddRaw(this, &FSequencer::OnSelectedOutlinerNodesChanged);
 	Selection.GetOnNodesWithSelectedKeysOrSectionsChanged().AddRaw(this, &FSequencer::OnSelectedOutlinerNodesChanged);
