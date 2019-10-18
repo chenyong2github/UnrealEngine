@@ -771,6 +771,11 @@ bool FGroomBuilder::BuildGroom(const FHairDescription& HairDescription, const FG
 
 			++GroupInfo.NumGuides;
 		}
+		else
+		{
+			// A guide but don't want to import it, so skip it
+			continue;
+		}
 
 		CurrentHairStrandsDatas->StrandsCurves.CurvesCount.Add(CurveNumVertices);
 
