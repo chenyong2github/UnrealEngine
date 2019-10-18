@@ -61,6 +61,13 @@ namespace DatasmithMeshHelper
 	DATASMITHIMPORTER_API bool IsTriangleDegenerated(const FMeshDescription& Mesh, const FMeshTriangle& MeshTriangle);
 
 	/**
+	 * Remove any empty polygon groups in the mesh description and compact it if needed.
+	 *
+	 * @param Mesh		    The source mesh
+	 */
+	DATASMITHIMPORTER_API void RemoveEmptyPolygonGroups(FMeshDescription& Mesh);
+
+	/**
 	 * Write mesh data on a UStaticMesh.
 	 * RawMesh will be converted to MeshDescription beforehand.
 	 *
