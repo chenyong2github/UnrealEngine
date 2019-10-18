@@ -7,6 +7,7 @@
 #include "AudioMixerTypes.h"
 #include "HAL/Runnable.h"
 #include "HAL/ThreadSafeBool.h"
+#include "Misc/ScopeLock.h"
 #include "Misc/SingleThreadRunnable.h"
 #include "AudioMixerNullDevice.h"
 #include "DSP/ParamInterpolator.h"
