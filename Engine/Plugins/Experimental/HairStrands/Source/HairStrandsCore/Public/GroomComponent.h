@@ -111,6 +111,7 @@ private:
 		Completed
 	};
 	class USkeletalMeshComponent* RegisteredSkeletalMeshComponent;
+	FVector SkeletalPreviousPositionOffset;
 	int32 MeshProjectionLODIndex;
 	uint32 MeshProjectionTickDelay;
 	EMeshProjectionState MeshProjectionState;
