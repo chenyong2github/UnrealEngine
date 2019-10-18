@@ -45,7 +45,8 @@ FReply FWindowsMixedRealityDetails::OnConnectButtonClicked()
 	UWindowsMixedRealityRuntimeSettings* settings = UWindowsMixedRealityRuntimeSettings::Get();
 
 	FString ip = settings->RemoteHoloLensIP;
-	UE_LOG(LogTemp, Log, TEXT("Connecting to: %s"), *ip);
+	int HoloLensType = settings->IsHoloLens1Remoting ? 1 : 2;
+	UE_LOG(LogTemp, Log, TEXT("Editor connecting to remote HoloLens%i: %s"), HoloLensType, *ip);
 
 	unsigned int bitrate = settings->MaxBitrate;
 
@@ -56,7 +57,7 @@ FReply FWindowsMixedRealityDetails::OnConnectButtonClicked()
 
 FReply FWindowsMixedRealityDetails::OnDisconnectButtonClicked()
 {
-	UE_LOG(LogTemp, Log, TEXT("Disconnecting from remote HoloLens"));
+	UE_LOG(LogTemp, Log, TEXT("Editor disconnecting from remote HoloLens"));
 	WindowsMixedReality::FWindowsMixedRealityStatics::DisconnectFromRemoteHoloLens();
 
 	return FReply::Handled();
