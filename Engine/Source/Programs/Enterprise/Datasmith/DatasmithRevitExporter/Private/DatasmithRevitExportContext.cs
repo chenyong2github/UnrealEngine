@@ -719,7 +719,7 @@ namespace DatasmithRevitExporter
 				InstanceData.InstanceActor.SetIsComponent(true);
 			}
 
-            public FDatasmithFacadeMesh PopInstance()
+			public FDatasmithFacadeMesh PopInstance()
 			{
 				FInstanceData InstanceData = InstanceDataStack.Pop();
 
@@ -755,10 +755,6 @@ namespace DatasmithRevitExporter
 				// Set the base properties of the Datasmith light actor.
 				string LayerName = Category.GetCategory(CurrentElement.Document, BuiltInCategory.OST_LightingFixtureSource)?.Name ?? "Light Sources";
 				SetActorProperties(LayerName, LightActor);
-
-				// Set the Datasmith light actor layer to its predefined name.
-				string CategoryName = Category.GetCategory(CurrentElement.Document, BuiltInCategory.OST_LightingFixtureSource)?.Name ?? "Light Sources";
-				LightActor.SetLayer(CategoryName);
 
 				// Set the specific properties of the Datasmith light actor.
 				FDatasmithRevitLight.SetLightProperties(InLightAsset, CurrentElement, LightActor);
