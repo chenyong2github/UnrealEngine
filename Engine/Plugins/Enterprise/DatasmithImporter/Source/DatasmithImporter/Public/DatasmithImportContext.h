@@ -72,7 +72,7 @@ public:
 	FScopedLogger& operator = (FScopedLogger&&) = delete;
 
 	/** Append a message */
-	void Push(EMessageSeverity::Type Severity, const FText& Message);
+	TSharedRef<FTokenizedMessage> Push(EMessageSeverity::Type Severity, const FText& Message);
 
 	/** Display pending messages, show the log window */
 	void Dump(bool bClearPrevious = false);
@@ -301,9 +301,9 @@ public:
 	void AddOption(UObject* InOption, bool bLoadConfig);
 
 	/** Push messages for display to the end-user */
-	void LogError(const FText& InErrorMessage);
-	void LogWarning(const FText& InWarningMessage, bool bPerformance = false);
-	void LogInfo(const FText& InInfoMessage);
+	TSharedRef<FTokenizedMessage> LogError(const FText& InErrorMessage);
+	TSharedRef<FTokenizedMessage> LogWarning(const FText& InWarningMessage, bool bPerformance = false);
+	TSharedRef<FTokenizedMessage> LogInfo(const FText& InInfoMessage);
 
 	bool ShouldImportActors() const;
 
