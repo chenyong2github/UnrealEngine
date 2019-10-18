@@ -63,7 +63,7 @@ private:
 
 
 	// Request for loading into each mip.
-	FBulkDataIORequest* IORequests[MAX_TEXTURE_MIP_COUNT];
+	TArray<FBulkDataIORequest*, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > IORequests;
 
 	bool bPrioritizedIORequest;
 
