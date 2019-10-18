@@ -97,7 +97,7 @@ bool FConcertClientPackageManager::ShouldIgnorePackageDirtyEvent(class UPackage*
 {
 	return InPackage == GetTransientPackage()
 		|| InPackage->HasAnyFlags(RF_Transient)
-		|| InPackage->HasAnyPackageFlags(PKG_PlayInEditor)
+		|| InPackage->HasAnyPackageFlags(PKG_PlayInEditor | PKG_CompiledIn) // CompiledIn packages are not considered content for MU. (ex when changing some plugin settings like /Script/DisasterRecoveryClient)
 		|| bIgnorePackageDirtyEvent;
 }
 
@@ -278,7 +278,7 @@ void FConcertClientPackageManager::HandlePackageRejectedEvent(const FConcertSess
 void FConcertClientPackageManager::HandlePackageDirtyStateChanged(UPackage* InPackage)
 {
 	check(!InPackage->HasAnyFlags(RF_Transient) || InPackage != GetTransientPackage());
-	if (InPackage->IsDirty())
+	if (InPackage->IsDirty() && !InPackage->HasAnyPackageFlags(PKG_CompiledIn | PKG_InMemoryOnly)) // Dirty packages are tracked for purge/reload, but 'compiled in' and 'in memory' cannot be hot purged/reloaded.
 	{
 		DirtyPackages.Add(InPackage->GetFName());
 	}
