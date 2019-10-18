@@ -12,6 +12,7 @@
 
 #include "MeshAdapter.h"
 #include "MeshNormals.h"
+#include "DynamicMeshEditor.h"
 
 #include "Async/ParallelFor.h"
 #include "Misc/ScopeLock.h"
