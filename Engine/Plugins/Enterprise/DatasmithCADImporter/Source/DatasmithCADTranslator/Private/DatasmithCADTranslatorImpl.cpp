@@ -2,6 +2,7 @@
 
 #include "DatasmithCADTranslatorImpl.h"
 
+#ifdef CAD_LIBRARY
 #include "CoreTechTypes.h"
 
 #ifdef USE_CORETECH_MT_PARSER
@@ -84,3 +85,4 @@ void FDatasmithCADTranslatorImpl::UnloadScene()
 {
 	CTParser->UnloadScene();
 }
+#endif
