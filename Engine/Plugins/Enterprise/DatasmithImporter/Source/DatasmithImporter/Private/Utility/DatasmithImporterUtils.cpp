@@ -464,7 +464,7 @@ FString FDatasmithImporterUtils::GetDatasmithElementIdString(UObject* Object)
 {
 	FString ElementId = UDatasmithAssetUserData::GetDatasmithUserDataValueForKey(Object, UDatasmithAssetUserData::UniqueIdMetaDataKey);
 
-	if( ElementId.IsEmpty() )
+	if( Object != nullptr && ElementId.IsEmpty() )
 	{
 		const FString ObjectPath = FPaths::Combine( Object->GetOutermost()->GetName(), Object->GetName() );
 		return FMD5::HashBytes( reinterpret_cast<const uint8*>(*ObjectPath), ObjectPath.Len() * sizeof(TCHAR) );

@@ -250,6 +250,11 @@ public:
 	const TCHAR* GetLabel() { return *Label; }
 	void SetLabel( const TCHAR* InLabel ) { Label = InLabel ? InLabel : TEXT(""); }
 
+	/**
+	 * Do the necessary notification so that the dataprep system can react properly to removal of this action
+	 */
+	void NotifyDataprepSystemsOfRemoval();
+
 private:
 
 	void OnClassesRemoved(const TArray<UClass*>& DeletedClasses);
