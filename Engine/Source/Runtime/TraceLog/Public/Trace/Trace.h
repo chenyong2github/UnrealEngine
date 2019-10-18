@@ -6,6 +6,15 @@
 #include "Detail/Field.h"
 
 ////////////////////////////////////////////////////////////////////////////////
+#if UE_TRACE_ENABLED
+#	define UE_TRACE_IMPL(...)
+#	define UE_TRACE_API			TRACELOG_API
+#else
+#	define UE_TRACE_IMPL(...)	{ return __VA_ARGS__; }
+#	define UE_TRACE_API			inline
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
 namespace Trace
 {
 

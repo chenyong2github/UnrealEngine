@@ -67,7 +67,7 @@ void Writer_InitializeTiming()
 static uint8						GEmptyBuffer[sizeof(FWriteBuffer)];
 thread_local FWriteBuffer*			GWriteBuffer		= (FWriteBuffer*)GEmptyBuffer;
 T_ALIGN static void* volatile		GFirstEvent;
-T_ALIGN UE_TRACE_API void* volatile	GLastEvent;			// = nullptr;
+T_ALIGN TRACELOG_API void* volatile	GLastEvent;			// = nullptr;
 static const uint32					GPoolSize			= 384 << 20; // 384MB ought to be enough
 T_ALIGN static UPTRINT volatile		GThreadId;			// = 0;
 static const uint32					GPoolBlockSize		= 4 << 10;
@@ -87,7 +87,7 @@ uint32 Writer_GetMaxEventSize()
 
 ////////////////////////////////////////////////////////////////////////////////
 #if !IS_MONOLITHIC
-UE_TRACE_API FWriteBuffer* Writer_GetBuffer()
+TRACELOG_API FWriteBuffer* Writer_GetBuffer()
 {
 	// Thread locals and DLLs don't mix so for modular builds we are forced to
 	// export this function to access thread-local variables.
@@ -168,7 +168,7 @@ static FWriteBuffer* Writer_NextBufferInternal(uint32 PageGrowth)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-UE_TRACE_API uint8* Writer_NextBuffer(uint16 Size)
+TRACELOG_API uint8* Writer_NextBuffer(uint16 Size)
 {
 	FWriteBuffer* Current = GWriteBuffer;
 

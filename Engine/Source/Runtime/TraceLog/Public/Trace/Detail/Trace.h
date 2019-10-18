@@ -5,17 +5,6 @@
 #include "CoreTypes.h"
 #include "Trace/Config.h"
 
-////////////////////////////////////////////////////////////////////////////////
-#if UE_TRACE_ENABLED
-#	define UE_TRACE_IMPL(...)
-#	define UE_TRACE_API			TRACELOG_API
-#else
-#	define UE_TRACE_IMPL(...)	{ return __VA_ARGS__; }
-#	define UE_TRACE_API			inline
-#endif
-
-
-
 #if UE_TRACE_ENABLED
 
 #define TRACE_PRIVATE_EVENT_DEFINE(LoggerName, EventName) \
