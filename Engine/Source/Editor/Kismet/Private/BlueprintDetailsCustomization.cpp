@@ -848,8 +848,20 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 				
 				UK2Node_FunctionEntry* FuncEntry = EntryNodes[0];
 
-				// This uses the cached struct data inside the node, which is updated on change
-				TSharedPtr<FStructOnScope> StructData = FuncEntry->GetFunctionVariableCache();
+				TSharedPtr<FStructOnScope> StructData = MakeShareable(new FStructOnScope((UFunction*)StructScope));
+
+				for (const FBPVariableDescription& LocalVar : FuncEntry->LocalVariables)
+				{
+					if (LocalVar.VarName == VariableProperty->GetFName())
+					{
+						// Only set the default value if there is one
+						if (!LocalVar.DefaultValue.IsEmpty())
+						{
+							FBlueprintEditorUtils::PropertyValueFromString(VariableProperty, LocalVar.DefaultValue, StructData->GetStructMemory());
+						}
+						break;
+					}
+				}
 
 				if(BlueprintEditor.IsValid())
 				{
