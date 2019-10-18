@@ -178,6 +178,15 @@ void FDataprepWorkReporter::ReportNextStep(const FText & InMessage, float InIncr
 	}
 }
 
+bool FDataprepWorkReporter::IsWorkCancelled() const
+{
+	if ( Reporter.IsValid() )
+	{
+		return Reporter->IsWorkCancelled();
+	}
+	return false;
+}
+
 #ifdef NEW_DATASMITHSCENE_WORKFLOW
 void FDataprepCoreUtils::AddDataprepAssetUserData(UObject* Target, UDataprepAssetInterface* DataprepAssetInterface)
 {
@@ -227,8 +236,8 @@ void FDataprepCoreUtils::FDataprepLogger::LogError(const FText& InLogText,  cons
 
 void FDataprepCoreUtils::FDataprepProgressUIReporter::BeginWork( const FText& InTitle, float InAmountOfWork )
 {
-	ProgressTasks.Emplace( new FScopedSlowTask( InAmountOfWork, InTitle, true, *GWarn ) );
-	ProgressTasks.Last()->MakeDialog(false);
+	ProgressTasks.Emplace( new FScopedSlowTask( InAmountOfWork, InTitle, true, FeedbackContext.IsValid() ? *FeedbackContext.Get() : *GWarn ) );
+	ProgressTasks.Last()->MakeDialog(true);
 }
 
 void FDataprepCoreUtils::FDataprepProgressUIReporter::EndWork()
@@ -246,6 +255,21 @@ void FDataprepCoreUtils::FDataprepProgressUIReporter::ReportProgress( float Prog
 		TSharedPtr<FScopedSlowTask>& ProgressTask = ProgressTasks.Last();
 		ProgressTask->EnterProgressFrame( Progress, InMessage );
 	}
+}
+
+bool FDataprepCoreUtils::FDataprepProgressUIReporter::IsWorkCancelled()
+{
+	if( !bIsCancelled && ProgressTasks.Num() > 0 )
+	{
+		const TSharedPtr<FScopedSlowTask>& ProgressTask = ProgressTasks.Last();
+		bIsCancelled |= ProgressTask->ShouldCancel();
+	}
+	return bIsCancelled;
+}
+
+FFeedbackContext* FDataprepCoreUtils::FDataprepProgressUIReporter::GetFeedbackContext() const
+{
+	return FeedbackContext.IsValid() ? FeedbackContext.Get() : GWarn;
 }
 
 void FDataprepCoreUtils::FDataprepProgressTextReporter::BeginWork( const FText& InTitle, float InAmountOfWork )
@@ -268,6 +292,16 @@ void FDataprepCoreUtils::FDataprepProgressTextReporter::ReportProgress( float Pr
 	{
 		UE_LOG( LogDataprepCore, Log, TEXT("Doing %s ..."), *InMessage.ToString() );
 	}
+}
+
+bool FDataprepCoreUtils::FDataprepProgressTextReporter::IsWorkCancelled()
+{
+	return false;
+}
+
+FFeedbackContext* FDataprepCoreUtils::FDataprepProgressTextReporter::GetFeedbackContext() const
+{
+	return FeedbackContext.Get();
 }
 
 #undef LOCTEXT_NAMESPACE
