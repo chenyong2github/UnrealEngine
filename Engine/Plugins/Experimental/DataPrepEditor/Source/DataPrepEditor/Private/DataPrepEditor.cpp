@@ -660,7 +660,7 @@ void FDataprepEditor::CleanPreviewWorld()
 		}
 	}
 
-	SceneViewportView->ClearMeshes();
+	SceneViewportView->ClearScene();
 
 	// Delete assets which are still in the transient content folder
 	const FString TransientContentFolder( GetTransientContentFolder() );
@@ -708,9 +708,8 @@ void FDataprepEditor::OnExecutePipeline()
 		RestoreFromSnapshot();
 	}
 
-	// Delete any reference of assets in the 3D viewport
-	// Required because assets could be removed and the 3D viewport is using raw pointers
-	SceneViewportView->ClearMeshes();
+	// Remove any link between assets referenced in the preview world and the viewport
+	SceneViewportView->ClearScene();
 
 	// Trigger execution of data preparation operations on world attached to recipe
 	{
@@ -736,7 +735,7 @@ void FDataprepEditor::OnExecutePipeline()
 	}
 
 	// Redraw 3D viewport
-	SceneViewportView->UpdateMeshes();
+	SceneViewportView->UpdateScene();
 
 	// Add assets which may have been created by actions
 	for( TWeakObjectPtr<UObject>& Asset : Assets )
@@ -783,7 +782,7 @@ void FDataprepEditor::OnCommitWorld()
 	}
 
 	// Remove references to assets in 3D viewport before commit
-	SceneViewportView->ClearMeshes();
+	SceneViewportView->ClearScene();
 
 	// Finalize assets
 	TArray<TWeakObjectPtr<UObject>> ValidAssets( MoveTemp(Assets) );
@@ -1158,7 +1157,7 @@ void FDataprepEditor::UpdatePreviewPanels(bool bInclude3DViewport)
 
 	if(bInclude3DViewport)
 	{
-		SceneViewportView->UpdateMeshes();
+		SceneViewportView->UpdateScene();
 	}
 }
 
@@ -1192,9 +1191,6 @@ bool FDataprepEditor::OnCanExecuteNextStep(UDataprepActionAsset* ActionAsset, UD
 {
 	// #ueent_todo: Make this action configurable by user
 	UpdatePreviewPanels(false);
-
-	//// Remove references to assets in 3D viewport in case they are deleted in next step
-	//SceneViewportView->ClearMeshes();
 
 	// #ueent_todo: Make this action configurable by user
 	return true;

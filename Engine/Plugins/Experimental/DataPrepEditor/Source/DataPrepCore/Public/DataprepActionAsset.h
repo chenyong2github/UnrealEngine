@@ -262,13 +262,20 @@ private:
 	void RemoveInvalidOperations();
 
 	/**
-	 * Add an asset to the Dataprep's and action's working set
+	 * Duplicate and add an asset to the Dataprep's and action's working set
 	 * @param Asset			If not null, the asset will be duplicated
+	 * @param AssetName		Name of the asset to create. Name collision will be performed before naming the asset
+	 * @returns				The asset newly created
+	 */
+	UObject* OnAddAsset(const UObject* Asset, const TCHAR* AssetName);
+
+	/**
+	 * Create and add an asset to the Dataprep's and action's working set
 	 * @param AssetClass	If Asset is null, an asset of the given class will be returned
 	 * @param AssetName		Name of the asset to create. Name collision will be performed before naming the asset
 	 * @returns				The asset newly created
 	 */
-	UObject* OnAddAsset(const UObject* Asset, UClass* AssetClass, const TCHAR* AssetName);
+	UObject* OnCreateAsset(UClass* AssetClass, const TCHAR* AssetName);
 
 	/**
 	 * Add an actor to the Dataprep's transient world and action's working set
@@ -289,6 +296,12 @@ private:
 	void OnRemoveObject(UObject* Object, bool bLocalContext);
 
 	/**
+	 * Add an array of assets to the list of modified assets
+	 * @param Assets		An array of assets which have been modifed
+	 */
+	void OnAssetsModified(TArray<UObject*> Assets);
+
+	/**
 	 * Delete an array of objects from the Dataprep's and action's working set
 	 * @param Objects		The array of objects to delete
 	 * @remark	The deletion of the object is deferred. However, if the object is not an asset, it is removed from
@@ -300,13 +313,15 @@ private:
 
 	/**
 	 * Executes the deletion and removal requested by an operation after its execution
-	 * @param bAddedAssets		Indicates that assets have been added during the operation's execution
-	 * @param bAddedActors		Indicates that actors have been added during the operation's execution
+	 * Notifies any observer about what has changed
 	 */
-	void ProcessWorkingSetChanged(bool bAddedAssets, bool bAddedActors);
+	void ProcessWorkingSetChanged();
 
 	/** Returns the outer to be used according to an asset's class */
 	UObject* GetAssetOuterByClass( UClass* AssetClass );
+
+	/** Add an asset to the execution context */
+	void AddAssetToContext( UObject* NewAsset, const TCHAR* DesiredName );
 
 	/** Array of operations and/or filters constituting this action */
 	UPROPERTY()
@@ -325,6 +340,12 @@ private:
 
 	/** Array of objects requested to be deleted by an operation */
 	TArray<UObject*> ObjectsToDelete;
+
+	/** Set of objects which have been modified during the execution of an operation */
+	TSet< TWeakObjectPtr< UObject > > ModifiedAssets;
+
+	/** Array of objects which have been added during the execution of an operation */
+	TArray<UObject*> AddedObjects;
 
 	/** Array of objects requested to be removed by an operation */
 	TArray<TPair<UObject*,bool>> ObjectsToRemove;
