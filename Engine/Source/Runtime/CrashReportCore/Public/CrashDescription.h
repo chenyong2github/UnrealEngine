@@ -398,6 +398,11 @@ struct FPrimaryCrashProperties
 	 */
 	bool bLowMemoryWarning;
 	
+	/**
+	 * Whether we were in the background when the crash happened
+	 */
+	bool bInBackground;
+	
 protected:
 	/** Default constructor. */
 	FPrimaryCrashProperties();
