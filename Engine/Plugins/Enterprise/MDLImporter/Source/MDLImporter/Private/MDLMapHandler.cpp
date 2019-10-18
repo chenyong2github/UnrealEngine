@@ -29,6 +29,10 @@ FMDLMapHandler::FMDLMapHandler(const Mdl::FApiContext& MdlContext)
 	MaterialExpressionFactory.SetFunctionLoader(FunctionLoader.Get());
 }
 
+FMDLMapHandler::~FMDLMapHandler()
+{
+}
+
 void FMDLMapHandler::PreImport(const mi::neuraylib::IMaterial_definition& MDLMaterialDefinition,
                                const mi::neuraylib::ICompiled_material&   MDLMaterial,
                                mi::neuraylib::ITransaction&               MDLTransaction)
