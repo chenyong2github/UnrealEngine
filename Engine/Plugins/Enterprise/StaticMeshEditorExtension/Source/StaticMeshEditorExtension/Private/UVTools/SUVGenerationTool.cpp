@@ -36,13 +36,6 @@ SGenerateUV::SGenerateUV()
 	GenerateUVSettings = &SettingObjectUIHolder->GenerateUVSettings;
 }
 
-SGenerateUV::SGenerateUV()
-{
-	SettingObjectUIHolder = NewObject<UGenerateUVSettingsUIHolder>();
-	SettingObjectUIHolder->AddToRoot();
-	GenerateUVSettings = &SettingObjectUIHolder->GenerateUVSettings;
-}
-
 SGenerateUV::~SGenerateUV()
 {
 	SetPreviewModeActivated(false);
