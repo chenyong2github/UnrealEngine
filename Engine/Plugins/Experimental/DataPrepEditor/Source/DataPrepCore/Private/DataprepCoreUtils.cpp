@@ -10,11 +10,17 @@
 
 #include "DataPrepAsset.h"
 #include "DataprepCoreLogCategory.h"
+#include "DataprepCorePrivateUtils.h"
 #include "IDataprepProgressReporter.h"
 
 #include "Engine/StaticMesh.h"
 #include "GameFramework/Actor.h"
 #include "LevelSequence.h"
+#include "Materials/MaterialFunction.h"
+#include "Materials/MaterialInstance.h"
+#include "Materials/Material.h"
+#include "MaterialGraph/MaterialGraph.h"
+#include "MaterialShared.h"
 #include "Misc/ScopedSlowTask.h"
 #include "RenderingThread.h"
 #include "UObject/UObjectHash.h"
@@ -302,6 +308,63 @@ bool FDataprepCoreUtils::FDataprepProgressTextReporter::IsWorkCancelled()
 FFeedbackContext* FDataprepCoreUtils::FDataprepProgressTextReporter::GetFeedbackContext() const
 {
 	return FeedbackContext.Get();
+}
+
+void FDataprepCoreUtils::BuildAssets(const TArray<TWeakObjectPtr<UObject>>& Assets, const TSharedPtr<IDataprepProgressReporter>& ProgressReporterPtr)
+{
+	TSet<UStaticMesh*> StaticMeshes;
+	TSet<UMaterialInterface*> MaterialInterfaces;
+
+	for( const TWeakObjectPtr<UObject>& AssetPtr : Assets )
+	{
+		UObject* AssetObject = AssetPtr.Get();
+		if( AssetObject )
+		{
+			if(UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(AssetObject))
+			{
+				MaterialInterfaces.Add( MaterialInterface );
+			}
+			else if(UStaticMesh* StaticMesh = Cast<UStaticMesh>(AssetObject))
+			{
+				StaticMeshes.Add( StaticMesh );
+			}
+		}
+	}
+
+	// Force compilation of materials which have no render proxy
+	if(MaterialInterfaces.Num() > 0)
+	{
+		auto MustCompile = [](const UMaterialInterface* MaterialInterface)
+		{
+			if( MaterialInterface )
+			{
+				const FMaterialRenderProxy* RenderProxy = MaterialInterface->GetRenderProxy();
+				return RenderProxy == nullptr || !RenderProxy->IsInitialized();
+			}
+
+			return false;
+		};
+
+		for(UMaterialInterface* MaterialInterface : MaterialInterfaces)
+		{
+			if( MustCompile( MaterialInterface ) )
+			{
+				FPropertyChangedEvent EmptyPropertyUpdateStruct( nullptr );
+				MaterialInterface->PostEditChangeProperty( EmptyPropertyUpdateStruct );
+
+			}
+
+			if( MustCompile( MaterialInterface->GetMaterial() ) )
+			{
+				FPropertyChangedEvent EmptyPropertyUpdateStruct( nullptr );
+				MaterialInterface->GetMaterial()->PostEditChangeProperty( EmptyPropertyUpdateStruct );
+
+			}
+		}
+	}
+
+	// Build static meshes
+	DataprepCorePrivateUtils::BuildStaticMeshes( StaticMeshes, TFunction<bool(UStaticMesh*)>() );
 }
 
 #undef LOCTEXT_NAMESPACE

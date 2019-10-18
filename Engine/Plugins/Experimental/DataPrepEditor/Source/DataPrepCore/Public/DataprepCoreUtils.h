@@ -69,6 +69,14 @@ public:
 		}
 	}
 
+	/**
+	 * Helper function to build assets for use in the Dataprep pipeline
+
+	 * @param	Assets					Array of weak pointer on the assets to be build
+	 * @param	ProgressReporterPtr		Pointer to a IDataprepProgressReporter interface. This pointer can be invalid.
+	 */
+	static void BuildAssets(const TArray< TWeakObjectPtr<UObject> >& Assets, const TSharedPtr< IDataprepProgressReporter >& ProgressReporterPtr );
+
 	class DATAPREPCORE_API FDataprepLogger : public IDataprepLogger
 	{
 	public:

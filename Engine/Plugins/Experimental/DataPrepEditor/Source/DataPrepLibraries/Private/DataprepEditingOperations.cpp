@@ -278,7 +278,7 @@ bool UDataprepMergeActorsOperation::MergeStaticMeshActors(UWorld* World, const T
 		}
 	}
 
-	FStaticMeshBuilder StaticMeshBuilder(StaticMeshes);
+	DataprepOperationsLibraryUtil::FStaticMeshBuilder StaticMeshBuilder( StaticMeshes );
 
 	//
 	// See MeshMergingTool.cpp
@@ -300,7 +300,7 @@ bool UDataprepMergeActorsOperation::MergeStaticMeshActors(UWorld* World, const T
 	}
 
 	// Add asset to set of assets in Dataprep action working set
-	MergedMesh = Cast<UStaticMesh>( AddAsset( UtilitiesMergedMesh, UStaticMesh::StaticClass(), NewActorLabel.IsEmpty() ? TEXT("Merged_Mesh") : *NewActorLabel ) );
+	MergedMesh = Cast<UStaticMesh>( AddAsset( UtilitiesMergedMesh, NewActorLabel.IsEmpty() ? TEXT("Merged_Mesh") : *NewActorLabel ) );
 	if (!MergedMesh)
 	{
 		UE_LOG(LogDataprep, Error, TEXT("MergeStaticMeshActors failed. Internal error while creating the merged mesh."));
@@ -323,46 +323,6 @@ bool UDataprepMergeActorsOperation::MergeStaticMeshActors(UWorld* World, const T
 	}
 
 	return true;
-}
-
-UDataprepMergeActorsOperation::FStaticMeshBuilder::FStaticMeshBuilder(const TSet<UStaticMesh *>& InStaticMeshes)
-{
-	StaticMeshes = InStaticMeshes;
-
-	IMeshBuilderModule& MeshBuilderModule = FModuleManager::LoadModuleChecked< IMeshBuilderModule >( TEXT("MeshBuilder") );
-	UDataprepMergeActorsOperation::PrepareStaticMeshes(StaticMeshes, MeshBuilderModule);
-}
-
-UDataprepMergeActorsOperation::FStaticMeshBuilder::~FStaticMeshBuilder()
-{
-	// Release render data of built static meshes
-	for(UStaticMesh* StaticMesh : StaticMeshes)
-	{
-		if(StaticMesh)
-		{
-			StaticMesh->RenderData.Reset();
-		}
-	}
-}
-
-void UDataprepMergeActorsOperation::PrepareStaticMeshes(const TSet<UStaticMesh*>& StaticMeshes, IMeshBuilderModule& MeshBuilderModule)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(UDataprepMergeActorsOperation::PrepareStaticMeshes);
-
-	if( StaticMeshes.Num() > 1 )
-	{
-		TArray<UStaticMesh*> StaticMeshesToBuild = StaticMeshes.Array();
-		ParallelFor( StaticMeshesToBuild.Num(), [&]( int32 Index ) {
-			DataprepOperationsLibraryUtil::BuildRenderData( StaticMeshesToBuild[Index], MeshBuilderModule );
-		});
-	}
-	else
-	{
-		for(UStaticMesh* StaticMesh : StaticMeshes)
-		{
-			DataprepOperationsLibraryUtil::BuildRenderData( StaticMesh, MeshBuilderModule );
-		}
-	}
 }
 
 void UDataprepDeleteUnusedAssetsOperation::OnExecution_Implementation(const FDataprepContext& InContext)
