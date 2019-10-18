@@ -2043,7 +2043,7 @@ void FSlateEditorStyle::FStyle::SetupGeneralStyles()
 		Set( "ToolBar.Block.Padding", FMargin( 2.0f, 2.0f, 4.0f, 4.0f ) );
 
 		Set( "ToolBar.Separator", new FSlateColorBrush( FLinearColor(FColor(47, 47, 47)) ) );
-		Set( "ToolBar.Separator.Padding", FMargin( 0.5f ) );
+		Set( "ToolBar.Separator.Padding", FMargin( 8.f, 0.f, 8.f, 0.f) );
 
 		Set( "ToolBar.Label", FTextBlockStyle(NormalText) .SetFont( DEFAULT_FONT( "Regular", 9 ) ) );
 		Set( "ToolBar.EditableText", FEditableTextBoxStyle(NormalEditableTextBoxStyle) .SetFont( DEFAULT_FONT( "Regular", 9 ) ) );
@@ -2664,7 +2664,7 @@ void FSlateEditorStyle::FStyle::SetupViewportStyles()
 		Set("ViewportMenu.SToolBarComboButtonBlock.ComboButton.Color", FLinearColor(0.f, 0.f, 0.f, 0.75f));
 
 		Set("ViewportMenu.Separator", new BOX_BRUSH("Old/Button", 8.0f / 32.0f, FLinearColor::Transparent));
-		Set("ViewportMenu.Separator.Padding", FMargin(100.0f));
+		Set("ViewportMenu.Separator.Padding", FMargin( 1.f, 0.f, 0.f, 0.f) );
 
 		Set("ViewportMenu.Label", FTextBlockStyle(NormalText)
 			.SetFont(DEFAULT_FONT("Bold", 9))
@@ -5334,7 +5334,7 @@ void FSlateEditorStyle::FStyle::SetupLevelEditorStyle()
 		Set( "EditorModesToolbar.Block.Padding", FMargin( 0 ) );
 
 		Set( "EditorModesToolbar.Separator", new BOX_BRUSH( "Old/Button", 4.0f / 32.0f ) );
-		Set( "EditorModesToolbar.Separator.Padding", FMargin( 0.5f ) );
+		Set( "EditorModesToolbar.Separator.Padding", FMargin( 8.f, 0.f, 8.f, 0.f) );
 
 		Set( "EditorModesToolbar.Label", FTextBlockStyle(NormalText) .SetFont( DEFAULT_FONT( "Regular", 7 ) ) );
 		Set( "EditorModesToolbar.EditableText", FEditableTextBoxStyle(NormalEditableTextBoxStyle) .SetFont( DEFAULT_FONT( "Regular", 9 ) ) );
