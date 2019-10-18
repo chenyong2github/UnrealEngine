@@ -80,6 +80,7 @@ namespace AutomationTool
 			string SchemaFileName = ParseParamValue("Schema", null);
 			string ExportFileName = ParseParamValue("Export", null);
 			string PreprocessedFileName = ParseParamValue("Preprocess", null);
+			bool bPreprocessOnly = ParseParam("PreprocessOnly");
 			string SharedStorageDir = ParseParamValue("SharedStorageDir", null);
 			string SingleNodeName = ParseParamValue("SingleNode", null);
 			string TriggerName = ParseParamValue("Trigger", null);
@@ -364,7 +365,10 @@ namespace AutomationTool
 				FileReference PreprocessedFileLocation = new FileReference(PreprocessedFileName);
 				LogInformation("Writing {0}...", PreprocessedFileLocation);
 				Graph.Write(PreprocessedFileLocation, (SchemaFileName != null)? new FileReference(SchemaFileName) : null);
-				return ExitCode.Success;
+				if (bPreprocessOnly)
+				{
+					return ExitCode.Success;
+				}
 			}
 
 			// Find the triggers which we are explicitly running.
