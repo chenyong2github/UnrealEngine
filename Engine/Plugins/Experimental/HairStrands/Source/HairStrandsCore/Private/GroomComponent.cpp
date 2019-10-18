@@ -143,6 +143,8 @@ public:
 		for (uint32 GroupIt=0;GroupIt<GroupCount; GroupIt++)
 		{		
 			const FHairGroupData& InGroupData = Component->GroomAsset->HairGroupsData[GroupIt];
+			const FHairGroupDesc& InGroupDesc = Component->GroomGroupsDesc[GroupIt];
+
 			const UGroomComponent::FHairGroupResource& GroupResources = Component->HairGroupResources[GroupIt];
 
 			UMaterialInterface* Material = Component->GetMaterial(GroupIt);
@@ -153,7 +155,7 @@ public:
 
 			FHairStrandsVertexFactory::FDataType::HairGroup& VFGroupData = VFData.HairGroups.AddDefaulted_GetRef();
 			VFGroupData.MinStrandRadius		= 0;
-			VFGroupData.MaxStrandRadius		= InGroupData.HairRenderData.StrandsCurves.MaxRadius;
+			VFGroupData.MaxStrandRadius		= InGroupDesc.HairWidth > 0 ? InGroupDesc.HairWidth * 0.5f : InGroupData.HairRenderData.StrandsCurves.MaxRadius;
 			VFGroupData.MaxStrandLength		= InGroupData.HairRenderData.StrandsCurves.MaxLength;
 			VFGroupData.HairDensity			= InGroupData.HairRenderData.HairDensity;
 			VFGroupData.HairWorldOffset		= InGroupData.HairRenderData.BoundingBox.GetCenter();
@@ -368,7 +370,37 @@ private:
 	TArray<HairGroup> HairGroups;
 };
 
+static void UpdateHairGroupsDesc(UGroomAsset* GroomAsset, TArray<FHairGroupDesc>& GroomGroupsDesc)
+{
+	if (!GroomAsset)
+	{
+		GroomGroupsDesc.Empty();
+		return;
+	}
 
+	check(GroomAsset->HairGroupsInfo.Num() == GroomAsset->HairGroupsInfo.Num());
+
+	const uint32 GroupCount = GroomAsset->HairGroupsInfo.Num();
+	const bool bReinitOverride = GroupCount != GroomGroupsDesc.Num();
+	if (bReinitOverride)
+	{
+		GroomGroupsDesc.SetNum(GroupCount);
+	}
+
+	for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
+	{
+		FHairGroupInfo& GroupInfo = GroomAsset->HairGroupsInfo[GroupIt];
+		FHairGroupData& GroupData = GroomAsset->HairGroupsData[GroupIt];
+
+		FHairGroupDesc& Desc = GroomGroupsDesc[GroupIt];
+		Desc.GuideCount = GroupInfo.NumGuides;
+		Desc.HairCount  = GroupInfo.NumCurves;
+		if (bReinitOverride || Desc.HairWidth == 0)
+		{
+			Desc.HairWidth = GroupData.HairRenderData.StrandsCurves.MaxRadius * 0.5f;
+		}
+	}
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -825,6 +857,8 @@ void UGroomComponent::PostLoad()
 	{
 		InitResources();
 	}
+
+	UpdateHairGroupsDesc(GroomAsset, GroomGroupsDesc);
 }
 
 void UGroomComponent::OnRegister()
@@ -1167,6 +1201,7 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 			if (GroomAsset)
 			{
 				InitResources();
+				UpdateHairGroupsDesc(GroomAsset, GroomGroupsDesc);
 			}
 			else
 			{
@@ -1181,6 +1216,11 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		{
 			Group.HairRaytracingRadiusScale = HairRaytracingRadiusScale;
 		}
+	}
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, HairWidth))
+	{	
+		UpdateHairGroupsDesc(GroomAsset, GroomGroupsDesc);
 	}
 }
 
