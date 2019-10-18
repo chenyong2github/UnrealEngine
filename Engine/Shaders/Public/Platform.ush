@@ -35,6 +35,8 @@
 #elif COMPILER_VULKAN
 	// Helps with iteration when changing Vulkan shader code generation backend.
 	#include "Platform/Vulkan/VulkanCommon.ush"
+#elif SM5_PROFILE || SM4_PROFILE
+	#include "Platform/D3D/D3DCommon.ush"
 #endif
 // @todo platplug: Inject a platform's XXXCommon.ush externally, somehow
 
