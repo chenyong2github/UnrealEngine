@@ -4,6 +4,7 @@
 
 #include "Parameterization/DataprepParameterizationUtils.h"
 
+#include "Containers/ContainerAllocationPolicies.h"
 #include "CoreMinimal.h"
 #include "Delegates/DelegateCombinations.h"
 #include "Delegates/IDelegateInstance.h"
@@ -55,22 +56,112 @@ uint32 GetTypeHash(const FDataprepParameterizationBinding& Binding);
 
 uint32 GetTypeHash(const TArray<FDataprepPropertyLink>& PropertyLinks);
 
-/**
- * Count the number of time each hash was encounter
+/** 
+ * A override to defines how the map's pairs are hashed and compared.
+ * This allow us to have some map that work with TSharedRef but compare the object value instead of the pointer
  */
-USTRUCT()
-struct FHashCount
+struct FDataprepParametrizationBindingMapKeyFuncs : TDefaultMapHashableKeyFuncs<TSharedRef<FDataprepParameterizationBinding>, FName, false>
 {
+	static FORCEINLINE bool Matches(KeyInitType A, KeyInitType B)
+	{
+		return A.Get() == B.Get();
+	}
+
+	static FORCEINLINE uint32 GetKeyHash(KeyInitType Key)
+	{
+		return GetTypeHash( Key.Get() );
+	}
+};
+
+/** 
+ * A override to defines how the set values are hashed and compared.
+ * This allow us to have some set that work with TSharedRef but compare the object value instead of the pointer
+ */
+struct FDataprepParametrizationBindingSetKeyFuncs : DefaultKeyFuncs<TSharedRef<FDataprepParameterizationBinding>>
+{
+	template<typename ComparableKey>
+	static FORCEINLINE bool Matches(KeyInitType A, ComparableKey B)
+	{
+		return A.Get() == B.Get();
+	}
+
+	static FORCEINLINE uint32 GetKeyHash(KeyInitType Key)
+	{
+		return GetTypeHash(Key.Get());
+	}
+};
+
+
+
+/**
+ * Encapsulate the unidirectionality necessary for a constant cost of access to the data related to the bindings
+ */
+UCLASS(MinimalAPI, Experimental)
+class UDataprepParameterizationBindings : public UObject
+{
+public:
+
 	GENERATED_BODY()
 
-	UPROPERTY()
-	TMap<uint32, uint32> HashCount;
+	using FBindingToParameterNameMap = TMap<TSharedRef<FDataprepParameterizationBinding>, FName, FDefaultSetAllocator, FDataprepParametrizationBindingMapKeyFuncs>;
+
+	/**
+	 * Does the data structure contains this binding
+	 */
+	bool ContainsBinding(const TSharedRef<FDataprepParameterizationBinding>& Binding) const;
+
+	/**
+	 * Does the data structure has some bindings for the parameter name
+	 */
+	bool HasBindingsForParameter(FName ParameterName) const;
+
+	/**
+	 * Add a binding and map it to the parameter
+	 */
+	void Add(const TSharedRef<FDataprepParameterizationBinding>& Binding, FName ParameterName);
+
+	/**
+	 * Remove a binding.
+	 * @return The name of the parameter the binding was associated with
+	 */
+	FName RemoveBinding(const TSharedRef<FDataprepParameterizationBinding>& Binding);
+
+	const FBindingToParameterNameMap& GetBindingToParameterName() const;
+
+	// UObject interface
+	virtual void Serialize(FArchive& Ar) override;
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	// End of UObject interface
+
+private:
+	/**
+	 * Do the actual serialization when saving
+	 */
+	void Save(FArchive& Ar);
+
+	/**
+	 * Do the actual serialization when reloading
+	 */
+	void Load(FArchive& Ar);
+
+
+	/** Core storage also track a binding to it's parameter name */
+	FBindingToParameterNameMap BindingToParameterName;
+
+	using FSetOfBinding = TSet<TSharedRef<FDataprepParameterizationBinding>, FDataprepParametrizationBindingSetKeyFuncs>;
+
+	/** Track the name usage for parameters */
+	TMap<FName, FSetOfBinding> NameToBindings;
+
+	/** Track which binding a object has */
+	TMap<UObject*, FSetOfBinding> ObjectToBindings;
 };
+
 
 /** 
  * The DataprepParameterization contains the data for the parameterization of a pipeline
  */
-UCLASS(MinimalAPI)
+UCLASS(MinimalAPI, Experimental)
 class UDataprepParameterization : public UObject
 {
 public:
@@ -132,14 +223,12 @@ private:
 	 */
 	UProperty* AddPropertyToClass(FName ParameterisationPropertyName, UProperty& Property);
 
+	// The containers for the bindings
 	UPROPERTY()
-	TMap<FDataprepParameterizationBinding, FName> BindingsFromPipeline;
+	UDataprepParameterizationBindings* BindingsContainer;
 
 	UPROPERTY(Transient, NonTransactional)
-	TMap<FName, UProperty*> NameToParameterizationProperty; // Just a cache for the CustomFindProperty
-
-	/** Track the name usage for parameters */
-	TMap<FName, TSet<FDataprepParameterizationBinding>> NameUsage;
+	TMap<FName, UProperty*> NameToParameterizationProperty;
 
 	UPROPERTY(Transient, NonTransactional)
 	UClass* CustomContainerClass;
@@ -170,7 +259,7 @@ private:
 };
 
 
-UCLASS(MinimalAPI)
+UCLASS(MinimalAPI, Experimental)
 class UDataprepParameterizationInstance : public UObject
 {
 public:
