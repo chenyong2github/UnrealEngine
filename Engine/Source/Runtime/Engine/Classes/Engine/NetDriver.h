@@ -1576,6 +1576,8 @@ protected:
 
 private:
 
+	ENGINE_API virtual enum class ECreateReplicationChangelistMgrFlags GetCreateReplicationChangelistMgrFlags() const;
+
 	FDelegateHandle PostGarbageCollectHandle;
 	void PostGarbageCollect();
 
