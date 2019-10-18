@@ -4,8 +4,6 @@
 #include "GroomActions.h"
 
 #include "FbxHairTranslator.h"
-#include "HairFormatTranslator.h"
-#include "PbrtHairTranslator.h"
 
 IMPLEMENT_MODULE(FHairStrandsEditor, HairStrandsEditor);
 
@@ -18,8 +16,6 @@ void FHairStrandsEditor::StartupModule()
 	RegisteredAssetTypeActions.Add(AssetActions);
 
 	RegisterHairTranslator<FFbxHairTranslator>();
-	RegisterHairTranslator<FHairFormatTranslator>();
-	RegisterHairTranslator<FPbrtHairTranslator>();
 }
 
 void FHairStrandsEditor::ShutdownModule()
