@@ -59,6 +59,7 @@ public:
 	TArray<USoundBusModulatorBase*> Modulators;
 
 #if WITH_EDITOR
+	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostInitProperties() override;
 	virtual void PostRename(UObject* OldOuter, const FName OldName) override;
@@ -98,39 +99,10 @@ class USoundLPFControlBus : public USoundControlBusBase
 	virtual ESoundModulatorOperator GetOperator() const { return ESoundModulatorOperator::Min; }
 };
 
-namespace AudioModulation
+UCLASS(BlueprintType, hidecategories = Object, editinlinenew, MinimalAPI)
+class USoundControlBus : public USoundControlBusBase
 {
-	class FControlBusProxy : public TModulatorProxyRefBase<FBusId>
-	{
-	public:
-		FControlBusProxy();
-		FControlBusProxy(const USoundControlBusBase& Bus);
+	GENERATED_UCLASS_BODY()
 
-		void OnUpdateProxy(const FControlBusProxy& InBusProxy);
-
-		float GetDefaultValue() const;
-		const TArray<FLFOId>& GetLFOIds() const;
-		float GetLFOValue() const;
-		float GetMixValue() const;
-		FVector2D GetRange() const;
-		float GetValue() const;
-		void MixIn(const float InValue);
-		void MixLFO(LFOProxyMap& LFOMap);
-		void Reset();
-
-	private:
-		float Mix(float ValueA) const;
-		float Mix(float ValueA, float ValueB) const;
-
-		float DefaultValue;
-
-		// Cached values
-		float LFOValue;
-		float MixValue;
-
-		TArray<FLFOId> LFOIds;
-		ESoundModulatorOperator Operator;
-		FVector2D Range;
-	};
-	using BusProxyMap = TMap<FBusId, FControlBusProxy>;
-} // namespace AudioModulation
+	virtual ESoundModulatorOperator GetOperator() const { return ESoundModulatorOperator::Multiply; }
+};

@@ -53,24 +53,3 @@ public:
 	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite)
 	uint8 bLooping : 1;
 };
-
-namespace AudioModulation
-{
-	class FModulatorLFOProxy : public TModulatorProxyRefBase<FLFOId>
-	{
-	public:
-		FModulatorLFOProxy();
-		FModulatorLFOProxy(const USoundBusModulatorLFO& InLFO);
-
-		void OnUpdateProxy(const FModulatorLFOProxy& InLFOProxy);
-
-		float GetValue() const;
-		void Update(float InElapsed);
-
-	private:
-		Audio::FLFO LFO;
-		float Offset;
-		float Value;
-	};
-	using LFOProxyMap = TMap<FBusId, FModulatorLFOProxy>;
-} // namespace AudioModulation
