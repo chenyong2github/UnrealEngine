@@ -97,6 +97,8 @@ public:
 	virtual void SetBaseOrientation(const FQuat& BaseOrient) override;
 	virtual FQuat GetBaseOrientation() const override;
 	//virtual TSharedPtr<class IXRCamera, ESPMode::ThreadSafe> GetXRCamera(int32 DeviceId = HMDDeviceId) override;
+	virtual class IHeadMountedDisplay* GetHMDDevice() override { return this; }
+	virtual class TSharedPtr< class IStereoRendering, ESPMode::ThreadSafe > GetStereoRenderingDevice() override { return SharedThis(this); }
 	//virtual class IXRInput* GetXRInput() override;
 	virtual bool IsHeadTrackingEnforced() const override;
 	virtual void SetHeadTrackingEnforced(bool bEnabled) override;
