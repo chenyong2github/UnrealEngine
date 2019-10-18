@@ -25,8 +25,13 @@ static FAutoConsoleVariableRef CVarEnableSafeZoneScale(
 
 void SSafeZone::SetGlobalSafeZoneScale(TOptional<float> InScale)
 {
+	float NewScale = InScale.Get(1.f);
+	if (NewScale < 0)
+	{
+		NewScale = 1.f;
+	}
 	bEnableSafeZoneScale = InScale.IsSet();
-	GSafeZoneScale = InScale.Get(0.f);
+	GSafeZoneScale = NewScale;
 
 	FCoreDelegates::OnSafeFrameChangedEvent.Broadcast();
 }
