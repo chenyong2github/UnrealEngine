@@ -589,12 +589,30 @@ bool FConcertWorkspaceUI::HasSessionChanges() const
 
 bool FConcertWorkspaceUI::PromptPersistSessionChanges()
 {
-	TArray<FSourceControlStateRef> States;
 	TSharedPtr<IConcertClientWorkspace> ClientWorkspacePin = ClientWorkspace.Pin();
+	TArray<TSharedPtr<FConcertPersistItem>> PersistItems;
 	if (ClientWorkspacePin.IsValid())
 	{
-		// Get file status of packages and config
-		ISourceControlModule::Get().GetProvider().GetState(ClientWorkspacePin->GatherSessionChanges(), States, EStateCacheUsage::ForceUpdate);
+		// Get source control status of packages 
+		TArray<FName> PackageNames;
+		TArray<FString> PackageFilenames;
+		TArray<FSourceControlStateRef> States;
+		PackageNames = ClientWorkspacePin->GatherSessionChanges();
+		FString Filename;
+		for (const FName& PackageName : PackageNames)
+		{
+			if (FPackageName::DoesPackageExist(PackageName.ToString(), nullptr, &Filename))
+			{
+				PackageFilenames.Add(FPaths::ConvertRelativePathToFull(MoveTemp(Filename)));
+			}
+		}
+		ISourceControlModule::Get().GetProvider().GetState(PackageFilenames, States, EStateCacheUsage::ForceUpdate);
+
+		// Create the list of persist items from the package names and source control state
+		for (int32 Index = 0; Index < PackageNames.Num(); ++Index)
+		{
+			PersistItems.Add(MakeShared<FConcertPersistItem>(PackageNames[Index], States[Index]));
+		}
 	}
 	
 	TSharedRef<SWindow> NewWindow = SNew(SWindow)
@@ -607,7 +625,7 @@ bool FConcertWorkspaceUI::PromptPersistSessionChanges()
 	TSharedRef<SConcertSandboxPersistWidget> PersistWidget =
 		SNew(SConcertSandboxPersistWidget)
 		.ParentWindow(NewWindow)
-		.Items(States);
+		.Items(PersistItems);
 
 	NewWindow->SetContent(
 		PersistWidget
@@ -630,7 +648,7 @@ bool FConcertWorkspaceUI::PromptPersistSessionChanges()
 	FText NotificationSub;
 
 	TArray<FText> PersistFailures;
-	bool bSuccess = ClientWorkspacePin->PersistSessionChanges(PersistCmd.FilesToPersist, &ISourceControlModule::Get().GetProvider(), &PersistFailures);
+	bool bSuccess = ClientWorkspacePin->PersistSessionChanges(PersistCmd.PackagesToPersist, &ISourceControlModule::Get().GetProvider(), &PersistFailures);
 	if (bSuccess)
 	{
 		bSuccess = SubmitChangelist(PersistCmd, NotificationSub);
