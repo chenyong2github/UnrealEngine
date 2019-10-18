@@ -421,7 +421,7 @@ protected:
 		return FAxisAlignedBox3d(Min, Max);
 	}
 
-	const double BoxEps = 50.0 * FMathd::Epsilon;
+	const double BoxEps = FMathd::ZeroTolerance;
 
 	double BoxDistanceSqr(int IBox, const FVector3d& V) const
 	{
