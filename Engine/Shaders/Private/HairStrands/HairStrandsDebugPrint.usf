@@ -14,9 +14,9 @@ SamplerState LinearSampler;
 Texture2D<uint> HairVisibilityNodeOffsetAndCount;
 StructuredBuffer<FNodeData> HairVisibilityNodeData;
 
-#define DEBUG_MODE_SAMPLE_COUNT 0 
-#define DEBUG_MODE_COVERAGE_TYPE 1
-#define DEBUG_MODE_TAA_RESOLVE_TYPE 2
+#if PERMUTATION_COVERAGE == 1
+Texture2D<float> CoverageTexture;
+#endif 
 
 #define MATERIAL_DATA 0
 #define DETAIL_DATA 0
@@ -105,8 +105,9 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	Pos = ShaderPrintNewline(Pos);
 	Pos.x = OriginalPos.x;
 
-	// Coverage
-	#if 0
+	// Accurate coverage
+	#if PERMUTATION_COVERAGE == 1
+	const float PixelCoverage = CoverageTexture.Load(uint3(PixelPos,0));
 	Pos = ShaderPrintSymbol(Pos, _C_);
 	Pos = ShaderPrintSymbol(Pos, _O_);
 	Pos = ShaderPrintSymbol(Pos, _V_);
@@ -116,7 +117,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	Pos = ShaderPrintSymbol(Pos, _G_);
 	Pos = ShaderPrintSymbol(Pos, _E_);
 	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrint(Pos, CatData.PixelCoverage);
+	Pos = ShaderPrint(Pos, PixelCoverage);
 
 	Pos = ShaderPrintNewline(Pos);
 	Pos.x = OriginalPos.x;
