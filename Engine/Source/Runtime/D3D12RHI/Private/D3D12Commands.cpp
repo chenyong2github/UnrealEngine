@@ -1413,7 +1413,7 @@ void FD3D12CommandContext::RHIDrawIndexedIndirect(FRHIIndexBuffer* IndexBufferRH
 	// determine 16bit vs 32bit indices
 	const DXGI_FORMAT Format = (IndexBuffer->GetStride() == sizeof(uint16) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT);
 
-	StateCache.SetIndexBuffer(&IndexBuffer->ResourceLocation, Format, 0);
+	StateCache.SetIndexBuffer(IndexBuffer->ResourceLocation, Format, 0);
 
 	FD3D12ResourceLocation& Location = ArgumentsBuffer->ResourceLocation;
 	FD3D12DynamicRHI::TransitionResource(CommandListHandle, Location.GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
@@ -1463,7 +1463,7 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitive(FRHIIndexBuffer* IndexBufferR
 
 	// determine 16bit vs 32bit indices
 	const DXGI_FORMAT Format = (IndexBuffer->GetStride() == sizeof(uint16) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT);
-	StateCache.SetIndexBuffer(&IndexBuffer->ResourceLocation, Format, 0);
+	StateCache.SetIndexBuffer(IndexBuffer->ResourceLocation, Format, 0);
 	StateCache.ApplyState<D3D12PT_Graphics>();
 
 	CommandListHandle->DrawIndexedInstanced(IndexCount, NumInstances, StartIndex, BaseVertexIndex, FirstInstance);
@@ -1490,7 +1490,7 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitiveIndirect(FRHIIndexBuffer* Inde
 
 	// Set the index buffer.
 	const DXGI_FORMAT Format = (IndexBuffer->GetStride() == sizeof(uint16) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT);
-	StateCache.SetIndexBuffer(&IndexBuffer->ResourceLocation, Format, 0);
+	StateCache.SetIndexBuffer(IndexBuffer->ResourceLocation, Format, 0);
 
 	FD3D12ResourceLocation& Location = ArgumentBuffer->ResourceLocation;
 	FD3D12DynamicRHI::TransitionResource(CommandListHandle, Location.GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
