@@ -27,7 +27,7 @@ static FAutoConsoleVariableRef CVarStrandHairShadowRasterizationScale(TEXT("r.Ha
 static float GDeepShadowAABBScale = 1.0f;
 static FAutoConsoleVariableRef CVarDeepShadowAABBScale(TEXT("r.HairStrands.DeepShadow.AABBScale"), GDeepShadowAABBScale, TEXT("Scaling value for loosing/tighting deep shadow bounding volume"));
 
-static int32 GHairVisibilityRectOptimEnable = 1;
+static int32 GHairVisibilityRectOptimEnable = 0;
 static FAutoConsoleVariableRef CVarHairVisibilityRectOptimEnable(TEXT("r.HairStrands.RectLightingOptim"), GHairVisibilityRectOptimEnable, TEXT("Hair Visibility use projected view rect to light only relevant pixels"));
 
 float SampleCountToSubPixelSize(uint32 SamplePerPixelCount)
