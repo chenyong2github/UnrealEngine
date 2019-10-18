@@ -132,7 +132,7 @@ void FMovieSceneEventParametersCustomization::OnStructChanged(const FAssetData& 
 		static_cast<FMovieSceneEventParameters*>(Value)->Reassign(NewStruct);
 	}
 
-	FPropertyChangedEvent BubbleChangeEvent(PropertyHandle->GetProperty(), EPropertyChangeType::ValueSet, nullptr);
+	FPropertyChangedEvent BubbleChangeEvent(PropertyHandle->GetProperty(), EPropertyChangeType::ValueSet);
 
 	// post notify
 	if (Hook)
@@ -163,7 +163,7 @@ void FMovieSceneEventParametersCustomization::OnEditStructChildContentsChanged()
 		static_cast<FMovieSceneEventParameters*>(Value)->OverwriteWith(EditStructData->GetStructMemory());
 	}
 
-	FPropertyChangedEvent BubbleChangeEvent(PropertyHandle->GetProperty(), EPropertyChangeType::ValueSet, nullptr);
+	FPropertyChangedEvent BubbleChangeEvent(PropertyHandle->GetProperty(), EPropertyChangeType::ValueSet);
 	PropertyUtilities->NotifyFinishedChangingProperties(BubbleChangeEvent);
 }
 

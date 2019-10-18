@@ -1,6 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "PyWrapperOwnerContext.h"
+#include "PyWrapperObject.h"
+#include "PyWrapperStruct.h"
 
 #if WITH_PYTHON
 
@@ -48,6 +50,69 @@ const UProperty* FPyWrapperOwnerContext::GetOwnerProperty() const
 void FPyWrapperOwnerContext::AssertValidConversionMethod(const EPyConversionMethod InMethod) const
 {
 	::AssertValidPyConversionOwner(GetOwnerObject(), InMethod);
+}
+
+TUniquePtr<FPropertyAccessChangeNotify> FPyWrapperOwnerContext::BuildChangeNotify() const
+{
+#if WITH_EDITOR
+	TUniquePtr<FPropertyAccessChangeNotify> ChangeNotify = MakeUnique<FPropertyAccessChangeNotify>();
+
+	auto AppendOwnerPropertyToChain = [&ChangeNotify](const FPyWrapperOwnerContext& InOwnerContext) -> bool
+	{
+		const UProperty* LeafProp = nullptr;
+		if (PyObject_IsInstance(InOwnerContext.GetOwnerObject(), (PyObject*)&PyWrapperObjectType) == 1 || PyObject_IsInstance(InOwnerContext.GetOwnerObject(), (PyObject*)&PyWrapperStructType) == 1)
+		{
+			LeafProp = InOwnerContext.GetOwnerProperty();
+		}
+
+		if (LeafProp)
+		{
+			ChangeNotify->ChangedPropertyChain.AddHead(const_cast<UProperty*>(LeafProp));
+			return true;
+		}
+
+		return false;
+	};
+
+	FPyWrapperOwnerContext OwnerContext = *this;
+	while (OwnerContext.HasOwner() && AppendOwnerPropertyToChain(OwnerContext))
+	{
+		PyObject* PyObj = OwnerContext.GetOwnerObject();
+
+		if (PyObj == GetOwnerObject())
+		{
+			ChangeNotify->ChangedPropertyChain.SetActivePropertyNode(ChangeNotify->ChangedPropertyChain.GetHead()->GetValue());
+		}
+
+		if (PyObject_IsInstance(PyObj, (PyObject*)&PyWrapperObjectType) == 1)
+		{
+			// Found an object, this is the end of the chain
+			ChangeNotify->ChangedObject = ((FPyWrapperObject*)PyObj)->ObjectInstance;
+			ChangeNotify->ChangedPropertyChain.SetActiveMemberPropertyNode(ChangeNotify->ChangedPropertyChain.GetHead()->GetValue());
+			break;
+		}
+
+		if (PyObject_IsInstance(PyObj, (PyObject*)&PyWrapperStructType) == 1)
+		{
+			// Found a struct, recurse up the chain
+			OwnerContext = ((FPyWrapperStruct*)PyObj)->OwnerContext;
+			continue;
+		}
+
+		// Unknown object type - just bail
+		break;
+	}
+
+	// If we didn't find an object in the chain then we can't emit notifications
+	if (!ChangeNotify->ChangedObject)
+	{
+		ChangeNotify.Reset();
+	}
+
+	return ChangeNotify;
+#else
+	return nullptr;
+#endif
 }
 
 #endif	// WITH_PYTHON

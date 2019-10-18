@@ -697,7 +697,7 @@ void FComponentTransformDetails::OnSetAbsoluteTransform(ETransformField::Type Tr
 
 	if (bBeganTransaction)
 	{
-		FPropertyChangedEvent PropertyChangedEvent(AbsoluteProperty, EPropertyChangeType::ValueSet, (const TArray<const UObject*>*)&ModifiedObjects);
+		FPropertyChangedEvent PropertyChangedEvent(AbsoluteProperty, EPropertyChangeType::ValueSet, MakeArrayView(ModifiedObjects));
 
 		for (UObject* Object : ModifiedObjects)
 		{
@@ -1027,7 +1027,7 @@ void FComponentTransformDetails::OnSetTransform(ETransformField::Type TransformF
 	bool bBeganTransaction = false;
 	TArray<UObject*> ModifiedObjects;
 
-	FPropertyChangedEvent PropertyChangedEvent(ValueProperty, !bCommitted ? EPropertyChangeType::Interactive : EPropertyChangeType::ValueSet, (const TArray<const UObject*>*)&ModifiedObjects);
+	FPropertyChangedEvent PropertyChangedEvent(ValueProperty, !bCommitted ? EPropertyChangeType::Interactive : EPropertyChangeType::ValueSet, MakeArrayView(ModifiedObjects));
 	FEditPropertyChain PropertyChain;
 
 	if (AxisProperty)

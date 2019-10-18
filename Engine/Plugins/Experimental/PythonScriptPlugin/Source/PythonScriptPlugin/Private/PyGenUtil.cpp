@@ -504,8 +504,8 @@ FGeneratedWrappedPropertyDoc::FGeneratedWrappedPropertyDoc(const UProperty* InPr
 	PythonPropName = GetPropertyPythonName(InProp);
 
 	const FString PropTooltip = GetFieldTooltip(InProp);
-	DocString = PythonizePropertyTooltip(PropTooltip, InProp);
-	EditorDocString = PythonizePropertyTooltip(PropTooltip, InProp, CPF_EditConst);
+	DocString = PythonizePropertyTooltip(PropTooltip, InProp, PropertyAccessUtil::RuntimeReadOnlyFlags);
+	EditorDocString = PythonizePropertyTooltip(PropTooltip, InProp, PropertyAccessUtil::EditorReadOnlyFlags);
 }
 
 bool FGeneratedWrappedPropertyDoc::SortPredicate(const FGeneratedWrappedPropertyDoc& InOne, const FGeneratedWrappedPropertyDoc& InTwo)
@@ -706,7 +706,7 @@ FPythonizeTooltipContext::FPythonizeTooltipContext(const UProperty* InProp, cons
 FPythonizeTooltipContext::FPythonizeTooltipContext(const UFunction* InFunc, const TSet<FName>& InParamsToIgnore)
 	: Prop(nullptr)
 	, Func(InFunc)
-	, ReadOnlyFlags(CPF_BlueprintReadOnly | CPF_EditConst)
+	, ReadOnlyFlags(PropertyAccessUtil::RuntimeReadOnlyFlags)
 	, ParamsToIgnore(InParamsToIgnore)
 {
 	if (Func)
@@ -1158,7 +1158,7 @@ bool InvokePythonCallableFromUnrealFunctionThunk(FPyObjectPtr InSelf, PyObject* 
 	return true;
 }
 
-PyObject* GetPropertyValue(const UStruct* InStruct, void* InStructData, const FGeneratedWrappedProperty& InPropDef, const char *InAttributeName, PyObject* InOwnerPyObject, const TCHAR* InErrorCtxt)
+PyObject* GetPropertyValue(const UStruct* InStruct, const void* InStructData, const FGeneratedWrappedProperty& InPropDef, const char *InAttributeName, PyObject* InOwnerPyObject, const TCHAR* InErrorCtxt)
 {
 	// Has this property been deprecated?
 	if (InStruct && InPropDef.Prop && InPropDef.DeprecationMessage.IsSet())
@@ -1183,7 +1183,7 @@ PyObject* GetPropertyValue(const UStruct* InStruct, void* InStructData, const FG
 	return PyUtil::GetPropertyValue(InStruct, InStructData, InPropDef.Prop, InAttributeName, InOwnerPyObject, InErrorCtxt);
 }
 
-int SetPropertyValue(const UStruct* InStruct, void* InStructData, PyObject* InValue, const FGeneratedWrappedProperty& InPropDef, const char *InAttributeName, const FPyWrapperOwnerContext& InChangeOwner, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate, const TCHAR* InErrorCtxt)
+int SetPropertyValue(const UStruct* InStruct, void* InStructData, PyObject* InValue, const FGeneratedWrappedProperty& InPropDef, const char *InAttributeName, const FPropertyAccessChangeNotify* InChangeNotify, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate, const TCHAR* InErrorCtxt)
 {
 	// Has this property been deprecated?
 	if (InStruct && InPropDef.Prop && InPropDef.DeprecationMessage.IsSet())
@@ -1205,7 +1205,7 @@ int SetPropertyValue(const UStruct* InStruct, void* InStructData, PyObject* InVa
 		}
 	}
 
-	return PyUtil::SetPropertyValue(InStruct, InStructData, InValue, InPropDef.Prop, InAttributeName, InChangeOwner, InReadOnlyFlags, InOwnerIsTemplate, InErrorCtxt);
+	return PyUtil::SetPropertyValue(InStruct, InStructData, InValue, InPropDef.Prop, InAttributeName, InChangeNotify, InReadOnlyFlags, InOwnerIsTemplate, InErrorCtxt);
 }
 
 FString BuildFunctionDocString(const UFunction* InFunc, const FString& InFuncPythonName, const TArray<FGeneratedWrappedMethodParameter>& InInputParams, const TArray<FGeneratedWrappedMethodParameter>& InOutputParams, const bool* InStaticOverride)
