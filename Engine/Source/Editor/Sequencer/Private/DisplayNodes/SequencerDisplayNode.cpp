@@ -710,6 +710,11 @@ bool FSequencerDisplayNode::IsDimmed() const
 		return true;
 	};
 
+	if (GetSequencer().IsReadOnly())
+	{
+		return true;
+	}
+
 	FSequencerDisplayNode *This = const_cast<FSequencerDisplayNode*>(this);
 	//if empty with no key areas or sections then it's active, otherwise
 	//find first child with active section, then it's active, else inactive.
