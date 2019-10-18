@@ -1,14 +1,14 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "LevelVariantSetsActorFactory.h"
-#include "LevelVariantSetsActor.h"
-#include "LevelVariantSets.h"
 
-#include "AssetData.h"
+#include "LevelVariantSets.h"
+#include "LevelVariantSetsActor.h"
+
 #include "ActorFactories/ActorFactory.h"
+#include "AssetData.h"
 
 #define LOCTEXT_NAMESPACE "ALevelVariantSetsActorFactory"
-
 
 ULevelVariantSetsActorFactory::ULevelVariantSetsActorFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
