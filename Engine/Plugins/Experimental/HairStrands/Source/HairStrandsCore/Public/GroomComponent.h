@@ -11,7 +11,24 @@
 
 #include "GroomComponent.generated.h"
 
-/** Component that allows you to specify custom triangle mesh geometry */
+USTRUCT(BlueprintType)
+struct FHairGroupDesc
+{
+	GENERATED_USTRUCT_BODY()
+
+	/** Number of hairs within this hair group.  */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Groom")
+	int32 HairCount;
+
+	/** Number of simulation guides within this hair group. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Groom")
+	int32 GuideCount;
+
+	/** Override the hair width (in centimeters) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Groom", meta = (ClampMin = "0.0001", UIMin = "0.001", UIMax = "1.0", SliderExponent = 6))
+	float HairWidth;
+};
+
 UCLASS(HideCategories = (Object, Physics, Activation, Mobility, "Components|Activation"), editinlinenew, meta = (BlueprintSpawnableComponent), ClassGroup = Rendering)
 class HAIRSTRANDSCORE_API UGroomComponent : public UMeshComponent
 {
@@ -19,7 +36,7 @@ class HAIRSTRANDSCORE_API UGroomComponent : public UMeshComponent
 
 public:
 
-	/** Hair strand asset used for rendering. */
+	/** Groom asset . */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Groom")
 	UGroomAsset* GroomAsset;
 
@@ -98,6 +115,10 @@ public:
 		FHairStrandsRestResource* SimRestResources = nullptr;
 	};
 	typedef TArray<FHairGroupResource> FHairGroupResources;
+
+	/** Groom's groups info. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Groom")
+	TArray<FHairGroupDesc> GroomGroupsDesc;
 
 	FHairGroupResources HairGroupResources;
 	struct FHairStrandsInterpolationOutput* InterpolationOutput = nullptr;
