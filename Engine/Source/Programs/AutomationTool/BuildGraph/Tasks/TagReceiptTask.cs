@@ -30,44 +30,44 @@ namespace AutomationTool.Tasks
 		public DirectoryReference EngineDir;
 
 		/// <summary>
-		/// Path to the project folder, used to expand $(ProjectDir) properties in receipt files. Defaults to the Engine directory for the current workspace. DEPRECATED.
+		/// Path to the project folder, used to expand $(ProjectDir) properties in receipt files. Defaults to the Engine directory for the current workspace -- DEPRECATED.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public DirectoryReference ProjectDir;
 
 		/// <summary>
-		/// Whether to tag the Build Products listed in receipts
+		/// Whether to tag the Build Products listed in receipts.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public bool BuildProducts;
 
 		/// <summary>
-		/// Which type of Build Products to tag (See TargetReceipt.cs - UnrealBuildTool.BuildProductType for valid values)
+		/// Which type of Build Products to tag (see TargetReceipt.cs - UnrealBuildTool.BuildProductType for valid values).
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public string BuildProductType;
 
 		/// <summary>
-		/// Whether to tag the Runtime Dependencies listed in receipts
+		/// Whether to tag the Runtime Dependencies listed in receipts.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public bool RuntimeDependencies;
 
 		/// <summary>
-		/// Which type of Runtime Dependencies to tag (See TargetReceipt.cs - UnrealBuildTool.StagedFileType for valid values)
+		/// Which type of Runtime Dependencies to tag (see TargetReceipt.cs - UnrealBuildTool.StagedFileType for valid values).
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public string StagedFileType;
 
 		/// <summary>
-		/// Name of the tag to apply
+		/// Name of the tag to apply.
 		/// </summary>
 		[TaskParameter(ValidationType = TaskParameterValidationType.TagList)]
 		public string With;
 	}
 
 	/// <summary>
-	/// Task which tags build products and/or runtime dependencies by reading from *.target files.
+	/// Task that tags build products and/or runtime dependencies by reading from *.target files.
 	/// </summary>
 	[TaskElement("TagReceipt", typeof(TagReceiptTaskParameters))]
 	class TagReceiptTask : CustomTask
