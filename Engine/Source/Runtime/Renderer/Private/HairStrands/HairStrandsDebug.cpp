@@ -49,7 +49,7 @@ static FAutoConsoleVariableRef CVarHairDebugMeshProjection_HairDeformedFrames(TE
 // Helper functions for accessing interpolation data for debug purpose.
 // Definitions is in HairStrandsInterface.cpp
 void GetGroomInterpolationData(const EWorldType::Type WorldType, FHairStrandsProjectionMeshData& OutGeometries);
-void GetGroomInterpolationData(const EWorldType::Type WorldType, FHairStrandsProjectionHairDatas& OutHairData, TArray<int32>& OutLODIndices);
+void GetGroomInterpolationData(const EWorldType::Type WorldType, FHairStrandsProjectionHairData& OutHairData, TArray<int32>& OutLODIndices);
 
 enum class EHairDebugMode : uint8
 {
@@ -554,7 +554,7 @@ static void AddDebugProjectionMeshPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo* View,
 	const bool bClearDepth,
-	FHairStrandsProjectionMeshSection& MeshSectionData,
+	FHairStrandsProjectionMeshData::Section& MeshSectionData,
 	FRDGTextureRef& ColorTexture, 
 	FRDGTextureRef& DepthTexture)
 {	
@@ -707,7 +707,7 @@ static void AddDebugProjectionHairPass(
 	const EDebugProjectionHairType GeometryType,
 	const HairStrandsTriangleType PoseType,
 	const int32 LODIndex,
-	const FHairStrandsProjectionHairData& HairData,
+	const FHairStrandsProjectionHairData::HairGroup& HairData,
 	FRDGTextureRef& ColorTarget,
 	FRDGTextureRef& DepthTexture)
 {
@@ -911,18 +911,18 @@ void RenderHairStrandsDebugInfo(FRHICommandListImmediate& RHICmdList, TArray<FVi
 			check(ViewFamily.Scene && ViewFamily.Scene->GetWorld());
 			const bool bIsActive = DebugInfo.WorldType == ViewFamily.Scene->GetWorld()->WorldType;
 
-			Line = FString::Printf(TEXT(" * Id:%d | WorldType:%s | Group count : %d"), DebugInfo.Id, ToString(DebugInfo.WorldType), DebugInfo.GroupInfos.Num());
+			Line = FString::Printf(TEXT(" * Id:%d | WorldType:%s | Group count : %d"), DebugInfo.Id, ToString(DebugInfo.WorldType), DebugInfo.HairGroups.Num());
 			Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), bIsActive ? DebugColor : InactiveColor);
 
-			for (const FHairStrandsDebugInfo::FGroupInfo& DebugGroupInfo : DebugInfo.GroupInfos)
+			for (const FHairStrandsDebugInfo::HairGroup& DebugHairGroup : DebugInfo.HairGroups)
 			{
 				Line = FString::Printf(TEXT("        |> CurveCount : %d | VertexCount : %d | MaxRadius : %f | MaxLength : %f | Skinned: %s | LOD count : %d"),
-					DebugGroupInfo.CurveCount,
-					DebugGroupInfo.VertexCount,
-					DebugGroupInfo.MaxRadius,
-					DebugGroupInfo.MaxLength,
-					DebugGroupInfo.bHasSkinInterpolation ? TEXT("True") : TEXT("False"),
-					DebugGroupInfo.LODCount);
+					DebugHairGroup.CurveCount,
+					DebugHairGroup.VertexCount,
+					DebugHairGroup.MaxRadius,
+					DebugHairGroup.MaxLength,
+					DebugHairGroup.bHasSkinInterpolation ? TEXT("True") : TEXT("False"),
+					DebugHairGroup.LODCount);
 				Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), bIsActive ? DebugColor : InactiveColor);
 			}
 		}
@@ -1080,20 +1080,20 @@ void RenderHairStrandsDebugInfo(FRHICommandListImmediate& RHICmdList, TArray<FVi
 
 			if (GHairDebugMeshProjection_SkinCacheMesh > 0)
 			{
-				for (FHairStrandsProjectionMeshSection& Section : MeshProjectionData.Sections)
+				for (FHairStrandsProjectionMeshData::Section& Section : MeshProjectionData.Sections)
 				{
 					AddDebugProjectionMeshPass(GraphBuilder, &View, bClearDepth, Section, SceneColorTexture, DepthTexture);
 					bClearDepth = false;
 				}
 			}
 
-			FHairStrandsProjectionHairDatas HairProjectionDatas;
+			FHairStrandsProjectionHairData HairProjectionDatas;
 			TArray<int32> HairLODIndices;
 			GetGroomInterpolationData(WorldType, HairProjectionDatas, HairLODIndices);
-			check(HairProjectionDatas.HairData.Num() == HairLODIndices.Num());
-			for (int32 HairIndex=0; HairIndex < HairProjectionDatas.HairData.Num(); ++HairIndex)
+			check(HairProjectionDatas.HairGroups.Num() == HairLODIndices.Num());
+			for (int32 HairIndex=0; HairIndex < HairProjectionDatas.HairGroups.Num(); ++HairIndex)
 			{
-				const FHairStrandsProjectionHairData& Data = HairProjectionDatas.HairData[HairIndex];
+				const FHairStrandsProjectionHairData::HairGroup& Data = HairProjectionDatas.HairGroups[HairIndex];
 				const int32 LODIndex = HairLODIndices[HairIndex];
 
 				if (GHairDebugMeshProjection_HairRestTriangles > 0)
