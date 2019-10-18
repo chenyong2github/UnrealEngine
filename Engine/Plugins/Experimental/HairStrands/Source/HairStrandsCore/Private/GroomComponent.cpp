@@ -679,16 +679,16 @@ void UGroomComponent::InitResources()
 		BeginInitResource(Res.RenderDeformedResources);
 		BeginInitResource(Res.SimDeformedResources);
 
-		const FVector HairBoundCenter = GroupData.HairRenderData.BoundingBox.GetCenter();
+		const FVector RestHairPositionOffset = Res.RenderRestResources->PositionOffset;
 
 		FHairStrandsInterpolationOutput::HairGroup& InterpolationOutputGroup = InterpolationOutput->HairGroups.AddDefaulted_GetRef();
 		FHairStrandsInterpolationInput::FHairGroup& InterpolationInputGroup = InterpolationInput->HairGroups.AddDefaulted_GetRef();
 		InterpolationInputGroup.HairRadius = GroupData.HairRenderData.StrandsCurves.MaxRadius;
 		InterpolationInputGroup.HairRaytracingRadiusScale = HairRaytracingRadiusScale;
-		InterpolationInputGroup.InHairPositionOffset = HairBoundCenter;
+		InterpolationInputGroup.InHairPositionOffset = RestHairPositionOffset;
 		// For skinned groom, these value will be updated during TickComponent() call
-		InterpolationInputGroup.OutHairPositionOffset = HairBoundCenter; 
-		InterpolationInputGroup.OutHairPreviousPositionOffset = HairBoundCenter;
+		InterpolationInputGroup.OutHairPositionOffset = RestHairPositionOffset;
+		InterpolationInputGroup.OutHairPreviousPositionOffset = RestHairPositionOffset;
 	}
 
 	FHairStrandsInterpolationData Interpolation;
@@ -979,12 +979,34 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 
 					if (MeshProjectionState == EMeshProjectionState::WaitForRestPose && MeshProjectionTickDelay == 0)
 					{
+						FHairGroupResources* LocalResources = &HairGroupResources;
+
 						const FVector RestPositionOffset = MeshPositionOffset;
 						const uint32 LODIndex = MeshProjectionLODIndex;
 						ENQUEUE_RENDER_COMMAND(FHairStrandsTick_Projection)(
-							[Id, WorldType, FeatureLevel, LODIndex, RestPositionOffset](FRHICommandListImmediate& RHICmdList)
+							[Id, WorldType, FeatureLevel, LODIndex, RestPositionOffset, LocalResources](FRHICommandListImmediate& RHICmdList)
 						{
 							AddHairStrandsProjectionQuery(RHICmdList, Id, WorldType, LODIndex, RestPositionOffset);
+
+							// Update rest (sim/render) position offsets. This is used by Niagara.
+							for (FHairGroupResource& Res : *LocalResources)
+							{
+								if (Res.RenRootResources)
+								{
+									for (FHairStrandsRootResource::FMeshProjectionLOD& MeshProjectionLOD : Res.RenRootResources->MeshProjectionLODs)
+									{
+										MeshProjectionLOD.RestRootCenter = RestPositionOffset;
+									}
+								}
+
+								if (Res.SimRootResources)
+								{
+									for (FHairStrandsRootResource::FMeshProjectionLOD& MeshProjectionLOD : Res.SimRootResources->MeshProjectionLODs)
+									{
+										MeshProjectionLOD.RestRootCenter = RestPositionOffset;
+									}
+								}
+							}
 						});
 
 						MeshProjectionState = EMeshProjectionState::InProgressBinding;
@@ -1007,16 +1029,28 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 
 		// For skinned mesh update the relative center of hair positions after deformation
 		{
+			FHairGroupResources* LocalResources = &HairGroupResources;
+
 			const FVector OutHairPositionOffset = MeshPositionOffset;
 			const FVector OutHairPreviousPositionOffset = SkeletalPreviousPositionOffset;
 			FHairStrandsInterpolationInput* LocalInterpolationInput = InterpolationInput;
 			ENQUEUE_RENDER_COMMAND(FHairStrandsTick_OutHairPositionOffsetUpdate)(
-				[OutHairPositionOffset, OutHairPreviousPositionOffset, LocalInterpolationInput](FRHICommandListImmediate& RHICmdList)
+				[OutHairPositionOffset, OutHairPreviousPositionOffset, LocalInterpolationInput, LocalResources](FRHICommandListImmediate& RHICmdList)
 			{
 				for (FHairStrandsInterpolationInput::FHairGroup& HairGroup : LocalInterpolationInput->HairGroups)
 				{
 					HairGroup.OutHairPositionOffset = OutHairPositionOffset;
 					HairGroup.OutHairPreviousPositionOffset = OutHairPreviousPositionOffset;
+				}
+
+				// Update deformed (sim/render) hair position offsets. This is used by Niagara.
+				for (FHairGroupResource& Res : *LocalResources)
+				{
+					if (Res.RenderDeformedResources)
+						Res.RenderDeformedResources->PositionOffset = OutHairPositionOffset;
+
+					if (Res.SimDeformedResources)
+						Res.SimDeformedResources->PositionOffset = OutHairPositionOffset;
 				}
 			});
 
@@ -1035,16 +1069,36 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 		MeshProjectionTickDelay--;
 	}
 
+	FHairGroupResources* LocalResources = &HairGroupResources;
 	const FVector DeformedPositionCenter = GHairStrandsMeshUseRelativePosition > 0 ? MeshPositionOffset : FVector::ZeroVector;
 	const FTransform SkinLocalToWorld = SkeletalMeshComponent ? SkeletalMeshComponent->GetComponentTransform() : FTransform();
 	const FTransform HairLocalToWorld = GetComponentTransform();
 	ENQUEUE_RENDER_COMMAND(FHairStrandsTick_TransformUpdate)(
-		[Id, WorldType, HairLocalToWorld, SkinLocalToWorld, DeformedPositionCenter, FeatureLevel](FRHICommandListImmediate& RHICmdList)
+		[Id, WorldType, HairLocalToWorld, SkinLocalToWorld, DeformedPositionCenter, FeatureLevel, LocalResources](FRHICommandListImmediate& RHICmdList)
 	{		
 		if (ERHIFeatureLevel::Num == FeatureLevel)
 			return;
 
 		UpdateHairStrands(Id, WorldType, HairLocalToWorld, SkinLocalToWorld, DeformedPositionCenter);
+
+		// Update deformed (sim/render) triangles position offsets. This is used by Niagara.
+		for (FHairGroupResource& Res : *LocalResources)
+		{
+			if (Res.RenRootResources)
+			{
+				for (FHairStrandsRootResource::FMeshProjectionLOD& MeshProjectionLOD : Res.RenRootResources->MeshProjectionLODs)
+				{
+					MeshProjectionLOD.DeformedRootCenter = DeformedPositionCenter;
+				}
+			}
+			if (Res.SimRootResources)
+			{
+				for (FHairStrandsRootResource::FMeshProjectionLOD& MeshProjectionLOD : Res.SimRootResources->MeshProjectionLODs)
+				{
+					MeshProjectionLOD.DeformedRootCenter = DeformedPositionCenter;
+				}
+			}
+		}
 	});
 }
 
