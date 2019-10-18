@@ -471,22 +471,6 @@
 <Property Name="CopyLinuxFilter" Value="$(CopyLinuxFilter);Engine/Extras/ThirdPartyNotUE/putty/..."/>	
 
 <!-- Win64 specific -->
-	<!-- HTML5 -->
-	<Property Name="CopyHTML5Filter">
-		<!-- Build Files -->
-		Engine/Build/HTML5/...
-
-		<!-- SDK -->
-		Engine/Extras/ThirdPartyNotUE/emsdk/emscripten/...
-	</Property>
-	<Property Name="CopyHTML5Filter" Value="$(CopyHTML5Filter)" If="'$(HostPlatform)' == 'Win64'">
-		Engine/Extras/ThirdPartyNotUE/emsdk/Win64/...
-	</Property>
-	<Property Name="CopyHTML5Filter" Value="$(CopyHTML5Filter)" If="'$(HostPlatform)' == 'Mac'">
-		Engine/Extras/ThirdPartyNotUE/emsdk/Mac/...
-	</Property>
-		<Property Name="CopyHTML5Exceptions">
-	</Property>
 
 	<!-- PS4 -->
 	<Property Name="CopyPS4Filter">
