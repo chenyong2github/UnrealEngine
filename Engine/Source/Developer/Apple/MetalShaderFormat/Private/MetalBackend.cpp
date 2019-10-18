@@ -282,24 +282,24 @@ class FGenerateMetalVisitor : public ir_visitor
 				{
 					case 1:
 					{
-						return R32Uint;
+						return EMetalBufferFormat::R32Uint;
 					}
 					case 2:
 					{
-						return RG32Uint;
+						return EMetalBufferFormat::RG32Uint;
 					}
 					case 3:
 					{
-						return RGB32Uint;
+						return EMetalBufferFormat::RGB32Uint;
 					}
 					case 4:
 					{
-						return RGBA32Uint;
+						return EMetalBufferFormat::RGBA32Uint;
 					}
 					default:
 					{
 						check(0);
-						return Unknown;
+						return EMetalBufferFormat::Unknown;
 					}
 				}
 			}
@@ -309,24 +309,24 @@ class FGenerateMetalVisitor : public ir_visitor
 				{
 					case 1:
 					{
-						return R32Sint;
+						return EMetalBufferFormat::R32Sint;
 					}
 					case 2:
 					{
-						return RG32Sint;
+						return EMetalBufferFormat::RG32Sint;
 					}
 					case 3:
 					{
-						return RGB32Sint;
+						return EMetalBufferFormat::RGB32Sint;
 					}
 					case 4:
 					{
-						return RGBA32Sint;
+						return EMetalBufferFormat::RGBA32Sint;
 					}
 					default:
 					{
 						check(0);
-						return Unknown;
+						return EMetalBufferFormat::Unknown;
 					}
 				}
 			}
@@ -336,24 +336,24 @@ class FGenerateMetalVisitor : public ir_visitor
 				{
 					case 1:
 					{
-						return R16Half;
+						return EMetalBufferFormat::R16Half;
 					}
 					case 2:
 					{
-						return RG16Half;
+						return EMetalBufferFormat::RG16Half;
 					}
 					case 3:
 					{
-						return RGB16Half;
+						return EMetalBufferFormat::RGB16Half;
 					}
 					case 4:
 					{
-						return RGBA16Half;
+						return EMetalBufferFormat::RGBA16Half;
 					}
 					default:
 					{
 						check(0);
-						return Unknown;
+						return EMetalBufferFormat::Unknown;
 					}
 				}
 			}
@@ -363,31 +363,31 @@ class FGenerateMetalVisitor : public ir_visitor
 				{
 					case 1:
 					{
-						return R32Float;
+						return EMetalBufferFormat::R32Float;
 					}
 					case 2:
 					{
-						return RG32Float;
+						return EMetalBufferFormat::RG32Float;
 					}
 					case 3:
 					{
-						return RGB32Float;
+						return EMetalBufferFormat::RGB32Float;
 					}
 					case 4:
 					{
-						return RGBA32Float;
+						return EMetalBufferFormat::RGBA32Float;
 					}
 					default:
 					{
 						check(0);
-						return Unknown;
+						return EMetalBufferFormat::Unknown;
 					}
 				}
 			}
 			default:
 			{
 				check(0);
-				return Unknown;
+				return EMetalBufferFormat::Unknown;
 			}
 		}
 	}
