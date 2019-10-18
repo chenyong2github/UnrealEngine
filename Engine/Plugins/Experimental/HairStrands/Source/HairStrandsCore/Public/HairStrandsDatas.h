@@ -158,7 +158,7 @@ struct FHairStrandsWeightFormat
 */
 struct FHairStrandsMeshTrianglePositionFormat
 {
-#if 0
+#if 1
 	using Type = FVector4;
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
