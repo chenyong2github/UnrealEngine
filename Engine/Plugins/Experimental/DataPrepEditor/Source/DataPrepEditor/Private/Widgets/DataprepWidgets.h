@@ -28,6 +28,7 @@ class SDataprepConsumerWidget : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SDataprepConsumerWidget)
+		: _DataprepConsumer(nullptr)
 	{}
 
 	SLATE_ARGUMENT(TSharedPtr< FDataprepDetailsViewColumnSizeData >, ColumnSizeData)
@@ -37,15 +38,27 @@ public:
 public:
 	void Construct(const FArguments& InArgs );
 
+	/** Update DataprepConsumerPtr and content folder's and level name's text boxes */
 	void SetDataprepConsumer( UDataprepContentConsumer* DataprepConsumer );
 
 private:
+	/** Create complete widget from valid UDataprepContentConsumer object */
 	TSharedRef<SWidget> BuildWidget();
+	/** Create empty widget from invalid UDataprepContentConsumer object */
 	TSharedRef<SWidget> BuildNullWidget();
+	/** Callback when content of level name's text box has changed */
 	void OnLevelNameChanged( const FText& NewLevelName, ETextCommit::Type CommitType );
+	/** Callback when browser's button is clicked */
 	void OnBrowseContentFolder();
+	/** Callback when content of content folder's text box has changed */
+	void OnTextCommitted( const FText&, ETextCommit::Type );
+
+	/** Update content folder's and level name's text boxes */
+	void OnConsumerChanged();
+	/** Update content folder's text boxes */
 	void UpdateContentFolderText();
 
+	/** Callbacks to update splitter */
 	void OnLeftColumnResized(float InNewWidth)
 	{
 		// This has to be bound or the splitter will take it upon itself to determine the size
@@ -57,10 +70,13 @@ private:
 	void OnSetColumnWidth(float InWidth) { ColumnWidth = InWidth; }
 
 private:
-	TWeakObjectPtr<UDataprepContentConsumer> DataprepConsumer;
+	/** Weak pointer on edited consumer */
+	TWeakObjectPtr<UDataprepContentConsumer> DataprepConsumerPtr;
+	/** Content folder's text box */
 	TSharedPtr< SEditableTextBox > ContentFolderTextBox;
+	/** Level name's text box */
 	TSharedPtr< SEditableTextBox > LevelTextBox;
-	// Helps sync column resizing with another part of the UI (producers widget).
+	/** Helps sync column resizing with another part of the UI (producers widget) */
 	TSharedPtr< FDataprepDetailsViewColumnSizeData > ColumnSizeData;
 	/** Relative width to control splitters. */
 	float ColumnWidth;
