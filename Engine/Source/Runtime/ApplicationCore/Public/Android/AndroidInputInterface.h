@@ -141,6 +141,9 @@ struct FAndroidGamepadDeviceMapping
 	// Device supports hat as dpad
 	bool bSupportsHat;
 
+	// Device uses threshold to send button pressed events.
+	bool bTriggersUseThresholdForClick;
+
 	// Map L1 and R1 to LTRIGGER and RTRIGGER
 	bool bMapL1R1ToTriggers;
 
