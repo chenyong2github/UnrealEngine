@@ -7,6 +7,7 @@
 #include "DataprepAssetView.h"
 #include "DataprepEditorLogCategory.h"
 #include "DataprepEditorUtils.h"
+#include "DataprepParameterizableObject.h"
 #include "Parameterization/DataprepParameterizationUtils.h"
 
 #include "ContentBrowserModule.h"
@@ -438,7 +439,7 @@ TSharedRef< SWidget > SDataprepDetailsView::CreateDefaultWidget( TSharedPtr< SWi
 							if ( UDataprepAsset* DataprepAsset = DataprepAssetForParameterization.Get() )
 							{
 								FScopedTransaction Transaction( LOCTEXT("DataprepBindingToParameterization","Adding Parameter") );
-								DataprepAssetForParameterization->BindObjectPropertyToParameterization( DetailedObject, PropertyChain, *PropertyChain.Last().CachedProperty->GetDisplayNameText().ToString() );
+								DataprepAssetForParameterization->BindObjectPropertyToParameterization( DetailedObjectAsParameterizable, PropertyChain, *PropertyChain.Last().CachedProperty->GetDisplayNameText().ToString() );
 								bRefreshObjectToDisplay = true;
 							}
 
@@ -464,7 +465,7 @@ TSharedRef< SWidget > SDataprepDetailsView::CreateDefaultWidget( TSharedPtr< SWi
 						if (UDataprepAsset * DataprepAsset = DataprepAssetForParameterization.Get())
 						{
 							FScopedTransaction Transaction( LOCTEXT("DataprepRemoveBindingFromParameterization","Removing Parameter") );
-							DataprepAssetForParameterization->RemoveObjectPropertyFromParameterization( DetailedObject, PropertyChain );
+							DataprepAssetForParameterization->RemoveObjectPropertyFromParameterization( DetailedObjectAsParameterizable, PropertyChain );
 							bRefreshObjectToDisplay = true;
 						}
 
@@ -538,6 +539,11 @@ void SDataprepDetailsView::OnObjectReplaced(const TMap<UObject*, UObject*>& Repl
 	if ( UObject * const* ObjectPtr = ReplacementObjectMap.Find( DetailedObject ) )
 	{
 		DetailedObject = *ObjectPtr;
+		if ( DetailedObject->IsA<UDataprepParameterizableObject>() )
+		{
+			DetailedObjectAsParameterizable = static_cast<UDataprepParameterizableObject*>( DetailedObject );
+		}
+
 		bRefreshObjectToDisplay = true;
 	}
 }
@@ -600,7 +606,7 @@ void SDataprepDetailsView::AddWidgets( const TArray< TSharedRef< IDetailTreeNode
 		{
 			if ( UDataprepAsset* DataprepAsset = DataprepAssetForParameterization.Get() )
 			{
-				if ( DataprepAsset->IsObjectPropertyBinded( DetailedObject, CurrentParameterizationContext.PropertyChain ) )
+				if ( DataprepAsset->IsObjectPropertyBinded( DetailedObjectAsParameterizable, CurrentParameterizationContext.PropertyChain ) )
 				{
 					CurrentParameterizationContext.State = EParametrizationState::IsParameterized;
 				}
@@ -718,6 +724,10 @@ void SDataprepDetailsView::Construct(const FArguments& InArgs)
 {
 	bRefreshObjectToDisplay = false;
 	DetailedObject = InArgs._Object;
+	if ( DetailedObject->IsA<UDataprepParameterizableObject>() )
+	{
+		DetailedObjectAsParameterizable = static_cast<UDataprepParameterizableObject*>( DetailedObject );
+	}
 
 	if (InArgs._ColumnSizeData.IsValid())
 	{
@@ -767,7 +777,7 @@ void SDataprepDetailsView::Construct()
 		}
 
 		FDataprepParameterizationContext ParameterizationContext;
-		ParameterizationContext.State = DataprepAsset ? EParametrizationState::CanBeParameterized : EParametrizationState::InvalidForParameterization;
+		ParameterizationContext.State = DataprepAsset && DetailedObjectAsParameterizable ? EParametrizationState::CanBeParameterized : EParametrizationState::InvalidForParameterization;
 		DataprepAssetForParameterization = DataprepAsset;
 
 		TSharedPtr<SGridPanel> GridPanel = SNew(SGridPanel).FillColumn( 0.0f, 1.0f );
@@ -849,8 +859,19 @@ void SDataprepDetailsView::SetObjectToDisplay(UObject& Object)
 	if ( DetailedObject != NewObjectToDisplay )
 	{
 		DetailedObject = NewObjectToDisplay;
+		if ( DetailedObject->IsA<UDataprepParameterizableObject>() )
+		{
+			DetailedObjectAsParameterizable = static_cast<UDataprepParameterizableObject*>( DetailedObject );
+		}
 		bRefreshObjectToDisplay = true;
 	}
+}
+
+void SDataprepDetailsView::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObject( DetailedObject );
+	Collector.AddReferencedObject( DetailedObjectAsParameterizable );
+	Collector.AddReferencedObjects( TrackedProperties );
 }
 
 #undef LOCTEXT_NAMESPACE

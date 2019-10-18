@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "DataprepParameterizableObject.h"
+
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
@@ -11,10 +13,10 @@
 /**
  * The Dataprep fetcher is a base class for Dataprep Selection system.
  * The responsibility of fetcher is return a certain type of data for a object. (Look at DataprepStringFetcher for a example)
- * This absract base class exist currently for the discovery process and some compile time validation
+ * This abstract base class exist currently for the discovery process, some compile time validation and to propagate UDataprepParameterizableObject
  */
 UCLASS(Abstract)
-class DATAPREPCORE_API UDataprepFetcher : public UObject
+class DATAPREPCORE_API UDataprepFetcher : public UDataprepParameterizableObject
 {
 	GENERATED_BODY()
 
