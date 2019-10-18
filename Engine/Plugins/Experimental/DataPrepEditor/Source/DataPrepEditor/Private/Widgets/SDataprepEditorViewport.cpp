@@ -1020,6 +1020,20 @@ void SDataprepEditorViewport::SelectActors(const TArray< AActor* >& SelectedActo
 	UpdateSelection();
 }
 
+void SDataprepEditorViewport::SetActorVisibility(AActor* SceneActor, bool bInVisibility)
+{
+	TArray< UStaticMeshComponent* > SceneComponents;
+	SceneActor->GetComponents< UStaticMeshComponent >(SceneComponents);
+	for (UStaticMeshComponent* SceneComponent : SceneComponents)
+	{
+		UStaticMeshComponent** PreviewComponent = MeshComponentsMapping.Find(SceneComponent);
+		if (PreviewComponent)
+		{
+			(*PreviewComponent)->SetVisibility(bInVisibility);
+		}
+	}
+}
+
 void SDataprepEditorViewport::UpdateSelection()
 {
 	TSharedPtr<FDataprepEditor> DataprepEditorPtr = DataprepEditor.Pin();

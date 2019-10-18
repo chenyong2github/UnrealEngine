@@ -170,6 +170,9 @@ public:
 
 	void SelectActors( const TArray< AActor* >& SelectedActors );
 
+	/** Change visibility of preview mesh components */
+	void SetActorVisibility(AActor* SceneActor, bool bInVisibility);
+
 protected:
 	/** SEditorViewport interface */
 	virtual TSharedRef<FEditorViewportClient> MakeEditorViewportClient() override;
