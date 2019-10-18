@@ -76,7 +76,7 @@ struct FHairStrandsRootResource : public FRenderResource
 struct FHairStrandsRestResource : public FRenderResource
 {
 	/** Build the hair strands resource */
-	FHairStrandsRestResource(const FHairStrandsDatas::FRenderData& HairStrandRenderData);
+	FHairStrandsRestResource(const FHairStrandsDatas::FRenderData& HairStrandRenderData, const FVector& PositionOffset);
 
 	/* Init the buffer */
 	virtual void InitRHI() override;
@@ -92,6 +92,9 @@ struct FHairStrandsRestResource : public FRenderResource
 
 	/* Strand hair offset buffer */
 	FRWBuffer AttributeBuffer;
+
+	/* Position offset as the rest positions are expressed in relative coordinate (16bits) */
+	FVector PositionOffset = FVector::ZeroVector;
 
 	/* Reference to the hair strands render data */
 	const FHairStrandsDatas::FRenderData& RenderData;
@@ -116,6 +119,9 @@ struct FHairStrandsDeformedResource : public FRenderResource
 
 	/* Strand hair tangent buffer */
 	FRWBuffer TangentBuffer;
+
+	/* Position offset as the deformed positions are expressed in relative coordinate (16bits) */
+	FVector PositionOffset = FVector::ZeroVector;
 
 	/* Reference to the hair strands render data */
 	const FHairStrandsDatas::FRenderData& RenderData;
