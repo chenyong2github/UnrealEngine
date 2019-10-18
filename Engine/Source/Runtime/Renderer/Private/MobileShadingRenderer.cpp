@@ -72,6 +72,8 @@ static TAutoConsoleVariable<int32> CVarMobileAdrenoOcclusionMode(
 	TEXT("1: Render occlusion queries after translucency and a flush, which can help Adreno devices in GL mode."),
 	ECVF_RenderThreadSafe);
 
+DECLARE_GPU_STAT_NAMED(MobileSceneRender, TEXT("Mobile Scene Render"));
+
 DECLARE_CYCLE_STAT(TEXT("SceneStart"), STAT_CLMM_SceneStart, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("SceneEnd"), STAT_CLMM_SceneEnd, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("InitViews"), STAT_CLMM_InitViews, STATGROUP_CommandListMarkers);
@@ -327,6 +329,9 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 {
 	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_SceneStart));
+
+	SCOPED_DRAW_EVENT(RHICmdList, MobileSceneRender);
+	SCOPED_GPU_STAT(RHICmdList, MobileSceneRender);
 
 	Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
 
