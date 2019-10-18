@@ -10,10 +10,12 @@
 #include "Engine/Engine.h"
 #include "Math/UnrealMathUtility.h"
 #include "Parameterization/DataprepParameterizationUtils.h"
-#include "Serialization/ObjectReader.h"
+#include "Serialization/Archive.h"
 #include "Templates/UnrealTemplate.h"
 #include "UObject/Object.h"
 #include "UObject/PropertyPortFlags.h"
+#include "UObject/StructOnScope.h"
+#include "UObject/UObjectGlobals.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UnrealType.h"
 
@@ -322,6 +324,7 @@ bool FDataprepParameterizationBinding::operator==(const FDataprepParameterizatio
 	return ObjectBinded == Other.ObjectBinded && GetTypeHash(PropertyChain) == GetTypeHash(Other.PropertyChain) && ValueType == Other.ValueType;
 }
 
+
 uint32 GetTypeHash(const FDataprepParameterizationBinding& Binding)
 {
 	uint32 Hash = GetTypeHash( Binding.ObjectBinded );
@@ -340,6 +343,239 @@ uint32 GetTypeHash(const TArray<FDataprepPropertyLink>& PropertyLinks)
 	return Hash;
 }
 
+
+bool UDataprepParameterizationBindings::ContainsBinding(const TSharedRef<FDataprepParameterizationBinding>& Binding) const
+{
+	return BindingToParameterName.Contains( Binding );
+}
+
+bool UDataprepParameterizationBindings::HasBindingsForParameter(FName ParameterName) const
+{
+	return NameToBindings.Contains( ParameterName );
+}
+
+void UDataprepParameterizationBindings::Add(const TSharedRef<FDataprepParameterizationBinding>& Binding, FName ParamerterName)
+{
+	Modify();
+
+	uint32 BindingHash = GetTypeHash( Binding.Get() );
+
+	if ( FName* ExistingParameterName = BindingToParameterName.FindByHash( BindingHash, Binding ) )
+	{
+		if ( *ExistingParameterName != ParamerterName )
+		{
+			// Remove the trace of the old mapping
+			NameToBindings.FindRef( *ExistingParameterName ).RemoveByHash( BindingHash, Binding );
+		}
+	}
+
+	BindingToParameterName.AddByHash( BindingHash, Binding, ParamerterName );
+	NameToBindings.FindOrAdd( ParamerterName ).AddByHash( BindingHash, Binding );
+	ObjectToBindings.FindOrAdd( Binding->ObjectBinded ).AddByHash( BindingHash, Binding );
+}
+
+FName UDataprepParameterizationBindings::RemoveBinding(const TSharedRef<FDataprepParameterizationBinding>& Binding)
+{
+	uint32 BindingHash = GetTypeHash( Binding.Get() );
+	if ( FName* ParameterName = BindingToParameterName.FindByHash( BindingHash, Binding ) )
+	{
+		Modify();
+
+		// 1) Remove from the map binding to parameter
+		BindingToParameterName.RemoveByHash( BindingHash, Binding );
+		
+		// 2) Remove from the map parameter to bindings
+		{
+			if ( FSetOfBinding* BindingsMappedToParameter = NameToBindings.Find( *ParameterName ) )
+			{
+				if ( BindingsMappedToParameter->Num() <= 1 )
+				{
+					NameToBindings.Remove( *ParameterName );
+				}
+				else
+				{
+					BindingsMappedToParameter->RemoveByHash( BindingHash, Binding );
+				}
+			}
+		}
+
+		// 3) Remove from the map object to bindings
+		{
+			UObject* Object = Binding->ObjectBinded;
+			uint32 ObjectHash = GetTypeHash( Object );
+			if ( FSetOfBinding* BindingsMappedToObject = ObjectToBindings.FindByHash( ObjectHash, Object ) )
+			{
+				if ( BindingsMappedToObject->Num() <= 1 )
+				{
+					ObjectToBindings.RemoveByHash( ObjectHash, Object );
+				}
+				else
+				{
+					BindingsMappedToObject->RemoveByHash( BindingHash, Binding );
+				}
+			}
+		}
+
+		return *ParameterName;
+	}
+
+	return NAME_None;
+}
+
+const UDataprepParameterizationBindings::FBindingToParameterNameMap& UDataprepParameterizationBindings::GetBindingToParameterName() const
+{
+	return BindingToParameterName;
+}
+
+void UDataprepParameterizationBindings::Serialize(FArchive& Ar)
+{
+	Super::Serialize( Ar );
+
+	if ( Ar.IsSaving() )
+	{
+		Save( Ar );
+	}
+	else if ( Ar.IsLoading() )
+	{
+		Load( Ar );
+	}
+}
+
+void UDataprepParameterizationBindings::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+{
+	UDataprepParameterizationBindings* Bindings = CastChecked<UDataprepParameterizationBindings>( InThis );
+
+	for ( TPair<UObject*, FSetOfBinding>& Pair : Bindings->ObjectToBindings )
+	{
+		Collector.AddReferencedObject( Pair.Key );
+
+		FSetOfBinding& BindingSet = Pair.Value;
+		for ( TSharedRef<FDataprepParameterizationBinding>& Binding : BindingSet )
+		{
+			Collector.AddReferencedObject( Binding->ObjectBinded );
+			Collector.AddReferencedObject( Binding->ValueType );
+		}
+	}
+
+	Super::AddReferencedObjects( InThis, Collector );
+}
+
+void UDataprepParameterizationBindings::Save(FArchive& Ar)
+{
+	// 1) Save the data for the name to bindings
+	{
+		int32 NumberOfParameter = NameToBindings.Num();
+		Ar << NumberOfParameter;
+		for ( const TPair<FName, FSetOfBinding>& PairNameAndBindings : NameToBindings )
+		{
+			FName ParameterName = PairNameAndBindings.Key;
+			Ar << ParameterName;
+			int32 NumberOfBinding = PairNameAndBindings.Value.Num();
+			Ar << NumberOfBinding;
+		}
+	}
+
+	// 2) Save the data for the object to bindings
+	{
+		int32 NumberOfObjectBinded = ObjectToBindings.Num();
+		Ar << NumberOfObjectBinded;
+		for ( const TPair<UObject*, FSetOfBinding>& PairObjectAndBindings : ObjectToBindings )
+		{
+			UObject* Object = PairObjectAndBindings.Key;
+			Ar << Object;
+			int32 NumberOfBinding = PairObjectAndBindings.Value.Num();
+			Ar << NumberOfBinding;
+		}
+	}
+
+	// 3) Do the actual save of the bindings
+	{
+		int32 NumberOfBinding = BindingToParameterName.Num();
+		Ar << NumberOfBinding;
+		UScriptStruct* StaticStruct = FDataprepParameterizationBinding::StaticStruct();
+
+		for (const TPair<TSharedRef<FDataprepParameterizationBinding>, FName>& PairBindingToParameterName : BindingToParameterName)
+		{
+			FDataprepParameterizationBinding& Binding = PairBindingToParameterName.Key.Get();
+			StaticStruct->SerializeItem( Ar, &Binding, nullptr );
+
+			FName ParameterName =  PairBindingToParameterName.Value;
+			Ar << ParameterName;
+		}
+	}
+}
+
+void UDataprepParameterizationBindings::Load(FArchive& Ar)
+{
+	// 1) Load the data for the name to bindings (prepare the structure for the insertion of data later)
+	{
+		int32 NumOfUniqueParameterName;
+		Ar << NumOfUniqueParameterName;
+		NameToBindings.Empty( NumOfUniqueParameterName );
+
+		for ( int32 Index = 0; Index < NumOfUniqueParameterName; Index++ )
+		{
+			FName ParameterName;
+			Ar << ParameterName;
+			FSetOfBinding& Bindings = NameToBindings.FindOrAdd( ParameterName );
+
+			int32 NumOfBindingForParameter;
+			Ar << NumOfBindingForParameter;
+			Bindings.Reserve( NumOfBindingForParameter );
+		}
+	}
+
+	// 2) Load the data for the object to bindings (prepare the structure for the insertion of data later)
+	{
+		int32 NumOfObjectBinded;
+		Ar << NumOfObjectBinded;
+		ObjectToBindings.Empty( NumOfObjectBinded );
+
+		for ( int32 Index = 0; Index < NumOfObjectBinded; Index++ )
+		{
+			UObject* Object = nullptr;
+			Ar << Object;
+
+			FSetOfBinding& Bindings = ObjectToBindings.FindOrAdd( Object );
+
+			int32 NumOfBindingForObject;
+			Ar << NumOfBindingForObject;
+			Bindings.Reserve( NumOfBindingForObject );
+		}
+	}
+
+	// 3) Do the actual loading of the binding
+	{
+		int32 NumOfBindings;
+		Ar << NumOfBindings;
+		BindingToParameterName.Empty( NumOfBindings );
+
+		UScriptStruct* StaticStruct = FDataprepParameterizationBinding::StaticStruct();
+
+		for (int32 Index = 0; Index < NumOfBindings; Index++)
+		{
+			TSharedRef<FDataprepParameterizationBinding> BindingPtr = MakeShared<FDataprepParameterizationBinding>();
+			FDataprepParameterizationBinding& Binding = BindingPtr.Get();
+			StaticStruct->SerializeItem( Ar, &Binding, nullptr );
+
+			FName ParameterizationName;
+			Ar << ParameterizationName;
+
+			if ( Binding.ObjectBinded )
+			{
+				uint32 BindingHash = GetTypeHash( Binding );
+
+				BindingToParameterName.AddByHash( BindingHash, BindingPtr, ParameterizationName );
+
+				NameToBindings.FindOrAdd( ParameterizationName ).AddByHash( BindingHash, BindingPtr );
+
+				ObjectToBindings.FindOrAdd( BindingPtr->ObjectBinded ).AddByHash( BindingHash, MoveTemp( BindingPtr ) );
+			}
+		}
+	}
+}
+
+
 UDataprepParameterization::UDataprepParameterization()
 {
 	OnObjectModifiedHandle = FCoreUObjectDelegates::OnObjectModified.AddUObject( this, &UDataprepParameterization::OnObjectModified );
@@ -356,6 +592,13 @@ void UDataprepParameterization::PostInitProperties()
 
 	if ( !HasAnyFlags( RF_ClassDefaultObject | RF_NeedLoad ) )
 	{
+		SetFlags( RF_Public );
+
+		if ( !BindingsContainer )
+		{
+			BindingsContainer = NewObject<UDataprepParameterizationBindings>( this, NAME_None, RF_Transactional );
+		}
+
 		GenerateClass();
 	}
 }
@@ -365,6 +608,12 @@ void UDataprepParameterization::PostLoad()
 	if ( !HasAnyFlags( RF_ClassDefaultObject | RF_NeedLoad ) )
 	{
 		SetFlags( RF_Public );
+
+		if ( !BindingsContainer )
+		{
+			BindingsContainer = NewObject<UDataprepParameterizationBindings>(this, NAME_None, RF_Transactional);
+		}
+
 		LoadParameterization();
 	}
 	Super::PostLoad();
@@ -418,25 +667,21 @@ bool UDataprepParameterization::BindObjectProperty(UObject* InObject, const TArr
 {
 	if ( InObject && InPropertyChain.Num() > 0 && !ParameterName.IsNone() )
 	{
-		FDataprepParameterizationBinding Binding( InObject, InPropertyChain );
+		TSharedRef<FDataprepParameterizationBinding> Binding = MakeShared<FDataprepParameterizationBinding>( InObject, InPropertyChain );
 		void* AddressOfTheValueFromBinding;
 
 		// We expect the chain to have a valid chain of cached property before inserting the binding
-		if ( DataprepParameterization::GetDeepestLevelOfValidCache( Binding, AddressOfTheValueFromBinding) == InPropertyChain.Num() - 1 )
+		if ( DataprepParameterization::GetDeepestLevelOfValidCache( Binding.Get(), AddressOfTheValueFromBinding) == InPropertyChain.Num() - 1 )
 		{
 			if ( UProperty** PropertyPtr = NameToParameterizationProperty.Find( ParameterName ) )
 			{
 				UProperty* Property = *PropertyPtr;
 
-
 				// Ensure that the properties type match
-				if ( Property->GetClass() == Binding.ValueType && !BindingsFromPipeline.Contains( Binding ) )
+				if ( Property->GetClass() == Binding->ValueType )
 				{
 					Modify();
-
-					// Valid bind the add binding to the name
-					BindingsFromPipeline.Add( Binding, ParameterName );
-					NameUsage.FindOrAdd( ParameterName ).Add( Binding );
+					BindingsContainer->Add( Binding, ParameterName );
 				}
 			}
 			else
@@ -444,8 +689,8 @@ bool UDataprepParameterization::BindObjectProperty(UObject* InObject, const TArr
 				Modify();
 				OnCustomClassAboutToBeUpdated.Broadcast();
 
-				BindingsFromPipeline.Add( MoveTemp(Binding) , ParameterName );
-				NameUsage.FindOrAdd( ParameterName ).Add( FDataprepParameterizationBinding(InObject, InPropertyChain) );
+				BindingsContainer->Add( Binding, ParameterName );
+			
 				UProperty* SourceProperty = InPropertyChain.Last().CachedProperty.Get();
 
 				// The validation we did with GetDeepestLevelOfValidCache ensure us that the property ptr is valid
@@ -467,30 +712,22 @@ bool UDataprepParameterization::BindObjectProperty(UObject* InObject, const TArr
 
 bool UDataprepParameterization::IsObjectPropertyBinded(UObject* Object, const TArray<FDataprepPropertyLink>& PropertyChain) const
 {
-	FDataprepParameterizationBinding Binding( Object, PropertyChain );
-	return BindingsFromPipeline.Contains( Binding );
+	TSharedRef<FDataprepParameterizationBinding> Binding= MakeShared<FDataprepParameterizationBinding>( Object, PropertyChain );
+	return BindingsContainer->ContainsBinding( Binding );
 }
 
 void UDataprepParameterization::RemoveBindedObjectProperty(UObject* Object, const TArray<FDataprepPropertyLink>& PropertyChain)
 {
-	FDataprepParameterizationBinding Binding( Object, PropertyChain );
-	uint32 Hash = GetTypeHash( Binding );
-	FName* ParameterNamePtr = BindingsFromPipeline.FindByHash( Hash, Binding );
-	if ( ParameterNamePtr )
+	TSharedRef<FDataprepParameterizationBinding> Binding = MakeShared<FDataprepParameterizationBinding>( Object, PropertyChain );
+
+	Modify();
+
+	FName ParameterOfRemovedBinding = BindingsContainer->RemoveBinding( Binding );
+	if ( !BindingsContainer->HasBindingsForParameter( ParameterOfRemovedBinding ) )
 	{
-		Modify();
 		OnCustomClassAboutToBeUpdated.Broadcast();
-		BindingsFromPipeline.RemoveByHash( Hash, Binding );
-		FName ParameterName = *ParameterNamePtr; 
-		if ( TSet<FDataprepParameterizationBinding>* BindingAssociatedToName = NameUsage.Find( ParameterName ) )
-		{
-			BindingAssociatedToName->RemoveByHash( Hash, Binding );
-			if ( BindingAssociatedToName->Num() == 0 )
-			{
-				NameToParameterizationProperty.Remove( ParameterName );
-				UpdateClass();
-			}
-		}
+		NameToParameterizationProperty.Remove( ParameterOfRemovedBinding );
+		UpdateClass();
 	}
 }
 
@@ -498,8 +735,8 @@ void UDataprepParameterization::GenerateClass()
 {
 	if ( !CustomContainerClass )
 	{
-		CustomContainerClass = NewObject<UClass>(GetOutermost(), FName(TEXT("Parameterization")), RF_Transient );
-		CustomContainerClass->SetSuperStruct(UObject::StaticClass());
+		CustomContainerClass = NewObject<UClass>( GetOutermost(), FName( TEXT("Parameterization") ), RF_Transient );
+		CustomContainerClass->SetSuperStruct( UObject::StaticClass() );
 
 		// Make the properties appear in a alphabetically order (for that we must add the properties to the class in the reverse order)
 		NameToParameterizationProperty.KeySort([](const FName& First, const FName& Second)
@@ -509,8 +746,8 @@ void UDataprepParameterization::GenerateClass()
 
 		for ( TPair<FName, UProperty*>& Pair : NameToParameterizationProperty )
 		{
-			UProperty* NewProperty = DuplicateObject<UProperty>(Pair.Value, CustomContainerClass, Pair.Key);
-			NewProperty->SetFlags(RF_Transient);
+			UProperty* NewProperty = DuplicateObject<UProperty>( Pair.Value, CustomContainerClass, Pair.Key );
+			NewProperty->SetFlags( RF_Transient );
 			NewProperty->PropertyFlags = CPF_Edit;
 
 			// Need to manually call Link to fix-up some data (such as the C++ property flags) that are only set during Link
@@ -519,16 +756,16 @@ void UDataprepParameterization::GenerateClass()
 				NewProperty->LinkWithoutChangingOffset(Ar);
 			}
 
-			CustomContainerClass->AddCppProperty(NewProperty);
+			CustomContainerClass->AddCppProperty( NewProperty );
 
 			Pair.Value = NewProperty;
 		}
 
 		CustomContainerClass->Bind();
-		CustomContainerClass->StaticLink(true);
-		CustomContainerClass->AssembleReferenceTokenStream(true);
+		CustomContainerClass->StaticLink( true );
+		CustomContainerClass->AssembleReferenceTokenStream( true );
 
-		DefaultParameterisation = CustomContainerClass->GetDefaultObject(true);
+		DefaultParameterisation = CustomContainerClass->GetDefaultObject( true );
 	}
 }
 
@@ -561,16 +798,14 @@ void UDataprepParameterization::LoadParameterization()
 		CustomContainerClass = NewObject<UClass>( GetOutermost(), FName(TEXT("Parameterization")), RF_Transient );
 		CustomContainerClass->SetSuperStruct( UObject::StaticClass() );
 
-		TSet<FDataprepParameterizationBinding> BindingToRemove;
-		NameUsage.Empty( NameUsage.Num() );
+		TSet<TSharedRef<FDataprepParameterizationBinding>> BindingToRemove;
 		NameToParameterizationProperty.Empty( NameToParameterizationProperty.Num() );
 
-		for ( TPair<FDataprepParameterizationBinding, FName>& Binding : BindingsFromPipeline )
+		for ( const TPair<TSharedRef<FDataprepParameterizationBinding>, FName>& Binding : BindingsContainer->GetBindingToParameterName() )
 		{
 			const FName BindingName = Binding.Value;
-			NameUsage.FindOrAdd( BindingName ).Add( Binding.Key );
 
-			UProperty* PropertyFromChain = DataprepParameterization::GetPropertyFromBinding( Binding.Key );
+			UProperty* PropertyFromChain = DataprepParameterization::GetPropertyFromBinding( Binding.Key.Get() );
 			UProperty** PropertyFromParameterizationClass = NameToParameterizationProperty.Find( BindingName );
 
 			if ( PropertyFromChain && !PropertyFromParameterizationClass )
@@ -579,14 +814,14 @@ void UDataprepParameterization::LoadParameterization()
 			}
 			else if ( !PropertyFromChain || PropertyFromChain->GetClass() != (*PropertyFromParameterizationClass)->GetClass() )
 			{
-				BindingToRemove.Add(Binding.Key);
+				BindingToRemove.Add( Binding.Key ) ;
 			}
 		}
 
 		// Remove the invalid bindings
-		for ( const FDataprepParameterizationBinding& InvalidBinding : BindingToRemove )
+		for ( const TSharedRef<FDataprepParameterizationBinding>& InvalidBinding : BindingToRemove )
 		{
-			BindingsFromPipeline.Remove( InvalidBinding );
+			BindingsContainer->RemoveBinding( InvalidBinding );
 		}
 
 		// Make the properties appear in a alphabetically order (for that we must add the properties to the class in the reverse order)
@@ -750,20 +985,19 @@ void UDataprepParameterizationInstance::OnObjectModified(UObject* Object)
 void UDataprepParameterizationInstance::ApplyParameterization(const TMap<UObject*, UObject*>& SourceToCopy)
 {
 	check( SourceParameterization );
-	for ( TPair<FDataprepParameterizationBinding, FName>& BindingPair : SourceParameterization->BindingsFromPipeline )
+	for ( const TPair<TSharedRef<FDataprepParameterizationBinding>, FName>& BindingPair : SourceParameterization->BindingsContainer->GetBindingToParameterName() )
 	{
-		FDataprepParameterizationBinding& Binding = BindingPair.Key;
-		if ( UObject* Object = SourceToCopy.FindRef( Binding.ObjectBinded ) )
+		const TSharedRef<FDataprepParameterizationBinding>& Binding = BindingPair.Key;
+		if ( UObject* Object = SourceToCopy.FindRef( Binding->ObjectBinded ) )
 		{
-			TGuardValue<UObject*> GuardObjectBinded( Binding.ObjectBinded, Object );
+			TGuardValue<UObject*> GuardObjectBinded( Binding->ObjectBinded, Object );
 
 			void* DestinationAddress = nullptr;
-			if ( UProperty* DestinationProperty = DataprepParameterization::GetPropertyFromBinding( Binding, DestinationAddress ) )
+			if ( UProperty* DestinationProperty = DataprepParameterization::GetPropertyFromBinding( Binding.Get(), DestinationAddress ) )
 			{
 				UProperty* ParameterizationProperty = FindObjectFast<UProperty>( SourceParameterization->CustomContainerClass, BindingPair.Value );
 				void* ParameterizationAddress =  DataprepParameterization::GetAddressOf( *ParameterizationProperty, ParameterizationInstance, INDEX_NONE );
 				DataprepParameterization::CopyCompleteValue( *DestinationProperty, DestinationAddress, *ParameterizationProperty, ParameterizationAddress );
-				check( Object );
 			}
 		}
 	}
