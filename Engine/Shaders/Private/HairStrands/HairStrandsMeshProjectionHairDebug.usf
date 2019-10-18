@@ -14,6 +14,7 @@ uint			DeformedFrameEnable;
 #if PERMUTATION_INPUT_TYPE == INPUT_ROOT_FRAME
 Buffer<float4> RootPositionBuffer;
 Buffer<float4> RootNormalBuffer;
+Buffer<uint>   RootBarycentricBuffer;
 #endif
 
 Buffer<float4>  RestPosition0Buffer;
@@ -47,13 +48,14 @@ void MainVS(
 
 		float3 P0 = RootPositionBuffer[LineIndex].xyz;
 		float3 LN = RootNormalBuffer[LineIndex].xyz;
+		float3 B  = DecodeBarycentrics(RootBarycentricBuffer[LineIndex]);
 		float3 P1 = P0 + LN;
 
 
 		if (DeformedFrameEnable > 0)
 		{
-			P0 = TransformPoint(P0, RestTriangle, DeformedTriangle);
-			P1 = TransformPoint(P1, RestTriangle, DeformedTriangle);
+			P0 = TransformPoint(P0, B, RestTriangle, DeformedTriangle);
+			P1 = TransformPoint(P1, B, RestTriangle, DeformedTriangle);
 		}
 
 		P0 = mul(float4(P0, 1), RootLocalToWorld).xyz;
@@ -92,13 +94,23 @@ void MainVS(
 	#if 0
 	if (DeformedFrameEnable > 0)
 	{
+		float3 Barycentric = 0;
 		if (TriangleVertex == 0)
+		{
 			P = RestTriangle.P0;
+			Barycentric = float3(1, 0, 0);
+		}
 		if (TriangleVertex == 1)
+		{
 			P = RestTriangle.P1;
+			Barycentric = float3(0, 1, 0);
+		}
 		if (TriangleVertex == 2)
+		{
 			P = RestTriangle.P2;
-		P = TransformPoint(P, RestTriangle, DeformedTriangle);
+			Barycentric = float3(0, 0, 1);
+		}
+		P = TransformPoint(P, Barycentric, RestTriangle, DeformedTriangle);
 	}
 	#endif
 
