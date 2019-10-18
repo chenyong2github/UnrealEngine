@@ -32,7 +32,6 @@ FEditorSessionSummarySender::FEditorSessionSummarySender(IAnalyticsProvider& InA
 	, Sender(InSenderName)
 	, CurrentSessionProcessId(InCurrentSessionProcessId)
 {
-	SendStoredSessions();
 }
 
 FEditorSessionSummarySender::~FEditorSessionSummarySender()
@@ -60,6 +59,40 @@ void FEditorSessionSummarySender::SetCurrentSessionExitCode(const int32 InCurren
 {
 	check(CurrentSessionProcessId == InCurrentSessionProcessId);
 	CurrentSessionExitCode = InExitCode;
+}
+
+bool FEditorSessionSummarySender::FindCurrentSession(FEditorAnalyticsSession& OutSession) const
+{
+	if (FPlatformProcess::IsApplicationRunning(CurrentSessionProcessId))
+	{
+		// still running, can't be abnormal termination
+		return false;
+	}
+
+	bool bFound = false;
+
+	if (FEditorAnalyticsSession::Lock(FTimespan::FromMilliseconds(100)))
+	{
+		TArray<FEditorAnalyticsSession> ExistingSessions;
+		FEditorAnalyticsSession::LoadAllStoredSessions(ExistingSessions);
+
+		const int32 ProcessID = CurrentSessionProcessId;
+		FEditorAnalyticsSession* CurrentSession = ExistingSessions.FindByPredicate(
+			[ProcessID](const FEditorAnalyticsSession& Session)
+			{
+				return Session.PlatformProcessID == ProcessID;
+			});
+
+		if (CurrentSession != nullptr)
+		{
+			OutSession = *CurrentSession;
+			bFound = true;
+		}
+
+		FEditorAnalyticsSession::Unlock();
+	}
+
+	return bFound;
 }
 
 void FEditorSessionSummarySender::SendStoredSessions(const bool bForceSendCurrentSession) const
@@ -179,12 +212,16 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 	AnalyticsAttributes.Emplace(TEXT("IsInVRMode"), Session.bIsInVRMode);
 	AnalyticsAttributes.Emplace(TEXT("SentFrom"), Sender);
 
-	AnalyticsProvider.RecordEvent(TEXT("SessionSummary"), AnalyticsAttributes);
+	// was this sent from some other process than itself or the out-of-process monitor for that run?
+	AnalyticsAttributes.Emplace(TEXT("DelayedSend"), Session.PlatformProcessID != CurrentSessionProcessId);
 
 	if (Session.PlatformProcessID == CurrentSessionProcessId && CurrentSessionExitCode.IsSet())
 	{
 		AnalyticsAttributes.Emplace(TEXT("ExitCode"), CurrentSessionExitCode.GetValue());
 	}
+
+	// Send the event.
+	AnalyticsProvider.RecordEvent(TEXT("SessionSummary"), AnalyticsAttributes);
 
 	UE_LOG(LogEditorSessionSummary, Log, TEXT("EditorSessionSummary sent report. Type=%s, SessionId=%s"), *ShutdownTypeString, *SessionIdString);
 }

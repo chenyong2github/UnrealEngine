@@ -18,6 +18,7 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "HAL/PlatformCrashContext.h"
 #include "IAnalyticsProviderET.h"
+#include "XmlParser.h"
 
 #if !CRASH_REPORT_UNATTENDED_ONLY
 	#include "SCrashReportClient.h"
@@ -40,6 +41,7 @@
 #include "RecoveryService.h"
 
 #if CRASH_REPORT_WITH_MTBF
+#include "EditorAnalyticsSession.h"
 #include "EditorSessionSummarySender.h"
 #endif
 
@@ -456,7 +458,6 @@ FPlatformErrorReport CollectErrorReport(FRecoveryService* RecoveryService, uint3
 	{
 		DirectoryExists = FGenericCrashContext::CreateCrashReportDirectory(
 			SharedCrashContext.SessionContext.CrashGUIDRoot,
-			SharedCrashContext.SessionContext.GameName,
 			0,
 			ReportDirectoryAbsolutePath);
 	}
@@ -478,7 +479,10 @@ FPlatformErrorReport CollectErrorReport(FRecoveryService* RecoveryService, uint3
 	CrashContext.SerializeAsXML(*CrashContextXMLPath);
 
 #if CRASH_REPORT_WITH_RECOVERY
-	if (RecoveryService && DirectoryExists && SharedCrashContext.bSendUsageData && SharedCrashContext.CrashType != ECrashContextType::Ensure && FCrashReportCoreConfig::Get().GetSendLogFile())
+	if (RecoveryService && 
+		DirectoryExists && 
+		SharedCrashContext.UserSettings.bSendUsageData && 
+		SharedCrashContext.CrashType != ECrashContextType::Ensure)
 	{
 		RecoveryService->CollectFiles(ReportDirectoryAbsolutePath);
 	}
@@ -557,6 +561,159 @@ bool IsCrashReportAvailable(uint32 WatchedProcess, FSharedCrashContext& CrashCon
 	return false;
 }
 
+static void DeleteTempCrashContextFile(uint64 ProcessID)
+{
+	const FString SessionContextFile = FGenericCrashContext::GetTempSessionContextFilePath(ProcessID);
+	FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*SessionContextFile);
+}
+
+#if CRASH_REPORT_WITH_MTBF
+
+template <typename Type>
+bool FindAndParseValue(const TMap<FString, FString>& Map, const FString& Key, Type& OutValue)
+{
+	const FString* ValueString = Map.Find(Key);
+	if (ValueString != nullptr)
+	{
+		TTypeFromString<Type>::FromString(OutValue, **ValueString);
+		return true;
+	}
+
+	return false;
+}
+
+template <size_t Size>
+bool FindAndCopyValue(const TMap<FString, FString>& Map, const FString& Key, TCHAR (&OutValue)[Size])
+{
+	const FString* ValueString = Map.Find(Key);
+	if (ValueString != nullptr)
+	{
+		FCString::Strncpy(OutValue, **ValueString, Size);
+		return true;
+	}
+
+	return false;
+}
+
+static bool LoadTempCrashContextFromFile(FSharedCrashContext& CrashContext, uint64 ProcessID)
+{
+	const FString TempContextFilePath = FGenericCrashContext::GetTempSessionContextFilePath(ProcessID);
+
+	FXmlFile File;
+	if (!File.LoadFile(TempContextFilePath))
+	{
+		return false;
+	}
+
+	TMap<FString, FString> ContextProperties;
+	for (FXmlNode* Node : File.GetRootNode()->GetChildrenNodes())
+	{
+		ContextProperties.Add(Node->GetTag(), Node->GetContent());
+	}
+
+	FSessionContext& SessionContext = CrashContext.SessionContext;
+
+	FindAndParseValue(ContextProperties, TEXT("SecondsSinceStart"), SessionContext.SecondsSinceStart);
+	FindAndParseValue(ContextProperties, TEXT("IsInternalBuild"), SessionContext.bIsInternalBuild);
+	FindAndParseValue(ContextProperties, TEXT("IsPerforceBuild"), SessionContext.bIsPerforceBuild);
+	FindAndParseValue(ContextProperties, TEXT("IsSourceDistribution"), SessionContext.bIsSourceDistribution);
+	FindAndCopyValue(ContextProperties, TEXT("GameName"), SessionContext.GameName);
+	FindAndCopyValue(ContextProperties, TEXT("ExecutableName"), SessionContext.ExecutableName);
+	FindAndCopyValue(ContextProperties, TEXT("GameSessionID"), SessionContext.GameSessionID);
+	FindAndCopyValue(ContextProperties, TEXT("EngineMode"), SessionContext.EngineMode);
+	FindAndCopyValue(ContextProperties, TEXT("EngineModeEx"), SessionContext.EngineModeEx);
+	FindAndCopyValue(ContextProperties, TEXT("DeploymentName"), SessionContext.DeploymentName);
+	FindAndCopyValue(ContextProperties, TEXT("CommandLine"), SessionContext.CommandLine);
+	FindAndParseValue(ContextProperties, TEXT("LanguageLCID"), SessionContext.LanguageLCID);
+	FindAndCopyValue(ContextProperties, TEXT("AppDefaultLocale"), SessionContext.DefaultLocale);
+	FindAndParseValue(ContextProperties, TEXT("IsUE4Release"), SessionContext.bIsUE4Release);
+	FindAndCopyValue(ContextProperties, TEXT("UserName"), SessionContext.UserName);
+	FindAndCopyValue(ContextProperties, TEXT("BaseDir"), SessionContext.BaseDir);
+	FindAndCopyValue(ContextProperties, TEXT("RootDir"), SessionContext.RootDir);
+	FindAndCopyValue(ContextProperties, TEXT("LoginId"), SessionContext.LoginIdStr);
+	FindAndCopyValue(ContextProperties, TEXT("EpicAccountId"), SessionContext.EpicAccountId);
+	FindAndCopyValue(ContextProperties, TEXT("UserActivityHint"), SessionContext.UserActivityHint);
+	FindAndParseValue(ContextProperties, TEXT("CrashDumpMode"), SessionContext.CrashDumpMode);
+	FindAndCopyValue(ContextProperties, TEXT("GameStateName"), SessionContext.GameStateName);
+	FindAndParseValue(ContextProperties, TEXT("Misc.NumberOfCores"), SessionContext.NumberOfCores);
+	FindAndParseValue(ContextProperties, TEXT("Misc.NumberOfCoresIncludingHyperthreads"), SessionContext.NumberOfCoresIncludingHyperthreads);
+	FindAndCopyValue(ContextProperties, TEXT("Misc.CPUVendor"), SessionContext.CPUVendor);
+	FindAndCopyValue(ContextProperties, TEXT("Misc.CPUBrand"), SessionContext.CPUBrand);
+	FindAndCopyValue(ContextProperties, TEXT("Misc.PrimaryGPUBrand"), SessionContext.PrimaryGPUBrand);
+	FindAndCopyValue(ContextProperties, TEXT("Misc.OSVersionMajor"), SessionContext.OsVersion);
+	FindAndCopyValue(ContextProperties, TEXT("Misc.OSVersionMinor"), SessionContext.OsSubVersion);
+	FindAndParseValue(ContextProperties, TEXT("MemoryStats.AvailablePhysical"), SessionContext.MemoryStats.AvailablePhysical);
+	FindAndParseValue(ContextProperties, TEXT("MemoryStats.AvailableVirtual"), SessionContext.MemoryStats.AvailableVirtual);
+	FindAndParseValue(ContextProperties, TEXT("MemoryStats.UsedPhysical"), SessionContext.MemoryStats.UsedPhysical);
+	FindAndParseValue(ContextProperties, TEXT("MemoryStats.PeakUsedPhysical"), SessionContext.MemoryStats.PeakUsedPhysical);
+	FindAndParseValue(ContextProperties, TEXT("MemoryStats.UsedVirtual"), SessionContext.MemoryStats.UsedVirtual);
+	FindAndParseValue(ContextProperties, TEXT("MemoryStats.PeakUsedVirtual"), SessionContext.MemoryStats.PeakUsedVirtual);
+	FindAndParseValue(ContextProperties, TEXT("MemoryStats.bIsOOM"), SessionContext.bIsOOM);
+	FindAndParseValue(ContextProperties, TEXT("MemoryStats.OOMAllocationSize"), SessionContext.OOMAllocationSize);
+	FindAndParseValue(ContextProperties, TEXT("MemoryStats.OOMAllocationAlignment"), SessionContext.OOMAllocationAlignment);
+
+	// user settings
+	FUserSettingsContext& UserSettings = CrashContext.UserSettings;
+
+	FindAndParseValue(ContextProperties, TEXT("NoDialog"), UserSettings.bNoDialog);
+	FindAndParseValue(ContextProperties, TEXT("SendUnattendedBugReports"), UserSettings.bSendUnattendedBugReports);
+	FindAndParseValue(ContextProperties, TEXT("SendUsageData"), UserSettings.bSendUsageData);
+	FindAndCopyValue(ContextProperties, TEXT("LogFilePath"), UserSettings.LogFilePath);
+
+	return true;
+}
+
+static void HandleAbnormalShutdown(FSharedCrashContext& CrashContext, uint64 ProcessID, void* WritePipe, const TSharedPtr<FRecoveryService>& RecoveryService)
+{
+	CrashContext.CrashType = ECrashContextType::AbnormalShutdown;
+
+	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+
+	// create a temporary crash directory
+	const FString TempCrashDirectory = FPlatformProcess::UserTempDir() / FString::Printf(TEXT("UECrashContext-%d"), ProcessID);
+	FCString::Strcpy(CrashContext.CrashFilesDirectory, *TempCrashDirectory);
+
+	if (PlatformFile.CreateDirectory(CrashContext.CrashFilesDirectory))
+	{
+		// copy the log file to the temporary directory
+		const FString LogDestination = TempCrashDirectory / FPaths::GetCleanFilename(CrashContext.UserSettings.LogFilePath);
+		PlatformFile.CopyFile(*LogDestination, CrashContext.UserSettings.LogFilePath);
+
+		FPlatformErrorReport ErrorReport = CollectErrorReport(RecoveryService.Get(), ProcessID, CrashContext, WritePipe);
+		SubmitCrashReportResult Result = SendErrorReport(ErrorReport, /*bNoDialog*/ true);
+
+		// delete the temporary directory
+		PlatformFile.DeleteDirectoryRecursively(*TempCrashDirectory);
+
+		if (CrashContext.UserSettings.bSendUsageData)
+		{
+			// If analytics is enabled make sure they are submitted now.
+			FCrashReportAnalytics::GetProvider().BlockUntilFlushed(5.0f);
+		}
+	}
+}
+
+static bool WasAbnormalShutdown(const FEditorSessionSummarySender& SessionSummarySender)
+{
+	FEditorAnalyticsSession AnalyticsSession;
+	if (SessionSummarySender.FindCurrentSession(AnalyticsSession))
+	{
+		// check if this was an abnormal shutdown (aka. none of the known shutdown types, and not debugged)
+		if (AnalyticsSession.bCrashed == false &&
+			AnalyticsSession.bGPUCrashed == false &&
+			AnalyticsSession.bWasShutdown == false &&
+			AnalyticsSession.bIsTerminating == false &&
+			AnalyticsSession.bWasEverDebugger == false)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+#endif 
+
 void RunCrashReportClient(const TCHAR* CommandLine)
 {
 	// Override the stack size for the thread pool.
@@ -622,22 +779,6 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 		RecoveryServicePtr = MakeShared<FRecoveryService>(MonitorPid);
 #endif
 
-		FCrashReportAnalytics::Initialize();
-
-#if CRASH_REPORT_WITH_MTBF
-		TUniquePtr<FEditorSessionSummarySender> EditorSessionSummarySender;
-		if (FCrashReportCoreConfig::Get().GetAllowToBeContacted())
-		{
-			EditorSessionSummarySender = MakeUnique<FEditorSessionSummarySender>(FCrashReportAnalytics::GetProvider(), TEXT("CrashReportClient"), MonitorPid);
-
-			FTicker::GetCoreTicker().AddTicker(TEXT("EditorSessionSummarySender"), 0, [&EditorSessionSummarySender](float DeltaTime)
-			{
-				EditorSessionSummarySender->Tick(DeltaTime);
-				return true;
-			});
-		}
-#endif
-
 		FProcHandle MonitoredProcess = FPlatformProcess::OpenProcess(MonitorPid);
 		if (!MonitoredProcess.IsValid())
 		{
@@ -664,9 +805,15 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 				FSharedCrashContext CrashContext;
 				if (IsCrashReportAvailable(MonitorPid, CrashContext, MonitorReadPipe))
 				{
+					const bool bReportCrashAnalyticInfo = CrashContext.UserSettings.bSendUsageData;
+					if (bReportCrashAnalyticInfo)
+					{
+						FCrashReportAnalytics::Initialize();
+					}
+
 					// Build error report in memory.
 					FPlatformErrorReport ErrorReport = CollectErrorReport(RecoveryServicePtr.Get(), MonitorPid, CrashContext, MonitorWritePipe);
-
+					
 #if CRASH_REPORT_WITH_RECOVERY
 					if (RecoveryServicePtr && !FPrimaryCrashProperties::Get()->bIsEnsure)
 					{
@@ -674,7 +821,9 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 						RecoveryServicePtr.Reset();
 					}
 #endif
-					const SubmitCrashReportResult Result = SendErrorReport(ErrorReport, CrashContext.bNoDialog && CrashContext.bSendUnattenededBugReports);
+
+					const bool bNoDialog = CrashContext.UserSettings.bNoDialog && CrashContext.UserSettings.bSendUnattendedBugReports;
+					const SubmitCrashReportResult Result = SendErrorReport(ErrorReport, bNoDialog);
 
 					// At this point the game can continue execution. It is important this happens
 					// as soon as thread state and minidump has been created, so that ensures cause
@@ -682,7 +831,6 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 					uint8 ResponseCode[] = { 0xd, 0xe, 0xa, 0xd };
 					FPlatformProcess::WritePipe(MonitorWritePipe, ResponseCode, sizeof(ResponseCode));
 
-					bool bReportCrashAnalyticInfo = CrashContext.bSendUsageData;
 					if (bReportCrashAnalyticInfo)
 					{
 						// If analytics is enabled make sure they are submitted now.
@@ -717,17 +865,47 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 		}
 
 #if CRASH_REPORT_WITH_MTBF
-		if (EditorSessionSummarySender.IsValid())
 		{
-			// Query this again, as the crash reporting loop above may have exited before setting this information (via IsEngineExitRequested)
-			bApplicationAlive = IsMonitoredProcessAlive(ApplicationReturnCode);
-			if (!bApplicationAlive)
+			// load our temporary crash context file
+			FSharedCrashContext TempCrashContext;
+			FMemory::Memzero(TempCrashContext);
+			if (LoadTempCrashContextFromFile(TempCrashContext, MonitorPid))
 			{
-				EditorSessionSummarySender->SetCurrentSessionExitCode(MonitorPid, ApplicationReturnCode);
+				TempCrashContext.SessionContext.ProcessId = MonitorPid;
+
+				if (TempCrashContext.UserSettings.bSendUsageData)
+				{
+					// Query this again, as the crash reporting loop above may have exited before setting this information (via IsEngineExitRequested)
+					bApplicationAlive = IsMonitoredProcessAlive(ApplicationReturnCode);
+					if (!bApplicationAlive)
+					{
+						if (!FCrashReportAnalytics::IsAvailable())
+						{
+							FCrashReportAnalytics::Initialize();
+						}
+
+						// initialize analytics
+						TUniquePtr<FEditorSessionSummarySender> EditorSessionSummarySender = MakeUnique<FEditorSessionSummarySender>(FCrashReportAnalytics::GetProvider(), TEXT("CrashReportClient"), MonitorPid);
+						EditorSessionSummarySender->SetCurrentSessionExitCode(MonitorPid, ApplicationReturnCode);
+
+						if (TempCrashContext.UserSettings.bSendUnattendedBugReports)
+						{
+							// Send a spoofed crash report in the case that we detect an abnormal shutdown has occurred
+							if (WasAbnormalShutdown(*EditorSessionSummarySender.Get()))
+							{
+								HandleAbnormalShutdown(TempCrashContext, MonitorPid, MonitorWritePipe, RecoveryServicePtr);
+							}
+						}
+
+						// send analytics and shutdown
+						EditorSessionSummarySender->Shutdown();
+					}
+				}
 			}
-			EditorSessionSummarySender->Shutdown();
 		}
 #endif
+		// clean up the context file
+		DeleteTempCrashContextFile(MonitorPid);
 
 		FPlatformProcess::CloseProc(MonitoredProcess);
 

@@ -61,6 +61,7 @@ const TCHAR* const FGenericCrashContext::CrashTypeAssert = TEXT("Assert");
 const TCHAR* const FGenericCrashContext::CrashTypeEnsure = TEXT("Ensure");
 const TCHAR* const FGenericCrashContext::CrashTypeGPU = TEXT("GPUCrash");
 const TCHAR* const FGenericCrashContext::CrashTypeHang = TEXT("Hang");
+const TCHAR* const FGenericCrashContext::CrashTypeAbnormalShutdown = TEXT("AbnormalShutdown");
 
 const TCHAR* const FGenericCrashContext::EngineModeExUnknown = TEXT("Unset");
 const TCHAR* const FGenericCrashContext::EngineModeExDirty = TEXT("Dirty");
@@ -75,6 +76,7 @@ const FGuid FGenericCrashContext::ExecutionGuid = FGuid::NewGuid();
 namespace NCached
 {
 	static FSessionContext Session;
+	static FUserSettingsContext UserSettings;
 	static TArray<FString> EnabledPluginsList;
 	static TMap<FString, FString> EngineData;
 	static TMap<FString, FString> GameData;
@@ -169,7 +171,7 @@ void FGenericCrashContext::Initialize()
 	const float PollingInterval = 1.0f;
 	FTicker::GetCoreTicker().AddTicker( FTickerDelegate::CreateLambda( []( float DeltaTime )
 	{
-        QUICK_SCOPE_CYCLE_COUNTER(STAT_NCachedCrashContextProperties_LambdaTicker);
+    QUICK_SCOPE_CYCLE_COUNTER(STAT_NCachedCrashContextProperties_LambdaTicker);
 
 		NCached::Session.SecondsSinceStart = int32(FPlatformTime::Seconds() - GStartTime);
 		return true;
@@ -201,6 +203,14 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		{
 			FCString::Strcpy(NCached::Session.GameName, *(FString(TEXT("UE4-")) + FApp::GetProjectName() + InParams.GameNameSuffix));
 		}
+		if (InParams.SendUnattendedBugReports.IsSet())
+		{
+			NCached::UserSettings.bSendUnattendedBugReports = InParams.SendUnattendedBugReports.GetValue();
+		}
+		if (InParams.SendUsageData.IsSet())
+		{
+			NCached::UserSettings.bSendUsageData = InParams.SendUsageData.GetValue();
+		}
 	});
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
@@ -210,6 +220,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	});
 
 	FCoreDelegates::ConfigReadyForUse.AddStatic(FGenericCrashContext::InitializeFromConfig);
+
+	FCString::Strcpy(NCached::UserSettings.LogFilePath, *FPlatformOutputDevices::GetAbsoluteLogFilename());
+
+	NCached::UserSettings.bNoDialog = FApp::IsUnattended() || IsRunningDedicatedServer();
+
+	SerializeTempCrashContextToFile();
 
 	bIsInitialized = true;
 #endif	// !NOINITCRASHREPORTER
@@ -258,6 +274,8 @@ void FGenericCrashContext::InitializeFromContext(const FSessionContext& Session,
 		}
 	}
 
+	SerializeTempCrashContextToFile();
+
 	bIsInitialized = true;
 }
 
@@ -265,6 +283,7 @@ void FGenericCrashContext::CopySharedCrashContext(FSharedCrashContext& Dst)
 {
 	//Copy the session
 	FMemory::Memcpy(Dst.SessionContext, NCached::Session);
+	FMemory::Memcpy(Dst.UserSettings, NCached::UserSettings);
 
 	TCHAR* DynamicDataStart = &Dst.DynamicData[0];
 	TCHAR* DynamicDataPtr = DynamicDataStart;
@@ -309,6 +328,8 @@ void FGenericCrashContext::SetMemoryStats(const FPlatformMemoryStats& InMemorySt
 	NCached::Session.bIsOOM = FPlatformMemory::bIsOOM;
 	NCached::Session.OOMAllocationSize = FPlatformMemory::OOMAllocationSize;
 	NCached::Session.OOMAllocationAlignment = FPlatformMemory::OOMAllocationAlignment;
+
+	SerializeTempCrashContextToFile();
 }
 
 void FGenericCrashContext::InitializeFromConfig()
@@ -336,8 +357,15 @@ void FGenericCrashContext::InitializeFromConfig()
 	// Read the initial un-localized crash context text
 	UpdateLocalizedStrings();
 
+	// Set privacy settings
+	GConfig->GetBool(TEXT("/Script/UnrealEd.CrashReportsPrivacySettings"), TEXT("bSendUnattendedBugReports"), NCached::UserSettings.bSendUnattendedBugReports, GEditorSettingsIni);
+	GConfig->GetBool(TEXT("/Script/UnrealEd.AnalyticsPrivacySettings"), TEXT("bSendUsageData"), NCached::UserSettings.bSendUsageData, GEditorSettingsIni);
+
 	// Make sure we get updated text once the localized version is loaded
 	FTextLocalizationManager::Get().OnTextRevisionChangedEvent.AddStatic(&UpdateLocalizedStrings);
+
+	SerializeTempCrashContextToFile();
+
 #endif	// !NOINITCRASHREPORTER
 }
 
@@ -363,6 +391,147 @@ FGenericCrashContext::FGenericCrashContext(ECrashContextType InType, const TCHAR
 	CrashContextIndex = StaticCrashContextIndex++;
 }
 
+FString FGenericCrashContext::GetTempSessionContextFilePath(uint64 ProcessID)
+{
+	return FPlatformProcess::UserTempDir() / FString::Printf(TEXT("UECrashContext-%u.xml"), ProcessID);
+}
+
+void FGenericCrashContext::SerializeTempCrashContextToFile()
+{
+	if (!IsOutOfProcessCrashReporter())
+	{
+		return;
+	}
+
+	FString SessionBuffer;
+	SessionBuffer.Reserve(32 * 1024);
+
+	AddHeader(SessionBuffer);
+
+	SerializeSessionContext(SessionBuffer);
+	SerializeUserSettings(SessionBuffer);
+
+	AddFooter(SessionBuffer);
+
+	const FString SessionFilePath = GetTempSessionContextFilePath(NCached::Session.ProcessId);
+	FFileHelper::SaveStringToFile(SessionBuffer, *SessionFilePath);
+}
+
+void FGenericCrashContext::SerializeSessionContext(FString& Buffer)
+{
+	AddCrashPropertyInternal(Buffer, TEXT("ProcessId"), NCached::Session.ProcessId);
+	AddCrashPropertyInternal(Buffer, TEXT("SecondsSinceStart"), NCached::Session.SecondsSinceStart);
+
+	AddCrashPropertyInternal(Buffer, TEXT("IsInternalBuild"), NCached::Session.bIsInternalBuild);
+	AddCrashPropertyInternal(Buffer, TEXT("IsPerforceBuild"), NCached::Session.bIsPerforceBuild);
+	AddCrashPropertyInternal(Buffer, TEXT("IsSourceDistribution"), NCached::Session.bIsSourceDistribution);
+
+	if (FCString::Strlen(NCached::Session.GameName) > 0)
+	{
+		AddCrashPropertyInternal(Buffer, TEXT("GameName"), NCached::Session.GameName);
+	}
+	else
+	{
+		const TCHAR* ProjectName = FApp::GetProjectName();
+		if (ProjectName != nullptr && ProjectName[0] != 0)
+		{
+			AddCrashPropertyInternal(Buffer, TEXT("GameName"), *FString::Printf(TEXT("UE4-%s"), ProjectName));
+		}
+		else
+		{
+			AddCrashPropertyInternal(Buffer, TEXT("GameName"), TEXT(""));
+		}
+	}
+	AddCrashPropertyInternal(Buffer, TEXT("ExecutableName"), NCached::Session.ExecutableName);
+	AddCrashPropertyInternal(Buffer, TEXT("BuildConfiguration"), LexToString(FApp::GetBuildConfiguration()));
+	AddCrashPropertyInternal(Buffer, TEXT("GameSessionID"), NCached::Session.GameSessionID);
+
+	// Unique string specifying the symbols to be used by CrashReporter
+	FString Symbols = FString::Printf(TEXT("%s"), FApp::GetBuildVersion());
+#ifdef UE_APP_FLAVOR
+	Symbols = FString::Printf(TEXT("%s-%s"), *Symbols, *FString(UE_APP_FLAVOR));
+#endif
+	Symbols = FString::Printf(TEXT("%s-%s-%s"), *Symbols, FPlatformMisc::GetUBTPlatform(), LexToString(FApp::GetBuildConfiguration())).Replace(TEXT("+"), TEXT("*"));
+#ifdef UE_BUILD_FLAVOR
+	Symbols = FString::Printf(TEXT("%s-%s"), *Symbols, *FString(UE_BUILD_FLAVOR));
+#endif
+
+	AddCrashPropertyInternal(Buffer, TEXT("Symbols"), Symbols);
+
+	AddCrashPropertyInternal(Buffer, TEXT("PlatformName"), FPlatformProperties::PlatformName());
+	AddCrashPropertyInternal(Buffer, TEXT("PlatformNameIni"), FPlatformProperties::IniPlatformName());
+	AddCrashPropertyInternal(Buffer, TEXT("EngineMode"), NCached::Session.EngineMode);
+	AddCrashPropertyInternal(Buffer, TEXT("EngineModeEx"), NCached::Session.EngineModeEx);
+
+	AddCrashPropertyInternal(Buffer, TEXT("DeploymentName"), NCached::Session.DeploymentName);
+
+	AddCrashPropertyInternal(Buffer, TEXT("EngineVersion"), *FEngineVersion::Current().ToString());
+	AddCrashPropertyInternal(Buffer, TEXT("CommandLine"), NCached::Session.CommandLine);
+	AddCrashPropertyInternal(Buffer, TEXT("LanguageLCID"), NCached::Session.LanguageLCID);
+	AddCrashPropertyInternal(Buffer, TEXT("AppDefaultLocale"), NCached::Session.DefaultLocale);
+	AddCrashPropertyInternal(Buffer, TEXT("BuildVersion"), FApp::GetBuildVersion());
+	AddCrashPropertyInternal(Buffer, TEXT("IsUE4Release"), NCached::Session.bIsUE4Release);
+	AddCrashPropertyInternal(Buffer, TEXT("IsRequestingExit"), IsEngineExitRequested());
+
+	// Remove periods from user names to match AutoReporter user names
+	// The name prefix is read by CrashRepository.AddNewCrash in the website code
+	const bool bSendUserName = NCached::Session.bIsInternalBuild;
+	FString SanitizedUserName = FString(NCached::Session.UserName).Replace(TEXT("."), TEXT(""));
+	AddCrashPropertyInternal(Buffer, TEXT("UserName"), bSendUserName ? *SanitizedUserName : TEXT(""));
+
+	AddCrashPropertyInternal(Buffer, TEXT("BaseDir"), NCached::Session.BaseDir);
+	AddCrashPropertyInternal(Buffer, TEXT("RootDir"), NCached::Session.RootDir);
+	AddCrashPropertyInternal(Buffer, TEXT("MachineId"), *FString(NCached::Session.LoginIdStr).ToUpper());
+	AddCrashPropertyInternal(Buffer, TEXT("LoginId"), NCached::Session.LoginIdStr);
+	AddCrashPropertyInternal(Buffer, TEXT("EpicAccountId"), NCached::Session.EpicAccountId);
+
+	AddCrashPropertyInternal(Buffer, TEXT("SourceContext"), TEXT(""));
+	AddCrashPropertyInternal(Buffer, TEXT("UserDescription"), TEXT(""));
+	AddCrashPropertyInternal(Buffer, TEXT("UserActivityHint"), NCached::Session.UserActivityHint);
+	AddCrashPropertyInternal(Buffer, TEXT("CrashDumpMode"), NCached::Session.CrashDumpMode);
+	AddCrashPropertyInternal(Buffer, TEXT("GameStateName"), NCached::Session.GameStateName);
+
+	// Add misc stats.
+	AddCrashPropertyInternal(Buffer, TEXT("Misc.NumberOfCores"), NCached::Session.NumberOfCores);
+	AddCrashPropertyInternal(Buffer, TEXT("Misc.NumberOfCoresIncludingHyperthreads"), NCached::Session.NumberOfCoresIncludingHyperthreads);
+	AddCrashPropertyInternal(Buffer, TEXT("Misc.Is64bitOperatingSystem"), (int32) FPlatformMisc::Is64bitOperatingSystem());
+
+	AddCrashPropertyInternal(Buffer, TEXT("Misc.CPUVendor"), NCached::Session.CPUVendor);
+	AddCrashPropertyInternal(Buffer, TEXT("Misc.CPUBrand"), NCached::Session.CPUBrand);
+	AddCrashPropertyInternal(Buffer, TEXT("Misc.PrimaryGPUBrand"), NCached::Session.PrimaryGPUBrand);
+	AddCrashPropertyInternal(Buffer, TEXT("Misc.OSVersionMajor"), NCached::Session.OsVersion);
+	AddCrashPropertyInternal(Buffer, TEXT("Misc.OSVersionMinor"), NCached::Session.OsSubVersion);
+
+	// FPlatformMemory::GetConstants is called in the GCreateMalloc, so we can assume it is always valid.
+	{
+		// Add memory stats.
+		const FPlatformMemoryConstants& MemConstants = FPlatformMemory::GetConstants();
+
+		AddCrashPropertyInternal(Buffer, TEXT("MemoryStats.TotalPhysical"), (uint64) MemConstants.TotalPhysical);
+		AddCrashPropertyInternal(Buffer, TEXT("MemoryStats.TotalVirtual"), (uint64) MemConstants.TotalVirtual);
+		AddCrashPropertyInternal(Buffer, TEXT("MemoryStats.PageSize"), (uint64) MemConstants.PageSize);
+		AddCrashPropertyInternal(Buffer, TEXT("MemoryStats.TotalPhysicalGB"), MemConstants.TotalPhysicalGB);
+	}
+
+	AddCrashPropertyInternal(Buffer, TEXT("MemoryStats.AvailablePhysical"), (uint64) NCached::Session.MemoryStats.AvailablePhysical);
+	AddCrashPropertyInternal(Buffer, TEXT("MemoryStats.AvailableVirtual"), (uint64) NCached::Session.MemoryStats.AvailableVirtual);
+	AddCrashPropertyInternal(Buffer, TEXT("MemoryStats.UsedPhysical"), (uint64) NCached::Session.MemoryStats.UsedPhysical);
+	AddCrashPropertyInternal(Buffer, TEXT("MemoryStats.PeakUsedPhysical"), (uint64) NCached::Session.MemoryStats.PeakUsedPhysical);
+	AddCrashPropertyInternal(Buffer, TEXT("MemoryStats.UsedVirtual"), (uint64) NCached::Session.MemoryStats.UsedVirtual);
+	AddCrashPropertyInternal(Buffer, TEXT("MemoryStats.PeakUsedVirtual"), (uint64) NCached::Session.MemoryStats.PeakUsedVirtual);
+	AddCrashPropertyInternal(Buffer, TEXT("MemoryStats.bIsOOM"), (int) NCached::Session.bIsOOM);
+	AddCrashPropertyInternal(Buffer, TEXT("MemoryStats.OOMAllocationSize"), NCached::Session.OOMAllocationSize);
+	AddCrashPropertyInternal(Buffer, TEXT("MemoryStats.OOMAllocationAlignment"), NCached::Session.OOMAllocationAlignment);
+}
+
+void FGenericCrashContext::SerializeUserSettings(FString& Buffer)
+{
+	AddCrashPropertyInternal(Buffer, TEXT("NoDialog"), NCached::UserSettings.bNoDialog);
+	AddCrashPropertyInternal(Buffer, TEXT("SendUnattendedBugReports"), NCached::UserSettings.bSendUnattendedBugReports);
+	AddCrashPropertyInternal(Buffer, TEXT("SendUsageData"), NCached::UserSettings.bSendUsageData);
+	AddCrashPropertyInternal(Buffer, TEXT("LogFilePath"), NCached::UserSettings.LogFilePath);
+}
+
 void FGenericCrashContext::SerializeContentToBuffer() const
 {
 	TCHAR CrashGUID[CrashGUIDLength];
@@ -370,84 +539,20 @@ void FGenericCrashContext::SerializeContentToBuffer() const
 
 	// Must conform against:
 	// https://www.securecoding.cert.org/confluence/display/seccode/SIG30-C.+Call+only+asynchronous-safe+functions+within+signal+handlers
-	AddHeader();
+	AddHeader(CommonBuffer);
 
-	BeginSection( RuntimePropertiesTag );
+	BeginSection( CommonBuffer, RuntimePropertiesTag );
 	AddCrashProperty( TEXT( "CrashVersion" ), (int32)ECrashDescVersions::VER_3_CrashContext );
 	AddCrashProperty( TEXT( "ExecutionGuid" ), *ExecutionGuid.ToString() );
 	AddCrashProperty( TEXT( "CrashGUID" ), (const TCHAR*)CrashGUID);
-	AddCrashProperty( TEXT( "ProcessId" ), NCached::Session.ProcessId );
-	AddCrashProperty( TEXT( "IsInternalBuild" ), NCached::Session.bIsInternalBuild );
-	AddCrashProperty( TEXT( "IsPerforceBuild" ), NCached::Session.bIsPerforceBuild );
-	AddCrashProperty( TEXT( "IsSourceDistribution" ), NCached::Session.bIsSourceDistribution );
+
 	AddCrashProperty( TEXT( "IsEnsure" ), (Type == ECrashContextType::Ensure) );
 	AddCrashProperty( TEXT( "IsAssert" ), (Type == ECrashContextType::Assert) );
 	AddCrashProperty( TEXT( "CrashType" ), GetCrashTypeString(Type) );
+	AddCrashProperty( TEXT( "ErrorMessage" ), ErrorMessage );
+	AddCrashProperty( TEXT( "CrashReporterMessage" ), NCached::Session.CrashReportClientRichText );
 
-	AddCrashProperty( TEXT( "SecondsSinceStart" ), NCached::Session.SecondsSinceStart );
-
-	// Add common crash properties.
-	if (FCString::Strlen(NCached::Session.GameName) > 0)
-	{
-		AddCrashProperty(TEXT("GameName"), NCached::Session.GameName);
-	}
-	else
-	{
-		const TCHAR* ProjectName = FApp::GetProjectName();
-		if (ProjectName != nullptr && ProjectName[0] != 0)
-		{
-			AddCrashProperty(TEXT("GameName"), *FString::Printf(TEXT("UE4-%s"), ProjectName));
-		}
-		else
-		{
-			AddCrashProperty(TEXT("GameName"), TEXT(""));
-		}
-	}
-	AddCrashProperty( TEXT( "ExecutableName" ), NCached::Session.ExecutableName );
-	AddCrashProperty( TEXT( "BuildConfiguration" ), LexToString( FApp::GetBuildConfiguration() ) );
-	AddCrashProperty( TEXT( "GameSessionID" ), NCached::Session.GameSessionID );
-	
-	// Unique string specifying the symbols to be used by CrashReporter
-	FString Symbols = FString::Printf( TEXT( "%s" ), FApp::GetBuildVersion());
-#ifdef UE_APP_FLAVOR
-	Symbols = FString::Printf(TEXT( "%s-%s" ), *Symbols, *FString(UE_APP_FLAVOR));
-#endif
-	Symbols = FString::Printf(TEXT("%s-%s-%s"), *Symbols, FPlatformMisc::GetUBTPlatform(), LexToString(FApp::GetBuildConfiguration())).Replace( TEXT( "+" ), TEXT( "*" ));
-#ifdef UE_BUILD_FLAVOR
-	Symbols = FString::Printf(TEXT( "%s-%s" ), *Symbols, *FString(UE_BUILD_FLAVOR));
-#endif
-#ifdef UE_APP_FLAVOR
-	Symbols = FString::Printf(TEXT( "%s-%s" ), *Symbols, *FString(UE_APP_FLAVOR));
-#endif
-
-	AddCrashProperty( TEXT( "Symbols" ), Symbols);
-
-	AddCrashProperty( TEXT( "PlatformName" ), FPlatformProperties::PlatformName() );
-	AddCrashProperty( TEXT( "PlatformNameIni" ), FPlatformProperties::IniPlatformName());
-	AddCrashProperty( TEXT( "EngineMode" ), NCached::Session.EngineMode);
-	AddCrashProperty( TEXT( "EngineModeEx" ), NCached::Session.EngineModeEx);
-
-	AddCrashProperty( TEXT( "DeploymentName"), NCached::Session.DeploymentName );
-
-	AddCrashProperty( TEXT( "EngineVersion" ), *FEngineVersion::Current().ToString() );
-	AddCrashProperty( TEXT( "CommandLine" ), NCached::Session.CommandLine );
-	AddCrashProperty( TEXT( "LanguageLCID" ), NCached::Session.LanguageLCID );
-	AddCrashProperty( TEXT( "AppDefaultLocale" ), NCached::Session.DefaultLocale );
-	AddCrashProperty( TEXT( "BuildVersion" ), FApp::GetBuildVersion() );
-	AddCrashProperty( TEXT( "IsUE4Release" ), NCached::Session.bIsUE4Release );
-	AddCrashProperty( TEXT( "IsRequestingExit" ), IsEngineExitRequested() );
-
-	// Remove periods from user names to match AutoReporter user names
-	// The name prefix is read by CrashRepository.AddNewCrash in the website code
-	const bool bSendUserName = NCached::Session.bIsInternalBuild;
-	FString SanitizedUserName = FString(NCached::Session.UserName).Replace(TEXT("."), TEXT(""));
-	AddCrashProperty( TEXT( "UserName" ), bSendUserName ? *SanitizedUserName : TEXT(""));
-
-	AddCrashProperty( TEXT( "BaseDir" ), NCached::Session.BaseDir );
-	AddCrashProperty( TEXT( "RootDir" ), NCached::Session.RootDir );
-	AddCrashProperty( TEXT( "MachineId" ), *FString(NCached::Session.LoginIdStr).ToUpper() );
-	AddCrashProperty( TEXT( "LoginId" ), NCached::Session.LoginIdStr );
-	AddCrashProperty( TEXT( "EpicAccountId" ), NCached::Session.EpicAccountId );
+	SerializeSessionContext(CommonBuffer);
 
 	// Legacy callstack element for current crash reporter
 	AddCrashProperty( TEXT( "NumMinidumpFramesToIgnore"), NumMinidumpFramesToIgnore );
@@ -456,47 +561,6 @@ void FGenericCrashContext::SerializeContentToBuffer() const
 	// Add new portable callstack element with crash stack
 	AddPortableCallStack();
 	AddPortableCallStackHash();
-
-	AddCrashProperty( TEXT( "SourceContext" ), TEXT( "" ) );
-	AddCrashProperty( TEXT( "UserDescription" ), TEXT( "" ) );
-	AddCrashProperty( TEXT( "UserActivityHint" ), NCached::Session.UserActivityHint );
-	AddCrashProperty( TEXT( "ErrorMessage" ), ErrorMessage );
-	AddCrashProperty( TEXT( "CrashDumpMode" ), NCached::Session.CrashDumpMode );
-	AddCrashProperty( TEXT( "CrashReporterMessage" ), NCached::Session.CrashReportClientRichText );
-
-	// Add misc stats.
-	AddCrashProperty( TEXT( "Misc.NumberOfCores" ), NCached::Session.NumberOfCores );
-	AddCrashProperty( TEXT( "Misc.NumberOfCoresIncludingHyperthreads" ), NCached::Session.NumberOfCoresIncludingHyperthreads );
-	AddCrashProperty( TEXT( "Misc.Is64bitOperatingSystem" ), (int32)FPlatformMisc::Is64bitOperatingSystem() );
-
-	AddCrashProperty( TEXT( "Misc.CPUVendor" ), NCached::Session.CPUVendor );
-	AddCrashProperty( TEXT( "Misc.CPUBrand" ), NCached::Session.CPUBrand );
-	AddCrashProperty( TEXT( "Misc.PrimaryGPUBrand" ), NCached::Session.PrimaryGPUBrand );
-	AddCrashProperty( TEXT( "Misc.OSVersionMajor" ), NCached::Session.OsVersion );
-	AddCrashProperty( TEXT( "Misc.OSVersionMinor" ), NCached::Session.OsSubVersion );
-
-	AddCrashProperty(TEXT("GameStateName"), NCached::Session.GameStateName);
-
-	// FPlatformMemory::GetConstants is called in the GCreateMalloc, so we can assume it is always valid.
-	{
-		// Add memory stats.
-		const FPlatformMemoryConstants& MemConstants = FPlatformMemory::GetConstants();
-
-		AddCrashProperty( TEXT( "MemoryStats.TotalPhysical" ), (uint64)MemConstants.TotalPhysical );
-		AddCrashProperty( TEXT( "MemoryStats.TotalVirtual" ), (uint64)MemConstants.TotalVirtual );
-		AddCrashProperty( TEXT( "MemoryStats.PageSize" ), (uint64)MemConstants.PageSize );
-		AddCrashProperty( TEXT( "MemoryStats.TotalPhysicalGB" ), MemConstants.TotalPhysicalGB );
-	}
-
-	AddCrashProperty( TEXT( "MemoryStats.AvailablePhysical" ), (uint64)NCached::Session.MemoryStats.AvailablePhysical );
-	AddCrashProperty( TEXT( "MemoryStats.AvailableVirtual" ), (uint64)NCached::Session.MemoryStats.AvailableVirtual );
-	AddCrashProperty( TEXT( "MemoryStats.UsedPhysical" ), (uint64)NCached::Session.MemoryStats.UsedPhysical );
-	AddCrashProperty( TEXT( "MemoryStats.PeakUsedPhysical" ), (uint64)NCached::Session.MemoryStats.PeakUsedPhysical );
-	AddCrashProperty( TEXT( "MemoryStats.UsedVirtual" ), (uint64)NCached::Session.MemoryStats.UsedVirtual );
-	AddCrashProperty( TEXT( "MemoryStats.PeakUsedVirtual" ), (uint64)NCached::Session.MemoryStats.PeakUsedVirtual );
-	AddCrashProperty( TEXT( "MemoryStats.bIsOOM" ), (int) NCached::Session.bIsOOM );
-	AddCrashProperty( TEXT( "MemoryStats.OOMAllocationSize"), NCached::Session.OOMAllocationSize );
-	AddCrashProperty( TEXT( "MemoryStats.OOMAllocationAlignment"), NCached::Session.OOMAllocationAlignment );
 
 	{
 		FString AllThreadStacks;
@@ -509,48 +573,48 @@ void FGenericCrashContext::SerializeContentToBuffer() const
 		}
 	}
 
-	EndSection( RuntimePropertiesTag );
+	EndSection( CommonBuffer, RuntimePropertiesTag );
 
 	// Add platform specific properties.
-	BeginSection( PlatformPropertiesTag );
+	BeginSection( CommonBuffer, PlatformPropertiesTag );
 	AddPlatformSpecificProperties();
 	// The name here is a bit cryptic, but we keep it to avoid breaking backend stuff.
 	AddCrashProperty(TEXT("PlatformCallbackResult"), NCached::Session.CrashType);
-	EndSection( PlatformPropertiesTag );
+	EndSection( CommonBuffer, PlatformPropertiesTag );
 
 	// Add the engine data
-	BeginSection( EngineDataTag );
+	BeginSection( CommonBuffer, EngineDataTag );
 	for (const TPair<FString, FString>& Pair : NCached::EngineData)
 	{
-		AddCrashProperty(*Pair.Key, *Pair.Value);
+		AddCrashProperty( *Pair.Key, *Pair.Value);
 	}
-	EndSection( EngineDataTag );
+	EndSection( CommonBuffer, EngineDataTag );
 
 	// Add the game data
-	BeginSection( GameDataTag );
+	BeginSection( CommonBuffer, GameDataTag );
 	for (const TPair<FString, FString>& Pair : NCached::GameData)
 	{
-		AddCrashProperty(*Pair.Key, *Pair.Value);
+		AddCrashProperty( *Pair.Key, *Pair.Value);
 	}
-	EndSection( GameDataTag );
+	EndSection( CommonBuffer, GameDataTag );
 
 	// Writing out the list of plugin JSON descriptors causes us to run out of memory
 	// in GMallocCrash on console, so enable this only for desktop platforms.
 #if PLATFORM_DESKTOP
-	if(NCached::EnabledPluginsList.Num() > 0)
+	if (NCached::EnabledPluginsList.Num() > 0)
 	{
-		BeginSection(EnabledPluginsTag);
+		BeginSection(CommonBuffer, EnabledPluginsTag);
 
 		for (const FString& Str : NCached::EnabledPluginsList)
 		{
 			AddCrashProperty(TEXT("Plugin"), *Str);
 		}
 
-		EndSection(EnabledPluginsTag);
+		EndSection(CommonBuffer, EnabledPluginsTag);
 	}
 #endif // PLATFORM_DESKTOP
 
-	AddFooter();
+	AddFooter(CommonBuffer);
 }
 
 void FGenericCrashContext::SetNumMinidumpFramesToIgnore(int InNumMinidumpFramesToIgnore)
@@ -593,19 +657,18 @@ void FGenericCrashContext::SerializeAsXML( const TCHAR* Filename ) const
 	FFileHelper::SaveStringToFile( CommonBuffer, Filename, FFileHelper::EEncodingOptions::AutoDetect );
 }
 
-void FGenericCrashContext::AddCrashProperty( const TCHAR* PropertyName, const TCHAR* PropertyValue ) const
+void FGenericCrashContext::AddCrashPropertyInternal(FString& Buffer, const TCHAR* PropertyName, const TCHAR* PropertyValue)
 {
-	CommonBuffer += TEXT( "<" );
-	CommonBuffer += PropertyName;
-	CommonBuffer += TEXT( ">" );
+	Buffer += TEXT( "<" );
+	Buffer += PropertyName;
+	Buffer += TEXT( ">" );
 
+	AppendEscapedXMLString(Buffer, PropertyValue);
 
-	AppendEscapedXMLString(CommonBuffer, PropertyValue );
-
-	CommonBuffer += TEXT( "</" );
-	CommonBuffer += PropertyName;
-	CommonBuffer += TEXT( ">" );
-	CommonBuffer += LINE_TERMINATOR;
+	Buffer += TEXT( "</" );
+	Buffer += PropertyName;
+	Buffer += TEXT( ">" );
+	Buffer += LINE_TERMINATOR;
 }
 
 void FGenericCrashContext::AddPlatformSpecificProperties() const
@@ -654,7 +717,6 @@ void FGenericCrashContext::AddPortableCallStackHash() const
 
 void FGenericCrashContext::AddPortableCallStack() const
 {	
-
 	if (CallStack.Num() == 0)
 	{
 		AddCrashProperty(TEXT("PCallStack"), TEXT(""));
@@ -683,31 +745,31 @@ void FGenericCrashContext::AddPortableCallStack() const
 	AddCrashProperty(TEXT("PCallStack"), *EscapedStackBuffer);
 }
 
-void FGenericCrashContext::AddHeader() const
+void FGenericCrashContext::AddHeader(FString& Buffer)
 {
-	CommonBuffer += TEXT( "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" ) LINE_TERMINATOR;
-	BeginSection( TEXT("FGenericCrashContext") );
+	Buffer += TEXT("<?xml version=\"1.0\" encoding=\"UTF-8\"?>") LINE_TERMINATOR;
+	BeginSection(Buffer, TEXT("FGenericCrashContext") );
 }
 
-void FGenericCrashContext::AddFooter() const
+void FGenericCrashContext::AddFooter(FString& Buffer)
 {
-	EndSection( TEXT( "FGenericCrashContext" ) );
+	EndSection(Buffer, TEXT( "FGenericCrashContext" ));
 }
 
-void FGenericCrashContext::BeginSection( const TCHAR* SectionName ) const
+void FGenericCrashContext::BeginSection(FString& Buffer, const TCHAR* SectionName)
 {
-	CommonBuffer += TEXT( "<" );
-	CommonBuffer += SectionName;
-	CommonBuffer += TEXT( ">" );
-	CommonBuffer += LINE_TERMINATOR;
+	Buffer += TEXT( "<" );
+	Buffer += SectionName;
+	Buffer += TEXT(">");
+	Buffer += LINE_TERMINATOR;
 }
 
-void FGenericCrashContext::EndSection( const TCHAR* SectionName ) const
+void FGenericCrashContext::EndSection(FString& Buffer, const TCHAR* SectionName)
 {
-	CommonBuffer += TEXT( "</" );
-	CommonBuffer += SectionName;
-	CommonBuffer += TEXT( ">" );
-	CommonBuffer += LINE_TERMINATOR;
+	Buffer += TEXT( "</" );
+	Buffer += SectionName;
+	Buffer += TEXT( ">" );
+	Buffer += LINE_TERMINATOR;
 }
 
 void FGenericCrashContext::AppendEscapedXMLString(FString& OutBuffer, const TCHAR* Text)
@@ -773,6 +835,8 @@ const TCHAR* FGenericCrashContext::GetCrashTypeString(ECrashContextType Type)
 		return CrashTypeEnsure;
 	case ECrashContextType::Assert:
 		return CrashTypeAssert;
+	case ECrashContextType::AbnormalShutdown:
+		return CrashTypeAbnormalShutdown;
 	default:
 		return CrashTypeCrash;
 	}
@@ -941,8 +1005,6 @@ void FGenericCrashContext::DumpLog(const FString& CrashFolderAbsolute)
 #endif // !NO_LOGGING
 }
 
-
-
 FORCENOINLINE void FGenericCrashContext::CapturePortableCallStack(int32 NumStackFramesToIgnore, void* Context)
 {
 	// If the callstack is for the executing thread, ignore this function
@@ -1029,7 +1091,7 @@ void FGenericCrashContext::CopyPlatformSpecificFiles(const TCHAR* OutputDirector
 /**
  * Attempts to create the output report directory.
  */
-bool FGenericCrashContext::CreateCrashReportDirectory(const TCHAR* CrashGUIDRoot, const TCHAR* AppName, int32 CrashIndex, FString& OutCrashDirectoryAbsolute)
+bool FGenericCrashContext::CreateCrashReportDirectory(const TCHAR* CrashGUIDRoot, int32 CrashIndex, FString& OutCrashDirectoryAbsolute)
 {
 	// Generate Crash GUID
 	TCHAR CrashGUID[FGenericCrashContext::CrashGUIDLength];
