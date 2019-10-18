@@ -8,26 +8,13 @@
 #include "InteractiveToolBuilder.h"
 #include "DynamicMesh3.h"
 #include "DynamicMeshAABBTree3.h"
+#include "MeshOpPreviewHelpers.h"
+#include "CleaningOps/RemeshMeshOp.h"
 #include "Properties/MeshStatisticsProperties.h"
+
 #include "RemeshMeshTool.generated.h"
 
-// predeclarations
-struct FMeshDescription;
-class USimpleDynamicMeshComponent;
 
-/** Mesh paint color view modes (somewhat maps to EVertexColorViewMode engine enum.) */
-UENUM()
-enum class ERemeshSmoothingType : uint8
-{
-	/** Uniform Smoothing */
-	Uniform = 0 UMETA(DisplayName = "Uniform"),
-
-	/** Cotangent Smoothing */
-	Cotangent = 1 UMETA(DisplayName = "Shape Preserving"),
-
-	/** Mean Value Smoothing */
-	MeanValue = 2 UMETA(DisplayName = "Mixed")
-};
 
 /**
  *
@@ -38,6 +25,8 @@ class MESHMODELINGTOOLS_API URemeshMeshToolBuilder : public UInteractiveToolBuil
 	GENERATED_BODY()
 
 public:
+	IToolsContextAssetAPI* AssetAPI = nullptr;
+
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 };
@@ -116,16 +105,20 @@ public:
  * Simple Mesh Remeshing Tool
  */
 UCLASS()
-class MESHMODELINGTOOLS_API URemeshMeshTool : public USingleSelectionTool
+class MESHMODELINGTOOLS_API URemeshMeshTool : public USingleSelectionTool, public IDynamicMeshOperatorFactory
 {
 	GENERATED_BODY()
 
 public:
 	URemeshMeshTool();
 
+	virtual void SetWorld(UWorld* World);
+	virtual void SetAssetAPI(IToolsContextAssetAPI* AssetAPI);
+
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
+	virtual void Tick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 	virtual bool HasCancel() const override { return true; }
@@ -134,25 +127,27 @@ public:
 
 	virtual void OnPropertyModified(UObject* PropertySet, UProperty* Property) override;
 
-public:
+	// IDynamicMeshOperatorFactory API
+	virtual TSharedPtr<FDynamicMeshOperator> MakeNewOperator() override;
 
+protected:
 	UPROPERTY()
 	URemeshMeshToolProperties* BasicProperties;
 
 	UPROPERTY()
 	UMeshStatisticsProperties* MeshStatisticsProperties;
 
+	UPROPERTY()
+	UMeshOpPreviewWithBackgroundCompute* Preview;
 
 protected:
-	USimpleDynamicMeshComponent* DynamicMeshComponent;
-	FDynamicMesh3 OriginalMesh;
-	FDynamicMeshAABBTree3 OriginalMeshSpatial;
-	bool bResultValid;
-	void UpdateResult();
+	UWorld* TargetWorld;
+	IToolsContextAssetAPI* AssetAPI;
 
+	TSharedPtr<FDynamicMesh3> OriginalMesh;
+	TSharedPtr<FDynamicMeshAABBTree3> OriginalMeshSpatial;
 	double InitialMeshArea;
-
 	double CalculateTargetEdgeLength(int TargetTriCount);
 
-	void ComputeRemeshing();
+	void GenerateAsset(const FDynamicMeshOpResult& Result);
 };
