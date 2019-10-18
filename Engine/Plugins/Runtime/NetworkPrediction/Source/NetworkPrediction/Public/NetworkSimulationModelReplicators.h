@@ -227,6 +227,31 @@ struct TReplicator_Single : public TBase
 	}
 };
 
+/** Helper to generate a local input cmd if necessary and advance the simulation's MaxAllowedKeyframe so that it can be processed */
+template<typename TDriver, typename TBufferTypes, typename TTickSettings>
+void GenerateLocalInputCmd(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, TSimulationTickState<TTickSettings>& TickInfo)
+{
+	using TInputCmd = typename TBufferTypes::TInputCmd;
+
+	FNetworkSimTime DeltaSimTime = TickInfo.GetRemainingAllowedSimulationTime();
+	if (DeltaSimTime.IsPositive())
+	{
+		if (TInputCmd* InputCmd = Buffers.Input[TickInfo.PendingKeyframe])
+		{
+			InputCmd->SetFrameDeltaTime(DeltaSimTime);
+		}
+		else
+		{
+			InputCmd = Buffers.Input.WriteKeyframe(TickInfo.PendingKeyframe);
+			*InputCmd = TInputCmd();
+			InputCmd->SetFrameDeltaTime(DeltaSimTime);
+			Driver->ProduceInput(DeltaSimTime, *InputCmd);
+		}
+		
+		TickInfo.MaxAllowedKeyframe = TickInfo.PendingKeyframe;
+	}
+}
+
 // -------------------------------------------------------------------------------------------------------
 //	Role based Replicators: these replicators are meant to serve specific roles wrt how the simulation evolves
 // -------------------------------------------------------------------------------------------------------
@@ -242,14 +267,14 @@ struct TReplicator_Server : public TBase
 	{
 		// After receiving input, server may process up to the latest received frames.
 		// (If we needed to buffer input server side for whatever reason, we would do it here)
-		// (also note that we will implicitly guard against speed hacks int he core update loop by not processing cmds past what we have been "allowed")
-		TickInfo.MaxAllowedInputKeyframe = Buffers.Input.HeadKeyframe();
+		// (also note that we will implicitly guard against speed hacks in the core update loop by not processing cmds past what we have been "allowed")
+		TickInfo.MaxAllowedKeyframe = Buffers.Input.HeadKeyframe();
 
 		// Check for gaps in commands
-		if ( TickInfo.LastProcessedInputKeyframe+1 < Buffers.Input.TailKeyframe() )
+		if ( TickInfo.PendingKeyframe < Buffers.Input.TailKeyframe() )
 		{
-			UE_LOG(LogNetworkSim, Warning, TEXT("TReplicator_Server::Reconcile missing inputcmds. LastProcessedInputKeyframe: %d. %s"), TickInfo.LastProcessedInputKeyframe, *Buffers.Input.GetBasicDebugStr());
-			TickInfo.LastProcessedInputKeyframe = Buffers.Input.TailKeyframe()+1;
+			UE_LOG(LogNetworkSim, Warning, TEXT("TReplicator_Server::Reconcile missing inputcmds. PendingKeyframe: %d. %s. This can happen via packet loss"), TickInfo.PendingKeyframe, *Buffers.Input.GetBasicDebugStr());
+			TickInfo.PendingKeyframe = Buffers.Input.TailKeyframe();
 		}
 	}
 
@@ -257,20 +282,9 @@ struct TReplicator_Server : public TBase
 	void PreSimTick(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, TSimulationTickState<TTickSettings>& TickInfo, const FNetSimTickParameters& TickParameters)
 	{
 		TickInfo.GiveSimulationTime(TickParameters.LocalDeltaTimeSeconds);
-
 		if (TickParameters.bGenerateLocalInputCmds)
 		{
-			FNetworkSimTime DeltaSimTime = TickInfo.GetRemainingAllowedSimulationTime();
-			if (DeltaSimTime.IsPositive())
-			{
-				if (TInputCmd* InputCmd = Buffers.Input.WriteKeyframe(Buffers.Input.HeadKeyframe() + 1))
-				{
-					*InputCmd = TInputCmd();
-					InputCmd->SetFrameDeltaTime(DeltaSimTime);
-					Driver->ProduceInput(DeltaSimTime, *InputCmd);
-					TickInfo.MaxAllowedInputKeyframe = Buffers.Input.HeadKeyframe();
-				}
-			}
+			GenerateLocalInputCmd(Driver, Buffers, TickInfo);
 		}
 	}
 };
@@ -393,8 +407,8 @@ struct TReplicator_Simulated : public TBase
 
 			check(TickInfo.GetTotalProcessedSimulationTime() <= TickInfo.GetTotalAllowedSimulationTime());
 
-			TickInfo.LastProcessedInputKeyframe = DestinationKeyframe;
-			TickInfo.MaxAllowedInputKeyframe = DestinationKeyframe;	
+			TickInfo.PendingKeyframe = DestinationKeyframe;	// We are about to serialize state to DestinationKeyframe which will be "unprocessed" (has not been used to generate a new frame)
+			TickInfo.MaxAllowedKeyframe = DestinationKeyframe-1; // Do not process PendingKeyframe on our account. ::PreSimTick will advance this based on our interpolation/extrapolation settings
 		}
 
 		check(SyncState && AuxState);
@@ -456,19 +470,7 @@ struct TReplicator_Simulated : public TBase
 
 			if (TickParameters.bGenerateLocalInputCmds)
 			{
-				FNetworkSimTime DeltaSimTime = TickInfo.GetRemainingAllowedSimulationTime();
-				if (DeltaSimTime.IsPositive())
-				{
-					if (TInputCmd* InputCmd = Buffers.Input.WriteKeyframe(Buffers.Input.HeadKeyframe() + 1))
-					{
-						//UE_LOG(LogNetworkSim, Warning, TEXT("   Extrapolating %s"), *DeltaSimTime.ToString());
-
-						*InputCmd = TInputCmd();
-						InputCmd->SetFrameDeltaTime(DeltaSimTime);
-						Driver->ProduceInput(DeltaSimTime, *InputCmd);
-						TickInfo.MaxAllowedInputKeyframe = Buffers.Input.HeadKeyframe();
-					}
-				}
+				GenerateLocalInputCmd(Driver, Buffers, TickInfo);
 			}
 		}
 	}
@@ -496,12 +498,12 @@ struct TReplicator_Simulated : public TBase
 	{
 		// For now, we make the assumption that our last serialized state and time match the parent simulation.
 		// This would not always be the case with low frequency simulated proxies. But could be handled by replicating the simulations together (at the replication level)
-		int32 NewHeadKeyframe = Buffers.Sync.HeadKeyframe()+1;
+		const int32 NewHeadKeyframe = Buffers.Sync.HeadKeyframe()+1;
 		
 		TickInfo.SetTotalProcessedSimulationTime(LastSerializedSimulationTime, NewHeadKeyframe);
 		TickInfo.SetTotalAllowedSimulationTime(LastSerializedSimulationTime);
-		TickInfo.LastProcessedInputKeyframe = NewHeadKeyframe;
-		TickInfo.MaxAllowedInputKeyframe = NewHeadKeyframe;
+		TickInfo.PendingKeyframe = NewHeadKeyframe;
+		TickInfo.MaxAllowedKeyframe = NewHeadKeyframe;
 
 		*Buffers.Sync.WriteKeyframe(NewHeadKeyframe) = LastSerializedSyncState;
 		*Buffers.Input.WriteKeyframe(NewHeadKeyframe) = TInputCmd();
@@ -533,27 +535,28 @@ private:
 
 		ensure(Buffers.Input.HeadKeyframe() == Buffers.Sync.HeadKeyframe());
 
+		const int32 InputKeyframe = Buffers.Input.HeadKeyframe();
+		const int32 OutputKeyframe = InputKeyframe + 1;
+
 		TInputCmd* LastCmd = Buffers.Input.HeadElement();
-		const int32 LastKeyframe = Buffers.Input.HeadKeyframe();
-		const int32 Keyframe = LastKeyframe + 1;
 
 		// Create fake cmd				
-		TInputCmd* NewCmd = Buffers.Input.WriteKeyframe(Keyframe);
+		TInputCmd* NewCmd = Buffers.Input.WriteKeyframe(OutputKeyframe);
 		*NewCmd = LastCmd ? *LastCmd : TInputCmd();
 		NewCmd->SetFrameDeltaTime(DeltaSimTime);	
 		
 		// Create new sync state to write to
-		TSyncState* PrevSyncState = Buffers.Sync.HeadElement();
-		TSyncState* NextSyncState = Buffers.Sync.WriteKeyframe(Keyframe);
-		TAuxState* AuxState = Buffers.Aux.HeadElement();
+		TSyncState* PrevSyncState = Buffers.Sync[InputKeyframe];
+		TSyncState* NextSyncState = Buffers.Sync.WriteKeyframe(OutputKeyframe);
+		TAuxState* AuxState = Buffers.Aux[InputKeyframe];
 
 		// Do the actual update
-		T::Update(Driver, NewCmd->GetFrameDeltaTime().ToRealTimeSeconds(), *NewCmd, *PrevSyncState, *NextSyncState, *AuxState, Buffers.Aux.WriteKeyframeFunc(Keyframe+1));
-		TickInfo.IncrementTotalProcessedSimulationTime(NewCmd->GetFrameDeltaTime(), Buffers.Sync.HeadKeyframe());
+		T::Update(Driver, NewCmd->GetFrameDeltaTime().ToRealTimeSeconds(), *NewCmd, *PrevSyncState, *NextSyncState, *AuxState, Buffers.Aux.WriteKeyframeFunc(OutputKeyframe));
+		TickInfo.IncrementTotalProcessedSimulationTime(NewCmd->GetFrameDeltaTime(), OutputKeyframe);
 
-		// Set our LastProcessedInputKeyframe to fake that we handled it
-		TickInfo.LastProcessedInputKeyframe = Keyframe;
-		TickInfo.MaxAllowedInputKeyframe = Keyframe;
+		// Set our PendingKeyframe to fake that we handled it
+		TickInfo.PendingKeyframe = OutputKeyframe;
+		TickInfo.MaxAllowedKeyframe = OutputKeyframe;
 	}
 	
 	FNetworkSimTime ReconcileSimulationTime;
@@ -589,7 +592,7 @@ struct TReplicator_Autonomous : public TBase
 	void NetSerialize(const FNetSerializeParams& P, TNetworkSimBufferContainer<TBufferTypes>& Buffers, TSimulationTickState<TTickSettings>& TickInfo)
 	{
 		FArchive& Ar = P.Ar;
-
+		
 		SerializedKeyframe = FNetworkSimulationSerialization::SerializeKeyframe(Ar, Buffers.Sync.HeadKeyframe());
 		
 		SerializedTime = TickInfo.GetTotalProcessedSimulationTime();
@@ -619,7 +622,7 @@ struct TReplicator_Autonomous : public TBase
 				if (ClientExistingState->ShouldReconcile(SerializedSyncState) || (NetworkSimulationModelCVars::ForceReconcile() > 0) || (NetworkSimulationModelCVars::ForceReconcileSingle() > 0))
 				{
 					NetworkSimulationModelCVars::SetForceReconcileSingle(0);
-					UE_CLOG(!Buffers.Input.IsValidKeyframe(SerializedKeyframe), LogNetworkSim, Error, TEXT("::NetSerialize: Client InputBuffer does not contain data for frame %d. {%s} {%s}"), SerializedKeyframe, *Buffers.Input.GetBasicDebugStr(), *Buffers.Sync.GetBasicDebugStr());
+					UE_CLOG(!Buffers.Input.IsValidKeyframe(SerializedKeyframe-1), LogNetworkSim, Error, TEXT("::NetSerialize: Client InputBuffer does not contain data for frame %d. {%s} {%s}"), SerializedKeyframe, *Buffers.Input.GetBasicDebugStr(), *Buffers.Sync.GetBasicDebugStr());
 					bPendingReconciliation =  true;
 				}
 			}
@@ -646,20 +649,12 @@ struct TReplicator_Autonomous : public TBase
 	template<typename T, typename TDriver>
 	void Reconcile(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, TSimulationTickState<TTickSettings>& TickInfo)
 	{
-		if (bPendingReconciliation == false && bDependentSimulationNeedsReconcile == false)
+		if (bPendingReconciliation == false && (bDependentSimulationNeedsReconcile == false || SerializedKeyframe == INDEX_NONE))
 		{
 			return;
 		}
 		bPendingReconciliation = false;
 		bDependentSimulationNeedsReconcile = false;
-
-		TInputCmd* ClientInputCmd = Buffers.Input[SerializedKeyframe];
-		if (ClientInputCmd == nullptr)
-		{
-			// Fault: no historic command for this frame to reconcile with.
-			UE_LOG(LogNetworkSim, Error, TEXT("Client InputBuffer does not contain data for frame %d. {%s} {%s}"), SerializedKeyframe, *Buffers.Input.GetBasicDebugStr(), *Buffers.Sync.GetBasicDebugStr());
-			return;
-		}
 
 		TSyncState* ClientSyncState = Buffers.Sync[SerializedKeyframe];
 		const bool bDoVisualLog = NetworkSimulationModelCVars::EnableLocalPrediction() > 0; // don't visual log if we have prediction disabled
@@ -694,8 +689,8 @@ struct TReplicator_Autonomous : public TBase
 
 		// Set the canonical simulation time to what we received (we will advance it as we resimulate)
 		TickInfo.SetTotalProcessedSimulationTime(SerializedTime, SerializedKeyframe);
-		TickInfo.LastProcessedInputKeyframe = SerializedKeyframe;
-		TickInfo.MaxAllowedInputKeyframe = FMath::Max(TickInfo.MaxAllowedInputKeyframe, TickInfo.LastProcessedInputKeyframe); // Make sure this doesn't lag behind. This is the only place we should need to do this.
+		TickInfo.PendingKeyframe = SerializedKeyframe;
+		//TickInfo.MaxAllowedKeyframe = FMath::Max(TickInfo.MaxAllowedKeyframe, TickInfo.PendingKeyframe); // Make sure this doesn't lag behind. This is the only place we should need to do this.
 
 		if (NetworkSimulationModelCVars::EnableLocalPrediction() == 0)
 		{
@@ -710,30 +705,31 @@ struct TReplicator_Autonomous : public TBase
 		}
 		
 		// Resimulate all user commands 
-		const int32 LastKeyframeToProcess = TickInfo.MaxAllowedInputKeyframe;
-		for (int32 Keyframe = SerializedKeyframe+1; Keyframe <= LastKeyframeToProcess; ++Keyframe)
+		const int32 LastKeyframeToProcess = TickInfo.MaxAllowedKeyframe;
+		for (int32 Keyframe = SerializedKeyframe; Keyframe <= LastKeyframeToProcess; ++Keyframe)
 		{
+			const int32 OutputKeyframe = Keyframe+1;
+
 			// Keyframe is the frame we are resimulating right now.
 			TInputCmd* ResimulateCmd  = Buffers.Input[Keyframe];
-			TSyncState* PrevSyncState = Buffers.Sync[Keyframe - 1];
-			TSyncState* NextSyncState = Buffers.Sync.WriteKeyframe(Keyframe);
+			TAuxState* AuxState = Buffers.Aux[Keyframe];
+			TSyncState* PrevSyncState = Buffers.Sync[Keyframe];
+			TSyncState* NextSyncState = Buffers.Sync.WriteKeyframe(OutputKeyframe);
 			
 			check(ResimulateCmd);
 			check(PrevSyncState);
 			check(NextSyncState);
-			
-			TAuxState* AuxState = Buffers.Aux[Keyframe];
 			check(AuxState);
 
 			// Log out the Mispredicted state that we are about to overwrite.
 			NextSyncState->VisualLog( FVisualLoggingParameters(Keyframe == LastKeyframeToProcess ? EVisualLoggingContext::LastMispredicted : EVisualLoggingContext::OtherMispredicted, Keyframe, EVisualLoggingLifetime::Persistent), Driver, Driver);
 
 			// Do the actual update
-			T::Update(Driver, ResimulateCmd->GetFrameDeltaTime().ToRealTimeSeconds(), *ResimulateCmd, *PrevSyncState, *NextSyncState, *AuxState, Buffers.Aux.WriteKeyframeFunc(Keyframe+1));
+			T::Update(Driver, ResimulateCmd->GetFrameDeltaTime().ToRealTimeSeconds(), *ResimulateCmd, *PrevSyncState, *NextSyncState, *AuxState, Buffers.Aux.WriteKeyframeFunc(OutputKeyframe));
 			
 			// Update TickInfo
-			TickInfo.IncrementTotalProcessedSimulationTime(ResimulateCmd->GetFrameDeltaTime(), Keyframe);
-			TickInfo.LastProcessedInputKeyframe = Keyframe;
+			TickInfo.IncrementTotalProcessedSimulationTime(ResimulateCmd->GetFrameDeltaTime(), OutputKeyframe);
+			TickInfo.PendingKeyframe = OutputKeyframe;
 
 			// Log out the newly predicted state that we got.
 			NextSyncState->VisualLog( FVisualLoggingParameters(Keyframe == LastKeyframeToProcess ? EVisualLoggingContext::LastPredicted : EVisualLoggingContext::OtherPredicted, Keyframe, EVisualLoggingLifetime::Persistent), Driver, Driver);
@@ -764,17 +760,8 @@ struct TReplicator_Autonomous : public TBase
 			{
 				// Prediction: add simulation time and generate new commands
 				TickInfo.GiveSimulationTime(TickParameters.LocalDeltaTimeSeconds);
-				const FNetworkSimTime DeltaSimTime = TickInfo.GetRemainingAllowedSimulationTime();
-				if (DeltaSimTime.IsPositive())
-				{
-					if (TInputCmd* InputCmd = Buffers.Input.WriteKeyframe(Buffers.Input.HeadKeyframe() + 1))
-					{
-						*InputCmd = TInputCmd();
-						InputCmd->SetFrameDeltaTime(DeltaSimTime);
-						Driver->ProduceInput(DeltaSimTime, *InputCmd);
-						TickInfo.MaxAllowedInputKeyframe = Buffers.Input.HeadKeyframe(); // Allow the new command to be processed by the local simulation
-					}
-				}
+
+				GenerateLocalInputCmd(Driver, Buffers, TickInfo);
 			}
 			else
 			{
