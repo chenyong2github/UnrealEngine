@@ -12,8 +12,8 @@ Texture2DMS<float, HAIR_VISIBILITY_MAXSAMPLECOUNT> HairVisibilityDepthTexture;
 void MainPS(
 	in FScreenVertexOutput Input,
 	out float SvDepth		: SV_Depth,
-	out uint4  OutGBufferB	: SV_Target0,
-	out uint4  OutColor		: SV_Target1
+	out float4  OutGBufferB	: SV_Target0,
+	out float4 OutColor		: SV_Target1
 )
 {
 	float MaxDepth = 0;
