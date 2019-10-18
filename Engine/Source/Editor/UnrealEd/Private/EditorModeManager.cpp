@@ -734,7 +734,7 @@ void FEditorModeTools::RebuildModeToolBar()
 					{
 						PaletteTabBox->AddSlot()
 						.AutoWidth()
-						.Padding(FMargin(3.f, 1.0f, 3.0f, 0.0f))
+						.Padding(FMargin(0.f, 1.0f, 1.0f, 0.0f))
 						[
 							SNew(SCheckBox)
 							.Style( FEditorStyle::Get(),  "ToolPalette.DockingTab" )
