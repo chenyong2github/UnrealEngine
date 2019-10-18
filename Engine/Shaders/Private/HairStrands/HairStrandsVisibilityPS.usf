@@ -24,7 +24,6 @@ uint HairVisibilityPass_HairClusterIndex;
 void MainVisibility(
 	centroid FVertexFactoryInterpolantsVSToPS Interpolants,
 	in float4 SvPosition	: SV_Position,
-	float4 PixelPosition : TEXCOORD6,
 	centroid in float WorldStrandRadius : TEXCOORD8,
 	const float4 PackedVelocityA : TEXCOORD9,
 	const float4 PackedVelocityC : TEXCOORD12
