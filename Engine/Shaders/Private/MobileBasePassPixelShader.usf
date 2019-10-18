@@ -727,6 +727,11 @@ void Main(
 		OutColor.rgb *= ResolvedView.PreExposure;
 	#endif
 
+	#if MATERIAL_IS_SKY
+		// Sky materials can result in high luminance values, e.g. the sun disk. So we make sure to at least stay within the boundaries of fp10 for some platforms.
+		OutColor.rgb = min(OutColor.rgb, Max10BitsFloat.xxx);
+	#endif
+
 #if USE_EDITOR_COMPOSITING && (MOBILE_EMULATION)
 	// Editor primitive depth testing
 	OutColor.a = 1.0;
