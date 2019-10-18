@@ -486,8 +486,12 @@ void FOpenGLDynamicRHI::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI, FR
 
 		const bool bTrueBlit = !SourceTextureRHI->IsMultisampled()
 			&& !DestTextureRHI->IsMultisampled()
-			&& SourceTextureRHI->GetFormat() == DestTextureRHI->GetFormat();
-
+			&& SourceTextureRHI->GetFormat() == DestTextureRHI->GetFormat()
+#if PLATFORM_ANDROID
+			&& SourceTexture->Target == DestTexture->Target // glCopyImageSubData() doesn't like copying from a texture to a renderbuffer on Android
+#endif
+			;
+		
 		if ( !bTrueBlit || !FOpenGL::SupportsCopyImage() )
 		{
 			// Color buffers can be GL_NONE for attachment purposes if they aren't used as render targets
