@@ -114,31 +114,52 @@ bool FConcertClientWorkspace::HasSessionChanges() const
 	return (TransactionManager && TransactionManager->HasSessionChanges()) || (PackageManager && PackageManager->HasSessionChanges());
 }
 
-TArray<FString> FConcertClientWorkspace::GatherSessionChanges()
+TArray<FName> FConcertClientWorkspace::GatherSessionChanges(bool IgnorePersisted)
 {
-	TArray<FString> SessionChanges;
-#if WITH_EDITOR
-	// Save live transactions to packages so we can properly report those changes.
-	SaveLiveTransactionsToPackages();
-#endif
-	// Persist the sandbox state over the real content directory
-	// This will also check things out from source control and make them ready to be submitted
-	if (PackageManager)
+	TSet<FName> SessionChangedPackageNames;
+
+	// Gather the packages with live transactions
+	LiveSession->GetSessionDatabase().EnumeratePackageNamesWithLiveTransactions([&SessionChangedPackageNames](FName PackageName)
 	{
-		SessionChanges = PackageManager->GatherSessionChanges();
-	}
-	return SessionChanges;
+		SessionChangedPackageNames.Add(PackageName);
+		return true;
+	});
+
+	// Gather the packages with a non persisted head revision events
+	LiveSession->GetSessionDatabase().EnumeratePackageNamesWithHeadRevision([&SessionChangedPackageNames](FName PackageName)
+	{
+		SessionChangedPackageNames.Add(PackageName);
+		return true;
+	}, IgnorePersisted);
+
+	return SessionChangedPackageNames.Array();
 }
 
-bool FConcertClientWorkspace::PersistSessionChanges(TArrayView<const FString> InFilesToPersist, ISourceControlProvider* SourceControlProvider, TArray<FText>* OutFailureReasons)
+bool FConcertClientWorkspace::PersistSessionChanges(TArrayView<const FName> InPackagesToPersist, ISourceControlProvider* SourceControlProvider, TArray<FText>* OutFailureReasons)
 {
+	bool bSuccess = false;
 #if WITH_EDITOR
 	if (PackageManager)
 	{
-		return PackageManager->PersistSessionChanges(InFilesToPersist, SourceControlProvider, OutFailureReasons);
+		for (const FName& PackageName : InPackagesToPersist)
+		{
+			SaveLiveTransactionsToPackage(PackageName);
+		}
+
+		bSuccess = PackageManager->PersistSessionChanges(InPackagesToPersist, SourceControlProvider, OutFailureReasons);
+
+		// if we successfully persisted the files, record persist events for them in the db
+		if (bSuccess)
+		{
+			int64 PersistEventId = 0;
+			for (const FName& PackageName : InPackagesToPersist)
+			{
+				LiveSession->GetSessionDatabase().AddPersistEventForHeadRevision(PackageName, PersistEventId);
+			}
+		}
 	}
 #endif
-	return false;
+	return bSuccess;
 }
 
 bool FConcertClientWorkspace::HasLiveTransactionSupport(UPackage* InPackage) const
@@ -516,10 +537,25 @@ void FConcertClientWorkspace::SaveLiveTransactionsToPackages()
 	// Save any packages that have live transactions
 	if (GEditor && TransactionManager)
 	{
-		// Ignore these package saves as the other clients should already be in-sync
-		IConcertClientPackageBridge::FScopedIgnoreLocalSave IgnorePackageSaveScope(*PackageBridge);
 		LiveSession->GetSessionDatabase().EnumeratePackageNamesWithLiveTransactions([this](const FName PackageName)
 		{
+			SaveLiveTransactionsToPackage(PackageName);
+			return true;
+		});
+	}
+}
+
+void FConcertClientWorkspace::SaveLiveTransactionsToPackage(const FName PackageName)
+{
+	if (GEditor && TransactionManager)
+	{
+		bool bHasLiveTransactions = false;
+		if (LiveSession->GetSessionDatabase().PackageHasLiveTransactions(PackageName, bHasLiveTransactions)
+			&& bHasLiveTransactions)
+		{
+			// Ignore these package saves as the other clients should already be in-sync
+			IConcertClientPackageBridge::FScopedIgnoreLocalSave IgnorePackageSaveScope(*PackageBridge);
+
 			const FString PackageNameStr = PackageName.ToString();
 			UPackage* Package = LoadPackage(nullptr, *PackageNameStr, LOAD_None);
 			if (Package)
@@ -549,8 +585,7 @@ void FConcertClientWorkspace::SaveLiveTransactionsToPackages()
 					UE_LOG(LogConcert, Warning, TEXT("Failed to save package '%s' when persiting sandbox state!"), *PackageNameStr);
 				}
 			}
-			return true;
-		});
+		}
 	}
 }
 
