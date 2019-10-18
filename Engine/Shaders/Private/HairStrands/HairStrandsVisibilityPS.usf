@@ -12,28 +12,47 @@
 #include "/Engine/Generated/Material.ush"
 #include "/Engine/Generated/VertexFactory.ush"
 
-#define SUPPORT_OPACITY_MASK 0
-#define SUPPORT_MATERIAL_PROPERTY 1
+#define RENDER_MODE_MSAA 0
+#define RENDER_MODE_COVERAGE 1
 
 #ifndef HAIR_RENDER_MODE
 #error Undefined hair render mode
 #endif
+
+#define SUPPORT_OPACITY_MASK 0
+
+#if HAIR_RENDER_MODE == RENDER_MODE_MSAA
+#define SUPPORT_MATERIAL_PROPERTY 1
+#endif
+
+#if HAIR_RENDER_MODE == RENDER_MODE_COVERAGE
+#define SUPPORT_MATERIAL_PROPERTY 0
+#endif
+
 
 uint HairVisibilityPass_HairClusterIndex;
 
 void MainVisibility(
 	centroid FVertexFactoryInterpolantsVSToPS Interpolants,
 	in float4 SvPosition	: SV_Position,
+#if HAIR_RENDER_MODE == RENDER_MODE_MSAA
 	centroid in float WorldStrandRadius : TEXCOORD8,
 	const float4 PackedVelocityA : TEXCOORD9,
 	const float4 PackedVelocityC : TEXCOORD12
+#elif HAIR_RENDER_MODE == RENDER_MODE_COVERAGE
+	centroid in float WorldStrandRadius : TEXCOORD8
+#endif
 	OPTIONAL_IsFrontFace,
-	out uint4  OutColor0	: SV_Target0
-	#if SUPPORT_MATERIAL_PROPERTY
+#if HAIR_RENDER_MODE == RENDER_MODE_COVERAGE
+	out float OutColor0 : SV_Target0
+#elif HAIR_RENDER_MODE == RENDER_MODE_MSAA
+	out uint4 OutColor0	: SV_Target0
+  #if SUPPORT_MATERIAL_PROPERTY
 	, out float4 OutColor1	: SV_Target1
 	, out float4 OutColor2	: SV_Target2
 	, out float2 OutColor3	: SV_Target3
-	#endif
+  #endif
+#endif
 )
 {
 	ResolvedView = ResolveView();
@@ -55,17 +74,21 @@ void MainVisibility(
 		Coverage = StrandRealRadius / max(StrandRealRadius, PixelRadius);
 	}
 
+#if HAIR_RENDER_MODE == RENDER_MODE_COVERAGE
+	OutColor0 = Coverage;
+#endif
+
+#if HAIR_RENDER_MODE == RENDER_MODE_MSAA
 	FVisibilityData VisibilityData;
-#if VF_STRAND_HAIR
+  #if VF_STRAND_HAIR
 	VisibilityData.Tangent = normalize(Interpolants.TangentToWorld2.xyz);
 	VisibilityData.PrimitiveId = Interpolants.HairPrimitiveId;
-#else
+  #else
 	VisibilityData.Tangent = float3(0, 0, 1);
 	VisibilityData.PrimitiveId = 0;
-#endif
+  #endif
 	VisibilityData.ClusterId = HairVisibilityPass_HairClusterIndex;
 	VisibilityData.Coverage8bit = To8bitCoverage(Coverage);
-
 
 	half3 BaseColor = 0;
 	float Roughness = 0;
@@ -97,6 +120,8 @@ void MainVisibility(
 	OutColor1 = float4(sqrt(BaseColor), Roughness);
 	OutColor2 = float4(Specular,0,0,0);
 	OutColor3 = EncodedVelocity;
+#endif
+
 }
 
 
