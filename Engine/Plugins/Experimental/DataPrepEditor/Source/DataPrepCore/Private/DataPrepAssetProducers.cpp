@@ -39,7 +39,7 @@ void UDataprepAssetProducers::PostEditUndo()
 	OnChanged.Broadcast( FDataprepAssetChangeType::ProducerModified, INDEX_NONE );
 }
 
-TArray< TWeakObjectPtr< UObject > > UDataprepAssetProducers::Produce(const FDataprepProducerContext& InContext )
+TArray< TWeakObjectPtr< UObject > > UDataprepAssetProducers::Produce( const FDataprepProducerContext& InContext )
 {
 	if( AssetProducers.Num() == 0 )
 	{
@@ -65,8 +65,17 @@ TArray< TWeakObjectPtr< UObject > > UDataprepAssetProducers::Produce(const FData
 			{
 				if( !Producer->Produce( InContext, OutAssets ) )
 				{
-					FText Report = FText::Format(LOCTEXT( "ProducerReport_Failed", "Producer {0} failed to execute."), FText::FromString( Producer->GetName() ) );
-					InContext.LoggerPtr->LogError( Report, *Producer );
+					if ( Task.IsWorkCancelled() )
+					{
+						FText Report = FText::Format(LOCTEXT( "ProducerReport_Cancelled", "Producer {0} was cancelled during execution."), FText::FromString( Producer->GetName() ) );
+						InContext.LoggerPtr->LogInfo( Report, *Producer );
+						break;
+					}
+					else
+					{
+						FText Report = FText::Format(LOCTEXT( "ProducerReport_Failed", "Producer {0} failed to execute."), FText::FromString( Producer->GetName() ) );
+						InContext.LoggerPtr->LogError( Report, *Producer );
+					}
 				}
 			}
 		}

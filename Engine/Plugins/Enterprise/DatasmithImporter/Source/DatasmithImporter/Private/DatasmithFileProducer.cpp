@@ -165,7 +165,7 @@ bool UDatasmithFileProducer::Initialize()
 	TSharedRef< IDatasmithScene > SceneElement = FDatasmithSceneFactory::CreateScene( *Source.GetSceneName() );
 
 	constexpr EObjectFlags LocalObjectFlags = RF_Public | RF_Standalone | RF_Transactional;
-	if ( !ImportContextPtr->Init( SceneElement, RootPath, LocalObjectFlags, GWarn, TSharedPtr< FJsonObject >(), true ) )
+	if ( !ImportContextPtr->Init( SceneElement, RootPath, LocalObjectFlags, Context.ProgressReporterPtr->GetFeedbackContext(), TSharedPtr< FJsonObject >(), true ) )
 	{
 		LogError( LOCTEXT( "DatasmithFileProducer_Initialization", "Initialization of producer failed." ) );
 		return false;
@@ -188,15 +188,25 @@ bool UDatasmithFileProducer::Execute(TArray< TWeakObjectPtr< UObject > >& OutAss
 		return false;
 	}
 
+	if ( IsCancelled() )
+	{
+		return false;
+	}
+
 	ProgressTaskPtr->ReportNextStep( FText::Format( LOCTEXT( "DatasmithFileProducer_ConvertingFile", "Converting {0} ..."), FText::FromString( FilePath ) ), 2.0f );
 	SceneElementToWorld();
+
+	if ( IsCancelled() )
+	{
+		return false;
+	}
 
 	ProgressTaskPtr->ReportNextStep( LOCTEXT( "DatasmithFileProducer_CleaningData", "Cleaning data ...") );
 	PreventNameCollision();
 
 	OutAssets.Append( MoveTemp( Assets ) );
 
-	return true;
+	return !IsCancelled();
 }
 
 // Borrowed from DatasmithImportFactoryImpl::ImportDatasmithScene
@@ -674,18 +684,23 @@ bool UDatasmithDirProducer::Execute(TArray< TWeakObjectPtr< UObject > >& OutAsse
 
 	for( const FString& FileName : FilesToProcess )
 	{
+		if ( IsCancelled() )
+		{
+			break;
+		}
+
 		FileProducer->FilePath =  FPaths::ConvertRelativePathToFull( FileName );
 
 		Task.ReportNextStep( FText::Format( LOCTEXT( "DatasmithFileProducer_LoadingFile", "Loading {0} ..."), FText::FromString( FileName ) ) );
 
-		if(!FileProducer->Produce(Context, OutAssets))
+		if( !FileProducer->Produce( Context, OutAssets ) )
 		{
 			FText ErrorReport = FText::Format( LOCTEXT( "DatasmithDirProducer_Failed", "Failed to load {0} ..."), FText::FromString( FileName ) );
 			LogError( ErrorReport );
 		}
 	}
 
-	return true;
+	return !IsCancelled();
 }
 
 void UDatasmithDirProducer::Reset()

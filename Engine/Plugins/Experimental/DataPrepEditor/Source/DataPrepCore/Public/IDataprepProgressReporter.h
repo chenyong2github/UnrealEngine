@@ -6,6 +6,7 @@
 
 class FText;
 class UObject;
+class FFeedbackContext;
 
 /**
  * This is the interface that a progress reporter must implement to work with FDataprepWorkReporter
@@ -32,6 +33,12 @@ public:
 	 * @param InMessage			Message to be displayed along side the reported progress
 	 */
 	virtual void ReportProgress( float IncrementOfWork, const FText& InMessage ) = 0;
+
+	/** Returns true if the work has been cancelled */
+	virtual bool IsWorkCancelled() = 0;
+
+	/** Returns the feedback context used by this progress reporter */
+	virtual FFeedbackContext* GetFeedbackContext() const = 0;
 
 	friend class FDataprepWorkReporter;
 };
@@ -68,6 +75,8 @@ public:
 	{
 		ReportNextStep( InMessage, DefaultIncrementOfWork );
 	}
+
+	bool IsWorkCancelled() const;
 
 private:
 	/** Dataprep progress reporter associated with the task */

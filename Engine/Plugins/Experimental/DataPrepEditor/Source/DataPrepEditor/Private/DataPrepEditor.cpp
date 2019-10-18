@@ -446,7 +446,6 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 
 	ActionsContext->SetTransientContentFolder( GetTransientContentFolder() / TEXT("Pipeline") )
 		.SetLogger( TSharedPtr<IDataprepLogger>( new FDataprepCoreUtils::FDataprepLogger ) )
-		.SetProgressReporter( TSharedPtr< IDataprepProgressReporter >( new FDataprepCoreUtils::FDataprepProgressUIReporter() ) )
 		.SetCanExecuteNextStep( CanExecuteNextStepFunc )
 		.SetActionsContextChanged( ActionsContextChangedFunc );
 
@@ -569,6 +568,9 @@ void FDataprepEditor::OnBuildWorld()
 	UPackage* TransientPackage = NewObject< UPackage >( nullptr, *GetTransientContentFolder(), RF_Transient );
 	TransientPackage->FullyLoad();
 
+	TSharedPtr< FDataprepCoreUtils::FDataprepFeedbackContext > FeedbackContext( new FDataprepCoreUtils::FDataprepFeedbackContext );
+
+	TSharedPtr< IDataprepProgressReporter > ProgressReporter( new FDataprepCoreUtils::FDataprepProgressUIReporter( FeedbackContext.ToSharedRef() ) );
 	{
 		FTimeLogger TimeLogger( TEXT("Import") );
 
@@ -577,9 +579,16 @@ void FDataprepEditor::OnBuildWorld()
 		Context.SetWorld( PreviewWorld.Get() )
 			.SetRootPackage( TransientPackage )
 			.SetLogger( TSharedPtr< IDataprepLogger >( new FDataprepCoreUtils::FDataprepLogger ) )
-			.SetProgressReporter( TSharedPtr< IDataprepProgressReporter >( new FDataprepCoreUtils::FDataprepProgressUIReporter() ) );
+			.SetProgressReporter( ProgressReporter );
 
 		Assets = DataprepAssetInterface->GetProducers()->Produce( Context );
+	}
+
+	if ( ProgressReporter->IsWorkCancelled() )
+	{
+		// Flush the work that's already been done
+		ResetBuildWorld();
+		return;
 	}
 
 	CachedAssets.Reset();
@@ -703,8 +712,6 @@ void FDataprepEditor::OnExecutePipeline()
 	// Required because assets could be removed and the 3D viewport is using raw pointers
 	SceneViewportView->ClearMeshes();
 
-	TSharedPtr< IDataprepProgressReporter > ProgressReporter( new FDataprepCoreUtils::FDataprepProgressUIReporter() );
-
 	// Trigger execution of data preparation operations on world attached to recipe
 	{
 		FTimeLogger TimeLogger( TEXT("ExecutePipeline") );
@@ -713,12 +720,19 @@ void FDataprepEditor::OnExecutePipeline()
 		// Editors can individually refuse this request: we ignore it during the pipeline traversal.
 		TGuardValue<bool> IgnoreCloseRequestGuard(bIgnoreCloseRequest, true);
 
+		TSharedPtr< FDataprepCoreUtils::FDataprepFeedbackContext > FeedbackContext(new FDataprepCoreUtils::FDataprepFeedbackContext);
+		ActionsContext->SetProgressReporter( TSharedPtr< IDataprepProgressReporter >( new FDataprepCoreUtils::FDataprepProgressUIReporter( FeedbackContext.ToSharedRef() ) ) );
 		ActionsContext->SetWorld( PreviewWorld.Get() ).SetAssets( Assets );
 
 		DataprepAssetInterfacePtr->ExecuteRecipe( ActionsContext );
 
 		// Update list of assets with latest ones
 		Assets = ActionsContext->Assets.Array();
+	}
+
+	if ( ActionsContext->ProgressReporterPtr->IsWorkCancelled() )
+	{
+		RestoreFromSnapshot();
 	}
 
 	// Redraw 3D viewport
