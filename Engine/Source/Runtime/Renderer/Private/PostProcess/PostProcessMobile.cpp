@@ -33,9 +33,9 @@ void SetMobilePassFlipVerticalAxis(const FRenderingCompositePass* FlipPass)
 	GMobilePassShouldFlipVerticalAxis = FlipPass;
 }
 
-bool ShouldMobilePassFlipVerticalAxis(const FRenderingCompositePass* ShouldFlipPass)
+bool ShouldMobilePassFlipVerticalAxis(const FRenderingCompositePassContext& Context, const FRenderingCompositePass* ShouldFlipPass)
 {
-	return GMobilePassShouldFlipVerticalAxis == ShouldFlipPass;
+	return RHINeedsToSwitchVerticalAxis(Context.GetShaderPlatform()) && (GMobilePassShouldFlipVerticalAxis == ShouldFlipPass);
 }
 
 //

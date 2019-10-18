@@ -213,6 +213,15 @@ inline void AddCopyTexturePass(
 	AddCopyTexturePass(GraphBuilder, InputTexture, OutputTexture, CopyInfo);
 }
 
+/** Adds a render graph pass to resolve from one texture to another. Uses RHICopyToResolveTarget under the hood.
+ *  The formats of the two textures don't need to match.
+ */
+RENDERCORE_API void AddCopyToResolveTargetPass(
+	FRDGBuilder& GraphBuilder,
+	FRDGTextureRef InputTexture,
+	FRDGTextureRef OutputTexture,
+	const FResolveParams& ResolveParams);
+
 /** Adds a render graph pass to clear a texture or buffer UAV with a single typed value. */
 RENDERCORE_API void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGBufferUAVRef BufferUAV, uint32 Value);
 
