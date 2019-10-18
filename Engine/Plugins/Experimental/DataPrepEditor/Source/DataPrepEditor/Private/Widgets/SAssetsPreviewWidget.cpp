@@ -3,6 +3,7 @@
 #include "SAssetsPreviewWidget.h"
 
 #include "EditorStyleSet.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
 #include "SAssetSearchBox.h"
 #include "Misc/PackageName.h"
@@ -103,6 +104,78 @@ namespace AssetPreviewWidget
 		}
 	};
 
+	/** Represents a row in the AssetPreview's tree view */
+	class SAssetPreviewTableRow : public STableRow<FAssetTreeItemPtr>
+	{
+	public:
+		SLATE_BEGIN_ARGS(SAssetPreviewTableRow) {}
+		SLATE_END_ARGS()
+
+		void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTableView, FAssetTreeItemPtr InItem, TSharedRef< const SAssetsPreviewWidget > InPreviewWidget)
+		{
+			FolderOpenBrush = FEditorStyle::GetBrush("ContentBrowser.AssetTreeFolderOpen");
+			FolderClosedBrush = FEditorStyle::GetBrush("ContentBrowser.AssetTreeFolderClosed");
+			AssetIconBrush = FEditorStyle::GetBrush("ContentBrowser.ColumnViewAssetIcon");
+
+			PreviewWidgetWeakPtr = InPreviewWidget;
+			ItemWeakPtr = InItem;
+
+			STableRow::Construct(
+				STableRow::FArguments()
+				.Style(FEditorStyle::Get(), "ContentBrowser.AssetListView.TableRow")
+				.Cursor(EMouseCursor::Default),
+				OwnerTableView);
+
+
+			TSharedRef< SHorizontalBox > Widget = SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(0, 0, 2, 0)
+				.VAlign(VAlign_Center)
+				[
+					// Item icon
+					SNew(SImage)
+					.Image(this, &SAssetPreviewTableRow::GetIconBrush)
+					.ColorAndOpacity(FSlateColor(FLinearColor::White))
+				]
+
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(FText::FromString(*(InItem->Name)))
+					.Font(FEditorStyle::GetFontStyle("ContentBrowser.SourceTreeItemFont"))
+					.HighlightText(PreviewWidgetWeakPtr.Pin().Get(), &SAssetsPreviewWidget::OnGetHighlightText)
+				];
+
+			SetContent(Widget);
+		}
+
+	private:
+		const FSlateBrush* GetIconBrush() const
+		{
+			const FSlateBrush* IconBrush = AssetIconBrush;
+			if (ItemWeakPtr.Pin()->IsFolder())
+			{
+				const bool bExpanded = PreviewWidgetWeakPtr.Pin()->GetTreeView()->IsItemExpanded(ItemWeakPtr.Pin());
+				IconBrush = bExpanded ? FolderOpenBrush : FolderClosedBrush;
+			}
+			return IconBrush;
+		}
+
+	private:
+		/** Brushes for the different folder states */
+		const FSlateBrush* FolderOpenBrush;
+		const FSlateBrush* FolderClosedBrush;
+		const FSlateBrush* AssetIconBrush;
+
+		FAssetTreeItemWeakPtr ItemWeakPtr;
+
+		/** Weak reference back to the preview widget that owns us */
+		TWeakPtr< const SAssetsPreviewWidget > PreviewWidgetWeakPtr;
+	};
+
 	void SAssetsPreviewWidget::Construct(const FArguments& InArgs)
 	{
 		ChildSlot
@@ -150,6 +223,17 @@ namespace AssetPreviewWidget
 		RootItems.Empty();
 		TMap< FString, FAssetTreeItemPtr > NamesToRootItem;
 
+		// Make sure the root dir is displayed as "Content".
+		// This is more descriptive for the end user.
+		TArray<FString> Tokens;
+		const FString StrContent = TEXT("Content");
+		SubstitutePath.ParseIntoArray(Tokens, TEXT("/"));
+		if (Tokens.Num() > 0 && !Tokens[0].Equals(StrContent))
+		{
+			const int32 StartChar = SubstitutePath.Find(Tokens[0]);
+			SubstitutePath.RemoveAt(StartChar, Tokens[0].Len(), false);
+			SubstitutePath.InsertAt(StartChar, StrContent);
+		}
 
 		for (const TWeakObjectPtr< UObject >& Asset : InAssetsList)
 		{
@@ -218,6 +302,9 @@ namespace AssetPreviewWidget
 			}
 		}
 
+		// Sort items in alphabetical order
+		SortRecursive(RootItems);
+
 		FilterAssetsNames();
 	}
 
@@ -261,6 +348,17 @@ namespace AssetPreviewWidget
 		}
 	}
 
+	void SAssetsPreviewWidget::SortRecursive(TArray< FAssetTreeItemPtr >& InItems)
+	{
+		InItems.Sort([](const FAssetTreeItemPtr A, const FAssetTreeItemPtr B) { return A->Name.Compare(B->Name) < 0; });
+
+		for (int ItemIndex = 0; ItemIndex < InItems.Num(); ++ItemIndex)
+		{
+			SortRecursive(InItems[ItemIndex]->Folders);
+			SortRecursive(InItems[ItemIndex]->Assets);
+		}
+	}
+
 	TArray< FString > SAssetsPreviewWidget::GetItemsName(TWeakObjectPtr< UObject > Asset) const
 	{
 		TArray< FString > ItemsName;
@@ -276,19 +374,9 @@ namespace AssetPreviewWidget
 
 	TSharedRef< ITableRow > SAssetsPreviewWidget::MakeRowWidget(FAssetTreeItemPtr InItem, const TSharedRef< STableViewBase >& OwnerTable) const
 	{
-		TSharedPtr< STableRow< FAssetTreeItemPtr > > TableRowWidget;
+		TSharedPtr< SAssetPreviewTableRow > TableRowWidget;
 
-		SAssignNew(TableRowWidget, STableRow< FAssetTreeItemPtr >, OwnerTable)
-			.Style(FEditorStyle::Get(), "ContentBrowser.AssetListView.TableRow")
-			.Cursor(EMouseCursor::Default);
-
-		TSharedRef< STextBlock > Item = SNew(STextBlock)
-			//.TextStyle( FEditorStyle::Get(), "LargeText" )
-			.Text(FText::FromString(*(InItem->Name)))
-			.Font(FEditorStyle::GetFontStyle("ContentBrowser.SourceTreeItemFont"))
-			.HighlightText(this, &SAssetsPreviewWidget::OnGetHighlightText);
-
-		TableRowWidget->SetContent(Item);
+		SAssignNew(TableRowWidget, SAssetPreviewTableRow, OwnerTable, InItem, SharedThis(this));
 
 		return TableRowWidget.ToSharedRef();
 	}
