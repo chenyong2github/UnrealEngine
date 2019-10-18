@@ -875,6 +875,15 @@ void STakeRecorderCockpit::StopRecording()
 
 void STakeRecorderCockpit::StartRecording()
 {
+	static bool bStartedRecording = false;
+
+	if (bStartedRecording)
+	{
+		return;
+	}
+
+	TGuardValue<bool> ReentrantGuard(bStartedRecording, true);
+
 	ULevelSequence*       LevelSequence = LevelSequenceAttribute.Get();
 	UTakeRecorderSources* Sources = LevelSequence ? LevelSequence->FindMetaData<UTakeRecorderSources>() : nullptr;
 	
