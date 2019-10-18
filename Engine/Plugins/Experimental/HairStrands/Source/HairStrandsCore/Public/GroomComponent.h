@@ -36,6 +36,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "HairStrands Rendering")
 	bool bSkinGroom;
 
+	/** Scale the hair geometry radius for ray tracing effects (e.g. shadow) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HairStrands Rendering", meta = (ClampMin = "0.0001", UIMin = "0.01", UIMax = "10.0"))
+	float HairRaytracingRadiusScale;
+
 	//~ Begin UActorComponent Interface.
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
@@ -68,6 +72,7 @@ public:
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual bool CanEditChange(const UProperty* InProperty) const override;
 #endif
 
 	struct FHairGroupResource
