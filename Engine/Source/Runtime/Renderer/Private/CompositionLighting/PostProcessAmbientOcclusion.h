@@ -144,7 +144,7 @@ private:
 };
 
 
-class FRCPassPostProcessAmbientOcclusion_HorizonSearch : public TRenderingCompositePassBase<2, 1>
+class FRCPassPostProcessAmbientOcclusion_HorizonSearch : public TRenderingCompositePassBase<2, 2>
 {
 public:
 
@@ -184,7 +184,7 @@ private:
 };
 
 
-class FRCPassPostProcessAmbientOcclusion_GTAOCombined : public TRenderingCompositePassBase<2, 1>
+class FRCPassPostProcessAmbientOcclusion_GTAOCombined : public TRenderingCompositePassBase<2, 2>
 {
 public:
 
@@ -246,7 +246,7 @@ private:
 
 };
 
-class FRCPassPostProcessAmbientOcclusion_GTAO_Upsample : public TRenderingCompositePassBase<1, 1>
+class FRCPassPostProcessAmbientOcclusion_GTAO_Upsample : public TRenderingCompositePassBase<2, 1>
 {
 public:
 
