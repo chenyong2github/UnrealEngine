@@ -12,6 +12,7 @@
 
 class UBlueprint;
 class UDataprepActionAsset;
+class UDataprepParameterizableObject;
 class UDataprepParameterization;
 class UDataprepProducers;
 class UEdGraphNode;
@@ -103,11 +104,11 @@ public:
 
 	virtual UObject* GetParameterizationObject() override;
 
-	void BindObjectPropertyToParameterization(UObject* Object, const TArray<struct FDataprepPropertyLink>& InPropertyChain,const FName& Name);
+	void BindObjectPropertyToParameterization(UDataprepParameterizableObject* Object, const TArray<struct FDataprepPropertyLink>& InPropertyChain,const FName& Name);
 
-	bool IsObjectPropertyBinded(UObject* Object, const TArray<struct FDataprepPropertyLink>& InPropertyChain) const;
+	bool IsObjectPropertyBinded(UDataprepParameterizableObject* Object, const TArray<struct FDataprepPropertyLink>& InPropertyChain) const;
 
-	void RemoveObjectPropertyFromParameterization(UObject* Object, const TArray<struct FDataprepPropertyLink>& InPropertyChain);
+	void RemoveObjectPropertyFromParameterization(UDataprepParameterizableObject* Object, const TArray<struct FDataprepPropertyLink>& InPropertyChain);
 
 	UDataprepParameterization* GetDataprepParameterization() { return Parameterization; }
 
