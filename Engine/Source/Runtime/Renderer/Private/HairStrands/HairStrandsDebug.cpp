@@ -166,14 +166,10 @@ class FHairDebugPrintCS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FHairDebugPrintCS);
 	SHADER_USE_PARAMETER_STRUCT(FHairDebugPrintCS, FGlobalShader);
 
-	class FCoverage : SHADER_PERMUTATION_INT("PERMUTATION_COVERAGE", 2);
-	using FPermutationDomain = TShaderPermutationDomain<FCoverage>;
-
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FIntPoint, PixelCoord)
 		SHADER_PARAMETER(FIntPoint, MaxResolution)
 		SHADER_PARAMETER(uint32, FastResolveMask)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CoverageTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CategorizationTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairVisibilityNodeOffsetAndCount)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, HairVisibilityNodeData)
@@ -199,7 +195,6 @@ static void AddDebugHairPrintPass(
 	const TRefCountPtr<IPooledRenderTarget>& InCategorizationTexture = VisibilityData.CategorizationTexture;
 	const TRefCountPtr<IPooledRenderTarget>& InNodeIndex = VisibilityData.NodeIndex;
 	const TRefCountPtr<FPooledRDGBuffer>& InNodeData = VisibilityData.NodeData;
-	const TRefCountPtr<IPooledRenderTarget>& InCoverageTexture = VisibilityData.CoverageTexture;
 	
 	if (!InCategorizationTexture || !InNodeIndex || !InNodeData || !InDepthStencilTexture) return;
 
@@ -210,22 +205,17 @@ static void AddDebugHairPrintPass(
 	const FIntRect Viewport = View->ViewRect;
 	const FIntPoint Resolution(Viewport.Width(), Viewport.Height());
 
-	FHairDebugPrintCS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FHairDebugPrintCS::FCoverage>(InCoverageTexture ? 1 : 0);
-	FRDGTextureRef CoverageTexture = InCoverageTexture ? GraphBuilder.RegisterExternalTexture(InCoverageTexture, TEXT("CoverageTexture")) : nullptr;
-
 	FHairDebugPrintCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairDebugPrintCS::FParameters>();
 	Parameters->MaxResolution = CategorizationTexture->Desc.Extent;
 	Parameters->PixelCoord = View->CursorPos;
 	Parameters->FastResolveMask = STENCIL_TEMPORAL_RESPONSIVE_AA_MASK;
 	Parameters->CategorizationTexture = CategorizationTexture;
-	Parameters->CoverageTexture = CoverageTexture;
 	Parameters->HairVisibilityNodeData = GraphBuilder.CreateSRV(NodeData);
 	Parameters->HairVisibilityNodeOffsetAndCount = NodeIndex;
 	Parameters->DepthStencilTexture = InDepthStencilTexture;
 	Parameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	ShaderPrint::SetParameters(*View, Parameters->ShaderPrintUniformBuffer);
-	TShaderMapRef<FHairDebugPrintCS> ComputeShader(View->ShaderMap, PermutationVector);
+	TShaderMapRef<FHairDebugPrintCS> ComputeShader(View->ShaderMap);
 
 	ClearUnusedGraphResources(*ComputeShader, Parameters);
 
@@ -250,7 +240,6 @@ class FHairDebugPS : public FGlobalShader
 		SHADER_PARAMETER(FVector2D, OutputResolution)
 		SHADER_PARAMETER(uint32, FastResolveMask)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CategorizationTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CoverageTexture)
 		SHADER_PARAMETER_SRV(Texture2D, DepthStencilTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, LinearSampler)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
@@ -268,7 +257,6 @@ static void AddDebugHairPass(
 	const FViewInfo* View,
 	const EHairDebugMode InDebugMode,
 	const TRefCountPtr<IPooledRenderTarget>& InCategorizationTexture,
-	const TRefCountPtr<IPooledRenderTarget>& InCoverageTexture,
 	const FShaderResourceViewRHIRef& InDepthStencilTexture,
 	FRDGTextureRef& OutTarget)
 {
@@ -277,10 +265,8 @@ static void AddDebugHairPass(
 
 	if (!InCategorizationTexture) return;
 	if (InDebugMode == EHairDebugMode::TAAResolveType && !InDepthStencilTexture) return;
-	if (InDebugMode == EHairDebugMode::Coverage && !InCoverageTexture) return;
 
 	FRDGTextureRef CategorizationTexture = InCategorizationTexture ? GraphBuilder.RegisterExternalTexture(InCategorizationTexture, TEXT("CategorizationTexture")) : nullptr;
-	FRDGTextureRef CoverageTexture = InCoverageTexture ? GraphBuilder.RegisterExternalTexture(InCoverageTexture, TEXT("CoverageTexture")) : nullptr;
 
 	const FIntRect Viewport = View->ViewRect;
 	const FIntPoint Resolution(Viewport.Width(), Viewport.Height());
@@ -289,7 +275,6 @@ static void AddDebugHairPass(
 	Parameters->OutputResolution = Resolution;
 	Parameters->FastResolveMask = STENCIL_TEMPORAL_RESPONSIVE_AA_MASK;
 	Parameters->CategorizationTexture = CategorizationTexture;
-	Parameters->CoverageTexture = CoverageTexture;
 	Parameters->DepthStencilTexture = InDepthStencilTexture;
 	Parameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	Parameters->RenderTargets[0] = FRenderTargetBinding(OutTarget, ERenderTargetLoadAction::ELoad, 0);
@@ -1125,7 +1110,7 @@ void RenderHairStrandsDebugInfo(FRHICommandListImmediate& RHICmdList, TArray<FVi
 		if (ViewIndex < uint32(HairDatas->HairVisibilityViews.HairDatas.Num()))
 		{
 			const FHairStrandsVisibilityData& VisibilityData = HairDatas->HairVisibilityViews.HairDatas[ViewIndex];
-			AddDebugHairPass(GraphBuilder, &View, HairDebugMode, VisibilityData.CategorizationTexture, VisibilityData.CoverageTexture, SceneTargets.SceneStencilSRV, SceneColorTexture);
+			AddDebugHairPass(GraphBuilder, &View, HairDebugMode, VisibilityData.CategorizationTexture, SceneTargets.SceneStencilSRV, SceneColorTexture);
 			AddDebugHairPrintPass(GraphBuilder, &View, HairDebugMode, VisibilityData,  SceneTargets.SceneStencilSRV);
 		}
 
