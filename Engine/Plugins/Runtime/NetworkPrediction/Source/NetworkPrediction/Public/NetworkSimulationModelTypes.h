@@ -206,8 +206,8 @@ private:
 template<typename T>
 struct TPredictedStateAccessor
 {
-	TPredictedStateAccessor(TBaseStateAccessor<T>& InModBuffer, int32* InLastProcessedKeyframe)
-		: ModBuffer(InModBuffer), LastProcessedKeyframe(InLastProcessedKeyframe) { }
+	TPredictedStateAccessor(TBaseStateAccessor<T>& InModBuffer, int32* InPendingKeyframe)
+		: ModBuffer(InModBuffer), PendingKeyframe(InPendingKeyframe) { }
 
 	// Returns the current state, cannot be modified directly
 	const T* Get() const
@@ -218,13 +218,13 @@ struct TPredictedStateAccessor
 	// Applies a mod to the current state. If in prediction mode, will save the mod to be reapplied during a rollback
 	void Modify(TUniqueFunction<void(T&)>&& Func)
 	{
-		ModBuffer.Modify(MoveTemp(Func), *LastProcessedKeyframe);
+		ModBuffer.Modify(MoveTemp(Func), *PendingKeyframe);
 	}
 
 private:
 
 	TBaseStateAccessor<T>& ModBuffer;
-	int32* LastProcessedKeyframe = nullptr;
+	int32* PendingKeyframe = nullptr;
 };
 
 // Struct that encapsulates writing a new element to a buffer. This is used to allow a new Aux state to be created in the ::Update loop.
@@ -443,17 +443,27 @@ private:
 };
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
+//	TSimulationTickState: Holds active state for simulation ticking. We track two things: keyframes and time.
 //
+//	PendingKeyframe is the next keyframe we will process: the input/sync/aux state @ PendingKeyframe will be run through T::Update and produce the 
+//	next frame's (PendingKeyframe+1) Sync and possibly Aux state (if it changes). "Out of band" modifications to the sync/aux state should happen
+//	to PendingKeyframe (e.g, before it is processed. Once a frame has been processed, we won't run it through T::Update again!).
+//
+//	MaxAllowedKeyframe is a keyframe based limiter on simulation updates. This must be incremented to allow the simulation to advance.
+//
+//	Time is also tracked. We keep running total for how much the sim has advanced and how much it is allowed to advance. There is also a historic buffer of
+//	simulation time in SimulationTimeBuffer.
+//
+//	Consider that Keyframes are essentially client dependent and gaps can happen due to packet loss, etc. Time will always be continuous though.
+//	
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-
-// Holds active state for simulation ticking: what inputs we have processed, how time we have simulated, how much we are allowed to, etc.
 template<typename TickSettings=TNetworkSimTickSettings<>>
 struct TSimulationTickState
 {
 	using TSettings = TickSettings;
 
-	int32 LastProcessedInputKeyframe = 0;	// The last input keyframe that we processed
-	int32 MaxAllowedInputKeyframe = 0;		// The max input keyframe that we are allowed to process (e.g, don't process input past this keyframe yet)
+	int32 PendingKeyframe = 0;
+	int32 MaxAllowedKeyframe = -1;
 	
 	FNetworkSimTime GetTotalProcessedSimulationTime() const 
 	{ 
@@ -557,12 +567,6 @@ class TNetworkSimDriverInterfaceBase
 public:
 	virtual FString GetDebugName() const = 0; // Used for debugging. Recommended to emit the simulation name and the actor name/role.
 	virtual const UObject* GetVLogOwner() const = 0; // Owning object for Visual Logs
-
-	// Called to create initial value of the sync state.
-	virtual void InitSyncState(typename TBufferTypes::TSyncState& OutSyncState) const = 0;
-
-	// Called to create initial value of the aux state.
-	virtual void InitAuxState(typename TBufferTypes::TAuxState& OutAuxState) const = 0;
 	
 	// Called whenever the sim is ready to process new local input.
 	virtual void ProduceInput(const FNetworkSimTime SimTime, typename TBufferTypes::TInputCmd&) = 0;
