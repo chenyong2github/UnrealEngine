@@ -51,7 +51,6 @@ struct FAnalysisEngine::FDispatch
 	uint16			EventSize			= 0;
 	uint16			LoggerNameOffset	= 0;	// From FDispatch ptr
 	uint16			EventNameOffset		= 0;	// From FDispatch ptr
-	uint16			_Unused0;
 	FField			Fields[];
 };
 
