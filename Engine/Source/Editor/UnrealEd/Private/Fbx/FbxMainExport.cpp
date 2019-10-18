@@ -1599,7 +1599,7 @@ int32 FFbxExporter::FLevelSequenceAnimTrackAdapter::GetStartFrame() const
 {
 	FFrameRate TickResolution = MovieScene->GetTickResolution();
 	FFrameRate DisplayRate = MovieScene->GetDisplayRate();
-	return FFrameRate::TransformTime(FFrameTime(MovieScene::DiscreteInclusiveLower(MovieScene->GetPlaybackRange()) * RootToLocalTransform.Inverse()), TickResolution, DisplayRate).RoundToFrame().Value;
+	return FFrameRate::TransformTime(FFrameTime(MovieScene::DiscreteInclusiveLower(MovieScene->GetPlaybackRange()) * RootToLocalTransform.InverseLinearOnly()), TickResolution, DisplayRate).RoundToFrame().Value;
 }
 
 int32 FFbxExporter::FLevelSequenceAnimTrackAdapter::GetLength() const
@@ -1616,7 +1616,7 @@ void FFbxExporter::FLevelSequenceAnimTrackAdapter::UpdateAnimation( int32 LocalF
 	FFrameRate DisplayRate = MovieScene->GetDisplayRate();
 
 	FFrameTime LocalTime = FFrameRate::TransformTime(FFrameTime(LocalFrame), DisplayRate, TickResolution);
-	FFrameTime GlobalTime = LocalTime * RootToLocalTransform.Inverse();
+	FFrameTime GlobalTime = LocalTime * RootToLocalTransform.InverseLinearOnly();
 
 	FMovieSceneContext Context = FMovieSceneContext(FMovieSceneEvaluationRange(GlobalTime, TickResolution), MovieScenePlayer->GetPlaybackStatus()).SetHasJumped(true);
 
@@ -2516,7 +2516,7 @@ void FFbxExporter::ExportChannelToFbxCurve(FbxAnimCurve& InFbxCurve, const FMovi
 
 		FbxTime FbxTime;
 		FbxAnimCurveKey FbxKey;
-		const double KeyTimeSeconds = GetExportOptions()->bExportLocalTime ? KeyTime / TickResolution : (KeyTime * RootToLocalTransform.Inverse()) / TickResolution;
+		const double KeyTimeSeconds = GetExportOptions()->bExportLocalTime ? KeyTime / TickResolution : (KeyTime * RootToLocalTransform.InverseLinearOnly()) / TickResolution;
 
 		FbxTime.SetSecondDouble(KeyTimeSeconds);
 
@@ -2656,7 +2656,7 @@ void FFbxExporter::ExportLevelSequence3DTransformTrack( FbxNode* FbxNode, UMovie
 		FbxCurveRotZ->KeyModifyBegin();
 
 		int32 LocalStartFrame = FFrameRate::TransformTime(FFrameTime(MovieScene::DiscreteInclusiveLower(InPlaybackRange)), TickResolution, DisplayRate).RoundToFrame().Value;
-		int32 StartFrame = FFrameRate::TransformTime(FFrameTime(MovieScene::DiscreteInclusiveLower(InPlaybackRange) * RootToLocalTransform.Inverse()), TickResolution, DisplayRate).RoundToFrame().Value;
+		int32 StartFrame = FFrameRate::TransformTime(FFrameTime(MovieScene::DiscreteInclusiveLower(InPlaybackRange) * RootToLocalTransform.InverseLinearOnly()), TickResolution, DisplayRate).RoundToFrame().Value;
 		int32 AnimationLength = FFrameRate::TransformTime(FFrameTime(FFrameNumber(MovieScene::DiscreteSize(InPlaybackRange))), TickResolution, DisplayRate).RoundToFrame().Value;
 
 		for (int32 FrameCount = 0; FrameCount <= AnimationLength; ++FrameCount)

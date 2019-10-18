@@ -331,4 +331,90 @@ bool FMovieSceneCompilerEmptySpaceOnTheFlyTest::RunTest(const FString& Parameter
 
 	return true;
 }
+
+
+#define _TEST_ASSERT(cond, msgfmt, ...)\
+	if (!ensure((cond)))\
+	{\
+		AddError(FString::Printf(TEXT(msgfmt), __VA_ARGS__));\
+		return false;\
+	}
+
+// This should use TestEqual methods on the test if those methods actually returned the true/false outcome...
+#define _TEST_ASSERT_EQUAL(actual, expected)\
+	if (!ensure(actual == expected))\
+	{\
+		AddError(FString::Printf(TEXT("Expected '%s' but actual value was '%s'."), *LexToString(expected), *LexToString(actual)));\
+		return false;\
+	}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMovieSceneCompilerSubSequencesTest, "System.Engine.Sequencer.Compiler.SubSequences", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FMovieSceneCompilerSubSequencesTest::RunTest(const FString& Parameters)
+{
+	struct FTest
+	{
+		TArray<TRange<FFrameNumber>> CompileRanges;
+	};
+
+	struct FTemplateStore : public IMovieSceneSequenceTemplateStore
+	{
+		FTemplateStore(const TArray<UTestMovieSceneSequence*>& InExpectedSequences)
+			: ExpectedSequences(InExpectedSequences)
+		{
+			Templates.SetNum(InExpectedSequences.Num());
+		}
+
+		FMovieSceneEvaluationTemplate& AccessTemplate(UMovieSceneSequence& InSequence) override
+		{
+			for (size_t i = 0; i < ExpectedSequences.Num(); ++i)
+			{
+				if (ExpectedSequences[i] == &InSequence)
+				{
+					return Templates[i];
+				}
+			}
+			check(false);
+			return Templates[0];
+		}
+
+	private:
+		TArray<UTestMovieSceneSequence*> ExpectedSequences;
+		TArray<FMovieSceneEvaluationTemplate> Templates;
+	};
+
+	UTestMovieSceneSequence* RootSequence = NewObject<UTestMovieSceneSequence>(GetTransientPackage());
+	UTestMovieSceneSubTrack* RootSubTrack = RootSequence->MovieScene->AddMasterTrack<UTestMovieSceneSubTrack>();
+	
+	UTestMovieSceneSequence* Shot1Sequence = NewObject<UTestMovieSceneSequence>(GetTransientPackage());
+	Shot1Sequence->GetMovieScene()->SetPlaybackRange(0, 100);
+	
+	UTestMovieSceneSubSection* Shot1SubSection = NewObject<UTestMovieSceneSubSection>(RootSubTrack);
+	Shot1SubSection->SetRange(TRange<FFrameNumber>(0, 100));
+	Shot1SubSection->SetSequence(Shot1Sequence);
+	RootSubTrack->SectionArray.Add(Shot1SubSection);
+	
+	UTestMovieSceneTrack* Shot1Track = Shot1Sequence->MovieScene->AddMasterTrack<UTestMovieSceneTrack>();
+	UTestMovieSceneSection* Shot1Section = NewObject<UTestMovieSceneSection>(Shot1Track);
+	Shot1Section->SetRange(TRange<FFrameNumber>(0, 60));
+	Shot1Track->SectionArray.Add(Shot1Section);
+	
+	FMovieSceneSequenceID Shot1SequenceID = Shot1SubSection->GetSequenceID();
+
+	{
+		FTemplateStore Store({ RootSequence, Shot1Sequence });
+		FMovieSceneCompiler::Compile(*RootSequence, Store);
+
+		const FMovieSceneEvaluationTemplate& RootTemplate = Store.AccessTemplate(*RootSequence);
+		_TEST_ASSERT_EQUAL(RootTemplate.EvaluationField.GetRanges().Num(), 3);
+		_TEST_ASSERT_EQUAL(RootTemplate.EvaluationField.GetRange(1), TRange<FFrameNumber>(0, 60));
+		const FMovieSceneEvaluationGroup& EvalGroup = RootTemplate.EvaluationField.GetGroup(1);
+		_TEST_ASSERT_EQUAL(EvalGroup.SegmentPtrLUT[0].SequenceID, Shot1SequenceID);
+	}
+
+	return true;
+}
+
+#undef _TEST_ASSERT
+#undef _TEST_ASSERT_EQUAL
+
 #endif // WITH_DEV_AUTOMATION_TESTS

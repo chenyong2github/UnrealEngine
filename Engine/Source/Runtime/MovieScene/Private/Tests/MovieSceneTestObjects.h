@@ -7,6 +7,8 @@
 #include "MovieSceneSection.h"
 #include "MovieSceneSequence.h"
 #include "Evaluation/MovieSceneEvalTemplate.h"
+#include "Sections/MovieSceneSubSection.h"
+#include "Tracks/MovieSceneSubTrack.h"
 #include "MovieSceneTestObjects.generated.h"
 
 USTRUCT()
@@ -62,3 +64,22 @@ public:
 	UPROPERTY()
 	UMovieScene* MovieScene;
 };
+
+UCLASS(MinimalAPI)
+class UTestMovieSceneSubTrack : public UMovieSceneSubTrack
+{
+public:
+	GENERATED_BODY()
+
+	virtual const TArray<UMovieSceneSection*>& GetAllSections() const override { return SectionArray; }
+
+	UPROPERTY()
+	TArray<UMovieSceneSection*> SectionArray;
+};
+
+UCLASS(MinimalAPI)
+class UTestMovieSceneSubSection : public UMovieSceneSubSection
+{
+	GENERATED_BODY()
+};
+

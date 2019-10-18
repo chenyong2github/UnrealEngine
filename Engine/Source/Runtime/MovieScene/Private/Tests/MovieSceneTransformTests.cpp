@@ -9,6 +9,7 @@
 
 #define LOCTEXT_NAMESPACE "MovieSceneTransformTests"
 
+// Range equality.
 bool IsEqual(TRangeBound<FFrameNumber> A, TRangeBound<FFrameNumber> B)
 {
 	if (A.IsOpen() || B.IsOpen())
@@ -23,12 +24,66 @@ bool IsEqual(TRangeBound<FFrameNumber> A, TRangeBound<FFrameNumber> B)
 	return A.GetValue() == B.GetValue();
 }
 
+// Range equality.
 bool IsEqual(TRange<FFrameNumber> A, TRange<FFrameNumber> B)
 {
 	return IsEqual(A.GetLowerBound(), B.GetLowerBound()) && IsEqual(A.GetUpperBound(), B.GetUpperBound());
 }
 
-bool TestTransform(FAutomationTestBase& Test, FMovieSceneSequenceTransform Transform, TArrayView<TRange<FFrameNumber>> InSource, TArrayView<TRange<FFrameNumber>> InExpected, const TCHAR* TestName)
+// Frame number equality.
+bool IsEqual(FFrameNumber A, FFrameNumber B)
+{
+	return A.Value == B.Value;
+}
+
+// Frame time equality.
+bool IsEqual(FFrameTime A, FFrameTime B)
+{
+	return IsEqual(A.FrameNumber, B.FrameNumber) && FMath::IsNearlyEqual(A.GetSubFrame(), B.GetSubFrame());
+}
+
+// Most time transformations are not "round" so they return a frame time that must be rounded down to a frame number,
+// except for time warping which doesn't stretch anything and returns a frame number.
+template<typename TTransform>
+FFrameNumber TransformToFrameNumber(TTransform Transform, FFrameNumber Value)
+{
+	return (Value * Transform).FloorToFrame();
+}
+template<>
+FFrameNumber TransformToFrameNumber(FMovieSceneTimeWarping Transform, FFrameNumber Value)
+{
+	return Value * Transform;
+}
+
+// Generic method for testing the transform of frames and times.
+template<typename TTransform>
+bool TestTransform(FAutomationTestBase& Test, TTransform Transform, TArrayView<FFrameNumber> InSource, TArrayView<FFrameNumber> InExpected, const TCHAR* TestName)
+{
+	check(InSource.Num() == InExpected.Num());
+
+	bool bSuccess = true;
+	for (int32 Index = 0; Index < InSource.Num(); ++Index)
+	{
+		FFrameNumber Result = TransformToFrameNumber(Transform, InSource[Index]);
+		if (!IsEqual(Result, InExpected[Index]))
+		{
+			Test.AddError(FString::Printf(TEXT("Test '%s' failed (Index %d). Transform %s did not apply correctly (%s != %s)"),
+				TestName,
+				Index,
+				*LexToString(Transform),
+				*LexToString(Result),
+				*LexToString(InExpected[Index])));
+
+			bSuccess = false;
+		}
+	}
+
+	return bSuccess;
+}
+
+// A variant of the above method for testing the transform of ranges.
+template<typename TTransform>
+bool TestTransform(FAutomationTestBase& Test, TTransform Transform, TArrayView<TRange<FFrameNumber>> InSource, TArrayView<TRange<FFrameNumber>> InExpected, const TCHAR* TestName)
 {
 	check(InSource.Num() == InExpected.Num());
 
@@ -38,12 +93,10 @@ bool TestTransform(FAutomationTestBase& Test, FMovieSceneSequenceTransform Trans
 		TRange<FFrameNumber> Result = InSource[Index] * Transform;
 		if (!IsEqual(Result, InExpected[Index]))
 		{
-			Test.AddError(FString::Printf(TEXT("Test '%s' failed (Index %d). Transform (Scale %.3f, Offset %i+%.3f) did not apply correctly (%s != %s)"),
+			Test.AddError(FString::Printf(TEXT("Test '%s' failed (Index %d). Transform %s did not apply correctly (%s != %s)"),
 				TestName,
 				Index,
-				Transform.TimeScale,
-				Transform.Offset.FrameNumber.Value,
-				Transform.Offset.GetSubFrame(),
+				*LexToString(Transform),
 				*LexToString(Result),
 				*LexToString(InExpected[Index])));
 
@@ -61,8 +114,139 @@ FMovieSceneSequenceTransform TransformRange(FFrameNumber StartA, FFrameNumber En
 	return FMovieSceneSequenceTransform(StartB, Scale) * FMovieSceneSequenceTransform(-StartA);
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMovieSceneSubSectionCoreTransformsTest, "System.Engine.Sequencer.Core.Transforms", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-bool FMovieSceneSubSectionCoreTransformsTest::RunTest(const FString& Parameters)
+// Linear transform tests
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMovieSceneSubSectionCoreLinearTransformsTest, 
+		"System.Engine.Sequencer.Core.LinearTransforms", 
+		EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FMovieSceneSubSectionCoreLinearTransformsTest::RunTest(const FString& Parameters)
+{
+	FFrameNumber SourceTimes[] = {
+		FFrameNumber(500),
+		FFrameNumber(525)
+	};
+
+	bool bSuccess = true;
+
+	{
+		FFrameNumber ExpectedTimes[] = {
+			FFrameNumber(500),
+			FFrameNumber(525)
+		};
+		FMovieSceneTimeTransform Transform(0);
+		bSuccess = TestTransform(*this, Transform, SourceTimes, ExpectedTimes, TEXT("IdentityTransform")) && bSuccess;
+
+		Transform = Transform.Inverse();
+		bSuccess = TestTransform(*this, Transform, ExpectedTimes, SourceTimes, TEXT("IdentityTransformInverse")) && bSuccess;
+	}
+
+	{
+		FFrameNumber ExpectedTimes[] = {
+			FFrameNumber(1000),
+			FFrameNumber(1050)
+		};
+		FMovieSceneTimeTransform Transform(0, 2.f);
+		bSuccess = TestTransform(*this, Transform, SourceTimes, ExpectedTimes, TEXT("OffsetTransform")) && bSuccess;
+
+		Transform = Transform.Inverse();
+		bSuccess = TestTransform(*this, Transform, ExpectedTimes, SourceTimes, TEXT("OffsetTransformInverse")) && bSuccess;
+	}
+
+	{
+		FFrameNumber ExpectedTimes[] = {
+			FFrameNumber(0),
+			FFrameNumber(50)
+		};
+		FMovieSceneTimeTransform Transform(-1000, 2.f);
+		bSuccess = TestTransform(*this, Transform, SourceTimes, ExpectedTimes, TEXT("OffsetAndScaleTransform")) && bSuccess;
+
+		Transform = Transform.Inverse();
+		bSuccess = TestTransform(*this, Transform, ExpectedTimes, SourceTimes, TEXT("OffsetAndScaleTransformInverse")) && bSuccess;
+	}
+
+	{
+		FFrameNumber ExpectedTimes[] = {
+			FFrameNumber(0),
+			FFrameNumber(50)
+		};
+		FMovieSceneTimeTransform Transform = FMovieSceneTimeTransform(0, 2.f) * FMovieSceneTimeTransform(-500);
+		bSuccess = TestTransform(*this, Transform, SourceTimes, ExpectedTimes, TEXT("OffsetAndScaleTransformObtainedFromMultiplication")) && bSuccess;
+	}
+
+	return bSuccess;
+}
+
+// Warping transform tests
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMovieSceneSubSectionCoreWarpTransformsTest,
+		"System.Engine.Sequencer.Core.WarpTransforms",
+		EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FMovieSceneSubSectionCoreWarpTransformsTest::RunTest(const FString& Parameters)
+{
+	FFrameNumber SourceTimes[] = {
+		FFrameNumber(0),
+		FFrameNumber(25),
+		FFrameNumber(50),
+		FFrameNumber(60),
+		FFrameNumber(120)
+	};
+
+	bool bSuccess = true;
+
+	{
+		FFrameNumber ExpectedTimes[] = {
+			FFrameNumber(0),
+			FFrameNumber(25),
+			FFrameNumber(0),
+			FFrameNumber(10),
+			FFrameNumber(20)
+		};
+		FMovieSceneTimeWarping Warping(0, 50);
+		bSuccess = TestTransform(*this, Warping, SourceTimes, ExpectedTimes, TEXT("SimpleWarping")) && bSuccess;
+
+		FMovieSceneTimeTransform Transform = Warping.InverseFromWarp(0);
+		bSuccess = TestTransform(*this, Transform, MakeArrayView(ExpectedTimes, 2), MakeArrayView(SourceTimes, 2), TEXT("SimpleWarpingInverseLoop0")) && bSuccess;
+
+		FMovieSceneTimeTransform Transform2 = Warping.InverseFromWarp(1);
+		bSuccess = TestTransform(*this, Transform2, MakeArrayView(ExpectedTimes + 2, 2), MakeArrayView(SourceTimes + 2, 2), TEXT("SimpleWarpingInverseLoop1")) && bSuccess;
+
+		FMovieSceneTimeTransform Transform3 = Warping.InverseFromWarp(2);
+		bSuccess = TestTransform(*this, Transform3, MakeArrayView(ExpectedTimes + 4, 1), MakeArrayView(SourceTimes + 4, 1), TEXT("SimpleWarpingInverseLoop2")) && bSuccess;
+	}
+
+	SourceTimes[0] = FFrameNumber(3);
+	SourceTimes[1] = FFrameNumber(28);
+	SourceTimes[2] = FFrameNumber(53);
+	SourceTimes[3] = FFrameNumber(63);
+	SourceTimes[4] = FFrameNumber(123);
+
+	{
+		FFrameNumber ExpectedTimes[] {
+			FFrameNumber(3),
+			FFrameNumber(28),
+			FFrameNumber(14),
+			FFrameNumber(24),
+			FFrameNumber(6)
+		};
+		FMovieSceneTimeWarping Warping(3, 42);
+		bSuccess = TestTransform(*this, Warping, SourceTimes, ExpectedTimes, TEXT("WarpingWithTrim")) && bSuccess;
+
+		FMovieSceneTimeTransform Transform = Warping.InverseFromWarp(0);
+		bSuccess = TestTransform(*this, Transform, MakeArrayView(ExpectedTimes, 2), MakeArrayView(SourceTimes, 2), TEXT("WarpingWithTrimInverseLoop0")) && bSuccess;
+
+		FMovieSceneTimeTransform Transform2 = Warping.InverseFromWarp(1);
+		bSuccess = TestTransform(*this, Transform2, MakeArrayView(ExpectedTimes + 2, 2), MakeArrayView(SourceTimes + 2, 2), TEXT("WarpingWithTrimInverseLoop1")) && bSuccess;
+
+		FMovieSceneTimeTransform Transform3 = Warping.InverseFromWarp(3);  // We lapsed one full loop
+		bSuccess = TestTransform(*this, Transform3, MakeArrayView(ExpectedTimes + 4, 1), MakeArrayView(SourceTimes + 4, 1), TEXT("WarpingWithTrimInverseLoop2")) && bSuccess;
+	}
+
+	return bSuccess;
+}
+
+// Sequence transform tests 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMovieSceneSubSectionCoreSequenceTransformsTest,
+		"System.Engine.Sequencer.Core.SequenceTransforms",
+		EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FMovieSceneSubSectionCoreSequenceTransformsTest::RunTest(const FString& Parameters)
 {
 	// We test using ranges since that implicitly tests frame number transformation as well
 	static const TRangeBound<FFrameNumber> OpenBound;
@@ -86,7 +270,7 @@ bool FMovieSceneSubSectionCoreTransformsTest::RunTest(const FString& Parameters)
 			InfiniteRange, OpenLowerRange, OpenUpperRange, ClosedRange
 		};
 		
-		bSuccess = TestTransform(*this, IdentityTransform, SourceRanges, Expected, TEXT("IdentityTransform")) && bSuccess;
+		bSuccess = TestTransform(*this, IdentityTransform.LinearTransform, SourceRanges, Expected, TEXT("IdentityTransform")) && bSuccess;
 	}
 
 	{
@@ -97,7 +281,7 @@ bool FMovieSceneSubSectionCoreTransformsTest::RunTest(const FString& Parameters)
 			InfiniteRange, TRange<FFrameNumber>(OpenBound, FFrameNumber(300)), TRange<FFrameNumber>(FFrameNumber(200), OpenBound), TRange<FFrameNumber>(200, 300)
 		};
 
-		bSuccess = TestTransform(*this, Transform, SourceRanges, Expected, TEXT("Simple Translation")) && bSuccess;
+		bSuccess = TestTransform(*this, Transform.LinearTransform, SourceRanges, Expected, TEXT("Simple Translation")) && bSuccess;
 	}
 
 	{
@@ -110,7 +294,7 @@ bool FMovieSceneSubSectionCoreTransformsTest::RunTest(const FString& Parameters)
 			InfiniteRange, TRange<FFrameNumber>(OpenBound, FFrameNumber(1000)), TRange<FFrameNumber>(FFrameNumber(-200), OpenBound), TRange<FFrameNumber>(-200, 1000)
 		};
 
-		bSuccess = TestTransform(*this, Transform, SourceRanges, Expected, TEXT("Simple Translation + half speed")) && bSuccess;
+		bSuccess = TestTransform(*this, Transform.LinearTransform, SourceRanges, Expected, TEXT("Simple Translation + half speed")) && bSuccess;
 	}
 
 	{
@@ -134,7 +318,7 @@ bool FMovieSceneSubSectionCoreTransformsTest::RunTest(const FString& Parameters)
 			AddError(FString::Printf(TEXT("Accumulated transform does not have the same effect as separate transformations (%i+%.5f != %i+%.5f)"), AccumValue.FrameNumber.Value, AccumValue.GetSubFrame(), SeedValue.FrameNumber.Value, SeedValue.GetSubFrame()));
 		}
 
-		FMovieSceneSequenceTransform InverseTransform = AccumulatedTransform.Inverse();
+		FMovieSceneSequenceTransform InverseTransform = AccumulatedTransform.InverseLinearOnly();
 
 		FFrameTime InverseValue = AccumValue * InverseTransform;
 		if (InverseValue != 10)
