@@ -2193,7 +2193,18 @@ void UAbilitySystemComponent::Debug_Internal(FAbilitySystemComponentDebugInfo& I
 
 	if (BlockedAbilityTags.GetExplicitGameplayTags().Num() > 0)
 	{
-		DebugLine(Info, FString::Printf(TEXT("BlockedAbilityTags: %s"), *BlockedAbilityTags.GetExplicitGameplayTags().ToStringSimple()), 4.f, 0.f);
+		FString BlockedTagsStrings;
+		int32 BlockedTagCount = 1;
+		for (FGameplayTag Tag : BlockedAbilityTags.GetExplicitGameplayTags())
+		{
+			BlockedTagsStrings.Append(FString::Printf(TEXT("%s (%d)"), *Tag.ToString(), BlockedAbilityTags.GetTagCount(Tag)));
+
+			if (BlockedTagCount++ < NumTags)
+			{
+				BlockedTagsStrings += TEXT(", ");
+			}
+		}
+		DebugLine(Info, FString::Printf(TEXT("BlockedAbilityTags: %s"), *BlockedTagsStrings), 4.f, 0.f);
 	}
 	else
 	{
