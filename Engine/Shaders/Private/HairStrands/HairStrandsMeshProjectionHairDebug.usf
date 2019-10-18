@@ -17,10 +17,12 @@ Buffer<float4> RootNormalBuffer;
 Buffer<uint>   RootBarycentricBuffer;
 #endif
 
+float3 RestPositionOffset;
 Buffer<float4>  RestPosition0Buffer;
 Buffer<float4>  RestPosition1Buffer;
 Buffer<float4>  RestPosition2Buffer;
 
+float3 DeformedPositionOffset;
 Buffer<float4>  DeformedPosition0Buffer;
 Buffer<float4>  DeformedPosition1Buffer;
 Buffer<float4>  DeformedPosition2Buffer;
@@ -43,8 +45,8 @@ void MainVS(
 	float3 N;
 	float3 P;
 	{
-		const FHairMeshTriangle RestTriangle     = GetTriangleTransformation(LineIndex, RestPosition0Buffer, RestPosition1Buffer, RestPosition2Buffer);
-		const FHairMeshTriangle DeformedTriangle = GetTriangleTransformation(LineIndex, DeformedPosition0Buffer, DeformedPosition1Buffer, DeformedPosition2Buffer);
+		const FHairMeshTriangle RestTriangle     = GetTriangleTransformation(LineIndex, RestPosition0Buffer, RestPosition1Buffer, RestPosition2Buffer, RestPositionOffset);
+		const FHairMeshTriangle DeformedTriangle = GetTriangleTransformation(LineIndex, DeformedPosition0Buffer, DeformedPosition1Buffer, DeformedPosition2Buffer, DeformedPositionOffset);
 
 		float3 P0 = RootPositionBuffer[LineIndex].xyz;
 		float3 LN = RootNormalBuffer[LineIndex].xyz;
@@ -72,8 +74,8 @@ void MainVS(
 
 	if (TriangleIndex > MaxRootCount) return;
 
-	const FHairMeshTriangle RestTriangle     = GetTriangleTransformation(TriangleIndex, RestPosition0Buffer, RestPosition1Buffer, RestPosition2Buffer);
-	const FHairMeshTriangle DeformedTriangle = GetTriangleTransformation(TriangleIndex, DeformedPosition0Buffer, DeformedPosition1Buffer, DeformedPosition2Buffer);
+	const FHairMeshTriangle RestTriangle     = GetTriangleTransformation(TriangleIndex, RestPosition0Buffer, RestPosition1Buffer, RestPosition2Buffer, RestPositionOffset);
+	const FHairMeshTriangle DeformedTriangle = GetTriangleTransformation(TriangleIndex, DeformedPosition0Buffer, DeformedPosition1Buffer, DeformedPosition2Buffer, DeformedPositionOffset);
 
 	FHairMeshTriangle Tri;
 	if (DeformedFrameEnable > 0)

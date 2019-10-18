@@ -114,11 +114,11 @@ class FHairInterpolationCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, VertexCount)
 		SHADER_PARAMETER(uint32, DispatchCountX)
-		SHADER_PARAMETER(FVector, HairWorldOffset)
+		SHADER_PARAMETER(FVector, InHairPositionOffset)
+		SHADER_PARAMETER(FVector, OutHairPositionOffset)
 
-		SHADER_PARAMETER(FVector, RestPositionWorldCenter)
-		SHADER_PARAMETER(FVector, DeformedPositionWorldCenter)
-		SHADER_PARAMETER(FVector, OutRenderDeformedPositionCenter)
+		SHADER_PARAMETER(FVector, RestPositionOffset)
+		SHADER_PARAMETER(FVector, DeformedPositionOffset)
 
 		SHADER_PARAMETER_SRV(Buffer, RenderRestPosePositionBuffer)
 		SHADER_PARAMETER_UAV(RWBuffer, OutRenderDeformedPositionBuffer)
@@ -154,7 +154,8 @@ IMPLEMENT_GLOBAL_SHADER(FHairInterpolationCS, "/Engine/Private/HairStrands/HairS
 static void AddHairStrandsInterpolationPass(
 	FRDGBuilder& GraphBuilder,
 	const FHairStrandsProjectionHairData::HairGroup& InHairData,
-	const FVector& HairWorldOffset, 
+	const FVector& InHairWorldOffset, 
+	const FVector& OutHairWorldOffset,
 	const int32 LODIndex,
 	const uint32 VertexCount,
 	const FShaderResourceViewRHIRef& RenderRestPosePositionBuffer,
@@ -183,21 +184,19 @@ static void AddHairStrandsInterpolationPass(
 		Parameters->OutRenderAttributeBuffer = OutRenderAttributeBuffer;
 	}
 	Parameters->VertexCount = VertexCount;
-	Parameters->HairWorldOffset = HairWorldOffset;
+	Parameters->InHairPositionOffset = InHairWorldOffset;
+	Parameters->OutHairPositionOffset = OutHairWorldOffset;
 	Parameters->DispatchCountX = DispatchCount.X;
-	Parameters->OutRenderDeformedPositionCenter = FVector::ZeroVector;
 
 	const bool bSupportDynamicMesh = InHairData.RootCount > 0 && LODIndex >= 0 && LODIndex < InHairData.LODDatas.Num() && InHairData.LODDatas[LODIndex].bIsValid;
 	if (bSupportDynamicMesh)
 	{
-		Parameters->OutRenderDeformedPositionCenter = FVector::ZeroVector; // TODO
-
-		Parameters->RestPositionWorldCenter = FVector::ZeroVector; // TODO: InHairData.LODDatas[LODIndex].RestRootCenter;
+		Parameters->RestPositionOffset = InHairData.LODDatas[LODIndex].RestPositionOffset;
 		Parameters->RestPosition0Buffer = InHairData.LODDatas[LODIndex].RestRootTrianglePosition0Buffer->SRV;
 		Parameters->RestPosition1Buffer = InHairData.LODDatas[LODIndex].RestRootTrianglePosition1Buffer->SRV;
 		Parameters->RestPosition2Buffer = InHairData.LODDatas[LODIndex].RestRootTrianglePosition2Buffer->SRV;
 
-		Parameters->DeformedPositionWorldCenter = FVector::ZeroVector; // TODO: InHairData.LODDatas[LODIndex].DeformedRootCenter;
+		Parameters->DeformedPositionOffset = InHairData.LODDatas[LODIndex].DeformedPositionOffset;
 		Parameters->DeformedPosition0Buffer = InHairData.LODDatas[LODIndex].DeformedRootTrianglePosition0Buffer->SRV;
 		Parameters->DeformedPosition1Buffer = InHairData.LODDatas[LODIndex].DeformedRootTrianglePosition1Buffer->SRV;
 		Parameters->DeformedPosition2Buffer = InHairData.LODDatas[LODIndex].DeformedRootTrianglePosition2Buffer->SRV;
@@ -437,6 +436,8 @@ void ComputeHairStrandsInterpolation(
 			Output.VFInput.HairPreviousPositionBuffer = Output.SimDeformedPositionBuffer[SimIndex]->SRV;
 			Output.VFInput.HairTangentBuffer = Output.SimTangentBuffer->SRV;
 			Output.VFInput.HairAttributeBuffer = Input.SimAttributeBuffer->SRV;
+			Output.VFInput.HairPositionOffset = Input.OutHairPositionOffset;
+			Output.VFInput.HairPreviousPositionOffset = Input.OutHairPreviousPositionOffset;
 			Output.VFInput.VertexCount = Input.SimVertexCount;
 		}
 		else
@@ -452,7 +453,8 @@ void ComputeHairStrandsInterpolation(
 			AddHairStrandsInterpolationPass(
 				GraphBuilder,
 				InHairDatas.HairGroups[GroupIndex],
-				Input.HairWorldOffset,
+				Input.InHairPositionOffset,
+				Input.OutHairPositionOffset,
 				LODIndex,
 				Input.RenderVertexCount,
 				Input.RenderRestPosePositionBuffer->SRV,
@@ -477,7 +479,7 @@ void ComputeHairStrandsInterpolation(
 					GraphBuilder,
 					Input.RenderVertexCount,
 					Input.HairRadius * (GHairRaytracingRadiusScale > 0 ? GHairRaytracingRadiusScale : Input.HairRaytracingRadiusScale),
-					Input.HairWorldOffset,
+					Input.OutHairPositionOffset,
 					Output.RenderDeformedPositionBuffer[CurrIndex]->SRV,
 					Input.RaytracingPositionBuffer->UAV);
 			}
@@ -488,6 +490,8 @@ void ComputeHairStrandsInterpolation(
 			Output.VFInput.HairPreviousPositionBuffer = Output.RenderDeformedPositionBuffer[PrevIndex]->SRV;
 			Output.VFInput.HairTangentBuffer = Output.RenderTangentBuffer->SRV;
 			Output.VFInput.HairAttributeBuffer = DebugMode == EHairStrandsDebugMode::RenderHairStrands ? Output.RenderPatchedAttributeBuffer.SRV : Input.RenderAttributeBuffer->SRV;
+			Output.VFInput.HairPositionOffset = Input.OutHairPositionOffset;
+			Output.VFInput.HairPreviousPositionOffset = Input.OutHairPreviousPositionOffset;
 			Output.VFInput.VertexCount = Input.RenderVertexCount;
 
 			#if RHI_RAYTRACING
