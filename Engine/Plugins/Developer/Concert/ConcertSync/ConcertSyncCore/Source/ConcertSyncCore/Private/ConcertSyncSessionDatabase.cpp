@@ -301,6 +301,9 @@ public:
 		PREPARE_STATEMENT(Statement_GetPackageName);
 		PREPARE_STATEMENT(Statement_GetPackageNameId);
 
+		PREPARE_STATEMENT(Statement_GetPersistEventId);
+		PREPARE_STATEMENT(Statement_AddPersistEvent);
+
 		PREPARE_STATEMENT(Statement_SetEndpointData);
 		PREPARE_STATEMENT(Statement_GetEndpointDataForId);
 		PREPARE_STATEMENT(Statement_GetAllEndpointData);
@@ -325,6 +328,8 @@ public:
 		PREPARE_STATEMENT(Statement_GetPackageMaxEventId);
 		PREPARE_STATEMENT(Statement_GetPackageDataForRevision);
 		PREPARE_STATEMENT(Statement_GetPackageHeadEventId);
+		PREPARE_STATEMENT(Statement_GetPackageHeadEventIdAndTransactionIdAtSave);
+		PREPARE_STATEMENT(Statement_GetMaxPackageEventIdAndTransactionEventIdAtSavePerPackageNameId);
 		PREPARE_STATEMENT(Statement_GetPackageHeadRevison);
 		PREPARE_STATEMENT(Statement_GetPackageTransactionEventIdAtLastSave);
 
@@ -452,12 +457,37 @@ public:
 		return Statement_GetPackageName.BindAndExecuteSingle(InPackageNameId, OutPackageName);
 	}
 
-	/** Get an package_name_id from package_names for the given package_name */
+	/** Get a package_name_id from package_names for the given package_name */
 	SQLITE_PREPARED_STATEMENT(FGetPackageNameId, "SELECT package_name_id FROM package_names WHERE package_name = ?1;", SQLITE_PREPARED_STATEMENT_COLUMNS(int64), SQLITE_PREPARED_STATEMENT_BINDINGS(FName));
 	FGetPackageNameId Statement_GetPackageNameId;
 	bool GetPackageNameId(const FName InPackageName, int64& OutPackageNameId)
 	{
 		return Statement_GetPackageNameId.BindAndExecuteSingle(InPackageName, OutPackageNameId);
+	}
+
+	/**
+	 * Statements working on persist_events
+	 */
+
+	/** Get a persist_event_id and transaction_event_id_at_persist from persist_events for the given package_event_id */
+	SQLITE_PREPARED_STATEMENT(FGetPersistEventId, "SELECT persist_event_id, transaction_event_id_at_persist FROM persist_events WHERE package_event_id = ?1;", SQLITE_PREPARED_STATEMENT_COLUMNS(int64, int64), SQLITE_PREPARED_STATEMENT_BINDINGS(int64));
+	FGetPersistEventId Statement_GetPersistEventId;
+	bool GetPersistEventId(int64 InPackageEventId, int64& OutPersistEventId, int64& OutTransactionEventIdAtPersist)
+	{
+		return Statement_GetPersistEventId.BindAndExecuteSingle(InPackageEventId, OutPersistEventId, OutTransactionEventIdAtPersist);
+	}
+
+	/** Add a new package_event_id to persist_events and get its persist_event_id. */
+	SQLITE_PREPARED_STATEMENT_BINDINGS_ONLY(FAddPersistEvent, "INSERT INTO persist_events(package_event_id, transaction_event_id_at_persist) VALUES(?1, ?2);", SQLITE_PREPARED_STATEMENT_BINDINGS(int64, int64));
+	FAddPersistEvent Statement_AddPersistEvent;
+	bool AddPersistEvent(int64 InPackageEventId, int64 InTransactionEventIdAtPersist, int64& OutPersistEventId)
+	{
+		if (Statement_AddPersistEvent.BindAndExecute(InPackageEventId, InTransactionEventIdAtPersist))
+		{
+			OutPersistEventId = Database.GetLastInsertRowId();
+			return true;
+		}
+		return false;
 	}
 
 	/**
@@ -701,6 +731,30 @@ public:
 	bool GetPackageHeadEventId(const int64 InPackageNameId, int64& OutPackageEventId)
 	{
 		return Statement_GetPackageHeadEventId.BindAndExecuteSingle(InPackageNameId, OutPackageEventId);
+	}
+
+	/** Get the largest package_event_id and its transaction_event_id_at_save currently in package_events for the given package_name_id */
+	SQLITE_PREPARED_STATEMENT(FGetPackageHeadEventIdAndTransactionIdAtSave, "SELECT MAX(package_event_id), transaction_event_id_at_save FROM package_events WHERE package_name_id = ?1;", SQLITE_PREPARED_STATEMENT_COLUMNS(int64, int64), SQLITE_PREPARED_STATEMENT_BINDINGS(int64));
+	FGetPackageHeadEventIdAndTransactionIdAtSave Statement_GetPackageHeadEventIdAndTransactionIdAtSave;
+	bool GetPackageHeadEventIdAndTransactionIdAtSave(const int64 InPackageNameId, int64& OutPackageEventId, int64& OutTransactionEventIdAtSave)
+	{
+		return Statement_GetPackageHeadEventIdAndTransactionIdAtSave.BindAndExecuteSingle(InPackageNameId, OutPackageEventId, OutTransactionEventIdAtSave);
+	}
+
+	/** Get the largest package_event_id along its transaction_event_id_at_save currently in package_events for each distinct package_name_id */
+	SQLITE_PREPARED_STATEMENT_COLUMNS_ONLY(FGetMaxPackageEventIdAndTransactionEventIdAtSavePerPackageNameId, "SELECT package_name_id, MAX(package_event_id), transaction_event_id_at_save FROM package_events GROUP BY package_name_id;", SQLITE_PREPARED_STATEMENT_COLUMNS(int64, int64, int64));
+	FGetMaxPackageEventIdAndTransactionEventIdAtSavePerPackageNameId Statement_GetMaxPackageEventIdAndTransactionEventIdAtSavePerPackageNameId;
+	bool GetMaxPackageEventIdAndTransactionEventIdAtSavePerPackageNameId(TFunctionRef<ESQLitePreparedStatementExecuteRowResult(int64, int64, int64)> InCallback)
+	{
+		return Statement_GetMaxPackageEventIdAndTransactionEventIdAtSavePerPackageNameId.Execute([&InCallback](const FGetMaxPackageEventIdAndTransactionEventIdAtSavePerPackageNameId& InStatement)
+		{
+			int64 PackageNameId = 0, MaxPackageEventId = 0, TransactionEventIdAtSave = 0;
+			if (InStatement.GetColumnValues(PackageNameId, MaxPackageEventId, TransactionEventIdAtSave))
+			{
+				return InCallback(PackageNameId, MaxPackageEventId, TransactionEventIdAtSave);
+			}
+			return ESQLitePreparedStatementExecuteRowResult::Error;
+		}) != INDEX_NONE;
 	}
 
 	/** Get the largest package_revision currently in package_events for the given package_name_id */
@@ -1205,6 +1259,7 @@ bool FConcertSyncSessionDatabase::Open(const FString& InSessionPath, const ESQLi
 	CREATE_TABLE("lock_events", "lock_event_id INTEGER PRIMARY KEY, lock_event_type INTEGER NOT NULL");
 	CREATE_TABLE("transaction_events", "transaction_event_id INTEGER PRIMARY KEY, data_filename TEXT NOT NULL");
 	CREATE_TABLE("package_events", "package_event_id INTEGER PRIMARY KEY, package_name_id INTEGER NOT NULL, package_revision INTEGER NOT NULL, package_info_size_bytes INTEGER NOT NULL, package_info_data BLOB, transaction_event_id_at_save INTEGER NOT NULL, data_filename TEXT NOT NULL, FOREIGN KEY(package_name_id) REFERENCES package_names(package_name_id)");
+	CREATE_TABLE("persist_events", "persist_event_id INTEGER PRIMARY KEY, package_event_id INTEGER NOT NULL, transaction_event_id_at_persist INTEGER NOT NULL, FOREIGN KEY(package_event_id) REFERENCES package_events(package_event_id)");
 	CREATE_TABLE("activities", "activity_id INTEGER PRIMARY KEY, endpoint_id BLOB NOT NULL, event_time INTEGER NOT NULL, event_type INTEGER NOT NULL, event_id INTEGER NOT NULL, event_summary_type TEXT NOT NULL, event_summary_size_bytes INTEGER NOT NULL, event_summary_data BLOB, FOREIGN KEY(endpoint_id) REFERENCES endpoints(endpoint_id)");
 	CREATE_TABLE("ignored_activities", "activity_id INTEGER NOT NULL, FOREIGN KEY(activity_id) REFERENCES activities(activity_id)");
 	CREATE_TABLE("resource_locks", "object_name_id INTEGER NOT NULL, lock_event_id INTEGER NOT NULL, FOREIGN KEY(object_name_id) REFERENCES object_names(object_name_id), FOREIGN KEY(lock_event_id) REFERENCES lock_events(lock_event_id)");
@@ -1228,6 +1283,7 @@ bool FConcertSyncSessionDatabase::Open(const FString& InSessionPath, const ESQLi
 	CREATE_UNIQUE_INDEX("idx_object_path_names_in_object_names", "object_names", "object_path_name");
 	CREATE_UNIQUE_INDEX("idx_package_names_in_package_names", "package_names", "package_name");
 	CREATE_INDEX("idx_package_name_ids_in_package_events", "package_events", "package_name_id");
+	CREATE_INDEX("idx_package_event_ids_in_persist_events", "persist_events", "package_event_id");
 	CREATE_INDEX("idx_event_ids_in_activities", "activities", "event_id");
 	CREATE_UNIQUE_INDEX("idx_activity_ids_in_ignored_activities", "ignored_activities", "activity_id");
 	CREATE_INDEX("idx_object_name_ids_in_resource_locks", "resource_locks", "object_name_id");
@@ -1841,6 +1897,16 @@ bool FConcertSyncSessionDatabase::GetLiveTransactionEventIdsForPackage(const FNa
 	});
 }
 
+bool FConcertSyncSessionDatabase::PackageHasLiveTransactions(const FName InPackageName, bool& OutHasLiveTransaction) const
+{
+	OutHasLiveTransaction = false;
+	return EnumerateLiveTransactionEventIdsForPackage(InPackageName, [&OutHasLiveTransaction](const int64)
+	{
+		OutHasLiveTransaction = true;
+		return false;
+	});
+}
+
 bool FConcertSyncSessionDatabase::EnumerateLiveTransactionEventIdsForPackage(const FName InPackageName, TFunctionRef<bool(int64)> InCallback) const
 {
 	int64 PackageNameId = 0;
@@ -2036,6 +2102,56 @@ bool FConcertSyncSessionDatabase::GetPackageEvent(const int64 InPackageEventId, 
 	return false;
 }
 
+bool FConcertSyncSessionDatabase::GetPackageNamesWithHeadRevision(TArray<FName>& OutPackageNames, bool IgnorePersisted) const
+{
+	OutPackageNames.Reset();
+	return EnumeratePackageNamesWithHeadRevision([&OutPackageNames](const FName InPackageName)
+	{
+		OutPackageNames.Add(InPackageName);
+		return true;
+	}, IgnorePersisted);
+}
+
+bool FConcertSyncSessionDatabase::EnumeratePackageNamesWithHeadRevision(TFunctionRef<bool(FName)> InCallback, bool IgnorePersisted) const
+{
+	// if we ignore packages with persist event we need to compare head revision against entry in the persist table.
+	if (IgnorePersisted)
+	{
+		return Statements->GetMaxPackageEventIdAndTransactionEventIdAtSavePerPackageNameId([this, &InCallback](int64 InPackageNameId, int64 InMaxPackageEventId, int64 TransactionEventIdAtSave)
+		{
+			// We enumerate the packages if there isn't an entry in persist events with this MaxPackageEventId or 
+			// if the TransactionEventIdAtPersist and TransactionEventIdAtSave doesn't match (in case a dummy event got squashed)
+			int64 PersistEventId = 0, TransactionEventIdAtPersist = 0;
+			if (!Statements->GetPersistEventId(InMaxPackageEventId, PersistEventId, TransactionEventIdAtPersist)
+				|| TransactionEventIdAtPersist != TransactionEventIdAtSave)
+			{
+				FName PackageName;
+				if (GetPackageName(InPackageNameId, PackageName))
+				{
+					return InCallback(PackageName)
+						? ESQLitePreparedStatementExecuteRowResult::Continue
+						: ESQLitePreparedStatementExecuteRowResult::Stop;
+				}
+				return ESQLitePreparedStatementExecuteRowResult::Error;
+			}
+			return ESQLitePreparedStatementExecuteRowResult::Continue;
+		});
+	}
+	
+	// otherwise we can just gather distinct packages in the package events table
+	return Statements->GetUniquePackageNameIdsForPackageEvents([this, &InCallback](int64 InPackageNameId)
+	{
+		FName PackageName;
+		if (GetPackageName(InPackageNameId, PackageName))
+		{
+			return InCallback(PackageName)
+				? ESQLitePreparedStatementExecuteRowResult::Continue
+				: ESQLitePreparedStatementExecuteRowResult::Stop;
+		}
+		return ESQLitePreparedStatementExecuteRowResult::Error;
+	});
+}
+
 bool FConcertSyncSessionDatabase::EnumerateHeadRevisionPackageData(TFunctionRef<bool(FConcertPackage&&)> InCallback, const bool InMetaDataOnly) const
 {
 	return Statements->GetUniquePackageNameIdsForPackageEvents([this, &InCallback, InMetaDataOnly](int64 InPackageNameId)
@@ -2063,6 +2179,18 @@ bool FConcertSyncSessionDatabase::EnumerateHeadRevisionPackageData(TFunctionRef<
 bool FConcertSyncSessionDatabase::GetPackageMaxEventId(int64& OutPackageEventId) const
 {
 	return Statements->GetPackageMaxEventId(OutPackageEventId);
+}
+
+bool FConcertSyncSessionDatabase::AddPersistEventForHeadRevision(FName InPackageName, int64& OutPersistEventId)
+{
+	int64 PackageNameId = 0, HeadPackageEventId = 0, TransactionEventIdAtSave = 0;
+	if (GetPackageNameId(InPackageName, PackageNameId) 
+		&& Statements->GetPackageHeadEventIdAndTransactionIdAtSave(PackageNameId, HeadPackageEventId, TransactionEventIdAtSave)
+		&& HeadPackageEventId > 0)
+	{
+		Statements->AddPersistEvent(HeadPackageEventId, TransactionEventIdAtSave, OutPersistEventId);
+	}
+	return false;
 }
 
 bool FConcertSyncSessionDatabase::GetPackageDataForRevision(const FName InPackageName, FConcertPackage& OutPackage, const int64* InPackageRevision) const
