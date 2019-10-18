@@ -5,12 +5,25 @@
 
 using namespace Chaos;
 
-static bool GNoParallelFor = false;
+namespace Chaos
+{
+#if !UE_BUILD_SHIPPING
+	bool bDisablePhysicsParallelFor = false;
+	CHAOS_API bool bDisableParticleParallelFor = false;
+	CHAOS_API bool bDisableCollisionParallelFor = false;
+
+	FAutoConsoleVariableRef CVarDisablePhysicsParallelFor(TEXT("p.Chaos.DisablePhysicsParallelFor"), bDisablePhysicsParallelFor, TEXT("Disable parallel execution in Chaos Evolution"));
+	FAutoConsoleVariableRef CVarDisableParticleParallelFor(TEXT("p.Chaos.DisableParticleParallelFor"), bDisableParticleParallelFor, TEXT("Disable parallel execution for Chaos Particles (Collisions, "));
+	FAutoConsoleVariableRef CVarDisableCollisionParallelFor(TEXT("p.Chaos.DisableCollisionParallelFor"), bDisableCollisionParallelFor, TEXT("Disable parallel execution for Chaos Collisions (also disabled by DisableParticleParallelFor)"));
+#else
+	const bool bDisablePhysicsParallelFor = false;
+#endif
+}
 
 void Chaos::PhysicsParallelFor(int32 InNum, TFunctionRef<void(int32)> InCallable, bool bForceSingleThreaded)
 {
 	// Passthrough for now, except with global flag to disable parallel
-	::ParallelFor(InNum, InCallable, GNoParallelFor || bForceSingleThreaded);
+	::ParallelFor(InNum, InCallable, bDisablePhysicsParallelFor || bForceSingleThreaded);
 }
 
 //class FRecursiveDivideTask
