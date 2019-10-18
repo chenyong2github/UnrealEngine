@@ -63,7 +63,7 @@ void FHairStrandsRestResource::ReleaseRHI()
 /////////////////////////////////////////////////////////////////////////////////////////
 
 FHairStrandsDeformedResource::FHairStrandsDeformedResource(const FHairStrandsDatas::FRenderData& HairStrandRenderData, bool bInInitializedData) :
-	bInitializedData(bInInitializedData), RenderData(HairStrandRenderData)
+	RenderData(HairStrandRenderData), bInitializedData(bInInitializedData)
 {}
 
 void FHairStrandsDeformedResource::InitRHI()
