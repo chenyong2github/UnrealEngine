@@ -340,7 +340,7 @@ void GetGroomInterpolationData(const EWorldType::Type WorldType, FHairStrandsPro
 	}
 }
 
-void GetGroomInterpolationData(const EWorldType::Type WorldType, FHairStrandsProjectionHairData& Out, TArray<int32>& OutLODIndices)
+void GetGroomInterpolationData(const EWorldType::Type WorldType, const bool bRenderData, FHairStrandsProjectionHairData& Out, TArray<int32>& OutLODIndices)
 {
 	for (FHairStrandsManager::Element& E : GHairManager.Elements)
 	{
@@ -350,10 +350,21 @@ void GetGroomInterpolationData(const EWorldType::Type WorldType, FHairStrandsPro
 		const bool bHasDynamicMesh = E.CachedGeometry.Sections.Num() > 0;
 		if (bHasDynamicMesh)
 		{
-			for (FHairStrandsProjectionHairData::HairGroup& ProjectionHairData : E.RenProjectionHairDatas.HairGroups)
+			if (bRenderData)
 			{
-				Out.HairGroups.Add(ProjectionHairData);
-				OutLODIndices.Add(E.FrameLODIndex);
+				for (FHairStrandsProjectionHairData::HairGroup& ProjectionHairData : E.RenProjectionHairDatas.HairGroups)
+				{
+					Out.HairGroups.Add(ProjectionHairData);
+					OutLODIndices.Add(E.FrameLODIndex);
+				}
+			}
+			else
+			{
+				for (FHairStrandsProjectionHairData::HairGroup& ProjectionHairData : E.SimProjectionHairDatas.HairGroups)
+				{
+					Out.HairGroups.Add(ProjectionHairData);
+					OutLODIndices.Add(E.FrameLODIndex);
+				}
 			}
 		}
 	}
