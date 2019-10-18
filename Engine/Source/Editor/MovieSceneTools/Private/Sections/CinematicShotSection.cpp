@@ -303,16 +303,13 @@ int32 FCinematicShotSection::OnPaintSection(FSequencerSectionPainter& InPainter)
 		InPainter.bParentEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect
 	);
 
-	TRange<FFrameNumber> SectionRange = SectionObject.GetRange();
+	const TRange<FFrameNumber> SectionRange = SectionObject.GetRange();
 	if (SectionRange.GetLowerBound().IsOpen() || SectionRange.GetUpperBound().IsOpen())
 	{
 		return InPainter.LayerId;
 	}
 
-	const FFrameNumber SectionStartFrame = SectionObject.GetInclusiveStartFrame();
-	const FFrameNumber SectionEndFrame   = SectionObject.GetExclusiveEndFrame();
-	const int32        SectionSize       = MovieScene::DiscreteSize(SectionRange);
-
+	const int32 SectionSize = MovieScene::DiscreteSize(SectionRange);
 	if (SectionSize <= 0)
 	{
 		return InPainter.LayerId;
@@ -326,12 +323,47 @@ int32 FCinematicShotSection::OnPaintSection(FSequencerSectionPainter& InPainter)
 		return InPainter.LayerId;
 	}
 
+	if (SectionObject.Parameters.bCanLoop)
+	{
+		DoPaintLoopingSection(*InnerSequence, InPainter);
+	}
+	else
+	{
+		DoPaintNonLoopingSection(*InnerSequence, InPainter);
+	}
+
+	TSharedPtr<ISequencer> Sequencer = SequencerPtr.Pin();
+
+	if (InPainter.bIsSelected && Sequencer.IsValid())
+	{
+		FFrameTime CurrentTime = Sequencer->GetLocalTime().Time;
+		if (SectionRange.Contains(CurrentTime.FrameNumber))
+		{
+			UMovieScene* SubSequenceMovieScene = InnerSequence->GetMovieScene();
+			const FFrameRate DisplayRate = SubSequenceMovieScene->GetDisplayRate();
+			const FFrameRate TickResolution = SubSequenceMovieScene->GetTickResolution();
+			const FFrameNumber CurrentFrameNumber = ConvertFrameTime(CurrentTime * SectionObject.OuterToInnerTransform(), TickResolution, DisplayRate).FloorToFrame();
+
+			DrawFrameNumberHint(InPainter, CurrentTime, CurrentFrameNumber.Value);
+		}
+	}
+
+	return InPainter.LayerId;
+}
+
+void FCinematicShotSection::DoPaintNonLoopingSection(UMovieSceneSequence& InnerSequence, FSequencerSectionPainter& InPainter) const
+{
+	const TRange<FFrameNumber> SectionRange = SectionObject.GetRange();
+	const FFrameNumber SectionStartFrame = SectionObject.GetInclusiveStartFrame();
+	const FFrameNumber SectionEndFrame = SectionObject.GetExclusiveEndFrame();
+	const int32 SectionSize = MovieScene::DiscreteSize(SectionRange);
+
 	const float PixelsPerFrame = InPainter.SectionGeometry.Size.X / float(SectionSize);
 
-	UMovieScene*         MovieScene    = InnerSequence->GetMovieScene();
+	UMovieScene* MovieScene = InnerSequence.GetMovieScene();
 	TRange<FFrameNumber> PlaybackRange = MovieScene->GetPlaybackRange();
 
-	FMovieSceneSequenceTransform InnerToOuterTransform = SectionObject.OuterToInnerTransform().Inverse();
+	FMovieSceneSequenceTransform InnerToOuterTransform = SectionObject.OuterToInnerTransform().InverseLinearOnly();
 
 	const FFrameNumber PlaybackStart = (MovieScene::DiscreteInclusiveLower(PlaybackRange) * InnerToOuterTransform).FloorToFrame();
 	if (SectionRange.Contains(PlaybackStart))
@@ -395,24 +427,64 @@ int32 FCinematicShotSection::OnPaintSection(FSequencerSectionPainter& InPainter)
 			FColor(128, 32, 32)	// 0, 75, 50 (HSV)
 		);
 	}
+}
 
-	TSharedPtr<ISequencer> Sequencer = SequencerPtr.Pin();
+void FCinematicShotSection::DoPaintLoopingSection(UMovieSceneSequence& InnerSequence, FSequencerSectionPainter& InPainter) const
+{
+	const FTimeToPixel& TimeToPixelConverter = InPainter.GetTimeConverter();
 
-	if (InPainter.bIsSelected && Sequencer.IsValid())
+	const FFrameNumber SectionStartFrame = SectionObject.GetInclusiveStartFrame();
+	const FFrameNumber SectionEndFrame = SectionObject.GetExclusiveEndFrame();
+	const float InvTimeScale = FMath::IsNearlyZero(SectionObject.Parameters.TimeScale) ? 1.0f : 1.0f / SectionObject.Parameters.TimeScale;
+
+	UMovieScene* MovieScene = InnerSequence.GetMovieScene();
+	TRange<FFrameNumber> InnerPlaybackRange = UMovieSceneSubSection::GetValidatedInnerPlaybackRange(SectionObject.Parameters, *MovieScene);
+
+	const FFrameNumber ShotLength = InnerPlaybackRange.Size<FFrameNumber>() * InvTimeScale;
+	const FFrameNumber FirstLoopShotLength = ShotLength - SectionObject.Parameters.FirstLoopStartFrameOffset * InvTimeScale;
+
+	FFrameNumber CurOffsetFrame = FMath::Max(FirstLoopShotLength, FFrameNumber(0));
+	const ESlateDrawEffect DrawEffects = InPainter.bParentEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
+
+	// Draw separators where the shot is looping. To be consistent with the non-looping case, we draw a red and green
+	// separator back to back.
+	uint32 MaxLoopBoundaries = 100;
+	while (CurOffsetFrame < SectionEndFrame)
 	{
-		FFrameTime CurrentTime = Sequencer->GetLocalTime().Time;
-		if (SectionRange.Contains(CurrentTime.FrameNumber))
-		{
-			UMovieScene* SubSequenceMovieScene = SectionObject.GetSequence()->GetMovieScene();
-			const FFrameRate DisplayRate = SubSequenceMovieScene->GetDisplayRate();
-			const FFrameRate TickResolution = SubSequenceMovieScene->GetTickResolution();
-			const FFrameNumber CurrentFrameNumber = ConvertFrameTime(CurrentTime * SectionObject.OuterToInnerTransform(), TickResolution, DisplayRate).FloorToFrame();
+		const float CurOffsetPixel = TimeToPixelConverter.FrameToPixel(SectionStartFrame + CurOffsetFrame);
 
-			DrawFrameNumberHint(InPainter, CurrentTime, CurrentFrameNumber.Value);
+		FSlateDrawElement::MakeBox(
+			InPainter.DrawElements,
+			InPainter.LayerId++,
+			InPainter.SectionGeometry.MakeChild(
+				FVector2D(1.f, InPainter.SectionGeometry.Size.Y - 2.f),
+				FSlateLayoutTransform(FVector2D(CurOffsetPixel, 1.f))
+			).ToPaintGeometry(),
+			FEditorStyle::GetBrush("WhiteBrush"),
+			DrawEffects,
+			FColor(32, 128, 32)	// 120, 75, 50 (HSV)
+		);
+		if (CurOffsetFrame > 0) {
+			FSlateDrawElement::MakeBox(
+				InPainter.DrawElements,
+				InPainter.LayerId++,
+				InPainter.SectionGeometry.MakeChild(
+					FVector2D(1.f, InPainter.SectionGeometry.Size.Y - 2.f),
+					FSlateLayoutTransform(FVector2D(CurOffsetPixel - 1.f, 1.f))
+				).ToPaintGeometry(),
+				FEditorStyle::GetBrush("WhiteBrush"),
+				DrawEffects,
+				FColor(128, 32, 32)	// 0, 75, 50 (HSV)
+			);
+		}
+
+		CurOffsetFrame += ShotLength;
+
+		if ((--MaxLoopBoundaries) == 0)
+		{
+			break;
 		}
 	}
-
-	return InPainter.LayerId;
 }
 
 void FCinematicShotSection::BuildSectionContextMenu(FMenuBuilder& MenuBuilder, const FGuid& ObjectBinding)

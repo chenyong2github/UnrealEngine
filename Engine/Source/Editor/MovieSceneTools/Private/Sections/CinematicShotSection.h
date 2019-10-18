@@ -55,6 +55,9 @@ private:
 	/** Add shot takes menu */
 	void AddTakesMenu(FMenuBuilder& MenuBuilder);
 
+	void DoPaintNonLoopingSection(UMovieSceneSequence& InnerSequence, FSequencerSectionPainter& InPainter) const;
+	void DoPaintLoopingSection(UMovieSceneSequence& InnerSequence, FSequencerSectionPainter& InPainter) const;
+
 private:
 
 	/** The section we are visualizing */

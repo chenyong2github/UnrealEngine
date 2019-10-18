@@ -115,100 +115,35 @@ public:
 	{
 		int32 LayerId = InPainter.PaintSectionBackground();
 
-		ESlateDrawEffect DrawEffects = InPainter.bParentEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
-		
-		
-		TRange<FFrameNumber> SectionRange = SectionObject.GetRange();
+		const TRange<FFrameNumber> SectionRange = SectionObject.GetRange();
 		if (SectionRange.GetLowerBound().IsOpen() || SectionRange.GetUpperBound().IsOpen())
 		{
 			return InPainter.LayerId;
 		}
 
-		const FFrameNumber SectionStartFrame = SectionObject.GetInclusiveStartFrame();
-		const FFrameNumber SectionEndFrame   = SectionObject.GetExclusiveEndFrame();
-		const int32        SectionSize       = MovieScene::DiscreteSize(SectionRange);
-
+		const int32 SectionSize = MovieScene::DiscreteSize(SectionRange);
 		if (SectionSize <= 0)
 		{
 			return InPainter.LayerId;
 		}
 
-		const float        PixelsPerFrame    = InPainter.SectionGeometry.Size.X / float(SectionSize);
-
 		UMovieSceneSequence* InnerSequence = SectionObject.GetSequence();
+		const ESlateDrawEffect DrawEffects = InPainter.bParentEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
+		
 		if (InnerSequence)
 		{
-			UMovieScene*         MovieScene    = InnerSequence->GetMovieScene();
-			TRange<FFrameNumber> PlaybackRange = MovieScene->GetPlaybackRange();
-
-			FMovieSceneSequenceTransform InnerToOuterTransform = SectionObject.OuterToInnerTransform().Inverse();
-
-			const FFrameNumber PlaybackStart = (MovieScene::DiscreteInclusiveLower(PlaybackRange) * InnerToOuterTransform).FloorToFrame();
-			if (SectionRange.Contains(PlaybackStart))
+			if (SectionObject.Parameters.bCanLoop)
 			{
-				const int32 StartOffset = (PlaybackStart-SectionStartFrame).Value;
-				// add dark tint for left out-of-bounds
-				FSlateDrawElement::MakeBox(
-					InPainter.DrawElements,
-					InPainter.LayerId++,
-					InPainter.SectionGeometry.ToPaintGeometry(
-						FVector2D(0.0f, 0.f),
-						FVector2D(StartOffset * PixelsPerFrame, InPainter.SectionGeometry.Size.Y)
-					),
-					FEditorStyle::GetBrush("WhiteBrush"),
-					DrawEffects,
-					FLinearColor::Black.CopyWithNewOpacity(0.5f)
-				);
-
-				// add green line for playback start
-				FSlateDrawElement::MakeBox(
-					InPainter.DrawElements,
-					InPainter.LayerId++,
-					InPainter.SectionGeometry.ToPaintGeometry(
-						FVector2D(StartOffset * PixelsPerFrame, 0.f),
-						FVector2D(1.0f, InPainter.SectionGeometry.Size.Y)
-					),
-					FEditorStyle::GetBrush("WhiteBrush"),
-					DrawEffects,
-					FColor(32, 128, 32)	// 120, 75, 50 (HSV)
-				);
+				DoPaintLoopingSection(*InnerSequence, InPainter, DrawEffects);
 			}
-
-			const FFrameNumber PlaybackEnd = (MovieScene::DiscreteExclusiveUpper(PlaybackRange) * InnerToOuterTransform).FloorToFrame();
-			if (SectionRange.Contains(PlaybackEnd))
+			else
 			{
-				// add dark tint for right out-of-bounds
-				const int32 EndOffset = (PlaybackEnd-SectionStartFrame).Value;
-				FSlateDrawElement::MakeBox(
-					InPainter.DrawElements,
-					InPainter.LayerId++,
-					InPainter.SectionGeometry.ToPaintGeometry(
-						FVector2D(EndOffset * PixelsPerFrame, 0.f),
-						FVector2D((SectionSize - EndOffset) * PixelsPerFrame, InPainter.SectionGeometry.Size.Y)
-					),
-					FEditorStyle::GetBrush("WhiteBrush"),
-					DrawEffects,
-					FLinearColor::Black.CopyWithNewOpacity(0.5f)
-				);
-
-
-				// add red line for playback end
-				FSlateDrawElement::MakeBox(
-					InPainter.DrawElements,
-					InPainter.LayerId++,
-					InPainter.SectionGeometry.ToPaintGeometry(
-						FVector2D(EndOffset * PixelsPerFrame, 0.f),
-						FVector2D(1.0f, InPainter.SectionGeometry.Size.Y)
-					),
-					FEditorStyle::GetBrush("WhiteBrush"),
-					DrawEffects,
-					FColor(128, 32, 32)	// 0, 75, 50 (HSV)
-				);
+				DoPaintNonLoopingSection(*InnerSequence, InPainter, DrawEffects);
 			}
 
 			FMargin ContentPadding = GetContentPadding();
-
-			int32 NumTracks = MovieScene->GetPossessableCount() + MovieScene->GetSpawnableCount() + MovieScene->GetMasterTracks().Num();
+			UMovieScene* MovieScene = InnerSequence->GetMovieScene();
+			const int32 NumTracks = MovieScene->GetPossessableCount() + MovieScene->GetSpawnableCount() + MovieScene->GetMasterTracks().Num();
 
 			FVector2D TopLeft = InPainter.SectionGeometry.AbsoluteToLocal(InPainter.SectionClippingRect.GetTopLeft()) + FVector2D(1.f, -1.f);
 
@@ -237,7 +172,6 @@ public:
 				DrawEffects,
 				FColor(200, 200, 200)
 			);
-
 
 			TSharedPtr<ISequencer> SequencerPtr = Sequencer.Pin();
 			if (InPainter.bIsSelected && SequencerPtr.IsValid())
@@ -294,6 +228,143 @@ public:
 		}
 
 		return LayerId;
+	}
+
+	void DoPaintNonLoopingSection(UMovieSceneSequence& InnerSequence, FSequencerSectionPainter& InPainter, ESlateDrawEffect DrawEffects) const
+	{
+		const FFrameNumber SectionStartFrame = SectionObject.GetInclusiveStartFrame();
+
+		const TRange<FFrameNumber> SectionRange = SectionObject.GetRange();
+		const int32 SectionSize = MovieScene::DiscreteSize(SectionRange);
+		const float PixelsPerFrame = InPainter.SectionGeometry.Size.X / float(SectionSize);
+
+		UMovieScene* MovieScene = InnerSequence.GetMovieScene();
+		TRange<FFrameNumber> PlaybackRange = MovieScene->GetPlaybackRange();
+
+		// We're in the non-looping case so we know we have a purely linear transform.
+		const FMovieSceneSequenceTransform InnerToOuterTransform = SectionObject.OuterToInnerTransform().InverseLinearOnly();
+		const FFrameNumber PlaybackStart = (MovieScene::DiscreteInclusiveLower(PlaybackRange) * InnerToOuterTransform).FloorToFrame();
+		if (SectionRange.Contains(PlaybackStart))
+		{
+			const int32 StartOffset = (PlaybackStart - SectionStartFrame).Value;
+			// add dark tint for left out-of-bounds
+			FSlateDrawElement::MakeBox(
+					InPainter.DrawElements,
+					InPainter.LayerId++,
+					InPainter.SectionGeometry.ToPaintGeometry(
+						FVector2D(0.0f, 0.f),
+						FVector2D(StartOffset * PixelsPerFrame, InPainter.SectionGeometry.Size.Y)
+						),
+					FEditorStyle::GetBrush("WhiteBrush"),
+					DrawEffects,
+					FLinearColor::Black.CopyWithNewOpacity(0.5f)
+					);
+
+			// add green line for playback start
+			FSlateDrawElement::MakeBox(
+					InPainter.DrawElements,
+					InPainter.LayerId++,
+					InPainter.SectionGeometry.ToPaintGeometry(
+						FVector2D(StartOffset * PixelsPerFrame, 0.f),
+						FVector2D(1.0f, InPainter.SectionGeometry.Size.Y)
+						),
+					FEditorStyle::GetBrush("WhiteBrush"),
+					DrawEffects,
+					FColor(32, 128, 32)	// 120, 75, 50 (HSV)
+					);
+		}
+
+		const FFrameNumber PlaybackEnd = (MovieScene::DiscreteExclusiveUpper(PlaybackRange) * InnerToOuterTransform) .FloorToFrame();
+		if (SectionRange.Contains(PlaybackEnd))
+		{
+			// add dark tint for right out-of-bounds
+			const int32 EndOffset = (PlaybackEnd - SectionStartFrame).Value;
+			FSlateDrawElement::MakeBox(
+					InPainter.DrawElements,
+					InPainter.LayerId++,
+					InPainter.SectionGeometry.ToPaintGeometry(
+						FVector2D(EndOffset * PixelsPerFrame, 0.f),
+						FVector2D((SectionSize - EndOffset) * PixelsPerFrame, InPainter.SectionGeometry.Size.Y)
+						),
+					FEditorStyle::GetBrush("WhiteBrush"),
+					DrawEffects,
+					FLinearColor::Black.CopyWithNewOpacity(0.5f)
+					);
+
+
+			// add red line for playback end
+			FSlateDrawElement::MakeBox(
+					InPainter.DrawElements,
+					InPainter.LayerId++,
+					InPainter.SectionGeometry.ToPaintGeometry(
+						FVector2D(EndOffset * PixelsPerFrame, 0.f),
+						FVector2D(1.0f, InPainter.SectionGeometry.Size.Y)
+						),
+					FEditorStyle::GetBrush("WhiteBrush"),
+					DrawEffects,
+					FColor(128, 32, 32)	// 0, 75, 50 (HSV)
+					);
+		}
+	}
+	
+	void DoPaintLoopingSection(UMovieSceneSequence& InnerSequence, FSequencerSectionPainter& InPainter, ESlateDrawEffect DrawEffects) const
+	{
+		const FFrameNumber SectionStartFrame = SectionObject.GetInclusiveStartFrame();
+		const FFrameNumber SectionEndFrame   = SectionObject.GetExclusiveEndFrame();
+
+		const TRange<FFrameNumber> SectionRange = SectionObject.GetRange();
+		const int32 SectionSize = MovieScene::DiscreteSize(SectionRange);
+		const float PixelsPerFrame = InPainter.SectionGeometry.Size.X / float(SectionSize);
+
+		const float InvTimeScale = FMath::IsNearlyZero(SectionObject.Parameters.TimeScale) ? 1.0f : 1.0f / SectionObject.Parameters.TimeScale;
+
+		UMovieScene* MovieScene = InnerSequence.GetMovieScene();
+		TRange<FFrameNumber> InnerPlaybackRange = UMovieSceneSubSection::GetValidatedInnerPlaybackRange(SectionObject.Parameters, *MovieScene);
+
+		const FFrameNumber SubSeqLength = InnerPlaybackRange.Size<FFrameNumber>() * InvTimeScale;
+		const FFrameNumber FirstLoopSubSeqLength = SubSeqLength - SectionObject.Parameters.FirstLoopStartFrameOffset * InvTimeScale;
+
+		FFrameNumber CurOffsetFrame = FMath::Max(FirstLoopSubSeqLength, FFrameNumber(0));
+
+		// Draw separators where the sub-sequence is looping. To be consistent with the non-looping case, we draw a red and green
+		// separator back to back.
+		uint32 MaxLoopBoundaries = 100;
+		while (CurOffsetFrame < SectionEndFrame)
+		{
+			const int32 CurOffset = CurOffsetFrame.Value;
+			FSlateDrawElement::MakeBox(
+				InPainter.DrawElements,
+				InPainter.LayerId++,
+				InPainter.SectionGeometry.ToPaintGeometry(
+					FVector2D(CurOffset * PixelsPerFrame, 0.f),
+					FVector2D(1.0f, InPainter.SectionGeometry.Size.Y)
+				),
+				FEditorStyle::GetBrush("WhiteBrush"),
+				DrawEffects,
+				FColor(32, 128, 32)	// 120, 75, 50 (HSV)
+			);
+			if (CurOffset > 0)
+			{
+				FSlateDrawElement::MakeBox(
+					InPainter.DrawElements,
+					InPainter.LayerId++,
+					InPainter.SectionGeometry.ToPaintGeometry(
+						FVector2D(CurOffset * PixelsPerFrame - 1.f, 0.f),
+						FVector2D(1.0f, InPainter.SectionGeometry.Size.Y)
+					),
+					FEditorStyle::GetBrush("WhiteBrush"),
+					DrawEffects,
+					FColor(128, 32, 32)	// 0, 75, 50 (HSV)
+				);
+			}
+
+			CurOffsetFrame += SubSeqLength;
+
+			if ((--MaxLoopBoundaries) == 0)
+			{
+				break;
+			}
+		}
 	}
 
 	virtual FReply OnSectionDoubleClicked(const FGeometry& SectionGeometry, const FPointerEvent& MouseEvent) override
