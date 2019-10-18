@@ -71,9 +71,10 @@ FHairMeshTriangle GetTriangleTransformation(
 	return Out;
 }
 
-float3 ToTriangle(const float3 P, const FHairMeshTriangle T)
+float3 ToTriangle(const float3 P, float3 B, const FHairMeshTriangle T)
 {
-	float3 LocalP = P - T.P0;
+	const float3 LocalP = P - (T.P0 * B.x + T.P1 * B.y + T.P2 * B.z);
+
 	float3 Out;
 	Out.x = dot(LocalP, T.E0);
 	Out.y = dot(LocalP, T.E1);
@@ -81,15 +82,18 @@ float3 ToTriangle(const float3 P, const FHairMeshTriangle T)
 	return Out;
 }
 
-float3 ToWorld(const float3 P, const FHairMeshTriangle T)
+float3 ToWorld(const float3 P, float3 B, const FHairMeshTriangle T)
 {
-	return P.x * T.E0 + P.y * T.E1 + P.z * T.N + T.P0;
+	const float3 Rotation = P.x * T.E0 + P.y * T.E1 + P.z * T.N;
+	const float3 Translation = T.P0 * B.x + T.P1 * B.y + T.P2 * B.z;
+	return Rotation + Translation;
+
 }
 
-float3 TransformPoint(float3 P, const FHairMeshTriangle RestTriangle, const FHairMeshTriangle DeformedTriangle)
+float3 TransformPoint(float3 P, float3 B, const FHairMeshTriangle RestTriangle, const FHairMeshTriangle DeformedTriangle)
 {
-	float3 LocalP = ToTriangle(P, RestTriangle);
-	return ToWorld(LocalP, DeformedTriangle);
+	float3 LocalP = ToTriangle(P, B, RestTriangle);
+	return ToWorld(LocalP, B, DeformedTriangle);
 }
 
 struct FHairProjectionData
@@ -124,9 +128,13 @@ uint EncodeBarycentrics(float2 B)
 	return f32tof16(B.x) | (f32tof16(B.y) << 16);
 }
 
-float2 DecodeBarycentrics(uint E)
+float3 DecodeBarycentrics(uint E)
 {
-	return float2(f16tof32(E & 0xFFFF), f16tof32((E>>16) & 0xFFFF));
+	float3 Out;
+	Out.x = f16tof32(E & 0xFFFF);
+	Out.y = f16tof32((E >> 16) & 0xFFFF);
+	Out.z = 1 - Out.x - Out.y;
+	return Out;
 }
 
 
