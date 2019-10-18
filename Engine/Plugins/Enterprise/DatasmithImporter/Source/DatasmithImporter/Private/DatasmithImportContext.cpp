@@ -328,13 +328,17 @@ void FDatasmithImportContext::DisplayMessages()
 
 void FDatasmithImportContext::SetupBaseOptionsVisibility()
 {
-	if ( bIsAReimport )
+	if ( UProperty* ReimportOptionsProperty = FindField< UProperty >( Options->GetClass(), GET_MEMBER_NAME_CHECKED( UDatasmithImportOptions, ReimportOptions ) ) )
 	{
-		UProperty* ReimportOptionsProperty = FindField< UProperty >( Options->GetClass(), GET_MEMBER_NAME_CHECKED( UDatasmithImportOptions, ReimportOptions ) );
-
-		if ( ReimportOptionsProperty )
+		if ( bIsAReimport )
 		{
 			ReimportOptionsProperty->SetMetaData( TEXT("Category"), TEXT("Reimport") );
+			ReimportOptionsProperty->SetMetaData( TEXT("ShowOnlyInnerProperties"), TEXT("1") );
+		}
+		else
+		{
+			ReimportOptionsProperty->SetMetaData( TEXT("Category"), TEXT("NotVisible") );
+			ReimportOptionsProperty->RemoveMetaData( TEXT("ShowOnlyInnerProperties") );
 		}
 	}
 }
@@ -345,6 +349,7 @@ void FDatasmithImportContext::ResetBaseOptionsVisibility()
 
 	if ( ReimportOptionsProperty )
 	{
+		ReimportOptionsProperty->SetMetaData( TEXT("ShowOnlyInnerProperties"), TEXT("1") );
 		ReimportOptionsProperty->SetMetaData( TEXT("Category"), TEXT("NotVisible") );
 	}
 }
