@@ -118,7 +118,7 @@ bool FSandboxPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine
 			FPaths::MakeStandardFilename(SandboxDirectory);
 
 			// SandboxDirectory should be absolute and have no relative paths in it
-			FPaths::ConvertRelativePathToFull(SandboxDirectory);
+			SandboxDirectory = FPaths::ConvertRelativePathToFull(SandboxDirectory);
 		}
 
 		if( bWipeSandbox )
