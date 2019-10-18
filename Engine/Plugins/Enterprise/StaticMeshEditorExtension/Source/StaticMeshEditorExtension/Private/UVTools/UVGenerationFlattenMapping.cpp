@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "UVGenerationFlattenMapping.h"
+#include "UVTools/UVGenerationFlattenMapping.h"
 
 #include "Algo/Sort.h"
 #include "Async/ParallelFor.h"
