@@ -23,6 +23,10 @@
 #include "VulkanContext.h"
 #endif
 
+#if PLATFORM_WINDOWS
+#include "D3D12RHIPrivate.h"
+#endif
+
 static TAutoConsoleVariable<int32> CUsePostPresentHandoff(TEXT("vr.SteamVR.UsePostPresentHandoff"), 0, TEXT("Whether or not to use PostPresentHandoff.  If true, more GPU time will be available, but this relies on no SceneCaptureComponent2D or WidgetComponents being active in the scene.  Otherwise, it will break async reprojection."));
 
 static TAutoConsoleVariable<int> CVarEnableDepthSubmission(
@@ -178,10 +182,9 @@ void FSteamVRHMD::BridgeBaseImpl::PostPresent()
 
 #if PLATFORM_WINDOWS
 
-FSteamVRHMD::D3D11Bridge::D3D11Bridge(FSteamVRHMD* plugin):
-	BridgeBaseImpl(plugin)
+FSteamVRHMD::D3D11Bridge::D3D11Bridge(FSteamVRHMD* plugin)
+	: BridgeBaseImpl(plugin)
 {
-
 }
 
 void FSteamVRHMD::D3D11Bridge::FinishRendering()
@@ -251,6 +254,96 @@ void FSteamVRHMD::D3D11Bridge::UpdateViewport(const FViewport& Viewport, FRHIVie
 	const FTexture2DRHIRef& RT = Viewport.GetRenderTargetTexture();
 	check(IsValidRef(RT));
 	check(RT->GetTexture2D() == SwapChain->GetTexture2D());
+}
+
+FSteamVRHMD::D3D12Bridge::D3D12Bridge(FSteamVRHMD* plugin)
+	: BridgeBaseImpl(plugin)
+{
+	bUseExplicitTimingMode = true;
+}
+
+void FSteamVRHMD::D3D12Bridge::FinishRendering()
+{
+	bool bSubmitDepth = CVarEnableDepthSubmission->GetInt() > 0;
+	vr::EVRSubmitFlags Flags = bSubmitDepth ? vr::EVRSubmitFlags::Submit_TextureWithDepth : vr::EVRSubmitFlags::Submit_Default;
+
+	auto D3D12RHI = static_cast<FD3D12DynamicRHI*>(GDynamicRHI);
+	auto Device = D3D12RHI->GetAdapter().GetDevice(0);
+
+	vr::D3D12TextureData_t TextureData;
+	TextureData.m_pResource = (ID3D12Resource*)SwapChain->GetTexture2D()->GetNativeResource();
+	TextureData.m_pCommandQueue = D3D12RHI->RHIGetD3DCommandQueue();
+	TextureData.m_nNodeMask = Device->GetGPUMask().GetNative();
+
+	vr::VRTextureWithDepth_t Texture;
+	Texture.handle = &TextureData;
+	Texture.eType = vr::TextureType_DirectX12;
+	Texture.eColorSpace = vr::ColorSpace_Auto;
+
+	// Need function scope here since we use the pointer to this is the handle for the depth texture in the struct below.
+	vr::D3D12TextureData_t DepthTextureData;
+
+	if (bSubmitDepth)
+	{
+		// If this flag is false, the struct will be treated as a vr::Texture_t and these entries will be ignored - so we can skip this if not submitting depth
+		DepthTextureData.m_pResource = (ID3D12Resource*)DepthSwapChain->GetTexture2D()->GetNativeResource();
+		DepthTextureData.m_pCommandQueue = D3D12RHI->RHIGetD3DCommandQueue();
+		DepthTextureData.m_nNodeMask = Device->GetGPUMask().GetNative();
+
+		Texture.depth.handle = &DepthTextureData;
+
+		// Set the texture depth range to follow Unreal's inverted-Z depth settings (near is 1.0f, far is 0.0f).
+		Texture.depth.vRange.v[0] = 1.0f;
+		Texture.depth.vRange.v[1] = 0.0f;
+
+		Texture.depth.mProjection = ToHmdMatrix44(Plugin->GetStereoProjectionMatrix(eSSP_LEFT_EYE));
+		// Rescale the projection (our projection value is 10.0f here, since our units are cm, and SteamVR works in meters).
+		Texture.depth.mProjection.m[2][3] *= 0.01f;
+	}
+
+	vr::VRTextureBounds_t LeftBounds;
+	LeftBounds.uMin = 0.0f;
+	LeftBounds.uMax = 0.5f;
+	LeftBounds.vMin = 0.0f;
+	LeftBounds.vMax = 1.0f;
+
+	vr::EVRCompositorError Error = Plugin->VRCompositor->Submit(vr::Eye_Left, &Texture, &LeftBounds, Flags);
+
+	vr::VRTextureBounds_t RightBounds;
+	RightBounds.uMin = 0.5f;
+	RightBounds.uMax = 1.0f;
+	RightBounds.vMin = 0.0f;
+	RightBounds.vMax = 1.0f;
+
+	if (bSubmitDepth)
+	{
+		Texture.depth.mProjection = ToHmdMatrix44(Plugin->GetStereoProjectionMatrix(eSSP_RIGHT_EYE));
+		// Rescale the projection (our projection value is 10.0f here, since our units are cm, and SteamVR works in meters).
+		Texture.depth.mProjection.m[2][3] *= 0.01f;
+	}
+
+	Error = Plugin->VRCompositor->Submit(vr::Eye_Right, &Texture, &RightBounds, Flags);
+
+	static bool FirstError = true;
+	if (FirstError && Error != vr::VRCompositorError_None)
+	{
+		UE_LOG(LogHMD, Log, TEXT("Warning: SteamVR Compositor had an error on present (%d)"), (int32)Error);
+		FirstError = false;
+	}
+}
+
+void FSteamVRHMD::D3D12Bridge::UpdateViewport(const FViewport& Viewport, FRHIViewport* InViewportRHI)
+{
+	check(IsInGameThread());
+	check(InViewportRHI);
+
+	const FTexture2DRHIRef& RT = Viewport.GetRenderTargetTexture();
+	check(IsValidRef(RT));
+	check(RT->GetTexture2D() == SwapChain->GetTexture2D());
+}
+
+void FSteamVRHMD::D3D12Bridge::Reset()
+{
 }
 
 #endif // PLATFORM_WINDOWS
