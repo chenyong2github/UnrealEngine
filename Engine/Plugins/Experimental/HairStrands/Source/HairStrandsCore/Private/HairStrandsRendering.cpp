@@ -11,8 +11,8 @@
 static int32 GHairDeformationType = 0;
 static FAutoConsoleVariableRef CVarHairDeformationType(TEXT("r.HairStrands.DeformationType"), GHairDeformationType, TEXT("Type of procedural deformation applied on hair strands (0:bypass, 1:wave, 2:normal)"));
 
-static float GHairRaytracingRadiusScale = 1;
-static FAutoConsoleVariableRef CVarHairRaytracingRadiusScale(TEXT("r.HairStrands.RaytracingRadiusScale"), GHairRaytracingRadiusScale, TEXT("Scale factor for raytracing hair strands geometry"));
+static float GHairRaytracingRadiusScale = 0;
+static FAutoConsoleVariableRef CVarHairRaytracingRadiusScale(TEXT("r.HairStrands.RaytracingRadiusScale"), GHairRaytracingRadiusScale, TEXT("Override the per instance scale factor for raytracing hair strands geometry (0: disabled, >0:enabled)"));
 
 
 static FIntVector ComputeDispatchCount(uint32 ItemCount, uint32 GroupSize)
@@ -470,7 +470,7 @@ void ComputeHairStrandsInterpolation(
 				AddGenerateRaytracingGeometryPass(
 					GraphBuilder,
 					Input.RenderVertexCount,
-					Input.HairRadius * GHairRaytracingRadiusScale,
+					Input.HairRadius * (GHairRaytracingRadiusScale > 0 ? GHairRaytracingRadiusScale : Input.HairRaytracingRadiusScale),
 					Input.HairWorldOffset,
 					Output.RenderDeformedPositionBuffer[CurrIndex]->SRV,
 					Input.RaytracingPositionBuffer->UAV);

@@ -379,6 +379,7 @@ UGroomComponent::UGroomComponent(const FObjectInitializer& ObjectInitializer)
 	bSelectable = true;
 	RegisteredSkeletalMeshComponent = nullptr;
 	HairDensity = 1;
+	HairRaytracingRadiusScale = 1;
 	bSkinGroom = false;
 	InitializedResources = nullptr;
 	Mobility = EComponentMobility::Movable;
@@ -677,8 +678,9 @@ void UGroomComponent::InitResources()
 
 		FHairStrandsInterpolationOutput::HairGroup& InterpolationOutputGroup = InterpolationOutput->HairGroups.AddDefaulted_GetRef();
 		FHairStrandsInterpolationInput::FHairGroup& InterpolationInputGroup = InterpolationInput->HairGroups.AddDefaulted_GetRef();
-		InterpolationInputGroup.HairRadius		= GroupData.HairRenderData.StrandsCurves.MaxRadius;
+		InterpolationInputGroup.HairRadius = GroupData.HairRenderData.StrandsCurves.MaxRadius;
 		InterpolationInputGroup.HairWorldOffset = GroupData.HairRenderData.BoundingBox.GetCenter();
+		InterpolationInputGroup.HairRaytracingRadiusScale = HairRaytracingRadiusScale;
 	}
 
 	FHairStrandsInterpolationData Interpolation;
@@ -1020,6 +1022,37 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 			}
 		}
 	}
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UGroomComponent, HairRaytracingRadiusScale) && InterpolationInput)
+	{
+		for (FHairStrandsInterpolationInput::FHairGroup& Group : InterpolationInput->HairGroups)
+		{
+			Group.HairRaytracingRadiusScale = HairRaytracingRadiusScale;
+		}
+	}
+}
+
+bool UGroomComponent::CanEditChange(const UProperty* InProperty) const
+{
+	if (InProperty)
+	{
+		FString PropertyName = InProperty->GetName();
+
+		if (FCString::Strcmp(*PropertyName, TEXT("HairRaytracingRadiusScale")) == 0)
+		{
+			bool bIsEditable = false;
+			#if RHI_RAYTRACING
+			FRayTracingGeometry* RayTracingGeometry = nullptr;
+			if (IsRayTracingEnabled())
+			{
+				bIsEditable = true;
+			}
+			#endif
+			return bIsEditable;
+		}
+	}
+
+	return Super::CanEditChange(InProperty);
 }
 #endif
 
