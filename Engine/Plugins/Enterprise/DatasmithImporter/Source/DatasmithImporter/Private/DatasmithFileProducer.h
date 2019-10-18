@@ -8,6 +8,7 @@
 
 #include "DatasmithContentEditorModule.h"
 #include "DatasmithImportContext.h"
+#include "DatasmithImportOptions.h"
 #include "DatasmithScene.h"
 #include "Translators/DatasmithTranslatableSource.h"
 
@@ -30,6 +31,9 @@ public:
 	void SetFilename( const FString& InFilename );
 
 	const FString& GetFilePath() const { return FilePath; }
+
+	/** Load default settings for file producer in DatasmithImporter.ini */
+	static void LoadDefaultSettings();
 
 	// Begin UDataprepContentProducer overrides
 	virtual const FText& GetLabel() const override;
@@ -61,6 +65,9 @@ private:
 	TStrongObjectPtr< UDatasmithScene > DatasmithScenePtr;
 
 	TArray< TWeakObjectPtr< UObject > > Assets;
+
+	static FDatasmithTessellationOptions DefaultTessellationOptions;
+	static FDatasmithImportBaseOptions DefaultImportOptions;
 
 	friend class SDatasmithFileProducerFileProperty;
 };

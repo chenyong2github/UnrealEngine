@@ -61,6 +61,8 @@ public:
 		FDatasmithMasterMaterialManager::Get().RegisterSelector( TEXT("SketchUp"), MakeShared< FDatasmithSketchUpMaterialSelector >() );
 		FDatasmithMasterMaterialManager::Get().RegisterSelector( TEXT("CityEngine"), MakeShared< FDatasmithCityEngineMaterialSelector >() );
 
+		UDatasmithFileProducer::LoadDefaultSettings();
+
 		// Disable any UI feature if running in command mode
 		if (!IsRunningCommandlet())
 		{

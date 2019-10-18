@@ -1441,7 +1441,7 @@ bool FDatasmithWireTranslator::LoadScene(TSharedRef<IDatasmithScene> OutScene)
 	IFileManager::Get().MakeDirectory(*OutputPath, true);
 	Translator->SetOutputPath(OutputPath);
 
-	Translator->SetTessellationOptions(TessellationOptions);
+	Translator->SetTessellationOptions(GetCommonTessellationOptions());
 
 	return Translator->Read();
 
@@ -1484,7 +1484,8 @@ bool FDatasmithWireTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshEle
 				CoreTechData->MeshParameters.SymmetricNormal = MeshParameters.SymmetricNormal;
 				CoreTechData->MeshParameters.SymmetricOrigin = MeshParameters.SymmetricOrigin;
 
-				CoreTechData->LastTessellationOptions = TessellationOptions;
+				CoreTechData->LastTessellationOptions = GetCommonTessellationOptions();
+
 				OutMeshPayload.AdditionalData.Add(CoreTechData);
 			}
 		}
@@ -1497,29 +1498,14 @@ bool FDatasmithWireTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshEle
 #endif
 }
 
-void FDatasmithWireTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options)
-{
-	TStrongObjectPtr<UDatasmithCommonTessellationOptions> TessellationOptionsPtr = Datasmith::MakeOptions<UDatasmithCommonTessellationOptions>();
-	TessellationOptionsPtr->Options.StitchingTechnique = EDatasmithCADStitchingTechnique::StitchingNone; // #ueent_todo: workaround for UE-74572
-	Options.Add(TessellationOptionsPtr);
-}
-
 void FDatasmithWireTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options)
 {
 #ifdef USE_OPENMODEL
-	for (const TStrongObjectPtr<UObject>& OptionPtr : Options)
+	FDatasmithCoreTechTranslator::SetSceneImportOptions(Options);
+
+	if (Translator)
 	{
-		if (UObject* Option = OptionPtr.Get())
-		{
-			if (UDatasmithCommonTessellationOptions* TessellationOptionsObject = Cast<UDatasmithCommonTessellationOptions>(Option))
-			{
-				TessellationOptions = TessellationOptionsObject->Options;
-				if (Translator)
-				{
-					Translator->SetTessellationOptions(TessellationOptions);
-				}
-			}
-		}
+		Translator->SetTessellationOptions( GetCommonTessellationOptions() );
 	}
 #endif
 }
