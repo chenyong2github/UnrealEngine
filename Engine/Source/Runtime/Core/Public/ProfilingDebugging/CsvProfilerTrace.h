@@ -11,6 +11,8 @@
 #define CSVPROFILERTRACE_ENABLED 0
 #endif
 
+class FName;
+
 #if CSVPROFILERTRACE_ENABLED
 
 struct FCsvProfilerTrace

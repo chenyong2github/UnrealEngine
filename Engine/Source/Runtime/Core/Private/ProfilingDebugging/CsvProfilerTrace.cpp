@@ -3,6 +3,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "HAL/PlatformTime.h"
 #include "UObject/NameTypes.h"
+#include "Trace/Trace.h"
 
 #if CSVPROFILERTRACE_ENABLED
 
