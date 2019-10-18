@@ -650,6 +650,11 @@ FActiveGameplayEffectHandle UAbilitySystemComponent::ApplyGameplayEffectSpecToSe
 		{
 			return FActiveGameplayEffectHandle();
 		}
+
+		if (!Spec.Def->RemovalTagRequirements.IsEmpty() && Spec.Def->RemovalTagRequirements.RequirementsMet(MyTags) == true)
+		{
+			return FActiveGameplayEffectHandle();
+		}
 	}
 
 	// Custom application requirement check
@@ -780,21 +785,11 @@ FActiveGameplayEffectHandle UAbilitySystemComponent::ApplyGameplayEffectSpecToSe
 	{
 		ABILITY_LOG(Warning, TEXT("%s is periodic but also applies GameplayEffects to its target. GameplayEffects will only be applied once, not every period."), *Spec.Def->GetPathName());
 	}
-
-	// ------------------------------------------------------
-	//	Remove gameplay effects with tags
-	//		Remove any active gameplay effects that match the RemoveGameplayEffectsWithTags in the definition for this spec
-	//		Only call this if we are the Authoritative owner and we have some RemoveGameplayEffectsWithTags.CombinedTag to remove
-	// ------------------------------------------------------
-	if (bIsNetAuthority && Spec.Def->RemoveGameplayEffectsWithTags.CombinedTags.Num() > 0)
+	
+	// evaluate if any active effects need to be removed by the application of this effect
+	if (bIsNetAuthority)
 	{
-		// Clear tags is always removing all stacks.
-		FGameplayEffectQuery ClearQuery = FGameplayEffectQuery::MakeQuery_MatchAnyOwningTags(Spec.Def->RemoveGameplayEffectsWithTags.CombinedTags);
-		if (MyHandle.IsValid())
-		{
-			ClearQuery.IgnoreHandles.Add(MyHandle);
-		}
-		ActiveGameplayEffects.RemoveActiveEffects(ClearQuery, -1);
+		ActiveGameplayEffects.AttemptRemoveActiveEffectsOnEffectApplication(Spec, MyHandle);
 	}
 	
 	// ------------------------------------------------------
