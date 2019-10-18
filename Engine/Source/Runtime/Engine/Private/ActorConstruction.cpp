@@ -208,22 +208,27 @@ void AActor::RerunConstructionScripts()
 	FEditorScriptExecutionGuard ScriptGuard;
 	// don't allow (re)running construction scripts on dying actors and Actors that seamless traveled 
 	// were constructed in the previous level and should not have construction scripts rerun
-	bool bAllowReconstruction =  !bActorSeamlessTraveled && !IsPendingKill() && !HasAnyFlags(RF_BeginDestroyed|RF_FinishDestroyed);
+	bool bAllowReconstruction = !bActorSeamlessTraveled && !IsPendingKill() && !HasAnyFlags(RF_BeginDestroyed|RF_FinishDestroyed);
 #if WITH_EDITOR
 	if(bAllowReconstruction && GIsEditor)
 	{
-		// Generate the blueprint hierarchy for this actor
-		TArray<UBlueprint*> ParentBPStack;
-		bAllowReconstruction = UBlueprint::GetBlueprintHierarchyFromClass(GetClass(), ParentBPStack);
-		if(bAllowReconstruction)
+		// Don't allow reconstruction if we're still in the middle of construction.
+		bAllowReconstruction = !bActorIsBeingConstructed;
+		if (ensureMsgf(bAllowReconstruction, TEXT("Attempted to rerun construction scripts on an Actor that isn't fully constructed yet (%s)."), *GetFullName()))
 		{
-			for(int i = ParentBPStack.Num() - 1; i > 0 && bAllowReconstruction; --i)
+			// Generate the blueprint hierarchy for this actor
+			TArray<UBlueprint*> ParentBPStack;
+			bAllowReconstruction = UBlueprint::GetBlueprintHierarchyFromClass(GetClass(), ParentBPStack);
+			if (bAllowReconstruction)
 			{
-				const UBlueprint* ParentBP = ParentBPStack[i];
-				if(ParentBP && ParentBP->bBeingCompiled)
+				for (int i = ParentBPStack.Num() - 1; i > 0 && bAllowReconstruction; --i)
 				{
-					// don't allow (re)running construction scripts if a parent BP is being compiled
-					bAllowReconstruction = false;
+					const UBlueprint* ParentBP = ParentBPStack[i];
+					if (ParentBP && ParentBP->bBeingCompiled)
+					{
+						// don't allow (re)running construction scripts if a parent BP is being compiled
+						bAllowReconstruction = false;
+					}
 				}
 			}
 		}
@@ -683,6 +688,13 @@ bool AActor::ExecuteConstruction(const FTransform& Transform, const FRotationCon
 {
 	check(!IsPendingKill());
 	check(!HasAnyFlags(RF_BeginDestroyed|RF_FinishDestroyed));
+
+#if WITH_EDITOR
+	// Guard against reentrancy due to attribute editing at construction time.
+	// @see RerunConstructionScripts()
+	checkf(!bActorIsBeingConstructed, TEXT("Actor construction is not reentrant"));
+	FGuardValue_Bitfield(bActorIsBeingConstructed, true);
+#endif
 
 	// ensure that any existing native root component gets this new transform
 	// we can skip this in the default case as the given transform will be the root component's transform
