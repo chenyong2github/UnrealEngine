@@ -91,6 +91,8 @@ public:
 	FOnDataprepBlueprintChange& GetOnBlueprintChanged() { return OnBlueprintChanged; }
 	// end of temp code for nodes development
 
+public:
+	// Functions specific to the parametrization of the dataprep asset
 
 	/**
 	 * Delegate to notify the ui that a dataprep parametrization was modified
@@ -101,7 +103,7 @@ public:
 
 	virtual UObject* GetParameterizationObject() override;
 
-	void BindObjectPropertyToParameterization(UObject* Object, const TArray<struct FDataprepPropertyLink>& InPropertyChain, FName Name);
+	void BindObjectPropertyToParameterization(UObject* Object, const TArray<struct FDataprepPropertyLink>& InPropertyChain,const FName& Name);
 
 	bool IsObjectPropertyBinded(UObject* Object, const TArray<struct FDataprepPropertyLink>& InPropertyChain) const;
 

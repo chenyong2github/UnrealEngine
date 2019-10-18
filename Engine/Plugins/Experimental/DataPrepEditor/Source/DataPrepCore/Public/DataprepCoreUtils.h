@@ -11,11 +11,21 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Package.h"
 
+class UDataprepAsset;
+
 struct FScopedSlowTask;
 
 class DATAPREPCORE_API FDataprepCoreUtils
 {
 public:
+
+	/**
+	 * Return the dataprep asset that own the object, if the object is part of a dataprep asset
+	 * @return nullptr if the object is not a part of a dataprep asset
+	 */
+	static UDataprepAsset* GetDataprepAssetOfObject(UObject* Object);
+
+	/** Delete the objects and do the manipulation required to safely delete the assets */
 	static void PurgeObjects(TArray<UObject*> Objects);
 
 	/**

@@ -193,7 +193,7 @@ UObject* UDataprepAsset::GetParameterizationObject()
 	return Parameterization->GetDefaultObject();
 }
 
-void UDataprepAsset::BindObjectPropertyToParameterization(UObject* Object, const TArray<FDataprepPropertyLink>& InPropertyChain, FName Name)
+void UDataprepAsset::BindObjectPropertyToParameterization(UObject* Object, const TArray<FDataprepPropertyLink>& InPropertyChain, const FName& Name)
 {
 	bool bPassConditionCheck = false;
 
