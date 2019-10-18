@@ -11,6 +11,7 @@
 #include "BoneContainer.h"
 #include "SkeletalMeshReductionSettings.generated.h"
 
+class FSkeletalMeshLODModel;
 
 /** Enum specifying the reduction type to use when simplifying skeletal meshes with internal tool */
 UENUM()
@@ -47,6 +48,8 @@ enum SkeletalMeshOptimizationImportance
 	SMOI_Highest UMETA(DisplayName = "Highest"),
 	SMOI_MAX UMETA(Hidden)
 };
+
+DECLARE_DELEGATE_OneParam(FOnDeleteLODModelOverride, FSkeletalMeshLODModel*);
 
 /**
 * FSkeletalMeshOptimizationSettings - The settings used to optimize a skeletal mesh LOD.
@@ -145,6 +148,9 @@ struct FSkeletalMeshOptimizationSettings
 
 	UPROPERTY()
 	class UAnimSequence* BakePose_DEPRECATED;
+
+	//Transient mutable delegate. If the delegate is bound, the reduction will call it instead of deleting the replaced LODModel. It will be then the delegate owner responsible of the LODModel memory
+	mutable FOnDeleteLODModelOverride OnDeleteLODModelDelegate;
 #endif
 
 	FSkeletalMeshOptimizationSettings()

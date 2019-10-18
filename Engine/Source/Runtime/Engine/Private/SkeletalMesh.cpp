@@ -325,6 +325,11 @@ FScopedSkeletalMeshPostEditChange::~FScopedSkeletalMeshPostEditChange()
 
 void FScopedSkeletalMeshPostEditChange::SetSkeletalMesh(USkeletalMesh* InSkeletalMesh)
 {
+	//Some parallel task may try to call post edit change, we must prevent it
+	if (!IsInGameThread())
+	{
+		return;
+	}
 	//We cannot set a different skeletal mesh, check that it was construct with null
 	check(SkeletalMesh == nullptr);
 	//We can only set a valid skeletal mesh
@@ -2417,12 +2422,15 @@ void USkeletalMesh::InitMorphTargetsAndRebuildRenderData()
 	// need to refresh the map
 	InitMorphTargets();
 
-	// reset all morphtarget for all components
-	for (TObjectIterator<USkeletalMeshComponent> It; It; ++It)
+	if (IsInGameThread())
 	{
-		if (It->SkeletalMesh == this)
+		// reset all morphtarget for all components
+		for (TObjectIterator<USkeletalMeshComponent> It; It; ++It)
 		{
-			It->RefreshMorphTargets();
+			if (It->SkeletalMesh == this)
+			{
+				It->RefreshMorphTargets();
+			}
 		}
 	}
 }
