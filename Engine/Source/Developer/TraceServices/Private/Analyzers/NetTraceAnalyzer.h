@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Trace/Trace.h"
 #include "Trace/Analyzer.h"
 #include "Containers/UnrealString.h"
 #include "Model/NetProfilerProvider.h"

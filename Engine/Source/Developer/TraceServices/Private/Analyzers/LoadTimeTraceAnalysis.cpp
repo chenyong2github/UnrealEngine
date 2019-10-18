@@ -2,7 +2,6 @@
 #include "LoadTimeTraceAnalysis.h"
 
 #include "Serialization/LoadTimeTrace.h"
-#include "Trace/Trace.h"
 #include "Model/LoadTimeProfilerPrivate.h"
 #include "Analyzers/MiscTraceAnalysis.h"
 #include "Common/FormatArgs.h"

@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Trace/Trace.h"
 #include "Trace/Analyzer.h"
 #include "Containers/Map.h"
 #include "Model/CsvProfilerPrivate.h"
