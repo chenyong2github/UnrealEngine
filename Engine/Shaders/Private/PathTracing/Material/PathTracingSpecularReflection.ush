@@ -20,8 +20,7 @@ void SpecularReflection_SampleMaterial(
 
 	float NoV = saturate(dot(V_World, N_World));
 	float VoH = NoV;
-	float NoL = NoV;
-	OutThroughput = F_Schlick(SpecularColor, VoH) / NoL;
+	OutThroughput = F_Schlick(SpecularColor, VoH);
 
 	OutPdf = 1.0;
 }
