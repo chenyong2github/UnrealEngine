@@ -130,6 +130,7 @@ public:
 	TSharedRef<SWidget> MakeToolbar(TSharedRef<SCurveEditorPanel> InEditorPanel)
 	{
 		FToolBarBuilder ToolBarBuilder(InEditorPanel->GetCommands(), FMultiBoxCustomization::None, InEditorPanel->GetToolbarExtender(), EOrientation::Orient_Horizontal, true);
+		ToolBarBuilder.SetStyle(&FEditorStyle::Get(), "Sequencer.ToolBar");
 		ToolBarBuilder.BeginSection("Asset");
 		ToolBarBuilder.EndSection();
 		// We just use all of the extenders as our toolbar, we don't have a need to create a separate toolbar.
@@ -567,7 +568,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 							.FillEmptySpace(true)
 							[
 								SNew(SBorder)
-								.Padding(FMargin(3))
+								.Padding(FMargin(3.0f, 0.0f))
 								.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 								[
 									SNew(SHorizontalBox)
@@ -1288,6 +1289,7 @@ TSharedRef<SWidget> SSequencer::MakeToolBar()
 	}
 
 	FToolBarBuilder ToolBarBuilder( SequencerPtr.Pin()->GetCommandBindings(), FMultiBoxCustomization::None, Extender, Orient_Horizontal, true);
+	ToolBarBuilder.SetStyle(&FEditorStyle::Get(), "Sequencer.ToolBar");
 
 	ToolBarBuilder.BeginSection("Base Commands");
 	{
