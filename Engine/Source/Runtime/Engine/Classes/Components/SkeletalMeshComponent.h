@@ -473,6 +473,10 @@ public:
 	uint8 bDisableClothSimulation:1;
 
 private:
+	/** Disable rigid body animation nodes and play original animation without simulation */
+	UPROPERTY(EditAnywhere, Category=Clothing)
+	uint8 bDisableRigidBodyAnimNode:1;
+
 	/** Disable animation curves for this component. If this is set true, no curves will be processed */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = SkeletalMesh)
 	uint8 bAllowAnimCurveEvaluation : 1;
@@ -1054,6 +1058,15 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|SkeletalMesh", meta=(UnsafeDuringActorConstruction="true"))
 	void UnbindClothFromMasterPoseComponent(bool bRestoreSimulationSpace = true);
+
+	/**
+	 * Sets whether or not to allow rigid body animation nodes for this component
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh")
+	void SetAllowRigidBodyAnimNode(bool bInAllow, bool bReinitAnim = true);
+
+	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh")
+	bool GetAllowRigidBodyAnimNode() const { return !bDisableRigidBodyAnimNode; }
 
 	/**
 	* Sets whether or not to force tick component in order to update animation and refresh transform for this component
