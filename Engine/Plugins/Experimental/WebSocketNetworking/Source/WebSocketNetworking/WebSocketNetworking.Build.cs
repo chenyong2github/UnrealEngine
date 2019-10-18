@@ -22,14 +22,7 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
-			if (Target.Platform == UnrealTargetPlatform.HTML5)
-			{
-				PublicDefinitions.Add("USE_LIBWEBSOCKET=0");
-			}
-			else
-			{
-				PublicDefinitions.Add("USE_LIBWEBSOCKET=1");
-			}
+			PublicDefinitions.Add("USE_LIBWEBSOCKET=1");
 		}
 	}
 }
