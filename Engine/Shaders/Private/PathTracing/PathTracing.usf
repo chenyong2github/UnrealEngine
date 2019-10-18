@@ -42,7 +42,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 	float2 BufferSize = View.BufferSizeAndInvSize.xy; 
 	uint LinearIndex = LaunchIndex.x + (LaunchIndex.y * BufferSize.x); 
 	RandomSequence RandSequence;
-	RandomSequence_Initialize(RandSequence, LinearIndex, AdaptiveSamplingData.Iteration);
+	RandomSequence_Initialize(RandSequence, LinearIndex, AdaptiveSamplingData.TemporalSeed);
 	RandSequence.Type = AdaptiveSamplingData.RandomSequence;
 	uint SampleIndex = 0;
 	uint SampleCount = 1;
