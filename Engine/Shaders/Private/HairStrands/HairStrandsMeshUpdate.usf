@@ -4,7 +4,6 @@
 #include "HairStrandsMeshProjectionCommon.ush"
 
 float3 RootTrianglePositionOffset;
-float4x4 MeshLocalToWorld;
 uint MeshSectionIndex;
 uint MeshMaxIndexCount;
 uint MeshMaxVertexCount;
@@ -12,7 +11,6 @@ uint MeshIndexOffset;
 Buffer<uint> MeshIndexBuffer;
 Buffer<float> MeshPositionBuffer;
 
-float4x4 RootLocalToWorld;
 uint MaxRootCount;
 Buffer<uint> RootTriangleIndex;
 
@@ -31,7 +29,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	if (TriangleIndex.SectionIndex != MeshSectionIndex)
 		return;
 
-	const FHairMeshTriangle Tri = GetTriangleData(TriangleIndex.TriangleIndex, MeshLocalToWorld, MeshPositionBuffer, MeshIndexBuffer, MeshIndexOffset, MeshMaxIndexCount, MeshMaxVertexCount);
+	const FHairMeshTriangle Tri = GetTriangleData(TriangleIndex.TriangleIndex, MeshPositionBuffer, MeshIndexBuffer, MeshIndexOffset, MeshMaxIndexCount, MeshMaxVertexCount);
 
 	OutRootTrianglePosition0[RootIndex] = (float4(Tri.P0 - RootTrianglePositionOffset,1));
 	OutRootTrianglePosition1[RootIndex] = (float4(Tri.P1 - RootTrianglePositionOffset,1));
