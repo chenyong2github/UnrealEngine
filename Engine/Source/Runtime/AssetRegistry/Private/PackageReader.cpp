@@ -83,17 +83,15 @@ bool FPackageReader::OpenPackageFile(EOpenPackageResult* OutErrorCode)
 	}
 
 	// Check serialized custom versions against latest custom versions.
-	const FCustomVersionContainer& LatestCustomVersions  = FCustomVersionContainer::GetRegistered();
-	const FCustomVersionArray&  PackageCustomVersions = PackageFileSummary.GetCustomVersionContainer().GetAllVersions();
-	for (const FCustomVersion& SerializedCustomVersion : PackageCustomVersions)
+	TArray<FCustomVersionDifference> Diffs = FCurrentCustomVersions::Compare(PackageFileSummary.GetCustomVersionContainer().GetAllVersions());
+	for (FCustomVersionDifference Diff : Diffs)
 	{
-		auto* LatestVersion = LatestCustomVersions.GetVersion(SerializedCustomVersion.Key);
-		if (!LatestVersion)
+		if (Diff.Type == ECustomVersionDifference::Missing)
 		{
 			SetPackageErrorCode(EOpenPackageResult::CustomVersionMissing);
 			return false;
 		}
-		else if (SerializedCustomVersion.Version > LatestVersion->Version)
+		else if (Diff.Type == ECustomVersionDifference::Newer)
 		{
 			SetPackageErrorCode(EOpenPackageResult::VersionTooNew);
 			return false;
