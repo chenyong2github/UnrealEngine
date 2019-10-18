@@ -514,9 +514,7 @@ static FHairStrandsProjectionHairData::HairGroup ToProjectionHairData(FHairStran
 		LODData.DeformedRootTrianglePosition0Buffer = &MeshLODData.DeformedRootTrianglePosition0Buffer;
 		LODData.DeformedRootTrianglePosition1Buffer = &MeshLODData.DeformedRootTrianglePosition1Buffer;
 		LODData.DeformedRootTrianglePosition2Buffer = &MeshLODData.DeformedRootTrianglePosition2Buffer;
-		LODData.bIsValid = 
-			MeshLODData.Status == FHairStrandsRootResource::FMeshProjectionLOD::EStatus::Projected ||
-			MeshLODData.Status == FHairStrandsRootResource::FMeshProjectionLOD::EStatus::Initialized;
+		LODData.bIsValid = MeshLODData.Status == FHairStrandsRootResource::FMeshProjectionLOD::EStatus::Completed;
 	}
 
 	return Out;
@@ -961,6 +959,24 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 						SkeletalMeshComponent->InitAnim(true);
 					}
 					MeshProjectionState = EMeshProjectionState::Completed;
+
+					FHairGroupResources* LocalResources = &HairGroupResources;
+					ENQUEUE_RENDER_COMMAND(FHairStrandsTick_UpdateProjectionStatus)(
+						[LocalResources](FRHICommandListImmediate& RHICmdList)
+					{
+						for (FHairGroupResource& Res : *LocalResources)
+						{
+							for (FHairStrandsRootResource::FMeshProjectionLOD& MeshLODData : Res.RenRootResources->MeshProjectionLODs)
+							{
+								MeshLODData.Status = FHairStrandsRootResource::FMeshProjectionLOD::EStatus::Completed;
+							}
+
+							for (FHairStrandsRootResource::FMeshProjectionLOD& MeshLODData : Res.SimRootResources->MeshProjectionLODs)
+							{
+								MeshLODData.Status = FHairStrandsRootResource::FMeshProjectionLOD::EStatus::Completed;
+							}
+						}
+					});
 				}
 
 				if (MeshProjectionLODIndex < SkeletalMeshComponent->GetNumLODs())

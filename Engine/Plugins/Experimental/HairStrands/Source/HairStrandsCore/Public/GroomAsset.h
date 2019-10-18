@@ -34,7 +34,7 @@ struct FHairStrandsRootResource : public FRenderResource
 
 	struct FMeshProjectionLOD
 	{
-		enum class EStatus { Invalid, Initialized, Projected };
+		enum class EStatus { Invalid, Initialized, Completed };
 		EStatus Status = EStatus::Invalid;
 		int32 LODIndex = -1;
 
