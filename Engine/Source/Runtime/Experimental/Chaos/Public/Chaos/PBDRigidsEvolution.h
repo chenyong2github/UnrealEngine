@@ -22,6 +22,18 @@ class FChaosArchive;
 template <typename TPayload, typename T, int d>
 class ISpatialAccelerationCollection;
 
+template <typename T, int d>
+struct CHAOS_API ISpatialAccelerationCollectionFactory
+{
+	//Create an empty acceleration collection with the desired buckets. Chaos uses the bucket params inside the collection to add / remove sub-structures as needed
+	virtual TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<T, d>, T, d>> CreateEmptyCollection() = 0;
+
+	//Serialize the collection in and out
+	virtual void Serialize(TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<T, d>, T, d>>& Ptr, FChaosArchive& Ar) = 0;
+
+	virtual ~ISpatialAccelerationCollectionFactory() = default;
+};
+
 struct CHAOS_API FEvolutionStats
 {
 	int32 ActiveCollisionPoints;
@@ -49,6 +61,32 @@ struct CHAOS_API FEvolutionStats
 		ShapesForAllConstraints += Other.ShapesForAllConstraints;
 		CollisionPointsForAllConstraints += Other.CollisionPointsForAllConstraints;
 		return *this;
+	}
+};
+
+/** Used for building an acceleration structure out of cached bounds and payloads */
+template <typename T, int d>
+struct TAccelerationStructureBuilder
+{
+	//todo: should these be arrays instead? might make it easier in some cases
+	bool bHasBoundingBox;
+	TBox<T, d> CachedSpatialBounds;
+	TAccelerationStructureHandle<T, d> CachedSpatialPayload;
+
+	const TBox<T, d>& BoundingBox() const
+	{
+		return CachedSpatialBounds;
+	}
+
+	bool HasBoundingBox() const
+	{
+		return bHasBoundingBox;
+	}
+
+	template <typename TPayloadType>
+	TAccelerationStructureHandle<T, d> GetPayload(int32 Idx) const
+	{
+		return CachedSpatialPayload;
 	}
 };
 
@@ -422,43 +460,17 @@ protected:
 		}
 	}
 
-
-	/** Used for building an acceleration structure out of cached bounds and payloads */
-	struct FAccelerationStructureBuilder
-	{
-		//todo: should these be arrays instead? might make it easier in some cases
-		bool bHasBoundingBox;
-		TBox<T, d> CachedSpatialBounds;
-		TAccelerationStructureHandle<T,d> CachedSpatialPayload;
-
-		const TBox<T, d>& BoundingBox() const
-		{
-			return CachedSpatialBounds;
-		}
-
-		bool HasBoundingBox() const
-		{
-			return bHasBoundingBox;
-		}
-
-		template <typename TPayloadType>
-		TAccelerationStructureHandle<T, d> GetPayload(int32 Idx) const
-		{
-			return CachedSpatialPayload;
-		}
-	};
-
 	/** Used for async acceleration rebuild */
 	TMap<TGeometryParticleHandle<T, d>*, int32> ParticleToCacheIdx;
 
 	struct FAccelerationStructBuilderCache
 	{
 		FSpatialAccelerationIdx SpatialIdx;
-		TUniquePtr <TArray<FAccelerationStructureBuilder>> CachedSpatialBuilderData;
+		TUniquePtr <TArray<TAccelerationStructureBuilder<T, d>>> CachedSpatialBuilderData;
 
 		FAccelerationStructBuilderCache(FSpatialAccelerationIdx Idx)
 			: SpatialIdx(Idx)
-			, CachedSpatialBuilderData(MakeUnique<TArray<FAccelerationStructureBuilder>>())
+			, CachedSpatialBuilderData(MakeUnique<TArray<TAccelerationStructureBuilder<T, d>>>())
 		{}
 	};
 	TArray<FAccelerationStructBuilderCache> CachedSpatialBuilderDataMap;
@@ -482,8 +494,8 @@ protected:
 	FGraphEventRef AccelerationStructureTaskComplete;
 
 	int32 NumIterations;
+	TUniquePtr<ISpatialAccelerationCollectionFactory<T, d>> SpatialCollectionFactory;
 
-	static ISpatialAccelerationCollection<TAccelerationStructureHandle<T, d>, T, d>* CreateNewSpatialStructure();
 	void InitializeAccelerationCache();
 };
 
