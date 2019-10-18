@@ -449,7 +449,10 @@ static FHairStrandsTransmittanceMaskData RenderHairStrandsTransmittanceMask(
 		memset(Params.Cluster_MinAABBs, 0, sizeof(FVector4) * FHairStrandsDeepShadowData::MaxClusterCount);
 		memset(Params.Cluster_MaxAABBs, 0, sizeof(FVector4) * FHairStrandsDeepShadowData::MaxClusterCount);
 
-		FRDGTextureRef DefaultDensityTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy, TEXT("Voxel_DefaultDensityTexture"));
+		TRefCountPtr<IPooledRenderTarget> DummyVoxelResources;
+		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::CreateVolumeDesc(1, 1, 1, PF_R32_UINT, FClearValueBinding::Black, TexCreate_None, TexCreate_UAV | TexCreate_ShaderResource, false, 1));
+		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, DummyVoxelResources, TEXT("DummyDensityTexture"));
+		FRDGTextureRef DefaultDensityTexture = GraphBuilder.RegisterExternalTexture(DummyVoxelResources, TEXT("Voxel_DefaultDensityTexture"));
 		for (uint32 TexIt = 0; TexIt < FHairStrandsDeepShadowData::MaxClusterCount; ++TexIt)
 		{
 			Params.Cluster_DensityTextures[TexIt] = DefaultDensityTexture;
