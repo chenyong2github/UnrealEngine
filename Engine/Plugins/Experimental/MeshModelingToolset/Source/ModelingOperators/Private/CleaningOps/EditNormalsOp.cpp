@@ -33,6 +33,11 @@ void FEditNormalsOp::CalculateResult(FProgressCancel* Progress)
 		ResultMesh->EnableAttributes();
 	}
 
+	if (Progress->Cancelled())
+	{
+		return;
+	}
+
 	// if you split normals you must always recompute as well
 	bool bNeedsRecompute = bRecomputeNormals || bSplitNormals;
 
@@ -40,8 +45,18 @@ void FEditNormalsOp::CalculateResult(FProgressCancel* Progress)
 	{
 		FMeshRepairOrientation Repair(ResultMesh.Get());
 		Repair.OrientComponents();
+
+		if (Progress->Cancelled())
+		{
+			return;
+		}
 		FDynamicMeshAABBTree3 Tree(ResultMesh.Get());
 		Repair.SolveGlobalOrientation(&Tree);
+	}
+
+	if (Progress->Cancelled())
+	{
+		return;
 	}
 
 	if (bInvertNormals)
@@ -63,16 +78,27 @@ void FEditNormalsOp::CalculateResult(FProgressCancel* Progress)
 		}
 	}
 
+	if (Progress->Cancelled())
+	{
+		return;
+	}
+
+	float NormalDotProdThreshold = FMathf::Cos(NormalSplitThreshold * FMathf::DegToRad);
+
+	FMeshNormals FaceNormals(ResultMesh.Get());
 	if (bSplitNormals)
 	{
-		FMeshNormals FaceNormals(ResultMesh.Get());
 		FaceNormals.ComputeTriangleNormals();
 		const TArray<FVector3d>& Normals = FaceNormals.GetNormals();
-		float Threshold = FMathf::Cos(NormalSplitThreshold * FMathf::DegToRad);
-		ResultMesh->Attributes()->PrimaryNormals()->CreateFromPredicate([&Normals, &Threshold](int VID, int TA, int TB)
+		ResultMesh->Attributes()->PrimaryNormals()->CreateFromPredicate([&Normals, &NormalDotProdThreshold](int VID, int TA, int TB)
 		{
-			return Normals[TA].Dot(Normals[TB]) > Threshold;
-		}, 0, bAllowSharpVertices);
+			return Normals[TA].Dot(Normals[TB]) > NormalDotProdThreshold;
+		}, 0);
+	}
+
+	if (Progress->Cancelled())
+	{
+		return;
 	}
 
 	bool bAreaWeight = (NormalCalculationMethod == ENormalCalculationMethod::AreaWeighted || NormalCalculationMethod == ENormalCalculationMethod::AreaAngleWeighting);
@@ -83,6 +109,29 @@ void FEditNormalsOp::CalculateResult(FProgressCancel* Progress)
 		FMeshNormals MeshNormals(ResultMesh.Get());
 		MeshNormals.RecomputeOverlayNormals(ResultMesh->Attributes()->PrimaryNormals(), bAreaWeight, bAngleWeight);
 		MeshNormals.CopyToOverlay(ResultMesh->Attributes()->PrimaryNormals(), false);
+	}
+
+	if (Progress->Cancelled())
+	{
+		return;
+	}
+
+	if (bAllowSharpVertices)
+	{
+		ResultMesh->Attributes()->PrimaryNormals()->SplitVerticesWithPredicate([this, &FaceNormals, &NormalDotProdThreshold](int ElementID, int TriID)
+		{
+			FVector3f ElNormal;
+			ResultMesh->Attributes()->PrimaryNormals()->GetElement(ElementID, ElNormal);
+			return ElNormal.Dot(FVector3f(FaceNormals.GetNormals()[TriID])) <= NormalDotProdThreshold;
+		},
+			[this, &FaceNormals](int ElementIdx, int TriID, float* FillVect)
+		{
+			FVector3f N(FaceNormals.GetNormals()[TriID]);
+			FillVect[0] = N.X;
+			FillVect[1] = N.Y;
+			FillVect[2] = N.Z;
+		}
+		);
 	}
 
 }
