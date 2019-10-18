@@ -77,8 +77,7 @@ High level focus:
 -We intend to support RootMotion (Animation) / RootMotionSources (non anim) in the new movement system.
 
 Road Map:
--Aux Buffer
--Event System
+-Event System / "Game API"
 -Ability System integration
 -New Movement System
  
@@ -105,6 +104,10 @@ Smoothing: Taking the output of the simulation and applying an additional layer 
 // ----------------------------------------------------------------------------------------------------------
 // Release notes
 // ----------------------------------------------------------------------------------------------------------
+
+Update (10-15-19)
+-Aux buffer hooked up. Still some decisions to make here, expect a few more refactors.
+-TReplicationBuffer replaced with simpler API.
 
 Update (10-1-19)
 -Forward Predict / Dependent simulation initial check in. This has some limitations and is not final

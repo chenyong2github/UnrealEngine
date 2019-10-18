@@ -107,9 +107,9 @@ struct TReplicatorBase
 	void PostSimTick(TDriver* Driver, const TNetworkSimBufferContainer<TBufferTypes>& Buffers, const TSimulationTickState<TTickSettings>& TickInfo, const FNetSimTickParameters& TickParameters)
 	{
 		// Sync to latest frame if there is any
-		if (Buffers.Sync.GetNumValidElements() > 0)
+		if (Buffers.Sync.Num() > 0)
 		{
-			Driver->FinalizeFrame(*Buffers.Sync.GetElementFromHead(0));
+			Driver->FinalizeFrame(*Buffers.Sync.HeadElement(), *Buffers.Aux.HeadElement());
 		}
 	}
 };
@@ -157,29 +157,27 @@ struct TReplicator_Sequence : public TBase
 
 		auto& Buffer = Buffers.template Get<BufferId>();
 		FArchive& Ar = P.Ar;
-		uint8 SerializedNumElements = FMath::Min<uint8>(MaxNumElements, Buffer.GetNumValidElements());
+		uint8 SerializedNumElements = FMath::Min<uint8>(MaxNumElements, Buffer.Num());
 		Ar << SerializedNumElements;
 
-		const int32 HeadKeyframe = FNetworkSimulationSerialization::SerializeKeyframe(Ar, Buffer.GetHeadKeyframe());
+		const int32 HeadKeyframe = FNetworkSimulationSerialization::SerializeKeyframe(Ar, Buffer.HeadKeyframe());
 		const int32 StartingKeyframe = FMath::Max(0, HeadKeyframe - SerializedNumElements + 1);
 
 		if (Ar.IsLoading())
 		{
-			const int32 PrevHead = Buffer.GetHeadKeyframe();
+			const int32 PrevHead = Buffer.HeadKeyframe();
 			if (PrevHead < StartingKeyframe && PrevHead >= 0)
 			{
 				// There is a gap in the stream. In some cases, we want this to be a "fault" and bubble up. We may want to synthesize state or maybe we just skip ahead.
 				UE_LOG(LogNetworkSim, Warning, TEXT("Fault: gap in received %s buffer. PrevHead: %d. Received: %d-%d. Reseting previous buffer contents"), *LexToString(BufferId), PrevHead, StartingKeyframe, HeadKeyframe);
 			}
-
-			Buffer.ResetNextHeadKeyframe(StartingKeyframe);
 		}
 
 		for (int32 Keyframe = StartingKeyframe; Keyframe <= HeadKeyframe; ++Keyframe)
 		{
 			// This, as is, is bad. The intention is that these functions serialize multiple items in some delta compressed fashion.
 			// As is, we are just serializing the elements individually.
-			auto* Cmd = Ar.IsLoading() ? Buffer.GetWriteNext() : Buffer.FindElementByKeyframe(Keyframe);
+			auto* Cmd = Ar.IsLoading() ? Buffer.WriteKeyframe(Keyframe) : Buffer[Keyframe];
 			Cmd->NetSerialize(P);
 		}
 
@@ -245,13 +243,13 @@ struct TReplicator_Server : public TBase
 		// After receiving input, server may process up to the latest received frames.
 		// (If we needed to buffer input server side for whatever reason, we would do it here)
 		// (also note that we will implicitly guard against speed hacks int he core update loop by not processing cmds past what we have been "allowed")
-		TickInfo.MaxAllowedInputKeyframe = Buffers.Input.GetHeadKeyframe();
+		TickInfo.MaxAllowedInputKeyframe = Buffers.Input.HeadKeyframe();
 
 		// Check for gaps in commands
-		if ( TickInfo.LastProcessedInputKeyframe+1 < Buffers.Input.GetTailKeyframe() )
+		if ( TickInfo.LastProcessedInputKeyframe+1 < Buffers.Input.TailKeyframe() )
 		{
 			UE_LOG(LogNetworkSim, Warning, TEXT("TReplicator_Server::Reconcile missing inputcmds. LastProcessedInputKeyframe: %d. %s"), TickInfo.LastProcessedInputKeyframe, *Buffers.Input.GetBasicDebugStr());
-			TickInfo.LastProcessedInputKeyframe = Buffers.Input.GetTailKeyframe()+1;
+			TickInfo.LastProcessedInputKeyframe = Buffers.Input.TailKeyframe()+1;
 		}
 	}
 
@@ -265,12 +263,12 @@ struct TReplicator_Server : public TBase
 			FNetworkSimTime DeltaSimTime = TickInfo.GetRemainingAllowedSimulationTime();
 			if (DeltaSimTime.IsPositive())
 			{
-				if (TInputCmd* InputCmd = Buffers.Input.GetWriteNext())
+				if (TInputCmd* InputCmd = Buffers.Input.WriteKeyframe(Buffers.Input.HeadKeyframe() + 1))
 				{
 					*InputCmd = TInputCmd();
 					InputCmd->SetFrameDeltaTime(DeltaSimTime);
 					Driver->ProduceInput(DeltaSimTime, *InputCmd);
-					TickInfo.MaxAllowedInputKeyframe = Buffers.Input.GetHeadKeyframe();
+					TickInfo.MaxAllowedInputKeyframe = Buffers.Input.HeadKeyframe();
 				}
 			}
 		}
@@ -328,16 +326,18 @@ struct TReplicator_Simulated : public TBase
 		LastSerializedSimulationTime.NetSerialize(P.Ar);
 
 		// Serialize latest element
-		TSyncState* State = nullptr;
+		TSyncState* SyncState = nullptr;
+		TAuxState* AuxState = nullptr;
 		
 		if (Ar.IsSaving())
 		{
-			State = Buffers.Sync.GetElementFromHead(0);
-			check(State); // We should not be here if the buffer is empty. Want to avoid serializing an "empty" flag at the top here.
+			SyncState = Buffers.Sync.HeadElement();
+			AuxState = Buffers.Aux.HeadElement();
+			check(SyncState && AuxState	); // We should not be here if the buffer is empty. Want to avoid serializing an "empty" flag at the top here.
 		}
 		else
 		{
-			check(TickInfo.SimulationTimeBuffer.GetHeadKeyframe() == Buffers.Sync.GetHeadKeyframe());
+			check(TickInfo.SimulationTimeBuffer.HeadKeyframe() == Buffers.Sync.HeadKeyframe());
 			check(TickInfo.GetTotalProcessedSimulationTime() <= TickInfo.GetTotalAllowedSimulationTime());
 
 			// Cache off our "starting" time before possibly overwriting it. We will use this in Reconcile to catch back up in some cases.
@@ -351,14 +351,14 @@ struct TReplicator_Simulated : public TBase
 			if (LastSerializedSimulationTime > TickInfo.GetTotalProcessedSimulationTime())
 			{
 				// We are getting new state that is ahead of what we have locally, so it can safety go right to head
-				DestinationKeyframe = TickInfo.SimulationTimeBuffer.GetHeadKeyframe()+1;
+				DestinationKeyframe = TickInfo.SimulationTimeBuffer.HeadKeyframe()+1;
 			}
 			else
 			{
 				// We are getting state that is behind what we have locally
-				for (int32 Keyframe = TickInfo.SimulationTimeBuffer.GetHeadKeyframe(); Keyframe >= TickInfo.SimulationTimeBuffer.GetTailKeyframe(); --Keyframe)
+				for (int32 Keyframe = TickInfo.SimulationTimeBuffer.HeadKeyframe(); Keyframe >= TickInfo.SimulationTimeBuffer.TailKeyframe(); --Keyframe)
 				{
-					if (LastSerializedSimulationTime > *TickInfo.SimulationTimeBuffer.FindElementByKeyframe(Keyframe))
+					if (LastSerializedSimulationTime > *TickInfo.SimulationTimeBuffer[Keyframe])
 					{
 						DestinationKeyframe = Keyframe+1;
 						break;
@@ -367,21 +367,22 @@ struct TReplicator_Simulated : public TBase
 
 				if (DestinationKeyframe == INDEX_NONE)
 				{
-					FNetworkSimTime TotalTimeAhead = *TickInfo.SimulationTimeBuffer.GetElementFromHead(0) - LastSerializedSimulationTime;
+					FNetworkSimTime TotalTimeAhead = TickInfo.GetTotalProcessedSimulationTime() - LastSerializedSimulationTime;
 					FNetworkSimTime SerializeDelta = LastSerializedSimulationTime - PrevLastSerializedSimulationTime;
 
 					// We are way far ahead of the server... we will need to clear out sync buffers, take what they gave us, and catch up in reconcile
 					//UE_LOG(LogNetworkSim, Warning, TEXT("!!! TReplicator_Simulated. Large gap detected. SerializedTime: %s. Buffer time: [%s-%s]. %d Elements. DeltaFromHead: %s. DeltaSerialize: %s"), *LastSerializedSimulationTime.ToString(), 
 					//	*TickInfo.SimulationTimeBuffer.GetElementFromTail(0)->ToString(), *TickInfo.SimulationTimeBuffer.GetElementFromHead(0)->ToString(), TickInfo.SimulationTimeBuffer.GetNumValidElements(), *TotalTimeAhead.ToString(), *SerializeDelta.ToString());
-					DestinationKeyframe = TickInfo.SimulationTimeBuffer.GetHeadKeyframe()+2; // (Skip ahead 2 to force a break in continuity)
+					DestinationKeyframe = TickInfo.SimulationTimeBuffer.HeadKeyframe()+2; // (Skip ahead 2 to force a break in continuity)
 				}
 			}
 
 			check(DestinationKeyframe != INDEX_NONE);
 
-			// "Finalize" our buffers and time keeping such that we serialize the latest state from the server in the right spot			
-			Buffers.Sync.ResetNextHeadKeyframe(DestinationKeyframe);
-			State = Buffers.Sync.GetWriteNext();
+			// "Finalize" our buffers and time keeping such that we serialize the latest state from the server in the right spot
+			SyncState = Buffers.Sync.WriteKeyframe(DestinationKeyframe);
+			AuxState = Buffers.Aux.WriteKeyframe(DestinationKeyframe);
+			Buffers.Input.WriteKeyframe(DestinationKeyframe);
 
 			// Update tick info
 			TickInfo.SetTotalProcessedSimulationTime(LastSerializedSimulationTime, DestinationKeyframe);
@@ -393,17 +394,17 @@ struct TReplicator_Simulated : public TBase
 			check(TickInfo.GetTotalProcessedSimulationTime() <= TickInfo.GetTotalAllowedSimulationTime());
 
 			TickInfo.LastProcessedInputKeyframe = DestinationKeyframe;
-			TickInfo.MaxAllowedInputKeyframe = DestinationKeyframe;
-
-			Buffers.Input.ResetNextHeadKeyframe(DestinationKeyframe+1);
+			TickInfo.MaxAllowedInputKeyframe = DestinationKeyframe;	
 		}
 
-		check(State);
-		State->NetSerialize(Ar);
+		check(SyncState && AuxState);
+		SyncState->NetSerialize(Ar);
+		AuxState->NetSerialize(Ar);
 
 		if (Ar.IsLoading())
 		{
-			LastSerializedSyncState = *State;
+			LastSerializedSyncState = *SyncState;
+			LastSerializedAuxState = *AuxState;
 		}
 	}
 
@@ -419,13 +420,13 @@ struct TReplicator_Simulated : public TBase
 
 		if (bAllowSimulatedExtrapolation && ParentSimulation == nullptr && NetworkSimulationModelCVars::EnableSimulatedExtrapolation() && NetworkSimulationModelCVars::EnableSimulatedReconcile())
 		{
-			TInputCmd* LastCmd = Buffers.Input.GetElementFromHead(0);
+			TInputCmd* LastCmd = Buffers.Input.HeadElement();
 
 			// Simulated Reconcile requires the input buffer to be kept up to date with the Sync buffer
 			// Generate a new, fake, command since we just added a new sync state to head
-			while (Buffers.Input.GetHeadKeyframe() < Buffers.Sync.GetHeadKeyframe())
+			while (Buffers.Input.HeadKeyframe() < Buffers.Sync.HeadKeyframe())
 			{
-				TInputCmd* Next = Buffers.Input.GetWriteNext();
+				TInputCmd* Next = Buffers.Input.WriteKeyframe(Buffers.Input.HeadKeyframe()+1);
 				*Next = LastCmd ? *LastCmd : TInputCmd();
 			}
 
@@ -458,14 +459,14 @@ struct TReplicator_Simulated : public TBase
 				FNetworkSimTime DeltaSimTime = TickInfo.GetRemainingAllowedSimulationTime();
 				if (DeltaSimTime.IsPositive())
 				{
-					if (TInputCmd* InputCmd = Buffers.Input.GetWriteNext())
+					if (TInputCmd* InputCmd = Buffers.Input.WriteKeyframe(Buffers.Input.HeadKeyframe() + 1))
 					{
 						//UE_LOG(LogNetworkSim, Warning, TEXT("   Extrapolating %s"), *DeltaSimTime.ToString());
 
 						*InputCmd = TInputCmd();
 						InputCmd->SetFrameDeltaTime(DeltaSimTime);
 						Driver->ProduceInput(DeltaSimTime, *InputCmd);
-						TickInfo.MaxAllowedInputKeyframe = Buffers.Input.GetHeadKeyframe();
+						TickInfo.MaxAllowedInputKeyframe = Buffers.Input.HeadKeyframe();
 					}
 				}
 			}
@@ -478,9 +479,9 @@ struct TReplicator_Simulated : public TBase
 		if (bAllowSimulatedExtrapolation || ParentSimulation)
 		{
 			// Sync to latest frame if there is any
-			if (Buffers.Sync.GetNumValidElements() > 0)
+			if (Buffers.Sync.Num() > 0)
 			{
-				Driver->FinalizeFrame(*Buffers.Sync.GetElementFromHead(0));
+				Driver->FinalizeFrame(*Buffers.Sync.HeadElement(), *Buffers.Aux.HeadElement());
 			}
 			
 		}
@@ -495,19 +496,17 @@ struct TReplicator_Simulated : public TBase
 	{
 		// For now, we make the assumption that our last serialized state and time match the parent simulation.
 		// This would not always be the case with low frequency simulated proxies. But could be handled by replicating the simulations together (at the replication level)
-		int32 NewHeadKeyframe = Buffers.Sync.GetHeadKeyframe()+1;
-		Buffers.Sync.ResetNextHeadKeyframe(NewHeadKeyframe);
-		Buffers.Input.ResetNextHeadKeyframe(NewHeadKeyframe);
+		int32 NewHeadKeyframe = Buffers.Sync.HeadKeyframe()+1;
+		
 		TickInfo.SetTotalProcessedSimulationTime(LastSerializedSimulationTime, NewHeadKeyframe);
 		TickInfo.SetTotalAllowedSimulationTime(LastSerializedSimulationTime);
+		TickInfo.LastProcessedInputKeyframe = NewHeadKeyframe;
+		TickInfo.MaxAllowedInputKeyframe = NewHeadKeyframe;
 
-		*Buffers.Sync.GetWriteNext() = LastSerializedSyncState;
-		*Buffers.Input.GetWriteNext() = TInputCmd();
+		*Buffers.Sync.WriteKeyframe(NewHeadKeyframe) = LastSerializedSyncState;
+		*Buffers.Input.WriteKeyframe(NewHeadKeyframe) = TInputCmd();
 
-		TickInfo.LastProcessedInputKeyframe = Buffers.Input.GetHeadKeyframe();
-		TickInfo.MaxAllowedInputKeyframe = Buffers.Input.GetHeadKeyframe();
-
-		Driver->FinalizeFrame(LastSerializedSyncState);
+		Driver->FinalizeFrame(LastSerializedSyncState, LastSerializedAuxState);
 
 		LastSerializedSyncState.VisualLog( FVisualLoggingParameters(EVisualLoggingContext::FirstMispredicted, ParentKeyframe, EVisualLoggingLifetime::Persistent), Driver, Driver );
 	}
@@ -519,7 +518,7 @@ struct TReplicator_Simulated : public TBase
 
 		SimulationExtrapolation<T, TDriver>(Driver, Buffers, TickInfo, StepTime);
 
-		TSyncState* SyncState = Buffers.Sync.GetElementFromHead(0);
+		TSyncState* SyncState = Buffers.Sync.HeadElement();
 		check(SyncState);
 		SyncState->VisualLog( FVisualLoggingParameters(bFinalStep ? EVisualLoggingContext::LastMispredicted : EVisualLoggingContext::OtherMispredicted, ParentKeyframe, EVisualLoggingLifetime::Persistent), Driver, Driver );
 	}
@@ -529,32 +528,38 @@ private:
 	template<typename T, typename TDriver>
 	void SimulationExtrapolation(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, TSimulationTickState<TTickSettings>& TickInfo, const FNetworkSimTime DeltaSimTime)
 	{
-		TInputCmd* LastCmd = Buffers.Input.GetElementFromHead(0);
-
 		// We have extrapolated ahead of the server. The latest network update is now "in the past" from what we rendered last frame.
 		// We will insert a new keyframe to make up the difference from the last known state to where we want to be in the now.
-				
-		TInputCmd* NewCmd = Buffers.Input.GetWriteNext();
+
+		ensure(Buffers.Input.HeadKeyframe() == Buffers.Sync.HeadKeyframe());
+
+		TInputCmd* LastCmd = Buffers.Input.HeadElement();
+		const int32 LastKeyframe = Buffers.Input.HeadKeyframe();
+		const int32 Keyframe = LastKeyframe + 1;
+
+		// Create fake cmd				
+		TInputCmd* NewCmd = Buffers.Input.WriteKeyframe(Keyframe);
 		*NewCmd = LastCmd ? *LastCmd : TInputCmd();
-		NewCmd->SetFrameDeltaTime(DeltaSimTime);
-
-		TSyncState* PrevSyncState = Buffers.Sync.GetElementFromHead(0);
-		TSyncState* NextSyncState = Buffers.Sync.GetWriteNext();
-
-		TAuxState Junk;
+		NewCmd->SetFrameDeltaTime(DeltaSimTime);	
+		
+		// Create new sync state to write to
+		TSyncState* PrevSyncState = Buffers.Sync.HeadElement();
+		TSyncState* NextSyncState = Buffers.Sync.WriteKeyframe(Keyframe);
+		TAuxState* AuxState = Buffers.Aux.HeadElement();
 
 		// Do the actual update
-		T::Update(Driver, NewCmd->GetFrameDeltaTime().ToRealTimeSeconds(), *NewCmd, *PrevSyncState, *NextSyncState, Junk);
-		TickInfo.IncrementTotalProcessedSimulationTime(NewCmd->GetFrameDeltaTime(), Buffers.Sync.GetHeadKeyframe());
+		T::Update(Driver, NewCmd->GetFrameDeltaTime().ToRealTimeSeconds(), *NewCmd, *PrevSyncState, *NextSyncState, *AuxState, Buffers.Aux.WriteKeyframeFunc(Keyframe+1));
+		TickInfo.IncrementTotalProcessedSimulationTime(NewCmd->GetFrameDeltaTime(), Buffers.Sync.HeadKeyframe());
 
 		// Set our LastProcessedInputKeyframe to fake that we handled it
-		TickInfo.LastProcessedInputKeyframe = Buffers.Input.GetHeadKeyframe();
-		TickInfo.MaxAllowedInputKeyframe = Buffers.Input.GetHeadKeyframe();
+		TickInfo.LastProcessedInputKeyframe = Keyframe;
+		TickInfo.MaxAllowedInputKeyframe = Keyframe;
 	}
 	
 	FNetworkSimTime ReconcileSimulationTime;
 	FNetworkSimTime LastSerializedSimulationTime;
 	TSyncState LastSerializedSyncState;
+	TAuxState LastSerializedAuxState;	// Temp? This should be conditional or optional. We want to support not replicating the aux state to simulated proxies
 };
 
 
@@ -566,7 +571,7 @@ struct TReplicator_Autonomous : public TBase
 	using TSyncState = typename TBufferTypes::TSyncState;
 	using TAuxState = typename TBufferTypes::TAuxState;
 
-	int32 GetLastSerializedKeyframe() const { return LastSerializedKeyframe; }
+	int32 GetLastSerializedKeyframe() const { return SerializedKeyframe; }
 	bool IsReconcileFaultDetected() const { return bReconcileFaultDetected; }
 	const FNetworkSimTime& GetLastSerializedSimTime() const { return SerializedTime; }
 
@@ -575,7 +580,7 @@ struct TReplicator_Autonomous : public TBase
 
 	int32 GetProxyDirtyCount(TNetworkSimBufferContainer<TBufferTypes>& Buffers) const
 	{
-		return Buffers.Sync.GetDirtyCount() ^ (TBase::GetProxyDirtyCount(Buffers) << 2); ;
+		return (Buffers.Sync.GetDirtyCount()) ^ (Buffers.Aux.GetDirtyCount() << 1) ^ (TBase::GetProxyDirtyCount(Buffers) << 2); 
 	}
 
 	// --------------------------------------------------------------------
@@ -585,32 +590,22 @@ struct TReplicator_Autonomous : public TBase
 	{
 		FArchive& Ar = P.Ar;
 
-		const int32 SerializedHeadKeyframe = FNetworkSimulationSerialization::SerializeKeyframe(Ar, Buffers.Sync.GetHeadKeyframe());
-		TSyncState* SerializedState = nullptr;
-
-		// Serialize total simulation time. This isn't really necessary since we have the keyframe above. 
+		SerializedKeyframe = FNetworkSimulationSerialization::SerializeKeyframe(Ar, Buffers.Sync.HeadKeyframe());
+		
 		SerializedTime = TickInfo.GetTotalProcessedSimulationTime();
 		SerializedTime.NetSerialize(P.Ar);
 
 		if (Ar.IsSaving())
 		{
 			// Server serialize the latest state
-			SerializedState = Buffers.Sync.GetElementFromHead(0);
+			Buffers.Sync.HeadElement()->NetSerialize(Ar);
+			Buffers.Aux.HeadElement()->NetSerialize(Ar);
 		}
 		else
 		{
-			// Lazy init the reconciliation buffer. We don't need this on the server/writing side. (Fixme, with templated approach we could easily specialize this to an inline element instead of buffer?)
-			if (ReconciliationBuffer.GetMaxNumElements() == 0)
-			{
-				ReconciliationBuffer.SetBufferSize(1);
-			}
-
-			// Reset the head to match the server. This is not critical, we just need a place to store this, but it makes the code in the reconciliation a bit nicer since the reconcilated frame number = head frame.
-			ReconciliationBuffer.ResetNextHeadKeyframe(SerializedHeadKeyframe);
-			SerializedState = ReconciliationBuffer.GetWriteNext();
+			SerializedSyncState.NetSerialize(Ar);
+			SerializedAuxState.NetSerialize(Ar);
 		}
-
-		SerializedState->NetSerialize(Ar);
 
 		if (Ar.IsLoading())
 		{
@@ -618,18 +613,19 @@ struct TReplicator_Autonomous : public TBase
 			bPendingReconciliation = false;
 
 			// The state the client predicted that corresponds to the state the server just serialized to us
-			if (TSyncState* ClientExistingState = Buffers.Sync.FindElementByKeyframe(SerializedHeadKeyframe))
+			if (TSyncState* ClientExistingState = Buffers.Sync[SerializedKeyframe])
 			{
-				if (ClientExistingState->ShouldReconcile(*SerializedState) || (NetworkSimulationModelCVars::ForceReconcile() > 0) || (NetworkSimulationModelCVars::ForceReconcileSingle() > 0))
+				// TODO: AuxState->ShouldReconcile
+				if (ClientExistingState->ShouldReconcile(SerializedSyncState) || (NetworkSimulationModelCVars::ForceReconcile() > 0) || (NetworkSimulationModelCVars::ForceReconcileSingle() > 0))
 				{
 					NetworkSimulationModelCVars::SetForceReconcileSingle(0);
-					UE_CLOG(!Buffers.Input.IsValidKeyframe(SerializedHeadKeyframe), LogNetworkSim, Error, TEXT("::NetSerialize: Client InputBuffer does not contain data for frame %d. {%s} {%s}"), SerializedHeadKeyframe, *Buffers.Input.GetBasicDebugStr(), *Buffers.Sync.GetBasicDebugStr());
+					UE_CLOG(!Buffers.Input.IsValidKeyframe(SerializedKeyframe), LogNetworkSim, Error, TEXT("::NetSerialize: Client InputBuffer does not contain data for frame %d. {%s} {%s}"), SerializedKeyframe, *Buffers.Input.GetBasicDebugStr(), *Buffers.Sync.GetBasicDebugStr());
 					bPendingReconciliation =  true;
 				}
 			}
 			else
 			{
-				if (SerializedHeadKeyframe < Buffers.Sync.GetTailKeyframe())
+				if (SerializedKeyframe < Buffers.Sync.TailKeyframe())
 				{
 					// Case 1: the serialized state is older than what we've kept in our buffer. A bigger buffer would solve this! (at the price of more resimulated frames to recover when this happens)
 					// This is a reconcile fault and we just need to chill. We'll stop sending user commands until the cmds in flight flush through the system and we catch back up.
@@ -642,8 +638,6 @@ struct TReplicator_Autonomous : public TBase
 				}
 			}
 		}
-
-		LastSerializedKeyframe = SerializedHeadKeyframe;
 	}
 
 	// --------------------------------------------------------------------
@@ -658,30 +652,21 @@ struct TReplicator_Autonomous : public TBase
 		}
 		bPendingReconciliation = false;
 		bDependentSimulationNeedsReconcile = false;
-		check(ReconciliationBuffer.GetNumValidElements() == 1); // this function assumes only 1 element
 
-		const int32 ReconciliationKeyframe = ReconciliationBuffer.GetHeadKeyframe();
-		TSyncState* ServerState = ReconciliationBuffer.GetElementFromHead(0);
-
-		TInputCmd* ClientInputCmd = Buffers.Input.FindElementByKeyframe( ReconciliationKeyframe );
+		TInputCmd* ClientInputCmd = Buffers.Input[SerializedKeyframe];
 		if (ClientInputCmd == nullptr)
 		{
 			// Fault: no historic command for this frame to reconcile with.
-			UE_LOG(LogNetworkSim, Error, TEXT("Client InputBuffer does not contain data for frame %d. {%s} {%s}"), ReconciliationKeyframe, *Buffers.Input.GetBasicDebugStr(), *Buffers.Sync.GetBasicDebugStr());
+			UE_LOG(LogNetworkSim, Error, TEXT("Client InputBuffer does not contain data for frame %d. {%s} {%s}"), SerializedKeyframe, *Buffers.Input.GetBasicDebugStr(), *Buffers.Sync.GetBasicDebugStr());
 			return;
 		}
 
-		// -------------------------------------------------------------------------------------------------------------------------
-		// Resimulate
-		// -------------------------------------------------------------------------------------------------------------------------
-
-		TSyncState* ClientSyncState = Buffers.Sync.FindElementByKeyframe( ReconciliationKeyframe );
-
+		TSyncState* ClientSyncState = Buffers.Sync[SerializedKeyframe];
 		const bool bDoVisualLog = NetworkSimulationModelCVars::EnableLocalPrediction() > 0; // don't visual log if we have prediction disabled
 		
 		if (bDoVisualLog)
 		{
-			ServerState->VisualLog( FVisualLoggingParameters(EVisualLoggingContext::LastConfirmed, ReconciliationKeyframe, EVisualLoggingLifetime::Persistent), Driver, Driver);
+			SerializedSyncState.VisualLog( FVisualLoggingParameters(EVisualLoggingContext::LastConfirmed, SerializedKeyframe, EVisualLoggingLifetime::Persistent), Driver, Driver);
 		}
 
 		if (ClientSyncState)
@@ -689,25 +674,27 @@ struct TReplicator_Autonomous : public TBase
 			// Existing ClientSyncState, log it before overwriting it
 			if (bDoVisualLog)
 			{
-				ClientSyncState->VisualLog( FVisualLoggingParameters(EVisualLoggingContext::FirstMispredicted, ReconciliationKeyframe, EVisualLoggingLifetime::Persistent), Driver, Driver);
+				ClientSyncState->VisualLog( FVisualLoggingParameters(EVisualLoggingContext::FirstMispredicted, SerializedKeyframe, EVisualLoggingLifetime::Persistent), Driver, Driver);
 			}
 		}
 		else
 		{
 			// No existing state, so create add it explicitly
-			Buffers.Sync.ResetNextHeadKeyframe( ReconciliationKeyframe );
-			ClientSyncState = Buffers.Sync.GetWriteNext();
+			ClientSyncState = Buffers.Sync.WriteKeyframe( SerializedKeyframe );
 		}
 
 		// Set client's sync state to the server version
 		check(ClientSyncState);
-		*ClientSyncState = *ServerState;
+		*ClientSyncState = SerializedSyncState;
+
+		// Set Client's aux state to the server version
+		*Buffers.Aux.WriteKeyframe(SerializedKeyframe) = SerializedAuxState;
 
 		const FNetworkSimTime RollbackDeltaTime = SerializedTime - TickInfo.GetTotalProcessedSimulationTime();
 
 		// Set the canonical simulation time to what we received (we will advance it as we resimulate)
-		TickInfo.SetTotalProcessedSimulationTime(SerializedTime, ReconciliationKeyframe);
-		TickInfo.LastProcessedInputKeyframe = ReconciliationKeyframe;
+		TickInfo.SetTotalProcessedSimulationTime(SerializedTime, SerializedKeyframe);
+		TickInfo.LastProcessedInputKeyframe = SerializedKeyframe;
 		TickInfo.MaxAllowedInputKeyframe = FMath::Max(TickInfo.MaxAllowedInputKeyframe, TickInfo.LastProcessedInputKeyframe); // Make sure this doesn't lag behind. This is the only place we should need to do this.
 
 		if (NetworkSimulationModelCVars::EnableLocalPrediction() == 0)
@@ -719,49 +706,37 @@ struct TReplicator_Autonomous : public TBase
 		// Tell dependent simulations to rollback
 		for (INetworkSimulationModel* DependentSim : DependentSimulations)
 		{
-			DependentSim->BeginRollback(RollbackDeltaTime, ReconciliationKeyframe);
+			DependentSim->BeginRollback(RollbackDeltaTime, SerializedKeyframe);
 		}
 		
 		// Resimulate all user commands 
 		const int32 LastKeyframeToProcess = TickInfo.MaxAllowedInputKeyframe;
-		for (int32 Keyframe = ReconciliationKeyframe+1; Keyframe <= LastKeyframeToProcess; ++Keyframe)
+		for (int32 Keyframe = SerializedKeyframe+1; Keyframe <= LastKeyframeToProcess; ++Keyframe)
 		{
 			// Keyframe is the frame we are resimulating right now.
-			TInputCmd* ResimulateCmd	= Buffers.Input.FindElementByKeyframe(Keyframe);
-			TSyncState* PrevMotionState = Buffers.Sync.FindElementByKeyframe(Keyframe - 1);
-			TSyncState* NextMotionState = Buffers.Sync.FindElementByKeyframe(Keyframe);
+			TInputCmd* ResimulateCmd  = Buffers.Input[Keyframe];
+			TSyncState* PrevSyncState = Buffers.Sync[Keyframe - 1];
+			TSyncState* NextSyncState = Buffers.Sync.WriteKeyframe(Keyframe);
 			
 			check(ResimulateCmd);
-			check(PrevMotionState);
-			if (NextMotionState == nullptr)
-			{
-				// This should only happen if we transition from no local prediction to local prediction, since we will traverse through out input buffer but not have predicted sync states to look at.
-				NextMotionState = Buffers.Sync.GetWriteNext();
-				check(Keyframe == Buffers.Sync.GetHeadKeyframe());
-			}
-
-			// TEMP (Aux buffer not fully plumbed through the system yet)
-			// ------------------------------------------------------
-			TAuxState TempAuxState;
-			TAuxState* AuxState = Buffers.Aux.FindElementByKeyframe(Keyframe);
-			if (AuxState == nullptr)
-			{
-				AuxState = &TempAuxState;
-			}
-			// ------------------------------------------------------
+			check(PrevSyncState);
+			check(NextSyncState);
+			
+			TAuxState* AuxState = Buffers.Aux[Keyframe];
+			check(AuxState);
 
 			// Log out the Mispredicted state that we are about to overwrite.
-			NextMotionState->VisualLog( FVisualLoggingParameters(Keyframe == LastKeyframeToProcess ? EVisualLoggingContext::LastMispredicted : EVisualLoggingContext::OtherMispredicted, Keyframe, EVisualLoggingLifetime::Persistent), Driver, Driver);
+			NextSyncState->VisualLog( FVisualLoggingParameters(Keyframe == LastKeyframeToProcess ? EVisualLoggingContext::LastMispredicted : EVisualLoggingContext::OtherMispredicted, Keyframe, EVisualLoggingLifetime::Persistent), Driver, Driver);
 
 			// Do the actual update
-			T::Update(Driver, ResimulateCmd->GetFrameDeltaTime().ToRealTimeSeconds(), *ResimulateCmd, *PrevMotionState, *NextMotionState, *AuxState);
+			T::Update(Driver, ResimulateCmd->GetFrameDeltaTime().ToRealTimeSeconds(), *ResimulateCmd, *PrevSyncState, *NextSyncState, *AuxState, Buffers.Aux.WriteKeyframeFunc(Keyframe+1));
 			
 			// Update TickInfo
 			TickInfo.IncrementTotalProcessedSimulationTime(ResimulateCmd->GetFrameDeltaTime(), Keyframe);
 			TickInfo.LastProcessedInputKeyframe = Keyframe;
 
 			// Log out the newly predicted state that we got.
-			NextMotionState->VisualLog( FVisualLoggingParameters(Keyframe == LastKeyframeToProcess ? EVisualLoggingContext::LastPredicted : EVisualLoggingContext::OtherPredicted, Keyframe, EVisualLoggingLifetime::Persistent), Driver, Driver);
+			NextSyncState->VisualLog( FVisualLoggingParameters(Keyframe == LastKeyframeToProcess ? EVisualLoggingContext::LastPredicted : EVisualLoggingContext::OtherPredicted, Keyframe, EVisualLoggingLifetime::Persistent), Driver, Driver);
 
 			// Tell dependent simulations to advance
 			for (INetworkSimulationModel* DependentSim : DependentSimulations)
@@ -792,12 +767,12 @@ struct TReplicator_Autonomous : public TBase
 				const FNetworkSimTime DeltaSimTime = TickInfo.GetRemainingAllowedSimulationTime();
 				if (DeltaSimTime.IsPositive())
 				{
-					if (TInputCmd* InputCmd = Buffers.Input.GetWriteNext())
+					if (TInputCmd* InputCmd = Buffers.Input.WriteKeyframe(Buffers.Input.HeadKeyframe() + 1))
 					{
 						*InputCmd = TInputCmd();
 						InputCmd->SetFrameDeltaTime(DeltaSimTime);
 						Driver->ProduceInput(DeltaSimTime, *InputCmd);
-						TickInfo.MaxAllowedInputKeyframe = Buffers.Input.GetHeadKeyframe(); // Allow the new command to be processed by the local simulation
+						TickInfo.MaxAllowedInputKeyframe = Buffers.Input.HeadKeyframe(); // Allow the new command to be processed by the local simulation
 					}
 				}
 			}
@@ -811,7 +786,7 @@ struct TReplicator_Autonomous : public TBase
 				NonPredictedInputTimeAccumulator.Accumulate(NonPredictedInputTime, TickParameters.LocalDeltaTimeSeconds);
 				if (NonPredictedInputTime.IsPositive())
 				{
-					if (TInputCmd* InputCmd = Buffers.Input.GetWriteNext())
+					if (TInputCmd* InputCmd = Buffers.Input.WriteKeyframe(Buffers.Input.HeadKeyframe() + 1))
 					{
 						*InputCmd = TInputCmd();
 						InputCmd->SetFrameDeltaTime(NonPredictedInputTime);
@@ -824,13 +799,15 @@ struct TReplicator_Autonomous : public TBase
 
 private:
 	
-	TReplicationBuffer<TSyncState> ReconciliationBuffer;
-	FNetworkSimTime SerializedTime; // last serialized time keeper
-	TRealTimeAccumulator<TTickSettings> NonPredictedInputTimeAccumulator; // for tracking input time in the non predictive case
+	TSyncState SerializedSyncState;
+	TAuxState SerializedAuxState;
+	FNetworkSimTime SerializedTime;
+	int32 SerializedKeyframe = -1;
 
-	int32 LastSerializedKeyframe = -1;
 	bool bPendingReconciliation = false;	// Reconciliation is pending: we need to reconcile state from the server that differs from the locally predicted state
 	bool bReconcileFaultDetected = false;	// A fault was detected: we received state from the server that we are unable to reconcile with locally predicted state
+
+	TRealTimeAccumulator<TTickSettings> NonPredictedInputTimeAccumulator; // for tracking input time in the non predictive case
 };
 
 /** Special replicator for debug buffer, this preserves the local buffer and receives into a replicator-owned buffer (we want these buffers to be distinct/not merged) */
@@ -838,6 +815,7 @@ template<typename TBufferTypes, typename TTickSettings, int32 MaxNumElements=5, 
 struct TReplicator_Debug : public TBase
 {
 	using TDebugState = typename TBufferTypes::TDebugState;
+	using TDebugBuffer = typename TNetworkSimBufferContainer<TBufferTypes>::TDebugBuffer;
 
 	int32 GetProxyDirtyCount(TNetworkSimBufferContainer<TBufferTypes>& Buffers) const 
 	{
@@ -849,40 +827,32 @@ struct TReplicator_Debug : public TBase
 		TBase::NetSerialize(P, Buffers, TickInfo);
 		FArchive& Ar = P.Ar;
 
-		TReplicationBuffer<TDebugState>& Buffer = Ar.IsSaving() ? Buffers.Debug : ReceivedBuffer;
+		TDebugBuffer& Buffer = Ar.IsSaving() ? Buffers.Debug : ReceivedBuffer;
 		
-		uint8 SerializedNumElements = FMath::Min<uint8>(MaxNumElements, Buffer.GetNumValidElements());
+		uint8 SerializedNumElements = FMath::Min<uint8>(MaxNumElements, Buffer.Num());
 		Ar << SerializedNumElements;
 
-		const int32 HeadKeyframe = FNetworkSimulationSerialization::SerializeKeyframe(Ar, Buffer.GetHeadKeyframe());
+		const int32 HeadKeyframe = FNetworkSimulationSerialization::SerializeKeyframe(Ar, Buffer.HeadKeyframe());
 		const int32 StartingKeyframe = FMath::Max(0, HeadKeyframe - SerializedNumElements + 1);
 
 		if (Ar.IsLoading())
 		{
-			// Lazy init on recieve
-			if (ReceivedBuffer.GetMaxNumElements() != Buffers.Debug.GetMaxNumElements())
-			{
-				ReceivedBuffer.SetBufferSize(Buffers.Debug.GetMaxNumElements());
-			}
-
-			const int32 PrevHead = Buffer.GetHeadKeyframe();
+			const int32 PrevHead = Buffer.HeadKeyframe();
 			if (PrevHead < StartingKeyframe && PrevHead >= 0)
 			{
 				// There is a gap in the stream. In some cases, we want this to be a "fault" and bubble up. We may want to synthesize state or maybe we just skip ahead.
 				UE_LOG(LogNetworkSim, Warning, TEXT("Fault: gap in received Debug buffer. PrevHead: %d. Received: %d-%d. Reseting previous buffer contents"), PrevHead, StartingKeyframe, HeadKeyframe);
 			}
-
-			Buffer.ResetNextHeadKeyframe(StartingKeyframe);
 		}
 
 		for (int32 Keyframe = StartingKeyframe; Keyframe <= HeadKeyframe; ++Keyframe)
 		{
 			// This, as is, is bad. The intention is that these functions serialize multiple items in some delta compressed fashion.
 			// As is, we are just serializing the elements individually.
-			auto* Cmd = Ar.IsLoading() ? Buffer.GetWriteNext() : Buffer.FindElementByKeyframe(Keyframe);
+			auto* Cmd = Ar.IsLoading() ? Buffer.WriteKeyframe(Keyframe) : Buffer[Keyframe];
 			Cmd->NetSerialize(P);
 		}
 	}
 
-	TReplicationBuffer<TDebugState> ReceivedBuffer;
+	TDebugBuffer ReceivedBuffer;
 };
