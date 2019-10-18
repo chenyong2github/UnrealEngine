@@ -64,28 +64,16 @@ namespace Chaos
 				Ar << ConvexHulls;
 			}
 
-			if(Ar.IsLoading())
+			if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::TrimeshSerializesBV)
 			{
+				// Should now only hit when loading older trimeshes
 				RebuildBV();
 			}
-#if 0
-#if 0
-			// Disabled during 2-1 replacement. Replace when BV is actually working again
-			Ar << ConvexHulls;
-			Ar << BVH;
-
-			if(Ar.IsLoading())
+			else
 			{
-				// Re-link the object array when we load this back in
-				BVH.SetObjects(ConvexHulls);
+				// Serialize acceleration
+				Ar << BVH;
 			}
-#else
-			if(Ar.IsLoading())
-			{
-				RebuildBV();
-			}
-#endif
-#endif
 		}
 
 		virtual void Serialize(FChaosArchive& Ar) override
