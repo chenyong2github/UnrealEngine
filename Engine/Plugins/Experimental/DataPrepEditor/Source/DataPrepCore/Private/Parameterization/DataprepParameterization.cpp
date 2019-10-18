@@ -2,18 +2,20 @@
 
 #include "Parameterization/DataprepParameterization.h"
 
+#include "DataprepAsset.h"
 #include "DataprepParameterizationArchive.h"
 
+#include "CoreGlobals.h"
 #include "Editor.h"
 #include "Engine/Engine.h"
 #include "Math/UnrealMathUtility.h"
 #include "Parameterization/DataprepParameterizationUtils.h"
 #include "Serialization/ObjectReader.h"
+#include "Templates/UnrealTemplate.h"
 #include "UObject/Object.h"
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UnrealType.h"
-#include "Templates/UnrealTemplate.h"
 
 namespace DataprepParameterization
 {
@@ -314,7 +316,6 @@ namespace DataprepParameterization
 };
 
 
-
 bool FDataprepParameterizationBinding::operator==(const FDataprepParameterizationBinding& Other) const
 {
 	// Not a accurate but ok for now
@@ -339,6 +340,16 @@ uint32 GetTypeHash(const TArray<FDataprepPropertyLink>& PropertyLinks)
 	return Hash;
 }
 
+UDataprepParameterization::UDataprepParameterization()
+{
+	OnObjectModifiedHandle = FCoreUObjectDelegates::OnObjectModified.AddUObject( this, &UDataprepParameterization::OnObjectModified );
+}
+
+UDataprepParameterization::~UDataprepParameterization()
+{
+	FCoreUObjectDelegates::OnObjectModified.Remove( OnObjectModifiedHandle );
+}
+
 void UDataprepParameterization::PostInitProperties()
 {
 	Super::PostInitProperties();
@@ -353,7 +364,8 @@ void UDataprepParameterization::PostLoad()
 {
 	if ( !HasAnyFlags( RF_ClassDefaultObject | RF_NeedLoad ) )
 	{
-		RegeneratedBindingAfterLoad();
+		SetFlags( RF_Public );
+		LoadParameterization();
 	}
 	Super::PostLoad();
 }
@@ -368,25 +380,50 @@ void UDataprepParameterization::Serialize(FArchive& Ar)
 	}
 	
 	Super::Serialize( Ar );
+}
 
+void UDataprepParameterization::PostEditUndo()
+{
+	// This implementation work on the assumption that all the objects in the transaction were serialized before the calls to post edit undo
+	PrepareCustomClassForNewClassGeneration();
+	UClass* OldClass = CustomContainerClass;
+	CustomContainerClass = nullptr;
+
+	LoadParameterization();
+
+	DoReinstancing( OldClass, false );
+
+	OnTellInstancesToReloadTheirSerializedData.Broadcast();
+
+	if ( UDataprepAsset* DataprepAsset = Cast<UDataprepAsset>( GetOuter() ) )
+	{
+		DataprepAsset->OnParameterizationWasModified.Broadcast();
+	}
+}
+
+void UDataprepParameterization::OnObjectModified(UObject* Object)
+{
+	if ( Object == DefaultParameterisation )
+	{
+		Modify();
+	}
 }
 
 UObject* UDataprepParameterization::GetDefaultObject()
 {
-	return CustomContainerClass->GetDefaultObject();
+	return DefaultParameterisation;
 }
 
 bool UDataprepParameterization::BindObjectProperty(UObject* InObject, const TArray<FDataprepPropertyLink>& InPropertyChain, FName ParameterName)
 {
-	if ( InObject && InPropertyChain.Num() > 0 )
+	if ( InObject && InPropertyChain.Num() > 0 && !ParameterName.IsNone() )
 	{
-		FDataprepParameterizationBinding Binding( InObject, InPropertyChain);
-
+		FDataprepParameterizationBinding Binding( InObject, InPropertyChain );
 		void* AddressOfTheValueFromBinding;
 
 		// We expect the chain to have a valid chain of cached property before inserting the binding
-		if ( DataprepParameterization::GetDeepestLevelOfValidCache(Binding, AddressOfTheValueFromBinding) == InPropertyChain.Num() - 1 )
-		{ 
+		if ( DataprepParameterization::GetDeepestLevelOfValidCache( Binding, AddressOfTheValueFromBinding) == InPropertyChain.Num() - 1 )
+		{
 			if ( UProperty** PropertyPtr = NameToParameterizationProperty.Find( ParameterName ) )
 			{
 				UProperty* Property = *PropertyPtr;
@@ -395,6 +432,8 @@ bool UDataprepParameterization::BindObjectProperty(UObject* InObject, const TArr
 				// Ensure that the properties type match
 				if ( Property->GetClass() == Binding.ValueType && !BindingsFromPipeline.Contains( Binding ) )
 				{
+					Modify();
+
 					// Valid bind the add binding to the name
 					BindingsFromPipeline.Add( Binding, ParameterName );
 					NameUsage.FindOrAdd( ParameterName ).Add( Binding );
@@ -402,8 +441,11 @@ bool UDataprepParameterization::BindObjectProperty(UObject* InObject, const TArr
 			}
 			else
 			{
+				Modify();
+				OnCustomClassAboutToBeUpdated.Broadcast();
+
 				BindingsFromPipeline.Add( MoveTemp(Binding) , ParameterName );
-				NameUsage.FindOrAdd( ParameterName ).Emplace( InObject, InPropertyChain );
+				NameUsage.FindOrAdd( ParameterName ).Add( FDataprepParameterizationBinding(InObject, InPropertyChain) );
 				UProperty* SourceProperty = InPropertyChain.Last().CachedProperty.Get();
 
 				// The validation we did with GetDeepestLevelOfValidCache ensure us that the property ptr is valid
@@ -423,11 +465,40 @@ bool UDataprepParameterization::BindObjectProperty(UObject* InObject, const TArr
 	return false;
 }
 
+bool UDataprepParameterization::IsObjectPropertyBinded(UObject* Object, const TArray<FDataprepPropertyLink>& PropertyChain) const
+{
+	FDataprepParameterizationBinding Binding( Object, PropertyChain );
+	return BindingsFromPipeline.Contains( Binding );
+}
+
+void UDataprepParameterization::RemoveBindedObjectProperty(UObject* Object, const TArray<FDataprepPropertyLink>& PropertyChain)
+{
+	FDataprepParameterizationBinding Binding( Object, PropertyChain );
+	uint32 Hash = GetTypeHash( Binding );
+	FName* ParameterNamePtr = BindingsFromPipeline.FindByHash( Hash, Binding );
+	if ( ParameterNamePtr )
+	{
+		Modify();
+		OnCustomClassAboutToBeUpdated.Broadcast();
+		BindingsFromPipeline.RemoveByHash( Hash, Binding );
+		FName ParameterName = *ParameterNamePtr; 
+		if ( TSet<FDataprepParameterizationBinding>* BindingAssociatedToName = NameUsage.Find( ParameterName ) )
+		{
+			BindingAssociatedToName->RemoveByHash( Hash, Binding );
+			if ( BindingAssociatedToName->Num() == 0 )
+			{
+				NameToParameterizationProperty.Remove( ParameterName );
+				UpdateClass();
+			}
+		}
+	}
+}
+
 void UDataprepParameterization::GenerateClass()
 {
 	if ( !CustomContainerClass )
 	{
-		CustomContainerClass = NewObject<UClass>(GetOutermost(), FName(TEXT("Parameterization")), RF_Transient);
+		CustomContainerClass = NewObject<UClass>(GetOutermost(), FName(TEXT("Parameterization")), RF_Transient );
 		CustomContainerClass->SetSuperStruct(UObject::StaticClass());
 
 		// Make the properties appear in a alphabetically order (for that we must add the properties to the class in the reverse order)
@@ -470,7 +541,7 @@ void UDataprepParameterization::UpdateClass()
 		CustomContainerClass->ClassFlags |= CLASS_NewerVersionExists;
 		CustomContainerClass->SetFlags( RF_NewerVersionExists );
 		CustomContainerClass->ClearFlags( RF_Public | RF_Standalone );
-		CustomContainerClass->Rename( *OldClassName, nullptr, REN_DontCreateRedirectors | REN_DoNotDirty);
+		CustomContainerClass->Rename( *OldClassName, nullptr, REN_DontCreateRedirectors | REN_DoNotDirty );
 	}
 
 	UClass* OldClass = CustomContainerClass;
@@ -479,48 +550,20 @@ void UDataprepParameterization::UpdateClass()
 
 	// Generate the new class
 	GenerateClass();
-	
-	if ( OldClass )
-	{
-		// For the CDO
-		UObject* OldCDO = OldClass->GetDefaultObject();
-		UObject* NewCDO = CustomContainerClass->GetDefaultObject();
-		GEngine->CopyPropertiesForUnrelatedObjects(OldClass->GetDefaultObject(), CustomContainerClass->GetDefaultObject());
 
-		// For the instances
-		TArray<UObject*> Objects;
-		constexpr bool bIncludeDerivedClasses = false;
-		GetObjectsOfClass(OldClass, Objects, bIncludeDerivedClasses);
-		TMap<UObject*, UObject*> OldToNew;
-		OldToNew.Reserve( Objects.Num() );
-		for (UObject* OldObject : Objects)
-		{
-			if ( OldObject && OldObject->IsValidLowLevel() )
-			{
-				FName ObjectName = OldObject->GetFName();
-				UObject* Outer = OldObject->GetOuter();
-				OldObject->Rename( nullptr, GetTransientPackage(), REN_DoNotDirty | REN_DontCreateRedirectors );
-				UObject* Object = NewObject<UObject>( Outer, CustomContainerClass, ObjectName, OldObject->GetFlags() );
-				GEngine->CopyPropertiesForUnrelatedObjects( OldObject, Object );
-				OldToNew.Add( OldObject, Object );
-			}
-		}
-		// The tools were already notify of the change by the copy properties for unrelated objects by GEngine::CopyPropertiesForUnrelatedObjects
-		OnClassUpdate.Broadcast( OldToNew );
-
-		DefaultParameterisation = NewCDO;
-	}
+	DoReinstancing( OldClass );
 }
 
-void UDataprepParameterization::RegeneratedBindingAfterLoad()
+void UDataprepParameterization::LoadParameterization()
 {
-	if (!CustomContainerClass)
-	{
+	if ( !CustomContainerClass )
+	{ 
 		CustomContainerClass = NewObject<UClass>( GetOutermost(), FName(TEXT("Parameterization")), RF_Transient );
 		CustomContainerClass->SetSuperStruct( UObject::StaticClass() );
 
 		TSet<FDataprepParameterizationBinding> BindingToRemove;
 		NameUsage.Empty( NameUsage.Num() );
+		NameToParameterizationProperty.Empty( NameToParameterizationProperty.Num() );
 
 		for ( TPair<FDataprepParameterizationBinding, FName>& Binding : BindingsFromPipeline )
 		{
@@ -562,8 +605,75 @@ void UDataprepParameterization::RegeneratedBindingAfterLoad()
 		CustomContainerClass->AssembleReferenceTokenStream(true);
 
 		DefaultParameterisation = CustomContainerClass->GetDefaultObject(true);
-
 		FDataprepParameterizationReader Reader( DefaultParameterisation, ParameterizationStorage );
+	}
+}
+
+void UDataprepParameterization::PrepareCustomClassForNewClassGeneration()
+{
+	if ( CustomContainerClass )
+	{
+		const FString OldClassName = MakeUniqueObjectName( CustomContainerClass->GetOuter(), CustomContainerClass->GetClass(), *FString::Printf(TEXT("%s_REINST"), *CustomContainerClass->GetName()) ).ToString();
+		CustomContainerClass->ClassFlags |= CLASS_NewerVersionExists;
+		CustomContainerClass->SetFlags( RF_NewerVersionExists );
+		CustomContainerClass->ClearFlags( RF_Public | RF_Standalone );
+		CustomContainerClass->Rename( *OldClassName, nullptr, REN_DontCreateRedirectors | REN_DoNotDirty);
+	}
+}
+
+void UDataprepParameterization::DoReinstancing(UClass* OldClass, bool bMigrateData)
+{
+	if ( OldClass && CustomContainerClass )
+	{
+		// For the CDO
+		UObject* OldCDO = OldClass->GetDefaultObject();
+		UObject* NewCDO = CustomContainerClass->GetDefaultObject();
+
+		if ( bMigrateData )
+		{
+			GEngine->CopyPropertiesForUnrelatedObjects( OldClass->GetDefaultObject(), CustomContainerClass->GetDefaultObject() );
+		}
+
+		// For the instances
+		TArray<UObject*> Objects;
+		constexpr bool bIncludeDerivedClasses = false;
+		GetObjectsOfClass( OldClass, Objects, bIncludeDerivedClasses );
+		TMap<UObject*, UObject*> OldToNew;
+		OldToNew.Reserve( Objects.Num() + 1 );
+		for (UObject* OldObject : Objects)
+		{
+			if ( OldObject && OldObject->IsValidLowLevel() )
+			{
+				FName ObjectName = OldObject->GetFName();
+				UObject* Outer = OldObject->GetOuter();
+				OldObject->Rename( nullptr, GetTransientPackage(), REN_DoNotDirty | REN_DontCreateRedirectors );
+
+				ObjectName = MakeUniqueObjectName( Outer, CustomContainerClass, ObjectName );
+				UObject* Object = NewObject<UObject>( Outer, CustomContainerClass, ObjectName, OldObject->GetFlags() );
+				
+				if ( bMigrateData )
+				{
+					GEngine->CopyPropertiesForUnrelatedObjects( OldObject, Object );
+				}
+
+				OldToNew.Add( OldObject, Object );
+			}
+		}
+
+		OldToNew.Add( OldCDO, NewCDO );
+
+		/**
+		 * Notify the tools 
+		 * If we did the data migration the tools were already notify of the change by the copy properties for unrelated objects by GEngine::CopyPropertiesForUnrelatedObjects
+		 */
+		if ( !bMigrateData && GEngine)
+		{
+			GEngine->NotifyToolsOfObjectReplacement(OldToNew);
+		}
+
+		OnCustomClassWasUpdated.Broadcast( OldToNew );
+
+		DefaultParameterisation = NewCDO;
 	}
 }
 
@@ -573,7 +683,7 @@ UProperty* UDataprepParameterization::AddPropertyToClass(FName ParameterisationP
 	{
 		UProperty* NewProperty = DuplicateObject<UProperty>( &Property, CustomContainerClass, ParameterisationPropertyName );
 		NewProperty->SetFlags( RF_Transient );
-		NewProperty->PropertyFlags = CPF_Edit;
+		NewProperty->PropertyFlags = CPF_Edit | CPF_NonTransactional;
 
 		// Need to manually call Link to fix-up some data (such as the C++ property flags) that are only set during Link
 		{
@@ -589,27 +699,52 @@ UProperty* UDataprepParameterization::AddPropertyToClass(FName ParameterisationP
 	return nullptr;
 }
 
+
+UDataprepParameterizationInstance::UDataprepParameterizationInstance()
+{
+	OnObjectModifiedHandle = FCoreUObjectDelegates::OnObjectModified.AddUObject(this, &UDataprepParameterizationInstance::OnObjectModified );
+}
+
+UDataprepParameterizationInstance::~UDataprepParameterizationInstance()
+{
+	FCoreUObjectDelegates::OnObjectModified.Remove( OnObjectModifiedHandle );
+}
+
 void UDataprepParameterizationInstance::PostLoad()
 {
-	if (!HasAnyFlags(RF_ClassDefaultObject | RF_NeedLoad))
+	if ( !HasAnyFlags( RF_ClassDefaultObject | RF_NeedLoad ) )
 	{
 		SetFlags( RF_Public );
 		LoadParameterization();
+		SetupCallbacksFromSourceParameterisation();
 	}
 	Super::PostLoad();
 }
 
 void UDataprepParameterizationInstance::Serialize(FArchive& Ar)
 {
-	if (Ar.IsSaving() && !HasAnyFlags(RF_ClassDefaultObject))
+	if ( Ar.IsSaving() && !HasAnyFlags( RF_ClassDefaultObject ) )
 	{
 		check( SourceParameterization );
 		// Todo track when the object is changed to avoid rewriting to array each time
-		ParameterizationInstanceStorage.Empty( SourceParameterization->CustomContainerClass->GetMinAlignment() );
+		ParameterizationInstanceStorage.Empty( ParameterizationInstanceStorage.Num() );
 		FDataprepParameterizationWriter Writer( ParameterizationInstance, ParameterizationInstanceStorage );
 	}
 
-	Super::Serialize(Ar);
+	Super::Serialize( Ar );
+}
+
+void UDataprepParameterizationInstance::PostEditUndo()
+{
+	LoadParameterization();
+}
+
+void UDataprepParameterizationInstance::OnObjectModified(UObject* Object)
+{
+	if ( Object == ParameterizationInstance )
+	{
+		Modify();
+	}
 }
 
 void UDataprepParameterizationInstance::ApplyParameterization(const TMap<UObject*, UObject*>& SourceToCopy)
@@ -634,7 +769,13 @@ void UDataprepParameterizationInstance::ApplyParameterization(const TMap<UObject
 	}
 }
 
-void UDataprepParameterizationInstance::OnCustomClassUpdate(const TMap<UObject*, UObject*>& OldToNew)
+void UDataprepParameterizationInstance::CustomClassAboutToBeUpdated()
+{
+	// The instance is about to be modified
+	Modify();
+}
+
+void UDataprepParameterizationInstance::CustomClassWasUpdated(const TMap<UObject*, UObject*>& OldToNew)
 {
 	if ( UObject* NewInstance = OldToNew.FindRef( ParameterizationInstance ) )
 	{
@@ -648,22 +789,44 @@ void UDataprepParameterizationInstance::LoadParameterization()
 
 	if ( !SourceParameterization->CustomContainerClass )
 	{
-		SourceParameterization->RegeneratedBindingAfterLoad();
+		SourceParameterization->LoadParameterization();
 	}
 
-	SourceParameterization->OnClassUpdate.AddUObject( this, &UDataprepParameterizationInstance::OnCustomClassUpdate );
+	if ( !ParameterizationInstance )
+	{
+		ParameterizationInstance = NewObject<UObject>( this, SourceParameterization->CustomContainerClass, FName(TEXT("Parameterization")), RF_Transient );
+	}
 
-	ParameterizationInstance = NewObject<UObject>( this, SourceParameterization->CustomContainerClass, FName(TEXT("Parameterization")), RF_Transient | RF_Transactional );
 	FDataprepParameterizationReader Reader( ParameterizationInstance, ParameterizationInstanceStorage );
 }
 
 void UDataprepParameterizationInstance::SetParameterizationSource(UDataprepParameterization& Parameterization)
 {
-	if ( SourceParameterization )
-	{
-		SourceParameterization->OnClassUpdate.RemoveAll( this );
-	}
+	UndoSetupForCallbacksFromParameterization();
 
 	SourceParameterization = &Parameterization;
+	SetupCallbacksFromSourceParameterisation();
+
+	// Reload the parameterization (this act as a sort of data migration process)
 	LoadParameterization();
 }
+
+void UDataprepParameterizationInstance::SetupCallbacksFromSourceParameterisation()
+{
+	check( SourceParameterization );
+
+	SourceParameterization->OnCustomClassAboutToBeUpdated.AddUObject( this, &UDataprepParameterizationInstance::CustomClassAboutToBeUpdated );
+	SourceParameterization->OnCustomClassWasUpdated.AddUObject( this, &UDataprepParameterizationInstance::CustomClassWasUpdated );
+	SourceParameterization->OnTellInstancesToReloadTheirSerializedData.AddUObject( this, &UDataprepParameterizationInstance::LoadParameterization );
+}
+
+void UDataprepParameterizationInstance::UndoSetupForCallbacksFromParameterization()
+{
+	if (SourceParameterization)
+	{
+		SourceParameterization->OnCustomClassAboutToBeUpdated.RemoveAll( this );
+		SourceParameterization->OnCustomClassWasUpdated.RemoveAll( this );
+		SourceParameterization->OnTellInstancesToReloadTheirSerializedData.RemoveAll( this );
+	}
+}
+

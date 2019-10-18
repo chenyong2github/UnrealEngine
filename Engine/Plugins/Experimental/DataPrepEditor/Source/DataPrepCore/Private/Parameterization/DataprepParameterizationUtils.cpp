@@ -103,6 +103,25 @@ TArray<FDataprepPropertyLink> FDataprepParameterizationUtils::MakePropertyChain(
 	return PropertyChain;
 }
 
+FDataprepParameterizationContext FDataprepParameterizationUtils::CreateContext(TSharedPtr<IPropertyHandle> PropertyHandle, const FDataprepParameterizationContext& ParameterisationContext)
+{
+	FDataprepParameterizationContext NewContext;
+	NewContext.State = ParameterisationContext.State;
+
+	if ( NewContext.State == EParametrizationState::CanBeParameterized || NewContext.State == EParametrizationState::InvalidForParameterization )
+	{
+		// This implementation could be improved by incrementally expending the property chain.
+		NewContext.PropertyChain = MakePropertyChain( PropertyHandle );
+		NewContext.State = NewContext.PropertyChain.Num() > 0 ? EParametrizationState::CanBeParameterized : EParametrizationState::InvalidForParameterization;
+	}
+	else if ( NewContext.State == EParametrizationState::IsParameterized )
+	{
+		NewContext.State = EParametrizationState::ParentIsParameterized;
+	}
+
+	return NewContext;
+}
+
 UDataprepAsset* FDataprepParameterizationUtils::GetDataprepAssetForParameterization(UObject* Object)
 {
 	if ( Object )

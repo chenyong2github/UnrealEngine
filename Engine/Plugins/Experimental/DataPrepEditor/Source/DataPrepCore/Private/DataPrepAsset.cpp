@@ -215,6 +215,16 @@ void UDataprepAsset::BindObjectPropertyToParameterization(UObject* Object, const
 
 }
 
+bool UDataprepAsset::IsObjectPropertyBinded(UObject* Object, const TArray<struct FDataprepPropertyLink>& InPropertyChain) const
+{
+	return Parameterization->IsObjectPropertyBinded( Object, InPropertyChain );
+}
+
+void UDataprepAsset::RemoveObjectPropertyFromParameterization(UObject* Object, const TArray<struct FDataprepPropertyLink>& InPropertyChain)
+{
+	Parameterization->RemoveBindedObjectProperty( Object, InPropertyChain );
+}
+
 void UDataprepAsset::OnDataprepBlueprintChanged( UBlueprint* InBlueprint )
 {
 	if(InBlueprint == DataprepRecipeBP)
