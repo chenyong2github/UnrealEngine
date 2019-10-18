@@ -22,6 +22,8 @@ public:
 	bool				OnData(FStreamReader::FData& Data);
 
 private:
+	typedef bool (FAnalysisEngine::*ProtocolHandlerType)();
+
 	struct FRoute
 	{
 		uint32			Hash;
@@ -33,22 +35,25 @@ private:
 
 	class				FDispatchBuilder;
 	virtual bool		OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
+	void				OnNewTrace(const FOnEventContext& Context);
+	void				OnTiming(const FOnEventContext& Context);
+	void				OnNewEventInternal(const FOnEventContext& Context);
+	void				OnNewEventProtocol0(FDispatchBuilder& Builder, const void* EventData);
 
 	bool				EstablishTransport(FStreamReader::FData& Data);
+	bool				OnDataProtocol0();
 	bool				AddDispatch(FDispatch* Dispatch);
 	template <typename ImplType>
 	void				ForEachRoute(const FDispatch* Dispatch, ImplType&& Impl);
 	void				AddRoute(uint16 AnalyzerIndex, uint16 Id, const ANSICHAR* Logger, const ANSICHAR* Event);
 	void				AddRoute(uint16 AnalyzerIndex, uint16 Id, uint32 Hash);
-	void				OnNewTrace(const FOnEventContext& Context);
-	void				OnTiming(const FOnEventContext& Context);
-	void				OnNewEventInternal(const FOnEventContext& Context);
 	void				RetireAnalyzer(IAnalyzer* Analyzer);
 	FSessionContext		SessionContext;
 	TArray<FRoute>		Routes;
 	TArray<IAnalyzer*>	Analyzers;
 	TArray<FDispatch*>	Dispatches;
 	class FTransport*	Transport = nullptr;
+	ProtocolHandlerType	ProtocolHandler = nullptr;
 };
 
 } // namespace Trace

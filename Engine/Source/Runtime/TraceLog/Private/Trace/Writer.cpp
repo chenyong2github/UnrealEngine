@@ -6,6 +6,7 @@
 
 #include "Trace/Detail/Atomic.h"
 #include "Trace/Platform.h"
+#include "Trace/Detail/Protocol.h"
 #include "Trace/Trace.h"
 
 #include "Misc/CString.h"
@@ -508,9 +509,9 @@ static void Writer_UpdateData()
 
 		// Stream header
 		const struct {
-			uint8 Format;
-			uint8 Parameter;
-		} TransportHeader = { 2 };
+			uint8 TransportVersion	= 4;
+			uint8 ProtocolVersion	= 0;
+		} TransportHeader;
 		bOk &= IoWrite(GDataHandle, &TransportHeader, sizeof(TransportHeader));
 
 		// Passively collected data

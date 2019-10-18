@@ -6,7 +6,7 @@
 #include "HAL/UnrealMemory.h"
 #include "Trace/Analysis.h"
 #include "Trace/Analyzer.h"
-#include "Trace/Detail/EventDef.h"
+#include "Trace/Detail/Protocol.h"
 #include "Transport/Transport.h"
 #include "Transport/PacketTransport.h"
 
@@ -353,11 +353,6 @@ FAnalysisEngine::FAnalysisEngine(TArray<IAnalyzer*>&& InAnalyzers)
 	AddRoute(SelfIndex, RouteId_NewEvent, RouteHash_NewEvent);
 	AddRoute(SelfIndex, RouteId_NewTrace, "$Trace", "NewTrace");
 	AddRoute(SelfIndex, RouteId_Timing, "$Trace", "Timing");
-
-	// Add a dispatch for special events
-	FDispatchBuilder Builder;
-	Builder.SetUid(uint16(FNewEventEvent::Uid));
-	AddDispatch(Builder.Finalize());
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -396,19 +391,6 @@ void FAnalysisEngine::RetireAnalyzer(IAnalyzer* Analyzer)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool FAnalysisEngine::OnEvent(uint16 RouteId, const FOnEventContext& Context)
-{
-	switch (RouteId)
-	{
-	case RouteId_NewEvent:	OnNewEventInternal(Context);	break;
-	case RouteId_NewTrace:	OnNewTrace(Context);			break;
-	case RouteId_Timing:	OnTiming(Context);				break;
-	}
-
-	return true;
-}
-
-////////////////////////////////////////////////////////////////////////////////
 void FAnalysisEngine::AddRoute(
 	uint16 AnalyzerIndex,
 	uint16 Id,
@@ -434,6 +416,19 @@ void FAnalysisEngine::AddRoute(
 	Route.Hash = Hash;
 	Route.Count = 1;
 	Route.AnalyzerIndex = AnalyzerIndex;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool FAnalysisEngine::OnEvent(uint16 RouteId, const FOnEventContext& Context)
+{
+	switch (RouteId)
+	{
+	case RouteId_NewEvent:	OnNewEventInternal(Context);	break;
+	case RouteId_NewTrace:	OnNewTrace(Context);			break;
+	case RouteId_Timing:	OnTiming(Context);				break;
+	}
+
+	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -525,35 +520,11 @@ void FAnalysisEngine::ForEachRoute(const FDispatch* Dispatch, ImplType&& Impl)
 void FAnalysisEngine::OnNewEventInternal(const FOnEventContext& Context)
 {
 	const FEventDataInfo& EventData = (const FEventDataInfo&)(Context.EventData);
-	const auto& NewEvent = *(FNewEventEvent*)(EventData.Ptr);
 
 	FDispatchBuilder Builder;
-
-	const auto* NameCursor = (const ANSICHAR*)(NewEvent.Fields + NewEvent.FieldCount);
-
-	Builder.SetLoggerName(NameCursor, NewEvent.LoggerNameSize);
-	NameCursor += NewEvent.LoggerNameSize;
-
-	Builder.SetEventName(NameCursor, NewEvent.EventNameSize);
-	NameCursor += NewEvent.EventNameSize;
-	Builder.SetUid(NewEvent.EventUid);
-
-	// Fill out the fields
-	for (int i = 0, n = NewEvent.FieldCount; i < n; ++i)
+	if (ProtocolHandler == &FAnalysisEngine::OnDataProtocol0)
 	{
-		const auto& Field = NewEvent.Fields[i];
-
-		uint16 TypeSize = 1 << (Field.TypeInfo & _Field_Pow2SizeMask);
-
-		auto TypeId = FEventFieldInfo::EType::Integer;
-		if ((Field.TypeInfo & _Field_CategoryMask) == _Field_Float)
-		{
-			TypeId = FEventFieldInfo::EType::Float;
-		}
-
-		Builder.AddField(NameCursor, Field.NameSize, Field.Offset, Field.Size, TypeId, TypeSize);
-
-		NameCursor += Field.NameSize;
+		OnNewEventProtocol0(Builder, EventData.Ptr);
 	}
 
 	// Get the dispatch and add it into the dispatch table. Fail gently if there
@@ -577,6 +548,8 @@ void FAnalysisEngine::OnNewEventInternal(const FOnEventContext& Context)
 ////////////////////////////////////////////////////////////////////////////////
 bool FAnalysisEngine::AddDispatch(FDispatch* Dispatch)
 {
+	// Add the dispatch to the dispatch table, failing gently if the table slot
+	// is already occupied.
 	uint16 Uid = Dispatch->Uid;
 	if (Uid < Dispatches.Num())
  	{
@@ -591,8 +564,6 @@ bool FAnalysisEngine::AddDispatch(FDispatch* Dispatch)
 		Dispatches.SetNum(Uid + 1);
  	}
 
-	Dispatches[Uid] = Dispatch;
-
 	// Find routes that have subscribed to this event.
 	for (uint16 i = 0, n = Routes.Num(); i < n; ++i)
 	{
@@ -603,15 +574,49 @@ bool FAnalysisEngine::AddDispatch(FDispatch* Dispatch)
 		}
 	}
 
+	Dispatches[Uid] = Dispatch;
 	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAnalysisEngine::OnNewEventProtocol0(FDispatchBuilder& Builder, const void* EventData)
+{
+	const auto& NewEvent = *(Protocol0::FNewEventEvent*)(EventData);
+
+	const auto* NameCursor = (const ANSICHAR*)(NewEvent.Fields + NewEvent.FieldCount);
+
+	Builder.SetLoggerName(NameCursor, NewEvent.LoggerNameSize);
+	NameCursor += NewEvent.LoggerNameSize;
+
+	Builder.SetEventName(NameCursor, NewEvent.EventNameSize);
+	NameCursor += NewEvent.EventNameSize;
+	Builder.SetUid(NewEvent.EventUid);
+
+	// Fill out the fields
+	for (int i = 0, n = NewEvent.FieldCount; i < n; ++i)
+	{
+		const auto& Field = NewEvent.Fields[i];
+
+		uint16 TypeSize = 1 << (Field.TypeInfo & Protocol0::Field_Pow2SizeMask);
+
+		auto TypeId = FEventFieldInfo::EType::Integer;
+		if ((Field.TypeInfo & Protocol0::Field_CategoryMask) == Protocol0::Field_Float)
+		{
+			TypeId = FEventFieldInfo::EType::Float;
+		}
+
+		Builder.AddField(NameCursor, Field.NameSize, Field.Offset, Field.Size, TypeId, TypeSize);
+
+		NameCursor += Field.NameSize;
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 bool FAnalysisEngine::EstablishTransport(FStreamReader::FData& Data)
 {
 	const struct {
-		uint8 Format;
-		uint8 Parameter;
+		uint8 TransportVersion;
+		uint8 ProtocolVersion;
 	}* Header = decltype(Header)(Data.GetPointer(sizeof(*Header)));
 	if (Header == nullptr)
 	{
@@ -620,7 +625,7 @@ bool FAnalysisEngine::EstablishTransport(FStreamReader::FData& Data)
 
 	// Check for the magic uint32. Early traces did not include this as it was
 	// used to validate a inbound socket connection and then discarded.
-	if (Header->Format == 'E' || Header->Format == 'T')
+	if (Header->TransportVersion == 'E' || Header->TransportVersion == 'T')
 	{
 		const uint32* Magic = (const uint32*)(Data.GetPointer(sizeof(*Magic)));
 		if (*Magic == 'ECRT')
@@ -638,13 +643,28 @@ bool FAnalysisEngine::EstablishTransport(FStreamReader::FData& Data)
 		return false;
 	}
 
-	switch (Header->Format)
+	switch (Header->TransportVersion)
 	{
 	case 1:		Transport = new FTransport(); break;
 	case 2:		Transport = new FPacketTransport(); break;
 	default:	return false;
 	//case 'E':	/* See the magic above */ break;
 	//case 'T':	/* See the magic above */ break;
+	}
+
+	switch (Header->ProtocolVersion)
+	{
+	case 0:
+		ProtocolHandler = &FAnalysisEngine::OnDataProtocol0;
+		{
+			FDispatchBuilder Builder;
+			Builder.SetUid(uint16(Protocol0::FNewEventEvent::Uid));
+			AddDispatch(Builder.Finalize());
+		}
+		break;
+
+	default:
+		return false;
 	}
 
 	Data.Advance(sizeof(*Header));
@@ -668,25 +688,35 @@ bool FAnalysisEngine::OnData(FStreamReader::FData& Data)
 		}
 	}
 
-	struct FEventHeader
-	{
-		uint16	Uid;
-		uint16	Size;
-		uint8	EventData[];
-	};
-
 	Transport->SetSource(Data);
+	bool Ret = (this->*ProtocolHandler)();
 
+	// If there's no analyzers left we might as well not continue
+	int32 ActiveAnalyzerCount = 0;
+	for (IAnalyzer* Analyzer : Analyzers)
+	{
+		if ((Analyzer != nullptr) && (Analyzer != this))
+		{
+			ActiveAnalyzerCount++;
+		}
+	}
+
+	return (ActiveAnalyzerCount > 0) & Ret;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool FAnalysisEngine::OnDataProtocol0()
+{
 	while (true)
 	{
-		const auto* Header = Transport->GetPointer<FEventHeader>();
+		const auto* Header = Transport->GetPointer<Protocol0::FEventHeader>();
 		if (Header == nullptr)
 		{
 			break;
 		}
 
-		uint32 BlockSize = Header->Size + sizeof(FEventHeader);
-		Header = Transport->GetPointer<FEventHeader>(BlockSize);
+		uint32 BlockSize = Header->Size + sizeof(Protocol0::FEventHeader);
+		Header = Transport->GetPointer<Protocol0::FEventHeader>(BlockSize);
 		if (Header == nullptr)
 		{
 			break;
@@ -718,17 +748,7 @@ bool FAnalysisEngine::OnData(FStreamReader::FData& Data)
 		});
 	}
 
-	// If there's no analyzers left we might as well not continue
-	int32 ActiveAnalyzerCount = 0;
-	for (IAnalyzer* Analyzer : Analyzers)
-	{
-		if ((Analyzer != nullptr) && (Analyzer != this))
-		{
-			ActiveAnalyzerCount++;
-		}
-	}
-
-	return (ActiveAnalyzerCount > 0);
+	return true;
 }
 
 } // namespace Trace

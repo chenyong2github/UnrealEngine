@@ -7,6 +7,8 @@
 
 #if UE_TRACE_ENABLED
 
+#define TRACE_PRIVATE_PROTOCOL_0
+
 #define TRACE_PRIVATE_EVENT_DEFINE(LoggerName, EventName) \
 	Trace::FEventDef LoggerName##EventName##Event;
 

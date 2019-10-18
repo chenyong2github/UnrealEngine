@@ -4,41 +4,6 @@
 
 #include "Trace/Config.h"
 
-namespace Trace
-{
-
-#if defined(_MSC_VER)
-	#pragma warning(push)
-	#pragma warning(disable : 4200) // non-standard zero-sized array
-#endif
-
-////////////////////////////////////////////////////////////////////////////////
-struct FNewEventEvent
-{
-	enum : uint16 { Uid = 0 };
-
-	uint16		EventUid;
-	uint16		FieldCount;
-	uint8		LoggerNameSize;
-	uint8		EventNameSize;
-	struct
-	{
-		uint16	Offset;
-		uint16	Size;
-		uint8	TypeInfo;
-		uint8	NameSize;
-	}			Fields[];
-	/*uint8		NameData[]*/
-};
-
-#if defined(_MSC_VER)
-	#pragma warning(pop)
-#endif
-
-} // namespace Trace
-
-
-
 #if UE_TRACE_ENABLED
 
 namespace Trace
