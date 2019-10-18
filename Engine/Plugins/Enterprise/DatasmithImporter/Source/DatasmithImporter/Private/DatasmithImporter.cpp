@@ -56,6 +56,7 @@
 #include "Misc/FeedbackContext.h"
 #include "Misc/FileHelper.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Misc/UObjectToken.h"
 #include "ObjectTools.h"
 #include "PackageTools.h"
 #include "Serialization/ArchiveReplaceObjectRef.h"
@@ -1793,7 +1794,31 @@ AActor* FDatasmithImporter::FinalizeActor(FDatasmithImportContext& ImportContext
 		Landscape->PostEditChangeProperty(MaterialPropertyChangedEvent);
 	}
 
+	FQuat PreviousRotation = DestinationActor->GetRootComponent()->GetRelativeTransform().GetRotation();
 	DestinationActor->PostEditChange();
+
+	const bool bHasPostEditChangeModifiedRotation = !PreviousRotation.Equals(DestinationActor->GetRootComponent()->GetRelativeTransform().GetRotation());
+	if (bHasPostEditChangeModifiedRotation)
+	{
+		const float SingularityTest = PreviousRotation.Z * PreviousRotation.X - PreviousRotation.W * PreviousRotation.Y;
+		//SingularityThreshold value is comming from the FQuat::Rotator() function, but is more permissive because the rotation is already diverging before the singularity threshold is reached.
+		const float SingularityThreshold = 0.4999f; 
+
+		AActor* RootSceneActor = ImportContext.ActorsContext.ImportSceneActor;
+		if (DestinationActor != RootSceneActor
+			&& FMath::Abs(SingularityTest) > SingularityThreshold)
+		{
+			//This is a warning to explain the edge-case of UE-75467 while it's being fixed.
+			FFormatNamedArguments FormatArgs;
+			FormatArgs.Add(TEXT("ActorName"), FText::FromName(DestinationActor->GetFName()));
+			ImportContext.LogWarning(FText::GetEmpty())
+				->AddToken(FUObjectToken::Create(DestinationActor))
+				->AddToken(FTextToken::Create(FText::Format(LOCTEXT("UnsupportedRotationValueError", "The actor '{ActorName}' has a rotation value pointing to either (0, 90, 0) or (0, -90, 0)."
+					"This is an edge case that is not well supported in Unreal and can cause incorrect results."
+					"In those cases, it is recommended to bake the actor's transform into the mesh at export."), FormatArgs)));
+		}
+	}
+
 	DestinationActor->RegisterAllComponents();
 
 	return DestinationActor;
