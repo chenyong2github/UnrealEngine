@@ -494,8 +494,19 @@ namespace Audio
 		/** Is called when an error is generated. */
 		inline void OnAudioMixerPlatformError(const FString& ErrorDetails, const FString& FileName, int32 LineNumber)
 		{
+#if !NO_LOGGING
+			// Log once on these errors to avoid Spam.
+			static FCriticalSection Cs;
+			static TSet<uint32> LogHistory;
+			FScopeLock Lock(&Cs);
 			LastError = FString::Printf(TEXT("Audio Platform Device Error: %s (File %s, Line %d)"), *ErrorDetails, *FileName, LineNumber);
-			UE_LOG(LogAudioMixer, Error, TEXT("%s"), *LastError);
+			uint32 Hash = GetTypeHash(LastError);
+			if (!LogHistory.Contains(Hash))
+			{
+				UE_LOG(LogAudioMixer, Error, TEXT("%s"), *LastError);
+				LogHistory.Add(Hash);
+			}
+#endif //!NO_LOGGING
 		}
 
 		/** Start generating audio from our mixer. */
