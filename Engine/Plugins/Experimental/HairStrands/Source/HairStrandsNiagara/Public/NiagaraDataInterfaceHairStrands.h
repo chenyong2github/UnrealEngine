@@ -51,7 +51,7 @@ struct FNDICollisionGridBuffer : public FRenderResource
 struct FNDIHairStrandsBuffer : public FRenderResource
 {
 	/** Set the asset that will be used to affect the buffer */
-	void SetHairAsset(const FHairStrandsDatas*  HairStrandsDatas, const FHairStrandsResource*  HairStrandsResource );
+	void SetHairAsset(const FHairStrandsDatas*  HairStrandsDatas, const FHairStrandsRestResource*  HairStrandsRestResource, const FHairStrandsDeformedResource*  HairStrandsDeformedResource);
 
 	/** Init the buffer */
 	virtual void InitRHI() override;
@@ -69,7 +69,10 @@ struct FNDIHairStrandsBuffer : public FRenderResource
 	const FHairStrandsDatas* SourceDatas;
 
 	/** The strand asset resource from which to sample */
-	const FHairStrandsResource* SourceResources;
+	const FHairStrandsRestResource* SourceRestResources;
+
+	/** The strand deformed resource to write into */
+	const FHairStrandsDeformedResource* SourceDeformedResources;
 };
 
 /** Data stored per strand base instance*/
