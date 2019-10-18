@@ -275,16 +275,7 @@ struct FRepSerializationSharedInfo
 	/** Binary blob of net serialized data to be shared */
 	TUniquePtr<FNetBitWriter> SerializedProperties;
 
-	void CountBytes(FArchive& Ar) const
-	{
-		SharedPropertyInfo.CountBytes(Ar);
-
-		if (FNetBitWriter const * const LocalSerializedProperties = SerializedProperties.Get())
-		{
-			Ar.CountBytes(sizeof(FNetBitWriter), sizeof(FNetBitWriter));
-			LocalSerializedProperties->CountMemory(Ar);
-		}
-	}
+	void CountBytes(FArchive& Ar) const;
 
 private:
 
