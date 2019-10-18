@@ -155,20 +155,11 @@ namespace FlyingMovement
 	}
 
 
-	void FMovementSimulation::Update(IMovementDriver* Driver, const float DeltaSeconds, const FInputCmd& InputCmd, const FMoveState& InputState, FMoveState& OutputState, const FAuxState& AuxState)
+	void FMovementSimulation::Update(IMovementDriver* Driver, const float DeltaSeconds, const FInputCmd& InputCmd, const FMoveState& InputState, FMoveState& OutputState, const FAuxState& AuxState, const TLazyStateAccessor<FAuxState>& OutAuxStateAccessor)
 	{
-		// ----------------------------------
-		// AuxState todo
-		float MaxSpeed = 1200.f;
-		float TurningBoost = 8.f;
-		float Deceleration = 8000.f;
-		float Acceleration = 4000.f;
-
-		// ----------------------------------------------------------------
-		
-		OutputState = InputState;
-
 		IBaseMovementDriver& BaseMovementDriver = Driver->GetBaseMovementDriver();
+
+		OutputState = InputState;
 
 		// --------------------------------------------------------------
 		//	Rotation Update
@@ -196,7 +187,7 @@ namespace FlyingMovement
 			FVector Velocity = InputState.Velocity;
 
 			const float AnalogInputModifier = (ControlAcceleration.SizeSquared() > 0.f ? ControlAcceleration.Size() : 0.f);
-			const float MaxPawnSpeed = MaxSpeed * AnalogInputModifier;
+			const float MaxPawnSpeed = AuxState.MaxSpeed * AnalogInputModifier;
 			const bool bExceedingMaxSpeed = IsExceedingMaxSpeed(Velocity, MaxPawnSpeed);
 
 			if (AnalogInputModifier > 0.f && !bExceedingMaxSpeed)
@@ -205,7 +196,7 @@ namespace FlyingMovement
 				if (Velocity.SizeSquared() > 0.f)
 				{
 					// Change direction faster than only using acceleration, but never increase velocity magnitude.
-					const float TimeScale = FMath::Clamp(DeltaSeconds * TurningBoost, 0.f, 1.f);
+					const float TimeScale = FMath::Clamp(DeltaSeconds * AuxState.TurningBoost, 0.f, 1.f);
 					Velocity = Velocity + (ControlAcceleration * Velocity.Size() - Velocity) * TimeScale;
 				}
 			}
@@ -215,7 +206,7 @@ namespace FlyingMovement
 				if (Velocity.SizeSquared() > 0.f)
 				{
 					const FVector OldVelocity = Velocity;
-					const float VelSize = FMath::Max(Velocity.Size() - FMath::Abs(Deceleration) * DeltaSeconds, 0.f);
+					const float VelSize = FMath::Max(Velocity.Size() - FMath::Abs(AuxState.Deceleration) * DeltaSeconds, 0.f);
 					Velocity = Velocity.GetSafeNormal() * VelSize;
 
 					// Don't allow braking to lower us below max speed if we started above it.
@@ -228,7 +219,7 @@ namespace FlyingMovement
 
 			// Apply acceleration and clamp velocity magnitude.
 			const float NewMaxSpeed = (IsExceedingMaxSpeed(Velocity, MaxPawnSpeed)) ? Velocity.Size() : MaxPawnSpeed;
-			Velocity += ControlAcceleration * FMath::Abs(Acceleration) * DeltaSeconds;
+			Velocity += ControlAcceleration * FMath::Abs(AuxState.Acceleration) * DeltaSeconds;
 			Velocity = Velocity.GetClampedToMaxSize(NewMaxSpeed);
 
 			// Finally, output velocity that we calculated

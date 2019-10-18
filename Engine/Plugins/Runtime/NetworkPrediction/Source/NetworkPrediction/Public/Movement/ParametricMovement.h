@@ -114,7 +114,7 @@ namespace ParametricMovement
 	class FMovementSimulation
 	{
 	public:
-		static void Update(IMovementDriver* Driver, const float DeltaSeconds, const FInputCmd& InputCmd, const FMoveState& InputState, FMoveState& OutputState, const FAuxState& AuxState);
+		static void Update(IMovementDriver* Driver, const float DeltaSeconds, const FInputCmd& InputCmd, const FMoveState& InputState, FMoveState& OutputState, const FAuxState& AuxState, const TLazyStateAccessor<FAuxState>& OutAuxStateAccessor);
 		static const FName GroupName;
 	};
 
@@ -154,8 +154,9 @@ class NETWORKPREDICTION_API UParametricMovementComponent : public UBaseMovementC
 	FString GetDebugName() const override;
 	const UObject* GetVLogOwner() const override;
 	void InitSyncState(ParametricMovement::FMoveState& OutSyncState) const override;
-	void FinalizeFrame(const ParametricMovement::FMoveState& SyncState) override;
+	void InitAuxState(ParametricMovement::FAuxState& OutAuxState) const override;
 	void ProduceInput(const FNetworkSimTime SimTime, ParametricMovement::FInputCmd& Cmd);
+	void FinalizeFrame(const ParametricMovement::FMoveState& SyncState, const ParametricMovement::FAuxState& AuxState) override;	
 
 	// Base Movement Driver
 	IBaseMovementDriver& GetBaseMovementDriver() override final { return *static_cast<IBaseMovementDriver*>(this); }
@@ -163,6 +164,10 @@ class NETWORKPREDICTION_API UParametricMovementComponent : public UBaseMovementC
 	// Parametric Movement Driver
 	virtual void AdvanceParametricTime(const float InPosition, const float InPlayRate, float &OutPosition, float& OutPlayRate, const float DeltaTimeSeconds) const override;
 	virtual void MapTimeToTransform(const float InPosition, FTransform& OutTransform) const override;
+
+
+	TPredictedStateAccessor<ParametricMovement::FMoveState>* MovementSyncState = nullptr;
+	TPredictedStateAccessor<ParametricMovement::FAuxState>*	 MovementAuxState = nullptr;
 
 protected:
 

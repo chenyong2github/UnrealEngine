@@ -14,6 +14,10 @@
 #include "Components/CapsuleComponent.h"
 #include "DrawDebugHelpers.h"
 
+#include "Misc/AssertionMacros.h"
+#include "HAL/PlatformStackWalk.h"
+#include "HAL/ThreadHeartBeat.h"
+
 namespace FlyingPawnCVars
 {
 
@@ -32,8 +36,13 @@ static FAutoConsoleVariableRef CVarBindAutomatically(TEXT("NetworkPredictionExtr
 ANetworkPredictionExtrasFlyingPawn::ANetworkPredictionExtrasFlyingPawn()
 {
 	FlyingMovementComponent = CreateDefaultSubobject<UFlyingMovementComponent>(TEXT("FlyingMovementComponent"));
-	
-	if (HasAnyFlags(RF_ClassDefaultObject) == false)
+}
+
+void ANetworkPredictionExtrasFlyingPawn::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (UWorld* World = GetWorld())
 	{
 		FlyingMovementComponent->ProduceInputDelegate.BindUObject(this, &ANetworkPredictionExtrasFlyingPawn::ProduceInput);
 
@@ -42,13 +51,42 @@ ANetworkPredictionExtrasFlyingPawn::ANetworkPredictionExtrasFlyingPawn()
 		{
 			if (ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController())
 			{
-				LocalPlayer->Exec(GetWorld(), TEXT("setbind Nine nms.Debug.LocallyControlledPawn"), *GLog);
-				LocalPlayer->Exec(GetWorld(), TEXT("setbind Zero nms.Debug.ToggleContinous"), *GLog);
+				LocalPlayer->Exec(World, TEXT("setbind Nine nms.Debug.LocallyControlledPawn"), *GLog);
+				LocalPlayer->Exec(World, TEXT("setbind Zero nms.Debug.ToggleContinous"), *GLog);
 			}
 		}
 	}
+}
 
+UNetConnection* ANetworkPredictionExtrasFlyingPawn::GetNetConnection() const
+{
+	UNetConnection* SuperNetConnection = Super::GetNetConnection();
+	if (SuperNetConnection)
+	{
+		return SuperNetConnection;
+	}
 
+	if (bFakeAutonomousProxy)
+	{
+		if (GetLocalRole() == ROLE_Authority)
+		{
+			for (FConstPlayerControllerIterator Iterator = GetWorld()->GetPlayerControllerIterator(); Iterator; ++Iterator)
+			{
+				APlayerController* PC = Iterator->Get();
+				if (PC->GetNetConnection() && PC->GetPawn())
+				{
+					return PC->GetNetConnection();
+				}
+			}
+		}
+		if (GetLocalRole() == ROLE_AutonomousProxy && GetWorld()->GetFirstPlayerController() && GetWorld()->GetFirstPlayerController()->GetPawn())
+		{
+			return GetWorld()->GetFirstPlayerController()->GetNetConnection();
+		}
+	}
+	
+
+	return nullptr;
 }
 
 void ANetworkPredictionExtrasFlyingPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -133,6 +171,46 @@ void ANetworkPredictionExtrasFlyingPawn::Tick( float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 	// Do whatever you want here. By now we have the latest movement state and latest input processed.
+
+	if (bFakeAutonomousProxy && GetLocalRole() == ROLE_Authority)
+	{
+		if (GetRemoteRole() != ROLE_AutonomousProxy)
+		{
+			SetAutonomousProxy(true);
+		}
+	}
+}
+
+void ANetworkPredictionExtrasFlyingPawn::PrintDebug()
+{
+	UE_LOG(LogTemp, Warning, TEXT("======== ANetworkPredictionExtrasFlyingPawn::PrintDebug ========"));
+
+	FSlowHeartBeatScope SuspendHeartBeat;
+	FDisableHitchDetectorScope SuspendGameThreadHitch;
+
+	PrintScriptCallstack();
+
+	const SIZE_T StackTraceSize = 65535;
+	ANSICHAR* StackTrace = (ANSICHAR*)FMemory::SystemMalloc(StackTraceSize);
+	if (StackTrace != nullptr)
+	{
+		StackTrace[0] = 0;
+		// Walk the stack and dump it to the allocated memory.
+		FPlatformStackWalk::StackWalkAndDump(StackTrace, StackTraceSize, 1);
+		UE_LOG(LogTemp, Log, TEXT("Call Stack:\n%s"), ANSI_TO_TCHAR(StackTrace));
+		FMemory::SystemFree(StackTrace);
+	}
+}
+
+void ANetworkPredictionExtrasFlyingPawn::SetMaxMoveSpeed(float NewMaxMoveSpeed)
+{
+	if (ensure(FlyingMovementComponent))
+	{
+		FlyingMovementComponent->MovementAuxState->Modify([NewMaxMoveSpeed](FlyingMovement::FAuxState& State)
+		{
+			State.MaxSpeed = NewMaxMoveSpeed;
+		});
+	}
 }
 
 void ANetworkPredictionExtrasFlyingPawn::ProduceInput(const FNetworkSimTime SimTime, FlyingMovement::FInputCmd& Cmd)
@@ -148,6 +226,14 @@ void ANetworkPredictionExtrasFlyingPawn::ProduceInput(const FNetworkSimTime SimT
 	// decisions about where something should go (such as aim assist, lock on targeting systems, etc): it is hard to give absolute
 	// answers and will depend on the game and its specific needs. In general, at this time, I'd recommend aim assist and lock on 
 	// targeting systems to happen /outside/ of the system, i.e, here. But I can think of scenarios where that may not be ideal too.
+
+	if (InputPreset == ENetworkPredictionExtrasFlyingInputPreset::Forward)
+	{
+		Cmd.MovementInput = FVector(1.f, 0.f, 0.f);
+		Cmd.RotationInput = FRotator::ZeroRotator;
+		return;
+	}
+
 
 	if (Controller == nullptr)
 	{

@@ -104,11 +104,18 @@ namespace FlyingMovement
 	// Auxiliary state that is input into the simulation. Doesn't change during the simulation tick.
 	// (It can change and even be predicted but doing so will trigger more bookeeping, etc. Changes will happen "next tick")
 	struct FAuxState
-	{
-		float Multiplier=1;
+	{	
+		float MaxSpeed = 1200.f;
+		float TurningBoost = 8.f;
+		float Deceleration = 8000.f;
+		float Acceleration = 4000.f;
+
 		void NetSerialize(const FNetSerializeParams& P)
 		{
-			P.Ar << Multiplier;
+			P.Ar << MaxSpeed;
+			P.Ar << TurningBoost;
+			P.Ar << Deceleration;
+			P.Ar << Acceleration;
 		}
 	};
 
@@ -134,7 +141,7 @@ namespace FlyingMovement
 	{
 	public:
 		/** Main update function */
-		static void Update(IMovementDriver* Driver, const float DeltaSeconds, const FInputCmd& InputCmd, const FMoveState& InputState, FMoveState& OutputState, const FAuxState& AuxState);
+		static void Update(IMovementDriver* Driver, const float DeltaSeconds, const FInputCmd& InputCmd, const FMoveState& InputState, FMoveState& OutputState, const FAuxState& AuxState, const TLazyStateAccessor<FAuxState>& OutAuxStateAccessor);
 
 		/** Tick group the simulation maps to */
 		static const FName GroupName;
@@ -178,13 +185,19 @@ public:
 
 	FString GetDebugName() const override;
 	const UObject* GetVLogOwner() const override;
+
 	void InitSyncState(FlyingMovement::FMoveState& OutSyncState) const override;
-	void PreSimSync(const FlyingMovement::FMoveState& SyncState) override;
+	void InitAuxState(FlyingMovement::FAuxState& OutAuxState) const override;
 	void ProduceInput(const FNetworkSimTime SimTime, FlyingMovement::FInputCmd& Cmd) override;
-	void FinalizeFrame(const FlyingMovement::FMoveState& SyncState) override;
+	void FinalizeFrame(const FlyingMovement::FMoveState& SyncState, const FlyingMovement::FAuxState& AuxState) override;
+
+	void PreSimSync(const FlyingMovement::FMoveState& SyncState) override;
 
 	DECLARE_DELEGATE_TwoParams(FProduceFlyingInput, const FNetworkSimTime /*SimTime*/, FlyingMovement::FInputCmd& /*Cmd*/)
 	FProduceFlyingInput ProduceInputDelegate;
+
+	TPredictedStateAccessor<FlyingMovement::FMoveState>* MovementSyncState = nullptr;
+	TPredictedStateAccessor<FlyingMovement::FAuxState>*	 MovementAuxState = nullptr;
 
 protected:
 

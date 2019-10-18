@@ -60,6 +60,19 @@ struct TSelectTypeHelper<TBufferTypes, Debug>
 	using type = typename TBufferTypes::TDebugState;
 };
 
+enum ENetworkSimBufferAllocationType
+{
+	Contiguous,
+	Sparse
+};
+
+template<ENetworkSimBufferAllocationType InAllocationType, int32 InSize>
+struct TNetworkSimBufferAllocation
+{
+	enum { Size = InSize };
+	static constexpr ENetworkSimBufferAllocationType AllocationType() { return InAllocationType; }
+};
+
 // A collection of the system's buffer types. This allows us to collapse the 4 types into a single type to use a template argument elsewhere.
 template<typename InInputCmd, typename InSyncState, typename InAuxState, typename InDebugState = FNetSimProcessedFrameDebugInfo>
 struct TNetworkSimBufferTypes
@@ -127,43 +140,165 @@ struct TBufferGetterHelper<TContainer, ENetworkSimBufferTypeId::Debug>
 	}
 };
 
+// -------------------------------------------------------------------
+
+template<typename InElementType>
+struct TBaseStateAccessor
+{
+	using ElementType = InElementType;
+	virtual ~TBaseStateAccessor() { }
+	virtual const ElementType* Get() const = 0;
+	virtual void Modify(TUniqueFunction<void(ElementType&)>&& Func, int32 Keyframe) = 0;
+};
+
+// Stored modifications to a NetSim Buffer. Needed for replaying predictive mutations that happen outside of the core Update function
+template<typename TBuffer>
+struct TPredictedModBuffer : public TBaseStateAccessor<typename TBuffer::ElementType>
+{
+	using ElementType = typename TBuffer::ElementType;
+
+	TPredictedModBuffer(TBuffer& InBuffer)
+		: Buffer(InBuffer) { }
+
+	const ElementType* Get() const final override
+	{
+		return Buffer.HeadElement();
+	}
+
+	void Modify(TUniqueFunction<void(ElementType&)>&& Func, int32 Keyframe) final override
+	{
+		ElementType* State = Buffer[Keyframe];
+		check(State);
+		Func(*State);
+
+		if (!bAuthority)
+		{
+			PredictedMods.FindOrAdd(Keyframe).Add(MoveTemp(Func));
+		}
+	}
+
+	// -------------------------------------------------------
+
+	void ApplySavedMods(int32 Keyframe)
+	{
+
+	}
+
+	void TrimSavedMods(int32 Keyframe)
+	{
+
+	}
+
+	void SetIsAuthority(bool bInAuthority)
+	{
+		bAuthority = bInAuthority;
+	}
+
+private:
+
+	TSortedMap<int32, TArray<TUniqueFunction<void(ElementType&)>>> PredictedMods;
+	TBuffer& Buffer;
+	bool bAuthority = false; 
+};
+
+// Accessor for predicted state. This is what GameCode outside of the core ::Update function should use to mutate state in the Sync or Aux buffer/
+// This builds off TPredictedModBuffer: it stores a pointer to the simulation's current frame so that game code doesn't need to supply it.
 template<typename T>
+struct TPredictedStateAccessor
+{
+	TPredictedStateAccessor(TBaseStateAccessor<T>& InModBuffer, int32* InLastProcessedKeyframe)
+		: ModBuffer(InModBuffer), LastProcessedKeyframe(InLastProcessedKeyframe) { }
+
+	// Returns the current state, cannot be modified directly
+	const T* Get() const
+	{
+		return ModBuffer.Get();
+	}
+
+	// Applies a mod to the current state. If in prediction mode, will save the mod to be reapplied during a rollback
+	void Modify(TUniqueFunction<void(T&)>&& Func)
+	{
+		ModBuffer.Modify(MoveTemp(Func), *LastProcessedKeyframe);
+	}
+
+private:
+
+	TBaseStateAccessor<T>& ModBuffer;
+	int32* LastProcessedKeyframe = nullptr;
+};
+
+// Struct that encapsulates writing a new element to a buffer. This is used to allow a new Aux state to be created in the ::Update loop.
+template<typename T>
+struct TLazyStateAccessor
+{
+	TLazyStateAccessor(TUniqueFunction<T*()> && InFunc)
+		: GetWriteNextFunc(MoveTemp(InFunc)) { }
+
+	T* GetWriteNext() const
+	{
+		if (CachedWriteNext == nullptr)
+		{
+			CachedWriteNext = GetWriteNextFunc();
+		}
+		return CachedWriteNext;
+	}
+
+private:
+
+	T* CachedWriteNext = nullptr;
+	TUniqueFunction<T*()> GetWriteNextFunc;
+};
+
+// The main container for all of our buffers
+template<typename InBufferTypes>
 struct TNetworkSimBufferContainer
 {
+	TNetworkSimBufferContainer()
+		: SyncMods(Sync), AuxMods(Aux) { }
+
 	// Collection of types we were assigned
-	using TBufferTypes = T;
+	using TBufferTypes = InBufferTypes;
 
 	// helper that returns the buffer type for a given BufferId (not the underlying type: the actual TReplicatedBuffer<TUnderlyingType>
 	template<ENetworkSimBufferTypeId TypeId>
 	struct select_buffer_type
 	{
-		// We are just wrapping a TReplicationBuffer around whatever type TBufferTypes::select_type returns (which returns the underlying type)
-		using type = TReplicationBuffer<typename TBufferTypes::template select_type<TypeId>::type>;
+		// We are just wrapping a TNetworkSimContiguousBuffer around whatever type TBufferTypes::select_type returns (which returns the underlying type)
+		using type = TNetworkSimContiguousBuffer<typename TBufferTypes::template select_type<TypeId>::type>;
+	};
+
+	template<ENetworkSimBufferTypeId TypeId>
+	struct select_buffer_type_sparse
+	{
+		// We are just wrapping a TNetworkSimSparseBuffer around whatever type TBufferTypes::select_type returns (which returns the underlying type)
+		using type = TNetworkSimSparseBuffer<typename TBufferTypes::template select_type<TypeId>::type>;
 	};
 
 	// The buffer types. This may look intimidating but is not that bad!
 	// We are using select_buffer_type to decide what the type should be for a given ENetworkSimBufferTypeId.
 	using TInputBuffer = typename select_buffer_type<ENetworkSimBufferTypeId::Input>::type;
 	using TSyncBuffer = typename select_buffer_type<ENetworkSimBufferTypeId::Sync>::type;
-	using TAuxBuffer = typename select_buffer_type<ENetworkSimBufferTypeId::Aux>::type;
+	using TAuxBuffer = typename select_buffer_type_sparse<ENetworkSimBufferTypeId::Aux>::type;
 	using TDebugBuffer = typename select_buffer_type<ENetworkSimBufferTypeId::Debug>::type;
 
 	// The buffers themselves. Types are already declared above.
-	// If you are reading just to find the damn underlying type here, its TReplicationBuffer< whatever your struct type is >
+	// If you are reading just to find the damn underlying type here, its (TNetworkSimSparseBuffer||TNetworkSimContiguousBuffer) < whatever your struct type is >
 	TInputBuffer Input;
 	TSyncBuffer Sync;
 	TAuxBuffer Aux;
 	TDebugBuffer Debug;
+
+	TPredictedModBuffer<TSyncBuffer> SyncMods;
+	TPredictedModBuffer<TAuxBuffer> AuxMods;
 
 	// Finally, template accessor for getting buffers based on enum. This is really what all this junk is about.
 	// This allows other templated classes in the system to access a specific buffer from another templated argument
 	template<ENetworkSimBufferTypeId BufferId>
 	typename select_buffer_type<BufferId>::type& Get()
 	{
-		return TBufferGetterHelper<TNetworkSimBufferContainer<T>, BufferId>::Get(*this);
+		return TBufferGetterHelper<TNetworkSimBufferContainer<TBufferTypes>, BufferId>::Get(*this);
 	}
 };
-
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 //		Tick and time keeping related structures
@@ -328,24 +463,17 @@ struct TSimulationTickState
 	void SetTotalProcessedSimulationTime(const FNetworkSimTime& SimTime, int32 Keyframe)
 	{
 		TotalProcessedSimulationTime = SimTime;
-		SimulationTimeBuffer.ResetNextHeadKeyframe(Keyframe);
-		*SimulationTimeBuffer.GetWriteNext() = SimTime;
+		*SimulationTimeBuffer.WriteKeyframe(Keyframe) = SimTime;
 	}
 
 	void IncrementTotalProcessedSimulationTime(const FNetworkSimTime& DeltaSimTime, int32 Keyframe)
 	{
 		TotalProcessedSimulationTime += DeltaSimTime;
-		*SimulationTimeBuffer.GetWriteNext() = TotalProcessedSimulationTime;
-		ensure(SimulationTimeBuffer.GetHeadKeyframe() == Keyframe);
-	}
-
-	void InitSimulationTimeBuffer(int32 Size)
-	{
-		SimulationTimeBuffer.SetBufferSize(Size);
+		*SimulationTimeBuffer.WriteKeyframe(Keyframe) = TotalProcessedSimulationTime;
 	}
 		
 	// Historic tracking of simulation time. This allows us to timestamp sync data as its produced
-	TReplicationBuffer<FNetworkSimTime>	SimulationTimeBuffer;
+	TNetworkSimContiguousBuffer<FNetworkSimTime>	SimulationTimeBuffer;
 
 	void SetTotalAllowedSimulationTime(const FNetworkSimTime& SimTime)
 	{
@@ -415,7 +543,7 @@ struct TInternalBufferTypes : TNetworkSimBufferTypes<
 	// InputCmds are wrapped in TFrameCmd, which will store an explicit sim delta time if we are not a fixed tick sim
 	TFrameCmd< typename TUserBufferTypes::TInputCmd , TTickSettings>,
 
-	typename TUserBufferTypes::TSyncState,	// SyncState Passes through
+	typename TUserBufferTypes::TSyncState,	// SyncState passes through
 	typename TUserBufferTypes::TAuxState,	// Auxstate passes through
 	typename TUserBufferTypes::TDebugState	// Debugstate passes through
 >
@@ -430,7 +558,15 @@ public:
 	virtual FString GetDebugName() const = 0; // Used for debugging. Recommended to emit the simulation name and the actor name/role.
 	virtual const UObject* GetVLogOwner() const = 0; // Owning object for Visual Logs
 
-	virtual void InitSyncState(typename TBufferTypes::TSyncState& OutSyncState) const = 0;	// Called to create initial value of the sync state.
-	virtual void ProduceInput(const FNetworkSimTime SimTime, typename TBufferTypes::TInputCmd&) = 0; // Called when the sim is ready to process new local input
-	virtual void FinalizeFrame(const typename TBufferTypes::TSyncState& SyncState) = 0; // Called from the Network Sim at the end of the sim frame when there is new sync data.
+	// Called to create initial value of the sync state.
+	virtual void InitSyncState(typename TBufferTypes::TSyncState& OutSyncState) const = 0;
+
+	// Called to create initial value of the aux state.
+	virtual void InitAuxState(typename TBufferTypes::TAuxState& OutAuxState) const = 0;
+	
+	// Called whenever the sim is ready to process new local input.
+	virtual void ProduceInput(const FNetworkSimTime SimTime, typename TBufferTypes::TInputCmd&) = 0;
+	
+	// Called from the Network Sim at the end of the sim frame when there is new sync data.
+	virtual void FinalizeFrame(const typename TBufferTypes::TSyncState& SyncState, const typename TBufferTypes::TAuxState& AuxState) = 0;
 };
