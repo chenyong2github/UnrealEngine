@@ -167,7 +167,7 @@ struct TPredictedModBuffer : public TBaseStateAccessor<typename TBuffer::Element
 
 	void Modify(TUniqueFunction<void(ElementType&)>&& Func, int32 Keyframe) final override
 	{
-		ElementType* State = Buffer[Keyframe];
+		ElementType* State = Buffer.WriteKeyframe(Keyframe);
 		check(State);
 		Func(*State);
 
