@@ -3891,6 +3891,9 @@ void FEngineLoop::Exit()
 	// Stop the rendering thread.
 	StopRenderingThread();
 
+	// Disable the PSO cache
+	FShaderPipelineCache::Shutdown();
+
 #if !PLATFORM_ANDROID || PLATFORM_LUMIN // UnloadModules doesn't work on Android
 #if WITH_ENGINE
 	// Save the hot reload state
@@ -3906,9 +3909,6 @@ void FEngineLoop::Exit()
 	// order they were loaded in, so that systems can unregister and perform general clean up.
 	FModuleManager::Get().UnloadModulesAtShutdown();
 #endif // !ANDROID
-
-	// Disable the PSO cache
-	FShaderPipelineCache::Shutdown();
 
 	// Close shader code map, if any
 	FShaderCodeLibrary::Shutdown();
