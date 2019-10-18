@@ -33,6 +33,12 @@ public:
 	FText GetDisplayFetcherName() const;
 
 	/**
+	 * The name displayed on node title.
+	 */
+	UFUNCTION(BlueprintNativeEvent, Category = "Display")
+	FText GetNodeDisplayFetcherName() const;
+
+	/**
 	 * Allows to change the tooltip of the fetcher for the ui if needed.
 	 */
 	UFUNCTION(BlueprintNativeEvent,  Category = "Display")
@@ -47,6 +53,7 @@ public:
 
 	// The Native way to override the blueprint native events above
 	virtual FText GetDisplayFetcherName_Implementation() const;
+	virtual FText GetNodeDisplayFetcherName_Implementation() const;
 	virtual FText GetTooltipText_Implementation() const;
 	virtual FText GetAdditionalKeyword_Implementation() const;
 };

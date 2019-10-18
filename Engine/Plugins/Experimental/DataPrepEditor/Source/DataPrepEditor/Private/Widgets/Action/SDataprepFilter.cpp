@@ -8,6 +8,7 @@
 #include "SelectionSystem/DataprepFilter.h"
 #include "SelectionSystem/DataprepFloatFilter.h"
 #include "SelectionSystem/DataprepStringFilter.h"
+#include "SelectionSystem/DataprepStringsArrayFilter.h"
 #include "Widgets/Action/SDataprepBoolFilter.h"
 #include "Widgets/Action/SDataprepFloatFilter.h"
 #include "Widgets/Action/SDataprepStringFilter.h"
@@ -46,44 +47,16 @@ FText SDataprepFilter::GetBlockTitle() const
 {
 	if ( Filter )
 	{
-		UClass* Class = Filter->GetClass();
-		if ( Class == UDataprepStringFilter::StaticClass() )
+		UDataprepFetcher* Fetcher = Filter->GetFetcher();
+		if ( Fetcher )
 		{
 			if ( Filter->IsExcludingResult() )
 			{
-				static FText StringExcludingFilterTitle =  LOCTEXT("StringExcludingFilterTitle", "Exclude by String");
-				return StringExcludingFilterTitle;
+				return FText::Format( LOCTEXT("ExcludingFilterTitle", "Exclude by {0}"), { Fetcher->GetNodeDisplayFetcherName() } );
 			}
 			else
 			{
-				static FText StringFilterTitle = LOCTEXT("StringFilterTitle", "Select by String");
-				return StringFilterTitle;
-			}
-		}
-		else if ( Class == UDataprepBoolFilter::StaticClass() )
-		{
-			if ( Filter->IsExcludingResult() )
-			{
-				static FText BoolExcludingFilterTitle = LOCTEXT("BoolExcludingFilterTitle", "Exclude by Condition");
-				return BoolExcludingFilterTitle;
-			}
-			else
-			{
-				static FText BoolFilterTitle = LOCTEXT("BoolFilterTitle", "Select by Condition");
-				return BoolFilterTitle;
-			}
-		}
-		else if ( Class == UDataprepFloatFilter::StaticClass() )
-		{
-			if ( Filter->IsExcludingResult() )
-			{
-				static FText FloatExcludingFilterTitle = LOCTEXT("FloatExcludingFilterTitle", "Exclude by Float");
-				return FloatExcludingFilterTitle;
-			}
-			else
-			{
-				static FText FloatFilterTitle = LOCTEXT("FloatFilterTitle", "Select by Float");
-				return FloatFilterTitle;
+				return FText::Format( LOCTEXT("SelectingFilterTitle", "Filter by {0}"), { Fetcher->GetNodeDisplayFetcherName() });
 			}
 		}
 	}
@@ -106,7 +79,7 @@ TSharedRef<SWidget> SDataprepFilter::GetTitleWidget()
 
 TSharedRef<SWidget> SDataprepFilter::GetContentWidget()
 {
-	TSharedPtr< SWidget > FilterWidget;
+	TSharedPtr< SWidget > FilterWidget = SNullWidget::NullWidget;
 
 	if ( Filter )
 	{
@@ -114,7 +87,11 @@ TSharedRef<SWidget> SDataprepFilter::GetContentWidget()
 		// This down casting implementation is faster then using Cast<UDataprepStringFilter>( Filter ) 
 		if ( Class ==  UDataprepStringFilter::StaticClass() )
 		{
-			SAssignNew( FilterWidget, SDataprepStringFilter, *static_cast< UDataprepStringFilter* >( Filter ) );
+			SAssignNew( FilterWidget, SDataprepStringFilter< UDataprepStringFilter >, *static_cast< UDataprepStringFilter* >( Filter ) );
+		}
+		else if (Class == UDataprepStringsArrayFilter::StaticClass())
+		{
+			SAssignNew(FilterWidget, SDataprepStringFilter< UDataprepStringsArrayFilter >, *static_cast<UDataprepStringsArrayFilter*>(Filter));
 		}
 		else if ( Class == UDataprepBoolFilter::StaticClass() )
 		{
@@ -124,10 +101,6 @@ TSharedRef<SWidget> SDataprepFilter::GetContentWidget()
 		{
 			SAssignNew( FilterWidget, SDataprepFloatFilter, *static_cast< UDataprepFloatFilter* >( Filter ) );
 		}
-	}
-	else
-	{
-		FilterWidget = SNullWidget::NullWidget;
 	}
 
 	return SNew( SVerticalBox )
