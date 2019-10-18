@@ -35,9 +35,9 @@ struct FWriteBuffer
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
-extern UE_TRACE_API void* volatile	GLastEvent;
-UE_TRACE_API uint8*					Writer_NextBuffer(uint16);
-UE_TRACE_API FWriteBuffer*			Writer_GetBuffer();
+extern TRACELOG_API void* volatile	GLastEvent;
+TRACELOG_API uint8*					Writer_NextBuffer(uint16);
+TRACELOG_API FWriteBuffer*			Writer_GetBuffer();
 
 #if IS_MONOLITHIC
 extern thread_local FWriteBuffer* GWriteBuffer;

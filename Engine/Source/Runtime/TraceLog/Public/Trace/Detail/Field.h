@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Trace.h"
+#include "Trace/Config.h"
 
 #include "Templates/UnrealTemplate.h"
 

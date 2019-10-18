@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Trace.h"
+#include "Trace/Config.h"
 
 namespace Trace
 {
@@ -60,10 +60,10 @@ public:
 	class FLogScope
 	{
 	public:
-						FLogScope(uint16 EventUid, uint16 Size);
-						FLogScope(uint16 EventUid, uint16 Size, uint16 ExtraBytes);
-						~FLogScope();
-		uint8*			Ptr;
+								FLogScope(uint16 EventUid, uint16 Size);
+								FLogScope(uint16 EventUid, uint16 Size, uint16 ExtraBytes);
+								~FLogScope();
+		uint8*					Ptr;
 	};
 
 	void*						Handle;
@@ -80,7 +80,7 @@ public:
 		uint16					Test;
 	}							Enabled;
 	bool						bInitialized;
-	UE_TRACE_API static void	Create(FEventDef* Target, const FLiteralName& LoggerName, const FLiteralName& EventName, const FFieldDesc* FieldDescs, uint32 FieldCount, uint32 Flags=0);
+	TRACELOG_API static void	Create(FEventDef* Target, const FLiteralName& LoggerName, const FLiteralName& EventName, const FFieldDesc* FieldDescs, uint32 FieldCount, uint32 Flags=0);
 };
 
 } // namespace Trace
