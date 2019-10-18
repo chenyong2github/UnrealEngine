@@ -9,57 +9,12 @@ struct FHairVisibilityAccumulateVSToPS
 {
 	FVertexFactoryInterpolantsVSToPS FactoryInterpolants;
 	float4 Position : SV_POSITION;
-	float4 PixelPosition : TEXCOORD6;
 	float WorldStrandRadius : TEXCOORD8;
 	float4 PackedVelocityA : TEXCOORD9;
 	float4 PackedVelocityC : TEXCOORD12;
 };
 
-#if USING_TESSELLATION	
-	struct FHairVisibilityAccumulateVSToDS
-	{
-		FVertexFactoryInterpolantsVSToDS FactoryInterpolants;
-		float4 Position : VS_To_DS_Position;
-		OPTIONAL_VertexID_VS_To_DS
-	};
-	
-	#define VS_OUTPUT_TYPE FHairVisibilityAccumulateVSToDS
-#else
-	#define VS_OUTPUT_TYPE FHairVisibilityAccumulateVSToPS
-#endif
-
-#if USING_TESSELLATION	
-	#define FPassSpecificVSToDS FHairVisibilityAccumulateVSToDS
-	#define FPassSpecificVSToPS FHairVisibilityAccumulateVSToPS
-	#define INTERPOLATE_MEMBER(member) O.member = a.member * aInterp + b.member * bInterp
-
-	FHairVisibilityAccumulateVSToDS PassInterpolate(FHairVisibilityAccumulateVSToDS a, float aInterp, FHairVisibilityAccumulateVSToDS b, float bInterp)
-	{
-		FHairVisibilityAccumulateVSToDS O;
-		
-		O.FactoryInterpolants = VertexFactoryInterpolate(a.FactoryInterpolants, aInterp, b.FactoryInterpolants, bInterp);
-
-		return O;
-	}
-
-	#undef INTERPOLATE_MEMBER
-	
-	FHairVisibilityAccumulateVSToPS PassFinalizeTessellationOutput(FHairVisibilityAccumulateVSToDS Interpolants, float4 WorldPosition, FMaterialTessellationParameters MaterialParameters)
-	{
-		FHairVisibilityAccumulateVSToPS O;
-		
-		O.FactoryInterpolants = VertexFactoryAssignInterpolants(Interpolants.FactoryInterpolants);
-		
-		// Finally, transform position to clip-space
-		O.Position = mul(WorldPosition, HairVisibilityPass.WorldToClipMatrix); // mul(WorldPosition, View.TranslatedWorldToClip);
-			
-		O.PixelPosition = WorldPosition;
-		
-		return O;
-	}
-	
-#include "Tessellation.ush"
-#endif
+#define VS_OUTPUT_TYPE FHairVisibilityAccumulateVSToPS
 
 #if VERTEXSHADER
 
@@ -116,18 +71,8 @@ void Main(
 	//	PrevWorldPosition.xyz += GetMaterialPreviousWorldPositionOffset(VertexParameters); 
 	//}
 
-#if USING_TESSELLATION
-	Output.Position = WorldPosition;
-	Output.FactoryInterpolants = VertexFactoryGetInterpolantsVSToDS(Input, VFIntermediates, VertexParameters);
-	
-#else // !USING_TESSELLATION
-
-//	Output.Position = mul(WorldPosition, HairVisibilityPass.WorldToClipMatrix);
 	Output.Position = mul(WorldPosition, View.TranslatedWorldToClip);
 	Output.FactoryInterpolants = VertexFactoryGetInterpolantsVSToPS(Input, VFIntermediates, VertexParameters);
-	Output.PixelPosition = WorldPosition;
-
-#endif // USING_TESSELLATION
 
 #ifdef VF_STRAND_HAIR
 	Output.WorldStrandRadius = VFIntermediates.HairDimensions.y;
