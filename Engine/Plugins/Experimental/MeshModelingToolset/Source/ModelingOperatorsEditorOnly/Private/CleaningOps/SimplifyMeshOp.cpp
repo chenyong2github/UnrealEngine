@@ -92,9 +92,8 @@ void FSimplifyMeshOp::CalculateResult(FProgressCancel* Progress)
 				TargetMode, TargetPercentage, TargetCount, TargetEdgeLength);
 		}
 	}
-	else
+	else // SimplifierType == ESimplifyType::UE4Standard
 	{
-		ensure(SimplifierType == ESimplifyType::UE4Standard);
 		const FMeshDescription* SrcMeshDescription = OriginalMeshDescription.Get();
 		FMeshDescription DstMeshDescription(*SrcMeshDescription);
 
