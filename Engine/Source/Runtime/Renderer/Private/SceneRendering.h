@@ -151,17 +151,6 @@ public:
 	TArray<FProjectedShadowInfo*,SceneRenderingAllocator> OccludedPerObjectShadows;
 };
 
-enum class EVelocityPass : uint32
-{
-	// Renders a separate velocity pass for opaques.
-	Opaque = 0,
-
-	// Renders a separate velocity / depth pass for translucency AFTER the translucent pass.
-	Translucency,
-
-	Count
-};
-
 // Stores the primitive count of each translucency pass (redundant, could be computed after sorting but this way we touch less memory)
 struct FTranslucenyPrimCount
 {
@@ -437,7 +426,6 @@ public:
 	const FSceneRenderer* SceneRenderer;
 	FMeshPassProcessorRenderState DrawRenderState;
 	FRHICommandListImmediate& ParentCmdList;
-	const FRHIGPUMask GPUMask; // Copy of the Parent GPUMask at creation (since it could change).
 	FSceneRenderTargets* Snapshot;
 	TStatId	ExecuteStat;
 	int32 Width;
@@ -794,6 +782,10 @@ struct FPreviousViewInfo
 	TRefCountPtr<IPooledRenderTarget> GBufferB;
 	TRefCountPtr<IPooledRenderTarget> GBufferC;
 
+	// Compressed scene textures for bandwidth efficient bilateral kernel rejection.
+	// DeviceZ as float16, and normal in view space.
+	TRefCountPtr<IPooledRenderTarget> CompressedDepthViewNormal;
+
 	// Temporal AA result of last frame
 	FTemporalAAHistory TemporalAAHistory;
 
@@ -1054,7 +1046,7 @@ public:
 	uint32 bTranslucentSurfaceLighting : 1;
 	/** Whether the view has any materials that read from scene depth. */
 	uint32 bUsesSceneDepth : 1;
-
+	uint32 bUsesCustomDepthStencil : 1;
 
 	/** Whether fog should only be computed on rendered opaque pixels or not. */
 	uint32 bFogOnlyOnRenderedOpaque : 1;
@@ -1078,9 +1070,6 @@ public:
 
 	/** Informations from the previous frame to use for this view. */
 	FPreviousViewInfo PrevViewInfo;
-
-	/** The GPU nodes on which to render this view. */
-	FRHIGPUMask GPUMask;
 
 	/** An intermediate number of visible static meshes.  Doesn't account for occlusion until after FinishOcclusionQueries is called. */
 	int32 NumVisibleStaticMeshElements;
@@ -1134,6 +1123,12 @@ public:
 	TShaderMap<FGlobalShaderType>* ShaderMap;
 
 	bool bIsSnapshot;
+
+	// Whether this view should use an HMD hidden area mask where appropriate.
+	bool bHMDHiddenAreaMaskActive = false;
+
+	// Whether this view should use compute passes where appropriate.
+	bool bUseComputePasses = false;
 
 	// Optional stencil dithering optimization during prepasses
 	bool bAllowStencilDither;
@@ -1254,18 +1249,25 @@ public:
 	/** Get the last valid average scene luminange for eye adapation (exposure compensation curve). */
 	float GetLastAverageSceneLuminance() const;
 
+	/** Returns the load action to use when overwriting all pixels of a target that you intend to read from. Takes into account the HMD hidden area mesh. */
+	ERenderTargetLoadAction GetOverwriteLoadAction() const;
+
 	/** Informs sceneinfo that tonemapping LUT has queued commands to compute it at least once */
 	void SetValidTonemappingLUT() const;
 
 	/** Gets the tonemapping LUT texture, previously computed by the CombineLUTS post process,
 	* for stereo rendering, this will force the post-processing to use the same texture for both eyes*/
-	const FTextureRHIRef* GetTonemappingLUTTexture() const;
+	IPooledRenderTarget* GetTonemappingLUT() const;
 
 	/** Gets the rendertarget that will be populated by CombineLUTS post process 
 	* for stereo rendering, this will force the post-processing to use the same render target for both eyes*/
-	IPooledRenderTarget* GetTonemappingLUTRenderTarget(FRHICommandList& RHICmdList, const int32 LUTSize, const bool bUseVolumeLUT, const bool bNeedUAV, const bool bNeedFloatOutput) const;
-	
-	/** Returns whether this view is the last in the family. */
+	IPooledRenderTarget* GetTonemappingLUT(FRHICommandList& RHICmdList, const int32 LUTSize, const bool bUseVolumeLUT, const bool bNeedUAV, const bool bNeedFloatOutput) const;
+
+	bool IsFirstInFamily() const
+	{
+		return Family->Views[0] == this;
+	}
+
 	bool IsLastInFamily() const
 	{
 		return Family->Views.Last() == this;
@@ -1282,11 +1284,11 @@ public:
 		{
 			return true;
 		}
-		else if (bIsInstancedStereoEnabled && !IStereoRendering::IsASecondaryView(StereoPass))
+		else if (bIsInstancedStereoEnabled && StereoPass != eSSP_RIGHT_EYE)
 		{
 			return true;
 		}
-		else if (bIsMobileMultiViewEnabled && !IStereoRendering::IsASecondaryView(StereoPass) && Family && Family->Views.Num() > 1)
+		else if (bIsMobileMultiViewEnabled && StereoPass != eSSP_RIGHT_EYE && Family && Family->Views.Num() > 1)
 		{
 			return true;
 		}
@@ -1530,8 +1532,10 @@ public:
 	/** Setups FViewInfo::ViewRect according to ViewFamilly's ScreenPercentageInterface. */
 	void PrepareViewRectsForRendering();
 
+#if WITH_MGPU
 	/** Setups each FViewInfo::GPUMask. */
 	void ComputeViewGPUMasks(FRHIGPUMask RenderTargetGPUMask);
+#endif
 
 	/** Update the rendertarget with each view results.*/
 	void DoCrossGPUTransfers(FRHICommandListImmediate& RHICmdList, FRHIGPUMask RenderTargetGPUMask);
@@ -1590,7 +1594,12 @@ protected:
 
 	/** Size of the family. */
 	FIntPoint FamilySize;
-	
+
+#if WITH_MGPU
+	FRHIGPUMask AllViewsGPUMask;
+	FRHIGPUMask GetGPUMaskForShadow(FProjectedShadowInfo* ProjectedShadowInfo) const;
+#endif
+
 	bool bDumpMeshDrawCommandInstancingStats;
 
 	// Shared functionality between all scene renderers

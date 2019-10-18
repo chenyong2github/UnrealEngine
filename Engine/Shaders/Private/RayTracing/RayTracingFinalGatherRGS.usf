@@ -39,8 +39,7 @@ uint DispatchThreadIdToLinearIndex(uint2 DispatchThreadId)
 	return DispatchThreadId.y * GatherPointsResolution.x + DispatchThreadId.x;
 }
 
-[shader("raygeneration")]
-void RayTracingFinalGatherRGS()
+RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 {
 	uint2 DispatchThreadId = DispatchRaysIndex().xy + View.ViewRectMin + uint2(TileOffsetX, TileOffsetY);
 	RWGlobalIlluminationUAV[DispatchThreadId] = 0.0;

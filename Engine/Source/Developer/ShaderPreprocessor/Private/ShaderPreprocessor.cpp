@@ -36,7 +36,7 @@ public:
 		, ShaderOutput(InShaderOutput)
 	{
 		FString InputShaderSource;
-		if (LoadShaderSourceFile(*InShaderInput.VirtualSourceFilePath, &InputShaderSource, nullptr))
+		if (LoadShaderSourceFile(*InShaderInput.VirtualSourceFilePath, InShaderInput.Target.GetPlatform(),  &InputShaderSource, nullptr))
 		{
 			InputShaderSource = FString::Printf(TEXT("%s\n#line 1\n%s"), *ShaderInput.SourceFilePrefix, *InputShaderSource);
 			CachedFileContents.Add(InShaderInput.VirtualSourceFilePath, StringToArray<ANSICHAR>(*InputShaderSource, InputShaderSource.Len() + 1));
@@ -63,7 +63,10 @@ private:
 
 		FUTF8ToTCHAR UTF8Converter(InVirtualFilePath);
 		FString VirtualFilePath = UTF8Converter.Get();
-		
+
+		// Substitute virtual platform path here to make sure that #line directives refer to the platform-specific file.
+		ReplaceVirtualFilePathForShaderPlatform(VirtualFilePath, This->ShaderInput.Target.GetPlatform());
+
 		// Collapse any relative directories to allow #include "../MyFile.ush"
 		FPaths::CollapseRelativeDirectories(VirtualFilePath);
 
@@ -84,7 +87,7 @@ private:
 			{
 				CheckShaderHashCacheInclude(VirtualFilePath, This->ShaderInput.Target.GetPlatform());
 
-				LoadShaderSourceFile(*VirtualFilePath, &FileContents, &This->ShaderOutput.Errors);
+				LoadShaderSourceFile(*VirtualFilePath, This->ShaderInput.Target.GetPlatform(), &FileContents, &This->ShaderOutput.Errors);
 			}
 
 			if (FileContents.Len() > 0)

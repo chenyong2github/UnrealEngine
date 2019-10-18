@@ -388,6 +388,15 @@ void UAIPerceptionSystem::UnregisterSource(AActor& SourceActor, const TSubclassO
 	{
 		UE_VLOG(this, LogAIPerception, Log, TEXT("UnregisterSource called for %s but it doesn't seem to be registered as a source"), *SourceActor.GetName());
 	}
+	// Remove this from any pending adds (add/remove same frame)
+	for (int32 RemoveIndex = SourcesToRegister.Num() - 1; RemoveIndex >= 0; RemoveIndex--)
+	{
+		if (SourcesToRegister[RemoveIndex].Source == &SourceActor &&
+			SourcesToRegister[RemoveIndex].SenseID == UAISense::GetSenseID(Sense))
+		{
+			SourcesToRegister.RemoveAt(RemoveIndex, 1, false);
+		}
+	}
 }
 
 void UAIPerceptionSystem::OnListenerRemoved(const FPerceptionListener& NewListener)

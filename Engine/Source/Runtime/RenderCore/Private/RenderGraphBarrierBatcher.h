@@ -27,6 +27,13 @@ public:
 		FRDGResourceState::EAccess AccessAfter,
 		FRDGResourceState::EPipeline PipelineAfter = FRDGResourceState::EPipeline::MAX);
 
+#if WITH_MGPU
+	void SetNameForTemporalEffect(FName InNameForTemporalEffect)
+	{
+		NameForTemporalEffect = InNameForTemporalEffect;
+	}
+#endif
+
 private:
 	struct FTransitionParameters
 	{
@@ -71,7 +78,13 @@ private:
 	FUAVBatch UAVUpdateMultiFrameEnds;
 	FUAVBatchMap UAVBatchMap;
 
-	void ValidateTransition(const FRDGParentResource* Resource, FRDGResourceState StateBefore, FRDGResourceState StateAfter);
+#if WITH_MGPU
+	FName NameForTemporalEffect;
+	FTextureBatch TexturesToCopyForTemporalEffect;
+#endif
+
+	void ValidateTransition(const FRDGParentResource* Resource, FRDGResourceState StateBefore, FRDGResourceState StateAfter) const;
+	void LogTransition(const FRDGParentResource* Resource, FTransitionParameters Parameters) const;
 
 	EResourceTransitionAccess GetResourceTransitionAccess(FRDGResourceState::EAccess AccessAfter) const;
 	EResourceTransitionAccess GetResourceTransitionAccessForUAV(FRDGResourceState::EAccess AccessBefore, FRDGResourceState::EAccess AccessAfter) const;

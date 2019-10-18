@@ -117,7 +117,7 @@ void BuildVarianceMipTreeCS(
 		uint Samples = 0;
 		int2 PixelCenter = DispatchThreadId.xy;
 		int2 PixelMin = max(PixelCenter - Filter.Offset, 0);
-		int2 PixelMax = min(PixelCenter + Filter.Offset, ViewSize - 1);
+		int2 PixelMax = min(PixelCenter + Filter.Offset, int2(ViewSize) - 1);
 		for (int y = PixelMin.y; y <= PixelMax.y; ++y)
 		{
 			for (int x = PixelMin.x; x <= PixelMax.x; ++x)

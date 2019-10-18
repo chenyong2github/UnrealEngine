@@ -211,6 +211,10 @@ void RHIInit(bool bHasEditorToken)
 			{
 				GDynamicRHI->Init();
 
+#if WITH_MGPU
+				AFRUtils::StaticInitialize();
+#endif
+
 				GRHICommandList.GetImmediateCommandList().SetContext(GDynamicRHI->RHIGetDefaultContext());
 				GRHICommandList.GetImmediateAsyncComputeCommandList().SetComputeContext(GDynamicRHI->RHIGetDefaultAsyncComputeContext());
 

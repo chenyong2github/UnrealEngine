@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "Containers/Array.h"
 #include "Math/Color.h"
+#include "UObject/NameTypes.h"
 
 
 // General identifiers for potential force feedback channels. These will be mapped according to the
@@ -84,6 +85,15 @@ struct FHapticFeedbackValues
 	}
 };
 
+struct FInputDeviceProperty
+{
+	FInputDeviceProperty(FName InName)
+		: Name(InName)
+	{}
+
+	FName Name;
+};
+
 
 /**
  * Interface for the input interface.
@@ -123,6 +133,15 @@ public:
 	* @param Values			Frequency and amplitude to haptics at
 	*/
 	virtual void SetHapticFeedbackValues(int32 ControllerId, int32 Hand, const FHapticFeedbackValues& Values) {}
+
+	/**
+	* Sets a property for a given controller id.
+	* Will be ignored for devices which don't support the property.
+	*
+	* @param ControllerId the id of the controller whose property is to be applied
+	* @param Property Base class pointer to property that will be applied
+	*/
+	virtual void SetDeviceProperty(int32 ControllerId, const FInputDeviceProperty* Property) {};
 
 	/*
 	 * Sets the light color for the given controller.  Ignored if controller does not support a color.

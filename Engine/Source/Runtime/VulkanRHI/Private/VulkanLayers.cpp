@@ -51,7 +51,10 @@ static const ANSICHAR* GIndividualValidationLayers[] =
 	"VK_LAYER_LUNARG_parameter_validation",
 	"VK_LAYER_LUNARG_object_tracker",
 	"VK_LAYER_LUNARG_core_validation",
+#if !PLATFORM_LUMIN
+	// freezes app inside MLGraphicsCreateClientVk() on Lumin if this is enabled.
 	"VK_LAYER_GOOGLE_unique_objects",
+#endif // !PLATFORM_LUMIN
 	nullptr
 };
 
@@ -536,6 +539,7 @@ void FVulkanDevice::GetDeviceExtensionsAndLayers(VkPhysicalDevice Gpu, EGpuVendo
 	const int32 VulkanValidationOption = GValidationCvar.GetValueOnAnyThread();
 	if (!GRenderDocFound && VulkanValidationOption > 0)
 	{
+		// Path for older drivers
 		bool bStandardAvailable = false;
 		if (GStandardValidationCvar.GetValueOnAnyThread() != 0)
 		{
@@ -560,11 +564,6 @@ void FVulkanDevice::GetDeviceExtensionsAndLayers(VkPhysicalDevice Gpu, EGpuVendo
 						OutDeviceLayers.Add(CurrValidationLayer);
 						break;
 					}
-				}
-
-				if (!bValidationFound)
-				{
-					UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to find Vulkan device validation layer '%s'"), ANSI_TO_TCHAR(CurrValidationLayer));
 				}
 			}
 		}
@@ -726,7 +725,7 @@ void FOptionalVulkanDeviceExtensions::Setup(const TArray<const ANSICHAR*>& Devic
 
 	if (GGPUCrashDebuggingEnabled && !bHasAnyCrashExtension)
 	{
-		UE_LOG(LogVulkanRHI, Warning, TEXT("Tried to enable GPU crash debugging but no extension found!"));
+		UE_LOG(LogVulkanRHI, Warning, TEXT("Tried to enable GPU crash debugging but no extension found! Will use local tracepoints."));
 	}
 
 #if VULKAN_SUPPORTS_GOOGLE_DISPLAY_TIMING
@@ -750,6 +749,8 @@ void FOptionalVulkanDeviceExtensions::Setup(const TArray<const ANSICHAR*>& Devic
 #if VULKAN_SUPPORTS_DRIVER_PROPERTIES
 	HasDriverProperties = HasExtension(DeviceExtensions, VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME);
 #endif
+
+	HasEXTFragmentDensityMap = HasExtension(DeviceExtensions, VK_EXT_FRAGMENT_DENSITY_MAP_EXTENSION_NAME);
 }
 
 void FVulkanDynamicRHI::SetupValidationRequests()

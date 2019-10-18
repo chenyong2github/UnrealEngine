@@ -44,6 +44,14 @@
 #define TextureExternal Texture2D
 #endif
 
+#ifndef REGISTER
+	#if COMPILER_HLSLCC
+		#define REGISTER(x)
+	#else
+		#define REGISTER(x)		: register(x)
+	#endif
+#endif
+
 #if FEATURE_LEVEL < FEATURE_LEVEL_SM5
 	// Define TextureCubeArray to something which will compile so we can use it in uniform buffers
 	#define TextureCubeArray TextureCube
@@ -68,11 +76,15 @@
 // Using SV_ClipDistance has overhead (15% slower base pass in triangle bound test scene on PS4) so projects have to opt-in
 #define USE_GLOBAL_CLIP_PLANE (PLATFORM_SUPPORTS_GLOBAL_CLIP_PLANE && PROJECT_ALLOW_GLOBAL_CLIP_PLANE && !MATERIAL_DOMAIN_POSTPROCESS && !MATERIAL_DOMAIN_UI)
 
+#define POSITIVE_INFINITY (asfloat(0x7F800000))
+#define NEGATIVE_INFINITY (asfloat(0xFF800000))
+
 const static MaterialFloat PI = 3.1415926535897932f;
 const static float MaxHalfFloat = 65504.0f;
+
 #ifndef USE_RAYTRACED_TEXTURE_RAYCONE_LOD
 #define USE_RAYTRACED_TEXTURE_RAYCONE_LOD (RAYHITGROUPSHADER)
-#endif
+#endif // USE_RAYTRACED_TEXTURE_RAYCONE_LOD
 
 static float GlobalRayCone_TexArea;
 float ComputeRayConeLod(Texture2D Tex)
@@ -410,65 +422,65 @@ uint3 Mod(uint3 a, uint3 b)
 
 MaterialFloat UnClampedPow(MaterialFloat X, MaterialFloat Y)
 {
-	return pow(X, Y);
+	return pow(X, INVARIANT(Y));
 }
 MaterialFloat2 UnClampedPow(MaterialFloat2 X, MaterialFloat2 Y)
 {
-	return pow(X, Y);
+	return pow(X, INVARIANT(Y));
 }
 MaterialFloat3 UnClampedPow(MaterialFloat3 X, MaterialFloat3 Y)
 {
-	return pow(X, Y);
+	return pow(X, INVARIANT(Y));
 }
 MaterialFloat4 UnClampedPow(MaterialFloat4 X, MaterialFloat4 Y)
 {
-	return pow(X, Y);
+	return pow(X, INVARIANT(Y));
 }
 
 // Clamp the base, so it's never <= 0.0f (INF/NaN).
 MaterialFloat ClampedPow(MaterialFloat X,MaterialFloat Y)
 {
-	return pow(max(abs(X),0.000001f),Y);
+	return pow(max(abs(X),0.000001f),INVARIANT(Y));
 }
 MaterialFloat2 ClampedPow(MaterialFloat2 X,MaterialFloat2 Y)
 {
-	return pow(max(abs(X),MaterialFloat2(0.000001f,0.000001f)),Y);
+	return pow(max(abs(X),MaterialFloat2(0.000001f,0.000001f)),INVARIANT(Y));
 }
 MaterialFloat3 ClampedPow(MaterialFloat3 X,MaterialFloat3 Y)
 {
-	return pow(max(abs(X),MaterialFloat3(0.000001f,0.000001f,0.000001f)),Y);
+	return pow(max(abs(X),MaterialFloat3(0.000001f,0.000001f,0.000001f)),INVARIANT(Y));
 }  
 MaterialFloat4 ClampedPow(MaterialFloat4 X,MaterialFloat4 Y)
 {
-	return pow(max(abs(X),MaterialFloat4(0.000001f,0.000001f,0.000001f,0.000001f)),Y);
+	return pow(max(abs(X),MaterialFloat4(0.000001f,0.000001f,0.000001f,0.000001f)),INVARIANT(Y));
 } 
 MaterialFloat PositiveClampedPow(MaterialFloat X,MaterialFloat Y)
 {
-	return pow(max(X,0.0f),Y);
+	return pow(max(X,0.0f),INVARIANT(Y));
 }
 MaterialFloat2 PositiveClampedPow(MaterialFloat2 X,MaterialFloat2 Y)
 {
-	return pow(max(X,MaterialFloat2(0.0f,0.0f)),Y);
+	return pow(max(X,MaterialFloat2(0.0f,0.0f)),INVARIANT(Y));
 }
 MaterialFloat2 PositiveClampedPow(MaterialFloat2 X,MaterialFloat Y)
 {
-	return pow(max(X,MaterialFloat2(0.0f,0.0f)),MaterialFloat2(Y,Y));
+	return pow(max(X,MaterialFloat2(0.0f,0.0f)),MaterialFloat2(INVARIANT(Y),INVARIANT(Y)));
 }
 MaterialFloat3 PositiveClampedPow(MaterialFloat3 X,MaterialFloat3 Y)
 {
-	return pow(max(X,MaterialFloat3(0.0f,0.0f,0.0f)),Y);
+	return pow(max(X,MaterialFloat3(0.0f,0.0f,0.0f)),INVARIANT(Y));
 } 
 MaterialFloat3 PositiveClampedPow(MaterialFloat3 X,MaterialFloat Y)
 {
-	return pow(max(X,MaterialFloat3(0.0f,0.0f,0.0f)),MaterialFloat3(Y,Y,Y));
+	return pow(max(X,MaterialFloat3(0.0f,0.0f,0.0f)),MaterialFloat3(INVARIANT(Y),INVARIANT(Y),INVARIANT(Y)));
 }
 MaterialFloat4 PositiveClampedPow(MaterialFloat4 X,MaterialFloat4 Y)
 {
-	return pow(max(X,MaterialFloat4(0.0f,0.0f,0.0f,0.0f)),Y);
+	return pow(max(X,MaterialFloat4(0.0f,0.0f,0.0f,0.0f)),INVARIANT(Y));
 }
 MaterialFloat4 PositiveClampedPow(MaterialFloat4 X,MaterialFloat Y)
 {
-	return pow(max(X,MaterialFloat4(0.0f,0.0f,0.0f,0.0f)),MaterialFloat4(Y,Y,Y,Y));
+	return pow(max(X,MaterialFloat4(0.0f,0.0f,0.0f,0.0f)),MaterialFloat4(INVARIANT(Y),INVARIANT(Y),INVARIANT(Y),INVARIANT(Y)));
 } 
 
 float DDX(float Input)
@@ -1089,29 +1101,17 @@ float4 Decode32BPPHDR(float4 Pixel, float2 SvPosition, Texture2D SourceTexture, 
   * This gets a bit from a write mask texture created with FRTWriteMaskDecodeCS. Only supprted on some platforms.
   */
 #if PLATFORM_SUPPORTS_RENDERTARGET_WRITE_MASK
-uint DecodeRTWriteMaskTexture(in float2 ScreenPosition, in Texture2D<uint> RTWriteMaskTexture)
+uint DecodeRTWriteMask(float2 ScreenPos, Texture2D<uint> RTWriteMaskTexture, uint NumEncodedTextures)
 {
-	int2 IntPosition = int2(ScreenPosition.xy);
-	int2 TileIndex = IntPosition / int2(8, 8);
-	int2 TileRegion = ((IntPosition / int2(4, 4)) % int2(2, 2));
-	uint RTWriteMaskValue = RTWriteMaskTexture.Load(int3(TileIndex.x*2 + TileRegion.y, TileIndex.y, 0));
+	uint2 InPos = uint2(ScreenPos);
 
-	uint Shift = TileRegion.x * 4;
-	uint RTWriteMaskBit = (RTWriteMaskValue >> Shift) & 0x0f;
+	uint2 TileIndex = InPos >> 3;
+	uint2 TileOffset = (InPos >> 2) & 1;
 
-	return RTWriteMaskBit;
-}
+	uint Shift = (TileOffset.y * 2 + TileOffset.x) * NumEncodedTextures;
+	uint Mask = ~((~0) << NumEncodedTextures);
 
-uint DecodeRTWriteMaskTextureSingle(in float2 ScreenPosition, in Texture2D<uint> RTWriteMaskTexture)
-{
-	int2 IntPosition = int2(ScreenPosition.xy);
-	uint RTWriteMaskValue = RTWriteMaskTexture.Load( int3(IntPosition.x/8, IntPosition.y/8, 0) );
-
-	int2 BitCoord = ((IntPosition / int2(4, 4)) % int2(2, 2));
-	uint BitIdx = BitCoord.x + (BitCoord.y*2);
-	uint RTWriteMaskBit = RTWriteMaskValue & (1<<BitIdx);
-
-	return RTWriteMaskBit;
+	return (RTWriteMaskTexture.Load(uint3(TileIndex, 0)) >> Shift) & Mask;
 }
 #endif
 

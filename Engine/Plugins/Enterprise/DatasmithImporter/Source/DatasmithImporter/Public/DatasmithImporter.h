@@ -198,5 +198,8 @@ private:
 
 	/* This class is designed not to have state. Instance are meaningless */
 	FDatasmithImporter() = delete;
+
+private:
+	static void ConvertUnsupportedVirtualTexture( FDatasmithImportContext& ImportContext, TArray<UTexture2D*>& VirtualTexturesToConvert, TArray<UMaterial*>& MaterialsToRefreshAfterVirtualTextureConversion, const TMap<UObject*, UObject*>& ReferencesToRemap);
 };
 

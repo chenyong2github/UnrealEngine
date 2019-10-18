@@ -709,7 +709,7 @@ void FProjectedShadowInfo::SetupProjectionStencilMask(
 
 		// If instanced stereo is enabled, we need to render each view of the stereo pair using the instanced stereo transform to avoid bias issues.
 		// TODO: Support instanced stereo properly in the projection stenciling pass.
-		const bool bIsInstancedStereoEmulated = View->bIsInstancedStereoEnabled && !View->bIsMultiViewEnabled && IStereoRendering::IsStereoEyeView(View->StereoPass);
+		const bool bIsInstancedStereoEmulated = View->bIsInstancedStereoEnabled && !View->bIsMultiViewEnabled && View->StereoPass != eSSP_FULL;
 		if (bIsInstancedStereoEmulated)
 		{
 			RHICmdList.SetViewport(0, 0, 0, SceneRender->InstancedStereoWidth, View->ViewRect.Max.Y, 1);
@@ -1032,11 +1032,11 @@ void FProjectedShadowInfo::RenderProjection(FRHICommandListImmediate& RHICmdList
 }
 
 
-template <uint32 Quality>
+template <uint32 Quality, bool bUseTransmission>
 static void SetPointLightShaderTempl(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, int32 ViewIndex, const FViewInfo& View, const FProjectedShadowInfo* ShadowInfo)
 {
 	TShaderMapRef<FShadowVolumeBoundProjectionVS> VertexShader(View.ShaderMap);
-	TShaderMapRef<TOnePassPointShadowProjectionPS<Quality> > PixelShader(View.ShaderMap);
+	TShaderMapRef<TOnePassPointShadowProjectionPS<Quality,bUseTransmission> > PixelShader(View.ShaderMap);
 
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
 	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
@@ -1056,6 +1056,8 @@ void FProjectedShadowInfo::RenderOnePassPointLightProjection(FRHICommandListImme
 	checkSlow(bOnePassPointLightShadow);
 	
 	const FSphere LightBounds = LightSceneInfo->Proxy->GetBoundingSphere();
+
+	bool bUseTransmission = LightSceneInfo->Proxy->Transmission();
 
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -1097,15 +1099,31 @@ void FProjectedShadowInfo::RenderOnePassPointLightProjection(FRHICommandListImme
 			}
 		}
 
-		switch(LocalQuality)
+		if (bUseTransmission)
 		{
-			case 1: SetPointLightShaderTempl<1>(RHICmdList, GraphicsPSOInit, ViewIndex, View, this); break;
-			case 2: SetPointLightShaderTempl<2>(RHICmdList, GraphicsPSOInit, ViewIndex, View, this); break;
-			case 3: SetPointLightShaderTempl<3>(RHICmdList, GraphicsPSOInit, ViewIndex, View, this); break;
-			case 4: SetPointLightShaderTempl<4>(RHICmdList, GraphicsPSOInit, ViewIndex, View, this); break;
-			case 5: SetPointLightShaderTempl<5>(RHICmdList, GraphicsPSOInit, ViewIndex, View, this); break;
-			default:
-				check(0);
+			switch (LocalQuality)
+			{
+				case 1: SetPointLightShaderTempl<1, true>(RHICmdList, GraphicsPSOInit, ViewIndex, View, this); break;
+				case 2: SetPointLightShaderTempl<2, true>(RHICmdList, GraphicsPSOInit, ViewIndex, View, this); break;
+				case 3: SetPointLightShaderTempl<3, true>(RHICmdList, GraphicsPSOInit, ViewIndex, View, this); break;
+				case 4: SetPointLightShaderTempl<4, true>(RHICmdList, GraphicsPSOInit, ViewIndex, View, this); break;
+				case 5: SetPointLightShaderTempl<5, true>(RHICmdList, GraphicsPSOInit, ViewIndex, View, this); break;
+				default:
+					check(0);
+			}
+		}
+		else
+		{
+			switch (LocalQuality)
+			{
+				case 1: SetPointLightShaderTempl<1, false>(RHICmdList, GraphicsPSOInit, ViewIndex, View, this); break;
+				case 2: SetPointLightShaderTempl<2, false>(RHICmdList, GraphicsPSOInit, ViewIndex, View, this); break;
+				case 3: SetPointLightShaderTempl<3, false>(RHICmdList, GraphicsPSOInit, ViewIndex, View, this); break;
+				case 4: SetPointLightShaderTempl<4, false>(RHICmdList, GraphicsPSOInit, ViewIndex, View, this); break;
+				case 5: SetPointLightShaderTempl<5, false>(RHICmdList, GraphicsPSOInit, ViewIndex, View, this); break;
+				default:
+					check(0);
+			}
 		}
 	}
 
@@ -1491,9 +1509,10 @@ bool FSceneRenderer::RenderShadowProjections(FRHICommandListImmediate& RHICmdLis
 		{
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 			{
-				SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
-
 				const FViewInfo& View = Views[ViewIndex];
+
+				SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
+				SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
 
 				const FHairStrandsVisibilityData* HairVisibilityData = nullptr;
 				if (HairVisibilityViews)
@@ -1581,9 +1600,10 @@ bool FSceneRenderer::RenderShadowProjections(FRHICommandListImmediate& RHICmdLis
 		// Distance field shadows need to be renderer last as they blend over far shadow cascades.
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
-			SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("DistanceFieldShadows_View%d"), ViewIndex);
-
 			const FViewInfo& View = Views[ViewIndex];
+
+			SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
+			SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("DistanceFieldShadows_View%d"), ViewIndex);
 
 			// Set the device viewport for the view.
 			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
@@ -1656,13 +1676,16 @@ bool FDeferredShadingSceneRenderer::RenderShadowProjections(FRHICommandListImmed
 					}
 				}
 
+				SCOPED_GPU_MASK(RHICmdList, ProjectedShadowInfo->DependentView->GPUMask);
 				InjectTranslucentVolumeLighting(RHICmdList, *LightSceneInfo, ProjectedShadowInfo, *ProjectedShadowInfo->DependentView, ViewIndex);
 			}
 			else
 			{
 				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 				{
-					InjectTranslucentVolumeLighting(RHICmdList, *LightSceneInfo, ProjectedShadowInfo, Views[ViewIndex], ViewIndex);
+					FViewInfo& View = Views[ViewIndex];
+					SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
+					InjectTranslucentVolumeLighting(RHICmdList, *LightSceneInfo, ProjectedShadowInfo, View, ViewIndex);
 				}
 			}
 		}
@@ -1673,6 +1696,7 @@ bool FDeferredShadingSceneRenderer::RenderShadowProjections(FRHICommandListImmed
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		const FViewInfo& View = Views[ViewIndex];
+		SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 
 		for (int32 ShadowIndex = 0; ShadowIndex < VisibleLightInfo.ShadowsToProject.Num(); ShadowIndex++)
 		{

@@ -365,7 +365,6 @@ void DrawDecalMeshCommands(FRenderingCompositePassContext& Context, EDecalRender
 	Context.SetViewportAndCallRHI(Context.View.ViewRect);
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
-
 	DrawDynamicMeshPass(View, RHICmdList,
 		[&View, CurrentDecalStage, RenderTargetMode](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 	{
@@ -384,7 +383,7 @@ void DrawDecalMeshCommands(FRenderingCompositePassContext& Context, EDecalRender
 
 			PassMeshProcessor.AddMeshBatch(*Mesh, DefaultBatchElementMask, PrimitiveSceneProxy);
 		}
-	});
+	}, true);
 }
 
 void RenderMeshDecals(FRenderingCompositePassContext& Context, EDecalRenderStage CurrentDecalStage)

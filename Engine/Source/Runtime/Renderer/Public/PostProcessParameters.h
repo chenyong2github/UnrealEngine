@@ -68,10 +68,10 @@ enum EFallbackColor
 
 // currently hard coded to 4 input textures
 // convenient but not the most optimized solution
-struct FPostProcessPassParameters 
+struct RENDERER_API FPostProcessPassParameters
 {
 	/** Initialization constructor. */
-	void Bind(const FShaderParameterMap& ParameterMap);
+	 void Bind(const FShaderParameterMap& ParameterMap);
 
 	/** Set the pixel shader parameter values. */
 	template <typename TRHICmdList>
@@ -85,7 +85,7 @@ struct FPostProcessPassParameters
 	void SetVS(FRHIVertexShader* ShaderRHI, const FRenderingCompositePassContext& Context, FRHISamplerState* Filter = TStaticSamplerState<>::GetRHI(), EFallbackColor FallbackColor = eFC_0000, FRHISamplerState** FilterOverrideArray = 0);
 
 	/** Serializer. */
-	friend FArchive& operator<<(FArchive& Ar,FPostProcessPassParameters& P);
+	RENDERER_API friend FArchive& operator<<(FArchive& Ar,FPostProcessPassParameters& P);
 
 private:
 

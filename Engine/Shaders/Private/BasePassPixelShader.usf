@@ -902,7 +902,7 @@ void FPixelShaderInOut_MainPS(
 		{
 			uint DBufferMask = 0x07;
 #if PLATFORM_SUPPORTS_RENDERTARGET_WRITE_MASK
-			DBufferMask = DecodeRTWriteMaskTexture(In.SvPosition.xy, OpaqueBasePass.DBufferRenderMask);
+			DBufferMask = DecodeRTWriteMask(In.SvPosition.xy, OpaqueBasePass.DBufferRenderMask, 3);
 			BRANCH
 #elif PLATFORM_SUPPORTS_PER_PIXEL_DBUFFER_MASK
 			DBufferMask = GetDBufferMask(In.SvPosition.xy, OpaqueBasePass.DBufferRenderMask);
@@ -1179,7 +1179,11 @@ ShadingModel);
 	if (FogStruct.ApplyVolumetricFog > 0) 
 	{
 		float3 VolumeUV = ComputeVolumeUV(MaterialParameters.AbsoluteWorldPosition, ResolvedView.WorldToClip);
-		Fogging = CombineVolumetricFog(HeightFogging, VolumeUV);
+#if INSTANCED_STEREO
+		Fogging = CombineVolumetricFog(HeightFogging, VolumeUV, Interpolants.EyeIndex);
+#else
+		Fogging = CombineVolumetricFog(HeightFogging, VolumeUV, 0);
+#endif
 	}
 #endif
 

@@ -18,7 +18,7 @@
 #elif PLATFORM_IOS
 #	include "IOS/IOSPlatformWebBrowser.h"
 #elif PLATFORM_PS4
-#	include "PS4/PS4PlatformWebBrowser.h"
+#	include "PS4PlatformWebBrowser.h"
 #elif WITH_CEF3
 #	include "CEF/CEFWebBrowserWindow.h"
 #else

@@ -432,8 +432,7 @@ namespace Audio
 	FAudioPlatformSettings FMixerPlatformSDL::GetPlatformSettings() const
 	{
 #if PLATFORM_UNIX
-		const TCHAR* ConfigSection = AudioPluginUtilities::GetPlatformConfigSection(EAudioPlatform::Linux);
-		return FAudioPlatformSettings::GetPlatformSettings(ConfigSection);
+		return FAudioPlatformSettings::GetPlatformSettings(FPlatformProperties::GetRuntimeSettingsClassName());
 #else
 		// On HTML5 and Windows, use default parameters.
 		return FAudioPlatformSettings();

@@ -456,6 +456,8 @@ void FVisualizeTexturePresent::PresentContent(FRHICommandListImmediate& RHICmdLi
 	}
 
 	auto& RenderTarget = View.Family->RenderTarget->GetRenderTargetTexture();
+	RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, RenderTarget);
+
 	FRHIRenderPassInfo RPInfo(RenderTarget, ERenderTargetActions::Load_Store);
 	RHICmdList.BeginRenderPass(RPInfo, TEXT("VisualizeTexture"));
 	RHICmdList.SetViewport(DestRect.Min.X, DestRect.Min.Y, 0.0f, DestRect.Max.X, DestRect.Max.Y, 1.0f);

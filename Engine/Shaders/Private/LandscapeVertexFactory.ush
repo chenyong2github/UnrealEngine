@@ -124,18 +124,17 @@ struct FVertexFactoryInput
 };
 
 // RHI_RAYTRACING
-#if COMPUTESHADER || RAYHITGROUPSHADER
-FVertexFactoryInput LoadVertexFactoryInput(uint TriangleIndex, int VertexIndex)
+#if RAYHITGROUPSHADER
+FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexIndex)
 {
 	FVertexFactoryInput Input;
 
 	uint SubsectionSizeQuadsCurrentLOD = LodValues.z;
 	uint SubsectionSizeVertsCurrentLOD = LodValues.z + 1;
 
-#if RAYHITGROUPSHADER
 	#if 1
-		FTriangleBaseAttributes Triangle = LoadTriangleBaseAttributes(TriangleIndex);
-		uint VertexId = Triangle.Indices[VertexIndex];
+		FTriangleBaseAttributes Tri = LoadTriangleBaseAttributes(TriangleIndex);
+		uint VertexId = Tri.Indices[VertexIndex];
 	#else
 		uint QuadId = TriangleIndex / 2;
 		uint QuadX = QuadId % SubsectionSizeQuadsCurrentLOD;
@@ -147,9 +146,26 @@ FVertexFactoryInput LoadVertexFactoryInput(uint TriangleIndex, int VertexIndex)
 		uint Indices[6] = {i00, i11, i10, i00, i01, i10};
 		uint VertexId = Indices[TriangleIndex % 2 * 3 + VertexIndex];
 	#endif
-#elif COMPUTESHADER
-	uint VertexId = TriangleIndex * 3 + VertexIndex;
+
+
+	Input.Position.x = VertexId % SubsectionSizeVertsCurrentLOD;
+	Input.Position.y = VertexId / SubsectionSizeVertsCurrentLOD;
+	Input.Position.z = LandscapeMVF.SubXY.x;
+	Input.Position.w = LandscapeMVF.SubXY.y;
+
+	return Input;
+}
 #endif
+
+#if COMPUTESHADER
+FVertexFactoryInput LoadVertexFactoryInputForDynamicUpdate(uint TriangleIndex, int VertexIndex, uint PrimitiveId)
+{
+	FVertexFactoryInput Input;
+
+	uint SubsectionSizeQuadsCurrentLOD = LodValues.z;
+	uint SubsectionSizeVertsCurrentLOD = LodValues.z + 1;
+
+	uint VertexId = TriangleIndex * 3 + VertexIndex;
 
 	Input.Position.x = VertexId % SubsectionSizeVertsCurrentLOD;
 	Input.Position.y = VertexId / SubsectionSizeVertsCurrentLOD;

@@ -32,6 +32,12 @@ public:
 		return !Fence || Fence->Poll();
 	}
 
+	/** Indicates if the data is in place and ready to be read on a subset of GPUs. */
+	FORCEINLINE bool IsReady(FRHIGPUMask GPUMask)
+	{
+		return !Fence || Fence->Poll(GPUMask);
+	}
+
 	/**
 	 * Copy the current state of the resource to the readback data.
 	 * @param RHICmdList The command list to enqueue the copy request on.

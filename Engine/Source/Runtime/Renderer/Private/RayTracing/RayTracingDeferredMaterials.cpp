@@ -85,7 +85,7 @@ class FMaterialSortCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return Parameters.Platform == SP_PCD3D_SM5;
+		return RHISupportsRayTracingShaders(Parameters.Platform);
 	}
 };
 

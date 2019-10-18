@@ -30,6 +30,12 @@
     <WindowsTargetPlatformMinVersion>10.0.18362.0</WindowsTargetPlatformMinVersion>
     <ApplicationTypeRevision>10.0</ApplicationTypeRevision>
   </PropertyGroup>
+  <PropertyGroup>
+	<SceneUnderstandingWinMDArm Condition="exists('$(SolutionDir)..\..\..\Binaries\ThirdParty\HoloLens\ARM64\Microsoft.MixedReality.SceneUnderstanding.winmd')">$(SolutionDir)..\..\..\Binaries\ThirdParty\HoloLens\ARM64\Microsoft.MixedReality.SceneUnderstanding.winmd</SceneUnderstandingWinMDArm>
+	<SceneUnderstandingWinMDx64 Condition="exists('$(SolutionDir)..\..\..\Binaries\ThirdParty\HoloLens\x64\Microsoft.MixedReality.SceneUnderstanding.winmd')">$(SolutionDir)..\..\..\Binaries\ThirdParty\HoloLens\x64\Microsoft.MixedReality.SceneUnderstanding.winmd</SceneUnderstandingWinMDx64>
+	<WithSceneUnderstanding Condition="$(SceneUnderstandingWinMDArm) != ''">1</WithSceneUnderstanding>
+	<WithSceneUnderstanding Condition="$(WithSceneUnderstanding) == ''">0</WithSceneUnderstanding>
+  </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
@@ -83,43 +89,6 @@
     <GenerateManifest>false</GenerateManifest>
     <OutDir>$(SolutionDir)Lib\x64\</OutDir>
   </PropertyGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|arm'">
-    <ClCompile>
-      <PrecompiledHeader>Use</PrecompiledHeader>
-      <CompileAsWinRT>true</CompileAsWinRT>
-      <SDLCheck>true</SDLCheck>
-      <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
-      <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalOptions>/await %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalIncludeDirectories>../Include/$(WindowsTargetPlatformVersion);../Include;</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>PLATFORM_HOLOLENS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-    </ClCompile>
-    <Link>
-      <SubSystem>Console</SubSystem>
-      <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
-      <GenerateWindowsMetadata>false</GenerateWindowsMetadata>
-    </Link>
-    <Lib />
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|arm'">
-    <ClCompile>
-      <PrecompiledHeader>Use</PrecompiledHeader>
-      <CompileAsWinRT>true</CompileAsWinRT>
-      <SDLCheck>true</SDLCheck>
-      <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
-      <LanguageStandard>stdcpp17</LanguageStandard>
-      <WholeProgramOptimization>false</WholeProgramOptimization>
-      <AdditionalOptions>/await %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalIncludeDirectories>../Include/$(WindowsTargetPlatformVersion);../Include;</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>PLATFORM_HOLOLENS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-    </ClCompile>
-    <Link>
-      <SubSystem>Console</SubSystem>
-      <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
-      <GenerateWindowsMetadata>false</GenerateWindowsMetadata>
-    </Link>
-    <Lib />
-  </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|arm64'">
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
@@ -130,9 +99,9 @@
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <AdditionalOptions>/await %(AdditionalOptions)</AdditionalOptions>
       <AdditionalIncludeDirectories>../Include/$(WindowsTargetPlatformVersion);../Include;</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>_ENABLE_EXTENDED_ALIGNED_STORAGE;PLATFORM_HOLOLENS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_ENABLE_EXTENDED_ALIGNED_STORAGE;PLATFORM_HOLOLENS;%(PreprocessorDefinitions);WITH_SCENE_UNDERSTANDING=$(WithSceneUnderstanding)</PreprocessorDefinitions>
       <ProgramDataBaseFileName>$(SolutionDir)Lib\arm64\$(ProjectName).pdb</ProgramDataBaseFileName>
-      <ForcedUsingFiles>$(SolutionDir)..\..\..\Binaries\ThirdParty\HoloLens\$(PlatformTarget)\QRCodesTrackerPlugin.winmd;%(ForcedUsingFiles)</ForcedUsingFiles>
+      <ForcedUsingFiles>$(SolutionDir)..\..\..\Binaries\ThirdParty\HoloLens\$(PlatformTarget)\QRCodesTrackerPlugin.winmd;%(ForcedUsingFiles);$(SceneUnderstandingWinMDArm)</ForcedUsingFiles>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -154,9 +123,9 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalOptions>/await %(AdditionalOptions)</AdditionalOptions>
       <AdditionalIncludeDirectories>../Include/$(WindowsTargetPlatformVersion);../Include;</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>_ENABLE_EXTENDED_ALIGNED_STORAGE;PLATFORM_HOLOLENS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_ENABLE_EXTENDED_ALIGNED_STORAGE;PLATFORM_HOLOLENS;%(PreprocessorDefinitions);WITH_SCENE_UNDERSTANDING=$(WithSceneUnderstanding)</PreprocessorDefinitions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <ForcedUsingFiles>$(SolutionDir)..\..\..\Binaries\ThirdParty\Windows\$(PlatformTarget)\QRCodesTrackerPlugin.winmd;%(ForcedUsingFiles)</ForcedUsingFiles>
+      <ForcedUsingFiles>$(SolutionDir)..\..\..\Binaries\ThirdParty\Windows\$(PlatformTarget)\QRCodesTrackerPlugin.winmd;%(ForcedUsingFiles);$(SceneUnderstandingWinMDx64)</ForcedUsingFiles>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -178,8 +147,8 @@
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <AdditionalOptions>/await %(AdditionalOptions)</AdditionalOptions>
       <AdditionalIncludeDirectories>../Include/$(WindowsTargetPlatformVersion);../Include;</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>_ENABLE_EXTENDED_ALIGNED_STORAGE;PLATFORM_HOLOLENS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ForcedUsingFiles>$(SolutionDir)..\..\..\Binaries\ThirdParty\Windows\$(PlatformTarget)\QRCodesTrackerPlugin.winmd;%(ForcedUsingFiles)</ForcedUsingFiles>
+      <PreprocessorDefinitions>_ENABLE_EXTENDED_ALIGNED_STORAGE;NDEBUG;_LIB;%(PreprocessorDefinitions);MIXEDREALITYINTEROP_EXPORTS;PLATFORM_HOLOLENS;WITH_SCENE_UNDERSTANDING=$(WithSceneUnderstanding)</PreprocessorDefinitions>
+      <ForcedUsingFiles>$(SolutionDir)..\..\..\Binaries\ThirdParty\Windows\$(PlatformTarget)\QRCodesTrackerPlugin.winmd;%(ForcedUsingFiles);$(SceneUnderstandingWinMDx64)</ForcedUsingFiles>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -197,11 +166,11 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ProgramDataBaseFileName>$(SolutionDir)Lib\arm64\$(ProjectName)$(Configuration).pdb</ProgramDataBaseFileName>
       <AdditionalIncludeDirectories>../Include/$(WindowsTargetPlatformVersion);../Include;</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>_ENABLE_EXTENDED_ALIGNED_STORAGE;PLATFORM_HOLOLENS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_ENABLE_EXTENDED_ALIGNED_STORAGE;_DEBUG;_LIB;%(PreprocessorDefinitions);MIXEDREALITYINTEROP_EXPORTS;PLATFORM_HOLOLENS;WITH_SCENE_UNDERSTANDING=$(WithSceneUnderstanding)</PreprocessorDefinitions>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalOptions>/await %(AdditionalOptions)</AdditionalOptions>
       <Optimization>Disabled</Optimization>
-      <ForcedUsingFiles>$(SolutionDir)..\..\..\Binaries\ThirdParty\HoloLens\$(PlatformTarget)\QRCodesTrackerPlugin.winmd;%(ForcedUsingFiles)</ForcedUsingFiles>
+      <ForcedUsingFiles>$(SolutionDir)..\..\..\Binaries\ThirdParty\HoloLens\$(PlatformTarget)\QRCodesTrackerPlugin.winmd;%(ForcedUsingFiles);$(SceneUnderstandingWinMDArm)</ForcedUsingFiles>
     </ClCompile>
     <Lib>
       <AdditionalOptions>/IGNORE:4264 %(AdditionalOptions)</AdditionalOptions>
@@ -209,9 +178,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\Include\MixedRealityInterop.h" />
+    <ClInclude Include="..\MixedRealityInterop\CxDataFromBuffer.h" />
     <ClInclude Include="..\MixedRealityInterop\GestureRecognizer.h" />
     <ClInclude Include="..\MixedRealityInterop\MeshObserver.h" />
     <ClInclude Include="..\MixedRealityInterop\QRCodeObserver.h" />
+    <ClInclude Include="..\MixedRealityInterop\SceneUnderstandingObserver.h" />
     <ClInclude Include="..\MixedRealityInterop\SpatialAnchorHelper.h" />
     <ClInclude Include="..\MixedRealityInterop\SpatialMapping.h" />
     <ClInclude Include="stdafx.h" />
@@ -222,6 +193,7 @@
     <ClCompile Include="..\MixedRealityInterop\MeshObserver.cpp" />
     <ClCompile Include="..\MixedRealityInterop\MixedRealityInterop.cpp" />
     <ClCompile Include="..\MixedRealityInterop\QRCodeObserver.cpp" />
+    <ClCompile Include="..\MixedRealityInterop\SceneUnderstandingObserver.cpp" />
     <ClCompile Include="..\MixedRealityInterop\SpatialAnchorHelper.cpp" />
     <ClCompile Include="..\MixedRealityInterop\SpatialAudioClientInterop.cpp" />
     <ClCompile Include="stdafx.cpp" />

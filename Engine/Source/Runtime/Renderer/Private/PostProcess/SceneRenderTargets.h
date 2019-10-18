@@ -186,7 +186,8 @@ protected:
 		DefaultDepthClear(FClearValueBinding::DepthFar),
 		QuadOverdrawIndex(INDEX_NONE),
 		bHMDAllocatedDepthTarget(false),
-		bKeepDepthContent(true)
+		bKeepDepthContent(true),
+		bAllocatedFoveationTexture(false)
 		{
 			FMemory::Memset(LargestDesiredSizes, 0);
 #if PREVENT_RENDERTARGET_SIZE_THRASHING
@@ -226,8 +227,8 @@ public:
 
 	void BindVirtualTextureFeedbackUAV(FRHIRenderPassInfo& RPInfo);
 
-	void BeginRenderingGBuffer(FRHICommandList& RHICmdList, ERenderTargetLoadAction ColorLoadAction, ERenderTargetLoadAction DepthLoadAction, FExclusiveDepthStencil::Type DepthStencilAccess, bool bBindQuadOverdrawBuffers, bool bClearQuadOverdrawBuffers = false, const FLinearColor& ClearColor = FLinearColor(0, 0, 0, 1), bool bIsWireframe=false);
-	void FinishGBufferPassAndResolve(FRHICommandListImmediate& RHICmdList);
+	void BeginRenderingGBuffer(FRHICommandList& RHICmdList, ERenderTargetLoadAction ColorLoadAction, ERenderTargetLoadAction DepthLoadAction, FExclusiveDepthStencil DepthStencilAccess, bool bBindQuadOverdrawBuffers, bool bClearQuadOverdrawBuffers = false, const FLinearColor& ClearColor = FLinearColor(0, 0, 0, 1), bool bIsWireframe=false);
+	void FinishGBufferPassAndResolve(FRHICommandListImmediate& RHICmdList, FExclusiveDepthStencil DepthStencilAccess);
 
 	/**
 	 * Sets the scene color target and restores its contents if necessary
@@ -266,7 +267,6 @@ public:
 	}
 	
 	void ResolveSceneDepthTexture(FRHICommandList& RHICmdList, const FResolveRect& ResolveRect);
-	void ResolveSceneDepthToAuxiliaryTexture(FRHICommandList& RHICmdList);
 
 	void BeginRenderingPrePass(FRHICommandList& RHICmdList, bool bPerformClear, bool bStencilClear = true);
 	void FinishRenderingPrePass(FRHICommandListImmediate& RHICmdList);
@@ -363,21 +363,20 @@ public:
 
 	const FTexture2DRHIRef& GetSceneAlphaCopyTexture() const { return (const FTexture2DRHIRef&)SceneAlphaCopy->GetRenderTargetItem().ShaderResourceTexture; }
 	bool HasSceneAlphaCopyTexture() const { return SceneAlphaCopy.GetReference() != 0; }
-	const FTexture2DRHIRef& GetSceneDepthTexture() const { return (const FTexture2DRHIRef&)SceneDepthZ->GetRenderTargetItem().ShaderResourceTexture; }
 
-	const FTexture2DRHIRef& GetAuxiliarySceneDepthTexture() const
-	{ 
-		check(!GSupportsDepthFetchDuringDepthTest);
-		return (const FTexture2DRHIRef&)AuxiliarySceneDepthZ->GetRenderTargetItem().ShaderResourceTexture; 
+	const FTexture2DRHIRef& GetSceneDepthTexture() const
+	{
+		static const FTexture2DRHIRef EmptyTexture;
+		return SceneDepthZ ? (const FTexture2DRHIRef&)SceneDepthZ->GetRenderTargetItem().ShaderResourceTexture : EmptyTexture;
 	}
 
-	const FTexture2DRHIRef* GetActualDepthTexture() const;
 	const FTexture2DRHIRef& GetGBufferATexture() const { return (const FTexture2DRHIRef&)GBufferA->GetRenderTargetItem().ShaderResourceTexture; }
 	const FTexture2DRHIRef& GetGBufferBTexture() const { return (const FTexture2DRHIRef&)GBufferB->GetRenderTargetItem().ShaderResourceTexture; }
 	const FTexture2DRHIRef& GetGBufferCTexture() const { return (const FTexture2DRHIRef&)GBufferC->GetRenderTargetItem().ShaderResourceTexture; }
 	const FTexture2DRHIRef& GetGBufferDTexture() const { return (const FTexture2DRHIRef&)GBufferD->GetRenderTargetItem().ShaderResourceTexture; }
 	const FTexture2DRHIRef& GetGBufferETexture() const { return (const FTexture2DRHIRef&)GBufferE->GetRenderTargetItem().ShaderResourceTexture; }
 	const FTexture2DRHIRef& GetGBufferVelocityTexture() const { return (const FTexture2DRHIRef&)SceneVelocity->GetRenderTargetItem().ShaderResourceTexture; }
+	const FTexture2DRHIRef& GetFoveationTexture() const { return (const FTexture2DRHIRef&)FoveationTexture->GetRenderTargetItem().ShaderResourceTexture; }
 
 	const FTextureRHIRef& GetLightAttenuationTexture() const
 	{
@@ -390,11 +389,6 @@ public:
 	const FTexture2DRHIRef& GetSmallDepthSurface() const							{ return (const FTexture2DRHIRef&)SmallDepthZ->GetRenderTargetItem().TargetableTexture; }
 	const FTexture2DRHIRef& GetOptionalShadowDepthColorSurface(FRHICommandList& RHICmdList, int32 Width, int32 Height) const;
 	const FTexture2DRHIRef& GetLightAttenuationSurface() const					{ return (const FTexture2DRHIRef&)GetLightAttenuation()->GetRenderTargetItem().TargetableTexture; }
-	const FTexture2DRHIRef& GetAuxiliarySceneDepthSurface() const 
-	{	
-		check(!GSupportsDepthFetchDuringDepthTest); 
-		return (const FTexture2DRHIRef&)AuxiliarySceneDepthZ->GetRenderTargetItem().TargetableTexture; 
-	}
 
 	const FTexture2DRHIRef& GetDirectionalOcclusionTexture() const 
 	{	
@@ -508,6 +502,7 @@ public:
 	void ReleaseSceneColor();
 	
 	ERHIFeatureLevel::Type GetCurrentFeatureLevel() const { return CurrentFeatureLevel; }
+	bool IsFoveationTextureAllocated() const { return bAllocatedFoveationTexture;  }
 
 private: // Get...() methods instead of direct access
 
@@ -535,8 +530,6 @@ public:
 	TRefCountPtr<IPooledRenderTarget> LightingChannels;
 	// Mobile without frame buffer fetch (to get depth from alpha).
 	TRefCountPtr<IPooledRenderTarget> SceneAlphaCopy;
-	// Auxiliary scene depth target. The scene depth is resolved to this surface when targeting SM4. 
-	TRefCountPtr<IPooledRenderTarget> AuxiliarySceneDepthZ;
 	// Quarter-sized version of the scene depths
 	TRefCountPtr<IPooledRenderTarget> SmallDepthZ;
 
@@ -593,6 +586,9 @@ public:
 	TRefCountPtr<IPooledRenderTarget> SeparateTranslucencyRT;
 	/** Downsampled depth used when rendering translucency in smaller resolution. */
 	TRefCountPtr<IPooledRenderTarget> DownsampledTranslucencyDepthRT;
+
+	/** Texture to control variable resolution rendering */
+	TRefCountPtr<IPooledRenderTarget> FoveationTexture;
 
 	// todo: free ScreenSpaceAO so pool can reuse
 	bool bScreenSpaceAOIsValid;
@@ -652,6 +648,9 @@ private:
 	/** Allocates common depth render targets that are used by both mobile and deferred rendering paths */
 	void AllocateCommonDepthTargets(FRHICommandList& RHICmdList);
 
+	/** Allocates a texture for controlling variable resolution rendering. */
+	void AllocateFoveationTexture(FRHICommandList& RHICmdList);
+
 	/** Determine the appropriate render target dimensions. */
 	FIntPoint ComputeDesiredSize(const FSceneViewFamily& ViewFamily);
 
@@ -676,6 +675,9 @@ private:
 
 	/** Determine if the default clear values for color and depth match the allocated scene render targets. Mobile only. */
 	bool AreRenderTargetClearsValid(ESceneColorFormatType InSceneColorFormatType) const;
+
+	/** Determine if an allocate is required for the render targets. */
+	bool IsAllocateRenderTargetsRequired() const;
 
 	/** Determine whether the render targets for any shading path have been allocated */
 	bool AreAnyShadingPathRenderTargetsAllocated() const 
@@ -778,6 +780,9 @@ private:
 
 	/** True if the contents of the depth buffer must be kept for post-processing. When this is false, the depth buffer can be allocated as memoryless on mobile platforms which support it. */
 	bool bKeepDepthContent;
+
+	/** True if the a variable resolution texture is allocated to control sampling or shading rate */
+	bool bAllocatedFoveationTexture;
 
 	/** CAUTION: When adding new data, make sure you copy it in the snapshot constructor! **/
 

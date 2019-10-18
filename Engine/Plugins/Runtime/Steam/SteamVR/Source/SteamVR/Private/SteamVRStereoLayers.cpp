@@ -70,52 +70,6 @@ void MarkLayerTextureForUpdate(FSteamVRLayer& Layer)
 }
 
 //=============================================================================
-void FSteamVRHMD::UpdateSplashScreen()
-{
-	FTexture2DRHIRef Texture = (bSplashShowMovie && SplashMovie.IsValid()) ? SplashMovie : SplashTexture;
-	if (bSplashIsShown && Texture.IsValid())
-	{
-		FLayerDesc LayerDesc;
-		LayerDesc.Flags = ELayerFlags::LAYER_FLAG_TEX_NO_ALPHA_CHANNEL;
-		LayerDesc.PositionType = ELayerType::TrackerLocked;
-		LayerDesc.Texture = Texture;
-		const FIntPoint TextureSize = Texture->GetSizeXY();
-		const float	InvAspectRatio = (TextureSize.X > 0) ? float(TextureSize.Y) / float(TextureSize.X) : 1.0f;
-
-		// Get the current pose of the HMD
-		FVector HMDPosition;
-		FQuat HMDOrientation;
-		GetCurrentPose(IXRTrackingSystem::HMDDeviceId, HMDOrientation, HMDPosition);
-
-		FTransform Translation(FVector(500.0f, 0.0f, 100.0f) + SplashOffset);
-		FRotator Rotation(HMDOrientation);
-		Rotation.Pitch = 0.0f;
-		Rotation.Roll = 0.0f;
-		LayerDesc.Transform = Translation * FTransform(Rotation.Quaternion());
-
-		// Set texture size to 8m wide, keeping the aspect ratio.
-		LayerDesc.QuadSize = FVector2D(800.0f, 800.0f*InvAspectRatio) * SplashScale;
-
-		if (SplashLayerHandle)
-		{
-			SetLayerDesc(SplashLayerHandle, LayerDesc);
-		}
-		else
-		{
-			SplashLayerHandle = CreateLayer(LayerDesc);
-		}
-	}
-	else
-	{
-		if (SplashLayerHandle)
-		{
-			DestroyLayer(SplashLayerHandle);
-			SplashLayerHandle = 0;
-		}
-	}
-}
-
-//=============================================================================
 void FSteamVRHMD::UpdateLayer(struct FSteamVRLayer& Layer, uint32 LayerId, bool bIsValid) const
 {
 	if (bIsValid && Layer.OverlayHandle == vr::k_ulOverlayHandleInvalid)

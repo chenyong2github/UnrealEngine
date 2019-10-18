@@ -54,7 +54,8 @@ uint32 UTexture2DArray::CalcTextureMemorySize(int32 MipCount) const
 	if (PlatformData && GetNumMips())
 	{
 		uint32 TextureAlign = 0;
-		uint64 TextureSize = RHICalcTexture3DPlatformSize(GetSizeX(), GetSizeY(), GetNumSlices(), GetPixelFormat(), MipCount, 0, TextureAlign);
+		// @todo: We should be using a "calc texture 2D" function here. Using 3D and passing numslices as the Z size is wrong, as 3D texture can have different tiling/padding vs 2D arrays.
+		uint64 TextureSize = RHICalcTexture3DPlatformSize(GetSizeX(), GetSizeY(), GetNumSlices(), GetPixelFormat(), MipCount, 0, FRHIResourceCreateInfo(PlatformData->ExtData), TextureAlign);
 		Size = TextureSize;
 	}
 
