@@ -1247,12 +1247,7 @@ void FBlueprintActionDatabase::Tick(float DeltaTime)
 	// Handle deferred removals.
 	while (ActionRemoveQueue.Num() > 0)
 	{
-		TArray<UBlueprintNodeSpawner*> NodeSpawners = ActionRegistry.FindAndRemoveChecked(ActionRemoveQueue.Pop());
-		for (UBlueprintNodeSpawner* Action : NodeSpawners)
-		{
-			check(Action);
-			Action->ClearCachedTemplateNode();
-		}
+		ClearAssetActions(ActionRemoveQueue.Pop());
 	}
 }
 
@@ -1578,31 +1573,45 @@ void FBlueprintActionDatabase::RefreshComponentActions()
 //------------------------------------------------------------------------------
 bool FBlueprintActionDatabase::ClearAssetActions(UObject* const AssetObject)
 {
-	FActionList* ActionList = ActionRegistry.Find(AssetObject);
+	FObjectKey ObjectKey(AssetObject);
+	return ClearAssetActions(ObjectKey);
+}
+
+//------------------------------------------------------------------------------
+bool FBlueprintActionDatabase::ClearAssetActions(const FObjectKey& AssetObjectKey)
+{
+	FActionList* ActionList = ActionRegistry.Find(AssetObjectKey);
 
 	bool const bHasEntry = (ActionList != nullptr);
 	if (bHasEntry)
 	{
 		for (UBlueprintNodeSpawner* Action : *ActionList)
 		{
-			// because some asserts expect everything to be cleaned up in a 
-			// single GC pass, we can't wait for the GC'd Action to release its
-			// template node from the cache
-			Action->ClearCachedTemplateNode();
+			if (Action != nullptr)
+			{
+				// because some asserts expect everything to be cleaned up in a 
+				// single GC pass, we can't wait for the GC'd Action to release its
+				// template node from the cache
+				Action->ClearCachedTemplateNode();
+			}
 		}
-		ActionRegistry.Remove(AssetObject);
+		ActionRegistry.Remove(AssetObjectKey);
 	}
 
-	if (UBlueprint* BlueprintAsset = Cast<UBlueprint>(AssetObject))
+	if (UObject* AssetObject = AssetObjectKey.ResolveObjectPtr())
 	{
-		BlueprintAsset->OnChanged().RemoveAll(this);
-		BlueprintAsset->OnCompiled().RemoveAll(this);
-	}
+		if (UBlueprint* BlueprintAsset = Cast<UBlueprint>(AssetObject))
+		{
+			BlueprintAsset->OnChanged().RemoveAll(this);
+			BlueprintAsset->OnCompiled().RemoveAll(this);
+		}
 
-	if (bHasEntry && (ActionList->Num() > 0) && !BlueprintActionDatabaseImpl::bIsInitializing)
-	{
-		EntryRemovedDelegate.Broadcast(AssetObject);
+		if (bHasEntry && (ActionList->Num() > 0) && !BlueprintActionDatabaseImpl::bIsInitializing)
+		{
+			EntryRemovedDelegate.Broadcast(AssetObject);
+		}
 	}
+	
 	return bHasEntry;
 }
 
