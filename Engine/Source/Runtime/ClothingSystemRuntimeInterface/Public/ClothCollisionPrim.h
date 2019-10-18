@@ -68,3 +68,26 @@ struct FClothCollisionPrim_Convex
 	UPROPERTY()
 	int32 BoneIndex;
 };
+
+/** Data for a single box primitive. */
+USTRUCT()
+struct FClothCollisionPrim_Box
+{
+	GENERATED_BODY()
+
+	FClothCollisionPrim_Box()
+		: BoneIndex(INDEX_NONE)
+		, LocalMin(FVector::ZeroVector)
+		, LocalMax(FVector::ZeroVector)
+	{}
+
+	UPROPERTY()
+	int32 BoneIndex;
+
+	UPROPERTY()
+	FVector LocalMin;
+
+	UPROPERTY()
+	FVector LocalMax;
+};
+
