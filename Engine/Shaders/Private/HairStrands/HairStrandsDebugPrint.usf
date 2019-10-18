@@ -14,10 +14,6 @@ SamplerState LinearSampler;
 Texture2D<uint> HairVisibilityNodeOffsetAndCount;
 StructuredBuffer<FNodeData> HairVisibilityNodeData;
 
-#if PERMUTATION_COVERAGE == 1
-Texture2D<float> CoverageTexture;
-#endif 
-
 #define MATERIAL_DATA 0
 #define DETAIL_DATA 0
 
@@ -105,9 +101,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	Pos = ShaderPrintNewline(Pos);
 	Pos.x = OriginalPos.x;
 
-	// Accurate coverage
-	#if PERMUTATION_COVERAGE == 1
-	const float PixelCoverage = CoverageTexture.Load(uint3(PixelPos,0));
+	// Accurate coverage (if coverage pass is activated)
 	Pos = ShaderPrintSymbol(Pos, _C_);
 	Pos = ShaderPrintSymbol(Pos, _O_);
 	Pos = ShaderPrintSymbol(Pos, _V_);
@@ -117,11 +111,10 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	Pos = ShaderPrintSymbol(Pos, _G_);
 	Pos = ShaderPrintSymbol(Pos, _E_);
 	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrint(Pos, PixelCoverage);
+	Pos = ShaderPrint(Pos, CatData.PixelCoverage);
 
 	Pos = ShaderPrintNewline(Pos);
 	Pos.x = OriginalPos.x;
-	#endif
 
 	// 8 bit Coverage (cateogory texture)
 	Pos = ShaderPrintSymbol(Pos, _C_);
@@ -141,6 +134,8 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	Pos = ShaderPrintSymbol(Pos, _SPC_);
 	Pos = ShaderPrint(Pos, CatData.TotalCoverage8bit);
 	
+	Pos = ShaderPrintNewline(Pos);
+	Pos.x = OriginalPos.x;
 
 	// 8 bit Coverage (summed)
 	Pos = ShaderPrintSymbol(Pos, _S_);
