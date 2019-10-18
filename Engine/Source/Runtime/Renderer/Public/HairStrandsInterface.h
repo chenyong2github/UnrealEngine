@@ -160,9 +160,7 @@ RENDERER_API void RegisterHairStrands(
 	const FHairStrandsProjectionHairData& SimProjection,
 	const FHairStrandsDebugInfo& DebugInfo);
 
-RENDERER_API void UnregisterHairStrands(
-	uint64 Id, 
-	EWorldType::Type WorldType);
+RENDERER_API void UnregisterHairStrands(uint64 Id);
 
 RENDERER_API bool UpdateHairStrands(
 	uint64 Id,

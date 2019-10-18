@@ -758,12 +758,11 @@ void UGroomComponent::ReleaseResources()
 {
 	// Unregister component interpolation resources
 	const FPrimitiveComponentId LocalComponentId = ComponentId;
-	const EWorldType::Type WorldType = GetWorld() ? EWorldType::Type(GetWorld()->WorldType) : EWorldType::None;
 	const uint64 Id = LocalComponentId.PrimIDValue;
 	ENQUEUE_RENDER_COMMAND(StaticMeshVertexBuffersLegacyInit)(
-		[Id, WorldType](FRHICommandListImmediate& RHICmdList)
+		[Id](FRHICommandListImmediate& RHICmdList)
 	{
-		UnregisterHairStrands(Id, WorldType);
+		UnregisterHairStrands(Id);
 	});
 
 	for (FHairGroupResource& Res : HairGroupResources)
@@ -838,6 +837,12 @@ void UGroomComponent::OnRegister()
 void UGroomComponent::OnUnregister()
 {
 	Super::OnUnregister();
+}
+
+void UGroomComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
+{
+	ReleaseResources();
+	Super::OnComponentDestroyed(bDestroyingHierarchy);
 }
 
 void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)

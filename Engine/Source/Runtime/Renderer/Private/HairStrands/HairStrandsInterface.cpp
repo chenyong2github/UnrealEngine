@@ -213,11 +213,11 @@ bool UpdateHairStrands(
 	return false;
 }
 
-void UnregisterHairStrands(uint64 Id, EWorldType::Type WorldType)
+void UnregisterHairStrands(uint64 Id)
 {
 	for (int32 Index=0;Index< GHairManager.Elements.Num();++Index)
 	{
-		if (GHairManager.Elements[Index].Id == Id && GHairManager.Elements[Index].WorldType == WorldType)
+		if (GHairManager.Elements[Index].Id == Id)
 		{
 			GHairManager.Elements[Index] = GHairManager.Elements[GHairManager.Elements.Num()-1];
 			GHairManager.Elements.SetNum(GHairManager.Elements.Num() - 1);
