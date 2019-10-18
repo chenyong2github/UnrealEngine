@@ -8,4 +8,4 @@ precise float MakePrecise(precise float v) { return v; }
 precise float2 MakePrecise(precise float2 v) { return v; }
 precise float3 MakePrecise(precise float3 v) { return v; }
 precise float4 MakePrecise(precise float4 v) { return v; }
-#define INVARIANT(X) MakePrecise(X)
+#define INVARIANT(X) X
