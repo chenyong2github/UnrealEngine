@@ -43,9 +43,53 @@ FHairMeshTriangle GetTriangleData(uint TriangleIndex, float4x4 LocalToWorld, Buf
 
 	Out.E0 = Out.P1 - Out.P0;
 	Out.E1 = Out.P2 - Out.P0;
-	Out.N = normalize(cross(Out.E0, Out.E1));
+	Out.N = normalize(cross(Out.E1, Out.E0));
 
 	return Out;
+}
+
+FHairMeshTriangle GetTriangleTransformation(
+	uint RootIndex,
+	Buffer<float4>  InPosition0Buffer,
+	Buffer<float4>  InPosition1Buffer,
+	Buffer<float4>  InPosition2Buffer, 
+	float3 CenterOffset=float3(0,0,0))
+{
+	FHairMeshTriangle Out;
+
+	// Build orthonormal frame
+	Out.P0 = InPosition0Buffer[RootIndex].xyz + CenterOffset;
+	Out.P1 = InPosition1Buffer[RootIndex].xyz + CenterOffset;
+	Out.P2 = InPosition2Buffer[RootIndex].xyz + CenterOffset;
+	Out.E0 = Out.P1 - Out.P0;
+	Out.E1 = Out.P2 - Out.P0;
+
+	Out.N  = normalize(cross(Out.E1, Out.E0));
+	Out.E0 = normalize(Out.E0); 
+	Out.E1 = normalize(cross(Out.E0, Out.N));
+
+	return Out;
+}
+
+float3 ToTriangle(const float3 P, const FHairMeshTriangle T)
+{
+	float3 LocalP = P - T.P0;
+	float3 Out;
+	Out.x = dot(LocalP, T.E0);
+	Out.y = dot(LocalP, T.E1);
+	Out.z = dot(LocalP, T.N);
+	return Out;
+}
+
+float3 ToWorld(const float3 P, const FHairMeshTriangle T)
+{
+	return P.x * T.E0 + P.y * T.E1 + P.z * T.N + T.P0;
+}
+
+float3 TransformPoint(float3 P, const FHairMeshTriangle RestTriangle, const FHairMeshTriangle DeformedTriangle)
+{
+	float3 LocalP = ToTriangle(P, RestTriangle);
+	return ToWorld(LocalP, DeformedTriangle);
 }
 
 struct FHairProjectionData
