@@ -192,6 +192,43 @@ bool FFileHelper::LoadFileToStringArray( TArray<FString>& Result, const TCHAR* F
 	return true;
 }
 
+bool FFileHelper::LoadFileToStringArrayWithPredicate(TArray<FString>& Result, const TCHAR* Filename, TFunctionRef<bool(const FString&)> Predicate, EHashOptions VerifyFlags)
+{
+	Result.Empty();
+
+	FString Buffer;
+	if (!LoadFileToString(Buffer, Filename, VerifyFlags))
+	{
+		return false;
+	}
+
+	for (const TCHAR* Pos = *Buffer; *Pos != 0; )
+	{
+		const TCHAR* LineStart = Pos;
+		while (*Pos != 0 && *Pos != '\r' && *Pos != '\n')
+		{
+			Pos++;
+		}
+
+		FString Line(Pos - LineStart, LineStart);
+		if (Invoke(Predicate, Line))
+		{
+			Result.Add(MoveTemp(Line));
+		}
+
+		if (*Pos == '\r')
+		{
+			Pos++;
+		}
+		if (*Pos == '\n')
+		{
+			Pos++;
+		}
+	}
+
+	return true;
+}
+
 /**
  * Save a binary array to a file.
  */
