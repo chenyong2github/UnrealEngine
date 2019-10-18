@@ -4,6 +4,7 @@
 
 #include "DataPrepAsset.h"
 #include "DataPrepOperation.h"
+#include "DataprepParameterizableObject.h"
 #include "SelectionSystem/DataprepFetcher.h"
 #include "SelectionSystem/DataprepFilter.h"
 
@@ -34,9 +35,7 @@ namespace DataprepParameterizationUtils
 
 	bool IsASupportedClassForParameterization(UClass* Class)
 	{
-		return Class == UDataprepOperation::StaticClass()
-			|| Class == UDataprepFilter::StaticClass()
-			|| Class == UDataprepFetcher::StaticClass();
+		return Class->IsChildOf<UDataprepParameterizableObject>();
 	}
 
 }
@@ -101,6 +100,59 @@ TArray<FDataprepPropertyLink> FDataprepParameterizationUtils::MakePropertyChain(
 	}
 
 	return PropertyChain;
+}
+
+TArray<FDataprepPropertyLink> FDataprepParameterizationUtils::MakePropertyChain(FPropertyChangedChainEvent& PropertyChangedEvent)
+{
+	const FEditPropertyChain& EditPropertyChain = PropertyChangedEvent.PropertyChain;
+
+	TArray<FDataprepPropertyLink> DataprepPropertyChain;
+	DataprepPropertyChain.Reserve( EditPropertyChain.Num() + 1 );
+
+	const TDoubleLinkedList<UProperty*>::TDoubleLinkedListNode* CurrentNode = EditPropertyChain.GetHead();
+
+	UProperty* Property = nullptr;
+	while( CurrentNode )
+	{
+		Property = CurrentNode->GetValue();
+		if ( Property )
+		{ 
+			int32 ContainerIndex = PropertyChangedEvent.GetArrayIndex( Property->GetName() );
+			DataprepPropertyChain.Emplace( Property, Property->GetFName(), ContainerIndex);
+		}
+		else
+		{
+			return {};
+		}
+
+		CurrentNode = CurrentNode->GetNextNode();
+	}
+
+	if ( Property != PropertyChangedEvent.Property )
+	{
+		DataprepPropertyChain.Emplace( PropertyChangedEvent.Property, PropertyChangedEvent.Property->GetFName(), INDEX_NONE );
+	}
+
+	return DataprepPropertyChain;
+}
+
+FDataprepParameterizationContext FDataprepParameterizationUtils::CreateContext(TSharedPtr<IPropertyHandle> PropertyHandle, const FDataprepParameterizationContext& ParameterisationContext)
+{
+	FDataprepParameterizationContext NewContext;
+	NewContext.State = ParameterisationContext.State;
+
+	if ( NewContext.State == EParametrizationState::CanBeParameterized || NewContext.State == EParametrizationState::InvalidForParameterization )
+	{
+		// This implementation could be improved by incrementally expending the property chain.
+		NewContext.PropertyChain = MakePropertyChain( PropertyHandle );
+		NewContext.State = NewContext.PropertyChain.Num() > 0 ? EParametrizationState::CanBeParameterized : EParametrizationState::InvalidForParameterization;
+	}
+	else if ( NewContext.State == EParametrizationState::IsParameterized )
+	{
+		NewContext.State = EParametrizationState::ParentIsParameterized;
+	}
+
+	return NewContext;
 }
 
 UDataprepAsset* FDataprepParameterizationUtils::GetDataprepAssetForParameterization(UObject* Object)

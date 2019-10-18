@@ -266,8 +266,11 @@ public:
 	// Window access is locked by the game thread before preinit and unlocked here after RHIInit (PlatformCreateDynamicRHI). 
 	static void UnlockAndroidWindow();
 
+	// Android specific requesting of exit, *ONLY* use this function in signal handling code. Otherwise normal RequestExit functions
+	static void NonReentrentRequestExit();
+
 private:
-    static EDeviceScreenOrientation DeviceOrientation;
+	static EDeviceScreenOrientation DeviceOrientation;
 };
 
 #if !PLATFORM_LUMIN

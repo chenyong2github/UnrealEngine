@@ -79,8 +79,20 @@ struct FRHIFlipDetails
 struct FRayTracingGeometryInstance
 {
 	FRHIRayTracingGeometry* GeometryRHI = nullptr;
-	FMatrix Transform = FMatrix(EForceInit::ForceInitToZero);
-	uint32 UserData = 0;
+
+	// A physical FRayTracingGeometryInstance may be duplicated many times in the scene with different transforms and user data.
+	// All copies share the same shader binding table entries and therefore will have the same material and shader resources.
+	TArray<FMatrix, TInlineAllocator<1>> Transforms;
+
+	// Each geometry copy can receive a user-provided integer, which can be used to retrieve extra shader parameters or customize appearance.
+	// This data can be retrieved using GetInstanceUserData() in closest/any hit shaders.
+	// If UserData is empty, then 0 will be implicitly used for all entries.
+	// If UserData contains a single entry, then it will be applied to all instances/copies.
+	// Otherwise one UserData entry must be provided per entry in Transforms array.
+	TArray<uint32, TInlineAllocator<1>> UserData;
+
+	// Mask that will be tested against one provided to TraceRay() in shader code.
+	// If binary AND of instance mask with ray mask is zero, then the instance is considered not intersected / invisible.
 	uint8 Mask = 0xFF;
 
 	// No any-hit shaders will be invoked for this geometry instance (only closest hit)
@@ -107,6 +119,17 @@ enum ERayTracingGeometryType
 
 struct FRayTracingGeometrySegment
 {
+	FVertexBufferRHIRef VertexBuffer = nullptr;
+	EVertexElementType VertexBufferElementType = VET_Float3;
+
+	// Offset in bytes from the base address of the vertex buffer.
+	uint32 VertexBufferOffset = 0;
+
+	// Number of bytes between elements of the vertex buffer (sizeof VET_Float3 by default).
+	// Must be equal or greater than the size of the position vector.
+	uint32 VertexBufferStride = 12;
+
+	// Primitive range for this segment.
 	uint32 FirstPrimitive = 0;
 	uint32 NumPrimitives = 0;
 
@@ -121,17 +144,20 @@ struct FRayTracingGeometrySegment
 
 struct FRayTracingGeometryInitializer
 {
-	FVertexBufferRHIRef PositionVertexBuffer = nullptr;
-	uint32 VertexBufferByteOffset = 0;
-	uint32 VertexBufferStride = 0;
-	EVertexElementType VertexBufferElementType = VET_Float3;
-
 	FIndexBufferRHIRef IndexBuffer = nullptr;
-	uint32 IndexBufferByteOffset = 0;
+
+	// Offset in bytes from the base address of the index buffer.
+	uint32 IndexBufferOffset = 0;
 
 	ERayTracingGeometryType GeometryType = RTGT_Triangles;
+
+	// Total number of primitives in all segments of the geometry. Only used for validation.
 	uint32 TotalPrimitiveCount = 0;
+
+	// Partitions of geometry to allow different shader and resource bindings.
+	// All ray tracing geometries must have at least one segment.
 	TArray<FRayTracingGeometrySegment> Segments;
+
 	bool bFastBuild = false;
 	bool bAllowUpdate = false;
 };

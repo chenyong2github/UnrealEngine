@@ -373,7 +373,6 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 				// Trace the top layer reflection
 				float3 TopLayerRadiance = float3(0, 0, 0);
 				FMaterialClosestHitPayload Payload = (FMaterialClosestHitPayload)0;
-				const uint RayFlags = 0;
 
 				if (DIM_HYBRID && DIM_DEFERRED_MATERIAL_MODE == DEFERRED_MATERIAL_MODE_SHADE 
 					&& DeferredMaterialPayload.SortKey == RAY_TRACING_DEFERRED_MATERIAL_KEY_SCREEN_SPACE)
@@ -394,15 +393,15 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 				}
 				else
 				{
-					Payload = TraceRayResults(
-						TopLayerRay,
+					const uint RayFlags = 0;
+					const uint InstanceInclusionMask = RAY_TRACING_MASK_OPAQUE;
+
+					Payload = TraceMaterialRay(
 						TLAS,
-						RandSequence,
 						RayFlags,
-						ReflectionMaxNormalBias,
-						RAY_TRACING_MASK_OPAQUE,
-						RayCone,
-						TopLayerRadiance);
+						InstanceInclusionMask,
+						TopLayerRay,
+						RayCone);
 
 					RayDesc LightingRay = TopLayerRay;
 					if (DIM_HYBRID)
@@ -417,9 +416,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 						LightingRay,
 						TLAS,
 						RandSequence,
-						RayFlags,
 						ReflectionMaxNormalBias,
-						RAY_TRACING_MASK_OPAQUE,
 						ReflectedShadowsType,
 						ShouldDoDirectLighting,
 						ShouldDoEmissiveAndIndirectLighting,
@@ -495,8 +492,21 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 
 					if (TraceBottomRay)
 					{
-						FRayCone BottomLayerRayCone = (FRayCone)0;
-						FMaterialClosestHitPayload BottomLayerPayload = TraceRayAndAccumulateBottomLayerResults(BottomLayerRay, TLAS, RandSequence, RayFlags, ReflectionMaxNormalBias, RAY_TRACING_MASK_OPAQUE, ReflectedShadowsType, ShouldDoDirectLighting, ShouldDoEmissiveAndIndirectLighting, RayCone, BottomLayerRadiance);
+						const uint RayFlags = 0;
+						const uint InstanceInclusionMask = RAY_TRACING_MASK_OPAQUE;
+
+						FMaterialClosestHitPayload BottomLayerPayload = TraceRayAndAccumulateBottomLayerResults(
+							BottomLayerRay,
+							TLAS,
+							RayFlags,
+							InstanceInclusionMask,
+							RandSequence,
+							ReflectionMaxNormalBias,
+							ReflectedShadowsType,
+							ShouldDoDirectLighting,
+							ShouldDoEmissiveAndIndirectLighting,
+							RayCone,
+							BottomLayerRadiance);
 
 						// Distance and sky: similar processing to main ray.
 						float BottomLayerHitDistance = -1;

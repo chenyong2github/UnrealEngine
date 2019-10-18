@@ -23,6 +23,12 @@ UDataprepContentConsumer::UDataprepContentConsumer()
 	TargetContentFolder = FPaths::GetPath( GetOutermost()->GetPathName() );
 }
 
+void UDataprepContentConsumer::PostEditUndo()
+{
+	Super::PostEditUndo();
+	OnChanged.Broadcast();
+}
+
 bool UDataprepContentConsumer::Consume(const FDataprepConsumerContext& InContext)
 {
 	if(!InContext.WorldPtr.IsValid())
@@ -59,25 +65,26 @@ bool UDataprepContentConsumer::Consume(const FDataprepConsumerContext& InContext
 	return bSuccessful;
 }
 
-bool UDataprepContentConsumer::SetTargetContentFolder(const FString& InTargetContentFolder)
+bool UDataprepContentConsumer::SetTargetContentFolder(const FString& InTargetContentFolder, FText& OutReason)
 {
-	if( InTargetContentFolder.IsEmpty() )
+	bool bValidContentFolder = true;
+
+	if( !InTargetContentFolder.IsEmpty() )
 	{
-		TargetContentFolder = FPaths::GetPath( GetOutermost()->GetPathName() );
-		OnChanged.Broadcast();
-		return true;
+		// Pretend creating a dummy package to verify packages could be created under this content folder.
+		bValidContentFolder = FPackageName::IsValidLongPackageName( InTargetContentFolder / TEXT("DummyPackageName"), false, &OutReason );
 	}
 
-	// Pretend creating a dummy package to verify packages could be created under this content folder.
-	FString LongPackageName = InTargetContentFolder / TEXT("DummyPackageName");
-	if( FPackageName::IsValidLongPackageName( LongPackageName ) )
+	if(bValidContentFolder)
 	{
-		TargetContentFolder = InTargetContentFolder;
+		Modify();
+
+		TargetContentFolder = !InTargetContentFolder.IsEmpty() ? InTargetContentFolder : FPaths::GetPath( GetOutermost()->GetPathName() );
+
 		OnChanged.Broadcast();
-		return true;
 	}
 
-	return false;
+	return bValidContentFolder;
 }
 
 bool UDataprepContentConsumer::SetLevelName(const FString & InLevelName, FText& OutReason)

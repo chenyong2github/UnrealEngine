@@ -19,14 +19,12 @@
 		{
 			"Name" : "StaticMeshEditorExtension",
 			"Type" : "Editor",
-			"LoadingPhase" : "Default",
-			"WhitelistPlatforms" : [ "Win64" ]
+			"LoadingPhase" : "Default"
 		},
 		{
 			"Name" : "MeshProcessingLibrary",
 			"Type" : "Editor",
-			"LoadingPhase" : "Default",
-			"WhitelistPlatforms": [ "Win64" ]
+			"LoadingPhase" : "Default"
 		},
 	],
 	"Plugins": [

@@ -36,6 +36,8 @@ private:
 
 	void InverseFilter();
 
+	FText GetTooltipText() const;
+
 	//~ FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 

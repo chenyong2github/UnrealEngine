@@ -1527,15 +1527,17 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 
 				FRayTracingGeometryInitializer Initializer;
 				FRHIResourceCreateInfo CreateInfo;
-				Initializer.PositionVertexBuffer = RHICreateVertexBuffer(sizeof(FVector4) * NumPrimitives * 3, BUF_UnorderedAccess | BUF_ShaderResource, CreateInfo);
 				Initializer.IndexBuffer = nullptr;
-				Initializer.VertexBufferStride = sizeof(FVector);
 				Initializer.TotalPrimitiveCount = NumPrimitives;
-				Initializer.VertexBufferElementType = VET_Float3;
 				Initializer.GeometryType = RTGT_Triangles;
 				Initializer.bFastBuild = true;
 				Initializer.bAllowUpdate = true;
-
+				FRayTracingGeometrySegment Segment;
+				Segment.VertexBuffer = RHICreateVertexBuffer(sizeof(FVector4) * NumPrimitives * 3, BUF_UnorderedAccess | BUF_ShaderResource, CreateInfo);
+				Segment.VertexBufferStride = sizeof(FVector);
+				Segment.VertexBufferElementType = VET_Float3;
+				Segment.NumPrimitives = NumPrimitives;
+				Initializer.Segments.Add(Segment);
 				SectionRayTracingStates[SubSectionIdx].Geometry.SetInitializer(Initializer);
 				SectionRayTracingStates[SubSectionIdx].Geometry.InitResource();
 			}

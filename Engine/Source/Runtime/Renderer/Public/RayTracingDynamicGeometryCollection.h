@@ -24,8 +24,7 @@ public:
 
 private:
 	TUniquePtr<TArray<struct FMeshComputeDispatchCommand>> DispatchCommands;
-	TArray<FAccelerationStructureUpdateParams> BuildParams;
-	TArray<FAccelerationStructureUpdateParams> RefitParams;
+	TArray<FAccelerationStructureBuildParams> BuildParams;
 };
 
 #endif // RHI_RAYTRACING

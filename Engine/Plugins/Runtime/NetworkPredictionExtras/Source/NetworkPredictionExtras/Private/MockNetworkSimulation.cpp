@@ -134,6 +134,9 @@ UMockNetworkSimulationComponent::UMockNetworkSimulationComponent()
 
 INetworkSimulationModel* UMockNetworkSimulationComponent::InstantiateNetworkSimulation()
 {
+	FMockSyncState InitialSyncState;
+	InitialSyncState.Total = MockValue;
+
 	auto* NewSim = new FMockNetworkModel(this);
 	DO_NETSIM_MODEL_DEBUG(FNetworkSimulationModelDebuggerManager::Get().RegisterNetworkSimulationModel(NewSim, GetOwner()));
 	return NewSim;
@@ -164,16 +167,6 @@ void UMockNetworkSimulationComponent::ProduceInput(const FNetworkSimTime SimTime
 	{
 		Cmd.InputValue = 0.f;
 	}
-}
-
-void UMockNetworkSimulationComponent::InitSyncState(FMockSyncState& OutSyncState) const
-{
-	OutSyncState.Total = MockValue;
-}
-
-void UMockNetworkSimulationComponent::InitAuxState(FMockAuxState& OutAuxState) const
-{
-
 }
 
 void UMockNetworkSimulationComponent::FinalizeFrame(const FMockSyncState& SyncState, const FMockAuxState& AuxState)

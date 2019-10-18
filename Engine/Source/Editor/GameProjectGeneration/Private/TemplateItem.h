@@ -28,4 +28,5 @@ struct FTemplateItem
 	TArray<ETemplateSetting> HiddenSettings;
 
 	bool		bIsEnterprise;
+	bool		bIsBlankTemplate;
 };

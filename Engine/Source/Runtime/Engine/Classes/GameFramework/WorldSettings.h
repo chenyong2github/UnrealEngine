@@ -629,12 +629,12 @@ public:
 	TSoftClassPtr<class UHierarchicalLODSetup> HLODSetupAsset;
 
 	/** If set overrides the project-wide base material used for Proxy Materials*/
-	UPROPERTY(EditAnywhere, config, Category = LODSystem)
+	UPROPERTY(EditAnywhere, config, Category = LODSystem, meta=(editcondition = "bEnableHierarchicalLODSystem && HLODSetupAsset == nullptr"))
 	TSoftObjectPtr<class UMaterialInterface> OverrideBaseMaterial;	
 
 protected:
 	/** Hierarchical LOD Setup */
-	UPROPERTY(EditAnywhere, Category=LODSystem, config)
+	UPROPERTY(EditAnywhere, Category=LODSystem, config, meta=(editcondition = "bEnableHierarchicalLODSystem && HLODSetupAsset == nullptr"))
 	TArray<struct FHierarchicalSimplification>	HierarchicalLODSetup;
 
 public:

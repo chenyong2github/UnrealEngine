@@ -72,6 +72,8 @@ static TAutoConsoleVariable<int32> CVarMobileAdrenoOcclusionMode(
 	TEXT("1: Render occlusion queries after translucency and a flush, which can help Adreno devices in GL mode."),
 	ECVF_RenderThreadSafe);
 
+DECLARE_GPU_STAT_NAMED(MobileSceneRender, TEXT("Mobile Scene Render"));
+
 DECLARE_CYCLE_STAT(TEXT("SceneStart"), STAT_CLMM_SceneStart, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("SceneEnd"), STAT_CLMM_SceneEnd, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("InitViews"), STAT_CLMM_InitViews, STATGROUP_CommandListMarkers);
@@ -88,9 +90,12 @@ TGlobalResource<FGlobalDynamicReadBuffer> FMobileSceneRenderer::DynamicReadBuffe
 
 static bool UsesCustomDepthStencilLookup(const FViewInfo& View)
 {
+	if (View.bUsesCustomDepthStencil)
+	{
+		return true;
+	}
+
 	// Find out whether post-process materials use CustomDepth/Stencil lookups
-	bool bPPUsesCustomDepth = false;
-	bool bPPUsesCustomStencil = false;
 	const FBlendableManager& BlendableManager = View.FinalPostProcessSettings.BlendableManager;
 	FBlendableEntry* BlendableIt = nullptr;
 
@@ -103,15 +108,21 @@ static bool UsesCustomDepthStencilLookup(const FViewInfo& View)
 
 			const FMaterial* Material = Proxy->GetMaterial(View.GetFeatureLevel());
 			check(Material);
-			const FMaterialShaderMap* MaterialShaderMap = Material->GetRenderingThreadShaderMap();
+			if (Material->IsStencilTestEnabled())
+			{
+				return true;
+			}
 
-			bPPUsesCustomDepth|= MaterialShaderMap->UsesSceneTexture(PPI_CustomDepth);
-			bPPUsesCustomStencil|= MaterialShaderMap->UsesSceneTexture(PPI_CustomStencil);
+			const FMaterialShaderMap* MaterialShaderMap = Material->GetRenderingThreadShaderMap();
+			if (MaterialShaderMap->UsesSceneTexture(PPI_CustomDepth) || MaterialShaderMap->UsesSceneTexture(PPI_CustomStencil))
+			{
+				return true;
+			}
 		}
 	}
 
 	//TODO: check if translucency uses CustomDepth
-	return bPPUsesCustomDepth || bPPUsesCustomStencil || View.bUsesCustomDepthStencil;
+	return false;
 }
 
 
@@ -319,6 +330,9 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 {
 	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_SceneStart));
 
+	SCOPED_DRAW_EVENT(RHICmdList, MobileSceneRender);
+	SCOPED_GPU_STAT(RHICmdList, MobileSceneRender);
+
 	Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
 
 	PrepareViewRectsForRendering();
@@ -450,7 +464,11 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		bool bUsesCustomDepthStencil = false;
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++) 
 		{
-			bUsesCustomDepthStencil = UsesCustomDepthStencilLookup(Views[ViewIndex]);
+			if (UsesCustomDepthStencilLookup(Views[ViewIndex]))
+			{
+				bUsesCustomDepthStencil = true;
+				break;
+			}
 		}
 
 		if (bUsesCustomDepthStencil)
@@ -509,9 +527,9 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			DepthTargetAction = EDepthStencilTargetActions::ClearDepthStencil_StoreDepthStencil;
 		}
 						
-		if (bKeepDepthContent && !bMobileMSAA)
+		if ((bKeepDepthContent && !bMobileMSAA) || Scene->Decals.Num() > 0)
 		{
-			// store depth if post-processing/capture needs it
+			// store depth if post-processing/capture/decals needs it
 			DepthTargetAction = EDepthStencilTargetActions::ClearDepthStencil_StoreDepthStencil;
 		}
 	}

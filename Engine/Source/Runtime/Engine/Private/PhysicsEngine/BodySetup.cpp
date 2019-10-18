@@ -21,6 +21,7 @@
 #include "UObject/UObjectIterator.h"
 #include "UObject/PropertyPortFlags.h"
 #include "Components/SplineMeshComponent.h"
+#include "ChaosCheck.h"
 
 #include "PhysXCookHelper.h"
 
@@ -696,7 +697,7 @@ void UBodySetup::FinishCreatingPhysicsMeshes_Chaos(FChaosDerivedDataReader<float
 		{
 			FKConvexElem& ConvexElem = AggGeom.ConvexElems[ElementIndex];
 
-			if (ensure(InReader.ConvexImplicitObjects[ElementIndex]->IsValidGeometry()))
+			if (CHAOS_ENSURE(InReader.ConvexImplicitObjects[ElementIndex]->IsValidGeometry()))
 			{
 				ConvexElem.SetChaosConvexMesh(MoveTemp(InReader.ConvexImplicitObjects[ElementIndex]));
 

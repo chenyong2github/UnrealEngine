@@ -105,8 +105,8 @@ public:
 
 	UPartyMember* GetPartyMember(const FOnlinePartyTypeId& PartyTypeId) const;
 
-	DECLARE_EVENT(USocialUser, FOnNicknameChanged);
-	FOnNicknameChanged& OnNicknameChanged() const { return OnNicknameChangedEvent; }
+	DECLARE_EVENT_OneParam(USocialUser, FOnNicknameChanged, const FText&);
+	FOnNicknameChanged& OnSetNicknameCompleted() const { return OnSetNicknameCompletedEvent; }
 
 	DECLARE_EVENT(USocialUser, FPartyInviteResponseEvent);
 	FPartyInviteResponseEvent& OnPartyInviteAccepted() const { return OnPartyInviteAcceptedEvent; }
@@ -198,7 +198,7 @@ private:
 	// Initialization delegates that fire only when a specific user has finishing initializing
 	static TMap<TWeakObjectPtr<USocialUser>, FOnNewSocialUserInitialized> InitEventsByUser;
 
-	mutable FOnNicknameChanged OnNicknameChangedEvent;
+	mutable FOnNicknameChanged OnSetNicknameCompletedEvent;
 	mutable FPartyInviteResponseEvent OnPartyInviteAcceptedEvent;
 	mutable FPartyInviteResponseEvent OnPartyInviteRejectedEvent;
 	mutable FOnUserPresenceChanged OnUserPresenceChangedEvent;

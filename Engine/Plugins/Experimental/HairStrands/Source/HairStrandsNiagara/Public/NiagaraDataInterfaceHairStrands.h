@@ -23,35 +23,10 @@ enum class EHairStrandsSize : uint8
 };
 
 /** Render buffers that will be used in hlsl functions */
-struct FNDICollisionGridBuffer : public FRenderResource
-{
-	/** Set the grid size */
-	void SetGridSize(const FUintVector4 GridSize);
-
-	/** Init the buffer */
-	virtual void InitRHI() override;
-
-	/** Release the buffer */
-	virtual void ReleaseRHI() override;
-
-	/** Clear all UAV*/
-	void ClearBuffers(FRHICommandList& RHICmdList);
-
-	/** Get the resource name */
-	virtual FString GetFriendlyName() const override { return TEXT("FNDICollisionGridBuffer"); }
-
-	/** Grid data texture */
-	FTextureRWBuffer3D GridDataBuffer;
-
-	/** Grid size that will be used for the collision*/
-	FUintVector4 GridSize;
-};
-
-/** Render buffers that will be used in hlsl functions */
 struct FNDIHairStrandsBuffer : public FRenderResource
 {
 	/** Set the asset that will be used to affect the buffer */
-	void SetHairAsset(const FHairStrandsDatas*  HairStrandsDatas, const FHairStrandsResource*  HairStrandsResource );
+	void SetHairAsset(const FHairStrandsDatas*  HairStrandsDatas, const FHairStrandsRestResource*  HairStrandsRestResource, const FHairStrandsDeformedResource*  HairStrandsDeformedResource);
 
 	/** Init the buffer */
 	virtual void InitRHI() override;
@@ -65,22 +40,22 @@ struct FNDIHairStrandsBuffer : public FRenderResource
 	/** Strand curves point offset buffer */
 	FRWBuffer CurvesOffsetsBuffer;
 
+	/** Deformed position buffer in case no ressource are there */
+	FRWBuffer PointsPositionsBuffer;
+
 	/** The strand asset datas from which to sample */
 	const FHairStrandsDatas* SourceDatas;
 
 	/** The strand asset resource from which to sample */
-	const FHairStrandsResource* SourceResources;
+	const FHairStrandsRestResource* SourceRestResources;
+
+	/** The strand deformed resource to write into */
+	const FHairStrandsDeformedResource* SourceDeformedResources;
 };
 
 /** Data stored per strand base instance*/
 struct FNDIHairStrandsData
 {
-	/** Swap the current and the destination data */
-	void SwapBuffers();
-
-	/** Init the current and the destination data */
-	void InitBuffers();
-
 	/** Cached World transform. */
 	FMatrix WorldTransform;
 
@@ -90,40 +65,16 @@ struct FNDIHairStrandsData
 	/** Strand size */
 	int32 StrandSize;
 
-	/** Strand Density */
-	float StrandDensity;
-
-	/** Root Thickness */
-	float RootThickness;
-
-	/** Tip Thickness */
-	float TipThickness;
-
-	/** Grid Origin */
-	FVector4 GridOrigin;
-
-	/** Grid Size */
-	FUintVector4 GridSize;
+	/** Bounding box origin */
+	FVector4 BoxOrigin;
 
 	/** Strands Gpu buffer */
 	FNDIHairStrandsBuffer* HairStrandsBuffer;
-
-	/** Collision Grid Buffer A */
-	FNDICollisionGridBuffer* CollisionGridBufferA;
-
-	/** Collision Grid Buffer B */
-	FNDICollisionGridBuffer* CollisionGridBufferB;
-
-	/** Pointer to the current buffer */
-	FNDICollisionGridBuffer* CurrentGridBuffer;
-
-	/** Pointer to the destination buffer */
-	FNDICollisionGridBuffer* DestinationGridBuffer;
 };
 
 /** Data Interface for the strand base */
 UCLASS(EditInlineNew, Category = "Strands", meta = (DisplayName = "Hair Strands"))
-class HAIRSTRANDSNIAGARA_API UNiagaraDataInterfaceHairStrands : public UNiagaraDataInterfaceRWBase
+class HAIRSTRANDSNIAGARA_API UNiagaraDataInterfaceHairStrands : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -133,18 +84,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Spawn")
 	EHairStrandsSize StrandSize;
 
-	/** Density of each strand. */
-	UPROPERTY(EditAnywhere, Category = "Spawn")
-	float StrandDensity;
-
-	/** Strand Root thickness. */
-	UPROPERTY(EditAnywhere, Category = "Spawn")
-	float RootThickness;
-
-	/** Strand Tip thickness. */
-	UPROPERTY(EditAnywhere, Category = "Spawn")
-	float TipThickness;
-
 	/** Hair Strands Asset used to sample from when not overridden by a source actor from the scene. Also useful for previewing in the editor. */
 	UPROPERTY(EditAnywhere, Category = "Source")
 	UGroomAsset* DefaultSource;
@@ -153,27 +92,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Source")
 	AActor* SourceActor;
 
-	/** Source transform to be applied to the asset. */
-	UPROPERTY(EditAnywhere, Category = "Source")
-	FMatrix SourceTransform;
-
-	/** Grid size along the X axis. */
-	UPROPERTY(EditAnywhere, Category = "Grid")
-	uint32 GridSizeX;
-
-	/** Grid size along the Y axis. */
-	UPROPERTY(EditAnywhere, Category = "Grid")
-	uint32 GridSizeY;
-
-	/** Grid size along the Z axis. */
-	UPROPERTY(EditAnywhere, Category = "Grid")
-	uint32 GridSizeZ;
-
 	/** The source component from which to sample */
 	TWeakObjectPtr<class UGroomComponent> SourceComponent;
-
-	/** The source asset from which to sample */
-	TWeakObjectPtr<class UGroomAsset> GroomAsset;
 
 	/** UObject Interface */
 	virtual void PostInitProperties() override;
@@ -195,23 +115,21 @@ public:
 	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
 	virtual void GetCommonHLSL(FString& OutHLSL) override;
 
+	/** Update the source component */
+	void UpdateSourceComponent(FNiagaraSystemInstance* SystemInstance);
+
 	/** Check if the component is Valid */
 	bool IsComponentValid() const;
+
+	/** Extract datas and resources */
+	void ExtractDatasAndResources(FNiagaraSystemInstance* SystemInstance, FHairStrandsDatas*& OutStrandsDatas,
+		FHairStrandsRestResource*& OutStrandsRestResource, FHairStrandsDeformedResource*& OutStrandsDeformedResource);
 
 	/** Get the number of strands */
 	void GetNumStrands(FVectorVMContext& Context);
 
 	/** Get the strand size  */
 	void GetStrandSize(FVectorVMContext& Context);
-
-	/** Get the strand density */
-	void GetStrandDensity(FVectorVMContext& Context);
-
-	/** Get the strand thickness at the root */
-	void GetRootThickness(FVectorVMContext& Context);
-
-	/** Get the strand thickness at the tip */
-	void GetTipThickness(FVectorVMContext& Context);
 
 	/** Get the world transform */
 	void GetWorldTransform(FVectorVMContext& Context);
@@ -270,38 +188,29 @@ public:
 	/** Update the node angular velocity based on the node orientation difference */
 	void UpdateAngularVelocity(FVectorVMContext& Context);
 
-	/** Build the collision grid */
-	void BuildCollisionGrid(FVectorVMContext& Context);
-
-	/** Query the collision grid */
-	void QueryCollisionGrid(FVectorVMContext& Context);
-
-	/** Project the collision grid */
-	void ProjectCollisionGrid(FVectorVMContext& Context);
-
 	/** Get the bounding box center */
 	void GetBoxCenter(FVectorVMContext& Context);
 
 	/** Get the bounding box extent */
 	void GetBoxExtent(FVectorVMContext& Context);
 
-	/** Setup the stretch spring material */
-	void SetupStretchSpringMaterial(FVectorVMContext& Context);
+	/** Setup the distance spring material */
+	void SetupDistanceSpringMaterial(FVectorVMContext& Context);
 
-	/** Solve the stretch spring material */
-	void SolveStretchSpringMaterial(FVectorVMContext& Context);
+	/** Solve the distance spring material */
+	void SolveDistanceSpringMaterial(FVectorVMContext& Context);
 
-	/** Project the stretch spring material */
-	void ProjectStretchSpringMaterial(FVectorVMContext& Context);
+	/** Project the distance spring material */
+	void ProjectDistanceSpringMaterial(FVectorVMContext& Context);
 
-	/** Setup the bend spring material */
-	void SetupBendSpringMaterial(FVectorVMContext& Context);
+	/** Setup the angular spring material */
+	void SetupAngularSpringMaterial(FVectorVMContext& Context);
 
-	/** Solve the bend spring material */
-	void SolveBendSpringMaterial(FVectorVMContext& Context);
+	/** Solve the angular spring material */
+	void SolveAngularSpringMaterial(FVectorVMContext& Context);
 
-	/** Project the bend spring material */
-	void ProjectBendSpringMaterial(FVectorVMContext& Context);
+	/** Project the angular spring material */
+	void ProjectAngularSpringMaterial(FVectorVMContext& Context);
 
 	/** Setup the stretch rod material */
 	void SetupStretchRodMaterial(FVectorVMContext& Context);
@@ -333,6 +242,9 @@ public:
 	/** Update the node orientation to match the bishop frame*/
 	void UpdateNodeOrientation(FVectorVMContext& Context);
 
+	/** Compute the air drag force */
+	void ComputeAirDragForce(FVectorVMContext& Context);
+
 	/** Name of the world transform */
 	static const FString WorldTransformName;
 
@@ -348,15 +260,6 @@ public:
 	/** Name of the strand size */
 	static const FString StrandSizeName;
 
-	/** Name of the strand density */
-	static const FString StrandDensityName;
-
-	/** Name of the root thickness */
-	static const FString RootThicknessName;
-
-	/** Name of the tip thickness */
-	static const FString TipThicknessName;
-
 	/** Name of the points positions buffer */
 	static const FString PointsPositionsBufferName;
 
@@ -366,17 +269,8 @@ public:
 	/** Name of the nodes positions buffer */
 	static const FString RestPositionsBufferName;
 
-	/** Name of the grid current buffer */
-	static const FString GridCurrentBufferName;
-
-	/** Name of the grid X velocity buffer */
-	static const FString GridDestinationBufferName;
-
-	/** Name of the grid origin  */
-	static const FString GridOriginName;
-
-	/** Name of the grid size */
-	static const FString GridSizeName;
+	/** Name of the box origin  */
+	static const FString BoxOriginName;
 
 protected:
 	/** Copy one niagara DI to this */
@@ -396,8 +290,7 @@ struct FNDIHairStrandsProxy : public FNiagaraDataInterfaceProxy
 	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override;
 
 	/** Initialize the Proxy data strands buffer */
-	void InitializePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance, FNDIHairStrandsBuffer* StrandsBuffer, FNDICollisionGridBuffer* CollisionGridBufferA, FNDICollisionGridBuffer* CollisionGridBufferB, const uint32 NumStrands, const uint8 StrandSize,
-		const float StrandDensity, const float RootThickness, const float TipThickness, const FVector4& GridOrigin, const FUintVector4& GridSize);
+	void InitializePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance, FNDIHairStrandsBuffer* StrandsBuffer, const uint32 NumStrands, const uint8 StrandSize, const FVector4& BoxOrigin, const FMatrix& WorldTransform);
 
 	/** Destroy the proxy data if necessary */
 	void DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance);

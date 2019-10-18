@@ -24,7 +24,8 @@ struct FResolveParams;
 struct FViewportBounds;
 struct FRayTracingGeometryInstance;
 struct FRayTracingShaderBindings;
-struct FAccelerationStructureUpdateParams;
+struct FRayTracingGeometrySegment;
+struct FAccelerationStructureBuildParams;
 enum class EAsyncComputeBudget;
 enum class EResourceTransitionAccess;
 enum class EResourceTransitionPipeline;
@@ -163,12 +164,7 @@ public:
 		checkNoEntry();
 	}
 
-	virtual void RHIUpdateAccelerationStructures(const TArrayView<const FAccelerationStructureUpdateParams> Params)
-	{
-		checkNoEntry();
-	}
-
-	virtual void RHIBuildAccelerationStructures(const TArrayView<const FAccelerationStructureUpdateParams> Params)
+	virtual void RHIBuildAccelerationStructures(const TArrayView<const FAccelerationStructureBuildParams> Params)
 	{
 		checkNoEntry();
 	}
@@ -179,10 +175,25 @@ public:
 	}
 };
 
-struct FAccelerationStructureUpdateParams
+enum class EAccelerationStructureBuildMode
+{
+	// Perform a full acceleration structure build.
+	Build,
+
+	// Update existing acceleration structure, based on new vertex positions.
+	// Index buffer must not change between initial build and update operations.
+	// Only valid when geometry was created with FRayTracingGeometryInitializer::bAllowUpdate = true.
+	Update,
+};
+
+struct FAccelerationStructureBuildParams
 {
 	FRayTracingGeometryRHIRef Geometry;
-	FVertexBufferRHIRef VertexBuffer;
+	EAccelerationStructureBuildMode BuildMode = EAccelerationStructureBuildMode::Build;
+
+	// Optional array of geometry segments that can be used to change per-segment vertex buffers.
+	// Only fields related to vertex buffer are used. If empty, then geometry vertex buffers are not changed.
+	TArrayView<const FRayTracingGeometrySegment> Segments;
 };
 
 struct FCopyBufferRegionParams
@@ -622,12 +633,18 @@ public:
 			int32 DestArrayIndex = CopyInfo.DestSliceIndex + ArrayIndex;
 			for (int32 FaceIndex = 0; FaceIndex < NumFaces; ++FaceIndex)
 			{
-				FResolveParams ResolveParams(FResolveRect(),
+				FResolveParams ResolveParams(FResolveRect(0, 0, 0, 0),
 					bIsCube ? (ECubeFace)FaceIndex : CubeFace_PosX,
 					CopyInfo.SourceMipIndex,
 					SourceArrayIndex,
-					DestArrayIndex
+					DestArrayIndex,
+					FResolveRect(0, 0, 0, 0)
 				);
+				if (CopyInfo.Size != FIntVector::ZeroValue)
+				{
+					ResolveParams.Rect = FResolveRect(CopyInfo.SourcePosition.X, CopyInfo.SourcePosition.Y, CopyInfo.SourcePosition.X + CopyInfo.Size.X, CopyInfo.SourcePosition.Y + CopyInfo.Size.Y);
+					ResolveParams.DestRect = FResolveRect(CopyInfo.DestPosition.X, CopyInfo.DestPosition.Y, CopyInfo.DestPosition.X + CopyInfo.Size.X, CopyInfo.DestPosition.Y + CopyInfo.Size.Y);
+				}
 				RHICopyToResolveTarget(SourceTexture, DestTexture, ResolveParams);
 			}
 		}
@@ -649,19 +666,18 @@ public:
 		checkNoEntry();
 	}
 
-	virtual void RHIBuildAccelerationStructure(FRHIRayTracingGeometry* Geometry)
+	virtual void RHIBuildAccelerationStructures(const TArrayView<const FAccelerationStructureBuildParams> Params)
 	{
 		checkNoEntry();
 	}
 
-	virtual void RHIUpdateAccelerationStructures(const TArrayView<const FAccelerationStructureUpdateParams> Params)
+	virtual void RHIBuildAccelerationStructure(FRHIRayTracingGeometry* Geometry) final override
 	{
-		checkNoEntry();
-	}
+		FAccelerationStructureBuildParams Params;
+		Params.Geometry = Geometry;
+		Params.BuildMode = EAccelerationStructureBuildMode::Build;
 
-	virtual void RHIBuildAccelerationStructures(const TArrayView<const FAccelerationStructureUpdateParams> Params)
-	{
-		checkNoEntry();
+		RHIBuildAccelerationStructures(MakeArrayView(&Params, 1));
 	}
 
 	virtual void RHIBuildAccelerationStructure(FRHIRayTracingScene* Scene)

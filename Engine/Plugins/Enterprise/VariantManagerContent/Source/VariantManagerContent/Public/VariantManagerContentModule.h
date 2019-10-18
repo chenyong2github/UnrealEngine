@@ -5,7 +5,7 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"		// For inline LoadModuleChecked()
 
-#define VARIANTMANAGERCONTENTMODULE_MODULE_NAME TEXT("VariantManagerContentModule")
+#define VARIANTMANAGERCONTENTMODULE_MODULE_NAME TEXT("VariantManagerContent")
 
 
 class IVariantManagerContentModule : public IModuleInterface

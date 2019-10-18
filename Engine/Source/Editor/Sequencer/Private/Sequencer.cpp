@@ -4320,9 +4320,6 @@ void FSequencer::OnEndScrubbing()
 	AutoscrubOffset.Reset();
 	StopAutoscroll();
 
-	// Force an evaluation in the stopped state
-	ForceEvaluate();
-
 	OnEndScrubbingDelegate.Broadcast();
 }
 
@@ -6114,12 +6111,21 @@ FGuid FSequencer::DoAssignActor(AActor*const* InActors, int32 NumActors, FGuid I
 				FGuid ComponentGuid = FindObjectId(*ComponentToReplace, ActiveTemplateIDs.Top());
 				if (ComponentGuid.IsValid())
 				{
+					bool bComponentWasUpdated = false;
 					for (UActorComponent* NewComponent : Actor->GetComponents())
 					{
 						if (NewComponent->GetFullName(Actor) == ComponentToReplace->GetFullName(ActorToReplace))
 						{
 							UpdateComponent( ComponentGuid, NewComponent );
+							bComponentWasUpdated = true;
 						}
+					}
+
+					// Clear the parent guid since this possessable component doesn't match to any component on the new actor
+					if (!bComponentWasUpdated)
+					{
+						FMovieScenePossessable* ThisPossessable = OwnerMovieScene->FindPossessable(ComponentGuid);
+						ThisPossessable->SetParent(FGuid());
 					}
 				}
 			}
@@ -7247,6 +7253,7 @@ bool FSequencer::PasteTracks(const FString& TextToImport, TArray<FNotificationIn
 	CalculateSelectedFolderAndPath(SelectedParentFolders, NewNodePath);
 
 	UMovieSceneSequence* OwnerSequence = GetFocusedMovieSceneSequence();
+	UMovieScene* OwnerMovieScene = OwnerSequence->GetMovieScene();
 	UObject* BindingContext = GetPlaybackContext();
 
 	TSet<TSharedRef<FSequencerDisplayNode>> SelectedNodes = Selection.GetSelectedOutlinerNodes();
@@ -7303,6 +7310,24 @@ bool FSequencer::PasteTracks(const FString& TextToImport, TArray<FNotificationIn
 					for (UObject* Subobject : Subobjects)
 					{
 						Subobject->ClearFlags(RF_Transient);
+					}
+
+					// Remove tracks with the same name before adding
+					for (const FMovieSceneBinding& Binding : OwnerMovieScene->GetBindings())
+					{
+						if (Binding.GetObjectGuid() == ObjectGuid)
+						{
+							// Tracks of the same class should be unique per name.
+							for (UMovieSceneTrack* Track : Binding.GetTracks())
+							{
+								if (Track->GetClass() == NewTrack->GetClass() && Track->GetTrackName() == NewTrack->GetTrackName())
+								{
+									// If a track of the same class and name exists, remove it so the new track replaces it
+									OwnerMovieScene->RemoveTrack(*Track);
+									break;
+								}
+							}
+						}
 					}
 
 					if (!GetFocusedMovieSceneSequence()->GetMovieScene()->AddGivenTrack(NewTrack, ObjectGuid))

@@ -1112,12 +1112,16 @@ static void ComputeTriangleTangents(
 				OutTangentY[TriangleIndex],
 				OutTangentZ[TriangleIndex]
 			);
+
 			if (OutTangentX[TriangleIndex].IsNearlyZero() || OutTangentX[TriangleIndex].ContainsNaN()
-				|| OutTangentY[TriangleIndex].IsNearlyZero() || OutTangentY[TriangleIndex].ContainsNaN()
-				|| OutTangentZ[TriangleIndex].IsNearlyZero() || OutTangentZ[TriangleIndex].ContainsNaN())
+				|| OutTangentY[TriangleIndex].IsNearlyZero() || OutTangentY[TriangleIndex].ContainsNaN())
 			{
 				OutTangentX[TriangleIndex] = FVector::ZeroVector;
 				OutTangentY[TriangleIndex] = FVector::ZeroVector;
+			}
+
+			if (OutTangentZ[TriangleIndex].IsNearlyZero() || OutTangentZ[TriangleIndex].ContainsNaN())
+			{
 				OutTangentZ[TriangleIndex] = FVector::ZeroVector;
 			}
 		}

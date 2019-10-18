@@ -612,11 +612,10 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 		double LastTime = FPlatformTime::Seconds();
 		const float IdealFrameTime = 1.0f / IdealFramerate;
 
-		FRecoveryService* RecoveryServicePtr = nullptr;
+		TSharedPtr<FRecoveryService> RecoveryServicePtr; // Note: Shared rather than Unique due to FRecoveryService only being a forward declaration in some builds
 #if CRASH_REPORT_WITH_RECOVERY
 		// Starts the disaster recovery service. This records transactions and allows users to recover from previous crashes.
-		FRecoveryService RecoveryService(MonitorPid);
-		RecoveryServicePtr = &RecoveryService;
+		RecoveryServicePtr = MakeShared<FRecoveryService>(MonitorPid);
 #endif
 
 		FCrashReportAnalytics::Initialize();
@@ -662,7 +661,15 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 				if (IsCrashReportAvailable(MonitorPid, CrashContext, MonitorReadPipe))
 				{
 					// Build error report in memory.
-					FPlatformErrorReport ErrorReport = CollectErrorReport(RecoveryServicePtr, MonitorPid, CrashContext, MonitorWritePipe);
+					FPlatformErrorReport ErrorReport = CollectErrorReport(RecoveryServicePtr.Get(), MonitorPid, CrashContext, MonitorWritePipe);
+
+#if CRASH_REPORT_WITH_RECOVERY
+					if (RecoveryServicePtr && !FPrimaryCrashProperties::Get()->bIsEnsure)
+					{
+						// Shutdown the recovery service, releasing the recovery database file lock (not sharable) as soon as possible to let a new instance take it and offer the user to recover.
+						RecoveryServicePtr.Reset();
+					}
+#endif
 					const SubmitCrashReportResult Result = SendErrorReport(ErrorReport, CrashContext.bNoDialog && CrashContext.bSendUnattenededBugReports);
 
 					// At this point the game can continue execution. It is important this happens

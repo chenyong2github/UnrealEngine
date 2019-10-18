@@ -6,6 +6,7 @@
 #include "SchemaActions/DataprepFetcherMenuActionCollector.h"
 #include "SchemaActions/DataprepSchemaAction.h"
 #include "SelectionSystem/DataprepStringFilter.h"
+#include "SelectionSystem/DataprepStringsArrayFilter.h"
 #include "Widgets/Action/DataprepActionWidgetsUtils.h"
 #include "Widgets/Action/SDataprepFetcherSelector.h"
 
@@ -19,7 +20,8 @@
 
 #define LOCTEXT_NAMESPACE "DataprepStringFilter"
 
-void SDataprepStringFilter::Construct(const FArguments& InArgs, UDataprepStringFilter& InFilter)
+template <class FilterType>
+void SDataprepStringFilter<FilterType>::Construct(const FArguments& InArgs, FilterType& InFilter)
 {
 	Filter = &InFilter;
 	OldUserString = Filter->GetUserString();
@@ -32,11 +34,6 @@ void SDataprepStringFilter::Construct(const FArguments& InArgs, UDataprepStringF
 		.MinDesiredWidth( 400.f )
 		[
 			SNew( SHorizontalBox )
-			+ SHorizontalBox::Slot()
-			.Padding( 5.f )
-			[
-				SNew( SDataprepFetcherSelector, InFilter )
-			]
 			+ SHorizontalBox::Slot()
 			.Padding( 5.f )
 			[
@@ -66,28 +63,32 @@ void SDataprepStringFilter::Construct(const FArguments& InArgs, UDataprepStringF
 	];
 }
 
-TSharedRef<SWidget> SDataprepStringFilter::OnGenerateWidgetForMatchingCriteria(TSharedPtr<FListEntry> ListEntry) const
+template <class FilterType>
+TSharedRef<SWidget> SDataprepStringFilter<FilterType>::OnGenerateWidgetForMatchingCriteria(TSharedPtr<FListEntry> ListEntry) const
 {
 	return SNew(STextBlock)
 		.Text( ListEntry->Get<0>() )
 		.ToolTipText( ListEntry->Get<1>() );
 }
 
-FText SDataprepStringFilter::GetSelectedCriteriaText() const
+template <class FilterType>
+FText SDataprepStringFilter<FilterType>::GetSelectedCriteriaText() const
 {
 	check( Filter );
 	UEnum* Enum = StaticEnum< EDataprepStringMatchType >();
 	return Enum->GetDisplayNameTextByValue( static_cast<uint8>( Filter->GetStringMatchingCriteria() ) );
 }
 
-FText SDataprepStringFilter::GetSelectedCriteriaTooltipText() const
+template <class FilterType>
+FText SDataprepStringFilter<FilterType>::GetSelectedCriteriaTooltipText() const
 {
 	check( Filter );
 	UEnum* Enum = StaticEnum< EDataprepStringMatchType >();
 	return  Enum->GetToolTipTextByIndex( Enum->GetIndexByValue( static_cast<uint8>( Filter->GetStringMatchingCriteria() ) ) );
 }
 
-void SDataprepStringFilter::OnCriteriaComboBoxOpenning()
+template <class FilterType>
+void SDataprepStringFilter<FilterType>::OnCriteriaComboBoxOpenning()
 {
 	check( Filter );
 	UEnum* Enum = StaticEnum< EDataprepStringMatchType >();
@@ -107,7 +108,8 @@ void SDataprepStringFilter::OnCriteriaComboBoxOpenning()
 	StringMatchingCriteriaWidget->SetSelectedItem( ItemToSelect );
 }
 
-void SDataprepStringFilter::OnSelectedCriteriaChanged(TSharedPtr<FListEntry> ListEntry, ESelectInfo::Type SelectionType)
+template <class FilterType>
+void SDataprepStringFilter<FilterType>::OnSelectedCriteriaChanged(TSharedPtr<FListEntry> ListEntry, ESelectInfo::Type SelectionType)
 {
 	check( Filter );
 	UEnum* Enum = StaticEnum< EDataprepStringMatchType >();
@@ -121,19 +123,22 @@ void SDataprepStringFilter::OnSelectedCriteriaChanged(TSharedPtr<FListEntry> Lis
 	}
 }
 
-FText SDataprepStringFilter::GetUserString() const
+template <class FilterType>
+FText SDataprepStringFilter<FilterType>::GetUserString() const
 {
 	check( Filter );
 	return FText::FromString( Filter->GetUserString() );
 }
 
-void SDataprepStringFilter::OnUserStringChanged(const FText& NewText)
+template <class FilterType>
+void SDataprepStringFilter<FilterType>::OnUserStringChanged(const FText& NewText)
 {
 	check( Filter );
 	Filter->SetUserString( NewText.ToString() );
 }
 
-void SDataprepStringFilter::OnUserStringComitted(const FText& NewText, ETextCommit::Type CommitType)
+template <class FilterType>
+void SDataprepStringFilter<FilterType>::OnUserStringComitted(const FText& NewText, ETextCommit::Type CommitType)
 {
 	check( Filter );
 	FString NewUserString = NewText.ToString();
@@ -147,9 +152,14 @@ void SDataprepStringFilter::OnUserStringComitted(const FText& NewText, ETextComm
 	}
 }
 
-void SDataprepStringFilter::AddReferencedObjects(FReferenceCollector& Collector)
+template <class FilterType>
+void SDataprepStringFilter<FilterType>::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Collector.AddReferencedObject( Filter );
 }
+
+// Explicit template instantiation
+template class SDataprepStringFilter<UDataprepStringFilter>;
+template class SDataprepStringFilter<UDataprepStringsArrayFilter>;
 
 #undef LOCTEXT_NAMESPACE

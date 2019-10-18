@@ -91,6 +91,18 @@ namespace ParametricMovement
 		{
 			P.Ar << Multiplier;
 		}
+
+		void Log(FStandardLoggingParameters& Params) const
+		{
+			if (Params.Context == EStandardLoggingContext::HeaderOnly)
+			{
+				Params.Ar->Logf(TEXT(" %d "), Params.Keyframe);
+			}
+			else if (Params.Context == EStandardLoggingContext::Full)
+			{
+				Params.Ar->Logf(TEXT("Multiplier: %f"), Multiplier);
+			}
+		}
 	};
 
 	using TMovementBufferTypes = TNetworkSimBufferTypes<FInputCmd, FMoveState, FAuxState>;
@@ -153,8 +165,6 @@ class NETWORKPREDICTION_API UParametricMovementComponent : public UBaseMovementC
 	// Base TNetworkModelSimulation driver
 	FString GetDebugName() const override;
 	const UObject* GetVLogOwner() const override;
-	void InitSyncState(ParametricMovement::FMoveState& OutSyncState) const override;
-	void InitAuxState(ParametricMovement::FAuxState& OutAuxState) const override;
 	void ProduceInput(const FNetworkSimTime SimTime, ParametricMovement::FInputCmd& Cmd);
 	void FinalizeFrame(const ParametricMovement::FMoveState& SyncState, const ParametricMovement::FAuxState& AuxState) override;	
 
@@ -164,10 +174,6 @@ class NETWORKPREDICTION_API UParametricMovementComponent : public UBaseMovementC
 	// Parametric Movement Driver
 	virtual void AdvanceParametricTime(const float InPosition, const float InPlayRate, float &OutPosition, float& OutPlayRate, const float DeltaTimeSeconds) const override;
 	virtual void MapTimeToTransform(const float InPosition, FTransform& OutTransform) const override;
-
-
-	TPredictedStateAccessor<ParametricMovement::FMoveState>* MovementSyncState = nullptr;
-	TPredictedStateAccessor<ParametricMovement::FAuxState>*	 MovementAuxState = nullptr;
 
 protected:
 

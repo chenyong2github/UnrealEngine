@@ -149,22 +149,28 @@ struct FHairStrandsWeightFormat
 	static const EPixelFormat Format = PF_R32_FLOAT;
 };
 
-struct FHairStrandsCurveTranslationFormat
+/** 
+ * Skinned mesh triangle vertex position format
+ * Two precision options are available: 4x16bits or 4x32bits
+ * Triangle vertices are relative to their bounding box in order to preserve precision, 
+ * however this is sometime not enough for large asset, this is why by default the format 
+ * use 32bits precision
+*/
+struct FHairStrandsMeshTrianglePositionFormat
 {
+#if 1
+	using Type = FVector4;
+	static const uint32 ComponentCount = 1;
+	static const uint32 SizeInByte = sizeof(Type);
+	static const EVertexElementType VertexElementType = VET_Float4;
+	static const EPixelFormat Format = PF_A32B32G32R32F;
+#else
 	using Type = FVector4_16;
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
 	static const EVertexElementType VertexElementType = VET_Float4;
 	static const EPixelFormat Format = PF_FloatRGBA;
-};
-
-struct FHairStrandsCurveRotationFormat
-{
-	using Type = FVector4_16;
-	static const uint32 ComponentCount = 1;
-	static const uint32 SizeInByte = sizeof(Type);
-	static const EVertexElementType VertexElementType = VET_Float4;
-	static const EPixelFormat Format = PF_FloatRGBA;
+#endif
 };
 
 struct FHairStrandsCurveTriangleIndexFormat
@@ -207,16 +213,16 @@ struct FHairStrandsRootNormalFormat
 struct HAIRSTRANDSCORE_API FHairStrandsInterpolationDatas
 {
 	/** Serialize the interpolated points */
-	inline void Serialize(FArchive& Ar);
+	void Serialize(FArchive& Ar);
 
 	/** Set the number of interpolated points */
-	inline void SetNum(const uint32 NumPoints);
+	void SetNum(const uint32 NumPoints);
 
 	/** Reset the interpolated points to 0 */
-	inline void Reset();
+	void Reset();
 
 	/** Get the number of interpolated points */
-	inline uint32 Num() const { return PointsSimCurvesVertexIndex.Num(); }
+	uint32 Num() const { return PointsSimCurvesVertexIndex.Num(); }
 
 	/** Simulation curve indices, ordered by closest influence */
 	TArray<FIntVector> PointsSimCurvesIndex;
@@ -232,7 +238,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsInterpolationDatas
 		TArray<FHairStrandsInterpolation0Format::Type> Interpolation0;
 		TArray<FHairStrandsInterpolation1Format::Type> Interpolation1;
 
-		inline void Serialize(FArchive& Ar);
+		void Serialize(FArchive& Ar);
 	} RenderData;
 };
 
@@ -240,16 +246,16 @@ struct HAIRSTRANDSCORE_API FHairStrandsInterpolationDatas
 struct HAIRSTRANDSCORE_API FHairStrandsPoints
 {
 	/** Serialize the points */
-	inline void Serialize(FArchive& Ar);
+	void Serialize(FArchive& Ar);
 
 	/** Set the number of points */
-	inline void SetNum(const uint32 NumPoints);
+	void SetNum(const uint32 NumPoints);
 
 	/** Reset the points to 0 */
-	inline void Reset();
+	void Reset();
 
 	/** Get the number of points */
-	inline uint32 Num() const { return PointsPosition.Num();  }
+	uint32 Num() const { return PointsPosition.Num();  }
 
 	/** Points position in local space */
 	TArray<FVector> PointsPosition;
@@ -265,16 +271,16 @@ struct HAIRSTRANDSCORE_API FHairStrandsPoints
 struct HAIRSTRANDSCORE_API FHairStrandsCurves
 {
 	/** Serialize the curves */
-	inline void Serialize(FArchive& Ar);
+	void Serialize(FArchive& Ar);
 
 	/** Set the number of Curves */
-	inline void SetNum(const uint32 NumPoints);
+	void SetNum(const uint32 NumPoints);
 
 	/** Reset the curves to 0 */
-	inline void Reset();
+	void Reset();
 
 	/** Get the number of Curves */
-	inline uint32 Num() const { return CurvesCount.Num(); }
+	uint32 Num() const { return CurvesCount.Num(); }
 
 	/** Number of points per rod */
 	TArray<uint16> CurvesCount;
@@ -299,13 +305,13 @@ struct HAIRSTRANDSCORE_API FHairStrandsCurves
 struct HAIRSTRANDSCORE_API FHairStrandsDatas
 {
 	/** Serialize all the hair strands datas */
-	inline void Serialize(FArchive& Ar);
+	void Serialize(FArchive& Ar);
 
 	/* Get the total number of points */
-	inline uint32 GetNumPoints() const { return StrandsPoints.Num(); }
+	uint32 GetNumPoints() const { return StrandsPoints.Num(); }
 
 	/* Get the total number of Curves */
-	inline uint32 GetNumCurves() const { return StrandsCurves.Num(); }
+	uint32 GetNumCurves() const { return StrandsCurves.Num(); }
 
 	void Reset();
 
@@ -326,6 +332,6 @@ struct HAIRSTRANDSCORE_API FHairStrandsDatas
 		TArray<FHairStrandsPositionFormat::Type> RenderingPositions;
 		TArray<FHairStrandsAttributeFormat::Type> RenderingAttributes;
 
-		inline void Serialize(FArchive& Ar);
+		void Serialize(FArchive& Ar);
 	} RenderData;
 };

@@ -18,6 +18,13 @@
 //		-Aux: State that is also an input into the simulation but does not intrinsically evolve from to frame. Changes to this state can be trapped/tracked/predicted.
 //		-Debug: Replicated buffer from server->client with server-frame centered debug information. Compiled out of shipping builds.
 //
+//	* How other code interacts with this:
+//		-Network updates will come in through UE4 networking -> FReplicationProxy (on actor/component) -> TNetworkedSimulationModel::RepProxy_* -> Buffers.*
+//		-UNetworkSimulationGlobalManager: responsible for ticking simulation (after recv net traffic, prior to UE4 actor ticking)
+//		-External game code can interact with the system:
+//			-The TNetworkedSimulationModel is mostly public and exposed. It is not recommend to publicly expose to your "user" code (high level scripting, designers, etc).
+//			-TNetworkSimStateAccessor is a helper for safely reading/writing to state within the system.
+//
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 template <
@@ -52,11 +59,12 @@ public:
 	using TSimTime = FNetworkSimTime;
 	using TRealTime = FNetworkSimTime::FRealTime;
 	
-	TNetworkedSimulationModel(TDriver* InDriver)
-		: SyncAccessor(Buffers.SyncMods, &TickInfo.LastProcessedInputKeyframe)
-		, AuxAccessor(Buffers.AuxMods, &TickInfo.LastProcessedInputKeyframe)
+	TNetworkedSimulationModel(TDriver* InDriver, const TSyncState& InitialSyncState = TSyncState(), const TAuxState& InitialAuxState = TAuxState())
 	{
 		Driver = InDriver;
+		*Buffers.Sync.WriteKeyframe(0) = InitialSyncState;
+		*Buffers.Aux.WriteKeyframe(0) = InitialAuxState;
+		TickInfo.SetTotalProcessedSimulationTime(FNetworkSimTime(), 0);
 	}
 	virtual ~TNetworkedSimulationModel()
 	{
@@ -125,89 +133,48 @@ public:
 		// -------------------------------------------------------------------------------------------------------------------------------------------------
 		//												Input Processing & Simulation Update
 		// -------------------------------------------------------------------------------------------------------------------------------------------------
-		if (Buffers.Input.HeadKeyframe() > Buffers.Sync.HeadKeyframe())
+		while (TickInfo.PendingKeyframe <= TickInfo.MaxAllowedKeyframe)
 		{
-			// -------------------------------------------------------------------------------------------------------------
-			//	
-			//	The SyncedState buffer needs to be in sync here:
-			//		-We want it to have a SyncedState, but it may not on the first frame through (thats ok).
-			//		-Its HeadKeyframe should be one behind the Keyframe we are about to process.
-			//
-			//	Note, InputCmds start @ Keyframe=1. The first SyncedState that Update produces will go in KeyFrame=1.
-			//	(E.g, InputCmd @ keyframe=X is used to generate SyncState @ keyframe=X)
-			//	This means that SyncedState @ keyframe=0 is always created here via InitSyncState.
-			//	This also means that we never actually process InputCmd @ keyframe=0. Which is why LastProcessedInputKeyframe is initialized to 0 ("already processed")
-			//	and the buffer has an empty element inserted in InitializeForNetworkRole.
-			// -------------------------------------------------------------------------------------------------------------
+			const int32 InputKeyframe = TickInfo.PendingKeyframe;
+			const int32 OutputKeyframe = TickInfo.PendingKeyframe + 1;
 
-			if (Buffers.Sync.HeadKeyframe() != TickInfo.LastProcessedInputKeyframe)
+			const TInputCmd* InputCmd = Buffers.Input[InputKeyframe];
+			if (!ensureMsgf(InputCmd, TEXT("No InputCmd available for Keyframe %d. PendingKeyframe: %d. MaxAllowedKeyframe: %d."), InputKeyframe, TickInfo.PendingKeyframe, TickInfo.MaxAllowedKeyframe))
 			{
-				if (TickInfo.LastProcessedInputKeyframe != 0)
-				{
-					// This shouldn't happen, but is not fatal. We are reseting the sync state buffer.
-					UE_LOG(LogNetworkSim, Warning, TEXT("%s. Break in SyncState continuity. LastProcessedInputKeyframe: %d. SyncBuffer.HeadKeyframe(): %d."), *Driver->GetDebugName() , TickInfo.LastProcessedInputKeyframe, Buffers.Sync.HeadKeyframe());
-				}
-
-				// We need an initial/current state. Get this from the sim driver
-				TSyncState* StartingState = Buffers.Sync.WriteKeyframe(TickInfo.LastProcessedInputKeyframe);
-				Driver->InitSyncState(*StartingState);
-
-				// Reset time tracking buffer too
-				TickInfo.SetTotalProcessedSimulationTime(TickInfo.GetTotalProcessedSimulationTime(), Buffers.Sync.HeadKeyframe());
+				break;
 			}
 
-			if (Buffers.Aux.Num() == 0)
+			// We have an unprocessed command, do we have enough allotted simulation time to process it?
+			if (TickInfo.GetRemainingAllowedSimulationTime() >= InputCmd->GetFrameDeltaTime())
 			{
-				TAuxState* StartingAuxState = Buffers.Aux.WriteKeyframe(TickInfo.LastProcessedInputKeyframe);
-				Driver->InitAuxState(*StartingAuxState);
+				TSyncState* InSyncState = Buffers.Sync[InputKeyframe];
+				if (InSyncState == nullptr)
+				{
+					// We don't have valid sync state for this frame. This could mean we skipped ahead somehow, such as heavy packet loss where the server doesn't receive all input cmds
+					// We will use the last known sync state, but first write it out to the current InputKeyframe
+					UE_LOG(LogNetworkSim, Log, TEXT("%s: No sync state found @ keyframe %d. Using previous head element @ keyframe %d."), *Driver->GetDebugName(), InputKeyframe, Buffers.Sync.HeadKeyframe());
+					InSyncState = Buffers.Sync.WriteKeyframeInitializedFromHead(InputKeyframe);
+				}
+
+				const TAuxState* InAuxState = Buffers.Aux[InputKeyframe];
+				checkf(InAuxState, TEXT("No AuxState available for Keyframe %d. PendingKeyframe: %d. MaxAllowedKeyframe: %d."), InputKeyframe, TickInfo.PendingKeyframe, TickInfo.MaxAllowedKeyframe);
+
+				TSyncState* OutSyncState = Buffers.Sync.WriteKeyframe(OutputKeyframe);
+				check(OutSyncState);
+
+				{
+					TScopedSimulationTick UpdateScope(TickInfo, OutputKeyframe, InputCmd->GetFrameDeltaTime());
+					TSimulation::Update(Driver, InputCmd->GetFrameDeltaTime().ToRealTimeSeconds(), *InputCmd, *InSyncState, *OutSyncState, *InAuxState, Buffers.Aux.WriteKeyframeFunc(OutputKeyframe));
+				}
+
+				if (DebugState)
+				{
+					DebugState->ProcessedKeyframes.Add(InputKeyframe);
+				}
 			}
-		
-			// -------------------------------------------------------------------------------------------------------------
-			// Process Input
-			// -------------------------------------------------------------------------------------------------------------
-			while(true)
+			else
 			{
-				const int32 Keyframe = TickInfo.LastProcessedInputKeyframe+1;
-				if (Keyframe > TickInfo.MaxAllowedInputKeyframe)
-				{
-					break;
-				}
-
-				if (TInputCmd* NextCmd = Buffers.Input[Keyframe])
-				{
-					// We have an unprocessed command, do we have enough allotted simulation time to process it?
-					if (TickInfo.GetRemainingAllowedSimulationTime() >= NextCmd->GetFrameDeltaTime())
-					{
-						// -------------------------------------------------------------------------------------------------
-						//	The core process input command and call ::Update block!
-						// -------------------------------------------------------------------------------------------------
-						TSyncState* PrevSyncState = Buffers.Sync[TickInfo.LastProcessedInputKeyframe];
-						TSyncState* NextSyncState = Buffers.Sync.WriteKeyframe(Keyframe);
-						TAuxState* AuxState = Buffers.Aux[TickInfo.LastProcessedInputKeyframe];
-
-						check(PrevSyncState != nullptr);
-						check(NextSyncState != nullptr);
-						check(Buffers.Sync.HeadKeyframe() == Keyframe);
-				
-						if (DebugState)
-						{
-							DebugState->ProcessedKeyframes.Add(Keyframe);
-						}
-						
-						TSimulation::Update(Driver, NextCmd->GetFrameDeltaTime().ToRealTimeSeconds(), *NextCmd, *PrevSyncState, *NextSyncState, *AuxState, Buffers.Aux.WriteKeyframeFunc(Keyframe+1));
-					
-						TickInfo.IncrementTotalProcessedSimulationTime(NextCmd->GetFrameDeltaTime(), Keyframe);
-						TickInfo.LastProcessedInputKeyframe = Keyframe;
-					}
-					else
-					{
-						break;
-					}
-				}
-				else
-				{
-					break;
-				}
+				break;
 			}
 		}
 
@@ -237,7 +204,7 @@ public:
 		// Finish debug state buffer recording (what the server processed each frame)
 		if (DebugState)
 		{
-			DebugState->LastProcessedKeyframe = TickInfo.LastProcessedInputKeyframe;
+			DebugState->PendingKeyframe = TickInfo.PendingKeyframe;
 			DebugState->HeadKeyframe = Buffers.Input.HeadKeyframe();
 			DebugState->RemainingAllowedSimulationTimeSeconds = (float)TickInfo.GetRemainingAllowedSimulationTime().ToRealTimeSeconds();
 		}
@@ -295,12 +262,6 @@ public:
 		}
 
 		//TickInfo.InitSimulationTimeBuffer(Parameters.SyncedBufferSize);
-
-		Buffers.SyncMods.SetIsAuthority(Role == ROLE_Authority);
-		Buffers.AuxMods.SetIsAuthority(Role == ROLE_Authority);
-
-		// We want to start with an empty command in the input buffer. The sync buffer will be populated @ frame 0 with the "current" state when we actually sim. This keeps them in sync
-		*Buffers.Input.WriteKeyframe(0) = TInputCmd();
 	}
 
 	void NetSerializeProxy(EReplicationProxyTarget Target, const FNetSerializeParams& Params) final override
@@ -419,9 +380,6 @@ public:
 	TSimulationTickState<TTickSettings> TickInfo;	// Manages simulation time and what inputs we are processed
 
 	TNetworkSimBufferContainer<TBufferTypes> Buffers;
-
-	TPredictedStateAccessor<TSyncState> SyncAccessor;
-	TPredictedStateAccessor<TAuxState> AuxAccessor;
 
 	TRepProxyServerRPC RepProxy_ServerRPC;
 	TRepProxyAutonomous RepProxy_Autonomous;

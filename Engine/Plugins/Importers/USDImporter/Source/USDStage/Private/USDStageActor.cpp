@@ -248,7 +248,7 @@ bool AUsdStageActor::LoadStaticMesh( const pxr::UsdGeomMesh& UsdMesh, UStaticMes
 
 	StaticMesh = MeshCache.FindRef( MeshHash.ToString() );
 
-	if ( !StaticMesh )
+	if ( !StaticMesh && !MeshDescription.IsEmpty() )
 	{
 		StaticMesh = NewObject< UStaticMesh >( GetTransientPackage(), NAME_None, DefaultObjFlag | EObjectFlags::RF_Public );
 

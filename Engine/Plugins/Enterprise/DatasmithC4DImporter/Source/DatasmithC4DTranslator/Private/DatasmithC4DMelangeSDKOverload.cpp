@@ -20,7 +20,10 @@ namespace melange
 
 	void* MemAllocNC(Int size)
 	{
-		return FMemory::Malloc(size);
+		// Patch for Melange SDK version 20.004_RBMelange20.0_259890
+		// It seems to rely on malloc(0) being non-nullptr, which is not true for FMemory::Malloc.
+		// Without this, it will fail to completely read files with geometry that have deleted faces
+		return FMemory::Malloc(size > 0 ? size : 1);
 	}
 
 	void* MemAlloc(Int size)

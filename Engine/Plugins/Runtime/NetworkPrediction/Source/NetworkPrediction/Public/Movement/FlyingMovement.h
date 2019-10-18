@@ -36,6 +36,11 @@ namespace FlyingMovement
 		FRotator RotationInput;
 		FVector MovementInput;
 
+		FInputCmd()
+			: RotationInput(ForceInitToZero)
+			, MovementInput(ForceInitToZero)
+		{ }
+
 		void NetSerialize(const FNetSerializeParams& P)
 		{
 			P.Ar << RotationInput;
@@ -62,6 +67,12 @@ namespace FlyingMovement
 		FVector Location;
 		FVector Velocity;
 		FRotator Rotation;
+
+		FMoveState()
+			: Location(ForceInitToZero)
+			, Velocity(ForceInitToZero)
+			, Rotation(ForceInitToZero)
+		{ }
 
 		void NetSerialize(const FNetSerializeParams& P)
 		{
@@ -117,6 +128,21 @@ namespace FlyingMovement
 			P.Ar << Deceleration;
 			P.Ar << Acceleration;
 		}
+
+		void Log(FStandardLoggingParameters& P) const
+		{
+			if (P.Context == EStandardLoggingContext::HeaderOnly)
+			{
+				P.Ar->Logf(TEXT(" %d "), P.Keyframe);
+			}
+			else if (P.Context == EStandardLoggingContext::Full)
+			{
+				P.Ar->Logf(TEXT("MaxSpeed: %.2f"), MaxSpeed);
+				P.Ar->Logf(TEXT("TurningBoost: %.2f"), TurningBoost);
+				P.Ar->Logf(TEXT("Deceleration: %.2f"), Deceleration);
+				P.Ar->Logf(TEXT("Acceleration: %.2f"), Acceleration);
+			}
+		}
 	};
 
 	using TMovementBufferTypes = TNetworkSimBufferTypes<FInputCmd, FMoveState, FAuxState>;
@@ -154,9 +180,6 @@ namespace FlyingMovement
 	template<int32 InFixedStepMS=0>
 	using FMovementSystem = TNetworkedSimulationModel<FMovementSimulation, IMovementDriver, TMovementBufferTypes, TNetworkSimTickSettings<InFixedStepMS> >;
 
-	// Simulation time used by the movement system
-	//using TSimTime = FMovementSystem::TSimTime;
-
 	// general tolerance value for rotation checks
 	static const float ROTATOR_TOLERANCE = (1e-3);
 
@@ -185,9 +208,7 @@ public:
 
 	FString GetDebugName() const override;
 	const UObject* GetVLogOwner() const override;
-
-	void InitSyncState(FlyingMovement::FMoveState& OutSyncState) const override;
-	void InitAuxState(FlyingMovement::FAuxState& OutAuxState) const override;
+	
 	void ProduceInput(const FNetworkSimTime SimTime, FlyingMovement::FInputCmd& Cmd) override;
 	void FinalizeFrame(const FlyingMovement::FMoveState& SyncState, const FlyingMovement::FAuxState& AuxState) override;
 
@@ -196,8 +217,8 @@ public:
 	DECLARE_DELEGATE_TwoParams(FProduceFlyingInput, const FNetworkSimTime /*SimTime*/, FlyingMovement::FInputCmd& /*Cmd*/)
 	FProduceFlyingInput ProduceInputDelegate;
 
-	TPredictedStateAccessor<FlyingMovement::FMoveState>* MovementSyncState = nullptr;
-	TPredictedStateAccessor<FlyingMovement::FAuxState>*	 MovementAuxState = nullptr;
+	TNetworkSimStateAccessor<FlyingMovement::FMoveState> MovementSyncState;
+	TNetworkSimStateAccessor<FlyingMovement::FAuxState> MovementAuxState;
 
 protected:
 

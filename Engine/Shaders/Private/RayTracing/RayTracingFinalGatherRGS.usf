@@ -116,7 +116,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 		float3 RayThroughput = LightingSample.Diffuse / DiffuseColor;
 		float RayPdf = NoL / PI;
 
-		// Trace visibility ray
+		// Create ray
 		RayDesc Ray;
 		Ray.Origin = WorldPosition;
 		Ray.Direction = normalize(GPPosition - WorldPosition);
@@ -124,25 +124,22 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 		float RayLength = length(GPPosition - WorldPosition);
 		Ray.TMax = max(RayLength - 0.01, Ray.TMin);
 
-		// Cast ray
-		uint RayFlags = 0;
+		// Trace ray
+		uint RayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
+		const uint InstanceInclusionMask = RAY_TRACING_MASK_OPAQUE;
+
 #if !ENABLE_TWO_SIDED_GEOMETRY
 		RayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 #endif
-		FRayCone RayCone = (FRayCone)0;
-		FMaterialClosestHitPayload Payload = TraceRayInternal(
-			TLAS,   // AccelerationStructure
+
+		FMinimalPayload MinimalPayload = TraceVisibilityRay(
+			TLAS,
 			RayFlags,
-			RAY_TRACING_MASK_OPAQUE,
-			RAY_TRACING_SHADER_SLOT_SHADOW, // RayContributionToHitGroupIndex
-			RAY_TRACING_NUM_SHADER_SLOTS,     // MultiplierForGeometryContributionToShaderIndex
-			0,      // MissShaderIndex
-			Ray,    // RayDesc
-			RayCone
-		);
+			InstanceInclusionMask,
+			Ray);
 
 		// No hit indicates successful next-event connection
-		if (Payload.IsMiss() && RayPdf > 0.0)
+		if (MinimalPayload.IsMiss() && RayPdf > 0.0)
 		{
 			ExitantRadiance += GPIrradiance * RayThroughput / RayPdf;
 			HitDistance = min(HitDistance, Ray.TMax);

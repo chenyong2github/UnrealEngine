@@ -695,7 +695,7 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 					}
 					else
 					{
-						if (Level->MapBuildData && PackagesToReload.Contains(Level->MapBuildData->GetOutermost()) || bReloadingLightingScenario)
+						if ((Level->MapBuildData && PackagesToReload.Contains(Level->MapBuildData->GetOutermost())) || bReloadingLightingScenario)
 						{
 							// Remove any VLM here so FPrecomputedVolumetricLightmapData::RemoveFromSceneData() has the necessary resources to perform GPU brick unplugging before destruction
 							Level->ReleaseRenderingResources();

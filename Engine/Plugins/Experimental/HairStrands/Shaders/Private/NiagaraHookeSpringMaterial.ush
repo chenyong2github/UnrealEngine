@@ -7,47 +7,57 @@
  * -----------------------------------------------------------------
  */
 
- void SetupStretchSpringMaterial(in int StrandsSize, in float YoungModulus, in float RodThickness, 
-	in float RestLength, in float DeltaTime, in bool ProjectConstraint, in float MaterialDamping, out float OutMaterialCompliance, out float OutMaterialWeight, out float OutMaterialMultiplier)
+ void ResetStretchSpringMaterial(in int StrandsSize, in float YoungModulus, in float RodThickness, 
+	in float RestLength, in float DeltaTime, in bool ProjectConstraint, in float MaterialDamping, out float OutMaterialCompliance, out float OutMaterialWeight, out float OutMaterialMultiplier, in int NodeOffset)
 {
-	const int LocalIndex = (GGroupThreadId.x % StrandsSize);
-	if( LocalIndex > 1 )
-	{
-		// Compliance = 1.0 / (k * dt * dt)
-		// with k = Y * A / L 
-		// A is the cross section area (Pi * R * R), L is the rest length and Y is the young modulus
-		OutMaterialCompliance = RestLength*4.0/(YoungModulus*PI*RodThickness*RodThickness*DeltaTime*DeltaTime);
+	// Compliance = 1.0 / (k * dt * dt)
+	// with k = L * L * (Y * A / L) (the L*L term before is coming from the fact that our constraint is dL/L and not dL)
+	// A is the cross section area (Pi * R * R), L is the rest length and Y is the young modulus
+	OutMaterialCompliance = 4.0/(YoungModulus*PI*RodThickness*RestLength*RodThickness*DeltaTime*DeltaTime);
 
-		const float SumInverseMass = !ProjectConstraint ? ( SharedInverseMass[GGroupThreadId.x] + SharedInverseMass[GGroupThreadId.x-1] ) : SharedInverseMass[GGroupThreadId.x];
-		const float SchurDiagonal = ( (1.0  + MaterialDamping / DeltaTime ) * SumInverseMass + OutMaterialCompliance );
-		OutMaterialWeight = ( SchurDiagonal != 0.0 ) ? 1.0 / SchurDiagonal : 0.0;
+	const float SumInverseMass = !ProjectConstraint ? ( SharedInverseMass[GGroupThreadId.x] + SharedInverseMass[GGroupThreadId.x-1-NodeOffset] ) / (RestLength*RestLength) :
+				SharedInverseMass[GGroupThreadId.x] / (RestLength*RestLength);
 
-		OutMaterialMultiplier = 0;
-	}
+	const float SchurDiagonal = ( (1.0  + MaterialDamping / DeltaTime ) * SumInverseMass + OutMaterialCompliance );
+	OutMaterialWeight = ( SchurDiagonal != 0.0 ) ? 1.0 / SchurDiagonal : 0.0;
+
+	OutMaterialMultiplier = 0;
 }
 
-void UpdateStretchSpringMultiplier(in float RestLength, in float DeltaTime, in bool ProjectConstraint, in float MaterialDamping, in float MaterialCompliance, in float MaterialWeight, inout float OutMaterialMultiplier)
+
+void UpdateStretchSpringMultiplier(in float RestLength, in float DeltaTime, in bool ProjectConstraint, in float MaterialDamping, in float MaterialCompliance, in float MaterialWeight, inout float OutMaterialMultiplier, in int NodeOffset)
 {
-	float3 EdgeDirection = SharedNodePosition[GGroupThreadId.x] - SharedNodePosition[GGroupThreadId.x-1];
-	const float3 DeltaVelocity = (EdgeDirection - ( SharedPreviousPosition[GGroupThreadId.x] - SharedPreviousPosition[GGroupThreadId.x-1] ) ) / DeltaTime; 
+	const int PreviousIndex = GGroupThreadId.x-1-NodeOffset;
+	float3 EdgeDirection = SharedNodePosition[GGroupThreadId.x] - SharedNodePosition[PreviousIndex];
+	const float3 DeltaVelocity = (EdgeDirection - ( SharedPreviousPosition[GGroupThreadId.x] - SharedPreviousPosition[PreviousIndex] ) ) / DeltaTime; 
 
 	const float EdgeLength = length(EdgeDirection);
 	EdgeDirection /= EdgeLength;
 
 	// XPBD lagrange multiplier update : dL = -(C+compliance*L) / (dC * invM * dCt + alpha)
-	const float DeltaLambda = -((EdgeLength-RestLength) + OutMaterialMultiplier * MaterialCompliance + MaterialDamping * dot(EdgeDirection,DeltaVelocity) ) * MaterialWeight;
+	const float DeltaLambda = -((EdgeLength-RestLength)/RestLength + OutMaterialMultiplier * MaterialCompliance + MaterialDamping * dot(EdgeDirection,DeltaVelocity)/RestLength ) * MaterialWeight;
 
 	// L += dL
 	OutMaterialMultiplier += DeltaLambda;
 
 	// XPBD position update : dX = dL * dCt * invM
-	const float3 PositionDelta = EdgeDirection * DeltaLambda;
+	const float3 PositionDelta = EdgeDirection * DeltaLambda / RestLength;
 
 	// dX += dX
 	SharedNodePosition[GGroupThreadId.x] += PositionDelta * SharedInverseMass[GGroupThreadId.x];
 	if(!ProjectConstraint)
 	{
-		SharedNodePosition[GGroupThreadId.x-1] -= PositionDelta * SharedInverseMass[GGroupThreadId.x-1];
+		SharedNodePosition[PreviousIndex] -= PositionDelta * SharedInverseMass[PreviousIndex];
+	}
+}
+
+void SetupStretchSpringMaterial(in int StrandsSize, in float YoungModulus, in float RodThickness, 
+	in float RestLength, in float DeltaTime, in bool ProjectConstraint, in float MaterialDamping, out float OutMaterialCompliance, out float OutMaterialWeight, out float OutMaterialMultiplier)
+{
+	const int LocalIndex = (GGroupThreadId.x % StrandsSize);
+	if( LocalIndex > 1 )
+	{
+		ResetStretchSpringMaterial(StrandsSize,YoungModulus,RodThickness,RestLength,DeltaTime,ProjectConstraint,MaterialDamping,OutMaterialCompliance,OutMaterialWeight,OutMaterialMultiplier,0);
 	}
 }
 
@@ -62,13 +72,13 @@ void SolveStretchSpringMaterial(in int StrandsSize, in float RestLength, in floa
 		// Process all the red rods
 		if (IsRed)
 		{	
-			UpdateStretchSpringMultiplier(RestLength,DeltaTime,false,MaterialDamping,MaterialCompliance,MaterialWeight,OutMaterialMultiplier);
+			UpdateStretchSpringMultiplier(RestLength,DeltaTime,false,MaterialDamping,MaterialCompliance,MaterialWeight,OutMaterialMultiplier,0);
 		}
 		// Process all the black rods
 		GroupMemoryBarrier(); 
 		if (!IsRed)
 		{
-			UpdateStretchSpringMultiplier(RestLength,DeltaTime,false,MaterialDamping,MaterialCompliance,MaterialWeight,OutMaterialMultiplier);
+			UpdateStretchSpringMultiplier(RestLength,DeltaTime,false,MaterialDamping,MaterialCompliance,MaterialWeight,OutMaterialMultiplier,0);
 		}
 		GroupMemoryBarrier(); 
 	}
@@ -80,16 +90,136 @@ void ProjectStretchSpringMaterial(in int StrandsSize, in float YoungModulus, in 
 	float MaterialWeight = 0.0;
 	OutMaterialMultiplier = 0.0;
 
-	SetupStretchSpringMaterial(StrandsSize, YoungModulus, RodThickness, RestLength, DeltaTime, true, 0.0, MaterialCompliance, MaterialWeight, OutMaterialMultiplier);
-
 	const int LocalIndex = (GGroupThreadId.x % StrandsSize);
 	if( LocalIndex > 1 )
 	{
+		ResetStretchSpringMaterial(StrandsSize,YoungModulus,RodThickness,RestLength,DeltaTime,true,0.0,MaterialCompliance,MaterialWeight,OutMaterialMultiplier,0);
+
 		for(int i = 2; i < StrandsSize; ++i)
 		{
 			if( LocalIndex == i )
 			{
-				UpdateStretchSpringMultiplier(RestLength,DeltaTime,true,0.0,MaterialCompliance,MaterialWeight,OutMaterialMultiplier);
+				UpdateStretchSpringMultiplier(RestLength,DeltaTime,true,0.0,MaterialCompliance,MaterialWeight,OutMaterialMultiplier,0);
+			}
+			GroupMemoryBarrier(); 
+		}
+	}
+}
+
+/* -----------------------------------------------------------------
+ * Bend spring material
+ * -----------------------------------------------------------------
+ */
+
+ void SetupBendSpringMaterial(in int StrandsSize, in float YoungModulus, in float RodThickness, 
+	in float RestLength, in float DeltaTime, in bool ProjectConstraint, in float MaterialDamping, out float OutMaterialCompliance, out float OutMaterialWeight, out float OutMaterialMultiplier)
+{
+	const int LocalIndex = (GGroupThreadId.x % StrandsSize);
+	if( LocalIndex > 1 )
+	{
+		ResetStretchSpringMaterial(StrandsSize,YoungModulus,RodThickness,RestLength,DeltaTime,ProjectConstraint,MaterialDamping,OutMaterialCompliance,OutMaterialWeight,OutMaterialMultiplier,1);
+	}
+}
+
+void SolveBendSpringMaterial(in int StrandsSize, in float RestLength, in float DeltaTime, in float MaterialDamping, 
+			in float MaterialCompliance, in float MaterialWeight, in float MaterialMultiplier, out float OutMaterialMultiplier)
+{
+	OutMaterialMultiplier = MaterialMultiplier;
+	const int LocalIndex = (GGroupThreadId.x % StrandsSize);
+	if( LocalIndex > 1)
+	{
+		const int IsRed = ((GGroupThreadId.x/2) % 2) == 0;
+		// Process all the red rods
+		if (IsRed)
+		{	
+			UpdateStretchSpringMultiplier(RestLength,DeltaTime,false,MaterialDamping,MaterialCompliance,MaterialWeight,OutMaterialMultiplier,1);
+		}
+		// Process all the black rods
+		GroupMemoryBarrier(); 
+		if (!IsRed)
+		{
+			UpdateStretchSpringMultiplier(RestLength,DeltaTime,false,MaterialDamping,MaterialCompliance,MaterialWeight,OutMaterialMultiplier,1);
+		}
+		GroupMemoryBarrier(); 
+	}
+} 
+
+void ProjectBendSpringMaterial(in int StrandsSize, in float YoungModulus, in float RodThickness, in float RestLength, in float DeltaTime, out float OutMaterialMultiplier)
+{
+	float MaterialCompliance = 0.0;
+	float MaterialWeight = 0.0;
+	OutMaterialMultiplier = 0.0;
+
+	const int LocalIndex = (GGroupThreadId.x % StrandsSize);
+	if( LocalIndex > 1 )
+	{
+		ResetStretchSpringMaterial(StrandsSize,YoungModulus,RodThickness,RestLength,DeltaTime,true,0.0,MaterialCompliance,MaterialWeight,OutMaterialMultiplier,1);
+
+		for(int i = 2; i < StrandsSize; ++i)
+		{
+			if( LocalIndex == i )
+			{
+				UpdateStretchSpringMultiplier(RestLength,DeltaTime,true,0.0,MaterialCompliance,MaterialWeight,OutMaterialMultiplier,1);
+			}
+			GroupMemoryBarrier(); 
+		}
+	}
+}
+
+/* -----------------------------------------------------------------
+ * Twist spring material
+ * -----------------------------------------------------------------
+ */
+
+ void SetupTwistSpringMaterial(in int StrandsSize, in float YoungModulus, in float RodThickness, 
+	in float RestLength, in float DeltaTime, in bool ProjectConstraint, in float MaterialDamping, out float OutMaterialCompliance, out float OutMaterialWeight, out float OutMaterialMultiplier)
+{
+	const int LocalIndex = (GGroupThreadId.x % StrandsSize);
+	if( LocalIndex > 2 )
+	{
+		ResetStretchSpringMaterial(StrandsSize,YoungModulus,RodThickness,RestLength,DeltaTime,ProjectConstraint,MaterialDamping,OutMaterialCompliance,OutMaterialWeight,OutMaterialMultiplier,2);
+	}
+}
+
+void SolveTwistSpringMaterial(in int StrandsSize, in float RestLength, in float DeltaTime, in float MaterialDamping, 
+			in float MaterialCompliance, in float MaterialWeight, in float MaterialMultiplier, out float OutMaterialMultiplier)
+{
+	OutMaterialMultiplier = MaterialMultiplier;
+	const int LocalIndex = (GGroupThreadId.x % StrandsSize);
+	if( LocalIndex > 2)
+	{
+		const int IsRed = ((GGroupThreadId.x/3) % 2) == 0;
+		// Process all the red rods
+		if (IsRed)
+		{	
+			UpdateStretchSpringMultiplier(RestLength,DeltaTime,false,MaterialDamping,MaterialCompliance,MaterialWeight,OutMaterialMultiplier,2);
+		}
+		// Process all the black rods
+		GroupMemoryBarrier(); 
+		if (!IsRed)
+		{
+			UpdateStretchSpringMultiplier(RestLength,DeltaTime,false,MaterialDamping,MaterialCompliance,MaterialWeight,OutMaterialMultiplier,2);
+		}
+		GroupMemoryBarrier(); 
+	}
+} 
+
+void ProjectTwistSpringMaterial(in int StrandsSize, in float YoungModulus, in float RodThickness, in float RestLength, in float DeltaTime, out float OutMaterialMultiplier)
+{
+	float MaterialCompliance = 0.0;
+	float MaterialWeight = 0.0;
+	OutMaterialMultiplier = 0.0;
+
+	const int LocalIndex = (GGroupThreadId.x % StrandsSize);
+	if( LocalIndex > 2 )
+	{
+		ResetStretchSpringMaterial(StrandsSize,YoungModulus,RodThickness,RestLength,DeltaTime,true,0.0,MaterialCompliance,MaterialWeight,OutMaterialMultiplier,2);
+
+		for(int i = 3; i < StrandsSize; ++i)
+		{
+			if( LocalIndex == i )
+			{
+				UpdateStretchSpringMultiplier(RestLength,DeltaTime,true,0.0,MaterialCompliance,MaterialWeight,OutMaterialMultiplier,2);
 			}
 			GroupMemoryBarrier(); 
 		}
@@ -127,7 +257,7 @@ void ComputeMaterialFrame(in int StrandsSize)
  * -----------------------------------------------------------------
  */
 
- void SetupBendSpringMaterial(in int StrandsSize, in float YoungModulus, in float RodThickness, 
+ void SetupAngularSpringMaterial(in int StrandsSize, in float YoungModulus, in float RodThickness, 
 	in float RestLength, in float DeltaTime, in bool ProjectConstraint, in float MaterialDamping, out float OutMaterialCompliance, out float OutMaterialWeight, out float3 OutMaterialMultiplier)
 {
 	float MaterialMultiplier = 0;
@@ -136,7 +266,7 @@ void ComputeMaterialFrame(in int StrandsSize)
 	//ComputeMaterialFrame(StrandsSize);
 }
 
-void UpdateBendSpringMultiplier( in float3 RestDirection, in float DeltaTime, in bool ProjectConstraint, in float MaterialDamping, in float InMaterialCompliance, in float InMaterialWeight, inout float3 OutMaterialMultiplier)
+void UpdateAngularSpringMultiplier( in float RestLength, in float3 RestDirection, in float DeltaTime, in bool ProjectConstraint, in float MaterialDamping, in float InMaterialCompliance, in float InMaterialWeight, inout float3 OutMaterialMultiplier)
 {
 	const float3 EdgeDirection = SharedNodePosition[GGroupThreadId.x] - SharedNodePosition[GGroupThreadId.x-1];
 	const float3 DeltaVelocity = (EdgeDirection - ( SharedPreviousPosition[GGroupThreadId.x] - SharedPreviousPosition[GGroupThreadId.x-1] ) ) / DeltaTime; 
@@ -145,14 +275,14 @@ void UpdateBendSpringMultiplier( in float3 RestDirection, in float DeltaTime, in
 	const float3 TargetDirection = RotateVectorByQuat(RestDirection,ParentFrame);
 
 	// XPBD lagrange multiplier update : dL = -(C+compliance*L) / (dC * invM * dCt + alpha)
-	const float3 DeltaLambda = -(EdgeDirection - TargetDirection + 
-					OutMaterialMultiplier * InMaterialCompliance  + MaterialDamping * DeltaVelocity ) * InMaterialWeight;
+	const float3 DeltaLambda = -((EdgeDirection - TargetDirection)/RestLength + 
+					OutMaterialMultiplier * InMaterialCompliance  + MaterialDamping * DeltaVelocity /RestLength) * InMaterialWeight;
 
 	// L += dL
 	OutMaterialMultiplier += DeltaLambda;
 
 	// XPBD position update : dX = dL * dCt * invM
-	const float3 PositionDelta  = DeltaLambda;
+	const float3 PositionDelta  = DeltaLambda/RestLength;
 
 	// dX += dX
 	SharedNodePosition[GGroupThreadId.x] += PositionDelta * SharedInverseMass[GGroupThreadId.x];
@@ -162,11 +292,9 @@ void UpdateBendSpringMultiplier( in float3 RestDirection, in float DeltaTime, in
 	}
 }
 
-void SolveBendSpringMaterial(in int StrandsSize, in float3 RestDirection, in float DeltaTime, in float MaterialDamping,
+void SolveAngularSpringMaterial(in int StrandsSize, in float RestLength, in float3 RestDirection, in float DeltaTime, in float MaterialDamping,
 			in float MaterialCompliance, in float MaterialWeight, in float3 MaterialMultiplier, out float3 OutMaterialMultiplier)
 {
-	//ComputeMaterialFrame(StrandsSize);
-
 	OutMaterialMultiplier = MaterialMultiplier;
 	const int LocalIndex = (GGroupThreadId.x % StrandsSize);
 	if( LocalIndex > 1)
@@ -175,19 +303,19 @@ void SolveBendSpringMaterial(in int StrandsSize, in float3 RestDirection, in flo
 		// Process all the red rods
 		if (IsRed)
 		{	
-			UpdateBendSpringMultiplier(RestDirection,DeltaTime,false,MaterialDamping,MaterialCompliance,MaterialWeight,OutMaterialMultiplier);
+			UpdateAngularSpringMultiplier(RestLength,RestDirection,DeltaTime,false,MaterialDamping,MaterialCompliance,MaterialWeight,OutMaterialMultiplier);
 		}
 		GroupMemoryBarrier(); 
 
 		if (!IsRed)
 		{
-			UpdateBendSpringMultiplier(RestDirection,DeltaTime,false,MaterialDamping,MaterialCompliance,MaterialWeight,OutMaterialMultiplier);
+			UpdateAngularSpringMultiplier(RestLength,RestDirection,DeltaTime,false,MaterialDamping,MaterialCompliance,MaterialWeight,OutMaterialMultiplier);
 		}
 		GroupMemoryBarrier(); 
 	}
 } 
 
-void ProjectBendSpringMaterial(in int StrandsSize, in float YoungModulus, in float RodThickness, in float RestLength, in float3 RestDirection, in float DeltaTime,
+void ProjectAngularSpringMaterial(in int StrandsSize, in float YoungModulus, in float RodThickness, in float RestLength, in float3 RestDirection, in float DeltaTime,
 			out float3 OutMaterialMultiplier)
 {
 	float MaterialCompliance = 0.0;
@@ -195,7 +323,7 @@ void ProjectBendSpringMaterial(in int StrandsSize, in float YoungModulus, in flo
 	OutMaterialMultiplier = float3(0,0,0);
 
 	ComputeMaterialFrame(StrandsSize);
-	SetupBendSpringMaterial(StrandsSize, YoungModulus, RodThickness, RestLength, DeltaTime, true, 0.0, MaterialCompliance, MaterialWeight, OutMaterialMultiplier);
+	SetupAngularSpringMaterial(StrandsSize, YoungModulus, RodThickness, RestLength, DeltaTime, true, 0.0, MaterialCompliance, MaterialWeight, OutMaterialMultiplier);
 
 	float3 MaterialMultiplier = float3(0,0,0);
 	const int LocalIndex = (GGroupThreadId.x % StrandsSize);
@@ -205,7 +333,7 @@ void ProjectBendSpringMaterial(in int StrandsSize, in float YoungModulus, in flo
 		{
 			if( LocalIndex == i )
 			{
-				UpdateBendSpringMultiplier(RestDirection,DeltaTime,true,0.0,MaterialCompliance,MaterialWeight,OutMaterialMultiplier);
+				UpdateAngularSpringMultiplier(RestLength,RestDirection,DeltaTime,true,0.0,MaterialCompliance,MaterialWeight,OutMaterialMultiplier);
 			}
 			GroupMemoryBarrier(); 
 		}
@@ -213,7 +341,7 @@ void ProjectBendSpringMaterial(in int StrandsSize, in float YoungModulus, in flo
 }
 
 /* -----------------------------------------------------------------
- * Compute Rest Direction
+ * Compute Rest Direction and length
  * -----------------------------------------------------------------
  */
 

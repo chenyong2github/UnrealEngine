@@ -460,25 +460,24 @@ void FOpenGLDynamicRHI::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI, FR
 		uint32 DestIndex = ResolveParams.DestArrayIndex * (bDestCubemap ? 6 : 1) + (bDestCubemap ? uint32(ResolveParams.CubeFace) : 0);
 		uint32 SrcIndex  = ResolveParams.SourceArrayIndex * (bSrcCubemap ? 6 : 1) + (bSrcCubemap ? uint32(ResolveParams.CubeFace) : 0);
 
-		uint32 BaseX = 0;
-		uint32 BaseY = 0;
-		uint32 SizeX = 0;
-		uint32 SizeY = 0;
-		if (ResolveParams.Rect.IsValid())
+		FIntRect SrcRect(ResolveParams.Rect.X1, ResolveParams.Rect.Y1, ResolveParams.Rect.X2, ResolveParams.Rect.Y2);
+		if (SrcRect.IsEmpty())
 		{
-			BaseX = ResolveParams.Rect.X1;
-			BaseY = ResolveParams.Rect.Y1;
-			SizeX = ResolveParams.Rect.X2 - ResolveParams.Rect.X1;
-			SizeY = ResolveParams.Rect.Y2 - ResolveParams.Rect.Y1;
+			// Empty rect mans that the entire source is to be copied. Note that we can't use ResolveParams.Rect.IsValid(), because it
+			// returns false if the rectangle is "inside out" (e.g. X1 > X2), and we want to perform flipping when that's the case.
+			SrcRect.Max.X = GetOpenGLTextureSizeXFromRHITexture(SourceTextureRHI);
+			SrcRect.Max.Y = GetOpenGLTextureSizeYFromRHITexture(SourceTextureRHI);
+			SrcRect.Max.X = FMath::Max<int32>(1, SrcRect.Max.X >> ResolveParams.MipIndex);
+			SrcRect.Max.Y = FMath::Max<int32>(1, SrcRect.Max.Y >> ResolveParams.MipIndex);
 		}
-		else
-		{
-			// Invalid rect mans that the entire source is to be copied
-			SizeX = GetOpenGLTextureSizeXFromRHITexture(SourceTextureRHI);
-			SizeY = GetOpenGLTextureSizeYFromRHITexture(SourceTextureRHI);
 
-			SizeX = FMath::Max<uint32>(1, SizeX >> ResolveParams.MipIndex);
-			SizeY = FMath::Max<uint32>(1, SizeY >> ResolveParams.MipIndex);
+		FIntRect DestRect(ResolveParams.DestRect.X1, ResolveParams.DestRect.Y1, ResolveParams.DestRect.X2, ResolveParams.DestRect.Y2);
+		if(DestRect.IsEmpty())
+		{
+			DestRect.Max.X = GetOpenGLTextureSizeXFromRHITexture(DestTextureRHI);
+			DestRect.Max.Y = GetOpenGLTextureSizeYFromRHITexture(DestTextureRHI);
+			DestRect.Max.X = FMath::Max<int32>(1, DestRect.Max.X >> ResolveParams.MipIndex);
+			DestRect.Max.Y = FMath::Max<int32>(1, DestRect.Max.Y >> ResolveParams.MipIndex);
 		}
 
 		GPUProfilingData.RegisterGPUWork();
@@ -486,8 +485,15 @@ void FOpenGLDynamicRHI::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI, FR
 
 		const bool bTrueBlit = !SourceTextureRHI->IsMultisampled()
 			&& !DestTextureRHI->IsMultisampled()
-			&& SourceTextureRHI->GetFormat() == DestTextureRHI->GetFormat();
-
+			&& SourceTextureRHI->GetFormat() == DestTextureRHI->GetFormat()
+			&& SrcRect.Size() == DestRect.Size()
+			&& SrcRect.Width() > 0
+			&& SrcRect.Height() > 0
+#if PLATFORM_ANDROID
+			&& SourceTexture->Target == DestTexture->Target // glCopyImageSubData() doesn't like copying from a texture to a renderbuffer on Android
+#endif
+			;
+		
 		if ( !bTrueBlit || !FOpenGL::SupportsCopyImage() )
 		{
 			// Color buffers can be GL_NONE for attachment purposes if they aren't used as render targets
@@ -525,8 +531,8 @@ void FOpenGLDynamicRHI::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI, FR
 			}
 
 			FOpenGL::BlitFramebuffer(
-				BaseX, BaseY, BaseX + SizeX, BaseY + SizeY,
-				BaseX, BaseY, BaseX + SizeX, BaseY + SizeY,
+				SrcRect.Min.X, SrcRect.Min.Y, SrcRect.Max.X, SrcRect.Max.Y,
+				DestRect.Min.X, DestRect.Min.Y, DestRect.Max.X, DestRect.Max.Y,
 				Mask,
 				GL_NEAREST
 				);
@@ -539,17 +545,17 @@ void FOpenGLDynamicRHI::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI, FR
 			FOpenGL::CopyImageSubData(	SourceTexture->Resource,
 										SourceTexture->Target,
 										MipmapLevel,
-										BaseX,
-										BaseY,
+										SrcRect.Min.X,
+										SrcRect.Min.Y,
 										SrcIndex,
 										DestTexture->Resource,
 										DestTexture->Target,
 										MipmapLevel,
-										BaseX,
-										BaseY,
+										DestRect.Min.X,
+										DestRect.Min.Y,
 										DestIndex,
-										SizeX,
-										SizeY,
+										SrcRect.Width(),
+										SrcRect.Height(),
 										1);
 		}
 
@@ -1169,6 +1175,13 @@ void FOpenGLDynamicRHI::RHIBeginRenderPass(const FRHIRenderPassInfo& InInfo, con
 		extern void BeginOcclusionQueryBatch(uint32);
 		BeginOcclusionQueryBatch(InInfo.NumOcclusionQueries);
 	}
+
+#if PLATFORM_ANDROID && !PLATFORM_LUMIN && !PLATFORM_LUMINGL4
+	if (FAndroidOpenGL::RequiresAdrenoTilingModeHint())
+	{
+		FAndroidOpenGL::EnableAdrenoTilingModeHint(FCString::Strcmp(InName, TEXT("SceneColorRendering")) == 0);
+	}
+#endif
 }
 
 void FOpenGLDynamicRHI::RHIEndRenderPass()

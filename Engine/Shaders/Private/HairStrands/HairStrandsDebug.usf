@@ -7,12 +7,14 @@ float2 OutputResolution;
 uint FastResolveMask;
 
 Texture2D<uint4> CategorizationTexture;
+Texture2D<float> CoverageTexture;
 Texture2D<uint2> DepthStencilTexture;
 SamplerState LinearSampler;
 
 #define DEBUG_MODE_SAMPLE_COUNT 0 
 #define DEBUG_MODE_COVERAGE_TYPE 1
 #define DEBUG_MODE_TAA_RESOLVE_TYPE 2
+#define DEBUG_MODE_COVERAGE 3
 
 float3 HUEtoRGB(in float H)
 {
@@ -42,7 +44,7 @@ void MainPS(
 	const float2 PixelPos = UV * OutputResolution;
 
 	const FCategorizationData CatData = DecodeCategorizationData(CategorizationTexture.Load(uint3(PixelPos,0)));
-	const bool bIsValid = CatData.TotalCoverage8bit > 0;
+	const bool bIsValid = CatData.PixelCoverage > 0;
 	if (!bIsValid)
 		discard;
 
@@ -51,7 +53,7 @@ void MainPS(
 #endif
 
 #if PERMUTATION_DEBUG_MODE == DEBUG_MODE_COVERAGE_TYPE
-	const bool bIsFullyCovered = CatData.TotalCoverage8bit >= 255;
+	const bool bIsFullyCovered = CatData.PixelCoverage >= 1;
 	const float3 Color = bIsFullyCovered ? float3(0.25,0.85,0.25) : float3(0.85,0.25,0.25);
 #endif
 
@@ -60,6 +62,11 @@ void MainPS(
 	const bool bIsFastResolve = (Stencil & FastResolveMask) != 0;
 	const float3 Color = bIsFastResolve ? float3(1,1,0) : float3(0.15f, 0.25f, 0.75f);
 #endif
+
+#if PERMUTATION_DEBUG_MODE == DEBUG_MODE_COVERAGE
+	const float3 Color = GetColorCode(saturate(CatData.PixelCoverage));
+#endif
+	
 
 	OutColor = float4(Color, 1);
 }

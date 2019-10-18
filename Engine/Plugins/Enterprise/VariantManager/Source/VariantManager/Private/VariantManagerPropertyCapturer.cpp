@@ -61,7 +61,6 @@ private:
 	// Points to the parent instance object. We use this to determine if a component we stumble upon is
 	// on our object's component hierarchy or on some other object's
 	const UObject* CurrentOwnerObject;
-	bool bCurrentOwnerObjectIsBlueprint;
 
 	EPropertyValueCategory CategoriesToCapture;
 
@@ -76,17 +75,6 @@ private:
 	TSet<FString> CapturedPaths;
 };
 
-namespace PropertyCaptureHelperNames
-{
-	static const FName RelativeLocationName(TEXT("RelativeLocation"));
-	static const FName RelativeRotationName(TEXT("RelativeRotation"));
-	static const FName RelativeScale3DName(TEXT("RelativeScale3D"));
-	static const FName bVisibleName(TEXT("bVisible"));
-	static const FName OverrideMaterialsName(TEXT("OverrideMaterials"));
-	static const FName LightColorName(TEXT("LightColor"));
-	static const FName DefaultLightColorName(TEXT("DefaultLightColor"));
-}
-
 FPropertyCaptureHelper::FPropertyCaptureHelper(const TArray<UObject*>& InObjects, EPropertyValueCategory InCategoriesToCapture, FString InTargetPropertyPath)
 	: TargetPropertyPath(InTargetPropertyPath)
 	, CategoriesToCapture(InCategoriesToCapture)
@@ -99,181 +87,6 @@ FPropertyCaptureHelper::FPropertyCaptureHelper(const TArray<UObject*>& InObjects
 
 	SegmentedTargetPropertyPath.Empty();
 	TargetPropertyPath.ParseIntoArray(SegmentedTargetPropertyPath, &Delimiter, 1, true);
-}
-
-UArrayProperty* FPropertyCaptureHelper::GetMeshComponentOverloadMaterials()
-{
-	static UArrayProperty* MeshComponentOverloadMaterials = nullptr;
-
-	if (MeshComponentOverloadMaterials == nullptr)
-	{
-		for( TFieldIterator<UArrayProperty> It(UMeshComponent::StaticClass()); It; ++It )
-		{
-			UArrayProperty* Prop = *It;
-			if (Prop->GetFName() == PropertyCaptureHelperNames::OverrideMaterialsName)
-			{
-				MeshComponentOverloadMaterials = Prop;
-				break;
-			}
-		}
-
-		if (MeshComponentOverloadMaterials == nullptr)
-		{
-			UE_LOG(LogVariantManager, Error, TEXT("Unable to find UMeshComponent's OverrideMaterials property!"));
-		}
-	}
-
-	return MeshComponentOverloadMaterials;
-}
-
-UStructProperty* FPropertyCaptureHelper::GetSceneComponentRelativeLocation()
-{
-	static UStructProperty* SceneComponentRelativeLocation = nullptr;
-
-	if (SceneComponentRelativeLocation == nullptr)
-	{
-		for( TFieldIterator<UStructProperty> It(USceneComponent::StaticClass()); It; ++It )
-		{
-			UStructProperty* Prop = *It;
-			if (Prop->GetFName() == PropertyCaptureHelperNames::RelativeLocationName)
-			{
-				SceneComponentRelativeLocation = Prop;
-				break;
-			}
-		}
-
-		if (SceneComponentRelativeLocation == nullptr)
-		{
-			UE_LOG(LogVariantManager, Error, TEXT("Unable to find USceneComponent's RelativeLocation property!"));
-		}
-	}
-
-	return SceneComponentRelativeLocation;
-}
-
-UStructProperty* FPropertyCaptureHelper::GetSceneComponentRelativeRotation()
-{
-	static UStructProperty* SceneComponentRelativeRotation = nullptr;
-
-	if (SceneComponentRelativeRotation == nullptr)
-	{
-		for( TFieldIterator<UStructProperty> It(USceneComponent::StaticClass()); It; ++It )
-		{
-			UStructProperty* Prop = *It;
-			if (Prop->GetFName() == PropertyCaptureHelperNames::RelativeRotationName)
-			{
-				SceneComponentRelativeRotation = Prop;
-				break;
-			}
-		}
-
-		if (SceneComponentRelativeRotation == nullptr)
-		{
-			UE_LOG(LogVariantManager, Error, TEXT("Unable to find USceneComponent's RelativeRotation property!"));
-		}
-	}
-
-	return SceneComponentRelativeRotation;
-}
-
-UStructProperty* FPropertyCaptureHelper::GetSceneComponentRelativeScale3D()
-{
-	static UStructProperty* SceneComponentRelativeScale3D = nullptr;
-
-	if (SceneComponentRelativeScale3D == nullptr)
-	{
-		for( TFieldIterator<UStructProperty> It(USceneComponent::StaticClass()); It; ++It )
-		{
-			UStructProperty* Prop = *It;
-			if (Prop->GetFName() == PropertyCaptureHelperNames::RelativeScale3DName)
-			{
-				SceneComponentRelativeScale3D = Prop;
-				break;
-			}
-		}
-
-		if (SceneComponentRelativeScale3D == nullptr)
-		{
-			UE_LOG(LogVariantManager, Error, TEXT("Unable to find USceneComponent's RelativeScale3D property!"));
-		}
-	}
-
-	return SceneComponentRelativeScale3D;
-}
-
-UBoolProperty* FPropertyCaptureHelper::GetSceneComponentbVisible()
-{
-	static UBoolProperty* SceneComponentbVisible = nullptr;
-
-	if (SceneComponentbVisible == nullptr)
-	{
-		for( TFieldIterator<UBoolProperty> It(USceneComponent::StaticClass()); It; ++It )
-		{
-			UBoolProperty* Prop = *It;
-			if (Prop->GetFName() == PropertyCaptureHelperNames::bVisibleName)
-			{
-				SceneComponentbVisible = Prop;
-				break;
-			}
-		}
-
-		if (SceneComponentbVisible == nullptr)
-		{
-			UE_LOG(LogVariantManager, Error, TEXT("Unable to find USceneComponent's bVisible property!"));
-		}
-	}
-
-	return SceneComponentbVisible;
-}
-
-UStructProperty* FPropertyCaptureHelper::GetLightComponentLightColor()
-{
-	static UStructProperty* LightComponentLightColor = nullptr;
-
-	if (LightComponentLightColor == nullptr)
-	{
-		for( TFieldIterator<UStructProperty> It(ULightComponent::StaticClass()); It; ++It )
-		{
-			UStructProperty* Prop = *It;
-			if (Prop->GetFName() == PropertyCaptureHelperNames::LightColorName)
-			{
-				LightComponentLightColor = Prop;
-				break;
-			}
-		}
-
-		if (LightComponentLightColor == nullptr)
-		{
-			UE_LOG(LogVariantManager, Error, TEXT("Unable to find ULightComponent's LightColor property!"));
-		}
-	}
-
-	return LightComponentLightColor;
-}
-
-UStructProperty* FPropertyCaptureHelper::GetFogComponentDefaultLightColor()
-{
-	static UStructProperty* FogComponentDefaultLightColor = nullptr;
-
-	if (FogComponentDefaultLightColor == nullptr)
-	{
-		for( TFieldIterator<UStructProperty> It(UAtmosphericFogComponent::StaticClass()); It; ++It )
-		{
-			UStructProperty* Prop = *It;
-			if (Prop->GetFName() == PropertyCaptureHelperNames::DefaultLightColorName)
-			{
-				FogComponentDefaultLightColor = Prop;
-				break;
-			}
-		}
-
-		if (FogComponentDefaultLightColor == nullptr)
-		{
-			UE_LOG(LogVariantManager, Error, TEXT("Unable to find UAtmosphericFogComponent's DefaultLightColor property!"));
-		}
-	}
-
-	return FogComponentDefaultLightColor;
 }
 
 void FPropertyCaptureHelper::CaptureActorExceptionProperties(const AActor* Actor, FPropertyPath& PropertyPath, FString& PrettyPathString, TArray<FString>& ComponentNames)
@@ -295,7 +108,7 @@ void FPropertyCaptureHelper::CaptureComponentExceptionProperties(const UActorCom
 			int32 NumMats = ComponentAsMeshComponent->GetNumMaterials();
 			const static FString MatString = FString(TEXT("Material["));
 
-			UArrayProperty* OverrideMatsProp = GetMeshComponentOverloadMaterials();
+			UArrayProperty* OverrideMatsProp = FVariantManagerUtils::GetOverrideMaterialsProperty();
 			PropertyPath.AddProperty(FPropertyInfo(OverrideMatsProp));
 
 			FPropertyInfo LeafInfo(OverrideMatsProp->Inner);
@@ -324,7 +137,7 @@ void FPropertyCaptureHelper::CaptureComponentExceptionProperties(const UActorCom
 
 		if (EnumHasAnyFlags(CategoriesToCapture, EPropertyValueCategory::RelativeLocation))
 		{
-			UStructProperty* RelativeLocationProp = GetSceneComponentRelativeLocation();
+			UStructProperty* RelativeLocationProp = FVariantManagerUtils::GetRelativeLocationProperty();
 
 			PropertyPath.AddProperty(FPropertyInfo(RelativeLocationProp));
 			ComponentNames.Add(FString());
@@ -336,7 +149,7 @@ void FPropertyCaptureHelper::CaptureComponentExceptionProperties(const UActorCom
 
 		if (EnumHasAnyFlags(CategoriesToCapture, EPropertyValueCategory::RelativeRotation))
 		{
-			UStructProperty* RelativeRotationProp = GetSceneComponentRelativeRotation();
+			UStructProperty* RelativeRotationProp = FVariantManagerUtils::GetRelativeRotationProperty();
 
 			PropertyPath.AddProperty(FPropertyInfo(RelativeRotationProp));
 			ComponentNames.Add(FString());
@@ -348,7 +161,7 @@ void FPropertyCaptureHelper::CaptureComponentExceptionProperties(const UActorCom
 
 		if (EnumHasAnyFlags(CategoriesToCapture, EPropertyValueCategory::RelativeScale3D))
 		{
-			UStructProperty* RelativeScale3DProp = GetSceneComponentRelativeScale3D();
+			UStructProperty* RelativeScale3DProp = FVariantManagerUtils::GetRelativeScale3DProperty();
 
 			PropertyPath.AddProperty(FPropertyInfo(RelativeScale3DProp));
 			ComponentNames.Add(FString());
@@ -361,7 +174,7 @@ void FPropertyCaptureHelper::CaptureComponentExceptionProperties(const UActorCom
 
 		if (EnumHasAnyFlags(CategoriesToCapture, EPropertyValueCategory::Visibility))
 		{
-			UBoolProperty* VisibilityProp = GetSceneComponentbVisible();
+			UBoolProperty* VisibilityProp = FVariantManagerUtils::GetVisibilityProperty();
 
 			PropertyPath.AddProperty(FPropertyInfo(VisibilityProp));
 			ComponentNames.Add(FString());
@@ -378,7 +191,7 @@ void FPropertyCaptureHelper::CaptureComponentExceptionProperties(const UActorCom
 
 		if (EnumHasAnyFlags(CategoriesToCapture, EPropertyValueCategory::Color))
 		{
-			UStructProperty* LightColorProp = GetLightComponentLightColor();
+			UStructProperty* LightColorProp = FVariantManagerUtils::GetLightColorProperty();
 
 			PropertyPath.AddProperty(FPropertyInfo(LightColorProp));
 			ComponentNames.Add(FString());
@@ -395,7 +208,7 @@ void FPropertyCaptureHelper::CaptureComponentExceptionProperties(const UActorCom
 
 		if (EnumHasAnyFlags(CategoriesToCapture, EPropertyValueCategory::Color))
 		{
-			UStructProperty* FogComponentProp = GetFogComponentDefaultLightColor();
+			UStructProperty* FogComponentProp = FVariantManagerUtils::GetDefaultLightColorProperty();
 
 			PropertyPath.AddProperty(FPropertyInfo(FogComponentProp));
 			ComponentNames.Add(FString());
@@ -560,7 +373,7 @@ void FPropertyCaptureHelper::GetAllPropertyPathsRecursive(const void* ValuePtr, 
 			FString PrettyString = Property->GetDisplayNameText().ToString();
 			if (const UScriptStruct* Struct = Cast<UScriptStruct>(PropertySource))
 			{
-				if (!VariantManagerUtils::IsBuiltInStructProperty(Property))
+				if (!FVariantManagerUtils::IsBuiltInStructProperty(Property))
 				{
 					FString Category = Property->GetMetaData(TEXT("Category"));
 					if (!Category.IsEmpty())
@@ -591,7 +404,7 @@ void FPropertyCaptureHelper::GetAllPropertyPathsRecursive(const void* ValuePtr, 
 					{
 						// Check the UArrayProperty's flags. The Inner's flags are unused for this
 						if (CanCaptureProperty(PropertySource, ArrayProperty, PropertySetterName) &&
-							(VariantManagerUtils::IsBuiltInStructProperty(ArrayProperty->Inner) || CAPTURE_ENTIRE_NON_BUILTIN_STRUCTS))
+							(FVariantManagerUtils::IsBuiltInStructProperty(ArrayProperty->Inner) || CAPTURE_ENTIRE_NON_BUILTIN_STRUCTS))
 						{
 							CaptureProp(PropertyPath, PrettyPathString, ComponentNames, PropertySetterName);
 						}
@@ -655,7 +468,7 @@ void FPropertyCaptureHelper::GetAllPropertyPathsRecursive(const void* ValuePtr, 
 			// Structs
 			else if (UStructProperty* StructProperty = Cast<UStructProperty>(Property))
 			{
-				if (CanCaptureProperty(PropertySource, Property, PropertySetterName) && (VariantManagerUtils::IsBuiltInStructProperty(Property) || CAPTURE_ENTIRE_NON_BUILTIN_STRUCTS))
+				if (CanCaptureProperty(PropertySource, Property, PropertySetterName) && (FVariantManagerUtils::IsBuiltInStructProperty(Property) || CAPTURE_ENTIRE_NON_BUILTIN_STRUCTS))
 				{
 					CaptureProp(PropertyPath, PrettyPathString, ComponentNames, PropertySetterName);
 				}
@@ -705,14 +518,15 @@ void FPropertyCaptureHelper::GetAllPropertyPathsRecursive(const void* ValuePtr, 
 						ComponentNames[ComponentNames.Num()-1] = NameString;
 
 						FString ComponentPrettyPath;
-						if (bCurrentOwnerObjectIsBlueprint)
+						if (!ObjAsComponent->HasAnyFlags(RF_DefaultSubObject))
 						{
-							// For blueprint actors, the root component is renameable by the user, so let's use that instead
+							// If we don't have a DefaultSubObject tag, we're a generated component for a blueprint, which can be
+							// renamed by the user. So let's use that name instead
 							ComponentPrettyPath = NameString + PATH_DELIMITER;
 						}
 						else
 						{
-							// For regular actors, the root component name can't be renamed by the user and is something like
+							// For DefaultSubObject components, the name can't be set by the user and is something like
 							// StaticMeshComponent0, so we keep the property name, which should be "Static Mesh Component".
 							ComponentPrettyPath = ObjAsComponent->GetClass()->GetDisplayNameText().ToString() + PATH_DELIMITER;
 						}
@@ -765,7 +579,6 @@ TArray<TSharedPtr<FCapturableProperty>>& FPropertyCaptureHelper::CaptureProperti
 			TargetClass = AsClass;
 			TargetInstance = CDO;
 			CurrentOwnerObject = CDO;
-			bCurrentOwnerObjectIsBlueprint = ((UObject*)AsClass)->IsA(UBlueprintGeneratedClass::StaticClass());
 		}
 		// If the passed in object is an instance of a class
 		else
@@ -773,7 +586,6 @@ TArray<TSharedPtr<FCapturableProperty>>& FPropertyCaptureHelper::CaptureProperti
 			TargetClass = TargetObject->GetClass();
 			TargetInstance = TargetObject;
 			CurrentOwnerObject = TargetObject;
-			bCurrentOwnerObjectIsBlueprint = ((UObject*)TargetObject->GetClass())->IsA(UBlueprintGeneratedClass::StaticClass());
 		}
 
 		CaptureActorExceptionProperties((AActor*)TargetInstance, InitialPropertyPath, InitialPrettyString, InitialComponentNames);

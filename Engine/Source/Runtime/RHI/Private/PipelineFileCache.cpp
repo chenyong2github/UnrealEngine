@@ -136,6 +136,7 @@ TMap<uint32, FPSOUsageData> FPipelineFileCache::RunTimeToPSOUsage;
 TMap<uint32, FPSOUsageData> FPipelineFileCache::NewPSOUsage;
 TMap<uint32, FPipelineStateStats*> FPipelineFileCache::Stats;
 TSet<FPipelineCacheFileFormatPSO> FPipelineFileCache::NewPSOs;
+TSet<uint32> FPipelineFileCache::NewPSOHashes;
 uint32 FPipelineFileCache::NumNewPSOs;
 FPipelineFileCache::PSOOrder FPipelineFileCache::RequestedOrder = FPipelineFileCache::PSOOrder::MostToLeastUsed;
 bool FPipelineFileCache::FileCacheEnabled = false;
@@ -2474,8 +2475,8 @@ void FPipelineFileCache::PreCompileComplete()
 	static FString PrivateWritePathBase = FString([NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) objectAtIndex:0]) + TEXT("/");
 	FString Result = PrivateWritePathBase + FString([NSString stringWithFormat:@"/Caches/%@/com.apple.metal/usecache.txt", [NSBundle mainBundle].bundleIdentifier]);
 	int32 Handle = open(TCHAR_TO_UTF8(*Result), O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
-	char* Version = TCHAR_TO_ANSI(*FEngineVersion::Current().ToString());
-	write(Handle, Version, strlen(Version));
+	FString Version = FEngineVersion::Current().ToString();
+	write(Handle, TCHAR_TO_ANSI(*Version), Version.Len());
 	close(Handle);
 #endif
 }
@@ -2587,6 +2588,7 @@ void FPipelineFileCache::Shutdown()
 		}
 		Stats.Empty();
 		NewPSOs.Empty();
+		NewPSOHashes.Empty();
         NumNewPSOs = 0;
 		
 		FileCacheEnabled = false;
@@ -2613,6 +2615,7 @@ bool FPipelineFileCache::OpenPipelineFileCache(FString const& Name, EShaderPlatf
 			
 			// File Cache now exists - these caches should be empty for this file otherwise will have false positives from any previous file caching - if not something has been caching when it should not be
 			check(NewPSOs.Num() == 0);
+			check(NewPSOHashes.Num() == 0);
 			check(RunTimeToPSOUsage.Num() == 0);
 		}
 	}
@@ -2681,6 +2684,7 @@ void FPipelineFileCache::ClosePipelineFileCache()
 			RunTimeToPSOUsage.Empty();
 			NewPSOUsage.Empty();
 			NewPSOs.Empty();
+			NewPSOHashes.Empty();
             NumNewPSOs = 0;
 			
 			SET_MEMORY_STAT(STAT_NewCachedPSOMemory, 0);
@@ -2722,8 +2726,8 @@ void FPipelineFileCache::CacheGraphicsPSO(uint32 RunTimeHash, FGraphicsPipelineS
 					
 					if (!FileCache->IsPSOEntryCached(NewEntry, &CurrentUsageData))
 					{
-						bool bActuallyNewPSO = true;
-						if (IsOpenGLPlatform(GMaxRHIShaderPlatform)) // OpenGL is a BSS platform and so we don't report BSS matches as missing.
+						bool bActuallyNewPSO = !NewPSOHashes.Contains(PSOHash);
+						if (bActuallyNewPSO && IsOpenGLPlatform(GMaxRHIShaderPlatform)) // OpenGL is a BSS platform and so we don't report BSS matches as missing.
 						{
 							bActuallyNewPSO = !FileCache->IsBSSEquivalentPSOEntryCached(NewEntry);
 						}
@@ -2740,7 +2744,8 @@ void FPipelineFileCache::CacheGraphicsPSO(uint32 RunTimeHash, FGraphicsPipelineS
 								NewPSOs.Add(NewEntry);
 								INC_MEMORY_STAT_BY(STAT_NewCachedPSOMemory, sizeof(FPipelineCacheFileFormatPSO) + sizeof(uint32) + sizeof(uint32));
 							}
-							
+							NewPSOHashes.Add(PSOHash);
+
 							NumNewPSOs++;
 							INC_DWORD_STAT(STAT_NewGraphicsPipelineStateCount);
 							INC_DWORD_STAT(STAT_TotalGraphicsPipelineStateCount);
@@ -2797,26 +2802,32 @@ void FPipelineFileCache::CacheComputePSO(uint32 RunTimeHash, FRHIComputeShader c
 					
 					if (!FileCache->IsPSOEntryCached(NewEntry, &CurrentUsageData))
 					{
-						CSV_EVENT(PSO, TEXT("Encountered new compute PSO"));
-						UE_LOG(LogRHI, Warning, TEXT("Encountered a new compute PSO: %u"), PSOHash);
-						if (GPSOFileCachePrintNewPSODescriptors > 0)
+						bool bActuallyNewPSO = !NewPSOHashes.Contains(PSOHash);
+						if (bActuallyNewPSO)
 						{
-							UE_LOG(LogRHI, Warning, TEXT("New compute PSO (%u) Description: %s"), PSOHash, *NewEntry.ComputeDesc.ComputeShader.ToString());
-						}
-
-						if (LogPSOtoFileCache())
-						{
-							NewPSOs.Add(NewEntry);
-							INC_MEMORY_STAT_BY(STAT_NewCachedPSOMemory, sizeof(FPipelineCacheFileFormatPSO) + sizeof(uint32) + sizeof(uint32));
-						}
-
-						NumNewPSOs++;
-						INC_DWORD_STAT(STAT_NewComputePipelineStateCount);
-						INC_DWORD_STAT(STAT_TotalComputePipelineStateCount);
-						
-						if (ReportNewPSOs() && PSOLoggedEvent.IsBound())
-						{
-							PSOLoggedEvent.Broadcast(NewEntry);
+							CSV_EVENT(PSO, TEXT("Encountered new compute PSO"));
+							UE_LOG(LogRHI, Warning, TEXT("Encountered a new compute PSO: %u"), PSOHash);
+							if (GPSOFileCachePrintNewPSODescriptors > 0)
+							{
+								UE_LOG(LogRHI, Warning, TEXT("New compute PSO (%u) Description: %s"), PSOHash, *NewEntry.ComputeDesc.ComputeShader.ToString());
+							}
+							
+							if (LogPSOtoFileCache())
+							{
+								NewPSOs.Add(NewEntry);
+								INC_MEMORY_STAT_BY(STAT_NewCachedPSOMemory, sizeof(FPipelineCacheFileFormatPSO) + sizeof(uint32) + sizeof(uint32));
+							}
+							
+							NewPSOHashes.Add(PSOHash);
+							
+							NumNewPSOs++;
+							INC_DWORD_STAT(STAT_NewComputePipelineStateCount);
+							INC_DWORD_STAT(STAT_TotalComputePipelineStateCount);
+							
+							if (ReportNewPSOs() && PSOLoggedEvent.IsBound())
+							{
+								PSOLoggedEvent.Broadcast(NewEntry);
+							}
 						}
 					}
 					

@@ -50,7 +50,7 @@ namespace GameProjectDialogDefs
 	constexpr int32 ProjectSettingsPageIndex = 3;
 	
 	static const FText LandingPageTitle = LOCTEXT("ProjectDialog_SelectProject", "Select Project");
-	static const FText SelectCategoryTitle = LOCTEXT("ProjectDialog_SelectCategory", "Select Category");
+	static const FText SelectCategoryTitle = LOCTEXT("ProjectDialog_SelectTemplateCategory", "Select Template Category");
 	static const FText ProjectBrowserTitle = LOCTEXT("ProjectDialog_ProjectBrowser", "Project Browser");
 	static const FText TemplateListTitle = LOCTEXT("ProjectDialog_SelectTemplate", "Select Template");
 	static const FText ProjectSettingsTitle = LOCTEXT("ProjectDialog_ProjectSettings", "Project Settings");
@@ -63,7 +63,8 @@ void SGameProjectDialog::Construct(const FArguments& InArgs, EMode InMode)
 
 	NewProjectWizard = SNew(SNewProjectWizard)
 		.OnTemplateDoubleClick(this, &SGameProjectDialog::OnTemplateDoubleClick);
-	ProjectBrowserPage = SNew(SProjectBrowser);
+	ProjectBrowserPage = SNew(SProjectBrowser)
+		.HideOpenButton(true);
 
 	const float UniformPadding = 16.0f;
 
@@ -122,7 +123,7 @@ void SGameProjectDialog::Construct(const FArguments& InArgs, EMode InMode)
 	];
 }
 
-TSharedRef<SWidget> SGameProjectDialog::CreateLandingPage()
+void SGameProjectDialog::GetAllTemplateCategories(TArray<TSharedPtr<FTemplateCategory>>& OutCategories)
 {
 	TArray<TSharedPtr<FTemplateCategory>> AllTemplateCategories;
 	FGameProjectGenerationModule::Get().GetAllTemplateCategories(AllTemplateCategories);
@@ -140,6 +141,14 @@ TSharedRef<SWidget> SGameProjectDialog::CreateLandingPage()
 		AllTemplateCategories.Add(DefaultCategory);
 	}
 
+	OutCategories = AllTemplateCategories;
+}
+
+TSharedRef<SWidget> SGameProjectDialog::CreateLandingPage()
+{
+	TArray<TSharedPtr<FTemplateCategory>> AllTemplateCategories;
+	SGameProjectDialog::GetAllTemplateCategories(AllTemplateCategories);
+
 	for (const TSharedPtr<FTemplateCategory>& Category : AllTemplateCategories)
 	{
 		if (Category->IsMajor)
@@ -152,31 +161,7 @@ TSharedRef<SWidget> SGameProjectDialog::CreateLandingPage()
 		}
 	}
 
-	FText Description;
-
-	if (DialogMode == EMode::New)
-	{
-		Description = LOCTEXT("LandingPageDesc_New", "Choose a template <RichTextBlock.BoldHighlight>category</> for your new project.");
-	}
-	else if (DialogMode == EMode::Open)
-	{
-		Description = LOCTEXT("LandingPageDesc_Open", "Choose a recent <RichTextBlock.BoldHighlight>project</> to load, or press <RichTextBlock.BoldHighlight>More</> to see all projects on your computer.");
-	}
-	else if (DialogMode == EMode::Both)
-	{
-		Description = LOCTEXT("LandingPageDesc_Both", "Choose a recent <RichTextBlock.BoldHighlight>project</> to load, press <RichTextBlock.BoldHighlight>More</> to see all projects on your computer, or choose a template <RichTextBlock.BoldHighlight>category</> to create a new project.");
-	}
-
 	TSharedRef<SWidget> Widget = SNew(SVerticalBox)
-	+ SVerticalBox::Slot()
-	.AutoHeight()
-	.Padding(0, 9, 0, 8)
-	[
-		SNew(SRichTextBlock)
-		.Text(Description)
-		.AutoWrapText(true)
-		.DecoratorStyleSet(&FEditorStyle::Get())
-	]
 	+ SVerticalBox::Slot()
 	.FillHeight(1)
 	[
@@ -226,8 +211,8 @@ TSharedRef<SWidget> SGameProjectDialog::CreateLandingPage()
 					SNew(STextBlock)
 					.TextStyle(FEditorStyle::Get(), "GameProjectDialog.ProjectNamePathLabels")
 					.Text(LOCTEXT("ProjectDialog_Categories", "Categories"))
+					.Visibility(DialogMode == EMode::Both ? EVisibility::Visible : EVisibility::Collapsed)
 				]
-
 				+ SVerticalBox::Slot()
 				.AutoHeight()
 				.Padding(8, 8, 8, 0)

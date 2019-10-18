@@ -135,6 +135,7 @@ namespace Chaos
 		float CoefficientOfFriction;
 		float Damping;
 		float GravityMagnitude;
+		float AnimDriveSpringStiffness;
 		bool bUseBendingElements;
 		bool bUseTetrahedralConstraints;
 		bool bUseThinShellVolumeConstraints;

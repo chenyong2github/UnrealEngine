@@ -12,12 +12,30 @@ class IPropertyHandle;
 class UDataprepAsset;
 class UProperty;
 
+enum class EParametrizationState : uint8
+{
+	CanBeParameterized,
+	IsParameterized,
+	ParentIsParameterized,
+	InvalidForParameterization
+};
+
+/**
+ * A small context that help when constructing the widgets for the parameterization
+ */
+struct FDataprepParameterizationContext
+{
+	TArray<FDataprepPropertyLink> PropertyChain;
+	EParametrizationState State = EParametrizationState::CanBeParameterized;
+};
+
+
 USTRUCT()
 struct FDataprepPropertyLink
 {
 	GENERATED_BODY()
 
-	FDataprepPropertyLink( UProperty* InCachedProperty, FName InPropertyName, int32 InContenerIndex )
+	FDataprepPropertyLink( UProperty* InCachedProperty, const FName& InPropertyName, int32 InContenerIndex )
 		: CachedProperty( MakeWeakObjectPtr(InCachedProperty) )
 		, PropertyName( InPropertyName )
 		, ContainerIndex( InContenerIndex )
@@ -50,6 +68,18 @@ public:
 	 * @return A non empty array if we were able make a compatible property chain
 	 */
 	static TArray<FDataprepPropertyLink> MakePropertyChain(TSharedPtr<IPropertyHandle> PropertyHandle);
+
+	/**
+	 * Take a Property Changed Event and extract a dataprep property link chain from it
+	 * @param PropertyChangedEvent The event
+	 * @return A non empty array if we were able make a compatible property chain
+	 */
+	static TArray<FDataprepPropertyLink>  MakePropertyChain(FPropertyChangedChainEvent& PropertyChangedEvent);
+
+	/**
+	 * Take a already existing parameterization context and create a new version including the handle.
+	 */
+	static FDataprepParameterizationContext CreateContext(TSharedPtr<IPropertyHandle> PropertyHandle, const FDataprepParameterizationContext& ParameterisationContext);
 
 	/**
 	 * Grab the dataprep used for the parameterization of the object.

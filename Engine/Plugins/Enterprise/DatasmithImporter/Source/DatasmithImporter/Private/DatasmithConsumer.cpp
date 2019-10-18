@@ -77,12 +77,6 @@ namespace DatasmithConsumerUtils
 
 		return DatasmithUniqueId.IsEmpty() ? Object->GetName() : DatasmithUniqueId;
 	}
-
-	FString GetObjectTag(UObject* Object)
-	{
-		const FString ObjectPath = FPaths::Combine( Object->GetOutermost()->GetName(), Object->GetName() );
-		return FMD5::HashBytes( reinterpret_cast<const uint8*>(*ObjectPath), ObjectPath.Len() * sizeof(TCHAR) );
-	}
 }
 
 bool UDatasmithConsumer::Initialize()
@@ -233,9 +227,6 @@ bool UDatasmithConsumer::BuildContexts( UWorld* ImportWorld )
 	ImportContextPtr->ActorsContext.ImportSceneActor->GetAttachedActors( RootActors );
 	FDatasmithImporterUtils::FillSceneElement( ImportContextPtr->Scene, RootActors );
 
-	// Store IDatasmithScene(Element) in UDatasmithScene
-	FDatasmithImporterUtils::SaveDatasmithScene( ImportContextPtr->Scene.ToSharedRef(), ImportContextPtr->SceneAsset );
-
 	// Initialize context
 	FString SceneOuterPath = DatasmithScene->GetOutermost()->GetName();
 	FString RootPath = FPackageName::GetLongPackagePath( SceneOuterPath );
@@ -285,6 +276,8 @@ bool UDatasmithConsumer::BuildContexts( UWorld* ImportWorld )
 	// Add assets as if they have been imported using the current import context
 	DatasmithConsumerUtils::AddAssetsToContext( *ImportContextPtr, Context.Assets );
 
+	// Store IDatasmithScene(Element) in UDatasmithScene
+	FDatasmithImporterUtils::SaveDatasmithScene( ImportContextPtr->Scene.ToSharedRef(), ImportContextPtr->SceneAsset );
 	return true;
 }
 
@@ -309,40 +302,53 @@ ULevel * UDatasmithConsumer::FindLevel( const FString& InLevelName )
 
 bool UDatasmithConsumer::SetLevelName( const FString & InLevelName, FText& OutReason )
 {
-	// Update current level
-	if( !InLevelName.IsEmpty() && InLevelName.Compare( TEXT("current"), ESearchCase::IgnoreCase ) != 0 )
+	FString NewLevelName = InLevelName;
+
+	bool bValidLevelName = false;
+	OutReason = FText();
+
+	// Check if a new level can be used with the new name and current limitations
+	if( !NewLevelName.IsEmpty() && NewLevelName.Compare( TEXT("current"), ESearchCase::IgnoreCase ) != 0 )
 	{
-		// #ueent_todo: What about sub-level of sub-level?
+		// Sub-level of sub-level is not supported yet
+		// #ueent_todo: sub-level of sub-level
 		if( InLevelName.Contains( TEXT("/") ) || InLevelName.Contains( TEXT("\\") ))
 		{
 			OutReason = LOCTEXT( "DatasmithConsumer_SubLevel", "Sub-level of sub-levels is not supported yet" );
-			return false;
 		}
-
 		// Try to see if there is any issue to eventually create this level, i.e. name collision
-		if( FindLevel( InLevelName ) == nullptr )
+		else if( FindLevel( InLevelName ) == nullptr )
 		{
 			FSoftObjectPath LevelObjectPath( FPaths::Combine( TargetContentFolder, InLevelName ) );
 
 			if( StaticFindObject( nullptr, ANY_PACKAGE, *LevelObjectPath.ToString(), true) )
 			{
 				OutReason = LOCTEXT( "DatasmithConsumer_LevelExists", "A object with that name already exists. Please choose another name." );
-				return false;
 			}
 
 			// #ueent_todo: Check if persistent level is locked, etc
 		}
 
-		LevelName = InLevelName;
+		// Good to go if no error documented
+		bValidLevelName = OutReason.IsEmpty();
 	}
-	else
+	// New name of level is empty or keyword 'current' used
+	else if( !LevelName.IsEmpty() )
 	{
-		LevelName = TEXT("");
+		NewLevelName = TEXT("");
+		bValidLevelName = true;
 	}
 
-	OnChanged.Broadcast();
+	if(bValidLevelName)
+	{
+		Modify();
 
-	return true;
+		LevelName = NewLevelName;
+
+		OnChanged.Broadcast();
+	}
+
+	return bValidLevelName;
 }
 
 void UDatasmithConsumer::MoveAssets()
@@ -637,17 +643,20 @@ namespace DatasmithConsumerUtils
 		{
 			if( UObject* Asset = AssetPtr.Get() )
 			{
-				FString AssetTag = DatasmithConsumerUtils::GetObjectTag( Asset );
+				FString AssetTag = FDatasmithImporterUtils::GetDatasmithElementIdString( Asset );
 
 				if(UTexture* Texture = Cast<UTexture>(Asset))
 				{
 					TSharedRef< IDatasmithTextureElement > TextureElement = FDatasmithSceneFactory::CreateTexture( *AssetTag );
+					TextureElement->SetLabel( *Texture->GetName() );
+
 					ImportContext.ImportedTextures.Add( TextureElement, Texture );
+					ImportContext.Scene->AddTexture( TextureElement );
 				}
 				else if(UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(Asset))
 				{
 					TSharedRef< IDatasmithMaterialElement > MaterialElement = FDatasmithSceneFactory::CreateMaterial( *AssetTag );
-					ImportContext.ImportedMaterials.Add( MaterialElement, MaterialInstance );
+					MaterialElement->SetLabel( *MaterialInstance->GetName() );
 
 					if ( UMaterialInterface* MaterialParent = MaterialInstance->Parent )
 					{
@@ -672,6 +681,9 @@ namespace DatasmithConsumerUtils
 							AddTemplate( UDatasmithMaterialInstanceTemplate::StaticClass(), MaterialInstanceConstant );
 						}
 					}
+
+					ImportContext.ImportedMaterials.Add( MaterialElement, MaterialInstance );
+					ImportContext.Scene->AddMaterial( MaterialElement );
 				}
 				else if(UStaticMesh* StaticMesh = Cast<UStaticMesh>(Asset))
 				{
@@ -687,17 +699,33 @@ namespace DatasmithConsumerUtils
 					}
 
 					TSharedRef< IDatasmithMeshElement > MeshElement = FDatasmithSceneFactory::CreateMesh( *AssetTag );
+					MeshElement->SetLabel( *StaticMesh->GetName() );
+
+
+					for(int32 Index = 0; Index < StaticMesh->GetNumSections( 0 ); ++Index)
+					{
+						const FString MaterialTag = FDatasmithImporterUtils::GetDatasmithElementIdString( StaticMesh->GetMaterial( Index ) );
+						MeshElement->SetMaterial( *MaterialTag, Index );
+					}
+
 					ImportContext.ImportedStaticMeshes.Add( MeshElement, StaticMesh );
+					ImportContext.Scene->AddMesh( MeshElement );
 				}
 				else if(ULevelSequence* LevelSequence = Cast<ULevelSequence>(Asset))
 				{
 					TSharedRef< IDatasmithLevelSequenceElement > LevelSequenceElement = FDatasmithSceneFactory::CreateLevelSequence( *AssetTag );
+					LevelSequenceElement->SetLabel( *LevelSequence->GetName() );
+
 					ImportContext.ImportedLevelSequences.Add( LevelSequenceElement, LevelSequence );
+					ImportContext.Scene->AddLevelSequence( LevelSequenceElement );
 				}
 				else if(ULevelVariantSets* LevelVariantSets = Cast<ULevelVariantSets>(Asset))
 				{
 					TSharedRef< IDatasmithLevelVariantSetsElement > LevelVariantSetsElement = FDatasmithSceneFactory::CreateLevelVariantSets( *AssetTag );
+					LevelVariantSetsElement->SetLabel( *LevelVariantSets->GetName() );
+
 					ImportContext.ImportedLevelVariantSets.Add( LevelVariantSetsElement, LevelVariantSets );
+					ImportContext.Scene->AddLevelVariantSets( LevelVariantSetsElement );
 				}
 				// #ueent_todo: Add support for assets which are not of the classes above
 			}
@@ -710,9 +738,12 @@ namespace DatasmithConsumerUtils
 			{
 				if( !ParentMaterials.Contains( Material ) )
 				{
-					FString AssetTag = DatasmithConsumerUtils::GetObjectTag( Material );
+					FString AssetTag = FDatasmithImporterUtils::GetDatasmithElementIdString( Material );
 					TSharedRef< IDatasmithMaterialElement > MaterialElement = FDatasmithSceneFactory::CreateMaterial( *AssetTag );
+					MaterialElement->SetLabel( *Material->GetName() );
+
 					ImportContext.ImportedMaterials.Add( MaterialElement, Material );
+					ImportContext.Scene->AddMaterial( MaterialElement );
 				}
 			}
 		}

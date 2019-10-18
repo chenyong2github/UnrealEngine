@@ -74,60 +74,16 @@ namespace UnrealBuildTool
 			MultiArchRoot = PlatformSDK.GetSDKLocation();
 			BaseLinuxPath = PlatformSDK.GetBaseLinuxPathForArchitecture(InArchitecture);
 
-			bool bCanUseSystemCompiler = PlatformSDK.CanUseSystemCompiler();
+			bool bForceUseSystemCompiler = PlatformSDK.ForceUseSystemCompiler();
 			bool bHasValidCompiler = false;
-
-			// First validate the BaseLinuxPath toolchain.
-
-			if (!bCanUseSystemCompiler)
-			{
-				// don't register if BaseLinuxPath is not specified and cannot use the system compiler
-				if (String.IsNullOrEmpty(BaseLinuxPath))
-				{
-					throw new BuildException("LINUX_MULTIARCH_ROOT environment variable is not set; cannot instantiate Linux toolchain");
-				}
-			}
 
 			// these are supplied by the engine and do not change depending on the circumstances
 			DumpSymsPath = Path.Combine(UnrealBuildTool.EngineDirectory.FullName, "Binaries", "Linux", "dump_syms");
 			BreakpadEncoderPath = Path.Combine(UnrealBuildTool.EngineDirectory.FullName, "Binaries", "Linux", "BreakpadSymbolEncoder");
 
-			if (!String.IsNullOrEmpty(BaseLinuxPath))
+			if (bForceUseSystemCompiler)
 			{
-				if (String.IsNullOrEmpty(MultiArchRoot)) 
-				{
-					MultiArchRoot = BaseLinuxPath;
-					Log.TraceInformation("Using LINUX_ROOT (deprecated, consider LINUX_MULTIARCH_ROOT)");
-				}
-
-				BaseLinuxPath = BaseLinuxPath.Replace("\"", "").Replace('\\', '/');
-
-				// set up the path to our toolchain
-				GCCPath = "";
-				ClangPath = Path.Combine(BaseLinuxPath, @"bin", "clang++" + GetHostPlatformBinarySuffix());
-				ArPath = Path.Combine(Path.Combine(BaseLinuxPath, String.Format("bin/{0}-{1}", Architecture, "ar" + GetHostPlatformBinarySuffix())));
-				LlvmArPath = Path.Combine(Path.Combine(BaseLinuxPath, String.Format("bin/{0}", "llvm-ar" + GetHostPlatformBinarySuffix())));
-				RanlibPath = Path.Combine(Path.Combine(BaseLinuxPath, String.Format("bin/{0}-{1}", Architecture, "ranlib" + GetHostPlatformBinarySuffix())));
-				StripPath = Path.Combine(Path.Combine(BaseLinuxPath, String.Format("bin/{0}-{1}", Architecture, "strip" + GetHostPlatformBinarySuffix())));
-				ObjcopyPath = Path.Combine(Path.Combine(BaseLinuxPath, String.Format("bin/{0}-{1}", Architecture, "objcopy" + GetHostPlatformBinarySuffix())));
-
-				// When cross-compiling on Windows, use old FixDeps. It is slow, but it does not have timing issues
-				bUseFixdeps = (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 || BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win32);
-
-				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux)
-				{
-					Environment.SetEnvironmentVariable("LC_ALL", "C");
-				}
-
-				bIsCrossCompiling = true;
-
-				bHasValidCompiler = DetermineCompilerVersion();
-			}
-
-			// Now validate the system toolchain.
-
-			if (bCanUseSystemCompiler && !bHasValidCompiler)
-			{
+				// Validate the system toolchain.
 				BaseLinuxPath = "";
 				MultiArchRoot = "";
 
@@ -158,7 +114,39 @@ namespace UnrealBuildTool
 			}
 			else
 			{
+				if (String.IsNullOrEmpty(BaseLinuxPath))
+				{
+					throw new BuildException("LINUX_MULTIARCH_ROOT environment variable is not set; cannot instantiate Linux toolchain");
+				}
+				if (String.IsNullOrEmpty(MultiArchRoot)) 
+				{
+					MultiArchRoot = BaseLinuxPath;
+					Log.TraceInformation("Using LINUX_ROOT (deprecated, consider LINUX_MULTIARCH_ROOT)");
+				}
+
+				BaseLinuxPath = BaseLinuxPath.Replace("\"", "").Replace('\\', '/');
 				ToolchainInfo = String.Format("toolchain located at '{0}'", BaseLinuxPath);
+
+				// set up the path to our toolchain
+				GCCPath = "";
+				ClangPath = Path.Combine(BaseLinuxPath, @"bin", "clang++" + GetHostPlatformBinarySuffix());
+				ArPath = Path.Combine(Path.Combine(BaseLinuxPath, String.Format("bin/{0}-{1}", Architecture, "ar" + GetHostPlatformBinarySuffix())));
+				LlvmArPath = Path.Combine(Path.Combine(BaseLinuxPath, String.Format("bin/{0}", "llvm-ar" + GetHostPlatformBinarySuffix())));
+				RanlibPath = Path.Combine(Path.Combine(BaseLinuxPath, String.Format("bin/{0}-{1}", Architecture, "ranlib" + GetHostPlatformBinarySuffix())));
+				StripPath = Path.Combine(Path.Combine(BaseLinuxPath, String.Format("bin/{0}-{1}", Architecture, "strip" + GetHostPlatformBinarySuffix())));
+				ObjcopyPath = Path.Combine(Path.Combine(BaseLinuxPath, String.Format("bin/{0}-{1}", Architecture, "objcopy" + GetHostPlatformBinarySuffix())));
+
+				// When cross-compiling on Windows, use old FixDeps. It is slow, but it does not have timing issues
+				bUseFixdeps = (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 || BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win32);
+
+				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux)
+				{
+					Environment.SetEnvironmentVariable("LC_ALL", "C");
+				}
+
+				bIsCrossCompiling = true;
+
+				bHasValidCompiler = DetermineCompilerVersion();
 			}
 
 			if (!bHasValidCompiler)
@@ -550,13 +538,15 @@ namespace UnrealBuildTool
 			// ASan
 			if (Options.HasFlag(LinuxToolChainOptions.EnableAddressSanitizer))
 			{
-				Result += " -fsanitize=address";
+				// Force using the ANSI allocator if ASan is enabled
+				Result += " -fsanitize=address -DFORCE_ANSI_ALLOCATOR=1";
 			}
 
 			// TSan
 			if (Options.HasFlag(LinuxToolChainOptions.EnableThreadSanitizer))
 			{
-				Result += " -fsanitize=thread";
+				// Force using the ANSI allocator if TSan is enabled
+				Result += " -fsanitize=thread -DFORCE_ANSI_ALLOCATOR=1";
 			}
 
 			// UBSan
@@ -930,7 +920,7 @@ namespace UnrealBuildTool
 
 			if (Options.HasFlag(LinuxToolChainOptions.EnableAddressSanitizer) || Options.HasFlag(LinuxToolChainOptions.EnableThreadSanitizer) || Options.HasFlag(LinuxToolChainOptions.EnableUndefinedBehaviorSanitizer))
 			{
-				Result += " -g";
+				Result += " -g -shared-libsan";
 				if (Options.HasFlag(LinuxToolChainOptions.EnableAddressSanitizer))
 				{
 					Result += " -fsanitize=address";
@@ -942,6 +932,12 @@ namespace UnrealBuildTool
 				else if (Options.HasFlag(LinuxToolChainOptions.EnableUndefinedBehaviorSanitizer))
 				{
 					Result += " -fsanitize=undefined";
+				}
+
+				if (CrossCompiling())
+				{
+					Result += string.Format(" -Wl,-rpath=\"{0}/lib/clang/{1}.{2}.{3}/lib/linux\"",
+							BaseLinuxPath, CompilerVersionMajor, CompilerVersionMinor, CompilerVersionPatch);
 				}
 			}
 
@@ -1152,6 +1148,17 @@ namespace UnrealBuildTool
 				Log.TraceInformation("Using {0} standard C++ library.", ShouldUseLibcxx(CompileEnvironment.Architecture) ? "bundled libc++" : "compiler default (most likely libstdc++)");
 				Log.TraceInformation("Using {0}", UsingLld(CompileEnvironment.Architecture) ? "lld linker" : "default linker (ld)");
 				Log.TraceInformation("Using {0}", !String.IsNullOrEmpty(LlvmArPath) ? String.Format("llvm-ar : {0}", LlvmArPath) : String.Format("ar and ranlib: {0}, {1}", GetArPath(CompileEnvironment.Architecture), GetRanlibPath(CompileEnvironment.Architecture)));
+			}
+
+			if (Options.HasFlag(LinuxToolChainOptions.EnableAddressSanitizer) || Options.HasFlag(LinuxToolChainOptions.EnableThreadSanitizer) || Options.HasFlag(LinuxToolChainOptions.EnableUndefinedBehaviorSanitizer))
+			{
+				string SanitizerInfo = "Building with:";
+
+				SanitizerInfo += Options.HasFlag(LinuxToolChainOptions.EnableAddressSanitizer) ? " AddressSanitizer" : "";
+				SanitizerInfo += Options.HasFlag(LinuxToolChainOptions.EnableThreadSanitizer) ? " ThreadSanitizer" : "";
+				SanitizerInfo += Options.HasFlag(LinuxToolChainOptions.EnableUndefinedBehaviorSanitizer) ? " UndefinedBehaviorSanitizer" : "";
+
+				Log.TraceInformation(SanitizerInfo);
 			}
 
 			// Also print other once-per-build information

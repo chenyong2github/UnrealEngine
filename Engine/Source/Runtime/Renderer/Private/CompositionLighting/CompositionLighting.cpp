@@ -155,6 +155,9 @@ static FRenderingCompositeOutputRef AddPostProcessingGTAOAsyncHorizonSearch(FRHI
 	}
 	GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SceneContext.ScreenSpaceGTAOHorizons, TEXT("ScreenSpaceGTAOHorizons"));
 
+	Desc.Format = PF_R32_FLOAT;
+	GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SceneContext.ScreenSpaceGTAODepths, TEXT("ScreenSpaceGTAODepths"));
+
 	FRenderingCompositePass* HZBInput = Context.Graph.RegisterPass(new FRCPassPostProcessInput(const_cast<FViewInfo&>(Context.View).HZB));
 	FRenderingCompositePass* AmbientOcclusionHorizonSearch = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessAmbientOcclusion_HorizonSearch(Context.View, DownsampleFactor, ESSAOType::EAsyncCS));
 
@@ -177,6 +180,16 @@ static FRenderingCompositeOutputRef AddPostProcessingGTAOCombined(FRHICommandLis
 	uint32 DownsampleFactor = CVarGTAODownsample.GetValueOnRenderThread() > 0 ? 2 : 1;
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 
+	FIntPoint HorizonBufferSize = FIntPoint::DivideAndRoundUp(SceneContext.GetBufferSizeXY(), DownsampleFactor);
+	{
+		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(HorizonBufferSize, PF_R32_FLOAT, FClearValueBinding::White, TexCreate_None, TexCreate_RenderTargetable, false));
+		if (SceneContext.GetCurrentFeatureLevel() >= ERHIFeatureLevel::SM5)
+		{
+			Desc.TargetableFlags |= TexCreate_UAV;
+		}
+		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SceneContext.ScreenSpaceGTAODepths, TEXT("ScreenSpaceGTAODepths"));
+	}
+
 	if(CVarGTAOCombined.GetValueOnRenderThread() ==1)
 	{
 		FRenderingCompositePass* AmbientOcclusionGTAO = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessAmbientOcclusion_GTAOCombined(Context.View, DownsampleFactor, false));
@@ -186,16 +199,12 @@ static FRenderingCompositeOutputRef AddPostProcessingGTAOCombined(FRHICommandLis
 	}
 	else
 	{
-
-		FIntPoint BufferSize = SceneContext.GetBufferSizeXY();
-		FIntPoint HorizonBufferSize = FIntPoint::DivideAndRoundUp(BufferSize, DownsampleFactor);
 		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(HorizonBufferSize, PF_R8G8, FClearValueBinding::White, TexCreate_None, TexCreate_RenderTargetable, false));
 		if (SceneContext.GetCurrentFeatureLevel() >= ERHIFeatureLevel::SM5)
 		{
 			Desc.TargetableFlags |= TexCreate_UAV;
 		}
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SceneContext.ScreenSpaceGTAOHorizons, TEXT("ScreenSpaceGTAOHorizons"));
-
 		FRenderingCompositePass* AmbientOcclusionHorizonSearch = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessAmbientOcclusion_HorizonSearch(Context.View, DownsampleFactor, ESSAOType::ECS));
 
 		AmbientOcclusionHorizonSearch->SetInput(ePId_Input0, Context.SceneDepth);
@@ -237,10 +246,13 @@ static FRenderingCompositeOutputRef AddPostProcessingGTAOCombined(FRHICommandLis
 
 	}
 	
+	// If downsampled then upsample the final result
+	if(DownsampleFactor > 1)
 	{
 		FRenderingCompositePass* UpsamplePass;
 		UpsamplePass = Context.Graph.RegisterPass(new (FMemStack::Get()) FRCPassPostProcessAmbientOcclusion_GTAO_Upsample(Context.View, DownsampleFactor));
-		UpsamplePass->SetInput(ePId_Input0, FinalOutputPass);
+		UpsamplePass->SetInput(ePId_Input0, Context.SceneDepth);
+		UpsamplePass->SetInput(ePId_Input1, FRenderingCompositeOutputRef(FinalOutputPass, ePId_Output0));
 		FinalOutputPass = UpsamplePass;
 	}
 
@@ -292,7 +304,8 @@ static FRenderingCompositeOutputRef AddPostProcessingGTAOIntegration(FRHICommand
 	{
 		FRenderingCompositePass* UpsamplePass;
 		UpsamplePass = Context.Graph.RegisterPass(new (FMemStack::Get()) FRCPassPostProcessAmbientOcclusion_GTAO_Upsample(Context.View, DownsampleFactor));
-		UpsamplePass->SetInput(ePId_Input0, FinalOutputPass);
+		UpsamplePass->SetInput(ePId_Input0, Context.SceneDepth);
+		UpsamplePass->SetInput(ePId_Input1, FRenderingCompositeOutputRef(FinalOutputPass, ePId_Output0));
 		FinalOutputPass = UpsamplePass;
 	}
 
@@ -570,6 +583,7 @@ void FCompositionLighting::ProcessAfterBasePass(FRHICommandListImmediate& RHICmd
 	}
 
 	SceneContext.ScreenSpaceGTAOHorizons.SafeRelease();
+	SceneContext.ScreenSpaceGTAODepths.SafeRelease();
 }
 
 

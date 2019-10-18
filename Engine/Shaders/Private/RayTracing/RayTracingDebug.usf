@@ -23,18 +23,15 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugMainRGS)
     FRayCone RayCone = (FRayCone)0;
 	RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
 
-	uint RayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+	const uint RayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+	const uint InstanceInclusionMask = RAY_TRACING_MASK_ALL;
 
-	FMaterialClosestHitPayload Payload = TraceRayInternal(
-		TLAS,   // AccelerationStructure
+	FMaterialClosestHitPayload Payload = TraceMaterialRay(
+		TLAS,
 		RayFlags,
-		RAY_TRACING_MASK_ALL,
-		RAY_TRACING_SHADER_SLOT_MATERIAL, // RayContributionToHitGroupIndex
-		RAY_TRACING_NUM_SHADER_SLOTS,     // MultiplierForGeometryContributionToShaderIndex
-		0,      // MissShaderIndex
-		Ray,    // RayDesc
-		RayCone
-	);
+		InstanceInclusionMask,
+		Ray,
+		RayCone);
 
 	float4 Result = float4(0, 0, 0, 1);
 

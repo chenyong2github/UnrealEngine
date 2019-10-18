@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 
+#ifdef CAD_LIBRARY
 #include "CTSession.h"
 #include "DatasmithImportOptions.h"
 #include "IDatasmithSceneElements.h"
@@ -75,3 +76,4 @@ private:
 	TMap< IDatasmithMeshElement*, CT_OBJECT_ID* > MeshElementToCTBodyIdMap;
 #endif
 };
+#endif

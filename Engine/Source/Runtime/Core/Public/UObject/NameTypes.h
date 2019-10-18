@@ -985,47 +985,47 @@ class FLazyName
 public:
 	FLazyName()
 		: Either(FNameEntryId())
-	{
-	}
+	{}
 
 	/** @param Literal must be a string literal */
 	template<int N>
-	FLazyName(const TCHAR(&Literal)[N])
+	FLazyName(const WIDECHAR(&Literal)[N])
 		: Either(Literal)
-		, Number(ParseNumber(Literal, N))
+		, Number(ParseNumber(Literal, N - 1))
+		, bLiteralIsWide(true)
+	{}
+
+	/** @param Literal must be a string literal */
+	template<int N>
+	FLazyName(const ANSICHAR(&Literal)[N])
+		: Either(Literal)
+		, Number(ParseNumber(Literal, N - 1))
+		, bLiteralIsWide(false)
 	{}
 
 	explicit FLazyName(FName Name)
 		: Either(Name.GetComparisonIndex())
 		, Number(Name.GetNumber())
 	{}
-
+	
 	operator FName() const
 	{
-		// Make a stack copy to ensure thread-safety
-		FLiteralOrName Copy = Either;
-
-		if (Copy.IsName())
-		{
-			FNameEntryId Id = Copy.AsName();
-			return FName(Id, Id, Number);
-		}
-
-		// Resolve to FName
-		FNameEntryId Id = FName(Copy.AsLiteral()).GetComparisonIndex();
-
-		// Deliberately unsynchronized write of word-sized int, ok if multiple threads resolve same lazy name
-		Either = FLiteralOrName(Id);
-
-		return FName(Id, Id, Number);
+		return Resolve();
 	}
+
+	CORE_API FName Resolve() const;
 
 private:
 	struct FLiteralOrName
 	{
-#if PLATFORM_32BITS
-		// NOTE: uint64 instead of UPTRINT here since the high bit of a 32-bit pointer may be in use
-		FLiteralOrName(const TCHAR* Literal)
+		// NOTE: uses high bit of pointer for flag; this may be an issue in future when high byte of address may be used for features like hardware ASAN
+		static constexpr uint64 LiteralFlag = UPTRINT(1) << (sizeof(UPTRINT) * 8 - 1);
+
+		explicit FLiteralOrName(const ANSICHAR* Literal)
+			: Int(reinterpret_cast<uint64>(Literal) | LiteralFlag)
+		{}
+		
+		explicit FLiteralOrName(const WIDECHAR* Literal)
 			: Int(reinterpret_cast<uint64>(Literal) | LiteralFlag)
 		{}
 
@@ -1033,8 +1033,6 @@ private:
 			: Int(Name.ToUnstableInt())
 		{}
 
-		static constexpr uint64 LiteralFlag = uint64(1) << (sizeof(uint64) * 8 - 1);
-
 		bool IsName() const
 		{
 			return (LiteralFlag & Int) == 0;
@@ -1049,84 +1047,54 @@ private:
 		{
 			return FNameEntryId::FromUnstableInt(static_cast<uint32>(Int));
 		}
-
-		const TCHAR* AsLiteral() const
+		
+		const ANSICHAR* AsAnsiLiteral() const
 		{
-			return reinterpret_cast<const TCHAR*>(Int & ~LiteralFlag);
+			return reinterpret_cast<const ANSICHAR*>(Int & ~LiteralFlag);
+		}
+
+		const WIDECHAR* AsWideLiteral() const
+		{
+			return reinterpret_cast<const WIDECHAR*>(Int & ~LiteralFlag);
 		}
 
 		uint64 Int;
-#else
-		// NOTE: uses high bit of pointer for flag; this may be an issue in future when high byte of address may be used for features like hardware ASAN
-		FLiteralOrName(const TCHAR* Literal)
-			: Int(reinterpret_cast<UPTRINT>(Literal) | LiteralFlag)
-		{}
-
-		explicit FLiteralOrName(FNameEntryId Name)
-			: Int(Name.ToUnstableInt())
-		{}
-
-		static constexpr UPTRINT LiteralFlag = UPTRINT(1) << (sizeof(UPTRINT) * 8 - 1);
-
-		bool IsName() const
-		{
-			return (LiteralFlag & Int) == 0;
-		}
-
-		bool IsLiteral() const
-		{
-			return (LiteralFlag & Int) != 0;
-		}
-
-		FNameEntryId AsName() const
-		{
-			return FNameEntryId::FromUnstableInt(static_cast<uint32>(Int));
-		}
-
-		const TCHAR* AsLiteral() const
-		{
-			return reinterpret_cast<const TCHAR*>(Int & ~LiteralFlag);
-		}
-
-		UPTRINT Int;
-#endif
 	};
 
 	mutable FLiteralOrName Either;
 	mutable uint32 Number = 0;
 
-	CORE_API static uint32 ParseNumber(const TCHAR* Literal, int32 Len);
+	// Distinguishes WIDECHAR* and ANSICHAR* literals, doesn't indicate if literal contains any wide characters 
+	bool bLiteralIsWide = false;
+	
+	CORE_API static uint32 ParseNumber(const WIDECHAR* Literal, int32 Len);
+	CORE_API static uint32 ParseNumber(const ANSICHAR* Literal, int32 Len);
 
 public:
-	friend bool operator==(FName Name, FLazyName Lazy)
+
+	friend bool operator==(FName Name, const FLazyName& Lazy)
 	{
-		if (Lazy.Either.IsName())
+		// If !Name.IsNone(), we have started creating FNames
+		// and might as well resolve and cache Lazy
+		if (Lazy.Either.IsName() || !Name.IsNone())
 		{
-			return Name == FName(Lazy);
+			return Name == Lazy.Resolve();
+		}
+		else if (!Lazy.bLiteralIsWide)
+		{
+			return Name == Lazy.Either.AsAnsiLiteral();
 		}
 		else
 		{
-			return Name == Lazy.Either.AsLiteral();
+			return Name == Lazy.Either.AsWideLiteral();
 		}
 	}
 
-	friend bool operator==(FLazyName A, FLazyName B)
-	{
-		if (A.Either.IsName())
-		{
-			return FName(A) == B;
-		}
-		else if (B.Either.IsName())
-		{
-			return FName(B) == A;
-		}
-
-		return A.Either.AsLiteral() == B.Either.AsLiteral() ||
-			FPlatformString::Stricmp(A.Either.AsLiteral(), B.Either.AsLiteral()) == 0;
-	}
-	
-	friend bool operator==(FLazyName Lazy, FName Name)
+	friend bool operator==(const FLazyName& Lazy, FName Name)
 	{
 		return Name == Lazy;
 	}
+
+	CORE_API friend bool operator==(const FLazyName& A, const FLazyName& B);
+
 };

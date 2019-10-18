@@ -6,11 +6,12 @@
 #include "Containers/Queue.h"
 
 #include "AudioModulation.h"
+#include "IAudioExtensionPlugin.h"
+#include "SoundModulationProxy.h"
 #include "SoundModulatorBase.h"
 #include "SoundControlBus.h"
 #include "SoundControlBusMix.h"
 #include "SoundModulatorLFO.h"
-#include "IAudioExtensionPlugin.h"
 
 
 #if WITH_AUDIOMODULATION
@@ -54,7 +55,7 @@ namespace AudioModulation
 		bool IsBusActive(const FBusId InBusId) const;
 		bool IsLFOActive(const FLFOId InLFOId) const;
 
-		void ProcessControls(const uint32 InSourceId, FSoundModulationControls& OutControls);
+		bool ProcessControls(const uint32 InSourceId, FSoundModulationControls& OutControls);
 		void ProcessModulators(const float Elapsed);
 
 		void UpdateMix(const USoundControlBusMix& InMix, const TArray<FSoundControlBusMixChannel>& InChannels);
@@ -62,7 +63,12 @@ namespace AudioModulation
 		void UpdateModulator(const USoundModulatorBase& InModulator);
 
 	private:
+		/** Calculates modulation value and returns updated value */
 		float CalculateModulationValue(FModulationPatchProxy& Proxy) const;
+
+		/* Calculates modulation value, storing it in the provided float reference and returns if value changed */
+		bool CalculateModulationValue(FModulationPatchProxy& Proxy, float& OutValue) const;
+
 		void RunCommandOnAudioThread(TFunction<void()> Cmd);
 
 		BusMixProxyMap ActiveBusMixes;
@@ -128,7 +134,7 @@ namespace AudioModulation
 		void DeactivateBus(const FBusId BusId, const ISoundModulatable* Sound = nullptr) { }
 		void DeactivateLFO(const FLFOId LFOId, const ISoundModulatable* Sound = nullptr) { }
 
-		void ProcessControls(const uint32 InSourceId, FSoundModulationControls& OutControls) { }
+		bool ProcessControls(const uint32 InSourceId, FSoundModulationControls& OutControls) { return false; }
 		void ProcessModulators(const float Elapsed) { }
 
 		void UpdateMix(const USoundControlBusMix& InMix, const TArray<FSoundControlBusMixChannel>& InChannels) { }

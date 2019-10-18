@@ -761,6 +761,15 @@ void UTakeRecorder::Start(const FTimecode& InTimecodeSource)
 
 void UTakeRecorder::Stop()
 {
+	static bool bStoppedRecording = false;
+
+	if (bStoppedRecording)
+	{
+		return;
+	}
+
+	TGuardValue<bool> ReentrantGuard(bStoppedRecording, true);
+
 	FTimecode TimecodeOut = FApp::GetTimecode();
 	USequencerSettings* SequencerSettings = USequencerSettingsContainer::GetOrCreate<USequencerSettings>(TEXT("TakeRecorderSequenceEditor"));
 
@@ -911,6 +920,11 @@ void UTakeRecorder::HandleEndPIE(bool bIsSimulating)
 	PendingNotification->SetCompletionState(SNotificationItem::CS_Success);
 	
 	Stop();
+
+	if (FinishedAsset)
+	{
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(FinishedAsset);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

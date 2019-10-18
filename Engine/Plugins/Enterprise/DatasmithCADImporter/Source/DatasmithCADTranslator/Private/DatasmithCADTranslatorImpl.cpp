@@ -2,6 +2,7 @@
 
 #include "DatasmithCADTranslatorImpl.h"
 
+#ifdef CAD_LIBRARY
 #include "CoreTechTypes.h"
 
 #ifdef USE_CORETECH_MT_PARSER
@@ -30,6 +31,8 @@ void FDatasmithCADTranslatorImpl::SetTessellationOptions(const FDatasmithTessell
 
 bool FDatasmithCADTranslatorImpl::Read()
 {
+	// Push translator's tessellation parameters to CTParser
+	// This call has no effect on the load of the model
 	CTParser->SetTessellationOptions(TessellationOptions);
 
 #ifdef USE_CORETECH_MT_PARSER
@@ -82,3 +85,4 @@ void FDatasmithCADTranslatorImpl::UnloadScene()
 {
 	CTParser->UnloadScene();
 }
+#endif

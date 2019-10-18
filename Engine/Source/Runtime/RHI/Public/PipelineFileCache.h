@@ -336,6 +336,7 @@ private:
 	static TMap<uint32, FPSOUsageData> NewPSOUsage;				// For mask or engine updates - Merged + Saved (Our internal PSO hash to latest usage data) - temp working scratch, only holds updates since last "save" so is not the authority on state
 	static TMap<uint32, FPipelineStateStats*> Stats;
 	static TSet<FPipelineCacheFileFormatPSO> NewPSOs;
+	static TSet<uint32> NewPSOHashes;
     static uint32 NumNewPSOs;
 	static PSOOrder RequestedOrder;
 	static bool FileCacheEnabled;

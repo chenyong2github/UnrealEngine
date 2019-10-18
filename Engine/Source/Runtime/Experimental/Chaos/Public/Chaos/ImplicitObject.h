@@ -43,7 +43,8 @@ enum class ImplicitObjectType : int8
 	Cylinder,
 	TriangleMesh,
 	HeightField,
-	Scaled
+	Scaled,
+	Triangle
 };
 
 namespace EImplicitObject

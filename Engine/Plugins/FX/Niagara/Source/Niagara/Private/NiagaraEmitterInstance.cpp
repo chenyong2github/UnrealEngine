@@ -388,6 +388,11 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 
 		SpawnRandomSeedBinding.Init(SpawnExecContext.Parameters, CachedEmitterCompiledData->EmitterRandomSeedVar);
 		UpdateRandomSeedBinding.Init(UpdateExecContext.Parameters, CachedEmitterCompiledData->EmitterRandomSeedVar);
+		EventRandomSeedBindings.SetNum(NumEvents);
+		for (int32 i = 0; i < NumEvents; i++)
+		{
+			EventRandomSeedBindings[i].Init(EventExecContexts[i].Parameters, CachedEmitterCompiledData->EmitterRandomSeedVar);
+		}
 		if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && GPUExecContext != nullptr)
 		{
 			GPURandomSeedBinding.Init(GPUExecContext->CombinedParamStore, CachedEmitterCompiledData->EmitterRandomSeedVar);
@@ -400,6 +405,14 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 		for (int32 i = 0; i < NumEvents; i++)
 		{
 			EventExecCountBindings[i].Init(EventExecContexts[i].Parameters, SYS_PARAM_ENGINE_EXEC_COUNT);
+		}
+
+		SpawnTotalSpawnedParticlesBinding.Init(SpawnExecContext.Parameters, CachedEmitterCompiledData->EmitterTotalSpawnedParticlesVar);
+		UpdateTotalSpawnedParticlesBinding.Init(UpdateExecContext.Parameters, CachedEmitterCompiledData->EmitterTotalSpawnedParticlesVar);
+		EventTotalSpawnedParticlesBindings.SetNum(NumEvents);
+		for (int32 i = 0; i < NumEvents; i++)
+		{
+			EventTotalSpawnedParticlesBindings[i].Init(EventExecContexts[i].Parameters, CachedEmitterCompiledData->EmitterTotalSpawnedParticlesVar);
 		}
 	}
 
@@ -1125,11 +1138,22 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 		
 		SpawnRandomSeedBinding.SetValue(CachedEmitter->RandomSeed);
 		UpdateRandomSeedBinding.SetValue(CachedEmitter->RandomSeed);
+		for (FNiagaraParameterDirectBinding<int32>& Binding : EventRandomSeedBindings)
+		{
+			Binding.SetValue(CachedEmitter->RandomSeed);
+		}
 
 		if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && GPUExecContext != nullptr)
 		{
 			EmitterAgeBindingGPU.SetValue(Age);
 			GPURandomSeedBinding.SetValue(CachedEmitter->RandomSeed);
+		}
+
+		SpawnTotalSpawnedParticlesBinding.SetValue(TotalSpawnedParticles);
+		UpdateTotalSpawnedParticlesBinding.SetValue(TotalSpawnedParticles);
+		for (FNiagaraParameterDirectBinding<int32>& Binding : EventTotalSpawnedParticlesBindings)
+		{
+			Binding.SetValue(TotalSpawnedParticles);
 		}
 	}
 	
@@ -1356,6 +1380,9 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 			int32 OrigNum = Data.GetDestinationDataChecked().GetNumInstances();
 			Data.GetDestinationDataChecked().SetNumInstances(OrigNum + Num);
 
+			// We need to update Engine.Emitter.TotalSpawnedParticles for each event spawn invocation.
+			SpawnTotalSpawnedParticlesBinding.SetValue(TotalSpawnedParticles); 
+			
 			// NOTE(mv): Updates the count after setting the variable, such that the TotalSpawnedParticles value read 
 			//           in the script has the count at the start of the frame. 
 			//           This way UniqueID = TotalSpawnedParticles + ExecIndex provide unique and sequential identifiers. 
