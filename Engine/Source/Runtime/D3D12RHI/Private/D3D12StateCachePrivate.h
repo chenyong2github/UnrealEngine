@@ -96,13 +96,9 @@ struct FD3D12IndexBufferCache
 	inline void Clear()
 	{
 		FMemory::Memzero(&CurrentIndexBufferView, sizeof(CurrentIndexBufferView));
-		CurrentIndexBufferLocation = nullptr;
-		ResidencyHandle = nullptr;
 	}
 
 	D3D12_INDEX_BUFFER_VIEW CurrentIndexBufferView;
-	FD3D12ResourceLocation* CurrentIndexBufferLocation;
-	FD3D12ResidencyHandle* ResidencyHandle;
 };
 
 template<typename ResourceSlotMask>
@@ -337,7 +333,6 @@ protected:
 	FD3D12CommandContext* CmdContext;
 
 	bool bNeedSetVB;
-	bool bNeedSetIB;
 	bool bNeedSetRTs;
 	bool bNeedSetSOs;
 	bool bSRVSCleared;
@@ -432,7 +427,7 @@ protected:
 
 	FD3D12DescriptorCache DescriptorCache;
 
-	void InternalSetIndexBuffer(FD3D12ResourceLocation *IndexBufferLocation, DXGI_FORMAT Format, uint32 Offset);
+	void InternalSetIndexBuffer(FD3D12Resource* Resource);
 
 	void InternalSetStreamSource(FD3D12ResourceLocation* VertexBufferLocation, uint32 StreamIndex, uint32 Stride, uint32 Offset);
 
@@ -855,14 +850,24 @@ public:
 
 public:
 
-	D3D12_STATE_CACHE_INLINE void SetIndexBuffer(FD3D12ResourceLocation* IndexBufferLocation, DXGI_FORMAT Format, uint32 Offset)
+	D3D12_STATE_CACHE_INLINE void SetIndexBuffer(const FD3D12ResourceLocation& IndexBufferLocation, DXGI_FORMAT Format, uint32 Offset)
 	{
-		InternalSetIndexBuffer(IndexBufferLocation, Format, Offset);
-	}
+		D3D12_GPU_VIRTUAL_ADDRESS BufferLocation = IndexBufferLocation.GetGPUVirtualAddress() + Offset;
+		UINT SizeInBytes = IndexBufferLocation.GetSize() - Offset;
 
-	D3D12_STATE_CACHE_INLINE bool IsIndexBuffer(const FD3D12ResourceLocation *ResourceLocation) const
-	{
-		return PipelineState.Graphics.IBCache.CurrentIndexBufferLocation == ResourceLocation;
+		D3D12_INDEX_BUFFER_VIEW& CurrentView = PipelineState.Graphics.IBCache.CurrentIndexBufferView;
+
+		if (BufferLocation != CurrentView.BufferLocation ||
+			SizeInBytes != CurrentView.SizeInBytes ||
+			Format != CurrentView.Format ||
+			GD3D12SkipStateCaching)
+		{
+			CurrentView.BufferLocation = BufferLocation;
+			CurrentView.SizeInBytes = SizeInBytes;
+			CurrentView.Format = Format;
+
+			InternalSetIndexBuffer(IndexBufferLocation.GetResource());
+		}
 	}
 
 	D3D12_STATE_CACHE_INLINE void GetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY* PrimitiveTopology) const
@@ -959,7 +964,6 @@ public:
 	void ForceSetGraphicsRootSignature() { PipelineState.Graphics.bNeedSetRootSignature = true; }
 	void ForceSetComputeRootSignature() { PipelineState.Compute.bNeedSetRootSignature = true; }
 	void ForceSetVB() { bNeedSetVB = true; }
-	void ForceSetIB() { bNeedSetIB = true; }
 	void ForceSetRTs() { bNeedSetRTs = true; }
 	void ForceSetSOs() { bNeedSetSOs = true; }
 	void ForceSetSamplersPerShaderStage(uint32 Frequency) { PipelineState.Common.SamplerCache.Dirty((EShaderFrequency)Frequency); }
@@ -971,7 +975,6 @@ public:
 	void ForceSetStencilRef() { bNeedSetStencilRef = true; }
 
 	bool GetForceSetVB() const { return bNeedSetVB; }
-	bool GetForceSetIB() const { return bNeedSetIB; }
 	bool GetForceSetRTs() const { return bNeedSetRTs; }
 	bool GetForceSetSOs() const { return bNeedSetSOs; }
 	bool GetForceSetSamplersPerShaderStage(uint32 Frequency) const { return PipelineState.Common.SamplerCache.DirtySlotMask[Frequency] != 0; }
