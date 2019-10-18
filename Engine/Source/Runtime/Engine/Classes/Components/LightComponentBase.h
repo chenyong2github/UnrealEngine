@@ -91,7 +91,7 @@ class ENGINE_API ULightComponentBase : public USceneComponent
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Light, AdvancedDisplay)
 	uint32 bAffectReflection : 1;
 
-	/** Whether the light affects objects in reflections, when ray-traced global illumination is enabled. */
+	/** Whether the light affects global illumination, when ray-traced global illumination is enabled. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Light, AdvancedDisplay)
 	uint32 bAffectGlobalIllumination : 1;
 
