@@ -53,10 +53,11 @@ uint4 EncodeVisibilityData(FVisibilityData Data)
 
 	// Tangent and Coverage
 	// Encode into 2 x 16bits
+	// Coverage is clamped o 255 as we only have 8 bits to store its value
 	float3 T = saturate(EncodeTangent(Data.Tangent));
 	Output.xy = uint2(
 		(0xFF & uint(T.x * 255)) | ((0xFF & uint(T.y * 255)) << 8),
-		(0xFF & uint(T.z * 255)) | ((0xFF & Data.Coverage8bit) << 8));
+		(0xFF & uint(T.z * 255)) | (min(0xFF, Data.Coverage8bit) << 8));
 
 	// PrimitiveId and ClusterId
 	// Encode into 2 x 16bits
@@ -255,6 +256,7 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
  {
 	 uint  TotalCoverage8bit;
 	 uint  SampleCount;
+	 float PixelCoverage;
 	 float ClosestDepth;
  };
 
@@ -263,15 +265,16 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
 	 const uint ClosestDepthUint = asuint(Data.ClosestDepth);
 	 const uint ClosestDepthLow  = ClosestDepthUint & 0xFFFF;
 	 const uint ClosestDepthHigh = (ClosestDepthUint >> 16) & 0xFFFF;
-
-	 return uint4(Data.TotalCoverage8bit, Data.SampleCount, ClosestDepthLow, ClosestDepthHigh);
+	 const uint ComponentX		 = min(Data.TotalCoverage8bit, 0xFF) | ((Data.SampleCount & 0xFF)<<8);
+	 return uint4(ComponentX, f32tof16(Data.PixelCoverage), ClosestDepthLow, ClosestDepthHigh);
  }
 
  FCategorizationData DecodeCategorizationData(uint4 Data)
  {
 	 FCategorizationData Out;
-	 Out.TotalCoverage8bit			= Data.x;
-	 Out.SampleCount				= Data.y;
+	 Out.TotalCoverage8bit			= Data.x & 0xFF;
+	 Out.SampleCount				=(Data.x>>8) & 0xFF;
+	 Out.PixelCoverage				= f16tof32(Data.y);
 	 const uint ClosestDepthLow		= Data.z & 0xFFFF;
 	 const uint ClosestDepthHigh	=(Data.w & 0xFFFF) << 16;
 	 Out.ClosestDepth				= asfloat(ClosestDepthHigh | ClosestDepthLow);

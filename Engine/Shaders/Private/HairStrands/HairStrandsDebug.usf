@@ -64,8 +64,7 @@ void MainPS(
 #endif
 
 #if PERMUTATION_DEBUG_MODE == DEBUG_MODE_COVERAGE
-	const float Coverage = CoverageTexture.Load(uint3(PixelPos, 0));
-	const float3 Color = GetColorCode(saturate(Coverage));
+	const float3 Color = GetColorCode(saturate(CatData.PixelCoverage));
 #endif
 	
 
