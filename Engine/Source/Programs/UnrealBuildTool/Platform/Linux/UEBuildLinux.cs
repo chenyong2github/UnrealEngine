@@ -223,13 +223,6 @@ namespace UnrealBuildTool
 				Target.bCompileCEF3 = false;
 			}
 
-			// Force using the ANSI allocator if ASan or TSan is enabled
-			if (Target.LinuxPlatform.bEnableAddressSanitizer ||
-				Target.LinuxPlatform.bEnableThreadSanitizer)
-			{
-				Target.GlobalDefinitions.Add("FORCE_ANSI_ALLOCATOR=1");
-			}
-
 			// check if OS update invalidated our build
 			Target.bCheckSystemHeadersForModification = (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux);
 
