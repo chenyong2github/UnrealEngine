@@ -108,6 +108,14 @@ void UPhysicsAssetEditorSkeletalMeshComponent::RenderAssetTools(const FSceneView
 		{
 			continue;
 		}
+		if ((PhysicsAsset->SkeletalBodySetups[i]->PhysicsType == EPhysicsType::PhysType_Kinematic &&
+			SharedData->EditorOptions->bHideKinematicBodies) ||
+			(PhysicsAsset->SkeletalBodySetups[i]->PhysicsType == EPhysicsType::PhysType_Simulated &&
+			SharedData->EditorOptions->bHideSimulatedBodies)
+			)
+		{
+			continue;
+		}
 		int32 BoneIndex = GetBoneIndex(PhysicsAsset->SkeletalBodySetups[i]->BoneName);
 
 		// If we found a bone for it, draw the collision.
