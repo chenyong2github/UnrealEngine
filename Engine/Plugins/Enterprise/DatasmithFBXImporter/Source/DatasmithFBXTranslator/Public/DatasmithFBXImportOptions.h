@@ -25,10 +25,10 @@ class DATASMITHFBXTRANSLATOR_API UDatasmithFBXImportOptions : public UObject
 	GENERATED_UCLASS_BODY()
 
 public:
-	UPROPERTY(config, EditAnywhere, Category = Lightmaps, meta = (ToolTip = "Generate new UV coordinates for lightmapping instead of using the highest index UV set. \nTurn this on to have Unreal Studio generate lightmap UV sets automatically.\nTurn this off to try using the highest index existing UV set (if available) as the lightmap UV set.\nFor both cases, geometry without existing UV sets will receive an empty UV set, which will by itself not be valid for use with Lightmass."))
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = Lightmaps, meta = (ToolTip = "Generate new UV coordinates for lightmapping instead of using the highest index UV set. \nTurn this on to have Unreal Studio generate lightmap UV sets automatically.\nTurn this off to try using the highest index existing UV set (if available) as the lightmap UV set.\nFor both cases, geometry without existing UV sets will receive an empty UV set, which will by itself not be valid for use with Lightmass."))
 	bool bGenerateLightmapUVs;
 
-	UPROPERTY(config, EditAnywhere, Category=AssetImporting, meta=(DisplayName="Texture folders", ToolTip="Where to look for textures"))
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category=AssetImporting, meta=(DisplayName="Texture folders", ToolTip="Where to look for textures"))
 	TArray<FDirectoryPath> TextureDirs;
 
 	UPROPERTY(config, EditAnywhere, Category=DebugProperty, meta=(DisplayName="Intermediate Serialization", ToolTip="Cache imported Fbx file in intermediate format for faster debugging"))
