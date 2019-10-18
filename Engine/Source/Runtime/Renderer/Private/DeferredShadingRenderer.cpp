@@ -1899,6 +1899,15 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		ServiceLocalQueue();
 
 		HairDatas = &HairDatasStorage;
+
+		if (SceneContext.bScreenSpaceAOIsValid && SceneContext.ScreenSpaceAO)
+		{
+			RenderHairStrandsAmbientOcclusion(
+				RHICmdList,
+				Views,
+				HairDatas,
+				SceneContext.ScreenSpaceAO);
+		}
 	}
 
 	// Render lighting.
