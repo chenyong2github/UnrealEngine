@@ -422,6 +422,7 @@ struct FCompilerData
 	}
 
 	bool IsSkeletonOnly() const { return JobType == ECompilationManagerJobType::SkeletonOnly; }
+	bool IsCppCompileType() const { return InternalOptions.CompileType == EKismetCompileType::Cpp; }
 	bool ShouldSetTemporaryBlueprintFlags() const { return JobType != ECompilationManagerJobType::RelinkOnly; }
 	bool ShouldResetErrorState() const { return JobType == ECompilationManagerJobType::Normal && InternalOptions.CompileType != EKismetCompileType::BytecodeOnly; }
 	bool ShouldValidateVariableNames() const { return JobType == ECompilationManagerJobType::Normal; }
@@ -1083,10 +1084,17 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 					OldCDOs.Add(BP, BP->GeneratedClass->ClassDefaultObject);
 				}
 
+				EBlueprintCompileReinstancerFlags CompileReinstancerFlags =
+					EBlueprintCompileReinstancerFlags::AutoInferSaveOnCompile;
+				if (!CompilerData.IsCppCompileType())
+				{
+					CompileReinstancerFlags |= EBlueprintCompileReinstancerFlags::AvoidCDODuplication;
+				}
+
 				CompilerData.Reinstancer = TSharedPtr<FBlueprintCompileReinstancer>(
 					new FBlueprintCompileReinstancer(
 						BP->GeneratedClass,
-						EBlueprintCompileReinstancerFlags::AutoInferSaveOnCompile | EBlueprintCompileReinstancerFlags::AvoidCDODuplication
+						CompileReinstancerFlags
 					)
 				);
 
@@ -1127,7 +1135,7 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 				// default value propagation occurs in ReinstaneBatch, CDO will be created via CompileFunctions call:
 				if(BP->ParentClass)
 				{
-					if(BP->GeneratedClass)
+					if(BP->GeneratedClass && !CompilerData.IsCppCompileType())
 					{
 						BP->GeneratedClass->ClassDefaultObject = nullptr;
 					}
