@@ -353,7 +353,7 @@ static void BuildHairAccelerationStructure(FRHICommandList& RHICmdList, uint32 R
 	Initializer.IndexBuffer = nullptr;
 	Initializer.IndexBufferOffset = 0;
 	Initializer.GeometryType = RTGT_Triangles;
-	Initializer.TotalPrimitiveCount = RaytracingVertexCount/3;
+	Initializer.TotalPrimitiveCount = RaytracingVertexCount / 3;
 	Initializer.bFastBuild = true;
 	Initializer.bAllowUpdate = true;
 
@@ -361,7 +361,7 @@ static void BuildHairAccelerationStructure(FRHICommandList& RHICmdList, uint32 R
 	Segment.VertexBuffer = PositionBuffer;
 	Segment.VertexBufferStride = FHairStrandsRaytracingFormat::SizeInByte;
 	Segment.VertexBufferElementType = FHairStrandsRaytracingFormat::VertexElementType;
-	Segment.NumPrimitives = RaytracingVertexCount;
+	Segment.NumPrimitives = RaytracingVertexCount / 3;
 	Initializer.Segments.Add(Segment);
 
 	OutRayTracingGeometry->SetInitializer(Initializer);
