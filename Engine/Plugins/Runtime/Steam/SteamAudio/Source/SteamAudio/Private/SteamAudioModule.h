@@ -29,16 +29,9 @@ namespace SteamAudio
 			return DisplayName;
 		}
 
-		virtual bool SupportsPlatform(EAudioPlatform Platform) override
+		virtual bool SupportsPlatform(const FString& PlatformName) override
 		{
-			if (Platform == EAudioPlatform::Windows || Platform == EAudioPlatform::Android)
-			{
-				return true;
-			}
-			else
-			{
-				return false;
-			}
+			return	PlatformName == FString(TEXT("Windows")) || PlatformName == FString(TEXT("Android"));
 		}
 
 		virtual TAudioSpatializationPtr CreateNewSpatializationPlugin(FAudioDevice* OwningDevice) override;
@@ -58,16 +51,9 @@ namespace SteamAudio
 			return DisplayName;
 		}
 
-		virtual bool SupportsPlatform(EAudioPlatform Platform) override
+		virtual bool SupportsPlatform(const FString& PlatformName) override
 		{
-			if (Platform == EAudioPlatform::Windows)
-			{
-				return true;
-			}
-			else
-			{
-				return false;
-			}
+			return	PlatformName == FString(TEXT("Windows"));
 		}
 
 		virtual TAudioReverbPtr CreateNewReverbPlugin(FAudioDevice* OwningDevice) override;
@@ -87,16 +73,9 @@ namespace SteamAudio
 			return DisplayName;
 		}
 
-		virtual bool SupportsPlatform(EAudioPlatform Platform) override
+		virtual bool SupportsPlatform(const FString& PlatformName) override
 		{
-			if (Platform == EAudioPlatform::Windows || Platform == EAudioPlatform::Android)
-			{
-				return true;
-			}
-			else
-			{
-				return false;
-			}
+			return	PlatformName == FString(TEXT("Windows")) || PlatformName == FString(TEXT("Android"));
 		}
 
 		virtual TAudioOcclusionPtr CreateNewOcclusionPlugin(FAudioDevice* OwningDevice) override;

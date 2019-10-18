@@ -64,13 +64,13 @@ public:
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS, FRHITexture* FMaskTexture2D, FIntPoint Origin)
+	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS, FRHIShaderResourceView* FmaskSRV, FIntPoint Origin)
 	{
 		FRHIPixelShader* PixelShaderRHI = GetPixelShader();
 		SetTextureParameter(RHICmdList, PixelShaderRHI, Tex, Texture2DMS);
 		if (MSAASampleCount > 0)
 		{
-			SetTextureParameter(RHICmdList, PixelShaderRHI, FMaskTex, FMaskTexture2D);
+			SetSRVParameter(RHICmdList, PixelShaderRHI, FMaskTex, FmaskSRV);
 		}
 		SetShaderValue(RHICmdList, PixelShaderRHI, ResolveOrigin, FVector2D(Origin));
 	}
@@ -94,7 +94,8 @@ extern void ResolveFilterWide(
 	FGraphicsPipelineStateInitializer& GraphicsPSOInit,
 	const ERHIFeatureLevel::Type CurrentFeatureLevel,
 	const FTextureRHIRef& SrcTexture,
-	const FTexture2DRHIRef& FMaskTexture,
+	FRHIShaderResourceView* FmaskSRV,
 	const FIntPoint& SrcOrigin,
 	int32 NumSamples,
-	int32 WideFilterWidth);
+	int32 WideFilterWidth,
+	FRHIVertexBuffer* DummyVB);

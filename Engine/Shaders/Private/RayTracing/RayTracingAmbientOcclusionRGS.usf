@@ -41,8 +41,7 @@ void GenerateCosineNormalRay(
 	RayTMax = MaxRayDistance;
 }
 
-[shader("raygeneration")]
-void AmbientOcclusionRGS()
+RAY_TRACING_ENTRY_RAYGEN(AmbientOcclusionRGS)
 {
 	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin;
 
@@ -82,7 +81,7 @@ void AmbientOcclusionRGS()
 		GenerateCosineNormalRay(WorldPosition, WorldNormal, RandSequence, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax);
 		ApplyCameraRelativeDepthBias(Ray, PixelCoord, DeviceZ, WorldNormal, MaxNormalBias);
 
-		if (dot(WorldNormal, Ray.Direction) <= 0.0) // TODO: does it needs to be handled by the denoiser?
+		if (dot(WorldNormal, Ray.Direction) <= 0.0) // TODO(Denoiser): does it needs to be handled by the denoiser?
 			continue;
 		
 		uint RayFlags = 0;

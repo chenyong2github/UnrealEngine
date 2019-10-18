@@ -1,51 +1,61 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "MagicLeapScreensFunctionLibrary.h"
-#include "MagicLeapHMD.h"
-#include "MagicLeapUtils.h"
-#include "MagicLeapScreensWorker.h"
-#include "MagicLeapScreensMsg.h"
 #include "MagicLeapScreensPlugin.h"
 
-void UMagicLeapScreensFunctionLibrary::GetWatchHistoryAsync(const FScreensHistoryRequestResultDelegate& ResultDelegate)
+void UMagicLeapScreensFunctionLibrary::GetWatchHistoryAsync(const FMagicLeapScreensHistoryRequestResultDelegate& ResultDelegate)
 {
 #if WITH_MLSDK
-	FMagicLeapScreensPlugin::GetWatchHistoryEntriesAsync(TOptional<FScreensHistoryRequestResultDelegate>(ResultDelegate));
+	GetMagicLeapScreensPlugin().GetWatchHistoryEntriesAsync(TOptional<FMagicLeapScreensHistoryRequestResultDelegate>(ResultDelegate));
 #else
-	TArray<FScreensWatchHistoryEntry> ResultEntries;
+	TArray<FMagicLeapScreensWatchHistoryEntry> ResultEntries;
 	ResultDelegate.ExecuteIfBound(false, ResultEntries);
 #endif // WITH_MLSDK
 }
 
-void UMagicLeapScreensFunctionLibrary::AddToWatchHistoryAsync(const FScreensWatchHistoryEntry& NewEntry, const FScreensEntryRequestResultDelegate& ResultDelegate)
+void UMagicLeapScreensFunctionLibrary::AddToWatchHistoryAsync(const FMagicLeapScreensWatchHistoryEntry& NewEntry, const FMagicLeapScreensEntryRequestResultDelegate& ResultDelegate)
 {
 #if WITH_MLSDK
-	FMagicLeapScreensPlugin::AddToWatchHistoryAsync(NewEntry, TOptional<FScreensEntryRequestResultDelegate>(ResultDelegate));
+	GetMagicLeapScreensPlugin().AddToWatchHistoryAsync(NewEntry, TOptional<FMagicLeapScreensEntryRequestResultDelegate>(ResultDelegate));
 #else
 	ResultDelegate.ExecuteIfBound(false, NewEntry);
 #endif // WITH_MLSDK
 }
 
-void UMagicLeapScreensFunctionLibrary::UpdateWatchHistoryEntryAsync(const FScreensWatchHistoryEntry& UpdateEntry, const FScreensEntryRequestResultDelegate& ResultDelegate)
+void UMagicLeapScreensFunctionLibrary::UpdateWatchHistoryEntryAsync(const FMagicLeapScreensWatchHistoryEntry& UpdateEntry, const FMagicLeapScreensEntryRequestResultDelegate& ResultDelegate)
 {
 #if WITH_MLSDK
-	FMagicLeapScreensPlugin::UpdateWatchHistoryEntryAsync(UpdateEntry, TOptional<FScreensEntryRequestResultDelegate>(ResultDelegate));
+	GetMagicLeapScreensPlugin().UpdateWatchHistoryEntryAsync(UpdateEntry, TOptional<FMagicLeapScreensEntryRequestResultDelegate>(ResultDelegate));
 #else
 	ResultDelegate.ExecuteIfBound(false, UpdateEntry);
 #endif // WITH_MLSDK
 }
 
-bool UMagicLeapScreensFunctionLibrary::RemoveWatchHistoryEntry(const FScreenID& ID)
+bool UMagicLeapScreensFunctionLibrary::RemoveWatchHistoryEntry(const FGuid& ID)
 {
-	return FMagicLeapScreensPlugin::RemoveWatchHistoryEntry(ID);
+	return GetMagicLeapScreensPlugin().RemoveWatchHistoryEntry(ID);
 }
 
 bool UMagicLeapScreensFunctionLibrary::ClearWatchHistory()
 {
-	return FMagicLeapScreensPlugin::ClearWatchHistory();
+	return GetMagicLeapScreensPlugin().ClearWatchHistory();
 }
 
-bool UMagicLeapScreensFunctionLibrary::GetScreensTransforms(TArray<FScreenTransform>& ScreensTransforms)
+void UMagicLeapScreensFunctionLibrary::UpdateScreenTransformAsync(const FMagicLeapScreenTransform& UpdateTransform, const FMagicLeapScreenTransformRequestResultDelegate& ResultDelegate)
 {
-	return FMagicLeapScreensPlugin::GetScreensTransforms(ScreensTransforms);
+#if WITH_MLSDK
+	GetMagicLeapScreensPlugin().UpdateScreenTransformAsync(UpdateTransform, ResultDelegate);
+#else
+	ResultDelegate.ExecuteIfBound(false);
+#endif // WITH_MLSDK
+}
+
+bool UMagicLeapScreensFunctionLibrary::GetScreenTransform(FMagicLeapScreenTransform& ScreenTransform)
+{
+	return GetMagicLeapScreensPlugin().GetScreenTransform(ScreenTransform);
+}
+
+bool UMagicLeapScreensFunctionLibrary::GetScreensTransforms(TArray<FMagicLeapScreenTransform>& ScreensTransforms)
+{
+	return GetMagicLeapScreensPlugin().GetScreensTransforms(ScreensTransforms);
 }

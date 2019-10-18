@@ -7,7 +7,7 @@
 #include "Misc/CommandLine.h"
 #include "HAL/PlatformProcess.h"
 #include "Lumin/LuminPlatformMisc.h"
-#include <ml_lifecycle.h>
+#include "Lumin/CAPIShims/LuminAPI.h"
 
 #include <locale.h>
 #include <sys/resource.h>

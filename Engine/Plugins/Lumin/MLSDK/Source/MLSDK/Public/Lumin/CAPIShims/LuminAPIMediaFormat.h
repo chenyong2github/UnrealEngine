@@ -1,0 +1,135 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#if !defined(WITH_MLSDK) || WITH_MLSDK
+
+#include "Lumin/CAPIShims/LuminAPI.h"
+
+LUMIN_THIRD_PARTY_INCLUDES_START
+#include <ml_media_common.h>
+#include <ml_media_format.h>
+LUMIN_THIRD_PARTY_INCLUDES_END
+
+namespace MLSDK_API
+{
+
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_AAC_Encoded_Target_Level)
+#define MLMediaFormat_Key_AAC_Encoded_Target_Level ::MLSDK_API::MLMediaFormat_Key_AAC_Encoded_Target_LevelShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_AAC_DRC_Boost_Factor)
+#define MLMediaFormat_Key_AAC_DRC_Boost_Factor ::MLSDK_API::MLMediaFormat_Key_AAC_DRC_Boost_FactorShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_AAC_DRC_Attenuation_Factor)
+#define MLMediaFormat_Key_AAC_DRC_Attenuation_Factor ::MLSDK_API::MLMediaFormat_Key_AAC_DRC_Attenuation_FactorShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_AAC_DRC_Heavy_Compression)
+#define MLMediaFormat_Key_AAC_DRC_Heavy_Compression ::MLSDK_API::MLMediaFormat_Key_AAC_DRC_Heavy_CompressionShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_AAC_DRC_Target_Reference_Level)
+#define MLMediaFormat_Key_AAC_DRC_Target_Reference_Level ::MLSDK_API::MLMediaFormat_Key_AAC_DRC_Target_Reference_LevelShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_AAC_Max_Output_Channel_Count)
+#define MLMediaFormat_Key_AAC_Max_Output_Channel_Count ::MLSDK_API::MLMediaFormat_Key_AAC_Max_Output_Channel_CountShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_AAC_Profile)
+#define MLMediaFormat_Key_AAC_Profile ::MLSDK_API::MLMediaFormat_Key_AAC_ProfileShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_AAC_SBR_Mode)
+#define MLMediaFormat_Key_AAC_SBR_Mode ::MLSDK_API::MLMediaFormat_Key_AAC_SBR_ModeShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_Bit_Rate)
+#define MLMediaFormat_Key_Bit_Rate ::MLSDK_API::MLMediaFormat_Key_Bit_RateShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_Capture_Rate)
+#define MLMediaFormat_Key_Capture_Rate ::MLSDK_API::MLMediaFormat_Key_Capture_RateShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_Channel_Count)
+#define MLMediaFormat_Key_Channel_Count ::MLSDK_API::MLMediaFormat_Key_Channel_CountShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_Channel_Mask)
+#define MLMediaFormat_Key_Channel_Mask ::MLSDK_API::MLMediaFormat_Key_Channel_MaskShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_Color_Format)
+#define MLMediaFormat_Key_Color_Format ::MLSDK_API::MLMediaFormat_Key_Color_FormatShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_Duration)
+#define MLMediaFormat_Key_Duration ::MLSDK_API::MLMediaFormat_Key_DurationShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_FLAC_Compression_Level)
+#define MLMediaFormat_Key_FLAC_Compression_Level ::MLSDK_API::MLMediaFormat_Key_FLAC_Compression_LevelShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_Frame_Rate)
+#define MLMediaFormat_Key_Frame_Rate ::MLSDK_API::MLMediaFormat_Key_Frame_RateShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_Height)
+#define MLMediaFormat_Key_Height ::MLSDK_API::MLMediaFormat_Key_HeightShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_I_Frame_Interval)
+#define MLMediaFormat_Key_I_Frame_Interval ::MLSDK_API::MLMediaFormat_Key_I_Frame_IntervalShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_Intra_Refresh_Period)
+#define MLMediaFormat_Key_Intra_Refresh_Period ::MLSDK_API::MLMediaFormat_Key_Intra_Refresh_PeriodShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_Is_ADTS)
+#define MLMediaFormat_Key_Is_ADTS ::MLSDK_API::MLMediaFormat_Key_Is_ADTSShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_Is_Autoselect)
+#define MLMediaFormat_Key_Is_Autoselect ::MLSDK_API::MLMediaFormat_Key_Is_AutoselectShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_Is_Default)
+#define MLMediaFormat_Key_Is_Default ::MLSDK_API::MLMediaFormat_Key_Is_DefaultShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_Is_Forced_Subtitle)
+#define MLMediaFormat_Key_Is_Forced_Subtitle ::MLSDK_API::MLMediaFormat_Key_Is_Forced_SubtitleShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_Language)
+#define MLMediaFormat_Key_Language ::MLSDK_API::MLMediaFormat_Key_LanguageShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_Max_Height)
+#define MLMediaFormat_Key_Max_Height ::MLSDK_API::MLMediaFormat_Key_Max_HeightShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_Max_Input_Size)
+#define MLMediaFormat_Key_Max_Input_Size ::MLSDK_API::MLMediaFormat_Key_Max_Input_SizeShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_Max_Width)
+#define MLMediaFormat_Key_Max_Width ::MLSDK_API::MLMediaFormat_Key_Max_WidthShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_Mime)
+#define MLMediaFormat_Key_Mime ::MLSDK_API::MLMediaFormat_Key_MimeShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_PCM_Encoding)
+#define MLMediaFormat_Key_PCM_Encoding ::MLSDK_API::MLMediaFormat_Key_PCM_EncodingShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_Push_Blank_Buffers_On_Stop)
+#define MLMediaFormat_Key_Push_Blank_Buffers_On_Stop ::MLSDK_API::MLMediaFormat_Key_Push_Blank_Buffers_On_StopShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_Repeat_Previous_Frame_After)
+#define MLMediaFormat_Key_Repeat_Previous_Frame_After ::MLSDK_API::MLMediaFormat_Key_Repeat_Previous_Frame_AfterShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_Sample_Rate)
+#define MLMediaFormat_Key_Sample_Rate ::MLSDK_API::MLMediaFormat_Key_Sample_RateShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_Stride)
+#define MLMediaFormat_Key_Stride ::MLSDK_API::MLMediaFormat_Key_StrideShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_Temporal_Layering)
+#define MLMediaFormat_Key_Temporal_Layering ::MLSDK_API::MLMediaFormat_Key_Temporal_LayeringShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_Width)
+#define MLMediaFormat_Key_Width ::MLSDK_API::MLMediaFormat_Key_WidthShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_Crop_Left)
+#define MLMediaFormat_Key_Crop_Left ::MLSDK_API::MLMediaFormat_Key_Crop_LeftShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_Crop_Right)
+#define MLMediaFormat_Key_Crop_Right ::MLSDK_API::MLMediaFormat_Key_Crop_RightShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_Crop_Bottom)
+#define MLMediaFormat_Key_Crop_Bottom ::MLSDK_API::MLMediaFormat_Key_Crop_BottomShim()
+CREATE_GLOBAL_SHIM(ml_mediaformat, MLMediaFormatKey, MLMediaFormat_Key_Crop_Top)
+#define MLMediaFormat_Key_Crop_Top ::MLSDK_API::MLMediaFormat_Key_Crop_TopShim()
+
+CREATE_FUNCTION_SHIM(ml_mediaformat, MLResult, MLMediaFormatCreateVideo)
+#define MLMediaFormatCreateVideo ::MLSDK_API::MLMediaFormatCreateVideoShim
+CREATE_FUNCTION_SHIM(ml_mediaformat, MLResult, MLMediaFormatCreateAudio)
+#define MLMediaFormatCreateAudio ::MLSDK_API::MLMediaFormatCreateAudioShim
+CREATE_FUNCTION_SHIM(ml_mediaformat, MLResult, MLMediaFormatCreateSubtitle)
+#define MLMediaFormatCreateSubtitle ::MLSDK_API::MLMediaFormatCreateSubtitleShim
+CREATE_FUNCTION_SHIM(ml_mediaformat, MLResult, MLMediaFormatDestroy)
+#define MLMediaFormatDestroy ::MLSDK_API::MLMediaFormatDestroyShim
+CREATE_FUNCTION_SHIM(ml_mediaformat, MLResult, MLMediaFormatObjectToString)
+#define MLMediaFormatObjectToString ::MLSDK_API::MLMediaFormatObjectToStringShim
+CREATE_FUNCTION_SHIM(ml_mediaformat, MLResult, MLMediaFormatGetKeyValueInt32)
+#define MLMediaFormatGetKeyValueInt32 ::MLSDK_API::MLMediaFormatGetKeyValueInt32Shim
+CREATE_FUNCTION_SHIM(ml_mediaformat, MLResult, MLMediaFormatGetKeyValueInt64)
+#define MLMediaFormatGetKeyValueInt64 ::MLSDK_API::MLMediaFormatGetKeyValueInt64Shim
+CREATE_FUNCTION_SHIM(ml_mediaformat, MLResult, MLMediaFormatGetKeyValueFloat)
+#define MLMediaFormatGetKeyValueFloat ::MLSDK_API::MLMediaFormatGetKeyValueFloatShim
+CREATE_FUNCTION_SHIM(ml_mediaformat, MLResult, MLMediaFormatGetKeySize)
+#define MLMediaFormatGetKeySize ::MLSDK_API::MLMediaFormatGetKeySizeShim
+CREATE_FUNCTION_SHIM(ml_mediaformat, MLResult, MLMediaFormatGetKeyString)
+#define MLMediaFormatGetKeyString ::MLSDK_API::MLMediaFormatGetKeyStringShim
+CREATE_FUNCTION_SHIM(ml_mediaformat, MLResult, MLMediaFormatGetKeyByteBuffer)
+#define MLMediaFormatGetKeyByteBuffer ::MLSDK_API::MLMediaFormatGetKeyByteBufferShim
+CREATE_FUNCTION_SHIM(ml_mediaformat, MLResult, MLMediaFormatKeyByteBufferRelease)
+#define MLMediaFormatKeyByteBufferRelease ::MLSDK_API::MLMediaFormatKeyByteBufferReleaseShim
+CREATE_FUNCTION_SHIM(ml_mediaformat, MLResult, MLMediaFormatSetKeyInt32)
+#define MLMediaFormatSetKeyInt32 ::MLSDK_API::MLMediaFormatSetKeyInt32Shim
+CREATE_FUNCTION_SHIM(ml_mediaformat, MLResult, MLMediaFormatSetKeyInt64)
+#define MLMediaFormatSetKeyInt64 ::MLSDK_API::MLMediaFormatSetKeyInt64Shim
+CREATE_FUNCTION_SHIM(ml_mediaformat, MLResult, MLMediaFormatSetKeyFloat)
+#define MLMediaFormatSetKeyFloat ::MLSDK_API::MLMediaFormatSetKeyFloatShim
+CREATE_FUNCTION_SHIM(ml_mediaformat, MLResult, MLMediaFormatSetKeySize)
+#define MLMediaFormatSetKeySize ::MLSDK_API::MLMediaFormatSetKeySizeShim
+CREATE_FUNCTION_SHIM(ml_mediaformat, MLResult, MLMediaFormatSetKeyString)
+#define MLMediaFormatSetKeyString ::MLSDK_API::MLMediaFormatSetKeyStringShim
+CREATE_FUNCTION_SHIM(ml_mediaformat, MLResult, MLMediaFormatSetKeyByteBuffer)
+#define MLMediaFormatSetKeyByteBuffer ::MLSDK_API::MLMediaFormatSetKeyByteBufferShim
+
+}
+
+#endif // !defined(WITH_MLSDK) || WITH_MLSDK

@@ -23,6 +23,11 @@ struct FWindowsPlatformProperties
 		return "Windows";
 	}
 
+	static FORCEINLINE const TCHAR* GetRuntimeSettingsClassName()
+	{
+		return TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings");
+	}
+
 	static FORCEINLINE const char* GetPhysicsFormat()
 	{
 		return "PhysXPC";

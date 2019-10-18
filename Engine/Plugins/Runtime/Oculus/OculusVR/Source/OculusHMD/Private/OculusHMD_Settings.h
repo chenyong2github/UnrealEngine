@@ -99,7 +99,7 @@ public:
 
 	float VsyncToNextVsync;
 
-	ETiledMultiResLevel MultiResLevel;
+	EFixedFoveatedRenderingLevel FFRLevel;
 	int CPULevel;
 	int GPULevel;
 

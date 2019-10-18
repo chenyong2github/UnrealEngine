@@ -7,7 +7,7 @@
 #include "TouchpadGesturesComponent.generated.h"
 
 /** Recognized touchpad gesture types. */
-UENUM(BlueprintType)
+UENUM(BlueprintType, meta = (DeprecationMessage = "Use Touchpad Gesture Events instead."))
 enum class EMagicLeapTouchpadGestureType : uint8
 {
 	None,
@@ -24,7 +24,7 @@ enum class EMagicLeapTouchpadGestureType : uint8
 };
 
 /** Direction of touchpad gesture. */
-UENUM(BlueprintType)
+UENUM(BlueprintType, meta = (DeprecationMessage = "Use Touchpad Gesture Events instead."))
 enum class EMagicLeapTouchpadGestureDirection : uint8
 {
 	None,
@@ -39,7 +39,7 @@ enum class EMagicLeapTouchpadGestureDirection : uint8
 };
 
 /** Information about a recognized touchpad gesture. */
-USTRUCT(BlueprintType)
+USTRUCT(BlueprintType, meta = (DeprecationMessage="Use Touchpad Gesture Events instead."))
 struct FMagicLeapTouchpadGesture
 {
 	GENERATED_BODY()
@@ -50,22 +50,22 @@ public:
 	EControllerHand Hand;
 
 	/** Motion source on which the gesture was performed. */
-	UPROPERTY(BlueprintReadOnly, Category = "TouchpadGesture|MagicLeap")
+	UPROPERTY(BlueprintReadOnly, Category = "TouchpadGesture|MagicLeap", meta = (DeprecatedProperty, DeprecationMessage = "Use Touchpad Gesture Events instead."))
 	FName MotionSource;
 
 	/** Type of gesture. */
-	UPROPERTY(BlueprintReadOnly, Category = "TouchpadGesture|MagicLeap")
+	UPROPERTY(BlueprintReadOnly, Category = "TouchpadGesture|MagicLeap", meta = (DeprecatedProperty, DeprecationMessage = "Use Touchpad Gesture Events instead."))
 	EMagicLeapTouchpadGestureType Type;
 
 	/** Direction of gesture */
-	UPROPERTY(BlueprintReadOnly, Category = "TouchpadGesture|MagicLeap")
+	UPROPERTY(BlueprintReadOnly, Category = "TouchpadGesture|MagicLeap", meta = (DeprecatedProperty, DeprecationMessage = "Use Touchpad Gesture Events instead."))
 	EMagicLeapTouchpadGestureDirection Direction;
 
 	/** 
 	  Gesture position (x,y) and force (z).
 	  Position is in the [-1.0,1.0] range and force is in the [0.0,1.0] range.
 	*/
-	UPROPERTY(BlueprintReadOnly, Category = "TouchpadGesture|MagicLeap")
+	UPROPERTY(BlueprintReadOnly, Category = "TouchpadGesture|MagicLeap", meta = (DeprecatedProperty, DeprecationMessage = "Use Touchpad Gesture Events instead."))
 	FVector PositionAndForce;
 
 	/**
@@ -77,7 +77,7 @@ public:
         of [-1.0,1.0] so touchpad distance has a range of [0.0,2.0]; this value
         will be in touchpad distance per second.
 	 */
-	UPROPERTY(BlueprintReadOnly, Category = "TouchpadGesture|MagicLeap")
+	UPROPERTY(BlueprintReadOnly, Category = "TouchpadGesture|MagicLeap", meta = (DeprecatedProperty, DeprecationMessage = "Use Touchpad Gesture Events instead."))
 	float Speed;
 
 	/**
@@ -86,7 +86,7 @@ public:
       distance. The touchpad is defined as having extents of [-1.0,1.0] so
       this distance has a range of [0.0,2.0].
 	 */
-	UPROPERTY(BlueprintReadOnly, Category = "TouchpadGesture|MagicLeap")
+	UPROPERTY(BlueprintReadOnly, Category = "TouchpadGesture|MagicLeap", meta = (DeprecatedProperty, DeprecationMessage = "Use Touchpad Gesture Events instead."))
 	float Distance;
 
 	/**
@@ -94,7 +94,7 @@ public:
       distance. The touchpad is defined as having extents of [-1.0,1.0] so
       this distance has a range of [0.0,2.0].
 	 */
-	UPROPERTY(BlueprintReadOnly, Category = "TouchpadGesture|MagicLeap")
+	UPROPERTY(BlueprintReadOnly, Category = "TouchpadGesture|MagicLeap", meta = (DeprecatedProperty, DeprecationMessage = "Use Touchpad Gesture Events instead."))
 	float FingerGap;
 
 	/**
@@ -102,11 +102,11 @@ public:
       is defined as having extents of [-1.0,1.0] so this radius has a range
       of [0.0,2.0].
 	 */
-	UPROPERTY(BlueprintReadOnly, Category = "TouchpadGesture|MagicLeap")
+	UPROPERTY(BlueprintReadOnly, Category = "TouchpadGesture|MagicLeap", meta = (DeprecatedProperty, DeprecationMessage = "Use Touchpad Gesture Events instead."))
 	float Radius;
 
 	/** Angle from the center of the touchpad to the finger. */
-	UPROPERTY(BlueprintReadOnly, Category = "TouchpadGesture|MagicLeap")
+	UPROPERTY(BlueprintReadOnly, Category = "TouchpadGesture|MagicLeap", meta = (DeprecatedProperty, DeprecationMessage = "Use Touchpad Gesture Events instead."))
 	float Angle;
 };
 
@@ -118,28 +118,27 @@ public:
 	virtual void OnTouchpadGestureEndCallback(const FMagicLeapTouchpadGesture& GestureData) = 0;
 };
 
-/** Delegates touchpad gesture events for the Magic Leap Controller & MLMA */
-UCLASS(ClassGroup = MagicLeap, BlueprintType, Blueprintable, EditInlineNew, meta = (BlueprintSpawnableComponent))
-class MAGICLEAPCONTROLLER_API UTouchpadGesturesComponent : public UActorComponent, public IMagicLeapTouchpadGestures
+/** DEPRECATED use Touchpad Gesture Events instead. - Delegates touchpad gesture events for the Magic Leap Controller & MLMA */
+UCLASS(ClassGroup = MagicLeap, BlueprintType, Blueprintable, EditInlineNew, meta = (Deprecated, DeprecationMessage="Use Touchpad Gesture Events instead.", BlueprintSpawnableComponent))
+class MAGICLEAPCONTROLLER_API UMagicLeapTouchpadGesturesComponent : public UActorComponent, public IMagicLeapTouchpadGestures
 {
 	GENERATED_BODY()
 
 public:
-	UTouchpadGesturesComponent();
-	virtual ~UTouchpadGesturesComponent();
+	UMagicLeapTouchpadGesturesComponent();
 
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FTouchpadGestureEvent, const FMagicLeapTouchpadGesture&, GestureData);
 
-	/** Event called when a touchpad gesture starts. Provides all the meta data about the given gestures. */
-	UPROPERTY(BlueprintAssignable)
+	/** DEPRECATED use Touchpad Gesture Events instead. - Event called when a touchpad gesture starts. Provides all the meta data about the given gestures. */
+	UPROPERTY(BlueprintAssignable, meta = (DeprecatedProperty, DeprecationMessage="Use Touchpad Gesture Events instead."))
 	FTouchpadGestureEvent OnTouchpadGestureStart;
 
-	/** Event called when a touchpad gesture continues. Provides all the meta data about the given gestures. */
-	UPROPERTY(BlueprintAssignable)
+	/** DEPRECATED use Touchpad Gesture Events instead. - Event called when a touchpad gesture continues. Provides all the meta data about the given gestures. */
+	UPROPERTY(BlueprintAssignable, meta = (DeprecatedProperty, DeprecationMessage="Use Touchpad Gesture Events instead."))
 	FTouchpadGestureEvent OnTouchpadGestureContinue;
 
-	/** Event called when a touchpad gesture ends. Provides all the meta data about the given gestures. */
-	UPROPERTY(BlueprintAssignable)
+	/** DEPRECATED use Touchpad Gesture Events instead. - Event called when a touchpad gesture ends. Provides all the meta data about the given gestures. */
+	UPROPERTY(BlueprintAssignable, meta = (DeprecatedProperty, DeprecationMessage="Use Touchpad Gesture Events instead."))
 	FTouchpadGestureEvent OnTouchpadGestureEnd;
 
 	/** IMagicLeapTouchpadGestures interface */
@@ -147,7 +146,9 @@ public:
 	virtual void OnTouchpadGestureContinueCallback(const FMagicLeapTouchpadGesture& GestureData) override;
 	virtual void OnTouchpadGestureEndCallback(const FMagicLeapTouchpadGesture& GestureData) override;
 
+	virtual void BeginPlay() override;
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
 	FCriticalSection CriticalSection;

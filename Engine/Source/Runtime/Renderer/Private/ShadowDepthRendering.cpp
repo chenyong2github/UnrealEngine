@@ -261,6 +261,7 @@ public:
 		OutEnvironment.SetDefine(TEXT("ONEPASS_POINTLIGHT_SHADOW"), (uint32)(ShaderMode == VertexShadowDepth_OnePassPointLight));
 		OutEnvironment.SetDefine(TEXT("REFLECTIVE_SHADOW_MAP"), (uint32)bRenderReflectiveShadowMap);
 		OutEnvironment.SetDefine(TEXT("POSITION_ONLY"), (uint32)bUsePositionOnlyStream);
+		OutEnvironment.SetDefine(TEXT("IS_FOR_GEOMETRY_SHADER"), (uint32)bIsForGeometryShader);
 
 		if (bIsForGeometryShader)
 		{
@@ -379,17 +380,15 @@ public:
 	FOnePassPointShadowDepthGS() {}
 };
 
-#define IMPLEMENT_SHADOW_DEPTH_SHADERMODE_SHADERS(ShaderMode,bRenderReflectiveShadowMap) \
-	typedef TShadowDepthVS<ShaderMode, bRenderReflectiveShadowMap, false> TShadowDepthVS##ShaderMode##bRenderReflectiveShadowMap;	\
-	IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,TShadowDepthVS##ShaderMode##bRenderReflectiveShadowMap,TEXT("/Engine/Private/ShadowDepthVertexShader.usf"),TEXT("Main"),SF_Vertex);	\
-	typedef TShadowDepthVS<ShaderMode, bRenderReflectiveShadowMap, false, true> TShadowDepthVSForGS##ShaderMode##bRenderReflectiveShadowMap;	\
-	IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,TShadowDepthVSForGS##ShaderMode##bRenderReflectiveShadowMap,TEXT("/Engine/Private/ShadowDepthVertexShader.usf"),TEXT("MainForGS"),SF_Vertex);	\
-	typedef TShadowDepthHS<ShaderMode, bRenderReflectiveShadowMap> TShadowDepthHS##ShaderMode##bRenderReflectiveShadowMap;	\
-	IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,TShadowDepthHS##ShaderMode##bRenderReflectiveShadowMap,TEXT("/Engine/Private/ShadowDepthVertexShader.usf"),TEXT("MainHull"),SF_Hull);	\
-	typedef TShadowDepthDS<ShaderMode, bRenderReflectiveShadowMap> TShadowDepthDS##ShaderMode##bRenderReflectiveShadowMap;	\
-	IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,TShadowDepthDS##ShaderMode##bRenderReflectiveShadowMap,TEXT("/Engine/Private/ShadowDepthVertexShader.usf"),TEXT("MainDomain"),SF_Domain);
-
 IMPLEMENT_SHADER_TYPE(, FOnePassPointShadowDepthGS, TEXT("/Engine/Private/ShadowDepthVertexShader.usf"), TEXT("MainOnePassPointLightGS"), SF_Geometry);
+
+#define IMPLEMENT_SHADOW_DEPTH_SHADERMODE_SHADERS(ShaderMode,bRenderReflectiveShadowMap) \
+	typedef TShadowDepthVS<ShaderMode, bRenderReflectiveShadowMap, false> TShadowDepthVS##ShaderMode##bRenderReflectiveShadowMap; \
+	typedef TShadowDepthHS<ShaderMode, bRenderReflectiveShadowMap       > TShadowDepthHS##ShaderMode##bRenderReflectiveShadowMap; \
+	typedef TShadowDepthDS<ShaderMode, bRenderReflectiveShadowMap       > TShadowDepthDS##ShaderMode##bRenderReflectiveShadowMap; \
+	IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, TShadowDepthVS##ShaderMode##bRenderReflectiveShadowMap, TEXT("/Engine/Private/ShadowDepthVertexShader.usf"), TEXT("Main"),       SF_Vertex); \
+	IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, TShadowDepthHS##ShaderMode##bRenderReflectiveShadowMap, TEXT("/Engine/Private/ShadowDepthVertexShader.usf"), TEXT("MainHull"),   SF_Hull  ); \
+	IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, TShadowDepthDS##ShaderMode##bRenderReflectiveShadowMap, TEXT("/Engine/Private/ShadowDepthVertexShader.usf"), TEXT("MainDomain"), SF_Domain);
 
 IMPLEMENT_SHADOW_DEPTH_SHADERMODE_SHADERS(VertexShadowDepth_PerspectiveCorrect, true);
 IMPLEMENT_SHADOW_DEPTH_SHADERMODE_SHADERS(VertexShadowDepth_PerspectiveCorrect, false);
@@ -399,12 +398,16 @@ IMPLEMENT_SHADOW_DEPTH_SHADERMODE_SHADERS(VertexShadowDepth_OnePassPointLight, f
 
 // Position only vertex shaders.
 typedef TShadowDepthVS<VertexShadowDepth_PerspectiveCorrect, false, true> TShadowDepthVSVertexShadowDepth_PerspectiveCorrectPositionOnly;
+typedef TShadowDepthVS<VertexShadowDepth_OutputDepth,        false, true> TShadowDepthVSVertexShadowDepth_OutputDepthPositionOnly;
+typedef TShadowDepthVS<VertexShadowDepth_OnePassPointLight,  false, true> TShadowDepthVSVertexShadowDepth_OnePassPointLightPositionOnly;
 IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, TShadowDepthVSVertexShadowDepth_PerspectiveCorrectPositionOnly, TEXT("/Engine/Private/ShadowDepthVertexShader.usf"), TEXT("PositionOnlyMain"), SF_Vertex);
-typedef TShadowDepthVS<VertexShadowDepth_OutputDepth, false, true> TShadowDepthVSVertexShadowDepth_OutputDepthPositionOnly;
-IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, TShadowDepthVSVertexShadowDepth_OutputDepthPositionOnly, TEXT("/Engine/Private/ShadowDepthVertexShader.usf"), TEXT("PositionOnlyMain"), SF_Vertex);
-typedef TShadowDepthVS<VertexShadowDepth_OnePassPointLight, false, true> TShadowDepthVSVertexShadowDepth_OnePassPointLightPositionOnly;
-IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, TShadowDepthVSVertexShadowDepth_OnePassPointLightPositionOnly, TEXT("/Engine/Private/ShadowDepthVertexShader.usf"), TEXT("PositionOnlyMain"), SF_Vertex);
-typedef TShadowDepthVS<VertexShadowDepth_OnePassPointLight, false, true, true> TShadowDepthVSForGSVertexShadowDepth_OnePassPointLightPositionOnly;
+IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, TShadowDepthVSVertexShadowDepth_OutputDepthPositionOnly,        TEXT("/Engine/Private/ShadowDepthVertexShader.usf"), TEXT("PositionOnlyMain"), SF_Vertex);
+IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, TShadowDepthVSVertexShadowDepth_OnePassPointLightPositionOnly,  TEXT("/Engine/Private/ShadowDepthVertexShader.usf"), TEXT("PositionOnlyMain"), SF_Vertex);
+
+// One pass point light VS for GS shaders.
+typedef TShadowDepthVS<VertexShadowDepth_OnePassPointLight, false, false, true> TShadowDepthVSForGSVertexShadowDepth_OnePassPointLight;
+typedef TShadowDepthVS<VertexShadowDepth_OnePassPointLight, false, true,  true> TShadowDepthVSForGSVertexShadowDepth_OnePassPointLightPositionOnly;
+IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, TShadowDepthVSForGSVertexShadowDepth_OnePassPointLight,             TEXT("/Engine/Private/ShadowDepthVertexShader.usf"), TEXT("MainForGS"),             SF_Vertex); \
 IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, TShadowDepthVSForGSVertexShadowDepth_OnePassPointLightPositionOnly, TEXT("/Engine/Private/ShadowDepthVertexShader.usf"), TEXT("PositionOnlyMainForGS"), SF_Vertex);
 
 /**
@@ -1353,9 +1356,48 @@ void FProjectedShadowInfo::GetShadowTypeNameForDrawEvent(FString& TypeName) cons
 	}
 }
 
+#if WITH_MGPU
+FRHIGPUMask FSceneRenderer::GetGPUMaskForShadow(FProjectedShadowInfo* ProjectedShadowInfo) const
+{
+	// Preshadows are handled separately and check bDepthsCached.
+	if (ProjectedShadowInfo->bPreShadow)
+	{
+		return AllViewsGPUMask;
+	}
+
+	// SDCM_StaticPrimitivesOnly shadows don't update every frame so we need to render
+	// their depths on all possible GPUs.
+	if (ProjectedShadowInfo->CacheMode == SDCM_StaticPrimitivesOnly)
+	{
+		// Cached whole scene shadows shouldn't be view dependent.
+		checkSlow(ProjectedShadowInfo->DependentView == nullptr);
+
+		// Multi-GPU support : Updating on all GPUs may be inefficient for AFR. Work is
+		// wasted for any shadows that re-cache on consecutive frames.
+		return FRHIGPUMask::All();
+	}
+	else
+	{
+		// View dependent shadows only need to render depths on their view's GPUs.
+		if (ProjectedShadowInfo->DependentView != nullptr)
+		{
+			return ProjectedShadowInfo->DependentView->GPUMask;
+		}
+		else
+		{
+			return AllViewsGPUMask;
+		}
+	}
+}
+#endif // WITH_MGPU
+
 void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICmdList)
 {
 	check(RHICmdList.IsOutsideRenderPass());
+
+	// Perform setup work on all GPUs in case any cached shadows are being updated this
+	// frame. We revert to the AllViewsGPUMask for uncached shadows.
+	SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
 
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 
@@ -1434,6 +1476,7 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICm
 			for (int32 ShadowIndex = 0; ShadowIndex < ParallelShadowPasses.Num(); ShadowIndex++)
 			{
 				FProjectedShadowInfo* ProjectedShadowInfo = ParallelShadowPasses[ShadowIndex];
+				SCOPED_GPU_MASK(RHICmdList, GetGPUMaskForShadow(ProjectedShadowInfo));
 
 				if (!CurrentLightForDrawEvent || ProjectedShadowInfo->GetLightSceneInfo().Proxy != CurrentLightForDrawEvent)
 				{
@@ -1470,6 +1513,7 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICm
 			for (int32 ShadowIndex = 0; ShadowIndex < SerialShadowPasses.Num(); ShadowIndex++)
 			{
 				FProjectedShadowInfo* ProjectedShadowInfo = SerialShadowPasses[ShadowIndex];
+				SCOPED_GPU_MASK(RHICmdList, GetGPUMaskForShadow(ProjectedShadowInfo));
 
 				if (!CurrentLightForDrawEvent || ProjectedShadowInfo->GetLightSceneInfo().Proxy != CurrentLightForDrawEvent)
 				{
@@ -1522,6 +1566,13 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 
 	checkSlow(RHICmdList.IsOutsideRenderPass());
 
+	// Perform setup work on all GPUs in case any cached shadows are being updated this
+	// frame. We revert to the AllViewsGPUMask for uncached shadows.
+#if WITH_MGPU
+	ensure(RHICmdList.GetGPUMask() == AllViewsGPUMask);
+#endif
+	SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
+
 	for (int32 CubemapIndex = 0; CubemapIndex < SortedShadowsForShadowDepthPass.ShadowMapCubemaps.Num(); CubemapIndex++)
 	{
 		const FSortedShadowMapAtlas& ShadowMap = SortedShadowsForShadowDepthPass.ShadowMapCubemaps[CubemapIndex];
@@ -1530,6 +1581,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 
 		check(ShadowMap.Shadows.Num() == 1);
 		FProjectedShadowInfo* ProjectedShadowInfo = ShadowMap.Shadows[0];
+		SCOPED_GPU_MASK(RHICmdList, GetGPUMaskForShadow(ProjectedShadowInfo));
 
 		const bool bDoParallelDispatch = RHICmdList.IsImmediate() &&  // translucent shadows are draw on the render thread, using a recursive cmdlist (which is not immediate)
 			GRHICommandList.UseParallelAlgorithms() && CVarParallelShadows.GetValueOnRenderThread() &&
@@ -1610,6 +1662,10 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 
 			if (!ProjectedShadowInfo->bDepthsCached)
 			{
+				// Multi-GPU support : Updating on all GPUs may be inefficient for AFR. Work is
+				// wasted for any shadows that re-cache on consecutive frames.
+				SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
+
 				const bool bDoParallelDispatch = RHICmdList.IsImmediate() &&  // translucent shadows are draw on the render thread, using a recursive cmdlist (which is not immediate)
 					GRHICommandList.UseParallelAlgorithms() && CVarParallelShadows.GetValueOnRenderThread() &&
 					(ProjectedShadowInfo->IsWholeSceneDirectionalShadow() || CVarParallelShadowsNonWholeScene.GetValueOnRenderThread());
@@ -1673,6 +1729,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 			for (int32 ShadowIndex = 0; ShadowIndex < ShadowMapAtlas.Shadows.Num(); ShadowIndex++)
 			{
 				FProjectedShadowInfo* ProjectedShadowInfo = ShadowMapAtlas.Shadows[ShadowIndex];
+				SCOPED_GPU_MASK(RHICmdList, GetGPUMaskForShadow(ProjectedShadowInfo));
 				ProjectedShadowInfo->RenderTranslucencyDepths(RHICmdList, this);
 			}
 		}
@@ -1716,6 +1773,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 		for (int32 ShadowIndex = 0; ShadowIndex < ShadowMapAtlas.Shadows.Num(); ShadowIndex++)
 		{
 			FProjectedShadowInfo* ProjectedShadowInfo = ShadowMapAtlas.Shadows[ShadowIndex];
+			SCOPED_GPU_MASK(RHICmdList, GetGPUMaskForShadow(ProjectedShadowInfo));
 
 			const bool bDoParallelDispatch = RHICmdList.IsImmediate() &&  // translucent shadows are draw on the render thread, using a recursive cmdlist (which is not immediate)
 				GRHICommandList.UseParallelAlgorithms() && CVarParallelShadows.GetValueOnRenderThread() &&

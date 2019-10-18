@@ -272,7 +272,7 @@ float FPlatformCompressionUtilities::GetCompressionDurationForCurrentPlatform()
 	return Threshold;
 }
 
-float FPlatformCompressionUtilities::GetTargetSampleRateForPlatform(ESoundwaveSampleRateSettings InSampleRateLevel /*= ESoundwaveSampleRateSettings::High*/, EAudioPlatform SpecificPlatform /*= AudioPluginUtilities::CurrentPlatform*/)
+float FPlatformCompressionUtilities::GetTargetSampleRateForPlatform(ESoundwaveSampleRateSettings InSampleRateLevel /*= ESoundwaveSampleRateSettings::High*/)
 {
 	float SampleRate = -1.0f;
 	const FPlatformAudioCookOverrides* Settings = GetCookOverridesForCurrentPlatform();

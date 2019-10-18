@@ -785,18 +785,32 @@ uint VertexFactoryGetPrimitiveId(FVertexFactoryInterpolantsVSToPS Interpolants)
 }
 
 // RHI_RAYTRACING
-#if COMPUTESHADER || RAYHITGROUPSHADER
-FVertexFactoryInput LoadVertexFactoryInput(uint TriangleIndex, int VertexIndex)
+#if COMPUTESHADER
+FVertexFactoryInput LoadVertexFactoryInputForDynamicUpdate(uint TriangleIndex, int VertexIndex, uint PrimitiveId)
 {
 	FVertexFactoryInput Input;
 
+	Input.InterpVtxId = TriangleIndex * 3 + VertexIndex;
+
+#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && ONEPASS_POINTLIGHT_SHADOW && USING_VERTEX_SHADER_LAYER
+	Input.InstanceInd = 0;
+#endif
+	return Input;
+}
+uint GetNumRayTracingDynamicMeshVerticesIndirect()
+{
+	return 0;
+}
+#endif
+
 #if RAYHITGROUPSHADER
+FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexIndex)
+{
+	FVertexFactoryInput Input;
+
 	FTriangleBaseAttributes Triangle = LoadTriangleBaseAttributes(TriangleIndex);
 	uint VertexId = Triangle.Indices[VertexIndex];
 	Input.InterpVtxId = VertexId;
-#else
-	Input.InterpVtxId = TriangleIndex * 3 + VertexIndex;
-#endif
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && ONEPASS_POINTLIGHT_SHADOW && USING_VERTEX_SHADER_LAYER
 	Input.InstanceInd = 0;
 #endif
@@ -888,7 +902,7 @@ FVertexFactoryInterpolantsVSToDS VertexFactoryInterpolate(FVertexFactoryInterpol
 #endif
 
 #if INSTANCED_STEREO
-	Interpolants.EyeIndex = 0;
+	O.InterpolantsVSToPS.EyeIndex = 0;
 #endif
 
 	return O;

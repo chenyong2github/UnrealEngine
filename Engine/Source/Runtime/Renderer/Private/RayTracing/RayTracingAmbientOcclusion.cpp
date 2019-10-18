@@ -64,18 +64,26 @@ bool ShouldRenderRayTracingAmbientOcclusion(const FViewInfo& View)
 	{
 		return (false);
 	}
-	else if (GetForceRayTracingEffectsCVarValue() >= 0)
+	
+	if (GetForceRayTracingEffectsCVarValue() >= 0)
 	{
 		return GetForceRayTracingEffectsCVarValue() > 0;
 	}
-	else if (GRayTracingAmbientOcclusion >= 0)
+
+	bool bEnabled;
+
+	if (GRayTracingAmbientOcclusion >= 0)
 	{
-		return (GRayTracingAmbientOcclusion > 0);
+		bEnabled = (GRayTracingAmbientOcclusion > 0);
 	}
 	else
 	{
-		return View.FinalPostProcessSettings.RayTracingAO > 0;
+		bEnabled = (View.FinalPostProcessSettings.RayTracingAO > 0);
 	}
+
+	bEnabled &= (View.FinalPostProcessSettings.AmbientOcclusionIntensity > 0.0f);
+
+	return bEnabled;
 }
 
 DECLARE_GPU_STAT_NAMED(RayTracingAmbientOcclusion, TEXT("Ray Tracing Ambient Occlusion"));

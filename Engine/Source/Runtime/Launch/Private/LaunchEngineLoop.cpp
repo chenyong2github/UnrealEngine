@@ -1037,40 +1037,7 @@ FEngineLoop::FEngineLoop()
 
 int32 FEngineLoop::PreInit(int32 ArgC, TCHAR* ArgV[], const TCHAR* AdditionalCommandline)
 {
-	FString CmdLine;
-
-	// loop over the parameters, skipping the first one (which is the executable name)
-	for (int32 Arg = 1; Arg < ArgC; Arg++)
-	{
-		FString ThisArg = ArgV[Arg];
-		if (ThisArg.Contains(TEXT(" ")) && !ThisArg.Contains(TEXT("\"")))
-		{
-			int32 EqualsAt = ThisArg.Find(TEXT("="));
-			if (EqualsAt > 0 && ThisArg.Find(TEXT(" ")) > EqualsAt)
-			{
-				ThisArg = ThisArg.Left(EqualsAt + 1) + FString("\"") + ThisArg.RightChop(EqualsAt + 1) + FString("\"");
-
-			}
-			else
-			{
-				ThisArg = FString("\"") + ThisArg + FString("\"");
-			}
-		}
-
-		CmdLine += ThisArg;
-		// put a space between each argument (not needed after the end)
-		if (Arg + 1 < ArgC)
-		{
-			CmdLine += TEXT(" ");
-		}
-	}
-
-	// append the additional extra command line
-	if (AdditionalCommandline)
-	{
-		CmdLine += TEXT(" ");
-		CmdLine += AdditionalCommandline;
-	}
+	FString CmdLine = FCommandLine::BuildFromArgV(nullptr, ArgC, ArgV, AdditionalCommandline);
 
 	// send the command line without the exe name
 	return GEngineLoop.PreInit(*CmdLine);
@@ -2568,7 +2535,7 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 			if (GetMoviePlayer()->HasEarlyStartupMovie())
 			{
 				SCOPED_BOOT_TIMING("EarlyStartupMovie");
-				GetMoviePlayer()->Initialize(SlateRendererSharedRef.Get());
+				GetMoviePlayer()->Initialize(SlateRendererSharedRef.Get(), FPreLoadScreenManager::Get() ? FPreLoadScreenManager::Get()->GetRenderWindow() : nullptr);
 
 				// hide splash screen now before playing any movies
 				FPlatformMisc::PlatformHandleSplashScreen(false);

@@ -406,3 +406,38 @@ FSSDSignalSample NormalizeToOneSample(FSSDSignalSample Sample)
 	OutSample.SampleCount = Sample.SampleCount > 0 ? 1 : 0;
 	return OutSample;
 }
+
+FSSDSignalSample WaveBroadcastSignal(const FWaveBroadcastSettings BroadcastSettings, FSSDSignalSample Sample)
+{
+	FSSDSignalSample OutSample;
+	#if COMPILE_SIGNAL_COLOR
+		OutSample.SceneColor = WaveBroadcast(BroadcastSettings, Sample.SceneColor);
+	#endif
+	#if COMPILE_SIGNAL_COLOR_ARRAY
+	{
+		UNROLL_N(COMPILE_SIGNAL_COLOR_ARRAY)
+		for (uint ColorId = 0; ColorId < COMPILE_SIGNAL_COLOR_ARRAY; ColorId++)
+			OutSample.ColorArray[ColorId] = WaveBroadcast(BroadcastSettings, Sample.ColorArray[ColorId]);
+	}
+	#endif
+	#if COMPILE_SIGNAL_COLOR_SH && SPHERICAL_HARMONIC_ORDER == 2
+		OutSample.ColorSH.R.V = WaveBroadcast(BroadcastSettings, Sample.ColorSH.R.V);
+		OutSample.ColorSH.G.V = WaveBroadcast(BroadcastSettings, Sample.ColorSH.G.V);
+		OutSample.ColorSH.B.V = WaveBroadcast(BroadcastSettings, Sample.ColorSH.B.V);
+	#elif COMPILE_SIGNAL_COLOR_SH && SPHERICAL_HARMONIC_ORDER == 3
+		OutSample.ColorSH.R.V0 = WaveBroadcast(BroadcastSettings, Sample.ColorSH.R.V0);
+		OutSample.ColorSH.R.V1 = WaveBroadcast(BroadcastSettings, Sample.ColorSH.R.V1);
+		OutSample.ColorSH.R.V2 = WaveBroadcast(BroadcastSettings, Sample.ColorSH.R.V2);
+		OutSample.ColorSH.G.V0 = WaveBroadcast(BroadcastSettings, Sample.ColorSH.G.V0);
+		OutSample.ColorSH.G.V1 = WaveBroadcast(BroadcastSettings, Sample.ColorSH.G.V1);
+		OutSample.ColorSH.G.V2 = WaveBroadcast(BroadcastSettings, Sample.ColorSH.G.V2);
+		OutSample.ColorSH.B.V0 = WaveBroadcast(BroadcastSettings, Sample.ColorSH.B.V0);
+		OutSample.ColorSH.B.V1 = WaveBroadcast(BroadcastSettings, Sample.ColorSH.B.V1);
+		OutSample.ColorSH.B.V2 = WaveBroadcast(BroadcastSettings, Sample.ColorSH.B.V2);
+	#endif
+	OutSample.SampleCount        = WaveBroadcast(BroadcastSettings, Sample.SampleCount);
+	OutSample.MissCount          = WaveBroadcast(BroadcastSettings, Sample.MissCount);
+	OutSample.ClosestHitDistance = WaveBroadcast(BroadcastSettings, Sample.ClosestHitDistance);
+	OutSample.WorldBluringRadius = WaveBroadcast(BroadcastSettings, Sample.WorldBluringRadius);
+	return OutSample;
+}

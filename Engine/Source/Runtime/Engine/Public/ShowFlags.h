@@ -320,7 +320,6 @@ private:
 		SetCompositeEditorPrimitives(InitMode == ESFIM_Editor || InitMode == ESFIM_VREditing);
 		SetTestImage(false);
 		SetVisualizeDOF(false);
-		SetVisualizeAdaptiveDOF(false);
 		SetVertexColors(false);
 		SetVisualizeMotionBlur(false);
 		SetSelectionOutline(false);

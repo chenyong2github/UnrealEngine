@@ -70,7 +70,7 @@ public:
 	static bool SupportsStandardSwapchain();
 	static EPixelFormat GetPixelFormatForNonDefaultSwapchain();
 
-	static bool SupportsTimestampRenderQueries() { return false; }
+	static bool SupportsTimestampRenderQueries();
 
 	static bool RequiresMobileRenderer() { return true; }
 	static void OverridePlatformHandlers(bool bInit);

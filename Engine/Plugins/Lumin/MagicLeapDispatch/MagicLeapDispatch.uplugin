@@ -1,0 +1,42 @@
+{
+	"FileVersion" : 3,
+	"Version" : 1,
+	"VersionName": "1.0",
+	"FriendlyName" : "Magic Leap Dispatch",
+	"CreatedBy" : "Magic Leap, Inc.",
+	"CreatedByURL" : "http://magicleap.com",
+	"Description" : "Support for the Magic Leap Dispatch API.",
+	"Category" : "Lumin",
+	"EnabledByDefault" : false,
+	"DocsURL" : "",
+	"MarketplaceURL" : "",
+	"SupportURL" : "",
+	"CanContainContent" : false,
+	"IsBetaVersion" : false,
+	"Installed" : false,
+	"SupportedTargetPlatforms": [
+		"Lumin",
+		"Win64",
+		"Mac"
+	],
+	"Modules" :
+	[
+		{
+			"Name" : "MagicLeapDispatch",
+			"Type" : "Runtime",
+			"WhitelistPlatforms" :
+			[
+				"Win64",
+				"Mac",
+				"Lumin"
+			]
+		}
+	],
+	"Plugins":
+	[
+		{
+			"Name": "MLSDK",
+			"Enabled": true
+		}
+	]
+}

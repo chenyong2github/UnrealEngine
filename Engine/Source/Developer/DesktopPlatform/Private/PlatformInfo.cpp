@@ -115,32 +115,53 @@ EPlatformFlags::Flags ConvertPlatformFlags(const FString& String)
 	return EPlatformFlags::None;
 }
 
+namespace EPlatformSection
+{
+	const FName TargetPlatformName = FName(TEXT("TargetPlatformName"));
+	const FName DisplayName = FName(TEXT("DisplayName"));
+	const FName PlatformType = FName(TEXT("PlatformType"));
+	const FName PlatformFlags = FName(TEXT("PlatformFlags"));
+	const FName NormalIconPath = FName(TEXT("NormalIconPath"));
+	const FName LargeIconPath = FName(TEXT("LargeIconPath"));
+	const FName XLargeIconPath = FName(TEXT("XLargeIconPath"));
+	const FName UATCommandLine = FName(TEXT("UATCommandLine"));
+	const FName AutoSDKPath = FName(TEXT("AutoSDKPath"));
+	const FName TutorialPath = FName(TEXT("TutorialPath"));
+	const FName bIsEnabled = FName(TEXT("bIsEnabled"));
+	const FName BinariesDirectoryName = FName(TEXT("BinariesDirectoryName"));
+	const FName IniPlatformName = FName(TEXT("IniPlatformName"));
+	const FName bUsesHostCompiler = FName(TEXT("bUsesHostCompiler"));
+	const FName bUATClosesAfterLaunch = FName(TEXT("bUATClosesAfterLaunch"));
+	const FName bIsConfidential = FName(TEXT("bIsConfidential"));
+	const FName UBTTargetID = FName(TEXT("UBTTargetID"));
+	const FName PlatformGroupName = FName(TEXT("PlatformGroupName"));
+}
+
 void ParseDataDrivenPlatformInfo(const TCHAR* Name, const FConfigSection& Section)
 {
-	// @todo platplug: use FNames instead of TCHAR* for keys, so we don't ahve to re-convert every time
-	FName TargetPlatformName = *GetSectionString(Section, TEXT("TargetPlatformName"));
-	FString DisplayName = GetSectionString(Section, TEXT("DisplayName"));
-	FString PlatformType = GetSectionString(Section, TEXT("PlatformType"));
-	FString PlatformFlags = GetSectionString(Section, TEXT("PlatformFlags"));
-	FString NormalIconPath = GetSectionString(Section, TEXT("NormalIconPath"));
-	FString LargeIconPath = GetSectionString(Section, TEXT("LargeIconPath"));
-	FString XLargeIconPath = GetSectionString(Section, TEXT("XLargeIconPath"));
+	FName TargetPlatformName = *GetSectionString(Section, EPlatformSection::TargetPlatformName);
+	FString DisplayName = GetSectionString(Section, EPlatformSection::DisplayName);
+	FString PlatformType = GetSectionString(Section, EPlatformSection::PlatformType);
+	FString PlatformFlags = GetSectionString(Section, EPlatformSection::PlatformFlags);
+	FString NormalIconPath = GetSectionString(Section, EPlatformSection::NormalIconPath);
+	FString LargeIconPath = GetSectionString(Section, EPlatformSection::LargeIconPath);
+	FString XLargeIconPath = GetSectionString(Section, EPlatformSection::XLargeIconPath);
 	// no one has an XLarge path yet, but in case they add one, this will use it
 	if (XLargeIconPath == TEXT(""))
 	{
 		XLargeIconPath = LargeIconPath;
 	}
-	FString UATCommandLine = GetSectionString(Section, TEXT("UATCommandLine"));
-	FString AutoSDKPath = GetSectionString(Section, TEXT("AutoSDKPath"));
-	FString TutorialPath = GetSectionString(Section, TEXT("TutorialPath"));
-	bool bIsEnabled = GetSectionBool(Section, TEXT("bIsEnabled"));
-	FString BinariesDirectoryName = GetSectionString(Section, TEXT("BinariesDirectoryName"));
-	FString IniPlatformName = GetSectionString(Section, TEXT("IniPlatformName"));
-	bool bUsesHostCompiler = GetSectionBool(Section, TEXT("bUsesHostCompiler"));
-	bool bUATClosesAfterLaunch = GetSectionBool(Section, TEXT("bUATClosesAfterLaunch"));
-	bool bIsConfidential = GetSectionBool(Section, TEXT("bIsConfidential"));
-	FName UBTTargetID = *GetSectionString(Section, TEXT("UBTTargetID"));
-	FName PlatformGroupName = *GetSectionString(Section, TEXT("PlatformGroupName"));
+	FString UATCommandLine = GetSectionString(Section, EPlatformSection::UATCommandLine);
+	FString AutoSDKPath = GetSectionString(Section, EPlatformSection::AutoSDKPath);
+	FString TutorialPath = GetSectionString(Section, EPlatformSection::TutorialPath);
+	bool bIsEnabled = GetSectionBool(Section, EPlatformSection::bIsEnabled);
+	FString BinariesDirectoryName = GetSectionString(Section, EPlatformSection::BinariesDirectoryName);
+	FString IniPlatformName = GetSectionString(Section, EPlatformSection::IniPlatformName);
+	bool bUsesHostCompiler = GetSectionBool(Section, EPlatformSection::bUsesHostCompiler);
+	bool bUATClosesAfterLaunch = GetSectionBool(Section, EPlatformSection::bUATClosesAfterLaunch);
+	bool bIsConfidential = GetSectionBool(Section, EPlatformSection::bIsConfidential);
+	FName UBTTargetID = *GetSectionString(Section, EPlatformSection::UBTTargetID);
+	FName PlatformGroupName = *GetSectionString(Section, EPlatformSection::PlatformGroupName);
 	FString TargetPlatformCanUseCrashReporterString = GetSectionString(Section, TEXT("bTargetPlatformCanUseCrashReporter"));
 	bool bTargetPlatformCanUseCrashReporter = TargetPlatformCanUseCrashReporterString.IsEmpty() ? true : GetSectionBool(Section, TEXT("bTargetPlatformCanUseCrashReporter"));
 

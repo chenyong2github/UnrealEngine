@@ -235,6 +235,8 @@ void PrefilterPlanarReflection(FRHICommandListImmediate& RHICmdList, FViewInfo& 
 		// Workaround for a possible driver bug on S7 Adreno, missing planar reflections
 		ERenderTargetLoadAction RTLoadAction = IsVulkanMobilePlatform(View.GetShaderPlatform()) ?  ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ENoAction;
 
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, Target->GetRenderTargetTexture());
+
 		FRHIRenderPassInfo RPInfo(Target->GetRenderTargetTexture(), MakeRenderTargetActions(RTLoadAction, ERenderTargetStoreAction::EStore));
 		RHICmdList.BeginRenderPass(RPInfo, TEXT("PrefilterPlanarReflections"));
 		{
@@ -400,6 +402,7 @@ static void UpdatePlanarReflectionContents_RenderThread(
 				for (int32 ViewIndex = 0; ViewIndex < SceneRenderer->Views.Num(); ++ViewIndex)
 				{
 					FViewInfo& View = SceneRenderer->Views[ViewIndex];
+					SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 					if (MainSceneRenderer->Scene->GetShadingPath() == EShadingPath::Deferred)
 					{
 						PrefilterPlanarReflection<true>(RHICmdList, View, SceneProxy, Target);
@@ -567,7 +570,7 @@ void FScene::UpdatePlanarReflectionContents(UPlanarReflectionComponent* CaptureC
 			SceneRenderer->Views[ViewIndex].FinalPostProcessSettings.ScreenPercentage =
 				MainSceneRenderer.Views[ViewIndex].FinalPostProcessSettings.ScreenPercentage;
 
-			const bool bIsStereo = IStereoRendering::IsStereoEyeView(MainSceneRenderer.Views[0].StereoPass);
+			const bool bIsStereo = MainSceneRenderer.Views[0].StereoPass != EStereoscopicPass::eSSP_FULL;
 
 			const FMatrix ProjectionMatrix = SceneCaptureViewInfo[ViewIndex].ProjectionMatrix;
 			FPlanarReflectionSceneProxy* SceneProxy = CaptureComponent->SceneProxy;

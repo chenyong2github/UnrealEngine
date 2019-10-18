@@ -115,10 +115,7 @@ bool GenerateOcclusionRay(
 	return true;
 }
 
-
-
-[shader("raygeneration")]
-void OcclusionRGS()
+RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 {
 	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin.xy + PixelOffset;
 
@@ -313,7 +310,7 @@ void OcclusionRGS()
 
 	float Shadow = (LocalSamplesPerPixel > 0) ? Visibility / LocalSamplesPerPixel : Visibility;
 	
-	if (DIM_DENOISER_OUTPUT == 3)
+	if (DIM_DENOISER_OUTPUT == 2)
 	{
 		RWOcclusionMaskUAV[PixelCoord] = float4(
 			Shadow,
@@ -321,7 +318,7 @@ void OcclusionRGS()
 			0,
 			0);
 	}
-	else if (DIM_DENOISER_OUTPUT == 2)
+	else if (DIM_DENOISER_OUTPUT == 1)
 	{
 		float AvgHitDistance = -1.0;
 		if (HitCount > 0.0)
@@ -333,13 +330,9 @@ void OcclusionRGS()
 			AvgHitDistance = 1.0e27;
 		}
 
-		// TODO: the denoiser would much prefer a single RG texture.
+		// TODO(Denoiser): the denoiser would much prefer a single RG texture.
 		RWOcclusionMaskUAV[PixelCoord] = Shadow;
 		RWRayDistanceUAV[PixelCoord] = AvgHitDistance;
-	}
-	else if (DIM_DENOISER_OUTPUT == 1)
-	{
-		RWRayDistanceUAV[PixelCoord] = ClosestRayDistance;
 	}
 	else
 	{

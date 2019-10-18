@@ -199,6 +199,24 @@ protected:
 	FVector2D EstimatedSize;
 };
 
+UCLASS(BlueprintType)
+class AUGMENTEDREALITY_API UARTrackedQRCode :
+	public UARTrackedImage
+{
+	GENERATED_BODY()
+
+public:
+	void UpdateTrackedGeometry(const TSharedRef<FARSupportInterface, ESPMode::ThreadSafe>& InTrackingSystem, uint32 FrameNumber, double Timestamp, const FTransform& InLocalToTrackingTransform, const FTransform& InAlignmentTransform, FVector2D InEstimatedSize, const FString& CodeData, int32 InVersion);
+
+	/** The encoded information in the qr code */
+	UPROPERTY(BlueprintReadOnly, Category="QR Code")
+	FString QRCode;
+
+	/** The version of the qr code */
+	UPROPERTY(BlueprintReadOnly, Category="QR Code")
+	int32 Version;
+};
+
 UENUM(BlueprintType, Category="AR AugmentedReality", meta=(Experimental))
 enum class EARFaceTrackingDirection : uint8
 {

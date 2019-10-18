@@ -454,7 +454,7 @@ public:
 };
 
 /** Texture/RT wrapper. */
-class FMetalSurface
+class METALRHI_API FMetalSurface
 {
 public:
 
@@ -476,10 +476,12 @@ public:
 	void PrepareTextureView();
 	
 	/** @returns A newly allocated buffer object large enough for the surface within the texture specified. */
-	FMetalBuffer AllocSurface(uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode LockMode, uint32& DestStride, bool SingleLayer = false);
+	id <MTLBuffer> AllocSurface(uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode LockMode, uint32& DestStride, bool SingleLayer = false);
 
-	/** Apply the data in Buffer to the surface specified. */
-	void UpdateSurface(FMetalBuffer& Buffer, uint32 MipIndex, uint32 ArrayIndex);
+	/** Apply the data in Buffer to the surface specified.
+	 * Will also handle destroying SourceBuffer appropriately.
+	 */
+	void UpdateSurfaceAndDestroySourceBuffer(id <MTLBuffer> SourceBuffer, uint32 MipIndex, uint32 ArrayIndex);
 	
 	/**
 	 * Locks one of the texture's mip-maps.
@@ -487,11 +489,11 @@ public:
 	 * @return A pointer to the specified texture data.
 	 */
 	void* Lock(uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode LockMode, uint32& DestStride, bool SingleLayer = false);
-
+	
 	/** Unlocks a previously locked mip-map.
 	 * @param ArrayIndex Index of the texture array/face in the form Index*6+Face
 	 */
-	void Unlock(uint32 MipIndex, uint32 ArrayIndex);
+	void Unlock(uint32 MipIndex, uint32 ArrayIndex, bool bTryAsync);
 	
 	/**
 	 * Locks one of the texture's mip-maps.
@@ -503,7 +505,7 @@ public:
 	/** Unlocks a previously locked mip-map.
 	 * @param ArrayIndex Index of the texture array/face in the form Index*6+Face
 	 */
-	void AsyncUnlock(class FRHICommandListImmediate& RHICmdList, uint32 MipIndex, uint32 ArrayIndex);
+	void AsyncUnlock(id <MTLBuffer> SourceData, uint32 MipIndex, uint32 ArrayIndex);
 
 	/**
 	 * Returns how much memory a single mip uses, and optionally returns the stride
@@ -548,8 +550,9 @@ public:
 	
 	uint32 Flags;
 	// one per mip
-	FMetalBuffer LockedMemory[16];
-	uint32 WriteLock;
+//	FMetalBuffer LockedMemory[16];
+//	uint32 WriteLock;
+	uint32 BufferLocks;
 
 	// how much memory is allocated for this texture
 	uint64 TotalTextureSize;

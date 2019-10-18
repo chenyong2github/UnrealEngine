@@ -44,7 +44,7 @@ struct FVertexFactoryInput
 
 // RHI_RAYTRACING
 #if COMPUTESHADER || RAYHITGROUPSHADER
-FVertexFactoryInput LoadVertexFactoryInput(uint TriangleIndex, int VertexIndex)
+FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexIndex)
 {
 	FVertexFactoryInput Input;
 	
@@ -56,6 +56,11 @@ FVertexFactoryInput LoadVertexFactoryInput(uint TriangleIndex, int VertexIndex)
 	Input.InstanceId = TriangleIndex / 2;
 
 	return Input;
+}
+
+FVertexFactoryInput LoadVertexFactoryInputForDynamicUpdate(uint TriangleIndex, int VertexIndex, uint PrimitiveId)
+{
+	return LoadVertexFactoryInputForHGS(TriangleIndex, VertexIndex);
 }
 uint GetNumRayTracingDynamicMeshVerticesIndirect()
 {

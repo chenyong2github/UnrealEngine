@@ -735,7 +735,7 @@ void FEditorViewportClient::FocusViewportOnBox( const FBox& BoundingBox, bool bI
 
 FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, const EStereoscopicPass StereoPass)
 {
-    const bool bStereoRendering = IStereoRendering::IsStereoEyeView(StereoPass);
+    const bool bStereoRendering = StereoPass != eSSP_FULL;
 
 	FSceneViewInitOptions ViewInitOptions;
 

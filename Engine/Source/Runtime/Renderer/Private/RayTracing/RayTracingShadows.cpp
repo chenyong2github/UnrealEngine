@@ -52,7 +52,7 @@ class FOcclusionRGS : public FGlobalShader
 	SHADER_USE_ROOT_PARAMETER_STRUCT(FOcclusionRGS, FGlobalShader)
 
 	class FLightTypeDim : SHADER_PERMUTATION_INT("LIGHT_TYPE", LightType_MAX);
-	class FDenoiserOutputDim : SHADER_PERMUTATION_INT("DIM_DENOISER_OUTPUT", 4);
+	class FDenoiserOutputDim : SHADER_PERMUTATION_INT("DIM_DENOISER_OUTPUT", 3);
 	class FEnableTwoSidedGeometryDim : SHADER_PERMUTATION_BOOL("ENABLE_TWO_SIDED_GEOMETRY");
 	class FHairLighting : SHADER_PERMUTATION_INT("USE_HAIR_LIGHTING", 2);
 
@@ -96,7 +96,6 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingShadows(const FViewInfo& Vi
 	const IScreenSpaceDenoiser::EShadowRequirements DenoiserRequirements[] =
 	{
 		IScreenSpaceDenoiser::EShadowRequirements::Bailout,
-		IScreenSpaceDenoiser::EShadowRequirements::ClosestOccluder,
 		IScreenSpaceDenoiser::EShadowRequirements::PenumbraAndAvgOccluder,
 		IScreenSpaceDenoiser::EShadowRequirements::PenumbraAndClosestOccluder,
 	};
@@ -207,18 +206,13 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 		
 		FOcclusionRGS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FOcclusionRGS::FLightTypeDim>(LightSceneProxy->GetLightType());
-		if (DenoiserRequirements == IScreenSpaceDenoiser::EShadowRequirements::ClosestOccluder)
+		if (DenoiserRequirements == IScreenSpaceDenoiser::EShadowRequirements::PenumbraAndAvgOccluder)
 		{
-			ensure(RayTracingConfig.RayCountPerPixel == 1);
 			PermutationVector.Set<FOcclusionRGS::FDenoiserOutputDim>(1);
-		}
-		else if (DenoiserRequirements == IScreenSpaceDenoiser::EShadowRequirements::PenumbraAndAvgOccluder)
-		{
-			PermutationVector.Set<FOcclusionRGS::FDenoiserOutputDim>(2);
 		}
 		else if (DenoiserRequirements == IScreenSpaceDenoiser::EShadowRequirements::PenumbraAndClosestOccluder)
 		{
-			PermutationVector.Set<FOcclusionRGS::FDenoiserOutputDim>(3);
+			PermutationVector.Set<FOcclusionRGS::FDenoiserOutputDim>(2);
 		}
 		else
 		{

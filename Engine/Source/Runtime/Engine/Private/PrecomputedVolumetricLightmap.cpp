@@ -23,6 +23,7 @@ void FVolumetricLightmapDataLayer::CreateTexture(FIntVector Dimensions)
 {
 	FRHIResourceCreateInfo CreateInfo;
 	CreateInfo.BulkData = this;
+	CreateInfo.DebugName = TEXT("VolumetricLightmap");
 
 	Texture = RHICreateTexture3D(
 		Dimensions.X, 
@@ -37,6 +38,7 @@ void FVolumetricLightmapDataLayer::CreateTexture(FIntVector Dimensions)
 void FVolumetricLightmapDataLayer::CreateTargetTexture(FIntVector Dimensions)
 {
 	FRHIResourceCreateInfo CreateInfo;
+	CreateInfo.DebugName = TEXT("VolumetricLightmap");
 
 	Texture = RHICreateTexture3D(
 		Dimensions.X,

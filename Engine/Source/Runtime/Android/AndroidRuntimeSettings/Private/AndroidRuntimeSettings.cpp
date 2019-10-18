@@ -61,7 +61,7 @@ void UAndroidRuntimeSettings::PostReloadConfig(UProperty* PropertyThatWasLoaded)
 
 void UAndroidRuntimeSettings::HandlesRGBHWSupport()
 {
-	const bool SupportssRGB = bBuildForES31 && PackageForOculusMobile.Num() > 0;
+	const bool SupportssRGB = !bBuildForES2 && PackageForOculusMobile.Num() > 0;
 	URendererSettings* const Settings = GetMutableDefault<URendererSettings>();
 	static auto* MobileUseHWsRGBEncodingCVAR = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.UseHWsRGBEncoding"));
 

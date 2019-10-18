@@ -8,45 +8,45 @@
 
 /*! Transforms that could be tracked on the hand. In 0.15.0 RC5 8 of them may be tracked.*/
 UENUM(BlueprintType)
-enum class EHandTrackingKeypoint : uint8
+enum class EMagicLeapHandTrackingKeypoint : uint8
 {
-	Thumb_Tip, // SDK 0.15.0 tracked
-	Thumb_IP,
-	Thumb_MCP, // SDK 0.15.0 tracked
+	Thumb_Tip, // SDK 0.21.0 tracked
+	Thumb_IP,  // SDK 0.21.0 tracked
+	Thumb_MCP, // SDK 0.21.0 tracked
 	Thumb_CMC,
 
-	Index_Tip, // SDK 0.15.0 tracked
+	Index_Tip, // SDK 0.21.0 tracked
 	Index_DIP,
-	Index_PIP, // SDK 0.15.0 tracked
-	Index_MCP, // SDK 0.15.0 tracked
+	Index_PIP, // SDK 0.21.0 tracked
+	Index_MCP, // SDK 0.21.0 tracked
 
-	Middle_Tip,
+	Middle_Tip, // SDK 0.21.0 tracked
 	Middle_DIP,
-	Middle_PIP,
-	Middle_MCP, // SDK 0.15.0 tracked
+	Middle_PIP, // SDK 0.21.0 tracked
+	Middle_MCP, // SDK 0.21.0 tracked
 
-	Ring_Tip,
+	Ring_Tip, // SDK 0.21.0 tracked
 	Ring_DIP,
 	Ring_PIP,
-	Ring_MCP,
+	Ring_MCP, // SDK 0.21.0 tracked
 
-	Pinky_Tip,
+	Pinky_Tip, // SDK 0.21.0 tracked
 	Pinky_DIP,
 	Pinky_PIP,
-	Pinky_MCP,
+	Pinky_MCP, // SDK 0.21.0 tracked
 
-	Wrist_Center, // SDK 0.15.0 tracked
+	Wrist_Center, // SDK 0.21.0 tracked
 	Wrist_Ulnar,
 	Wrist_Radial,
 
-	Hand_Center // SDK 0.15.0 tracked
+	Hand_Center // SDK 0.21.0 tracked
 };
 
-const int32 EHandTrackingKeypointCount = static_cast<int32>(EHandTrackingKeypoint::Hand_Center) + 1;
+const int32 EMagicLeapHandTrackingKeypointCount = static_cast<int32>(EMagicLeapHandTrackingKeypoint::Hand_Center) + 1;
 
 /*! Static key pose types which are available when both hands are separated. */
 UENUM(BlueprintType)
-enum class EHandTrackingGesture : uint8
+enum class EMagicLeapHandTrackingGesture : uint8
 {
 	/** One finger. */
 	Finger,
@@ -58,8 +58,10 @@ enum class EHandTrackingGesture : uint8
 	Thumb,
 	/** An L shape. */
 	L,
-	/** An open hand with the back of the hand facing the user. */
-	OpenHandBack,
+	/** An open palm of the hand facing the user. */
+	OpenHand,
+	/** DEPRECATED (USE OpenHand INSTEAD) - A back open hand of the hand facing away from the user. */
+	OpenHandBack = EMagicLeapHandTrackingGesture::OpenHand,
 	/** A pinch with all fingers, except the index finger and the thumb, extended out. */
 	Ok,
 	/** A rounded 'C' alphabet shape. */
@@ -72,7 +74,7 @@ enum class EHandTrackingGesture : uint8
 
 /** Filtering for the keypoints and hand centers. */
 UENUM(BlueprintType)
-enum class EHandTrackingKeypointFilterLevel : uint8
+enum class EMagicLeapHandTrackingKeypointFilterLevel : uint8
 {
 	/** No filtering is done, the points are raw. */
 	NoFilter,
@@ -84,7 +86,7 @@ enum class EHandTrackingKeypointFilterLevel : uint8
 
 /** Filtering for the gesture recognition and hand switching. */
 UENUM(BlueprintType)
-enum class EHandTrackingGestureFilterLevel : uint8
+enum class EMagicLeapHandTrackingGestureFilterLevel : uint8
 {
 	/** No filtering is done, the gestures are raw. */
 	NoFilter,
@@ -96,7 +98,7 @@ enum class EHandTrackingGestureFilterLevel : uint8
 
 /** Gesture key point transform spaces. */
 UENUM(BlueprintType)
-enum class EGestureTransformSpace : uint8
+enum class EMagicLeapGestureTransformSpace : uint8
 {
 	/** Gesture key point transforms are reported in Unreal world space. This is more costly on CPU.*/
 	World,
@@ -114,6 +116,8 @@ struct FMagicLeapGestureKeyNames
 	static const FName Left_Pinch_Name;
 	static const FName Left_Thumb_Name;
 	static const FName Left_L_Name;
+	static const FName Left_OpenHand_Name;
+	// DEPRECATED
 	static const FName Left_OpenHandBack_Name;
 	static const FName Left_Ok_Name;
 	static const FName Left_C_Name;
@@ -125,6 +129,8 @@ struct FMagicLeapGestureKeyNames
 	static const FName Right_Pinch_Name;
 	static const FName Right_Thumb_Name;
 	static const FName Right_L_Name;
+	static const FName Right_OpenHand_Name;
+	// DEPRECATED
 	static const FName Right_OpenHandBack_Name;
 	static const FName Right_Ok_Name;
 	static const FName Right_C_Name;

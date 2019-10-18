@@ -1,14 +1,12 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "MeshTrackerComponent.h"
-#include "IMagicLeapHMD.h"
 #include "MagicLeapHMD.h"
 #include "AppFramework.h"
 #include "MagicLeapMath.h"
 #include "AppEventHandler.h"
+#include "MagicLeapHMDFunctionLibrary.h"
 
-#include "KismetProceduralMeshLibrary.h"
-#include "ProceduralMeshComponent.h"
 #include "Components/BoxComponent.h"
 #include "Engine/Engine.h"
 #include "HeadMountedDisplayFunctionLibrary.h"
@@ -16,52 +14,49 @@
 #include "Editor.h"
 #endif
 #include "MRMeshComponent.h"
-#include "MagicLeapPluginUtil.h" // for ML_INCLUDES_START/END
+#include "Lumin/CAPIShims/LuminAPIMeshing.h"
 
-#if WITH_MLSDK
-ML_INCLUDES_START
-#include <ml_meshing2.h>
-ML_INCLUDES_END
-#endif //WITH_MLSDK
+//#define DEBUG_MESH_BLOCK_ADD_REMOVE
+//#define DEBUG_MESH_REQUEST_AND_RESPONSE
 
 #if WITH_MLSDK
 // TODO: Don't rely on the size being same.
 static_assert(sizeof(FGuid) == sizeof(MLCoordinateFrameUID), "Size of FGuid should be same as MLCoordinateFrameUID. TODO: Don't rely on the size being same.");
 
 // Map an Unreal meshing LOD to the corresponding ML meshing LOD
-FORCEINLINE MLMeshingLOD UnrealToML_MeshLOD(EMeshLOD UnrealMeshLOD)
+FORCEINLINE MLMeshingLOD UnrealToML_MeshLOD(EMagicLeapMeshLOD UnrealMeshLOD)
 {
 	switch (UnrealMeshLOD)
 	{
-		case EMeshLOD::Minimum:
+		case EMagicLeapMeshLOD::Minimum:
 			return MLMeshingLOD_Minimum;
-		case EMeshLOD::Medium:
+		case EMagicLeapMeshLOD::Medium:
 			return MLMeshingLOD_Medium;
-		case EMeshLOD::Maximum:
+		case EMagicLeapMeshLOD::Maximum:
 			return MLMeshingLOD_Maximum;
 	}
 	check(false);
 	return MLMeshingLOD_Minimum;
 }
 
-EMeshState MLToUEMeshState(MLMeshingMeshState MLMeshState)
+EMagicLeapMeshState MLToUEMeshState(MLMeshingMeshState MLMeshState)
 {
 	switch (MLMeshState)
 	{
 		case MLMeshingMeshState_New:
-			return EMeshState::New;
+			return EMagicLeapMeshState::New;
 		case MLMeshingMeshState_Updated:
-			return EMeshState::Updated;
+			return EMagicLeapMeshState::Updated;
 		case MLMeshingMeshState_Deleted:
-			return EMeshState::Deleted;
+			return EMagicLeapMeshState::Deleted;
 		case MLMeshingMeshState_Unchanged:
-			return EMeshState::Unchanged;
+			return EMagicLeapMeshState::Unchanged;
 	}
 	check(false);
-	return EMeshState::Unchanged;
+	return EMagicLeapMeshState::Unchanged;
 }
 
-void MLToUnrealBlockInfo(const MLMeshingBlockInfo& MLBlockInfo, const FTransform& TrackingToWorld, float WorldToMetersScale, FMeshBlockInfo& UEBlockInfo)
+void MLToUnrealBlockInfo(const MLMeshingBlockInfo& MLBlockInfo, const FTransform& TrackingToWorld, float WorldToMetersScale, FMagicLeapMeshBlockInfo& UEBlockInfo)
 {
 	FMemory::Memcpy(&UEBlockInfo.BlockID, &MLBlockInfo.id, sizeof(MLCoordinateFrameUID));
 
@@ -76,29 +71,37 @@ void MLToUnrealBlockInfo(const MLMeshingBlockInfo& MLBlockInfo, const FTransform
 	BlockTransform = BlockTransform * TrackingToWorld;
 	UEBlockInfo.BlockPosition = BlockTransform.GetLocation();
 	UEBlockInfo.BlockOrientation = BlockTransform.Rotator();
-	UEBlockInfo.BlockDimensions = MagicLeap::ToFVectorExtents(MLBlockInfo.extents.extents, WorldToMetersScale);
+
+	// Splat the OBB to an AABB
+	FMatrix AbsWorldMatrix(BlockTransform.ToMatrixNoScale());
+	AbsWorldMatrix.SetAxis(3, FVector::ZeroVector);
+	for (int32 R = 0; R < 3; ++R)
+	{
+		for (int32 C = 0; C < 3; ++C)
+		{
+			AbsWorldMatrix.M[R][C] = FMath::Abs(AbsWorldMatrix.M[R][C]);
+		}
+	}
+
+	// The extents returned are 'full' extents - width, height, and depth. UE4 boxes are 'half' extents
+	UEBlockInfo.BlockDimensions = AbsWorldMatrix.
+		TransformVector(MagicLeap::ToFVectorExtents(MLBlockInfo.extents.extents, WorldToMetersScale * 0.5f));
 
 	UEBlockInfo.Timestamp = FTimespan::FromMicroseconds(MLBlockInfo.timestamp / 1000.0);
 	UEBlockInfo.BlockState = MLToUEMeshState(MLBlockInfo.state);
 }
 
-void UnrealToMLBlockRequest(const FMeshBlockRequest& UEBlockRequest, MLMeshingBlockRequest& MLBlockRequest)
+void UnrealToMLBlockRequest(const FMagicLeapMeshBlockRequest& UEBlockRequest, MLMeshingBlockRequest& MLBlockRequest)
 {
 	FMemory::Memcpy(&MLBlockRequest.id, &UEBlockRequest.BlockID, sizeof(MLCoordinateFrameUID));
 	MLBlockRequest.level = UnrealToML_MeshLOD(UEBlockRequest.LevelOfDetail);
 }
 #endif //WITH_MLSDK
 
-class FMeshTrackerImpl : public MagicLeap::IAppEventHandler
+class FMagicLeapMeshTrackerImpl : public MagicLeap::IAppEventHandler
 {
 public:
-	FMeshTrackerImpl()
-#if WITH_MLSDK
-		: MeshTracker(ML_INVALID_HANDLE)
-		, MeshBrickIndex(0)
-		, CurrentMeshInfoRequest(ML_INVALID_HANDLE)
-		, CurrentMeshRequest(ML_INVALID_HANDLE)
-#endif //WITH_MLSDK
+	FMagicLeapMeshTrackerImpl()
 	{
 	};
 
@@ -114,13 +117,10 @@ public:
 		{
 			const FAppFramework& AppFramework = static_cast<FMagicLeapHMD *>
 				(GEngine->XRSystem->GetHMDDevice())->GetAppFrameworkConst();
-			if (AppFramework.IsInitialized())
-			{
-				WorldToMetersScale = AppFramework.GetWorldToMetersScale();
-			}
+			WorldToMetersScale = AppFramework.GetWorldToMetersScale();
 		}
 
-		if (MeshTrackerComponent.MeshType == EMeshType::PointCloud)
+		if (MeshTrackerComponent.MeshType == EMagicLeapMeshType::PointCloud)
 		{
 			Settings.flags |= MLMeshingFlags_PointCloud;
 		}
@@ -158,43 +158,55 @@ public:
 	{
 	}
 
+	void OnClear()
+	{
+		MeshBrickIndex = 0;
+		GuidToBrickId.Empty();
+
+		for (auto& PendingMeshBrick : PendingMeshBricksByBrickId)
+		{
+			PendingMeshBrick.Value->Recycle(PendingMeshBrick.Value);
+		}
+		PendingMeshBricksByBrickId.Empty();
+	}
+
 public:
 #if WITH_MLSDK
 	// Handle to ML mesh tracker
-	MLHandle MeshTracker;
-
-	// Next ID for bricks created with MR Mesh
-	int32 MeshBrickIndex;
+	MLHandle MeshTracker = ML_INVALID_HANDLE;
 
 	// Handle to ML mesh info request
-	MLHandle CurrentMeshInfoRequest;
+	MLHandle CurrentMeshInfoRequest = ML_INVALID_HANDLE;
 
 	// Handle to ML mesh request
-	MLHandle CurrentMeshRequest;
+	MLHandle CurrentMeshRequest = ML_INVALID_HANDLE;
 
 	// Current ML meshing settings
 	MLMeshingSettings CurrentMeshSettings;
 
 	// List of ML mesh block IDs and states
 	TArray<MLMeshingBlockRequest> MeshBlockRequests;
-
-	// The set of meshing blocks that have been processed or removed between queries
-	TSet<FGuid> MeshBrickCache;
-
 #endif //WITH_MLSDK
 
-	FMLTrackingMeshInfo LastestMeshInfo;
-	TArray<FMeshBlockRequest> UEMeshBlockRequests;
-	TScriptInterface<IMeshBlockSelectorInterface> BlockSelector;
+	struct FMLTrackingInfoImpl : FMagicLeapTrackingMeshInfo
+	{
+		// Maps the FMagicLeapTrackingMeshInfo block GUIDs to their entry in the BlockData array
+		TMap<FGuid, FMagicLeapMeshBlockInfo> BlockInfoByGuid;
+	};
 
-	// Keep a copy of the mesh data here.  MRMeshComponent will use it from the game and render thread.
+	FMLTrackingInfoImpl LatestMeshInfo;
+	TArray<FMagicLeapMeshBlockRequest> UEMeshBlockRequests;
+	TScriptInterface<IMagicLeapMeshBlockSelectorInterface> BlockSelector;
+
+	// Keep a copy of the mesh data here. MRMeshComponent will use it from the game and render thread.
 	struct FMLCachedMeshData
 	{
 		typedef TSharedPtr<FMLCachedMeshData, ESPMode::ThreadSafe> SharedPtr;
 		
-		FMeshTrackerImpl* Owner = nullptr;
+		FMagicLeapMeshTrackerImpl* Owner = nullptr;
 		
 		FGuid BlockID;
+		uint64 BrickID;
 		TArray<FVector> OffsetVertices;
 		TArray<FVector> WorldVertices;
 		TArray<uint32> Triangles;
@@ -204,13 +216,14 @@ public:
 		TArray<FPackedNormal> Tangents;
 		TArray<float> Confidence;
 
+		FMagicLeapMeshBlockInfo BlockInfo;
+
 		void Recycle(SharedPtr& MeshData)
 		{
 			check(Owner);
-			FMeshTrackerImpl* TempOwner = Owner;
-			Owner = nullptr;
-	
+
 			BlockID.Invalidate();
+			BrickID = INT64_MAX;
 			OffsetVertices.Reset();
 			WorldVertices.Reset();
 			Triangles.Reset();
@@ -219,17 +232,23 @@ public:
 			VertexColors.Reset();
 			Tangents.Reset();
 			Confidence.Reset();
-	
-			TempOwner->FreeMeshDataCache(MeshData);
+
+			Owner->FreeMeshDataCache(MeshData);
+			Owner = nullptr;
 		}
 
-		void Init(FMeshTrackerImpl* InOwner)
+		void Init(FMagicLeapMeshTrackerImpl* InOwner)
 		{
 			check(!Owner);
 			Owner = InOwner;
 		}
 	};
 
+	// When load-balancing is enabled (BricksPerFrame > 0) this map contains mesh data
+	// pending submission to MR Mesh
+	TMap<uint64, FMLCachedMeshData::SharedPtr> PendingMeshBricksByBrickId;
+
+	FDelegateHandle OnClearDelegateHandle;
 
 	// This receipt will be kept in the FSendBrickDataArgs to ensure the cached data outlives MRMeshComponent use of it.
 	class FMeshTrackerComponentBrickDataReceipt : public IMRMesh::FBrickDataReceipt
@@ -247,7 +266,7 @@ public:
 		FMLCachedMeshData::SharedPtr CachedMeshData;
 	};
 	
-	FMLCachedMeshData::SharedPtr AquireMeshDataCache()
+	FMLCachedMeshData::SharedPtr AcquireMeshDataCache()
 	{
 		if (FreeCachedMeshDatas.Num() > 0)
 		{
@@ -293,6 +312,7 @@ public:
 				return false;
 			}
 
+			GuidToBrickId.Empty();
 			MeshBrickIndex = 0;
 		}
 #endif //WITH_MLSDK
@@ -318,7 +338,7 @@ public:
 					{
 						UE_LOG(LogMagicLeap, Log,
 							TEXT("MLMeshingSettings change caused a clear"));
-						MeshTrackerComponent.MRMesh->Clear();
+						MeshTrackerComponent.MRMesh->Clear(); // Will call our OnClear
 					}
 				}
 
@@ -349,7 +369,23 @@ public:
 #endif //WITH_MLSDK
 	}
 
+	uint64 *GetMrMeshIdFromMeshGuid(const FGuid& meshGuid, bool addIfNotFound)
+	{
+		auto MeshBrickId = GuidToBrickId.Find(meshGuid);
+		if (MeshBrickId == nullptr && addIfNotFound)
+		{
+			GuidToBrickId.Add(meshGuid, MeshBrickIndex++);
+			MeshBrickId = GuidToBrickId.Find(meshGuid);
+		}
+		return MeshBrickId;
+	}
+
 private:
+	// Maps system 128-bit mesh GUIDs to 64-bit brick indices
+	TMap<FGuid, uint64> GuidToBrickId;
+
+	// Next 64-bit brick index
+	uint64 MeshBrickIndex = 0;
 
 	// A free list to recycle the CachedMeshData instances.  
 	TArray<FMLCachedMeshData::SharedPtr> CachedMeshDatas;
@@ -360,7 +396,7 @@ private:
 UMeshTrackerComponent::UMeshTrackerComponent()
 	: VertexColorFromConfidenceZero(FLinearColor::Red)
 	, VertexColorFromConfidenceOne(FLinearColor::Blue)
-	, Impl(new FMeshTrackerImpl())
+	, Impl(new FMagicLeapMeshTrackerImpl())
 {
 
 	// Make sure this component ticks
@@ -378,7 +414,7 @@ UMeshTrackerComponent::UMeshTrackerComponent()
 	BoundingVolume->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic);
 	BoundingVolume->SetGenerateOverlapEvents(false);
 	// Recommended default box extents for meshing - 10m (5m radius)
-	BoundingVolume->SetBoxExtent(FVector(1000, 1000, 1000), false);
+	BoundingVolume->SetBoxExtent(FVector(500.0f, 500.0f, 500.0f), false);
 
 	BlockVertexColors.Add(FColor::Blue);
 	BlockVertexColors.Add(FColor::Red);
@@ -424,6 +460,7 @@ void UMeshTrackerComponent::ConnectMRMesh(UMRMeshComponent* InMRMeshPtr)
 	{
 		InMRMeshPtr->SetConnected(true);
 		MRMesh = InMRMeshPtr;
+		Impl->OnClearDelegateHandle = MRMesh->OnClear().AddRaw(Impl, &FMagicLeapMeshTrackerImpl::OnClear);
 	}
 }
 
@@ -446,6 +483,12 @@ void UMeshTrackerComponent::DisconnectMRMesh(class UMRMeshComponent* InMRMeshPtr
 	{
 		check(MRMesh->IsConnected());
 		MRMesh->SetConnected(false);
+
+		if (Impl->OnClearDelegateHandle.IsValid())
+		{
+			MRMesh->OnClear().Remove(Impl->OnClearDelegateHandle);
+			Impl->OnClearDelegateHandle.Reset();
+		}
 	}
 	MRMesh = nullptr;
 }
@@ -485,10 +528,6 @@ void UMeshTrackerComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 
 	const FAppFramework& AppFramework = 
 		static_cast<FMagicLeapHMD *>(GEngine->XRSystem->GetHMDDevice())->GetAppFrameworkConst();
-	if (!AppFramework.IsInitialized())
-	{
-		return;
-	}
 
 	if (!Impl->Create(*this))
 	{
@@ -514,6 +553,20 @@ void UMeshTrackerComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 		UE_LOG(LogMagicLeap, Log, TEXT("MLMeshingSettings changed on the fly"));
 	}
 
+	TSet<EMagicLeapHeadTrackingMapEvent> MapEvents;
+	bool bHasMapEvents = UMagicLeapHMDFunctionLibrary::GetHeadTrackingMapEvents(MapEvents);
+	if (bHasMapEvents)
+	{
+		for (EMagicLeapHeadTrackingMapEvent MapEvent : MapEvents)
+		{
+			if (MapEvent == EMagicLeapHeadTrackingMapEvent::NewSession)
+			{
+				// Clear existing meshes if a new headpose session has started.
+				MRMesh->Clear();
+			}
+		}
+	}
+
 	const float WorldToMetersScale = AppFramework.GetWorldToMetersScale();
 
 	// Make sure MR Mesh is at 0,0,0 (verts received from ML meshing are in tracking space)
@@ -529,25 +582,99 @@ void UMeshTrackerComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 				RequestMesh();
 			}
 		}
-	}
-#endif //WITH_MLSDK
-}
 
-void UMeshTrackerComponent::SelectMeshBlocks_Implementation(const FMLTrackingMeshInfo& NewMeshInfo, TArray<FMeshBlockRequest>& RequestedMesh)
-{
-	for (const FMeshBlockInfo& BlockInfo : NewMeshInfo.BlockData)
-	{
-		if (BlockInfo.BlockState == EMeshState::New || BlockInfo.BlockState == EMeshState::Unchanged)
+		if (BricksPerFrame > 0)
 		{
-			FMeshBlockRequest BlockRequest;
-			BlockRequest.BlockID = BlockInfo.BlockID;
-			BlockRequest.LevelOfDetail = LevelOfDetail;
-			RequestedMesh.Add(BlockRequest);
+			// Load-balancing of MR Mesh brick creation. It is recommended that applications use the GetNumQueuedBlockUpdates
+			// function and experimentation to fine-tune this number for their application.
+			auto PendingIter = Impl->PendingMeshBricksByBrickId.CreateConstIterator();
+			int32 numBricksProcessed;
+			for (numBricksProcessed = 0; numBricksProcessed < BricksPerFrame && PendingIter; ++numBricksProcessed)
+			{
+				auto CachedMeshData = PendingIter.Value();
+				++PendingIter; // Assuming this needs to be done before removing the entry it points to
+
+#ifdef DEBUG_MESH_BLOCK_ADD_REMOVE
+				if (CachedMeshData->WorldVertices.Num() > 0)
+				{
+					UE_LOG(LogMagicLeap,
+						Log,
+						TEXT("UMeshTrackerComponent: ADDING/UPDATING brick %s"),
+						*(CachedMeshData->BlockID.ToString()));
+				}
+				else
+				{
+					UE_LOG(LogMagicLeap,
+						Log,
+						TEXT("UMeshTrackerComponent: REMOVING brick %s"),
+						*(CachedMeshData->BlockID.ToString()));
+				}
+#endif //DEBUG_MESH_BLOCK_ADD_REMOVE
+				// Broadcast that a mesh was updated
+				if (OnMeshTrackerUpdated.IsBound())
+				{
+					// Hack because blueprints don't support uint32.
+					TArray<int32> Triangles(reinterpret_cast<const int32*>(CachedMeshData->
+						Triangles.GetData()), CachedMeshData->Triangles.Num());
+					OnMeshTrackerUpdated.Broadcast(CachedMeshData->BlockID,
+						CachedMeshData->OffsetVertices, Triangles, CachedMeshData->Normals,
+						CachedMeshData->Confidence);
+				}
+
+				// Remove it from the pending list
+				Impl->PendingMeshBricksByBrickId.Remove(CachedMeshData->BrickID);
+
+				if (MeshType != EMagicLeapMeshType::PointCloud)
+				{
+					// Create/update brick
+					static_cast<IMRMesh*>(MRMesh)->SendBrickData(IMRMesh::FSendBrickDataArgs
+						{
+							TSharedPtr<IMRMesh::FBrickDataReceipt, ESPMode::ThreadSafe>
+							(new FMagicLeapMeshTrackerImpl::FMeshTrackerComponentBrickDataReceipt(CachedMeshData)),
+							CachedMeshData->BrickID,
+							CachedMeshData->WorldVertices,
+							CachedMeshData->UV0,
+							CachedMeshData->Tangents,
+							CachedMeshData->VertexColors,
+							CachedMeshData->Triangles,
+							FBox(CachedMeshData->BlockInfo.BlockPosition - CachedMeshData->BlockInfo.BlockDimensions,
+								 CachedMeshData->BlockInfo.BlockPosition + CachedMeshData->BlockInfo.BlockDimensions)
+						});
+				}
+				else
+				{
+					// Discard
+					CachedMeshData->Recycle(CachedMeshData);
+				}
+			}
+		}
+		else
+		{
+			// Clear pending queries as it will not be drained
+			Impl->PendingMeshBricksByBrickId.Reset();
 		}
 	}
+	else
+	{
+		// Clear pending queries as it will not be drained
+		Impl->PendingMeshBricksByBrickId.Reset();
+	}
+#endif //WITH_MLSDK
+
 }
 
-void UMeshTrackerComponent::ConnectBlockSelector(TScriptInterface<IMeshBlockSelectorInterface> Selector)
+void UMeshTrackerComponent::SelectMeshBlocks_Implementation(const FMagicLeapTrackingMeshInfo& NewMeshInfo, TArray<FMagicLeapMeshBlockRequest>& RequestedMesh)
+{
+	for (const FMagicLeapMeshBlockInfo& BlockInfo : NewMeshInfo.BlockData)
+	{
+		FMagicLeapMeshBlockRequest BlockRequest;
+		BlockRequest.BlockID = BlockInfo.BlockID;
+		BlockRequest.LevelOfDetail = LevelOfDetail;
+		RequestedMesh.Add(BlockRequest);
+	}
+}
+
+void UMeshTrackerComponent::ConnectBlockSelector(TScriptInterface<IMagicLeapMeshBlockSelectorInterface> Selector)
 {
 	if (Impl != nullptr)
 	{
@@ -555,14 +682,14 @@ void UMeshTrackerComponent::ConnectBlockSelector(TScriptInterface<IMeshBlockSele
 		// Since the InterfacePointer is null for it's blueprint implementors, bool() operator gives us the wrong result for checking if interface is valid.
 		if (Selector.GetObject() != nullptr)
 		{
-			// If called via C++, Selector might have been created manually and not implement IMeshBlockSelectorInterface.
-			if (Selector.GetObject()->GetClass()->ImplementsInterface(UMeshBlockSelectorInterface::StaticClass()))
+			// If called via C++, Selector might have been created manually and not implement IMagicLeapMeshBlockSelectorInterface.
+			if (Selector.GetObject()->GetClass()->ImplementsInterface(UMagicLeapMeshBlockSelectorInterface::StaticClass()))
 			{
 				Impl->BlockSelector = Selector;
 			}
 			else
 			{
-				UE_LOG(LogMagicLeap, Warning, TEXT("Selector %s does not implement IMeshBlockSelectorInterface. Using default block selector from MeshTrackerComponent."), *(Selector.GetObject()->GetFName().ToString()));
+				UE_LOG(LogMagicLeap, Warning, TEXT("Selector %s does not implement IMagicLeapMeshBlockSelectorInterface. Using default block selector from MeshTrackerComponent."), *(Selector.GetObject()->GetFName().ToString()));
 				Impl->BlockSelector = this;	
 			}
 		}
@@ -580,6 +707,11 @@ void UMeshTrackerComponent::DisconnectBlockSelector()
 	{
 		Impl->BlockSelector = this;
 	}
+}
+
+int32 UMeshTrackerComponent::GetNumQueuedBlockUpdates()
+{
+	return Impl->PendingMeshBricksByBrickId.Num();
 }
 
 void UMeshTrackerComponent::BeginDestroy()
@@ -616,7 +748,8 @@ void UMeshTrackerComponent::RequestMeshInfo()
 		MLMeshingExtents Extents = {};
 		Extents.center = MagicLeap::ToMLVector(Impl->BoundsCenter, WorldToMetersScale);
 		Extents.rotation = MagicLeap::ToMLQuat(Impl->BoundsRotation);
-		Extents.extents = MagicLeap::ToMLVectorExtents(BoundingVolume->GetScaledBoxExtent(), WorldToMetersScale);
+		// The C-API extents are 'full' extents - width, height, and depth. UE4 boxes are 'half' extents.
+		Extents.extents = MagicLeap::ToMLVectorExtents(BoundingVolume->GetScaledBoxExtent() * 2, WorldToMetersScale);
 
 		auto Result = MLMeshingRequestMeshInfo(Impl->MeshTracker, &Extents, &Impl->CurrentMeshInfoRequest);
 		if (MLResult_Ok != Result)
@@ -625,7 +758,7 @@ void UMeshTrackerComponent::RequestMeshInfo()
 			Impl->CurrentMeshInfoRequest = ML_INVALID_HANDLE;
 		}
 	}
-#endif
+#endif // WITH_MLSDK
 }
 
 bool UMeshTrackerComponent::GetMeshInfoResult()
@@ -646,7 +779,7 @@ bool UMeshTrackerComponent::GetMeshInfoResult()
 			// Just silently wait for pending result
 			if (MLResult_Pending != Result)
 			{
-				UE_LOG(LogMagicLeap, Error, 
+				UE_LOG(LogMagicLeap, Error,
 					TEXT("MLMeshingGetMeshInfoResult failed: %s."), UTF8_TO_TCHAR(MLGetResultString(Result)));
 				Impl->CurrentMeshInfoRequest = ML_INVALID_HANDLE;
 				return true;
@@ -656,55 +789,113 @@ bool UMeshTrackerComponent::GetMeshInfoResult()
 		else
 		{
 			// Clear our stored block requests
-			Impl->LastestMeshInfo.BlockData.Empty(MeshInfo.data_count);
-			Impl->LastestMeshInfo.BlockData.AddUninitialized(MeshInfo.data_count);
-			Impl->LastestMeshInfo.Timestamp = FTimespan::FromMicroseconds(MeshInfo.timestamp / 1000.0);
+			Impl->LatestMeshInfo.BlockInfoByGuid.Empty(MeshInfo.data_count);
+			Impl->LatestMeshInfo.BlockData.Empty(MeshInfo.data_count);
+			Impl->LatestMeshInfo.BlockData.AddUninitialized(MeshInfo.data_count);
+			Impl->LatestMeshInfo.Timestamp = FTimespan::FromMicroseconds(MeshInfo.timestamp / 1000.0);
 
-			for (uint32_t MeshInfoIndex = 0; MeshInfoIndex < MeshInfo.data_count; ++ MeshInfoIndex)
+			uint32_t MeshIndex = 0;
+			for (uint32_t DataIndex = 0; DataIndex < MeshInfo.data_count; ++DataIndex)
 			{
-				const auto &MeshInfoData = MeshInfo.data[MeshInfoIndex];
-
-				// TODO: right now we are adding even the deleted and unchanged blocks here. we probably only need to add new and unchanged blocks.
-				MLToUnrealBlockInfo(MeshInfoData, UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(this), WorldToMetersScale, Impl->LastestMeshInfo.BlockData[MeshInfoIndex]);
+				const auto &MeshInfoData = MeshInfo.data[DataIndex];
 
 				switch (MeshInfoData.state)
 				{
-					// TODO: maybe do this only when the rest of the mesh is updated i.e. success from MLMeshingGetMeshResult()
-					case MLMeshingMeshState_Deleted:
+					case MLMeshingMeshState_Unchanged:
+					case MLMeshingMeshState_New:
+					case MLMeshingMeshState_Updated:
 					{
-						const auto& BlockID = FGuid(MeshInfoData.id.data[0], MeshInfoData.id.data[0] >> 32, MeshInfoData.id.data[1], MeshInfoData.id.data[1] >> 32);
+						auto BlockID = FGuid(MeshInfoData.id.data[0],
+											 MeshInfoData.id.data[0] >> 32,
+											 MeshInfoData.id.data[1],
+											 MeshInfoData.id.data[1] >> 32);
 
-						// Delete the brick and its cache entry
-						if (Impl->MeshBrickCache.Contains(BlockID))
+						if (MeshInfoData.state == MLMeshingMeshState_Unchanged)
 						{
-
-							if (MeshType != EMeshType::PointCloud)
+							// Make sure we have actually received this brick before considering
+							// it unchanged
+							auto MeshBrickId = Impl->GetMrMeshIdFromMeshGuid(BlockID, false);
+							if (MeshBrickId != nullptr)
 							{
-								const static TArray<FVector> EmptyVertices;
-								const static TArray<FVector2D> EmptyUVs;
-								const static TArray<FPackedNormal> EmptyTangents;
-								const static TArray<FColor> EmptyVertexColors;
-								const static TArray<uint32> EmptyTriangles;
-								static_cast<IMRMesh*>(MRMesh)->SendBrickData(IMRMesh::FSendBrickDataArgs
-									{
-										nullptr,
-										(static_cast<uint64>(BlockID.B) << 32 | BlockID.A),
-										EmptyVertices,
-										EmptyUVs,
-										EmptyTangents,
-										EmptyVertexColors,
-										EmptyTriangles
-									}
-								);
+								break;
 							}
 
+#ifdef DEBUG_MESH_REQUEST_AND_RESPONSE
+							UE_LOG(LogMagicLeap,
+								Log,
+								TEXT("UMeshTrackerComponent: Received 'unchanged' event for unseen block %s"),
+								*(BlockID.ToString()));
+#endif
+						}
+
+						// Convert and add the block info, and map it by GUID
+						auto& BlockInfo = Impl->LatestMeshInfo.BlockData[MeshIndex++];
+						MLToUnrealBlockInfo(MeshInfoData,
+							UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(this),
+							WorldToMetersScale,
+							BlockInfo);
+
+						// It's new to us
+						BlockInfo.BlockState = EMagicLeapMeshState::New;
+
+						Impl->LatestMeshInfo.BlockInfoByGuid.Add(BlockID, BlockInfo);
+						break;
+					}
+					case MLMeshingMeshState_Deleted:
+					{
+						const auto BlockID = FGuid(MeshInfoData.id.data[0],
+												   MeshInfoData.id.data[0] >> 32,
+												   MeshInfoData.id.data[1],
+												   MeshInfoData.id.data[1] >> 32);
+
+						// Only process delete for blocks for which we actually received data
+						auto MeshBrickId = Impl->GetMrMeshIdFromMeshGuid(BlockID, false);
+						if (MeshBrickId != nullptr)
+						{
+#ifdef DEBUG_MESH_BLOCK_ADD_REMOVE
+							UE_LOG(LogMagicLeap,
+								Log,
+								TEXT("UMeshTrackerComponent: REMOVING brick %s"),
+								*(BlockID.ToString()));
+#endif //DEBUG_MESH_BLOCK_ADD_REMOVE
+							// Broadcast the mesh was removed
 							if (OnMeshTrackerUpdated.IsBound())
 							{
 								OnMeshTrackerUpdated.Broadcast(BlockID,
 									TArray<FVector>(), TArray<int32>(), TArray<FVector>(), TArray<float>());
 							}
 
-							Impl->MeshBrickCache.Remove(BlockID);
+							// Remove any pending block creations/updates
+							Impl->PendingMeshBricksByBrickId.Remove(*MeshBrickId);
+
+							if (MeshType != EMagicLeapMeshType::PointCloud)
+							{
+								// Remove brick
+								const static TArray<FVector> EmptyVertices;
+								const static TArray<FVector2D> EmptyUVs;
+								const static TArray<FPackedNormal> EmptyTangents;
+								const static TArray<FColor> EmptyVertexColors;
+								const static TArray<uint32> EmptyTriangles;
+								static_cast<IMRMesh*>(MRMesh)->SendBrickData(IMRMesh::FSendBrickDataArgs
+								{
+									nullptr,
+									*MeshBrickId,
+									EmptyVertices,
+									EmptyUVs,
+									EmptyTangents,
+									EmptyVertexColors,
+									EmptyTriangles
+								});
+							}
+						}
+						else
+						{
+#ifdef DEBUG_MESH_REQUEST_AND_RESPONSE
+							UE_LOG(LogMagicLeap,
+								Log,
+								TEXT("UMeshTrackerComponent: Received 'deleted' event for unseen block %s"),
+								*(BlockID.ToString()));
+#endif
 						}
 						break;
 					}
@@ -713,9 +904,13 @@ bool UMeshTrackerComponent::GetMeshInfoResult()
 				}
 			}
 
+			// We probably discarded some, so reduce count to the actual size
+			Impl->LatestMeshInfo.BlockData.SetNum(MeshIndex, true);
+
 			// Free up the ML meshing resources
 			MLMeshingFreeResource(Impl->MeshTracker, &Impl->CurrentMeshInfoRequest);
 			Impl->CurrentMeshInfoRequest = ML_INVALID_HANDLE;
+
 			return true;
 		}
 	}
@@ -731,12 +926,14 @@ void UMeshTrackerComponent::RequestMesh()
 	// Request block meshes for current mesh info and block list
 	if (Impl->CurrentMeshRequest == ML_INVALID_HANDLE)
 	{
-		Impl->UEMeshBlockRequests.Empty(Impl->LastestMeshInfo.BlockData.Num());
-		// Allow applications to choose which blocks to mesh.
-		IMeshBlockSelectorInterface::Execute_SelectMeshBlocks(Impl->BlockSelector.GetObject(), Impl->LastestMeshInfo, Impl->UEMeshBlockRequests);
+		Impl->UEMeshBlockRequests.Empty(Impl->LatestMeshInfo.BlockData.Num());
+
+		// Allow applications to choose which of the available blocks to mesh.
+		IMagicLeapMeshBlockSelectorInterface::Execute_SelectMeshBlocks(Impl->BlockSelector.GetObject(), Impl->LatestMeshInfo, Impl->UEMeshBlockRequests);
 
 		if (Impl->UEMeshBlockRequests.Num() > 0)
 		{
+			// Convert selected block requests to ML format
 			Impl->MeshBlockRequests.Empty(Impl->UEMeshBlockRequests.Num());
 			Impl->MeshBlockRequests.AddUninitialized(Impl->UEMeshBlockRequests.Num());
 			for (int32 i = 0; i < Impl->UEMeshBlockRequests.Num(); ++i)
@@ -744,6 +941,7 @@ void UMeshTrackerComponent::RequestMesh()
 				UnrealToMLBlockRequest(Impl->UEMeshBlockRequests[i], Impl->MeshBlockRequests[i]);
 			}
 
+			// Submit query
 			MLMeshingMeshRequest MeshRequest = {};
 			MeshRequest.request_count = static_cast<int>(Impl->MeshBlockRequests.Num());
 			MeshRequest.data = Impl->MeshBlockRequests.GetData();
@@ -786,29 +984,50 @@ bool UMeshTrackerComponent::GetMeshResult()
 		}
 		else
 		{
-			const FVector VertexOffset = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(this).Inverse().GetLocation();
+			// Translate mesh block data
+			const FTransform TrackingToWorld = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(nullptr);
 			for (uint32_t MeshIndex = 0; MeshIndex < Mesh.data_count; ++ MeshIndex)
 			{
 				const auto &MeshData = Mesh.data[MeshIndex];
 
-				auto BlockID = FGuid(MeshData.id.data[0], MeshData.id.data[0] >> 32, MeshData.id.data[1], MeshData.id.data[1] >> 32);
+				auto BlockID = FGuid(MeshData.id.data[0],
+					MeshData.id.data[0] >> 32, MeshData.id.data[1], MeshData.id.data[1] >> 32);
 
-				// Create a brick index for any new mesh block
-				if (!Impl->MeshBrickCache.Contains(BlockID))
+				// Get the block info
+				auto pendingBlockInfo = Impl->LatestMeshInfo.BlockInfoByGuid.Find(BlockID);
+
+				// Simulator can return unrequested meshes, so we cannot currently checkf
+				// https://jira.magicleap.com/browse/REM-3259
+				//checkf(pendingBlockInfo != nullptr, TEXT("Unable to find block info for pending mesh"));
+				if (pendingBlockInfo == nullptr)
 				{
-					Impl->MeshBrickCache.Add(BlockID);
+#ifdef DEBUG_MESH_REQUEST_AND_RESPONSE
+					UE_LOG(LogMagicLeap,
+						Log,
+						TEXT("UMeshTrackerComponent: Received unrequested mesh with ID %s"),
+						*(BlockID.ToString()));
+#endif
+					continue;
 				}
 
-				// Acquire mesh data cache and mark its brick ID
-				FMeshTrackerImpl::FMLCachedMeshData::SharedPtr CurrentMeshDataCache = Impl->AquireMeshDataCache();
+				// Remove them as we receive them so we can tell if we did not receive some requested blocks
+				Impl->LatestMeshInfo.BlockInfoByGuid.Remove(BlockID);
+
+				// Acquire mesh data cache and mark its ML block ID and UE brick ID
+				FMagicLeapMeshTrackerImpl::FMLCachedMeshData::SharedPtr CurrentMeshDataCache = Impl->AcquireMeshDataCache();
 				CurrentMeshDataCache->BlockID = BlockID;
+				CurrentMeshDataCache->BrickID = *Impl->GetMrMeshIdFromMeshGuid(CurrentMeshDataCache->BlockID, true);
+
+				// Copy over the block info
+				CurrentMeshDataCache->BlockInfo = *pendingBlockInfo;
 
 				// Pull vertices
 				CurrentMeshDataCache->OffsetVertices.Reserve(MeshData.vertex_count);
 				CurrentMeshDataCache->WorldVertices.Reserve(MeshData.vertex_count);
 				for (uint32_t v = 0; v < MeshData.vertex_count; ++ v)
 				{
-					CurrentMeshDataCache->OffsetVertices.Add(MagicLeap::ToFVector(MeshData.vertex[v], WorldToMetersScale) - VertexOffset);
+					const FVector WorldVertex = TrackingToWorld.TransformPosition(MagicLeap::ToFVector(MeshData.vertex[v], WorldToMetersScale));
+					CurrentMeshDataCache->OffsetVertices.Add(WorldVertex);
 					CurrentMeshDataCache->WorldVertices.Add(MagicLeap::ToFVector(MeshData.vertex[v], WorldToMetersScale));
 				}
 
@@ -863,7 +1082,7 @@ bool UMeshTrackerComponent::GetMeshResult()
 				// Apply chosen vertex color mode
 				switch (VertexColorMode)
 				{
-					case EMLMeshVertexColorMode::Confidence:
+					case EMagicLeapMeshVertexColorMode::Confidence:
 					{
 						if (nullptr != MeshData.confidence)
 						{
@@ -877,16 +1096,18 @@ bool UMeshTrackerComponent::GetMeshResult()
 						}
 						else
 						{
+							/* TODO: Replace with log once: SDKUNREAL-870
 							UE_LOG(LogMagicLeap, Warning, TEXT("MeshTracker vertex color mode is Confidence "
 								"but no confidence values available. Using white for all blocks."));
+							*/
 						}
 						break;
 					}
-					case EMLMeshVertexColorMode::Block:
+					case EMagicLeapMeshVertexColorMode::Block:
 					{
 						if (BlockVertexColors.Num() > 0)
 						{
-							const FColor& VertexColor = BlockVertexColors[(static_cast<uint64>(BlockID.B) << 32 | BlockID.A) % BlockVertexColors.Num()];
+							const FColor& VertexColor = BlockVertexColors[CurrentMeshDataCache->BrickID % BlockVertexColors.Num()];
 
 							CurrentMeshDataCache->VertexColors.Reserve(MeshData.vertex_count);
 							for (uint32 v = 0; v < MeshData.vertex_count; ++ v)
@@ -901,7 +1122,7 @@ bool UMeshTrackerComponent::GetMeshResult()
 						}
 						break;
 					}
-					case EMLMeshVertexColorMode::LOD:
+					case EMagicLeapMeshVertexColorMode::LOD:
 					{
 						if (BlockVertexColors.Num() >= MLMeshingLOD_Maximum)
 						{
@@ -920,7 +1141,7 @@ bool UMeshTrackerComponent::GetMeshResult()
 						}
 						break;
 					}
-					case EMLMeshVertexColorMode::None:
+					case EMagicLeapMeshVertexColorMode::None:
 					{
 						break;
 					}
@@ -946,33 +1167,69 @@ bool UMeshTrackerComponent::GetMeshResult()
 					CurrentMeshDataCache->UV0.Add(FVector2D(FakeCoord, FakeCoord));
 				}
 
-				// Create/update brick
-				if (MeshType != EMeshType::PointCloud)
+				if (BricksPerFrame > 0)
 				{
-					static_cast<IMRMesh*>(MRMesh)->SendBrickData(IMRMesh::FSendBrickDataArgs
-						{
-							TSharedPtr<IMRMesh::FBrickDataReceipt, ESPMode::ThreadSafe>
-								(new FMeshTrackerImpl::FMeshTrackerComponentBrickDataReceipt(CurrentMeshDataCache)),
-							(static_cast<uint64>(CurrentMeshDataCache->BlockID.B) << 32 | CurrentMeshDataCache->BlockID.A),
-							CurrentMeshDataCache->WorldVertices,
-							CurrentMeshDataCache->UV0,
-							CurrentMeshDataCache->Tangents,
-							CurrentMeshDataCache->VertexColors,
-							CurrentMeshDataCache->Triangles
-						}
-					);
+					Impl->PendingMeshBricksByBrickId.Add(CurrentMeshDataCache->BrickID, CurrentMeshDataCache);
 				}
-
-				// Broadcast that a mesh was updated
-				if (OnMeshTrackerUpdated.IsBound())
+				else
 				{
-					// Hack because blueprints don't support uint32.
-					TArray<int32> Triangles(reinterpret_cast<const int32*>(CurrentMeshDataCache->
-						Triangles.GetData()), CurrentMeshDataCache->Triangles.Num());
-					OnMeshTrackerUpdated.Broadcast(CurrentMeshDataCache->BlockID, CurrentMeshDataCache->OffsetVertices,
-						Triangles, CurrentMeshDataCache->Normals, CurrentMeshDataCache->Confidence);
+#ifdef DEBUG_MESH_BLOCK_ADD_REMOVE
+					UE_LOG(LogMagicLeap,
+						Log,
+						TEXT("UMeshTrackerComponent: ADDING/UPDATING brick %s"),
+						*(BlockID.ToString()));
+#endif //DEBUG_MESH_BLOCK_ADD_REMOVE
+					// Broadcast that a mesh was updated
+					if (OnMeshTrackerUpdated.IsBound())
+					{
+						// Hack because blueprints don't support uint32.
+						TArray<int32> Triangles(reinterpret_cast<const int32*>(CurrentMeshDataCache->
+							Triangles.GetData()), CurrentMeshDataCache->Triangles.Num());
+						OnMeshTrackerUpdated.Broadcast(CurrentMeshDataCache->BlockID, CurrentMeshDataCache->OffsetVertices,
+							Triangles, CurrentMeshDataCache->Normals, CurrentMeshDataCache->Confidence);
+					}
+
+					if (MeshType != EMagicLeapMeshType::PointCloud)
+					{
+						// Create/update brick
+						static_cast<IMRMesh*>(MRMesh)->SendBrickData(IMRMesh::FSendBrickDataArgs
+							{
+								TSharedPtr<IMRMesh::FBrickDataReceipt, ESPMode::ThreadSafe>
+									(new FMagicLeapMeshTrackerImpl::FMeshTrackerComponentBrickDataReceipt(CurrentMeshDataCache)),
+									CurrentMeshDataCache->BrickID,
+									CurrentMeshDataCache->WorldVertices,
+									CurrentMeshDataCache->UV0,
+									CurrentMeshDataCache->Tangents,
+									CurrentMeshDataCache->VertexColors,
+									CurrentMeshDataCache->Triangles,
+									FBox(CurrentMeshDataCache->BlockInfo.BlockPosition - CurrentMeshDataCache->BlockInfo.BlockDimensions,
+										 CurrentMeshDataCache->BlockInfo.BlockPosition + CurrentMeshDataCache->BlockInfo.BlockDimensions)
+							});
+					}
+					else
+					{
+						// Discard
+						CurrentMeshDataCache->Recycle(CurrentMeshDataCache);
+					}
 				}
 			}
+
+#ifdef DEBUG_MESH_REQUEST_AND_RESPONSE
+			if (Impl->LatestMeshInfo.BlockInfoByGuid.Num() != 0)
+			{
+				UE_LOG(LogMagicLeap,
+					Log,
+					TEXT("UMeshTrackerComponent: Failed to receive meshes for %d requests:"),
+					Impl->LatestMeshInfo.BlockInfoByGuid.Num());
+				for (const auto& BlockInfo : Impl->LatestMeshInfo.BlockInfoByGuid)
+				{
+					UE_LOG(LogMagicLeap,
+						Log,
+						TEXT("UMeshTrackerComponent: No data received for %s"),
+						*BlockInfo.Key.ToString());
+				}
+			}
+#endif
 
 			// All meshes pulled and/or updated; free the ML resource
 			MLMeshingFreeResource(Impl->MeshTracker, &Impl->CurrentMeshRequest);
