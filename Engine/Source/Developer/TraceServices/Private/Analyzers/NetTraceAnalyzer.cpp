@@ -74,6 +74,8 @@ bool FNetTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 			const uint64 TimestampCycles = EventData.GetValue<uint64>("Timestamp");
 
 			LastTimeStamp = Context.SessionContext.TimestampFromCycle(TimestampCycles);
+
+			NetProfilerProvider.SetNetTraceVersion(NetTraceVersion);
 		}
 		break;
 
