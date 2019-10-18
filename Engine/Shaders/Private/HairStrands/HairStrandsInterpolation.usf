@@ -29,6 +29,7 @@ Buffer<float4>  DeformedPosition0Buffer;
 Buffer<float4>  DeformedPosition1Buffer;
 Buffer<float4>  DeformedPosition2Buffer;
 
+Buffer<uint>	RootBarycentricBuffer;
 Buffer<uint>	RootToTriangleIndex;
 Buffer<uint>	VertexToRootIndexBuffer;
 #endif
