@@ -267,27 +267,18 @@ RAY_TRACING_ENTRY_RAYGEN(RectLightRGS)
 			continue;
 		}
 
-		uint RayFlags = 0
-			| RAY_FLAG_CULL_BACK_FACING_TRIANGLES
-			| RAY_FLAG_FORCE_OPAQUE; // #dxr_todo: UE-72563 generate a special shader permutation for occlusion ray tracing that includes any-hit shaders for masked geometry
+		const uint RayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_FORCE_OPAQUE; // #dxr_todo: UE-72563 generate a special shader permutation for occlusion ray tracing that includes any-hit shaders for masked geometry
+		const uint InstanceInclusionMask = RAY_TRACING_MASK_SHADOW;
 
-		FPackedMaterialClosestHitPayload Payload = (FPackedMaterialClosestHitPayload)0;
-		Payload.SetMinimalPayloadMode(); // Only HitT will be filled by closest hit shader, skipping full material evaluation.
-
-		TraceRay(
-			TLAS,      // AccelerationStructure
+		FMinimalPayload MinimalPayload = TraceVisibilityRay(
+			TLAS,
 			RayFlags,
-			RAY_TRACING_MASK_SHADOW,          // InstanceInclusionMask
-			RAY_TRACING_SHADER_SLOT_SHADOW,   // RayContributionToHitGroupIndex
-			RAY_TRACING_NUM_SHADER_SLOTS,     // MultiplierForGeometryContributionToShaderIndex
-			0,         // MissShaderIndex
-			Ray,       // RayDesc
-			Payload    // Payload
-		);
+			InstanceInclusionMask,
+			Ray);
 
-		if (Payload.IsHit())
+		if (MinimalPayload.IsHit())
 		{
-			RayDistance += Payload.HitT;
+			RayDistance += MinimalPayload.HitT;
 			HitCount += 1.0;
 		}
 		else
