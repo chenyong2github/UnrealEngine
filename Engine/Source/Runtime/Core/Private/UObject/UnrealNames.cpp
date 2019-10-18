@@ -1907,6 +1907,19 @@ bool FName::IsValidXName(const FString& InName, const FString& InInvalidChars, F
 	return true;
 }
 
+template <typename CharType, int N>
+void CheckLazyName(const CharType(&Literal)[N])
+{
+	check(FName(Literal) == FLazyName(Literal));
+	check(FLazyName(Literal) == FName(Literal));
+	check(FLazyName(Literal) == FLazyName(Literal));
+	check(FName(Literal) == FLazyName(Literal).Resolve());
+
+	CharType Literal2[N];
+	FMemory::Memcpy(Literal2, Literal);
+	check(FLazyName(Literal) == FLazyName(Literal2));
+}
+
 void FName::AutoTest()
 {
 #if DO_CHECK
@@ -2078,15 +2091,22 @@ void FName::AutoTest()
 	check(Names[5] == "FooC");
 	check(Names[6] == FooWide);
 
-	check(FLazyName("Hej") == FName("Hej"));
-	check(FLazyName("Hej_0") == FName("Hej_0"));
-	check(FLazyName("Hej_00") == FName("Hej_00"));
-	check(FLazyName("Hej_1") == FName("Hej_1"));
-	check(FLazyName("Hej_01") == FName("Hej_01"));
-	check(FLazyName("Hej_-1") == FName("Hej_-1"));
-	check(FLazyName("Hej__0") == FName("Hej__0"));
-	check(FLazyName("Hej_2147483647") == FName("Hej_2147483647"));
-	check(FLazyName("Hej_123") == FLazyName(FName("Hej_123")));
+	
+	CheckLazyName("Hej");
+	CheckLazyName(TEXT("Hej"));
+	CheckLazyName("Hej_0");
+	CheckLazyName("Hej_00");
+	CheckLazyName("Hej_1");
+	CheckLazyName("Hej_01");
+	CheckLazyName("Hej_-1");
+	CheckLazyName("Hej__0");
+	CheckLazyName("Hej_2147483647");
+	CheckLazyName("Hej_123");
+	CheckLazyName("None");
+	CheckLazyName("none");
+	CheckLazyName("None_0");
+	CheckLazyName("None_1");
+
 
 #if 0
 	// Check hash table growth still yields the same unique FName ids
@@ -2230,13 +2250,64 @@ void FName::TearDown()
 	{
 		GetNamePoolPostInit().~FNamePool();
 		bNamePoolInitialized = false;
-	
 	}
 }
 
-uint32 FLazyName::ParseNumber(const TCHAR* Str, int32 Len)
+FName FLazyName::Resolve() const
+{
+	// Make a stack copy to ensure thread-safety
+	FLiteralOrName Copy = Either;
+
+	if (Copy.IsName())
+	{
+		FNameEntryId Id = Copy.AsName();
+		return FName(Id, Id, Number);
+	}
+
+	// Resolve to FName but throw away the number part
+	FNameEntryId Id = bLiteralIsWide ? FName(Copy.AsWideLiteral()).GetComparisonIndex()
+										: FName(Copy.AsAnsiLiteral()).GetComparisonIndex();
+
+	// Deliberately unsynchronized write of word-sized int, ok if multiple threads resolve same lazy name
+	Either = FLiteralOrName(Id);
+
+	return FName(Id, Id, Number);		
+}
+
+uint32 FLazyName::ParseNumber(const ANSICHAR* Str, int32 Len)
 {
 	return FNameHelper::ParseNumber(Str, Len);
+}
+
+uint32 FLazyName::ParseNumber(const WIDECHAR* Str, int32 Len)
+{
+	return FNameHelper::ParseNumber(Str, Len);
+}
+
+bool operator==(const FLazyName& A, const FLazyName& B)
+{
+	// If we have started creating FNames we might as well resolve and cache both lazy names
+	if (A.Either.IsName() || B.Either.IsName())
+	{
+		return A.Resolve() == B.Resolve();
+	}
+
+	// Literal pointer comparison, can ignore width
+	if (A.Either.AsAnsiLiteral() == B.Either.AsAnsiLiteral())
+	{
+		return true;
+	}
+
+	if (A.bLiteralIsWide)
+	{
+		return B.bLiteralIsWide ? FPlatformString::Stricmp(A.Either.AsWideLiteral(), B.Either.AsWideLiteral()) == 0
+								: FPlatformString::Stricmp(A.Either.AsWideLiteral(), B.Either.AsAnsiLiteral()) == 0;
+	}
+	else
+	{
+		return B.bLiteralIsWide ? FPlatformString::Stricmp(A.Either.AsAnsiLiteral(), B.Either.AsWideLiteral()) == 0
+								: FPlatformString::Stricmp(A.Either.AsAnsiLiteral(), B.Either.AsAnsiLiteral()) == 0;	
+	}
 }
 
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
