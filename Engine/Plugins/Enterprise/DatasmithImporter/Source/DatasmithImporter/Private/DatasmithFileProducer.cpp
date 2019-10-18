@@ -563,27 +563,24 @@ void UDatasmithFileProducer::SetFilename( const FString& InFilename )
 
 	FilePath = FPaths::ConvertRelativePathToFull( InFilename );
 
-	// Rename producer to name of file
-	FString CleanName = ObjectTools::SanitizeObjectName( FPaths::GetCleanFilename( InFilename ) );
-	if ( Rename( *CleanName, nullptr, REN_Test ) )
-	{
-		Rename( *CleanName, nullptr, REN_DontCreateRedirectors | REN_NonTransactional );
-	}
-	else
-	{
-		bool bFoundName = false;
-		for (int32 NameIndex = 1; !bFoundName; ++NameIndex)
-		{
-			const FString NewName = FString::Printf(TEXT("%s_%d"), *CleanName, NameIndex);
-			if( Rename( *NewName, nullptr, REN_Test ) )
-			{
-				Rename( *NewName, nullptr, REN_DontCreateRedirectors | REN_NonTransactional );
-				bFoundName = true;
-			}
-		}
-	}
+	UpdateName();
 
 	OnChanged.Broadcast( this );
+}
+
+void UDatasmithFileProducer::UpdateName()
+{
+	if(!FilePath.IsEmpty())
+	{
+		// Rename producer to name of file
+		FString CleanName = ObjectTools::SanitizeObjectName( FPaths::GetCleanFilename( FilePath ) );
+		if ( !Rename( *CleanName, nullptr, REN_Test ) )
+		{
+			CleanName = MakeUniqueObjectName( GetOuter(), GetClass(), *CleanName ).ToString();
+		}
+
+		Rename( *CleanName, nullptr, REN_DontCreateRedirectors | REN_NonTransactional );
+	}
 }
 
 bool UDatasmithFileProducer::Supersede(const UDataprepContentProducer* OtherProducer) const
@@ -610,6 +607,7 @@ void UDatasmithFileProducer::PostInitProperties()
 	if( !HasAnyFlags( RF_ClassDefaultObject | RF_WasLoaded | RF_Transient ) )
 	{
 		FilePath = FDatasmithFileProducerUtils::SelectFileToImport();
+		UpdateName();
 	}
 }
 
