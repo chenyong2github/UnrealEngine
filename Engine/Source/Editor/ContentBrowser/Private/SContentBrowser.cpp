@@ -54,6 +54,7 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "IAddContentDialogModule.h"
+#include "UObject/GCObjectScopeGuard.h"
 #include "Engine/Selection.h"
 #include "NativeClassHierarchy.h"
 #include "AddToProjectConfig.h"
@@ -1639,8 +1640,9 @@ void SContentBrowser::NewAssetRequested(const FString& SelectedPath, TWeakObject
 	if ( ensure(SelectedPath.Len() > 0) && ensure(FactoryClass.IsValid()) )
 	{
 		UFactory* NewFactory = NewObject<UFactory>(GetTransientPackage(), FactoryClass.Get());
+
 		// This factory may get gc'd as a side effect of various delegates potentially calling CollectGarbage so protect against it from being gc'd out from under us
-		NewFactory->AddToRoot();
+		FGCObjectScopeGuard FactoryGCGuard(NewFactory);
 
 		FEditorDelegates::OnConfigureNewAssetProperties.Broadcast(NewFactory);
 		if ( NewFactory->ConfigureProperties() )
@@ -1653,7 +1655,6 @@ void SContentBrowser::NewAssetRequested(const FString& SelectedPath, TWeakObject
 			AssetToolsModule.Get().CreateUniqueAssetName(SelectedPath + TEXT("/") + NewFactory->GetDefaultNewAssetName(), TEXT(""), PackageNameToUse, DefaultAssetName);
 			CreateNewAsset(DefaultAssetName, SelectedPath, NewFactory->GetSupportedClass(), NewFactory);
 		}
-		NewFactory->RemoveFromRoot();
 	}
 }
 
