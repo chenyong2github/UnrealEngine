@@ -121,7 +121,7 @@ private:
 
 F3DAttachTrackEditor::F3DAttachTrackEditor( TSharedRef<ISequencer> InSequencer )
 : FActorPickerTrackEditor( InSequencer )
-, PreserveType(ETransformPreserveType::CurrentKey)
+, PreserveType(ETransformPreserveType::None)
 {
 }
 
