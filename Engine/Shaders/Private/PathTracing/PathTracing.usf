@@ -167,7 +167,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 					GenerateLightRay(Ray, LightId, LightUV, LightRay);
 					ApplyPositionBias(LightRay, Payload.WorldNormal, AdaptiveSamplingData.MaxNormalBias);
 
-					const uint RayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+					const uint RayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER | RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 					const uint InstanceInclusionMask = RAY_TRACING_MASK_SHADOW;
 
 					FMinimalPayload NeePayload = TraceVisibilityRay(
