@@ -36,6 +36,9 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 		//Save out multiple acceleration structures
 		SerializeMultiStructures,
 
+		// Add kinematic targets to TKinematicGeometryParticles
+		KinematicTargets,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
