@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Trace/Config.h"
 
 #if UE_TRACE_ENABLED
 
-#define TRACE_PRIVATE_PROTOCOL_0
+#include "CoreTypes.h"
 
 #define TRACE_PRIVATE_EVENT_DEFINE(LoggerName, EventName) \
 	Trace::FEventDef LoggerName##EventName##Event;
