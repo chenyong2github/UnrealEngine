@@ -1445,64 +1445,45 @@ struct FNiagaraDataVariableIterator
 		: Data(InData)
 		, CurrIdx(StartIdx)
 	{
+		Variables = Data->GetOwner()->GetVariables();
 	}
 
 	void Get()
 	{
+		const TArray<FNiagaraVariableLayoutInfo>& VarLayouts = Data->GetOwner()->GetVariableLayouts();
 		for (int32 VarIdx = 0; VarIdx < Variables.Num(); ++VarIdx)
 		{
-			const FNiagaraVariable* Var = Variables[VarIdx];
-			const FNiagaraVariableLayoutInfo* Layout = VarLayouts[VarIdx];
-			check(Var && Layout);
-			const uint8* ValuePtr = Var->GetData();
+			FNiagaraVariable& Var = Variables[VarIdx];
+			const FNiagaraVariableLayoutInfo& Layout = VarLayouts[VarIdx];
+			Var.AllocateData();
+			const uint8* ValuePtr = Var.GetData();
 
-			for (uint32 CompIdx = 0; CompIdx < Layout->GetNumFloatComponents(); ++CompIdx)
+			for (uint32 CompIdx = 0; CompIdx < Layout.GetNumFloatComponents(); ++CompIdx)
 			{
-				uint32 CompBufferOffset = Layout->FloatComponentStart + CompIdx;
+				uint32 CompBufferOffset = Layout.FloatComponentStart + CompIdx;
 				float* Src = Data->GetInstancePtrFloat(CompBufferOffset, CurrIdx);
-				float* Dst = (float*)(ValuePtr + Layout->LayoutInfo.FloatComponentByteOffsets[CompIdx]);
+				float* Dst = (float*)(ValuePtr + Layout.LayoutInfo.FloatComponentByteOffsets[CompIdx]);
 				*Dst = *Src;
 			}
 
-			for (uint32 CompIdx = 0; CompIdx < Layout->GetNumInt32Components(); ++CompIdx)
+			for (uint32 CompIdx = 0; CompIdx < Layout.GetNumInt32Components(); ++CompIdx)
 			{
-				uint32 CompBufferOffset = Layout->Int32ComponentStart + CompIdx;
+				uint32 CompBufferOffset = Layout.Int32ComponentStart + CompIdx;
 				int32* Src = Data->GetInstancePtrInt32(CompBufferOffset, CurrIdx);
-				int32* Dst = (int32*)(ValuePtr + Layout->LayoutInfo.Int32ComponentByteOffsets[CompIdx]);
+				int32* Dst = (int32*)(ValuePtr + Layout.LayoutInfo.Int32ComponentByteOffsets[CompIdx]);
 				*Dst = *Src;
 			}
 		}
 	}
 
 	void Advance() { ++CurrIdx; }
-
-	bool IsValid()const
-	{
-		return Data && CurrIdx < Data->GetNumInstances();
-	}
-
+	bool IsValid()const { return Data && CurrIdx < Data->GetNumInstances(); }
 	uint32 GetCurrIndex()const { return CurrIdx; }
-
-	void AddVariable(FNiagaraVariable* InVar)
-	{
-		check(InVar && Data);
-		Variables.AddUnique(InVar);
-		VarLayouts.AddUnique(Data->GetOwner()->GetVariableLayout(*InVar));
-		InVar->AllocateData();
-	}
-
-	void AddVariables(TArray<FNiagaraVariable>& Vars)
-	{
-		for (FNiagaraVariable& Var : Vars)
-		{
-			AddVariable(&Var);
-		}
-	}
+	const TArray<FNiagaraVariable>& GetVariables()const { return Variables; }
 private:
 
 	const FNiagaraDataBuffer* Data;
-	TArray<const FNiagaraVariable*> Variables;
-	TArray<const FNiagaraVariableLayoutInfo*> VarLayouts;
+	TArray<FNiagaraVariable> Variables;
 
 	uint32 CurrIdx;
 };
