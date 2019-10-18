@@ -114,6 +114,7 @@ class FHairInterpolationCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, VertexCount)
 		SHADER_PARAMETER(uint32, DispatchCountX)
+		SHADER_PARAMETER(FVector, HairWorldOffset)
 
 		SHADER_PARAMETER(FVector, RestPositionWorldCenter)
 		SHADER_PARAMETER(FVector, DeformedPositionWorldCenter)
@@ -152,6 +153,7 @@ IMPLEMENT_GLOBAL_SHADER(FHairInterpolationCS, "/Engine/Private/HairStrands/HairS
 static void AddHairStrandsInterpolationPass(
 	FRDGBuilder& GraphBuilder,
 	const FHairStrandsProjectionHairData::HairGroup& InHairData,
+	const FVector& HairWorldOffset, 
 	const int32 LODIndex,
 	const uint32 VertexCount,
 	const FShaderResourceViewRHIRef& RenderRestPosePositionBuffer,
@@ -180,6 +182,7 @@ static void AddHairStrandsInterpolationPass(
 		Parameters->OutRenderAttributeBuffer = OutRenderAttributeBuffer;
 	}
 	Parameters->VertexCount = VertexCount;
+	Parameters->HairWorldOffset = HairWorldOffset;
 	Parameters->DispatchCountX = DispatchCount.X;
 	Parameters->OutRenderDeformedPositionCenter = FVector::ZeroVector;
 
@@ -447,6 +450,7 @@ void ComputeHairStrandsInterpolation(
 			AddHairStrandsInterpolationPass(
 				GraphBuilder,
 				InHairDatas.HairGroups[GroupIndex],
+				Input.HairWorldOffset,
 				LODIndex,
 				Input.RenderVertexCount,
 				Input.RenderRestPosePositionBuffer->SRV,
