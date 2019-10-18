@@ -976,6 +976,14 @@ private:
 	int32 LastSuccessfulCmdIndex;
 };
 
+enum class ECreateReplicationChangelistMgrFlags
+{
+	None,
+	SkipDeltaCustomState,	//! Skip creating CustomDeltaState used for tracking.
+							//! Only do this if you know you'll never need it (like for replay recording)
+};
+ENUM_CLASS_FLAGS(ECreateReplicationChangelistMgrFlags);
+
 enum class ECreateRepLayoutFlags
 {
 	None,
@@ -1129,9 +1137,10 @@ public:
 	/**
 	 * Creates and initializes a new FReplicationChangelistMgr.
 	 *
-	 * @param InObject	The Object that is being managed.
+	 * @param InObject		The Object that is being managed.
+	 * @param CreateFlags	Flags modifying how the manager is created.
 	 */
-	TSharedPtr<FReplicationChangelistMgr> CreateReplicationChangelistMgr(const UObject* InObject) const;
+	TSharedPtr<FReplicationChangelistMgr> CreateReplicationChangelistMgr(const UObject* InObject, const ECreateReplicationChangelistMgrFlags CreateFlags) const;
 
 	/**
 	 * Creates and initializes a new FRepState.
