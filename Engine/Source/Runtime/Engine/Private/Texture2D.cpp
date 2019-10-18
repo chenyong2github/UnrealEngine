@@ -1510,7 +1510,6 @@ FTexture2DResource::FTexture2DResource( UTexture2D* InOwner, int32 InitialMipCou
 	bSRGB = InOwner->SRGB;
 
 	check(InitialMipCount>0);
-	check(UE_ARRAY_COUNT(MipData)>=GMaxTextureMipCount);
 
 	// Keep track of first miplevel to use.
 	CurrentFirstMip = InOwner->GetNumMips() - FMath::Max(InitialMipCount, Owner->PlatformData ? (int32)Owner->PlatformData->NumMipsInTail : 0);
@@ -1521,7 +1520,7 @@ FTexture2DResource::FTexture2DResource( UTexture2D* InOwner, int32 InitialMipCou
 	check(CurrentFirstMip<=Owner->GetMipTailBaseIndex());
 
 	// Retrieve initial mip data.
-	FMemory::Memzero(MipData, sizeof(MipData));
+	MipData.AddZeroed(InOwner->GetNumMips());
 	InOwner->GetMipData(CurrentFirstMip, &MipData[CurrentFirstMip]);
 	STAT( TextureSize = Owner->CalcTextureMemorySize( InitialMipCount ) );
 	STAT( LODGroupStatName = TextureGroupStatFNames[Owner->LODGroup] );
@@ -1543,7 +1542,7 @@ FTexture2DResource::~FTexture2DResource()
 		});
 
 	// Make sure we're not leaking memory if InitRHI has never been called.
-	for( int32 MipIndex=0; MipIndex<UE_ARRAY_COUNT(MipData); MipIndex++ )
+	for( int32 MipIndex=0; MipIndex<MipData.Num(); MipIndex++ )
 	{
 		// free any mip data that was copied 
 		if( MipData[MipIndex] )

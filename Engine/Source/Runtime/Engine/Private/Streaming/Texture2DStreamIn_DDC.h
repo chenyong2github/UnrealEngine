@@ -26,7 +26,7 @@ public:
 protected:
 
 	// StreamIn_Default : Locked mips of the intermediate textures, used as disk load destination.
-	uint32 DDCHandles[MAX_TEXTURE_MIP_COUNT];
+	TArray<uint32, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > DDCHandles;
 
 	// Whether the DDC data was compatible or not.
 	bool bDDCIsInvalid;

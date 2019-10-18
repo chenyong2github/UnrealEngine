@@ -19,7 +19,7 @@ FTexture2DStreamIn_IO::FTexture2DStreamIn_IO(UTexture2D* InTexture, int32 InRequ
 	, bPrioritizedIORequest(InPrioritizedIORequest)
 
 {
-	FMemory::Memzero(IORequests, sizeof(IORequests));
+	IORequests.AddZeroed(InTexture->GetNumMips());
 }
 
 FTexture2DStreamIn_IO::~FTexture2DStreamIn_IO()
@@ -77,7 +77,7 @@ void FTexture2DStreamIn_IO::SetIORequests(const FContext& Context)
 
 void FTexture2DStreamIn_IO::CancelIORequests()
 {
-	for (int32 MipIndex = 0; MipIndex < MAX_TEXTURE_MIP_COUNT; ++MipIndex)
+	for (int32 MipIndex = 0; MipIndex < IORequests.Num(); ++MipIndex)
 	{
 		FBulkDataIORequest* IORequest = IORequests[MipIndex];
 		if (IORequest)
