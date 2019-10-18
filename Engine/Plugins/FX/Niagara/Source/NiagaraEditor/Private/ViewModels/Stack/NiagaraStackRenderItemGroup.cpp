@@ -101,6 +101,8 @@ public:
 			}
 		}
 
+		FNiagaraSystemUpdateContext SystemUpdate(Emitter, true);
+
 		if (bVarsAdded)
 		{
 			FNotificationInfo Info(LOCTEXT("AddedVariables", "One or more variables have been added to the Spawn script to support the added renderer."));
