@@ -117,6 +117,17 @@ private:
 	int32 MeshProjectionLODIndex;
 	uint32 MeshProjectionTickDelay;
 	EMeshProjectionState MeshProjectionState;
+	
+	struct FSkeletalMeshConfiguration
+	{
+		int32 ForceLOD = -1;
+		bool ForceRefPose = false;
+		static bool Equals(const FSkeletalMeshConfiguration& A, const FSkeletalMeshConfiguration& B)
+		{
+			return A.ForceLOD == B.ForceLOD && A.ForceRefPose == B.ForceRefPose;
+		}
+	};
+	FSkeletalMeshConfiguration SkeletalMeshConfiguration;
 
 	void InitResources();
 	void ReleaseResources();
