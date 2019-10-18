@@ -44,6 +44,7 @@ public:
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
+	virtual void OnAttachmentChanged() override;
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 	virtual void SendRenderTransform_Concurrent() override;
 	//~ End UActorComponent Interface.
@@ -107,7 +108,8 @@ private:
 	enum class EMeshProjectionState
 	{
 		Invalid,
-		WaitForData,
+		InProgressBinding,
+		WaitForRestPose,
 		Completed
 	};
 	class USkeletalMeshComponent* RegisteredSkeletalMeshComponent;
