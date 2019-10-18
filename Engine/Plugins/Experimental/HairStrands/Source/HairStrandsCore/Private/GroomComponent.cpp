@@ -27,6 +27,9 @@ static FAutoConsoleVariableRef CVarHairStrandsMeshProjectionForceLOD(TEXT("r.Hai
 static int32 GHairStrandsMeshUseRelativePosition = 1;
 static FAutoConsoleVariableRef CVarHairStrandsMeshUseRelativePosition(TEXT("r.HairStrands.MeshProjection.RelativePosition"), GHairStrandsMeshUseRelativePosition, TEXT("Enable/Disable relative triangle position for improving positions"));
 
+static int32 GHairStrandsMeshProjectionTickDelay = 1;
+static FAutoConsoleVariableRef CVarHairStrandsMeshProjectionTickDelay(TEXT("r.HairStrands.MeshProjection.TickDelay"), GHairStrandsMeshProjectionTickDelay, TEXT("Number of simulation tick to wait before projecting a groom onto a mesh"));
+
 /**
  * An material render proxy which overrides the debug mode parameter.
  */
@@ -806,13 +809,13 @@ void UGroomComponent::ReleaseResources()
 	MeshProjectionTickDelay = 0;
 	MeshProjectionState = EMeshProjectionState::Invalid;
 
-
 	// Insure the ticking of the Groom component always happens after the skeletalMeshComponent.
 	if (RegisteredSkeletalMeshComponent)
 	{
 		RemoveTickPrerequisiteComponent(RegisteredSkeletalMeshComponent);
-		RegisteredSkeletalMeshComponent = nullptr;
 	}
+	SkeletalPreviousPositionOffset = FVector::ZeroVector;
+	RegisteredSkeletalMeshComponent = nullptr;
 }
 
 void UGroomComponent::PostLoad()
@@ -854,6 +857,15 @@ void UGroomComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 {
 	ReleaseResources();
 	Super::OnComponentDestroyed(bDestroyingHierarchy);
+}
+
+void UGroomComponent::OnAttachmentChanged()
+{
+	Super::OnAttachmentChanged();
+	if (GroomAsset && !IsBeingDestroyed() && HasBeenCreated())
+	{
+		InitResources();
+	}
 }
 
 void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
@@ -923,35 +935,68 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 			});
 		}
 
-		if (MeshProjectionState != EMeshProjectionState::Completed && MeshProjectionTickDelay == 0)
+		// State machine for binding/projecting hair onto skinned mesh. The state machine operates as follow:
+		// * For each mesh LOD
+		//   * Force the skeletal mesh in rest pose
+		//   * Wait for the skeletal mesh to tick/update the animation
+		//   * Issue a binding/projection query to the hair strands system
+		//   * Wait for the query to be completed
+		// * Put the skeletal mesh into its original pose
+		//
+		// In editor, the animation is not ticked, so we manually issue a re-initialization of the animation 
+		// to force the animation in rest pose or original pose
+		if (MeshProjectionState != EMeshProjectionState::Completed)
 		{
-			if (MeshProjectionState == EMeshProjectionState::Invalid)
-			{
-				MeshProjectionLODIndex = 0;
-				MeshProjectionState = EMeshProjectionState::WaitForData;
-			}
+			const uint32 TickDelay = FMath::Max(0, GHairStrandsMeshProjectionTickDelay);
 
-			if (MeshProjectionLODIndex == SkeletalMeshComponent->GetNumLODs())
+			if (MeshProjectionTickDelay == 0)
 			{
-				SkeletalMeshComponent->SetForceRefPose(false);
-				SkeletalMeshComponent->SetForcedLOD(0);
-				MeshProjectionState = EMeshProjectionState::Completed;
-			}
-
-			if (MeshProjectionLODIndex < SkeletalMeshComponent->GetNumLODs())
-			{
-				SkeletalMeshComponent->SetForceRefPose(true);
-				SkeletalMeshComponent->SetForcedLOD(MeshProjectionLODIndex + 1);
-
-				const FVector RestRootCenter = MeshPositionOffset;
-				const uint32 LODIndex = MeshProjectionLODIndex;
-				ENQUEUE_RENDER_COMMAND(FHairStrandsTick_Projection)(
-					[Id, WorldType, FeatureLevel, LODIndex, RestRootCenter](FRHICommandListImmediate& RHICmdList)
+				if (MeshProjectionState == EMeshProjectionState::Invalid)
 				{
-					AddHairStrandsProjectionQuery(RHICmdList, Id, WorldType, LODIndex, RestRootCenter);
-				});
-				MeshProjectionTickDelay += 5;
-				++MeshProjectionLODIndex;
+					MeshProjectionLODIndex = 0;
+					MeshProjectionState = EMeshProjectionState::InProgressBinding;
+				}
+
+				if (MeshProjectionLODIndex == SkeletalMeshComponent->GetNumLODs())
+				{
+					SkeletalMeshComponent->SetForceRefPose(false);
+					SkeletalMeshComponent->SetForcedLOD(0);
+					if (WorldType == EWorldType::Editor)
+					{
+						SkeletalMeshComponent->InitAnim(true);
+					}
+					MeshProjectionState = EMeshProjectionState::Completed;
+				}
+
+				if (MeshProjectionLODIndex < SkeletalMeshComponent->GetNumLODs())
+				{
+					if (MeshProjectionState == EMeshProjectionState::InProgressBinding)
+					{
+						SkeletalMeshComponent->SetForceRefPose(true);
+						SkeletalMeshComponent->SetForcedLOD(MeshProjectionLODIndex + 1);
+						if (WorldType == EWorldType::Editor)
+						{
+							SkeletalMeshComponent->InitAnim(true);
+						}
+						MeshProjectionState = EMeshProjectionState::WaitForRestPose;
+						MeshProjectionTickDelay += TickDelay;
+					}
+
+					if (MeshProjectionState == EMeshProjectionState::WaitForRestPose && MeshProjectionTickDelay == 0)
+					{
+						const FVector RestPositionOffset = MeshPositionOffset;
+						const uint32 LODIndex = MeshProjectionLODIndex;
+						ENQUEUE_RENDER_COMMAND(FHairStrandsTick_Projection)(
+							[Id, WorldType, FeatureLevel, LODIndex, RestPositionOffset](FRHICommandListImmediate& RHICmdList)
+						{
+							AddHairStrandsProjectionQuery(RHICmdList, Id, WorldType, LODIndex, RestPositionOffset);
+						});
+
+						MeshProjectionState = EMeshProjectionState::InProgressBinding;
+						MeshProjectionTickDelay += TickDelay;
+						++MeshProjectionLODIndex;
+					}
+				}
 			}
 		}
 		else

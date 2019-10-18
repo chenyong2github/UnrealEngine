@@ -649,7 +649,7 @@ void USkeletalMeshComponent::InitAnim(bool bForceReinit)
 		// In Editor, animations won't get ticked. So Update once to get accurate representation instead of T-Pose.
 		// Also allow this to be an option to support pre-4.19 games that might need it..
 		const bool bTickAnimationNow =
-			((GetWorld()->WorldType == EWorldType::Editor) && !bUseRefPoseOnInitAnim)
+			((GetWorld()->WorldType == EWorldType::Editor) && !bUseRefPoseOnInitAnim && !bForceRefpose)
 			|| UAnimationSettings::Get()->bTickAnimationOnSkeletalMeshInit;
 
 		const bool bInitializedAnimInstance = InitializeAnimScriptInstance(bForceReinit, !bTickAnimationNow);
