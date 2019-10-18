@@ -73,10 +73,10 @@ struct FHairStrandsRootResource : public FRenderResource
 };
 
 /* Render buffers that will be used for rendering */
-struct FHairStrandsResource : public FRenderResource
+struct FHairStrandsRestResource : public FRenderResource
 {
 	/** Build the hair strands resource */
-	FHairStrandsResource(const FHairStrandsDatas::FRenderData& HairStrandRenderData);
+	FHairStrandsRestResource(const FHairStrandsDatas::FRenderData& HairStrandRenderData);
 
 	/* Init the buffer */
 	virtual void InitRHI() override;
@@ -90,17 +90,38 @@ struct FHairStrandsResource : public FRenderResource
 	/* Strand hair rest position buffer */
 	FRWBuffer RestPositionBuffer;
 
-	/* Strand hair (previous) position buffer */
-	FRWBuffer DeformedPositionBuffer[2];
-
-	/* Strand hair offset buffer */
-	FRWBuffer TangentBuffer;
-
 	/* Strand hair offset buffer */
 	FRWBuffer AttributeBuffer;
 
 	/* Reference to the hair strands render data */
 	const FHairStrandsDatas::FRenderData& RenderData;
+};
+
+struct FHairStrandsDeformedResource : public FRenderResource
+{
+	/** Build the hair strands resource */
+	FHairStrandsDeformedResource(const FHairStrandsDatas::FRenderData& HairStrandRenderData, bool bInitializeData);
+
+	/* Init the buffer */
+	virtual void InitRHI() override;
+
+	/* Release the buffer */
+	virtual void ReleaseRHI() override;
+
+	/* Get the resource name */
+	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsDeformedResource"); }
+
+	/* Strand hair deformed position buffer (previous and current) */
+	FRWBuffer DeformedPositionBuffer[2];
+
+	/* Strand hair tangent buffer */
+	FRWBuffer TangentBuffer;
+
+	/* Reference to the hair strands render data */
+	const FHairStrandsDatas::FRenderData& RenderData;
+
+	/* Whether the GPU data should be initialized with the asset data or not */
+	const bool bInitializedData;
 };
 
 struct FHairStrandsInterpolationResource : public FRenderResource
@@ -180,10 +201,10 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 	FHairStrandsInterpolationDatas HairInterpolationData;
 
 	/** Interpolated hair render resource to be allocated */
-	FHairStrandsResource* HairStrandsResource = nullptr;
+	FHairStrandsRestResource* HairStrandsRestResource = nullptr;
 
 	/** Guide render resource to be allocated */
-	FHairStrandsResource* HairSimulationResource = nullptr;
+	FHairStrandsRestResource* HairSimulationRestResource = nullptr;
 
 	friend FArchive& operator<<(FArchive& Ar, FHairGroupData& GroupData);
 };
