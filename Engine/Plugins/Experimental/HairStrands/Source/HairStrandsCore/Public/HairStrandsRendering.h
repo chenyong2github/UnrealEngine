@@ -34,7 +34,9 @@ struct FHairStrandsInterpolationInput
 
 		float HairRadius = 0;
 		float HairRaytracingRadiusScale = 0;
-		FVector HairWorldOffset = FVector::ZeroVector;
+		FVector InHairPositionOffset = FVector::ZeroVector;
+		FVector OutHairPositionOffset = FVector::ZeroVector;
+		FVector OutHairPreviousPositionOffset = FVector::ZeroVector;
 
 		inline bool IsValid() const
 		{
@@ -62,6 +64,8 @@ struct FHairStrandsInterpolationOutput
 		FShaderResourceViewRHIRef HairPreviousPositionBuffer = nullptr;
 		FShaderResourceViewRHIRef HairTangentBuffer = nullptr;
 		FShaderResourceViewRHIRef HairAttributeBuffer = nullptr;
+		FVector HairPositionOffset = FVector::ZeroVector;
+		FVector HairPreviousPositionOffset = FVector::ZeroVector;
 		uint32 VertexCount = 0;
 
 		inline void Reset()
@@ -70,6 +74,8 @@ struct FHairStrandsInterpolationOutput
 			HairPreviousPositionBuffer = nullptr;
 			HairTangentBuffer = nullptr;
 			HairAttributeBuffer = nullptr;
+			HairPositionOffset = FVector::ZeroVector;
+			HairPreviousPositionOffset = FVector::ZeroVector;
 			VertexCount = 0;
 		}
 	};
