@@ -5299,7 +5299,7 @@ TSharedPtr< FReplicationChangelistMgr > UNetDriver::GetReplicationChangeListMgr(
 	if (!ReplicationChangeListMgrPtr)
 	{
 		const TSharedPtr<const FRepLayout> RepLayout = GetObjectClassRepLayout(Object->GetClass());
-		FReplicationChangelistMgrWrapper Wrapper(Object, RepLayout->CreateReplicationChangelistMgr(Object));
+		FReplicationChangelistMgrWrapper Wrapper(Object, RepLayout->CreateReplicationChangelistMgr(Object, GetCreateReplicationChangelistMgrFlags()));
 		ReplicationChangeListMgrPtr = &ReplicationChangeListMap.Add(Object, Wrapper);
 	}
 
@@ -5599,6 +5599,11 @@ void UNetDriver::ResetAsyncLoadDelinquencyAnalytics()
 	{
 		LocalGuidCache->ResetAsyncLoadDelinquencyAnalytics();
 	}
+}
+
+ECreateReplicationChangelistMgrFlags UNetDriver::GetCreateReplicationChangelistMgrFlags() const
+{
+	return ECreateReplicationChangelistMgrFlags::None;
 }
 
 FAutoConsoleCommandWithWorld	DumpRelevantActorsCommand(
