@@ -9,6 +9,8 @@
 #include "Misc/Optional.h"
 #include "UObject/Object.h"
 
+#define LOCTEXT_NAMESPACE "DataprepFloatFetcherLibrary"
+
 /* UDataprepFloatVolumeFetcher methods
  *****************************************************************************/
 float UDataprepFloatBoundingVolumeFetcher::Fetch_Implementation(const UObject* Object, bool& bOutFetchSucceded) const
@@ -85,3 +87,10 @@ bool UDataprepFloatBoundingVolumeFetcher::IsThreadSafe() const
 {
 	return true;
 }
+
+FText UDataprepFloatBoundingVolumeFetcher::GetNodeDisplayFetcherName_Implementation() const
+{
+	return LOCTEXT("BoundingVolumeFilterTitle", "Bounding Volume");
+}
+
+#undef LOCTEXT_NAMESPACE
