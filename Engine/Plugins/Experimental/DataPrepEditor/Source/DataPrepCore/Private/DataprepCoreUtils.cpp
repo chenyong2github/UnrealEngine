@@ -8,6 +8,7 @@
 #include "DataprepAssetUserData.h"
 #endif
 
+#include "DataPrepAsset.h"
 #include "DataprepCoreLogCategory.h"
 #include "IDataprepProgressReporter.h"
 
@@ -15,6 +16,7 @@
 #include "GameFramework/Actor.h"
 #include "LevelSequence.h"
 #include "Misc/ScopedSlowTask.h"
+#include "RenderingThread.h"
 #include "UObject/UObjectHash.h"
 
 #if WITH_EDITOR
@@ -23,9 +25,22 @@
 #include "ObjectTools.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #endif
-#include "RenderingThread.h"
 
 #define LOCTEXT_NAMESPACE "DataprepCoreUtils"
+
+UDataprepAsset* FDataprepCoreUtils::GetDataprepAssetOfObject(UObject* Object)
+{
+	while ( Object )
+	{
+		if ( UDataprepAsset::StaticClass() == Object->GetClass() )
+		{
+			return static_cast<UDataprepAsset*>( Object );
+		}
+		Object = Object->GetOuter();
+	}
+
+	return nullptr;
+}
 
 void FDataprepCoreUtils::PurgeObjects(TArray<UObject*> InObjects)
 {
