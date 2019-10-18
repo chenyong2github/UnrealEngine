@@ -125,7 +125,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 		Ray.TMax = max(RayLength - 0.01, Ray.TMin);
 
 		// Trace ray
-		uint RayFlags = 0;
+		uint RayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
 		const uint InstanceInclusionMask = RAY_TRACING_MASK_OPAQUE;
 
 #if !ENABLE_TWO_SIDED_GEOMETRY
