@@ -2,20 +2,17 @@
 
 #include "LevelVariantSetsAssetActions.h"
 
-#include "EngineGlobals.h"
-#include "Engine/Engine.h"
-#include "ToolMenus.h"
 #include "LevelVariantSets.h"
-#include "LevelVariantSetsEditorToolkit.h"
-#include "VariantManagerModule.h"
+#include "VariantManagerContentEditorModule.h"
+
+#include "Engine/Engine.h"
+#include "EngineGlobals.h"
+#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "LevelVariantSetAssetActions"
 
-
-FLevelVariantSetsAssetActions::FLevelVariantSetsAssetActions( const TSharedRef<ISlateStyle>& InStyle )
-	: Style(InStyle)
+FLevelVariantSetsAssetActions::FLevelVariantSetsAssetActions()
 {
-
 }
 
 uint32 FLevelVariantSetsAssetActions::GetCategories()
@@ -57,8 +54,8 @@ void FLevelVariantSetsAssetActions::GetActions(const TArray<UObject*>& InObjects
 		FUIAction(
 			FExecuteAction::CreateLambda([SomeLevelVarSets]()
 			{
-				IVariantManagerModule& VarManModule = IVariantManagerModule::Get();
-				VarManModule.GetOrCreateLevelVariantSetsActor(SomeLevelVarSets, true);
+				IVariantManagerContentEditorModule& ContentEditorModule = IVariantManagerContentEditorModule::Get();
+				ContentEditorModule.GetOrCreateLevelVariantSetsActor(SomeLevelVarSets, true);
 			}),
 			FCanExecuteAction()
 		)
@@ -80,8 +77,8 @@ void FLevelVariantSetsAssetActions::OpenAssetEditor(const TArray<UObject*>& InOb
 	{
 		if (ULevelVariantSets* LevelVariantSets = Cast<ULevelVariantSets>(*ObjIt))
 		{
-			TSharedRef<FLevelVariantSetsEditorToolkit> Toolkit = MakeShareable(new FLevelVariantSetsEditorToolkit(Style));
-			Toolkit->Initialize(Mode, EditWithinLevelEditor, LevelVariantSets);
+			IVariantManagerContentEditorModule& ContentEditorModule = IVariantManagerContentEditorModule::Get();
+			ContentEditorModule.GetOnLevelVariantSetsEditorOpened().ExecuteIfBound(Mode, EditWithinLevelEditor, LevelVariantSets);
 		}
 	}
 }
@@ -90,6 +87,5 @@ bool FLevelVariantSetsAssetActions::ShouldForceWorldCentric()
 {
 	return true;
 }
-
 
 #undef LOCTEXT_NAMESPACE

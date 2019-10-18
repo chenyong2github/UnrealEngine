@@ -58,6 +58,7 @@
 #include "Engine/BlueprintGeneratedClass.h"
 #include "VariantManagerUtils.h"
 #include "SwitchActor.h"
+#include "Brushes/SlateImageBrush.h"
 
 #define LOCTEXT_NAMESPACE "SVariantManager"
 
@@ -184,6 +185,8 @@ void SVariantManager::Construct(const FArguments& InArgs, TSharedRef<FVariantMan
 		OnMapChangedHandle = LevelEditorModule.OnMapChanged().AddSP(this, &SVariantManager::OnMapChanged);
 	}
 
+	RecordButtonBrush = MakeShared<FSlateImageBrush>(FPaths::EngineContentDir() / TEXT("Editor/Slate/Icons/CA_Record.png"), FVector2D(24.0f, 24.0f));
+
 	ChildSlot
 	[
 		SAssignNew(MainSplitter, SSplitter)
@@ -240,7 +243,7 @@ void SVariantManager::Construct(const FArguments& InArgs, TSharedRef<FVariantMan
 								.Padding(FMargin(0.0f, 2.0, 2.0f, 2.0)) // Extra padding on the right because ToggleButtonCheckboxes always nudges the image to the right
 								[
 									SNew(SImage)
-									.Image(FEditorStyle::GetBrush("Sequencer.ToggleIsSnapEnabled"))
+									.Image(RecordButtonBrush.Get())
 								]
 							]
 						]

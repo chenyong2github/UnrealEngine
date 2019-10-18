@@ -79,7 +79,17 @@ public:
 
 	void ImportPropertyCapture(const TSharedRef<IDatasmithBasePropertyCaptureElement>& BasePropCaptureElement, UVariantObjectBinding* ParentBinding)
 	{
-		EPropertyValueCategory Category = BasePropCaptureElement->GetCategory();
+		static_assert((uint8)EDatasmithPropertyCategory::Undefined == (uint8)EPropertyValueCategory::Undefined, "INVALID_ENUM_VALUE");
+		static_assert((uint8)EDatasmithPropertyCategory::Generic == (uint8)EPropertyValueCategory::Generic, "INVALID_ENUM_VALUE");
+		static_assert((uint8)EDatasmithPropertyCategory::RelativeLocation == (uint8)EPropertyValueCategory::RelativeLocation, "INVALID_ENUM_VALUE");
+		static_assert((uint8)EDatasmithPropertyCategory::RelativeRotation == (uint8)EPropertyValueCategory::RelativeRotation, "INVALID_ENUM_VALUE");
+		static_assert((uint8)EDatasmithPropertyCategory::RelativeScale3D == (uint8)EPropertyValueCategory::RelativeScale3D, "INVALID_ENUM_VALUE");
+		static_assert((uint8)EDatasmithPropertyCategory::Visibility == (uint8)EPropertyValueCategory::Visibility, "INVALID_ENUM_VALUE");
+		static_assert((uint8)EDatasmithPropertyCategory::Material == (uint8)EPropertyValueCategory::Material, "INVALID_ENUM_VALUE");
+		static_assert((uint8)EDatasmithPropertyCategory::Color == (uint8)EPropertyValueCategory::Color, "INVALID_ENUM_VALUE");
+		static_assert((uint8)EDatasmithPropertyCategory::Option == (uint8)EPropertyValueCategory::Option, "INVALID_ENUM_VALUE");
+
+		EDatasmithPropertyCategory Category = BasePropCaptureElement->GetCategory();
 
 		if (BasePropCaptureElement->IsSubType((uint64)EDatasmithElementVariantSubType::PropertyCapture))
 		{
@@ -88,7 +98,7 @@ public:
 
 			UPropertyValue* PropVal = nullptr;
 
-			if (EnumHasAnyFlags(Category, EPropertyValueCategory::Visibility))
+			if (EnumHasAnyFlags(Category, EDatasmithPropertyCategory::Visibility))
 			{
 				TArray<UPropertyValue*> PropertyValues = VariantManager->CreateVisibilityPropertyCaptures({ParentBinding});
 				if (PropertyValues.Num() == 1)
@@ -96,7 +106,7 @@ public:
 					PropVal = PropertyValues[0];
 				}
 			}
-			else if (EnumHasAnyFlags(Category, EPropertyValueCategory::RelativeLocation))
+			else if (EnumHasAnyFlags(Category, EDatasmithPropertyCategory::RelativeLocation))
 			{
 				TArray<UPropertyValue*> PropertyValues = VariantManager->CreateLocationPropertyCaptures({ParentBinding});
 				if (PropertyValues.Num() == 1)
@@ -104,7 +114,7 @@ public:
 					PropVal = PropertyValues[0];
 				}
 			}
-			else if (EnumHasAnyFlags(Category, EPropertyValueCategory::RelativeRotation))
+			else if (EnumHasAnyFlags(Category, EDatasmithPropertyCategory::RelativeRotation))
 			{
 				TArray<UPropertyValue*> PropertyValues = VariantManager->CreateRotationPropertyCaptures({ParentBinding});
 				if (PropertyValues.Num() == 1)
@@ -112,7 +122,7 @@ public:
 					PropVal = PropertyValues[0];
 				}
 			}
-			else if (EnumHasAnyFlags(Category, EPropertyValueCategory::RelativeScale3D))
+			else if (EnumHasAnyFlags(Category, EDatasmithPropertyCategory::RelativeScale3D))
 			{
 				TArray<UPropertyValue*> PropertyValues = VariantManager->CreateScale3DPropertyCaptures({ParentBinding});
 				if (PropertyValues.Num() == 1)
@@ -149,7 +159,7 @@ public:
 
 			UPropertyValue* PropVal = nullptr;
 
-			if (EnumHasAnyFlags(Category, EPropertyValueCategory::Material))
+			if (EnumHasAnyFlags(Category, EDatasmithPropertyCategory::Material))
 			{
 				TArray<UPropertyValue*> PropertyValues = VariantManager->CreateMaterialPropertyCaptures({ParentBinding});
 				if (PropertyValues.Num() == 1)

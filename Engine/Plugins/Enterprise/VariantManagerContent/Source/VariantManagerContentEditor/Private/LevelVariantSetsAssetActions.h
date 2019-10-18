@@ -2,18 +2,15 @@
 
 #pragma once
 
+#include "AssetTypeActions_Base.h"
 #include "CoreMinimal.h"
 #include "Styling/ISlateStyle.h"
 #include "Toolkits/IToolkitHost.h"
-#include "AssetTypeActions_Base.h"
 
-
-class FLevelVariantSetsAssetActions
-	: public FAssetTypeActions_Base
+class FLevelVariantSetsAssetActions : public FAssetTypeActions_Base
 {
 public:
-
-	FLevelVariantSetsAssetActions(const TSharedRef<ISlateStyle>& InStyle);
+	FLevelVariantSetsAssetActions();
 
 	// IAssetTypeActions interface
 	virtual uint32 GetCategories() override;
@@ -24,12 +21,6 @@ public:
 	virtual FColor GetTypeColor() const override;
 	virtual void OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>()) override;
 	virtual bool ShouldForceWorldCentric() override;
-	virtual bool CanLocalize() const override
-	{
-		 return false;
-	}
+	virtual bool CanLocalize() const override { return false; }
 	//~ End IAssetTypeActions interface
-
-private:
-	TSharedRef<ISlateStyle> Style;
 };

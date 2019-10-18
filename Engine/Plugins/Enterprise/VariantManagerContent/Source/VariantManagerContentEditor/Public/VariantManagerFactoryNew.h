@@ -3,11 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Factories/Factory.h"
+#include "UObject/ObjectMacros.h"
 
 #include "VariantManagerFactoryNew.generated.h"
-
 
 UCLASS(hidecategories=Object)
 class UVariantManagerFactoryNew : public UFactory
@@ -15,7 +14,6 @@ class UVariantManagerFactoryNew : public UFactory
 	GENERATED_UCLASS_BODY()
 
 public:
-
 	// UFactory Interface
 	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
 	virtual bool ShouldShowInNewMenu() const override;
