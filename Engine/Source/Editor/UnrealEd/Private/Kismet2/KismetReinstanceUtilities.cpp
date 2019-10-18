@@ -1957,7 +1957,10 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(TMap<UClass*, U
 		{
 			if (AActor* OldActor = Cast<AActor>(ReinstancedPair.Key))
 			{
-				OldActor->GetWorld()->EditorDestroyActor(OldActor, /*bShouldModifyLevel =*/true);
+				if (UWorld* World = OldActor->GetWorld())
+				{
+					World->EditorDestroyActor(OldActor, /*bShouldModifyLevel =*/true);
+				}
 			}
 		}
 	}
