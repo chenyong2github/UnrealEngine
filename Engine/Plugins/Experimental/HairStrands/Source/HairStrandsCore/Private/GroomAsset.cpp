@@ -42,7 +42,7 @@ void CreateBuffer(uint32 InVertexCount, FRWBuffer& OutBuffer)
 /////////////////////////////////////////////////////////////////////////////////////////
 
 FHairStrandsRestResource::FHairStrandsRestResource(const FHairStrandsDatas::FRenderData& HairStrandRenderData, const FVector& InPositionOffset) :
-	RestPositionBuffer(), AttributeBuffer(), RenderData(HairStrandRenderData), PositionOffset(InPositionOffset)
+	RestPositionBuffer(), AttributeBuffer(), PositionOffset(InPositionOffset), RenderData(HairStrandRenderData)
 {}
 
 void FHairStrandsRestResource::InitRHI()
