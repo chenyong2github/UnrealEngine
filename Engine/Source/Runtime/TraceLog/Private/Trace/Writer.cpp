@@ -1,11 +1,11 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "Trace/Detail/Trace.h"
+#include "Trace/Config.h"
 
 #if UE_TRACE_ENABLED
 
-#include "Trace/Platform.h"
 #include "Trace/Detail/Atomic.h"
+#include "Trace/Platform.h"
 #include "Trace/Trace.h"
 
 #include "Misc/CString.h"
