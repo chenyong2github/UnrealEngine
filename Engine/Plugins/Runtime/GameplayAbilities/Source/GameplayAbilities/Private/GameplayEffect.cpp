@@ -1906,7 +1906,7 @@ FActiveGameplayEffectsContainer::~FActiveGameplayEffectsContainer()
 
 void FActiveGameplayEffectsContainer::RegisterWithOwner(UAbilitySystemComponent* InOwner)
 {
-	if (Owner != InOwner)
+	if (Owner != InOwner && InOwner != nullptr)
 	{
 		Owner = InOwner;
 		OwnerIsNetAuthority = Owner->IsOwnerActorAuthoritative();
@@ -1923,6 +1923,11 @@ void FActiveGameplayEffectsContainer::ExecuteActiveEffectsFrom(FGameplayEffectSp
 #if WITH_SERVER_CODE
 	SCOPE_CYCLE_COUNTER(STAT_ExecuteActiveEffectsFrom);
 #endif
+
+	if (!Owner)
+	{
+		return;
+	}
 
 	FGameplayEffectSpec& SpecToUse = Spec;
 
