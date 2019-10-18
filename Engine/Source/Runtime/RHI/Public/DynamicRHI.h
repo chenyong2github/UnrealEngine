@@ -107,6 +107,17 @@ enum ERayTracingGeometryType
 
 struct FRayTracingGeometrySegment
 {
+	FVertexBufferRHIRef VertexBuffer = nullptr;
+	EVertexElementType VertexBufferElementType = VET_Float3;
+
+	// Offset in bytes from the base address of the vertex buffer.
+	uint32 VertexBufferOffset = 0;
+
+	// Number of bytes between elements of the vertex buffer (sizeof VET_Float3 by default).
+	// Must be equal or greater than the size of the position vector.
+	uint32 VertexBufferStride = 12;
+
+	// Primitive range for this segment.
 	uint32 FirstPrimitive = 0;
 	uint32 NumPrimitives = 0;
 
@@ -121,17 +132,20 @@ struct FRayTracingGeometrySegment
 
 struct FRayTracingGeometryInitializer
 {
-	FVertexBufferRHIRef PositionVertexBuffer = nullptr;
-	uint32 VertexBufferByteOffset = 0;
-	uint32 VertexBufferStride = 0;
-	EVertexElementType VertexBufferElementType = VET_Float3;
-
 	FIndexBufferRHIRef IndexBuffer = nullptr;
-	uint32 IndexBufferByteOffset = 0;
+
+	// Offset in bytes from the base address of the index buffer.
+	uint32 IndexBufferOffset = 0;
 
 	ERayTracingGeometryType GeometryType = RTGT_Triangles;
+
+	// Total number of primitives in all segments of the geometry. Only used for validation.
 	uint32 TotalPrimitiveCount = 0;
+
+	// Partitions of geometry to allow different shader and resource bindings.
+	// All ray tracing geometries must have at least one segment.
 	TArray<FRayTracingGeometrySegment> Segments;
+
 	bool bFastBuild = false;
 	bool bAllowUpdate = false;
 };

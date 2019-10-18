@@ -204,7 +204,10 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 			{
 				auto& Initializer = DynamicRayTracingGeometries[LODIndex].Initializer;
 				Initializer = RenderData->LODResources[LODIndex].RayTracingGeometry.Initializer;
-				Initializer.PositionVertexBuffer = nullptr;
+				for (FRayTracingGeometrySegment& Segment : Initializer.Segments)
+				{
+					Segment.VertexBuffer = nullptr;
+				}
 				Initializer.bAllowUpdate = true;
 				Initializer.bFastBuild = true;
 			}
