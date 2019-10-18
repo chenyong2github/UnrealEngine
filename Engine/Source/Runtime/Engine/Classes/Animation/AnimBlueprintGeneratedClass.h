@@ -218,6 +218,10 @@ class ENGINE_API UAnimBlueprintGeneratedClass : public UBlueprintGeneratedClass,
 	UPROPERTY()
 	TMap<FName, FGraphAssetPlayerInformation> GraphAssetPlayerInformation;
 
+	// Per layer graph blending options
+	UPROPERTY()
+	TMap<FName, FAnimGraphBlendOptions> GraphBlendOptions;
+
 public:
 
 	virtual const TArray<FBakedAnimationStateMachine>& GetBakedStateMachines() const override { return BakedStateMachines; }
@@ -236,6 +240,7 @@ public:
 	virtual const TArray<FExposedValueHandler>& GetExposedValueHandlers() const { return EvaluateGraphExposedInputs; }
 	virtual const TArray<FAnimBlueprintFunction>& GetAnimBlueprintFunctions() const override { return AnimBlueprintFunctions; }
 	virtual const TMap<FName, FGraphAssetPlayerInformation>& GetGraphAssetPlayerInformation() const override { return GraphAssetPlayerInformation; }
+	virtual const TMap<FName, FAnimGraphBlendOptions>& GetGraphBlendOptions() const override { return GraphBlendOptions; }
 	
 public:
 #if WITH_EDITORONLY_DATA
