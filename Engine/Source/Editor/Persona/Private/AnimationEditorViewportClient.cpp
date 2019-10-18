@@ -379,10 +379,12 @@ void FAnimationViewportClient::HandleSkeletalMeshChanged(USkeletalMesh* OldSkele
 		PhysAsset->InvalidateAllPhysicsMeshes();
 		PreviewMeshComponent->TermArticulated();
 		PreviewMeshComponent->InitArticulated(GetWorld()->GetPhysicsScene());
-
-		// Set to PhysicsActor to enable tracing regardless of project overrides
-		static FName CollisionProfileName(TEXT("PhysicsActor"));
-		PreviewMeshComponent->SetCollisionProfileName(CollisionProfileName);
+		if (PreviewMeshComponent->CanOverrideCollisionProfile())
+		{
+			// Set to PhysicsActor to enable tracing regardless of project overrides
+			static FName CollisionProfileName(TEXT("PhysicsActor"));
+			PreviewMeshComponent->SetCollisionProfileName(CollisionProfileName);
+		}
 	}
 
 	Invalidate();
