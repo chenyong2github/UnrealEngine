@@ -1110,19 +1110,20 @@ TSharedRef<ISlateStyle> FCoreStyle::Create( const FName& InStyleSetName )
 			.SetHovered( IMAGE_BRUSH( "/Docking/CloseApp_Hovered", Icon16x16 ) );
 
 
-		FLinearColor DockColor(FColor(62, 62, 62));
-		FLinearColor InactiveDockColor(FColor(50, 50, 50));
+		FLinearColor DockColor_Inactive(FColor(45, 45, 45));
+		FLinearColor DockColor_Hovered(FColor(54, 54, 54));
+		FLinearColor DockColor_Active(FColor(62, 62, 62));
 
 		// Panel Tab
 		Style->Set( "Docking.Tab", FDockTabStyle()
 			.SetCloseButtonStyle( CloseButton )
-			.SetNormalBrush( BOX_BRUSH( "/Docking/Tab_Shape", 2.f /8.0f, InactiveDockColor ) )
+			.SetNormalBrush( BOX_BRUSH( "/Docking/Tab_Shape", 2.f /8.0f, DockColor_Inactive ) )
+			.SetHoveredBrush( BOX_BRUSH( "/Docking/Tab_Shape", 2.f /8.0f, DockColor_Hovered ) )
+			.SetForegroundBrush( BOX_BRUSH( "/Docking/Tab_Shape", 2.f /8.0f, DockColor_Active ) )
 			.SetActiveBrush( BOX_BRUSH( "/Docking/Tab_Active", 4./8.0f) ) // 
 			.SetColorOverlayTabBrush( BOX_BRUSH( "/Docking/Tab_ColorOverlay", 4 / 16.0f))
 			.SetColorOverlayIconBrush( BOX_BRUSH( "/Docking/Tab_ColorOverlayIcon", 4/16.0f ) )
-			.SetForegroundBrush( BOX_BRUSH( "/Docking/Tab_Shape", 2.f /8.0f, DockColor ) )
-			.SetHoveredBrush( BOX_BRUSH( "/Docking/Tab_Shape", 2.f /8.0f, InactiveDockColor ) )
-			.SetContentAreaBrush( FSlateColorBrush( DockColor) )
+			.SetContentAreaBrush( FSlateColorBrush( DockColor_Active ) )
 			.SetTabWellBrush( FSlateNoResource() )
 			.SetTabPadding( FMargin(5, 2, 5, 2) )
 			.SetOverlapWidth( -1.0f )
