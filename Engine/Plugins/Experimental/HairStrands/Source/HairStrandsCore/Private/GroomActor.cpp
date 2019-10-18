@@ -47,8 +47,7 @@ AGroomActor::AGroomActor(const FObjectInitializer& ObjectInitializer)
 #endif
 }
 
-
-
+#undef LOCTEXT_NAMESPACE
 
 
 
