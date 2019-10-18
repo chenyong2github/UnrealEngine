@@ -61,7 +61,6 @@ private:
 	// Points to the parent instance object. We use this to determine if a component we stumble upon is
 	// on our object's component hierarchy or on some other object's
 	const UObject* CurrentOwnerObject;
-	bool bCurrentOwnerObjectIsBlueprint;
 
 	EPropertyValueCategory CategoriesToCapture;
 
@@ -519,14 +518,15 @@ void FPropertyCaptureHelper::GetAllPropertyPathsRecursive(const void* ValuePtr, 
 						ComponentNames[ComponentNames.Num()-1] = NameString;
 
 						FString ComponentPrettyPath;
-						if (bCurrentOwnerObjectIsBlueprint)
+						if (!ObjAsComponent->HasAnyFlags(RF_DefaultSubObject))
 						{
-							// For blueprint actors, the root component is renameable by the user, so let's use that instead
+							// If we don't have a DefaultSubObject tag, we're a generated component for a blueprint, which can be
+							// renamed by the user. So let's use that name instead
 							ComponentPrettyPath = NameString + PATH_DELIMITER;
 						}
 						else
 						{
-							// For regular actors, the root component name can't be renamed by the user and is something like
+							// For DefaultSubObject components, the name can't be set by the user and is something like
 							// StaticMeshComponent0, so we keep the property name, which should be "Static Mesh Component".
 							ComponentPrettyPath = ObjAsComponent->GetClass()->GetDisplayNameText().ToString() + PATH_DELIMITER;
 						}
@@ -579,7 +579,6 @@ TArray<TSharedPtr<FCapturableProperty>>& FPropertyCaptureHelper::CaptureProperti
 			TargetClass = AsClass;
 			TargetInstance = CDO;
 			CurrentOwnerObject = CDO;
-			bCurrentOwnerObjectIsBlueprint = ((UObject*)AsClass)->IsA(UBlueprintGeneratedClass::StaticClass());
 		}
 		// If the passed in object is an instance of a class
 		else
@@ -587,7 +586,6 @@ TArray<TSharedPtr<FCapturableProperty>>& FPropertyCaptureHelper::CaptureProperti
 			TargetClass = TargetObject->GetClass();
 			TargetInstance = TargetObject;
 			CurrentOwnerObject = TargetObject;
-			bCurrentOwnerObjectIsBlueprint = ((UObject*)TargetObject->GetClass())->IsA(UBlueprintGeneratedClass::StaticClass());
 		}
 
 		CaptureActorExceptionProperties((AActor*)TargetInstance, InitialPropertyPath, InitialPrettyString, InitialComponentNames);

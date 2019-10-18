@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "GameFramework/Actor.h"
+#include "UObject/ObjectMacros.h"
 
 #include "VariantManagerTestActor.generated.h"
 
@@ -18,7 +18,7 @@ enum class EVariantManagerTestEnum : uint8
 };
 
 UCLASS(hideCategories=(Rendering, Physics, LOD, Activation, Input, Actor, Cooking))
-class VARIANTMANAGER_API AVariantManagerTestActor : public AActor
+class VARIANTMANAGERCONTENTEDITOR_API AVariantManagerTestActor : public AActor
 {
 public:
 
