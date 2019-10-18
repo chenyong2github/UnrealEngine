@@ -94,6 +94,8 @@ TArray< TWeakObjectPtr< UObject > > UDataprepAssetProducers::Produce( const FDat
 		}
 	}
 
+	FDataprepCoreUtils::BuildAssets( OutAssets, InContext.ProgressReporterPtr );
+
 	return OutAssets;
 }
 
@@ -113,7 +115,15 @@ UDataprepContentProducer* UDataprepAssetProducers::AddProducer(UClass* ProducerC
 		int32 ProducerNextIndex = AssetProducers.Num();
 		AssetProducers.Emplace( Producer, true );
 
+		bool bChangeAll = false;
+		ValidateProducerChanges( ProducerNextIndex, bChangeAll );
+
 		OnChanged.Broadcast( FDataprepAssetChangeType::ProducerAdded, ProducerNextIndex );
+
+		if(bChangeAll)
+		{
+			OnChanged.Broadcast( FDataprepAssetChangeType::ProducerModified, INDEX_NONE );
+		}
 
 		return Producer;
 	}
@@ -138,7 +148,15 @@ UDataprepContentProducer* UDataprepAssetProducers::CopyProducer(const UDataprepC
 		int32 ProducerNextIndex = AssetProducers.Num();
 		AssetProducers.Emplace( Producer, true );
 
+		bool bChangeAll = false;
+		ValidateProducerChanges( ProducerNextIndex, bChangeAll );
+
 		OnChanged.Broadcast( FDataprepAssetChangeType::ProducerAdded, ProducerNextIndex );
+
+		if(bChangeAll)
+		{
+			OnChanged.Broadcast( FDataprepAssetChangeType::ProducerModified, INDEX_NONE );
+		}
 
 		return Producer;
 	}

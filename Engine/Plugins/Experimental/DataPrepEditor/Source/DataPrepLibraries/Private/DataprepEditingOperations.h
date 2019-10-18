@@ -76,21 +76,10 @@ public:
 	bool bPivotPointAtZero;
 
 protected:
-	class FStaticMeshBuilder
-	{
-	public:
-		FStaticMeshBuilder(const TSet<UStaticMesh*>& InStaticMeshes);
-		~FStaticMeshBuilder();
-	private:
-		TSet<UStaticMesh*> StaticMeshes;
-	};
-
 	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
 	//~ End UDataprepOperation Interface
 
 	bool MergeStaticMeshActors(UWorld* World, const TArray<UPrimitiveComponent*>& ComponentsToMerge, const FString& RootName, bool bCreateActor = true);
-
-	static void PrepareStaticMeshes( const TSet<UStaticMesh*>& StaticMeshes, IMeshBuilderModule& MeshBuilderModule );
 
 protected:
 	FVector MergedMeshWorldLocation;

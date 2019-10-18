@@ -4,6 +4,7 @@
 
 #include "DataprepCoreUtils.h"
 #include "DataPrepEditor.h"
+#include "DataprepEditorUtils.h"
 
 #include "DataprepEditorLogCategory.h"
 
@@ -40,9 +41,6 @@
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "DataprepEditorViewport"
-
-// #ueent_todo: Boolean to locally enable multi-threaded build of meshes while the discussion about the proper solution is going on
-static bool bComputeUVStretching = false;
 
 TWeakObjectPtr<UMaterial> SDataprepEditorViewport::PreviewMaterial;
 TWeakObjectPtr<UMaterial> SDataprepEditorViewport::XRayMaterial;
@@ -179,8 +177,6 @@ namespace DataprepEditor3DPreviewUtils
 
 	void FindMeshComponents(const AActor * InActor, TArray<UStaticMeshComponent*>& MeshComponents, bool bRecursive );
 
-	void ComputeUVStretching(FStaticMeshLODResources&  Resource);
-
 	/** Returns array of static mesh components in world */
 	template<class T>
 	TArray< T* > GetComponentsFromWorld( UWorld* World )
@@ -239,7 +235,7 @@ SDataprepEditorViewport::SDataprepEditorViewport()
 SDataprepEditorViewport::~SDataprepEditorViewport()
 {
 	CastChecked<UEditorEngine>(GEngine)->OnPreviewFeatureLevelChanged().Remove(PreviewFeatureLevelChangedHandle);
-	ClearMeshes();
+	ClearScene();
 }
 
 void SDataprepEditorViewport::Construct(const FArguments& InArgs, TSharedPtr<FDataprepEditor> InDataprepEditor)
@@ -277,7 +273,7 @@ void SDataprepEditorViewport::Construct(const FArguments& InArgs, TSharedPtr<FDa
 	SEditorViewport::Construct( SEditorViewport::FArguments() );
 }
 
-void SDataprepEditorViewport::ClearMeshes()
+void SDataprepEditorViewport::ClearScene()
 {
 	const int32 PreviousCount = PreviewMeshComponents.Num();
 	TArray<UObject*> ObjectsToDelete;
@@ -287,49 +283,26 @@ void SDataprepEditorViewport::ClearMeshes()
 	{
 		if(UStaticMeshComponent* MeshComponent = PreviewMeshComponent.Get())
 		{
+			MeshComponent->EmptyOverrideMaterials();
 			ObjectsToDelete.Add( MeshComponent );
 		}
 	}
 
 	FDataprepCoreUtils::PurgeObjects( MoveTemp( ObjectsToDelete ) );
 
-	// Release render data created for display
-	for(UStaticMesh* StaticMesh : BuiltMeshes)
-	{
-		if(StaticMesh)
-		{
-			// Free any RHI resources created for display
-			StaticMesh->PreEditChange(nullptr);
-			StaticMesh->RenderData.Reset();
-			// No need to post-edit
-		}
-	}
-	BuiltMeshes.Empty( BuiltMeshes.Num() );
-
-	// Restoring mesh components' render states
-	for( TWeakObjectPtr< UStaticMeshComponent >& MeshComponentPtr : MeshComponentsToRestore )
-	{
-		if(UStaticMeshComponent* MeshComponent = MeshComponentPtr.Get())
-		{
-			MeshComponent->RecreateRenderState_Concurrent();
-		}
-	}
-	MeshComponentsToRestore.Empty( MeshComponentsToRestore.Num() );
-
 	PreviewMeshComponents.Empty(PreviousCount);
 	MeshComponentsMapping.Empty(PreviousCount);
 	MeshComponentsReverseMapping.Empty(PreviousCount);
-	DisplayMaterialsMap.Empty(DisplayMaterialsMap.Num());
 	SelectedPreviewComponents.Empty(SelectedPreviewComponents.Num());
 
 	OverlayTextVerticalBox->ClearChildren();
 }
 
-void SDataprepEditorViewport::UpdateMeshes()
+void SDataprepEditorViewport::UpdateScene()
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(SDataprepEditorViewport::UpdateMeshes);
+	TRACE_CPUPROFILER_EVENT_SCOPE(SDataprepEditorViewport::UpdateScene);
 
-	ClearMeshes();
+	ClearScene();
 
 	RenderingMaterialType = ERenderingMaterialType::OriginalRenderingMaterial;
 	bWireframeRenderingMode = false;
@@ -344,65 +317,36 @@ void SDataprepEditorViewport::UpdateMeshes()
 
 	if(SceneMeshComponents.Num() > 0)
 	{
-		TSet<UStaticMesh*> StaticMeshes;
+		int32 InvalidStaticMeshesCount = 0;
 
 		for( UStaticMeshComponent*& MeshComponent : SceneMeshComponents )
 		{
 			if( UStaticMesh* StaticMesh = MeshComponent->GetStaticMesh() )
 			{
-				StaticMeshes.Add( StaticMesh );
+				if( !StaticMesh->RenderData.IsValid() || !StaticMesh->RenderData->IsInitialized())
+				{
+					++InvalidStaticMeshesCount;
+					MeshComponent = nullptr;
+				}
 			}
 			else
 			{
+				++InvalidStaticMeshesCount;
 				MeshComponent = nullptr;
 			}
 		}
 
-		if( StaticMeshes.Num() > 0)
+		if( SceneMeshComponents.Num() > InvalidStaticMeshesCount )
 		{
 			FScopedSlowTask SlowTask( 100.0f, LOCTEXT("UpdateMeshes_Title", "Updating 3D viewport ...") );
 			SlowTask.MakeDialog(false);
 
-			// Build render data of static meshes for display
-			SlowTask.EnterProgressFrame( 50.0f, LOCTEXT("UpdateMeshes_StaticMeshes", "Buidling static meshes ...") );
-			DataprepEditor3DPreviewUtils::BuildStaticMeshes( StaticMeshes, BuiltMeshes );
-
-			// Clear render state of static mesh components from the preview world which
-			// static meshes have been built for the 3D viewport
-			// Required so mesh components from the preview world are not impacted by the creation
-			// and deletion of render data done for the viewport
-			// The mesh components' render state will be restored when the viewport is cleared
-			{
-				TSet<UStaticMesh*> BuiltMeshesSet;
-				BuiltMeshesSet.Reserve( BuiltMeshes.Num() );
-				BuiltMeshesSet.Append( BuiltMeshes );
-
-				MeshComponentsToRestore.Empty( SceneMeshComponents.Num() );
-				for( UStaticMeshComponent*& MeshComponent : SceneMeshComponents )
-				{
-					if( MeshComponent->IsRegistered() && BuiltMeshesSet.Contains( MeshComponent->GetStaticMesh() ) )
-					{
-						if( MeshComponent->IsRenderStateCreated() )
-						{
-							if( !MeshComponent->IsRenderStateDirty() )
-							{
-								MeshComponent->DoDeferredRenderUpdates_Concurrent();
-							}
-
-							MeshComponent->DestroyRenderState_Concurrent();
-
-							MeshComponentsToRestore.Add( MeshComponent );
-						}
-					}
-				}
-			}
-
-			CreateDisplayMaterials( SceneMeshComponents );
+			InitializeDefaultMaterials();
 
 			PreviewMeshComponents.Empty( SceneMeshComponents.Num() );
 
 			// Compute bounding box of scene to determine camera position and scaling to apply for smooth navigation
-			SlowTask.EnterProgressFrame( 10.0f, LOCTEXT("UpdateMeshes_Prepare", "Preparing viewport ...") );
+			SlowTask.EnterProgressFrame( 10.0f, LOCTEXT("UpdateMeshes_Prepare", "Computing scene's bounding box ...") );
 			SceneBounds.Init();
 			for( UStaticMeshComponent* SceneMeshComponent : SceneMeshComponents )
 			{
@@ -429,21 +373,17 @@ void SDataprepEditorViewport::UpdateMeshes()
 			const int32 PerMeshColorsCount = sizeof(PerMeshColor);
 			int32 PerMeshColorIndex = 0;
 			// Replicate mesh component from world to preview in preview world
-			SlowTask.EnterProgressFrame( 40.0f, LOCTEXT("UpdateMeshes_Components", "Adding meshes to viewport ...") );
+			SlowTask.EnterProgressFrame( 90.0f, LOCTEXT("UpdateMeshes_Components", "Adding meshes to viewport ...") );
 			{
-				FScopedSlowTask SubSlowTask( SceneMeshComponents.Num(), LOCTEXT("UpdateMeshes_Components", "Adding meshes to viewport ...") );
-				SubSlowTask.MakeDialog(false);
+				FScopedSlowTask SubSlowTask( float(SceneMeshComponents.Num() - InvalidStaticMeshesCount), LOCTEXT("UpdateMeshes_Components", "Adding meshes to viewport ...") );
+
 				for( UStaticMeshComponent* SceneMeshComponent : SceneMeshComponents )
 				{
-					FText Message = LOCTEXT("UpdateMeshes_SkipOneComponent", "Skipping null actor ...");
-					if(SceneMeshComponent != nullptr && SceneMeshComponent->GetOwner() )
-					{
-						Message = FText::Format( LOCTEXT("UpdateMeshes_AddOneComponent", "Adding {0} ..."), FText::FromString( SceneMeshComponent->GetOwner()->GetActorLabel() ) );
-					}
-					SubSlowTask.EnterProgressFrame( 1.0f, Message );
-
 					if(SceneMeshComponent != nullptr)
 					{
+						const FText Message = FText::Format( LOCTEXT("UpdateMeshes_AddOneComponent", "Adding {0} ..."), FText::FromString( SceneMeshComponent->GetOwner()->GetActorLabel() ) );
+						SubSlowTask.EnterProgressFrame( 1.0f, Message );
+						
 						UCustomStaticMeshComponent* PreviewMeshComponent = NewObject< UCustomStaticMeshComponent >( PreviewActor.Get(), NAME_None, RF_Transient );
 						if (GEditor->PreviewPlatform.GetEffectivePreviewFeatureLevel() <= ERHIFeatureLevel::ES3_1)
 						{
@@ -463,7 +403,6 @@ void SDataprepEditorViewport::UpdateMeshes()
 
 						PreviewMeshComponent->AttachToComponent( PreviewActor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform );
 						PreviewMeshComponent->SetRelativeTransform( ComponentToWorldTransform );
-						PreviewMeshComponent->RegisterComponentWithWorld( PreviewScene->GetWorld() );
 
 						// Apply preview material to preview static mesh component
 						for(int32 Index = 0; Index < StaticMesh->StaticMaterials.Num(); ++Index)
@@ -475,10 +414,12 @@ void SDataprepEditorViewport::UpdateMeshes()
 								MaterialInterface = StaticMesh->StaticMaterials[Index].MaterialInterface;
 							}
 
-							PreviewMeshComponent->SetMaterial( Index, DisplayMaterialsMap[MaterialInterface].Get() );
+							PreviewMeshComponent->SetMaterial( Index, MaterialInterface );
 						}
 
 						PreviewMeshComponent->SelectionOverrideDelegate = UPrimitiveComponent::FSelectionOverride::CreateRaw( this, &SDataprepEditorViewport::IsComponentSelected );
+
+						PreviewMeshComponent->RegisterComponentWithWorld( PreviewScene->GetWorld() );
 
 						PreviewMeshComponents.Emplace( PreviewMeshComponent );
 
@@ -492,6 +433,15 @@ void SDataprepEditorViewport::UpdateMeshes()
 			{
 				ViewportDebug::FTimeLogger LapTimeLogger( TEXT("Building mesh properties") );
 
+				TSet<UStaticMesh*> StaticMeshes;
+				for( const TWeakObjectPtr< UStaticMeshComponent >& PreviewMeshComponentPtr : PreviewMeshComponents )
+				{
+					if(UCustomStaticMeshComponent* PreviewMeshComponent = Cast<UCustomStaticMeshComponent>(PreviewMeshComponentPtr.Get()))
+					{
+						StaticMeshes.Add( PreviewMeshComponent->GetStaticMesh() );
+					}
+				}
+
 				TMap<UStaticMesh*, FPrototypeOrientedBox> MeshPropertiesMap;
 				TArray<UStaticMesh*> StaticMeshesToBuild = StaticMeshes.Array();
 
@@ -501,7 +451,7 @@ void SDataprepEditorViewport::UpdateMeshes()
 					MeshProperties.AddDefaulted( StaticMeshes.Num() );
 
 					ParallelFor( StaticMeshesToBuild.Num(), [&]( int32 Index ) {
-						MeshDescriptionPrototype::GenerateOrientedBox( *StaticMeshesToBuild[Index]->GetMeshDescription(0), MeshProperties[Index], StaticMeshesToBuild[Index]->GetName());
+						MeshProperties[Index] = MeshDescriptionPrototype::GenerateOrientedBox( StaticMeshesToBuild[Index] );
 					});
 
 					for(int32 Index = 0; Index < StaticMeshesToBuild.Num(); ++Index)
@@ -511,7 +461,7 @@ void SDataprepEditorViewport::UpdateMeshes()
 				}
 				else
 				{
-					MeshPropertiesMap.Add( StaticMeshesToBuild[0], MeshDescriptionPrototype::GenerateOrientedBox( *StaticMeshesToBuild[0]->GetMeshDescription(0), StaticMeshesToBuild[0]->GetName() ) );
+					MeshPropertiesMap.Add( StaticMeshesToBuild[0], MeshDescriptionPrototype::GenerateOrientedBox( StaticMeshesToBuild[0] ) );
 				}
 
 				TSet<UStaticMesh*> ShouldBeInstanced;
@@ -870,82 +820,6 @@ void SDataprepEditorViewport::InitializeDefaultMaterials()
 	}
 }
 
-void SDataprepEditorViewport::CreateDisplayMaterials(const TArray< UStaticMeshComponent* >& SceneMeshComponents)
-{
-	InitializeDefaultMaterials();
-
-	DisplayMaterialsMap.Empty();
-
-	for( const UStaticMeshComponent* SceneMeshComponent : SceneMeshComponents )
-	{
-		if(SceneMeshComponent != nullptr)
-		{
-			UStaticMesh* StaticMesh = SceneMeshComponent->GetStaticMesh();
-
-			for(int32 Index = 0; Index < StaticMesh->StaticMaterials.Num(); ++Index)
-			{
-				if(UMaterialInterface* MaterialInterface = SceneMeshComponent->GetMaterial(Index))
-				{
-					DisplayMaterialsMap.Add( MaterialInterface );
-				}
-				else
-				{
-					DisplayMaterialsMap.Add( StaticMesh->StaticMaterials[Index].MaterialInterface );
-				}
-			}
-		}
-	}
-
-	TArray< UMaterialInterface* > Materials;
-	Materials.Reserve( DisplayMaterialsMap.Num() );
-
-	TMap< UMaterialInterface*, UMaterialInterface* > ParentMaterials;
-
-	for(auto& MaterialEntry : DisplayMaterialsMap)
-	{
-		UMaterialInstanceConstant* MaterialInstance = nullptr;
-		if(UMaterialInstanceConstant* ConstantMaterialInstance = Cast< UMaterialInstanceConstant >(MaterialEntry.Key))
-		{
-			MaterialInstance = DuplicateObject< UMaterialInstanceConstant >( ConstantMaterialInstance, GetTransientPackage(), NAME_None);
-			if( !ParentMaterials.Contains(ConstantMaterialInstance->Parent) )
-			{
-				// #ueent_todo: Assuming here that the parent is a Material
-				UMaterial* SourceMaterial = Cast<UMaterial>(ConstantMaterialInstance->Parent);
-				ensure(SourceMaterial);
-
-				UMaterial* ParentMaterial = DuplicateObject< UMaterial >( SourceMaterial, GetTransientPackage(), NAME_None);
-
-				ParentMaterials.Add( SourceMaterial, ParentMaterial );
-				Materials.Add( ParentMaterial );
-			}
-
-			MaterialInstance->SetFlags( RF_Transient );
-			MaterialInstance->Parent = ParentMaterials[ConstantMaterialInstance->Parent];
-		}
-		else if(UMaterial* Material = Cast<UMaterial>(MaterialEntry.Key))
-		{
-			UMaterial* ParentMaterial = DuplicateObject< UMaterial >( Material, GetTransientPackage(), NAME_None);
-
-			ParentMaterials.Add( Material, ParentMaterial );
-			Materials.Add( ParentMaterial );
-
-			MaterialInstance = NewObject<UMaterialInstanceConstant>( GetTransientPackage(), NAME_None, EObjectFlags::RF_Transient);
-			MaterialInstance->Parent = ParentMaterial;
-		}
-		else
-		{
-			MaterialInstance = NewObject<UMaterialInstanceConstant>( GetTransientPackage(), NAME_None, EObjectFlags::RF_Transient);
-			MaterialInstance->Parent = PreviewMaterial.Get();
-		}
-
-		MaterialEntry.Value = TWeakObjectPtr<UMaterialInstanceConstant>(MaterialInstance);
-		Materials.Add( MaterialInstance );
-	}
-
-
-	DataprepEditor3DPreviewUtils::CompileMaterials( Materials );
-}
-
 void SDataprepEditorViewport::SetSelection(UStaticMeshComponent* Component)
 {
 	SelectedPreviewComponents.Empty( 1 );
@@ -1072,7 +946,7 @@ void SDataprepEditorViewport::UpdateSelection()
 	// Apply materials. Only selected ones will be affected
 	ApplyRenderingMaterial();
 
-	// Update Dataprep editor with new selection
+	// UpdateScene Dataprep editor with new selection
 	TSet<TWeakObjectPtr<UObject>> SelectedActors;
 	SelectedActors.Empty(SelectedPreviewComponents.Num());
 
@@ -1187,7 +1061,7 @@ void SDataprepEditorViewport::ApplyRenderingMaterial()
 				MaterialInterface = StaticMesh->StaticMaterials[Index].MaterialInterface;
 			}
 
-			PreviewMeshComponent->SetMaterial( Index, RenderingMaterial ? RenderingMaterial : DisplayMaterialsMap[MaterialInterface].Get() );
+			PreviewMeshComponent->SetMaterial( Index, RenderingMaterial ? RenderingMaterial : MaterialInterface );
 		}
 
 		PreviewMeshComponent->MarkRenderStateDirty();
@@ -1253,14 +1127,6 @@ void SDataprepEditorViewport::ApplyRenderingMaterial()
 
 void SDataprepEditorViewport::LoadDefaultSettings()
 {
-	// Disable viewing settings for the time being
-	static bool bAllowViewingSettings = false;
-	if(!bAllowViewingSettings)
-	{
-		AssetViewerProfileIndex = 0;
-		return;
-	}
-
 	// Find index of Dataprep's viewport's settings
 	const TCHAR* DataprepViewportSettingProfileName = TEXT("DataprepViewportSetting");
 
@@ -1767,37 +1633,40 @@ namespace DataprepEditor3DPreviewUtils
 	// Copied from DatasmithImporterImpl::CompileMaterial
 	void CompileMaterials(const TArray< UMaterialInterface* > Materials)
 	{
-		FMaterialUpdateContext MaterialUpdateContext;
-
-		for(UMaterialInterface* MaterialInterface : Materials)
+		if(Materials.Num() > 0)
 		{
-			MaterialUpdateContext.AddMaterialInterface( MaterialInterface );
+			FMaterialUpdateContext MaterialUpdateContext;
 
-			if(UMaterialInstanceConstant* ConstantMaterialInstance = Cast< UMaterialInstanceConstant >(MaterialInterface))
+			for(UMaterialInterface* MaterialInterface : Materials)
 			{
-				// If BlendMode override property has been changed, make sure this combination of the parent material is compiled
-				if ( ConstantMaterialInstance->BasePropertyOverrides.bOverride_BlendMode == true )
-				{
-					ConstantMaterialInstance->ForceRecompileForRendering();
-				}
-				else
-				{
-					// If a static switch is overridden, we need to recompile
-					FStaticParameterSet StaticParameters;
-					ConstantMaterialInstance->GetStaticParameterValues( StaticParameters );
+				MaterialUpdateContext.AddMaterialInterface( MaterialInterface );
 
-					for ( FStaticSwitchParameter& Switch : StaticParameters.StaticSwitchParameters )
+				if(UMaterialInstanceConstant* ConstantMaterialInstance = Cast< UMaterialInstanceConstant >(MaterialInterface))
+				{
+					// If BlendMode override property has been changed, make sure this combination of the parent material is compiled
+					if ( ConstantMaterialInstance->BasePropertyOverrides.bOverride_BlendMode == true )
 					{
-						if ( Switch.bOverride )
+						ConstantMaterialInstance->ForceRecompileForRendering();
+					}
+					else
+					{
+						// If a static switch is overridden, we need to recompile
+						FStaticParameterSet StaticParameters;
+						ConstantMaterialInstance->GetStaticParameterValues( StaticParameters );
+
+						for ( FStaticSwitchParameter& Switch : StaticParameters.StaticSwitchParameters )
 						{
-							ConstantMaterialInstance->ForceRecompileForRendering();
-							break;
+							if ( Switch.bOverride )
+							{
+								ConstantMaterialInstance->ForceRecompileForRendering();
+								break;
+							}
 						}
 					}
-				}
 
-				ConstantMaterialInstance->PreEditChange( nullptr );
-				ConstantMaterialInstance->PostEditChange();
+					ConstantMaterialInstance->PreEditChange( nullptr );
+					ConstantMaterialInstance->PostEditChange();
+				}
 			}
 		}
 	}
@@ -1826,250 +1695,6 @@ namespace DataprepEditor3DPreviewUtils
 			}
 		}
 	}
-
-#ifdef VIEWPORT_EXPERIMENTAL
-	// Area using 3d positions
-	// Area is half length of the normal vector
-	float CalculateTriangleArea(const FVector& P0, const FVector& P1, const FVector& P2)
-	{
-		FVector Normal = ( P1 - P2 ) ^ ( P0 - P2 );
-		return Normal.Size() * 0.5f;
-	}
-
-	// Area using 2d positions
-	// Heron's formula: using length of the 3 sides
-	float CalculateTriangleArea(const FVector2D& P0, const FVector2D& P1, const FVector2D& P2)
-	{
-		return FMath::Sqrt( FMath::Abs( ( P1 - P2 ) ^ ( P0 - P2 ) ) ) * 0.5f;
-	}
-
-	// add exposure to colors to make them pop
-	void ExposureCompensation(FVector4& in)
-	{
-		for (int i = 0; i < 3; i++)
-		{
-			in[i] = FMath::Pow(in[i], 2.4);
-		}
-	}
-
-	void ComputeUVStretching(FStaticMeshLODResources& Resource)
-	{
-		if(!bComputeUVStretching)
-		{
-			return;
-		}
-
-		const FIndexArrayView& Indices = Resource.IndexBuffer.GetArrayView();
-		FStaticMeshVertexBuffer& VertexBuffer = Resource.VertexBuffers.StaticMeshVertexBuffer;
-		const FPositionVertexBuffer& Positions = Resource.VertexBuffers.PositionVertexBuffer;
-
-		const int32 UVIndex = 0;
-		const int32 NumTriangles = Indices.Num() / 3;
-		const int32 NumVertices = (int32)VertexBuffer.GetNumVertices();
-
-		TArray<FLinearColor> Colors;
-		Colors.AddZeroed( NumVertices );
-
-		float AverageArea3D = 0.0f;
-		float AverageArea2D = 0.0f;
-
-		for(int32 TriangleIndex = 0, Offset = 0; TriangleIndex < NumTriangles; ++TriangleIndex, Offset += 3)
-		{
-			const int32 Idx0 = Indices[Offset + 0];
-			const int32 Idx1 = Indices[Offset + 1];
-			const int32 Idx2 = Indices[Offset + 2];
-
-			// 2d
-			float Area2d = CalculateTriangleArea(
-				VertexBuffer.GetVertexUV_Typed<EStaticMeshVertexUVType::Default>(Idx0, UVIndex), 
-				VertexBuffer.GetVertexUV_Typed<EStaticMeshVertexUVType::Default>(Idx1, UVIndex),
-				VertexBuffer.GetVertexUV_Typed<EStaticMeshVertexUVType::Default>(Idx2, UVIndex)
-			);
-
-			// 3d
-			float Area3d = CalculateTriangleArea( Positions.VertexPosition(Idx0), Positions.VertexPosition(Idx1), Positions.VertexPosition(Idx2) );
-
-			{
-				FLinearColor& Color = Colors[Idx0];
-				Color.R += Area2d;
-				Color.G += Area3d;
-			}
-
-			{
-				FLinearColor& Color = Colors[Idx1];
-				Color.R += Area2d;
-				Color.G += Area3d;
-			}
-
-			{
-				FLinearColor& Color = Colors[Idx2];
-				Color.R += Area2d;
-				Color.G += Area3d;
-			}
-
-			// accumulate 
-			AverageArea2D += Area2d;
-			AverageArea3D += Area3d;
-		}
-
-		// average
-		AverageArea2D = AverageArea2D / NumTriangles;
-		AverageArea3D = AverageArea3D / NumTriangles;
-
-		//----------------------------------------------------------------------------------
-		// Step 2: Calculate distortion value per vert Instances
-		//		2d == 3d  -> optimal (white)
-		//		2d > 3d   -> compression (blue)
-		//		2d < 3d   -> stretching (red)
-		float DistortionRatioMin = 1.0f;
-		float DistortionRatioMax = 1.0f;
-
-		for(int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
-		{
-			FLinearColor& Color = Colors[VertexIndex];
-
-			float Area2D = Color.R;
-			float Area3D = Color.G;
-			if(Area2D > SMALL_NUMBER && Area3D > SMALL_NUMBER )
-			{
-				Area2D /= AverageArea2D;
-				Area3D /= AverageArea3D;
-				const float DistortionRatio = Area2D / Area3D;
-
-				if(DistortionRatioMin > DistortionRatio)
-				{
-					DistortionRatioMin = DistortionRatio;
-				}
-
-				if(DistortionRatioMax < DistortionRatio)
-				{
-					DistortionRatioMax = DistortionRatio;
-				}
-
-				Color.R = Area2D;
-				Color.G = Area3D;
-				Color.A = DistortionRatio;
-			}
-		}
-
-		DistortionRatioMin = 1.0f / DistortionRatioMin;
-
-		float DistortionStrectchRatioRange = DistortionRatioMax - 1.0f;
-		float DistortionShrinkRatioRange = DistortionRatioMin - 1.0f;
-		for(int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
-		{
-			FLinearColor& Color = Colors[VertexIndex];
-			const float DistortionRatio = Color.A;
-
-			if(DistortionRatio > SMALL_NUMBER)
-			{
-				FLinearColor DistortionColor(1, 1, 1, 1);
-				if(DistortionRatio < 1.0f)
-				{
-					const float D_Norm = ( (1.0f / DistortionRatio) - 1.0f) / DistortionShrinkRatioRange;
-					DistortionColor = FMath::Lerp(FLinearColor::Red, FLinearColor::White, D_Norm);
-				}
-				else
-				{
-					const float D_Norm = ( DistortionRatio - 1.0f) / DistortionStrectchRatioRange;
-					DistortionColor = FMath::Lerp(FLinearColor::Blue, FLinearColor::White, D_Norm);
-				}
-
-				Color = DistortionColor;
-			}
-		}
-
-		//----------------------------------------------------------------------------------
-		// Step 3 : Quadify colors 
-		// Average colors of every 2 triangles...
-		// Gives a faceted look
-		//int QuadItr = 0;
-		//TArray<int32> QuadIndexes;
-		//TArray<FVector4> OutQuadColors;
-		//OutQuadColors.AddZeroed(VertexInstancesCount);
-
-		//for (const FPolygonID PolygonID : MeshDescription.Polygons().GetElementIDs())
-		//{
-		//	const TArray<FMeshTriangle>& MeshTriangles = MeshDescription.GetPolygonTriangles(PolygonID);
-		//	for (const FMeshTriangle& MeshTriangle : MeshTriangles)
-		//	{
-		//		QuadIndexes.Add(MeshTriangle.GetVertexInstanceID(0).GetValue());
-		//		QuadIndexes.Add(MeshTriangle.GetVertexInstanceID(1).GetValue());
-		//		QuadIndexes.Add(MeshTriangle.GetVertexInstanceID(2).GetValue());
-		//	}
-
-		//	QuadItr++;
-		//	if (QuadItr % 2 == 0)
-		//	{
-		//		QuadItr = 0;
-		//		FVector4 AverageColor(0, 0, 0, 0);
-		//		for (int index : QuadIndexes)
-		//		{
-		//			AverageColor += OutColors[index];
-		//		}
-		//		AverageColor = AverageColor / QuadIndexes.Num();
-
-		//		for (int index : QuadIndexes)
-		//		{
-		//			OutQuadColors[index] = AverageColor;
-		//		}
-		//		QuadIndexes.Empty();
-		//	}
-		//}
-
-		//// last one
-		//if (QuadItr==1)
-		//{
-		//	for (int index : QuadIndexes)
-		//	{
-		//		OutQuadColors[index] = OutColors[index];
-		//	}
-		//}
-
-		//----------------------------------------------------------------------------------
-		// Smoother
-		//for (const FVertexID VertexID : MeshDescription.Vertices().GetElementIDs())
-		//{
-		//	FMeshVertex vert = MeshDescription.GetVertex(VertexID);
-		//	TArray<FVertexInstanceID> vertInstances = vert.VertexInstanceIDs;
-		//	FVector4 AverageColor(0, 0, 0, 0);
-
-		//	// accumulate
-		//	for (const FVertexInstanceID& VertexInstanceID : vertInstances)
-		//	{
-		//		AverageColor += OutQuadColors[VertexInstanceID.GetValue()];
-		//	}
-
-		//	// average
-		//	AverageColor = AverageColor / vertInstances.Num();
-
-		//	// save
-		//	for (const FVertexInstanceID& VertexInstanceID : vertInstances)
-		//	{
-		//		OutColors[VertexInstanceID.GetValue()] = AverageColor;
-		//	}
-		//}
-
-
-		//----------------------------------------------------------------------------------
-		// Exposure compensation
-		//for (FVector4& color : OutColors)
-		//{
-		//	ExposureCompensation(color);
-		//}
-		FColorVertexBuffer& VertexColors = Resource.VertexBuffers.ColorVertexBuffer;
-		for(int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
-		{
-			FLinearColor& DistortionColor = Colors[VertexIndex];
-
-			//DistortionColor.R = FMath::Pow( DistortionColor.R, 2.4f );
-			//DistortionColor.G = FMath::Pow( DistortionColor.G, 2.4f );
-			//DistortionColor.B = FMath::Pow( DistortionColor.B, 2.4f );
-
-			VertexColors.VertexColor(VertexIndex) = DistortionColor.ToFColor(true);
-		}
-	}
-#endif
 }
 
 #undef LOCTEXT_NAMESPACE
