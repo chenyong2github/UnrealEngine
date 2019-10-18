@@ -163,14 +163,14 @@ void FHairStrandsRootResource::InitRHI()
 			// Create buffers. Initialization will be done by render passes
 			CreateBuffer<FHairStrandsCurveTriangleIndexFormat>(RootCount, LOD.RootTriangleIndexBuffer);
 			CreateBuffer<FHairStrandsCurveTriangleBarycentricFormat>(RootCount, LOD.RootTriangleBarycentricBuffer);
-			CreateBuffer<FHairStrandsCurveTranslationFormat>(RootCount, LOD.RestRootTrianglePosition0Buffer);
-			CreateBuffer<FHairStrandsCurveTranslationFormat>(RootCount, LOD.RestRootTrianglePosition1Buffer);
-			CreateBuffer<FHairStrandsCurveTranslationFormat>(RootCount, LOD.RestRootTrianglePosition2Buffer);
+			CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootCount, LOD.RestRootTrianglePosition0Buffer);
+			CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootCount, LOD.RestRootTrianglePosition1Buffer);
+			CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootCount, LOD.RestRootTrianglePosition2Buffer);
 
 			// Strand hair roots translation and rotation in triangle-deformed position relative to the bound triangle 
-			CreateBuffer<FHairStrandsCurveTranslationFormat>(RootCount, LOD.DeformedRootTrianglePosition0Buffer);
-			CreateBuffer<FHairStrandsCurveTranslationFormat>(RootCount, LOD.DeformedRootTrianglePosition1Buffer);
-			CreateBuffer<FHairStrandsCurveTranslationFormat>(RootCount, LOD.DeformedRootTrianglePosition2Buffer);
+			CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootCount, LOD.DeformedRootTrianglePosition0Buffer);
+			CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootCount, LOD.DeformedRootTrianglePosition1Buffer);
+			CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootCount, LOD.DeformedRootTrianglePosition2Buffer);
 		}
 	}
 }
