@@ -645,6 +645,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FHairProjectionHairDebugParameters, )
 	// Change for actual frame data (stored or computed only)
 	SHADER_PARAMETER_SRV(StructuredBuffer, RootPositionBuffer)
 	SHADER_PARAMETER_SRV(StructuredBuffer, RootNormalBuffer)
+	SHADER_PARAMETER_SRV(StructuredBuffer, RootBarycentricBuffer)
 
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 	RENDER_TARGET_BINDING_SLOTS()
@@ -713,7 +714,7 @@ static void AddDebugProjectionHairPass(
 	if (PrimitiveCount == 0 || LODIndex < 0 || LODIndex >= HairData.LODDatas.Num())
 		return;
 
-	if (EDebugProjectionHairType::HairFrame == GeometryType && (!HairData.RootPositionBuffer || !HairData.RootNormalBuffer))
+	if (EDebugProjectionHairType::HairFrame == GeometryType && (!HairData.RootPositionBuffer || !HairData.RootNormalBuffer || !HairData.LODDatas[LODIndex].RootTriangleBarycentricBuffer))
 		return;
 
 	if (!HairData.LODDatas[LODIndex].RestRootTrianglePosition0Buffer ||
@@ -737,6 +738,7 @@ static void AddDebugProjectionHairPass(
 	{
 		Parameters->RootPositionBuffer = HairData.RootPositionBuffer;
 		Parameters->RootNormalBuffer = HairData.RootNormalBuffer;
+		Parameters->RootBarycentricBuffer = HairData.LODDatas[LODIndex].RootTriangleBarycentricBuffer->SRV;
 	}
 
 	Parameters->RestPosition0Buffer = HairData.LODDatas[LODIndex].RestRootTrianglePosition0Buffer->SRV;
