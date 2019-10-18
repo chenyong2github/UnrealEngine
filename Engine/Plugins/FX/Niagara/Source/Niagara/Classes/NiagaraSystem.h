@@ -245,7 +245,7 @@ public:
 	bool ShouldAutoDeactivate() const { return bAutoDeactivate; }
 	bool IsLooping() const;
 
-	const TArray<FNiagaraEmitterCompiledData>& GetEmitterCompiledData()const {	return EmitterCompiledData;	};
+	const TArray<TSharedRef<const FNiagaraEmitterCompiledData>>& GetEmitterCompiledData() const { return EmitterCompiledData; };
 
 	const FNiagaraSystemCompiledData& GetSystemCompiledData() const { return SystemCompiledData; };
 
@@ -348,8 +348,7 @@ protected:
 	UNiagaraScript* SystemUpdateScript;
 
 	//** Post compile generated data used for initializing Emitter Instances during runtime. */
-	UPROPERTY()
-	TArray<FNiagaraEmitterCompiledData> EmitterCompiledData;
+	TArray<TSharedRef<const FNiagaraEmitterCompiledData>> EmitterCompiledData;
 
 	//** Post compile generated data used for initializing System Instances during runtime. */
 	UPROPERTY()
