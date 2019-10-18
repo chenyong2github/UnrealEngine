@@ -4628,7 +4628,7 @@ void UParticleSystemComponent::PostEditChangeChainProperty(FPropertyChangedChain
 				for (int32 InstIdx = 0; InstIdx < InstanceParameters.Num(); InstIdx++)
 				{
 					FParticleSysParam& PSysParam = InstanceParameters[InstIdx];
-					if ((PSysParam.ParamType == PSPT_Vector) || (PSysParam.ParamType == PSPT_VectorRand))
+					if ((PSysParam.ParamType == PSPT_Vector) || (PSysParam.ParamType == PSPT_VectorRand) || (PSysParam.ParamType == PSPT_VectorUnitRand))
 					{
 						PSysParam.Vector.X = PSysParam.Color.R / 255.0f;
 						PSysParam.Vector.Y = PSysParam.Color.G / 255.0f;
@@ -7165,6 +7165,36 @@ void UParticleSystemComponent::SetVectorRandParameter(FName ParameterName,const 
 	InstanceParameters[NewParamIndex].Vector_Low = ParamLow;
 }
 
+void UParticleSystemComponent::SetVectorUnitRandParameter(FName ParameterName, const FVector& Param, const FVector& ParamLow)
+{
+	LLM_SCOPE(ELLMTag::Particles);
+
+	if (ParameterName == NAME_None)
+	{
+		return;
+	}
+	check(IsInGameThread());
+
+	// First see if an entry for this name already exists
+	for (int32 i = 0; i < InstanceParameters.Num(); i++)
+	{
+		FParticleSysParam& P = InstanceParameters[i];
+		if (P.Name == ParameterName && P.ParamType == PSPT_VectorUnitRand)
+		{
+			P.Vector = Param;
+			P.Vector_Low = ParamLow;
+			return;
+		}
+	}
+
+	// We didn't find one, so create a new one.
+	int32 NewParamIndex = InstanceParameters.AddZeroed();
+	InstanceParameters[NewParamIndex].Name = ParameterName;
+	InstanceParameters[NewParamIndex].ParamType = PSPT_VectorUnitRand;
+	InstanceParameters[NewParamIndex].Vector = Param;
+	InstanceParameters[NewParamIndex].Vector_Low = ParamLow;
+}
+
 
 void UParticleSystemComponent::SetColorParameter(FName Name, FLinearColor Param)
 {
@@ -7309,6 +7339,12 @@ bool UParticleSystemComponent::GetVectorParameter(const FName InName,FVector& Ou
 			}
 			else if (Param.ParamType == PSPT_VectorRand)
 			{
+				FVector RandValue(RandomStream.FRand(), RandomStream.FRand(), RandomStream.FRand());
+				OutVector = Param.Vector + (Param.Vector_Low - Param.Vector) * RandValue;
+				return true;
+			}
+			else if (Param.ParamType == PSPT_VectorUnitRand)
+			{
 				OutVector = Param.Vector + (Param.Vector_Low - Param.Vector) * RandomStream.VRand();
 				return true;
 			}
@@ -7338,6 +7374,12 @@ bool UParticleSystemComponent::GetAnyVectorParameter(const FName InName,FVector&
 				return true;
 			}
 			if (Param.ParamType == PSPT_VectorRand)
+			{
+				FVector RandValue(RandomStream.FRand(), RandomStream.FRand(), RandomStream.FRand());
+				OutVector = Param.Vector + (Param.Vector_Low - Param.Vector) * RandValue;
+				return true;
+			}
+			else if (Param.ParamType == PSPT_VectorUnitRand)
 			{
 				OutVector = Param.Vector + (Param.Vector_Low - Param.Vector) * RandomStream.VRand();
 				return true;
