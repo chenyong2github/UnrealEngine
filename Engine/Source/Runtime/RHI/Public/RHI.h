@@ -534,6 +534,9 @@ extern RHI_API bool GRHISupportsParallelRHIExecute;
 /** Whether or not the RHI can perform MSAA sample load. */
 extern RHI_API bool GRHISupportsMSAADepthSampleAccess;
 
+/** Whether or not the RHI can render to the backbuffer with a custom depth/stencil surface bound. */
+extern RHI_API bool GRHISupportsBackBufferWithCustomDepthStencil;
+
 /** Whether or not HDR is currently enabled */
 extern RHI_API bool GRHIIsHDREnabled;
 

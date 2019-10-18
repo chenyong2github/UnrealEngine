@@ -2680,6 +2680,16 @@ void UKismetSystemLibrary::TransactObject(UObject* Object)
 #endif
 }
 
+void UKismetSystemLibrary::SnapshotObject(UObject* Object)
+{
+#if WITH_EDITOR
+	if (Object)
+	{
+		SnapshotTransactionBuffer(Object);
+	}
+#endif
+}
+
 UObject* UKismetSystemLibrary::GetObjectFromPrimaryAssetId(FPrimaryAssetId PrimaryAssetId)
 {
 	if (UAssetManager* Manager = UAssetManager::GetIfValid())

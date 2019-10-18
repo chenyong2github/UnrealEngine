@@ -710,6 +710,11 @@ bool FSequencerDisplayNode::IsDimmed() const
 		return true;
 	};
 
+	if (GetSequencer().IsReadOnly())
+	{
+		return true;
+	}
+
 	FSequencerDisplayNode *This = const_cast<FSequencerDisplayNode*>(this);
 	//if empty with no key areas or sections then it's active, otherwise
 	//find first child with active section, then it's active, else inactive.
@@ -1185,7 +1190,8 @@ FSequencerDisplayNode* FSequencerDisplayNode::GetBaseNode() const
 {
 	ESequencerNode::Type Type = GetType();
 
-	if (IsRootNode() || Type == ESequencerNode::Folder || Type == ESequencerNode::Object || GetParentOrRoot()->GetType() == ESequencerNode::Folder)
+	if (IsRootNode() || Type == ESequencerNode::Folder || Type == ESequencerNode::Object
+		|| (Type == ESequencerNode::Track && static_cast<const FSequencerTrackNode*>(this)->GetSubTrackMode() != FSequencerTrackNode::ESubTrackMode::SubTrack))
 	{
 		return (FSequencerDisplayNode*)this;
 	}

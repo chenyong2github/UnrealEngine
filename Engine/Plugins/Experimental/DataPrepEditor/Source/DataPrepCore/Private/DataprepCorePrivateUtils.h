@@ -7,6 +7,8 @@
 #include "Logging/TokenizedMessage.h"
 
 class AActor;
+class IDataprepProgressReporter;
+class UStaticMesh;
 class UWorld;
 
 namespace DataprepCorePrivateUtils
@@ -70,4 +72,12 @@ namespace DataprepCorePrivateUtils
 	 * @remark Notification is only done ifNotificationText is not empty
 	 */
 	void LogMessage(EMessageSeverity::Type Severity, const FText& Message, const FText& NotificationText = FText());
+
+	/**
+	 * Clear 
+	 */
+	void ClearAssets(const TArray< TWeakObjectPtr< UObject > >& Assets);
+
+	/** Build the render data based on the current geometry available in the static mesh */
+	void BuildStaticMeshes(TSet<UStaticMesh*>& StaticMeshes, TFunction<bool(UStaticMesh*)> ProgressFunction, bool bForceBuild = false);
 }

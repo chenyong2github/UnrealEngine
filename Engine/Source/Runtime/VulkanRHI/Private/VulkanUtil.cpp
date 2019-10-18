@@ -149,7 +149,7 @@ void FVulkanGPUTiming::Initialize()
 	{
 		check(!Pool);
 		Pool = new FVulkanTimingQueryPool(Device, 8);
-		Pool->ResultsBuffer = Device->GetStagingManager().AcquireBuffer(8 * sizeof(uint64), VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+		Pool->ResultsBuffer = Device->GetStagingManager().AcquireBuffer(8 * sizeof(uint64), VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 	}
 }
 
@@ -739,6 +739,16 @@ namespace VulkanRHI
 		default:
 			break;
 		}
+
+#if VULKAN_HAS_DEBUGGING_ENABLED
+		if (Result == VK_ERROR_VALIDATION_FAILED_EXT)
+		{
+			if (GValidationCvar.GetValueOnRenderThread() == 0)
+			{
+				UE_LOG(LogVulkanRHI, Fatal, TEXT("Failed with Validation error. Try running with r.Vulkan.EnableValidation=1 to get information from the driver"));
+			}
+		}
+#endif
 
 		UE_LOG(LogVulkanRHI, Error, TEXT("%s failed, VkResult=%d\n at %s:%u \n with error %s"),
 			ANSI_TO_TCHAR(VkFunction), (int32)Result, ANSI_TO_TCHAR(Filename), Line, *ErrorString);

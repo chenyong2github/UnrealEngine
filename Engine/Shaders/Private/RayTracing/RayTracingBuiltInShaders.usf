@@ -35,21 +35,15 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionMainRG)
 	              | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH // terminate immediately upon detecting primitive intersection
 	              | RAY_FLAG_FORCE_OPAQUE                    // don't run anyhit shader
 	              | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;        // don't run closesthit shader
+	const uint InstanceInclusionMask = RAY_TRACING_MASK_OPAQUE;
 
-	FMinimalPayload Payload = (FMinimalPayload)0;
-
-	TraceRay(
-		TLAS,   // AccelerationStructure
+	FMinimalPayload MinimalPayload = TraceVisibilityRay(
+		TLAS,
 		RayFlags,
-		RAY_TRACING_MASK_OPAQUE,          // InstanceInclusionMask
-		RAY_TRACING_SHADER_SLOT_MATERIAL, // RayContributionToHitGroupIndex
-		RAY_TRACING_NUM_SHADER_SLOTS,     // MultiplierForGeometryContributionToShaderIndex
-		0,      // MissShaderIndex
-		Ray,    // RayDesc
-		Payload // Payload
-	);
+		InstanceInclusionMask,
+		Ray);
 
-	OcclusionOutput[RayIndex] = Payload.IsHit() ? ~0 : 0;
+	OcclusionOutput[RayIndex] = MinimalPayload.IsHit() ? ~0 : 0;
 }
 
 RAY_TRACING_ENTRY_RAYGEN(IntersectionMainRG)

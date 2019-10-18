@@ -1775,6 +1775,8 @@ void UCharacterMovementComponent::SimulateMovement(float DeltaSeconds)
 			}
 		}
 
+		UpdateCharacterStateBeforeMovement(DeltaSeconds);
+
 		if (MovementMode != MOVE_None)
 		{
 			//TODO: Also ApplyAccumulatedForces()?
@@ -1872,6 +1874,8 @@ void UCharacterMovementComponent::SimulateMovement(float DeltaSeconds)
 		{
 			UE_LOG(LogCharacterMovement, Verbose, TEXT("Proxy %s SKIPPING simulate movement"), *GetNameSafe(CharacterOwner));
 		}
+
+		UpdateCharacterStateAfterMovement(DeltaSeconds);
 
 		// consume path following requested velocity
 		bHasRequestedVelocity = false;
@@ -2824,24 +2828,32 @@ void UCharacterMovementComponent::UnCrouch(bool bClientSimulation)
 
 void UCharacterMovementComponent::UpdateCharacterStateBeforeMovement(float DeltaSeconds)
 {
-	// Check for a change in crouch state. Players toggle crouch by changing bWantsToCrouch.
-	const bool bIsCrouching = IsCrouching();
-	if (bIsCrouching && (!bWantsToCrouch || !CanCrouchInCurrentState()))
+	// Proxies get replicated crouch state.
+	if (CharacterOwner->Role != ROLE_SimulatedProxy)
 	{
-		UnCrouch(false);
-	}
-	else if (!bIsCrouching && bWantsToCrouch && CanCrouchInCurrentState())
-	{
-		Crouch(false);
+		// Check for a change in crouch state. Players toggle crouch by changing bWantsToCrouch.
+		const bool bIsCrouching = IsCrouching();
+		if (bIsCrouching && (!bWantsToCrouch || !CanCrouchInCurrentState()))
+		{
+			UnCrouch(false);
+		}
+		else if (!bIsCrouching && bWantsToCrouch && CanCrouchInCurrentState())
+		{
+			Crouch(false);
+		}
 	}
 }
 
 void UCharacterMovementComponent::UpdateCharacterStateAfterMovement(float DeltaSeconds)
 {
-	// Uncrouch if no longer allowed to be crouched
-	if (IsCrouching() && !CanCrouchInCurrentState())
+	// Proxies get replicated crouch state.
+	if (CharacterOwner->Role != ROLE_SimulatedProxy)
 	{
-		UnCrouch(false);
+		// Uncrouch if no longer allowed to be crouched
+		if (IsCrouching() && !CanCrouchInCurrentState())
+		{
+			UnCrouch(false);
+		}
 	}
 }
 

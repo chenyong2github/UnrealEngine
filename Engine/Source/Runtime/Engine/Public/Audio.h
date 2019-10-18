@@ -17,7 +17,7 @@
 #include "Sound/SoundSourceBusSend.h"
 #include "IAudioExtensionPlugin.h"
 
-ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogAudio, Warning, All);
+ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogAudio, Display, All);
 
 // Special log category used for temporary programmer debugging code of audio
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogAudioDebug, Display, All);

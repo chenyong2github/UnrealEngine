@@ -529,6 +529,8 @@ bool GRHISupportsUAVFormatAliasing = false;
 bool GRHISupportsMSAADepthSampleAccess = false;
 bool GRHISupportsResolveCubemapFaces = false;
 
+bool GRHISupportsBackBufferWithCustomDepthStencil = true;
+
 bool GRHIIsHDREnabled = false;
 bool GRHISupportsHDROutput = false;
 EPixelFormat GRHIHDRDisplayOutputFormat = PF_FloatRGBA;

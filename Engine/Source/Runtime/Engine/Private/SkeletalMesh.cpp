@@ -58,6 +58,7 @@
 
 #if WITH_EDITOR
 #include "Rendering/SkeletalMeshModel.h"
+#include "Rendering/SkeletalMeshLODImporterData.h"
 #include "MeshUtilities.h"
 
 #if WITH_APEX_CLOTHING
@@ -471,7 +472,39 @@ bool USkeletalMesh::IsReductionActive(int32 LODIndex) const
 {
 	FSkeletalMeshOptimizationSettings ReductionSettings = GetReductionSettings(LODIndex);
 	IMeshReduction* ReductionModule = FModuleManager::Get().LoadModuleChecked<IMeshReductionManagerModule>("MeshReductionInterface").GetSkeletalMeshReductionInterface();
-	return ReductionModule->IsReductionActive(ReductionSettings);
+	uint32 LODVertexNumber = MAX_uint32;
+	uint32 LODTriNumber = MAX_uint32;
+	const FSkeletalMeshLODInfo* LODInfoPtr = GetLODInfo(LODIndex);
+	bool bLODHasBeenSimplified = LODInfoPtr && LODInfoPtr->bHasBeenSimplified;
+	if (GetImportedModel() && GetImportedModel()->LODModels.IsValidIndex(LODIndex))
+	{
+		if (!bLODHasBeenSimplified)
+		{
+			LODVertexNumber = 0;
+			LODTriNumber = 0;
+			const FSkeletalMeshLODModel& LODModel = GetImportedModel()->LODModels[LODIndex];
+			//We can take the vertices and triangles count from the source model
+			for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); ++SectionIndex)
+			{
+				const FSkelMeshSection& Section = LODModel.Sections[SectionIndex];
+
+				if (!Section.bDisabled)
+				{
+					//Make sure the count fit in a uint32
+					LODVertexNumber += Section.NumVertices < 0 ? 0 : Section.NumVertices;
+					LODTriNumber += Section.NumTriangles < 0 ? 0 : Section.NumTriangles;
+				}
+			}
+		}
+		else if(GetImportedModel()->OriginalReductionSourceMeshData.IsValidIndex(LODIndex)
+			&& !GetImportedModel()->OriginalReductionSourceMeshData[LODIndex]->IsEmpty())
+		{
+			//In this case we have to use the stored reduction source data to know how many vertices/triangles we have before the reduction
+			USkeletalMesh* MutableSkeletalMesh = const_cast<USkeletalMesh*>(this);
+			GetImportedModel()->OriginalReductionSourceMeshData[LODIndex]->GetGeometryInfo(LODVertexNumber, LODTriNumber, MutableSkeletalMesh);
+		}
+	}
+	return ReductionModule->IsReductionActive(ReductionSettings, LODVertexNumber, LODTriNumber);
 }
 
 /* Get a copy of the reduction settings for a specified LOD index. */
@@ -2114,11 +2147,6 @@ void USkeletalMesh::PostLoad()
 				FSkeletalMeshLODModel& ThisLODModel = ImportedModel->LODModels[LodIndex];
 				FSkeletalMeshLODInfo* ThisLODInfo = GetLODInfo(LodIndex);
 				check(ThisLODInfo);
-				int32 LODModelSectionNum = ThisLODModel.Sections.Num();
-				//Fill the ChunkedParentSectionIndex data, we assume that every section using the same material are chunked
-				int32 LastMaterialIndex = INDEX_NONE;
-				int32 CurrentParentChunkIndex = INDEX_NONE;
-				int32 OriginalIndex = 0;
 				
 				//Reset the reduction setting to a non active state if the asset has active reduction but have no RawSkeletalMeshBulkData (we cannot reduce it)
 				if (IsReductionActive(LodIndex) && !ThisLODInfo->bHasBeenSimplified && ThisLODModel.RawSkeletalMeshBulkData.IsEmpty())
@@ -2150,42 +2178,7 @@ void USkeletalMesh::PostLoad()
 						}
 					}
 				}
-
-				for (int32 LODModelSectionIndex = 0; LODModelSectionIndex < LODModelSectionNum; ++LODModelSectionIndex)
-				{
-					//If we have cloth on a chunked section we treat the chunked section has a parent section (this is to get the same result has before the refactor)
-					if (ThisLODModel.Sections[LODModelSectionIndex].MaterialIndex == LastMaterialIndex && !ThisLODModel.Sections[LODModelSectionIndex].ClothingData.AssetGuid.IsValid())
-					{
-						ThisLODModel.Sections[LODModelSectionIndex].ChunkedParentSectionIndex = CurrentParentChunkIndex;
-						ThisLODModel.Sections[LODModelSectionIndex].OriginalDataSectionIndex = ThisLODModel.Sections[CurrentParentChunkIndex].OriginalDataSectionIndex;
-						//In case of a child section that was BONE chunked ensure it has the same setting has the original section
-						FSkelMeshSourceSectionUserData& SectionUserData = ThisLODModel.UserSectionsData.FindOrAdd(ThisLODModel.Sections[LODModelSectionIndex].OriginalDataSectionIndex);
-						ThisLODModel.Sections[LODModelSectionIndex].bDisabled = SectionUserData.bDisabled;
-						ThisLODModel.Sections[LODModelSectionIndex].bCastShadow = SectionUserData.bCastShadow;
-						ThisLODModel.Sections[LODModelSectionIndex].bRecomputeTangent = SectionUserData.bRecomputeTangent;
-						ThisLODModel.Sections[LODModelSectionIndex].GenerateUpToLodIndex = SectionUserData.GenerateUpToLodIndex;
-						//Chunked section cannot have cloth, a cloth section will be a parent section
-						ThisLODModel.Sections[LODModelSectionIndex].CorrespondClothAssetIndex = INDEX_NONE;
-						ThisLODModel.Sections[LODModelSectionIndex].ClothingData.AssetGuid = FGuid();
-						ThisLODModel.Sections[LODModelSectionIndex].ClothingData.AssetLodIndex = INDEX_NONE;
-					}
-					else
-					{
-						CurrentParentChunkIndex = LODModelSectionIndex;
-						FSkelMeshSourceSectionUserData& SectionUserData = ThisLODModel.UserSectionsData.FindOrAdd(OriginalIndex);
-						SectionUserData.bDisabled = ThisLODModel.Sections[LODModelSectionIndex].bDisabled;
-						SectionUserData.bCastShadow = ThisLODModel.Sections[LODModelSectionIndex].bCastShadow;
-						SectionUserData.bRecomputeTangent = ThisLODModel.Sections[LODModelSectionIndex].bRecomputeTangent;
-						SectionUserData.GenerateUpToLodIndex = ThisLODModel.Sections[LODModelSectionIndex].GenerateUpToLodIndex;
-						SectionUserData.CorrespondClothAssetIndex = ThisLODModel.Sections[LODModelSectionIndex].CorrespondClothAssetIndex;
-						SectionUserData.ClothingData.AssetGuid = ThisLODModel.Sections[LODModelSectionIndex].ClothingData.AssetGuid;
-						SectionUserData.ClothingData.AssetLodIndex = ThisLODModel.Sections[LODModelSectionIndex].ClothingData.AssetLodIndex;
-
-						ThisLODModel.Sections[LODModelSectionIndex].OriginalDataSectionIndex = OriginalIndex++;
-						ThisLODModel.Sections[LODModelSectionIndex].ChunkedParentSectionIndex = INDEX_NONE;
-					}
-					LastMaterialIndex = ThisLODModel.Sections[LODModelSectionIndex].MaterialIndex;
-				}
+				ThisLODModel.UpdateChunkedSectionInfo();
 			}
 		}
 
@@ -3837,14 +3830,17 @@ FGuid FSkeletalMeshLODInfo::ComputeDeriveDataCacheKey(const FSkeletalMeshLODGrou
 	Ar << BonesToRemove;
 	Ar << BonesToPrioritize;
 	Ar << WeightOfPrioritization;
+
+	//TODO: Ask the derivedata key of the UObject reference by FSoftObjectPath. So if someone change the UObject, this LODs will get dirty
+	//and will be rebuild.
 	if (BakePose != nullptr)
 	{
-		FSoftObjectPath BakePosePath(BakePose);
+		FString BakePosePath = BakePose->GetFullName();
 		Ar << BakePosePath;
 	}
 	if (BakePoseOverride != nullptr)
 	{
-		FSoftObjectPath BakePoseOverridePath(BakePoseOverride);
+		FString BakePoseOverridePath = BakePoseOverride->GetFullName();
 		Ar << BakePoseOverridePath;
 	}
 	FArchive_Serialize_BitfieldBool(Ar, bAllowCPUAccess);
@@ -4778,7 +4774,6 @@ void FSkeletalMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialG
 		// #dxr: the only case where RayTracingGeometryRHI is invalid is the very first frame - if that's not the case we have a bug somewhere else
 		if (MeshObject->GetRayTracingGeometry()->RayTracingGeometryRHI.IsValid())
 		{
-			check(MeshObject->GetRayTracingGeometry()->Initializer.PositionVertexBuffer.IsValid());
 			check(MeshObject->GetRayTracingGeometry()->Initializer.IndexBuffer.IsValid());
 			
 			FRayTracingInstance RayTracingInstance;

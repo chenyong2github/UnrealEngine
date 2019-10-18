@@ -1187,7 +1187,7 @@ ShadingModel);
 	}
 #endif
 
-#if NEEDS_BASEPASS_PIXEL_FOGGING && PROJECT_SUPPORT_SKY_ATMOSPHERE && MATERIAL_FORCE_SKIP_AERIAL_PERSPECTIVE==0
+#if NEEDS_BASEPASS_PIXEL_FOGGING && PROJECT_SUPPORT_SKY_ATMOSPHERE && MATERIAL_IS_SKY==0 // Do not apply aerial perpsective on sky materials
 	if (ResolvedView.SkyAtmosphereApplyCameraAerialPerspectiveVolume > 0.0f)
 	{
 		const float OneOverPreExposure = USE_PREEXPOSURE ? ResolvedView.OneOverPreExposure : 1.0f;
@@ -1394,6 +1394,10 @@ ShadingModel);
 
 #if !MATERIALBLENDING_MODULATE && USE_PREEXPOSURE
 	Out.MRT[0].xyz *= View.PreExposure;
+#endif
+#if MATERIAL_IS_SKY
+	// Sky materials can result in high luminance values, e.g. the sun disk. So we make sure to at least stay within the boundaries of fp10 for some platforms.
+	Out.MRT[0].xyz = min(Out.MRT[0].xyz, Max10BitsFloat.xxx);
 #endif
 
 #if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED

@@ -48,8 +48,6 @@
 #include "Misc/ScopedSlowTask.h"
 #include "Modules/ModuleManager.h"
 #include "ObjectTools.h"
-#include "SceneOutlinerModule.h"
-#include "SceneOutlinerVisitorTypes.h"
 #include "ScopedTransaction.h"
 #include "Templates/UnrealTemplate.h"
 #include "Toolkits/IToolkit.h"
@@ -89,94 +87,6 @@ const FName FDataprepEditor::ParameterizationDefaultTabId(TEXT("DataprepEditor_P
 
 static bool bLogTiming = true;
 
-namespace DataprepEditorUtils
-{
-	/** Specifics for the scene outliner */
-	using namespace SceneOutliner;
-
-	/**
-	 * This struct is used to force the scene outliner to refuse any rename request
-	 */
-	struct FCanRenameItem : public TTreeItemGetter<bool>
-	{
-		virtual bool Get(const SceneOutliner::FActorTreeItem& ActorItem) const override { return false; };
-		virtual bool Get(const SceneOutliner::FWorldTreeItem& WorldItem) const override { return false; }
-		virtual bool Get(const SceneOutliner::FFolderTreeItem& FolderItem) const override { return false; }
-		virtual bool Get(const SceneOutliner::FComponentTreeItem& ComponentItem) const override { return false; }
-		virtual bool Get(const SceneOutliner::FSubComponentTreeItem& SubComponentItem) const override { return false; }
-	};
-
-	/**
-	 * Use this struct to match the scene outliers selection to a dataprep editor selection
-	 */
-	struct FSynchroniseSelectionToSceneOutliner : public TTreeItemGetter<bool>
-	{
-		FSynchroniseSelectionToSceneOutliner(TSharedRef<FDataprepEditor> InDataprepEditor)
-			: DataprepEditorPtr( InDataprepEditor )
-		{};
-
-		virtual bool Get(const FActorTreeItem& ActorItem) const override
-		{
-			if ( const FDataprepEditor* DataprepEditor = DataprepEditorPtr.Pin().Get() )
-			{
-				return DataprepEditor->GetWorldItemsSelection().Contains( ActorItem.Actor );
-			}
-			return false;
-		}
-
-		virtual bool Get(const FWorldTreeItem& WorldItem) const override
-		{
-			return false;
-		}
-		virtual bool Get(const FFolderTreeItem& FolderItem) const override
-		{ 
-			return false;
-		}
-		virtual bool Get(const FComponentTreeItem& ComponentItem) const override
-		{
-			if ( const FDataprepEditor* DataprepEditor = DataprepEditorPtr.Pin().Get() )
-			{
-				return DataprepEditor->GetWorldItemsSelection().Contains( ComponentItem.Component );
-			}
-			return false;
-		}
-		virtual bool Get(const FSubComponentTreeItem& SubComponentItem) const override
-		{
-			// return this for now as it seams that subcomponent Item is broken or doesn't do what want
-			return false;
-		}
-
-	private:
-		TWeakPtr<FDataprepEditor> DataprepEditorPtr;
-	};
-
-
-	/**
-	 * Use this struct to get the selection from the scene outliner
-	 */
-	struct FGetSelectionFromSceneOutliner : public ITreeItemVisitor
-	{
-		mutable TSet<TWeakObjectPtr<UObject>> Selection;
-
-		virtual void Visit(const FActorTreeItem& ActorItem) const override
-		{
-			Selection.Add( ActorItem.Actor );
-		}
-
-		virtual void Visit(const FWorldTreeItem& WorldItem) const override {}
-		virtual void Visit(const FFolderTreeItem& FolderItem) const override {}
-		virtual void Visit(const FComponentTreeItem& ComponentItem) const override
-		{
-			this->Selection.Add( ComponentItem.Component );
-		}
-
-		virtual void Visit(const FSubComponentTreeItem& SubComponentItem) const override {}
-	};
-
-	/** End of specifics for the scene outliner */
-
-}
-
 class FTimeLogger
 {
 public:
@@ -207,7 +117,6 @@ private:
 	uint64 StartTime;
 	FString Text;
 };
-
 
 namespace DataprepEditorUtil
 {
@@ -508,7 +417,7 @@ const FString& FDataprepEditor::GetRootTemporaryDir()
 
 const FString& FDataprepEditor::GetRootPackagePath()
 {
-	static FString RootPackagePath( TEXT("/DataprepEditor/Transient") );
+	static FString RootPackagePath( TEXT("/Engine/DataprepEditor/Transient") );
 	return RootPackagePath;
 }
 
@@ -537,7 +446,6 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 
 	ActionsContext->SetTransientContentFolder( GetTransientContentFolder() / TEXT("Pipeline") )
 		.SetLogger( TSharedPtr<IDataprepLogger>( new FDataprepCoreUtils::FDataprepLogger ) )
-		.SetProgressReporter( TSharedPtr< IDataprepProgressReporter >( new FDataprepCoreUtils::FDataprepProgressUIReporter() ) )
 		.SetCanExecuteNextStep( CanExecuteNextStepFunc )
 		.SetActionsContextChanged( ActionsContextChangedFunc );
 
@@ -660,6 +568,9 @@ void FDataprepEditor::OnBuildWorld()
 	UPackage* TransientPackage = NewObject< UPackage >( nullptr, *GetTransientContentFolder(), RF_Transient );
 	TransientPackage->FullyLoad();
 
+	TSharedPtr< FDataprepCoreUtils::FDataprepFeedbackContext > FeedbackContext( new FDataprepCoreUtils::FDataprepFeedbackContext );
+
+	TSharedPtr< IDataprepProgressReporter > ProgressReporter( new FDataprepCoreUtils::FDataprepProgressUIReporter( FeedbackContext.ToSharedRef() ) );
 	{
 		FTimeLogger TimeLogger( TEXT("Import") );
 
@@ -668,9 +579,16 @@ void FDataprepEditor::OnBuildWorld()
 		Context.SetWorld( PreviewWorld.Get() )
 			.SetRootPackage( TransientPackage )
 			.SetLogger( TSharedPtr< IDataprepLogger >( new FDataprepCoreUtils::FDataprepLogger ) )
-			.SetProgressReporter( TSharedPtr< IDataprepProgressReporter >( new FDataprepCoreUtils::FDataprepProgressUIReporter() ) );
+			.SetProgressReporter( ProgressReporter );
 
 		Assets = DataprepAssetInterface->GetProducers()->Produce( Context );
+	}
+
+	if ( ProgressReporter->IsWorkCancelled() )
+	{
+		// Flush the work that's already been done
+		ResetBuildWorld();
+		return;
 	}
 
 	CachedAssets.Reset();
@@ -742,7 +660,7 @@ void FDataprepEditor::CleanPreviewWorld()
 		}
 	}
 
-	SceneViewportView->ClearMeshes();
+	SceneViewportView->ClearScene();
 
 	// Delete assets which are still in the transient content folder
 	const FString TransientContentFolder( GetTransientContentFolder() );
@@ -790,11 +708,8 @@ void FDataprepEditor::OnExecutePipeline()
 		RestoreFromSnapshot();
 	}
 
-	// Delete any reference of assets in the 3D viewport
-	// Required because assets could be removed and the 3D viewport is using raw pointers
-	SceneViewportView->ClearMeshes();
-
-	TSharedPtr< IDataprepProgressReporter > ProgressReporter( new FDataprepCoreUtils::FDataprepProgressUIReporter() );
+	// Remove any link between assets referenced in the preview world and the viewport
+	SceneViewportView->ClearScene();
 
 	// Trigger execution of data preparation operations on world attached to recipe
 	{
@@ -804,6 +719,8 @@ void FDataprepEditor::OnExecutePipeline()
 		// Editors can individually refuse this request: we ignore it during the pipeline traversal.
 		TGuardValue<bool> IgnoreCloseRequestGuard(bIgnoreCloseRequest, true);
 
+		TSharedPtr< FDataprepCoreUtils::FDataprepFeedbackContext > FeedbackContext(new FDataprepCoreUtils::FDataprepFeedbackContext);
+		ActionsContext->SetProgressReporter( TSharedPtr< IDataprepProgressReporter >( new FDataprepCoreUtils::FDataprepProgressUIReporter( FeedbackContext.ToSharedRef() ) ) );
 		ActionsContext->SetWorld( PreviewWorld.Get() ).SetAssets( Assets );
 
 		DataprepAssetInterfacePtr->ExecuteRecipe( ActionsContext );
@@ -812,8 +729,13 @@ void FDataprepEditor::OnExecutePipeline()
 		Assets = ActionsContext->Assets.Array();
 	}
 
+	if ( ActionsContext->ProgressReporterPtr->IsWorkCancelled() )
+	{
+		RestoreFromSnapshot();
+	}
+
 	// Redraw 3D viewport
-	SceneViewportView->UpdateMeshes();
+	SceneViewportView->UpdateScene();
 
 	// Add assets which may have been created by actions
 	for( TWeakObjectPtr<UObject>& Asset : Assets )
@@ -860,7 +782,7 @@ void FDataprepEditor::OnCommitWorld()
 	}
 
 	// Remove references to assets in 3D viewport before commit
-	SceneViewportView->ClearMeshes();
+	SceneViewportView->ClearScene();
 
 	// Finalize assets
 	TArray<TWeakObjectPtr<UObject>> ValidAssets( MoveTemp(Assets) );
@@ -963,39 +885,6 @@ TSharedRef<SDockTab> FDataprepEditor::SpawnTabPipelineGraph(const FSpawnTabArgs 
 		];
 }
 // end of temp code for nodes development
-
-void FDataprepEditor::CreateScenePreviewTab()
-{
-	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::Get().LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
-
-	SceneOutliner::FInitializationOptions SceneOutlinerOptions;
-	SceneOutlinerOptions.SpecifiedWorldToDisplay = PreviewWorld.Get();
-
-	SceneOutliner = SceneOutlinerModule.CreateCustomSceneOutliner( SceneOutlinerOptions );
-
-	SceneOutliner->SetSelectionMode( ESelectionMode::Multi )
-		.SetCanRenameItem( MakeUnique<DataprepEditorUtils::FCanRenameItem>() )
-		.SetShouldSelectItemWhenAdded( MakeUnique<DataprepEditorUtils::FSynchroniseSelectionToSceneOutliner>( StaticCastSharedRef<FDataprepEditor>( AsShared() ) ) )
-		.SetShowActorComponents( false )
-		.SetShownOnlySelected( false )
-		.SetShowOnlyCurrentLevel( false )
-		.SetHideTemporaryActors( false );
-
-	SceneOutliner->GetOnItemSelectionChanged().AddSP( this, &FDataprepEditor::OnSceneOutlinerSelectionChanged );
-
-	SAssignNew(ScenePreviewView, SBorder)
-	.Padding(2.f)
-	.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-	[
-		SNew(SOverlay)
-		+ SOverlay::Slot()
-		.HAlign(HAlign_Fill)
-		.VAlign(VAlign_Fill)
-		[
-			SceneOutliner.ToSharedRef()
-		]
-	];
-}
 
 TSharedRef<SDockTab> FDataprepEditor::SpawnTabScenePreview(const FSpawnTabArgs & Args)
 {
@@ -1268,7 +1157,7 @@ void FDataprepEditor::UpdatePreviewPanels(bool bInclude3DViewport)
 
 	if(bInclude3DViewport)
 	{
-		SceneViewportView->UpdateMeshes();
+		SceneViewportView->UpdateScene();
 	}
 }
 
@@ -1293,72 +1182,15 @@ bool FDataprepEditor::CanCommitWorld()
 	return bWorldBuilt && DataprepAssetInterfacePtr->GetConsumer() != nullptr;
 }
 
-
 FString FDataprepEditor::GetTransientContentFolder()
 {
 	return FPaths::Combine( GetRootPackagePath(), FString::FromInt( FPlatformProcess::GetCurrentProcessId() ), SessionID );
-}
-
-void FDataprepEditor::OnSceneOutlinerSelectionChanged(SceneOutliner::FTreeItemPtr ItemPtr, ESelectInfo::Type SelectionMode)
-{
-	using namespace SceneOutliner;
-
-	DataprepEditorUtils::FGetSelectionFromSceneOutliner Visitor;
-
-	for ( FTreeItemPtr Item : SceneOutliner->GetTree().GetSelectedItems() )
-	{
-		Item->Visit( Visitor );
-	}
-
-	SetWorldObjectsSelection( MoveTemp(Visitor.Selection), EWorldSelectionFrom::SceneOutliner );
-}
-
-void FDataprepEditor::SetWorldObjectsSelection(TSet<TWeakObjectPtr<UObject>>&& NewSelection, EWorldSelectionFrom SelectionFrom /* = EWorldSelectionFrom::Unknow */)
-{
-	WorldItemsSelection.Empty( NewSelection.Num() );
-	WorldItemsSelection.Append( MoveTemp(NewSelection) );
-
-	if ( SelectionFrom != EWorldSelectionFrom::SceneOutliner )
-	{
-		DataprepEditorUtils::FSynchroniseSelectionToSceneOutliner Selector( StaticCastSharedRef<FDataprepEditor>( AsShared() ) );
-		SceneOutliner->SetSelection( Selector );
-	}
-
-	if ( SelectionFrom != EWorldSelectionFrom::Viewport )
-	{
-		TArray<AActor*> Actors;
-		Actors.Reserve( WorldItemsSelection.Num() );
-
-		for ( TWeakObjectPtr<UObject> ObjectPtr : WorldItemsSelection )
-		{
-			if ( AActor* Actor = Cast<AActor>( ObjectPtr.Get() ) )
-			{
-				Actors.Add( Actor );
-			}
-		}
-
-		SceneViewportView->SelectActors( Actors );
-	}
-
-	{
-		TSet<UObject*> Objects;
-		Objects.Reserve( WorldItemsSelection.Num() );
-		for ( const TWeakObjectPtr<UObject>& ObjectPtr : WorldItemsSelection )
-		{
-			Objects.Add( ObjectPtr.Get() );
-		}
-
-		SetDetailsObjects( Objects, false );
-	}
 }
 
 bool FDataprepEditor::OnCanExecuteNextStep(UDataprepActionAsset* ActionAsset, UDataprepOperation* Operation, UDataprepFilter* Filter)
 {
 	// #ueent_todo: Make this action configurable by user
 	UpdatePreviewPanels(false);
-
-	//// Remove references to assets in 3D viewport in case they are deleted in next step
-	//SceneViewportView->ClearMeshes();
 
 	// #ueent_todo: Make this action configurable by user
 	return true;

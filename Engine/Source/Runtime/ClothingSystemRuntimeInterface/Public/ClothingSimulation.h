@@ -17,7 +17,7 @@ public:
 
 	// The majority of the API for this class is protected. The required objects (skel meshes and the parallel task)
 	// are friends so they can use the functionality. For the most part the simulation is not designed to be used
-	// outside of the skeletal mesh component as it parallel simulation is tied to the skel mesh tick and
+	// outside of the skeletal mesh component as its parallel simulation is tied to the skel mesh tick and
 	// dependents.
 	// Any method that is available in the public section below should consider that it may be called while
 	// the simulation is running.

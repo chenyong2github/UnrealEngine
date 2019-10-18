@@ -72,7 +72,7 @@ void FAssetTypeActions_DataprepAssetInterface::CreateInstance(TArray<TWeakObject
 				Factory->InitialParent = DataprepAssetInterface;
 
 				IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-				UObject* NewAsset = AssetTools.CreateAsset(Name, FPackageName::GetLongPackagePath(PackageName), UDataprepAssetInterface::StaticClass(), Factory);
+				UObject* NewAsset = AssetTools.CreateAsset(Name, FPackageName::GetLongPackagePath(PackageName), UDataprepAssetInstance::StaticClass(), Factory);
 
 				if(NewAsset)
 				{

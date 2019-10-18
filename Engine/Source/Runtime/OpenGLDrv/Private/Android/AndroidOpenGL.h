@@ -692,6 +692,9 @@ struct FAndroidOpenGL : public FOpenGLES2
 	static void ProcessExtensions(const FString& ExtensionsString);
 	static void SetupDefaultGLContextState(const FString& ExtensionsString);
 
+	static bool RequiresAdrenoTilingModeHint();
+	static void EnableAdrenoTilingModeHint(bool bEnable);
+	static bool bRequiresAdrenoTilingHint;
 
 	// whether to use ES 3.0 function glTexStorage2D to allocate storage for GL_HALF_FLOAT_OES render target textures
 	static bool bUseHalfFloatTexStorage;

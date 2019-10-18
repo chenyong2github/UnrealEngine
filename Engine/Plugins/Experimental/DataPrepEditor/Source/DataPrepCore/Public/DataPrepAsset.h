@@ -12,6 +12,7 @@
 
 class UBlueprint;
 class UDataprepActionAsset;
+class UDataprepParameterizableObject;
 class UDataprepParameterization;
 class UDataprepProducers;
 class UEdGraphNode;
@@ -19,7 +20,6 @@ class UEdGraphNode;
 struct FDataprepActionContext;
 struct FDataprepConsumerContext;
 struct FDataprepProducerContext;
-
 
 /**
  * A DataprepAsset is an implementation of the DataprepAssetInterface using
@@ -92,12 +92,23 @@ public:
 	FOnDataprepBlueprintChange& GetOnBlueprintChanged() { return OnBlueprintChanged; }
 	// end of temp code for nodes development
 
+public:
+	// Functions specific to the parametrization of the dataprep asset
+
 	/**
-	 * Temporary function to get to allow the editor to view the default parameterization
+	 * Delegate to notify the ui that a dataprep parametrization was modified
+	 * This necessary as the ui for the parameterization is only updated by manual event
 	 */
+	DECLARE_MULTICAST_DELEGATE(FDataprepParameterizationWasModified)
+	FDataprepParameterizationWasModified OnParameterizationWasModified;
+
 	virtual UObject* GetParameterizationObject() override;
 
-	void BindObjectPropertyToParameterization(UObject* Object, const TArray<struct FDataprepPropertyLink>& InPropertyChain, FName Name);
+	void BindObjectPropertyToParameterization(UDataprepParameterizableObject* Object, const TArray<struct FDataprepPropertyLink>& InPropertyChain,const FName& Name);
+
+	bool IsObjectPropertyBinded(UDataprepParameterizableObject* Object, const TArray<struct FDataprepPropertyLink>& InPropertyChain) const;
+
+	void RemoveObjectPropertyFromParameterization(UDataprepParameterizableObject* Object, const TArray<struct FDataprepPropertyLink>& InPropertyChain);
 
 	UDataprepParameterization* GetDataprepParameterization() { return Parameterization; }
 

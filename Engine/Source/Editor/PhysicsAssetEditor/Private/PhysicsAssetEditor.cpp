@@ -1397,10 +1397,6 @@ void FPhysicsAssetEditor::AddNewPrimitive(EAggCollisionShape::Type InPrimitiveTy
 {
 	check(!bCopySelected || SharedData->SelectedBodies.Num() == 1);	//we only support this for one selection
 	int32 NewPrimIndex = 0;
-	if (SharedData->EditorSkelComp)
-	{
-		SharedData->EditorSkelComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	}
 	TArray<FPhysicsAssetEditorSharedData::FSelection> NewSelection;
 	{
 		// Make sure rendering is done - so we are not changing data being used by collision drawing.
@@ -1696,10 +1692,6 @@ void FPhysicsAssetEditor::ResetBoneCollision()
 	if(EditorSkelMesh == nullptr)
 	{
 		return;
-	}
-	if (SharedData->EditorSkelComp)
-	{
-		SharedData->EditorSkelComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	}
 	// Make sure rendering is done - so we are not changing data being used by collision drawing.
 	FlushRenderingCommands();

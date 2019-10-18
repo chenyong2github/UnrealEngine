@@ -3,6 +3,7 @@
 #include "IFCStaticMeshFactory.h"
 
 #include "AssetRegistryModule.h"
+#include "DatasmithMeshHelper.h"
 #include "Engine/StaticMesh.h"
 #include "StaticMeshAttributes.h"
 #include "MeshDescription.h"
@@ -119,6 +120,8 @@ namespace IFC
 
 			MeshDescription->CreatePolygon(MaterialIndexToPolygonGroupID[IFCPolygon->MaterialIndex], VertexInstanceIDs);
 		}
+
+		DatasmithMeshHelper::RemoveEmptyPolygonGroups(*MeshDescription);
 	}
 
 	float FStaticMeshFactory::GetUniformScale() const

@@ -1782,10 +1782,14 @@ namespace WindowsMixedReality
 #if WITH_EDITOR
 		D3D11Device = InternalGetD3D11Device();
 
-#if WITH_WINDOWS_MIXED_REALITY
+#  if WITH_WINDOWS_MIXED_REALITY
 		HMD->SetLogCallback(WindowsMixedRealityHMD::LogForInterop);
 		HMD->ConnectToRemoteHoloLens(D3D11Device.GetReference(), ip, bitrate, isHoloLens1);
-#endif
+#  else
+		UE_LOG(LogWmrHmd, Log, TEXT("FWindowsMixedRealityHMD::ConnectToRemoteHoloLens() is doing nothing because !WITH_WINDOWS_MIXED_REALITY."));
+#  endif
+#else
+		UE_LOG(LogWmrHmd, Log, TEXT("FWindowsMixedRealityHMD::ConnectToRemoteHoloLens() is doing nothing because !WITH_EDITOR."));
 #endif
 	}
 

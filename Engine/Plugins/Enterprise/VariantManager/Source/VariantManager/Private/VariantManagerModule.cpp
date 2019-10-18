@@ -2,36 +2,22 @@
 
 #include "VariantManagerModule.h"
 
-#include "Modules/ModuleManager.h"
-#include "AssetToolsModule.h"
-#include "ActorFactories/ActorFactory.h"
-#include "CoreMinimal.h"
-#include "Editor.h"
-#include "EditorStyleSet.h"
-#include "Factories/Factory.h"
-#include "Framework/Docking/TabManager.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "LevelEditor.h"
 #include "LevelVariantSets.h"
-#include "LevelVariantSetsActor.h"
-#include "LevelVariantSetsAssetActions.h"
-#include "Styling/SlateStyle.h"
-#include "VariantManager.h"
-#include "VariantManagerLog.h"
-#include "VariantManagerEditorCommands.h"
-#include "LevelVariantSetsActorCustomization.h"
-#include "SwitchActorCustomization.h"
-#include "PackageTools.h"
-#include "PropertyEditorModule.h"
-#include "ObjectTools.h"
-#include "PropertyEditorModule.h"
-#include "VariantManagerLog.h"
 #include "LevelVariantSetsEditorToolkit.h"
-#include "UObject/UObjectGlobals.h"
-#include "UObject/ObjectRedirector.h"
+#include "VariantManager.h"
+#include "VariantManagerEditorCommands.h"
+#include "VariantManagerContentEditorModule.h"
+
+#include "Editor.h"
+#include "Framework/Docking/TabManager.h"
+#include "IAssetTypeActions.h"
+#include "LevelEditor.h"
+#include "Modules/ModuleManager.h"
+#include "Styling/SlateStyle.h"
+#include "Widgets/Docking/SDockTab.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
-#include "Widgets/Docking/SDockTab.h"
+#include "VariantManagerUtils.h"
 
 #define LOCTEXT_NAMESPACE "VariantManagerModule"
 
@@ -44,6 +30,12 @@ public:
 
 		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 
+		// Register a delegate to detect whenever we should open an editor for a LevelVariantSets asset, and relay the
+		// data to LevelVariantSetsEditorToolkit, which will spawn a VariantManager
+		IVariantManagerContentEditorModule& ContentEditorModule = FModuleManager::LoadModuleChecked<IVariantManagerContentEditorModule>(VARIANTMANAGERCONTENTEDITORMODULE_MODULE_NAME);
+		FOnLevelVariantSetsEditor LevelVariantSetsEditorDelegate = FOnLevelVariantSetsEditor::CreateStatic( FVariantManagerModule::OnLevelVariantSetsEditor );
+		ContentEditorModule.RegisterOnLevelVariantSetsDelegate( LevelVariantSetsEditorDelegate );
+
 		// We need to register a tab spawner now so that old tabs that were open when we closed the editor can be reopened
 		// correctly displaying the "Variant Manager" title
 		// Sadly this code runs after the LevelEditorModule is loaded, but before it has created its TabManager. We need to
@@ -53,14 +45,8 @@ public:
 			RegisterTabSpawner( LevelEditorModule.GetLevelEditorTabManager() );
 		});
 
-		// Register asset actions for the LevelVariantSets asset
-		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools")).Get();
-		AssetActions = MakeShareable(new FLevelVariantSetsAssetActions(MakeShareable(new FSlateStyleSet(TEXT("EditorStyle")))));
-		AssetTools.RegisterAssetTypeActions(AssetActions.ToSharedRef());
-
-		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
-		PropertyModule.RegisterCustomClassLayout(TEXT("LevelVariantSetsActor"), FOnGetDetailCustomizationInstance::CreateStatic(&FLevelVariantSetsActorCustomization::MakeInstance));
-		PropertyModule.RegisterCustomClassLayout(TEXT("SwitchActor"), FOnGetDetailCustomizationInstance::CreateStatic(&FSwitchActorCustomization::MakeInstance));
+		// Make sure we update the cached UProperty pointers we use for exception properties whenever hot reload happens to a relevant class
+		FVariantManagerUtils::RegisterForHotReload();
 	}
 
 	virtual void ShutdownModule() override
@@ -68,21 +54,14 @@ public:
 		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 		LevelEditorModule.OnTabManagerChanged().Remove(OnTabManagerChangedSubscription);
 
+		IVariantManagerContentEditorModule& ContentEditorModule = FModuleManager::LoadModuleChecked<IVariantManagerContentEditorModule>(VARIANTMANAGERCONTENTEDITORMODULE_MODULE_NAME);
+		ContentEditorModule.UnregisterOnLevelVariantSetsDelegate();
+
 		UnregisterTabSpawner( LevelEditorModule.GetLevelEditorTabManager() );
 
-		// Unregister asset actions for the LevelVariantSets asset
-		FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>(TEXT("AssetTools"));
-		if (AssetToolsModule != nullptr)
-		{
-			IAssetTools& AssetTools = AssetToolsModule->Get();
-			AssetTools.UnregisterAssetTypeActions(AssetActions.ToSharedRef());
-		}
+		FVariantManagerUtils::UnregisterForHotReload();
 
 		FVariantManagerEditorCommands::Unregister();
-
-		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked< FPropertyEditorModule >(TEXT("PropertyEditor"));
-		PropertyModule.UnregisterCustomClassLayout(TEXT("LevelVariantSetsActor"));
-		PropertyModule.UnregisterCustomClassLayout(TEXT("SwitchActor"));
 	}
 
 	virtual TSharedRef<FVariantManager> CreateVariantManager(ULevelVariantSets* InLevelVariantSets) override
@@ -91,131 +70,6 @@ public:
 		VariantManager->InitVariantManager(InLevelVariantSets);
 
 		return VariantManager;
-	}
-
-	virtual UObject* CreateLevelVariantSetsAsset(const FString& AssetName, const FString& PackagePath, bool bForceOverwrite) override
-	{
-		IAssetTools& AssetTools = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools").Get();
-		UObject* NewAsset = nullptr;
-
-		FString SafePackagePath = UPackageTools::SanitizePackageName(PackagePath);
-		FString SafeAssetName = ObjectTools::SanitizeObjectName(AssetName);
-
-		if (SafePackagePath.IsEmpty() || SafeAssetName.IsEmpty())
-		{
-			UE_LOG(LogVariantManager, Error, TEXT("Invalid ULevelVariantSets asset name or package path!"));
-			return nullptr;
-		}
-
-		// Attempt to create a new asset by scanning all available factories until we find one that supports ULevelVariantSets
-		for (TObjectIterator<UClass> It ; It ; ++It)
-		{
-			UClass* CurrentClass = *It;
-			if (CurrentClass->IsChildOf(UFactory::StaticClass()) && !(CurrentClass->HasAnyClassFlags(CLASS_Abstract)))
-			{
-				UFactory* Factory = Cast<UFactory>(CurrentClass->GetDefaultObject());
-				if (Factory->CanCreateNew() && Factory->ImportPriority >= 0 && Factory->SupportedClass == ULevelVariantSets::StaticClass())
-				{
-					// Try deleting existing asset
-					// CreateAsset will always call CanCreateAsset, which will spawn a dialog in case of conflicts.
-					// We want to avoid the dialog, but also still use CreateAsset so that only VariantManagerFactoryNew is responsible for
-					// creating LVS assets. This means we have to manually (try to) delete the asset first
-					// Reference: UAssetToolsImpl::CanCreateAsset
-					if (bForceOverwrite)
-					{
-						const FString PackageName = SafePackagePath + TEXT("/") + SafeAssetName;
-						UPackage* Pkg = CreatePackage(nullptr,*PackageName);
-
-						// Search for UObject instead of ULevelVariantSets as we also want to catch redirectors
-						UObject* ExistingObject = StaticFindObject( UObject::StaticClass(), Pkg, *SafeAssetName );
-
-						if (ExistingObject != nullptr)
-						{
-							// Try to fixup a redirector before we delete it
-							if (ExistingObject->GetClass()->IsChildOf(UObjectRedirector::StaticClass()))
-							{
-								AssetTools.FixupReferencers({Cast<UObjectRedirector>(ExistingObject)});
-							}
-
-							bool bDeleteSucceeded = ObjectTools::DeleteSingleObject( ExistingObject );
-							if (bDeleteSucceeded)
-							{
-								// Force GC so we can cleanly create a new asset (and not do an 'in place' replacement)
-								CollectGarbage( GARBAGE_COLLECTION_KEEPFLAGS );
-
-								// Old package will be GC'ed... create a new one here
-								Pkg = CreatePackage(nullptr,*PackageName);
-								Pkg->MarkAsFullyLoaded();
-							}
-
-							if (!bDeleteSucceeded || !IsUniqueObjectName(*AssetName, Pkg))
-							{
-								UE_LOG(LogVariantManager, Error, TEXT("Failed to delete old ULevelVariantSets asset at '%s'. New asset can't be created."), *PackageName);
-								return nullptr;
-							}
-						}
-					}
-
-					NewAsset = AssetTools.CreateAsset(SafeAssetName, SafePackagePath, ULevelVariantSets::StaticClass(), Factory);
-					break;
-				}
-			}
-		}
-
-		return NewAsset;
-	}
-
-	virtual UObject* CreateLevelVariantSetsAssetWithDialog() override
-	{
-		IAssetTools& AssetTools = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools").Get();
-		UObject* NewAsset = nullptr;
-
-		// Attempt to create a new asset by scanning all available factories until we find one that supports ULevelVariantSets
-		for (TObjectIterator<UClass> It ; It ; ++It)
-		{
-			UClass* CurrentClass = *It;
-			if (CurrentClass->IsChildOf(UFactory::StaticClass()) && !(CurrentClass->HasAnyClassFlags(CLASS_Abstract)))
-			{
-				UFactory* Factory = Cast<UFactory>(CurrentClass->GetDefaultObject());
-				if (Factory->CanCreateNew() && Factory->ImportPriority >= 0 && Factory->SupportedClass == ULevelVariantSets::StaticClass())
-				{
-					NewAsset = AssetTools.CreateAssetWithDialog(ULevelVariantSets::StaticClass(), Factory);
-					break;
-				}
-			}
-		}
-
-		return NewAsset;
-	}
-
-	virtual AActor* GetOrCreateLevelVariantSetsActor(UObject* LevelVariantSetsAsset, bool bForceCreate) override
-	{
-		if (!bForceCreate)
-		{
-			// Check to see if we have a LVSA for this asset already
-			TArray< UObject* > WorldObjects;
-			GetObjectsWithOuter( GWorld, WorldObjects );
-
-			for( UObject* Object : WorldObjects )
-			{
-				if ( ALevelVariantSetsActor* Actor = Cast< ALevelVariantSetsActor >( Object ) )
-				{
-					if ( Actor->GetLevelVariantSets(true) == LevelVariantSetsAsset && !Actor->IsActorBeingDestroyed() )
-					{
-						return Actor;
-					}
-				}
-			}
-		}
-
-		UActorFactory* ActorFactory = GEditor->FindActorFactoryForActorClass(ALevelVariantSetsActor::StaticClass());
-		if (ActorFactory == nullptr)
-		{
-			UE_LOG(LogVariantManager, Error, TEXT("Failed to create LevelVariantSetsActor!"));
-			return nullptr;
-		}
-
-		return GEditor->UseActorFactory(ActorFactory, FAssetData(LevelVariantSetsAsset), &FTransform::Identity);
 	}
 
 	static void RegisterTabSpawner( const TSharedPtr< FTabManager >& TabManager )
@@ -254,8 +108,14 @@ public:
 			.TabRole(ETabRole::PanelTab);
 	}
 
+	static void OnLevelVariantSetsEditor(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& EditWithinLevelEditor, class ULevelVariantSets* LevelVariantSets)
+	{
+		TSharedPtr<ISlateStyle> Style = MakeShareable(new FSlateStyleSet(TEXT("EditorStyle")));
+		TSharedRef<FLevelVariantSetsEditorToolkit> Toolkit = MakeShareable(new FLevelVariantSetsEditorToolkit(Style.ToSharedRef()));
+		Toolkit->Initialize(Mode, EditWithinLevelEditor, LevelVariantSets);
+	}
+
 private:
-	TSharedPtr<IAssetTypeActions> AssetActions;
 	FDelegateHandle OnTabManagerChangedSubscription;
 };
 

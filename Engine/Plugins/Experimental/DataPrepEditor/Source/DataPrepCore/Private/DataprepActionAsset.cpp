@@ -3,12 +3,15 @@
 #include "DataprepActionAsset.h"
 
 // Dataprep include
+#include "DataPrepAsset.h"
 #include "DataPrepOperation.h"
 #include "DataprepCoreLogCategory.h"
 #include "DataprepCorePrivateUtils.h"
 #include "DataprepCoreUtils.h"
+#include "DataprepParameterizableObject.h"
 #include "IDataprepLogger.h"
 #include "IDataprepProgressReporter.h"
+#include "Parameterization/DataprepParameterization.h"
 #include "SelectionSystem/DataprepFilter.h"
 
 // Engine include
@@ -19,8 +22,10 @@
 #include "GameFramework/WorldSettings.h"
 #include "LevelSequence.h"
 #include "Materials/MaterialInterface.h"
+#include "ObjectTools.h"
 #include "Templates/SubclassOf.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/UObjectHash.h"
 
 #ifdef WITH_EDITOR
 #include "Editor.h"
@@ -41,10 +46,12 @@ UDataprepActionAsset::UDataprepActionAsset()
 
 		OperationContext->Context = MakeShareable( new FDataprepContext() );
 
-		OperationContext->AddAssetDelegate = FDataprepAddAsset::CreateUObject( this, &UDataprepActionAsset::OnAddAsset);
-		OperationContext->CreateActorDelegate = FDataprepCreateActor::CreateUObject( this, &UDataprepActionAsset::OnCreateActor);
-		OperationContext->RemoveObjectDelegate = FDataprepRemoveObject::CreateUObject( this, &UDataprepActionAsset::OnRemoveObject);
-		OperationContext->DeleteObjectsDelegate = FDataprepDeleteObjects::CreateUObject( this, &UDataprepActionAsset::OnDeleteObjects);
+		OperationContext->AddAssetDelegate = FDataprepAddAsset::CreateUObject( this, &UDataprepActionAsset::OnAddAsset );
+		OperationContext->CreateAssetDelegate = FDataprepCreateAsset::CreateUObject( this, &UDataprepActionAsset::OnCreateAsset );
+		OperationContext->CreateActorDelegate = FDataprepCreateActor::CreateUObject( this, &UDataprepActionAsset::OnCreateActor );
+		OperationContext->RemoveObjectDelegate = FDataprepRemoveObject::CreateUObject( this, &UDataprepActionAsset::OnRemoveObject );
+		OperationContext->DeleteObjectsDelegate = FDataprepDeleteObjects::CreateUObject( this, &UDataprepActionAsset::OnDeleteObjects );
+		OperationContext->AssetsModifiedDelegate = FDataprepAssetsModified::CreateUObject( this, &UDataprepActionAsset::OnAssetsModified );
 	}
 }
 
@@ -248,6 +255,27 @@ bool UDataprepActionAsset::RemoveStep(int32 Index)
 	if ( Steps.IsValidIndex( Index ) )
 	{
 		Modify();
+
+		if ( UDataprepAsset* DataprepAsset = FDataprepCoreUtils::GetDataprepAssetOfObject( this ) )
+		{
+			if ( UDataprepParameterization* Parameterization = DataprepAsset->GetDataprepParameterization() )
+			{
+				TArray< UObject* > Objects;
+				GetObjectsWithOuter( Steps[Index], Objects );
+				TArray< UDataprepParameterizableObject* > ParameterizableObjects;
+				ParameterizableObjects.Reserve( Objects.Num() );
+				for ( UObject* Object : Objects )
+				{
+					if ( Object->IsA<UDataprepParameterizableObject>() )
+					{
+						ParameterizableObjects.Add( static_cast<UDataprepParameterizableObject*>( Object ) );
+					}
+				}
+
+				Parameterization->RemoveBindingFromObjects( ParameterizableObjects );
+			}
+		}
+
 		Steps.RemoveAt( Index );
 		OnStepsChanged.Broadcast();
 		return true;
@@ -261,6 +289,31 @@ bool UDataprepActionAsset::RemoveStep(int32 Index)
 FOnStepsOrderChanged& UDataprepActionAsset::GetOnStepsOrderChanged()
 {
 	return OnStepsChanged;
+}
+
+void UDataprepActionAsset::NotifyDataprepSystemsOfRemoval()
+{
+	if ( UDataprepAsset* DataprepAsset = FDataprepCoreUtils::GetDataprepAssetOfObject( this ) )
+	{
+		if ( UDataprepParameterization * Parameterization = DataprepAsset->GetDataprepParameterization() )
+		{
+			TArray< UObject* > Objects;
+			TArray< UDataprepParameterizableObject* > ParameterizableObjects;
+			for ( UDataprepActionStep* Step : Steps )
+			{
+				GetObjectsWithOuter( Step, Objects );
+				ParameterizableObjects.Reserve( Objects.Num() );
+				for ( UObject* Object : Objects )
+				{
+					if ( Object->IsA<UDataprepParameterizableObject>() )
+					{
+						ParameterizableObjects.Add( static_cast<UDataprepParameterizableObject*>( Object ) );
+					}
+				}
+			}
+			Parameterization->RemoveBindingFromObjects( ParameterizableObjects );
+		}
+	}
 }
 
 void UDataprepActionAsset::OnClassesRemoved(const TArray<UClass *>& DeletedClasses)
@@ -322,14 +375,12 @@ void UDataprepActionAsset::ExecuteAction(const TSharedPtr<FDataprepActionContext
 	{
 		if ( UDataprepOperation* Operation = Step->Operation )
 		{
+			// Cache number of assets and objects before execution
+			int32 AssetsDiffCount = ContextPtr->Assets.Num();
+			int32 ActorsDiffCount = OperationContext->Context->Objects.Num();
+
 			TSharedRef<FDataprepOperationContext> OperationContextPtr = this->OperationContext.ToSharedRef();
 			Operation->ExecuteOperation( OperationContextPtr );
-
-			// Check that only UDataprepEditingOperation are changing the content
-			if(this->bWorkingSetHasChanged)
-			{
-				ensure( Operation->IsA<UDataprepEditingOperation>() );
-			}
 
 			// Process the changes in the context if applicable
 			this->ProcessWorkingSetChanged();
@@ -361,6 +412,11 @@ void UDataprepActionAsset::ExecuteAction(const TSharedPtr<FDataprepActionContext
 					ExecuteOneStep( Step );
 				}
 
+				if ( ContextPtr->ProgressReporterPtr->IsWorkCancelled() )
+				{
+					break;
+				}
+
 				if(ContextPtr->ContinueCallback && !ContextPtr->ContinueCallback(this, Step->Operation, Step->Filter))
 				{
 					break;
@@ -378,39 +434,62 @@ void UDataprepActionAsset::ExecuteAction(const TSharedPtr<FDataprepActionContext
 	ContextPtr.Reset();
 }
 
-UObject* UDataprepActionAsset::OnAddAsset(const UObject* Asset, UClass* AssetClass, const TCHAR* AssetName)
+UObject* UDataprepActionAsset::OnAddAsset(const UObject* Asset, const TCHAR* AssetName)
 {
 	UObject* NewAsset = nullptr;
 
-	if(ContextPtr != nullptr)
+	if(ContextPtr != nullptr && Asset != nullptr)
 	{
-		UObject* Outer = GetAssetOuterByClass( Asset ? Asset->GetClass() : AssetClass );
+		UObject* Outer = GetAssetOuterByClass( Asset->GetClass() );
 
-		// #ueent_todo: Deal with name collision
-		if(Asset == nullptr)
-		{
-			NewAsset = NewObject<UObject>( Outer, AssetClass, NAME_None, RF_Transient );
-		}
-		else
-		{
-			NewAsset = DuplicateObject< UObject >( Asset, Outer, NAME_None );
-		}
+		NewAsset = DuplicateObject< UObject >( Asset, Outer, NAME_None );
 		check( NewAsset );
 
-		if(AssetName != nullptr)
-		{
-			FName UniqueName = MakeUniqueObjectName( Outer, NewAsset->GetClass(), AssetName );
-			FDataprepCoreUtils::RenameObject( NewAsset, *UniqueName.ToString() );
-		}
-
-		// Add new asset to local and global contexts
-		ContextPtr->Assets.Add( NewAsset );
-		OperationContext->Context->Objects.Add( NewAsset );
-
-		bWorkingSetHasChanged = true;
+		AddAssetToContext( NewAsset, AssetName );
 	}
 
 	return NewAsset;
+}
+
+UObject* UDataprepActionAsset::OnCreateAsset(UClass* AssetClass, const TCHAR* AssetName)
+{
+	UObject* NewAsset = nullptr;
+
+	if(ContextPtr != nullptr && AssetClass != nullptr)
+	{
+		UObject* Outer = GetAssetOuterByClass( AssetClass );
+
+		NewAsset = NewObject<UObject>( Outer, AssetClass, NAME_None, RF_Transient );
+		check( NewAsset );
+
+		AddAssetToContext( NewAsset, AssetName );
+	}
+
+	return NewAsset;
+}
+
+void UDataprepActionAsset::AddAssetToContext( UObject* NewAsset, const TCHAR* DesiredName )
+{
+	check( NewAsset );
+
+	if(DesiredName != nullptr)
+	{
+		// Rename producer to name of file
+		FString AssetName = ObjectTools::SanitizeObjectName( DesiredName );
+		if ( !NewAsset->Rename( *AssetName, nullptr, REN_Test ) )
+		{
+			AssetName = MakeUniqueObjectName( GetOuter(), GetClass(), *AssetName ).ToString();
+		}
+
+		FDataprepCoreUtils::RenameObject( NewAsset, *AssetName );
+	}
+
+	// Add new asset to local and global contexts
+	ContextPtr->Assets.Add( NewAsset );
+	OperationContext->Context->Objects.Add( NewAsset );
+
+	AddedObjects.Add( NewAsset );
+	bWorkingSetHasChanged = true;
 }
 
 AActor* UDataprepActionAsset::OnCreateActor(UClass* ActorClass, const TCHAR* ActorName)
@@ -428,6 +507,7 @@ AActor* UDataprepActionAsset::OnCreateActor(UClass* ActorClass, const TCHAR* Act
 		// Add new actor to local contexts
 		OperationContext->Context->Objects.Add( Actor );
 
+		AddedObjects.Add( Actor );
 		bWorkingSetHasChanged = true;
 
 		return Actor;
@@ -446,6 +526,20 @@ void UDataprepActionAsset::OnRemoveObject(UObject* Object, bool bLocalContext)
 	}
 }
 
+void UDataprepActionAsset::OnAssetsModified(TArray<UObject*> Assets)
+{
+	if(ContextPtr != nullptr)
+	{
+		for(UObject* Asset : Assets)
+		{
+			if(Asset != nullptr)
+			{
+				ModifiedAssets.Add( Asset );
+			}
+		}
+	}
+}
+
 void UDataprepActionAsset::OnDeleteObjects(TArray<UObject*> Objects)
 {
 	if(ContextPtr != nullptr)
@@ -455,6 +549,11 @@ void UDataprepActionAsset::OnDeleteObjects(TArray<UObject*> Objects)
 			// Mark object for deletion
 			if(Object != nullptr)
 			{
+				if( FDataprepCoreUtils::IsAsset( Object ) && ModifiedAssets.Contains( Object ) )
+				{
+					ModifiedAssets.Remove( Object );
+				}
+
 				ObjectsToDelete.Add(Object);
 				bWorkingSetHasChanged = true;
 			}
@@ -464,10 +563,17 @@ void UDataprepActionAsset::OnDeleteObjects(TArray<UObject*> Objects)
 
 void UDataprepActionAsset::ProcessWorkingSetChanged()
 {
-	if(bWorkingSetHasChanged && ContextPtr != nullptr)
+	if((bWorkingSetHasChanged || ModifiedAssets.Num() > 0) && ContextPtr != nullptr)
 	{
-		bool bAssetsChanged = false;
+		bool bAssetsChanged = ModifiedAssets.Num() > 0;
 		bool bWorldChanged = false;
+
+		for(UObject* Object : AddedObjects)
+		{
+			const AActor* Actor = Cast<AActor>(Object);
+			bAssetsChanged |= Actor == nullptr;
+			bWorldChanged |= Actor != nullptr;
+		}
 
 		TSet<UObject*> SelectedObjectSet( OperationContext->Context->Objects );
 
@@ -541,6 +647,15 @@ void UDataprepActionAsset::ProcessWorkingSetChanged()
 			FDataprepCoreUtils::PurgeObjects( MoveTemp(ObjectsToDelete) );
 		}
 
+		// Build new assets and rebuild modified ones
+		DataprepCorePrivateUtils::ClearAssets( ModifiedAssets.Array() );
+		ModifiedAssets.Reserve( ModifiedAssets.Num() + AddedObjects.Num() );
+		for(UObject* Object : AddedObjects)
+		{
+			ModifiedAssets.Add( Object );
+		}
+		FDataprepCoreUtils::BuildAssets( ModifiedAssets.Array(), ContextPtr->ProgressReporterPtr );
+
 		// Update action's context
 		OperationContext->Context->Objects = SelectedObjectSet.Array();
 
@@ -548,6 +663,10 @@ void UDataprepActionAsset::ProcessWorkingSetChanged()
 		{
 			ContextPtr->ContextChangedCallback( this, bWorldChanged, bAssetsChanged, ContextPtr->Assets.Array() );
 		}
+
+		bWorkingSetHasChanged = false;
+		ModifiedAssets.Empty();
+		AddedObjects.Empty();
 	}
 
 	bWorkingSetHasChanged = false;

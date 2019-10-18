@@ -3,9 +3,12 @@
 #include "HairStrandsEditor.h"
 #include "GroomActions.h"
 
+#include "Styling/SlateStyleRegistry.h"
+#include "Styling/SlateTypes.h"
+#include "EditorStyleSet.h"
+#include "Interfaces/IPluginManager.h"
+#include "SlateOptMacros.h"
 #include "FbxHairTranslator.h"
-#include "HairFormatTranslator.h"
-#include "PbrtHairTranslator.h"
 
 IMPLEMENT_MODULE(FHairStrandsEditor, HairStrandsEditor);
 
@@ -18,8 +21,26 @@ void FHairStrandsEditor::StartupModule()
 	RegisteredAssetTypeActions.Add(AssetActions);
 
 	RegisterHairTranslator<FFbxHairTranslator>();
-	RegisterHairTranslator<FHairFormatTranslator>();
-	RegisterHairTranslator<FPbrtHairTranslator>();
+
+	// Only register once
+	if (!StyleSet.IsValid())
+	{
+		const FVector2D Icon16x16(16.0f, 16.0f);
+		const FVector2D Icon64x64(64.0f, 64.0f);
+		FString HairStrandsContent = IPluginManager::Get().FindPlugin("HairStrands")->GetBaseDir() + "/Content";
+
+		StyleSet = MakeShareable(new FSlateStyleSet("Groom"));
+		StyleSet->SetContentRoot(FPaths::EngineContentDir() / TEXT("Editor/Slate"));
+		StyleSet->SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
+		
+		StyleSet->Set("ClassIcon.GroomComponent", new FSlateImageBrush(HairStrandsContent + "/Icons/S_Groom_16.png", Icon16x16));
+		StyleSet->Set("ClassThumbnail.GroomComponent", new FSlateImageBrush(HairStrandsContent + "/Icons/S_Groom_64.png", Icon64x64));
+		
+		StyleSet->Set("ClassIcon.GroomActor", new FSlateImageBrush(HairStrandsContent + "/Icons/S_Groom_16.png", Icon16x16));
+		StyleSet->Set("ClassThumbnail.GroomActor", new FSlateImageBrush(HairStrandsContent + "/Icons/S_Groom_64.png", Icon64x64));
+		
+		FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());
+	}
 }
 
 void FHairStrandsEditor::ShutdownModule()
@@ -35,6 +56,13 @@ void FHairStrandsEditor::ShutdownModule()
 		{
 			AssetTools.UnregisterAssetTypeActions(Action);
 		}
+	}
+
+	if (StyleSet.IsValid())
+	{
+		FSlateStyleRegistry::UnRegisterSlateStyle(*StyleSet.Get());
+		ensure(StyleSet.IsUnique());
+		StyleSet.Reset();
 	}
 }
 

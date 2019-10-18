@@ -32,12 +32,16 @@ public:
 	struct FDataType
 	{
 		FHairStrandsInterpolationOutput* InterpolationOutput = nullptr;
-		
-		float MinStrandRadius = 0;
-		float MaxStrandRadius = 0;
-		float MaxStrandLength = 0;
-		float HairDensity = 1;
-		FVector HairWorldOffset = FVector::ZeroVector;
+		struct HairGroup
+		{
+			float MinStrandRadius = 0;
+			float MaxStrandRadius = 0;
+			float MaxStrandLength = 0;
+			float HairDensity = 1;
+			FVector HairWorldOffset = FVector::ZeroVector;
+		};
+
+		TArray<HairGroup> HairGroups;
 	};
 
 	/**
@@ -62,20 +66,21 @@ public:
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;
 
-	static bool SupportsTessellationShaders() { return true; }
+	static bool SupportsTessellationShaders() { return false; }
 
 	static FVertexFactoryShaderParameters* ConstructShaderParameters(EShaderFrequency ShaderFrequency);
 
-	inline FRHIShaderResourceView* GetPositionSRV() const			{ check(Data.InterpolationOutput); return Data.InterpolationOutput->VFInput.HairPositionBuffer; };
-	inline FRHIShaderResourceView* GetPreviousPositionSRV() const	{ check(Data.InterpolationOutput); return Data.InterpolationOutput->VFInput.HairPreviousPositionBuffer; }
-	inline FRHIShaderResourceView* GetAttributeSRV() const			{ check(Data.InterpolationOutput); return Data.InterpolationOutput->VFInput.HairAttributeBuffer; }
-	inline FRHIShaderResourceView* GetTangentSRV() const			{ check(Data.InterpolationOutput); return Data.InterpolationOutput->VFInput.HairTangentBuffer; }
+	inline FRHIShaderResourceView* GetPositionSRV(uint32 GroupIndex) const			{ check(Data.InterpolationOutput); return Data.InterpolationOutput->HairGroups[GroupIndex].VFInput.HairPositionBuffer; };
+	inline FRHIShaderResourceView* GetPreviousPositionSRV(uint32 GroupIndex) const	{ check(Data.InterpolationOutput); return Data.InterpolationOutput->HairGroups[GroupIndex].VFInput.HairPreviousPositionBuffer; }
+	inline FRHIShaderResourceView* GetAttributeSRV(uint32 GroupIndex) const			{ check(Data.InterpolationOutput); return Data.InterpolationOutput->HairGroups[GroupIndex].VFInput.HairAttributeBuffer; }
+	inline FRHIShaderResourceView* GetTangentSRV(uint32 GroupIndex) const			{ check(Data.InterpolationOutput); return Data.InterpolationOutput->HairGroups[GroupIndex].VFInput.HairTangentBuffer; }
 
-	float GetMaxStrandRadius() const;
-	inline float GetMinStrandRadius() const							{ return Data.MinStrandRadius; }
-	inline float GetMaxStrandLength() const							{ return Data.MaxStrandLength; }
-	inline float GetHairDensity() const								{ return Data.HairDensity;  }
-	inline const FVector& GetWorldOffset() const					{ return Data.HairWorldOffset; }
+	float GetMaxStrandRadius(uint32 GroupIndex) const;
+	inline float GetMinStrandRadius(uint32 GroupIndex) const						{ return Data.HairGroups[GroupIndex].MinStrandRadius; }
+	inline float GetMaxStrandLength(uint32 GroupIndex) const						{ return Data.HairGroups[GroupIndex].MaxStrandLength; }
+	inline float GetHairDensity(uint32 GroupIndex) const							{ return Data.HairGroups[GroupIndex].HairDensity;  }
+	inline const FVector& GetPositionOffset(uint32 GroupIndex) const				{ return Data.InterpolationOutput->HairGroups[GroupIndex].VFInput.HairPositionOffset; }
+	inline const FVector& GetPreviousPositionOffset(uint32 GroupIndex) const		{ return Data.InterpolationOutput->HairGroups[GroupIndex].VFInput.HairPreviousPositionOffset; }
 
 	const FDataType& GetData() const { return Data; }
 protected:

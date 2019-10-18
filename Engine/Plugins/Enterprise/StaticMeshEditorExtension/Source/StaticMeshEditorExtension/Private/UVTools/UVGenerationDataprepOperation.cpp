@@ -2,7 +2,7 @@
 
 #include "UVGenerationDataprepOperation.h"
 
-#include "UVGenerationFlattenMapping.h"
+#include "UVTools/UVGenerationFlattenMapping.h"
 
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"

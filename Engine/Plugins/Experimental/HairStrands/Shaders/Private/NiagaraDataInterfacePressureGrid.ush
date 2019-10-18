@@ -11,7 +11,7 @@ NiagaraDataInterfacePressureGrid.ush
  * -----------------------------------------------------------------
  */
 
-static const float FLOAT_PRECISION = 1e+6;
+static const float FLOAT_PRECISION = 1e+8;
 static const bool FAST_MODE = true;
 
 static const int FLUID_MASS_OFFSET = 0;

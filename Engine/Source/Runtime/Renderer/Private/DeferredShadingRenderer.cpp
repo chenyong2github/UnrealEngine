@@ -131,6 +131,15 @@ static TAutoConsoleVariable<int32> CVarRayTracing(
 	TEXT(" 1: on"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
+int32 GRayTracingUseTextureLod = 0;
+static TAutoConsoleVariable<int32> CVarRayTracingTextureLod(
+	TEXT("r.RayTracing.UseTextureLod"),
+	GRayTracingUseTextureLod,
+	TEXT("Enable automatic texture mip level selection in ray tracing material shaders.\n")
+	TEXT(" 0: highest resolution mip level is used for all texture (default).\n")
+	TEXT(" 1: texture LOD is approximated based on total ray length, output resolution and texel density at hit point (ray cone method)."),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly);
+
 static int32 GForceAllRayTracingEffects = -1;
 static TAutoConsoleVariable<int32> CVarForceAllRayTracingEffects(
 	TEXT("r.RayTracing.ForceAllRayTracingEffects"),
@@ -760,8 +769,8 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 
 							// When no cached command is found, NewInstanceMask == 0 and the instance is effectively filtered out
 							FRayTracingGeometryInstance RayTracingInstance = { RayTracingGeometryInstance };
-							RayTracingInstance.Transform = Scene->PrimitiveTransforms[PrimitiveIndex];
-							RayTracingInstance.UserData = (uint32)PrimitiveIndex;
+							RayTracingInstance.Transforms.Add(Scene->PrimitiveTransforms[PrimitiveIndex]);
+							RayTracingInstance.UserData.Add((uint32)PrimitiveIndex);
 							RayTracingInstance.Mask = NewInstanceMask;
 							RayTracingInstance.bForceOpaque = bAllSegmentsOpaque;
 							View.RayTracingGeometryInstances.Add(RayTracingInstance);
@@ -800,31 +809,33 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 					for (FRayTracingInstance& Instance : RayTracingInstances)
 					{
 						FRayTracingGeometryInstance RayTracingInstance = { Instance.Geometry->RayTracingGeometryRHI };
-						RayTracingInstance.UserData = (uint32)PrimitiveIndex;
+						RayTracingInstance.UserData.Add((uint32)PrimitiveIndex);
 						RayTracingInstance.Mask = Instance.Mask;
 						RayTracingInstance.bForceOpaque = Instance.bForceOpaque;
 
-						check(Instance.Materials.Num() == Instance.Geometry->Initializer.Segments.Num() || (Instance.Geometry->Initializer.Segments.Num() == 0 && Instance.Materials.Num() == 1));
+						// Thin geometries like hair don't have material, as they only support shadow at the moment.
+						check(Instance.Materials.Num() == Instance.Geometry->Initializer.Segments.Num() || 
+							 (Instance.Geometry->Initializer.Segments.Num() == 0 && Instance.Materials.Num() == 1) || 
+							 (Instance.Materials.Num() == 0 && (Instance.Mask & RAY_TRACING_MASK_THIN_SHADOW) > 0));
 
-						for (const FMatrix& InstanceTransform : Instance.InstanceTransforms)
+						RayTracingInstance.Transforms.SetNumUninitialized(Instance.InstanceTransforms.Num());
+						FMemory::Memcpy(RayTracingInstance.Transforms.GetData(), Instance.InstanceTransforms.GetData(), Instance.InstanceTransforms.Num() * sizeof(RayTracingInstance.Transforms[0]));
+						static_assert(TIsSame<decltype(RayTracingInstance.Transforms[0]), decltype(Instance.InstanceTransforms[0])>::Value, "Unexpected transform type");
+
+						uint32 InstanceIndex = ReferenceView.RayTracingGeometryInstances.Add(RayTracingInstance);
+
+						for (int32 ViewIndex = 1; ViewIndex < Views.Num(); ViewIndex++)
 						{
-							RayTracingInstance.Transform = InstanceTransform;
+							Views[ViewIndex].RayTracingGeometryInstances.Add(RayTracingInstance);
+						}
 
-							uint32 InstanceIndex = ReferenceView.RayTracingGeometryInstances.Add(RayTracingInstance);
+						for (int32 SegmentIndex = 0; SegmentIndex < Instance.Materials.Num(); SegmentIndex++)
+						{
+							FMeshBatch& MeshBatch = Instance.Materials[SegmentIndex];
+							FDynamicRayTracingMeshCommandContext CommandContext(ReferenceView.DynamicRayTracingMeshCommandStorage, ReferenceView.VisibleRayTracingMeshCommands, SegmentIndex, InstanceIndex);
+							FRayTracingMeshProcessor RayTracingMeshProcessor(&CommandContext, Scene, &ReferenceView);
 
-							for (int32 ViewIndex = 1; ViewIndex < Views.Num(); ViewIndex++)
-							{
-								Views[ViewIndex].RayTracingGeometryInstances.Add(RayTracingInstance);
-							}
-
-							for (int32 SegmentIndex = 0; SegmentIndex < Instance.Materials.Num(); SegmentIndex++)
-							{
-								FMeshBatch& MeshBatch = Instance.Materials[SegmentIndex];
-								FDynamicRayTracingMeshCommandContext CommandContext(ReferenceView.DynamicRayTracingMeshCommandStorage, ReferenceView.VisibleRayTracingMeshCommands, SegmentIndex, InstanceIndex);
-								FRayTracingMeshProcessor RayTracingMeshProcessor(&CommandContext, Scene, &ReferenceView);
-
-								RayTracingMeshProcessor.AddMeshBatch(MeshBatch, 1, SceneProxy);
-							}
+							RayTracingMeshProcessor.AddMeshBatch(MeshBatch, 1, SceneProxy);
 						}
 					}
 				}
@@ -849,9 +860,6 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRHICommandLi
 
 	bool bAsyncUpdateGeometry = (CVarRayTracingAsyncBuild.GetValueOnRenderThread() != 0)
 							  && GSupportAsyncComputeRaytracingBuildBVH;
-
-	TArrayView<FAccelerationStructureUpdateParams> BuildParams, RefitParams;
-
 
 	if (!bAsyncUpdateGeometry)
 	{
@@ -1894,6 +1902,15 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		ServiceLocalQueue();
 
 		HairDatas = &HairDatasStorage;
+
+		if (SceneContext.bScreenSpaceAOIsValid && SceneContext.ScreenSpaceAO)
+		{
+			RenderHairStrandsAmbientOcclusion(
+				RHICmdList,
+				Views,
+				HairDatas,
+				SceneContext.ScreenSpaceAO);
+		}
 	}
 
 	// Render lighting.
@@ -2240,6 +2257,10 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	if (HairDatas)
 	{
 		RenderHairComposeSubPixel(RHICmdList, Views, HairDatas);
+	}
+
+	if (IsHairStrandsEnable(Scene->GetShaderPlatform()))
+	{
 		RenderHairStrandsDebugInfo(RHICmdList, Views, HairDatas);
 	}
 

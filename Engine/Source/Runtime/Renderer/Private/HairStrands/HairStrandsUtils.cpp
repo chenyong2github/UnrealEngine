@@ -27,7 +27,7 @@ static FAutoConsoleVariableRef CVarStrandHairShadowRasterizationScale(TEXT("r.Ha
 static float GDeepShadowAABBScale = 1.0f;
 static FAutoConsoleVariableRef CVarDeepShadowAABBScale(TEXT("r.HairStrands.DeepShadow.AABBScale"), GDeepShadowAABBScale, TEXT("Scaling value for loosing/tighting deep shadow bounding volume"));
 
-static int32 GHairVisibilityRectOptimEnable = 1;
+static int32 GHairVisibilityRectOptimEnable = 0;
 static FAutoConsoleVariableRef CVarHairVisibilityRectOptimEnable(TEXT("r.HairStrands.RectLightingOptim"), GHairVisibilityRectOptimEnable, TEXT("Hair Visibility use projected view rect to light only relevant pixels"));
 
 float SampleCountToSubPixelSize(uint32 SamplePerPixelCount)
@@ -195,4 +195,31 @@ bool IsHairStrandsViewRectOptimEnable()
 bool IsHairStrandsSupported(const EShaderPlatform Platform)
 {
 	return IsD3DPlatform(Platform, false) && IsPCPlatform(Platform) && GetMaxSupportedFeatureLevel(Platform) == ERHIFeatureLevel::SM5;
+}
+
+EHairVisibilityVendor GetVendor()
+{
+	return IsRHIDeviceAMD() ? HairVisibilityVendor_AMD : (IsRHIDeviceNVIDIA() ? HairVisibilityVendor_NVIDIA : HairVisibilityVendor_INTEL);
+}
+
+uint32 GetVendorOptimalGroupSize1D()
+{
+	switch (GetVendor())
+	{
+	case HairVisibilityVendor_AMD:		return 64;
+	case HairVisibilityVendor_NVIDIA:	return 32;
+	case HairVisibilityVendor_INTEL:	return 64;
+	default:							return 64;
+	}
+}
+
+FIntPoint GetVendorOptimalGroupSize2D()
+{
+	switch (GetVendor())
+	{
+	case HairVisibilityVendor_AMD:		return FIntPoint(8, 8);
+	case HairVisibilityVendor_NVIDIA:	return FIntPoint(8, 4);
+	case HairVisibilityVendor_INTEL:	return FIntPoint(8, 8);
+	default:							return FIntPoint(8, 8);
+	}
 }

@@ -288,6 +288,41 @@ TGlobalResource<FPostProcessMaterialVertexDeclaration> GPostProcessMaterialVerte
 
 } //! namespace
 
+static void AddCopyAndFlipTexturePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SrcTexture, FRDGTextureRef DestTexture)
+{
+	if (IsOpenGLPlatform(GShaderPlatformForFeatureLevel[View.GetFeatureLevel()]))
+	{
+		// The OpenGL RHI can copy and flip at the same time by using an upside down destination rectangle.
+		FResolveParams ResolveParams;
+		FMemory::Memzero(ResolveParams);
+		ResolveParams.Rect.X1 = 0;
+		ResolveParams.Rect.X2 = SrcTexture->Desc.Extent.X;
+		ResolveParams.Rect.Y1 = 0;
+		ResolveParams.Rect.Y2 = SrcTexture->Desc.Extent.Y;
+		ResolveParams.DestRect.X1 = 0;
+		ResolveParams.DestRect.X2 = DestTexture->Desc.Extent.X;
+		ResolveParams.DestRect.Y1 = DestTexture->Desc.Extent.Y - 1;
+		ResolveParams.DestRect.Y2 = -1;
+		AddCopyToResolveTargetPass(GraphBuilder, SrcTexture, DestTexture, ResolveParams);
+		return;
+	}
+
+	// Other RHIs can't flip and copy at the same time, so we'll use a pixel shader to perform the copy, together with the FlipYAxis
+	// flag on the screen pass. This path is only taken when using the mobile preview feature in the editor with
+	// r.Mobile.ForceRHISwitchVerticalAxis set to 1, so we don't care about it being sub-optimal.
+	FIntPoint Size = SrcTexture->Desc.Extent;
+	const FScreenPassTextureViewport InputViewport(SrcTexture->Desc.Extent, FIntRect(FIntPoint::ZeroValue, Size));
+	const FScreenPassTextureViewport OutputViewport(DestTexture->Desc.Extent, FIntRect(FIntPoint::ZeroValue, Size));
+	TShaderMapRef<FCopyRectPS> PixelShader(View.ShaderMap);
+
+	FCopyRectPS::FParameters* Parameters = GraphBuilder.AllocParameters<FCopyRectPS::FParameters>();
+	Parameters->InputTexture = SrcTexture;
+	Parameters->InputSampler = TStaticSamplerState<>::GetRHI();
+	Parameters->RenderTargets[0] = FRenderTargetBinding(DestTexture, ERenderTargetLoadAction::ENoAction);
+
+	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("DrawTexture"), View, OutputViewport, InputViewport, *PixelShader, Parameters, EScreenPassDrawFlags::FlipYAxis);
+}
+
 FScreenPassTexture AddPostProcessMaterialPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
@@ -330,19 +365,31 @@ FScreenPassTexture AddPostProcessMaterialPass(
 	// or we need to retain previously rendered views.
 	const bool bPrimeOutputColor = bIsCompositeWithInput || !View.IsFirstInFamily();
 
+	// Inputs.OverrideOutput is used to force drawing directly to the backbuffer. OpenGL doesn't support using the backbuffer color target with a custom depth/stencil
+	// buffer, so in that case we must draw to an intermediate target and copy to the backbuffer at the end. Ideally, we would test if Inputs.OverrideOutput.Texture
+	// is actually the backbuffer (as returned by AndroidEGL::GetOnScreenColorRenderBuffer() and such), but it's not worth doing all the plumbing and increasing the
+	// RHI surface area just for this hack.
+	//
+	// The other case when we must render to an intermediate target is when we have to flip the image vertically because we're the last postprocess pass on mobile OpenGL.
+	// We can't simply output a flipped image, because the parts of the input image which show through the stencil mask or are blended in must also be flipped. In that case,
+	// we render normally to the intermediate target and flip the image when we copy to the output target.
+	const bool bForceIntermediateRT =
+		((DepthStencilTexture != nullptr) && !GRHISupportsBackBufferWithCustomDepthStencil && Inputs.OverrideOutput.IsValid()) ||
+		(bIsCompositeWithInput && Inputs.bFlipYAxis);
+
 	FScreenPassRenderTarget Output = Inputs.OverrideOutput;
 
 	// We can re-use the scene color texture as the render target if we're not simultaneously reading from it.
 	// This is only necessary to do if we're going to be priming content from the render target since it avoids
 	// the copy. Otherwise, we just allocate a new render target.
-	if (!Output.IsValid() && !MaterialShaderMap->UsesSceneTexture(PPI_PostProcessInput0) && bPrimeOutputColor)
+	if (!Output.IsValid() && !MaterialShaderMap->UsesSceneTexture(PPI_PostProcessInput0) && bPrimeOutputColor && !bForceIntermediateRT)
 	{
 		Output = FScreenPassRenderTarget(SceneColor, ERenderTargetLoadAction::ELoad);
 	}
 	else
 	{
 		// Allocate new transient output texture if none exists.
-		if (!Output.IsValid())
+		if (!Output.IsValid() || bForceIntermediateRT)
 		{
 			FRDGTextureDesc OutputDesc = SceneColor.Texture->Desc;
 			OutputDesc.Reset();
@@ -356,7 +403,7 @@ FScreenPassTexture AddPostProcessMaterialPass(
 			Output = FScreenPassRenderTarget(GraphBuilder.CreateTexture(OutputDesc, TEXT("PostProcessMaterial")), SceneColor.ViewRect, View.GetOverwriteLoadAction());
 		}
 
-		if (bPrimeOutputColor)
+		if (bPrimeOutputColor || bForceIntermediateRT)
 		{
 			// Copy existing contents to new output and use load-action to preserve untouched pixels.
 			AddDrawTexturePass(GraphBuilder, View, SceneColor.Texture, Output.Texture);
@@ -408,7 +455,7 @@ FScreenPassTexture AddPostProcessMaterialPass(
 
 	const bool bIsMobile = FeatureLevel <= ERHIFeatureLevel::ES3_1;
 
-	PostProcessMaterialParameters->bFlipYAxis = Inputs.bFlipYAxis;
+	PostProcessMaterialParameters->bFlipYAxis = Inputs.bFlipYAxis && !bForceIntermediateRT;
 
 	FPostProcessMaterialShader::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FPostProcessMaterialShader::FMobileDimension>(bIsMobile);
@@ -420,7 +467,7 @@ FScreenPassTexture AddPostProcessMaterialPass(
 
 	EScreenPassDrawFlags ScreenPassFlags = EScreenPassDrawFlags::AllowHMDHiddenAreaMask;
 
-	if (Inputs.bFlipYAxis)
+	if (PostProcessMaterialParameters->bFlipYAxis)
 	{
 		ScreenPassFlags |= EScreenPassDrawFlags::FlipYAxis;
 	}
@@ -457,6 +504,31 @@ FScreenPassTexture AddPostProcessMaterialPass(
 			FSceneRenderTargets::Get(RHICmdList).AdjustGBufferRefCount(RHICmdList, -1);
 		}
 	});
+
+	if (bForceIntermediateRT)
+	{
+		if (!Inputs.bFlipYAxis)
+		{
+			// We shouldn't get here unless we had an override target.
+			check(Inputs.OverrideOutput.IsValid());
+			AddDrawTexturePass(GraphBuilder, View, Output.Texture, Inputs.OverrideOutput.Texture);
+			Output = Inputs.OverrideOutput;
+		}
+		else
+		{
+			FScreenPassRenderTarget TempTarget = Output;
+			if (Inputs.OverrideOutput.IsValid())
+			{
+				Output = Inputs.OverrideOutput;
+			}
+			else
+			{
+				Output = FScreenPassRenderTarget(SceneColor, ERenderTargetLoadAction::ENoAction);
+			}
+
+			AddCopyAndFlipTexturePass(GraphBuilder, View, TempTarget.Texture, Output.Texture);
+		}
+	}
 
 	return MoveTemp(Output);
 }
@@ -609,7 +681,7 @@ FRenderingCompositePass* AddPostProcessMaterialPass(
 			Inputs.SetInput((EPostProcessMaterialInput)InputIndex, FScreenPassTexture(InputTexture, InputViewportRect));
 		}
 
-		Inputs.bFlipYAxis = ShouldMobilePassFlipVerticalAxis(Pass);
+		Inputs.bFlipYAxis = ShouldMobilePassFlipVerticalAxis(InContext, Pass);
 
 		if (TRefCountPtr<IPooledRenderTarget> CustomDepthTarget = FSceneRenderTargets::Get(InContext.RHICmdList).CustomDepth)
 		{

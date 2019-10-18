@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "EdGraph/EdGraph.h"
+#include "Animation/AnimClassInterface.h"
 #include "AnimationGraph.generated.h"
 
 class UEdGraphPin;
@@ -19,5 +20,9 @@ class UAnimationGraph : public UEdGraph
 
 	/** Delegate fired when a pin's default value is changed */
 	FOnPinDefaultValueChanged OnPinDefaultValueChanged;
+
+	/** Blending options for this graph (only valid for linked anim graphs with inertialization) */
+	UPROPERTY(EditAnywhere, Category = GraphBlending, meta = (ShowOnlyInnerProperties))
+	FAnimGraphBlendOptions BlendOptions;
 };
 

@@ -49,6 +49,7 @@ class FSkeletalMeshVertexClothBuffer;
 struct FClothSimulData;
 struct FSkelMeshRenderSection;
 struct FVertexBufferAndSRV;
+struct FRayTracingGeometrySegment;
 
 // Can the skin cache be used (ie shaders added, etc)
 extern ENGINE_API bool IsGPUSkinCacheAvailable(EShaderPlatform Platform);
@@ -136,7 +137,9 @@ public:
 		return nullptr;
 	}
 
-	static void CreateMergedPositionVertexBuffer(FRHICommandList& RHICmdList, FGPUSkinCacheEntry* SkinCacheEntry, FVertexBufferRHIRef OutVertexBuffer);
+#if RHI_RAYTRACING
+	static void GetRayTracingSegmentVertexBuffers(const FGPUSkinCacheEntry& SkinCacheEntry, TArrayView<FRayTracingGeometrySegment> OutSegments);
+#endif // RHI_RAYTRACING
 
 	static bool IsEntryValid(FGPUSkinCacheEntry* SkinCacheEntry, int32 Section);
 

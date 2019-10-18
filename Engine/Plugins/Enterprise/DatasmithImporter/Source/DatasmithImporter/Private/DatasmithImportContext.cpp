@@ -187,19 +187,19 @@ void FDatasmithImportContext::AddOption(UObject* InOption, bool bLoadConfig)
 	}
 }
 
-void FDatasmithImportContext::LogError(const FText& InErrorMessage)
+TSharedRef<FTokenizedMessage> FDatasmithImportContext::LogError(const FText& InErrorMessage)
 {
-	Logger.Push(EMessageSeverity::Error, InErrorMessage);
+	return Logger.Push(EMessageSeverity::Error, InErrorMessage);
 }
 
-void FDatasmithImportContext::LogWarning(const FText& InWarningMessage, bool bPerformance)
+TSharedRef<FTokenizedMessage> FDatasmithImportContext::LogWarning(const FText& InWarningMessage, bool bPerformance)
 {
-	Logger.Push(bPerformance ? EMessageSeverity::PerformanceWarning : EMessageSeverity::Warning, InWarningMessage);
+	return Logger.Push(bPerformance ? EMessageSeverity::PerformanceWarning : EMessageSeverity::Warning, InWarningMessage);
 }
 
-void FDatasmithImportContext::LogInfo(const FText& InInfoMessage)
+TSharedRef<FTokenizedMessage> FDatasmithImportContext::LogInfo(const FText& InInfoMessage)
 {
-	Logger.Push(EMessageSeverity::Info, InInfoMessage);
+	return Logger.Push(EMessageSeverity::Info, InInfoMessage);
 }
 
 bool FDatasmithImportContext::Init(const FString& InFileName, TSharedRef< IDatasmithScene > InScene, const FString& InImportPath, EObjectFlags InFlags, FFeedbackContext* InWarn, const TSharedPtr<FJsonObject>& ImportSettingsJson, bool bSilent)
@@ -328,13 +328,17 @@ void FDatasmithImportContext::DisplayMessages()
 
 void FDatasmithImportContext::SetupBaseOptionsVisibility()
 {
-	if ( bIsAReimport )
+	if ( UProperty* ReimportOptionsProperty = FindField< UProperty >( Options->GetClass(), GET_MEMBER_NAME_CHECKED( UDatasmithImportOptions, ReimportOptions ) ) )
 	{
-		UProperty* ReimportOptionsProperty = FindField< UProperty >( Options->GetClass(), GET_MEMBER_NAME_CHECKED( UDatasmithImportOptions, ReimportOptions ) );
-
-		if ( ReimportOptionsProperty )
+		if ( bIsAReimport )
 		{
 			ReimportOptionsProperty->SetMetaData( TEXT("Category"), TEXT("Reimport") );
+			ReimportOptionsProperty->SetMetaData( TEXT("ShowOnlyInnerProperties"), TEXT("1") );
+		}
+		else
+		{
+			ReimportOptionsProperty->SetMetaData( TEXT("Category"), TEXT("NotVisible") );
+			ReimportOptionsProperty->RemoveMetaData( TEXT("ShowOnlyInnerProperties") );
 		}
 	}
 }
@@ -345,6 +349,7 @@ void FDatasmithImportContext::ResetBaseOptionsVisibility()
 
 	if ( ReimportOptionsProperty )
 	{
+		ReimportOptionsProperty->SetMetaData( TEXT("ShowOnlyInnerProperties"), TEXT("1") );
 		ReimportOptionsProperty->SetMetaData( TEXT("Category"), TEXT("NotVisible") );
 	}
 }

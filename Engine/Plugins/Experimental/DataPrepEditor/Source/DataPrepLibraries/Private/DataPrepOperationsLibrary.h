@@ -21,7 +21,29 @@ DECLARE_LOG_CATEGORY_EXTERN( LogDataprep, Log, All );
 
 namespace DataprepOperationsLibraryUtil
 {
-	void BuildRenderData( UStaticMesh* StaticMesh, IMeshBuilderModule& MeshBuilderModule );
+	class FStaticMeshBuilder
+	{
+	public:
+		FStaticMeshBuilder(const TSet<UStaticMesh*>& InStaticMeshes);
+		~FStaticMeshBuilder();
+	private:
+		TArray<UStaticMesh*> StaticMeshes;
+	};
+
+	/*
+	 * Builds render data of a set of static meshes.
+	 * @param StaticMeshes	Set of static meshes to build if render data is missing or a forced build is required
+	 * @param bForceBuild	Indicates if all static meshes should be built or only the incomplete ones
+	 * @returns the array of static meshes which have actually been built
+	 */
+	TArray<UStaticMesh*> BuildStaticMeshes( const TSet<UStaticMesh*>& StaticMeshes, bool bForceBuild = false );
+
+	/*
+	 * Find the set of static meshes in or referenced by a given array of objects.
+	 * @param SelectedObjects	Array of UObjects to go through
+	 * @returns a set of static meshes
+	 */
+	TSet<UStaticMesh*> GetSelectedMeshes(const TArray<UObject*>& SelectedObjects);
 }
 
 /*
@@ -134,7 +156,7 @@ public:
 	 * Calls UEditorStaticMeshLibrary::SetLods on each static mesh of the resulting array.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dataprep | Operation")
-	static void SetLods(const TArray<UObject*>& SelectedObjects, const FEditorScriptingMeshReductionOptions& ReductionOptions);
+	static void SetLods(const TArray<UObject*>& SelectedObjects, const FEditorScriptingMeshReductionOptions& ReductionOptions, TArray<UObject*>& ModifiedObjects);
 
 	/**
 	 * Set one simple collision of the given shape type on the static meshes contained in the
@@ -150,7 +172,7 @@ public:
 	 * Calls UEditorStaticMeshLibrary::AddSimpleCollisions on each static mesh of the resulting array.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dataprep | Operation")
-	static void SetSimpleCollision(const TArray<UObject*>& SelectedObjects, const EScriptingCollisionShapeType ShapeType);
+	static void SetSimpleCollision(const TArray<UObject*>& SelectedObjects, const EScriptingCollisionShapeType ShapeType, TArray<UObject*>& ModifiedObjects);
 
 	/**
 	 * Add complex collision on the static meshes contained in the input array
@@ -167,7 +189,7 @@ public:
 	 * Note that any simple collisions on each static mesh of the resulting array will be removed.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dataprep | Operation")
-	static void SetConvexDecompositionCollision(const TArray<UObject*>& SelectedObjects, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision);
+	static void SetConvexDecompositionCollision(const TArray<UObject*>& SelectedObjects, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision, TArray<UObject*>& ModifiedObjects);
 
 	/**
 	 * Sets the Generate Lightmap UVs flag on the static meshes found in the Assets list
@@ -176,7 +198,7 @@ public:
 	 * @param	bGenerateLightmapUVs	The value to set for the generate lightmap uvs flag.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dataprep | Operation")
-	static void SetGenerateLightmapUVs( const TArray< UObject* >& Assets, bool bGenerateLightmapUVs );
+	static void SetGenerateLightmapUVs( const TArray< UObject* >& Assets, bool bGenerateLightmapUVs, TArray<UObject*>& ModifiedObjects );
 
 	/**
 	 * Replaces designated materials in all or specific content folders with specific ones
@@ -205,7 +227,7 @@ public:
 	 * @remark: Static meshes are not re-built after the new LOD groups are set
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dataprep | Operation")
-	static void SetLODGroup( const TArray< UObject* >& SelectedObjects, FName& LODGroupName );
+	static void SetLODGroup( const TArray< UObject* >& SelectedObjects, FName& LODGroupName, TArray<UObject*>& ModifiedObjects );
 
 	/**
 	 * Set the material to all elements of a set of Static Meshes or Static Mesh Actors

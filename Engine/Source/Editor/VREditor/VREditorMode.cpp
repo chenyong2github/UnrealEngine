@@ -331,11 +331,12 @@ void UVREditorMode::Enter()
 		PlacementSystem->Init(this);
 
 		// Setup teleporter
-		const TSubclassOf<AVREditorTeleporter> TeleporterClass = GetDefault<UVRModeSettings>()->TeleporterClass;
+		const TSoftClassPtr<AVREditorTeleporter> TeleporterClassSoft = GetDefault<UVRModeSettings>()->TeleporterClass;
+		TeleporterClassSoft.LoadSynchronous();
 
-		if (TeleporterClass)
+		if (TeleporterClassSoft.IsValid())
 		{
-			TeleportActor = CastChecked<AVREditorTeleporter>( SpawnTransientSceneActor( TeleporterClass, TEXT( "Teleporter" ), true ) );
+			TeleportActor = CastChecked<AVREditorTeleporter>( SpawnTransientSceneActor(TeleporterClassSoft.Get(), TEXT( "Teleporter" ), true ) );
 		}
 
 		if( !TeleportActor )

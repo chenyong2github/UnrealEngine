@@ -78,8 +78,8 @@ public:
 	/** Enables the submix effect. */
 	void SetEnabled(const bool bInIsEnabled);
 
-	/** Updates preset on audio render thread. */
-	void Update();
+	/** Updates preset on audio render thread. Returns true if update processed a preset update, false if not. */
+	bool Update();
 
 	void SetPreset(USoundEffectPreset* Inpreset);
 

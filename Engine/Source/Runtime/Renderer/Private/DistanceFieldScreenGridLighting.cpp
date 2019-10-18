@@ -673,7 +673,7 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldAOScreenGrid(
 	TRefCountPtr<IPooledRenderTarget> DownsampledBentNormal;
 
 	{
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(ConeTraceBufferSize, PF_FloatRGBA, FClearValueBinding::None, TexCreate_None, TexCreate_RenderTargetable | TexCreate_UAV, false));
+		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(ConeTraceBufferSize, PF_FloatRGBA, FClearValueBinding::None, TexCreate_None, TexCreate_RenderTargetable | TexCreate_UAV | TexCreate_ShaderResource, false));
 		Desc.Flags |= GFastVRamConfig.DistanceFieldAODownsampledBentNormal;
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, DownsampledBentNormal, TEXT("DownsampledBentNormal"));
 	}

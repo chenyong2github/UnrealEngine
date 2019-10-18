@@ -202,15 +202,60 @@ void ANetworkPredictionExtrasFlyingPawn::PrintDebug()
 	}
 }
 
+float ANetworkPredictionExtrasFlyingPawn::GetMaxMoveSpeed() const
+{
+	if (const FlyingMovement::FAuxState* AuxState = GetAuxStateRead())
+	{
+		return AuxState->MaxSpeed;
+	}
+	return 0;
+}
+
 void ANetworkPredictionExtrasFlyingPawn::SetMaxMoveSpeed(float NewMaxMoveSpeed)
+{
+	if (FlyingMovement::FAuxState* AuxState = GetAuxStateWrite())
+	{
+		AuxState->MaxSpeed = NewMaxMoveSpeed;
+	}
+}
+
+void ANetworkPredictionExtrasFlyingPawn::AddMaxMoveSpeed(float AdditiveMaxMoveSpeed)
+{
+	if (FlyingMovement::FAuxState* AuxState = GetAuxStateWrite())
+	{
+		//UE_LOG(LogTemp, Warning, TEXT("MaxSpeed: %.2f += %.2f"), AuxState->MaxSpeed, AdditiveMaxMoveSpeed);
+		AuxState->MaxSpeed += AdditiveMaxMoveSpeed;
+	}
+}
+
+const FlyingMovement::FAuxState* ANetworkPredictionExtrasFlyingPawn::GetAuxStateRead() const
 {
 	if (ensure(FlyingMovementComponent))
 	{
-		FlyingMovementComponent->MovementAuxState->Modify([NewMaxMoveSpeed](FlyingMovement::FAuxState& State)
-		{
-			State.MaxSpeed = NewMaxMoveSpeed;
-		});
+		return FlyingMovementComponent->MovementAuxState.GetStateRead();
 	}
+	return nullptr;
+}
+
+FlyingMovement::FAuxState* ANetworkPredictionExtrasFlyingPawn::GetAuxStateWrite()
+{
+	if (ensure(FlyingMovementComponent))
+	{
+		return FlyingMovementComponent->MovementAuxState.GetStateWrite(GetLocalRole() == ROLE_Authority);
+	}
+	return nullptr;
+}
+
+int32 ANetworkPredictionExtrasFlyingPawn::GetPendingKeyframe() const
+{
+	// TODO
+	/*
+	if (ensure(FlyingMovementComponent))
+	{
+		return FlyingMovementComponent->MovementSyncState->GetPendingKeyframe();
+	}
+	*/
+	return 0;
 }
 
 void ANetworkPredictionExtrasFlyingPawn::ProduceInput(const FNetworkSimTime SimTime, FlyingMovement::FInputCmd& Cmd)

@@ -18,12 +18,15 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/FileHelper.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "Widgets/SBoxPanel.h"
 // Developer
 #include "IDesktopPlatform.h"
 #include "DesktopPlatformModule.h"
 #include "ToolMenus.h"
 // Editor
 #include "Classes/EditorStyleSettings.h"
+#include "Dialogs/CustomDialog.h"
+#include "Misc/MessageDialog.h"
 #include "Dialogs/Dialogs.h"
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "Frame/MainFrameActions.h"
@@ -98,29 +101,54 @@ bool TrySaveLayoutOrWarnInternal(const FString& InSourceFilePath, const FString&
 				if (bShouldAskBeforeCleaningLayoutNameAndDescriptionFields)
 				{
 					// Open Dialog
-					const FText TextTitle = LOCTEXT("OverrideLayoutNameAndDescriptionFieldBodyTitle", "Clean UI Layout name and description fields");
+					const FText TextTitle = LOCTEXT("OverrideLayoutNameAndDescriptionFieldBodyTitle", "Preserve UI Layout Name and Description Fields?");
 					const FText TextBody = FText::Format(
 						LOCTEXT("OverrideLayoutNameAndDescriptionFieldBody",
 							"You are saving a layout that contains a custom layout name and/or description. Do you also want to copy these 2 properties?\n"
 							" - Current layout name: {0}\n"
 							" - Current layout description: {1}\n\n"
-							"If you select \"Yes\", the displayed name and description of the original layout customization will also be copied into the new configuration file.\n\n"
-							"If you select \"No\", these fields will be emptied.\n\n"
-							"If you are not sure, select \"Yes\" if you are exporting the layout configuration without making any changes, or \"No\" if you have made or plan to make changes to the layout.\n\n"
+							"If you select \"Preserve Values\", the displayed name and description of the original layout customization will also be copied into the new configuration file.\n\n"
+							"If you select \"Clear Values\", these fields will be emptied.\n\n"
+							"If you are not sure, select \"Preserve Values\" if you are exporting the layout configuration without making any changes, or \"Clear Values\" if you have made or plan to make changes to the layout.\n\n"
 						),
 						LayoutNameSource, LayoutDescriptionSource);
-					const int AppReturnType = OpenMsgDlgInt(EAppMsgType::YesNoCancel, TextBody, TextTitle);
-					// Handle user answers
-					if (AppReturnType == EAppReturnType::Yes)
+					// Dialog SWidget
+					TSharedRef<SVerticalBox> DialogContents = SNew(SVerticalBox);
+					DialogContents->AddSlot()
+						.Padding(0, 16, 0, 0)
+						[
+							SNew(STextBlock)
+							.Text(TextBody)
+						];
+					const FText PreserveValuesText = LOCTEXT("PreserveValuesText", "Preserve Values");
+					const FText ClearValuesText = LOCTEXT("ClearValuesText", "Clear Values");
+					const FText CancelText = NSLOCTEXT("Dialogs", "EAppReturnTypeCancel", "Cancel");
+					TSharedRef<SCustomDialog> CustomDialog = SNew(SCustomDialog)
+						.Title(TextTitle)
+						.DialogContent(DialogContents)
+						.Buttons({ SCustomDialog::FButton(PreserveValuesText), SCustomDialog::FButton(ClearValuesText), SCustomDialog::FButton(CancelText) })
+					;
+					// Returns 0 when "Preserve Values" is pressed, 1 when "Clear Values" is pressed, or 2 when Cancel/Esc is pressed
+					const int ButtonPressed = CustomDialog->ShowModal();
+					// Preserve Values
+					if (ButtonPressed == 0)
 					{
 						bCleanLayoutNameAndDescriptionFields = false;
 					}
-					else if (AppReturnType == EAppReturnType::No)
+					// Clear Values
+					else if (ButtonPressed == 1)
 					{
 						bCleanLayoutNameAndDescriptionFields = true;
 					}
-					else if (AppReturnType == EAppReturnType::Cancel)
+					// Cancel or Esc or window closed
+					else if (ButtonPressed == 2 || ButtonPressed == -1)
 					{
+						return false;
+					}
+					// This should never occur
+					else
+					{
+						ensureMsgf(false, TEXT("This option should never occur, something went wrong!"));
 						return false;
 					}
 				}
@@ -855,8 +883,7 @@ void FLayoutsMenuRemove::RemoveUserLayouts()
 	if (NumberUserLayoutFiles > 0)
 	{
 		// Are you sure you want to do this?
-		const FText TextNumberUserLayoutFiles  = FText::FromString(FString::FromInt(NumberUserLayoutFiles));
-		const FText TextBody = FText::Format(LOCTEXT("ActionRemoveAllUserLayoutMsg", "Are you sure you want to permanently remove all the {0} layout profiles created by the user? This action cannot be undone."), TextNumberUserLayoutFiles);
+		const FText TextBody = FText::Format(LOCTEXT("ActionRemoveAllUserLayoutMsg", "Are you sure you want to permanently remove {0} layout {0}|plural(one=profile,other=profiles)? This action cannot be undone."), NumberUserLayoutFiles);
 		const FText TextTitle = LOCTEXT("RemoveAllUserLayouts_Title", "Remove All User-Created Layouts");
 		if (EAppReturnType::Ok != OpenMsgDlgInt(EAppMsgType::OkCancel, TextBody, TextTitle))
 		{

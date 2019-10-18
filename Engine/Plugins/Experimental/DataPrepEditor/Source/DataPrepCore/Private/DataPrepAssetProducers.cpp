@@ -32,7 +32,14 @@ void UDataprepAssetProducers::Serialize( FArchive& Ar )
 	}
 }
 
-TArray< TWeakObjectPtr< UObject > > UDataprepAssetProducers::Produce(const FDataprepProducerContext& InContext )
+void UDataprepAssetProducers::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	OnChanged.Broadcast( FDataprepAssetChangeType::ProducerModified, INDEX_NONE );
+}
+
+TArray< TWeakObjectPtr< UObject > > UDataprepAssetProducers::Produce( const FDataprepProducerContext& InContext )
 {
 	if( AssetProducers.Num() == 0 )
 	{
@@ -58,8 +65,17 @@ TArray< TWeakObjectPtr< UObject > > UDataprepAssetProducers::Produce(const FData
 			{
 				if( !Producer->Produce( InContext, OutAssets ) )
 				{
-					FText Report = FText::Format(LOCTEXT( "ProducerReport_Failed", "Producer {0} failed to execute."), FText::FromString( Producer->GetName() ) );
-					InContext.LoggerPtr->LogError( Report, *Producer );
+					if ( Task.IsWorkCancelled() )
+					{
+						FText Report = FText::Format(LOCTEXT( "ProducerReport_Cancelled", "Producer {0} was cancelled during execution."), FText::FromString( Producer->GetName() ) );
+						InContext.LoggerPtr->LogInfo( Report, *Producer );
+						break;
+					}
+					else
+					{
+						FText Report = FText::Format(LOCTEXT( "ProducerReport_Failed", "Producer {0} failed to execute."), FText::FromString( Producer->GetName() ) );
+						InContext.LoggerPtr->LogError( Report, *Producer );
+					}
 				}
 			}
 		}
@@ -78,6 +94,8 @@ TArray< TWeakObjectPtr< UObject > > UDataprepAssetProducers::Produce(const FData
 		}
 	}
 
+	FDataprepCoreUtils::BuildAssets( OutAssets, InContext.ProgressReporterPtr );
+
 	return OutAssets;
 }
 
@@ -85,6 +103,8 @@ UDataprepContentProducer* UDataprepAssetProducers::AddProducer(UClass* ProducerC
 {
 	if( ProducerClass && ProducerClass->IsChildOf( UDataprepContentProducer::StaticClass() ) )
 	{
+		Modify();
+
 		UDataprepContentProducer* Producer = NewObject< UDataprepContentProducer >( this, ProducerClass, NAME_None, RF_Transactional );
 		FAssetRegistryModule::AssetCreated( Producer );
 
@@ -92,12 +112,18 @@ UDataprepContentProducer* UDataprepAssetProducers::AddProducer(UClass* ProducerC
 
 		Producer->MarkPackageDirty();
 
-		Modify();
-
 		int32 ProducerNextIndex = AssetProducers.Num();
 		AssetProducers.Emplace( Producer, true );
 
+		bool bChangeAll = false;
+		ValidateProducerChanges( ProducerNextIndex, bChangeAll );
+
 		OnChanged.Broadcast( FDataprepAssetChangeType::ProducerAdded, ProducerNextIndex );
+
+		if(bChangeAll)
+		{
+			OnChanged.Broadcast( FDataprepAssetChangeType::ProducerModified, INDEX_NONE );
+		}
 
 		return Producer;
 	}
@@ -122,7 +148,15 @@ UDataprepContentProducer* UDataprepAssetProducers::CopyProducer(const UDataprepC
 		int32 ProducerNextIndex = AssetProducers.Num();
 		AssetProducers.Emplace( Producer, true );
 
+		bool bChangeAll = false;
+		ValidateProducerChanges( ProducerNextIndex, bChangeAll );
+
 		OnChanged.Broadcast( FDataprepAssetChangeType::ProducerAdded, ProducerNextIndex );
+
+		if(bChangeAll)
+		{
+			OnChanged.Broadcast( FDataprepAssetChangeType::ProducerModified, INDEX_NONE );
+		}
 
 		return Producer;
 	}
@@ -152,55 +186,61 @@ bool UDataprepAssetProducers::RemoveProducer(int32 IndexToRemove)
 {
 	if( AssetProducers.IsValidIndex( IndexToRemove ) )
 	{
-		if(UDataprepContentProducer* Producer = AssetProducers[IndexToRemove].Producer)
-		{
-			Producer->GetOnChanged().RemoveAll( this );
-
-			DataprepCorePrivateUtils::DeleteRegisteredAsset( Producer );
-		}
-
-		Modify();
-
-		AssetProducers.RemoveAt( IndexToRemove );
+		// Update superseding status for producers depending on removed producer
+		bool bChangeAll = false;
 
 		// Array of producers superseded by removed producer
 		TArray<int32> ProducersToRevisit;
 		ProducersToRevisit.Reserve( AssetProducers.Num() );
+		{
+			Modify();
 
-		if( AssetProducers.Num() == 1 )
-		{
-			AssetProducers[0].SupersededBy = INDEX_NONE;
-		}
-		else if(AssetProducers.Num() > 1)
-		{
-			// Update value stored in SupersededBy property where applicable
-			for( int32 Index = 0; Index < AssetProducers.Num(); ++Index )
+			if(UDataprepContentProducer* Producer = AssetProducers[IndexToRemove].Producer)
 			{
-				FDataprepAssetProducer& AssetProducer = AssetProducers[Index];
+				Producer->GetOnChanged().RemoveAll( this );
 
-				if( AssetProducer.SupersededBy == IndexToRemove )
+				Producer->PreEditChange(nullptr);
+				Producer->Modify();
+
+				DataprepCorePrivateUtils::DeleteRegisteredAsset( Producer );
+
+				Producer->PostEditChange();
+			}
+
+			AssetProducers.RemoveAt( IndexToRemove );
+
+			if( AssetProducers.Num() == 1 )
+			{
+				AssetProducers[0].SupersededBy = INDEX_NONE;
+			}
+			else if(AssetProducers.Num() > 1)
+			{
+				// Update value stored in SupersededBy property where applicable
+				for( int32 Index = 0; Index < AssetProducers.Num(); ++Index )
 				{
-					AssetProducer.SupersededBy = INDEX_NONE;
-					ProducersToRevisit.Add( Index );
+					FDataprepAssetProducer& AssetProducer = AssetProducers[Index];
+
+					if( AssetProducer.SupersededBy == IndexToRemove )
+					{
+						AssetProducer.SupersededBy = INDEX_NONE;
+						ProducersToRevisit.Add( Index );
+					}
+					else if( AssetProducer.SupersededBy > IndexToRemove )
+					{
+						--AssetProducer.SupersededBy;
+					}
 				}
-				else if( AssetProducer.SupersededBy > IndexToRemove )
-				{
-					--AssetProducer.SupersededBy;
-				}
+			}
+
+			for( int32 ProducerIndex : ProducersToRevisit )
+			{
+				bool bLocalChangeAll = false;
+				ValidateProducerChanges( ProducerIndex, bLocalChangeAll );
+				bChangeAll |= bLocalChangeAll;
 			}
 		}
 
 		OnChanged.Broadcast( FDataprepAssetChangeType::ProducerRemoved, IndexToRemove );
-
-		// Update superseding status for producers depending on removed producer
-		bool bChangeAll = false;
-
-		for( int32 ProducerIndex : ProducersToRevisit )
-		{
-			bool bLocalChangeAll = false;
-			ValidateProducerChanges( ProducerIndex, bLocalChangeAll );
-			bChangeAll |= bLocalChangeAll;
-		}
 
 		// Notify observes on additional changes
 		if( bChangeAll )

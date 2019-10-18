@@ -166,6 +166,7 @@ void SetupLightParameters(
 		if (LightParameters->Count >= MaxLightCount) break;
 
 		if (Light.LightSceneInfo->Proxy->HasStaticLighting() && Light.LightSceneInfo->IsPrecomputedLightingValid()) continue;
+		if (!Light.LightSceneInfo->Proxy->AffectGlobalIllumination()) continue;
 
 		FLightShaderParameters LightShaderParameters;
 		Light.LightSceneInfo->Proxy->GetLightShaderParameters(LightShaderParameters);

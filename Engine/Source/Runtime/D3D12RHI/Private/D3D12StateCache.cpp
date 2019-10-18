@@ -206,7 +206,10 @@ void FD3D12StateCacheBase::DirtyStateForNewCommandList()
 	bNeedSetPrimitiveTopology = true;
 
 	if (PipelineState.Graphics.VBCache.BoundVBMask) { bNeedSetVB = true; }
-	if (PipelineState.Graphics.IBCache.CurrentIndexBufferLocation) { bNeedSetIB = true; }
+
+	// IndexBuffers are set in DrawIndexed*() calls, so there's no way to depend on previously set IndexBuffers without making a new DrawIndexed*() call.
+	PipelineState.Graphics.IBCache.Clear();
+
 	if (PipelineState.Graphics.CurrentNumberOfStreamOutTargets) { bNeedSetSOs = true; }
 	if (PipelineState.Graphics.CurrentNumberOfRenderTargets || PipelineState.Graphics.CurrentDepthStencilTarget) { bNeedSetRTs = true; }
 	if (PipelineState.Graphics.CurrentNumberOfViewports) { bNeedSetViewports = true; }
@@ -242,7 +245,6 @@ void FD3D12StateCacheBase::DirtyState()
 	PipelineState.Compute.bNeedSetRootSignature = true;
 	PipelineState.Graphics.bNeedSetRootSignature = true;
 	bNeedSetVB = true;
-	bNeedSetIB = true;
 	bNeedSetSOs = true;
 	bNeedSetRTs = true;
 	bNeedSetViewports = true;
@@ -402,57 +404,49 @@ void FD3D12StateCacheBase::ApplyState()
 		// Setup non-heap bindings
 		if (bNeedSetVB)
 		{
+			bNeedSetVB = false;
 			//SCOPE_CYCLE_COUNTER(STAT_D3D12ApplyStateSetVertexBufferTime);
 			DescriptorCache.SetVertexBuffers(PipelineState.Graphics.VBCache);
-			bNeedSetVB = false;
-		}
-		if (bNeedSetIB)
-		{
-			if (PipelineState.Graphics.IBCache.CurrentIndexBufferLocation != nullptr)
-			{
-				DescriptorCache.SetIndexBuffer(PipelineState.Graphics.IBCache);
-			}
-			bNeedSetIB = false;
 		}
 		if (bNeedSetSOs)
 		{
-			DescriptorCache.SetStreamOutTargets(PipelineState.Graphics.CurrentStreamOutTargets, PipelineState.Graphics.CurrentNumberOfStreamOutTargets, PipelineState.Graphics.CurrentSOOffsets);
 			bNeedSetSOs = false;
+			DescriptorCache.SetStreamOutTargets(PipelineState.Graphics.CurrentStreamOutTargets, PipelineState.Graphics.CurrentNumberOfStreamOutTargets, PipelineState.Graphics.CurrentSOOffsets);
 		}
 		if (bNeedSetViewports)
 		{
-			CommandList->RSSetViewports(PipelineState.Graphics.CurrentNumberOfViewports, PipelineState.Graphics.CurrentViewport);
 			bNeedSetViewports = false;
+			CommandList->RSSetViewports(PipelineState.Graphics.CurrentNumberOfViewports, PipelineState.Graphics.CurrentViewport);
 		}
 		if (bNeedSetScissorRects)
 		{
-			CommandList->RSSetScissorRects(PipelineState.Graphics.CurrentNumberOfScissorRects, PipelineState.Graphics.CurrentScissorRects);
 			bNeedSetScissorRects = false;
+			CommandList->RSSetScissorRects(PipelineState.Graphics.CurrentNumberOfScissorRects, PipelineState.Graphics.CurrentScissorRects);
 		}
 		if (bNeedSetPrimitiveTopology)
 		{
-			CommandList->IASetPrimitiveTopology(PipelineState.Graphics.CurrentPrimitiveTopology);
 			bNeedSetPrimitiveTopology = false;
+			CommandList->IASetPrimitiveTopology(PipelineState.Graphics.CurrentPrimitiveTopology);
 		}
 		if (bNeedSetBlendFactor)
 		{
-			CommandList->OMSetBlendFactor(PipelineState.Graphics.CurrentBlendFactor);
 			bNeedSetBlendFactor = false;
+			CommandList->OMSetBlendFactor(PipelineState.Graphics.CurrentBlendFactor);
 		}
 		if (bNeedSetStencilRef)
 		{
-			CommandList->OMSetStencilRef(PipelineState.Graphics.CurrentReferenceStencil);
 			bNeedSetStencilRef = false;
+			CommandList->OMSetStencilRef(PipelineState.Graphics.CurrentReferenceStencil);
 		}
 		if (bNeedSetRTs)
 		{
-			DescriptorCache.SetRenderTargets(PipelineState.Graphics.RenderTargetArray, PipelineState.Graphics.CurrentNumberOfRenderTargets, PipelineState.Graphics.CurrentDepthStencilTarget);
 			bNeedSetRTs = false;
+			DescriptorCache.SetRenderTargets(PipelineState.Graphics.RenderTargetArray, PipelineState.Graphics.CurrentNumberOfRenderTargets, PipelineState.Graphics.CurrentDepthStencilTarget);
 		}
 		if (bNeedSetDepthBounds)
 		{
-			CmdContext->SetDepthBounds(PipelineState.Graphics.MinDepth, PipelineState.Graphics.MaxDepth);
 			bNeedSetDepthBounds = false;
+			CmdContext->SetDepthBounds(PipelineState.Graphics.MinDepth, PipelineState.Graphics.MaxDepth);
 		}
 	}
 
@@ -1071,46 +1065,17 @@ void FD3D12StateCacheBase::SetComputeShader(FD3D12ComputeShader* Shader)
 	}
 }
 
-void FD3D12StateCacheBase::InternalSetIndexBuffer(FD3D12ResourceLocation* IndexBufferLocation, DXGI_FORMAT Format, uint32 Offset)
+void FD3D12StateCacheBase::InternalSetIndexBuffer(FD3D12Resource* Resource)
 {
-	__declspec(align(16)) D3D12_INDEX_BUFFER_VIEW NewView;
-	NewView.BufferLocation = (IndexBufferLocation) ? IndexBufferLocation->GetGPUVirtualAddress() + Offset : 0;
-	NewView.SizeInBytes = (IndexBufferLocation) ? IndexBufferLocation->GetSize() - Offset : 0;
-	NewView.Format = Format;
+	FD3D12CommandListHandle& CommandListHandle = CmdContext->CommandListHandle;
+	CommandListHandle.UpdateResidency(Resource->GetResidencyHandle());
+	CommandListHandle->IASetIndexBuffer(&PipelineState.Graphics.IBCache.CurrentIndexBufferView);
 
-	D3D12_INDEX_BUFFER_VIEW& CurrentView = PipelineState.Graphics.IBCache.CurrentIndexBufferView;
-
-	if (NewView.BufferLocation != CurrentView.BufferLocation ||
-		NewView.SizeInBytes != CurrentView.SizeInBytes ||
-		NewView.Format != CurrentView.Format ||
-		GD3D12SkipStateCaching)
+	if (Resource->RequiresResourceStateTracking())
 	{
-		bNeedSetIB = true;
-		PipelineState.Graphics.IBCache.CurrentIndexBufferLocation = IndexBufferLocation;
-
-		if (IndexBufferLocation != nullptr)
-		{
-			PipelineState.Graphics.IBCache.ResidencyHandle = IndexBufferLocation->GetResource()->GetResidencyHandle();
-			FMemory::Memcpy(CurrentView, NewView);
-		}
-		else
-		{
-			FMemory::Memzero(&CurrentView, sizeof(CurrentView));
-			PipelineState.Graphics.IBCache.CurrentIndexBufferLocation = nullptr;
-			PipelineState.Graphics.IBCache.ResidencyHandle = nullptr;
-		}
+		check(Resource->GetSubresourceCount() == 1);
+		FD3D12DynamicRHI::TransitionResource(CommandListHandle, Resource, D3D12_RESOURCE_STATE_INDEX_BUFFER, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 	}
-
-	if (IndexBufferLocation)
-	{
-		FD3D12Resource* const pResource = IndexBufferLocation->GetResource();
-		if (pResource && pResource->RequiresResourceStateTracking())
-		{
-			check(pResource->GetSubresourceCount() == 1);
-			FD3D12DynamicRHI::TransitionResource(CmdContext->CommandListHandle, pResource, D3D12_RESOURCE_STATE_INDEX_BUFFER, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-		}
-	}
-
 }
 
 void FD3D12StateCacheBase::InternalSetStreamSource(FD3D12ResourceLocation* VertexBufferLocation, uint32 StreamIndex, uint32 Stride, uint32 Offset)

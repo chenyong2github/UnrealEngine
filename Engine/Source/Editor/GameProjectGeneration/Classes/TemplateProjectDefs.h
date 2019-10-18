@@ -125,6 +125,10 @@ public:
 	UPROPERTY(config)
 	bool bIsEnterprise;
 
+	/** Is this a blank template? Determines whether we can override the default map when creating the project. */
+	UPROPERTY(config)
+	bool bIsBlank;
+
 	/* Optional list of settings to hide. If none are specified, then all settings are shown. */
 	UPROPERTY(config)
 	TArray<ETemplateSetting> HiddenSettings;

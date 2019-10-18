@@ -15,6 +15,7 @@
 #include "Widgets/SWindow.h"
 #include "SConcertSessionRecovery.h"
 #include "ConcertActivityStream.h"
+#include "GenericPlatform/GenericPlatformCrashContext.h"
 
 #define LOCTEXT_NAMESPACE "DisasterRecoveryFSM"
 
@@ -29,7 +30,7 @@ public:
 	static constexpr int64 MaxActivityPerRequest = 1024;
 
 public:
-	FDisasterRecoveryFSM(TSharedRef<IConcertSyncClient> InSyncClient, const FString& InSessionNameToRecover, bool bInLiveDataOnly);
+	FDisasterRecoveryFSM(TSharedRef<IConcertSyncClient> InSyncClient, const DisasterRecoveryUtil::PinSessionToRestoreFunc& PinSessionToRestoreFn, bool bInLiveDataOnly);
 	~FDisasterRecoveryFSM();
 
 	bool IsDone() const
@@ -131,18 +132,20 @@ private:
 	FState ExitState;                  // State to exit the FSM.
 	FState* CurrentState = nullptr;    // The current state.
 	FState* NextStatePending = nullptr;// State to transit to at the next Tick().
+
+	DisasterRecoveryUtil::PinSessionToRestoreFunc PinSessionToRestoreFn;
 };
 
 static TSharedPtr<FDisasterRecoveryFSM> RecoveryFSM;
 
 
-FDisasterRecoveryFSM::FDisasterRecoveryFSM(TSharedRef<IConcertSyncClient> InSyncClient, const FString& SessionNameToRecover, bool bInLiveDataOnly)
+FDisasterRecoveryFSM::FDisasterRecoveryFSM(TSharedRef<IConcertSyncClient> InSyncClient, const DisasterRecoveryUtil::PinSessionToRestoreFunc& InPinSessionToRestoreFn, bool bInLiveDataOnly)
 	: SyncClient(InSyncClient)
 	, Client(InSyncClient->GetConcertClient())
-	, RecoverySessionName(SessionNameToRecover)
 	, bLiveDataOnly(bInLiveDataOnly)
 	, ExitMessage(TEXT("Disaster recovery process completed successfully."))
 	, CurrentState(&EnterState)
+	, PinSessionToRestoreFn(InPinSessionToRestoreFn)
 {
 	FutureExecutionToken = MakeShared<uint8>(0); // Token use to prevent execution of async continuation if this object instance is destructed before then continuation is executed.
 
@@ -203,8 +206,8 @@ void FDisasterRecoveryFSM::OnSessionConnectionChanged(IConcertClientSession& Ses
 	}
 	else if (Status == EConcertConnectionStatus::Disconnected)
 	{
-		ErrorMessage = LOCTEXT("ConnectionError", "Disaster recover client failed to connect to the recovery session.");
-		TransitTo(ErrorState); // Something went wrong.
+		ErrorMessage = LOCTEXT("ConnectionError", "Failed to connect to the recovery session. Recovery service will be disabled for this session.");
+		TransitTo(ErrorState);
 	}
 }
 
@@ -241,21 +244,32 @@ void FDisasterRecoveryFSM::LookupRecoverySession()
 
 		if (Response.ResponseCode == EConcertResponseCode::Success)
 		{
-			// The disaster recovery service archives the sessions on exit (or on reboot if it crashed/was killed).
-			if (const FConcertSessionInfo* ArchMatch = Response.ArchivedSessions.FindByPredicate([this](const FConcertSessionInfo& MatchCandidate) { return MatchCandidate.SessionName == RecoverySessionName; }))
+			// Compare the archived sessions received from the server with the candidate sessions known by the client and select/pin a session to recover.
+			TPair<bool, const FConcertSessionInfo*> SessionToRecover = PinSessionToRestoreFn(Response.ArchivedSessions);
+			if (SessionToRecover.Value) // Took ownership of a session to restore?
 			{
-				RecoverySessionId = ArchMatch->SessionId;
+				RecoverySessionName = SessionToRecover.Value->SessionName;
+				RecoverySessionId = SessionToRecover.Value->SessionId;
 				RequestTransitTo(FetchActivitiesState);
+			}
+			else if (SessionToRecover.Key && !Response.bIncludesPreviousInstanceSessions) // The client has a candidate to restore, but the server did not report it.
+			{
+				ErrorMessage = FText::Format(LOCTEXT("RecoveryFileLocked", "Failed to recover previous session. The session is likely locked by another instance of '{0}'. Exit all Editors then relaunch to recover. Recovery service will be disabled for this session."), FText::AsCultureInvariant(DisasterRecoveryUtil::GetDisasterRecoveryServiceExeName()));
+				RequestTransitTo(ErrorState);
+			}
+			else if (SessionToRecover.Key && Response.bIncludesPreviousInstanceSessions)
+			{
+				UE_LOG(LogConcert, Error, TEXT("Failed to recover previous session. The session was likely moved or deleted. A new session will be created."));
+				RequestTransitTo(CreateAndJoinSessionState); // No candidate to recover. Create a new session.
 			}
 			else
 			{
-				UE_LOG(LogConcert, Error, TEXT("Disaster recovery service could not find the recovery session '%s'. A new session will be created."), *RecoverySessionName);
-				RequestTransitTo(CreateAndJoinSessionState); // We still need to have a recovery session at the end.
+				RequestTransitTo(CreateAndJoinSessionState); // No candidate to recover. Create a new session.
 			}
 		}
 		else
 		{
-			ErrorMessage = LOCTEXT("SessionQueryFailed", "Failed to retrieve the session list from the recovery service.");
+			ErrorMessage = LOCTEXT("SessionQueryFailed", "Failed to retrieve available sessions. Recovery service will be disabled for this session.");
 			RequestTransitTo(ErrorState);
 		}
 	});
@@ -282,7 +296,7 @@ void FDisasterRecoveryFSM::FetchActivities()
 		}
 		else // Nothing to recover
 		{
-			UE_LOG(LogConcert, Warning, TEXT("Disaster recovery service could not find any activity to recover"));
+			UE_LOG(LogConcert, Warning, TEXT("Disaster recovery service could not find any activities to recover."));
 			RequestTransitTo(CreateAndJoinSessionState);
 		}
 	}
@@ -309,7 +323,7 @@ void FDisasterRecoveryFSM::DisplayRecoveryUI()
 
 	TSharedRef<SConcertSessionRecovery> RecoveryWidget =
 		SNew(SConcertSessionRecovery)
-		.IntroductionText(LOCTEXT("CrashRecoveryIntroductionText", "An abnormal Editor terminaison was detected for this project. You can recover up to the last operation recorded or to a previous state."))
+		.IntroductionText(LOCTEXT("CrashRecoveryIntroductionText", "An abnormal Editor termination was detected for this project. You can recover up to the last operation recorded or to a previous state."))
 		.ParentWindow(NewWindow)
 		.OnFetchActivities(FetchActivitiesFn)
 		.ClientAvatarColorColumnVisibility(EVisibility::Hidden) // Disaster recovery has only one user, the local one.
@@ -351,7 +365,7 @@ void FDisasterRecoveryFSM::CreateAndJoinSession()
 
 		if (Response != EConcertResponseCode::Success)
 		{
-			ErrorMessage = FText::Format(LOCTEXT("FailedToCreate", "Failed to create recovery session '{0}'"), FText::AsCultureInvariant(Client->GetConfiguration()->DefaultSessionName));
+			ErrorMessage = FText::Format(LOCTEXT("FailedToCreate", "Failed to create recovery session '{0}'. Recovery service will be disabled for this session."), FText::AsCultureInvariant(Client->GetConfiguration()->DefaultSessionName));
 			RequestTransitTo(ErrorState);
 		}
 		// else -> On success callback OnSessionConnectionChanged() will transit to synchronize state.
@@ -437,11 +451,11 @@ bool FDisasterRecoveryFSM::Tick(float)
 	return true;
 }
 
-void DisasterRecoveryUtil::StartRecovery(TSharedRef<IConcertSyncClient> SyncClient, const FString& SessionNameToRecover, bool bLiveDataOnly)
+void DisasterRecoveryUtil::StartRecovery(TSharedRef<IConcertSyncClient> SyncClient, const DisasterRecoveryUtil::PinSessionToRestoreFunc& PinSessionToRestoreFn, bool bLiveDataOnly)
 {
 	if (!RecoveryFSM)
 	{
-		RecoveryFSM = MakeShared<FDisasterRecoveryFSM>(SyncClient, SessionNameToRecover, bLiveDataOnly);
+		RecoveryFSM = MakeShared<FDisasterRecoveryFSM>(SyncClient, PinSessionToRestoreFn, bLiveDataOnly);
 	}
 }
 
@@ -455,6 +469,18 @@ bool DisasterRecoveryUtil::EndRecovery()
 	}
 
 	return bDone;
+}
+
+FString DisasterRecoveryUtil::GetDisasterRecoveryServiceExeName()
+{
+	if (FGenericCrashContext::IsOutOfProcessCrashReporter())
+	{
+		return TEXT("CrashReporterClientEditor");
+	}
+	else
+	{
+		return TEXT("UnrealDisasterRecoveryService");
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

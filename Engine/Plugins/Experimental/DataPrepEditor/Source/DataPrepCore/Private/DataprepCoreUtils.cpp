@@ -8,13 +8,21 @@
 #include "DataprepAssetUserData.h"
 #endif
 
+#include "DataPrepAsset.h"
 #include "DataprepCoreLogCategory.h"
+#include "DataprepCorePrivateUtils.h"
 #include "IDataprepProgressReporter.h"
 
 #include "Engine/StaticMesh.h"
 #include "GameFramework/Actor.h"
 #include "LevelSequence.h"
+#include "Materials/MaterialFunction.h"
+#include "Materials/MaterialInstance.h"
+#include "Materials/Material.h"
+#include "MaterialGraph/MaterialGraph.h"
+#include "MaterialShared.h"
 #include "Misc/ScopedSlowTask.h"
+#include "RenderingThread.h"
 #include "UObject/UObjectHash.h"
 
 #if WITH_EDITOR
@@ -23,9 +31,22 @@
 #include "ObjectTools.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #endif
-#include "RenderingThread.h"
 
 #define LOCTEXT_NAMESPACE "DataprepCoreUtils"
+
+UDataprepAsset* FDataprepCoreUtils::GetDataprepAssetOfObject(UObject* Object)
+{
+	while ( Object )
+	{
+		if ( UDataprepAsset::StaticClass() == Object->GetClass() )
+		{
+			return static_cast<UDataprepAsset*>( Object );
+		}
+		Object = Object->GetOuter();
+	}
+
+	return nullptr;
+}
 
 void FDataprepCoreUtils::PurgeObjects(TArray<UObject*> InObjects)
 {
@@ -163,6 +184,15 @@ void FDataprepWorkReporter::ReportNextStep(const FText & InMessage, float InIncr
 	}
 }
 
+bool FDataprepWorkReporter::IsWorkCancelled() const
+{
+	if ( Reporter.IsValid() )
+	{
+		return Reporter->IsWorkCancelled();
+	}
+	return false;
+}
+
 #ifdef NEW_DATASMITHSCENE_WORKFLOW
 void FDataprepCoreUtils::AddDataprepAssetUserData(UObject* Target, UDataprepAssetInterface* DataprepAssetInterface)
 {
@@ -212,8 +242,8 @@ void FDataprepCoreUtils::FDataprepLogger::LogError(const FText& InLogText,  cons
 
 void FDataprepCoreUtils::FDataprepProgressUIReporter::BeginWork( const FText& InTitle, float InAmountOfWork )
 {
-	ProgressTasks.Emplace( new FScopedSlowTask( InAmountOfWork, InTitle, true, *GWarn ) );
-	ProgressTasks.Last()->MakeDialog(false);
+	ProgressTasks.Emplace( new FScopedSlowTask( InAmountOfWork, InTitle, true, FeedbackContext.IsValid() ? *FeedbackContext.Get() : *GWarn ) );
+	ProgressTasks.Last()->MakeDialog(true);
 }
 
 void FDataprepCoreUtils::FDataprepProgressUIReporter::EndWork()
@@ -231,6 +261,21 @@ void FDataprepCoreUtils::FDataprepProgressUIReporter::ReportProgress( float Prog
 		TSharedPtr<FScopedSlowTask>& ProgressTask = ProgressTasks.Last();
 		ProgressTask->EnterProgressFrame( Progress, InMessage );
 	}
+}
+
+bool FDataprepCoreUtils::FDataprepProgressUIReporter::IsWorkCancelled()
+{
+	if( !bIsCancelled && ProgressTasks.Num() > 0 )
+	{
+		const TSharedPtr<FScopedSlowTask>& ProgressTask = ProgressTasks.Last();
+		bIsCancelled |= ProgressTask->ShouldCancel();
+	}
+	return bIsCancelled;
+}
+
+FFeedbackContext* FDataprepCoreUtils::FDataprepProgressUIReporter::GetFeedbackContext() const
+{
+	return FeedbackContext.IsValid() ? FeedbackContext.Get() : GWarn;
 }
 
 void FDataprepCoreUtils::FDataprepProgressTextReporter::BeginWork( const FText& InTitle, float InAmountOfWork )
@@ -253,6 +298,73 @@ void FDataprepCoreUtils::FDataprepProgressTextReporter::ReportProgress( float Pr
 	{
 		UE_LOG( LogDataprepCore, Log, TEXT("Doing %s ..."), *InMessage.ToString() );
 	}
+}
+
+bool FDataprepCoreUtils::FDataprepProgressTextReporter::IsWorkCancelled()
+{
+	return false;
+}
+
+FFeedbackContext* FDataprepCoreUtils::FDataprepProgressTextReporter::GetFeedbackContext() const
+{
+	return FeedbackContext.Get();
+}
+
+void FDataprepCoreUtils::BuildAssets(const TArray<TWeakObjectPtr<UObject>>& Assets, const TSharedPtr<IDataprepProgressReporter>& ProgressReporterPtr)
+{
+	TSet<UStaticMesh*> StaticMeshes;
+	TSet<UMaterialInterface*> MaterialInterfaces;
+
+	for( const TWeakObjectPtr<UObject>& AssetPtr : Assets )
+	{
+		UObject* AssetObject = AssetPtr.Get();
+		if( AssetObject )
+		{
+			if(UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(AssetObject))
+			{
+				MaterialInterfaces.Add( MaterialInterface );
+			}
+			else if(UStaticMesh* StaticMesh = Cast<UStaticMesh>(AssetObject))
+			{
+				StaticMeshes.Add( StaticMesh );
+			}
+		}
+	}
+
+	// Force compilation of materials which have no render proxy
+	if(MaterialInterfaces.Num() > 0)
+	{
+		auto MustCompile = [](const UMaterialInterface* MaterialInterface)
+		{
+			if( MaterialInterface )
+			{
+				const FMaterialRenderProxy* RenderProxy = MaterialInterface->GetRenderProxy();
+				return RenderProxy == nullptr || !RenderProxy->IsInitialized();
+			}
+
+			return false;
+		};
+
+		for(UMaterialInterface* MaterialInterface : MaterialInterfaces)
+		{
+			if( MustCompile( MaterialInterface ) )
+			{
+				FPropertyChangedEvent EmptyPropertyUpdateStruct( nullptr );
+				MaterialInterface->PostEditChangeProperty( EmptyPropertyUpdateStruct );
+
+			}
+
+			if( MustCompile( MaterialInterface->GetMaterial() ) )
+			{
+				FPropertyChangedEvent EmptyPropertyUpdateStruct( nullptr );
+				MaterialInterface->GetMaterial()->PostEditChangeProperty( EmptyPropertyUpdateStruct );
+
+			}
+		}
+	}
+
+	// Build static meshes
+	DataprepCorePrivateUtils::BuildStaticMeshes( StaticMeshes, TFunction<bool(UStaticMesh*)>() );
 }
 
 #undef LOCTEXT_NAMESPACE

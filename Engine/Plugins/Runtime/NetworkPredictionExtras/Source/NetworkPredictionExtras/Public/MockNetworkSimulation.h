@@ -117,6 +117,18 @@ struct FMockAuxState
 	{
 		P.Ar << Multiplier;
 	}
+
+	void Log(FStandardLoggingParameters& Params) const
+	{
+		if (Params.Context == EStandardLoggingContext::HeaderOnly)
+		{
+			Params.Ar->Logf(TEXT(" %d "), Params.Keyframe);
+		}
+		else if (Params.Context == EStandardLoggingContext::Full)
+		{
+			Params.Ar->Logf(TEXT("Multiplier: %f"), Multiplier);
+		}
+	}
 };
 
 using TMockNetworkSimulationBufferTypes = TNetworkSimBufferTypes<FMockInputCmd, FMockSyncState, FMockAuxState>;
@@ -171,9 +183,7 @@ public:
 
 	FString GetDebugName() const override;
 	virtual UObject* GetVLogOwner() const override final;
-
-	void InitSyncState(FMockSyncState& OutSyncState) const override;
-	void InitAuxState(FMockAuxState& OutAuxState) const override;
+	
 	void ProduceInput(const FNetworkSimTime SimTime, FMockInputCmd& Cmd);
 	void FinalizeFrame(const FMockSyncState& SyncState, const FMockAuxState& AuxState) override;
 	

@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "CoreTechParser.h"
 
-#ifndef USE_CORETECH_MT_PARSER
+#if !defined(USE_CORETECH_MT_PARSER) && defined(CAD_LIBRARY)
 
 
 #include "CoreTechHelper.h"
@@ -1041,6 +1041,12 @@ CheckedCTError FCoreTechParser::Read()
 		return CT_IO_ERROR::IO_ERROR;;
 	}
 
+	// Force CoreTech to re-tessellate the model with the translator's tessellation parameters
+	CT_TESS_DATA_TYPE VertexType = CT_TESS_DOUBLE;
+	CT_TESS_DATA_TYPE NormalType = CT_TESS_FLOAT;
+	CT_TESS_DATA_TYPE UVType = CT_TESS_DOUBLE;
+	CTKIO_ChangeTesselationParameters(ImportParams.ChordTolerance, ImportParams.MaxEdgeLength, ImportParams.MaxNormalAngle, CT_FALSE, VertexType, NormalType, UVType);
+
 	TopoFixes();
 
 	TSharedRef<FImportDestination> RootNode = MakeShared<FImportDestination>();
@@ -1094,6 +1100,14 @@ TSharedPtr< IDatasmithMeshElement > FCoreTechParser::FindOrAddMeshElement(TShare
 
 		MeshElement->SetMaterial(MaterialIDElementName, MaterialId2Hash.Value);
 	}
+
+
+	FMD5 MD5;
+	MD5.Update(reinterpret_cast<const uint8*>(&TessellationOptionsHash), sizeof TessellationOptionsHash);
+
+	FMD5Hash Hash;
+	Hash.Set(MD5);
+	MeshElement->SetFileHash(Hash);
 
 	DatasmithScene->AddMesh(MeshElement);
 
