@@ -1042,13 +1042,17 @@ bool UGroomComponent::CanEditChange(const UProperty* InProperty) const
 		{
 			bool bIsEditable = false;
 			#if RHI_RAYTRACING
-			FRayTracingGeometry* RayTracingGeometry = nullptr;
 			if (IsRayTracingEnabled())
 			{
 				bIsEditable = true;
 			}
 			#endif
 			return bIsEditable;
+		}
+
+		if (FCString::Strcmp(*PropertyName, TEXT("bSkinGroom")) == 0)
+		{
+			return GetDefault<URendererSettings>()->bSupportSkinCacheShaders && !UAnimationSettings::Get()->bTickAnimationOnSkeletalMeshInit;
 		}
 	}
 
