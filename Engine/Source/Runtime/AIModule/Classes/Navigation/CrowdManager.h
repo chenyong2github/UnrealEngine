@@ -242,6 +242,20 @@ public:
 	/** notify called when detour navmesh is changed */
 	void OnNavMeshUpdate();
 
+	/** Tests if NavData is a suitable nav data type to be used by this CrowdManager
+	 *	instance. */
+	virtual bool IsSuitableNavData(const ANavigationData& NavData) const;
+
+	/** Called by the nav system when a new navigation data instance is registered. 
+	 *	If the CrowdManager instance had no nav data cached it will consider this
+	 *	NavDataInstance and update if necesary. */
+	virtual void OnNavDataRegistered(ANavigationData& NavData) override;
+
+	/** Called by the nav system when a navigation data instance is removed. The 
+	 *	crowd manager will see if it's the nav data being used by it an if so try
+	 *	to find another one. If there's none the crowd manager will stop working. */
+	virtual void OnNavDataUnregistered(ANavigationData& NavData) override;
+
 	const ANavigationData* GetNavData() const { return MyNavData; }
 
 	UWorld* GetWorld() const override;
@@ -333,6 +347,11 @@ protected:
 
 	/** called from tick, after move points were updated, before any steering/avoidance */
 	virtual void PostMovePointUpdate();
+
+	/** Sets NavData as MyNavData. If Null and bFindNewNavDataIfNull is true then
+	 *	the manager will search for a new NavData instance that meets the 
+	 *	IsSuitableNavData() condition. */
+	void SetNavData(ANavigationData* NavData, const bool bFindNewNavDataIfNull = true);
 
 #if WITH_RECAST
 	void AddAgent(const ICrowdAgentInterface* Agent, FCrowdAgentData& AgentData) const;
