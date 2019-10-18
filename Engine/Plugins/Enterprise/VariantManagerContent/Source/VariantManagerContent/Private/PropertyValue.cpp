@@ -478,7 +478,7 @@ bool UPropertyValue::Resolve(UObject* Object)
 
 bool UPropertyValue::HasValidResolve() const
 {
-	if (ParentContainerAddress == nullptr)
+	if (ParentContainerAddress == nullptr || ParentContainerClass == nullptr)
 	{
 		return false;
 	}
@@ -487,7 +487,7 @@ bool UPropertyValue::HasValidResolve() const
 	// Whenever an actor's property changes, all of its components that were generated
 	// by construction scripts will be destroyed and regenerated, so we will need to re-resolve
 	// We can't check the resolve state this way for USTRUCTs however (like FPostProcessSettings)
-	if (!ParentContainerClass->IsChildOf(UScriptStruct::StaticClass()))
+	if (!ParentContainerClass->IsA(UScriptStruct::StaticClass()))
 	{
 		if (UObject* Container = (UObject*)ParentContainerAddress)
 		{
