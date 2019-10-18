@@ -439,7 +439,7 @@ void AWorldSettings::PostLoad()
 	for (FHierarchicalSimplification& Entry : HierarchicalLODSetup)
 	{
 		Entry.ProxySetting.PostLoadDeprecated();
-		Entry.MergeSetting.LODSelectionType = EMeshLODSelectionType::CalculateLOD;
+		Entry.MergeSetting.PostLoadDeprecated();
 	}
 
 #endif// WITH_EDITOR
