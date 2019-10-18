@@ -24,6 +24,7 @@ TSharedRef<IPropertyTypeCustomization> FMathStructCustomization::MakeInstance()
 
 void FMathStructCustomization::CustomizeHeader(TSharedRef<class IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
+	SortedChildHandles.Empty();
 	GetSortedChildren(StructPropertyHandle, SortedChildHandles);
 	MakeHeaderRow(StructPropertyHandle, HeaderRow);
 }
@@ -146,8 +147,6 @@ void FMathStructCustomization::OnPreserveScaleRatioToggled(ECheckBoxState NewSta
 
 void FMathStructCustomization::GetSortedChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, TArray< TSharedRef<IPropertyHandle> >& OutChildren)
 {
-	OutChildren.Empty();
-
 	uint32 NumChildren;
 	StructPropertyHandle->GetNumChildren(NumChildren);
 
