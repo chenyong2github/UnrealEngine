@@ -2316,7 +2316,9 @@ void UNetDriver::FReplicationChangelistMgrWrapper::CountBytes(FArchive& Ar) cons
 
 void UNetDriver::Serialize( FArchive& Ar )
 {
-	Super::Serialize( Ar );
+	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "UNetDriver::Serialize");
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("UNetDriver::Super", Super::Serialize(Ar));
 
 	if (Ar.IsCountingMemory())
 	{
@@ -2329,8 +2331,6 @@ void UNetDriver::Serialize( FArchive& Ar )
 		//		Delegate Handles
 		//		DDoSDetection data
 		// These are probably insignificant, though.
-
-		GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "UNetDriver::Serialize");
 
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("MappedClientConnection", MappedClientConnections.CountBytes(Ar));
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("RecentlyDisconnectedClients", RecentlyDisconnectedClients.CountBytes(Ar));

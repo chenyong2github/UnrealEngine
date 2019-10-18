@@ -592,12 +592,17 @@ bool UNetConnection::IsEncryptionEnabled() const
 
 void UNetConnection::Serialize( FArchive& Ar )
 {
-	UObject::Serialize( Ar );
-	Ar << PackageMap;
-	for (UChannel* Channel : Channels)
-	{
-		Ar << Channel;
-	}
+	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "UNetConnection::Serialize");
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("UObject", UObject::Serialize(Ar));
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("PackageName", Ar << PackageMap;);
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Channels",
+		for (UChannel* Channel : Channels)
+		{
+			Ar << Channel;
+		}
+	);
 
 	if (Ar.IsCountingMemory())
 	{
@@ -608,7 +613,7 @@ void UNetConnection::Serialize( FArchive& Ar )
 		//		Histogram data.
 		// These are probably insignificant, though.
 
-		GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "UNetConnection::Serialize");
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Channels", Channels.CountBytes(Ar));
 
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Challenge", Challenge.CountBytes(Ar));
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ClientResponse", ClientResponse.CountBytes(Ar));
