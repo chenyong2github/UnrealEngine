@@ -688,14 +688,16 @@ void FDataprepEditor::RestoreFromSnapshot(bool bUpdateViewport)
 		FDataprepCoreUtils::PurgeObjects( MoveTemp( ObjectsToDelete ) );
 	}
 
-	/** 
-	 * Set all assets as public so the actors in the level can find the assets they are referring to
-	 * Also assets should always have a RF_Public flags as they are the public interface of their package
-	 */
+	// Make sure all assets have RF_Public flag set so the actors in the level can find the assets they are referring to
+	// Cache boolean representing if RF_Public flag was set or not on asset
+	TArray<bool> AssetFlags;
+	AssetFlags.AddDefaulted( Assets.Num() );
+
 	for(int32 Index = 0; Index < Assets.Num(); ++Index)
 	{
 		if( UObject* Asset = Assets[Index].Get() )
 		{
+			AssetFlags[Index] = bool(Asset->GetFlags() & RF_Public);
 			Asset->SetFlags( RF_Public );
 		}
 	}
@@ -749,6 +751,23 @@ void FDataprepEditor::RestoreFromSnapshot(bool bUpdateViewport)
 		GWorld = CachedWorld;
 	}
 	UE_LOG( LogDataprepEditor, Verbose, TEXT("Level loaded") );
+
+	// Restore RF_Public on each asset
+	for(int32 Index = 0; Index < Assets.Num(); ++Index)
+	{
+		if( UObject* Asset = Assets[Index].Get() )
+		{
+			if( !AssetFlags[Index] )
+			{
+				Asset->ClearFlags( RF_Public );
+			}
+		}
+	}
+
+	{
+		TSharedPtr< IDataprepProgressReporter > ProgressReporter( new FDataprepCoreUtils::FDataprepProgressUIReporter() );
+		FDataprepCoreUtils::BuildAssets( Assets, ProgressReporter );
+	}
 
 	// Log time spent to import incoming file in minutes and seconds
 	double ElapsedSeconds = FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - StartTime);

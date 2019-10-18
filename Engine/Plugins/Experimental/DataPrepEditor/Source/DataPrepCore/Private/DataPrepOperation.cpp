@@ -83,6 +83,12 @@ TSharedPtr<FDataprepWorkReporter> UDataprepOperation::CreateTask(const FText & I
 	return TSharedPtr<FDataprepWorkReporter>();
 }
 
+bool UDataprepOperation::IsCancelled()
+{
+	return OperationContext && OperationContext->DataprepProgressReporter ? OperationContext->DataprepProgressReporter->IsWorkCancelled() : false;
+}
+
+
 void UDataprepOperation::ExecuteOperation(TSharedRef<FDataprepOperationContext>&  InOperationContext)
 {
 	OperationContext = InOperationContext;
@@ -116,11 +122,31 @@ FText UDataprepOperation::GetAdditionalKeyword_Implementation() const
 	return FText();
 }
 
-UObject* UDataprepEditingOperation::AddAsset( const UObject* Asset, UClass* AssetClass, const FString& AssetName )
+void UDataprepOperation::AssetsModified( TArray<UObject*> Assets )
+{
+	if ( OperationContext && OperationContext->AssetsModifiedDelegate.IsBound() )
+	{
+		OperationContext->AssetsModifiedDelegate.Execute( MoveTemp( Assets ) );
+	}
+}
+
+UObject* UDataprepEditingOperation::AddAsset( const UObject* Asset, const FString& AssetName )
 {
 	if ( OperationContext && OperationContext->AddAssetDelegate.IsBound() )
 	{
-		return OperationContext->AddAssetDelegate.Execute( Asset, AssetClass, AssetName.Len() > 0 ? *AssetName : nullptr );
+		return OperationContext->AddAssetDelegate.Execute( Asset, AssetName.Len() > 0 ? *AssetName : nullptr );
+	}
+
+	// #ueent_todo: Report error
+
+	return nullptr;
+}
+
+UObject* UDataprepEditingOperation::CreateAsset( UClass* AssetClass, const FString& AssetName )
+{
+	if ( OperationContext && OperationContext->CreateAssetDelegate.IsBound() )
+	{
+		return OperationContext->CreateAssetDelegate.Execute( AssetClass, AssetName.Len() > 0 ? *AssetName : nullptr );
 	}
 
 	// #ueent_todo: Report error
@@ -171,7 +197,7 @@ void UDataprepEditingOperation::DeleteObject( UObject* Object )
 	{
 		TArray<UObject*> Objects;
 		Objects.Add( Object );
-		OperationContext->DeleteObjectsDelegate.Execute( Objects );
+		OperationContext->DeleteObjectsDelegate.Execute( MoveTemp( Objects ) );
 		return;
 	}
 
@@ -182,8 +208,7 @@ void UDataprepEditingOperation::DeleteObjects( TArray<UObject*> Objects )
 {
 	if ( OperationContext && OperationContext->DeleteObjectsDelegate.IsBound() )
 	{
-		OperationContext->DeleteObjectsDelegate.Execute( Objects );
-		return;
+		OperationContext->DeleteObjectsDelegate.Execute( MoveTemp( Objects ) );
 	}
 
 	// #ueent_todo: Report error
