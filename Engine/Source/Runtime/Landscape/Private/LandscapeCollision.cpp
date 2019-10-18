@@ -448,6 +448,32 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 					ShapeArray.Emplace(MoveTemp(NewSimpleShape));
 				}
 
+#if WITH_EDITOR
+				// Create a shape for a heightfield which is used only by the landscape editor
+				if(!GetWorld()->IsGameWorld())
+				{
+					TUniquePtr<Chaos::TPerShapeData<float, 3>> NewEditorShape = Chaos::TPerShapeData<float, 3>::CreatePerShapeData();
+
+					HeightfieldRef->EditorHeightfield->SetScale(FinalScale);
+					TUniquePtr<Chaos::TImplicitObjectTransformed<float, 3>> ChaosEditorHeightFieldFromCooked = MakeUnique<Chaos::TImplicitObjectTransformed<float, 3>>(MakeSerializable(HeightfieldRef->EditorHeightfield), Chaos::TRigidTransform<float, 3>(FTransform::Identity));
+
+					FCollisionResponseContainer CollisionResponse;
+					CollisionResponse.SetAllChannels(ECollisionResponse::ECR_Ignore);
+					CollisionResponse.SetResponse(ECollisionChannel::ECC_Visibility, ECR_Block);
+					FCollisionFilterData QueryFilterDataEd, SimFilterDataEd;
+					CreateShapeFilterData(ECollisionChannel::ECC_Visibility, FMaskFilter(0), GetOwner()->GetUniqueID(), CollisionResponse, GetUniqueID(), 0, QueryFilterDataEd, SimFilterDataEd, true, false, true);
+
+					QueryFilterDataEd.Word3 |= (EPDF_SimpleCollision | EPDF_ComplexCollision);
+
+					NewEditorShape->Geometry = MakeSerializable(ChaosEditorHeightFieldFromCooked);
+					NewEditorShape->QueryData = QueryFilterDataEd;
+					NewEditorShape->SimData = SimFilterDataEd;
+
+					Geoms.Emplace(MoveTemp(ChaosEditorHeightFieldFromCooked));
+					ShapeArray.Emplace(MoveTemp(NewEditorShape));
+				}
+#endif
+				// Push the shapes to the actor
 				if(Geoms.Num() == 1)
 				{
 					PhysHandle->SetGeometry(MoveTemp(Geoms[0]));
@@ -456,25 +482,52 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 				{
 					PhysHandle->SetGeometry(MakeUnique<Chaos::TImplicitObjectUnion<float, 3>>(MoveTemp(Geoms)));
 				}
-				
+
 				PhysHandle->SetShapesArray(MoveTemp(ShapeArray));
 
+				// Push the actor to the scene
 				FPhysScene* PhysScene = GetWorld()->GetPhysicsScene();
 
 				// Set body instance data
 				BodyInstance.PhysicsUserData = FPhysicsUserData(&BodyInstance);
 				BodyInstance.OwnerComponent = this;
+				BodyInstance.ActorHandle = PhysHandle;
 
 				PhysHandle->SetUserData(&BodyInstance.PhysicsUserData);
 
 				TArray<FPhysicsActorHandle> Actors;
 				Actors.Add(PhysHandle);
 				PhysScene->AddActorsToScene_AssumesLocked(Actors);
-			}
+
+#if WITH_EDITOR
+				// If we're in an editor world we will never simulate but we require up to date SQ for the tools
+				// #BGTODO consider a more automatic way to have scenes update when they aren't simulating to avoid this explicit flush
+				if(!GetWorld()->IsGameWorld())
+				{
+					PhysScene->Flush_AssumesLocked();
+				}
 #endif
+			}
+#endif // WITH_CHAOS
 		}
 #endif// WITH_PHYSX
 	}
+}
+
+void ULandscapeHeightfieldCollisionComponent::OnDestroyPhysicsState()
+{
+	Super::OnDestroyPhysicsState();
+	
+#if WITH_EDITOR && WITH_CHAOS
+	// If we're in an editor world we will never simulate but we require up to date SQ for the tools
+	// #BGTODO consider a more automatic way to have scenes update when they aren't simulating to avoid this explicit flush
+	if(!GetWorld()->IsGameWorld())
+	{
+		FPhysScene* PhysScene = GetWorld()->GetPhysicsScene();
+		check(PhysScene);
+		PhysScene->Flush_AssumesLocked();
+	}
+#endif
 }
 
 void ULandscapeHeightfieldCollisionComponent::ApplyWorldOffset(const FVector& InOffset, bool bWorldShift)
@@ -1325,7 +1378,10 @@ void ULandscapeHeightfieldCollisionComponent::UpdateHeightfieldRegion(int32 Comp
 		}
 
 #if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
-        ensure(false);
+		if(!BodyInstance.ActorHandle)
+		{
+			return;
+		}
 #else
 		if (BodyInstance.ActorHandle.SyncActor == NULL)
 		{
@@ -1347,6 +1403,7 @@ void ULandscapeHeightfieldCollisionComponent::UpdateHeightfieldRegion(int32 Comp
 			uint16* Heights = (uint16*)CollisionHeightData.Lock(LOCK_READ_ONLY);
 			check(CollisionHeightData.GetElementCount() == (FMath::Square(CollisionSizeVerts) + FMath::Square(SimpleCollisionSizeVerts)));
 	
+#if PHYSICS_INTERFACE_PHYSX
 			// PhysX heightfield has the X and Y axis swapped, and the X component is also inverted
 			int32 HeightfieldX1 = ComponentY1;
 			int32 HeightfieldY1 = (bIsMirrored ? ComponentX1 : (CollisionSizeVerts - ComponentX2 - 1));
@@ -1393,20 +1450,43 @@ void ULandscapeHeightfieldCollisionComponent::UpdateHeightfieldRegion(int32 Comp
 			FVector LandscapeScale = GetComponentToWorld().GetScale3D().GetAbs();
 			// Create the geometry
 			PxHeightFieldGeometry LandscapeComponentGeom(HeightfieldRef->RBHeightfieldEd, PxMeshGeometryFlags(), LandscapeScale.Z * LANDSCAPE_ZSCALE, LandscapeScale.Y * CollisionScale, LandscapeScale.X * CollisionScale);
-	
+
 			{
 				FInlineShapeArray PShapes;
-#if WITH_CHAOS
-				ensure(false);
-				const int32 NumShapes = 0;
-#else
+
 				const int32 NumShapes = FillInlineShapeArray_AssumesLocked(PShapes, Actor);
-#endif
-				if (NumShapes > 1)
+				if(NumShapes > 1)
 				{
 					FPhysicsInterface::SetGeometry(PShapes[1], LandscapeComponentGeom);
 				}
 			}
+
+#elif WITH_CHAOS
+			int32 HeightfieldY1 = ComponentY1;
+			int32 HeightfieldX1 = (bIsMirrored ? ComponentX1 : (CollisionSizeVerts - ComponentX2 - 1));
+			int32 DstVertsX = ComponentX2 - ComponentX1 + 1;
+			int32 DstVertsY = ComponentY2 - ComponentY1 + 1;
+			TArray<uint16> Samples;
+			Samples.AddZeroed(DstVertsX*DstVertsY);
+
+			for(int32 RowIndex = 0; RowIndex < DstVertsY; RowIndex++)
+			{
+				for(int32 ColIndex = 0; ColIndex < DstVertsX; ColIndex++)
+				{
+					int32 SrcX = bIsMirrored ? (ColIndex + ComponentX1) : (ComponentX2 - ColIndex);
+					int32 SrcY = RowIndex + ComponentY1;
+					int32 SrcSampleIndex = (SrcY * CollisionSizeVerts) + SrcX;
+					check(SrcSampleIndex < FMath::Square(CollisionSizeVerts));
+					int32 DstSampleIndex = (RowIndex * DstVertsX) + ColIndex;
+
+					Samples[DstSampleIndex] = Heights[SrcSampleIndex];
+				}
+			}
+
+			CollisionHeightData.Unlock();
+
+			HeightfieldRef->EditorHeightfield->EditHeights(Samples, HeightfieldY1, HeightfieldX1, DstVertsY, DstVertsX);
+#endif
 		});
 	}
 
