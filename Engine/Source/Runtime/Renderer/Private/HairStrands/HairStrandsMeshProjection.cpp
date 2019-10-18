@@ -34,8 +34,8 @@ class FHairMeshProjectionCS : public FGlobalShader
 		SHADER_PARAMETER_SRV(Buffer, RootPositionBuffer)
 		SHADER_PARAMETER_SRV(Buffer, RootNormalBuffer)
 
-		SHADER_PARAMETER_UAV(StructuredBuffer, OutRootTriangleIndex)
-		SHADER_PARAMETER_UAV(StructuredBuffer, OutRootTriangleBarycentrics)
+		SHADER_PARAMETER_UAV(RWBuffer, OutRootTriangleIndex)
+		SHADER_PARAMETER_UAV(RWBuffer, OutRootTriangleBarycentrics)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(StructuredBuffer, OutRootTriangleDistance)
 	END_SHADER_PARAMETER_STRUCT()
 
