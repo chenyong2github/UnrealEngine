@@ -1062,12 +1062,13 @@ namespace Manzana
         {
             if (AFCCommsHandle.Handle != IntPtr.Zero)
             {
-				MobileDevice.DeviceImpl.ConnectionClose(AFCCommsHandle);
-				MobileDevice.DeviceImpl.StopSession(iPhoneHandle);
-				MobileDevice.DeviceImpl.Disconnect(iPhoneHandle);
+                MobileDevice.DeviceImpl.ConnectionClose(AFCCommsHandle);
             }
 
             AFCCommsHandle = IntPtr.Zero;
+
+            MobileDevice.DeviceImpl.StopSession(iPhoneHandle);
+            MobileDevice.DeviceImpl.Disconnect(iPhoneHandle);
         }
 
         /// <summary>
