@@ -72,7 +72,6 @@ private:
 	FString IOFilename;
 #endif
 
-	int64 IOFileOffset;
 	FAsyncFileCallBack AsyncFileCallBack;
 };
 

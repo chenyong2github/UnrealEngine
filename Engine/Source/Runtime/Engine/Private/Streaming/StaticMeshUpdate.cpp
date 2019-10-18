@@ -386,20 +386,12 @@ void FStaticMeshStreamIn_IO::SetIORequest(const FContext& Context, const FString
 		// but that won't do anything because the tick would not try to acquire the lock since it is already locked.
 		TaskSynchronization.Increment();
 
-#if USE_BULKDATA_STREAMING_TOKEN
 		IORequest = FUntypedBulkData::CreateStreamingRequestForRange(
-			IOFilename,
+			STREAMINGTOKEN_PARAM(IOFilename)
 			FirstLOD.BulkDataStreamingToken,
 			LastLOD.BulkDataStreamingToken,
 			bHighPrioIORequest ? AIOP_BelowNormal : AIOP_Low,
 			&AsyncFileCallback);
-#else
-		IORequest = BulkDataUtils::CreateStreamingRequestForRange(
-			FirstLOD.StreamingBulkData,
-			LastLOD.StreamingBulkData,
-			bHighPrioIORequest ? AIOP_BelowNormal : AIOP_Low,
-			&AsyncFileCallback);
-#endif
 	}
 	else
 	{

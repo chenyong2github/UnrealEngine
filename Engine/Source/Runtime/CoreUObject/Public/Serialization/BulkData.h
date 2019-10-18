@@ -19,6 +19,12 @@
 // Enable the following to use the more compact FBulkDataStreamingToken in places where it is implemented
 #define USE_BULKDATA_STREAMING_TOKEN !USE_NEW_BULKDATA
 
+#if USE_BULKDATA_STREAMING_TOKEN
+	#define STREAMINGTOKEN_PARAM(param) param,
+#else
+	#define STREAMINGTOKEN_PARAM(param) 
+#endif
+
 /**
  * Flags serialized with the bulk data.
  */

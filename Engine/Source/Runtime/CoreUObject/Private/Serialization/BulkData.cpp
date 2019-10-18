@@ -1608,10 +1608,25 @@ FBulkDataIORequest* FUntypedBulkData::CreateStreamingRequest(int64 OffsetInBulkD
 {
 	check(Filename.IsEmpty() == false);
 
-	UE_CLOG(IsStoredCompressedOnDisk(), LogSerialization, Fatal, TEXT("Package level compression is no longer supported (%s)."), *Filename);
-	UE_CLOG(GetBulkDataSize() <= 0, LogSerialization, Error, TEXT("(%s) has invalid bulk data size."), *Filename);
+	// If we are loading from a .uexp file then we need to adjust the filename and offset stored by BulkData in order to use them
+	// to access the data in the .uexp file. To keep the method const (due to a large number of places calling this, assuming that
+	// it is const) we take a copy of these data values which if needed can be adjusted and use them instead.
+	FString AdjustedFilename = Filename; 
+	int64 AdjustedBulkDataOffsetInFile = BulkDataOffsetInFile;
 
-	IAsyncReadFileHandle* IORequestHandle = FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*Filename);
+	// Fix up the Filename/Offset to work with streaming if we are loading from a .uexp file
+	if (AdjustedFilename.EndsWith(TEXT(".uasset")) || AdjustedFilename.EndsWith(TEXT(".umap")))
+	{
+		AdjustedBulkDataOffsetInFile -= IFileManager::Get().FileSize(*AdjustedFilename);
+
+		AdjustedFilename = FPaths::GetBaseFilename(AdjustedFilename, false) + TEXT(".uexp");
+		UE_LOG(LogSerialization, Error, TEXT("Streaming from the .uexp file '%s' this MUST be in a ubulk instead for best performance."), *AdjustedFilename);
+	}
+
+	UE_CLOG(IsStoredCompressedOnDisk(), LogSerialization, Fatal, TEXT("Package level compression is no longer supported (%s)."), *AdjustedFilename);
+	UE_CLOG(GetBulkDataSize() <= 0, LogSerialization, Error, TEXT("(%s) has invalid bulk data size."), *AdjustedFilename);
+
+	IAsyncReadFileHandle* IORequestHandle = FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*AdjustedFilename);
 	check(IORequestHandle); // this generally cannot fail because it is async
 
 	if (IORequestHandle == nullptr)
@@ -1619,7 +1634,7 @@ FBulkDataIORequest* FUntypedBulkData::CreateStreamingRequest(int64 OffsetInBulkD
 		return nullptr;
 	}
 
-	const int64 OffsetInFile = GetBulkDataOffsetInFile() + OffsetInBulkData;
+	const int64 OffsetInFile = AdjustedBulkDataOffsetInFile + OffsetInBulkData;
 
 	IAsyncReadRequest* ReadRequest = IORequestHandle->ReadRequest(OffsetInFile, BytesToRead, Priority, CompleteCallback, UserSuppliedMemory);
 	if (ReadRequest != nullptr)
