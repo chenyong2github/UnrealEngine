@@ -58,25 +58,33 @@ public:
 	//~ End UMeshComponent Interface.
 
 	/** Return the guide hairs datas */
-	FHairStrandsDatas* GetGuideStrandsDatas();
+	FHairStrandsDatas* GetGuideStrandsDatas(uint32 GroupIndex);
 
 	/** Return the guide hairs resources*/
-	FHairStrandsResource* GetGuideStrandsResource();
+	FHairStrandsResource* GetGuideStrandsResource(uint32 GroupIndex);
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
-	// #hair_todo: cached/serialize interpolation data
-	FHairStrandsInterpolationResource* InterpolationResource = nullptr;
+
+	struct FHairGroupResource
+	{
+		FHairStrandsInterpolationResource* InterpolationResource = nullptr;
+		struct FHairStrandsRootResource* RenRootResources = nullptr;
+		struct FHairStrandsRootResource* SimRootResources = nullptr;
+	#if RHI_RAYTRACING
+		FHairStrandsRaytracingResource* RaytracingResources = nullptr;
+	#endif
+
+		// Resources own by the asset
+		FHairStrandsResource* RenderResources = nullptr;
+		FHairStrandsResource* SimResources = nullptr;
+	};
+	typedef TArray<FHairGroupResource> FHairGroupResources;
+
+	FHairGroupResources HairGroupResources;
 	struct FHairStrandsInterpolationOutput* InterpolationOutput = nullptr;
 	struct FHairStrandsInterpolationInput* InterpolationInput = nullptr;
-	struct FHairStrandsRootResource* RenRootResources = nullptr;
-	struct FHairStrandsRootResource* SimRootResources = nullptr;
-
-#if RHI_RAYTRACING
-	FHairStrandsRaytracingResource* RaytracingResources = nullptr;
-#endif
-
 private:
 	void* InitializedResources;
 
