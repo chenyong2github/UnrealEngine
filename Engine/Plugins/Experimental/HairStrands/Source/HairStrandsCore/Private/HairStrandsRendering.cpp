@@ -464,7 +464,7 @@ void ComputeHairStrandsInterpolation(
 				Output.RenderDeformedPositionBuffer[CurrIndex]->SRV,
 				Output.RenderTangentBuffer->UAV);
 
-#if RHI_RAYTRACING
+			#if RHI_RAYTRACING
 			if (IsRayTracingEnabled())
 			{
 				AddGenerateRaytracingGeometryPass(
@@ -475,7 +475,7 @@ void ComputeHairStrandsInterpolation(
 					Output.RenderDeformedPositionBuffer[CurrIndex]->SRV,
 					Input.RaytracingPositionBuffer->UAV);
 			}
-#endif
+			#endif
 			GraphBuilder.Execute();
 
 			Output.VFInput.HairPositionBuffer = Output.RenderDeformedPositionBuffer[CurrIndex]->SRV;
@@ -484,7 +484,7 @@ void ComputeHairStrandsInterpolation(
 			Output.VFInput.HairAttributeBuffer = DebugMode == EHairStrandsDebugMode::RenderHairStrands ? Output.RenderPatchedAttributeBuffer.SRV : Input.RenderAttributeBuffer->SRV;
 			Output.VFInput.VertexCount = Input.RenderVertexCount;
 
-#if RHI_RAYTRACING
+			#if RHI_RAYTRACING
 			if (IsRayTracingEnabled())
 			{
 				FRHIUnorderedAccessView* UAV = Input.RaytracingPositionBuffer->UAV;
@@ -497,7 +497,7 @@ void ComputeHairStrandsInterpolation(
 					UpdateHairAccelerationStructure(RHICmdList, Input.RaytracingGeometry);
 				Input.bIsRTGeometryInitialized = true;
 			}
-#endif
+			#endif
 		}
 
 		Output.CurrentIndex = PrevIndex;

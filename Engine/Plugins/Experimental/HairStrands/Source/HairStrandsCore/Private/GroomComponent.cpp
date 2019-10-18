@@ -528,14 +528,24 @@ FHairStrandsDatas* UGroomComponent::GetGuideStrandsDatas(uint32 GroupIndex)
 	return &GroomAsset->HairGroupsData[GroupIndex].HairSimulationData;
 }
 
-FHairStrandsResource* UGroomComponent::GetGuideStrandsResource(uint32 GroupIndex)
+FHairStrandsRestResource* UGroomComponent::GetGuideStrandsRestResource(uint32 GroupIndex)
 {
 	if (!GroomAsset || GroupIndex >= uint32(GroomAsset->GetNumHairGroups()))
 	{
 		return nullptr;
 	}
 
-	return GroomAsset->HairGroupsData[GroupIndex].HairSimulationResource;
+	return GroomAsset->HairGroupsData[GroupIndex].HairSimulationRestResource;
+}
+
+FHairStrandsDeformedResource* UGroomComponent::GetGuideStrandsDeformedResource(uint32 GroupIndex)
+{
+	if (GroupIndex >= uint32(HairGroupResources.Num()))
+	{
+		return nullptr;
+	}
+
+	return HairGroupResources[GroupIndex].SimDeformedResources;
 }
 
 template<typename T> void SafeDelete(T*& Data) 
@@ -623,7 +633,7 @@ void UGroomComponent::InitResources()
 	FHairStrandsDebugInfo DebugGroupInfo;
 	for (FHairGroupData& GroupData : GroomAsset->HairGroupsData)
 	{
-		if (!GroupData.HairStrandsResource)
+		if (!GroupData.HairStrandsRestResource)
 			return;
 
 		FHairStrandsDebugInfo::HairGroup& DebugHairGroup = DebugGroupInfo.HairGroups.AddDefaulted_GetRef();
@@ -658,8 +668,12 @@ void UGroomComponent::InitResources()
 			}
 		}
 		
-		Res.RenderResources = GroupData.HairStrandsResource;
-		Res.SimResources = GroupData.HairSimulationResource;
+		Res.RenderRestResources = GroupData.HairStrandsRestResource;
+		Res.SimRestResources = GroupData.HairSimulationRestResource;
+		Res.RenderDeformedResources = new FHairStrandsDeformedResource(GroupData.HairRenderData.RenderData, false);
+		Res.SimDeformedResources = new FHairStrandsDeformedResource(GroupData.HairSimulationData.RenderData, true);
+		BeginInitResource(Res.RenderDeformedResources);
+		BeginInitResource(Res.SimDeformedResources);
 
 		FHairStrandsInterpolationOutput::HairGroup& InterpolationOutputGroup = InterpolationOutput->HairGroups.AddDefaulted_GetRef();
 		FHairStrandsInterpolationInput::FHairGroup& InterpolationInputGroup = InterpolationInput->HairGroups.AddDefaulted_GetRef();
@@ -692,16 +706,16 @@ void UGroomComponent::InitResources()
 		{
 			FHairGroupResource& Res = (*LocalResources)[GroupIt];
 
-			FHairStrandsInterpolationInput::FHairGroup& InputGroup		= Interpolation.Input->HairGroups[GroupIt];
+			FHairStrandsInterpolationInput::FHairGroup& InputGroup 	= Interpolation.Input->HairGroups[GroupIt];
 			FHairStrandsInterpolationOutput::HairGroup& OutputGroup	= Interpolation.Output->HairGroups[GroupIt];
 
-			InputGroup.RenderRestPosePositionBuffer	= &Res.RenderResources->RestPositionBuffer;
-			InputGroup.RenderAttributeBuffer		= &Res.RenderResources->AttributeBuffer;
-			InputGroup.RenderVertexCount			=  Res.RenderResources->RenderData.RenderingPositions.Num() / FHairStrandsPositionFormat::ComponentCount;
+			InputGroup.RenderRestPosePositionBuffer	= &Res.RenderRestResources->RestPositionBuffer;
+			InputGroup.RenderAttributeBuffer		= &Res.RenderRestResources->AttributeBuffer;
+			InputGroup.RenderVertexCount			=  Res.RenderRestResources->RenderData.RenderingPositions.Num() / FHairStrandsPositionFormat::ComponentCount;
 
-			InputGroup.SimRestPosePositionBuffer	= &Res.SimResources->RestPositionBuffer;
-			InputGroup.SimAttributeBuffer			= &Res.SimResources->AttributeBuffer;
-			InputGroup.SimVertexCount				=  Res.SimResources->RenderData.RenderingPositions.Num() / FHairStrandsPositionFormat::ComponentCount;
+			InputGroup.SimRestPosePositionBuffer	= &Res.SimRestResources->RestPositionBuffer;
+			InputGroup.SimAttributeBuffer			= &Res.SimRestResources->AttributeBuffer;
+			InputGroup.SimVertexCount				=  Res.SimRestResources->RenderData.RenderingPositions.Num() / FHairStrandsPositionFormat::ComponentCount;
 			InputGroup.SimRootPointIndexBuffer		= &Res.InterpolationResource->SimRootPointIndexBuffer;
 
 			InputGroup.Interpolation0Buffer			= &Res.InterpolationResource->Interpolation0Buffer;
@@ -716,13 +730,13 @@ void UGroomComponent::InitResources()
 			}
 			#endif
 
-			OutputGroup.SimDeformedPositionBuffer[0]	= &Res.SimResources->DeformedPositionBuffer[0];
-			OutputGroup.SimDeformedPositionBuffer[1]	= &Res.SimResources->DeformedPositionBuffer[1];
-			OutputGroup.RenderDeformedPositionBuffer[0] = &Res.RenderResources->DeformedPositionBuffer[0];
-			OutputGroup.RenderDeformedPositionBuffer[1] = &Res.RenderResources->DeformedPositionBuffer[1];
-			OutputGroup.RenderAttributeBuffer			= &Res.RenderResources->AttributeBuffer;
-			OutputGroup.RenderTangentBuffer				= &Res.RenderResources->TangentBuffer;
-			OutputGroup.SimTangentBuffer				= &Res.SimResources->TangentBuffer;
+			OutputGroup.SimDeformedPositionBuffer[0]	= &Res.SimDeformedResources->DeformedPositionBuffer[0];
+			OutputGroup.SimDeformedPositionBuffer[1]	= &Res.SimDeformedResources->DeformedPositionBuffer[1];
+			OutputGroup.RenderDeformedPositionBuffer[0] = &Res.RenderDeformedResources->DeformedPositionBuffer[0];
+			OutputGroup.RenderDeformedPositionBuffer[1] = &Res.RenderDeformedResources->DeformedPositionBuffer[1];
+			OutputGroup.RenderAttributeBuffer			= &Res.RenderRestResources->AttributeBuffer;
+			OutputGroup.RenderTangentBuffer				= &Res.RenderDeformedResources->TangentBuffer;
+			OutputGroup.SimTangentBuffer				= &Res.SimDeformedResources->TangentBuffer;
 
 			RenProjectionDatas.HairGroups.Add(ToProjectionHairData(Res.RenRootResources));
 			SimProjectionDatas.HairGroups.Add(ToProjectionHairData(Res.SimRootResources));
@@ -755,6 +769,8 @@ void UGroomComponent::ReleaseResources()
 		SafeRelease(Res.InterpolationResource);
 		SafeRelease(Res.RenRootResources);
 		SafeRelease(Res.SimRootResources);
+		SafeRelease(Res.RenderDeformedResources);
+		SafeRelease(Res.SimDeformedResources);
 	#if RHI_RAYTRACING
 		SafeRelease(Res.RaytracingResources);
 	#endif
