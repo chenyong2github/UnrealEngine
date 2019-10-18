@@ -26,6 +26,10 @@ class DATASMITHIMPORTER_API UDatasmithFileProducer : public UDataprepContentProd
 	GENERATED_BODY()
 
 public:
+	// UObject interface
+	virtual void PostEditUndo() override;
+	virtual void PostInitProperties() override;
+	// End of UObject interface
 
 	/** Update producer with newly selected filename */
 	void SetFilename( const FString& InFilename );
@@ -70,6 +74,7 @@ private:
 	static FDatasmithImportBaseOptions DefaultImportOptions;
 
 	friend class SDatasmithFileProducerFileProperty;
+	friend class UDatasmithDirProducer;
 };
 
 // Customization of the details of the Datasmith Scene for the data prep editor.
@@ -94,6 +99,9 @@ public:
 
 	// Begin UObject interface
 	virtual void Serialize( FArchive& Ar ) override;
+	virtual void PostInitProperties() override;
+	// End of UObject interface
+
 	// End UObject interface
 
 	/** Update producer with newly selected folder name */

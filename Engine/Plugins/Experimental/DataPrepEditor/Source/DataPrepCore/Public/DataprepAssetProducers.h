@@ -61,6 +61,7 @@ public:
 
 	// UObject interface
 	virtual void Serialize( FArchive& Ar ) override;
+	virtual void PostEditUndo() override;
 	// End of UObject interface
 
 	/**
