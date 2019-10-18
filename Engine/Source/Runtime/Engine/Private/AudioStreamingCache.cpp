@@ -550,7 +550,7 @@ void FAudioChunkCache::BlockForAllPendingLoads() const
 		if (bLoadInProgress)
 		{
 			float TimeSinceStarted = FPlatformTime::Seconds() - TimeStarted;
-			UE_LOG(LogAudio, Display, TEXT("Waited %f seconds for async audio chunk loads."), TimeSinceStarted);
+			UE_LOG(LogAudio, Log, TEXT("Waited %f seconds for async audio chunk loads."), TimeSinceStarted);
 			FPlatformProcess::Sleep(0.0f);
 		}
 
