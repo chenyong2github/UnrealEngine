@@ -57,6 +57,7 @@ private:
 		TRefCountPtr<FRHITexture2D> RHITexture;
 		uint32_t WidthInTiles = 0u;
 		uint32_t BatchCapacity = 0u;
+		bool bIsCPUWritable;
 	};
 
 	struct FPoolEntry
