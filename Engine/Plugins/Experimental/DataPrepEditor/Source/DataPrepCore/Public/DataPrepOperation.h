@@ -13,12 +13,20 @@
 #include "DataPrepOperation.generated.h"
 
 /**
- * Delegate used by a Dataprep operation to add an asset to the Dataprep's working set
+ * Delegate used by a Dataprep operation to add a copy of an asset to the Dataprep's working set
  * @return	A new asset which is either a duplicate of Asset if not null or of class AssetClass and name AssetName
  * @remark	Returns nullptr if Asset and AssetClass is null
  * @remark	If Asset is not null, it will not be added to the list of assets tracked by Dataprep. It can safely be deleted
  */
-DECLARE_DELEGATE_RetVal_ThreeParams(UObject* /* NewAsset */, FDataprepAddAsset, const UObject* /* Asset */, UClass* /* AssetClass */, const TCHAR* /* Assetname */ )
+DECLARE_DELEGATE_RetVal_TwoParams(UObject* /* NewAsset */, FDataprepAddAsset, const UObject* /* Asset */, const TCHAR* /* Assetname */ )
+
+/**
+ * Delegate used by a Dataprep operation to create and add an asset to the Dataprep's working set
+ * @return	A new asset which is either a duplicate of Asset if not null or of class AssetClass and name AssetName
+ * @remark	Returns nullptr if Asset and AssetClass is null
+ * @remark	If Asset is not null, it will not be added to the list of assets tracked by Dataprep. It can safely be deleted
+ */
+DECLARE_DELEGATE_RetVal_TwoParams(UObject* /* NewAsset */, FDataprepCreateAsset, UClass* /* AssetClass */, const TCHAR* /* Assetname */ )
 
 /**
  * Delegate used by a Dataprep operation to add an actor to the Dataprep's working set
@@ -33,6 +41,11 @@ DECLARE_DELEGATE_RetVal_TwoParams(class AActor* /* Actor */, FDataprepCreateActo
  * @remark If the object is removed from the Dataprep's working set, the operation is therefore owning the object.
  */
 DECLARE_DELEGATE_TwoParams(FDataprepRemoveObject, UObject* /* Object */, bool /* bLocalContext */ )
+
+/**
+ * Delegate used by a Dataprep operation to indicates an asset has been modified
+ */
+DECLARE_DELEGATE_OneParam(FDataprepAssetsModified, TArray<UObject*> /* Objects */ )
 
 /**
  * Delegate used by a Dataprep operation to remove and delete an array of objects from the Dataprep's working set.
@@ -74,13 +87,24 @@ struct FDataprepOperationContext
 	TSharedPtr<struct FDataprepContext> Context;
 
 	/**
-	 * Delegate to add an asset to the Dataprep content
+	 * Delegate to indicate an asset has been modified
+	 */
+	FDataprepAssetsModified AssetsModifiedDelegate;
+
+	/**
+	 * Delegate to duplicate and add an asset to the Dataprep content
 	 * Only effective if the operation is of class UDataprepEditingOperation
 	 */
 	FDataprepAddAsset AddAssetDelegate;
 
 	/**
-	 * Delegate to add an asset to the Dataprep content
+	 * Delegate to create and add an asset to the Dataprep content
+	 * Only effective if the operation is of class UDataprepEditingOperation
+	 */
+	FDataprepCreateAsset CreateAssetDelegate;
+
+	/**
+	 * Delegate to create and add an actor to the Dataprep content
 	 * Only effective if the operation is of class UDataprepEditingOperation
 	 */
 	FDataprepCreateActor CreateActorDelegate;
@@ -179,12 +203,23 @@ protected:
 	void ReportProgress( float IncrementOfWork, const FText& InMessage );
 
 	/**
+	 * Indicates an array of assets has changed during the operation. It is important to use this function
+	 * if the modifications on the assets impact their appearance
+	 * @param Assets			Array of assets which have been modified
+	 */
+	UFUNCTION(BlueprintCallable,  Category = "Dataprep | Operation")
+	void AssetsModified( TArray<UObject*> Assets );
+
+	/**
 	 * Create a task to report progress during the execution of an operation
 	 * @param InDescription		The description of the task about to be performed
 	 * @param InAmountOfWork	Expected amount of work for the task
 	 * @param InIncrementOfWork	Expected increment during the execution of the task
 	 */
 	TSharedPtr<FDataprepWorkReporter> CreateTask( const FText& InDescription, float InAmountOfWork, float InIncrementOfWork = 1.0f );
+
+	/** Returns true if the operation was canceled during execution */
+	bool IsCancelled();
 
 	// User friendly interface end here ========================================================================
 
@@ -241,14 +276,22 @@ class DATAPREPCORE_API UDataprepEditingOperation : public UDataprepOperation
 
 protected:
 	/**
-	 * Add an asset to the Dataprep's and action's working set
+	 * DUplicate and add an asset to the Dataprep's and action's working set
 	 * @param Asset			If not null, the asset will be duplicated
-	 * @param AssetClass	If Asset is null, an asset of the given class will be returned
-	 * @param AssetName		Name of the asset to create. Name collision will be performed before naming the asset
+	 * @param AssetName		Name of the asset to create. Name collision will be checked and fixed before naming the asset
 	 * @returns				The asset newly created
 	 */
 	UFUNCTION(BlueprintCallable,  Category = "Dataprep | Editing Operation")
-	UObject* AddAsset(const UObject* Asset, UClass* AssetClass, const FString& AssetName );
+	UObject* AddAsset(const UObject* Asset, const FString& AssetName );
+
+	/**
+	 * Create and add an asset to the Dataprep's and action's working set
+	 * @param AssetClass	If Asset is null, an asset of the given class will be returned
+	 * @param AssetName		Name of the asset to create. Name collision will be checked and fixed before naming the asset
+	 * @returns				The asset newly created
+	 */
+	UFUNCTION(BlueprintCallable,  Category = "Dataprep | Editing Operation")
+	UObject* CreateAsset(UClass* AssetClass, const FString& AssetName );
 
 	/**
 	 * Add an actor to the Dataprep's transient world and action's working set
