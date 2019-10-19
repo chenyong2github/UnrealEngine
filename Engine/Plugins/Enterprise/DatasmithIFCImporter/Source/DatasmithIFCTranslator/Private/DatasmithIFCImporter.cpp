@@ -250,7 +250,8 @@ TSharedPtr<IDatasmithActorElement> FDatasmithIFCImporter::ConvertNode(const IFC:
 			Containment->AddChild(ConvertNode(IFCReader->GetObjects()[PartIndex]));
 		}
 	}
-
+	
+	ImportedIFCInstances.Add(InObject.IfcInstance);
 	return ActorElement;
 }
 
@@ -321,14 +322,19 @@ bool FDatasmithIFCImporter::SendSceneToDatasmith()
 		DatasmithScene->AddActor(ConvertNode(Project));
 	}
 
+	// Import all unreferenced objects
+	TSharedPtr<IDatasmithActorElement> UnreferencedRoot = FDatasmithSceneFactory::CreateActor(TEXT("Unreferenced objects"));	
 	for (const IFC::FObject& IFCObjectRef : IFCReader->GetObjects())
 	{
-		if (IFCObjectRef.bRootObject == false)
+		if (IFCObjectRef.bRootObject && !ImportedIFCInstances.Contains(IFCObjectRef.IfcInstance))
 		{
-			continue;
+			UnreferencedRoot->AddChild(ConvertNode(IFCObjectRef));
 		}
 	}
-
+	if (UnreferencedRoot->GetChildrenCount() > 0)
+	{
+		DatasmithScene->AddActor(UnreferencedRoot);
+	}
 #endif
 
 	return true;
