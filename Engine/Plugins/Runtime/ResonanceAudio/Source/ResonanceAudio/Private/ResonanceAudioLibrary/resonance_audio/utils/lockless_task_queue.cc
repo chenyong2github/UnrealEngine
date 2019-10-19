@@ -34,6 +34,8 @@ _Pragma("clang diagnostic ignored \"-Wshadow\"")
 
 #include "base/logging.h"
 
+#include <mutex>
+
 namespace vraudio {
 
 LocklessTaskQueue::LocklessTaskQueue(size_t max_tasks) {
@@ -95,6 +97,8 @@ LocklessTaskQueue::Node* LocklessTaskQueue::PopNodeFromList(
 }
 
 void LocklessTaskQueue::ProcessTaskList(Node* list_head, bool execute) {
+  std::lock_guard<std::mutex> scope_lock(temp_tasks_mutex_);
+
   Node* node_itr = list_head;
   while (node_itr != nullptr) {
     Node* next_node_ptr = node_itr->next;
@@ -117,6 +121,7 @@ void LocklessTaskQueue::ProcessTaskList(Node* list_head, bool execute) {
 }
 
 void LocklessTaskQueue::Init(size_t num_nodes) {
+  std::lock_guard<std::mutex> scope_lock(temp_tasks_mutex_);
   nodes_.resize(num_nodes);
   temp_tasks_.reserve(num_nodes);
 
