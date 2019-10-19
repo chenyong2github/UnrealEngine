@@ -153,13 +153,9 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 		bool bIsValidPixel = ShadingModelID != SHADINGMODELID_UNLIT && bIsDepthValid;
 
 		// Check if there is hair geometry
-		uint RaytracingMask = 0;
-		if (bIsValidPixel && ShadowMaskType == ShadowMaskType_Opaque)
-		{
-			RaytracingMask = RAY_TRACING_MASK_SHADOW | RAY_TRACING_MASK_THIN_SHADOW;
-		}
+		uint RaytracingMask = RAY_TRACING_MASK_SHADOW | RAY_TRACING_MASK_THIN_SHADOW;
 	#if USE_HAIR_LIGHTING
-		else if (ShadowMaskType == ShadowMaskType_Hair)
+		if (ShadowMaskType == ShadowMaskType_Hair)
 		{
 			RaytracingMask = RAY_TRACING_MASK_SHADOW;
 			const FCategorizationData Categorization = DecodeCategorizationData(HairCategorizationTexture.Load(uint3(PixelCoord, 0)));
