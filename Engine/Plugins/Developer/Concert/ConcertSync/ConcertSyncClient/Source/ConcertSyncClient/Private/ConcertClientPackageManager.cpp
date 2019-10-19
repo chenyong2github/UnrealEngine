@@ -212,30 +212,31 @@ void FConcertClientPackageManager::ApplyAllHeadPackageData()
 
 bool FConcertClientPackageManager::HasSessionChanges() const
 {
-#if WITH_EDITOR
-	return SandboxPlatformFile && SandboxPlatformFile->GatherSandboxChangedFilenames().Num() > 0;
-#else
-	return false;
-#endif	// WITH_EDITOR
+	bool bHasSessionChanges = false;
+	LiveSession->GetSessionDatabase().EnumeratePackageNamesWithHeadRevision([&bHasSessionChanges](const FName PackageName)
+	{
+		bHasSessionChanges = true;
+		return false; // Stop enumeration
+	}, /*IgnorePersisted*/true);
+	return bHasSessionChanges;
 }
 
-TArray<FString> FConcertClientPackageManager::GatherSessionChanges()
+bool FConcertClientPackageManager::PersistSessionChanges(TArrayView<const FName> InPackagesToPersist, ISourceControlProvider* SourceControlProvider, TArray<FText>* OutFailureReasons)
 {
 #if WITH_EDITOR
 	if (SandboxPlatformFile)
 	{
-		return SandboxPlatformFile->GatherSandboxChangedFilenames();
-	}
-#endif	// WITH_EDITOR
-	return TArray<FString>();
-}
-
-bool FConcertClientPackageManager::PersistSessionChanges(TArrayView<const FString> InFilesToPersist, ISourceControlProvider* SourceControlProvider, TArray<FText>* OutFailureReasons)
-{
-#if WITH_EDITOR
-	if (SandboxPlatformFile)
-	{
-		return SandboxPlatformFile->PersistSandbox(MoveTemp(InFilesToPersist), SourceControlProvider, OutFailureReasons);
+		// Transform all the package names into actual filenames
+		TArray<FString, TInlineAllocator<8>> FilesToPersist;
+		FString Filename;
+		for (const FName& PackageName : InPackagesToPersist)
+		{
+			if (FPackageName::DoesPackageExist(PackageName.ToString(), nullptr, &Filename))
+			{
+				FilesToPersist.Add(MoveTemp(Filename));
+			}
+		}
+		return SandboxPlatformFile->PersistSandbox(FilesToPersist, SourceControlProvider, OutFailureReasons);
 	}
 #endif
 	return false;
