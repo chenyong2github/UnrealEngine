@@ -29,6 +29,21 @@ public:
 	{
 	}
 	
+	/** Viewport pane configurations */
+	TSharedPtr< FUICommandInfo > ViewportConfig_OnePane;
+	TSharedPtr< FUICommandInfo > ViewportConfig_TwoPanesH;
+	TSharedPtr< FUICommandInfo > ViewportConfig_TwoPanesV;
+	TSharedPtr< FUICommandInfo > ViewportConfig_ThreePanesLeft;
+	TSharedPtr< FUICommandInfo > ViewportConfig_ThreePanesRight;
+	TSharedPtr< FUICommandInfo > ViewportConfig_ThreePanesTop;
+	TSharedPtr< FUICommandInfo > ViewportConfig_ThreePanesBottom;
+	TSharedPtr< FUICommandInfo > ViewportConfig_FourPanesLeft;
+	TSharedPtr< FUICommandInfo > ViewportConfig_FourPanesRight;
+	TSharedPtr< FUICommandInfo > ViewportConfig_FourPanesTop;
+	TSharedPtr< FUICommandInfo > ViewportConfig_FourPanesBottom;
+	TSharedPtr< FUICommandInfo > ViewportConfig_FourPanes2x2;
+
+
 	/** Changes the viewport to perspective view */
 	TSharedPtr< FUICommandInfo > Perspective;
 

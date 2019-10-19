@@ -44,7 +44,7 @@ public:
 	/**
 	* Saves viewport layout information between editor sessions
 	*/
-	virtual void SaveLayoutString(const FString& LayoutString) const = 0;
+	virtual void SaveLayoutString(const FString& LayoutString) const {}
 
 	virtual const FName& GetLayoutTypeName() const = 0;
 
