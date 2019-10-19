@@ -163,7 +163,7 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 		{
 			RaytracingMask = RAY_TRACING_MASK_SHADOW;
 			const FCategorizationData Categorization = DecodeCategorizationData(HairCategorizationTexture.Load(uint3(PixelCoord, 0)));
-			bIsValidPixel = Categorization.TotalCoverage8bit > 0;
+			bIsValidPixel = Categorization.PixelCoverage > 0;
 			if (bIsValidPixel)
 			{
 				DeviceZ = Categorization.ClosestDepth;
