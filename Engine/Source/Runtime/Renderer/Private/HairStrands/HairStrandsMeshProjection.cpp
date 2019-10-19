@@ -50,8 +50,8 @@ static void AddHairStrandMeshProjectionPass(
 	TShaderMap<FGlobalShaderType>* ShaderMap,
 	const bool bClear,
 	const int32 LODIndex,
-	const FHairStrandsProjectionMeshSection& MeshSectionData,
-	const FHairStrandsProjectionHairData& RootData,
+	const FHairStrandsProjectionMeshData::Section& MeshSectionData,
+	const FHairStrandsProjectionHairData::HairGroup& RootData,
 	FRDGBufferRef RootDistanceBuffer)
 {
 	if (!RootData.RootPositionBuffer ||
@@ -110,7 +110,7 @@ void ProjectHairStrandsOntoMesh(
 	TShaderMap<FGlobalShaderType>* ShaderMap,
 	const int32 LODIndex,
 	FHairStrandsProjectionMeshData& ProjectionMeshData, 
-	FHairStrandsProjectionHairData& ProjectionHairData)
+	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData)
 {
 	if (LODIndex < 0 || LODIndex >= ProjectionHairData.LODDatas.Num())
 		return;
@@ -120,7 +120,7 @@ void ProjectHairStrandsOntoMesh(
 	FRDGBufferRef RootDistanceBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(float),  ProjectionHairData.RootCount),	TEXT("HairStrandsTriangleDistance"));
 
 	bool ClearDistance = true;
-	for (FHairStrandsProjectionMeshSection& MeshSection : ProjectionMeshData.Sections)
+	for (FHairStrandsProjectionMeshData::Section& MeshSection : ProjectionMeshData.Sections)
 	{
 		check(ProjectionHairData.LODDatas[LODIndex].LODIndex == LODIndex);
 		AddHairStrandMeshProjectionPass(GraphBuilder, ShaderMap, ClearDistance, LODIndex, MeshSection, ProjectionHairData, RootDistanceBuffer);
@@ -168,8 +168,8 @@ static void AddHairStrandUpdateMeshTrianglesPass(
 	TShaderMap<FGlobalShaderType>* ShaderMap,
 	const int32 LODIndex,
 	const HairStrandsTriangleType Type,
-	const FHairStrandsProjectionMeshSection& MeshSectionData,
-	FHairStrandsProjectionHairData& RootData)	
+	const FHairStrandsProjectionMeshData::Section& MeshSectionData,
+	FHairStrandsProjectionHairData::HairGroup& RootData)
 {
 	if (RootData.RootCount == 0 || LODIndex < 0 || LODIndex >= RootData.LODDatas.Num())
 	{
@@ -229,11 +229,11 @@ void UpdateHairStrandsMeshTriangles(
 	const int32 LODIndex,
 	const HairStrandsTriangleType Type,
 	FHairStrandsProjectionMeshData& ProjectionMeshData,
-	FHairStrandsProjectionHairData& ProjectionHairData)
+	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData)
 {
 	FRDGBuilder GraphBuilder(RHICmdList);
 
-	for (FHairStrandsProjectionMeshSection& MeshSection : ProjectionMeshData.Sections)
+	for (FHairStrandsProjectionMeshData::Section& MeshSection : ProjectionMeshData.Sections)
 	{
 		AddHairStrandUpdateMeshTrianglesPass(GraphBuilder, ShaderMap, LODIndex, Type, MeshSection, ProjectionHairData);
 	}
