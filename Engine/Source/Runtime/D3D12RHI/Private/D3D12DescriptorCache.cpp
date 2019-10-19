@@ -279,12 +279,6 @@ void FD3D12DescriptorCache::NotifyCurrentCommandList(const FD3D12CommandListHand
 	LocalSamplerHeap.NotifyCurrentCommandList(CommandListHandle);
 }
 
-void FD3D12DescriptorCache::SetIndexBuffer(FD3D12IndexBufferCache& Cache)
-{
-	CmdContext->CommandListHandle.UpdateResidency(Cache.ResidencyHandle);
-	CmdContext->CommandListHandle->IASetIndexBuffer(&Cache.CurrentIndexBufferView);
-}
-
 void FD3D12DescriptorCache::SetVertexBuffers(FD3D12VertexBufferCache& Cache)
 {
 	const uint32 Count = Cache.MaxBoundVertexBufferIndex + 1;
