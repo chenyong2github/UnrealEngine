@@ -6,6 +6,7 @@
 #include "MovieScene.h"
 #include "Animation/WidgetAnimation.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Widgets/Docking/SDockTab.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Engine/SimpleConstructionScript.h"
 #include "Blueprint/WidgetBlueprintGeneratedClass.h"
