@@ -1175,6 +1175,13 @@ void FOpenGLDynamicRHI::RHIBeginRenderPass(const FRHIRenderPassInfo& InInfo, con
 		extern void BeginOcclusionQueryBatch(uint32);
 		BeginOcclusionQueryBatch(InInfo.NumOcclusionQueries);
 	}
+
+#if PLATFORM_ANDROID && !PLATFORM_LUMIN && !PLATFORM_LUMINGL4
+	if (FAndroidOpenGL::RequiresAdrenoTilingModeHint())
+	{
+		FAndroidOpenGL::EnableAdrenoTilingModeHint(FCString::Strcmp(InName, TEXT("SceneColorRendering")) == 0);
+	}
+#endif
 }
 
 void FOpenGLDynamicRHI::RHIEndRenderPass()
