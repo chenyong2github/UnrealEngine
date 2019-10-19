@@ -33,8 +33,6 @@ public:
 	/** Constructs this widget with InArgs */
 	void Construct( const FArguments& InArgs );
 
-	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
-
 	/** Populates TemplateItemsSource with templates found on disk */
 	TMap<FName, TArray<TSharedPtr<FTemplateItem>> >& FindTemplateProjects();
 
@@ -102,12 +100,6 @@ private:
 	/** Get a string that details the class types referenced in the selected template */
 	FText GetSelectedTemplateClassTypes() const;
 
-	/** Get a string that details the languages supported by the selected template */
-	FText GetSelectedTemplateLanguages() const;
-
-	/** Get visibility of the languages display. */
-	EVisibility GetSelectedTemplateLanguageVisibility() const;
-	
 	/** Get a visiblity of the class types display. If the string is empty this return Collapsed otherwise it will return Visible */
 	EVisibility GetSelectedTemplateClassVisibility() const;
 	
@@ -211,7 +203,6 @@ private:
 	/** Handler for when the selection changes in the template list */
 	void HandleTemplateListViewSelectionChanged( TSharedPtr<FTemplateItem> TemplateItem, ESelectInfo::Type SelectInfo );
 
-	TSharedRef<SRichTextBlock> MakeProjectSettingsDescriptionBox() const;
 	TSharedRef<SWidget> MakeProjectSettingsOptionsBox();
 
 private:
@@ -222,15 +213,6 @@ private:
 	FText PersistentGlobalErrorLabelText;
 
 	FSimpleDelegate OnTemplateDoubleClick;
-
-	/** The last time that the selected project file path was checked for validity. This is used to throttle I/O requests to a reasonable frequency */
-	double LastValidityCheckTime;
-
-	/** The frequency in seconds for validity checks while the dialog is idle. Changes to the path immediately update the validity. */
-	double ValidityCheckFrequency;
-
-	/** Periodic checks for validity will not occur while this flag is true. Used to prevent a frame of "this project already exists" while exiting after a successful creation. */
-	bool bPreventPeriodicValidityChecksUntilNextChange;
 
 	/** The global error text from the last validity check */
 	FText LastGlobalValidityErrorText;
