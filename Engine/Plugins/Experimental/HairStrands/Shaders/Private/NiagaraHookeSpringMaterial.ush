@@ -54,6 +54,9 @@ void UpdateStretchSpringMultiplier(in float RestLength, in float DeltaTime, in b
 void SetupStretchSpringMaterial(in int StrandsSize, in float YoungModulus, in float RodThickness, 
 	in float RestLength, in float DeltaTime, in bool ProjectConstraint, in float MaterialDamping, out float OutMaterialCompliance, out float OutMaterialWeight, out float OutMaterialMultiplier)
 {
+	OutMaterialCompliance = 0.0;
+	OutMaterialWeight = 0.0;
+	OutMaterialMultiplier = 0.0;
 	const int LocalIndex = (GGroupThreadId.x % StrandsSize);
 	if( LocalIndex > 1 )
 	{
@@ -114,6 +117,9 @@ void ProjectStretchSpringMaterial(in int StrandsSize, in float YoungModulus, in 
  void SetupBendSpringMaterial(in int StrandsSize, in float YoungModulus, in float RodThickness, 
 	in float RestLength, in float DeltaTime, in bool ProjectConstraint, in float MaterialDamping, out float OutMaterialCompliance, out float OutMaterialWeight, out float OutMaterialMultiplier)
 {
+	OutMaterialCompliance = 0.0;
+	OutMaterialWeight = 0.0;
+	OutMaterialMultiplier = 0.0;
 	const int LocalIndex = (GGroupThreadId.x % StrandsSize);
 	if( LocalIndex > 1 )
 	{
@@ -174,6 +180,9 @@ void ProjectBendSpringMaterial(in int StrandsSize, in float YoungModulus, in flo
  void SetupTwistSpringMaterial(in int StrandsSize, in float YoungModulus, in float RodThickness, 
 	in float RestLength, in float DeltaTime, in bool ProjectConstraint, in float MaterialDamping, out float OutMaterialCompliance, out float OutMaterialWeight, out float OutMaterialMultiplier)
 {
+	OutMaterialCompliance = 0.0;
+	OutMaterialWeight = 0.0;
+	OutMaterialMultiplier = 0.0;
 	const int LocalIndex = (GGroupThreadId.x % StrandsSize);
 	if( LocalIndex > 2 )
 	{
@@ -237,13 +246,13 @@ void ComputeMaterialFrame(in int StrandsSize)
 	if( LocalIndex == 0 )
 	{
 		float4 NodeQuaternion = SharedNodeOrientation[GGroupThreadId.x];
-		float3 TangentPrev = normalize(SharedNodePosition[GGroupThreadId.x+1] - SharedNodePosition[GGroupThreadId.x]);
+		float3 TangentPrev = normalize(SharedPreviousPosition[GGroupThreadId.x+1] - SharedPreviousPosition[GGroupThreadId.x]);
 		float3 TangentNext = TangentPrev;
 
 		for (int EdgeIndex = 1, EdgeEnd = StrandsSize-1; EdgeIndex < EdgeEnd; ++EdgeIndex)
 		{
 			TangentPrev = TangentNext;
-			TangentNext = normalize(SharedNodePosition[GGroupThreadId.x+EdgeIndex+1] - SharedNodePosition[GGroupThreadId.x+EdgeIndex]);
+			TangentNext = normalize(SharedPreviousPosition[GGroupThreadId.x+EdgeIndex+1] - SharedPreviousPosition[GGroupThreadId.x+EdgeIndex]);
 			NodeQuaternion = NormalizeQuat( MultiplyQuat( FindQuatBetweenNormals(TangentPrev,TangentNext), NodeQuaternion ) );
 			SharedNodeOrientation[GGroupThreadId.x+EdgeIndex] = NodeQuaternion;
 			GroupMemoryBarrier();
@@ -260,10 +269,12 @@ void ComputeMaterialFrame(in int StrandsSize)
  void SetupAngularSpringMaterial(in int StrandsSize, in float YoungModulus, in float RodThickness, 
 	in float RestLength, in float DeltaTime, in bool ProjectConstraint, in float MaterialDamping, out float OutMaterialCompliance, out float OutMaterialWeight, out float3 OutMaterialMultiplier)
 {
+	OutMaterialCompliance = 0.0;
+	OutMaterialWeight = 0.0;
+	OutMaterialMultiplier = float3(0,0,0);
+
 	float MaterialMultiplier = 0;
 	SetupStretchSpringMaterial(StrandsSize,YoungModulus,RodThickness,RestLength,DeltaTime,ProjectConstraint,MaterialDamping,OutMaterialCompliance,OutMaterialWeight,MaterialMultiplier);
-	OutMaterialMultiplier = float3(0,0,0);
-	//ComputeMaterialFrame(StrandsSize);
 }
 
 void UpdateAngularSpringMultiplier( in float RestLength, in float3 RestDirection, in float DeltaTime, in bool ProjectConstraint, in float MaterialDamping, in float InMaterialCompliance, in float InMaterialWeight, inout float3 OutMaterialMultiplier)
@@ -347,7 +358,7 @@ void ProjectAngularSpringMaterial(in int StrandsSize, in float YoungModulus, in 
 
 void ComputeRestDirection(in int StrandsSize, in float3 NodePosition, in float4 NodeOrientation, out float3 OutRestDirection)
 {
-	SharedNodePosition[GGroupThreadId.x] = NodePosition;
+	SharedPreviousPosition[GGroupThreadId.x] = NodePosition;
 	SharedNodeOrientation[GGroupThreadId.x] = NodeOrientation;
 	GroupMemoryBarrier(); 
 

@@ -43,13 +43,13 @@ struct FHairStrandsRootResource : public FRenderResource
 		FRWBuffer RootTriangleBarycentricBuffer;
 	
 		/* Strand hair roots translation and rotation in rest position relative to the bound triangle. Positions are relative to the rest root center */
-		FVector	  RestRootCenter = FVector::ZeroVector;
+		FVector	  RestRootOffset = FVector::ZeroVector;
 		FRWBuffer RestRootTrianglePosition0Buffer;
 		FRWBuffer RestRootTrianglePosition1Buffer;
 		FRWBuffer RestRootTrianglePosition2Buffer;
 
 		/* Strand hair roots translation and rotation in triangle-deformed position relative to the bound triangle. Positions are relative the deformed root center*/
-		FVector   DeformedRootCenter = FVector::ZeroVector;
+		FVector   DeformedRootOffset = FVector::ZeroVector;
 		FRWBuffer DeformedRootTrianglePosition0Buffer;
 		FRWBuffer DeformedRootTrianglePosition1Buffer;
 		FRWBuffer DeformedRootTrianglePosition2Buffer;

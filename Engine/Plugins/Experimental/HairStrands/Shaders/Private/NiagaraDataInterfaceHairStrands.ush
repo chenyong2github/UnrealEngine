@@ -21,48 +21,81 @@ static const int VELOCITY_OFFSET = 6;
 
 struct FDIHairStrandsContext
 {
-	RWBuffer<uint4>		PointsPositionsBuffer;
+	RWBuffer<uint4>		DeformedPositionBuffer;
+	Buffer<uint4>		RestPositionBuffer;
 	Buffer<uint>		CurvesOffsetsBuffer;
-	Buffer<uint4>		RestPositionsBuffer;
+	Buffer<float4>		RestTrianglePositionABuffer;
+	Buffer<float4>		RestTrianglePositionBBuffer;
+	Buffer<float4>		RestTrianglePositionCBuffer;
+	Buffer<float4>		DeformedTrianglePositionABuffer;
+	Buffer<float4>		DeformedTrianglePositionBBuffer;
+	Buffer<float4>		DeformedTrianglePositionCBuffer;
+	Buffer<uint>		RootBarycentricCoordinatesBuffer;
 	float4x4			WorldTransform;
 	float4x4			WorldInverse;
 	float4				WorldRotation;
 	int					NumStrands;
 	int					StrandSize;
-	float				StrandDensity;
-	float				RootThickness;
-	float				TipThickness;
-	float4				BoxOrigin;
+	float3				BoxCenter;
+	float3				BoxExtent;
+	int					HasRootAttached;
+	float3				RestRootOffset;
+	float3				DeformedRootOffset;
+	float3				RestPositionOffset;
+	float3				DeformedPositionOffset;
+	bool				ResetSimulation;
 }; 
 
 #define DIHAIRSTRANDS_DECLARE_CONSTANTS(NAME)\
-RWBuffer<uint4> PointsPositionsBuffer_##NAME;\
-Buffer<uint> CurvesOffsetsBuffer_##NAME;\
-Buffer<uint4> RestPositionsBuffer_##NAME;\
-float4x4 WorldTransform_##NAME;\
-float4x4 WorldInverse_##NAME;\
-float4 WorldRotation_##NAME;\
-int NumStrands_##NAME;\
-int StrandSize_##NAME;\
-float StrandDensity_##NAME;\
-float RootThickness_##NAME;\
-float TipThickness_##NAME;\
-float4 BoxOrigin_##NAME;\
+RWBuffer<uint4>		DeformedPositionBuffer_##NAME;\
+Buffer<uint4>		RestPositionBuffer_##NAME;\
+Buffer<uint>		CurvesOffsetsBuffer_##NAME;\
+Buffer<float4>		RestTrianglePositionABuffer_##NAME;\
+Buffer<float4>		RestTrianglePositionBBuffer_##NAME;\
+Buffer<float4>		RestTrianglePositionCBuffer_##NAME;\
+Buffer<float4>		DeformedTrianglePositionABuffer_##NAME;\
+Buffer<float4>		DeformedTrianglePositionBBuffer_##NAME;\
+Buffer<float4>		DeformedTrianglePositionCBuffer_##NAME;\
+Buffer<uint>		RootBarycentricCoordinatesBuffer_##NAME;\
+float4x4			WorldTransform_##NAME;\
+float4x4			WorldInverse_##NAME;\
+float4				WorldRotation_##NAME;\
+int					NumStrands_##NAME;\
+int					StrandSize_##NAME;\
+float3				BoxCenter_##NAME;\
+float3				BoxExtent_##NAME;\
+int					HasRootAttached_##NAME;\
+float3				RestRootOffset_##NAME;\
+float3				DeformedRootOffset_##NAME;\
+float3				RestPositionOffset_##NAME;\
+float3				DeformedPositionOffset_##NAME;\
+bool				ResetSimulation_##NAME;\
 
 #define DIHAIRSTRANDS_MAKE_CONTEXT(NAME)\
 FDIHairStrandsContext DIContext;\
-DIContext.PointsPositionsBuffer = PointsPositionsBuffer_##NAME;\
+DIContext.DeformedPositionBuffer = DeformedPositionBuffer_##NAME;\
+DIContext.RestPositionBuffer = RestPositionBuffer_##NAME;\
 DIContext.CurvesOffsetsBuffer = CurvesOffsetsBuffer_##NAME;\
-DIContext.RestPositionsBuffer = RestPositionsBuffer_##NAME;\
+DIContext.RestTrianglePositionABuffer = RestTrianglePositionABuffer_##NAME;\
+DIContext.RestTrianglePositionBBuffer = RestTrianglePositionBBuffer_##NAME;\
+DIContext.RestTrianglePositionCBuffer = RestTrianglePositionCBuffer_##NAME;\
+DIContext.DeformedTrianglePositionABuffer = DeformedTrianglePositionABuffer_##NAME;\
+DIContext.DeformedTrianglePositionBBuffer = DeformedTrianglePositionBBuffer_##NAME;\
+DIContext.DeformedTrianglePositionCBuffer = DeformedTrianglePositionCBuffer_##NAME;\
+DIContext.RootBarycentricCoordinatesBuffer = RootBarycentricCoordinatesBuffer_##NAME;\
 DIContext.WorldTransform = WorldTransform_##NAME;\
 DIContext.WorldInverse = WorldInverse_##NAME;\
 DIContext.WorldRotation = WorldRotation_##NAME;\
 DIContext.NumStrands = NumStrands_##NAME;\
 DIContext.StrandSize = StrandSize_##NAME;\
-DIContext.StrandDensity = StrandDensity_##NAME;\
-DIContext.RootThickness = RootThickness_##NAME;\
-DIContext.TipThickness = TipThickness_##NAME;\
-DIContext.BoxOrigin = BoxOrigin_##NAME;\
+DIContext.BoxCenter = BoxCenter_##NAME;\
+DIContext.BoxExtent = BoxExtent_##NAME;\
+DIContext.HasRootAttached =	HasRootAttached_##NAME;\
+DIContext.RestRootOffset =	RestRootOffset_##NAME;\
+DIContext.DeformedRootOffset = DeformedRootOffset_##NAME;\
+DIContext.RestPositionOffset =	RestPositionOffset_##NAME;\
+DIContext.DeformedPositionOffset = DeformedPositionOffset_##NAME;\
+DIContext.ResetSimulation = ResetSimulation_##NAME;\
 
 /* -----------------------------------------------------------------
  * Box utilities
@@ -72,13 +105,13 @@ DIContext.BoxOrigin = BoxOrigin_##NAME;\
 // Return the bounding box center
 void DIHairStrands_GetBoxCenter(in FDIHairStrandsContext DIContext, out float3 OutBoxCenter)
 {
-	OutBoxCenter = float3(0,0,0);
+	OutBoxCenter = DIContext.BoxCenter;
 }
 
 // Return the bounding box extent
 void DIHairStrands_GetBoxExtent(in FDIHairStrandsContext DIContext, out float3 OutBoxExtent)
 {
-	OutBoxExtent = -DIContext.BoxOrigin.xyz;
+	OutBoxExtent = DIContext.BoxExtent;
 }
 
 /* -----------------------------------------------------------------
@@ -122,13 +155,13 @@ float DIHairStrands_ComputeStrandLength(in FDIHairStrandsContext DIContext, in i
 		int PointOffset = DIContext.CurvesOffsetsBuffer[StrandIndex];
 		const int EdgeCount = DIContext.CurvesOffsetsBuffer[StrandIndex+1]-PointOffset-1;
 
-		float3 PointNext = f16tof32(DIContext.RestPositionsBuffer[PointOffset++].xyz);
+		float3 PointNext = f16tof32(DIContext.RestPositionBuffer[PointOffset++].xyz);
 		float3 PointPrev = PointNext;
 
 		for (int EdgeIndex = 0; EdgeIndex < EdgeCount; ++EdgeIndex)
 		{
 			PointPrev = PointNext;
-			PointNext = f16tof32(DIContext.RestPositionsBuffer[PointOffset++].xyz);
+			PointNext = f16tof32(DIContext.RestPositionBuffer[PointOffset++].xyz);
 			StrandLength += length(PointNext-PointPrev);
 		}
 	}
@@ -224,23 +257,23 @@ void DIHairStrands_ComputeNodePosition(in FDIHairStrandsContext DIContext, in in
 		const int FirstNext = PointPrev+1;
 
 		const float FirstAlpha = FirstPoint - (float)FirstPrev;
-		const float3 FirstPosition =  f16tof32(DIContext.RestPositionsBuffer[PointOffset+FirstPrev].xyz) * (1.0-FirstAlpha) + 
-						   f16tof32(DIContext.RestPositionsBuffer[PointOffset+FirstNext].xyz) * FirstAlpha;
-		const float3 DiffPosition = FirstPosition - f16tof32(DIContext.RestPositionsBuffer[PointOffset].xyz);
+		const float3 FirstPosition =  f16tof32(DIContext.RestPositionBuffer[PointOffset+FirstPrev].xyz) * (1.0-FirstAlpha) + 
+						   f16tof32(DIContext.RestPositionBuffer[PointOffset+FirstNext].xyz) * FirstAlpha;
+		const float3 DiffPosition = FirstPosition - f16tof32(DIContext.RestPositionBuffer[PointOffset].xyz);
 		const float3 EdgeDirection =  normalize(DiffPosition);
 
 		const float EdgeLength = DIHairStrands_ComputeStrandLength(DIContext,StrandIndex) * CoordScale;
-		//float3 EdgeDirection = f16tof32(DIContext.RestPositionsBuffer[PointOffset+PointNext].xyz) - 
-		//							 f16tof32(DIContext.RestPositionsBuffer[PointOffset+PointPrev].xyz);
-		OutNodePosition = 	f16tof32(DIContext.RestPositionsBuffer[PointOffset+PointPrev].xyz) - EdgeLength * normalize(EdgeDirection);					 
+		//float3 EdgeDirection = f16tof32(DIContext.RestPositionBuffer[PointOffset+PointNext].xyz) - 
+		//							 f16tof32(DIContext.RestPositionBuffer[PointOffset+PointPrev].xyz);
+		OutNodePosition = 	f16tof32(DIContext.RestPositionBuffer[PointOffset+PointPrev].xyz) - EdgeLength * normalize(EdgeDirection);					 
 	}
 	else
 	{
 		const float NodeAlpha = NodePoint - (float)PointPrev;
-		OutNodePosition =  f16tof32(DIContext.RestPositionsBuffer[PointOffset+PointPrev].xyz) * (1.0-NodeAlpha) + 
-						   f16tof32(DIContext.RestPositionsBuffer[PointOffset+PointNext].xyz) * NodeAlpha;
+		OutNodePosition =  f16tof32(DIContext.RestPositionBuffer[PointOffset+PointPrev].xyz) * (1.0-NodeAlpha) + 
+						   f16tof32(DIContext.RestPositionBuffer[PointOffset+PointNext].xyz) * NodeAlpha;
 	}
-	OutNodePosition = mul(float4( OutNodePosition, 1.0), DIContext.WorldTransform).xyz;
+	OutNodePosition = mul(float4( OutNodePosition+DIContext.RestPositionOffset, 1.0), DIContext.WorldTransform).xyz;
 }
 
 // Compute the node orientation
@@ -335,10 +368,12 @@ void DIHairStrands_ResetPointPosition(in FDIHairStrandsContext DIContext, in int
 		const int PointEnd = DIContext.CurvesOffsetsBuffer[StrandIndex+1]; 
 		const int PointCount = PointEnd - PointBegin;
 
+		const uint4 PositionOffset = uint4( f32tof16(DIContext.RestPositionOffset - DIContext.DeformedPositionOffset), 0 );
+
 		ReportStatus = true;
 		for (int PointIndex = 0; PointIndex < PointCount; ++PointIndex)
 		{
-			DIContext.PointsPositionsBuffer[PointBegin+PointIndex] = DIContext.RestPositionsBuffer[PointBegin+PointIndex];
+			DIContext.DeformedPositionBuffer[PointBegin+PointIndex] = DIContext.RestPositionBuffer[PointBegin+PointIndex] + PositionOffset;
 		}
 	}
 }
@@ -360,6 +395,8 @@ void DIHairStrands_UpdatePointPosition(in FDIHairStrandsContext DIContext, in in
 	const int PointEnd = DIContext.CurvesOffsetsBuffer[StrandIndex+1]; 
 	const int PointCount = PointEnd - PointBegin;
 
+	const float3 PositionOffset = DIContext.RestPositionOffset - DIContext.DeformedPositionOffset;
+
 	for (int PointIndex = 0; PointIndex < PointCount; ++PointIndex)
 	{
 		const float PointCoord = (float)(PointIndex) / (PointCount-1.0);
@@ -373,8 +410,8 @@ void DIHairStrands_UpdatePointPosition(in FDIHairStrandsContext DIContext, in in
 			ReportStatus = true;
 			const float PointAlpha = PointNode - (float)NodePrev;
 			const float3 LocalDisplace = SharedNodePosition[GGroupThreadId.x] * (1.0-PointAlpha) + SharedNodePosition[GGroupThreadId.x+1] * PointAlpha;
-			const float3 DeformedPosition = f16tof32(DIContext.RestPositionsBuffer[PointBegin+PointIndex].xyz) + LocalDisplace;
-			DIContext.PointsPositionsBuffer[PointBegin+PointIndex] = uint4( f32tof16(DeformedPosition), DIContext.RestPositionsBuffer[PointBegin+PointIndex].w);
+			const float3 DeformedPosition = f16tof32(DIContext.RestPositionBuffer[PointBegin+PointIndex].xyz) + LocalDisplace + PositionOffset;
+			DIContext.DeformedPositionBuffer[PointBegin+PointIndex] = uint4( f32tof16(DeformedPosition), DIContext.RestPositionBuffer[PointBegin+PointIndex].w);
 		}
 	}
 }
@@ -382,7 +419,7 @@ void DIHairStrands_UpdatePointPosition(in FDIHairStrandsContext DIContext, in in
 // Get the point position
 void DIHairStrands_GetPointPosition(in FDIHairStrandsContext DIContext, in int PointIndex, out float3 OutPointPosition)
 {
-	OutPointPosition = mul(float4( f16tof32(DIContext.PointsPositionsBuffer[PointIndex].xyz), 1.0), DIContext.WorldTransform).xyz;
+	OutPointPosition = mul(float4( f16tof32(DIContext.DeformedPositionBuffer[PointIndex].xyz+DIContext.DeformedPositionOffset), 1.0), DIContext.WorldTransform).xyz;
 }
 
 /* -----------------------------------------------------------------
@@ -505,6 +542,83 @@ void DIHairStrands_AttachNodePosition(in FDIHairStrandsContext DIContext, in flo
 void DIHairStrands_AttachNodeOrientation(in FDIHairStrandsContext DIContext, in float4 RestOrientation, out float4 OutNodeOrientation)
 {
 	OutNodeOrientation = NormalizeQuat( MultiplyQuat(DIContext.WorldRotation,RestOrientation) );
+}
+
+/* -----------------------------------------------------------------
+ * Attached the root to the skinned cache
+ * -----------------------------------------------------------------
+ */
+
+float2 ExtractBarycentrics(in uint PackedCoordinates )
+{
+	return float2(f16tof32(PackedCoordinates & 0xFFFF), f16tof32((PackedCoordinates>>16) & 0xFFFF));
+}
+
+// Compuite rest position and orientation
+void DIHairStrands_ComputeLocalState(in FDIHairStrandsContext DIContext, in int NodeIndex, in float3 RestPosition, in float4 RestOrientation, 
+												out float3 OutLocalPosition, out float4 OutLocalOrientation)
+{
+	OutLocalPosition = RestPosition;
+	OutLocalOrientation = RestOrientation;
+
+	if( DIContext.HasRootAttached == 1)
+	{
+		const int CurveIndex = NodeIndex / DIContext.StrandSize;
+		const float2 RootUV = ExtractBarycentrics(DIContext.RootBarycentricCoordinatesBuffer[CurveIndex]);
+
+		const float3 RootProjection = DIContext.RestTrianglePositionABuffer[CurveIndex].xyz * RootUV.x + 
+									  DIContext.RestTrianglePositionBBuffer[CurveIndex].xyz * RootUV.y +
+									  DIContext.RestTrianglePositionCBuffer[CurveIndex].xyz * (1.0 - RootUV.x - RootUV.y) + DIContext.RestRootOffset;
+		const float3 DiffPosition = RestPosition - RootProjection;
+
+		float3 TangentU = normalize(DIContext.RestTrianglePositionBBuffer[CurveIndex].xyz - DIContext.RestTrianglePositionABuffer[CurveIndex].xyz);
+		float3 TangentV = normalize(DIContext.RestTrianglePositionCBuffer[CurveIndex].xyz - DIContext.RestTrianglePositionABuffer[CurveIndex].xyz);
+
+		const float3 Normal = normalize(cross(TangentU,TangentV));
+		TangentU = normalize(cross(TangentV,Normal));
+
+		const float3 RotationMatrix[3] = {float3(TangentU.x,TangentV.x,Normal.x),
+										  float3(TangentU.y,TangentV.y,Normal.y),
+										  float3(TangentU.z,TangentV.z,Normal.z)};
+		const float4 InverseOrientation = QuatFromMatrix(RotationMatrix);
+
+		OutLocalPosition = RotateVectorByQuat(DiffPosition,InverseOrientation);
+		//OutLocalPosition = float3( dot(DiffPosition,TangentU), dot(DiffPosition,TangentV), dot(DiffPosition,Normal) );
+		OutLocalOrientation = NormalizeQuat( MultiplyQuat(InverseOrientation,RestOrientation) );
+	}
+}
+
+// Update Node Position and orientation
+void DIHairStrands_AttachNodeState(in FDIHairStrandsContext DIContext, in int NodeIndex, in float3 LocalPosition, in float4 LocalOrientation, out float3 OutNodePosition, out float4 OutNodeOrientation)
+{	
+	float3 RestPosition =  LocalPosition;
+	float4 RestOrientation = LocalOrientation;
+	if( DIContext.HasRootAttached == 1)
+	{
+		const int CurveIndex = NodeIndex / DIContext.StrandSize;
+		const float2 RootUV = ExtractBarycentrics(DIContext.RootBarycentricCoordinatesBuffer[CurveIndex]);
+
+		const float3 RootProjection = DIContext.DeformedTrianglePositionABuffer[CurveIndex].xyz * RootUV.x + 
+									  DIContext.DeformedTrianglePositionBBuffer[CurveIndex].xyz * RootUV.y +
+									  DIContext.DeformedTrianglePositionCBuffer[CurveIndex].xyz * (1.0 - RootUV.x - RootUV.y) + DIContext.DeformedRootOffset;
+
+		float3 TangentU = normalize(DIContext.DeformedTrianglePositionBBuffer[CurveIndex].xyz - DIContext.DeformedTrianglePositionABuffer[CurveIndex].xyz);
+		float3 TangentV = normalize(DIContext.DeformedTrianglePositionCBuffer[CurveIndex].xyz - DIContext.DeformedTrianglePositionABuffer[CurveIndex].xyz);
+
+		const float3 Normal = normalize(cross(TangentU,TangentV));
+		TangentU = normalize(cross(TangentV,Normal));
+		
+		const float3 RotationMatrix[3] = { TangentU, TangentV, Normal };
+		const float4 TriangleOrientation = QuatFromMatrix(RotationMatrix);
+
+		const float3 DiffPosition = RotateVectorByQuat(LocalPosition,TriangleOrientation);  
+		//const float3 DiffPosition = LocalPosition.x * TangentU + LocalPosition.y * TangentV + LocalPosition.z * Normal;
+
+		RestPosition = RootProjection + DiffPosition;
+		RestOrientation = NormalizeQuat( MultiplyQuat(TriangleOrientation,LocalOrientation) );
+	}
+	DIHairStrands_AttachNodePosition(DIContext,RestPosition,OutNodePosition);
+	DIHairStrands_AttachNodeOrientation(DIContext,RestOrientation,OutNodeOrientation);
 }
 
 
