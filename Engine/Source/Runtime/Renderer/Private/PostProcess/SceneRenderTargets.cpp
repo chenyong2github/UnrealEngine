@@ -2500,7 +2500,7 @@ void FSceneRenderTargets::AllocateDeferredShadingPathRenderTargets(FRHICommandLi
 
 	if (CurrentFeatureLevel >= ERHIFeatureLevel::SM5)
 	{
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, PF_FloatRGBA,  FClearValueBinding::Transparent, TexCreate_None, TexCreate_RenderTargetable, false));
+		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, PF_FloatRGBA,  FClearValueBinding::Transparent, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SceneColorSubPixel, TEXT("SceneColorSubPixel"), true);
 	}
 
