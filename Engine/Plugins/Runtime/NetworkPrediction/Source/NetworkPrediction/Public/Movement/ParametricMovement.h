@@ -175,10 +175,6 @@ class NETWORKPREDICTION_API UParametricMovementComponent : public UBaseMovementC
 	virtual void AdvanceParametricTime(const float InPosition, const float InPlayRate, float &OutPosition, float& OutPlayRate, const float DeltaTimeSeconds) const override;
 	virtual void MapTimeToTransform(const float InPosition, FTransform& OutTransform) const override;
 
-
-	TPredictedStateAccessor<ParametricMovement::FMoveState>* MovementSyncState = nullptr;
-	TPredictedStateAccessor<ParametricMovement::FAuxState>*	 MovementAuxState = nullptr;
-
 protected:
 
 	virtual INetworkSimulationModel* InstantiateNetworkSimulation() override;
