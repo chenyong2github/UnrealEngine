@@ -869,6 +869,13 @@ void FWidgetBlueprintEditor::ChangeViewedAnimation( UWidgetAnimation& InAnimatio
 		TSharedPtr<STextBlock> NoAnimationTextBlockPin = NoAnimationTextBlock.Pin();
 		if( &InAnimationToView == UWidgetAnimation::GetNullAnimation())
 		{
+			const FName CurveEditorTabName = FName(TEXT("SequencerGraphEditor"));
+			TSharedPtr<SDockTab> ExistingTab = GetToolkitHost()->GetTabManager()->FindExistingLiveTab(CurveEditorTabName);
+			if (ExistingTab)
+			{
+				ExistingTab->RequestCloseTab();
+			}
+
 			// Disable sequencer from interaction
 			Sequencer->GetSequencerWidget()->SetEnabled(false);
 			Sequencer->SetAutoChangeMode(EAutoChangeMode::None);
