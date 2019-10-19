@@ -96,13 +96,13 @@ struct FHairStrandsProjectionHairData
 		FRWBuffer* RootTriangleBarycentricBuffer = nullptr;
 
 		// Rest root triangles' positions are relative to root center (for preserving precision)
-		FVector RestRootCenter = FVector::ZeroVector;
+		FVector RestPositionOffset = FVector::ZeroVector;
 		FRWBuffer* RestRootTrianglePosition0Buffer = nullptr;
 		FRWBuffer* RestRootTrianglePosition1Buffer = nullptr;
 		FRWBuffer* RestRootTrianglePosition2Buffer = nullptr;
 
 		// Deformed root triangles' positions are relative to root center (for preserving precision)
-		FVector DeformedRootCenter = FVector::ZeroVector;
+		FVector DeformedPositionOffset = FVector::ZeroVector;
 		FRWBuffer* DeformedRootTrianglePosition0Buffer = nullptr;
 		FRWBuffer* DeformedRootTrianglePosition1Buffer = nullptr;
 		FRWBuffer* DeformedRootTrianglePosition2Buffer = nullptr;
@@ -178,7 +178,7 @@ RENDERER_API bool UpdateHairStrands(
 	EWorldType::Type WorldType,
 	const FTransform& HairLocalToWorld,
 	const FTransform& MeshLocalToWorld,
-	const FVector& SkeletalWorldBoundsCenter);
+	const FVector& SkeletalDeformedPositionOffset);
 
 RENDERER_API bool UpdateHairStrands(
 	uint64 Id, 

@@ -632,6 +632,8 @@ BEGIN_SHADER_PARAMETER_STRUCT(FHairProjectionHairDebugParameters, )
 	SHADER_PARAMETER(FVector2D, OutputResolution)
 	SHADER_PARAMETER(uint32, MaxRootCount)
 	SHADER_PARAMETER(uint32, DeformedFrameEnable)
+	SHADER_PARAMETER(FVector, RestPositionOffset)
+	SHADER_PARAMETER(FVector, DeformedPositionOffset)
 	SHADER_PARAMETER(FMatrix, RootLocalToWorld)
 
 	SHADER_PARAMETER_SRV(StructuredBuffer, RestPosition0Buffer)
@@ -741,10 +743,12 @@ static void AddDebugProjectionHairPass(
 		Parameters->RootBarycentricBuffer = HairData.LODDatas[LODIndex].RootTriangleBarycentricBuffer->SRV;
 	}
 
+	Parameters->RestPositionOffset = HairData.LODDatas[LODIndex].RestPositionOffset;
 	Parameters->RestPosition0Buffer = HairData.LODDatas[LODIndex].RestRootTrianglePosition0Buffer->SRV;
 	Parameters->RestPosition1Buffer = HairData.LODDatas[LODIndex].RestRootTrianglePosition1Buffer->SRV;
 	Parameters->RestPosition2Buffer = HairData.LODDatas[LODIndex].RestRootTrianglePosition2Buffer->SRV;
-		
+	
+	Parameters->DeformedPositionOffset = HairData.LODDatas[LODIndex].DeformedPositionOffset;
 	Parameters->DeformedPosition0Buffer = HairData.LODDatas[LODIndex].DeformedRootTrianglePosition0Buffer->SRV;
 	Parameters->DeformedPosition1Buffer = HairData.LODDatas[LODIndex].DeformedRootTrianglePosition1Buffer->SRV;
 	Parameters->DeformedPosition2Buffer = HairData.LODDatas[LODIndex].DeformedRootTrianglePosition2Buffer->SRV;

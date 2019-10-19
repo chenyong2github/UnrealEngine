@@ -52,8 +52,8 @@ FHairMeshTriangle GetTriangleTransformation(
 	uint RootIndex,
 	Buffer<float4>  InPosition0Buffer,
 	Buffer<float4>  InPosition1Buffer,
-	Buffer<float4>  InPosition2Buffer, 
-	float3 CenterOffset=float3(0,0,0))
+	Buffer<float4>  InPosition2Buffer,
+	float3 CenterOffset)
 {
 	FHairMeshTriangle Out;
 

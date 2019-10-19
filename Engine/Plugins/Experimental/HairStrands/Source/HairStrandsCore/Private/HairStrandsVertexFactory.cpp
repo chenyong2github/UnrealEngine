@@ -39,7 +39,8 @@ public:
 	FShaderParameter Length;
 	FShaderParameter RadiusAtDepth1_Primary;
 	FShaderParameter RadiusAtDepth1_Velocity;
-	FShaderParameter WorldOffset;
+	FShaderParameter PositionOffset;
+	FShaderParameter PreviousPositionOffset;
 	FShaderParameter Density;
 
 	FShaderResourceParameter PositionBuffer;
@@ -53,7 +54,8 @@ public:
 		Length.Bind(ParameterMap, TEXT("HairStrandsVF_Length"));
 		RadiusAtDepth1_Primary.Bind(ParameterMap, TEXT("HairStrandsVF_RadiusAtDepth1_Primary"));
 		RadiusAtDepth1_Velocity.Bind(ParameterMap, TEXT("HairStrandsVF_RadiusAtDepth1_Velocity"));
-		WorldOffset.Bind(ParameterMap, TEXT("HairStrandsVF_WorldOffset"));
+		PositionOffset.Bind(ParameterMap, TEXT("HairStrandsVF_PositionOffset"));
+		PreviousPositionOffset.Bind(ParameterMap, TEXT("HairStrandsVF_PreviousPositionOffset"));
 		Density.Bind(ParameterMap, TEXT("HairStrandsVF_Density"));	
 
 		PositionBuffer.Bind(ParameterMap, TEXT("HairStrandsVF_PositionBuffer"));
@@ -68,7 +70,8 @@ public:
 		Ar << Length;
 		Ar << RadiusAtDepth1_Primary;
 		Ar << RadiusAtDepth1_Velocity;
-		Ar << WorldOffset;
+		Ar << PositionOffset;
+		Ar << PreviousPositionOffset;
 		Ar << Density;
 
 		Ar << PositionBuffer;
@@ -105,7 +108,8 @@ public:
 		BindParam(ShaderBindings, TangentBuffer, VF->GetTangentSRV(GroupIndex));
 		BindParam(ShaderBindings, Radius, VF->GetMaxStrandRadius(GroupIndex));
 		BindParam(ShaderBindings, Length, VF->GetMaxStrandLength(GroupIndex));
-		BindParam(ShaderBindings, WorldOffset, VF->GetWorldOffset(GroupIndex));
+		BindParam(ShaderBindings, PositionOffset, VF->GetPositionOffset(GroupIndex));
+		BindParam(ShaderBindings, PreviousPositionOffset, VF->GetPreviousPositionOffset(GroupIndex));
 		BindParam(ShaderBindings, Density, VF->GetHairDensity(GroupIndex));
 		BindParam(ShaderBindings, RadiusAtDepth1_Primary, MinRadiusAtDepth1.Primary);
 		BindParam(ShaderBindings, RadiusAtDepth1_Velocity, MinRadiusAtDepth1.Velocity);		

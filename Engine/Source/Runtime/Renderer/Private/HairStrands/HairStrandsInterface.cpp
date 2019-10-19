@@ -58,7 +58,7 @@ struct FHairStrandsManager
 		FHairStrandsProjectionHairData SimProjectionHairDatas;
 		FCachedGeometry CachedGeometry;
 		FTransform SkeletalLocalToWorld;
-		FVector SkeletalWorldBoundsCenter;
+		FVector SkeletalDeformedPositionOffset;
 		const FSkeletalMeshObject* MeshObject = nullptr;
 		int32 FrameLODIndex = -1;
 	};
@@ -69,7 +69,7 @@ struct FHairStrandsManager
 		uint64 Id = 0;
 		EWorldType::Type WorldType = EWorldType::None;
 		int32 LODIndex = -1;
-		FVector RestRootCenter = FVector::ZeroVector;
+		FVector RestPositionOffset = FVector::ZeroVector;
 		bool bProcessed = false;
 	};
 	TArray<ProjectionQuery> ProjectionsQueries;
@@ -120,7 +120,7 @@ void RegisterHairStrands(
 		ProjectionData.LocalToWorld = FTransform::Identity;
 	}
 	E.SkeletalLocalToWorld = FTransform::Identity;
-	E.SkeletalWorldBoundsCenter = FVector::ZeroVector;
+	E.SkeletalDeformedPositionOffset = FVector::ZeroVector;
 	E.DebugInfo = DebugInfo;
 }
 
@@ -129,7 +129,7 @@ bool UpdateHairStrands(
 	EWorldType::Type WorldType, 
 	const FTransform& HairLocalToWorld, 
 	const FTransform& SkeletalLocalToWorld,
-	const FVector& SkeletalWorldBoundsCenter)
+	const FVector& SkeletalDeformedPositionOffset)
 {
 	for (FHairStrandsManager::Element& E : GHairManager.Elements)
 	{
@@ -145,7 +145,7 @@ bool UpdateHairStrands(
 			ProjectionData.LocalToWorld = HairLocalToWorld;
 		}
 		E.SkeletalLocalToWorld = SkeletalLocalToWorld;
-		E.SkeletalWorldBoundsCenter = SkeletalWorldBoundsCenter;
+		E.SkeletalDeformedPositionOffset = SkeletalDeformedPositionOffset;
 		return true;
 	}
 
@@ -259,14 +259,14 @@ void RunHairStrandsInterpolation(
 
 			for (FHairStrandsProjectionHairData::HairGroup& ProjectionHairData : E.SimProjectionHairDatas.HairGroups)
 			{
-				ProjectionHairData.LODDatas[Q.LODIndex].RestRootCenter = Q.RestRootCenter;
+				ProjectionHairData.LODDatas[Q.LODIndex].RestPositionOffset = Q.RestPositionOffset;
 				ProjectHairStrandsOntoMesh(RHICmdList, ShaderMap, Q.LODIndex, MeshData, ProjectionHairData);
 				UpdateHairStrandsMeshTriangles(RHICmdList, ShaderMap, Q.LODIndex, HairStrandsTriangleType::RestPose, MeshData, ProjectionHairData);
 			}
 
 			for (FHairStrandsProjectionHairData::HairGroup& ProjectionHairData : E.RenProjectionHairDatas.HairGroups)
 			{
-				ProjectionHairData.LODDatas[Q.LODIndex].RestRootCenter = Q.RestRootCenter;
+				ProjectionHairData.LODDatas[Q.LODIndex].RestPositionOffset = Q.RestPositionOffset;
 				ProjectHairStrandsOntoMesh(RHICmdList, ShaderMap, Q.LODIndex, MeshData, ProjectionHairData);
 				UpdateHairStrandsMeshTriangles(RHICmdList, ShaderMap, Q.LODIndex, HairStrandsTriangleType::RestPose, MeshData, ProjectionHairData);
 			}
@@ -295,7 +295,7 @@ void RunHairStrandsInterpolation(
 		{
 			if (EHairStrandsInterpolationType::RenderStrands == Type && 0 <= E.FrameLODIndex && E.FrameLODIndex < ProjectionHairData.LODDatas.Num() && ProjectionHairData.LODDatas[E.FrameLODIndex].bIsValid)
 			{
-				ProjectionHairData.LODDatas[E.FrameLODIndex].DeformedRootCenter = E.SkeletalWorldBoundsCenter;
+				ProjectionHairData.LODDatas[E.FrameLODIndex].DeformedPositionOffset = E.SkeletalDeformedPositionOffset;
 				UpdateHairStrandsMeshTriangles(RHICmdList, ShaderMap, E.FrameLODIndex, HairStrandsTriangleType::DeformedPose, MeshData, ProjectionHairData);
 			}
 		}
@@ -304,7 +304,7 @@ void RunHairStrandsInterpolation(
 		{
 			if (EHairStrandsInterpolationType::SimulationStrands == Type && 0 <= E.FrameLODIndex && E.FrameLODIndex < ProjectionHairData.LODDatas.Num() && ProjectionHairData.LODDatas[E.FrameLODIndex].bIsValid)
 			{
-				ProjectionHairData.LODDatas[E.FrameLODIndex].DeformedRootCenter = E.SkeletalWorldBoundsCenter;
+				ProjectionHairData.LODDatas[E.FrameLODIndex].DeformedPositionOffset = E.SkeletalDeformedPositionOffset;
 				UpdateHairStrandsMeshTriangles(RHICmdList, ShaderMap, E.FrameLODIndex, HairStrandsTriangleType::DeformedPose, MeshData, ProjectionHairData);
 			}
 		}
