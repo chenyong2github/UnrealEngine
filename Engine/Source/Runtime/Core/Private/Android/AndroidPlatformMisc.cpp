@@ -2309,10 +2309,3 @@ uint32 FAndroidMisc::GetCoreFrequency(int32 CoreIndex, ECoreFrequencyProperty Co
 	}
 	return ReturnFrequency;
 }
-
-void FAndroidMisc::NonReentrentRequestExit()
-{
-	// Cheating here to grab access to this. This function should only be used in exterme cases in which non-reentrent functions are needed (ie. crash handling/signal handler)
-	extern bool GShouldRequestExit;
-	GShouldRequestExit = true;
-}
