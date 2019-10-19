@@ -29,6 +29,7 @@ float3 ToWorldPosition(float2 UV, float Depth)
 uint2				DeepShadow_Resolution;
 float4x4			DeepShadow_WorldToLightTransforms[MAX_HAIR_CLUSTER_COUNT];
 float3				LightDirection;
+uint				MaxVisibilityNodeCount;
 float4				LightPosition;
 float				DepthBiasScale;
 float				DensityScale;
@@ -73,6 +74,9 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
 	// Note: Use a fixed group count width (HAIR_VISIBILITY_GROUP_COUNT_WIDTH) for avoiding loading the indirect args (to avoid dep. memory fetch)
 	const uint LocalOffset = DispatchThreadId.x + DispatchThreadId.y * TRANSMITTANCE_GROUP_SIZE * HAIR_VISIBILITY_GROUP_COUNT_WIDTH;
+
+	if (LocalOffset >= MaxVisibilityNodeCount)
+		return;
 
 	const uint PackedCoord	 = HairVisibilityNodeCoord[LocalOffset];
 	const uint2 PixelCoord	 = uint2((PackedCoord & 0xFFFF), ((PackedCoord>>16) & 0xFFFF));
