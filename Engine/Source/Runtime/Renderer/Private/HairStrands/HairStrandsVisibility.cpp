@@ -121,49 +121,7 @@ protected:
 	}
 };
 
-class FHairVisibilityHS : public FBaseHS
-{
-	DECLARE_SHADER_TYPE(FHairVisibilityHS,MeshMaterial);
-
-protected:
-
-	FHairVisibilityHS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FBaseHS(Initializer)
-	{
-		PassUniformBuffer.Bind(Initializer.ParameterMap, FHairVisibilityPassUniformParameters::StaticStructMetadata.GetShaderVariableName());
-	}
-
-	FHairVisibilityHS() {}
-
-	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
-	{
-		return FBaseHS::ShouldCompilePermutation(Parameters) && IsCompatibleWithHairVisibility(Parameters);
-	}
-};
-
-class FHairVisibilityDS : public FBaseDS
-{
-	DECLARE_SHADER_TYPE(FHairVisibilityDS,MeshMaterial);
-
-protected:
-
-	FHairVisibilityDS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FBaseDS(Initializer)
-	{
-		PassUniformBuffer.Bind(Initializer.ParameterMap, FHairVisibilityPassUniformParameters::StaticStructMetadata.GetShaderVariableName());
-	}
-
-	FHairVisibilityDS() {}
-
-	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
-	{
-		return FBaseDS::ShouldCompilePermutation(Parameters) && IsCompatibleWithHairVisibility(Parameters);
-	}
-};
-
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FHairVisibilityVS, TEXT("/Engine/Private/HairStrands/HairStrandsVisibilityVS.usf"), TEXT("Main"), SF_Vertex);
-IMPLEMENT_MATERIAL_SHADER_TYPE(, FHairVisibilityHS, TEXT("/Engine/Private/HairStrands/HairStrandsVisibilityVS.usf"), TEXT("MainHull"), SF_Hull);
-IMPLEMENT_MATERIAL_SHADER_TYPE(, FHairVisibilityDS, TEXT("/Engine/Private/HairStrands/HairStrandsVisibilityVS.usf"), TEXT("MainDomain"), SF_Domain);
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
@@ -303,23 +261,11 @@ void FHairVisibilityProcessor::Process(
 
 	TMeshProcessorShaders<
 		FHairVisibilityVS,
-		FHairVisibilityHS,
-		FHairVisibilityDS,
+		FMeshMaterialShader,
+		FMeshMaterialShader,
 		FHairVisibilityPS<TRenderMode>> PassShaders;
 	{
-		const EMaterialTessellationMode MaterialTessellationMode = MaterialResource.GetTessellationMode();
 		FVertexFactoryType* VertexFactoryType = VertexFactory->GetType();
-
-		const bool bNeedsHSDS = RHISupportsTessellation(GShaderPlatformForFeatureLevel[FeatureLevel])
-			&& VertexFactoryType->SupportsTessellationShaders()
-			&& MaterialTessellationMode != MTM_NoTessellation;
-
-		if (bNeedsHSDS)
-		{
-			PassShaders.DomainShader = MaterialResource.GetShader<FHairVisibilityDS>(VertexFactoryType);
-			PassShaders.HullShader = MaterialResource.GetShader<FHairVisibilityHS>(VertexFactoryType);
-		}
-
 		PassShaders.VertexShader = MaterialResource.GetShader<FHairVisibilityVS>(VertexFactoryType);
 		PassShaders.PixelShader = MaterialResource.GetShader<FHairVisibilityPS<TRenderMode>>(VertexFactoryType);
 	}
