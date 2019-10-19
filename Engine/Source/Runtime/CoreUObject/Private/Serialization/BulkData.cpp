@@ -1676,7 +1676,7 @@ FBulkDataIORequest* FUntypedBulkData::CreateStreamingRequestForRange(const FStri
 	}
 
 	const int64 ReadOffset = Start.GetOffset();
-	const int64 ReadSize = (End.GetOffset() + End.GetSize()) - ReadOffset;
+	const int64 ReadSize = (End.GetOffset() + End.GetBulkDataSize()) - ReadOffset;
 
 	check(ReadSize > 0);
 
@@ -2022,18 +2022,6 @@ void FFloatBulkDataOld::SerializeElement( FArchive& Ar, void* Data, int64 Elemen
 {
 	float& FloatData = *((float*)Data + ElementIndex);
 	Ar << FloatData;
-}
-
-FBulkDataIORequest* BulkDataUtils::CreateStreamingRequestForRange(const FBulkDataInterface& Start, const FBulkDataInterface& End, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback)
-{
-	check(Start.GetFilename() == End.GetFilename());
-
-	const int64 ReadOffset = Start.GetBulkDataOffsetInFile();
-	const int64 ReadSize = (End.GetBulkDataOffsetInFile() + End.GetBulkDataSize()) - ReadOffset;
-
-	check(ReadSize > 0);
-
-	return Start.CreateStreamingRequest(0, ReadSize, Priority, CompleteCallback, nullptr);
 }
 
 void FFormatContainer::Serialize(FArchive& Ar, UObject* Owner, const TArray<FName>* FormatsToSave, bool bSingleUse, uint32 InAlignment, bool bInline, bool bMapped)

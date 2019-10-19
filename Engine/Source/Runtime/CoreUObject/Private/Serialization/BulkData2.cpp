@@ -217,6 +217,13 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 
 		Ar << BulkDataOffsetInFile;
 
+		// Currently not used!
+		if ((BulkDataFlags & BULKDATA_CookedForIoDispatcher) != 0)
+		{
+			uint16 ChunkIndex;
+			Ar << ChunkIndex;
+		}
+
 		// Assuming that Owner/Package/Linker are all valid, the old BulkData system would
 		// generally fail if any of these were nullptr but had plenty of inconsistent checks
 		// scattered throughout.
@@ -464,7 +471,6 @@ FBulkDataIORequest* FBulkDataBase::CreateStreamingRequest(EAsyncIOPriorityAndFla
 
 FBulkDataIORequest* FBulkDataBase::CreateStreamingRequest(int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback, uint8* UserSuppliedMemory) const
 {
-#if 1
 	FileTokenSystem::Data FileData = FileTokenSystem::GetFileData(Token);
 
 	check(FileData.Filename.IsEmpty() == false);
@@ -492,9 +498,18 @@ FBulkDataIORequest* FBulkDataBase::CreateStreamingRequest(int64 OffsetInBulkData
 		delete IORequestHandle;
 		return nullptr;
 	}
-#else
-	return nullptr;
-#endif
+}
+
+FBulkDataIORequest* FBulkDataBase::CreateStreamingRequestForRange(const FBulkDataBase& Start, const FBulkDataBase& End, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback)
+{
+	check(Start.GetFilename() == End.GetFilename());
+
+	const int64 ReadOffset = Start.GetBulkDataOffsetInFile();
+	const int64 ReadSize = (End.GetBulkDataOffsetInFile() + End.GetBulkDataSize()) - ReadOffset;
+
+	check(ReadSize > 0);
+
+	return Start.CreateStreamingRequest(0, ReadSize, Priority, CompleteCallback, nullptr);
 }
 
 void FBulkDataBase::ForceBulkDataResident()

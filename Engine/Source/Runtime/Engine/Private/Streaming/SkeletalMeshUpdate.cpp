@@ -412,10 +412,10 @@ void FSkeletalMeshStreamIn_IO::SetIORequest(const FContext& Context, const FStri
 		// but that won't do anything because the tick would not try to acquire the lock since it is already locked.
 		TaskSynchronization.Increment();
 
-		IORequest = FUntypedBulkData::CreateStreamingRequestForRange(
+		IORequest = FBulkDataInterface::CreateStreamingRequestForRange(
 			STREAMINGTOKEN_PARAM(IOFilename)
-			FirstLOD.BulkDataStreamingToken,
-			LastLOD.BulkDataStreamingToken,
+			FirstLOD.StreamingBulkData,
+			LastLOD.StreamingBulkData,
 			bHighPrioIORequest ? AIOP_BelowNormal : AIOP_Low,
 			&AsyncFileCallback);
 	}

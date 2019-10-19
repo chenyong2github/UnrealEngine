@@ -223,7 +223,7 @@ public:
 		return OffsetInFile;
 	}
 
-	uint32 GetSize() const
+	uint32 GetBulkDataSize() const
 	{
 		return BulkDataSize;
 	}
@@ -232,6 +232,8 @@ private:
 	uint32 OffsetInFile{ InvalidOffset };
 	uint32 BulkDataSize{ 0 };
 };
+#else
+class FBulkDataStreamingToken; // Forward declared but not implemented
 #endif
 
 /**
@@ -960,22 +962,6 @@ using FWordBulkData			= FWordBulkData2;
 using FIntBulkData			= FIntBulkData2;
 using FFloatBulkData		= FFloatBulkData2;
 #endif
-
-namespace BulkDataUtils
-{
-	/**
-	* Create an async read request for a range of bulk data
-	* The request will read all data between the two given BulkData objects. They must both represent areas of data in the same file!
-	* The memory to be read into will be automatically allocated the size of which can be retrieved by calling FBulkDataIORequest::GetSize()
-	*
-	* @param Start				The bulk data to start reading from.
-	* @param End				The bulk data to finish reading from.
-	* @param Priority			Priority and flags of the request. If this includes AIOP_FLAG_PRECACHE, then memory will never be returned. The request should always be canceled and waited for, even for a precache request.
-	* @param CompleteCallback	Called from an arbitrary thread when the request is complete. Can be nullptr, if non-null, must remain valid until it is called. It will always be called.
-	* @return					A request for the read. This is owned by the caller and must be deleted by the caller.
-	**/
-	COREUOBJECT_API FBulkDataIORequest* CreateStreamingRequestForRange(const FBulkDataInterface& Start, const FBulkDataInterface& End, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback);
-}
 
 class FFormatContainer
 {

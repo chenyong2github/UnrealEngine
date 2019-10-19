@@ -70,6 +70,7 @@ public:
 
 	FBulkDataIORequest* CreateStreamingRequest(EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback, uint8* UserSuppliedMemory) const;
 	FBulkDataIORequest* CreateStreamingRequest(int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback, uint8* UserSuppliedMemory) const;
+	static FBulkDataIORequest* CreateStreamingRequestForRange(const FBulkDataBase& Start, const FBulkDataBase& End, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback);
 
 	void RemoveBulkData();
 

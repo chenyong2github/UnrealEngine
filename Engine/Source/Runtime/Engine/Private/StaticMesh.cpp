@@ -674,15 +674,14 @@ void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Inde
 #if USE_BULKDATA_STREAMING_TOKEN
 				FByteBulkData TmpBulkData;
 				TmpBulkData.Serialize(Ar, Owner, Index, false);
-				bIsOptionalLOD = !!(TmpBulkData.GetBulkDataFlags() & BULKDATA_OptionalPayload);
+				bIsOptionalLOD = TmpBulkData.IsOptional();
 
-				BulkDataStreamingToken = TmpBulkData.CreateStreamingToken();			
-				BulkDataSize = BulkDataStreamingToken.GetSize();
+				StreamingBulkData = TmpBulkData.CreateStreamingToken();			
 #else
 				StreamingBulkData.Serialize(Ar, Owner, Index, false);
-				bIsOptionalLOD = !!(StreamingBulkData.GetBulkDataFlags() & BULKDATA_OptionalPayload);
-				BulkDataSize = (uint32)StreamingBulkData.GetBulkDataSize();
+				bIsOptionalLOD = StreamingBulkData.IsOptional();
 #endif
+				BulkDataSize = (uint32)StreamingBulkData.GetBulkDataSize();
 
 #if WITH_EDITORONLY_DATA
 				// Streaming CPU data in editor build isn't supported yet because tools and utils need access
