@@ -114,6 +114,7 @@ void ComputeHairStrandsInterpolation(
 	FRHICommandListImmediate& RHICmdList,
 	FHairStrandsInterpolationInput* Input,
 	FHairStrandsInterpolationOutput* Output, 
-	struct FHairStrandsProjectionHairData& HairDatas,
+	struct FHairStrandsProjectionHairData& RenHairDatas,
+	struct FHairStrandsProjectionHairData& SimHairDatas,
 	int32 LODIndex);
 
