@@ -270,4 +270,20 @@ public:
      * @param	InBuildSettings	Image build settings
      */
 	TEXTURECOMPRESSOR_API static void AdjustImageColors(FImage& Image, const FTextureBuildSettings& InBuildSettings);
+
+	/**
+	 * Generates the base cubemap mip from a longitude-latitude 2D image.
+	 * @param OutMip - The output mip.
+	 * @param SrcImage - The source longlat image.
+	 */
+	TEXTURECOMPRESSOR_API static void GenerateBaseCubeMipFromLongitudeLatitude2D(FImage* OutMip, const FImage& SrcImage, const int32 MaxCubemapTextureResolution);
+
+
+	/**
+	 * Generates angularly filtered mips.
+	 * @param InOutMipChain - The mip chain to angularly filter.
+	 * @param NumMips - The number of mips the chain should have.
+	 * @param DiffuseConvolveMipLevel - The mip level that contains the diffuse convolution.
+	 */
+	TEXTURECOMPRESSOR_API static void GenerateAngularFilteredMips(TArray<FImage>& InOutMipChain, int32 NumMips, uint32 DiffuseConvolveMipLevel);
 };

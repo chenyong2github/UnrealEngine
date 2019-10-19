@@ -8,7 +8,7 @@
 #include "Materials/MaterialExpression.h"
 #include "MaterialExpressionCameraPositionWS.generated.h"
 
-UCLASS(collapsecategories, hidecategories=Object)
+UCLASS(MinimalAPI, collapsecategories, hidecategories=Object)
 class UMaterialExpressionCameraPositionWS : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
