@@ -1077,6 +1077,19 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	}
 #endif
 
+	extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
+
+	for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
+	{
+		Extension->BeginFrame();
+
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+		{
+			// Must happen before RHI thread flush so any tasks we dispatch here can land in the idle gap during the flush
+			Extension->PrepareView(&Views[ViewIndex]);
+		}
+	}
+
 #if RHI_RAYTRACING
 	// Gather mesh instances, shaders, resources, parameters, etc. and build ray tracing acceleration structure
 	GatherRayTracingWorldInstances(RHICmdList);
@@ -1097,19 +1110,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 			View.GetEyeAdaptation(RHICmdList);
 		}	
-	}
-
-	extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
-
-	for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
-	{
-		Extension->BeginFrame();
-
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-		{
-			// Must happen before RHI thread flush so any tasks we dispatch here can land in the idle gap during the flush
-			Extension->PrepareView(&Views[ViewIndex]);
-		}
 	}
 
 	if (GDoPrepareDistanceFieldSceneAfterRHIFlush && (GRHINeedsExtraDeletionLatency || !GRHICommandList.Bypass()))
