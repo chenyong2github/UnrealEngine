@@ -10,7 +10,7 @@
  *  Generate a mesh of a box that has "gridded" faces, i.e. grid of triangulated quads, 
  *  with EdgeVertices setting the number of verts along each edge in each dimension
  */
-class /*DYNAMICMESH_API*/ FGridBoxMeshGenerator : public FMeshShapeGenerator
+class /*GEOMETRICOBJECTS_API*/ FGridBoxMeshGenerator : public FMeshShapeGenerator
 {
 public:
 	/** 3D box */

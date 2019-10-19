@@ -9,7 +9,7 @@
 /**
  * Generate a sphere mesh, with UVs wrapped cylindrically
  */
-class /*DYNAMICMESH_API*/ FSphereGenerator : public FMeshShapeGenerator
+class /*GEOMETRICOBJECTS_API*/ FSphereGenerator : public FMeshShapeGenerator
 {
 public:
 	/** Radius */

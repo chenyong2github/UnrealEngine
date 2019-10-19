@@ -9,7 +9,7 @@
 /**
  * Generate an oriented Box mesh with the smallest number of triangles possible (6 vertices, 12 triangles)
  */
-class /*DYNAMICMESH_API*/ FMinimalBoxMeshGenerator : public FMeshShapeGenerator
+class /*GEOMETRICOBJECTS_API*/ FMinimalBoxMeshGenerator : public FMeshShapeGenerator
 {
 public:
 	/** 3D box */

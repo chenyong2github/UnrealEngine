@@ -17,14 +17,14 @@
 /**
  * ECapType indicates the type of cap to use on a sweep
  */
-enum class /*DYNAMICMESH_API*/ ECapType
+enum class /*GEOMETRICOBJECTS_API*/ ECapType
 {
 	None = 0,
 	FlatTriangulation = 1
 	// TODO: Cone, other caps ...
 };
 
-class /*DYNAMICMESH_API*/ FSweepGeneratorBase : public FMeshShapeGenerator
+class /*GEOMETRICOBJECTS_API*/ FSweepGeneratorBase : public FMeshShapeGenerator
 {
 public:
 	virtual ~FSweepGeneratorBase()

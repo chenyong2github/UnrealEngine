@@ -8,7 +8,7 @@
 /**
  * Generate planar triangulation of a Polygon.
  */
-class DYNAMICMESH_API FPlanarPolygonMeshGenerator : public FMeshShapeGenerator
+class GEOMETRICOBJECTS_API FPlanarPolygonMeshGenerator : public FMeshShapeGenerator
 {
 public:
 	/** Polygon to triangulate. If Polygon has self-intersections or degenerate edges, result is undefined. */

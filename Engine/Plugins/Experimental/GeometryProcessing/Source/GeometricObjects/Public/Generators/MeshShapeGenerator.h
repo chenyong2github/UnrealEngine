@@ -9,7 +9,7 @@
  * Base class for triangle mesh generators (eg like to generate sphere, cylinder, etc)
  * Subclasses must implement ::Generate() 
  */
-class DYNAMICMESH_API FMeshShapeGenerator
+class GEOMETRICOBJECTS_API FMeshShapeGenerator
 {
 public:
 	/** Array of vertex positions */
