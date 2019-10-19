@@ -76,6 +76,9 @@ public:
 	/** Override default smoothing function */
 	TFunction<FVector3d(const FDynamicMesh3&, int, double)> CustomSmoothF;
 
+	/** Override constant SmoothSpeedT with function */
+	TFunction<double(const FDynamicMesh3&, int)> CustomSmoothSpeedF;
+
 
 
 	/** enable parallel projection. Only applied in AfterRefinement mode */
