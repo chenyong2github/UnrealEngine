@@ -53,6 +53,9 @@ float Voxel_TanConeAngle;
 float Voxel_DensityScale;
 float Voxel_DepthBiasScale;
 
+float AO_Power;
+float AO_Intensity;
+
 float3 Voxel_MinAABB;
 float3 Voxel_MaxAABB;
 uint   Voxel_Resolution;
@@ -417,7 +420,12 @@ float3 TraceAO(float3 WorldPosition, float3 WorldNormal, float4 SvPosition)
 	Occlusion /= SampleCount;
 	BentNormal /= SampleCount;
 
-	return saturate(Occlusion);
+	// User adjust AO
+	// abs() to prevent shader warning
+	float AO = 1 - Occlusion;
+	AO = 1 - (1 - pow(abs(AO), AO_Power)) * AO_Intensity;
+
+	return saturate(AO);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -434,13 +442,15 @@ float3 TotWorldPosition(float2 UV, float Depth)
 
 void MainPS(
 	in float4 SvPosition : SV_Position,
-	out float4 OutColor : SV_Target0
 #if PERMUTATION_RENDER_MODE == RENDER_MODE_LIGHTING
-	, out float4 OutColorSubPixel : SV_Target1
+	out float4 OutColor : SV_Target0,
+	out float4 OutColorSubPixel : SV_Target1
+#endif
+#if PERMUTATION_RENDER_MODE == RENDER_MODE_AO
+	out float4 OutAO : SV_Target0
 #endif
 )
 {
-	OutColor = 0.0f;
 	const float2 BufferUV = SvPositionToBufferUV(SvPosition);
 	const float2 ScreenPosition = SvPositionToScreenPosition(SvPosition).xy;
 	const uint3 PixelCoord = uint3(floor(SvPosition.xy), 0);
@@ -448,6 +458,7 @@ void MainPS(
 	FNodeDesc NodeDesc = DecodeNodeDesc(HairVisibilityNodeOffsetAndCount.Load(PixelCoord));
 
 #if PERMUTATION_RENDER_MODE == RENDER_MODE_LIGHTING
+	OutColor = 0.0f;
 	OutColorSubPixel = 0.0f;
 
 	if (NodeDesc.Count > 0)
@@ -521,6 +532,8 @@ void MainPS(
 
 
 #if PERMUTATION_RENDER_MODE == RENDER_MODE_AO
+	OutAO = 1;
+
 	const FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
 	const float3 WorldPosition = TotWorldPosition(BufferUV, GBuffer.Depth);
 	const float3 WorldNormal = GBuffer.WorldNormal;
@@ -555,7 +568,7 @@ void MainPS(
 	if (bIsValid)
 	{
 		const float AO = TraceAO(WorldPosition, WorldNormal, SvPosition);
-		OutColor = float4(0, 0, 0, 1-AO);
+		OutAO = AO;
 	}
 	else
 	{
