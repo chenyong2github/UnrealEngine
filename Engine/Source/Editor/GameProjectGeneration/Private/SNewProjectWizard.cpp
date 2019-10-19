@@ -922,13 +922,6 @@ TMap<FName, TArray<TSharedPtr<FTemplateItem>> >& SNewProjectWizard::FindTemplate
 		}
 	}
 
-
-	if (Templates.Num() == 0)
-	{
-		static const FName DefaultCategory("Default");
-		Templates.Add(DefaultCategory);
-	}
-
 	// add blank template to empty categories
 	{
 		TSharedPtr<FTemplateItem> BlankTemplate = MakeShareable(new FTemplateItem());
