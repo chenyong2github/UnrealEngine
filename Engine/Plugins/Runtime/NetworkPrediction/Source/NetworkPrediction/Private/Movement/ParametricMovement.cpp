@@ -114,16 +114,16 @@ INetworkSimulationModel* UParametricMovementComponent::InstantiateNetworkSimulat
 		auto *NewSim = new ParametricMovement::FMovementSystem<16>(this);
 		NewSim->RepProxy_Simulated.bAllowSimulatedExtrapolation = !bEnableInterpolation;
 		DO_NETSIM_MODEL_DEBUG(FNetworkSimulationModelDebuggerManager::Get().RegisterNetworkSimulationModel(NewSim, GetOwner()));
-		MovementSyncState = &NewSim->SyncAccessor;
-		MovementAuxState = &NewSim->AuxAccessor;
+		//MovementSyncState = &NewSim->SyncAccessor;
+		//MovementAuxState = &NewSim->AuxAccessor;
 		return NewSim;
 	}
 	
 	auto *NewSim = new ParametricMovement::FMovementSystem<>(this);
 	NewSim->RepProxy_Simulated.bAllowSimulatedExtrapolation = !bEnableInterpolation;
 	DO_NETSIM_MODEL_DEBUG(FNetworkSimulationModelDebuggerManager::Get().RegisterNetworkSimulationModel(NewSim, GetOwner()));
-	MovementSyncState = &NewSim->SyncAccessor;
-	MovementAuxState = &NewSim->AuxAccessor;
+	//MovementSyncState = &NewSim->SyncAccessor;
+	//MovementAuxState = &NewSim->AuxAccessor;
 	return NewSim;
 }
 
