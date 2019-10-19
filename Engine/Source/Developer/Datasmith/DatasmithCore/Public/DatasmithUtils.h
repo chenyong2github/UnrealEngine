@@ -19,7 +19,6 @@ public:
 	static FString SanitizeObjectName(FString InString);
 	static FString SanitizeFileName(FString InString);
 
-	static float GetEnterpriseVersionAsFloat();
 	static int32 GetEnterpriseVersionAsInt();
 	static FString GetEnterpriseVersionAsString();
 
