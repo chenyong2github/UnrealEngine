@@ -621,6 +621,11 @@ public:
 		return false;
 	}
 
+	virtual bool IsReductionActive(const struct FSkeletalMeshOptimizationSettings &ReductionSettings, uint32 NumVertices, uint32 NumTriangles) const
+	{
+		return false;
+	}
+
 	virtual ~FQuadricSimplifierMeshReduction() {}
 
 	static FQuadricSimplifierMeshReduction* Create()
