@@ -91,7 +91,7 @@ namespace MDLImporterImpl
 			}
 		}
 
-		return Opacity < 1.f && IOR != 1.f || MdlMaterial.Absorption.WasValueBaked();
+		return (Opacity < 1.f && IOR != 1.f) || MdlMaterial.Absorption.WasValueBaked();
 	}
 }
 
