@@ -38,4 +38,17 @@ FIntRect ComputeVisibleHairStrandsClustersRect(const FIntRect& ViewRect, const s
 
 bool IsHairStrandsViewRectOptimEnable();
 
+enum EHairVisibilityVendor
+{
+	HairVisibilityVendor_AMD,
+	HairVisibilityVendor_NVIDIA,
+	HairVisibilityVendor_INTEL,
+	HairVisibilityVendorCount
+};
+
+EHairVisibilityVendor GetVendor();
+uint32 GetVendorOptimalGroupSize1D();
+FIntPoint GetVendorOptimalGroupSize2D();
+
 RENDERER_API bool IsHairStrandsSupported(const EShaderPlatform Platform);
+
