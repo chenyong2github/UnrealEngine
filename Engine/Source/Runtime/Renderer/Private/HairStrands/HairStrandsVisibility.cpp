@@ -470,7 +470,8 @@ class FHairVisibilityPrimitiveIdCompactionCS : public FGlobalShader
 
 	class FVendor   : SHADER_PERMUTATION_INT("PERMUTATION_VENDOR", HairVisibilityVendorCount);
 	class FVelocity : SHADER_PERMUTATION_INT("PERMUTATION_VELOCITY", 4);
-	using FPermutationDomain = TShaderPermutationDomain<FVendor, FVelocity>;
+	class FCoverage : SHADER_PERMUTATION_INT("PERMUTATION_COVERAGE", 2);
+	using FPermutationDomain = TShaderPermutationDomain<FVendor, FVelocity, FCoverage>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FIntPoint, OutputResolution)
@@ -483,6 +484,7 @@ class FHairVisibilityPrimitiveIdCompactionCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, MSAA_MaterialTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, MSAA_AttributeTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, MSAA_VelocityTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CoverageTexture)
 		
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(Texture2D, OutCompactNodeCounter)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(Texture2D, OutCompactNodeIndex)
@@ -510,6 +512,7 @@ static void AddHairVisibilityPrimitiveIdCompactionPass(
 	const FRDGTextureRef& MSAA_MaterialTexture,
 	const FRDGTextureRef& MSAA_AttributeTexture,
 	const FRDGTextureRef& MSAA_VelocityTexture,
+	const FRDGTextureRef& CoverageTexture,
 	FRDGTextureRef& OutCompactNodeIndex,
 	FRDGBufferRef& OutCompactNodeData,
 	FRDGBufferRef& OutCompactNodeCoord,
@@ -594,12 +597,14 @@ static void AddHairVisibilityPrimitiveIdCompactionPass(
 	FHairVisibilityPrimitiveIdCompactionCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FHairVisibilityPrimitiveIdCompactionCS::FVendor>(GetVendor());
 	PermutationVector.Set<FHairVisibilityPrimitiveIdCompactionCS::FVelocity>(bWriteOutVelocity ? FMath::Clamp(GHairVelocityType+1, 0, 3) : 0);
+	PermutationVector.Set<FHairVisibilityPrimitiveIdCompactionCS::FCoverage>(CoverageTexture ? 1 : 0);
 
 	FHairVisibilityPrimitiveIdCompactionCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairVisibilityPrimitiveIdCompactionCS::FParameters>();
 	Parameters->MSAA_DepthTexture = MSAA_DepthTexture;
 	Parameters->MSAA_IDTexture = MSAA_IDTexture;
 	Parameters->MSAA_MaterialTexture = MSAA_MaterialTexture;
 	Parameters->MSAA_AttributeTexture = MSAA_AttributeTexture;
+	Parameters->CoverageTexture = CoverageTexture;
 	Parameters->OutputResolution = Resolution;
 	Parameters->MaxNodeCount = MaxNodeCount;
 	Parameters->HairVisibilitySampleCount = HairVisibilitySampleCount;
@@ -1150,10 +1155,6 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 				GraphBuilder.QueueTextureExtraction(MsaaVisibilityResources.AttributeTexture, &VisibilityData.AttributeTexture);
 				GraphBuilder.QueueTextureExtraction(MsaaVisibilityResources.VelocityTexture, &VisibilityData.VelocityTexture);
 				GraphBuilder.QueueTextureExtraction(MsaaVisibilityResources.DepthTexture, &VisibilityData.DepthTexture);
-				if (CoverageTexture)
-				{
-					GraphBuilder.QueueTextureExtraction(CoverageTexture, &VisibilityData.CoverageTexture);
-				}
 				
 				{
 					FRDGTextureRef CompactNodeIndex;
@@ -1172,6 +1173,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 						MsaaVisibilityResources.MaterialTexture,
 						MsaaVisibilityResources.AttributeTexture,
 						MsaaVisibilityResources.VelocityTexture,
+						CoverageTexture,
 						CompactNodeIndex,
 						CompactNodeData,
 						CompactNodeCoord,
