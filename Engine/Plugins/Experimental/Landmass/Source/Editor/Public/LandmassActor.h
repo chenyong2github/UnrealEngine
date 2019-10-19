@@ -25,7 +25,7 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 
 	UFUNCTION(BlueprintCallable, category = "Default")
-	void SetEditorTickEnaled(bool bEnabled) { EditorTickIsEnabled = bEnabled; }
+	void SetEditorTickEnabled(bool bEnabled) { EditorTickIsEnabled = bEnabled; }
 
 	UPROPERTY()
 	bool EditorTickIsEnabled = false;
