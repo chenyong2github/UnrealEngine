@@ -3,8 +3,6 @@
 #include "VariantManagerFactoryNew.h"
 
 #include "LevelVariantSets.h"
-#include "VariantManager.h"
-
 
 UVariantManagerFactoryNew::UVariantManagerFactoryNew(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

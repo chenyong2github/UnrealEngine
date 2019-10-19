@@ -5,11 +5,10 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"		// For inline LoadModuleChecked()
 
-#define VARIANTMANAGERMODULE_MODULE_NAME TEXT("VariantManager")
-
-class AActor;
 class FVariantManager;
 class ULevelVariantSets;
+
+#define VARIANTMANAGERMODULE_MODULE_NAME TEXT("VariantManager")
 
 class IVariantManagerModule : public IModuleInterface
 {
@@ -25,8 +24,5 @@ public:
 	}
 
 	virtual TSharedRef<FVariantManager> CreateVariantManager(ULevelVariantSets* InLevelVariantSets) = 0;
-	virtual UObject* CreateLevelVariantSetsAssetWithDialog() = 0;
-	virtual UObject* CreateLevelVariantSetsAsset(const FString& AssetName, const FString& PackagePath, bool bForceOverwrite = false) = 0;
-	virtual AActor* GetOrCreateLevelVariantSetsActor(UObject* LevelVariantSetsAsset, bool bForceCreate=false) = 0;
 };
 

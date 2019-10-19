@@ -2,22 +2,23 @@
 
 #include "LevelVariantSetsActorCustomization.h"
 
-#include "CoreMinimal.h"
-#include "AssetToolsModule.h"
-#include "LevelVariantSetsActor.h"
-#include "DetailLayoutBuilder.h"
-#include "DetailCategoryBuilder.h"
-#include "DetailWidgetRow.h"
-#include "IAssetTools.h"
 #include "LevelVariantSets.h"
+#include "LevelVariantSetsActor.h"
+#include "VariantManagerContentEditorLog.h"
+#include "VariantManagerContentEditorModule.h"
+
+#include "AssetToolsModule.h"
+#include "CoreMinimal.h"
+#include "DetailCategoryBuilder.h"
+#include "DetailLayoutBuilder.h"
+#include "DetailWidgetRow.h"
+#include "Editor.h"
+#include "IAssetTools.h"
 #include "Modules/ModuleManager.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 #include "UObject/Object.h"
-#include "VariantManagerLog.h"
-#include "VariantManagerModule.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SButton.h"
-#include "Subsystems/AssetEditorSubsystem.h"
-#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "LevelVariantSetsActorCustomization"
 
@@ -97,12 +98,12 @@ FReply FLevelVariantSetsActorCustomization::OnOpenVariantManagerButtonClicked(AL
 FReply FLevelVariantSetsActorCustomization::OnCreateLevelVarSetsButtonClicked()
 {
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-	IVariantManagerModule& VarManModule = IVariantManagerModule::Get();
+	IVariantManagerContentEditorModule& ContentEditorModule = IVariantManagerContentEditorModule::Get();
 
-	UObject* NewAsset = VarManModule.CreateLevelVariantSetsAssetWithDialog();
+	UObject* NewAsset = ContentEditorModule.CreateLevelVariantSetsAssetWithDialog();
 	if (!NewAsset)
 	{
-		UE_LOG(LogVariantManager, Error, TEXT("Did not find an asset factory for a ULevelVariantSets"));
+		UE_LOG(LogVariantManagerContentEditor, Error, TEXT("Did not find an asset factory for a ULevelVariantSets"));
 		return FReply::Unhandled();
 	}
 
