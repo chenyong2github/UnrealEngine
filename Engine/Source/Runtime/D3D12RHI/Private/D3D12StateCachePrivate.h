@@ -109,6 +109,11 @@ struct FD3D12ResourceCache
 		SlotMask &= ~((ResourceSlotMask)1 << SlotIndex);
 	}
 
+	static inline void CleanSlots(ResourceSlotMask& SlotMask, uint32 NumSlots)
+	{
+		SlotMask &= ~(((ResourceSlotMask)1 << NumSlots) - 1);
+	}
+
 	static inline void DirtySlot(ResourceSlotMask& SlotMask, uint32 SlotIndex)
 	{
 		SlotMask |= ((ResourceSlotMask)1 << SlotIndex);
