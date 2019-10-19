@@ -217,8 +217,8 @@ public:
 	DECLARE_DELEGATE_TwoParams(FProduceFlyingInput, const FNetworkSimTime /*SimTime*/, FlyingMovement::FInputCmd& /*Cmd*/)
 	FProduceFlyingInput ProduceInputDelegate;
 
-	TPredictedStateAccessor<FlyingMovement::FMoveState>* MovementSyncState = nullptr;
-	TPredictedStateAccessor<FlyingMovement::FAuxState>*	 MovementAuxState = nullptr;
+	TNetworkSimStateAccessor<FlyingMovement::FMoveState> MovementSyncState;
+	TNetworkSimStateAccessor<FlyingMovement::FAuxState> MovementAuxState;
 
 protected:
 
