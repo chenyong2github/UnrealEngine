@@ -23,6 +23,7 @@ struct FProjectInformation
 
 	bool bShouldGenerateCode = false;
 	bool bCopyStarterContent = false;
+	bool bIsBlankTemplate = false;
 	
 	bool bForceExtendedLuminanceRange = false; // See "r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRange"
 	bool bEnableXR = false;
@@ -301,9 +302,6 @@ private:
 	 */
 	static bool AddSharedContentToProject(const FProjectInformation &InProjectInfo, TArray<FString> &CreatedFiles, FText& OutFailReason);
 
-	/** Returns list of starter content files */
-	static void GetStarterContentFiles(TArray<FString>& OutFilenames);
-
 	/** Returns the template defs ini filename */
 	static FString GetTemplateDefsFilename();
 
@@ -508,7 +506,6 @@ private:
 
 	static TWeakPtr<SNotificationItem> UpdateGameProjectNotification;
 	static TWeakPtr<SNotificationItem> WarningProjectNameNotification;
-	static FString DefaultFeaturePackExtension;
 
 	// Whether we should use AudioMixer for all platforms:
 	static bool bUseAudioMixerForAllPlatforms;
