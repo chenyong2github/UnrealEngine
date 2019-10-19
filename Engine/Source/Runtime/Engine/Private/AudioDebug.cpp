@@ -40,6 +40,14 @@ FAutoConsoleVariableRef CVarAudioVisualizeActiveSoundsMode(
 	TEXT("0: Not Enabled, 1: Volume (Lin), 2: Volume (dB), 3: Distance, 4: Random color"),
 	ECVF_Default);
 
+static int32 ActiveSoundVisualizeListenersCVar = 0;
+FAutoConsoleVariableRef CVarAudioVisualizeListeners(
+	TEXT("au.3dVisualize.Listeners"),
+	ActiveSoundVisualizeListenersCVar,
+	TEXT("Whether or not listeners are visible when 3d visualize is enabled. \n")
+	TEXT("0: Not Enabled, 1: Enabled"), 
+	ECVF_Default);
+
 static int32 ActiveSoundVisualizeTypeCVar = 0;
 FAutoConsoleVariableRef CVarAudioVisualizeActiveSounds(
 	TEXT("au.3dVisualize.ActiveSounds.Type"),
@@ -498,6 +506,47 @@ void FAudioDebugger::DrawDebugInfo(const FActiveSound& ActiveSound, const TArray
 				DrawDebugString(DebugWorld, Location + FVector(0, 0, 32), *Description, nullptr, Color, DeltaTime, false);
 			}
 		}, GET_STATID(STAT_AudioDrawActiveSoundDebugInfo));
+	}
+#endif // ENABLE_DRAW_DEBUG
+}
+
+void FAudioDebugger::DrawDebugInfo(const UWorld& World, const TArray<FListener>& Listeners, FVector& ListenerTransformOverride, bool bUseListenerTransformOverride)
+{
+#if ENABLE_DRAW_DEBUG
+	if (!ActiveSoundVisualizeListenersCVar)
+	{
+		return;
+	}
+
+	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
+	if (DeviceManager && DeviceManager->IsVisualizeDebug3dEnabled())
+	{
+		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.DrawListenerDebugInfo"), STAT_AudioDrawListenerDebugInfo, STATGROUP_TaskGraphTasks);
+		const TWeakObjectPtr<UWorld> WorldPtr = &World;
+		for (const FListener& Listener : Listeners)
+		{
+			const FVector ListenerPosition = bUseListenerTransformOverride ? ListenerTransformOverride : Listener.Transform.GetTranslation();
+			const FVector ListenerFront = Listener.GetFront();
+			const FVector ListenerUp = Listener.GetUp();
+			const FVector ListenerRight = Listener.GetRight();
+			FAudioThread::RunCommandOnGameThread([WorldPtr, ListenerPosition, ListenerFront, ListenerUp, ListenerRight]()
+			{
+				if (WorldPtr.IsValid())
+				{
+					static float ArrowLength	 = 30.0f;
+					static float ArrowHeadSize	 = 8.0f;
+					static float Lifetime		 = -1.0f;
+					static float Thickness		 = 0.9f;
+					static uint8 DepthPriority	 = SDPG_Foreground;
+					static bool bPersistentLines = false;
+
+					DrawDebugDirectionalArrow(WorldPtr.Get(), ListenerPosition, ListenerPosition + (ArrowLength * ListenerFront), ArrowHeadSize, FColor::Red, bPersistentLines, Lifetime, DepthPriority, Thickness);
+					DrawDebugDirectionalArrow(WorldPtr.Get(), ListenerPosition, ListenerPosition + (ArrowLength * ListenerUp), ArrowHeadSize, FColor::Blue, bPersistentLines, Lifetime, DepthPriority, Thickness);
+					DrawDebugDirectionalArrow(WorldPtr.Get(), ListenerPosition, ListenerPosition + (ArrowLength * ListenerRight), ArrowHeadSize, FColor::Green, bPersistentLines, Lifetime, DepthPriority, Thickness);
+					DrawDebugSphere(WorldPtr.Get(), ListenerPosition, 5.0f, 8, FColor::Magenta, bPersistentLines, Lifetime, DepthPriority);
+				}
+			}, GET_STATID(STAT_AudioDrawListenerDebugInfo));
+		}
 	}
 #endif // ENABLE_DRAW_DEBUG
 }
