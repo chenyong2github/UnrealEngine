@@ -151,8 +151,12 @@ public:
 		double fNearestT = TNumericLimits<double>::Max();
 		FTriangle3d Triangle;
 
-		for (int TriIdx : Mesh.TriangleIndicesItr())
+		for (int TriIdx = 0; TriIdx < Mesh.MaxTriangleID(); TriIdx++)
 		{
+			if (!Mesh.IsTriangle(TriIdx))
+			{
+				continue;
+			}
 			Mesh.GetTriVertices(TriIdx, Triangle.V[0], Triangle.V[1], Triangle.V[2]);
 			FIntrRay3Triangle3d Query(Ray, Triangle);
 			if (Query.Find())
