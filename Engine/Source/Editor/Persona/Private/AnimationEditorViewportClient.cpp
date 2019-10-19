@@ -1248,7 +1248,7 @@ void FAnimationViewportClient::DrawMeshBonesBakedAnimation(UDebugSkelMeshCompone
 
 void FAnimationViewportClient::DrawMeshBones(UDebugSkelMeshComponent * MeshComponent, FPrimitiveDrawInterface* PDI) const
 {
-	if ( MeshComponent && MeshComponent->SkeletalMesh )
+	if ( MeshComponent && MeshComponent->SkeletalMesh && MeshComponent->GetNumDrawTransform() > 0)
 	{
 		TArray<FTransform> WorldTransforms;
 		WorldTransforms.AddUninitialized(MeshComponent->GetNumDrawTransform());
