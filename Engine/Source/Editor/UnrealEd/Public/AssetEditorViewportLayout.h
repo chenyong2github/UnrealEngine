@@ -13,6 +13,7 @@
 #include "Application/ThrottleManager.h"
 #include "EditorViewportLayout.h"
 #include "TickableEditorObject.h"
+#include "SEditorViewport.h"
 
 class FAssetEditorViewportLayout;
 class SViewportsOverlay;
