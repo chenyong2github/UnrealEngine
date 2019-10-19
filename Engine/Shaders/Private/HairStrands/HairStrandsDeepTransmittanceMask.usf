@@ -53,7 +53,7 @@ Texture3D<uint> 	Voxel_DensityTexture7;
 
 StructuredBuffer<FNodeData> HairVisibilityNodeData;
 StructuredBuffer<uint>		HairVisibilityNodeCoord;
-StructuredBuffer<uint4>		IndirectArgsBuffer;
+Buffer<uint4>				IndirectArgsBuffer;
 
 Texture3D<float4>			HairLUTTexture;
 RWStructuredBuffer<float4>	OutputColor;
