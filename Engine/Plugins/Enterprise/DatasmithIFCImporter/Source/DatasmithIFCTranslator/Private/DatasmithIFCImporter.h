@@ -94,5 +94,9 @@ private:
 
 	TMap<IDatasmithMeshElement*, int64> MeshElementToIFCMeshIndex;
 	TMap<int64, TSharedRef<IDatasmithMeshElement>> IFCMeshIndexToMeshElement;
+
+	// Keep track of everything we import, because at the end we will import
+	// all unreferenced objects separately
+	TSet<int64> ImportedIFCInstances;
 };
 
