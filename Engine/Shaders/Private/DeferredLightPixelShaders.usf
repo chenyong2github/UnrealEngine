@@ -99,6 +99,7 @@ uint GetLightingChannelMask(float2 UV)
 
 #if USE_HAIR_LIGHTING
 
+Texture2D<uint4> HairCategorizationTexture;
 Texture2D<uint> HairVisibilityNodeOffsetAndCount;
 StructuredBuffer<FNodeData> HairVisibilityNodeData;
 
@@ -137,12 +138,12 @@ float4 PerceptualToLinear(float4 Color)
 
 void ComputeHairLighting(
 	in FInputParams InputParams,
-	in FNodeDesc NodeDesc, 
-	out float OutOpaqueWeight,
-	out float4 OutColor, 
-	out float4 OutColorSubPixel)
+	in FNodeDesc NodeDesc,
+	in FCategorizationData CatData,
+	inout float OutOpaqueWeight,
+	inout float4 OutColor, 
+	inout float4 OutColorSubPixel)
 {
-	float Coverage = 0;
 	float4 LocalColor = 0;
 	LOOP
 	for (uint SampleIt = 0; SampleIt < NodeDesc.Count; SampleIt++)
@@ -215,15 +216,16 @@ void ComputeHairLighting(
 		const float4 PercepualColor = LinearToPerceptual(LinearColor);
 		const float LocalCoverage = From8bitCoverage(SampleVisData.Coverage8bit);
 		LocalColor += PercepualColor * LocalCoverage;
-		Coverage += LocalCoverage;
 	}
 
+	const float PixelCoverage = min(CatData.PixelCoverage, 1);
+	float Coverage = 0;
 	OutColor = 0;
 	OutColorSubPixel = 0;
-	if (Coverage < 1)
+	if (PixelCoverage < 1)
 	{
-		OutColorSubPixel = LocalColor;
-		OutColorSubPixel.a = Coverage;
+		OutColorSubPixel = LocalColor; // * PixelCoverage <-- this would be need if Coverage8bit was storing the ratio (sampleCoverage / validCoverage)
+		OutColorSubPixel.a = PixelCoverage;
 		Coverage = 0;
 	}
 	else
@@ -270,6 +272,7 @@ void DeferredLightPixelMain(
 #if USE_HAIR_LIGHTING
 	const uint3 PixelCoord = uint3(floor(InputParams.PixelPos), 0);
 	const FNodeDesc NodeDesc = DecodeNodeDesc(HairVisibilityNodeOffsetAndCount.Load(PixelCoord));
+	const FCategorizationData CatData = DecodeCategorizationData(HairCategorizationTexture.Load(PixelCoord));
 	
 	// Only light pixels marked as using deferred shading
 	OutColorSubPixel = 0;
@@ -281,7 +284,7 @@ void DeferredLightPixelMain(
 	#endif
 		)
 	{
-		ComputeHairLighting(InputParams, NodeDesc, OpaqueWeight, OutColor, OutColorSubPixel);
+		ComputeHairLighting(InputParams, NodeDesc, CatData, OpaqueWeight, OutColor, OutColorSubPixel);
 	#if USE_PREEXPOSURE
 		OutColorSubPixel.rgb *= View.PreExposure;
 	#endif
