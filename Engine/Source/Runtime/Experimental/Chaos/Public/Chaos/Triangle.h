@@ -57,7 +57,7 @@ namespace Chaos
 			{
 				if(Thickness != 0)
 				{
-					return A + A.GetSafeNormal() * Thickness;
+					return A + Direction.GetUnsafeNormal() * Thickness;
 				}
 				return A;
 			}
@@ -65,14 +65,14 @@ namespace Chaos
 			{
 				if(Thickness != 0)
 				{
-					return B + B.GetSafeNormal() * Thickness;
+					return B + Direction.GetUnsafeNormal() * Thickness;
 				}
 				return B;
 			}
 
 			if(Thickness != 0)
 			{
-				return C + C.GetSafeNormal() * Thickness;
+				return C + Direction.GetUnsafeNormal() * Thickness;
 			}
 			return C;
 		}
