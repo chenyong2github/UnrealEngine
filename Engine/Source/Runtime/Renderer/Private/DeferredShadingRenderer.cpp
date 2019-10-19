@@ -813,7 +813,10 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 						RayTracingInstance.Mask = Instance.Mask;
 						RayTracingInstance.bForceOpaque = Instance.bForceOpaque;
 
-						check(Instance.Materials.Num() == Instance.Geometry->Initializer.Segments.Num() || (Instance.Geometry->Initializer.Segments.Num() == 0 && Instance.Materials.Num() == 1));
+						// Thin geometries like hair don't have material, as they only support shadow at the moment.
+						check(Instance.Materials.Num() == Instance.Geometry->Initializer.Segments.Num() || 
+							 (Instance.Geometry->Initializer.Segments.Num() == 0 && Instance.Materials.Num() == 1) || 
+							 (Instance.Materials.Num() == 0 && (Instance.Mask & RAY_TRACING_MASK_THIN_SHADOW) > 0));
 
 						RayTracingInstance.Transforms.SetNumUninitialized(Instance.InstanceTransforms.Num());
 						FMemory::Memcpy(RayTracingInstance.Transforms.GetData(), Instance.InstanceTransforms.GetData(), Instance.InstanceTransforms.Num() * sizeof(RayTracingInstance.Transforms[0]));
