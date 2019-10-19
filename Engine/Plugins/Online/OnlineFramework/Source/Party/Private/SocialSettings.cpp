@@ -3,6 +3,7 @@
 #include "SocialSettings.h"
 #include "SocialManager.h"
 #include "Misc/CommandLine.h"
+#include "Internationalization/Regex.h"
 
 #if !UE_BUILD_SHIPPING
 int32 MaxPartySizeOverride = INDEX_NONE;
@@ -72,4 +73,28 @@ float USocialSettings::GetUserListAutoUpdateRate()
 {
 	const USocialSettings& SettingsCDO = *GetDefault<USocialSettings>();
 	return SettingsCDO.UserListAutoUpdateRate;
+}
+
+int32 USocialSettings::GetMinNicknameLength()
+{
+	const USocialSettings& SettingsCDO = *GetDefault<USocialSettings>();
+	return SettingsCDO.MinNicknameLength;
+}
+
+int32 USocialSettings::GetMaxNicknameLength()
+{
+	const USocialSettings& SettingsCDO = *GetDefault<USocialSettings>();
+	return SettingsCDO.MaxNicknameLength;
+}
+
+bool USocialSettings::ValidateNickname(const FString& InNickname)
+{
+	const USocialSettings& SettingsCDO = *GetDefault<USocialSettings>();
+	FRegexPattern MatchPattern(SettingsCDO.NicknameRegexPattern);
+	FRegexMatcher Matcher(MatchPattern, InNickname);
+	if (Matcher.FindNext())
+	{
+		return Matcher.GetMatchEnding() == InNickname.Len();
+	}
+	return false;
 }
