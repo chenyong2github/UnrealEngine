@@ -4,24 +4,30 @@
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
 
-#include "DynamicMesh3.h"
-#include "DynamicMeshAttributeSet.h"
-#include "MeshSimplification.h"
-#include "MeshConstraintsUtil.h"
-#include "ProjectionTargets.h"
+#include "ToolSetupUtil.h"
 
-#include "SimpleDynamicMeshComponent.h"
+#include "DynamicMesh3.h"
+
+#include "MeshDescriptionToDynamicMesh.h"
+#include "DynamicMeshToMeshDescription.h"
+
+#include "AssetGenerationUtil.h"
 
 #include "SceneManagement.h" // for FPrimitiveDrawInterface
 
 //#include "ProfilingDebugging/ScopedTimers.h" // enable this to use the timer.
-#include "MeshDescription.h"
-#include "MeshDescriptionOperations.h"
-#include "OverlappingCorners.h"
+#include "Modules/ModuleManager.h"
+
+
 #include "IMeshReductionManagerModule.h"
 #include "IMeshReductionInterfaces.h"
-#include "Modules/ModuleManager.h"
-#include "Operations/MergeCoincidentMeshEdges.h"
+
+
+#if WITH_EDITOR
+#include "Misc/ScopedSlowTask.h"
+#endif
+
+
 
 #define LOCTEXT_NAMESPACE "USimplifyMeshTool"
 
@@ -45,7 +51,10 @@ UInteractiveTool* USimplifyMeshToolBuilder::BuildTool(const FToolBuilderState& S
 	UActorComponent* ActorComponent = ToolBuilderUtil::FindFirstComponent(SceneState, CanMakeComponentTarget);
 	auto* MeshComponent = Cast<UPrimitiveComponent>(ActorComponent);
 	check(MeshComponent != nullptr);
+
 	NewTool->SetSelection(MakeComponentTarget(MeshComponent));
+	NewTool->SetWorld(SceneState.World);
+	NewTool->SetAssetAPI(AssetAPI);
 
 	return NewTool;
 }
@@ -69,31 +78,62 @@ USimplifyMeshToolProperties::USimplifyMeshToolProperties()
 }
 
 
+void USimplifyMeshTool::SetWorld(UWorld* World)
+{
+	this->TargetWorld = World;
+}
+
+void USimplifyMeshTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
+{
+	this->AssetAPI = AssetAPIIn;
+}
+
+
 
 void USimplifyMeshTool::Setup()
 {
 	UInteractiveTool::Setup();
 
-	// create dynamic mesh component to use for live preview
-	DynamicMeshComponent = NewObject<USimpleDynamicMeshComponent>(ComponentTarget->GetOwnerActor(), "DynamicMesh");
-	DynamicMeshComponent->SetupAttachment(ComponentTarget->GetOwnerActor()->GetRootComponent());
-	DynamicMeshComponent->RegisterComponent();
-	DynamicMeshComponent->SetWorldTransform(ComponentTarget->GetWorldTransform());
-
-	// copy material if there is one
-	auto Material = ComponentTarget->GetMaterial(0);
-	if (Material != nullptr)
-	{
-		DynamicMeshComponent->SetMaterial(0, Material);
-	}
-	DynamicMeshComponent->bExplicitShowWireframe = true;
-
-	DynamicMeshComponent->InitializeMesh(ComponentTarget->GetMesh());
-	OriginalMesh.Copy(*DynamicMeshComponent->GetMesh());
-	OriginalMeshSpatial.SetMesh(&OriginalMesh, true);
-
-	// hide input StaticMeshComponent
+	
+	// hide component and create + show preview
 	ComponentTarget->SetOwnerVisibility(false);
+	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this, "Preview");
+	Preview->Setup(this->TargetWorld, this);
+	Preview->ConfigureMaterials(
+		ToolSetupUtil::GetDefaultMaterial(GetToolManager(), ComponentTarget->GetMaterial(0)),
+		ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
+	);
+	Preview->PreviewMesh->EnableWireframe(true);
+
+	{
+		// if in editor, create progress indicator dialog because building mesh copies can be slow (for very large meshes)
+		// this is especially needed because of the copy we make of the meshdescription; for Reasons, copying meshdescription is pretty slow
+#if WITH_EDITOR
+		static const FText SlowTaskText = LOCTEXT("SimplifyMeshInit", "Building mesh simplification data...");
+
+		FScopedSlowTask SlowTask(3.0f, SlowTaskText);
+		SlowTask.MakeDialog();
+
+		// Declare progress shortcut lambdas
+		auto EnterProgressFrame = [&SlowTask](int Progress)
+		{
+			SlowTask.EnterProgressFrame((float)Progress);
+		};
+#else
+		auto EnterProgressFrame = [](int Progress) {};
+#endif
+		OriginalMeshDescription = MakeShared<FMeshDescription>(*ComponentTarget->GetMesh());
+		EnterProgressFrame(1);
+		OriginalMesh = MakeShared<FDynamicMesh3>();
+		FMeshDescriptionToDynamicMesh Converter;
+		Converter.bPrintDebugMessages = true;
+		Converter.Convert(ComponentTarget->GetMesh(), *OriginalMesh);
+		EnterProgressFrame(2);
+		OriginalMeshSpatial = MakeShared<FDynamicMeshAABBTree3>(OriginalMesh.Get(), true);
+	}
+
+	Preview->PreviewMesh->SetTransform(ComponentTarget->GetWorldTransform());
+	Preview->PreviewMesh->UpdatePreview(OriginalMesh.Get());
 
 	// initialize our properties
 	SimplifyProperties = NewObject<USimplifyMeshToolProperties>(this);
@@ -101,51 +141,71 @@ void USimplifyMeshTool::Setup()
 
 	MeshStatisticsProperties = NewObject<UMeshStatisticsProperties>(this);
 	AddToolPropertySource(MeshStatisticsProperties);
-	MeshStatisticsProperties->Update(*DynamicMeshComponent->GetMesh());
 
-	bResultValid = false;
+	Preview->OnMeshUpdated.AddLambda([this](UMeshOpPreviewWithBackgroundCompute* Compute)
+	{
+		MeshStatisticsProperties->Update(*Compute->PreviewMesh->GetPreviewDynamicMesh());
+	});
+
+	Preview->InvalidateResult();
 }
 
 
 void USimplifyMeshTool::Shutdown(EToolShutdownType ShutdownType)
 {
-	if (DynamicMeshComponent != nullptr)
+	ComponentTarget->SetOwnerVisibility(true);
+	TUniquePtr<FDynamicMeshOpResult> Result = Preview->Shutdown();
+	if (ShutdownType == EToolShutdownType::Accept)
 	{
-		//DynamicMeshComponent->OnMeshChanged.Remove(OnDynamicMeshComponentChangedHandle);
-
-		ComponentTarget->SetOwnerVisibility(true);
-
-		if (ShutdownType == EToolShutdownType::Accept)
-		{
-			// this block bakes the modified DynamicMeshComponent back into the StaticMeshComponent inside an undo transaction
-			GetToolManager()->BeginUndoTransaction(LOCTEXT("SimplifyMeshToolTransactionName", "Simplify Mesh"));
-			ComponentTarget->CommitMesh([=](FMeshDescription* MeshDescription)
-			{
-				DynamicMeshComponent->Bake(MeshDescription, true);
-			});
-			GetToolManager()->EndUndoTransaction();
-		}
-
-		DynamicMeshComponent->UnregisterComponent();
-		DynamicMeshComponent->DestroyComponent();
-		DynamicMeshComponent = nullptr;
+		GenerateAsset(*Result);
 	}
 }
 
 
+void USimplifyMeshTool::Tick(float DeltaTime)
+{
+	Preview->Tick(DeltaTime);
+}
+
+TSharedPtr<FDynamicMeshOperator> USimplifyMeshTool::MakeNewOperator()
+{
+	TSharedPtr<FSimplifyMeshOp> Op = MakeShared<FSimplifyMeshOp>();
+
+	Op->bDiscardAttributes = SimplifyProperties->bDiscardAttributes;
+	Op->bPreventNormalFlips = SimplifyProperties->bPreventNormalFlips;
+	Op->bReproject = SimplifyProperties->bReproject;
+	Op->SimplifierType = SimplifyProperties->SimplifierType;
+	Op->TargetCount = SimplifyProperties->TargetCount;
+	Op->TargetEdgeLength = SimplifyProperties->TargetEdgeLength;
+	Op->TargetMode = SimplifyProperties->TargetMode;
+	Op->TargetPercentage = SimplifyProperties->TargetPercentage;
+
+	FTransform LocalToWorld = ComponentTarget->GetWorldTransform();
+	Op->SetTransform(LocalToWorld);
+
+	Op->OriginalMeshDescription = OriginalMeshDescription;
+	Op->OriginalMesh = OriginalMesh;
+	Op->OriginalMeshSpatial = OriginalMeshSpatial;
+
+	IMeshReductionManagerModule& MeshReductionModule = FModuleManager::Get().LoadModuleChecked<IMeshReductionManagerModule>("MeshReductionInterface");
+	Op->MeshReduction = MeshReductionModule.GetStaticMeshReductionInterface();
+
+	return Op;
+}
+
+
+
 void USimplifyMeshTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
-	UpdateResult();
-
-
+	
 	FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
 	FTransform Transform = ComponentTarget->GetWorldTransform(); //Actor->GetTransform();
 
 	FColor LineColor(255, 0, 0);
-	FDynamicMesh3* TargetMesh = DynamicMeshComponent->GetMesh();
+	const FDynamicMesh3* TargetMesh = Preview->PreviewMesh->GetPreviewDynamicMesh();
 	if (TargetMesh->HasAttributes())
 	{
-		FDynamicMeshUVOverlay* UVOverlay = TargetMesh->Attributes()->PrimaryUV();
+		const FDynamicMeshUVOverlay* UVOverlay = TargetMesh->Attributes()->PrimaryUV();
 		for (int eid : TargetMesh->EdgeIndicesItr()) 
 		{
 			if (UVOverlay->IsSeamEdge(eid)) 
@@ -162,141 +222,7 @@ void USimplifyMeshTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 void USimplifyMeshTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
 {
-	bResultValid = false;
-}
-
-
-template <typename SimplificationType>
-void ComputeResult(FDynamicMesh3* TargetMesh, const bool bReproject, int OriginalTriCount, FDynamicMesh3& OriginalMesh, FDynamicMeshAABBTree3& OriginalMeshSpatial, const ESimplifyTargetType TargetMode, const float TargetPercentage, const int TargetCount, const float TargetEdgeLength)
-{
-	SimplificationType Reducer(TargetMesh);
-
-	Reducer.ProjectionMode = (bReproject) ? 
-		SimplificationType::ETargetProjectionMode::AfterRefinement : SimplificationType::ETargetProjectionMode::NoProjection;
-
-	Reducer.DEBUG_CHECK_LEVEL = 0;
-
-	FMeshConstraints constraints;
-	FMeshConstraintsUtil::ConstrainAllSeams(constraints, *TargetMesh, true, false);
-	//FMeshConstraintsUtil::ConstrainAllSeamJunctions(constraints, *TargetMesh, true, false);
-	Reducer.SetExternalConstraints(&constraints);
-
-	FMeshProjectionTarget ProjTarget(&OriginalMesh, &OriginalMeshSpatial);
-	Reducer.SetProjectionTarget(&ProjTarget);
-
-	if (TargetMode == ESimplifyTargetType::Percentage)
-	{
-		double Ratio = (double)TargetPercentage / 100.0;
-		int UseTarget = FMath::Max(4, (int)(Ratio * (double)OriginalTriCount));
-		Reducer.SimplifyToTriangleCount(UseTarget);
-	} 
-	else if (TargetMode == ESimplifyTargetType::TriangleCount)
-	{
-		Reducer.SimplifyToTriangleCount(TargetCount);
-	}
-	else if (TargetMode == ESimplifyTargetType::EdgeLength)
-	{
-		Reducer.SimplifyToEdgeLength(TargetEdgeLength);
-	}
-}
-
-
-void USimplifyMeshTool::UpdateResult()
-{
-	
-	if (bResultValid) 
-	{
-		return;
-	}
-
-	//FScopedDurationTimeLogger Timer(TEXT("Simplification Time"));
-
-	FDynamicMesh3* TargetMesh = DynamicMeshComponent->GetMesh();
-	TargetMesh->Copy(OriginalMesh);
-	int OriginalTriCount = OriginalMesh.TriangleCount();
-
-	if (SimplifyProperties->bDiscardAttributes)
-	{
-		TargetMesh->DiscardAttributes();
-	}
-	if (SimplifyProperties->SimplifierType == ESimplifyType::QEM)
-	{
-		ComputeResult<FQEMSimplification>(TargetMesh, SimplifyProperties->bReproject, OriginalTriCount, OriginalMesh, OriginalMeshSpatial, 
-			SimplifyProperties->TargetMode, SimplifyProperties->TargetPercentage, SimplifyProperties->TargetCount, SimplifyProperties->TargetEdgeLength);
-	}
-	else if (SimplifyProperties->SimplifierType == ESimplifyType::Attribute)
-	{
-		ComputeResult<FAttrMeshSimplification>(TargetMesh, SimplifyProperties->bReproject, OriginalTriCount, OriginalMesh, OriginalMeshSpatial,
-			SimplifyProperties->TargetMode, SimplifyProperties->TargetPercentage, SimplifyProperties->TargetCount, SimplifyProperties->TargetEdgeLength);
-	}
-	else //if (SimplifierType == ESimplifyType::UE4Standard)
-	{
-
-		const FMeshDescription* SrcMeshDescription = ComponentTarget->GetMesh();
-		FMeshDescription DstMeshDescription(*SrcMeshDescription);
-
-
-		FOverlappingCorners OverlappingCorners;
-		FMeshDescriptionOperations::FindOverlappingCorners(OverlappingCorners, *SrcMeshDescription, 1.e-5);
-
-		FMeshReductionSettings ReductionSettings;
-		if (SimplifyProperties->TargetMode == ESimplifyTargetType::Percentage)
-		{
-			ReductionSettings.PercentTriangles = FMath::Max(SimplifyProperties->TargetPercentage / 100., .001);  // Only support triangle percentage and count, but not edge length
-		}
-		else if (SimplifyProperties->TargetMode == ESimplifyTargetType::TriangleCount)
-		{
-			int32 NumTris = SrcMeshDescription->Polygons().Num();
-			ReductionSettings.PercentTriangles = (float)SimplifyProperties->TargetCount / (float)NumTris;
-		}
-
-		float Error;
-		{
-			IMeshReductionManagerModule& MeshReductionModule = FModuleManager::Get().LoadModuleChecked<IMeshReductionManagerModule>("MeshReductionInterface");
-			IMeshReduction* MeshReduction = MeshReductionModule.GetStaticMeshReductionInterface();
-
-
-			if (!MeshReduction)
-			{
-				// no reduction possible
-				Error = 0.f;
-				return;
-			}
-
-			Error = ReductionSettings.MaxDeviation;
-			MeshReduction->ReduceMeshDescription(DstMeshDescription, Error, *SrcMeshDescription, OverlappingCorners, ReductionSettings);
-		}
-
-		// Put the reduced mesh into the target...
-		DynamicMeshComponent->InitializeMesh(&DstMeshDescription);
-
-		// The UE4 tool will split the UV boundaries.  Need to weld this.
-		{
-			FDynamicMesh3* ComponentMesh = DynamicMeshComponent->GetMesh();
-
-			FMergeCoincidentMeshEdges Merger(ComponentMesh);
-			Merger.MergeSearchTolerance = 10.0f * FMathf::ZeroTolerance;
-			Merger.OnlyUniquePairs = false;
-			if (Merger.Apply() == false)
-			{
-				DynamicMeshComponent->InitializeMesh(&DstMeshDescription);
-			}
-			if (ComponentMesh->CheckValidity(true, EValidityCheckFailMode::ReturnOnly) == false)
-			{
-				DynamicMeshComponent->InitializeMesh(&DstMeshDescription);
-			}
-		
-			DynamicMeshComponent->NotifyMeshUpdated();
-		}
-	}
-
-	//UE_LOG(LogMeshSimplification, Log, TEXT("Mesh simplified to %d triangles"), TargetMesh->TriangleCount());
-
-	DynamicMeshComponent->NotifyMeshUpdated();
-	GetToolManager()->PostInvalidation();
-	MeshStatisticsProperties->Update(*DynamicMeshComponent->GetMesh());
-
-	bResultValid = true;
+	Preview->InvalidateResult();
 }
 
 bool USimplifyMeshTool::HasAccept() const
@@ -307,6 +233,22 @@ bool USimplifyMeshTool::HasAccept() const
 bool USimplifyMeshTool::CanAccept() const
 {
 	return true;
+}
+
+void USimplifyMeshTool::GenerateAsset(const FDynamicMeshOpResult& Result)
+{
+	GetToolManager()->BeginUndoTransaction(LOCTEXT("SimplifyMeshToolTransactionName", "Simplify Mesh"));
+
+	check(Result.Mesh.Get() != nullptr);
+	ComponentTarget->CommitMesh([&Result](FMeshDescription* MeshDescription)
+	{
+		FDynamicMeshToMeshDescription Converter;
+
+		// full conversion if normal topology changed or faces were inverted
+		Converter.Convert(Result.Mesh.Get(), *MeshDescription);
+	});
+
+	GetToolManager()->EndUndoTransaction();
 }
 
 
