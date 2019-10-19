@@ -60,8 +60,11 @@ public:
 	/** Return the guide hairs datas */
 	FHairStrandsDatas* GetGuideStrandsDatas(uint32 GroupIndex);
 
-	/** Return the guide hairs resources*/
-	FHairStrandsResource* GetGuideStrandsResource(uint32 GroupIndex);
+	/** Return the guide hairs rest resources*/
+	FHairStrandsRestResource* GetGuideStrandsRestResource(uint32 GroupIndex);
+
+	/** Return the guide hairs deformed resources*/
+	FHairStrandsDeformedResource* GetGuideStrandsDeformedResource(uint32 GroupIndex);
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -69,16 +72,23 @@ public:
 
 	struct FHairGroupResource
 	{
+		// Sim to rendering interpolation resources
 		FHairStrandsInterpolationResource* InterpolationResource = nullptr;
+
+		// Projection resources
 		struct FHairStrandsRootResource* RenRootResources = nullptr;
 		struct FHairStrandsRootResource* SimRootResources = nullptr;
 	#if RHI_RAYTRACING
 		FHairStrandsRaytracingResource* RaytracingResources = nullptr;
 	#endif
 
-		// Resources own by the asset
-		FHairStrandsResource* RenderResources = nullptr;
-		FHairStrandsResource* SimResources = nullptr;
+		// Deformed position
+		FHairStrandsDeformedResource* RenderDeformedResources = nullptr;
+		FHairStrandsDeformedResource* SimDeformedResources = nullptr;
+
+		// Rest resources, owned by the asset
+		FHairStrandsRestResource* RenderRestResources = nullptr;
+		FHairStrandsRestResource* SimRestResources = nullptr;
 	};
 	typedef TArray<FHairGroupResource> FHairGroupResources;
 
