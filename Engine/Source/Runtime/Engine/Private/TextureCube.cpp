@@ -216,6 +216,7 @@ public:
 
 		// Read the mip-levels into the RHI texture.
 		int32 NumMips = Owner->GetNumMips();
+		check(NumMips < MAX_TEXTURE_MIP_COUNT);
 		for( int32 FaceIndex=0; FaceIndex<6; FaceIndex++ )
 		{
 			for(int32 MipIndex=0; MipIndex < NumMips; MipIndex++)
@@ -289,6 +290,7 @@ private:
 	 */
 	void GetData( int32 FaceIndex, int32 MipIndex, void* Dest, uint32 DestPitch )
 	{
+		check(MipIndex < MAX_TEXTURE_MIP_COUNT);
 		check( MipData[FaceIndex][MipIndex] );
 
 		// for platforms that returned 0 pitch from Lock, we need to just use the bulk data directly, never do 
