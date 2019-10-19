@@ -48,8 +48,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	ShaderPrintFilter(true);
 
 	const FCategorizationData CatData = DecodeCategorizationData(CategorizationTexture.Load(uint3(PixelPos,0)));
-	//const bool bIsValid = CatData.PixelCoverage > 0;
-	const bool bIsValid = CatData.TotalCoverage8bit > 0;
+	const bool bIsValid = CatData.PixelCoverage > 0;
 	if (!bIsValid)
 		return;
 
@@ -163,6 +162,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	Pos = ShaderPrintSymbol(Pos, _S_);
 	Pos = ShaderPrintSymbol(Pos, _SPC_);
 	Pos = ShaderPrint(Pos, CatData.TotalCoverage8bit);
+	Pos = ShaderPrint(Pos, CatData.TotalCoverage8bit / 255.f);
 	
 	Pos = ShaderPrintNewline(Pos);
 	Pos.x = OriginalPos.x;
