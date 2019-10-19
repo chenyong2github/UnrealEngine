@@ -23,21 +23,21 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Groom")
 	UGroomAsset* GroomAsset;
 
-	/** Controls the hair density, to reduce or increase hair count during shadow rendering. This allows to increase/decrease the shadowing on hair when the number of strand is not realistic */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HairStrands Rendering", meta = (ClampMin = "0.0001", UIMin = "0.01", UIMax = "10.0"))
-	float HairDensity;
-
 	/** 
-	 * When activated, the hair groom will be attached and skinned onto the mesh, if the groom component is a child of a skeletal/skinned component.
+	 * When activated, the groom will be attached and skinned onto the skeletal mesh, if the groom component is a child of a skeletal/skinned component.
 	 * This requires the following projection settings: 
 	 * - Rendering settings: 'Skin cache' enabled
 	 * - Animation settings: 'Tick Animation On Skeletal Mesh Init' disabled
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "HairStrands Rendering")
-	bool bSkinGroom;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Groom")
+	bool bBindGroomToSkeletalMesh;
+
+	/** Controls the hair density, to reduce or increase hair count during shadow rendering. This allows to increase/decrease the shadowing on hair when the number of strand is not realistic */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Groom Rendering", meta = (ClampMin = "0.0001", UIMin = "0.01", UIMax = "10.0"))
+	float HairShadowDensity;
 
 	/** Scale the hair geometry radius for ray tracing effects (e.g. shadow) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HairStrands Rendering", meta = (ClampMin = "0.0001", UIMin = "0.01", UIMax = "10.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Groom Rendering", meta = (ClampMin = "0.0001", UIMin = "0.01", UIMax = "10.0"))
 	float HairRaytracingRadiusScale;
 
 	//~ Begin UActorComponent Interface.
