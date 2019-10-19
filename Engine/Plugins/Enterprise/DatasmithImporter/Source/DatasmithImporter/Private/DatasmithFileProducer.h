@@ -61,6 +61,9 @@ private:
 	/** Fill up world with content of Datasmith scene element */
 	void PreventNameCollision();
 
+	/** Update the name of the producer based on the filename */
+	void UpdateName();
+
 private:
 	TUniquePtr< FDatasmithImportContext > ImportContextPtr;
 	TUniquePtr< FDatasmithTranslatableSceneSource > TranslatableSourcePtr;
