@@ -537,12 +537,12 @@ static FHairStrandsProjectionHairData::HairGroup ToProjectionHairData(FHairStran
 		LODData.RootTriangleIndexBuffer = &MeshLODData.RootTriangleIndexBuffer;
 		LODData.RootTriangleBarycentricBuffer = &MeshLODData.RootTriangleBarycentricBuffer;
 		
-		LODData.RestPositionOffset					= MeshLODData.RestRootCenter;
+		LODData.RestPositionOffset					= MeshLODData.RestRootOffset;
 		LODData.RestRootTrianglePosition0Buffer = &MeshLODData.RestRootTrianglePosition0Buffer;
 		LODData.RestRootTrianglePosition1Buffer = &MeshLODData.RestRootTrianglePosition1Buffer;
 		LODData.RestRootTrianglePosition2Buffer = &MeshLODData.RestRootTrianglePosition2Buffer;
 
-		LODData.DeformedPositionOffset					= MeshLODData.DeformedRootCenter;
+		LODData.DeformedPositionOffset					= MeshLODData.DeformedRootOffset;
 		LODData.DeformedRootTrianglePosition0Buffer = &MeshLODData.DeformedRootTrianglePosition0Buffer;
 		LODData.DeformedRootTrianglePosition1Buffer = &MeshLODData.DeformedRootTrianglePosition1Buffer;
 		LODData.DeformedRootTrianglePosition2Buffer = &MeshLODData.DeformedRootTrianglePosition2Buffer;
@@ -580,6 +580,16 @@ FHairStrandsDeformedResource* UGroomComponent::GetGuideStrandsDeformedResource(u
 	}
 
 	return HairGroupResources[GroupIndex].SimDeformedResources;
+}
+
+FHairStrandsRootResource* UGroomComponent::GetGuideStrandsRootResource(uint32 GroupIndex)
+{
+	if (GroupIndex >= uint32(HairGroupResources.Num()))
+	{
+		return nullptr;
+	}
+
+	return HairGroupResources[GroupIndex].SimRootResources;
 }
 
 template<typename T> void SafeDelete(T*& Data) 
@@ -704,12 +714,19 @@ void UGroomComponent::InitResources()
 		
 		Res.RenderRestResources = GroupData.HairStrandsRestResource;
 		Res.SimRestResources = GroupData.HairSimulationRestResource;
+
 		Res.RenderDeformedResources = new FHairStrandsDeformedResource(GroupData.HairRenderData.RenderData, false);
 		Res.SimDeformedResources = new FHairStrandsDeformedResource(GroupData.HairSimulationData.RenderData, true);
+
 		BeginInitResource(Res.RenderDeformedResources);
 		BeginInitResource(Res.SimDeformedResources);
 
 		const FVector RestHairPositionOffset = Res.RenderRestResources->PositionOffset;
+
+		Res.RenderDeformedResources->PositionOffset = RestHairPositionOffset;
+		Res.RenderRestResources->PositionOffset = RestHairPositionOffset;
+		Res.SimDeformedResources->PositionOffset = RestHairPositionOffset;
+		Res.SimRestResources->PositionOffset = RestHairPositionOffset;
 
 		FHairStrandsInterpolationOutput::HairGroup& InterpolationOutputGroup = InterpolationOutput->HairGroups.AddDefaulted_GetRef();
 		FHairStrandsInterpolationInput::FHairGroup& InterpolationInputGroup = InterpolationInput->HairGroups.AddDefaulted_GetRef();
@@ -1045,7 +1062,7 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 								{
 									for (FHairStrandsRootResource::FMeshProjectionLOD& MeshProjectionLOD : Res.RenRootResources->MeshProjectionLODs)
 									{
-										MeshProjectionLOD.RestRootCenter = RestPositionOffset;
+										MeshProjectionLOD.RestRootOffset = RestPositionOffset;
 									}
 								}
 
@@ -1053,7 +1070,7 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 								{
 									for (FHairStrandsRootResource::FMeshProjectionLOD& MeshProjectionLOD : Res.SimRootResources->MeshProjectionLODs)
 									{
-										MeshProjectionLOD.RestRootCenter = RestPositionOffset;
+										MeshProjectionLOD.RestRootOffset = RestPositionOffset;
 									}
 								}
 							}
@@ -1138,14 +1155,14 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 			{
 				for (FHairStrandsRootResource::FMeshProjectionLOD& MeshProjectionLOD : Res.RenRootResources->MeshProjectionLODs)
 				{
-					MeshProjectionLOD.DeformedRootCenter = DeformedPositionCenter;
+					MeshProjectionLOD.DeformedRootOffset = DeformedPositionCenter;
 				}
 			}
 			if (Res.SimRootResources)
 			{
 				for (FHairStrandsRootResource::FMeshProjectionLOD& MeshProjectionLOD : Res.SimRootResources->MeshProjectionLODs)
 				{
-					MeshProjectionLOD.DeformedRootCenter = DeformedPositionCenter;
+					MeshProjectionLOD.DeformedRootOffset = DeformedPositionCenter;
 				}
 			}
 		}

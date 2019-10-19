@@ -52,7 +52,8 @@ typedef void (*THairStrandsInterpolationFunction)(
 	FRHICommandListImmediate& RHICmdList, 
 	struct FHairStrandsInterpolationInput* Input, 
 	struct FHairStrandsInterpolationOutput* Output, 
-	struct FHairStrandsProjectionHairData& HairProjection,
+	struct FHairStrandsProjectionHairData& RenHairProjection,
+	struct FHairStrandsProjectionHairData& SimHairProjection,
 	int32 LODIndex);
 
 struct FHairStrandsInterpolationData

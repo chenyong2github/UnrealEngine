@@ -89,6 +89,9 @@ public:
 	/** Return the guide hairs deformed resources*/
 	FHairStrandsDeformedResource* GetGuideStrandsDeformedResource(uint32 GroupIndex);
 
+	/** Return the guide hairs root resources*/
+	FHairStrandsRootResource* GetGuideStrandsRootResource(uint32 GroupIndex);
+
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual bool CanEditChange(const UProperty* InProperty) const override;

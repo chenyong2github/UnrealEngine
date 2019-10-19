@@ -492,20 +492,14 @@ bool UNiagaraDataInterfacePhysicsAsset::InitPerInstanceData(void* PerInstanceDat
 		}
 	}
 
-	if (SourceComponent != nullptr)
-	{
-		UE_LOG(LogPhysicsAsset, Log, TEXT("Found Skeletal Mesh %d %d %d"), SourceComponent.Get(), SourceComponent->GetPhysicsAsset(), DefaultSource);
-
-	}
-
 	PhysicsAsset = (SourceComponent != nullptr) ? SourceComponent->GetPhysicsAsset() : ( DefaultSource != nullptr ) ? DefaultSource : nullptr;
 
-	if (PhysicsAsset == nullptr )
-	{
-		UE_LOG(LogPhysicsAsset, Log, TEXT("Physics Asset data interface has no valid asset. Failed InitPerInstanceData - %s %d %d"), *GetFullName(), PhysicsAsset.Get(), DefaultSource);
-		return false;
-	}
-	else
+	//if (PhysicsAsset == nullptr )
+	//{
+	//	UE_LOG(LogPhysicsAsset, Log, TEXT("Physics Asset data interface has no valid asset. Failed InitPerInstanceData - %s %d %d"), *GetFullName(), PhysicsAsset.Get(), DefaultSource);
+	//	return false;
+	//}
+	//else
 	{
 		const FTransform WorldTransform = (SourceComponent != nullptr) ? SourceComponent->GetComponentTransform() : SystemInstance->GetComponent()->GetComponentTransform();
 		FNDIPhysicsAssetBuffer* AssetBuffer = new FNDIPhysicsAssetBuffer;
