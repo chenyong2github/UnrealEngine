@@ -176,7 +176,7 @@ namespace Chaos
 
 			if (Thickness)
 			{
-				return SurfaceParticles.X(MaxVIdx) + SurfaceParticles.X(MaxVIdx).GetSafeNormal()*Thickness;
+				return SurfaceParticles.X(MaxVIdx) + Direction.GetUnsafeNormal() * Thickness;
 			}
 			return SurfaceParticles.X(MaxVIdx);
 		}
