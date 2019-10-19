@@ -248,7 +248,6 @@ void USkyAtmosphereComponent::PostEditChangeProperty(FPropertyChangedEvent& Prop
 		CategoryName == FName(TEXT("Atmosphere - Absorption")) ||
 		CategoryName == FName(TEXT("Art direction")))
 	{
-		UMapBuildDataRegistry* Registry = GetOwner() && GetOwner()->GetLevel() ? GetOwner()->GetLevel()->GetOrCreateMapBuildData() : nullptr;
 		if (SkyAtmosphereComponentStaticLightingBuilt(this))
 		{
 			// If we have changed an atmosphere property and the lighyting has already been built, we need to ask for a rebuild by updating the static lighting GUIDs.
