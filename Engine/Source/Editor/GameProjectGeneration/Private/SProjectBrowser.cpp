@@ -324,7 +324,7 @@ void SProjectBrowser::Construct( const FArguments& InArgs )
 					SNew(SButton)
 					.Text(LOCTEXT("BrowseProjectButton", "Browse..."))
 					.OnClicked(this, &SProjectBrowser::OnBrowseToProjectClicked)
-					.ContentPadding( FCoreStyle::Get().GetMargin("StandardDialog.ContentPadding") )
+					.ContentPadding(FCoreStyle::Get().GetMargin("StandardDialog.ContentPadding"))
 				]
 
 				// Open Button
@@ -335,7 +335,8 @@ void SProjectBrowser::Construct( const FArguments& InArgs )
 					.Text(LOCTEXT("OpenProjectButton", "Open"))
 					.OnClicked(this, &SProjectBrowser::HandleOpenProjectButtonClicked)
 					.IsEnabled(this, &SProjectBrowser::HandleOpenProjectButtonIsEnabled)
-					.ContentPadding( FCoreStyle::Get().GetMargin("StandardDialog.ContentPadding") )
+					.ContentPadding(FCoreStyle::Get().GetMargin("StandardDialog.ContentPadding"))
+					.Visibility(InArgs._HideOpenButton ? EVisibility::Collapsed : EVisibility::Visible)
 				]
 			]
 		]
