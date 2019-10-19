@@ -605,7 +605,6 @@ bool FPixelStreamingAmfVideoEncoder::HandleEncodedFrame(FFrame& Frame)
 {
 	check(Frame.State==EFrameState::Encoding);
 
-	Frame.State = EFrameState::Free;
 	FOutputFrame& OutputFrame = Frame.OutputFrame;
 
 	FHUDStats& Stats = FHUDStats::Get();
@@ -670,6 +669,8 @@ bool FPixelStreamingAmfVideoEncoder::HandleEncodedFrame(FFrame& Frame)
 		SCOPE_CYCLE_COUNTER(STAT_Amf_StreamEncodedFrame);
 		OnEncodedFrame(OutputFrame.EncodedFrame);
 	}
+
+	Frame.State = EFrameState::Free;
 
 	return true;
 }
