@@ -1010,7 +1010,7 @@ protected:
 	void RerunConstructionScripts();
 
 	/** Get actors that want to rerun construction scripts */
-	void GetConstructionScriptActors(UMovieScene*, FMovieSceneSequenceIDRef SequenceID, TSet<TWeakObjectPtr<AActor> >& BoundActors);
+	void GetConstructionScriptActors(UMovieScene*, FMovieSceneSequenceIDRef SequenceID, TSet<TWeakObjectPtr<AActor> >& BoundActors, TArray < TPair<FMovieSceneSequenceID, FGuid> >& BoundGuids);
 
 	/** Check whether we're viewing the master sequence or not */
 	bool IsViewingMasterSequence() const { return ActiveTemplateIDs.Num() == 1; }

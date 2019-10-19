@@ -1073,14 +1073,16 @@ void FSequencer::RerunConstructionScripts()
 		
 	UMovieSceneSequence* Sequence = RootTemplate.GetSequence(MovieSceneSequenceID::Root);
 
-	GetConstructionScriptActors(Sequence->GetMovieScene(), MovieSceneSequenceID::Root, BoundActors);
+	TArray < TPair<FMovieSceneSequenceID, FGuid> > BoundGuids;
+
+	GetConstructionScriptActors(Sequence->GetMovieScene(), MovieSceneSequenceID::Root, BoundActors, BoundGuids);
 
 	for (FMovieSceneSequenceIDRef SequenceID : RootTemplateInstance.GetThisFrameMetaData().ActiveSequences)
 	{
 		UMovieSceneSequence* SubSequence = RootTemplateInstance.GetSequence(SequenceID);
 		if (SubSequence)
 		{
-			GetConstructionScriptActors(SubSequence->GetMovieScene(), SequenceID, BoundActors);
+			GetConstructionScriptActors(SubSequence->GetMovieScene(), SequenceID, BoundActors, BoundGuids);
 		}
 	}
 
@@ -1091,9 +1093,14 @@ void FSequencer::RerunConstructionScripts()
 			BoundActor.Get()->RerunConstructionScripts();
 		}
 	}
+
+	for (TPair<FMovieSceneSequenceID, FGuid> BoundGuid : BoundGuids)
+	{
+		State.Invalidate(BoundGuid.Value, BoundGuid.Key);
+	}
 }
 
-void FSequencer::GetConstructionScriptActors(UMovieScene* MovieScene, FMovieSceneSequenceIDRef SequenceID, TSet<TWeakObjectPtr<AActor> >& BoundActors)
+void FSequencer::GetConstructionScriptActors(UMovieScene* MovieScene, FMovieSceneSequenceIDRef SequenceID, TSet<TWeakObjectPtr<AActor> >& BoundActors, TArray < TPair<FMovieSceneSequenceID, FGuid> >& BoundGuids)
 {
 	for (int32 Index = 0; Index < MovieScene->GetPossessableCount(); ++Index)
 	{
@@ -1111,6 +1118,7 @@ void FSequencer::GetConstructionScriptActors(UMovieScene* MovieScene, FMovieScen
 					if (Blueprint && Blueprint->bRunConstructionScriptInSequencer)
 					{
 						BoundActors.Add(Actor);
+						BoundGuids.Add(TPair<FMovieSceneSequenceID, FGuid>(SequenceID, ThisGuid));
 					}
 				}
 			}
@@ -1133,6 +1141,7 @@ void FSequencer::GetConstructionScriptActors(UMovieScene* MovieScene, FMovieScen
 					if (Blueprint && Blueprint->bRunConstructionScriptInSequencer)
 					{
 						BoundActors.Add(Actor);
+						BoundGuids.Add(TPair<FMovieSceneSequenceID, FGuid>(SequenceID, ThisGuid));
 					}
 				}
 			}
