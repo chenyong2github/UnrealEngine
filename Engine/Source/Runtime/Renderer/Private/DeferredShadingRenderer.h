@@ -504,6 +504,9 @@ private:
 		int32 SamplePerPixel,
 		int32 HeightFog,
 		float ResolutionFraction,
+		FRDGTextureUAV* ColorOutputUAV,
+		FRDGTextureUAV* RayHitDistanceOutputUAV,
+		FRDGTextureUAV* RayImaginaryDepthOutputUAV,
 		IScreenSpaceDenoiser::FReflectionsInputs* OutDenoiserInputs);
 
 	void RenderRayTracingShadows(
@@ -515,8 +518,8 @@ private:
 		const IScreenSpaceDenoiser::EShadowRequirements DenoiserRequirements,
 		const bool bSubPixelShadowMask,
 		FRDGTextureRef HairCategorizationTexture,
-		FRDGTextureRef* OutShadowMask,
-		FRDGTextureRef* OutRayHitDistance);
+		FRDGTextureUAV* OutShadowMaskUAV,
+		FRDGTextureUAV* OutRayHitDistanceUAV);
 
 	void RenderRayTracingStochasticRectLight(FRHICommandListImmediate& RHICmdList, const FLightSceneInfo& RectLightSceneInfo, TRefCountPtr<IPooledRenderTarget>& RectLightRT, TRefCountPtr<IPooledRenderTarget>& HitDistanceRT);
 	void CompositeRayTracingSkyLight(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& SkyLightRT, TRefCountPtr<IPooledRenderTarget>& HitDistanceRT);
