@@ -9,7 +9,7 @@
 // ---------------------------------------------------------------------------------------------------------------------
 
 // Enum to refer to buffer type. These are used as template arguments to write generic code that can act on any of the buffers.
-enum ENetworkSimBufferTypeId
+enum class ENetworkSimBufferTypeId : uint8
 {
 	Input,
 	Sync,
@@ -21,10 +21,10 @@ inline FString LexToString(ENetworkSimBufferTypeId A)
 {
 	switch(A)
 	{
-		case Input: return TEXT("Input");
-		case Sync: return TEXT("Sync");
-		case Aux: return TEXT("Aux");
-		case Debug: return TEXT("Debug");
+		case ENetworkSimBufferTypeId::Input: return TEXT("Input");
+		case ENetworkSimBufferTypeId::Sync: return TEXT("Sync");
+		case ENetworkSimBufferTypeId::Aux: return TEXT("Aux");
+		case ENetworkSimBufferTypeId::Debug: return TEXT("Debug");
 	};
 	return TEXT("Unknown");
 }
@@ -37,25 +37,25 @@ struct TSelectTypeHelper
 };
 
 template<typename TBufferTypes>
-struct TSelectTypeHelper<TBufferTypes, Input>
+struct TSelectTypeHelper<TBufferTypes, ENetworkSimBufferTypeId::Input>
 {
 	using type = typename TBufferTypes::TInputCmd;
 };
 
 template<typename TBufferTypes>
-struct TSelectTypeHelper<TBufferTypes, Sync>
+struct TSelectTypeHelper<TBufferTypes, ENetworkSimBufferTypeId::Sync>
 {
 	using type = typename TBufferTypes::TSyncState;
 };
 
 template<typename TBufferTypes>
-struct TSelectTypeHelper<TBufferTypes, Aux>
+struct TSelectTypeHelper<TBufferTypes, ENetworkSimBufferTypeId::Aux>
 {
 	using type = typename TBufferTypes::TAuxState;
 };
 
 template<typename TBufferTypes>
-struct TSelectTypeHelper<TBufferTypes, Debug>
+struct TSelectTypeHelper<TBufferTypes, ENetworkSimBufferTypeId::Debug>
 {
 	using type = typename TBufferTypes::TDebugState;
 };
@@ -103,7 +103,7 @@ struct TBufferGetterHelper
 {
 	static typename TContainer::template select_buffer_type<BufferId>::type& Get(TContainer& Container)
 	{
-		static_assert(!BufferId, "Failed to find specialized Get for your BufferId");
+		static_assert(!Container, "Failed to find specialized Get for your BufferId");
 	}
 };
 
@@ -140,92 +140,55 @@ struct TBufferGetterHelper<TContainer, ENetworkSimBufferTypeId::Debug>
 	}
 };
 
+// -------------------------------------------------
+
+// Helper struct for accessing a netsim buffer given the underlying type
+template<typename TContainer, typename TState>
+struct TBufferGetterHelper_ByState
+{
+	static void GetBuffer(TContainer& Container)
+	{
+		static_assert(!Container, "Failed to find specialized Get for your BufferId");
+	}
+};
+
+template<typename TContainer>
+struct TBufferGetterHelper_ByState<TContainer, typename TContainer::TInputCmd>
+{
+	static typename TContainer::TInputBuffer& GetBuffer(TContainer& Container)
+	{
+		return Container.Input;
+	}
+};
+
+template<typename TContainer>
+struct TBufferGetterHelper_ByState<TContainer, typename TContainer::TSyncState>
+{
+	static typename TContainer::TSyncBuffer& GetBuffer(TContainer& Container)
+	{
+		return Container.Sync;
+	}
+};
+
+template<typename TContainer>
+struct TBufferGetterHelper_ByState<TContainer, typename TContainer::TAuxState>
+{
+	static typename TContainer::TAuxBuffer& GetBuffer(TContainer& Container)
+	{
+		return Container.Aux;
+	}
+};
+
+template<typename TContainer>
+struct TBufferGetterHelper_ByState<TContainer, typename TContainer::TDebugState>
+{
+	static typename TContainer::TDebugBuffer& GetBuffer(TContainer& Container)
+	{
+		return Container.Debug;
+	}
+};
+
 // -------------------------------------------------------------------
-
-template<typename InElementType>
-struct TBaseStateAccessor
-{
-	using ElementType = InElementType;
-	virtual ~TBaseStateAccessor() { }
-	virtual const ElementType* Get() const = 0;
-	virtual void Modify(TUniqueFunction<void(ElementType&)>&& Func, int32 Keyframe) = 0;
-};
-
-// Stored modifications to a NetSim Buffer. Needed for replaying predictive mutations that happen outside of the core Update function
-template<typename TBuffer>
-struct TPredictedModBuffer : public TBaseStateAccessor<typename TBuffer::ElementType>
-{
-	using ElementType = typename TBuffer::ElementType;
-
-	TPredictedModBuffer(TBuffer& InBuffer)
-		: Buffer(InBuffer) { }
-
-	const ElementType* Get() const final override
-	{
-		return Buffer.HeadElement();
-	}
-
-	void Modify(TUniqueFunction<void(ElementType&)>&& Func, int32 Keyframe) final override
-	{
-		ElementType* State = Buffer.WriteKeyframe(Keyframe);
-		check(State);
-		Func(*State);
-
-		if (!bAuthority)
-		{
-			PredictedMods.FindOrAdd(Keyframe).Add(MoveTemp(Func));
-		}
-	}
-
-	// -------------------------------------------------------
-
-	void ApplySavedMods(int32 Keyframe)
-	{
-
-	}
-
-	void TrimSavedMods(int32 Keyframe)
-	{
-
-	}
-
-	void SetIsAuthority(bool bInAuthority)
-	{
-		bAuthority = bInAuthority;
-	}
-
-private:
-
-	TSortedMap<int32, TArray<TUniqueFunction<void(ElementType&)>>> PredictedMods;
-	TBuffer& Buffer;
-	bool bAuthority = false; 
-};
-
-// Accessor for predicted state. This is what GameCode outside of the core ::Update function should use to mutate state in the Sync or Aux buffer/
-// This builds off TPredictedModBuffer: it stores a pointer to the simulation's current frame so that game code doesn't need to supply it.
-template<typename T>
-struct TPredictedStateAccessor
-{
-	TPredictedStateAccessor(TBaseStateAccessor<T>& InModBuffer, int32* InPendingKeyframe)
-		: ModBuffer(InModBuffer), PendingKeyframe(InPendingKeyframe) { }
-
-	// Returns the current state, cannot be modified directly
-	const T* Get() const
-	{
-		return ModBuffer.Get();
-	}
-
-	// Applies a mod to the current state. If in prediction mode, will save the mod to be reapplied during a rollback
-	void Modify(TUniqueFunction<void(T&)>&& Func)
-	{
-		ModBuffer.Modify(MoveTemp(Func), *PendingKeyframe);
-	}
-
-private:
-
-	TBaseStateAccessor<T>& ModBuffer;
-	int32* PendingKeyframe = nullptr;
-};
 
 // Struct that encapsulates writing a new element to a buffer. This is used to allow a new Aux state to be created in the ::Update loop.
 template<typename T>
@@ -253,11 +216,13 @@ private:
 template<typename InBufferTypes>
 struct TNetworkSimBufferContainer
 {
-	TNetworkSimBufferContainer()
-		: SyncMods(Sync), AuxMods(Aux) { }
-
 	// Collection of types we were assigned
 	using TBufferTypes = InBufferTypes;
+
+	using TInputCmd = typename TBufferTypes::TInputCmd;
+	using TSyncState = typename TBufferTypes::TSyncState;
+	using TAuxState = typename TBufferTypes::TAuxState;
+	using TDebugState = typename TBufferTypes::TDebugState;
 
 	// helper that returns the buffer type for a given BufferId (not the underlying type: the actual TReplicatedBuffer<TUnderlyingType>
 	template<ENetworkSimBufferTypeId TypeId>
@@ -286,10 +251,7 @@ struct TNetworkSimBufferContainer
 	TInputBuffer Input;
 	TSyncBuffer Sync;
 	TAuxBuffer Aux;
-	TDebugBuffer Debug;
-
-	TPredictedModBuffer<TSyncBuffer> SyncMods;
-	TPredictedModBuffer<TAuxBuffer> AuxMods;
+	TDebugBuffer Debug;	
 
 	// Finally, template accessor for getting buffers based on enum. This is really what all this junk is about.
 	// This allows other templated classes in the system to access a specific buffer from another templated argument
@@ -464,6 +426,7 @@ struct TSimulationTickState
 
 	int32 PendingKeyframe = 0;
 	int32 MaxAllowedKeyframe = -1;
+	bool UpdateInProgress = false;
 	
 	FNetworkSimTime GetTotalProcessedSimulationTime() const 
 	{ 
@@ -515,6 +478,113 @@ private:
 	FNetworkSimTime TotalProcessedSimulationTime;	// How much time we've actually processed. The only way to increment this is to process user commands or receive authoritative state from the network.
 
 	TRealTimeAccumulator<TSettings>	RealtimeAccumulator;
+};
+
+// Scoped helper to be used right before entering a call to the sim's ::Update function
+struct TScopedSimulationTick
+{
+	template<typename TSimulationTickState>
+	TScopedSimulationTick(TSimulationTickState& TickState, const int32& OutputKeyframe, const FNetworkSimTime& DeltaSimTime)
+	{
+		check(TickState.UpdateInProgress == false);
+		TickState.UpdateInProgress = true;
+		TickState.PendingKeyframe = OutputKeyframe;
+		TickState.IncrementTotalProcessedSimulationTime(DeltaSimTime, OutputKeyframe);
+		UpdateInProgressPtr = &TickState.UpdateInProgress;
+	}
+	~TScopedSimulationTick()
+	{
+		*UpdateInProgressPtr = false;
+	}
+	bool* UpdateInProgressPtr;
+};
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+//	Accessors - helper structs that provide safe/cleaner access to the underlying NetSim states/events
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+// Accessor conditionally gives access to the current (pending) Sync/Aux state to outside code.
+// Reads are always allowed
+// Writes are conditional. Authority can always write to the pending keyframe. Non authority requires the netsim to be currently processing an ::Update.
+// If you aren't inside an ::Update call, it is really not safe to predict state changes. It is safest and simplest to just not predict these changes.
+//
+// Explanation: During the scope of an ::Update call, we know exactly 'when' we are relative to what the server is processing. If the predicting client wants
+// to predict a change to sync/aux state during an update, the server will do it at the exact same time (assuming not a mis prediction). When a state change
+// happens "out of band" (outside an ::Update call) - we really have no way to correlate when the server will do it. While its tempting to think "we will get
+// a correction anyways, might as well guess at it and maybe get a smaller correction" - but this opens us up to other problems. The server may actually not 
+// change the state at all and you may not get an update that corrects you. You could add a timeout and track the state change somewhere but that really complicates
+// things and could leave you open to "double" problems: if the state change is additive, you may stack the authority change on top of the local predicted change, or
+// you may roll back the predicted change to then later receive the authority change.
+//	
+// What still may make sense to do is allow the "In Update" bool to be temporarily disabled if we enter code that we know is not rollback friendly.
+template<typename TState>
+struct TNetworkSimStateAccessor
+{
+	template<typename TNetworkSimModel>
+	void Init(TNetworkSimModel* NetSimModel)
+	{
+		GetStateFunc = [NetSimModel](bool bWrite, TState*& OutState, bool& OutSafe)
+		{
+			// Gross: find the buffer our TState is in. This allows these accessors to be declared as class member variables without knowing the exact net sim it will
+			// be pulling from. (For example, you may want to templatize your network sim model).
+			auto& Buffer = TBufferGetterHelper_ByState<TNetworkSimBufferContainer<typename TNetworkSimModel::TBufferTypes>, TState>::GetBuffer(NetSimModel->Buffers);
+			OutState = bWrite ? Buffer.WriteKeyframeInitializedFromHead(NetSimModel->TickInfo.PendingKeyframe) : Buffer[NetSimModel->TickInfo.PendingKeyframe];
+			OutSafe = NetSimModel->TickInfo.UpdateInProgress;
+		};
+	}
+
+	void Clear()
+	{
+		GetStateFunc = nullptr;
+	}
+
+	/** Gets the current (PendingKeyframe) state for reading. This is not expected to fail outside of startup/shutdown edge cases */
+	const TState* GetStateRead() const
+	{
+		TState* State = nullptr;
+		bool bSafe = false;
+		if (GetStateFunc)
+		{
+			GetStateFunc(false, State, bSafe);
+		}
+		return State;
+	}
+
+	/** Gets the current (PendingKeyframe) state for writing. This is expected to fail outside of the core update loop when bHasAuthority=false. (E.g, it is not safe to predict writes) */
+	TState* GetStateWrite(bool bHasAuthority) const
+	{
+		TState* State = nullptr;
+		bool bSafe = false;
+		if (GetStateFunc)
+		{
+			GetStateFunc(true, State, bSafe);
+		}
+		return (bHasAuthority || bSafe) ? State : nullptr;
+	}
+
+private:
+
+	TFunction<void(bool bForWrite, TState*& OutState, bool& OutSafe)> GetStateFunc;
+};
+
+//TODO
+struct FNetworkSimEventAccessor
+{
+	int32 GetPendingKeyframe() { return -1; }
+
+	struct FFrameEvents
+	{
+		/** This frame has been received from the authority and will not be rolled back or resimulated again. */
+		DECLARE_MULTICAST_DELEGATE(FOnFrameConfirmed)
+		FOnFrameConfirmed Confirmed;
+
+		/** This frame was previously simulated and the simulation has now been rolled back */
+		DECLARE_MULTICAST_DELEGATE(FOnFrameRolledBack)
+		FOnFrameRolledBack RolledBack;
+
+		DECLARE_MULTICAST_DELEGATE(FOnFrameSimulated)
+		FOnFrameRolledBack Simulated;
+	};
 };
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
