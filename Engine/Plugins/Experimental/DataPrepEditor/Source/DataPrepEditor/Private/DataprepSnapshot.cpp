@@ -17,6 +17,7 @@
 #include "GenericPlatform/GenericPlatformOutputDevices.h"
 #include "GenericPlatform/GenericPlatformTime.h"
 #include "Materials/MaterialInstance.h"
+#include "MaterialShared.h"
 #include "Misc/Compression.h"
 #include "Misc/FileHelper.h"
 #include "Misc/ScopedSlowTask.h"
@@ -642,6 +643,8 @@ void FDataprepEditor::RestoreFromSnapshot(bool bUpdateViewport)
 
 	SlowTask.EnterProgressFrame( 40.0f, LOCTEXT("RestoreFromSnapshot_Assets", "Restoring assets ...") );
 	{
+		TArray<UMaterialInterface*> MaterialInterfaces;
+
 		FScopedSlowTask SubSlowTask( ContentSnapshot.DataEntries.Num(), LOCTEXT("RestoreFromSnapshot_Assets", "Restoring assets ...") );
 		SubSlowTask.MakeDialog(false);
 
@@ -677,6 +680,18 @@ void FDataprepEditor::RestoreFromSnapshot(bool bUpdateViewport)
 				else
 				{
 					UE_LOG( LogDataprepEditor, Error, TEXT("Failed to restore asset %s"), *ObjectPath.GetAssetPathString() );
+				}
+			}
+
+			if(UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(Asset))
+			{
+				{
+					FMaterialUpdateContext MaterialUpdateContext;
+
+					MaterialUpdateContext.AddMaterialInterface( MaterialInterface );
+
+					MaterialInterface->PreEditChange(nullptr);
+					MaterialInterface->PostEditChange();
 				}
 			}
 
