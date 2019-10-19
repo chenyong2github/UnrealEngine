@@ -10,6 +10,11 @@
 #define VENDOR_NVIDIA 1
 #define VENDOR_OTHER 2
 
+#if PERMUTATION_MATERIAL_COMPACTION == 1
+float DepthTheshold;
+float CosTangentThreshold;
+#endif
+
 void ComputeUniqueSamplesWithoutDepthTest(
 	out uint3 OutSamples[HAIR_VISIBILITY_MAXSAMPLECOUNT],
 	out FSampleSetDesc OutSet,
@@ -24,6 +29,10 @@ void ComputeUniqueSamplesWithoutDepthTest(
 
 	OutSet.HairSampleCount = clamp(SampleCount, 0, HAIR_VISIBILITY_MAXSAMPLECOUNT);
 	const uint InvalidSample = 0xFFFF;
+
+#if PERMUTATION_MATERIAL_COMPACTION == 1
+	float4 UniqueTangentAndDepths[HAIR_VISIBILITY_MAXSAMPLECOUNT];
+#endif
 	for (uint SampleIt = 0; SampleIt < OutSet.HairSampleCount; ++SampleIt)
 	{
 		const uint4 EncodedData = InMSAA_IDTexture.Load(PixelCoord, SampleIt);
@@ -37,11 +46,25 @@ void ComputeUniqueSamplesWithoutDepthTest(
 
 		++OutSet.ValidSampleCount;
 
+	#if PERMUTATION_MATERIAL_COMPACTION == 1
+		const float SceneDepth = ConvertFromDeviceZ(SampleDepth);
+	#endif
+
 		const FVisibilityData VisibilityData = DecodeVisibilityData(EncodedData);
 		bool bAlreadyExist = false;
 		for (uint UniqueIt = 0; UniqueIt < OutSet.UniqueSampleCount; ++UniqueIt)
 		{
-			if (VisibilityData.PrimitiveId == OutSamples[UniqueIt].x)
+		#if PERMUTATION_MATERIAL_COMPACTION == 1
+			const float SceneDepth = ConvertFromDeviceZ(SampleDepth);
+			const bool bIsSimilar  = 
+				VisibilityData.PrimitiveId == OutSamples[UniqueIt].x ||
+				(abs(dot(UniqueTangentAndDepths[UniqueIt].xyz, VisibilityData.Tangent)) > CosTangentThreshold &&
+					abs(UniqueTangentAndDepths[UniqueIt].w - SceneDepth) < DepthTheshold);
+		#else
+			const bool bIsSimilar = VisibilityData.PrimitiveId == OutSamples[UniqueIt].x;
+		#endif
+
+			if (bIsSimilar)
 			{
 				OutSamples[UniqueIt].y += 1;
 				bAlreadyExist = true;
@@ -51,6 +74,10 @@ void ComputeUniqueSamplesWithoutDepthTest(
 
 		if (!bAlreadyExist)
 		{
+		#if PERMUTATION_MATERIAL_COMPACTION == 1
+			UniqueTangentAndDepths[OutSet.UniqueSampleCount] = float4(VisibilityData.Tangent, SceneDepth);
+		#endif
+
 			OutSamples[OutSet.UniqueSampleCount].x = VisibilityData.PrimitiveId;
 			OutSamples[OutSet.UniqueSampleCount].y = 1;
 			OutSamples[OutSet.UniqueSampleCount].z = SampleIt;
@@ -190,7 +217,6 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 					float4 BaseColorAndRoughness = MSAA_MaterialTexture.Load(PixelCoord, SampleIt);
 					BaseColorAndRoughness.xyz = BaseColorAndRoughness.xyz * BaseColorAndRoughness.xyz; // Cheap gamma encoding since this is encoded into 8bit target
 					const float Specular = MSAA_AttributeTexture.Load(PixelCoord, SampleIt).x;
-
 
 					OutNodeData = ConvertToNodeData(
 						SampleDepth,
