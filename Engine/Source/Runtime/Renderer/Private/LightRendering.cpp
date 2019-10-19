@@ -209,6 +209,7 @@ struct FRenderLightParams
 	bool bUseTransmittanceData = false;
 	
 	// Visibility buffer data
+	IPooledRenderTarget* HairCategorizationTexture = nullptr;
 	IPooledRenderTarget* HairVisibilityNodeOffsetAndCount = nullptr;
 	FShaderResourceViewRHIRef HairVisibilityNodeDataSRV = nullptr;
 
@@ -316,6 +317,7 @@ class FDeferredLightPS : public FGlobalShader
 		HairComponents.Bind(Initializer.ParameterMap, TEXT("HairComponents"));
 		HairTransmittanceEnable.Bind(Initializer.ParameterMap, TEXT("HairTransmittanceEnable"));
 
+		HairCategorizationTexture.Bind(Initializer.ParameterMap, TEXT("HairCategorizationTexture"));
 		HairVisibilityNodeOffsetAndCount.Bind(Initializer.ParameterMap, TEXT("HairVisibilityNodeOffsetAndCount"));
 		HairVisibilityNodeData.Bind(Initializer.ParameterMap, TEXT("HairVisibilityNodeData"));
 	}
@@ -363,6 +365,7 @@ public:
 		Ar << HairTransmittanceBuffer;
 		Ar << HairTransmittanceBufferMaxCount;
 
+		Ar << HairCategorizationTexture;
 		Ar << HairVisibilityNodeOffsetAndCount;
 		Ar << HairVisibilityNodeData;
 		Ar << ScreenShadowMaskSubPixelTexture;
@@ -491,8 +494,22 @@ private:
 					ShaderRHI,
 					ScreenShadowMaskSubPixelTexture,
 					LightAttenuationTextureSampler,
-					TStaticSamplerState<SF_Point, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI(),
+					TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(),
 					(RenderLightParams && RenderLightParams->ScreenShadowMaskSubPixelTexture) ? RenderLightParams->ScreenShadowMaskSubPixelTexture->GetRenderTargetItem().ShaderResourceTexture : GWhiteTexture->TextureRHI);
+			}
+		}
+
+		if (HairCategorizationTexture.IsBound())
+		{
+			if (RenderLightParams && RenderLightParams->HairCategorizationTexture)
+			{
+				SetTextureParameter(
+					RHICmdList,
+					ShaderRHI,
+					HairCategorizationTexture,
+					LightAttenuationTextureSampler,
+					TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(),
+					RenderLightParams->HairCategorizationTexture->GetRenderTargetItem().TargetableTexture);
 			}
 		}
 
@@ -505,7 +522,7 @@ private:
 					ShaderRHI,
 					HairVisibilityNodeOffsetAndCount,
 					LightAttenuationTextureSampler,
-					TStaticSamplerState<SF_Point, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI(),
+					TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(),
 					RenderLightParams->HairVisibilityNodeOffsetAndCount->GetRenderTargetItem().TargetableTexture);
 			}
 		}
@@ -570,8 +587,9 @@ private:
 	FShaderResourceParameter TransmissionProfilesTexture;
 	FShaderResourceParameter TransmissionProfilesLinearSampler;
 
-	FShaderResourceParameter HairTransmittanceBuffer;
 	FShaderParameter HairTransmittanceBufferMaxCount;
+	FShaderResourceParameter HairTransmittanceBuffer;
+	FShaderResourceParameter HairCategorizationTexture;
 	FShaderResourceParameter HairVisibilityNodeOffsetAndCount;
 	FShaderResourceParameter HairVisibilityNodeData;
 	FShaderResourceParameter ScreenShadowMaskSubPixelTexture;
@@ -1844,6 +1862,7 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 				const FHairStrandsVisibilityData& HairVisibilityData = InHairVisibilityViews->HairDatas[ViewIndex];
 				RenderLightParams.HairVisibilityNodeOffsetAndCount = HairVisibilityData.NodeIndex;
 				RenderLightParams.HairVisibilityNodeDataSRV = HairVisibilityData.NodeDataSRV;
+				RenderLightParams.HairCategorizationTexture = HairVisibilityData.CategorizationTexture;
 			}
 		}
 

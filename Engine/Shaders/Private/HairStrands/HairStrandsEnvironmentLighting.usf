@@ -41,8 +41,8 @@ float3 GatherRadiance(float3 RayDirection, float Roughness)
 }
 
 
-Texture2D<uint4> HairCategorizationTexture;
-Texture2D<uint> HairVisibilityNodeOffsetAndCount;
+Texture2D<uint4>			HairCategorizationTexture;
+Texture2D<uint>				HairVisibilityNodeOffsetAndCount;
 StructuredBuffer<FNodeData> HairVisibilityNodeData;
 
 Texture3D<float4>			HairScatteringLUTTexture;
@@ -464,10 +464,11 @@ void MainPS(
 
 	if (NodeDesc.Count > 0)
 	{
+		const FCategorizationData CatData = DecodeCategorizationData(HairCategorizationTexture.Load(PixelCoord));
+
 		// Note:
 		// * Currently: compute take the closest sample
 		// * Change this to per sample evaluation once we have better hair transmittance evaluation for sky
-		float Coverage = 0;
 		float ClosestDepth = 0;
 		bool bIsClusterCompatible = false;
 		FGBufferData HairGBuffer = (FGBufferData)0;
@@ -508,14 +509,11 @@ void MainPS(
 
 			#if PERMUTATION_PER_SAMPLE == 0
 			ClosestDepth = max(ClosestDepth, SampleDepth);  // Inverse-Z
-			const float LocalCoverage = From8bitCoverage(SampleVisData.Coverage8bit);
-			Coverage += LocalCoverage;
 			#else
 			if (bIsClusterCompatible = SampleVisData.ClusterId == Voxel_ClusterId)
 			{
 				const float SampleCoverage = From8bitCoverage(SampleVisData.Coverage8bit);
-				SkyLighting += ReflectionEnvironment(HairGBuffer, BufferUV, ScreenPosition, SvPosition)*SampleCoverage;
-				Coverage += SampleCoverage;
+				SkyLighting += ReflectionEnvironment(HairGBuffer, BufferUV, ScreenPosition, SvPosition) * SampleCoverage;
 			}
 			#endif
 		}
@@ -526,17 +524,17 @@ void MainPS(
 		if (bIsClusterCompatible)
 		{
 			#if PERMUTATION_PER_SAMPLE == 0
-			SkyLighting = ReflectionEnvironment(HairGBuffer, BufferUV, ScreenPosition, SvPosition) * saturate(Coverage);
+			SkyLighting = ReflectionEnvironment(HairGBuffer, BufferUV, ScreenPosition, SvPosition) * saturate(CatData.PixelCoverage);
 			#endif
 
 			// Scene color alpha is used for ScreenSpaceSubsurfaceScattering (if that is not needed it can be disabled with SUBSURFACE_CHANNEL_MODE)
 			FLightAccumulator LightAccumulator = (FLightAccumulator)0;
 			LightAccumulator_Add(LightAccumulator, SkyLighting, SkyLighting, 1.0f, false);
 			const float4 LocalOutColor = LightAccumulator_GetResult(LightAccumulator);
-			if (Coverage < 1)
+			if (CatData.PixelCoverage < 1)
 			{
-				OutColorSubPixel = LocalOutColor;
-				OutColorSubPixel.a = Coverage;
+				OutColorSubPixel = LocalOutColor; // * PixelCoverage <-- this would be need if Coverage8bit was storing the ratio (sampleCoverage / validCoverage)
+				OutColorSubPixel.a = CatData.PixelCoverage;
 			}
 			else
 			{
@@ -555,12 +553,11 @@ void MainPS(
 	const float3 WorldNormal = GBuffer.WorldNormal;
 
 	// Trace AO for all pixel which are partially covered or not covered at all.
+	const FCategorizationData CatData = DecodeCategorizationData(HairCategorizationTexture.Load(PixelCoord));
 	bool bIsValid = false;
 	bool bIsClusterCompatible = false;
-	if (NodeDesc.Count < 255)
+	if (CatData.PixelCoverage > 0 && CatData.PixelCoverage < 1)
 	{
-		float ClosestDepth = 0;
-		uint Coverage8Bits = 0;
 		LOOP
 		for (uint SampleIt = 0; SampleIt < NodeDesc.Count; SampleIt++)
 		{
@@ -573,11 +570,8 @@ void MainPS(
 			float			SampleSpecular;
 			DecodeNodeData(NodeData, SampleDepth, SampleVisData, SampleBaseColor, SampleRoughness, SampleSpecular);
 			bIsClusterCompatible = bIsClusterCompatible || SampleVisData.ClusterId == Voxel_ClusterId;
-
-			const float LocalCoverage = From8bitCoverage(SampleVisData.Coverage8bit);
-			Coverage8Bits += SampleVisData.Coverage8bit;
 		}
-		bIsValid = Coverage8Bits <= 255;
+		bIsValid = true;
 	}
 	else
 	{
