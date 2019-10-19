@@ -14,6 +14,7 @@
 
 #include "Algo/AnyOf.h"
 #include "AssetData.h"
+#include "Async/ParallelFor.h"
 #include "Engine/StaticMesh.h"
 #include "IStaticMeshEditor.h"
 #include "StaticMeshAttributes.h"
@@ -49,6 +50,9 @@ void FCoreTechRetessellate_Impl::ApplyOnAssets(const TArray<FAssetData>& Selecte
 	bool bSameOptionsForAll = false;
 	int32 NumAssetsToProcess = SelectedAssets.Num();
 	bool bAskForSameOption = NumAssetsToProcess > 1;
+
+	TArray<UStaticMesh*> TessellatedMeshes;
+	TessellatedMeshes.Reserve( SelectedAssets.Num() );
 
 	TUniquePtr<FScopedSlowTask> Progress;
 	int32 AssetIndex = -1;
@@ -106,23 +110,61 @@ void FCoreTechRetessellate_Impl::ApplyOnAssets(const TArray<FAssetData>& Selecte
 						Progress->EnterProgressFrame(1, Text);
 					}
 
-					ApplyOnOneAsset(*StaticMesh, *CoreTechData, *RetessellateOptions.Get());
-
-					// Refresh associated editor
-					TSharedPtr<IToolkit> EditingToolkit = FToolkitManager::Get().FindEditorForAsset(StaticMesh);
-					if (IStaticMeshEditor* StaticMeshEditorInUse = StaticCastSharedPtr<IStaticMeshEditor>(EditingToolkit).Get())
+					if( StaticMesh->GetMeshDescription(0) == nullptr)
 					{
-						StaticMeshEditorInUse->RefreshTool();
+						StaticMesh->CreateMeshDescription( 0 );
+					}
+
+					if(StaticMesh->GetMeshDescription(0) != nullptr)
+					{
+						StaticMesh->Modify();
+						StaticMesh->PreEditChange( nullptr );
+
+						if( ApplyOnOneAsset(*StaticMesh, *CoreTechData, RetessellateOptions->Options) )
+						{
+							TessellatedMeshes.Add(StaticMesh);
+						}
 					}
 				}
 			}
 		}
 	}
+
+	// Make sure lightmap settings are valid
+	if(TessellatedMeshes.Num() > 1)
+	{
+		ParallelFor(TessellatedMeshes.Num(), [&](int32 Index)
+		{
+			FDatasmithStaticMeshImporter::PreBuildStaticMesh(TessellatedMeshes[Index]); 
+		});
+	}
+	else if(TessellatedMeshes.Num() > 0)
+	{
+		FDatasmithStaticMeshImporter::PreBuildStaticMesh( TessellatedMeshes[0] );
+	}
+
+	FDatasmithStaticMeshImporter::BuildStaticMeshes( TessellatedMeshes );
+
+	for(UStaticMesh* StaticMesh : TessellatedMeshes)
+	{
+		StaticMesh->PostEditChange();
+		StaticMesh->MarkPackageDirty();
+
+		// Refresh associated editor
+		TSharedPtr<IToolkit> EditingToolkit = FToolkitManager::Get().FindEditorForAsset(StaticMesh);
+		if (IStaticMeshEditor* StaticMeshEditorInUse = StaticCastSharedPtr<IStaticMeshEditor>(EditingToolkit).Get())
+		{
+			StaticMeshEditorInUse->RefreshTool();
+		}
+	}
+
 #endif // CAD_LIBRARY
 }
 
-void FCoreTechRetessellate_Impl::ApplyOnOneAsset(UStaticMesh& StaticMesh, UCoreTechParametricSurfaceData& CoreTechData, UCoreTechRetessellateActionOptions& RetessellateOptions)
+bool FCoreTechRetessellate_Impl::ApplyOnOneAsset(UStaticMesh& StaticMesh, UCoreTechParametricSurfaceData& CoreTechData, const FDatasmithTessellationOptions& RetessellateOptions)
 {
+	bool bSuccessfulTessellation = false;
+
 #ifdef CAD_LIBRARY
 	// make a temporary file as GPure can only deal with files.
 	FString ResourceFile = CoreTechData.SourceFile.IsEmpty() ? FPaths::ProjectIntermediateDir() / "temp.ct" : CoreTechData.SourceFile;
@@ -134,10 +176,10 @@ void FCoreTechRetessellate_Impl::ApplyOnOneAsset(UStaticMesh& StaticMesh, UCoreT
 	CADLibrary::FImportParameters ImportParameters;
 	ImportParameters.MetricUnit = CoreTechData.SceneParameters.MetricUnit;
 	ImportParameters.ScaleFactor = CoreTechData.SceneParameters.ScaleFactor;
-	ImportParameters.ChordTolerance = RetessellateOptions.Options.ChordTolerance / CoreTechData.SceneParameters.ScaleFactor;
-	ImportParameters.MaxEdgeLength = RetessellateOptions.Options.MaxEdgeLength / CoreTechData.SceneParameters.ScaleFactor;
-	ImportParameters.MaxNormalAngle = RetessellateOptions.Options.NormalTolerance;
-	ImportParameters.StitchingTechnique = CADLibrary::EStitchingTechnique(RetessellateOptions.Options.StitchingTechnique);
+	ImportParameters.ChordTolerance = RetessellateOptions.ChordTolerance / CoreTechData.SceneParameters.ScaleFactor;
+	ImportParameters.MaxEdgeLength = RetessellateOptions.MaxEdgeLength / CoreTechData.SceneParameters.ScaleFactor;
+	ImportParameters.MaxNormalAngle = RetessellateOptions.NormalTolerance;
+	ImportParameters.StitchingTechnique = CADLibrary::EStitchingTechnique(RetessellateOptions.StitchingTechnique);
 
 	CADLibrary::FMeshParameters MeshParameters;
 	MeshParameters.ModelCoordSys = FDatasmithUtils::EModelCoordSystem(CoreTechData.SceneParameters.ModelCoordSys);
@@ -147,47 +189,33 @@ void FCoreTechRetessellate_Impl::ApplyOnOneAsset(UStaticMesh& StaticMesh, UCoreT
 	MeshParameters.SymmetricOrigin = CoreTechData.MeshParameters.SymmetricOrigin;
 
 	// Previous MeshDescription is get to be able to create a new one with the same order of PolygonGroup (the matching of color and partition is currently based on their order)
-	FMeshDescription* DestinationMeshDescription = StaticMesh.GetMeshDescription(0);
-	if (DestinationMeshDescription == nullptr)
+	if(FMeshDescription* DestinationMeshDescription = StaticMesh.GetMeshDescription(0))
 	{
-		DestinationMeshDescription = StaticMesh.CreateMeshDescription(0);
-	}
-	FStaticMeshAttributes DestinationMeshDescriptionAttributes(*DestinationMeshDescription);
+		FStaticMeshAttributes DestinationMeshDescriptionAttributes(*DestinationMeshDescription);
 
-	FMeshDescription MeshDescription;
-	FStaticMeshAttributes MeshDescriptionAttributes(MeshDescription);
-	MeshDescriptionAttributes.Register();
+		FMeshDescription MeshDescription;
+		FStaticMeshAttributes MeshDescriptionAttributes(MeshDescription);
+		MeshDescriptionAttributes.Register();
 
-	TPolygonGroupAttributesRef<FName> PolygonGroupDestinationMeshSlotNames = DestinationMeshDescriptionAttributes.GetPolygonGroupMaterialSlotNames();
-	TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = MeshDescriptionAttributes.GetPolygonGroupMaterialSlotNames();
-	for (FPolygonGroupID PolygonGroupID : DestinationMeshDescription->PolygonGroups().GetElementIDs())
-	{
-		FName ImportedSlotName = PolygonGroupDestinationMeshSlotNames[PolygonGroupID];
-		FPolygonGroupID PolyGroupID = MeshDescription.CreatePolygonGroup();
-		PolygonGroupImportedMaterialSlotNames[PolyGroupID] = ImportedSlotName;
-	}
+		TPolygonGroupAttributesRef<FName> PolygonGroupDestinationMeshSlotNames = DestinationMeshDescriptionAttributes.GetPolygonGroupMaterialSlotNames();
+		TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = MeshDescriptionAttributes.GetPolygonGroupMaterialSlotNames();
+		for (FPolygonGroupID PolygonGroupID : DestinationMeshDescription->PolygonGroups().GetElementIDs())
+		{
+			FName ImportedSlotName = PolygonGroupDestinationMeshSlotNames[PolygonGroupID];
+			FPolygonGroupID PolyGroupID = MeshDescription.CreatePolygonGroup();
+			PolygonGroupImportedMaterialSlotNames[PolyGroupID] = ImportedSlotName;
+		}
 
-	if (!Loader.LoadFile(ResourceFile, MeshDescription, ImportParameters, MeshParameters))
-	{
-		return;
-	}
-
-	if (DestinationMeshDescription)	// @TODO: check: should be: if (ret)? Checking DestinationMeshDescription is redundant.
-	{
-		StaticMesh.Modify();
-		StaticMesh.PreEditChange( nullptr );
-		*DestinationMeshDescription = MoveTemp(MeshDescription);
-
-		// @TODO: check: no commit?
-
-		// Make sure lightmap settings are valid
-		FDatasmithStaticMeshImporter::PreBuildStaticMesh(&StaticMesh); // handle uvs stuff
-		FDatasmithStaticMeshImporter::BuildStaticMesh(&StaticMesh);
-
-		StaticMesh.PostEditChange();
-		StaticMesh.MarkPackageDirty();
+		if ( Loader.LoadFile(ResourceFile, MeshDescription, ImportParameters, MeshParameters))
+		{
+			// @TODO: check: no commit?
+			*DestinationMeshDescription = MoveTemp(MeshDescription);
+			bSuccessfulTessellation = true;
+		}
 	}
 #endif // CAD_LIBRARY
+
+	return bSuccessfulTessellation;
 }
 
 #undef LOCTEXT_NAMESPACE
