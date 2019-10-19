@@ -33,6 +33,7 @@ struct FHairStrandsInterpolationInput
 		#endif
 
 		float HairRadius = 0;
+		float HairRaytracingRadiusScale = 0;
 		FVector HairWorldOffset = FVector::ZeroVector;
 
 		inline bool IsValid() const
