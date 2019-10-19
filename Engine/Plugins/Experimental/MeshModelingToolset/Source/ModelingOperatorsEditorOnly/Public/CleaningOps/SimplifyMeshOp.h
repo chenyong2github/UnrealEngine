@@ -6,9 +6,11 @@
 #include "Util/ProgressCancel.h"
 #include "ModelingOperators.h"
 
+
 #include "SimplifyMeshOp.generated.h"
 
 class FDynamicMesh3;
+struct FMeshDescription;
 
 template <class TriangleMeshType>
 class TMeshAABBTree3;
