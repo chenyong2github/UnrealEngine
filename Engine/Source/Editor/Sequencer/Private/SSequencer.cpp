@@ -3093,6 +3093,12 @@ void SSequencer::OnCurveEditorVisibilityChanged(bool bShouldBeVisible)
 		// that the Toolkit Host's Tab Manager has already registered a tab with a NullWidget for content.
 		TSharedRef<SDockTab> CurveEditorTab = Sequencer->GetToolkitHost()->GetTabManager()->InvokeTab(TabId);
 		CurveEditorTab->SetContent(CurveEditorPanel.ToSharedRef());
+
+		const FSlateIcon SequencerGraphIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "GenericCurveEditor.TabIcon");
+		CurveEditorTab->SetTabIcon(SequencerGraphIcon.GetIcon());
+
+		CurveEditorTab->SetLabel(LOCTEXT("SequencerMainGraphEditorTitle", "Sequencer Curves"));
+
 		SequencerPtr.Pin()->GetCurveEditor()->ZoomToFit();
 	}
 	else
