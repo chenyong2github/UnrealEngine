@@ -23,6 +23,7 @@
 #include "EditorViewportCommands.h"
 #include "SAssetEditorViewport.h"
 #include "Templates/SharedPointer.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 
 #define LOCTEXT_NAMESPACE "AssetEditorViewportToolBar"
