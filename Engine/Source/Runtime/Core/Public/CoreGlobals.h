@@ -256,11 +256,6 @@ extern CORE_API bool GIsGuarded;
 UE_DEPRECATED(4.24, "Please use IsEngineExitRequested()/RequestEngineExit(const FString&)")
 extern CORE_API bool GIsRequestingExit;
 
-/**
- * This will check if a RequestExit has come in, if it has will set GIsRequestingExit.
- */
-extern CORE_API void HandleRequestExitIfSetDuringTick();
-
 FORCEINLINE bool IsEngineExitRequested()
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
