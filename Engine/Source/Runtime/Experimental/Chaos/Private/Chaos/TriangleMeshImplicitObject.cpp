@@ -1,8 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "Chaos/TriangleMeshImplicitObject.h"
 #include "Chaos/Capsule.h"
-#include "Chaos/Convex.h"
 #include "Chaos/GJK.h"
+#include "Chaos/Triangle.h"
 
 namespace Chaos
 {
@@ -269,17 +269,7 @@ bool TTriangleMeshImplicitObject<T>::OverlapGeom(const TImplicitObject<T, 3>& Qu
 		//However, maybe we should check if it's behind the triangle plane. Also, we should enforce this winding in some way
 		const TVector<T, 3> Offset = TVector<T, 3>::CrossProduct(AB, AC);
 
-		// Ugly but required for now until we have an easier way to do tri collisons 
-		TParticles<T, 3> Particles;
-		Particles.AddParticles(3);
-
-		Particles.X(0) = A;
-		Particles.X(1) = B;
-		Particles.X(2) = C;
-
-		TConvex<T, 3> TriangleConvex(Particles);
-
-		return GJKIntersection(TriangleConvex, QueryGeom, QueryTM, Thickness, Offset);
+		return GJKIntersection(TTriangle<T>(A, B, C), QueryGeom, QueryTM, Thickness, Offset);
 	};
 
 	bool bResult = false;
@@ -322,20 +312,17 @@ struct TTriangleMeshSweepVisitor
 	{
 		const int32 TriIdx = VisitData.Payload;
 
-		TParticles<T, 3> TriParticles;
-		TriParticles.AddParticles(3);
-		TriParticles.X(0) = TriMesh.MParticles.X(TriMesh.MElements[TriIdx][0]);
-		TriParticles.X(1) = TriMesh.MParticles.X(TriMesh.MElements[TriIdx][1]);
-		TriParticles.X(2) = TriMesh.MParticles.X(TriMesh.MElements[TriIdx][2]);
-
-		TConvex<T, 3> TriConvex(TriParticles);
-
 		T Time;
 		TVector<T, 3> HitPosition;
 		TVector<T, 3> HitNormal;
-		if (GJKRaycast<T>(TriConvex, QueryGeom, StartTM, Dir, CurLength, Time, HitPosition, HitNormal, Thickness))
+
+		TTriangle<T> Tri(TriMesh.MParticles.X(TriMesh.MElements[TriIdx][0]),
+			TriMesh.MParticles.X(TriMesh.MElements[TriIdx][1]),
+			TriMesh.MParticles.X(TriMesh.MElements[TriIdx][2]));
+
+		if(GJKRaycast<T>(Tri, QueryGeom, StartTM, Dir, CurLength, Time, HitPosition, HitNormal, Thickness))
 		{
-			if (Time < OutTime)
+			if(Time < OutTime)
 			{
 				OutNormal = HitNormal;
 				OutPosition = HitPosition;
@@ -343,7 +330,7 @@ struct TTriangleMeshSweepVisitor
 				CurLength = Time;
 				OutFaceIndex = TriIdx;
 
-				if (Time == 0)
+				if(Time == 0)
 				{
 					//initial overlap, no one will beat this
 					return false;
