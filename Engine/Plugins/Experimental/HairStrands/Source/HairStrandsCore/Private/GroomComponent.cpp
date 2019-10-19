@@ -994,12 +994,15 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 				}
 			}
 		}
-		else
+
+		FSkeletalMeshConfiguration CurrentState;
+		CurrentState.ForceRefPose = GHairStrandsMeshProjectionForceRefPoseEnable > 0;
+		CurrentState.ForceLOD     = GHairStrandsMeshProjectionForceLOD >= 0 ? FMath::Clamp(GHairStrandsMeshProjectionForceLOD, 0, SkeletalMeshComponent->GetNumLODs() - 1) : -1;
+		if (!FSkeletalMeshConfiguration::Equals(CurrentState, SkeletalMeshConfiguration) && MeshProjectionState == EMeshProjectionState::Completed)
 		{
-			// For debug purpose
-			const int32 ForceLOD = GHairStrandsMeshProjectionForceLOD >= 0 ? FMath::Clamp(GHairStrandsMeshProjectionForceLOD, 0, SkeletalMeshComponent->GetNumLODs() - 1) : -1;
-			SkeletalMeshComponent->SetForcedLOD(ForceLOD + 1);
-			SkeletalMeshComponent->SetForceRefPose(GHairStrandsMeshProjectionForceRefPoseEnable > 0);
+			SkeletalMeshComponent->SetForcedLOD(CurrentState.ForceLOD + 1);
+			SkeletalMeshComponent->SetForceRefPose(CurrentState.ForceRefPose);
+			SkeletalMeshConfiguration = CurrentState;
 		}
 
 		// For skinned mesh update the relative center of hair positions after deformation
