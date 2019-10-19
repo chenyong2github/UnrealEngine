@@ -2254,6 +2254,10 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	if (HairDatas)
 	{
 		RenderHairComposeSubPixel(RHICmdList, Views, HairDatas);
+	}
+
+	if (IsHairStrandsEnable(Scene->GetShaderPlatform()))
+	{
 		RenderHairStrandsDebugInfo(RHICmdList, Views, HairDatas);
 	}
 
