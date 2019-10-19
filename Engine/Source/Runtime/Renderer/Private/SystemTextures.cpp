@@ -379,7 +379,7 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 			}
 	
 			{
-				FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(4, 4), PF_R8G8, FClearValueBinding::None, TexCreate_HideInVisualizeTexture, TexCreate_None | TexCreate_NoFastClear, false));
+				FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(4, 4), PF_R8G8B8A8, FClearValueBinding::None, TexCreate_HideInVisualizeTexture, TexCreate_None | TexCreate_NoFastClear, false));
 				Desc.AutoWritable = false;
 				GRenderTargetPool.FindFreeElement(RHICmdList, Desc,GTAORandomization, TEXT("GTAORandomization"), true, ERenderTargetTransience::NonTransient);
 				// Write the contents of the texture.
@@ -390,16 +390,18 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 				{
 					for(int32 x = 0; x < Desc.Extent.X; ++x)
 					{
-						uint8* Dest = (uint8*)(DestBuffer + x * sizeof(uint16) + y * DestStride);
+						uint8* Dest = (uint8*)(DestBuffer + x * sizeof(uint32) + y * DestStride);
 			
 						float Angle  = (PI/16.0f)  * ((((x + y) & 0x3) << 2) + (x & 0x3));
-						float Step	 = 0.5f + ((1.0f/8.0f) * ((y - x) & 0x3));
+						float Step   = (1.0f / 4.0f) * ((y - x) & 0x3);
 
-						float ScaleCos = FMath::Cos(Angle) ;
-						float ScaleSin = FMath::Sin(Angle) ;
+						float ScaleCos = FMath::Cos(Angle);
+						float ScaleSin = FMath::Sin(Angle);
 			
 						Dest[0] = (uint8_t)(ScaleCos*127.5f + 127.5f);
 						Dest[1] = (uint8_t)(ScaleSin*127.5f + 127.5f);
+						Dest[2] = (uint8_t)(Step*255.0f);
+						Dest[3] = 0;
 					}
 				}
 			}
