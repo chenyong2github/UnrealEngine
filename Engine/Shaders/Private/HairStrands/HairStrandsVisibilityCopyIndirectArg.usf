@@ -23,7 +23,7 @@ void CopyCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	OutArgBuffer[2] = 1;
 #else
 	// Note: Use a fixed group count width (64) for avoiding loading the indirect args (to avoid dep. memory fetch)
-	// This value is in sync with DeepTransmittanceMask.usf
+	// This value is in sync with DeepTransmittanceMask.usf | HairStrandsEnvironementLightingCS.usf
 	if (TotalGroup < HAIR_VISIBILITY_GROUP_COUNT_WIDTH)
 	{
 		OutArgBuffer[0] = TotalGroup;
