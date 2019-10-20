@@ -73,7 +73,8 @@ class FOcclusionRGS : public FGlobalShader
 		OutEnvironment.SetDefine(TEXT("UE_RAY_TRACING_DYNAMIC_MISS_SHADER"),        0);
 
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
-		if (PermutationVector.Get<FLightTypeDim>() == LightType_Directional)
+		if (PermutationVector.Get<FLightTypeDim>() == LightType_Directional &&
+			PermutationVector.Get<FHairLighting>() == 0)
 		{
 			OutEnvironment.SetDefine(TEXT("UE_RAY_TRACING_COHERENT_RAYS"), 1);
 		}
