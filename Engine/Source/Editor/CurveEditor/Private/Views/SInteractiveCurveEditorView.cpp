@@ -974,7 +974,7 @@ FReply SInteractiveCurveEditorView::OnMouseButtonDown(const FGeometry& MyGeometr
 			DragOperation = FCurveEditorDelayedDrag(MousePixel, MouseEvent.GetEffectingButton());
 			DragOperation->DragImpl = MoveTemp(KeyDrag);
 
-			return FReply::Handled();
+			return FReply::Handled().PreventThrottling();
 		}
 	}
 	else if (MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
@@ -1036,7 +1036,7 @@ FReply SInteractiveCurveEditorView::OnMouseButtonDown(const FGeometry& MyGeometr
 					DragOperation = FCurveEditorDelayedDrag(MousePixel, MouseEvent.GetEffectingButton());
 					DragOperation->DragImpl = MoveTemp(KeyDrag);
 
-					return FReply::Handled();
+					return FReply::Handled().PreventThrottling();
 				}
 			}
 		}
