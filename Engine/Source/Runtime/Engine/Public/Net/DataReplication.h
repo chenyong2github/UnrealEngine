@@ -297,7 +297,7 @@ private:
 	TWeakObjectPtr<UObject> WeakObjectPtr;
 };
 
-class FScopedActorRoleSwap : public FNoncopyable
+class ENGINE_API FScopedActorRoleSwap : public FNoncopyable
 {
 public:
 	FScopedActorRoleSwap(AActor* InActor);
