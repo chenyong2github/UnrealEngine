@@ -147,6 +147,9 @@ FPixelFormatInfo	GPixelFormats[PF_MAX] =
 	{ TEXT("NV12"),				1,			1,			1,			1,			1,				0,				0,				PF_NV12             },
 
 	{ TEXT("PF_R32G32_UINT"),   1,   		1,			1,			8,			2,				0,				1,				PF_R32G32_UINT      },
+
+	{ TEXT("PF_ETC2_R11_EAC"),  4,   		4,			1,			8,			1,				0,				0,				PF_ETC2_R11_EAC     },
+	{ TEXT("PF_ETC2_RG11_EAC"), 4,   		4,			1,			16,			2,				0,				0,				PF_ETC2_RG11_EAC    },
 };
 
 static struct FValidatePixelFormats
