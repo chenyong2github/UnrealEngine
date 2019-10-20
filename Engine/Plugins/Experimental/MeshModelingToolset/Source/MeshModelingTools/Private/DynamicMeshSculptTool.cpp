@@ -108,7 +108,19 @@ void UDynamicMeshSculptTool::Setup()
 	DynamicMeshComponent = NewObject<UOctreeDynamicMeshComponent>(ComponentTarget->GetOwnerActor(), "DynamicMeshSculptToolMesh");
 	DynamicMeshComponent->SetupAttachment(ComponentTarget->GetOwnerActor()->GetRootComponent());
 	DynamicMeshComponent->RegisterComponent();
-	DynamicMeshComponent->SetWorldTransform(ComponentTarget->GetWorldTransform());
+
+	// initialize from LOD-0 MeshDescription
+	DynamicMeshComponent->InitializeMesh(ComponentTarget->GetMesh());
+
+	// transform mesh to world space because handling scaling inside brush is a mess
+	InitialTargetTransform = FTransform3d(ComponentTarget->GetWorldTransform());
+	// clamp scaling because if we allow zero-scale we cannot invert this transform on Accept
+	InitialTargetTransform.ClampMinimumScale(0.01);
+	DynamicMeshComponent->ApplyTransform(InitialTargetTransform, false);
+	// since we moved to World coords there is not a current transform anymore.
+	// @todo: only remove scaling, keep rotation and translation in CurTargetTransform. This will improve numerical precision.
+	CurTargetTransform = FTransform3d::Identity();
+	DynamicMeshComponent->SetWorldTransform((FTransform)CurTargetTransform);
 
 	// copy material if there is one
 	UMaterialInterface* Material = ComponentTarget->GetMaterial(0);
@@ -117,35 +129,32 @@ void UDynamicMeshSculptTool::Setup()
 		DynamicMeshComponent->SetMaterial(0, Material);
 	}
 
-	// initialize from LOD-0 MeshDescription
-	//DynamicMeshComponent->TangentsType = (bEnableRemeshing) ? EDynamicMeshTangentCalcType::NoTangents : EDynamicMeshTangentCalcType::AutoCalculated;
-	DynamicMeshComponent->InitializeMesh(ComponentTarget->GetMesh());
 	OnDynamicMeshComponentChangedHandle = DynamicMeshComponent->OnMeshChanged.Add(
 		FSimpleMulticastDelegate::FDelegate::CreateUObject(this, &UDynamicMeshSculptTool::OnDynamicMeshComponentChanged));
 
-	// initialize AABBTree
-	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
-
 	// do we always want to keep vertex normals updated? Perhaps should discard vertex normals before baking?
+	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
 	FMeshNormals::QuickComputeVertexNormals(*Mesh);
 
 	// switch to vertex normals for testing
 	//DynamicMeshComponent->GetMesh()->DiscardAttributes();
 
+	// initialize target mesh
 	UpdateTarget();
 	bTargetDirty = false;
 
+	// initialize brush radius range interval, brush properties
 	double MaxDimension = DynamicMeshComponent->GetMesh()->GetCachedBounds().MaxDim();
 	BrushRelativeSizeRange = FInterval1d(MaxDimension*0.01, MaxDimension);
 	BrushProperties = NewObject<UBrushBaseProperties>(this, TEXT("Brush"));
 	CalculateBrushRadius();
 
+	// initialize other properties
 	SculptProperties = NewObject<UBrushSculptProperties>(this, TEXT("Sculpting"));
 	RemeshProperties = NewObject<UBrushRemeshProperties>(this, TEXT("Remeshing"));
 	InitialEdgeLength = EstimateIntialSafeTargetLength(*Mesh, 5000);
 
-
-	// hide input StaticMeshComponent
+	// hide input Component
 	ComponentTarget->SetOwnerVisibility(false);
 
 	// init state flags flags
@@ -228,6 +237,9 @@ void UDynamicMeshSculptTool::Shutdown(EToolShutdownType ShutdownType)
 
 		if (ShutdownType == EToolShutdownType::Accept)
 		{
+			// safe to do this here because we are about to destroy componeont
+			DynamicMeshComponent->ApplyTransform(InitialTargetTransform, true);
+
 			// this block bakes the modified DynamicMeshComponent back into the StaticMeshComponent inside an undo transaction
 			GetToolManager()->BeginUndoTransaction(LOCTEXT("SculptMeshToolTransactionName", "Sculpt Mesh"));
 			ComponentTarget->CommitMesh([=](FMeshDescription* MeshDescription)
@@ -265,10 +277,8 @@ void UDynamicMeshSculptTool::OnPropertyModified(UObject* PropertySet, UProperty*
 
 bool UDynamicMeshSculptTool::HitTest(const FRay& Ray, FHitResult& OutHit)
 {
-	FTransform Transform = ComponentTarget->GetWorldTransform();
-
-	FRay3d LocalRay(Transform.InverseTransformPosition(Ray.Origin),
-		Transform.InverseTransformVector(Ray.Direction));
+	FRay3d LocalRay(CurTargetTransform.InverseTransformPosition(Ray.Origin),
+		CurTargetTransform.InverseTransformVector(Ray.Direction));
 	LocalRay.Direction.Normalize();
 
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
@@ -283,8 +293,8 @@ bool UDynamicMeshSculptTool::HitTest(const FRay& Ray, FHitResult& OutHit)
 
 		OutHit.FaceIndex = HitTID;
 		OutHit.Distance = Query.RayParameter;
-		OutHit.Normal = Transform.TransformVectorNoScale(Mesh->GetTriNormal(HitTID));
-		OutHit.ImpactPoint = Transform.TransformPosition(LocalRay.PointAt(Query.RayParameter));
+		OutHit.Normal = (FVector)CurTargetTransform.TransformNormal(Mesh->GetTriNormal(HitTID));
+		OutHit.ImpactPoint = (FVector)CurTargetTransform.TransformPosition(LocalRay.PointAt(Query.RayParameter));
 		return true;
 	}
 
@@ -305,13 +315,12 @@ void UDynamicMeshSculptTool::OnBeginDrag(const FRay& Ray)
 
 		bInDrag = true;
 
-		ActiveDragPlane = FPlane(BrushStartCenterWorld, -Ray.Direction);
-		LastHitPosWorld = FMath::RayPlaneIntersection(Ray.Origin, Ray.Direction, ActiveDragPlane);
+		ActiveDragPlane = FFrame3d(BrushStartCenterWorld, -Ray.Direction);
+		ActiveDragPlane.RayPlaneIntersection(Ray.Origin, Ray.Direction, 2, LastHitPosWorld);
 
 		LastBrushPosWorld = LastHitPosWorld;
-		LastBrushPosNormalWorld = ActiveDragPlane;
-		FTransform Transform = ComponentTarget->GetWorldTransform();
-		LastBrushPosLocal = Transform.InverseTransformPosition(LastHitPosWorld);
+		LastBrushPosNormalWorld = ActiveDragPlane.Z();
+		LastBrushPosLocal = CurTargetTransform.InverseTransformPosition(LastHitPosWorld);
 		LastSmoothBrushPosLocal = LastBrushPosLocal;
 
 		BeginChange(bEnableRemeshing == false);
@@ -488,8 +497,7 @@ void UDynamicMeshSculptTool::ApplySmoothBrush(const FRay& WorldRay)
 		return;
 	}
 
-	FTransform Transform = ComponentTarget->GetWorldTransform();
-	FVector NewBrushPosLocal = Transform.InverseTransformPosition(LastBrushPosWorld);
+	FVector3d NewBrushPosLocal = CurTargetTransform.InverseTransformPosition(LastBrushPosWorld);
 
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
 	int NumV = VertexROI.Num();
@@ -534,14 +542,13 @@ void UDynamicMeshSculptTool::ApplyMoveBrush(const FRay& WorldRay)
 {
 	bool bHit = UpdateBrushPositionOnActivePlane(WorldRay);
 
-	FTransform Transform = ComponentTarget->GetWorldTransform();
-	FVector NewBrushPosLocal = Transform.InverseTransformPosition(LastBrushPosWorld);
-
+	FVector3d NewBrushPosLocal = CurTargetTransform.InverseTransformPosition(LastBrushPosWorld);
 	FVector3d MoveVec = NewBrushPosLocal - LastBrushPosLocal;
 
 	if (MoveVec.SquaredLength() <= 0)
 	{
-		goto skip_brush;
+		LastBrushPosLocal = NewBrushPosLocal;
+		return;
 	}
 
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
@@ -573,8 +580,6 @@ void UDynamicMeshSculptTool::ApplyMoveBrush(const FRay& WorldRay)
 	}
 
 	bRemeshPending = bEnableRemeshing;
-
-skip_brush:
 	LastBrushPosLocal = NewBrushPosLocal;
 }
 
@@ -591,8 +596,7 @@ void UDynamicMeshSculptTool::ApplyOffsetBrush(const FRay& WorldRay)
 		return;
 	}
 
-	FTransform Transform = ComponentTarget->GetWorldTransform();
-	FVector NewBrushPosLocal = Transform.InverseTransformPosition(LastBrushPosWorld);
+	FVector3d NewBrushPosLocal = CurTargetTransform.InverseTransformPosition(LastBrushPosWorld);
 
 	double Direction = (bInvert) ? -1.0 : 1.0;
 	double UseSpeed = Direction * FMathd::Sqrt(CurrentBrushRadius) * (SculptProperties->BrushSpeed);
@@ -643,8 +647,7 @@ void UDynamicMeshSculptTool::ApplySculptMaxBrush(const FRay& WorldRay)
 		return;
 	}
 
-	FTransform Transform = ComponentTarget->GetWorldTransform();
-	FVector NewBrushPosLocal = Transform.InverseTransformPosition(LastBrushPosWorld);
+	FVector3d NewBrushPosLocal = CurTargetTransform.InverseTransformPosition(LastBrushPosWorld);
 
 	double Direction = (bInvert) ? -1.0 : 1.0;
 	double UseSpeed = Direction * FMathd::Sqrt(CurrentBrushRadius) * (SculptProperties->BrushSpeed);
@@ -703,13 +706,12 @@ void UDynamicMeshSculptTool::ApplyPinchBrush(const FRay& WorldRay)
 		return;
 	}
 
-	FTransform Transform = ComponentTarget->GetWorldTransform();
-	FVector NewBrushPosLocal = Transform.InverseTransformPosition(LastBrushPosWorld);
-	FVector BrushNormalLocal = Transform.InverseTransformVectorNoScale(LastBrushPosNormalWorld);
-	FVector OffsetBrushPosLocal = NewBrushPosLocal - SculptProperties->BrushDepth * CurrentBrushRadius * BrushNormalLocal;
+	FVector3d NewBrushPosLocal = CurTargetTransform.InverseTransformPosition(LastBrushPosWorld);
+	FVector3d BrushNormalLocal = CurTargetTransform.InverseTransformNormal(LastBrushPosNormalWorld);
+	FVector3d OffsetBrushPosLocal = NewBrushPosLocal - SculptProperties->BrushDepth * CurrentBrushRadius * BrushNormalLocal;
 
 	// hardcoded lazybrush...
-	FVector NewSmoothBrushPosLocal = (0.75f)*LastSmoothBrushPosLocal + (0.25f)*NewBrushPosLocal;
+	FVector3d NewSmoothBrushPosLocal = (0.75f)*LastSmoothBrushPosLocal + (0.25f)*NewBrushPosLocal;
 
 	double Direction = (bInvert) ? -1.0 : 1.0;
 	double UseSpeed = Direction * FMathd::Sqrt(CurrentBrushRadius) * (SculptProperties->BrushSpeed*0.05);
@@ -801,9 +803,8 @@ void UDynamicMeshSculptTool::ApplyPlaneBrush(const FRay& WorldRay)
 		return;
 	}
 
-	FTransform Transform = ComponentTarget->GetWorldTransform();
-	FVector NewBrushPosLocal = Transform.InverseTransformPosition(LastBrushPosWorld);
-	FVector BrushNormalLocal = Transform.InverseTransformVectorNoScale(LastBrushPosNormalWorld);
+	FVector3d NewBrushPosLocal = CurTargetTransform.InverseTransformPosition(LastBrushPosWorld);
+	FVector3d BrushNormalLocal = CurTargetTransform.InverseTransformNormal(LastBrushPosNormalWorld);
 	double UseSpeed = FMathd::Sqrt(CurrentBrushRadius) * FMathd::Sqrt(SculptProperties->BrushSpeed) * 0.05;
 
 
@@ -851,9 +852,8 @@ void UDynamicMeshSculptTool::ApplyFlattenBrush(const FRay& WorldRay)
 		return;
 	}
 
-	FTransform Transform = ComponentTarget->GetWorldTransform();
-	FVector NewBrushPosLocal = Transform.InverseTransformPosition(LastBrushPosWorld);
-	FVector BrushNormalLocal = Transform.InverseTransformVectorNoScale(LastBrushPosNormalWorld);
+	FVector3d NewBrushPosLocal = CurTargetTransform.InverseTransformPosition(LastBrushPosWorld);
+	FVector3d BrushNormalLocal = CurTargetTransform.InverseTransformNormal(LastBrushPosNormalWorld);
 
 	double UseSpeed = FMathd::Sqrt(CurrentBrushRadius) * FMathd::Sqrt(SculptProperties->BrushSpeed) * 0.05;
 	FFrame3d StampFlattenPlane = ComputeROIBrushPlane(NewBrushPosLocal, true);
@@ -901,8 +901,7 @@ void UDynamicMeshSculptTool::ApplyInflateBrush(const FRay& WorldRay)
 		return;
 	}
 
-	FTransform Transform = ComponentTarget->GetWorldTransform();
-	FVector NewBrushPosLocal = Transform.InverseTransformPosition(LastBrushPosWorld);
+	FVector3d NewBrushPosLocal = CurTargetTransform.InverseTransformPosition(LastBrushPosWorld);
 
 	double Direction = (bInvert) ? -1.0 : 1.0;
 	double UseSpeed = Direction * FMathd::Sqrt(CurrentBrushRadius) * SculptProperties->BrushSpeed * 0.25;
@@ -954,18 +953,17 @@ void UDynamicMeshSculptTool::ApplyInflateBrush(const FRay& WorldRay)
 
 bool UDynamicMeshSculptTool::UpdateBrushPositionOnActivePlane(const FRay& WorldRay)
 {
-	FVector NewHitPosWorld = FMath::RayPlaneIntersection(WorldRay.Origin, WorldRay.Direction, ActiveDragPlane);
+	FVector3d NewHitPosWorld;
+	ActiveDragPlane.RayPlaneIntersection(WorldRay.Origin, WorldRay.Direction, 2, NewHitPosWorld);
 	LastBrushPosWorld = NewHitPosWorld;
-	LastBrushPosNormalWorld = ActiveDragPlane;
+	LastBrushPosNormalWorld = ActiveDragPlane.Z();
 	return true;
 }
 
 bool UDynamicMeshSculptTool::UpdateBrushPositionOnTargetMesh(const FRay& WorldRay)
 {
-	FTransform Transform = ComponentTarget->GetWorldTransform();
-
-	FRay3d LocalRay(Transform.InverseTransformPosition(WorldRay.Origin),
-		Transform.InverseTransformVectorNoScale(WorldRay.Direction));
+	FRay3d LocalRay(CurTargetTransform.InverseTransformPosition(WorldRay.Origin),
+		CurTargetTransform.InverseTransformVector(WorldRay.Direction));
 	LocalRay.Direction.Normalize();
 
 	int HitTID = BrushTargetMeshSpatial.FindNearestHitTriangle(LocalRay);
@@ -978,8 +976,8 @@ bool UDynamicMeshSculptTool::UpdateBrushPositionOnTargetMesh(const FRay& WorldRa
 		FIntrRay3Triangle3d Query(LocalRay, Triangle);
 		Query.Find();
 
-		LastBrushPosNormalWorld = Transform.TransformVectorNoScale(TargetMesh->GetTriNormal(HitTID));
-		LastBrushPosWorld = Transform.TransformPosition(LocalRay.PointAt(Query.RayParameter));
+		LastBrushPosNormalWorld = CurTargetTransform.TransformNormal(TargetMesh->GetTriNormal(HitTID));
+		LastBrushPosWorld = CurTargetTransform.TransformPosition(LocalRay.PointAt(Query.RayParameter));
 		return true;
 	}
 	return false;
@@ -988,10 +986,8 @@ bool UDynamicMeshSculptTool::UpdateBrushPositionOnTargetMesh(const FRay& WorldRa
 
 bool UDynamicMeshSculptTool::UpdateBrushPositionOnSculptMesh(const FRay& WorldRay)
 {
-	FTransform Transform = ComponentTarget->GetWorldTransform();
-
-	FRay3d LocalRay(Transform.InverseTransformPosition(WorldRay.Origin),
-		Transform.InverseTransformVectorNoScale(WorldRay.Direction));
+	FRay3d LocalRay(CurTargetTransform.InverseTransformPosition(WorldRay.Origin),
+		CurTargetTransform.InverseTransformVector(WorldRay.Direction));
 	LocalRay.Direction.Normalize();
 
 	int HitTID = DynamicMeshComponent->GetOctree()->FindNearestHitObject(LocalRay);
@@ -1004,8 +1000,8 @@ bool UDynamicMeshSculptTool::UpdateBrushPositionOnSculptMesh(const FRay& WorldRa
 		FIntrRay3Triangle3d Query(LocalRay, Triangle);
 		Query.Find();
 
-		LastBrushPosNormalWorld = Transform.TransformVectorNoScale(SculptMesh->GetTriNormal(HitTID));
-		LastBrushPosWorld = Transform.TransformPosition(LocalRay.PointAt(Query.RayParameter));
+		LastBrushPosNormalWorld = CurTargetTransform.TransformNormal(SculptMesh->GetTriNormal(HitTID));
+		LastBrushPosWorld = CurTargetTransform.TransformPosition(LocalRay.PointAt(Query.RayParameter));
 		return true;
 	}
 	return false;
@@ -1035,9 +1031,10 @@ bool UDynamicMeshSculptTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 
 	if (bInDrag)
 	{
-		FVector NewHitPosWorld = FMath::RayPlaneIntersection(DevicePos.WorldRay.Origin, DevicePos.WorldRay.Direction, ActiveDragPlane);
+		FVector3d NewHitPosWorld;
+		ActiveDragPlane.RayPlaneIntersection(DevicePos.WorldRay.Origin, DevicePos.WorldRay.Direction, 2, NewHitPosWorld);
 		LastBrushPosWorld = NewHitPosWorld;
-		LastBrushPosNormalWorld = ActiveDragPlane;
+		LastBrushPosNormalWorld = ActiveDragPlane.Z();
 	}
 	else
 	{

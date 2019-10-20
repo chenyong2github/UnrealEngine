@@ -14,6 +14,7 @@
 #include "Changes/ValueWatcher.h"
 #include "Gizmos/BrushStampIndicator.h"
 #include "Properties/MeshMaterialProperties.h"
+#include "TransformTypes.h"
 #include "DynamicMeshSculptTool.generated.h"
 
 
@@ -272,6 +273,9 @@ protected:
 	UPROPERTY()
 	UOctreeDynamicMeshComponent* DynamicMeshComponent;
 
+	FTransform3d InitialTargetTransform;
+	FTransform3d CurTargetTransform;
+
 	// realtime visualization
 	void OnDynamicMeshComponentChanged();
 	FDelegateHandle OnDynamicMeshComponentChangedHandle;
@@ -290,14 +294,14 @@ protected:
 
 	bool bInDrag;
 
-	FPlane ActiveDragPlane;
-	FVector LastHitPosWorld;
-	FVector BrushStartCenterWorld;
-	FVector BrushStartNormalWorld;
-	FVector LastBrushPosLocal;
-	FVector LastBrushPosWorld;
-	FVector LastBrushPosNormalWorld;
-	FVector LastSmoothBrushPosLocal;
+	FFrame3d ActiveDragPlane;
+	FVector3d LastHitPosWorld;
+	FVector3d BrushStartCenterWorld;
+	FVector3d BrushStartNormalWorld;
+	FVector3d LastBrushPosLocal;
+	FVector3d LastBrushPosWorld;
+	FVector3d LastBrushPosNormalWorld;
+	FVector3d LastSmoothBrushPosLocal;
 	
 
 	TArray<int> VertexROI;
