@@ -323,7 +323,7 @@ void FDisasterRecoveryFSM::DisplayRecoveryUI()
 
 	TSharedRef<SConcertSessionRecovery> RecoveryWidget =
 		SNew(SConcertSessionRecovery)
-		.IntroductionText(LOCTEXT("CrashRecoveryIntroductionText", "An abnormal Editor terminaison was detected for this project. You can recover up to the last operation recorded or to a previous state."))
+		.IntroductionText(LOCTEXT("CrashRecoveryIntroductionText", "An abnormal Editor termination was detected for this project. You can recover up to the last operation recorded or to a previous state."))
 		.ParentWindow(NewWindow)
 		.OnFetchActivities(FetchActivitiesFn)
 		.ClientAvatarColorColumnVisibility(EVisibility::Hidden) // Disaster recovery has only one user, the local one.
