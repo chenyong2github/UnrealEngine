@@ -32,8 +32,9 @@ public:
 	 * Call this to create and configure NewStaticMesh and MeshDescription
 	 * @param AssetPackage The asset package that the UStaticMesh will be saved into
 	 * @param MeshName the name of the mesh asset
+	 * @param NumMaterialSlots the number of material slots to create on the static mesh -- if the staticmesh does not have enough slots, corresponding override materials on the staticmeshcomponent will be discarded
 	 */
-	void Initialize(UPackage* AssetPackage, FName MeshName);
+	void Initialize(UPackage* AssetPackage, FName MeshName, int NumMaterialSlots = 1);
 
 	// (do your mesh setup here)
 
