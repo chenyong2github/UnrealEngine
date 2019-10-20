@@ -18,6 +18,13 @@
 //		-Aux: State that is also an input into the simulation but does not intrinsically evolve from to frame. Changes to this state can be trapped/tracked/predicted.
 //		-Debug: Replicated buffer from server->client with server-frame centered debug information. Compiled out of shipping builds.
 //
+//	* How other code interacts with this:
+//		-Network updates will come in through UE4 networking -> FReplicationProxy (on actor/component) -> TNetworkedSimulationModel::RepProxy_* -> Buffers.*
+//		-UNetworkSimulationGlobalManager: responsible for ticking simulation (after recv net traffic, prior to UE4 actor ticking)
+//		-External game code can interact with the system:
+//			-The TNetworkedSimulationModel is mostly public and exposed. It is not recommend to publicly expose to your "user" code (high level scripting, designers, etc).
+//			-TNetworkSimStateAccessor is a helper for safely reading/writing to state within the system.
+//
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 template <
@@ -53,8 +60,6 @@ public:
 	using TRealTime = FNetworkSimTime::FRealTime;
 	
 	TNetworkedSimulationModel(TDriver* InDriver, const TSyncState& InitialSyncState = TSyncState(), const TAuxState& InitialAuxState = TAuxState())
-		: SyncAccessor(Buffers.SyncMods, &TickInfo.PendingKeyframe)
-		, AuxAccessor(Buffers.AuxMods, &TickInfo.PendingKeyframe)
 	{
 		Driver = InDriver;
 		*Buffers.Sync.WriteKeyframe(0) = InitialSyncState;
@@ -148,10 +153,7 @@ public:
 					// We don't have valid sync state for this frame. This could mean we skipped ahead somehow, such as heavy packet loss where the server doesn't receive all input cmds
 					// We will use the last known sync state, but first write it out to the current InputKeyframe
 					UE_LOG(LogNetworkSim, Log, TEXT("%s: No sync state found @ keyframe %d. Using previous head element @ keyframe %d."), *Driver->GetDebugName(), InputKeyframe, Buffers.Sync.HeadKeyframe());
-					
-					TSyncState LastSyncState = *Buffers.Sync.HeadElement();
-					InSyncState = Buffers.Sync.WriteKeyframe(InputKeyframe);
-					*InSyncState = LastSyncState;
+					InSyncState = Buffers.Sync.WriteKeyframeInitializedFromHead(InputKeyframe);
 				}
 
 				const TAuxState* InAuxState = Buffers.Aux[InputKeyframe];
@@ -160,10 +162,10 @@ public:
 				TSyncState* OutSyncState = Buffers.Sync.WriteKeyframe(OutputKeyframe);
 				check(OutSyncState);
 
-				TSimulation::Update(Driver, InputCmd->GetFrameDeltaTime().ToRealTimeSeconds(), *InputCmd, *InSyncState, *OutSyncState, *InAuxState, Buffers.Aux.WriteKeyframeFunc(OutputKeyframe));
-					
-				TickInfo.IncrementTotalProcessedSimulationTime(InputCmd->GetFrameDeltaTime(), OutputKeyframe);
-				TickInfo.PendingKeyframe = OutputKeyframe;
+				{
+					TScopedSimulationTick UpdateScope(TickInfo, OutputKeyframe, InputCmd->GetFrameDeltaTime());
+					TSimulation::Update(Driver, InputCmd->GetFrameDeltaTime().ToRealTimeSeconds(), *InputCmd, *InSyncState, *OutSyncState, *InAuxState, Buffers.Aux.WriteKeyframeFunc(OutputKeyframe));
+				}
 
 				if (DebugState)
 				{
@@ -260,9 +262,6 @@ public:
 		}
 
 		//TickInfo.InitSimulationTimeBuffer(Parameters.SyncedBufferSize);
-
-		Buffers.SyncMods.SetIsAuthority(Role == ROLE_Authority);
-		Buffers.AuxMods.SetIsAuthority(Role == ROLE_Authority);
 	}
 
 	void NetSerializeProxy(EReplicationProxyTarget Target, const FNetSerializeParams& Params) final override
@@ -381,9 +380,6 @@ public:
 	TSimulationTickState<TTickSettings> TickInfo;	// Manages simulation time and what inputs we are processed
 
 	TNetworkSimBufferContainer<TBufferTypes> Buffers;
-
-	TPredictedStateAccessor<TSyncState> SyncAccessor;
-	TPredictedStateAccessor<TAuxState> AuxAccessor;
 
 	TRepProxyServerRPC RepProxy_ServerRPC;
 	TRepProxyAutonomous RepProxy_Autonomous;

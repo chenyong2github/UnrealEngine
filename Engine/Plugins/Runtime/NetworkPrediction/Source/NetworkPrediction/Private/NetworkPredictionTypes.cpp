@@ -134,7 +134,7 @@ void FNetSimTickParameters::InitFromActor(AActor* Actor)
 	Role = Actor->GetLocalRole();
 	const bool bHasNetConnection = Actor->GetNetConnection() != nullptr;
 
-	// The only default case we really don;t want generating local input is on the server when there is a net owning player (auto proxy)
+	// The only default case we really don't want generating local input is on the server when there is a net owning player (auto proxy)
 	// This implies that we will (sim) extrapolate by default. To opt out of extrapolation, set to false or you can just not tick the net sim
 	bGenerateLocalInputCmds = !(Role == ROLE_Authority && bHasNetConnection);
 }
