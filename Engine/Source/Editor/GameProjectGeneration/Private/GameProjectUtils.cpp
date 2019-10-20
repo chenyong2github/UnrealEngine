@@ -93,8 +93,6 @@
 TWeakPtr<SNotificationItem> GameProjectUtils::UpdateGameProjectNotification = NULL;
 TWeakPtr<SNotificationItem> GameProjectUtils::WarningProjectNameNotification = NULL;
 
-FString GameProjectUtils::DefaultFeaturePackExtension(TEXT(".upack"));
-
 bool GameProjectUtils::bUseAudioMixerForAllPlatforms = false;
 
 struct FAudioDefaultPlatformSettings
@@ -201,6 +199,32 @@ namespace
 		}
 
 		return MoveTemp(RaytracingConfig);
+	}
+
+	FString GetDefaultMapConfigString(const FProjectInformation& InProjectInfo)
+	{
+		FString DefaultMapConfig;
+
+		if (InProjectInfo.bIsBlankTemplate &&
+			InProjectInfo.bCopyStarterContent &&
+			GameProjectUtils::IsStarterContentAvailableForNewProjects())
+		{
+			DefaultMapConfig += LINE_TERMINATOR;
+			DefaultMapConfig += TEXT("[/Script/EngineSettings.GameMapsSettings]") LINE_TERMINATOR;
+
+			if (InProjectInfo.TargetedHardware == EHardwareClass::Mobile)
+			{
+				DefaultMapConfig += TEXT("EditorStartupMap=/Game/MobileStarterContent/Maps/Minimal_Default") LINE_TERMINATOR;
+				DefaultMapConfig += TEXT("GameDefaultMap=/Game/MobileStarterContent/Maps/Minimal_Default") LINE_TERMINATOR;
+			}
+			else
+			{
+				DefaultMapConfig += TEXT("EditorStartupMap=/Game/StarterContent/Maps/Minimal_Default") LINE_TERMINATOR;
+				DefaultMapConfig += TEXT("GameDefaultMap=/Game/StarterContent/Maps/Minimal_Default") LINE_TERMINATOR;
+			}
+		}
+
+		return MoveTemp(DefaultMapConfig);
 	}
 } // namespace <>
 
@@ -795,13 +819,11 @@ bool GameProjectUtils::OpenCodeIDE(const FString& ProjectFile, FText& OutFailRea
 	return true;
 }
 
-void GameProjectUtils::GetStarterContentFiles(TArray<FString>& OutFilenames)
+bool GameProjectUtils::IsStarterContentAvailableForNewProjects()
 {
-	FString const SrcFolder = FPaths::FeaturePackDir();
-
-	FString SearchPath = TEXT("*");
-	SearchPath += DefaultFeaturePackExtension;
-	IFileManager::Get().FindFilesRecursive(OutFilenames, *SrcFolder, *SearchPath, /*Files=*/true, /*Directories=*/false);
+	TArray<FString> OutFilenames;
+	IFileManager::Get().FindFilesRecursive(OutFilenames, *FPaths::FeaturePackDir(), TEXT("*StarterContent.upack"), /*Files=*/true, /*Directories=*/false);
+	return OutFilenames.Num() > 0;
 }
 
 bool GameProjectUtils::CreateProject(const FProjectInformation& InProjectInfo, FText& OutFailReason, FText& OutFailLog, TArray<FString>* OutCreatedFiles)
@@ -1316,22 +1338,6 @@ UTemplateProjectDefs* GameProjectUtils::LoadTemplateDefs(const FString& ProjectD
 		{
 			UE_LOG(LogGameProjectGeneration, Warning, TEXT("Template '%s' contains 'All' in HiddenSettings in addition to other entries. This is a mistake, and means that all settings will be hidden."), *ProjectDirectory);
 		}
-
-		TArray<TSharedPtr<FTemplateCategory>> AllTemplateCategories;
-		FGameProjectGenerationModule::Get().GetAllTemplateCategories(AllTemplateCategories);
-
-		for (const FName& CategoryKey : TemplateDefs->Categories)
-		{
-			bool bCategoryExists = AllTemplateCategories.ContainsByPredicate([&CategoryKey](const TSharedPtr<FTemplateCategory>& Category)
-				{
-					return Category->Key == CategoryKey;
-				});
-
-			if (!bCategoryExists)
-			{
-				UE_LOG(LogGameProjectGeneration, Warning, TEXT("Failed to find category definition named '%s' while loading template '%s', it is not defined in any TemplateCategories.ini."), *CategoryKey.ToString(), *ProjectDirectory);
-			}
-		}
 	}
 
 	return TemplateDefs;
@@ -1632,7 +1638,7 @@ bool GameProjectUtils::CreateProjectFromTemplate(const FProjectInformation& InPr
 
 	const FString ProjectConfigPath = DestFolder / TEXT("Config");
 
-	// Write out the hardware class target settings chosen for this project
+	// Write out DefaultEngine.ini settings
 	{
 		const FString DefaultEngineIniFilename = ProjectConfigPath / TEXT("DefaultEngine.ini");
 
@@ -1640,12 +1646,13 @@ bool GameProjectUtils::CreateProjectFromTemplate(const FProjectInformation& InPr
 		// Load the existing file - if it doesn't exist we create it
 		FFileHelper::LoadFileToString(FileContents, *DefaultEngineIniFilename);
 
-		FileContents += LINE_TERMINATOR;
 		FileContents += GetHardwareConfigString(InProjectInfo);
 
 		FileContents += GetRaytracingConfigString(InProjectInfo);
 
-		if ( !WriteOutputFile(DefaultEngineIniFilename, FileContents, OutFailReason) )
+		FileContents += GetDefaultMapConfigString(InProjectInfo);
+
+		if (!WriteOutputFile(DefaultEngineIniFilename, FileContents, OutFailReason))
 		{
 			return false;
 		}
@@ -1973,10 +1980,10 @@ FString GameProjectUtils::GetHardwareConfigString(const FProjectInformation& InP
 	FString GraphicsPresetAsString;
 	UEnum::GetValueAsString(TEXT("/Script/HardwareTargeting.EGraphicsPreset"), InProjectInfo.DefaultGraphicsPerformance, /*out*/ GraphicsPresetAsString);
 
+	HardwareTargeting += LINE_TERMINATOR;
 	HardwareTargeting += TEXT("[/Script/HardwareTargeting.HardwareTargetingSettings]") LINE_TERMINATOR;
 	HardwareTargeting += FString::Printf(TEXT("TargetedHardwareClass=%s") LINE_TERMINATOR, *TargetHardwareAsString);
 	HardwareTargeting += FString::Printf(TEXT("DefaultGraphicsPerformance=%s") LINE_TERMINATOR, *GraphicsPresetAsString);
-	HardwareTargeting += LINE_TERMINATOR;
 
 	return MoveTemp(HardwareTargeting);
 }
@@ -1993,57 +2000,48 @@ bool GameProjectUtils::GenerateConfigFiles(const FProjectInformation& InProjectI
 		const FString DefaultEngineIniFilename = ProjectConfigPath / TEXT("DefaultEngine.ini");
 		FString FileContents;
 
-		FileContents += TEXT("[URL]") LINE_TERMINATOR;
-
 		FileContents += GetHardwareConfigString(InProjectInfo);
-		FileContents += LINE_TERMINATOR;
+
+		FileContents += GetRaytracingConfigString(InProjectInfo);
 
 		if(bUseAudioMixerForAllPlatforms)
 		{
+			FileContents += LINE_TERMINATOR;
 			FileContents += TEXT("[Audio]") LINE_TERMINATOR;
 			FileContents += TEXT("UseAudioMixer=True") LINE_TERMINATOR;
-			FileContents += LINE_TERMINATOR;
 		}
 
 		if (InProjectInfo.bForceExtendedLuminanceRange)
 		{
+			FileContents += LINE_TERMINATOR;
 			FileContents += TEXT("[/Script/Engine.RendererSettings]") LINE_TERMINATOR;
 			FileContents += TEXT("r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRange=True") LINE_TERMINATOR;
-			FileContents += LINE_TERMINATOR;
 		}
 
 		if (InProjectInfo.bCopyStarterContent)
 		{
-			FString SpecificEditorStartupMap;
-			FString SpecificGameDefaultMap;
+			FileContents += LINE_TERMINATOR;
+			FileContents += TEXT("[/Script/EngineSettings.GameMapsSettings]") LINE_TERMINATOR;
 
-			// If we have starter content packs available, specify starter map
-			if( IsStarterContentAvailableForNewProjects() == true )
+			if (GameProjectUtils::IsStarterContentAvailableForNewProjects())
 			{
 				if (InProjectInfo.TargetedHardware == EHardwareClass::Mobile)
 				{
-					SpecificEditorStartupMap = TEXT("/Game/MobileStarterContent/Maps/Minimal_Default");
-					SpecificGameDefaultMap = TEXT("/Game/MobileStarterContent/Maps/Minimal_Default");
+					FileContents += TEXT("EditorStartupMap=/Game/MobileStarterContent/Maps/Minimal_Default") LINE_TERMINATOR;
+					FileContents += TEXT("GameDefaultMap=/Game/MobileStarterContent/Maps/Minimal_Default") LINE_TERMINATOR;
 				}
 				else
 				{
-					SpecificEditorStartupMap = TEXT("/Game/StarterContent/Maps/Minimal_Default");
-					SpecificGameDefaultMap = TEXT("/Game/StarterContent/Maps/Minimal_Default");
+					FileContents += TEXT("EditorStartupMap=/Game/StarterContent/Maps/Minimal_Default") LINE_TERMINATOR;
+					FileContents += TEXT("GameDefaultMap=/Game/StarterContent/Maps/Minimal_Default") LINE_TERMINATOR;
 				}
 			}
 
-			// Write out the settings for startup map and game default map
-			FileContents += TEXT("[/Script/EngineSettings.GameMapsSettings]") LINE_TERMINATOR;
-			FileContents += FString::Printf(TEXT("EditorStartupMap=%s") LINE_TERMINATOR, *SpecificEditorStartupMap);
-			FileContents += FString::Printf(TEXT("GameDefaultMap=%s") LINE_TERMINATOR, *SpecificGameDefaultMap);
 			if (InProjectInfo.bShouldGenerateCode)
 			{
 				FileContents += FString::Printf(TEXT("GlobalDefaultGameMode=\"/Script/%s.%sGameMode\"") LINE_TERMINATOR, *NewProjectName, *NewProjectName);
 			}
 		}
-
-		FileContents += LINE_TERMINATOR;
-		FileContents += GetRaytracingConfigString(InProjectInfo);
 
 		if (WriteOutputFile(DefaultEngineIniFilename, FileContents, OutFailReason))
 		{
@@ -2362,15 +2360,6 @@ bool GameProjectUtils::GenerateCodeProjectFiles(const FString& ProjectFilename, 
 	}
 
 	return true;
-}
-
-bool GameProjectUtils::IsStarterContentAvailableForNewProjects()
-{
-	TArray<FString> StarterContentFiles;
-	GetStarterContentFiles(StarterContentFiles);
-
-	bool bHasStaterContent = StarterContentFiles.FindByPredicate([&](const FString& Str){ return Str.Contains("StarterContent"); }) != nullptr;
-	return bHasStaterContent;
 }
 
 int32 FindSpecificBuildFiles(const TCHAR* Path, TMap<FString, FString>& BuildFiles)
@@ -4089,11 +4078,11 @@ bool GameProjectUtils::InsertFeaturePacksIntoINIFile(const FProjectInformation& 
 		FString StarterPack;
 		if (InProjectInfo.TargetedHardware == EHardwareClass::Mobile)
 		{
-			StarterPack = TEXT("InsertPack=(PackSource=\"MobileStarterContent") + DefaultFeaturePackExtension + TEXT("\",PackName=\"StarterContent\")");
+			StarterPack = TEXT("InsertPack=(PackSource=\"MobileStarterContent.upack\",PackName=\"StarterContent\")");
 		}
 		else
 		{
-			StarterPack = TEXT("InsertPack=(PackSource=\"StarterContent")  + DefaultFeaturePackExtension + TEXT("\",PackName=\"StarterContent\")");
+			StarterPack = TEXT("InsertPack=(PackSource=\"StarterContent.upack\",PackName=\"StarterContent\")");
 		}
 		PackList.Add(StarterPack);
 	}
@@ -4133,9 +4122,6 @@ bool GameProjectUtils::AddSharedContentToProject(const FProjectInformation &InPr
 	const FString SrcFolder = FPaths::GetPath(InProjectInfo.TemplateFile);
 	const FString DestFolder = FPaths::GetPath(InProjectInfo.ProjectFilename);
 
-	const FString ProjectConfigPath = DestFolder / TEXT("Config");
-	const FString IniFilename = ProjectConfigPath / TEXT("DefaultGame.ini");
-
 	// Now any packs specified in the template def.
 	UTemplateProjectDefs* TemplateDefs = LoadTemplateDefs(SrcFolder);
 	if (TemplateDefs != NULL)
@@ -4147,7 +4133,7 @@ bool GameProjectUtils::AddSharedContentToProject(const FProjectInformation &InPr
 		}
 
 		TUniquePtr<FFeaturePackContentSource> TempFeaturePack = MakeUnique<FFeaturePackContentSource>();
-		bool bCopied = TempFeaturePack->InsertAdditionalResources(TemplateDefs->SharedContentPacks,RequiredDetail, DestFolder,CreatedFiles);
+		bool bCopied = TempFeaturePack->InsertAdditionalResources(TemplateDefs->SharedContentPacks, RequiredDetail, DestFolder, CreatedFiles);
 		if( bCopied == false )
 		{
 			FFormatNamedArguments Args;

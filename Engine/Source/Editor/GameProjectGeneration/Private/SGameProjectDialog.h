@@ -43,6 +43,8 @@ public:
 	/** Constructs this widget with InArgs */
 	void Construct( const FArguments& InArgs, EMode Mode );
 
+	static void GetAllTemplateCategories(TArray<TSharedPtr<FTemplateCategory>>& OutCategories);
+
 private:
 	EMode DialogMode;
 
