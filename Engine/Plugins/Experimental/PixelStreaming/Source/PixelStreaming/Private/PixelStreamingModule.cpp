@@ -6,6 +6,7 @@
 #include "Streamer.h"
 #include "InputDevice.h"
 #include "PixelStreamerInputComponent.h"
+#include "PixelStreamerDelegates.h"
 #include "SessionMonitorConnection.h"
 #include "SignallingServerConnection.h"
 #include "HUDStats.h"
@@ -107,6 +108,10 @@ void FPixelStreamingModule::InitStreamer()
 	IModularFeatures::Get().RegisterModularFeature(GetModularFeatureName(), this);
 
 	FApp::SetUnfocusedVolumeMultiplier(1.0f);
+
+	// Allow Pixel Streaming to broadcast to various delegates bound in the
+	// application-specific blueprint.
+	UPixelStreamerDelegates::CreateInstance();
 
 	// Allow Pixel Streaming to be frozen and a freeze frame image to be used
 	// instead of the video stream.
