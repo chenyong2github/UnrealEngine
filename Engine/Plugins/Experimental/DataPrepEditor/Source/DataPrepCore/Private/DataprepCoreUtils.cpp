@@ -323,6 +323,10 @@ void FDataprepCoreUtils::BuildAssets(const TArray<TWeakObjectPtr<UObject>>& Asse
 			if(UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(AssetObject))
 			{
 				MaterialInterfaces.Add( MaterialInterface );
+				if(MaterialInterface->GetMaterial())
+				{
+					MaterialInterfaces.Add( MaterialInterface->GetMaterial() );
+				}
 			}
 			else if(UStaticMesh* StaticMesh = Cast<UStaticMesh>(AssetObject))
 			{
@@ -351,14 +355,6 @@ void FDataprepCoreUtils::BuildAssets(const TArray<TWeakObjectPtr<UObject>>& Asse
 			{
 				FPropertyChangedEvent EmptyPropertyUpdateStruct( nullptr );
 				MaterialInterface->PostEditChangeProperty( EmptyPropertyUpdateStruct );
-
-			}
-
-			if( MustCompile( MaterialInterface->GetMaterial() ) )
-			{
-				FPropertyChangedEvent EmptyPropertyUpdateStruct( nullptr );
-				MaterialInterface->GetMaterial()->PostEditChangeProperty( EmptyPropertyUpdateStruct );
-
 			}
 		}
 	}
