@@ -150,8 +150,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 	const IScreenSpaceDenoiser::EShadowRequirements DenoiserRequirements,
 	const bool bSubPixelShadowMask,
 	FRDGTextureRef HairCategorizationTexture,
-	FRDGTextureRef* OutShadowMask,
-	FRDGTextureRef* OutRayHitDistance)
+	FRDGTextureUAV* OutShadowMaskUAV,
+	FRDGTextureUAV* OutRayHitDistanceUAV)
 #if RHI_RAYTRACING
 {
 	FLightSceneProxy* LightSceneProxy = LightSceneInfo.Proxy;
@@ -186,7 +186,10 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 	FIntPoint PixelOffset = { 0, 0 };
 
 	// whether to clip the dispatch to a subrect, requires that denoising doesn't need the whole buffer
-	const bool bClipDispatch = DenoiserRequirements == IScreenSpaceDenoiser::EShadowRequirements::Bailout;
+	
+	//#dxr_todo: reenable Clip Dispatch with multiview support
+	//const bool bClipDispatch = DenoiserRequirements == IScreenSpaceDenoiser::EShadowRequirements::Bailout;
+	const bool bClipDispatch = false;//  DenoiserRequirements == IScreenSpaceDenoiser::EShadowRequirements::Bailout;
 
 	if (LightSceneProxy->GetScissorRect(ScissorRect, View, View.ViewRect))
 	{
@@ -208,8 +211,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 	{
 		const bool bUseHairLighting = HairCategorizationTexture != nullptr;
 		FOcclusionRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FOcclusionRGS::FParameters>();
-		PassParameters->RWOcclusionMaskUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenShadowMaskTexture));
-		PassParameters->RWRayDistanceUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RayDistanceTexture));
+		PassParameters->RWOcclusionMaskUAV = OutShadowMaskUAV;
+		PassParameters->RWRayDistanceUAV = OutRayHitDistanceUAV;
 		PassParameters->SamplesPerPixel = RayTracingConfig.RayCountPerPixel;
 		PassParameters->NormalBias = GetRaytracingMaxNormalBias();
 		PassParameters->LightingChannelMask = LightSceneProxy->GetLightingChannelMask();
@@ -290,9 +293,6 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 			}
 		});
 	}
-
-	*OutShadowMask = ScreenShadowMaskTexture;
-	*OutRayHitDistance = RayDistanceTexture;
 }
 #else // !RHI_RAYTRACING
 {
