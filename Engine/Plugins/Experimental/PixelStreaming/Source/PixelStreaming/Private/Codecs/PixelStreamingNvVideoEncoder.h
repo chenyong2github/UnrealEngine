@@ -38,10 +38,7 @@ public:
 	 */
 	static bool CheckPlatformCompatibility();
 
-	/**
-	* Note bEnableAsyncMode flag is for debugging purpose, it should be set to true normally unless user wants to test in synchronous mode.
-	*/
-	explicit FPixelStreamingNvVideoEncoder(bool bEnableAsyncMode = true);
+	FPixelStreamingNvVideoEncoder();
 	~FPixelStreamingNvVideoEncoder();
 
 	bool CopyBackBuffer(const FTexture2DRHIRef& BackBuffer, FTimespan Timestamp, FBufferId& BufferId) override;
@@ -64,6 +61,7 @@ private:
 		NV_ENC_INPUT_PTR MappedResource = nullptr;
 		NV_ENC_BUFFER_FORMAT BufferFormat;
 		FTexture2DRHIRef BackBuffer;
+		ID3D11Texture2D* SharedBackBuffer = nullptr;
 		FTimespan CaptureTs;
 	};
 
@@ -74,14 +72,26 @@ private:
 		webrtc::EncodedImage EncodedFrame;
 	};
 
+	enum class EFrameState
+	{
+		Free,
+		Captured,
+		Encoding
+	};
+
 	struct FFrame
 	{
+		const FBufferId Id = 0;
+		EFrameState State = EFrameState::Free;
+		// Bitrate requested at the time the video encoder asked us to encode this frame
+		// We save this, because we can't use it at the moment we receive it.
+		uint32 BitrateRequested = 0;
 		FInputFrame InputFrame;
 		FOutputFrame OutputFrame;
 		uint64 FrameIdx = 0;
 	};
 
-	void Init_RenderThread(bool bEnableAsyncMode);
+	void Init();
 	void InitFrameInputBuffer(FInputFrame& InputFrame, uint32 Width, uint32 Heigh);
 	void InitializeResources();
 	void ReleaseFrameInputBuffer(FInputFrame& InputFrame);
@@ -94,41 +104,14 @@ private:
 	void UpdateRes(const FTexture2DRHIRef& BackBuffer, FInputFrame& InputFrame);
 	void CopyBackBuffer(const FTexture2DRHIRef& BackBuffer, FInputFrame& InputFrame);
 
-	void EncodeFrameInRenderingThread(FFrame& Frame, uint32 Bitrate);
-
 	void EncoderCheckLoop();
 
 	void ProcessFrame(FFrame& Frame);
 
 	void UpdateSettings(FInputFrame& InputFrame, uint32 Bitrate);
-	void TransferRenderTargetToHWEncoder(FFrame& Frame);
-
-	void PostRenderingThreadCreated()
-	{
-		bWaitForRenderThreadToResume = false;
-	}
-
-	void PreRenderingThreadDestroyed()
-	{
-		bWaitForRenderThreadToResume = true;
-	}
+	void SubmitFrameToEncoder(FFrame& Frame);
 
 	void OnEncodedFrame(const webrtc::EncodedImage& EncodedImage);
-
-	FRHICOMMAND_MACRO(FRHITransferRenderTargetToNvEnc)
-	{
-		FPixelStreamingNvVideoEncoder* Encoder;
-		FFrame* Frame;
-
-		FRHITransferRenderTargetToNvEnc(FPixelStreamingNvVideoEncoder* InEncoder, FFrame* InFrame)
-			: Encoder(InEncoder), Frame(InFrame)
-		{}
-
-		void Execute(FRHICommandListBase& CmdList)
-		{
-			Encoder->TransferRenderTargetToHWEncoder(*Frame);
-		}
-	};
 
 	void* DllHandle = nullptr;
 
@@ -137,9 +120,6 @@ private:
 	NV_ENC_INITIALIZE_PARAMS NvEncInitializeParams;
 	NV_ENC_CONFIG NvEncConfig;
 	FThreadSafeBool bWaitForRenderThreadToResume = false;
-	// Used to make sure we don't have a race condition trying to access a deleted "this" captured
-	// in the render command lambda sent to the render thread from EncoderCheckLoop
-	static FThreadSafeCounter ImplCounter;
 	uint32 CapturedFrameCount = 0; // of captured, not encoded frames
 	static const uint32 NumBufferedFrames = 3;
 	FFrame BufferedFrames[NumBufferedFrames];
@@ -149,19 +129,79 @@ private:
 	// the memory
 	TArray<uint8> EncodedFrameBuffer;
 
-	// collaboration with WebRTC is quite convoluted. We capture frame and pass it to WebRTC
-	// TODO(andriy): implement proper waiting on empty queues instead of spin-lock
-	TQueue<FBufferId> FreeBuffers;
-	TQueue<FBufferId> CapturedBuffers;
-	TQueue<FBufferId> BuffersBeingEncoded;
-
 	float InitialMaxFPS;
 
-	// #AMF(Andriy) : This is only used from one thread, I think, so the comment below is wrong, and it doesn't need to be TAtomic. Need to confirm.
-	//		  cached value because it's used from another thread.
-	//		  Update : If running with RHITRhead (e.g: use r.rhithread.enable 1 ), this is indeed used from two threads (RenderThread and RHIThread, I think)
-	TAtomic<double> RequestedBitrateMbps{ 0 };
+	class FEncoderDevice
+	{
+	public:
+		FEncoderDevice();
 
+		TRefCountPtr<ID3D11Device> Device;
+		TRefCountPtr<ID3D11DeviceContext> DeviceContext;
+	};
+
+	TUniquePtr<FEncoderDevice> EncoderDevice;
+
+	// After a back buffer is processed and copied then we will want to send it
+	// to the encoder. This happens on a different thread so we use a queue of
+	// frame pointers to tell the thread which frames should be encoded.
+	struct FEncodeQueue
+	{
+		// The frames which we should encode.
+		// We can never be encoding more frames that can be buffered.
+		FFrame* Frames[NumBufferedFrames] = { nullptr };
+
+		// The start position of elements in this FIFO ring buffer queue.
+		int Start = 0;
+
+		// The number of elements in this FIFO ring buffer queue.
+		int Length = 0;
+
+		// Allow access by the Render Thread and the Pixel Streaming Encoder
+		// thread.
+		FCriticalSection CriticalSection;
+
+		// An event to signal the Pixel Streaming Encoder thread that it can
+		// encode some frames.
+		HANDLE EncodeEvent = CreateEvent(nullptr, false, false, nullptr);
+
+		virtual ~FEncodeQueue()
+		{
+			CloseHandle(EncodeEvent);
+		}
+
+		// Add another frame to be encoded.
+		void Push(FFrame* Frame)
+		{
+			FScopeLock ScopedLock(&CriticalSection);
+			check(Length < NumBufferedFrames);
+			bool bWasEmpty = Length == 0;
+			int Position = (Start + Length) % NumBufferedFrames;
+			Frames[Position] = Frame;
+			Length++;
+			if (bWasEmpty)
+			{
+				SetEvent(EncodeEvent);
+			}
+		}
+
+		// Get the list of all frame which we should encode.
+		void PopAll(FFrame* OutFrames[NumBufferedFrames], int& OutNumFrames)
+		{
+			FScopeLock ScopedLock(&CriticalSection);
+			OutNumFrames = Length;
+			for (int Position = 0; Position < Length; Position++)
+			{
+				OutFrames[Position] = Frames[Start];
+				Start = (Start + 1) % NumBufferedFrames;
+			}
+			Length = 0;
+			ResetEvent(EncodeEvent);
+		}
+	};
+
+	FEncodeQueue EncodeQueue;
+	double RequestedBitrateMbps = 0;
 	FCriticalSection SubscribersMutex;
 	TSet<FVideoEncoder*> Subscribers;
 };
