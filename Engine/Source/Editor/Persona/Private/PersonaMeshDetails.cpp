@@ -2921,6 +2921,7 @@ FReply FPersonaMeshDetails::ApplyLODChanges(int32 LODIndex)
 
 		if (!LODModel.RawSkeletalMeshBulkData.IsBuildDataAvailable())
 		{
+			SkelMesh->InvalidateDeriveDataCacheGUID();
 			RegenerateLOD(LODIndex);
 		}
 		else
@@ -4234,36 +4235,40 @@ void FPersonaMeshDetails::OnSectionEnabledChanged(int32 LodIndex, int32 SectionI
 
 				if(Section.bDisabled != !bEnable)
 				{
-					FScopedTransaction Transaction(LOCTEXT("ChangeSectionEnabled", "Set section disabled flag."));
-
-					SkeletalMeshPtr->Modify();
-					SkeletalMeshPtr->PreEditChange(nullptr);
-
-					Section.bDisabled = !bEnable;
-					for (int32 AfterSectionIndex = SectionIndex + 1; AfterSectionIndex < LodModel.Sections.Num(); ++AfterSectionIndex)
+					FScopedSuspendAlternateSkinWeightPreview ScopedSuspendAlternateSkinnWeightPreview(SkeletalMeshPtr.Get());
 					{
-						if (LodModel.Sections[AfterSectionIndex].ChunkedParentSectionIndex == SectionIndex)
-						{
-							LodModel.Sections[AfterSectionIndex].bDisabled = Section.bDisabled;
-						}
-						else
-						{
-							break;
-						}
-					}
-					//We display only the parent chunk
-					check(Section.ChunkedParentSectionIndex == INDEX_NONE);
+						FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkeletalMeshPtr.Get());
+						FScopedTransaction Transaction(LOCTEXT("ChangeSectionEnabled", "Set section disabled flag."));
 
-					SetSkelMeshSourceSectionUserData(LodModel, SectionIndex, Section.OriginalDataSectionIndex);
+						SkeletalMeshPtr->Modify();
+						SkeletalMeshPtr->PreEditChange(nullptr);
 
-					// Disable highlight and isolate flags
-					UDebugSkelMeshComponent * MeshComponent = GetPersonaToolkit()->GetPreviewScene()->GetPreviewMeshComponent();
-					if(MeshComponent)
-					{
-						MeshComponent->SetSelectedEditorSection(INDEX_NONE);
-						MeshComponent->SetSelectedEditorMaterial(INDEX_NONE);
-						MeshComponent->SetMaterialPreview(INDEX_NONE);
-						MeshComponent->SetSectionPreview(INDEX_NONE);
+						Section.bDisabled = !bEnable;
+						for (int32 AfterSectionIndex = SectionIndex + 1; AfterSectionIndex < LodModel.Sections.Num(); ++AfterSectionIndex)
+						{
+							if (LodModel.Sections[AfterSectionIndex].ChunkedParentSectionIndex == SectionIndex)
+							{
+								LodModel.Sections[AfterSectionIndex].bDisabled = Section.bDisabled;
+							}
+							else
+							{
+								break;
+							}
+						}
+						//We display only the parent chunk
+						check(Section.ChunkedParentSectionIndex == INDEX_NONE);
+
+						SetSkelMeshSourceSectionUserData(LodModel, SectionIndex, Section.OriginalDataSectionIndex);
+
+						// Disable highlight and isolate flags
+						UDebugSkelMeshComponent * MeshComponent = GetPersonaToolkit()->GetPreviewScene()->GetPreviewMeshComponent();
+						if (MeshComponent)
+						{
+							MeshComponent->SetSelectedEditorSection(INDEX_NONE);
+							MeshComponent->SetSelectedEditorMaterial(INDEX_NONE);
+							MeshComponent->SetMaterialPreview(INDEX_NONE);
+							MeshComponent->SetSectionPreview(INDEX_NONE);
+						}
 					}
 				}
 			}
@@ -4703,12 +4708,16 @@ void FPersonaMeshDetails::OnSectionShadowCastingChanged(ECheckBoxState NewState,
 	//Update Original PolygonGroup
 	auto UpdatePolygonGroupCastShadow = [&Mesh, &LODModel, &Section, &SectionIndex](bool bCastShadow)
 	{
-		Section.bCastShadow = bCastShadow;
-		//We change only the parent chunk data
-		check(Section.ChunkedParentSectionIndex == INDEX_NONE);
+		FScopedSuspendAlternateSkinWeightPreview ScopedSuspendAlternateSkinnWeightPreview(Mesh);
+		{
+			FScopedSkeletalMeshPostEditChange ScopedPostEditChange(Mesh);
+			Section.bCastShadow = bCastShadow;
+			//We change only the parent chunk data
+			check(Section.ChunkedParentSectionIndex == INDEX_NONE);
 
-		//The post edit change will kick a build
-		SetSkelMeshSourceSectionUserData(LODModel, SectionIndex, Section.OriginalDataSectionIndex);
+			//The post edit change will kick a build
+			SetSkelMeshSourceSectionUserData(LODModel, SectionIndex, Section.OriginalDataSectionIndex);
+		}
 	};
 
 	if (NewState == ECheckBoxState::Checked)
@@ -4770,21 +4779,25 @@ void FPersonaMeshDetails::OnSectionRecomputeTangentChanged(ECheckBoxState NewSta
 	//Update Original PolygonGroup
 	auto UpdatePolygonGroupRecomputeTangent = [&Mesh, &LODModel, &Section, &SectionIndex](bool bRecomputeTangent)
 	{
-		Section.bRecomputeTangent = bRecomputeTangent;
-		for (int32 AfterSectionIndex = SectionIndex + 1; AfterSectionIndex < LODModel.Sections.Num(); ++AfterSectionIndex)
+		FScopedSuspendAlternateSkinWeightPreview ScopedSuspendAlternateSkinnWeightPreview(Mesh);
 		{
-			if (LODModel.Sections[AfterSectionIndex].ChunkedParentSectionIndex == SectionIndex)
+			FScopedSkeletalMeshPostEditChange ScopedPostEditChange(Mesh);
+			Section.bRecomputeTangent = bRecomputeTangent;
+			for (int32 AfterSectionIndex = SectionIndex + 1; AfterSectionIndex < LODModel.Sections.Num(); ++AfterSectionIndex)
 			{
-				LODModel.Sections[AfterSectionIndex].bRecomputeTangent = bRecomputeTangent;
+				if (LODModel.Sections[AfterSectionIndex].ChunkedParentSectionIndex == SectionIndex)
+				{
+					LODModel.Sections[AfterSectionIndex].bRecomputeTangent = bRecomputeTangent;
+				}
+				else
+				{
+					break;
+				}
 			}
-			else
-			{
-				break;
-			}
+			//We display only the parent chunk
+			check(Section.ChunkedParentSectionIndex == INDEX_NONE);
+			SetSkelMeshSourceSectionUserData(LODModel, SectionIndex, Section.OriginalDataSectionIndex);
 		}
-		//We display only the parent chunk
-		check(Section.ChunkedParentSectionIndex == INDEX_NONE);
-		SetSkelMeshSourceSectionUserData(LODModel, SectionIndex, Section.OriginalDataSectionIndex);
 	};
 
 	if (NewState == ECheckBoxState::Checked)
