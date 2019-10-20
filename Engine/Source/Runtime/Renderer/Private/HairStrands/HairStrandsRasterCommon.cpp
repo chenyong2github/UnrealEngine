@@ -323,6 +323,7 @@ void FDeepShadowMeshProcessor::Process(
 	ERasterizerCullMode MeshCullMode)
 {
 	const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
+	static const FVertexFactoryType* CompatibleVF = FVertexFactoryType::GetVFByName(TEXT("FHairStrandsVertexFactory"));
 
 	TMeshProcessorShaders<
 		VertexShaderType,
@@ -332,6 +333,10 @@ void FDeepShadowMeshProcessor::Process(
 	{
 		const EMaterialTessellationMode MaterialTessellationMode = MaterialResource.GetTessellationMode();
 		FVertexFactoryType* VertexFactoryType = VertexFactory->GetType();
+		const bool bIsHairStrandsFactory = MeshBatch.VertexFactory->GetType()->GetId() == CompatibleVF->GetId();
+		if (!bIsHairStrandsFactory)
+			return;
+
 		PassShaders.DomainShader = nullptr;
 		PassShaders.HullShader = nullptr;
 		PassShaders.VertexShader = MaterialResource.GetShader<VertexShaderType>(VertexFactoryType);

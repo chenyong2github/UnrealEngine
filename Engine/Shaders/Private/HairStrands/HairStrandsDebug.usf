@@ -44,7 +44,7 @@ void MainPS(
 	const float2 PixelPos = UV * OutputResolution;
 
 	const FCategorizationData CatData = DecodeCategorizationData(CategorizationTexture.Load(uint3(PixelPos,0)));
-	const bool bIsValid = CatData.TotalCoverage8bit > 0;
+	const bool bIsValid = CatData.PixelCoverage > 0;
 	if (!bIsValid)
 		discard;
 
@@ -53,7 +53,7 @@ void MainPS(
 #endif
 
 #if PERMUTATION_DEBUG_MODE == DEBUG_MODE_COVERAGE_TYPE
-	const bool bIsFullyCovered = CatData.TotalCoverage8bit >= 255;
+	const bool bIsFullyCovered = CatData.PixelCoverage >= 1;
 	const float3 Color = bIsFullyCovered ? float3(0.25,0.85,0.25) : float3(0.85,0.25,0.25);
 #endif
 

@@ -116,7 +116,7 @@ void Main(
 #if SUBPIXEL_SHADOW
 	const uint3 PixelCoord = uint3(floor(SVPos.xy), 0);
 	const FCategorizationData CategorizationData = DecodeCategorizationData(HairCategorizationTexture.Load(PixelCoord));
-	if (CategorizationData.TotalCoverage8bit > 0)
+	if (CategorizationData.PixelCoverage > 0)
 	{
 		SceneW = ConvertFromDeviceZ(CategorizationData.ClosestDepth);
 		bIsSubsurfaceCompatible = false;

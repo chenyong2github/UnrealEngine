@@ -277,7 +277,7 @@ void MainPS(
 	const uint2 PixelCoord = floor(Input.Position.xy);
 	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(UV);
 	const FCategorizationData Categorization = DecodeCategorizationData(CategorizationTexture.Load(uint3(PixelCoord, 0)));
-	const bool bIsHairPixel = Categorization.TotalCoverage8bit >= 255;
+	const bool bIsHairPixel = Categorization.PixelCoverage >= 1;
 
 	const float3 WorldPosition		= TotWorldPosition(UV, GBuffer.Depth);
 	const float3 LightSpacePosition = ToLightPosition(WorldPosition);
@@ -335,7 +335,7 @@ void MainPS(
 	const uint2 PixelCoord = floor(Input.Position.xy);
 	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(UV);
 	const FCategorizationData Categorization = DecodeCategorizationData(CategorizationTexture.Load(uint3(PixelCoord, 0)));
-	const bool bIsHairPixel = Categorization.TotalCoverage8bit >= 255;
+	const bool bIsHairPixel = Categorization.PixelCoverage >= 1;
 
 	float3 WorldPosition = TotWorldPosition(UV, GBuffer.Depth);
 
