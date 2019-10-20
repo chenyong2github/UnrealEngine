@@ -48,6 +48,9 @@ enum class EDynamicMeshSculptBrushType : uint8
 	/** Move Brush moves vertices parallel to the view plane  */
 	Move UMETA(DisplayName = "Move"),
 
+	/** Smooth brush smooths mesh vertices  */
+	Smooth UMETA(DisplayName = "Smooth"),
+
 	/** Sculpt Brush displaces vertices from the surface */
 	Offset UMETA(DisplayName = "Sculpt"),
 
@@ -157,6 +160,10 @@ public:
 	/** Smoothing speed for dynamic meshing */
 	UPROPERTY(EditAnywhere, Category = Remeshing, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
 	float Smoothing;
+
+	/** If enabled, Full Remeshing is applied during smoothing, which will wipe out fine details */
+	UPROPERTY(EditAnywhere, Category = Remeshing)
+	bool bRemeshSmooth = false;
 
 
 	/** Enable edge flips */
@@ -290,6 +297,7 @@ protected:
 	FVector LastBrushPosLocal;
 	FVector LastBrushPosWorld;
 	FVector LastBrushPosNormalWorld;
+	FVector LastSmoothBrushPosLocal;
 	
 
 	TArray<int> VertexROI;
@@ -334,9 +342,10 @@ protected:
 	void ApplyFlattenBrush(const FRay& WorldRay);
 
 	double CalculateBrushFalloff(double Distance);
+	TArray<FVector3d> ROIPositionBuffer;
 
 	FFrame3d ActiveFixedBrushPlane;
-	FFrame3d ComputeROIBrushPlane(const FVector3d& BrushCenter);
+	FFrame3d ComputeROIBrushPlane(const FVector3d& BrushCenter, bool bIgnoreDepth);
 
 	TArray<int> TrianglesBuffer;
 	TArray<int> NormalsBuffer;
