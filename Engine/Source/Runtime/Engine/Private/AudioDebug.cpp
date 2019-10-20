@@ -510,7 +510,7 @@ void FAudioDebugger::DrawDebugInfo(const FActiveSound& ActiveSound, const TArray
 #endif // ENABLE_DRAW_DEBUG
 }
 
-void FAudioDebugger::DrawDebugInfo(const UWorld& World, const TArray<FListener>& Listeners, FVector& ListenerTransformOverride, bool bUseListenerTransformOverride)
+void FAudioDebugger::DrawDebugInfo(UWorld& World, const TArray<FListener>& Listeners, FVector& ListenerTransformOverride, bool bUseListenerTransformOverride)
 {
 #if ENABLE_DRAW_DEBUG
 	if (!ActiveSoundVisualizeListenersCVar)
