@@ -2929,15 +2929,16 @@ void FAudioDevice::SetListener(UWorld* World, const int32 InViewportIndex, const
 			logOrEnsureNanError(TEXT("FAudioDevice::SetListener has detected a NaN in Listener Velocity"));
 		}
 #endif
+		const bool bShouldListenerForceUpdate = FAudioVirtualLoop::ShouldListenerMoveForceUpdate(Listener.Transform, ListenerTransformCopy);
 
-		if (FAudioVirtualLoop::ShouldListenerMoveForceUpdate(Listener.Transform, ListenerTransformCopy))
+		Listener.WorldID = WorldID;
+		Listener.Transform = ListenerTransformCopy;
+
+		if (bShouldListenerForceUpdate)
 		{
 			const bool bForceUpdate = true;
 			UpdateVirtualLoops(bForceUpdate);
 		}
-
-		Listener.WorldID = WorldID;
-		Listener.Transform = ListenerTransformCopy;
 
 		OnListenerUpdated(AudioThreadListeners);
 
