@@ -110,10 +110,22 @@ public:
 			// If the row is not for "this client", then add a hyper link to open the other client level.
 			if (ClientInfoPin.IsValid() && ClientSessionPin.IsValid() && ClientInfoPin->ClientEndpointId != ClientSessionPin->GetSessionClientEndpointId())
 			{
-				LevelWidget = SNew(SHyperlink)
-					.Text(this, &SActiveSessionDetailsRow::GetLevel)
-					.ToolTipText(FText::Format(LOCTEXT("OtherUserLevel", "The level opened in {0} editor. Click to open this level."), FText::FromString(ClientInfoPin->ClientInfo.DisplayName)))
-					.OnNavigate(this, &SActiveSessionDetailsRow::OnLevelClicked);
+				LevelWidget = SNew(SOverlay)
+					+SOverlay::Slot()
+					[
+						SNew(SHyperlink)
+						.Visibility_Lambda([this]() { return GetOtherLevelVisibility(); })
+						.Text(this, &SActiveSessionDetailsRow::GetLevel)
+						.ToolTipText(this, &SActiveSessionDetailsRow::GetOtherLevelTooltip)
+						.OnNavigate(this, &SActiveSessionDetailsRow::OnOtherLevelClicked)
+					]
+					+SOverlay::Slot()
+					[
+						SNew(STextBlock)
+						.Visibility_Lambda([this]() { return GetOtherLevelVisibility() == EVisibility::Visible ? EVisibility::Collapsed : EVisibility::Visible; })
+						.Text(LOCTEXT("LevelNotAvailableInGame", "N/A (-game)")) // The only known reason for the level to be unknown and invisible is b/c the user is in -game.
+						.ToolTipText(LOCTEXT("LevelNotAvailableInGame_Tooltip", "The presence/level information is not emitted by clients running Editor in -game mode."))
+					];
 			}
 			else
 			{
@@ -169,6 +181,36 @@ public:
 		return FText();
 	}
 
+	EVisibility GetOtherLevelVisibility() const
+	{
+		TSharedPtr<FConcertSessionClientInfo> ClientInfoPin = SessionClientInfo.Pin();
+		TSharedPtr<IConcertSyncClient> SyncClientPin = SyncClient.Pin();
+
+		if (ClientInfoPin && SyncClientPin)
+		{
+			EEditorPlayMode EditorPlayMode = EEditorPlayMode::None;
+			if (IConcertClientPresenceManager* PresenceManager = SyncClientPin->GetPresenceManager())
+			{
+				if (!PresenceManager->GetPresenceWorldPath(ClientInfoPin->ClientEndpointId, EditorPlayMode).IsEmpty())
+				{
+					return EVisibility::Visible;
+				}
+			}
+		}
+
+		return EVisibility::Hidden;
+	}
+
+	FText GetOtherLevelTooltip() const
+	{
+		if (TSharedPtr<FConcertSessionClientInfo> ClientInfoPin = SessionClientInfo.Pin())
+		{
+			return FText::Format(LOCTEXT("OtherUserLevel_Tooltip", "The level opened in {0} editor. Click to open this level."), FText::FromString(ClientInfoPin->ClientInfo.DisplayName));
+		}
+
+		return FText::GetEmpty();
+	}
+
 	FText GetLevel() const
 	{
 		FString WorldPath;
@@ -192,18 +234,18 @@ public:
 
 			if (EditorPlayMode == EEditorPlayMode::PIE)
 			{
-				WorldPath += " (PIE)";
+				WorldPath += TEXT(" (PIE)");
 			}
 			else if (EditorPlayMode == EEditorPlayMode::SIE)
 			{
-				WorldPath += " (SIE)";
+				WorldPath += TEXT(" (SIE)");
 			}
 		}
 
 		return FText::FromString(WorldPath);
 	}
 
-	void OnLevelClicked()
+	void OnOtherLevelClicked()
 	{
 		TSharedPtr<FConcertSessionClientInfo> ClientInfoPin = SessionClientInfo.Pin();
 		TSharedPtr<IConcertClientSession> ClientSessionPin = ClientSession.Pin();
