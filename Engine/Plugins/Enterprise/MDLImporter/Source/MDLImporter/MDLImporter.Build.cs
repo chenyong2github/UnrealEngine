@@ -66,36 +66,17 @@ namespace UnrealBuildTool.Rules
 
                 PrivateDefinitions.Add("USE_MDLSDK");
 
-                string TargetPlatform = "Windows.x64";
-                string TargetExtension = "lib";
                 if ((Target.Platform == UnrealTargetPlatform.Win64) || (Target.Platform == UnrealTargetPlatform.Win32))
                 {
                     PublicDefinitions.Add("MI_PLATFORM_WINDOWS");
                 }
                 else if (Target.Platform == UnrealTargetPlatform.Linux)
                 {
-                    TargetPlatform = "Linux.x64";
-                    TargetExtension = "so";
+                    PublicDefinitions.Add("MI_PLATFORM_LINUX");
                 }
                 else if (Target.Platform == UnrealTargetPlatform.Mac)
                 {
-                    TargetPlatform = "MacOSX.x64";
-                    TargetExtension = "dylib";
-                }
-
-                // add static libraries
-                for (int i = 0; i < Libs.Length; ++i)
-                {
-                    string LibName = StaticLibNames[i];
-                    if (LibName == "")
-                    {
-                        continue;
-                    }
-
-                    LibName += "." + TargetExtension;
-
-                    string LibPath = Path.Combine(ThirdPartyPath, Libs[i], TargetPlatform, "lib", LibName);
-                    PublicAdditionalLibraries.Add(LibPath);
+                    PublicDefinitions.Add("MI_PLATFORM_MACOSX");
                 }
             }
         }
