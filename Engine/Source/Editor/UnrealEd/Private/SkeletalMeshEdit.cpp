@@ -1550,7 +1550,7 @@ bool UnFbx::FFbxImporter::ImportAnimation(USkeleton* Skeleton, UAnimSequence * D
 		TimeIncrement.SetSecondDouble(1.0 / ((double)(ResampleRate)));
 
 		//Add a threshold when we compare if we have reach the end of the animation
-		const FbxTime TimeComparisonThreshold = (KINDA_SMALL_NUMBER*FBXSDK_TC_SECOND);
+		const FbxTime TimeComparisonThreshold = (static_cast<FbxLongLong>(KINDA_SMALL_NUMBER) * FBXSDK_TC_SECOND);
 		
 		
 		for(int32 SourceTrackIdx = 0; SourceTrackIdx < FbxRawBoneNames.Num(); ++SourceTrackIdx)
