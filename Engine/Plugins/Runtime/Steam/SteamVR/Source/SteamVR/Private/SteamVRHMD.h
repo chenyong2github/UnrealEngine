@@ -18,7 +18,6 @@
 
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
-#include <d3d11.h>
 #include "Windows/HideWindowsPlatformTypes.h"
 #elif PLATFORM_MAC
 #include <IOSurface/IOSurface.h>
@@ -257,6 +256,16 @@ public:
 	{
 	public:
 		D3D11Bridge(FSteamVRHMD* plugin);
+
+		virtual void FinishRendering() override;
+		virtual void UpdateViewport(const FViewport& Viewport, FRHIViewport* InViewportRHI) override;
+		virtual void Reset() override;
+	};
+
+	class D3D12Bridge : public BridgeBaseImpl
+	{
+	public:
+		D3D12Bridge(FSteamVRHMD* plugin);
 
 		virtual void FinishRendering() override;
 		virtual void UpdateViewport(const FViewport& Viewport, FRHIViewport* InViewportRHI) override;
