@@ -254,24 +254,30 @@ static void appNoop()
 {
 }
 
+// This should be left non static to allow *edge* cases only in Core to extern an set this.
+bool GShouldRequestExit = false;
+
+void CORE_API HandleRequestExitIfSetDuringTick()
+{
+	if (GShouldRequestExit)
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		GIsRequestingExit = true;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+}
+
 void CORE_API RequestEngineExit(const TCHAR* ReasonString)
 {
 	ensureMsgf(ReasonString && FCString::Strlen(ReasonString) > 4, TEXT("RequestEngineExit must be given a valid reason (reason \"%s\""), ReasonString);
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UE_LOG(LogCore, Log, TEXT("Engine exit requested (reason: %s%s)"), ReasonString, GIsRequestingExit ? TEXT("; note: exit was already requested") : TEXT(""));
-	GIsRequestingExit = true;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	UE_LOG(LogCore, Log, TEXT("Engine exit requested (reason: %s%s)"), ReasonString, GShouldRequestExit ? TEXT("; note: exit was already requested") : TEXT(""));
+	GShouldRequestExit = true;
 }
 
 void CORE_API RequestEngineExit(const FString& ReasonString)
 {
-	ensureMsgf(ReasonString.Len() > 4, TEXT("RequestEngineExit must be given a valid reason (reason \"%s\""), *ReasonString);
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UE_LOG(LogCore, Log, TEXT("Engine exit requested (reason: %s%s)"), *ReasonString, GIsRequestingExit ? TEXT("; note: exit was already requested") : TEXT(""));
-	GIsRequestingExit = true;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	RequestEngineExit(*ReasonString);
 }
 
 /** Exec handler for game debugging tool, allowing commands like "editactor", ...							*/
