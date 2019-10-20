@@ -47,10 +47,7 @@ namespace UnrealBuildTool.Rules
             if (Directory.Exists(ThirdPartyPath))
             {
                 //third party libraries
-
                 string[] Libs = { "mdl-sdk-314800.830"};
-                string[] StaticLibNames = { "" };
-
                 foreach (string Lib in Libs)
                 {
                     string IncludePath = Path.Combine(ThirdPartyPath, Lib, "include");
