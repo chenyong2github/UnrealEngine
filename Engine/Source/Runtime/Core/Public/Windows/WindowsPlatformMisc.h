@@ -253,6 +253,8 @@ struct CORE_API FWindowsPlatformMisc
 
 	static void PumpMessagesOutsideMainLoop();
 
+	static uint64 GetFileVersion(const FString &FileName);
+
 };
 
 
