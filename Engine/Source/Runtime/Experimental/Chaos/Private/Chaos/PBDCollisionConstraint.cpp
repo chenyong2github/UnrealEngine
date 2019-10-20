@@ -34,6 +34,11 @@ FAutoConsoleVariableRef CVarConstraintBPBVHDepth(TEXT("p.ConstraintBPBVHDepth"),
 int32 BPTreeOfGrids = 1;
 FAutoConsoleVariableRef CVarBPTreeOfGrids(TEXT("p.BPTreeOfGrids"), BPTreeOfGrids, TEXT("Whether to use a seperate tree of grids for bp"));
 
+bool bSupportCollisionHistoryCVar = false;
+FAutoConsoleVariableRef CVarSupportCollisionHistory(TEXT("p.SupportCollisionHistory"), bSupportCollisionHistoryCVar, TEXT("Whether to support collision history caching."));
+
+int32 CollisionHistoryLifespanCVar = 1;
+FAutoConsoleVariableRef CVarCollisionHistoryLifespan(TEXT("p.CollisionHistoryLifespan"), CollisionHistoryLifespanCVar, TEXT("Number of iterations to cache a collision point.[def:5]"));
 
 extern int32 UseLevelsetCollision;
 
@@ -94,6 +99,7 @@ TPBDCollisionConstraint<T, d>::TPBDCollisionConstraint(const TPBDRigidsSOAs<T,d>
 	, PostComputeCallback(nullptr)
 	, PostApplyCallback(nullptr)
 	, PostApplyPushOutCallback(nullptr)
+	, bSupportHistory(bSupportCollisionHistoryCVar)
 {
 }
 
@@ -104,7 +110,7 @@ void TPBDCollisionConstraint<T, d>::Reset(/*const TPBDRigidParticles<T, d>& InPa
 {
 	SCOPE_CYCLE_COUNTER(STAT_CollisionConstraintsReset);
 
-	int32 Threshold = LifespanCounter - 1; // Maybe this should be solver time?
+	int32 Threshold = LifespanCounter - CollisionHistoryLifespanCVar; // Maybe this should be solver time?
 	for (int32 Idx = Constraints.Num() - 1; Idx >= 0; Idx--)
 	{
 		if ((Constraints[Idx].Lifespan < Threshold) || !bEnableCollisions)
@@ -120,14 +126,25 @@ void TPBDCollisionConstraint<T, d>::Reset(/*const TPBDRigidParticles<T, d>& InPa
 template<typename T, int d>
 void TPBDCollisionConstraint<T, d>::RemoveConstraint(int32 Idx)
 {
-	HandleAllocator.FreeHandle(Handles.FindAndRemoveChecked(GetConstraintHandleID(Idx)));
+	if (bSupportHistory)
+	{
+		FConstraintHandleID HandleID = GetConstraintHandleID(Constraints[Idx]);
+		History[HandleID]->RemoveHandle(Handles[Idx]);
+		if (!History[HandleID]->GetHandles().Num())
+		{
+			History.Remove(HandleID);
+		}
+	}
+
+	HandleAllocator.FreeHandle(Handles[Idx]);
+	Handles.RemoveAtSwap(Idx);
 	Constraints.RemoveAtSwap(Idx);
 	if (Idx < Constraints.Num())
 	{
-		Handles[GetConstraintHandleID(Idx)]->SetConstraintIndex(Idx);
+		Handles[Idx]->SetConstraintIndex(Idx);
 	}
+	ensure(Handles.Num() == Constraints.Num());
 }
-
 
 template<typename T, int d>
 void TPBDCollisionConstraint<T, d>::RemoveConstraints(const TSet<TGeometryParticleHandle<T, d>*>&  InHandleSet)
@@ -135,17 +152,14 @@ void TPBDCollisionConstraint<T, d>::RemoveConstraints(const TSet<TGeometryPartic
 	const TArray<TGeometryParticleHandle<T, d>*> HandleArray = InHandleSet.Array();
 	for (auto ParticleHandle : HandleArray)
 	{
-		TArray<FConstraintHandleID> Keys;
-		Handles.GetKeys(Keys);
-		for (FConstraintHandleID Key : Keys)
+		for (int32 Idx = Constraints.Num() - 1; Idx >= 0; Idx--)
 		{
-			if (Key.Key == ParticleHandle || Key.Value == ParticleHandle)
+			if (Constraints[Idx].Levelset == ParticleHandle || Constraints[Idx].Particle == ParticleHandle)
 			{
-				RemoveConstraint(Handles[Key]->GetConstraintIndex());
+				RemoveConstraint(Idx);
 			}
 		}
 	}
-	Handles.Compact();
 }
 
 template<typename T, int d>
@@ -518,6 +532,8 @@ TVector<T, d> GetEnergyClampedImpulse(const TRigidBodyContactConstraint<T, d>& C
 template<typename T, int d>
 void TPBDCollisionConstraint<T, d>::Apply(const T Dt, FRigidBodyContactConstraint& Constraint)
 {
+	if (Constraint.bDisabled) return;
+
 	TGenericParticleHandle<T, d> Particle0 = TGenericParticleHandle<T, d>(Constraint.Particle);
 	TGenericParticleHandle<T, d> Particle1 = TGenericParticleHandle<T, d>(Constraint.Levelset);
 	TPBDRigidParticleHandle<T, d>* PBDRigid0 = Particle0->AsDynamic();
@@ -735,6 +751,16 @@ void TPBDCollisionConstraint<T, d>::Apply(const T Dt, const TArray<FConstraintHa
 	if (PostApplyCallback != nullptr)
 	{
 		PostApplyCallback(Dt, InConstraintHandles);
+	}
+}
+
+template<typename T, int d>
+void TPBDCollisionConstraint<T, d>::Disable(const TArray<FConstraintHandle*>& InConstraintHandles)
+{
+	for(int32 Idx = InConstraintHandles.Num()-1; Idx>=0; Idx--) 
+	{
+		check(InConstraintHandles[Idx] != nullptr);
+		Constraints[InConstraintHandles[Idx]->GetConstraintIndex()].bDisabled = true;
 	}
 }
 
