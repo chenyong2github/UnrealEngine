@@ -24,11 +24,14 @@ DECLARE_CYCLE_STAT(TEXT("Gather Requests"), STAT_ProcessRequests_Gather, STATGRO
 DECLARE_CYCLE_STAT(TEXT("Sort Requests"), STAT_ProcessRequests_Sort, STATGROUP_VirtualTexturing);
 DECLARE_CYCLE_STAT(TEXT("Submit Requests"), STAT_ProcessRequests_Submit, STATGROUP_VirtualTexturing);
 DECLARE_CYCLE_STAT(TEXT("Map Requests"), STAT_ProcessRequests_Map, STATGROUP_VirtualTexturing);
+DECLARE_CYCLE_STAT(TEXT("Map New VTs"), STAT_ProcessRequests_MapNew, STATGROUP_VirtualTexturing);
 DECLARE_CYCLE_STAT(TEXT("Finalize Requests"), STAT_ProcessRequests_Finalize, STATGROUP_VirtualTexturing);
 DECLARE_CYCLE_STAT(TEXT("Merge Unique Pages"), STAT_ProcessRequests_MergePages, STATGROUP_VirtualTexturing);
 DECLARE_CYCLE_STAT(TEXT("Merge Requests"), STAT_ProcessRequests_MergeRequests, STATGROUP_VirtualTexturing);
 DECLARE_CYCLE_STAT(TEXT("Submit Tasks"), STAT_ProcessRequests_SubmitTasks, STATGROUP_VirtualTexturing);
+DECLARE_CYCLE_STAT(TEXT("Wait Tasks"), STAT_ProcessRequests_WaitTasks, STATGROUP_VirtualTexturing);
 
+DECLARE_CYCLE_STAT(TEXT("Feedback Map"), STAT_FeedbackMap, STATGROUP_VirtualTexturing);
 DECLARE_CYCLE_STAT(TEXT("Feedback Analysis"), STAT_FeedbackAnalysis, STATGROUP_VirtualTexturing);
 DECLARE_CYCLE_STAT(TEXT("Page Table Updates"), STAT_PageTableUpdates, STATGROUP_VirtualTexturing);
 DECLARE_CYCLE_STAT(TEXT("Flush Cache"), STAT_FlushCache, STATGROUP_VirtualTexturing);
@@ -67,13 +70,13 @@ static TAutoConsoleVariable<int32> CVarVTVerbose(
 
 static TAutoConsoleVariable<int32> CVarVTNumFeedbackTasks(
 	TEXT("r.VT.NumFeedbackTasks"),
-	4,
+	1,
 	TEXT("Number of tasks to create to process virtual texture updates."),
 	ECVF_RenderThreadSafe
 );
 static TAutoConsoleVariable<int32> CVarVTNumGatherTasks(
 	TEXT("r.VT.NumGatherTasks"),
-	4,
+	1,
 	TEXT("Number of tasks to create to process virtual texture updates."),
 	ECVF_RenderThreadSafe
 );
@@ -908,7 +911,7 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 		// Only flush if we know that there is GPU feedback available to refill the visible data this frame
 		// This prevents bugs when low frame rate causes feedback buffer to stall so that the physical cache isn't filled immediately which causes visible glitching
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-		if (SceneContext.VirtualTextureFeedback.CanMap())
+		if (SceneContext.VirtualTextureFeedback.CanMap(RHICmdList))
 		{
 			// Each RVT will call FVirtualTextureSystem::FlushCache()
 			Scene->FlushDirtyRuntimeVirtualTextures();
@@ -930,13 +933,23 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 
 		if (CVarVTEnableFeedBack.GetValueOnRenderThread())
 		{
-			for (FeedbackBufferCount = 0; FeedbackBufferCount < FVirtualTextureFeedback::TargetCapacity; ++FeedbackBufferCount)
+			SCOPE_CYCLE_COUNTER(STAT_FeedbackMap);
+
+#if WITH_EDITOR
+			uint32 MaxFeedbackTargetCount = FVirtualTextureFeedback::TargetCapacity;
+#else
+			uint32 MaxFeedbackTargetCount = 1;
+#endif
+
+			for (FeedbackBufferCount = 0; FeedbackBufferCount < MaxFeedbackTargetCount; ++FeedbackBufferCount)
 			{
 				if (!SceneContext.VirtualTextureFeedback.Map(RHICmdList, MappedFeedbackBuffers[FeedbackBufferCount]))
 				{
 					break;
 				}
 			}
+
+			const int32 PendingFeedbackBuffers = SceneContext.VirtualTextureFeedback.GetPendingTargetCount();
 		}
 
 		// Create tasks to read all the buffers
@@ -951,7 +964,7 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 
 			// Give each task a section of a feedback buffer to analyze
 			//todo[vt]: For buffers of different sizes we will have different task payload sizes which is not efficient
-			const uint32 FeedbackTasksPerBuffer = MaxNumFeedbackTasks / FeedbackBufferCount;
+			const uint32 FeedbackTasksPerBuffer = FMath::Max(MaxNumFeedbackTasks / FeedbackBufferCount, 1u);
 			const uint32 FeedbackRowsPerTask = FMath::DivideAndRoundUp((uint32)FeedbackBuffer.Rect.Size().Y, FeedbackTasksPerBuffer);
 			const uint32 NumRows = (uint32)FeedbackBuffer.Rect.Size().Y;
 			
@@ -1002,6 +1015,8 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 			// Wait for them to complete
 			if (Tasks.Num() > 0)
 			{
+				SCOPE_CYCLE_COUNTER(STAT_ProcessRequests_WaitTasks);
+
 				FTaskGraphInterface::Get().WaitUntilTasksComplete(Tasks, ENamedThreads::GetRenderThread_Local());
 			}
 		}
@@ -1172,6 +1187,8 @@ void FVirtualTextureSystem::GatherRequests(FUniqueRequestList* MergedRequestList
 		// Wait for them to complete
 		if (Tasks.Num() > 0)
 		{
+			SCOPE_CYCLE_COUNTER(STAT_ProcessRequests_WaitTasks);
+
 			FTaskGraphInterface::Get().WaitUntilTasksComplete(Tasks, ENamedThreads::GetRenderThread_Local());
 		}
 	}
@@ -1955,6 +1972,8 @@ void FVirtualTextureSystem::SubmitRequests(FRHICommandListImmediate& RHICmdList,
 
 	// Map any resident tiles to newly allocated VTs
 	{
+		SCOPE_CYCLE_COUNTER(STAT_ProcessRequests_MapNew);
+
 		uint32 Index = 0u;
 		while (Index < (uint32)AllocatedVTsToMap.Num())
 		{
