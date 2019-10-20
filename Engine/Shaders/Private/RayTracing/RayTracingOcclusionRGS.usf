@@ -124,7 +124,7 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 	float ClosestRayDistance = DENOISER_INVALID_HIT_DISTANCE;
 	float HitCount = 0.0;
 	float RayCount = 0.0;
-	uint LocalSamplesPerPixel = SamplesPerPixel;
+	uint LocalSamplesPerPixel = ENABLE_MULTIPLE_SAMPLES_PER_PIXEL ? SamplesPerPixel : 1;
 
 	if (all(PixelCoord >= LightScissor.xy) && all(PixelCoord <= LightScissor.zw))
 	{
@@ -178,7 +178,7 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 		const bool bTraceRay = bIsValidPixel && (LightChannel & LightingChannelMask) != 0;
 		if (!bTraceRay)
 		{
-			LocalSamplesPerPixel = 0.0;
+			LocalSamplesPerPixel = 0;
 		}
 
 		// Cheap solution for double sided foliage to have valid lighing through the denoiser
@@ -217,14 +217,16 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 			bApplyNormalCulling = false;
 		}
 
-		LOOP
-		for (uint SampleIndex = 0; SampleIndex < LocalSamplesPerPixel; ++SampleIndex)
+#if ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
+		LOOP for (uint SampleIndex = 0; SampleIndex < LocalSamplesPerPixel; ++SampleIndex)
+#else // ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
+		do if (bTraceRay)
+#endif // ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
 		{
 			uint DummyVariable;
 			float2 RandSample = RandomSequence_GenerateSample2D(RandSequence, DummyVariable);
 
-			BRANCH
-			if (LocalSamplesPerPixel == 1 && 1)
+			#if !ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
 			{
 				const uint TemporalBits = 10;
 				uint FrameIndexMod1024 = ReverseBitsN(GetPowerOfTwoModulatedFrameIndex(1 << TemporalBits), TemporalBits);
@@ -234,6 +236,7 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 
 				RandSample = SobolIndexToUniformUnitSquare(SobolFrame);
 			}
+			#endif // !ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
 
 			RayDesc Ray;
 			bool bIsValidRay = GenerateOcclusionRay(
@@ -300,6 +303,10 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 				ClosestRayDistance = (ClosestRayDistance == DENOISER_INVALID_HIT_DISTANCE) ? DENOISER_MISS_HIT_DISTANCE : ClosestRayDistance;
 			}
 		}
+#if !ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
+		while (0);
+#endif //!ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
+
 	}
 
 	float Shadow = (LocalSamplesPerPixel > 0) ? Visibility / LocalSamplesPerPixel : Visibility;
