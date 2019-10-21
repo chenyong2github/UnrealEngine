@@ -278,7 +278,7 @@ float4 CalcWorldPosition(float3 Position, uint PrimitiveId)
 	return TransformLocalToTranslatedWorld(Position, PrimitiveId);
 }
 
-half3x3 CalcTangentToLocal(FVertexFactoryInput Input, out float TangentSign)
+half3x3 CalcTangentToLocal(FVertexFactoryInput Input, inout float TangentSign)
 {
 	const uint QuadIndex = Input.VertexId % 6;
 	const uint BaseIndex = Input.VertexId / 6;
