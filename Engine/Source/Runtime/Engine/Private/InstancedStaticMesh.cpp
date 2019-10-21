@@ -886,6 +886,7 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 	UserData_AllInstances.MeshRenderData = InComponent->GetStaticMesh()->RenderData.Get();
 	UserData_AllInstances.StartCullDistance = InComponent->InstanceStartCullDistance;
 	UserData_AllInstances.EndCullDistance = InComponent->InstanceEndCullDistance;
+	UserData_AllInstances.InstancingOffset = InComponent->GetStaticMesh()->GetBoundingBox().GetCenter();
 	UserData_AllInstances.MinLOD = ClampedMinLOD;
 	UserData_AllInstances.bRenderSelected = true;
 	UserData_AllInstances.bRenderUnselected = true;
@@ -2986,6 +2987,7 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 		FVector4 InstancingViewZCompareZero(MIN_flt, MIN_flt, MAX_flt, 1.0f);
 		FVector4 InstancingViewZCompareOne(MIN_flt, MIN_flt, MAX_flt, 0.0f);
 		FVector4 InstancingViewZConstant(ForceInit);
+		FVector4 InstancingOffset(InstancingUserData->InstancingOffset);
 		FVector4 InstancingWorldViewOriginZero(ForceInit);
 		FVector4 InstancingWorldViewOriginOne(ForceInit);
 		InstancingWorldViewOriginOne.W = 1.0f;
@@ -3081,6 +3083,7 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 		ShaderBindings.Add(InstancingViewZCompareZeroParameter, InstancingViewZCompareZero);
 		ShaderBindings.Add(InstancingViewZCompareOneParameter, InstancingViewZCompareOne);
 		ShaderBindings.Add(InstancingViewZConstantParameter, InstancingViewZConstant);
+		ShaderBindings.Add(InstancingOffsetParameter, InstancingOffset);
 		ShaderBindings.Add(InstancingWorldViewOriginZeroParameter, InstancingWorldViewOriginZero);
 		ShaderBindings.Add(InstancingWorldViewOriginOneParameter, InstancingWorldViewOriginOne);
 	}
