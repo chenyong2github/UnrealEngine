@@ -9,6 +9,7 @@
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
 #include "LevelSequence.h"
+#include "LevelVariantSets.h"
 
 const FString DefaultNamespace( TEXT("void") );
 
@@ -51,13 +52,20 @@ bool UDataprepContentProducer::Produce(const FDataprepProducerContext& InContext
 		return false;
 	}
 
-	// Collect all packages containing LevelSequence assets to remap their reference to an newly created actor
-	TSet< UPackage* > LevelSequencePackagesToCheck;
+	// Collect all packages containing LevelSequence and LevelVariantSet assets to remap their
+	// reference to an newly created actor
+	TSet< UPackage* > PackagesToCheck;
 	for(int32 Index = LastAssetCount; Index < OutAssets.Num(); ++Index)
 	{
-		if( ULevelSequence* LevelSequence = Cast<ULevelSequence>( OutAssets[Index].Get() ) )
+		UObject* Asset = OutAssets[Index].Get();
+
+		if( ULevelSequence* LevelSequence = Cast<ULevelSequence>(Asset) )
 		{
-			LevelSequencePackagesToCheck.Add( LevelSequence->GetOutermost() );
+			PackagesToCheck.Add( LevelSequence->GetOutermost() );
+		}
+		else if( ULevelVariantSets* ThisLevelVariantSets = Cast<ULevelVariantSets>(Asset) )
+		{
+			PackagesToCheck.Add( ThisLevelVariantSets->GetOutermost() );
 		}
 	}
 
@@ -82,11 +90,11 @@ bool UDataprepContentProducer::Produce(const FDataprepProducerContext& InContext
 		}
 	}
 
-	// Update reference of LevelSequence assets if necessary
-	if(LevelSequencePackagesToCheck.Num() > 0)
+	// Update reference of LevelSequence or LevelVariantSets assets if necessary
+	if(PackagesToCheck.Num() > 0)
 	{
 		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-		AssetTools.RenameReferencingSoftObjectPaths( LevelSequencePackagesToCheck.Array(), ActorRedirectorMap );
+		AssetTools.RenameReferencingSoftObjectPaths( PackagesToCheck.Array(), ActorRedirectorMap );
 	}
 
 	Terminate();
