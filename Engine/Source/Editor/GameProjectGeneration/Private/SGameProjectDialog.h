@@ -84,6 +84,9 @@ private:
 
 	void OnEnterSettingsPage();
 
+	EVisibility GetRecentProjectBrowserVisibility() const;
+	EVisibility GetNoRecentProjectsLabelVisibility() const;
+
 	FText GetFinishText() const;
 	FText GetFinishTooltip() const;
 	FText GetPageTitle(int32 Index) const;
