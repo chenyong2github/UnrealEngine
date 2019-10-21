@@ -18,6 +18,7 @@ UToolMenu::UToolMenu() :
 	, bToolBarIsFocusable(false)
 	, bToolBarForceSmallIcons(false)
 	, bRegistered(false)
+	, bIsRegistering(false)
 	, StyleSet(&FCoreStyle::Get())
 {
 }
@@ -119,6 +120,11 @@ FToolMenuSection& UToolMenu::AddDynamicSection(const FName SectionName, const FN
 	return Section;
 }
 
+bool UToolMenu::IsRegistering() const
+{
+	return bIsRegistering;
+}
+
 FToolMenuSection& UToolMenu::AddSection(const FName SectionName, const TAttribute< FText >& InLabel, const FToolMenuInsert InPosition)
 {
 	for (FToolMenuSection& Section : Sections)
@@ -141,7 +147,7 @@ FToolMenuSection& UToolMenu::AddSection(const FName SectionName, const TAttribut
 
 	FToolMenuSection& NewSection = Sections.AddDefaulted_GetRef();
 	NewSection.InitSection(SectionName, InLabel, InPosition);
-	//NewSection.OwnerMenu = this;
+	NewSection.bIsRegistering = IsRegistering();
 	return NewSection;
 }
 

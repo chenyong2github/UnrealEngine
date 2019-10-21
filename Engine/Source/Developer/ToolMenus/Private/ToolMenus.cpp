@@ -202,13 +202,21 @@ void UToolMenus::AssembleMenuSection(UToolMenu* GeneratedMenu, const UToolMenu* 
 {
 	// Build list of blocks in expected order including blocks created by construct delegates
 	TArray<FToolMenuEntry> RemainingBlocks;
+	TArray<FToolMenuEntry> BlocksToAddLast;
 
 	UToolMenu* ConstructedEntries = nullptr;
 	for (const FToolMenuEntry& Block : OtherSection.Blocks)
 	{
 		if (!Block.IsNonLegacyDynamicConstruct())
 		{
-			RemainingBlocks.Add(Block);
+			if (Block.bAddedDuringRegister)
+			{
+				RemainingBlocks.Add(Block);
+			}
+			else
+			{
+				BlocksToAddLast.Add(Block);
+			}
 			continue;
 		}
 
@@ -264,7 +272,14 @@ void UToolMenus::AssembleMenuSection(UToolMenu* GeneratedMenu, const UToolMenu* 
 			}
 			else
 			{
-				RemainingBlocks.Add(GeneratedEntry);
+				if (GeneratedEntry.bAddedDuringRegister)
+				{
+					RemainingBlocks.Add(GeneratedEntry);
+				}
+				else
+				{
+					BlocksToAddLast.Add(GeneratedEntry);
+				}
 				GeneratedEntries.RemoveAt(0, 1, false);
 			}
 		}
@@ -275,6 +290,8 @@ void UToolMenus::AssembleMenuSection(UToolMenu* GeneratedMenu, const UToolMenu* 
 		ConstructedEntries->Sections.Empty();
 		ConstructedEntries = nullptr;
 	}
+
+	RemainingBlocks.Append(BlocksToAddLast);
 
 	// Repeatedly loop because insert location may not exist until later in list
 	while (RemainingBlocks.Num() > 0)
@@ -1674,6 +1691,11 @@ UToolMenu* UToolMenus::RegisterMenu(const FName InName, const FName InParent, EM
 			Found->MenuType = InType;
 			Found->MenuOwner = CurrentOwner();
 			Found->bRegistered = true;
+			Found->bIsRegistering = true;
+			for (FToolMenuSection& Section : Found->Sections)
+			{
+				Section.bIsRegistering = Found->bIsRegistering;
+			}
 		}
 		else if (bWarnIfAlreadyRegistered)
 		{
@@ -1686,6 +1708,7 @@ UToolMenu* UToolMenus::RegisterMenu(const FName InName, const FName InParent, EM
 	UToolMenu* ToolMenu = NewObject<UToolMenu>(this);
 	ToolMenu->InitMenu(CurrentOwner(), InName, InParent, InType);
 	ToolMenu->bRegistered = true;
+	ToolMenu->bIsRegistering = true;
 	Menus.Add(InName, ToolMenu);
 	return ToolMenu;
 }
@@ -1694,12 +1717,18 @@ UToolMenu* UToolMenus::ExtendMenu(const FName InName)
 {
 	if (UToolMenu* Found = FindMenu(InName))
 	{
+		Found->bIsRegistering = false;
+		for (FToolMenuSection& Section : Found->Sections)
+		{
+			Section.bIsRegistering = Found->bIsRegistering;
+		}
 		return Found;
 	}
 
 	UToolMenu* ToolMenu = NewObject<UToolMenu>(this);
 	ToolMenu->MenuName = InName;
 	ToolMenu->bRegistered = false;
+	ToolMenu->bIsRegistering = false;
 	Menus.Add(InName, ToolMenu);
 	return ToolMenu;
 }

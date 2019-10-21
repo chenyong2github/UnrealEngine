@@ -69,6 +69,8 @@ private:
 
 	bool IsNonLegacyDynamic() const;
 
+	bool IsRegistering() const;
+
 	friend class UToolMenuSectionExtensions;
 	friend class UToolMenus;
 	friend class UToolMenu;
@@ -93,4 +95,8 @@ public:
 	TAttribute<FText> Label;
 
 	FNewSectionConstructChoice Construct;
+
+private:
+
+	bool bIsRegistering;
 };

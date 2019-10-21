@@ -101,6 +101,8 @@ private:
 
 	int32 FindInsertIndex(const FToolMenuSection& InSection) const;
 
+	bool IsRegistering() const;
+
 public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tool Menus")
@@ -157,6 +159,7 @@ public:
 private:
 
 	bool bRegistered;
+	bool bIsRegistering;
 
 	const ISlateStyle* StyleSet;
 };
