@@ -15,7 +15,7 @@
 USTRUCT()
 struct FMovieSceneTimeWarping
 {
-	static const uint32 InvalidWarpCount = (uint32)(-1);
+	MOVIESCENE_API static const uint32 InvalidWarpCount;
 
 	GENERATED_BODY()
 
