@@ -97,7 +97,7 @@ public:
 	CORE_API			FIoStatusBuilder(const FIoStatus& InStatus, FStringView String);
 	CORE_API			~FIoStatusBuilder();
 
-	inline operator FIoStatus();
+	CORE_API			operator FIoStatus();
 
 	CORE_API FIoStatusBuilder& operator<<(FStringView String);
 };
