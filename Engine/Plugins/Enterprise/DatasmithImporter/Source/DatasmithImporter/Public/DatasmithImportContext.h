@@ -251,6 +251,9 @@ struct DATASMITHIMPORTER_API FDatasmithImportContext
 	/** Map of imported mesh for each mesh element */
 	TMap< TSharedRef< IDatasmithMeshElement >, UStaticMesh* > ImportedStaticMeshes;
 
+	/** Register IDatasmithMeshElement by their name so they can be searched faster */
+	TMap< FString, TSharedRef < IDatasmithMeshElement > > ImportedStaticMeshesByName;
+
 	/** Map of imported texture for each texture element */
 	TMap< TSharedRef< IDatasmithTextureElement >, UTexture* > ImportedTextures;
 
