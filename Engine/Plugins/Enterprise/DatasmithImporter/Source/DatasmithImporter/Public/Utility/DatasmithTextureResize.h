@@ -11,6 +11,11 @@ class DATASMITHIMPORTER_API FDatasmithTextureResize
 public:
 #if WITH_FREEIMAGE_LIB
 	/**
+	 * Must be called from the main thread before doing any parallel work.
+	 */
+	static void Initialize();
+
+	/**
 	 * Returns true if image extension is supported by Unreal Engine
 	 * IMPORTANT: Extension is expected with the starting dot
 	 */
@@ -32,6 +37,12 @@ public:
 	static EDSTextureUtilsError ResizeTexture( const TCHAR* Source, const TCHAR* Destination, EDSResizeTextureMode Mode, uint32 MaxSize, bool bGenerateNormalMap );
 
 #else
+	/**
+	 * Must be called from the main thread before doing any parallel work.
+	 */
+	static void Initialize()
+	{ }
+
 	/**
 	* Returns true if image extension is supported by Unreal Engine
 	* IMPORTANT: Extension is expected with the starting dot
