@@ -106,6 +106,7 @@
 #include "DesktopPlatformModule.h"
 #include "Factories.h"
 #include "FbxExporter.h"
+#include "ObjectBindingTagCache.h"
 #include "UnrealExporter.h"
 #include "ISequencerEditorObjectBinding.h"
 #include "LevelSequence.h"
@@ -318,6 +319,8 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 
 	Settings->GetOnEvaluateSubSequencesInIsolationChanged().AddSP(this, &FSequencer::RestorePreAnimatedState);
 	Settings->GetOnShowSelectedNodesOnlyChanged().AddSP(this, &FSequencer::OnSelectedNodesOnlyChanged);
+
+	ObjectBindingTagCache = MakeUnique<FObjectBindingTagCache>();
 
 	FCurveEditorInitParams CurveEditorInitParams;
 	{
@@ -568,6 +571,8 @@ void FSequencer::Tick(float InDeltaTime)
 
 	// Ensure the time bases for our playback position are kept up to date with the root sequence
 	UpdateTimeBases();
+
+	ObjectBindingTagCache->ConditionalUpdate(RootSequence.Get());
 
 	Selection.Tick();
 
