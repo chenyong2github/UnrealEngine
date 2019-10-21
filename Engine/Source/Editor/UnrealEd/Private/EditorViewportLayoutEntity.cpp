@@ -14,6 +14,7 @@ FEditorViewportLayoutEntity::FEditorViewportLayoutEntity(TFunction<TSharedRef<SE
  	TSharedPtr<SEditorViewport> NewViewport = Func();
 	AssetEditorViewport = StaticCastSharedPtr<SAssetEditorViewport>( NewViewport);
 	AssetEditorViewport->ParentLayout = ConstructionArgs.ParentLayout;
+	AssetEditorViewport->GetViewportClient()->SetViewportType(ConstructionArgs.ViewportType);
 }
 
 
