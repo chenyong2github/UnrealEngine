@@ -703,8 +703,21 @@ struct FRHICommand : public FRHICommandBase
 		{
 			__CpuProfilerEventSpecId = FCpuProfilerTrace::OutputEventType(NameType::TStr(), CpuProfilerGroup_Default);
 		}
-		FCpuProfilerTrace::FEventScope __CpuProfilerEventScope(__CpuProfilerEventSpecId);
-#endif
+
+		extern RHI_API int32 GRHICmdTraceEvents;
+		struct FConditionalTraceScope
+		{
+			FConditionalTraceScope(const uint16 InSpecId) : SpecId(InSpecId)
+			{
+				if (SpecId) FCpuProfilerTrace::OutputBeginEvent(SpecId);
+			}
+			~FConditionalTraceScope()
+			{
+				if (SpecId) FCpuProfilerTrace::OutputEndEvent();
+			}
+			const uint16 SpecId;
+		} TraceScope(GRHICmdTraceEvents ? __CpuProfilerEventSpecId : 0);
+#endif // CPUPROFILERTRACE_ENABLED
 
 		TCmd *ThisCmd = static_cast<TCmd*>(this);
 #if RHI_COMMAND_LIST_DEBUG_TRACES
