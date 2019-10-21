@@ -149,16 +149,9 @@ private:
 	IMappedFileRegion* MappedRegion;
 };
 
-/**
- * Represents an IO request from the FUntypedBulkData streaming API.
- *
- * It functions pretty much the same as IAsyncReadRequest expect that it also holds
- * the file handle as well. 
- *
- * 
- */
-struct COREUOBJECT_API FBulkDataIORequest
+class FBulkDataIORequest : public IBulkDataIORequest
 {
+public:
 	FBulkDataIORequest(IAsyncReadFileHandle* InFileHandle, IAsyncReadRequest* InReadRequest, int64 BytesToRead)
 		: FileHandle(InFileHandle)
 		, ReadRequest(InReadRequest)
@@ -167,20 +160,20 @@ struct COREUOBJECT_API FBulkDataIORequest
 
 	}
 
-	~FBulkDataIORequest();
+	virtual ~FBulkDataIORequest();
 
-	bool PollCompletion() const;
-	bool WaitCompletion( float TimeLimitSeconds = 0.0f ) const;
+	virtual bool PollCompletion() const override;
+	virtual bool WaitCompletion( float TimeLimitSeconds = 0.0f ) const override;
 
-	uint8* GetReadResults() const;
-	int64 GetSize() const;
+	virtual uint8* GetReadResults() const override;
+	virtual int64 GetSize() const override;
 
-	bool operator == (const IAsyncReadRequest* InReadRequest)
+	virtual bool operator == (const IAsyncReadRequest* InReadRequest) override
 	{
 		return ReadRequest == InReadRequest;
 	}
 
-	void Cancel() const;
+	virtual void Cancel() const override;
 
 private:
 	IAsyncReadFileHandle* FileHandle;
@@ -684,7 +677,7 @@ public:
 	* @param UserSuppliedMemory A pointer to memory for the IO request to be written to, it is up to the caller to make sure that it is large enough. If the pointer is null then the system will allocate memory instead.
 	* @return					A request for the read. This is owned by the caller and must be deleted by the caller.
 	**/
-	FBulkDataIORequest* CreateStreamingRequest(EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback, uint8* UserSuppliedMemory) const;
+	IBulkDataIORequest* CreateStreamingRequest(EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback, uint8* UserSuppliedMemory) const;
 
 	/**
 	* Create an async read request for the bulk data.
@@ -697,7 +690,7 @@ public:
 	* @param UserSuppliedMemory A pointer to memory for the IO request to be written to, it is up to the caller to make sure that it is large enough. If the pointer is null then the system will allocate memory instead.
 	* @return					A request for the read. This is owned by the caller and must be deleted by the caller.
 	**/
-	FBulkDataIORequest* CreateStreamingRequest(int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback, uint8* UserSuppliedMemory) const;
+	IBulkDataIORequest* CreateStreamingRequest(int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback, uint8* UserSuppliedMemory) const;
 
 #if USE_BULKDATA_STREAMING_TOKEN 
 
@@ -713,7 +706,7 @@ public:
 	* Create an async read request for a range of bulk data streaming tokens
 	* The request will read all data between the two given streaming tokens objects. They must both represent areas of data in the file!
 	* There is no way to validate this and it is up to the caller to make sure that it is correct.
-	* The memory to be read into will be automatically allocated the size of which can be retrieved by calling FBulkDataIORequest::GetSize()
+	* The memory to be read into will be automatically allocated the size of which can be retrieved by calling IBulkDataIORequest::GetSize()
 	*
 	* @param Filename			The file to read from.
 	* @param Start				The bulk data to start reading from.
@@ -722,7 +715,7 @@ public:
 	* @param CompleteCallback	Called from an arbitrary thread when the request is complete. Can be nullptr, if non-null, must remain valid until it is called. It will always be called.
 	* @return					A request for the read. This is owned by the caller and must be deleted by the caller.
 	**/
-	static FBulkDataIORequest* CreateStreamingRequestForRange(const FString& Filename, const FBulkDataStreamingToken& Start, const FBulkDataStreamingToken& End, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback);
+	static IBulkDataIORequest* CreateStreamingRequestForRange(const FString& Filename, const FBulkDataStreamingToken& Start, const FBulkDataStreamingToken& End, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback);
 
 #endif
 

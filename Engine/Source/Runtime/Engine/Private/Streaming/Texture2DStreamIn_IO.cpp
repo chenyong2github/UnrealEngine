@@ -25,7 +25,7 @@ FTexture2DStreamIn_IO::FTexture2DStreamIn_IO(UTexture2D* InTexture, int32 InRequ
 FTexture2DStreamIn_IO::~FTexture2DStreamIn_IO()
 {
 #if DO_CHECK
-	for (FBulkDataIORequest* IORequest : IORequests)
+	for (const IBulkDataIORequest* IORequest : IORequests)
 	{
 		check(!IORequest);
 	}
@@ -79,7 +79,7 @@ void FTexture2DStreamIn_IO::CancelIORequests()
 {
 	for (int32 MipIndex = 0; MipIndex < IORequests.Num(); ++MipIndex)
 	{
-		FBulkDataIORequest* IORequest = IORequests[MipIndex];
+		IBulkDataIORequest* IORequest = IORequests[MipIndex];
 		if (IORequest)
 		{
 			// Calling cancel will trigger the SetAsyncFileCallback() which will also try a tick but will fail.
@@ -95,7 +95,7 @@ void FTexture2DStreamIn_IO::ClearIORequests(const FContext& Context)
 
 	for (int32 MipIndex = PendingFirstMip; MipIndex < CurrentFirstMip; ++MipIndex)
 	{
-		FBulkDataIORequest* IORequest = IORequests[MipIndex];
+		IBulkDataIORequest* IORequest = IORequests[MipIndex];
 		IORequests[MipIndex] = nullptr;
 
 		if (IORequest != nullptr)
@@ -154,7 +154,7 @@ void FTexture2DStreamIn_IO::Abort()
 
 bool FTexture2DStreamIn_IO::HasPendingIORequests()
 {
-	for (FBulkDataIORequest* IORequest : IORequests)
+	for (IBulkDataIORequest* IORequest : IORequests)
 	{
 		if (IORequest != nullptr)
 		{

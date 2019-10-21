@@ -23,7 +23,7 @@ struct FLoadedAnimationChunk
 {
 	TAtomic<FCompressedAnimSequence*> CompressedAnimData;
 
-	struct FBulkDataIORequest* IORequest;
+	class IBulkDataIORequest* IORequest;
 	double RequestStart;
 
 	uint32	Index;

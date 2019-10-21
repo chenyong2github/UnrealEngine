@@ -12,8 +12,29 @@
 // not been able to find any way to actually execute/test.
 #define BULKDATA_NOT_IMPLEMENTED_FOR_RUNTIME PLATFORM_BREAK()
 
-struct FBulkDataIORequest;
 struct FOwnedBulkDataPtr;
+
+/**
+ * Represents an IO request from the BulkData streaming API.
+ *
+ * It functions pretty much the same as IAsyncReadRequest expect that it also holds
+ * the file handle as well.
+ *
+ *
+ */
+class COREUOBJECT_API IBulkDataIORequest
+{
+public:
+	virtual bool PollCompletion() const = 0;
+	virtual bool WaitCompletion(float TimeLimitSeconds = 0.0f) const = 0;
+
+	virtual uint8* GetReadResults() const = 0;
+	virtual int64 GetSize() const = 0;
+
+	virtual bool operator == (const IAsyncReadRequest* InReadRequest) = 0;
+
+	virtual void Cancel() const = 0;
+};
 
 /**
  * @documentation @todo documentation
@@ -68,9 +89,9 @@ public:
 	bool IsSingleUse() const;
 	bool IsMemoryMapped() const;
 
-	FBulkDataIORequest* CreateStreamingRequest(EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback, uint8* UserSuppliedMemory) const;
-	FBulkDataIORequest* CreateStreamingRequest(int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback, uint8* UserSuppliedMemory) const;
-	static FBulkDataIORequest* CreateStreamingRequestForRange(const FBulkDataBase& Start, const FBulkDataBase& End, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback);
+	IBulkDataIORequest* CreateStreamingRequest(EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback, uint8* UserSuppliedMemory) const;
+	IBulkDataIORequest* CreateStreamingRequest(int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback, uint8* UserSuppliedMemory) const;
+	static IBulkDataIORequest* CreateStreamingRequestForRange(const FBulkDataBase& Start, const FBulkDataBase& End, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback);
 
 	void RemoveBulkData();
 
