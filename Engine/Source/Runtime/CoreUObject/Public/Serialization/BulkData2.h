@@ -25,6 +25,8 @@ struct FOwnedBulkDataPtr;
 class COREUOBJECT_API IBulkDataIORequest
 {
 public:
+	virtual ~IBulkDataIORequest() {}
+
 	virtual bool PollCompletion() const = 0;
 	virtual bool WaitCompletion(float TimeLimitSeconds = 0.0f) const = 0;
 
