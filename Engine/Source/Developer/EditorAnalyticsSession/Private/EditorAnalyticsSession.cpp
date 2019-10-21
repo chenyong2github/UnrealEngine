@@ -70,6 +70,7 @@ namespace EditorAnalyticsDefs
 	static const FString IsInPIEStoreKey(TEXT("IsInPIE"));
 	static const FString IsInEnterpriseStoreKey(TEXT("IsInEnterprise"));
 	static const FString IsInVRModeStoreKey(TEXT("IsInVRMode"));
+	static const FString IsLowDriveSpaceStoreKey(TEXT("IsLowDriveSpace"));
 }
 
 // Utilities for writing to stored values
@@ -198,8 +199,9 @@ namespace EditorAnalyticsUtils
 		Session.bIsTerminating = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsTerminatingKey);
 		Session.bWasShutdown = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::WasShutdownStoreKey);
 		Session.bIsInPIE = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsInPIEStoreKey);
-		Session.bIsInVRMode = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsInVRModeStoreKey);
 		Session.bIsInEnterprise = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsInEnterpriseStoreKey);
+		Session.bIsInVRMode = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsInVRModeStoreKey);
+		Session.bIsLowDriveSpace = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsLowDriveSpaceStoreKey);
 	}
 
 #undef GET_STORED_INT
@@ -246,8 +248,9 @@ FEditorAnalyticsSession::FEditorAnalyticsSession()
 	bIsTerminating = false;
 	bWasShutdown = false;
 	bIsInPIE = false;
-	bIsInEnterprise = false;
 	bIsInVRMode = false;
+	bIsInEnterprise = false;
+	bIsLowDriveSpace = false;
 }
 
 bool FEditorAnalyticsSession::Lock(FTimespan Timeout)
@@ -350,6 +353,7 @@ bool FEditorAnalyticsSession::Save()
 	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::IsInPIEStoreKey, EditorAnalyticsUtils::BoolToStoredString(bIsInPIE));
 	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::IsInEnterpriseStoreKey, EditorAnalyticsUtils::BoolToStoredString(bIsInEnterprise));
 	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::IsInVRModeStoreKey, EditorAnalyticsUtils::BoolToStoredString(bIsInVRMode));
+	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::IsLowDriveSpaceStoreKey, EditorAnalyticsUtils::BoolToStoredString(bIsLowDriveSpace));
 
 	return true;
 }
@@ -422,6 +426,7 @@ bool FEditorAnalyticsSession::Delete() const
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsInPIEStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsInEnterpriseStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsInVRModeStoreKey);
+	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsLowDriveSpaceStoreKey);
 
 	return true;
 }

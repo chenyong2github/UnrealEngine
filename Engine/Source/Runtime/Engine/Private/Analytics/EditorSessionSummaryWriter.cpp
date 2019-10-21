@@ -157,19 +157,16 @@ void FEditorSessionSummaryWriter::Tick(float DeltaTime)
 			CurrentSession->bIsInPIE = FPlayWorldCommandCallbacks::IsInPIE();
 #endif
 
-			if (FEditorAnalyticsSession::Lock())
-			{
-				CurrentSession->Save();
-
-				FEditorAnalyticsSession::Unlock();
-			}
+			TrySaveCurrentSession();
 		}
 	}
 }
 
 void FEditorSessionSummaryWriter::LowDriveSpaceDetected()
 {
-	
+	CurrentSession->bIsLowDriveSpace = true;
+
+	TrySaveCurrentSession();
 }
 
 void FEditorSessionSummaryWriter::Shutdown()
@@ -191,12 +188,7 @@ void FEditorSessionSummaryWriter::Shutdown()
 
 		UpdateTimestamps();
 
-		if (FEditorAnalyticsSession::Lock())
-		{
-			CurrentSession->Save();
-
-			FEditorAnalyticsSession::Unlock();
-		}
+		TrySaveCurrentSession();
 
 		delete CurrentSession;
 		CurrentSession = nullptr;
@@ -276,12 +268,7 @@ void FEditorSessionSummaryWriter::OnCrashing()
 		CurrentSession->bCrashed = true;
 		CurrentSession->bGPUCrashed = GIsGPUCrashed;
 
-		if (FEditorAnalyticsSession::Lock())
-		{
-			CurrentSession->Save();
-			
-			FEditorAnalyticsSession::Unlock();
-		}
+		TrySaveCurrentSession();
 	}
 }
 
@@ -293,12 +280,7 @@ void FEditorSessionSummaryWriter::OnTerminate()
 
 		CurrentSession->bIsTerminating = true;
 
-		if (FEditorAnalyticsSession::Lock())
-		{
-			CurrentSession->Save();
-		
-			FEditorAnalyticsSession::Unlock();
-		}
+		TrySaveCurrentSession();
 
 		if (IsEngineExitRequested())
 		{
@@ -313,12 +295,7 @@ void FEditorSessionSummaryWriter::OnVanillaStateChanged(bool bIsVanilla)
 	{
 		CurrentSession->bIsVanilla = bIsVanilla;
 
-		if (FEditorAnalyticsSession::Lock())
-		{
-			CurrentSession->Save();
-		
-			FEditorAnalyticsSession::Unlock();
-		}
+		TrySaveCurrentSession();
 	}
 }
 
@@ -328,12 +305,7 @@ void FEditorSessionSummaryWriter::OnUserActivity(const FUserActivity& UserActivi
 	{
 		CurrentSession->CurrentUserActivity = GetUserActivityString();
 
-		if (FEditorAnalyticsSession::Lock())
-		{
-			CurrentSession->Save();
-		
-			FEditorAnalyticsSession::Unlock();
-		}
+		TrySaveCurrentSession();
 	}
 }
 
@@ -347,6 +319,16 @@ FString FEditorSessionSummaryWriter::GetUserActivityString() const
 	}
 
 	return UserActivity.ActionName;
+}
+
+void FEditorSessionSummaryWriter::TrySaveCurrentSession()
+{
+	if (FEditorAnalyticsSession::Lock())
+	{
+		CurrentSession->Save();
+
+		FEditorAnalyticsSession::Unlock();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

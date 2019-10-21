@@ -32,6 +32,7 @@ private:
 
 	FString GetUserActivityString() const;
 	void UpdateTimestamps();
+	void TrySaveCurrentSession();
 
 private:
 	FEditorAnalyticsSession* CurrentSession;
