@@ -54,9 +54,9 @@ void Main(
 
 #if MESH_RENDER_MODE == MESH_RENDER_DOM || MESH_RENDER_MODE == MESH_RENDER_VOXEL
   #ifdef VF_STRAND_HAIR	
-	FHairRenderingInfo HairRenderingInfo = GetHairRenderInfo(ResolvedView.HairRenderInfo);
+	FHairRenderInfo HairRenderInfo = GetHairRenderInfo(ResolvedView.HairRenderInfo);
 	const float CurrentDepth = Output.Position.z / Output.Position.w;
-	const float PixelRadius = HairRenderingInfo.bIsOrthoView ? HairRenderingInfo.RadiusAtDepth1Primary : (CurrentDepth * HairRenderingInfo.RadiusAtDepth1Primary);
+	const float PixelRadius = HairRenderInfo.bIsOrthoView ? HairRenderInfo.RadiusAtDepth1Primary : (CurrentDepth * HairRenderInfo.RadiusAtDepth1Primary);
 	const float StrandRealRadius = VFIntermediates.HairDimensions.y;
 	const float Coverage = StrandRealRadius / max(StrandRealRadius, PixelRadius);
 	Output.HairCoverage = Coverage * VFIntermediates.HairDensity;

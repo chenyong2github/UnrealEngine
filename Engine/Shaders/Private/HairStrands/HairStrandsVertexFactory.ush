@@ -362,12 +362,12 @@ float4 ComputeViewAlignedWorldPosition(FVertexFactoryInput Input, float3 WorldTa
 	const uint LocalVertexId = Input.VertexId % 6;
 	const bool bIsLeft = LocalVertexId == 0 || LocalVertexId == 1 || LocalVertexId == 5;
 
-	FHairRenderingInfo HairRenderingInfo = GetHairRenderInfo(ResolvedView.HairRenderInfo);
+	FHairRenderInfo HairRenderInfo = GetHairRenderInfo(ResolvedView.HairRenderInfo);
 
 	// Minimal radius to snap the strand to a sample/pixel center (to avoid aliasing)
-	const float RadiusAtDepth1 = lerp(HairRenderingInfo.RadiusAtDepth1Primary, HairRenderingInfo.RadiusAtDepth1Velocity, VelocityScale);
+	const float RadiusAtDepth1 = lerp(HairRenderInfo.RadiusAtDepth1Primary, HairRenderInfo.RadiusAtDepth1Velocity, VelocityScale);
 	const float DistanceToCamera = length(ResolvedView.TranslatedWorldCameraOrigin - WorldPosition.xyz);
-	const float MinStrandHairRadius = HairRenderingInfo.bIsOrthoView ? RadiusAtDepth1 : (DistanceToCamera * RadiusAtDepth1);
+	const float MinStrandHairRadius = HairRenderInfo.bIsOrthoView ? RadiusAtDepth1 : (DistanceToCamera * RadiusAtDepth1);
 	const float3 ViewDir = -ResolvedView.ViewForward;
 	const float3 Right = normalize(cross(WorldTangent, ViewDir));
 	const float3 OutWorldPosition = WorldPosition.xyz + (bIsLeft ? -Right : Right) * max(WorldStrandRadius, MinStrandHairRadius);
