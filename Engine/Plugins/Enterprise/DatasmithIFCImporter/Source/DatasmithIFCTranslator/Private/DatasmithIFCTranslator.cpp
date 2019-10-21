@@ -40,6 +40,7 @@ void ShowLogMessages(const TArray<IFC::FLogMessage>& Errors)
 void FDatasmithIFCTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCapabilities)
 {
 	OutCapabilities.bIsEnabled = true;
+	OutCapabilities.bParallelLoadStaticMeshSupported = true;
 
 	TArray<FFileFormatInfo>& Formats = OutCapabilities.SupportedFileFormats;
     Formats.Emplace(TEXT("ifc"), TEXT("IFC (Industry Foundation Classes)"));
@@ -73,7 +74,8 @@ bool FDatasmithIFCTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshElem
 {
 	if (ensure(Importer.IsValid()))
 	{
-		TArray<FMeshDescription> MeshDescriptions = Importer->GetGeometriesForMeshElement(MeshElement);
+		TArray<FMeshDescription> MeshDescriptions;
+		Importer->GetGeometriesForMeshElementAndRelease(MeshElement, MeshDescriptions);
 		if (MeshDescriptions.Num() > 0)
 		{
 			OutMeshPayload.LodMeshes.Add(MoveTemp(MeshDescriptions[0]));
