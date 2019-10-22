@@ -31,6 +31,8 @@ public:
 	void OnSetViewportConfiguration(FName ConfigurationName);
 	bool IsViewportConfigurationSet(FName ConfigurationName) const;
 
+	void GenerateLayoutMenu(FMenuBuilder& MenuBuilder) const;
+
 	TWeakPtr<class FAssetEditorViewportLayout> ParentLayout;
 
 protected:

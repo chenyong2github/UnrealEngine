@@ -91,8 +91,6 @@ public:
 	 */
  	TSharedRef<SWidget> BuildViewportLayout(TFunction<TSharedRef<SEditorViewport>(void)> &Func,  TSharedPtr<SDockTab> InParentDockTab, TSharedPtr<class FViewportTabContent> InParentTab, const FString& LayoutString );
 
-	static TSharedRef<SWidget> GenerateLayoutMenu(TSharedPtr<SAssetEditorViewport> AssetEditorViewport) ;
-
 	/** Returns the parent tab content object */
 	TWeakPtr< class FViewportTabContent > GetParentTabContent() const { return ParentTabContent; }
 
