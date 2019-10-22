@@ -166,7 +166,8 @@ namespace
 			TEXT("OculusVR"),
 			TEXT("SteamVR") };
 
-		if (!InProjectInfo.bEnableXR)
+		if (InProjectInfo.bEnableXR.IsSet() && 
+			InProjectInfo.bEnableXR.GetValue() == false)
 		{
 			for (const FString& Plugin : XRPlugins)
 			{
@@ -187,7 +188,8 @@ namespace
 	{
 		FString RaytracingConfig;
 
-		if (InProjectInfo.bEnableRaytracing)
+		if (InProjectInfo.bEnableRaytracing.IsSet() && 
+			InProjectInfo.bEnableRaytracing.GetValue() == true)
 		{
 			RaytracingConfig += LINE_TERMINATOR;
 			RaytracingConfig += TEXT("[/Script/WindowsTargetPlatform.WindowsTargetSettings]") LINE_TERMINATOR;
@@ -868,10 +870,24 @@ bool GameProjectUtils::CreateProject(const FProjectInformation& InProjectInfo, F
 		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("ProjectType"), InProjectInfo.bShouldGenerateCode ? TEXT("C++ Code") : TEXT("Content Only")));
 		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("Outcome"), bProjectCreationSuccessful ? TEXT("Successful") : TEXT("Failed")));
 
-		UEnum* Enum = StaticEnum<EHardwareClass::Type>();
-		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("HardwareClass"), Enum ? Enum->GetNameStringByValue(InProjectInfo.TargetedHardware) : FString()));
-		Enum = StaticEnum<EGraphicsPreset::Type>();
-		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("GraphicsPreset"), Enum ? Enum->GetNameStringByValue(InProjectInfo.DefaultGraphicsPerformance) : FString()));
+		if (InProjectInfo.TargetedHardware.IsSet())
+		{
+			UEnum* HardwareClassEnum = StaticEnum<EHardwareClass::Type>();
+			if (HardwareClassEnum != nullptr)
+			{
+				EventAttributes.Add(FAnalyticsEventAttribute(TEXT("HardwareClass"), HardwareClassEnum->GetNameStringByValue(InProjectInfo.TargetedHardware.GetValue())));
+			}
+		}
+
+		if (InProjectInfo.DefaultGraphicsPerformance.IsSet())
+		{
+			UEnum* GraphicsPresetEnum = StaticEnum<EGraphicsPreset::Type>();
+			if (GraphicsPresetEnum != nullptr)
+			{
+				EventAttributes.Add(FAnalyticsEventAttribute(TEXT("GraphicsPreset"), GraphicsPresetEnum->GetNameStringByValue(InProjectInfo.DefaultGraphicsPerformance.GetValue())));
+			}
+		}
+
 		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("StarterContent"), InProjectInfo.bCopyStarterContent ? TEXT("Yes") : TEXT("No")));
 		
 		FEngineAnalytics::GetProvider().RecordEvent( TEXT( "Editor.NewProject.ProjectCreated" ), EventAttributes );
@@ -1970,18 +1986,42 @@ void GameProjectUtils::DeleteCreatedFiles(const FString& RootFolder, const TArra
 
 FString GameProjectUtils::GetHardwareConfigString(const FProjectInformation& InProjectInfo)
 {
+	FString TargetHardwareString;
+	if (InProjectInfo.TargetedHardware.IsSet())
+	{
+		UEnum* HardwareClassEnum = StaticEnum<EHardwareClass::Type>();
+		if (HardwareClassEnum != nullptr)
+		{
+			HardwareClassEnum->GetValueAsString(InProjectInfo.TargetedHardware.GetValue(), /*out*/ TargetHardwareString);
+		}
+	}
+
+	FString GraphicsPresetString;
+	if (InProjectInfo.DefaultGraphicsPerformance.IsSet())
+	{
+		UEnum* GraphicsPresetEnum = StaticEnum<EGraphicsPreset::Type>();
+		if (GraphicsPresetEnum != nullptr)
+		{
+			GraphicsPresetEnum->GetValueAsString(InProjectInfo.DefaultGraphicsPerformance.GetValue(), /*out*/ GraphicsPresetString);
+		}
+	}
+
 	FString HardwareTargeting;
+	if (!TargetHardwareString.IsEmpty() || !GraphicsPresetString.IsEmpty())
+	{
+		HardwareTargeting += LINE_TERMINATOR;
+		HardwareTargeting += TEXT("[/Script/HardwareTargeting.HardwareTargetingSettings]") LINE_TERMINATOR;
+	}
 
-	FString TargetHardwareAsString;
-	UEnum::GetValueAsString(TEXT("/Script/HardwareTargeting.EHardwareClass"), InProjectInfo.TargetedHardware, /*out*/ TargetHardwareAsString);
+	if (!TargetHardwareString.IsEmpty())
+	{
+		HardwareTargeting += FString::Printf(TEXT("TargetedHardwareClass=%s") LINE_TERMINATOR, *TargetHardwareString);
+	}
 
-	FString GraphicsPresetAsString;
-	UEnum::GetValueAsString(TEXT("/Script/HardwareTargeting.EGraphicsPreset"), InProjectInfo.DefaultGraphicsPerformance, /*out*/ GraphicsPresetAsString);
-
-	HardwareTargeting += LINE_TERMINATOR;
-	HardwareTargeting += TEXT("[/Script/HardwareTargeting.HardwareTargetingSettings]") LINE_TERMINATOR;
-	HardwareTargeting += FString::Printf(TEXT("TargetedHardwareClass=%s") LINE_TERMINATOR, *TargetHardwareAsString);
-	HardwareTargeting += FString::Printf(TEXT("DefaultGraphicsPerformance=%s") LINE_TERMINATOR, *GraphicsPresetAsString);
+	if (!GraphicsPresetString.IsEmpty())
+	{
+		HardwareTargeting += FString::Printf(TEXT("DefaultGraphicsPerformance=%s") LINE_TERMINATOR, *GraphicsPresetString);
+	}
 
 	return MoveTemp(HardwareTargeting);
 }
