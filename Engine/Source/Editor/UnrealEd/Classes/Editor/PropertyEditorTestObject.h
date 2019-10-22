@@ -41,6 +41,16 @@ enum PropertyEditorTestEnum
 	PropertyEditorTest_MAX,
 };
 
+UENUM(meta = (Bitflags))
+enum class PropertyEditorTestBitflags : uint8
+{
+	First,
+	Second,
+	Third,
+	Hidden UMETA(Hidden, ToolTip = "This value shouldn't be used or even visible in the editor")
+};
+ENUM_CLASS_FLAGS(PropertyEditorTestBitflags)
+
 UENUM()
 enum ArrayLabelEnum
 {
@@ -319,6 +329,9 @@ class UPropertyEditorTestObject : public UObject
 
 	UPROPERTY(VisibleAnywhere, Category=AdvancedProperties)
 	UPrimitiveComponent* ObjectThatCannotBeChanged;
+
+	UPROPERTY(EditAnywhere, Category = AdvancedProperties, meta = (Bitmask, BitmaskEnum = "PropertyEditorTestBitflags"))
+	int32 EnumBitflags = 0;
 
 	UPROPERTY(EditAnywhere, Category=AdvancedProperties, meta=(PasswordField=true))
 	FString StringPasswordProperty;
