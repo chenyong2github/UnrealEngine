@@ -1012,15 +1012,13 @@ void FShaderResource::InitRHI()
 	{
 		if (GRHISupportsRayTracing)
 		{
-			RayTracingShader = RHICreateRayTracingShader(UncompressedCode, Target.GetFrequency());
+			RayTracingShader = FShaderCodeLibrary::CreateRayTracingShader((EShaderPlatform)Target.Platform, Target.GetFrequency(), OutputHash, UncompressedCode);
 			UE_CLOG((bCodeInSharedLocation && !IsValidRef(RayTracingShader)), LogShaders, Fatal, TEXT("FShaderResource::SerializeShaderCode can't find shader code for: [%s]"), *LegacyShaderPlatformToShaderFormat((EShaderPlatform)Target.Platform).ToString());
 
 			if (Target.Frequency == SF_RayHitGroup)
 			{
 				RayTracingMaterialLibraryIndex = AddToRayTracingLibrary(RayTracingShader);
 			}
-
-			RayTracingShader->SetHash(OutputHash);
 		}
 	}
 #endif // RHI_RAYTRACING
