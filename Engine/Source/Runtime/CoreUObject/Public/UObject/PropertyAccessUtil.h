@@ -253,4 +253,14 @@ namespace PropertyAccessUtil
 	 * @return True if the object instance is considered a template.
 	 */
 	COREUOBJECT_API bool IsObjectTemplate(const UObject* InObject);
+
+	/**
+	 * Low-level function to find a property by its name, following redirectors if it cannot be found.
+	 *
+	 * @param InPropName The name of the property to find.
+	 * @param InStruct The struct that should contain the property.
+	 *
+	 * @return The found property, or null if the property cannot be found.
+	 */
+	COREUOBJECT_API UProperty* FindPropertyByName(const FName InPropName, const UStruct* InStruct);
 }

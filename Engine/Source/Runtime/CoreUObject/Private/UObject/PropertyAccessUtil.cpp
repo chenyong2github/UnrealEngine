@@ -240,4 +240,25 @@ bool IsObjectTemplate(const UObject* InObject)
 	return InObject->IsTemplate() || InObject->IsAsset();
 }
 
+UProperty* FindPropertyByName(const FName InPropName, const UStruct* InStruct)
+{
+	UProperty* Prop = InStruct->FindPropertyByName(InPropName);
+
+	if (!Prop)
+	{
+		const FName NewPropName = UProperty::FindRedirectedPropertyName(const_cast<UStruct*>(InStruct), InPropName);
+		if (!NewPropName.IsNone())
+		{
+			Prop = InStruct->FindPropertyByName(NewPropName);
+		}
+	}
+
+	if (!Prop)
+	{
+		Prop = InStruct->CustomFindProperty(InPropName);
+	}
+
+	return Prop;
+}
+
 }
