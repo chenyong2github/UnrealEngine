@@ -187,7 +187,7 @@ TSharedRef<SWidget> SCommonEditorViewportToolbarBase::GenerateOptionsMenu() cons
  		TSharedPtr<SAssetEditorViewport> AssetEditorViewportPtr = StaticCastSharedRef<SAssetEditorViewport>(ViewportRef);
  		if (AssetEditorViewportPtr.IsValid())
 		{
-			OptionsMenuBuilder.BeginSection("LevelViewportLayouts");
+			OptionsMenuBuilder.BeginSection("EditorViewportLayouts");
 			{
 				OptionsMenuBuilder.AddSubMenu(
 					LOCTEXT("ConfigsSubMenu", "Layouts"),
