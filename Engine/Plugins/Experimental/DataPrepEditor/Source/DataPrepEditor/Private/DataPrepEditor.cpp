@@ -83,7 +83,6 @@ const FName FDataprepEditor::DetailsTabId(TEXT("DataprepEditor_Details"));
 const FName FDataprepEditor::DataprepAssetTabId(TEXT("DataprepEditor_Dataprep"));
 const FName FDataprepEditor::SceneViewportTabId(TEXT("DataprepEditor_SceneViewport"));
 const FName FDataprepEditor::DataprepStatisticsTabId(TEXT("DataprepEditor_Statistics"));
-const FName FDataprepEditor::ParameterizationDefaultTabId(TEXT("DataprepEditor_Parameterization"));
 
 static bool bLogTiming = true;
 
@@ -242,40 +241,6 @@ FDataprepEditor::~FDataprepEditor()
 	}
 }
 
-TSharedRef<SDockTab> FDataprepEditor::SpawnTabParameterization(const FSpawnTabArgs& Args)
-{
-	check(Args.GetTabId() == ParameterizationDefaultTabId);
-	FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-
-	FNotifyHook* NotifyHook = nullptr;
-
-	// Create a property view
-	FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-
-	FDetailsViewArgs::ENameAreaSettings NameAreaSettings = FDetailsViewArgs::ENameAreaSettings::HideNameArea;
-	FDetailsViewArgs DetailsViewArgs( /*bUpdateFromSelection=*/ false, /*bLockable=*/ false, /*bAllowSearch=*/ true, NameAreaSettings, /*bHideSelectionTip=*/ true, /*InNotifyHook=*/ NotifyHook, /*InSearchInitialKeyFocus=*/ false, NAME_None);
-	DetailsViewArgs.bShowOptions = false;
-	DetailsViewArgs.bShowPropertyMatrixButton = false;
-
-	TSharedRef<IDetailsView> DetailView = PropertyEditorModule.CreateDetailView( DetailsViewArgs );
-	if ( UObject* ParameterizationObject = DataprepAssetInterfacePtr->GetParameterizationObject() )
-	{
-		DetailView->SetObject( ParameterizationObject );
-	}
-
-	return SNew(SDockTab)
-		.Label(LOCTEXT("ParameterizationTab", "Parameterization"))
-		[
-			SNew(SBorder)
-			.Padding(2.f)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-			[
-				DetailView
-			]
-		];
-}
-
-
 FName FDataprepEditor::GetToolkitFName() const
 {
 	return FName("DataprepEditor");
@@ -303,10 +268,6 @@ void FDataprepEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& I
 	FAssetEditorToolkit::RegisterTabSpawners(InTabManager);
 
 	auto WorkspaceMenuCategoryRef = WorkspaceMenuCategory.ToSharedRef();
-
-	InTabManager->RegisterTabSpawner(ParameterizationDefaultTabId, FOnSpawnTab::CreateSP(this, &FDataprepEditor::SpawnTabParameterization))
-		.SetDisplayName(LOCTEXT("ParameterizationTab", "Parameterization"))
-		.SetGroup(WorkspaceMenuCategoryRef);
 
 	InTabManager->RegisterTabSpawner(ScenePreviewTabId, FOnSpawnTab::CreateSP(this, &FDataprepEditor::SpawnTabScenePreview))
 		.SetDisplayName(LOCTEXT("ScenePreviewTab", "Scene Preview"))
