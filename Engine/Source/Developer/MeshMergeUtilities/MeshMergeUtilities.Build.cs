@@ -24,6 +24,7 @@ public class MeshMergeUtilities : ModuleRules
                 "SkeletalMeshEditor",
                 "MaterialBaking",
                 "MeshUtilitiesCommon",
+				"ToolMenus",
             }
 		);
         

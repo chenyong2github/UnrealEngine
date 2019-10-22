@@ -5,6 +5,7 @@
 #include "WorkflowOrientedApp/WorkflowTabFactory.h"
 #include "WorkflowOrientedApp/WorkflowTabManager.h"
 #include "WorkflowOrientedApp/ApplicationMode.h"
+#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "WorkflowCentricApplication"
 
@@ -41,6 +42,18 @@ FName FWorkflowCentricApplication::GetToolMenuToolbarNameForMode(const FName InM
 	}
 
 	return BaseMenuName;
+}
+
+UToolMenu* FWorkflowCentricApplication::RegisterModeToolbarIfUnregistered(const FName InModeName)
+{
+	FName ParentToolbarName;
+	const FName ModeSpecificToolbarName = GetToolMenuToolbarNameForMode(InModeName, ParentToolbarName);
+	if (!UToolMenus::Get()->IsMenuRegistered(ModeSpecificToolbarName))
+	{
+		return UToolMenus::Get()->RegisterMenu(ModeSpecificToolbarName, ParentToolbarName, EMultiBoxType::ToolBar);
+	}
+
+	return nullptr;
 }
 
 FName FWorkflowCentricApplication::GetCurrentMode() const

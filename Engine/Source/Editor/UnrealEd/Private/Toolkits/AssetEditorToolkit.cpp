@@ -986,7 +986,7 @@ FName FAssetEditorToolkit::GetToolMenuToolbarName(FName& OutParentName) const
 	return *(TEXT("AssetEditor.") + GetToolMenuAppName().ToString() + TEXT(".ToolBar"));
 }
 
-void FAssetEditorToolkit::RegisterMenus()
+void FAssetEditorToolkit::RegisterDefaultToolBar()
 {
 	static const FName DefaultToolBarName("AssetEditor.DefaultToolBar");
 	UToolMenus* ToolMenus = UToolMenus::Get();
@@ -1010,7 +1010,7 @@ void FAssetEditorToolkit::GenerateToolbar()
 {
 	TSharedPtr<FExtender> Extender = FExtender::Combine(ToolbarExtenders);
 
-	RegisterMenus();
+	RegisterDefaultToolBar();
 
 	FName ParentToolbarName;
 	const FName ToolBarName = GetToolMenuToolbarName(ParentToolbarName);

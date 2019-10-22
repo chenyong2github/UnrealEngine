@@ -242,14 +242,6 @@ public:
 	/** Add context objects for menus and toolbars */
 	virtual void InitToolMenuContext(FToolMenuContext& MenuContext) override;
 
-	/**
-	* Registers toolbar for a mode if not already registered
-	*
-	* @param InModeName - Name of the mode to register toolbar for
-	* @return nullptr if toolbar already registered.
-	*/
-	UToolMenu* RegisterModeToolbarIfUnregistered(const FName InModeName);
-
 	/** Check the Node Title is visible */
 	bool IsNodeTitleVisible(const UEdGraphNode* Node, bool bRequestRename);
 

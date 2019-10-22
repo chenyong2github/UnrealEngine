@@ -1906,18 +1906,6 @@ void FBlueprintEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
 	MenuContext.AddObject(Context);
 }
 
-UToolMenu* FBlueprintEditor::RegisterModeToolbarIfUnregistered(const FName InModeName)
-{
-	FName ParentToolbarName;
-	const FName ModeSpecificToolBarName = GetToolMenuToolbarNameForMode(InModeName, ParentToolbarName);
-	if (!UToolMenus::Get()->IsMenuRegistered(ModeSpecificToolBarName))
-	{
-		return UToolMenus::Get()->RegisterMenu(ModeSpecificToolBarName, ParentToolbarName, EMultiBoxType::ToolBar);
-	}
-
-	return nullptr;
-}
-
 void FBlueprintEditor::InitalizeExtenders()
 {
 	TSharedPtr<FExtender> MenuExtender = MakeShareable(new FExtender);

@@ -179,7 +179,7 @@ public:
 	}
 
 	/** Registers default tool bar */
-	static void RegisterMenus();
+	static void RegisterDefaultToolBar();
 	
 	/** Makes a default asset editing toolbar */
 	void GenerateToolbar();
