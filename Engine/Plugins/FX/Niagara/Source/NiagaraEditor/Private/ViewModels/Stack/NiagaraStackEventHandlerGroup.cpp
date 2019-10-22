@@ -9,7 +9,6 @@
 #include "NiagaraEmitter.h"
 #include "NiagaraGraph.h"
 #include "NiagaraScriptSource.h"
-#include "ViewModels/Stack/NiagaraStackSpacer.h"
 #include "ViewModels/Stack/INiagaraStackItemGroupAddUtilities.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 
