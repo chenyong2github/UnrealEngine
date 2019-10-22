@@ -4,13 +4,15 @@
 
 #include "CoreMinimal.h"
 
+#include "CADOptions.h"
 #include "DatasmithCoreTechTranslator.h"
-#ifdef CAD_LIBRARY
-#include "CADLibraryOptions.h"
-#include "DatasmithCADTranslatorImpl.h"
+#include "DatasmithDispatcher.h"
+#include "DatasmithMeshBuilder.h"
+#include "DatasmithSceneGraphBuilder.h"
 #include "UObject/ObjectMacros.h"
-#endif
 
+class IDatasmithMeshElement;
+class FCoreTechParser;
 
 class FDatasmithCADTranslator : public FDatasmithCoreTechTranslator
 {
@@ -40,7 +42,13 @@ public:
 	// End ADatasmithCoreTechTranslator overrides
 
 private:
-	TSharedPtr<FDatasmithCADTranslatorImpl> Translator;
+	TMap<FString, FString> CADFileToUE4FileMap;
+	TMap<FString, FString> CADFileToUE4GeomMap;
+	TMap< TSharedPtr< IDatasmithMeshElement >, uint32 > MeshElementToCADBRepUuidMap;
+
+	CADLibrary::FImportParameters ImportParameters;
+
+	FDatasmithMeshBuilder MeshBuilder;
 #endif
 };
 

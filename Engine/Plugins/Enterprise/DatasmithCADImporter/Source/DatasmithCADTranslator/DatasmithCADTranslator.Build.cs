@@ -19,22 +19,24 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"Engine",
+					"CADInterfaces",
+					"CADLibrary",
+					"CADTools",
 					"DatasmithCore",
 					"DatasmithCoreTechExtension",
 					"DatasmithContent",
 					"DatasmithImporter",
+					"DatasmithDispatcher",
+					"Engine",
 					"MeshDescription",
-                    "CADLibrary",
-                }
+					"Sockets",
+				}
 			);
 
 			if (System.Type.GetType("CoreTech") != null)
 			{
 				PublicDependencyModuleNames.Add("CoreTech");
 			}
-
-            //PublicDefinitions.Add("USE_CORETECH_MT_PARSER");
-        }
-    }
+		}
+	}
 }

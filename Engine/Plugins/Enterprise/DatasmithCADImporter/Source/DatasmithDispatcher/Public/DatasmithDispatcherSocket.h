@@ -12,106 +12,106 @@
 namespace DatasmithDispatcher
 {
 
-	enum SocketErrorCode
-	{
-		NoError = 0,
-		UnableToReadOnSocket = 1,
-		UnableToSendData = 2,
-		CouldNotStartWSA = 3,
-		UnableToGetLocalAddress = 4,
-		ConnectionToServerFailed = 5
-	};
+enum SocketErrorCode
+{
+	NoError = 0,
+	UnableToReadOnSocket = 1,
+	UnableToSendData = 2,
+	CouldNotStartWSA = 3,
+	UnableToGetLocalAddress = 4,
+	ConnectionToServerFailed = 5
+};
 
-	class FDatasmithDispatcherSocket 
-	{
+class FDatasmithDispatcherSocket 
+{
 
-	public:
-		FDatasmithDispatcherSocket(const TCHAR* ServerAddress);
-		FDatasmithDispatcherSocket();
-		FDatasmithDispatcherSocket& operator=(const FDatasmithDispatcherSocket&) = delete;
+public:
+	FDatasmithDispatcherSocket(const TCHAR* ServerAddress);
+	FDatasmithDispatcherSocket();
+	FDatasmithDispatcherSocket& operator=(const FDatasmithDispatcherSocket&) = delete;
 			
-		void SetSocket(FSocket* InSocket);
+	void SetSocket(FSocket* InSocket);
 
-		int32 GetErrorCode() const
+	int32 GetErrorCode() const
+	{
+		return ErrorCode;
+	}
+
+	void Connect(const int32& ServerPort);
+
+	bool IsConnected();
+
+	void Bind();
+
+	bool Listen();
+	FSocket* Accept();
+
+	int32 GetPort() const
+	{
+		if (!Socket)
 		{
-			return ErrorCode;
+			return -1;
 		}
+		return Socket->GetPortNo();
+	}
 
-		void Connect(const int32& ServerPort);
+	void Close();
 
-		bool IsConnected();
+	template <typename T>
+	void operator >>(T &val)
+	{
+		Read(sizeof(val), (uint8*)&val);
+	}
 
-		void Bind();
+	template <typename T>
+	void operator <<(T val)
+	{
+		Write(sizeof(val), (uint8*)&val);
+	}
 
-		bool Listen();
-		FSocket* Accept();
+	void operator >>(FString& str);
+	void operator <<(const FString& str);
 
-		int32 GetPort() const
-		{
-			if (!Socket)
-			{
-				return -1;
-			}
-			return Socket->GetPortNo();
-		}
+	bool IsClosed() const 
+	{
+		return !bOpen;
+	}
 
-		void Close();
+	bool IsOpen() const
+	{
+		return bOpen;
+	}
 
-		template <typename T>
-		void operator >>(T &val)
-		{
-			Read(sizeof(val), (uint8*)&val);
-		}
+	FSocket* GetSocket()
+	{
+		return Socket;
+	}
 
-		template <typename T>
-		void operator <<(T val)
-		{
-			Write(sizeof(val), (uint8*)&val);
-		}
+	bool HasPendingData(uint32& DataSize);
 
-		void operator >>(FString& str);
-		void operator <<(const FString& str);
+	/**
+		* Actually send the buffered output cache
+		*/
+	void SendData();
 
-		bool IsClosed() const 
-		{
-			return !bOpen;
-		}
+private:
+	// low-level reading function
+	void Read(int32 Num, uint8 *Buffer);
 
-		bool IsOpen() const
-		{
-			return bOpen;
-		}
+	// low-level writing function
+	void Write(int32 Num, uint8 *Buffer);
 
-		FSocket* GetSocket()
-		{
-			return Socket;
-		}
+private:
+	TArray<uint8> Cache;
 
-		bool HasPendingData(uint32& DataSize);
+	FString SocketAdress;
+	int32 SocketId;
+	FSocket* Socket;
 
-		/**
-		 * Actually send the buffered output cache
-		 */
-		void SendData();
+	bool bServerSide;
+	bool bOpen;
 
-	private:
-		// low-level reading function
-		void Read(int32 Num, uint8 *Buffer);
-
-		// low-level writing function
-		void Write(int32 Num, uint8 *Buffer);
-
-	private:
-		TArray<uint8> Cache;
-
-		FString SocketAdress;
-		int32 SocketId;
-		FSocket* Socket;
-
-		bool bServerSide;
-		bool bOpen;
-
-		int32 ErrorCode;
-	};
+	int32 ErrorCode;
+};
 
 } //namespace DatasmithDispatcher

@@ -4,7 +4,6 @@
 #include "DatasmithOpenNurbsTranslatorModule.h"
 
 #ifdef CAD_LIBRARY
-#include "CADLibraryOptions.h"
 #include "CoreTechParametricSurfaceExtension.h"
 #endif
 #include "DatasmithMaterialElements.h"
@@ -612,7 +611,7 @@ public:
 		}
 
 #ifdef CAD_LIBRARY
-		LocalSession = CADLibrary::FRhinoCoretechWrapper::GetSharedSession(MetricUnit, ScalingFactor);
+		LocalSession = FRhinoCoretechWrapper::GetSharedSession(MetricUnit, ScalingFactor);
 #endif
 	}
 
@@ -635,6 +634,7 @@ public:
 	void SetTessellationOptions(const FDatasmithTessellationOptions& Options);
 	void SetOutputPath(const FString& Path) { OutputPath = Path; }
 	double GetScalingFactor () const { return ScalingFactor; }
+	double GetMetricUnit() const { return MetricUnit; }
 
 private:
 	void TranslateTextureMappingTable(const ON_ObjectArray<ON_TextureMapping>& TextureMappingTable);
@@ -677,7 +677,7 @@ private:
 	uint32 TessellationOptionsHash;
 
 #ifdef CAD_LIBRARY
-	TSharedPtr<CADLibrary::FRhinoCoretechWrapper> LocalSession;
+	TSharedPtr<FRhinoCoretechWrapper> LocalSession;
 #endif
 
 private:
@@ -3147,7 +3147,8 @@ bool FDatasmithOpenNurbsTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMe
 				CoreTechData->SourceFile = CoretechFile;
 				CoreTechData->RawData = MoveTemp(ByteArray);
 				CoreTechData->SceneParameters.ModelCoordSys = uint8(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded);
-				CoreTechData->SceneParameters.ScaleFactor = Translator->GetScalingFactor(); // Scale is set according to the Rhino file unit
+				CoreTechData->SceneParameters.ScaleFactor = Translator->GetScalingFactor();
+				CoreTechData->SceneParameters.MetricUnit = Translator->GetMetricUnit(); 
 				CoreTechData->LastTessellationOptions = GetCommonTessellationOptions();
 				OutMeshPayload.AdditionalData.Add(CoreTechData);
 			}

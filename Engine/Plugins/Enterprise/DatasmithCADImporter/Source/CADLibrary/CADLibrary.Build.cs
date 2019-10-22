@@ -14,7 +14,6 @@ public class CADLibrary : ModuleRules
 			new string[]
 			{
 				"Core",
-				"CoreUObject",
 				"DatasmithCore",
 				"MeshDescription",
 				"StaticMeshDescription"
@@ -38,6 +37,8 @@ public class CADLibrary : ModuleRules
 				new string[]
 				{
 					"CoreTech",
+					"CADInterfaces",
+					"CADTools"
 				}
 			);
 		}
