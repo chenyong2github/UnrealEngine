@@ -99,8 +99,15 @@ UActorComponent* FComponentPropertyPath::GetComponent() const
 					if (UObjectProperty* InnerProp = Cast<UObjectProperty>(ArrayProp->Inner))
 					{
 						FScriptArrayHelper ArrayHelper(ArrayProp, ArrayProp->ContainerPtrToValuePtr<void>(Actor));
-						UObject* Object = InnerProp->GetObjectPropertyValue(ArrayHelper.GetRawPtr(PropertyIndex));
-						Result = Cast<UActorComponent>(Object);
+						if (ArrayHelper.IsValidIndex(PropertyIndex))
+						{
+							UObject* Object = InnerProp->GetObjectPropertyValue(ArrayHelper.GetRawPtr(PropertyIndex));
+							Result = Cast<UActorComponent>(Object);
+						}
+						else
+						{
+							UE_LOG(LogTemp, Log, TEXT("HONO"));
+						}
 					}
 				}
 			}
