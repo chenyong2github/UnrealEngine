@@ -12,6 +12,7 @@
 #include "Generators/GridBoxMeshGenerator.h"
 #include "Generators/RectangleMeshGenerator.h"
 #include "Generators/SphereGenerator.h"
+#include "Generators/BoxSphereGenerator.h"
 #include "DynamicMeshAttributeSet.h"
 #include "StaticMeshComponentBuilder.h"
 #include "Drawing/MeshDebugDrawing.h"
@@ -91,7 +92,7 @@ namespace
 	  { TEXT("PlaceMode"),     EMakeMeshShapeType::All },
 	  { TEXT("PivotLocation"), EMakeMeshShapeType::All },
 	  { TEXT("Slices"),        EMakeMeshShapeType::Cylinder | EMakeMeshShapeType::Cone | EMakeMeshShapeType::Sphere },
-	  { TEXT("Subdivisions"),  EMakeMeshShapeType::Box | EMakeMeshShapeType::Plane | EMakeMeshShapeType::Cylinder | EMakeMeshShapeType::Cone }
+	  { TEXT("Subdivisions"),  EMakeMeshShapeType::Box | EMakeMeshShapeType::Plane | EMakeMeshShapeType::Cylinder | EMakeMeshShapeType::Cone | EMakeMeshShapeType::SphericalBox }
 	};
 };
 
@@ -272,6 +273,10 @@ void UAddPrimitiveTool::UpdatePreviewMesh()
 		GenerateSphere(&NewMesh);
 		break;
 
+	case EMakeMeshShapeType::SphericalBox:
+		GenerateSphericalBox(&NewMesh);
+		break;
+
 	case EMakeMeshShapeType::Box:
 	default:
 		GenerateBox(&NewMesh);
@@ -389,6 +394,18 @@ void UAddPrimitiveTool::GenerateSphere(FDynamicMesh3* OutMesh)
 	SphereGen.Radius = ShapeSettings->Width * 0.5f;
 	SphereGen.NumTheta = ShapeSettings->Slices;
 	SphereGen.NumPhi = ShapeSettings->Slices;
+	SphereGen.Generate();
+	OutMesh->Copy(&SphereGen);
+}
+
+
+void UAddPrimitiveTool::GenerateSphericalBox(FDynamicMesh3* OutMesh)
+{
+	FBoxSphereGenerator SphereGen;
+	SphereGen.Radius = ShapeSettings->Width * 0.5f;
+	SphereGen.Box = FOrientedBox3d(FVector3d::Zero(), 0.5*FVector3d(ShapeSettings->Width, ShapeSettings->Width, ShapeSettings->Width));
+	int EdgeNum = ShapeSettings->Subdivisions + 3;
+	SphereGen.EdgeVertices = FIndex3i(EdgeNum, EdgeNum, EdgeNum);
 	SphereGen.Generate();
 	OutMesh->Copy(&SphereGen);
 }

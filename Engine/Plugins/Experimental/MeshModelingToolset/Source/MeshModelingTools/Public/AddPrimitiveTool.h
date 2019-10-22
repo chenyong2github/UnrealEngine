@@ -43,7 +43,8 @@ enum class EMakeMeshShapeType : uint8
 	Cylinder = 0x02 UMETA(DisplayName = "Cylinder"),
 	Cone     = 0x04 UMETA(DisplayName = "Cone"),
 	Plane    = 0x08 UMETA(DisplayName = "Plane"),
-	Sphere   = 0x10 UMETA(DisplayName = "Sphere")
+	Sphere   = 0x10 UMETA(DisplayName = "Sphere"),
+	SphericalBox = 0x20 UMETA(DisplayName = "Spherical Box")
 };
 ENUM_CLASS_FLAGS(EMakeMeshShapeType);
 
@@ -188,4 +189,5 @@ protected:
 	void GenerateBox(FDynamicMesh3* OutMesh);
 	void GeneratePlane(FDynamicMesh3* OutMesh);
 	void GenerateSphere(FDynamicMesh3* OutMesh);
+	void GenerateSphericalBox(FDynamicMesh3* OutMesh);
 };
