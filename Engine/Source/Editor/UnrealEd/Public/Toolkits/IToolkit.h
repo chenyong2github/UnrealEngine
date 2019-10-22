@@ -144,7 +144,7 @@ public:
 	 * @param PaletteIndex      The index of the ToolPalette to build
 	 * @returns the name of Tool Palette 
 	 **/ 
-	virtual FText GetToolPaletteDisplayName(FName Palette) { return FText(); }
+	virtual FText GetToolPaletteDisplayName(FName Palette) const { return FText(); }
 
 	/** 
 	 * @param PaletteIndex      The index of the ToolPalette to build

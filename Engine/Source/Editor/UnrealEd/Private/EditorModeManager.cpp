@@ -726,8 +726,16 @@ void FEditorModeTools::RebuildModeToolBar()
 				{
 					TSharedRef<SWidget> PaletteWidget = Row.ToolbarWidget.ToSharedRef();
 
-					FEdMode* Mode = GetActiveMode(Row.ModeID);
-					TSharedPtr<FModeToolkit> RowToolkit = Mode->GetToolkit();
+					
+					TSharedPtr<FModeToolkit> RowToolkit;
+					if (FEdMode* Mode = GetActiveMode(Row.ModeID))
+					{
+						RowToolkit = Mode->GetToolkit();
+					}
+					else if (UEdMode* ScriptableMode = GetActiveScriptableMode(Row.ModeID))
+					{
+						RowToolkit = ScriptableMode->GetToolkit();
+					}
 
 					// Don't show Palette Tabs if there is only one
 					if (PaletteCount > 1)
@@ -1080,7 +1088,6 @@ void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
 					FToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(Mode->GetModeInfo().ToolbarCustomizationName), TSharedPtr<FExtender>(), Orient_Horizontal, false);
 					Toolkit->BuildToolPalette(Palette, ModeToolbarBuilder);
 
-					// ActiveToolBarRows.Emplace(Mode, Toolkit->GetToolPaletteName(i), ModeToolbarBuilder.MakeWidget());
 					ActiveToolBarRows.Emplace(Mode->GetID(), Palette, Toolkit->GetToolPaletteDisplayName(Palette), ModeToolbarBuilder.MakeWidget());
 					PaletteCount++;
 				}

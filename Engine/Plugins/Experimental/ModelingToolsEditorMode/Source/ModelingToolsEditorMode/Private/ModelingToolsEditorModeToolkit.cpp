@@ -237,7 +237,7 @@ void FModelingToolsEditorModeToolkit::GetToolPaletteNames(TArray<FName>& InPalet
 }
 
 
-FText FModelingToolsEditorModeToolkit::GetToolPaletteDisplayName(FName Palette) 
+FText FModelingToolsEditorModeToolkit::GetToolPaletteDisplayName(FName Palette) const
 { 
 	return FText::FromName(Palette);
 }
