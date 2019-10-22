@@ -43,48 +43,9 @@ public:
 	class FUVGenerationFlattenMappingToolbar* Owner;
 };
 
-//Local actions that can be invoked from this toolbar
-class FUVGenerationFlattenMappingCommands : public TCommands<FUVGenerationFlattenMappingCommands>
-{
-public:
-	FUVGenerationFlattenMappingCommands();
-
-	// TCommands<> interface
-	virtual void RegisterCommands() override;
-	// End of TCommands<> interface
-
-public:
-	/** CommandInfo associated with the EditMode button in the toolbar */
-	TSharedPtr<FUICommandInfo> UnwrapUV;
-};
-
 class FUVGenerationFlattenMappingToolbar : public TSharedFromThis<FUVGenerationFlattenMappingToolbar>
 {
 public:
-	FUVGenerationFlattenMappingToolbar();
-	virtual ~FUVGenerationFlattenMappingToolbar();
-
-	/** Add UV unwrapping items to the StaticMesh Editor's toolbar */
-	static void CreateToolbar(FToolBarBuilder& ToolbarBuilder, const TSharedRef<FUICommandList> CommandList, UStaticMesh* StaticMesh);
-
-private:
-	/** Initialize the toolbar */
-	bool Initialize(UStaticMesh* InStaticMesh, const TSharedRef<FUICommandList> CommandList);
-
-	/** Populate the toolbar */
-	void PopulateToolbar(FToolBarBuilder& ToolbarBuilder, const TSharedRef<FUICommandList> CommandList);
-
-	/** Registers and bind the commands to the toolbar */
-	void BindCommands(const TSharedPtr<FUICommandList> CommandList);
-
-	/** Pointer to the edited static mesh */
-	UStaticMesh* StaticMesh;
-
-	/** Pointer to the static mesh editor */
-	IStaticMeshEditor* StaticMeshEditor;
-
-	/** Pointer to the command list to which the commands are bound to */
-	TSharedPtr<FUICommandList> BoundCommandList;
-
-	TStrongObjectPtr<UUVGenerationFlattenMappingToolbarProxyObject> UVGenerationFlattenMappingToolbarProxyObject;
+	/** Add UV unwrapping menu entry item to the StaticMesh Editor's toolbar */
+	static void CreateMenu(FMenuBuilder& ParentMenuBuilder, const TSharedRef<FUICommandList> CommandList, UStaticMesh* InStaticMesh);
 };

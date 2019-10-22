@@ -170,6 +170,13 @@ TSharedRef<FExtender> FStaticMeshEditorExtensionModule::ExtendStaticMeshEditorTo
 		FMenuExtensionDelegate::CreateStatic(&FUVGenerationToolbar::CreateUVMenu, CommandList, Cast<UStaticMesh>(Objects[0]))
 	);
 
+	Extender->AddMenuExtension(
+		"UVActionOptions",
+		EExtensionHook::First,
+		CommandList,
+		FMenuExtensionDelegate::CreateStatic(&FUVGenerationFlattenMappingToolbar::CreateMenu, CommandList, Cast<UStaticMesh>(Objects[0]))
+	);
+
 	return Extender;
 }
 
@@ -186,13 +193,6 @@ TSharedRef<FExtender> FStaticMeshEditorExtensionModule::ExtendStaticMeshEditorSe
 		EExtensionHook::After,
 		CommandList,
 		FToolBarExtensionDelegate::CreateStatic(&FPolygonEditingToolbar::CreateToolbar, CommandList, Cast<UStaticMesh>(Objects[0]) )
-	);
-
-	Extender->AddToolBarExtension(
-		"Extensions",
-		EExtensionHook::After,
-		CommandList,
-		FToolBarExtensionDelegate::CreateStatic(&FUVGenerationFlattenMappingToolbar::CreateToolbar, CommandList, Cast<UStaticMesh>(Objects[0]))
 	);
 
 	return Extender;
