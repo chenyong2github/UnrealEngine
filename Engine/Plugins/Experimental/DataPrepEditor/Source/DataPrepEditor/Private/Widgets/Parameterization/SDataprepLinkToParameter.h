@@ -9,6 +9,7 @@
 #include "UObject/GCObject.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/Views/SListView.h"
 
 class UDataprepAsset;
 class UDataprepParameterizableObject;
