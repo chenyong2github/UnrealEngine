@@ -7,7 +7,7 @@ set -x  # print commands
 # --------------------------------------------------------------------------------
 # remember to source your emscripten's env settings before using this script:
 #   e.g.> source .../emsdk_clone/emsdk_env.sh
-# a.k.a.> . .../emsdk_clone/emsdk_set_env.sh
+# a.k.a.> . .../emsdk_clone/emsdk_env.sh
 
 
 # --------------------------------------------------------------------------------
@@ -44,26 +44,26 @@ TPS_HTML5_SCRIPTS="$(pwd)/ThirdParty"
 # --------------------------------------------------------------------------------
 
 # build all ThirdParty libs for HTML5
-# from the simplest to build to the most complex and dependancy order
 
 cd "$TPS_HTML5_SCRIPTS"/zlib;      ./build_html5_zlib.sh
 cd "$TPS_HTML5_SCRIPTS"/libPNG;    ./build_html5_libPNG.sh
-cd "$TPS_HTML5_SCRIPTS"/FreeType2; ./build_html5_FreeType2.sh
+
 cd "$TPS_HTML5_SCRIPTS"/Ogg;       ./build_html5_Ogg.sh
 cd "$TPS_HTML5_SCRIPTS"/Vorbis;    ./build_html5_Vorbis.sh
+cd "$TPS_HTML5_SCRIPTS"/libOpus;   ./build_html5_libOpus.sh
 
 # WARNING: building ICU might take a while...
 cd "$TPS_HTML5_SCRIPTS"/ICU;       ./build_html5_ICU.sh
+
 cd "$TPS_HTML5_SCRIPTS"/HarfBuzz;  ./build_html5_HarfBuzz.sh
+
+cd "$TPS_HTML5_SCRIPTS"/FreeType2; ./build_html5_FreeType2.sh
 
 # WARNING: building PhysX might take a while...
 cd "$TPS_HTML5_SCRIPTS"/PhysX3;    ./build_html5_PhysX3.sh
 
 # WARNING: building SDL2 might take a while...
 cd "$TPS_HTML5_SCRIPTS"/SDL2;      ./build_html5_SDL2.sh
-
-# NEW!
-cd "$TPS_HTML5_SCRIPTS"/libOpus;      ./build_html5_libOpus.sh
 
 
 cd "$TPS_HTML5_SCRIPTS"
