@@ -14,7 +14,10 @@ AGroomActor::AGroomActor(const FObjectInitializer& ObjectInitializer)
 	GroomComponent = CreateDefaultSubobject<UGroomComponent>(TEXT("GroomComponent0"));
 	RootComponent = GroomComponent;
 
+// Disable in editor icon as this bias the actor bounds size, and prevent to have 
+// accurate focusing on the groom component.
 #if WITH_EDITOR
+#if 0
 	struct FConstructorStatics
 	{
 		FName ID_Sprite;
@@ -44,6 +47,7 @@ AGroomActor::AGroomActor(const FObjectInitializer& ObjectInitializer)
 		SpriteComponent->bIsScreenSizeScaled = true;
 		SpriteComponent->SetupAttachment(RootComponent);
 	}
+#endif
 #endif
 }
 
