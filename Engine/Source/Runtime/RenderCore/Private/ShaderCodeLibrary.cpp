@@ -424,6 +424,7 @@ public:
 		, LibraryDir(InLibraryDir)
 		, LibraryCodeOffset(0)
 		, LibraryAsyncFileHandle(nullptr)
+		, InFlightAsyncReadRequests(0)
 	{
 		FName PlatformName = LegacyShaderPlatformToShaderFormat(InPlatform);
 		FString DestFilePath = GetCodeArchiveFilename(LibraryDir, LibraryName, PlatformName);
@@ -462,6 +463,33 @@ public:
 
 	virtual ~FShaderCodeArchive()
 	{
+		if(LibraryAsyncFileHandle != nullptr)
+		{
+			UE_LOG(LogShaderLibrary, Display, TEXT("FShaderCodeArchive: Shutting down %s"), *GetName());
+
+			FScopeLock ScopeLock(&ReadRequestLock);
+
+			const int64 OutstandingReads = FPlatformAtomics::AtomicRead(&InFlightAsyncReadRequests);
+			if(OutstandingReads > 0)
+			{
+				const float MaxWaitTimePerRead = 1.f / 60.f;
+				UE_LOG(LogShaderLibrary, Warning, TEXT("FShaderCodeArchive: Library %s has %d inflight requests to LibraryAsyncFileHandle - cancelling and waiting %f seconds each for them to finish."), *GetName(), OutstandingReads, MaxWaitTimePerRead);
+
+				for(auto& Pair : Shaders)
+				{
+					FShaderCodeEntry& Entry = Pair.Value;
+					TSharedPtr<IAsyncReadRequest, ESPMode::ThreadSafe> LocalReadRequest = Entry.ReadRequest.Pin();
+					if(LocalReadRequest.IsValid())
+					{
+						LocalReadRequest->Cancel();
+						LocalReadRequest->WaitCompletion(MaxWaitTimePerRead);
+					}
+				}
+			}
+
+			delete LibraryAsyncFileHandle;
+			LibraryAsyncFileHandle = nullptr;
+		}
 	}
 
 	virtual bool IsLibraryNativeFormat() const { return false; }
@@ -561,6 +589,8 @@ public:
 
 			if (bHasReadRequest)
 			{
+				FPlatformAtomics::InterlockedAdd(&InFlightAsyncReadRequests, 1);
+			
 				FExternalReadCallback ExternalReadCallback = [this, Entry, LocalReadRequest](double ReaminingTime)
 				{
 					return this->OnExternalReadCallback(LocalReadRequest, Entry, ReaminingTime);
@@ -602,6 +632,8 @@ public:
 #if DO_CHECK
 		Entry->bReadCompleted = 1;
 #endif
+
+		FPlatformAtomics::InterlockedAdd(&InFlightAsyncReadRequests, -1);
 		
 		return true;
 	}
@@ -861,6 +893,9 @@ private:
 	// Library file handle for async reads
 	IAsyncReadFileHandle* LibraryAsyncFileHandle;
 	FCriticalSection ReadRequestLock;
+	
+	// A count of the number of LibraryAsync Read Requests in flight
+	volatile int64 InFlightAsyncReadRequests;
 
 	// The shader code present in the library
 	TMap<FSHAHash, FShaderCodeEntry> Shaders;
