@@ -985,6 +985,8 @@ void UPlayerInput::ProcessNonAxesKeys(FKey InKey, FKeyState* KeyState)
 
 void UPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& InputComponentStack, const float DeltaTime, const bool bGamePaused)
 {
+	ConditionalBuildKeyMappings();
+
 	// We collect axis contributions by delegate, so we can sum up 
 	// contributions from multiple bindings.
 	struct FAxisDelegateDetails
