@@ -122,10 +122,11 @@ struct FEditorModeFactory : IEditorModeFactory
 	virtual bool ForScriptableMode() const override { return false; }
 };
 
-class UEditorModeFactory : public UObject, public IEditorModeFactory
+struct UNREALED_API FScriptableEditorModeFactory : IEditorModeFactory
 {
-	UEditorModeFactory(FEditorModeInfo InModeInfo) : ModeInfo(InModeInfo) {}
-	virtual ~UEditorModeFactory() {}
+public:
+	FScriptableEditorModeFactory(FEditorModeInfo InModeInfo) : ModeInfo(InModeInfo) {}
+	virtual ~FScriptableEditorModeFactory() {}
 
 	/** Information pertaining to this factory's mode */
 	FEditorModeInfo ModeInfo;
@@ -205,6 +206,23 @@ public:
 		Factory->FactoryCallback = FEditorModeFactoryCallback::CreateStatic([]() -> TSharedRef<FEdMode>{
 			return MakeShareable(new T);
 		});
+		RegisterMode(ModeID, Factory);
+	}
+
+	/**
+ * Registers an editor mode type. Typically called from a module's StartupModule() routine.
+ *
+ * @param ModeID	ID of the mode to register
+ */
+	template<class T>
+	void RegisterScriptableMode(FEditorModeID ModeID, FText Name = FText(), FSlateIcon IconBrush = FSlateIcon(), bool bVisible = false, int32 PriorityOrder = MAX_int32)
+	{
+		TSharedRef<FScriptableEditorModeFactory> Factory = MakeShareable(new FScriptableEditorModeFactory(FEditorModeInfo(ModeID, Name, IconBrush, bVisible, PriorityOrder)));
+
+		Factory->FactoryDelegate = FEditorModeFactoryDelegate::CreateStatic([]() -> UEdMode* {
+			return NewObject<T>();
+		});
+
 		RegisterMode(ModeID, Factory);
 	}
 
