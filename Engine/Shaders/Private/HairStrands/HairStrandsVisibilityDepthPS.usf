@@ -9,6 +9,10 @@
 
 Texture2DMS<float, HAIR_VISIBILITY_MAXSAMPLECOUNT> HairVisibilityDepthTexture;
 
+#if PERMUTATION_COVERAGE == 1
+Texture2D<float> CoverageTexture;
+#endif
+
 void MainPS(
 	in FScreenVertexOutput Input,
 	out float SvDepth		: SV_Depth,
@@ -29,7 +33,11 @@ void MainPS(
 		ValidSampleCount += bIsValid ? 1 : 0;
 	}
 
-	if (ValidSampleCount < HAIR_VISIBILITY_MAXSAMPLECOUNT || MaxDepth == 0)
+	if (ValidSampleCount < HAIR_VISIBILITY_MAXSAMPLECOUNT
+#if PERMUTATION_COVERAGE == 1
+		|| CoverageTexture.Load(uint3(PixelCoord, 0))<1.0f
+#endif
+		)
 		discard;
 
 	SvDepth = MinDepth;
