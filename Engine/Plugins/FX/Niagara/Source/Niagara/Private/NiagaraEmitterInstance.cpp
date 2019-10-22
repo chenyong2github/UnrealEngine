@@ -1546,7 +1546,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 					EventExecCountBindings[EventScriptIdx].SetValue(EventNumToSpawn);
 
 					EventExecContexts[EventScriptIdx].BindData(0, Data, EventSpawnStart, false);
-					EventExecContexts[EventScriptIdx].BindData(1, EventHandlingInfo[EventScriptIdx].EventData, nullptr, i, false);
+					EventExecContexts[EventScriptIdx].BindData(1, EventHandlingInfo[EventScriptIdx].EventData, i, false);
 					EventExecContexts[EventScriptIdx].Execute(EventNumToSpawn);
 
 					if (GbDumpParticleData || System->bDumpDebugEmitterInfo)
@@ -1605,7 +1605,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 					EventExecCountBindings[EventScriptIdx].SetValue(NumInstancesPrev);
 
 					EventExecContexts[EventScriptIdx].BindData(0, Data, 0, true);
-					EventExecContexts[EventScriptIdx].BindData(1, EventData, nullptr, i, false);
+					EventExecContexts[EventScriptIdx].BindData(1, EventData, i, false);
 					EventExecContexts[EventScriptIdx].Execute(NumInstancesPrev);
 
 					Data.EndSimulate();
