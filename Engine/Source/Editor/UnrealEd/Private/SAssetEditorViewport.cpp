@@ -6,6 +6,7 @@
 #include "UnrealEdGlobals.h"
 #include "EditorViewportCommands.h"
 #include "EditorViewportTabContent.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "SAssetEditorViewport"
 
