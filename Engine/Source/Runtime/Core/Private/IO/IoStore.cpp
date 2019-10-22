@@ -1,3 +1,5 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
 #include "IO/IoStore.h"
 #include "Containers/Map.h"
 #include "HAL/FileManager.h"
@@ -32,7 +34,7 @@ public:
 	{
 	}
 
-	FIoStatus Open()
+	FIoStatus Initialize()
 	{
 		IPlatformFile& Ipf = IPlatformFile::GetPlatformPhysical();
 
@@ -178,15 +180,20 @@ FIoStoreWriter::~FIoStoreWriter()
 
 FIoStatus FIoStoreWriter::Initialize()
 {
-	return Impl->Open();
+	return Impl->Initialize();
 }
 
-void FIoStoreWriter::Append(FIoChunkId ChunkId, FIoBuffer Chunk)
+FIoStatus FIoStoreWriter::Append(FIoChunkId ChunkId, FIoBuffer Chunk)
 {
-	Impl->Append(ChunkId, Chunk);
+	return Impl->Append(ChunkId, Chunk);
 }
 
-void FIoStoreWriter::FlushMetadata()
+FIoStatus FIoStoreWriter::MapPartialRange(FIoChunkId OriginalChunkId, uint64 Offset, uint64 Length, FIoChunkId ChunkIdPartialRange)
 {
-	Impl->FlushMetadata();
+	return Impl->MapPartialRange(OriginalChunkId, Offset, Length, ChunkIdPartialRange);
+}
+
+FIoStatus FIoStoreWriter::FlushMetadata()
+{
+	return Impl->FlushMetadata();
 }
