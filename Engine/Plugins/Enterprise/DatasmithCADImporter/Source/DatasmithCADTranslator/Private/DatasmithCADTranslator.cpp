@@ -93,7 +93,7 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 	Dispatcher.AddTask(FPaths::ConvertRelativePathToFull(GetSource().GetSourceFile()));
 
 	bool bEnableMultiProcess = (NumCores != 1);
-	Dispatcher.Process(bEnableMultiProcess);
+	Dispatcher.Process(false && bEnableMultiProcess);
 	Dispatcher.Clear();
 
 	FDatasmithSceneGraphBuilder SceneGraphBuilder(CADFileToUE4FileMap, MeshElementToCADBRepUuidMap,  CachePath, DatasmithScene, GetSource(), ImportParameters);
