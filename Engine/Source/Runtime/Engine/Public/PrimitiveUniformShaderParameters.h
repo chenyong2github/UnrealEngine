@@ -224,9 +224,10 @@ struct FPrimitiveSceneShaderData
 	ENGINE_API FPrimitiveSceneShaderData(const class FPrimitiveSceneProxy* RESTRICT Proxy);
 
 	ENGINE_API void Setup(const FPrimitiveUniformShaderParameters& PrimitiveUniformShaderParameters);
+	ENGINE_API static uint16 GetPrimitivesPerTextureLine();
 };
 
-class ENGINE_VTABLE FSinglePrimitiveStructuredBuffer : public FRenderResource
+class ENGINE_VTABLE FSinglePrimitiveStructured : public FRenderResource
 {
 public:
 
@@ -236,17 +237,24 @@ public:
 	{
 		PrimitiveSceneDataBufferRHI.SafeRelease();
 		PrimitiveSceneDataBufferSRV.SafeRelease();
+		PrimitiveSceneDataTextureRHI.SafeRelease();
+		PrimitiveSceneDataTextureSRV.SafeRelease();
 		LightmapSceneDataBufferRHI.SafeRelease();
 		LightmapSceneDataBufferSRV.SafeRelease();
 	}
 
 	ENGINE_API void UploadToGPU();
 
+	EShaderPlatform ShaderPlatform;
+
 	FPrimitiveSceneShaderData PrimitiveSceneData;
 	FLightmapSceneShaderData LightmapSceneData;
 
 	FStructuredBufferRHIRef PrimitiveSceneDataBufferRHI;
 	FShaderResourceViewRHIRef PrimitiveSceneDataBufferSRV;
+
+	FTexture2DRHIRef PrimitiveSceneDataTextureRHI;
+	FShaderResourceViewRHIRef PrimitiveSceneDataTextureSRV;
 
 	FStructuredBufferRHIRef LightmapSceneDataBufferRHI;
 	FShaderResourceViewRHIRef LightmapSceneDataBufferSRV;
@@ -256,5 +264,5 @@ public:
 * Default Primitive data buffer.  
 * This is used when the VF is used for rendering outside normal mesh passes, where there is no valid scene.
 */
-extern ENGINE_API TGlobalResource<FSinglePrimitiveStructuredBuffer> GIdentityPrimitiveBuffer;
-extern ENGINE_API TGlobalResource<FSinglePrimitiveStructuredBuffer> GTilePrimitiveBuffer;
+extern ENGINE_API TGlobalResource<FSinglePrimitiveStructured> GIdentityPrimitiveBuffer;
+extern ENGINE_API TGlobalResource<FSinglePrimitiveStructured> GTilePrimitiveBuffer;
