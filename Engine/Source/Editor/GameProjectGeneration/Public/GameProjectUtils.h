@@ -35,6 +35,9 @@ struct FProjectInformation
 
 	TOptional<EHardwareClass::Type> TargetedHardware;
 	TOptional<EGraphicsPreset::Type> DefaultGraphicsPerformance;
+
+	/** The name of the feature pack to use as starter content. Must be located under FeaturePacks\. */
+	FString StarterContent;
 };
 
 DECLARE_DELEGATE_RetVal_OneParam(bool, FProjectDescriptorModifier, FProjectDescriptor&);
@@ -150,9 +153,6 @@ public:
 	*/
 	static void GetProjectSourceDirectoryInfo(int32& OutNumFiles, int64& OutDirectorySize);
 
-	/** Returns the uproject template filename for the default project template. */
-	static FString GetDefaultProjectTemplateFilename();
-
 	/** Compiles a project while showing a progress bar, and offers to open the IDE if it fails. */
 	static bool BuildCodeProject(const FString& ProjectFilename);
 
@@ -160,7 +160,7 @@ public:
 	static bool GenerateCodeProjectFiles(const FString& ProjectFilename, FText& OutFailReason, FText& OutFailLog);
 
 	/** Returns true if there are starter content files available for instancing into new projects. */
-	static bool IsStarterContentAvailableForNewProjects();
+	static bool IsStarterContentAvailableForProject(const FProjectInformation& ProjectInfo);
 
 	/**
 	 * Get the information about any modules referenced in the .uproject file of the currently loaded project
@@ -281,6 +281,10 @@ public:
 
 private:
 
+	/** Get the name of the starter content pack to use for the given project. */
+	static FString GetStarterContentName(const FProjectInformation& InProjectInfo);
+
+	/** Get the config string for the hardware target for the given project. */
 	static FString GetHardwareConfigString(const FProjectInformation& InProjectInfo);
 
 	/** Generates a new project without using a template project */
@@ -487,7 +491,6 @@ private:
 	 */
 	static bool UpdateRequiredAdditionalDependencies(FProjectDescriptor& Descriptor, TArray<FString>& RequiredDependencies, const FString& ModuleName);
 
-private:
 	/**
 	 * Updates the projects and modifies FProjectDescriptor accordingly to given modifier.
 	 *
@@ -506,6 +509,8 @@ private:
 	 * @return true, if successful
 	 */
 	static bool UpdateGameProjectFile_Impl(const FString& ProjectFilename, const FString& EngineIdentifier, const FProjectDescriptorModifier* Modifier, FText& OutFailReason);
+
+private:
 
 	static TWeakPtr<SNotificationItem> UpdateGameProjectNotification;
 	static TWeakPtr<SNotificationItem> WarningProjectNameNotification;
