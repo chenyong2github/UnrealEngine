@@ -1464,8 +1464,9 @@ FFinalGatherSample FStaticLightingSystem::CachePointIncomingRadiance(
 	const int32 BounceNumber = 1;
 	FFinalGatherSample IndirectLighting;
 	FFinalGatherSample UnusedSecondLighting;
+	float UnusedBackfacingHitsFraction;
 	// Attempt to interpolate incoming radiance from the lighting cache
-	if (!IrradianceCachingSettings.bAllowIrradianceCaching || !MappingContext.FirstBounceCache.InterpolateLighting(Vertex, true, bDebugThisTexel, 1.0f , IndirectLighting, UnusedSecondLighting, MappingContext.DebugCacheRecords))
+	if (!IrradianceCachingSettings.bAllowIrradianceCaching || !MappingContext.FirstBounceCache.InterpolateLighting(Vertex, true, bDebugThisTexel, 1.0f , IndirectLighting, UnusedSecondLighting, UnusedBackfacingHitsFraction, MappingContext.DebugCacheRecords))
 	{
 		// If final gathering is disabled, all indirect lighting will be estimated using photon mapping.
 		// This is really only useful for debugging since it requires an excessive number of indirect photons to get indirect shadows for the first bounce.
