@@ -56,6 +56,7 @@ void FPlacementMode::Exit()
 	if ( Toolkit.IsValid() )
 	{
 		FToolkitManager::Get().CloseToolkit( Toolkit.ToSharedRef() );
+		Toolkit.Reset();
 	}
 
 	// Call parent implementation
