@@ -1402,7 +1402,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 										SubPixelRayTracingShadowMaskUAV,
 										SubPixelRayHitDistanceUAV);
 
-									TRefCountPtr<IPooledRenderTarget>* RefDestination = &PreprocessedShadowMaskSubPixelTextures[LightIndex - AttenuationLightStart];
+									TRefCountPtr<IPooledRenderTarget>* RefDestination = &PreprocessedShadowMaskSubPixelTextures[LightBatchIndex - AttenuationLightStart];
 									check(*RefDestination == nullptr);
 
 									GraphBuilder.QueueTextureExtraction(SubPixelRayTracingShadowMaskTexture, RefDestination);
