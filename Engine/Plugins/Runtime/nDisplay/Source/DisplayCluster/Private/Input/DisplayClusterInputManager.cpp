@@ -10,8 +10,6 @@
 #include "Devices/VRPN/Tracker/DisplayClusterVrpnTrackerInputDevice.h"
 #include "Devices/VRPN/Keyboard/DisplayClusterVrpnKeyboardInputDevice.h"
 
-#include "DisplayClusterGameMode.h"
-
 #include "DisplayClusterGlobals.h"
 #include "DisplayClusterLog.h"
 #include "DisplayClusterStrings.h"
@@ -79,6 +77,14 @@ bool FDisplayClusterInputManager::StartScene(UWorld* pWorld)
 void FDisplayClusterInputManager::EndScene()
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInput);
+}
+
+void FDisplayClusterInputManager::StartFrame(uint64 FrameNum)
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInput);
+
+	// Update input state
+	Update();
 }
 
 void FDisplayClusterInputManager::PreTick(float DeltaSeconds)
@@ -365,49 +371,57 @@ void FDisplayClusterInputManager::Update()
 				}
 			}
 		}
+
 		UE_LOG(LogDisplayClusterInput, Verbose, TEXT("Input update finished"));
-	
-		// Update input data cache for slave nodes
-		UpdateInputDataCache();
 	}
 }
 
-void FDisplayClusterInputManager::ExportInputData(FDisplayClusterMessage::DataType& data) const
+void FDisplayClusterInputManager::ExportInputData(FDisplayClusterMessage::DataType& InputData) const
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInput);
 
 	FScopeLock ScopeLock(&InternalsSyncScope);
 
-	// Get data from cache
-	data = PackedTransferData;
+	// Clear container before put some data
+	InputData.Empty(InputData.Num() | 0x07);
+
+	for (auto DevClassIt = Devices.CreateConstIterator(); DevClassIt; ++DevClassIt)
+	{
+		for (auto DevIt = DevClassIt->Value.CreateConstIterator(); DevIt; ++DevIt)
+		{
+			const FString key = FString::Printf(TEXT("%d%s%s"), DevClassIt->Key, SerializationDeviceTypeNameDelimiter, *DevIt->Key);
+			const FString val = DevIt->Value->SerializeToString();
+			UE_LOG(LogDisplayClusterInput, VeryVerbose, TEXT("Input device %d:%s serialized: <%s, %s>"), DevClassIt->Key, *DevIt->Key, *key, *val);
+			InputData.Add(key, val);
+		}
+	}
 }
 
-void FDisplayClusterInputManager::ImportInputData(const FDisplayClusterMessage::DataType& data)
+void FDisplayClusterInputManager::ImportInputData(const FDisplayClusterMessage::DataType& InputData)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInput);
 
 	FScopeLock ScopeLock(&InternalsSyncScope);
 
-	for (auto rec : data)
+	for (const auto& DataItem : InputData)
 	{
-		FString strClassId;
-		FString strDevId;
-		if (rec.Key.Split(FString(SerializationDeviceTypeNameDelimiter), &strClassId, &strDevId))
+		FString DevClassId;
+		FString DevId;
+		if (DataItem.Key.Split(FString(SerializationDeviceTypeNameDelimiter), &DevClassId, &DevId))
 		{
-			UE_LOG(LogDisplayClusterInput, VeryVerbose, TEXT("Deserializing input device: <%s, %s>"), *rec.Key, *rec.Value);
+			UE_LOG(LogDisplayClusterInput, VeryVerbose, TEXT("Deserializing input device: <%s, %s>"), *DataItem.Key, *DataItem.Value);
 
-			int classId = FCString::Atoi(*strClassId);
+			int classId = FCString::Atoi(*DevClassId);
 			if (Devices.Contains(classId))
 			{
-				if (Devices[classId].Contains(strDevId))
+				if (Devices[classId].Contains(DevId))
 				{
-					Devices[classId][strDevId]->DeserializeFromString(rec.Value);
+					Devices[classId][DevId]->DeserializeFromString(DataItem.Value);
 				}
 			}
 		}
 	}
 }
-
 
 bool FDisplayClusterInputManager::GetAxisData(const FString& devId, const uint8 channel, FDisplayClusterVrpnAnalogChannelData&  data) const
 {
@@ -584,25 +598,4 @@ void FDisplayClusterInputManager::ReleaseDevices()
 
 	UE_LOG(LogDisplayClusterInput, Log, TEXT("Releasing input devices..."));
 	Devices.Empty();
-}
-
-void FDisplayClusterInputManager::UpdateInputDataCache()
-{
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInput);
-
-	FScopeLock ScopeLock(&InternalsSyncScope);
-
-	// Clear previously cached data
-	PackedTransferData.Empty(PackedTransferData.Num() | 0x07);
-
-	for (auto classIt = Devices.CreateConstIterator(); classIt; ++classIt)
-	{
-		for (auto devIt = classIt->Value.CreateConstIterator(); devIt; ++devIt)
-		{
-			const FString key = FString::Printf(TEXT("%d%s%s"), classIt->Key, SerializationDeviceTypeNameDelimiter, *devIt->Key);
-			const FString val = devIt->Value->SerializeToString();
-			UE_LOG(LogDisplayClusterInput, VeryVerbose, TEXT("Input device %d:%s serialized: <%s, %s>"), classIt->Key, *devIt->Key, *key, *val);
-			PackedTransferData.Add(key, val);
-		}
-	}
 }

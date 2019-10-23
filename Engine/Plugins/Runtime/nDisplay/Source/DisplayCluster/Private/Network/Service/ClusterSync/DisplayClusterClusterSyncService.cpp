@@ -4,13 +4,17 @@
 #include "Network/Service/ClusterSync/DisplayClusterClusterSyncMsg.h"
 
 #include "Cluster/IPDisplayClusterClusterManager.h"
+#include "Game/IPDisplayClusterGameManager.h"
 #include "Config/IPDisplayClusterConfigManager.h"
 #include "Input/IPDisplayClusterInputManager.h"
+
+#include "Cluster/Controller/IPDisplayClusterNodeController.h"
 
 #include "Network/Session/DisplayClusterSessionInternal.h"
 
 #include "Misc/DisplayClusterAppExit.h"
 
+#include "DisplayClusterEnums.h"
 #include "DisplayClusterGlobals.h"
 #include "DisplayClusterLog.h"
 
@@ -122,9 +126,9 @@ TSharedPtr<FDisplayClusterMessage> FDisplayClusterClusterSyncService::ProcessMes
 	}
 	else if (ReqName == FDisplayClusterClusterSyncMsg::GetDeltaTime::name)
 	{
-		float deltaTime = 0.0f;
-		GetDeltaTime(deltaTime);
-		Response->SetArg(FDisplayClusterClusterSyncMsg::GetDeltaTime::argDeltaTime, deltaTime);
+		float DeltaSeconds = 0.0f;
+		GetDeltaTime(DeltaSeconds);
+		Response->SetArg(FDisplayClusterClusterSyncMsg::GetDeltaTime::argDeltaSeconds, DeltaSeconds);
 		return Response;
 	}
 	else if (ReqName == FDisplayClusterClusterSyncMsg::GetTimecode::name)
@@ -138,26 +142,38 @@ TSharedPtr<FDisplayClusterMessage> FDisplayClusterClusterSyncService::ProcessMes
 	}
 	else if (ReqName == FDisplayClusterClusterSyncMsg::GetSyncData::name)
 	{
-		FDisplayClusterMessage::DataType data;
-		GetSyncData(data);
+		FDisplayClusterMessage::DataType SyncData;
+		int SyncGroupNum = 0;
+		Request->GetArg(FDisplayClusterClusterSyncMsg::GetSyncData::argSyncGroup, SyncGroupNum);
+		EDisplayClusterSyncGroup SyncGroup = (EDisplayClusterSyncGroup)SyncGroupNum;
 
-		Response->SetArgs(data);
+		GetSyncData(SyncData, SyncGroup);
+
+		Response->SetArgs(SyncData);
 		return Response;
 	}
 	else if (ReqName == FDisplayClusterClusterSyncMsg::GetInputData::name)
 	{
-		FDisplayClusterMessage::DataType data;
-		GetInputData(data);
+		FDisplayClusterMessage::DataType InputData;
+		GetInputData(InputData);
 
-		Response->SetArgs(data);
+		Response->SetArgs(InputData);
 		return Response;
 	}
 	else if (ReqName == FDisplayClusterClusterSyncMsg::GetEventsData::name)
 	{
-		FDisplayClusterMessage::DataType data;
-		GetEventsData(data);
+		FDisplayClusterMessage::DataType EventsData;
+		GetEventsData(EventsData);
 
-		Response->SetArgs(data);
+		Response->SetArgs(EventsData);
+		return Response;
+	}
+	else if (ReqName == FDisplayClusterClusterSyncMsg::GetNativeInputData::name)
+	{
+		FDisplayClusterMessage::DataType NativeInputData;
+		GetNativeInputData(NativeInputData);
+
+		Response->SetArgs(NativeInputData);
 		return Response;
 	}
 
@@ -202,27 +218,37 @@ void FDisplayClusterClusterSyncService::WaitForTickEnd()
 	}
 }
 
-void FDisplayClusterClusterSyncService::GetDeltaTime(float& DeltaTime)
+void FDisplayClusterClusterSyncService::GetDeltaTime(float& DeltaSeconds)
 {
-	DeltaTime = GDisplayCluster->GetPrivateClusterMgr()->GetDeltaTime();
+	static IPDisplayClusterNodeController* const NodeController = GDisplayCluster->GetPrivateClusterMgr()->GetController();
+	return NodeController->GetDeltaTime(DeltaSeconds);
 }
 
 void FDisplayClusterClusterSyncService::GetTimecode(FTimecode& Timecode, FFrameRate& FrameRate)
 {
-	GDisplayCluster->GetPrivateClusterMgr()->GetTimecode(Timecode, FrameRate);
+	static IPDisplayClusterNodeController* const NodeController = GDisplayCluster->GetPrivateClusterMgr()->GetController();
+	return NodeController->GetTimecode(Timecode, FrameRate);
 }
 
-void FDisplayClusterClusterSyncService::GetSyncData(FDisplayClusterMessage::DataType& Data)
+void FDisplayClusterClusterSyncService::GetSyncData(FDisplayClusterMessage::DataType& SyncData, EDisplayClusterSyncGroup SyncGroup)
 {
-	GDisplayCluster->GetPrivateClusterMgr()->ExportSyncData(Data);
+	static IPDisplayClusterNodeController* const NodeController = GDisplayCluster->GetPrivateClusterMgr()->GetController();
+	NodeController->GetSyncData(SyncData, SyncGroup);
 }
 
-void FDisplayClusterClusterSyncService::GetInputData(FDisplayClusterMessage::DataType& Data)
+void FDisplayClusterClusterSyncService::GetInputData(FDisplayClusterMessage::DataType& InputData)
 {
-	GDisplayCluster->GetPrivateInputMgr()->ExportInputData(Data);
+	static IPDisplayClusterNodeController* const NodeController = GDisplayCluster->GetPrivateClusterMgr()->GetController();
+	return NodeController->GetInputData(InputData);
 }
 
-void FDisplayClusterClusterSyncService::GetEventsData(FDisplayClusterMessage::DataType& Data)
+void FDisplayClusterClusterSyncService::GetEventsData(FDisplayClusterMessage::DataType& EventsData)
 {
-	GDisplayCluster->GetPrivateClusterMgr()->ExportEventsData(Data);
+	GDisplayCluster->GetPrivateClusterMgr()->ExportEventsData(EventsData);
+}
+
+void FDisplayClusterClusterSyncService::GetNativeInputData(FDisplayClusterMessage::DataType& NativeInputData)
+{
+	static IPDisplayClusterNodeController* const NodeController = GDisplayCluster->GetPrivateClusterMgr()->GetController();
+	return NodeController->GetNativeInputData(NativeInputData);
 }

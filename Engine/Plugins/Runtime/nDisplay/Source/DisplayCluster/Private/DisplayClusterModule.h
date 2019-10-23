@@ -57,8 +57,11 @@ public:
 	virtual void EndSession() override;
 	virtual bool StartScene(UWorld* pWorld) override;
 	virtual void EndScene() override;
+	virtual void StartFrame(uint64 FrameNum) override;
 	virtual void PreTick(float DeltaSeconds) override;
-
+	virtual void Tick(float DeltaSeconds) override;
+	virtual void PostTick(float DeltaSeconds) override;
+	virtual void EndFrame(uint64 FrameNum) override;
 
 public:
 	virtual FDisplayClusterStartSessionEvent& OnDisplayClusterStartSession() override
@@ -67,13 +70,29 @@ public:
 	virtual FDisplayClusterEndSessionEvent& OnDisplayClusterEndSession() override
 	{ return DisplayClusterEndSessionEvent; }
 
+	virtual FDisplayClusterStartFrameEvent& OnDisplayClusterStartFrame(uint64 FrameNum) override
+	{ return DisplayClusterStartFrameEvent; }
+
+	virtual FDisplayClusterEndFrameEvent& OnDisplayClusterEndFrame(uint64 FrameNum) override
+	{ return DisplayClusterEndFrameEvent; }
+
 	virtual FDisplayClusterPreTickEvent& OnDisplayClusterPreTick() override
 	{ return DisplayClusterPreTickEvent; }
+
+	virtual FDisplayClusterTickEvent& OnDisplayClusterTick() override
+	{ return DisplayClusterTickEvent; }
+
+	virtual FDisplayClusterPostTickEvent& OnDisplayClusterPostTick() override
+	{ return DisplayClusterPostTickEvent; }
 
 private:
 	FDisplayClusterStartSessionEvent         DisplayClusterStartSessionEvent;
 	FDisplayClusterEndSessionEvent           DisplayClusterEndSessionEvent;
+	FDisplayClusterStartFrameEvent           DisplayClusterStartFrameEvent;
+	FDisplayClusterEndFrameEvent             DisplayClusterEndFrameEvent;
 	FDisplayClusterPreTickEvent              DisplayClusterPreTickEvent;
+	FDisplayClusterTickEvent                 DisplayClusterTickEvent;
+	FDisplayClusterPostTickEvent             DisplayClusterPostTickEvent;
 
 private:
 	//////////////////////////////////////////////////////////////////////////////////////////////
