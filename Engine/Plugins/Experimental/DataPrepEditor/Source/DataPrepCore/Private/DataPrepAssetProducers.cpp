@@ -47,50 +47,73 @@ TArray< TWeakObjectPtr< UObject > > UDataprepAssetProducers::Produce( const FDat
 	}
 
 	TArray< TWeakObjectPtr< UObject > > OutAssets;
-
-	FDataprepWorkReporter Task( InContext.ProgressReporterPtr, LOCTEXT( "ProducerReport_Importing", "Importing ..." ), (float)AssetProducers.Num(), 1.0f );
-
-	TArray< TWeakObjectPtr< UObject > > ProducerAssets;
-
-	for ( FDataprepAssetProducer& AssetProducer : AssetProducers )
 	{
-		if( UDataprepContentProducer* Producer = AssetProducer.Producer )
+		FDataprepWorkReporter Task( InContext.ProgressReporterPtr, LOCTEXT( "ProducerReport_Importing", "Importing ..." ), (float)AssetProducers.Num(), 1.0f );
+
+		TArray< TWeakObjectPtr< UObject > > ProducerAssets;
+
+		for ( FDataprepAssetProducer& AssetProducer : AssetProducers )
 		{
-			Task.ReportNextStep( FText::Format( LOCTEXT( "ProducerReport_ImportingX", "Importing {0} ..."), FText::FromString( Producer->GetName() ) ) );
-
-			// Run producer if enabled and, if superseded, superseder is disabled
-			const bool bIsOkToRun = AssetProducer.bIsEnabled &&	( AssetProducer.SupersededBy == INDEX_NONE || !AssetProducers[AssetProducer.SupersededBy].bIsEnabled );
-
-			if ( bIsOkToRun )
+			if( UDataprepContentProducer* Producer = AssetProducer.Producer )
 			{
-				if( !Producer->Produce( InContext, OutAssets ) )
+				Task.ReportNextStep( FText::Format( LOCTEXT( "ProducerReport_ImportingX", "Importing {0} ..."), FText::FromString( Producer->GetName() ) ) );
+
+				// Run producer if enabled and, if superseded, superseder is disabled
+				const bool bIsOkToRun = AssetProducer.bIsEnabled &&	( AssetProducer.SupersededBy == INDEX_NONE || !AssetProducers[AssetProducer.SupersededBy].bIsEnabled );
+
+				if ( bIsOkToRun )
 				{
-					if ( Task.IsWorkCancelled() )
+					if( !Producer->Produce( InContext, OutAssets ) )
 					{
-						FText Report = FText::Format(LOCTEXT( "ProducerReport_Cancelled", "Producer {0} was cancelled during execution."), FText::FromString( Producer->GetName() ) );
-						InContext.LoggerPtr->LogInfo( Report, *Producer );
-						break;
-					}
-					else
-					{
-						FText Report = FText::Format(LOCTEXT( "ProducerReport_Failed", "Producer {0} failed to execute."), FText::FromString( Producer->GetName() ) );
-						InContext.LoggerPtr->LogError( Report, *Producer );
+						if ( Task.IsWorkCancelled() )
+						{
+							FText Report = FText::Format(LOCTEXT( "ProducerReport_Cancelled", "Producer {0} was cancelled during execution."), FText::FromString( Producer->GetName() ) );
+							InContext.LoggerPtr->LogInfo( Report, *Producer );
+							break;
+						}
+						else
+						{
+							FText Report = FText::Format(LOCTEXT( "ProducerReport_Failed", "Producer {0} failed to execute."), FText::FromString( Producer->GetName() ) );
+							InContext.LoggerPtr->LogError( Report, *Producer );
+						}
 					}
 				}
 			}
+			else
+			{
+				Task.ReportNextStep( LOCTEXT( "ProducerReport_Skipped", "Skipped invalid producer ...") );
+			}
 		}
-		else
-		{
-			Task.ReportNextStep( LOCTEXT( "ProducerReport_Skipped", "Skipped invalid producer ...") );
-		}
-	}
 
-	for ( TWeakObjectPtr<UObject> WeakObjectPtr : OutAssets )
-	{
-		if ( UObject* Object = WeakObjectPtr.Get() )
+		// Skip finalization of import if user has canceled process
+		if(IDataprepProgressReporter* ProgressReporter = InContext.ProgressReporterPtr.Get())
 		{
-			// We must ensure that public face of an asset is public
-			Object->SetFlags( RF_Public );
+			if(ProgressReporter->IsWorkCancelled())
+			{
+				TArray<UObject*> ObjectsToDelete;
+				for ( TWeakObjectPtr<UObject> WeakObjectPtr : OutAssets )
+				{
+					if ( UObject* Object = WeakObjectPtr.Get() )
+					{
+						ObjectsToDelete.Add( Object );
+					}
+				}
+
+				FDataprepCoreUtils::PurgeObjects( MoveTemp( ObjectsToDelete ) );
+
+				OutAssets.Empty();
+
+				return OutAssets;
+			}
+		}
+
+		for ( TWeakObjectPtr<UObject> WeakObjectPtr : OutAssets )
+		{
+			if ( UObject* Object = WeakObjectPtr.Get() )
+			{
+				// We must ensure that public face of an asset is public
+				Object->SetFlags( RF_Public );
+			}
 		}
 	}
 

@@ -4,9 +4,12 @@
 
 #include "DataprepCoreUtils.h"
 #include "DataprepEditorLogCategory.h"
+#include "DataprepEditorUtils.h"
 
 #include "ActorEditorUtils.h"
 #include "AutoReimport/AutoReimportManager.h"
+#include "Async/Async.h"
+#include "Async/Future.h"
 #include "Async/ParallelFor.h"
 #include "Editor/UnrealEdEngine.h"
 #include "EngineUtils.h"
@@ -16,6 +19,8 @@
 #include "HAL/FileManager.h"
 #include "GenericPlatform/GenericPlatformOutputDevices.h"
 #include "GenericPlatform/GenericPlatformTime.h"
+#include "Materials/MaterialFunction.h"
+#include "Materials/MaterialFunctionInstance.h"
 #include "Materials/MaterialInstance.h"
 #include "MaterialShared.h"
 #include "Misc/Compression.h"
@@ -35,6 +40,8 @@
 enum class EDataprepAssetClass : uint8 {
 	EDataprep,
 	ETexture,
+	EMaterialFunction,
+	EMaterialFunctionInstance,
 	EMaterial,
 	EMaterialInstance,
 	EStaticMesh,
@@ -469,6 +476,14 @@ void FDataprepEditor::TakeSnapshot()
 		{
 			return EDataprepAssetClass::EStaticMesh;
 		}
+		else if (AssetClass->IsChildOf(UMaterialFunction::StaticClass()))
+		{
+			return EDataprepAssetClass::EMaterialFunction;
+		}
+		else if (AssetClass->IsChildOf(UMaterialFunctionInstance::StaticClass()))
+		{
+			return EDataprepAssetClass::EMaterialFunctionInstance;
+		}
 		else if (AssetClass->IsChildOf(UMaterial::StaticClass()))
 		{
 			return EDataprepAssetClass::EMaterial;
@@ -502,60 +517,101 @@ void FDataprepEditor::TakeSnapshot()
 		}
 	}
 
-	FCriticalSection GlobalLock;
 	TAtomic<bool> bGlobalIsValid(true);
-	ParallelFor(Assets.Num(),
-		[&](int32 AssetIndex)
 	{
-		if (!bGlobalIsValid)
+		FText Message = LOCTEXT("SaveSnapshot_SaveAssets", "Snapshot : Caching assets ...");
+		SlowTask.EnterProgressFrame( 40.0f, Message );
+
+		FScopedSlowTask SlowSaveAssetTask( (float)Assets.Num(), Message );
+		SlowSaveAssetTask.MakeDialog(false);
+
+		TArray<TFuture<bool>> AsyncTasks;
+		AsyncTasks.Reserve( Assets.Num() );
+
+		for (TWeakObjectPtr<UObject> AssetObjectPtr : Assets)
 		{
-			return;
+			AsyncTasks.Emplace(
+				Async(
+					EAsyncExecution::LargeThreadPool,
+					[this, AssetObjectPtr, &bGlobalIsValid]()
+					{
+						if(UObject* AssetObject = AssetObjectPtr.Get())
+						{
+							if ( bGlobalIsValid.Load(EMemoryOrder::Relaxed) )
+							{
+								EObjectFlags ObjectFlags = AssetObject->GetFlags();
+								AssetObject->ClearFlags(RF_Transient);
+								AssetObject->SetFlags(RF_Public);
+
+								FSoftObjectPath AssetPath( AssetObject );
+								const FString AssetPathString = AssetPath.GetAssetPathString();
+								UE_LOG( LogDataprepEditor, Verbose, TEXT("Saving asset %s"), *AssetPathString );
+
+								bool bLocalIsValid = false;
+
+								// Serialize asset
+								{
+									TArray<uint8> SerializedData;
+									DataprepSnapshotUtil::WriteSnapshotData( AssetObject, SerializedData );
+
+									FString AssetFilePath = DataprepSnapshotUtil::BuildAssetFileName( this->TempDir, AssetPathString );
+
+									bLocalIsValid = FFileHelper::SaveArrayToFile( SerializedData, *AssetFilePath );
+								}
+
+								AssetObject->ClearFlags( RF_AllFlags );
+								AssetObject->SetFlags( ObjectFlags );
+
+								return bLocalIsValid;
+							}
+							else
+							{
+								return false;
+							}
+						}
+
+						return true;
+					}
+				)
+			);
 		}
 
-		if(UObject* AssetObject = Assets[AssetIndex].Get())
+		for (int32 Index = 0; Index < AsyncTasks.Num(); ++Index)
 		{
-			EObjectFlags ObjectFlags = AssetObject->GetFlags();
-			AssetObject->ClearFlags(RF_Transient);
-			AssetObject->SetFlags(RF_Public);
-
-			FSoftObjectPath AssetPath( AssetObject );
-			const FString AssetPathString = AssetPath.GetAssetPathString();
-			UE_LOG( LogDataprepEditor, Verbose, TEXT("Saving asset %s"), *AssetPathString );
-
-			bool bLocalIsValid = false;
-
-			// Serialize asset
+			if(UObject* AssetObject = Assets[Index].Get())
 			{
-				TArray<uint8> SerializedData;
-				DataprepSnapshotUtil::WriteSnapshotData( AssetObject, SerializedData );
+				SlowSaveAssetTask.EnterProgressFrame();
 
-				FString AssetFilePath = DataprepSnapshotUtil::BuildAssetFileName( TempDir, AssetPathString );
+				const FSoftObjectPath AssetPath( AssetObject );
+				const FString AssetPathString = AssetPath.GetAssetPathString();
 
-				bLocalIsValid = FFileHelper::SaveArrayToFile( SerializedData, *AssetFilePath );
+				// Wait the result of the async task
+				if(!AsyncTasks[Index].Get())
+				{
+					UE_LOG( LogDataprepEditor, Log, TEXT("Failed to save %s"), *AssetPathString );
+
+					bGlobalIsValid = false;
+					break;
+				}
+				else
+				{
+					UE_LOG( LogDataprepEditor, Verbose, TEXT("Asset %s successfully saved"), *AssetPathString );
+				}
 			}
-
-			AssetObject->ClearFlags( RF_AllFlags );
-			AssetObject->SetFlags( ObjectFlags );
-
-			if(!bLocalIsValid)
-			{
-				UE_LOG( LogDataprepEditor, Log, TEXT("Failed to save %s"), *AssetPathString );
-				bGlobalIsValid = false;
-				return;
-			}
-
-			UE_LOG( LogDataprepEditor, Verbose, TEXT("Asset %s successfully saved"), *AssetPathString );
 		}
 	}
-	);
 
 	ContentSnapshot.bIsValid = bGlobalIsValid;
 
 	// Serialize world if applicable
 	if(ContentSnapshot.bIsValid)
 	{
-		SlowTask.EnterProgressFrame( 50.0f, LOCTEXT("SaveSnapshot_World", "Snapshot : caching level ...") );
+		FText Message = LOCTEXT("SaveSnapshot_World", "Snapshot : caching level ...");
+		SlowTask.EnterProgressFrame( 50.0f, Message );
 		UE_LOG( LogDataprepEditor, Verbose, TEXT("Saving preview world") );
+
+		FScopedSlowTask SlowSaveAssetTask( (float)PreviewWorld->GetCurrentLevel()->Actors.Num(), Message );
+		SlowSaveAssetTask.MakeDialog(false);
 
 		PreviewWorld->ClearFlags(RF_Transient);
 		{
@@ -563,7 +619,7 @@ void FDataprepEditor::TakeSnapshot()
 			FStringOutputDevice Ar;
 			uint32 ExportFlags = PPF_DeepCompareInstances | PPF_ExportsNotFullyQualified | PPF_IncludeTransient;
 			const FDataprepExportObjectInnerContext Context( PreviewWorld.Get() );
-			UExporter::ExportToOutputDevice( &Context, PreviewWorld.Get(), NULL, Ar, TEXT("copy"), 0, ExportFlags);
+			UExporter::ExportToOutputDevice( &Context, PreviewWorld.Get(), nullptr, Ar, TEXT("copy"), 0, ExportFlags);
 
 			// Save text into file
 			FString PackageFilePath = DataprepSnapshotUtil::BuildAssetFileName( TempDir, GetTransientContentFolder() / SessionID ) + TEXT(".asc");
@@ -731,24 +787,22 @@ void FDataprepEditor::RestoreFromSnapshot(bool bUpdateViewport)
 		check( FFileHelper::LoadFileToString(FileBuffer, *PackageFilePath) );
 
 		// Set the GWorld to the preview world since ULevelFactory::FactoryCreateText uses GWorld
-		UWorld* CachedWorld = GWorld;
+		UWorld* PrevGWorld = GWorld;
 		GWorld = PreviewWorld.Get();
 
 		// Cache and disable recording of transaction
-		UTransactor* NormalTransactor = GEditor->Trans;
-		GEditor->Trans = nullptr;
+		TGuardValue<UTransactor*> NormalTransactor( GEditor->Trans, nullptr );
 
 		// Cache and disable warnings from LogExec because ULevelFactory::FactoryCreateText is pretty verbose on harmless warnings
 		ELogVerbosity::Type PrevLogExecVerbosity = LogExec.GetVerbosity();
 		LogExec.SetVerbosity( ELogVerbosity::Error );
 
 		// Cache and disable Editor's selection
-		bool PrevEdSelectionLock = GEdSelectionLock;
-		GEdSelectionLock = false;
+		TGuardValue<bool> EdSelectionLock( GEdSelectionLock, true );
 
 		const TCHAR* Paste = *FileBuffer;
 		ULevelFactory* Factory = NewObject<ULevelFactory>();
-		Factory->FactoryCreateText( ULevel::StaticClass(), WorldLevel, WorldLevel->GetFName(), RF_Transactional, NULL, TEXT("paste"), Paste, Paste + FileBuffer.Len(), GWarn/*FGenericPlatformOutputDevices::GetFeedbackContext()*/);
+		Factory->FactoryCreateText( ULevel::StaticClass(), WorldLevel, WorldLevel->GetFName(), RF_Transactional, NULL, TEXT("paste"), Paste, Paste + FileBuffer.Len(), GWarn );
 
 		// Restore LogExec verbosity
 		LogExec.SetVerbosity( PrevLogExecVerbosity );
@@ -756,14 +810,8 @@ void FDataprepEditor::RestoreFromSnapshot(bool bUpdateViewport)
 		// Reinstate old BSP update setting, and force a rebuild - any levels whose geometry has changed while pasting will be rebuilt
 		GetMutableDefault<ULevelEditorMiscSettings>()->bBSPAutoUpdate = bBSPAutoUpdate;
 
-		// Restore transaction's recording
-		GEditor->Trans = NormalTransactor;
-
-		// Restore Editor's selection
-		GEdSelectionLock = PrevEdSelectionLock;
-
-		// Reset the GWorld to its previous value
-		GWorld = CachedWorld;
+		// Restore GWorld
+		GWorld = PrevGWorld;
 	}
 	UE_LOG( LogDataprepEditor, Verbose, TEXT("Level loaded") );
 
