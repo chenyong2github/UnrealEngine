@@ -1,13 +1,14 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "DatasmithMeshBuilder.h"
 
-#include "CoreTechHelper.h"
 #include "CoreTechFileParser.h"
 #include "DatasmithMeshHelper.h"
-#include "HAL/FileManager.h"
 #include "IDatasmithSceneElements.h"
+
+#include "HAL/FileManager.h"
 #include "MeshDescription.h"
 #include "Misc/Paths.h"
+
 using namespace CADLibrary;
 
 FDatasmithMeshBuilder::FDatasmithMeshBuilder(TMap<FString, FString>& InCADFileToUE4GeomMap, TMap< TSharedPtr< IDatasmithMeshElement >, uint32 >& InMeshElementToCTBodyUuidMap)
@@ -44,6 +45,7 @@ void FDatasmithMeshBuilder::LoadRawDataGeom()
 
 TOptional<FMeshDescription> FDatasmithMeshBuilder::GetMeshDescription(TSharedRef<IDatasmithMeshElement> OutMeshElement, CADLibrary::FMeshParameters& OutMeshParameters)
 {
+#ifdef CAD_INTERFACE
 	uint32* BodyUuid = MeshElementToBodyUuidMap.Find(OutMeshElement);
 	if (BodyUuid == nullptr)
 	{
@@ -63,10 +65,11 @@ TOptional<FMeshDescription> FDatasmithMeshBuilder::GetMeshDescription(TSharedRef
 	FMeshDescription MeshDescription;
 	DatasmithMeshHelper::PrepareAttributeForStaticMesh(MeshDescription);
 
-	if (!ConvertCTBodySetToMeshDescription(ImportParameters, OutMeshParameters, Body.GetTriangleCount(), Body.GetTessellationSet(), MaterialIdToMaterialHash, MeshDescription))
+	if (ConvertCTBodySetToMeshDescription(ImportParameters, OutMeshParameters, Body.GetTriangleCount(), Body.GetTessellationSet(), MaterialIdToMaterialHash, MeshDescription))
 	{
-		return TOptional<FMeshDescription>();
+		return MoveTemp(MeshDescription);
 	}
+#endif // CAD_INTERFACE
 
-	return MoveTemp(MeshDescription);
+	return TOptional<FMeshDescription>();
 }
