@@ -43,5 +43,5 @@ void UDisplayClusterEditorEngine::StartPlayInEditorSession(FRequestPlaySessionPa
 {
 	UE_LOG(LogDisplayClusterEditorEngine, VeryVerbose, TEXT("UDisplayClusterEditorEngine::StartPlayInEditorSession"));
 
-	Super::PlayInEditor(InWorld, bInSimulateInEditor, Overrides);
+	Super::StartPlayInEditorSession(InRequestParams);
 }
