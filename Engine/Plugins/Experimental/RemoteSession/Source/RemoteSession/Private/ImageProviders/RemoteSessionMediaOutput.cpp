@@ -39,7 +39,7 @@ void URemoteSessionMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureB
 {
 	if (ImageChannel)
 	{
-		ImageChannel->SendRawImageToClients(Width, Height, InBuffer, Width * Height * sizeof(FColor));
+		ImageChannel->GetImageSender()->SendRawImageToClients(Width, Height, InBuffer, Width * Height * sizeof(FColor));
 	}
 }
 
