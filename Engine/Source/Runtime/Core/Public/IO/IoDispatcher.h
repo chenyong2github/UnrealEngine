@@ -460,6 +460,15 @@ private:
 class FIoChunkId
 {
 public:
+	static inline FIoChunkId CreateEmptyId()
+	{
+		FIoChunkId ChunkId;
+		uint8 Data[12] = { 0 };
+		ChunkId.Set(Data, sizeof Data);
+
+		return ChunkId;
+	}
+
 	friend uint32 GetTypeHash(FIoChunkId InId)
 	{
 		uint32 Hash = 5381;
@@ -468,6 +477,12 @@ public:
 			Hash = Hash * 33 + InId.Id[i];
 		}
 		return Hash;
+	}
+
+	friend FArchive& operator<<(FArchive& Ar, FIoChunkId& ChunkId)
+	{
+		Ar.Serialize(&ChunkId.Id, sizeof Id);
+		return Ar;
 	}
 
 	inline bool operator==(const FIoChunkId& Rhs) const
@@ -481,6 +496,12 @@ public:
 	{
 		check(InSize == sizeof Id);
 		FMemory::Memcpy(Id, InIdPtr, sizeof Id);
+	}
+
+	bool IsValid() const
+	{
+		uint8 Data[12] = { 0 };
+		return FMemory::Memcmp(Id, Data, sizeof Id) != 0;
 	}
 
 private:

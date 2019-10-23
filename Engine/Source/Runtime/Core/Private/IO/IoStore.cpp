@@ -76,6 +76,16 @@ public:
 			return FIoStatus(EIoErrorCode::FileNotOpen, TEXT("No container file to append to"));
 		}
 
+		if (!ChunkId.IsValid())
+		{
+			return FIoStatus(EIoErrorCode::InvalidParameter, TEXT("ChunkId is not valid!"));
+		}
+
+		if (Toc.Find(ChunkId) != nullptr)
+		{
+			return FIoStatus(EIoErrorCode::InvalidParameter, TEXT("ChunkId is already mapped"));
+		}
+
 		FIoStoreTocEntry TocEntry;
 
 		TocEntry.SetOffset(ContainerFileHandle->Tell());
@@ -106,6 +116,11 @@ public:
 		if (Entry == nullptr)
 		{
 			return FIoStatus(EIoErrorCode::UnknownChunkID, TEXT("OriginalChunkId does not exist in the container"));
+		}
+
+		if (!ChunkIdPartialRange.IsValid())
+		{
+			return FIoStatus(EIoErrorCode::InvalidParameter, TEXT("ChunkIdPartialRange is not valid!"));
 		}
 
 		if (Toc.Find(ChunkIdPartialRange) != nullptr)
