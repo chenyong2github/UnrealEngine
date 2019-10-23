@@ -574,6 +574,69 @@ namespace Tools.DotNETCommon
 			File.WriteAllText(Location.FullName, Contents, Encoding);
 		}
 
+		/// <summary>
+		/// Appends the contents to a file
+		/// </summary>
+		/// <param name="Location">Location of the file</param>
+		/// <param name="Contents">Contents to append to the file</param>
+		public static void AppendAllLines(FileReference Location, IEnumerable<string> Contents)
+		{
+			File.AppendAllLines(Location.FullName, Contents);
+		}
+
+		/// <summary>
+		/// Appends the contents to a file
+		/// </summary>
+		/// <param name="Location">Location of the file</param>
+		/// <param name="Contents">Contents to append to the file</param>
+		/// <param name="Encoding">The encoding to use when parsing the file</param>
+		public static void AppendAllLines(FileReference Location, IEnumerable<string> Contents, Encoding Encoding)
+		{
+			File.AppendAllLines(Location.FullName, Contents, Encoding);
+		}
+
+		/// <summary>
+		/// Appends the contents to a file
+		/// </summary>
+		/// <param name="Location">Location of the file</param>
+		/// <param name="Contents">Contents to append to the file</param>
+		public static void AppendAllLines(FileReference Location, string[] Contents)
+		{
+			File.AppendAllLines(Location.FullName, Contents);
+		}
+
+		/// <summary>
+		/// Appends the contents to a file
+		/// </summary>
+		/// <param name="Location">Location of the file</param>
+		/// <param name="Contents">Contents to append to the file</param>
+		/// <param name="Encoding">The encoding to use when parsing the file</param>
+		public static void AppendAllLines(FileReference Location, string[] Contents, Encoding Encoding)
+		{
+			File.AppendAllLines(Location.FullName, Contents, Encoding);
+		}
+
+		/// <summary>
+		/// Appends the contents to a file
+		/// </summary>
+		/// <param name="Location">Location of the file</param>
+		/// <param name="Contents">Contents to append to the file</param>
+		public static void AppendAllText(FileReference Location, string Contents)
+		{
+			File.AppendAllText(Location.FullName, Contents);
+		}
+
+		/// <summary>
+		/// Appends the contents to a file
+		/// </summary>
+		/// <param name="Location">Location of the file</param>
+		/// <param name="Contents">Contents to append to the file</param>
+		/// <param name="Encoding">The encoding to use when parsing the file</param>
+		public static void AppendAllText(FileReference Location, string Contents, Encoding Encoding)
+		{
+			File.AppendAllText(Location.FullName, Contents, Encoding);
+		}
+
 		#endregion
 	}
 
