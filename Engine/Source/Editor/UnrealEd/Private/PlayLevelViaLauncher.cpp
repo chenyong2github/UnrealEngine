@@ -16,6 +16,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "PlayLevel.h"
 #include "Async/Async.h"
+#include "Logging/MessageLog.h"
 
 #define LOCTEXT_NAMESPACE "PlayLevel"
 

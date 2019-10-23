@@ -3,6 +3,7 @@
 #include "Editor/EditorEngine.h"
 #include "PlayLevel.h"
 #include "HeadMountedDisplayTypes.h"
+#include "Editor.h"
 
 void UEditorEngine::StartPlayInNewProcessSession(FRequestPlaySessionParams& InRequestParams)
 {
