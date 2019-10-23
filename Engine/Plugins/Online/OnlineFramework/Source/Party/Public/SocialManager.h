@@ -49,7 +49,7 @@ public:
 	virtual void InitSocialManager();
 	virtual void ShutdownSocialManager();
 
-	USocialToolkit& GetSocialToolkit(ULocalPlayer& LocalPlayer) const;
+	USocialToolkit& GetSocialToolkit(const ULocalPlayer& LocalPlayer) const;
 	USocialToolkit* GetFirstLocalUserToolkit() const;
 	FUniqueNetIdRepl GetFirstLocalUserId(ESocialSubsystem SubsystemType) const;
 	bool IsLocalUser(const FUniqueNetIdRepl& LocalUserId, ESocialSubsystem SubsystemType) const;
