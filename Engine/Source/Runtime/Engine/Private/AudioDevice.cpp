@@ -1758,9 +1758,16 @@ bool FAudioDevice::HandleSetDynamicSoundCommand(const TCHAR* Cmd, FOutputDevice&
 		// Optional: Defaults to Cue
 		FString SoundTypeStr;
 		ESoundType SoundType = ESoundType::Cue;
-		if (FParse::Value(Cmd, TEXT("Type="), SoundTypeStr) && SoundTypeStr == TEXT("Wave"))
+		if (FParse::Value(Cmd, TEXT("Type="), SoundTypeStr))
 		{
-			SoundType = ESoundType::Wave;
+			if (SoundTypeStr == TEXT("Wave"))
+			{
+				SoundType = ESoundType::Wave;
+			}
+			else if (SoundTypeStr == TEXT("Class"))
+			{
+				SoundType = ESoundType::Class;
+			}
 		}
 
 		float Volume;
