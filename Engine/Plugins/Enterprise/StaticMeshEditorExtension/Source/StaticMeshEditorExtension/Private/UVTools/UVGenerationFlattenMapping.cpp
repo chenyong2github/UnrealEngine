@@ -21,6 +21,8 @@
 #include "StaticMeshAttributes.h"
 #include "Templates/TypeHash.h"
 
+#define FLATTEN_AREA_WEIGHT 0.7
+
 class FUVGenerationFlattenMappingInternal
 {
 public:
@@ -1152,7 +1154,7 @@ TArray<FUVGenerationFlattenMappingInternal::FaceStruct> FUVGenerationFlattenMapp
 	return FlattenFaces;
 }
 
-void UUVGenerationFlattenMapping::GenerateFlattenMappingUVs(UStaticMesh* InStaticMesh, int32 UVChannel, float AngleThreshold, float AreaWeight)
+void UUVGenerationFlattenMapping::GenerateFlattenMappingUVs(UStaticMesh* InStaticMesh, int32 UVChannel, float AngleThreshold)
 {
 	if (InStaticMesh == nullptr)
 	{
@@ -1173,7 +1175,7 @@ void UUVGenerationFlattenMapping::GenerateFlattenMappingUVs(UStaticMesh* InStati
 
 		FMeshBuildSettings& BuildSettings = InStaticMesh->GetSourceModel(LodIndex).BuildSettings;
 		FMeshDescription& MeshDescription = *InStaticMesh->GetMeshDescription(LodIndex);
-		UUVGenerationFlattenMapping::GenerateUVs(MeshDescription, UVChannel, BuildSettings.bRemoveDegenerates, AngleThreshold, AreaWeight);
+		UUVGenerationFlattenMapping::GenerateUVs(MeshDescription, UVChannel, BuildSettings.bRemoveDegenerates, AngleThreshold);
 
 		UStaticMesh::FCommitMeshDescriptionParams CommitMeshDescriptionParam;
 		CommitMeshDescriptionParam.bUseHashAsGuid = true;
@@ -1183,7 +1185,7 @@ void UUVGenerationFlattenMapping::GenerateFlattenMappingUVs(UStaticMesh* InStati
 	InStaticMesh->PostEditChange();
 }
 
-void UUVGenerationFlattenMapping::GenerateUVs(FMeshDescription& InMesh, int32 UVChannel, bool bRemoveDegenerates, float AngleThreshold, float AreaWeight)
+void UUVGenerationFlattenMapping::GenerateUVs(FMeshDescription& InMesh, int32 UVChannel, bool bRemoveDegenerates, float AngleThreshold)
 {
 	if (!ensure(UVChannel >= 0 && UVChannel < MAX_MESH_TEXTURE_COORDS_MD))
 	{
@@ -1202,7 +1204,7 @@ void UUVGenerationFlattenMapping::GenerateUVs(FMeshDescription& InMesh, int32 UV
 	// Get the Internal Face Array
 	TArray< FUVGenerationFlattenMappingInternal::FaceStruct > FlattenFaces = FUVGenerationFlattenMappingInternal::GetFacesFrom(InMesh, OverlappingCorners);
 	
-	FUVGenerationFlattenMappingInternal::CalculateUVs(FlattenFaces, InMesh.Vertices().Num(), AngleThreshold, AreaWeight);
+	FUVGenerationFlattenMappingInternal::CalculateUVs(FlattenFaces, InMesh.Vertices().Num(), AngleThreshold, FLATTEN_AREA_WEIGHT);
 
 	// Write unwrapped UVs back to mesh description
 	// Vertex instances shared across islands will be split
