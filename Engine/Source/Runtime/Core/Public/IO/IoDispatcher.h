@@ -606,14 +606,17 @@ private:
 class FIoDispatcher
 {
 public:
-	CORE_API			FIoDispatcher();
-	CORE_API virtual	~FIoDispatcher();
+	CORE_API						FIoDispatcher();
+	CORE_API virtual				~FIoDispatcher();
 
-	CORE_API void		Mount(FIoStoreReader* IoStore);
-	CORE_API void		Unmount(FIoStoreReader* IoStore);
+	CORE_API void					Mount(FIoStoreReader* IoStore);
+	CORE_API void					Unmount(FIoStoreReader* IoStore);
 
-	CORE_API FIoBatch	NewBatch();
-	CORE_API void		FreeBatch(FIoBatch Batch);
+	CORE_API FIoBatch				NewBatch();
+	CORE_API void					FreeBatch(FIoBatch Batch);
+
+	// Polling methods
+	CORE_API TIoStatusOr<uint64>	GetSizeForChunk(const FIoChunkId& ChunkId) const;
 
 	FIoDispatcher(const FIoDispatcher&) = default;
 	FIoDispatcher& operator=(const FIoDispatcher&) = delete;

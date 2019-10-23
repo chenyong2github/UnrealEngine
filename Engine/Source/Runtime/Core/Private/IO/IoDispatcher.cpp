@@ -166,6 +166,20 @@ public:
 		return FIoBuffer(FIoBuffer::Wrap, MappedRegion->GetMappedPtr() + Entry->GetOffset(), Entry->GetLength());
 	}
 
+	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const
+	{
+		const FIoStoreTocEntry* Entry = Toc.Find(ChunkId);
+
+		if (Entry != nullptr)
+		{
+			return Entry->GetLength();
+		}
+		else
+		{
+			return FIoStatus(EIoErrorCode::NotFound);
+		}
+	}
+
 private:
 	FIoStoreEnvironment&				Environment;
 	FString								UniqueId;
@@ -338,6 +352,21 @@ public:
 		return FIoStatus(EIoErrorCode::NotFound);
 	}
 
+	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const
+	{
+		for (const auto& IoStore : IoStores)
+		{
+			TIoStatusOr<uint64> Result = IoStore->Impl->GetSizeForChunk(ChunkId);
+
+			if (Result.IsOk())
+			{
+				return Result;
+			}
+		}
+
+		return FIoStatus(EIoErrorCode::NotFound);
+	}
+
 private:
 	FRWLock									RwLockIoStores;
 	TArray<TRefCountPtr<FIoStoreReader>>	IoStores;
@@ -409,6 +438,11 @@ public:
 		}
 
 		BatchAllocator.Destroy(Batch);
+	}
+
+	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const
+	{
+		return IoStore->GetSizeForChunk(ChunkId);
 	}
 
 	template<typename Func>
@@ -519,6 +553,13 @@ void
 FIoDispatcher::FreeBatch(FIoBatch Batch)
 {
 	Impl->FreeBatch(Batch.Impl);
+}
+
+// Polling methods
+TIoStatusOr<uint64>	
+FIoDispatcher::GetSizeForChunk(const FIoChunkId& ChunkId) const
+{
+	return Impl->GetSizeForChunk(ChunkId);
 }
 
 //////////////////////////////////////////////////////////////////////////
