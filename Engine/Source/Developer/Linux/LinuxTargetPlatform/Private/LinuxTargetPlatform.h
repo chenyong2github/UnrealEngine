@@ -48,8 +48,11 @@ public:
 #endif // WITH_ENGINE
 	{
 #if PLATFORM_LINUX
-		// only add local device if actually running on Linux
-		LocalDevice = MakeShareable(new FLinuxTargetDevice(*this, FPlatformProcess::ComputerName(), nullptr));
+		if (!TProperties::IsAArch64())
+		{
+			// only add local device if actually running on Linux
+			LocalDevice = MakeShareable(new FLinuxTargetDevice(*this, FPlatformProcess::ComputerName(), nullptr));
+		}
 #endif
 
 #if WITH_ENGINE
