@@ -1241,18 +1241,7 @@ TSharedRef<SWidget> FMaterialEditor::GenerateInheritanceMenu()
 		MenuBuilder.EndSection();
 	}
 
-	TSharedRef<SWidget> ConstrainedMenu = SNew(SVerticalBox)
-		+ SVerticalBox::Slot()
-		.MaxHeight(500.0f)
-		[
-			SNew(SScrollBox)
-			+ SScrollBox::Slot()
-		[
-			MenuBuilder.MakeWidget()
-		]
-		];
-
-	return ConstrainedMenu;
+	return MenuBuilder.MakeWidget(nullptr, 500);
 }
 
 TSharedRef< SWidget > FMaterialEditor::GeneratePreviewMenuContent()
