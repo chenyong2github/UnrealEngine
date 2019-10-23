@@ -1065,7 +1065,7 @@ bool FLevelEditorActionCallbacks::Recompile_CanExecute()
 #endif
 
 	// We can't recompile while in PIE
-	if (GEditor->bIsPlayWorldQueued || GEditor->PlayWorld)
+	if (GEditor->IsPlaySessionInProgress())
 	{
 		return false;
 	}

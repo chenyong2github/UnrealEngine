@@ -36,7 +36,10 @@ bool FGameplayDebuggerAddonBase::IsSimulateInEditor()
 {
 #if WITH_EDITOR
 	extern UNREALED_API UEditorEngine* GEditor;
-	return GIsEditor && (GEditor->bIsSimulateInEditorQueued || GEditor->bIsSimulatingInEditor);
+	if (GEditor)
+	{
+		return GEditor->IsSimulateInEditorInProgress();
+	}
 #endif
 	return false;
 }

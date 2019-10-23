@@ -235,7 +235,14 @@ void FEditorPromotionTestUtilities::StartPIE(bool bSimulateInEditor)
 	FLevelEditorModule& LevelEditorModule = FModuleManager::Get().GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 	TSharedPtr<class IAssetViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
 
-	GUnrealEd->RequestPlaySession(false, ActiveLevelViewport, bSimulateInEditor, NULL, NULL, -1, false);
+	FRequestPlaySessionParams SessionParams;
+	SessionParams.DestinationSlateViewport = ActiveLevelViewport;
+	if (bSimulateInEditor)
+	{
+		SessionParams.WorldType = EPlaySessionWorldType::SimulateInEditor;
+	}
+
+	GUnrealEd->RequestPlaySession(SessionParams);
 }
 
 /**

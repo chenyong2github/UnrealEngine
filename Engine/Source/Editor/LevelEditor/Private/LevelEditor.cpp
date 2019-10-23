@@ -484,38 +484,32 @@ void FLevelEditorModule::SetLevelEditorTabManager( const TSharedPtr<SDockTab>& O
 
 void FLevelEditorModule::StartPlayInEditorSession()
 {
-	TSharedPtr<SLevelViewport> ActiveLevelViewport = GetFirstActiveLevelViewport();
+	TSharedPtr<IAssetViewport> ActiveLevelViewport = GetFirstActiveViewport();
+	FRequestPlaySessionParams SessionParams;
 
 	if( ActiveLevelViewport.IsValid() )
 	{
-		const FVector* StartLocation = NULL;
-		const FRotator* StartRotation = NULL;
-
 		// We never want to play from the camera's location at startup, because the camera could have
 		// been abandoned in a strange location in the map
 		if( 0 )	// @todo immersive
 		{
 			// If this is a perspective viewport, then we'll Play From Here
-			const FLevelEditorViewportClient& LevelViewportClient = ActiveLevelViewport->GetLevelViewportClient();
+			const FEditorViewportClient& LevelViewportClient = ActiveLevelViewport->GetAssetViewportClient();
 			if( LevelViewportClient.IsPerspective() )
 			{
 				// Start PIE from the camera's location and orientation!
-				StartLocation = &LevelViewportClient.GetViewLocation();
-				StartRotation = &LevelViewportClient.GetViewRotation();
+				SessionParams.StartLocation = LevelViewportClient.GetViewLocation();
+				SessionParams.StartRotation = LevelViewportClient.GetViewRotation();
 			}
 		}
 
-		// Queue up the PIE session
-		const bool bSimulateInEditor = false;
-		const bool bUseMobilePreview = false;
-		GUnrealEd->RequestPlaySession( true, ActiveLevelViewport, bSimulateInEditor, StartLocation, StartRotation, -1, bUseMobilePreview );
+		SessionParams.DestinationSlateViewport = ActiveLevelViewport;
+
+		GUnrealEd->RequestPlaySession(SessionParams);
+
 		// Kick off the queued PIE session immediately.  This is so that at startup, we don't need to
 		// wait for the next engine tick.  We want to see PIE gameplay when the editor first appears!
-		GUnrealEd->StartQueuedPlayMapRequest();
-
-		// Special case for immersive pie startup, When in immersive pie at startup we use the player start but we want to move the camera where the player
-		// was at when pie ended.
-		GEditor->bHasPlayWorldPlacement = true;
+		GUnrealEd->StartQueuedPlaySessionRequest();
 	}
 }
 

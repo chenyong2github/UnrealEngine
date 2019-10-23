@@ -323,8 +323,11 @@ void UEditorLevelLibrary::EditorPlaySimulate()
 	TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
 	if (ActiveLevelViewport.IsValid())
 	{
-		const bool bSimulateInEditor = true;
-		GUnrealEd->RequestPlaySession(false, ActiveLevelViewport, bSimulateInEditor, NULL, NULL, -1, false);
+		FRequestPlaySessionParams SessionParams;
+		SessionParams.WorldType = EPlaySessionWorldType::SimulateInEditor;
+		SessionParams.DestinationSlateViewport = ActiveLevelViewport;
+
+		GUnrealEd->RequestPlaySession(SessionParams);
 	}
 }
 

@@ -5998,7 +5998,7 @@ bool FAudioDevice::CanUseVRAudioDevice()
 	if (GIsEditor)
 	{
 		UEditorEngine* EdEngine = Cast<UEditorEngine>(GEngine);
-		return EdEngine->bUseVRPreviewForPlayWorld;
+		return EdEngine->IsVRPreviewActive();
 	}
 	else
 #endif

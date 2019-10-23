@@ -461,12 +461,16 @@ ULevelEditorPlaySettings::ULevelEditorPlaySettings( const FObjectInitializer& Ob
 {
 	ClientWindowWidth = 640;
 	ClientWindowHeight = 480;
+	PlayNetMode = EPlayNetMode::PIE_Standalone;
+	bLaunchSeparateServer = false;
 	PlayNumberOfClients = 1;
 	ServerPort = 17777;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	PlayNetDedicated = false;
+	AutoConnectToServer = true;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	RunUnderOneProcess = true;
 	RouteGamepadToSecondWindow = false;
-	AutoConnectToServer = true;
 	BuildGameBeforeLaunch = EPlayOnBuildMode::PlayOnBuild_Default;
 	LaunchConfiguration = EPlayOnLaunchConfiguration::LaunchConfig_Default;
 	bAutoCompileBlueprintsOnLaunch = true;

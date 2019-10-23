@@ -345,13 +345,10 @@ UEditorEngine::UEditorEngine(const FObjectInitializer& ObjectInitializer)
 	}
 
 	DetailMode = DM_MAX;
-	PlayInEditorViewportIndex = -1;
 	CurrentPlayWorldDestination = -1;
 	bDisableDeltaModification = false;
-	bPlayOnLocalPcSession = false;
 	bAllowMultiplePIEWorlds = true;
 	bIsEndingPlay = false;
-	NumOnlinePIEInstances = 0;
 	DefaultWorldFeatureLevel = GMaxRHIFeatureLevel;
 	PreviewPlatform = FPreviewPlatformInfo(DefaultWorldFeatureLevel);
 
@@ -1597,10 +1594,10 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 		}
 	}
 
-	// kick off a "Play From Here" if we got one
-	if (bIsPlayWorldQueued)
+	// Kick off a Play Session request if one was queued up during the last frame.
+	if (PlaySessionRequest.IsSet())
 	{
-		StartQueuedPlayMapRequest();
+		StartQueuedPlaySessionRequest();
 	}
 	else if( bIsToggleBetweenPIEandSIEQueued )
 	{
@@ -1972,7 +1969,7 @@ float UEditorEngine::GetMaxTickRate( float DeltaTime, bool bAllowFrameRateSmooth
 	if( !ShouldThrottleCPUUsage() )
 	{
 		// do not limit fps in VR Preview mode
-		if (bUseVRPreviewForPlayWorld)
+		if (IsVRPreviewActive())
 		{
 			return 0.0f;
 		}
@@ -7337,10 +7334,15 @@ void UEditorEngine::AutomationLoadMap(const FString& MapName, FString* OutError)
 		UE_LOG(LogEditor, Log, TEXT("Starting PIE for the automation tests for world, %s"), *GWorld->GetMapName());
 
 		FFailedGameStartHandler FailHandler;
-		FPlayInEditorOverrides Overrides;
-		Overrides.bDedicatedServer = false;
-		Overrides.NumberOfClients = 1;
-		PlayInEditor(GWorld, /*bInSimulateInEditor=*/false, Overrides);
+
+		FRequestPlaySessionParams RequestParams;
+		ULevelEditorPlaySettings* EditorPlaySettings = NewObject<ULevelEditorPlaySettings>();
+		EditorPlaySettings->SetPlayNumberOfClients(1);
+		EditorPlaySettings->bLaunchSeparateServer = false;
+		RequestParams.EditorPlaySettings = EditorPlaySettings;
+
+		StartPlayInEditorSession(RequestParams);
+
 		if (!FailHandler.CanProceed())
 		{
 			*OutError = TEXT("Error encountered.");
@@ -7357,7 +7359,7 @@ void UEditorEngine::AutomationLoadMap(const FString& MapName, FString* OutError)
 bool UEditorEngine::IsHMDTrackingAllowed() const
 {
 	// @todo vreditor: Added GEnableVREditorHacks check below to allow head movement in non-PIE editor; needs revisit
-	return GEnableVREditorHacks || (PlayWorld && (bUseVRPreviewForPlayWorld || GetDefault<ULevelEditorPlaySettings>()->ViewportGetsHMDControl));
+	return GEnableVREditorHacks || (PlayWorld && (IsVRPreviewActive() || GetDefault<ULevelEditorPlaySettings>()->ViewportGetsHMDControl));
 }
 
 void UEditorEngine::OnModuleCompileStarted(bool bIsAsyncCompile)
@@ -7534,5 +7536,14 @@ void UEditorEngine::SaveEditorFeatureLevel()
 	Settings->bPreviewFeatureLevelActive = PreviewPlatform.bPreviewFeatureLevelActive;
 	Settings->PostEditChange();
 }
+
+void UEditorEngine::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	if (PlayInEditorSessionInfo.IsSet())
+	{
+		Collector.AddReferencedObject(PlayInEditorSessionInfo->OriginalRequestParams.EditorPlaySettings, this);
+	}
+}
+
 
 #undef LOCTEXT_NAMESPACE 
