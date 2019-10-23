@@ -22,7 +22,7 @@ struct FIoStoreTocHeader
 		FMemory::Memcpy(TocMagic, TocMagicImg, sizeof TocMagic);
 	}
 
-	bool CheckMagic()
+	bool CheckMagic() const
 	{
 		return FMemory::Memcmp(TocMagic, TocMagicImg, sizeof TocMagic) == 0;
 	}
