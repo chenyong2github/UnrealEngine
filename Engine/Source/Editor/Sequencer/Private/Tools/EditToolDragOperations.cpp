@@ -174,7 +174,14 @@ void FResizeSection::OnBeginDrag(const FPointerEvent& MouseEvent, FVector2D Loca
 		}
 		else if (TOptional<FSectionHandle> SectionHandle = Sequencer.GetNodeTree()->GetSectionHandle(Section))
 		{
-			SectionHandle->GetSectionInterface()->BeginResizeSection();
+			if (bIsSlipping)
+			{
+				SectionHandle->GetSectionInterface()->BeginSlipSection();
+			}
+			else
+			{
+				SectionHandle->GetSectionInterface()->BeginResizeSection();
+			}
 		}
 
 		SectionInitTimes.Add(Section, bDraggingByEnd ? Section->GetExclusiveEndFrame() : Section->GetInclusiveStartFrame());
