@@ -814,6 +814,11 @@ public:
 	{
 	}
 
+	// This is overridable for any actions a plugin manager may need to do on a level change.
+	virtual void OnWorldChanged(FAudioDevice* AudioDevice, UWorld* InWorld)
+	{
+	}
+
 	// Called when the listener is updated on the given audio device.
 	virtual void OnListenerUpdated(FAudioDevice* AudioDevice, const int32 ViewportIndex, const FTransform& ListenerTransform, const float InDeltaSeconds)
 	{
