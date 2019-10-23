@@ -469,17 +469,24 @@ IAllocatedVirtualTexture* FVirtualTextureSystem::AllocateVirtualTexture(const FA
 
 	// Sum the total number of physical groups from all producers
 	uint32 NumPhysicalGroups = 0;
-	TArray<FVirtualTextureProducer*> UniqueProducers;
-	for (uint32 LayerIndex = 0u; LayerIndex < Desc.NumTextureLayers; ++LayerIndex)
+	if (Desc.bShareDuplicateLayers)
 	{
-		if (ProducerForLayer[LayerIndex] != nullptr)
+		TArray<FVirtualTextureProducer*> UniqueProducers;
+		for (uint32 LayerIndex = 0u; LayerIndex < Desc.NumTextureLayers; ++LayerIndex)
 		{
-			UniqueProducers.AddUnique(ProducerForLayer[LayerIndex]);
+			if (ProducerForLayer[LayerIndex] != nullptr)
+			{
+				UniqueProducers.AddUnique(ProducerForLayer[LayerIndex]);
+			}
+		}
+		for (int32 ProducerIndex = 0u; ProducerIndex < UniqueProducers.Num(); ++ProducerIndex)
+		{
+			NumPhysicalGroups += UniqueProducers[ProducerIndex]->GetNumPhysicalGroups();
 		}
 	}
-	for (int32 ProducerIndex = 0u; ProducerIndex < UniqueProducers.Num(); ++ProducerIndex)
+	else
 	{
-		NumPhysicalGroups += UniqueProducers[ProducerIndex]->GetNumPhysicalGroups();
+		NumPhysicalGroups = Desc.NumTextureLayers;
 	}
 
 	FVTSpaceDescription SpaceDesc;
