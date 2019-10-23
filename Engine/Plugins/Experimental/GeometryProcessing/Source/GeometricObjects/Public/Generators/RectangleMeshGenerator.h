@@ -29,7 +29,7 @@ public:
 	/** If true (default), UVs are scaled so that there is no stretching. If false, UVs are scaled to fill unit square */
 	bool bScaleUVByAspectRatio = true;
 
-	/** Specifices how 2D indices are mapped to 3D points. Default is (0,1) = (x,y,0). */ 
+	/** Specifies how 2D indices are mapped to 3D points. Default is (0,1) = (x,y,0). */ 
 	FIndex2i IndicesMap;
 
 public:

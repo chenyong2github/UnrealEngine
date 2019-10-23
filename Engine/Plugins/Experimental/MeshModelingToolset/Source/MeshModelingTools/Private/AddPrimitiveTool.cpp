@@ -87,12 +87,13 @@ namespace
 	{ 
 	  { TEXT("Shape"),         EMakeMeshShapeType::All },
 	  { TEXT("Width"),         EMakeMeshShapeType::All },
-	  { TEXT("Height"),        EMakeMeshShapeType::Box | EMakeMeshShapeType::Cylinder | EMakeMeshShapeType::Cone | EMakeMeshShapeType::Plane },
+	  { TEXT("Height"),        EMakeMeshShapeType::Box | EMakeMeshShapeType::Cylinder | EMakeMeshShapeType::Cone | EMakeMeshShapeType::Arrow | EMakeMeshShapeType::Plane },
 	  { TEXT("Rotation"),      EMakeMeshShapeType::All },
 	  { TEXT("PlaceMode"),     EMakeMeshShapeType::All },
 	  { TEXT("PivotLocation"), EMakeMeshShapeType::All },
-	  { TEXT("Slices"),        EMakeMeshShapeType::Cylinder | EMakeMeshShapeType::Cone | EMakeMeshShapeType::Sphere },
-	  { TEXT("Subdivisions"),  EMakeMeshShapeType::Box | EMakeMeshShapeType::Plane | EMakeMeshShapeType::Cylinder | EMakeMeshShapeType::Cone | EMakeMeshShapeType::SphericalBox }
+	  { TEXT("Slices"),        EMakeMeshShapeType::Cylinder | EMakeMeshShapeType::Cone | EMakeMeshShapeType::Arrow | EMakeMeshShapeType::Sphere },
+	  { TEXT("Subdivisions"),  EMakeMeshShapeType::Box | EMakeMeshShapeType::Plane | EMakeMeshShapeType::Cylinder |
+							   EMakeMeshShapeType::Cone | EMakeMeshShapeType::Arrow | EMakeMeshShapeType::SphericalBox }
 	};
 };
 
@@ -269,6 +270,10 @@ void UAddPrimitiveTool::UpdatePreviewMesh()
 		GenerateCone(&NewMesh);
 		break;
 
+	case EMakeMeshShapeType::Arrow:
+		GenerateArrow(&NewMesh);
+		break;
+
 	case EMakeMeshShapeType::Sphere:
 		GenerateSphere(&NewMesh);
 		break;
@@ -385,6 +390,22 @@ void UAddPrimitiveTool::GenerateCone(FDynamicMesh3* OutMesh)
 	CylGen.bCapped = true;
 	CylGen.Generate();
 	OutMesh->Copy(&CylGen);
+}
+
+
+void UAddPrimitiveTool::GenerateArrow(FDynamicMesh3* OutMesh)
+{
+	FArrowGenerator ArrowGen;
+	ArrowGen.StickRadius = ShapeSettings->Width * .25f;
+	ArrowGen.StickLength = ShapeSettings->Height * .25f;
+	ArrowGen.HeadBaseRadius = ShapeSettings->Width * .5f;
+	ArrowGen.TipRadius = .01f;
+	ArrowGen.HeadLength = ShapeSettings->Height * .75f;
+	ArrowGen.AngleSamples = ShapeSettings->Slices;
+	ArrowGen.bCapped = true;
+	ArrowGen.DistributeAdditionalLengthSamples(ShapeSettings->Subdivisions);
+	ArrowGen.Generate();
+	OutMesh->Copy(&ArrowGen);
 }
 
 
