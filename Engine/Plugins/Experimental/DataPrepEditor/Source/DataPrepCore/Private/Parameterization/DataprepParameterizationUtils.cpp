@@ -150,7 +150,7 @@ FDataprepParameterizationContext FDataprepParameterizationUtils::CreateContext(T
 	{
 		// This implementation could be improved by incrementally expending the property chain.
 		NewContext.PropertyChain = MakePropertyChain( PropertyHandle );
-		NewContext.State = NewContext.PropertyChain.Num() > 0 ? EParametrizationState::CanBeParameterized : EParametrizationState::InvalidForParameterization;
+		NewContext.State = IsPropertyChainValid( NewContext.PropertyChain ) ? EParametrizationState::CanBeParameterized : EParametrizationState::InvalidForParameterization;
 	}
 	else if ( NewContext.State == EParametrizationState::IsParameterized )
 	{
@@ -195,4 +195,47 @@ UDataprepAsset* FDataprepParameterizationUtils::GetDataprepAssetForParameterizat
 	}
 
 	return nullptr;
+}
+
+bool FDataprepParameterizationUtils::IsPropertyChainValid(const TArray<FDataprepPropertyLink>& PropertyChain)
+{
+	if ( PropertyChain.Num() == 0 )
+	{
+		return false;
+	}
+
+	// We will support those latter (there is still some bugs to fix before)
+	if ( PropertyChain.Num() > 1 )
+	{
+		return false;
+	}
+
+
+	for ( const FDataprepPropertyLink& PropertyLink : PropertyChain )
+	{
+		UProperty* Property = PropertyLink.CachedProperty.Get();
+		if ( !Property )
+		{
+			return false;
+		}
+
+		// todo check for custom getter and setter
+
+		// Temporary unsupported property check
+		{
+			// Reject container properties for now (there is still some bugs to fix before)
+			if ( DataprepParameterizationUtils::IsAContainerProperty( Property ) )
+			{
+				return false;
+			}
+
+			// We are not able to serialize the text properties yet
+			if ( Property->GetClass() == UTextProperty::StaticClass() )
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
 }
