@@ -309,7 +309,11 @@ class TPBDRigidsEvolutionBase
 		SpatialData.bUpdate = true;
 		SpatialData.UpdatedSpatialIdx = Particle.SpatialIdx();
 
-		AsyncAccelerationQueue.FindOrAdd(Particle.Handle()) = SpatialData;
+		auto& AsyncSpatialData = AsyncAccelerationQueue.FindOrAdd(Particle.Handle());
+		AsyncSpatialData.AccelerationHandle = TAccelerationStructureHandle<T, d>(Particle);
+		AsyncSpatialData.bUpdate = true;
+		AsyncSpatialData.UpdatedSpatialIdx = Particle.SpatialIdx();
+		//question: is it safe to reuse for external? Should probably avoid it
 		ExternalAccelerationQueue.FindOrAdd(Particle.Handle()) = SpatialData;
 	}
 
@@ -635,7 +639,7 @@ protected:
 
 	TMap<FSpatialAccelerationIdx, TSpatialAccelerationCache<T, d>> SpatialAccelerationCache;
 
-	FORCEINLINE_DEBUGGABLE void ApplyParticlePendingData(TGeometryParticleHandle<T, d>* Particle, const FPendingSpatialData& PendingData, FAccelerationStructure& SpatialAcceleration, bool bAsync);
+	FORCEINLINE_DEBUGGABLE void ApplyParticlePendingData(TGeometryParticleHandle<T, d>* Particle, const FPendingSpatialData& PendingData, FAccelerationStructure& SpatialAcceleration, bool bUpdateCache);
 
 	class FChaosAccelerationStructureTask
 	{
