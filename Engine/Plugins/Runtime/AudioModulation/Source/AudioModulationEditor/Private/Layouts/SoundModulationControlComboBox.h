@@ -8,8 +8,9 @@
 #include "Types/SlateEnums.h"
 #include "Widgets/SWidget.h"
 
+
 // Forward Declarations
-FDetailWidgetRow;
+class FDetailWidgetRow;
 
 
 class SSoundModulationControlComboBox : public SSearchableComboBox
