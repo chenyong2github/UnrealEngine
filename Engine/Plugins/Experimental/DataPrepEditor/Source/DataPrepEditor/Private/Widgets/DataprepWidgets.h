@@ -4,7 +4,10 @@
 
 #include "CoreMinimal.h"
 
+#include "Parameterization/DataprepParameterizationUtils.h"
+
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/SlateDelegates.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "Widgets/SCompoundWidget.h"
 
@@ -12,9 +15,6 @@ class SEditableTextBox;
 class UDataprepAsset;
 class UDataprepContentConsumer;
 class UDataprepParameterizableObject;
-
-struct FDataprepParameterizationContext;
-struct FDataprepPropertyLink;
 
 struct FDataprepDetailsViewColumnSizeData
 {
@@ -156,6 +156,8 @@ private:
 
 	void ForceRefresh();
 
+	void OnDataprepParameterizationStatusForObjectsChanged(const TSet<UObject*>* Objects);
+
 private:
 	/** Row generator applied on detailed object */
 	TSharedPtr< class IPropertyRowGenerator > Generator;
@@ -187,5 +189,24 @@ private:
 	// This pointer to a dataprep asset is used by the parameterization system. It should be nullptr when the parameterization shouldn't be shown
 	TWeakObjectPtr<UDataprepAsset> DataprepAssetForParameterization;
 
-	FDelegateHandle OnDataprepParameterizationWasModifiedHandle;
+	FDelegateHandle OnDataprepParameterizationStatusForObjectsChangedHandle;
+};
+
+/**
+ * This is widget simply exist to open contextual menu
+ */
+class SDataprepContextMenuOverride : public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SDataprepContextMenuOverride) {}
+		SLATE_DEFAULT_SLOT(FArguments, DefaultSlot)
+		SLATE_EVENT(FOnContextMenuOpening, OnContextMenuOpening)
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs);
+
+	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+
+private:
+	FOnContextMenuOpening OnContextMenuOpening;
 };
