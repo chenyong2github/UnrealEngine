@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#ifdef CAD_INTERFACE
 #include "CoreMinimal.h"
 
 #include "CADData.h"
@@ -193,3 +194,5 @@ protected:
 	bool bPreferMaterial;
 	bool bMaterialPropagationIsTopDown;
 };
+
+#endif // CAD_INTERFACE
