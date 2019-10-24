@@ -55,6 +55,7 @@ public:
 	bool IsFriendshipPending(ESocialSubsystem SubsystemType) const;
 	const FOnlineUserPresence* GetFriendPresenceInfo(ESocialSubsystem SubsystemType) const;
 	FDateTime GetFriendshipCreationDate() const;
+	virtual FDateTime GetLastOnlineDate() const;
 	FText GetSocialName() const;
 	virtual FUserPlatform GetCurrentPlatform() const;
 
@@ -73,7 +74,8 @@ public:
 	bool IsPlayingThisGame() const;
 	
 	virtual bool CanReceiveOfflineInvite() const { return false; }
-	virtual int32 GetCustomSortValue() const { return 0; }
+	virtual int64 GetCustomSortValuePrimary() const { return 0; }
+	virtual int64 GetCustomSortValueSecondary() const { return 0; }
 
 	bool SetUserLocalAttribute(ESocialSubsystem SubsystemType, const FString& AttrName, const FString& AttrValue);
 	bool GetUserAttribute(ESocialSubsystem SubsystemType, const FString& AttrName, FString& OutAttrValue) const;
