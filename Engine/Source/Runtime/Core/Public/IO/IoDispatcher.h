@@ -31,13 +31,9 @@ class FIoDispatcherImpl;
 class FIoStoreReaderImpl;
 class FIoStoreWriterImpl;
 
-//////////////////////////////////////////////////////////////////////////
-//
-// IO Status classes modeled after Google Status / StatusOr
-//
-// TODO: prevent nullptr value in StatusOr
-//
-
+/*
+ * I/O error code.
+ */
 enum class EIoErrorCode
 {
 	Ok,
@@ -53,6 +49,9 @@ enum class EIoErrorCode
 	InvalidParameter
 };
 
+/**
+ * I/O status with error code and message.
+ */
 class FIoStatus
 {
 public:
@@ -85,9 +84,9 @@ private:
 	friend class FIoStatusBuilder;
 };
 
-/** Helper to make it easier to generate meaningful error messages
-    for FIoStatusBuilder.
-  */
+/**
+ * Helper to make it easier to generate meaningful error messages.
+ */
 class FIoStatusBuilder
 {
 	EIoErrorCode		StatusCode;
@@ -104,6 +103,9 @@ public:
 
 CORE_API FIoStatusBuilder operator<<(const FIoStatus& Status, FStringView String);
 
+/**
+ * Optional I/O result or error status.
+ */
 template<typename T>
 class TIoStatusOr
 {
@@ -112,11 +114,11 @@ class TIoStatusOr
 public:
 	TIoStatusOr() : StatusValue(FIoStatus::Unknown) { }
 	TIoStatusOr(const TIoStatusOr& Other);
-	explicit TIoStatusOr(TIoStatusOr&& Other);
+	TIoStatusOr(TIoStatusOr&& Other);
 
-	TIoStatusOr(FIoStatus Status);
-	TIoStatusOr(const T& Value);
-	explicit TIoStatusOr(T&& Value);
+	TIoStatusOr(FIoStatus InStatus);
+	TIoStatusOr(const T& InValue);
+	TIoStatusOr(T&& InValue);
 
 	~TIoStatusOr();
 
@@ -128,6 +130,8 @@ public:
 
 	TIoStatusOr<T>& operator=(const TIoStatusOr<T>& Other);
 	TIoStatusOr<T>& operator=(TIoStatusOr<T>&& Other);
+	TIoStatusOr<T>& operator=(const FIoStatus& OtherStatus);
+	TIoStatusOr<T>& operator=(const T& OtherValue);
 	TIoStatusOr<T>& operator=(T&& OtherValue);
 
 	template<typename U>
@@ -204,10 +208,10 @@ TIoStatusOr<T>::TIoStatusOr(TIoStatusOr&& Other)
 }
 
 template<typename T>
-TIoStatusOr<T>::TIoStatusOr(FIoStatus Status)
+TIoStatusOr<T>::TIoStatusOr(FIoStatus InStatus)
 {
-	check(!Status.IsOk());
-	StatusValue = Status;
+	check(!InStatus.IsOk());
+	StatusValue = InStatus;
 }
 
 template<typename T>
@@ -218,10 +222,10 @@ TIoStatusOr<T>::TIoStatusOr(const T& InValue)
 }
 
 template<typename T>
-TIoStatusOr<T>::TIoStatusOr(T&& Value)
+TIoStatusOr<T>::TIoStatusOr(T&& InValue)
 {
 	StatusValue = FIoStatus::Ok;
-	new(&Value) T(MoveTempIfPossible(Value));
+	new(&Value) T(MoveTempIfPossible(InValue));
 }
 
 template <typename T>
@@ -254,12 +258,15 @@ template<typename T>
 TIoStatusOr<T>&
 TIoStatusOr<T>::operator=(const TIoStatusOr<T>& Other)
 {
-	Reset();
-	StatusValue = Other.StatusValue;
-
-	if (StatusValue.IsOk())
+	if (&Other != this)
 	{
-		new(&Value) T(*(const T*)&Other.Value);
+		Reset();
+		StatusValue = Other.StatusValue;
+
+		if (StatusValue.IsOk())
+		{
+			new(&Value) T(*(const T*)&Other.Value);
+		}
 	}
 
 	return *this;
@@ -285,12 +292,44 @@ TIoStatusOr<T>::operator=(TIoStatusOr<T>&& Other)
 
 template<typename T>
 TIoStatusOr<T>&
+TIoStatusOr<T>::operator=(const FIoStatus& OtherStatus)
+{
+	check(!OtherStatus.IsOk());
+
+	Reset();
+	StatusValue = OtherStatus;
+
+	return *this;
+}
+
+template<typename T>
+TIoStatusOr<T>&
+TIoStatusOr<T>::operator=(const T& OtherValue)
+{
+	if (&OtherValue != (T*)&Value)
+	{
+		Reset();
+		
+		StatusValue = FIoStatus::Ok;
+		new(&Value) T(OtherValue);
+	}
+
+	return *this;
+}
+
+template<typename T>
+TIoStatusOr<T>&
 TIoStatusOr<T>::operator=(T&& OtherValue)
 {
-	Reset();
-	
-	StatusValue = FIoStatus::Ok;
-	new(&Value) T(MoveTempIfPossible(Value));
+	if (&OtherValue != (T*)&Value)
+	{
+		Reset();
+		
+		StatusValue = FIoStatus::Ok;
+		new(&Value) T(MoveTempIfPossible(OtherValue));
+	}
+
+	return *this;
 }
 
 template<typename T>
