@@ -863,6 +863,8 @@ void UGroomComponent::ReleaseResources()
 	}
 	SkeletalPreviousPositionOffset = FVector::ZeroVector;
 	RegisteredSkeletalMeshComponent = nullptr;
+
+	MarkRenderStateDirty();
 }
 
 void UGroomComponent::PostLoad()
