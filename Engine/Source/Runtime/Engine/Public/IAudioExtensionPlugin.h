@@ -461,7 +461,7 @@ public:
 /** Interface to sound that is modulateable, allowing for certain specific 
   * behaviors to be controlled on the sound level by the modulation system.
   */
-class ISoundModulatable
+class ENGINE_API ISoundModulatable
 {
 public:
 	virtual ~ISoundModulatable() = default;
@@ -529,7 +529,7 @@ public:
  * Modulatable controls found on each sound instance
  * processed by the modulation plugin enabled
  */
-struct FSoundModulationControls
+struct ENGINE_API FSoundModulationControls
 {
 	float Volume;
 	float Pitch;
