@@ -684,6 +684,10 @@ void UMeshSelectionTool::ApplyAction(EMeshSelectionToolActions ActionType)
 		case EMeshSelectionToolActions::SeparateSelected:
 			SeparateSelectedTriangles();
 			break;
+
+		case EMeshSelectionToolActions::FlipSelected:
+			FlipSelectedTriangles();
+			break;
 	}
 }
 
@@ -975,6 +979,40 @@ void UMeshSelectionTool::SeparateSelectedTriangles()
 	DeleteSelectedTriangles();
 #endif
 }
+
+
+
+void UMeshSelectionTool::FlipSelectedTriangles()
+{
+	check(SelectionType == EMeshSelectionElementType::Face);
+	TArray<int32> SelectedFaces = Selection->GetElements(EMeshSelectionElementType::Face);
+	if (SelectedFaces.Num() == 0)
+	{
+		return;
+	}
+
+	TUniquePtr<FToolCommandChangeSequence> ChangeSeq = MakeUnique<FToolCommandChangeSequence>();
+
+	// invert triangles and emit triangles change
+	TUniquePtr<FMeshChange> MeshChange = PreviewMesh->TrackedEditMesh(
+		[&SelectedFaces](FDynamicMesh3& Mesh, FDynamicMeshChangeTracker& ChangeTracker)
+	{
+		for (int TID : SelectedFaces)
+		{
+			ChangeTracker.SaveTriangle(TID, true);
+		}
+		FDynamicMeshEditor Editor(&Mesh);
+		Editor.ReverseTriangleOrientations(SelectedFaces, true);
+	});
+	ChangeSeq->AppendChange(PreviewMesh, MoveTemp(MeshChange));
+
+	// emit combined change sequence
+	GetToolManager()->EmitObjectChange(this, MoveTemp(ChangeSeq), LOCTEXT("MeshSelectionToolFlipFaces", "Flip Face Orientations"));
+
+	bHaveModifiedMesh = true;
+}
+
+
 
 
 

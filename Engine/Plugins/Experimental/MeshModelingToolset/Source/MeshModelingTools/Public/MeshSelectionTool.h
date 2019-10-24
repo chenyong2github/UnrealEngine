@@ -39,7 +39,8 @@ enum class EMeshSelectionToolActions
 	ExpandToConnected,
 
 	DeleteSelected,
-	SeparateSelected
+	SeparateSelected,
+	FlipSelected
 };
 
 
@@ -118,6 +119,12 @@ public:
 	void SeparateTriangles() 
 	{
 		PostAction(EMeshSelectionToolActions::SeparateSelected);
+	}
+
+	UFUNCTION(CallInEditor, Category = MeshEdits, meta = (DisplayName = "Flip Orientations"))
+		void FlipOrientations() 
+	{
+		PostAction(EMeshSelectionToolActions::FlipSelected);
 	}
 };
 
@@ -292,6 +299,7 @@ protected:
 
 	void DeleteSelectedTriangles();
 	void SeparateSelectedTriangles();
+	void FlipSelectedTriangles();
 
 	bool bHaveModifiedMesh = false;
 };
