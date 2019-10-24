@@ -44,8 +44,8 @@ namespace CADLibrary
 
 	void CTSession::SetImportParameters(float ChordTolerance, float MaxEdgeLength, float NormalTolerance, CADLibrary::EStitchingTechnique StitchingTechnique)
 	{
-		ImportParams.ChordTolerance = ChordTolerance / ImportParams.ScaleFactor;
-		ImportParams.MaxEdgeLength = MaxEdgeLength / ImportParams.ScaleFactor;
+		ImportParams.ChordTolerance = ChordTolerance;
+		ImportParams.MaxEdgeLength = MaxEdgeLength;
 		ImportParams.MaxNormalAngle = NormalTolerance;
 		ImportParams.StitchingTechnique = StitchingTechnique;
 
