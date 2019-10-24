@@ -5,7 +5,9 @@
 #ifdef CAD_LIBRARY
 #include "CoreTechHelper.h"
 #include "CoreTechMeshLoader.h"
+#include "CoreTechTypes.h"
 #endif
+
 #include "DatasmithAdditionalData.h"
 #include "DatasmithStaticMeshImporter.h" // Call to BuildStaticMesh
 #include "DatasmithUtils.h"
@@ -176,8 +178,8 @@ bool FCoreTechRetessellate_Impl::ApplyOnOneAsset(UStaticMesh& StaticMesh, UCoreT
 	CADLibrary::FImportParameters ImportParameters;
 	ImportParameters.MetricUnit = CoreTechData.SceneParameters.MetricUnit;
 	ImportParameters.ScaleFactor = CoreTechData.SceneParameters.ScaleFactor;
-	ImportParameters.ChordTolerance = RetessellateOptions.ChordTolerance / CoreTechData.SceneParameters.ScaleFactor;
-	ImportParameters.MaxEdgeLength = RetessellateOptions.MaxEdgeLength / CoreTechData.SceneParameters.ScaleFactor;
+	ImportParameters.ChordTolerance = RetessellateOptions.ChordTolerance;
+	ImportParameters.MaxEdgeLength = RetessellateOptions.MaxEdgeLength;
 	ImportParameters.MaxNormalAngle = RetessellateOptions.NormalTolerance;
 	ImportParameters.StitchingTechnique = CADLibrary::EStitchingTechnique(RetessellateOptions.StitchingTechnique);
 
