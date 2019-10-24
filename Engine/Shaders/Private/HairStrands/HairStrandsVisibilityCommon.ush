@@ -311,7 +311,7 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
 	 Roughness   = (float((Encoded >> 24) & 0xFF) / 255.f);
  }
 
- struct FHairRenderingInfo
+ struct FHairRenderInfo
  {
 	 float RadiusAtDepth1Primary;
 	 float RadiusAtDepth1Velocity;
@@ -319,9 +319,9 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
 	 float VelocityMagnitudeScale;
  };
 
- FHairRenderingInfo GetHairRenderInfo(float4 ViewHairRenderInfo)
+ FHairRenderInfo GetHairRenderInfo(float4 ViewHairRenderInfo)
  {
-	 FHairRenderingInfo Info;
+	 FHairRenderInfo Info;
 	 Info.RadiusAtDepth1Primary = ViewHairRenderInfo.x;
 	 Info.RadiusAtDepth1Velocity = ViewHairRenderInfo.y;
 	 Info.bIsOrthoView = ViewHairRenderInfo.z > 0.0f ? true : false;
