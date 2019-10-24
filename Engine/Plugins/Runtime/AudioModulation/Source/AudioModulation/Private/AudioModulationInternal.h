@@ -69,6 +69,10 @@ namespace AudioModulation
 		/* Calculates modulation value, storing it in the provided float reference and returns if value changed */
 		bool CalculateModulationValue(FModulationPatchProxy& Proxy, float& OutValue) const;
 
+#if WITH_EDITOR
+		void EndPreviewSession();
+#endif // WITH_EDITOR
+
 		void RunCommandOnAudioThread(TFunction<void()> Cmd);
 
 		BusMixProxyMap ActiveBusMixes;
