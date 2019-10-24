@@ -248,8 +248,8 @@ public:
 	static void Initialize();
 	static void Terminate();
 
-	void LockAccess();
-	void UnlockAccess();
+	static void LockAccess();
+	static void UnlockAccess();
 
 	void Add(PxBase* Obj, const FString& OwnerName);
 	void Remove(PxBase* Obj);
