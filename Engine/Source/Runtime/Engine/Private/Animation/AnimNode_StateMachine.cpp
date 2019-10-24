@@ -453,9 +453,7 @@ void FAnimNode_StateMachine::Update_AnyThread(const FAnimationUpdateContext& Con
 					}
 				}
 
-#if WITH_EDITORONLY_DATA
 				NewTransition->SourceTransitionIndices = PotentialTransition.SourceTransitionIndices;
-#endif
 
 				if (!bFirstUpdate)
 				{
