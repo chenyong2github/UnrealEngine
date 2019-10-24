@@ -123,7 +123,7 @@ extern bool CacheShadowDepthsFromPrimitivesUsingWPO();
  * Encapsulates the data which is mirrored to render a UPrimitiveComponent parallel to the game thread.
  * This is intended to be subclassed to support different primitive types.  
  */
-class FPrimitiveSceneProxy
+class ENGINE_VTABLE FPrimitiveSceneProxy
 {
 public:
 
