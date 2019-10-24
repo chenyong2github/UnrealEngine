@@ -6,7 +6,14 @@ public class SceneDepthPickerMode : ModuleRules
 {
     public SceneDepthPickerMode(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateDependencyModuleNames.AddRange(
+        PrivateIncludePaths.AddRange(
+            new string[]
+            {
+                "Editor/UnrealEd/Private"
+            }
+        );
+
+        PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
 				"CoreUObject",
