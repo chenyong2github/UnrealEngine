@@ -23,6 +23,15 @@
 #include "Async/Async.h"
 #include "Modules/ModuleManager.h"
 
+THIRD_PARTY_INCLUDES_START
+	#include "Windows/AllowWindowsPlatformTypes.h"
+	#include <d3d11_1.h>
+	#include <d3d12.h>
+	#include <dxgi1_4.h>
+	#include "Windows/HideWindowsPlatformTypes.h"
+THIRD_PARTY_INCLUDES_END
+
+
 TAutoConsoleVariable<float> CVarEncoderMaxBitrate(
 	TEXT("Encoder.MaxBitrate"),
 	50000000,
@@ -166,6 +175,22 @@ namespace
 		}
 	}
 
+	static bool D3D_ShouldCreateWithD3DDebug()
+	{
+		// Use a debug device if specified on the command line.
+		static bool bCreateWithD3DDebug =
+			FParse::Param(FCommandLine::Get(), TEXT("d3ddebug")) ||
+			FParse::Param(FCommandLine::Get(), TEXT("d3debug")) ||
+			FParse::Param(FCommandLine::Get(), TEXT("dxdebug"));
+		return bCreateWithD3DDebug;
+	}
+
+	static bool D3D_ShouldAllowAsyncResourceCreation()
+	{
+		static bool bAllowAsyncResourceCreation = !FParse::Param(FCommandLine::Get(), TEXT("nod3dasync"));
+		return bAllowAsyncResourceCreation;
+	}
+
 }
 
 FPixelStreamingNvVideoEncoder::FEncoderDevice::FEncoderDevice()
@@ -173,24 +198,45 @@ FPixelStreamingNvVideoEncoder::FEncoderDevice::FEncoderDevice()
 	if (GDynamicRHI)
 	{
 		FString RHIName = GDynamicRHI->GetName();
-		check(RHIName == TEXT("D3D11"));
-		auto D3D11Device = static_cast<ID3D11Device*>(GDynamicRHI->RHIGetNativeDevice());
-		checkf(D3D11Device != nullptr, TEXT("Cannot initialize NvEnc with invalid device"));
 
-		IDXGIDevice* DXGIDevice = nullptr;
-		CHECK_HR_DX9_VOID(D3D11Device->QueryInterface(__uuidof(IDXGIDevice), (LPVOID*)&DXGIDevice));
+		TRefCountPtr<IDXGIDevice> DXGIDevice;
+		uint32 DeviceFlags = D3D_ShouldAllowAsyncResourceCreation() ? 0 : D3D11_CREATE_DEVICE_SINGLETHREADED;
+		if (D3D_ShouldCreateWithD3DDebug())
+			DeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
+		D3D_FEATURE_LEVEL FeatureLevel = D3D_FEATURE_LEVEL_11_1;
+		TRefCountPtr<IDXGIAdapter> Adapter;
 
-		IDXGIAdapter* Adapter;
-		CHECK_HR_DX9_VOID(DXGIDevice->GetAdapter(&Adapter));
+		if (RHIName == TEXT("D3D11"))
+		{
+			auto UE4D3DDevice = static_cast<ID3D11Device*>(GDynamicRHI->RHIGetNativeDevice());
+			checkf(UE4D3DDevice != nullptr, TEXT("Cannot initialize NvEnc with invalid device"));
+			CHECK_HR_DX9_VOID(UE4D3DDevice->QueryInterface(__uuidof(IDXGIDevice), (void**)DXGIDevice.GetInitReference()));
+			CHECK_HR_DX9_VOID(DXGIDevice->GetAdapter(Adapter.GetInitReference()));
+			FeatureLevel = D3D_FEATURE_LEVEL_11_0;
+		}
+		else if (RHIName == TEXT("D3D12"))
+		{
+			auto UE4D3DDevice = static_cast<ID3D12Device*>(GDynamicRHI->RHIGetNativeDevice());
+			checkf(UE4D3DDevice != nullptr, TEXT("Cannot initialize NvEnc with invalid device"));
+			LUID AdapterLuid = UE4D3DDevice->GetAdapterLuid();
+			TRefCountPtr<IDXGIFactory4> DXGIFactory;
+			CHECK_HR_DX9_VOID(CreateDXGIFactory(IID_PPV_ARGS(DXGIFactory.GetInitReference())));
+			// To use a shared texture from D3D12, we need to use a D3D 11.1 device, because we need the
+			// D3D11Device1::OpenSharedResource1 method
+			FeatureLevel = D3D_FEATURE_LEVEL_11_1;
+			CHECK_HR_DX9_VOID(DXGIFactory->EnumAdapterByLuid(AdapterLuid, IID_PPV_ARGS(Adapter.GetInitReference())));
+		}
+		else
+		{
+			UE_LOG(PixelStreamer, Fatal, TEXT("NvEnc requires D3D11/D3D12"));
+			return;
+		}
 
-		D3D_DRIVER_TYPE DriverType = D3D_DRIVER_TYPE_UNKNOWN;
-		uint32 DeviceFlags = D3D11Device->GetCreationFlags();
-		D3D_FEATURE_LEVEL FeatureLevel = D3D11Device->GetFeatureLevel();
 		D3D_FEATURE_LEVEL ActualFeatureLevel;
 
 		CHECK_HR_DX9_VOID(D3D11CreateDevice(
 			Adapter,
-			DriverType,
+			D3D_DRIVER_TYPE_UNKNOWN,
 			NULL,
 			DeviceFlags,
 			&FeatureLevel,
@@ -201,7 +247,11 @@ FPixelStreamingNvVideoEncoder::FEncoderDevice::FEncoderDevice()
 			DeviceContext.GetInitReference()
 		));
 
-		DXGIDevice->Release();
+		// If we are using D3D12, make sure we got a 11.1 device
+		if (FeatureLevel == D3D_FEATURE_LEVEL_11_1 && ActualFeatureLevel!=D3D_FEATURE_LEVEL_11_1)
+		{
+			UE_LOG(PixelStreamer, Fatal, TEXT("Failed to create a D3D 11.1 device. This is needed when using the D3D12 renderer."));
+		}
 	}
 	else
 	{
@@ -892,19 +942,40 @@ void FPixelStreamingNvVideoEncoder::InitFrameInputBuffer(FInputFrame& InputFrame
 	}
 
 	// Share this texture with the encoder device.
+	FString RHIName = GDynamicRHI->GetName();
+
+	if (RHIName == TEXT("D3D11"))
 	{
 		ID3D11Texture2D* ResolvedBackBuffer = (ID3D11Texture2D*)InputFrame.BackBuffer->GetTexture2D()->GetNativeResource();
 
-		IDXGIResource* DXGIResource = NULL;
-		CHECK_HR_DX9_VOID(ResolvedBackBuffer->QueryInterface(__uuidof(IDXGIResource), (LPVOID*)&DXGIResource));
+		TRefCountPtr<IDXGIResource> DXGIResource;
+		CHECK_HR_DX9_VOID(ResolvedBackBuffer->QueryInterface(IID_PPV_ARGS(DXGIResource.GetInitReference())));
 
+		//
+		// NOTE : The HANDLE IDXGIResource::GetSharedHandle gives us is NOT an NT Handle, and therefre we should not call CloseHandle on it
+		//
 		HANDLE SharedHandle;
 		CHECK_HR_DX9_VOID(DXGIResource->GetSharedHandle(&SharedHandle));
-		CHECK_HR_DX9_VOID(DXGIResource->Release());
-
 		CHECK_HR_DX9_VOID(EncoderDevice->Device->OpenSharedResource(SharedHandle, __uuidof(ID3D11Texture2D), (LPVOID*)&InputFrame.SharedBackBuffer));
 	}
+	else if (RHIName == TEXT("D3D12"))
+	{
+		auto UE4D3DDevice = static_cast<ID3D12Device*>(GDynamicRHI->RHIGetNativeDevice());
+		static uint32 NamingIdx = 0;
+		ID3D12Resource* ResolvedBackBuffer = (ID3D12Resource*)InputFrame.BackBuffer->GetTexture2D()->GetNativeResource();
 
+		//
+		// NOTE: ID3D12Device::CreateSharedHandle gives as an NT Handle, and so we need to call CloseHandle on it
+		//
+		HANDLE SharedHandle;
+		HRESULT Res1 = UE4D3DDevice->CreateSharedHandle(ResolvedBackBuffer, NULL, GENERIC_ALL, *FString::Printf(TEXT("PixelStreaming_NvEnc_%u"), NamingIdx++), &SharedHandle);
+		CHECK_HR_DX9_VOID(Res1);
+
+		TRefCountPtr <ID3D11Device1> Device1;
+		CHECK_HR_DX9_VOID(EncoderDevice->Device->QueryInterface(__uuidof(ID3D11Device1), (void**)Device1.GetInitReference()));
+		CHECK_HR_DX9_VOID(Device1->OpenSharedResource1(SharedHandle, __uuidof(ID3D11Texture2D), (LPVOID*)&InputFrame.SharedBackBuffer));
+		verify(CloseHandle(SharedHandle));
+	}
 
 	// Register input back buffer
 	{
