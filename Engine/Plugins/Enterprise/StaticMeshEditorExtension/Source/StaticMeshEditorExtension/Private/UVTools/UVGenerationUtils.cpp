@@ -1,60 +1,59 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "UVGenerationUtils.h"
-#include "PropertyHandle.h"
-#include "IDetailChildrenBuilder.h"
-#include "Widgets/Input/SVectorInputBox.h"
-#include "IDetailPropertyRow.h"
-#include "DetailWidgetRow.h"
-#include "Math/Axis.h"
+#include "UVTools/UVGenerationUtils.h"
+
+#include "Engine/StaticMesh.h"
 #include "MeshDescription.h"
+#include "MeshDescriptionOperations.h"
+#include "MeshUtilitiesCommon.h"
+#include "OverlappingCorners.h"
+#include "StaticMeshAttributes.h"
 
-TSharedRef<IPropertyTypeCustomization> FUVGenerationSettingsCustomization::MakeInstance()
+
+int32 UVGenerationUtils::GetNextOpenUVChannel(UStaticMesh* StaticMesh, int32 LODIndex)
 {
-	return MakeShareable(new FUVGenerationSettingsCustomization);
-}
+	FMeshDescription* Mesh = StaticMesh->GetMeshDescription(LODIndex);
+	int32 NumberOfUVs = StaticMesh->GetNumUVChannels(LODIndex);
+	int32 FirstEmptyUVs = 0;
 
-void FUVGenerationSettingsCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
-{
-	TArray<void*> StructPtrs;
-	PropertyHandle->AccessRawData(StructPtrs);
-	GenerateUVSettings = (StructPtrs.Num() == 1) ? reinterpret_cast<FUVGenerationSettings*>(StructPtrs[0]) : nullptr;
-}
-
-void FUVGenerationSettingsCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
-{
-	uint32 NumChildProps = 0;
-	
-	StructPropertyHandle->GetNumChildren(NumChildProps);
-
-	for (uint32 Idx = 0; Idx < NumChildProps; Idx++)
+	for (; FirstEmptyUVs < NumberOfUVs; ++FirstEmptyUVs)
 	{
-		TSharedPtr<IPropertyHandle> PropHandle = StructPropertyHandle->GetChildHandle(Idx);
+		const TVertexInstanceAttributesConstRef<FVector2D> UVChannels = Mesh->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+		const FVector2D DefValue = UVChannels.GetDefaultValue();
+		bool bHasNonDefaultValue = false;
 
-		FName PropertyName = PropHandle->GetProperty()->GetFName();
-		if (PropertyName == GET_MEMBER_NAME_CHECKED(FUVGenerationSettings, Size)
-			|| PropertyName == GET_MEMBER_NAME_CHECKED(FUVGenerationSettings, Position)
-			|| PropertyName == GET_MEMBER_NAME_CHECKED(FUVGenerationSettings, Rotation))
+		for (FVertexInstanceID InstanceID : Mesh->VertexInstances().GetElementIDs())
 		{
-			PropHandle->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FUVGenerationSettingsCustomization::OnShapePropertyChanged));
-		}
-		else if (PropertyName == GET_MEMBER_NAME_CHECKED(FUVGenerationSettings, TargetChannel))
-		{
-			if (GenerateUVSettings && GenerateUVSettings->OnGetNumberOfUVs.IsBound())
+			if (UVChannels.Get(InstanceID, FirstEmptyUVs) != DefValue)
 			{
-				PropHandle->SetInstanceMetaData(TEXT("ClampMax"), FString::FromInt(FMath::Min(GenerateUVSettings->OnGetNumberOfUVs.Execute(), (int32)MAX_MESH_TEXTURE_COORDS_MD - 1)));
-			}
-			else
-			{
-				PropHandle->SetInstanceMetaData(TEXT("ClampMax"), FString::FromInt(MAX_MESH_TEXTURE_COORDS_MD - 1));
+				bHasNonDefaultValue = true;
+				break;
 			}
 		}
 
-		IDetailPropertyRow& PropertyRow = ChildBuilder.AddProperty(PropHandle.ToSharedRef());
+		if (!bHasNonDefaultValue)
+		{
+			//We found an "empty" channel.
+			break;
+		}
 	}
-}
+	return FirstEmptyUVs < MAX_MESH_TEXTURE_COORDS_MD ? FirstEmptyUVs : -1;
+};
 
-void FUVGenerationSettingsCustomization::OnShapePropertyChanged()
+void UVGenerationUtils::SetupGeneratedLightmapUVResolution(UStaticMesh* StaticMesh, int32 LODIndex)
 {
-	GenerateUVSettings->OnShapeEditingValueChanged.Broadcast();
+	FMeshBuildSettings& BuildSettings = StaticMesh->GetSourceModel(LODIndex).BuildSettings;
+	FMeshDescription& Mesh = *StaticMesh->GetMeshDescription(LODIndex);
+
+	// Determine the absolute minimum lightmap resolution that can be used for packing
+	float ComparisonThreshold = BuildSettings.bRemoveDegenerates ? THRESH_POINTS_ARE_SAME : 0.0f;
+	FOverlappingCorners OverlappingCorners;
+	FMeshDescriptionOperations::FindOverlappingCorners(OverlappingCorners, Mesh, ComparisonThreshold);
+
+	// Packing expects at least one texel per chart. This is the absolute minimum to generate valid UVs.
+	int32 ChartCount = FMeshDescriptionOperations::GetUVChartCount(Mesh, BuildSettings.SrcLightmapIndex, ELightmapUVVersion::Latest, OverlappingCorners);
+	const int32 AbsoluteMinResolution = 1 << FMath::CeilLogTwo(FMath::Sqrt(ChartCount));
+	const int32 LightmapResolution = FMath::Clamp(BuildSettings.MinLightmapResolution, AbsoluteMinResolution, 512);
+
+	BuildSettings.MinLightmapResolution = LightmapResolution;
 }

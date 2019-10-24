@@ -7,7 +7,7 @@
 #include "UVTools/UVGenerationFlattenMappingTool.h"
 #include "UVTools/UVGenerationToolbar.h"
 #include "UVTools/UVGenerationTool.h"
-#include "UVTools/UVGenerationUtils.h"
+#include "UVTools/UVGenerationSettings.h"
 
 #include "ContentBrowserModule.h"
 #include "Modules/ModuleManager.h"
