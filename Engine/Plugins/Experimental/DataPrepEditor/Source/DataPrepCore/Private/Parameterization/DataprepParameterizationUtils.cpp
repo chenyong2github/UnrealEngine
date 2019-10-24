@@ -40,6 +40,11 @@ namespace DataprepParameterizationUtils
 
 }
 
+bool operator==(const FDataprepPropertyLink& A, const FDataprepPropertyLink& B)
+{
+	return A.PropertyName == B.PropertyName && A.ContainerIndex == B.ContainerIndex;
+}
+
 uint32 GetTypeHash(const FDataprepPropertyLink& PropertyLink)
 {
 	return HashCombine( GetTypeHash( PropertyLink.PropertyName ), GetTypeHash( PropertyLink.ContainerIndex ) );
