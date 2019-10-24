@@ -96,6 +96,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "Height", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0"))
 	float Height;
 
+	/** Radius of additional circular features of the shape (not implicitly defined by the width of the shape) */
+	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "Feature Radius", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0"))
+	float FeatureRadius;
+
 	/** Rotation around up axis */
 	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "Rotation", UIMin = "0.0", UIMax = "360.0"))
 	float Rotation;
