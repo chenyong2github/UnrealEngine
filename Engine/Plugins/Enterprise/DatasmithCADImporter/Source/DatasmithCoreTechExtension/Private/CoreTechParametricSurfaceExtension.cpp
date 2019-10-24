@@ -181,10 +181,10 @@ bool FCoreTechRetessellate_Impl::ApplyOnOneAsset(UStaticMesh& StaticMesh, UCoreT
 	ImportParameters.ChordTolerance = RetessellateOptions.ChordTolerance;
 	ImportParameters.MaxEdgeLength = RetessellateOptions.MaxEdgeLength;
 	ImportParameters.MaxNormalAngle = RetessellateOptions.NormalTolerance;
+	ImportParameters.ModelCoordSys = CADLibrary::EModelCoordSystem(CoreTechData.SceneParameters.ModelCoordSys);
 	ImportParameters.StitchingTechnique = CADLibrary::EStitchingTechnique(RetessellateOptions.StitchingTechnique);
 
 	CADLibrary::FMeshParameters MeshParameters;
-	MeshParameters.ModelCoordSys = FDatasmithUtils::EModelCoordSystem(CoreTechData.SceneParameters.ModelCoordSys);
 	MeshParameters.bNeedSwapOrientation = CoreTechData.MeshParameters.bNeedSwapOrientation;
 	MeshParameters.bIsSymmetric = CoreTechData.MeshParameters.bIsSymmetric;
 	MeshParameters.SymmetricNormal = CoreTechData.MeshParameters.SymmetricNormal;
