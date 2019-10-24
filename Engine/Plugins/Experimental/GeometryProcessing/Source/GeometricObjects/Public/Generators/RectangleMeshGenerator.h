@@ -3,6 +3,7 @@
 #pragma once
 
 #include "MeshShapeGenerator.h"
+#include "Misc/EnumClassFlags.h"
 
 /**
  * Generate planar rectangular mesh with variable number of subdivisions along width and height.
@@ -46,6 +47,58 @@ public:
 		v[IndicesMap.B] = y;
 		return Origin + v;
 	}
+
+};
+
+enum class ERoundedRectangleCorner : uint8
+{
+	None = 0,
+	BottomLeft = 1,
+	BottomRight = 2,
+	TopLeft = 4,
+	TopRight = 8,
+	All = 15
+};
+ENUM_CLASS_FLAGS(ERoundedRectangleCorner);
+
+/**
+* Adds rounded corners to the rectangle mesh
+*/
+class GEOMETRICOBJECTS_API FRoundedRectangleMeshGenerator : public FRectangleMeshGenerator
+{
+public:
+	/** Radius of rounded corners */
+	double Radius;
+
+	/** Number of samples to put per rounded corner */
+	int AngleSamples;
+
+
+	ERoundedRectangleCorner SharpCorners;
+
+	static inline bool SideInCorners(int SideX, int SideY, ERoundedRectangleCorner Corners)
+	{
+		int SideInCorners = int(Corners)&((SideY ? 4 : 1) * (SideX ? 2 : 1));
+		return SideInCorners != 0;
+	}
+
+	static inline int NumSharpCorners(ERoundedRectangleCorner SharpFlags)
+	{
+		int NumSharp = 0;
+		int FlagsValue = (int)SharpFlags;
+		while (FlagsValue)
+		{
+			FlagsValue &= (FlagsValue - 1);
+			NumSharp++;
+		}
+		return NumSharp;
+	}
+
+public:
+	FRoundedRectangleMeshGenerator();
+
+	/** Generate the mesh */
+	virtual FMeshShapeGenerator& Generate() override;
 
 
 

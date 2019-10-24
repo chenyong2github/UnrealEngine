@@ -87,12 +87,12 @@ namespace
 	{ 
 	  { TEXT("Shape"),         EMakeMeshShapeType::All },
 	  { TEXT("Width"),         EMakeMeshShapeType::All },
-	  { TEXT("Height"),        EMakeMeshShapeType::Box | EMakeMeshShapeType::Cylinder | EMakeMeshShapeType::Cone | EMakeMeshShapeType::Arrow | EMakeMeshShapeType::Plane },
+	  { TEXT("Height"),        EMakeMeshShapeType::Box | EMakeMeshShapeType::Cylinder | EMakeMeshShapeType::Cone | EMakeMeshShapeType::Arrow | EMakeMeshShapeType::Rectangle | EMakeMeshShapeType::RoundedRectangle },
 	  { TEXT("Rotation"),      EMakeMeshShapeType::All },
 	  { TEXT("PlaceMode"),     EMakeMeshShapeType::All },
 	  { TEXT("PivotLocation"), EMakeMeshShapeType::All },
-	  { TEXT("Slices"),        EMakeMeshShapeType::Cylinder | EMakeMeshShapeType::Cone | EMakeMeshShapeType::Arrow | EMakeMeshShapeType::Sphere },
-	  { TEXT("Subdivisions"),  EMakeMeshShapeType::Box | EMakeMeshShapeType::Plane | EMakeMeshShapeType::Cylinder |
+	  { TEXT("Slices"),        EMakeMeshShapeType::Cylinder | EMakeMeshShapeType::Cone | EMakeMeshShapeType::Arrow | EMakeMeshShapeType::RoundedRectangle | EMakeMeshShapeType::Sphere },
+	  { TEXT("Subdivisions"),  EMakeMeshShapeType::Box | EMakeMeshShapeType::Rectangle | EMakeMeshShapeType::RoundedRectangle | EMakeMeshShapeType::Cylinder |
 							   EMakeMeshShapeType::Cone | EMakeMeshShapeType::Arrow | EMakeMeshShapeType::SphericalBox }
 	};
 };
@@ -258,8 +258,12 @@ void UAddPrimitiveTool::UpdatePreviewMesh()
 	FDynamicMesh3 NewMesh;
 	switch (ShapeSettings->Shape)
 	{
-	case EMakeMeshShapeType::Plane:
-		GeneratePlane(&NewMesh);
+	case EMakeMeshShapeType::Rectangle:
+		GenerateRectangle(&NewMesh);
+		break;
+
+	case EMakeMeshShapeType::RoundedRectangle:
+		GenerateRoundedRectangle(&NewMesh);
 		break;
 
 	case EMakeMeshShapeType::Cylinder:
@@ -353,12 +357,24 @@ void UAddPrimitiveTool::GenerateBox(FDynamicMesh3* OutMesh)
 }
 
 
-void UAddPrimitiveTool::GeneratePlane(FDynamicMesh3* OutMesh)
+void UAddPrimitiveTool::GenerateRectangle(FDynamicMesh3* OutMesh)
 {
 	FRectangleMeshGenerator RectGen;
 	RectGen.Width = ShapeSettings->Width;
 	RectGen.Height = ShapeSettings->Height;
 	RectGen.WidthVertexCount = RectGen.HeightVertexCount = ShapeSettings->Subdivisions + 2;
+	RectGen.Generate();
+	OutMesh->Copy(&RectGen);
+}
+
+void UAddPrimitiveTool::GenerateRoundedRectangle(FDynamicMesh3* OutMesh)
+{
+	FRoundedRectangleMeshGenerator RectGen;
+	RectGen.Width = ShapeSettings->Width;
+	RectGen.Height = ShapeSettings->Height;
+	RectGen.WidthVertexCount = RectGen.HeightVertexCount = ShapeSettings->Subdivisions + 2;
+	RectGen.Radius = ShapeSettings->Width * .5; // TODO replace with a radius parameter
+	RectGen.AngleSamples = ShapeSettings->Slices;
 	RectGen.Generate();
 	OutMesh->Copy(&RectGen);
 }
