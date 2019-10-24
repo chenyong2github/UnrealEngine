@@ -9,8 +9,6 @@
 #include "RenderingThread.h"
 #include "NiagaraDataSet.generated.h"
 
-typedef TArray<uint8*, TInlineAllocator<128>> FNiagaraRegisterTable;
-
 /** Helper class defining the layout and location of an FNiagaraVariable in an FNiagaraDataBuffer-> */
 USTRUCT()
 struct FNiagaraVariableLayoutInfo
@@ -113,11 +111,10 @@ public:
 	void GPUCopyFrom(float* GPUReadBackFloat, int* GPUReadBackInt, int32 StartIdx, int32 NumInstances, uint32 InSrcFloatStride, uint32 InSrcIntStride);
 	void Dump(int32 StartIndex, int32 NumInstances, const FString& Label)const;
 
-	FORCEINLINE_DEBUGGABLE void AppendToRegisterTable(FNiagaraRegisterTable& Registers, int32 StartInstance);
-	FORCEINLINE void ClearRegisterTable(FNiagaraRegisterTable& Registers);
+	FORCEINLINE TArray<uint8*>& GetRegisterTable() { return RegisterTable; }
 
-	const TArray<uint8>& GetFloatBuffer()const { return FloatData; }
-	const TArray<uint8>& GetInt32Buffer()const { return Int32Data; }
+	FORCEINLINE const TArray<uint8>& GetFloatBuffer()const { return FloatData; }
+	FORCEINLINE const TArray<uint8>& GetInt32Buffer()const { return Int32Data; }
 
 	FORCEINLINE const uint8* GetComponentPtrFloat(uint32 ComponentIdx)const	{ return FloatData.GetData() + FloatStride * ComponentIdx; }
 	FORCEINLINE const uint8* GetComponentPtrInt32(uint32 ComponentIdx)const	{ return Int32Data.GetData() + Int32Stride * ComponentIdx; }
@@ -1520,39 +1517,4 @@ FORCEINLINE void FNiagaraDataBuffer::CheckUsage(bool bReadOnly)const
 	//For GPU sims we must be on the RT.
 	checkSlow((Owner->GetSimTarget() == ENiagaraSimTarget::CPUSim  && (IsInGameThread() || (bReadOnly || !IsInRenderingThread()))) ||
 		(Owner->GetSimTarget() == ENiagaraSimTarget::GPUComputeSim) && IsInRenderingThread());
-}
-
-FORCEINLINE_DEBUGGABLE void FNiagaraDataBuffer::AppendToRegisterTable(FNiagaraRegisterTable& Registers, int32 StartInstance)
-{
-	checkSlow(Owner && Owner->IsInitialized());
-	checkSlow(Owner->GetSimTarget() == ENiagaraSimTarget::CPUSim);
-	CheckUsage(true);
-
-	if (!ensure(RegisterTable.Num() != 0))
-	{
-		BuildRegisterTable();
-	}
-
-	int32 RegisterCount = RegisterTable.Num();
-	int32 NumRegisters = Registers.Num();
-	Registers.AddUninitialized(RegisterCount);
-
-	if (StartInstance == 0)
-	{
-		FMemory::Memcpy(&Registers[NumRegisters], RegisterTable.GetData(), sizeof(uint8*) * RegisterCount);
-	}
-	else
-	{
-		int32 StartOffset = sizeof(float) * StartInstance;
-		for (int32 i = 0; i < RegisterCount; ++i)
-		{
-			Registers[NumRegisters + i] = RegisterTable[i] + StartOffset;
-		}
-	}
-}
-
-FORCEINLINE void FNiagaraDataBuffer::ClearRegisterTable(FNiagaraRegisterTable& Registers)
-{
-	int32 RegisterCount = RegisterTable.Num();
-	Registers.AddZeroed(RegisterCount);
 }
