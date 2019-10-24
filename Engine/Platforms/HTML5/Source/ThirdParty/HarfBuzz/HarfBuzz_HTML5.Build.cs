@@ -6,6 +6,7 @@ using Tools.DotNETCommon;
 
 public class HarfBuzz_HTML5 : HarfBuzz
 {
+	protected override string HarfBuzzVersion { get { return "harfbuzz-2.4.0"; } }
 	protected override string LibRootDirectory { get { return Target.HTML5Platform.PlatformThirdPartySourceDirectory; } }
 
 	public HarfBuzz_HTML5(ReadOnlyTargetRules Target) : base(Target)
