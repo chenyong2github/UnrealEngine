@@ -32,7 +32,7 @@ public:
 	 * eg. For a file in inches, arg should be 0.0254
 	 */
 	FAliasCoretechWrapper(const TCHAR* InOwner)
-		: CTSession(InOwner, 0.001, 1)
+		: CTSession(InOwner, 0.01, 1) // Alias files have cm units
 	{
 	}
 
