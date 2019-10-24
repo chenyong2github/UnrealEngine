@@ -13,6 +13,7 @@
 #include "Generators/RectangleMeshGenerator.h"
 #include "Generators/SphereGenerator.h"
 #include "Generators/BoxSphereGenerator.h"
+#include "Generators/DiscMeshGenerator.h"
 #include "DynamicMeshAttributeSet.h"
 #include "StaticMeshComponentBuilder.h"
 #include "Drawing/MeshDebugDrawing.h"
@@ -91,8 +92,8 @@ namespace
 	  { TEXT("Rotation"),      EMakeMeshShapeType::All },
 	  { TEXT("PlaceMode"),     EMakeMeshShapeType::All },
 	  { TEXT("PivotLocation"), EMakeMeshShapeType::All },
-	  { TEXT("Slices"),        EMakeMeshShapeType::Cylinder | EMakeMeshShapeType::Cone | EMakeMeshShapeType::Arrow | EMakeMeshShapeType::RoundedRectangle | EMakeMeshShapeType::Sphere },
-	  { TEXT("Subdivisions"),  EMakeMeshShapeType::Box | EMakeMeshShapeType::Rectangle | EMakeMeshShapeType::RoundedRectangle | EMakeMeshShapeType::Cylinder |
+	  { TEXT("Slices"),        EMakeMeshShapeType::Cylinder | EMakeMeshShapeType::Cone | EMakeMeshShapeType::Arrow | EMakeMeshShapeType::RoundedRectangle | EMakeMeshShapeType::Disc | EMakeMeshShapeType::PuncturedDisc | EMakeMeshShapeType::Sphere },
+	  { TEXT("Subdivisions"),  EMakeMeshShapeType::Box | EMakeMeshShapeType::Rectangle | EMakeMeshShapeType::RoundedRectangle | EMakeMeshShapeType::Disc | EMakeMeshShapeType::PuncturedDisc | EMakeMeshShapeType::Cylinder |
 							   EMakeMeshShapeType::Cone | EMakeMeshShapeType::Arrow | EMakeMeshShapeType::SphericalBox }
 	};
 };
@@ -266,6 +267,14 @@ void UAddPrimitiveTool::UpdatePreviewMesh()
 		GenerateRoundedRectangle(&NewMesh);
 		break;
 
+	case EMakeMeshShapeType::Disc:
+		GenerateDisc(&NewMesh);
+		break;
+
+	case EMakeMeshShapeType::PuncturedDisc:
+		GeneratePuncturedDisc(&NewMesh);
+		break;
+
 	case EMakeMeshShapeType::Cylinder:
 		GenerateCylinder(&NewMesh);
 		break;
@@ -377,6 +386,29 @@ void UAddPrimitiveTool::GenerateRoundedRectangle(FDynamicMesh3* OutMesh)
 	RectGen.AngleSamples = ShapeSettings->Slices;
 	RectGen.Generate();
 	OutMesh->Copy(&RectGen);
+}
+
+
+void UAddPrimitiveTool::GenerateDisc(FDynamicMesh3* OutMesh)
+{
+	FDiscMeshGenerator Gen;
+	Gen.Radius = ShapeSettings->Width * 0.5f;
+	Gen.AngleSamples = ShapeSettings->Slices;
+	Gen.RadialSamples = ShapeSettings->Subdivisions;
+	Gen.Generate();
+	OutMesh->Copy(&Gen);
+}
+
+
+void UAddPrimitiveTool::GeneratePuncturedDisc(FDynamicMesh3* OutMesh)
+{
+	FPuncturedDiscMeshGenerator Gen;
+	Gen.Radius = ShapeSettings->Width * 0.5f;
+	Gen.HoleRadius = Gen.Radius * .5;
+	Gen.AngleSamples = ShapeSettings->Slices;
+	Gen.RadialSamples = ShapeSettings->Subdivisions;
+	Gen.Generate();
+	OutMesh->Copy(&Gen);
 }
 
 

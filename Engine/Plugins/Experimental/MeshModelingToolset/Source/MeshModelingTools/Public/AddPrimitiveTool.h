@@ -35,18 +35,20 @@ public:
 
 /** Shape Types */
 UENUM()
-enum class EMakeMeshShapeType : uint8
+enum class EMakeMeshShapeType : uint32
 {
-	None			 = 0x00 UMETA(DisplayName = "None", Hidden),
-	All				 = 0xff UMETA(DisplayName = "All", Hidden), 
-	Box				 = 0x01 UMETA(DisplayName = "Box"),
-	Cylinder		 = 0x02 UMETA(DisplayName = "Cylinder"),
-	Cone			 = 0x04 UMETA(DisplayName = "Cone"),
-	Arrow			 = 0x08 UMETA(DisplayName = "Arrow"),
-	Rectangle		 = 0x10 UMETA(DisplayName = "Rectangle"),
-	RoundedRectangle = 0x20 UMETA(DisplayName = "Rounded Rectangle"),
-	Sphere			 = 0x40 UMETA(DisplayName = "Sphere"),
-	SphericalBox	 = 0x80 UMETA(DisplayName = "Spherical Box")
+	None			 = 0x000 UMETA(DisplayName = "None", Hidden),
+	All				 = 0xfff UMETA(DisplayName = "All", Hidden), 
+	Box				 = 0x001 UMETA(DisplayName = "Box"),
+	Cylinder		 = 0x002 UMETA(DisplayName = "Cylinder"),
+	Cone			 = 0x004 UMETA(DisplayName = "Cone"),
+	Arrow			 = 0x008 UMETA(DisplayName = "Arrow"),
+	Rectangle		 = 0x010 UMETA(DisplayName = "Rectangle"),
+	RoundedRectangle = 0x020 UMETA(DisplayName = "Rounded Rectangle"),
+	Disc			 = 0x040 UMETA(DisplayName = "Disc"),
+	PuncturedDisc	 = 0x080 UMETA(DisplayName = "Punctured Disc"),
+	Sphere			 = 0x100 UMETA(DisplayName = "Sphere"),
+	SphericalBox	 = 0x200 UMETA(DisplayName = "Spherical Box")
 	
 };
 ENUM_CLASS_FLAGS(EMakeMeshShapeType);
@@ -192,6 +194,8 @@ protected:
 	void GenerateBox(FDynamicMesh3* OutMesh);
 	void GenerateRectangle(FDynamicMesh3* OutMesh);
 	void GenerateRoundedRectangle(FDynamicMesh3* OutMesh);
+	void GenerateDisc(FDynamicMesh3* OutMesh);
+	void GeneratePuncturedDisc(FDynamicMesh3* OutMesh);
 	void GenerateSphere(FDynamicMesh3* OutMesh);
 	void GenerateSphericalBox(FDynamicMesh3* OutMesh);
 	void GenerateArrow(FDynamicMesh3* OutMesh);

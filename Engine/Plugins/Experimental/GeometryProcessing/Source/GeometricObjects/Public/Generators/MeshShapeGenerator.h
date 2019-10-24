@@ -217,7 +217,16 @@ public:
 		TrianglePolygonIDs[Index] = PolygonID;
 	}
 
-
+	/**
+	 * Set triangle and UVs and normals with matching indices
+	 * Convenience function for shapes with no uv or normal seams
+	 */
+	inline void SetTriangleWithMatchedUVNormal(int Index, int A, int B, int C)
+	{
+		SetTriangle(Index, A, B, C);
+		SetTriangleNormals(Index, A, B, C);
+		SetTriangleUVs(Index, A, B, C);
+	}
 
 
 	static FVector3d BilinearInterp(const FVector3d &v00, const FVector3d &v10, const FVector3d &v11, const FVector3d &v01, double tx, double ty)
