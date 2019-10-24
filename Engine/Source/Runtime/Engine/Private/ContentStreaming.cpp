@@ -1384,6 +1384,7 @@ FAudioChunkHandle::FAudioChunkHandle(const uint8* InData, uint32 NumBytes, const
 }
 
 FAudioChunkHandle::FAudioChunkHandle(const FAudioChunkHandle& Other)
+	: FAudioChunkHandle()
 {
 	*this = Other;
 }
