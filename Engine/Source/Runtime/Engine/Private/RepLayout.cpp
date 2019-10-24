@@ -941,8 +941,6 @@ FReceivingRepState::FReceivingRepState(FRepStateStaticBuffer&& InStaticBuffer) :
 
 FRepLayout::FRepLayout() :
 	Flags(ERepLayoutFlags::None),
-	RoleIndex(INDEX_NONE),
-	RemoteRoleIndex(-1),
 	Owner(nullptr)
 {}
 
@@ -1012,8 +1010,6 @@ struct FComparePropertiesSharedParams
 {
 	const bool bIsInitial;
 	const bool bForceFail;
-	const int16 RoleIndex;
-	const int16 RemoteRoleIndex;
 	const ERepLayoutFlags Flags;
 	const TArray<FRepParentCmd>& Parents;
 	const TArray<FRepLayoutCmd>& Cmds;
@@ -1062,8 +1058,8 @@ static void CompareRoleProperties(
 {
 	if (RepState && EnumHasAnyFlags(SharedParams.Flags, ERepLayoutFlags::IsActor))
 	{
-		CompareRoleProperty(SharedParams, Data, SharedParams.RemoteRoleIndex, RepState->SavedRemoteRole, Changed);
-		CompareRoleProperty(SharedParams, Data, SharedParams.RoleIndex, RepState->SavedRole, Changed);
+		CompareRoleProperty(SharedParams, Data, NetworkingPrivate::Net_AActor::NETFIELD_RemoteRole, RepState->SavedRemoteRole, Changed);
+		CompareRoleProperty(SharedParams, Data, NetworkingPrivate::Net_AActor::NETFIELD_Role, RepState->SavedRole, Changed);
 	}
 }
 
@@ -1102,14 +1098,14 @@ static void CompareParentProperties(
 
 		if (bCheckForRole)
 		{
-			if (UNLIKELY(ParentIndex == SharedParams.RoleIndex))
+			if (UNLIKELY(ParentIndex == NetworkingPrivate::Net_AActor::NETFIELD_Role))
 			{
-				CompareRoleProperty(SharedParams, Data, SharedParams.RoleIndex, RepState->SavedRole, Changed);
+				CompareRoleProperty(SharedParams, Data, NetworkingPrivate::Net_AActor::NETFIELD_Role, RepState->SavedRole, Changed);
 				continue;
 			}
-			else if (UNLIKELY(ParentIndex == SharedParams.RemoteRoleIndex))
+			else if (UNLIKELY(ParentIndex == NetworkingPrivate::Net_AActor::NETFIELD_RemoteRole))
 			{
-				CompareRoleProperty(SharedParams, Data, SharedParams.RemoteRoleIndex, RepState->SavedRemoteRole, Changed);
+				CompareRoleProperty(SharedParams, Data, NetworkingPrivate::Net_AActor::NETFIELD_RemoteRole, RepState->SavedRemoteRole, Changed);
 				continue;
 			}
 		}
@@ -1240,8 +1236,6 @@ bool FRepLayout::CompareProperties(
 	FComparePropertiesSharedParams SharedParams{
 		/*bIsInitial=*/ !!RepFlags.bNetInitial,
 		/*bForceFail=*/ false,
-		RoleIndex,
-		RemoteRoleIndex,
 		Flags,
 		Parents,
 		Cmds
@@ -2577,8 +2571,26 @@ static bool ReceivePropertyHelper(
 	const FRepLayoutCmd& Cmd = Cmds[CmdIndex];
 	const FRepParentCmd& Parent = Parents[Cmd.ParentIndex];
 
+	auto GetSwappedCmd = [&Cmd, &Cmds, &Parents, bSkipSwapRoles]() -> const FRepLayoutCmd&
+	{
+		if (!bSkipSwapRoles)
+		{
+			// Swap Role to RemoteRole, and vice-versa. Leave everything else the same.
+			if (UNLIKELY(NetworkingPrivate::Net_AActor::NETFIELD_Role == Cmd.ParentIndex))
+			{
+				return Cmds[Parents[NetworkingPrivate::Net_AActor::NETFIELD_RemoteRole].CmdStart];
+			}
+			else if (UNLIKELY(NetworkingPrivate::Net_AActor::NETFIELD_RemoteRole == Cmd.ParentIndex))
+			{
+				return Cmds[Parents[NetworkingPrivate::Net_AActor::NETFIELD_Role].CmdStart];
+			}
+		}
+
+		return Cmd;
+	};
+
 	// This swaps Role/RemoteRole as we write it
-	const FRepLayoutCmd& SwappedCmd = (!bSkipSwapRoles && Parent.RoleSwapIndex != -1) ? Cmds[Parents[Parent.RoleSwapIndex].CmdStart] : Cmd;
+	const FRepLayoutCmd& SwappedCmd = GetSwappedCmd();
 
 	if (GuidReferencesMap)		// Don't reset unmapped guids here if we are told not to (assuming calling code is handling this)
 	{
@@ -5017,8 +5029,6 @@ void FRepLayout::InitFromClass(
 	SCOPE_CYCLE_UOBJECT(ObjectClass, InObjectClass);
 
 	const bool bIsObjectActor = InObjectClass->IsChildOf(AActor::StaticClass());
-	RoleIndex = INDEX_NONE;
-	RemoteRoleIndex = INDEX_NONE;
 
 	if (bIsObjectActor)
 	{
@@ -5066,48 +5076,21 @@ void FRepLayout::InitFromClass(
 			Parents[ParentHandle].Flags |= ERepParentFlags::IsConfig;
 		}
 
-		if (bIsObjectActor)
-		{
-		    // Find Role/RemoteRole property indexes so we can swap them on the client
-		    if (Property->GetFName() == NAME_Role)
-		    {
-			    check(RoleIndex == INDEX_NONE);
-			    check(Parents[ParentHandle].CmdEnd == Parents[ParentHandle].CmdStart + 1);
-			    RoleIndex = ParentHandle;
-		    }
-
-		    if (Property->GetFName() == NAME_RemoteRole)
-		    {
-			    check(RemoteRoleIndex == INDEX_NONE);
-			    check(Parents[ParentHandle].CmdEnd == Parents[ParentHandle].CmdStart + 1);
-			    RemoteRoleIndex = ParentHandle;
-		    }
-	    }
-
 		if (EnumHasAnyFlags(Parents[ParentHandle].Flags, ERepParentFlags::IsCustomDelta))
 		{
 			HighestCustomDeltaRepIndex = ParentHandle;
 		}
 	}
 
-	// Make sure it either found both, or didn't find either
-	check((RoleIndex == INDEX_NONE) == (RemoteRoleIndex == INDEX_NONE));
+	// Make sure RemoteRole has a lower RepIndex than Role, otherwise assumptions RepLayout may break.
+	static_assert(NetworkingPrivate::Net_AActor::NETFIELD_RemoteRole < NetworkingPrivate::Net_AActor::NETFIELD_Role, "Role and RemoteRole have been rearranged in AActor. This will break assumptions in RepLayout.");
 
-	// Make sure that we only find these if we're an Actor, and if we're
-	// an Actor we always find these.
-	check((RoleIndex == INDEX_NONE) == !bIsObjectActor);
+	// Make sure that our RemoteRole property actually points to RemoteRole.
+	check(!bIsObjectActor || Parents[NetworkingPrivate::Net_AActor::NETFIELD_RemoteRole].Property->GetFName() == NAME_RemoteRole);
 
-	// This is so the receiving side can swap these as it receives them
-	if (RoleIndex != -1)
-	{
-		// Make sure that if we have Role and RemoteRole, that Role comes before RemoteRole.
-		// If this fails, it means that the order of Role and RemoteRole has been changed in AActor, and that
-		// will break assumptions RepLayout makes.
-		check(RemoteRoleIndex < RoleIndex);
-		Parents[RoleIndex].RoleSwapIndex = RemoteRoleIndex;
-		Parents[RemoteRoleIndex].RoleSwapIndex = RoleIndex;
-	}
-	
+	// Make sure that our Role property actually points to Role.
+	check(!bIsObjectActor || Parents[NetworkingPrivate::Net_AActor::NETFIELD_Role].Property->GetFName() == NAME_Role);
+
 	AddReturnCmd(Cmds);
 
 	// Initialize lifetime props
@@ -5244,7 +5227,7 @@ void FRepLayout::InitFromClass(
 	{
 		// We handle remote role specially, since it can change between connections when downgraded
 		// So we force it on the conditional list
-		FRepParentCmd& RemoteRoleParent = Parents[RemoteRoleIndex];
+		FRepParentCmd& RemoteRoleParent = Parents[NetworkingPrivate::Net_AActor::NETFIELD_RemoteRole];
 		if (RemoteRoleParent.Condition != COND_Never)
 		{
 			if (COND_None != RemoteRoleParent.Condition)
@@ -5252,8 +5235,8 @@ void FRepLayout::InitFromClass(
 				UE_LOG(LogRep, Warning, TEXT("FRepLayout::InitFromClass: Forcing replication of RemoteRole. Owner=%s"), *InObjectClass->GetPathName());
 			}
 
-			Parents[RemoteRoleIndex].Flags |= ERepParentFlags::IsConditional;
-			Parents[RemoteRoleIndex].Condition = COND_None;
+			Parents[NetworkingPrivate::Net_AActor::NETFIELD_RemoteRole].Flags |= ERepParentFlags::IsConditional;
+			Parents[NetworkingPrivate::Net_AActor::NETFIELD_RemoteRole].Condition = COND_None;
 		}
 	}
 
@@ -6601,8 +6584,6 @@ bool FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSerializeParams&
 							FComparePropertiesSharedParams SharedParams{
 								/*bIsInitial=*/ bIsInitial,
 								/*bForceFail=*/ bIsInitial || ShadowArrayItemIsNew[IDIndexPair.Idx],
-								RoleIndex,
-								RemoteRoleIndex,
 								Flags,
 								Parents,
 								Cmds
