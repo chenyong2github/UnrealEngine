@@ -436,6 +436,9 @@ void FSkeletalMeshObjectGPUSkin::UpdateDynamicData_RenderThread(FGPUSkinCache* G
 
 				FGPUSkinCache::GetRayTracingSegmentVertexBuffers(*SkinCacheEntry, Initializer.Segments);
 
+				// Flush pending resource barriers before BVH is built for the first time
+				GPUSkinCache->TransitionAllToReadable(RHICmdList);
+
 				RayTracingGeometry.SetInitializer(Initializer);
 				RayTracingGeometry.UpdateRHI();
 			}
