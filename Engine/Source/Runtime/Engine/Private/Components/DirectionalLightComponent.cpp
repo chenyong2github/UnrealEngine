@@ -44,7 +44,13 @@ static TAutoConsoleVariable<float> CVarPerObjectCastDistanceRadiusScale(
 	TEXT("PerObjectCastDistanceRadiusScale The scale factor multiplied with the radius of the object to calculate the maximum distance a per-object directional shadow can reach. This will only take effect after a certain (large) radius. Default is 8 times the object radius."),
 	ECVF_RenderThreadSafe
 	);
-
+static TAutoConsoleVariable<float> CVarPerObjectCastDistanceMin(
+	TEXT("r.Shadow.PerObjectCastDistanceMin"),
+	(float)HALF_WORLD_MAX / 32.0f,
+	TEXT("Minimum cast distance for Per-Object shadows, i.e., CastDistDance = Max(r.Shadow.PerObjectCastDistanceRadiusScale * object-radius, r.Shadow.PerObjectCastDistanceMin).\n")
+	TEXT("  Default: HALF_WORLD_MAX / 32.0f"),
+	ECVF_RenderThreadSafe
+	);
 static TAutoConsoleVariable<int32> CVarMaxNumFarShadowCascades(
 	TEXT("r.Shadow.MaxNumFarShadowCascades"),
 	10,
@@ -398,7 +404,7 @@ public:
 		// Reduce casting distance on a directional light
 		// This is necessary to improve floating point precision in several places, especially when deriving frustum verts from InvReceiverMatrix
 		// This takes the object size into account to ensure that large objects get an extended distance
-		OutInitializer.MaxDistanceToCastInLightW = FMath::Clamp(SubjectBounds.SphereRadius * CVarPerObjectCastDistanceRadiusScale.GetValueOnRenderThread(), (float)HALF_WORLD_MAX / 32.0f, (float)WORLD_MAX);
+		OutInitializer.MaxDistanceToCastInLightW = FMath::Clamp(SubjectBounds.SphereRadius * CVarPerObjectCastDistanceRadiusScale.GetValueOnRenderThread(), CVarPerObjectCastDistanceMin.GetValueOnRenderThread(), (float)WORLD_MAX);
 
 		return true;
 	}
