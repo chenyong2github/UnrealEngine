@@ -34,7 +34,11 @@ namespace GLTF
 	{
 		// glTF uses a right-handed coordinate system, with Y up.
 		// UE4 uses a left-handed coordinate system, with Z up.
-		// thus apply sin(x/2) * (X,Y,Z) and also reverse the angle
+		// Quat = (qX, qY, qZ, qW) = (sin(angle/2) * aX, sin(angle/2) * aY, sin(angle/2) * aZ, cons(angle/2))
+		// where (aX, aY, aZ) - rotation axis, angle - rotation angle
+		// Y swapped with Z between these coordinate systems
+		// also, as handedness is changed rotation is inversed - hence negation
+		// therefore QuatUE = (-qX, -qZ, -qY, qw)
 
 		FQuat Result(-Quat.X, -Quat.Z, -Quat.Y, Quat.W);
 		check(Result.IsNormalized());
