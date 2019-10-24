@@ -47,7 +47,4 @@ protected:
 
 private:
 	TSharedPtr<FWireTranslatorImpl> Translator;
-
-	const float MetricUnit = 0.001; // As CT don`t take care of unit input data, metric unit is set with default value
-	const float ScaleFactor = 1; // Wire internal unit is cm so no scale needed
 };
