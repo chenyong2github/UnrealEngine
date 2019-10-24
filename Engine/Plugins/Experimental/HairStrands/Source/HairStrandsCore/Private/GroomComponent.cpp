@@ -886,10 +886,12 @@ void UGroomComponent::PostLoad()
 #endif
 }
 
+#if WITH_EDITOR
 void UGroomComponent::Invalidate()
 {
 	MarkRenderStateDirty();
 }
+#endif
 
 void UGroomComponent::OnRegister()
 {
