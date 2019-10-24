@@ -14,6 +14,7 @@
 #include "SceneUtils.h"
 #include "SceneInterface.h"
 #include "ShaderParameterUtils.h"
+#include "ProfilingDebugging/RealtimeGPUProfiler.h"
 
 #include "D3D11RHIPrivate.h"
 #include "DynamicRHI.h"
@@ -29,7 +30,10 @@
 
 #include "WmfMediaHardwareVideoDecodingShaders.h"
 
-FRHICOMMAND_MACRO(FRHICommandCopyResource)
+DECLARE_GPU_STAT_NAMED(MediaTextureConversion, TEXT("MediaTextureConversion"));
+
+
+struct FRHICommandCopyResource final : public FRHICommand<FRHICommandCopyResource>
 {
 	TComPtr<ID3D11Texture2D> SampleTexture;
 	FTexture2DRHIRef SampleDestinationTexture;
@@ -42,7 +46,7 @@ FRHICOMMAND_MACRO(FRHICommandCopyResource)
 
 	void Execute(FRHICommandListBase& CmdList)
 	{
-		LLM_SCOPE(ELLMTag::VideoStreaming);
+		LLM_SCOPE(ELLMTag::MediaStreaming);
 		ID3D11Device* D3D11Device = static_cast<ID3D11Device*>(GDynamicRHI->RHIGetNativeDevice());
 		ID3D11DeviceContext* D3D11DeviceContext = nullptr;
 
@@ -104,7 +108,8 @@ FRHICOMMAND_MACRO(FRHICommandCopyResource)
 
 bool FWmfMediaHardwareVideoDecodingParameters::ConvertTextureFormat_RenderThread(FWmfMediaHardwareVideoDecodingTextureSample* InSample, FTexture2DRHIRef InDstTexture)
 {
-	LLM_SCOPE(ELLMTag::VideoStreaming);
+	LLM_SCOPE(ELLMTag::MediaStreaming);
+
 	if (InSample == nullptr || !InDstTexture.IsValid())
 	{
 		return false;
@@ -123,6 +128,9 @@ bool FWmfMediaHardwareVideoDecodingParameters::ConvertTextureFormat_RenderThread
 	if (D3D11DeviceContext)
 	{
 		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+
+		SCOPED_DRAW_EVENT(RHICmdList, FWmfMediaHardwareVideoDecodingParameters_Convert);
+		SCOPED_GPU_STAT(RHICmdList, MediaTextureConversion);
 
 		FRHIRenderPassInfo RPInfo(InDstTexture, ERenderTargetActions::DontLoad_Store);
 		RHICmdList.BeginRenderPass(RPInfo, TEXT("ConvertTextureFormat"));
