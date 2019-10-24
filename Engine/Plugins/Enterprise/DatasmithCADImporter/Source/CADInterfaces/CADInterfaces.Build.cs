@@ -8,6 +8,8 @@ namespace UnrealBuildTool.Rules
 	{
 		public CADInterfaces(ReadOnlyTargetRules Target) : base(Target)
 		{
+			bLegalToDistributeObjectCode = true;
+
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
