@@ -293,7 +293,7 @@ struct FMaterialPixelParameters
 	float2 HairUV;			// U: parametric coord along the length V: parametric coord along the width)
 	float2 HairDimensions;  // X: Length, Y: Radius
 	float  HairSeed;		// [0,1] quantized on 8bits
-	float2 HairRootUV;		// [0,1]^2	8bits
+	float2 HairRootUV;		// [0,256]^2 16bits (8 bits for UDIM index, 8 bits for UV coord)
 #endif
 
 	/** Per-particle properties. Only valid for particle vertex factories. */
