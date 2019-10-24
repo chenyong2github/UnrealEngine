@@ -8,12 +8,8 @@
 #include "Misc/DateTime.h"
 #include "CoreTechFileParser.h"
 
-class FCoreTechFileParser;
 
-/**
- * Serializable interface.
- * Should allow writing/Reading from Socket/file/any stream
- */
+class FCoreTechFileParser;
 
 namespace DatasmithDispatcher
 {
@@ -37,9 +33,6 @@ struct FTask
 class FDatasmithDispatcherSocket;
 class FDatasmithDispatcher;
 
-/**
- * Enum with all command types
- */
 enum DatasmithCommandType
 {
 	Ping,
