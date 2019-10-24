@@ -1,8 +1,9 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "DatasmithDispatcher.h"
 
-#include "Containers/Array.h"
 #include "CoreTechFileParser.h"
+
+#include "Containers/Array.h"
 #include "HAL/FileManager.h"
 #include "HAL/Thread.h"
 #include "Misc/Optional.h"
@@ -92,6 +93,7 @@ void FDatasmithDispatcher::Process(bool bWithProcessor)
 
 void FDatasmithDispatcher::ProcessLocal()
 {
+#ifdef CAD_INTERFACE
 	TOptional<FTask> Task = GetTask();
 	while (Task.IsSet())
 	{
@@ -117,6 +119,7 @@ void FDatasmithDispatcher::ProcessLocal()
 
 		Task = GetTask();
 	}
+#endif // CAD_INTERFACE
 }
 
 void FDatasmithDispatcher::AddTask(const FString& InFile)

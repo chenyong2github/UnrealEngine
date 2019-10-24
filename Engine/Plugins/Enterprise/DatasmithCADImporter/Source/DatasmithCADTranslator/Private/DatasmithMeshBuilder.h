@@ -4,12 +4,12 @@
 #include "CoreMinimal.h"
 
 #include "CADData.h"
-#include "CoretechHelper.h"
+#include "CADOptions.h"
+
+#include "MeshDescription.h"
 
 
 class IDatasmithMeshElement;
-
-struct FMeshParameters;
 
 
 class FDatasmithMeshBuilder
