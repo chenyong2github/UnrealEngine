@@ -180,6 +180,8 @@ public:
 		/** For debugging */
 		int32 Id;
 
+		float BackfacingHitsFraction;
+
 		/** Initialization constructor. */
 		FRecord(const FFullStaticLightingVertex& InVertex,int32 InElementIndex,const FLightingCacheGatherInfo& GatherInfo,float SampleRadius,float InOverrideRadius,const FIrradianceCachingSettings& IrradianceCachingSettings,const FStaticLightingSettings& GeneralSettings,const RecordSampleType& InLighting, const FVector4& InRotGradient, const FVector4& InTransGradient):
 			Vertex(InVertex),
@@ -195,6 +197,8 @@ public:
 			InterpolationRadius = Radius * FMath::Max(IrradianceCachingSettings.DistanceSmoothFactor * GeneralSettings.IndirectLightingSmoothness, 1.0f);
 
 			BoundingRadius = FMath::Max(Radius, InterpolationRadius);
+
+			BackfacingHitsFraction = GatherInfo.BackfacingHitsFraction;
 		}
 	};
 
@@ -282,6 +286,7 @@ public:
 		float SecondInterpolationSmoothnessReduction,
 		SampleType& OutLighting,
 		SampleType& OutSecondLighting,
+		float& OutBackfacingHitsFraction,
 		TArray<FDebugLightingCacheRecord>& DebugCacheRecords,
 		class FInfluencingRecordCollector* RecordCollector = NULL) const;
 
@@ -359,6 +364,7 @@ bool TLightingCache<SampleType>::InterpolateLighting(
 	float SecondInterpolationSmoothnessReduction,
 	SampleType& OutLighting,
 	SampleType& OutSecondLighting,
+	float& OutBackfacingHitsFraction,
 	TArray<FDebugLightingCacheRecord>& DebugCacheRecords,
 	FInfluencingRecordCollector* RecordCollector) const
 {
@@ -372,6 +378,7 @@ bool TLightingCache<SampleType>::InterpolateLighting(
 	float TotalWeight = 0.0f;
 	SampleType SecondAccumulatedLighting(ForceInit);
 	float SecondTotalWeight = 0.0f;
+	float AccumulatedBackfacingHitsFraction = 0.0f;
 
 	// Iterate over the octree nodes containing the query point.
 	for( typename LightingOctreeType::template TConstElementBoxIterator<> OctreeIt(
@@ -433,6 +440,7 @@ bool TLightingCache<SampleType>::InterpolateLighting(
 
 				//@todo - Rotate the record's lighting into this vertex's tangent basis.  We are linearly combining incident lighting in different coordinate spaces.
 				AccumulatedLighting = AccumulatedLighting + LightingRecord.Lighting * RecordWeight * (NonGradientLighting + RotationalGradientContribution + TranslationalGradientContribution);
+				AccumulatedBackfacingHitsFraction += LightingRecord.BackfacingHitsFraction * RecordWeight * (NonGradientLighting + RotationalGradientContribution + TranslationalGradientContribution);
 				// Accumulate the weight of all records
 				TotalWeight += RecordWeight;
 
@@ -498,6 +506,7 @@ bool TLightingCache<SampleType>::InterpolateLighting(
 		const float InvTotalWeight = 1.0f / TotalWeight;
 		OutLighting = OutLighting + AccumulatedLighting * InvTotalWeight;
 		OutSecondLighting = OutSecondLighting + SecondAccumulatedLighting * (1.0f / SecondTotalWeight);
+		OutBackfacingHitsFraction = AccumulatedBackfacingHitsFraction * InvTotalWeight;
 		return true;
 	}
 	else
