@@ -41,8 +41,8 @@ bool FDisplayClusterClient::Connect(const FString& InAddr, const int32 InPort, c
 	int32 TryIdx = 0;
 	while(GetSocket()->Connect(*InternetAddr) == false)
 	{
-		UE_LOG(LogDisplayClusterNetwork, Log, TEXT("%s couldn't connect to the server %s [%d]"), *GetName(), *(InternetAddr->ToString(true)), TryIdx++);
-		if (TriesAmount > 0 && TryIdx >= TriesAmount)
+		UE_LOG(LogDisplayClusterNetwork, Log, TEXT("%s couldn't connect to the server %s [%d]"), *GetName(), *(InternetAddr->ToString(true)), TryIdx);
+		if (TriesAmount > 0 && ++TryIdx >= TriesAmount)
 		{
 			UE_LOG(LogDisplayClusterNetwork, Error, TEXT("%s connection attempts limit reached"), *GetName());
 			break;
