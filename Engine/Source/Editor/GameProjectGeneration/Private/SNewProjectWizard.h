@@ -253,6 +253,4 @@ private:
 	/** Names for pages */
 	static FName TemplatePageName;
 	static FName NameAndLocationPageName;
-
-	bool bProjectSettingsHidden;
 };
