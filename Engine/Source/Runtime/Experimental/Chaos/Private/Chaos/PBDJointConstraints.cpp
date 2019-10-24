@@ -61,6 +61,7 @@ namespace Chaos
 	template<class T, int d>
 	TPBDJointMotionSettings<T, d>::TPBDJointMotionSettings()
 		: Stiffness((T)1)
+		, Projection((T)0)
 		, LinearMotionTypes({ EJointMotionType::Locked, EJointMotionType::Locked, EJointMotionType::Locked })
 		, LinearLimit(FLT_MAX)
 		, AngularMotionTypes({ EJointMotionType::Free, EJointMotionType::Free, EJointMotionType::Free })
@@ -78,6 +79,7 @@ namespace Chaos
 	template<class T, int d>
 	TPBDJointMotionSettings<T, d>::TPBDJointMotionSettings(const TVector<EJointMotionType, d>& InLinearMotionTypes, const TVector<EJointMotionType, d>& InAngularMotionTypes)
 		: Stiffness((T)1)
+		, Projection((T)0)
 		, LinearMotionTypes(InLinearMotionTypes)
 		, LinearLimit(FLT_MAX)
 		, AngularMotionTypes({ EJointMotionType::Free, EJointMotionType::Free, EJointMotionType::Free })
@@ -111,16 +113,18 @@ namespace Chaos
 
 	template<class T, int d>
 	TPBDJointSolverSettings<T, d>::TPBDJointSolverSettings()
-		: SwingTwistAngleTolerance(1.0e-6f)
-		, PBDMinParentMassRatio(0.5f)
-		, PBDMaxInertiaRatio(5.0f)
-		, FreezeIterations(0)
-		, FrozenIterations(0)
-		, bEnableLinearLimits(1)
-		, bEnableTwistLimits(1)
-		, bEnableSwingLimits(1)
-		, bEnableDrives(1)
-		, PBDDriveStiffness(0.0f)
+		: SwingTwistAngleTolerance((T)1.0e-6)
+		, MinParentMassRatio((T)0.5)
+		, MaxInertiaRatio((T)5.0)
+		, bProjectPostApply(true)
+		, bEnableLinearLimits(true)
+		, bEnableTwistLimits(true)
+		, bEnableSwingLimits(true)
+		, bEnablePositionCorrection(true)
+		, bEnableDrives(true)
+		, Projection((T)0)
+		, Stiffness((T)0)
+		, DriveStiffness((T)0)
 	{
 	}
 
@@ -326,10 +330,13 @@ namespace Chaos
 		// @todo(ccaulfield): make sorting optional
 		// @todo(ccaulfield): handles should be sorted by level by the constraint rule/graph
 		// @todo(ccaulfield): the best sort order depends on whether we are freezing.
-		// If we are freezing, we want the root-most bodies solved first, otherwise we want them last
+		// If we are freezing we want the root-most (nearest to kinematic) bodies solved first.
+		// For normal update we want the root body last, otherwise it gets dragged away from the root by the other bodies
+
 		TArray<FConstraintHandle*> SortedConstraintHandles = InConstraintHandles;
 		SortedConstraintHandles.Sort([](const FConstraintHandle& L, const FConstraintHandle& R)
 			{
+				// Sort bodies from leaf to root
 				return L.GetConstraintLevel() > R.GetConstraintLevel();
 			});
 
@@ -343,6 +350,11 @@ namespace Chaos
 			ApplySingle(Dt, ConstraintHandle->GetConstraintIndex(), It, NumIts);
 		}
 
+		if (!Settings.bProjectPostApply)
+		{
+			ApplyProjection(Dt, InConstraintHandles);
+		}
+
 		if (PostApplyCallback != nullptr)
 		{
 			PostApplyCallback(Dt, SortedConstraintHandles);
@@ -352,6 +364,26 @@ namespace Chaos
 	template<class T, int d>
 	void TPBDJointConstraints<T, d>::ApplyPushOut(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles)
 	{
+		if (Settings.bProjectPostApply)
+		{
+			ApplyProjection(Dt, InConstraintHandles);
+		}
+	}
+
+	template<class T, int d>
+	void TPBDJointConstraints<T, d>::ApplyProjection(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles)
+	{
+		TArray<FConstraintHandle*> SortedConstraintHandles = InConstraintHandles;
+		SortedConstraintHandles.Sort([](const FConstraintHandle& L, const FConstraintHandle& R)
+			{
+				// Sort bodies from root to leaf
+				return L.GetConstraintLevel() < R.GetConstraintLevel();
+			});
+
+		for (FConstraintHandle* ConstraintHandle : SortedConstraintHandles)
+		{
+			ApplyProjectionSingle(Dt, ConstraintHandle->GetConstraintIndex(), 0, 1);
+		}
 	}
 
 	template<class T, int d>
@@ -388,15 +420,15 @@ namespace Chaos
 			const int32 Level1 = ConstraintStates[ConstraintIndex].ParticleLevels[Index1];
 			if (Level0 < Level1)
 			{
-				TPBDJointUtilities<T, d>::GetConditionedInverseMass(Rigid0, Rigid1, InvM0, InvM1, InvIL0, InvIL1, Settings.PBDMinParentMassRatio, Settings.PBDMaxInertiaRatio);
+				TPBDJointUtilities<T, d>::GetConditionedInverseMass(Rigid0, Rigid1, InvM0, InvM1, InvIL0, InvIL1, Settings.MinParentMassRatio, Settings.MaxInertiaRatio);
 			}
 			else if (Level0 > Level1)
 			{
-				TPBDJointUtilities<T, d>::GetConditionedInverseMass(Rigid1, Rigid0, InvM1, InvM0, InvIL1, InvIL0, Settings.PBDMinParentMassRatio, Settings.PBDMaxInertiaRatio);
+				TPBDJointUtilities<T, d>::GetConditionedInverseMass(Rigid1, Rigid0, InvM1, InvM0, InvIL1, InvIL0, Settings.MinParentMassRatio, Settings.MaxInertiaRatio);
 			}
 			else
 			{
-				TPBDJointUtilities<T, d>::GetConditionedInverseMass(Rigid1, Rigid0, InvM1, InvM0, InvIL1, InvIL0, (T)0, Settings.PBDMaxInertiaRatio);
+				TPBDJointUtilities<T, d>::GetConditionedInverseMass(Rigid1, Rigid0, InvM1, InvM0, InvIL1, InvIL0, (T)0, Settings.MaxInertiaRatio);
 			}
 		}
 
@@ -482,6 +514,68 @@ namespace Chaos
 		}
 
 		// Update the particles
+		if (Rigid0)
+		{
+			Rigid0->SetP(P0);
+			Rigid0->SetQ(Q0);
+		}
+		if (Rigid1)
+		{
+			Rigid1->SetP(P1);
+			Rigid1->SetQ(Q1);
+		}
+	}
+
+	template<class T, int d>
+	void TPBDJointConstraints<T, d>::ApplyProjectionSingle(const T Dt, const int32 ConstraintIndex, const int32 It, const int32 NumIts)
+	{
+		const FJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
+
+		// Scale projection up to ProjectionSetting over NumProjectionIts
+		const T ProjectionFactor = (Settings.Projection > 0) ? Settings.Projection : JointSettings.Motion.Projection;
+		if (ProjectionFactor == (T)0)
+		{
+			return;
+		}
+
+		const TVector<TGeometryParticleHandle<T, d>*, 2>& Constraint = ConstraintParticles[ConstraintIndex];
+		UE_LOG(LogChaosJoint, Verbose, TEXT("Project Joint Constraint %d %f (it = %d / %d)"), ConstraintIndex, ProjectionFactor, It, NumIts);
+
+		// Switch particles - internally we assume the first body is the parent (i.e., the space in which constraint limits are specified)
+		const int32 Index0 = 1;
+		const int32 Index1 = 0;
+		TGenericParticleHandle<T, d> Particle0 = TGenericParticleHandle<T, d>(ConstraintParticles[ConstraintIndex][Index0]);
+		TGenericParticleHandle<T, d> Particle1 = TGenericParticleHandle<T, d>(ConstraintParticles[ConstraintIndex][Index1]);
+
+		TVector<T, d> P0 = Particle0->P();
+		TRotation<T, d> Q0 = Particle0->Q();
+		TVector<T, d> P1 = Particle1->P();
+		TRotation<T, d> Q1 = Particle1->Q();
+		float InvM0 = Particle0->InvM();
+		float InvM1 = Particle1->InvM();
+		PMatrix<T, d, d> InvIL0 = Particle0->InvI();
+		PMatrix<T, d, d> InvIL1 = Particle1->InvI();
+
+		// Freeze the closest to kinematic connection if there is a difference
+		const int32 Level0 = ConstraintStates[ConstraintIndex].ParticleLevels[Index0];
+		const int32 Level1 = ConstraintStates[ConstraintIndex].ParticleLevels[Index1];
+		if (Level0 < Level1)
+		{
+			InvM0 = 0;
+			InvIL0 = PMatrix<T, d, d>(0, 0, 0);
+		}
+		else if (Level1 < Level0)
+		{
+			InvM1 = 0;
+			InvIL1 = PMatrix<T, d, d>(0, 0, 0);
+		}
+
+		// Project position error
+		TPBDJointUtilities<T, d>::ApplyJointPositionProjection(Dt, Settings, JointSettings, Index0, Index1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1, ProjectionFactor);
+
+		// Update the particles
+		TPBDRigidParticleHandle<T, d>* Rigid0 = ConstraintParticles[ConstraintIndex][Index0]->AsDynamic();
+		TPBDRigidParticleHandle<T, d>* Rigid1 = ConstraintParticles[ConstraintIndex][Index1]->AsDynamic();
 		if (Rigid0)
 		{
 			Rigid0->SetP(P0);

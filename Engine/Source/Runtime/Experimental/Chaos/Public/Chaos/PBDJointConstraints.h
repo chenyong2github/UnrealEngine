@@ -139,6 +139,9 @@ namespace Chaos
 
 		CHAOS_API void ApplySingle(const T Dt, const int32 ConstraintIndex, const int32 It, const int32 NumIts);
 
+		CHAOS_API void ApplyProjection(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles);
+		CHAOS_API void ApplyProjectionSingle(const T Dt, const int32 ConstraintIndex, const int32 It, const int32 NumIts);
+
 		TPBDJointSolverSettings<T, d> Settings;
 
 		TArray<FJointSettings> ConstraintSettings;
