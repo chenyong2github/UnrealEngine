@@ -263,6 +263,9 @@ struct DATASMITHIMPORTER_API FDatasmithImportContext
 	/** Map of imported material function for each material element, they are only imported as a per-required basis */
 	TMap< TSharedRef< IDatasmithBaseMaterialElement >, UMaterialFunction* > ImportedMaterialFunctions;
 
+	/** Register IDatasmithMeshElement by their name so they can be searched faster */
+	TMap< FString, TSharedRef < IDatasmithBaseMaterialElement > > ImportedMaterialFunctionsByName;
+
 	/** List of potential parent materials with their hash. Used to create material instances from. */
 	TMap< int32, UMaterialInterface* > ImportedParentMaterials;
 

@@ -207,7 +207,7 @@ struct FDatasmithFindAssetTypeHelper< UMaterialFunction >
 	
 	static const TSharedRef<IDatasmithBaseMaterialElement>* GetImportedElementByName( const FDatasmithAssetsImportContext& AssetsContext, const TCHAR* ObjectPathName )
 	{
-		return nullptr;
+		return AssetsContext.ParentContext.ImportedMaterialFunctionsByName.Find(ObjectPathName);
 	}
 };
 
