@@ -109,13 +109,12 @@ int32 FAudioCapturer::Init()
 	}
 
 	// subscribe to audio data
-	UGameEngine* GameEngine = Cast<UGameEngine>(GEngine);
-	if (!GameEngine)
+	if (!GEngine)
 	{
 		return -1;
 	}
 
-	FAudioDevice* AudioDevice = GameEngine->GetMainAudioDevice();
+	FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
 	if (!AudioDevice)
 	{
 		return -1;
@@ -135,13 +134,12 @@ int32 FAudioCapturer::Terminate()
 		return 0;
 
 	// unsubscribe from audio data
-	UGameEngine* GameEngine = Cast<UGameEngine>(GEngine);
-	if (!GameEngine)
+	if (!GEngine)
 	{
 		return -1;
 	}
 
-	FAudioDevice* AudioDevice = GameEngine->GetMainAudioDevice();
+	FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
 	if (!AudioDevice)
 	{
 		return -1;

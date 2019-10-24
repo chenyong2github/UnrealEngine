@@ -466,6 +466,7 @@ namespace
 	// viewport to have a different size.
 	void UnquantizeAndDenormalize(uint16& InOutX, uint16& InOutY)
 	{
+		checkf(GEngine->GameViewport != nullptr, TEXT("PixelStreaming is not supported in editor, and should have been disabled earlier"));
 		FIntPoint SizeXY = GEngine->GameViewport->Viewport->GetSizeXY();
 		InOutX = InOutX / 65536.0f * SizeXY.X;
 		InOutY = InOutY / 65536.0f * SizeXY.Y;
