@@ -12,6 +12,8 @@ class FSequencerTrackNode;
 class FMenuBuilder;
 struct FSlateBrush;
 
+enum class ECheckBoxState : uint8;
+
 /** Enumeration specifying what kind of object binding this is */
 enum class EObjectBindingType
 {
@@ -56,6 +58,7 @@ public:
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
 	virtual bool CanRenameNode() const override;
 	virtual TSharedRef<SWidget> GetCustomOutlinerContent() override;
+	virtual TSharedPtr<SWidget> GetAdditionalOutlinerLabel() override;
 	virtual FText GetDisplayName() const override;
 	virtual FLinearColor GetDisplayNameColor() const override;
 	virtual FText GetDisplayNameToolTipText() const override;
@@ -80,7 +83,7 @@ protected:
 	void AddSpawnOwnershipMenu(FMenuBuilder& MenuBuilder);
 	void AddSpawnLevelMenu(FMenuBuilder& MenuBuilder);
 	void AddAssignActorMenu(FMenuBuilder& MenuBuilder);
-	void AddExposeMenu(FMenuBuilder& MenuBuilder);
+	void AddTagMenu(FMenuBuilder& MenuBuilder);
 
 	/** Get class for object binding */
 	const UClass* GetClassForObjectBinding() const;
@@ -94,6 +97,14 @@ private:
 	void HandleLabelsSubMenuCreate(FMenuBuilder& MenuBuilder);
 	
 	void HandlePropertyMenuItemExecute(FPropertyPath PropertyPath);
+
+	ECheckBoxState GetTagCheckState(FName TagName);
+
+	void ToggleTag(FName TagName);
+
+	void HandleDeleteTag(FName TagName);
+
+	void HandleAddTag(FName TagName);
 
 private:
 
