@@ -93,7 +93,7 @@ namespace AudioModulation
 		{
 			if (bAutoActivate)
 			{
-				const int32 NumRemoved = RefSounds.Remove(&Sound);
+				const int32 NumRemoved = RefSounds.RemoveSingleSwap(&Sound, false /* bAllowShrinking */);
 				check(NumRemoved == 1);
 			}
 
@@ -121,7 +121,7 @@ namespace AudioModulation
 
 			if (bAutoActivate)
 			{
-				RefSounds.AddUnique(&Sound);
+				RefSounds.Add(&Sound);
 			}
 
 			return RefSounds.Num();
