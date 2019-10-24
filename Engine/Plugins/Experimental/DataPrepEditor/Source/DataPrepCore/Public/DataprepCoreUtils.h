@@ -130,7 +130,7 @@ public:
 		}
 
 		// Begin IDataprepProgressReporter interface
-		virtual void BeginWork( const FText& InTitle, float InAmountOfWork ) override;
+		virtual void BeginWork( const FText& InTitle, float InAmountOfWork, bool bInterruptible = true ) override;
 		virtual void EndWork() override;
 		virtual void ReportProgress( float Progress, const FText& InMessage ) override;
 		virtual bool IsWorkCancelled() override;
@@ -157,7 +157,7 @@ public:
 		}
 
 		// Begin IDataprepProgressReporter interface
-		virtual void BeginWork( const FText& InTitle, float InAmountOfWork ) override;
+		virtual void BeginWork( const FText& InTitle, float InAmountOfWork, bool bInterruptible = true ) override;
 		virtual void EndWork() override;
 		virtual void ReportProgress( float Progress, const FText& InMessage ) override;
 		virtual bool IsWorkCancelled() override;

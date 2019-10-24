@@ -158,13 +158,13 @@ bool FDataprepCoreUtils::IsAsset(UObject* Object)
 	return true;
 }
 
-FDataprepWorkReporter::FDataprepWorkReporter(const TSharedPtr<IDataprepProgressReporter>& InReporter, const FText& InDescription, float InAmountOfWork, float InIncrementOfWork)
+FDataprepWorkReporter::FDataprepWorkReporter(const TSharedPtr<IDataprepProgressReporter>& InReporter, const FText& InDescription, float InAmountOfWork, float InIncrementOfWork, bool bInterruptible )
 	: Reporter( InReporter )
 	, DefaultIncrementOfWork( InIncrementOfWork )
 {
 	if( Reporter.IsValid())
 	{
-		Reporter->BeginWork( InDescription, InAmountOfWork );
+		Reporter->BeginWork( InDescription, InAmountOfWork, bInterruptible );
 	}
 }
 
@@ -240,10 +240,10 @@ void FDataprepCoreUtils::FDataprepLogger::LogError(const FText& InLogText,  cons
 	UE_LOG( LogDataprepCore, Error, TEXT("%s : %s"), *InObject.GetName(), *InLogText.ToString() );
 }
 
-void FDataprepCoreUtils::FDataprepProgressUIReporter::BeginWork( const FText& InTitle, float InAmountOfWork )
+void FDataprepCoreUtils::FDataprepProgressUIReporter::BeginWork( const FText& InTitle, float InAmountOfWork, bool bInterruptible )
 {
 	ProgressTasks.Emplace( new FScopedSlowTask( InAmountOfWork, InTitle, true, FeedbackContext.IsValid() ? *FeedbackContext.Get() : *GWarn ) );
-	ProgressTasks.Last()->MakeDialog(true);
+	ProgressTasks.Last()->MakeDialog( bInterruptible );
 }
 
 void FDataprepCoreUtils::FDataprepProgressUIReporter::EndWork()
@@ -278,7 +278,7 @@ FFeedbackContext* FDataprepCoreUtils::FDataprepProgressUIReporter::GetFeedbackCo
 	return FeedbackContext.IsValid() ? FeedbackContext.Get() : GWarn;
 }
 
-void FDataprepCoreUtils::FDataprepProgressTextReporter::BeginWork( const FText& InTitle, float InAmountOfWork )
+void FDataprepCoreUtils::FDataprepProgressTextReporter::BeginWork( const FText& InTitle, float InAmountOfWork, bool /*bInterruptible*/ )
 {
 	UE_LOG( LogDataprepCore, Log, TEXT("Start: %s ..."), *InTitle.ToString() );
 	++TaskDepth;
@@ -335,6 +335,9 @@ void FDataprepCoreUtils::BuildAssets(const TArray<TWeakObjectPtr<UObject>>& Asse
 		}
 	}
 
+	int32 AssetToBuildCount = MaterialInterfaces.Num() + StaticMeshes.Num();
+	FDataprepWorkReporter Task( ProgressReporterPtr, LOCTEXT( "BuildAssets_Building", "Building assets ..." ), (float)AssetToBuildCount, 1.0f, false );
+
 	// Force compilation of materials which have no render proxy
 	if(MaterialInterfaces.Num() > 0)
 	{
@@ -349,8 +352,14 @@ void FDataprepCoreUtils::BuildAssets(const TArray<TWeakObjectPtr<UObject>>& Asse
 			return false;
 		};
 
+		int32 AssetBuiltCount = 0;
+		AssetToBuildCount = MaterialInterfaces.Num();
+
 		for(UMaterialInterface* MaterialInterface : MaterialInterfaces)
 		{
+			++AssetBuiltCount;
+			Task.ReportNextStep(FText::Format(LOCTEXT( "BuildAssets_Building_Materials", "Building materials ({0} / {1})" ), AssetBuiltCount, AssetToBuildCount), 1.0f);
+
 			if( MustCompile( MaterialInterface ) )
 			{
 				FPropertyChangedEvent EmptyPropertyUpdateStruct( nullptr );
@@ -360,7 +369,13 @@ void FDataprepCoreUtils::BuildAssets(const TArray<TWeakObjectPtr<UObject>>& Asse
 	}
 
 	// Build static meshes
-	DataprepCorePrivateUtils::BuildStaticMeshes( StaticMeshes, TFunction<bool(UStaticMesh*)>() );
+	int32 AssetBuiltCount = 0;
+	AssetToBuildCount = StaticMeshes.Num();
+	DataprepCorePrivateUtils::BuildStaticMeshes(StaticMeshes, [&](UStaticMesh* StaticMesh) -> bool {
+		++AssetBuiltCount;
+		Task.ReportNextStep(FText::Format(LOCTEXT( "BuildAssets_Building_Meshes", "Building static meshes ({0} / {1})" ), AssetBuiltCount, AssetToBuildCount), 1.0f);
+		return true;
+	});
 }
 
 #undef LOCTEXT_NAMESPACE
