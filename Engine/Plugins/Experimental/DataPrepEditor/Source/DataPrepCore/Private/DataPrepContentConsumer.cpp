@@ -108,7 +108,7 @@ void UDataprepContentConsumer::AddDataprepAssetUserData()
 
 				if(!DataprepAssetUserData)
 				{
-					EObjectFlags Flags = RF_Public /*| RF_Transactional*/; // RF_Transactional Disabled as is can cause a crash in the transaction system for blueprints
+					EObjectFlags Flags = RF_Public /*| RF_Transactional*/; // RF_Transactional Disabled as it can cause a crash in the transaction system for blueprints
 
 					DataprepAssetUserData = NewObject< UDataprepAssetUserData >( Object, NAME_None, Flags );
 
