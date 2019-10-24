@@ -90,9 +90,12 @@ struct FHairStrandsRestResource : public FRenderResource
 	/* Strand hair rest position buffer */
 	FRWBuffer RestPositionBuffer;
 
-	/* Strand hair offset buffer */
+	/* Strand hair attribute buffer */
 	FRWBuffer AttributeBuffer;
 
+	/* Strand hair material buffer */
+	FRWBuffer MaterialBuffer;
+	
 	/* Position offset as the rest positions are expressed in relative coordinate (16bits) */
 	FVector PositionOffset = FVector::ZeroVector;
 

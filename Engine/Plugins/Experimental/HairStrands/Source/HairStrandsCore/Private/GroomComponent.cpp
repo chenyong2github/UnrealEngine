@@ -259,6 +259,8 @@ public:
 			case EHairStrandsDebugMode::RenderHairDimension			: DebugModeScalar = 4.f; break;
 			case EHairStrandsDebugMode::RenderHairRadiusVariation	: DebugModeScalar = 5.f; break;
 			case EHairStrandsDebugMode::RenderHairRootUDIM			: DebugModeScalar = 6.f; break;
+			case EHairStrandsDebugMode::RenderHairBaseColor			: DebugModeScalar = 7.f; break;
+			case EHairStrandsDebugMode::RenderHairRoughness			: DebugModeScalar = 8.f; break;
 			};
 
 			float HairMinRadius = FLT_MAX;
@@ -797,6 +799,7 @@ void UGroomComponent::InitResources()
 			OutputGroup.RenderDeformedPositionBuffer[0] = &Res.RenderDeformedResources->DeformedPositionBuffer[0];
 			OutputGroup.RenderDeformedPositionBuffer[1] = &Res.RenderDeformedResources->DeformedPositionBuffer[1];
 			OutputGroup.RenderAttributeBuffer			= &Res.RenderRestResources->AttributeBuffer;
+			OutputGroup.RenderMaterialBuffer			= &Res.RenderRestResources->MaterialBuffer;
 			OutputGroup.RenderTangentBuffer				= &Res.RenderDeformedResources->TangentBuffer;
 			OutputGroup.SimTangentBuffer				= &Res.SimDeformedResources->TangentBuffer;
 

@@ -471,6 +471,7 @@ void ComputeHairStrandsInterpolation(
 			Output.VFInput.HairPreviousPositionBuffer = Output.SimDeformedPositionBuffer[SimIndex]->SRV;
 			Output.VFInput.HairTangentBuffer = Output.SimTangentBuffer->SRV;
 			Output.VFInput.HairAttributeBuffer = Input.SimAttributeBuffer->SRV;
+			Output.VFInput.HairMaterialBuffer = Output.RenderMaterialBuffer->SRV;
 			Output.VFInput.HairPositionOffset = Input.OutHairPositionOffset;
 			Output.VFInput.HairPreviousPositionOffset = Input.OutHairPreviousPositionOffset;
 			Output.VFInput.VertexCount = Input.SimVertexCount;
@@ -527,6 +528,7 @@ void ComputeHairStrandsInterpolation(
 			Output.VFInput.HairPreviousPositionBuffer = Output.RenderDeformedPositionBuffer[PrevIndex]->SRV;
 			Output.VFInput.HairTangentBuffer = Output.RenderTangentBuffer->SRV;
 			Output.VFInput.HairAttributeBuffer = DebugMode == EHairStrandsDebugMode::RenderHairStrands ? Output.RenderPatchedAttributeBuffer.SRV : Input.RenderAttributeBuffer->SRV;
+			Output.VFInput.HairMaterialBuffer = Output.RenderMaterialBuffer->SRV;
 			Output.VFInput.HairPositionOffset = Input.OutHairPositionOffset;
 			Output.VFInput.HairPreviousPositionOffset = Input.OutHairPreviousPositionOffset;
 			Output.VFInput.VertexCount = Input.RenderVertexCount;
