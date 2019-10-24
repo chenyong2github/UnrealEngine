@@ -183,7 +183,7 @@ TSharedRef<FExtender> FUVGenerationFlattenMappingTool::OnExtendContentBrowserAss
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("ObjectContext_UnwrapUV", "Unwrap UV"),
 				LOCTEXT("ObjectContext_UnwrapUVTooltip", "Opens Unwrap UV option window"),
-				FSlateIcon(FUVGenerationFlattenMappingToolStyle::GetStyleSetName(), "UVGenerationFlattenMapping.UnwrapUV.Small"),
+				FSlateIcon(),
 				FUIAction(FExecuteAction::CreateStatic( &FUVGenerationFlattenMappingTool::OpenUnwrapUVWindow, StaticMeshes), FCanExecuteAction()));
 		}));
 	}
@@ -324,97 +324,25 @@ void SUVGenerationFlattenMappingWindow::Construct(const FArguments& InArgs)
 	DetailsViewBox->SetContent(DetailsView.ToSharedRef());
 }
 
-FUVGenerationFlattenMappingCommands::FUVGenerationFlattenMappingCommands()
-	: TCommands<FUVGenerationFlattenMappingCommands>(
-		"UVGenerationFlattenMapping",
-		LOCTEXT("FUVGenerationFlattenMappingCommands", "Static Mesh UV Unwrapping Commands"),
-		"StaticMeshEditor",
-		FUVGenerationFlattenMappingToolStyle::GetStyleSetName())
+void FUVGenerationFlattenMappingToolbar::CreateMenu(FMenuBuilder& ParentMenuBuilder, const TSharedRef<FUICommandList> CommandList, UStaticMesh* InStaticMesh)
 {
-}
-
-void FUVGenerationFlattenMappingCommands::RegisterCommands()
-{
-	UI_COMMAND(UnwrapUV, "Unwrap UV", "Opens Unwrap UV option window", EUserInterfaceActionType::Button, FInputChord(EKeys::U, false, true, false, false));
-}
-
-FUVGenerationFlattenMappingToolbar::FUVGenerationFlattenMappingToolbar()
-	: StaticMesh(nullptr)
-	, StaticMeshEditor(nullptr)
-	, BoundCommandList(nullptr)
-{
-	UVGenerationFlattenMappingToolbarProxyObject = TStrongObjectPtr<UUVGenerationFlattenMappingToolbarProxyObject>(NewObject<UUVGenerationFlattenMappingToolbarProxyObject>());
-	UVGenerationFlattenMappingToolbarProxyObject->Owner = this;
-}
-
-FUVGenerationFlattenMappingToolbar::~FUVGenerationFlattenMappingToolbar()
-{
-	UVGenerationFlattenMappingToolbarProxyObject->Owner = nullptr;
-	BoundCommandList = nullptr;
-	StaticMesh = nullptr;
-}
-
-void FUVGenerationFlattenMappingToolbar::CreateToolbar(FToolBarBuilder& ToolbarBuilder, const TSharedRef<FUICommandList> CommandList, UStaticMesh* InStaticMesh)
-{
-	TSharedPtr<FUVGenerationFlattenMappingToolbar> UVGenerationFlattenMappingToolbar = MakeShareable(new FUVGenerationFlattenMappingToolbar());
-
-	if (!UVGenerationFlattenMappingToolbar->Initialize(InStaticMesh, CommandList))
+	FUIAction GenerateUnwrappedUVMenuAction;
+	GenerateUnwrappedUVMenuAction.ExecuteAction.BindLambda([InStaticMesh]()
 	{
-		return;
-	}
-
-	UVGenerationFlattenMappingToolbar->PopulateToolbar(ToolbarBuilder, CommandList);
-}
-
-bool FUVGenerationFlattenMappingToolbar::Initialize(UStaticMesh* InStaticMesh, const TSharedRef<FUICommandList> CommandList)
-{
-	// Take a hold on the StaticMesh Editor hosting this toolbar
-	IAssetEditorInstance* EditorInstance = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(InStaticMesh, false);
-	if (!EditorInstance || !EditorInstance->GetEditorName().ToString().Contains(TEXT("StaticMeshEditor")))
-	{
-		return false;
-	}
-
-	StaticMesh = InStaticMesh;
-
-	StaticMeshEditor = static_cast<IStaticMeshEditor*>(EditorInstance);
-
-	BindCommands(CommandList);
-
-	return true;
-}
-
-void FUVGenerationFlattenMappingToolbar::BindCommands(const TSharedPtr<FUICommandList> CommandList)
-{
-	BoundCommandList = CommandList;
-
-	// Initialize style set associated with MeshEditor plugin
-	FUVGenerationFlattenMappingToolStyle::Initialize();
-
-	FUVGenerationFlattenMappingCommands::Register();
-
-	const FUVGenerationFlattenMappingCommands& PolygonEditingCommands = FUVGenerationFlattenMappingCommands::Get();
-
-	CommandList->MapAction(
-		PolygonEditingCommands.UnwrapUV,
-		FExecuteAction::CreateLambda([this](){
-			FUVGenerationFlattenMappingTool::OpenUnwrapUVWindow({ StaticMesh });
-			StaticMeshEditor->RefreshTool();
-		}),
-		FCanExecuteAction()
+		IAssetEditorInstance* EditorInstance = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(InStaticMesh, false);
+		if (!EditorInstance || !EditorInstance->GetEditorName().ToString().Contains(TEXT("StaticMeshEditor")))
+		{
+			return;
+		}
+		FUVGenerationFlattenMappingTool::OpenUnwrapUVWindow({ InStaticMesh });
+		static_cast<IStaticMeshEditor*>(EditorInstance)->RefreshTool();
+	});
+	ParentMenuBuilder.AddMenuEntry(
+		LOCTEXT("UnwrapUV", "Unwrap UV"),
+		LOCTEXT("UnwrapUVTooltip", "Opens the UV unwrapping window"),
+		FSlateIcon(),
+		GenerateUnwrappedUVMenuAction
 	);
-}
-
-void FUVGenerationFlattenMappingToolbar::PopulateToolbar(FToolBarBuilder& ToolbarBuilder, const TSharedRef<FUICommandList> CommandList)
-{
-	ToolbarBuilder.BeginSection("UVGeneration");
-	{
-		// Add invisible widget used to detect closure of hosting static mesh editor
-		ToolbarBuilder.AddWidget(SNew(SToolbarWidget<FUVGenerationFlattenMappingToolbar>).EditingToolbar(SharedThis(this)), NAME_None);
-
-		ToolbarBuilder.AddToolBarButton(FUVGenerationFlattenMappingCommands::Get().UnwrapUV);
-	}
-	ToolbarBuilder.EndSection();
 }
 
 #undef LOCTEXT_NAMESPACE
