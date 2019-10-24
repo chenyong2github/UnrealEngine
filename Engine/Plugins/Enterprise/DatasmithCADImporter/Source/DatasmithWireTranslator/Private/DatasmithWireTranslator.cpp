@@ -1257,9 +1257,6 @@ void FWireTranslatorImpl::GetDagNodeInfo(TSharedRef<BodyData> CurrentNode, const
 	CurrentNodeInfo.Label = ParentInfo.Label; // +TEXT(" ") + CurrentNode->LayerName + TEXT(" ") + CurrentNode->ShaderName;
 	CurrentNode->Label = CurrentNodeInfo.Label;
 
-	FString ThisGroupNodeID;
-	AlPersistentID* GroupNodeId = new AlPersistentID();
-
 	// Limit length of UUID by combining hash of parent UUID and container's UUID if ParentUuid is not empty
 	CurrentNodeInfo.UEuuid = GetUEUUIDFromAIPersistentID(ParentInfo.UEuuid, CurrentNodeInfo.Label);
 }
