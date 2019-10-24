@@ -2,6 +2,8 @@
 
 #include "GameplayCueNotify_HitImpact.h"
 #include "Kismet/GameplayStatics.h"
+#include "GameplayCueManager.h"
+#include "AbilitySystemGlobals.h"
 
 UGameplayCueNotify_HitImpact::UGameplayCueNotify_HitImpact(const FObjectInitializer& PCIP)
 : Super(PCIP)
@@ -17,21 +19,25 @@ bool UGameplayCueNotify_HitImpact::HandlesEvent(EGameplayCueEvent::Type EventTyp
 void UGameplayCueNotify_HitImpact::HandleGameplayCue(AActor* Self, EGameplayCueEvent::Type EventType, const FGameplayCueParameters& Parameters)
 {
 	check(EventType == EGameplayCueEvent::Executed);
-	check(Self);
 	
-	const FHitResult* HitResult = Parameters.EffectContext.GetHitResult();
-	if (HitResult)
+	const UObject* WorldContextObject = Self;
+	if (!WorldContextObject)
 	{
-		if (ParticleSystem)
-		{
-			UGameplayStatics::SpawnEmitterAtLocation(Self, ParticleSystem, HitResult->ImpactPoint, HitResult->ImpactNormal.Rotation(), true);
-		}
+		WorldContextObject = UAbilitySystemGlobals::Get().GetGameplayCueManager();
 	}
-	else
+
+	if (ParticleSystem && WorldContextObject)
 	{
-		if (ParticleSystem)
+		const FHitResult* HitResult = Parameters.EffectContext.GetHitResult();
+		if (HitResult)
 		{
-			UGameplayStatics::SpawnEmitterAtLocation(Self, ParticleSystem, Self->GetActorLocation(), Self->GetActorRotation(), true);
+			UGameplayStatics::SpawnEmitterAtLocation(WorldContextObject, ParticleSystem, HitResult->ImpactPoint, HitResult->ImpactNormal.Rotation(), true);
+		}
+		else
+		{
+			const FVector Location = Self ? Self->GetActorLocation() : Parameters.Location;
+			const FRotator Rotation = Self ? Self->GetActorRotation() : Parameters.Normal.Rotation();
+			UGameplayStatics::SpawnEmitterAtLocation(WorldContextObject, ParticleSystem, Location, Rotation, true);
 		}
 	}
 }
