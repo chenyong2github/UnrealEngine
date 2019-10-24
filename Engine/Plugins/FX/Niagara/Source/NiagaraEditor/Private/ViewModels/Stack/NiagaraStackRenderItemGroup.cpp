@@ -2,7 +2,6 @@
 
 #include "ViewModels/Stack/NiagaraStackRenderItemGroup.h"
 #include "ViewModels/Stack/NiagaraStackRendererItem.h"
-#include "ViewModels/Stack/NiagaraStackSpacer.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraEmitterEditorData.h"
@@ -133,18 +132,6 @@ void UNiagaraStackRenderItemGroup::RefreshChildrenInternal(const TArray<UNiagara
 	int32 RendererIndex = 0;
 	for (UNiagaraRendererProperties* RendererProperties : GetEmitterViewModel()->GetEmitter()->GetRenderers())
 	{
-		FName RendererSpacerKey = *FString::Printf(TEXT("Renderer%i"), RendererIndex);
-		UNiagaraStackSpacer* RendererSpacer = FindCurrentChildOfTypeByPredicate<UNiagaraStackSpacer>(CurrentChildren,
-			[=](UNiagaraStackSpacer* CurrentRendererSpacer) { return CurrentRendererSpacer->GetSpacerKey() == RendererSpacerKey; });
-
-		if (RendererSpacer == nullptr)
-		{
-			RendererSpacer = NewObject<UNiagaraStackSpacer>(this);
-			RendererSpacer->Initialize(CreateDefaultChildRequiredData(), RendererSpacerKey);
-		}
-
-		NewChildren.Add(RendererSpacer);
-
 		UNiagaraStackRendererItem* RendererItem = FindCurrentChildOfTypeByPredicate<UNiagaraStackRendererItem>(CurrentChildren,
 			[=](UNiagaraStackRendererItem* CurrentRendererItem) { return CurrentRendererItem->GetRendererProperties() == RendererProperties; });
 

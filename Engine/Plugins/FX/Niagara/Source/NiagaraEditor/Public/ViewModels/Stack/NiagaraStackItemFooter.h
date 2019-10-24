@@ -3,7 +3,7 @@
 #pragma once
 
 #include "ViewModels/Stack/NiagaraStackEntry.h"
-#include "NiagaraStackAdvancedExpander.generated.h"
+#include "NiagaraStackItemFooter.generated.h"
 
 class UNiagaraNodeFunctionCall;
 class UNiagaraStackFunctionInputCollection;
@@ -11,7 +11,7 @@ class UNiagaraStackModuleItemOutputCollection;
 class UNiagaraNode;
 
 UCLASS()
-class NIAGARAEDITOR_API UNiagaraStackAdvancedExpander : public UNiagaraStackEntry
+class NIAGARAEDITOR_API UNiagaraStackItemFooter : public UNiagaraStackEntry
 {
 	GENERATED_BODY()
 
@@ -21,12 +21,16 @@ public:
 public:
 	void Initialize(
 		FRequiredEntryData InRequiredEntryData,
-		FString InOwnerStackItemEditorDataKey,
-		UNiagaraNode* OwningNiagaraNode = nullptr);
+		FString InOwnerStackItemEditorDataKey);
 
 	virtual bool GetCanExpand() const override;
-	virtual bool GetIsEnabled() const override;
 	virtual EStackRowStyle GetStackRowStyle() const override;
+
+	virtual bool GetIsEnabled() const override;
+	void SetIsEnabled(bool bInIsEnabled);
+
+	bool GetHasAdvancedContent() const;
+	void SetHasAdvancedContent(bool bHInHasAdvancedRows);
 
 	void SetOnToggleShowAdvanced(FOnToggleShowAdvanced OnToggleShowAdvanced);
 
@@ -37,7 +41,9 @@ public:
 private:
 	FString OwnerStackItemEditorDataKey;
 
-	UNiagaraNode* OwningNiagaraNode;
-
 	FOnToggleShowAdvanced ToggleShowAdvancedDelegate;
+
+	bool bIsEnabled;
+
+	bool bHasAdvancedContent;
 };

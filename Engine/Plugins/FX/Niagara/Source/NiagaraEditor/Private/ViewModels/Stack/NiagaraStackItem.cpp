@@ -1,18 +1,18 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "ViewModels/Stack/NiagaraStackItem.h"
-#include "ViewModels/Stack/NiagaraStackSpacer.h"
-#include "ViewModels/Stack/NiagaraStackAdvancedExpander.h"
+#include "ViewModels/Stack/NiagaraStackItemFooter.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "ViewModels/Stack/NiagaraStackErrorItem.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
+#include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "NiagaraStackEditorData.h"
 
 void UNiagaraStackItem::Initialize(FRequiredEntryData InRequiredEntryData, FString InStackEditorDataKey)
 {
 	Super::Initialize(InRequiredEntryData, InStackEditorDataKey);
 	AddChildFilter(FOnFilterChild::CreateUObject(this, &UNiagaraStackItem::FilterAdvancedChildren));
-	AddChildFilter(FOnFilterChild::CreateUObject(this, &UNiagaraStackItem::FilterShowAdvancedChild));
 }
 
 UNiagaraStackEntry::EStackRowStyle UNiagaraStackItem::GetStackRowStyle() const
@@ -54,23 +54,35 @@ EStackIssueSeverity UNiagaraStackItem::GetHighestStackIssueSeverity() const
 	return HighestIssueSeverity.GetValue();
 }
 
+void UNiagaraStackItem::SetIsEnabled(bool bInIsEnabled)
+{
+	if (ItemFooter != nullptr)
+	{
+		ItemFooter->SetIsEnabled(bInIsEnabled);
+	}
+	SetIsEnabledInternal(bInIsEnabled);
+}
+
+void UNiagaraStackItem::Delete()
+{
+	if (GetDisplayedObject() != nullptr)
+	{
+		GetSystemViewModel()->GetSelectionViewModel()->RemoveEntryFromSelectionByDisplayedObject(GetDisplayedObject());
+	}
+	DeleteInternal();
+}
+
 void UNiagaraStackItem::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
 {
-	if (FooterSpacer == nullptr)
+	if (ItemFooter == nullptr)
 	{
-		FooterSpacer = NewObject<UNiagaraStackSpacer>(this);
-		FooterSpacer->Initialize(CreateDefaultChildRequiredData(), "ItemFooterSpacer", 1, UNiagaraStackEntry::EStackRowStyle::ItemContent);
+		ItemFooter = NewObject<UNiagaraStackItemFooter>(this);
+		ItemFooter->Initialize(CreateDefaultChildRequiredData(), GetStackEditorDataKey());
+		ItemFooter->SetOnToggleShowAdvanced(UNiagaraStackItemFooter::FOnToggleShowAdvanced::CreateUObject(this, &UNiagaraStackItem::ToggleShowAdvanced));
 	}
+	ItemFooter->SetIsEnabled(GetIsEnabled());
 
-	if (ShowAdvancedExpander == nullptr)
-	{
-		ShowAdvancedExpander = NewObject<UNiagaraStackAdvancedExpander>(this);
-		ShowAdvancedExpander->Initialize(CreateDefaultChildRequiredData(), GetStackEditorDataKey(), GetOwningNiagaraNode());
-		ShowAdvancedExpander->SetOnToggleShowAdvanced(UNiagaraStackAdvancedExpander::FOnToggleShowAdvanced::CreateUObject(this, &UNiagaraStackItem::ToggleShowAdvanced));
-	}
-
-	NewChildren.Add(FooterSpacer);
-	NewChildren.Add(ShowAdvancedExpander);
+	NewChildren.Add(ItemFooter);
 	RecursiveStackIssuesCount.Reset();
 	HighestIssueSeverity.Reset();
 }
@@ -93,7 +105,7 @@ void GetContentChildren(UNiagaraStackEntry& CurrentEntry, TArray<UNiagaraStackIt
 void UNiagaraStackItem::PostRefreshChildrenInternal()
 {
 	Super::PostRefreshChildrenInternal();
-	bHasAdvancedContent = false;
+	bool bHasAdvancedContent = false;
 	TArray<UNiagaraStackItemContent*> ContentChildren;
 	GetContentChildren(*this, ContentChildren);
 	for (UNiagaraStackItemContent* ContentChild : ContentChildren)
@@ -104,16 +116,12 @@ void UNiagaraStackItem::PostRefreshChildrenInternal()
 			break;
 		}
 	}
+	ItemFooter->SetHasAdvancedContent(bHasAdvancedContent);
 }
 
 int32 UNiagaraStackItem::GetChildIndentLevel() const
 {
 	return GetIndentLevel();
-}
-
-UNiagaraNode* UNiagaraStackItem::GetOwningNiagaraNode() const
-{
-	return nullptr;
 }
 
 void UNiagaraStackItem::ChlildStructureChangedInternal()
@@ -133,22 +141,6 @@ bool UNiagaraStackItem::FilterAdvancedChildren(const UNiagaraStackEntry& Child) 
 	else
 	{
 		return GetStackEditorData().GetShowAllAdvanced() || GetStackEditorData().GetStackItemShowAdvanced(GetStackEditorDataKey(), false);
-	}
-}
-
-bool UNiagaraStackItem::FilterShowAdvancedChild(const UNiagaraStackEntry& Child) const 
-{
-	if (&Child == ShowAdvancedExpander && bHasAdvancedContent == false)
-	{
-		return false;
-	}
-	else if (&Child == FooterSpacer && bHasAdvancedContent)
-	{
-		return false;
-	}
-	else
-	{
-		return true;
 	}
 }
 

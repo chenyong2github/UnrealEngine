@@ -523,6 +523,21 @@ void FNiagaraSystemViewModel::Tick(float DeltaTime)
 		UpdateSequencerTracksForEmitters(EmitterIdsRequiringSequencerTrackUpdate);
 		EmitterIdsRequiringSequencerTrackUpdate.Empty();
 	}
+
+	if (SystemStackViewModel != nullptr)
+	{
+		SystemStackViewModel->Tick();
+	}
+
+	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : EmitterHandleViewModels)
+	{
+		EmitterHandleViewModel->GetEmitterStackViewModel()->Tick();
+	}
+
+	if (SelectionViewModel != nullptr)
+	{
+		SelectionViewModel->Tick();
+	}
 }
 
 void FNiagaraSystemViewModel::OnPreSave()

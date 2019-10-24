@@ -2,6 +2,8 @@
 
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
+#include "ViewModels/Stack/NiagaraStackItemGroup.h"
+#include "ViewModels/Stack/NiagaraStackItem.h"
 #include "ViewModels/Stack/NiagaraStackSelection.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
@@ -207,6 +209,47 @@ UNiagaraStackViewModel* UNiagaraSystemSelectionViewModel::GetSelectionStackViewM
 	return SelectionStackViewModel;
 }
 
+void UNiagaraSystemSelectionViewModel::RemoveEntryFromSelectionByDisplayedObject(const UObject* InObject)
+{
+	bool bSelectionChanged = false;
+
+	TArray<UNiagaraStackEntry*> EntriesToDeselect;
+	for (UNiagaraStackEntry* SelectedEntry : SelectedEntries)
+	{
+		if (SelectedEntry->GetDisplayedObject() == InObject)
+		{
+			EntriesToDeselect.Add(SelectedEntry);
+			bSelectionChanged = true;
+		}
+	}
+
+	for (UNiagaraStackEntry* EntryToDeselect : EntriesToDeselect)
+	{
+		RemoveEntryFromSelectionInternal(EntryToDeselect);
+	}
+
+	if (bSelectionChanged)
+	{
+		OnSelectionChangedDelegate.Broadcast(ESelectionChangeSource::EntrySelection);
+		UpdateStackSelectionEntry();
+	}
+}
+
+void UNiagaraSystemSelectionViewModel::AddEntriesToSelectionByDisplayedObjectsDeferred(const TArray<const UObject*>& InObjects)
+{
+	for (const UObject* InObject : InObjects)
+	{
+		DeferredDisplayedObjectKeysToAddToSelection.Add(FObjectKey(InObject));
+	}
+}
+
+void UNiagaraSystemSelectionViewModel::AddEntryToSelectionByDisplayedObjectDeferred(const UObject* InObject)
+{
+	TArray<const UObject*> InObjects;
+	InObjects.Add(InObject);
+	AddEntriesToSelectionByDisplayedObjectsDeferred(InObjects);
+}
+
 void UNiagaraSystemSelectionViewModel::Refresh()
 {
 	TSet<FGuid> ValidEmitterHandleIds;
@@ -233,11 +276,101 @@ UNiagaraSystemSelectionViewModel::FOnSelectionChanged& UNiagaraSystemSelectionVi
 	return OnSelectionChangedDelegate;
 }
 
+void FindStackGroupsAndItemsForDisplayedObjectKeysRecursive(UNiagaraStackEntry* StackEntry, const TArray<FObjectKey>& ObjectKeys, TArray<UNiagaraStackEntry*>& OutFoundStackEntries)
+{
+	if (StackEntry->IsA<UNiagaraStackItemGroup>() || StackEntry->IsA<UNiagaraStackItem>())
+	{
+		UObject* DisplayedObject = StackEntry->GetDisplayedObject();
+		if (DisplayedObject != nullptr && ObjectKeys.Contains(FObjectKey(DisplayedObject)))
+		{
+			OutFoundStackEntries.Add(StackEntry);
+		}
+	}
+
+	if (StackEntry->IsA<UNiagaraStackItem>() == false)
+	{
+		TArray<UNiagaraStackEntry*> Children;
+		StackEntry->GetUnfilteredChildren(Children);
+		for (UNiagaraStackEntry* ChildEntry : Children)
+		{
+			FindStackGroupsAndItemsForDisplayedObjectKeysRecursive(ChildEntry, ObjectKeys, OutFoundStackEntries);
+		}
+	}
+}
+
+void FindStackGroupsAndItemsForDisplayedObjectKeys(UNiagaraStackViewModel* StackViewModel, const TArray<FObjectKey>& ObjectKeys, TArray<UNiagaraStackEntry*>& OutFoundStackEntries)
+{
+	for (UNiagaraStackEntry* RootEntry : StackViewModel->GetRootEntries())
+	{
+		FindStackGroupsAndItemsForDisplayedObjectKeysRecursive(RootEntry, ObjectKeys, OutFoundStackEntries);
+	}
+}
+
+void UNiagaraSystemSelectionViewModel::Tick()
+{
+	TArray<UNiagaraStackEntry*> FoundStackEntries;
+	TSharedRef<FNiagaraSystemViewModel> SystemViewModel = GetSystemViewModel();
+	FindStackGroupsAndItemsForDisplayedObjectKeys(SystemViewModel->GetSystemStackViewModel(), DeferredDisplayedObjectKeysToAddToSelection, FoundStackEntries);
+	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterViewModel : SystemViewModel->GetEmitterHandleViewModels())
+	{
+		FindStackGroupsAndItemsForDisplayedObjectKeys(EmitterViewModel->GetEmitterStackViewModel(), DeferredDisplayedObjectKeysToAddToSelection, FoundStackEntries);
+	}
+
+	int32 AddedEntries = 0;
+	for (UNiagaraStackEntry* FoundStackEntry : FoundStackEntries)
+	{
+		if (SelectedEntries.Contains(FoundStackEntry) == false)
+		{
+			SelectedEntries.Add(FoundStackEntry);
+			AddedEntries++;
+		}
+	}
+
+	DeferredDisplayedObjectKeysToAddToSelection.Empty();
+	if (AddedEntries > 0)
+	{
+		OnSelectionChangedDelegate.Broadcast(ESelectionChangeSource::EntrySelection);
+		UpdateStackSelectionEntry();
+	}
+}
+
 TSharedRef<FNiagaraSystemViewModel> UNiagaraSystemSelectionViewModel::GetSystemViewModel()
 {
 	TSharedPtr<FNiagaraSystemViewModel> SystemViewModel = SystemViewModelWeak.Pin();
 	checkf(SystemViewModel.IsValid(), TEXT("Owning system view model destroyed before system overview view model."));
 	return SystemViewModel.ToSharedRef();
+}
+
+void UNiagaraSystemSelectionViewModel::RemoveEntryFromSelectionInternal(UNiagaraStackEntry* DeselectedEntry)
+{
+	SelectedEntries.Remove(DeselectedEntry);
+	TSharedPtr<FNiagaraEmitterViewModel> DeselectedEmitterViewModel = DeselectedEntry->GetEmitterViewModel();
+	if (DeselectedEmitterViewModel.IsValid())
+	{
+		bool bEmitterIsStillSelected = SelectedEntries.ContainsByPredicate([DeselectedEmitterViewModel](const UNiagaraStackEntry* SelectedEntry)
+		{
+			return SelectedEntry->GetEmitterViewModel() == DeselectedEmitterViewModel;
+		});
+		if (bEmitterIsStillSelected == false)
+		{
+			const FNiagaraEmitterHandle* DeselectedEmitterHandle = FNiagaraEditorUtilities::GetEmitterHandleForEmitter(DeselectedEntry->GetSystemViewModel()->GetSystem(), *DeselectedEmitterViewModel->GetEmitter());
+			if (DeselectedEmitterHandle != nullptr)
+			{
+				SelectedEmitterHandleIds.Remove(DeselectedEmitterHandle->GetId());
+			}
+		}
+	}
+	else
+	{
+		bool bSystemIsStillSelected = SelectedEntries.ContainsByPredicate([](const UNiagaraStackEntry* SelectedEntry)
+		{
+			return SelectedEntry->GetEmitterViewModel().IsValid() == false;
+		});
+		if (bSystemIsStillSelected == false)
+		{
+			bSystemIsSelected = false;
+		}
+	}
 }
 
 void UNiagaraSystemSelectionViewModel::UpdateStackSelectionEntry()
