@@ -28,22 +28,7 @@ public:
 			InComponent->DestroyRenderState_Concurrent();
 			Component = InComponent;
 
-			if (ScenesToUpdateAllPrimitiveSceneInfos == nullptr)
-			{
-				// If no batching is available (this RecreateRenderStateContext is not created by a FGlobalComponentRecreateRenderStateContext), issue one update per component
-				ENQUEUE_RENDER_COMMAND(UpdateAllPrimitiveSceneInfosCmd)([InComponent](FRHICommandListImmediate& RHICmdList) {
-					if (InComponent->GetScene())
-						InComponent->GetScene()->UpdateAllPrimitiveSceneInfos(RHICmdList);
-					});
-			}
-			else
-			{
-				if (InComponent->GetScene())
-				{
-					// Try to batch the updates inside FGlobalComponentRecreateRenderStateContext
-					ScenesToUpdateAllPrimitiveSceneInfos->Add(InComponent->GetScene());
-				}
-			}
+			UpdateAllPrimitiveSceneInfosForSingleComponent(InComponent, ScenesToUpdateAllPrimitiveSceneInfos);
 		}
 		else
 		{
@@ -57,22 +42,7 @@ public:
 		{
 			Component->CreateRenderState_Concurrent();
 
-			if (ScenesToUpdateAllPrimitiveSceneInfos == nullptr)
-			{
-				UActorComponent* InComponent = Component;
-				ENQUEUE_RENDER_COMMAND(UpdateAllPrimitiveSceneInfosCmd)([InComponent](FRHICommandListImmediate& RHICmdList) {
-					if (InComponent->GetScene())
-						InComponent->GetScene()->UpdateAllPrimitiveSceneInfos(RHICmdList);
-					});
-			}
-			else
-			{
-				if (Component->GetScene())
-				{
-					// Try to batch the updates inside FGlobalComponentRecreateRenderStateContext
-					ScenesToUpdateAllPrimitiveSceneInfos->Add(Component->GetScene());
-				}
-			}
+			UpdateAllPrimitiveSceneInfosForSingleComponent(Component, ScenesToUpdateAllPrimitiveSceneInfos);
 		}
 	}
 };
