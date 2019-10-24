@@ -240,10 +240,19 @@ namespace HairStrandsBuilder
 
 				const FVector2D RootUV = Curves.CurvesRootUV[CurveIndex];
 				FHairStrandsAttributeFormat::Type& PackedAttributes = OutPackedAttributes[PointIndex + IndexOffset];
-				PackedAttributes.RootU = uint32(FMath::Clamp(RootUV.X, 0.f, 1.f) * 0xFF);
-				PackedAttributes.RootV = uint32(FMath::Clamp(RootUV.Y, 0.f, 1.f) * 0xFF);
+				PackedAttributes.Unused0 = 0;
+				PackedAttributes.Unused1 = 0;
 				PackedAttributes.UCoord = FMath::Clamp(CoordU * 255.f, 0.f, 255.f);
 				PackedAttributes.Seed = CurveSeed;
+
+				// Root UV support UDIM texture coordinate but limit the spans of the UDIM to be in 256x256 instead of 9999x9999.
+				// The internal UV coords are also limited to 8bits, which means if sampling need to be super precise, this is no enough.
+				const FVector2D TextureRootUV(FMath::Fractional(RootUV.X), FMath::Fractional(RootUV.Y));
+				const FVector2D TextureIndexUV = RootUV - TextureRootUV;
+				PackedAttributes.RootU  = uint32(FMath::Clamp(TextureRootUV.X*255.f, 0.f, 255.f));
+				PackedAttributes.RootV  = uint32(FMath::Clamp(TextureRootUV.Y*255.f, 0.f, 255.f));
+				PackedAttributes.IndexU = uint32(FMath::Clamp(TextureIndexUV.X, 0.f, 255.f));
+				PackedAttributes.IndexV = uint32(FMath::Clamp(TextureIndexUV.Y, 0.f, 255.f));
 			}
 		}
 	}
