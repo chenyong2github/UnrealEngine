@@ -37,6 +37,7 @@
 #include "K2Node_VariableGet.h"
 #include "K2Node_VariableSet.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "BlueprintAssetHandler.h"
 #include "EdGraphNode_Comment.h"
 #include "Animation/AnimInstance.h"
 #include "Editor.h"
@@ -974,7 +975,17 @@ static void BlueprintActionDatabaseImpl::OnAssetsPendingDelete(TArray<UObject*> 
 			// in case they choose not to delete the object, we need to add 
 			// these back in to the database, so we track them here
 			PendingDelete.Add(DeletingObject);
-		}		
+		}
+
+		// If this asset contains a blueprint, ensure that it's actions are also marked for pending delete
+		else if (const IBlueprintAssetHandler* Handler = FBlueprintAssetHandler::Get().FindHandler(DeletingObject->GetClass()))
+		{
+			UBlueprint* Blueprint = Handler->RetrieveBlueprint(DeletingObject);
+			if (Blueprint && ActionDatabase.ClearAssetActions(Blueprint))
+			{
+				PendingDelete.Add(Blueprint);
+			}
+		}
 	}
 }
 
