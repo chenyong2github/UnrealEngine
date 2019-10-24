@@ -56,7 +56,7 @@ void Main(
   #ifdef VF_STRAND_HAIR	
 	FHairRenderingInfo HairRenderingInfo = GetHairRenderInfo(ResolvedView.HairRenderInfo);
 	const float CurrentDepth = Output.Position.z / Output.Position.w;
-	const float PixelRadius = HairRenderingInfo.IsOrthoView ? HairRenderingInfo.RadiusAtDepth1Primary : (CurrentDepth * HairRenderingInfo.RadiusAtDepth1Primary);
+	const float PixelRadius = HairRenderingInfo.bIsOrthoView ? HairRenderingInfo.RadiusAtDepth1Primary : (CurrentDepth * HairRenderingInfo.RadiusAtDepth1Primary);
 	const float StrandRealRadius = VFIntermediates.HairDimensions.y;
 	const float Coverage = StrandRealRadius / max(StrandRealRadius, PixelRadius);
 	Output.HairCoverage = Coverage * VFIntermediates.HairDensity;

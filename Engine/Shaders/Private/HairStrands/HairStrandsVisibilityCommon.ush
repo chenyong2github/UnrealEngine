@@ -315,7 +315,7 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
  {
 	 float RadiusAtDepth1Primary;
 	 float RadiusAtDepth1Velocity;
-	 bool IsOrthoView;
+	 bool bIsOrthoView;
  };
 
  FHairRenderingInfo GetHairRenderInfo(float4 ViewHairRenderInfo)
@@ -323,6 +323,6 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
 	 FHairRenderingInfo Info;
 	 Info.RadiusAtDepth1Primary = ViewHairRenderInfo.x;
 	 Info.RadiusAtDepth1Velocity = ViewHairRenderInfo.y;
-	 Info.IsOrthoView = ViewHairRenderInfo.z > 0.0f ? true : false;
+	 Info.bIsOrthoView = ViewHairRenderInfo.z > 0.0f ? true : false;
 	 return Info;
  }
