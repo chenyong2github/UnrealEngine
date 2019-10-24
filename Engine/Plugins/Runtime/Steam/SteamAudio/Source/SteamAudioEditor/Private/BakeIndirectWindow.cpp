@@ -219,18 +219,27 @@ namespace SteamAudio
 		// Add all baked phonon sources
 		for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
 		{
-			auto PhononSourceComponent = Cast<UPhononSourceComponent>(ActorItr->GetComponentByClass(UPhononSourceComponent::StaticClass()));
-			if (PhononSourceComponent)
+			TArray<UActorComponent*> Components;
+			ActorItr->GetComponents(UPhononSourceComponent::StaticClass(), Components);
+			for (auto PhononSourceItr : Components)
 			{
-				auto SourceDataSize = ComputeSourceDataSize(PhononProbeVolumes, PhononSourceComponent->UniqueIdentifier);
-				BakedSources.Add(MakeShareable(new FBakedSource(PhononSourceComponent->UniqueIdentifier, SourceDataSize, PhononSourceComponent)));
+				if (PhononSourceItr && PhononSourceItr->IsValidLowLevel())
+				{
+					UPhononSourceComponent* PhononSourceComponent = Cast<UPhononSourceComponent>(PhononSourceItr);
+
+					if (PhononSourceComponent && PhononSourceComponent->IsValidLowLevel())
+					{
+						auto SourceDataSize = ComputeSourceDataSize(PhononProbeVolumes, PhononSourceComponent->UniqueIdentifier);
+						BakedSources.Add(MakeShareable(new FBakedSource(PhononSourceComponent->UniqueIdentifier, SourceDataSize, PhononSourceComponent)));
+					}
+				}
 			}
 		}
 	}
 
 	bool FBakeIndirectWindow::IsBakeEnabled() const
 	{
-		return !GIsBaking.load();
+		return !GIsBaking.Load();
 	}
 
 	//==============================================================================================================================================

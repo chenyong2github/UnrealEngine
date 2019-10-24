@@ -35,7 +35,7 @@ namespace SteamAudio
 #if WITH_EDITOR
 
 	/** Creates and populates a Phonon scene. Gathers Phonon Geometry asynchronously on the game thread. */
-	bool STEAMAUDIO_API CreateScene(UWorld* World, IPLhandle* PhononScene, TArray<IPLhandle>* PhononStaticMeshes, uint32& NumSceneTriangles);
+	bool STEAMAUDIO_API CreateScene(UWorld* World, IPLhandle* PhononScene, IPLhandle* PhononStaticMesh, uint32& NumSceneTriangles);
 	bool STEAMAUDIO_API SaveFinalizedSceneToDisk(UWorld* World, IPLhandle PhononScene, const FPhononSceneInfo& PhononSceneInfo);
 
 	void STEAMAUDIO_API AddGeometryComponentsToStaticMeshes(UWorld* World);
