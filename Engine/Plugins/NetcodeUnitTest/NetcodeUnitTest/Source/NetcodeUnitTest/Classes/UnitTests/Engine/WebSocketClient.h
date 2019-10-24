@@ -4,13 +4,13 @@
 
 #include "UnitTests/Engine/IPClient.h"
 
-#include "HTML5Client.generated.h"
+#include "WebSocketClient.generated.h"
 
 /**
- * Basic unit test for verifying simple client connection to a server, using the HTML5 net driver.
+ * Basic unit test for verifying simple client connection to a server, using the WebSocket net driver.
  */
 UCLASS()
-class UHTML5Client : public UIPClient
+class UWebSocketClient : public UIPClient
 {
 	GENERATED_UCLASS_BODY()
 
