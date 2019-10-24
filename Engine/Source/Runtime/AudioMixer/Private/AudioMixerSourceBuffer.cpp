@@ -474,7 +474,7 @@ namespace Audio
 
 	void FMixerSourceBuffer::OnBeginGenerate()
 	{
-		if (bProcedural)
+		if (SoundWave && bProcedural)
 		{
 			check(SoundWave && SoundWave->bProcedural);
 			SoundWave->OnBeginGenerate();
@@ -482,12 +482,12 @@ namespace Audio
 	}
 
 	void FMixerSourceBuffer::OnEndGenerate()
-	{
+	{		
 		// Make sure the async task finishes!
 		EnsureAsyncTaskFinishes();
-
+						
 		// Only need to call OnEndGenerate and access SoundWave here if we successfully initialized
-		if (bInitialized && bProcedural)
+		if (SoundWave && bInitialized && bProcedural)
 		{
 			check(SoundWave && SoundWave->bProcedural);
 			SoundWave->OnEndGenerate();
