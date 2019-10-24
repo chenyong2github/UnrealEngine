@@ -684,9 +684,9 @@ static void BlueprintActionDatabaseImpl::AddClassPropertyActions(UClass const* c
 			continue;
 		}
 
- 		bool const bIsDelegate = Property->IsA(UMulticastDelegateProperty::StaticClass());
- 		if (bIsDelegate)
- 		{
+		bool const bIsDelegate = Property->IsA(UMulticastDelegateProperty::StaticClass());
+		if (bIsDelegate)
+		{
 			UMulticastDelegateProperty* DelegateProperty = CastChecked<UMulticastDelegateProperty>(Property);
 			if (DelegateProperty->HasAnyPropertyFlags(CPF_BlueprintAssignable))
 			{
@@ -716,7 +716,7 @@ static void BlueprintActionDatabaseImpl::AddClassPropertyActions(UClass const* c
 			{
 				ActionListOut.Add(MakeActorBoundEventSpawner(DelegateProperty));
 			}
- 		}
+		}
 		else
 		{
 			UBlueprintVariableNodeSpawner* GetterSpawner = UBlueprintVariableNodeSpawner::CreateFromMemberOrParam(UK2Node_VariableGet::StaticClass(), Property);
@@ -784,9 +784,11 @@ static void BlueprintActionDatabaseImpl::AddClassCastActions(UClass* Class, FAct
 //------------------------------------------------------------------------------
 static void BlueprintActionDatabaseImpl::AddSkeletonActions(const USkeleton& Skeleton, FActionList& ActionListOut)
 {
-	for (int32 I = 0; I < Skeleton.AnimationNotifies.Num(); ++I)
+	TArray<FName> NotifyNames;
+	Skeleton.CollectAnimationNotifies(NotifyNames);
+
+	for (const FName& NotifyName : NotifyNames)
 	{
-		FName NotifyName = Skeleton.AnimationNotifies[I];
 		FString Label = NotifyName.ToString();
 
 		FString SignatureName = FString::Printf(TEXT("AnimNotify_%s"), *Label);
