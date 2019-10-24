@@ -12,7 +12,7 @@
 
 namespace Chaos
 {
-	class ClothingSimulationContext : public IClothingSimulationContext
+	class ClothingSimulationContext : public IClothingSimulationContext  // TODO(Kriss.Gossart): Check whether this should inherit from FClothingSimulationContextBase
 	{
 	public:
 		ClothingSimulationContext() {}
@@ -78,8 +78,15 @@ namespace Chaos
 		void ExtractPhysicsAssetCollisions(UClothingAssetCommon* Asset);
 		// Extract the collisions from the specified clothing asset 
 		void ExtractLegacyAssetCollisions(UClothingAssetCommon* Asset, const USkeletalMeshComponent* InOwnerComponent);
-		// Create the bone mapping for all the bones used by collision
-		void RefreshBoneMapping(UClothingAssetCommon* Asset);
+		// Add collisions from a ClothCollisionData structure
+		void AddCollisions(const FClothCollisionData& ClothCollisionData, const TArray<int32>& UsedBoneIndices);
+		// Update the collision transforms using the specified context
+		void UpdateCollisionTransforms(const ClothingSimulationContext& Context);
+		// Return the correct bone index based on the asset used bone index array
+		FORCEINLINE int32 GetMappedBoneIndex(const TArray<int32>& UsedBoneIndices, int32 BoneIndex)
+		{
+			return UsedBoneIndices.IsValidIndex(BoneIndex) ? UsedBoneIndices[BoneIndex] : INDEX_NONE;
+		}
 
 	private:
 		// Assets
@@ -88,8 +95,6 @@ namespace Chaos
 		// Collision Data
 		FClothCollisionData ExtractedCollisions;  // Collisions extracted from the referenced physics asset
 		FClothCollisionData ExternalCollisions;  // External collisions
-		TArray<FName> CollisionBoneNames;  // List of the bone names used by collision
-		TArray<int32> CollisionBoneIndices;  // List of the indices for the bones in UsedBoneNames, used for remapping
 		TArray<Chaos::TRigidTransform<float, 3>> OldCollisionTransforms;  // Used for the kinematic collision transform update
 		TArray<Chaos::TRigidTransform<float, 3>> CollisionTransforms;  // Used for the kinematic collision transform update
 		Chaos::TArrayCollectionArray<int32> BoneIndices;
