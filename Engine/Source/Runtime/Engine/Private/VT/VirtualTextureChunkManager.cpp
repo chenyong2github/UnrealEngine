@@ -181,3 +181,8 @@ IVirtualTextureFinalizer* FVirtualTextureChunkStreamingManager::ProduceTile(FRHI
 
 	return &UploadCache;
 }
+
+void FVirtualTextureChunkStreamingManager::WaitTasksFinished() const
+{
+	TranscodeCache.WaitTasksFinished();
+}
