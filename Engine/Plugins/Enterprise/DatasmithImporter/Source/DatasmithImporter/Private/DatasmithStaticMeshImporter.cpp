@@ -237,6 +237,10 @@ bool FDatasmithStaticMeshImporter::PreBuildStaticMesh( UStaticMesh* StaticMesh )
 			Params.bUseHashAsGuid = true;
 
 			StaticMesh->CommitMeshDescription(LodIndex, Params);
+
+			// Get rid of the memory used now that its committed into its bulk form.
+			// Will be reloaded from bulk data when building the mesh if not present in memory.
+			StaticMesh->ClearMeshDescription(LodIndex);
 		}
 		else
 		{
