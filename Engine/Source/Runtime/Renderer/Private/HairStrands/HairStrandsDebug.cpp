@@ -139,6 +139,7 @@ EHairStrandsDebugMode GetHairStrandsDebugStrandsMode()
 	case 5:  return EHairStrandsDebugMode::RenderHairSeed;
 	case 6:  return EHairStrandsDebugMode::RenderHairDimension;
 	case 7:  return EHairStrandsDebugMode::RenderHairRadiusVariation;
+	case 8:  return EHairStrandsDebugMode::RenderHairRootUDIM;
 	default: return EHairStrandsDebugMode::None;
 	};
 }
@@ -155,6 +156,7 @@ static const TCHAR* ToString(EHairStrandsDebugMode DebugMode)
 	case EHairStrandsDebugMode::RenderHairSeed				: return TEXT("Hair seed");
 	case EHairStrandsDebugMode::RenderHairDimension			: return TEXT("Hair dimensions");
 	case EHairStrandsDebugMode::RenderHairRadiusVariation	: return TEXT("Hair radius variation");
+	case EHairStrandsDebugMode::RenderHairRootUDIM			: return TEXT("Root UV UDIM texture index");		
 	default													: return TEXT("None");
 	};
 }

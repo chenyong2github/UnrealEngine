@@ -5,6 +5,7 @@
 =============================================================================*/
 #include "../VertexFactoryCommon.ush"
 #include "../LocalVertexFactoryCommon.ush"
+#include "HairStrandsVisibilityCommon.ush"
 
 #include "/Engine/Generated/UniformBuffers/PrecomputedLightingBuffer.ush"
 
@@ -30,7 +31,7 @@ float  HairStrandsVF_Length;
 
 Buffer<uint4>  HairStrandsVF_PositionBuffer;
 Buffer<uint4>  HairStrandsVF_PreviousPositionBuffer;
-Buffer<float4> HairStrandsVF_AttributeBuffer;
+Buffer<uint4>  HairStrandsVF_AttributeBuffer;
 Buffer<float4> HairStrandsVF_TangentBuffer;
 
 // ## A quad is made of the following topology and indexing:
@@ -154,11 +155,11 @@ FControlPoint GetVertexPosition(FVertexFactoryInput Input)
 	// Create a degenerated quad the end of each strand to cut between each strands
 	// #hair_todo: This is not efficient for short strand like fur for instance. Need to revisit that at some point
 	const bool bIsInvalidQuad = (ControlPointType == 1 && OffsetIndex == 1) || (ControlPointType == 2 && OffsetIndex == 0);
-	const float4 Attributes		= HairStrandsVF_AttributeBuffer[BaseIndex + OffsetIndex];
+	const FHairAttributes Attributes = DecodeHairAttribute(HairStrandsVF_AttributeBuffer[BaseIndex + OffsetIndex]);
 	Output.Position				= bIsInvalidQuad ? float3(1.#INF, 1.#INF, 1.#INF) : ControlPoint;
-	Output.RootUV				= Attributes.xy;
-	Output.UCoord				= Attributes.z;
-	Output.Seed					= Attributes.w;
+	Output.RootUV				= Attributes.RootUV;
+	Output.UCoord				= Attributes.UCoord;
+	Output.Seed					= Attributes.Seed;
 
 	return Output;
 }
