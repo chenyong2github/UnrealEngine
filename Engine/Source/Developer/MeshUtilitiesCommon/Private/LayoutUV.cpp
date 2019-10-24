@@ -593,12 +593,16 @@ int32 FLayoutUV::FChartFinder::FindCharts( const FOverlappingCorners& Overlappin
 	}
 	
 	// Clean out empty charts
-	for( int32 i = 0; i < Charts.Num(); i++ )
+	for( int32 i = 0; i < Charts.Num(); )
 	{
-		while( i < Charts.Num() && Charts[i].FirstTri == Charts[i].LastTri )
+		if( Charts[i].FirstTri == Charts[i].LastTri )
 		{
 			Charts.RemoveAtSwap(i);
 		}
+		else
+		{ 
+			i++;
+		}	
 	}
 
 	for( int32 i = 0; i < Charts.Num(); i++ )
