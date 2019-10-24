@@ -297,9 +297,27 @@ void UDatasmithFileProducer::SceneElementToWorld()
 	for ( TPair< TSharedRef< IDatasmithBaseMaterialElement >, UMaterialInterface* >& AssetPair : ImportContextPtr->ImportedMaterials )
 	{
 		Assets.Emplace( AssetPair.Value );
+
+		if (UMaterial* SourceMaterial = Cast< UMaterial >(AssetPair.Value))
+		{
+			SourceMaterial->RebuildExpressionTextureReferences();
+
+			for (FMaterialFunctionInfo& MaterialFunctionInfo : SourceMaterial->MaterialFunctionInfos)
+			{
+				if (MaterialFunctionInfo.Function && MaterialFunctionInfo.Function->GetOutermost() == SourceMaterial->GetOutermost())
+				{
+					Assets.Emplace( MaterialFunctionInfo.Function );
+				}
+			}
+		}
 	}
 
 	for ( TPair< int32, UMaterialInterface* >& AssetPair : ImportContextPtr->ImportedParentMaterials )
+	{
+		Assets.Emplace( AssetPair.Value );
+	}
+
+	for ( TPair< TSharedRef< IDatasmithBaseMaterialElement >, UMaterialFunction* >& AssetPair : ImportContextPtr->ImportedMaterialFunctions )
 	{
 		Assets.Emplace( AssetPair.Value );
 	}
@@ -386,6 +404,7 @@ void UDatasmithFileProducer::PreventNameCollision()
 
 		// First pass: No UMaterial objects, parent materials are collected if applicable
 		TSet<UMaterialInterface*> ParentMaterials;
+		TSet<UMaterialFunctionInterface*> MaterialFunctions;
 
 		for(int32 Index = 0; Index < Assets.Num(); ++Index)
 		{
@@ -405,8 +424,23 @@ void UDatasmithFileProducer::PreventNameCollision()
 				{
 					MoveAsset( Object, TexturesImportPackage, false );
 				}
+				else if( Cast<UMaterialFunctionInterface>(Object) != nullptr )
+				{
+					MoveAsset( Object, MaterialsImportPackage, true );
+				}
 				else if( UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(Object) )
 				{
+					if (UMaterial* SourceMaterial = Cast< UMaterial >(MaterialInstance))
+					{
+						for (FMaterialFunctionInfo& MaterialFunctionInfo : SourceMaterial->MaterialFunctionInfos)
+						{
+							if (MaterialFunctionInfo.Function && MaterialFunctionInfo.Function->GetOutermost() == SourceMaterial->GetOutermost())
+							{
+								MaterialFunctions.Add( MaterialFunctionInfo.Function );
+							}
+						}
+					}
+
 					if ( UMaterialInterface* MaterialParent = MaterialInstance->Parent )
 					{
 						FString MaterialInstancePath = MaterialInstance->GetOutermost()->GetName();
@@ -448,6 +482,14 @@ void UDatasmithFileProducer::PreventNameCollision()
 				{
 					PathsToDelete.Add( FPaths::GetPath( Material->GetOutermost()->GetName() ) );
 					MoveAsset( Material, MaterialsImportPackage, true );
+				}
+			}
+			else if( UMaterialFunctionInterface* MaterialFunction = Cast<UMaterialFunctionInterface>( Assets[Index].Get() ) )
+			{
+				if( !MaterialFunctions.Contains( MaterialFunction ) )
+				{
+					PathsToDelete.Add( FPaths::GetPath( MaterialFunction->GetOutermost()->GetName() ) );
+					MoveAsset( MaterialFunction, MaterialsImportPackage, true );
 				}
 			}
 		}
