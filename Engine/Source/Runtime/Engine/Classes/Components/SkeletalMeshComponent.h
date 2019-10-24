@@ -587,20 +587,20 @@ public:
 	UPROPERTY()
 	uint8 bEnableLineCheckWithBounds:1;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
-	uint8 bUseBendingElements:1;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
+	uint8 bUseBendingElements_DEPRECATED :1;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
-	uint8 bUseTetrahedralConstraints:1;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
+	uint8 bUseTetrahedralConstraints_DEPRECATED :1;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
-	uint8 bUseThinShellVolumeConstraints:1;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
+	uint8 bUseThinShellVolumeConstraints_DEPRECATED :1;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
-	uint8 bUseSelfCollisions:1;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
+	uint8 bUseSelfCollisions_DEPRECATED :1;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
-	uint8 bUseContinuousCollisionDetection:1;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
+	uint8 bUseContinuousCollisionDetection_DEPRECATED :1;
 
 	/** If true, propagates calls to ApplyAnimationCurvesToComponent for slave components, only needed if slave components do not tick themselves */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MasterPoseComponent)
@@ -638,14 +638,14 @@ public:
 	UPROPERTY(transient)
 	uint16 CachedAnimCurveUidVersion;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
-	EClothMassMode MassMode;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
+	EClothMassMode MassMode_DEPRECATED;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
-	float UniformMass;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
+	float UniformMass_DEPRECATED;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
-	float TotalMass;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
+	float TotalMass_DEPRECATED;
 	
 	/**
 	 * Water: 1.0
@@ -653,11 +653,11 @@ public:
 	 * Wool: 0.13
 	 * Silk: 0.133
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
-	float Density;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
+	float Density_DEPRECATED;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
-	float MinPerParticleMass;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
+	float MinPerParticleMass_DEPRECATED;
 
 
 	/**
@@ -667,23 +667,23 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
 	float ClothBlendWeight;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
-	float EdgeStiffness;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
+	float EdgeStiffness_DEPRECATED;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
-	float BendingStiffness;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
+	float BendingStiffness_DEPRECATED;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
-	float AreaStiffness;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
+	float AreaStiffness_DEPRECATED;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
-	float VolumeStiffness;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
+	float VolumeStiffness_DEPRECATED;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
-	float StrainLimitingStiffness;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
+	float StrainLimitingStiffness_DEPRECATED;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
-	float ShapeTargetStiffness;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
+	float ShapeTargetStiffness_DEPRECATED;
 
 private:
 

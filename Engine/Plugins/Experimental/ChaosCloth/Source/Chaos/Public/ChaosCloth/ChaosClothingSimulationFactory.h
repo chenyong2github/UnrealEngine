@@ -16,4 +16,5 @@ class CHAOSCLOTH_API UChaosClothingSimulationFactory : public UClothingSimulatio
     virtual bool SupportsAsset(UClothingAssetBase* InAsset) override;
     virtual bool SupportsRuntimeInteraction() override;
 	virtual UClothingSimulationInteractor* CreateInteractor() override;
+	virtual UClothConfigBase* CreateDefaultClothConfig(const FObjectInitializer& ObjectInitializer, UObject* Outer) override;
 };
