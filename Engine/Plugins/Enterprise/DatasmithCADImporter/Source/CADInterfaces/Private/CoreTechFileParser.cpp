@@ -234,6 +234,7 @@ uint32 GetFaceTessellation(CT_OBJECT_ID FaceID, TArray<FTessellationData>& FaceT
 	Tessellation.VertexCount = VertexCount;
 	Tessellation.NormalCount = NormalCount;
 	Tessellation.IndexCount = IndexCount;
+	Tessellation.TexCoordCount = TexCoordArray ? VertexCount : 0;
 	Tessellation.SizeOfVertexType = GetSize(VertexType);
 	Tessellation.SizeOfTexCoordType = GetSize(TexCoordType);
 	Tessellation.SizeOfNormalType = GetSize(NormalType);
@@ -242,12 +243,16 @@ uint32 GetFaceTessellation(CT_OBJECT_ID FaceID, TArray<FTessellationData>& FaceT
 	Tessellation.VertexArray.Empty(Tessellation.VertexCount * Tessellation.SizeOfVertexType);
 	Tessellation.NormalArray.Empty(Tessellation.NormalCount * Tessellation.SizeOfNormalType);
 	Tessellation.IndexArray.Empty(Tessellation.IndexCount * Tessellation.SizeOfIndexType);
-	Tessellation.TexCoordArray.Empty(Tessellation.VertexCount * Tessellation.SizeOfTexCoordType);
+	Tessellation.TexCoordArray.Empty(Tessellation.TexCoordCount * Tessellation.SizeOfTexCoordType);
 
 	Tessellation.VertexArray.Append((uint8*) VertexArray, 3 * Tessellation.VertexCount * Tessellation.SizeOfVertexType);
 	Tessellation.NormalArray.Append((uint8*)NormalArray, 3 * Tessellation.NormalCount * Tessellation.SizeOfNormalType);
 	Tessellation.IndexArray.Append((uint8*)IndexArray, Tessellation.IndexCount * Tessellation.SizeOfIndexType);
-	Tessellation.TexCoordArray.Append((uint8*)TexCoordArray, 2 * Tessellation.VertexCount * Tessellation.SizeOfTexCoordType);
+
+	if (TexCoordArray)
+	{
+		Tessellation.TexCoordArray.Append((uint8*)TexCoordArray, 2 * Tessellation.TexCoordCount * Tessellation.SizeOfTexCoordType);
+	}
 
 	OutRawDataSize = Tessellation.VertexArray.Num() + Tessellation.NormalArray.Num() + Tessellation.IndexArray.Num() + Tessellation.TexCoordArray.Num();
 
@@ -864,9 +869,11 @@ CT_FLAGS FCoreTechFileParser::SetCoreTechImportOption(const FString& MainFileExt
 		Flags |= CT_LOAD_FLAG_SEARCH_NEW_TOPOLOGY | CT_LOAD_FLAG_COMPLETE_TOPOLOGY;
 	}
 
-	Flags |= CT_LOAD_FLAGS_V5_READ_GEOM_SET;
-	
-	Flags &= ~CT_LOAD_FLAGS_LOAD_EXTERNAL_REF;
+	// 3dxml file is zipped files, it's full managed by Kernel_io. We cannot read it in sequential mode
+	if (MainFileExt != TEXT("3dxml"))
+	{
+		Flags &= ~CT_LOAD_FLAGS_LOAD_EXTERNAL_REF;
+	}
 
 	return Flags;
 }
