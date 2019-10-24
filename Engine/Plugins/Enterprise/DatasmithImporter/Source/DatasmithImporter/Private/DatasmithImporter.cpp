@@ -75,23 +75,9 @@ extern UNREALED_API UEditorEngine* GEditor;
 
 namespace DatasmithImporterImpl
 {
-	static void SafetyGarbageCollect()
-	{
-		const int SkipCountThreshold = 1000; // Don't try to cleanup to frequently
-
-		static int SkippedCount = 0;
-		if (++SkippedCount > SkipCountThreshold)
-		{
-			CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
-			SkippedCount = 0;
-		}
-	}
-
 	static UObject* PublicizeAsset( UObject* SourceAsset, const TCHAR* DestinationPath, UObject* ExistingAsset )
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(DatasmithImporterImpl::PublicizeAsset);
-
-		SafetyGarbageCollect();
 
 		UPackage* DestinationPackage;
 
@@ -619,8 +605,6 @@ namespace DatasmithImporterImpl
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(DatasmithImporterImpl::PublicizeComponent);
 
-		SafetyGarbageCollect();
-
 		if ( !SourceComponent.HasAnyFlags( RF_Transient | RF_TextExportTransient ) )
 		{
 			if (!DestinationComponent || DestinationComponent->IsPendingKillOrUnreachable())
@@ -925,6 +909,7 @@ void FDatasmithImporter::ImportStaticMeshes( FDatasmithImportContext& ImportCont
 								return nullptr;
 							}
 
+							TRACE_CPUPROFILER_EVENT_SCOPE(LoadStaticMesh);
 							TUniquePtr<FDatasmithMeshElementPayload> MeshPayload = MakeUnique<FDatasmithMeshElementPayload>();
 							return ImportContext.SceneTranslator->LoadStaticMesh(MeshElement, *MeshPayload) ? MeshPayload.Release() : nullptr;
 						}
@@ -1009,12 +994,22 @@ UStaticMesh* FDatasmithImporter::ImportStaticMesh( FDatasmithImportContext& Impo
 		FDatasmithMeshElementPayload LocalMeshPayload;
 		if (MeshPayload == nullptr)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(LoadStaticMesh);
 			ImportContext.SceneTranslator->LoadStaticMesh(MeshElement, LocalMeshPayload);
 			MeshPayload = &LocalMeshPayload;
 		}
 
 		ImportedStaticMesh = FDatasmithStaticMeshImporter::ImportStaticMesh( MeshElement, *MeshPayload, ImportContext.ObjectFlags & ~RF_Public, ImportContext.Options->BaseOptions.StaticMeshOptions, ImportContext.AssetsContext, ExistingStaticMesh );
 		AdditionalData = MoveTemp(MeshPayload->AdditionalData);
+
+		// Make sure the garbage collector can collect additional data allocated on other thread
+		for (UDatasmithAdditionalData* Data : AdditionalData)
+		{
+			if (Data)
+			{
+				Data->ClearInternalFlags(EInternalObjectFlags::Async);
+			}
+		}
 
 		// Creation of static mesh failed, remove it from the list of importer mesh elements
 		if (ImportedStaticMesh == nullptr)
@@ -1984,6 +1979,8 @@ void FDatasmithImporter::ImportLevelVariantSets( FDatasmithImportContext& Import
 	{
 		return;
 	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithImporter::ImportLevelVariantSets);
 
 	FScopedSlowTask Progress( (float)LevelVariantSetsCount, LOCTEXT("ImportingLevelVariantSets", "Importing Level Variant Sets..."), true, *ImportContext.Warn );
 	Progress.MakeDialog(true);
