@@ -110,7 +110,8 @@ StructuredBuffer<float4> HairTransmittanceBuffer;
 Texture3D<float4> HairLUTTexture;
 SamplerState HairLUTSampler;
 uint HairTransmittanceEnable;
-float4 HairComponents; // R, TT, TRT, LocaScattering
+uint HairComponents; // R, TT, TRT, LocalScattering, GlobalScattering, MultipleScattering
+
 
 float Luma(float3 Color)
 {
@@ -177,10 +178,9 @@ void ComputeHairLighting(
 
 		const FDerivedParams DerivedParams = GetDerivedParams(InputParams, SceneDepth);
 		FDeferredLightData LightData = SetupLightDataForStandardDeferred();
-		LightData.HairTransmittance.ScatteringComponent = HairComponents.xyz;
+		LightData.HairTransmittance.ScatteringComponent = HairComponents;
 
 		// Compute Hair transmittance
-		BRANCH if (HairTransmittanceEnable > 0)
 		{
 			const float3 LightPosition = LightData.Position;
 			float3 L = float3(0, 0, 1);
@@ -199,7 +199,6 @@ void ComputeHairLighting(
 				HairTransmittanceBuffer,
 				HairLUTTexture,
 				HairLUTSampler,
-				HairTransmittanceEnable,
 				HairComponents);
 		}
 

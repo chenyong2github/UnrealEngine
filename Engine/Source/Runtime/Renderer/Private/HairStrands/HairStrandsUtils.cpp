@@ -41,15 +41,26 @@ float SampleCountToSubPixelSize(uint32 SamplePerPixelCount)
 	}
 	return Scale;
 }
-FVector4 GetHairComponents()
+FHairComponent GetHairComponents()
 {
-	return FVector4(
-		GHairR > 0 ? 1 : 0,
-		GHairTT > 0 ? 1 : 0,
-		GHairTRT > 0 ? 1 : 0,
-		(GHairGlobalScattering > 0 ? 1 : 0) + (GHairLocalScattering > 0 ? 10 : 0));
+	FHairComponent Out;
+	Out.R = GHairR > 0;
+	Out.TT = GHairTT > 0;
+	Out.TRT = GHairTRT > 0;
+	Out.LocalScattering = GHairLocalScattering > 0;
+	Out.GlobalScattering = GHairGlobalScattering > 0;
+	return Out;
 }
 
+uint32 ToBitfield(const FHairComponent& C)
+{
+	return
+		(C.R				? 1u : 0u)      |
+		(C.TT				? 1u : 0u) << 1 |
+		(C.TRT				? 1u : 0u) << 2 |
+		(C.LocalScattering  ? 1u : 0u) << 3 |
+		(C.GlobalScattering ? 1u : 0u) << 4 ;
+}
 FMinHairRadiusAtDepth1 ComputeMinStrandRadiusAtDepth1(
 	const FIntPoint& Resolution,
 	const float FOV,
