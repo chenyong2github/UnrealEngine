@@ -28,10 +28,8 @@ void FAssetTypeActions_SoundSubmix::OpenAssetEditor(const TArray<UObject*>& InOb
 	}
 }
 
-void FAssetTypeActions_SoundSubmix::AssetsActivated(const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType)
+bool FAssetTypeActions_SoundSubmix::AssetsActivatedOverride(const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType)
 {
-	FAssetTypeActions_Base::AssetsActivated(InObjects, ActivationType);
-
 	TSet<USoundSubmix*> SubmixesToSelect;
 	IAssetEditorInstance* Editor = nullptr;
 	for (UObject* Obj : InObjects)
@@ -40,7 +38,7 @@ void FAssetTypeActions_SoundSubmix::AssetsActivated(const TArray<UObject*>& InOb
 		{
 			if (!Editor)
 			{
-				Editor = FAssetEditorManager::Get().FindEditorForAsset(Obj, false);
+				Editor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(Obj, false);
 			}
 			SubmixesToSelect.Add(SubmixToSelect);
 		}
@@ -49,7 +47,10 @@ void FAssetTypeActions_SoundSubmix::AssetsActivated(const TArray<UObject*>& InOb
 	if (Editor)
 	{
 		static_cast<FSoundSubmixEditor*>(Editor)->SelectSubmixes(SubmixesToSelect);
+		return true;
 	}
+
+	return false;
 }
 
 const TArray<FText>& FAssetTypeActions_SoundSubmix::GetSubMenus() const
