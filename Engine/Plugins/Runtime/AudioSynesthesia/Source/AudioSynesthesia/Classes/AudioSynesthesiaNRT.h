@@ -17,6 +17,8 @@ class AUDIOSYNESTHESIA_API UAudioSynesthesiaNRTSettings : public UAudioAnalyzerN
 
 		FText GetAssetActionName() const override;
 
+		const TArray<FText>& GetAssetActionSubmenus() const;
+
 		UClass* GetSupportedClass() const override;
 
 		FColor GetTypeColor() const override;
@@ -34,6 +36,8 @@ class AUDIOSYNESTHESIA_API UAudioSynesthesiaNRT : public UAudioAnalyzerNRT
 	public:
 
 		FText GetAssetActionName() const override;
+
+		const TArray<FText>& GetAssetActionSubmenus() const;
 
 		UClass* GetSupportedClass() const override;
 
