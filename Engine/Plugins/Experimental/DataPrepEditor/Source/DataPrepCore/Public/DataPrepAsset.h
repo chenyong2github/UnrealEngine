@@ -113,7 +113,7 @@ public:
 
 	void RemoveObjectPropertyFromParameterization(UDataprepParameterizableObject* Object, const TArray<struct FDataprepPropertyLink>& InPropertyChain);
 
-	void GetExistingParameterNamesForType(UClass* PropertyClass, TSet<FString>& OutValidExistingNames, TSet<FString>& OutInvalidNames) const;
+	void GetExistingParameterNamesForType(UProperty* Property, TSet<FString>& OutValidExistingNames, TSet<FString>& OutInvalidNames) const;
 
 	UDataprepParameterization* GetDataprepParameterization() { return Parameterization; }
 
