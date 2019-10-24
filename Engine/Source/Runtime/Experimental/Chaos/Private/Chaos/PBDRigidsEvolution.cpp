@@ -426,6 +426,26 @@ namespace Chaos
 	}
 
 	template<class FPBDRigidsEvolution, class FPBDCollisionConstraint, class T, int d>
+	void TPBDRigidsEvolutionBase<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::RebuildSpatialAccelerationForPerfTest()
+	{
+		WaitOnAccelerationStructure();
+
+		ParticleToCacheInnerIdx.Empty();
+		AsyncAccelerationQueue.Empty();
+		InternalAccelerationQueue.Empty();
+		ExternalAccelerationQueue.Empty();
+
+		AccelerationStructureTaskComplete = nullptr;
+		const auto& NonDisabled = Particles.GetNonDisabledView();
+		for (auto& Particle : NonDisabled)
+		{
+			DirtyParticle(Particle);
+		}
+
+		FlushSpatialAcceleration();
+	}
+
+	template<class FPBDRigidsEvolution, class FPBDCollisionConstraint, class T, int d>
 	void TPBDRigidsEvolutionBase<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::Serialize(FChaosArchive& Ar)
 	{
 		Particles.Serialize(Ar);
