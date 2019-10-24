@@ -54,6 +54,9 @@ public:
 	// random rays to add beyond +/- major axes, for raycast sampling
 	int AddRandomRays = 0;
 
+	// add triangle samples per triangle (in addition to TriangleSamplingMethod)
+	int AddTriangleSamples = 0;
+
 	// if true, *ignore* the combined selected occluder data in CombinedMeshTrees, and only consider self-occlusion of this mesh
 	bool bOnlySelfOcclude = false;
 

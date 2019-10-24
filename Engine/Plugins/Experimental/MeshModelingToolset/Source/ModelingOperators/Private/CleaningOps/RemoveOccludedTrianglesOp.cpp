@@ -69,6 +69,7 @@ void FRemoveOccludedTrianglesOp::CalculateResult(FProgressCancel* Progress)
 		SelfJacket.WindingIsoValue = WindingIsoValue;
 		SelfJacket.NormalOffset = NormalOffset;
 		SelfJacket.AddRandomRays = AddRandomRays;
+		SelfJacket.AddTriangleSamples = AddTriangleSamples;
 		SelfJacket.Apply(FTransform3d::Identity(), &SelfAABB, &SelfFWTree);
 	}
 	else
@@ -85,6 +86,7 @@ void FRemoveOccludedTrianglesOp::CalculateResult(FProgressCancel* Progress)
 		Jacket.WindingIsoValue = WindingIsoValue;
 		Jacket.NormalOffset = NormalOffset;
 		Jacket.AddRandomRays = AddRandomRays;
+		Jacket.AddTriangleSamples = AddTriangleSamples;
 		Jacket.Apply(ResultTransform, &CombinedMeshTrees->AABB, &CombinedMeshTrees->FastWinding);
 	}
 }

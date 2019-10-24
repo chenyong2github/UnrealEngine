@@ -232,6 +232,8 @@ TUniquePtr<FDynamicMeshOperator> URemoveOccludedTrianglesOperatorFactory::MakeNe
 	Op->bOnlySelfOcclude = Tool->BasicProperties->bOnlySelfOcclude;
 
 	Op->AddRandomRays = Tool->BasicProperties->AddRandomRays;
+
+	Op->AddTriangleSamples = Tool->BasicProperties->AddTriangleSamples;
 	
 	Op->SetTransform(LocalToWorld);
 

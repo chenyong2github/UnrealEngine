@@ -70,6 +70,7 @@ public:
 		// ray directions
 		TArray<FVector3d> RayDirs; int NR = 0;
 
+		FRandomStream RaysRandomStream(2123123);
 		if (InsideMode == EOcclusionCalculationMode::SimpleOcclusionTest)
 		{
 			RayDirs.Add(FVector3d::UnitX()); RayDirs.Add(-FVector3d::UnitX());
@@ -78,9 +79,23 @@ public:
 
 			for (int AddRayIdx = 0; AddRayIdx < AddRandomRays; AddRayIdx++)
 			{
-				RayDirs.Add(FVector3d(FMath::VRand()));
+				RayDirs.Add(FVector3d(RaysRandomStream.VRand()));
 			}
 			NR = RayDirs.Num();
+		}
+
+		// triangle samples get their own random stream to make behavior slightly more predictable (e.g. moving the ray samples up shouldn't change all the triangle sample locations)
+		FRandomStream TrisRandomStream(124233);
+		TArray<FVector3d> TriangleBaryCoordSamples;
+		for (int AddSampleIdx = 0; AddSampleIdx < AddTriangleSamples; AddSampleIdx++)
+		{
+			FVector3d BaryCoords(TrisRandomStream.FRand() * .999 + .001, TrisRandomStream.FRand() * .999 + .001, TrisRandomStream.FRand() * .999 + .001);
+			BaryCoords /= (BaryCoords.X + BaryCoords.Y + BaryCoords.Z);
+			TriangleBaryCoordSamples.Add(BaryCoords);
+		}
+		if (TriangleSamplingMethod == EOcclusionTriangleSampling::Centroids || TriangleSamplingMethod == EOcclusionTriangleSampling::VerticesAndCentroids)
+		{
+			TriangleBaryCoordSamples.Add(FVector3d(1 / 3.0, 1 / 3.0, 1 / 3.0));
 		}
 
 		auto IsOccludedFWN = [this, &FastWindingTree](const FVector3d& Pt)
@@ -139,7 +154,7 @@ public:
 
 		RemovedT.Empty();
 		FCriticalSection RemoveTMutex;
-		ParallelFor(Mesh->MaxTriangleID(), [this, &VertexOccluded, &IsOccludedF, &RemoveTMutex, &MeshLocalToOccluderSpace](int32 TID)
+		ParallelFor(Mesh->MaxTriangleID(), [this, &VertexOccluded, &IsOccludedF, &RemoveTMutex, &MeshLocalToOccluderSpace, &TriangleBaryCoordSamples](int32 TID)
 		{
 			if (!Mesh->IsTriangle(TID))
 			{
@@ -152,14 +167,17 @@ public:
 				FIndex3i Tri = Mesh->GetTriangle(TID);
 				bInside = VertexOccluded[Tri.A] && VertexOccluded[Tri.B] && VertexOccluded[Tri.C];
 			}
-			if (bInside && (TriangleSamplingMethod == EOcclusionTriangleSampling::Centroids || TriangleSamplingMethod == EOcclusionTriangleSampling::VerticesAndCentroids))
+			if (bInside && TriangleBaryCoordSamples.Num() > 0)
 			{
-				FVector3d Centroid, Normal;
-				double Area;
-				Mesh->GetTriInfo(TID, Normal, Area, Centroid);
-
-				FVector3d SamplePos = Centroid + Normal * NormalOffset;
-				bInside = IsOccludedF(MeshLocalToOccluderSpace.TransformPosition(SamplePos));
+				FVector3d Normal = Mesh->GetTriNormal(TID);
+				FVector3d V0, V1, V2;
+				Mesh->GetTriVertices(TID, V0, V1, V2);
+				for (int32 SampleIdx = 0, NumSamples = TriangleBaryCoordSamples.Num(); bInside && SampleIdx < NumSamples; SampleIdx++)
+				{
+					FVector3d BaryCoords = TriangleBaryCoordSamples[SampleIdx];
+					FVector3d SamplePos = V0 * BaryCoords.X + V1 * BaryCoords.Y + V2 * BaryCoords.Z + Normal * NormalOffset;
+					bInside = IsOccludedF(MeshLocalToOccluderSpace.TransformPosition(SamplePos));
+				}
 			}
 			if (bInside)
 			{
@@ -230,6 +248,9 @@ public:
 
 	/** Number of additional ray directions to add to raycast-based occlusion checks, beyond the default +/- major axis directions */
 	int AddRandomRays = 0;
+
+	/** Number of additional samples to add per triangle */
+	int AddTriangleSamples = 0;
 
 	/**
 	 * Set this to be able to cancel running operation

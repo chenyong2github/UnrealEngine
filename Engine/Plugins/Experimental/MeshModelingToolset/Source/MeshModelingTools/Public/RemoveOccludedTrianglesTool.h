@@ -81,8 +81,12 @@ public:
 	double WindingIsoValue = 0.5;
 
 	/** For raycast-based occlusion tests, optionally add random ray direction to increase the accuracy of the visibility sampling */
-	UPROPERTY(EditAnywhere, Category = OcclusionCalculation, meta = (EditCondition = "OcclusionTestMethod==EOcclusionCalculationUIMode::RaycastOcclusionSamples"))
+	UPROPERTY(EditAnywhere, Category = OcclusionCalculation, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000", EditCondition = "OcclusionTestMethod==EOcclusionCalculationUIMode::RaycastOcclusionSamples"))
 	int AddRandomRays = 0;
+
+	/** Optionally add random samples to each triangle (in addition to those from TriangleSampling) to increase the accuracy of the visibility sampling */
+	UPROPERTY(EditAnywhere, Category = OcclusionCalculation, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000"))
+	int AddTriangleSamples = 0;
 
 	/** If false, when multiple meshes are selected the meshes can occlude each other.  When true, we process each selected mesh independently and only consider self-occlusions. */
 	UPROPERTY(EditAnywhere, Category = OcclusionCalculation)
