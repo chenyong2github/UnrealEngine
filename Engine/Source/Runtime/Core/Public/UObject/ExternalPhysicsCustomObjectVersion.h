@@ -42,6 +42,9 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 		// Allow trimeshes to serialize their acceleration structure
 		TrimeshSerializesBV,
 
+		// Serialize broadphase type
+		SerializeBroadphaseType,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
