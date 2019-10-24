@@ -141,7 +141,7 @@ void ComputeHairLighting(
 	in FInputParams InputParams,
 	in FNodeDesc NodeDesc,
 	in FCategorizationData CatData,
-	inout float OutOpaqueWeight,
+	inout float OutHairCoverage,
 	inout float4 OutColor, 
 	inout float4 OutColorSubPixel)
 {
@@ -216,23 +216,20 @@ void ComputeHairLighting(
 		const float LocalCoverage = From8bitCoverage(SampleVisData.Coverage8bit);
 		LocalColor += PercepualColor * LocalCoverage;
 	}
+	const float PixelCoverage = saturate(CatData.PixelCoverage);
+	OutHairCoverage = PixelCoverage;
 
-	const float PixelCoverage = min(CatData.PixelCoverage, 1);
-	float Coverage = 0;
 	OutColor = 0;
 	OutColorSubPixel = 0;
-	if (PixelCoverage < 1)
+	if (OutHairCoverage < 1)
 	{
-		OutColorSubPixel = LocalColor; // * PixelCoverage <-- this would be need if Coverage8bit was storing the ratio (sampleCoverage / validCoverage)
-		OutColorSubPixel.a = PixelCoverage;
-		Coverage = 0;
+		OutColorSubPixel = LocalColor * PixelCoverage;
+		OutColorSubPixel.a = OutHairCoverage;
 	}
 	else
 	{
 		OutColor = LocalColor;
-		Coverage = 1;
 	}
-	OutOpaqueWeight = 1 - Coverage;
 }
 
 #endif // USE_HAIR_LIGHTING
@@ -275,7 +272,7 @@ void DeferredLightPixelMain(
 	
 	// Only light pixels marked as using deferred shading
 	OutColorSubPixel = 0;
-	float OpaqueWeight = 1;
+	float HairCoverage = 0;
 	BRANCH 
 	if (NodeDesc.Count > 0
 	#if USE_LIGHTING_CHANNELS
@@ -283,7 +280,7 @@ void DeferredLightPixelMain(
 	#endif
 		)
 	{
-		ComputeHairLighting(InputParams, NodeDesc, CatData, OpaqueWeight, OutColor, OutColorSubPixel);
+		ComputeHairLighting(InputParams, NodeDesc, CatData, HairCoverage, OutColor, OutColorSubPixel);
 	#if USE_PREEXPOSURE
 		OutColorSubPixel.rgb *= View.PreExposure;
 	#endif
@@ -312,7 +309,8 @@ void DeferredLightPixelMain(
 		const float  Attenuation = ComputeLightProfileMultiplier(DerivedParams.WorldPosition, DeferredLightUniforms.Position, -DeferredLightUniforms.Direction, DeferredLightUniforms.Tangent);
 
 #if USE_HAIR_LIGHTING
-		OutColor += LinearToPerceptual(Radiance * Attenuation) * OpaqueWeight;
+		float OpaqueVisibility = 1.0f - HairCoverage;
+		OutColor += LinearToPerceptual(Radiance * Attenuation) * OpaqueVisibility;
 		OutColor  = PerceptualToLinear(OutColor);
 #else
 		OutColor += (Radiance * Attenuation);
