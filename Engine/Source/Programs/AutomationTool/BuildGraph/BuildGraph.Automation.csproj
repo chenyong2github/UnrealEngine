@@ -78,6 +78,7 @@
     <Compile Include="Script.cs" />
     <Compile Include="Tasks\AgeStoreTask.cs" />
     <Compile Include="Tasks\CommandletTask.cs" />
+    <Compile Include="Tasks\WriteFileTask.cs" />
     <Compile Include="Tasks\CsCompileTask.cs" />
     <Compile Include="Tasks\MoveTask.cs" />
     <Compile Include="Tasks\MsBuildTask.cs" />
