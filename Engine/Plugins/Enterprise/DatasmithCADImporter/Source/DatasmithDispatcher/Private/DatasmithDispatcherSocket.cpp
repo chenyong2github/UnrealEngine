@@ -1,16 +1,19 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "DatasmithDispatcherSocket.h"
 
-#include "CoreMinimal.h"
+#include "DatasmithDispatcherLog.h"  //#ueent_CAD
+#include "DatasmithDispatcherModule.h"
 
+#include "CoreMinimal.h"
+#include "Logging/LogMacros.h"
 #include "SocketSubsystem.h"
 #include "Sockets.h"
 
-using namespace DatasmithDispatcher;
-
-DEFINE_LOG_CATEGORY_STATIC(LogDatasmithCoretechWorker, Log, All);
+DEFINE_LOG_CATEGORY(LogDatasmithDispatcher);
 
 
+namespace DatasmithDispatcher
+{
 
 FDatasmithDispatcherSocket::FDatasmithDispatcherSocket(const TCHAR* ServerAddress)
 	: SocketAdress(ServerAddress)
@@ -49,8 +52,6 @@ FSocket* FDatasmithDispatcherSocket::Accept()
 	FString Message = TEXT("DispatcherSocket");
 	return Socket->Accept(Message);
 }
-
-#include "CoreGlobals.h"
 
 void FDatasmithDispatcherSocket::Bind()
 {
@@ -112,6 +113,11 @@ void FDatasmithDispatcherSocket::Connect(const int32& InServerPort)
 	}
 
 	TSharedPtr<FInternetAddr> InternetAddress = SocketSubsystem->CreateInternetAddr();
+	if(!InternetAddress.IsValid())
+	{
+		return;
+	}
+
 	bool bIsValid = true;
 	InternetAddress->SetIp(*SocketAdress, bIsValid);
 	if (!bIsValid)
@@ -131,12 +137,12 @@ void FDatasmithDispatcherSocket::Connect(const int32& InServerPort)
 	{
 		return;
 	}
-	UE_LOG(LogDatasmithCoretechWorker, Display, TEXT("Is connected"));
+	UE_LOG(LogDatasmithDispatcher, Display, TEXT("Is connected"));
 
 	bool bHasPendingConnection = true;
 	Socket->WaitForPendingConnection(bHasPendingConnection, FTimespan(0, 0, 5));
 
-	UE_LOG(LogDatasmithCoretechWorker, Display, TEXT("WaitForPendingConnection return = %d"), bHasPendingConnection);
+	UE_LOG(LogDatasmithDispatcher, Display, TEXT("WaitForPendingConnection return = %d"), bHasPendingConnection);
 	bOpen = !bHasPendingConnection;
 }
 
@@ -165,7 +171,7 @@ void FDatasmithDispatcherSocket::Read(int32 DataSize, uint8* Data)
 		bool bStatus = Socket->Recv(Data + Total, DataSize - Total, BytesRead);
 		if (!bStatus)
 		{
-			UE_LOG(LogDatasmithCoretechWorker, Display, TEXT("Close socket Read %d %d "), DataSize, Total);
+			UE_LOG(LogDatasmithDispatcher, Display, TEXT("Close socket Read %d %d "), DataSize, Total);
 
 			Socket->Close();
 			ErrorCode = UnableToReadOnSocket;
@@ -204,7 +210,7 @@ void FDatasmithDispatcherSocket::SendData()
 			Socket->Close();
 			ErrorCode = UnableToSendData;
 			bOpen = false;
-			UE_LOG(LogDatasmithCoretechWorker, Display, TEXT("Close socket Write %d %d "), BufferSize, Total);
+			UE_LOG(LogDatasmithDispatcher, Display, TEXT("Close socket Write %d %d "), BufferSize, Total);
 		}
 		Total += (uint32) BytesSend;
 	}
@@ -233,4 +239,5 @@ void FDatasmithDispatcherSocket::operator <<(const FString& Data)
 	{
 		*this << Data[k];
 	}
+}
 }

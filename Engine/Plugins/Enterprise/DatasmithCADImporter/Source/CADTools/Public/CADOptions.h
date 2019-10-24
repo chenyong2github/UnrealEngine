@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Math/Vector.h"
-#include "DatasmithUtils.h"
 
 namespace CADLibrary
 {
@@ -14,6 +13,14 @@ namespace CADLibrary
 		StitchingSew,
 	};
 
+	enum class EModelCoordSystem : uint8
+	{
+		ZUp_LeftHanded,
+		ZUp_RightHanded,
+		YUp_LeftHanded,
+		YUp_RightHanded,
+	};
+
 	struct FImportParameters
 	{
 		double MetricUnit = 0.001;
@@ -22,17 +29,14 @@ namespace CADLibrary
 		double MaxEdgeLength = 0.0;
 		double MaxNormalAngle = 20.0;
 		EStitchingTechnique StitchingTechnique = EStitchingTechnique::StitchingNone;
+		EModelCoordSystem ModelCoordSys = EModelCoordSystem::ZUp_RightHanded;
 	};
 
 	struct FMeshParameters
 	{
-		/** 
-		 * CT need to work in mm (except with JT format in m). The mesh is scale at the static mesh build
-		 */
 		bool bNeedSwapOrientation = false;
 		bool bIsSymmetric = false;
 		FVector SymmetricOrigin;
 		FVector SymmetricNormal;
-		FDatasmithUtils::EModelCoordSystem ModelCoordSys = FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded;
 	};
 }

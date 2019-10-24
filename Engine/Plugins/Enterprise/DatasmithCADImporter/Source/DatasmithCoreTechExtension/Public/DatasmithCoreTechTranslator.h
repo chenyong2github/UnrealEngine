@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 
-#include "CADLibraryOptions.h"
 #include "DatasmithImportOptions.h"
 #include "Translators/DatasmithTranslator.h"
 #include "UObject/ObjectMacros.h"
