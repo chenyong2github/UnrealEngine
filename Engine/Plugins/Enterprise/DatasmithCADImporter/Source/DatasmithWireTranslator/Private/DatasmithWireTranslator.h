@@ -4,12 +4,10 @@
 
 #include "CoreMinimal.h"
 
-// Undef USE_OPENMODEL if CAD_LIBRARY is not defined
 #ifndef CAD_LIBRARY
 #undef USE_OPENMODEL
 #endif
 
-#include "CADLibraryOptions.h"
 #include "DatasmithCoreTechTranslator.h"
 #include "UObject/ObjectMacros.h"
 
