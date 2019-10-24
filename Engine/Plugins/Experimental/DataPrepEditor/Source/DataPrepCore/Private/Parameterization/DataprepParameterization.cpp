@@ -7,6 +7,7 @@
 #include "DataprepParameterizationArchive.h"
 
 #include "CoreGlobals.h"
+#include "DataprepCoreLogCategory.h"
 #include "Editor.h"
 #include "Engine/Engine.h"
 #include "Math/UnrealMathUtility.h"
@@ -21,6 +22,151 @@
 
 namespace DataprepParameterization
 {
+	void PopulateValueTypeValidationData(UArrayProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData);
+	void PopulateValueTypeValidationData(USetProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData);
+	void PopulateValueTypeValidationData(UMapProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData);
+	void PopulateValueTypeValidationData(USoftClassProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData);
+	void PopulateValueTypeValidationData(UClassProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData);
+	void PopulateValueTypeValidationData(UObjectPropertyBase* CurrentProperty, TArray<UObject*>& ValueTypeValidationData);
+	void PopulateValueTypeValidationData(UEnumProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData);
+	void PopulateValueTypeValidationData(UStructProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData);
+	void PopulateValueTypeValidationData(UProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData);
+
+	void PopulateValueTypeValidationData(UArrayProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData)
+	{
+		if ( CurrentProperty )
+		{
+			ValueTypeValidationData.Reserve( 2 );
+			ValueTypeValidationData.Add( CurrentProperty->GetClass() );
+			PopulateValueTypeValidationData( CurrentProperty->Inner, ValueTypeValidationData );
+		}
+	}
+
+	void PopulateValueTypeValidationData(USetProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData)
+	{
+		if ( CurrentProperty )
+		{
+			ValueTypeValidationData.Reserve( 2 );
+			ValueTypeValidationData.Add( CurrentProperty->GetClass() );
+			PopulateValueTypeValidationData( CurrentProperty->ElementProp, ValueTypeValidationData );
+		}
+	}
+
+	void PopulateValueTypeValidationData(UMapProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData)
+	{
+		if ( CurrentProperty )
+		{
+			ValueTypeValidationData.Reserve( 3 );
+			ValueTypeValidationData.Add( CurrentProperty->GetClass() );
+			PopulateValueTypeValidationData( CurrentProperty->KeyProp, ValueTypeValidationData );
+			PopulateValueTypeValidationData( CurrentProperty->ValueProp, ValueTypeValidationData );
+		}
+	}
+
+	void PopulateValueTypeValidationData(USoftClassProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData)
+	{
+		if ( CurrentProperty )
+		{
+			ValueTypeValidationData.Reserve( 2 );
+			ValueTypeValidationData.Add( CurrentProperty->GetClass() );
+			// Property class don't matter here since it's always UObject::StaticClass
+			ValueTypeValidationData.Add( CurrentProperty->MetaClass );
+		}
+	}
+
+	void PopulateValueTypeValidationData(UClassProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData)
+	{
+		if ( CurrentProperty )
+		{
+			ValueTypeValidationData.Reserve( 2 );
+			ValueTypeValidationData.Add( CurrentProperty->GetClass() );
+			ValueTypeValidationData.Add( CurrentProperty->PropertyClass );
+			ValueTypeValidationData.Add( CurrentProperty->MetaClass );
+		}
+	}
+
+	void PopulateValueTypeValidationData(UObjectPropertyBase* CurrentProperty, TArray<UObject*>& ValueTypeValidationData)
+	{
+		if ( CurrentProperty )
+		{
+			ValueTypeValidationData.Reserve( 2 );
+			ValueTypeValidationData.Add( CurrentProperty->GetClass() );
+			ValueTypeValidationData.Add( CurrentProperty->PropertyClass );
+		}
+	}
+
+	void PopulateValueTypeValidationData(UEnumProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData)
+	{
+		if ( CurrentProperty )
+		{
+			ValueTypeValidationData.Reserve( 3 );
+			ValueTypeValidationData.Add( CurrentProperty->GetClass() );
+			ValueTypeValidationData.Add( CurrentProperty->GetEnum() );
+			ValueTypeValidationData.Add( CurrentProperty->GetUnderlyingProperty() );
+		}
+	}
+
+	void PopulateValueTypeValidationData(UStructProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData)
+	{
+		if ( CurrentProperty )
+		{
+			ValueTypeValidationData.Reserve( 2 );
+			ValueTypeValidationData.Add( CurrentProperty->GetClass() );
+			ValueTypeValidationData.Add( CurrentProperty->Struct );
+		}
+	}
+
+	void PopulateValueTypeValidationData(UProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData)
+	{
+		if ( CurrentProperty )
+		{
+			int32 NumberOfObject = ValueTypeValidationData.Num();
+			UClass* CurrentClass = CurrentProperty->GetClass();
+			while ( CurrentClass && NumberOfObject == ValueTypeValidationData.Num() )
+			{
+				if ( CurrentClass == UArrayProperty::StaticClass() )
+				{
+					PopulateValueTypeValidationData( static_cast<UArrayProperty*>( CurrentProperty ), ValueTypeValidationData );
+				}
+				else if ( CurrentClass == USetProperty::StaticClass() )
+				{
+					PopulateValueTypeValidationData( static_cast<USetProperty*>( CurrentProperty ), ValueTypeValidationData );
+				}
+				else if ( CurrentClass == UMapProperty::StaticClass() )
+				{
+					PopulateValueTypeValidationData( static_cast<UMapProperty*>( CurrentProperty ), ValueTypeValidationData );
+				}
+				else if ( CurrentClass == USoftClassProperty::StaticClass() )
+				{
+					PopulateValueTypeValidationData( static_cast<USoftClassProperty*>( CurrentProperty ), ValueTypeValidationData );
+				}
+				else if ( CurrentClass == UClassProperty::StaticClass() )
+				{
+					PopulateValueTypeValidationData( static_cast<UClassProperty*>( CurrentProperty ), ValueTypeValidationData );
+				}
+				else if ( CurrentClass == UObjectPropertyBase::StaticClass() )
+				{
+					PopulateValueTypeValidationData( static_cast<UObjectPropertyBase*>( CurrentProperty ), ValueTypeValidationData );
+				}
+				else if ( CurrentClass == UEnumProperty::StaticClass() )
+				{
+					PopulateValueTypeValidationData( static_cast<UEnumProperty*>( CurrentProperty ), ValueTypeValidationData );
+				}
+				else if ( CurrentClass == UStructProperty::StaticClass() )
+				{
+					PopulateValueTypeValidationData( static_cast<UStructProperty*>( CurrentProperty ), ValueTypeValidationData );
+				}
+				else
+				{
+					ValueTypeValidationData.Add( CurrentProperty->GetClass() );
+				}
+
+				CurrentClass = CurrentClass->GetSuperClass();
+			}
+		}
+	}
+
+
 	void* GetAddressOf(const UArrayProperty& Property, void* BaseAddress, int32 ContainerIndex)
 	{
 		void* AddressOfArray = Property.ContainerPtrToValuePtr<void*>( BaseAddress, 0 );
@@ -230,7 +376,7 @@ namespace DataprepParameterization
 	 */
 	UProperty* GetPropertyFromBinding(FDataprepParameterizationBinding& Binding, void*& OutPropertyValueAddress)
 	{
-		if ( !Binding.ObjectBinded || !Binding. ValueType )
+		if ( !Binding.ObjectBinded || Binding.ValueTypeValidationData.Num() == 0 )
 		{
 			return nullptr;
 		}
@@ -279,9 +425,17 @@ namespace DataprepParameterization
 		if ( LevelIndex == PropertyChain.Num() && CurrentOuter )
 		{
 			PropetyAtCurrentLevel = PropertyChain.Last().CachedProperty.Get();
-			if ( PropetyAtCurrentLevel->GetClass() == Binding.ValueType )
+			TArray<UObject*> ValueTypeValidationData;
+			PopulateValueTypeValidationData( PropetyAtCurrentLevel, ValueTypeValidationData );
+			// Perf Note: We might be able to cache this validation and some part of this function at some point
+			if ( ValueTypeValidationData == Binding.ValueTypeValidationData )
 			{
 				return PropetyAtCurrentLevel;
+			}
+			else
+			{
+				UE_LOG( LogDataprepCore, Warning, TEXT("A binding was invalid because it's type changed") );
+				OutPropertyValueAddress = nullptr;
 			}
 		}
 
@@ -301,7 +455,7 @@ namespace DataprepParameterization
 	void CopyCompleteValue(UProperty& DestinationProperty, void* DestinationAddress, UProperty& SourceProperty, void* SourceAddress)
 	{
 		UClass* ProperyClass = DestinationProperty.GetClass();
-		// We only support copying value of properties when they are from the same class
+		// We only support copying value of properties when they are from the same class (this is not a warranty that this is safe, it's only a validation heuristic)
 		check( ProperyClass == SourceProperty.GetClass() );
 
 		// Bool properties are special because each property can have their own mask and offset from there base address (probably to support bitfields)
@@ -318,18 +472,31 @@ namespace DataprepParameterization
 };
 
 
-bool FDataprepParameterizationBinding::operator==(const FDataprepParameterizationBinding& Other) const
+FDataprepParameterizationBinding::FDataprepParameterizationBinding(UDataprepParameterizableObject* InObjectBinded, TArray<FDataprepPropertyLink> InPropertyChain)
+	: ObjectBinded( InObjectBinded )
+	, PropertyChain( MoveTemp( InPropertyChain ) )
+	, ValueTypeValidationData()
 {
-	// Not a accurate but ok for now
-	return ObjectBinded == Other.ObjectBinded && GetTypeHash(PropertyChain) == GetTypeHash(Other.PropertyChain) && ValueType == Other.ValueType;
+	if ( PropertyChain.Num() > 0 )
+	{
+		if ( UProperty* Property = PropertyChain.Last().CachedProperty.Get() )
+		{
+			DataprepParameterization::PopulateValueTypeValidationData( Property, ValueTypeValidationData );
+		}
+	}
 }
 
+bool FDataprepParameterizationBinding::operator==(const FDataprepParameterizationBinding& Other) const
+{
+	// The value type validation data shouldn't matter when comparing binding
+	return ObjectBinded == Other.ObjectBinded && PropertyChain == Other.PropertyChain;
+}
 
 uint32 GetTypeHash(const FDataprepParameterizationBinding& Binding)
 {
-	uint32 Hash = GetTypeHash( Binding.ObjectBinded );
-	Hash = HashCombine( Hash, GetTypeHash( Binding.PropertyChain ) );
-	return HashCombine( Hash, GetTypeHash( Binding.ValueType ) );
+	// The value type validation data shouldn't matter for the hash of a binding
+	return HashCombine(  GetTypeHash( Binding.ObjectBinded ), GetTypeHash( Binding.PropertyChain ) );
+	
 }
 
 uint32 GetTypeHash(const TArray<FDataprepPropertyLink>& PropertyLinks)
@@ -488,7 +655,7 @@ void UDataprepParameterizationBindings::AddReferencedObjects(UObject* InThis, FR
 		for ( TSharedRef<FDataprepParameterizationBinding>& Binding : BindingSet )
 		{
 			Collector.AddReferencedObject( Binding->ObjectBinded );
-			Collector.AddReferencedObject( Binding->ValueType );
+			Collector.AddReferencedObjects( Binding->ValueTypeValidationData );
 		}
 	}
 
@@ -723,8 +890,10 @@ bool UDataprepParameterization::BindObjectProperty(UDataprepParameterizableObjec
 			{
 				UProperty* Property = *PropertyPtr;
 
-				// Ensure that the properties type match
-				if ( Property->GetClass() == Binding->ValueType )
+				// Ensure that the properties are compatible 
+				TArray<UObject*> ValueTypeValidationData;
+				DataprepParameterization::PopulateValueTypeValidationData( Property, ValueTypeValidationData );
+				if ( ValueTypeValidationData == Binding->ValueTypeValidationData )
 				{
 					Modify();
 					BindingsContainer->Add( Binding, Name );
@@ -872,20 +1041,30 @@ void UDataprepParameterization::OnObjectPostEdit(UDataprepParameterizableObject*
 	}
 }
 
-void UDataprepParameterization::GetExistingParameterNamesForType(UClass* PropertyClass, TSet<FString>& OutValidExistingNames, TSet<FString>& OutInvalidNames) const
+void UDataprepParameterization::GetExistingParameterNamesForType(UProperty* Property, TSet<FString>& OutValidExistingNames, TSet<FString>& OutInvalidNames) const
 {
 	OutValidExistingNames.Empty( NameToParameterizationProperty.Num() );
 	OutInvalidNames.Empty( NameToParameterizationProperty.Num() );
 
 	for ( const TPair<FName, UProperty*>& Pair : NameToParameterizationProperty )
 	{
-		if ( const UProperty* Property = Pair.Value )
+		if ( UProperty* ParameterizationProperty = Pair.Value )
 		{
-			if ( Property->GetClass() == PropertyClass )
+			bool bWasAdded = false;
+			if ( ParameterizationProperty->GetClass() == Property->GetClass() )
 			{
-				OutValidExistingNames.Add( Pair.Key.ToString() );
+				TArray<UObject*> ValidationDataForParameterizationProperty;
+				DataprepParameterization::PopulateValueTypeValidationData( ParameterizationProperty, ValidationDataForParameterizationProperty );
+				TArray<UObject*> ValidationData;
+				DataprepParameterization::PopulateValueTypeValidationData( Property, ValidationData );
+				if ( ValidationDataForParameterizationProperty == ValidationData )
+				{
+					bWasAdded = true;
+					OutValidExistingNames.Add( Pair.Key.ToString() );
+				}
 			}
-			else
+			
+			if ( !bWasAdded )
 			{
 				OutInvalidNames.Add( Pair.Key.ToString() );
 			}

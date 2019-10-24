@@ -18,6 +18,10 @@
 class UDataprepParameterizableObject;
 class UProperty;
 
+/**
+ * The parameterization binding is a struct that hold an object and the property path to the parameterized property
+ * It also hold a array to validate the that value type of the parameterized property didn't change since it's creation
+ */
 USTRUCT()
 struct FDataprepParameterizationBinding
 {
@@ -26,22 +30,10 @@ struct FDataprepParameterizationBinding
 	FDataprepParameterizationBinding()
 		: ObjectBinded( nullptr )
 		, PropertyChain()
-		, ValueType( nullptr )
+		, ValueTypeValidationData()
 	{}
 
-	FDataprepParameterizationBinding(UDataprepParameterizableObject* InObjectBinded, TArray<FDataprepPropertyLink> InPropertyChain)
-		: ObjectBinded( InObjectBinded )
-		, PropertyChain( MoveTemp( InPropertyChain ) )
-		, ValueType( nullptr )
-	{
-		if ( PropertyChain.Num() > 0 )
-		{
-			if ( UProperty* Property = PropertyChain.Last().CachedProperty.Get() )
-			{
-				ValueType = Property->GetClass();
-			}
-		}
-	}
+	FDataprepParameterizationBinding(UDataprepParameterizableObject* InObjectBinded, TArray<FDataprepPropertyLink> InPropertyChain);
 
 	FDataprepParameterizationBinding(FDataprepParameterizationBinding&&) = default;
 	FDataprepParameterizationBinding(const FDataprepParameterizationBinding&) = default;
@@ -56,9 +48,9 @@ struct FDataprepParameterizationBinding
 	UPROPERTY()
 	TArray<FDataprepPropertyLink> PropertyChain;
 
-	// The class of the property managing the value
+	// Value Type Validation Array. This is the result of a depth first search on the parametrized property
 	UPROPERTY()
-	UClass* ValueType;
+	TArray<UObject*> ValueTypeValidationData;
 };
 
 uint32 GetTypeHash(const FDataprepParameterizationBinding& Binding);
@@ -220,7 +212,7 @@ public:
 
 	void OnObjectPostEdit(UDataprepParameterizableObject* Object, const TArray<FDataprepPropertyLink>& PropertyChain, EPropertyChangeType::Type ChangeType);
 
-	void GetExistingParameterNamesForType(UClass* PropertyClass,TSet<FString>& OutValidExistingNames, TSet<FString>& OutInvalidNames) const;
+	void GetExistingParameterNamesForType(UProperty* Property,TSet<FString>& OutValidExistingNames, TSet<FString>& OutInvalidNames) const;
 
 private:
 

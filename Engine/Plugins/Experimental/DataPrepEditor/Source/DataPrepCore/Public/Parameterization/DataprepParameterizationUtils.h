@@ -47,6 +47,8 @@ struct FDataprepPropertyLink
 	FDataprepPropertyLink& operator=(const FDataprepPropertyLink& Other) = default;
 	FDataprepPropertyLink& operator=(FDataprepPropertyLink&& Other) = default;
 
+	friend bool operator==(const FDataprepPropertyLink& A,const FDataprepPropertyLink& B);
+
 	UPROPERTY()
 	TWeakObjectPtr<UProperty> CachedProperty;
 

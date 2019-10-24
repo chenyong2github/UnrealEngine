@@ -34,8 +34,7 @@ void SDataprepLinkToParameter::Construct(const FArguments& InArgs, const TShared
 	{
 		if ( UProperty* Property = ParameterizationActionData->PropertyChain.Last().CachedProperty.Get() )
 		{
-			UClass* PropertyClass = Property->GetClass();
-			ParameterizationActionData->DataprepAsset->GetExistingParameterNamesForType( PropertyClass, ValidExistingNames, InvalidNames );
+			ParameterizationActionData->DataprepAsset->GetExistingParameterNamesForType( Property, ValidExistingNames, InvalidNames );
 
 			FString SuggestedName = ParameterizationActionData->PropertyChain.Last().PropertyName.ToString();
 
