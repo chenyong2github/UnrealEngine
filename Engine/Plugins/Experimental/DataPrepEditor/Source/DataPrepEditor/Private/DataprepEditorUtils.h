@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Parameterization/DataprepParameterizationUtils.h"
+
 #include "CoreMinimal.h"
 #include "Fonts/SlateFontInfo.h"
 
@@ -9,8 +11,6 @@ class FMenuBuilder;
 class SWidget;
 class UDataprepAsset;
 class UDataprepParameterizableObject;
-
-struct FDataprepPropertyLink;
 
 struct FDataprepParametrizationActionData : public FGCObject
 {
