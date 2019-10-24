@@ -775,14 +775,6 @@ void FDatasmithVREDImporter::ProcessScene()
 		Processor.OptimizeDuplicatedNodes();
 	}
 
-	if (ImportOptions->bMergeNodes)
-	{
-		Processor.MergeSceneNodes();
-
-		//Call "RemoveEmptyNodes" again after merging, because all nodes which previously had meshes are empty now
-		Processor.RemoveEmptyNodes();
-	}
-
 	Processor.FixMeshNames();
 }
 
