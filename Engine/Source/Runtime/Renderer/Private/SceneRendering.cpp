@@ -914,6 +914,7 @@ void FViewInfo::Init()
 	}
 
 	PrimitiveSceneDataOverrideSRV = nullptr;
+	PrimitiveSceneDataTextureOverrideRHI = nullptr;
 	LightmapSceneDataOverrideSRV = nullptr;
 
 	DitherFadeInUniformBuffer = nullptr;
@@ -1662,6 +1663,16 @@ void FViewInfo::SetupUniformBufferParameters(
 			}
 		}
 
+		if (PrimitiveSceneDataTextureOverrideRHI)
+		{
+			ViewUniformShaderParameters.PrimitiveSceneDataTexture = PrimitiveSceneDataTextureOverrideRHI;
+		}
+		else
+		{
+			const FTextureRWBuffer2D& ViewPrimitiveShaderDataTexture = ViewState ? ViewState->PrimitiveShaderDataTexture : OneFramePrimitiveShaderDataTexture;
+			ViewUniformShaderParameters.PrimitiveSceneDataTexture = OrBlack2DIfNull(ViewPrimitiveShaderDataTexture.Buffer);
+		}
+		
 		if (LightmapSceneDataOverrideSRV)
 		{
 			ViewUniformShaderParameters.LightmapSceneData = LightmapSceneDataOverrideSRV;
@@ -1768,6 +1779,9 @@ FViewInfo* FViewInfo::CreateSnapshot() const
 
 	FRWBufferStructured NullOneFramePrimitiveShaderDataBuffer;
 	FMemory::Memcpy(Result->OneFramePrimitiveShaderDataBuffer, NullOneFramePrimitiveShaderDataBuffer);
+	
+	FTextureRWBuffer2D NullOneFramePrimitiveShaderDataTexture;
+	FMemory::Memcpy(Result->OneFramePrimitiveShaderDataTexture, NullOneFramePrimitiveShaderDataTexture);
 
 	TStaticArray<FParallelMeshDrawCommandPass, EMeshPass::Num> NullParallelMeshDrawCommandPasses;
 	FMemory::Memcpy(Result->ParallelMeshDrawCommandPasses, NullParallelMeshDrawCommandPasses);
@@ -1798,6 +1812,7 @@ void FViewInfo::DestroyAllSnapshots()
 		Snapshot->CachedViewUniformShaderParameters.Reset();
 		Snapshot->DynamicPrimitiveShaderData.Empty();
 		Snapshot->OneFramePrimitiveShaderDataBuffer.Release();
+		Snapshot->OneFramePrimitiveShaderDataTexture.Release();
 
 		for (int32 Index = 0; Index < Snapshot->ParallelMeshDrawCommandPasses.Num(); ++Index)
 		{
