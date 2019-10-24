@@ -32,6 +32,12 @@ namespace FDeltaGenVariantConverterImpl
 			// It doesn't matter if there are multiple captures to the same property, as only one UPropertyCapture is ever created
 			if (TSharedPtr<IDatasmithActorBindingElement>* FoundBindingInB = BindingsInB.Find(Actor))
 			{
+				// Don't merge a binding into itself
+				if (BindingFromA == *FoundBindingInB)
+				{
+					continue;
+				}
+
 				for (int32 PropIndex = 0; PropIndex < BindingFromA->GetPropertyCapturesCount(); ++PropIndex)
 				{
 					TSharedPtr<IDatasmithBasePropertyCaptureElement> PropertyCapture = BindingFromA->GetPropertyCapture(PropIndex);
