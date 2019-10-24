@@ -713,7 +713,6 @@ public:
 		ShadowOffset(0),
 		CmdStart(0), 
 		CmdEnd(0), 
-		RoleSwapIndex(-1), 
 		Condition(COND_None),
 		RepNotifyCondition(REPNOTIFY_OnChanged),
 		RepNotifyNumParams(INDEX_NONE),
@@ -748,14 +747,6 @@ public:
 
 	/** @see CmdStart */
 	uint16 CmdEnd;
-
-	/**
-	 * This value indicates whether or not this command needs to swapped, and what other
-	 * command it should be swapped with.
-	 *
-	 * This is used for Role and RemoteRole which have inverted values on Servers and Clients.
-	 */
-	int32 RoleSwapIndex;
 
 	ELifetimeCondition Condition;
 	ELifetimeRepNotifyCondition RepNotifyCondition;
@@ -1764,12 +1755,6 @@ private:
 	const ELifetimeCondition GetLifetimeCustomDeltaPropertyCondition(const uint16 RepIndCustomDeltaPropertyIndexex) const;
 
 	ERepLayoutFlags Flags;
-
-	/** Index of the Role property in the Parents list. May be INDEX_NONE if Owner doesn't have the property. */
-	int16 RoleIndex;
-
-	/** Index of the RemoteRole property in the Parents list. May be INDEX_NONE if Owner doesn't have the property. */
-	int16 RemoteRoleIndex;
 
 	/** Size (in bytes) needed to allocate a single instance of a Shadow buffer for this RepLayout. */
 	int32 ShadowDataBufferSize;
