@@ -88,6 +88,8 @@ public:
 
 	virtual void BeginDestroy() override;
 
+	TSharedPtr<FNiagaraSystemViewModel> GetSystemViewModel();
+
 	TArray<UNiagaraStackEntry*>& GetRootEntries();
 
 	FOnStructureChanged& OnStructureChanged();

@@ -55,8 +55,8 @@ private:
 class FRenderItemGroupAddUtilities : public TNiagaraStackItemGroupAddUtilities<UNiagaraRendererProperties*>
 {
 public:
-	FRenderItemGroupAddUtilities(TSharedRef<FNiagaraEmitterViewModel> InEmitterViewModel, FOnItemAdded InOnItemAdded)
-		: TNiagaraStackItemGroupAddUtilities(LOCTEXT("RenderGroupAddItemName", "Renderer"), EAddMode::AddFromAction, true, InOnItemAdded)
+	FRenderItemGroupAddUtilities(TSharedRef<FNiagaraEmitterViewModel> InEmitterViewModel)
+		: TNiagaraStackItemGroupAddUtilities(LOCTEXT("RenderGroupAddItemName", "Renderer"), EAddMode::AddFromAction, true, FRenderItemGroupAddUtilities::FOnItemAdded())
 		, EmitterViewModel(InEmitterViewModel)
 	{
 	}
@@ -122,9 +122,9 @@ void UNiagaraStackRenderItemGroup::Initialize(FRequiredEntryData InRequiredEntry
 {
 	FText DisplayName = LOCTEXT("RenderGroupName", "Render");
 	FText ToolTip = LOCTEXT("RendererGroupTooltip", "Describes how we should display/present each particle. Note that this doesn't have to be visual. Multiple renderers are supported. Order in this stack is not necessarily relevant to draw order.");
-	AddUtilities = MakeShared<FRenderItemGroupAddUtilities>(InRequiredEntryData.EmitterViewModel.ToSharedRef(),
-		TNiagaraStackItemGroupAddUtilities<UNiagaraRendererProperties*>::FOnItemAdded::CreateUObject(this, &UNiagaraStackRenderItemGroup::ItemAdded));
+	AddUtilities = MakeShared<FRenderItemGroupAddUtilities>(InRequiredEntryData.EmitterViewModel.ToSharedRef());
 	Super::Initialize(InRequiredEntryData, DisplayName, ToolTip, AddUtilities.Get());
+	GetEmitterViewModel()->GetEmitter()->OnRenderersChanged().AddUObject(this, &UNiagaraStackRenderItemGroup::EmitterRenderersChanged);
 }
 
 void UNiagaraStackRenderItemGroup::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
@@ -139,7 +139,6 @@ void UNiagaraStackRenderItemGroup::RefreshChildrenInternal(const TArray<UNiagara
 		{
 			RendererItem = NewObject<UNiagaraStackRendererItem>(this);
 			RendererItem->Initialize(CreateDefaultChildRequiredData(), RendererProperties);
-			RendererItem->OnModifiedGroupItems().AddUObject(this, &UNiagaraStackRenderItemGroup::ChildModifiedGroupItems);
 		}
 
 		NewChildren.Add(RendererItem);
@@ -150,15 +149,16 @@ void UNiagaraStackRenderItemGroup::RefreshChildrenInternal(const TArray<UNiagara
 	Super::RefreshChildrenInternal(CurrentChildren, NewChildren, NewIssues);
 }
 
-void UNiagaraStackRenderItemGroup::ItemAdded(UNiagaraRendererProperties* AddedRenderer)
+void UNiagaraStackRenderItemGroup::EmitterRenderersChanged()
 {
+	OnDataObjectModified().Broadcast(nullptr);
 	RefreshChildren();
-	OnDataObjectModified().Broadcast(AddedRenderer);
 }
 
-void UNiagaraStackRenderItemGroup::ChildModifiedGroupItems()
+void UNiagaraStackRenderItemGroup::FinalizeInternal()
 {
-	RefreshChildren();
+	GetEmitterViewModel()->GetEmitter()->OnRenderersChanged().RemoveAll(this);
+	Super::FinalizeInternal();
 }
 
 #undef LOCTEXT_NAMESPACE
