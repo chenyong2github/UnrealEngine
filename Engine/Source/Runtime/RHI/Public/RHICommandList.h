@@ -3391,7 +3391,7 @@ public:
 		if (GPUMask != InGPUMask)
 		{
 			GPUMask = InGPUMask;
-			if (HasCommands())
+			if (HasCommands() || Bypass())
 			{
 				SetGPUMaskOnContext();
 			}
