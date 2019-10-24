@@ -134,10 +134,9 @@ FHairTransmittanceData GetHairTransmittance(
 	FHairTransmittanceData TransmittanceData = InitHairTransmittanceData();
 	TransmittanceData.Transmittance = HairTransmittance.xyz;
 	TransmittanceData.HairCount = HairTransmittance.w;
-	TransmittanceData.MultipleScattering = 1;
 	TransmittanceData.GlobalScattering = 1;
 	TransmittanceData.LocalScattering = 0;
-	TransmittanceData.ScatteringComponent = HairComponents;
+	TransmittanceData.ScatteringComponent = HairComponents | HAIR_COMPONENT_MULTISCATTER;
 	TransmittanceData.OpaqueVisibility = 1;
 
 	const float3 T = GBuffer.WorldNormal;
