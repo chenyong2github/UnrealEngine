@@ -8,6 +8,8 @@
 
 #include "/Engine/Generated/UniformBuffers/PrecomputedLightingBuffer.ush"
 
+#include "HairStrandsVisibilityCommon.ush"
+
 #if MANUAL_VERTEX_FETCH
 	Buffer<float4> VertexFetch_InstanceOriginBuffer;
 	Buffer<float4> VertexFetch_InstanceTransformBuffer;
@@ -25,8 +27,6 @@ float3 HairStrandsVF_PreviousPositionOffset;	// Vertex position (3x16bits) are r
 float  HairStrandsVF_Density;
 float  HairStrandsVF_Radius;
 float  HairStrandsVF_Length;
-float  HairStrandsVF_RadiusAtDepth1_Primary;
-float  HairStrandsVF_RadiusAtDepth1_Velocity;
 
 Buffer<uint4>  HairStrandsVF_PositionBuffer;
 Buffer<uint4>  HairStrandsVF_PreviousPositionBuffer;
@@ -361,19 +361,13 @@ float4 ComputeViewAlignedWorldPosition(FVertexFactoryInput Input, float3 WorldTa
 {
 	const uint LocalVertexId = Input.VertexId % 6;
 	const bool bIsLeft = LocalVertexId == 0 || LocalVertexId == 1 || LocalVertexId == 5;
-	
-	// #hair_todo
-	// Use either the min strand radius computated within the strand factory, or a custom one, provided 
-	// (in a hacky way) throught the View variables. This is used by the DeepShadow pass, which inject 
-	// its data this way.
-	const bool  bUseCustomStrandRadius = ResolvedView.TranslatedWorldCameraOrigin.x == 1337.f;
-	const bool  bIsOrtho			   = bUseCustomStrandRadius && ResolvedView.TranslatedWorldCameraOrigin.y > 0;
-	const float CustomMinStrandRadius  = ResolvedView.TranslatedWorldCameraOrigin.z;
-	const float DistanceToCamera	   = length(ResolvedView.TranslatedWorldCameraOrigin - WorldPosition.xyz);
+
+	FHairRenderingInfo HairRenderingInfo = GetHairRenderInfo(ResolvedView.HairRenderInfo);
 
 	// Minimal radius to snap the strand to a sample/pixel center (to avoid aliasing)
-	const float RadiusAtDepth1 = bUseCustomStrandRadius ? CustomMinStrandRadius : lerp(HairStrandsVF_RadiusAtDepth1_Primary, HairStrandsVF_RadiusAtDepth1_Velocity, VelocityScale);
-	const float MinStrandHairRadius  = bIsOrtho ? RadiusAtDepth1 : (DistanceToCamera * RadiusAtDepth1);
+	const float RadiusAtDepth1 = lerp(HairRenderingInfo.RadiusAtDepth1Primary, HairRenderingInfo.RadiusAtDepth1Velocity, VelocityScale);
+	const float DistanceToCamera = length(ResolvedView.TranslatedWorldCameraOrigin - WorldPosition.xyz);
+	const float MinStrandHairRadius = HairRenderingInfo.IsOrthoView ? RadiusAtDepth1 : (DistanceToCamera * RadiusAtDepth1);
 	const float3 ViewDir = -ResolvedView.ViewForward;
 	const float3 Right = normalize(cross(WorldTangent, ViewDir));
 	const float3 OutWorldPosition = WorldPosition.xyz + (bIsLeft ? -Right : Right) * max(WorldStrandRadius, MinStrandHairRadius);

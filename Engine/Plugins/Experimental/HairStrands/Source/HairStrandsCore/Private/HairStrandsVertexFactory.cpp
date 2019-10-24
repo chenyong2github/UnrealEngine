@@ -37,8 +37,8 @@ public:
 
 	FShaderParameter Radius;
 	FShaderParameter Length;
-	FShaderParameter RadiusAtDepth1_Primary;
-	FShaderParameter RadiusAtDepth1_Velocity;
+	FShaderParameter RadiusAtDepth1_Primary;	// unused
+	FShaderParameter RadiusAtDepth1_Velocity;	// unused
 	FShaderParameter PositionOffset;
 	FShaderParameter PreviousPositionOffset;
 	FShaderParameter Density;
@@ -52,8 +52,6 @@ public:
 	{
 		Radius.Bind(ParameterMap, TEXT("HairStrandsVF_Radius"));
 		Length.Bind(ParameterMap, TEXT("HairStrandsVF_Length"));
-		RadiusAtDepth1_Primary.Bind(ParameterMap, TEXT("HairStrandsVF_RadiusAtDepth1_Primary"));
-		RadiusAtDepth1_Velocity.Bind(ParameterMap, TEXT("HairStrandsVF_RadiusAtDepth1_Velocity"));
 		PositionOffset.Bind(ParameterMap, TEXT("HairStrandsVF_PositionOffset"));
 		PreviousPositionOffset.Bind(ParameterMap, TEXT("HairStrandsVF_PreviousPositionOffset"));
 		Density.Bind(ParameterMap, TEXT("HairStrandsVF_Density"));	
@@ -68,8 +66,8 @@ public:
 	{
 		Ar << Radius;
 		Ar << Length;
-		Ar << RadiusAtDepth1_Primary;
-		Ar << RadiusAtDepth1_Velocity;
+		Ar << RadiusAtDepth1_Primary;	// unused
+		Ar << RadiusAtDepth1_Velocity;	// unused
 		Ar << PositionOffset;
 		Ar << PreviousPositionOffset;
 		Ar << Density;
@@ -93,15 +91,8 @@ public:
 	) const override
 	{
 		const FHairStrandsVertexFactory* VF = static_cast<const FHairStrandsVertexFactory*>(VertexFactory);
-		
-		const FMinHairRadiusAtDepth1 MinRadiusAtDepth1 = ComputeMinStrandRadiusAtDepth1(
-			FIntPoint(View->UnconstrainedViewRect.Width(), View->UnconstrainedViewRect.Height()),
-			View->FOV,
-			GetHairVisibilitySampleCount(),
-			0.f);
 
 		const uint64 GroupIndex = reinterpret_cast<uint64>(BatchElement.UserData);
-
 		BindParam(ShaderBindings, PositionBuffer, VF->GetPositionSRV(GroupIndex));
 		BindParam(ShaderBindings, PreviousPositionBuffer, VF->GetPreviousPositionSRV(GroupIndex));
 		BindParam(ShaderBindings, AttributeBuffer, VF->GetAttributeSRV(GroupIndex));
@@ -111,8 +102,6 @@ public:
 		BindParam(ShaderBindings, PositionOffset, VF->GetPositionOffset(GroupIndex));
 		BindParam(ShaderBindings, PreviousPositionOffset, VF->GetPreviousPositionOffset(GroupIndex));
 		BindParam(ShaderBindings, Density, VF->GetHairDensity(GroupIndex));
-		BindParam(ShaderBindings, RadiusAtDepth1_Primary, MinRadiusAtDepth1.Primary);
-		BindParam(ShaderBindings, RadiusAtDepth1_Velocity, MinRadiusAtDepth1.Velocity);		
 	}
 };
 

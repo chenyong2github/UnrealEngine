@@ -1,5 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 struct FVisibilityData
 {
 	float3 Tangent;		// 24 bits
@@ -307,4 +309,20 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
 	 BaseColor.y = (float((Encoded >> 8) & 0xFF) / 255.f);
 	 BaseColor.z = (float((Encoded >> 16) & 0xFF) / 255.f);
 	 Roughness   = (float((Encoded >> 24) & 0xFF) / 255.f);
+ }
+
+ struct FHairRenderingInfo
+ {
+	 float RadiusAtDepth1Primary;
+	 float RadiusAtDepth1Velocity;
+	 bool IsOrthoView;
+ };
+
+ FHairRenderingInfo GetHairRenderInfo(float4 ViewHairRenderInfo)
+ {
+	 FHairRenderingInfo Info;
+	 Info.RadiusAtDepth1Primary = ViewHairRenderInfo.x;
+	 Info.RadiusAtDepth1Velocity = ViewHairRenderInfo.y;
+	 Info.IsOrthoView = ViewHairRenderInfo.z > 0.0f ? true : false;
+	 return Info;
  }
