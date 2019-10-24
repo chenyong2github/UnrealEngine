@@ -2,20 +2,24 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#include "Curves/SimpleCurve.h"
 #include "IPropertyTypeCustomization.h"
 #include "Layout/Visibility.h"
 #include "Misc/Attribute.h"
 #include "PropertyHandle.h"
+#include "SCurveEditor.h"
 
+
+// Forward Declarations
+struct FSoundModulationOutputTransform;
 
 class FSoundModulationOutputTransformLayoutCustomization : public IPropertyTypeCustomization
 {
 public:
-	FSoundModulationOutputTransformLayoutCustomization();
-
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
 	{
-		return MakeShareable(new FSoundModulationOutputTransformLayoutCustomization);
+		return MakeShared<FSoundModulationOutputTransformLayoutCustomization>();
 	}
 
 	//~ Begin IPropertyTypeCustomization
@@ -24,5 +28,6 @@ public:
 	//~ End IPropertyTypeCustomization
 
 private:
-	bool IsCurveSet(TSharedPtr<IPropertyHandle> CurveHandle, const TArray<FString>& Filter) const;
+	bool IsScaleableCurve(TSharedPtr<IPropertyHandle> CurveHandle, const TArray<FString>& Filter) const;
+	bool IsSharedCurve(TSharedPtr<IPropertyHandle> CurveHandle) const;
 };
