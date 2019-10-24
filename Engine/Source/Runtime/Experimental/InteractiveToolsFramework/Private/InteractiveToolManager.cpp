@@ -182,6 +182,11 @@ UInteractiveTool* UInteractiveToolManager::GetActiveTool(EToolSide Side)
 	return (Side == EToolSide::Left) ? ActiveLeftTool : ActiveRightTool;
 }
 
+UInteractiveToolBuilder* UInteractiveToolManager::GetActiveToolBuilder(EToolSide Side)
+{
+	return (Side == EToolSide::Left) ? ActiveLeftBuilder : ActiveRightBuilder;
+}
+
 
 bool UInteractiveToolManager::CanAcceptActiveTool(EToolSide Side)
 {

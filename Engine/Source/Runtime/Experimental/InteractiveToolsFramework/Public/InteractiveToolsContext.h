@@ -40,7 +40,7 @@ public:
 	bool CanCompleteActiveTool(EToolSide WhichSide) const;
 	bool StartTool(EToolSide WhichSide, const FString& ToolTypeIdentifier);
 	void EndTool(EToolSide WhichSide, EToolShutdownType ShutdownType);
-	bool IsToolActive(EToolSide WhichSide, UInteractiveToolBuilder* Builder);
+	bool IsToolBuilderActive(EToolSide WhichSide, UInteractiveToolBuilder* Builder);
 
 public:
 	// forwards message to OnToolNotificationMessage delegate

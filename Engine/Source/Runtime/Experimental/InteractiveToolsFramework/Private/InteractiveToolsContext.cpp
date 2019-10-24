@@ -109,7 +109,7 @@ void UInteractiveToolsContext::EndTool(EToolSide WhichSide, EToolShutdownType Sh
 	DeactivateActiveTool(WhichSide, ShutdownType);
 }
 
-bool UInteractiveToolsContext::IsToolActive(EToolSide WhichSide, UInteractiveToolBuilder* Builder)
+bool UInteractiveToolsContext::IsToolBuilderActive(EToolSide WhichSide, UInteractiveToolBuilder* Builder)
 {
 	return ToolManager->GetActiveToolBuilder(WhichSide) == Builder;
 }
