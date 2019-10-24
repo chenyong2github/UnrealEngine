@@ -1163,8 +1163,6 @@ void FMaterialEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 	}
 	ToolbarBuilder.EndSection();
 
-	ToolbarBuilder.AddSeparator();
-
 	ToolbarBuilder.BeginSection("Stats");
 	{
 		ToolbarBuilder.AddToolBarButton(FMaterialEditorCommands::Get().ToggleMaterialStats);
