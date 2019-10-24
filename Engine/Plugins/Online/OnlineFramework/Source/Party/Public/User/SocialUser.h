@@ -47,7 +47,7 @@ public:
 	FString GetDisplayName() const;
 	FString GetDisplayName(ESocialSubsystem SubsystemType) const;
 	FString GetNickname() const;
-	void SetNickname(const FString& InNickName);
+	virtual void SetNickname(const FString& InNickName);
 
 	EInviteStatus::Type GetFriendInviteStatus(ESocialSubsystem SubsystemType) const;
 	bool IsFriend() const;
