@@ -14,6 +14,7 @@
 void FDatasmithVREDTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCapabilities)
 {
 	OutCapabilities.bIsEnabled = true;
+	OutCapabilities.bParallelLoadStaticMeshSupported = true;
 
 	TArray<FFileFormatInfo>& Formats = OutCapabilities.SupportedFileFormats;
     Formats.Emplace(TEXT("fbx"), TEXT("VRED Fbx files"));
@@ -82,7 +83,8 @@ bool FDatasmithVREDTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshEle
 {
 	if (ensure(Importer.IsValid()))
 	{
-		TArray<FMeshDescription> MeshDescriptions = Importer->GetGeometriesForMeshElement(MeshElement);
+		TArray<FMeshDescription> MeshDescriptions;
+		Importer->GetGeometriesForMeshElementAndRelease(MeshElement, MeshDescriptions);
 		if (MeshDescriptions.Num() > 0)
 		{
 			OutMeshPayload.LodMeshes.Add(MoveTemp(MeshDescriptions[0]));

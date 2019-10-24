@@ -2710,14 +2710,12 @@ TSharedPtr<IDatasmithMeshElement> FDatasmithC4DImporter::ImportMesh(melange::Pol
 	return MeshElement;
 }
 
-TArray<FMeshDescription> FDatasmithC4DImporter::GetGeometriesForMeshElement(const TSharedRef<IDatasmithMeshElement> MeshElement)
+void FDatasmithC4DImporter::GetGeometriesForMeshElementAndRelease(const TSharedRef<IDatasmithMeshElement> MeshElement, TArray<FMeshDescription>& OutMeshDescriptions)
 {
 	if (FMeshDescription* MeshDesc = MeshElementToMeshDescription.Find(&MeshElement.Get()))
 	{
-		return {*MeshDesc};
+		OutMeshDescriptions.Add(MoveTemp(*MeshDesc));
 	}
-
-	return {};
 }
 
 bool FDatasmithC4DImporter::OpenFile(const FString& InFilename)

@@ -121,7 +121,8 @@ bool FDatasmithGLTFTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshEle
 {
 	if (ensure(Importer.IsValid()))
 	{
-		TArray<FMeshDescription> MeshDescriptions = Importer->GetGeometriesForMeshElement(MeshElement);
+		TArray<FMeshDescription> MeshDescriptions;
+		Importer->GetGeometriesForMeshElementAndRelease(MeshElement, MeshDescriptions);
 		if (MeshDescriptions.Num() > 0)
 		{
 			OutMeshPayload.LodMeshes.Add(MoveTemp(MeshDescriptions[0]));
