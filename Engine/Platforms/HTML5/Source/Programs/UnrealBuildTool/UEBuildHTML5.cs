@@ -180,6 +180,8 @@ namespace UnrealBuildTool
 			Target.bCompileForSize = false;			// {true:[all:-Oz], false:[developer:-O2, shipping:-O3]}  WARNING: need emscripten version >= 1.37.13
 			Target.bUsePCHFiles = false;
 			Target.bDeployAfterCompile = true;
+			Target.bCompileFreeType = true;
+			Target.bCompileICU = true;
 		}
 
 		public override bool CanUseXGE()
