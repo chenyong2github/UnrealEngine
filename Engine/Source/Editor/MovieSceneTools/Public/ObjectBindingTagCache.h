@@ -48,7 +48,7 @@ public:
 	 */
 	bool HasTag(const FMovieSceneObjectBindingID& BindingID, const FName& TagName) const
 	{
-		return ExposedNameReverseLUT.FindPair(BindingID, TagName);
+		return ExposedNameReverseLUT.FindPair(BindingID, TagName) != nullptr;
 	}
 
 
