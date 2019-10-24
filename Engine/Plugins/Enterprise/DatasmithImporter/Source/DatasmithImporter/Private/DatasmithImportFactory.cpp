@@ -11,6 +11,7 @@
 #include "DatasmithSceneFactory.h"
 #include "DatasmithStaticMeshImporter.h"
 #include "IDatasmithSceneElements.h"
+#include "LayoutUV.h"
 #include "Translators/DatasmithTranslatableSource.h"
 #include "Translators/DatasmithTranslatorManager.h"
 #include "Utility/DatasmithImporterUtils.h"
@@ -292,6 +293,8 @@ namespace DatasmithImportFactoryImpl
 
 	static void ReportImportStats(const FDatasmithImportContext& ImportContext, uint64 StartTime)
 	{
+		FLayoutUV::LogStats();
+
 		// Log time spent to import incoming file in minutes and seconds
 		double ElapsedSeconds = FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - StartTime);
 
@@ -468,6 +471,8 @@ bool UDatasmithImportFactory::Import( FDatasmithImportContext& ImportContext )
 	{
 		bShowOptions = false;
 	}
+
+	FLayoutUV::ResetStats();
 
 	if ( !ImportContext.bIsAReimport )
 	{
