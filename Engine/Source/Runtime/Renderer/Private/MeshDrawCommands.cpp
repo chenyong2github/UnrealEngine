@@ -366,6 +366,7 @@ void BuildMeshDrawCommandPrimitiveIdBuffer(
 	int32& MaxInstances,
 	int32& VisibleMeshDrawCommandsNum,
 	int32& NewPassVisibleMeshDrawCommandsNum,
+	EShaderPlatform ShaderPlatform,
 	uint32 InstanceFactor = 1
 	)
 {
@@ -451,7 +452,16 @@ void BuildMeshDrawCommandPrimitiveIdBuffer(
 			{
 				//@todo - refactor into memcpy
 				checkSlow(PrimitiveIdIndex < MaxPrimitiveId);
-				PrimitiveIds[PrimitiveIdIndex] = VisibleMeshDrawCommand.DrawPrimitiveId;
+				if (!GPUSceneUseTexture2D(ShaderPlatform))
+				{
+					PrimitiveIds[PrimitiveIdIndex] = VisibleMeshDrawCommand.DrawPrimitiveId;
+				}
+				else
+				{
+					//Packing for mobile texture2D GPUScene. Must be in sync with SceneData.ush
+					uint16 PrimitivesPerTextureLine = FPrimitiveSceneShaderData::GetPrimitivesPerTextureLine();
+					PrimitiveIds[PrimitiveIdIndex] = ((VisibleMeshDrawCommand.DrawPrimitiveId / PrimitivesPerTextureLine) << 16) | (VisibleMeshDrawCommand.DrawPrimitiveId % PrimitivesPerTextureLine);
+				}
 			}
 		}
 
@@ -845,6 +855,7 @@ public:
 					Context.MaxInstances,
 					Context.VisibleMeshDrawCommandsNum,
 					Context.NewPassVisibleMeshDrawCommandsNum,
+					Context.ShaderPlatform,
 					Context.InstanceFactor
 				);
 			}
@@ -905,6 +916,7 @@ void SortAndMergeDynamicPassMeshDrawCommands(
 				MaxInstances,
 				VisibleMeshDrawCommandsNum,
 				NewPassVisibleMeshDrawCommandsNum,
+				GShaderPlatformForFeatureLevel[FeatureLevel],
 				InstanceFactor
 			);
 
@@ -942,6 +954,7 @@ void FParallelMeshDrawCommandPass::DispatchPassSetup(
 
 	TaskContext.View = &View;
 	TaskContext.ShadingPath = Scene->GetShadingPath();
+	TaskContext.ShaderPlatform = Scene->GetShaderPlatform();
 	TaskContext.PassType = PassType;
 	TaskContext.bUseGPUScene = UseGPUScene(GMaxRHIShaderPlatform, View.GetFeatureLevel());
 	TaskContext.bDynamicInstancing = IsDynamicInstancingEnabled(View.GetFeatureLevel());

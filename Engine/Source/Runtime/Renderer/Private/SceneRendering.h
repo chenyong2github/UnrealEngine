@@ -974,7 +974,9 @@ public:
 	/** Tracks dynamic primitive data for upload to GPU Scene, when enabled. */
 	TArray<FPrimitiveUniformShaderParameters> DynamicPrimitiveShaderData;
 
+	/** Only one of the resources(TextureBuffer or Texture2D) will be used depending on the Mobile.UseGPUSceneTexture cvar */
 	FRWBufferStructured OneFramePrimitiveShaderDataBuffer;
+	FTextureRWBuffer2D OneFramePrimitiveShaderDataTexture;
 
 	TStaticArray<FParallelMeshDrawCommandPass, EMeshPass::Num> ParallelMeshDrawCommandPasses;
 	
@@ -1138,7 +1140,9 @@ public:
 
 	TArray<FPrimitiveSceneInfo*, SceneRenderingAllocator> IndirectShadowPrimitives;
 
+	/** Only one of the resources(TextureBuffer or Texture2D) will be used depending on the Mobile.UseGPUSceneTexture cvar */
 	FShaderResourceViewRHIRef PrimitiveSceneDataOverrideSRV;
+	FTexture2DRHIRef PrimitiveSceneDataTextureOverrideRHI;
 	FShaderResourceViewRHIRef LightmapSceneDataOverrideSRV;
 
 	FRWBufferStructured ShaderPrintValueBuffer;
