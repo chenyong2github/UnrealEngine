@@ -47,7 +47,7 @@ struct FSlateInvalidationResult
 	bool bRepaintedWidgets;
 };
 
-class FSlateInvalidationRoot : public FGCObject, public FNoncopyable
+class SLATECORE_VTABLE FSlateInvalidationRoot : public FGCObject, public FNoncopyable
 {
 	friend class FSlateUpdateFastWidgetPathTask;
 	friend class FSlateUpdateFastPathAndHitTestGridTask;
