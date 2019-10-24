@@ -27,7 +27,7 @@ void UAnimCustomInstance::UnbindFromSkeletalMeshComponent(USkeletalMeshComponent
 		UAnimCustomInstance* SequencerInstance = Cast<UAnimCustomInstance>(InSkeletalMeshComponent->GetAnimInstance());
 		if (SequencerInstance)
 		{
-			InSkeletalMeshComponent->AnimScriptInstance = nullptr;
+			InSkeletalMeshComponent->ClearAnimScriptInstance();
 		}
 	}
 	else if (InSkeletalMeshComponent->GetAnimationMode() == EAnimationMode::Type::AnimationBlueprint)
