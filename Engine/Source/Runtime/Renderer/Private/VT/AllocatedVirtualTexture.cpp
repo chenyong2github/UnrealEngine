@@ -66,8 +66,9 @@ FAllocatedVirtualTexture::FAllocatedVirtualTexture(FVirtualTextureSystem* InSyst
 			const uint32 Local_vLevel = MaxLevel - MipBias;
 			check(Local_vLevel <= Producer->GetMaxLevel());
 
-			const uint32 RootWidthInTiles = FMath::Max(Producer->GetWidthInTiles() >> Local_vLevel, 1u);
-			const uint32 RootHeightInTiles = FMath::Max(Producer->GetHeightInTiles() >> Local_vLevel, 1u);
+			const uint32 MipScaleFactor = (1u << Local_vLevel);
+			const uint32 RootWidthInTiles = FMath::DivideAndRoundUp(Producer->GetWidthInTiles(), MipScaleFactor);
+			const uint32 RootHeightInTiles = FMath::DivideAndRoundUp(Producer->GetHeightInTiles(), MipScaleFactor);
 			for (uint32 TileY = 0u; TileY < RootHeightInTiles; ++TileY)
 			{
 				for (uint32 TileX = 0u; TileX < RootWidthInTiles; ++TileX)
@@ -114,8 +115,9 @@ void FAllocatedVirtualTexture::Release(FVirtualTextureSystem* System)
 			const uint32 Local_vLevel = MaxLevel - MipBias;
 			check(Local_vLevel <= Producer->GetMaxLevel());
 
-			const uint32 RootWidthInTiles = FMath::Max(Producer->GetWidthInTiles() >> Local_vLevel, 1u);
-			const uint32 RootHeightInTiles = FMath::Max(Producer->GetHeightInTiles() >> Local_vLevel, 1u);
+			const uint32 MipScaleFactor = (1u << Local_vLevel);
+			const uint32 RootWidthInTiles = FMath::DivideAndRoundUp(Producer->GetWidthInTiles(), MipScaleFactor);
+			const uint32 RootHeightInTiles = FMath::DivideAndRoundUp(Producer->GetHeightInTiles(), MipScaleFactor);
 			for (uint32 TileY = 0u; TileY < RootHeightInTiles; ++TileY)
 			{
 				for (uint32 TileX = 0u; TileX < RootWidthInTiles; ++TileX)
