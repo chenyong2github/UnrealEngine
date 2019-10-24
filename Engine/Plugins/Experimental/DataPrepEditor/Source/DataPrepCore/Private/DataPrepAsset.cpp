@@ -231,9 +231,9 @@ void UDataprepAsset::RemoveObjectPropertyFromParameterization(UDataprepParameter
 	Parameterization->RemoveBindedObjectProperty( Object, InPropertyChain );
 }
 
-void UDataprepAsset::GetExistingParameterNamesForType(UClass* PropertyClass, TSet<FString>& OutValidExistingNames, TSet<FString>& OutInvalidNames) const
+void UDataprepAsset::GetExistingParameterNamesForType(UProperty* Property, TSet<FString>& OutValidExistingNames, TSet<FString>& OutInvalidNames) const
 {
-	Parameterization->GetExistingParameterNamesForType( PropertyClass, OutValidExistingNames, OutInvalidNames );
+	Parameterization->GetExistingParameterNamesForType( Property, OutValidExistingNames, OutInvalidNames );
 }
 
 void UDataprepAsset::OnDataprepBlueprintChanged( UBlueprint* InBlueprint )
