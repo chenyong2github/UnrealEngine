@@ -18,15 +18,16 @@ public class DatasmithWireTranslator : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Engine",
+				"CADLibrary",
+				"DatasmithContent",
 				"DatasmithCore",
 				"DatasmithCoreTechExtension",
-				"DatasmithContent",
 				"DatasmithImporter",
+				"Engine",
 				"MeshDescription",
-				"CADLibrary",
-			}
-		);
+                "StaticMeshDescription",
+            }
+        );
 
 		if (System.Type.GetType("OpenModel") != null)
 		{
