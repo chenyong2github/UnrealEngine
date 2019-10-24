@@ -80,6 +80,17 @@ enum class EIplConvolutionType : uint8
 };
 
 UENUM(BlueprintType)
+enum class EIplRayTracerType : uint8
+{
+	// Default Ray Tracer
+	PHONON			UMETA(DisplayName = "Phonon"),
+	// Intel Embree Ray Tracer
+	EMBREE			UMETA(DisplayName = "Intel Embree"),
+	// AMD Radeon Rays ray tracer, implemented in OpenCL for both CPU and GPU.
+	RADEONRAYS		UMETA(DisplayName = "AMD Radeon Rays")
+};
+
+UENUM(BlueprintType)
 enum class EIplAudioEngine : uint8
 {
 	// Native Unreal audio engine.
@@ -124,7 +135,7 @@ namespace SteamAudio
 
 	/** Phonon raytracer callback that routes ClosestHit queries to the UE4 raytracer. */
 	void STEAMAUDIO_API ClosestHit(const IPLfloat32* Origin, const IPLfloat32* Direction, const IPLfloat32 MinDistance,
-		const IPLfloat32 MaxDistance, IPLfloat32* HitDistance, IPLfloat32* HitNormal, IPLint32* HitMaterialIndex, IPLvoid* UserData);
+		const IPLfloat32 MaxDistance, IPLfloat32* HitDistance, IPLfloat32* HitNormal, IPLMaterial** HitMaterial, IPLvoid* UserData);
 
 	/** Phonon raytracer callback that routes AnyHit queries to the UE4 raytracer. */
 	void STEAMAUDIO_API AnyHit(const IPLfloat32* Origin, const IPLfloat32* Direction, const IPLfloat32 MinDistance, const IPLfloat32 MaxDistance,
