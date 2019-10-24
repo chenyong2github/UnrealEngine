@@ -1269,9 +1269,16 @@ private:
 	* Called in the game thread.
 	*
 	* @param World: Pointer to the UWorld the listener is in.
-	* @param InViewportIndex: Viewport that the listener belongs to.
 	*/
 	void InitializePluginListeners(UWorld* World);
+
+	/**
+	* Notifies all plugin listeners belonging to this audio device that
+	* the world changed. Called in the game thread.
+	*
+	* @param World: Pointer to the UWorld the listener is in.
+	*/
+	void NotifyPluginListenersWorldChanged(UWorld* World);
 
 	/**
 	 * Parses the sound classes and propagates multiplicative properties down the tree.
