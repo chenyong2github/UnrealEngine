@@ -42,6 +42,8 @@ void FAnimBlueprintFunctionPinInfoDetails::CustomizeHeader(TSharedRef<IPropertyH
 	NamePropertyHandle = InStructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FAnimBlueprintFunctionPinInfo, Name));
 	TypePropertyHandle = InStructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FAnimBlueprintFunctionPinInfo, Type));
 
+	StructPropertyHandle->MarkResetToDefaultCustomized(true);
+
 	InHeaderRow
 	.DiffersFromDefault(false)
 	.NameContent()
