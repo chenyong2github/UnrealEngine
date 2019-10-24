@@ -147,22 +147,6 @@ void UDataprepSetConvexDecompositionCollisionOperation::OnExecution_Implementati
 	}
 }
 
-void UDataprepSetGenerateLightmapUVsOperation::OnExecution_Implementation(const FDataprepContext& InContext)
-{
-#ifdef LOG_TIME
-	DataprepOperationTime::FTimeLogger TimeLogger( TEXT("SetGenerateLightmapUVs"), [&]( FText Text) { this->LogInfo( Text ); });
-#endif
-
-	// Execute operation
-	TArray<UObject*> ModifiedStaticMeshes;
-	UDataprepOperationsLibrary::SetGenerateLightmapUVs( InContext.Objects, bGenerateLightmapUVs, ModifiedStaticMeshes );
-
-	if(ModifiedStaticMeshes.Num() > 0)
-	{
-		AssetsModified( MoveTemp( ModifiedStaticMeshes ) );
-	}
-}
-
 void UDataprepSetMobilityOperation::OnExecution_Implementation(const FDataprepContext& InContext)
 {
 #ifdef LOG_TIME

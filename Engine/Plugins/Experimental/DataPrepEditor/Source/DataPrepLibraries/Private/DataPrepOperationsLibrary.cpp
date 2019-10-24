@@ -71,6 +71,13 @@ namespace DataprepOperationsLibraryUtil
 			{
 				SelectedMeshes.Add( StaticMesh );
 			}
+			else if ( UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Object) )
+			{
+				if (UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh())
+				{
+					SelectedMeshes.Add(StaticMesh);
+				}
+			}
 			else if (AActor* Actor = Cast<AActor>(Object) )
 			{
 				TInlineComponentArray<UStaticMeshComponent*> StaticMeshComponents( Actor );
@@ -444,41 +451,6 @@ void UDataprepOperationsLibrary::SetConvexDecompositionCollision(const TArray<UO
 			DataprepOperationsLibraryUtil::FScopedStaticMeshEdit StaticMeshEdit( StaticMesh );
 
 			UEditorStaticMeshLibrary::SetConvexDecompositionCollisionsWithNotification(StaticMesh, HullCount, MaxHullVerts, HullPrecision, false);
-
-			ModifiedObjects.Add( StaticMesh );
-		}
-	}
-}
-
-void UDataprepOperationsLibrary::SetGenerateLightmapUVs( const TArray< UObject* >& Assets, bool bGenerateLightmapUVs, TArray<UObject*>& ModifiedObjects )
-{
-	TSet<UStaticMesh*> SelectedMeshes = DataprepOperationsLibraryUtil::GetSelectedMeshes(Assets);
-
-	for (UStaticMesh* StaticMesh : SelectedMeshes)
-	{
-		if (StaticMesh)
-		{
-			bool bDidChangeSettings = false;
-
-			// 3 is the maximum that lightmass accept
-			int32 MinBiggestUVChannel = 3;
-			for ( FStaticMeshSourceModel& SourceModel : StaticMesh->GetSourceModels() )
-			{
-				bDidChangeSettings |= SourceModel.BuildSettings.bGenerateLightmapUVs != bGenerateLightmapUVs;
-				SourceModel.BuildSettings.bGenerateLightmapUVs = bGenerateLightmapUVs;
-				if( const FMeshDescription* MeshDescription = SourceModel.MeshDescription.Get() )
-				{
-					FStaticMeshConstAttributes Attributes(*MeshDescription);
-					int32 UVChannelCount = Attributes.GetVertexInstanceUVs().GetNumIndices();
-					MinBiggestUVChannel = FMath::Min( MinBiggestUVChannel, UVChannelCount - 1 );
-				}
-			}
-
-			if ( StaticMesh->LightMapCoordinateIndex > MinBiggestUVChannel && bDidChangeSettings )
-			{
-				// Correct the coordinate index if it was invalid
-				StaticMesh->LightMapCoordinateIndex = MinBiggestUVChannel;
-			}
 
 			ModifiedObjects.Add( StaticMesh );
 		}
