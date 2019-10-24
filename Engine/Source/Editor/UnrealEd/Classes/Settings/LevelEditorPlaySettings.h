@@ -312,7 +312,7 @@ private:
 	int32 PlayNumberOfClients;
 
 	/** What port used by the server for simple networking */
-	UPROPERTY(config, EditAnywhere, Category = "Multiplayer Options|Server", meta=(ClampMin="1", UIMin="1", ClampMax="65535", EditCondition = "PlayNetMode != EPlayNetMode::PIE_Standalone"))
+	UPROPERTY(config, EditAnywhere, Category = "Multiplayer Options|Server", meta=(ClampMin="1", UIMin="1", ClampMax="65535", EditCondition = "PlayNetMode != EPlayNetMode::PIE_Standalone || bLaunchSeparateServer"))
 	uint16 ServerPort;
 
 	/** Width to use when spawning additional windows. */
@@ -353,11 +353,11 @@ private:
 	int32 ClientWindowHeight;
 
 	/** Override the map launched by the dedicated server (currently only used when in PIE_StandaloneWithServer net mode) */
-	UPROPERTY(config, EditAnywhere, Category = "Multiplayer Options|Server", meta=(EditCondition = "PlayNetMode != EPlayNetMode::PIE_Standalone"))
+	UPROPERTY(config, EditAnywhere, Category = "Multiplayer Options|Server", meta=(EditCondition = "PlayNetMode != EPlayNetMode::PIE_Standalone || bLaunchSeparateServer"))
 	FString ServerMapNameOverride;
 
 	/** Additional options that will be passed to the server as URL parameters, in the format ?bIsLanMatch=1?listen - any additional command line switches should be passed in the Command Line Arguments field below. */
-	UPROPERTY(config, EditAnywhere, Category="Multiplayer Options|Server", meta=(EditCondition = "PlayNetMode != EPlayNetMode::PIE_Standalone"))
+	UPROPERTY(config, EditAnywhere, Category="Multiplayer Options|Server", meta=(EditCondition = "PlayNetMode != EPlayNetMode::PIE_Standalone || bLaunchSeparateServer"))
 	FString AdditionalServerGameOptions;
 
 	/** Additional command line options that will be passed to standalone game instances, for example -debug */
@@ -367,8 +367,8 @@ private:
 
 public:
 	/** Additional options that will be passed to the server as arguments, for example -debug. Only works with separate process servers. */
-	UPROPERTY(config, EditAnywhere, Category = "Multiplayer Options|Server", meta = (EditCondition = "!RunUnderOneProcess && PlayNetMode == EPlayNetMode::PIE_Client"))
-	FString AdditionalServerLaunchParmeters;
+	UPROPERTY(config, EditAnywhere, Category = "Multiplayer Options|Server")
+	FString AdditionalServerLaunchParameters;
 
 public:
 
@@ -405,7 +405,7 @@ public:
 	bool GetPlayNetDedicated(bool &OutPlayNetDedicated) const { OutPlayNetDedicated = PlayNetDedicated; return IsPlayNetDedicatedActive(); }
 	
 	void SetPlayNumberOfClients( const int32 InPlayNumberOfClients ) { PlayNumberOfClients = InPlayNumberOfClients; }
-	bool IsPlayNumberOfClientsActive() const { return (PlayNetMode != PIE_Standalone) || RunUnderOneProcess; }
+	bool IsPlayNumberOfClientsActive() const { return true; }
 	bool GetPlayNumberOfClients( int32 &OutPlayNumberOfClients ) const { OutPlayNumberOfClients = PlayNumberOfClients; return IsPlayNumberOfClientsActive(); }
 
 	void SetServerPort(const uint16 InServerPort) { ServerPort = InServerPort; }
@@ -539,6 +539,7 @@ public:
 	// UObject interface
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostInitProperties() override;
+	virtual bool CanEditChange(const UProperty* InProperty) const override;
 	// End of UObject interface
 
 #if WITH_EDITOR

@@ -89,7 +89,7 @@ void UEditorEngine::LaunchNewProcess(const FRequestPlaySessionParams& InParams, 
 	if (bIsDedicatedServer)
 	{
 		// Allow server specific launch parameters. Only works with separate process standalone servers.
-		CommandLine += FString::Printf(TEXT(" %s"), *InParams.EditorPlaySettings->AdditionalServerLaunchParmeters);
+		CommandLine += FString::Printf(TEXT(" %s"), *InParams.EditorPlaySettings->AdditionalServerLaunchParameters);
 	}
 
 	// If they're not a host, configure the URL Params to connect to the server (instead of a specifying a map later)

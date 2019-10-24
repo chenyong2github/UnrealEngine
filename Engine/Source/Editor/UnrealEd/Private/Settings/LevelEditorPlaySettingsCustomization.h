@@ -760,7 +760,7 @@ private:
 				}
 				else
 				{
-					Desc += FText::Format(LOCTEXT("MultiplayerDescription_StandaloneAndClients", "The editor will run offline and {0} additional offline mode window(s) will also connect to it. "), FText::AsNumber(PlayNumberOfClients - 1)).ToString();
+					Desc += FText::Format(LOCTEXT("MultiplayerDescription_StandaloneAndClients", "The editor will run offline and {0} additional offline mode window(s) will also open. "), FText::AsNumber(PlayNumberOfClients - 1)).ToString();
 				}
 
 				if (bLaunchSeparateServer)
@@ -780,7 +780,7 @@ private:
 				}
 				else
 				{
-					Desc += FText::Format(LOCTEXT("MultiplayerDescription_StandaloneAndClients", "The editor will run offline and {0} additional offline mode window(s) will also connect to it. "), FText::AsNumber(PlayNumberOfClients - 1)).ToString();
+					Desc += FText::Format(LOCTEXT("MultiplayerDescription_StandaloneAndClients", "The editor will run offline and {0} additional offline mode window(s) will also open. "), FText::AsNumber(PlayNumberOfClients - 1)).ToString();
 				}
 
 				if (bLaunchSeparateServer)

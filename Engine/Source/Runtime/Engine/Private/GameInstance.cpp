@@ -202,6 +202,35 @@ void UGameInstance::CreateMinimalNetRPCWorld(const FName InPackageName, UPackage
 }
 
 #if WITH_EDITOR
+static ENetMode GetNetModeFromPlayNetMode(const EPlayNetMode InPlayNetMode, const bool bInDedicatedServer)
+{
+	switch (InPlayNetMode)
+	{
+		case EPlayNetMode::PIE_Client:
+		{
+			return NM_Client;
+		}
+		case EPlayNetMode::PIE_ListenServer:
+		{
+			if (bInDedicatedServer)
+			{
+				return NM_DedicatedServer;
+			}
+
+			return NM_ListenServer;
+		}
+		case EPlayNetMode::PIE_Standalone:
+		{
+			return NM_Standalone;
+		}
+		default:
+		{
+			break;
+		}
+	}
+
+	return NM_Standalone;
+}
 
 FGameInstancePIEResult UGameInstance::InitializeForPlayInEditor(int32 PIEInstanceIndex, const FGameInstancePIEParameters& Params)
 {
@@ -255,6 +284,7 @@ FGameInstancePIEResult UGameInstance::InitializeForPlayInEditor(int32 PIEInstanc
 		return FGameInstancePIEResult::Failure(NSLOCTEXT("UnrealEd", "Error_FailedCreateEditorPreviewWorld", "Failed to create editor preview world."));
 	}
 
+	NewWorld->SetPlayInEditorInitialNetMode(GetNetModeFromPlayNetMode(Params.NetMode, Params.bRunAsDedicated));
 	NewWorld->SetGameInstance(this);
 	WorldContext->SetCurrentWorld(NewWorld);
 	WorldContext->AddRef(EditorEngine->PlayWorld);	// Tie this context to this UEngine::PlayWorld*		// @fixme, needed still?
