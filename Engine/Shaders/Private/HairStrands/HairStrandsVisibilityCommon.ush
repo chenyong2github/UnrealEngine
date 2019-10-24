@@ -328,3 +328,25 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
 	 Info.VelocityMagnitudeScale = ViewHairRenderInfo.w;
 	 return Info;
  }
+
+ struct FHairAttributes
+ {
+	 float2 RootUV;
+	 float	Seed;
+	 float	UCoord;
+ };
+
+ FHairAttributes DecodeHairAttribute(uint4 Attributes)
+ {
+	 float2 RootUV, RootIndex;
+	 RootUV.x		= (Attributes.x & 0xFF) / 255.f;
+	 RootUV.y		= ((Attributes.x>>8) & 0xFF) / 255.f;
+	 RootIndex.x	= Attributes.z & 0xFF;
+	 RootIndex.y	= (Attributes.z >> 8) & 0xFF;
+
+	 FHairAttributes Out;
+	 Out.RootUV		= RootUV + RootIndex;
+	 Out.UCoord		= (Attributes.y & 0xFF) / 255.f;
+	 Out.Seed		= ((Attributes.y>>8) & 0xFF) / 255.f;
+	 return Out;
+ }

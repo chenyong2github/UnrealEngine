@@ -253,6 +253,7 @@ public:
 			case EHairStrandsDebugMode::RenderHairSeed				: DebugModeScalar = 3.f; break;
 			case EHairStrandsDebugMode::RenderHairDimension			: DebugModeScalar = 4.f; break;
 			case EHairStrandsDebugMode::RenderHairRadiusVariation	: DebugModeScalar = 5.f; break;
+			case EHairStrandsDebugMode::RenderHairRootUDIM			: DebugModeScalar = 6.f; break;
 			};
 
 			float HairMinRadius = FLT_MAX;

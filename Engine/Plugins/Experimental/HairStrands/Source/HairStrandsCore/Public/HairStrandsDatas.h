@@ -27,6 +27,11 @@ struct FPackedHairAttributeVertex
 	uint8 UCoord;
 	uint8 Seed;
 
+	uint8 IndexU;
+	uint8 IndexV;
+	uint8 Unused0;
+	uint8 Unused1;
+
 	friend FArchive& operator<<(FArchive& Ar, FPackedHairAttributeVertex& Vertex);
 };
 
@@ -74,8 +79,8 @@ struct FHairStrandsAttributeFormat
 	typedef FPackedHairAttributeVertex Type;
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
-	static const EVertexElementType VertexElementType = VET_UByte4;
-	static const EPixelFormat Format = PF_R8G8B8A8;
+	static const EVertexElementType VertexElementType = VET_UShort4;
+	static const EPixelFormat Format = PF_R16G16B16A16_UINT;
 };
 
 struct FHairStrandsTangentFormat
@@ -291,8 +296,8 @@ struct HAIRSTRANDSCORE_API FHairStrandsCurves
 	/** Normalized length relative to the max one */
 	TArray<float> CurvesLength; // [0..1]
 
-	/** Roots UV in the bounding sphere */
-	TArray<FVector2D> CurvesRootUV; // [0..1]
+	/** Roots UV. Support UDIM coordinate up to 256x256 */
+	TArray<FVector2D> CurvesRootUV; // [0..256]
 
 	/** Max strands Curves length */
 	float MaxLength = 0;
