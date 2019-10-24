@@ -99,6 +99,20 @@ namespace AudioModulation
 	}
 
 #if WITH_EDITOR
+	void FAudioModulationImpl::EndPreviewSession()
+	{
+		PreviewSound = nullptr;
+		PreviewSettings = FModulationSettingsProxy();
+
+		SoundSettings.Reset();
+
+		ActiveBuses.Reset();
+		ActiveBusMixes.Reset();
+		ActiveLFOs.Reset();
+
+		UE_LOG(LogAudioModulation, Verbose, TEXT("Releasing all modulation proxies: Sound preview session has ended."));
+	}
+
 	void FAudioModulationImpl::OnEditPluginSettings(const USoundModulationPluginSourceSettingsBase& InSettings)
 	{
 		// Find if sound is being referenced and auditioned and stop immediately.
@@ -161,8 +175,7 @@ namespace AudioModulation
 			if (bShouldStop)
 			{
 				PreviewSound->Stop();
-				PreviewSound = nullptr;
-				PreviewSettings = FModulationSettingsProxy();
+				EndPreviewSession();
 			}
 			else
 			{
@@ -196,8 +209,16 @@ namespace AudioModulation
 #if WITH_EDITOR
 		if (InSound.IsPreviewSound())
 		{
+			EndPreviewSession();
 			PreviewSound = &InSound;
 			PreviewSettings = FModulationSettingsProxy(*Settings);
+		}
+		// If currently previewing, activation/deactivation is by-passing
+		// auto-activation system and always activating/deactivating,
+		// so ignore requests from non-preview to avoid mixed state.
+		else if (PreviewSound)
+		{
+			return;
 		}
 #endif // WITH_EDITOR
 
@@ -209,10 +230,7 @@ namespace AudioModulation
 
 		for (const USoundControlBusMix* Mix : Settings->Mixes)
 		{
-			if (Mix && (Mix->bAutoActivate || InSound.IsPreviewSound()))
-			{
-				ActivateBusMix(*Mix, &InSound);
-			}
+			ActivateBusMix(*Mix, &InSound);
 		}
 
 		auto CheckRefActivate = [this, &InSound](const USoundControlBusBase* Bus)
@@ -222,20 +240,14 @@ namespace AudioModulation
 				return;
 			}
 
-			if (Bus->bAutoActivate || InSound.IsPreviewSound())
-			{
-				ActivateBus(*Bus, &InSound);
-			}
+			ActivateBus(*Bus, &InSound);
 
 			for (const USoundBusModulatorBase* Modulator : Bus->Modulators)
 			{
 				if (const USoundBusModulatorLFO* LFO = Cast<USoundBusModulatorLFO>(Modulator))
 				{
-					if (LFO->bAutoActivate || InSound.IsPreviewSound())
-					{
-						FModulatorLFOProxy LFOProxy(*LFO);
-						ActivateLFO(*LFO, &InSound);
-					}
+					FModulatorLFOProxy LFOProxy(*LFO);
+					ActivateLFO(*LFO, &InSound);
 				}
 			}
 		};
@@ -286,6 +298,20 @@ namespace AudioModulation
 		check(IsInAudioThread());
 		check(InSound.GetObjectId() != INDEX_NONE);
 
+#if WITH_EDITOR
+		// If previewing, don't attempt to deactivate anything, leaving
+		// all modulation proxies active until end of session, at which
+		// point all will be reset.
+		if (PreviewSound)
+		{
+			if (&InSound == PreviewSound)
+			{
+				EndPreviewSession();
+			}
+			return;
+		}
+#endif // WITH_EDITOR
+
 		// Settings can be null if sound settings were modified via the editor while auditioning or in PIE
 		if (const FModulationSettingsProxy* Settings = SoundSettings.Find(InSound.GetObjectId()))
 		{
@@ -321,15 +347,12 @@ namespace AudioModulation
 					DeactivateBus(Input.BusId, &InSound);
 				}
 			}
-		}
 
-#if WITH_EDITOR
-		if (InSound.IsPreviewSound() && &InSound == PreviewSound)
-		{
-			PreviewSound = nullptr;
-			PreviewSettings = FModulationSettingsProxy();
+			if (InSound.GetPlayCount() == 0)
+			{
+				SoundSettings.Remove(InSound.GetObjectId());
+			}
 		}
-#endif // WITH_EDITOR
 	}
 
 #if !UE_BUILD_SHIPPING
@@ -542,6 +565,13 @@ namespace AudioModulation
 
 			if (FControlBusProxy* Bus = ActiveBuses.Find(InBusId))
 			{
+				// Only pass along to referenced LFOs if deactivating
+				// via notification of sound release
+				for (FLFOId LFOId : Bus->GetLFOIds())
+				{
+					DeactivateLFO(LFOId, InSound);
+				}
+
 				if (!InSound)
 				{
 					if (!Bus->GetAutoActivate())
@@ -554,16 +584,6 @@ namespace AudioModulation
 					if (Bus->GetAutoActivate())
 					{
 						ActiveBuses.Remove(InBusId);
-					}
-				}
-
-				// Only pass along to referenced LFOs if deactivating
-				// via notification of sound release
-				if (InSound)
-				{
-					for (FLFOId LFOId : Bus->GetLFOIds())
-					{
-						DeactivateLFO(LFOId, InSound);
 					}
 				}
 			}
@@ -582,14 +602,14 @@ namespace AudioModulation
 				{
 					if (!LFO->GetAutoActivate())
 					{
-						ActiveBuses.Remove(InLFOId);
+						ActiveLFOs.Remove(InLFOId);
 					}
 				}
 				else if (LFO->OnReleaseSound(*InSound) == 0)
 				{
 					if (LFO->GetAutoActivate())
 					{
-						ActiveBuses.Remove(InLFOId);
+						ActiveLFOs.Remove(InLFOId);
 					}
 				}
 			}
