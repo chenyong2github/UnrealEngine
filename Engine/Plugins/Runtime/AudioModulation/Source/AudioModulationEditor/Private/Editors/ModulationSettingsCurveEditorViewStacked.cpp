@@ -57,7 +57,7 @@ void FModCurveEditorModel::Refresh(EModSettingsEditorCurveOutput InCurveOutput, 
 		case EModSettingsEditorCurveOutput::Highpass:
 		{
 			Color = FAudioModulationStyle::GetHPFBusColor();
-			ShortNameBase = LOCTEXT("ModulationOutputPitchBus", "Highpass");
+			ShortNameBase = LOCTEXT("ModulationOutputHPFBus", "Highpass");
 			IntentionName = TEXT("AudioHPFFreq");
 		}
 		break;
@@ -65,7 +65,7 @@ void FModCurveEditorModel::Refresh(EModSettingsEditorCurveOutput InCurveOutput, 
 		case EModSettingsEditorCurveOutput::Lowpass:
 		{
 			Color = FAudioModulationStyle::GetLPFBusColor();
-			ShortNameBase = LOCTEXT("ModulationOutputPitchBus", "Lowpass");
+			ShortNameBase = LOCTEXT("ModulationOutputLPFBus", "Lowpass");
 			IntentionName = TEXT("AudioLPFFreq");
 		}
 		break;
@@ -106,7 +106,7 @@ void FModCurveEditorModel::Refresh(EModSettingsEditorCurveOutput InCurveOutput, 
 		default:
 		{
 			bKeyDrawEnabled = 0;
-			ShortDisplayName = FText::Format(LOCTEXT("ModulationOutputCurveExpressionDisplayName", "{0} (Shared - Unset)"), ShortNameBase);
+			ShortDisplayName = FText::Format(LOCTEXT("ModulationOutputCurveUnsetDisplayName", "{0} (Shared - Unset)"), ShortNameBase);
 		}
 	}
 }
