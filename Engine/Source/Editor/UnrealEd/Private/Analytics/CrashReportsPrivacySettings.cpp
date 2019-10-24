@@ -5,6 +5,7 @@
 #include "Interfaces/IAnalyticsProvider.h"
 #include "EngineAnalytics.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/CoreDelegates.h"
 
 #define LOCTEXT_NAMESPACE "CrashReportsPrivacySettings"
 
@@ -18,7 +19,7 @@ UCrashReportsPrivacySettings::UCrashReportsPrivacySettings(const FObjectInitiali
 	}
 }
 
-void UCrashReportsPrivacySettings::GetToogleCategoryAndPropertyNames(FName& OutCategory, FName& OutProperty) const
+void UCrashReportsPrivacySettings::GetToggleCategoryAndPropertyNames(FName& OutCategory, FName& OutProperty) const
 {
 	OutCategory = FName("Options");
 	OutProperty = FName("bSendUnattendedBugReports");
@@ -63,5 +64,21 @@ FText UCrashReportsPrivacySettings::GetAdditionalInfoUrlLabel() const
 {
 	return LOCTEXT("HyperlinkLabel", "Epic Games Privacy Policy");
 };
+
+#if WITH_EDITOR
+void UCrashReportsPrivacySettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	const FName PropertyName = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UCrashReportsPrivacySettings, bSendUnattendedBugReports))
+	{
+		FCrashOverrideParameters Params;
+		Params.bSetCrashReportClientMessageText = false;
+		Params.bSetGameNameSuffix = false;
+		Params.SendUnattendedBugReports = bSendUnattendedBugReports;
+
+		FCoreDelegates::CrashOverrideParamsChanged.Broadcast(Params);
+	}
+}
+#endif
 
 #undef LOCTEXT_NAMESPACE
