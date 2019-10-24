@@ -493,6 +493,20 @@ static void ParseObject(const Alembic::Abc::IObject& InObject, FHairDescription&
 		{
 			AlembicHairTranslatorUtils::ConvertAlembicAttributes(HairDescription, StartStrandID, NumCurves, StartVertexID, NumPoints, ArbParams);
 		}
+
+		if (bCheckGroomAttributes)
+		{
+			// Groom attributes as UserProperties on ICurves, 1.3+
+			Alembic::AbcGeom::ICompoundProperty Properties = Curves.getSchema().getUserProperties();
+			if (Properties)
+			{
+				if (Properties.getNumProperties() > 0)
+				{
+					AlembicHairTranslatorUtils::SetGroomAttributes(HairDescription, Properties);
+					bCheckGroomAttributes = false;
+				}
+			}
+		}
 	}
 	else if (Alembic::AbcGeom::IXform::matches(ObjectMetaData))
 	{
