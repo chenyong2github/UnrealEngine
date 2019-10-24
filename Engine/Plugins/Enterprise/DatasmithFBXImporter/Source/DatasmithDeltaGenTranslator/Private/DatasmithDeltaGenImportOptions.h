@@ -28,9 +28,6 @@ class UDatasmithDeltaGenImportOptions : public UDatasmithFBXImportOptions
 	GENERATED_UCLASS_BODY()
 
 public:
-	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category=Processing, meta=(ToolTip="Merge nodes that are not used in variants/animations"))
-	bool bMergeNodes;
-
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = Processing, meta = (ToolTip = "Finds duplicated scene nodes which could be replaced with a single instance"))
 	bool bOptimizeDuplicatedNodes;
 
