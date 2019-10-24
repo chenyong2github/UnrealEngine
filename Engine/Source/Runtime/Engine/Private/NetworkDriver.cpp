@@ -448,6 +448,24 @@ void UNetDriver::AddNetworkActor(AActor* Actor)
 	}
 }
 
+void UNetDriver::SetRoleSwapOnReplicate(AActor* Actor, bool bSwapRoles)
+{
+	TSharedPtr<FNetworkObjectInfo> InfoPtr = GetNetworkObjectList().Find(Actor);
+	if (InfoPtr.IsValid())
+	{
+		InfoPtr->bSwapRolesOnReplicate = bSwapRoles;
+	}
+	else
+	{
+		UE_LOG(LogNet, Warning, TEXT("SetRoleSwapOnReplicate could not find network object info for: %s"), *GetFullNameSafe(Actor));
+	}
+
+	if (ReplicationDriver)
+	{
+		ReplicationDriver->SetRoleSwapOnReplicate(Actor, bSwapRoles);
+	}
+}
+
 FNetworkObjectInfo* UNetDriver::FindOrAddNetworkObjectInfo(const AActor* InActor)
 {
 	ensureMsgf(InActor == nullptr || !(InActor->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject)), TEXT("%s is a CDO or Archetype and should not be replicated."), *GetFullNameSafe(InActor));
@@ -4162,6 +4180,12 @@ int32 UNetDriver::ServerReplicateActors_ProcessPrioritizedActors( UNetConnection
 			if ( bIsRecentlyRelevant )
 			{
 				FinalRelevantCount++;
+
+				TOptional<FScopedActorRoleSwap> SwapGuard;
+				if (ActorInfo->bSwapRolesOnReplicate)
+				{
+					SwapGuard = FScopedActorRoleSwap(Actor);
+				}
 
 				// Find or create the channel for this actor.
 				// we can't create the channel if the client is in a different world than we are

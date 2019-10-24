@@ -52,6 +52,9 @@ struct FNetworkObjectInfo
 	/** Should this object be considered for replay checkpoint writes */
 	uint8 bDirtyForReplay : 1;
 
+	/** Should channel swap roles while calling ReplicateActor */
+	uint8 bSwapRolesOnReplicate : 1;
+
 	/** Force this object to be considered relevant for at least one update */
 	uint32 ForceRelevantFrame = 0;
 
@@ -63,7 +66,8 @@ struct FNetworkObjectInfo
 		, LastNetUpdateTime(0.0f)
 		, bPendingNetUpdate(false)
 		, bForceRelevantNextUpdate(false)
-		, bDirtyForReplay(false) {}
+		, bDirtyForReplay(false)
+		, bSwapRolesOnReplicate(false) {}
 
 	FNetworkObjectInfo(AActor* InActor)
 		: Actor(InActor)
@@ -74,7 +78,8 @@ struct FNetworkObjectInfo
 		, LastNetUpdateTime(0.0f)
 		, bPendingNetUpdate(false)
 		, bForceRelevantNextUpdate(false)
-		, bDirtyForReplay(false) {}
+		, bDirtyForReplay(false)
+		, bSwapRolesOnReplicate(false) {}
 
 	void CountBytes(FArchive& Ar) const;
 };
