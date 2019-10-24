@@ -72,6 +72,63 @@ Buffer<float4> HairStrandsVF_TangentBuffer;
 #define FPositionOnlyVertexFactoryInput FVertexFactoryInput
 #define FPositionAndNormalOnlyVertexFactoryInput FVertexFactoryInput
 
+struct FHairVertexAttributes
+{
+	float2 HairUV;
+	float2 HairRootUV;
+	float2 HairDimensions;
+	float3 HairBaseColor;
+	float  HairSeed;
+	float  HairRoughness;
+	float  HairSpecular;
+};
+
+FHairVertexAttributes GetHairStrandsAttributes(uint HairPrimitiveId, float2 VertexUV)
+{
+	const uint VertexId0 = HairPrimitiveId;
+	const uint VertexId1 = HairPrimitiveId+1;
+
+	// Instead of doing the actual interpolation we could rely on dithering as an optimization
+	const FHairAttributes Attributes0 = DecodeHairAttribute(HairStrandsVF_AttributeBuffer[VertexId0]);
+	const FHairAttributes Attributes1 = DecodeHairAttribute(HairStrandsVF_AttributeBuffer[VertexId1]);
+
+	const uint4 PackedData = HairStrandsVF_PositionBuffer[VertexId0];
+	const uint PackedAlpha = asuint(PackedData.a);
+	const float WorldRadius = ((PackedAlpha & 0x00FC) >> 2) / 63.f * HairStrandsVF_Radius;
+	const float WorldLength = ((PackedAlpha & 0xFF00) >> 8) / 255.f * HairStrandsVF_Length;
+
+	FHairVertexAttributes Out;
+	// Constant along the strand
+	Out.HairDimensions	= float2(WorldLength, WorldRadius);
+	Out.HairSeed		= Attributes0.Seed;
+	Out.HairRootUV		= Attributes0.RootUV;
+
+	// Varying along the strand
+	Out.HairUV.y		= VertexUV.y;
+	Out.HairUV.x		= lerp(Attributes0.UCoord, Attributes1.UCoord, VertexUV.x);
+	return Out; 
+}
+
+float2 GetHairStrandsUV(uint HairPrimitiveId, float2 HairPrimitiveUV)
+{
+	return GetHairStrandsAttributes(HairPrimitiveId, HairPrimitiveUV).HairUV;
+}
+
+float2 GetHairStrandsDimensions(uint HairPrimitiveId, float2 HairPrimitiveUV)
+{
+	return GetHairStrandsAttributes(HairPrimitiveId, HairPrimitiveUV).HairDimensions;
+}
+
+float2 GetHairStrandsRootUV(uint HairPrimitiveId, float2 HairPrimitiveUV)
+{
+	return GetHairStrandsAttributes(HairPrimitiveId, HairPrimitiveUV).HairRootUV;
+}
+
+float  GetHairStrandsSeed(uint HairPrimitiveId, float2 HairPrimitiveUV)
+{
+	return GetHairStrandsAttributes(HairPrimitiveId, HairPrimitiveUV).HairSeed;
+}
+
 struct FVertexFactoryInput
 {
 #if VF_USE_PRIMITIVE_SCENE_DATA
@@ -106,10 +163,8 @@ struct FVertexFactoryIntermediates
 	half TangentToWorldSign;
 	uint PrimitiveId;
 	uint   HairPrimitiveId;
-	float2 HairDimensions;
-	float2 HairUV;
-	float2 HairRootUV;
-	float  HairSeed;
+	float2 HairPrimitiveUV;
+	float2 HairDimensions;  // This is kept on the intermediate as this is used in several vertex shader for the actual coverage.
 	float  HairDensity;
 };
 
@@ -131,10 +186,7 @@ struct FControlPoint
 {
 	float3 Position;
 	float  WorldRadius;
-	float  UCoord;
 	float  WorldLength;
-	float  Seed;
-	float2 RootUV;
 };
 
 FControlPoint GetVertexPosition(FVertexFactoryInput Input)
@@ -155,13 +207,19 @@ FControlPoint GetVertexPosition(FVertexFactoryInput Input)
 	// Create a degenerated quad the end of each strand to cut between each strands
 	// #hair_todo: This is not efficient for short strand like fur for instance. Need to revisit that at some point
 	const bool bIsInvalidQuad = (ControlPointType == 1 && OffsetIndex == 1) || (ControlPointType == 2 && OffsetIndex == 0);
-	const FHairAttributes Attributes = DecodeHairAttribute(HairStrandsVF_AttributeBuffer[BaseIndex + OffsetIndex]);
-	Output.Position				= bIsInvalidQuad ? float3(1.#INF, 1.#INF, 1.#INF) : ControlPoint;
-	Output.RootUV				= Attributes.RootUV;
-	Output.UCoord				= Attributes.UCoord;
-	Output.Seed					= Attributes.Seed;
+	Output.Position = bIsInvalidQuad ? float3(1.#INF, 1.#INF, 1.#INF) : ControlPoint;
 
 	return Output;
+}
+
+float GetWorldStrandRadius(FVertexFactoryInput Input)
+{
+	return GetVertexPosition(Input).WorldRadius;
+}
+
+float GetWorldStrandLength(FVertexFactoryInput Input)
+{
+	return GetVertexPosition(Input).WorldLength;
 }
 
 float3 GetVertexPreviousPosition(FVertexFactoryInput Input)
@@ -183,36 +241,12 @@ float3 GetVertexPreviousPosition(FVertexFactoryInput Input)
 	return Position;
 }
 
-float GetWorldStrandRadius(FVertexFactoryInput Input)
-{
-	return GetVertexPosition(Input).WorldRadius;
-}
-
-float GetUCoord(FVertexFactoryInput Input)
-{
-	return GetVertexPosition(Input).UCoord;
-}
 
 float GetVCoord(FVertexFactoryInput Input)
 {
 	const uint QuadIndex = Input.VertexId % 6;
 	const float VCoord = QuadIndex == 0 || QuadIndex == 1 || QuadIndex == 5 ? 0.0f : 1.0f;
 	return VCoord;
-}
-
-float GetWorldStrandLength(FVertexFactoryInput Input)
-{
-	return GetVertexPosition(Input).WorldLength;
-}
-
-float GetHairSeed(FVertexFactoryInput Input)
-{
-	return GetVertexPosition(Input).Seed;
-}
-
-float2 GetHairRootUV(FVertexFactoryInput Input)
-{
-	return GetVertexPosition(Input).RootUV;
 }
 
 /** Converts from vertex factory specific interpolants to a FMaterialPixelParameters, which is used by material inputs. */
@@ -236,10 +270,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 	Result.TwoSidedSign = 1;
 	Result.PrimitiveId = GetPrimitiveId(Interpolants);
 	Result.HairPrimitiveId = Interpolants.HairPrimitiveId;
-	Result.HairDimensions = Interpolants.HairDimensions;
-	Result.HairUV = Interpolants.HairUV;
-	Result.HairRootUV = Interpolants.HairRootUV;
-	Result.HairSeed = Interpolants.HairSeed;
+	Result.HairPrimitiveUV = float2(Interpolants.HairPrimitiveUV);
 
 #if COMPILER_SUPPORTS_TO_SCALAR_MEMORY
 	Result.PrimitiveId = ToScalarMemory(Result.PrimitiveId);
@@ -331,13 +362,11 @@ float3 GetTangent(FVertexFactoryInput Input)
 FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
 {
 	FVertexFactoryIntermediates Intermediates;
-	Intermediates.PrimitiveId = GetPrimitiveId(Input);
-	Intermediates.HairPrimitiveId = GetHairPrimitiveId(Input);
-	Intermediates.HairDimensions = float2(GetWorldStrandLength(Input), GetWorldStrandRadius(Input));
-	Intermediates.HairUV = float2(GetUCoord(Input), GetVCoord(Input));
-	Intermediates.HairDensity = HairStrandsVF_Density;
-	Intermediates.HairSeed = GetHairSeed(Input);
-	Intermediates.HairRootUV = GetHairRootUV(Input);
+	Intermediates.PrimitiveId		= GetPrimitiveId(Input);
+	Intermediates.HairPrimitiveId	= GetHairPrimitiveId(Input);
+	Intermediates.HairPrimitiveUV	= float2(0 /*TODO*/, GetVCoord(Input));
+	Intermediates.HairDensity		= HairStrandsVF_Density;
+	Intermediates.HairDimensions	= float2(GetWorldStrandLength(Input), GetWorldStrandRadius(Input));
 
 	float TangentSign;
 	Intermediates.TangentToLocal = CalcTangentToLocal(Input, TangentSign);
@@ -418,10 +447,7 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 #endif
 	
 	Interpolants.HairPrimitiveId = GetHairPrimitiveId(Input);
-	Interpolants.HairDimensions = float2(GetWorldStrandLength(Input), GetWorldStrandRadius(Input));
-	Interpolants.HairUV = float2(GetUCoord(Input), GetVCoord(Input));
-	Interpolants.HairSeed = GetHairSeed(Input);
-	Interpolants.HairRootUV = GetHairRootUV(Input);
+	Interpolants.HairPrimitiveUV = float2(0/*TODO*/, GetVCoord(Input));
 	SetPrimitiveId(Interpolants, Intermediates.PrimitiveId);
 
 	return Interpolants;

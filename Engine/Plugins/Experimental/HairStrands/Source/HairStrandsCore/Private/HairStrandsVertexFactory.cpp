@@ -189,6 +189,11 @@ FVertexFactoryShaderParameters* FHairStrandsVertexFactory::ConstructShaderParame
 		return new FHairStrandsVertexFactoryShaderParameters();
 	}
 
+	if (ShaderFrequency == SF_Pixel)
+	{
+		return new FHairStrandsVertexFactoryShaderParameters();
+	}
+
 #if RHI_RAYTRACING
 	if (ShaderFrequency == SF_RayHitGroup)
 	{
