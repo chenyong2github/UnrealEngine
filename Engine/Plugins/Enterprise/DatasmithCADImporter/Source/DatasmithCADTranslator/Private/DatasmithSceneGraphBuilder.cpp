@@ -793,7 +793,6 @@ TSharedPtr<IDatasmithMaterialIDElement> FDatasmithSceneGraphBuilder::FindOrAddMa
 		{
 			DatasmithScene->AddMaterial(MaterialElement);
 			MaterialUuidMap.Add(MaterialUuid, MaterialElement);
-			DatasmithScene->AddMaterial(MaterialElement);
 		}
 	}
 
